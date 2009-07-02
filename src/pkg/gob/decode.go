@@ -94,8 +94,8 @@ func decBool(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(bool));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := int(DecodeInt(state));
 	if state.err == nil {
@@ -107,8 +107,8 @@ func decInt(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := int(DecodeInt(state));
 	if state.err == nil {
@@ -120,8 +120,8 @@ func decUint(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := uint(DecodeUint(state));
 	if state.err == nil {
@@ -133,8 +133,8 @@ func decInt8(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int8));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := int8(DecodeInt(state));
 	if state.err == nil {
@@ -146,8 +146,8 @@ func decUint8(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint8));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := uint8(DecodeUint(state));
 	if state.err == nil {
@@ -159,8 +159,8 @@ func decInt16(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int16));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := int16(DecodeInt(state));
 	if state.err == nil {
@@ -172,8 +172,8 @@ func decUint16(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint16));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := uint16(DecodeUint(state));
 	if state.err == nil {
@@ -185,8 +185,8 @@ func decInt32(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int32));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := int32(DecodeInt(state));
 	if state.err == nil {
@@ -198,8 +198,8 @@ func decUint32(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint32));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := uint32(DecodeUint(state));
 	if state.err == nil {
@@ -211,8 +211,8 @@ func decInt64(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int64));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := int64(DecodeInt(state));
 	if state.err == nil {
@@ -224,8 +224,8 @@ func decUint64(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint64));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := uint64(DecodeUint(state));
 	if state.err == nil {
@@ -252,8 +252,8 @@ func decFloat(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(float));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := float(floatFromBits(uint64(DecodeUint(state))));
 	if state.err == nil {
@@ -265,8 +265,8 @@ func decFloat32(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(float32));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := float32(floatFromBits(uint64(DecodeUint(state))));
 	if state.err == nil {
@@ -278,8 +278,8 @@ func decFloat64(i *decInstr, state *DecState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(float64));
-			p = *(*unsafe.Pointer)(p);
 		}
+		p = *(*unsafe.Pointer)(p);
 	}
 	v := floatFromBits(uint64(DecodeUint(state)));
 	if state.err == nil {
