@@ -931,11 +931,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	}
 }
 
-type T1 struct {
-	a, b,c int
-}
 
 func TestEncode(t *testing.T) {
+	type T1 struct {
+		a, b,c int
+	}
 	t1 := &T1{17,18,-5};
 	b := new(bytes.Buffer);
 	Encode(b, t1);
@@ -943,5 +943,85 @@ func TestEncode(t *testing.T) {
 	Decode(b, &_t1);
 	if !reflect.DeepEqual(t1, &_t1) {
 		t.Errorf("encode expected %v got %v", *t1, _t1);
+	}
+}
+
+// These three structures have the same data with different indirections
+type T0 struct {
+	a int;
+	b int;
+	c int;
+	d int;
+}
+type T1 struct {
+	a int;
+	b *int;
+	c **int;
+	d ***int;
+}
+type T2 struct {
+	a ***int;
+	b **int;
+	c *int;
+	d int;
+}
+
+func TestAutoIndirection(t *testing.T) {
+	// First transfer t1, t2 into t0
+	var t1 T1;
+	t1.a = 17;
+	t1.b = new(int); *t1.b = 177;
+	t1.c = new(*int); *t1.c = new(int); **t1.c = 1777;
+	t1.d = new(**int); *t1.d = new(*int); **t1.d = new(int); ***t1.d = 17777;
+	b := new(bytes.Buffer);
+	Encode(b, t1);
+	var t0 T0;
+	Decode(b, &t0);
+	if t0.a != 17 || t0.b != 177 || t0.c != 1777 || t0.d != 17777 {
+		t.Errorf("t1->t0: expected {17 177 1777 17777}; got %v", t0);
+	}
+
+	var t2 T2;
+	t2.d = 17777;
+	t2.c = new(int); *t2.c = 1777;
+	t2.b = new(*int); *t2.b = new(int); **t2.b = 177;
+	t2.a = new(**int); *t2.a = new(*int); **t2.a = new(int); ***t2.a = 17;
+	b.Reset();
+	Encode(b, t2);
+	t0 = T0{};
+	Decode(b, &t0);
+	if t0.a != 17 || t0.b != 177 || t0.c != 1777 || t0.d != 17777 {
+		t.Errorf("t2->t0 expected {17 177 1777 17777}; got %v", t0);
+	}
+
+	// Now transfer t0 into t1
+	t0 = T0{17, 177, 1777, 17777};
+	b.Reset();
+	Encode(b, t0);
+	t1 = T1{};
+	Decode(b, &t1);
+	if t1.a != 17 || *t1.b != 177 || **t1.c != 1777 || ***t1.d != 17777 {
+		t.Errorf("t0->t1 expected {17 177 1777 17777}; got {%d %d %d %d}", t1.a, *t1.b, **t1.c, ***t1.d);
+	}
+
+	// Now transfer t0 into t2
+	b.Reset();
+	Encode(b, t0);
+	t2 = T2{};
+	Decode(b, &t2);
+	if ***t2.a != 17 || **t2.b != 177 || *t2.c != 1777 || t2.d != 17777 {
+		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.a, **t2.b, *t2.c, t2.d);
+	}
+
+	// Now do t2 again but without pre-allocated pointers.
+	b.Reset();
+	Encode(b, t0);
+	***t2.a = 0;
+	**t2.b = 0;
+	*t2.c = 0;
+	t2.d = 0;
+	Decode(b, &t2);
+	if ***t2.a != 17 || **t2.b != 177 || *t2.c != 1777 || t2.d != 17777 {
+		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.a, **t2.b, *t2.c, t2.d);
 	}
 }
