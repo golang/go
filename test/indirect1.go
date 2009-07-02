@@ -36,16 +36,16 @@ func f()
 	// it decides there are type errors.
 	x :=
 		len(m0)+
-		len(m1)+	// ERROR "illegal"
-		len(m2)+	// ERROR "illegal"
+		len(m1)+	// ERROR "illegal|must be"
+		len(m2)+	// ERROR "illegal|must be"
 		len(m3)+
-		len(m4)+	// ERROR "illegal"
+		len(m4)+	// ERROR "illegal|must be"
 
 		len(s0)+
-		len(s1)+	// ERROR "illegal"
-		len(s2)+	// ERROR "illegal"
+		len(s1)+	// ERROR "illegal|must be"
+		len(s2)+	// ERROR "illegal|must be"
 		len(s3)+
-		len(s4)+	// ERROR "illegal"
+		len(s4)+	// ERROR "illegal|must be"
 
 		len(a0)+
 		len(a1)+
@@ -56,14 +56,14 @@ func f()
 		cap(a2)+
 
 		len(b0)+
-		len(b1)+	// ERROR "illegal"
-		len(b2)+	// ERROR "illegal"
+		len(b1)+	// ERROR "illegal|must be"
+		len(b2)+	// ERROR "illegal|must be"
 		len(b3)+
-		len(b4)+	// ERROR "illegal"
+		len(b4)+	// ERROR "illegal|must be"
 
 		cap(b0)+
-		cap(b1)+	// ERROR "illegal"
-		cap(b2)+	// ERROR "illegal"
+		cap(b1)+	// ERROR "illegal|must be"
+		cap(b2)+	// ERROR "illegal|must be"
 		cap(b3)+
-		cap(b4);	// ERROR "illegal"
+		cap(b4);	// ERROR "illegal|must be"
 }
