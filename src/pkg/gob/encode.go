@@ -20,7 +20,6 @@ import (
 // 0 terminates the structure.
 type EncState struct {
 	w	io.Writer;
-	base	uintptr;	// the base address of the data structure being written
 	err	os.Error;	// error encountered during encoding;
 	fieldnum	int;	// the last field number written.
 	buf [16]byte;	// buffer used by the encoder; here to avoid allocation.
@@ -71,6 +70,15 @@ type encInstr struct {
 	offset	uintptr;	// offset in the structure of the field to encode
 }
 
+// Emit a field number and update the state to record its value for delta encoding.
+// If the instruction pointer is nil, do nothing
+func (state *EncState) update(instr *encInstr) {
+	if instr != nil {
+		EncodeUint(state, uint64(instr.field - state.fieldnum));
+		state.fieldnum = instr.field;
+	}
+}
+
 // Each encoder is responsible for handling any indirections associated
 // with the data structure.  If any pointer so reached is nil, no bytes are written.
 // If the data item is zero, no bytes are written.
@@ -90,99 +98,88 @@ func encIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
 func encBool(i *encInstr, state *EncState, p unsafe.Pointer) {
 	b := *(*bool)(p);
 	if b {
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeUint(state, 1);
-		state.fieldnum = i.field;
 	}
 }
 
 func encInt(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := int64(*(*int)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeInt(state, v);
-		state.fieldnum = i.field;
 	}
 }
 
 func encUint(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := uint64(*(*uint)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeUint(state, v);
-		state.fieldnum = i.field;
 	}
 }
 
 func encInt8(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := int64(*(*int8)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeInt(state, v);
-		state.fieldnum = i.field;
 	}
 }
 
 func encUint8(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := uint64(*(*uint8)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeUint(state, v);
-		state.fieldnum = i.field;
 	}
 }
 
 func encInt16(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := int64(*(*int16)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeInt(state, v);
-		state.fieldnum = i.field;
 	}
 }
 
 func encUint16(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := uint64(*(*uint16)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeUint(state, v);
-		state.fieldnum = i.field;
 	}
 }
 
 func encInt32(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := int64(*(*int32)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeInt(state, v);
-		state.fieldnum = i.field;
 	}
 }
 
 func encUint32(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := uint64(*(*uint32)(p));
 	if v != 0 {
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeUint(state, v);
-		state.fieldnum = i.field;
 	}
 }
 
 func encInt64(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := *(*int64)(p);
 	if v != 0 {
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeInt(state, v);
-		state.fieldnum = i.field;
 	}
 }
 
 func encUint64(i *encInstr, state *EncState, p unsafe.Pointer) {
 	v := *(*uint64)(p);
 	if v != 0 {
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeUint(state, v);
-		state.fieldnum = i.field;
 	}
 }
 
@@ -206,9 +203,8 @@ func encFloat(i *encInstr, state *EncState, p unsafe.Pointer) {
 	f := float(*(*float)(p));
 	if f != 0 {
 		v := floatBits(float64(f));
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeUint(state, v);
-		state.fieldnum = i.field;
 	}
 }
 
@@ -216,19 +212,17 @@ func encFloat32(i *encInstr, state *EncState, p unsafe.Pointer) {
 	f := float32(*(*float32)(p));
 	if f != 0 {
 		v := floatBits(float64(f));
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeUint(state, v);
-		state.fieldnum = i.field;
 	}
 }
 
 func encFloat64(i *encInstr, state *EncState, p unsafe.Pointer) {
 	f := *(*float64)(p);
 	if f != 0 {
+		state.update(i);
 		v := floatBits(f);
-		EncodeUint(state, uint64(i.field - state.fieldnum));
 		EncodeUint(state, v);
-		state.fieldnum = i.field;
 	}
 }
 
@@ -236,10 +230,9 @@ func encFloat64(i *encInstr, state *EncState, p unsafe.Pointer) {
 func encUint8Array(i *encInstr, state *EncState, p unsafe.Pointer) {
 	b := *(*[]byte)(p);
 	if len(b) > 0 {
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeUint(state, uint64(len(b)));
 		state.w.Write(b);
-		state.fieldnum = i.field;
 	}
 }
 
@@ -247,10 +240,9 @@ func encUint8Array(i *encInstr, state *EncState, p unsafe.Pointer) {
 func encString(i *encInstr, state *EncState, p unsafe.Pointer) {
 	s := *(*string)(p);
 	if len(s) > 0 {
-		EncodeUint(state, uint64(i.field - state.fieldnum));
+		state.update(i);
 		EncodeUint(state, uint64(len(s)));
 		io.WriteString(state.w, s);
-		state.fieldnum = i.field;
 	}
 }
 
@@ -267,14 +259,13 @@ type encEngine struct {
 	instr	[]encInstr
 }
 
-func (engine *encEngine) encodeStruct(w io.Writer, p uintptr) os.Error {
+func encodeStruct(engine *encEngine, w io.Writer, basep uintptr) os.Error {
 	state := new(EncState);
 	state.w = w;
-	state.base = p;
 	state.fieldnum = -1;
 	for i := 0; i < len(engine.instr); i++ {
 		instr := &engine.instr[i];
-		p := unsafe.Pointer(state.base+instr.offset);
+		p := unsafe.Pointer(basep+instr.offset);
 		if instr.indir > 0 {
 			if p = encIndirect(p, instr.indir); p == nil {
 				state.fieldnum = i;
@@ -285,6 +276,18 @@ func (engine *encEngine) encodeStruct(w io.Writer, p uintptr) os.Error {
 		if state.err != nil {
 			break
 		}
+	}
+	return state.err
+}
+
+func encodeArray(w io.Writer, p uintptr, op encOp, elemWid int, length int) os.Error {
+	state := new(EncState);
+	state.w = w;
+	state.fieldnum = -1;
+	EncodeUint(state, uint64(length));
+	for i := 0; i < length && state.err == nil; i++ {
+		op(nil, state, unsafe.Pointer(p));	// TODO(r): indir on elements
+		p += uintptr(elemWid);
 	}
 	return state.err
 }
@@ -316,18 +319,35 @@ func encOpFor(typ reflect.Type) encOp {
 		// Special cases
 		if typ.Kind() == reflect.ArrayKind {
 			atyp := typ.(reflect.ArrayType);
-			switch atyp.Elem().Kind() {
-			case reflect.Uint8Kind:
+			switch {
+			case atyp.Elem().Kind()  == reflect.Uint8Kind:
 				op = encUint8Array
+			case atyp.IsSlice():
+				// Slices have a header; we decode it to find the underlying array.
+				elemOp := encOpFor(atyp.Elem());
+				op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
+					slice := *(*reflect.SliceHeader)(p);
+					if slice.Len == 0 {
+						return
+					}
+					state.update(i);
+					state.err = encodeArray(state.w, slice.Data, elemOp, atyp.Elem().Size(), int(slice.Len));
+				};
+			case !atyp.IsSlice():
+				// True arrays have size in the type.
+				elemOp := encOpFor(atyp.Elem());
+				op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
+					state.update(i);
+					state.err = encodeArray(state.w, uintptr(p), elemOp, atyp.Elem().Size(), atyp.Len());
+				};
 			}
 		}
 		if typ.Kind() == reflect.StructKind {
 			// Generate a closure that calls out to the engine for the nested type.
 			engine := getEncEngine(typ);
 			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
-				EncodeUint(state, uint64(i.field - state.fieldnum));
-				state.err = engine.encodeStruct(state.w, uintptr(p));
-				state.fieldnum = i.field;
+				state.update(i);
+				state.err = encodeStruct(engine, state.w, uintptr(p));
 			};
 		}
 	}
@@ -394,5 +414,5 @@ func Encode(w io.Writer, e interface{}) os.Error {
 	typeLock.Lock();
 	engine := getEncEngine(rt);
 	typeLock.Unlock();
-	return engine.encodeStruct(w, uintptr(v.(reflect.StructValue).Addr()));
+	return encodeStruct(engine, w, uintptr(v.(reflect.StructValue).Addr()));
 }
