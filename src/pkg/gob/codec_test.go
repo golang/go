@@ -569,10 +569,14 @@ func TestScalarDecInstructions(t *testing.T) {
 
 
 func TestEncode(t *testing.T) {
+	type T2 struct {
+		t string
+	}
 	type T1 struct {
 		a, b,c int;
 		s string;
 		y []byte;
+		t *T2;
 	}
 	t1 := &T1{
 		a: 17,
@@ -580,6 +584,7 @@ func TestEncode(t *testing.T) {
 		c: -5,
 		s: "Now is the time",
 		y: strings.Bytes("hello, sailor"),
+		t: &T2{"this is T2"},
 	};
 	b := new(bytes.Buffer);
 	Encode(b, t1);

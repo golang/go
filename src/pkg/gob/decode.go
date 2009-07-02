@@ -279,6 +279,31 @@ type decEngine struct {
 	instr	[]decInstr
 }
 
+func (engine *decEngine) decodeStruct(r io.Reader, p uintptr) os.Error {
+	state := new(DecState);
+	state.r = r;
+	state.base = p;
+	state.fieldnum = -1;
+	for state.err == nil {
+		delta := int(DecodeUint(state));
+		if state.err != nil || delta == 0 {	// struct terminator is zero delta fieldnum
+			break
+		}
+		fieldnum := state.fieldnum + delta;
+		if fieldnum >= len(engine.instr) {
+			panicln("TODO(r): need to handle unknown data");
+		}
+		instr := &engine.instr[fieldnum];
+		p := unsafe.Pointer(state.base+instr.offset);
+		if instr.indir > 1 {
+			p = decIndirect(p, instr.indir);
+		}
+		instr.op(instr, state, p);
+		state.fieldnum = fieldnum;
+	}
+	return state.err
+}
+
 var decEngineMap = make(map[reflect.Type] *decEngine)
 var decOpMap = map[int] decOp {
 	 reflect.BoolKind: decBool,
@@ -298,6 +323,8 @@ var decOpMap = map[int] decOp {
 	 reflect.StringKind: decString,
 }
 
+func getDecEngine(rt reflect.Type) *decEngine
+
 func decOpFor(typ reflect.Type) decOp {
 	op, ok := decOpMap[typ.Kind()];
 	if !ok {
@@ -308,6 +335,13 @@ func decOpFor(typ reflect.Type) decOp {
 			case reflect.Uint8Kind:
 				op = decUint8Array
 			}
+		}
+		if typ.Kind() == reflect.StructKind {
+			// Generate a closure that calls out to the engine for the nested type.
+			engine := getDecEngine(typ);
+			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
+				state.err = engine.decodeStruct(state.r, uintptr(p))
+			};
 		}
 	}
 	if op == nil {
@@ -355,35 +389,6 @@ func getDecEngine(rt reflect.Type) *decEngine {
 	return engine;
 }
 
-func (engine *decEngine) decode(r io.Reader, v reflect.Value) os.Error {
-	sv, ok := v.(reflect.StructValue);
-	if !ok {
-		panicln("decoder can't handle non-struct values yet");
-	}
-	state := new(DecState);
-	state.r = r;
-	state.base = uintptr(sv.Addr());
-	state.fieldnum = -1;
-	for state.err == nil {
-		delta := int(DecodeUint(state));
-		if state.err != nil || delta == 0 {	// struct terminator is zero delta fieldnum
-			break
-		}
-		fieldnum := state.fieldnum + delta;
-		if fieldnum >= len(engine.instr) {
-			panicln("TODO(r): need to handle unknown data");
-		}
-		instr := &engine.instr[fieldnum];
-		p := unsafe.Pointer(state.base+instr.offset);
-		if instr.indir > 1 {
-			p = decIndirect(p, instr.indir);
-		}
-		instr.op(instr, state, p);
-		state.fieldnum = fieldnum;
-	}
-	return state.err
-}
-
 func Decode(r io.Reader, e interface{}) os.Error {
 	// Dereference down to the underlying object.
 	rt := reflect.Typeof(e);
@@ -396,8 +401,11 @@ func Decode(r io.Reader, e interface{}) os.Error {
 		rt = pt.Sub();
 		v = reflect.Indirect(v);
 	}
+	if v.Kind() != reflect.StructKind {
+		return os.ErrorString("decode can't handle " + v.Type().String())
+	}
 	typeLock.Lock();
 	engine := getDecEngine(rt);
 	typeLock.Unlock();
-	return engine.decode(r, v);
+	return engine.decodeStruct(r, uintptr(v.Addr()));
 }
