@@ -816,7 +816,7 @@ talph:
 						goto l0;
 					}
 					// 0xb7 · is used for internal names
-					if(!isalpharune(c) && !isdigitrune(c) && c != 0xb7)
+					if(!isalpharune(rune) && !isdigitrune(rune) && rune != 0xb7)
 						yyerror("invalid identifier character 0x%ux", rune);
 					break;
 				}
