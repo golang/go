@@ -9,5 +9,5 @@ package main
 import "fmt"
 
 func main() {
-	日本語 := 1;	// ERROR "identifier"
+	x⊛y := 1;	// ERROR "identifier"
 }
