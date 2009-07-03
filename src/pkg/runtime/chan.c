@@ -88,10 +88,6 @@ static	uint32	gcd(uint32, uint32);
 static	uint32	fastrand1(void);
 static	uint32	fastrand2(void);
 
-enum {
-	Structrnd = sizeof(uintptr)
-};
-
 // newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
 void
 sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
