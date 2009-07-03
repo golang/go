@@ -14,6 +14,21 @@ import (
 	"unsafe";
 )
 
+// Step through the indirections on a type to discover the base type.
+// Return the number of indirections.
+func indirect(t reflect.Type) (rt reflect.Type, count int) {
+	rt = t;
+	for {
+		pt, ok := rt.(reflect.PtrType);
+		if !ok {
+			break
+		}
+		rt = pt.Sub();
+		count++;
+	}
+	return;
+}
+
 // The global execution state of an instance of the encoder.
 // Field numbers are delta encoded and always increase. The field
 // number is initialized to -1 so 0 comes out as delta(1). A delta of
@@ -280,13 +295,21 @@ func encodeStruct(engine *encEngine, w io.Writer, basep uintptr) os.Error {
 	return state.err
 }
 
-func encodeArray(w io.Writer, p uintptr, op encOp, elemWid int, length int) os.Error {
+func encodeArray(w io.Writer, p uintptr, op encOp, elemWid int, length int, elemIndir int) os.Error {
 	state := new(EncState);
 	state.w = w;
 	state.fieldnum = -1;
 	EncodeUint(state, uint64(length));
 	for i := 0; i < length && state.err == nil; i++ {
-		op(nil, state, unsafe.Pointer(p));	// TODO(r): indir on elements
+		up := unsafe.Pointer(p);
+		if elemIndir > 0 {
+			if up = encIndirect(up, elemIndir); up == nil {
+				state.err = os.ErrorString("encodeArray: nil element");
+				break
+			}
+			p = uintptr(up);
+		}
+		op(nil, state, unsafe.Pointer(p));
 		p += uintptr(elemWid);
 	}
 	return state.err
@@ -325,20 +348,22 @@ func encOpFor(typ reflect.Type) encOp {
 			case atyp.IsSlice():
 				// Slices have a header; we decode it to find the underlying array.
 				elemOp := encOpFor(atyp.Elem());
+				_, indir := indirect(atyp.Elem());
 				op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
 					slice := *(*reflect.SliceHeader)(p);
 					if slice.Len == 0 {
 						return
 					}
 					state.update(i);
-					state.err = encodeArray(state.w, slice.Data, elemOp, atyp.Elem().Size(), int(slice.Len));
+					state.err = encodeArray(state.w, slice.Data, elemOp, atyp.Elem().Size(), int(slice.Len), indir);
 				};
 			case !atyp.IsSlice():
 				// True arrays have size in the type.
 				elemOp := encOpFor(atyp.Elem());
+				_, indir := indirect(atyp.Elem());
 				op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
 					state.update(i);
-					state.err = encodeArray(state.w, uintptr(p), elemOp, atyp.Elem().Size(), atyp.Len());
+					state.err = encodeArray(state.w, uintptr(p), elemOp, atyp.Elem().Size(), atyp.Len(), indir);
 				};
 			}
 		}
@@ -398,18 +423,13 @@ func getEncEngine(rt reflect.Type) *encEngine {
 
 func Encode(w io.Writer, e interface{}) os.Error {
 	// Dereference down to the underlying object.
-	rt := reflect.Typeof(e);
+	rt, indir := indirect(reflect.Typeof(e));
 	v := reflect.NewValue(e);
-	for {
-		pt, ok := rt.(reflect.PtrType);
-		if !ok {
-			break
-		}
-		rt = pt.Sub();
+	for i := 0; i < indir; i++ {
 		v = reflect.Indirect(v);
 	}
 	if v.Kind() != reflect.StructKind {
-		return os.ErrorString("decode can't handle " + v.Type().String())
+		return os.ErrorString("encode can't handle " + v.Type().String())
 	}
 	typeLock.Lock();
 	engine := getEncEngine(rt);
