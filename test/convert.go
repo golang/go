@@ -6,11 +6,10 @@
 
 package main
 
-import "unsafe"
+import "reflect"
 
 func typeof(x interface{}) string {
-	val, typ, indir := unsafe.Reflect(x);
-	return typ;
+	return reflect.Typeof(x).String();
 }
 
 func f() int {
