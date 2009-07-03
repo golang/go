@@ -610,7 +610,7 @@ loop:
 			goto nottop;
 		walkconv(n);
 		goto ret;
-	
+
 	case OCONVNOP:
 		goto ret;
 
@@ -2111,13 +2111,11 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
 	&& structnext(&peekl) != T
 	&& listnext(&peekr) == N
 	&& eqtypenoname(r->type, *nl)) {
-		// TODO(rsc): clumsy check for differently aligned structs.
-		// need to handle eventually, but this keeps us
-		// from inserting bugs
-		if(r->type->width != (*nl)->width) {
-			fprint(2, "oops: %T %d %T %d\n", r->type, r->type->width, (*nl), (*nl)->width);
-			yyerror("misaligned multiple return (6g's fault)");
-		}
+		// clumsy check for differently aligned structs.
+		// now that output structs are aligned separately
+		// from the input structs, should never happen.
+		if(r->type->width != (*nl)->width)
+			fatal("misaligned multiple return\n\t%T\n\t%T", r->type, *nl);
 		a = nodarg(*nl, fp);
 		a->type = r->type;
 		return convas(nod(OAS, a, r));
