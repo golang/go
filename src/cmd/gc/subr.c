@@ -327,7 +327,7 @@ algtype(Type *t)
 {
 	int a;
 
-	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN || t->etype == TFUNC)
+	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN || t->etype == TFUNC || t->etype == TMAP)
 		a = AMEM;	// just bytes (int, ptr, etc)
 	else if(t->etype == TSTRING)
 		a = ASTRING;	// string
