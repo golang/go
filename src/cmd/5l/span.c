@@ -849,8 +849,8 @@ oplook(Prog *p)
 		}
 		o = orange[r].stop; /* just generate an error */
 	}
-	if(0) {
-		print("oplook %A %d %d %d\n",
+	if(debug['O']) {
+		print("oplook %A %O %O %O\n",
 			(int)p->as, a1, a2, a3);
 		print("		%d %d\n", p->from.type, p->to.type);
 	}
