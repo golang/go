@@ -665,10 +665,6 @@ donothing(uint32 s, void *a, void *b)
 typedef	struct	hash	Hmap;
 static	int32	debug	= 0;
 
-enum {
-	Structrnd = sizeof(uintptr)
-};
-
 // newmap(keysize uint32, valsize uint32,
 //	keyalg uint32, valalg uint32,
 //	hint uint32) (hmap *map[any]any);

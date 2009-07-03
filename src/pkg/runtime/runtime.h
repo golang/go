@@ -258,6 +258,11 @@ enum
 	Amax
 };
 
+
+enum {
+	Structrnd = sizeof(uintptr)
+};
+
 /*
  * deferred subroutine calls
  */
