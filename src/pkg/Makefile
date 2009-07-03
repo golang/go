@@ -37,6 +37,7 @@ DIRS=\
 	go/printer\
 	go/scanner\
 	go/token\
+	gob\
 	hash\
 	hash/adler32\
 	hash/crc32\
@@ -89,6 +90,7 @@ TEST=\
 	fmt\
 	go/parser\
 	go/scanner\
+	gob\
 	hash/adler32\
 	hash/crc32\
 	http\
