@@ -525,7 +525,7 @@ func TestScalarDecInstructions(t *testing.T) {
 }
 
 
-func TestEncode(t *testing.T) {
+func TestEndToEnd(t *testing.T) {
 	type T2 struct {
 		t string
 	}
@@ -535,6 +535,7 @@ func TestEncode(t *testing.T) {
 		a, b,c int;
 		n *[3]float;
 		strs *[2]string;
+		int64s *[]int64;
 		s string;
 		y []byte;
 		t *T2;
@@ -545,6 +546,7 @@ func TestEncode(t *testing.T) {
 		c: -5,
 		n: &[3]float{1.5, 2.5, 3.5},
 		strs: &[2]string{s1, s2},
+		int64s: &[]int64{77, 89, 123412342134},
 		s: "Now is the time",
 		y: strings.Bytes("hello, sailor"),
 		t: &T2{"this is T2"},
