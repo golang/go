@@ -529,9 +529,12 @@ func TestEncode(t *testing.T) {
 	type T2 struct {
 		t string
 	}
+	s1 := "string1";
+	s2 := "string2";
 	type T1 struct {
 		a, b,c int;
 		n *[3]float;
+		strs *[2]string;
 		s string;
 		y []byte;
 		t *T2;
@@ -541,6 +544,7 @@ func TestEncode(t *testing.T) {
 		b: 18,
 		c: -5,
 		n: &[3]float{1.5, 2.5, 3.5},
+		strs: &[2]string{s1, s2},
 		s: "Now is the time",
 		y: strings.Bytes("hello, sailor"),
 		t: &T2{"this is T2"},

@@ -313,7 +313,7 @@ func decodeStruct(engine *decEngine, rtyp reflect.StructType, r io.Reader, p uin
 	return state.err
 }
 
-func decodeArray(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decOp, elemWid int, length int, indir int) os.Error {
+func decodeArray(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decOp, elemWid int, length int, indir, elemIndir int) os.Error {
 	if indir > 0 {
 		up := unsafe.Pointer(p);
 		if *(*unsafe.Pointer)(up) == nil {
@@ -324,12 +324,16 @@ func decodeArray(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decO
 		}
 		p = *(*uintptr)(up);
 	}
-	instr := &decInstr{elemOp, 0, 0, 0};	// TODO(r): indir on elements
+	instr := &decInstr{elemOp, 0, elemIndir, 0};
 	if DecodeUint(state) != uint64(length) {
 		state.err = os.ErrorString("length mismatch in decodeArray");
 	}
 	for i := 0; i < length && state.err == nil; i++ {
-		elemOp(instr, state, unsafe.Pointer(p));
+		up := unsafe.Pointer(p);
+		if elemIndir > 1 {
+			up = decIndirect(up, elemIndir);
+		}
+		elemOp(instr, state, up);
 		p += uintptr(elemWid);
 	}
 	return state.err
@@ -368,8 +372,9 @@ func decOpFor(typ reflect.Type) decOp {
 			case atyp.IsSlice():
 			case !atyp.IsSlice():
 				elemOp := decOpFor(atyp.Elem());
+				_, elemIndir := indirect(atyp.Elem());
 				op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
-					state.err = decodeArray(atyp, state, uintptr(p), elemOp, atyp.Elem().Size(), atyp.Len(), i.indir);
+					state.err = decodeArray(atyp, state, uintptr(p), elemOp, atyp.Elem().Size(), atyp.Len(), i.indir, elemIndir);
 				};
 			}
 		}
@@ -429,14 +434,9 @@ func getDecEngine(rt reflect.Type) *decEngine {
 
 func Decode(r io.Reader, e interface{}) os.Error {
 	// Dereference down to the underlying object.
-	rt := reflect.Typeof(e);
+	rt, indir := indirect(reflect.Typeof(e));
 	v := reflect.NewValue(e);
-	for {
-		pt, ok := rt.(reflect.PtrType);
-		if !ok {
-			break
-		}
-		rt = pt.Sub();
+	for i := 0; i < indir; i++ {
 		v = reflect.Indirect(v);
 	}
 	if rt.Kind() != reflect.StructKind {
