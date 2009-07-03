@@ -10,7 +10,7 @@ func use(bool) { }
 
 func main()
 {
-	var b map[string]int;
+	var b []int;
 	var ib interface{} = b;
 	use(ib == ib);
 }

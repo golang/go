@@ -6,7 +6,7 @@ throw: interface compare
 panic PC=xxx
 
 =========== ./cmp3.go
-comparing uncomparable type map[string] int
+comparing uncomparable type []int
 throw: interface compare
 
 panic PC=xxx
@@ -18,7 +18,7 @@ throw: interface hash
 panic PC=xxx
 
 =========== ./cmp5.go
-hash of unhashable type map[string] int
+hash of unhashable type []int
 throw: interface hash
 
 panic PC=xxx
