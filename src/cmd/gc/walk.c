@@ -402,7 +402,8 @@ loop:
 			break;
 
 		case 1:
-			n->type = n->type->type->type;
+			if(n->type != T && n->type->type != T && n->type->type->type != T)
+				n->type = n->type->type->type;
 			break;
 		}
 
