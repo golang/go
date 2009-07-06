@@ -1801,13 +1801,12 @@ odot:
 		n1.xoffset = -(oary[0]+1);
 	}
 
-	fatal("sudoaddable odot not implemented");
-//	for(i=1; i<o; i++) {
-//		if(oary[i] >= 0)
-//			fatal("cant happen");
-//		gins(AMOVQ, &n1, reg);
-//		n1.xoffset = -(oary[i]+1);
-//	}
+	for(i=1; i<o; i++) {
+		if(oary[i] >= 0)
+			fatal("cant happen");
+		gins(AMOVW, &n1, reg);
+		n1.xoffset = -(oary[i]+1);
+	}
 
 	a->type = D_NONE;
 	a->name = D_NONE;
