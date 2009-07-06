@@ -295,6 +295,10 @@ func decodeStruct(engine *decEngine, rtyp reflect.StructType, r io.Reader, p uin
 	basep := p;
 	for state.err == nil {
 		delta := int(DecodeUint(state));
+		if delta < 0 {
+			state.err = os.ErrorString("gob decode: corrupted data: negative delta");
+			break
+		}
 		if state.err != nil || delta == 0 {	// struct terminator is zero delta fieldnum
 			break
 		}
