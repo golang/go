@@ -468,6 +468,7 @@ case:
 		// done in casebody()
 		poptodcl();
 		if(typeswvar != N && typeswvar->right != N) {
+			int e;
 			if($2->op == OLITERAL && $2->val.ctype == CTNIL) {
 				// this version in type switch case nil
 				$$ = nod(OTYPESW, N, N);
@@ -481,7 +482,16 @@ case:
 				addtotop($$);
 				break;
 			}
-			yyerror("non-type case in type switch");
+			e = nerrors;
+			gettype($2, N);
+			// maybe gettype found problems that keep
+			// e from being valid even outside a type switch.
+			// only complain if gettype didn't print new errors.
+			if(nerrors == e)
+				yyerror("non-type case in type switch");
+			$$ = nod(OXCASE, N, N);
+			$$->diag = 1;
+			break;
 		}
 		$$ = nod(OXCASE, $2, N);
 	}

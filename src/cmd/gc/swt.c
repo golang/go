@@ -326,7 +326,7 @@ loop:
 	if(n->op != OCASE)
 		fatal("walkcases: not case %O\n", n->op);
 
-	if(n->left != N) {
+	if(n->left != N && !n->diag) {
 		setlineno(n);
 		place = call(n->left, place, arg);
 	}
