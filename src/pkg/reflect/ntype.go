@@ -39,7 +39,7 @@ type commonType struct {
 type method struct {
 	hash uint32;
 	name *string;
-	PkgPath *string;
+	pkgPath *string;
 	typ *runtime.Type;
 	ifn unsafe.Pointer;
 	tfn unsafe.Pointer;
@@ -149,12 +149,6 @@ type ArrayType struct {
 	len uintptr;
 }
 
-// SliceType represents a slice type.
-type SliceType struct {
-	commonType;
-	elem *runtime.Type;
-}
-
 // ChanDir represents a channel type's direction.
 type ChanDir int
 const (
@@ -201,6 +195,12 @@ type MapType struct {
 
 // PtrType represents a pointer type.
 type PtrType struct {
+	commonType;
+	elem *runtime.Type;
+}
+
+// SliceType represents a slice type.
+type SliceType struct {
 	commonType;
 	elem *runtime.Type;
 }
@@ -279,83 +279,168 @@ type Type interface {
 func toType(i interface{}) Type
 
 func (t *uncommonType) Name() (pkgPath string, name string) {
+	if t == nil {
+		return;
+	}
+	if t.pkgPath != nil {
+		pkgPath = *t.pkgPath;
+	}
+	if t.name != nil {
+		name = *t.name;
+	}
+	return;
 }
 
 func (t *commonType) String() string {
+	return *t.string;
 }
 
 func (t *commonType) Size() uintptr {
+	return t.size;
 }
 
 func (t *commonType) Align() int {
+	return int(t.align);
 }
 
 func (t *commonType) FieldAlign() int {
+	return int(t.fieldAlign);
 }
 
 func (t *uncommonType) Method(i int) (m Method) {
+	if t == nil || i < 0 || i >= len(t.methods) {
+		return;
+	}
+	p := &t.methods[i];
+	if p.name != nil {
+		m.Name = *p.name;
+	}
+	if p.pkgPath != nil {
+		m.PkgPath = *p.pkgPath;
+	}
+	m.Type = toType(*p.typ).(*FuncType);
+	fn := p.tfn;
+	m.Func = newFuncValue(m.Type, addr(&fn));
+	return;
 }
 
 func (t *uncommonType) NumMethod() int {
+	if t == nil {
+		return 0;
+	}
+	return len(t.methods);
+}
+
+// TODO(rsc): 6g supplies these, but they are not
+// as efficient as they could be: they have commonType
+// as the receiver instead of *commonType.
+func (t *commonType) NumMethod() int {
+	return t.uncommonType.NumMethod();
+}
+
+func (t *commonType) Method(i int) (m Method) {
+	return t.uncommonType.Method(i);
+}
+
+func (t *commonType) Name() (pkgPath string, name string) {
+	return t.uncommonType.Name();
 }
 
 // Len returns the number of elements in the array.
 func (t *ArrayType) Len() int {
+	return int(t.len);
 }
 
 // Elem returns the type of the array's elements.
 func (t *ArrayType) Elem() Type {
+	return toType(*t.elem);
 }
 
 // Dir returns the channel direction.
 func (t *ChanType) Dir() ChanDir {
+	return ChanDir(t.dir);
 }
 
 // Elem returns the channel's element type.
 func (t *ChanType) Elem() Type {
+	return toType(*t.elem);
 }
 
 func (d ChanDir) String() string {
+	switch d {
+	case SendDir:
+		return "chan<-";
+	case RecvDir:
+		return "<-chan";
+	case BothDir:
+		return "chan";
+	}
+	return "ChanDir" + strconv.Itoa(int(d));
 }
 
 // In returns the type of the i'th function input parameter.
 func (t *FuncType) In(i int) Type {
+	if i < 0 || i >= len(t.in) {
+		return nil;
+	}
+	return toType(*t.in[i]);
 }
 
 // NumIn returns the number of input parameters.
 func (t *FuncType) NumIn() int {
+	return len(t.in);
 }
 
 // Out returns the type of the i'th function output parameter.
 func (t *FuncType) Out(i int) Type {
+	if i < 0 || i >= len(t.out) {
+		return nil;
+	}
+	return toType(*t.out[i]);
 }
 
 // NumOut returns the number of function output parameters.
 func (t *FuncType) NumOut() int {
+	return len(t.out);
 }
 
 // Method returns the i'th interface method.
 func (t *InterfaceType) Method(i int) (m Method) {
+	if i < 0 || i >= len(t.methods) {
+		return;
+	}
+	p := t.methods[i];
+	m.Name = *p.name;
+	if p.pkgPath != nil {
+		m.PkgPath = *p.pkgPath;
+	}
+	m.Type = toType(*p.typ).(*FuncType);
+	return;
 }
 
 // NumMethod returns the number of interface methods.
 func (t *InterfaceType) NumMethod() int {
+	return len(t.methods);
 }
 
 // Key returns the map key type.
 func (t *MapType) Key() Type {
+	return toType(*t.key);
 }
 
 // Elem returns the map element type.
 func (t *MapType) Elem() Type {
+	return toType(*t.elem);
 }
 
 // Elem returns the pointer element type.
 func (t *PtrType) Elem() Type {
+	return toType(*t.elem);
 }
 
 // Elem returns the type of the slice's elements.
 func (t *SliceType) Elem() Type {
+	return toType(*t.elem);
 }
 
 type StructField struct {
@@ -369,10 +454,91 @@ type StructField struct {
 
 // Field returns the i'th struct field.
 func (t *StructType) Field(i int) (f StructField) {
+	if i < 0 || i >= len(t.fields) {
+		return;
+	}
+	p := t.fields[i];
+	f.Type = toType(*p.typ);
+	if p.name != nil {
+		f.Name = *p.name;
+	} else {
+		nam, pkg := f.Type.Name();
+		f.Name = nam;
+		f.Anonymous = true;
+	}
+	if p.pkgPath != nil {
+		f.PkgPath = *p.pkgPath;
+	}
+	if p.tag != nil {
+		f.Tag = *p.tag;
+	}
+	f.Offset = p.offset;
+	return;
 }
 
 // NumField returns the number of struct fields.
 func (t *StructType) NumField() int {
+	return len(t.fields);
+}
+
+// Convert runtime type to reflect type.
+// Same memory layouts, different method sets.
+func toType(i interface{}) Type {
+	switch v := i.(type) {
+	case *runtime.BoolType:
+		return (*BoolType)(unsafe.Pointer(v));
+	case *runtime.DotDotDotType:
+		return (*DotDotDotType)(unsafe.Pointer(v));
+	case *runtime.FloatType:
+		return (*FloatType)(unsafe.Pointer(v));
+	case *runtime.Float32Type:
+		return (*Float32Type)(unsafe.Pointer(v));
+	case *runtime.Float64Type:
+		return (*Float64Type)(unsafe.Pointer(v));
+	case *runtime.IntType:
+		return (*IntType)(unsafe.Pointer(v));
+	case *runtime.Int8Type:
+		return (*Int8Type)(unsafe.Pointer(v));
+	case *runtime.Int16Type:
+		return (*Int16Type)(unsafe.Pointer(v));
+	case *runtime.Int32Type:
+		return (*Int32Type)(unsafe.Pointer(v));
+	case *runtime.Int64Type:
+		return (*Int64Type)(unsafe.Pointer(v));
+	case *runtime.StringType:
+		return (*StringType)(unsafe.Pointer(v));
+	case *runtime.UintType:
+		return (*UintType)(unsafe.Pointer(v));
+	case *runtime.Uint8Type:
+		return (*Uint8Type)(unsafe.Pointer(v));
+	case *runtime.Uint16Type:
+		return (*Uint16Type)(unsafe.Pointer(v));
+	case *runtime.Uint32Type:
+		return (*Uint32Type)(unsafe.Pointer(v));
+	case *runtime.Uint64Type:
+		return (*Uint64Type)(unsafe.Pointer(v));
+	case *runtime.UintptrType:
+		return (*UintptrType)(unsafe.Pointer(v));
+	case *runtime.UnsafePointerType:
+		return (*UnsafePointerType)(unsafe.Pointer(v));
+	case *runtime.ArrayType:
+		return (*ArrayType)(unsafe.Pointer(v));
+	case *runtime.ChanType:
+		return (*ChanType)(unsafe.Pointer(v));
+	case *runtime.FuncType:
+		return (*FuncType)(unsafe.Pointer(v));
+	case *runtime.InterfaceType:
+		return (*InterfaceType)(unsafe.Pointer(v));
+	case *runtime.MapType:
+		return (*MapType)(unsafe.Pointer(v));
+	case *runtime.PtrType:
+		return (*PtrType)(unsafe.Pointer(v));
+	case *runtime.SliceType:
+		return (*SliceType)(unsafe.Pointer(v));
+	case *runtime.StructType:
+		return (*StructType)(unsafe.Pointer(v));
+	}
+	panicln("toType", i);
 }
 
 // ArrayOrSliceType is the common interface implemented
