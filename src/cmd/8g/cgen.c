@@ -812,16 +812,17 @@ bgen(Node *n, int true, Prog *to)
 				cgen(nl, &tmp);
 				gins(AFUCOMPP, &tmp, &n2);
 			} else {
-				// NOTE(rsc): This is wrong.
-				// It's right for comparison but presumably all the
-				// other ops have the same problem.  We need to
-				// figure out what the right solution is, besides
-				// tell people to use float64.
+				// TODO(rsc): The moves back and forth to memory
+				// here are for truncating the value to 32 bits.
+				// This handles 32-bit comparison but presumably
+				// all the other ops have the same problem.
+				// We need to figure out what the right general
+				// solution is, besides telling people to use float64.
 				tempalloc(&t1, types[TFLOAT32]);
 				tempalloc(&t2, types[TFLOAT32]);
 				cgen(nr, &t1);
 				cgen(nl, &t2);
-				gmove(&t1, &tmp);
+				gmove(&t2, &tmp);
 				gins(AFCOMFP, &t1, &tmp);
 				tempfree(&t2);
 				tempfree(&t1);
