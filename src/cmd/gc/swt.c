@@ -124,8 +124,12 @@ exprcmp(Case *c1, Case *c2)
 	n2 = c2->node->left;
 
 	ct = n1->val.ctype;
-	if(ct != n2->val.ctype)
-		fatal("exprcmp");
+	if(ct != n2->val.ctype) {
+		// invalid program, but return a sort
+		// order so that we can give a better
+		// error later.
+		return ct - n2->val.ctype;
+	}
 
 	// sort by constant value
 	n = 0;
@@ -323,7 +327,7 @@ loop:
 		fatal("walkcases: not case %O\n", n->op);
 
 	if(n->left != N) {
-		setlineno(n->left);
+		setlineno(n);
 		place = call(n->left, place, arg);
 	}
 	n = listnext(&save);
@@ -527,12 +531,13 @@ exprbsw(Case *c0, int ncase, int arg)
 	Node *cas;
 	Node *a, *n;
 	Case *c;
-	int i, half;
+	int i, half, lno;
 
 	cas = N;
 	if(ncase < Ncase) {
 		for(i=0; i<ncase; i++) {
 			n = c0->node;
+			lno = setlineno(n);
 
 			switch(arg) {
 			case Strue:
@@ -556,6 +561,7 @@ exprbsw(Case *c0, int ncase, int arg)
 
 			cas = list(cas, a);
 			c0 = c0->link;
+			lineno = lno;
 		}
 		return cas;
 	}
