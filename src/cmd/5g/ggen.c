@@ -259,27 +259,26 @@ ret:
 void
 cgen_callret(Node *n, Node *res)
 {
-	fatal("cgen_callret not implemented");
-//	Node nod;
-//	Type *fp, *t;
-//	Iter flist;
+	Node nod;
+	Type *fp, *t;
+	Iter flist;
 
-//	t = n->left->type;
-//	if(t->etype == TPTR32 || t->etype == TPTR64)
-//		t = t->type;
+	t = n->left->type;
+	if(t->etype == TPTR32 || t->etype == TPTR64)
+		t = t->type;
 
-//	fp = structfirst(&flist, getoutarg(t));
-//	if(fp == T)
-//		fatal("cgen_callret: nil");
+	fp = structfirst(&flist, getoutarg(t));
+	if(fp == T)
+		fatal("cgen_callret: nil");
 
-//	memset(&nod, 0, sizeof(nod));
-//	nod.op = OINDREG;
-//	nod.val.u.reg = D_SP;
-//	nod.addable = 1;
+	memset(&nod, 0, sizeof(nod));
+	nod.op = OINDREG;
+	nod.val.u.reg = REGSP;
+	nod.addable = 1;
 
-//	nod.xoffset = fp->width;
-//	nod.type = fp->type;
-//	cgen_as(res, &nod);
+	nod.xoffset = fp->width;
+	nod.type = fp->type;
+	cgen_as(res, &nod);
 }
 
 /*
@@ -370,25 +369,31 @@ cgen_asop(Node *n)
 	case OOR:
 		a = optoas(n->etype, nl->type);
 		if(nl->addable) {
-			regalloc(&n2, nr->type, N);
-			cgen(nr, &n2);
-			gins(a, &n2, nl);
+			regalloc(&n2, nl->type, N);
+			regalloc(&n3, nr->type, N);
+			cgen(nl, &n2);
+			cgen(nr, &n3);
+			gins(a, &n3, &n2);
+			cgen(&n2, nl);
 			regfree(&n2);
+			regfree(&n3);
 			goto ret;
 		}
 		if(nr->ullman < UINF)
 		if(sudoaddable(a, nl, &addr)) {
-			regalloc(&n2, nr->type, N);
-			cgen(nr, &n2);
-			p1 = gins(a, &n2, N);
-			p1->to = addr;
-			regfree(&n2);
-			sudoclean();
-			goto ret;
+			fatal("cgen_asop sudoaddable not implemented");
+//			regalloc(&n2, nr->type, N);
+//			cgen(nr, &n2);
+//			p1 = gins(a, &n2, N);
+//			p1->to = addr;
+//			regfree(&n2);
+//			sudoclean();
+//			goto ret;
 		}
 	}
 
 hard:
+	fatal("cgen_asop hard not implemented");
 	if(nr->ullman > nl->ullman) {
 		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
@@ -573,7 +578,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 //	regfree(&n1);
 //	regfree(&n2);
 
-// ret:
+//ret:
 //	;
 }
 
@@ -736,7 +741,6 @@ gen_as_init(Node *nr, Node *nl)
 
 		p = gins(ADATA, &nam, nr->left);
 		p->from.scale = types[tptr]->width;
-		p->to.index = p->to.type;
 		p->to.type = D_ADDR;
 //print("%P\n", p);
 
@@ -806,7 +810,6 @@ lit:
 		p = gins(ADATA, &nam, N);
 		datastring(nr->val.u.sval->s, nr->val.u.sval->len, &p->to);
 		p->from.scale = types[tptr]->width;
-		p->to.index = p->to.type;
 		p->to.type = D_ADDR;
 //print("%P\n", p);
 

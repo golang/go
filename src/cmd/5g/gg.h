@@ -26,8 +26,8 @@ struct	Addr
 	Sym*	sym;
 	int	width;
 	uchar	type;
+	char	name;
 	char	reg;
-	uchar	index;
 	uchar	etype;
 	uchar	scale;	/* doubles as width in DATA op */
 };
@@ -148,6 +148,7 @@ void	datastring(char*, int, Addr*);
  */
 int	Aconv(Fmt*);
 int	Dconv(Fmt*);
+int	Mconv(Fmt*);
 int	Pconv(Fmt*);
 int	Rconv(Fmt*);
 int	Yconv(Fmt*);

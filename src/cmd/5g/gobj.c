@@ -92,16 +92,14 @@ zaddr(Biobuf *b, Addr *a, int s)
 	case D_AUTO:
 	case D_EXTERN:
 	case D_PARAM:
-		Bputc(b, D_OREG);
-		Bputc(b, a->reg);
-		Bputc(b, s);
-		Bputc(b, a->type);
-		break;
+		// TODO(kaib): remove once everything seems to work
+		fatal("We should no longer generate these as types");
+
 	default:
 		Bputc(b, a->type);
 		Bputc(b, a->reg);
 		Bputc(b, s);
-		Bputc(b, D_NONE);
+		Bputc(b, a->name);
 	}
 
 	switch(a->type) {
@@ -112,6 +110,7 @@ zaddr(Biobuf *b, Addr *a, int s)
 	case D_REG:
 	case D_FREG:
 	case D_PSR:
+	case D_ADDR:
 		break;
 
 	case D_CONST2:
@@ -206,7 +205,7 @@ dumpfuncs(void)
 					sf = 0;
 				t = p->from.type;
 				if(t == D_ADDR)
-					t = p->from.index;
+					t = p->from.name;
 				if(h[sf].type == t)
 				if(h[sf].sym == s)
 					break;
@@ -228,7 +227,7 @@ dumpfuncs(void)
 					st = 0;
 				t = p->to.type;
 				if(t == D_ADDR)
-					t = p->to.index;
+					t = p->to.name;
 				if(h[st].type == t)
 				if(h[st].sym == s)
 					break;
@@ -312,7 +311,6 @@ dumpdata(void)
 void
 datastring(char *s, int len, Addr *a)
 {
-	fatal("datastring not implemented");
 	int w;
 	Prog *p;
 	Addr ac, ao;
@@ -324,22 +322,24 @@ datastring(char *s, int len, Addr *a)
 
 	// string
 	memset(&ao, 0, sizeof(ao));
-	ao.type = D_STATIC;
-	ao.index = D_NONE;
+	ao.type = D_OREG;
+	ao.name = D_STATIC;
 	ao.etype = TINT32;
 	ao.offset = 0;		// fill in
+	ao.reg = NREG;
 
 	// constant
 	memset(&ac, 0, sizeof(ac));
 	ac.type = D_CONST;
-	ac.index = D_NONE;
+	ac.name = D_NONE;
 	ac.offset = 0;		// fill in
+	ac.reg = NREG;
 
 	// huge strings are made static to avoid long names.
 	if(len > 100) {
 		snprint(namebuf, sizeof(namebuf), ".string.%d", gen++);
 		ao.sym = lookup(namebuf);
-		ao.type = D_STATIC;
+		ao.name = D_STATIC;
 	} else {
 		if(len > 0 && s[len-1] == '\0')
 			len--;
@@ -349,7 +349,7 @@ datastring(char *s, int len, Addr *a)
 		len++;
 		snprint(namebuf, sizeof(namebuf), "\"%Z\"", &tmp.lit);
 		ao.sym = pkglookup(namebuf, "string");
-		ao.type = D_EXTERN;
+		ao.name = D_EXTERN;
 	}
 	*a = ao;
 
@@ -377,9 +377,9 @@ datastring(char *s, int len, Addr *a)
 		memmove(p->to.sval, s+w, p->from.scale);
 	}
 	p = pc;
-	ggloblsym(ao.sym, len, ao.type == D_EXTERN);
-	if(ao.type == D_STATIC)
-		p->from.type = D_STATIC;
+	ggloblsym(ao.sym, len, ao.name == D_EXTERN);
+	if(ao.name == D_STATIC)
+		p->from.name = D_STATIC;
 	text();
 }
 
@@ -401,36 +401,37 @@ datagostring(Strlit *sval, Addr *a)
 
 	// constant
 	ac.type = D_CONST;
-	ac.index = D_NONE;
+	ac.name = D_NONE;
 	ac.offset = 0;			// fill in
+	ac.reg = NREG;
 
 	// string len+ptr
-	ao.type = D_STATIC;		// fill in
-	ao.index = D_NONE;
+	ao.type = D_OREG;
+	ao.name = D_STATIC;		// fill in
 	ao.etype = TINT32;
 	ao.sym = nil;			// fill in
+	ao.reg = NREG;
 
 	// $string len+ptr
 	datastring(sval->s, sval->len, &ap);
-	ap.index = ap.type;
+
 	ap.type = D_ADDR;
 	ap.etype = TINT32;
-
 	wi = types[TUINT32]->width;
 	wp = types[tptr]->width;
 
-	if(ap.index == D_STATIC) {
+	if(ap.name == D_STATIC) {
 		// huge strings are made static to avoid long names
 		snprint(namebuf, sizeof(namebuf), ".gostring.%d", ++gen);
 		ao.sym = lookup(namebuf);
-		ao.type = D_STATIC;
+		ao.name = D_STATIC;
 	} else {
 		// small strings get named by their contents,
 		// so that multiple modules using the same string
 		// can share it.
 		snprint(namebuf, sizeof(namebuf), "\"%Z\"", sval);
 		ao.sym = pkglookup(namebuf, "go.string");
-		ao.type = D_EXTERN;
+		ao.name = D_EXTERN;
 	}
 
 	*a = ao;
@@ -457,8 +458,8 @@ datagostring(Strlit *sval, Addr *a)
 
 	p = pc;
 	ggloblsym(ao.sym, types[TSTRING]->width, ao.type == D_EXTERN);
-	if(ao.type == D_STATIC)
-		p->from.type = D_STATIC;
+	if(ao.name == D_STATIC)
+		p->from.name = D_STATIC;
 	text();
 }
 
@@ -469,14 +470,13 @@ dstringptr(Sym *s, int off, char *str)
 
 	off = rnd(off, widthptr);
 	p = gins(ADATA, N, N);
-	p->from.type = D_EXTERN;
-	p->from.index = D_NONE;
+	p->from.type = D_OREG;
+	p->from.name = D_EXTERN;
 	p->from.sym = s;
 	p->from.offset = off;
 	p->from.scale = widthptr;
 
 	datastring(str, strlen(str)+1, &p->to);
-	p->to.index = p->to.type;
 	p->to.type = D_ADDR;
 	p->to.etype = TINT32;
 	off += widthptr;
@@ -492,13 +492,13 @@ duintxx(Sym *s, int off, uint64 v, int wid)
 	off = rnd(off, wid);
 
 	p = gins(ADATA, N, N);
-	p->from.type = D_EXTERN;
-	p->from.index = D_NONE;
+	p->from.type = D_OREG;
+	p->from.name = D_EXTERN;
 	p->from.sym = s;
 	p->from.offset = off;
 	p->from.scale = wid;
 	p->to.type = D_CONST;
-	p->to.index = D_NONE;
+	p->to.name = D_NONE;
 	p->to.offset = v;
 	off += wid;
 
@@ -531,13 +531,13 @@ dsymptr(Sym *s, int off, Sym *x)
 	off = rnd(off, widthptr);
 
 	p = gins(ADATA, N, N);
-	p->from.type = D_EXTERN;
-	p->from.index = D_NONE;
+	p->from.type = D_OREG;
+	p->from.name = D_EXTERN;
 	p->from.sym = s;
 	p->from.offset = off;
 	p->from.scale = widthptr;
 	p->to.type = D_ADDR;
-	p->to.index = D_EXTERN;
+	p->to.name = D_EXTERN;
 	p->to.sym = x;
 	p->to.offset = 0;
 	off += widthptr;
