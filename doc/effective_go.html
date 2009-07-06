@@ -2,27 +2,21 @@
 <h2 id="introduction">Introduction</h2>
 
 <p>
-Go is a new programming language.
-It eliminates some of the pitfalls in languages
-like C++ and Java but introduces other ones.
-Many remain the same.
-This page gives tips for writing clear, idiomatic Go code
+This document gives tips for writing clear, idiomatic Go code
 and points out common mistakes to avoid.
 It augments the <a href="go_spec.html">language specification</a>
 and the <a href="go_tutorial.html">tutorial</a>, both of which you
-should be familiar with.
+should read first.
 </p>
 
-<h3 id="read">Read</h3>
+<h3 id="read">Read good code</h3>
 
 <p>
-The first step to improving as a writer is to read.
-This step is as necessary for programming as it is for prose,
-and it is skipped as often by programmers as by writers.
+The first step towards learning to write good code is to read good code.
 The <a href="/src/pkg/">Go package sources</a>
 are intended to serve not
 only as the core library but also as examples of how to
-use the language.  Read them.
+use the language.  Read them and follow their example.
 </p>
 
 <h3 id="be-consistent">Be consistent</h3>
@@ -30,11 +24,10 @@ use the language.  Read them.
 <p>
 Consistency makes programs easy to read.
 If a program says the same thing twice,
-it should say it the same way both times,
-so that the parallel structure is clear.
-Conversely, if two different sections of
+it should say it the same way both times.
+Conversely, if two different sections of a
 program look different, the reader will
-expect them to be doing different things.
+expect them to do different things.
 </p>
 
 <p>
@@ -58,43 +51,42 @@ for i := n-1; i &gt;= 0; i-- {
 
 <p>
 The convention in most languages (including Go)
-is to count up unless doing so would be incorrect.
-A loop that counts down implicitly says &ldquo;there's
-a specific reason to count down here; this situation is special.&rdquo;
-A reader who finds a program in which half the
-loops count up and the other half count down
+is to count up unless to do so would be incorrect.
+A loop that counts down implicitly says &ldquo;something
+special is happening here.&rdquo;
+A reader who finds a program in which some
+loops count up and the rest count down
 will spend time trying to understand why.
-A programmer who inserts counting-down
-loops for variety wastes the reader's time.
+Don't run loops backwards unless it's necessary.
 </p>
 
 <p>
-Loop direction is hardly the only
+Loop direction is just one
 programming decision which a programmer
-might want to use to be distinctive:
+may be tempted to be distinctive:
 tabs or spaces, choice of variable names,
 choice of method names, whether a type
 has a constructor, what tests look like, and on and on.
 As in the loop example, inconsistency
 sows confusion, and wastes time.
-Why is this variable called n here and cnt here?
+Why is this variable called <code>n</code> here and <code>cnt</code> there?
 Why is the <code>Log</code> constructor <code>CreateLog</code> when
-the <code>Vector</code> constructor is <code>NewVector</code>?
+the <code>List</code> constructor is <code>NewList</code>?
 Why is this data structure initialized using
-a structure literal when this other one
+a structure literal when that one
 is initialized using individual assignments?
-Why is this idiom used here but not there?
-And on and on.
+And so on.
 These questions distract from the important one:
 what does the code do?
+Moreover, internal consistency is important not only within a single file,
+but also within the the surrounding source files.
 Being consistent about little things
 lets readers concentrate on big ones.
 </p>
 
 <p>
-This document describes how to use Go effectively.
-Equally important, it describes how to use Go idiomatically,
-so that a Go programmer seeing your code for
+This document describes how to use Go effectively and idiomatically
+so that a programmer seeing your code for
 the first time can focus on what it does 
 and not why it is inconsistent with typical Go practices.
 Consistency trumps every item listed below.
@@ -102,14 +94,7 @@ When editing code, read the surrounding context
 and try to mimic it as much as possible, even if it
 disagrees with the rules here.
 It should not be possible to tell which lines
-you wrote or edited.
-</p>
-
-<p>
-Internal consistency is important in a single file,
-but source files do not exist in isolation.
-Code must be consistent with the surrounding source file as well,
-or the same problems arise.
+you wrote or edited based on style alone.
 </p>
 
 <h2 id="formatting">Formatting</h2>
@@ -117,16 +102,16 @@ or the same problems arise.
 <p>
 Formatting issues are the most contentious
 but the least consequential.
-People adapt quite well to different formatting styles,
-even if at first the styles &ldquo;look weird.&rdquo;
-The most important consideration is that if everyone
-uses the same formatting, then a reader picking up an
-unfamiliar piece of code can focus on what
-the code does instead of what it looks like.
-Most of the local formatting style can and should be
-picked up by reading existing Go programs (see above).
-The following are the most common issues 
-that Google programmers run into.
+People adapt to different formatting styles,
+even if at first the styles &ldquo;look weird,&rdquo;
+but they shouldn't be asked to.
+Everyone
+should use the same formatting; as in English,
+consistent punctuation and spacing make the
+text easier to read.
+Most of the local formatting style can be
+picked up by reading existing Go programs (see above),
+but to make them explicit here are some common points.
 </p>
 
 <h3 id="tabs">Use tabs</h3>
@@ -138,9 +123,7 @@ The local style is to use tabs, not spaces, for indentation.
 <h3 id="white-space">Trim trailing white space</h3>
 
 <p>
-Files should not contain trailing white space at the end of lines.
-The script <code>/home/rsc/bin/g4ws</code> removes trailing
-whitespace from all open files in the current g4 client.
+There should be no trailing white space at the end of lines.
 </p>
 
 <h3 id="line-wrapping">Don't wrap lines mechanically</h3>
@@ -148,14 +131,14 @@ whitespace from all open files in the current g4 client.
 <p>
 Go has no 80-character limit.  Don't bother with fancy line
 wrapping just because a line is wider than a punched card.
-If you must wrap a line, indent with a single tab.
+If you must wrap a line, indent with an extra tab.
 </p>
 
-<h3 id="parens">Omit parentheses</h3>
+<h3 id="parens">Omit parentheses in control structures</h3>
 
 <p>Go does not require parentheses around the expression
 following the <code>for</code>, <code>if</code>, <code>range</code>,
-and <code>switch</code> keywords.
+<code>switch</code>, and <code>return</code> keywords.
 </p>
 
 <h3 id="line-comments">Use line comments</h3>
@@ -163,7 +146,7 @@ and <code>switch</code> keywords.
 <p>
 Go provides C-style <code>/* */</code> block comments 
 and C++-style <code>//</code> line comments.
-The local style is to use line comments by default,
+Use line comments by default,
 reserving block comments for top-level package comments
 and commenting out large swaths of code.
 </p>
@@ -173,8 +156,10 @@ and commenting out large swaths of code.
 <p>
 If a comment immediately precedes a top-level declaration,
 the <a href="/">Go documentation server</a>
+<font color=red>(TODO: that's not a public URL.)</font>
 uses that comment as the documentation
-for the constant, function, package, type or variable being declared.
+for the constant, function, method, package, type or variable being declared.
+These are called <i>doc comments</i>.
 To detach a comment from a declaration, insert a blank
 line between them.
 </p>
@@ -182,6 +167,9 @@ line between them.
 <p>
 Every exported (capitalized) name in a program should
 have a doc comment, as should the package declaration itself.
+If a name appears multiple times due to forward declarations
+or appearance in multiple source files within a package, only
+one instance requires a doc comment, and any one will do.
 </p>
 
 <p>
@@ -195,16 +183,6 @@ starts with the name being declared:
 // representing s.  The returned string s uses Go escape
 // sequences (\t, \n, \xFF, \u0100) for control characters
 // and non-ASCII characters.
-func Quote(s string) string {
-</pre>
-
-<p>
-instead of:
-</p>
-
-<pre class="bad">
-/* not Go style */
-// Return a double-quoted Go string literal representing s....
 func Quote(s string) string {
 </pre>
 
@@ -223,7 +201,7 @@ Don't use fancy formattings that depend on fixed-width fonts.
 In particular, don't assume that a single space is the same
 width as every other character.
 If you need to make a columnated table, use tabs to separate
-the columns and the pretty printer (in progress) will make
+the columns and the pretty printer will make
 sure the columns are lined up properly in the output.
 </p>
 
@@ -239,21 +217,18 @@ sections in a file, use a simple block comment:
  */
 </pre>
 
-<p>
-instead of:
-</p>
+or
 
-<pre class="bad">
-/* not Go style */
-//////////////////////////////////////////////////////////////////////
-// Helper routines for simplifying the fetching of optional fields of basic type.
-// If the field is missing, they return the zero for the type.
+<pre>
+/*
+    Helper routines for simplifying the fetching of optional fields of basic type.
+    If the field is missing, they return the zero for the type.
+ */
 </pre>
 
 <p>
-Comments are text, not HTML, and not any kind of markup.
+Comments are text, not HTML; they contain no markup.
 Refrain from ASCII embellishment like *this* or /this/.
-As usual, read the Go sources for examples.
 </p>
 
 <h2 id="names">Names</h2>
@@ -263,40 +238,38 @@ As usual, read the Go sources for examples.
 <p>
 Go uses the case of the first letter in a name to decide
 whether the name is visible in other packages.
-In Go, multiword names use MixedCaps or mixedCaps
+Multiword names use MixedCaps or mixedCaps
 rather than underscores.
 </p>
 
 <h3 id="package-names">Use short package names</h3>
 
 <p>
-Package names are lowercase single-word names:
+Package names are lower case single-word names:
 there should be no need for underscore or mixedCaps.
 The package name is conventionally the base name of
 the source directory: the package in <code>src/pkg/container/vector</code>
-is installed as <code>"container/vector"</code> but has name vector,
+is installed as <code>"container/vector"</code> but has name <code>vector</code>,
 not <code>container_vector</code> and not <code>containerVector</code>.
 The package name is only the default name used
-when importing the package; it need not be a unique
-identifier.
+when importing the package; it need not be unique
+across all source code.
 </p>
 
-<h3 id="name-length">Avoid lengthy names</h3>
+<h3 id="name-length">Avoid long names</h3>
 
 <p>
 A name's length should not exceed its information content.
 For a function-local variable
 in scope only for a few lines, the name <code>i</code> conveys just
 as much information as <code>index</code> or <code>idx</code> and is easier to read.
-On the same note, <code>i</code> and <code>j</code> are better pair of names for
-index variables than <code>i1</code> and <code>i2</code> (or, worse, <code>index1</code> and <code>index2</code>),
-because they are easier to tell apart when reading
-the program quickly.
+Letters are easier to distinguish than numbers; use <code>i</code> and <code>j</code>
+not <code>i1</code> and <code>i2</code>.
 </p>
 
 <p>
-Exported names must convey more information,
-because they appear in a larger variety of contexts.
+Exported names must convey more information
+because they appear far from their origin.
 Even so, longer names are not always better,
 and the package name can help convey information:
 the buffered <code>Reader</code> is <code>bufio.Reader</code>, not <code>bufio.BufReader</code>.
@@ -313,10 +286,7 @@ to use them without documentation.
 <p>
 One-method interfaces are conventionally named by
 the method name plus the -er suffix: <code>Reader</code>,
-<code>Writer</code>, <code>Formatter</code>.  Using an interface name distinct
-from the method name keeps an anonymous struct
-field of type <code>Reader</code> from conflicting with its own 
-<code>Read</code> method.
+<code>Writer</code>, <code>Formatter</code>.
 </p>
 
 <h3 id="common-names">Use canonical names</h3>
@@ -328,7 +298,7 @@ don't give your method one of those names unless it
 has the same signature and meaning.
 Conversely, if your type implements a method with the
 same meaning as a method on a well-known type,
-give it the same name and, equally important, the same signature.
+give it the same name and signature.
 </p>
 
 <p>
@@ -370,11 +340,7 @@ hdr, body, checksum := buf[0:20], buf[20:len(buf)-4], buf[len(buf)-4:len(buf)];
 <p>
 If an <code>if</code> body doesn't flow off the end of the
 body—that is, the body ends in <code>break</code>, <code>continue</code>,
-<code>goto</code>, or <code>return</code>—it is preferable to omit the <code>else</code>.
-</p>
-
-<p>
-For example:
+<code>goto</code>, or <code>return</code>—omit the <code>else</code>.
 </p>
 
 <pre>
@@ -383,39 +349,42 @@ if err != nil {
 	return err;
 }
 codeUsing(f);
-f.Close();
-moreCode();
 </pre>
-
-<p>
-is preferable to:
-
-<pre class="bad">
-/* not Go style */
-if f, err := os.Open(name, os.O_RDONLY, 0); err != nil {
-	return err;
-} else {
-	codeUsing(f);
-	f.Close();
-}
-moreCode();
-</pre>
-
-<p>
-The first form
-avoids unnecessary indentation
-and makes it clear that <code>moreCode()</code>
-only runs when <code>f.Close()</code> does.
-</p>
 
 <h3 id="switch">Switch</h3>
 
 <p>
-Go's <code>switch</code> is more powerful than C's.
+Go's <code>switch</code> is more general than C's.
 When an <code>if</code>-<code>else if</code>-<code>else</code> chain has three or more bodies,
 or an <code>if</code> condition has a long list of alternatives,
-consider rewriting it using <code>switch</code>.
+it will be clearer if rewritten as a <code>switch</code>.
 </p>
+
+<a href="/src/pkg/http/url.go">go/src/pkg/http/url.go</a>:
+<pre>
+func unhex(c byte) byte {
+    switch {
+    case '0' &lt;= c &amp;&amp; c &lt;= '9':
+        return c - '0'
+    case 'a' &lt;= c &amp;&amp; c &lt;= 'f':
+        return c - 'a' + 10
+    case 'A' &lt;= c &amp;&amp; c &lt;= 'F':
+        return c - 'A' + 10
+    }
+    return 0
+}
+</pre>
+
+<a href="/src/pkg/http/url.go">go/src/pkg/http/url.go</a>:
+<pre>
+func shouldEscape(c byte) bool {
+    switch c {
+    case ' ', '?', '&amp;', '=', '#', '+', '%':
+        return true
+    }
+    return false
+}
+</pre>
 
 <a href="/src/pkg/bytes/bytes.go">go/src/pkg/bytes/bytes.go</a>:
 <pre>
@@ -440,44 +409,18 @@ func Compare(a, b []byte) int {
 }
 </pre>
 
-<a href="/src/pkg/http/url.go">go/src/pkg/http/url.go</a>:
-<pre>
-func unhex(c byte) byte {
-    switch {
-    case '0' &lt;= c &amp;&amp; c &lt;= '9':
-        return c - '0'
-    case 'a' &lt;= c &amp;&amp; c &lt;= 'f':
-        return c - 'a' + 10
-    case 'A' &lt;= c &amp;&amp; c &lt;= 'F':
-        return c - 'A' + 10
-    }
-    return 0
-}
-</pre>
-
-<a href="/src/pkg/http/url.go">go/src/pkg/http/url.go</a>:
-<pre>
-func shouldEscape(c byte) bool {
-    switch c {
-    case ' ', '?', '&', '=', '#', '+', '%':
-        return true
-    }
-    return false
-}
-</pre>
-
 <h2 id="functions">Functions</h2>
 
 <h3 id="omit-wrappers">Omit needless wrappers</h3>
 
 <p>
-Functions are great for factoring out common functionality.
-If a function is only called once,
-ask whether the function is really necessary,
+Functions are great for factoring out common code, but
+if a function is only called once,
+ask whether it is necessary,
 especially if it is just a short wrapper around another function.
-This style runs rampant in C++ code: wrappers
+This style is rampant in C++ code: wrappers
 call wrappers that call wrappers that call wrappers.
-Doing this hinders people trying to understand the program,
+This style hinders people trying to understand the program,
 not to mention computers trying to execute it.
 </p>
 
@@ -486,17 +429,15 @@ not to mention computers trying to execute it.
 <p>
 If a function must return multiple values, it can
 do so directly.
-The C &ldquo;pass in a pointer to a return value&rdquo;
-idiom is dead.
+There is no need to pass a pointer to a return value.
 </p>
-
 
 <h2 id="errors">Errors</h2>
 
 <h3 id="handle-errors-first">Handle errors first</h3>
 
 <p>
-Errors tend to be simpler than non-error cases,
+Error cases tend to be simpler than non-error cases,
 and it helps readability when the non-error flow
 of control is always down the page.
 Also, error cases tend to end in jumps,
@@ -504,27 +445,17 @@ so that there is <a href="#else">no need for an explicit else</a>.
 </p>
 
 <pre>
+if len(name) == 0 {
+	return;
+}
+if IsDir(name) {
+	return;
+}
 f, err := os.Open(name, os.O_RDONLY, 0);
 if err != nil {
-	return err;
+	return;
 }
 codeUsing(f);
-f.Close();
-moreCode();
-</pre>
-
-is preferable to:
-
-<pre class="bad">
-/* not Go style */
-f, err := os.Open(name, os.O_RDONLY, 0);
-if err == nil {
-	codeUsing(f);
-	f.Close();
-} else {
-	return err;
-}
-moreCode();
 </pre>
 
 <h3 id="error-returns">Return <code>os.Error</code>, not <code>bool</code></h3>
@@ -581,7 +512,7 @@ func NewFile(fd int, name string) *File {
 
 <p>Packages that export only a single type sometimes
 shorten <code>NewTypeName</code> to <code>New</code>;
-for example, the vector constructor is
+the vector constructor is
 <code>vector.New</code>, not <code>vector.NewVector</code>.
 </p>
 
@@ -637,14 +568,14 @@ For example, both <code>crc32.NewIEEE()</code> and <code>adler32.New()</code>
 return type <code>hash.Hash32</code>.
 Substituting the CRC-32 algorithm for Adler-32 in a Go program
 requires only changing the constructor call:
-the rest of the code cannot distinguish the two algorithms.
+the rest of the code is unaffected by the change of algorithm.
 </p>
 
-<h3 id="">Use interface adapters to expand an implementation</h3>
+<h3 id="asdf">Use interface adapters to expand an implementation</h3>
 
 XXX
 
-<h3 id="">Use anonymous fields to incorporate an implementation</h3>
+<h3 id="fdsa">Use anonymous fields to incorporate an implementation</h3>
 
 XXX
 
