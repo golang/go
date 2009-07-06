@@ -30,6 +30,8 @@
 
 #include "gg.h"
 
+// TODO(kaib): make 5g/list.c congruent with 5l/list.c
+
 static	int	sconsize;
 void
 listinit(void)
@@ -40,6 +42,7 @@ listinit(void)
 	fmtinstall('D', Dconv);		// Addr*
 	fmtinstall('Y', Yconv);		// sconst
 	fmtinstall('R', Rconv);		// register
+	fmtinstall('M', Mconv);		// names
 }
 
 int
@@ -97,27 +100,11 @@ Dconv(Fmt *fp)
 		snprint(str, sizeof(str), "%d", a->branch->loc);
 		break;
 
-	case D_EXTERN:
-		snprint(str, sizeof(str), "%S+%d(SB)", a->sym, a->offset);
-		break;
-
-	case D_STATIC:
-		snprint(str, sizeof(str), "%S<>+%d(SB)", a->sym, a->offset);
-		break;
-
-	case D_AUTO:
-		snprint(str, sizeof(str), "%S+%d(SP)", a->sym, a->offset);
-		break;
-
-	case D_PARAM:
-		snprint(str, sizeof(str), "%S+%d(FP)", a->sym, a->offset);
-		break;
-
 	case D_CONST:
 		if(a->reg != NREG)
-			sprint(str, "$%N(R%d)", a, a->reg);
+			sprint(str, "$%M(R%d)", a, a->reg);
 		else
-			sprint(str, "$%N", a);
+			sprint(str, "$%M", a);
 		break;
 
 	case D_CONST2:
@@ -208,5 +195,32 @@ Rconv(Fmt *fp)
 
 	r = va_arg(fp->args, int);
 	snprint(str, sizeof(str), "R%d", r);
+	return fmtstrcpy(fp, str);
+}
+
+int
+Mconv(Fmt *fp)
+{
+	char str[STRINGSZ];
+	Addr *a;
+
+	a = va_arg(fp->args, Addr*);
+	switch(a->name) {
+	case D_EXTERN:
+		snprint(str, sizeof(str), "%S+%d(SB)", a->sym, a->offset);
+		break;
+
+	case D_STATIC:
+		snprint(str, sizeof(str), "%S<>+%d(SB)", a->sym, a->offset);
+		break;
+
+	case D_AUTO:
+		snprint(str, sizeof(str), "%S+%d(SP)", a->sym, a->offset);
+		break;
+
+	case D_PARAM:
+		snprint(str, sizeof(str), "%S+%d(FP)", a->sym, a->offset);
+		break;
+	}
 	return fmtstrcpy(fp, str);
 }
