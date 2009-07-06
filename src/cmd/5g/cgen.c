@@ -176,12 +176,8 @@ cgen(Node *n, Node *res)
 	case OXOR:
 	case OADD:
 	case OMUL:
-		fatal("cgen OMUL not implemented");
-//		a = optoas(n->op, nl->type);
-//		if(a != AIMULB)
-//			goto sbop;
-//		cgen_bmul(n->op, nl, nr, res);
-		break;
+		a = optoas(n->op, nl->type);
+		goto sbop;
 
 	// asymmetric binary
 	case OSUB:
@@ -345,224 +341,227 @@ ret:
 void
 agen(Node *n, Node *res)
 {
-	fatal("agen not implemented");
-//	Node *nl, *nr;
-//	Node n1, n2, n3, tmp;
-//	Prog *p1;
-//	uint32 w;
-//	uint64 v;
-//	Type *t;
+	Node *nl, *nr;
+	Node n1, n2, n3, tmp;
+	Prog *p1;
+	uint32 w;
+	uint64 v;
+	Type *t;
 
-//	if(debug['g']) {
-//		dump("\nagen-res", res);
-//		dump("agen-r", n);
-//	}
-//	if(n == N || n->type == T)
-//		return;
+	if(debug['g']) {
+		dump("\nagen-res", res);
+		dump("agen-r", n);
+	}
+	if(n == N || n->type == T)
+		return;
 
-//	if(!isptr[res->type->etype])
-//		fatal("agen: not tptr: %T", res->type);
-//
-//	while(n->op == OCONVNOP)
-//		n = n->left;
-//
-//	if(n->addable) {
-//		regalloc(&n1, types[tptr], res);
-//		gins(ALEAQ, n, &n1);
-//		gmove(&n1, res);
-//		regfree(&n1);
-//		goto ret;
-//	}
+	if(!isptr[res->type->etype])
+		fatal("agen: not tptr: %T", res->type);
 
-//	nl = n->left;
-//	nr = n->right;
+	while(n->op == OCONVNOP)
+		n = n->left;
 
-//	switch(n->op) {
-//	default:
-//		fatal("agen: unknown op %N", n);
-//		break;
+	if(n->addable) {
+		memset(&n1, 0, sizeof n1);
+		n1.op = OADDR;
+		n1.left = n;
+		regalloc(&n2, types[tptr], res);
+		gins(AMOVW, &n1, &n2);
+		gmove(&n2, res);
+		regfree(&n2);
+		goto ret;
+	}
 
-//	case OCALLMETH:
-//		cgen_callmeth(n, 0);
-//		cgen_aret(n, res);
-//		break;
+	nl = n->left;
+	nr = n->right;
 
-//	case OCALLINTER:
-//		cgen_callinter(n, res, 0);
-//		cgen_aret(n, res);
-//		break;
+	switch(n->op) {
+	default:
+		fatal("agen: unknown op %N", n);
+		break;
 
-//	case OCALL:
-//		cgen_call(n, 0);
-//		cgen_aret(n, res);
-//		break;
+	case OCALLMETH:
+		cgen_callmeth(n, 0);
+		cgen_aret(n, res);
+		break;
+
+	case OCALLINTER:
+		cgen_callinter(n, res, 0);
+		cgen_aret(n, res);
+		break;
+
+	case OCALL:
+		cgen_call(n, 0);
+		cgen_aret(n, res);
+		break;
 
 // TODO(kaib): Use the OINDEX case from 8g instead of this one.
-//	case OINDEX:
-//		w = n->type->width;
-//		if(nr->addable)
-//			goto irad;
-//		if(nl->addable) {
-//			if(!isconst(nr, CTINT)) {
-//				regalloc(&n1, nr->type, N);
-//				cgen(nr, &n1);
-//			}
-//			regalloc(&n3, types[tptr], res);
-//			agen(nl, &n3);
-//			goto index;
-//		}
-//		cgen(nr, res);
-//		tempname(&tmp, nr->type);
-//		gmove(res, &tmp);
+	case OINDEX:
+		w = n->type->width;
+		if(nr->addable)
+			goto irad;
+		if(nl->addable) {
+			if(!isconst(nr, CTINT)) {
+				regalloc(&n1, nr->type, N);
+				cgen(nr, &n1);
+			}
+			regalloc(&n3, types[tptr], res);
+			agen(nl, &n3);
+			goto index;
+		}
+		cgen(nr, res);
+		tempname(&tmp, nr->type);
+		gmove(res, &tmp);
 
-//	irad:
-//		regalloc(&n3, types[tptr], res);
-//		agen(nl, &n3);
-//		if(!isconst(nr, CTINT)) {
-//			regalloc(&n1, nr->type, N);
-//			cgen(nr, &n1);
-//		}
-//		goto index;
+	irad:
+		regalloc(&n3, types[tptr], res);
+		agen(nl, &n3);
+		if(!isconst(nr, CTINT)) {
+			regalloc(&n1, nr->type, N);
+			cgen(nr, &n1);
+		}
+		goto index;
 
-//	index:
-//		// &a is in &n3 (allocated in res)
-//		// i is in &n1 (if not constant)
-//		// w is width
+	index:
+		// &a is in &n3 (allocated in res)
+		// i is in &n1 (if not constant)
+		// w is width
 
-//		if(w == 0)
-//			fatal("index is zero width");
+		if(w == 0)
+			fatal("index is zero width");
 
-//		// constant index
-//		if(isconst(nr, CTINT)) {
-//			v = mpgetfix(nr->val.u.xval);
-//			if(isslice(nl->type)) {
+		// constant index
+		if(isconst(nr, CTINT)) {
+			v = mpgetfix(nr->val.u.xval);
+			if(isslice(nl->type)) {
 
-//				if(!debug['B']) {
-//					n1 = n3;
-//					n1.op = OINDREG;
-//					n1.type = types[tptr];
-//					n1.xoffset = Array_nel;
-//					nodconst(&n2, types[TUINT64], v);
-//					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
-//					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
-//					ginscall(throwindex, 0);
-//					patch(p1, pc);
-//				}
+				if(!debug['B']) {
+					n1 = n3;
+					n1.op = OINDREG;
+					n1.type = types[tptr];
+					n1.xoffset = Array_nel;
+					nodconst(&n2, types[TUINT64], v);
+					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
+					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
+					ginscall(throwindex, 0);
+					patch(p1, pc);
+				}
 
-//				n1 = n3;
-//				n1.op = OINDREG;
-//				n1.type = types[tptr];
-//				n1.xoffset = Array_array;
-//				gmove(&n1, &n3);
-//			} else
-//			if(!debug['B']) {
-//				if(v < 0)
-//					yyerror("out of bounds on array");
-//				else
-//				if(v >= nl->type->bound)
-//					yyerror("out of bounds on array");
-//			}
+				n1 = n3;
+				n1.op = OINDREG;
+				n1.type = types[tptr];
+				n1.xoffset = Array_array;
+				gmove(&n1, &n3);
+			} else
+			if(!debug['B']) {
+				if(v < 0)
+					yyerror("out of bounds on array");
+				else
+				if(v >= nl->type->bound)
+					yyerror("out of bounds on array");
+			}
 
-//			nodconst(&n2, types[tptr], v*w);
-//			gins(optoas(OADD, types[tptr]), &n2, &n3);
+			nodconst(&n2, types[tptr], v*w);
+			gins(optoas(OADD, types[tptr]), &n2, &n3);
 
-//			gmove(&n3, res);
-//			regfree(&n3);
-//			break;
-//		}
+			gmove(&n3, res);
+			regfree(&n3);
+			break;
+		}
 
-//		// type of the index
-//		t = types[TUINT64];
-//		if(issigned[n1.type->etype])
-//			t = types[TINT64];
+		// type of the index
+		t = types[TUINT64];
+		if(issigned[n1.type->etype])
+			t = types[TINT64];
 
-//		regalloc(&n2, t, &n1);			// i
-//		gmove(&n1, &n2);
-//		regfree(&n1);
+		regalloc(&n2, t, &n1);			// i
+		gmove(&n1, &n2);
+		regfree(&n1);
 
-//		if(!debug['B']) {
-//			// check bounds
-//			if(isslice(nl->type)) {
-//				n1 = n3;
-//				n1.op = OINDREG;
-//				n1.type = types[tptr];
-//				n1.xoffset = Array_nel;
-//			} else
-//				nodconst(&n1, types[TUINT64], nl->type->bound);
-//			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
-//			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
-//			ginscall(throwindex, 0);
-//			patch(p1, pc);
-//		}
+		if(!debug['B']) {
+			// check bounds
+			if(isslice(nl->type)) {
+				n1 = n3;
+				n1.op = OINDREG;
+				n1.type = types[tptr];
+				n1.xoffset = Array_nel;
+			} else
+				nodconst(&n1, types[TUINT64], nl->type->bound);
+			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
+			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
+			ginscall(throwindex, 0);
+			patch(p1, pc);
+		}
 
-//		if(isslice(nl->type)) {
-//			n1 = n3;
-//			n1.op = OINDREG;
-//			n1.type = types[tptr];
-//			n1.xoffset = Array_array;
-//			gmove(&n1, &n3);
-//		}
+		if(isslice(nl->type)) {
+			n1 = n3;
+			n1.op = OINDREG;
+			n1.type = types[tptr];
+			n1.xoffset = Array_array;
+			gmove(&n1, &n3);
+		}
 
-//		if(w == 1 || w == 2 || w == 4 || w == 8) {
-//			p1 = gins(ALEAQ, &n2, &n3);
-//			p1->from.scale = w;
-//			p1->from.index = p1->from.type;
-//			p1->from.type = p1->to.type + D_INDIR;
-//		} else {
-//			nodconst(&n1, t, w);
-//			gins(optoas(OMUL, t), &n1, &n2);
-//			gins(optoas(OADD, types[tptr]), &n2, &n3);
-//			gmove(&n3, res);
-//		}
+		if(w == 1 || w == 2 || w == 4 || w == 8) {
+			memset(&tmp, 0, sizeof tmp);
+			tmp.op = OADDR;
+			tmp.left = &n2;
+			p1 = gins(AMOVW, &tmp, &n3);
+			p1->from.scale = w;
+		} else {
+			nodconst(&n1, t, w);
+			gins(optoas(OMUL, t), &n1, &n2);
+			gins(optoas(OADD, types[tptr]), &n2, &n3);
+			gmove(&n3, res);
+		}
 
-//		gmove(&n3, res);
-//		regfree(&n2);
-//		regfree(&n3);
-//		break;
+		gmove(&n3, res);
+		regfree(&n2);
+		regfree(&n3);
+		break;
 
-//	case ONAME:
-//		// should only get here with names in this func.
-//		if(n->funcdepth > 0 && n->funcdepth != funcdepth) {
-//			dump("bad agen", n);
-//			fatal("agen: bad ONAME funcdepth %d != %d",
-//				n->funcdepth, funcdepth);
-//		}
+	case ONAME:
+		// should only get here with names in this func.
+		if(n->funcdepth > 0 && n->funcdepth != funcdepth) {
+			dump("bad agen", n);
+			fatal("agen: bad ONAME funcdepth %d != %d",
+				n->funcdepth, funcdepth);
+		}
 
-//		// should only get here for heap vars or paramref
-//		if(!(n->class & PHEAP) && n->class != PPARAMREF) {
-//			dump("bad agen", n);
-//			fatal("agen: bad ONAME class %#x", n->class);
-//		}
-//		cgen(n->heapaddr, res);
-//		if(n->xoffset != 0) {
-//			nodconst(&n1, types[TINT64], n->xoffset);
-//			gins(optoas(OADD, types[tptr]), &n1, res);
-//		}
-//		break;
+		// should only get here for heap vars or paramref
+		if(!(n->class & PHEAP) && n->class != PPARAMREF) {
+			dump("bad agen", n);
+			fatal("agen: bad ONAME class %#x", n->class);
+		}
+		cgen(n->heapaddr, res);
+		if(n->xoffset != 0) {
+			nodconst(&n1, types[TINT64], n->xoffset);
+			gins(optoas(OADD, types[tptr]), &n1, res);
+		}
+		break;
 
-//	case OIND:
-//		cgen(nl, res);
-//		break;
+	case OIND:
+		cgen(nl, res);
+		break;
 
-//	case ODOT:
-//		agen(nl, res);
-//		if(n->xoffset != 0) {
-//			nodconst(&n1, types[TINT64], n->xoffset);
-//			gins(optoas(OADD, types[tptr]), &n1, res);
-//		}
-//		break;
+	case ODOT:
+		agen(nl, res);
+		if(n->xoffset != 0) {
+			nodconst(&n1, types[TINT64], n->xoffset);
+			gins(optoas(OADD, types[tptr]), &n1, res);
+		}
+		break;
 
-//	case ODOTPTR:
-//		cgen(nl, res);
-//		if(n->xoffset != 0) {
-//			nodconst(&n1, types[TINT64], n->xoffset);
-//			gins(optoas(OADD, types[tptr]), &n1, res);
-//		}
-//		break;
-//	}
+	case ODOTPTR:
+		cgen(nl, res);
+		if(n->xoffset != 0) {
+			nodconst(&n1, types[TINT64], n->xoffset);
+			gins(optoas(OADD, types[tptr]), &n1, res);
+		}
+		break;
+	}
 
-// ret:
-//	;
+ret:
+	;
 }
 
 /*
@@ -821,45 +820,47 @@ stkof(Node *n)
 void
 sgen(Node *n, Node *ns, int32 w)
 {
-	fatal("sgen not implemented");
-//	Node nodl, nodr;
-//	int32 c, q, odst, osrc;
+	Node nodl, nodr, ndat, nend;
+	int32 c, q, odst, osrc;
+	Prog *p;
 
-//	if(debug['g']) {
-//		print("\nsgen w=%d\n", w);
-//		dump("r", n);
-//		dump("res", ns);
-//	}
-//	if(w == 0)
-//		return;
-//	if(n->ullman >= UINF && ns->ullman >= UINF) {
-//		fatal("sgen UINF");
-//	}
+	if(debug['g']) {
+		print("\nsgen w=%d\n", w);
+		dump("r", n);
+		dump("res", ns);
+	}
+	if(w == 0)
+		return;
+	if(n->ullman >= UINF && ns->ullman >= UINF) {
+		fatal("sgen UINF");
+	}
 
-//	if(w < 0)
-//		fatal("sgen copy %d", w);
+	if(w < 0)
+		fatal("sgen copy %d", w);
 
-//	// offset on the stack
-//	osrc = stkof(n);
-//	odst = stkof(ns);
+	// offset on the stack
+	osrc = stkof(n);
+	odst = stkof(ns);
 
-//	nodreg(&nodl, types[tptr], D_DI);
-//	nodreg(&nodr, types[tptr], D_SI);
+	regalloc(&nodl, types[tptr], N);
+	regalloc(&nodr, types[tptr], N);
+	regalloc(&ndat, types[TUINT32], N);
 
-//	if(n->ullman >= ns->ullman) {
-//		agen(n, &nodr);
-//		agen(ns, &nodl);
-//	} else {
-//		agen(ns, &nodl);
-//		agen(n, &nodr);
-//	}
+	if(n->ullman >= ns->ullman) {
+		agen(n, &nodr);
+		agen(ns, &nodl);
+	} else {
+		agen(ns, &nodl);
+		agen(n, &nodr);
+	}
 
-//	c = w % 8;	// bytes
-//	q = w / 8;	// quads
+	c = w % 4;	// bytes
+	q = w / 4;	// quads
 
-//	// if we are copying forward on the stack and
-//	// the src and dst overlap, then reverse direction
-//	if(osrc < odst && odst < osrc+w) {
+	// if we are copying forward on the stack and
+	// the src and dst overlap, then reverse direction
+	if(osrc < odst && odst < osrc+w) {
+		fatal("sgen reverse copy not implemented");
 //		// reverse direction
 //		gins(ASTD, N, N);		// set direction flag
 //		if(c > 0) {
@@ -885,19 +886,48 @@ sgen(Node *n, Node *ns, int32 w)
 //		}
 //		// we leave with the flag clear
 //		gins(ACLD, N, N);
-//	} else {
-//		// normal direction
-//		if(q >= 4) {
-//			gconreg(AMOVQ, q, D_CX);
-//			gins(AREP, N, N);	// repeat
-//			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
-//		} else
-//		while(q > 0) {
-//			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
-//			q--;
-//		}
+	} else {
+		// normal direction
+		if(q >= 4) {
+			regalloc(&nend, types[TUINT32], N);
+			p = gins(AMOVW, &nodl, &nend);
+			p->from.type = D_CONST;
+			p->from.offset = q;
 
+			p = gins(AMOVW, &nodl, &ndat);
+			p->from.type = D_OREG;
+			p->from.offset = 4;
+			p->scond |= C_PBIT;
+
+			p = gins(AMOVW, &ndat, &nodr);
+			p->to.type = D_OREG;
+			p->to.offset = 4;
+			p->scond |= C_PBIT;
+
+			gins(ACMP, &nodl, &nend);
+			fatal("sgen loop not implemented");
+			p = gins(ABNE, N, N);
+			// TODO(PC offset)
+ 			regfree(&nend);
+		} else
+		while(q > 0) {
+			p = gins(AMOVW, &nodl, &ndat);
+			p->from.type = D_OREG;
+			p->from.offset = 4;
+ 			p->scond |= C_PBIT;
+
+			p = gins(AMOVW, &ndat, &nodr);
+			p->to.type = D_OREG;
+			p->to.offset = 4;
+ 			p->scond |= C_PBIT;
+
+			q--;
+		}
+
+		if (c != 0)
+			fatal("sgen character copy not implemented");
 //		if(c >= 4) {
+
 //			gins(AMOVSL, N, N);	// MOVL *(SI)+,*(DI)+
 //			c -= 4;
 //		}
@@ -905,5 +935,8 @@ sgen(Node *n, Node *ns, int32 w)
 //			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
 //			c--;
 //		}
-//	}
+	}
+ 	regfree(&nodl);
+	regfree(&nodr);
+	regfree(&ndat);
 }
