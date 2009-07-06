@@ -18,28 +18,6 @@ import (
 
 
 // ----------------------------------------------------------------------------
-// Elementary support
-
-func hasExportedNames(names []*ast.Ident) bool {
-	for i, name := range names {
-		if name.IsExported() {
-			return true;
-		}
-	}
-	return false;
-}
-
-
-func hasExportedSpecs(specs []ast.Spec) bool {
-	for i, s := range specs {
-		// only called for []astSpec lists of *ast.ValueSpec
-		return hasExportedNames(s.(*ast.ValueSpec).Names);
-	}
-	return false;
-}
-
-
-// ----------------------------------------------------------------------------
 
 type typeDoc struct {
 	decl *ast.GenDecl;  // len(decl.Specs) == 1, and the element type is *ast.TypeSpec
@@ -149,33 +127,25 @@ func (doc *DocReader) addDecl(decl ast.Decl) {
 				// ignore
 			case token.CONST:
 				// constants are always handled as a group
-				if hasExportedSpecs(d.Specs) {
-					doc.consts.Push(d);
-				}
+				doc.consts.Push(d);
 			case token.TYPE:
 				// types are handled individually
+				var noPos token.Position;
 				for i, spec := range d.Specs {
+					// make a (fake) GenDecl node for this TypeSpec
+					// (we need to do this here - as opposed to just
+					// for printing - so we don't lose the GenDecl
+					// documentation)
 					s := spec.(*ast.TypeSpec);
-					if s.Name.IsExported() {
-						// make a (fake) GenDecl node for this TypeSpec
-						// (we need to do this here - as opposed to just
-						// for printing - so we don't loose the GenDecl
-						// documentation)
-						var noPos token.Position;
-						doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{s}, noPos});
-					}
+					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{s}, noPos});
 				}
 			case token.VAR:
 				// variables are always handled as a group
-				if hasExportedSpecs(d.Specs) {
-					doc.vars.Push(d);
-				}
+				doc.vars.Push(d);
 			}
 		}
 	case *ast.FuncDecl:
-		if d.Name.IsExported() {
-			doc.addFunc(d);
-		}
+		doc.addFunc(d);
 	}
 }
 
@@ -194,7 +164,7 @@ func (doc *DocReader) AddProgram(prog *ast.Program) {
 		doc.doc = prog.Doc
 	}
 
-	// add all exported declarations
+	// add all declarations
 	for i, decl := range prog.Decls {
 		doc.addDecl(decl);
 	}

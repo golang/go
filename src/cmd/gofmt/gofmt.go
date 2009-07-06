@@ -7,6 +7,7 @@ package main
 import (
 	"flag";
 	"fmt";
+	"go/ast";
 	"go/parser";
 	"go/printer";
 	"io";
@@ -48,9 +49,6 @@ func parserMode() uint {
 
 func printerMode() uint {
 	mode := uint(0);
-	if *exports {
-		mode |= printer.ExportsOnly;
-	}
 	if *optcommas {
 		mode |= printer.OptCommas;
 	}
@@ -100,6 +98,9 @@ func main() {
 	}
 
 	if !*silent {
+		if *exports {
+			ast.FilterExports(prog);  // ignore result
+		}
 		w := makeTabwriter(os.Stdout);
 		printer.Fprint(w, prog, printerMode());
 		w.Flush();

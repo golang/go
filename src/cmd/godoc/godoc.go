@@ -198,9 +198,13 @@ func parse(path string, mode uint) (*ast.Program, *parseErrors) {
 // Templates
 
 // Return text for an AST node.
-func nodeText(node interface{}, mode uint) []byte {
+func nodeText(node interface{}) []byte {
 	var buf bytes.Buffer;
 	tw := makeTabwriter(&buf);
+	mode := uint(0);
+	if _, isProgram := node.(*ast.Program); isProgram {
+		mode = printer.DocComments;
+	}
 	printer.Fprint(tw, node, mode);
 	tw.Flush();
 	return buf.Data();
@@ -219,9 +223,9 @@ func toText(x interface{}) []byte {
 	case String:
 		return strings.Bytes(v.String());
 	case ast.Decl:
-		return nodeText(v, printer.ExportsOnly);
+		return nodeText(v);
 	case ast.Expr:
-		return nodeText(v, printer.ExportsOnly);
+		return nodeText(v);
 	}
 	var buf bytes.Buffer;
 	fmt.Fprint(&buf, x);
@@ -331,7 +335,7 @@ func serveGoSource(c *http.Conn, name string) {
 
 	var buf bytes.Buffer;
 	fmt.Fprintln(&buf, "<pre>");
-	template.HtmlEscape(&buf, nodeText(prog, printer.DocComments));
+	template.HtmlEscape(&buf, nodeText(prog));
 	fmt.Fprintln(&buf, "</pre>");
 
 	servePage(c, name + " - Go source", buf.Data());
@@ -491,6 +495,7 @@ func (p *pakDesc) Doc() (*doc.PackageDoc, *parseErrors) {
 			r.Init(prog.Name.Value, p.importpath);
 		}
 		i++;
+		ast.FilterExports(prog);  // we only care about exports
 		r.AddProgram(prog);
 	}
 

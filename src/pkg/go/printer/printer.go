@@ -20,8 +20,7 @@ import (
 // to Fprint via the mode parameter.
 //
 const (
-	ExportsOnly uint = 1 << iota;  // print exported code only
-	DocComments;  // print documentation comments
+	DocComments uint = 1 << iota;  // print documentation comments
 	OptCommas;  // print optional commas
 	OptSemis;  // print optional semicolons
 )
@@ -181,96 +180,12 @@ func (p *printer) print(args ...) {
 
 
 // ----------------------------------------------------------------------------
-// Predicates
+// Printing of common AST nodes.
 
 func (p *printer) optSemis() bool {
 	return p.mode & OptSemis != 0;
 }
 
-
-func (p *printer) exportsOnly() bool {
-	return p.mode & ExportsOnly != 0;
-}
-
-
-// The isVisibleX predicates return true if X should produce any output
-// given the printing mode and depending on whether X contains exported
-// names.
-
-func (p *printer) isVisibleIdent(x *ast.Ident) bool {
-	// identifiers in local scopes (p.level > 0) are always visible
-	// if the surrounding code is printed in the first place
-	return !p.exportsOnly() || x.IsExported() || p.level > 0;
-}
-
-
-func (p *printer) isVisibleIdentList(list []*ast.Ident) bool {
-	for _, x := range list {
-		if p.isVisibleIdent(x) {
-			return true;
-		}
-	}
-	return false;
-}
-
-
-func (p *printer) isVisibleFieldList(list []*ast.Field) bool {
-	for _, f := range list {
-		if len(f.Names) == 0 {
-			// anonymous field
-			// TODO should only return true if the anonymous field
-			//      type is visible (for now be conservative and
-			//      print it so that the generated code is valid)
-			return true;
-		}
-		if p.isVisibleIdentList(f.Names) {
-			return true;
-		}
-	}
-	return false;
-}
-
-
-func (p *printer) isVisibleSpec(spec ast.Spec) bool {
-	switch s := spec.(type) {
-	case *ast.ImportSpec:
-		return !p.exportsOnly();
-	case *ast.ValueSpec:
-		return p.isVisibleIdentList(s.Names);
-	case *ast.TypeSpec:
-		return p.isVisibleIdent(s.Name);
-	}
-	panic("unreachable");
-	return false;
-}
-
-
-func (p *printer) isVisibleSpecList(list []ast.Spec) bool {
-	for _, s := range list {
-		if p.isVisibleSpec(s) {
-			return true;
-		}
-	}
-	return false;
-}
-
-
-func (p *printer) isVisibleDecl(decl ast.Decl) bool {
-	switch d := decl.(type) {
-	case *ast.BadDecl:
-		return false;
-	case *ast.GenDecl:
-		return p.isVisibleSpecList(d.Specs);
-	case *ast.FuncDecl:
-		return p.isVisibleIdent(d.Name);
-	}
-	panic("unreachable");
-	return false;
-}
-
-
-// ----------------------------------------------------------------------------
-// Printing of common AST nodes.
 
 func (p *printer) comment(c *ast.Comment) {
 	if c != nil {
@@ -297,15 +212,11 @@ func (p *printer) doc(d ast.Comments) {
 func (p *printer) expr(x ast.Expr) bool
 
 func (p *printer) identList(list []*ast.Ident) {
-	needsComma := false;
 	for i, x := range list {
-		if p.isVisibleIdent(x) {
-			if needsComma {
-				p.print(token.COMMA, blank);
-			}
-			p.expr(x);
-			needsComma = true;
+		if i > 0 {
+			p.print(token.COMMA, blank);
 		}
+		p.expr(x);
 	}
 }
 
@@ -362,83 +273,73 @@ func (p *printer) signature(params, result []*ast.Field) {
 
 // Returns true if the field list ends in a closing brace.
 func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isInterface bool) bool {
-	hasBody := p.isVisibleFieldList(list);
-	if !lbrace.IsValid() || p.exportsOnly() && !hasBody {
-		// forward declaration without {}'s or no visible exported fields
-		// (in all other cases, the {}'s must be printed even if there are
-		// no fields, otherwise the type is incorrect)
+	if !lbrace.IsValid() {
+		// forward declaration without {}'s
 		return false;  // no {}'s
 	}
 
-	p.print(blank, lbrace, token.LBRACE);
+	if len(list) == 0 {
+		p.print(blank, lbrace, token.LBRACE, rbrace, token.RBRACE);
+		return true;  // empty list with {}'s
+	}
 
-	if hasBody {
-		p.print(+1, newline);
+	p.print(blank, lbrace, token.LBRACE, +1, newline);
 
-		var needsSemi bool;
-		var lastWasAnon bool;  // true if the previous line was an anonymous field
-		var lastComment *ast.Comment;  // the comment from the previous line
-		for _, f := range list {
-			hasNames := p.isVisibleIdentList(f.Names);
-			isAnon := len(f.Names) == 0;
-
-			if hasNames || isAnon {
-				// at least one visible identifier or anonymous field
-				// TODO this is conservative - see isVisibleFieldList
-				if needsSemi {
-					p.print(token.SEMICOLON);
-					p.comment(lastComment);
-					if lastWasAnon == isAnon {
-						// previous and current line have same structure;
-						// continue with existing columns
-						p.print(newline);
-					} else {
-						// previous and current line have different structure;
-						// flush tabwriter and start new columns (the "type
-						// column" on a line with named fields may line up
-						// with the "trailing comment column" on a line with
-						// an anonymous field, leading to bad alignment)
-						p.print(formfeed);
-					}
-				}
-
-				p.doc(f.Doc);
-				if hasNames {
-					p.identList(f.Names);
-					p.print(tab);
-				}
-
-				if isInterface {
-					if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
-						// methods
-						p.signature(ftyp.Params, ftyp.Results);
-					} else {
-						// embedded interface
-						p.expr(f.Type);
-					}
-				} else {
-					p.expr(f.Type);
-					if f.Tag != nil && !p.exportsOnly() {
-						p.print(tab);
-						p.expr(&ast.StringList{f.Tag});
-					}
-				}
-
-				needsSemi = true;
-				lastWasAnon = isAnon;
-				lastComment = f.Comment;
+	var lastWasAnon bool;  // true if the previous line was an anonymous field
+	var lastComment *ast.Comment;  // the comment from the previous line
+	for i, f := range list {
+		// at least one visible identifier or anonymous field
+		isAnon := len(f.Names) == 0;
+		if i > 0 {
+			p.print(token.SEMICOLON);
+			p.comment(lastComment);
+			if lastWasAnon == isAnon {
+				// previous and current line have same structure;
+				// continue with existing columns
+				p.print(newline);
+			} else {
+				// previous and current line have different structure;
+				// flush tabwriter and start new columns (the "type
+				// column" on a line with named fields may line up
+				// with the "trailing comment column" on a line with
+				// an anonymous field, leading to bad alignment)
+				p.print(formfeed);
 			}
 		}
 
-		if p.optSemis() {
-			p.print(token.SEMICOLON);
+		p.doc(f.Doc);
+		if !isAnon {
+			p.identList(f.Names);
+			p.print(tab);
 		}
 
-		p.comment(lastComment);
-		p.print(-1, newline);
+		if isInterface {
+			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
+				// methods
+				p.signature(ftyp.Params, ftyp.Results);
+			} else {
+				// embedded interface
+				p.expr(f.Type);
+			}
+		} else {
+			p.expr(f.Type);
+			if f.Tag != nil {
+				p.print(tab);
+				p.expr(&ast.StringList{f.Tag});
+			}
+		}
+
+		lastWasAnon = isAnon;
+		lastComment = f.Comment;
 	}
 
-	p.print(rbrace, token.RBRACE);
+	if p.optSemis() {
+		p.print(token.SEMICOLON);
+	}
+	p.comment(lastComment);
+
+	p.print(-1, newline, rbrace, token.RBRACE);
+
 	return true;  // field list with {}'s
 }
 
@@ -905,25 +806,17 @@ func (p *printer) decl(decl ast.Decl) (optSemi bool) {
 
 		if d.Lparen.IsValid() {
 			// group of parenthesized declarations
-			p.print(d.Lparen, token.LPAREN);
-			if p.isVisibleSpecList(d.Specs) {
-				p.print(+1, newline);
-				semi := false;
-				for _, s := range d.Specs {
-					if p.isVisibleSpec(s) {
-						if semi {
-							p.print(token.SEMICOLON, newline);
-						}
-						p.spec(s);
-						semi = true;
-					}
+			p.print(d.Lparen, token.LPAREN, +1, newline);
+			for i, s := range d.Specs {
+				if i > 0 {
+					p.print(token.SEMICOLON, newline);
 				}
-				if p.optSemis() {
-					p.print(token.SEMICOLON);
-				}
-				p.print(-1, newline);
+				p.spec(s);
 			}
-			p.print(d.Rparen, token.RPAREN);
+			if p.optSemis() {
+				p.print(token.SEMICOLON);
+			}
+			p.print(-1, newline, d.Rparen, token.RPAREN);
 			optSemi = true;
 
 		} else {
@@ -946,7 +839,7 @@ func (p *printer) decl(decl ast.Decl) (optSemi bool) {
 		}
 		p.expr(d.Name);
 		p.signature(d.Type.Params, d.Type.Results);
-		if !p.exportsOnly() && d.Body != nil {
+		if d.Body != nil {
 			p.print(blank);
 			p.level++;  // adjust nesting level for function body
 			p.stmt(d.Body);
@@ -965,23 +858,19 @@ func (p *printer) decl(decl ast.Decl) (optSemi bool) {
 // Programs
 
 func (p *printer) program(prog *ast.Program) {
-	// set unassociated comments if all code is printed
-	if !p.exportsOnly() {
-		// TODO enable this once comments are properly interspersed
-		//p.setComments(prog.Comments);
-	}
+	// set unassociated comments
+	// TODO enable this once comments are properly interspersed
+	// p.setComments(prog.Comments);
 
 	p.doc(prog.Doc);
 	p.print(prog.Pos(), token.PACKAGE, blank);
 	p.expr(prog.Name);
 
 	for _, d := range prog.Decls {
-		if p.isVisibleDecl(d) {
-			p.print(newline, newline);
-			p.decl(d);
-			if p.optSemis() {
-				p.print(token.SEMICOLON);
-			}
+		p.print(newline, newline);
+		p.decl(d);
+		if p.optSemis() {
+			p.print(token.SEMICOLON);
 		}
 	}
 
