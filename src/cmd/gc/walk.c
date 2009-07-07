@@ -1309,7 +1309,7 @@ walkconv(Node *n)
 		n->op = OCONVNOP;
 		return;
 	}
-	
+
 	// to/from interface.
 	// ifaceas1 will generate a good error
 	// if the conversion is invalid.
@@ -1940,7 +1940,6 @@ loop:
 Type*
 sigtype(Type *st)
 {
-	Dcl *x;
 	Sym *s;
 	Type *t;
 	static int sigdddgen;
@@ -1954,16 +1953,6 @@ sigtype(Type *st)
 	t = dodcltype(t);
 	updatetype(t, st);
 	t->local = 1;
-
-	// record internal type for signature generation
-	x = mal(sizeof(*x));
-	x->op = OTYPE;
-	x->dsym = s;
-	x->dtype = t;
-	x->forw = signatlist;
-	x->block = block;
-	signatlist = x;
-
 	return t;
 }
 
@@ -3260,10 +3249,10 @@ ifacecvt(Type *tl, Node *n, int et)
 		a = n;				// elem
 		r = a;
 
-		a = nod(OADDR, signame(tr), N);	// sigt
+		a = typename(tr);	// sigt
 		r = list(a, r);
 
-		a = nod(OADDR, signame(tl), N);	// sigi
+		a = typename(tl);	// sigi
 		r = list(a, r);
 
 		on = syslook("ifaceT2I", 1);
@@ -3284,7 +3273,7 @@ ifacecvt(Type *tl, Node *n, int et)
 		a = n;				// interface
 		r = a;
 
-		a = nod(OADDR, signame(tl), N);	// sigi or sigt
+		a = typename(tl);	// sigi or sigt
 		r = list(a, r);
 
 		on = syslook(ifacename[et], 1);
@@ -3308,7 +3297,7 @@ ifacecvt(Type *tl, Node *n, int et)
 		a = n;				// elem
 		r = a;
 
-		a = nod(OADDR, signame(tr), N);	// sigt
+		a = typename(tr);	// sigt
 		r = list(a, r);
 
 		on = syslook("ifaceT2E", 1);

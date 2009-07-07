@@ -15,6 +15,7 @@ YFILES=\
 	go.y\
 
 OFILES=\
+	reflect.$O\
 	y.tab.$O\
 	lex.$O\
 	subr.$O\

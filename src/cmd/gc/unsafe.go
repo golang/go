@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 package PACKAGE
 
 type	Pointer	*any;
 func	Offsetof(any) int;
 func	Sizeof(any) int;
 func	Alignof(any) int;
-func	Reflect(i interface { }) (uint64, string, bool);
-func	Unreflect(uint64, string, bool) (ret interface { });
+func	Typeof(i interface { }) (typ interface{});
+func	Reflect(i interface { }) (typ interface{}, addr Pointer);
+func	Unreflect(typ interface{}, addr Pointer) (ret interface { });

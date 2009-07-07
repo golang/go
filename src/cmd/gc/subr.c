@@ -1613,64 +1613,6 @@ iscomposite(Type *t)
 	return 0;
 }
 
-Node*
-signame(Type *t)
-{
-	Sym *ss;
-	char *e;
-	Dcl *x;
-	char buf[NSYMB];
-
-//print("signame %T\n", t);
-	if(t == T)
-		goto bad;
-
-	e = "sigt";
-	if(t->etype == TINTER || t->etype == TDDD)
-		e = "sigi";
-
-	// name is exported name, like *[]byte or *Struct or Interface
-	// (special symbols don't bother the linker).
-	snprint(buf, sizeof(buf), "%#T", t);
-
-	// special case: empty interface is named sigi.empty
-	// so that it can be referred to by the runtime.
-	if(strcmp(buf, "interface { }") == 0)
-		strcpy(buf, "empty");
-
-	// special case: sigi.... is just too hard to read in assembly.
-	if(strcmp(buf, "...") == 0)
-		strcpy(buf, "dotdotdot");
-
-	ss = pkglookup(buf, e);
-	if(ss->def == N) {
-		ss->def = newname(ss);
-		ss->def->type = types[TUINT8];
-		ss->def->class = PEXTERN;
-	}
-
-//print("siggen %T %d\n", t, t->siggen);
-	if(!t->siggen) {
-		// special case: don't generate the empty interface
-		if(strcmp(buf, "empty") == 0)
-			goto out;
-
-		// record internal type for signature generation
-		x = mal(sizeof(*x));
-		x->op = OTYPE;
-		x->dtype = t;
-		x->forw = signatlist;
-		t->siggen = 1;
-		signatlist = x;
-	}
-
-out:
-	return ss->def;
-
-bad:
-	return N;
-}
-
 int
 eqtype1(Type *t1, Type *t2, int d, int names)
 {

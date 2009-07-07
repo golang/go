@@ -487,6 +487,47 @@ dstringptr(Sym *s, int off, char *str)
 }
 
 int
+dgostrlitptr(Sym *s, int off, Strlit *lit)
+{
+	Prog *p;
+
+	if(lit == nil)
+		return duintptr(s, off, 0);
+
+	off = rnd(off, widthptr);
+	p = gins(ADATA, N, N);
+	p->from.type = D_EXTERN;
+	p->from.index = D_NONE;
+	p->from.sym = s;
+	p->from.offset = off;
+	p->from.scale = widthptr;
+	datagostring(lit, &p->to);
+	p->to.index = p->to.type;
+	p->to.type = D_ADDR;
+	p->to.etype = TINT32;
+	off += widthptr;
+
+	return off;
+}
+
+int
+dgostringptr(Sym *s, int off, char *str)
+{
+	int n;
+	Strlit *lit;
+
+	if(str == nil)
+		return duintptr(s, off, 0);
+
+	n = strlen(str);
+	lit = mal(sizeof *lit + n);
+	strcpy(lit->s, str);
+	lit->len = n;
+	return dgostrlitptr(s, off, lit);
+}
+
+
+int
 duintxx(Sym *s, int off, uint64 v, int wid)
 {
 	Prog *p;

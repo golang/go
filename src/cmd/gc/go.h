@@ -391,6 +391,7 @@ enum
 enum
 {
 	/* types of channel */
+	/* must match ../../pkg/nreflect/type.go:/Chandir */
 	Cxxx,
 	Crecv = 1<<0,
 	Csend = 1<<1,
@@ -457,7 +458,10 @@ typedef	struct	Sig	Sig;
 struct Sig
 {
 	char*	name;
-	Sym*	sym;
+	char*	package;
+	Sym*	isym;
+	Sym*	tsym;
+	Type*	type;
 	uint32	hash;
 	int32	perm;
 	int32	offset;
@@ -736,7 +740,7 @@ int	isnilinter(Type*);
 int	isddd(Type*);
 Type*	maptype(Type*, Type*);
 Type*	methtype(Type*);
-Node*	signame(Type*);
+Node*	typename(Type*);
 int	eqtype(Type*, Type*);
 int	cvttype(Type*, Type*);
 int	eqtypenoname(Type*, Type*);
@@ -782,7 +786,6 @@ Type*	funcnext(Iter*);
 int	brcom(int);
 int	brrev(int);
 void	setmaxarg(Type*);
-Sig*	lsort(Sig*, int(*)(Sig*, Sig*));
 int	dotoffset(Node*, int*, Node**);
 void	tempname(Node*, Type*);
 
@@ -1073,7 +1076,7 @@ int	isfat(Type*);
 void	clearfat(Node *n);
 void	cgen(Node*, Node*);
 void	gused(Node*);
-void	dumpsignatures(void);
+void	dumptypestructs(void);
 void	dumpfuncs(void);
 void	dumpdata(void);
 void	ggloblnod(Node *nam, int32 width);
