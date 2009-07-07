@@ -79,6 +79,29 @@ var untarTests = []*untarTest{
 			},
 		},
 	},
+	&untarTest{
+		file: "testdata/v7.tar",
+		headers: []*Header{
+			&Header{
+				Name: "small.txt",
+				Mode: 0640,
+				Uid: 73025,
+				Gid: 5000,
+				Size: 5,
+				Mtime: 1246508266,
+				Typeflag: '\x00',
+			},
+			&Header{
+				Name: "small2.txt",
+				Mode: 0640,
+				Uid: 73025,
+				Gid: 5000,
+				Size: 11,
+				Mtime: 1245217492,
+				Typeflag: '\x00',
+			},
+		},
+	},
 };
 
 func TestAll(t *testing.T) {
