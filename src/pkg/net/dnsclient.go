@@ -113,16 +113,16 @@ Cname:
 		for i := 0; i < len(dns.answer); i++ {
 			rr := dns.answer[i];
 			h := rr.Header();
-			if h.class == _DNS_ClassINET && h.name == name {
-				switch h.rrtype {
+			if h.Class == _DNS_ClassINET && h.Name == name {
+				switch h.Rrtype {
 				case _DNS_TypeA:
 					n := len(addrs);
-					a := rr.(*_DNS_RR_A).a;
+					a := rr.(*_DNS_RR_A).A;
 					addrs = addrs[0:n+1];
 					addrs[n] = IPv4(byte(a>>24), byte(a>>16), byte(a>>8), byte(a)).String();
 				case _DNS_TypeCNAME:
 					// redirect to cname
-					name = rr.(*_DNS_RR_CNAME).cname;
+					name = rr.(*_DNS_RR_CNAME).Cname;
 					continue Cname
 				}
 			}

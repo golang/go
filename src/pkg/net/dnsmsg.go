@@ -34,7 +34,7 @@ import (
 
 // Wire constants.
 const (
-	// valid _DNS_RR_Header.rrtype and _DNS_Question.qtype
+	// valid _DNS_RR_Header.Rrtype and _DNS_Question.qtype
 	_DNS_TypeA = 1;
 	_DNS_TypeNS = 2;
 	_DNS_TypeMD = 3;
@@ -76,13 +76,13 @@ const (
 
 // The wire format for the DNS packet header.
 type __DNS_Header struct {
-	id uint16;
-	bits uint16;
-	qdcount, ancount, nscount, arcount uint16;
+	Id uint16;
+	Bits uint16;
+	Qdcount, Ancount, Nscount, Arcount uint16;
 }
 
 const (
-	// __DNS_Header.bits
+	// __DNS_Header.Bits
 	_QR = 1<<15;	// query/response (response=1)
 	_AA = 1<<10;	// authoritative
 	_TC = 1<<9;	// truncated
@@ -92,20 +92,20 @@ const (
 
 // DNS queries.
 type _DNS_Question struct {
-	name string "domain-name";	// "domain-name" specifies encoding; see packers below
-	qtype uint16;
-	qclass uint16;
+	Name string "domain-name";	// "domain-name" specifies encoding; see packers below
+	Qtype uint16;
+	Qclass uint16;
 }
 
 // DNS responses (resource records).
 // There are many types of messages,
 // but they all share the same header.
 type _DNS_RR_Header struct {
-	name string "domain-name";
-	rrtype uint16;
-	class uint16;
-	ttl uint32;
-	rdlength uint16;	// length of data after header
+	Name string "domain-name";
+	Rrtype uint16;
+	Class uint16;
+	Ttl uint32;
+	Rdlength uint16;	// length of data after header
 }
 
 func (h *_DNS_RR_Header) Header() *_DNS_RR_Header {
@@ -120,73 +120,122 @@ type _DNS_RR interface {
 // Specific DNS RR formats for each query type.
 
 type _DNS_RR_CNAME struct {
-	_DNS_RR_Header;
-	cname string "domain-name";
+	Hdr _DNS_RR_Header;
+	Cname string "domain-name";
+}
+
+func (rr *_DNS_RR_CNAME) Header() *_DNS_RR_Header {
+	return &rr.Hdr;
 }
 
 type _DNS_RR_HINFO struct {
-	_DNS_RR_Header;
-	cpu string;
-	os string;
+	Hdr _DNS_RR_Header;
+	Cpu string;
+	Os string;
+}
+
+func (rr *_DNS_RR_HINFO) Header() *_DNS_RR_Header {
+	return &rr.Hdr;
 }
 
 type _DNS_RR_MB struct {
-	_DNS_RR_Header;
-	mb string "domain-name";
+	Hdr _DNS_RR_Header;
+	Mb string "domain-name";
+}
+
+func (rr *_DNS_RR_MB) Header() *_DNS_RR_Header {
+	return &rr.Hdr;
 }
 
 type _DNS_RR_MG struct {
-	_DNS_RR_Header;
-	mg string "domain-name";
+	Hdr _DNS_RR_Header;
+	Mg string "domain-name";
+}
+
+func (rr *_DNS_RR_MG) Header() *_DNS_RR_Header {
+	return &rr.Hdr;
 }
 
 type _DNS_RR_MINFO struct {
-	_DNS_RR_Header;
-	rmail string "domain-name";
-	email string "domain-name";
+	Hdr _DNS_RR_Header;
+	Rmail string "domain-name";
+	Email string "domain-name";
+}
+
+func (rr *_DNS_RR_MINFO) Header() *_DNS_RR_Header {
+	return &rr.Hdr;
 }
 
 type _DNS_RR_MR struct {
-	_DNS_RR_Header;
-	mr string "domain-name";
+	Hdr _DNS_RR_Header;
+	Mr string "domain-name";
+}
+
+func (rr *_DNS_RR_MR) Header() *_DNS_RR_Header {
+	return &rr.Hdr;
 }
 
 type _DNS_RR_MX struct {
-	_DNS_RR_Header;
-	pref uint16;
-	mx string "domain-name";
+	Hdr _DNS_RR_Header;
+	Pref uint16;
+	Mx string "domain-name";
+}
+
+func (rr *_DNS_RR_MX) Header() *_DNS_RR_Header {
+	return &rr.Hdr;
 }
 
 type _DNS_RR_NS struct {
-	_DNS_RR_Header;
-	ns string "domain-name";
+	Hdr _DNS_RR_Header;
+	Ns string "domain-name";
+}
+
+func (rr *_DNS_RR_NS) Header() *_DNS_RR_Header {
+	return &rr.Hdr;
 }
 
 type _DNS_RR_PTR struct {
-	_DNS_RR_Header;
-	ptr string "domain-name";
+	Hdr _DNS_RR_Header;
+	Ptr string "domain-name";
+}
+
+func (rr *_DNS_RR_PTR) Header() *_DNS_RR_Header {
+	return &rr.Hdr;
 }
 
 type _DNS_RR_SOA struct {
-	_DNS_RR_Header;
-	ns string "domain-name";
-	mbox string "domain-name";
-	serial uint32;
-	refresh uint32;
-	retry uint32;
-	expire uint32;
-	minttl uint32;
+	Hdr _DNS_RR_Header;
+	Ns string "domain-name";
+	Mbox string "domain-name";
+	Serial uint32;
+	Refresh uint32;
+	Retry uint32;
+	Expire uint32;
+	Minttl uint32;
+}
+
+func (rr *_DNS_RR_SOA) Header() *_DNS_RR_Header {
+	return &rr.Hdr;
 }
 
 type _DNS_RR_TXT struct {
-	_DNS_RR_Header;
-	txt string;	// not domain name
+	Hdr _DNS_RR_Header;
+	Txt string;	// not domain name
+}
+
+func (rr *_DNS_RR_TXT) Header() *_DNS_RR_Header {
+	return &rr.Hdr;
 }
 
 type _DNS_RR_A struct {
-	_DNS_RR_Header;
-	a uint32 "ipv4";
+	Hdr _DNS_RR_Header;
+	A uint32 "ipv4";
 }
+
+func (rr *_DNS_RR_A) Header() *_DNS_RR_Header {
+	return &rr.Hdr;
+}
+
 
 
 // Packing and unpacking.
@@ -316,28 +365,28 @@ Loop:
 	return s, off1, true
 }
 
+// TODO(rsc): Move into generic library?
 // Pack a reflect.StructValue into msg.  Struct members can only be uint16, uint32, string,
 // and other (often anonymous) structs.
-func packStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, ok bool) {
-	for i := 0; i < val.Len(); i++ {
-		fld := val.Field(i);
-		name, typ, tag, xxx := val.Type().(reflect.StructType).Field(i);
-		switch fld.Kind() {
+func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, ok bool) {
+	for i := 0; i < val.NumField(); i++ {
+		f := val.Type().(*reflect.StructType).Field(i);
+		switch fv := val.Field(i).(type) {
 		default:
-			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", fld.Type());
+			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type);
 			return len(msg), false;
-		case reflect.StructKind:
-			off, ok = packStructValue(fld.(reflect.StructValue), msg, off);
-		case reflect.Uint16Kind:
-			i := fld.(reflect.Uint16Value).Get();
+		case *reflect.StructValue:
+			off, ok = packStructValue(fv, msg, off);
+		case *reflect.Uint16Value:
+			i := fv.Get();
 			if off+2 > len(msg) {
 				return len(msg), false
 			}
 			msg[off] = byte(i>>8);
 			msg[off+1] = byte(i);
 			off += 2;
-		case reflect.Uint32Kind:
-			i := fld.(reflect.Uint32Value).Get();
+		case *reflect.Uint32Value:
+			i := fv.Get();
 			if off+4 > len(msg) {
 				return len(msg), false
 			}
@@ -346,13 +395,13 @@ func packStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, ok
 			msg[off+2] = byte(i>>8);
 			msg[off+4] = byte(i);
 			off += 4;
-		case reflect.StringKind:
+		case *reflect.StringValue:
 			// There are multiple string encodings.
 			// The tag distinguishes ordinary strings from domain names.
-			s := fld.(reflect.StringValue).Get();
-			switch tag {
+			s := fv.Get();
+			switch f.Tag {
 			default:
-				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", tag);
+				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", f.Tag);
 				return len(msg), false;
 			case "domain-name":
 				off, ok = packDomainName(s, msg, off);
@@ -376,43 +425,46 @@ func packStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, ok
 	return off, true
 }
 
+func structValue(any interface{}) *reflect.StructValue {
+	return reflect.NewValue(any).(*reflect.PtrValue).Elem().(*reflect.StructValue);
+}
+
 func packStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
-	val := reflect.NewValue(any).(reflect.PtrValue).Sub().(reflect.StructValue);
-	off, ok = packStructValue(val, msg, off);
+	off, ok = packStructValue(structValue(any), msg, off);
 	return off, ok
 }
 
+// TODO(rsc): Move into generic library?
 // Unpack a reflect.StructValue from msg.
 // Same restrictions as packStructValue.
-func unpackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, ok bool) {
-	for i := 0; i < val.Len(); i++ {
-		name, typ, tag, xxx := val.Type().(reflect.StructType).Field(i);
-		fld := val.Field(i);
-		switch fld.Kind() {
+func unpackStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, ok bool) {
+	for i := 0; i < val.NumField(); i++ {
+		f := val.Type().(*reflect.StructType).Field(i);
+		switch fv := val.Field(i).(type) {
 		default:
-			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", fld.Type());
+			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type);
 			return len(msg), false;
-		case reflect.StructKind:
-			off, ok = unpackStructValue(fld.(reflect.StructValue), msg, off);
-		case reflect.Uint16Kind:
+		case *reflect.StructValue:
+			off, ok = unpackStructValue(fv, msg, off);
+		case *reflect.Uint16Value:
 			if off+2 > len(msg) {
 				return len(msg), false
 			}
 			i := uint16(msg[off])<<8 | uint16(msg[off+1]);
-			fld.(reflect.Uint16Value).Set(i);
+			fv.Set(i);
 			off += 2;
-		case reflect.Uint32Kind:
+		case *reflect.Uint32Value:
 			if off+4 > len(msg) {
 				return len(msg), false
 			}
 			i := uint32(msg[off])<<24 | uint32(msg[off+1])<<16 | uint32(msg[off+2])<<8 | uint32(msg[off+3]);
-			fld.(reflect.Uint32Value).Set(i);
+			fv.Set(i);
 			off += 4;
-		case reflect.StringKind:
+		case *reflect.StringValue:
 			var s string;
-			switch tag {
+			switch f.Tag {
 			default:
-				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", tag);
+				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", f.Tag);
 				return len(msg), false;
 			case "domain-name":
 				s, off, ok = unpackDomainName(msg, off);
@@ -432,15 +484,14 @@ func unpackStructValue(val reflect.StructValue, msg []byte, off int) (off1 int, 
 				off += n;
 				s = string(b);
 			}
-			fld.(reflect.StringValue).Set(s);
+			fv.Set(s);
 		}
 	}
 	return off, true
 }
 
 func unpackStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
-	val := reflect.NewValue(any).(reflect.PtrValue).Sub().(reflect.StructValue);
-	off, ok = unpackStructValue(val, msg, off);
+	off, ok = unpackStructValue(structValue(any), msg, off);
 	return off, ok
 }
 
@@ -448,26 +499,24 @@ func unpackStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
 // Doesn't care about the string tag "domain-name",
 // but does look for an "ipv4" tag on uint32 variables,
 // printing them as IP addresses.
-func printStructValue(val reflect.StructValue) string {
+func printStructValue(val *reflect.StructValue) string {
 	s := "{";
-	for i := 0; i < val.Len(); i++ {
+	for i := 0; i < val.NumField(); i++ {
 		if i > 0 {
 			s += ", ";
 		}
-		name, typ, tag, xxx := val.Type().(reflect.StructType).Field(i);
-		fld := val.Field(i);
-		if name != "" && name != "?" {	// BUG? Shouldn't the reflect library hide "?" ?
-			s += name + "=";
+		f := val.Type().(*reflect.StructType).Field(i);
+		if !f.Anonymous {
+			s += f.Name + "=";
 		}
-		kind := fld.Kind();
-		switch {
-		case kind == reflect.StructKind:
-			s += printStructValue(fld.(reflect.StructValue));
-		case kind == reflect.Uint32Kind && tag == "ipv4":
-			i := fld.(reflect.Uint32Value).Get();
+		fval := val.Field(i);
+		if fv, ok := fval.(*reflect.StructValue); ok {
+			s += printStructValue(fv);
+		} else if fv, ok := fval.(*reflect.Uint32Value); ok && f.Tag == "ipv4" {
+			i := fv.Get();
 			s += IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i)).String();
-		default:
-			s += fmt.Sprint(fld.Interface())
+		} else {
+			s += fmt.Sprint(fval.Interface())
 		}
 	}
 	s += "}";
@@ -475,9 +524,7 @@ func printStructValue(val reflect.StructValue) string {
 }
 
 func printStruct(any interface{}) string {
-	val := reflect.NewValue(any).(reflect.PtrValue).Sub().(reflect.StructValue);
-	s := printStructValue(val);
-	return s
+	return printStructValue(structValue(any));
 }
 
 // Resource record packer.
@@ -494,7 +541,7 @@ func packRR(rr _DNS_RR, msg []byte, off int) (off2 int, ok bool) {
 		return len(msg), false
 	}
 	// pack a third time; redo header with correct data length
-	rr.Header().rdlength = uint16(off2 - off1);
+	rr.Header().Rdlength = uint16(off2 - off1);
 	packStruct(rr.Header(), msg, off);
 	return off2, true
 }
@@ -507,11 +554,11 @@ func unpackRR(msg []byte, off int) (rr _DNS_RR, off1 int, ok bool) {
 	if off, ok = unpackStruct(&h, msg, off); !ok {
 		return nil, len(msg), false
 	}
-	end := off+int(h.rdlength);
+	end := off+int(h.Rdlength);
 
 	// make an rr of that type and re-unpack.
 	// again inefficient but doesn't need to be fast.
-	mk, known := rr_mk[int(h.rrtype)];
+	mk, known := rr_mk[int(h.Rrtype)];
 	if !known {
 		return &h, end, true
 	}
@@ -551,22 +598,22 @@ func (dns *_DNS_Msg) Pack() (msg []byte, ok bool) {
 	var dh __DNS_Header;
 
 	// Convert convenient _DNS_Msg into wire-like __DNS_Header.
-	dh.id = dns.id;
-	dh.bits = uint16(dns.opcode)<<11 | uint16(dns.rcode);
+	dh.Id = dns.id;
+	dh.Bits = uint16(dns.opcode)<<11 | uint16(dns.rcode);
 	if dns.recursion_available {
-		dh.bits |= _RA;
+		dh.Bits |= _RA;
 	}
 	if dns.recursion_desired {
-		dh.bits |= _RD;
+		dh.Bits |= _RD;
 	}
 	if dns.truncated {
-		dh.bits |= _TC;
+		dh.Bits |= _TC;
 	}
 	if dns.authoritative {
-		dh.bits |= _AA;
+		dh.Bits |= _AA;
 	}
 	if dns.response {
-		dh.bits |= _QR;
+		dh.Bits |= _QR;
 	}
 
 	// Prepare variable sized arrays.
@@ -575,10 +622,10 @@ func (dns *_DNS_Msg) Pack() (msg []byte, ok bool) {
 	ns := dns.ns;
 	extra := dns.extra;
 
-	dh.qdcount = uint16(len(question));
-	dh.ancount = uint16(len(answer));
-	dh.nscount = uint16(len(ns));
-	dh.arcount = uint16(len(extra));
+	dh.Qdcount = uint16(len(question));
+	dh.Ancount = uint16(len(answer));
+	dh.Nscount = uint16(len(ns));
+	dh.Arcount = uint16(len(extra));
 
 	// Could work harder to calculate message size,
 	// but this is far more than we need and not
@@ -614,20 +661,20 @@ func (dns *_DNS_Msg) Unpack(msg []byte) bool {
 	if off, ok = unpackStruct(&dh, msg, off); !ok {
 		return false
 	}
-	dns.id = dh.id;
-	dns.response = (dh.bits & _QR) != 0;
-	dns.opcode = int(dh.bits >> 11) & 0xF;
-	dns.authoritative = (dh.bits & _AA) != 0;
-	dns.truncated = (dh.bits & _TC) != 0;
-	dns.recursion_desired = (dh.bits & _RD) != 0;
-	dns.recursion_available = (dh.bits & _RA) != 0;
-	dns.rcode = int(dh.bits & 0xF);
+	dns.id = dh.Id;
+	dns.response = (dh.Bits & _QR) != 0;
+	dns.opcode = int(dh.Bits >> 11) & 0xF;
+	dns.authoritative = (dh.Bits & _AA) != 0;
+	dns.truncated = (dh.Bits & _TC) != 0;
+	dns.recursion_desired = (dh.Bits & _RD) != 0;
+	dns.recursion_available = (dh.Bits & _RA) != 0;
+	dns.rcode = int(dh.Bits & 0xF);
 
 	// Arrays.
-	dns.question = make([]_DNS_Question, dh.qdcount);
-	dns.answer = make([]_DNS_RR, dh.ancount);
-	dns.ns = make([]_DNS_RR, dh.nscount);
-	dns.extra = make([]_DNS_RR, dh.arcount);
+	dns.question = make([]_DNS_Question, dh.Qdcount);
+	dns.answer = make([]_DNS_RR, dh.Ancount);
+	dns.ns = make([]_DNS_RR, dh.Nscount);
+	dns.extra = make([]_DNS_RR, dh.Arcount);
 
 	for i := 0; i < len(dns.question); i++ {
 		off, ok = unpackStruct(&dns.question[i], msg, off);
