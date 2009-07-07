@@ -1998,7 +1998,7 @@ func (p *parser) parsePackage() *ast.Program {
 
 
 // ----------------------------------------------------------------------------
-// Parsing of entire programs.
+// Parser entry points.
 
 func readSource(src interface{}) ([]byte, os.Error) {
 	if src != nil {
@@ -2034,6 +2034,39 @@ func scannerMode(mode uint) uint {
 }
 
 
+func (p *parser) init(src interface{}, mode uint) os.Error {
+	data, err := readSource(src);
+	if err != nil {
+		return err;
+	}
+
+	// initialize parser state
+	p.errors.Init(0);
+	p.scanner.Init(data, p, scannerMode(mode));
+	p.mode = mode;
+	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
+	p.comments.Init(0);
+	p.next();
+
+	return nil;
+}
+
+
+// errorList converts parsing errors to an errors list.  Returns nil
+// if there are no errors.
+func (p *parser) errorList() os.Error {
+	if p.errors.Len() == 0 {
+		return nil;
+	}
+
+	errors := make(ErrorList, p.errors.Len());
+	for i := 0; i < p.errors.Len(); i++ {
+		errors[i] = p.errors.At(i).(*Error);
+	}
+	return errors;
+}
+
+
 // Parse parses a Go program.
 //
 // The program source src may be provided in a variety of formats. At the
@@ -2049,31 +2082,46 @@ func scannerMode(mode uint) uint {
 // describing the syntax errors.
 //
 func Parse(src interface{}, mode uint) (*ast.Program, os.Error) {
-	data, err := readSource(src);
-	if err != nil {
+	var p parser;
+	if err := p.init(src, mode); err != nil {
 		return nil, err;
 	}
 
-	// initialize parser state
-	var p parser;
-	p.errors.Init(0);
-	p.scanner.Init(data, &p, scannerMode(mode));
-	p.mode = mode;
-	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
-	p.comments.Init(0);
-	p.next();
-
-	// parse program
 	prog := p.parsePackage();
 
-	// convert errors list, if any
-	if p.errors.Len() > 0 {
-		errors := make(ErrorList, p.errors.Len());
-		for i := 0; i < p.errors.Len(); i++ {
-			errors[i] = p.errors.At(i).(*Error);
-		}
-		return prog, errors;
+	return prog, p.errorList();
+}
+
+
+// ParseStmts parses a list of Go statement.
+func ParseStmts(src interface{}, mode uint) ([]ast.Stmt, os.Error) {
+	if mode & (PackageClauseOnly | ImportsOnly) != 0 {
+		return nil, nil;
 	}
 
-	return prog, nil;
+	var p parser;
+	if err := p.init(src, mode); err != nil {
+		return nil, err;
+	}
+
+	stmts := p.parseStatementList();
+
+	return stmts, p.errorList();
+}
+
+
+// ParseExpr parses a single Go expression.
+func ParseExpr(src interface{}, mode uint) (ast.Expr, os.Error) {
+	if mode & (PackageClauseOnly | ImportsOnly) != 0 {
+		return nil, nil;
+	}
+
+	var p parser;
+	if err := p.init(src, mode); err != nil {
+		return nil, err;
+	}
+
+	expr := p.parseExpression();
+
+	return expr, p.errorList();
 }
