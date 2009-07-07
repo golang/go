@@ -67,11 +67,23 @@ dodcltype(Type *n)
 	// if n has been forward declared,
 	// use the Type* created then
 	s = n->sym;
-	if(s->block == block && s->def != N && s->def->op == OTYPE) {
+	if((funcdepth == 0 || s->block == block) && s->def != N && s->def->op == OTYPE) {
 		switch(s->def->type->etype) {
 		case TFORWSTRUCT:
 		case TFORWINTER:
 			n = s->def->type;
+			if(s->block != block) {
+				// completing forward struct from other file
+				Dcl *d, *r;
+				d = dcl();
+				d->dsym = s;
+				d->dtype = n;
+				d->op = OTYPE;
+				r = externdcl;
+				d->back = r->back;
+				r->back->forw = d;
+				r->back = d;
+			}
 			goto found;
 		}
 	}
@@ -109,6 +121,7 @@ updatetype(Type *n, Type *t)
 			yyerror("%T forward declared as struct", n);
 			return;
 		}
+		n->local = 1;
 		break;
 
 	case TFORWINTER:
