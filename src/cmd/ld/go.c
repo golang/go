@@ -200,7 +200,7 @@ loadpkgdata(char *file, char *data, int len)
 		} else if((ndef = forwardfix(x->def, def)) != nil) {
 			x->def = ndef;
 		} else {
-			fprint(2, "%d: conflicting definitions for %s\n", argv0, name);
+			fprint(2, "%s: conflicting definitions for %s\n", argv0, name);
 			fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
 			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
 			nerrors++;

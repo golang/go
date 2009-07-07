@@ -104,7 +104,7 @@ void
 updatetype(Type *n, Type *t)
 {
 	Sym *s;
-	int local;
+	int local, vargen;
 	int maplineno, lno, etype;
 
 	s = n->sym;
@@ -141,13 +141,14 @@ updatetype(Type *n, Type *t)
 	// that is no longer associated with n.
 	maplineno = n->maplineno;
 	local = n->local;
+	vargen = n->vargen;
 	*n = *t;
 	n->sym = s;
 	n->local = local;
 	n->siggen = 0;
 	n->printed = 0;
 	n->method = nil;
-	n->vargen = 0;
+	n->vargen = vargen;
 	n->nod = N;
 
 	// catch declaration of incomplete type
