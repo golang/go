@@ -4,7 +4,7 @@
 
 // The tar package implements access to tar archives.
 // It aims to cover most of the variations, including those produced
-// by GNU and BSD tars (not yet started).
+// by GNU and BSD tars.
 //
 // References:
 //   http://www.freebsd.org/cgi/man.cgi?query=tar&sektion=5
@@ -12,8 +12,7 @@
 package tar
 
 // TODO(dsymonds):
-// - Make it seekable.
-// - Extensions.
+//   - pax extensions
 
 import (
 	"bufio";
@@ -211,9 +210,6 @@ func (tr *Reader) readHeader() *Header {
 	hdr := new(Header);
 	s := slicer(header);
 
-	// TODO(dsymonds): The format of the header depends on the value of magic (hdr[257:262]),
-	// so use that value to do the correct parsing below.
-
 	hdr.Name = cString(s.next(100));
 	hdr.Mode = tr.octal(s.next(8));
 	hdr.Uid = tr.octal(s.next(8));
@@ -225,6 +221,8 @@ func (tr *Reader) readHeader() *Header {
 	hdr.Linkname = cString(s.next(100));
 
 	// The remainder of the header depends on the value of magic.
+	// The original (v7) version of tar had no explicit magic field,
+	// so its magic bytes, like the rest of the block, are NULs.
 	magic := string(s.next(8));  // contains version field as well.
 	var format string;
 	switch magic {
