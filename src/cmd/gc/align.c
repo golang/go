@@ -243,6 +243,10 @@ typeinit(void)
 	isptr[TPTR32] = 1;
 	isptr[TPTR64] = 1;
 
+	isforw[TFORW] = 1;
+	isforw[TFORWSTRUCT] = 1;
+	isforw[TFORWINTER] = 1;
+
 	issigned[TINT] = 1;
 	issigned[TINT8] = 1;
 	issigned[TINT16] = 1;
