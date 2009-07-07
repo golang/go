@@ -506,7 +506,7 @@ agen(Node *n, Node *res)
 			tmp.op = OADDR;
 			tmp.left = &n2;
 			p1 = gins(AMOVW, &tmp, &n3);
-			p1->from.scale = w;
+			p1->reg = w;
 		} else {
 			nodconst(&n1, t, w);
 			gins(optoas(OMUL, t), &n1, &n2);
@@ -815,10 +815,10 @@ stkof(Node *n)
 
 /*
  * block copy:
- *	memmove(&n, &ns, w);
+ *	memmove(&res, &n, w);
  */
 void
-sgen(Node *n, Node *ns, int32 w)
+sgen(Node *n, Node *res, int32 w)
 {
 	Node nodl, nodr, ndat, nend;
 	int32 c, q, odst, osrc;
@@ -827,11 +827,11 @@ sgen(Node *n, Node *ns, int32 w)
 	if(debug['g']) {
 		print("\nsgen w=%d\n", w);
 		dump("r", n);
-		dump("res", ns);
+		dump("res", res);
 	}
 	if(w == 0)
 		return;
-	if(n->ullman >= UINF && ns->ullman >= UINF) {
+	if(n->ullman >= UINF && res->ullman >= UINF) {
 		fatal("sgen UINF");
 	}
 
@@ -840,17 +840,17 @@ sgen(Node *n, Node *ns, int32 w)
 
 	// offset on the stack
 	osrc = stkof(n);
-	odst = stkof(ns);
+	odst = stkof(res);
 
 	regalloc(&nodl, types[tptr], N);
 	regalloc(&nodr, types[tptr], N);
 	regalloc(&ndat, types[TUINT32], N);
 
-	if(n->ullman >= ns->ullman) {
+	if(n->ullman >= res->ullman) {
 		agen(n, &nodr);
-		agen(ns, &nodl);
+		agen(res, &nodl);
 	} else {
-		agen(ns, &nodl);
+		agen(res, &nodl);
 		agen(n, &nodr);
 	}
 
@@ -890,33 +890,33 @@ sgen(Node *n, Node *ns, int32 w)
 		// normal direction
 		if(q >= 4) {
 			regalloc(&nend, types[TUINT32], N);
-			p = gins(AMOVW, &nodl, &nend);
+			p = gins(AMOVW, &nodr, &nend);
 			p->from.type = D_CONST;
 			p->from.offset = q;
 
-			p = gins(AMOVW, &nodl, &ndat);
+			p = gins(AMOVW, &nodr, &ndat);
 			p->from.type = D_OREG;
 			p->from.offset = 4;
 			p->scond |= C_PBIT;
 
-			p = gins(AMOVW, &ndat, &nodr);
+			p = gins(AMOVW, &ndat, &nodl);
 			p->to.type = D_OREG;
 			p->to.offset = 4;
 			p->scond |= C_PBIT;
 
-			gins(ACMP, &nodl, &nend);
+			gins(ACMP, &nodr, &nend);
 			fatal("sgen loop not implemented");
 			p = gins(ABNE, N, N);
 			// TODO(PC offset)
  			regfree(&nend);
 		} else
 		while(q > 0) {
-			p = gins(AMOVW, &nodl, &ndat);
+			p = gins(AMOVW, &nodr, &ndat);
 			p->from.type = D_OREG;
 			p->from.offset = 4;
  			p->scond |= C_PBIT;
 
-			p = gins(AMOVW, &ndat, &nodr);
+			p = gins(AMOVW, &ndat, &nodl);
 			p->to.type = D_OREG;
 			p->to.offset = 4;
  			p->scond |= C_PBIT;

@@ -110,7 +110,6 @@ zaddr(Biobuf *b, Addr *a, int s)
 	case D_REG:
 	case D_FREG:
 	case D_PSR:
-	case D_ADDR:
 		break;
 
 	case D_CONST2:
@@ -367,14 +366,14 @@ datastring(char *s, int len, Addr *a)
 		p->from = ao;
 		p->from.offset = w;
 
-		p->from.scale = NSNAME;
+		p->reg = NSNAME;
 		if(w+8 > len)
-			p->from.scale = len-w;
+			p->reg = len-w;
 
 		p->to = ac;
 		p->to.type = D_SCONST;
 		p->to.offset = len;
-		memmove(p->to.sval, s+w, p->from.scale);
+		memmove(p->to.sval, s+w, p->reg);
 	}
 	p = pc;
 	ggloblsym(ao.sym, len, ao.name == D_EXTERN);
@@ -415,7 +414,7 @@ datagostring(Strlit *sval, Addr *a)
 	// $string len+ptr
 	datastring(sval->s, sval->len, &ap);
 
-	ap.type = D_ADDR;
+	ap.type = D_CONST;
 	ap.etype = TINT32;
 	wi = types[TUINT32]->width;
 	wp = types[tptr]->width;
@@ -444,7 +443,7 @@ datagostring(Strlit *sval, Addr *a)
 	p = pc;
 	gins(ADATA, N, N);
 	p->from = ao;
-	p->from.scale = wp;
+	p->reg = wp;
 	p->to = ap;
 
 	// DATA gostring+wp, wi, $len
@@ -452,7 +451,7 @@ datagostring(Strlit *sval, Addr *a)
 	gins(ADATA, N, N);
 	p->from = ao;
 	p->from.offset = wp;
-	p->from.scale = wi;
+	p->reg = wi;
 	p->to = ac;
 	p->to.offset = sval->len;
 
@@ -474,10 +473,10 @@ dstringptr(Sym *s, int off, char *str)
 	p->from.name = D_EXTERN;
 	p->from.sym = s;
 	p->from.offset = off;
-	p->from.scale = widthptr;
+	p->reg = widthptr;
 
 	datastring(str, strlen(str)+1, &p->to);
-	p->to.type = D_ADDR;
+	p->to.type = D_CONST;
 	p->to.etype = TINT32;
 	off += widthptr;
 
@@ -496,7 +495,7 @@ duintxx(Sym *s, int off, uint64 v, int wid)
 	p->from.name = D_EXTERN;
 	p->from.sym = s;
 	p->from.offset = off;
-	p->from.scale = wid;
+	p->reg = wid;
 	p->to.type = D_CONST;
 	p->to.name = D_NONE;
 	p->to.offset = v;
@@ -535,8 +534,8 @@ dsymptr(Sym *s, int off, Sym *x)
 	p->from.name = D_EXTERN;
 	p->from.sym = s;
 	p->from.offset = off;
-	p->from.scale = widthptr;
-	p->to.type = D_ADDR;
+	p->reg = widthptr;
+	p->to.type = D_CONST;
 	p->to.name = D_EXTERN;
 	p->to.sym = x;
 	p->to.offset = 0;
@@ -579,7 +578,7 @@ genembedtramp(Type *t, Sig *b)
 //	p->from.sym = b->sym;
 //	p->to.type = D_CONST;
 //	p->to.offset = 0;
-//	p->from.scale = 7;
+//	p->reg = 7;
 // //print("1. %P\n", p);
 
 //	loaded = 0;

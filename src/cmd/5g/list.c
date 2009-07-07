@@ -60,7 +60,7 @@ Pconv(Fmt *fp)
 		break;
 
 	case ADATA:
-		sconsize = p->from.scale;
+		sconsize = p->reg;
 		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D/%d,%D",
 			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
 		break;

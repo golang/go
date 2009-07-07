@@ -34,7 +34,6 @@ betypeinit(void)
 	zprog.from.type = D_NONE;
 	zprog.from.name = D_NONE;
 	zprog.from.reg = NREG;
-	zprog.from.scale = 0;
 	zprog.to = zprog.from;
 
 	listinit();
