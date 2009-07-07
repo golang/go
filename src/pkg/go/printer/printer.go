@@ -152,8 +152,8 @@ func (p *printer) adjustSpacingAndMergeComments() {
 
 
 func (p *printer) print(args ...) {
-	v := reflect.NewValue(args).(reflect.StructValue);
-	for i := 0; i < v.Len(); i++ {
+	v := reflect.NewValue(args).(*reflect.StructValue);
+	for i := 0; i < v.NumField(); i++ {
 		p.adjustSpacingAndMergeComments();
 		f := v.Field(i);
 		switch x := f.Interface().(type) {
