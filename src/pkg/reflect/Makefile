@@ -33,7 +33,6 @@ coverage: packages
 
 O1=\
 	type.$O\
-	typestring.$O\
 
 O2=\
 	value.$O\
@@ -47,7 +46,7 @@ phases: a1 a2 a3
 _obj$D/reflect.a: phases
 
 a1: $(O1)
-	$(AR) grc _obj$D/reflect.a type.$O typestring.$O
+	$(AR) grc _obj$D/reflect.a type.$O
 	rm -f $(O1)
 
 a2: $(O2)
