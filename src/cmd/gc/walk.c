@@ -49,6 +49,7 @@ loop:
 
 	case OGOTO:
 	case OPANIC:
+	case OPANICN:
 	case ORETURN:
 		return 0;
 	}
@@ -137,6 +138,7 @@ loop:
 			yyerror("walkstate: %S not a top level statement", n->sym);
 		else
 			yyerror("walkstate: %O not a top level statement", n->op);
+		break;
 
 	case OASOP:
 	case OAS:
@@ -1699,8 +1701,6 @@ lookdot1(Sym *s, Type *t, Type *f)
 
 	r = T;
 	for(; f!=T; f=f->down) {
-		if(f->sym == S)
-			continue;
 		if(f->sym != s)
 			continue;
 		if(r != T) {
@@ -1732,7 +1732,6 @@ lookdot(Node *n, Type *t)
 		if(f2 != T)
 			yyerror("ambiguous DOT reference %S as both field and method",
 				n->right->sym);
-		n->right = f1->nname;		// substitute real name
 		n->xoffset = f1->width;
 		n->type = f1->type;
 		if(t->etype == TINTER) {
