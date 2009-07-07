@@ -94,7 +94,7 @@ convlit1(Node *n, Type *t, int explicit)
 		goto bad;
 
 	if(et == TINTER) {
-		if(ct == CTNIL) {
+		if(ct == CTNIL && n->type == types[TNIL]) {
 			n->type = t;
 			return;
 		}
