@@ -162,7 +162,7 @@ ggloblsym(Sym *s, int32 width, int dupok)
 	p->to.name = D_NONE;
 	p->to.offset = width;
 	if(dupok)
-		p->from.scale = DUPOK;
+		p->reg = DUPOK;
 }
 
 int
@@ -1063,7 +1063,6 @@ raddr(Node *n, Prog *p)
 void
 naddr(Node *n, Addr *a)
 {
-	a->scale = 0;
 	a->type = D_NONE;
 	a->name = D_NONE;
 	a->reg = NREG;

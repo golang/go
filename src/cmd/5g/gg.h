@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 #include <u.h>
 #include <libc.h>
 
@@ -29,19 +28,18 @@ struct	Addr
 	char	name;
 	char	reg;
 	uchar	etype;
-	uchar	scale;	/* doubles as width in DATA op */
 };
 #define	A	((Addr*)0)
 
 struct	Prog
 {
-	short	as;		// opcode
+	short	as;			// opcode
 	uint32	loc;		// pc offset in this func
 	uint32	lineno;		// source line that generated this
 	Addr	from;		// src address
-	Addr	to;		// dst address
+	Addr	to;			// dst address
 	Prog*	link;		// next instruction in this func
-	char	reg;
+	char	reg;		// doubles as width in DATA op
 	uchar	scond;
 };
 

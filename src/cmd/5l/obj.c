@@ -539,7 +539,6 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	case D_FREG:
 	case D_PSR:
 	case D_FPCR:
-	case D_ADDR:
 		break;
 
 	case D_REGREG:

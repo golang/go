@@ -740,18 +740,18 @@ gen_as_init(Node *nr, Node *nl)
 		}
 
 		p = gins(ADATA, &nam, nr->left);
-		p->from.scale = types[tptr]->width;
-		p->to.type = D_ADDR;
+		p->reg = types[tptr]->width;
+		p->to.type = D_CONST;
 //print("%P\n", p);
 
 		nodconst(&nod1, types[TINT32], nr->left->type->bound);
 		p = gins(ADATA, &nam, &nod1);
-		p->from.scale = types[TINT32]->width;
+		p->reg = types[TINT32]->width;
 		p->from.offset += types[tptr]->width;
 //print("%P\n", p);
 
 		p = gins(ADATA, &nam, &nod1);
-		p->from.scale = types[TINT32]->width;
+		p->reg = types[TINT32]->width;
 		p->from.offset += types[tptr]->width+types[TINT32]->width;
 
 		goto yes;
@@ -803,24 +803,24 @@ lit:
 	case TFLOAT64:
 	case TFLOAT:
 		p = gins(ADATA, &nam, nr);
-		p->from.scale = nr->type->width;
+		p->reg = nr->type->width;
 		break;
 
 	case TSTRING:
 		p = gins(ADATA, &nam, N);
 		datastring(nr->val.u.sval->s, nr->val.u.sval->len, &p->to);
-		p->from.scale = types[tptr]->width;
-		p->to.type = D_ADDR;
+		p->reg = types[tptr]->width;
+		p->to.type = D_CONST;
 //print("%P\n", p);
 
 		nodconst(&nod1, types[TINT32], nr->val.u.sval->len);
 		p = gins(ADATA, &nam, &nod1);
-		p->from.scale = types[TINT32]->width;
+		p->reg = types[TINT32]->width;
 		p->from.offset += types[tptr]->width;
 //print("%P\n", p);
 
 		p = gins(ADATA, &nam, &nod1);
-		p->from.scale = types[TINT32]->width;
+		p->reg = types[TINT32]->width;
 		p->from.offset += types[tptr]->width+types[TINT32]->width;
 		break;
 	}
