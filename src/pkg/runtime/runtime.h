@@ -56,9 +56,9 @@ typedef	struct	Usema		Usema;
 typedef	struct	SigTab		SigTab;
 typedef	struct	MCache		MCache;
 typedef	struct	Iface		Iface;
-typedef	struct	Itype		Itype;
+typedef	struct	Itab		Itab;
 typedef	struct	Eface	Eface;
-typedef	struct	Sigt		Sigt;
+typedef	struct	Type		Type;
 typedef	struct	Defer		Defer;
 
 /*
@@ -117,12 +117,12 @@ struct String
 };
 struct Iface
 {
-	Itype*	type;
+	Itab*	tab;
 	void*	data;
 };
 struct Eface
 {
-	Sigt*		type;
+	Type*	type;
 	void*	data;
 };
 
