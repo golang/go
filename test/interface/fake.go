@@ -53,27 +53,27 @@ func main() {
 
 	// check mem and string
 	v := reflect.NewValue(x);
-	i := v.(reflect.StructValue).Field(0);
-	j := v.(reflect.StructValue).Field(1);
+	i := v.(*reflect.StructValue).Field(0);
+	j := v.(*reflect.StructValue).Field(1);
 	assert(i.Interface() == j.Interface());
 
-	s := v.(reflect.StructValue).Field(2);
-	t := v.(reflect.StructValue).Field(3);
+	s := v.(*reflect.StructValue).Field(2);
+	t := v.(*reflect.StructValue).Field(3);
 	assert(s.Interface() == t.Interface());
 
 	// make sure different values are different.
 	// make sure whole word is being compared,
 	// not just a single byte.
-	i = v.(reflect.StructValue).Field(4);
-	j = v.(reflect.StructValue).Field(5);
+	i = v.(*reflect.StructValue).Field(4);
+	j = v.(*reflect.StructValue).Field(5);
 	assert(i.Interface() != j.Interface());
 
-	i = v.(reflect.StructValue).Field(6);
-	j = v.(reflect.StructValue).Field(7);
+	i = v.(*reflect.StructValue).Field(6);
+	j = v.(*reflect.StructValue).Field(7);
 	assert(i.Interface() != j.Interface());
 
-	i = v.(reflect.StructValue).Field(8);
-	j = v.(reflect.StructValue).Field(9);
+	i = v.(*reflect.StructValue).Field(8);
+	j = v.(*reflect.StructValue).Field(9);
 	assert(i.Interface() == j.Interface());
 }
 
