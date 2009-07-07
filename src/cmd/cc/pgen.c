@@ -60,7 +60,6 @@ codgen(Node *n, Node *nn)
 {
 	Prog *sp;
 	Node *n1, nod, nod1;
-	vlong v;
 
 	cursafe = 0;
 	curarg = 0;
@@ -79,22 +78,18 @@ codgen(Node *n, Node *nn)
 	}
 	nearln = nn->lineno;
 
-	v = argsize() << 32;
-	v |= stkoff & 0xffffffff;
-
-	gpseudo(ATEXT, n1->sym, nodgconst(v, types[TVLONG]));
-	sp = p;
+	p = gtext(n1->sym, stkoff);
 
 	/*
 	 * isolate first argument
 	 */
-	if(REGARG) {	
-		if(typecmplx[thisfn->link->etype]) {
+	if(REGARG) {
+		if(typesuv[thisfn->link->etype]) {
 			nod1 = *nodret->left;
 			nodreg(&nod, &nod1, REGARG);
 			gmove(&nod, &nod1);
 		} else
-		if(firstarg && typeword[firstargtype->etype]) {
+		if(firstarg && typechlp[firstargtype->etype]) {
 			nod1 = *nodret->left;
 			nod1.sym = firstarg;
 			nod1.type = firstargtype;
@@ -104,6 +99,9 @@ codgen(Node *n, Node *nn)
 			gmove(&nod, &nod1);
 		}
 	}
+
+	sp = p;
+	retok = 0;
 
 	canreach = 1;
 	warnreach = 1;
@@ -115,7 +113,7 @@ codgen(Node *n, Node *nn)
 
 	if(!debug['N'] || debug['R'] || debug['P'])
 		regopt(sp);
-	
+
 	if(thechar=='6' || thechar=='7')	/* [sic] */
 		maxargsafe = xround(maxargsafe, 8);
 	sp->to.offset += maxargsafe;
@@ -125,7 +123,7 @@ void
 supgen(Node *n)
 {
 	int owarn;
-	int32 spc;
+	long spc;
 	Prog *sp;
 
 	if(n == Z)
@@ -149,7 +147,7 @@ gen(Node *n)
 	Node *l, nod;
 	Prog *sp, *spc, *spb;
 	Case *cn;
-	int32 sbc, scc;
+	long sbc, scc;
 	int snbreak, sncontin;
 	int f, o, oldreach;
 
@@ -563,6 +561,7 @@ usedset(Node *n, int o)
 int
 bcomplex(Node *n, Node *c)
 {
+	Node *b, nod;
 
 	complex(n);
 	if(n->type != T)
@@ -574,7 +573,19 @@ bcomplex(Node *n, Node *c)
 	}
 	if(c != Z && n->op == OCONST && deadheads(c))
 		return 1;
+	if(typev[n->type->etype] && machcap(Z)) {
+		b = &nod;
+		b->op = ONE;
+		b->left = n;
+		b->right = new(0, Z, Z);
+		*b->right = *nodconst(0);
+		b->right->type = n->type;
+		b->type = types[TLONG];
+		cgen(b, Z);
+		return 0;
+	}
 	bool64(n);
 	boolgen(n, 1, Z);
 	return 0;
 }
+

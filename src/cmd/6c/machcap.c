@@ -44,9 +44,8 @@ machcap(Node *n)
 	case OASLMUL:
 		if(typechl[n->type->etype])
 			return 1;
-		if(typev[n->type->etype]) {
-				return 1;
-		}
+		if(typev[n->type->etype])
+			return 1;
 		break;
 
 	case OCOM:

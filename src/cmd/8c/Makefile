@@ -19,6 +19,8 @@ OFILES=\
 	list.$O\
 	machcap.$O\
 	mul.$O\
+	pgen.$O\
+	pswt.$O\
 	peep.$O\
 	reg.$O\
 	sgen.$O\
@@ -39,3 +41,7 @@ clean:
 
 install: $(TARG)
 	cp $(TARG) $(BIN)/$(TARG)
+
+%.$O: ../cc/%.c
+	$(CC) $(CFLAGS) -c -I. -o $@ ../cc/$*.c
+

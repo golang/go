@@ -39,3 +39,7 @@ clean:
 
 install: $(TARG)
 	cp $(TARG) $(BIN)/$(TARG)
+
+%.$O: ../cc/%.c
+	$(CC) $(CFLAGS) -c -I. -o $@ ../cc/$*.c
+

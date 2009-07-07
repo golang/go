@@ -28,6 +28,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+
 #include "gc.h"
 
 void
@@ -58,7 +59,7 @@ ginit(void)
 	zprog.from.name = D_NONE;
 	zprog.from.reg = NREG;
 	zprog.to = zprog.from;
-	zprog.scond = 0xE;  
+	zprog.scond = 0xE;
 
 	regnode.op = OREGISTER;
 	regnode.class = CEXREG;
@@ -200,7 +201,7 @@ garg1(Node *n, Node *tn1, Node *tn2, int f, Node **fnxp)
 			nod.left = *fnxp;
 			nod.right = n;
 			nod.type = n->type;
-			cgen(&nod, Z, 0);
+			cgen(&nod, Z);
 			(*fnxp)++;
 		}
 		return;
@@ -217,18 +218,18 @@ garg1(Node *n, Node *tn1, Node *tn2, int f, Node **fnxp)
 	if(REGARG >= 0 && curarg == 0 && typechlp[n->type->etype]) {
 		regaalloc1(tn1, n);
 		if(n->complex >= FNX) {
-			cgen(*fnxp, tn1, 0);
+			cgen(*fnxp, tn1);
 			(*fnxp)++;
 		} else
-			cgen(n, tn1, 0);
+			cgen(n, tn1);
 		return;
 	}
 	regalloc(tn1, n, Z);
 	if(n->complex >= FNX) {
-		cgen(*fnxp, tn1, 0);
+		cgen(*fnxp, tn1);
 		(*fnxp)++;
 	} else
-		cgen(n, tn1, 0);
+		cgen(n, tn1);
 	regaalloc(tn2, n);
 	gopcode(OAS, tn1, Z, tn2);
 	regfree(tn1);
@@ -349,7 +350,7 @@ err:
 	return;
 out:
 	reg[i]++;
-/* 	lasti++;	*** StrongARM does register forwarding */	
+/* 	lasti++;	*** StrongARM does register forwarding */
 	if(lasti >= 5)
 		lasti = 0;
 	nodreg(n, tn, i);

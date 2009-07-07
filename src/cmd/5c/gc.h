@@ -28,6 +28,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+
 #include	"../cc/cc.h"
 #include	"../5l/5.out.h"
 
@@ -93,6 +94,7 @@ struct	Case
 	int32	val;
 	int32	label;
 	char	def;
+	char	isv;
 };
 #define	C	((Case*)0)
 
@@ -165,6 +167,7 @@ struct	Rgn
 };
 
 EXTERN	int32	breakpc;
+EXTERN	int32	nbreak;
 EXTERN	Case*	cases;
 EXTERN	Node	constnode;
 EXTERN	Node	fconstnode;
@@ -243,17 +246,20 @@ void	noretval(int);
 void	usedset(Node*, int);
 void	xcom(Node*);
 int	bcomplex(Node*, Node*);
+Prog*	gtext(Sym*, int32);
+vlong	argsize(void);
 
 /*
  * cgen.c
  */
-void	cgen(Node*, Node*, int);
+void	cgen(Node*, Node*);
 void	reglcgen(Node*, Node*, Node*);
 void	lcgen(Node*, Node*);
 void	bcgen(Node*, int);
 void	boolgen(Node*, int, Node*);
 void	sugen(Node*, Node*, int32);
 void	layout(Node*, Node*, int, int, Node*);
+void	cgenrel(Node*, Node*);
 
 /*
  * txt.c
@@ -296,7 +302,7 @@ void	gpseudo(int, Sym*, Node*);
  */
 int	swcmp(const void*, const void*);
 void	doswit(Node*);
-void	swit1(C1*, int, int32, Node*, Node*);
+void	swit1(C1*, int, int32, Node*);
 void	cas(void);
 void	bitload(Node*, Node*, Node*, Node*, Node*);
 void	bitstore(Node*, Node*, Node*, Node*, Node*);
