@@ -57,6 +57,13 @@
 	operand.  Another variant Println inserts blanks between
 	operands and appends a newline.
 
+	Regardless of the verb, if an operand is an interface value,
+	the internal concrete value is used, not the interface itself.
+	Thus:
+		var i interface{} = 23;
+		fmt.Printf("%v\n", i);
+	will print 23.
+
 	If an operand implements interface Format, that interface
 	can be used for fine control of formatting.
 
@@ -191,14 +198,14 @@ func (p *pp) Write(b []byte) (ret int, err os.Error) {
 	return len(b), nil;
 }
 
-func (p *pp) doprintf(format string, v reflect.StructValue);
-func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool);
+func (p *pp) doprintf(format string, v *reflect.StructValue);
+func (p *pp) doprint(v *reflect.StructValue, addspace, addnewline bool);
 
 // These routines end in 'f' and take a format string.
 
 // Fprintf formats according to a format specifier and writes to w.
 func Fprintf(w io.Writer, format string, a ...) (n int, error os.Error) {
-	v := reflect.NewValue(a).(reflect.StructValue);
+	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprintf(format, v);
 	n, error = w.Write(p.buf[0:p.n]);
@@ -213,7 +220,7 @@ func Printf(format string, v ...) (n int, errno os.Error) {
 
 // Sprintf formats according to a format specifier and returns the resulting string.
 func Sprintf(format string, a ...) string {
-	v := reflect.NewValue(a).(reflect.StructValue);
+	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprintf(format, v);
 	s := string(p.buf)[0 : p.n];
@@ -225,7 +232,7 @@ func Sprintf(format string, a ...) string {
 // Fprint formats using the default formats for its operands and writes to w.
 // Spaces are added between operands when neither is a string.
 func Fprint(w io.Writer, a ...) (n int, error os.Error) {
-	v := reflect.NewValue(a).(reflect.StructValue);
+	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, false, false);
 	n, error = w.Write(p.buf[0:p.n]);
@@ -242,7 +249,7 @@ func Print(v ...) (n int, errno os.Error) {
 // Sprint formats using the default formats for its operands and returns the resulting string.
 // Spaces are added between operands when neither is a string.
 func Sprint(a ...) string {
-	v := reflect.NewValue(a).(reflect.StructValue);
+	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, false, false);
 	s := string(p.buf)[0 : p.n];
@@ -256,7 +263,7 @@ func Sprint(a ...) string {
 // Fprintln formats using the default formats for its operands and writes to w.
 // Spaces are always added between operands and a newline is appended.
 func Fprintln(w io.Writer, a ...) (n int, error os.Error) {
-	v := reflect.NewValue(a).(reflect.StructValue);
+	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, true, true);
 	n, error = w.Write(p.buf[0:p.n]);
@@ -273,7 +280,7 @@ func Println(v ...) (n int, errno os.Error) {
 // Sprintln formats using the default formats for its operands and returns the resulting string.
 // Spaces are always added between operands and a newline is appended.
 func Sprintln(a ...) string {
-	v := reflect.NewValue(a).(reflect.StructValue);
+	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, true, true);
 	s := string(p.buf)[0 : p.n];
@@ -284,11 +291,12 @@ func Sprintln(a ...) string {
 // Get the i'th arg of the struct value.
 // If the arg itself is an interface, return a value for
 // the thing inside the interface, not the interface itself.
-func getField(v reflect.StructValue, i int) reflect.Value {
+func getField(v *reflect.StructValue, i int) reflect.Value {
 	val := v.Field(i);
-	if val.Kind() == reflect.InterfaceKind {
-		inter := val.(reflect.InterfaceValue).Get();
-		return reflect.NewValue(inter);
+	if i, ok := val.(*reflect.InterfaceValue); ok {
+		if inter := i.Interface(); inter != nil {
+			return reflect.NewValue(inter);
+		}
 	}
 	return val;
 }
@@ -296,101 +304,80 @@ func getField(v reflect.StructValue, i int) reflect.Value {
 // Getters for the fields of the argument structure.
 
 func getBool(v reflect.Value) (val bool, ok bool) {
-	switch v.Kind() {
-	case reflect.BoolKind:
-		return v.(reflect.BoolValue).Get(), true;
+	if b, ok := v.(*reflect.BoolValue); ok {
+		return b.Get(), true;
 	}
-	return false, false
+	return;
 }
 
 func getInt(v reflect.Value) (val int64, signed, ok bool) {
-	switch v.Kind() {
-	case reflect.IntKind:
-		return int64(v.(reflect.IntValue).Get()), true, true;
-	case reflect.Int8Kind:
-		return int64(v.(reflect.Int8Value).Get()), true, true;
-	case reflect.Int16Kind:
-		return int64(v.(reflect.Int16Value).Get()), true, true;
-	case reflect.Int32Kind:
-		return int64(v.(reflect.Int32Value).Get()), true, true;
-	case reflect.Int64Kind:
-		return int64(v.(reflect.Int64Value).Get()), true, true;
-	case reflect.UintKind:
-		return int64(v.(reflect.UintValue).Get()), false, true;
-	case reflect.Uint8Kind:
-		return int64(v.(reflect.Uint8Value).Get()), false, true;
-	case reflect.Uint16Kind:
-		return int64(v.(reflect.Uint16Value).Get()), false, true;
-	case reflect.Uint32Kind:
-		return int64(v.(reflect.Uint32Value).Get()), false, true;
-	case reflect.Uint64Kind:
-		return int64(v.(reflect.Uint64Value).Get()), false, true;
-	case reflect.UintptrKind:
-		return int64(v.(reflect.UintptrValue).Get()), false, true;
+	switch v := v.(type) {
+	case *reflect.IntValue:
+		return int64(v.Get()), true, true;
+	case *reflect.Int8Value:
+		return int64(v.Get()), true, true;
+	case *reflect.Int16Value:
+		return int64(v.Get()), true, true;
+	case *reflect.Int32Value:
+		return int64(v.Get()), true, true;
+	case *reflect.Int64Value:
+		return int64(v.Get()), true, true;
+	case *reflect.UintValue:
+		return int64(v.Get()), false, true;
+	case *reflect.Uint8Value:
+		return int64(v.Get()), false, true;
+	case *reflect.Uint16Value:
+		return int64(v.Get()), false, true;
+	case *reflect.Uint32Value:
+		return int64(v.Get()), false, true;
+	case *reflect.Uint64Value:
+		return int64(v.Get()), false, true;
+	case *reflect.UintptrValue:
+		return int64(v.Get()), false, true;
 	}
-	return 0, false, false;
+	return;
 }
 
 func getString(v reflect.Value) (val string, ok bool) {
-	switch v.Kind() {
-	case reflect.StringKind:
-		return v.(reflect.StringValue).Get(), true;
-	case reflect.ArrayKind:
-		if val, ok := v.Interface().([]byte); ok {
-			return string(val), true;
-		}
+	if v, ok := v.(*reflect.StringValue); ok {
+		return v.Get(), true;
 	}
-	return "", false;
+	if bytes, ok := v.Interface().([]byte); ok {
+		return string(bytes), true;
+	}
+	return;
 }
 
 func getFloat32(v reflect.Value) (val float32, ok bool) {
-	switch v.Kind() {
-	case reflect.Float32Kind:
-		return float32(v.(reflect.Float32Value).Get()), true;
-	case reflect.FloatKind:
+	switch v := v.(type) {
+	case *reflect.Float32Value:
+		return float32(v.Get()), true;
+	case *reflect.FloatValue:
 		if v.Type().Size()*8 == 32 {
-			return float32(v.(reflect.FloatValue).Get()), true;
+			return float32(v.Get()), true;
 		}
 	}
-	return 0.0, false;
+	return;
 }
 
 func getFloat64(v reflect.Value) (val float64, ok bool) {
-	switch v.Kind() {
-	case reflect.FloatKind:
+	switch v := v.(type) {
+	case *reflect.FloatValue:
 		if v.Type().Size()*8 == 64 {
-			return float64(v.(reflect.FloatValue).Get()), true;
+			return float64(v.Get()), true;
 		}
-	case reflect.Float64Kind:
-		return float64(v.(reflect.Float64Value).Get()), true;
+	case *reflect.Float64Value:
+		return float64(v.Get()), true;
 	}
-	return 0.0, false;
+	return;
 }
 
 func getPtr(v reflect.Value) (val uintptr, ok bool) {
-	switch v.Kind() {
-	case reflect.PtrKind:
-		return uintptr(v.(reflect.PtrValue).Get()), true;
+	switch v := v.(type) {
+	case *reflect.PtrValue:
+		return uintptr(v.Get()), true;
 	}
-	return 0, false;
-}
-
-func getArrayPtr(v reflect.Value) (val reflect.ArrayValue, ok bool) {
-	if v.Kind() == reflect.PtrKind {
-		v = v.(reflect.PtrValue).Sub();
-		if v.Kind() == reflect.ArrayKind {
-			return v.(reflect.ArrayValue), true;
-		}
-	}
-	return nil, false;
-}
-
-func getArray(v reflect.Value) (val reflect.ArrayValue, ok bool) {
-	switch v.Kind() {
-	case reflect.ArrayKind:
-		return v.(reflect.ArrayValue), true;
-	}
-	return nil, false;
+	return;
 }
 
 // Convert ASCII to integer.  n is 0 (and got is false) if no number present.
@@ -418,101 +405,91 @@ func (p *pp) printField(field reflect.Value) (was_string bool) {
 		}
 	}
 	s := "";
-	switch field.Kind() {
-	case reflect.BoolKind:
-		s = p.fmt.Fmt_boolean(field.(reflect.BoolValue).Get()).Str();
-	case reflect.IntKind, reflect.Int8Kind, reflect.Int16Kind, reflect.Int32Kind, reflect.Int64Kind:
-		v, signed, ok := getInt(field);
-		s = p.fmt.Fmt_d64(v).Str();
-	case reflect.UintKind, reflect.Uint8Kind, reflect.Uint16Kind, reflect.Uint32Kind, reflect.Uint64Kind:
-		v, signed, ok := getInt(field);
-		s = p.fmt.Fmt_ud64(uint64(v)).Str();
-	case reflect.UintptrKind:
-		v, signed, ok := getInt(field);
-		p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
-		s = p.fmt.Fmt_ux64(uint64(v)).Str();
-	case reflect.Float32Kind:
-		v, ok := getFloat32(field);
-		s = p.fmt.Fmt_g32(v).Str();
-	case reflect.Float64Kind:
-		v, ok := getFloat64(field);
-		s = p.fmt.Fmt_g64(v).Str();
-	case reflect.FloatKind:
+	switch f := field.(type) {
+	case *reflect.BoolValue:
+		s = p.fmt.Fmt_boolean(f.Get()).Str();
+	case *reflect.Float32Value:
+		s = p.fmt.Fmt_g32(f.Get()).Str();
+	case *reflect.Float64Value:
+		s = p.fmt.Fmt_g64(f.Get()).Str();
+	case *reflect.FloatValue:
 		if field.Type().Size()*8 == 32 {
-			v, ok := getFloat32(field);
-			s = p.fmt.Fmt_g32(v).Str();
+			s = p.fmt.Fmt_g32(float32(f.Get())).Str();
 		} else {
-			v, ok := getFloat64(field);
-			s = p.fmt.Fmt_g64(v).Str();
+			s = p.fmt.Fmt_g64(float64(f.Get())).Str();
 		}
-	case reflect.StringKind:
-		v, ok := getString(field);
-		s = p.fmt.Fmt_s(v).Str();
+	case *reflect.StringValue:
+		s = p.fmt.Fmt_s(f.Get()).Str();
 		was_string = true;
-	case reflect.PtrKind:
-		if v, ok := getPtr(field); v == 0 {
-			s = "<nil>"
-		} else {
-			// pointer to array?  (TODO(r): holdover; delete?)
-			if a, ok := getArrayPtr(field); ok {
-				p.addstr("&[");
-				for i := 0; i < a.Len(); i++ {
-					if i > 0 {
-						p.addstr(" ");
-					}
-					p.printField(a.Elem(i));
-				}
-				p.addstr("]");
-			} else {
-				p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
-				s = p.fmt.Fmt_uX64(uint64(v)).Str();
-			}
+	case *reflect.PtrValue:
+		v := f.Get();
+		if v == 0 {
+			s = "<nil>";
+			break;
 		}
-	case reflect.ArrayKind:
-		if a, ok := getArray(field); ok {
-			p.addstr("[");
-			for i := 0; i < a.Len(); i++ {
-				if i > 0 {
-					p.addstr(" ");
-				}
-				p.printField(a.Elem(i));
-			}
-			p.addstr("]");
+		// pointer to array?
+		if a, ok := f.Elem().(reflect.ArrayOrSliceValue); ok {
+			p.addstr("&");
+			p.printField(a);
+			break;
 		}
-	case reflect.StructKind:
+		p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
+		s = p.fmt.Fmt_uX64(uint64(v)).Str();
+	case reflect.ArrayOrSliceValue:
+		p.addstr("[");
+		for i := 0; i < f.Len(); i++ {
+			if i > 0 {
+				p.addstr(" ");
+			}
+			p.printField(f.Elem(i));
+		}
+		p.addstr("]");
+	case *reflect.StructValue:
 		p.add('{');
-		v := field.(reflect.StructValue);
-		t := v.Type().(reflect.StructType);
+		v := f;
+		t := v.Type().(*reflect.StructType);
 		donames := p.fmt.plus;
 		p.fmt.clearflags();	// clear flags for p.printField
-		for i := 0; i < v.Len();  i++ {
+		for i := 0; i < v.NumField();  i++ {
 			if i > 0 {
 				p.add(' ')
 			}
 			if donames {
-				if name, typ, tag, off := t.Field(i); name != "" {
-					p.addstr(name);
+				if f := t.Field(i); f.Name != "" {
+					p.addstr(f.Name);
 					p.add('=');
 				}
 			}
 			p.printField(getField(v, i));
 		}
 		p.add('}');
-	case reflect.InterfaceKind:
-		value := field.(reflect.InterfaceValue).Value();
+	case *reflect.InterfaceValue:
+		value := f.Elem();
 		if value == nil {
 			s = "<nil>"
 		} else {
 			return p.printField(value);
 		}
+	case *reflect.UintptrValue:
+		p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
+		s = p.fmt.Fmt_ux64(uint64(f.Get())).Str();
 	default:
+		v, signed, ok := getInt(field);
+		if ok {
+			if signed {
+				s = p.fmt.Fmt_d64(v).Str();
+			} else {
+				s = p.fmt.Fmt_ud64(uint64(v)).Str();
+			}
+			break;
+		}
 		s = "?" + field.Type().String() + "?";
 	}
 	p.addstr(s);
 	return was_string;
 }
 
-func (p *pp) doprintf(format string, v reflect.StructValue) {
+func (p *pp) doprintf(format string, v *reflect.StructValue) {
 	p.ensure(len(format));	// a good starting size
 	end := len(format) - 1;
 	fieldnum := 0;	// we process one field per non-trivial format
@@ -555,7 +532,7 @@ func (p *pp) doprintf(format string, v reflect.StructValue) {
 			p.add('%');	// TODO: should we bother with width & prec?
 			continue;
 		}
-		if fieldnum >= v.Len() {	// out of operands
+		if fieldnum >= v.NumField() {	// out of operands
 			p.add('%');
 			p.add(c);
 			p.addstr("(missing)");
@@ -719,11 +696,11 @@ func (p *pp) doprintf(format string, v reflect.StructValue) {
 		}
 		p.addstr(s);
 	}
-	if fieldnum < v.Len() {
+	if fieldnum < v.NumField() {
 		p.addstr("?(extra ");
-		for ; fieldnum < v.Len(); fieldnum++ {
+		for ; fieldnum < v.NumField(); fieldnum++ {
 			p.addstr(getField(v, fieldnum).Type().String());
-			if fieldnum + 1 < v.Len() {
+			if fieldnum + 1 < v.NumField() {
 				p.addstr(", ");
 			}
 		}
@@ -731,21 +708,18 @@ func (p *pp) doprintf(format string, v reflect.StructValue) {
 	}
 }
 
-func (p *pp) doprint(v reflect.StructValue, addspace, addnewline bool) {
+func (p *pp) doprint(v *reflect.StructValue, addspace, addnewline bool) {
 	prev_string := false;
-	for fieldnum := 0; fieldnum < v.Len();  fieldnum++ {
+	for fieldnum := 0; fieldnum < v.NumField();  fieldnum++ {
 		// always add spaces if we're doing println
 		field := getField(v, fieldnum);
 		if fieldnum > 0 {
-			if addspace {
-				p.add(' ')
-			} else if field.Kind() != reflect.StringKind && !prev_string{
-				// if not doing println, add spaces if neither side is a string
-				p.add(' ')
+			_, is_string := field.(*reflect.StringValue);
+			if addspace || !is_string && !prev_string {
+				p.add(' ');
 			}
 		}
-		was_string := p.printField(field);
-		prev_string = was_string;
+		prev_string = p.printField(field);
 	}
 	if addnewline {
 		p.add('\n')
