@@ -416,16 +416,16 @@ func (s *State) error(msg string) {
 //
 func getField(val reflect.Value, fieldname string) (reflect.Value, int) {
 	// do we have a struct in the first place?
-	if val.Kind() != reflect.StructKind {
+	sval, ok := val.(*reflect.StructValue);
+	if !ok {
 		return nil, 0;
 	}
-
-	sval, styp := val.(reflect.StructValue), val.Type().(reflect.StructType);
+	styp := sval.Type().(*reflect.StructType);
 
 	// look for field at the top level
-	for i := 0; i < styp.Len(); i++ {
-		name, typ, tag, offset := styp.Field(i);
-		if name == fieldname || name == "" && strings.HasSuffix(typ.Name(), "." + fieldname) /* anonymous field */ {
+	for i := 0; i < styp.NumField(); i++ {
+		f := styp.Field(i);
+		if f.Name == fieldname {
 			return sval.Field(i), 0;
 		}
 	}
@@ -433,9 +433,9 @@ func getField(val reflect.Value, fieldname string) (reflect.Value, int) {
 	// look for field in anonymous fields
 	var field reflect.Value;
 	level := 1000;  // infinity (no struct has that many levels)
-	for i := 0; i < styp.Len(); i++ {
-		name, typ, tag, offset := styp.Field(i);
-		if name == "" {
+	for i := 0; i < styp.NumField(); i++ {
+		f := styp.Field(i);
+		if f.Anonymous {
 			f, l := getField(sval.Field(i), fieldname);
 			// keep the most shallow field
 			if f != nil {
@@ -461,44 +461,28 @@ func getField(val reflect.Value, fieldname string) (reflect.Value, int) {
 //      'array' which is not really sufficient. Eventually one may want
 //      to be able to specify rules for say an unnamed slice of T.
 //
-var defaultNames = map[int]string {
-	reflect.ArrayKind: "array",
-	reflect.BoolKind: "bool",
-	reflect.ChanKind: "chan",
-	reflect.DotDotDotKind: "ellipsis",
-	reflect.FloatKind: "float",
-	reflect.Float32Kind: "float32",
-	reflect.Float64Kind: "float64",
-	reflect.FuncKind: "func",
-	reflect.IntKind: "int",
-	reflect.Int16Kind: "int16",
-	reflect.Int32Kind: "int32",
-	reflect.Int64Kind: "int64",
-	reflect.Int8Kind: "int8",
-	reflect.InterfaceKind: "interface",
-	reflect.MapKind: "map",
-	reflect.PtrKind: "ptr",
-	reflect.StringKind: "string",
-	reflect.StructKind: "struct",
-	reflect.UintKind: "uint",
-	reflect.Uint16Kind: "uint16",
-	reflect.Uint32Kind: "uint32",
-	reflect.Uint64Kind: "uint64",
-	reflect.Uint8Kind: "uint8",
-	reflect.UintptrKind: "uintptr",
-}
 
-
-func typename(value reflect.Value) string {
-	name := value.Type().Name();
-	if name == "" {
-		if defaultName, found := defaultNames[value.Kind()]; found {
-			name = defaultName;
-		}
+func typename(typ reflect.Type) string {
+	switch t := typ.(type) {
+	case *reflect.ArrayType:
+		return "array";
+	case *reflect.SliceType:
+		return "array";
+	case *reflect.ChanType:
+		return "chan";
+	case *reflect.DotDotDotType:
+		return "ellipsis";
+	case *reflect.FuncType:
+		return "func";
+	case *reflect.InterfaceType:
+		return "interface";
+	case *reflect.MapType:
+		return "map";
+	case *reflect.PtrType:
+		return "ptr";
 	}
-	return name;
+	return typ.String();
 }
-
 
 func (s *State) getFormat(name string) expr {
 	if fexpr, found := s.fmt[name]; found {
@@ -593,35 +577,41 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 		case "*":
 			// indirection: operation is type-specific
 			switch v := value.(type) {
-			case reflect.ArrayValue:
+			case *reflect.ArrayValue:
+				if v.Len() <= index {
+					return false;
+				}
+				value = v.Elem(index);
+
+			case *reflect.SliceValue:
 				if v.IsNil() || v.Len() <= index {
 					return false;
 				}
 				value = v.Elem(index);
 
-			case reflect.MapValue:
+			case *reflect.MapValue:
 				s.error("reflection support for maps incomplete");
 
-			case reflect.PtrValue:
+			case *reflect.PtrValue:
 				if v.IsNil() {
 					return false;
 				}
-				value = v.Sub();
+				value = v.Elem();
 
-			case reflect.InterfaceValue:
+			case *reflect.InterfaceValue:
 				if v.IsNil() {
 					return false;
 				}
-				value = v.Value();
+				value = v.Elem();
 
-			case reflect.ChanValue:
+			case *reflect.ChanValue:
 				s.error("reflection support for chans incomplete");
 
-			case reflect.FuncValue:
+			case *reflect.FuncValue:
 				s.error("reflection support for funcs incomplete");
 
 			default:
-				s.error(fmt.Sprintf("error: * does not apply to `%s`", value.Type().Name()));
+				s.error(fmt.Sprintf("error: * does not apply to `%s`", value.Type()));
 			}
 
 		default:
@@ -629,7 +619,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 			field, _ := getField(value, t.fieldName);
 			if field == nil {
 				// TODO consider just returning false in this case
-				s.error(fmt.Sprintf("error: no field `%s` in `%s`", t.fieldName, value.Type().Name()));
+				s.error(fmt.Sprintf("error: no field `%s` in `%s`", t.fieldName, value.Type()));
 			}
 			value = field;
 		}
@@ -638,7 +628,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 		ruleName := t.ruleName;
 		if ruleName == "" {
 			// no alternate rule name, value type determines rule
-			ruleName = typename(value)
+			ruleName = typename(value.Type())
 		}
 		fexpr = s.getFormat(ruleName);
 
@@ -734,11 +724,11 @@ func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
 	s := newState(f, env, errors);
 
 	go func() {
-		value := reflect.NewValue(args).(reflect.StructValue);
-		for i := 0; i < value.Len(); i++ {
+		value := reflect.NewValue(args).(*reflect.StructValue);
+		for i := 0; i < value.NumField(); i++ {
 			fld := value.Field(i);
 			mark := s.save();
-			if !s.eval(s.getFormat(typename(fld)), fld, 0) {  // TODO is 0 index correct?
+			if !s.eval(s.getFormat(typename(fld.Type())), fld, 0) {  // TODO is 0 index correct?
 				s.restore(mark);
 			}
 		}
