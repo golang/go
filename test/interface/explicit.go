@@ -15,13 +15,14 @@ type I interface { M() }
 var i I
 
 type I2 interface { M(); N(); }
-var i2 I2;
+var i2 I2
 
-var e interface { };
+type E interface { }
+var e E
 
 func main() {
 	e = t;	// ok
-	t = e;	// ERROR "need explicit"
+	t = e;	// ERROR "need explicit|need type assertion"
 
 	// neither of these can work,
 	// because i has an extra method
@@ -30,5 +31,11 @@ func main() {
 	t = i;	// ERROR "missing|incompatible|is not"
 
 	i = i2;	// ok
-	i2 = i;	// ERROR "need explicit"
+	i2 = i;	// ERROR "need explicit|need type assertion"
+	
+	i = I(i2);	// ok
+	i2 = I2(i);	// ERROR "need explicit|need type assertion"
+
+	e = E(t);	// ok
+	t = T(e);	// ERROR "need explicit|need type assertion"
 }

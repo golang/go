@@ -130,9 +130,7 @@ func send(req *Request) (resp *Response, err os.Error) {
 		resp.AddHeader(key, value);
 	}
 
-	// TODO(rsc): Make this work:
-	//   r := io.Reader(reader);
-	var r io.Reader = reader;
+	r := io.Reader(reader);
 	if v := resp.GetHeader("Transfer-Encoding"); v == "chunked" {
 		r = newChunkedReader(reader);
 	}
