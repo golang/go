@@ -145,7 +145,7 @@ methods(Type *t)
 	a = nil;
 	o = 0;
 	oldlist = nil;
-	for(f=mt->method; f; f=f->down) {
+	for(f=mt->xmethod; f; f=f->down) {
 		if(f->type->etype != TFUNC)
 			continue;
 		if(f->etype != TFIELD)
@@ -159,6 +159,8 @@ methods(Type *t)
 		// this is not an embedded pointer inside a struct,
 		// method does not apply.
 		this = getthisx(f->type)->type->type;
+		if(isptr[this->etype] && this->type == t)
+			continue;
 		if(isptr[this->etype] && !isptr[t->etype]
 		&& f->embedded != 2 && !isifacemethod(f))
 			continue;
@@ -200,7 +202,7 @@ methods(Type *t)
 			if(!eqtype(this, t)) {
 				if(oldlist == nil)
 					oldlist = pc;
-				if(isptr[it->etype] && isptr[this->etype]
+				if(isptr[t->etype] && isptr[this->etype]
 				&& f->embedded && !isifacemethod(f))
 					genembedtramp(t, f, a->tsym);
 				else
