@@ -680,9 +680,11 @@ static	Node*	boolname;
 Node*
 typeone(Node *t)
 {
-	Node *a, *b;
+	Node *a, *b, *dcl;
 
 	a = t->left->left;		// var
+	dcl = nod(ODCL, a, N);
+
 	a = nod(OLIST, a, boolname);	// var,bool
 
 	b = nod(ODOTTYPE, facename, N);
@@ -693,7 +695,7 @@ typeone(Node *t)
 	b = nod(OIF, N, N);
 	b->ntest = boolname;
 	b->nbody = t->right;		// if bool { goto l }
-	return list(a, b);
+	return list(list(dcl, a), b);
 }
 
 Node*
