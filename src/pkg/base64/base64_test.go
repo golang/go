@@ -50,9 +50,9 @@ var bigtest = testpair {
 }
 
 func testEqual(t *testing.T, msg string, args ...) bool {
-	v := reflect.NewValue(args).(reflect.StructValue);
-	v1 := v.Field(v.Len() - 2);
-	v2 := v.Field(v.Len() - 1);
+	v := reflect.NewValue(args).(*reflect.StructValue);
+	v1 := v.Field(v.NumField() - 2);
+	v2 := v.Field(v.NumField() - 1);
 	if v1.Interface() != v2.Interface() {
 		t.Errorf(msg, args);
 		return false;
