@@ -1768,7 +1768,6 @@ hidden_type1:
 	}
 |	'*' hidden_type
 	{
-		checkwidth($2);
 		$$ = ptrto($2);
 	}
 |	LCOMM LCHAN hidden_type
