@@ -569,12 +569,12 @@ func (st *state) findVar(s string) reflect.Value {
 		return st.data
 	}
 	data := reflect.Indirect(st.data);
-	typ, ok := data.Type().(reflect.StructType);
+	typ, ok := data.Type().(*reflect.StructType);
 	if ok {
-		for i := 0; i < typ.Len(); i++ {
-			name, ftyp, tag, offset := typ.Field(i);
-			if name == s {
-				return data.(reflect.StructValue).Field(i)
+		for i := 0; i < typ.NumField(); i++ {
+			f := typ.Field(i);
+			if f.Name == s {
+				return data.(*reflect.StructValue).Field(i)
 			}
 		}
 	}
@@ -587,13 +587,15 @@ func empty(v reflect.Value, indirect_ok bool) bool {
 	if v == nil {
 		return true
 	}
-	switch v.Type().Kind() {
-	case reflect.StringKind:
-		return v.(reflect.StringValue).Get() == "";
-	case reflect.StructKind:
+	switch v := v.(type) {
+	case *reflect.StringValue:
+		return v.Get() == "";
+	case *reflect.StructValue:
 		return false;
-	case reflect.ArrayKind:
-		return v.(reflect.ArrayValue).Len() == 0;
+	case *reflect.ArrayValue:
+		return v.Len() == 0;
+	case *reflect.SliceValue:
+		return v.Len() == 0;
 	}
 	return true;
 }
@@ -701,7 +703,8 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 	field = reflect.Indirect(field);
 
 	// Must be an array/slice
-	if field != nil && field.Kind() != reflect.ArrayKind {
+	array, ok := field.(reflect.ArrayOrSliceValue);
+	if !ok {
 		t.execError(st, r.linenum, ".repeated: %s has bad type %s", r.field, field.Type());
 	}
 	if empty(field, true) {
@@ -724,7 +727,6 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 		end = r.altstart
 	}
 	if field != nil {
-		array := field.(reflect.ArrayValue);
 		for j := 0; j < array.Len(); j++ {
 			newst := st.clone(array.Elem(j));
 			for i := start; i < end; {
