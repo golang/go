@@ -70,6 +70,7 @@ OFILES=\
 	sys.$O\
 	thread.$O\
 	traceback.$O\
+	type.$O\
 	$(OFILES_$(GOARCH))\
 
 HFILES=\

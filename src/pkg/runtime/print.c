@@ -76,10 +76,10 @@ printf(int8 *s, ...)
 			sys·printint(*(int64*)arg);
 			break;
 		case 'x':
-			sys·printhex(*(int32*)arg);
+			sys·printhex(*(uint32*)arg);
 			break;
 		case 'X':
-			sys·printhex(*(int64*)arg);
+			sys·printhex(*(uint64*)arg);
 			break;
 		case 'p':
 			sys·printpointer(*(void**)arg);
