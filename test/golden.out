@@ -105,6 +105,12 @@ BUG: bug159
 123
 BUG: should fail
 
+=========== bugs/bug167.go
+BUG: bug167
+1606416656: conflicting definitions for main.T·bug167
+bug167.6:	type main.T·bug167 struct { x int }
+bug167.6:	type main.T·bug167 struct { x float }
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
