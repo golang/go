@@ -508,25 +508,7 @@ duintxx(Sym *s, int off, uint64 v, int wid)
 }
 
 int
-duint32(Sym *s, int off, uint32 v)
-{
-	return duintxx(s, off, v, 4);
-}
-
-int
-duint16(Sym *s, int off, uint32 v)
-{
-	return duintxx(s, off, v, 2);
-}
-
-int
-duintptr(Sym *s, int off, uint32 v)
-{
-	return duintxx(s, off, v, 4);
-}
-
-int
-dsymptr(Sym *s, int off, Sym *x)
+dsymptr(Sym *s, int off, Sym *x, int xoff)
 {
 	Prog *p;
 
@@ -541,68 +523,65 @@ dsymptr(Sym *s, int off, Sym *x)
 	p->to.type = D_ADDR;
 	p->to.index = D_EXTERN;
 	p->to.sym = x;
-	p->to.offset = 0;
+	p->to.offset = xoff;
 	off += widthptr;
 
 	return off;
 }
 
-
 void
-genembedtramp(Type *t, Sig *b)
+genembedtramp(Type *rcvr, Type *method, Sym *newnam)
 {
 	Sym *e;
-	int c, d, o;
+	int c, d, o, mov, add, loaded;
 	Prog *p;
 	Type *f;
 
-	e = lookup(b->name);
+	e = method->sym;
 	for(d=0; d<nelem(dotlist); d++) {
-		c = adddot1(e, t, d, nil);
+		c = adddot1(e, rcvr, d, nil);
 		if(c == 1)
 			goto out;
 	}
-	fatal("genembedtramp %T.%s", t, b->name);
+	fatal("genembedtramp %T.%S", rcvr, method->sym);
 
 out:
-	if(d == 0)
-		return;
-
-//	print("genembedtramp %d\n", d);
-//	print("	t    = %lT\n", t);
-//	print("	name = %s\n", b->name);
-//	print("	sym  = %S\n", b->sym);
-//	print("	hash = 0x%ux\n", b->hash);
-
-	newplist()->name = newname(b->sym);
+	newplist()->name = newname(newnam);
 
 	//TEXT	main·S_test2(SB),7,$0
 	p = pc;
 	gins(ATEXT, N, N);
 	p->from.type = D_EXTERN;
-	p->from.sym = b->sym;
+	p->from.sym = newnam;
 	p->to.type = D_CONST;
 	p->to.offset = 0;
 	p->from.scale = 7;
 //print("1. %P\n", p);
 
-	//MOVL	4(SP), AX
-	p = pc;
-	gins(AMOVL, N, N);
-	p->from.type = D_INDIR+D_SP;
-	p->from.offset = widthptr;
-	p->to.type = D_AX;
-//print("2. %P\n", p);
+	mov = AMOVL;
+	add = AADDL;
 
+	loaded = 0;
 	o = 0;
 	for(c=d-1; c>=0; c--) {
 		f = dotlist[c].field;
 		o += f->width;
 		if(!isptr[f->type->etype])
 			continue;
+		if(!loaded) {
+			loaded = 1;
+			//MOVL	4(SP), AX
+			p = pc;
+			gins(mov, N, N);
+			p->from.type = D_INDIR+D_SP;
+			p->from.offset = widthptr;
+			p->to.type = D_AX;
+//print("2. %P\n", p);
+		}
+
 		//MOVL	o(AX), AX
 		p = pc;
-		gins(AMOVL, N, N);
+		gins(mov, N, N);
 		p->from.type = D_INDIR+D_AX;
 		p->from.offset = o;
 		p->to.type = D_AX;
@@ -612,20 +591,34 @@ out:
 	if(o != 0) {
 		//ADDL	$XX, AX
 		p = pc;
-		gins(AADDL, N, N);
+		gins(add, N, N);
 		p->from.type = D_CONST;
 		p->from.offset = o;
-		p->to.type = D_AX;
+		if(loaded)
+			p->to.type = D_AX;
+		else {
+			p->to.type = D_INDIR+D_SP;
+			p->to.offset = widthptr;
+		}
 //print("4. %P\n", p);
 	}
 
 	//MOVL	AX, 4(SP)
-	p = pc;
-	gins(AMOVL, N, N);
-	p->from.type = D_AX;
-	p->to.type = D_INDIR+D_SP;
-	p->to.offset = widthptr;
+	if(loaded) {
+		p = pc;
+		gins(mov, N, N);
+		p->from.type = D_AX;
+		p->to.type = D_INDIR+D_SP;
+		p->to.offset = widthptr;
 //print("5. %P\n", p);
+	} else {
+		// TODO(rsc): obviously this is unnecessary,
+		// but 6l has a bug, and it can't handle
+		// JMP instructions too close to the top of
+		// a new function.
+		p = pc;
+		gins(ANOP, N, N);
+	}
 
 	f = dotlist[0].field;
 	//JMP	main·*Sub_test2(SB)
@@ -634,7 +627,7 @@ out:
 	p = pc;
 	gins(AJMP, N, N);
 	p->to.type = D_EXTERN;
-	p->to.sym = methodsym(lookup(b->name), ptrto(f->type));
+	p->to.sym = methodsym(method->sym, ptrto(f->type));
 //print("6. %P\n", p);
 
 	pc->as = ARET;	// overwrite AEND
