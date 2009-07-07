@@ -28,10 +28,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+
 #include "gc.h"
 
 void
-cgen(Node *n, Node *nn, int inrel)
+_cgen(Node *n, Node *nn, int inrel)
 {
 	Node *l, *r;
 	Prog *p1;
@@ -75,7 +76,7 @@ cgen(Node *n, Node *nn, int inrel)
 	switch(o) {
 	default:
 		regret(&nod, r);
-		cgen(r, &nod, 0);
+		cgen(r, &nod);
 
 		regsalloc(&nod1, r);
 		gopcode(OAS, &nod, Z, &nod1);
@@ -83,7 +84,7 @@ cgen(Node *n, Node *nn, int inrel)
 		regfree(&nod);
 		nod = *n;
 		nod.right = &nod1;
-		cgen(&nod, nn, 0);
+		cgen(&nod, nn);
 		return;
 
 	case OFUNC:
@@ -109,7 +110,7 @@ cgen(Node *n, Node *nn, int inrel)
 					regret(&nod, r);
 				else
 					regalloc(&nod, r, nn);
-				cgen(r, &nod, 0);
+				cgen(r, &nod);
 				gmove(&nod, l);
 				if(nn != Z)
 					gmove(&nod, nn);
@@ -128,10 +129,10 @@ cgen(Node *n, Node *nn, int inrel)
 				break;
 			}
 			regalloc(&nod, r, nn);
-			cgen(r, &nod, 0);
+			cgen(r, &nod);
 		} else {
 			regalloc(&nod, r, nn);
-			cgen(r, &nod, 0);
+			cgen(r, &nod);
 			reglcgen(&nod1, l, Z);
 		}
 		gmove(&nod, &nod1);
@@ -144,9 +145,9 @@ cgen(Node *n, Node *nn, int inrel)
 		regalloc(&nod, r, nn);
 		if(l->complex >= r->complex) {
 			reglcgen(&nod1, n, Z);
-			cgen(r, &nod, 0);
+			cgen(r, &nod);
 		} else {
-			cgen(r, &nod, 0);
+			cgen(r, &nod);
 			reglcgen(&nod1, n, Z);
 		}
 		regalloc(&nod2, n, Z);
@@ -169,7 +170,7 @@ cgen(Node *n, Node *nn, int inrel)
 		if(nn != Z)
 		if((t = vlog(r)) >= 0) {
 			/* signed div/mod by constant power of 2 */
-			cgen(l, nn, 0);
+			cgen(l, nn);
 			gopcode(OGE, nodconst(0), nn, Z);
 			p1 = p;
 			if(o == ODIV) {
@@ -194,7 +195,7 @@ cgen(Node *n, Node *nn, int inrel)
 		if(nn != Z)
 		if(l->op == OCONST)
 		if(!typefd[n->type->etype]) {
-			cgen(r, nn, 0);
+			cgen(r, nn);
 			gopcode(o, Z, l, nn);
 			break;
 		}
@@ -211,7 +212,7 @@ cgen(Node *n, Node *nn, int inrel)
 		if(nn != Z)
 		if(r->op == OCONST)
 		if(!typefd[n->type->etype]) {
-			cgen(l, nn, 0);
+			cgen(l, nn);
 			if(r->vconst == 0)
 			if(o != OAND)
 				break;
@@ -235,15 +236,15 @@ cgen(Node *n, Node *nn, int inrel)
 		}
 		if(l->complex >= r->complex) {
 			regalloc(&nod, l, nn);
-			cgen(l, &nod, 0);
+			cgen(l, &nod);
 			regalloc(&nod1, r, Z);
-			cgen(r, &nod1, 0);
+			cgen(r, &nod1);
 			gopcode(o, &nod1, Z, &nod);
 		} else {
 			regalloc(&nod, r, nn);
-			cgen(r, &nod, 0);
+			cgen(r, &nod);
 			regalloc(&nod1, l, Z);
-			cgen(l, &nod1, 0);
+			cgen(l, &nod1);
 			gopcode(o, &nod, &nod1, &nod);
 		}
 		gopcode(OAS, &nod, Z, nn);
@@ -272,7 +273,7 @@ cgen(Node *n, Node *nn, int inrel)
 			gopcode(OAS, &nod2, Z, &nod);
 			gopcode(o, r, Z, &nod);
 			gopcode(OAS, &nod, Z, &nod2);
-	
+
 			regfree(&nod);
 			if(l->addable < INDEXED)
 				regfree(&nod2);
@@ -293,10 +294,10 @@ cgen(Node *n, Node *nn, int inrel)
 			else
 				nod2 = *l;
 			regalloc(&nod1, r, Z);
-			cgen(r, &nod1, 0);
+			cgen(r, &nod1);
 		} else {
 			regalloc(&nod1, r, Z);
-			cgen(r, &nod1, 0);
+			cgen(r, &nod1);
 			if(l->addable < INDEXED)
 				reglcgen(&nod2, l, Z);
 			else
@@ -320,10 +321,10 @@ cgen(Node *n, Node *nn, int inrel)
 		if(l->complex >= r->complex) {
 			bitload(l, &nod, &nod1, &nod2, &nod4);
 			regalloc(&nod3, r, Z);
-			cgen(r, &nod3, 0);
+			cgen(r, &nod3);
 		} else {
 			regalloc(&nod3, r, Z);
-			cgen(r, &nod3, 0);
+			cgen(r, &nod3);
 			bitload(l, &nod, &nod1, &nod2, &nod4);
 		}
 		gmove(&nod, &nod4);
@@ -348,7 +349,7 @@ cgen(Node *n, Node *nn, int inrel)
 				diag(n, "bad function call");
 
 			regret(&nod, l->left);
-			cgen(l->left, &nod, 0);
+			cgen(l->left, &nod);
 			regsalloc(&nod1, l->left);
 			gopcode(OAS, &nod, Z, &nod1);
 			regfree(&nod);
@@ -358,7 +359,7 @@ cgen(Node *n, Node *nn, int inrel)
 			nod2 = *l;
 			nod2.left = &nod1;
 			nod2.complex = 1;
-			cgen(&nod, nn, 0);
+			cgen(&nod, nn);
 
 			return;
 		}
@@ -393,11 +394,11 @@ cgen(Node *n, Node *nn, int inrel)
 		if(sconst(r) && (v = r->vconst+nod.xoffset) > -4096 && v < 4096) {
 			v = r->vconst;
 			r->vconst = 0;
-			cgen(l, &nod, 0);
+			cgen(l, &nod);
 			nod.xoffset += v;
 			r->vconst = v;
 		} else
-			cgen(l, &nod, 0);
+			cgen(l, &nod);
 		regind(&nod, n);
 		gopcode(OAS, &nod, Z, nn);
 		regfree(&nod);
@@ -436,8 +437,8 @@ cgen(Node *n, Node *nn, int inrel)
 		break;
 
 	case OCOMMA:
-		cgen(l, Z, 0);
-		cgen(r, nn, 0);
+		cgen(l, Z);
+		cgen(r, nn);
 		break;
 
 	case OCAST:
@@ -450,12 +451,12 @@ cgen(Node *n, Node *nn, int inrel)
 		 */
 		if(nocast(l->type, n->type)) {
 			if(nocast(n->type, nn->type)) {
-				cgen(l, nn, 0);
+				cgen(l, nn);
 				break;
 			}
 		}
 		regalloc(&nod, l, nn);
-		cgen(l, &nod, 0);
+		cgen(l, &nod);
 		regalloc(&nod1, n, &nod);
 		if(inrel)
 			gmover(&nod, &nod1);
@@ -477,18 +478,18 @@ cgen(Node *n, Node *nn, int inrel)
 			}
 			nod.xoffset += (int32)r->vconst;
 			nod.type = n->type;
-			cgen(&nod, nn, 0);
+			cgen(&nod, nn);
 		}
 		break;
 
 	case OCOND:
 		bcgen(l, 1);
 		p1 = p;
-		cgen(r->left, nn, 0);
+		cgen(r->left, nn);
 		gbranch(OGOTO);
 		patch(p1, pc);
 		p1 = p;
-		cgen(r->right, nn, 0);
+		cgen(r->right, nn);
 		patch(p1, pc);
 		break;
 
@@ -587,6 +588,18 @@ cgen(Node *n, Node *nn, int inrel)
 }
 
 void
+cgen(Node *n, Node *nn)
+{
+	_cgen(n, nn, 0);
+}
+
+void
+cgenrel(Node *n, Node *nn)
+{
+	_cgen(n, nn, 1);
+}
+
+void
 reglcgen(Node *t, Node *n, Node *nn)
 {
 	Node *r;
@@ -609,7 +622,7 @@ reglcgen(Node *t, Node *n, Node *nn)
 	} else if(n->op == OINDREG) {
 		if((v = n->xoffset) > -4096 && v < 4096) {
 			n->op = OREGISTER;
-			cgen(n, t, 0);
+			cgen(n, t);
 			t->xoffset += v;
 			n->op = OINDREG;
 			regind(t, n);
@@ -668,12 +681,12 @@ lcgen(Node *n, Node *nn)
 		break;
 
 	case OCOMMA:
-		cgen(n->left, n->left, 0);
+		cgen(n->left, n->left);
 		lcgen(n->right, nn);
 		break;
 
 	case OIND:
-		cgen(n->left, nn, 0);
+		cgen(n->left, nn);
 		break;
 
 	case OCOND:
@@ -718,7 +731,7 @@ boolgen(Node *n, int true, Node *nn)
 
 	default:
 		regalloc(&nod, n, nn);
-		cgen(n, &nod, 0);
+		cgen(n, &nod);
 		o = ONE;
 		if(true)
 			o = comrel[relindex(o)];
@@ -742,7 +755,7 @@ boolgen(Node *n, int true, Node *nn)
 		goto com;
 
 	case OCOMMA:
-		cgen(l, Z, 0);
+		cgen(l, Z);
 		boolgen(r, true, nn);
 		break;
 
@@ -809,7 +822,7 @@ boolgen(Node *n, int true, Node *nn)
 			o = comrel[relindex(o)];
 		if(l->complex >= FNX && r->complex >= FNX) {
 			regret(&nod, r);
-			cgen(r, &nod, 1);
+			cgenrel(r, &nod);
 			regsalloc(&nod1, r);
 			gopcode(OAS, &nod, Z, &nod1);
 			regfree(&nod);
@@ -820,7 +833,7 @@ boolgen(Node *n, int true, Node *nn)
 		}
 		if(sconst(l)) {
 			regalloc(&nod, r, nn);
-			cgen(r, &nod, 1);
+			cgenrel(r, &nod);
 			o = invrel[relindex(o)];
 			gopcode(o, l, &nod, Z);
 			regfree(&nod);
@@ -828,21 +841,21 @@ boolgen(Node *n, int true, Node *nn)
 		}
 		if(sconst(r)) {
 			regalloc(&nod, l, nn);
-			cgen(l, &nod, 1);
+			cgenrel(l, &nod);
 			gopcode(o, r, &nod, Z);
 			regfree(&nod);
 			goto com;
 		}
 		if(l->complex >= r->complex) {
 			regalloc(&nod1, l, nn);
-			cgen(l, &nod1, 1);
+			cgenrel(l, &nod1);
 			regalloc(&nod, r, Z);
-			cgen(r, &nod, 1);
+			cgenrel(r, &nod);
 		} else {
 			regalloc(&nod, r, nn);
-			cgen(r, &nod, 1);
+			cgenrel(r, &nod);
 			regalloc(&nod1, l, Z);
-			cgen(l, &nod1, 1);
+			cgenrel(l, &nod1);
 		}
 		gopcode(o, &nod, &nod1, Z);
 		regfree(&nod);
@@ -966,7 +979,7 @@ sugen(Node *n, Node *nn, int32 w)
 				r = r->right;
 			}
 			if(nn == Z) {
-				cgen(l, nn, 0);
+				cgen(l, nn);
 				continue;
 			}
 			/*
@@ -1004,7 +1017,7 @@ sugen(Node *n, Node *nn, int32 w)
 			xcom(&nod0);
 			nod0.addable = 0;
 
-			cgen(&nod0, Z, 0);
+			cgen(&nod0, Z);
 		}
 		break;
 
@@ -1034,7 +1047,7 @@ sugen(Node *n, Node *nn, int32 w)
 		n = new(OFUNC, n->left, new(OLIST, nn, n->right));
 		n->type = types[TVOID];
 		n->left->type = types[TVOID];
-		cgen(n, Z, 0);
+		cgen(n, Z);
 		break;
 
 	case OCOND:
@@ -1049,7 +1062,7 @@ sugen(Node *n, Node *nn, int32 w)
 		break;
 
 	case OCOMMA:
-		cgen(n->left, Z, 0);
+		cgen(n->left, Z);
 		sugen(n->right, nn, w);
 		break;
 	}
@@ -1147,7 +1160,7 @@ copy:
 	regalloc(&nod3, &regnode, Z);
 	gopcode(OAS, nodconst(w/c), Z, &nod3);
 	w %= c;
-	
+
 	pc1 = pc;
 	gmovm(&nod1, &nod4, 1);
 	gmovm(&nod4, &nod2, 1);

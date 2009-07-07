@@ -30,6 +30,18 @@
 
 #include "gc.h"
 
+Prog*
+gtext(Sym *s, int32 stkoff)
+{
+	vlong v;
+
+	v = argsize() << 32;
+	v |= stkoff & 0xffffffff;
+
+	gpseudo(ATEXT, s, nodgconst(v, types[TVLONG]));
+	return p;
+}
+
 void
 noretval(int n)
 {

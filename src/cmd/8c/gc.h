@@ -95,6 +95,7 @@ struct	Case
 	int32	val;
 	int32	label;
 	char	def;
+	char	isv;
 };
 #define	C	((Case*)0)
 
@@ -162,6 +163,7 @@ struct	Rgn
 };
 
 EXTERN	int32	breakpc;
+EXTERN	int32	nbreak;
 EXTERN	Case*	cases;
 EXTERN	Node	constnode;
 EXTERN	Node	fconstnode;
@@ -240,6 +242,8 @@ void	usedset(Node*, int);
 void	xcom(Node*);
 void	indx(Node*);
 int	bcomplex(Node*, Node*);
+Prog*	gtext(Sym*, int32);
+vlong	argsize(void);
 
 /*
  * cgen.c

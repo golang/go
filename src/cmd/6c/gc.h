@@ -174,6 +174,7 @@ EXTERN	Prog*	firstp;
 EXTERN	Prog*	lastp;
 EXTERN	int32	maxargsafe;
 EXTERN	int	mnstring;
+EXTERN	int	retok;
 EXTERN	Node*	nodrat;
 EXTERN	Node*	nodret;
 EXTERN	Node*	nodsafe;
@@ -241,6 +242,8 @@ void	usedset(Node*, int);
 void	xcom(Node*);
 void	indx(Node*);
 int	bcomplex(Node*, Node*);
+Prog*	gtext(Sym*, int32);
+vlong	argsize(void);
 
 /*
  * cgen.c
@@ -255,14 +258,6 @@ void	sugen(Node*, Node*, int32);
 int	needreg(Node*, int);
 int	hardconst(Node*);
 int	immconst(Node*);
-
-/*
- * cgen64.c
- */
-int	vaddr(Node*, int);
-void	loadpair(Node*, Node*);
-int	cgen64(Node*, Node*);
-void	testv(Node*, int);
 
 /*
  * txt.c

@@ -21,6 +21,8 @@ OFILES=\
 	mul.$O\
 	reg.$O\
 	peep.$O\
+	pgen.$O\
+	pswt.$O\
 	../5l/enam.$O\
 
 LIB=\
@@ -36,3 +38,7 @@ clean:
 
 install: $(TARG)
 	cp $(TARG) $(BIN)/$(TARG)
+
+%.$O: ../cc/%.c
+	$(CC) $(CFLAGS) -c -I. -o $@ ../cc/$*.c
+
