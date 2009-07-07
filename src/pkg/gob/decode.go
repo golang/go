@@ -278,7 +278,7 @@ type decEngine struct {
 	instr	[]decInstr
 }
 
-func decodeStruct(engine *decEngine, rtyp reflect.StructType, r io.Reader, p uintptr, indir int) os.Error {
+func decodeStruct(engine *decEngine, rtyp *reflect.StructType, r io.Reader, p uintptr, indir int) os.Error {
 	if indir > 0 {
 		up := unsafe.Pointer(p);
 		if *(*unsafe.Pointer)(up) == nil {
@@ -317,7 +317,7 @@ func decodeStruct(engine *decEngine, rtyp reflect.StructType, r io.Reader, p uin
 	return state.err
 }
 
-func decodeArrayHelper(state *DecState, p uintptr, elemOp decOp, elemWid, length, elemIndir int) os.Error {
+func decodeArrayHelper(state *DecState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int) os.Error {
 	instr := &decInstr{elemOp, 0, elemIndir, 0};
 	for i := 0; i < length && state.err == nil; i++ {
 		up := unsafe.Pointer(p);
@@ -330,7 +330,7 @@ func decodeArrayHelper(state *DecState, p uintptr, elemOp decOp, elemWid, length
 	return state.err
 }
 
-func decodeArray(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decOp, elemWid, length, indir, elemIndir int) os.Error {
+func decodeArray(atyp *reflect.ArrayType, state *DecState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int) os.Error {
 	if indir > 0 {
 		up := unsafe.Pointer(p);
 		if *(*unsafe.Pointer)(up) == nil {
@@ -341,14 +341,14 @@ func decodeArray(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decO
 		}
 		p = *(*uintptr)(up);
 	}
-	if DecodeUint(state) != uint64(length) {
+	if n := DecodeUint(state); n != uint64(length) {
 		return os.ErrorString("length mismatch in decodeArray");
 	}
 	return decodeArrayHelper(state, p, elemOp, elemWid, length, elemIndir);
 }
 
-func decodeSlice(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decOp, elemWid, indir, elemIndir int) os.Error {
-	length := int(DecodeUint(state));
+func decodeSlice(atyp *reflect.SliceType, state *DecState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int) os.Error {
+	length := uintptr(DecodeUint(state));
 	if indir > 0 {
 		up := unsafe.Pointer(p);
 		if *(*unsafe.Pointer)(up) == nil {
@@ -364,59 +364,58 @@ func decodeSlice(atyp reflect.ArrayType, state *DecState, p uintptr, elemOp decO
 	hdrp.Data = uintptr(unsafe.Pointer(&data[0]));
 	hdrp.Len = uint32(length);
 	hdrp.Cap = uint32(length);
-	return decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, length, elemIndir);
+	return decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, int(length), elemIndir);
 }
 
 var decEngineMap = make(map[reflect.Type] *decEngine)
-var decOpMap = map[int] decOp {
-	 reflect.BoolKind: decBool,
-	 reflect.IntKind: decInt,
-	 reflect.Int8Kind: decInt8,
-	 reflect.Int16Kind: decInt16,
-	 reflect.Int32Kind: decInt32,
-	 reflect.Int64Kind: decInt64,
-	 reflect.UintKind: decUint,
-	 reflect.Uint8Kind: decUint8,
-	 reflect.Uint16Kind: decUint16,
-	 reflect.Uint32Kind: decUint32,
-	 reflect.Uint64Kind: decUint64,
-	 reflect.FloatKind: decFloat,
-	 reflect.Float32Kind: decFloat32,
-	 reflect.Float64Kind: decFloat64,
-	 reflect.StringKind: decString,
+var decOpMap = map[reflect.Type] decOp {
+	 reflect.Typeof((*reflect.BoolType)(nil)): decBool,
+	 reflect.Typeof((*reflect.IntType)(nil)): decInt,
+	 reflect.Typeof((*reflect.Int8Type)(nil)): decInt8,
+	 reflect.Typeof((*reflect.Int16Type)(nil)): decInt16,
+	 reflect.Typeof((*reflect.Int32Type)(nil)): decInt32,
+	 reflect.Typeof((*reflect.Int64Type)(nil)): decInt64,
+	 reflect.Typeof((*reflect.UintType)(nil)): decUint,
+	 reflect.Typeof((*reflect.Uint8Type)(nil)): decUint8,
+	 reflect.Typeof((*reflect.Uint16Type)(nil)): decUint16,
+	 reflect.Typeof((*reflect.Uint32Type)(nil)): decUint32,
+	 reflect.Typeof((*reflect.Uint64Type)(nil)): decUint64,
+	 reflect.Typeof((*reflect.FloatType)(nil)): decFloat,
+	 reflect.Typeof((*reflect.Float32Type)(nil)): decFloat32,
+	 reflect.Typeof((*reflect.Float64Type)(nil)): decFloat64,
+	 reflect.Typeof((*reflect.StringType)(nil)): decString,
 }
 
 func getDecEngine(rt reflect.Type) *decEngine
 
 func decOpFor(typ reflect.Type) decOp {
-	op, ok := decOpMap[typ.Kind()];
+	op, ok := decOpMap[reflect.Typeof(typ)];
 	if !ok {
 		// Special cases
-		if typ.Kind() == reflect.ArrayKind {
-			atyp := typ.(reflect.ArrayType);
-			switch {
-			case atyp.Elem().Kind() == reflect.Uint8Kind:
-				op = decUint8Array
-			case atyp.IsSlice():
-				elemOp := decOpFor(atyp.Elem());
-				_, elemIndir := indirect(atyp.Elem());
-				op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
-					state.err = decodeSlice(atyp, state, uintptr(p), elemOp, atyp.Elem().Size(), i.indir, elemIndir);
-				};
-			case !atyp.IsSlice():
-				elemOp := decOpFor(atyp.Elem());
-				_, elemIndir := indirect(atyp.Elem());
-				op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
-					state.err = decodeArray(atyp, state, uintptr(p), elemOp, atyp.Elem().Size(), atyp.Len(), i.indir, elemIndir);
-				};
+		switch t := typ.(type) {
+		case *reflect.SliceType:
+			if _, ok := t.Elem().(*reflect.Uint8Type); ok {
+				op = decUint8Array;
+				break;
 			}
-		}
-		if typ.Kind() == reflect.StructKind {
+			elemOp := decOpFor(t.Elem());
+			_, elemIndir := indirect(t.Elem());
+			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
+				state.err = decodeSlice(t, state, uintptr(p), elemOp, t.Elem().Size(), i.indir, elemIndir);
+			};
+
+		case *reflect.ArrayType:
+			elemOp := decOpFor(t.Elem());
+			_, elemIndir := indirect(t.Elem());
+			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
+				state.err = decodeArray(t, state, uintptr(p), elemOp, t.Elem().Size(), t.Len(), i.indir, elemIndir);
+			};
+
+		case *reflect.StructType:
 			// Generate a closure that calls out to the engine for the nested type.
 			engine := getDecEngine(typ);
-			styp := typ.(reflect.StructType);
 			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
-				state.err = decodeStruct(engine, styp, state.r, uintptr(p), i.indir)
+				state.err = decodeStruct(engine, t, state.r, uintptr(p), i.indir)
 			};
 		}
 	}
@@ -427,7 +426,7 @@ func decOpFor(typ reflect.Type) decOp {
 }
 
 func compileDec(rt reflect.Type, typ Type) *decEngine {
-	srt, ok1 := rt.(reflect.StructType);
+	srt, ok1 := rt.(*reflect.StructType);
 	styp, ok2 := typ.(*structType);
 	if !ok1 || !ok2 {
 		panicln("TODO: can't handle non-structs");
@@ -438,19 +437,10 @@ func compileDec(rt reflect.Type, typ Type) *decEngine {
 		field := styp.field[fieldnum];
 		// TODO(r): verify compatibility with corresponding field of data.
 		// For now, assume perfect correspondence between struct and gob.
-		_name, ftyp, _tag, offset := srt.Field(fieldnum);
-		// How many indirections to the underlying data?
-		indir := 0;
-		for {
-			pt, ok := ftyp.(reflect.PtrType);
-			if !ok {
-				break
-			}
-			ftyp = pt.Sub();
-			indir++;
-		}
+		f := srt.Field(fieldnum);
+		ftyp, indir := indirect(f.Type);
 		op := decOpFor(ftyp);
-		engine.instr[fieldnum] = decInstr{op, fieldnum, indir, uintptr(offset)};
+		engine.instr[fieldnum] = decInstr{op, fieldnum, indir, uintptr(f.Offset)};
 	}
 	return engine;
 }
@@ -459,7 +449,8 @@ func compileDec(rt reflect.Type, typ Type) *decEngine {
 func getDecEngine(rt reflect.Type) *decEngine {
 	engine, ok := decEngineMap[rt];
 	if !ok {
-		return compileDec(rt, newType(rt.Name(), rt));
+		pkg, name := rt.Name();
+		engine = compileDec(rt, newType(name, rt));
 		decEngineMap[rt] = engine;
 	}
 	return engine;
@@ -472,11 +463,11 @@ func Decode(r io.Reader, e interface{}) os.Error {
 	for i := 0; i < indir; i++ {
 		v = reflect.Indirect(v);
 	}
-	if rt.Kind() != reflect.StructKind {
+	if _, ok := v.(*reflect.StructValue); !ok {
 		return os.ErrorString("decode can't handle " + rt.String())
 	}
 	typeLock.Lock();
 	engine := getDecEngine(rt);
 	typeLock.Unlock();
-	return decodeStruct(engine, rt.(reflect.StructType), r, uintptr(v.Addr()), 0);
+	return decodeStruct(engine, rt.(*reflect.StructType), r, uintptr(v.Addr()), 0);
 }

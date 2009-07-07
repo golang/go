@@ -14,21 +14,6 @@ import (
 	"unsafe";
 )
 
-// Step through the indirections on a type to discover the base type.
-// Return the number of indirections.
-func indirect(t reflect.Type) (rt reflect.Type, count int) {
-	rt = t;
-	for {
-		pt, ok := rt.(reflect.PtrType);
-		if !ok {
-			break
-		}
-		rt = pt.Sub();
-		count++;
-	}
-	return;
-}
-
 // The global execution state of an instance of the encoder.
 // Field numbers are delta encoded and always increase. The field
 // number is initialized to -1 so 0 comes out as delta(1). A delta of
@@ -295,7 +280,7 @@ func encodeStruct(engine *encEngine, w io.Writer, basep uintptr) os.Error {
 	return state.err
 }
 
-func encodeArray(w io.Writer, p uintptr, op encOp, elemWid int, length int, elemIndir int) os.Error {
+func encodeArray(w io.Writer, p uintptr, op encOp, elemWid uintptr, length int, elemIndir int) os.Error {
 	state := new(EncState);
 	state.w = w;
 	state.fieldnum = -1;
@@ -316,58 +301,56 @@ func encodeArray(w io.Writer, p uintptr, op encOp, elemWid int, length int, elem
 }
 
 var encEngineMap = make(map[reflect.Type] *encEngine)
-var encOpMap = map[int] encOp {
-	 reflect.BoolKind: encBool,
-	 reflect.IntKind: encInt,
-	 reflect.Int8Kind: encInt8,
-	 reflect.Int16Kind: encInt16,
-	 reflect.Int32Kind: encInt32,
-	 reflect.Int64Kind: encInt64,
-	 reflect.UintKind: encUint,
-	 reflect.Uint8Kind: encUint8,
-	 reflect.Uint16Kind: encUint16,
-	 reflect.Uint32Kind: encUint32,
-	 reflect.Uint64Kind: encUint64,
-	 reflect.FloatKind: encFloat,
-	 reflect.Float32Kind: encFloat32,
-	 reflect.Float64Kind: encFloat64,
-	 reflect.StringKind: encString,
+var encOpMap = map[reflect.Type] encOp {
+	reflect.Typeof((*reflect.BoolType)(nil)): encBool,
+	reflect.Typeof((*reflect.IntType)(nil)): encInt,
+	reflect.Typeof((*reflect.Int8Type)(nil)): encInt8,
+	reflect.Typeof((*reflect.Int16Type)(nil)): encInt16,
+	reflect.Typeof((*reflect.Int32Type)(nil)): encInt32,
+	reflect.Typeof((*reflect.Int64Type)(nil)): encInt64,
+	reflect.Typeof((*reflect.UintType)(nil)): encUint,
+	reflect.Typeof((*reflect.Uint8Type)(nil)): encUint8,
+	reflect.Typeof((*reflect.Uint16Type)(nil)): encUint16,
+	reflect.Typeof((*reflect.Uint32Type)(nil)): encUint32,
+	reflect.Typeof((*reflect.Uint64Type)(nil)): encUint64,
+	reflect.Typeof((*reflect.FloatType)(nil)): encFloat,
+	reflect.Typeof((*reflect.Float32Type)(nil)): encFloat32,
+	reflect.Typeof((*reflect.Float64Type)(nil)): encFloat64,
+	reflect.Typeof((*reflect.StringType)(nil)): encString,
 }
 
 func getEncEngine(rt reflect.Type) *encEngine
 
 func encOpFor(typ reflect.Type) encOp {
-	op, ok := encOpMap[typ.Kind()];
+	op, ok := encOpMap[reflect.Typeof(typ)];
 	if !ok {
 		// Special cases
-		if typ.Kind() == reflect.ArrayKind {
-			atyp := typ.(reflect.ArrayType);
-			switch {
-			case atyp.Elem().Kind()  == reflect.Uint8Kind:
-				op = encUint8Array
-			case atyp.IsSlice():
-				// Slices have a header; we decode it to find the underlying array.
-				elemOp := encOpFor(atyp.Elem());
-				_, indir := indirect(atyp.Elem());
-				op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
-					slice := *(*reflect.SliceHeader)(p);
-					if slice.Len == 0 {
-						return
-					}
-					state.update(i);
-					state.err = encodeArray(state.w, slice.Data, elemOp, atyp.Elem().Size(), int(slice.Len), indir);
-				};
-			case !atyp.IsSlice():
-				// True arrays have size in the type.
-				elemOp := encOpFor(atyp.Elem());
-				_, indir := indirect(atyp.Elem());
-				op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
-					state.update(i);
-					state.err = encodeArray(state.w, uintptr(p), elemOp, atyp.Elem().Size(), atyp.Len(), indir);
-				};
+		switch t := typ.(type) {
+		case *reflect.SliceType:
+			if _, ok := t.Elem().(*reflect.Uint8Type); ok {
+				op = encUint8Array;
+				break;
 			}
-		}
-		if typ.Kind() == reflect.StructKind {
+			// Slices have a header; we decode it to find the underlying array.
+			elemOp := encOpFor(t.Elem());
+			_, indir := indirect(t.Elem());
+			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
+				slice := (*reflect.SliceHeader)(p);
+				if slice.Len == 0 {
+					return
+				}
+				state.update(i);
+				state.err = encodeArray(state.w, slice.Data, elemOp, t.Elem().Size(), int(slice.Len), indir);
+			};
+		case *reflect.ArrayType:
+			// True arrays have size in the type.
+			elemOp := encOpFor(t.Elem());
+			_, indir := indirect(t.Elem());
+			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
+				state.update(i);
+				state.err = encodeArray(state.w, uintptr(p), elemOp, t.Elem().Size(), t.Len(), indir);
+			};
+		case *reflect.StructType:
 			// Generate a closure that calls out to the engine for the nested type.
 			engine := getEncEngine(typ);
 			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
@@ -386,28 +369,19 @@ func encOpFor(typ reflect.Type) encOp {
 // it's compatible.
 // TODO(r): worth checking?  typ is unused here.
 func compileEnc(rt reflect.Type, typ Type) *encEngine {
-	srt, ok := rt.(reflect.StructType);
+	srt, ok := rt.(*reflect.StructType);
 	if !ok {
 		panicln("TODO: can't handle non-structs");
 	}
 	engine := new(encEngine);
-	engine.instr = make([]encInstr, srt.Len()+1);	// +1 for terminator
-	for fieldnum := 0; fieldnum < srt.Len(); fieldnum++ {
-		_name, ftyp, _tag, offset := srt.Field(fieldnum);
-		// How many indirections to the underlying data?
-		indir := 0;
-		for {
-			pt, ok := ftyp.(reflect.PtrType);
-			if !ok {
-				break
-			}
-			ftyp = pt.Sub();
-			indir++;
-		}
+	engine.instr = make([]encInstr, srt.NumField()+1);	// +1 for terminator
+	for fieldnum := 0; fieldnum < srt.NumField(); fieldnum++ {
+		f := srt.Field(fieldnum);
+		ftyp, indir := indirect(f.Type);
 		op := encOpFor(ftyp);
-		engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(offset)};
+		engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(f.Offset)};
 	}
-	engine.instr[srt.Len()] = encInstr{encStructTerminator, 0, 0, 0};
+	engine.instr[srt.NumField()] = encInstr{encStructTerminator, 0, 0, 0};
 	return engine;
 }
 
@@ -415,7 +389,8 @@ func compileEnc(rt reflect.Type, typ Type) *encEngine {
 func getEncEngine(rt reflect.Type) *encEngine {
 	engine, ok := encEngineMap[rt];
 	if !ok {
-		engine = compileEnc(rt, newType(rt.Name(), rt));
+		pkg, name := rt.Name();
+		engine = compileEnc(rt, newType(name, rt));
 		encEngineMap[rt] = engine;
 	}
 	return engine
@@ -428,11 +403,11 @@ func Encode(w io.Writer, e interface{}) os.Error {
 	for i := 0; i < indir; i++ {
 		v = reflect.Indirect(v);
 	}
-	if v.Kind() != reflect.StructKind {
+	if _, ok := v.(*reflect.StructValue); !ok {
 		return os.ErrorString("encode can't handle " + v.Type().String())
 	}
 	typeLock.Lock();
 	engine := getEncEngine(rt);
 	typeLock.Unlock();
-	return encodeStruct(engine, w, uintptr(v.(reflect.StructValue).Addr()));
+	return encodeStruct(engine, w, v.Addr());
 }
