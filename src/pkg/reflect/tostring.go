@@ -14,181 +14,66 @@ import (
 	"strconv";
 )
 
-func typeToString(typ Type, expand bool) string
-func valueToString(val Value) string
-
-func doubleQuote(s string) string {
-	out := "\"";
-	for i := 0; i < len(s); i++ {
-		c := s[i];
-		switch c {
-		case '\n':
-			out += `\n`;
-		case '\t':
-			out += `\t`;
-		case '\x00':
-			out += `\x00`;
-		case '"':
-			out += `\"`;
-		case '\\':
-			out += `\\`;
-		default:
-			out += string(c);
-		}
-	}
-	out += "\"";
-	return out;
-}
-
-type hasFields interface {
-	Field(i int)	(name string, typ Type, tag string, offset int);
-	Len()	int;
-}
-
-func typeFieldsToString(t hasFields, sep string, iface bool) string {
-	var str string;
-	for i := 0; i < t.Len(); i++ {
-		str1, typ, tag, offset := t.Field(i);
-		if str1 != "" {
-			str1 += " "
-		}
-		str2 := typeToString(typ, false);
-		if iface && str2[0:4] == "func" {
-			str2 = str2[4:len(str2)]
-		}
-		str1 += str2;
-		if tag != "" {
-			str1 += " " + doubleQuote(tag);
-		}
-		if i < t.Len() - 1 {
-			str1 += sep + " ";
-		}
-		str += str1;
-	}
-	return str;
-}
-
-// typeToString returns a textual representation of typ.  The expand
-// flag specifies whether to expand the contents of type names; if false,
-// the name itself is used as the representation.
-// Meant for debugging only; typ.String() serves for most purposes.
-func typeToString(typ Type, expand bool) string {
-	var str string;
-	if name := typ.Name(); !expand && name != "" {
-		return name
-	}
-	switch typ.Kind() {
-	case MissingKind:
-		return "$missing$";
-	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
-	     UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
-	     FloatKind, Float32Kind, Float64Kind,
-	     StringKind,
-	     DotDotDotKind:
-		return typ.Name();
-	case PtrKind:
-		p := typ.(PtrType);
-		return "*" + typeToString(p.Sub(), false);
-	case ArrayKind:
-		a := typ.(ArrayType);
-		if a.IsSlice() {
-			str = "[]"
-		} else {
-			str = "[" + strconv.Itoa64(int64(a.Len())) +  "]"
-		}
-		return str + typeToString(a.Elem(), false);
-	case MapKind:
-		m := typ.(MapType);
-		str = "map[" + typeToString(m.Key(), false) + "]";
-		return str + typeToString(m.Elem(), false);
-	case ChanKind:
-		c := typ.(ChanType);
-		switch c.Dir() {
-		case RecvDir:
-			str = "<-chan";
-		case SendDir:
-			str = "chan<-";
-		case BothDir:
-			str = "chan";
-		default:
-			panicln("reflect.typeToString: unknown chan direction");
-		}
-		return str + typeToString(c.Elem(), false);
-	case StructKind:
-		return "struct{" + typeFieldsToString(typ.(StructType), ";", false) + "}";
-	case InterfaceKind:
-		return "interface{" + typeFieldsToString(typ.(InterfaceType), ";", true) + "}";
-	case FuncKind:
-		f := typ.(FuncType);
-		str = "func(" + typeFieldsToString(f.In(), ",", false) + ")";
-		if f.Out() != nil {
-			str += "(" + typeFieldsToString(f.Out(), ",", false) + ")";
-		}
-		return str;
-	default:
-		panicln("reflect.typeToString: can't print type ", typ.Kind());
-	}
-	return "reflect.typeToString: can't happen";
-}
-
-// TODO: want an unsigned one too
-func integer(v int64) string {
-	return strconv.Itoa64(v);
-}
-
 // valueToString returns a textual representation of the reflection value val.
 // For debugging only.
 func valueToString(val Value) string {
 	var str string;
+	if val == nil {
+		return "<nil>";
+	}
 	typ := val.Type();
-	switch val.Kind() {
-	case MissingKind:
-		return "missing";
-	case IntKind:
-		return integer(int64(val.(IntValue).Get()));
-	case Int8Kind:
-		return integer(int64(val.(Int8Value).Get()));
-	case Int16Kind:
-		return integer(int64(val.(Int16Value).Get()));
-	case Int32Kind:
-		return integer(int64(val.(Int32Value).Get()));
-	case Int64Kind:
-		return integer(int64(val.(Int64Value).Get()));
-	case UintKind:
-		return integer(int64(val.(UintValue).Get()));
-	case Uint8Kind:
-		return integer(int64(val.(Uint8Value).Get()));
-	case Uint16Kind:
-		return integer(int64(val.(Uint16Value).Get()));
-	case Uint32Kind:
-		return integer(int64(val.(Uint32Value).Get()));
-	case Uint64Kind:
-		return integer(int64(val.(Uint64Value).Get()));
-	case FloatKind:
+	switch val := val.(type) {
+	case *IntValue:
+		return strconv.Uitoa64(uint64(val.Get()));
+	case *Int8Value:
+		return strconv.Itoa64(int64(val.Get()));
+	case *Int16Value:
+		return strconv.Itoa64(int64(val.Get()));
+	case *Int32Value:
+		return strconv.Itoa64(int64(val.Get()));
+	case *Int64Value:
+		return strconv.Itoa64(int64(val.Get()));
+	case *UintValue:
+		return strconv.Itoa64(int64(val.Get()));
+	case *Uint8Value:
+		return strconv.Itoa64(int64(val.Get()));
+	case *Uint16Value:
+		return strconv.Itoa64(int64(val.Get()));
+	case *Uint32Value:
+		return strconv.Itoa64(int64(val.Get()));
+	case *Uint64Value:
+		return strconv.Uitoa64(uint64(val.Get()));
+	case *FloatValue:
 		if strconv.FloatSize == 32 {
-			return strconv.Ftoa32(float32(val.(FloatValue).Get()), 'g', -1);
+			return strconv.Ftoa32(float32(val.Get()), 'g', -1);
 		} else {
-			return strconv.Ftoa64(float64(val.(FloatValue).Get()), 'g', -1);
+			return strconv.Ftoa64(float64(val.Get()), 'g', -1);
 		}
-	case Float32Kind:
-		return strconv.Ftoa32(val.(Float32Value).Get(), 'g', -1);
-	case Float64Kind:
-		return strconv.Ftoa64(val.(Float64Value).Get(), 'g', -1);
-	case StringKind:
-		return val.(StringValue).Get();
-	case BoolKind:
-		if val.(BoolValue).Get() {
+	case *Float32Value:
+		return strconv.Ftoa32(val.Get(), 'g', -1);
+	case *Float64Value:
+		return strconv.Ftoa64(val.Get(), 'g', -1);
+	case *StringValue:
+		return val.Get();
+	case *BoolValue:
+		if val.Get() {
 			return "true"
 		} else {
 			return "false"
 		}
-	case PtrKind:
-		v := val.(PtrValue);
-		return typeToString(typ, false) + "(" + integer(int64(uintptr(v.Get()))) + ")";
-	case ArrayKind:
-		t := typ.(ArrayType);
-		v := val.(ArrayValue);
-		str += typeToString(t, false);
+	case *PtrValue:
+		v := val;
+		str = typ.String() + "(";
+		if v.IsNil() {
+			str += "0";
+		} else {
+			str += "&" + valueToString(v.Elem());
+		}
+		str += ")";
+		return str;
+	case ArrayOrSliceValue:
+		v := val;
+		str += typ.String();
 		str += "{";
 		for i := 0; i < v.Len(); i++ {
 			if i > 0 {
@@ -198,23 +83,23 @@ func valueToString(val Value) string {
 		}
 		str += "}";
 		return str;
-	case MapKind:
-		t := typ.(MapType);
-		v := val.(MapValue);
-		str = typeToString(t, false);
+	case *MapValue:
+		t := typ.(*MapType);
+		v := val;
+		str = t.String();
 		str += "{";
 		str += "<can't iterate on maps>";
 		str += "}";
 		return str;
-	case ChanKind:
-		str = typeToString(typ, false);
+	case *ChanValue:
+		str = typ.String();
 		return str;
-	case StructKind:
-		t := typ.(StructType);
-		v := val.(StructValue);
-		str += typeToString(t, false);
+	case *StructValue:
+		t := typ.(*StructType);
+		v := val;
+		str += t.String();
 		str += "{";
-		for i := 0; i < v.Len(); i++ {
+		for i, n := 0, v.NumField(); i < n; i++ {
 			if i > 0 {
 				str += ", "
 			}
@@ -222,13 +107,13 @@ func valueToString(val Value) string {
 		}
 		str += "}";
 		return str;
-	case InterfaceKind:
-		return "can't print interfaces yet";
-	case FuncKind:
-		v := val.(FuncValue);
-		return typeToString(typ, false) + "(" + integer(int64(uintptr(v.Get()))) + ")";
+	case *InterfaceValue:
+		return typ.String() + "(" + valueToString(val.Elem()) + ")";
+	case *FuncValue:
+		v := val;
+		return typ.String() + "(" + strconv.Itoa64(int64(v.Get())) + ")";
 	default:
-		panicln("reflect.valueToString: can't print type ", val.Kind());
+		panicln("reflect.valueToString: can't print type ", typ.String());
 	}
 	return "reflect.valueToString: can't happen";
 }

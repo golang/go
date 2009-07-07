@@ -12,312 +12,253 @@ import (
 	"unsafe";
 )
 
-var doprint bool = false
+type integer int
+type T struct { a int; b float64; c string; d *int }
 
-func is_digit(c uint8) bool {
+type pair struct {
+	i interface{};
+	s string;
+}
+
+func isDigit(c uint8) bool {
 	return '0' <= c && c <= '9'
 }
 
-// streq, but '@' in t matches a string of digits
-func match(s, t string) bool {
-	for i, j := 0, 0; i < len(s) && j < len(t); i, j = i+1, j+1 {
-		if s[i] == t[j] {
-			continue
+func assert(t *testing.T, s, want string) {
+	if s != want {
+		t.Errorf("have %#q want %#q", s, want);
+	}
+}
+
+func typestring(i interface{}) string {
+	return Typeof(i).String();
+}
+
+var typeTests = []pair {
+	pair { struct { x int }{}, "int" },
+	pair { struct { x int8 }{}, "int8" },
+	pair { struct { x int16 }{}, "int16" },
+	pair { struct { x int32 }{}, "int32" },
+	pair { struct { x int64 }{}, "int64" },
+	pair { struct { x uint }{}, "uint" },
+	pair { struct { x uint8 }{}, "uint8" },
+	pair { struct { x uint16 }{}, "uint16" },
+	pair { struct { x uint32 }{}, "uint32" },
+	pair { struct { x uint64 }{}, "uint64" },
+	pair { struct { x float }{}, "float" },
+	pair { struct { x float32 }{}, "float32" },
+	pair { struct { x float64 }{}, "float64" },
+	pair { struct { x int8 }{}, "int8" },
+	pair { struct { x (**int8) }{}, "**int8" },
+	pair { struct { x (**reflect.integer) }{}, "**reflect.integer" },
+	pair { struct { x ([32]int32) }{}, "[32]int32" },
+	pair { struct { x ([]int8) }{}, "[]int8" },
+	pair { struct { x (map[string]int32) }{}, "map[string] int32" },
+	pair { struct { x (chan<-string) }{}, "chan<- string" },
+	pair { struct { x struct {c chan *int32; d float32} }{}, "struct { c chan *int32; d float32 }" },
+	pair { struct { x (func(a int8, b int32)) }{}, "func(int8, int32)" },
+	pair { struct { x struct {c func(chan *reflect.integer, *int8)} }{}, "struct { c func(chan *reflect.integer, *int8) }" },
+	pair { struct { x struct {a int8; b int32} }{}, "struct { a int8; b int32 }" },
+	pair { struct { x struct {a int8; b int8; b int32} }{}, "struct { a int8; b int8; b int32 }" },
+	pair { struct { x struct {a int8; b int8; c int8; b int32} }{}, "struct { a int8; b int8; c int8; b int32 }" },
+	pair { struct { x struct {a int8; b int8; c int8; d int8; b int32} }{}, "struct { a int8; b int8; c int8; d int8; b int32 }" },
+	pair { struct { x struct {a int8; b int8; c int8; d int8; e int8; b int32} }{}, "struct { a int8; b int8; c int8; d int8; e int8; b int32 }" },
+	pair { struct { x struct {a int8 "hi there"; } }{}, `struct { a int8 "hi there" }` },
+	pair { struct { x struct {a int8 "hi \x00there\t\n\"\\"; } }{}, `struct { a int8 "hi \x00there\t\n\"\\" }` },
+	pair { struct { x struct {f func(args ...)} }{}, "struct { f func(...) }" },
+	pair { struct { x (interface { a(func(func(int)(int))(func(func(int))(int))); b() }) }{}, "interface { a (func(func(int) (int)) (func(func(int)) (int))); b () }" },
+}
+
+var valueTests = []pair {
+	pair { (int8)(0), "8" },
+	pair { (int16)(0), "16" },
+	pair { (int32)(0), "32" },
+	pair { (int64)(0), "64" },
+	pair { (uint8)(0), "8" },
+	pair { (uint16)(0), "16" },
+	pair { (uint32)(0), "32" },
+	pair { (uint64)(0), "64" },
+	pair { (float32)(0), "32.1" },
+	pair { (float64)(0), "64.2" },
+	pair { (string)(""), "stringy cheese" },
+	pair { (bool)(false), "true" },
+	pair { (*int8)(nil), "*int8(0)" },
+	pair { (**int8)(nil), "**int8(0)" },
+	pair { ([5]int32){}, "[5]int32{0, 0, 0, 0, 0}" },
+	pair { (**reflect.integer)(nil), "**reflect.integer(0)" },
+	pair { (map[string]int32)(nil), "map[string] int32{<can't iterate on maps>}" },
+	pair { (chan<-string)(nil), "chan<- string" },
+	pair { (struct {c chan *int32; d float32}){}, "struct { c chan *int32; d float32 }{chan *int32, 0}" },
+	pair { (func(a int8, b int32))(nil), "func(int8, int32)(0)" },
+	pair { (struct {c func(chan *reflect.integer, *int8)}){}, "struct { c func(chan *reflect.integer, *int8) }{func(chan *reflect.integer, *int8)(0)}" },
+	pair { (struct {a int8; b int32}){}, "struct { a int8; b int32 }{0, 0}" },
+	pair { (struct {a int8; b int8; b int32}){}, "struct { a int8; b int8; b int32 }{0, 0, 0}" },
+}
+
+func testType(t *testing.T, i int, typ Type, want string) {
+	s := typ.String();
+	if s != want {
+		t.Errorf("#%d: have %#q, want %#q", i, s, want);
+	}
+}
+
+func TestTypes(t *testing.T) {
+	for i, tt := range typeTests {
+		testType(t, i, NewValue(tt.i).(*StructValue).Field(0).Type(), tt.s);
+	}
+}
+
+func TestValue(t *testing.T) {
+	for i, tt := range valueTests {
+		v := NewValue(tt.i);
+		switch v := v.(type) {
+		case *reflect.IntValue:
+			v.Set(132);
+		case *reflect.Int8Value:
+			v.Set(8);
+		case *reflect.Int16Value:
+			v.Set(16);
+		case *reflect.Int32Value:
+			v.Set(32);
+		case *reflect.Int64Value:
+			v.Set(64);
+		case *reflect.UintValue:
+			v.Set(132);
+		case *reflect.Uint8Value:
+			v.Set(8);
+		case *reflect.Uint16Value:
+			v.Set(16);
+		case *reflect.Uint32Value:
+			v.Set(32);
+		case *reflect.Uint64Value:
+			v.Set(64);
+		case *reflect.FloatValue:
+			v.Set(3200.0);
+		case *reflect.Float32Value:
+			v.Set(32.1);
+		case *reflect.Float64Value:
+			v.Set(64.2);
+		case *reflect.StringValue:
+			v.Set("stringy cheese");
+		case *reflect.BoolValue:
+			v.Set(true);
 		}
-		if is_digit(s[i]) && t[j] == '@' {
-			for is_digit(s[i+1]) {
-				i++
-			}
-		} else {
-			return false
-		}
-	}
-	return true;
-}
-
-func assert(s, t string) {
-	if doprint {
-		println(t)
-	}
-	if !match(s, t) {
-		panicln(s, t)
-	}
-}
-
-func typedump(s, t string) {
-	typ := ParseTypeString("", s);
-	assert(typeToString(typ, true), t);
-}
-
-func valuedump(s, t string) {
-	typ := ParseTypeString("", s);
-	v := NewZeroValue(typ);
-	if v == nil {
-		panicln("valuedump", s);
-	}
-	switch v.Kind() {
-	case IntKind:
-		v.(IntValue).Set(132);
-	case Int8Kind:
-		v.(Int8Value).Set(8);
-	case Int16Kind:
-		v.(Int16Value).Set(16);
-	case Int32Kind:
-		v.(Int32Value).Set(32);
-	case Int64Kind:
-		v.(Int64Value).Set(64);
-	case UintKind:
-		v.(UintValue).Set(132);
-	case Uint8Kind:
-		v.(Uint8Value).Set(8);
-	case Uint16Kind:
-		v.(Uint16Value).Set(16);
-	case Uint32Kind:
-		v.(Uint32Value).Set(32);
-	case Uint64Kind:
-		v.(Uint64Value).Set(64);
-	case FloatKind:
-		v.(FloatValue).Set(3200.0);
-	case Float32Kind:
-		v.(Float32Value).Set(32.1);
-	case Float64Kind:
-		v.(Float64Value).Set(64.2);
-	case StringKind:
-		v.(StringValue).Set("stringy cheese");
-	case BoolKind:
-		v.(BoolValue).Set(true);
-	}
-	assert(valueToString(v), t);
-}
-
-type T struct { a int; b float64; c string; d *int }
-
-func TestAll(tt *testing.T) {	// TODO(r): wrap up better
-	var s string;
-	var t Type;
-
-	// Types
-	typedump("missing", "$missing$");
-	typedump("int", "int");
-	typedump("int8", "int8");
-	typedump("int16", "int16");
-	typedump("int32", "int32");
-	typedump("int64", "int64");
-	typedump("uint", "uint");
-	typedump("uint8", "uint8");
-	typedump("uint16", "uint16");
-	typedump("uint32", "uint32");
-	typedump("uint64", "uint64");
-	typedump("float", "float");
-	typedump("float32", "float32");
-	typedump("float64", "float64");
-	typedump("int8", "int8");
-	typedump("whoknows.whatsthis", "$missing$");
-	typedump("**int8", "**int8");
-	typedump("**P.integer", "**P.integer");
-	typedump("[32]int32", "[32]int32");
-	typedump("[]int8", "[]int8");
-	typedump("map[string]int32", "map[string]int32");
-	typedump("chan<-string", "chan<-string");
-	typedump("struct {c chan *int32; d float32}", "struct{c chan*int32; d float32}");
-	typedump("func(a int8, b int32)", "func(a int8, b int32)");
-	typedump("struct {c func(? chan *P.integer, ? *int8)}", "struct{c func(chan*P.integer, *int8)}");
-	typedump("struct {a int8; b int32}", "struct{a int8; b int32}");
-	typedump("struct {a int8; b int8; b int32}", "struct{a int8; b int8; b int32}");
-	typedump("struct {a int8; b int8; c int8; b int32}", "struct{a int8; b int8; c int8; b int32}");
-	typedump("struct {a int8; b int8; c int8; d int8; b int32}", "struct{a int8; b int8; c int8; d int8; b int32}");
-	typedump("struct {a int8; b int8; c int8; d int8; e int8; b int32}", "struct{a int8; b int8; c int8; d int8; e int8; b int32}");
-	typedump("struct {a int8 \"hi there\"; }", "struct{a int8 \"hi there\"}");
-	typedump("struct {a int8 \"hi \\x00there\\t\\n\\\"\\\\\"; }", "struct{a int8 \"hi \\x00there\\t\\n\\\"\\\\\"}");
-	typedump("struct {f func(args ...)}", "struct{f func(args ...)}");
-	typedump("interface { a(? func(? func(? int) int) func(? func(? int)) int); b() }", "interface{a (func(func(int)(int))(func(func(int))(int))); b ()}");
-
-	// Values
-	valuedump("int8", "8");
-	valuedump("int16", "16");
-	valuedump("int32", "32");
-	valuedump("int64", "64");
-	valuedump("uint8", "8");
-	valuedump("uint16", "16");
-	valuedump("uint32", "32");
-	valuedump("uint64", "64");
-	valuedump("float32", "32.1");
-	valuedump("float64", "64.2");
-	valuedump("string", "stringy cheese");
-	valuedump("bool", "true");
-	valuedump("*int8", "*int8(0)");
-	valuedump("**int8", "**int8(0)");
-	valuedump("[5]int32", "[5]int32{0, 0, 0, 0, 0}");
-	valuedump("**P.integer", "**P.integer(0)");
-	valuedump("map[string]int32", "map[string]int32{<can't iterate on maps>}");
-	valuedump("chan<-string", "chan<-string");
-	valuedump("struct {c chan *int32; d float32}", "struct{c chan*int32; d float32}{chan*int32, 0}");
-	valuedump("func(a int8, b int32)", "func(a int8, b int32)(0)");
-	valuedump("struct {c func(? chan *P.integer, ? *int8)}", "struct{c func(chan*P.integer, *int8)}{func(chan*P.integer, *int8)(0)}");
-	valuedump("struct {a int8; b int32}", "struct{a int8; b int32}{0, 0}");
-	valuedump("struct {a int8; b int8; b int32}", "struct{a int8; b int8; b int32}{0, 0, 0}");
-
-	{	var tmp = 123;
-		value := NewValue(tmp);
-		assert(valueToString(value), "123");
-	}
-	{	var tmp = 123.4;
-		value := NewValue(tmp);
-		assert(valueToString(value), "123.4");
-	}
-	{
-		var tmp = byte(123);
-		value := NewValue(tmp);
-		assert(valueToString(value), "123");
-		assert(typeToString(value.Type(), false), "uint8");
-	}
-	{	var tmp = "abc";
-		value := NewValue(tmp);
-		assert(valueToString(value), "abc");
-	}
-	{
-		var i int = 7;
-		var tmp = &T{123, 456.75, "hello", &i};
-		value := NewValue(tmp);
-		assert(valueToString(value.(PtrValue).Sub()), "reflect.T{123, 456.75, hello, *int(@)}");
-	}
-	{
-		type C chan *T;	// TODO: should not be necessary
-		var tmp = new(C);
-		value := NewValue(tmp);
-		assert(valueToString(value), "*reflect.C·all_test(@)");
-	}
-//	{
-//		type A [10]int;
-//		var tmp A = A{1,2,3,4,5,6,7,8,9,10};
-//		value := NewValue(&tmp);
-//		assert(valueToString(value.(PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
-//		value.(PtrValue).Sub().(ArrayValue).Elem(4).(IntValue).Set(123);
-//		assert(valueToString(value.(PtrValue).Sub()), "reflect.A·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
-//	}
-	{
-		type AA []int;
-		var tmp = AA{1,2,3,4,5,6,7,8,9,10};
-		value := NewValue(&tmp);	// TODO: NewValue(tmp) too
-		assert(valueToString(value.(PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}");
-		value.(PtrValue).Sub().(ArrayValue).Elem(4).(IntValue).Set(123);
-		assert(valueToString(value.(PtrValue).Sub()), "reflect.AA·all_test{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}");
-	}
-
-	{
-		var ip *int32;
-		var i int32 = 1234;
-		vip := NewValue(&ip);
-		vi := NewValue(i);
-		vip.(PtrValue).Sub().(PtrValue).SetSub(vi);
-		if *ip != 1234 {
-			panicln("SetSub failure", *ip);
+		s := valueToString(v);
+		if s != tt.s {
+			t.Errorf("#%d: have %#q, want %#q", i, s, tt.s);
 		}
 	}
+}
 
-	var pt PtrType;
-	var st StructType;
-	var mt MapType;
-	var at ArrayType;
-	var ct ChanType;
-	var name string;
-	var typ Type;
-	var tag string;
-	var offset int;
+var _i = 7;
 
-	// Type strings
-	t = ParseTypeString("", "int8");
-	assert(t.String(), "int8");
+var valueToStringTests = []pair {
+	pair { 123, "123" },
+	pair { 123.4, "123.4" },
+	pair { byte(123), "123" },
+	pair { "abc", "abc" },
+	pair { T{123, 456.75, "hello", &_i}, "reflect.T{123, 456.75, hello, *int(&7)}" },
+	pair { new(chan *T), "*chan *reflect.T(&chan *reflect.T)" },
+	pair { [10]int{1,2,3,4,5,6,7,8,9,10}, "[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}" },
+	pair { &[10]int{1,2,3,4,5,6,7,8,9,10}, "*[10]int(&[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})" },
+	pair { []int{1,2,3,4,5,6,7,8,9,10}, "[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}" },
+	pair { &[]int{1,2,3,4,5,6,7,8,9,10}, "*[]int(&[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})" }
+}
 
-	t = ParseTypeString("", "*int8");
-	assert(t.String(), "*int8");
-	pt = t.(PtrType);
-	assert(pt.Sub().String(), "int8");
+func TestValueToString(t *testing.T) {
+	for i, test := range valueToStringTests {
+		s := valueToString(NewValue(test.i));
+		if s != test.s {
+			t.Errorf("#%d: have %#q, want %#q", i, s, test.s);
+		}
+	}
+}
 
-	t = ParseTypeString("", "*struct {c chan *int32; d float32}");
-	assert(t.String(), "*struct {c chan *int32; d float32}");
-	pt = t.(PtrType);
-	assert(pt.Sub().String(), "struct {c chan *int32; d float32}");
-	st = pt.Sub().(StructType);
-	name, typ, tag, offset = st.Field(0);
-	assert(typ.String(), "chan *int32");
-	name, typ, tag, offset = st.Field(1);
-	assert(typ.String(), "float32");
+func TestArrayElemSet(t *testing.T) {
+	v := NewValue([10]int{1,2,3,4,5,6,7,8,9,10});
+	v.(*ArrayValue).Elem(4).(*IntValue).Set(123);
+	s := valueToString(v);
+	const want = "[10]int{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}";
+	if s != want {
+		t.Errorf("[10]int: have %#q want %#q", s, want);
+	}
 
-	t = ParseTypeString("", "interface {a() *int}");
-	assert(t.String(), "interface {a() *int}");
+	v = NewValue([]int{1,2,3,4,5,6,7,8,9,10});
+	v.(*SliceValue).Elem(4).(*IntValue).Set(123);
+	s = valueToString(v);
+	const want1 = "[]int{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}";
+	if s != want1 {
+		t.Errorf("[]int: have %#q want %#q", s, want1);
+	}
+}
 
-	t = ParseTypeString("", "func(a int8, b int32)");
-	assert(t.String(), "func(a int8, b int32)");
+func TestPtrPointTo(t *testing.T) {
+	var ip *int32;
+	var i int32 = 1234;
+	vip := NewValue(&ip);
+	vi := NewValue(i);
+	vip.(*PtrValue).Elem().(*PtrValue).PointTo(vi);
+	if *ip != 1234 {
+		t.Errorf("got %d, want 1234", *ip);
+	}
+}
 
-	t = ParseTypeString("", "func(a int8, b int32) float");
-	assert(t.String(), "func(a int8, b int32) float");
+func TestAll(t *testing.T) {	// TODO(r): wrap up better
+	testType(t, 1, Typeof((int8)(0)), "int8");
+	testType(t, 2, Typeof((*int8)(nil)).(*PtrType).Elem(), "int8");
 
-	t = ParseTypeString("", "func(a int8, b int32) (a float, b float)");
-	assert(t.String(), "func(a int8, b int32) (a float, b float)");
+	typ := Typeof((*struct{c chan *int32; d float32})(nil));
+	testType(t, 3, typ, "*struct { c chan *int32; d float32 }");
+	etyp := typ.(*PtrType).Elem();
+	testType(t, 4, etyp, "struct { c chan *int32; d float32 }");
+	styp := etyp.(*StructType);
+	f := styp.Field(0);
+	testType(t, 5, f.Type, "chan *int32");
+	f = styp.Field(1);
+	testType(t, 6, f.Type, "float32");
 
-	t = ParseTypeString("", "[32]int32");
-	assert(t.String(), "[32]int32");
-	at = t.(ArrayType);
-	assert(at.Elem().String(), "int32");
+	typ = Typeof(([32]int32)(nil));
+	testType(t, 7, typ, "[32]int32");
+	testType(t, 8, typ.(*ArrayType).Elem(), "int32");
 
-	t = ParseTypeString("", "map[string]*int32");
-	assert(t.String(), "map[string]*int32");
-	mt = t.(MapType);
-	assert(mt.Key().String(), "string");
-	assert(mt.Elem().String(), "*int32");
+	typ = Typeof((map[string]*int32)(nil));
+	testType(t, 9, typ, "map[string] *int32");
+	mtyp := typ.(*MapType);
+	testType(t, 10, mtyp.Key(), "string");
+	testType(t, 11, mtyp.Elem(), "*int32");
 
-	t = ParseTypeString("", "chan<-string");
-	assert(t.String(), "chan<-string");
-	ct = t.(ChanType);
-	assert(ct.Elem().String(), "string");
+	typ = Typeof((chan<-string)(nil));
+	testType(t, 12, typ, "chan<- string");
+	testType(t, 13, typ.(*ChanType).Elem(), "string");
 
 	// make sure tag strings are not part of element type
-	t = ParseTypeString("", "struct{d []uint32 \"TAG\"}");
-	st = t.(StructType);
-	name, typ, tag, offset = st.Field(0);
-	assert(typ.String(), "[]uint32");
-
-	t = ParseTypeString("", "[]int32");
-	v := NewSliceValue(t.(ArrayType), 5, 10);
-	t1 := ParseTypeString("", "*[]int32");
-	v1 := NewZeroValue(t1);
-	if v1 == nil { panic("V1 is nil"); }
-	v1.(PtrValue).SetSub(v);
-	a := *v1.Interface().(*[]int32);
-	println(a, len(a), cap(a));
-	for i := 0; i < len(a); i++ {
-		v.Elem(i).(Int32Value).Set(int32(i));
-	}
-	for i := 0; i < len(a); i++ {
-		println(a[i]);
-	}
+	typ = Typeof(struct{d []uint32 "TAG"}{}).(*StructType).Field(0).Type;
+	testType(t, 14, typ, "[]uint32");
 }
 
 func TestInterfaceGet(t *testing.T) {
 	var inter struct { e interface{ } };
 	inter.e = 123.456;
 	v1 := NewValue(&inter);
-	v2 := v1.(PtrValue).Sub().(StructValue).Field(0);
-	assert(v2.Type().String(), "interface { }");
-	i2 := v2.(InterfaceValue).Get();
+	v2 := v1.(*PtrValue).Elem().(*StructValue).Field(0);
+	assert(t, v2.Type().String(), "interface { }");
+	i2 := v2.(*InterfaceValue).Interface();
 	v3 := NewValue(i2);
-	assert(v3.Type().String(), "float");
+	assert(t, v3.Type().String(), "float");
 }
 
 func TestInterfaceValue(t *testing.T) {
 	var inter struct { e interface{ } };
 	inter.e = 123.456;
 	v1 := NewValue(&inter);
-	v2 := v1.(PtrValue).Sub().(StructValue).Field(0);
-	assert(v2.Type().String(), "interface { }");
-	v3 := v2.(InterfaceValue).Value();
-	assert(v3.Type().String(), "float");
+	v2 := v1.(*PtrValue).Elem().(*StructValue).Field(0);
+	assert(t, v2.Type().String(), "interface { }");
+	v3 := v2.(*InterfaceValue).Elem();
+	assert(t, v3.Type().String(), "float");
 
 	i3 := v2.Interface();
 	if f, ok := i3.(float); !ok {
-		a, typ, c := unsafe.Reflect(i3);
-		t.Error("v2.Interface() did not return float, got ", typ);
+		t.Error("v2.Interface() did not return float, got ", Typeof(i3));
 	}
 }
 
@@ -326,7 +267,7 @@ func TestFunctionValue(t *testing.T) {
 	if v.Interface() != v.Interface() {
 		t.Fatalf("TestFunction != itself");
 	}
-	assert(v.Type().String(), "func()");
+	assert(t, v.Type().String(), "func()");
 }
 
 func TestCopyArray(t *testing.T) {
@@ -340,21 +281,25 @@ func TestCopyArray(t *testing.T) {
 			t.Fatalf("b != c before test");
 		}
 	}
+	aa := va.(*PtrValue).Elem().(*SliceValue);
+	ab := vb.(*PtrValue).Elem().(*SliceValue);
 	for tocopy := 1; tocopy <= 7; tocopy++ {
-		vb.(PtrValue).Sub().(ArrayValue).CopyFrom(va.(PtrValue).Sub().(ArrayValue), tocopy);
+		aa.SetLen(tocopy);
+		ArrayCopy(ab, aa);
+		aa.SetLen(8);
 		for i := 0; i < tocopy; i++ {
 			if a[i] != b[i] {
-				t.Errorf("1 tocopy=%d a[%d]=%d, b[%d]=%d",
+				t.Errorf("(i) tocopy=%d a[%d]=%d, b[%d]=%d",
 					tocopy, i, a[i], i, b[i]);
 			}
 		}
 		for i := tocopy; i < len(b); i++ {
 			if b[i] != c[i] {
 				if i < len(a) {
-					t.Errorf("2 tocopy=%d a[%d]=%d, b[%d]=%d, c[%d]=%d",
+					t.Errorf("(ii) tocopy=%d a[%d]=%d, b[%d]=%d, c[%d]=%d",
 						tocopy, i, a[i], i, b[i], i, c[i]);
 				} else {
-					t.Errorf("3 tocopy=%d b[%d]=%d, c[%d]=%d",
+					t.Errorf("(iii) tocopy=%d b[%d]=%d, c[%d]=%d",
 						tocopy, i, b[i], i, c[i]);
 				}
 			} else {
@@ -369,7 +314,7 @@ func TestBigUnnamedStruct(t *testing.T) {
 	v := NewValue(b);
 	b1 := v.Interface().(struct{a,b,c,d int64});
 	if b1.a != b.a || b1.b != b.b || b1.c != b.c || b1.d != b.d {
-		t.Errorf("NewValue(%v).Interface().(Big) = %v", b, b1);
+		t.Errorf("NewValue(%v).Interface().(*Big) = %v", b, b1);
 	}
 }
 
@@ -452,6 +397,9 @@ func TestDeepEqual(t *testing.T) {
 func TestTypeof(t *testing.T) {
 	for i, test := range deepEqualTests {
 		v := NewValue(test.a);
+		if v == nil {
+			continue;
+		}
 		typ := Typeof(test.a);
 		if typ != v.Type() {
 			t.Errorf("Typeof(%v) = %v, but NewValue(%v).Type() = %v", test.a, typ, test.a, v.Type());
@@ -492,10 +440,10 @@ func TestDeepEqualComplexStructInequality(t *testing.T) {
 
 
 func check2ndField(x interface{}, offs uintptr, t *testing.T) {
-	s := NewValue(x).(StructValue);
-	name, ftype, tag, reflect_offset := s.Type().(StructType).Field(1);
-	if uintptr(reflect_offset) != offs {
-		t.Error("mismatched offsets in structure alignment:", reflect_offset, offs);
+	s := NewValue(x).(*StructValue);
+	f := s.Type().(*StructType).Field(1);
+	if f.Offset != offs {
+		t.Error("mismatched offsets in structure alignment:", f.Offset, offs);
 	}
 }
 
@@ -524,19 +472,19 @@ func TestAlignment(t *testing.T) {
 	check2ndField(x1, uintptr(unsafe.Pointer(&x1.f)) - uintptr(unsafe.Pointer(&x1)), t);
 }
 
-type Nillable interface {
+type IsNiller interface {
 	IsNil() bool
 }
 
 func Nil(a interface{}, t *testing.T) {
-	n := NewValue(a).(Nillable);
+	n := NewValue(a).(*StructValue).Field(0).(IsNiller);
 	if !n.IsNil() {
 		t.Errorf("%v should be nil", a)
 	}
 }
 
 func NotNil(a interface{}, t *testing.T) {
-	n := NewValue(a).(Nillable);
+	n := NewValue(a).(*StructValue).Field(0).(IsNiller);
 	if n.IsNil() {
 		t.Errorf("value of type %v should not be nil", NewValue(a).Type().String())
 	}
@@ -544,45 +492,62 @@ func NotNil(a interface{}, t *testing.T) {
 
 func TestIsNil(t *testing.T) {
 	// These do not implement IsNil
-	doNotNil := []string{"int", "float32", "struct { a int }"};
-	// These do implement IsNil
-	doNil := []string{"*int", "interface{}", "map[string]int", "func() bool", "chan int", "[]string"};
+	doNotNil := []interface{}{ int(0), float32(0), struct{a int}{} };
 	for i, ts := range doNotNil {
-		ty := ParseTypeString("", ts);
-		v := NewZeroValue(ty);
-		if nilable, ok := v.(Nillable); ok {
+		ty := Typeof(ts);
+		v := MakeZero(ty);
+		if nilable, ok := v.(IsNiller); ok {
 			t.Errorf("%s is nilable; should not be", ts)
 		}
 	}
 
+	// These do implement IsNil.
+	// Wrap in extra struct to hide interface type.
+	doNil := []interface{}{
+		struct{x *int}{},
+		struct{x interface{}}{},
+		struct{x map[string]int}{},
+		struct{x func()bool}{},
+		struct{x chan int}{},
+		struct{x []string}{}
+	};
 	for i, ts := range doNil {
-		ty := ParseTypeString("", ts);
-		v := NewZeroValue(ty);
-		if nilable, ok := v.(Nillable); !ok {
+		ty := Typeof(ts).(*StructType).Field(0).Type;
+		v := MakeZero(ty);
+		if nilable, ok := v.(IsNiller); !ok {
 			t.Errorf("%s %T is not nilable; should be", ts, v)
 		}
 	}
+
 	// Check the implementations
-	var pi *int;
+	var pi struct {x *int}
 	Nil(pi, t);
-	pi = new(int);
+	pi.x = new(int);
 	NotNil(pi, t);
 
-	var si []int;
+	var si struct {x []int}
 	Nil(si, t);
-	si = make([]int, 10);
+	si.x = make([]int, 10);
 	NotNil(si, t);
 
-	// TODO: map and chan don't work yet
+	var ci struct {x chan int}
+	Nil(ci, t);
+	ci.x = make(chan int);
+	NotNil(ci, t);
 
-	var ii interface {};
+	var mi struct {x map[int]int}
+	Nil(mi, t);
+	mi.x = make(map[int]int);
+	NotNil(mi, t);
+
+	var ii struct {x interface {}}
 	Nil(ii, t);
-	ii = pi;
+	ii.x = 2;
 	NotNil(ii, t);
 
-	var fi func(t *testing.T);
+	var fi struct {x func(t *testing.T)}
 	Nil(fi, t);
-	fi = TestIsNil;
+	fi.x = TestIsNil;
 	NotNil(fi, t);
 }
 
@@ -592,7 +557,7 @@ func TestInterfaceExtraction(t *testing.T) {
 	}
 
 	s.w = os.Stdout;
-	v := Indirect(NewValue(&s)).(StructValue).Field(0).Interface();
+	v := Indirect(NewValue(&s)).(*StructValue).Field(0).Interface();
 	if v != s.w.(interface{}) {
 		t.Errorf("Interface() on interface: ", v, s.w);
 	}
@@ -612,7 +577,7 @@ func TestInterfaceEditing(t *testing.T) {
 
 	// and setting that copy to "bye" should
 	// not change the value stored in i.
-	v.(StringValue).Set("bye");
+	v.(*StringValue).Set("bye");
 	if i.(string) != "hello" {
 		t.Errorf(`Set("bye") changed i to %s`, i.(string));
 	}
@@ -620,7 +585,7 @@ func TestInterfaceEditing(t *testing.T) {
 	// the same should be true of smaller items.
 	i = 123;
 	v = NewValue(i);
-	v.(IntValue).Set(234);
+	v.(*IntValue).Set(234);
 	if i.(int) != 123 {
 		t.Errorf("Set(234) changed i to %d", i.(int));
 	}
@@ -628,7 +593,7 @@ func TestInterfaceEditing(t *testing.T) {
 
 func TestNilPtrValueSub(t *testing.T) {
 	var pi *int;
-	if pv := NewValue(pi).(PtrValue); pv.Sub() != nil {
-		t.Error("NewValue((*int)(nil)).(PtrValue).Sub() != nil");
+	if pv := NewValue(pi).(*PtrValue); pv.Elem() != nil {
+		t.Error("NewValue((*int)(nil)).(*PtrValue).Elem() != nil");
 	}
 }
