@@ -704,7 +704,7 @@ loop:
 		defaultlit(n->right, types[TUINT]);
 		if(n->left->type == T || n->right->type == T)
 			goto ret;
-		if(issigned[n->right->type->etype])
+		if(issigned[n->right->type->etype] || !isint[n->right->type->etype])
 			goto badt;
 		// check of n->left->type happens in second switch.
 		break;
