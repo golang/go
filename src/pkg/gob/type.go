@@ -141,50 +141,79 @@ func newStructType(name string) *structType {
 // Construction
 func newType(name string, rt reflect.Type) Type
 
-func newTypeObject(name string, rt reflect.Type) Type {
-	switch rt.Kind() {
-	// All basic types are easy: they are predefined.
-	case reflect.BoolKind:
-		return tBool
-	case reflect.IntKind, reflect.Int32Kind, reflect.Int64Kind:
-		return tInt
-	case reflect.UintKind, reflect.Uint32Kind, reflect.Uint64Kind:
-		return tUint
-	case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind:
-		return tFloat
-	case reflect.StringKind:
-		return tString
-	case reflect.ArrayKind:
-		at := rt.(reflect.ArrayType);
-		if at.IsSlice() {
-			// []byte == []uint8 is a special case
-			if at.Elem().Kind() == reflect.Uint8Kind {
-				return tBytes
-			}
-			return newSliceType(name, newType("", at.Elem()));
-		} else {
-			return newArrayType(name, newType("", at.Elem()), at.Len());
+// Step through the indirections on a type to discover the base type.
+// Return the number of indirections.
+func indirect(t reflect.Type) (rt reflect.Type, count int) {
+	rt = t;
+	for {
+		pt, ok := rt.(*reflect.PtrType);
+		if !ok {
+			break;
 		}
-	case reflect.StructKind:
+		rt = pt.Elem();
+		count++;
+	}
+	return;
+}
+
+func newTypeObject(name string, rt reflect.Type) Type {
+	switch t := rt.(type) {
+	// All basic types are easy: they are predefined.
+	case *reflect.BoolType:
+		return tBool
+
+	case *reflect.IntType:
+		return tInt
+	case *reflect.Int32Type:
+		return tInt
+	case *reflect.Int64Type:
+		return tInt
+
+	case *reflect.UintType:
+		return tUint
+	case *reflect.Uint32Type:
+		return tUint
+	case *reflect.Uint64Type:
+		return tUint
+
+	case *reflect.FloatType:
+		return tFloat
+	case *reflect.Float32Type:
+		return tFloat
+	case *reflect.Float64Type:
+		return tFloat
+
+	case *reflect.StringType:
+		return tString
+
+	case *reflect.ArrayType:
+		return newArrayType(name, newType("", t.Elem()), t.Len());
+
+	case *reflect.SliceType:
+		// []byte == []uint8 is a special case
+		if _, ok := t.Elem().(*reflect.Uint8Type); ok {
+			return tBytes
+		}
+		return newSliceType(name, newType("", t.Elem()));
+
+	case *reflect.StructType:
 		// Install the struct type itself before the fields so recursive
 		// structures can be constructed safely.
 		strType := newStructType(name);
 		types[rt] = strType;
-		st := rt.(reflect.StructType);
-		field := make([]*fieldType, st.Len());
-		for i := 0; i < st.Len(); i++ {
-			name, typ, _tag, _offset := st.Field(i);
-			// Find trailing name in type, e.g. from "*gob.Bar" want "Bar", which
-			// is defined as the word after the period (there is at most one period).
-			typestring := typ.String();
-			period := strings.Index(typestring, ".");
-			if period >= 0 {
-				typestring = typestring[period+1:len(typestring)]
+		field := make([]*fieldType, t.NumField());
+		for i := 0; i < t.NumField(); i++ {
+			f := t.Field(i);
+			typ, _indir := indirect(f.Type);
+			_pkg, tname := typ.Name();
+			if tname == "" {
+				tname = f.Type.String();
 			}
-			field[i] =  &fieldType{ name, newType(typestring, typ) };
+			field[i] =  &fieldType{ f.Name, newType(tname, f.Type) };
 		}
 		strType.field = field;
 		return strType;
+
 	default:
 		panicln("gob NewTypeObject can't handle type", rt.String());	// TODO(r): panic?
 	}
@@ -193,8 +222,12 @@ func newTypeObject(name string, rt reflect.Type) Type {
 
 func newType(name string, rt reflect.Type) Type {
 	// Flatten the data structure by collapsing out pointers
-	for rt.Kind() == reflect.PtrKind {
-		rt = rt.(reflect.PtrType).Sub();
+	for {
+		pt, ok := rt.(*reflect.PtrType);
+		if !ok {
+			break;
+		}
+		rt = pt.Elem();
 	}
 	typ, present := types[rt];
 	if present {
