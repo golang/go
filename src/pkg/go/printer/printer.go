@@ -521,7 +521,7 @@ func (p *printer) expr(x ast.Expr) bool {
 // ----------------------------------------------------------------------------
 // Statements
 
-func (p *printer) decl(decl ast.Decl) (optSemi bool)
+func (p *printer) decl(decl ast.Decl) (comment *ast.Comment, optSemi bool)
 
 // Print the statement list indented, but without a newline after the last statement.
 func (p *printer) stmtList(list []ast.Stmt) {
@@ -607,7 +607,16 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		p.print("BadStmt");
 
 	case *ast.DeclStmt:
-		optSemi = p.decl(s.Decl);
+		var comment *ast.Comment;
+		comment, optSemi = p.decl(s.Decl);
+		if comment != nil {
+			// Trailing comments of declarations in statement lists
+			// are not associated with the declaration in the parser;
+			// this case should never happen. Print anyway to continue
+			// gracefully.
+			p.comment(comment);
+			p.print(newline);
+		}
 
 	case *ast.EmptyStmt:
 		// nothing to do
@@ -757,8 +766,9 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 // ----------------------------------------------------------------------------
 // Declarations
 
-// Returns true if a separating semicolon is optional.
-func (p *printer) spec(spec ast.Spec) (optSemi bool) {
+// Returns trailing comment, if any, and whether a separating semicolon is optional.
+//
+func (p *printer) spec(spec ast.Spec) (comment *ast.Comment, optSemi bool) {
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
 		p.doc(s.Doc);
@@ -767,35 +777,39 @@ func (p *printer) spec(spec ast.Spec) (optSemi bool) {
 		}
 		// TODO fix for longer package names
 		p.print(tab, s.Path[0].Pos(), s.Path[0].Value);
+		comment = s.Comment;
 
 	case *ast.ValueSpec:
 		p.doc(s.Doc);
 		p.identList(s.Names);
 		if s.Type != nil {
 			p.print(blank);  // TODO switch to tab? (indent problem with structs)
-			p.expr(s.Type);
+			optSemi = p.expr(s.Type);
 		}
 		if s.Values != nil {
 			p.print(tab, token.ASSIGN, blank);
 			p.exprList(s.Values);
+			optSemi = false;
 		}
+		comment = s.Comment;
 
 	case *ast.TypeSpec:
 		p.doc(s.Doc);
 		p.expr(s.Name);
 		p.print(blank);  // TODO switch to tab? (but indent problem with structs)
 		optSemi = p.expr(s.Type);
+		comment = s.Comment;
 
 	default:
 		panic("unreachable");
 	}
 
-	return optSemi;
+	return comment, optSemi;
 }
 
 
 // Returns true if a separating semicolon is optional.
-func (p *printer) decl(decl ast.Decl) (optSemi bool) {
+func (p *printer) decl(decl ast.Decl) (comment *ast.Comment, optSemi bool) {
 	switch d := decl.(type) {
 	case *ast.BadDecl:
 		p.print(d.Pos(), "BadDecl");
@@ -806,22 +820,30 @@ func (p *printer) decl(decl ast.Decl) (optSemi bool) {
 
 		if d.Lparen.IsValid() {
 			// group of parenthesized declarations
-			p.print(d.Lparen, token.LPAREN, +1, newline);
-			for i, s := range d.Specs {
-				if i > 0 {
-					p.print(token.SEMICOLON, newline);
+			p.print(d.Lparen, token.LPAREN);
+			if len(d.Specs) > 0 {
+				p.print(+1, newline);
+				for i, s := range d.Specs {
+					if i > 0 {
+						p.print(token.SEMICOLON);
+						p.comment(comment);
+						p.print(newline);
+					}
+					comment, optSemi = p.spec(s);
 				}
-				p.spec(s);
+				if p.optSemis() {
+					p.print(token.SEMICOLON);
+				}
+				p.comment(comment);
+				p.print(-1, newline);
 			}
-			if p.optSemis() {
-				p.print(token.SEMICOLON);
-			}
-			p.print(-1, newline, d.Rparen, token.RPAREN);
+			p.print(d.Rparen, token.RPAREN);
+			comment = nil;  // comment was already printed
 			optSemi = true;
 
 		} else {
 			// single declaration
-			optSemi = p.spec(d.Specs[0]);
+			comment, optSemi = p.spec(d.Specs[0]);
 		}
 
 	case *ast.FuncDecl:
@@ -850,7 +872,7 @@ func (p *printer) decl(decl ast.Decl) (optSemi bool) {
 		panic("unreachable");
 	}
 
-	return optSemi;
+	return comment, optSemi;
 }
 
 
@@ -868,10 +890,11 @@ func (p *printer) program(prog *ast.Program) {
 
 	for _, d := range prog.Decls {
 		p.print(newline, newline);
-		p.decl(d);
+		comment, _ := p.decl(d);
 		if p.optSemis() {
 			p.print(token.SEMICOLON);
 		}
+		p.comment(comment);
 	}
 
 	p.print(newline);
@@ -898,7 +921,8 @@ func Fprint(output io.Writer, node interface{}, mode uint) (int, os.Error) {
 		case ast.Stmt:
 			p.stmt(n);
 		case ast.Decl:
-			p.decl(n);
+			comment, _ := p.decl(n);
+			p.comment(comment);
 		case *ast.Program:
 			p.program(n);
 		default:
