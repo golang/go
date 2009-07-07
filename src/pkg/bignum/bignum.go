@@ -59,12 +59,12 @@ type (
 
 
 const (
-	_LogW = 64;
-	_LogH = 4;  // bits for a hex digit (= small number)
-	_LogB = _LogW - _LogH;  // largest bit-width available
+	logW = 64;
+	logH = 4;  // bits for a hex digit (= small number)
+	logB = logW - logH;  // largest bit-width available
 
 	// half-digits
-	_W2 = _LogB / 2;  // width
+	_W2 = logB / 2;   // width
 	_B2 = 1 << _W2;   // base
 	_M2 = _B2 - 1;    // mask
 
@@ -86,11 +86,12 @@ func assert(p bool) {
 
 
 func isSmall(x digit) bool {
-	return x < 1<<_LogH;
+	return x < 1<<logH;
 }
 
 
-// For debugging.
+// For debugging. Keep around.
+/*
 func dump(x []digit) {
 	print("[", len(x), "]");
 	for i := len(x) - 1; i >= 0; i-- {
@@ -98,6 +99,7 @@ func dump(x []digit) {
 	}
 	println();
 }
+*/
 
 
 // ----------------------------------------------------------------------------
@@ -116,20 +118,65 @@ var (
 
 
 // Nat creates a small natural number with value x.
-// Implementation restriction: At the moment, only values
-// x < (1<<60) are supported.
 //
-func Nat(x uint) Natural {
+func Nat(x uint64) Natural {
+	// avoid allocation for common small values
 	switch x {
 	case 0: return natZero;
 	case 1: return natOne;
 	case 2: return natTwo;
 	case 10: return natTen;
 	}
-	assert(digit(x) < _B);
-	return Natural{digit(x)};
+
+	// single-digit values
+	if x < _B {
+		return Natural{digit(x)};
+	}
+
+	// compute number of digits required to represent x
+	// (this is usually 1 or 2, but the algorithm works
+	// for any base)
+	n := 0;
+	for t := x; t > 0; t >>= _W {
+		n++;
+	}
+
+	// split x into digits
+	z := make(Natural, n);
+	for i := 0; i < n; i++ {
+		z[i] = digit(x & _M);
+		x >>= _W;
+	}
+
+	return z;
 }
 
+
+// Value returns the lowest 64bits of x.
+//
+func (x Natural) Value() uint64 {
+	// single-digit values
+	n := len(x);
+	switch n {
+	case 0: return 0;
+	case 1: return uint64(x[0]);
+	}
+
+	// multi-digit values
+	// (this is usually 1 or 2, but the algorithm works
+	// for any base)
+	z := uint64(0);
+	s := uint(0);
+	for i := 0; i < n && s < 64; i++ {
+		z += uint64(x[i]) << s;
+		s += _W;
+	}
+
+	return z;
+}
+
+
+// Predicates
 
 // IsEven returns true iff x is divisible by 2.
 //
@@ -632,7 +679,11 @@ func (x Natural) Cmp(y Natural) int {
 }
 
 
-func log2(x digit) uint {
+// log2 computes the binary logarithm of x for x > 0.
+// The result is the integer n for which 2^n <= x < 2^(n+1).
+// If x == 0 a run-time error occurs.
+//
+func log2(x uint64) uint {
 	assert(x > 0);
 	n := uint(0);
 	for x > 0 {
@@ -650,7 +701,7 @@ func log2(x digit) uint {
 func (x Natural) Log2() uint {
 	n := len(x);
 	if n > 0 {
-		return (uint(n) - 1)*_W + log2(x[n - 1]);
+		return (uint(n) - 1)*_W + log2(uint64(x[n - 1]));
 	}
 	panic("Log2(0)");
 }
@@ -681,7 +732,7 @@ func (x Natural) ToString(base uint) string {
 
 	// allocate buffer for conversion
 	assert(2 <= base && base <= 16);
-	n := (x.Log2() + 1) / log2(digit(base)) + 1;  // +1: round up
+	n := (x.Log2() + 1) / log2(uint64(base)) + 1;  // +1: round up
 	s := make([]byte, n);
 
 	// don't destroy x
@@ -728,7 +779,7 @@ func (x Natural) Format(h fmt.State, c int) {
 
 
 func hexvalue(ch byte) uint {
-	d := uint(1 << _LogH);
+	d := uint(1 << logH);
 	switch {
 	case '0' <= ch && ch <= '9': d = uint(ch - '0');
 	case 'a' <= ch && ch <= 'f': d = uint(ch - 'a') + 10;
@@ -839,8 +890,8 @@ func (xp Natural) Pow(n uint) Natural {
 func MulRange(a, b uint) Natural {
 	switch {
 	case a > b: return Nat(1);
-	case a == b: return Nat(a);
-	case a + 1 == b: return Nat(a).Mul(Nat(b));
+	case a == b: return Nat(uint64(a));
+	case a + 1 == b: return Nat(uint64(a)).Mul(Nat(uint64(b)));
 	}
 	m := (a + b)>>1;
 	assert(a <= m && m < b);
@@ -903,25 +954,36 @@ func MakeInt(sign bool, mant Natural) *Integer {
 
 
 // Int creates a small integer with value x.
-// Implementation restriction: At the moment, only values
-// with an absolute value |x| < (1<<60) are supported.
 //
-func Int(x int) *Integer {
-	sign := false;
-	var ux uint;
+func Int(x int64) *Integer {
+	var ux uint64;
 	if x < 0 {
-		sign = true;
-		if -x == x {
-			// smallest negative integer
-			t := ^0;
-			ux = ^(uint(t) >> 1);
-		} else {
-			ux = uint(-x);
-		}
+		// For the most negative x, -x == x, and
+		// the bit pattern has the correct value.
+		ux = uint64(-x);
 	} else {
-		ux = uint(x);
+		ux = uint64(x);
 	}
-	return MakeInt(sign, Nat(ux));
+	return MakeInt(x < 0, Nat(ux));
+}
+
+
+// Value returns the value of x, if x fits into an int64;
+// otherwise the result is undefined.
+//
+func (x *Integer) Value() int64 {
+	z := int64(x.mant.Value());
+	if x.sign {
+		z = -z;
+	}
+	return z;
+}
+
+
+// Abs returns the absolute value of x.
+//
+func (x *Integer) Abs() Natural {
+	return x.mant;
 }
 
 
@@ -1303,15 +1365,20 @@ func MakeRat(a *Integer, b Natural) *Rational {
 
 
 // Rat creates a small rational number with value a0/b0.
-// Implementation restriction: At the moment, only values a0, b0
-// with an absolute value |a0|, |b0| < (1<<60) are supported.
 //
-func Rat(a0 int, b0 int) *Rational {
+func Rat(a0 int64, b0 int64) *Rational {
 	a, b := Int(a0), Int(b0);
 	if b.sign {
 		a = a.Neg();
 	}
 	return MakeRat(a, b.mant);
+}
+
+
+// Value returns the numerator and denominator of x.
+//
+func (x *Rational) Value() (numerator *Integer, denominator Natural) {
+	return x.a, x.b;
 }
 
 
@@ -1454,7 +1521,7 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
 			alen++;
 			b, base, blen = NatFromString(s[alen : len(s)], abase);
 			assert(base == abase);
-			f := Nat(base).Pow(uint(blen));
+			f := Nat(uint64(base)).Pow(uint(blen));
 			a = MakeInt(a.sign, a.mant.Mul(f).Add(b));
 			b = f;
 		}
