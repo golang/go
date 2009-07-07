@@ -745,7 +745,8 @@ func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
 		errors <- nil;  // no errors
 	}();
 
-	return s.output.Data(), <- errors;
+	err := <- errors;
+	return s.output.Data(), err;
 }
 
 
