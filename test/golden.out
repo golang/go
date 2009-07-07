@@ -74,13 +74,13 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 PASS
 
 =========== interface/fail.go
-cannot convert type *main.S to interface main.I: missing method Foo
+*main.S is not main.I: missing method Foo
 throw: interface conversion
 
 panic PC=xxx
 
 =========== interface/returntype.go
-cannot convert type *main.S to interface main.I2: missing method Name
+*main.S is not main.I2: missing method Name
 throw: interface conversion
 
 panic PC=xxx
