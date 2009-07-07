@@ -140,6 +140,36 @@ ieeedtod(uint64 *ieee, double native)
 	*ieee = ((uint64)h << 32) | l;
 }
 
+int
+duint8(Sym *s, int off, uint8 v)
+{
+	return duintxx(s, off, v, 1);
+}
+
+int
+duint16(Sym *s, int off, uint16 v)
+{
+	return duintxx(s, off, v, 2);
+}
+
+int
+duint32(Sym *s, int off, uint32 v)
+{
+	return duintxx(s, off, v, 4);
+}
+
+int
+duint64(Sym *s, int off, uint64 v)
+{
+	return duintxx(s, off, v, 8);
+}
+
+int
+duintptr(Sym *s, int off, uint64 v)
+{
+	return duintxx(s, off, v, widthptr);
+}
+
 static int
 sigcmp(Sig *a, Sig *b)
 {
@@ -239,7 +269,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 				// using genembedtramp if all that is necessary
 				// is a pointer adjustment and a JMP.
 				if(f->embedded && isptr[ifacet->etype] && !isifacemethod(f))
-					genembedtramp(ifacet, a);
+					genembedtramp(ifacet, f, a->sym);
 				else
 					genwrapper(ifacet, f, a->sym);
 			}
@@ -275,7 +305,7 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
 		ot = dstringptr(s, ot, b->name);	// field name
 		ot = duint32(s, ot, b->hash);		// hash
 		ot = duint32(s, ot, 0);		// offset
-		ot = dsymptr(s, ot, b->sym);		// &method
+		ot = dsymptr(s, ot, b->sym, 0);		// &method
 	}
 
 	// nil field name at end

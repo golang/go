@@ -1117,7 +1117,10 @@ Tpretty(Fmt *fp, Type *t)
 			fmtprint(fp, "func");
 		fmtprint(fp, "(");
 		for(t1=getinargx(t)->type; t1; t1=t1->down) {
-			fmtprint(fp, "%T", t1);
+			if(noargnames && t1->etype == TFIELD)
+				fmtprint(fp, "%T", t1->type);
+			else
+				fmtprint(fp, "%T", t1);
 			if(t1->down)
 				fmtprint(fp, ", ");
 		}
@@ -1135,7 +1138,10 @@ Tpretty(Fmt *fp, Type *t)
 			t1 = getoutargx(t)->type;
 			fmtprint(fp, " (");
 			for(; t1; t1=t1->down) {
-				fmtprint(fp, "%T", t1);
+				if(noargnames && t1->etype == TFIELD)
+					fmtprint(fp, "%T", t1->type);
+				else
+					fmtprint(fp, "%T", t1);
 				if(t1->down)
 					fmtprint(fp, ", ");
 			}
@@ -1195,7 +1201,11 @@ Tconv(Fmt *fp)
 {
 	char buf[500], buf1[500];
 	Type *t, *t1;
-	int et, exp;
+	int r, et, sharp, minus;
+
+	sharp = (fp->flags & FmtSharp);
+	minus = (fp->flags & FmtLeft);
+	fp->flags &= ~(FmtSharp|FmtLeft);
 
 	t = va_arg(fp->args, Type*);
 	if(t == T)
@@ -1208,17 +1218,19 @@ Tconv(Fmt *fp)
 	}
 
 	if(!debug['t']) {
-		exp = (fp->flags & FmtSharp);
-		if(exp)
+		if(sharp)
 			exporting++;
-		if(Tpretty(fp, t) >= 0) {
+		if(minus)
+			noargnames++;
+		r = Tpretty(fp, t);
+		if(sharp)
+			exporting--;
+		if(minus)
+			noargnames--;
+		if(r >= 0) {
 			t->trecur--;
-			if(exp)
-				exporting--;
 			return 0;
 		}
-		if(exp)
-			exporting--;
 	}
 
 	et = t->etype;
@@ -2061,7 +2073,7 @@ typehash(Type *at, int addsym, int d)
 
 	case TFUNC:
 		t = at->type;
-		// skip this argument
+		// skip this (receiver) argument
 		if(t != T)
 			t = t->down;
 		for(; t!=T; t=t->down)
@@ -2845,8 +2857,6 @@ expandmeth(Sym *s, Type *t)
 	if(t == T)
 		return;
 
-//print("s=%S t=%lT\n", s, t);
-
 	// generate all reachable methods
 	slist = nil;
 	expand1(t, nelem(dotlist)-1, 0);
@@ -2858,15 +2868,16 @@ expandmeth(Sym *s, Type *t)
 			c = adddot1(sl->field->sym, t, d, &f);
 			if(c == 0)
 				continue;
-			if(c == 1 && f == sl->field)
+			if(c == 1) {
 				sl->good = 1;
+				sl->field = f;
+			}
 			break;
 		}
 	}
 
 	for(sl=slist; sl!=nil; sl=sl->link) {
 		if(sl->good) {
-//print("	%lT\n", sl->field);
 			// add it to the base type method list
 			f = typ(TFIELD);
 			*f = *sl->field;
@@ -2928,26 +2939,25 @@ structargs(Type **tl, int mustname)
  * and calls the T.M method.
  * The resulting function is for use in method tables.
  *
- *	rcvrtype - U
+ *	rcvr - U
  *	method - M func (t T)(), a TFIELD type struct
  *	newnam - the eventual mangled name of this function
  */
 void
-genwrapper(Type *rcvrtype, Type *method, Sym *newnam)
+genwrapper(Type *rcvr, Type *method, Sym *newnam)
 {
 	Node *this, *in, *out, *fn, *args, *call;
 	Node *l;
 	Iter savel;
 
-	if(debug['r']) {
+	if(debug['r'])
 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
-			rcvrtype, method, newnam);
-	}
+			rcvr, method, newnam);
 
 	dclcontext = PEXTERN;
 	markdcl();
 
-	this = nametodcl(newname(lookup(".this")), rcvrtype);
+	this = nametodcl(newname(lookup(".this")), rcvr);
 	in = structargs(getinarg(method->type), 1);
 	out = structargs(getoutarg(method->type), 0);
 

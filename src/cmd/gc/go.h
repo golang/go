@@ -171,7 +171,7 @@ struct	Type
 
 	// TARRAY
 	int32	bound;		// negative is dynamic array
-	
+
 	int32	maplineno;	// first use of TFORW as map key
 };
 #define	T	((Type*)0)
@@ -550,6 +550,7 @@ EXTERN	Idir*	idirs;
 EXTERN	Type*	types[NTYPE];
 EXTERN	uchar	simtype[NTYPE];
 EXTERN	uchar	isptr[NTYPE];
+EXTERN	uchar	isforw[NTYPE];
 EXTERN	uchar	isint[NTYPE];
 EXTERN	uchar	isfloat[NTYPE];
 EXTERN	uchar	issigned[NTYPE];
@@ -606,6 +607,7 @@ EXTERN	int32	nhunk;
 EXTERN	int32	thunk;
 
 EXTERN	int	exporting;
+EXTERN	int	noargnames;
 
 EXTERN	int	funcdepth;
 
@@ -1081,11 +1083,15 @@ void	zhist(Biobuf *b, int line, vlong offset);
 void	zname(Biobuf *b, Sym *s, int t);
 void	nopout(Prog*);
 int	dstringptr(Sym *s, int off, char *str);
-int	dsymptr(Sym *s, int off, Sym *x);
-int	duint16(Sym *s, int off, uint32 v);
+int	dgostringptr(Sym*, int off, char *str);
+int	dgostrlitptr(Sym*, int off, Strlit*);
+int	dsymptr(Sym *s, int off, Sym *x, int xoff);
+int	duint8(Sym *s, int off, uint8 v);
+int	duint16(Sym *s, int off, uint16 v);
 int	duint32(Sym *s, int off, uint32 v);
-int	duintptr(Sym *s, int off, uint32 v);
+int	duint64(Sym *s, int off, uint64 v);
+int	duintptr(Sym *s, int off, uint64 v);
 int	duintxx(Sym *s, int off, uint64 v, int wid);
-void	genembedtramp(Type*, Sig*);
+void	genembedtramp(Type*, Type*, Sym*);
 int	gen_as_init(Node*, Node*);
 
