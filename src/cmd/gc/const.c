@@ -345,6 +345,8 @@ evconst(Node *n)
 		// right must be unsigned.
 		// left can be ideal.
 		defaultlit(nr, types[TUINT]);
+		if(nr->type && (issigned[nr->type->etype] || !isint[nr->type->etype]))
+			goto illegal;
 		break;
 	}
 
@@ -367,9 +369,11 @@ evconst(Node *n)
 	switch(TUP(n->op, v.ctype)) {
 	default:
 	illegal:
-		yyerror("illegal constant expression %T %O %T",
-			nl->type, n->op, nr->type);
-		n->diag = 1;
+		if(!n->diag) {
+			yyerror("illegal constant expression: %T %O %T",
+				nl->type, n->op, nr->type);
+			n->diag = 1;
+		}
 		return;
 
 	case TUP(OADD, CTINT):
@@ -551,7 +555,10 @@ unary:
 
 	switch(TUP(n->op, v.ctype)) {
 	default:
-		yyerror("illegal constant expression %O %T", n->op, nl->type);
+		if(!n->diag) {
+			yyerror("illegal constant expression %O %T", n->op, nl->type);
+			n->diag = 1;
+		}
 		return;
 
 	case TUP(OPLUS, CTINT):
