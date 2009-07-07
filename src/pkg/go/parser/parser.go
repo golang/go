@@ -1094,7 +1094,7 @@ func (p *parser) parseCompositeLit(typ ast.Expr) ast.Expr {
 
 // TODO Consider different approach to checking syntax after parsing:
 //      Provide a arguments (set of flags) to parsing functions
-//      restricting what they are syupposed to accept depending
+//      restricting what they are supposed to accept depending
 //      on context.
 
 // checkExpr checks that x is an expression (and not a type).

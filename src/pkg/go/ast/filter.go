@@ -22,6 +22,23 @@ func filterIdentList(list []*Ident) []*Ident {
 }
 
 
+// isExportedType assumes that typ is a correct type.
+func isExportedType(typ Expr) bool {
+	switch t := typ.(type) {
+	case *Ident:
+		return t.IsExported();
+	case *ParenExpr:
+		return isExportedType(t.X);
+	case *SelectorExpr:
+		// assume t.X is a typename
+		return t.Sel.IsExported();
+	case *StarExpr:
+		return isExportedType(t.X);
+	}
+	return false;
+}
+
+
 func filterType(typ Expr)
 
 func filterFieldList(list []*Field) []*Field {
@@ -30,8 +47,12 @@ func filterFieldList(list []*Field) []*Field {
 		exported := false;
 		if len(f.Names) == 0 {
 			// anonymous field
-			// TODO(gri) check if the type is exported for anonymous field
-			exported = true;
+			// (Note that a non-exported anonymous field
+			// may still refer to a type with exported
+			// fields, so this is not absolutely correct.
+			// However, this cannot be done w/o complete
+			// type information.)
+			exported = isExportedType(f.Type);
 		} else {
 			f.Names = filterIdentList(f.Names);
 			exported = len(f.Names) > 0;
