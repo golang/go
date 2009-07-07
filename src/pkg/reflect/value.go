@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Reflection library.
-// Handling values.
-
 package reflect
 
 import (
@@ -12,1002 +9,952 @@ import (
 	"unsafe";
 )
 
-// Addr is shorthand for unsafe.Pointer and is used to represent the address of Values.
-type Addr unsafe.Pointer
+const cannotSet = "cannot set value obtained via unexported struct field"
 
-func equalType(a, b Type) bool {
-	return a.Kind() == b.Kind() && a.String() == b.String()
-}
-
-// Value is the generic interface to reflection values.  Once its Kind is known,
-// such as BoolKind, the Value can be narrowed to the appropriate, more
-// specific interface, such as BoolValue.  Such narrowed values still implement
-// the Value interface.
-type Value interface {
-	// The kind of thing described: ArrayKind, BoolKind, etc.
-	Kind()	int;
-	// The reflection Type of the value.
-	Type()	Type;
-	// The address of the value.
-	Addr()	Addr;
-	// The value itself is the dynamic value of an empty interface.
-	Interface()	interface {};
-}
-
-func NewValue(e interface{}) Value;
-
-// commonValue fields and functionality for all values
-
-type commonValue struct {
-	kind	int;
-	typ	Type;
-	addr	Addr;
-}
-
-func (c *commonValue) Kind() int {
-	return c.kind
-}
-
-func (c *commonValue) Type() Type {
-	return c.typ
-}
-
-func (c *commonValue) Addr() Addr {
-	return c.addr
-}
-
-func (c *commonValue) Interface() interface {} {
-	var i interface {};
+// TODO: This will have to go away when
+// the new gc goes in.
+func memmove(dst, src, n uintptr) {
+	var p uintptr;	// dummy for sizeof
+	const ptrsize = uintptr(unsafe.Sizeof(p));
 	switch {
-	case c.typ.Kind() == InterfaceKind:
-		panic("not reached");	// InterfaceValue overrides this method
-	case c.typ.Size() > unsafe.Sizeof(uintptr(0)):
-		i = unsafe.Unreflect(uint64(uintptr(c.addr)), c.typ.String(), true);
-	default:
-		if uintptr(c.addr) == 0 {
-			panicln("reflect: address 0 for", c.typ.String());
+	case src < dst && src+n > dst:
+		// byte copy backward
+		// careful: i is unsigned
+		for i := n; i > 0; {
+			i--;
+			*(*byte)(addr(dst+i)) = *(*byte)(addr(src+i));
 		}
-		i = unsafe.Unreflect(uint64(uintptr(*(*Addr)(c.addr))), c.typ.String(), false);
+	case (n|src|dst) & (ptrsize-1) != 0:
+		// byte copy forward
+		for i := uintptr(0); i < n; i++ {
+			*(*byte)(addr(dst+i)) = *(*byte)(addr(src+i));
+		}
+	default:
+		// word copy forward
+		for i := uintptr(0); i < n; i += ptrsize {
+			*(*uintptr)(addr(dst+i)) = *(*uintptr)(addr(src+i));
+		}
 	}
-	return i;
 }
 
-func newValueAddr(typ Type, addr Addr) Value
+// Value is the common interface to reflection values.
+// The implementations of Value (e.g., ArrayValue, StructValue)
+// have additional type-specific methods.
+type Value interface {
+	// Type returns the value's type.
+	Type()	Type;
 
-type creatorFn func(typ Type, addr Addr) Value
+	// Interface returns the value as an interface{}.
+	Interface()	interface{};
 
+	// CanSet returns whether the value can be changed.
+	// Values obtained by the use of non-exported struct fields
+	// can be used in Get but not Set.
+	// If CanSet() returns false, calling the type-specific Set
+	// will cause a crash.
+	CanSet()	bool;
 
-// -- Missing
-
-// MissingValue represents a value whose type is not known. It usually
-// indicates an error.
-type MissingValue interface {
-	Value;
-}
-
-type missingValueStruct struct {
-	commonValue
-}
-
-func missingCreator(typ Type, addr Addr) Value {
-	return &missingValueStruct{ commonValue{MissingKind, typ, addr} }
-}
-
-// -- Int
-
-// IntValue represents an int value.
-type IntValue interface {
-	Value;
-	Get()	int;	// Get the underlying int.
-	Set(int);	// Set the underlying int.
-}
-
-type intValueStruct struct {
-	commonValue
-}
-
-func intCreator(typ Type, addr Addr) Value {
-	return &intValueStruct{ commonValue{IntKind, typ, addr} }
-}
-
-func (v *intValueStruct) Get() int {
-	return *(*int)(v.addr)
-}
-
-func (v *intValueStruct) Set(i int) {
-	*(*int)(v.addr) = i
-}
-
-// -- Int8
-
-// Int8Value represents an int8 value.
-type Int8Value interface {
-	Value;
-	Get()	int8;	// Get the underlying int8.
-	Set(int8);	// Set the underlying int8.
-}
-
-type int8ValueStruct struct {
-	commonValue
-}
-
-func int8Creator(typ Type, addr Addr) Value {
-	return &int8ValueStruct{ commonValue{Int8Kind, typ, addr} }
-}
-
-func (v *int8ValueStruct) Get() int8 {
-	return *(*int8)(v.addr)
-}
-
-func (v *int8ValueStruct) Set(i int8) {
-	*(*int8)(v.addr) = i
-}
-
-// -- Int16
-
-// Int16Value represents an int16 value.
-type Int16Value interface {
-	Value;
-	Get()	int16;	// Get the underlying int16.
-	Set(int16);	// Set the underlying int16.
-}
-
-type int16ValueStruct struct {
-	commonValue
-}
-
-func int16Creator(typ Type, addr Addr) Value {
-	return &int16ValueStruct{ commonValue{Int16Kind, typ, addr} }
-}
-
-func (v *int16ValueStruct) Get() int16 {
-	return *(*int16)(v.addr)
-}
-
-func (v *int16ValueStruct) Set(i int16) {
-	*(*int16)(v.addr) = i
-}
-
-// -- Int32
-
-// Int32Value represents an int32 value.
-type Int32Value interface {
-	Value;
-	Get()	int32;	// Get the underlying int32.
-	Set(int32);	// Set the underlying int32.
-}
-
-type int32ValueStruct struct {
-	commonValue
-}
-
-func int32Creator(typ Type, addr Addr) Value {
-	return &int32ValueStruct{ commonValue{Int32Kind, typ, addr} }
-}
-
-func (v *int32ValueStruct) Get() int32 {
-	return *(*int32)(v.addr)
-}
-
-func (v *int32ValueStruct) Set(i int32) {
-	*(*int32)(v.addr) = i
-}
-
-// -- Int64
-
-// Int64Value represents an int64 value.
-type Int64Value interface {
-	Value;
-	Get()	int64;	// Get the underlying int64.
-	Set(int64);	// Set the underlying int64.
-}
-
-type int64ValueStruct struct {
-	commonValue
-}
-
-func int64Creator(typ Type, addr Addr) Value {
-	return &int64ValueStruct{ commonValue{Int64Kind, typ, addr} }
-}
-
-func (v *int64ValueStruct) Get() int64 {
-	return *(*int64)(v.addr)
-}
-
-func (v *int64ValueStruct) Set(i int64) {
-	*(*int64)(v.addr) = i
-}
-
-// -- Uint
-
-// UintValue represents a uint value.
-type UintValue interface {
-	Value;
-	Get()	uint;	// Get the underlying uint.
-	Set(uint);	// Set the underlying uint.
-}
-
-type uintValueStruct struct {
-	commonValue
-}
-
-func uintCreator(typ Type, addr Addr) Value {
-	return &uintValueStruct{ commonValue{UintKind, typ, addr} }
-}
-
-func (v *uintValueStruct) Get() uint {
-	return *(*uint)(v.addr)
-}
-
-func (v *uintValueStruct) Set(i uint) {
-	*(*uint)(v.addr) = i
-}
-
-// -- Uint8
-
-// Uint8Value represents a uint8 value.
-type Uint8Value interface {
-	Value;
-	Get()	uint8;	// Get the underlying uint8.
-	Set(uint8);	// Set the underlying uint8.
-}
-
-type uint8ValueStruct struct {
-	commonValue
-}
-
-func uint8Creator(typ Type, addr Addr) Value {
-	return &uint8ValueStruct{ commonValue{Uint8Kind, typ, addr} }
-}
-
-func (v *uint8ValueStruct) Get() uint8 {
-	return *(*uint8)(v.addr)
-}
-
-func (v *uint8ValueStruct) Set(i uint8) {
-	*(*uint8)(v.addr) = i
-}
-
-// -- Uint16
-
-// Uint16Value represents a uint16 value.
-type Uint16Value interface {
-	Value;
-	Get()	uint16;	// Get the underlying uint16.
-	Set(uint16);	// Set the underlying uint16.
-}
-
-type uint16ValueStruct struct {
-	commonValue
-}
-
-func uint16Creator(typ Type, addr Addr) Value {
-	return &uint16ValueStruct{ commonValue{Uint16Kind, typ, addr} }
-}
-
-func (v *uint16ValueStruct) Get() uint16 {
-	return *(*uint16)(v.addr)
+	// Addr returns a pointer to the underlying data.
+	// It is for advanced clients that also
+	// import the "unsafe" package.
+	Addr()	uintptr;
 }
 
-func (v *uint16ValueStruct) Set(i uint16) {
-	*(*uint16)(v.addr) = i
+type value struct {
+	typ Type;
+	addr addr;
+	canSet bool;
 }
 
-// -- Uint32
-
-// Uint32Value represents a uint32 value.
-type Uint32Value interface {
-	Value;
-	Get()	uint32;	// Get the underlying uint32.
-	Set(uint32);	// Set the underlying uint32.
-}
-
-type uint32ValueStruct struct {
-	commonValue
-}
-
-func uint32Creator(typ Type, addr Addr) Value {
-	return &uint32ValueStruct{ commonValue{Uint32Kind, typ, addr} }
-}
-
-func (v *uint32ValueStruct) Get() uint32 {
-	return *(*uint32)(v.addr)
-}
-
-func (v *uint32ValueStruct) Set(i uint32) {
-	*(*uint32)(v.addr) = i
-}
-
-// -- Uint64
-
-// Uint64Value represents a uint64 value.
-type Uint64Value interface {
-	Value;
-	Get()	uint64;	// Get the underlying uint64.
-	Set(uint64);	// Set the underlying uint64.
-}
-
-type uint64ValueStruct struct {
-	commonValue
-}
-
-func uint64Creator(typ Type, addr Addr) Value {
-	return &uint64ValueStruct{ commonValue{Uint64Kind, typ, addr} }
-}
-
-func (v *uint64ValueStruct) Get() uint64 {
-	return *(*uint64)(v.addr)
-}
-
-func (v *uint64ValueStruct) Set(i uint64) {
-	*(*uint64)(v.addr) = i
-}
-
-// -- Uintptr
-
-// UintptrValue represents a uintptr value.
-type UintptrValue interface {
-	Value;
-	Get()	uintptr;	// Get the underlying uintptr.
-	Set(uintptr);	// Set the underlying uintptr.
-}
-
-type uintptrValueStruct struct {
-	commonValue
-}
-
-func uintptrCreator(typ Type, addr Addr) Value {
-	return &uintptrValueStruct{ commonValue{UintptrKind, typ, addr} }
-}
-
-func (v *uintptrValueStruct) Get() uintptr {
-	return *(*uintptr)(v.addr)
-}
-
-func (v *uintptrValueStruct) Set(i uintptr) {
-	*(*uintptr)(v.addr) = i
-}
-
-// -- Float
-
-// FloatValue represents a float value.
-type FloatValue interface {
-	Value;
-	Get()	float;	// Get the underlying float.
-	Set(float);	// Get the underlying float.
-}
-
-type floatValueStruct struct {
-	commonValue
-}
-
-func floatCreator(typ Type, addr Addr) Value {
-	return &floatValueStruct{ commonValue{FloatKind, typ, addr} }
-}
-
-func (v *floatValueStruct) Get() float {
-	return *(*float)(v.addr)
-}
-
-func (v *floatValueStruct) Set(f float) {
-	*(*float)(v.addr) = f
-}
-
-// -- Float32
-
-// Float32Value represents a float32 value.
-type Float32Value interface {
-	Value;
-	Get()	float32;	// Get the underlying float32.
-	Set(float32);	// Get the underlying float32.
-}
-
-type float32ValueStruct struct {
-	commonValue
-}
-
-func float32Creator(typ Type, addr Addr) Value {
-	return &float32ValueStruct{ commonValue{Float32Kind, typ, addr} }
-}
-
-func (v *float32ValueStruct) Get() float32 {
-	return *(*float32)(v.addr)
-}
-
-func (v *float32ValueStruct) Set(f float32) {
-	*(*float32)(v.addr) = f
-}
-
-// -- Float64
-
-// Float64Value represents a float64 value.
-type Float64Value interface {
-	Value;
-	Get()	float64;	// Get the underlying float64.
-	Set(float64);	// Get the underlying float64.
-}
-
-type float64ValueStruct struct {
-	commonValue
-}
-
-func float64Creator(typ Type, addr Addr) Value {
-	return &float64ValueStruct{ commonValue{Float64Kind, typ, addr} }
-}
-
-func (v *float64ValueStruct) Get() float64 {
-	return *(*float64)(v.addr)
-}
-
-func (v *float64ValueStruct) Set(f float64) {
-	*(*float64)(v.addr) = f
-}
-
-// -- String
-
-// StringValue represents a string value.
-type StringValue interface {
-	Value;
-	Get()	string;	// Get the underlying string value.
-	Set(string);	// Set the underlying string value.
-}
-
-type stringValueStruct struct {
-	commonValue
+func (v *value) Type() Type {
+	return v.typ
 }
 
-func stringCreator(typ Type, addr Addr) Value {
-	return &stringValueStruct{ commonValue{StringKind, typ, addr} }
+func (v *value) Addr() uintptr {
+	return uintptr(v.addr);
 }
 
-func (v *stringValueStruct) Get() string {
-	return *(*string)(v.addr)
-}
-
-func (v *stringValueStruct) Set(s string) {
-	*(*string)(v.addr) = s
-}
-
-// -- Bool
-
-// BoolValue represents a bool value.
-type BoolValue interface {
-	Value;
-	Get()	bool;	// Get the underlying bool value.
-	Set(bool);	// Set the underlying bool value.
-}
-
-type boolValueStruct struct {
-	commonValue
-}
-
-func boolCreator(typ Type, addr Addr) Value {
-	return &boolValueStruct{ commonValue{BoolKind, typ, addr} }
-}
-
-func (v *boolValueStruct) Get() bool {
-	return *(*bool)(v.addr)
-}
-
-func (v *boolValueStruct) Set(b bool) {
-	*(*bool)(v.addr) = b
-}
-
-// -- Pointer
-
-// PtrValue represents a pointer value.
-type PtrValue interface {
-	Value;
-	Sub()	Value;	// The Value pointed to.
-	Get()	Addr;	// Get the address stored in the pointer.
-	SetSub(Value);	// Set the the pointed-to Value.
-	IsNil() bool;
-}
-
-type ptrValueStruct struct {
-	commonValue
-}
-
-func (v *ptrValueStruct) Get() Addr {
-	return *(*Addr)(v.addr)
-}
-
-func (v *ptrValueStruct) IsNil() bool {
-	return uintptr(*(*Addr)(v.addr)) == 0
-}
+type InterfaceValue struct
+type StructValue struct
 
-func (v *ptrValueStruct) Sub() Value {
-	if v.IsNil() {
-		return nil
+func (v *value) Interface() interface{} {
+	if typ, ok := v.typ.(*InterfaceType); ok {
+		// There are two different representations of interface values,
+		// one if the interface type has methods and one if it doesn't.
+		// These two representations require different expressions
+		// to extract correctly.
+		if typ.NumMethod() == 0 {
+			// Extract as interface value without methods.
+			return *(*interface{})(v.addr)
+		}
+		// Extract from v.addr as interface value with methods.
+		return *(*interface{ m() })(v.addr)
 	}
-	return newValueAddr(v.typ.(PtrType).Sub(), v.Get());
+	return unsafe.Unreflect(v.typ, unsafe.Pointer(v.addr));
 }
 
-func (v *ptrValueStruct) SetSub(subv Value) {
-	a := v.typ.(PtrType).Sub();
-	b := subv.Type();
-	if !equalType(a, b) {
-		panicln("reflect: incompatible types in PtrValue.SetSub:",
-			a.String(), b.String());
-	}
-	*(*Addr)(v.addr) = subv.Addr();
+func (v *value) CanSet() bool {
+	return v.canSet;
 }
 
-func ptrCreator(typ Type, addr Addr) Value {
-	return &ptrValueStruct{ commonValue{PtrKind, typ, addr} };
-}
-
-// -- Array
-// Slices and arrays are represented by the same interface.
-
-// ArrayValue represents an array or slice value.
-type ArrayValue interface {
-	Value;
-	IsSlice()	bool;	// Is this a slice (true) or array (false)?
-	Len()	int;	// The length of the array/slice.
-	Cap() int;	// The capacity of the array/slice (==Len() for arrays).
-	Elem(i int)	Value;	// The Value of the i'th element.
-	SetLen(len int);	// Set the length; slice only.
-	Set(src ArrayValue);	// Set the underlying Value; slice only for src and dest both.
-	CopyFrom(src ArrayValue, n int);	// Copy the elements from src; lengths must match.
-	IsNil() bool;
-}
-
-func copyArray(dst ArrayValue, src ArrayValue, n int);
+func newValue(typ Type, addr addr, canSet bool) Value
+func NewValue(i interface{}) Value
 
 /*
-	Run-time representation of slices looks like this:
-		struct	Slice {
-			byte*	array;		// actual data
-			uint32	nel;		// number of elements
-			uint32	cap;
-		};
-*/
+ * basic types
+ */
 
-// A published version of the Slice header so that clients don't have a separate copy of the definition.
-// SliceHeader is not useful to clients unless they use unsafe.Pointer.
+// BoolValue represents a bool value.
+type BoolValue struct {
+	value;
+}
+
+// Get returns the underlying bool value.
+func (v *BoolValue) Get() bool {
+	return *(*bool)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *BoolValue) Set(x bool) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*bool)(v.addr) = x;
+}
+
+// FloatValue represents a float value.
+type FloatValue struct {
+	value;
+}
+
+// Get returns the underlying float value.
+func (v *FloatValue) Get() float {
+	return *(*float)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *FloatValue) Set(x float) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*float)(v.addr) = x;
+}
+
+// Float32Value represents a float32 value.
+type Float32Value struct {
+	value;
+}
+
+// Get returns the underlying float32 value.
+func (v *Float32Value) Get() float32 {
+	return *(*float32)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *Float32Value) Set(x float32) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*float32)(v.addr) = x;
+}
+
+// Float64Value represents a float64 value.
+type Float64Value struct {
+	value;
+}
+
+// Get returns the underlying float64 value.
+func (v *Float64Value) Get() float64 {
+	return *(*float64)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *Float64Value) Set(x float64) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*float64)(v.addr) = x;
+}
+
+// IntValue represents an int value.
+type IntValue struct {
+	value;
+}
+
+// Get returns the underlying int value.
+func (v *IntValue) Get() int {
+	return *(*int)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *IntValue) Set(x int) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*int)(v.addr) = x;
+}
+
+// Int8Value represents an int8 value.
+type Int8Value struct {
+	value;
+}
+
+// Get returns the underlying int8 value.
+func (v *Int8Value) Get() int8 {
+	return *(*int8)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *Int8Value) Set(x int8) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*int8)(v.addr) = x;
+}
+
+// Int16Value represents an int16 value.
+type Int16Value struct {
+	value;
+}
+
+// Get returns the underlying int16 value.
+func (v *Int16Value) Get() int16 {
+	return *(*int16)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *Int16Value) Set(x int16) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*int16)(v.addr) = x;
+}
+
+// Int32Value represents an int32 value.
+type Int32Value struct {
+	value;
+}
+
+// Get returns the underlying int32 value.
+func (v *Int32Value) Get() int32 {
+	return *(*int32)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *Int32Value) Set(x int32) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*int32)(v.addr) = x;
+}
+
+// Int64Value represents an int64 value.
+type Int64Value struct {
+	value;
+}
+
+// Get returns the underlying int64 value.
+func (v *Int64Value) Get() int64 {
+	return *(*int64)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *Int64Value) Set(x int64) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*int64)(v.addr) = x;
+}
+
+// StringValue represents a string value.
+type StringValue struct {
+	value;
+}
+
+// Get returns the underlying string value.
+func (v *StringValue) Get() string {
+	return *(*string)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *StringValue) Set(x string) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*string)(v.addr) = x;
+}
+
+// UintValue represents a uint value.
+type UintValue struct {
+	value;
+}
+
+// Get returns the underlying uint value.
+func (v *UintValue) Get() uint {
+	return *(*uint)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *UintValue) Set(x uint) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*uint)(v.addr) = x;
+}
+
+// Uint8Value represents a uint8 value.
+type Uint8Value struct {
+	value;
+}
+
+// Get returns the underlying uint8 value.
+func (v *Uint8Value) Get() uint8 {
+	return *(*uint8)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *Uint8Value) Set(x uint8) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*uint8)(v.addr) = x;
+}
+
+// Uint16Value represents a uint16 value.
+type Uint16Value struct {
+	value;
+}
+
+// Get returns the underlying uint16 value.
+func (v *Uint16Value) Get() uint16 {
+	return *(*uint16)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *Uint16Value) Set(x uint16) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*uint16)(v.addr) = x;
+}
+
+// Uint32Value represents a uint32 value.
+type Uint32Value struct {
+	value;
+}
+
+// Get returns the underlying uint32 value.
+func (v *Uint32Value) Get() uint32 {
+	return *(*uint32)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *Uint32Value) Set(x uint32) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*uint32)(v.addr) = x;
+}
+
+// Uint64Value represents a uint64 value.
+type Uint64Value struct {
+	value;
+}
+
+// Get returns the underlying uint64 value.
+func (v *Uint64Value) Get() uint64 {
+	return *(*uint64)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *Uint64Value) Set(x uint64) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*uint64)(v.addr) = x;
+}
+
+// UintptrValue represents a uintptr value.
+type UintptrValue struct {
+	value;
+}
+
+// Get returns the underlying uintptr value.
+func (v *UintptrValue) Get() uintptr {
+	return *(*uintptr)(v.addr);
+}
+
+// Set sets v to the value x.
+func (v *UintptrValue) Set(x uintptr) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*uintptr)(v.addr) = x;
+}
+
+// UnsafePointerValue represents an unsafe.Pointer value.
+type UnsafePointerValue struct {
+	value;
+}
+
+// Get returns the underlying uintptr value.
+// Get returns uintptr, not unsafe.Pointer, so that
+// programs that do not import "unsafe" cannot
+// obtain a value of unsafe.Pointer type from "reflect".
+func (v *UnsafePointerValue) Get() uintptr {
+	return uintptr(*(*unsafe.Pointer)(v.addr));
+}
+
+// Set sets v to the value x.
+func (v *UnsafePointerValue) Set(x unsafe.Pointer) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	*(*unsafe.Pointer)(v.addr) = x;
+}
+
+func typesMustMatch(t1, t2 reflect.Type) {
+	if t1 != t2 {
+		panicln("type mismatch:", t1, "!=", t2);
+	}
+}
+
+/*
+ * array
+ */
+
+// ArrayOrSliceValue is the common interface
+// implemented by both ArrayValue and SliceValue.
+type ArrayOrSliceValue interface {
+	Value;
+	Len() int;
+	Cap() int;
+	Elem(i int) Value;
+	addr() addr;
+}
+
+// ArrayCopy copies the contents of src into dst until either
+// dst has been filled or src has been exhausted.
+// It returns the number of elements copied.
+// The arrays dst and src must have the same element type.
+func ArrayCopy(dst, src ArrayOrSliceValue) int {
+	// TODO: This will have to move into the runtime
+	// once the real gc goes in.
+	de := dst.Type().(ArrayOrSliceType).Elem();
+	se := src.Type().(ArrayOrSliceType).Elem();
+	typesMustMatch(de, se);
+	n := dst.Len();
+	if xn := src.Len(); n > xn {
+		n = xn;
+	}
+	memmove(uintptr(dst.addr()), uintptr(src.addr()), uintptr(n) * de.Size());
+	return n;
+}
+
+// An ArrayValue represents an array.
+type ArrayValue struct {
+	value
+}
+
+// Len returns the length of the array.
+func (v *ArrayValue) Len() int {
+	return v.typ.(*ArrayType).Len();
+}
+
+// Cap returns the capacity of the array (equal to Len()).
+func (v *ArrayValue) Cap() int {
+	return v.typ.(*ArrayType).Len();
+}
+
+// addr returns the base address of the data in the array.
+func (v *ArrayValue) addr() addr {
+	return v.value.addr;
+}
+
+// Set assigns x to v.
+// The new value x must have the same type as v.
+func (v *ArrayValue) Set(x *ArrayValue) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	typesMustMatch(v.typ, x.typ);
+	ArrayCopy(v, x);
+}
+
+// Elem returns the i'th element of v.
+func (v *ArrayValue) Elem(i int) Value {
+	typ := v.typ.(*ArrayType).Elem();
+	n := v.Len();
+	if i < 0 || i >= n {
+		panic("index", i, "in array len", n);
+	}
+	p := addr(uintptr(v.addr()) + uintptr(i)*typ.Size());
+	return newValue(typ, p, v.canSet);
+}
+
+/*
+ * slice
+ */
+
+// runtime representation of slice
 type SliceHeader struct {
-	Data	uintptr;
-	Len	uint32;
-	Cap	uint32;
+	Data uintptr;
+	Len uint32;
+	Cap uint32;
 }
 
-type sliceValueStruct struct {
-	commonValue;
-	elemtype	Type;
-	elemsize	int;
-	slice *SliceHeader;
+// A SliceValue represents a slice.
+type SliceValue struct {
+	value
 }
 
-func (v *sliceValueStruct) IsSlice() bool {
-	return true
+func (v *SliceValue) slice() *SliceHeader {
+	return (*SliceHeader)(v.value.addr);
 }
 
-func (v *sliceValueStruct) Len() int {
-	return int(v.slice.Len);
+// IsNil returns whether v is a nil slice.
+func (v *SliceValue) IsNil() bool {
+	return v.slice().Data == 0;
 }
 
-func (v *sliceValueStruct) Cap() int {
-	return int(v.slice.Cap);
+// Len returns the length of the slice.
+func (v *SliceValue) Len() int {
+	return int(v.slice().Len);
 }
 
-func (v *sliceValueStruct) SetLen(len int) {
-	if len > v.Cap() {
-		panicln("reflect: sliceValueStruct.SetLen", len, v.Cap());
+// Cap returns the capacity of the slice.
+func (v *SliceValue) Cap() int {
+	return int(v.slice().Cap);
+}
+
+// addr returns the base address of the data in the slice.
+func (v *SliceValue) addr() addr {
+	return addr(v.slice().Data);
+}
+
+// SetLen changes the length of v.
+// The new length n must be between 0 and the capacity, inclusive.
+func (v *SliceValue) SetLen(n int) {
+	s := v.slice();
+	if n < 0 || n > int(s.Cap) {
+		panicln("SetLen", n, "with capacity", s.Cap);
 	}
-	v.slice.Len = uint32(len);
+	s.Len = uint32(n);
 }
 
-func (v *sliceValueStruct) Set(src ArrayValue) {
-	if !src.IsSlice() {
-		panic("can't set slice from array");
+// Set assigns x to v.
+// The new value x must have the same type as v.
+func (v *SliceValue) Set(x *SliceValue) {
+	if !v.canSet {
+		panic(cannotSet);
 	}
-	s := src.(*sliceValueStruct);
-	if !equalType(v.typ, s.typ) {
-		panicln("incompatible types in ArrayValue.Set()");
+	typesMustMatch(v.typ, x.typ);
+	*v.slice() = *x.slice();
+}
+
+// Slice returns a sub-slice of the slice v.
+func (v *SliceValue) Slice(beg, end int) *SliceValue {
+	cap := v.Cap();
+	if beg < 0 || end < beg || end > cap {
+		panic("slice bounds [", beg, ":", end, "] with capacity ", cap);
 	}
-	*v.slice = *s.slice;
+	typ := v.typ.(*SliceType);
+	s := new(SliceHeader);
+	s.Data = uintptr(v.addr()) + uintptr(beg) * typ.Elem().Size();
+	s.Len = uint32(end - beg);
+	s.Cap = uint32(cap - beg);
+	return newValue(typ, addr(s), v.canSet).(*SliceValue);
 }
 
-func (v *sliceValueStruct) Elem(i int) Value {
-	data_uint := v.slice.Data + uintptr(i * v.elemsize);
-	return newValueAddr(v.elemtype, Addr(data_uint));
-}
-
-func (v *sliceValueStruct) CopyFrom(src ArrayValue, n int) {
-	copyArray(v, src, n);
-}
-
-func (v *sliceValueStruct) IsNil() bool {
-	return v.slice.Data == 0
-}
-
-type arrayValueStruct struct {
-	commonValue;
-	elemtype	Type;
-	elemsize	int;
-	len	int;
-}
-
-func (v *arrayValueStruct) IsSlice() bool {
-	return false
-}
-
-func (v *arrayValueStruct) Len() int {
-	return v.len
-}
-
-func (v *arrayValueStruct) Cap() int {
-	return v.len
-}
-
-func (v *arrayValueStruct) SetLen(len int) {
-	panicln("can't set len of array");
-}
-
-func (v *arrayValueStruct) Set(src ArrayValue) {
-	panicln("can't set array");
-}
-
-func (v *arrayValueStruct) Elem(i int) Value {
-	data_uint := uintptr(v.addr) + uintptr(i * v.elemsize);
-	return newValueAddr(v.elemtype, Addr(data_uint));
-}
-
-func (v *arrayValueStruct) CopyFrom(src ArrayValue, n int) {
-	copyArray(v, src, n);
-}
-
-func (v *arrayValueStruct) IsNil() bool {
-	return false
-}
-
-func arrayCreator(typ Type, addr Addr) Value {
-	arraytype := typ.(ArrayType);
-	if arraytype.IsSlice() {
-		v := new(sliceValueStruct);
-		v.kind = ArrayKind;
-		v.addr = addr;
-		v.typ = typ;
-		v.elemtype = arraytype.Elem();
-		v.elemsize = v.elemtype.Size();
-		v.slice = (*SliceHeader)(addr);
-		return v;
+// Elem returns the i'th element of v.
+func (v *SliceValue) Elem(i int) Value {
+	typ := v.typ.(*SliceType).Elem();
+	n := v.Len();
+	if i < 0 || i >= n {
+		panicln("index", i, "in array of length", n);
 	}
-	v := new(arrayValueStruct);
-	v.kind = ArrayKind;
-	v.addr = addr;
-	v.typ = typ;
-	v.elemtype = arraytype.Elem();
-	v.elemsize = v.elemtype.Size();
-	v.len = arraytype.Len();
+	p := addr(uintptr(v.addr()) + uintptr(i)*typ.Size());
+	return newValue(typ, p, v.canSet);
+}
+
+// MakeSlice creates a new zero-initialized slice value
+// for the specified slice type, length, and capacity.
+func MakeSlice(typ *SliceType, len, cap int) *SliceValue {
+	s := new(SliceHeader);
+	size := typ.Elem().Size() * uintptr(cap);
+	if size == 0 {
+		size = 1;
+	}
+	data := make([]uint8, size);
+	s.Data = uintptr(addr(&data[0]));
+	s.Len = uint32(len);
+	s.Cap = uint32(cap);
+	return newValue(typ, addr(s), true).(*SliceValue);
+}
+
+/*
+ * chan
+ */
+
+// A ChanValue represents a chan.
+type ChanValue struct {
+	value
+}
+
+// IsNil returns whether v is a nil channel.
+func (v *ChanValue) IsNil() bool {
+	return *(*uintptr)(v.addr) == 0;
+}
+
+// Set assigns x to v.
+// The new value x must have the same type as v.
+func (v *ChanValue) Set(x *ChanValue) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	typesMustMatch(v.typ, x.typ);
+	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
+}
+
+// Get returns the uintptr value of v.
+// It is mainly useful for printing.
+func (v *ChanValue) Get() uintptr {
+	return *(*uintptr)(v.addr);
+}
+
+// Send sends x on the channel v.
+func (v *ChanValue) Send(x Value) {
+	panic("unimplemented: channel Send");
+}
+
+// Recv receives and returns a value from the channel v.
+func (v *ChanValue) Recv() Value {
+	panic("unimplemented: channel Receive");
+}
+
+// TrySend attempts to sends x on the channel v but will not block.
+// It returns true if the value was sent, false otherwise.
+func (v *ChanValue) TrySend(x Value) bool {
+	panic("unimplemented: channel TrySend");
+}
+
+// TryRecv attempts to receive a value from the channel v but will not block.
+// It returns the value if one is received, nil otherwise.
+func (v *ChanValue) TryRecv() Value {
+	panic("unimplemented: channel TryRecv");
+}
+
+/*
+ * func
+ */
+
+// A FuncValue represents a function value.
+type FuncValue struct {
+	value
+}
+
+// IsNil returns whether v is a nil function.
+func (v *FuncValue) IsNil() bool {
+	return *(*uintptr)(v.addr) == 0;
+}
+
+// Get returns the uintptr value of v.
+// It is mainly useful for printing.
+func (v *FuncValue) Get() uintptr {
+	return *(*uintptr)(v.addr);
+}
+
+// Set assigns x to v.
+// The new value x must have the same type as v.
+func (v *FuncValue) Set(x *FuncValue) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	typesMustMatch(v.typ, x.typ);
+	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
+}
+
+// Call calls the function v with input parameters in.
+// It returns the function's output parameters as Values.
+func (v *FuncValue) Call(in []Value) []Value {
+	panic("unimplemented: function Call");
+}
+
+
+/*
+ * interface
+ */
+
+// An InterfaceValue represents an interface value.
+type InterfaceValue struct {
+	value
+}
+
+// No Get because v.Interface() is available.
+
+// IsNil returns whether v is a nil interface value.
+func (v *InterfaceValue) IsNil() bool {
+	return v.Interface() == nil;
+}
+
+// Elem returns the concrete value stored in the interface value v.
+func (v *InterfaceValue) Elem() Value {
+	return NewValue(v.Interface());
+}
+
+// Set assigns x to v.
+func (v *InterfaceValue) Set(x interface{}) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	// Two different representations; see comment in Get.
+	// Empty interface is easy.
+	if v.typ.(*InterfaceType).NumMethod() == 0 {
+		*(*interface{})(v.addr) = x;
+	}
+
+	// Non-empty interface requires a runtime check.
+	panic("unimplemented: interface Set");
+//	unsafe.SetInterface(v.typ, v.addr, x);
+}
+
+/*
+ * map
+ */
+
+// A MapValue represents a map value.
+type MapValue struct {
+	value
+}
+
+// IsNil returns whether v is a nil map value.
+func (v *MapValue) IsNil() bool {
+	return *(*uintptr)(v.addr) == 0;
+}
+
+// Set assigns x to v.
+// The new value x must have the same type as v.
+func (v *MapValue) Set(x *MapValue) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	typesMustMatch(v.typ, x.typ);
+	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
+}
+
+// Elem returns the value associated with key in the map v.
+// It returns nil if key is not found in the map.
+func (v *MapValue) Elem(key Value) Value {
+	panic("unimplemented: map Elem");
+}
+
+// Len returns the number of keys in the map v.
+func (v *MapValue) Len() int {
+	panic("unimplemented: map Len");
+}
+
+// Keys returns a slice containing all the keys present in the map,
+// in unspecified order.
+func (v *MapValue) Keys() []Value {
+	panic("unimplemented: map Keys");
+}
+
+/*
+ * ptr
+ */
+
+// A PtrValue represents a pointer.
+type PtrValue struct {
+	value
+}
+
+// IsNil returns whether v is a nil pointer.
+func (v *PtrValue) IsNil() bool {
+	return *(*uintptr)(v.addr) == 0;
+}
+
+// Get returns the uintptr value of v.
+// It is mainly useful for printing.
+func (v *PtrValue) Get() uintptr {
+	return *(*uintptr)(v.addr);
+}
+
+// Set assigns x to v.
+// The new value x must have the same type as v.
+func (v *PtrValue) Set(x *PtrValue) {
+	if !v.canSet {
+		panic(cannotSet);
+	}
+	typesMustMatch(v.typ, x.typ);
+	// TODO: This will have to move into the runtime
+	// once the new gc goes in
+	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
+}
+
+// PointTo changes v to point to x.
+func (v *PtrValue) PointTo(x Value) {
+	if !x.CanSet() {
+		panic("cannot set x; cannot point to x");
+	}
+	typesMustMatch(v.typ.(*PtrType).Elem(), x.Type());
+	// TODO: This will have to move into the runtime
+	// once the new gc goes in.
+	*(*uintptr)(v.addr) = x.Addr();
+}
+
+// Elem returns the value that v points to.
+// If v is a nil pointer, Elem returns a nil Value.
+func (v *PtrValue) Elem() Value {
+	if v.IsNil() {
+		return nil;
+	}
+	return newValue(v.typ.(*PtrType).Elem(), *(*addr)(v.addr), v.canSet);
+}
+
+// Indirect returns the value that v points to.
+// If v is a nil pointer, Indirect returns a nil Value.
+// If v is not a pointer, Indirect returns v.
+func Indirect(v Value) Value {
+	if pv, ok := v.(*PtrValue); ok {
+		return pv.Elem();
+	}
 	return v;
 }
 
-// -- Map	TODO: finish and test
+/*
+ * struct
+ */
 
-// MapValue represents a map value.
-// Its implementation is incomplete.
-type MapValue interface {
-	Value;
-	Len()	int;	// The number of elements; currently always returns 0.
-	Elem(key Value)	Value;	// The value indexed by key; unimplemented.
-	IsNil() bool;
+// A StructValue represents a struct value.
+type StructValue struct {
+	value
 }
 
-type mapValueStruct struct {
-	commonValue
-}
-
-func mapCreator(typ Type, addr Addr) Value {
-	return &mapValueStruct{ commonValue{MapKind, typ, addr} }
-}
-
-func (v *mapValueStruct) Len() int {
-	return 0	// TODO: probably want this to be dynamic
-}
-
-func (v *mapValueStruct) IsNil() bool {
-	return false	// TODO: implement this properly
-}
-
-func (v *mapValueStruct) Elem(key Value) Value {
-	panic("map value element");
-	return nil
-}
-
-// -- Chan
-
-// ChanValue represents a chan value.
-// Its implementation is incomplete.
-type ChanValue interface {
-	Value;
-	IsNil() bool;
-}
-
-type chanValueStruct struct {
-	commonValue
-}
-
-func (v *chanValueStruct) IsNil() bool {
-	return false	// TODO: implement this properly
-}
-
-func chanCreator(typ Type, addr Addr) Value {
-	return &chanValueStruct{ commonValue{ChanKind, typ, addr} }
-}
-
-// -- Struct
-
-// StructValue represents a struct value.
-type StructValue interface {
-	Value;
-	Len()	int;	// The number of fields.
-	Field(i int)	Value;	// The Value of field i.
-}
-
-type structValueStruct struct {
-	commonValue;
-	field	[]Value;
-}
-
-func (v *structValueStruct) Len() int {
-	return len(v.field)
-}
-
-func (v *structValueStruct) Field(i int) Value {
-	return v.field[i]
-}
-
-func structCreator(typ Type, addr Addr) Value {
-	t := typ.(StructType);
-	nfield := t.Len();
-	v := &structValueStruct{ commonValue{StructKind, typ, addr}, make([]Value, nfield) };
-	for i := 0; i < nfield; i++ {
-		name, ftype, str, offset := t.Field(i);
-		addr_uint := uintptr(addr) + uintptr(offset);
-		v.field[i] = newValueAddr(ftype, Addr(addr_uint));
+// Set assigns x to v.
+// The new value x must have the same type as v.
+func (v *StructValue) Set(x *StructValue) {
+	// TODO: This will have to move into the runtime
+	// once the gc goes in.
+	if !v.canSet {
+		panic(cannotSet);
 	}
-	v.typ = typ;
-	return v;
+	typesMustMatch(v.typ, x.typ);
+	memmove(uintptr(v.addr), uintptr(x.addr), v.typ.Size());
 }
 
-// -- Interface
-
-// InterfaceValue represents an interface value.
-type InterfaceValue interface {
-	Value;
-	Get()	interface {};	// Get the underlying interface{} value.
-	Value() Value;
-	IsNil() bool;
-}
-
-type interfaceValueStruct struct {
-	commonValue
-}
-
-func (v *interfaceValueStruct) Get() interface{} {
-	// There are two different representations of interface values,
-	// one if the interface type has methods and one if it doesn't.
-	// These two representations require different expressions
-	// to extract correctly.
-	if v.Type().(InterfaceType).Len() == 0 {
-		// Extract as interface value without methods.
-		return *(*interface{})(v.addr)
+// Field returns the i'th field of the struct.
+func (v *StructValue) Field(i int) Value {
+	t := v.typ.(*StructType);
+	if i < 0 || i >= t.NumField() {
+		return nil;
 	}
-	// Extract from v.addr as interface value with methods.
-	return *(*interface{ m() })(v.addr)
+	f := t.Field(i);
+	return newValue(f.Type, addr(uintptr(v.addr)+f.Offset), v.canSet && f.PkgPath == "");
 }
 
-func (v *interfaceValueStruct) Interface() interface{} {
-	return v.Get();
+// NumField returns the number of fields in the struct.
+func (v *StructValue) NumField() int {
+	return v.typ.(*StructType).NumField();
 }
 
-func (v *interfaceValueStruct) Value() Value {
-	i := v.Get();
+/*
+ * constructors
+ */
+
+// Typeof returns the reflection Type of the value in the interface{}.
+func Typeof(i interface{}) Type {
+	return toType(unsafe.Typeof(i));
+}
+
+// NewValue returns a new Value initialized to the concrete value
+// stored in the interface i.  NewValue(nil) returns nil.
+func NewValue(i interface{}) Value {
 	if i == nil {
 		return nil;
 	}
-	return NewValue(i);
+	t, a := unsafe.Reflect(i);
+	return newValue(toType(t), addr(a), true);
 }
 
-func (v *interfaceValueStruct) IsNil() bool {
-	return *(*interface{})(v.addr) == nil
-}
-
-func interfaceCreator(typ Type, addr Addr) Value {
-	return &interfaceValueStruct{ commonValue{InterfaceKind, typ, addr} }
-}
-
-// -- Func
-
-
-// FuncValue represents a func value.
-// Its implementation is incomplete.
-type FuncValue interface {
-	Value;
-	Get()	Addr;	// The address of the function.
-	IsNil() bool;
-}
-
-type funcValueStruct struct {
-	commonValue
-}
-
-func (v *funcValueStruct) Get() Addr {
-	return *(*Addr)(v.addr)
-}
-
-func (v *funcValueStruct) IsNil() bool {
-	return *(*Addr)(v.addr) == nil
-}
-
-func funcCreator(typ Type, addr Addr) Value {
-	return &funcValueStruct{ commonValue{FuncKind, typ, addr} }
-}
-
-var creator = map[int] creatorFn {
-	MissingKind : missingCreator,
-	IntKind : intCreator,
-	Int8Kind : int8Creator,
-	Int16Kind : int16Creator,
-	Int32Kind : int32Creator,
-	Int64Kind : int64Creator,
-	UintKind : uintCreator,
-	Uint8Kind : uint8Creator,
-	Uint16Kind : uint16Creator,
-	Uint32Kind : uint32Creator,
-	Uint64Kind : uint64Creator,
-	UintptrKind : uintptrCreator,
-	FloatKind : floatCreator,
-	Float32Kind : float32Creator,
-	Float64Kind : float64Creator,
-	StringKind : stringCreator,
-	BoolKind : boolCreator,
-	PtrKind : ptrCreator,
-	ArrayKind : arrayCreator,
-	MapKind : mapCreator,
-	ChanKind : chanCreator,
-	StructKind : structCreator,
-	InterfaceKind : interfaceCreator,
-	FuncKind : funcCreator,
-}
-
-var typecache = make(map[string] Type);
-
-func newValueAddr(typ Type, addr Addr) Value {
-	c, ok := creator[typ.Kind()];
-	if !ok {
-		panicln("no creator for type" , typ.String());
+func newValue(typ Type, addr addr, canSet bool) Value {
+	// All values have same memory layout;
+	// build once and convert.
+	v := &struct{value}{value{typ, addr, canSet}};
+	switch t := typ.(type) {	// TODO(rsc): s/t := // ?
+	case *ArrayType:
+		// TODO(rsc): Something must prevent
+		// clients of the package from doing
+		// this same kind of cast.
+		// We should be allowed because
+		// they're our types.
+		// Something about implicit assignment
+		// to struct fields.
+		return (*ArrayValue)(v);
+	case *BoolType:
+		return (*BoolValue)(v);
+	case *ChanType:
+		return (*ChanValue)(v);
+	case *FloatType:
+		return (*FloatValue)(v);
+	case *Float32Type:
+		return (*Float32Value)(v);
+	case *Float64Type:
+		return (*Float64Value)(v);
+	case *FuncType:
+		return (*FuncValue)(v);
+	case *IntType:
+		return (*IntValue)(v);
+	case *Int8Type:
+		return (*Int8Value)(v);
+	case *Int16Type:
+		return (*Int16Value)(v);
+	case *Int32Type:
+		return (*Int32Value)(v);
+	case *Int64Type:
+		return (*Int64Value)(v);
+	case *InterfaceType:
+		return (*InterfaceValue)(v);
+	case *MapType:
+		return (*MapValue)(v);
+	case *PtrType:
+		return (*PtrValue)(v);
+	case *SliceType:
+		return (*SliceValue)(v);
+	case *StringType:
+		return (*StringValue)(v);
+	case *StructType:
+		return (*StructValue)(v);
+	case *UintType:
+		return (*UintValue)(v);
+	case *Uint8Type:
+		return (*Uint8Value)(v);
+	case *Uint16Type:
+		return (*Uint16Value)(v);
+	case *Uint32Type:
+		return (*Uint32Value)(v);
+	case *Uint64Type:
+		return (*Uint64Value)(v);
+	case *UintptrType:
+		return (*UintptrValue)(v);
+	case *UnsafePointerType:
+		return (*UnsafePointerValue)(v);
 	}
-	return c(typ, addr);
+	panicln("newValue", typ.String());
 }
 
-// NewZeroValue creates a new, zero-initialized Value for the specified Type.
-func NewZeroValue(typ Type) Value {
+func newFuncValue(typ Type, addr addr) *FuncValue {
+	return newValue(typ, addr, true).(*FuncValue);
+}
+
+// MakeZeroValue returns a zero Value for the specified Type.
+func MakeZero(typ Type) Value {
+	// TODO: this will have to move into
+	// the runtime proper in order to play nicely
+	// with the garbage collector.
 	size := typ.Size();
 	if size == 0 {
 		size = 1;
 	}
 	data := make([]uint8, size);
-	return newValueAddr(typ, Addr(&data[0]));
-}
-
-// NewSliceValue creates a new, zero-initialized slice value (ArrayValue) for the specified
-// slice type (ArrayType), length, and capacity.
-func NewSliceValue(typ ArrayType, len, cap int) ArrayValue {
-	if !typ.IsSlice() {
-		return nil
-	}
-
-	array := new(SliceHeader);
-	size := typ.Elem().Size() * cap;
-	if size == 0 {
-		size = 1;
-	}
-	data := make([]uint8, size);
-	array.Data = uintptr(Addr(&data[0]));
-	array.Len = uint32(len);
-	array.Cap = uint32(cap);
-
-	return newValueAddr(typ, Addr(array)).(ArrayValue);
-}
-
-// Works on both slices and arrays
-func copyArray(dst ArrayValue, src ArrayValue, n int) {
-	if n == 0 {
-		return
-	}
-	dt := dst.Type().(ArrayType).Elem();
-	st := src.Type().(ArrayType).Elem();
-	if !equalType(dt, st) {
-		panicln("reflect: incompatible types in CopyArray:",
-			dt.String(), st.String());
-	}
-	if n < 0 || n > dst.Len() || n > src.Len() {
-		panicln("reflect: CopyArray: invalid count", n);
-	}
-	dstp := uintptr(dst.Elem(0).Addr());
-	srcp := uintptr(src.Elem(0).Addr());
-	end := uintptr(n)*uintptr(dt.Size());
-	if end % 8 == 0 {
-		for i := uintptr(0); i < end; i += 8{
-			di := Addr(dstp + i);
-			si := Addr(srcp + i);
-			*(*uint64)(di) = *(*uint64)(si);
-		}
-	} else {
-		for i := uintptr(0); i < end; i++ {
-			di := Addr(dstp + i);
-			si := Addr(srcp + i);
-			*(*byte)(di) = *(*byte)(si);
-		}
-	}
-}
-
-func typeof(typestring string) Type {
-	typ, ok := typecache[typestring];
-	if !ok {
-		typ = ParseTypeString("", typestring);
-		if typ.Kind() == MissingKind {
-			// This can not happen: unsafe.Reflect should only
-			// ever tell us the names of types that exist.
-			// Of course it does happen, and when it does
-			// it is more helpful to catch it in action here than
-			// to see $missing$ in a later print.
-			panicln("missing type for", typestring);
-		}
-		typecache[typestring] = typ;
-	}
-	return typ;
-}
-
-// NewValue creates a new Value from the interface{} object provided.
-func NewValue(e interface {}) Value {
-	value, typestring, indir := unsafe.Reflect(e);
-	typ := typeof(typestring);
-	var ap Addr;
-	if indir {
-		// Content of interface is large and didn't
-		// fit, so it's a pointer to the actual content.
-		// We have an address, but we need to
-		// make a copy to avoid letting the caller
-		// edit the content inside the interface.
-		n := uintptr(typ.Size());
-		data := make([]byte, n);
-		p1 := uintptr(Addr(&data[0]));
-		p2 := uintptr(value);
-		for i := uintptr(0); i < n; i++ {
-			*(*byte)(Addr(p1+i)) = *(*byte)(Addr(p2+i));
-		}
-		ap = Addr(&data[0]);
-	} else {
-		// Content of interface is small and stored
-		// inside the interface.  Make a copy so we
-		// can take its address.
-		x := new(uint64);
-		*x = value;
-		ap = Addr(x);
-	}
-	return newValueAddr(typ, ap);
-}
-
-// Typeof returns the type of the value in the interface{} object provided.
-func Typeof(e interface{}) Type {
-	value, typestring, indir := unsafe.Reflect(e);
-	return typeof(typestring);
-}
-
-// Indirect indirects one level through a value, if it is a pointer.
-// If not a pointer, the value is returned unchanged.
-// Useful when walking arbitrary data structures.
-func Indirect(v Value) Value {
-	if v.Kind() == PtrKind {
-		p := v.(PtrValue);
-		if p.Get() == nil {
-			return nil
-		}
-		v = p.Sub()
-	}
-	return v
+	return newValue(typ, addr(&data[0]), true);
 }
