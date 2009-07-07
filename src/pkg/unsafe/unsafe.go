@@ -35,10 +35,13 @@ func	Offsetof(v ArbitraryType) int
 // If v is of the form obj.f, it returns the alignment of field f within struct object obj.
 func	Alignof(v ArbitraryType) int
 
-// Reflect unpacks an interface value into its internal value word and its type string.
-// The boolean indir is true if the value is a pointer to the real value.
-func	Reflect(i interface {}) (value uint64, typestring string, indir bool)
+// Typeof returns the type of an interface value, a runtime.Type.
+func	Typeof(i interface {}) (typ interface {})
 
-// Unreflect inverts Reflect: Given a value word, a type string, and the indirect bit,
-// it returns an empty interface value with those contents.
-func	Unreflect(value uint64, typestring string, indir bool) (ret interface {})
+// Reflect unpacks an interface value into its type and the address of a copy of the
+// internal value.
+func	Reflect(i interface {}) (typ interface {}, addr uintptr)
+
+// Unreflect inverts Reflect: Given a type and a pointer, it returns an empty interface value
+// with those contents.
+func	Unreflect(typ interface {}, addr uintptr) (ret interface {})
