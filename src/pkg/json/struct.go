@@ -10,6 +10,7 @@ package json
 import (
 	"json";
 	"reflect";
+	"strings";
 )
 
 type _StructBuilder struct {
@@ -18,39 +19,51 @@ type _StructBuilder struct {
 
 var nobuilder *_StructBuilder
 
+func isfloat(v reflect.Value) bool {
+	switch v := v.(type) {
+	case *reflect.FloatValue:
+		return true;
+	case *reflect.Float32Value:
+		return true;
+	case *reflect.Float64Value:
+		return true;
+	}
+	return false;
+}
+
 func setfloat(v reflect.Value, f float64) {
-	switch v.Kind() {
-	case reflect.FloatKind:
-		v.(reflect.FloatValue).Set(float(f));
-	case reflect.Float32Kind:
-		v.(reflect.Float32Value).Set(float32(f));
-	case reflect.Float64Kind:
-		v.(reflect.Float64Value).Set(float64(f));
+	switch v := v.(type) {
+	case *reflect.FloatValue:
+		v.Set(float(f));
+	case *reflect.Float32Value:
+		v.Set(float32(f));
+	case *reflect.Float64Value:
+		v.Set(float64(f));
 	}
 }
 
 func setint(v reflect.Value, i int64) {
-	switch v.Kind() {
-	case reflect.IntKind:
-		v.(reflect.IntValue).Set(int(i));
-	case reflect.Int8Kind:
-		v.(reflect.Int8Value).Set(int8(i));
-	case reflect.Int16Kind:
-		v.(reflect.Int16Value).Set(int16(i));
-	case reflect.Int32Kind:
-		v.(reflect.Int32Value).Set(int32(i));
-	case reflect.Int64Kind:
-		v.(reflect.Int64Value).Set(int64(i));
-	case reflect.UintKind:
-		v.(reflect.UintValue).Set(uint(i));
-	case reflect.Uint8Kind:
-		v.(reflect.Uint8Value).Set(uint8(i));
-	case reflect.Uint16Kind:
-		v.(reflect.Uint16Value).Set(uint16(i));
-	case reflect.Uint32Kind:
-		v.(reflect.Uint32Value).Set(uint32(i));
-	case reflect.Uint64Kind:
-		v.(reflect.Uint64Value).Set(uint64(i));
+	switch v := v.(type) {
+	case *reflect.IntValue:
+		v.Set(int(i));
+	case *reflect.Int8Value:
+		v.Set(int8(i));
+	case *reflect.Int16Value:
+		v.Set(int16(i));
+	case *reflect.Int32Value:
+		v.Set(int32(i));
+	case *reflect.Int64Value:
+		v.Set(int64(i));
+	case *reflect.UintValue:
+		v.Set(uint(i));
+	case *reflect.Uint8Value:
+		v.Set(uint8(i));
+	case *reflect.Uint16Value:
+		v.Set(uint16(i));
+	case *reflect.Uint32Value:
+		v.Set(uint32(i));
+	case *reflect.Uint64Value:
+		v.Set(uint64(i));
 	}
 }
 
@@ -59,10 +72,9 @@ func (b *_StructBuilder) Int64(i int64) {
 		return
 	}
 	v := b.val;
-	switch v.Kind() {
-	case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind:
+	if isfloat(v) {
 		setfloat(v, float64(i));
-	default:
+	} else {
 		setint(v, i);
 	}
 }
@@ -72,10 +84,9 @@ func (b *_StructBuilder) Uint64(i uint64) {
 		return
 	}
 	v := b.val;
-	switch v.Kind() {
-	case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind:
+	if isfloat(v) {
 		setfloat(v, float64(i));
-	default:
+	} else {
 		setint(v, int64(i));
 	}
 }
@@ -85,10 +96,9 @@ func (b *_StructBuilder) Float64(f float64) {
 		return
 	}
 	v := b.val;
-	switch v.Kind() {
-	case reflect.FloatKind, reflect.Float32Kind, reflect.Float64Kind:
+	if isfloat(v) {
 		setfloat(v, f);
-	default:
+	} else {
 		setint(v, int64(f));
 	}
 }
@@ -100,8 +110,8 @@ func (b *_StructBuilder) String(s string) {
 	if b == nil {
 		return
 	}
-	if v := b.val; v.Kind() == reflect.StringKind {
-		v.(reflect.StringValue).Set(s);
+	if v, ok := b.val.(*reflect.StringValue); ok {
+		v.Set(s);
 	}
 }
 
@@ -109,8 +119,8 @@ func (b *_StructBuilder) Bool(tf bool) {
 	if b == nil {
 		return
 	}
-	if v := b.val; v.Kind() == reflect.BoolKind {
-		v.(reflect.BoolValue).Set(tf);
+	if v, ok := b.val.(*reflect.BoolValue); ok {
+		v.Set(tf);
 	}
 }
 
@@ -118,10 +128,9 @@ func (b *_StructBuilder) Array() {
 	if b == nil {
 		return
 	}
-	if v := b.val; v.Kind() == reflect.ArrayKind {
-		av := v.(reflect.ArrayValue);
-		if av.IsSlice() && av.IsNil() {
-			av.Set(reflect.NewSliceValue(av.Type().(reflect.ArrayType), 0, 8));
+	if v, ok := b.val.(*reflect.SliceValue); ok {
+		if v.IsNil() {
+			v.Set(reflect.MakeSlice(v.Type().(*reflect.SliceType), 0, 8));
 		}
 	}
 }
@@ -130,41 +139,41 @@ func (b *_StructBuilder) Elem(i int) Builder {
 	if b == nil || i < 0 {
 		return nobuilder
 	}
-	v := b.val;
-	if v.Kind() != reflect.ArrayKind {
-		return nobuilder
-	}
-	av := v.(reflect.ArrayValue);
-	if av.IsSlice() && i > av.Cap() {
-		n := av.Cap();
-		if n < 8 {
-			n = 8
+	switch v := b.val.(type) {
+	case *reflect.ArrayValue:
+		if i < v.Len() {
+			return &_StructBuilder{ v.Elem(i) }
 		}
-		for n <= i {
-			n *= 2
+	case *reflect.SliceValue:
+		if i > v.Cap() {
+			n := v.Cap();
+			if n < 8 {
+				n = 8
+			}
+			for n <= i {
+				n *= 2
+			}
+			nv := reflect.MakeSlice(v.Type().(*reflect.SliceType), v.Len(), n);
+			reflect.ArrayCopy(nv, v);
+			v.Set(nv);
 		}
-		av1 := reflect.NewSliceValue(av.Type().(reflect.ArrayType), av.Len(), n);
-		av1.CopyFrom(av, av.Len());
-		av.Set(av1);
+		if v.Len() <= i && i < v.Cap() {
+			v.SetLen(i+1);
+		}
+		if i < v.Len() {
+			return &_StructBuilder{ v.Elem(i) }
+		}
 	}
-	// Array was grown above, or is fixed size.
-	if av.Len() <= i && i < av.Cap() {
-		av.SetLen(i+1);
-	}
-	if i < av.Len() {
-		return &_StructBuilder{ av.Elem(i) }
-	}
-	return nobuilder
+	return nobuilder;
 }
 
 func (b *_StructBuilder) Map() {
 	if b == nil {
 		return
 	}
-	if v := b.val; v.Kind() == reflect.PtrKind {
-		pv := v.(reflect.PtrValue);
-		if pv.Get() == nil {
-			pv.SetSub(reflect.NewZeroValue(pv.Type().(reflect.PtrType).Sub()))
+	if v, ok := b.val.(*reflect.PtrValue); ok {
+		if v.IsNil() {
+			v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()))
 		}
 	}
 }
@@ -173,17 +182,17 @@ func (b *_StructBuilder) Key(k string) Builder {
 	if b == nil {
 		return nobuilder
 	}
-	v := b.val;
-	if v.Kind() == reflect.PtrKind {
-		v = v.(reflect.PtrValue).Sub();
-	}
-	if v.Kind() == reflect.StructKind {
-		sv := v.(reflect.StructValue);
-		t := v.Type().(reflect.StructType);
-		for i := 0; i < t.Len(); i++ {
-			name, typ, tag, off := t.Field(i);
-			if k == name {
-				return &_StructBuilder{ sv.Field(i) }
+	if v, ok := reflect.Indirect(b.val).(*reflect.StructValue); ok {
+		t := v.Type().(*reflect.StructType);
+		for i := 0; i < t.NumField(); i++ {
+			if t.Field(i).Name == k {
+				return &_StructBuilder{ v.Field(i) }
+			}
+		}
+		// Again, case-insensitive.
+		for i := 0; i < t.NumField(); i++ {
+			if strings.LowerASCII(t.Field(i).Name) == k {
+				return &_StructBuilder{ v.Field(i) }
 			}
 		}
 	}
