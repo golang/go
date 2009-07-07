@@ -154,6 +154,7 @@ struct	Type
 	uchar	outnamed;
 
 	Type*	method;
+	Type*	xmethod;
 
 	Sym*	sym;
 	int32	vargen;		// unique name for OTYPE/ONAME

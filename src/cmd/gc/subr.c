@@ -2796,7 +2796,7 @@ expandmeth(Sym *s, Type *t)
 
 	if(s == S)
 		return;
-	if(t == T)
+	if(t == T || t->xmethod != nil)
 		return;
 
 	// generate all reachable methods
@@ -2818,6 +2818,7 @@ expandmeth(Sym *s, Type *t)
 		}
 	}
 
+	t->xmethod = t->method;
 	for(sl=slist; sl!=nil; sl=sl->link) {
 		if(sl->good) {
 			// add it to the base type method list
@@ -2826,8 +2827,8 @@ expandmeth(Sym *s, Type *t)
 			f->embedded = 1;	// needs a trampoline
 			if(sl->followptr)
 				f->embedded = 2;
-			f->down = t->method;
-			t->method = f;
+			f->down = t->xmethod;
+			t->xmethod = f;
 
 		}
 	}
