@@ -1275,7 +1275,6 @@ walkconv(Node *n)
 
 	// if using .(T), interface assertion.
 	if(n->op == ODOTTYPE) {
-		// interface conversion
 		defaultlit(l, T);
 		if(!isinter(l->type))
 			yyerror("type assertion requires interface on left, have %T", l->type);
@@ -1306,6 +1305,14 @@ walkconv(Node *n)
 		// in case tree gets walked again.
 		// back end will ignore.
 		n->op = OCONVNOP;
+		return;
+	}
+	
+	// to/from interface.
+	// ifaceas1 will generate a good error
+	// if the conversion is invalid.
+	if(t->etype == TINTER || l->type->etype == TINTER) {
+		indir(n, ifacecvt(t, l, ifaceas1(t, l->type, 0)));
 		return;
 	}
 

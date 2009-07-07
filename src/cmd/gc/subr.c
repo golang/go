@@ -3136,10 +3136,10 @@ runifacechecks(void)
 				t, iface, m->sym, m->type);
 		else if(!p->explicit && needexplicit) {
 			if(m)
-				yyerror("need explicit conversion to use %T as %T\n\tmissing %S%hhT",
+				yyerror("need type assertion to use %T as %T\n\tmissing %S%hhT",
 					p->src, p->dst, m->sym, m->type);
 			else
-				yyerror("need explicit conversion to use %T as %T",
+				yyerror("need type assertion to use %T as %T",
 					p->src, p->dst);
 		}
 	}
