@@ -29,14 +29,14 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 	if v2 == nil {
 		return false
 	}
-	if !equalType(v1.Type(), v2.Type()) {
+	if v1.Type() != v2.Type() {
 		return false;
 	}
 
 	// if depth > 10 { panic("deepValueEqual") }	// for debugging
 
-	addr1 := uintptr(v1.Addr());
-	addr2 := uintptr(v2.Addr());
+	addr1 := v1.Addr();
+	addr2 := v2.Addr();
 	if addr1 > addr2 {
 		// Canonicalize order to reduce number of entries in visited.
 		addr1, addr2 = addr2, addr1;
@@ -60,11 +60,11 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 	// Remember for later.
 	visited[h] = &visit{addr1, addr2, typ, seen};
 
-	switch v1.Kind() {
-	case ArrayKind:
-		arr1 := v1.(ArrayValue);
-		arr2 := v2.(ArrayValue);
-		if arr1.IsSlice() != arr2.IsSlice() || arr1.Len() != arr2.Len() {
+	switch v := v1.(type) {
+	case *ArrayValue:
+		arr1 := v;
+		arr2 := v2.(*ArrayValue);
+		if arr1.Len() != arr2.Len() {
 			return false;
 		}
 		for i := 0; i < arr1.Len(); i++ {
@@ -73,25 +73,34 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 			}
 		}
 		return true;
-	case InterfaceKind:
-		i1 := v1.(InterfaceValue).Get();
-		i2 := v2.(InterfaceValue).Get();
+	case *SliceValue:
+		arr1 := v;
+		arr2 := v2.(*SliceValue);
+		if arr1.Len() != arr2.Len() {
+			return false;
+		}
+		for i := 0; i < arr1.Len(); i++ {
+			if !deepValueEqual(arr1.Elem(i), arr2.Elem(i), visited, depth+1) {
+				return false;
+			}
+		}
+		return true;
+	case *InterfaceValue:
+		i1 := v.Interface();
+		i2 := v2.Interface();
 		if i1 == nil || i2 == nil {
 			return i1 == i2;
 		}
 		return deepValueEqual(NewValue(i1), NewValue(i2), visited, depth+1);
-	case MapKind:
+	case *MapValue:
 		// TODO(dnadasi): Implement this fully once MapValue is implemented
 		return v1.Interface() == v2.Interface();
-	case PtrKind:
-		return deepValueEqual(v1.(PtrValue).Sub(), v2.(PtrValue).Sub(), visited, depth+1);
-	case StructKind:
-		struct1 := v1.(StructValue);
-		struct2 := v2.(StructValue);
-		if struct1.Len() != struct2.Len() {
-			return false;
-		}
-		for i := 0; i < struct1.Len(); i++ {
+	case *PtrValue:
+		return deepValueEqual(v.Elem(), v2.(*PtrValue).Elem(), visited, depth+1);
+	case *StructValue:
+		struct1 := v;
+		struct2 := v2.(*StructValue);
+		for i, n:= 0, v.NumField(); i < n; i++ {
 			if !deepValueEqual(struct1.Field(i), struct2.Field(i), visited, depth+1) {
 				return false;
 			}
@@ -112,7 +121,10 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 func DeepEqual(a1, a2 interface{}) bool {
 	v1 := NewValue(a1);
 	v2 := NewValue(a2);
-	if !equalType(v1.Type(), v2.Type()) {
+	if v1 == nil {
+		return v1 == v2;
+	}
+	if v1.Type() != v2.Type() {
 		return false;
 	}
 	return deepValueEqual(v1, v2, make(map[uintptr]*visit), 0);
