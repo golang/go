@@ -387,8 +387,6 @@ Prog*	copyp(Prog*);
 double	cputime(void);
 void	datblk(int32, int32);
 void	deadcode(void);
-void	definetypestrings(void);
-void	definetypesigs(void);
 void	diag(char*, ...);
 void	dodata(void);
 void	doinit(void);
