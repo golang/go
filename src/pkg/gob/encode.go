@@ -268,7 +268,6 @@ func encodeStruct(engine *encEngine, w io.Writer, basep uintptr) os.Error {
 		p := unsafe.Pointer(basep+instr.offset);
 		if instr.indir > 0 {
 			if p = encIndirect(p, instr.indir); p == nil {
-				state.fieldnum = i;
 				continue
 			}
 		}
@@ -321,9 +320,13 @@ var encOpMap = map[reflect.Type] encOp {
 
 func getEncEngine(rt reflect.Type) *encEngine
 
-func encOpFor(typ reflect.Type) encOp {
+// Return the encoding op for the base type under rt and
+// the indirection count to reach it.
+func encOpFor(rt reflect.Type) (encOp, int) {
+	typ, indir := indirect(rt);
 	op, ok := encOpMap[reflect.Typeof(typ)];
 	if !ok {
+		typ, _ := indirect(rt);
 		// Special cases
 		switch t := typ.(type) {
 		case *reflect.SliceType:
@@ -332,8 +335,7 @@ func encOpFor(typ reflect.Type) encOp {
 				break;
 			}
 			// Slices have a header; we decode it to find the underlying array.
-			elemOp := encOpFor(t.Elem());
-			_, indir := indirect(t.Elem());
+			elemOp, indir := encOpFor(t.Elem());
 			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
 				slice := (*reflect.SliceHeader)(p);
 				if slice.Len == 0 {
@@ -344,8 +346,7 @@ func encOpFor(typ reflect.Type) encOp {
 			};
 		case *reflect.ArrayType:
 			// True arrays have size in the type.
-			elemOp := encOpFor(t.Elem());
-			_, indir := indirect(t.Elem());
+			elemOp, indir := encOpFor(t.Elem());
 			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
 				state.update(i);
 				state.err = encodeArray(state.w, uintptr(p), elemOp, t.Elem().Size(), t.Len(), indir);
@@ -360,9 +361,9 @@ func encOpFor(typ reflect.Type) encOp {
 		}
 	}
 	if op == nil {
-		panicln("encode can't handle type", typ.String());
+		panicln("encode can't handle type", rt.String());
 	}
-	return op
+	return op, indir
 }
 
 // The local Type was compiled from the actual value, so we know
@@ -377,8 +378,7 @@ func compileEnc(rt reflect.Type, typ Type) *encEngine {
 	engine.instr = make([]encInstr, srt.NumField()+1);	// +1 for terminator
 	for fieldnum := 0; fieldnum < srt.NumField(); fieldnum++ {
 		f := srt.Field(fieldnum);
-		ftyp, indir := indirect(f.Type);
-		op := encOpFor(ftyp);
+		op, indir := encOpFor(f.Type);
 		engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(f.Offset)};
 	}
 	engine.instr[srt.NumField()] = encInstr{encStructTerminator, 0, 0, 0};
