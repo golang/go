@@ -15,7 +15,6 @@ enum
 	Emax		= 0x0800,	// error limit before throw
 };
 
-typedef	struct	Hchan	Hchan;
 typedef	struct	Link	Link;
 typedef	struct	WaitQ	WaitQ;
 typedef	struct	SudoG	SudoG;
@@ -88,10 +87,8 @@ static	uint32	gcd(uint32, uint32);
 static	uint32	fastrand1(void);
 static	uint32	fastrand2(void);
 
-// newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
-void
-sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
-	Hchan* ret)
+Hchan*
+makechan(uint32 elemsize, uint32 elemalg, uint32 hint)
 {
 	Hchan *c;
 	int32 i;
@@ -126,9 +123,6 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
 		c->dataqsiz = hint;
 	}
 
-	ret = c;
-	FLUSH(&ret);
-
 	if(debug) {
 		prints("newchan: chan=");
 		sys·printpointer(c);
@@ -140,6 +134,16 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
 		sys·printint(c->dataqsiz);
 		prints("\n");
 	}
+
+	return c;
+}
+
+// newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
+void
+sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint, Hchan *ret)
+{
+	ret = makechan(elemsize, elemalg, hint);
+	FLUSH(&ret);
 }
 
 static void
@@ -162,7 +166,7 @@ incerr(Hchan* c)
  * not complete
  */
 void
-sendchan(Hchan *c, byte *ep, bool *pres)
+chansend(Hchan *c, byte *ep, bool *pres)
 {
 	SudoG *sg;
 	G* gp;
@@ -266,7 +270,7 @@ closed:
 	unlock(&chanlock);
 }
 
-static void
+void
 chanrecv(Hchan* c, byte *ep, bool* pres)
 {
 	SudoG *sg;
@@ -381,7 +385,7 @@ sys·chansend1(Hchan* c, ...)
 
 	o = rnd(sizeof(c), c->elemsize);
 	ae = (byte*)&c + o;
-	sendchan(c, ae, nil);
+	chansend(c, ae, nil);
 }
 
 // chansend2(hchan *chan any, elem any) (pres bool);
@@ -396,7 +400,7 @@ sys·chansend2(Hchan* c, ...)
 	o = rnd(o+c->elemsize, Structrnd);
 	ap = (byte*)&c + o;
 
-	sendchan(c, ae, ap);
+	chansend(c, ae, ap);
 }
 
 // chanrecv1(hchan *chan any) (elem any);

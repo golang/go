@@ -631,26 +631,74 @@ func (v *ChanValue) Get() uintptr {
 	return *(*uintptr)(v.addr);
 }
 
+// implemented in ../pkg/runtime/reflect.cgo
+func makechan(typ *runtime.ChanType, size uint32) (ch *byte)
+func chansend(ch, val *byte, pres *bool)
+func chanrecv(ch, val *byte, pres *bool)
+
+// internal send; non-blocking if b != nil
+func (v *ChanValue) send(x Value, b *bool) {
+	t := v.Type().(*ChanType);
+	if t.Dir() & SendDir == 0{
+		panic("send on recv-only channel");
+	}
+	ch := *(**byte)(v.addr);
+	chansend(ch, (*byte)(x.getAddr()), b);
+}
+
+// internal recv; non-blocking if b != nil
+func (v *ChanValue) recv(b *bool) Value {
+	t := v.Type().(*ChanType);
+	if t.Dir() & RecvDir == 0 {
+		panic("recv on send-only channel");
+	}
+	ch := *(**byte)(v.addr);
+	newval := MakeZero(t.Elem());
+	x := MakeZero(t.Elem());
+	chanrecv(ch, (*byte)(x.getAddr()), b);
+	return x;
+}
+
 // Send sends x on the channel v.
 func (v *ChanValue) Send(x Value) {
-	panic("unimplemented: channel Send");
+	v.send(x, nil);
 }
 
 // Recv receives and returns a value from the channel v.
 func (v *ChanValue) Recv() Value {
-	panic("unimplemented: channel Receive");
+	return v.recv(nil);
 }
 
 // TrySend attempts to sends x on the channel v but will not block.
 // It returns true if the value was sent, false otherwise.
 func (v *ChanValue) TrySend(x Value) bool {
-	panic("unimplemented: channel TrySend");
+	var ok bool;
+	v.send(x, &ok);
+	return ok;
 }
 
 // TryRecv attempts to receive a value from the channel v but will not block.
 // It returns the value if one is received, nil otherwise.
 func (v *ChanValue) TryRecv() Value {
-	panic("unimplemented: channel TryRecv");
+	var ok bool;
+	x := v.recv(&ok);
+	if !ok {
+		return nil;
+	}
+	return x;
+}
+
+// MakeChan creates a new channel with the specified type and buffer size.
+func MakeChan(typ *ChanType, buffer int) *ChanValue {
+	if buffer < 0 {
+		panic("MakeChan: negative buffer size");
+	}
+	if typ.Dir() != BothDir {
+		panic("MakeChan: unidirectional channel type");
+	}
+	v := MakeZero(typ).(*ChanValue);
+	*(**byte)(v.addr) = makechan((*runtime.ChanType)(unsafe.Pointer(typ)), uint32(buffer));
+	return v;
 }
 
 /*
@@ -818,6 +866,7 @@ func (v *MapValue) Keys() []Value {
 	return a[0:i];
 }
 
+// MakeMap creates a new map of the specified type.
 func MakeMap(typ *MapType) *MapValue {
 	v := MakeZero(typ).(*MapValue);
 	*(**byte)(v.addr) = makemap((*runtime.MapType)(unsafe.Pointer(typ)));

@@ -12,6 +12,7 @@ typedef struct InterfaceType InterfaceType;
 typedef struct Method Method;
 typedef struct IMethod IMethod;
 typedef struct MapType MapType;
+typedef struct ChanType ChanType;
 
 struct CommonType
 {
@@ -70,4 +71,11 @@ struct MapType
 	Type;
 	Type *key;
 	Type *elem;
+};
+
+struct ChanType
+{
+	Type;
+	Type *elem;
+	uintptr dir;
 };
