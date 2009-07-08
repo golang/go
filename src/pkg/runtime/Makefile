@@ -60,6 +60,7 @@ OFILES=\
 	msize.$O\
 	print.$O\
 	proc.$O\
+	reflect.$O\
 	rune.$O\
 	runtime.$O\
 	rt0.$O\

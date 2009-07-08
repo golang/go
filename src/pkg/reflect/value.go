@@ -6,6 +6,7 @@ package reflect
 
 import (
 	"reflect";
+	"runtime";
 	"unsafe";
 )
 
@@ -58,7 +59,11 @@ type Value interface {
 	// It is for advanced clients that also
 	// import the "unsafe" package.
 	Addr()	uintptr;
+
+	getAddr()	addr;
 }
+
+func MakeZero(typ Type) Value
 
 type value struct {
 	typ Type;
@@ -72,6 +77,10 @@ func (v *value) Type() Type {
 
 func (v *value) Addr() uintptr {
 	return uintptr(v.addr);
+}
+
+func (v *value) getAddr() addr {
+	return v.addr;
 }
 
 type InterfaceValue struct
@@ -742,21 +751,77 @@ func (v *MapValue) Set(x *MapValue) {
 	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
 }
 
-// Elem returns the value associated with key in the map v.
+// implemented in ../pkg/runtime/reflect.cgo
+func mapaccess(m, key, val *byte) bool
+func mapassign(m, key, val *byte)
+func maplen(m *byte) int32
+func mapiterinit(m *byte) *byte
+func mapiternext(it *byte)
+func mapiterkey(it *byte, key *byte) bool
+func makemap(t *runtime.MapType) *byte
+
+// Get returns the value associated with key in the map v.
 // It returns nil if key is not found in the map.
-func (v *MapValue) Elem(key Value) Value {
-	panic("unimplemented: map Elem");
+func (v *MapValue) Get(key Value) Value {
+	t := v.Type().(*MapType);
+	typesMustMatch(t.Key(), key.Type());
+	m := *(**byte)(v.addr);
+	if m == nil {
+		return nil;
+	}
+	newval := MakeZero(t.Elem());
+	if !mapaccess(m, (*byte)(key.getAddr()), (*byte)(newval.getAddr())) {
+		return nil;
+	}
+	return newval;
+}
+
+// Put sets the value associated with key in the map v to val.
+// If val is nil, Put deletes the key from map.
+func (v *MapValue) Put(key, val Value) {
+	t := v.Type().(*MapType);
+	typesMustMatch(t.Key(), key.Type());
+	var vaddr *byte;
+	if val != nil {
+		typesMustMatch(t.Elem(), val.Type());
+		vaddr = (*byte)(val.getAddr());
+	}
+	m := *(**byte)(v.addr);
+	mapassign(m, (*byte)(key.getAddr()), vaddr);
 }
 
 // Len returns the number of keys in the map v.
 func (v *MapValue) Len() int {
-	panic("unimplemented: map Len");
+	m := *(**byte)(v.addr);
+	if m == nil {
+		return 0;
+	}
+	return int(maplen(m));
 }
 
 // Keys returns a slice containing all the keys present in the map,
 // in unspecified order.
 func (v *MapValue) Keys() []Value {
-	panic("unimplemented: map Keys");
+	tk := v.Type().(*MapType).Key();
+	m := *(**byte)(v.addr);
+	it := mapiterinit(m);
+	a := make([]Value, maplen(m));
+	var i int;
+	for i = 0; i < len(a); i++ {
+		k := MakeZero(tk);
+		if !mapiterkey(it, (*byte)(k.getAddr())) {
+			break;
+		}
+		a[i] = k;
+		mapiternext(it);
+	}
+	return a[0:i];
+}
+
+func MakeMap(typ *MapType) *MapValue {
+	v := MakeZero(typ).(*MapValue);
+	*(**byte)(v.addr) = makemap((*runtime.MapType)(unsafe.Pointer(typ)));
+	return v;
 }
 
 /*
@@ -946,7 +1011,7 @@ func newFuncValue(typ Type, addr addr) *FuncValue {
 	return newValue(typ, addr, true).(*FuncValue);
 }
 
-// MakeZeroValue returns a zero Value for the specified Type.
+// MakeZero returns a zero Value for the specified Type.
 func MakeZero(typ Type) Value {
 	// TODO: this will have to move into
 	// the runtime proper in order to play nicely

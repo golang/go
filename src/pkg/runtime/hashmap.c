@@ -662,16 +662,14 @@ donothing(uint32 s, void *a, void *b)
 	USED(b);
 }
 
-typedef	struct	hash	Hmap;
 static	int32	debug	= 0;
 
 // newmap(keysize uint32, valsize uint32,
 //	keyalg uint32, valalg uint32,
 //	hint uint32) (hmap *map[any]any);
-void
-sys·newmap(uint32 keysize, uint32 valsize,
-	uint32 keyalg, uint32 valalg, uint32 hint,
-	Hmap* ret)
+Hmap*
+makemap(uint32 keysize, uint32 valsize,
+	uint32 keyalg, uint32 valalg, uint32 hint)
 {
 	Hmap *h;
 
@@ -721,12 +719,38 @@ sys·newmap(uint32 keysize, uint32 valsize,
 	h->vo2 = rnd(h->ko2+keysize, valsize);
 	h->po2 = rnd(h->vo2+valsize, 1);
 
-	ret = h;
-	FLUSH(&ret);
-
 	if(debug) {
 		printf("newmap: map=%p; keysize=%d; valsize=%d; keyalg=%d; valalg=%d; offsets=%d,%d; %d,%d,%d; %d,%d,%d\n",
 			h, keysize, valsize, keyalg, valalg, h->ko0, h->vo0, h->ko1, h->vo1, h->po1, h->ko2, h->vo2, h->po2);
+	}
+
+	return h;
+}
+
+// newmap(keysize uint32, valsize uint32,
+//	keyalg uint32, valalg uint32,
+//	hint uint32) (hmap *map[any]any);
+void
+sys·newmap(uint32 keysize, uint32 valsize,
+	uint32 keyalg, uint32 valalg, uint32 hint,
+	Hmap *ret)
+{
+	ret = makemap(keysize, valsize, keyalg, valalg, hint);
+	FLUSH(&ret);
+}
+
+void
+mapaccess(Hmap *h, byte *ak, byte *av, bool *pres)
+{
+	byte *res;
+
+	res = nil;
+	if(hash_lookup(h, ak, (void**)&res)) {
+		*pres = true;
+		h->valalg->copy(h->valsize, av, res+h->datavo);
+	} else {
+		*pres = false;
+		h->valalg->copy(h->valsize, av, nil);
 	}
 }
 
@@ -735,17 +759,14 @@ void
 sys·mapaccess1(Hmap *h, ...)
 {
 	byte *ak, *av;
-	byte *res;
-	int32 hit;
+	bool pres;
 
 	ak = (byte*)&h + h->ko1;
 	av = (byte*)&h + h->vo1;
 
-	res = nil;
-	hit = hash_lookup(h, ak, (void**)&res);
-	if(!hit)
+	mapaccess(h, ak, av, &pres);
+	if(!pres)
 		throw("sys·mapaccess1: key not in map");
-	h->valalg->copy(h->valsize, av, res+h->datavo);
 
 	if(debug) {
 		prints("sys·mapaccess1: map=");
@@ -754,10 +775,8 @@ sys·mapaccess1(Hmap *h, ...)
 		h->keyalg->print(h->keysize, ak);
 		prints("; val=");
 		h->valalg->print(h->valsize, av);
-		prints("; hit=");
-		sys·printint(hit);
-		prints("; res=");
-		sys·printpointer(res);
+		prints("; pres=");
+		sys·printbool(pres);
 		prints("\n");
 	}
 }
@@ -767,22 +786,12 @@ void
 sys·mapaccess2(Hmap *h, ...)
 {
 	byte *ak, *av, *ap;
-	byte *res;
-	int32 hit;
 
 	ak = (byte*)&h + h->ko1;
 	av = (byte*)&h + h->vo1;
 	ap = (byte*)&h + h->po1;
 
-	res = nil;
-	hit = hash_lookup(h, ak, (void**)&res);
-	if(!hit) {
-		*ap = false;
-		h->valalg->copy(h->valsize, av, nil);
-	} else {
-		*ap = true;
-		h->valalg->copy(h->valsize, av, res+h->datavo);
-	}
+	mapaccess(h, ak, av, ap);
 
 	if(debug) {
 		prints("sys·mapaccess2: map=");
@@ -791,23 +800,24 @@ sys·mapaccess2(Hmap *h, ...)
 		h->keyalg->print(h->keysize, ak);
 		prints("; val=");
 		h->valalg->print(h->valsize, av);
-		prints("; hit=");
-		sys·printint(hit);
-		prints("; res=");
-		sys·printpointer(res);
 		prints("; pres=");
 		sys·printbool(*ap);
 		prints("\n");
 	}
 }
 
-static void
+void
 mapassign(Hmap *h, byte *ak, byte *av)
 {
 	byte *res;
 	int32 hit;
 
 	res = nil;
+	if(av == nil) {
+		hash_remove(h, ak, (void**)&res);
+		return;
+	}
+
 	hit = hash_insert(h, ak, (void**)&res);
 	h->keyalg->copy(h->keysize, res, ak);
 	h->valalg->copy(h->valsize, res+h->datavo, av);
@@ -844,31 +854,21 @@ void
 sys·mapassign2(Hmap *h, ...)
 {
 	byte *ak, *av, *ap;
-	byte *res;
-	int32 hit;
 
 	ak = (byte*)&h + h->ko2;
 	av = (byte*)&h + h->vo2;
 	ap = (byte*)&h + h->po2;
 
-	if(*ap == true) {
-		// assign
-		mapassign(h, ak, av);
-		return;
-	}
+	if(*ap == false)
+		av = nil;	// delete
 
-	// delete
-	hit = hash_remove(h, ak, (void**)&res);
+	mapassign(h, ak, av);
 
 	if(debug) {
 		prints("mapassign2: map=");
 		sys·printpointer(h);
 		prints("; key=");
 		h->keyalg->print(h->keysize, ak);
-		prints("; hit=");
-		sys·printint(hit);
-		prints("; res=");
-		sys·printpointer(res);
 		prints("\n");
 	}
 }
@@ -894,6 +894,16 @@ sys·mapiterinit(Hmap *h, struct hash_iter *it)
 	}
 }
 
+struct hash_iter*
+mapiterinit(Hmap *h)
+{
+	struct hash_iter *it;
+
+	it = mal(sizeof *it);
+	sys·mapiterinit(h, it);
+	return it;
+}
+
 // mapiternext(hiter *any);
 void
 sys·mapiternext(struct hash_iter *it)
@@ -906,6 +916,12 @@ sys·mapiternext(struct hash_iter *it)
 		sys·printpointer(it->data);
 		prints("\n");
 	}
+}
+
+void
+mapiternext(struct hash_iter *it)
+{
+	sys·mapiternext(it);
 }
 
 // mapiter1(hiter *any) (key any);
@@ -931,6 +947,20 @@ sys·mapiter1(struct hash_iter *it, ...)
 		sys·printpointer(h);
 		prints("\n");
 	}
+}
+
+bool
+mapiterkey(struct hash_iter *it, void *ak)
+{
+	Hmap *h;
+	byte *res;
+
+	h = it->h;
+	res = it->data;
+	if(res == nil)
+		return false;
+	h->keyalg->copy(h->keysize, ak, res);
+	return true;
 }
 
 // mapiter2(hiter *any) (key any, val any);

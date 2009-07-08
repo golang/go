@@ -1,0 +1,51 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package reflect
+#include "runtime.h"
+#include "type.h"
+
+/*
+ * Go wrappers around the C functions near the bottom of hashmap.c
+ * There's no recursion here even though it looks like there is:
+ * the names after func are in the reflect package name space
+ * but the names in the C bodies are in the standard C name space.
+ */
+
+func mapaccess(map *byte, key *byte, val *byte) (pres bool) {
+	mapaccess((Hmap*)map, key, val, &pres);
+}
+
+func mapassign(map *byte, key *byte, val *byte) {
+	mapassign((Hmap*)map, key, val);
+}
+
+func maplen(map *byte) (len int32) {
+	// length is first word of map
+	len = *(uint32*)map;
+}
+
+func mapiterinit(map *byte) (it *byte) {
+	it = (byte*)mapiterinit((Hmap*)map);
+}
+
+func mapiternext(it *byte) {
+	mapiternext((struct hash_iter*)it);
+}
+
+func mapiterkey(it *byte, key *byte) (ok bool) {
+	ok = mapiterkey((struct hash_iter*)it, key);
+}
+
+func makemap(typ *byte) (map *byte) {
+	MapType *t;
+
+	// typ is a *runtime.MapType, but the MapType
+	// defined in type.h includes an interface value header
+	// in front of the raw MapType.  the -2 below backs up
+	// to the interface value header.
+	t = (MapType*)((void**)typ - 2);
+
+	map = (byte*)makemap(t->key->size, t->elem->size, t->key->alg, t->elem->alg, 0);
+}

@@ -11,6 +11,7 @@ typedef struct UncommonType UncommonType;
 typedef struct InterfaceType InterfaceType;
 typedef struct Method Method;
 typedef struct IMethod IMethod;
+typedef struct MapType MapType;
 
 struct CommonType
 {
@@ -62,4 +63,11 @@ struct InterfaceType
 	Type;
 	Array mhdr;
 	IMethod m[];
+};
+
+struct MapType
+{
+	Type;
+	Type *key;
+	Type *elem;
 };
