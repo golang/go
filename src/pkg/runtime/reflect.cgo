@@ -49,3 +49,27 @@ func makemap(typ *byte) (map *byte) {
 
 	map = (byte*)makemap(t->key->size, t->elem->size, t->key->alg, t->elem->alg, 0);
 }
+
+/*
+ * Go wrappers around the C functions in chan.c
+ */
+
+func makechan(typ *byte, size uint32) (ch *byte) {
+	ChanType *t;
+
+	// typ is a *runtime.ChanType, but the ChanType
+	// defined in type.h includes an interface value header
+	// in front of the raw ChanType.  the -2 below backs up
+	// to the interface value header.
+	t = (ChanType*)((void**)typ - 2);
+	ch = (byte*)makechan(t->elem->size, t->elem->alg, size);
+}
+
+func chansend(ch *byte, val *byte, pres *bool) {
+	chansend((Hchan*)ch, val, pres);
+}
+
+func chanrecv(ch *byte, val *byte, pres *bool) {
+	chanrecv((Hchan*)ch, val, pres);
+}
+

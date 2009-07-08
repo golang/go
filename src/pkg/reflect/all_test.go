@@ -598,7 +598,7 @@ func TestNilPtrValueSub(t *testing.T) {
 	}
 }
 
-func TestMapAccess(t *testing.T) {
+func TestMap(t *testing.T) {
 	m := map[string]int{ "a": 1, "b": 2 };
 	mv := NewValue(m).(*MapValue);
 	if n := mv.Len(); n != len(m) {
@@ -644,10 +644,84 @@ func TestMapAccess(t *testing.T) {
 			t.Errorf("newm[%q] = %d, but m[%q] = %d, %v", k, v, k, mv, ok);
 		}
 	}
-	
+
 	newmap.Put(NewValue("a"), nil);
 	v, ok := newm["a"];
 	if ok {
 		t.Errorf("newm[\"a\"] = %d after delete", v);
 	}
 }
+
+func TestChan(t *testing.T) {
+	for loop := 0; loop < 2; loop++ {
+		var c chan int;
+		var cv *ChanValue;
+
+		// check both ways to allocate channels
+		switch loop {
+		case 1:
+			c = make(chan int, 1);
+			cv = NewValue(c).(*ChanValue);
+		case 0:
+			cv = MakeChan(Typeof(c).(*ChanType), 1);
+			c = cv.Interface().(chan int);
+		}
+
+		// Send
+		cv.Send(NewValue(2));
+		if i := <-c; i != 2 {
+			t.Errorf("reflect Send 2, native recv %d", i);
+		}
+
+		// Recv
+		c <- 3;
+		if i := cv.Recv().(*IntValue).Get(); i != 3 {
+			t.Errorf("native send 3, reflect Recv %d", i);
+		}
+
+		// TryRecv fail
+		val := cv.TryRecv();
+		if val != nil {
+			t.Errorf("TryRecv on empty chan: %s", valueToString(val));
+		}
+
+		// TryRecv success
+		c <- 4;
+		val = cv.TryRecv();
+		if val == nil {
+			t.Errorf("TryRecv on ready chan got nil");
+		} else if i := val.(*IntValue).Get(); i != 4 {
+			t.Errorf("native send 4, TryRecv %d", i);
+		}
+
+		// TrySend fail
+		c <- 100;
+		ok := cv.TrySend(NewValue(5));
+		i := <-c;
+		if ok {
+			t.Errorf("TrySend on full chan succeeded: value %d", i);
+		}
+
+		// TrySend success
+		ok = cv.TrySend(NewValue(6));
+		if !ok {
+			t.Errorf("TrySend on empty chan failed");
+		} else {
+			if i = <-c; i != 6 {
+				t.Errorf("TrySend 6, recv %d", i);
+			}
+		}
+	}
+
+	// check creation of unbuffered channel
+	var c chan int;
+	cv := MakeChan(Typeof(c).(*ChanType), 0);
+	c = cv.Interface().(chan int);
+	if cv.TrySend(NewValue(7)) {
+		t.Errorf("TrySend on sync chan succeeded");
+	}
+	if cv.TryRecv() != nil {
+		t.Errorf("TryRecv on sync chan succeeded");
+	}
+}
+

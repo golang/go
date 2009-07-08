@@ -61,6 +61,7 @@ typedef	struct	Eface	Eface;
 typedef	struct	Type		Type;
 typedef	struct	Defer		Defer;
 typedef	struct	hash		Hmap;
+typedef	struct	Hchan		Hchan;
 
 /*
  * per cpu declaration
@@ -458,6 +459,7 @@ float64	ldexp(float64 d, int32 e);
 float64	modf(float64 d, float64 *ip);
 void	semacquire(uint32*);
 void	semrelease(uint32*);
+
 void	mapassign(Hmap*, byte*, byte*);
 void	mapaccess(Hmap*, byte*, byte*, bool*);
 struct hash_iter*	mapiterinit(Hmap*);
@@ -465,3 +467,7 @@ void	mapiternext(struct hash_iter*);
 bool	mapiterkey(struct hash_iter*, void*);
 void	mapiterkeyvalue(struct hash_iter*, void*, void*);
 Hmap*	makemap(uint32, uint32, uint32, uint32, uint32);
+
+Hchan*	makechan(uint32, uint32, uint32);
+void	chansend(Hchan*, void*, bool*);
+void	chanrecv(Hchan*, void*, bool*);
