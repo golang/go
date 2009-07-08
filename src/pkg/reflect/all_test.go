@@ -597,3 +597,57 @@ func TestNilPtrValueSub(t *testing.T) {
 		t.Error("NewValue((*int)(nil)).(*PtrValue).Elem() != nil");
 	}
 }
+
+func TestMapAccess(t *testing.T) {
+	m := map[string]int{ "a": 1, "b": 2 };
+	mv := NewValue(m).(*MapValue);
+	if n := mv.Len(); n != len(m) {
+		t.Errorf("Len = %d, want %d", n, len(m));
+	}
+	keys := mv.Keys();
+	i := 0;
+	newmap := MakeMap(mv.Type().(*MapType));
+	for k, v := range m {
+		// Check that returned Keys match keys in range.
+		// These aren't required to be in the same order,
+		// but they are in this implementation, which makes
+		// the test easier.
+		if i >= len(keys) {
+			t.Errorf("Missing key #%d %q", i, k);
+		} else if kv := keys[i].(*StringValue); kv.Get() != k {
+			t.Errorf("Keys[%d] = %q, want %q", i, kv.Get(), k);
+		}
+		i++;
+
+		// Check that value lookup is correct.
+		vv := mv.Get(NewValue(k));
+		if vi := vv.(*IntValue).Get(); vi != v {
+			t.Errorf("Key %q: have value %d, want %d", vi, v);
+		}
+
+		// Copy into new map.
+		newmap.Put(NewValue(k), NewValue(v));
+	}
+	vv := mv.Get(NewValue("not-present"));
+	if vv != nil {
+		t.Errorf("Invalid key: got non-nil value %s", valueToString(vv));
+	}
+
+	newm := newmap.Interface().(map[string]int);
+	if len(newm) != len(m) {
+		t.Errorf("length after copy: newm=%d, m=%d", newm, m);
+	}
+
+	for k, v := range newm {
+		mv, ok := m[k];
+		if mv != v {
+			t.Errorf("newm[%q] = %d, but m[%q] = %d, %v", k, v, k, mv, ok);
+		}
+	}
+	
+	newmap.Put(NewValue("a"), nil);
+	v, ok := newm["a"];
+	if ok {
+		t.Errorf("newm[\"a\"] = %d after delete", v);
+	}
+}
