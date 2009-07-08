@@ -6,6 +6,7 @@ package printer
 
 import (
 	"bytes";
+	"flag";
 	"io";
 	"go/ast";
 	"go/parser";
@@ -18,10 +19,14 @@ import (
 
 
 const (
+	dataDir = "testdata";
 	tabwidth = 4;
 	padding = 1;
-	tabchar = ' ';
+	tabchar = '\t';
 )
+
+
+var update = flag.Bool("update", false, "update golden files");
 
 
 func lineString(text []byte, i int) string {
@@ -60,6 +65,14 @@ func check(t *testing.T, source, golden string, exports bool) {
 	w.Flush();
 	res := buf.Data();
 
+	// update golden files if necessary
+	if *update {
+		if err := io.WriteFile(golden, res, 0644); err != nil {
+			t.Error(err);
+		}
+		return;
+	}
+
 	// get golden
 	gld, err := io.ReadFile(golden);
 	if err != nil {
@@ -89,18 +102,12 @@ func check(t *testing.T, source, golden string, exports bool) {
 }
 
 
-const dataDir = "data";
-
 type entry struct {
 	source, golden string;
 	exports bool;
 }
 
-// Use gofmt to create/update the respective golden files:
-//
-//   gofmt source.go > golden.go
-//   gofmt -x source.go > golden.x
-//
+// Use gotest -update to create/update the respective golden files.
 var data = []entry{
 	entry{ "source1.go", "golden1.go", false },
 	entry{ "source1.go", "golden1.x", true },
