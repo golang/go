@@ -388,7 +388,10 @@ var decOpMap = map[reflect.Type] decOp {
 
 func getDecEngine(rt reflect.Type) *decEngine
 
-func decOpFor(typ reflect.Type) decOp {
+// Return the decoding op for the base type under rt and
+// the indirection count to reach it.
+func decOpFor(rt reflect.Type) (decOp, int) {
+	typ, indir := indirect(rt);
 	op, ok := decOpMap[reflect.Typeof(typ)];
 	if !ok {
 		// Special cases
@@ -398,15 +401,13 @@ func decOpFor(typ reflect.Type) decOp {
 				op = decUint8Array;
 				break;
 			}
-			elemOp := decOpFor(t.Elem());
-			_, elemIndir := indirect(t.Elem());
+			elemOp, elemIndir := decOpFor(t.Elem());
 			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
 				state.err = decodeSlice(t, state, uintptr(p), elemOp, t.Elem().Size(), i.indir, elemIndir);
 			};
 
 		case *reflect.ArrayType:
-			elemOp := decOpFor(t.Elem());
-			_, elemIndir := indirect(t.Elem());
+			elemOp, elemIndir := decOpFor(t.Elem());
 			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
 				state.err = decodeArray(t, state, uintptr(p), elemOp, t.Elem().Size(), t.Len(), i.indir, elemIndir);
 			};
@@ -420,9 +421,9 @@ func decOpFor(typ reflect.Type) decOp {
 		}
 	}
 	if op == nil {
-		panicln("decode can't handle type", typ.String());
+		panicln("decode can't handle type", rt.String());
 	}
-	return op
+	return op, indir
 }
 
 func compileDec(rt reflect.Type, typ Type) *decEngine {
@@ -438,8 +439,7 @@ func compileDec(rt reflect.Type, typ Type) *decEngine {
 		// TODO(r): verify compatibility with corresponding field of data.
 		// For now, assume perfect correspondence between struct and gob.
 		f := srt.Field(fieldnum);
-		ftyp, indir := indirect(f.Type);
-		op := decOpFor(ftyp);
+		op, indir := decOpFor(f.Type);
 		engine.instr[fieldnum] = decInstr{op, fieldnum, indir, uintptr(f.Offset)};
 	}
 	return engine;
