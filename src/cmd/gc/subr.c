@@ -2120,21 +2120,6 @@ void
 badtype(int o, Type *tl, Type *tr)
 {
 
-loop:
-	switch(o) {
-	case OCALL:
-		if(tl == T || tr == T)
-			break;
-		if(isptr[tl->etype] && isptr[tr->etype]) {
-			tl = tl->type;
-			tr = tr->type;
-			goto loop;
-		}
-		if(tl->etype != TFUNC || tr->etype != TFUNC)
-			break;
-//		if(eqtype(t1, t2))
-	}
-
 	yyerror("illegal types for operand: %O", o);
 	if(tl != T)
 		print("	%T\n", tl);
