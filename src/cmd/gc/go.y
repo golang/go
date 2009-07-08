@@ -1104,10 +1104,6 @@ othertype:
 			$$ = T;
 			break;
 		}
-		if($1->op == OTYPE)
-		if($1->type->etype == TANY)
-		if(strcmp(package, "PACKAGE") != 0)
-			yyerror("the any type is restricted");
 		$$ = oldtype($1->sym);
 	}
 
