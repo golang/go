@@ -332,8 +332,6 @@ main(int argc, char *argv[])
 		sprint(a, "%s/pkg/%s_%s/runtime.a", goroot, goos, goarch);
 		objfile(a);
 	}
-	definetypestrings();
-	definetypesigs();
 	deadcode();
 
 	firstp = firstp->link;
