@@ -171,6 +171,7 @@ struct	M
 	// The offsets of these fields are known to (hard-coded in) libmach.
 	G*	g0;		// goroutine with scheduling stack
 	void	(*morepc)(void);
+	void*	morefp;	// frame pointer for more stack
 	Gobuf	morebuf;	// gobuf arg to morestack
 
 	// Fields not known to debuggers.
@@ -200,6 +201,11 @@ struct	Stktop
 	uint8*	stackbase;
 	Gobuf	gobuf;
 	uint32	args;
+
+	// Frame pointer: where args start in old frame.
+	// fp == gobuf.sp except in the case of a reflected
+	// function call, which uses an off-stack argument frame.
+	uint8*	fp;
 };
 struct	Alg
 {

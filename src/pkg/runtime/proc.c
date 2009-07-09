@@ -619,7 +619,7 @@ oldstack(void)
 	args = old.args;
 	if(args > 0) {
 		sp -= args;
-		mcpy(top->gobuf.sp, sp, args);
+		mcpy(top->fp, sp, args);
 	}
 
 	stackfree((byte*)g1->stackguard - StackGuard);
@@ -640,7 +640,7 @@ newstack(void)
 
 	frame = m->moreframe;
 	args = m->moreargs;
-	
+
 	// Round up to align things nicely.
 	// This is sufficient for both 32- and 64-bit machines.
 	args = (args+7) & ~7;
@@ -650,13 +650,14 @@ newstack(void)
 	frame += 1024;	// for more functions, Stktop.
 	stk = stackalloc(frame);
 
-//printf("newstack frame=%d args=%d morepc=%p gobuf=%p, %p newstk=%p\n", frame, args, m->morepc, g->sched.pc, g->sched.sp, stk);
+//printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n", frame, args, m->morepc, m->morefp, g->sched.pc, g->sched.sp, stk);
 
 	g1 = m->curg;
 	top = (Stktop*)(stk+frame-sizeof(*top));
 	top->stackbase = g1->stackbase;
 	top->stackguard = g1->stackguard;
 	top->gobuf = m->morebuf;
+	top->fp = m->morefp;
 	top->args = args;
 
 	g1->stackbase = (byte*)top;
@@ -665,7 +666,7 @@ newstack(void)
 	sp = (byte*)top;
 	if(args > 0) {
 		sp -= args;
-		mcpy(sp, top->gobuf.sp, args);
+		mcpy(sp, m->morefp, args);
 	}
 
 	// Continue as if lessstack had just called m->morepc

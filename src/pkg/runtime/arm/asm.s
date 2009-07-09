@@ -145,11 +145,46 @@ TEXT sys·morestack(SB),7,$-4
 	// Set m->morebuf to f's caller.
 	MOVW	R3, (m_morebuf+gobuf_pc)(m) // f's caller's PC
 	MOVW	SP, (m_morebuf+gobuf_sp)(m) // f's caller's SP
+	MOVW	SP, m_morefp(m) // f's caller's SP
 	MOVW	g, (m_morebuf+gobuf_g)(m)
 	MOVW	R0, (m_morebuf+gobuf_r0)(m)
 
 	// Set m->morepc to f's PC.
 	MOVW	LR, m_morepc(m)
+
+	// Call newstack on m's scheduling stack.
+	MOVW	m_g0(m), g
+	MOVW	(m_sched+gobuf_sp)(m), SP
+	B	newstack(SB)
+
+// Called from reflection library.  Mimics morestack,
+// reuses stack growth code to create a frame
+// with the desired args running the desired function.
+//
+// func call(fn *byte, arg *byte, argsize uint32).
+TEXT reflect·call(SB), 7, $-4
+	// Save our caller's state as the PC and SP to
+	// restore when returning from f.
+	MOVW	LR, (m_morebuf+gobuf_pc)(m)	// our caller's PC
+	MOVW	SP, (m_morebuf+gobuf_sp)(m)	// our caller's SP
+	MOVW	R0, (m_morebuf+gobuf_r0)(m)
+	MOVQ	g, (m_morebuf+gobuf_g)(m)
+
+	// Set up morestack arguments to call f on a new stack.
+	// We set f's frame size to zero, meaning
+	// allocate a standard sized stack segment.
+	// If it turns out that f needs a larger frame than this,
+	// f's usual stack growth prolog will allocate
+	// a new segment (and recopy the arguments).
+	MOVW	4(SP), R0	// fn
+	MOVW	8(SP), R1	// arg frame
+	MOVW	12(SP), R2	// arg size
+
+	MOVW	R0, m_morepc(m)	// f's PC
+	MOVW	R1, m_morefp(m)	// argument frame pointer
+	MOVW	R2, m_moreargs(m)	// f's argument size
+	MOVW	$0, R3
+	MOVW	R3, m_moreframe(m)	// f's frame size
 
 	// Call newstack on m's scheduling stack.
 	MOVW	m_g0(m), g

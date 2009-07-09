@@ -548,4 +548,9 @@ type ArrayOrSliceType interface {
 	Elem() Type;
 }
 
+// Typeof returns the reflection Type of the value in the interface{}.
+func Typeof(i interface{}) Type {
+	return toType(unsafe.Typeof(i));
+}
+
 
