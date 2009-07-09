@@ -102,9 +102,9 @@ var untarTests = []*untarTest{
 			},
 		},
 	},
-};
+}
 
-func TestAll(t *testing.T) {
+func TestReader(t *testing.T) {
 testLoop:
 	for i, test := range untarTests {
 		f, err := os.Open(test.file, os.O_RDONLY, 0444);
