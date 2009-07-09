@@ -62,30 +62,39 @@ var writerTests = []*writerTest{
 }
 
 // Render byte array in a two-character hexadecimal string, spaced for easy visual inspection.
-func bytestr(b []byte) string {
-	s := fmt.Sprintf("(%d bytes)\n", len(b));
+func bytestr(offset int, b []byte) string {
 	const rowLen = 32;
+	s := fmt.Sprintf("%04x ", offset);
 	for i, ch := range b {
-		if i % rowLen == 0 {
-			// start of line: hex offset
-			s += fmt.Sprintf("%04x", i);
-		}
 		switch {
 		case '0' <= ch && ch <= '9', 'A' <= ch && ch <= 'Z', 'a' <= ch && ch <= 'z':
 			s += fmt.Sprintf("  %c", ch);
 		default:
 			s += fmt.Sprintf(" %02x", ch);
 		}
-		if (i + 1) % rowLen == 0 {
-			// end of line
-			s += "\n";
-		} else if (i + 1) % (rowLen / 2) == 0 {
-			// extra space
-			s += " ";
-		}
 	}
-	if s[len(s)-1] != '\n' {
-		s += "\n"
+	return s
+}
+
+// Render a pseudo-diff between two blocks of bytes.
+func bytediff(a []byte, b []byte) string {
+	const rowLen = 32;
+	s := fmt.Sprintf("(%d bytes vs. %d bytes)\n", len(a), len(b));
+	for offset := 0; len(a) + len(b) > 0; offset += rowLen {
+		na, nb := rowLen, rowLen;
+		if na > len(a) {
+			na = len(a);
+		}
+		if nb > len(b) {
+			nb = len(b);
+		}
+		sa := bytestr(offset, a[0:na]);
+		sb := bytestr(offset, b[0:nb]);
+		if sa != sb {
+			s += fmt.Sprintf("-%v\n+%v\n", sa, sb);
+		}
+		a = a[na:len(a)];
+		b = b[nb:len(b)];
 	}
 	return s
 }
@@ -115,8 +124,8 @@ testLoop:
 
 		actual := buf.Data();
 		if !bytes.Equal(expected, actual) {
-			t.Errorf("test %d: Incorrect result:\n%v\nwant:\n%v",
-				 i, bytestr(actual), bytestr(expected));
+			t.Errorf("test %d: Incorrect result: (-=expected, +=actual)\n%v",
+			         i, bytediff(expected, actual));
 		}
 	}
 }
