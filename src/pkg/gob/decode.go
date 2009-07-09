@@ -199,6 +199,16 @@ func decUint64(i *decInstr, state *DecState, p unsafe.Pointer) {
 	*(*uint64)(p) = uint64(DecodeUint(state));
 }
 
+func decUintptr(i *decInstr, state *DecState, p unsafe.Pointer) {
+	if i.indir > 0 {
+		if *(*unsafe.Pointer)(p) == nil {
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uintptr));
+		}
+		p = *(*unsafe.Pointer)(p);
+	}
+	*(*uintptr)(p) = uintptr(DecodeUint(state));
+}
+
 // Floating-point numbers are transmitted as uint64s holding the bits
 // of the underlying representation.  They are sent byte-reversed, with
 // the exponent end coming out first, so integer floating point numbers
@@ -367,7 +377,6 @@ func decodeSlice(atyp *reflect.SliceType, state *DecState, p uintptr, elemOp dec
 	return decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, int(length), elemIndir);
 }
 
-var decEngineMap = make(map[reflect.Type] *decEngine)
 var decOpMap = map[reflect.Type] decOp {
 	 reflect.Typeof((*reflect.BoolType)(nil)): decBool,
 	 reflect.Typeof((*reflect.IntType)(nil)): decInt,
@@ -380,6 +389,7 @@ var decOpMap = map[reflect.Type] decOp {
 	 reflect.Typeof((*reflect.Uint16Type)(nil)): decUint16,
 	 reflect.Typeof((*reflect.Uint32Type)(nil)): decUint32,
 	 reflect.Typeof((*reflect.Uint64Type)(nil)): decUint64,
+	 reflect.Typeof((*reflect.UintptrType)(nil)): decUintptr,
 	 reflect.Typeof((*reflect.FloatType)(nil)): decFloat,
 	 reflect.Typeof((*reflect.Float32Type)(nil)): decFloat32,
 	 reflect.Typeof((*reflect.Float64Type)(nil)): decFloat64,
@@ -415,8 +425,10 @@ func decOpFor(rt reflect.Type) (decOp, int) {
 		case *reflect.StructType:
 			// Generate a closure that calls out to the engine for the nested type.
 			engine := getDecEngine(typ);
+			info := getTypeInfo(typ);
 			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
-				state.err = decodeStruct(engine, t, state.r, uintptr(p), i.indir)
+				// indirect through info to delay evaluation for recursive structs
+				state.err = decodeStruct(info.decoder, t, state.r, uintptr(p), i.indir)
 			};
 		}
 	}
@@ -426,7 +438,7 @@ func decOpFor(rt reflect.Type) (decOp, int) {
 	return op, indir
 }
 
-func compileDec(rt reflect.Type, typ Type) *decEngine {
+func compileDec(rt reflect.Type, typ gobType) *decEngine {
 	srt, ok1 := rt.(*reflect.StructType);
 	styp, ok2 := typ.(*structType);
 	if !ok1 || !ok2 {
@@ -436,8 +448,8 @@ func compileDec(rt reflect.Type, typ Type) *decEngine {
 	engine.instr = make([]decInstr, len(styp.field));
 	for fieldnum := 0; fieldnum < len(styp.field); fieldnum++ {
 		field := styp.field[fieldnum];
-		// TODO(r): verify compatibility with corresponding field of data.
-		// For now, assume perfect correspondence between struct and gob.
+		// Assumes perfect correspondence between struct and gob,
+		// which is safe to assume since typ was compiled from rt.
 		f := srt.Field(fieldnum);
 		op, indir := decOpFor(f.Type);
 		engine.instr[fieldnum] = decInstr{op, fieldnum, indir, uintptr(f.Offset)};
@@ -446,14 +458,19 @@ func compileDec(rt reflect.Type, typ Type) *decEngine {
 }
 
 
+// typeLock must be held.
 func getDecEngine(rt reflect.Type) *decEngine {
-	engine, ok := decEngineMap[rt];
-	if !ok {
-		pkg, name := rt.Name();
-		engine = compileDec(rt, newType(name, rt));
-		decEngineMap[rt] = engine;
+	info := getTypeInfo(rt);
+	if info.decoder == nil {
+		if info.typeId.gobType() == nil {
+			_pkg, name := rt.Name();
+			info.typeId = newType(name, rt).id();
+		}
+		// mark this engine as underway before compiling to handle recursive types.
+		info.decoder = new(decEngine);
+		info.decoder = compileDec(rt, info.typeId.gobType());
 	}
-	return engine;
+	return info.decoder;
 }
 
 func Decode(r io.Reader, e interface{}) os.Error {

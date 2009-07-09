@@ -13,7 +13,6 @@ import (
 	"testing";
 	"unsafe";
 )
-import "fmt" // TODO DELETE
 
 // Guarantee encoding format by comparing some encodings to hand-written values
 type EncodeT struct {
@@ -557,6 +556,30 @@ func TestEndToEnd(t *testing.T) {
 	Decode(b, &_t1);
 	if !reflect.DeepEqual(t1, &_t1) {
 		t.Errorf("encode expected %v got %v", *t1, _t1);
+	}
+}
+
+func TestNesting(t *testing.T) {
+	type RT struct {
+		a string;
+		next *RT
+	}
+	rt := new(RT);
+	rt.a = "level1";
+	rt.next = new(RT);
+	rt.next.a = "level2";
+	b := new(bytes.Buffer);
+	Encode(b, rt);
+	var drt RT;
+	Decode(b, &drt);
+	if drt.a != rt.a {
+		t.Errorf("nesting: encode expected %v got %v", *rt, drt);
+	}
+	if drt.next == nil {
+		t.Errorf("nesting: recursion failed");
+	}
+	if drt.next.a != rt.next.a {
+		t.Errorf("nesting: encode expected %v got %v", *rt.next, *drt.next);
 	}
 }
 
