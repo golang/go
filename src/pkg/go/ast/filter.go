@@ -186,6 +186,5 @@ func FilterExports(prog *Program) bool {
 		}
 	}
 	prog.Decls = prog.Decls[0 : j];
-	prog.Comments = nil;  // remove unassociated comments
 	return j > 0;
 }

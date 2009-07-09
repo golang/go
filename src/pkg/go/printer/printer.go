@@ -31,7 +31,7 @@ type printer struct {
 	output io.Writer;
 	mode uint;
 	errors chan os.Error;
-	comments ast.Comments;  // list of unassociated comments; or nil
+	comments []*ast.CommentGroup;  // list of unassociated comments; or nil
 
 	// current state (changes during printing)
 	written int;  // number of bytes written
@@ -40,8 +40,8 @@ type printer struct {
 	pos token.Position;  // output position (possibly estimated) in "AST space"
 
 	// comments
-	cindex int;  // the current comment index
-	cpos token.Position;  // the position of the next comment
+	cindex int;  // the current comment group index
+	cpos token.Position;  // the position of the next comment group
 }
 
 
@@ -53,14 +53,14 @@ func (p *printer) hasComment(pos token.Position) bool {
 func (p *printer) nextComment() {
 	p.cindex++;
 	if p.comments != nil && p.cindex < len(p.comments) && p.comments[p.cindex] != nil {
-		p.cpos = p.comments[p.cindex].Pos();
+		p.cpos = p.comments[p.cindex].List[0].Pos();
 	} else {
 		p.cpos = token.Position{1<<30, 1<<30, 1};  // infinite
 	}
 }
 
 
-func (p *printer) setComments(comments ast.Comments) {
+func (p *printer) setComments(comments []*ast.CommentGroup) {
 	p.comments = comments;
 	p.cindex = -1;
 	p.nextComment();
@@ -125,6 +125,8 @@ func (p *printer) write(data []byte) {
 }
 
 
+// TODO(gri) Enable this code to intersperse comments
+/*
 // Reduce contiguous sequences of '\t' in a []byte to a single '\t'.
 func untabify(src []byte) []byte {
 	dst := make([]byte, len(src));
@@ -149,12 +151,13 @@ func (p *printer) adjustSpacingAndMergeComments() {
 		// - add extra newlines if so indicated by source positions
 	}
 }
+*/
 
 
 func (p *printer) print(args ...) {
 	v := reflect.NewValue(args).(*reflect.StructValue);
 	for i := 0; i < v.NumField(); i++ {
-		p.adjustSpacingAndMergeComments();
+		//p.adjustSpacingAndMergeComments();  // TODO(gri) enable to intersperse comments
 		f := v.Field(i);
 		switch x := f.Interface().(type) {
 		case int:
@@ -187,24 +190,35 @@ func (p *printer) optSemis() bool {
 }
 
 
-func (p *printer) comment(c *ast.Comment) {
-	if c != nil {
-		text := c.Text;
-		if text[1] == '/' {
-			// //-style comment - dont print the '\n'
-			// TODO scanner should probably not include the '\n' in this case
-			text = text[0 : len(text)-1];
+// Print a list of individual comments.
+func (p *printer) commentList(list []*ast.Comment) {
+	for i, c := range list {
+		t := c.Text;
+		p.print(c.Pos(), t);
+		if t[1] == '/' && i+1 < len(list) {
+			//-style comment which is not at the end; print a newline
+			p.print(newline);
 		}
-		p.print(tab, c.Pos(), text);  // tab-separated trailing comment
 	}
 }
 
 
-func (p *printer) doc(d ast.Comments) {
-	if p.mode & DocComments != 0 {
-		for _, c := range d {
-			p.print(c.Pos(), c.Text);
-		}
+// Print a leading comment followed by a newline.
+func (p *printer) leadingComment(d *ast.CommentGroup) {
+	if p.mode & DocComments != 0 && d != nil {
+		p.commentList(d.List);
+		p.print(newline);
+	}
+}
+
+
+// Print a tab followed by a trailing comment.
+// A newline must be printed afterwards since
+// the comment may be a //-style comment.
+func (p *printer) trailingComment(d *ast.CommentGroup) {
+	if d != nil {
+		p.print(tab);
+		p.commentList(d.List);
 	}
 }
 
@@ -286,13 +300,13 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 	p.print(blank, lbrace, token.LBRACE, +1, newline);
 
 	var lastWasAnon bool;  // true if the previous line was an anonymous field
-	var lastComment *ast.Comment;  // the comment from the previous line
+	var lastComment *ast.CommentGroup;  // the comment from the previous line
 	for i, f := range list {
 		// at least one visible identifier or anonymous field
 		isAnon := len(f.Names) == 0;
 		if i > 0 {
 			p.print(token.SEMICOLON);
-			p.comment(lastComment);
+			p.trailingComment(lastComment);
 			if lastWasAnon == isAnon {
 				// previous and current line have same structure;
 				// continue with existing columns
@@ -307,7 +321,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			}
 		}
 
-		p.doc(f.Doc);
+		p.leadingComment(f.Doc);
 		if !isAnon {
 			p.identList(f.Names);
 			p.print(tab);
@@ -336,7 +350,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 	if p.optSemis() {
 		p.print(token.SEMICOLON);
 	}
-	p.comment(lastComment);
+	p.trailingComment(lastComment);
 
 	p.print(-1, newline, rbrace, token.RBRACE);
 
@@ -521,7 +535,7 @@ func (p *printer) expr(x ast.Expr) bool {
 // ----------------------------------------------------------------------------
 // Statements
 
-func (p *printer) decl(decl ast.Decl) (comment *ast.Comment, optSemi bool)
+func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
 
 // Print the statement list indented, but without a newline after the last statement.
 func (p *printer) stmtList(list []ast.Stmt) {
@@ -607,14 +621,14 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		p.print("BadStmt");
 
 	case *ast.DeclStmt:
-		var comment *ast.Comment;
+		var comment *ast.CommentGroup;
 		comment, optSemi = p.decl(s.Decl);
 		if comment != nil {
 			// Trailing comments of declarations in statement lists
 			// are not associated with the declaration in the parser;
 			// this case should never happen. Print anyway to continue
 			// gracefully.
-			p.comment(comment);
+			p.trailingComment(comment);
 			p.print(newline);
 		}
 
@@ -768,10 +782,10 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 
 // Returns trailing comment, if any, and whether a separating semicolon is optional.
 //
-func (p *printer) spec(spec ast.Spec) (comment *ast.Comment, optSemi bool) {
+func (p *printer) spec(spec ast.Spec) (comment *ast.CommentGroup, optSemi bool) {
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
-		p.doc(s.Doc);
+		p.leadingComment(s.Doc);
 		if s.Name != nil {
 			p.expr(s.Name);
 		}
@@ -780,7 +794,7 @@ func (p *printer) spec(spec ast.Spec) (comment *ast.Comment, optSemi bool) {
 		comment = s.Comment;
 
 	case *ast.ValueSpec:
-		p.doc(s.Doc);
+		p.leadingComment(s.Doc);
 		p.identList(s.Names);
 		if s.Type != nil {
 			p.print(blank);  // TODO switch to tab? (indent problem with structs)
@@ -794,7 +808,7 @@ func (p *printer) spec(spec ast.Spec) (comment *ast.Comment, optSemi bool) {
 		comment = s.Comment;
 
 	case *ast.TypeSpec:
-		p.doc(s.Doc);
+		p.leadingComment(s.Doc);
 		p.expr(s.Name);
 		p.print(blank);  // TODO switch to tab? (but indent problem with structs)
 		optSemi = p.expr(s.Type);
@@ -809,13 +823,13 @@ func (p *printer) spec(spec ast.Spec) (comment *ast.Comment, optSemi bool) {
 
 
 // Returns true if a separating semicolon is optional.
-func (p *printer) decl(decl ast.Decl) (comment *ast.Comment, optSemi bool) {
+func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) {
 	switch d := decl.(type) {
 	case *ast.BadDecl:
 		p.print(d.Pos(), "BadDecl");
 
 	case *ast.GenDecl:
-		p.doc(d.Doc);
+		p.leadingComment(d.Doc);
 		p.print(d.Pos(), d.Tok, blank);
 
 		if d.Lparen.IsValid() {
@@ -826,7 +840,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.Comment, optSemi bool) {
 				for i, s := range d.Specs {
 					if i > 0 {
 						p.print(token.SEMICOLON);
-						p.comment(comment);
+						p.trailingComment(comment);
 						p.print(newline);
 					}
 					comment, optSemi = p.spec(s);
@@ -834,7 +848,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.Comment, optSemi bool) {
 				if p.optSemis() {
 					p.print(token.SEMICOLON);
 				}
-				p.comment(comment);
+				p.trailingComment(comment);
 				p.print(-1, newline);
 			}
 			p.print(d.Rparen, token.RPAREN);
@@ -847,7 +861,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.Comment, optSemi bool) {
 		}
 
 	case *ast.FuncDecl:
-		p.doc(d.Doc);
+		p.leadingComment(d.Doc);
 		p.print(d.Pos(), token.FUNC, blank);
 		if recv := d.Recv; recv != nil {
 			// method: print receiver
@@ -880,11 +894,9 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.Comment, optSemi bool) {
 // Programs
 
 func (p *printer) program(prog *ast.Program) {
-	// set unassociated comments
-	// TODO enable this once comments are properly interspersed
-	// p.setComments(prog.Comments);
+	p.setComments(prog.Comments);  // unassociated comments
 
-	p.doc(prog.Doc);
+	p.leadingComment(prog.Doc);
 	p.print(prog.Pos(), token.PACKAGE, blank);
 	p.expr(prog.Name);
 
@@ -894,7 +906,7 @@ func (p *printer) program(prog *ast.Program) {
 		if p.optSemis() {
 			p.print(token.SEMICOLON);
 		}
-		p.comment(comment);
+		p.trailingComment(comment);
 	}
 
 	p.print(newline);
@@ -922,7 +934,7 @@ func Fprint(output io.Writer, node interface{}, mode uint) (int, os.Error) {
 			p.stmt(n);
 		case ast.Decl:
 			comment, _ := p.decl(n);
-			p.comment(comment);
+			p.trailingComment(comment);  // no newline at end
 		case *ast.Program:
 			p.program(n);
 		default:

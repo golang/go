@@ -85,15 +85,17 @@ type Decl interface {
 // A Comment node represents a single //-style or /*-style comment.
 type Comment struct {
 	token.Position;  // beginning position of the comment
-	Text []byte;  // the comment text (without '\n' for //-style comments)
-	EndLine int;  // the line where the comment ends
+	Text []byte;  // comment text (excluding '\n' for //-style comments)
 }
 
 
-// A Comments node represents a sequence of single comments
+// A CommentGroup represents a sequence of single comments
 // with no other tokens and no empty lines between.
 //
-type Comments []*Comment
+type CommentGroup struct {
+	List []*Comment;
+	EndLine int;  // line where the last comment in the group ends
+}
 
 
 // ----------------------------------------------------------------------------
@@ -110,11 +112,11 @@ type (
 	// a method in an interface type, or a parameter/result declaration
 	// in a signature.
 	Field struct {
-		Doc Comments;  // associated documentation; or nil
+		Doc *CommentGroup;  // associated documentation; or nil
 		Names []*Ident;  // field/method/parameter names; nil if anonymous field
 		Type Expr;  // field/method/parameter type
 		Tag []*StringLit;  // field tag; or nil
-		Comment *Comment;  // trailing comment on same line; or nil
+		Comment *CommentGroup;  // trailing comments on same line; or nil
 	};
 )
 
@@ -670,28 +672,28 @@ type (
 
 	// An ImportSpec node represents a single package import.
 	ImportSpec struct {
-		Doc Comments;  // associated documentation; or nil
+		Doc *CommentGroup;  // associated documentation; or nil
 		Name *Ident;  // local package name (including "."); or nil
 		Path []*StringLit;  // package path
-		Comment *Comment;  // trailing comment on same line; or nil
+		Comment *CommentGroup;  // trailing comments on same line; or nil
 	};
 
 	// A ValueSpec node represents a constant or variable declaration
 	// (ConstSpec or VarSpec production).
 	ValueSpec struct {
-		Doc Comments;  // associated documentation; or nil
+		Doc *CommentGroup;  // associated documentation; or nil
 		Names []*Ident;  // value names
 		Type Expr;  // value type; or nil
 		Values []Expr;  // initial values; or nil
-		Comment *Comment;  // trailing comment on same line; or nil
+		Comment *CommentGroup;  // trailing comments on same line; or nil
 	};
 
 	// A TypeSpec node represents a type declaration (TypeSpec production).
 	TypeSpec struct {
-		Doc Comments;  // associated documentation; or nil
+		Doc *CommentGroup;  // associated documentation; or nil
 		Name *Ident;  // type name
 		Type Expr;
-		Comment *Comment;  // trailing comment on same line; or nil
+		Comment *CommentGroup;  // trailing comments on same line; or nil
 	};
 )
 
@@ -719,7 +721,7 @@ type (
 	//	token.VAR     *ValueSpec
 	//
 	GenDecl struct {
-		Doc Comments;  // associated documentation; or nil
+		Doc *CommentGroup;  // associated documentation; or nil
 		token.Position;  // position of Tok
 		Tok token.Token;  // IMPORT, CONST, TYPE, VAR
 		Lparen token.Position;  // position of '(', if any
@@ -729,7 +731,7 @@ type (
 
 	// A FuncDecl node represents a function declaration.
 	FuncDecl struct {
-		Doc Comments;  // associated documentation; or nil
+		Doc *CommentGroup;  // associated documentation; or nil
 		Recv *Field;  // receiver (methods); or nil (functions)
 		Name *Ident;  // function/method name
 		Type *FuncType;  // position of Func keyword, parameters and results
@@ -768,9 +770,9 @@ func (d *FuncDecl) Visit(v DeclVisitor) { v.DoFuncDecl(d); }
 // for an entire source file.
 //
 type Program struct {
-	Doc Comments;  // associated documentation; or nil
+	Doc *CommentGroup;  // associated documentation; or nil
 	token.Position;  // position of "package" keyword
 	Name *Ident;  // package name
 	Decls []Decl;  // top-level declarations
-	Comments []*Comment;  // list of unassociated comments
+	Comments []*CommentGroup;  // list of unassociated comments
 }

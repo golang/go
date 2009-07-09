@@ -9,6 +9,7 @@ const (
 	c2	// c2
 )
 
+// The T type.
 type T struct {
 	a, b, c	int	// 3 fields
 }

@@ -31,11 +31,12 @@ type typeDoc struct {
 type DocReader struct {
 	name string;  // package name
 	path string;  // import path
-	doc ast.Comments;  // package documentation, if any
+	doc *ast.CommentGroup;  // package documentation, if any
 	consts *vector.Vector;  // list of *ast.GenDecl
 	types map[string] *typeDoc;
 	vars *vector.Vector;  // list of *ast.GenDecl
 	funcs map[string] *ast.FuncDecl;
+	bugs *vector.Vector;  // list of *ast.CommentGroup
 }
 
 
@@ -49,6 +50,7 @@ func (doc *DocReader) Init(pkg, imp string) {
 	doc.types = make(map[string] *typeDoc);
 	doc.vars = vector.New(0);
 	doc.funcs = make(map[string] *ast.FuncDecl);
+	doc.bugs = vector.New(0);
 }
 
 
@@ -131,11 +133,18 @@ func (doc *DocReader) addDecl(decl ast.Decl) {
 			case token.TYPE:
 				// types are handled individually
 				var noPos token.Position;
-				for i, spec := range d.Specs {
+				for _, spec := range d.Specs {
 					// make a (fake) GenDecl node for this TypeSpec
 					// (we need to do this here - as opposed to just
 					// for printing - so we don't lose the GenDecl
 					// documentation)
+					//
+					// TODO(gri): Consider just collecting the TypeSpec
+					// node (and copy in the GenDecl.doc if there is no
+					// doc in the TypeSpec - this is currently done in
+					// makeTypeDocs below). Simpler data structures, but
+					// would lose GenDecl documentation if the TypeSpec
+					// has documentation as well.
 					s := spec.(*ast.TypeSpec);
 					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{s}, noPos});
 				}
@@ -150,10 +159,25 @@ func (doc *DocReader) addDecl(decl ast.Decl) {
 }
 
 
+func copyCommentList(list []*ast.Comment) []*ast.Comment {
+	copy := make([]*ast.Comment, len(list));
+	for i, c := range list {
+		copy[i] = c;
+	}
+	return copy;
+}
+
+
+var bug_markers *regexp.Regexp;  // Regexp constructor needs threads - cannot use init expression
+
 // AddProgram adds the AST for a source file to the DocReader.
 // Adding the same AST multiple times is a no-op.
 //
 func (doc *DocReader) AddProgram(prog *ast.Program) {
+	if bug_markers == nil {
+		bug_markers = makeRex("^/[/*][ \t]*BUG(\\([^)]*\\))?:?[ \t]*");
+	}
+
 	if doc.name != prog.Name.Value {
 		panic("package names don't match");
 	}
@@ -165,21 +189,38 @@ func (doc *DocReader) AddProgram(prog *ast.Program) {
 	}
 
 	// add all declarations
-	for i, decl := range prog.Decls {
+	for _, decl := range prog.Decls {
 		doc.addDecl(decl);
+	}
+
+	// collect BUG(...) comments
+	for _, c := range prog.Comments {
+		text := c.List[0].Text;
+		m := bug_markers.Execute(string(text));
+		if len(m) > 0 {
+			// found a BUG comment;
+			// push a copy of the comment w/o the BUG prefix
+			list := copyCommentList(c.List);
+			list[0].Text = text[m[1] : len(text)];
+			doc.bugs.Push(&ast.CommentGroup{list, c.EndLine});
+		}
 	}
 }
 
 // ----------------------------------------------------------------------------
 // Conversion to external representation
 
-func astComment(comments ast.Comments) string {
-	text := make([]string, len(comments));
-	for i, c := range comments {
-		text[i] = string(c.Text);
+func astComment(comment *ast.CommentGroup) string {
+	if comment != nil {
+		text := make([]string, len(comment.List));
+		for i, c := range comment.List {
+			text[i] = string(c.Text);
+		}
+		return commentText(text);
 	}
-	return commentText(text);
+	return "";
 }
+
 
 // ValueDoc is the documentation for a group of declared
 // values, either vars or consts.
@@ -252,7 +293,7 @@ func (p sortFuncDoc) Less(i, j int) bool  { return p[i].Name < p[j].Name; }
 func makeFuncDocs(m map[string] *ast.FuncDecl) []*FuncDoc {
 	d := make([]*FuncDoc, len(m));
 	i := 0;
-	for name, f := range m {
+	for _, f := range m {
 		doc := new(FuncDoc);
 		doc.Doc = astComment(f.Doc);
 		if f.Recv != nil {
@@ -296,14 +337,19 @@ func (p sortTypeDoc) Less(i, j int) bool {
 
 // NOTE(rsc): This would appear not to be correct for type ( )
 // blocks, but the doc extractor above has split them into
-// individual statements.
+// individual declarations.
 func makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 	d := make([]*TypeDoc, len(m));
 	i := 0;
-	for name, old := range m {
+	for _, old := range m {
 		typespec := old.decl.Specs[0].(*ast.TypeSpec);
 		t := new(TypeDoc);
-		t.Doc = astComment(typespec.Doc);
+		doc := typespec.Doc;
+		if doc == nil {
+			// no doc associated with the spec, use the declaration doc, if any
+			doc = old.decl.Doc;
+		}
+		t.Doc = astComment(doc);
 		t.Type = typespec;
 		t.Factories = makeFuncDocs(old.factories);
 		t.Methods = makeFuncDocs(old.methods);
@@ -313,6 +359,15 @@ func makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 		i++;
 	}
 	sort.Sort(sortTypeDoc(d));
+	return d;
+}
+
+
+func makeBugDocs(v *vector.Vector) []string {
+	d := make([]string, v.Len());
+	for i := 0; i < v.Len(); i++ {
+		d[i] = astComment(v.At(i).(*ast.CommentGroup));
+	}
 	return d;
 }
 
@@ -327,6 +382,7 @@ type PackageDoc struct {
 	Types []*TypeDoc;
 	Vars []*ValueDoc;
 	Funcs []*FuncDoc;
+	Bugs []string;
 }
 
 
@@ -341,6 +397,7 @@ func (doc *DocReader) Doc() *PackageDoc {
 	p.Vars = makeValueDocs(doc.vars);
 	p.Types = makeTypeDocs(doc.types);
 	p.Funcs = makeFuncDocs(doc.funcs);
+	p.Bugs = makeBugDocs(doc.bugs);
 	return p;
 }
 
@@ -351,8 +408,8 @@ func (doc *DocReader) Doc() *PackageDoc {
 // Does s look like a regular expression?
 func isRegexp(s string) bool {
 	metachars := ".(|)*+?^$[]";
-	for i, c := range s {
-		for j, m := range metachars {
+	for _, c := range s {
+		for _, m := range metachars {
 			if c == m {
 				return true
 			}
@@ -363,7 +420,7 @@ func isRegexp(s string) bool {
 
 
 func match(s string, a []string) bool {
-	for i, t := range a {
+	for _, t := range a {
 		if isRegexp(t) {
 			if matched, err := regexp.Match(t, s); matched {
 				return true;
@@ -378,10 +435,10 @@ func match(s string, a []string) bool {
 
 
 func matchDecl(d *ast.GenDecl, names []string) bool {
-	for i, d := range d.Specs {
+	for _, d := range d.Specs {
 		switch v := d.(type) {
 		case *ast.ValueSpec:
-			for j, name := range v.Names {
+			for _, name := range v.Names {
 				if match(name.Value, names) {
 					return true;
 				}
@@ -398,7 +455,7 @@ func matchDecl(d *ast.GenDecl, names []string) bool {
 
 func filterValueDocs(a []*ValueDoc, names []string) []*ValueDoc {
 	w := 0;
-	for i, vd := range a {
+	for _, vd := range a {
 		if matchDecl(vd.Decl, names) {
 			a[w] = vd;
 			w++;
@@ -410,7 +467,7 @@ func filterValueDocs(a []*ValueDoc, names []string) []*ValueDoc {
 
 func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
 	w := 0;
-	for i, fd := range a {
+	for _, fd := range a {
 		if match(fd.Name, names) {
 			a[w] = fd;
 			w++;
@@ -422,7 +479,7 @@ func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
 
 func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
 	w := 0;
-	for i, td := range a {
+	for _, td := range a {
 		match := false;
 		if matchDecl(td.Decl, names) {
 			match = true;
