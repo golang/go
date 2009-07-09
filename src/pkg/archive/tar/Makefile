@@ -36,7 +36,7 @@ O1=\
 	common.$O\
 
 O2=\
-	untar.$O\
+	reader.$O\
 	writer.$O\
 
 
@@ -48,7 +48,7 @@ a1: $(O1)
 	rm -f $(O1)
 
 a2: $(O2)
-	$(AR) grc _obj$D/tar.a untar.$O writer.$O
+	$(AR) grc _obj$D/tar.a reader.$O writer.$O
 	rm -f $(O2)
 
 

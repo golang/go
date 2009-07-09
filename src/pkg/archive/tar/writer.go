@@ -28,7 +28,7 @@ var (
 // writing at most hdr.Size bytes in total.
 //
 // Example:
-// 	tw := NewTarWriter(w);
+// 	tw := tar.NewWriter(w);
 //	hdr := new(Header);
 //	hdr.Size = length of data in bytes;
 //	// populate other hdr fields as desired
@@ -112,19 +112,19 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 	// TODO(dsymonds): handle names longer than 100 chars
 	nr := bytes.Copy(s.next(100), strings.Bytes(hdr.Name));
 
-	tw.octal(s.next(8), hdr.Mode);
-	tw.octal(s.next(8), hdr.Uid);
-	tw.octal(s.next(8), hdr.Gid);
-	tw.octal(s.next(12), hdr.Size);
-	tw.octal(s.next(12), hdr.Mtime);
-	s.next(8);  // chksum
-	s.next(1)[0] = hdr.Typeflag;
-	s.next(100);  // linkname
-	bytes.Copy(s.next(8), strings.Bytes("ustar\x0000"));
-	tw.cString(s.next(32), hdr.Uname);
-	tw.cString(s.next(32), hdr.Gname);
-	tw.octal(s.next(8), hdr.Devmajor);
-	tw.octal(s.next(8), hdr.Devminor);
+	tw.octal(s.next(8), hdr.Mode);	// 100:108
+	tw.octal(s.next(8), hdr.Uid);	// 108:116
+	tw.octal(s.next(8), hdr.Gid);	// 116:124
+	tw.octal(s.next(12), hdr.Size);	// 124:136
+	tw.octal(s.next(12), hdr.Mtime);	// 136:148
+	s.next(8);  // chksum (148:156)
+	s.next(1)[0] = hdr.Typeflag;	// 156:157
+	s.next(100);  // linkname (157:257)
+	bytes.Copy(s.next(8), strings.Bytes("ustar\x0000"));	// 257:265
+	tw.cString(s.next(32), hdr.Uname);	// 265:297
+	tw.cString(s.next(32), hdr.Gname);	// 297:329
+	tw.octal(s.next(8), hdr.Devmajor);	// 329:337
+	tw.octal(s.next(8), hdr.Devminor);	// 337:345
 
 	// The chksum field is terminated by a NUL and a space.
 	// This is different from the other octal fields.

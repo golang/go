@@ -1,4 +1,4 @@
-archive/tar.install: bufio.install bytes.install io.install os.install strconv.install
+archive/tar.install: bytes.install io.install os.install strconv.install strings.install
 base64.install: bytes.install io.install os.install strconv.install
 bignum.install: fmt.install
 bufio.install: io.install os.install strconv.install utf8.install
