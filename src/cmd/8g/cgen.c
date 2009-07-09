@@ -91,17 +91,12 @@ cgen(Node *n, Node *res)
 
 	// if both are not addressable, use a temporary.
 	if(!n->addable && !res->addable) {
-		if(is64(n->type)) {
-			tempalloc(&n1, n->type);
-			cgen(n, &n1);
-			cgen(&n1, res);
-			tempfree(&n1);
-			return;
-		}
-		regalloc(&n1, n->type, N);
+		// could use regalloc here sometimes,
+		// but have to check for ullman >= UINF.
+		tempalloc(&n1, n->type);
 		cgen(n, &n1);
 		cgen(&n1, res);
-		regfree(&n1);
+		tempfree(&n1);
 		return;
 	}
 
