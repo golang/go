@@ -183,6 +183,14 @@ func encUint64(i *encInstr, state *EncState, p unsafe.Pointer) {
 	}
 }
 
+func encUintptr(i *encInstr, state *EncState, p unsafe.Pointer) {
+	v := uint64(*(*uintptr)(p));
+	if v != 0 {
+		state.update(i);
+		EncodeUint(state, v);
+	}
+}
+
 // Floating-point numbers are transmitted as uint64s holding the bits
 // of the underlying representation.  They are sent byte-reversed, with
 // the exponent end coming out first, so integer floating point numbers
@@ -285,21 +293,21 @@ func encodeArray(w io.Writer, p uintptr, op encOp, elemWid uintptr, length int, 
 	state.fieldnum = -1;
 	EncodeUint(state, uint64(length));
 	for i := 0; i < length && state.err == nil; i++ {
-		up := unsafe.Pointer(p);
+		elemp := p;
+		up := unsafe.Pointer(elemp);
 		if elemIndir > 0 {
 			if up = encIndirect(up, elemIndir); up == nil {
 				state.err = os.ErrorString("encodeArray: nil element");
 				break
 			}
-			p = uintptr(up);
+			elemp = uintptr(up);
 		}
-		op(nil, state, unsafe.Pointer(p));
+		op(nil, state, unsafe.Pointer(elemp));
 		p += uintptr(elemWid);
 	}
 	return state.err
 }
 
-var encEngineMap = make(map[reflect.Type] *encEngine)
 var encOpMap = map[reflect.Type] encOp {
 	reflect.Typeof((*reflect.BoolType)(nil)): encBool,
 	reflect.Typeof((*reflect.IntType)(nil)): encInt,
@@ -312,6 +320,7 @@ var encOpMap = map[reflect.Type] encOp {
 	reflect.Typeof((*reflect.Uint16Type)(nil)): encUint16,
 	reflect.Typeof((*reflect.Uint32Type)(nil)): encUint32,
 	reflect.Typeof((*reflect.Uint64Type)(nil)): encUint64,
+	reflect.Typeof((*reflect.UintptrType)(nil)): encUintptr,
 	reflect.Typeof((*reflect.FloatType)(nil)): encFloat,
 	reflect.Typeof((*reflect.Float32Type)(nil)): encFloat32,
 	reflect.Typeof((*reflect.Float64Type)(nil)): encFloat64,
@@ -354,9 +363,11 @@ func encOpFor(rt reflect.Type) (encOp, int) {
 		case *reflect.StructType:
 			// Generate a closure that calls out to the engine for the nested type.
 			engine := getEncEngine(typ);
+			info := getTypeInfo(typ);
 			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
 				state.update(i);
-				state.err = encodeStruct(engine, state.w, uintptr(p));
+				// indirect through info to delay evaluation for recursive structs
+				state.err = encodeStruct(info.encoder, state.w, uintptr(p));
 			};
 		}
 	}
@@ -366,10 +377,8 @@ func encOpFor(rt reflect.Type) (encOp, int) {
 	return op, indir
 }
 
-// The local Type was compiled from the actual value, so we know
-// it's compatible.
-// TODO(r): worth checking?  typ is unused here.
-func compileEnc(rt reflect.Type, typ Type) *encEngine {
+// The local Type was compiled from the actual value, so we know it's compatible.
+func compileEnc(rt reflect.Type) *encEngine {
 	srt, ok := rt.(*reflect.StructType);
 	if !ok {
 		panicln("TODO: can't handle non-structs");
@@ -385,15 +394,16 @@ func compileEnc(rt reflect.Type, typ Type) *encEngine {
 	return engine;
 }
 
-// typeLock must be held.
+// typeLock must be held (or we're in initialization and guaranteed single-threaded).
+// The reflection type must have all its indirections processed out.
 func getEncEngine(rt reflect.Type) *encEngine {
-	engine, ok := encEngineMap[rt];
-	if !ok {
-		pkg, name := rt.Name();
-		engine = compileEnc(rt, newType(name, rt));
-		encEngineMap[rt] = engine;
+	info := getTypeInfo(rt);
+	if info.encoder == nil {
+		// mark this engine as underway before compiling to handle recursive types.
+		info.encoder = new(encEngine);
+		info.encoder = compileEnc(rt);
 	}
-	return engine
+	return info.encoder;
 }
 
 func Encode(w io.Writer, e interface{}) os.Error {

@@ -36,10 +36,11 @@ O1=\
 	type.$O\
 
 O2=\
+	decode.$O\
 	encode.$O\
 
 O3=\
-	decode.$O\
+	encoder.$O\
 
 
 phases: a1 a2 a3
@@ -50,11 +51,11 @@ a1: $(O1)
 	rm -f $(O1)
 
 a2: $(O2)
-	$(AR) grc _obj$D/gob.a encode.$O
+	$(AR) grc _obj$D/gob.a decode.$O encode.$O
 	rm -f $(O2)
 
 a3: $(O3)
-	$(AR) grc _obj$D/gob.a decode.$O
+	$(AR) grc _obj$D/gob.a encoder.$O
 	rm -f $(O3)
 
 
