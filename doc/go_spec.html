@@ -2436,8 +2436,8 @@ The operand types in binary operations must be compatible, with the following ex
 	  an ideal number, the ideal number is converted to match the type of
 	  the other operand (§Expressions).</li>
 
-	<li>If both operands are ideal numbers, the conversion is to ideal floats
-	  if one of the operands is an ideal float
+	<li>Except in shift expressions, if both operands are ideal numbers and one is an
+	  ideal float, the other is converted to ideal float
 	  (relevant for <code>/</code> and <code>%</code>).</li>
 
 	<li>The right operand in a shift operation must be always be of unsigned integer type
@@ -2452,11 +2452,10 @@ The operand types in binary operations must be compatible, with the following ex
 </ul>
 
 <p>
-Unary operators have the highest precedence. They are evaluated from
-right to left. As the  <code>++</code> and <code>--</code> operators form
+Unary operators have the highest precedence.
+As the  <code>++</code> and <code>--</code> operators form
 statements, not expressions, they fall
-outside the unary operator hierarchy and apply
-to the operand on the left.
+outside the operator hierarchy.
 As a consequence, statement <code>*p++</code> is the same as <code>(*p)++</code>.
 <p>
 There are six precedence levels for binary operators.
