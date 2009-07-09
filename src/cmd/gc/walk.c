@@ -790,6 +790,10 @@ loop:
 		if(top != Erv)
 			goto nottop;
 		walktype(n->left, Erv);
+		if(n->left == N) {
+			yyerror("missing argument to len");
+			goto ret;
+		}
 		defaultlit(n->left, T);
 		implicitstar(&n->left);
 		t = n->left->type;
