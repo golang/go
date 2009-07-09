@@ -107,6 +107,8 @@ updatetype(Type *n, Type *t)
 	int local, vargen;
 	int maplineno, lno, etype;
 
+	if(t == T)
+		return;
 	s = n->sym;
 	if(s == S || s->def == N || s->def->op != OTYPE || s->def->type != n)
 		fatal("updatetype %T = %T", n, t);
