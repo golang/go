@@ -14,9 +14,11 @@ const cannotSet = "cannot set value obtained via unexported struct field"
 
 // TODO: This will have to go away when
 // the new gc goes in.
-func memmove(dst, src, n uintptr) {
+func memmove(adst, asrc addr, n uintptr) {
 	var p uintptr;	// dummy for sizeof
 	const ptrsize = uintptr(unsafe.Sizeof(p));
+	dst := uintptr(adst);
+	src := uintptr(asrc);
 	switch {
 	case src < dst && src+n > dst:
 		// byte copy backward
@@ -424,7 +426,7 @@ func (v *UnsafePointerValue) Set(x unsafe.Pointer) {
 
 func typesMustMatch(t1, t2 reflect.Type) {
 	if t1 != t2 {
-		panicln("type mismatch:", t1, "!=", t2);
+		panicln("type mismatch:", t1.String(), "!=", t2.String());
 	}
 }
 
@@ -456,7 +458,7 @@ func ArrayCopy(dst, src ArrayOrSliceValue) int {
 	if xn := src.Len(); n > xn {
 		n = xn;
 	}
-	memmove(uintptr(dst.addr()), uintptr(src.addr()), uintptr(n) * de.Size());
+	memmove(dst.addr(), src.addr(), uintptr(n) * de.Size());
 	return n;
 }
 
@@ -642,6 +644,7 @@ func (v *ChanValue) send(x Value, b *bool) {
 	if t.Dir() & SendDir == 0{
 		panic("send on recv-only channel");
 	}
+	typesMustMatch(t.Elem(), x.Type());
 	ch := *(**byte)(v.addr);
 	chansend(ch, (*byte)(x.getAddr()), b);
 }
@@ -731,12 +734,88 @@ func (v *FuncValue) Set(x *FuncValue) {
 	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
 }
 
+// implemented in ../pkg/runtime/*/asm.s
+func call(fn, arg *byte, n uint32)
+
+type tiny struct { b byte }
+
 // Call calls the function v with input parameters in.
 // It returns the function's output parameters as Values.
 func (v *FuncValue) Call(in []Value) []Value {
-	panic("unimplemented: function Call");
-}
+	var structAlign = Typeof((*tiny)(nil)).(*PtrType).Elem().Size();
 
+	t := v.Type().(*FuncType);
+	if len(in) != t.NumIn() {
+		panic("FuncValue: wrong argument count");
+	}
+	nout := t.NumOut();
+
+	// Compute arg size & allocate.
+	// This computation is 6g/8g-dependent
+	// and probably wrong for gccgo, but so
+	// is most of this function.
+	size := uintptr(0);
+	for i, v := range in {
+		tv := v.Type();
+		typesMustMatch(t.In(i), tv);
+		a := uintptr(tv.Align());
+		size = (size + a - 1) &^ (a - 1);
+		size += tv.Size();
+	}
+	size = (size + structAlign - 1) &^ (structAlign - 1);
+	for i := 0; i < nout; i++ {
+		tv := t.Out(i);
+		a := uintptr(tv.Align());
+		size = (size + a - 1) &^ (a - 1);
+		size += tv.Size();
+	}
+	
+	// size must be > 0 in order for &args[0] to be valid.
+	// the argument copying is going to round it up to
+	// a multiple of 8 anyway, so make it 8 to begin with.
+	if size < 8 {
+		size = 8;
+	}
+	args := make([]byte, size);
+	ptr := uintptr(unsafe.Pointer(&args[0]));
+
+	// Copy into args.
+	//
+	// TODO(rsc): revisit when reference counting happens.
+	// This one may be fine.  The values are holding up the
+	// references for us, so maybe this can be treated
+	// like any stack-to-stack copy.
+	off := uintptr(0);
+	for i, v := range in {
+		tv := v.Type();
+		a := uintptr(tv.Align());
+		off = (off + a - 1) &^ (a - 1);
+		n := tv.Size();
+		memmove(addr(ptr+off), v.getAddr(), n);
+		off += n;
+	}
+	off = (off + structAlign - 1) &^ (structAlign - 1);
+
+	// Call
+	call(*(**byte)(v.addr), (*byte)(addr(ptr)), uint32(size));
+
+	// Copy return values out of args.
+	//
+	// TODO(rsc): revisit like above.
+	ret := make([]Value, nout);
+	for i := 0; i < nout; i++ {
+		tv := t.Out(i);
+		a := uintptr(tv.Align());
+		off = (off + a - 1) &^ (a - 1);
+		v := MakeZero(tv);
+		n := tv.Size();
+		memmove(v.getAddr(), addr(ptr+off), n);
+		ret[i] = v;
+		off += n;
+	}
+
+	return ret;
+}
 
 /*
  * interface
@@ -953,7 +1032,7 @@ func (v *StructValue) Set(x *StructValue) {
 		panic(cannotSet);
 	}
 	typesMustMatch(v.typ, x.typ);
-	memmove(uintptr(v.addr), uintptr(x.addr), v.typ.Size());
+	memmove(v.addr, x.addr, v.typ.Size());
 }
 
 // Field returns the i'th field of the struct.
@@ -974,11 +1053,6 @@ func (v *StructValue) NumField() int {
 /*
  * constructors
  */
-
-// Typeof returns the reflection Type of the value in the interface{}.
-func Typeof(i interface{}) Type {
-	return toType(unsafe.Typeof(i));
-}
 
 // NewValue returns a new Value initialized to the concrete value
 // stored in the interface i.  NewValue(nil) returns nil.
@@ -1072,3 +1146,4 @@ func MakeZero(typ Type) Value {
 	data := make([]uint8, size);
 	return newValue(typ, addr(&data[0]), true);
 }
+

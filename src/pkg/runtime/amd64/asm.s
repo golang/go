@@ -115,6 +115,7 @@ TEXT sys·morestack(SB),7,$0
 	MOVQ	AX, (m_morebuf+gobuf_pc)(m)
 	LEAQ	16(SP), AX	// f's caller's SP
 	MOVQ	AX, (m_morebuf+gobuf_sp)(m)
+	MOVQ	AX, (m_morefp)(m)
 	MOVQ	g, (m_morebuf+gobuf_g)(m)
 
 	// Set m->morepc to f's PC.
@@ -126,6 +127,42 @@ TEXT sys·morestack(SB),7,$0
 	MOVQ	(m_sched+gobuf_sp)(m), SP
 	CALL	newstack(SB)
 	MOVQ	$0, 0x1003	// crash if newstack returns
+	RET
+
+// Called from reflection library.  Mimics morestack,
+// reuses stack growth code to create a frame
+// with the desired args running the desired function.
+//
+// func call(fn *byte, arg *byte, argsize uint32).
+TEXT reflect·call(SB), 7, $0
+	// Save our caller's state as the PC and SP to
+	// restore when returning from f.
+	MOVQ	0(SP), AX	// our caller's PC
+	MOVQ	AX, (m_morebuf+gobuf_pc)(m)
+	LEAQ	8(SP), AX	// our caller's SP
+	MOVQ	AX, (m_morebuf+gobuf_sp)(m)
+	MOVQ	g, (m_morebuf+gobuf_g)(m)
+
+	// Set up morestack arguments to call f on a new stack.
+	// We set f's frame size to zero, meaning
+	// allocate a standard sized stack segment.
+	// If it turns out that f needs a larger frame than this,
+	// f's usual stack growth prolog will allocate
+	// a new segment (and recopy the arguments).
+	MOVQ	8(SP), AX	// fn
+	MOVQ	16(SP), BX	// arg frame
+	MOVL	24(SP), CX	// arg size
+
+	MOVQ	AX, m_morepc(m)	// f's PC
+	MOVQ	BX, m_morefp(m)	// argument frame pointer
+	MOVL	CX, m_moreargs(m)	// f's argument size
+	MOVL	$0, m_moreframe(m)	// f's frame size
+
+	// Call newstack on m's scheduling stack.
+	MOVQ	m_g0(m), g
+	MOVQ	(m_sched+gobuf_sp)(m), SP
+	CALL	newstack(SB)
+	MOVQ	$0, 0x1103	// crash if newstack returns
 	RET
 
 // Return point when leaving stack.

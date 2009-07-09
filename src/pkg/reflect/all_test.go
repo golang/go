@@ -725,3 +725,22 @@ func TestChan(t *testing.T) {
 	}
 }
 
+// Difficult test for function call because of
+// implicit padding between arguments.
+func dummy(b byte, c int, d byte) (i byte, j int, k byte){
+	return b, c, d;
+}
+
+func TestFunc(t *testing.T) {
+	ret := NewValue(dummy).(*FuncValue).Call([]Value{NewValue(byte(10)), NewValue(20), NewValue(byte(30))});
+	if len(ret) != 3 {
+		t.Fatalf("Call returned %d values, want 3", len(ret));
+	}
+
+	i := ret[0].(*Uint8Value).Get();
+	j := ret[1].(*IntValue).Get();
+	k := ret[2].(*Uint8Value).Get();
+	if i != 10 || j != 20 || k != 30 {
+		t.Errorf("Call returned %d, %d, %d; want 10, 20, 30", i, j, k);
+	}
+}
