@@ -221,6 +221,11 @@ func TestScan(t *testing.T) {
 			}
 			eloc.Offset += len(lit) + len(whitespace);
 			eloc.Line += NewlineCount(lit) + whitespace_linecount;
+			if tok == token.COMMENT && litb[1] == '/' {
+				// correct for unaccounted '/n' in //-style comment
+				eloc.Offset++;
+				eloc.Line++;
+			}
 			index++;
 			return tok != token.EOF;
 		}
