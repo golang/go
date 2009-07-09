@@ -48,7 +48,7 @@ func parserMode() uint {
 
 
 func printerMode() uint {
-	mode := uint(0);
+	mode := printer.DocComments;
 	if *optcommas {
 		mode |= printer.OptCommas;
 	}

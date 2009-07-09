@@ -58,4 +58,12 @@ TYPES
 {.end}
 {.end}
 {.end}
+{.section Bugs}
+
+BUGS
+
+{.repeated section @}
+{@}
+{.end}
+{.end}
 {.end}

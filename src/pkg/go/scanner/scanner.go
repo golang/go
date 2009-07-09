@@ -141,7 +141,8 @@ func (S *Scanner) scanComment(pos token.Position) {
 		for S.ch >= 0 {
 			S.next();
 			if S.ch == '\n' {
-				S.next();  // '\n' belongs to the comment
+				// '\n' is not part of the comment
+				// (the comment ends on the same line where it started)
 				return;
 			}
 		}

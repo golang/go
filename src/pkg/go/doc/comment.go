@@ -34,7 +34,7 @@ func makeRex(s string) *regexp.Regexp {
 // TODO(rsc): Cannot use var initialization for regexps,
 // because Regexp constructor needs threads.
 func setupRegexps() {
-	comment_markers = makeRex("^/(/|\\*) ?");
+	comment_markers = makeRex("^/[/*] ?");
 	trailing_whitespace = makeRex("[ \t\r]+$");
 	comment_junk = makeRex("^[ \t]*(/\\*|\\*/)[ \t]*$");
 }

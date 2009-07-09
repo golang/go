@@ -61,7 +61,7 @@ func check(t *testing.T, source, golden string, exports bool) {
 	// format source
 	var buf bytes.Buffer;
 	w := tabwriter.NewWriter(&buf, tabwidth, padding, tabchar, 0);
-	Fprint(w, prog, 0);
+	Fprint(w, prog, DocComments);
 	w.Flush();
 	res := buf.Data();
 
