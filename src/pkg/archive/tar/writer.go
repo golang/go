@@ -1,0 +1,180 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package tar
+
+// TODO(dsymonds):
+// - catch more errors (no first header, write after close, etc.)
+
+import (
+	"archive/tar";
+	"bytes";
+	"io";
+	"os";
+	"strconv";
+	"strings";
+)
+
+var (
+	ErrWriteTooLong os.Error = os.ErrorString("write too long");
+	// TODO(dsymonds): remove ErrIntFieldTooBig after we implement binary extension.
+	ErrIntFieldTooBig os.Error = os.ErrorString("an integer header field was too big");
+)
+
+// A Writer provides sequential writing of a tar archive in POSIX.1 format.
+// A tar archive consists of a sequence of files.
+// Call WriteHeader to begin a new file, and then call Write to supply that file's data,
+// writing at most hdr.Size bytes in total.
+//
+// Example:
+// 	tw := NewTarWriter(w);
+//	hdr := new(Header);
+//	hdr.Size = length of data in bytes;
+//	// populate other hdr fields as desired
+//	if err := tw.WriteHeader(hdr); err != nil {
+//		// handle error
+//	}
+//	io.Copy(data, tw);
+//	tw.Close();
+type Writer struct {
+	w io.Writer;
+	err os.Error;
+	nb int64;	// number of unwritten bytes for current file entry
+	pad int64;	// amount of padding to write after current file entry
+	closed bool;
+}
+
+// NewWriter creates a new Writer writing to w.
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{ w: w }
+}
+
+// Flush finishes writing the current file (optional).
+func (tw *Writer) Flush() os.Error {
+	n := tw.nb + tw.pad;
+	for n > 0 && tw.err == nil {
+		nr := n;
+		if nr > blockSize {
+			nr = blockSize;
+		}
+		var nw int;
+		nw, tw.err = tw.w.Write(zeroBlock[0:nr]);
+		n -= int64(nw);
+	}
+	tw.nb = 0;
+	tw.pad = 0;
+	return tw.err
+}
+
+// Write s into b, terminating it with a NUL if there is room.
+func (tw *Writer) cString(b []byte, s string) {
+	if len(s) > len(b) {
+		if tw.err == nil {
+			tw.err = ErrIntFieldTooBig;
+		}
+		return
+	}
+	for i, ch := range strings.Bytes(s) {
+		b[i] = ch;
+	}
+	if len(s) < len(b) {
+		b[len(s)] = 0;
+	}
+}
+
+// Encode x as an octal ASCII string and write it into b with leading zeros.
+func (tw *Writer) octal(b []byte, x int64) {
+	s := strconv.Itob64(x, 8);
+	// leading zeros, but leave room for a NUL.
+	for len(s) + 1 < len(b) {
+		s = "0" + s;
+	}
+	tw.cString(b, s);
+}
+
+// WriteHeader writes hdr and prepares to accept the file's contents.
+// WriteHeader calls Flush if it is not the first header.
+func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+	if tw.err == nil {
+		tw.Flush();
+	}
+	if tw.err != nil {
+		return tw.err
+	}
+
+	tw.nb = int64(hdr.Size);
+	tw.pad = -tw.nb & (blockSize - 1);  // blockSize is a power of two
+
+	header := make([]byte, blockSize);
+	s := slicer(header);
+
+	// TODO(dsymonds): handle names longer than 100 chars
+	nr := bytes.Copy(s.next(100), strings.Bytes(hdr.Name));
+
+	tw.octal(s.next(8), hdr.Mode);
+	tw.octal(s.next(8), hdr.Uid);
+	tw.octal(s.next(8), hdr.Gid);
+	tw.octal(s.next(12), hdr.Size);
+	tw.octal(s.next(12), hdr.Mtime);
+	s.next(8);  // chksum
+	s.next(1)[0] = hdr.Typeflag;
+	s.next(100);  // linkname
+	bytes.Copy(s.next(8), strings.Bytes("ustar\x0000"));
+	tw.cString(s.next(32), hdr.Uname);
+	tw.cString(s.next(32), hdr.Gname);
+	tw.octal(s.next(8), hdr.Devmajor);
+	tw.octal(s.next(8), hdr.Devminor);
+
+	// The chksum field is terminated by a NUL and a space.
+	// This is different from the other octal fields.
+	chksum, _ := checksum(header);
+	tw.octal(header[148:155], chksum);
+	header[155] = ' ';
+
+	if tw.err != nil {
+		// problem with header; probably integer too big for a field.
+		return tw.err
+	}
+
+	var n int;
+	n, tw.err = tw.w.Write(header);
+
+	return tw.err
+}
+
+// Write writes to the current entry in the tar archive.
+// Write returns the error ErrWriteTooLong if more than
+// hdr.Size bytes are written after WriteHeader.
+func (tw *Writer) Write(b []uint8) (n int, err os.Error) {
+	overwrite := false;
+	if int64(len(b)) > tw.nb {
+		b = b[0:tw.nb];
+		overwrite = true;
+	}
+	n, err = tw.w.Write(b);
+	tw.nb -= int64(n);
+	if err == nil && overwrite {
+		err = ErrWriteTooLong;
+	}
+	tw.err = err;
+	return
+}
+
+func (tw *Writer) Close() os.Error {
+	if tw.err != nil || tw.closed {
+		return tw.err
+	}
+	tw.Flush();
+	tw.closed = true;
+
+	// trailer: two zero blocks
+	for i := 0; i < 2; i++ {
+		var n int;
+		n, tw.err = tw.w.Write(zeroBlock);
+		if tw.err != nil {
+			break
+		}
+	}
+	return tw.err
+}
