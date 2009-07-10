@@ -477,3 +477,5 @@ Hmap*	makemap(uint32, uint32, uint32, uint32, uint32);
 Hchan*	makechan(uint32, uint32, uint32);
 void	chansend(Hchan*, void*, bool*);
 void	chanrecv(Hchan*, void*, bool*);
+
+void	ifaceE2I(struct InterfaceType*, Eface, Iface*);

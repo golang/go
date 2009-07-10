@@ -889,20 +889,25 @@ func (v *InterfaceValue) Elem() Value {
 	return NewValue(v.Interface());
 }
 
+// ../runtime/reflect.cgo
+func setiface(typ *InterfaceType, x *interface{}, addr addr)
+
 // Set assigns x to v.
-func (v *InterfaceValue) Set(x interface{}) {
+func (v *InterfaceValue) Set(x Value) {
+	i := x.Interface();
 	if !v.canSet {
 		panic(cannotSet);
 	}
 	// Two different representations; see comment in Get.
 	// Empty interface is easy.
-	if v.typ.(*InterfaceType).NumMethod() == 0 {
-		*(*interface{})(v.addr) = x;
+	t := v.typ.(*InterfaceType);
+	if t.NumMethod() == 0 {
+		*(*interface{})(v.addr) = i;
+		return;
 	}
 
 	// Non-empty interface requires a runtime check.
-	panic("unimplemented: interface Set");
-//	unsafe.SetInterface(v.typ, v.addr, x);
+	setiface(t, &i, v.addr);
 }
 
 // Method returns a FuncValue corresponding to v's i'th method.
@@ -959,9 +964,9 @@ func mapiternext(it *byte)
 func mapiterkey(it *byte, key *byte) bool
 func makemap(t *runtime.MapType) *byte
 
-// Get returns the value associated with key in the map v.
+// Elem returns the value associated with key in the map v.
 // It returns nil if key is not found in the map.
-func (v *MapValue) Get(key Value) Value {
+func (v *MapValue) Elem(key Value) Value {
 	t := v.Type().(*MapType);
 	typesMustMatch(t.Key(), key.Type());
 	m := *(**byte)(v.addr);
@@ -975,9 +980,9 @@ func (v *MapValue) Get(key Value) Value {
 	return newval;
 }
 
-// Put sets the value associated with key in the map v to val.
+// SetElem sets the value associated with key in the map v to val.
 // If val is nil, Put deletes the key from map.
-func (v *MapValue) Put(key, val Value) {
+func (v *MapValue) SetElem(key, val Value) {
 	t := v.Type().(*MapType);
 	typesMustMatch(t.Key(), key.Type());
 	var vaddr *byte;
