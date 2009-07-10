@@ -80,7 +80,7 @@ func main() {
 
 	src, err := io.ReadFile(filename);
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", filename, err);
+		fmt.Fprintf(os.Stderr, "%v\n", err);
 		os.Exit(1);
 	}
 
