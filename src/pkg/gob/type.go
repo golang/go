@@ -142,6 +142,9 @@ type structType struct {
 }
 
 func (s *structType) safeString(seen map[TypeId] bool) string {
+	if s == nil {
+		return "<nil>"
+	}
 	if _, ok := seen[s._id]; ok {
 		return s.name
 	}
