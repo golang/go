@@ -1204,7 +1204,8 @@ oldname(Sym *s)
 			c->outer = n->closure;
 			n->closure = c;
 			c->closure = n;
-			funclit->cvars = list(c, funclit->cvars);
+			if(funclit != N)
+				funclit->cvars = list(c, funclit->cvars);
 		}
 		// return ref to closure var, not original
 		return n->closure;
