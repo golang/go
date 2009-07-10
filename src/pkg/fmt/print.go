@@ -444,6 +444,18 @@ func (p *pp) printField(field reflect.Value) (was_string bool) {
 			p.printField(f.Elem(i));
 		}
 		p.addstr("]");
+	case *reflect.MapValue:
+		p.addstr("map[");
+		keys := f.Keys();
+		for i, key := range keys {
+			if i > 0 {
+				p.addstr(" ");
+			}
+			p.printField(key);
+			p.addstr(":");
+			p.printField(f.Get(key));
+		}
+		p.addstr("]");
 	case *reflect.StructValue:
 		p.add('{');
 		v := f;
@@ -457,7 +469,7 @@ func (p *pp) printField(field reflect.Value) (was_string bool) {
 			if donames {
 				if f := t.Field(i); f.Name != "" {
 					p.addstr(f.Name);
-					p.add('=');
+					p.add(':');
 				}
 			}
 			p.printField(getField(v, i));
