@@ -57,12 +57,12 @@ func TestParse3(t *testing.T) {
 		src, err := os.Open(filename, os.O_RDONLY, 0);
 		defer src.Close();
 		if err != nil {
-			t.Fatalf("os.Open(%s): %v\n", filename, err);
+			t.Fatal(err);
 		}
 
 		prog, err := Parse(src, 0);
 		if err != nil {
-			t.Errorf("Parse(%q): %v", src, err);
+			t.Errorf("Parse(%s): %v", filename, err);
 		}
 	}
 }
