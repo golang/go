@@ -15,9 +15,9 @@ import (
 func TestFmtInterface(t *testing.T) {
 	var i1 interface{};
 	i1 = "abc";
-	s := fmt.Sprintf("%s", i1);
+	s := Sprintf("%s", i1);
 	if s != "abc" {
-		t.Errorf(`fmt.Sprintf("%%s", empty("abc")) = %q want %q`, s, "abc");
+		t.Errorf(`Sprintf("%%s", empty("abc")) = %q want %q`, s, "abc");
 	}
 }
 
@@ -157,23 +157,22 @@ var fmttests = []fmtTest{
 }
 
 func TestSprintf(t *testing.T) {
-	for i := 0; i < len(fmttests); i++ {
-		tt := fmttests[i];
-		s := fmt.Sprintf(tt.fmt, tt.val);
+	for i, tt := range fmttests {
+		s := Sprintf(tt.fmt, tt.val);
 		if s != tt.out {
 			if ss, ok := tt.val.(string); ok {
 				// Don't requote the already-quoted strings.
 				// It's too confusing to read the errors.
-				t.Errorf("fmt.Sprintf(%q, %q) = %s want %s", tt.fmt, tt.val, s, tt.out);
+				t.Errorf("Sprintf(%q, %q) = %s want %s", tt.fmt, tt.val, s, tt.out);
 			} else {
-				t.Errorf("fmt.Sprintf(%q, %v) = %q want %q", tt.fmt, tt.val, s, tt.out);
+				t.Errorf("Sprintf(%q, %v) = %q want %q", tt.fmt, tt.val, s, tt.out);
 			}
 		}
 	}
 }
 
 type flagPrinter struct { }
-func (*flagPrinter) Format(f fmt.State, c int) {
+func (*flagPrinter) Format(f State, c int) {
 	s := "%";
 	for i := 0; i < 128; i++ {
 		if f.Flag(i) {
@@ -181,10 +180,10 @@ func (*flagPrinter) Format(f fmt.State, c int) {
 		}
 	}
 	if w, ok := f.Width(); ok {
-		s += fmt.Sprintf("%d", w);
+		s += Sprintf("%d", w);
 	}
 	if p, ok := f.Precision(); ok {
-		s += fmt.Sprintf(".%d", p);
+		s += Sprintf(".%d", p);
 	}
 	s += string(c);
 	io.WriteString(f, "["+s+"]");
@@ -212,9 +211,8 @@ var flagtests = []flagTest {
 
 func TestFlagParser(t *testing.T) {
 	var flagprinter flagPrinter;
-	for i := 0; i < len(flagtests); i++ {
-		tt := flagtests[i];
-		s := fmt.Sprintf(tt.in, &flagprinter);
+	for i, tt := range flagtests {
+		s := Sprintf(tt.in, &flagprinter);
 		if s != tt.out {
 			t.Errorf("Sprintf(%q, &flagprinter) => %q, want %q", tt.in, s, tt.out);
 		}
@@ -236,13 +234,39 @@ func TestStructPrinter(t *testing.T) {
 	}
 	var tests = []Test {
 		Test{ "%v", "{abc def 123}" },
-		Test{ "%+v", "{a=abc b=def c=123}" },
+		Test{ "%+v", "{a:abc b:def c:123}" },
 	};
-	for i := 0; i < len(tests); i++ {
-		tt := tests[i];
-		out := fmt.Sprintf(tt.fmt, s);
+	for i, tt := range tests {
+		out := Sprintf(tt.fmt, s);
 		if out != tt.out {
 			t.Errorf("Sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out);
 		}
 	}
+}
+
+// Check map printing using substrings so we don't depend on the print order.
+func presentInMap(s string, a []string, t *testing.T) {
+	for i := 0; i < len(a); i++ {
+		loc := strings.Index(s, a[i]);
+		if loc < 0 {
+			t.Errorf("map print: expected to find %q in %q", a[i], s);
+		}
+		// make sure the match ends here
+		loc += len(a[i]);
+		if loc >= len(s) || (s[loc] != ' ' && s[loc] != ']') {
+			t.Errorf("map print: %q not properly terminated in %q", a[i], s);
+		}
+	}
+}
+
+func TestMapPrinter(t *testing.T) {
+	m0 := make(map[int] string);
+	s := Sprint(m0);
+	if s != "map[]" {
+		t.Errorf("empty map printed as %q not %q", s, "map[]");
+	}
+	m1 := map[int]string{1:"one", 2:"two", 3:"three"};
+	a := []string{"1:one", "2:two", "3:three"};
+	presentInMap(Sprintf("%v", m1), a, t);
+	presentInMap(Sprint(m1), a, t);
 }
