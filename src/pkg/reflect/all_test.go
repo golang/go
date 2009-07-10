@@ -744,3 +744,37 @@ func TestFunc(t *testing.T) {
 		t.Errorf("Call returned %d, %d, %d; want 10, 20, 30", i, j, k);
 	}
 }
+
+type Point struct {
+	x, y int;
+}
+
+func (p Point) Dist(scale int) int {
+	return p.x*p.x*scale + p.y*p.y*scale;
+}
+
+func TestMethod(t *testing.T) {
+	// Non-curried method of type.
+	p := Point{3, 4};
+	i := reflect.Typeof(p).Method(0).Func.Call([]Value{NewValue(p), NewValue(10)})[0].(*IntValue).Get();
+	if i != 250 {
+		t.Errorf("Type Method returned %d; want 250", i);
+	}
+
+	// Curried method of value.
+	i = NewValue(p).Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get();
+	if i != 250 {
+		t.Errorf("Value Method returned %d; want 250", i);
+	}
+
+	// Curried method of interface value.
+	// Have to wrap interface value in a struct to get at it.
+	// Passing it to NewValue directly would
+	// access the underlying Point, not the interface.
+	var s = struct{x interface{Dist(int) int}}{p};
+	pv := NewValue(s).(*StructValue).Field(0);
+	i = pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get();
+	if i != 250 {
+		t.Errorf("Interface Method returned %d; want 250", i);
+	}
+}

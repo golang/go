@@ -229,7 +229,7 @@ type StructType struct {
 type Type interface
 type addr unsafe.Pointer
 type FuncValue struct
-func newFuncValue(typ Type, addr addr) *FuncValue
+func newFuncValue(typ Type, addr addr, canSet bool) *FuncValue
 
 // Method represents a single method.
 type Method struct {
@@ -274,9 +274,15 @@ type Type interface {
 	// NumMethod returns the number of such methods.
 	Method(int)	Method;
 	NumMethod()	int;
+
+	uncommon() *uncommonType;
 }
 
 func toType(i interface{}) Type
+
+func (t *uncommonType) uncommon() *uncommonType {
+	return t;
+}
 
 func (t *uncommonType) Name() (pkgPath string, name string) {
 	if t == nil {
@@ -320,7 +326,7 @@ func (t *uncommonType) Method(i int) (m Method) {
 	}
 	m.Type = toType(*p.typ).(*FuncType);
 	fn := p.tfn;
-	m.Func = newFuncValue(m.Type, addr(&fn));
+	m.Func = newFuncValue(m.Type, addr(&fn), true);
 	return;
 }
 
@@ -409,7 +415,7 @@ func (t *InterfaceType) Method(i int) (m Method) {
 	if i < 0 || i >= len(t.methods) {
 		return;
 	}
-	p := t.methods[i];
+	p := &t.methods[i];
 	m.Name = *p.name;
 	if p.pkgPath != nil {
 		m.PkgPath = *p.pkgPath;
