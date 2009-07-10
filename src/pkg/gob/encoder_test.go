@@ -90,4 +90,29 @@ func TestBasicEncoder(t *testing.T) {
 	if b.Len() != 0 {
 		t.Error("not at eof;", b.Len(), "bytes left")
 	}
+
+	// Now do it again. This time we should see only the type id and value.
+	b.Reset();
+	enc.Encode(et1);
+	if enc.state.err != nil {
+		t.Error("2nd round: encoder fail:", enc.state.err)
+	}
+	// 5a) The type id for the et1 value
+	newId1 = DecodeInt(state);
+	if newId1 != -id1 {
+		t.Fatal("2nd round: expected Et1 id", -id1, "got", newId1);
+	}
+	// 6a) The value of et1
+	newEt1 = new(ET1);
+	err = Decode(b, newEt1);
+	if err != nil {
+		t.Fatal("2nd round: error decoding ET1 value:", err);
+	}
+	if !reflect.DeepEqual(et1, newEt1) {
+		t.Fatalf("2nd round: invalid data for et1: expected %+v; got %+v\n", *et1, *newEt1);
+	}
+	// 7a) EOF
+	if b.Len() != 0 {
+		t.Error("2nd round: not at eof;", b.Len(), "bytes left")
+	}
 }
