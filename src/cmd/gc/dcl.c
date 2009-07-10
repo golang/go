@@ -17,8 +17,12 @@ dflag(void)
 	return 1;
 }
 
+/*
+ * declare (possible list) n of type t.
+ * append ODCL nodes to *init
+ */
 void
-dodclvar(Node *n, Type *t)
+dodclvar(Node *n, Type *t, Node **init)
 {
 	if(n == N)
 		return;
@@ -26,7 +30,7 @@ dodclvar(Node *n, Type *t)
 	if(t != T && (t->etype == TIDEAL || t->etype == TNIL))
 		fatal("dodclvar %T", t);
 	for(; n->op == OLIST; n = n->right)
-		dodclvar(n->left, t);
+		dodclvar(n->left, t, init);
 
 	dowidth(t);
 
@@ -39,7 +43,7 @@ dodclvar(Node *n, Type *t)
 	addvar(n, t, dclcontext);
 	autoexport(n->sym);
 	if(funcdepth > 0)
-		addtop = list(addtop, nod(ODCL, n, N));
+		*init = list(*init, nod(ODCL, n, N));
 }
 
 void
@@ -1665,13 +1669,14 @@ embedded(Sym *s)
 
 /*
  * declare variables from grammar
- * new_name_list [type] = expr_list
+ * new_name_list (type | [type] = expr_list)
  */
 Node*
 variter(Node *vv, Type *t, Node *ee)
 {
 	Iter viter, eiter;
 	Node *v, *e, *r, *a;
+	Type *tv;
 
 	vv = rev(vv);
 	ee = rev(ee);
@@ -1680,29 +1685,31 @@ variter(Node *vv, Type *t, Node *ee)
 	e = listfirst(&eiter, &ee);
 	r = N;
 
-loop:
-	if(v == N && e == N)
-		return rev(r);
+	while(v != N) {
+		if(ee != N && e == N) {
+			yyerror("missing expr in var dcl");
+			break;
+		}
 
-	if(v == N || e == N) {
-		yyerror("shape error in var dcl");
-		return rev(r);
+		a = N;
+		if(e != N || funcdepth > 0)
+			a = nod(OAS, v, e);
+		tv = t;
+		if(t == T) {
+			gettype(e, &r);
+			defaultlit(e, T);
+			tv = e->type;
+		}
+		dodclvar(v, tv, &r);
+		r = list(r, a);
+
+		v = listnext(&viter);
+		if(ee != N)
+			e = listnext(&eiter);
 	}
-
-	a = nod(OAS, v, N);
-	if(t == T) {
-		gettype(e, a);
-		defaultlit(e, T);
-		dodclvar(v, e->type);
-	} else
-		dodclvar(v, t);
-	a->right = e;
-
-	r = list(r, a);
-
-	v = listnext(&viter);
-	e = listnext(&eiter);
-	goto loop;
+	if(e != N)
+		yyerror("extra expr in var dcl");
+	return rev(r);
 }
 
 /*
@@ -1713,7 +1720,7 @@ void
 constiter(Node *vv, Type *t, Node *cc)
 {
 	Iter viter, citer;
-	Node *v, *c, n1;
+	Node *v, *c, *init;
 
 	if(cc == N) {
 		if(t != T)
@@ -1741,9 +1748,9 @@ loop:
 		return;
 	}
 
-	memset(&n1, 0, sizeof n1);
-	gettype(c, &n1);
-	if(n1.ninit != nil) {
+	init = N;
+	gettype(c, &init);
+	if(init != N) {
 		// the expression had extra code to run.
 		// dodclconst is going to print an error
 		// because the expression isn't constant,
@@ -1771,7 +1778,7 @@ loop:
 Node*
 unsafenmagic(Node *l, Node *r)
 {
-	Node *n;
+	Node *n, *init;
 	Sym *s;
 	Type *t, *tr;
 	long v;
@@ -1787,8 +1794,9 @@ unsafenmagic(Node *l, Node *r)
 	if(strcmp(s->package, "unsafe") != 0)
 		goto no;
 
+	init = N;
 	if(strcmp(s->name, "Sizeof") == 0) {
-		walktype(r, Erv);
+		walkexpr(r, Erv, &init);
 		tr = r->type;
 		if(r->op == OLITERAL && r->val.ctype == CTSTR)
 			tr = types[TSTRING];
@@ -1800,12 +1808,12 @@ unsafenmagic(Node *l, Node *r)
 	if(strcmp(s->name, "Offsetof") == 0) {
 		if(r->op != ODOT && r->op != ODOTPTR)
 			goto no;
-		walktype(r, Erv);
+		walkexpr(r, Erv, &init);
 		v = r->xoffset;
 		goto yes;
 	}
 	if(strcmp(s->name, "Alignof") == 0) {
-		walktype(r, Erv);
+		walkexpr(r, Erv, &init);
 		tr = r->type;
 		if(r->op == OLITERAL && r->val.ctype == CTSTR)
 			tr = types[TSTRING];
@@ -1830,7 +1838,7 @@ no:
 	return N;
 
 yes:
-	addtop = N;	// any side effects disappear
+	// any side effects disappear; ignore init
 	val.ctype = CTINT;
 	val.u.xval = mal(sizeof(*n->val.u.xval));
 	mpmovecfix(val.u.xval, v);

@@ -601,7 +601,6 @@ EXTERN	int	widthptr;
 EXTERN	Node*	retnil;
 EXTERN	Node*	fskel;
 
-EXTERN	Node*	addtop;
 EXTERN	Node*	typeswvar;
 
 EXTERN	char*	structpkg;
@@ -765,7 +764,7 @@ void	tempname(Node*, Type*);
 Node*	staticname(Type*);
 int	iscomposite(Type*);
 Node*	callnew(Type*);
-Node*	saferef(Node*);
+Node*	saferef(Node*, Node**);
 int	is64(Type*);
 int	noconv(Type*, Type*);
 
@@ -812,7 +811,7 @@ int	simsimtype(Type*);
 /*
  *	dcl.c
  */
-void	dodclvar(Node*, Type*);
+void	dodclvar(Node*, Type*, Node**);
 Type*	dodcltype(Type*);
 void	updatetype(Type*, Type*);
 void	dodclconst(Node*, Node*);
@@ -907,30 +906,29 @@ Type*	pkgtype(Sym*);
 /*
  *	walk.c
  */
-void	addtotop(Node*);
-void	gettype(Node*, Node*);
+void	gettype(Node*, Node**);
 void	walk(Node*);
-void	walkstate(Node*);
-void	walktype(Node*, int);
-void	walkconv(Node*);
+void	walkstmt(Node*);
+void	walkexpr(Node*, int, Node**);
+void	walkconv(Node*, Node**);
 void	walkas(Node*);
 void	walkbool(Node*);
 void	walkswitch(Node*);
 void	walkselect(Node*);
-void	walkdot(Node*);
-Node*	ascompatee(int, Node**, Node**);
-Node*	ascompatet(int, Node**, Type**, int);
-Node*	ascompatte(int, Type**, Node**, int);
+void	walkdot(Node*, Node**);
+Node*	ascompatee(int, Node**, Node**, Node**);
+Node*	ascompatet(int, Node**, Type**, int, Node**);
+Node*	ascompatte(int, Type**, Node**, int, Node**);
 int	ascompat(Type*, Type*);
 Node*	prcompat(Node*, int);
 Node*	nodpanic(int32);
 Node*	newcompat(Node*);
 Node*	makecompat(Node*);
-Node*	stringop(Node*, int);
+Node*	stringop(Node*, int, Node**);
 Type*	fixmap(Type*);
-Node*	mapop(Node*, int);
+Node*	mapop(Node*, int, Node**);
 Type*	fixchan(Type*);
-Node*	chanop(Node*, int);
+Node*	chanop(Node*, int, Node**);
 Node*	arrayop(Node*, int);
 Node*	ifacecvt(Type*, Node*, int);
 Node*	ifaceop(Node*);
@@ -938,18 +936,18 @@ int	ifaceas(Type*, Type*, int);
 int	ifaceas1(Type*, Type*, int);
 void	ifacecheck(Type*, Type*, int, int);
 void	runifacechecks(void);
-Node*	convas(Node*);
+Node*	convas(Node*, Node**);
 void	arrayconv(Type*, Node*);
-Node*	colas(Node*, Node*);
+Node*	colas(Node*, Node*, Node**);
 Node*	dorange(Node*);
 Node*	reorder1(Node*);
 Node*	reorder3(Node*);
 Node*	reorder4(Node*);
-Node*	structlit(Node*, Node*);
-Node*	arraylit(Node*, Node*);
-Node*	maplit(Node*, Node*);
-Node*	selectas(Node*, Node*);
-Node*	old2new(Node*, Type*);
+Node*	structlit(Node*, Node*, Node**);
+Node*	arraylit(Node*, Node*, Node**);
+Node*	maplit(Node*, Node*, Node**);
+Node*	selectas(Node*, Node*, Node**);
+Node*	old2new(Node*, Type*, Node**);
 void	addrescapes(Node*);
 void	heapmoves(void);
 

@@ -351,30 +351,15 @@ varoptsemi:
 vardcl:
 	name_list type varoptsemi
 	{
-		dodclvar($$, $2);
-
-		if(funcdepth == 0) {
-			$$ = N;
-		} else {
-			$$ = nod(OAS, $$, N);
-			addtotop($$);
-		}
+		$$ = variter($1, $2, N);
 	}
 |	name_list type varoptsemi '=' expr_list
 	{
-		if(addtop != N)
-			fatal("new_name_list_r type '=' expr_list");
-
 		$$ = variter($1, $2, $5);
-		addtotop($$);
 	}
 |	name_list '=' expr_list
 	{
-		if(addtop != N)
-			fatal("new_name_list_r '=' expr_list");
-
 		$$ = variter($1, T, $3);
-		addtotop($$);
 	}
 
 constdcl:
@@ -438,16 +423,17 @@ simple_stmt:
 	}
 |	expr_list LCOLAS expr_list
 	{
-		if(addtop != N)
-			fatal("expr_list LCOLAS expr_list");
+		Node *top;
+
 		if($3->op == OTYPESW) {
 			$$ = nod(OTYPESW, $1, $3->left);
 			break;
 		}
-		$$ = colas($$, $3);
+		top = N;
+		$$ = colas($$, $3, &top);
 		$$ = nod(OAS, $$, $3);
 		$$->colas = 1;
-		addtotop($$);
+		$$->ninit = top;
 	}
 |	expr LINC
 	{
@@ -463,9 +449,12 @@ simple_stmt:
 case:
 	LCASE expr_list ':'
 	{
+		Node *top;
+
 		// will be converted to OCASE
 		// right will point to next case
 		// done in casebody()
+		top = N;
 		poptodcl();
 		if(typeswvar != N && typeswvar->right != N) {
 			int e;
@@ -476,14 +465,14 @@ case:
 				break;
 			}
 			if($2->op == OTYPE) {
-				$$ = old2new(typeswvar->right, $2->type);
+				$$ = old2new(typeswvar->right, $2->type, &top);
 				$$ = nod(OTYPESW, $$, N);
 				$$ = nod(OXCASE, $$, N);
-				addtotop($$);
+				$$->ninit = top;
 				break;
 			}
 			e = nerrors;
-			gettype($2, N);
+			gettype($2, nil);
 			// maybe gettype found problems that keep
 			// e from being valid even outside a type switch.
 			// only complain if gettype didn't print new errors.
@@ -497,15 +486,18 @@ case:
 	}
 |	LCASE type ':'
 	{
+		Node *top;
+
+		top = N;
 		poptodcl();
 		if(typeswvar == N || typeswvar->right == N) {
 			yyerror("type case not in a type switch");
 			$$ = N;
 		} else
-			$$ = old2new(typeswvar->right, $2);
+			$$ = old2new(typeswvar->right, $2, &top);
 		$$ = nod(OTYPESW, $$, N);
 		$$ = nod(OXCASE, $$, N);
-		addtotop($$);
+		$$->ninit = top;
 	}
 |	LCASE name '=' expr ':'
 	{
@@ -518,13 +510,16 @@ case:
 	}
 |	LCASE name LCOLAS expr ':'
 	{
+		Node *top;
+
 		// will be converted to OCASE
 		// right will point to next case
 		// done in casebody()
 		poptodcl();
-		$$ = nod(OAS, selectas($2,$4), $4);
+		top = N;
+		$$ = nod(OAS, selectas($2, $4, &top), $4);
 		$$ = nod(OXCASE, $$, N);
-		addtotop($$);
+		$$->ninit = top;
 	}
 |	LDEFAULT ':'
 	{
@@ -621,7 +616,6 @@ for_header:
 |	range_stmt
 	{
 		$$ = dorange($1);
-		addtotop($$);
 	}
 
 for_body:

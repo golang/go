@@ -247,7 +247,7 @@ sw0(Node *c, Type *place, int arg)
 			yyerror("inappropriate case for a type switch");
 			return T;
 		}
-		walktype(c, Erv);
+		walkexpr(c, Erv, nil);
 		break;
 	case OTYPESW:
 		if(arg != Stype)
@@ -298,7 +298,7 @@ sw3(Node *c, Type *place, int arg)
 }
 
 /*
- * over all cases, call paramenter function.
+ * over all cases, call parameter function.
  * four passes of these are used to allocate
  * types to cases and switch
  */
@@ -335,7 +335,7 @@ loop:
 }
 
 Node*
-newlabel()
+newlabel(void)
 {
 	static int label;
 
@@ -598,7 +598,7 @@ exprswitch(Node *sw)
 		if(sw->ntest->val.u.bval == 0)
 			arg = Sfalse;
 	}
-	walktype(sw->ntest, Erv);
+	walkexpr(sw->ntest, Erv, &sw->ninit);
 
 	/*
 	 * pass 0,1,2,3
@@ -639,7 +639,7 @@ loop:
 	if(c0 == C) {
 		cas = list(cas, def);
 		sw->nbody->left = rev(cas);
-		walkstate(sw->nbody);
+		walkstmt(sw->nbody);
 		return;
 	}
 
@@ -773,7 +773,7 @@ typeswitch(Node *sw)
 		yyerror("type switch must have an assignment");
 		return;
 	}
-	walktype(sw->ntest->right, Erv);
+	walkexpr(sw->ntest->right, Erv, &sw->ninit);
 	if(!istype(sw->ntest->right->type, TINTER)) {
 		yyerror("type switch must be on an interface");
 		return;
@@ -818,7 +818,7 @@ loop:
 	if(c0 == C) {
 		cas = list(cas, def);
 		sw->nbody->left = rev(cas);
-		walkstate(sw->nbody);
+		walkstmt(sw->nbody);
 		return;
 	}
 
@@ -860,7 +860,7 @@ walkswitch(Node *sw)
 	 * cases have OGOTO into statements.
 	 * both have inserted OBREAK statements
 	 */
-	walkstate(sw->ninit);
+	walkstmt(sw->ninit);
 	if(sw->ntest == N)
 		sw->ntest = nodbool(1);
 	casebody(sw);
