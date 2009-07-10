@@ -190,3 +190,14 @@ type StructType struct {
 	fields []structField;	// sorted by offset
 }
 
+/*
+ * Must match iface.c:/Itab and compilers.
+ */
+type Itable struct {
+	Itype *Type;	// (*tab.inter).(*InterfaceType) is the interface type
+	Type *Type;
+	link *Itable;
+	bad int32;
+	unused int32;
+	Fn [100000]uintptr;	// bigger than we'll ever see
+}
