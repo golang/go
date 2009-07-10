@@ -6,6 +6,16 @@ package reflect
 #include "runtime.h"
 #include "type.h"
 
+static Type*
+gettype(void *typ)
+{
+	// typ is a *runtime.Type (or *runtime.MapType, etc), but the Type
+	// defined in type.h includes an interface value header
+	// in front of the raw structure.  the -2 below backs up
+	// to the interface value header.
+	return (Type*)((void**)typ - 2);
+}
+
 /*
  * Go wrappers around the C functions near the bottom of hashmap.c
  * There's no recursion here even though it looks like there is:
@@ -41,12 +51,7 @@ func mapiterkey(it *byte, key *byte) (ok bool) {
 func makemap(typ *byte) (map *byte) {
 	MapType *t;
 
-	// typ is a *runtime.MapType, but the MapType
-	// defined in type.h includes an interface value header
-	// in front of the raw MapType.  the -2 below backs up
-	// to the interface value header.
-	t = (MapType*)((void**)typ - 2);
-
+	t = (MapType*)gettype(typ);
 	map = (byte*)makemap(t->key->size, t->elem->size, t->key->alg, t->elem->alg, 0);
 }
 
@@ -61,7 +66,7 @@ func makechan(typ *byte, size uint32) (ch *byte) {
 	// defined in type.h includes an interface value header
 	// in front of the raw ChanType.  the -2 below backs up
 	// to the interface value header.
-	t = (ChanType*)((void**)typ - 2);
+	t = (ChanType*)gettype(typ);
 	ch = (byte*)makechan(t->elem->size, t->elem->alg, size);
 }
 
@@ -73,3 +78,19 @@ func chanrecv(ch *byte, val *byte, pres *bool) {
 	chanrecv((Hchan*)ch, val, pres);
 }
 
+
+/*
+ * Go wrappers around the functions in iface.c
+ */
+
+func setiface(typ *byte, x *byte, ret *byte) {
+	InterfaceType *t;
+
+	t = (InterfaceType*)gettype(typ);
+	if(t->mhdr.nel == 0) {
+		// already an empty interface
+		*(Eface*)ret = *(Eface*)x;
+		return;
+	}
+	ifaceE2I((InterfaceType*)gettype(typ), *(Eface*)x, (Iface*)ret);
+}

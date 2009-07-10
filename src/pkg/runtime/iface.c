@@ -379,7 +379,7 @@ sys·ifaceI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
 // ifaceE2I(sigi *byte, iface any) (ret any);
 // Called only for explicit conversions (with type assertion).
 void
-sys·ifaceE2I(InterfaceType *inter, Eface e, Iface ret)
+ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
 {
 	Type *t;
 
@@ -389,10 +389,17 @@ sys·ifaceE2I(InterfaceType *inter, Eface e, Iface ret)
 		printf("interface is nil, not %S\n", *inter->string);
 		throw("interface conversion");
 	} else {
-		ret.data = e.data;
-		ret.tab = itab(inter, t, 0);
+		ret->data = e.data;
+		ret->tab = itab(inter, t, 0);
 	}
-	FLUSH(&ret);
+}
+
+// ifaceE2I(sigi *byte, iface any) (ret any);
+// Called only for explicit conversions (with type assertion).
+void
+sys·ifaceE2I(InterfaceType *inter, Eface e, Iface ret)
+{
+	ifaceE2I(inter, e, &ret);
 }
 
 // ifaceE2I2(sigi *byte, iface any) (ret any, ok bool);
@@ -618,4 +625,3 @@ unsafe·Unreflect(Iface typ, void *addr, Eface e)
 
 	FLUSH(&e);
 }
-

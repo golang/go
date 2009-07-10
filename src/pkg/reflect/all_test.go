@@ -626,15 +626,15 @@ func TestMap(t *testing.T) {
 		i++;
 
 		// Check that value lookup is correct.
-		vv := mv.Get(NewValue(k));
+		vv := mv.Elem(NewValue(k));
 		if vi := vv.(*IntValue).Get(); vi != v {
 			t.Errorf("Key %q: have value %d, want %d", vi, v);
 		}
 
 		// Copy into new map.
-		newmap.Put(NewValue(k), NewValue(v));
+		newmap.SetElem(NewValue(k), NewValue(v));
 	}
-	vv := mv.Get(NewValue("not-present"));
+	vv := mv.Elem(NewValue("not-present"));
 	if vv != nil {
 		t.Errorf("Invalid key: got non-nil value %s", valueToString(vv));
 	}
@@ -651,7 +651,7 @@ func TestMap(t *testing.T) {
 		}
 	}
 
-	newmap.Put(NewValue("a"), nil);
+	newmap.SetElem(NewValue("a"), nil);
 	v, ok := newm["a"];
 	if ok {
 		t.Errorf("newm[\"a\"] = %d after delete", v);
@@ -780,6 +780,31 @@ func TestMethod(t *testing.T) {
 	var s = struct{x interface{Dist(int) int}}{p};
 	pv := NewValue(s).(*StructValue).Field(0);
 	i = pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get();
+	if i != 250 {
+		t.Errorf("Interface Method returned %d; want 250", i);
+	}
+}
+
+func TestInterfaceSet(t *testing.T) {
+	p := &Point{3, 4};
+
+	var s struct {
+		I interface {};
+		P interface { Dist(int)int };
+	}
+	sv := NewValue(&s).(*PtrValue).Elem().(*StructValue);
+	sv.Field(0).(*InterfaceValue).Set(NewValue(p));
+	if q := s.I.(*Point); q != p {
+		t.Errorf("i: have %p want %p", q, p);
+	}
+
+	pv := sv.Field(1).(*InterfaceValue);
+	pv.Set(NewValue(p));
+	if q := s.P.(*Point); q != p {
+		t.Errorf("i: have %p want %p", q, p);
+	}
+	
+	i := pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get();
 	if i != 250 {
 		t.Errorf("Interface Method returned %d; want 250", i);
 	}

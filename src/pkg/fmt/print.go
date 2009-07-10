@@ -453,7 +453,7 @@ func (p *pp) printField(field reflect.Value) (was_string bool) {
 			}
 			p.printField(key);
 			p.addstr(":");
-			p.printField(f.Get(key));
+			p.printField(f.Elem(key));
 		}
 		p.addstr("]");
 	case *reflect.StructValue:

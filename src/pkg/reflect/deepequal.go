@@ -110,7 +110,7 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 			return false;
 		}
 		for i, k := range map1.Keys() {
-			if !deepValueEqual(map1.Get(k), map2.Get(k), visited, depth+1) {
+			if !deepValueEqual(map1.Elem(k), map2.Elem(k), visited, depth+1) {
 				return false;
 			}
 		}
