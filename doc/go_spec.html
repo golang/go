@@ -69,12 +69,11 @@ operators, in increasing precedence:
 <p>
 Lower-case production names are used to identify lexical tokens.
 Non-terminals are in CamelCase. Lexical symbols are enclosed in
-double quotes <code>""</code> (the double quote symbol is written as
-<code>'"'</code>).
+double <code>""</code> or back quotes <code>``</code>.
 </p>
 
 <p>
-The form <code>"a ... b"</code> represents the set of characters from
+The form <code>a ... b</code> represents the set of characters from
 <code>a</code> through <code>b</code> as alternatives.
 </p>
 
@@ -99,12 +98,12 @@ are different characters.
 <p>
 The following terms are used to denote specific Unicode character classes:
 </p>
-<ul>
-	<li>unicode_char      an arbitrary Unicode code point</li>
-	<li>unicode_letter    a Unicode code point classified as "Letter"</li>
-	<li>capital_letter    a Unicode code point classified as "Letter, uppercase"</li>
-	<li>unicode_digit     a Unicode code point classified as "Digit"</li>
-</ul>
+<pre class="ebnf">
+unicode_char   = /* an arbitrary Unicode code point */ .
+unicode_letter = /* a Unicode code point classified as "Letter" */ .
+capital_letter = /* a Unicode code point classified as "Letter, uppercase" */ .
+unicode_digit  = /* a Unicode code point classified as "Digit" */ .
+</pre>
 
 (The Unicode Standard, Section 4.5 General Category - Normative.)
 
@@ -112,8 +111,8 @@ The following terms are used to denote specific Unicode character classes:
 
 <p>
 The underscore character <code>_</code> (U+005F) is considered a letter.
-</>
-<pre class="grammar">
+</p>
+<pre class="ebnf">
 letter        = unicode_letter | "_" .
 decimal_digit = "0" ... "9" .
 octal_digit   = "0" ... "7" .
@@ -152,7 +151,7 @@ Identifiers name program entities such as variables and types.
 An identifier is a sequence of one or more letters and digits.
 The first character in an identifier must be a letter.
 </p>
-<pre class="grammar">
+<pre class="ebnf">
 identifier    = letter { letter | unicode_digit } .
 </pre>
 <pre>
@@ -199,7 +198,7 @@ sets a non-decimal base: <code>0</code> for octal, <code>0x</code> or
 <code>0X</code> for hexadecimal.  In hexadecimal literals, letters
 <code>a-f</code> and <code>A-F</code> represent values 10 through 15.
 </p>
-<pre class="grammar">
+<pre class="ebnf">
 int_lit       = decimal_lit | octal_lit | hex_lit .
 decimal_lit   = ( "1" ... "9" ) { decimal_digit } .
 octal_lit     = "0" { octal_digit } .
@@ -223,7 +222,7 @@ followed by an optionally signed decimal exponent.  One of the
 integer part or the fractional part may be elided; one of the decimal
 point or the exponent may be elided.
 </p>
-<pre class="grammar">
+<pre class="ebnf">
 float_lit    = decimals "." [ decimals ] [ exponent ] |
                decimals exponent |
                "." decimals [ exponent ] .
@@ -312,16 +311,16 @@ After a backslash, certain single-character escapes represent special values:
 <p>
 All other sequences are illegal inside character literals.
 </p>
-<pre class="grammar">
+<pre class="ebnf">
 char_lit         = "'" ( unicode_value | byte_value ) "'" .
 unicode_value    = unicode_char | little_u_value | big_u_value | escaped_char .
 byte_value       = octal_byte_value | hex_byte_value .
-octal_byte_value = "\" octal_digit octal_digit octal_digit .
-hex_byte_value   = "\" "x" hex_digit hex_digit .
-little_u_value   = "\" "u" hex_digit hex_digit hex_digit hex_digit .
-big_u_value      = "\" "U" hex_digit hex_digit hex_digit hex_digit
+octal_byte_value = `\` octal_digit octal_digit octal_digit .
+hex_byte_value   = `\` "x" hex_digit hex_digit .
+little_u_value   = `\` "u" hex_digit hex_digit hex_digit hex_digit .
+big_u_value      = `\` "U" hex_digit hex_digit hex_digit hex_digit
                            hex_digit hex_digit hex_digit hex_digit .
-escaped_char     = "\" ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | """ ) .
+escaped_char     = `\` ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | `\` | "'" | `"` ) .
 </pre>
 <pre>
 'a'
@@ -379,7 +378,7 @@ U+00FF.
 A sequence of string literals is concatenated to form a single string.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 StringLit              = string_lit { string_lit } .
 string_lit             = raw_string_lit | interpreted_string_lit .
 raw_string_lit         = "`" { unicode_char } "`" .
@@ -430,7 +429,7 @@ type.  A type may be specified by a (possibly qualified) <i>type name</i>
 which composes a new type from previously declared types.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 Type      = TypeName | TypeLit | "(" Type ")" .
 TypeName  = QualifiedIdent.
 TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
@@ -568,7 +567,7 @@ type, called the element type, which must be complete
 negative.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 ArrayType   = "[" ArrayLength "]" ElementType .
 ArrayLength = Expression .
 ElementType = CompleteType .
@@ -598,7 +597,7 @@ type denotes the set of all slices of arrays of its element type.
 A slice value may be <code>nil</code>.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 SliceType = "[" "]" ElementType .
 </pre>
 
@@ -674,7 +673,7 @@ an identifier and type for each field. Within a struct, field identifiers
 must be unique and  field types must be complete (§Types).
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 StructType = "struct" "{" [ FieldDeclList ] "}" .
 FieldDeclList = FieldDecl { ";" FieldDecl } [ ";" ] .
 FieldDecl = (IdentifierList CompleteType | [ "*" ] TypeName) [ Tag ] .
@@ -775,7 +774,7 @@ type, called the <i>base type</i> of the pointer.
 A pointer value may be <code>nil</code>.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 PointerType = "*" BaseType .
 BaseType = Type .
 </pre>
@@ -793,7 +792,7 @@ and result types.
 A function value may be <code>nil</code>.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 FunctionType   = "func" Signature .
 Signature      = Parameters [ Result ] .
 Result         = Parameters | CompleteType .
@@ -842,7 +841,7 @@ that is any superset of the interface. Such a type is said to
 <i>implement the interface</i>. An interface value may be <code>nil</code>.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 InterfaceType      = "interface" "{" [ MethodSpecList ] "}" .
 MethodSpecList     = MethodSpec { ";" MethodSpec } [ ";" ] .
 MethodSpec         = IdentifierList Signature | InterfaceTypeName .
@@ -943,7 +942,7 @@ A map value may be <code>nil</code>.
 
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 MapType     = "map" "[" KeyType "]" ValueType .
 KeyType     = CompleteType .
 ValueType   = CompleteType .
@@ -1000,7 +999,7 @@ specified element type. The element type must be complete (§Types).
 A value of channel type may be <code>nil</code>.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 ChannelType   = Channel | SendChannel | RecvChannel .
 Channel       = "chan" ValueType .
 SendChannel   = "chan" "&lt;-" ValueType .
@@ -1242,7 +1241,7 @@ a variable or function and specifies properties such as its type.
 Every identifier in a program must be declared.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl .
 </pre>
 
@@ -1349,7 +1348,7 @@ the left is bound to value of the n<sup>th</sup> expression on the
 right.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 ConstDecl      = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
 ConstSpecList  = ConstSpec { ";" ConstSpec } [ ";" ] .
 ConstSpec      = IdentifierList [ [ CompleteType ] "=" ExpressionList ] .
@@ -1465,7 +1464,7 @@ A type declaration binds an identifier, the <i>type name</i>,
 to a new type.  <font color=red>TODO: what exactly is a "new type"?</font>
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 TypeDecl     = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ) .
 TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
 TypeSpec     = identifier ( Type | "struct" | "interface" ) .
@@ -1498,7 +1497,7 @@ A variable declaration creates a variable, binds an identifier to it and
 gives it a type and optionally an initial value.
 The type must be complete (§Types).
 </p>
-<pre class="grammar">
+<pre class="ebnf">
 VarDecl     = "var" ( VarSpec | "(" [ VarSpecList ] ")" ) .
 VarSpecList = VarSpec { ";" VarSpec } [ ";" ] .
 VarSpec     = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
@@ -1546,7 +1545,7 @@ var f = 3.1415  // f has type float
 
 A <i>short variable declaration</i> uses the syntax
 
-<pre class="grammar">
+<pre class="ebnf">
 SimpleVarDecl = IdentifierList ":=" ExpressionList .
 </pre>
 
@@ -1603,7 +1602,7 @@ they can be used to declare local temporary variables (§Statements).
 A function declaration binds an identifier to a function (§Function types).
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 FunctionDecl = "func" identifier Signature [ Block ] .
 </pre>
 
@@ -1627,7 +1626,7 @@ Implementation restriction: Functions can only be declared at the package level.
 A method declaration binds an identifier to a method,
 which is a function with a <i>receiver</i>.
 </p>
-<pre class="grammar">
+<pre class="ebnf">
 MethodDecl = "func" Receiver identifier Signature [ Block ] .
 Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
 </pre>
@@ -1742,7 +1741,7 @@ and a type.
 
 Operands denote the elementary values in an expression.
 
-<pre class="grammar">
+<pre class="ebnf">
 Operand    = Literal | QualifiedIdent | "(" Expression ")" .
 Literal    = BasicLit | CompositeLit | FunctionLit .
 BasicLit   = int_lit | float_lit | char_lit | StringLit .
@@ -1766,7 +1765,7 @@ Constants have values that are known at compile time.
 A qualified identifier is an identifier qualified by a package name prefix.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 QualifiedIdent = [ ( LocalPackageName | PackageName ) "." ] identifier .
 LocalPackageName = identifier .
 PackageName = identifier .
@@ -1802,7 +1801,7 @@ followed by a brace-bound list of composite elements. An element may be
 a single expression or a key-value pair.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 CompositeLit  = LiteralType "{" [ ElementList ] "}" .
 LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
                 SliceType | MapType | TypeName .
@@ -1965,7 +1964,7 @@ A function literal represents an anonymous function.
 It consists of a specification of the function type and a function body.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 FunctionLit   = FunctionType Block .
 Block         = "{" StatementList "}" .
 </pre>
@@ -1993,7 +1992,7 @@ as they are accessible.
 
 <h3>Primary expressions</h3>
 
-<pre class="grammar">
+<pre class="ebnf">
 PrimaryExpr =
 	Operand |
 	PrimaryExpr Selector |
@@ -2414,7 +2413,7 @@ parameter is passed unchanged as an actual <code>...</code> parameter.
 Operators combine operands into expressions.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 Expression = UnaryExpr | Expression binary_op UnaryExpr .
 UnaryExpr  = PrimaryExpr | unary_op UnaryExpr .
 
@@ -3003,7 +3002,7 @@ of <code>y</code> is not specified.
 Statements control execution.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 Statement =
 	Declaration | EmptyStmt | LabeledStmt |
 	SimpleStmt | GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
@@ -3013,7 +3012,7 @@ Statement =
 SimpleStmt = ExpressionStmt | IncDecStmt | Assignment | SimpleVarDecl .
 
 StatementList = Statement { Separator Statement } .
-Separator     = [ ";" ]
+Separator     = [ ";" ] .
 </pre>
 
 <p>
@@ -3033,7 +3032,7 @@ which may be omitted only if the previous statement:
 The empty statement does nothing.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 EmptyStmt = .
 </pre>
 
@@ -3050,7 +3049,7 @@ A labeled statement may be the target of a <code>goto</code>,
 <code>break</code> or <code>continue</code> statement.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 LabeledStmt = Label ":" Statement .
 Label       = identifier .
 </pre>
@@ -3068,7 +3067,7 @@ can appear in statement context.
 </p>
 
 
-<pre class="grammar">
+<pre class="ebnf">
 ExpressionStmt = Expression .
 </pre>
 
@@ -3086,7 +3085,7 @@ by the ideal numeric value 1.  As with an assignment, the operand
 must be a variable, pointer indirection, field selector or index expression.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 IncDecStmt = Expression ( "++" | "--" ) .
 </pre>
 
@@ -3103,7 +3102,7 @@ x--                 x -= 1
 
 <h3>Assignments</h3>
 
-<pre class="grammar">
+<pre class="ebnf">
 Assignment = ExpressionList assign_op ExpressionList .
 
 assign_op = [ add_op | mul_op ] "=" .
@@ -3182,7 +3181,7 @@ present, the "else" branch is executed.  A missing condition
 is equivalent to <code>true</code>.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 IfStmt    = "if" [ [ SimpleStmt ] ";" ] [ Expression ] Block [ "else" Statement ] .
 </pre>
 
@@ -3219,7 +3218,7 @@ inside the "switch" to determine which branch
 to execute.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 SwitchStmt = ExprSwitchStmt | TypeSwitchStmt .
 </pre>
 
@@ -3249,7 +3248,7 @@ A missing expression is equivalent to
 the expression <code>true</code>.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 ExprSwitchStmt = "switch" [ [ SimpleStmt ] ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
 ExprCaseClause = ExprSwitchCase ":" [ StatementList ] .
 ExprSwitchCase = "case" ExpressionList | "default" .
@@ -3306,7 +3305,7 @@ Cases then match literal types against the dynamic type of the expression
 in the type assertion.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 TypeSwitchStmt  = "switch" [ [ SimpleStmt ] ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
 TypeSwitchGuard = identifier ":=" Expression "." "(" "type" ")" .
 TypeCaseClause  = TypeSwitchCase ":" [ StatementList ] .
@@ -3375,7 +3374,7 @@ A "for" statement specifies repeated execution of a block. The iteration is
 controlled by a condition, a "for" clause, or a "range" clause.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 ForStmt = "for" [ Condition | ForClause | RangeClause ] Block .
 Condition = Expression .
 </pre>
@@ -3403,7 +3402,7 @@ it declares ends at the end of the statement
 (§Declarations and scope rules).
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 ForClause = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ] .
 InitStmt = SimpleStmt .
 PostStmt = SimpleStmt .
@@ -3439,7 +3438,7 @@ variable - or the current (index, element) or (key, value) pair to a pair
 of iteration variables - and then executes the block.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 RangeClause = ExpressionList ( "=" | ":=" ) "range" Expression .
 </pre>
 
@@ -3518,7 +3517,7 @@ as an independent concurrent thread of control, or <i>goroutine</i>,
 within the same address space.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 GoStmt = "go" Expression .
 </pre>
 
@@ -3542,7 +3541,7 @@ will proceed.  It looks similar to a "switch" statement but with the
 cases all referring to communication operations.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 SelectStmt = "select" "{" { CommClause } "}" .
 CommClause = CommCase ":" StatementList .
 CommCase = "case" ( SendExpr | RecvExpr) | "default" .
@@ -3615,7 +3614,7 @@ A "return" statement terminates execution of the containing function
 and optionally provides a result value or values to the caller.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 ReturnStmt = "return" [ ExpressionList ] .
 </pre>
 
@@ -3685,7 +3684,7 @@ A "break" statement terminates execution of the innermost
 "for", "switch" or "select" statement.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 BreakStmt = "break" [ Label ].
 </pre>
 
@@ -3711,7 +3710,7 @@ A "continue" statement begins the next iteration of the
 innermost "for" loop at the post statement (§For statements).
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 ContinueStmt = "continue" [ Label ].
 </pre>
 
@@ -3725,7 +3724,7 @@ The optional label is analogous to that of a "break" statement.
 A "goto" statement transfers control to the statement with the corresponding label.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 GotoStmt = "goto" Label .
 </pre>
 
@@ -3760,7 +3759,7 @@ be used only as the final non-empty statement in a case or default clause in an
 expression "switch" statement.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 FallthroughStmt = "fallthrough" .
 </pre>
 
@@ -3772,7 +3771,7 @@ A "defer" statement invokes a function whose execution is deferred to the moment
 the surrounding function returns.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 DeferStmt = "defer" Expression .
 </pre>
 
@@ -4016,7 +4015,7 @@ package clause acts as a block for scoping (§Declarations and scope
 rules).
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 SourceFile       = PackageClause { ImportDecl [ ";" ] } { Declaration [ ";" ] } .
 </pre>
 
@@ -4027,7 +4026,7 @@ A package clause begins each source file and defines the package
 to which the file belongs.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 PackageClause    = "package" PackageName .
 </pre>
 
@@ -4052,7 +4051,7 @@ the package.  The file name may be relative to a repository of
 installed packages.
 </p>
 
-<pre class="grammar">
+<pre class="ebnf">
 ImportDecl       = "import" ( ImportSpec | "(" [ ImportSpecList ] ")" ) .
 ImportSpecList   = ImportSpec { ";" ImportSpec } [ ";" ] .
 ImportSpec       = [ "." | PackageName ] PackageFileName .
