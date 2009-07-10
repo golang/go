@@ -92,9 +92,6 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 			return i1 == i2;
 		}
 		return deepValueEqual(NewValue(i1), NewValue(i2), visited, depth+1);
-	case *MapValue:
-		// TODO(dnadasi): Implement this fully once MapValue is implemented
-		return v1.Interface() == v2.Interface();
 	case *PtrValue:
 		return deepValueEqual(v.Elem(), v2.(*PtrValue).Elem(), visited, depth+1);
 	case *StructValue:
@@ -102,6 +99,18 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 		struct2 := v2.(*StructValue);
 		for i, n:= 0, v.NumField(); i < n; i++ {
 			if !deepValueEqual(struct1.Field(i), struct2.Field(i), visited, depth+1) {
+				return false;
+			}
+		}
+		return true;
+	case *MapValue:
+		map1 := v;
+		map2 := v2.(*MapValue);
+		if map1.Len() != map2.Len() {
+			return false;
+		}
+		for i, k := range map1.Keys() {
+			if !deepValueEqual(map1.Get(k), map2.Get(k), visited, depth+1) {
 				return false;
 			}
 		}
@@ -116,8 +125,7 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 
 // DeepEqual tests for deep equality. It uses normal == equality where possible
 // but will scan members of arrays, slices, and fields of structs. It correctly
-// handles recursive types. Until reflection supports maps, maps are equal iff
-// they are identical.
+// handles recursive types.
 func DeepEqual(a1, a2 interface{}) bool {
 	v1 := NewValue(a1);
 	v2 := NewValue(a2);

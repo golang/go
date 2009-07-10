@@ -337,18 +337,6 @@ type Basic struct {
 
 type NotBasic Basic
 
-type Recursive struct {
-	x int;
-	r *Recursive
-}
-
-type Complex struct {
-	a int;
-	b [3]*Complex;
-	c *string;
-	d map[float]float
-}
-
 type DeepEqualTest struct {
 	a, b interface{};
 	eq bool;
@@ -365,6 +353,7 @@ var deepEqualTests = []DeepEqualTest {
 	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 3 }, true },
 	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.5 }, true },
 	DeepEqualTest{ os.Error(nil), os.Error(nil), true },
+	DeepEqualTest{ map[int]string{ 1:"one", 2:"two" }, map[int]string{ 2:"two", 1:"one" }, true },
 
 	// Inequalities
 	DeepEqualTest{ 1, 2, false },
@@ -376,6 +365,10 @@ var deepEqualTests = []DeepEqualTest {
 	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 4 }, false },
 	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.6 }, false },
 	DeepEqualTest{ Basic{ 1, 0 }, Basic{ 2, 0 }, false },
+	DeepEqualTest{ map[int]string{ 1:"one", 3:"two" }, map[int]string{ 2:"two", 1:"one" }, false },
+	DeepEqualTest{ map[int]string{ 1:"one", 2:"txo" }, map[int]string{ 2:"two", 1:"one" }, false },
+	DeepEqualTest{ map[int]string{ 1:"one", }, map[int]string{ 2:"two", 1:"one" }, false },
+	DeepEqualTest{ map[int]string{ 2:"two", 1:"one" }, map[int]string{ 1:"one", }, false },
 
 	// Mismatched types
 	DeepEqualTest{ 1, 1.0, false },
@@ -384,6 +377,7 @@ var deepEqualTests = []DeepEqualTest {
 	DeepEqualTest{ []int{ 1, 2, 3 }, [3]int{ 1, 2, 3 }, false },
 	DeepEqualTest{ &[3]interface{} { 1, 2, 4 }, &[3]interface{} { 1, 2, "s" }, false },
 	DeepEqualTest{ Basic{ 1, 0.5 }, NotBasic{ 1, 0.5 }, false },
+	DeepEqualTest{ map[uint]string{ 1:"one", 2:"two" }, map[int]string{ 2:"two", 1:"one" }, false },
 }
 
 func TestDeepEqual(t *testing.T) {
@@ -407,6 +401,11 @@ func TestTypeof(t *testing.T) {
 	}
 }
 
+type Recursive struct {
+	x int;
+	r *Recursive
+}
+
 func TestDeepEqualRecursiveStruct(t *testing.T) {
 	a, b := new(Recursive), new(Recursive);
 	*a = Recursive{ 12, a };
@@ -414,6 +413,13 @@ func TestDeepEqualRecursiveStruct(t *testing.T) {
 	if !DeepEqual(a, b) {
 		t.Error("DeepEqual(recursive same) = false, want true");
 	}
+}
+
+type Complex struct {
+	a int;
+	b [3]*Complex;
+	c *string;
+	d map[float]float
 }
 
 func TestDeepEqualComplexStruct(t *testing.T) {
