@@ -517,11 +517,13 @@ appendr(Node *na, Node *nb)
 Type*
 aindex(Node *b, Type *t)
 {
+	Node *top;
 	Type *r;
 	int bound;
 
 	bound = -1;	// open bound
-	walktype(b, Erv);
+	top = N;
+	walkexpr(b, Erv, &top);
 	if(b != nil) {
 		switch(consttype(b)) {
 		default:
@@ -2452,25 +2454,26 @@ staticname(Type *t)
 }
 
 /*
- * return side effect-free n, moving side effects to top.
+ * return side effect-free n, appending side effects to init.
  */
 Node*
-saferef(Node *n)
+saferef(Node *n, Node **init)
 {
 	Node *l;
 	Node *r;
+	Node *a;
 
 	switch(n->op) {
 	case ONAME:
 		return n;
 	case ODOT:
-		l = saferef(n->left);
+		l = saferef(n->left, init);
 		if(l == n->left)
 			return n;
 		r = nod(OXXX, N, N);
 		*r = *n;
 		r->left = l;
-		walktype(r, Elv);
+		walkexpr(r, Elv, init);
 		return r;
 
 	case OINDEX:
@@ -2478,9 +2481,11 @@ saferef(Node *n)
 	case OIND:
 		l = nod(OXXX, N, N);
 		tempname(l, ptrto(n->type));
-		addtop = list(addtop, nod(OAS, l, nod(OADDR, n, N)));
+		a = nod(OAS, l, nod(OADDR, n, N));
+		walkexpr(a, Etop, init);
+		*init = list(*init, a);
 		r = nod(OIND, l, N);
-		walktype(r, Elv);
+		walkexpr(r, Elv, init);
 		return r;
 	}
 	fatal("saferef %N", n);
@@ -2634,11 +2639,13 @@ out:
 Node*
 adddot(Node *n)
 {
+	Node *top;
 	Type *t;
 	Sym *s;
 	int c, d;
 
-	walktype(n->left, Erv);
+	top = N;
+	walkexpr(n->left, Erv, &top);
 	t = n->left->type;
 	if(t == T)
 		goto ret;
@@ -2666,8 +2673,8 @@ out:
 		n->left->right = newname(dotlist[c].field->sym);
 	}
 ret:
-	n->ninit = list(addtop, n->ninit);
-	addtop = N;
+	if(top != N)
+		n->ninit = list(top, n->ninit);
 	return n;
 }
 

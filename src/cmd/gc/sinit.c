@@ -249,7 +249,7 @@ mapindex(Node *n)
 	b = nod(OAS, b, val);
 
 	a = nod(OLIST, a, b);
-	walktype(a, Etop);
+	walkexpr(a, Etop, nil);
 
 	return a;
 }
