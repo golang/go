@@ -6,7 +6,6 @@ package gob
 
 import (
 	"bytes";
-"fmt";		// DELETE
 	"gob";
 	"os";
 	"reflect";
@@ -20,6 +19,27 @@ type ET2 struct {
 }
 
 type ET1 struct {
+	a int;
+	et2 *ET2;
+	next *ET1;
+}
+
+// Like ET1 but with a different name for a field
+type ET3 struct {
+	a int;
+	et2 *ET2;
+	differentNext *ET1;
+}
+
+// Like ET1 but with a different type for a field
+type ET4 struct {
+	a int;
+	et2 *ET1;
+	next *ET2;
+}
+
+// Like ET1 but with a different type for a self-referencing field
+type ET5 struct {
 	a int;
 	et2 *ET2;
 	next *ET1;
@@ -115,4 +135,79 @@ func TestBasicEncoder(t *testing.T) {
 	if b.Len() != 0 {
 		t.Error("2nd round: not at eof;", b.Len(), "bytes left")
 	}
+}
+
+func TestEncoderDecoder(t *testing.T) {
+	b := new(bytes.Buffer);
+	enc := NewEncoder(b);
+	et1 := new(ET1);
+	et1.a = 7;
+	et1.et2 = new(ET2);
+	enc.Encode(et1);
+	if enc.state.err != nil {
+		t.Error("encoder fail:", enc.state.err)
+	}
+	dec := NewDecoder(b);
+	newEt1 := new(ET1);
+	dec.Decode(newEt1);
+	if dec.state.err != nil {
+		t.Fatalf("error decoding ET1:", dec.state.err);
+	}
+
+	if !reflect.DeepEqual(et1, newEt1) {
+		t.Fatalf("invalid data for et1: expected %+v; got %+v\n", *et1, *newEt1);
+	}
+	if b.Len() != 0 {
+		t.Error("not at eof;", b.Len(), "bytes left")
+	}
+
+	enc.Encode(et1);
+	newEt1 = new(ET1);
+	dec.Decode(newEt1);
+	if dec.state.err != nil {
+		t.Fatalf("round 2: error decoding ET1:", dec.state.err);
+	}
+	if !reflect.DeepEqual(et1, newEt1) {
+		t.Fatalf("round 2: invalid data for et1: expected %+v; got %+v\n", *et1, *newEt1);
+	}
+	if b.Len() != 0 {
+		t.Error("round 2: not at eof;", b.Len(), "bytes left")
+	}
+
+	// Now test with a running encoder/decoder pair that we recognize a type mismatch.
+	enc.Encode(et1);
+	if enc.state.err != nil {
+		t.Error("round 3: encoder fail:", enc.state.err)
+	}
+	newEt2 := new(ET2);
+	dec.Decode(newEt2);
+	if dec.state.err == nil {
+		t.Fatalf("round 3: expected `bad type' error decoding ET2");
+	}
+}
+
+// Run one value through the encoder/decoder, but use the wrong type.
+func badTypeCheck(e interface{}, msg string, t *testing.T) {
+	b := new(bytes.Buffer);
+	enc := NewEncoder(b);
+	et1 := new(ET1);
+	et1.a = 7;
+	et1.et2 = new(ET2);
+	enc.Encode(et1);
+	if enc.state.err != nil {
+		t.Error("encoder fail:", enc.state.err)
+	}
+	dec := NewDecoder(b);
+	dec.Decode(e);
+	if dec.state.err == nil {
+		t.Error("expected error for", msg);
+	}
+}
+
+// Test that we recognize a bad type the first time.
+func TestWrongTypeDecoder(t *testing.T) {
+	badTypeCheck(new(ET2), "different number of fields", t);
+	badTypeCheck(new(ET3), "different name of field", t);
+	badTypeCheck(new(ET4), "different type of field", t);
+	badTypeCheck(new(ET5), "different type of self-reference field", t);
 }
