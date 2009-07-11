@@ -15,7 +15,7 @@ import (
 
 // Types are identified by an integer TypeId.  These can be passed on the wire.
 // Internally, they are used as keys to a map to recover the underlying type info.
-type TypeId uint32
+type TypeId int32
 
 var id	TypeId	// incremented for each new type we build
 var typeLock	sync.Mutex	// set while building a type

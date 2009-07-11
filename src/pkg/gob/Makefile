@@ -40,6 +40,7 @@ O2=\
 	encode.$O\
 
 O3=\
+	decoder.$O\
 	encoder.$O\
 
 
@@ -55,7 +56,7 @@ a2: $(O2)
 	rm -f $(O2)
 
 a3: $(O3)
-	$(AR) grc _obj$D/gob.a encoder.$O
+	$(AR) grc _obj$D/gob.a decoder.$O encoder.$O
 	rm -f $(O3)
 
 
