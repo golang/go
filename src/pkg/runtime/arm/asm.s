@@ -168,7 +168,7 @@ TEXT reflect·call(SB), 7, $-4
 	MOVW	LR, (m_morebuf+gobuf_pc)(m)	// our caller's PC
 	MOVW	SP, (m_morebuf+gobuf_sp)(m)	// our caller's SP
 	MOVW	R0, (m_morebuf+gobuf_r0)(m)
-	MOVQ	g, (m_morebuf+gobuf_g)(m)
+	MOVW	g,  (m_morebuf+gobuf_g)(m)
 
 	// Set up morestack arguments to call f on a new stack.
 	// We set f's frame size to zero, meaning
