@@ -77,8 +77,12 @@ func (doc *DocReader) lookupTypeDoc(typ ast.Expr) *typeDoc {
 func (doc *DocReader) addType(decl *ast.GenDecl) {
 	typ := decl.Specs[0].(*ast.TypeSpec);
 	name := typ.Name.Value;
-	tdoc := &typeDoc{decl, make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
-	doc.types[name] = tdoc;
+	if _, found := doc.types[name]; !found {
+		tdoc := &typeDoc{decl, make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
+		doc.types[name] = tdoc;
+	}
+	// If the type was found it may have been added as a forward
+	// declaration before, or this is a forward-declaration.
 }
 
 
@@ -90,6 +94,8 @@ func (doc *DocReader) addFunc(fun *ast.FuncDecl) {
 	if fun.Recv != nil {
 		// method
 		// (all receiver types must be declared before they are used)
+		// TODO(gri) Reconsider this logic if no forward-declarations
+		//           are required anymore.
 		typ = doc.lookupTypeDoc(fun.Recv.Type);
 		if typ != nil {
 			// type found (i.e., exported)
