@@ -18,7 +18,7 @@ rm -f $HOME/bin/quietgcc
 cp quietgcc.bash $HOME/bin/quietgcc
 chmod +x $HOME/bin/quietgcc
 
-for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/gobuild cmd/godoc cmd/gofmt
+for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/ebnflint cmd/gobuild cmd/godoc cmd/gofmt
 do
 	# The ( ) here are to preserve the current directory
 	# for the next round despite the cd $i below.

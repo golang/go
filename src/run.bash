@@ -42,6 +42,12 @@ time make
 time make smoketest
 ) || exit $?
 
+(xcd cmd/ebnflint
+make clean
+time make
+time make test
+) || exit $?
+
 (xcd ../doc/progs
 time ./run
 ) || exit $?
