@@ -27,6 +27,7 @@ DIRS=\
 	crypto/md5\
 	crypto/sha1\
 	datafmt\
+	ebnf\
 	exec\
 	exvar\
 	flag\
@@ -84,6 +85,7 @@ TEST=\
 	crypto/md5\
 	crypto/sha1\
 	datafmt\
+	ebnf\
 	exec\
 	exvar\
 	flag\
