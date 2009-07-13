@@ -351,7 +351,7 @@ nodarg(Type *t, int fp)
 			fatal("nodarg: bad struct");
 		if(first->width == BADWIDTH)
 			fatal("nodarg: offset not computed for %T", t);
-		n->xoffset = first->width;
+		n->xoffset = first->width + 4;
 		n->addable = 1;
 		goto fp;
 	}
@@ -364,25 +364,21 @@ nodarg(Type *t, int fp)
 	n->sym = t->sym;
 	if(t->width == BADWIDTH)
 		fatal("nodarg: offset not computed for %T", t);
-	n->xoffset = t->width;
+	n->xoffset = t->width + 4;
 	n->addable = 1;
 
 fp:
 	switch(fp) {
+	default:
+		fatal("nodarg %T %d", t, fp);
+
 	case 0:		// output arg
 		n->op = OINDREG;
-		n->val.u.reg = REGRET;
+		n->val.u.reg = REGSP;
 		break;
 
 	case 1:		// input arg
 		n->class = PPARAM;
-		break;
-
-	case 2:		// offset output arg
-fatal("shouldnt be used");
-		n->op = OINDREG;
-		n->val.u.reg = REGSP;
-		n->xoffset += types[tptr]->width;
 		break;
 	}
 	return n;
