@@ -23,6 +23,19 @@ var joblock sync.Mutex;
 // If multiple processes call Do(f) simultaneously
 // with the same f argument, only one will call f, and the
 // others will block until f finishes running.
+//
+// Since a func() expression typically evaluates to a differerent
+// function value each time it is evaluated, it is incorrect to
+// pass such values to Do.  For example,
+// 	func f(x int) {
+//		Do(func() { fmt.Println(x) })
+//	}
+// behaves the same as
+//	func f(x int) {
+//		fmt.Println(x)
+//	}
+// because the func() expression in the first creates a new
+// func each time f runs, and each of those funcs is run once.
 func Do(f func()) {
 	joblock.Lock();
 	j, present := jobs[f];
