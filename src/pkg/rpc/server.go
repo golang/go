@@ -143,16 +143,9 @@ func _new(t *reflect.PtrType) *reflect.PtrValue {
 	return v;
 }
 
-// Blocks until the decoder is ready for the next message.
-// TODO(r): blocks longer than that. make this async.
-func (s *service) call(req *Request, mt *methodType, dec *gob.Decoder, enc *gob.Encoder) {
-	method := mt.method;
-	// Decode the argument value.
-	argv := _new(mt.argType);
-	dec.Decode(argv.Interface());
+func (s *service) call(sending *sync.Mutex, function *reflect.FuncValue, req *Request, argv, replyv reflect.Value, enc *gob.Encoder) {
 	// Invoke the method, providing a new value for the reply.
-	replyv := _new(mt.replyType);
-	returnValues := method.Func.Call([]reflect.Value{s.rcvr, argv, replyv});
+	returnValues := function.Call([]reflect.Value{s.rcvr, argv, replyv});
 	// The return value for the method is an os.Error.
 	err := returnValues[0].Interface();
 	resp := new(Response);
@@ -160,22 +153,25 @@ func (s *service) call(req *Request, mt *methodType, dec *gob.Decoder, enc *gob.
 		resp.Error = err.(os.Error).String();
 	}
 	// Encode the response header
+	sending.Lock();
 	resp.ServiceMethod = req.ServiceMethod;
 	resp.Seq = req.Seq;
 	enc.Encode(resp);
 	// Encode the reply value.
 	enc.Encode(replyv.Interface());
+	sending.Unlock();
 }
 
 func (server *Server) serve(conn io.ReadWriteCloser) {
 	dec := gob.NewDecoder(conn);
 	enc := gob.NewEncoder(conn);
+	sending := new(sync.Mutex);
 	for {
 		// Grab the request header.
 		req := new(Request);
 		err := dec.Decode(req);
 		if err != nil {
-			panicln("can't handle decode error yet", err);
+			panicln("can't handle decode error yet", err.String());
 		}
 		serviceMethod := strings.Split(req.ServiceMethod, ".", 0);
 		if len(serviceMethod) != 2 {
@@ -186,11 +182,18 @@ func (server *Server) serve(conn io.ReadWriteCloser) {
 		if !ok {
 			panicln("can't find service", serviceMethod[0]);
 		}
-		method, ok := service.method[serviceMethod[1]];
+		mtype, ok := service.method[serviceMethod[1]];
 		if !ok {
 			panicln("can't find method", serviceMethod[1]);
 		}
-		service.call(req, method, dec, enc);
+		method := mtype.method;
+		// Decode the argument value.
+		argv := _new(mtype.argType);
+		err = dec.Decode(argv.Interface());
+		if err != nil {
+			panicln("can't handle payload decode error yet", err.String());
+		}
+		go service.call(sending, method.Func, req, argv, _new(mtype.replyType), enc);
 	}
 }
 
