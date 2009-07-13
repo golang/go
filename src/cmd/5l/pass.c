@@ -343,10 +343,10 @@ patch(void)
 			s = p->to.sym;
 			switch(s->type) {
 			default:
-				diag("undefined: %s\n%P", s->name, p);
+				diag("undefined: %s", s->name);
 				s->type = STEXT;
 				s->value = vexit;
-				break;
+				continue;	// avoid more error messages
 			case STEXT:
 				p->to.offset = s->value;
 				p->to.type = D_BRANCH;
@@ -559,7 +559,7 @@ reachable()
 		if(p == nil)
 			return;
 		s = p->from.sym;
-	}	
+	}
 	s->used = 1;
 	do{
 		todo = 0;
@@ -771,7 +771,7 @@ ckuse(Sym *s, Sym *s0, Use *u)
 	}
 	return 1;
 }
-		
+
 static void
 setuse(Sym *s, Sym *s0, Use *u)
 {
@@ -786,7 +786,7 @@ setuse(Sym *s, Sym *s0, Use *u)
 		setfpuse(u->p, s0, s);
 	}
 }
-		
+
 /* detect BX O(R) which can be done as BL O(R) */
 void
 fnptrs()
@@ -795,14 +795,14 @@ fnptrs()
 	Sym *s;
 	Prog *p;
 	Use *u;
-	
+
 	for(i=0; i<NHASH; i++){
 		for(s = hash[i]; s != S; s = s->link){
 			if(s->fnptr && (s->type == STEXT || s->type == SLEAF || s->type == SCONST)){
 				// print("%s : fnptr %d %d\n", s->name, s->thumb, s->foreign);
 			}
 		}
-	}	
+	}
 	/* record use of syms */
 	for(p = firstp; p != P; p = p->link){
 		if(p->as == ATEXT)
@@ -827,7 +827,7 @@ fnptrs()
 					for(u = s->use; u != U; u = u->link)
 						setuse(s, s, u);
 				}
-			}	
+			}
 		}
 	}
 
