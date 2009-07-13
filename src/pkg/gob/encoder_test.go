@@ -72,7 +72,7 @@ func TestBasicEncoder(t *testing.T) {
 		t.Fatal("error decoding ET1 type:", err);
 	}
 	info := getTypeInfo(reflect.Typeof(ET1{}));
-	trueWire1 := &wireType{name:"ET1", s: info.typeId.gobType().(*structType)};
+	trueWire1 := &wireType{s: info.typeId.gobType().(*structType)};
 	if !reflect.DeepEqual(wire1, trueWire1) {
 		t.Fatalf("invalid wireType for ET1: expected %+v; got %+v\n", *trueWire1, *wire1);
 	}
@@ -88,7 +88,7 @@ func TestBasicEncoder(t *testing.T) {
 		t.Fatal("error decoding ET2 type:", err);
 	}
 	info = getTypeInfo(reflect.Typeof(ET2{}));
-	trueWire2 := &wireType{name:"ET2", s: info.typeId.gobType().(*structType)};
+	trueWire2 := &wireType{s: info.typeId.gobType().(*structType)};
 	if !reflect.DeepEqual(wire2, trueWire2) {
 		t.Fatalf("invalid wireType for ET2: expected %+v; got %+v\n", *trueWire2, *wire2);
 	}

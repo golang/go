@@ -72,7 +72,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 	// Check type compatibility.
 	// TODO(r): need to make the decoder work correctly if the wire type is compatible
 	// but not equal to the local type (e.g, extra fields).
-	if info.wire.name != dec.seen[id].name {
+	if info.wire.name() != dec.seen[id].name() {
 		dec.state.err = os.ErrorString("gob decode: incorrect type for wire value");
 		return dec.state.err
 	}
