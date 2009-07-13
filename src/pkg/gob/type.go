@@ -310,8 +310,12 @@ func bootstrapType(name string, e interface{}) TypeId {
 // are built in encode.go's init() function.
 
 type wireType struct {
-	name	string;
 	s	*structType;
+}
+
+func (w *wireType) name() string {
+	// generalize once we can have non-struct types on the wire.
+	return w.s.name
 }
 
 type decEngine struct	// defined in decode.go
@@ -336,7 +340,7 @@ func getTypeInfo(rt reflect.Type) *typeInfo {
 		path, name := rt.Name();
 		info.typeId = getType(name, rt).id();
 		// assume it's a struct type
-		info.wire = &wireType{name, info.typeId.gobType().(*structType)};
+		info.wire = &wireType{info.typeId.gobType().(*structType)};
 		typeInfoMap[rt] = info;
 	}
 	return info;
