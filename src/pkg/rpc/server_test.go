@@ -86,49 +86,46 @@ func TestRPC(t *testing.T) {
 		t.Fatal("dialing:", err)
 	}
 
-	enc := gob.NewEncoder(conn);
-	dec := gob.NewDecoder(conn);
-	req := new(rpc.Request);
-	req.ServiceMethod = "Arith.Add";
-	req.Seq = 1;
-	enc.Encode(req);
+	client := NewClient(conn);
+
+	// Synchronous calls
 	args := &Args{7,8};
-	enc.Encode(args);
-	response := new(rpc.Response);
-	dec.Decode(response);
 	reply := new(Reply);
-	dec.Decode(reply);
-	fmt.Printf("%d\n", reply.C);
+	err = client.Call("Arith.Add", args, reply);
 	if reply.C != args.A + args.B {
-		t.Errorf("Add: expected %d got %d", reply.C != args.A + args.B);
+		t.Errorf("Add: expected %d got %d", reply.C, args.A + args.B);
 	}
 
-	req.ServiceMethod = "Arith.Mul";
-	req.Seq++;
-	enc.Encode(req);
 	args = &Args{7,8};
-	enc.Encode(args);
-	response = new(rpc.Response);
-	dec.Decode(response);
 	reply = new(Reply);
-	dec.Decode(reply);
-	fmt.Printf("%d\n", reply.C);
+	err = client.Call("Arith.Mul", args, reply);
 	if reply.C != args.A * args.B {
-		t.Errorf("Mul: expected %d got %d", reply.C != args.A * args.B);
+		t.Errorf("Mul: expected %d got %d", reply.C, args.A * args.B);
 	}
 
-	req.ServiceMethod = "Arith.Div";
-	req.Seq++;
-	enc.Encode(req);
+	// Out of order.
+	args = &Args{7,8};
+	mulReply := new(Reply);
+	mulCall := client.Start("Arith.Mul", args, mulReply, nil);
+	addReply := new(Reply);
+	addCall := client.Start("Arith.Add", args, addReply, nil);
+
+	<-addCall.Done;
+	if addReply.C != args.A + args.B {
+		t.Errorf("Add: expected %d got %d", addReply.C, args.A + args.B);
+	}
+
+	<-mulCall.Done;
+	if mulReply.C != args.A * args.B {
+		t.Errorf("Mul: expected %d got %d", mulReply.C, args.A * args.B);
+	}
+
+	// Error test
 	args = &Args{7,0};
-	enc.Encode(args);
-	response = new(rpc.Response);
-	dec.Decode(response);
 	reply = new(Reply);
-	dec.Decode(reply);
+	err = client.Call("Arith.Div", args, reply);
 	// expect an error: zero divide
-	if response.Error == "" {
+	if err == nil {
 		t.Errorf("Div: expected error");
 	}
 }
-
