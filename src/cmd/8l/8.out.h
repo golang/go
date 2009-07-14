@@ -460,7 +460,7 @@ enum
 	T_SCONST	= 1<<5,
 	T_OFFSET2	= 1<<6,
 
-	REGARG		= 0,
+	REGARG		= -1,
 	REGRET		= D_AX,
 	FREGRET		= D_F0,
 	REGSP		= D_SP,

@@ -713,7 +713,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 3;
 
 	case ACALL:	/* funny */
-		if(REGARG && v->type == REGARG)
+		if(REGARG >= 0 && v->type == REGARG)
 			return 2;
 
 		if(s != A) {
