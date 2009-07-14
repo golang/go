@@ -169,10 +169,13 @@ func parse(path string, mode uint) (*ast.Program, *parseErrors) {
 
 	prog, err := parser.Parse(path, src, mode);
 	if err != nil {
-		// sort and convert error list
+		var errs []parseError;
 		if errors, ok := err.(scanner.ErrorList); ok {
-			sort.Sort(errors);
-			errs := make([]parseError, len(errors) + 1);	// +1 for final fragment of source
+			// convert error list (already sorted)
+			// TODO(gri) If the file contains //line comments, the errors
+			//           may not be sorted in increasing file offset value
+			//           which will lead to incorrect output.
+			errs = make([]parseError, len(errors) + 1);	// +1 for final fragment of source
 			offs := 0;
 			for i, r := range errors {
 				// Should always be true, but check for robustness.
@@ -184,11 +187,13 @@ func parse(path string, mode uint) (*ast.Program, *parseErrors) {
 				errs[i].msg = r.Msg;
 			}
 			errs[len(errors)].src = src[offs : len(src)];
-			return nil, &parseErrors{path, errs, src};
 		} else {
-			// TODO should have some default handling here to be more robust
-			panic("unreachable");
+			// single error of unspecified type
+			errs = make([]parseError, 2);
+			errs[0] = parseError{[]byte{}, 0, err.String()};
+			errs[1].src = src;
 		}
+		return nil, &parseErrors{path, errs, src};
 	}
 
 	return prog, nil;
@@ -478,7 +483,7 @@ func findPackage(path string) (canonical string, pd *pakDesc, dirs dirList) {
 }
 
 
-func (p *pakDesc) Doc() (*doc.PackageDoc, *parseErrors) {
+func (p *pakDesc) doc() (*doc.PackageDoc, *parseErrors) {
 	if p == nil {
 		return nil, nil;
 	}
@@ -519,7 +524,7 @@ func servePkg(c *http.Conn, r *http.Request) {
 		return;
 	}
 
-	pdoc, errors := desc.Doc();
+	pdoc, errors := desc.doc();
 	if errors != nil {
 		serveParseErrors(c, errors);
 		return;
@@ -695,7 +700,7 @@ func main() {
 	}
 
 	_, desc, dirs := findPackage(flag.Arg(0));
-	pdoc, errors := desc.Doc();
+	pdoc, errors := desc.doc();
 	if errors != nil {
 		err := parseerrorText.Execute(errors, os.Stderr);
 		if err != nil {
