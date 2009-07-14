@@ -158,6 +158,7 @@ struct	G
 	G*	schedlink;
 	bool	readyonstop;
 	M*	m;		// for debuggers, but offset not hard-coded
+	M*	lockedm;
 };
 struct	Mem
 {
@@ -187,12 +188,14 @@ struct	M
 	int32	mallocing;
 	int32	gcing;
 	int32	locks;
+	int32	waitnextg;
 	Note	havenextg;
 	G*	nextg;
 	M*	schedlink;
 	Mem	mem;
 	uint32	machport;	// Return address for Mach IPC (OS X)
 	MCache	*mcache;
+	G*	lockedg;
 };
 struct	Stktop
 {

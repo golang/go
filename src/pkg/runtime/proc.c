@@ -69,11 +69,12 @@ Sched sched;
 static void gput(G*);	// put/get on ghead/gtail
 static G* gget(void);
 static void mput(M*);	// put/get on mhead
-static M* mget(void);
+static M* mget(G*);
 static void gfput(G*);	// put/get on gfree
 static G* gfget(void);
 static void matchmg(void);	// match ms to gs
 static void readylocked(G*);	// ready, but sched is locked
+static void mnextg(M*, G*);
 
 // Scheduler loop.
 static void scheduler(void);
@@ -131,11 +132,6 @@ initdone(void)
 void
 goexit(void)
 {
-	if(debug > 1){
-		lock(&debuglock);
-		printf("goexit goid=%d\n", g->goid);
-		unlock(&debuglock);
-	}
 	g->status = Gmoribund;
 	gosched();
 }
@@ -157,6 +153,14 @@ tracebackothers(G *me)
 static void
 gput(G *g)
 {
+	M *m;
+
+	// If g is wired, hand it off directly.
+	if((m = g->lockedm) != nil) {
+		mnextg(m, g);
+		return;
+	}
+
 	g->schedlink = nil;
 	if(sched.ghead == nil)
 		sched.ghead = g;
@@ -191,14 +195,18 @@ mput(M *m)
 	sched.mwait++;
 }
 
-// Get from `m' list.  Sched must be locked.
+// Get an `m' to run `g'.  Sched must be locked.
 static M*
-mget(void)
+mget(G *g)
 {
 	M *m;
 
-	m = sched.mhead;
-	if(m){
+	// if g has its own m, use it.
+	if((m = g->lockedm) != nil)
+		return m;
+
+	// otherwise use general m pool.
+	if((m = sched.mhead) != nil){
 		sched.mhead = m->schedlink;
 		sched.mwait--;
 	}
@@ -257,6 +265,18 @@ readylocked(G *g)
 		matchmg();
 }
 
+// Pass g to m for running.
+static void
+mnextg(M *m, G *g)
+{
+	sched.mcpu++;
+	m->nextg = g;
+	if(m->waitnextg) {
+		m->waitnextg = 0;
+		notewakeup(&m->havenextg);
+	}
+}
+
 // Get the next goroutine that m should run.
 // Sched must be locked on entry, is unlocked on exit.
 // Makes sure that at most $GOMAXPROCS gs are
@@ -266,37 +286,42 @@ nextgandunlock(void)
 {
 	G *gp;
 
-	// On startup, each m is assigned a nextg and
-	// has already been accounted for in mcpu.
+	if(sched.mcpu < 0)
+		throw("negative sched.mcpu");
+
+	// If there is a g waiting as m->nextg,
+	// mnextg took care of the sched.mcpu++.
 	if(m->nextg != nil) {
 		gp = m->nextg;
 		m->nextg = nil;
 		unlock(&sched);
-		if(debug > 1) {
-			lock(&debuglock);
-			printf("m%d nextg found g%d\n", m->id, gp->goid);
-			unlock(&debuglock);
-		}
 		return gp;
 	}
 
-	// Otherwise, look for work.
-	if(sched.mcpu < sched.mcpumax && (gp=gget()) != nil) {
-		sched.mcpu++;
-		unlock(&sched);
-		if(debug > 1) {
-			lock(&debuglock);
-			printf("m%d nextg got g%d\n", m->id, gp->goid);
-			unlock(&debuglock);
+	if(m->lockedg != nil) {
+		// We can only run one g, and it's not available.
+		// Make sure some other cpu is running to handle
+		// the ordinary run queue.
+		if(sched.gwait != 0)
+			matchmg();
+	} else {
+		// Look for work on global queue.
+		while(sched.mcpu < sched.mcpumax && (gp=gget()) != nil) {
+			if(gp->lockedm) {
+				mnextg(gp->lockedm, gp);
+				continue;
+			}
+			sched.mcpu++;		// this m will run gp
+			unlock(&sched);
+			return gp;
 		}
-		return gp;
+		// Otherwise, wait on global m queue.
+		mput(m);
 	}
-
-	// Otherwise, sleep.
-	mput(m);
 	if(sched.mcpu == 0 && sched.msyscall == 0)
 		throw("all goroutines are asleep - deadlock!");
 	m->nextg = nil;
+	m->waitnextg = 1;
 	noteclear(&m->havenextg);
 	if(sched.waitstop && sched.mcpu <= sched.mcpumax) {
 		sched.waitstop = 0;
@@ -308,11 +333,6 @@ nextgandunlock(void)
 	if((gp = m->nextg) == nil)
 		throw("bad m->nextg in nextgoroutine");
 	m->nextg = nil;
-	if(debug > 1) {
-		lock(&debuglock);
-		printf("m%d nextg woke g%d\n", m->id, gp->goid);
-		unlock(&debuglock);
-	}
 	return gp;
 }
 
@@ -364,34 +384,15 @@ matchmg(void)
 	M *m;
 	G *g;
 
-	if(debug > 1 && sched.ghead != nil) {
-		lock(&debuglock);
-		printf("matchmg mcpu=%d mcpumax=%d gwait=%d\n", sched.mcpu, sched.mcpumax, sched.gwait);
-		unlock(&debuglock);
-	}
-
 	while(sched.mcpu < sched.mcpumax && (g = gget()) != nil){
-		sched.mcpu++;
-		if((m = mget()) != nil){
-			if(debug > 1) {
-				lock(&debuglock);
-				printf("wakeup m%d g%d\n", m->id, g->goid);
-				unlock(&debuglock);
-			}
-			m->nextg = g;
-			notewakeup(&m->havenextg);
-		}else{
+		// Find the m that will run g.
+		if((m = mget(g)) == nil){
 			m = malloc(sizeof(M));
 			m->g0 = malg(8192);
-			m->nextg = g;
 			m->id = sched.mcount++;
-			if(debug) {
-				lock(&debuglock);
-				printf("alloc m=%p m%d g%d\n", m, m->id, g->goid);
-				unlock(&debuglock);
-			}
 			newosproc(m, m->g0, m->g0->stackbase, mstart);
 		}
+		mnextg(m, g);
 	}
 }
 
@@ -414,11 +415,9 @@ scheduler(void)
 		gp = m->curg;
 		gp->m = nil;
 		sched.mcpu--;
-		if(debug > 1) {
-			lock(&debuglock);
-			printf("m%d sched g%d status %d\n", m->id, gp->goid, gp->status);
-			unlock(&debuglock);
-		}
+
+		if(sched.mcpu < 0)
+			throw("sched.mcpu < 0 in scheduler");
 		switch(gp->status){
 		case Grunnable:
 		case Gdead:
@@ -430,6 +429,10 @@ scheduler(void)
 			break;
 		case Gmoribund:
 			gp->status = Gdead;
+			if(gp->lockedm) {
+				gp->lockedm = nil;
+				m->lockedg = nil;
+			}
 			if(--sched.gcount == 0)
 				exit(0);
 			break;
@@ -444,12 +447,6 @@ scheduler(void)
 	gp = nextgandunlock();
 	gp->readyonstop = 0;
 	gp->status = Grunning;
-	if(debug > 1) {
-		lock(&debuglock);
-		printf("m%d run g%d at %p\n", m->id, gp->goid, gp->sched.pc);
-		traceback(gp->sched.pc, gp->sched.sp, gp);
-		unlock(&debuglock);
-	}
 	m->curg = gp;
 	gp->m = m;
 	if(gp->sched.pc == (byte*)goexit)	// kickoff
@@ -478,13 +475,8 @@ gosched(void)
 void
 sys·entersyscall(uint64 callerpc, int64 trap)
 {
-	USED(callerpc);
+	USED(callerpc, trap);
 
-	if(debug > 1) {
-		lock(&debuglock);
-		printf("m%d g%d enter syscall %D\n", m->id, g->goid, trap);
-		unlock(&debuglock);
-	}
 	lock(&sched);
 	g->status = Gsyscall;
 	// Leave SP around for gc and traceback.
@@ -509,12 +501,6 @@ sys·entersyscall(uint64 callerpc, int64 trap)
 void
 sys·exitsyscall(void)
 {
-	if(debug > 1) {
-		lock(&debuglock);
-		printf("m%d g%d exit syscall mcpu=%d mcpumax=%d\n", m->id, g->goid, sched.mcpu, sched.mcpumax);
-		unlock(&debuglock);
-	}
-
 	lock(&sched);
 	g->status = Grunning;
 	sched.msyscall--;
@@ -528,7 +514,7 @@ sys·exitsyscall(void)
 
 	// Slow path - all the cpus are taken.
 	// The scheduler will ready g and put this m to sleep.
-	// When the scheduler takes g awa from m,
+	// When the scheduler takes g away from m,
 	// it will undo the sched.mcpu++ above.
 	gosched();
 }
@@ -802,5 +788,29 @@ void
 runtime·Gosched(void)
 {
 	gosched();
+}
+
+void
+runtime·LockOSThread(void)
+{
+	if(sched.predawn)
+		throw("cannot wire during init");
+	m->lockedg = g;
+	g->lockedm = m;
+}
+
+void
+runtime·UnlockOSThread(void)
+{
+	m->lockedg = nil;
+	g->lockedm = nil;
+}
+
+// for testing of wire, unwire
+void
+runtime·mid(uint32 ret)
+{
+	ret = m->id;
+	FLUSH(&ret);
 }
 
