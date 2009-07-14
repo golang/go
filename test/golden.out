@@ -130,8 +130,8 @@ fixedbugs/bug035.go:7: variable f redeclared in this block
 	previous declaration at fixedbugs/bug035.go:5
 
 =========== fixedbugs/bug037.go
-fixedbugs/bug037.go:6: vlong: undefined
-fixedbugs/bug037.go:6: s: undefined
+fixedbugs/bug037.go:6: undefined: vlong
+fixedbugs/bug037.go:6: undefined: s
 
 =========== fixedbugs/bug039.go
 fixedbugs/bug039.go:6: variable x redeclared in this block
@@ -166,7 +166,7 @@ do break
 broke
 
 =========== fixedbugs/bug072.go
-fixedbugs/bug072.go:6: bug: undefined
+fixedbugs/bug072.go:6: undefined: bug
 
 =========== fixedbugs/bug073.go
 fixedbugs/bug073.go:8: illegal types for operand: LSH
@@ -185,16 +185,16 @@ fixedbugs/bug074.go:6: invalid type for composite literal: string
 fixedbugs/bug074.go:6: invalid type for composite literal: string
 
 =========== fixedbugs/bug081.go
-fixedbugs/bug081.go:5: x is not a type
+fixedbugs/bug081.go:5: undefined: x
 
 =========== fixedbugs/bug083.go
-fixedbugs/bug083.dir/bug1.go:9: cannot use type bug0.t0
+fixedbugs/bug083.dir/bug1.go:9: cannot refer to bug0.t0
 
 =========== fixedbugs/bug086.go
 fixedbugs/bug086.go:5: function ends without a return statement
 
 =========== fixedbugs/bug091.go
-fixedbugs/bug091.go:15: c: undefined
+fixedbugs/bug091.go:15: undefined: c
 fixedbugs/bug091.go:15: illegal types for operand: AS
 	undefined
 
@@ -203,7 +203,7 @@ M
 
 =========== fixedbugs/bug103.go
 fixedbugs/bug103.go:8: assignment count mismatch: 1 = 0
-fixedbugs/bug103.go:8: x: undefined
+fixedbugs/bug103.go:8: undefined: x
 fixedbugs/bug103.go:8: function requires a return type
 fixedbugs/bug103.go:8: illegal types for operand: AS
 	int
@@ -228,6 +228,6 @@ fixedbugs/bug131.go:7: illegal types for operand: AS
 	uint64
 
 =========== fixedbugs/bug133.go
-fixedbugs/bug133.dir/bug2.go:11: undefined DOT i on bug0.T
+fixedbugs/bug133.dir/bug2.go:11: undefined: bug0.T field i
 fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN
 	int

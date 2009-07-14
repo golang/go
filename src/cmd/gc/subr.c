@@ -178,29 +178,29 @@ lookup(char *p)
 }
 
 Sym*
-pkglookup(char *p, char *k)
+pkglookup(char *name, char *pkg)
 {
 	Sym *s;
 	uint32 h;
 	int c;
 
-	h = stringhash(p) % NHASH;
-	c = p[0];
+	h = stringhash(name) % NHASH;
+	c = name[0];
 	for(s = hash[h]; s != S; s = s->link) {
 		if(s->name[0] != c)
 			continue;
-		if(strcmp(s->name, p) == 0)
-			if(s->package && strcmp(s->package, k) == 0)
+		if(strcmp(s->name, name) == 0)
+			if(s->package && strcmp(s->package, pkg) == 0)
 				return s;
 	}
 
 	s = mal(sizeof(*s));
-	s->name = mal(strlen(p)+1);
-	strcpy(s->name, p);
+	s->name = mal(strlen(name)+1);
+	strcpy(s->name, name);
 
 	// botch - should probably try to reuse the pkg string
-	s->package = mal(strlen(k)+1);
-	strcpy(s->package, k);
+	s->package = mal(strlen(pkg)+1);
+	strcpy(s->package, pkg);
 
 	s->link = hash[h];
 	hash[h] = s;
@@ -208,7 +208,16 @@ pkglookup(char *p, char *k)
 	return s;
 }
 
-// find all the symbols in package opkg
+Sym*
+restrictlookup(char *name, char *pkg)
+{
+	if(!exportname(name) && strcmp(pkg, package) != 0)
+		yyerror("cannot refer to %s.%s", pkg, name);
+	return pkglookup(name, pkg);
+}
+	
+
+// find all the exported symbols in package opkg
 // and make them available in the current package
 void
 importdot(Sym *opkg)
@@ -224,6 +233,8 @@ importdot(Sym *opkg)
 	for(h=0; h<NHASH; h++) {
 		for(s = hash[h]; s != S; s = s->link) {
 			if(s->package[0] != c)
+				continue;
+			if(!exportname(s->name))
 				continue;
 			if(strcmp(s->package, opkg->name) != 0)
 				continue;
@@ -758,6 +769,12 @@ opnames[] =
 	[OSLICE]	= "SLICE",
 	[OSUB]		= "SUB",
 	[OSWITCH]	= "SWITCH",
+	[OTCHAN]	= "TCHAN",
+	[OTMAP]	= "TMAP",
+	[OTSTRUCT]	= "TSTRUCT",
+	[OTINTER]	= "TINTER",
+	[OTFUNC]	= "TFUNC",
+	[OTARRAY]	= "TARRAY",
 	[OTYPEOF]	= "TYPEOF",
 	[OTYPESW]	= "TYPESW",
 	[OTYPE]		= "TYPE",
@@ -2147,18 +2164,19 @@ cleanidlist(Node *na)
 {
 	Node *last, *n;
 
-	if(na->op != OLIST)
+	if(na->op != OLIST) {
+		if(na->op != ODCLFIELD)
+			fatal("cleanidlist: %O", na->op);
+		if(na->right == N)
+			fatal("cleanidlist: no type");
 		return na;
+	}
 
 	for(last=na; last->op == OLIST; last=last->right)
 		;
-	if(last->op != ODCLFIELD)
-		fatal("cleanidlist: %O", last->op);
-	if(last->type == T)
-		fatal("cleanidlist: no type");
 
 	for(n=na; n->op == OLIST; n=n->right) {
-		n->left->type = last->type;
+		n->left->right = last->right;
 		n->left->val = last->val;
 	}
 	return na;

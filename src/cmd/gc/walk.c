@@ -48,10 +48,18 @@ loop:
 	// statement of the function
 
 	case OGOTO:
-	case OPANIC:
-	case OPANICN:
 	case ORETURN:
 		return 0;
+
+	case OCALL:
+		if(n->left->op == ONAME) {
+			switch(n->left->etype) {
+			case OPANIC:
+			case OPANICN:
+				return 0;
+			}
+		}
+		break;
 	}
 
 	// all other statements
@@ -242,12 +250,14 @@ walkexpr(Node *n, int top, Node **init)
 	Node *r, *l;
 	Type *t;
 	Sym *s;
-	int et, cl, cr;
+	int et, cl, cr, typeok;
 	int32 lno;
 
 	if(n == N)
 		return;
 	lno = setlineno(n);
+	typeok = top & Etype;
+	top &= ~Etype;
 
 loop:
 	if(n == N)
@@ -258,6 +268,7 @@ loop:
 	if(debug['w'] > 1 && top == Etop && n->op != OLIST)
 		dump("walk-before", n);
 
+reswitch:
 	t = T;
 	et = Txxx;
 
@@ -268,15 +279,79 @@ loop:
 		goto ret;
 
 	case OTYPE:
-		if(!n->diag) {
-			n->diag = 1;
-			yyerror("type %T used as expression", n->type);
+		goto ret;
+
+	case OTARRAY:
+		t = typ(TARRAY);
+		l = n->left;
+		r = n->right;
+		if(l == nil) {
+			t->bound = -1;
+		} else {
+			walkexpr(l, Erv | Etype, init);
+			switch(l->op) {
+			default:
+				yyerror("invalid array bound %O", l->op);
+				break;
+
+			case OLITERAL:
+				if(consttype(l) == CTINT) {
+					t->bound = mpgetfix(l->val.u.xval);
+					if(t->bound < 0) {
+						yyerror("array bound must be non-negative");
+						t->bound = 1;
+					}
+				}
+				break;
+
+			case OTYPE:
+				if(l->type == T)
+					break;
+				if(l->type->etype != TDDD)
+					yyerror("invalid array bound %T", l->type);
+				t->bound = -100;
+				break;
+			}
 		}
+		walkexpr(r, Etype, init);
+		t->type = r->type;
+		n->op = OTYPE;
+		n->type = t;
+		goto ret;
+
+	case OTMAP:
+		l = n->left;
+		r = n->right;
+		walkexpr(l, Etype, init);
+		walkexpr(r, Etype, init);
+		n->op = OTYPE;
+		n->type = maptype(l->type, r->type);
+		goto ret;
+
+	case OTCHAN:
+		t = typ(TCHAN);
+		l = n->left;
+		walkexpr(l, Etype, init);
+		t->type = l->type;
+		t->chan = n->etype;
+		n->op = OTYPE;
+		n->type = t;
+		goto ret;
+
+	case OTSTRUCT:
+		n->op = OTYPE;
+		n->type = dostruct(n->left, TSTRUCT);
+		goto ret;
+
+	case OTINTER:
+		n->op = OTYPE;
+		n->type = dostruct(n->left, TINTER);
+		n->type = sortinter(n->type);
 		goto ret;
 
 	case OLIST:
 	case OKEY:
-		walkexpr(n->left, top, init);
+		walkexpr(n->left, top | typeok, init);
 		n = n->right;
 		goto loop;
 
@@ -318,7 +393,8 @@ loop:
 		s = n->sym;
 		if(s->undef == 0) {
 			s->undef = 1;
-			yyerror("%S: undefined", s);
+			n->diag = 1;
+			yyerror("undefined: %S", s);
 			goto ret;
 		}
 		if(top == Etop)
@@ -354,7 +430,15 @@ loop:
 		if(n->left == N)
 			goto ret;
 
-		walkexpr(n->left, Erv, init);
+		if(n->left->op == ONAME && n->left->etype != 0) {
+			// builtin OLEN, OCAP, etc.
+			n->op = n->left->etype;
+			n->left = n->right;
+			n->right = N;
+			goto reswitch;
+		}
+
+		walkexpr(n->left, Erv | Etype, init);
 		defaultlit(n->left, T);
 
 		t = n->left->type;
@@ -365,6 +449,16 @@ loop:
 			n->op = OCALLMETH;
 		if(n->left->op == ODOTINTER)
 			n->op = OCALLINTER;
+		if(n->left->op == OTYPE) {
+			n->op = OCONV;
+			if(top != Erv)
+				goto nottop;
+			// turn CALL(type, arg) into CONV(arg) w/ type.
+			n->type = n->left->type;
+			n->left = n->right;
+			n->right = N;
+			goto reswitch;
+		}
 
 		if(t->etype != TFUNC) {
 			yyerror("call of a non-function: %T", t);
@@ -493,9 +587,9 @@ loop:
 			break;
 
 		case ODOTTYPE:
+			walkdottype(r, init);
 			if(cl == 2 && cr == 1) {
 				// a,b = i.(T)
-				walkexpr(r->left, Erv, init);
 				if(r->left == N)
 					break;
 				et = ifaceas1(r->type, r->left->type, 1);
@@ -558,8 +652,10 @@ loop:
 	case OEMPTY:
 		goto ret;
 
-	case OCONV:
 	case ODOTTYPE:
+		walkdottype(n, init);
+		// fall through
+	case OCONV:
 		if(top != Erv)
 			goto nottop;
 		walkconv(n, init);
@@ -573,9 +669,12 @@ loop:
 		goto ret;
 
 	case OCOMPOS:
-		t = n->type;
+		walkexpr(n->right, Etype, init);
+		t = n->right->type;
+		n->type = t;
 		if(t == T)
 			goto ret;
+
 		l = n->left;
 		if(l == N)
 			goto ret;
@@ -911,7 +1010,12 @@ loop:
 		if(top != Erv)
 			goto nottop;
 		defaultlit(n->left, T);
-		if(n->left->op == OCOMPOS && n->left->type != T) {
+		if(n->left->op == OCOMPOS) {
+			walkexpr(n->left->right, Etype, init);
+			n->left->type = n->left->right->type;
+			if(n->left->type == T)
+				goto ret;
+
 			Node *nvar, *nas, *nstar;
 
 			// turn &Point(1, 2) or &[]int(1, 2) or &[...]int(1, 2) into allocation.
@@ -971,10 +1075,15 @@ loop:
 			goto nottop;
 		if(top == Elv)	// even if n is lvalue, n->left is rvalue
 			top = Erv;
-		walkexpr(n->left, top, init);
-		defaultlit(n->left, T);
 		if(n->left == N)
 			goto ret;
+		walkexpr(n->left, top | Etype, init);
+		defaultlit(n->left, T);
+		if(n->left->op == OTYPE) {
+			n->op = OTYPE;
+			n->type = ptrto(n->left->type);
+			goto ret;
+		}
 		t = n->left->type;
 		if(t == T)
 			goto ret;
@@ -998,12 +1107,11 @@ loop:
 		if(top != Erv)
 			goto nottop;
 		l = n->left;
+		walkexpr(l, Etype, init);
 		if(l == N)
 			yyerror("missing argument to new");
 		else if(n->right != N)
 			yyerror("too many arguments to new");
-		else if(l->op != OTYPE)
-			yyerror("argument to new must be type");
 		else if((t = l->type) == T)
 			;
 		else
@@ -1153,9 +1261,12 @@ nottop:
 	if(n->diag)
 		goto ret;
 	n->diag = 1;
-	switch(top) {
+	switch(top | typeok) {
 	default:
-		yyerror("didn't expect %O here", n->op);
+		yyerror("didn't expect %O here [top=%d]", n->op, top);
+		break;
+	case Etype:
+		yyerror("operation %O not allowed in type context", n->op);
 		break;
 	case Etop:
 		yyerror("operation %O not allowed in statement context", n->op);
@@ -1164,6 +1275,7 @@ nottop:
 		yyerror("operation %O not allowed in assignment context", n->op);
 		break;
 	case Erv:
+	case Erv | Etype:
 		yyerror("operation %O not allowed in expression context", n->op);
 		break;
 	}
@@ -1188,6 +1300,21 @@ ret:
 	if(debug['w'] && top == Etop && n != N)
 		dump("walk", n);
 
+	if(typeok && top == 0) {	// must be type
+		if(n->op != OTYPE) {
+			if(n->sym) {
+				if(!n->sym->undef)
+					yyerror("%S is not a type", n->sym);
+			} else {
+				yyerror("expr %O is not type", n->op);
+				n->op = OTYPE;	// leads to fewer errors later
+				n->type = T;
+			}
+		}
+	}
+	if(!typeok && n->op == OTYPE)
+		yyerror("cannot use type %T as expr", n->type);
+
 	ullmancalc(n);
 	lineno = lno;
 }
@@ -1201,6 +1328,22 @@ walkbool(Node *n)
 	defaultlit(n, T);
 	if(n->type != T && !eqtype(n->type, types[TBOOL]))
 		yyerror("IF and FOR require a boolean type");
+}
+
+void
+walkdottype(Node *n, Node **init)
+{
+	walkexpr(n->left, Erv, init);
+	if(n->left == N)
+		return;
+	defaultlit(n->left, T);
+	if(!isinter(n->left->type))
+		yyerror("type assertion requires interface on left, have %T", n->left->type);
+	if(n->right != N) {
+		walkexpr(n->right, Etype, init);
+		n->type = n->right->type;
+		n->right = N;
+	}
 }
 
 void
@@ -1223,9 +1366,6 @@ walkconv(Node *n, Node **init)
 
 	// if using .(T), interface assertion.
 	if(n->op == ODOTTYPE) {
-		defaultlit(l, T);
-		if(!isinter(l->type))
-			yyerror("type assertion requires interface on left, have %T", l->type);
 		et = ifaceas1(t, l->type, 1);
 		if(et == I2Isame || et == E2Esame)
 			goto nop;
@@ -1727,7 +1867,7 @@ walkdot(Node *n, Node **init)
 	if(!lookdot(n, t)) {
 		if(!n->diag) {
 			n->diag = 1;
-			yyerror("undefined DOT %S on %T", n->right->sym, n->left->type);
+			yyerror("undefined: %T field %S", n->left->type, n->right->sym);
 		}
 	}
 }
@@ -2300,7 +2440,7 @@ Node*
 makecompat(Node *n)
 {
 	Type *t;
-	Node *l, *r;
+	Node *l, *r, *init;
 
 	l = n->left;
 	r = N;
@@ -2308,6 +2448,8 @@ makecompat(Node *n)
 		r = l->right;
 		l = l->left;
 	}
+	init = N;
+	walkexpr(l, Etype, &init);
 	if(l->op != OTYPE) {
 		yyerror("cannot make(expr)");
 		return n;
@@ -3455,10 +3597,17 @@ colas(Node *nl, Node *nr, Node **init)
 	/* check calls early, to give better message for a := f() */
 	if(cr == 1) {
 		switch(nr->op) {
+		case OCALL:
+			if(nr->left->op == ONAME && nr->left->etype != 0)
+				break;
+			walkexpr(nr->left, Erv | Etype, init);
+			if(nr->left->op == OTYPE)
+				break;
+			goto call;
 		case OCALLMETH:
 		case OCALLINTER:
-		case OCALL:
 			walkexpr(nr->left, Erv, init);
+		call:
 			convlit(nr->left, types[TFUNC]);
 			t = nr->left->type;
 			if(t == T)
@@ -3539,10 +3688,8 @@ multi:
 
 	case ODOTTYPE:
 		// a,b := i.(T)
+		walkdottype(nr, init);
 		if(cl != 2)
-			goto badt;
-		walkexpr(nr->left, Erv, init);
-		if(!isinter(nr->left->type))
 			goto badt;
 		// a,b = iface
 		a = mixedoldnew(nl->left, nr->type);
