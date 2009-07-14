@@ -23,15 +23,31 @@ type Cause interface {
 
 // Regs is a set of named machine registers, including a program
 // counter, link register, and stack pointer.
+//
+// TODO(austin) There's quite a proliferation of methods here.  We
+// could make a Reg interface with Get and Set and make this just PC,
+// Link, SP, Names, and Reg.  We could also put Index in Reg and that
+// makes it easy to get the index of things like the PC (currently
+// there's just no way to know that).  This would also let us include
+// other per-register information like how to print it.
 type Regs interface {
 	// PC returns the value of the program counter.
 	PC() Word;
 
+	// SetPC sets the program counter to val.
+	SetPC(val Word) os.Error;
+
 	// Link returns the link register, if any.
 	Link() Word;
 
+	// SetLink sets the link register to val.
+	SetLink(val Word) os.Error;
+
 	// SP returns the value of the stack pointer.
 	SP() Word;
+
+	// SetSP sets the stack pointer register to val.
+	SetSP(val Word) os.Error;
 
 	// Names returns the names of all of the registers.
 	Names() []string;
@@ -42,7 +58,7 @@ type Regs interface {
 	Get(i int) Word;
 
 	// Set sets the value of a register.
-	Set(i int, val Word);
+	Set(i int, val Word) os.Error;
 }
 
 // Thread is a thread in the process being traced.
@@ -86,7 +102,7 @@ type Thread interface {
 // process's state extends to all of its threads.
 type Process interface {
 	// Threads returns an array of all threads in this process.
-	Threads() []*Thread;
+	Threads() []Thread;
 
 	// AddBreakpoint creates a new breakpoint at program counter
 	// pc.  Breakpoints can only be created when the process is
@@ -105,7 +121,8 @@ type Process interface {
 	// Continue resumes execution of all threads in this process.
 	// Any thread that is stopped on a breakpoint will be stepped
 	// over that breakpoint.  Any thread that is stopped because
-	// of a signal will receive the pending signal.
+	// of a signal (other than SIGSTOP or SIGTRAP) will receive
+	// the pending signal.
 	Continue() os.Error;
 
 	// WaitStop waits until all threads in process p are stopped
@@ -118,14 +135,14 @@ type Process interface {
 	Detach() os.Error;
 }
 
-// Paused is a stop cause used for threads that are stopped either by
+// Stopped is a stop cause used for threads that are stopped either by
 // user request (e.g., from the Stop method or after single stepping),
 // or that are stopped because some other thread caused the program to
 // stop.
-type Paused struct {}
+type Stopped struct {}
 
-func (c Paused) String() string {
-	return "paused";
+func (c Stopped) String() string {
+	return "stopped";
 }
 
 // Breakpoint is a stop cause resulting from a thread reaching a set
@@ -176,7 +193,7 @@ func (c ThreadCreate) String() string {
 // accessible.
 type ThreadExit struct {
 	exitStatus int;
-	signal int;
+	signal string;
 }
 
 // Exited returns true if the thread exited normally.
@@ -192,12 +209,12 @@ func (c ThreadExit) ExitStatus() int {
 
 // Signaled returns true if the thread was terminated by a signal.
 func (c ThreadExit) Signaled() bool {
-	return c.signal != -1;
+	return c.exitStatus == -1;
 }
 
-// StopSignal returns the signal that terminated the thread, or -1 if
+// StopSignal returns the signal that terminated the thread, or "" if
 // it was not terminated by a signal.
-func (c ThreadExit) StopSignal() int {
+func (c ThreadExit) StopSignal() string {
 	return c.signal;
 }
 
@@ -207,7 +224,7 @@ func (c ThreadExit) String() string {
 	case c.Exited():
 		res += "with status " + strconv.Itoa(c.ExitStatus());
 	case c.Signaled():
-		res += "from signal " + strconv.Itoa(c.StopSignal());
+		res += "from signal " + c.StopSignal();
 	default:
 		res += "from unknown cause";
 	}
