@@ -26,3 +26,17 @@ func	Breakpoint()
 // program counter, file name, and line number within the file of the corresponding
 // call.  The boolean ok is false if it was not possible to recover the information.
 func	Caller(n int) (pc uintptr, file string, line int, ok bool)
+
+// mid returns the current os thread (m) id.
+func mid() uint32
+
+// LockOSThread wires the calling goroutine to its current operating system thread.
+// Until the calling goroutine exits or calls UnlockOSThread, it will always
+// execute in that thread, and no other goroutine can.
+// LockOSThread cannot be used during init functions.
+func LockOSThread()
+
+// UnlockOSThread unwires the calling goroutine from its fixed operating system thread.
+// If the calling goroutine has not called LockOSThread, UnlockOSThread is a no-op.
+func UnlockOSThread()
+
