@@ -484,6 +484,45 @@ dstringptr(Sym *s, int off, char *str)
 }
 
 int
+dgostrlitptr(Sym *s, int off, Strlit *lit)
+{
+	Prog *p;
+
+	if(lit == nil)
+		return duintptr(s, off, 0);
+
+	off = rnd(off, widthptr);
+	p = gins(ADATA, N, N);
+	p->from.type = D_OREG;
+	p->from.name = D_EXTERN;
+	p->from.sym = s;
+	p->from.offset = off;
+	p->from.reg = widthptr;
+	datagostring(lit, &p->to);
+	p->to.type = D_CONST;
+	p->to.etype = TINT32;
+	off += widthptr;
+
+	return off;
+}
+
+int
+dgostringptr(Sym *s, int off, char *str)
+{
+	int n;
+	Strlit *lit;
+
+	if(str == nil)
+		return duintptr(s, off, 0);
+
+	n = strlen(str);
+	lit = mal(sizeof *lit + n);
+	strcpy(lit->s, str);
+	lit->len = n;
+	return dgostrlitptr(s, off, lit);
+}
+
+int
 duintxx(Sym *s, int off, uint64 v, int wid)
 {
 	Prog *p;
@@ -505,25 +544,7 @@ duintxx(Sym *s, int off, uint64 v, int wid)
 }
 
 int
-duint32(Sym *s, int off, uint32 v)
-{
-	return duintxx(s, off, v, 4);
-}
-
-int
-duint16(Sym *s, int off, uint32 v)
-{
-	return duintxx(s, off, v, 2);
-}
-
-int
-duintptr(Sym *s, int off, uint32 v)
-{
-	return duintxx(s, off, v, 8);
-}
-
-int
-dsymptr(Sym *s, int off, Sym *x)
+dsymptr(Sym *s, int off, Sym *x, int xoff)
 {
 	Prog *p;
 
@@ -538,7 +559,7 @@ dsymptr(Sym *s, int off, Sym *x)
 	p->to.type = D_CONST;
 	p->to.name = D_EXTERN;
 	p->to.sym = x;
-	p->to.offset = 0;
+	p->to.offset = xoff;
 	off += widthptr;
 
 	return off;
@@ -546,9 +567,10 @@ dsymptr(Sym *s, int off, Sym *x)
 
 
 void
-genembedtramp(Type *t, Sig *b)
+genembedtramp(Type *rcvr, Type *method, Sym *newnam)
 {
 	fatal("genembedtramp not implemented");
+	// TODO(kaib): re-lift from 8g
 //	Sym *e;
 //	int c, d, o, loaded;
 //	Prog *p;
