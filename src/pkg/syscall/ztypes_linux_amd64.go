@@ -49,6 +49,9 @@ const (
 	WSTOPPED = 0x2;
 	WCONTINUED = 0x8;
 	WNOWAIT = 0x1000000;
+	WCLONE = 0x80000000;
+	WALL = 0x40000000;
+	WNOTHREAD = 0x20000000;
 	AF_UNIX = 0x1;
 	AF_INET = 0x2;
 	AF_INET6 = 0xa;
@@ -74,6 +77,43 @@ const (
 	SizeofSockaddrInet6 = 0x1c;
 	SizeofSockaddrAny = 0x1c;
 	SizeofSockaddrUnix = 0x6e;
+	_PTRACE_TRACEME = 0;
+	_PTRACE_PEEKTEXT = 0x1;
+	_PTRACE_PEEKDATA = 0x2;
+	_PTRACE_PEEKUSER = 0x3;
+	_PTRACE_POKETEXT = 0x4;
+	_PTRACE_POKEDATA = 0x5;
+	_PTRACE_POKEUSER = 0x6;
+	_PTRACE_CONT = 0x7;
+	_PTRACE_KILL = 0x8;
+	_PTRACE_SINGLESTEP = 0x9;
+	_PTRACE_GETREGS = 0xc;
+	_PTRACE_SETREGS = 0xd;
+	_PTRACE_GETFPREGS = 0xe;
+	_PTRACE_SETFPREGS = 0xf;
+	_PTRACE_ATTACH = 0x10;
+	_PTRACE_DETACH = 0x11;
+	_PTRACE_GETFPXREGS = 0x12;
+	_PTRACE_SETFPXREGS = 0x13;
+	_PTRACE_SYSCALL = 0x18;
+	_PTRACE_SETOPTIONS = 0x4200;
+	_PTRACE_GETEVENTMSG = 0x4201;
+	_PTRACE_GETSIGINFO = 0x4202;
+	_PTRACE_SETSIGINFO = 0x4203;
+	PTRACE_O_TRACESYSGOOD = 0x1;
+	PTRACE_O_TRACEFORK = 0x2;
+	PTRACE_O_TRACEVFORK = 0x4;
+	PTRACE_O_TRACECLONE = 0x8;
+	PTRACE_O_TRACEEXEC = 0x10;
+	PTRACE_O_TRACEVFORKDONE = 0x20;
+	PTRACE_O_TRACEEXIT = 0x40;
+	PTRACE_O_MASK = 0x7f;
+	PTRACE_EVENT_FORK = 0x1;
+	PTRACE_EVENT_VFORK = 0x2;
+	PTRACE_EVENT_CLONE = 0x3;
+	PTRACE_EVENT_EXEC = 0x4;
+	PTRACE_EVENT_VFORK_DONE = 0x5;
+	PTRACE_EVENT_EXIT = 0x6;
 	EPOLLIN = 0x1;
 	EPOLLRDHUP = 0x2000;
 	EPOLLOUT = 0x4;
@@ -84,6 +124,14 @@ const (
 )
 
 // Types
+
+type _C_short int16
+
+type _C_int int32
+
+type _C_long int64
+
+type _C_long_long int64
 
 type Timespec struct {
 	Sec int64;
@@ -170,8 +218,6 @@ type Rlimit struct {
 	Max uint64;
 }
 
-type _C_int int32
-
 type _Gid_t uint32
 
 type Stat_t struct {
@@ -250,6 +296,36 @@ type _Socklen uint32
 type Linger struct {
 	Onoff int32;
 	Linger int32;
+}
+
+type PtraceRegs struct {
+	R15 uint64;
+	R14 uint64;
+	R13 uint64;
+	R12 uint64;
+	Rbp uint64;
+	Rbx uint64;
+	R11 uint64;
+	R10 uint64;
+	R9 uint64;
+	R8 uint64;
+	Rax uint64;
+	Rcx uint64;
+	Rdx uint64;
+	Rsi uint64;
+	Rdi uint64;
+	Orig_rax uint64;
+	Rip uint64;
+	Cs uint64;
+	Eflags uint64;
+	Rsp uint64;
+	Ss uint64;
+	Fs_base uint64;
+	Gs_base uint64;
+	Ds uint64;
+	Es uint64;
+	Fs uint64;
+	Gs uint64;
 }
 
 type FdSet struct {

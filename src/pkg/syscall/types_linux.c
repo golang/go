@@ -13,6 +13,7 @@ Input to godefs.  See PORT.
 
 #include <dirent.h>
 #include <fcntl.h>
+#include <linux/user.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <signal.h>
@@ -52,6 +53,12 @@ enum
 	$PathMax = PATH_MAX,
 };
 
+// Basic types
+
+typedef short $_C_short;
+typedef int $_C_int;
+typedef long $_C_long;
+typedef long long $_C_long_long;
 
 // Time
 
@@ -67,7 +74,6 @@ typedef struct utimbuf $Utimbuf;
 typedef struct rusage $Rusage;
 typedef struct rlimit $Rlimit;
 
-typedef int $_C_int;
 typedef gid_t $_Gid_t;
 
 // Files
@@ -130,6 +136,11 @@ enum
 	$WSTOPPED = WSTOPPED,
 	$WCONTINUED = WCONTINUED,
 	$WNOWAIT = WNOWAIT,
+
+        // Linux-specific
+        $WCLONE = __WCLONE,
+        $WALL = __WALL,
+        $WNOTHREAD = __WNOTHREAD,
 };
 
 // Sockets
@@ -191,6 +202,60 @@ enum {
 typedef struct sockaddr_any $RawSockaddrAny;
 typedef socklen_t $_Socklen;
 typedef struct linger $Linger;
+
+// Ptrace
+
+// Ptrace requests
+enum {
+	$_PTRACE_TRACEME = PTRACE_TRACEME,
+	$_PTRACE_PEEKTEXT = PTRACE_PEEKTEXT,
+	$_PTRACE_PEEKDATA = PTRACE_PEEKDATA,
+	$_PTRACE_PEEKUSER = PTRACE_PEEKUSER,
+	$_PTRACE_POKETEXT = PTRACE_POKETEXT,
+	$_PTRACE_POKEDATA = PTRACE_POKEDATA,
+	$_PTRACE_POKEUSER = PTRACE_POKEUSER,
+	$_PTRACE_CONT = PTRACE_CONT,
+	$_PTRACE_KILL = PTRACE_KILL,
+	$_PTRACE_SINGLESTEP = PTRACE_SINGLESTEP,
+	$_PTRACE_GETREGS = PTRACE_GETREGS,
+	$_PTRACE_SETREGS = PTRACE_SETREGS,
+	$_PTRACE_GETFPREGS = PTRACE_GETFPREGS,
+	$_PTRACE_SETFPREGS = PTRACE_SETFPREGS,
+	$_PTRACE_ATTACH = PTRACE_ATTACH,
+	$_PTRACE_DETACH = PTRACE_DETACH,
+	$_PTRACE_GETFPXREGS = PTRACE_GETFPXREGS,
+	$_PTRACE_SETFPXREGS = PTRACE_SETFPXREGS,
+	$_PTRACE_SYSCALL = PTRACE_SYSCALL,
+	$_PTRACE_SETOPTIONS = PTRACE_SETOPTIONS,
+	$_PTRACE_GETEVENTMSG = PTRACE_GETEVENTMSG,
+	$_PTRACE_GETSIGINFO = PTRACE_GETSIGINFO,
+	$_PTRACE_SETSIGINFO = PTRACE_SETSIGINFO,
+};
+
+// PTRACE_SETOPTIONS options
+enum {
+	$PTRACE_O_TRACESYSGOOD = PTRACE_O_TRACESYSGOOD,
+	$PTRACE_O_TRACEFORK = PTRACE_O_TRACEFORK,
+	$PTRACE_O_TRACEVFORK = PTRACE_O_TRACEVFORK,
+	$PTRACE_O_TRACECLONE = PTRACE_O_TRACECLONE,
+	$PTRACE_O_TRACEEXEC = PTRACE_O_TRACEEXEC,
+	$PTRACE_O_TRACEVFORKDONE = PTRACE_O_TRACEVFORKDONE,
+	$PTRACE_O_TRACEEXIT = PTRACE_O_TRACEEXIT,
+	$PTRACE_O_MASK = PTRACE_O_MASK,
+};
+
+// Extended result codes
+enum {
+	$PTRACE_EVENT_FORK = PTRACE_EVENT_FORK,
+	$PTRACE_EVENT_VFORK = PTRACE_EVENT_VFORK,
+	$PTRACE_EVENT_CLONE = PTRACE_EVENT_CLONE,
+	$PTRACE_EVENT_EXEC = PTRACE_EVENT_EXEC,
+	$PTRACE_EVENT_VFORK_DONE = PTRACE_EVENT_VFORK_DONE,
+	$PTRACE_EVENT_EXIT = PTRACE_EVENT_EXIT,
+};
+
+// Register structures
+typedef struct user_regs_struct $PtraceRegs;
 
 // Misc
 
