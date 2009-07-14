@@ -19,7 +19,7 @@ import (
 
 
 type parser struct {
-	errors vector.Vector;
+	scanner.ErrorVector;
 	scanner scanner.Scanner;
 	pos token.Position;  // token position
 	tok token.Token;  // one token look-ahead
@@ -33,24 +33,6 @@ func (p *parser) next() {
 		// TODO Should keyword mapping always happen outside scanner?
 		//      Or should there be a flag to scanner to enable keyword mapping?
 		p.tok = token.IDENT;
-	}
-}
-
-
-func (p *parser) init(src []byte) {
-	p.errors.Init(0);
-	p.scanner.Init(src, p, 0);
-	p.next();  // initializes pos, tok, lit
-}
-
-
-// The parser implements scanner.Error.
-func (p *parser) Error(pos token.Position, msg string) {
-	// Do not collect errors that are on the same line as the previous
-	// error to reduce the number of spurious errors due to incorrect
-	// parser synchronization.
-	if p.errors.Len() == 0 || p.errors.Last().(*Error).Pos.Line != pos.Line {
-		p.errors.Push(&Error{pos, msg});
 	}
 }
 
@@ -207,10 +189,10 @@ func (p *parser) parseProduction() *Production {
 }
 
 
-func (p *parser) parse(src []byte) Grammar {
+func (p *parser) parse(filename string, src []byte) Grammar {
 	// initialize parser
-	p.errors.Init(0);
-	p.scanner.Init(src, p, 0);
+	p.ErrorVector.Init();
+	p.scanner.Init(filename, src, p, 0);
 	p.next();  // initializes pos, tok, lit
 
 	grammar := make(Grammar);
@@ -233,8 +215,8 @@ func (p *parser) parse(src []byte) Grammar {
 // for incorrect syntax and if a production is declared
 // more than once.
 //
-func Parse(src []byte) (Grammar, os.Error) {
+func Parse(filename string, src []byte) (Grammar, os.Error) {
 	var p parser;
-	grammar := p.parse(src);
-	return grammar, makeErrorList(&p.errors);
+	grammar := p.parse(filename, src);
+	return grammar, p.GetError(scanner.Sorted);
 }
