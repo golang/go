@@ -42,6 +42,12 @@ func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, err
 	return;
 }
 
+func ptrace(request int, pid int, addr uintptr, data uintptr) (errno int) {
+	r0, r1, e1 := Syscall6(SYS_PTRACE, uintptr(request), uintptr(pid), uintptr(addr), uintptr(data), 0, 0);
+	errno = int(e1);
+	return;
+}
+
 func Access(path string, mode int) (errno int) {
 	r0, r1, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0);
 	errno = int(e1);
