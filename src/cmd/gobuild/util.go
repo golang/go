@@ -225,7 +225,7 @@ func PackageImports(file string) (pkg string, imports []string, err1 os.Error) {
 		return "", nil, err
 	}
 
-	prog, err := parser.Parse(f, parser.ImportsOnly);
+	prog, err := parser.Parse(file, f, parser.ImportsOnly);
 	if err != nil {
 		return "", nil, err;
 	}

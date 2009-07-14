@@ -9,6 +9,7 @@ import (
 	"ebnf";
 	"flag";
 	"fmt";
+	"go/scanner";
 	"io";
 	"os";
 	"path";
@@ -70,23 +71,6 @@ func extractEBNF(src []byte) []byte {
 }
 
 
-// TODO(gri) This is the same code for reportError as in gofmt.
-//           Should factor this out as part of some parsing framework
-//           that could also deal with reading various input sources.
-
-func reportError(filename string, err os.Error) {
-	if errors, ok := err.(ebnf.ErrorList); ok {
-		sort.Sort(errors);
-		for _, e := range errors {
-			fmt.Fprintf(os.Stderr, "%s:%v\n", filename, e);
-		}
-	} else {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", filename, err);
-	}
-	os.Exit(1);
-}
-
-
 func main() {
 	flag.Parse();
 
@@ -102,19 +86,19 @@ func main() {
 
 	src, err := io.ReadFile(filename);
 	if err != nil {
-		reportError(filename, err);
+		scanner.PrintError(os.Stderr, err);
 	}
 
 	if path.Ext(filename) == ".html" {
 		src = extractEBNF(src);
 	}
 
-	grammar, err := ebnf.Parse(src);
+	grammar, err := ebnf.Parse(filename, src);
 	if err != nil {
-		reportError(filename, err);
+		scanner.PrintError(os.Stderr, err);
 	}
 
 	if err = ebnf.Verify(grammar, *start); err != nil {
-		reportError(filename, err);
+		scanner.PrintError(os.Stderr, err);
 	}
 }
