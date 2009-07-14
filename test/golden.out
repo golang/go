@@ -93,8 +93,10 @@ BUG: should not compile
 
 =========== bugs/bug148.go
 2 3
-5 7
-BUG: should crash
+interface is main.T, not main.T·bug148·1
+throw: interface conversion
+
+panic PC=xxx
 
 =========== bugs/bug159.go
 xyz: expected 1 2 3 got 3 2 1

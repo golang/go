@@ -1067,7 +1067,7 @@ Tpretty(Fmt *fp, Type *t)
 				return 0;
 			if(s->imported)
 				return 0;
-			if(s->def == N || s->def->op != OTYPE || s->def->type != t || !s->export) {
+			if(t->vargen || !s->export) {
 				fmtprint(fp, "·%s", filename);
 				if(t->vargen)
 					fmtprint(fp, "·%d", t->vargen);
