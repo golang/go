@@ -14,7 +14,7 @@ import (
 
 
 func parse(t *testing.T, form string, fmap FormatterMap) Format {
-	f, err := Parse(strings.Bytes(form), fmap);
+	f, err := Parse("", strings.Bytes(form), fmap);
 	if err != nil {
 		t.Errorf("Parse(%s): %v", form, err);
 		return nil;

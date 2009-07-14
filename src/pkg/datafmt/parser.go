@@ -16,52 +16,10 @@ import (
 )
 
 // ----------------------------------------------------------------------------
-// Error handling
-
-// Error describes an individual error. The position Pos, if valid,
-// indicates the format source position the error relates to. The
-// error is specified with the Msg string.
-//
-type Error struct {
-	Pos token.Position;
-	Msg string;
-}
-
-
-func (e *Error) String() string {
-	pos := "";
-	if e.Pos.IsValid() {
-		pos = fmt.Sprintf("%d:%d: ", e.Pos.Line, e.Pos.Column);
-	}
-	return pos + e.Msg;
-}
-
-
-// An ErrorList is a list of errors encountered during parsing.
-type ErrorList []*Error
-
-
-// ErrorList implements SortInterface and the os.Error interface.
-
-func (p ErrorList) Len() int  { return len(p); }
-func (p ErrorList) Swap(i, j int)  { p[i], p[j] = p[j], p[i]; }
-func (p ErrorList) Less(i, j int) bool  { return p[i].Pos.Offset < p[j].Pos.Offset; }
-
-
-func (p ErrorList) String() string {
-	switch len(p) {
-	case 0: return "unspecified error";
-	case 1: return p[0].String();
-	}
-	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p) - 1);
-}
-
-
-// ----------------------------------------------------------------------------
 // Parsing
 
 type parser struct {
-	errors vector.Vector;
+	scanner.ErrorVector;
 	scanner scanner.Scanner;
 	pos token.Position;  // token position
 	tok token.Token;  // one token look-ahead
@@ -83,23 +41,12 @@ func (p *parser) next() {
 }
 
 
-func (p *parser) init(src []byte) {
-	p.errors.Init(0);
-	p.scanner.Init(src, p, scanner.AllowIllegalChars);  // return '@' as token.ILLEGAL w/o error message
+func (p *parser) init(filename string, src []byte) {
+	p.ErrorVector.Init();
+	p.scanner.Init(filename, src, p, scanner.AllowIllegalChars);  // return '@' as token.ILLEGAL w/o error message
 	p.next();  // initializes pos, tok, lit
 	p.packs = make(map [string] string);
 	p.rules = make(map [string] expr);
-}
-
-
-// The parser implements scanner.Error.
-func (p *parser) Error(pos token.Position, msg string) {
-	// Don't collect errors that are on the same line as the previous error
-	// in the hope to reduce the number of spurious errors due to incorrect
-	// parser synchronization.
-	if p.errors.Len() == 0 || p.errors.Last().(*Error).Pos.Line != pos.Line {
-		p.errors.Push(&Error{pos, msg});
-	}
 }
 
 
@@ -416,10 +363,10 @@ func remap(p *parser, name string) string {
 // there are no errors, the result is a Format and the error is nil.
 // Otherwise the format is nil and a non-empty ErrorList is returned.
 //
-func Parse(src []byte, fmap FormatterMap) (Format, os.Error) {
+func Parse(filename string, src []byte, fmap FormatterMap) (Format, os.Error) {
 	// parse source
 	var p parser;
-	p.init(src);
+	p.init(filename, src);
 	p.parseFormat();
 
 	// add custom formatters, if any
@@ -433,14 +380,5 @@ func Parse(src []byte, fmap FormatterMap) (Format, os.Error) {
 		}
 	}
 
-	// convert errors list, if any
-	if p.errors.Len() > 0 {
-		errors := make(ErrorList, p.errors.Len());
-		for i := 0; i < p.errors.Len(); i++ {
-			errors[i] = p.errors.At(i).(*Error);
-		}
-		return nil, errors;
-	}
-
-	return p.rules, nil;
+	return p.rules, p.GetError(scanner.NoMultiples);
 }

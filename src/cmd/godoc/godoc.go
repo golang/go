@@ -35,6 +35,7 @@ import (
 	"go/doc";
 	"go/parser";
 	"go/printer";
+	"go/scanner";
 	"go/token";
 	"http";
 	"io";
@@ -166,10 +167,10 @@ func parse(path string, mode uint) (*ast.Program, *parseErrors) {
 		return nil, &parseErrors{path, errs, nil};
 	}
 
-	prog, err := parser.Parse(src, mode);
+	prog, err := parser.Parse(path, src, mode);
 	if err != nil {
 		// sort and convert error list
-		if errors, ok := err.(parser.ErrorList); ok {
+		if errors, ok := err.(scanner.ErrorList); ok {
 			sort.Sort(errors);
 			errs := make([]parseError, len(errors) + 1);	// +1 for final fragment of source
 			offs := 0;

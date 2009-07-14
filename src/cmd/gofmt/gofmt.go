@@ -10,6 +10,7 @@ import (
 	"go/ast";
 	"go/parser";
 	"go/printer";
+	"go/scanner";
 	"io";
 	"os";
 	"sort";
@@ -84,16 +85,9 @@ func main() {
 		os.Exit(1);
 	}
 
-	prog, err := parser.Parse(src, parserMode());
+	prog, err := parser.Parse(filename, src, parserMode());
 	if err != nil {
-		if errors, ok := err.(parser.ErrorList); ok {
-			sort.Sort(errors);
-			for _, e := range errors {
-				fmt.Fprintf(os.Stderr, "%s:%v\n", filename, e);
-			}
-		} else {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", filename, err);
-		}
+		scanner.PrintError(os.Stderr, err);
 		os.Exit(1);
 	}
 
@@ -102,7 +96,7 @@ func main() {
 			ast.FilterExports(prog);  // ignore result
 		}
 		w := makeTabwriter(os.Stdout);
-		printer.Fprint(w, prog, printerMode());
+		printer.Fprint(w, prog, printerMode());  // ignore errors
 		w.Flush();
 	}
 }
