@@ -99,7 +99,7 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
 // no rescheduling, no malloc calls, and no new stack segments.
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
-func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, dir *byte, fd []int, pipe int)
+func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, dir *byte, fd []int, pipe int)
 	(pid int, err int)
 {
 	// Declare all variables at top in case any
@@ -131,6 +131,14 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, dir *byte, fd [
 	}
 
 	// Fork succeeded, now in child.
+
+	// Enable tracing if requested.
+	if traceme {
+		r1, r2, err1 = RawSyscall(SYS_PTRACE, uintptr(_PTRACE_TRACEME), 0, 0);
+		if err1 != 0 {
+			goto childerror;
+		}
+	}
 
 	// Chdir
 	if dir != nil {
@@ -217,8 +225,7 @@ childerror:
 	panic("unreached");
 }
 
-// Combination of fork and exec, careful to be thread safe.
-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []int)
+func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir string, fd []int)
 	(pid int, err int)
 {
 	var p [2]int;
@@ -257,7 +264,7 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []int)
 	}
 
 	// Kick off child.
-	pid, err = forkAndExecInChild(argv0p, argvp, envvp, dirp, fd, p[1]);
+	pid, err = forkAndExecInChild(argv0p, argvp, envvp, traceme, dirp, fd, p[1]);
 	if err != 0 {
 	error:
 		if p[0] >= 0 {
@@ -292,6 +299,20 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []int)
 
 	// Read got EOF, so pipe closed on exec, so exec succeeded.
 	return pid, 0
+}
+
+// Combination of fork and exec, careful to be thread safe.
+func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []int)
+	(pid int, err int)
+{
+	return forkExec(argv0, argv, envv, false, dir, fd);
+}
+
+// PtraceForkExec is like ForkExec, but starts the child in a traced state.
+func PtraceForkExec(argv0 string, argv []string, envv []string, dir string, fd []int)
+	(pid int, err int)
+{
+	return forkExec(argv0, argv, envv, true, dir, fd);
 }
 
 // Ordinary exec.
