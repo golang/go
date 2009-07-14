@@ -7,6 +7,7 @@ package scanner
 import (
 	"go/scanner";
 	"go/token";
+	"os";
 	"strings";
 	"testing";
 )
@@ -178,19 +179,35 @@ func NewlineCount(s string) int {
 }
 
 
+func checkPos(t *testing.T, lit string, pos, expected token.Position) {
+	if pos.Filename != expected.Filename {
+		t.Errorf("bad filename for %s: got %s, expected %s", lit, pos.Filename, expected.Filename);
+	}
+	if pos.Offset != expected.Offset {
+		t.Errorf("bad position for %s: got %d, expected %d", lit, pos.Offset, expected.Offset);
+	}
+	if pos.Line != expected.Line {
+		t.Errorf("bad line for %s: got %d, expected %d", lit, pos.Line, expected.Line);
+	}
+	if pos.Column!= expected.Column {
+		t.Errorf("bad column for %s: got %d, expected %d", lit, pos.Column, expected.Column);
+	}
+}
+
+
 // Verify that calling Scan() provides the correct results.
 func TestScan(t *testing.T) {
 	// make source
 	var src string;
-	for i, e := range tokens {
+	for _, e := range tokens {
 		src += e.lit + whitespace;
 	}
 	whitespace_linecount := NewlineCount(whitespace);
 
 	// verify scan
 	index := 0;
-	eloc := token.Position{0, 1, 1};
-	nerrors := scanner.Tokenize(strings.Bytes(src), &TestErrorHandler{t}, scanner.ScanComments,
+	epos := token.Position{"", 0, 1, 1};
+	nerrors := scanner.Tokenize("", strings.Bytes(src), &TestErrorHandler{t}, scanner.ScanComments,
 		func (pos token.Position, tok token.Token, litb []byte) bool {
 			e := elt{token.EOF, "", special};
 			if index < len(tokens) {
@@ -199,17 +216,9 @@ func TestScan(t *testing.T) {
 			lit := string(litb);
 			if tok == token.EOF {
 				lit = "<EOF>";
-				eloc.Column = 0;
+				epos.Column = 0;
 			}
-			if pos.Offset != eloc.Offset {
-				t.Errorf("bad position for %s: got %d, expected %d", lit, pos.Offset, eloc.Offset);
-			}
-			if pos.Line != eloc.Line {
-				t.Errorf("bad line for %s: got %d, expected %d", lit, pos.Line, eloc.Line);
-			}
-			if pos.Column!= eloc.Column {
-				t.Errorf("bad column for %s: got %d, expected %d", lit, pos.Column, eloc.Column);
-			}
+			checkPos(t, lit, pos, epos);
 			if tok != e.tok {
 				t.Errorf("bad token for %s: got %s, expected %s", lit, tok.String(), e.tok.String());
 			}
@@ -219,12 +228,12 @@ func TestScan(t *testing.T) {
 			if tokenclass(tok) != e.class {
 				t.Errorf("bad class for %s: got %d, expected %d", lit, tokenclass(tok), e.class);
 			}
-			eloc.Offset += len(lit) + len(whitespace);
-			eloc.Line += NewlineCount(lit) + whitespace_linecount;
+			epos.Offset += len(lit) + len(whitespace);
+			epos.Line += NewlineCount(lit) + whitespace_linecount;
 			if tok == token.COMMENT && litb[1] == '/' {
 				// correct for unaccounted '/n' in //-style comment
-				eloc.Offset++;
-				eloc.Line++;
+				epos.Offset++;
+				epos.Line++;
 			}
 			index++;
 			return tok != token.EOF;
@@ -236,12 +245,60 @@ func TestScan(t *testing.T) {
 }
 
 
+type seg struct {
+	srcline string;  // a line of source text
+	filename string;  // filename for current token
+	line int;  // line number for current token
+}
+
+
+var segments = []seg{
+	// exactly one token per line since the test consumes one token per segment
+	seg{ "  line1", "TestLineComments", 1 },
+	seg{ "\nline2", "TestLineComments", 2 },
+	seg{ "\nline3  //line File1.go:100", "TestLineComments", 3 },  // bad line comment, ignored
+	seg{ "\nline4", "TestLineComments", 4 },
+	seg{ "\n//line File1.go:100\n  line100", "File1.go", 100 },
+	seg{ "\n//line File2.go:200\n  line200", "File2.go", 200 },
+	seg{ "\n//line :1\n  line1", "", 1 },
+	seg{ "\n//line foo:42\n  line42", "foo", 42 },
+	seg{ "\n //line foo:42\n  line44", "foo", 44 },  // bad line comment, ignored
+	seg{ "\n//line foo 42\n  line46", "foo", 46 },  // bad line comment, ignored
+	seg{ "\n//line foo:42 extra text\n  line48", "foo", 48 },  // bad line comment, ignored
+	seg{ "\n//line foo:42\n  line42", "foo", 42 },
+	seg{ "\n//line foo:42\n  line42", "foo", 42 },
+	seg{ "\n//line File1.go:100\n  line100", "File1.go", 100 },
+}
+
+
+// Verify that comments of the form "//line filename:line" are interpreted correctly.
+func TestLineComments(t *testing.T) {
+	// make source
+	var src string;
+	for _, e := range segments {
+		src += e.srcline;
+	}
+
+	// verify scan
+	var S scanner.Scanner;
+	S.Init("TestLineComments", strings.Bytes(src), nil, 0);
+	for _, s := range segments {
+		pos, tok, lit := S.Scan();
+		checkPos(t, string(lit), pos, token.Position{s.filename, pos.Offset, s.line, pos.Column});
+	}
+
+	if S.ErrorCount != 0 {
+		t.Errorf("found %d errors", S.ErrorCount);
+	}
+}
+
+
 // Verify that initializing the same scanner more then once works correctly.
 func TestInit(t *testing.T) {
 	var s scanner.Scanner;
 
 	// 1st init
-	s.Init(strings.Bytes("if true { }"), nil, 0);
+	s.Init("", strings.Bytes("if true { }"), nil, 0);
 	s.Scan();  // if
 	s.Scan();  // true
 	pos, tok, lit := s.Scan();  // {
@@ -250,7 +307,7 @@ func TestInit(t *testing.T) {
 	}
 
 	// 2nd init
-	s.Init(strings.Bytes("go true { ]"), nil, 0);
+	s.Init("", strings.Bytes("go true { ]"), nil, 0);
 	pos, tok, lit = s.Scan();  // go
 	if tok != token.GO {
 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.GO);
@@ -266,7 +323,7 @@ func TestIllegalChars(t *testing.T) {
 	var s scanner.Scanner;
 
 	const src = "*?*$*@*";
-	s.Init(strings.Bytes(src), &TestErrorHandler{t}, scanner.AllowIllegalChars);
+	s.Init("", strings.Bytes(src), &TestErrorHandler{t}, scanner.AllowIllegalChars);
 	for offs, ch := range src {
 		pos, tok, lit := s.Scan();
 		if pos.Offset != offs {
@@ -279,5 +336,49 @@ func TestIllegalChars(t *testing.T) {
 
 	if s.ErrorCount != 0 {
 		t.Errorf("found %d errors", s.ErrorCount);
+	}
+}
+
+
+func TestStdErrorHander(t *testing.T) {
+	const src =
+		"@\n"  // illegal character, cause an error
+		"@ @\n"  // two errors on the same line
+		"//line File2:20\n"
+		"@\n"  // different file, but same line
+		"//line File2:1\n"
+		"@ @\n"  // same file, decreasing line number
+		"//line File1:1\n"
+		"@ @ @"  // original file, line 1 again
+	;
+
+	var s scanner.Scanner;
+	v := NewErrorVector();
+	nerrors := scanner.Tokenize("File1", strings.Bytes(src), v, 0,
+		func (pos token.Position, tok token.Token, litb []byte) bool {
+			return tok != token.EOF;
+		}
+	);
+
+	list := v.GetErrorList(Raw);
+	if len(list) != 9 {
+		t.Errorf("found %d raw errors, expected 9", len(list));
+		PrintError(os.Stderr, list);
+	}
+
+	list = v.GetErrorList(Sorted);
+	if len(list) != 9 {
+		t.Errorf("found %d sorted errors, expected 9", len(list));
+		PrintError(os.Stderr, list);
+	}
+
+	list = v.GetErrorList(NoMultiples);
+	if len(list) != 4 {
+		t.Errorf("found %d one-per-line errors, expected 4", len(list));
+		PrintError(os.Stderr, list);
+	}
+
+	if v.ErrorCount() != nerrors {
+		t.Errorf("found %d errors, expected %d", v.ErrorCount(), nerrors);
 	}
 }

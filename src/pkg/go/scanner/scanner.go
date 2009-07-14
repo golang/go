@@ -9,21 +9,13 @@
 package scanner
 
 import (
+	"bytes";
 	"go/token";
+	"go/scanner";
 	"strconv";
 	"unicode";
 	"utf8";
 )
-
-
-// An implementation of an ErrorHandler may be provided to the Scanner.
-// If a syntax error is encountered and a handler was installed, Error
-// is called with a position and an error message. The position points
-// to the beginning of the offending token.
-//
-type ErrorHandler interface {
-	Error(pos token.Position, msg string);
-}
 
 
 // A Scanner holds the scanner's internal state while processing
@@ -84,15 +76,17 @@ const (
 // Init prepares the scanner S to tokenize the text src. Calls to Scan
 // will use the error handler err if they encounter a syntax error and
 // err is not nil. Also, for each error encountered, the Scanner field
-// ErrorCount is incremented by one. The mode parameter determines how
-// comments and illegal characters are handled.
+// ErrorCount is incremented by one. The filename parameter is used as
+// filename in the token.Position returned by Scan for each token. The
+// mode parameter determines how comments and illegal characters are
+// handled.
 //
-func (S *Scanner) Init(src []byte, err ErrorHandler, mode uint) {
+func (S *Scanner) Init(filename string, src []byte, err ErrorHandler, mode uint) {
 	// Explicitly initialize all fields since a scanner may be reused.
 	S.src = src;
 	S.err = err;
 	S.mode = mode;
-	S.pos = token.Position{0, 1, 0};
+	S.pos = token.Position{filename, 0, 1, 0};
 	S.offset = 0;
 	S.ErrorCount = 0;
 	S.next();
@@ -133,6 +127,8 @@ func (S *Scanner) expect(ch int) {
 }
 
 
+var prefix = []byte{'l', 'i', 'n', 'e', ' '};  // "line "
+
 func (S *Scanner) scanComment(pos token.Position) {
 	// first '/' already consumed
 
@@ -143,6 +139,22 @@ func (S *Scanner) scanComment(pos token.Position) {
 			if S.ch == '\n' {
 				// '\n' is not part of the comment
 				// (the comment ends on the same line where it started)
+				if pos.Column == 1 {
+					text := S.src[pos.Offset+2 : S.pos.Offset];
+					if bytes.HasPrefix(text, prefix) {
+						// comment starts at beginning of line with "//line ";
+						// get filename and line number, if any
+						i := bytes.Index(text, []byte{':'});
+						if i >= 0 {
+							if line, err := strconv.Atoi(string(text[i+1 : len(text)])); err == nil && line > 0 {
+								// valid //line filename:line comment;
+								// update scanner position
+								S.pos.Filename = string(text[len(prefix) : i]);
+								S.pos.Line = line;
+							}
+						}
+					}
+				}
 				return;
 			}
 		}
@@ -492,9 +504,9 @@ scan_again:
 // false (usually when the token value is token.EOF). The result is the number
 // of errors encountered.
 //
-func Tokenize(src []byte, err ErrorHandler, mode uint, f func (pos token.Position, tok token.Token, lit []byte) bool) int {
+func Tokenize(filename string, src []byte, err ErrorHandler, mode uint, f func (pos token.Position, tok token.Token, lit []byte) bool) int {
 	var s Scanner;
-	s.Init(src, err, mode);
+	s.Init(filename, src, err, mode);
 	for f(s.Scan()) {
 		// action happens in f
 	}
