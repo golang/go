@@ -2003,17 +2003,18 @@ func (p *parser) init(filename string, src interface{}, mode uint) os.Error {
 
 // Parse parses a Go program.
 //
-// The program source src may be provided in a variety of formats. At the
-// moment the following types are supported: string, []byte, and io.Reader.
-// The mode parameter controls the amount of source text parsed and other
-// optional parser functionality.
+// The filename is only used in AST position information and error messages
+// and may be empty. The program source src may be provided in a variety of
+// formats. At the moment the following types are supported: string, []byte,
+// and io.Reader. The mode parameter controls the amount of source text parsed
+// and other optional parser functionality.
 //
 // Parse returns a complete AST if no error occured. Otherwise, if the
 // source couldn't be read, the returned program is nil and the error
 // indicates the specific failure. If the source was read but syntax
 // errors were found, the result is a partial AST (with ast.BadX nodes
-// representing the fragments of erroneous source code) and an ErrorList
-// describing the syntax errors.
+// representing the fragments of erroneous source code). Multiple errors
+// are returned via a scanner.ErrorList which is sorted by file position.
 //
 func Parse(filename string, src interface{}, mode uint) (*ast.Program, os.Error) {
 	var p parser;
@@ -2021,41 +2022,38 @@ func Parse(filename string, src interface{}, mode uint) (*ast.Program, os.Error)
 		return nil, err;
 	}
 
-	prog := p.parsePackage();
-
+	prog := p.parsePackage();  // TODO 6g bug - function call order in expr lists
 	return prog, p.GetError(scanner.NoMultiples);
 }
 
 
-// ParseStmts parses a list of Go statement.
-func ParseStmts(filename string, src interface{}, mode uint) ([]ast.Stmt, os.Error) {
-	if mode & (PackageClauseOnly | ImportsOnly) != 0 {
-		return nil, nil;
-	}
-
+// ParseStmts parses a list of Go statements and returns the list of
+// corresponding AST nodes. The filename and src arguments have the
+// same interpretation as for Parse. If there is an error, the node
+// list may be nil or contain partial ASTs.
+//
+func ParseStmts(filename string, src interface{}) ([]ast.Stmt, os.Error) {
 	var p parser;
-	if err := p.init(filename, src, mode); err != nil {
+	if err := p.init(filename, src, 0); err != nil {
 		return nil, err;
 	}
 
-	stmts := p.parseStatementList();
-
-	return stmts, p.GetError(scanner.Sorted);
+	list := p.parseStatementList();  // TODO 6g bug - function call order in expr lists
+	return list, p.GetError(scanner.Sorted);
 }
 
 
-// ParseExpr parses a single Go expression.
-func ParseExpr(filename string, src interface{}, mode uint) (ast.Expr, os.Error) {
-	if mode & (PackageClauseOnly | ImportsOnly) != 0 {
-		return nil, nil;
-	}
-
+// ParseExpr parses a single Go expression and returns the corresponding
+// AST node. The filename and src arguments have the same interpretation
+// as for Parse. If there is an error, the result expression may be nil
+// or contain a partial AST.
+//
+func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
 	var p parser;
-	if err := p.init(filename, src, mode); err != nil {
+	if err := p.init(filename, src, 0); err != nil {
 		return nil, err;
 	}
 
-	expr := p.parseExpression();
-
-	return expr, p.GetError(scanner.Sorted);
+	x := p.parseExpression();  // TODO 6g bug - function call order in expr lists
+	return x, p.GetError(scanner.Sorted);
 }
