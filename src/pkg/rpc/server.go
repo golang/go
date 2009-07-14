@@ -8,6 +8,7 @@ import (
 	"gob";
 	"log";
 	"io";
+	"net";
 	"os";
 	"reflect";
 	"strings";
@@ -15,6 +16,8 @@ import (
 	"unicode";
 	"utf8";
 )
+
+import "fmt" // TODO DELETE
 
 // Precompute the reflect type for os.Error.  Can't use os.Error directly
 // because Typeof takes an empty interface value.  This is annoying.
@@ -137,29 +140,41 @@ func (server *Server) Add(rcvr interface{}) os.Error {
 	return nil;
 }
 
+// A value to be sent as a placeholder for the response when we receive invalid request.
+type InvalidRequest struct {
+	marker int
+}
+var invalidRequest = InvalidRequest{1}
+
 func _new(t *reflect.PtrType) *reflect.PtrValue {
 	v := reflect.MakeZero(t).(*reflect.PtrValue);
 	v.PointTo(reflect.MakeZero(t.Elem()));
 	return v;
 }
 
+func (s *service) sendResponse(sending *sync.Mutex, req *Request, reply interface{}, enc *gob.Encoder, errmsg string) {
+	resp := new(Response);
+	// Encode the response header
+	sending.Lock();
+	resp.ServiceMethod = req.ServiceMethod;
+	resp.Error = errmsg;
+	resp.Seq = req.Seq;
+	enc.Encode(resp);
+	// Encode the reply value.
+	enc.Encode(reply);
+	sending.Unlock();
+}
+
 func (s *service) call(sending *sync.Mutex, function *reflect.FuncValue, req *Request, argv, replyv reflect.Value, enc *gob.Encoder) {
 	// Invoke the method, providing a new value for the reply.
 	returnValues := function.Call([]reflect.Value{s.rcvr, argv, replyv});
 	// The return value for the method is an os.Error.
-	err := returnValues[0].Interface();
-	resp := new(Response);
-	if err != nil {
-		resp.Error = err.(os.Error).String();
+	errInter := returnValues[0].Interface();
+	errmsg := "";
+	if errInter != nil {
+		errmsg = errInter.(os.Error).String();
 	}
-	// Encode the response header
-	sending.Lock();
-	resp.ServiceMethod = req.ServiceMethod;
-	resp.Seq = req.Seq;
-	enc.Encode(resp);
-	// Encode the reply value.
-	enc.Encode(replyv.Interface());
-	sending.Unlock();
+	s.sendResponse(sending, req, replyv.Interface(), enc, errmsg);
 }
 
 func (server *Server) serve(conn io.ReadWriteCloser) {
@@ -171,33 +186,56 @@ func (server *Server) serve(conn io.ReadWriteCloser) {
 		req := new(Request);
 		err := dec.Decode(req);
 		if err != nil {
-			panicln("can't handle decode error yet", err.String());
+			log.Stderr("rpc: server cannot decode request:", err);
+			break;
 		}
 		serviceMethod := strings.Split(req.ServiceMethod, ".", 0);
 		if len(serviceMethod) != 2 {
-			panicln("service/Method request ill-formed:", req.ServiceMethod);
+			log.Stderr("rpc: service/Method request ill-formed:", req.ServiceMethod);
+			break;
 		}
 		// Look up the request.
 		service, ok := server.serviceMap[serviceMethod[0]];
 		if !ok {
-			panicln("can't find service", serviceMethod[0]);
+			s := "rpc: can't find service " + req.ServiceMethod;
+			service.sendResponse(sending, req, invalidRequest, enc, s);
+			break;
 		}
 		mtype, ok := service.method[serviceMethod[1]];
 		if !ok {
-			panicln("can't find method", serviceMethod[1]);
+			s := "rpc: can't find method " + req.ServiceMethod;
+			service.sendResponse(sending, req, invalidRequest, enc, s);
+			break;
 		}
 		method := mtype.method;
 		// Decode the argument value.
 		argv := _new(mtype.argType);
+		replyv := _new(mtype.replyType);
 		err = dec.Decode(argv.Interface());
 		if err != nil {
-			panicln("can't handle payload decode error yet", err.String());
+			log.Stderr("tearing down connection:", err);
+			service.sendResponse(sending, req, replyv.Interface(), enc, err.String());
+			break;
 		}
-		go service.call(sending, method.Func, req, argv, _new(mtype.replyType), enc);
+		go service.call(sending, method.Func, req, argv, replyv, enc);
 	}
+	conn.Close();
 }
 
-// Serve runs the server on the connection.
-func (server *Server) Serve(conn io.ReadWriteCloser) {
+// ServeConn runs the server on a single connection.  When the connection
+// completes, service terminates.
+func (server *Server) ServeConn(conn io.ReadWriteCloser) {
 	go server.serve(conn)
+}
+
+// Accept accepts connections on the listener and serves requests
+// for each incoming connection.
+func (server *Server) Accept(lis net.Listener) {
+	for {
+		conn, addr, err := lis.Accept();
+		if err != nil {
+			log.Exit("rpc.Serve: accept:", err.String());	// TODO(r): exit?
+		}
+		go server.ServeConn(conn);
+	}
 }

@@ -7,6 +7,7 @@ package rpc
 import (
 	"gob";
 	"io";
+	"log";
 	"os";
 	"rpc";
 	"sync";
@@ -25,6 +26,7 @@ type Call struct {
 // Client represents an RPC Client.
 type Client struct {
 	sync.Mutex;	// protects pending, seq
+	closed	bool;
 	sending	sync.Mutex;
 	seq	uint64;
 	conn io.ReadWriteCloser;
@@ -49,29 +51,35 @@ func (client *Client) send(c *Call) {
 	client.enc.Encode(request);
 	err := client.enc.Encode(c.Args);
 	if err != nil {
-		panicln("client encode error:", err)
+		panicln("rpc: client encode error:", err);
 	}
 	client.sending.Unlock();
 }
 
 func (client *Client) serve() {
-	for {
+	var err os.Error;
+	for err == nil {
 		response := new(Response);
-		err := client.dec.Decode(response);
+		err = client.dec.Decode(response);
+		if err != nil {
+			if err == os.EOF {
+				break;
+			}
+			break;
+		}
 		seq := response.Seq;
 		client.Lock();
 		c := client.pending[seq];
 		client.pending[seq] = c, false;
 		client.Unlock();
-		client.dec.Decode(c.Reply);
-		if err != nil {
-			panicln("client decode error:", err)
-		}
+		err = client.dec.Decode(c.Reply);
 		c.Error = os.ErrorString(response.Error);
-		// We don't want to block here, it is the caller's responsibility to make
-		// sure the channel has enough buffer space. See comment in Start().
+		// We don't want to block here.  It is the caller's responsibility to make
+		// sure the channel has enough buffer space. See comment in Go().
 		doNotBlock := c.Done <- c;
 	}
+	client.closed = true;
+	log.Stderr("client protocol error:", err);
 }
 
 // NewClient returns a new Client to handle requests to the
@@ -86,9 +94,9 @@ func NewClient(conn io.ReadWriteCloser) *Client {
 	return client;
 }
 
-// Start invokes the function asynchronously.  It returns the Call structure representing
+// Go invokes the function asynchronously.  It returns the Call structure representing
 // the invocation.
-func (client *Client) Start(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
+func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
 	c := new(Call);
 	c.ServiceMethod = serviceMethod;
 	c.Args = args;
@@ -102,12 +110,20 @@ func (client *Client) Start(serviceMethod string, args interface{}, reply interf
 		// RPCs that will be using that channel.
 	}
 	c.Done = done;
+	if client.closed {
+		c.Error = os.EOF;
+		doNotBlock := c.Done <- c;
+		return c;
+	}
 	client.send(c);
 	return c;
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) os.Error {
-	call := <-client.Start(serviceMethod, args, reply, nil).Done;
+	if client.closed {
+		return os.EOF
+	}
+	call := <-client.Go(serviceMethod, args, reply, nil).Done;
 	return call.Error;
 }
