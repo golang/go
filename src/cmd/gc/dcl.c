@@ -709,88 +709,97 @@ stotype(Node *n, int et, Type **t)
 	Iter save;
 	Strlit *note;
 	int lno;
+	Node *init;
 
+	init = N;
 	lno = lineno;
-	n = listfirst(&save, &n);
-
-loop:
-	note = nil;
-	if(n == N) {
-		*t = T;
-		lineno = lno;
-		return t;
-	}
-
-	lineno = n->lineno;
-	if(n->op == OLIST) {
-		// recursive because it can be lists of lists
-		t = stotype(n, et, t);
-		goto next;
-	}
-
-	if(n->op != ODCLFIELD)
-		fatal("stotype: oops %N\n", n);
-
-	if(n->type == T) {
-		// assume error already printed
-		goto next;
-	}
-
-	switch(n->val.ctype) {
-	case CTSTR:
-		if(et != TSTRUCT)
-			yyerror("interface method cannot have annotation");
-		note = n->val.u.sval;
-		break;
-	default:
-		if(et != TSTRUCT)
-			yyerror("interface method cannot have annotation");
-		else
-			yyerror("field annotation must be string");
-	case CTxxx:
+	for(n = listfirst(&save, &n); n != N; n = listnext(&save)) {
 		note = nil;
-		break;
-	}
 
-	if(et == TINTER && n->left == N) {
-		// embedded interface - inline the methods
-		if(n->type->etype != TINTER) {
-			yyerror("interface contains embedded non-interface %T", t);
-			goto next;
+		lineno = n->lineno;
+		if(n->op == OLIST) {
+			// recursive because it can be lists of lists
+			t = stotype(n, et, t);
+			continue;
 		}
-		for(t1=n->type->type; t1!=T; t1=t1->down) {
-			if(strcmp(t1->sym->package, package) != 0)
-				yyerror("embedded interface contains unexported method %S", t1->sym);
-			f = typ(TFIELD);
-			f->type = t1->type;
-			f->width = BADWIDTH;
-			f->nname = newname(t1->sym);
-			f->sym = t1->sym;
-			*t = f;
-			t = &f->down;
+
+		if(n->op != ODCLFIELD)
+			fatal("stotype: oops %N\n", n);
+		if(n->right != N) {
+			walkexpr(n->right, Etype, &init);
+			n->type = n->right->type;
+			n->right = N;
+			if(n->embedded && n->type != T) {
+				t1 = n->type;
+				if(t1->sym == S && isptr[t1->etype])
+					t1 = t1->type;
+				if(t1 != T && isptr[t1->etype])
+					yyerror("embedded type cannot be a pointer");
+			}
 		}
-		goto next;
+
+		if(n->type == T) {
+			// assume error already printed
+			continue;
+		}
+
+		switch(n->val.ctype) {
+		case CTSTR:
+			if(et != TSTRUCT)
+				yyerror("interface method cannot have annotation");
+			note = n->val.u.sval;
+			break;
+		default:
+			if(et != TSTRUCT)
+				yyerror("interface method cannot have annotation");
+			else
+				yyerror("field annotation must be string");
+		case CTxxx:
+			note = nil;
+			break;
+		}
+
+		if(et == TINTER && n->left == N) {
+			// embedded interface - inline the methods
+			if(n->type->etype != TINTER) {
+				yyerror("interface contains embedded non-interface %T", t);
+				continue;
+			}
+			for(t1=n->type->type; t1!=T; t1=t1->down) {
+				// TODO(rsc): Is this really an error?
+				if(strcmp(t1->sym->package, package) != 0)
+					yyerror("embedded interface contains unexported method %S", t1->sym);
+				f = typ(TFIELD);
+				f->type = t1->type;
+				f->width = BADWIDTH;
+				f->nname = newname(t1->sym);
+				f->sym = t1->sym;
+				*t = f;
+				t = &f->down;
+			}
+			continue;
+		}
+
+		f = typ(TFIELD);
+		f->type = n->type;
+		f->note = note;
+		f->width = BADWIDTH;
+
+		if(n->left != N && n->left->op == ONAME) {
+			f->nname = n->left;
+			f->embedded = n->embedded;
+			f->sym = f->nname->sym;
+			if(pkgimportname != S && !exportname(f->sym->name))
+				f->sym = pkglookup(f->sym->name, structpkg);
+		}
+
+		*t = f;
+		t = &f->down;
 	}
 
-	f = typ(TFIELD);
-	f->type = n->type;
-	f->note = note;
-	f->width = BADWIDTH;
-
-	if(n->left != N && n->left->op == ONAME) {
-		f->nname = n->left;
-		f->embedded = n->embedded;
-		f->sym = f->nname->sym;
-		if(pkgimportname != S && !exportname(f->sym->name))
-			f->sym = pkglookup(f->sym->name, structpkg);
-	}
-
-	*t = f;
-	t = &f->down;
-
-next:
-	n = listnext(&save);
-	goto loop;
+	*t = T;
+	lineno = lno;
+	return t;
 }
 
 Type*
@@ -1239,7 +1248,8 @@ oldtype(Sym *s)
 	if(s == S)
 		return T;
 	if(s->def == N || s->def->op != OTYPE) {
-		yyerror("%S is not a type", s);
+		if(!s->undef)
+			yyerror("%S is not a type", s);
 		return T;
 	}
 	t = s->def->type;
@@ -1661,9 +1671,7 @@ embedded(Sym *s)
 	n->embedded = 1;
 	if(s == S)
 		return n;
-	n->type = oldtype(s);
-	if(n->type != T && isptr[n->type->etype])
-		yyerror("embedded type cannot be a pointer");
+	n->right = oldname(s);
 	return n;
 }
 

@@ -54,7 +54,7 @@
 %type	<sym>	sym packname
 %type	<val>	oliteral
 
-%type	<node>	stmt
+%type	<node>	stmt ntype
 %type	<node>	arg_type arg_type_list
 %type	<node>	arg_type_list_r braced_keyexpr_list case caseblock
 %type	<node>	caseblock_list_r common_dcl
@@ -73,10 +73,11 @@
 %type	<node>	switch_body switch_stmt uexpr vardcl vardcl_list_r
 %type	<node>	xdcl xdcl_list_r xfndcl
 
-%type	<type>	convtype dotdotdot
-%type	<type>	fnlitdcl fntype indcl interfacetype
-%type	<type>	new_type structtype type typedclname
-%type	<type>	chantype non_chan_type othertype non_fn_type
+%type	<type>	type
+%type	<node>	convtype dotdotdot
+%type	<node>	indcl interfacetype structtype
+%type	<type>	new_type typedclname fnlitdcl fntype
+%type	<node>	chantype non_chan_type othertype non_fn_type
 
 %type	<sym>	hidden_importsym hidden_pkg_importsym
 
@@ -464,6 +465,8 @@ case:
 				$$ = nod(OXCASE, $$, N);
 				break;
 			}
+			e = nerrors;
+			walkexpr($2, Etype | Erv, &top);
 			if($2->op == OTYPE) {
 				$$ = old2new(typeswvar->right, $2->type, &top);
 				$$ = nod(OTYPESW, $$, N);
@@ -471,11 +474,9 @@ case:
 				$$->ninit = top;
 				break;
 			}
-			e = nerrors;
-			gettype($2, nil);
-			// maybe gettype found problems that keep
+			// maybe walkexpr found problems that keep
 			// e from being valid even outside a type switch.
-			// only complain if gettype didn't print new errors.
+			// only complain if walkexpr didn't print new errors.
 			if(nerrors == e)
 				yyerror("non-type case in type switch");
 			$$ = nod(OXCASE, N, N);
@@ -791,10 +792,6 @@ uexpr:
 	pexpr
 |	'*' uexpr
 	{
-		if($2->op == OTYPE) {
-			$$ = typenod(ptrto($2->type));
-			break;
-		}
 		$$ = nod(OIND, $2, N);
 	}
 |	'&' uexpr
@@ -837,20 +834,6 @@ pseudocall:
 		$$ = unsafenmagic($1, $3);
 		if($$)
 			break;
-		if($1->op == OTYPE) {
-			// type conversion
-			if($3 == N)
-				yyerror("conversion to %T missing expr", $1->type);
-			else if($3->op == OLIST)
-				yyerror("conversion to %T has too many exprs", $1->type);
-			$$ = nod(OCONV, $3, N);
-			$$->type = $1->type;
-			break;
-		}
-		if($1->op == ONAME && $1->etype != 0) {	// builtin OLEN, OCAP, etc
-			$$ = nod($1->etype, $3, N);
-			break;
-		}
 		$$ = nod(OCALL, $1, $3);
 	}
 
@@ -864,7 +847,7 @@ pexpr:
 	{
 		if($1->op == OPACK) {
 			Sym *s;
-			s = pkglookup($3->name, $1->sym->name);
+			s = restrictlookup($3->name, $1->sym->name);
 			$$ = oldname(s);
 			break;
 		}
@@ -877,10 +860,7 @@ pexpr:
 	}
 |	pexpr '.' '(' expr_or_type ')'
 	{
-		$$ = nod(ODOTTYPE, $1, N);
-		if($4->op != OTYPE)
-			yyerror("expected type got %O", $4->op);
-		$$->type = $4->type;
+		$$ = nod(ODOTTYPE, $1, $4);
 	}
 |	pexpr '.' '(' LTYPE ')'
 	{
@@ -898,8 +878,7 @@ pexpr:
 |	convtype '(' expr ')'
 	{
 		// conversion
-		$$ = nod(OCONV, $3, N);
-		$$->type = $1;
+		$$ = nod(OCALL, $1, $3);
 	}
 |	convtype lbrace braced_keyexpr_list '}'
 	{
@@ -907,8 +886,7 @@ pexpr:
 		$$ = rev($3);
 		if($$ == N)
 			$$ = nod(OEMPTY, N, N);
-		$$ = nod(OCOMPOS, $$, N);
-		$$->type = $1;
+		$$ = nod(OCOMPOS, $$, $1);
 
 		// If the opening brace was an LBODY,
 		// set up for another one now that we're done.
@@ -922,20 +900,13 @@ pexpr:
 		$$ = rev($3);
 		if($$ == N)
 			$$ = nod(OEMPTY, N, N);
-		$$ = nod(OCOMPOS, $$, N);
-		if($1->op != OTYPE)
-			yyerror("expected type in composite literal");
-		else
-			$$->type = $1->type;
+		$$ = nod(OCOMPOS, $$, $1);
 	}
 |	fnliteral
 
 expr_or_type:
 	expr
-|	type	%prec PreferToRightParen
-	{
-		$$ = typenod($1);
-	}
+|	ntype	%prec PreferToRightParen
 
 name_or_type:
 	dotname
@@ -996,21 +967,20 @@ labelname:
 	name
 
 convtype:
-	'[' oexpr ']' type
+	'[' oexpr ']' ntype
 	{
 		// array literal
-		$$ = aindex($2, $4);
+		$$ = nod(OTARRAY, $2, $4);
 	}
-|	'[' LDDD ']' type
+|	'[' dotdotdot ']' ntype
 	{
 		// array literal of nelem
-		$$ = aindex(N, $4);
-		$$->bound = -100;
+		$$ = nod(OTARRAY, $2, $4);
 	}
-|	LMAP '[' type ']' type
+|	LMAP '[' ntype ']' ntype
 	{
 		// map literal
-		$$ = maptype($3, $5);
+		$$ = nod(OTMAP, $3, $5);
 	}
 |	structtype
 
@@ -1026,22 +996,34 @@ convtype:
 dotdotdot:
 	LDDD
 	{
-		$$ = typ(TDDD);
+		$$ = typenod(typ(TDDD));
 	}
 
 type:
+	ntype
+	{
+		Node *init;
+
+		init = N;
+		walkexpr($1, Etype, &init);
+		// init can only be set if this was not a type; ignore
+
+		$$ = $1->type;
+	}
+
+ntype:
 	chantype
-|	fntype
+|	fntype { $$ = typenod($1); }
 |	othertype
-|	'(' type ')'
+|	'(' ntype ')'
 	{
 		$$ = $2;
 	}
 
 non_chan_type:
-	fntype
+	fntype { $$ = typenod($1); }
 |	othertype
-|	'(' type ')'
+|	'(' ntype ')'
 	{
 		$$ = $2;
 	}
@@ -1056,7 +1038,7 @@ dotname:
 	{
 		if($1->op == OPACK) {
 			Sym *s;
-			s = pkglookup($3->name, $1->sym->name);
+			s = restrictlookup($3->name, $1->sym->name);
 			$$ = oldname(s);
 			break;
 		}
@@ -1067,52 +1049,41 @@ dotname:
 othertype:
 	'[' oexpr ']' type
 	{
-		$$ = aindex($2, $4);
+		$$ = typenod(aindex($2, $4));
 	}
-|	LCOMM LCHAN type
+|	LCOMM LCHAN ntype
 	{
-		$$ = typ(TCHAN);
-		$$->type = $3;
-		$$->chan = Crecv;
+		$$ = nod(OTCHAN, $3, N);
+		$$->etype = Crecv;
 	}
 |	LCHAN LCOMM non_chan_type
 	{
-		$$ = typ(TCHAN);
-		$$->type = $3;
-		$$->chan = Csend;
+		$$ = nod(OTCHAN, $3, N);
+		$$->etype = Csend;
 	}
-|	LMAP '[' type ']' type
+|	LMAP '[' ntype ']' ntype
 	{
-		$$ = maptype($3, $5);
+		$$ = nod(OTMAP, $3, $5);
 	}
-|	'*' type
+|	'*' ntype
 	{
-		$$ = ptrto($2);
+		$$ = nod(OIND, $2, N);
 	}
 |	structtype
 |	interfacetype
 |	dotname
-	{
-		if($1->op == ODOT) {
-			yyerror("%S.%S is not a type", $1->left->sym, $1->right->sym);
-			$$ = T;
-			break;
-		}
-		$$ = oldtype($1->sym);
-	}
 
 chantype:
-	LCHAN type
+	LCHAN ntype
 	{
-		$$ = typ(TCHAN);
-		$$->type = $2;
-		$$->chan = Cboth;
+		$$ = nod(OTCHAN, $2, N);
+		$$->etype = Cboth;
 	}
 
 structtype:
 	LSTRUCT '{' structdcl_list_r osemi '}'
 	{
-		$$ = dostruct(rev($3), TSTRUCT);
+		$$ = nod(OTSTRUCT, rev($3), N);
 		// Distinguish closing brace in struct from
 		// other closing braces by explicitly marking it.
 		// Used above (yylast == LSEMIBRACE).
@@ -1120,20 +1091,19 @@ structtype:
 	}
 |	LSTRUCT '{' '}'
 	{
-		$$ = dostruct(N, TSTRUCT);
+		$$ = nod(OTSTRUCT, N, N);
 		yylast = LSEMIBRACE;
 	}
 
 interfacetype:
 	LINTERFACE '{' interfacedcl_list_r osemi '}'
 	{
-		$$ = dostruct(rev($3), TINTER);
-		$$ = sortinter($$);
+		$$ = nod(OTINTER, rev($3), N);
 		yylast = LSEMIBRACE;
 	}
 |	LINTERFACE '{' '}'
 	{
-		$$ = dostruct(N, TINTER);
+		$$ = nod(OTINTER, N, N);
 		yylast = LSEMIBRACE;
 	}
 
@@ -1229,8 +1199,7 @@ fnres:
 	}
 |	non_fn_type
 	{
-		$$ = nod(ODCLFIELD, N, N);
-		$$->type = $1;
+		$$ = nod(ODCLFIELD, N, $1);
 		$$ = cleanidlist($$);
 	}
 |	'(' oarg_type_list ')'
@@ -1294,10 +1263,9 @@ structdcl:
 		$$ = nod(ODCLFIELD, $1, N);
 		$$ = nod(OLIST, $$, $3);
 	}
-|	new_field type oliteral
+|	new_field ntype oliteral
 	{
-		$$ = nod(ODCLFIELD, $1, N);
-		$$->type = $2;
+		$$ = nod(ODCLFIELD, $1, $2);
 		$$->val = $3;
 	}
 |	embed oliteral
@@ -1308,7 +1276,7 @@ structdcl:
 |	'*' embed oliteral
 	{
 		$$ = $2;
-		$$->type = ptrto($$->type);
+		$$->right = nod(OIND, $$->right, N);
 		$$->val = $3;
 	}
 
@@ -1323,7 +1291,7 @@ packname:
 			pkg = $1->name;
 		} else
 			pkg = $1->def->sym->name;
-		$$ = pkglookup($3->name, pkg);
+		$$ = restrictlookup($3->name, pkg);
 	}
 
 embed:
@@ -1340,23 +1308,21 @@ interfacedcl1:
 	}
 |	new_name indcl
 	{
-		$$ = nod(ODCLFIELD, $1, N);
-		$$->type = $2;
+		$$ = nod(ODCLFIELD, $1, $2);
 	}
 
 interfacedcl:
 	interfacedcl1
 |	packname
 	{
-		$$ = nod(ODCLFIELD, N, N);
-		$$->type = oldtype($1);
+		$$ = nod(ODCLFIELD, N, typenod(oldtype($1)));
 	}
 
 indcl:
 	'(' oarg_type_list ')' fnres
 	{
 		// without func keyword
-		$$ = functype(fakethis(), $2, $4);
+		$$ = typenod(functype(fakethis(), $2, $4));
 	}
 
 /*
@@ -1380,12 +1346,9 @@ arg_type:
 			$$ = nod(ONONAME, N, N);
 			$$->sym = $1;
 		}
-		$$ = nod(OKEY, $$, typenod($2));
+		$$ = nod(OKEY, $$, $2);
 	}
 |	dotdotdot
-	{
-		$$ = typenod($1);
-	}
 
 arg_type_list_r:
 	arg_type
@@ -1804,15 +1767,14 @@ hidden_dcl:
 hidden_structdcl:
 	sym hidden_type oliteral
 	{
-		$$ = nod(ODCLFIELD, newname($1), N);
-		$$->type = $2;
+		$$ = nod(ODCLFIELD, newname($1), typenod($2));
 		$$->val = $3;
 	}
 |	'?' hidden_type oliteral
 	{
 		if(isptr[$2->etype]) {
 			$$ = embedded($2->type->sym);
-			$$->type = ptrto($$->type);
+			$$->right = nod(OIND, $$->right, N);
 		} else
 			$$ = embedded($2->sym);
 		$$->val = $3;
@@ -1821,8 +1783,7 @@ hidden_structdcl:
 hidden_interfacedcl:
 	sym '(' ohidden_funarg_list ')' ohidden_funres
 	{
-		$$ = nod(ODCLFIELD, newname($1), N);
-		$$->type = functype(fakethis(), $3, $5);
+		$$ = nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
 	}
 
 ohidden_funres:

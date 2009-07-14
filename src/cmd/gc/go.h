@@ -221,6 +221,9 @@ struct	Node
 	// OLITERAL/OREGISTER
 	Val	val;
 
+	// OTFUNC
+	Node*	rcvr;
+
 	// ONAME func param with PHEAP
 	Node*	heapaddr;	// temp holding heap address of param
 	Node*	stackparam;	// OPARAM node referring to stack copy of param
@@ -334,6 +337,8 @@ enum
 	ODOTTYPE, OTYPESW,
 	OBAD,
 
+	OTCHAN, OTMAP, OTSTRUCT, OTINTER, OTFUNC, OTARRAY,
+
 	OEXTEND,	// 6g internal
 
 	OEND,
@@ -420,6 +425,7 @@ enum
 	Etop,		// evaluated at statement level
 	Elv,		// evaluated in lvalue context
 	Erv,		// evaluated in rvalue context
+	Etype = 1<<8,
 };
 
 #define	BITS	5
@@ -711,7 +717,7 @@ void	errorexit(void);
 uint32	stringhash(char*);
 Sym*	lookup(char*);
 Sym*	pkglookup(char*, char*);
-Sym*	opkglookup(char*, char*);
+Sym*	restrictlookup(char*, char*);
 void	importdot(Sym*);
 void	yyerror(char*, ...);
 void	warn(char*, ...);
@@ -911,6 +917,7 @@ void	walk(Node*);
 void	walkstmt(Node*);
 void	walkexpr(Node*, int, Node**);
 void	walkconv(Node*, Node**);
+void	walkdottype(Node*, Node**);
 void	walkas(Node*);
 void	walkbool(Node*);
 void	walkswitch(Node*);
