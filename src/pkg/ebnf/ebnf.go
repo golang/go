@@ -120,58 +120,6 @@ func (p *Production) Pos() token.Position {
 
 
 // ----------------------------------------------------------------------------
-// Error handling
-
-// TODO(gri) This is the same code as in datafmt and go/parser.
-//           Should factor this out as part of some parsing framework
-//           that could also deal with reading various input sources.
-
-// Error describes an individual error. The position Pos, if valid,
-// indicates the format source position the error relates to. The
-// error is specified with the Msg string.
-//
-type Error struct {
-	Pos token.Position;
-	Msg string;
-}
-
-
-// String returns the error message. If the error contains (line, column)
-// position information, it starts with "line:column: ", otherwise it
-// starts with a blank " ". 
-//
-func (e *Error) String() string {
-	pos := " ";
-	if e.Pos.IsValid() {
-		pos = fmt.Sprintf("%d:%d: ", e.Pos.Line, e.Pos.Column);
-	}
-	return pos + e.Msg;
-}
-
-
-// An ErrorList is a list of errors encountered during parsing.
-type ErrorList []*Error
-
-
-// ErrorList implements SortInterface and the os.Error interface.
-
-func (p ErrorList) Len() int  { return len(p); }
-func (p ErrorList) Swap(i, j int)  { p[i], p[j] = p[j], p[i]; }
-func (p ErrorList) Less(i, j int) bool  { return p[i].Pos.Offset < p[j].Pos.Offset; }
-
-
-func (p ErrorList) String() string {
-	switch len(p) {
-	case 0:
-		return "unspecified error";
-	case 1:
-		return p[0].String();
-	}
-	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p) - 1);
-}
-
-
-// ----------------------------------------------------------------------------
 // Grammar verification
 
 func isLexical(name string) bool {
@@ -181,27 +129,10 @@ func isLexical(name string) bool {
 
 
 type verifier struct {
-	errors vector.Vector;
+	scanner.ErrorVector;
 	worklist vector.Vector;
 	reached Grammar;  // set of productions reached from (and including) the root production
 	grammar Grammar;
-}
-
-
-func (v *verifier) error(pos token.Position, msg string) {
-	v.errors.Push(&Error{pos, msg});
-}
-
-
-func makeErrorList(v *vector.Vector) os.Error {
-	if v.Len() > 0 {
-		errors := make(ErrorList, v.Len());
-		for i := 0; i < v.Len(); i++ {
-			errors[i] = v.At(i).(*Error);
-		}
-		return errors;
-	}
-	return nil;
 }
 
 
@@ -217,7 +148,7 @@ func (v *verifier) push(prod *Production) {
 func (v *verifier) verifyChar(x *Token) int {
 	s := x.String;
 	if utf8.RuneCountInString(s) != 1 {
-		v.error(x.Pos(), "single char expected, found " + s);
+		v.Error(x.Pos(), "single char expected, found " + s);
 		return 0;
 	}
 	ch, _ := utf8.DecodeRuneInString(s);
@@ -243,12 +174,12 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
 		if prod, found := v.grammar[x.String]; found {
 			v.push(prod);
 		} else {
-			v.error(x.Pos(), "missing production " + x.String);
+			v.Error(x.Pos(), "missing production " + x.String);
 		}
 		// within a lexical production references
 		// to non-lexical productions are invalid
 		if lexical && !isLexical(x.String) {
-			v.error(x.Pos(), "reference to non-lexical production " + x.String);
+			v.Error(x.Pos(), "reference to non-lexical production " + x.String);
 		}
 	case *Token:
 		// nothing to do for now
@@ -256,7 +187,7 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
 		i := v.verifyChar(x.Begin);
 		j := v.verifyChar(x.End);
 		if i >= j {
-			v.error(x.Pos(), "decreasing character range");
+			v.Error(x.Pos(), "decreasing character range");
 		}
 	case *Group:
 		v.verifyExpr(x.Body, lexical);
@@ -275,12 +206,12 @@ func (v *verifier) verify(grammar Grammar, start string) {
 	root, found := grammar[start];
 	if !found {
 		var noPos token.Position;
-		v.error(noPos, "no start production " + start);
+		v.Error(noPos, "no start production " + start);
 		return;
 	}
 
 	// initialize verifier
-	v.errors.Init(0);
+	v.ErrorVector.Init();
 	v.worklist.Init(0);
 	v.reached = make(Grammar);
 	v.grammar = grammar;
@@ -296,7 +227,7 @@ func (v *verifier) verify(grammar Grammar, start string) {
 	if len(v.reached) < len(v.grammar) {
 		for name, prod := range v.grammar {
 			if _, found := v.reached[name]; !found {
-				v.error(prod.Pos(), name + " is unreachable");
+				v.Error(prod.Pos(), name + " is unreachable");
 			}
 		}
 	}
@@ -311,5 +242,5 @@ func (v *verifier) verify(grammar Grammar, start string) {
 func Verify(grammar Grammar, start string) os.Error {
 	var v verifier;
 	v.verify(grammar, start);
-	return makeErrorList(&v.errors);
+	return v.GetError(scanner.Sorted);
 }

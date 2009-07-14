@@ -41,8 +41,8 @@ var grammars = []string {
 }
 
 
-func check(t *testing.T, src []byte) {
-	grammar, err := Parse(src);
+func check(t *testing.T, filename string, src []byte) {
+	grammar, err := Parse(filename, src);
 	if err != nil {
 		t.Errorf("Parse(%s) failed: %v", src, err);
 	}
@@ -54,7 +54,7 @@ func check(t *testing.T, src []byte) {
 
 func TestGrammars(t *testing.T) {
 	for _, src := range grammars {
-		check(t, strings.Bytes(src));
+		check(t, "", strings.Bytes(src));
 	}
 }
 
@@ -70,6 +70,6 @@ func TestFiles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err);
 		}
-		check(t, src);
+		check(t, filename, src);
 	}
 }
