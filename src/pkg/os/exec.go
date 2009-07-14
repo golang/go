@@ -70,8 +70,12 @@ const (
 	WNOHANG = syscall.WNOHANG;	// Don't wait if no process has exited.
 	WSTOPPED = syscall.WSTOPPED;	// If set, status of stopped subprocesses is also reported.
 	WUNTRACED = WSTOPPED;
-	WRUSAGE = 1<<30;	// Record resource usage.
+	WRUSAGE = 1<<20;	// Record resource usage.
 )
+
+// WRUSAGE must not be too high a bit, to avoid clashing with Linux's
+// WCLONE, WALL, and WNOTHREAD flags, which sit in the top few bits of
+// the options
 
 // Wait waits for process pid to exit or stop, and then returns a
 // Waitmsg describing its status and an Error, if any. The options
