@@ -832,7 +832,7 @@ enum
 	T_SCONST	= 1<<5,
 	T_64		= 1<<6,
 
-	REGARG		= 0,
+	REGARG		= -1,
 	REGRET		= D_AX,
 	FREGRET		= D_X0,
 	REGSP		= D_SP,

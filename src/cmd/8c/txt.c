@@ -233,7 +233,7 @@ garg1(Node *n, Node *tn1, Node *tn2, int f, Node **fnxp)
 			sugen(n, tn2, n->type->width);
 		return;
 	}
-	if(REGARG && curarg == 0 && typeilp[n->type->etype]) {
+	if(REGARG >= 0 && curarg == 0 && typeilp[n->type->etype]) {
 		regaalloc1(tn1, n);
 		if(n->complex >= FNX) {
 			cgen(*fnxp, tn1);
@@ -1409,8 +1409,8 @@ exreg(Type *t)
 
 schar	ewidth[NTYPE] =
 {
-	-1,		/*[TXXX]*/	
-	SZ_CHAR,	/*[TCHAR]*/	
+	-1,		/*[TXXX]*/
+	SZ_CHAR,	/*[TCHAR]*/
 	SZ_CHAR,	/*[TUCHAR]*/
 	SZ_SHORT,	/*[TSHORT]*/
 	SZ_SHORT,	/*[TUSHORT]*/
@@ -1434,10 +1434,10 @@ int32	ncast[NTYPE] =
 {
 	0,				/*[TXXX]*/
 	BCHAR|BUCHAR,			/*[TCHAR]*/
-	BCHAR|BUCHAR,			/*[TUCHAR]*/	
+	BCHAR|BUCHAR,			/*[TUCHAR]*/
 	BSHORT|BUSHORT,			/*[TSHORT]*/
 	BSHORT|BUSHORT,			/*[TUSHORT]*/
-	BINT|BUINT|BLONG|BULONG|BIND,	/*[TINT]*/		
+	BINT|BUINT|BLONG|BULONG|BIND,	/*[TINT]*/
 	BINT|BUINT|BLONG|BULONG|BIND,	/*[TUINT]*/
 	BINT|BUINT|BLONG|BULONG|BIND,	/*[TLONG]*/
 	BINT|BUINT|BLONG|BULONG|BIND,	/*[TULONG]*/

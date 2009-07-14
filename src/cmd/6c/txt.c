@@ -247,7 +247,7 @@ garg1(Node *n, Node *tn1, Node *tn2, int f, Node **fnxp)
 			sugen(n, tn2, n->type->width);
 		return;
 	}
-	if(REGARG && curarg == 0 && typechlpv[n->type->etype]) {
+	if(REGARG >= 0 && curarg == 0 && typechlpv[n->type->etype]) {
 		regaalloc1(tn1, n);
 		if(n->complex >= FNX) {
 			cgen(*fnxp, tn1);
@@ -437,8 +437,8 @@ regsalloc(Node *n, Node *nn)
 void
 regaalloc1(Node *n, Node *nn)
 {
-	if(REGARG == 0)
-		diag(n, "regaalloc1 and REGARG==0");
+	if(REGARG < 0)
+		diag(n, "regaalloc1 and REGARG<0");
 	nodreg(n, nn, REGARG);
 	reg[REGARG]++;
 	curarg = align(curarg, nn->type, Aarg1);
@@ -1475,7 +1475,7 @@ gpseudo(int a, Sym *s, Node *n)
 	p->from.sym = s;
 	p->from.scale = textflag;
 	textflag = 0;
-	
+
 	if(s->class == CSTATIC)
 		p->from.type = D_STATIC;
 	naddr(n, &p->to);
@@ -1513,8 +1513,8 @@ exreg(Type *t)
 
 schar	ewidth[NTYPE] =
 {
-	-1,		/*[TXXX]*/	
-	SZ_CHAR,	/*[TCHAR]*/	
+	-1,		/*[TXXX]*/
+	SZ_CHAR,	/*[TCHAR]*/
 	SZ_CHAR,	/*[TUCHAR]*/
 	SZ_SHORT,	/*[TSHORT]*/
 	SZ_SHORT,	/*[TUSHORT]*/
@@ -1538,10 +1538,10 @@ int32	ncast[NTYPE] =
 {
 	0,				/*[TXXX]*/
 	BCHAR|BUCHAR,			/*[TCHAR]*/
-	BCHAR|BUCHAR,			/*[TUCHAR]*/	
+	BCHAR|BUCHAR,			/*[TUCHAR]*/
 	BSHORT|BUSHORT,			/*[TSHORT]*/
 	BSHORT|BUSHORT,			/*[TUSHORT]*/
-	BINT|BUINT|BLONG|BULONG,	/*[TINT]*/		
+	BINT|BUINT|BLONG|BULONG,	/*[TINT]*/
 	BINT|BUINT|BLONG|BULONG,	/*[TUINT]*/
 	BINT|BUINT|BLONG|BULONG,	/*[TLONG]*/
 	BINT|BUINT|BLONG|BULONG,	/*[TULONG]*/

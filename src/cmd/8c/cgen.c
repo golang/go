@@ -925,7 +925,7 @@ cgen(Node *n, Node *nn)
 			regfree(&nod);
 		} else
 			gopcode(OFUNC, n->type, Z, l);
-		if(REGARG && reg[REGARG])
+		if(REGARG >= 0 && reg[REGARG])
 			reg[REGARG]--;
 		if(nn != Z) {
 			regret(&nod, n);
