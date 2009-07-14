@@ -820,7 +820,7 @@ stkof(Node *n)
 void
 sgen(Node *n, Node *res, int32 w)
 {
-	Node nodl, nodr, ndat, nend;
+	Node dst, src, tmp, nend;
 	int32 c, q, odst, osrc;
 	Prog *p;
 
@@ -842,16 +842,16 @@ sgen(Node *n, Node *res, int32 w)
 	osrc = stkof(n);
 	odst = stkof(res);
 
-	regalloc(&nodl, types[tptr], N);
-	regalloc(&nodr, types[tptr], N);
-	regalloc(&ndat, types[TUINT32], N);
+	regalloc(&dst, types[tptr], N);
+	regalloc(&src, types[tptr], N);
+	regalloc(&tmp, types[TUINT32], N);
 
 	if(n->ullman >= res->ullman) {
-		agen(n, &nodr);
-		agen(res, &nodl);
+		agen(n, &src);
+		agen(res, &dst);
 	} else {
-		agen(res, &nodl);
-		agen(n, &nodr);
+		agen(res, &dst);
+		agen(n, &src);
 	}
 
 	c = w % 4;	// bytes
@@ -890,33 +890,33 @@ sgen(Node *n, Node *res, int32 w)
 		// normal direction
 		if(q >= 4) {
 			regalloc(&nend, types[TUINT32], N);
-			p = gins(AMOVW, &nodr, &nend);
+			p = gins(AMOVW, &src, &nend);
 			p->from.type = D_CONST;
 			p->from.offset = q;
 
-			p = gins(AMOVW, &nodr, &ndat);
+			p = gins(AMOVW, &src, &tmp);
 			p->from.type = D_OREG;
 			p->from.offset = 4;
 			p->scond |= C_PBIT;
 
-			p = gins(AMOVW, &ndat, &nodl);
+			p = gins(AMOVW, &tmp, &dst);
 			p->to.type = D_OREG;
 			p->to.offset = 4;
 			p->scond |= C_PBIT;
 
-			gins(ACMP, &nodr, &nend);
+			gins(ACMP, &src, &nend);
 			fatal("sgen loop not implemented");
 			p = gins(ABNE, N, N);
 			// TODO(PC offset)
  			regfree(&nend);
 		} else
 		while(q > 0) {
-			p = gins(AMOVW, &nodr, &ndat);
+			p = gins(AMOVW, &src, &tmp);
 			p->from.type = D_OREG;
 			p->from.offset = 4;
  			p->scond |= C_PBIT;
 
-			p = gins(AMOVW, &ndat, &nodl);
+			p = gins(AMOVW, &tmp, &dst);
 			p->to.type = D_OREG;
 			p->to.offset = 4;
  			p->scond |= C_PBIT;
@@ -936,7 +936,7 @@ sgen(Node *n, Node *res, int32 w)
 //			c--;
 //		}
 	}
- 	regfree(&nodl);
-	regfree(&nodr);
-	regfree(&ndat);
+ 	regfree(&dst);
+	regfree(&src);
+	regfree(&tmp);
 }
