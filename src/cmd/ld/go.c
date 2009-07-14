@@ -315,26 +315,6 @@ parsemethod(char **pp, char *ep, char **methp)
 	return 1;
 }
 
-static int
-importcmp(const void *va, const void *vb)
-{
-	Import *a, *b;
-
-	a = *(Import**)va;
-	b = *(Import**)vb;
-	return strcmp(a->name, b->name);
-}
-
-static int
-symcmp(const void *va, const void *vb)
-{
-	Sym *a, *b;
-
-	a = *(Sym**)va;
-	b = *(Sym**)vb;
-	return strcmp(a->name, b->name);
-}
-
 static void mark(Sym*);
 static int markdepth;
 
