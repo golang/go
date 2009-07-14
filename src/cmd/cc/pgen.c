@@ -79,6 +79,7 @@ codgen(Node *n, Node *nn)
 	nearln = nn->lineno;
 
 	p = gtext(n1->sym, stkoff);
+	sp = p;
 
 	/*
 	 * isolate first argument
@@ -100,7 +101,6 @@ codgen(Node *n, Node *nn)
 		}
 	}
 
-	sp = p;
 	retok = 0;
 
 	canreach = 1;
@@ -588,4 +588,3 @@ bcomplex(Node *n, Node *c)
 	boolgen(n, 1, Z);
 	return 0;
 }
-
