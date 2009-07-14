@@ -164,6 +164,13 @@ func (w WaitStatus) StopSignal() int {
 	return int(w >> shift) & 0xFF;
 }
 
+func (w WaitStatus) TrapCause() int {
+	if w.StopSignal() != SIGTRAP {
+		return -1;
+	}
+	return int(w >> shift) >> 8;
+}
+
 //sys	wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int)
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
 	var status _C_int;
