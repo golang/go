@@ -55,7 +55,7 @@ func (p *printer) nextComment() {
 	if p.comments != nil && p.cindex < len(p.comments) && p.comments[p.cindex] != nil {
 		p.cpos = p.comments[p.cindex].List[0].Pos();
 	} else {
-		p.cpos = token.Position{1<<30, 1<<30, 1};  // infinite
+		p.cpos = token.Position{"", 1<<30, 1<<30, 1};  // infinite
 	}
 }
 
