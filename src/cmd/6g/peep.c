@@ -844,7 +844,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 	case ACALL:	/* funny */
 		if(REGEXT && v->type <= REGEXT && v->type > exregoffset)
 			return 2;
-		if(REGARG && v->type == REGARG)
+		if(REGARG >= 0 && v->type == (uchar)REGARG)
 			return 2;
 
 		if(s != A) {
@@ -857,7 +857,7 @@ copyu(Prog *p, Adr *v, Adr *s)
 		return 3;
 
 	case ATEXT:	/* funny */
-		if(REGARG && v->type == REGARG)
+		if(REGARG >= 0 && v->type == (uchar)REGARG)
 			return 3;
 		return 0;
 	}
