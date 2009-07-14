@@ -78,6 +78,9 @@ const (
 	SizeofSockaddrInet6 = 0x1c;
 	SizeofSockaddrAny = 0x1c;
 	SizeofSockaddrUnix = 0x6a;
+	_PTRACE_TRACEME = 0;
+	_PTRACE_CONT = 0x7;
+	_PTRACE_KILL = 0x8;
 	EVFILT_READ = -0x1;
 	EVFILT_WRITE = -0x2;
 	EVFILT_AIO = -0x3;
@@ -102,6 +105,14 @@ const (
 )
 
 // Types
+
+type _C_short int16
+
+type _C_int int32
+
+type _C_long int64
+
+type _C_long_long int64
 
 type Timespec struct {
 	Sec int64;
@@ -137,8 +148,6 @@ type Rlimit struct {
 	Cur uint64;
 	Max uint64;
 }
-
-type _C_int int32
 
 type _Gid_t uint32
 

@@ -45,6 +45,13 @@ enum
 };
 
 
+// Basic types
+
+typedef short $_C_short;
+typedef int $_C_int;
+typedef long $_C_long;
+typedef long long $_C_long_long;
+
 // Time
 
 typedef struct timespec $Timespec;
@@ -55,7 +62,6 @@ typedef struct timeval $Timeval;
 typedef struct rusage $Rusage;
 typedef struct rlimit $Rlimit;
 
-typedef int $_C_int;
 typedef gid_t $_Gid_t;
 
 // Files
@@ -184,6 +190,14 @@ enum {
 typedef struct sockaddr_any $RawSockaddrAny;
 typedef socklen_t $_Socklen;
 typedef struct linger $Linger;
+
+// Ptrace requests
+enum {
+	$_PTRACE_TRACEME = PT_TRACE_ME,
+	$_PTRACE_CONT = PT_CONTINUE,
+	$_PTRACE_KILL = PT_KILL,
+};
+
 
 // Events (kqueue, kevent)
 
