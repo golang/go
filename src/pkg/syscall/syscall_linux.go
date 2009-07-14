@@ -386,6 +386,163 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l));
 }
 
+//sys	ptrace(request int, pid int, addr uintptr, data uintptr) (errno int)
+
+// See bytes.Copy.
+func bytesCopy(dst, src []byte) int {
+	if len(src) > len(dst) {
+		src = src[0:len(dst)];
+	}
+	for i, x := range src {
+		dst[i] = x
+	}
+	return len(src)
+}
+
+func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno int) {
+	// The peek requests are machine-size oriented, so we wrap it
+	// to retrieve arbitrary-length data.
+
+	// The ptrace syscall differs from glibc's ptrace.
+	// Peeks returns the word in *data, not as the return value.
+
+	var buf [sizeofPtr]byte;
+
+	// Leading edge.  PEEKTEXT/PEEKDATA don't require aligned
+	// access (PEEKUSER warns that it might), but if we don't
+	// align our reads, we might straddle an unmapped page
+	// boundary and not get the bytes leading up to the page
+	// boundary.
+	n := 0;
+	if addr % sizeofPtr != 0 {
+		errno = ptrace(req, pid, addr - addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
+		if errno != 0 {
+			return 0, errno;
+		}
+		n += bytesCopy(out, buf[addr%sizeofPtr:len(buf)]);
+		out = out[n:len(out)];
+	}
+
+	// Remainder.
+	for len(out) > 0 {
+		// We use an internal buffer to gaurantee alignment.
+		// It's not documented if this is necessary, but we're paranoid.
+		errno = ptrace(req, pid, addr+uintptr(n), uintptr(unsafe.Pointer(&buf[0])));
+		if errno != 0 {
+			return n, errno;
+		}
+		copied := bytesCopy(out, &buf);
+		n += copied;
+		out = out[copied:len(out)];
+	}
+
+	return n, 0;
+}
+
+func PtracePeekText(pid int, addr uintptr, out []byte) (count int, errno int) {
+	return ptracePeek(_PTRACE_PEEKTEXT, pid, addr, out);
+}
+
+func PtracePeekData(pid int, addr uintptr, out []byte) (count int, errno int) {
+	return ptracePeek(_PTRACE_PEEKDATA, pid, addr, out);
+}
+
+func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (count int, errno int) {
+	// As for ptracePeek, we need to align our accesses to deal
+	// with the possibility of straddling an invalid page.
+
+	// Leading edge.
+	n := 0;
+	if addr % sizeofPtr != 0 {
+		var buf [sizeofPtr]byte;
+		errno = ptrace(peekReq, pid, addr - addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
+		if errno != 0 {
+			return 0, errno;
+		}
+		n += bytesCopy(buf[addr%sizeofPtr:len(buf)], data);
+		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
+		errno = ptrace(pokeReq, pid, addr - addr%sizeofPtr, word);
+		if errno != 0 {
+			return 0, errno;
+		}
+		data = data[n:len(data)];
+	}
+
+	// Interior.
+	for len(data) > sizeofPtr {
+		word := *((*uintptr)(unsafe.Pointer(&data[0])));
+		errno = ptrace(pokeReq, pid, addr+uintptr(n), word);
+		if errno != 0 {
+			return n, errno;
+		}
+		n += sizeofPtr;
+		data = data[sizeofPtr:len(data)];
+	}
+
+	// Trailing edge.
+	if len(data) > 0 {
+		var buf [sizeofPtr]byte;
+		errno = ptrace(peekReq, pid, addr+uintptr(n), uintptr(unsafe.Pointer(&buf[0])));
+		if errno != 0 {
+			return n, errno;
+		}
+		bytesCopy(&buf, data);
+		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
+		errno = ptrace(pokeReq, pid, addr+uintptr(n), word);
+		if errno != 0 {
+			return n, errno;
+		}
+		n += len(data);
+	}
+
+	return n, 0;
+}
+
+func PtracePokeText(pid int, addr uintptr, data []byte) (count int, errno int) {
+	return ptracePoke(_PTRACE_POKETEXT, _PTRACE_PEEKTEXT, pid, addr, data);
+}
+
+func PtracePokeData(pid int, addr uintptr, data []byte) (count int, errno int) {
+	return ptracePoke(_PTRACE_POKEDATA, _PTRACE_PEEKDATA, pid, addr, data);
+}
+
+func PtraceGetRegs(pid int, regsout *PtraceRegs) (errno int) {
+	return ptrace(_PTRACE_GETREGS, pid, 0, uintptr(unsafe.Pointer(regsout)));
+}
+
+func PtraceSetRegs(pid int, regs *PtraceRegs) (errno int) {
+	return ptrace(_PTRACE_SETREGS, pid, 0, uintptr(unsafe.Pointer(regs)));
+}
+
+func PtraceSetOptions(pid int, options int) (errno int) {
+	return ptrace(_PTRACE_SETOPTIONS, pid, 0, uintptr(options));
+}
+
+func PtraceGetEventMsg(pid int) (msg uint, errno int) {
+	var data _C_long;
+	errno = ptrace(_PTRACE_GETEVENTMSG, pid, 0, uintptr(unsafe.Pointer(&data)));
+	if errno != 0 {
+		msg = uint(data);
+	}
+	return;
+}
+
+func PtraceCont(pid int, signal int) (errno int) {
+	return ptrace(_PTRACE_CONT, pid, 0, uintptr(signal));
+}
+
+func PtraceSingleStep(pid int) (errno int) {
+	return ptrace(_PTRACE_SINGLESTEP, pid, 0, 0);
+}
+
+func PtraceAttach(pid int) (errno int) {
+	return ptrace(_PTRACE_ATTACH, pid, 0, 0);
+}
+
+func PtraceDetach(pid int) (errno int) {
+	return ptrace(_PTRACE_DETACH, pid, 0, 0);
+}
+
 // Sendto
 // Recvfrom
 // Sendmsg
@@ -634,3 +791,4 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
 // Waitid
 // Writev
 // _Sysctl
+
