@@ -15,6 +15,9 @@ TEXT	syscall·Syscall(SB),7,$0
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX
+	MOVQ	$0, R10
+	MOVQ	$0, R8
+	MOVQ	$0, R9
 	MOVQ	8(SP), AX	// syscall entry
 	ADDQ	$0x2000000, AX
 	SYSCALL
@@ -59,6 +62,9 @@ TEXT syscall·RawSyscall(SB),7,$0
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX
+	MOVQ	$0, R10
+	MOVQ	$0, R8
+	MOVQ	$0, R9
 	MOVQ	8(SP), AX	// syscall entry
 	ADDQ	$0x2000000, AX
 	SYSCALL
