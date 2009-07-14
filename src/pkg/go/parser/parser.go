@@ -22,45 +22,6 @@ import (
 )
 
 
-// A parser error is represented by an Error node. The position Pos, if
-// valid, points to the beginning of the offending token, and the error
-// condition is described by Msg.
-//
-type Error struct {
-	Pos token.Position;
-	Msg string;
-}
-
-
-func (e *Error) String() string {
-	pos := "";
-	if e.Pos.IsValid() {
-		pos = fmt.Sprintf("%d:%d: ", e.Pos.Line, e.Pos.Column);
-	}
-	return pos + e.Msg;
-}
-
-
-// Parser errors are returned as an ErrorList.
-type ErrorList []*Error
-
-
-// ErrorList implements the SortInterface.
-func (p ErrorList) Len() int  { return len(p); }
-func (p ErrorList) Swap(i, j int)  { p[i], p[j] = p[j], p[i]; }
-func (p ErrorList) Less(i, j int) bool  { return p[i].Pos.Offset < p[j].Pos.Offset; }
-
-
-func (p ErrorList) String() string {
-	switch len(p) {
-	case 0: return "unspecified error";
-	case 1: return p[0].String();
-	}
-	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p) - 1);
-}
-
-
-
 // Names to index the parser's commentIndex array.
 const (
 	leading = iota;  // index of the leading comments entry
@@ -74,7 +35,7 @@ var noIndex = [2]int{-1, -1};
 
 // The parser structure holds the parser's internal state.
 type parser struct {
-	errors vector.Vector;
+	scanner.ErrorVector;
 	scanner scanner.Scanner;
 
 	// Tracing/debugging
@@ -260,17 +221,6 @@ func (p *parser) getComment(kind int) *ast.CommentGroup {
 		return c;
 	}
 	return nil;
-}
-
-
-// The parser implements scanner.Error.
-func (p *parser) Error(pos token.Position, msg string) {
-	// Don't collect errors that are on the same line as the previous error
-	// in the hope to reduce the number of spurious errors due to incorrect
-	// parser synchronization.
-	if p.errors.Len() == 0 || p.errors.Last().(*Error).Pos.Line != pos.Line {
-		p.errors.Push(&Error{pos, msg});
-	}
 }
 
 
@@ -1951,7 +1901,7 @@ func (p *parser) parsePackage() *ast.Program {
 	// Don't bother parsing the rest if we had errors already.
 	// Likely not a Go source file at all.
 
-	if p.errors.Len() == 0 && p.mode & PackageClauseOnly == 0 {
+	if p.ErrorCount() == 0 && p.mode & PackageClauseOnly == 0 {
 		// import decls
 		list := vector.New(0);
 		for p.tok == token.IMPORT {
@@ -2032,15 +1982,15 @@ func scannerMode(mode uint) uint {
 }
 
 
-func (p *parser) init(src interface{}, mode uint) os.Error {
+func (p *parser) init(filename string, src interface{}, mode uint) os.Error {
 	data, err := readSource(src);
 	if err != nil {
 		return err;
 	}
 
 	// initialize parser state
-	p.errors.Init(0);
-	p.scanner.Init(data, p, scannerMode(mode));
+	p.ErrorVector.Init();
+	p.scanner.Init(filename, data, p, scannerMode(mode));
 	p.mode = mode;
 	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
 	p.comments.Init(0);
@@ -2048,21 +1998,6 @@ func (p *parser) init(src interface{}, mode uint) os.Error {
 	p.next();
 
 	return nil;
-}
-
-
-// errorList converts parsing errors to an errors list.  Returns nil
-// if there are no errors.
-func (p *parser) errorList() os.Error {
-	if p.errors.Len() == 0 {
-		return nil;
-	}
-
-	errors := make(ErrorList, p.errors.Len());
-	for i := 0; i < p.errors.Len(); i++ {
-		errors[i] = p.errors.At(i).(*Error);
-	}
-	return errors;
 }
 
 
@@ -2080,47 +2015,47 @@ func (p *parser) errorList() os.Error {
 // representing the fragments of erroneous source code) and an ErrorList
 // describing the syntax errors.
 //
-func Parse(src interface{}, mode uint) (*ast.Program, os.Error) {
+func Parse(filename string, src interface{}, mode uint) (*ast.Program, os.Error) {
 	var p parser;
-	if err := p.init(src, mode); err != nil {
+	if err := p.init(filename, src, mode); err != nil {
 		return nil, err;
 	}
 
 	prog := p.parsePackage();
 
-	return prog, p.errorList();
+	return prog, p.GetError(scanner.NoMultiples);
 }
 
 
 // ParseStmts parses a list of Go statement.
-func ParseStmts(src interface{}, mode uint) ([]ast.Stmt, os.Error) {
+func ParseStmts(filename string, src interface{}, mode uint) ([]ast.Stmt, os.Error) {
 	if mode & (PackageClauseOnly | ImportsOnly) != 0 {
 		return nil, nil;
 	}
 
 	var p parser;
-	if err := p.init(src, mode); err != nil {
+	if err := p.init(filename, src, mode); err != nil {
 		return nil, err;
 	}
 
 	stmts := p.parseStatementList();
 
-	return stmts, p.errorList();
+	return stmts, p.GetError(scanner.Sorted);
 }
 
 
 // ParseExpr parses a single Go expression.
-func ParseExpr(src interface{}, mode uint) (ast.Expr, os.Error) {
+func ParseExpr(filename string, src interface{}, mode uint) (ast.Expr, os.Error) {
 	if mode & (PackageClauseOnly | ImportsOnly) != 0 {
 		return nil, nil;
 	}
 
 	var p parser;
-	if err := p.init(src, mode); err != nil {
+	if err := p.init(filename, src, mode); err != nil {
 		return nil, err;
 	}
 
 	expr := p.parseExpression();
 
-	return expr, p.errorList();
+	return expr, p.GetError(scanner.Sorted);
 }
