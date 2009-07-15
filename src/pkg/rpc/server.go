@@ -14,6 +14,7 @@ import (
 	"reflect";
 	"strings";
 	"sync";
+	"time";	// See TODO in serve()
 	"unicode";
 	"utf8";
 )
@@ -148,13 +149,13 @@ func _new(t *reflect.PtrType) *reflect.PtrValue {
 	return v;
 }
 
-func (s *service) sendResponse(sending *sync.Mutex, req *Request, reply interface{}, enc *gob.Encoder, errmsg string) {
+func sendResponse(sending *sync.Mutex, req *Request, reply interface{}, enc *gob.Encoder, errmsg string) {
 	resp := new(Response);
 	// Encode the response header
-	sending.Lock();
 	resp.ServiceMethod = req.ServiceMethod;
 	resp.Error = errmsg;
 	resp.Seq = req.Seq;
+	sending.Lock();
 	enc.Encode(resp);
 	// Encode the reply value.
 	enc.Encode(reply);
@@ -170,7 +171,7 @@ func (s *service) call(sending *sync.Mutex, function *reflect.FuncValue, req *Re
 	if errInter != nil {
 		errmsg = errInter.(os.Error).String();
 	}
-	s.sendResponse(sending, req, replyv.Interface(), enc, errmsg);
+	sendResponse(sending, req, replyv.Interface(), enc, errmsg);
 }
 
 func (server *serverType) serve(conn io.ReadWriteCloser) {
@@ -182,25 +183,27 @@ func (server *serverType) serve(conn io.ReadWriteCloser) {
 		req := new(Request);
 		err := dec.Decode(req);
 		if err != nil {
-			log.Stderr("rpc: server cannot decode request:", err);
+			s := "rpc: server cannot decode request: " + err.String();
+			sendResponse(sending, req, invalidRequest, enc, s);
 			break;
 		}
 		serviceMethod := strings.Split(req.ServiceMethod, ".", 0);
 		if len(serviceMethod) != 2 {
-			log.Stderr("rpc: service/Method request ill-formed:", req.ServiceMethod);
+			s := "rpc: service/method request ill:formed: " + req.ServiceMethod;
+			sendResponse(sending, req, invalidRequest, enc, s);
 			break;
 		}
 		// Look up the request.
 		service, ok := server.serviceMap[serviceMethod[0]];
 		if !ok {
 			s := "rpc: can't find service " + req.ServiceMethod;
-			service.sendResponse(sending, req, invalidRequest, enc, s);
+			sendResponse(sending, req, invalidRequest, enc, s);
 			break;
 		}
 		mtype, ok := service.method[serviceMethod[1]];
 		if !ok {
 			s := "rpc: can't find method " + req.ServiceMethod;
-			service.sendResponse(sending, req, invalidRequest, enc, s);
+			sendResponse(sending, req, invalidRequest, enc, s);
 			break;
 		}
 		method := mtype.method;
@@ -210,11 +213,17 @@ func (server *serverType) serve(conn io.ReadWriteCloser) {
 		err = dec.Decode(argv.Interface());
 		if err != nil {
 			log.Stderr("tearing down connection:", err);
-			service.sendResponse(sending, req, replyv.Interface(), enc, err.String());
+			sendResponse(sending, req, replyv.Interface(), enc, err.String());
 			break;
 		}
 		go service.call(sending, method.Func, req, argv, replyv, enc);
 	}
+	// TODO(r):  Gobs cannot handle unexpected data yet.  Once they can, we can
+	// ignore it and the connection can persist.  For now, though, bad data
+	// ruins the connection and we must shut down.  The sleep is necessary to
+	// guarantee all the data gets out before we close the connection, so the
+	// client can see the error description.
+	time.Sleep(2e9);
 	conn.Close();
 }
 

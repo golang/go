@@ -30,7 +30,7 @@ type Call struct {
 // Client represents an RPC Client.
 type Client struct {
 	sync.Mutex;	// protects pending, seq
-	closed	bool;
+	shutdown	os.Error;	// non-nil if the client is shut down
 	sending	sync.Mutex;
 	seq	uint64;
 	conn io.ReadWriteCloser;
@@ -42,6 +42,12 @@ type Client struct {
 func (client *Client) send(c *Call) {
 	// Register this call.
 	client.Lock();
+	if client.shutdown != nil {
+		client.Unlock();
+		c.Error = client.shutdown;
+		doNotBlock := c.Done <- c;
+		return;
+	}
 	c.seq = client.seq;
 	client.seq++;
 	client.pending[c.seq] = c;
@@ -66,10 +72,7 @@ func (client *Client) serve() {
 		response := new(Response);
 		err = client.dec.Decode(response);
 		if err != nil {
-			if err == os.EOF {
-				break;
-			}
-			break;
+			break
 		}
 		seq := response.Seq;
 		client.Lock();
@@ -82,7 +85,14 @@ func (client *Client) serve() {
 		// sure the channel has enough buffer space. See comment in Go().
 		doNotBlock := c.Done <- c;
 	}
-	client.closed = true;
+	// Terminate pending calls.
+	client.Lock();
+	client.shutdown = err;
+	for seq, call := range client.pending {
+		call.Error = err;
+		doNotBlock := call.Done <- call;
+	}
+	client.Unlock();
 	log.Stderr("client protocol error:", err);
 }
 
@@ -144,8 +154,8 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 		// RPCs that will be using that channel.
 	}
 	c.Done = done;
-	if client.closed {
-		c.Error = os.EOF;
+	if client.shutdown != nil {
+		c.Error = client.shutdown;
 		doNotBlock := c.Done <- c;
 		return c;
 	}
@@ -155,8 +165,8 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) os.Error {
-	if client.closed {
-		return os.EOF
+	if client.shutdown != nil {
+		return client.shutdown
 	}
 	call := <-client.Go(serviceMethod, args, reply, nil).Done;
 	return call.Error;
