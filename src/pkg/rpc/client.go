@@ -43,8 +43,8 @@ func (client *Client) send(c *Call) {
 	// Register this call.
 	client.Lock();
 	if client.shutdown != nil {
-		client.Unlock();
 		c.Error = client.shutdown;
+		client.Unlock();
 		doNotBlock := c.Done <- c;
 		return;
 	}
@@ -72,6 +72,9 @@ func (client *Client) serve() {
 		response := new(Response);
 		err = client.dec.Decode(response);
 		if err != nil {
+			if err == os.EOF {
+				err = io.ErrUnexpectedEOF;
+			}
 			break
 		}
 		seq := response.Seq;
