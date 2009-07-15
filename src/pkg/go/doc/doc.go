@@ -174,14 +174,20 @@ func copyCommentList(list []*ast.Comment) []*ast.Comment {
 }
 
 
-var bug_markers *regexp.Regexp;  // Regexp constructor needs threads - cannot use init expression
+var (
+	// Regexp constructor needs threads - cannot use init expressions
+	bug_markers *regexp.Regexp;
+	bug_content *regexp.Regexp;
+)
+
 
 // AddProgram adds the AST for a source file to the DocReader.
 // Adding the same AST multiple times is a no-op.
 //
 func (doc *DocReader) AddProgram(prog *ast.Program) {
 	if bug_markers == nil {
-		bug_markers = makeRex("^/[/*][ \t]*BUG(\\([^)]*\\))?:?[ \t]*");
+		bug_markers = makeRex("^/[/*][ \t]*BUG\\(.*\\):[ \t]*");  // BUG(uid):
+		bug_content = makeRex("[^ \n\r\t]+");  // at least one non-whitespace char
 	}
 
 	if doc.name != prog.Name.Value {
@@ -202,13 +208,15 @@ func (doc *DocReader) AddProgram(prog *ast.Program) {
 	// collect BUG(...) comments
 	for _, c := range prog.Comments {
 		text := c.List[0].Text;
-		m := bug_markers.Execute(string(text));
-		if len(m) > 0 {
-			// found a BUG comment;
-			// push a copy of the comment w/o the BUG prefix
-			list := copyCommentList(c.List);
-			list[0].Text = text[m[1] : len(text)];
-			doc.bugs.Push(&ast.CommentGroup{list, c.EndLine});
+		cstr := string(text);
+		if m := bug_markers.Execute(cstr); len(m) > 0 {
+			// found a BUG comment; maybe empty
+			if bstr := cstr[m[1] : len(cstr)]; bug_content.Match(bstr) {
+				// non-empty BUG comment; collect comment without BUG prefix
+				list := copyCommentList(c.List);
+				list[0].Text = text[m[1] : len(text)];
+				doc.bugs.Push(&ast.CommentGroup{list, c.EndLine});
+			}
 		}
 	}
 }
