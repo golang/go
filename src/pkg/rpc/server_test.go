@@ -5,7 +5,6 @@
 package rpc
 
 import (
-	"fmt";
 	"gob";
 	"http";
 	"io";
@@ -19,6 +18,7 @@ import (
 )
 
 var serverAddr string
+var httpServerAddr string
 
 const second = 1e9
 
@@ -56,29 +56,34 @@ func (t *Arith) Error(args *Args, reply *Reply) os.Error {
 }
 
 func startServer() {
-	server := new(Server);
-	server.Add(new(Arith));
+	rpc.Add(new(Arith));
+
 	l, e := net.Listen("tcp", ":0");	// any available address
+	if e != nil {
+		log.Exitf("net.Listen tcp :0: %v", e);
+	}
+	serverAddr = l.Addr();
+	log.Stderr("Test RPC server listening on ", serverAddr);
+	go rpc.Accept(l);
+
+	HandleHTTP();
+	l, e = net.Listen("tcp", ":0");	// any available address
 	if e != nil {
 		log.Stderrf("net.Listen tcp :0: %v", e);
 		os.Exit(1);
 	}
-	serverAddr = l.Addr();
-	log.Stderr("Test RPC server listening on ", serverAddr);
-	go server.Accept(l);
+	httpServerAddr = l.Addr();
+	log.Stderr("Test HTTP RPC server listening on ", httpServerAddr);
+	go http.Serve(l, nil);
 }
 
 func TestRPC(t *testing.T) {
-	var i int;
-
 	once.Do(startServer);
 
-	conn, err := net.Dial("tcp", "", serverAddr);
+	client, err := Dial("tcp", serverAddr);
 	if err != nil {
-		t.Fatal("dialing:", err)
+		t.Fatal("dialing", err);
 	}
-
-	client := NewClient(conn);
 
 	// Synchronous calls
 	args := &Args{7,8};
@@ -124,9 +129,24 @@ func TestRPC(t *testing.T) {
 	}
 }
 
-func TestCheckUnknownService(t *testing.T) {
-	var i int;
+func TestHTTPRPC(t *testing.T) {
+	once.Do(startServer);
 
+	client, err := DialHTTP("tcp", httpServerAddr);
+	if err != nil {
+		t.Fatal("dialing", err);
+	}
+
+	// Synchronous calls
+	args := &Args{7,8};
+	reply := new(Reply);
+	err = client.Call("Arith.Add", args, reply);
+	if reply.C != args.A + args.B {
+		t.Errorf("Add: expected %d got %d", reply.C, args.A + args.B);
+	}
+}
+
+func TestCheckUnknownService(t *testing.T) {
 	once.Do(startServer);
 
 	conn, err := net.Dial("tcp", "", serverAddr);
@@ -147,8 +167,6 @@ func TestCheckUnknownService(t *testing.T) {
 }
 
 func TestCheckUnknownMethod(t *testing.T) {
-	var i int;
-
 	once.Do(startServer);
 
 	conn, err := net.Dial("tcp", "", serverAddr);
@@ -169,8 +187,6 @@ func TestCheckUnknownMethod(t *testing.T) {
 }
 
 func TestCheckBadType(t *testing.T) {
-	var i int;
-
 	once.Do(startServer);
 
 	conn, err := net.Dial("tcp", "", serverAddr);

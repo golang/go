@@ -6,6 +6,7 @@ package rpc
 
 import (
 	"gob";
+	"http";
 	"log";
 	"io";
 	"net";
@@ -16,8 +17,6 @@ import (
 	"unicode";
 	"utf8";
 )
-
-import "fmt" // TODO DELETE
 
 // Precompute the reflect type for os.Error.  Can't use os.Error directly
 // because Typeof takes an empty interface value.  This is annoying.
@@ -50,11 +49,14 @@ type Response struct {
 	Error	string;
 }
 
-// Server represents the set of services available to an RPC client.
-// The zero type for Server is ready to have services added.
-type Server struct {
+type serverType struct {
 	serviceMap	map[string] *service;
 }
+
+// This variable is a global whose "public" methods are really private methods
+// called from the global functions of this package: rpc.Add, rpc.ServeConn, etc.
+// For example, rpc.Add() calls server.add().
+var server = &serverType{ make(map[string] *service) }
 
 // Is this a publicly vislble - upper case - name?
 func isPublic(name string) bool {
@@ -62,13 +64,7 @@ func isPublic(name string) bool {
 	return unicode.IsUpper(rune)
 }
 
-// Add publishes in the server the set of methods of the
-// recevier value that satisfy the following conditions:
-//	- public method
-//	- two arguments, both pointers to structs
-//	- one return value of type os.Error
-// It returns an error if the receiver is not suitable.
-func (server *Server) Add(rcvr interface{}) os.Error {
+func (server *serverType) add(rcvr interface{}) os.Error {
 	if server.serviceMap == nil {
 		server.serviceMap = make(map[string] *service);
 	}
@@ -80,7 +76,7 @@ func (server *Server) Add(rcvr interface{}) os.Error {
 		log.Exit("rpc: no service name for type", s.typ.String())
 	}
 	if !isPublic(sname) {
-		s := "rpc server.Add: type " + sname + " is not public";
+		s := "rpc Add: type " + sname + " is not public";
 		log.Stderr(s);
 		return os.ErrorString(s);
 	}
@@ -132,7 +128,7 @@ func (server *Server) Add(rcvr interface{}) os.Error {
 	}
 
 	if len(s.method) == 0 {
-		s := "rpc server.Add: type " + sname + " has no public methods of suitable type";
+		s := "rpc Add: type " + sname + " has no public methods of suitable type";
 		log.Stderr(s);
 		return os.ErrorString(s);
 	}
@@ -177,7 +173,7 @@ func (s *service) call(sending *sync.Mutex, function *reflect.FuncValue, req *Re
 	s.sendResponse(sending, req, replyv.Interface(), enc, errmsg);
 }
 
-func (server *Server) serve(conn io.ReadWriteCloser) {
+func (server *serverType) serve(conn io.ReadWriteCloser) {
 	dec := gob.NewDecoder(conn);
 	enc := gob.NewEncoder(conn);
 	sending := new(sync.Mutex);
@@ -222,20 +218,69 @@ func (server *Server) serve(conn io.ReadWriteCloser) {
 	conn.Close();
 }
 
-// ServeConn runs the server on a single connection.  When the connection
-// completes, service terminates.
-func (server *Server) ServeConn(conn io.ReadWriteCloser) {
-	go server.serve(conn)
-}
-
-// Accept accepts connections on the listener and serves requests
-// for each incoming connection.
-func (server *Server) Accept(lis net.Listener) {
+func (server *serverType) accept(lis net.Listener) {
 	for {
 		conn, addr, err := lis.Accept();
 		if err != nil {
 			log.Exit("rpc.Serve: accept:", err.String());	// TODO(r): exit?
 		}
-		go server.ServeConn(conn);
+		go server.serve(conn);
 	}
+}
+
+// Add publishes in the server the set of methods of the
+// receiver value that satisfy the following conditions:
+//	- public method
+//	- two arguments, both pointers to structs
+//	- one return value of type os.Error
+// It returns an error if the receiver is not suitable.
+func Add(rcvr interface{}) os.Error {
+	return server.add(rcvr)
+}
+
+// ServeConn runs the server on a single connection.  When the connection
+// completes, service terminates.
+func ServeConn(conn io.ReadWriteCloser) {
+	go server.serve(conn)
+}
+
+// Accept accepts connections on the listener and serves requests
+// for each incoming connection.
+func Accept(lis net.Listener) {
+	server.accept(lis)
+}
+
+type bufRWC struct {
+	r io.Reader;
+	w io.Writer;
+	c io.Closer;
+}
+
+func (b *bufRWC) Read(p []byte) (n int, err os.Error) {
+	return b.r.Read(p);
+}
+
+func (b *bufRWC) Write(p []byte) (n int, err os.Error) {
+	return b.w.Write(p);
+}
+
+func (b *bufRWC) Close() os.Error {
+	return b.c.Close();
+}
+
+func serveHTTP(c *http.Conn, req *http.Request) {
+	conn, buf, err := c.Hijack();
+	if err != nil {
+		log.Stderr("rpc hijacking ", c.RemoteAddr, ": ", err.String());
+		return;
+	}
+	server.serve(&bufRWC{buf, conn, conn});
+}
+
+var rpcPath string = "/_goRPC_"
+
+// HandleHTTP registers an HTTP handler for RPC messages.
+// It is still necessary to call http.Serve().
+func HandleHTTP() {
+	http.Handle(rpcPath, http.HandlerFunc(serveHTTP));
 }
