@@ -5,12 +5,15 @@
 package rpc
 
 import (
+	"bufio";
 	"gob";
+	"http";
 	"io";
 	"log";
 	"net";
 	"os";
 	"rpc";
+	"strconv";
 	"sync";
 )
 
@@ -101,8 +104,19 @@ func DialHTTP(network, address string) (*Client, os.Error) {
 	if err != nil {
 		return nil, err
 	}
-	io.WriteString(conn, "GET " + rpcPath + " HTTP/1.0\n\n");
-	return NewClient(conn), nil;
+	io.WriteString(conn, "CONNECT " + rpcPath + " HTTP/1.0\n\n");
+
+	// Require successful HTTP response
+	// before switching to RPC protocol.
+	resp, err := http.ReadResponse(bufio.NewReader(conn));
+	if err == nil && resp.Status == connected {
+		return NewClient(conn), nil;
+	}
+	if err == nil {
+		err = os.ErrorString("unexpected HTTP response: " + resp.Status);
+	}
+	conn.Close();
+	return nil, &net.OpError{"dial-http", network, address, err};
 }
 
 // Dial connects to an RPC server at the specified network address.

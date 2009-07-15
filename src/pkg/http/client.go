@@ -71,6 +71,43 @@ type readClose struct {
 	io.Closer;
 }
 
+// ReadResponse reads and returns an HTTP response from r.
+func ReadResponse(r *bufio.Reader) (*Response, os.Error) {
+	resp := new(Response);
+
+	// Parse the first line of the response.
+	resp.Header = make(map[string] string);
+
+	line, err := readLine(r);
+	if err != nil {
+		return nil, err;
+	}
+	f := strings.Split(line, " ", 3);
+	if len(f) < 3 {
+		return nil, &badStringError{"malformed HTTP response", line};
+	}
+	resp.Status = f[1] + " " + f[2];
+	resp.StatusCode, err = strconv.Atoi(f[1]);
+	if err != nil {
+		return nil, &badStringError{"malformed HTTP status code", f[1]};
+	}
+
+	// Parse the response headers.
+	for {
+		key, value, err := readKeyValue(r);
+		if err != nil {
+			return nil, err;
+		}
+		if key == "" {
+			break; // end of response header
+		}
+		resp.AddHeader(key, value);
+	}
+
+	return resp, nil;
+}
+
+
 // Send issues an HTTP request.  Caller should close resp.Body when done reading it.
 //
 // TODO: support persistent connections (multiple requests on a single connection).
@@ -90,44 +127,17 @@ func send(req *Request) (resp *Response, err os.Error) {
 		return nil, err;
 	}
 
-	// Close the connection if we encounter an error during header parsing.  We'll
-	// cancel this when we hand the connection off to our caller.
-	defer func() { if conn != nil { conn.Close() } }();
-
 	err = req.write(conn);
 	if err != nil {
+		conn.Close();
 		return nil, err;
 	}
 
-	// Parse the first line of the response.
-	resp = new(Response);
-	resp.Header = make(map[string] string);
 	reader := bufio.NewReader(conn);
-
-	line, err := readLine(reader);
+	resp, err = ReadResponse(reader);
 	if err != nil {
+		conn.Close();
 		return nil, err;
-	}
-	f := strings.Split(line, " ", 3);
-	if len(f) < 3 {
-		return nil, &badStringError{"malformed HTTP response", line};
-	}
-	resp.Status = f[1] + " " + f[2];
-	resp.StatusCode, err = strconv.Atoi(f[1]);
-	if err != nil {
-		return nil, &badStringError{"malformed HTTP status code", f[1]};
-	}
-
-	// Parse the response headers.
-	for {
-		key, value, err := readKeyValue(reader);
-		if err != nil {
-			return nil, err;
-		}
-		if key == "" {
-			break; // end of response header
-		}
-		resp.AddHeader(key, value);
 	}
 
 	r := io.Reader(reader);
@@ -136,8 +146,6 @@ func send(req *Request) (resp *Response, err os.Error) {
 	}
 	resp.Body = readClose{ r, conn };
 
-	conn = nil; // so that defered func won't close it
-	err = nil;
 	return;
 }
 
