@@ -66,7 +66,7 @@ func (client *Client) send(c *Call) {
 	client.sending.Unlock();
 }
 
-func (client *Client) serve() {
+func (client *Client) input() {
 	var err os.Error;
 	for err == nil {
 		response := new(Response);
@@ -107,7 +107,7 @@ func NewClient(conn io.ReadWriteCloser) *Client {
 	client.enc = gob.NewEncoder(conn);
 	client.dec = gob.NewDecoder(conn);
 	client.pending = make(map[uint64] *Call);
-	go client.serve();
+	go client.input();
 	return client;
 }
 
