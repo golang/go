@@ -250,34 +250,25 @@ func Accept(lis net.Listener) {
 	server.accept(lis)
 }
 
-type bufRWC struct {
-	r io.Reader;
-	w io.Writer;
-	c io.Closer;
-}
-
-func (b *bufRWC) Read(p []byte) (n int, err os.Error) {
-	return b.r.Read(p);
-}
-
-func (b *bufRWC) Write(p []byte) (n int, err os.Error) {
-	return b.w.Write(p);
-}
-
-func (b *bufRWC) Close() os.Error {
-	return b.c.Close();
-}
+// Can connect to RPC service using HTTP CONNECT to rpcPath.
+var rpcPath string = "/_goRPC_"
+var connected = "200 Connected to Go RPC"
 
 func serveHTTP(c *http.Conn, req *http.Request) {
+	if req.Method != "CONNECT" {
+		c.SetHeader("Content-Type", "text/plain; charset=utf-8");
+		c.WriteHeader(http.StatusMethodNotAllowed);
+		io.WriteString(c, "405 must CONNECT to " + rpcPath + "\n");
+		return;
+	}
 	conn, buf, err := c.Hijack();
 	if err != nil {
 		log.Stderr("rpc hijacking ", c.RemoteAddr, ": ", err.String());
 		return;
 	}
-	server.serve(&bufRWC{buf, conn, conn});
+	io.WriteString(conn, "HTTP/1.0 " + connected + "\n\n");
+	server.serve(conn);
 }
-
-var rpcPath string = "/_goRPC_"
 
 // HandleHTTP registers an HTTP handler for RPC messages.
 // It is still necessary to call http.Serve().
