@@ -260,16 +260,11 @@ func PrintDefaults() {
 	})
 }
 
-// Usage prints to standard error a default usage message documenting all defined flags and
-// then calls os.Exit(1).
-func Usage() {
-	if len(os.Args) > 0 {
-		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0]);
-	} else {
-		fmt.Fprintln(os.Stderr, "Usage:");
-	}
+// Usage prints to standard error a default usage message documenting all defined flags.
+// The function is a variable that may be changed to point to a custom function.
+var Usage = func() {
+	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0]);
 	PrintDefaults();
-	os.Exit(1);
 }
 
 func NFlag() int {
@@ -415,6 +410,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
 	if len(name) == 0 || name[0] == '-' || name[0] == '=' {
 		print("bad flag syntax: ", s, "\n");
 		Usage();
+		os.Exit(2);
 	}
 
 	// it's a flag. does it have an argument?
@@ -432,18 +428,21 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
 	if alreadythere {
 		print("flag specified twice: -", name, "\n");
 		Usage();
+		os.Exit(2);
 	}
 	m := flags.formal;
 	flag, alreadythere = m[name]; // BUG
 	if !alreadythere {
 		print("flag provided but not defined: -", name, "\n");
 		Usage();
+		os.Exit(2);
 	}
 	if f, ok := flag.Value.(*boolValue); ok {	// special case: doesn't need an arg
 		if has_value {
 			if !f.set(value) {
 				print("invalid boolean value ", value, " for flag: -", name, "\n");
 				Usage();
+				os.Exit(2);
 			}
 		} else {
 			f.set("true")
@@ -459,11 +458,13 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
 		if !has_value {
 			print("flag needs an argument: -", name, "\n");
 			Usage();
+			os.Exit(2);
 		}
 		ok = flag.Value.set(value);
 		if !ok {
 			print("invalid value ", value, " for flag: -", name, "\n");
 				Usage();
+				os.Exit(2);
 		}
 	}
 	flags.actual[name] = flag;
