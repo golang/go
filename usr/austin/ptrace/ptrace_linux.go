@@ -158,7 +158,7 @@ type thread struct {
 	exitStatus int;
 }
 
-func (p *process) newThread(tid int) (*thread, os.Error)
+func (p *process) newThread(tid int, signal int, cloned bool) (*thread, os.Error)
 
 /*
  * Errors
@@ -184,6 +184,16 @@ type noBreakpointError Word
 
 func (e noBreakpointError) String() string {
 	return fmt.Sprintf("no breakpoint at PC %#x", e);
+}
+
+type newThreadError struct {
+	*os.Waitmsg;
+	wantPid int;
+	wantSig int;
+}
+
+func (e *newThreadError) String() string {
+	return fmt.Sprintf("newThread wait wanted pid %v and signal %v, got %v and %v", e.Pid, e.StopSignal(), e.wantPid, e.wantSig);
 }
 
 /*
@@ -218,7 +228,6 @@ func (t *thread) ptraceSetOptions(options int) os.Error {
 func (t *thread) ptraceGetEventMsg() (uint, os.Error) {
 	msg, err := syscall.PtraceGetEventMsg(t.tid);
 	return msg, os.NewSyscallError("ptrace(GETEVENTMSG)", err);
-
 }
 
 func (t *thread) ptraceCont() os.Error {
@@ -464,6 +473,8 @@ func (p *process) stopAsync() os.Error {
 // doTrap handles SIGTRAP debug events with a cause of 0.  These can
 // be caused either by an installed breakpoint, a breakpoint in the
 // program text, or by single stepping.
+//
+// TODO(austin) I think we also get this on an execve syscall.
 func (ev *debugEvent) doTrap() (threadState, os.Error) {
 	t := ev.t;
 
@@ -512,7 +523,7 @@ func (ev *debugEvent) doPtraceClone() (threadState, os.Error) {
 		return stopped, err;
 	}
 
-	nt, err := t.proc.newThread(int(tid));
+	nt, err := t.proc.newThread(int(tid), syscall.SIGSTOP, true);
 	if err != nil {
 		return stopped, err;
 	}
@@ -619,6 +630,9 @@ func (ev *debugEvent) process() os.Error {
 	if t.state == stopping && ev.StopSignal() != syscall.SIGSTOP {
 		t.ignoreNextSigstop = true;
 	}
+
+	// TODO(austin) If we're in state stopping and get a SIGSTOP,
+	// set state stopped instead of stoppedSignal.
 
 	t.setState(state);
 
@@ -1036,6 +1050,8 @@ func (p *process) WaitStop() os.Error {
 		h := &transitionHandler{};
 		h.handle = func (st *thread, old, new threadState) {
 			if !new.isRunning() {
+				// TODO(austin) This gets stuck on
+				// zombie threads.
 				if p.someRunningThread() == nil {
 					ready <- nil;
 					return;
@@ -1091,20 +1107,28 @@ func (p *process) Detach() os.Error {
 }
 
 // newThread creates a new thread object and waits for its initial
-// SIGSTOP.
+// signal.  If cloned is true, this thread was cloned from a thread we
+// are already attached to.
 //
 // Must be run from the monitor thread.
-func (p *process) newThread(tid int) (*thread, os.Error) {
+func (p *process) newThread(tid int, signal int, cloned bool) (*thread, os.Error) {
 	t := &thread{tid: tid, proc: p, state: stopped};
 
-	// Get the SIGSTOP from the thread
-	// TODO(austin) Thread might already be stopped
+	// Get the signal from the thread
+	// TODO(austin) Thread might already be stopped if we're attaching.
 	w, err := os.Wait(tid, syscall.WALL);
 	if err != nil {
 		return nil, err;
 	}
-	if w.Pid != tid || w.StopSignal() != syscall.SIGSTOP {
-		return nil, os.EINVAL;
+	if w.Pid != tid || w.StopSignal() != signal {
+		return nil, &newThreadError{w, tid, signal};
+	}
+
+	if !cloned {
+		err = t.ptraceSetOptions(syscall.PTRACE_O_TRACECLONE | syscall.PTRACE_O_TRACEEXIT);
+		if err != nil {
+			return nil, err;
+		}
 	}
 
 	p.threads[tid] = t;
@@ -1125,7 +1149,7 @@ func (p *process) attachThread(tid int) (*thread, os.Error) {
 		}
 
 		var err os.Error;
-		thr, err = p.newThread(tid);
+		thr, err = p.newThread(tid, syscall.SIGSTOP, false);
 		return err;
 	});
 	return thr, err;
@@ -1196,8 +1220,8 @@ func (p *process) attachAllThreads() os.Error {
 	return nil;
 }
 
-// Attach attaches to process pid and stops all of its threads.
-func Attach(pid int) (Process, os.Error) {
+// newProcess creates a new process object and starts its monitor thread.
+func newProcess(pid int) *process {
 	p := &process{
 		pid: pid,
 		threads: make(map[int] *thread),
@@ -1208,9 +1232,14 @@ func Attach(pid int) (Process, os.Error) {
 		transitionHandlers: vector.New(0)
 	};
 
-	// All ptrace calls must be done from the same thread.  Start
-	// the monitor thread now so we can attach from within it.
 	go p.monitor();
+
+	return p;
+}
+
+// Attach attaches to process pid and stops all of its threads.
+func Attach(pid int) (Process, os.Error) {
+	p := newProcess(pid);
 
 	// Attach to all threads
 	err := p.attachAllThreads();
@@ -1221,20 +1250,41 @@ func Attach(pid int) (Process, os.Error) {
 		return nil, err;
 	}
 
-	// Set ptrace options for all threads
-	err = p.do(func () os.Error {
-		for _, t := range p.threads {
-			err := t.ptraceSetOptions(syscall.PTRACE_O_TRACECLONE | syscall.PTRACE_O_TRACEEXIT);
-			if err != nil {
-				return err;
-			}
+	return p, nil;
+}
+
+// ForkExec forks the current process and execs argv0, stopping the
+// new process after the exec syscall.  See os.ForkExec for additional
+// details.
+func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File)
+	(Process, os.Error)
+{
+	p := newProcess(-1);
+
+	// Create array of integer (system) fds.
+	intfd := make([]int, len(fd));
+	for i, f := range fd {
+		if f == nil {
+			intfd[i] = -1;
+		} else {
+			intfd[i] = f.Fd();
 		}
-		return nil;
+	}
+
+	// Fork from the monitor thread so we get the right tracer pid.
+	err := p.do(func () os.Error {
+		pid, errno := syscall.PtraceForkExec(argv0, argv, envv, dir, intfd);
+		if errno != 0 {
+			return &os.PathError{"fork/exec", argv0, os.Errno(errno)};
+		}
+		p.pid = pid;
+
+		// The process will raise SIGTRAP when it reaches execve.
+		t, err := p.newThread(pid, syscall.SIGTRAP, false);
+		return err;
 	});
 	if err != nil {
-		p.Detach();
-		// TODO(austin)
-		//p.stopMonitor(err);
+		p.stopMonitor(err);
 		return nil, err;
 	}
 
