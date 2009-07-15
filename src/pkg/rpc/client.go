@@ -8,6 +8,7 @@ import (
 	"gob";
 	"io";
 	"log";
+	"net";
 	"os";
 	"rpc";
 	"sync";
@@ -92,6 +93,25 @@ func NewClient(conn io.ReadWriteCloser) *Client {
 	client.pending = make(map[uint64] *Call);
 	go client.serve();
 	return client;
+}
+
+// Dial connects to an HTTP RPC server at the specified network address.
+func DialHTTP(network, address string) (*Client, os.Error) {
+	conn, err := net.Dial(network, "", address);
+	if err != nil {
+		return nil, err
+	}
+	io.WriteString(conn, "GET " + rpcPath + " HTTP/1.0\n\n");
+	return NewClient(conn), nil;
+}
+
+// Dial connects to an RPC server at the specified network address.
+func Dial(network, address string) (*Client, os.Error) {
+	conn, err := net.Dial(network, "", address);
+	if err != nil {
+		return nil, err
+	}
+	return NewClient(conn), nil;
 }
 
 // Go invokes the function asynchronously.  It returns the Call structure representing
