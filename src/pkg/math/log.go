@@ -120,7 +120,7 @@ func Log(x float64) float64 {
 	return k*Ln2Hi - ((hfsq-(s*(hfsq+R)+k*Ln2Lo)) - f);
 }
 
-// Log10 returns the decimal logarthm of x.
+// Log10 returns the decimal logarithm of x.
 // The special cases are the same as for Log.
 func Log10(x float64) float64 {
 	if x <= 0 {
