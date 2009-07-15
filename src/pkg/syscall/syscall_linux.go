@@ -521,9 +521,7 @@ func PtraceSetOptions(pid int, options int) (errno int) {
 func PtraceGetEventMsg(pid int) (msg uint, errno int) {
 	var data _C_long;
 	errno = ptrace(_PTRACE_GETEVENTMSG, pid, 0, uintptr(unsafe.Pointer(&data)));
-	if errno != 0 {
-		msg = uint(data);
-	}
+	msg = uint(data);
 	return;
 }
 
