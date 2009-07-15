@@ -24,7 +24,7 @@ go/parser.install: bytes.install container/vector.install fmt.install go/ast.ins
 go/printer.install: fmt.install go/ast.install go/token.install io.install os.install reflect.install strings.install
 go/scanner.install: bytes.install container/vector.install fmt.install go/token.install io.install os.install sort.install strconv.install unicode.install utf8.install
 go/token.install: strconv.install
-gob.install: fmt.install io.install math.install os.install reflect.install strings.install sync.install unicode.install
+gob.install: bytes.install fmt.install io.install math.install os.install reflect.install strings.install sync.install unicode.install
 hash.install: io.install
 hash/adler32.install: hash.install os.install
 hash/crc32.install: hash.install os.install

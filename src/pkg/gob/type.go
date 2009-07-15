@@ -17,7 +17,7 @@ import (
 // Internally, they are used as keys to a map to recover the underlying type info.
 type TypeId int32
 
-var id	TypeId	// incremented for each new type we build
+var nextId	TypeId	// incremented for each new type we build
 var typeLock	sync.Mutex	// set while building a type
 
 type gobType interface {
@@ -31,9 +31,9 @@ var types = make(map[reflect.Type] gobType)
 var idToType = make(map[TypeId] gobType)
 
 func setTypeId(typ gobType) {
-	id++;
-	typ.setId(id);
-	idToType[id] = typ;
+	nextId++;
+	typ.setId(nextId);
+	idToType[nextId] = typ;
 }
 
 func (t TypeId) gobType() gobType {
@@ -296,7 +296,7 @@ func bootstrapType(name string, e interface{}) TypeId {
 	typ := &commonType{ name: name };
 	types[rt] = typ;
 	setTypeId(typ);
-	return id
+	return nextId
 }
 
 // Representation of the information we send and receive about this type.
