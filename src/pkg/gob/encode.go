@@ -5,6 +5,7 @@
 package gob
 
 import (
+	"bytes";
 	"gob";
 	"io";
 	"math";
@@ -18,8 +19,8 @@ import (
 // Field numbers are delta encoded and always increase. The field
 // number is initialized to -1 so 0 comes out as delta(1). A delta of
 // 0 terminates the structure.
-type EncState struct {
-	w	io.Writer;
+type encoderState struct {
+	b	*bytes.Buffer;
 	err	os.Error;	// error encountered during encoding;
 	fieldnum	int;	// the last field number written.
 	buf [16]byte;	// buffer used by the encoder; here to avoid allocation.
@@ -30,37 +31,36 @@ type EncState struct {
 // That way there's only one bit to clear and the value is a little easier to see if
 // you're the unfortunate sort of person who must read the hex to debug.
 
-// EncodeUint writes an encoded unsigned integer to state.w.  Sets state.err.
+// encodeUint writes an encoded unsigned integer to state.b.  Sets state.err.
 // If state.err is already non-nil, it does nothing.
-func EncodeUint(state *EncState, x uint64) {
+func encodeUint(state *encoderState, x uint64) {
 	var n int;
 	if state.err != nil {
 		return
 	}
-	for n = 0; x > 127; n++ {
+	for n = 0; x > 0x7F; n++ {
 		state.buf[n] = uint8(x & 0x7F);
 		x >>= 7;
 	}
 	state.buf[n] = 0x80 | uint8(x);
-	var nn int;
-	nn, state.err = state.w.Write(state.buf[0:n+1]);
+	n, state.err = state.b.Write(state.buf[0:n+1]);
 }
 
-// EncodeInt writes an encoded signed integer to state.w.
+// encodeInt writes an encoded signed integer to state.w.
 // The low bit of the encoding says whether to bit complement the (other bits of the) uint to recover the int.
 // Sets state.err. If state.err is already non-nil, it does nothing.
-func EncodeInt(state *EncState, i int64){
+func encodeInt(state *encoderState, i int64){
 	var x uint64;
 	if i < 0 {
 		x = uint64(^i << 1) | 1
 	} else {
 		x = uint64(i << 1)
 	}
-	EncodeUint(state, uint64(x))
+	encodeUint(state, uint64(x))
 }
 
 type encInstr struct
-type encOp func(i *encInstr, state *EncState, p unsafe.Pointer)
+type encOp func(i *encInstr, state *encoderState, p unsafe.Pointer)
 
 // The 'instructions' of the encoding machine
 type encInstr struct {
@@ -72,9 +72,9 @@ type encInstr struct {
 
 // Emit a field number and update the state to record its value for delta encoding.
 // If the instruction pointer is nil, do nothing
-func (state *EncState) update(instr *encInstr) {
+func (state *encoderState) update(instr *encInstr) {
 	if instr != nil {
-		EncodeUint(state, uint64(instr.field - state.fieldnum));
+		encodeUint(state, uint64(instr.field - state.fieldnum));
 		state.fieldnum = instr.field;
 	}
 }
@@ -95,99 +95,99 @@ func encIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
 	return p
 }
 
-func encBool(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encBool(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	b := *(*bool)(p);
 	if b {
 		state.update(i);
-		EncodeUint(state, 1);
+		encodeUint(state, 1);
 	}
 }
 
-func encInt(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encInt(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := int64(*(*int)(p));
 	if v != 0 {
 		state.update(i);
-		EncodeInt(state, v);
+		encodeInt(state, v);
 	}
 }
 
-func encUint(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encUint(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uint)(p));
 	if v != 0 {
 		state.update(i);
-		EncodeUint(state, v);
+		encodeUint(state, v);
 	}
 }
 
-func encInt8(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encInt8(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := int64(*(*int8)(p));
 	if v != 0 {
 		state.update(i);
-		EncodeInt(state, v);
+		encodeInt(state, v);
 	}
 }
 
-func encUint8(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encUint8(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uint8)(p));
 	if v != 0 {
 		state.update(i);
-		EncodeUint(state, v);
+		encodeUint(state, v);
 	}
 }
 
-func encInt16(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encInt16(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := int64(*(*int16)(p));
 	if v != 0 {
 		state.update(i);
-		EncodeInt(state, v);
+		encodeInt(state, v);
 	}
 }
 
-func encUint16(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encUint16(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uint16)(p));
 	if v != 0 {
 		state.update(i);
-		EncodeUint(state, v);
+		encodeUint(state, v);
 	}
 }
 
-func encInt32(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encInt32(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := int64(*(*int32)(p));
 	if v != 0 {
 		state.update(i);
-		EncodeInt(state, v);
+		encodeInt(state, v);
 	}
 }
 
-func encUint32(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encUint32(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uint32)(p));
 	if v != 0 {
 		state.update(i);
-		EncodeUint(state, v);
+		encodeUint(state, v);
 	}
 }
 
-func encInt64(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encInt64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := *(*int64)(p);
 	if v != 0 {
 		state.update(i);
-		EncodeInt(state, v);
+		encodeInt(state, v);
 	}
 }
 
-func encUint64(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encUint64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := *(*uint64)(p);
 	if v != 0 {
 		state.update(i);
-		EncodeUint(state, v);
+		encodeUint(state, v);
 	}
 }
 
-func encUintptr(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encUintptr(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	v := uint64(*(*uintptr)(p));
 	if v != 0 {
 		state.update(i);
-		EncodeUint(state, v);
+		encodeUint(state, v);
 	}
 }
 
@@ -207,56 +207,56 @@ func floatBits(f float64) uint64 {
 	return v;
 }
 
-func encFloat(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encFloat(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	f := float(*(*float)(p));
 	if f != 0 {
 		v := floatBits(float64(f));
 		state.update(i);
-		EncodeUint(state, v);
+		encodeUint(state, v);
 	}
 }
 
-func encFloat32(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encFloat32(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	f := float32(*(*float32)(p));
 	if f != 0 {
 		v := floatBits(float64(f));
 		state.update(i);
-		EncodeUint(state, v);
+		encodeUint(state, v);
 	}
 }
 
-func encFloat64(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encFloat64(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	f := *(*float64)(p);
 	if f != 0 {
 		state.update(i);
 		v := floatBits(f);
-		EncodeUint(state, v);
+		encodeUint(state, v);
 	}
 }
 
 // Byte arrays are encoded as an unsigned count followed by the raw bytes.
-func encUint8Array(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encUint8Array(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	b := *(*[]byte)(p);
 	if len(b) > 0 {
 		state.update(i);
-		EncodeUint(state, uint64(len(b)));
-		state.w.Write(b);
+		encodeUint(state, uint64(len(b)));
+		state.b.Write(b);
 	}
 }
 
 // Strings are encoded as an unsigned count followed by the raw bytes.
-func encString(i *encInstr, state *EncState, p unsafe.Pointer) {
+func encString(i *encInstr, state *encoderState, p unsafe.Pointer) {
 	s := *(*string)(p);
 	if len(s) > 0 {
 		state.update(i);
-		EncodeUint(state, uint64(len(s)));
-		io.WriteString(state.w, s);
+		encodeUint(state, uint64(len(s)));
+		io.WriteString(state.b, s);
 	}
 }
 
 // The end of a struct is marked by a delta field number of 0.
-func encStructTerminator(i *encInstr, state *EncState, p unsafe.Pointer) {
-	EncodeUint(state, 0);
+func encStructTerminator(i *encInstr, state *encoderState, p unsafe.Pointer) {
+	encodeUint(state, 0);
 }
 
 // Execution engine
@@ -267,9 +267,9 @@ type encEngine struct {
 	instr	[]encInstr
 }
 
-func encodeStruct(engine *encEngine, w io.Writer, basep uintptr) os.Error {
-	state := new(EncState);
-	state.w = w;
+func encodeStruct(engine *encEngine, b *bytes.Buffer, basep uintptr) os.Error {
+	state := new(encoderState);
+	state.b = b;
 	state.fieldnum = -1;
 	for i := 0; i < len(engine.instr); i++ {
 		instr := &engine.instr[i];
@@ -287,17 +287,17 @@ func encodeStruct(engine *encEngine, w io.Writer, basep uintptr) os.Error {
 	return state.err
 }
 
-func encodeArray(w io.Writer, p uintptr, op encOp, elemWid uintptr, length int, elemIndir int) os.Error {
-	state := new(EncState);
-	state.w = w;
+func encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, length int, elemIndir int) os.Error {
+	state := new(encoderState);
+	state.b = b;
 	state.fieldnum = -1;
-	EncodeUint(state, uint64(length));
+	encodeUint(state, uint64(length));
 	for i := 0; i < length && state.err == nil; i++ {
 		elemp := p;
 		up := unsafe.Pointer(elemp);
 		if elemIndir > 0 {
 			if up = encIndirect(up, elemIndir); up == nil {
-				state.err = os.ErrorString("encodeArray: nil element");
+				state.err = os.ErrorString("gob: encodeArray: nil element");
 				break
 			}
 			elemp = uintptr(up);
@@ -345,29 +345,29 @@ func encOpFor(rt reflect.Type) (encOp, int) {
 			}
 			// Slices have a header; we decode it to find the underlying array.
 			elemOp, indir := encOpFor(t.Elem());
-			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
+			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				slice := (*reflect.SliceHeader)(p);
 				if slice.Len == 0 {
 					return
 				}
 				state.update(i);
-				state.err = encodeArray(state.w, slice.Data, elemOp, t.Elem().Size(), int(slice.Len), indir);
+				state.err = encodeArray(state.b, slice.Data, elemOp, t.Elem().Size(), int(slice.Len), indir);
 			};
 		case *reflect.ArrayType:
 			// True arrays have size in the type.
 			elemOp, indir := encOpFor(t.Elem());
-			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
+			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				state.update(i);
-				state.err = encodeArray(state.w, uintptr(p), elemOp, t.Elem().Size(), t.Len(), indir);
+				state.err = encodeArray(state.b, uintptr(p), elemOp, t.Elem().Size(), t.Len(), indir);
 			};
 		case *reflect.StructType:
 			// Generate a closure that calls out to the engine for the nested type.
 			engine := getEncEngine(typ);
 			info := getTypeInfo(typ);
-			op = func(i *encInstr, state *EncState, p unsafe.Pointer) {
+			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				state.update(i);
 				// indirect through info to delay evaluation for recursive structs
-				state.err = encodeStruct(info.encoder, state.w, uintptr(p));
+				state.err = encodeStruct(info.encoder, state.b, uintptr(p));
 			};
 		}
 	}
@@ -406,7 +406,7 @@ func getEncEngine(rt reflect.Type) *encEngine {
 	return info.encoder;
 }
 
-func Encode(w io.Writer, e interface{}) os.Error {
+func encode(b *bytes.Buffer, e interface{}) os.Error {
 	// Dereference down to the underlying object.
 	rt, indir := indirect(reflect.Typeof(e));
 	v := reflect.NewValue(e);
@@ -414,10 +414,10 @@ func Encode(w io.Writer, e interface{}) os.Error {
 		v = reflect.Indirect(v);
 	}
 	if _, ok := v.(*reflect.StructValue); !ok {
-		return os.ErrorString("encode can't handle " + v.Type().String())
+		return os.ErrorString("gob: encode can't handle " + v.Type().String())
 	}
 	typeLock.Lock();
 	engine := getEncEngine(rt);
 	typeLock.Unlock();
-	return encodeStruct(engine, w, v.Addr());
+	return encodeStruct(engine, b, v.Addr());
 }

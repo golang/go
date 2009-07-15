@@ -8,6 +8,7 @@ package gob
 // the allocations in this file that use unsafe.Pointer.
 
 import (
+	"bytes";
 	"gob";
 	"io";
 	"math";
@@ -17,27 +18,44 @@ import (
 )
 
 // The global execution state of an instance of the decoder.
-type DecState struct {
-	r	io.Reader;
+type decodeState struct {
+	b	*bytes.Buffer;
 	err	os.Error;
 	fieldnum	int;	// the last field number read.
-	buf [1]byte;	// buffer used by the decoder; here to avoid allocation.
 }
 
-// DecodeUint reads an encoded unsigned integer from state.r.
+// decodeUintReader reads an encoded unsigned integer from an io.Reader.
+// Used only by the Decoder to read the message length.
+func decodeUintReader(r io.Reader, oneByte []byte) (x uint64, err os.Error) {
+	for shift := uint(0);; shift += 7 {
+		var n int;
+		n, err = r.Read(oneByte);
+		if err != nil {
+			return 0, err
+		}
+		b := oneByte[0];
+		x |= uint64(b) << shift;
+		if b&0x80 != 0 {
+			x &^= 0x80 << shift;
+			break
+		}
+	}
+	return x, nil;
+}
+
+// decodeUint reads an encoded unsigned integer from state.r.
 // Sets state.err.  If state.err is already non-nil, it does nothing.
-func DecodeUint(state *DecState) (x uint64) {
+func decodeUint(state *decodeState) (x uint64) {
 	if state.err != nil {
 		return
 	}
 	for shift := uint(0);; shift += 7 {
-		var n int;
-		n, state.err = state.r.Read(&state.buf);
-		if n != 1 {
+		var b uint8;
+		b, state.err = state.b.ReadByte();
+		if state.err != nil {
 			return 0
 		}
-		b := uint64(state.buf[0]);
-		x |= b << shift;
+		x |= uint64(b) << shift;
 		if b&0x80 != 0 {
 			x &^= 0x80 << shift;
 			break
@@ -46,10 +64,10 @@ func DecodeUint(state *DecState) (x uint64) {
 	return x;
 }
 
-// DecodeInt reads an encoded signed integer from state.r.
+// decodeInt reads an encoded signed integer from state.r.
 // Sets state.err.  If state.err is already non-nil, it does nothing.
-func DecodeInt(state *DecState) int64 {
-	x := DecodeUint(state);
+func decodeInt(state *decodeState) int64 {
+	x := decodeUint(state);
 	if state.err != nil {
 		return 0
 	}
@@ -60,7 +78,7 @@ func DecodeInt(state *DecState) int64 {
 }
 
 type decInstr struct
-type decOp func(i *decInstr, state *DecState, p unsafe.Pointer);
+type decOp func(i *decInstr, state *decodeState, p unsafe.Pointer);
 
 // The 'instructions' of the decoding machine
 type decInstr struct {
@@ -89,124 +107,124 @@ func decIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
 	return p
 }
 
-func decBool(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decBool(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(bool));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*bool)(p) = DecodeInt(state) != 0;
+	*(*bool)(p) = decodeInt(state) != 0;
 }
 
-func decInt(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decInt(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*int)(p) = int(DecodeInt(state));
+	*(*int)(p) = int(decodeInt(state));
 }
 
-func decUint(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decUint(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*uint)(p) = uint(DecodeUint(state));
+	*(*uint)(p) = uint(decodeUint(state));
 }
 
-func decInt8(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decInt8(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int8));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*int8)(p) = int8(DecodeInt(state));
+	*(*int8)(p) = int8(decodeInt(state));
 }
 
-func decUint8(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decUint8(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint8));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*uint8)(p) = uint8(DecodeUint(state));
+	*(*uint8)(p) = uint8(decodeUint(state));
 }
 
-func decInt16(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decInt16(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int16));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*int16)(p) = int16(DecodeInt(state));
+	*(*int16)(p) = int16(decodeInt(state));
 }
 
-func decUint16(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decUint16(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint16));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*uint16)(p) = uint16(DecodeUint(state));
+	*(*uint16)(p) = uint16(decodeUint(state));
 }
 
-func decInt32(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decInt32(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int32));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*int32)(p) = int32(DecodeInt(state));
+	*(*int32)(p) = int32(decodeInt(state));
 }
 
-func decUint32(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decUint32(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint32));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*uint32)(p) = uint32(DecodeUint(state));
+	*(*uint32)(p) = uint32(decodeUint(state));
 }
 
-func decInt64(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decInt64(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(int64));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*int64)(p) = int64(DecodeInt(state));
+	*(*int64)(p) = int64(decodeInt(state));
 }
 
-func decUint64(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decUint64(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uint64));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*uint64)(p) = uint64(DecodeUint(state));
+	*(*uint64)(p) = uint64(decodeUint(state));
 }
 
-func decUintptr(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decUintptr(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(uintptr));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*uintptr)(p) = uintptr(DecodeUint(state));
+	*(*uintptr)(p) = uintptr(decodeUint(state));
 }
 
 // Floating-point numbers are transmitted as uint64s holding the bits
@@ -224,59 +242,59 @@ func floatFromBits(u uint64) float64 {
 	return math.Float64frombits(v);
 }
 
-func decFloat(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decFloat(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(float));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*float)(p) = float(floatFromBits(uint64(DecodeUint(state))));
+	*(*float)(p) = float(floatFromBits(uint64(decodeUint(state))));
 }
 
-func decFloat32(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decFloat32(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(float32));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*float32)(p) = float32(floatFromBits(uint64(DecodeUint(state))));
+	*(*float32)(p) = float32(floatFromBits(uint64(decodeUint(state))));
 }
 
-func decFloat64(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decFloat64(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new(float64));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	*(*float64)(p) = floatFromBits(uint64(DecodeUint(state)));
+	*(*float64)(p) = floatFromBits(uint64(decodeUint(state)));
 }
 
 // uint8 arrays are encoded as an unsigned count followed by the raw bytes.
-func decUint8Array(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decUint8Array(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new([]uint8));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	b := make([]uint8, DecodeUint(state));
-	state.r.Read(b);
+	b := make([]uint8, decodeUint(state));
+	state.b.Read(b);
 	*(*[]uint8)(p) = b;
 }
 
 // Strings are encoded as an unsigned count followed by the raw bytes.
-func decString(i *decInstr, state *DecState, p unsafe.Pointer) {
+func decString(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	if i.indir > 0 {
 		if *(*unsafe.Pointer)(p) == nil {
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new([]byte));
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	b := make([]byte, DecodeUint(state));
-	state.r.Read(b);
+	b := make([]byte, decodeUint(state));
+	state.b.Read(b);
 	*(*string)(p) = string(b);
 }
 
@@ -288,7 +306,7 @@ type decEngine struct {
 	instr	[]decInstr
 }
 
-func decodeStruct(engine *decEngine, rtyp *reflect.StructType, r io.Reader, p uintptr, indir int) os.Error {
+func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer, p uintptr, indir int) os.Error {
 	if indir > 0 {
 		up := unsafe.Pointer(p);
 		if *(*unsafe.Pointer)(up) == nil {
@@ -299,12 +317,12 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, r io.Reader, p ui
 		}
 		p = *(*uintptr)(up);
 	}
-	state := new(DecState);
-	state.r = r;
+	state := new(decodeState);
+	state.b = b;
 	state.fieldnum = -1;
 	basep := p;
 	for state.err == nil {
-		delta := int(DecodeUint(state));
+		delta := int(decodeUint(state));
 		if delta < 0 {
 			state.err = os.ErrorString("gob decode: corrupted data: negative delta");
 			break
@@ -327,7 +345,7 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, r io.Reader, p ui
 	return state.err
 }
 
-func decodeArrayHelper(state *DecState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int) os.Error {
+func decodeArrayHelper(state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int) os.Error {
 	instr := &decInstr{elemOp, 0, elemIndir, 0};
 	for i := 0; i < length && state.err == nil; i++ {
 		up := unsafe.Pointer(p);
@@ -340,7 +358,7 @@ func decodeArrayHelper(state *DecState, p uintptr, elemOp decOp, elemWid uintptr
 	return state.err
 }
 
-func decodeArray(atyp *reflect.ArrayType, state *DecState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int) os.Error {
+func decodeArray(atyp *reflect.ArrayType, state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int) os.Error {
 	if indir > 0 {
 		up := unsafe.Pointer(p);
 		if *(*unsafe.Pointer)(up) == nil {
@@ -351,14 +369,14 @@ func decodeArray(atyp *reflect.ArrayType, state *DecState, p uintptr, elemOp dec
 		}
 		p = *(*uintptr)(up);
 	}
-	if n := DecodeUint(state); n != uint64(length) {
-		return os.ErrorString("length mismatch in decodeArray");
+	if n := decodeUint(state); n != uint64(length) {
+		return os.ErrorString("gob: length mismatch in decodeArray");
 	}
 	return decodeArrayHelper(state, p, elemOp, elemWid, length, elemIndir);
 }
 
-func decodeSlice(atyp *reflect.SliceType, state *DecState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int) os.Error {
-	length := uintptr(DecodeUint(state));
+func decodeSlice(atyp *reflect.SliceType, state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int) os.Error {
+	length := uintptr(decodeUint(state));
 	if indir > 0 {
 		up := unsafe.Pointer(p);
 		if *(*unsafe.Pointer)(up) == nil {
@@ -412,13 +430,13 @@ func decOpFor(rt reflect.Type) (decOp, int) {
 				break;
 			}
 			elemOp, elemIndir := decOpFor(t.Elem());
-			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
+			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				state.err = decodeSlice(t, state, uintptr(p), elemOp, t.Elem().Size(), i.indir, elemIndir);
 			};
 
 		case *reflect.ArrayType:
 			elemOp, elemIndir := decOpFor(t.Elem());
-			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
+			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				state.err = decodeArray(t, state, uintptr(p), elemOp, t.Elem().Size(), t.Len(), i.indir, elemIndir);
 			};
 
@@ -426,9 +444,9 @@ func decOpFor(rt reflect.Type) (decOp, int) {
 			// Generate a closure that calls out to the engine for the nested type.
 			engine := getDecEngine(typ);
 			info := getTypeInfo(typ);
-			op = func(i *decInstr, state *DecState, p unsafe.Pointer) {
+			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				// indirect through info to delay evaluation for recursive structs
-				state.err = decodeStruct(info.decoder, t, state.r, uintptr(p), i.indir)
+				state.err = decodeStruct(info.decoder, t, state.b, uintptr(p), i.indir)
 			};
 		}
 	}
@@ -473,7 +491,7 @@ func getDecEngine(rt reflect.Type) *decEngine {
 	return info.decoder;
 }
 
-func Decode(r io.Reader, e interface{}) os.Error {
+func decode(b *bytes.Buffer, e interface{}) os.Error {
 	// Dereference down to the underlying object.
 	rt, indir := indirect(reflect.Typeof(e));
 	v := reflect.NewValue(e);
@@ -481,10 +499,10 @@ func Decode(r io.Reader, e interface{}) os.Error {
 		v = reflect.Indirect(v);
 	}
 	if _, ok := v.(*reflect.StructValue); !ok {
-		return os.ErrorString("decode can't handle " + rt.String())
+		return os.ErrorString("gob: decode can't handle " + rt.String())
 	}
 	typeLock.Lock();
 	engine := getDecEngine(rt);
 	typeLock.Unlock();
-	return decodeStruct(engine, rt.(*reflect.StructType), r, uintptr(v.Addr()), 0);
+	return decodeStruct(engine, rt.(*reflect.StructType), b, uintptr(v.Addr()), 0);
 }
