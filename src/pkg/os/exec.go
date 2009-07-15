@@ -98,6 +98,55 @@ func Wait(pid int, options int) (w *Waitmsg, err Error) {
 	return w, nil;
 }
 
+// Convert i to decimal string.
+func itod(i int) string {
+	if i == 0 {
+		return "0"
+	}
+
+	u := uint64(i);
+	if i < 0 {
+		u = -u;
+	}
+
+	// Assemble decimal in reverse order.
+	var b [32]byte;
+	bp := len(b);
+	for ; u > 0; u /= 10 {
+		bp--;
+		b[bp] = byte(u%10) + '0'
+	}
+
+	if i < 0 {
+		bp--;
+		b[bp] = '-'
+	}
+
+	return string(b[bp:len(b)])
+}
+
+func (w Waitmsg) String() string {
+	// TODO(austin) Use signal names when possible?
+	res := "";
+	switch {
+	case w.Exited():
+		res = "exit status " + itod(w.ExitStatus());
+	case w.Signaled():
+		res = "signal " + itod(w.Signal());
+	case w.Stopped():
+		res = "stop signal " + itod(w.StopSignal());
+		if w.StopSignal() == syscall.SIGTRAP && w.TrapCause() != 0 {
+			res += " (trap " + itod(w.TrapCause()) + ")";
+		}
+	case w.Continued():
+		res = "continued";
+	}
+	if w.CoreDump() {
+		res += " (core dumped)"
+	}
+	return res;
+}
+
 // Getpid returns the process id of the caller.
 func Getpid() int {
 	p, r2, e := syscall.Syscall(syscall.SYS_GETPID, 0, 0, 0);
