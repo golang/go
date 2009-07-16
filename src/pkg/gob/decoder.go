@@ -19,6 +19,7 @@ type Decoder struct {
 	seen	map[TypeId] *wireType;	// which types we've already seen described
 	state	*decodeState;	// reads data from in-memory buffer
 	countState	*decodeState;	// reads counts from wire
+	buf	[]byte;
 	oneByte	[]byte;
 }
 
@@ -63,10 +64,15 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 			return err;
 		}
 
+		// Allocate the buffer.
+		if nbytes > uint64(len(dec.buf)) {
+			dec.buf = make([]byte, nbytes + 1000);
+		}
+		dec.state.b = bytes.NewBuffer(dec.buf[0:nbytes]);
+
 		// Read the data
-		buf := make([]byte, nbytes);	// TODO(r): avoid repeated allocation
 		var n int;
-		n, err = dec.r.Read(buf);
+		n, err = dec.r.Read(dec.buf[0:nbytes]);
 		if err != nil {
 			return err;
 		}
@@ -74,13 +80,13 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 			return os.ErrorString("gob decode: short read");
 		}
 
-		dec.state.b = bytes.NewBuffer(buf);	// TODO(r): avoid repeated allocation
 		// Receive a type id.
 		id := TypeId(decodeInt(dec.state));
 		if dec.state.err != nil {
 			return dec.state.err
 		}
 
+		// Is it a type?
 		if id < 0 {	// 0 is the error state, handled above
 			// If the id is negative, we have a type.
 			dec.recvType(-id);
@@ -90,7 +96,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 			continue;
 		}
 
-		// we have a value
+		// No, it's a value.
 		info := getTypeInfo(rt);
 
 		// Check type compatibility.
