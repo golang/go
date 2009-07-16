@@ -466,7 +466,7 @@ func TestChdirAndGetwd(t *testing.T) {
 	}
 	// These are chosen carefully not to be symlinks on a Mac
 	// (unlike, say, /var, /etc, and /tmp).
-	dirs := []string{ "/bin", "/", "/usr/local/bin" };
+	dirs := []string{ "/bin", "/", "/usr/bin" };
 	for mode := 0; mode < 2; mode++ {
 		for i, d := range dirs {
 			if mode == 0 {
