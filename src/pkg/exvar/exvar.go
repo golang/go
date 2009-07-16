@@ -162,6 +162,14 @@ func Get(name string) Var {
 	return nil
 }
 
+// RemoveAll removes all exported variables.
+// This is for tests; don't call this on a real server.
+func RemoveAll() {
+	mutex.Lock();
+	defer mutex.Unlock();
+	vars = make(map[string] Var);
+}
+
 // Convenience functions for creating new exported variables.
 
 func NewInt(name string) *Int {
