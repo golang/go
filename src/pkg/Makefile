@@ -55,6 +55,7 @@ DIRS=\
 	rand\
 	reflect\
 	regexp\
+	rpc\
 	runtime\
 	sort\
 	strconv\
@@ -106,6 +107,7 @@ TEST=\
 	path\
 	reflect\
 	regexp\
+	rpc\
 	sort\
 	strconv\
 	strings\
