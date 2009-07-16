@@ -565,7 +565,7 @@ func TestInterfaceExtraction(t *testing.T) {
 	s.w = os.Stdout;
 	v := Indirect(NewValue(&s)).(*StructValue).Field(0).Interface();
 	if v != s.w.(interface{}) {
-		t.Errorf("Interface() on interface: ", v, s.w);
+		t.Error("Interface() on interface: ", v, s.w);
 	}
 }
 
