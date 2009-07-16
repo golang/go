@@ -171,7 +171,7 @@ func TestEncoderDecoder(t *testing.T) {
 	newEt1 := new(ET1);
 	dec.Decode(newEt1);
 	if dec.state.err != nil {
-		t.Fatalf("error decoding ET1:", dec.state.err);
+		t.Fatal("error decoding ET1:", dec.state.err);
 	}
 
 	if !reflect.DeepEqual(et1, newEt1) {
@@ -185,7 +185,7 @@ func TestEncoderDecoder(t *testing.T) {
 	newEt1 = new(ET1);
 	dec.Decode(newEt1);
 	if dec.state.err != nil {
-		t.Fatalf("round 2: error decoding ET1:", dec.state.err);
+		t.Fatal("round 2: error decoding ET1:", dec.state.err);
 	}
 	if !reflect.DeepEqual(et1, newEt1) {
 		t.Fatalf("round 2: invalid data for et1: expected %+v; got %+v\n", *et1, *newEt1);
@@ -202,7 +202,7 @@ func TestEncoderDecoder(t *testing.T) {
 	newEt2 := new(ET2);
 	dec.Decode(newEt2);
 	if dec.state.err == nil {
-		t.Fatalf("round 3: expected `bad type' error decoding ET2");
+		t.Fatal("round 3: expected `bad type' error decoding ET2");
 	}
 }
 
