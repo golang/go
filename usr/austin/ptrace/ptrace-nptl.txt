@@ -115,7 +115,8 @@ don't think the process is done until all of the threads have exited.
 Unfortunately, signals cannot be delivered to non-waitable zombies.
 Most notably, SIGSTOP cannot be delivered; as a result, when you
 broadcast SIGSTOP to all of the threads, you must not wait for
-non-waitable zombies to stop.
+non-waitable zombies to stop.  Furthermore, any ptrace command on a
+non-waitable zombie, including PTRACE_DETACH, will return ESRCH.
 
 == Multi-threaded debuggers ==
 
