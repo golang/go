@@ -52,3 +52,10 @@ func (s *Scope) Lookup(name string) (Def, *Scope) {
 	}
 	return nil, nil;
 }
+
+func (f *Frame) Get(s *Scope, index int) Value {
+	for f.Scope != s {
+		f = f.Outer;
+	}
+	return f.Vars[index];
+}

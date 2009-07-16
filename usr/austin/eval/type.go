@@ -59,6 +59,8 @@ func (boolType) String() string {
 	return "bool";
 }
 
+func (t *boolType) value(v bool) BoolValue
+
 type uintType struct {
 	commonType;
 

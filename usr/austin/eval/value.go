@@ -32,6 +32,11 @@ func (v *boolV) Set(x bool) {
 	*v = boolV(x);
 }
 
+func (t *boolType) value(v bool) BoolValue {
+	res := boolV(v);
+	return &res;
+}
+
 /*
  * Uint
  */
@@ -145,8 +150,8 @@ func (v *uintptrV) Set(x uint64) {
 }
 
 func (t *uintType) value(v uint64) UintValue {
-	// TODO(austin) This executes are run-time, even though
-	// virtually all of the logic can be done at type-check time.
+	// TODO(austin) The 'value' methods are only used for
+	// testing right now.  Get rid of them.
 	// TODO(austin) Deal with named types
 	switch Type(t) {
 	case Uint8Type:
