@@ -136,3 +136,5 @@ type Frame struct {
 	Scope *Scope;
 	Vars []Value;
 }
+
+func (f *Frame) Get(s *Scope, index int) Value
