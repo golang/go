@@ -43,7 +43,21 @@ const (
  */
 
 // Each thread can be in one of the following set of states.
-// Each state satisfies (isRunning() || isStopped() || isTerminal()).
+// Each state satisfies
+//  isRunning() || isStopped() || isZombie() || isTerminal().
+//
+// Running threads can be sent signals and must be waited on, but they
+// cannot be inspected using ptrace.
+//
+// Stopped threads can be inspected and continued, but cannot be
+// meaningfully waited on.  They can be sent signals, but the signals
+// will be queued until they are running again.
+//
+// Zombie threads cannot be inspected, continued, or sent signals (and
+// therefore they cannot be stopped), but they must be waited on.
+//
+// Terminal threads no longer exist in the OS and thus you can't do
+// anything with them.
 type threadState string;
 
 const (
@@ -61,11 +75,15 @@ const (
 )
 
 func (ts threadState) isRunning() bool {
-	return ts == running || ts == singleStepping || ts == stopping || ts == exiting;
+	return ts == running || ts == singleStepping || ts == stopping;
 }
 
 func (ts threadState) isStopped() bool {
 	return ts == stopped || ts == stoppedBreakpoint || ts == stoppedSignal || ts == stoppedThreadCreate || ts == stoppedExiting;
+}
+
+func (ts threadState) isZombie() bool {
+	return ts == exiting;
 }
 
 func (ts threadState) isTerminal() bool {
@@ -429,7 +447,7 @@ func (t *thread) setState(new threadState) {
 	t.state = new;
 	t.logTrace("state %v -> %v", old, new);
 
-	if !old.isRunning() && new.isRunning() {
+	if !old.isRunning() && (new.isRunning() || new.isZombie()) {
 		// Start waiting on this thread
 		go t.wait();
 	}
@@ -1020,7 +1038,11 @@ func (p *process) Continue() os.Error {
 			if err != nil {
 				return err;
 			}
-			t.setState(running);
+			if t.state == stoppedExiting {
+				t.setState(exiting);
+			} else {
+				t.setState(running);
+			}
 		}
 		return nil;
 	});
@@ -1050,8 +1072,6 @@ func (p *process) WaitStop() os.Error {
 		h := &transitionHandler{};
 		h.handle = func (st *thread, old, new threadState) {
 			if !new.isRunning() {
-				// TODO(austin) This gets stuck on
-				// zombie threads.
 				if p.someRunningThread() == nil {
 					ready <- nil;
 					return;
@@ -1094,8 +1114,11 @@ func (p *process) Detach() os.Error {
 		}
 
 		for pid, t := range p.threads {
-			if err := t.ptraceDetach(); err != nil {
-				return err;
+			if t.state.isStopped() {
+				// We can't detach from zombies.
+				if err := t.ptraceDetach(); err != nil {
+					return err;
+				}
 			}
 			t.setState(detached);
 			p.threads[pid] = nil, false;
