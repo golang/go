@@ -6,6 +6,15 @@
 
 #include "../ld/elf64.h"
 
+#define	NSECT	16
+int	nume64phdr;
+int	nume64shdr;
+int	nume64str;
+static	Elf64PHdr	*phdr[NSECT];
+static	Elf64SHdr	*shdr[NSECT];
+static	char	*sname[NSECT];
+static	char	*str[NSECT];
+
 void
 elf64phdr(Elf64PHdr *e)
 {
@@ -32,9 +41,6 @@ elf64shdr(char *name, Elf64SHdr *e)
 	lputl(e->info);
 	vputl(e->addralign);
 	vputl(e->entsize);
-
-	if(name != nil)
-		stroffset += strlen(name)+1;
 }
 
 int
@@ -47,25 +53,29 @@ putelf64strtab(char* name)
 	return w;
 }
 
-
-int
-elf64strtable(void)
+void
+elf64writestrtable(void)
 {
+	int i;
 	int size;
 
 	size = 0;
-	size += putelf64strtab("");
-	size += putelf64strtab(".text");
-	size += putelf64strtab(".data");
-	size += putelf64strtab(".bss");
-	size += putelf64strtab(".shstrtab");
-	if (!debug['s']) {
-		size += putelf64strtab(".gosymtab");
-		size += putelf64strtab(".gopclntab");
-	}
-	return size;
+	for (i = 0; i < nume64str; i++)
+		size += putelf64strtab(str[i]);
+	if (size > STRTABSIZE)
+		diag("elf64 string table overflow");
 }
 
+void
+e64addstr(char *name)
+{
+	if (nume64str >= NSECT) {
+		diag("too many elf strings");
+		return;
+	}
+	str[nume64str++] = strdup(name);
+	stroffset += strlen(name)+1;
+}
 
 uint32
 elf64headr(void)
@@ -74,6 +84,7 @@ elf64headr(void)
 
 	a = 64;		/* a.out header */
 
+	/* TODO: calculate these byte counts properly */
 	a += 56;	/* page zero seg */
 	a += 56;	/* text seg */
 	a += 56;	/* stack seg */
@@ -92,25 +103,51 @@ elf64headr(void)
 	return a;
 }
 
+void
+elf64writeshdrs(void)
+{
+	int i;
+
+	for (i = 0; i < nume64shdr; i++)
+		elf64shdr(sname[i], shdr[i]);
+}
+
+void
+elf64writephdrs(void)
+{
+	int i;
+
+	for (i = 0; i < nume64phdr; i++)
+		elf64phdr(phdr[i]);
+}
+
+Elf64PHdr*
+newElf64PHdr(void)
+{
+	Elf64PHdr *e;
+
+	e = malloc(sizeof *e);
+	memset(e, 0, sizeof *e);
+	if (nume64phdr >= NSECT)
+		diag("too many phdrs");
+	else
+		phdr[nume64phdr++] = e;
+	return e;
+}
+
 Elf64SHdr*
-newElf64SHdr()
+newElf64SHdr(char *name)
 {
 	Elf64SHdr *e;
 
 	e = malloc(sizeof *e);
 	memset(e, 0, sizeof *e);
 	e->name = stroffset;
+	if (nume64shdr >= NSECT) {
+		diag("too many shdrs");
+	} else {
+		e64addstr(name);
+		shdr[nume64shdr++] = e;
+	}
 	return e;
 }
-
-
-Elf64PHdr*
-newElf64PHdr()
-{
-	Elf64PHdr *e;
-
-	e = malloc(sizeof *e);
-	memset(e, 0, sizeof *e);
-	return e;
-}
-

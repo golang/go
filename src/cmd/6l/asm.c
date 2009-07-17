@@ -122,15 +122,12 @@ asmb(void)
 {
 	Prog *p;
 	int32 v, magic;
-	int a, nl, np;
+	int a, nl;
 	uchar *op1;
 	vlong vl, va, fo, w, symo;
-	int strtabsize;
 	vlong symdatva = 0x99LL<<32;
 	Elf64PHdr *ph;
 	Elf64SHdr *sh;
-
-	strtabsize = 0;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -196,9 +193,6 @@ asmb(void)
 
 	case 7:
 		debug['8'] = 1;	/* 64-bit addresses */
-		seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
-		strtabsize = elf64strtable();
-		cflush();
 		v = rnd(HEADR+textsize, INITRND);
 		seek(cout, v, 0);
 		break;
@@ -241,7 +235,7 @@ asmb(void)
 			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND);
 			break;
 		case 7:
-			symo = rnd(HEADR+textsize, INITRND)+datsize+strtabsize;
+			symo = rnd(HEADR+textsize, INITRND)+datsize+STRTABSIZE;
 			symo = rnd(symo, INITRND);
 			break;
 		}
@@ -421,31 +415,6 @@ asmb(void)
 		break;
 	case 7:
 		/* elf amd-64 */
-		strnput("\177ELF", 4);		/* e_ident */
-		cput(2);			/* class = 64 bit */
-		cput(1);			/* data = LSB */
-		cput(1);			/* version = CURRENT */
-		strnput("", 9);
-
-		wputl(2);			/* type = EXEC */
-		wputl(62);			/* machine = AMD64 */
-		lputl(1L);			/* version = CURRENT */
-		vputl(entryvalue());		/* entry vaddr */
-		vputl(64L);			/* offset to first phdr */
-		np = 3;
-		if(!debug['s'])
-			np++;
-		vputl(64L+56*np);		/* offset to first shdr */
-		lputl(0L);			/* processor specific flags */
-		wputl(64);			/* Ehdr size */
-		wputl(56);			/* Phdr size */
-		wputl(np);			/* # of Phdrs */
-		wputl(64);			/* Shdr size */
-		if (!debug['s'])
-			wputl(7);			/* # of Shdrs */
-		else
-			wputl(5);			/* # of Shdrs */
-		wputl(4);			/* Shdr with strings */
 
 		fo = 0;
 		va = INITTEXT & ~((vlong)INITRND - 1);
@@ -459,7 +428,6 @@ asmb(void)
 		ph->filesz = w;
 		ph->memsz = w;
 		ph->align = INITRND;
-		elf64phdr(ph);
 
 		fo = rnd(fo+w, INITRND);
 		va = rnd(va+w, INITRND);
@@ -474,7 +442,6 @@ asmb(void)
 		ph->filesz = w;
 		ph->memsz = w+bsssize;
 		ph->align = INITRND;
-		elf64phdr(ph);
 
 		if(!debug['s']) {
 			ph = newElf64PHdr();
@@ -486,66 +453,59 @@ asmb(void)
 			ph->filesz = 8+symsize+lcsize;
 			ph->memsz = 8+symsize+lcsize;
 			ph->align = INITRND;
-			elf64phdr(ph);
 		}
 
 		ph = newElf64PHdr();
 		ph->type = 0x6474e551; 	/* gok */
 		ph->flags = PF_X+PF_W+PF_R;
 		ph->align = 8;
-		elf64phdr(ph);
 
-		sh = newElf64SHdr();
-		elf64shdr(nil, sh);
+		sh = newElf64SHdr("");
 
 		stroffset = 1;  /* 0 means no name, so start at 1 */
 		fo = HEADR;
 		va = (INITTEXT & ~((vlong)INITRND - 1)) + HEADR;
 		w = textsize;
 
-		sh = newElf64SHdr();
+		sh = newElf64SHdr(".text");
 		sh->type = SHT_PROGBITS;
 		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
 		sh->addr = va;
 		sh->off = fo;
 		sh->size = w;
 		sh->addralign = 8;
-		elf64shdr(".text", sh);
 
 		fo = rnd(fo+w, INITRND);
 		va = rnd(va+w, INITRND);
 		w = datsize;
 
-		sh = newElf64SHdr();
+		sh = newElf64SHdr(".data");
 		sh->type = SHT_PROGBITS;
 		sh->flags = SHF_WRITE+SHF_ALLOC;
 		sh->addr = va;
 		sh->off = fo;
 		sh->size = w;
 		sh->addralign = 8;
-		elf64shdr(".data", sh);
 
 		fo += w;
 		va += w;
 		w = bsssize;
 
-		sh = newElf64SHdr();
+		sh = newElf64SHdr(".bss");
 		sh->type = SHT_NOBITS;
 		sh->flags = SHF_WRITE+SHF_ALLOC;
 		sh->addr = va;
 		sh->off = fo;
 		sh->size = w;
 		sh->addralign = 8;
-		elf64shdr(".bss", sh);
 
-		w = strtabsize;
+		w = STRTABSIZE;
 
-		sh = newElf64SHdr();
+		sh = newElf64SHdr(".shstrtab");
 		sh->type = SHT_STRTAB;
 		sh->off = fo;
 		sh->size = w;
 		sh->addralign = 1;
-		elf64shdr(".shstrtab", sh);
 
 		if (debug['s'])
 			break;
@@ -553,24 +513,52 @@ asmb(void)
 		fo = symo+8;
 		w = symsize;
 
-		sh = newElf64SHdr();
+		sh = newElf64SHdr(".gosymtab");
 		sh->type = SHT_PROGBITS;
 		sh->off = fo;
 		sh->size = w;
 		sh->addralign = 1;
 		sh->entsize = 24;
-		elf64shdr(".gosymtab", sh);
 
 		fo += w;
 		w = lcsize;
 
-		sh = newElf64SHdr();
+		sh = newElf64SHdr(".gopclntab");
 		sh->type = SHT_PROGBITS;
 		sh->off = fo;
 		sh->size = w;
 		sh->addralign = 1;
 		sh->entsize = 24;
-		elf64shdr(".gopclntab", sh);
+
+		// write out the main header */
+		strnput("\177ELF", 4);		/* e_ident */
+		cput(2);			/* class = 64 bit */
+		cput(1);			/* data = LSB */
+		cput(1);			/* version = CURRENT */
+		strnput("", 9);
+
+		wputl(2);			/* type = EXEC */
+		wputl(62);			/* machine = AMD64 */
+		lputl(1L);			/* version = CURRENT */
+		vputl(entryvalue());		/* entry vaddr */
+		vputl(64L);			/* offset to first phdr */
+		vputl(64L+56*nume64phdr);		/* offset to first shdr */
+		lputl(0L);			/* processor specific flags */
+		wputl(64);			/* Ehdr size */
+		wputl(56);			/* Phdr size */
+		wputl(nume64phdr);			/* # of Phdrs */
+		wputl(64);			/* Shdr size */
+		wputl(nume64shdr);			/* # of Shdrs */
+		wputl(4);			/* Shdr with strings */
+
+		elf64writephdrs();
+		elf64writeshdrs();
+		cflush();
+
+		/* string table */
+		seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
+		elf64writestrtable();
+		cflush();
 
 		break;
 	}

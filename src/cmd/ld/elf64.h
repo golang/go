@@ -132,9 +132,14 @@ struct Elf64SHdr
 #define	SHF_MASKOS	0x0F000000	/* Environment-specific use */
 #define	SHF_MASKPROC	0xF0000000	/* Processor-specific use */
 
-Elf64SHdr	*newElf64SHdr();
+Elf64SHdr	*newElf64SHdr(char*);
 Elf64PHdr	*newElf64PHdr();
 uint32	elf64headr(void);
-void	elf64phdr(Elf64PHdr*);
-void	elf64shdr(char*, Elf64SHdr*);
-int	elf64strtable(void);
+void	elf64writephdrs(void);
+void	elf64writeshdrs(void);
+void	elf64writestrtable(void);
+
+extern	int	nume64phdr;
+extern	int	nume64shdr;
+
+#define	STRTABSIZE	256
