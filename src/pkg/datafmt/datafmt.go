@@ -423,11 +423,8 @@ func getField(val reflect.Value, fieldname string) (reflect.Value, int) {
 	styp := sval.Type().(*reflect.StructType);
 
 	// look for field at the top level
-	for i := 0; i < styp.NumField(); i++ {
-		f := styp.Field(i);
-		if f.Name == fieldname {
-			return sval.Field(i), 0;
-		}
+	if field, ok := styp.FieldByName(fieldname); ok {
+		return sval.Field(field.Index), 0;
 	}
 
 	// look for field in anonymous fields

@@ -571,11 +571,8 @@ func (st *state) findVar(s string) reflect.Value {
 	data := reflect.Indirect(st.data);
 	typ, ok := data.Type().(*reflect.StructType);
 	if ok {
-		for i := 0; i < typ.NumField(); i++ {
-			f := typ.Field(i);
-			if f.Name == s {
-				return data.(*reflect.StructValue).Field(i)
-			}
+		if field, ok := typ.FieldByName(s); ok {
+			return data.(*reflect.StructValue).Field(field.Index)
 		}
 	}
 	return nil
