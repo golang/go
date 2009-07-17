@@ -96,6 +96,7 @@ func (S *Scanner) Init(filename string, src []byte, err ErrorHandler, mode uint)
 func charString(ch int) string {
 	var s string;
 	switch ch {
+	case -1: return `EOF`;
 	case '\a': s = `\a`;
 	case '\b': s = `\b`;
 	case '\f': s = `\f`;
@@ -306,16 +307,29 @@ func (S *Scanner) scanEscape(quote int) {
 }
 
 
-func (S *Scanner) scanChar() {
+func (S *Scanner) scanChar(pos token.Position) {
 	// '\'' already consumed
 
-	ch := S.ch;
-	S.next();
-	if ch == '\\' {
-		S.scanEscape('\'');
+	n := 0;
+	for S.ch != '\'' {
+		ch := S.ch;
+		n++;
+		S.next();
+		if ch == '\n' || ch < 0 {
+			S.error(pos, "character literal not terminated");
+			n = 1;
+			break;
+		}
+		if ch == '\\' {
+			S.scanEscape('\'');
+		}
 	}
 
-	S.expect('\'');
+	S.next();
+
+	if n != 1 {
+		S.error(pos, "illegal character literal");
+	}
 }
 
 
@@ -431,7 +445,7 @@ scan_again:
 		switch ch {
 		case -1  : tok = token.EOF;
 		case '"' : tok = token.STRING; S.scanString(pos);
-		case '\'': tok = token.CHAR; S.scanChar();
+		case '\'': tok = token.CHAR; S.scanChar(pos);
 		case '`' : tok = token.STRING; S.scanRawString(pos);
 		case ':' : tok = S.switch2(token.COLON, token.DEFINE);
 		case '.' :
