@@ -324,7 +324,7 @@ importconst(Sym *s, Type *t, Node *n)
 	if(!exportname(s->name) && !mypackage(s))
 		return;
 	importsym(s, OLITERAL);
-	convlit(n, t);
+	convlit(&n, t);
 	if(s->def != N) {
 		// TODO: check if already the same.
 		return;

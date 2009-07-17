@@ -227,6 +227,10 @@ struct	Node
 	// OTFUNC
 	Node*	rcvr;
 
+	// ONAME
+	Node*	ntype;
+	Node*	defn;
+
 	// ONAME func param with PHEAP
 	Node*	heapaddr;	// temp holding heap address of param
 	Node*	stackparam;	// OPARAM node referring to stack copy of param
@@ -601,7 +605,7 @@ EXTERN	int	loophack;
 
 EXTERN	uint32	iota;
 EXTERN	NodeList*	lastconst;
-EXTERN	Type*	lasttype;
+EXTERN	Node*	lasttype;
 EXTERN	int32	vargen;
 EXTERN	int32	exportgen;
 EXTERN	int32	maxarg;
@@ -831,8 +835,8 @@ void	dodclvar(Node*, Type*, NodeList**);
 Type*	dodcltype(Type*);
 void	updatetype(Type*, Type*);
 void	dodclconst(Node*, Node*);
-void	defaultlit(Node*, Type*);
-void	defaultlit2(Node*, Node*);
+void	defaultlit(Node**, Type*);
+void	defaultlit2(Node**, Node**);
 int	structcount(Type*);
 void	addmethod(Node*, Type*, int);
 Node*	methodname(Node*, Type*);
@@ -860,6 +864,7 @@ void	addtyp(Type*, int);
 void	addconst(Node*, Node*, int);
 Node*	fakethis(void);
 int	isifacemethod(Type*);
+Node*	dclname(Sym*);
 Node*	newname(Sym*);
 Node*	oldname(Sym*);
 Type*	newtype(Sym*);
@@ -873,10 +878,10 @@ void	defercheckwidth(void);
 void	resumecheckwidth(void);
 Node*	embedded(Sym*);
 NodeList*	variter(NodeList*, Type*, NodeList*);
-void	constiter(NodeList*, Type*, NodeList*);
+NodeList*	constiter(NodeList*, Node*, NodeList*);
 
-void	funclit0(Type*);
-Node*	funclit1(Type*, NodeList*);
+Node*	funclit0(Node*);
+Node*	funclit1(Node*, NodeList*);
 Node*	unsafenmagic(Node*, NodeList*);
 
 /*
@@ -929,7 +934,7 @@ void	walkexprlist(NodeList*, int, NodeList**);
 void	walkconv(Node*, NodeList**);
 void	walkdottype(Node*, NodeList**);
 void	walkas(Node*);
-void	walkbool(Node*);
+void	walkbool(Node**);
 void	walkswitch(Node*);
 void	walkselect(Node*);
 void	walkdot(Node*, NodeList**);
@@ -968,12 +973,14 @@ Node*	selectas(Node*, Node*, NodeList**);
 Node*	old2new(Node*, Type*, NodeList**);
 void	addrescapes(Node*);
 void	heapmoves(void);
+void	walkdeflist(NodeList*);
+void	walkdef(Node*);
 
 /*
  *	const.c
  */
-void	convlit1(Node*, Type*, int);
-void	convlit(Node*, Type*);
+void	convlit1(Node**, Type*, int);
+void	convlit(Node**, Type*);
 void	evconst(Node*);
 int	cmpslit(Node *l, Node *r);
 int	smallintconst(Node*);

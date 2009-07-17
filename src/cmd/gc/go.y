@@ -64,24 +64,25 @@
 %type	<node>	for_body for_header for_stmt if_header if_stmt
 %type	<node>	keyval labelname name
 %type	<node>	name_or_type
-%type	<node>	new_name oexpr
+%type	<node>	new_name dcl_name oexpr
 %type	<node>	onew_name
 %type	<node>	osimple_stmt pexpr
 %type	<node>	pseudocall range_stmt select_stmt
 %type	<node>	simple_stmt
 %type	<node>	switch_stmt uexpr
-%type	<node>	xfndcl
+%type	<node>	xfndcl typedcl
 
-%type	<list>	xdcl fnbody common_dcl fnres switch_body loop_body
-%type	<list>	name_list expr_list keyval_list braced_keyval_list expr_or_type_list xdcl_list
+%type	<list>	xdcl fnbody fnres switch_body loop_body dcl_name_list
+%type	<list>	new_name_list expr_list keyval_list braced_keyval_list expr_or_type_list xdcl_list
 %type	<list>	oexpr_list oexpr_or_type_list caseblock_list stmt_list oarg_type_list arg_type_list
 %type	<list>	interfacedcl_list interfacedcl vardcl vardcl_list structdcl structdcl_list
+%type	<list>	common_dcl constdcl constdcl1 constdcl_list typedcl_list
 
 %type	<type>	type
 %type	<node>	convtype dotdotdot
 %type	<node>	indcl interfacetype structtype
-%type	<type>	new_type typedclname fnlitdcl fntype
-%type	<node>	chantype non_chan_type othertype non_fn_type
+%type	<type>	new_type typedclname
+%type	<node>	chantype non_chan_type othertype non_fn_type fntype fnlitdcl
 
 %type	<sym>	hidden_importsym hidden_pkg_importsym
 
@@ -266,6 +267,7 @@ import_done:
 		}
 		my->def = nod(OPACK, N, N);
 		my->def->sym = import;
+		import->block = -1;	// above top level
 	}
 
 /*
@@ -298,11 +300,13 @@ common_dcl:
 		$$ = $2;
 		if(yylast == LSEMIBRACE)
 			yyoptsemi(0);
+	//	walkdeflist($2);
 	}
 |	LVAR '(' vardcl_list osemi ')'
 	{
 		$$ = $3;
 		yyoptsemi(0);
+	//	walkdeflist($3);
 	}
 |	LVAR '(' ')'
 	{
@@ -314,6 +318,7 @@ common_dcl:
 		$$ = nil;
 		iota = 0;
 		lastconst = nil;
+		walkdeflist($2);
 	}
 |	LCONST '(' constdcl osemi ')'
 	{
@@ -321,6 +326,7 @@ common_dcl:
 		iota = 0;
 		lastconst = nil;
 		yyoptsemi(0);
+		walkdeflist($3);
 	}
 |	LCONST '(' constdcl ';' constdcl_list osemi ')'
 	{
@@ -328,6 +334,7 @@ common_dcl:
 		iota = 0;
 		lastconst = nil;
 		yyoptsemi(0);
+		walkdeflist(concat($3, $5));
 	}
 |	LCONST '(' ')'
 	{
@@ -337,12 +344,14 @@ common_dcl:
 |	LTYPE typedcl
 	{
 		$$ = nil;
+	//	$$ = list1($2);
 		if(yylast == LSEMIBRACE)
 			yyoptsemi(0);
 	}
 |	LTYPE '(' typedcl_list osemi ')'
 	{
 		$$ = nil;
+	//	$$ = $3;
 		yyoptsemi(0);
 	}
 |	LTYPE '(' ')'
@@ -358,38 +367,38 @@ varoptsemi:
 	}
 
 vardcl:
-	name_list type varoptsemi
+	dcl_name_list type varoptsemi
 	{
 		$$ = variter($1, $2, nil);
 	}
-|	name_list type varoptsemi '=' expr_list
+|	dcl_name_list type varoptsemi '=' expr_list
 	{
 		$$ = variter($1, $2, $5);
 	}
-|	name_list '=' expr_list
+|	dcl_name_list '=' expr_list
 	{
 		$$ = variter($1, T, $3);
 	}
 
 constdcl:
-	name_list type '=' expr_list
+	dcl_name_list ntype '=' expr_list
 	{
-		constiter($1, $2, $4);
+		$$ = constiter($1, $2, $4);
 	}
-|	name_list '=' expr_list
+|	dcl_name_list '=' expr_list
 	{
-		constiter($1, T, $3);
+		$$ = constiter($1, N, $3);
 	}
 
 constdcl1:
 	constdcl
-|	name_list type
+|	dcl_name_list ntype
 	{
-		constiter($1, $2, nil);
+		$$ = constiter($1, $2, nil);
 	}
-|	name_list
+|	dcl_name_list
 	{
-		constiter($1, T, nil);
+		$$ = constiter($1, N, nil);
 	}
 
 typedclname:
@@ -944,6 +953,12 @@ new_name:
 		$$ = newname($1);
 	}
 
+dcl_name:
+	sym
+	{
+		$$ = dclname($1);
+	}
+
 new_type:
 	sym
 	{
@@ -1015,7 +1030,7 @@ type:
 
 ntype:
 	chantype
-|	fntype { $$ = typenod($1); }
+|	fntype
 |	othertype
 |	'(' ntype ')'
 	{
@@ -1023,7 +1038,7 @@ ntype:
 	}
 
 non_chan_type:
-	fntype { $$ = typenod($1); }
+	fntype
 |	othertype
 |	'(' ntype ')'
 	{
@@ -1135,7 +1150,7 @@ xfndcl:
 	}
 
 fndcl:
-	new_name '(' oarg_type_list ')' fnres
+	dcl_name '(' oarg_type_list ')' fnres
 	{
 		b0stack = dclstack;	// mark base for fn literals
 		$$ = nod(ODCLFUNC, N, N);
@@ -1168,15 +1183,16 @@ fndcl:
 fntype:
 	LFUNC '(' oarg_type_list ')' fnres
 	{
-		$$ = functype(N, $3, $5);
+		$$ = nod(OTFUNC, N, N);
+		$$->list = $3;
+		$$->rlist = $5;
 	}
 
 fnlitdcl:
 	fntype
 	{
 		markdcl();
-		$$ = $1;
-		funclit0($$);
+		$$ = funclit0($$);
 	}
 
 fnliteral:
@@ -1236,10 +1252,19 @@ vardcl_list:
 constdcl_list:
 	constdcl1
 |	constdcl_list ';' constdcl1
+	{
+		$$ = concat($1, $3);
+	}
 
 typedcl_list:
 	typedcl
+	{
+		$$ = list1($1);
+	}
 |	typedcl_list ';' typedcl
+	{
+		$$ = list($1, $3);
+	}
 
 structdcl_list:
 	structdcl
@@ -1256,7 +1281,7 @@ interfacedcl_list:
 	}
 
 structdcl:
-	name_list ntype oliteral
+	new_name_list ntype oliteral
 	{
 		NodeList *l;
 
@@ -1298,7 +1323,7 @@ embed:
 	}
 
 interfacedcl:
-	name_list indcl
+	new_name_list indcl
 	{
 		NodeList *l;
 
@@ -1447,14 +1472,24 @@ stmt_list:
 			$$ = list($$, $3);
 	}
 
-name_list:
-	name
+new_name_list:
+	new_name
 	{
-		$$ = list1(newname($1->sym));
+		$$ = list1($1);
 	}
-|	name_list ',' name
+|	new_name_list ',' new_name
 	{
-		$$ = list($1, newname($3->sym));
+		$$ = list($1, $3);
+	}
+
+dcl_name_list:
+	dcl_name
+	{
+		$$ = list1($1);
+	}
+|	dcl_name_list ',' dcl_name
+	{
+		$$ = list($1, $3);
 	}
 
 expr_list:

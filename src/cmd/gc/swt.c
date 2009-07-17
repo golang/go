@@ -237,8 +237,11 @@ csort(Case *l, int(*f)(Case*, Case*))
  * walktype
  */
 Type*
-sw0(Node *c, Type *place, int arg)
+sw0(Node **cp, Type *place, int arg)
 {
+	Node *c;
+
+	c = *cp;
 	if(c == N)
 		return T;
 	switch(c->op) {
@@ -264,8 +267,11 @@ sw0(Node *c, Type *place, int arg)
  * return the first type
  */
 Type*
-sw1(Node *c, Type *place, int arg)
+sw1(Node **cp, Type *place, int arg)
 {
+	Node *c;
+
+	c = *cp;
 	if(place != T)
 		return notideal(c->type);
 	return place;
@@ -275,7 +281,7 @@ sw1(Node *c, Type *place, int arg)
  * return a suitable type
  */
 Type*
-sw2(Node *c, Type *place, int arg)
+sw2(Node **cp, Type *place, int arg)
 {
 	return types[TINT];	// botch
 }
@@ -285,13 +291,17 @@ sw2(Node *c, Type *place, int arg)
  * is compat with all the cases
  */
 Type*
-sw3(Node *c, Type *place, int arg)
+sw3(Node **cp, Type *place, int arg)
 {
+	Node *c;
+
+	c = *cp;
 	if(place == T)
 		return c->type;
 	if(c->type == T)
 		c->type = place;
-	convlit(c, place);
+	convlit(cp, place);
+	c = *cp;
 	if(!ascompat(place, c->type))
 		badtype(OSWITCH, place, c->type);
 	return place;
@@ -303,7 +313,7 @@ sw3(Node *c, Type *place, int arg)
  * types to cases and switch
  */
 Type*
-walkcases(Node *sw, Type*(*call)(Node*, Type*, int arg), int arg)
+walkcases(Node *sw, Type*(*call)(Node**, Type*, int arg), int arg)
 {
 	Node *n;
 	NodeList *l;
@@ -311,7 +321,7 @@ walkcases(Node *sw, Type*(*call)(Node*, Type*, int arg), int arg)
 	int32 lno;
 
 	lno = setlineno(sw);
-	place = call(sw->ntest, T, arg);
+	place = call(&sw->ntest, T, arg);
 
 	for(l=sw->list; l; l=l->next) {
 		n = l->n;
@@ -321,7 +331,7 @@ walkcases(Node *sw, Type*(*call)(Node*, Type*, int arg), int arg)
 
 		if(n->left != N && !n->diag) {
 			setlineno(n);
-			place = call(n->left, place, arg);
+			place = call(&n->left, place, arg);
 		}
 	}
 	lineno = lno;
@@ -597,7 +607,7 @@ exprswitch(Node *sw)
 	if(t == T)
 		return;
 	walkcases(sw, sw3, arg);
-	convlit(sw->ntest, t);
+	convlit(&sw->ntest, t);
 
 
 	/*

@@ -145,7 +145,7 @@ fixedbugs/bug049.go:6: illegal types for operand: EQ
 fixedbugs/bug050.go:3: package statement must be first
 
 =========== fixedbugs/bug051.go
-fixedbugs/bug051.go:10: expression must be a constant
+fixedbugs/bug051.go:10: const initializer must be constant
 
 =========== fixedbugs/bug062.go
 fixedbugs/bug062.go:6: illegal types for operand: AS
@@ -184,7 +184,7 @@ fixedbugs/bug074.go:6: invalid type for composite literal: string
 fixedbugs/bug074.go:6: invalid type for composite literal: string
 
 =========== fixedbugs/bug081.go
-fixedbugs/bug081.go:5: undefined: x
+fixedbugs/bug081.go:5: fatal error: loop
 
 =========== fixedbugs/bug083.go
 fixedbugs/bug083.dir/bug1.go:9: cannot refer to bug0.t0
@@ -202,7 +202,6 @@ M
 
 =========== fixedbugs/bug103.go
 fixedbugs/bug103.go:8: assignment count mismatch: 1 = 0
-fixedbugs/bug103.go:8: undefined: x
 fixedbugs/bug103.go:8: function requires a return type
 fixedbugs/bug103.go:8: illegal types for operand: AS
 	int

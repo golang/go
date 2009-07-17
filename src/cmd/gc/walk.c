@@ -104,6 +104,75 @@ gettype(Node *n, NodeList **init)
 }
 
 void
+walkdeflist(NodeList *l)
+{
+	for(; l; l=l->next)
+		walkdef(l->n);
+}
+
+void
+walkdef(Node *n)
+{
+	int lno;
+	NodeList *init;
+	Node *e;
+	Type *t;
+
+	lno = lineno;
+	setlineno(n);
+
+	if(n->op == ONONAME) {
+		if(!n->diag) {
+			n->diag = 1;
+			yyerror("undefined: %S", n->sym);
+		}
+		return;
+	}
+
+	if(n->type != T || n->diag)
+		return;
+
+	if(n->trecur) {
+		// TODO(rsc): better loop message
+		fatal("loop");
+	}
+	n->trecur = 1;
+
+	init = nil;
+	switch(n->op) {
+	case OLITERAL:
+		if(n->ntype != N) {
+			walkexpr(n->ntype, Etype, &init);
+			n->type = n->ntype->type;
+			n->ntype = N;
+			if(n->type == T) {
+				n->diag = 1;
+				goto ret;
+			}
+		}
+		e = n->defn;
+		if(e == N) {
+			dump("walkdef", n);
+		}
+		walkexpr(e, Erv, &init);
+		if(e->op != OLITERAL) {
+			yyerror("const initializer must be constant");
+			goto ret;
+		}
+		t = n->type;
+		if(t != T)
+			convlit(&e, t);
+		n->val = e->val;
+		n->type = e->type;
+		break;
+	}
+
+ret:
+	lineno = lno;
+	n->trecur = 0;
+}
+
+void
 walkstmtlist(NodeList *l)
 {
 	for(; l; l=l->next)
@@ -129,6 +198,7 @@ walkstmt(Node *n)
 			yyerror("%S is not a top level statement", n->sym);
 		else
 			yyerror("%O is not a top level statement", n->op);
+		dump("nottop", n);
 		break;
 
 	case OASOP:
@@ -177,14 +247,14 @@ walkstmt(Node *n)
 
 	case OFOR:
 		walkstmtlist(n->ninit);
-		walkbool(n->ntest);
+		walkbool(&n->ntest);
 		walkstmt(n->nincr);
 		walkstmtlist(n->nbody);
 		break;
 
 	case OIF:
 		walkstmtlist(n->ninit);
-		walkbool(n->ntest);
+		walkbool(&n->ntest);
 		walkstmtlist(n->nbody);
 		walkstmtlist(n->nelse);
 		break;
@@ -291,6 +361,16 @@ reswitch:
 	et = Txxx;
 
 	switch(n->op) {
+	case ONAME:
+	case OTYPE:
+	case OLITERAL:
+	case ONONAME:
+		if(n->sym != S && n->type == T)
+			walkdef(n);
+		break;
+	}
+
+	switch(n->op) {
 	default:
 		dump("walk", n);
 		fatal("walkexpr: switch 1 unknown op %N", n);
@@ -367,6 +447,11 @@ reswitch:
 		n->type = sortinter(n->type);
 		goto ret;
 
+	case OTFUNC:
+		n->op = OTYPE;
+		n->type = functype(n->left, n->list, n->rlist);
+		goto ret;
+
 	case OKEY:
 		walkexpr(n->left, top | typeok, init);
 		n = n->right;
@@ -408,7 +493,7 @@ reswitch:
 
 	case ONONAME:
 		s = n->sym;
-		if(s->undef == 0) {
+		if(n->diag == 0) {
 			s->undef = 1;
 			n->diag = 1;
 			yyerror("undefined: %S", s);
@@ -455,7 +540,7 @@ reswitch:
 		}
 
 		walkexpr(n->left, Erv | Etype, init);
-		defaultlit(n->left, T);
+		defaultlit(&n->left, T);
 
 		t = n->left->type;
 		if(t == T)
@@ -766,7 +851,7 @@ reswitch:
 			goto ret;
 		// do NOT defaultlit n->left.
 		// let parent defaultlit or convlit instead.
-		defaultlit(n->right, types[TUINT]);
+		defaultlit(&n->right, types[TUINT]);
 		if(n->left->type == T || n->right->type == T)
 			goto ret;
 		if(issigned[n->right->type->etype] || !isint[n->right->type->etype])
@@ -802,7 +887,7 @@ reswitch:
 		evconst(n);
 		if(n->op == OLITERAL)
 			goto ret;
-		defaultlit2(n->left, n->right);
+		defaultlit2(&n->left, &n->right);
 		if(n->left->type == T || n->right->type == T)
 			goto ret;
 		if(!eqtype(n->left->type, n->right->type))
@@ -869,7 +954,7 @@ reswitch:
 			n->left = n->list->n;
 		}
 		walkexpr(n->left, Erv, init);
-		defaultlit(n->left, T);
+		defaultlit(&n->left, T);
 		implicitstar(&n->left);
 		t = n->left->type;
 		if(t == T)
@@ -904,7 +989,7 @@ reswitch:
 			n->left = n->list->n;
 		}
 		walkexpr(n->left, Erv, init);
-		defaultlit(n->left, T);
+		defaultlit(&n->left, T);
 		implicitstar(&n->left);
 		t = n->left->type;
 		if(t == T)
@@ -930,7 +1015,7 @@ reswitch:
 		if(n->left == N || n->right == N)
 			goto ret;
 
-		defaultlit(n->left, T);
+		defaultlit(&n->left, T);
 		implicitstar(&n->left);
 
 		t = n->left->type;
@@ -939,14 +1024,14 @@ reswitch:
 
 		switch(t->etype) {
 		default:
-			defaultlit(n->right, T);
+			defaultlit(&n->right, T);
 			goto badt;
 
 		case TSTRING:
 			// right side must be an int
 			if(top != Erv)
 				goto nottop;
-			defaultlit(n->right, types[TINT]);
+			defaultlit(&n->right, types[TINT]);
 			if(n->right->type == T)
 				break;
 			if(!isint[n->right->type->etype])
@@ -956,7 +1041,7 @@ reswitch:
 
 		case TMAP:
 			// right side must be map type
-			defaultlit(n->right, t->down);
+			defaultlit(&n->right, t->down);
 			if(n->right->type == T)
 				break;
 			if(!eqtype(n->right->type, t->down))
@@ -968,7 +1053,7 @@ reswitch:
 
 		case TARRAY:
 			// right side must be an int
-			defaultlit(n->right, types[TINT]);
+			defaultlit(&n->right, types[TINT]);
 			if(n->right->type == T)
 				break;
 			if(!isint[n->right->type->etype])
@@ -1021,9 +1106,9 @@ reswitch:
 		walkexpr(n->right, Erv, init);
 		if(n->left == N || n->right == N)
 			goto ret;
-		defaultlit(n->left, T);
-		defaultlit(n->right->left, types[TUINT]);
-		defaultlit(n->right->right, types[TUINT]);
+		defaultlit(&n->left, T);
+		defaultlit(&n->right->left, types[TUINT]);
+		defaultlit(&n->right->right, types[TUINT]);
 		implicitstar(&n->left);
 		t = n->left->type;
 		if(t == T)
@@ -1045,14 +1130,14 @@ reswitch:
 	case ODOTINTER:
 		if(top == Etop)
 			goto nottop;
-		defaultlit(n->left, T);
+		defaultlit(&n->left, T);
 		walkdot(n, init);
 		goto ret;
 
 	case OADDR:
 		if(top != Erv)
 			goto nottop;
-		defaultlit(n->left, T);
+		defaultlit(&n->left, T);
 		if(n->left->op == OCOMPOS) {
 			walkexpr(n->left->right, Etype, init);
 			n->left->type = n->left->right->type;
@@ -1121,7 +1206,7 @@ reswitch:
 		if(n->left == N)
 			goto ret;
 		walkexpr(n->left, top | Etype, init);
-		defaultlit(n->left, T);
+		defaultlit(&n->left, T);
 		if(n->left->op == OTYPE) {
 			n->op = OTYPE;
 			n->type = ptrto(n->left->type);
@@ -1361,12 +1446,16 @@ ret:
 }
 
 void
-walkbool(Node *n)
+walkbool(Node **np)
 {
+	Node *n;
+
+	n = *np;
 	if(n == N)
 		return;
 	walkexpr(n, Erv, &n->ninit);
-	defaultlit(n, T);
+	defaultlit(np, T);
+	n = *np;
 	if(n->type != T && !eqtype(n->type, types[TBOOL]))
 		yyerror("IF and FOR require a boolean type");
 }
@@ -1377,7 +1466,7 @@ walkdottype(Node *n, NodeList **init)
 	walkexpr(n->left, Erv, init);
 	if(n->left == N)
 		return;
-	defaultlit(n->left, T);
+	defaultlit(&n->left, T);
 	if(!isinter(n->left->type))
 		yyerror("type assertion requires interface on left, have %T", n->left->type);
 	if(n->right != N) {
@@ -1418,7 +1507,8 @@ walkconv(Node *n, NodeList **init)
 	}
 
 	// otherwise, conversion.
-	convlit1(l, t, 1);
+	convlit1(&n->left, t, 1);
+	l = n->left;
 	if(l->type == T)
 		return;
 
@@ -1543,7 +1633,7 @@ selcase(Node *n, Node *var, NodeList **init)
 		return N;
 	}
 
-	convlit(c->right, t->type);
+	convlit(&c->right, t->type);
 	if(!ascompat(t->type, c->right->type)) {
 		badtype(c->op, t->type, c->right->type);
 		return N;
@@ -1608,7 +1698,7 @@ recv2:
 	}
 
 	walkexpr(c->left, Elv, init);	// check elem
-	convlit(c->left, t->type);
+	convlit(&c->left, t->type);
 	if(!ascompat(t->type, c->left->type)) {
 		badtype(c->op, t->type, c->left->type);
 		return N;
@@ -1931,7 +2021,7 @@ ascompatee1(int op, Node *l, Node *r, NodeList **init)
 	 * a expression. called in
 	 *	expr = expr
 	 */
-	convlit(r, l->type);
+	convlit(&r, l->type);
 	if(!ascompat(l->type, r->type)) {
 		badtype(op, l->type, r->type);
 		return nil;
@@ -2087,7 +2177,8 @@ mkdotargs(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init)
 				return nil;
 			}
 		}
-		defaultlit(r, T);
+		defaultlit(&r, T);
+		lr->n = r;
 		if(r->type == T)	// type check failed
 			return nil;
 
@@ -2254,7 +2345,7 @@ loop:
 		}
 		return nn;
 	}
-	convlit(r, l->type);
+	convlit(&r, l->type);
 	if(!ascompat(l->type, r->type)) {
 		badtype(op, l->type, r->type);
 		return nil;
@@ -2398,10 +2489,12 @@ prcompat(NodeList *all, int fmt, int dopanic)
 		if(n->op == OLITERAL) {
 			switch(n->val.ctype) {
 			case CTINT:
-				defaultlit(n, types[TINT64]);
+				defaultlit(&n, types[TINT64]);
+				l->n = n;
 				break;
 			case CTFLT:
-				defaultlit(n, types[TFLOAT64]);
+				defaultlit(&n, types[TFLOAT64]);
+				l->n = n;
 				break;
 			}
 		}
@@ -2773,7 +2866,7 @@ mapop(Node *n, int top, NodeList **init)
 		if(t == T)
 			break;
 
-		convlit(n->right, t->down);
+		convlit(&n->right, t->down);
 
 		if(!eqtype(n->right->type, t->down)) {
 			badtype(n->op, n->right->type, t->down);
@@ -3029,7 +3122,7 @@ chanop(Node *n, int top, NodeList **init)
 
 		// chanrecv2(hchan *chan any) (elem any, pres bool);
 		r = n->rlist->n;
-		defaultlit(r->left, T);
+		defaultlit(&r->left, T);
 		t = fixchan(r->left->type);
 		if(t == T)
 			break;
@@ -3061,7 +3154,7 @@ chanop(Node *n, int top, NodeList **init)
 		}
 
 		// chanrecv1(hchan *chan any) (elem any);
-		defaultlit(n->left, T);
+		defaultlit(&n->left, T);
 		t = fixchan(n->left->type);
 		if(t == T)
 			break;
@@ -3673,7 +3766,7 @@ colas(NodeList *ll, NodeList *lr)
 		case OCALLINTER:
 			walkexpr(nr->left, Erv, &init);
 		call:
-			convlit(nr->left, types[TFUNC]);
+			convlit(&nr->left, types[TFUNC]);
 			t = nr->left->type;
 			if(t == T)
 				goto outl;	// error already printed
@@ -3714,7 +3807,8 @@ colas(NodeList *ll, NodeList *lr)
 		r = saver->n;
 
 		walkexpr(r, Erv, &init);
-		defaultlit(r, T);
+		defaultlit(&r, T);
+		saver->n = r;
 		a = mixedoldnew(l, r->type);
 		n = list(n, a);
 	}

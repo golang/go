@@ -618,7 +618,7 @@ bgen(Node *n, int true, Prog *to)
 	nr = n->right;
 
 	if(n->type == T) {
-		convlit(n, types[TBOOL]);
+		convlit(&n, types[TBOOL]);
 		if(n->type == T)
 			goto ret;
 	}
