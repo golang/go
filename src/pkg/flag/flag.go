@@ -22,8 +22,8 @@
 
 	3) Flags may then be used directly. If you're using the flags themselves,
 	they are all pointers; if you bind to variables, they're values.
-		print("ip has value ", *ip, "\n");
-		print("flagvar has value ", flagvar, "\n");
+		fmt.Println("ip has value ", *ip);
+		fmt.Println("flagvar has value ", flagvar);
 
 	4) After parsing, flag.Arg(i) is the i'th argument after the flags.
 	Args are indexed from 0 up to flag.NArg().
@@ -296,7 +296,7 @@ func add(name string, value FlagValue, usage string) {
 	f := &Flag{name, usage, value, value.String()};
 	dummy, alreadythere := flags.formal[name];
 	if alreadythere {
-		print("flag redefined: ", name, "\n");
+		fmt.Fprintln(os.Stderr, "flag redefined:", name);
 		panic("flag redefinition");	// Happens only if flags are declared with identical names
 	}
 	flags.formal[name] = f;
@@ -408,7 +408,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
 	}
 	name := s[num_minuses : len(s)];
 	if len(name) == 0 || name[0] == '-' || name[0] == '=' {
-		print("bad flag syntax: ", s, "\n");
+		fmt.Fprintln(os.Stderr, "bad flag syntax:", s);
 		Usage();
 		os.Exit(2);
 	}
@@ -426,21 +426,21 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
 	}
 	flag, alreadythere := flags.actual[name];
 	if alreadythere {
-		print("flag specified twice: -", name, "\n");
+		fmt.Fprintf(os.Stderr, "flag specified twice: -%s\n", name);
 		Usage();
 		os.Exit(2);
 	}
 	m := flags.formal;
 	flag, alreadythere = m[name]; // BUG
 	if !alreadythere {
-		print("flag provided but not defined: -", name, "\n");
+		fmt.Fprintf(os.Stderr, "flag provided but not defined: -%s\n", name);
 		Usage();
 		os.Exit(2);
 	}
 	if f, ok := flag.Value.(*boolValue); ok {	// special case: doesn't need an arg
 		if has_value {
 			if !f.set(value) {
-				print("invalid boolean value ", value, " for flag: -", name, "\n");
+				fmt.Fprintf(os.Stderr, "invalid boolean value %t for flag: -%s\n", value, name);
 				Usage();
 				os.Exit(2);
 			}
@@ -456,15 +456,15 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
 			value = os.Args[index];
 		}
 		if !has_value {
-			print("flag needs an argument: -", name, "\n");
+			fmt.Fprintf(os.Stderr, "flag needs an argument: -%s\n", name);
 			Usage();
 			os.Exit(2);
 		}
 		ok = flag.Value.set(value);
 		if !ok {
-			print("invalid value ", value, " for flag: -", name, "\n");
-				Usage();
-				os.Exit(2);
+			fmt.Fprintf(os.Stderr, "invalid value %s for flag: -%s\n", value, name);
+			Usage();
+			os.Exit(2);
 		}
 	}
 	flags.actual[name] = flag;
