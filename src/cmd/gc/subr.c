@@ -575,6 +575,16 @@ dodump(Node *n, int dep)
 		break;
 	}
 
+	if(n->ntype != nil) {
+		indent(dep);
+		print("%O-ntype\n", n->op);
+		dodump(n->ntype, dep+1);
+	}
+	if(n->defn != nil) {
+		indent(dep);
+		print("%O-defn\n", n->op);
+		dodump(n->defn, dep+1);
+	}
 	if(n->list != nil) {
 		indent(dep);
 		print("%O-list\n", n->op);
@@ -597,7 +607,7 @@ dumplist(char *s, NodeList *l)
 void
 dump(char *s, Node *n)
 {
-	print("%s\n", s);
+	print("%s [%p]\n", s, n);
 	dodump(n, 1);
 }
 
@@ -1360,6 +1370,8 @@ treecopy(Node *n)
 		m->left = treecopy(n->left);
 		m->right = treecopy(n->right);
 		m->list = listtreecopy(n->list);
+		if(m->defn)
+			abort();
 		break;
 
 	case OLITERAL:
@@ -1367,13 +1379,11 @@ treecopy(Node *n)
 			m = nodintconst(iota);
 			break;
 		}
-		m = nod(OXXX, N, N);
-		*m = *n;
-		break;
-
+		// fall through
+	case ONONAME:
 	case ONAME:
-		m = nod(OXXX, N, N);
-		*m = *n;
+	case OTYPE:
+		m = n;
 		break;
 	}
 	return m;

@@ -53,24 +53,39 @@ truncfltlit(Mpflt *oldv, Type *t)
  * implicit conversion.
  */
 void
-convlit(Node *n, Type *t)
+convlit(Node **np, Type *t)
 {
-	convlit1(n, t, 0);
+	return convlit1(np, t, 0);
 }
 
 /*
  * convert n, if literal, to type t.
+ * return a new node if necessary
+ * (if n is a named constant, can't edit n->type directly).
  */
 void
-convlit1(Node *n, Type *t, int explicit)
+convlit1(Node **np, Type *t, int explicit)
 {
 	int et, ct;
+	Node *n, *nn;
 
+	n = *np;
 	if(n == N || t == T || n->type == T)
 		return;
 	et = t->etype;
 	if(et == TIDEAL || et == TNIL)
 		return;
+	if(eqtype(t, n->type))
+		return;
+
+//dump("convlit1", n);
+	if(n->op == OLITERAL) {
+		nn = nod(OXXX, N, N);
+		*nn = *n;
+		n = nn;
+		*np = n;
+	}
+//dump("convlit2", n);
 
 	switch(n->op) {
 	default:
@@ -79,7 +94,7 @@ convlit1(Node *n, Type *t, int explicit)
 		break;
 	case OLSH:
 	case ORSH:
-		convlit(n->left, t);
+		convlit(&n->left, t);
 		n->type = n->left->type;
 		return;
 	}
@@ -98,7 +113,7 @@ convlit1(Node *n, Type *t, int explicit)
 			n->type = t;
 			return;
 		}
-		defaultlit(n, T);
+		defaultlit(np, T);
 		return;
 	}
 
@@ -172,8 +187,10 @@ convlit1(Node *n, Type *t, int explicit)
 	return;
 
 bad:
-	if(n->type->etype == TIDEAL)
-		defaultlit(n, T);
+	if(n->type->etype == TIDEAL) {
+		defaultlit(&n, T);
+		*np = n;
+	}
 	yyerror("cannot convert %T constant to %T", n->type, t);
 	n->diag = 1;
 	return;
@@ -332,10 +349,14 @@ evconst(Node *n)
 	switch(n->op) {
 	default:
 		// ideal const mixes with anything but otherwise must match.
-		if(nl->type->etype != TIDEAL)
-			defaultlit(nr, nl->type);
-		if(nr->type->etype != TIDEAL)
-			defaultlit(nl, nr->type);
+		if(nl->type->etype != TIDEAL) {
+			defaultlit(&nr, nl->type);
+			n->right = nr;
+		}
+		if(nr->type->etype != TIDEAL) {
+			defaultlit(&nl, nr->type);
+			n->left = nl;
+		}
 		if(nl->type->etype != nr->type->etype)
 			goto illegal;
 		break;
@@ -344,7 +365,8 @@ evconst(Node *n)
 	case ORSH:
 		// right must be unsigned.
 		// left can be ideal.
-		defaultlit(nr, types[TUINT]);
+		defaultlit(&nr, types[TUINT]);
+		n->right = nr;
 		if(nr->type && (issigned[nr->type->etype] || !isint[nr->type->etype]))
 			goto illegal;
 		break;
@@ -656,10 +678,12 @@ nodlit(Val v)
 }
 
 void
-defaultlit(Node *n, Type *t)
+defaultlit(Node **np, Type *t)
 {
 	int lno;
+	Node *n, *nn;
 
+	n = *np;
 	if(n == N)
 		return;
 	if(n->type == T || n->type->etype != TIDEAL)
@@ -667,10 +691,14 @@ defaultlit(Node *n, Type *t)
 
 	switch(n->op) {
 	case OLITERAL:
+		nn = nod(OXXX, N, N);
+		*nn = *n;
+		n = nn;
+		*np = n;
 		break;
 	case OLSH:
 	case ORSH:
-		defaultlit(n->left, t);
+		defaultlit(&n->left, t);
 		n->type = n->left->type;
 		return;
 	}
@@ -715,25 +743,29 @@ defaultlit(Node *n, Type *t)
  * get the same type going out.
  */
 void
-defaultlit2(Node *l, Node *r)
+defaultlit2(Node **lp, Node **rp)
 {
+	Node *l, *r;
+
+	l = *lp;
+	r = *rp;
 	if(l->type == T || r->type == T)
 		return;
 	if(l->type->etype != TIDEAL && l->type->etype != TNIL) {
-		convlit(r, l->type);
+		convlit(rp, l->type);
 		return;
 	}
 	if(r->type->etype != TIDEAL && r->type->etype != TNIL) {
-		convlit(l, r->type);
+		convlit(lp, r->type);
 		return;
 	}
 	if(isconst(l, CTFLT) || isconst(r, CTFLT)) {
-		convlit(l, types[TFLOAT]);
-		convlit(r, types[TFLOAT]);
+		convlit(lp, types[TFLOAT]);
+		convlit(rp, types[TFLOAT]);
 		return;
 	}
-	convlit(l, types[TINT]);
-	convlit(r, types[TINT]);
+	convlit(lp, types[TINT]);
+	convlit(rp, types[TINT]);
 }
 
 int

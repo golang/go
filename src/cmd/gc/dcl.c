@@ -43,6 +43,7 @@ dodclvar(Node *n, Type *t, NodeList **init)
 		*init = list(*init, nod(ODCL, n, N));
 }
 
+// TODO(rsc): cut
 void
 dodclconst(Node *n, Node *e)
 {
@@ -513,8 +514,8 @@ funcbody(Node *n)
 		dclcontext = PEXTERN;
 }
 
-void
-funclit0(Type *t)
+Node*
+funclit0(Node *t)
 {
 	Node *n;
 
@@ -527,19 +528,23 @@ funclit0(Type *t)
 	autodcl = dcl();
 	autodcl->back = autodcl;
 
-	funcargs(t);
+	walkexpr(t, Etype, &t->ninit);
+	funcargs(t->type);
+	return t;
 }
 
 Node*
-funclit1(Type *type, NodeList *body)
+funclit1(Node *ntype, NodeList *body)
 {
 	Node *func;
+	Type *type;
 	Node *a, *d, *f, *n, *clos;
 	Type *ft, *t;
 	Iter save;
 	int narg, shift;
 	NodeList *args, *l, *in, *out;
 
+	type = ntype->type;
 	popdcl();
 	func = funclit;
 	funclit = func->outer;
@@ -957,7 +962,7 @@ addvar(Node *n, Type *t, int ctxt)
 	Sym *s;
 	int gen;
 
-	if(n==N || n->sym == S || n->op != ONAME || t == T)
+	if(n==N || n->sym == S || (n->op != ONAME && n->op != ONONAME) || t == T)
 		fatal("addvar: n=%N t=%T nil", n, t);
 
 	s = n->sym;
@@ -973,6 +978,7 @@ addvar(Node *n, Type *t, int ctxt)
 	}
 
 	redeclare("variable", s);
+	n->op = ONAME;
 	s->vargen = gen;
 	s->def = n;
 	s->offset = 0;
@@ -1049,6 +1055,7 @@ addtyp(Type *n, int ctxt)
 	}
 }
 
+// TODO(rsc): cut
 void
 addconst(Node *n, Node *e, int ctxt)
 {
@@ -1143,6 +1150,29 @@ newname(Sym *s)
 }
 
 Node*
+dclname(Sym *s)
+{
+	Node *n;
+
+	// top-level name: might already have been
+	// referred to, in which case s->def is already
+	// set to an ONONAME.
+	if(dclcontext == PEXTERN && s->block == 0) {
+		// toss predefined name like "close"
+		// TODO(rsc): put close in at the end.
+		if(s->def != N && s->def->etype)
+			s->def = N;
+		if(s->def == N)
+			oldname(s);
+		return s->def;
+	}
+
+	n = newname(s);
+	n->op = ONONAME;	// caller will correct it
+	return n;
+}
+
+Node*
 typenod(Type *t)
 {
 	if(t->nod == N) {
@@ -1168,19 +1198,11 @@ oldname(Sym *s)
 
 	n = s->def;
 	if(n == N) {
-		n = nod(ONONAME, N, N);
-		n->sym = s;
-		n->type = T;
-		n->addable = 1;
-		n->ullman = 1;
-	}
-	if(n->op == OLITERAL) {
-		c = nod(OLITERAL, N, N);
-		c->sym = s;
-		c->val = n->val;
-		c->type = n->type;
-		c->iota = n->iota;
-		return c;
+		// maybe a top-level name will come along
+		// to give this a definition later.
+		n = newname(s);
+		n->op = ONONAME;
+		s->def = n;
 	}
 	if(n->funcdepth > 0 && n->funcdepth != funcdepth && n->op == ONAME) {
 		// inner func is referring to var
@@ -1648,7 +1670,7 @@ variter(NodeList *vl, Type *t, NodeList *el)
 		tv = t;
 		if(t == T) {
 			gettype(e, &r);
-			defaultlit(e, T);
+			defaultlit(&e, T);
 			tv = e->type;
 		}
 		dodclvar(v, tv, &r);
@@ -1664,14 +1686,16 @@ variter(NodeList *vl, Type *t, NodeList *el)
  * declare constants from grammar
  * new_name_list [[type] = expr_list]
  */
-void
-constiter(NodeList *vl, Type *t, NodeList *cl)
+NodeList*
+constiter(NodeList *vl, Node *t, NodeList *cl)
 {
 	Node *v, *c;
-	NodeList *init;
+	NodeList *vv;
+	Sym *s;
 
+	vv = vl;
 	if(cl == nil) {
-		if(t != T)
+		if(t != N)
 			yyerror("constdcl cannot have type without expr");
 		cl = lastconst;
 		t = lasttype;
@@ -1689,27 +1713,22 @@ constiter(NodeList *vl, Type *t, NodeList *cl)
 		c = cl->n;
 		cl = cl->next;
 
-		init = nil;
-		gettype(c, &init);
-		if(init != nil) {
-			// the expression had extra code to run.
-			// dodclconst is going to print an error
-			// because the expression isn't constant,
-			// but out of paranoia, bump nerrors so
-			// that compile cannot succeed accidentally
-			nerrors++;
-		}
-		if(t != T)
-			convlit(c, t);
-		if(t == T)
-			lasttype = c->type;
-
 		v = vl->n;
-		dodclconst(v, c);
+		s = v->sym;
+		if(dclcontext != PEXTERN)
+			pushdcl(s);
+		redeclare("constant", s);
+		s->def = v;
+
+		v->op = OLITERAL;
+		v->ntype = t;
+		v->defn = c;
+		autoexport(s);
 	}
 	if(cl != nil)
 		yyerror("extra expr in const dcl");
 	iota += 1;
+	return vv;
 }
 
 /*

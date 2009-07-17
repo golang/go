@@ -1345,18 +1345,22 @@ lexinit(void)
 	v.ctype = CTNIL;
 	s->def = nodlit(v);
 	s->def->sym = s;
+	s->block = -1;	// above top level
 
 	s = lookup("true");
 	s->def = nodbool(1);
 	s->def->sym = s;
+	s->block = -1;	// above top level
 
 	s = lookup("false");
 	s->def = nodbool(0);
 	s->def->sym = s;
+	s->block = -1;	// above top level
 
 	s = lookup("iota");
 	s->def = nodintconst(iota);
 	s->def->iota = 1;	// flag to reevaluate on copy
+	s->block = -1;	// above top level
 
 	// logically, the type of a string literal.
 	// types[TSTRING] is the named type string
@@ -1450,6 +1454,7 @@ mkpackage(char* pkg)
 	s = lookup(package);
 	s->def = nod(OPACK, N, N);
 	s->def->sym = s;
+	s->block = -1;	// above top level
 
 	if(outfile == nil) {
 		p = strrchr(infile, '/');
