@@ -86,7 +86,9 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 	}
 
 	// Need to send it.
+	typeLock.Lock();
 	info := getTypeInfo(rt);
+	typeLock.Unlock();
 	// Send the pair (-id, type)
 	// Id:
 	encodeInt(enc.state, -int64(info.typeId));
