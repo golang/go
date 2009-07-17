@@ -29,6 +29,10 @@ import (
 type commonType struct {
 }
 
+func (commonType) isBoolean() bool {
+	return false;
+}
+
 func (commonType) isInteger() bool {
 	return false;
 }
@@ -53,6 +57,10 @@ func (t *boolType) literal() Type {
 
 func (t *boolType) compatible(o Type) bool {
 	return Type(t) == o;
+}
+
+func (t *boolType) isBoolean() bool {
+	return true;
 }
 
 func (boolType) String() string {
