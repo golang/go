@@ -71,7 +71,7 @@ func (server *serverType) add(rcvr interface{}) os.Error {
 	s := new(service);
 	s.typ = reflect.Typeof(rcvr);
 	s.rcvr = reflect.NewValue(rcvr);
-	path_, sname := reflect.Indirect(s.rcvr).Type().Name();
+	sname := reflect.Indirect(s.rcvr).Type().Name();
 	if sname == "" {
 		log.Exit("rpc: no service name for type", s.typ.String())
 	}

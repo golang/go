@@ -246,9 +246,12 @@ type Method struct {
 // Each type in a program has a unique Type, so == on Types
 // corresponds to Go's type equality.
 type Type interface {
-	// Name returns the type's package and name.
-	// The package is a full package import path like "container/vector".
-	Name()	(pkgPath string, name string);
+	// PkgPath returns the type's package path.
+	// The package path is a full package import path like "container/vector".
+	PkgPath()	string;
+
+	// Name returns the type's name within its package.
+	Name()	string;
 
 	// String returns a string representation of the type.
 	// The string representation may use shortened package names
@@ -284,17 +287,18 @@ func (t *uncommonType) uncommon() *uncommonType {
 	return t;
 }
 
-func (t *uncommonType) Name() (pkgPath string, name string) {
-	if t == nil {
-		return;
+func (t *uncommonType) PkgPath() string {
+	if t == nil || t.pkgPath == nil {
+		return ""
 	}
-	if t.pkgPath != nil {
-		pkgPath = *t.pkgPath;
+	return *t.pkgPath;
+}
+
+func (t *uncommonType) Name() string {
+	if t == nil || t.name == nil {
+		return "";
 	}
-	if t.name != nil {
-		name = *t.name;
-	}
-	return;
+	return *t.name;
 }
 
 func (t *commonType) String() string {
@@ -348,7 +352,11 @@ func (t *commonType) Method(i int) (m Method) {
 	return t.uncommonType.Method(i);
 }
 
-func (t *commonType) Name() (pkgPath string, name string) {
+func (t *commonType) PkgPath() string {
+	return t.uncommonType.PkgPath();
+}
+
+func (t *commonType) Name() string {
 	return t.uncommonType.Name();
 }
 
@@ -469,8 +477,7 @@ func (t *StructType) Field(i int) (f StructField) {
 	if p.name != nil {
 		f.Name = *p.name;
 	} else {
-		nam, pkg := f.Type.Name();
-		f.Name = nam;
+		f.Name = f.Type.Name();
 		f.Anonymous = true;
 	}
 	if p.pkgPath != nil {
