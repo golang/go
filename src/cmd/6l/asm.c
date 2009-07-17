@@ -127,6 +127,7 @@ asmb(void)
 	vlong vl, va, fo, w, symo;
 	int strtabsize;
 	vlong symdatva = 0x99LL<<32;
+	Elf64PHdr *ph;
 	Elf64SHdr *sh;
 
 	strtabsize = 0;
@@ -450,47 +451,49 @@ asmb(void)
 		va = INITTEXT & ~((vlong)INITRND - 1);
 		w = HEADR+textsize;
 
-		elf64phdr(1,			/* text - type = PT_LOAD */
-			1L+4L,			/* text - flags = PF_X+PF_R */
-			0,			/* file offset */
-			va,			/* vaddr */
-			va,			/* paddr */
-			w,			/* file size */
-			w,			/* memory size */
-			INITRND);		/* alignment */
+		ph = newElf64PHdr();
+		ph->type = PT_LOAD; 	
+		ph->flags = PF_X+PF_R;
+		ph->vaddr = va;
+		ph->paddr = va;
+		ph->filesz = w;
+		ph->memsz = w;
+		ph->align = INITRND;
+		elf64phdr(ph);
 
 		fo = rnd(fo+w, INITRND);
 		va = rnd(va+w, INITRND);
 		w = datsize;
 
-		elf64phdr(1,			/* data - type = PT_LOAD */
-			2L+4L,			/* data - flags = PF_W+PF_R */
-			fo,			/* file offset */
-			va,			/* vaddr */
-			va,			/* paddr */
-			w,			/* file size */
-			w+bsssize,		/* memory size */
-			INITRND);		/* alignment */
+		ph = newElf64PHdr();
+		ph->type = PT_LOAD;
+		ph->flags = PF_W+PF_R;
+		ph->off = fo;
+		ph->vaddr = va;
+		ph->paddr = va;
+		ph->filesz = w;
+		ph->memsz = w+bsssize;
+		ph->align = INITRND;
+		elf64phdr(ph);
 
 		if(!debug['s']) {
-			elf64phdr(1,			/* data - type = PT_LOAD */
-				2L+4L,			/* data - flags = PF_W+PF_R */
-				symo,		/* file offset */
-				symdatva,			/* vaddr */
-				symdatva,			/* paddr */
-				8+symsize+lcsize,			/* file size */
-				8+symsize+lcsize,		/* memory size */
-				INITRND);		/* alignment */
+			ph = newElf64PHdr();
+			ph->type = PT_LOAD;
+			ph->flags = PF_W+PF_R;
+			ph->off = symo;
+			ph->vaddr = symdatva;
+			ph->paddr = symdatva;
+			ph->filesz = 8+symsize+lcsize;
+			ph->memsz = 8+symsize+lcsize;
+			ph->align = INITRND;
+			elf64phdr(ph);
 		}
 
-		elf64phdr(0x6474e551,		/* gok - type = gok */
-			1L+2L+4L,		/* gok - flags = PF_X+PF_W+PF_R */
-			0,			/* file offset */
-			0,			/* vaddr */
-			0,			/* paddr */
-			0,			/* file size */
-			0,			/* memory size */
-			8);			/* alignment */
+		ph = newElf64PHdr();
+		ph->type = 0x6474e551; 	/* gok */
+		ph->flags = PF_X+PF_W+PF_R;
+		ph->align = 8;
+		elf64phdr(ph);
 
 		sh = newElf64SHdr();
 		elf64shdr(nil, sh);
@@ -501,8 +504,8 @@ asmb(void)
 		w = textsize;
 
 		sh = newElf64SHdr();
-		sh->type = 1;
-		sh->flags = 6;
+		sh->type = SHT_PROGBITS;
+		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
 		sh->addr = va;
 		sh->off = fo;
 		sh->size = w;
@@ -514,8 +517,8 @@ asmb(void)
 		w = datsize;
 
 		sh = newElf64SHdr();
-		sh->type = 1;
-		sh->flags = 3;
+		sh->type = SHT_PROGBITS;
+		sh->flags = SHF_WRITE+SHF_ALLOC;
 		sh->addr = va;
 		sh->off = fo;
 		sh->size = w;
@@ -527,8 +530,8 @@ asmb(void)
 		w = bsssize;
 
 		sh = newElf64SHdr();
-		sh->type = 8;
-		sh->flags = 3;
+		sh->type = SHT_NOBITS;
+		sh->flags = SHF_WRITE+SHF_ALLOC;
 		sh->addr = va;
 		sh->off = fo;
 		sh->size = w;
@@ -538,7 +541,7 @@ asmb(void)
 		w = strtabsize;
 
 		sh = newElf64SHdr();
-		sh->type = 3;
+		sh->type = SHT_STRTAB;
 		sh->off = fo;
 		sh->size = w;
 		sh->addralign = 1;
@@ -551,7 +554,7 @@ asmb(void)
 		w = symsize;
 
 		sh = newElf64SHdr();
-		sh->type = 1;	/* type 1 = SHT_PROGBITS */
+		sh->type = SHT_PROGBITS;
 		sh->off = fo;
 		sh->size = w;
 		sh->addralign = 1;
@@ -562,7 +565,7 @@ asmb(void)
 		w = lcsize;
 
 		sh = newElf64SHdr();
-		sh->type = 1;	/* type 1 = SHT_PROGBITS */
+		sh->type = SHT_PROGBITS;
 		sh->off = fo;
 		sh->size = w;
 		sh->addralign = 1;

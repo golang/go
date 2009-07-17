@@ -45,8 +45,9 @@ typedef int32	Elf64_Sword;	/* Signed integer */
 typedef uint64	Elf64_Xword;	/* Unsigned long integer */
 typedef int64	Elf64_Sxword; 	/* Signed long integer */
 
-typedef struct Elf64Hdr Elf64Hdr;
-typedef struct Elf64SHdr Elf64SHdr;
+typedef struct Elf64Hdr		Elf64Hdr;
+typedef struct Elf64SHdr	Elf64SHdr;
+typedef struct Elf64PHdr	Elf64PHdr;
 
 struct Elf64Hdr
 {
@@ -66,13 +67,39 @@ struct Elf64Hdr
 	Elf64_Half	shstrndx;	/* Section name string table index */
 };
 
+struct Elf64PHdr
+{
+	Elf64_Word	type;	/* Type of segment */ 
+	Elf64_Word	flags;	/* Segment attributes */ 
+	Elf64_Off	off;	/* Offset in file */ 
+	Elf64_Addr	vaddr;	/* Virtual address in memory */ 
+	Elf64_Addr	paddr;	/* Reserved */ 
+	Elf64_Xword	filesz;	/* Size of segment in file */ 
+	Elf64_Xword	memsz;	/* Size of segment in memory */ 
+	Elf64_Xword	align;	/* Alignment of segment */ 
+};
+
+/* P types */
+#define	PT_NULL		0	/* Unused entry */
+#define	PT_LOAD		1	/* Loadable segment */
+#define	PT_DYNAMIC	2	/* Dynamic linking tables */
+#define	PT_INTERP	3	/* Program interpreter path name */
+#define	PT_NOTE		4	/* Note sections */
+
+/* P flags */
+#define	PF_X	0x1	/* Execute permission */
+#define	PF_W	0x2	/* Write permission */
+#define	PF_R	0x4	/* Read permission */
+#define	PF_MASKOS	0x00FF0000 /* reserved for environment-specific use */
+#define	PF_MASKPROC	0xFF000000 /*reserved for processor-specific use */
+
 struct Elf64SHdr
 {
 	Elf64_Word	name;	/* Section name */
 	Elf64_Word	type;	/* Section type */
 	Elf64_Xword	flags;	/* Section attributes */
 	Elf64_Addr	addr;	/* Virtual address in memory */
-	Elf64_Off	off; /* Offset in file */
+	Elf64_Off	off;	/* Offset in file */
 	Elf64_Xword	size;	/* Size of section */
 	Elf64_Word	link;	/* Link to other section */
 	Elf64_Word	info;	/* Miscellaneous information */
@@ -80,10 +107,34 @@ struct Elf64SHdr
 	Elf64_Xword	entsize;	/* Size of entries, if section has table */
 };
 
-Elf64SHdr *newElf64SHdr();
+/* S types */
+#define SHT_NULL	0	/* Unused section header */
+#define SHT_PROGBITS	1	/* Information defined by the program */
+#define SHT_SYMTAB	2	/* Linker symbol table */
+#define SHT_STRTAB	3	/* String table */
+#define SHT_RELA	4 	/* "Rela" type relocation entries */
+#define SHT_HASH	5	/* Symbol hash table */
+#define SHT_DYNAMIC	6	/* Dynamic linking tables */
+#define SHT_NOTE	7	/* Note information */
+#define SHT_NOBITS	8	/* Uninitialized space; does not occupy any space in the file */ 
+#define SHT_REL		9	/* "Rel" type relocation entries */
+#define SHT_SHLIB	10	/* Reserved */
+#define SHT_DYNSYM	11	/* A dynamic loader symbol table */ 
+#define SHT_LOOS	0x60000000	/* Environment-specific use */
+#define SHT_HIOS	0x6FFFFFFF 
+#define SHT_LOPROC	0x70000000	/* Processor-specific use */
+#define SHT_HIPROC 0x7FFFFFFF
+
+/* S flags */
+#define	SHF_WRITE	0x1 /* Writable data */
+#define	SHF_ALLOC	0x2 /* Allocated in memory image of program */ 
+#define	SHF_EXECINSTR	0x4 /* Executable instructions */
+#define	SHF_MASKOS	0x0F000000	/* Environment-specific use */
+#define	SHF_MASKPROC	0xF0000000	/* Processor-specific use */
+
+Elf64SHdr	*newElf64SHdr();
+Elf64PHdr	*newElf64PHdr();
 uint32	elf64headr(void);
-void	elf64phdr(int type, int flags, vlong foff,
-	vlong vaddr, vlong paddr,
-	vlong filesize, vlong memsize, vlong align);
+void	elf64phdr(Elf64PHdr*);
 void	elf64shdr(char*, Elf64SHdr*);
 int	elf64strtable(void);

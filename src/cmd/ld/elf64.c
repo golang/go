@@ -7,19 +7,16 @@
 #include "../ld/elf64.h"
 
 void
-elf64phdr(int type, int flags, vlong foff,
-	vlong vaddr, vlong paddr,
-	vlong filesize, vlong memsize, vlong align)
+elf64phdr(Elf64PHdr *e)
 {
-
-	lputl(type);			/*  type */
-	lputl(flags);			/* flags */
-	vputl(foff);			/* file offset */
-	vputl(vaddr);			/* vaddr */
-	vputl(paddr);			/* paddr */
-	vputl(filesize);		/* file size */
-	vputl(memsize);		/* memory size */
-	vputl(align);			/* alignment */
+	lputl(e->type);
+	lputl(e->flags);
+	vputl(e->off);
+	vputl(e->vaddr);
+	vputl(e->paddr);
+	vputl(e->filesz);
+	vputl(e->memsz);
+	vputl(e->align);
 }
 
 void
@@ -103,6 +100,17 @@ newElf64SHdr()
 	e = malloc(sizeof *e);
 	memset(e, 0, sizeof *e);
 	e->name = stroffset;
+	return e;
+}
+
+
+Elf64PHdr*
+newElf64PHdr()
+{
+	Elf64PHdr *e;
+
+	e = malloc(sizeof *e);
+	memset(e, 0, sizeof *e);
 	return e;
 }
 
