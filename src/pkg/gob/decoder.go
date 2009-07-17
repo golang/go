@@ -42,7 +42,7 @@ func (dec *Decoder) recvType(id TypeId) {
 
 	// Type:
 	wire := new(wireType);
-	decode(dec.state.b, wire);
+	decode(dec.state.b, tWireType, wire);
 	// Remember we've seen this type.
 	dec.seen[id] = wire;
 }
@@ -86,7 +86,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 			return dec.state.err
 		}
 
-		// Is it a type?
+		// Is it a new type?
 		if id < 0 {	// 0 is the error state, handled above
 			// If the id is negative, we have a type.
 			dec.recvType(-id);
@@ -97,7 +97,9 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 		}
 
 		// No, it's a value.
+		typeLock.Lock();
 		info := getTypeInfo(rt);
+		typeLock.Unlock();
 
 		// Check type compatibility.
 		// TODO(r): need to make the decoder work correctly if the wire type is compatible
@@ -108,7 +110,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 		}
 
 		// Receive a value.
-		decode(dec.state.b, e);
+		decode(dec.state.b, id, e);
 
 		return dec.state.err
 	}

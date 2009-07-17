@@ -523,7 +523,6 @@ func TestScalarDecInstructions(t *testing.T) {
 	}
 }
 
-
 func TestEndToEnd(t *testing.T) {
 	type T2 struct {
 		t string
@@ -553,7 +552,7 @@ func TestEndToEnd(t *testing.T) {
 	b := new(bytes.Buffer);
 	encode(b, t1);
 	var _t1 T1;
-	decode(b, &_t1);
+	decode(b, getTypeInfo(reflect.Typeof(_t1)).typeId, &_t1);
 	if !reflect.DeepEqual(t1, &_t1) {
 		t.Errorf("encode expected %v got %v", *t1, _t1);
 	}
@@ -571,7 +570,7 @@ func TestNesting(t *testing.T) {
 	b := new(bytes.Buffer);
 	encode(b, rt);
 	var drt RT;
-	decode(b, &drt);
+	decode(b, getTypeInfo(reflect.Typeof(drt)).typeId, &drt);
 	if drt.a != rt.a {
 		t.Errorf("nesting: encode expected %v got %v", *rt, drt);
 	}
@@ -613,7 +612,8 @@ func TestAutoIndirection(t *testing.T) {
 	b := new(bytes.Buffer);
 	encode(b, t1);
 	var t0 T0;
-	decode(b, &t0);
+	t0Id := getTypeInfo(reflect.Typeof(t0)).typeId;
+	decode(b, t0Id, &t0);
 	if t0.a != 17 || t0.b != 177 || t0.c != 1777 || t0.d != 17777 {
 		t.Errorf("t1->t0: expected {17 177 1777 17777}; got %v", t0);
 	}
@@ -627,7 +627,7 @@ func TestAutoIndirection(t *testing.T) {
 	b.Reset();
 	encode(b, t2);
 	t0 = T0{};
-	decode(b, &t0);
+	decode(b, t0Id, &t0);
 	if t0.a != 17 || t0.b != 177 || t0.c != 1777 || t0.d != 17777 {
 		t.Errorf("t2->t0 expected {17 177 1777 17777}; got %v", t0);
 	}
@@ -637,7 +637,8 @@ func TestAutoIndirection(t *testing.T) {
 	b.Reset();
 	encode(b, t0);
 	t1 = T1{};
-	decode(b, &t1);
+	t1Id := getTypeInfo(reflect.Typeof(t1)).typeId;
+	decode(b, t1Id, &t1);
 	if t1.a != 17 || *t1.b != 177 || **t1.c != 1777 || ***t1.d != 17777 {
 		t.Errorf("t0->t1 expected {17 177 1777 17777}; got {%d %d %d %d}", t1.a, *t1.b, **t1.c, ***t1.d);
 	}
@@ -646,7 +647,8 @@ func TestAutoIndirection(t *testing.T) {
 	b.Reset();
 	encode(b, t0);
 	t2 = T2{};
-	decode(b, &t2);
+	t2Id := getTypeInfo(reflect.Typeof(t2)).typeId;
+	decode(b, t2Id, &t2);
 	if ***t2.a != 17 || **t2.b != 177 || *t2.c != 1777 || t2.d != 17777 {
 		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.a, **t2.b, *t2.c, t2.d);
 	}
@@ -658,8 +660,72 @@ func TestAutoIndirection(t *testing.T) {
 	**t2.b = 0;
 	*t2.c = 0;
 	t2.d = 0;
-	decode(b, &t2);
+	decode(b, t2Id, &t2);
 	if ***t2.a != 17 || **t2.b != 177 || *t2.c != 1777 || t2.d != 17777 {
 		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.a, **t2.b, *t2.c, t2.d);
+	}
+}
+
+type RT0 struct {
+	a int;
+	b string;
+	c float;
+}
+type RT1 struct {
+	c float;
+	b string;
+	a int;
+	notSet string;
+}
+
+func TestReorderedFields(t *testing.T) {
+	var rt0 RT0;
+	rt0.a = 17;
+	rt0.b = "hello";
+	rt0.c = 3.14159;
+	b := new(bytes.Buffer);
+	encode(b, rt0);
+	rt0Id := getTypeInfo(reflect.Typeof(rt0)).typeId;
+	var rt1 RT1;
+	// Wire type is RT0, local type is RT1.
+	decode(b, rt0Id, &rt1);
+	if rt0.a != rt1.a || rt0.b != rt1.b || rt0.c != rt1.c {
+		t.Errorf("rt1->rt0: expected %v; got %v", rt0, rt1);
+	}
+}
+
+// Like an RT0 but with fields we'll ignore on the decode side.
+type IT0 struct {
+	a int64;
+	b string;
+	ignore_d []int;
+	ignore_e [3]float;
+	ignore_f bool;
+	ignore_g string;
+	ignore_h []byte;
+	c float;
+}
+
+func TestIgnoredFields(t *testing.T) {
+	var it0 IT0;
+	it0.a = 17;
+	it0.b = "hello";
+	it0.c = 3.14159;
+	it0.ignore_d = []int{ 1, 2, 3 };
+	it0.ignore_e[0]  = 1.0;
+	it0.ignore_e[1]  = 2.0;
+	it0.ignore_e[2]  = 3.0;
+	it0.ignore_f = true;
+	it0.ignore_g = "pay no attention";
+	it0.ignore_h = strings.Bytes("to the curtain");
+
+	b := new(bytes.Buffer);
+	encode(b, it0);
+	rt0Id := getTypeInfo(reflect.Typeof(it0)).typeId;
+	var rt1 RT1;
+	// Wire type is IT0, local type is RT1.
+	decode(b, rt0Id, &rt1);
+	if int(it0.a) != rt1.a || it0.b != rt1.b || it0.c != rt1.c {
+		t.Errorf("rt1->rt0: expected %v; got %v", it0, rt1);
 	}
 }

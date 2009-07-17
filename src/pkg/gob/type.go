@@ -81,6 +81,9 @@ var tFloat TypeId
 var tString TypeId
 var tBytes TypeId
 
+// Predefined because it's needed by the Decoder
+var tWireType TypeId
+
 // Array type
 type arrayType struct {
 	commonType;
@@ -322,7 +325,9 @@ type decEngine struct	// defined in decode.go
 type encEngine struct	// defined in encode.go
 type typeInfo struct {
 	typeId	TypeId;
-	decoder	*decEngine;
+	// Decoder engine to convert TypeId.Type() to this type.  Stored as a pointer to a
+	// pointer to aid construction of recursive types.  Protected by typeLock.
+	decoderPtr	map[TypeId] **decEngine;
 	encoder	*encEngine;
 	wire	*wireType;
 }
@@ -330,6 +335,7 @@ type typeInfo struct {
 var typeInfoMap = make(map[reflect.Type] *typeInfo)	// protected by typeLock
 
 // The reflection type must have all its indirections processed out.
+// typeLock must be held.
 func getTypeInfo(rt reflect.Type) *typeInfo {
 	if pt, ok := rt.(*reflect.PtrType); ok {
 		panicln("pointer type in getTypeInfo:", rt.String())
@@ -339,6 +345,7 @@ func getTypeInfo(rt reflect.Type) *typeInfo {
 		info = new(typeInfo);
 		path, name := rt.Name();
 		info.typeId = getType(name, rt).id();
+		info.decoderPtr = make(map[TypeId] **decEngine);
 		// assume it's a struct type
 		info.wire = &wireType{info.typeId.gobType().(*structType)};
 		typeInfoMap[rt] = info;
@@ -347,11 +354,12 @@ func getTypeInfo(rt reflect.Type) *typeInfo {
 }
 
 func init() {
-	tBool= bootstrapType("bool", false);
+	tBool = bootstrapType("bool", false);
 	tInt = bootstrapType("int", int(0));
 	tUint = bootstrapType("uint", uint(0));
 	tFloat = bootstrapType("float", float64(0));
 	// The string for tBytes is "bytes" not "[]byte" to signify its specialness.
 	tBytes = bootstrapType("bytes", make([]byte, 0));
 	tString= bootstrapType("string", "");
+	tWireType = getTypeInfo(reflect.Typeof(wireType{})).typeId;
 }

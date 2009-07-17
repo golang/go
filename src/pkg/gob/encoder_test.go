@@ -72,7 +72,7 @@ func TestBasicEncoder(t *testing.T) {
 	}
 	// 2) The wireType for ET1
 	wire1 := new(wireType);
-	err := decode(b, wire1);
+	err := decode(b, tWireType, wire1);
 	if err != nil {
 		t.Fatal("error decoding ET1 type:", err);
 	}
@@ -93,7 +93,7 @@ func TestBasicEncoder(t *testing.T) {
 	}
 	// 5) The wireType for ET2
 	wire2 := new(wireType);
-	err = decode(b, wire2);
+	err = decode(b, tWireType, wire2);
 	if err != nil {
 		t.Fatal("error decoding ET2 type:", err);
 	}
@@ -114,7 +114,8 @@ func TestBasicEncoder(t *testing.T) {
 	}
 	// 8) The value of et1
 	newEt1 := new(ET1);
-	err = decode(b, newEt1);
+	et1Id := getTypeInfo(reflect.Typeof(*newEt1)).typeId;
+	err = decode(b, et1Id, newEt1);
 	if err != nil {
 		t.Fatal("error decoding ET1 value:", err);
 	}
@@ -144,7 +145,7 @@ func TestBasicEncoder(t *testing.T) {
 	}
 	// 6a) The value of et1
 	newEt1 = new(ET1);
-	err = decode(b, newEt1);
+	err = decode(b, et1Id, newEt1);
 	if err != nil {
 		t.Fatal("2nd round: error decoding ET1 value:", err);
 	}
