@@ -220,12 +220,7 @@ func LitString(p []*ast.StringLit) (string, os.Error) {
 }
 
 func PackageImports(file string) (pkg string, imports []string, err1 os.Error) {
-	f, err := os.Open(file, os.O_RDONLY, 0);
-	if err != nil {
-		return "", nil, err
-	}
-
-	prog, err := parser.Parse(file, f, parser.ImportsOnly);
+	prog, err := parser.ParseFile(file, nil, parser.ImportsOnly);
 	if err != nil {
 		return "", nil, err;
 	}

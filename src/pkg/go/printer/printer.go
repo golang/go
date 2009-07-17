@@ -891,16 +891,16 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 
 
 // ----------------------------------------------------------------------------
-// Programs
+// Files
 
-func (p *printer) program(prog *ast.Program) {
-	p.setComments(prog.Comments);  // unassociated comments
+func (p *printer) file(src *ast.File) {
+	p.setComments(src.Comments);  // unassociated comments
 
-	p.leadingComment(prog.Doc);
-	p.print(prog.Pos(), token.PACKAGE, blank);
-	p.expr(prog.Name);
+	p.leadingComment(src.Doc);
+	p.print(src.Pos(), token.PACKAGE, blank);
+	p.expr(src.Name);
 
-	for _, d := range prog.Decls {
+	for _, d := range src.Decls {
 		p.print(newline, newline);
 		comment, _ := p.decl(d);
 		if p.optSemis() {
@@ -917,7 +917,7 @@ func (p *printer) program(prog *ast.Program) {
 // Public interface
 
 // Fprint "pretty-prints" an AST node to output and returns the number of
-// bytes written, and an error, if any. The node type must be *ast.Program,
+// bytes written, and an error, if any. The node type must be *ast.File,
 // or assignment-compatible to ast.Expr, ast.Decl, or ast.Stmt. Printing is
 // controlled by the mode parameter. For best results, the output should be
 // a tabwriter.Writer.
@@ -935,8 +935,8 @@ func Fprint(output io.Writer, node interface{}, mode uint) (int, os.Error) {
 		case ast.Decl:
 			comment, _ := p.decl(n);
 			p.trailingComment(comment);  // no newline at end
-		case *ast.Program:
-			p.program(n);
+		case *ast.File:
+			p.file(n);
 		default:
 			p.errors <- os.NewError("unsupported node type");
 		}

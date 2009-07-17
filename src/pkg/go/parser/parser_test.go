@@ -22,9 +22,9 @@ var illegalInputs = []interface{} {
 
 func TestParseIllegalInputs(t *testing.T) {
 	for _, src := range illegalInputs {
-		prog, err := Parse("", src, 0);
+		prog, err := ParseFile("", src, 0);
 		if err == nil {
-			t.Errorf("Parse(%v) should have failed", src);
+			t.Errorf("ParseFile(%v) should have failed", src);
 		}
 	}
 }
@@ -38,9 +38,9 @@ var validPrograms = []interface{} {
 
 func TestParseValidPrograms(t *testing.T) {
 	for _, src := range validPrograms {
-		prog, err := Parse("", src, 0);
+		prog, err := ParseFile("", src, 0);
 		if err != nil {
-			t.Errorf("Parse(%q) failed: %v", src, err);
+			t.Errorf("ParseFile(%q): %v", src, err);
 		}
 	}
 }
@@ -54,15 +54,38 @@ var validFiles = []string {
 
 func TestParse3(t *testing.T) {
 	for _, filename := range validFiles {
-		src, err := os.Open(filename, os.O_RDONLY, 0);
-		defer src.Close();
+		prog, err := ParseFile(filename, nil, 0);
 		if err != nil {
-			t.Fatal(err);
+			t.Errorf("ParseFile(%s): %v", filename, err);
 		}
+	}
+}
 
-		prog, err := Parse(filename, src, 0);
-		if err != nil {
-			t.Errorf("Parse(%s): %v", filename, err);
+
+func filter(filename string) bool {
+	switch filename {
+	case "parser.go":
+	case "interface.go":
+	case "parser_test.go":
+	default:
+		return false;
+	}
+	return true;
+}
+
+
+func TestParse4(t *testing.T) {
+	path := ".";
+	pkg, err := ParsePackage(path, filter, 0);
+	if err != nil {
+		t.Errorf("ParsePackage(%s): %v", path, err);
+	}
+	if pkg.Name != "parser" {
+		t.Errorf("incorrect package name: %s", pkg.Name);
+	}
+	for filename, _ := range pkg.Files {
+		if !filter(filename) {
+			t.Errorf("unexpected package file: %s", filename);
 		}
 	}
 }
