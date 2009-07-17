@@ -7,6 +7,7 @@ package eval
 import (
 	"bignum";
 	"eval";
+	"log";
 )
 
 
@@ -224,12 +225,31 @@ func (t *floatType) String() string {
 
 func (t *floatType) value(v float64) FloatValue
 
+var maxFloat32Val = bignum.MakeRat(bignum.Int(0xffffff).Shl(127-23), bignum.Nat(1));
+var maxFloat64Val = bignum.MakeRat(bignum.Int(0x1fffffffffffff).Shl(1023-52), bignum.Nat(1));
+var minFloat32Val = maxFloat32Val.Neg();
+var minFloat64Val = maxFloat64Val.Neg();
+
 func (t *floatType) minVal() *bignum.Rational {
-	panic("Not implemented");
+	switch t.Bits {
+	case 32:
+		return minFloat32Val;
+	case 64:
+		return minFloat64Val;
+	}
+	log.Crashf("unexpected number of floating point bits: %d", t.Bits);
+	panic();
 }
 
 func (t *floatType) maxVal() *bignum.Rational {
-	panic("Not implemented");
+	switch t.Bits {
+	case 32:
+		return maxFloat32Val;
+	case 64:
+		return maxFloat64Val;
+	}
+	log.Crashf("unexpected number of floating point bits: %d", t.Bits);
+	panic();
 }
 
 type idealFloatType struct {
