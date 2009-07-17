@@ -38,11 +38,9 @@ type ET4 struct {
 	next *ET2;
 }
 
-// Like ET1 but with a different type for a self-referencing field
+// Has different type for a self-referencing field compared to ET1
 type ET5 struct {
-	a int;
-	et2 *ET2;
-	next *ET1;
+	next *ET2;
 }
 
 func TestBasicEncoder(t *testing.T) {
@@ -227,7 +225,7 @@ func badTypeCheck(e interface{}, msg string, t *testing.T) {
 
 // Test that we recognize a bad type the first time.
 func TestWrongTypeDecoder(t *testing.T) {
-	badTypeCheck(new(ET2), "different number of fields", t);
+	badTypeCheck(new(ET2), "no fields in common", t);
 	badTypeCheck(new(ET3), "different name of field", t);
 	badTypeCheck(new(ET4), "different type of field", t);
 	badTypeCheck(new(ET5), "different type of self-reference field", t);

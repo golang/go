@@ -83,7 +83,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 		// Receive a type id.
 		id := TypeId(decodeInt(dec.state));
 		if dec.state.err != nil {
-			return dec.state.err
+			break;
 		}
 
 		// Is it a new type?
@@ -91,28 +91,14 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 			// If the id is negative, we have a type.
 			dec.recvType(-id);
 			if dec.state.err != nil {
-				return dec.state.err
+				break;
 			}
 			continue;
 		}
 
 		// No, it's a value.
-		typeLock.Lock();
-		info := getTypeInfo(rt);
-		typeLock.Unlock();
-
-		// Check type compatibility.
-		// TODO(r): need to make the decoder work correctly if the wire type is compatible
-		// but not equal to the local type (e.g, extra fields).
-		if info.wire.name() != dec.seen[id].name() {
-			dec.state.err = os.ErrorString("gob decode: incorrect type for wire value: want " + info.wire.name() + "; received " + dec.seen[id].name());
-			return dec.state.err
-		}
-
-		// Receive a value.
-		decode(dec.state.b, id, e);
-
-		return dec.state.err
+		dec.state.err = decode(dec.state.b, id, e);
+		break;
 	}
-	return nil	// silence compiler
+	return dec.state.err
 }
