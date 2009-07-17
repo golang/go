@@ -14,6 +14,8 @@ Todo's:
 	a T struct { a b int }.
 [ ] should probably write something about evaluation order of statements even
 	though obvious
+[ ] specify iteration direction for range clause
+[ ] review language on implicit dereferencing
 [ ] document T.m mechanism to obtain a function from a method
 -->
 
@@ -1545,7 +1547,7 @@ var f = 3.1415  // f has type float
 A <i>short variable declaration</i> uses the syntax
 
 <pre class="ebnf">
-SimpleVarDecl = IdentifierList ":=" ExpressionList .
+ShortVarDecl = IdentifierList ":=" ExpressionList .
 </pre>
 
 and is shorthand for the declaration syntax
@@ -3008,7 +3010,7 @@ Statement =
 	FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
 	DeferStmt .
 
-SimpleStmt = ExpressionStmt | IncDecStmt | Assignment | SimpleVarDecl .
+SimpleStmt = ExpressionStmt | IncDecStmt | Assignment | ShortVarDecl .
 
 StatementList = Statement { Separator Statement } .
 Separator     = [ ";" ] .
