@@ -372,7 +372,7 @@ func encOpFor(rt reflect.Type) (encOp, int) {
 		}
 	}
 	if op == nil {
-		panicln("encode can't handle type", rt.String());
+		panicln("can't happen: encode type", rt.String());
 	}
 	return op, indir
 }
@@ -381,7 +381,7 @@ func encOpFor(rt reflect.Type) (encOp, int) {
 func compileEnc(rt reflect.Type) *encEngine {
 	srt, ok := rt.(*reflect.StructType);
 	if !ok {
-		panicln("TODO: can't handle non-structs");
+		panicln("can't happen: non-struct");
 	}
 	engine := new(encEngine);
 	engine.instr = make([]encInstr, srt.NumField()+1);	// +1 for terminator
