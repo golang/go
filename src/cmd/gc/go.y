@@ -30,6 +30,7 @@
 %}
 %union	{
 	Node*		node;
+	NodeList*		list;
 	Type*		type;
 	Sym*		sym;
 	struct	Val	val;
@@ -55,23 +56,26 @@
 %type	<val>	oliteral
 
 %type	<node>	stmt ntype
-%type	<node>	arg_type arg_type_list
-%type	<node>	arg_type_list_r braced_keyexpr_list case caseblock
-%type	<node>	caseblock_list_r common_dcl
-%type	<node>	compound_stmt dotname embed expr expr_list
-%type	<node>	expr_list_r expr_or_type expr_or_type_list
-%type	<node>	expr_or_type_list_r fnbody fndcl fnliteral fnres
+%type	<node>	arg_type
+%type	<node>	case caseblock
+%type	<node>	compound_stmt dotname embed expr
+%type	<node>	expr_or_type
+%type	<node>	fndcl fnliteral
 %type	<node>	for_body for_header for_stmt if_header if_stmt
-%type	<node>	interfacedcl interfacedcl1 interfacedcl_list_r
-%type	<node>	keyval keyval_list_r labelname loop_body name
-%type	<node>	name_list name_list_r name_or_type new_field
-%type	<node>	new_name oarg_type_list ocaseblock_list oexpr
-%type	<node>	oexpr_list oexpr_or_type_list onew_name
-%type	<node>	osimple_stmt ostmt_list oxdcl_list pexpr
+%type	<node>	keyval labelname name
+%type	<node>	name_or_type
+%type	<node>	new_name oexpr
+%type	<node>	onew_name
+%type	<node>	osimple_stmt pexpr
 %type	<node>	pseudocall range_stmt select_stmt
-%type	<node>	simple_stmt stmt_list_r structdcl structdcl_list_r
-%type	<node>	switch_body switch_stmt uexpr vardcl vardcl_list_r
-%type	<node>	xdcl xdcl_list_r xfndcl
+%type	<node>	simple_stmt
+%type	<node>	switch_stmt uexpr
+%type	<node>	xfndcl
+
+%type	<list>	xdcl fnbody common_dcl fnres switch_body loop_body
+%type	<list>	name_list expr_list keyval_list braced_keyval_list expr_or_type_list xdcl_list
+%type	<list>	oexpr_list oexpr_or_type_list caseblock_list stmt_list oarg_type_list arg_type_list
+%type	<list>	interfacedcl_list interfacedcl vardcl vardcl_list structdcl structdcl_list
 
 %type	<type>	type
 %type	<node>	convtype dotdotdot
@@ -81,13 +85,13 @@
 
 %type	<sym>	hidden_importsym hidden_pkg_importsym
 
-%type	<node>	hidden_constant hidden_dcl hidden_funarg_list
-%type	<node>	hidden_funarg_list_r hidden_funres
-%type	<node>	hidden_interfacedcl hidden_interfacedcl_list
-%type	<node>	hidden_interfacedcl_list_r hidden_structdcl
-%type	<node>	hidden_structdcl_list hidden_structdcl_list_r
-%type	<node>	ohidden_funarg_list ohidden_funres
-%type	<node>	ohidden_interfacedcl_list ohidden_structdcl_list
+%type	<node>	hidden_constant hidden_dcl hidden_interfacedcl hidden_structdcl
+
+%type	<list>	hidden_funres
+%type	<list>	ohidden_funres
+%type	<list>	hidden_funarg_list ohidden_funarg_list
+%type	<list>	hidden_interfacedcl_list ohidden_interfacedcl_list
+%type	<list>	hidden_structdcl_list ohidden_structdcl_list
 
 %type	<type>	hidden_type hidden_type1 hidden_type2
 
@@ -125,7 +129,7 @@ file:
 	loadsys
 	package
 	imports
-	oxdcl_list
+	xdcl_list
 	{
 		if(debug['f'])
 			frame(1);
@@ -165,11 +169,15 @@ imports:
 
 import:
 	LIMPORT import_stmt
-|	LIMPORT '(' import_stmt_list_r osemi ')'
+|	LIMPORT '(' import_stmt_list osemi ')'
 |	LIMPORT '(' ')'
 
 import_stmt:
 	import_here import_package import_there import_done
+
+import_stmt_list:
+	import_stmt
+|	import_stmt_list ';' import_stmt
 
 import_here:
 	LLITERAL
@@ -202,13 +210,22 @@ import_package:
 	}
 
 import_there:
+	{
+		defercheckwidth();
+	}
 	hidden_import_list '$' '$'
 	{
+		resumecheckwidth();
 		checkimports();
 		unimportfile();
 	}
-|	LIMPORT '$' '$' hidden_import_list '$' '$'
+|	LIMPORT '$' '$'
 	{
+		defercheckwidth();
+	}
+	hidden_import_list '$' '$'
+	{
+		resumecheckwidth();
 		checkimports();
 	}
 
@@ -251,15 +268,6 @@ import_done:
 		my->def->sym = import;
 	}
 
-hidden_import_list:
-	{
-		defercheckwidth();
-	}
-	hidden_import_list_r
-	{
-		resumecheckwidth();
-	}
-
 /*
  * declarations
  */
@@ -273,11 +281,11 @@ xdcl:
 	{
 		if($1 != N && $1->nname != N && $1->type->thistuple == 0)
 			autoexport($1->nname->sym);
-		$$ = N;
+		$$ = nil;
 	}
 |	';'
 	{
-		$$ = N;
+		$$ = nil;
 	}
 |	error xdcl
 	{
@@ -291,55 +299,55 @@ common_dcl:
 		if(yylast == LSEMIBRACE)
 			yyoptsemi(0);
 	}
-|	LVAR '(' vardcl_list_r osemi ')'
+|	LVAR '(' vardcl_list osemi ')'
 	{
-		$$ = rev($3);
+		$$ = $3;
 		yyoptsemi(0);
 	}
 |	LVAR '(' ')'
 	{
-		$$ = N;
+		$$ = nil;
 		yyoptsemi(0);
 	}
 |	LCONST constdcl
 	{
-		$$ = N;
+		$$ = nil;
 		iota = 0;
-		lastconst = N;
+		lastconst = nil;
 	}
 |	LCONST '(' constdcl osemi ')'
 	{
+		$$ = nil;
 		iota = 0;
-		lastconst = N;
-		$$ = N;
+		lastconst = nil;
 		yyoptsemi(0);
 	}
-|	LCONST '(' constdcl ';' constdcl_list_r osemi ')'
+|	LCONST '(' constdcl ';' constdcl_list osemi ')'
 	{
+		$$ = nil;
 		iota = 0;
-		lastconst = N;
-		$$ = N;
+		lastconst = nil;
 		yyoptsemi(0);
 	}
 |	LCONST '(' ')'
 	{
-		$$ = N;
+		$$ = nil;
 		yyoptsemi(0);
 	}
 |	LTYPE typedcl
 	{
-		$$ = N;
+		$$ = nil;
 		if(yylast == LSEMIBRACE)
 			yyoptsemi(0);
 	}
-|	LTYPE '(' typedcl_list_r osemi ')'
+|	LTYPE '(' typedcl_list osemi ')'
 	{
-		$$ = N;
+		$$ = nil;
 		yyoptsemi(0);
 	}
 |	LTYPE '(' ')'
 	{
-		$$ = N;
+		$$ = nil;
 		yyoptsemi(0);
 	}
 
@@ -352,7 +360,7 @@ varoptsemi:
 vardcl:
 	name_list type varoptsemi
 	{
-		$$ = variter($1, $2, N);
+		$$ = variter($1, $2, nil);
 	}
 |	name_list type varoptsemi '=' expr_list
 	{
@@ -377,11 +385,11 @@ constdcl1:
 	constdcl
 |	name_list type
 	{
-		constiter($1, $2, N);
+		constiter($1, $2, nil);
 	}
 |	name_list
 	{
-		constiter($1, T, N);
+		constiter($1, T, nil);
 	}
 
 typedclname:
@@ -420,21 +428,27 @@ simple_stmt:
 	}
 |	expr_list '=' expr_list
 	{
-		$$ = nod(OAS, $$, $3);
+		if($1->next == nil && $3->next == nil) {
+			// simple
+			$$ = nod(OAS, $1->n, $3->n);
+			break;
+		}
+		// multiple
+		$$ = nod(OAS2, N, N);
+		$$->list = $1;
+		$$->rlist = $3;
 	}
 |	expr_list LCOLAS expr_list
 	{
-		Node *top;
-
-		if($3->op == OTYPESW) {
-			$$ = nod(OTYPESW, $1, $3->left);
+		if($3->n->op == OTYPESW) {
+			if($3->next != nil)
+				yyerror("expr.(type) must be alone in list");
+			else if($1->next != nil)
+				yyerror("argument count mismatch: %d = %d", count($1), 1);
+			$$ = nod(OTYPESW, $1->n, $3->n->left);
 			break;
 		}
-		top = N;
-		$$ = colas($$, $3, &top);
-		$$ = nod(OAS, $$, $3);
-		$$->colas = 1;
-		$$->ninit = top;
+		$$ = colas($1, $3);
 	}
 |	expr LINC
 	{
@@ -450,28 +464,31 @@ simple_stmt:
 case:
 	LCASE expr_list ':'
 	{
-		Node *top;
+		int e;
+		Node *n;
 
 		// will be converted to OCASE
 		// right will point to next case
 		// done in casebody()
-		top = N;
 		poptodcl();
+		$$ = nod(OXCASE, N, N);
 		if(typeswvar != N && typeswvar->right != N) {
-			int e;
-			if($2->op == OLITERAL && $2->val.ctype == CTNIL) {
-				// this version in type switch case nil
-				$$ = nod(OTYPESW, N, N);
-				$$ = nod(OXCASE, $$, N);
+			// type switch
+			n = $2->n;
+			if($2->next != nil)
+				yyerror("type switch case cannot be list");
+			if(n->op == OLITERAL && n->val.ctype == CTNIL) {
+				// case nil
+				$$->list = list1(nod(OTYPESW, N, N));
 				break;
 			}
+
+			// TODO: move
 			e = nerrors;
-			walkexpr($2, Etype | Erv, &top);
-			if($2->op == OTYPE) {
-				$$ = old2new(typeswvar->right, $2->type, &top);
-				$$ = nod(OTYPESW, $$, N);
-				$$ = nod(OXCASE, $$, N);
-				$$->ninit = top;
+			walkexpr(n, Etype | Erv, &$$->ninit);
+			if(n->op == OTYPE) {
+				n = old2new(typeswvar->right, n->type, &$$->ninit);
+				$$->list = list1(nod(OTYPESW, n, N));
 				break;
 			}
 			// maybe walkexpr found problems that keep
@@ -479,26 +496,25 @@ case:
 			// only complain if walkexpr didn't print new errors.
 			if(nerrors == e)
 				yyerror("non-type case in type switch");
-			$$ = nod(OXCASE, N, N);
 			$$->diag = 1;
-			break;
+		} else {
+			// expr switch
+			$$->list = $2;
 		}
-		$$ = nod(OXCASE, $2, N);
+		break;
 	}
 |	LCASE type ':'
 	{
-		Node *top;
+		Node *n;
 
-		top = N;
+		$$ = nod(OXCASE, N, N);
 		poptodcl();
 		if(typeswvar == N || typeswvar->right == N) {
 			yyerror("type case not in a type switch");
-			$$ = N;
+			n = N;
 		} else
-			$$ = old2new(typeswvar->right, $2, &top);
-		$$ = nod(OTYPESW, $$, N);
-		$$ = nod(OXCASE, $$, N);
-		$$->ninit = top;
+			n = old2new(typeswvar->right, $2, &$$->ninit);
+		$$->list = list1(nod(OTYPESW, n, N));
 	}
 |	LCASE name '=' expr ':'
 	{
@@ -506,21 +522,17 @@ case:
 		// right will point to next case
 		// done in casebody()
 		poptodcl();
-		$$ = nod(OAS, $2, $4);
-		$$ = nod(OXCASE, $$, N);
+		$$ = nod(OXCASE, N, N);
+		$$->list = list1(nod(OAS, $2, $4));
 	}
 |	LCASE name LCOLAS expr ':'
 	{
-		Node *top;
-
 		// will be converted to OCASE
 		// right will point to next case
 		// done in casebody()
 		poptodcl();
-		top = N;
-		$$ = nod(OAS, selectas($2, $4, &top), $4);
-		$$ = nod(OXCASE, $$, N);
-		$$->ninit = top;
+		$$ = nod(OXCASE, N, N);
+		$$->list = list1(nod(OAS, selectas($2, $4, &$$->ninit), $4));
 	}
 |	LDEFAULT ':'
 	{
@@ -533,11 +545,9 @@ compound_stmt:
 	{
 		markdcl();
 	}
-	ostmt_list '}'
+	stmt_list '}'
 	{
-		$$ = $3;
-		if($$ == N)
-			$$ = nod(OEMPTY, N, N);
+		$$ = liststmt($3);
 		popdcl();
 		yyoptsemi(0);
 	}
@@ -547,27 +557,27 @@ switch_body:
 	{
 		markdcl();
 	}
-	ocaseblock_list '}'
+	caseblock_list '}'
 	{
 		$$ = $3;
-		if($$ == N)
-			$$ = nod(OEMPTY, N, N);
 		popdcl();
 		yyoptsemi(0);
 	}
 
 caseblock:
-	case ostmt_list
+	case stmt_list
 	{
 		$$ = $1;
 		$$->nbody = $2;
 	}
 
-caseblock_list_r:
-	caseblock
-|	caseblock_list_r caseblock
+caseblock_list:
 	{
-		$$ = nod(OLIST, $1, $2);
+		$$ = nil;
+	}
+|	caseblock_list caseblock
+	{
+		$$ = list($1, $2);
 	}
 
 loop_body:
@@ -575,23 +585,23 @@ loop_body:
 	{
 		markdcl();
 	}
-	ostmt_list '}'
+	stmt_list '}'
 	{
 		$$ = $3;
-		if($$ == N)
-			$$ = nod(OEMPTY, N, N);
 		popdcl();
 	}
 
 range_stmt:
 	expr_list '=' LRANGE expr
 	{
-		$$ = nod(ORANGE, $1, $4);
+		$$ = nod(ORANGE, N, $4);
+		$$->list = $1;
 		$$->etype = 0;	// := flag
 	}
 |	expr_list LCOLAS LRANGE expr
 	{
-		$$ = nod(ORANGE, $1, $4);
+		$$ = nod(ORANGE, N, $4);
+		$$->list = $1;
 		$$->etype = 1;
 	}
 
@@ -602,7 +612,8 @@ for_header:
 		if($5 != N && $5->colas != 0)
 			yyerror("cannot declare in the for-increment");
 		$$ = nod(OFOR, N, N);
-		$$->ninit = $1;
+		if($1 != N)
+			$$->ninit = list1($1);
 		$$->ntest = $3;
 		$$->nincr = $5;
 	}
@@ -610,9 +621,7 @@ for_header:
 	{
 		// normal test
 		$$ = nod(OFOR, N, N);
-		$$->ninit = N;
 		$$->ntest = $1;
-		$$->nincr = N;
 	}
 |	range_stmt
 	{
@@ -623,7 +632,7 @@ for_body:
 	for_header loop_body
 	{
 		$$ = $1;
-		$$->nbody = list($$->nbody, $2);
+		$$->nbody = concat($$->nbody, $2);
 		yyoptsemi(0);
 	}
 
@@ -643,14 +652,14 @@ if_header:
 	{
 		// test
 		$$ = nod(OIF, N, N);
-		$$->ninit = N;
 		$$->ntest = $1;
 	}
 |	osimple_stmt ';' osimple_stmt
 	{
 		// init ; test
 		$$ = nod(OIF, N, N);
-		$$->ninit = $1;
+		if($1 != N)
+			$$->ninit = list1($1);
 		$$->ntest = $3;
 	}
 
@@ -680,13 +689,13 @@ switch_stmt:
 			n = n->left;
 		else
 			n = N;
-		typeswvar = nod(OLIST, typeswvar, n);
+		typeswvar = nod(OXXX, typeswvar, n);
 	}
 	switch_body
 	{
 		$$ = $3;
 		$$->op = OSWITCH;
-		$$->nbody = $5;
+		$$->list = $5;
 		typeswvar = typeswvar->left;
 		popdcl();
 	}
@@ -698,7 +707,8 @@ select_stmt:
 	}
 	switch_body
 	{
-		$$ = nod(OSELECT, $3, N);
+		$$ = nod(OSELECT, N, N);
+		$$->list = $3;
 		popdcl();
 	}
 
@@ -826,7 +836,7 @@ uexpr:
 
 /*
  * call-like statements that
- * can be preceeded by 'defer' and 'go'
+ * can be preceded by 'defer' and 'go'
  */
 pseudocall:
 	pexpr '(' oexpr_or_type_list ')'
@@ -834,7 +844,8 @@ pseudocall:
 		$$ = unsafenmagic($1, $3);
 		if($$)
 			break;
-		$$ = nod(OCALL, $1, $3);
+		$$ = nod(OCALL, $1, N);
+		$$->list = $3;
 	}
 
 pexpr:
@@ -878,15 +889,14 @@ pexpr:
 |	convtype '(' expr ')'
 	{
 		// conversion
-		$$ = nod(OCALL, $1, $3);
+		$$ = nod(OCALL, $1, N);
+		$$->list = list1($3);
 	}
-|	convtype lbrace braced_keyexpr_list '}'
+|	convtype lbrace braced_keyval_list '}'
 	{
 		// composite expression
-		$$ = rev($3);
-		if($$ == N)
-			$$ = nod(OEMPTY, N, N);
-		$$ = nod(OCOMPOS, $$, $1);
+		$$ = nod(OCOMPOS, N, $1);
+		$$->list = $3;
 
 		// If the opening brace was an LBODY,
 		// set up for another one now that we're done.
@@ -894,13 +904,11 @@ pexpr:
 		if($2 == LBODY)
 			loophack = 1;
 	}
-|	pexpr '{' braced_keyexpr_list '}'
+|	pexpr '{' braced_keyval_list '}'
 	{
 		// composite expression
-		$$ = rev($3);
-		if($$ == N)
-			$$ = nod(OEMPTY, N, N);
-		$$ = nod(OCOMPOS, $$, $1);
+		$$ = nod(OCOMPOS, N, $1);
+		$$->list = $3;
 	}
 |	fnliteral
 
@@ -931,12 +939,6 @@ lbrace:
  *	oldname is used after declared
  */
 new_name:
-	sym
-	{
-		$$ = newname($1);
-	}
-
-new_field:
 	sym
 	{
 		$$ = newname($1);
@@ -1002,9 +1004,9 @@ dotdotdot:
 type:
 	ntype
 	{
-		Node *init;
+		NodeList *init;
 
-		init = N;
+		init = nil;
 		walkexpr($1, Etype, &init);
 		// init can only be set if this was not a type; ignore
 
@@ -1081,9 +1083,10 @@ chantype:
 	}
 
 structtype:
-	LSTRUCT '{' structdcl_list_r osemi '}'
+	LSTRUCT '{' structdcl_list osemi '}'
 	{
-		$$ = nod(OTSTRUCT, rev($3), N);
+		$$ = nod(OTSTRUCT, N, N);
+		$$->list = $3;
 		// Distinguish closing brace in struct from
 		// other closing braces by explicitly marking it.
 		// Used above (yylast == LSEMIBRACE).
@@ -1096,9 +1099,10 @@ structtype:
 	}
 
 interfacetype:
-	LINTERFACE '{' interfacedcl_list_r osemi '}'
+	LINTERFACE '{' interfacedcl_list osemi '}'
 	{
-		$$ = nod(OTINTER, rev($3), N);
+		$$ = nod(OTINTER, N, N);
+		$$->list = $3;
 		yylast = LSEMIBRACE;
 	}
 |	LINTERFACE '{' '}'
@@ -1136,28 +1140,29 @@ fndcl:
 		b0stack = dclstack;	// mark base for fn literals
 		$$ = nod(ODCLFUNC, N, N);
 		$$->nname = $1;
-		if($3 == N && $5 == N)
+		if($3 == nil && $5 == nil)
 			$$->nname = renameinit($1);
 		$$->type = functype(N, $3, $5);
 		funchdr($$);
 	}
 |	'(' oarg_type_list ')' new_name '(' oarg_type_list ')' fnres
 	{
+		Node *rcvr;
+
+		rcvr = $2->n;
+		if($2->next != nil || $2->n->op != ODCLFIELD) {
+			yyerror("bad receiver in method");
+			rcvr = N;
+		}
+
 		b0stack = dclstack;	// mark base for fn literals
 		$$ = nod(ODCLFUNC, N, N);
-		if(listcount($2) == 1) {
-			$$->nname = $4;
-			$$->nname = methodname($4, $2->type);
-			$$->type = functype($2, $6, $8);
-			funchdr($$);
+		$$->nname = $4;
+		$$->nname = methodname($4, rcvr->type);
+		$$->type = functype(rcvr, $6, $8);
+		funchdr($$);
+		if(rcvr != N)
 			addmethod($4, $$->type, 1);
-		} else {
-			/* declare it as a function */
-			yyerror("unknown method receiver");
-			$$->nname = $4;
-			$$->type = functype(N, $6, $8);
-			funchdr($$);
-		}
 	}
 
 fntype:
@@ -1175,32 +1180,31 @@ fnlitdcl:
 	}
 
 fnliteral:
-	fnlitdcl '{' ostmt_list '}'
+	fnlitdcl '{' stmt_list '}'
 	{
 		$$ = funclit1($1, $3);
 	}
 
 fnbody:
-	'{' ostmt_list '}'
+	{
+		$$ = nil;
+	}
+|	'{' stmt_list '}'
 	{
 		$$ = $2;
-		if($$ == N)
-			$$ = nod(ORETURN, N, N);
+		if($$ == nil)
+			$$ = list1(nod(ORETURN, N, N));
 		yyoptsemi(0);
-	}
-|	{
-		$$ = N;
 	}
 
 fnres:
 	%prec NotParen
 	{
-		$$ = N;
+		$$ = nil;
 	}
 |	non_fn_type
 	{
-		$$ = nod(ODCLFIELD, N, $1);
-		$$ = cleanidlist($$);
+		$$ = list1(nod(ODCLFIELD, N, $1));
 	}
 |	'(' oarg_type_list ')'
 	{
@@ -1213,71 +1217,64 @@ fnres:
  * to conserve yacc stack. they need to
  * be reversed to interpret correctly
  */
-xdcl_list_r:
-	xdcl
-|	xdcl_list_r xdcl
+xdcl_list:
 	{
-		$$ = list($1, $2);
+		$$ = nil;
+	}
+|	xdcl_list xdcl
+	{
+		$$ = concat($1, $2);
 	}
 
-vardcl_list_r:
+vardcl_list:
 	vardcl
-|	vardcl_list_r ';' vardcl
+|	vardcl_list ';' vardcl
 	{
-		$$ = nod(OLIST, $1, $3);
+		$$ = concat($1, $3);
 	}
 
-constdcl_list_r:
+constdcl_list:
 	constdcl1
-|	constdcl_list_r ';' constdcl1
+|	constdcl_list ';' constdcl1
 
-typedcl_list_r:
+typedcl_list:
 	typedcl
-|	typedcl_list_r ';' typedcl
+|	typedcl_list ';' typedcl
 
-structdcl_list_r:
+structdcl_list:
 	structdcl
+|	structdcl_list ';' structdcl
 	{
-		$$ = cleanidlist($1);
-	}
-|	structdcl_list_r ';' structdcl
-	{
-		$$ = cleanidlist($3);
-		$$ = nod(OLIST, $1, $$);
+		$$ = concat($1, $3);
 	}
 
-interfacedcl_list_r:
+interfacedcl_list:
 	interfacedcl
+|	interfacedcl_list ';' interfacedcl
 	{
-		$$ = cleanidlist($1);
-	}
-|	interfacedcl_list_r ';' interfacedcl
-	{
-		$$ = cleanidlist($3);
-		$$ = nod(OLIST, $1, $$);
+		$$ = concat($1, $3);
 	}
 
 structdcl:
-	new_field ',' structdcl
+	name_list ntype oliteral
 	{
-		$$ = nod(ODCLFIELD, $1, N);
-		$$ = nod(OLIST, $$, $3);
-	}
-|	new_field ntype oliteral
-	{
-		$$ = nod(ODCLFIELD, $1, $2);
-		$$->val = $3;
+		NodeList *l;
+
+		for(l=$1; l; l=l->next) {
+			l->n = nod(ODCLFIELD, l->n, $2);
+			l->n->val = $3;
+		}
 	}
 |	embed oliteral
 	{
-		$$ = $1;
-		$$->val = $2;
+		$1->val = $2;
+		$$ = list1($1);
 	}
 |	'*' embed oliteral
 	{
-		$$ = $2;
-		$$->right = nod(OIND, $$->right, N);
-		$$->val = $3;
+		$2->right = nod(OIND, $2->right, N);
+		$2->val = $3;
+		$$ = list1($2);
 	}
 
 packname:
@@ -1300,22 +1297,18 @@ embed:
 		$$ = embedded($1);
 	}
 
-interfacedcl1:
-	new_name ',' interfacedcl1
-	{
-		$$ = nod(ODCLFIELD, $1, N);
-		$$ = nod(OLIST, $$, $3);
-	}
-|	new_name indcl
-	{
-		$$ = nod(ODCLFIELD, $1, $2);
-	}
-
 interfacedcl:
-	interfacedcl1
+	name_list indcl
+	{
+		NodeList *l;
+
+		for(l=$1; l; l=l->next)
+			l->n = nod(ODCLFIELD, l->n, $2);
+		$$ = $1;
+	}
 |	packname
 	{
-		$$ = nod(ODCLFIELD, N, typenod(oldtype($1)));
+		$$ = list1(nod(ODCLFIELD, N, typenod(oldtype($1))));
 	}
 
 indcl:
@@ -1350,18 +1343,23 @@ arg_type:
 	}
 |	dotdotdot
 
-arg_type_list_r:
+arg_type_list:
 	arg_type
-|	arg_type_list_r ',' arg_type
 	{
-		$$ = nod(OLIST, $1, $3);
+		$$ = list1($1);
+	}
+|	arg_type_list ',' arg_type
+	{
+		$$ = list($1, $3);
 	}
 
-arg_type_list:
-	arg_type_list_r
+oarg_type_list:
 	{
-		$$ = rev($1);
-		$$ = checkarglist($$);
+		$$ = nil;
+	}
+|	arg_type_list
+	{
+		$$ = checkarglist($1);
 	}
 
 /*
@@ -1374,6 +1372,9 @@ stmt:
 |	simple_stmt
 |	compound_stmt
 |	common_dcl
+	{
+		$$ = liststmt($1);
+	}
 |	for_stmt
 |	switch_stmt
 |	select_stmt
@@ -1386,7 +1387,7 @@ stmt:
 	{
 		popdcl();
 		$$ = $1;
-		$$->nelse = $3;
+		$$->nelse = list1($3);
 	}
 |	error
 	{
@@ -1394,7 +1395,12 @@ stmt:
 	}
 |	labelname ':' stmt
 	{
-		$$ = nod(OLIST, nod(OLABEL, $1, N), $3);
+		NodeList *l;
+
+		l = list1(nod(OLABEL, $1, N));
+		if($3)
+			l = list(l, $3);
+		$$ = liststmt(l);
 	}
 |	LFALL
 	{
@@ -1423,136 +1429,83 @@ stmt:
 	}
 |	LRETURN oexpr_list
 	{
-		$$ = nod(ORETURN, $2, N);
+		$$ = nod(ORETURN, N, N);
+		$$->list = $2;
 	}
 
-stmt_list_r:
+stmt_list:
 	stmt
-|	stmt_list_r ';' stmt
+	{
+		$$ = nil;
+		if($1 != N)
+			$$ = list1($1);
+	}
+|	stmt_list ';' stmt
+	{
+		$$ = $1;
+		if($3 != N)
+			$$ = list($$, $3);
+	}
+
+name_list:
+	name
+	{
+		$$ = list1(newname($1->sym));
+	}
+|	name_list ',' name
+	{
+		$$ = list($1, newname($3->sym));
+	}
+
+expr_list:
+	expr
+	{
+		$$ = list1($1);
+	}
+|	expr_list ',' expr
 	{
 		$$ = list($1, $3);
 	}
 
-name_list_r:
-	name
-	{
-		$$ = newname($1->sym);
-	}
-|	name_list_r ',' name
-	{
-		$$ = nod(OLIST, $1, newname($3->sym));
-	}
-
-expr_list_r:
-	expr
-|	expr_list_r ',' expr
-	{
-		$$ = nod(OLIST, $1, $3);
-	}
-
-expr_or_type_list_r:
+expr_or_type_list:
 	expr_or_type
-|	expr_or_type_list_r ',' expr_or_type
 	{
-		$$ = nod(OLIST, $1, $3);
+		$$ = list1($1);
 	}
-
-import_stmt_list_r:
-	import_stmt
-|	import_stmt_list_r ';' import_stmt
-
-hidden_import_list_r:
-|	hidden_import_list_r hidden_import
-
-hidden_funarg_list_r:
-	hidden_dcl
-|	hidden_funarg_list_r ',' hidden_dcl
+|	expr_or_type_list ',' expr_or_type
 	{
-		$$ = nod(OLIST, $1, $3);
-	}
-
-hidden_funarg_list:
-	hidden_funarg_list_r
-	{
-		$$ = rev($1);
-	}
-
-hidden_structdcl_list_r:
-	hidden_structdcl
-|	hidden_structdcl_list_r ';' hidden_structdcl
-	{
-		$$ = nod(OLIST, $1, $3);
-	}
-
-hidden_structdcl_list:
-	hidden_structdcl_list_r
-	{
-		$$ = rev($1);
-	}
-
-hidden_interfacedcl_list_r:
-	hidden_interfacedcl
-|	hidden_interfacedcl_list_r ';' hidden_interfacedcl
-	{
-		$$ = nod(OLIST, $1, $3);
-	}
-
-hidden_interfacedcl_list:
-	hidden_interfacedcl_list_r
-	{
-		$$ = rev($1);
+		$$ = list($1, $3);
 	}
 
 /*
  * list of combo of keyval and val
  */
-keyval_list_r:
+keyval_list:
 	keyval
+	{
+		$$ = list1($1);
+	}
 |	expr
-|	keyval_list_r ',' keyval
 	{
-		$$ = nod(OLIST, $1, $3);
+		$$ = list1($1);
 	}
-|	keyval_list_r ',' expr
+|	keyval_list ',' keyval
 	{
-		$$ = nod(OLIST, $1, $3);
+		$$ = list($1, $3);
 	}
-
-/*
- * have to spell this out using _r lists to avoid yacc conflict
- */
-braced_keyexpr_list:
+|	keyval_list ',' expr
 	{
-		$$ = N;
-	}
-|	keyval_list_r ocomma
-	{
-		$$ = rev($1);
+		$$ = list($1, $3);
 	}
 
-
-/*
- * the one compromise of a
- * non-reversed list
- */
-expr_list:
-	expr_list_r
+braced_keyval_list:
 	{
-		$$ = rev($1);
+		$$ = nil;
 	}
-
-expr_or_type_list:
-	expr_or_type_list_r
+|	keyval_list ocomma
 	{
-		$$ = rev($1);
+		$$ = $1;
 	}
-
-name_list:
-	name_list_r
-	{
-		$$ = rev($1);
-	}
-
 
 /*
  * optional things
@@ -1571,13 +1524,13 @@ oexpr:
 
 oexpr_list:
 	{
-		$$ = N;
+		$$ = nil;
 	}
 |	expr_list
 
 oexpr_or_type_list:
 	{
-		$$ = N;
+		$$ = nil;
 	}
 |	expr_or_type_list
 
@@ -1587,51 +1540,21 @@ osimple_stmt:
 	}
 |	simple_stmt
 
-ostmt_list:
-	stmt_list_r
-	{
-		$$ = rev($1);
-	}
-
-ocaseblock_list:
-	{
-		$$ = N;
-	}
-|	caseblock_list_r
-	{
-		$$ = rev($1);
-	}
-
-oxdcl_list:
-	{
-		$$ = N;
-	}
-|	xdcl_list_r
-	{
-		$$ = rev($1);
-	}
-
-oarg_type_list:
-	{
-		$$ = N;
-	}
-|	arg_type_list
-
 ohidden_funarg_list:
 	{
-		$$ = N;
+		$$ = nil;
 	}
 |	hidden_funarg_list
 
 ohidden_structdcl_list:
 	{
-		$$ = N;
+		$$ = nil;
 	}
 |	hidden_structdcl_list
 
 ohidden_interfacedcl_list:
 	{
-		$$ = N;
+		$$ = nil;
 	}
 |	hidden_interfacedcl_list
 
@@ -1678,11 +1601,11 @@ hidden_import:
 	}
 |	LFUNC '(' hidden_funarg_list ')' sym '(' ohidden_funarg_list ')' ohidden_funres
 	{
-		if($3->op != ODCLFIELD) {
+		if($3->next != nil || $3->n->op != ODCLFIELD) {
 			yyerror("bad receiver in method");
 			YYERROR;
 		}
-		importmethod($5, functype($3, $7, $9));
+		importmethod($5, functype($3->n, $7, $9));
 	}
 
 hidden_type:
@@ -1749,7 +1672,7 @@ hidden_type2:
 	}
 |	LFUNC '(' ohidden_funarg_list ')' ohidden_funres
 	{
-		$$ = functype(N, $3, $5);
+		$$ = functype(nil, $3, $5);
 	}
 
 hidden_dcl:
@@ -1788,7 +1711,7 @@ hidden_interfacedcl:
 
 ohidden_funres:
 	{
-		$$ = N;
+		$$ = nil;
 	}
 |	hidden_funres
 
@@ -1799,8 +1722,11 @@ hidden_funres:
 	}
 |	hidden_type1
 	{
-		$$ = nod(ODCLFIELD, N, N);
-		$$->type = $1;
+		Node *n;
+
+		n = nod(ODCLFIELD, N, N);
+		n->type = $1;
+		$$ = list1(n);
 	}
 
 hidden_constant:
@@ -1842,4 +1768,35 @@ hidden_pkg_importsym:
 		structpkg = $$->package;
 	}
 
+hidden_import_list:
+|	hidden_import_list hidden_import
 
+hidden_funarg_list:
+	hidden_dcl
+	{
+		$$ = list1($1);
+	}
+|	hidden_funarg_list ',' hidden_dcl
+	{
+		$$ = list($1, $3);
+	}
+
+hidden_structdcl_list:
+	hidden_structdcl
+	{
+		$$ = list1($1);
+	}
+|	hidden_structdcl_list ';' hidden_structdcl
+	{
+		$$ = list($1, $3);
+	}
+
+hidden_interfacedcl_list:
+	hidden_interfacedcl
+	{
+		$$ = list1($1);
+	}
+|	hidden_interfacedcl_list ';' hidden_interfacedcl
+	{
+		$$ = list($1, $3);
+	}

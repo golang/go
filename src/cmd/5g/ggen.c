@@ -26,7 +26,7 @@ compile(Node *fn)
 		throwreturn = sysfunc("throwreturn");
 	}
 
-	if(fn->nbody == N)
+	if(fn->nbody == nil)
 		return;
 
 	// set up domain for labels
@@ -42,7 +42,7 @@ compile(Node *fn)
 		t = structfirst(&save, getoutarg(curfn->type));
 		while(t != T) {
 			if(t->nname != N)
-				curfn->nbody = list(nod(OAS, t->nname, N), curfn->nbody);
+				curfn->nbody = concat(list1(nod(OAS, t->nname, N)), curfn->nbody);
 			t = structnext(&save);
 		}
 	}
@@ -65,8 +65,8 @@ compile(Node *fn)
 	ptxt = gins(ATEXT, curfn->nname, &nod1);
 	afunclit(&ptxt->from);
 
-	gen(curfn->enter);
-	gen(curfn->nbody);
+	genlist(curfn->enter);
+	genlist(curfn->nbody);
 	checklabels();
 
 	if(curfn->type->outtuple != 0)
@@ -326,7 +326,7 @@ cgen_aret(Node *n, Node *res)
 void
 cgen_ret(Node *n)
 {
-	gen(n->left);		// copy out args
+	genlist(n->list);		// copy out args
 	if(hasdefer)
 		ginscall(deferreturn, 0);
 	gins(ARET, N, N);

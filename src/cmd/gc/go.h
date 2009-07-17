@@ -129,6 +129,7 @@ struct	Val
 
 typedef	struct	Sym	Sym;
 typedef	struct	Node	Node;
+typedef	struct	NodeList	NodeList;
 typedef	struct	Type	Type;
 typedef	struct	Dcl	Dcl;
 
@@ -198,24 +199,26 @@ struct	Node
 	Node*	left;
 	Node*	right;
 	Type*	type;
+	NodeList*	list;
+	NodeList*	rlist;
 
 	// for-body
-	Node*	ninit;
+	NodeList*	ninit;
 	Node*	ntest;
 	Node*	nincr;
-	Node*	nbody;
+	NodeList*	nbody;
 
 	// if-body
-	Node*	nelse;
+	NodeList*	nelse;
 
 	// cases
 	Node*	ncase;
 
 	// func
 	Node*	nname;
-	Node*	enter;
-	Node*	exit;
-	Node*	cvars;	// closure params
+	NodeList*	enter;
+	NodeList*	exit;
+	NodeList*	cvars;	// closure params
 	Dcl*	dcl;	// outer autodcl
 
 	// OLITERAL/OREGISTER
@@ -241,6 +244,13 @@ struct	Node
 	int32	ostk;
 };
 #define	N	((Node*)0)
+
+struct NodeList
+{
+	Node*	n;
+	NodeList*	next;
+	NodeList*	end;
+};
 
 struct	Sym
 {
@@ -308,12 +318,12 @@ enum
 	ODCL,
 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
 	ODCLFUNC, ODCLFIELD, ODCLARG,
-	OLIST, OCMP, OPTR, OARRAY, ORANGE,
+	OCMP, OPTR, OARRAY, ORANGE,
 	ORETURN, OFOR, OIF, OSWITCH, ODEFER,
-	OAS, OASOP, OCASE, OXCASE, OFALL, OXFALL,
+	OAS, OAS2, OASOP, OCASE, OXCASE, OFALL, OXFALL,
 	OGOTO, OPROC, OMAKE, ONEW, OEMPTY, OSELECT,
 	OLEN, OCAP, OPANIC, OPANICN, OPRINT, OPRINTN, OTYPEOF,
-	OCLOSE, OCLOSED,
+	OCLOSE, OCLOSED, OBLOCK,
 
 	OOROR,
 	OANDAND,
@@ -590,7 +600,7 @@ EXTERN	int	statuniqgen;		// name generator for static temps
 EXTERN	int	loophack;
 
 EXTERN	uint32	iota;
-EXTERN	Node*	lastconst;
+EXTERN	NodeList*	lastconst;
 EXTERN	Type*	lasttype;
 EXTERN	int32	vargen;
 EXTERN	int32	exportgen;
@@ -605,7 +615,6 @@ EXTERN	int	maxround;
 EXTERN	int	widthptr;
 
 EXTERN	Node*	retnil;
-EXTERN	Node*	fskel;
 
 EXTERN	Node*	typeswvar;
 
@@ -726,15 +735,12 @@ void	linehist(char*, int32, int);
 int32	setlineno(Node*);
 Node*	nod(int, Node*, Node*);
 Node*	nodlit(Val);
-Node*	list(Node*, Node*);
 Type*	typ(int);
 Dcl*	dcl(void);
 int	algtype(Type*);
-Node*	rev(Node*);
-Node*	unrev(Node*);
-Node*	appendr(Node*, Node*);
 void	dodump(Node*, int);
 void	dump(char*, Node*);
+void	dumplist(char*, NodeList*);
 Type*	aindex(Node*, Type*);
 int	isnil(Node*);
 int	isptrto(Type*, int);
@@ -762,17 +768,23 @@ Node*	nodbool(int);
 void	ullmancalc(Node*);
 void	badtype(int, Type*, Type*);
 Type*	ptrto(Type*);
-Node*	cleanidlist(Node*);
+NodeList*	cleanidlist(NodeList*);
 Node*	syslook(char*, int);
 Node*	treecopy(Node*);
+NodeList*	listtreecopy(NodeList*);
 int	isselect(Node*);
 void	tempname(Node*, Type*);
 Node*	staticname(Type*);
 int	iscomposite(Type*);
 Node*	callnew(Type*);
-Node*	saferef(Node*, Node**);
+Node*	saferef(Node*, NodeList**);
 int	is64(Type*);
 int	noconv(Type*, Type*);
+NodeList*	list1(Node*);
+NodeList*	list(NodeList*, Node*);
+NodeList*	concat(NodeList*, NodeList*);
+int		count(NodeList*);
+Node*	liststmt(NodeList*);
 
 Type**	getthis(Type*);
 Type**	getoutarg(Type*);
@@ -782,8 +794,6 @@ Type*	getthisx(Type*);
 Type*	getoutargx(Type*);
 Type*	getinargx(Type*);
 
-Node*	listfirst(Iter*, Node**);
-Node*	listnext(Iter*);
 Type*	structfirst(Iter*, Type**);
 Type*	structnext(Iter*);
 Type*	funcfirst(Iter*, Type*);
@@ -817,18 +827,17 @@ int	simsimtype(Type*);
 /*
  *	dcl.c
  */
-void	dodclvar(Node*, Type*, Node**);
+void	dodclvar(Node*, Type*, NodeList**);
 Type*	dodcltype(Type*);
 void	updatetype(Type*, Type*);
 void	dodclconst(Node*, Node*);
 void	defaultlit(Node*, Type*);
 void	defaultlit2(Node*, Node*);
-int	listcount(Node*);
 int	structcount(Type*);
 void	addmethod(Node*, Type*, int);
 Node*	methodname(Node*, Type*);
 Sym*	methodsym(Sym*, Type*);
-Type*	functype(Node*, Node*, Node*);
+Type*	functype(Node*, NodeList*, NodeList*);
 char*	thistypenam(Node*);
 void	funcnam(Type*, char*);
 Node*	renameinit(Node*);
@@ -836,8 +845,8 @@ void	funchdr(Node*);
 void	funcargs(Type*);
 void	funcbody(Node*);
 Node*	typenod(Type*);
-Type*	dostruct(Node*, int);
-Type**	stotype(Node*, int, Type**);
+Type*	dostruct(NodeList*, int);
+Type**	stotype(NodeList*, int, Type**);
 Type*	sortinter(Type*);
 void	markdcl(void);
 void	popdcl(void);
@@ -855,27 +864,26 @@ Node*	newname(Sym*);
 Node*	oldname(Sym*);
 Type*	newtype(Sym*);
 Type*	oldtype(Sym*);
-void	fninit(Node*);
-Node*	nametoanondcl(Node*);
+void	fninit(NodeList*);
 Node*	nametodcl(Node*, Type*);
 Node*	anondcl(Type*);
-Node*	checkarglist(Node*);
+NodeList*	checkarglist(NodeList*);
 void	checkwidth(Type*);
 void	defercheckwidth(void);
 void	resumecheckwidth(void);
 Node*	embedded(Sym*);
-Node*	variter(Node*, Type*, Node*);
-void	constiter(Node*, Type*, Node*);
+NodeList*	variter(NodeList*, Type*, NodeList*);
+void	constiter(NodeList*, Type*, NodeList*);
 
 void	funclit0(Type*);
-Node*	funclit1(Type*, Node*);
-Node*	unsafenmagic(Node*, Node*);
+Node*	funclit1(Type*, NodeList*);
+Node*	unsafenmagic(Node*, NodeList*);
 
 /*
  * sinit.c
  */
 
-Node*	initfix(Node*);
+NodeList*	initfix(NodeList*);
 
 /*
  *	export.c
@@ -912,30 +920,33 @@ Type*	pkgtype(Sym*);
 /*
  *	walk.c
  */
-void	gettype(Node*, Node**);
+void	gettype(Node*, NodeList**);
 void	walk(Node*);
 void	walkstmt(Node*);
-void	walkexpr(Node*, int, Node**);
-void	walkconv(Node*, Node**);
-void	walkdottype(Node*, Node**);
+void	walkstmtlist(NodeList*);
+void	walkexpr(Node*, int, NodeList**);
+void	walkexprlist(NodeList*, int, NodeList**);
+void	walkconv(Node*, NodeList**);
+void	walkdottype(Node*, NodeList**);
 void	walkas(Node*);
 void	walkbool(Node*);
 void	walkswitch(Node*);
 void	walkselect(Node*);
-void	walkdot(Node*, Node**);
-Node*	ascompatee(int, Node**, Node**, Node**);
-Node*	ascompatet(int, Node**, Type**, int, Node**);
-Node*	ascompatte(int, Type**, Node**, int, Node**);
+void	walkdot(Node*, NodeList**);
+Node*	ascompatee1(int, Node*, Node*, NodeList**);
+NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
+NodeList*	ascompatet(int, NodeList*, Type**, int, NodeList**);
+NodeList*	ascompatte(int, Type**, NodeList*, int, NodeList**);
 int	ascompat(Type*, Type*);
-Node*	prcompat(Node*, int);
+Node*	prcompat(NodeList*, int, int);
 Node*	nodpanic(int32);
 Node*	newcompat(Node*);
 Node*	makecompat(Node*);
-Node*	stringop(Node*, int, Node**);
+Node*	stringop(Node*, int, NodeList**);
 Type*	fixmap(Type*);
-Node*	mapop(Node*, int, Node**);
+Node*	mapop(Node*, int, NodeList**);
 Type*	fixchan(Type*);
-Node*	chanop(Node*, int, Node**);
+Node*	chanop(Node*, int, NodeList**);
 Node*	arrayop(Node*, int);
 Node*	ifacecvt(Type*, Node*, int);
 Node*	ifaceop(Node*);
@@ -943,18 +954,18 @@ int	ifaceas(Type*, Type*, int);
 int	ifaceas1(Type*, Type*, int);
 void	ifacecheck(Type*, Type*, int, int);
 void	runifacechecks(void);
-Node*	convas(Node*, Node**);
+Node*	convas(Node*, NodeList**);
 void	arrayconv(Type*, Node*);
-Node*	colas(Node*, Node*, Node**);
+Node*	colas(NodeList*, NodeList*);
 Node*	dorange(Node*);
-Node*	reorder1(Node*);
-Node*	reorder3(Node*);
-Node*	reorder4(Node*);
-Node*	structlit(Node*, Node*, Node**);
-Node*	arraylit(Node*, Node*, Node**);
-Node*	maplit(Node*, Node*, Node**);
-Node*	selectas(Node*, Node*, Node**);
-Node*	old2new(Node*, Type*, Node**);
+NodeList*	reorder1(NodeList*);
+NodeList*	reorder3(NodeList*);
+NodeList*	reorder4(NodeList*);
+Node*	structlit(Node*, Node*, NodeList**);
+Node*	arraylit(Node*, Node*, NodeList**);
+Node*	maplit(Node*, Node*, NodeList**);
+Node*	selectas(Node*, Node*, NodeList**);
+Node*	old2new(Node*, Type*, NodeList**);
 void	addrescapes(Node*);
 void	heapmoves(void);
 
@@ -1044,6 +1055,7 @@ void	cgen_proc(Node *n, int proc);
 void	checklabels(void);
 Label*	findlab(Sym *s);
 void	gen(Node *n);
+void	genlist(NodeList *l);
 void	newlab(int op, Sym *s);
 Node*	sysfunc(char *name);
 Plist*	newplist(void);

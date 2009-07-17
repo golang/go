@@ -94,12 +94,6 @@ main(int argc, char *argv[])
 	typelist = mal(sizeof(*typelist));
 	typelist->back = typelist;
 
-	// function field skeleton
-	fskel = nod(OLIST, N, nod(OLIST, N, N));
-	fskel->left = nod(ODCLFIELD, N, N);
-	fskel->right->left = nod(ODCLFIELD, N, N);
-	fskel->right->right = nod(ODCLFIELD, N, N);
-
 	nerrors = 0;
 	yyparse();
 	runifacechecks();

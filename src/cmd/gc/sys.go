@@ -67,7 +67,6 @@ func	mapiter2(hiter *any) (key any, val any);
 func	newchan(elemsize int, elemalg int, hint int) (hchan chan any);
 func	chanrecv1(hchan <-chan any) (elem any);
 func	chanrecv2(hchan <-chan any) (elem any, pres bool);
-func	chanrecv3(hchan <-chan any, elem *any) (pres bool);
 func	chansend1(hchan chan<- any, elem any);
 func	chansend2(hchan chan<- any, elem any) (pres bool);
 func	closechan(hchan any);

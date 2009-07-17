@@ -431,13 +431,6 @@ sys·chanrecv2(Hchan* c, ...)
 	chanrecv(c, ae, ap);
 }
 
-// chanrecv3(hchan *chan any, elem *any) (pres bool);
-void
-sys·chanrecv3(Hchan* c, byte* ep, byte pres)
-{
-	chanrecv(c, ep, &pres);
-}
-
 // newselect(size uint32) (sel *byte);
 void
 sys·newselect(int32 size, ...)
