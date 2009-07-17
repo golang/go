@@ -1306,6 +1306,7 @@ xanondcl(Node *nt)
 	Node *n;
 	Type *t;
 
+	walkexpr(nt, Etype, &nt->ninit);
 	t = nt->type;
 	if(nt->op != OTYPE) {
 		yyerror("%S is not a type", nt->sym);
@@ -1324,17 +1325,21 @@ namedcl(Node *nn, Node *nt)
 
 	if(nn->op == OKEY)
 		nn = nn->left;
-	if(nn->op == OTYPE && nn->sym == S) {
+	if(nn->sym == S) {
+		walkexpr(nn, Etype, &nn->ninit);
 		yyerror("cannot mix anonymous %T with named arguments", nn->type);
 		return xanondcl(nn);
 	}
 	t = types[TINT32];
 	if(nt == N)
 		yyerror("missing type for argument %S", nn->sym);
-	else if(nt->op != OTYPE)
-		yyerror("%S is not a type", nt->sym);
-	else
-		t = nt->type;
+	else {
+		walkexpr(nt, Etype, &nt->ninit);
+		if(nt->op != OTYPE)
+			yyerror("%S is not a type", nt->sym);
+		else
+			t = nt->type;
+	}
 	n = nod(ODCLFIELD, newname(nn->sym), N);
 	n->type = t;
 	return n;
@@ -1643,12 +1648,19 @@ embedded(Sym *s)
  * new_name_list (type | [type] = expr_list)
  */
 NodeList*
-variter(NodeList *vl, Type *t, NodeList *el)
+variter(NodeList *vl, Node *nt, NodeList *el)
 {
 	int doexpr;
 	Node *v, *e, *a;
 	Type *tv;
 	NodeList *r;
+	Type *t;
+	
+	t = T;
+	if(nt) {
+		walkexpr(nt, Etype, &nt->ninit);
+		t = nt->type;
+	}
 
 	r = nil;
 	doexpr = el != nil;

@@ -5,14 +5,6 @@
 /*
  * Go language grammar.
  *
- * The grammar has 6 reduce/reduce conflicts, caused by
- * input that can be parsed as either a type or an expression
- * depending on context, like the t in t(1).  The expressions
- * have the more general syntax, so the grammar arranges
- * that such input gets parsed as expressions and then is
- * fixed up as a type later.  In return for this extra work,
- * the lexer need not distinguish type names from variable names.
- *
  * The Go semicolon rules are:
  *
  *  1. all statements and declarations are terminated by semicolons
@@ -63,7 +55,7 @@
 %type	<node>	fndcl fnliteral
 %type	<node>	for_body for_header for_stmt if_header if_stmt
 %type	<node>	keyval labelname name
-%type	<node>	name_or_type
+%type	<node>	name_or_type non_expr_type
 %type	<node>	new_name dcl_name oexpr
 %type	<node>	onew_name
 %type	<node>	osimple_stmt pexpr
@@ -78,9 +70,8 @@
 %type	<list>	interfacedcl_list interfacedcl vardcl vardcl_list structdcl structdcl_list
 %type	<list>	common_dcl constdcl constdcl1 constdcl_list typedcl_list
 
-%type	<type>	type
 %type	<node>	convtype dotdotdot
-%type	<node>	indcl interfacetype structtype
+%type	<node>	indcl interfacetype structtype ptrtype
 %type	<type>	new_type typedclname
 %type	<node>	chantype non_chan_type othertype non_fn_type fntype fnlitdcl
 
@@ -119,10 +110,8 @@
 %left		')'
 %left		PreferToRightParen
 
-%left		NotDot
 %left		'.'
 
-%left		NotBrace
 %left		'{'
 
 %%
@@ -367,17 +356,17 @@ varoptsemi:
 	}
 
 vardcl:
-	dcl_name_list type varoptsemi
+	dcl_name_list ntype varoptsemi
 	{
 		$$ = variter($1, $2, nil);
 	}
-|	dcl_name_list type varoptsemi '=' expr_list
+|	dcl_name_list ntype varoptsemi '=' expr_list
 	{
 		$$ = variter($1, $2, $5);
 	}
 |	dcl_name_list '=' expr_list
 	{
-		$$ = variter($1, T, $3);
+		$$ = variter($1, nil, $3);
 	}
 
 constdcl:
@@ -409,9 +398,10 @@ typedclname:
 	}
 
 typedcl:
-	typedclname type
+	typedclname ntype
 	{
-		updatetype($1, $2);
+		walkexpr($2, Etype, &$2->ninit);
+		updatetype($1, $2->type);
 		resumecheckwidth();
 	}
 |	typedclname LSTRUCT
@@ -471,7 +461,7 @@ simple_stmt:
 	}
 
 case:
-	LCASE expr_list ':'
+	LCASE expr_or_type_list ':'
 	{
 		int e;
 		Node *n;
@@ -511,19 +501,6 @@ case:
 			$$->list = $2;
 		}
 		break;
-	}
-|	LCASE type ':'
-	{
-		Node *n;
-
-		$$ = nod(OXCASE, N, N);
-		poptodcl();
-		if(typeswvar == N || typeswvar->right == N) {
-			yyerror("type case not in a type switch");
-			n = N;
-		} else
-			n = old2new(typeswvar->right, $2, &$$->ninit);
-		$$->list = list1(nod(OTYPESW, n, N));
 	}
 |	LCASE name '=' expr ':'
 	{
@@ -862,7 +839,7 @@ pexpr:
 	{
 		$$ = nodlit($1);
 	}
-|	name	%prec NotBrace
+|	name
 |	pexpr '.' sym
 	{
 		if($1->op == OPACK) {
@@ -923,14 +900,10 @@ pexpr:
 
 expr_or_type:
 	expr
-|	ntype	%prec PreferToRightParen
+|	non_expr_type	%prec PreferToRightParen
 
 name_or_type:
-	dotname
-|	type
-	{
-		$$ = typenod($1);
-	}
+	ntype
 
 lbrace:
 	LBODY
@@ -975,7 +948,7 @@ sym:
 	LNAME
 
 name:
-	sym	%prec NotDot
+	sym
 	{
 		$$ = oldname($1);
 	}
@@ -1016,23 +989,26 @@ dotdotdot:
 		$$ = typenod(typ(TDDD));
 	}
 
-type:
-	ntype
-	{
-		NodeList *init;
-
-		init = nil;
-		walkexpr($1, Etype, &init);
-		// init can only be set if this was not a type; ignore
-
-		$$ = $1->type;
-	}
-
 ntype:
 	chantype
 |	fntype
 |	othertype
+|	ptrtype
+|	dotname
 |	'(' ntype ')'
+	{
+		$$ = $2;
+	}
+
+non_expr_type:
+	chantype
+|	fntype
+|	othertype
+|	'*' non_expr_type
+	{
+		$$ = nod(OIND, $2, N);
+	}
+|	'(' non_expr_type ')'
 	{
 		$$ = $2;
 	}
@@ -1040,6 +1016,8 @@ ntype:
 non_chan_type:
 	fntype
 |	othertype
+|	ptrtype
+|	dotname
 |	'(' ntype ')'
 	{
 		$$ = $2;
@@ -1048,9 +1026,11 @@ non_chan_type:
 non_fn_type:
 	chantype
 |	othertype
+|	ptrtype
+|	dotname
 
 dotname:
-	name	%prec NotDot
+	name
 |	name '.' sym
 	{
 		if($1->op == OPACK) {
@@ -1064,9 +1044,9 @@ dotname:
 	}
 
 othertype:
-	'[' oexpr ']' type
+	'[' oexpr ']' ntype
 	{
-		$$ = typenod(aindex($2, $4));
+		$$ = nod(OTARRAY, $2, $4);
 	}
 |	LCOMM LCHAN ntype
 	{
@@ -1082,13 +1062,14 @@ othertype:
 	{
 		$$ = nod(OTMAP, $3, $5);
 	}
-|	'*' ntype
+|	structtype
+|	interfacetype
+
+ptrtype:
+	'*' ntype
 	{
 		$$ = nod(OIND, $2, N);
 	}
-|	structtype
-|	interfacetype
-|	dotname
 
 chantype:
 	LCHAN ntype
@@ -1152,12 +1133,18 @@ xfndcl:
 fndcl:
 	dcl_name '(' oarg_type_list ')' fnres
 	{
+		Node *n;
+
 		b0stack = dclstack;	// mark base for fn literals
 		$$ = nod(ODCLFUNC, N, N);
 		$$->nname = $1;
 		if($3 == nil && $5 == nil)
 			$$->nname = renameinit($1);
-		$$->type = functype(N, $3, $5);
+		n = nod(OTFUNC, N, N);
+		n->list = $3;
+		n->rlist = $5;
+		walkexpr(n, Etype, &n->ninit);
+		$$->type = n->type;
 		funchdr($$);
 	}
 |	'(' oarg_type_list ')' new_name '(' oarg_type_list ')' fnres
@@ -1333,14 +1320,16 @@ interfacedcl:
 	}
 |	packname
 	{
-		$$ = list1(nod(ODCLFIELD, N, typenod(oldtype($1))));
+		$$ = list1(nod(ODCLFIELD, N, oldname($1)));
 	}
 
 indcl:
 	'(' oarg_type_list ')' fnres
 	{
 		// without func keyword
-		$$ = typenod(functype(fakethis(), $2, $4));
+		$$ = nod(OTFUNC, fakethis(), N);
+		$$->list = $2;
+		$$->rlist = $4;
 	}
 
 /*
