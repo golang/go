@@ -432,9 +432,11 @@ int	relinv(int);
 int32	reuse(Prog*, Sym*);
 vlong	rnd(vlong, vlong);
 void	span(void);
+void	strnput(char*, int);
 void	undef(void);
 void	undefsym(Sym*);
 vlong	vaddr(Adr*);
+void	vputl(vlong);
 void	wput(ushort);
 void	xdefine(char*, int, vlong);
 void	xfol(Prog*);
@@ -447,14 +449,6 @@ void	machsect(char*, char*, vlong, vlong, uint32, uint32, uint32, uint32, uint32
 void	machstack(vlong);
 void	machdylink(void);
 uint32	machheadr(void);
-
-uint32	linuxheadr(void);
-void	linuxphdr(int type, int flags, vlong foff,
-	vlong vaddr, vlong paddr,
-	vlong filesize, vlong memsize, vlong align);
-void	linuxshdr(char *name, uint32 type, vlong flags, vlong addr, vlong off,
-	vlong size, uint32 link, uint32 info, vlong align, vlong entsize);
-int	linuxstrtable(void);
 
 
 #pragma	varargck	type	"D"	Adr*

@@ -29,6 +29,7 @@
 // THE SOFTWARE.
 
 #include	"l.h"
+#include	"../ld/elf64.h"
 
 #define	Dbufslop	100
 
@@ -126,6 +127,7 @@ asmb(void)
 	vlong vl, va, fo, w, symo;
 	int strtabsize;
 	vlong symdatva = 0x99LL<<32;
+	Elf64SHdr *sh;
 
 	strtabsize = 0;
 
@@ -194,7 +196,7 @@ asmb(void)
 	case 7:
 		debug['8'] = 1;	/* 64-bit addresses */
 		seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
-		strtabsize = linuxstrtable();
+		strtabsize = elf64strtable();
 		cflush();
 		v = rnd(HEADR+textsize, INITRND);
 		seek(cout, v, 0);
@@ -448,7 +450,7 @@ asmb(void)
 		va = INITTEXT & ~((vlong)INITRND - 1);
 		w = HEADR+textsize;
 
-		linuxphdr(1,			/* text - type = PT_LOAD */
+		elf64phdr(1,			/* text - type = PT_LOAD */
 			1L+4L,			/* text - flags = PF_X+PF_R */
 			0,			/* file offset */
 			va,			/* vaddr */
@@ -461,7 +463,7 @@ asmb(void)
 		va = rnd(va+w, INITRND);
 		w = datsize;
 
-		linuxphdr(1,			/* data - type = PT_LOAD */
+		elf64phdr(1,			/* data - type = PT_LOAD */
 			2L+4L,			/* data - flags = PF_W+PF_R */
 			fo,			/* file offset */
 			va,			/* vaddr */
@@ -471,7 +473,7 @@ asmb(void)
 			INITRND);		/* alignment */
 
 		if(!debug['s']) {
-			linuxphdr(1,			/* data - type = PT_LOAD */
+			elf64phdr(1,			/* data - type = PT_LOAD */
 				2L+4L,			/* data - flags = PF_W+PF_R */
 				symo,		/* file offset */
 				symdatva,			/* vaddr */
@@ -481,7 +483,7 @@ asmb(void)
 				INITRND);		/* alignment */
 		}
 
-		linuxphdr(0x6474e551,		/* gok - type = gok */
+		elf64phdr(0x6474e551,		/* gok - type = gok */
 			1L+2L+4L,		/* gok - flags = PF_X+PF_W+PF_R */
 			0,			/* file offset */
 			0,			/* vaddr */
@@ -490,75 +492,57 @@ asmb(void)
 			0,			/* memory size */
 			8);			/* alignment */
 
-		linuxshdr(nil,			/* name */
-			0,			/* type */
-			0,			/* flags */
-			0,			/* addr */
-			0,			/* off */
-			0,			/* size */
-			0,			/* link */
-			0,			/* info */
-			0,			/* align */
-			0);			/* entsize */
+		sh = newElf64SHdr();
+		elf64shdr(nil, sh);
 
 		stroffset = 1;  /* 0 means no name, so start at 1 */
 		fo = HEADR;
 		va = (INITTEXT & ~((vlong)INITRND - 1)) + HEADR;
 		w = textsize;
 
-		linuxshdr(".text",		/* name */
-			1,			/* type */
-			6,			/* flags */
-			va,			/* addr */
-			fo,			/* off */
-			w,			/* size */
-			0,			/* link */
-			0,			/* info */
-			8,			/* align */
-			0);			/* entsize */
+		sh = newElf64SHdr();
+		sh->type = 1;
+		sh->flags = 6;
+		sh->addr = va;
+		sh->off = fo;
+		sh->size = w;
+		sh->addralign = 8;
+		elf64shdr(".text", sh);
 
 		fo = rnd(fo+w, INITRND);
 		va = rnd(va+w, INITRND);
 		w = datsize;
 
-		linuxshdr(".data",		/* name */
-			1,			/* type */
-			3,			/* flags */
-			va,			/* addr */
-			fo,			/* off */
-			w,			/* size */
-			0,			/* link */
-			0,			/* info */
-			8,			/* align */
-			0);			/* entsize */
+		sh = newElf64SHdr();
+		sh->type = 1;
+		sh->flags = 3;
+		sh->addr = va;
+		sh->off = fo;
+		sh->size = w;
+		sh->addralign = 8;
+		elf64shdr(".data", sh);
 
 		fo += w;
 		va += w;
 		w = bsssize;
 
-		linuxshdr(".bss",		/* name */
-			8,			/* type */
-			3,			/* flags */
-			va,			/* addr */
-			fo,			/* off */
-			w,			/* size */
-			0,			/* link */
-			0,			/* info */
-			8,			/* align */
-			0);			/* entsize */
+		sh = newElf64SHdr();
+		sh->type = 8;
+		sh->flags = 3;
+		sh->addr = va;
+		sh->off = fo;
+		sh->size = w;
+		sh->addralign = 8;
+		elf64shdr(".bss", sh);
 
 		w = strtabsize;
 
-		linuxshdr(".shstrtab",		/* name */
-			3,			/* type */
-			0,			/* flags */
-			0,			/* addr */
-			fo,			/* off */
-			w,			/* size */
-			0,			/* link */
-			0,			/* info */
-			1,			/* align */
-			0);			/* entsize */
+		sh = newElf64SHdr();
+		sh->type = 3;
+		sh->off = fo;
+		sh->size = w;
+		sh->addralign = 1;
+		elf64shdr(".shstrtab", sh);
 
 		if (debug['s'])
 			break;
@@ -566,30 +550,25 @@ asmb(void)
 		fo = symo+8;
 		w = symsize;
 
-		linuxshdr(".gosymtab",		/* name */
-			1,			/* type 1 = SHT_PROGBITS */
-			0,			/* flags */
-			0,			/* addr */
-			fo,			/* off */
-			w,			/* size */
-			0,			/* link */
-			0,			/* info */
-			1,			/* align */
-			24);			/* entsize */
+		sh = newElf64SHdr();
+		sh->type = 1;	/* type 1 = SHT_PROGBITS */
+		sh->off = fo;
+		sh->size = w;
+		sh->addralign = 1;
+		sh->entsize = 24;
+		elf64shdr(".gosymtab", sh);
 
 		fo += w;
 		w = lcsize;
 
-		linuxshdr(".gopclntab",		/* name */
-			1,			/* type 1 = SHT_PROGBITS*/
-			0,			/* flags */
-			0,			/* addr */
-			fo,			/* off */
-			w,			/* size */
-			0,			/* link */
-			0,			/* info */
-			1,			/* align */
-			24);			/* entsize */
+		sh = newElf64SHdr();
+		sh->type = 1;	/* type 1 = SHT_PROGBITS */
+		sh->off = fo;
+		sh->size = w;
+		sh->addralign = 1;
+		sh->entsize = 24;
+		elf64shdr(".gopclntab", sh);
+
 		break;
 	}
 	cflush();
@@ -898,92 +877,4 @@ machheadr(void)
 	}
 
 	return a*4;
-}
-
-uint32
-linuxheadr(void)
-{
-	uint32 a;
-
-	a = 64;		/* a.out header */
-
-	a += 56;	/* page zero seg */
-	a += 56;	/* text seg */
-	a += 56;	/* stack seg */
-
-	a += 64;	/* nil sect */
-	a += 64;	/* .text sect */
-	a += 64;	/* .data seg */
-	a += 64;	/* .bss sect */
-	a += 64;	/* .shstrtab sect - strings for headers */
-	if (!debug['s']) {
-		a += 56;	/* symdat seg */
-		a += 64;	/* .gosymtab sect */
-		a += 64;	/* .gopclntab sect */
-	}
-
-	return a;
-}
-
-
-void
-linuxphdr(int type, int flags, vlong foff,
-	vlong vaddr, vlong paddr,
-	vlong filesize, vlong memsize, vlong align)
-{
-
-	lputl(type);			/* text - type = PT_LOAD */
-	lputl(flags);			/* text - flags = PF_X+PF_R */
-	vputl(foff);			/* file offset */
-	vputl(vaddr);			/* vaddr */
-	vputl(paddr);			/* paddr */
-	vputl(filesize);		/* file size */
-	vputl(memsize);		/* memory size */
-	vputl(align);			/* alignment */
-}
-
-void
-linuxshdr(char *name, uint32 type, vlong flags, vlong addr, vlong off,
-	vlong size, uint32 link, uint32 info, vlong align, vlong entsize)
-{
-	lputl(stroffset);
-	lputl(type);
-	vputl(flags);
-	vputl(addr);
-	vputl(off);
-	vputl(size);
-	lputl(link);
-	lputl(info);
-	vputl(align);
-	vputl(entsize);
-
-	if(name != nil)
-		stroffset += strlen(name)+1;
-}
-
-int
-putstrtab(char* name) {
-	int w;
-
-	w = strlen(name)+1;
-	strnput(name, w);
-	return w;
-}
-
-int
-linuxstrtable(void)
-{
-	int size;
-
-	size = 0;
-	size += putstrtab("");
-	size += putstrtab(".text");
-	size += putstrtab(".data");
-	size += putstrtab(".bss");
-	size += putstrtab(".shstrtab");
-	if (!debug['s']) {
-		size += putstrtab(".gosymtab");
-		size += putstrtab(".gopclntab");
-	}
-	return size;
 }
