@@ -214,8 +214,17 @@ func TestAll(t *testing.T) {	// TODO(r): wrap up better
 	styp := etyp.(*StructType);
 	f := styp.Field(0);
 	testType(t, 5, f.Type, "chan *int32");
-	f = styp.Field(1);
+
+	f, present := styp.FieldByName("d");
+	if !present {
+		t.Errorf("FieldByName says present field is absent");
+	}
 	testType(t, 6, f.Type, "float32");
+
+	f, present = styp.FieldByName("absent");
+	if present {
+		t.Errorf("FieldByName says absent field is present");
+	}
 
 	typ = Typeof(([32]int32)(nil));
 	testType(t, 7, typ, "[32]int32");
