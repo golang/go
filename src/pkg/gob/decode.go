@@ -361,6 +361,31 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer, 
 	return state.err
 }
 
+func ignoreStruct(engine *decEngine, b *bytes.Buffer) os.Error {
+	state := new(decodeState);
+	state.b = b;
+	state.fieldnum = -1;
+	for state.err == nil {
+		delta := int(decodeUint(state));
+		if delta < 0 {
+			state.err = os.ErrorString("gob ignore decode: corrupted data: negative delta");
+			break
+		}
+		if state.err != nil || delta == 0 {	// struct terminator is zero delta fieldnum
+			break
+		}
+		fieldnum := state.fieldnum + delta;
+		if fieldnum >= len(engine.instr) {
+			state.err = ErrRange;
+			break;
+		}
+		instr := &engine.instr[fieldnum];
+		instr.op(instr, state, unsafe.Pointer(nil));
+		state.fieldnum = fieldnum;
+	}
+	return state.err
+}
+
 func decodeArrayHelper(state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int) os.Error {
 	instr := &decInstr{elemOp, 0, elemIndir, 0};
 	for i := 0; i < length && state.err == nil; i++ {
@@ -459,6 +484,7 @@ var decIgnoreOpMap = map[TypeId] decOp {
 }
 
 func getDecEnginePtr(wireId TypeId, rt reflect.Type) (enginePtr **decEngine, err os.Error)
+func getIgnoreEnginePtr(wireId TypeId) (enginePtr **decEngine, err os.Error)
 
 // Return the decoding op for the base type under rt and
 // the indirection count to reach it.
@@ -499,7 +525,7 @@ func decOpFor(wireId TypeId, rt reflect.Type) (decOp, int, os.Error) {
 				return nil, 0, err
 			}
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
-				// indirect through info to delay evaluation for recursive structs
+				// indirect through enginePtr to delay evaluation for recursive structs
 				state.err = decodeStruct(*enginePtr, t, state.b, uintptr(p), i.indir)
 			};
 		}
@@ -537,7 +563,15 @@ func decIgnoreOpFor(wireId TypeId) (decOp, os.Error) {
 			};
 
 		case *structType:
-			// TODO: write an ignore engine for structs
+			// Generate a closure that calls out to the engine for the nested type.
+			enginePtr, err := getIgnoreEnginePtr(wireId);
+			if err != nil {
+				return nil, err
+			}
+			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
+				// indirect through enginePtr to delay evaluation for recursive structs
+				state.err = ignoreStruct(*enginePtr, state.b)
+			};
 		}
 	}
 	if op == nil {
@@ -547,7 +581,8 @@ func decIgnoreOpFor(wireId TypeId) (decOp, os.Error) {
 }
 
 // Are these two gob Types compatible?
-// Answers the question for basic types, arrays, and slices.  Defers for structs.
+// Answers the question for basic types, arrays, and slices.
+// Structs are considered ok; fields will be checked later.
 func compatibleType(fr reflect.Type, fw TypeId) bool {
 	for {
 		if pt, ok := fr.(*reflect.PtrType); ok {
@@ -592,8 +627,6 @@ func compatibleType(fr reflect.Type, fw TypeId) bool {
 		return fw == tFloat;
 	case *reflect.StringType:
 		return fw == tString;
-	case *reflect.StructType:
-		return true;	// defer for now
 	case *reflect.ArrayType:
 		aw, ok := fw.gobType().(*arrayType);
 		return ok && t.Len() == aw.Len && compatibleType(t.Elem(), aw.Elem);
@@ -604,7 +637,10 @@ func compatibleType(fr reflect.Type, fw TypeId) bool {
 			return fw == tBytes
 		}
 		sw, ok := fw.gobType().(*sliceType);
-		return ok && compatibleType(t.Elem(), sw.Elem);
+		elem, _ := indirect(t.Elem());
+		return ok && compatibleType(elem, sw.Elem);
+	case *reflect.StructType:
+		return true;
 	}
 	return true;
 }
@@ -624,7 +660,6 @@ func compileDec(wireId TypeId, rt reflect.Type) (engine *decEngine, err os.Error
 		localField, present := srt.FieldByName(wireField.name);
 		// TODO(r): anonymous names
 		if !present || localField.Anonymous {
-			println("no matching field", wireField.name, "in type", wireId.String());
 			op, err := decIgnoreOpFor(wireField.typeId);
 			if err != nil {
 				return nil, err
@@ -633,7 +668,7 @@ func compileDec(wireId TypeId, rt reflect.Type) (engine *decEngine, err os.Error
 			continue;
 		}
 		if !compatibleType(localField.Type, wireField.typeId) {
-			return nil, os.ErrorString("gob: TODO: wrong type for field " + wireField.name + " in type " + wireId.String());
+			return nil, os.ErrorString("gob: wrong type for field " + wireField.name + " in type " + wireId.Name());
 		}
 		op, indir, err := decOpFor(wireField.typeId, localField.Type);
 		if err != nil {
@@ -645,22 +680,42 @@ func compileDec(wireId TypeId, rt reflect.Type) (engine *decEngine, err os.Error
 	return;
 }
 
+var decoderCache = make(map[reflect.Type] map[TypeId] **decEngine)
+var ignorerCache = make(map[TypeId] **decEngine)
 
 // typeLock must be held.
 func getDecEnginePtr(wireId TypeId, rt reflect.Type) (enginePtr **decEngine, err os.Error) {
-	info := getTypeInfo(rt);	// TODO: eliminate this; creates a gobType you don't need.
-	var ok bool;
-	if enginePtr, ok = info.decoderPtr[wireId]; !ok {
-		if info.typeId.gobType() == nil {
-			_pkg, name := rt.Name();
-			info.typeId = newType(name, rt).id();
-		}
-		// mark this engine as underway before compiling to handle recursive types.
+	decoderMap, ok := decoderCache[rt];
+	if !ok {
+		decoderMap = make(map[TypeId] **decEngine);
+		decoderCache[rt] = decoderMap;
+	}
+	if enginePtr, ok = decoderMap[wireId]; !ok {
+		// To handle recursive types, mark this engine as underway before compiling.
 		enginePtr = new(*decEngine);
-		info.decoderPtr[wireId] = enginePtr;
+		decoderMap[wireId] = enginePtr;
 		*enginePtr, err = compileDec(wireId, rt);
 		if err != nil {
-			info.decoderPtr[wireId] = nil, false;
+			decoderMap[wireId] = nil, false;
+		}
+	}
+	return
+}
+
+// When ignoring data, in effect we compile it into this type
+type emptyStruct struct {}
+var emptyStructType = reflect.Typeof(emptyStruct{})
+
+// typeLock must be held.
+func getIgnoreEnginePtr(wireId TypeId) (enginePtr **decEngine, err os.Error) {
+	var ok bool;
+	if enginePtr, ok = ignorerCache[wireId]; !ok {
+		// To handle recursive types, mark this engine as underway before compiling.
+		enginePtr = new(*decEngine);
+		ignorerCache[wireId] = enginePtr;
+		*enginePtr, err = compileDec(wireId, emptyStructType);
+		if err != nil {
+			ignorerCache[wireId] = nil, false;
 		}
 	}
 	return
@@ -685,9 +740,9 @@ func decode(b *bytes.Buffer, wireId TypeId, e interface{}) os.Error {
 		return err
 	}
 	engine := *enginePtr;
-	if engine.numInstr == 0 && st.NumField() > 0 {
+	if engine.numInstr == 0 && st.NumField() > 0 && len(wireId.gobType().(*structType).field) > 0 {
 		path, name := rt.Name();
-		return os.ErrorString("type mismatch: no fields matched compiling decoder for " + name)
+		return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
 	}
 	return decodeStruct(engine, rt.(*reflect.StructType), b, uintptr(v.Addr()), 0);
 }

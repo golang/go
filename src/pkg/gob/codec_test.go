@@ -703,6 +703,7 @@ type IT0 struct {
 	ignore_f bool;
 	ignore_g string;
 	ignore_h []byte;
+	ignore_i *RT1;
 	c float;
 }
 
@@ -718,13 +719,17 @@ func TestIgnoredFields(t *testing.T) {
 	it0.ignore_f = true;
 	it0.ignore_g = "pay no attention";
 	it0.ignore_h = strings.Bytes("to the curtain");
+	it0.ignore_i = &RT1{ 3.1, "hi", 7, "hello" };
 
 	b := new(bytes.Buffer);
 	encode(b, it0);
 	rt0Id := getTypeInfo(reflect.Typeof(it0)).typeId;
 	var rt1 RT1;
 	// Wire type is IT0, local type is RT1.
-	decode(b, rt0Id, &rt1);
+	err := decode(b, rt0Id, &rt1);
+	if err != nil {
+		t.Error("error: ", err);
+	}
 	if int(it0.a) != rt1.a || it0.b != rt1.b || it0.c != rt1.c {
 		t.Errorf("rt1->rt0: expected %v; got %v", it0, rt1);
 	}
