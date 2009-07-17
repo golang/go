@@ -128,6 +128,13 @@ findlab(Sym *s)
  * compile statements
  */
 void
+genlist(NodeList *l)
+{
+	for(; l; l=l->next)
+		gen(l->n);
+}
+
+void
 gen(Node *n)
 {
 	int32 lno;
@@ -137,13 +144,12 @@ gen(Node *n)
 
 	lno = setlineno(n);
 
-loop:
 	if(n == N)
 		goto ret;
 
 	p3 = pc;	// save pc for loop labels
 	if(n->ninit)
-		gen(n->ninit);
+		genlist(n->ninit);
 
 	setlineno(n);
 
@@ -152,16 +158,15 @@ loop:
 		fatal("gen: unknown op %N", n);
 		break;
 
-	case OLIST:
-		gen(n->left);
-		n = n->right;
-		goto loop;
-
 	case OCASE:
 	case OFALL:
 	case OXCASE:
 	case OXFALL:
 	case OEMPTY:
+		break;
+
+	case OBLOCK:
+		genlist(n->list);
 		break;
 
 	case OLABEL:
@@ -232,10 +237,10 @@ loop:
 		gen(n->nincr);				// contin:	incr
 		patch(p1, pc);				// test:
 		if(n->ntest != N)
-			if(n->ntest->ninit != N)
-				gen(n->ntest->ninit);
+			if(n->ntest->ninit != nil)
+				genlist(n->ntest->ninit);
 		bgen(n->ntest, 0, breakpc);		//		if(!test) goto break
-		gen(n->nbody);				//		body
+		genlist(n->nbody);				//		body
 		gjmp(continpc);
 		patch(breakpc, pc);			// done:
 		continpc = scontin;
@@ -247,13 +252,13 @@ loop:
 		p2 = gjmp(P);			// p2:		goto else
 		patch(p1, pc);				// test:
 		if(n->ntest != N)
-			if(n->ntest->ninit != N)
-				gen(n->ntest->ninit);
+			if(n->ntest->ninit != nil)
+				genlist(n->ntest->ninit);
 		bgen(n->ntest, 0, p2);			// 		if(!test) goto p2
-		gen(n->nbody);				//		then
+		genlist(n->nbody);				//		then
 		p3 = gjmp(P);			//		goto done
 		patch(p2, pc);				// else:
-		gen(n->nelse);				//		else
+		genlist(n->nelse);				//		else
 		patch(p3, pc);				// done:
 		break;
 
@@ -272,7 +277,7 @@ loop:
 		}
 
 		patch(p1, pc);				// test:
-		gen(n->nbody);				//		switch(test) body
+		genlist(n->nbody);				//		switch(test) body
 		patch(breakpc, pc);			// done:
 		breakpc = sbreak;
 		break;
@@ -292,7 +297,7 @@ loop:
 		}
 
 		patch(p1, pc);				// test:
-		gen(n->nbody);				//		select() body
+		genlist(n->nbody);				//		select() body
 		patch(breakpc, pc);			// done:
 		breakpc = sbreak;
 		break;
@@ -432,12 +437,6 @@ cgen_as(Node *nl, Node *nr)
 
 	iszer = 0;
 	if(nr == N || isnil(nr)) {
-		if(nl->op == OLIST) {
-			cgen_as(nl->left, nr);
-			cgen_as(nl->right, nr);
-			return;
-		}
-
 		// externals and heaps should already be clear
 		if(nr == N) {
 			if(nl->class == PEXTERN)

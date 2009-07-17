@@ -307,7 +307,7 @@ typeinit(void)
 	mpatoflt(minfltval[TFLOAT64], "-1.7976931348623157e+308");
 
 	/* for walk to use in error messages */
-	types[TFUNC] = functype(N, N, N);
+	types[TFUNC] = functype(N, nil, nil);
 
 	/* types used in front end */
 	// types[TNIL] got set early in lexinit

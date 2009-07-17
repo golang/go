@@ -99,8 +99,7 @@ throw: interface conversion
 panic PC=xxx
 
 =========== bugs/bug159.go
-xyz: expected 1 2 3 got 3 2 1
-abc: expected 4 5 6 got -4 4 4
+abc: expected 4 5 6 got 4 4 -4
 BUG: bug159
 
 =========== bugs/bug162.go

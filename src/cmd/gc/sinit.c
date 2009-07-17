@@ -6,7 +6,7 @@
 
 static struct
 {
-	Node*	list;
+	NodeList*	list;
 	Node*	mapname;
 	Type*	type;
 } xxx;
@@ -59,35 +59,25 @@ typeclass(Type *t)
 }
 
 void
-initlin(Node* n)
+initlin(NodeList *l)
 {
+	Node *n;
 
-loop:
-	if(n == N)
-		return;
-	initlin(n->ninit);
-	switch(n->op) {
-	default:
-		print("o = %O\n", n->op);
-		n->ninit = N;
+	for(; l; l=l->next) {
+		n = l->n;
+		initlin(n->ninit);
+		n->ninit = nil;
 		xxx.list = list(xxx.list, n);
-		break;
+		switch(n->op) {
+		default:
+			print("o = %O\n", n->op);
+			break;
 
-	case OCALL:
-		// call to mapassign1
-		n->ninit = N;
-		xxx.list = list(xxx.list, n);
-		break;
-
-	case OAS:
-		n->ninit = N;
-		xxx.list = list(xxx.list, n);
-		break;
-
-	case OLIST:
-		initlin(n->left);
-		n = n->right;
-		goto loop;
+		case OCALL:
+			// call to mapassign1
+		case OAS:
+			break;
+		}
 	}
 }
 
@@ -115,23 +105,22 @@ sametmp(Node *n1, Node *n2)
 Node*
 findarg(Node *n, char *arg, char *fn)
 {
-	Iter param;
 	Node *a;
+	NodeList *l;
 
 	if(n == N || n->op != OCALL ||
 	   n->left == N || n->left->sym == S ||
 	   strcmp(n->left->sym->name, fn) != 0)
 		return N;
 
-	a = listfirst(&param, &n->right);
-	while(a != N) {
+	for(l=n->list; l; l=l->next) {
+		a = l->n;
 		if(a->op == OAS &&
 		   a->left != N && a->right != N &&
 		   a->left->op == OINDREG &&
 		   a->left->sym != S)
 			if(strcmp(a->left->sym->name, arg) == 0)
 				return a->right;
-		a = listnext(&param);
 	}
 	return N;
 }
@@ -226,7 +215,7 @@ no:
 Node*
 mapindex(Node *n)
 {
-	Node *index, *val, *key, *a, *b;
+	Node *index, *val, *key, *a, *b, *r;
 
 	// pull all the primatives
 	key = findarg(n, "key", "mapassign1");
@@ -248,10 +237,9 @@ mapindex(Node *n)
 	b = nod(ODOT, b, newname(lookup("val")));
 	b = nod(OAS, b, val);
 
-	a = nod(OLIST, a, b);
-	walkexpr(a, Etop, nil);
-
-	return a;
+	r = liststmt(list(list1(a), b));
+	walkstmt(r);
+	return r;
 }
 
 // for a copy out reference, A = B,
@@ -261,8 +249,8 @@ mapindex(Node *n)
 void
 initsub(Node *n, Node *nam)
 {
-	Iter iter;
 	Node *r, *w, *c;
+	NodeList *l;
 	int class, state;
 
 	// we could probably get a little more
@@ -287,7 +275,8 @@ initsub(Node *n, Node *nam)
 	return;
 
 str:
-	for(r=listfirst(&iter, &xxx.list); r != N; r = listnext(&iter)) {
+	for(l=xxx.list; l; l=l->next) {
+		r = l->n;
 		if(r->op != OAS && r->op != OEMPTY)
 			continue;
 
@@ -326,7 +315,8 @@ str:
 	return;
 
 ary:
-	for(r=listfirst(&iter, &xxx.list); r != N; r = listnext(&iter)) {
+	for(l=xxx.list; l; l=l->next) {
+		r = l->n;
 		if(r->op != OAS && r->op != OEMPTY)
 			continue;
 
@@ -366,7 +356,8 @@ ary:
 
 sli:
 	w = N;
-	for(r=listfirst(&iter, &xxx.list); r != N; r = listnext(&iter)) {
+	for(l=xxx.list; l; l=l->next) {
+		r = l->n;
 		if(r->op != OAS && r->op != OEMPTY)
 			continue;
 
@@ -411,7 +402,8 @@ sli:
 map:
 return;
 	w = N;
-	for(r=listfirst(&iter, &xxx.list); r != N; r = listnext(&iter)) {
+	for(l=xxx.list; l; l=l->next) {
+		r = l->n;
 		if(r->op == OCALL) {
 			// middle usage "(CALL mapassign1 key, val, map)"
 			c = mapindex(r);
@@ -454,27 +446,23 @@ return;
 
 }
 
-Node*
-initfix(Node* n)
+NodeList*
+initfix(NodeList *l)
 {
-	Iter iter;
 	Node *r;
 
-	xxx.list = N;
-	initlin(n);
-	xxx.list = rev(xxx.list);
+	xxx.list = nil;
+	initlin(l);
 
 if(0)
 return xxx.list;
 
 	// look for the copy-out reference
-	r = listfirst(&iter, &xxx.list);
-	while(r != N) {
+	for(l=xxx.list; l; l=l->next) {
+		r = l->n;
 		if(r->op == OAS)
-		if(inittmp(r->right)) {
+		if(inittmp(r->right))
 			initsub(r->left, r->right);
-		}
-		r = listnext(&iter);
 	}
 	return xxx.list;
 }

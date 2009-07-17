@@ -215,7 +215,7 @@ restrictlookup(char *name, char *pkg)
 		yyerror("cannot refer to %s.%s", pkg, name);
 	return pkglookup(name, pkg);
 }
-	
+
 
 // find all the exported symbols in package opkg
 // and make them available in the current package
@@ -381,16 +381,6 @@ iskeytype(Type *t)
 	return algtype(t) != ANOEQ;
 }
 
-Node*
-list(Node *a, Node *b)
-{
-	if(a == N)
-		return b;
-	if(b == N)
-		return a;
-	return nod(OLIST, a, b);
-}
-
 Type*
 typ(int et)
 {
@@ -461,80 +451,16 @@ nodbool(int b)
 	return c;
 }
 
-Node*
-rev(Node *na)
-{
-	Node *i, *n;
-
-	/*
-	 * since yacc wants to build lists
-	 * stacked down on the left -
-	 * this routine converts them to
-	 * stack down on the right -
-	 * in memory without recursion
-	 */
-
-	if(na == N || na->op != OLIST)
-		return na;
-	i = na;
-	for(n = na->left; n != N; n = n->left) {
-		if(n->op != OLIST)
-			break;
-		i->left = n->right;
-		n->right = i;
-		i = n;
-	}
-	i->left = n;
-	return i;
-}
-
-Node*
-unrev(Node *na)
-{
-	Node *i, *n;
-
-	/*
-	 * this restores a reverse list
-	 */
-	if(na == N || na->op != OLIST)
-		return na;
-	i = na;
-	for(n = na->right; n != N; n = n->right) {
-		if(n->op != OLIST)
-			break;
-		i->right = n->left;
-		n->left = i;
-		i = n;
-	}
-	i->right = n;
-	return i;
-}
-
-/*
- * na and nb are reversed lists.
- * append them into one big reversed list.
- */
-Node*
-appendr(Node *na, Node *nb)
-{
-	Node **l, *n;
-
-	for(l=&nb; (n=*l)->op == OLIST; l=&n->left)
-		;
-	*l = nod(OLIST, na, *l);
-	return nb;
-}
-
 Type*
 aindex(Node *b, Type *t)
 {
-	Node *top;
+	NodeList *init;
 	Type *r;
 	int bound;
 
 	bound = -1;	// open bound
-	top = N;
-	walkexpr(b, Erv, &top);
+	init = nil;
+	walkexpr(b, Erv, &init);
 	if(b != nil) {
 		switch(consttype(b)) {
 		default:
@@ -566,22 +492,17 @@ indent(int dep)
 }
 
 void
+dodumplist(NodeList *l, int dep)
+{
+	for(; l; l=l->next)
+		dodump(l->n, dep);
+}
+
+void
 dodump(Node *n, int dep)
 {
-
-loop:
 	if(n == N)
 		return;
-
-	switch(n->op) {
-	case OLIST:
-		if(n->left != N && n->left->op == OLIST)
-			dodump(n->left, dep+1);
-		else
-			dodump(n->left, dep);
-		n = n->right;
-		goto loop;
-	}
 
 	indent(dep);
 	if(dep > 10) {
@@ -589,15 +510,17 @@ loop:
 		return;
 	}
 
-	if(n->ninit != N) {
+	if(n->ninit != nil) {
 		print("%O-init\n", n->op);
-		dodump(n->ninit, dep+1);
+		dodumplist(n->ninit, dep+1);
 		indent(dep);
 	}
 
 	switch(n->op) {
 	default:
 		print("%N\n", n);
+		dodump(n->left, dep+1);
+		dodump(n->right, dep+1);
 		break;
 
 	case OTYPE:
@@ -607,32 +530,32 @@ loop:
 	case OIF:
 		print("%O%J\n", n->op, n);
 		dodump(n->ntest, dep+1);
-		if(n->nbody != N) {
+		if(n->nbody != nil) {
 			indent(dep);
 			print("%O-then\n", n->op);
-			dodump(n->nbody, dep+1);
+			dodumplist(n->nbody, dep+1);
 		}
-		if(n->nelse != N) {
+		if(n->nelse != nil) {
 			indent(dep);
 			print("%O-else\n", n->op);
-			dodump(n->nelse, dep+1);
+			dodumplist(n->nelse, dep+1);
 		}
-		return;
+		break;
 
 	case OSELECT:
 		print("%O%J\n", n->op, n);
-		dodump(n->nbody, dep+1);
-		return;
+		dodumplist(n->nbody, dep+1);
+		break;
 
 	case OSWITCH:
 	case OFOR:
 		print("%O%J\n", n->op, n);
 		dodump(n->ntest, dep+1);
 
-		if(n->nbody != N) {
+		if(n->nbody != nil) {
 			indent(dep);
 			print("%O-body\n", n->op);
-			dodump(n->nbody, dep+1);
+			dodumplist(n->nbody, dep+1);
 		}
 
 		if(n->nincr != N) {
@@ -640,7 +563,7 @@ loop:
 			print("%O-incr\n", n->op);
 			dodump(n->nincr, dep+1);
 		}
-		return;
+		break;
 
 	case OCASE:
 		// the right side points to label of the body
@@ -649,13 +572,26 @@ loop:
 		else
 			print("%O%J\n", n->op, n);
 		dodump(n->left, dep+1);
-		return;
+		break;
 	}
 
-	dodump(n->left, dep+1);
-	n = n->right;
-	dep++;
-	goto loop;
+	if(n->list != nil) {
+		indent(dep);
+		print("%O-list\n", n->op);
+		dodumplist(n->list, dep+1);
+	}
+	if(n->rlist != nil) {
+		indent(dep);
+		print("%O-rlist\n", n->op);
+		dodumplist(n->rlist, dep+1);
+	}
+}
+
+void
+dumplist(char *s, NodeList *l)
+{
+	print("%s\n", s);
+	dodumplist(l, 1);
 }
 
 void
@@ -687,7 +623,9 @@ opnames[] =
 	[OARRAY]	= "ARRAY",
 	[OASOP]		= "ASOP",
 	[OAS]		= "AS",
+	[OAS2]		= "AS2",
 	[OBAD]		= "BAD",
+	[OBLOCK]		= "BLOCK",
 	[OBREAK]	= "BREAK",
 	[OCALLINTER]	= "CALLINTER",
 	[OCALLMETH]	= "CALLMETH",
@@ -735,7 +673,6 @@ opnames[] =
 	[OLABEL]	= "LABEL",
 	[OLEN]		= "LEN",
 	[OLE]		= "LE",
-	[OLIST]		= "LIST",
 	[OLITERAL]	= "LITERAL",
 	[OLSH]		= "LSH",
 	[OLT]		= "LT",
@@ -1422,6 +1359,7 @@ treecopy(Node *n)
 		*m = *n;
 		m->left = treecopy(n->left);
 		m->right = treecopy(n->right);
+		m->list = listtreecopy(n->list);
 		break;
 
 	case OLITERAL:
@@ -2155,34 +2093,6 @@ badtype(int o, Type *tl, Type *tr)
 }
 
 /*
- * this routine gets called to propagate the type
- * of the last decl up to the arguments before it.
- * (a,b,c int) comes out (a int, b int, c int).
- */
-Node*
-cleanidlist(Node *na)
-{
-	Node *last, *n;
-
-	if(na->op != OLIST) {
-		if(na->op != ODCLFIELD)
-			fatal("cleanidlist: %O", na->op);
-		if(na->right == N)
-			fatal("cleanidlist: no type");
-		return na;
-	}
-
-	for(last=na; last->op == OLIST; last=last->right)
-		;
-
-	for(n=na; n->op == OLIST; n=n->right) {
-		n->left->right = last->right;
-		n->left->val = last->val;
-	}
-	return na;
-}
-
-/*
  * iterator to walk a structure declaration
  */
 Type*
@@ -2283,63 +2193,6 @@ funcnext(Iter *s)
 		fp = structfirst(s, getinarg(s->tfunc));
 	}
 	return fp;
-}
-
-/*
- * iterator to walk a list
- */
-Node*
-listfirst(Iter *s, Node **nn)
-{
-	Node *n;
-
-	n = *nn;
-	if(n == N) {
-		s->done = 1;
-		s->an = &s->n;
-		s->n = N;
-		return N;
-	}
-
-	if(n->op == OLIST) {
-		s->done = 0;
-		s->n = n;
-		s->an = &n->left;
-		return n->left;
-	}
-
-	s->done = 1;
-	s->an = nn;
-	return n;
-}
-
-Node*
-listnext(Iter *s)
-{
-	Node *n, *r;
-
-	if(s->done) {
-		s->an = &s->n;
-		s->n = N;
-		return N;
-	}
-
-	n = s->n;
-	r = n->right;
-	if(r == N) {
-		s->an = &s->n;
-		s->n = N;
-		return N;
-	}
-	if(r->op == OLIST) {
-		s->n = r;
-		s->an = &r->left;
-		return r->left;
-	}
-
-	s->done = 1;
-	s->an = &n->right;
-	return n->right;
 }
 
 Type**
@@ -2475,7 +2328,7 @@ staticname(Type *t)
  * return side effect-free n, appending side effects to init.
  */
 Node*
-saferef(Node *n, Node **init)
+saferef(Node *n, NodeList **init)
 {
 	Node *l;
 	Node *r;
@@ -2657,13 +2510,13 @@ out:
 Node*
 adddot(Node *n)
 {
-	Node *top;
+	NodeList *init;
 	Type *t;
 	Sym *s;
 	int c, d;
 
-	top = N;
-	walkexpr(n->left, Erv, &top);
+	init = nil;
+	walkexpr(n->left, Erv, &init);
 	t = n->left->type;
 	if(t == T)
 		goto ret;
@@ -2691,8 +2544,7 @@ out:
 		n->left->right = newname(dotlist[c].field->sym);
 	}
 ret:
-	if(top != N)
-		n->ninit = list(top, n->ninit);
+	n->ninit = concat(init, n->ninit);
 	return n;
 }
 
@@ -2847,16 +2699,17 @@ expandmeth(Sym *s, Type *t)
 /*
  * Given funarg struct list, return list of ODCLFIELD Node fn args.
  */
-Node*
+NodeList*
 structargs(Type **tl, int mustname)
 {
 	Iter savet;
-	Node *args, *a;
+	Node *a;
+	NodeList *args;
 	Type *t;
 	char nam[100];
 	int n;
 
-	args = N;
+	args = nil;
 	n = 0;
 	for(t = structfirst(&savet, tl); t != T; t = structnext(&savet)) {
 		if(t->sym)
@@ -2869,7 +2722,6 @@ structargs(Type **tl, int mustname)
 			a = anondcl(t->type);
 		args = list(args, a);
 	}
-	args = rev(args);
 	return args;
 }
 
@@ -2899,9 +2751,8 @@ structargs(Type **tl, int mustname)
 void
 genwrapper(Type *rcvr, Type *method, Sym *newnam)
 {
-	Node *this, *in, *out, *fn, *args, *call;
-	Node *l;
-	Iter savel;
+	Node *this, *fn, *call, *n;
+	NodeList *l, *args, *in, *out;
 
 	if(debug['r'])
 		print("genwrapper rcvrtype=%T method=%T newnam=%S\n",
@@ -2920,19 +2771,22 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
 	funchdr(fn);
 
 	// arg list
-	args = N;
-	for(l = listfirst(&savel, &in); l; l = listnext(&savel))
-		args = list(args, l->left);
-	args = rev(args);
+	args = nil;
+	for(l=in; l; l=l->next)
+		args = list(args, l->n->left);
 
 	// generate call
-	call = nod(OCALL, adddot(nod(ODOT, this->left, newname(method->sym))), args);
-	fn->nbody = call;
-	if(method->type->outtuple > 0)
-		fn->nbody = nod(ORETURN, call, N);
+	call = nod(OCALL, adddot(nod(ODOT, this->left, newname(method->sym))), N);
+	call->list = args;
+	fn->nbody = list1(call);
+	if(method->type->outtuple > 0) {
+		n = nod(ORETURN, N, N);
+		n->list = fn->nbody;
+		fn->nbody = list1(n);
+	}
 
 	if(debug['r'])
-		dump("genwrapper body", fn->nbody);
+		dumplist("genwrapper body", fn->nbody);
 
 	funcbody(fn);
 }
@@ -3137,3 +2991,71 @@ simsimtype(Type *t)
 	return et;
 }
 
+NodeList*
+concat(NodeList *a, NodeList *b)
+{
+	if(a == nil)
+		return b;
+	if(b == nil)
+		return a;
+
+	a->end->next = b;
+	a->end = b->end;
+	b->end = nil;
+	return a;
+}
+
+NodeList*
+list1(Node *n)
+{
+	NodeList *l;
+
+	if(n == nil)
+		return nil;
+	if(n->op == OBLOCK && n->ninit == nil)
+		return n->list;
+	l = mal(sizeof *l);
+	l->n = n;
+	l->end = l;
+	return l;
+}
+
+NodeList*
+list(NodeList *l, Node *n)
+{
+	return concat(l, list1(n));
+}
+
+NodeList*
+listtreecopy(NodeList *l)
+{
+	NodeList *out;
+
+	out = nil;
+	for(; l; l=l->next)
+		out = list(out, treecopy(l->n));
+	return out;
+}
+
+Node*
+liststmt(NodeList *l)
+{
+	Node *n;
+
+	n = nod(OBLOCK, N, N);
+	n->list = l;
+	if(l)
+		n->lineno = l->n->lineno;
+	return n;
+}
+
+int
+count(NodeList *l)
+{
+	int n;
+
+	n = 0;
+	for(; l; l=l->next)
+		n++;
+	return n;
+}

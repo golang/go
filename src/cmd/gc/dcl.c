@@ -22,16 +22,13 @@ dflag(void)
  * append ODCL nodes to *init
  */
 void
-dodclvar(Node *n, Type *t, Node **init)
+dodclvar(Node *n, Type *t, NodeList **init)
 {
 	if(n == N)
 		return;
 
 	if(t != T && (t->etype == TIDEAL || t->etype == TNIL))
 		fatal("dodclvar %T", t);
-	for(; n->op == OLIST; n = n->right)
-		dodclvar(n->left, t, init);
-
 	dowidth(t);
 
 	// in case of type checking error,
@@ -51,10 +48,6 @@ dodclconst(Node *n, Node *e)
 {
 	if(n == N)
 		return;
-
-	for(; n->op == OLIST; n=n->right)
-		dodclconst(n, e);
-
 	addconst(n, e, dclcontext);
 	autoexport(n->sym);
 }
@@ -180,18 +173,6 @@ updatetype(Type *n, Type *t)
  * return nelem of list
  */
 int
-listcount(Node *n)
-{
-	int v;
-	Iter s;
-
-	v = 0;
-	for(n = listfirst(&s, &n); n != N; n = listnext(&s))
-		v++;
-	return v;
-}
-
-int
 structcount(Type *t)
 {
 	int v;
@@ -208,19 +189,24 @@ structcount(Type *t)
  * into a type
  */
 Type*
-functype(Node *this, Node *in, Node *out)
+functype(Node *this, NodeList *in, NodeList *out)
 {
 	Type *t;
+	NodeList *rcvr;
 
 	t = typ(TFUNC);
 
-	t->type = dostruct(this, TFUNC);
+	rcvr = nil;
+	if(this)
+		rcvr = list1(this);
+	t->type = dostruct(rcvr, TFUNC);
 	t->type->down = dostruct(out, TFUNC);
 	t->type->down->down = dostruct(in, TFUNC);
 
-	t->thistuple = listcount(this);
-	t->outtuple = listcount(out);
-	t->intuple = listcount(in);
+	if(this)
+		t->thistuple = 1;
+	t->outtuple = count(out);
+	t->intuple = count(in);
 
 	checkwidth(t);
 	return t;
@@ -367,9 +353,9 @@ addmethod(Node *n, Type *t, int local)
 	}
 
 	if(d == T)
-		stotype(n, 0, &pa->method);
+		stotype(list1(n), 0, &pa->method);
 	else
-		stotype(n, 0, &d->down);
+		stotype(list1(n), 0, &d->down);
 
 	if(dflag())
 		print("method         %S of type %T\n", sf, pa);
@@ -545,13 +531,14 @@ funclit0(Type *t)
 }
 
 Node*
-funclit1(Type *type, Node *body)
+funclit1(Type *type, NodeList *body)
 {
 	Node *func;
-	Node *a, *d, *f, *n, *args, *clos, *in, *out;
+	Node *a, *d, *f, *n, *clos;
 	Type *ft, *t;
 	Iter save;
 	int narg, shift;
+	NodeList *args, *l, *in, *out;
 
 	popdcl();
 	func = funclit;
@@ -559,15 +546,15 @@ funclit1(Type *type, Node *body)
 
 	// build up type of func f that we're going to compile.
 	// as we referred to variables from the outer function,
-	// we accumulated a list of PHEAP names in func.
-	//
+	// we accumulated a list of PHEAP names in func->cvars.
 	narg = 0;
-	if(func->cvars == N)
+	if(func->cvars == nil)
 		ft = type;
 	else {
 		// add PHEAP versions as function arguments.
-		in = N;
-		for(a=listfirst(&save, &func->cvars); a; a=listnext(&save)) {
+		in = nil;
+		for(l=func->cvars; l; l=l->next) {
+			a = l->n;
 			d = nod(ODCLFIELD, a, N);
 			d->type = ptrto(a->type);
 			in = list(in, d);
@@ -612,10 +599,9 @@ funclit1(Type *type, Node *body)
 				a->xoffset += shift;
 			}
 		}
-		in = rev(in);
 
 		// out arguments
-		out = N;
+		out = nil;
 		for(t=structfirst(&save, getoutarg(type)); t; t=structnext(&save)) {
 			d = nod(ODCLFIELD, t->nname, N);
 			d->type = t->type;
@@ -628,7 +614,6 @@ funclit1(Type *type, Node *body)
 				a->xoffset += shift;
 			}
 		}
-		out = rev(out);
 
 		ft = functype(N, in, out);
 		ft->outnamed = type->outnamed;
@@ -645,35 +630,35 @@ funclit1(Type *type, Node *body)
 	n = nod(ODCLFUNC, N, N);
 	n->nname = f;
 	n->type = ft;
-	if(body == N)
-		body = nod(ORETURN, N, N);
+	if(body == nil)
+		body = list1(nod(ORETURN, N, N));
 	n->nbody = body;
 	compile(n);
 	funcdepth--;
 	autodcl = func->dcl;
 
 	// if there's no closure, we can use f directly
-	if(func->cvars == N)
+	if(func->cvars == nil)
 		return f;
 
 	// build up type for this instance of the closure func.
-	in = N;
+	in = nil;
 	d = nod(ODCLFIELD, N, N);	// siz
 	d->type = types[TINT];
 	in = list(in, d);
 	d = nod(ODCLFIELD, N, N);	// f
 	d->type = ft;
 	in = list(in, d);
-	for(a=listfirst(&save, &func->cvars); a; a=listnext(&save)) {
+	for(l=func->cvars; l; l=l->next) {
+		a = l->n;
 		d = nod(ODCLFIELD, N, N);	// arg
 		d->type = ptrto(a->type);
 		in = list(in, d);
 	}
-	in = rev(in);
 
 	d = nod(ODCLFIELD, N, N);
 	d->type = type;
-	out = d;
+	out = list1(d);
 
 	clos = syslook("closure", 1);
 	clos->type = functype(N, in, out);
@@ -681,47 +666,42 @@ funclit1(Type *type, Node *body)
 	// literal expression is sys.closure(siz, f, arg0, arg1, ...)
 	// which builds a function that calls f after filling in arg0,
 	// arg1, ... for the PHEAP arguments above.
-	args = N;
+	args = nil;
 	if(narg*widthptr > 100)
 		yyerror("closure needs too many variables; runtime will reject it");
 	a = nodintconst(narg*widthptr);
 	args = list(args, a);	// siz
 	args = list(args, f);	// f
-	for(a=listfirst(&save, &func->cvars); a; a=listnext(&save)) {
+	for(l=func->cvars; l; l=l->next) {
+		a = l->n;
 		d = oldname(a->sym);
 		addrescapes(d);
 		args = list(args, nod(OADDR, d, N));
 	}
-	args = rev(args);
 
-	return nod(OCALL, clos, args);
+	n = nod(OCALL, clos, N);
+	n->list = args;
+	return n;
 }
-
-
 
 /*
  * turn a parsed struct into a type
  */
 Type**
-stotype(Node *n, int et, Type **t)
+stotype(NodeList *l, int et, Type **t)
 {
 	Type *f, *t1;
-	Iter save;
 	Strlit *note;
 	int lno;
-	Node *init;
+	NodeList *init;
+	Node *n;
 
-	init = N;
+	init = nil;
 	lno = lineno;
-	for(n = listfirst(&save, &n); n != N; n = listnext(&save)) {
-		note = nil;
-
+	for(; l; l=l->next) {
+		n = l->n;
 		lineno = n->lineno;
-		if(n->op == OLIST) {
-			// recursive because it can be lists of lists
-			t = stotype(n, et, t);
-			continue;
-		}
+		note = nil;
 
 		if(n->op != ODCLFIELD)
 			fatal("stotype: oops %N\n", n);
@@ -803,7 +783,7 @@ stotype(Node *n, int et, Type **t)
 }
 
 Type*
-dostruct(Node *n, int et)
+dostruct(NodeList *l, int et)
 {
 	Type *t;
 	int funarg;
@@ -820,7 +800,7 @@ dostruct(Node *n, int et)
 	}
 	t = typ(et);
 	t->funarg = funarg;
-	stotype(n, et, &t->type);
+	stotype(l, et, &t->type);
 	if(!funarg)
 		checkwidth(t);
 	return t;
@@ -1218,7 +1198,7 @@ oldname(Sym *s)
 			n->closure = c;
 			c->closure = n;
 			if(funclit != N)
-				funclit->cvars = list(c, funclit->cvars);
+				funclit->cvars = list(funclit->cvars, c);
 		}
 		// return ref to closure var, not original
 		return n->closure;
@@ -1265,45 +1245,15 @@ oldtype(Sym *s)
 }
 
 /*
- * n is a node with a name (or a reversed list of them).
- * make it an anonymous declaration of that name's type.
- */
-Node*
-nametoanondcl(Node *na)
-{
-	Node **l, *n;
-	Type *t;
-
-	for(l=&na; (n=*l)->op == OLIST; l=&n->left)
-		n->right = nametoanondcl(n->right);
-
-	n = n->sym->def;
-	if(n == N || n->op != OTYPE || (t = n->type) == T) {
-		yyerror("%S is not a type", n->sym);
-		t = typ(TINT32);
-	}
-	n = nod(ODCLFIELD, N, N);
-	n->type = t;
-	*l = n;
-	return na;
-}
-
-/*
- * n is a node with a name (or a reversed list of them).
+ * n is a node with a name.
  * make it a declaration of the given type.
  */
 Node*
-nametodcl(Node *na, Type *t)
+nametodcl(Node *n, Type *t)
 {
-	Node **l, *n;
-
-	for(l=&na; (n=*l)->op == OLIST; l=&n->left)
-		n->right = nametodcl(n->right, t);
-
 	n = nod(ODCLFIELD, n, N);
 	n->type = t;
-	*l = n;
-	return na;
+	return n;
 }
 
 /*
@@ -1320,22 +1270,16 @@ anondcl(Type *t)
 }
 
 static Node*
-findtype(Node *n)
+findtype(NodeList *l)
 {
-	Node *r;
-
-	for(r=n; r->op==OLIST; r=r->right)
-		if(r->left->op == OKEY)
-			return r->left->right;
-	if(r->op == OKEY)
-		return r->right;
-	if(n->op == OLIST)
-		n = n->left;
+	for(; l; l=l->next)
+		if(l->n->op == OKEY)
+			return l->n->right;
 	return N;
 }
 
 static Node*
-xanondcl(Node *nt, int dddok)
+xanondcl(Node *nt)
 {
 	Node *n;
 	Type *t;
@@ -1347,13 +1291,11 @@ xanondcl(Node *nt, int dddok)
 	}
 	n = nod(ODCLFIELD, N, N);
 	n->type = t;
-	if(!dddok && t->etype == TDDD)
-		yyerror("only last argument can have type ...");
 	return n;
 }
 
 static Node*
-namedcl(Node *nn, Node *nt, int dddok)
+namedcl(Node *nn, Node *nt)
 {
 	Node *n;
 	Type *t;
@@ -1362,7 +1304,7 @@ namedcl(Node *nn, Node *nt, int dddok)
 		nn = nn->left;
 	if(nn->op == OTYPE && nn->sym == S) {
 		yyerror("cannot mix anonymous %T with named arguments", nn->type);
-		return xanondcl(nn, dddok);
+		return xanondcl(nn);
 	}
 	t = types[TINT32];
 	if(nt == N)
@@ -1373,41 +1315,39 @@ namedcl(Node *nn, Node *nt, int dddok)
 		t = nt->type;
 	n = nod(ODCLFIELD, newname(nn->sym), N);
 	n->type = t;
-	if(!dddok && t->etype == TDDD)
-		yyerror("only last argument can have type ...");
 	return n;
 }
 
 /*
  * check that the list of declarations is either all anonymous or all named
  */
-Node*
-checkarglist(Node *n)
+NodeList*
+checkarglist(NodeList *all)
 {
+	int named;
 	Node *r;
-	Node **l;
+	NodeList *l;
 
-	// check for all anonymous
-	for(r=n; r->op==OLIST; r=r->right)
-		if(r->left->op == OKEY)
-			goto named;
-	if(r->op == OKEY)
-		goto named;
+	named = 0;
+	for(l=all; l; l=l->next) {
+		if(l->n->op == OKEY) {
+			named = 1;
+			break;
+		}
+	}
 
-	// all anonymous - add names
-	for(l=&n; (r=*l)->op==OLIST; l=&r->right)
-		r->left = xanondcl(r->left, 0);
-	*l = xanondcl(r, 1);
-	return n;
-
-
-named:
-	// otherwise, each run of names ends in a type.
-	// add a type to each one that needs one.
-	for(l=&n; (r=*l)->op==OLIST; l=&r->right)
-		r->left = namedcl(r->left, findtype(r), 0);
-	*l = namedcl(r, findtype(r), 1);
-	return n;
+	for(l=all; l; l=l->next) {
+		if(named)
+			l->n = namedcl(l->n, findtype(l));
+		else
+			l->n = xanondcl(l->n);
+		if(l->next != nil) {
+			r = l->n;
+			if(r != N && r->type != T && r->type->etype == TDDD)
+				yyerror("only last argument can have type ...");
+		}
+	}
+	return all;
 }
 
 /*
@@ -1429,13 +1369,13 @@ named:
  *	}
  */
 int
-anyinit(Node *n)
+anyinit(NodeList *n)
 {
 	uint32 h;
 	Sym *s;
 
 	// are there any init statements
-	if(n != N)
+	if(n != nil)
 		return 1;
 
 	// is this main
@@ -1463,10 +1403,11 @@ anyinit(Node *n)
 }
 
 void
-fninit(Node *n)
+fninit(NodeList *n)
 {
 	Node *gatevar;
-	Node *a, *b, *fn, *r;
+	Node *a, *b, *fn;
+	NodeList *r;
 	uint32 h;
 	Sym *s, *initsym;
 
@@ -1478,7 +1419,7 @@ fninit(Node *n)
 	if(!anyinit(n))
 		return;
 
-	r = N;
+	r = nil;
 
 	// (1)
 	snprint(namebuf, sizeof(namebuf), "initdone·%s", filename);
@@ -1500,7 +1441,7 @@ fninit(Node *n)
 	fn = nod(ODCLFUNC, N, N);
 	initsym = lookup(namebuf);
 	fn->nname = newname(initsym);
-	fn->type = functype(N, N, N);
+	fn->type = functype(N, nil, nil);
 	funchdr(fn);
 
 	// (3)
@@ -1511,8 +1452,8 @@ fninit(Node *n)
 	// (4)
 	b = nod(OIF, N, N);
 	b->ntest = nod(OEQ, gatevar, nodintconst(2));
-	b->nbody = nod(ORETURN, N, N);
-	a->nbody = b;
+	b->nbody = list1(nod(ORETURN, N, N));
+	a->nbody = list1(b);
 
 	// (5)
 	b = syslook("throwinit", 0);
@@ -1540,7 +1481,7 @@ fninit(Node *n)
 	}
 
 	// (8)
-	r = list(r, initfix(n));
+	r = concat(r, initfix(n));
 
 	// (9)
 	// could check that it is fn of no args/returns
@@ -1562,7 +1503,7 @@ fninit(Node *n)
 
 	exportsym(fn->nname->sym);
 
-	fn->nbody = rev(r);
+	fn->nbody = r;
 //dump("b", fn);
 //dump("r", fn->nbody);
 
@@ -1679,26 +1620,28 @@ embedded(Sym *s)
  * declare variables from grammar
  * new_name_list (type | [type] = expr_list)
  */
-Node*
-variter(Node *vv, Type *t, Node *ee)
+NodeList*
+variter(NodeList *vl, Type *t, NodeList *el)
 {
-	Iter viter, eiter;
-	Node *v, *e, *r, *a;
+	int doexpr;
+	Node *v, *e, *a;
 	Type *tv;
+	NodeList *r;
 
-	vv = rev(vv);
-	ee = rev(ee);
+	r = nil;
+	doexpr = el != nil;
+	for(; vl; vl=vl->next) {
+		if(doexpr) {
+			if(el == nil) {
+				yyerror("missing expr in var dcl");
+				break;
+			}
+			e = el->n;
+			el = el->next;
+		} else
+			e = N;
 
-	v = listfirst(&viter, &vv);
-	e = listfirst(&eiter, &ee);
-	r = N;
-
-	while(v != N) {
-		if(ee != N && e == N) {
-			yyerror("missing expr in var dcl");
-			break;
-		}
-
+		v = vl->n;
 		a = N;
 		if(e != N || funcdepth > 0)
 			a = nod(OAS, v, e);
@@ -1709,15 +1652,12 @@ variter(Node *vv, Type *t, Node *ee)
 			tv = e->type;
 		}
 		dodclvar(v, tv, &r);
-		r = list(r, a);
-
-		v = listnext(&viter);
-		if(ee != N)
-			e = listnext(&eiter);
+		if(a != N)
+			r = list(r, a);
 	}
-	if(e != N)
+	if(el != nil)
 		yyerror("extra expr in var dcl");
-	return rev(r);
+	return r;
 }
 
 /*
@@ -1725,56 +1665,51 @@ variter(Node *vv, Type *t, Node *ee)
  * new_name_list [[type] = expr_list]
  */
 void
-constiter(Node *vv, Type *t, Node *cc)
+constiter(NodeList *vl, Type *t, NodeList *cl)
 {
-	Iter viter, citer;
-	Node *v, *c, *init;
+	Node *v, *c;
+	NodeList *init;
 
-	if(cc == N) {
+	if(cl == nil) {
 		if(t != T)
 			yyerror("constdcl cannot have type without expr");
-		cc = lastconst;
+		cl = lastconst;
 		t = lasttype;
+	} else {
+		lastconst = cl;
+		lasttype = t;
 	}
-	lastconst = cc;
-	lasttype = t;
-	vv = rev(vv);
-	cc = rev(treecopy(cc));
+	cl = listtreecopy(cl);
 
-	v = listfirst(&viter, &vv);
-	c = listfirst(&citer, &cc);
+	for(; vl; vl=vl->next) {
+		if(cl == nil) {
+			yyerror("missing expr in const dcl");
+			break;
+		}
+		c = cl->n;
+		cl = cl->next;
 
-loop:
-	if(v == N && c == N) {
-		iota += 1;
-		return;
+		init = nil;
+		gettype(c, &init);
+		if(init != nil) {
+			// the expression had extra code to run.
+			// dodclconst is going to print an error
+			// because the expression isn't constant,
+			// but out of paranoia, bump nerrors so
+			// that compile cannot succeed accidentally
+			nerrors++;
+		}
+		if(t != T)
+			convlit(c, t);
+		if(t == T)
+			lasttype = c->type;
+
+		v = vl->n;
+		dodclconst(v, c);
 	}
-
-	if(v == N || c == N) {
-		yyerror("shape error in const dcl");
-		iota += 1;
-		return;
-	}
-
-	init = N;
-	gettype(c, &init);
-	if(init != N) {
-		// the expression had extra code to run.
-		// dodclconst is going to print an error
-		// because the expression isn't constant,
-		// but out of paranoia, bump nerrors so
-		// that compile cannot succeed accidentally
-		nerrors++;
-	}
-	if(t != T)
-		convlit(c, t);
-	if(t == T)
-		lasttype = c->type;
-	dodclconst(v, c);
-
-	v = listnext(&viter);
-	c = listnext(&citer);
-	goto loop;
+	if(cl != nil)
+		yyerror("extra expr in const dcl");
+	iota += 1;
 }
 
 /*
@@ -1784,27 +1719,28 @@ loop:
  * rewrite with a constant
  */
 Node*
-unsafenmagic(Node *l, Node *r)
+unsafenmagic(Node *fn, NodeList *args)
 {
-	Node *n, *init;
+	Node *r, *n;
 	Sym *s;
 	Type *t, *tr;
 	long v;
 	Val val;
 
-	if(l == N || r == N)
-		goto no;
-	if(l->op != ONAME)
-		goto no;
-	s = l->sym;
-	if(s == S)
+	if(fn == N || fn->op != ONAME || (s = fn->sym) == S)
 		goto no;
 	if(strcmp(s->package, "unsafe") != 0)
 		goto no;
 
-	init = N;
+	if(args == nil) {
+		yyerror("missing argument for %S", s);
+		goto no;
+	}
+	r = args->n;
+
+	n = nod(OLITERAL, N, N);
 	if(strcmp(s->name, "Sizeof") == 0) {
-		walkexpr(r, Erv, &init);
+		walkexpr(r, Erv, &n->ninit);
 		tr = r->type;
 		if(r->op == OLITERAL && r->val.ctype == CTSTR)
 			tr = types[TSTRING];
@@ -1816,12 +1752,12 @@ unsafenmagic(Node *l, Node *r)
 	if(strcmp(s->name, "Offsetof") == 0) {
 		if(r->op != ODOT && r->op != ODOTPTR)
 			goto no;
-		walkexpr(r, Erv, &init);
+		walkexpr(r, Erv, &n->ninit);
 		v = r->xoffset;
 		goto yes;
 	}
 	if(strcmp(s->name, "Alignof") == 0) {
-		walkexpr(r, Erv, &init);
+		walkexpr(r, Erv, &n->ninit);
 		tr = r->type;
 		if(r->op == OLITERAL && r->val.ctype == CTSTR)
 			tr = types[TSTRING];
@@ -1846,6 +1782,8 @@ no:
 	return N;
 
 yes:
+	if(args->next != nil)
+		yyerror("extra arguments for %S", s);
 	// any side effects disappear; ignore init
 	val.ctype = CTINT;
 	val.u.xval = mal(sizeof(*n->val.u.xval));

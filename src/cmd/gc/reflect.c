@@ -90,10 +90,11 @@ lsort(Sig *l, int(*f)(Sig*, Sig*))
 static Type*
 methodfunc(Type *f)
 {
-	Node *in, *out, *d;
+	NodeList *in, *out;
+	Node *d;
 	Type *t;
 
-	in = N;
+	in = nil;
 	if(!isifacemethod(f)) {
 		d = nod(ODCLFIELD, N, N);
 		d->type = getthisx(f->type)->type->type;
@@ -105,14 +106,14 @@ methodfunc(Type *f)
 		in = list(in, d);
 	}
 
-	out = N;
+	out = nil;
 	for(t=getoutargx(f->type)->type; t; t=t->down) {
 		d = nod(ODCLFIELD, N, N);
 		d->type = t->type;
 		out = list(out, d);
 	}
 
-	return functype(N, rev(in), rev(out));
+	return functype(N, in, out);
 }
 
 /*

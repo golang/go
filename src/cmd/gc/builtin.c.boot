@@ -53,7 +53,6 @@ char *sysimport =
 	"func sys.newchan (elemsize int, elemalg int, hint int) (hchan chan any)\n"
 	"func sys.chanrecv1 (hchan <-chan any) (elem any)\n"
 	"func sys.chanrecv2 (hchan <-chan any) (elem any, pres bool)\n"
-	"func sys.chanrecv3 (hchan <-chan any, elem *any) (pres bool)\n"
 	"func sys.chansend1 (hchan chan<- any, elem any)\n"
 	"func sys.chansend2 (hchan chan<- any, elem any) (pres bool)\n"
 	"func sys.closechan (hchan any)\n"
