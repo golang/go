@@ -23,6 +23,7 @@ var typeLock	sync.Mutex	// set while building a type
 type gobType interface {
 	id()	TypeId;
 	setId(id TypeId);
+	Name()	string;
 	String()	string;
 	safeString(seen map[TypeId] bool)	string;
 }
@@ -45,6 +46,10 @@ func (t TypeId) gobType() gobType {
 
 func (t TypeId) String() string {
 	return t.gobType().String()
+}
+
+func (t TypeId) Name() string {
+	return t.gobType().Name()
 }
 
 // Common elements of all types.
@@ -236,7 +241,8 @@ func newTypeObject(name string, rt reflect.Type) gobType {
 		if _, ok := t.Elem().(*reflect.Uint8Type); ok {
 			return tBytes.gobType()
 		}
-		return newSliceType(name, newType("", t.Elem()));
+		_, elemName := t.Elem().Name();
+		return newSliceType(name, newType(elemName, t.Elem()));
 
 	case *reflect.StructType:
 		// Install the struct type itself before the fields so recursive
@@ -325,9 +331,6 @@ type decEngine struct	// defined in decode.go
 type encEngine struct	// defined in encode.go
 type typeInfo struct {
 	typeId	TypeId;
-	// Decoder engine to convert TypeId.Type() to this type.  Stored as a pointer to a
-	// pointer to aid construction of recursive types.  Protected by typeLock.
-	decoderPtr	map[TypeId] **decEngine;
 	encoder	*encEngine;
 	wire	*wireType;
 }
@@ -345,7 +348,6 @@ func getTypeInfo(rt reflect.Type) *typeInfo {
 		info = new(typeInfo);
 		path, name := rt.Name();
 		info.typeId = getType(name, rt).id();
-		info.decoderPtr = make(map[TypeId] **decEngine);
 		// assume it's a struct type
 		info.wire = &wireType{info.typeId.gobType().(*structType)};
 		typeInfoMap[rt] = info;

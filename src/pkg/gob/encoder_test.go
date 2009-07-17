@@ -35,12 +35,7 @@ type ET3 struct {
 type ET4 struct {
 	a int;
 	et2 *ET1;
-	next *ET2;
-}
-
-// Has different type for a self-referencing field compared to ET1
-type ET5 struct {
-	next *ET2;
+	next int;
 }
 
 func TestBasicEncoder(t *testing.T) {
@@ -206,7 +201,8 @@ func TestEncoderDecoder(t *testing.T) {
 }
 
 // Run one value through the encoder/decoder, but use the wrong type.
-func badTypeCheck(e interface{}, msg string, t *testing.T) {
+// Input is always an ET1; we compare it to whatever is under 'e'.
+func badTypeCheck(e interface{}, shouldFail bool, msg string, t *testing.T) {
 	b := new(bytes.Buffer);
 	enc := NewEncoder(b);
 	et1 := new(ET1);
@@ -218,15 +214,17 @@ func badTypeCheck(e interface{}, msg string, t *testing.T) {
 	}
 	dec := NewDecoder(b);
 	dec.Decode(e);
-	if dec.state.err == nil {
+	if shouldFail && (dec.state.err == nil) {
 		t.Error("expected error for", msg);
+	}
+	if !shouldFail && (dec.state.err != nil) {
+		t.Error("unexpected error for", msg);
 	}
 }
 
 // Test that we recognize a bad type the first time.
 func TestWrongTypeDecoder(t *testing.T) {
-	badTypeCheck(new(ET2), "no fields in common", t);
-	badTypeCheck(new(ET3), "different name of field", t);
-	badTypeCheck(new(ET4), "different type of field", t);
-	badTypeCheck(new(ET5), "different type of self-reference field", t);
+	badTypeCheck(new(ET2), true, "no fields in common", t);
+	badTypeCheck(new(ET3), false, "different name of field", t);
+	badTypeCheck(new(ET4), true, "different type of field", t);
 }
