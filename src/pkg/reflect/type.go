@@ -455,6 +455,7 @@ type StructField struct {
 	Type Type;
 	Tag string;
 	Offset uintptr;
+	Index int;
 	Anonymous bool;
 }
 
@@ -479,6 +480,29 @@ func (t *StructType) Field(i int) (f StructField) {
 		f.Tag = *p.tag;
 	}
 	f.Offset = p.offset;
+	return;
+}
+
+// FieldByName returns the field with the provided name and a boolean to indicate
+// that the field was found..
+func (t *StructType) FieldByName(name string) (f StructField, present bool) {
+	for i, p := range t.fields {
+		if p.name == nil || *p.name != name {
+			continue;
+		}
+		f.Name = *p.name;
+		f.Type = toType(*p.typ);
+		if p.pkgPath != nil {
+			f.PkgPath = *p.pkgPath;
+		}
+		if p.tag != nil {
+			f.Tag = *p.tag;
+		}
+		f.Offset = p.offset;
+		f.Index = i;
+		present = true;
+		break;
+	}
 	return;
 }
 
