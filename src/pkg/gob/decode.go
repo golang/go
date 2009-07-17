@@ -741,7 +741,7 @@ func decode(b *bytes.Buffer, wireId TypeId, e interface{}) os.Error {
 	}
 	engine := *enginePtr;
 	if engine.numInstr == 0 && st.NumField() > 0 && len(wireId.gobType().(*structType).field) > 0 {
-		path, name := rt.Name();
+		name := rt.Name();
 		return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
 	}
 	return decodeStruct(engine, rt.(*reflect.StructType), b, uintptr(v.Addr()), 0);

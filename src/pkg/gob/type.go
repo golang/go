@@ -241,8 +241,7 @@ func newTypeObject(name string, rt reflect.Type) gobType {
 		if _, ok := t.Elem().(*reflect.Uint8Type); ok {
 			return tBytes.gobType()
 		}
-		_, elemName := t.Elem().Name();
-		return newSliceType(name, newType(elemName, t.Elem()));
+		return newSliceType(name, newType(t.Elem().Name(), t.Elem()));
 
 	case *reflect.StructType:
 		// Install the struct type itself before the fields so recursive
@@ -254,7 +253,7 @@ func newTypeObject(name string, rt reflect.Type) gobType {
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i);
 			typ, _indir := indirect(f.Type);
-			_pkg, tname := typ.Name();
+			tname := typ.Name();
 			if tname == "" {
 				tname = f.Type.String();
 			}
@@ -346,7 +345,7 @@ func getTypeInfo(rt reflect.Type) *typeInfo {
 	info, ok := typeInfoMap[rt];
 	if !ok {
 		info = new(typeInfo);
-		path, name := rt.Name();
+		name := rt.Name();
 		info.typeId = getType(name, rt).id();
 		// assume it's a struct type
 		info.wire = &wireType{info.typeId.gobType().(*structType)};
