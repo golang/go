@@ -7,9 +7,12 @@ package eval
 import (
 	"bignum";
 	"eval";
+	"fmt";
 	"go/ast";
+	"go/scanner";
 	"go/token";
 	"log";
+"os";
 	"strconv";
 	"strings";
 )
@@ -19,7 +22,7 @@ import (
 type exprContext struct {
 	scope *Scope;
 	constant bool;
-	// TODO(austin) Error list
+	errors scanner.ErrorHandler;
 }
 
 // An exprCompiler compiles a single node in an expression.  It stores
@@ -82,7 +85,7 @@ func (a *exprCompiler) fork(x ast.Expr) *exprCompiler {
 }
 
 func (a *exprCompiler) diag(format string, args ...) {
-	diag(a.pos, format, args);
+	a.errors.Error(a.pos, fmt.Sprintf(format, args));
 }
 
 func (a *exprCompiler) diagOpType(op token.Token, vt Type) {
@@ -205,25 +208,22 @@ func (a *exprCompiler) DoIntLit(x *ast.IntLit) {
 
 func (a *exprCompiler) DoCharLit(x *ast.CharLit) {
 	if x.Value[0] != '\'' {
-		// Shouldn't get past the parser
-		log.Crashf("unexpected character literal %s at %v", x.Value, x.Pos());
+		log.Crashf("malformed character literal %s at %v passed parser", x.Value, x.Pos());
 	}
 	v, mb, tail, err := strconv.UnquoteChar(string(x.Value[1:len(x.Value)]), '\'');
-	if err != nil {
-		a.diag("illegal character literal, %v", err);
-		return;
-	}
-	if tail != "'" {
-		a.diag("character literal must contain only one character");
-		return;
+	if err != nil || tail != "'" {
+		log.Crashf("malformed character literal %s at %v passed parser", x.Value, x.Pos());
 	}
 	a.doIdealInt(bignum.Int(int64(v)));
 	a.desc = "character literal";
 }
 
 func (a *exprCompiler) DoFloatLit(x *ast.FloatLit) {
+	f, _, n := bignum.RatFromString(string(x.Value), 0);
+	if n != len(x.Value) {
+		log.Crashf("malformed float literal %s at %v passed parser", x.Value, x.Pos());
+	}
 	a.t = IdealFloatType;
-	f, _, _2 := bignum.RatFromString(string(x.Value), 0);
 	a.evalIdealFloat = func() *bignum.Rational { return f };
 	a.desc = "float literal";
 }
@@ -370,7 +370,7 @@ func (a *exprCompiler) DoUnaryExpr(x *ast.UnaryExpr) {
 	switch x.Op {
 	case token.ADD:
 		// Just compile it out
-		a = v;
+		*a = *v;
 
 	case token.SUB:
 		a.genUnaryOpNeg(v);
@@ -492,9 +492,9 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 		// numeric type and the other operand is an ideal
 		// number, the ideal number is converted to match the
 		// type of the other operand.
-		if l.t.isInteger() && !l.t.isIdeal() && r.t.isIdeal() {
+		if (l.t.isInteger() || l.t.isFloat()) && !l.t.isIdeal() && r.t.isIdeal() {
 			r = r.convertTo(l.t);
-		} else if r.t.isInteger() && !r.t.isIdeal() && l.t.isIdeal() {
+		} else if (r.t.isInteger() || r.t.isFloat()) && !r.t.isIdeal() && l.t.isIdeal() {
 			l = l.convertTo(r.t);
 		}
 		if l == nil || r == nil {
@@ -782,8 +782,8 @@ func (a *exprCompiler) DoChanType(x *ast.ChanType) {
 	log.Crash("Not implemented");
 }
 
-func compileExpr(expr ast.Expr, scope *Scope) *exprCompiler {
-	ec := newExprCompiler(&exprContext{scope, false}, expr.Pos());
+func compileExpr(expr ast.Expr, scope *Scope, errors scanner.ErrorHandler) *exprCompiler {
+	ec := newExprCompiler(&exprContext{scope, false, errors}, expr.Pos());
 	expr.Visit(ec);
 	if ec.t == nil {
 		return nil;
@@ -803,34 +803,36 @@ func (expr *Expr) Eval(f *Frame) Value {
 	return expr.f(f);
 }
 
-func CompileExpr(expr ast.Expr, scope *Scope) *Expr {
-	ec := compileExpr(expr, scope);
+func CompileExpr(expr ast.Expr, scope *Scope) (*Expr, os.Error) {
+	errors := scanner.NewErrorVector();
+
+	ec := compileExpr(expr, scope, errors);
 	if ec == nil {
-		return nil;
+		return nil, errors.GetError(scanner.Sorted);
 	}
 	// TODO(austin) This still uses Value as a generic container
 	// and is the only user of the 'value' methods on each type.
 	// Need to figure out a better way to do this.
 	switch t := ec.t.(type) {
 	case *boolType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalBool(f)) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalBool(f)) }}, nil;
 	case *uintType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalUint(f)) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalUint(f)) }}, nil;
 	case *intType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalInt(f)) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalInt(f)) }}, nil;
 	case *idealIntType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalIdealInt()) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalIdealInt()) }}, nil;
 	case *floatType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalFloat(f)) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalFloat(f)) }}, nil;
 	case *idealFloatType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalIdealFloat()) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalIdealFloat()) }}, nil;
 	case *stringType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalString(f)) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalString(f)) }}, nil;
 	case *PtrType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalPtr(f)) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalPtr(f)) }}, nil;
 	}
 	log.Crashf("unexpected type %v", ec.t);
-	return nil;
+	panic();
 }
 
 /*
@@ -859,7 +861,7 @@ func (a *exprCompiler) genIdentOp(t Type, s *Scope, index int) {
 
 func (a *exprCompiler) genStarOp(v *exprCompiler) {
 	vf := v.asPtr();
-	switch _ := v.t.literal().(type) {
+	switch _ := v.t.literal().(*PtrType).Elem().literal().(type) {
 	case *boolType:
 		a.evalBool = func(f *Frame) bool { return vf(f).(BoolValue).Get() };
 	case *uintType:
@@ -873,7 +875,7 @@ func (a *exprCompiler) genStarOp(v *exprCompiler) {
 	case *PtrType:
 		a.evalPtr = func(f *Frame) Value { return vf(f).(PtrValue).Get() };
 	default:
-		log.Crashf("unexpected operand type %v at %v", v.t.literal(), a.pos);
+		log.Crashf("unexpected operand type %v at %v", v.t.literal().(*PtrType).Elem().literal(), a.pos);
 	}
 }
 
