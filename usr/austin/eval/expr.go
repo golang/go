@@ -56,6 +56,25 @@ func newExprCompiler(c *exprContext, pos token.Position) *exprCompiler {
 	};
 }
 
+// Operator generators
+// TODO(austin) Remove these forward declarations
+func (a *exprCompiler) genIdentOp(t Type, s *Scope, index int)
+func (a *exprCompiler) genStarOp(v *exprCompiler)
+func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler)
+func (a *exprCompiler) genUnaryOpNot(v *exprCompiler)
+func (a *exprCompiler) genUnaryOpXor(v *exprCompiler)
+func (a *exprCompiler) genBinOpAdd(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpSub(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpMul(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpQuo(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpRem(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpAnd(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpOr(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpXor(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler)
+
 func (a *exprCompiler) fork(x ast.Expr) *exprCompiler {
 	ec := newExprCompiler(a.exprContext, x.Pos());
 	x.Visit(ec);
@@ -134,25 +153,6 @@ func (a *exprCompiler) DoBadExpr(x *ast.BadExpr) {
 	// Do nothing.  Already reported by parser.
 }
 
-func (a *exprCompiler) genIdent(t Type, s *Scope, index int) {
-	switch _ := t.literal().(type) {
-	case *boolType:
-        	a.evalBool = func (f *Frame) bool { return f.Get(s, index).(BoolValue).Get() };
-	case *uintType:
-        	a.evalUint = func (f *Frame) uint64 { return f.Get(s, index).(UintValue).Get() };
-	case *intType:
-        	a.evalInt = func (f *Frame) int64 { return f.Get(s, index).(IntValue).Get() };
-	case *floatType:
-        	a.evalFloat = func (f *Frame) float64 { return f.Get(s, index).(FloatValue).Get() };
-	case *stringType:
-        	a.evalString = func (f *Frame) string { return f.Get(s, index).(StringValue).Get() };
-	case *PtrType:
-        	a.evalPtr = func (f *Frame) Value { return f.Get(s, index).(PtrValue).Get() };
-	default:
-		log.Crashf("unexpected variable type %v at %v", t.literal(), a.pos);
-	}
-}
-
 func (a *exprCompiler) DoIdent(x *ast.Ident) {
 	def, dscope := a.scope.Lookup(x.Value);
 	if def == nil {
@@ -180,7 +180,7 @@ func (a *exprCompiler) DoIdent(x *ast.Ident) {
 		}
 		a.t = def.Type;
 		defidx := def.Index;
-		a.genIdent(def.Type, dscope, defidx);
+		a.genIdentOp(def.Type, dscope, defidx);
 		a.evalAddr = func (f *Frame) Value {
 			return f.Get(dscope, defidx);
 		};
@@ -285,26 +285,6 @@ func (a *exprCompiler) DoCallExpr(x *ast.CallExpr) {
 	log.Crash("Not implemented");
 }
 
-func (a *exprCompiler) genStarOp(v *exprCompiler) {
-	vf := v.asPtr();
-	switch _ := v.t.literal().(type) {
-	case *boolType:
-		a.evalBool = func (f *Frame) bool { return vf(f).(BoolValue).Get() };
-	case *uintType:
-		a.evalUint = func (f *Frame) uint64 { return vf(f).(UintValue).Get() };
-	case *intType:
-		a.evalInt = func (f *Frame) int64 { return vf(f).(IntValue).Get() };
-	case *floatType:
-		a.evalFloat = func (f *Frame) float64 { return vf(f).(FloatValue).Get() };
-	case *stringType:
-		a.evalString = func (f *Frame) string { return vf(f).(StringValue).Get() };
-	case *PtrType:
-		a.evalPtr = func (f *Frame) Value { return vf(f).(PtrValue).Get() };
-	default:
-		log.Crashf("unexpected operand type %v at %v", v.t.literal(), a.pos);
-	}
-}
-
 func (a *exprCompiler) DoStarExpr(x *ast.StarExpr) {
 	v := a.fork(x.X);
 	if v.t == nil {
@@ -324,55 +304,39 @@ func (a *exprCompiler) DoStarExpr(x *ast.StarExpr) {
 	}
 }
 
-func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler) {
-	switch _ := v.t.literal().(type) {
-	case *uintType:
-		vf := v.asUint();
-		a.evalUint = func (f *Frame) uint64 { return -vf(f) };
-	case *intType:
-		vf := v.asInt();
-		a.evalInt = func (f *Frame) int64 { return -vf(f) };
-	case *idealIntType:
-		vf := v.asIdealInt();
-		val := vf().Neg();
-		a.evalIdealInt = func () *bignum.Integer { return val };
-	case *floatType:
-		vf := v.asFloat();
-		a.evalFloat = func (f *Frame) float64 { return -vf(f) };
-	case *idealFloatType:
-		vf := v.asIdealFloat();
-		val := vf().Neg();
-		a.evalIdealFloat = func () *bignum.Rational { return val };
-	default:
-		log.Crashf("unexpected operand type %v at %v", v.t.literal(), a.pos);
-	}
-}
+var unaryOpDescs = make(map[token.Token] string)
 
 func (a *exprCompiler) DoUnaryExpr(x *ast.UnaryExpr) {
-	switch x.Op {
-	case token.SUB:
-		// Negation
-		v := a.fork(x.X);
-		if v.t == nil {
-			return;
-		}
+	v := a.fork(x.X);
+	if v.t == nil {
+		return;
+	}
 
+	// Type check
+	switch x.Op {
+	case token.ADD, token.SUB:
 		if !v.t.isInteger() && !v.t.isFloat() {
 			a.diagOpType(x.Op, v.t);
 			return;
 		}
-
 		a.t = v.t;
-		a.genUnaryOpNeg(v);
-		a.desc = "- expression";
 
-	case token.AND:
-		// Address-of
-		v := a.fork(x.X);
-		if v.t == nil {
+	case token.NOT:
+		if !v.t.isBoolean() {
+			a.diagOpType(x.Op, v.t);
 			return;
 		}
+		// TODO(austin) Unnamed bool?  Named bool?
+		a.t = BoolType;
 
+	case token.XOR:
+		if !v.t.isInteger() {
+			a.diagOpType(x.Op, v.t);
+			return;
+		}
+		a.t = v.t;
+
+	case token.AND:
 		// The unary prefix address-of operator & generates
 		// the address of its operand, which must be a
 		// variable, pointer indirection, field selector, or
@@ -386,15 +350,43 @@ func (a *exprCompiler) DoUnaryExpr(x *ast.UnaryExpr) {
 		// address of a function result variable" once I have
 		// function result variables.
 
-		at := NewPtrType(v.t);
-		a.t = at;
+		a.t = NewPtrType(v.t);
 
-		vf := v.evalAddr;
-		a.evalPtr = func (f *Frame) Value { return vf(f) };
-		a.desc = "& expression";
+	case token.ARROW:
+		log.Crashf("Unary op %v not implemented", x.Op);
 
 	default:
-		log.Crashf("Unary op %v not implemented", x.Op);
+		log.Crashf("unknown unary operator %v", x.Op);
+	}
+
+	var ok bool;
+	a.desc, ok = unaryOpDescs[x.Op];
+ 	if !ok {
+		a.desc = "unary " + x.Op.String() + " expression";
+		unaryOpDescs[x.Op] = a.desc;
+	}
+
+	// Compile
+	switch x.Op {
+	case token.ADD:
+		// Just compile it out
+		a = v;
+
+	case token.SUB:
+		a.genUnaryOpNeg(v);
+
+	case token.NOT:
+		a.genUnaryOpNot(v);
+
+	case token.XOR:
+		a.genUnaryOpXor(v);
+
+	case token.AND:
+		vf := v.evalAddr;
+		a.evalPtr = func (f *Frame) Value { return vf(f) };
+
+	default:
+		log.Crashf("Compilation of unary op %v not implemented", x.Op);
 	}
 }
 
@@ -470,98 +462,7 @@ func (a *exprCompiler) convertTo(t Type) *exprCompiler {
 	return res;
 }
 
-func (a *exprCompiler) genBinOpAdd(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
-	case *uintType:
-        	lf := l.asUint();
-                rf := r.asUint();
-                a.evalUint = func (f *Frame) uint64 { return lf(f) + rf(f) };
-	case *intType:
-        	lf := l.asInt();
-                rf := r.asInt();
-                a.evalInt = func (f *Frame) int64 { return lf(f) + rf(f) };
-	case *idealIntType:
-        	lf := l.asIdealInt();
-                rf := r.asIdealInt();
-		val := lf().Add(rf());
-                a.evalIdealInt = func () *bignum.Integer { return val };
-	case *floatType:
-        	lf := l.asFloat();
-                rf := r.asFloat();
-                a.evalFloat = func (f *Frame) float64 { return lf(f) + rf(f) };
-	case *idealFloatType:
-        	lf := l.asIdealFloat();
-                rf := r.asIdealFloat();
-		val := lf().Add(rf());
-                a.evalIdealFloat = func () *bignum.Rational { return val };
-	case *stringType:
-        	lf := l.asString();
-                rf := r.asString();
-                a.evalString = func (f *Frame) string { return lf(f) + rf(f) };
-	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
-	}
-}
-
-func (a *exprCompiler) genBinOpSub(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
-	case *uintType:
-        	lf := l.asUint();
-                rf := r.asUint();
-                a.evalUint = func (f *Frame) uint64 { return lf(f) - rf(f) };
-	case *intType:
-        	lf := l.asInt();
-                rf := r.asInt();
-                a.evalInt = func (f *Frame) int64 { return lf(f) - rf(f) };
-	case *idealIntType:
-        	lf := l.asIdealInt();
-                rf := r.asIdealInt();
-		val := lf().Sub(rf());
-                a.evalIdealInt = func () *bignum.Integer { return val };
-	case *floatType:
-        	lf := l.asFloat();
-                rf := r.asFloat();
-                a.evalFloat = func (f *Frame) float64 { return lf(f) - rf(f) };
-	case *idealFloatType:
-        	lf := l.asIdealFloat();
-                rf := r.asIdealFloat();
-		val := lf().Sub(rf());
-                a.evalIdealFloat = func () *bignum.Rational { return val };
-	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
-	}
-}
-
-func (a *exprCompiler) genBinOpQuo(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
-	case *uintType:
-        	lf := l.asUint();
-                rf := r.asUint();
-                a.evalUint = func (f *Frame) uint64 { return lf(f) / rf(f) };
-	case *intType:
-        	lf := l.asInt();
-                rf := r.asInt();
-                a.evalInt = func (f *Frame) int64 { return lf(f) / rf(f) };
-	case *idealIntType:
-        	lf := l.asIdealInt();
-                rf := r.asIdealInt();
-		val := lf().Quo(rf());
-                a.evalIdealInt = func () *bignum.Integer { return val };
-	case *floatType:
-        	lf := l.asFloat();
-                rf := r.asFloat();
-                a.evalFloat = func (f *Frame) float64 { return lf(f) / rf(f) };
-	case *idealFloatType:
-        	lf := l.asIdealFloat();
-                rf := r.asIdealFloat();
-		val := lf().Quo(rf());
-                a.evalIdealFloat = func () *bignum.Rational { return val };
-	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
-	}
-}
-
-var opDescs = make(map[token.Token] string)
+var binOpDescs = make(map[token.Token] string)
 
 func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 	l, r := a.fork(x.X), a.fork(x.Y);
@@ -586,10 +487,11 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 	// relevant only for / and %?  If I add an ideal int and an
 	// ideal float, I get an ideal float.
 
-	// Except in shift expressions, if one operand has numeric
-	// type and the other operand is an ideal number, the ideal
-	// number is converted to match the type of the other operand.
 	if x.Op != token.SHL && x.Op != token.SHR {
+		// Except in shift expressions, if one operand has
+		// numeric type and the other operand is an ideal
+		// number, the ideal number is converted to match the
+		// type of the other operand.
 		if l.t.isInteger() && !l.t.isIdeal() && r.t.isIdeal() {
 			r = r.convertTo(l.t);
 		} else if r.t.isInteger() && !r.t.isIdeal() && l.t.isIdeal() {
@@ -657,22 +559,50 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 		a.t = l.t;
 
 	case token.SHL, token.SHR:
+		// XXX(Spec) Is it okay for the right operand to be an
+		// ideal float with no fractional part?  "The right
+		// operand in a shift operation must be always be of
+		// unsigned integer type or an ideal number that can
+		// be safely converted into an unsigned integer type
+		// (§Arithmetic operators)" suggests so.
+
+		if !l.t.isInteger() || !(r.t.isInteger() || r.t.isIdeal()) {
+			a.diagOpTypes(x.Op, origlt, origrt);
+			return;
+		}
+
 		// The right operand in a shift operation must be
 		// always be of unsigned integer type or an ideal
 		// number that can be safely converted into an
 		// unsigned integer type.
 		if r.t.isIdeal() {
-			r = r.convertTo(UintType);
-			if r == nil {
+			r2 := r.convertTo(UintType);
+			if r2 == nil {
 				return;
 			}
-		}
-
-		if !integers() {
-			a.diagOpTypes(x.Op, origlt, origrt);
-			return;
-		}
-		if _, ok := r.t.literal().(*uintType); !ok {
+			// If the left operand is ideal, we use the
+			// original right operand so we can perform
+			// constant evaluation.  Otherwise, we use the
+			// conversion.
+			if !l.t.isIdeal() {
+				r = r2;
+				// XXX(Spec) What is the meaning of
+				// "ideal >> non-ideal"?  Russ says
+				// the ideal should be converted to
+				// an int.  6g says it's illegal.
+				l = l.convertTo(IntType);
+				if l == nil {
+					return;
+				}
+			} else if r.t.isFloat() {
+				// Convert it to an ideal int to
+				// simplify the cases
+				r = r.convertTo(IdealIntType);
+				if r == nil {
+					log.Crashf("conversion to uintType succeeded, but conversion to idealIntType failed");
+				}
+			}
+		} else if _, ok := r.t.literal().(*uintType); !ok {
 			a.diag("right operand of shift must be unsigned");
 			return;
 		}
@@ -735,10 +665,10 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 	}
 
 	var ok bool;
-	a.desc, ok = opDescs[x.Op];
+	a.desc, ok = binOpDescs[x.Op];
 	if !ok {
 		a.desc = x.Op.String() + " expression";
-		opDescs[x.Op] = a.desc;
+		binOpDescs[x.Op] = a.desc;
 	}
 
 	// Compile
@@ -749,11 +679,49 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 	case token.SUB:
 		a.genBinOpSub(l, r);
 
+	case token.MUL:
+		a.genBinOpMul(l, r);
+
 	case token.QUO:
 		// TODO(austin) What if divisor is zero?
 		// TODO(austin) Clear higher bits that may have
 		// accumulated in our temporary.
 		a.genBinOpQuo(l, r);
+
+	case token.REM:
+		// TODO(austin) What if divisor is zero?
+		// TODO(austin) Clear higher bits that may have
+		// accumulated in our temporary.
+		a.genBinOpRem(l, r);
+
+	case token.AND:
+		a.genBinOpAnd(l, r);
+
+	case token.OR:
+		a.genBinOpOr(l, r);
+
+	case token.XOR:
+		a.genBinOpXor(l, r);
+
+	case token.AND_NOT:
+		if l.t.isIdeal() || r.t.isIdeal() {
+			log.Crashf("&^ for ideals not implemented");
+		}
+		a.genBinOpAndNot(l, r);
+
+	case token.SHL:
+		// TODO(austin) bignum.Integer.Shl takes a uint
+		if r.t.isIdeal() {
+			log.Crashf("<< ideal not implemented");
+		}
+		a.genBinOpShl(l, r);
+
+	case token.SHR:
+		// TODO(austin) bignum.Integer.Shr takes a uint
+		if r.t.isIdeal() {
+			log.Crashf(">> ideal not implemented");
+		}
+		a.genBinOpShr(l, r);
 
 	default:
 		log.Crashf("Compilation of binary op %v not implemented", x.Op);
@@ -841,4 +809,354 @@ func CompileExpr(expr ast.Expr, scope *Scope) *Expr {
 	}
 	log.Crashf("unexpected type %v", ec.t);
 	return nil;
+}
+
+/*
+ * Operator generators
+ * Everything below here is MACHINE GENERATED by gen.py genOps
+ */
+
+func (a *exprCompiler) genIdentOp(t Type, s *Scope, index int) {
+	switch _ := t.literal().(type) {
+	case *boolType:
+		a.evalBool = func(f *Frame) bool { return f.Get(s, index).(BoolValue).Get() };
+	case *uintType:
+		a.evalUint = func(f *Frame) uint64 { return f.Get(s, index).(UintValue).Get() };
+	case *intType:
+		a.evalInt = func(f *Frame) int64 { return f.Get(s, index).(IntValue).Get() };
+	case *floatType:
+		a.evalFloat = func(f *Frame) float64 { return f.Get(s, index).(FloatValue).Get() };
+	case *stringType:
+		a.evalString = func(f *Frame) string { return f.Get(s, index).(StringValue).Get() };
+	case *PtrType:
+		a.evalPtr = func(f *Frame) Value { return f.Get(s, index).(PtrValue).Get() };
+	default:
+		log.Crashf("unexpected identifier type %v at %v", t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genStarOp(v *exprCompiler) {
+	vf := v.asPtr();
+	switch _ := v.t.literal().(type) {
+	case *boolType:
+		a.evalBool = func(f *Frame) bool { return vf(f).(BoolValue).Get() };
+	case *uintType:
+		a.evalUint = func(f *Frame) uint64 { return vf(f).(UintValue).Get() };
+	case *intType:
+		a.evalInt = func(f *Frame) int64 { return vf(f).(IntValue).Get() };
+	case *floatType:
+		a.evalFloat = func(f *Frame) float64 { return vf(f).(FloatValue).Get() };
+	case *stringType:
+		a.evalString = func(f *Frame) string { return vf(f).(StringValue).Get() };
+	case *PtrType:
+		a.evalPtr = func(f *Frame) Value { return vf(f).(PtrValue).Get() };
+	default:
+		log.Crashf("unexpected operand type %v at %v", v.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler) {
+	switch _ := v.t.literal().(type) {
+	case *uintType:
+		vf := v.asUint();
+		a.evalUint = func(f *Frame) uint64 { return -vf(f) };
+	case *intType:
+		vf := v.asInt();
+		a.evalInt = func(f *Frame) int64 { return -vf(f) };
+	case *idealIntType:
+		vf := v.asIdealInt();
+		val := vf().Neg();
+		a.evalIdealInt = func() *bignum.Integer { return val };
+	case *floatType:
+		vf := v.asFloat();
+		a.evalFloat = func(f *Frame) float64 { return -vf(f) };
+	case *idealFloatType:
+		vf := v.asIdealFloat();
+		val := vf().Neg();
+		a.evalIdealFloat = func() *bignum.Rational { return val };
+	default:
+		log.Crashf("unexpected operand type %v at %v", v.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genUnaryOpNot(v *exprCompiler) {
+	switch _ := v.t.literal().(type) {
+	case *boolType:
+		vf := v.asBool();
+		a.evalBool = func(f *Frame) bool { return !vf(f) };
+	default:
+		log.Crashf("unexpected operand type %v at %v", v.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genUnaryOpXor(v *exprCompiler) {
+	switch _ := v.t.literal().(type) {
+	case *uintType:
+		vf := v.asUint();
+		a.evalUint = func(f *Frame) uint64 { return ^vf(f) };
+	case *intType:
+		vf := v.asInt();
+		a.evalInt = func(f *Frame) int64 { return ^vf(f) };
+	case *idealIntType:
+		vf := v.asIdealInt();
+		val := vf().Neg().Sub(bignum.Int(1));
+		a.evalIdealInt = func() *bignum.Integer { return val };
+	default:
+		log.Crashf("unexpected operand type %v at %v", v.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpAdd(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.literal().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalUint = func(f *Frame) uint64 { return lf(f) + rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalInt = func(f *Frame) int64 { return lf(f) + rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().Add(rf());
+		a.evalIdealInt = func() *bignum.Integer { return val };
+	case *floatType:
+		lf := l.asFloat();
+		rf := r.asFloat();
+		a.evalFloat = func(f *Frame) float64 { return lf(f) + rf(f) };
+	case *idealFloatType:
+		lf := l.asIdealFloat();
+		rf := r.asIdealFloat();
+		val := lf().Add(rf());
+		a.evalIdealFloat = func() *bignum.Rational { return val };
+	case *stringType:
+		lf := l.asString();
+		rf := r.asString();
+		a.evalString = func(f *Frame) string { return lf(f) + rf(f) };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpSub(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.literal().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalUint = func(f *Frame) uint64 { return lf(f) - rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalInt = func(f *Frame) int64 { return lf(f) - rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().Sub(rf());
+		a.evalIdealInt = func() *bignum.Integer { return val };
+	case *floatType:
+		lf := l.asFloat();
+		rf := r.asFloat();
+		a.evalFloat = func(f *Frame) float64 { return lf(f) - rf(f) };
+	case *idealFloatType:
+		lf := l.asIdealFloat();
+		rf := r.asIdealFloat();
+		val := lf().Sub(rf());
+		a.evalIdealFloat = func() *bignum.Rational { return val };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpMul(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.literal().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalUint = func(f *Frame) uint64 { return lf(f) * rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalInt = func(f *Frame) int64 { return lf(f) * rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().Mul(rf());
+		a.evalIdealInt = func() *bignum.Integer { return val };
+	case *floatType:
+		lf := l.asFloat();
+		rf := r.asFloat();
+		a.evalFloat = func(f *Frame) float64 { return lf(f) * rf(f) };
+	case *idealFloatType:
+		lf := l.asIdealFloat();
+		rf := r.asIdealFloat();
+		val := lf().Mul(rf());
+		a.evalIdealFloat = func() *bignum.Rational { return val };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpQuo(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.literal().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalUint = func(f *Frame) uint64 { return lf(f) / rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalInt = func(f *Frame) int64 { return lf(f) / rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().Quo(rf());
+		a.evalIdealInt = func() *bignum.Integer { return val };
+	case *floatType:
+		lf := l.asFloat();
+		rf := r.asFloat();
+		a.evalFloat = func(f *Frame) float64 { return lf(f) / rf(f) };
+	case *idealFloatType:
+		lf := l.asIdealFloat();
+		rf := r.asIdealFloat();
+		val := lf().Quo(rf());
+		a.evalIdealFloat = func() *bignum.Rational { return val };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpRem(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.literal().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalUint = func(f *Frame) uint64 { return lf(f) % rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalInt = func(f *Frame) int64 { return lf(f) % rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().Rem(rf());
+		a.evalIdealInt = func() *bignum.Integer { return val };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpAnd(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.literal().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalUint = func(f *Frame) uint64 { return lf(f) & rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalInt = func(f *Frame) int64 { return lf(f) & rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().And(rf());
+		a.evalIdealInt = func() *bignum.Integer { return val };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpOr(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.literal().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalUint = func(f *Frame) uint64 { return lf(f) | rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalInt = func(f *Frame) int64 { return lf(f) | rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().Or(rf());
+		a.evalIdealInt = func() *bignum.Integer { return val };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpXor(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.literal().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalUint = func(f *Frame) uint64 { return lf(f) ^ rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalInt = func(f *Frame) int64 { return lf(f) ^ rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().Xor(rf());
+		a.evalIdealInt = func() *bignum.Integer { return val };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.literal().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalUint = func(f *Frame) uint64 { return lf(f) &^ rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalInt = func(f *Frame) int64 { return lf(f) &^ rf(f) };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.literal().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalUint = func(f *Frame) uint64 { return lf(f) << rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asUint();
+		a.evalInt = func(f *Frame) int64 { return lf(f) << rf(f) };
+	// case *idealIntType:
+	// 	lf := l.asIdealInt();
+	// 	rf := r.asIdealInt();
+	// 	val := lf().Shl(rf());
+	// 	a.evalIdealInt = func() *bignum.Integer { return val };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.literal().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalUint = func(f *Frame) uint64 { return lf(f) >> rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asUint();
+		a.evalInt = func(f *Frame) int64 { return lf(f) >> rf(f) };
+	// case *idealIntType:
+	// 	lf := l.asIdealInt();
+	// 	rf := r.asIdealInt();
+	// 	val := lf().Shr(rf());
+	// 	a.evalIdealInt = func() *bignum.Integer { return val };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+	}
 }

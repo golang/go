@@ -20,6 +20,8 @@ type Type interface {
 	// compatible returns true if this type is compatible with o.
 	// XXX Assignment versus comparison compatibility?
 	compatible(o Type) bool;
+	// isBoolean returns true if this is a boolean type.
+	isBoolean() bool;
 	// isInteger returns true if this is an integer type.
 	isInteger() bool;
 	// isFloat returns true if this is a floating type.
