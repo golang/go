@@ -877,7 +877,7 @@ void	checkwidth(Type*);
 void	defercheckwidth(void);
 void	resumecheckwidth(void);
 Node*	embedded(Sym*);
-NodeList*	variter(NodeList*, Type*, NodeList*);
+NodeList*	variter(NodeList*, Node*, NodeList*);
 NodeList*	constiter(NodeList*, Node*, NodeList*);
 
 Node*	funclit0(Node*);

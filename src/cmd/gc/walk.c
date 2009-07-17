@@ -415,6 +415,7 @@ reswitch:
 		t->type = r->type;
 		n->op = OTYPE;
 		n->type = t;
+		checkwidth(t);
 		goto ret;
 
 	case OTMAP:
