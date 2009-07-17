@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// A parser for Go source text. The input is a stream of lexical tokens
-// provided via the Scanner interface. The output is an abstract syntax
-// tree (AST) representing the Go source. The parser is invoked by calling
-// Parse.
+// A parser for Go source files. Input may be provided in a variety of
+// forms (see the various Parse* functions); the output is an abstract
+// syntax tree (AST) representing the Go source. The parser is invoked
+// through one of the Parse* functions.
 //
 package parser
 
@@ -33,6 +33,22 @@ const (
 var noIndex = [2]int{-1, -1};
 
 
+// noPos is used when there is no corresponding source position for a token.
+var noPos token.Position;
+
+
+// The mode parameter to the Parse* functions is a set of flags (or 0).
+// They control the amount of source code parsed and other optional
+// parser functionality.
+//
+const (
+	PackageClauseOnly uint = 1 << iota;  // parsing stops after package clause
+	ImportsOnly;  // parsing stops after import declarations
+	ParseComments;  // parse comments and add them to AST
+	Trace;  // print a trace of parsed productions
+)
+
+
 // The parser structure holds the parser's internal state.
 type parser struct {
 	scanner.ErrorVector;
@@ -58,8 +74,26 @@ type parser struct {
 };
 
 
-// noPos is used when there is no corresponding source position for a token
-var noPos token.Position;
+// scannerMode returns the scanner mode bits given the parser's mode bits.
+func scannerMode(mode uint) uint {
+	if mode & ParseComments != 0 {
+		return scanner.ScanComments;
+	}
+	return 0;
+}
+
+
+func (p *parser) next()
+
+func (p *parser) init(filename string, src []byte, mode uint) {
+	p.ErrorVector.Init();
+	p.scanner.Init(filename, src, p, scannerMode(mode));
+	p.mode = mode;
+	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
+	p.comments.Init(0);
+	p.commentsIndex = noIndex;
+	p.next();
+}
 
 
 // ----------------------------------------------------------------------------
@@ -253,9 +287,9 @@ func (p *parser) expect(tok token.Token) token.Position {
 
 func (p *parser) tryType() ast.Expr
 func (p *parser) parseStringList(x *ast.StringLit) []*ast.StringLit
-func (p *parser) parseExpression() ast.Expr
-func (p *parser) parseStatement() ast.Stmt
-func (p *parser) parseDeclaration(getSemi bool) (decl ast.Decl, gotSemi bool)
+func (p *parser) parseExpr() ast.Expr
+func (p *parser) parseStmt() ast.Stmt
+func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool)
 
 
 func (p *parser) parseIdent() *ast.Ident {
@@ -294,16 +328,16 @@ func (p *parser) parseIdentList(x ast.Expr) []*ast.Ident {
 }
 
 
-func (p *parser) parseExpressionList() []ast.Expr {
+func (p *parser) parseExprList() []ast.Expr {
 	if p.trace {
 		defer un(trace(p, "ExpressionList"));
 	}
 
 	list := vector.New(0);
-	list.Push(p.parseExpression());
+	list.Push(p.parseExpr());
 	for p.tok == token.COMMA {
 		p.next();
-		list.Push(p.parseExpression());
+		list.Push(p.parseExpr());
 	}
 
 	// convert list
@@ -372,7 +406,7 @@ func (p *parser) parseArrayType(ellipsisOk bool) ast.Expr {
 		len = &ast.Ellipsis{p.pos};
 		p.next();
 	} else if p.tok != token.RBRACK {
-		len = p.parseExpression();
+		len = p.parseExpr();
 	}
 	p.expect(token.RBRACK);
 	elt := p.parseType();
@@ -777,7 +811,7 @@ func makeStmtList(list *vector.Vector) []ast.Stmt {
 }
 
 
-func (p *parser) parseStatementList() []ast.Stmt {
+func (p *parser) parseStmtList() []ast.Stmt {
 	if p.trace {
 		defer un(trace(p, "StatementList"));
 	}
@@ -789,7 +823,7 @@ func (p *parser) parseStatementList() []ast.Stmt {
 			p.expect(token.SEMICOLON);
 			expectSemi = false;
 		}
-		list.Push(p.parseStatement());
+		list.Push(p.parseStmt());
 		if p.tok == token.SEMICOLON {
 			p.next();
 		} else if p.optSemi {
@@ -809,7 +843,7 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
 	}
 
 	lbrace := p.expect(token.LBRACE);
-	list := p.parseStatementList();
+	list := p.parseStmtList();
 	rbrace := p.expect(token.RBRACE);
 	p.optSemi = true;
 
@@ -899,7 +933,7 @@ func (p *parser) parseOperand() ast.Expr {
 		lparen := p.pos;
 		p.next();
 		p.exprLev++;
-		x := p.parseExpression();
+		x := p.parseExpr();
 		p.exprLev--;
 		rparen := p.expect(token.RPAREN);
 		return &ast.ParenExpr{lparen, x, rparen};
@@ -955,11 +989,11 @@ func (p *parser) parseIndex(x ast.Expr) ast.Expr {
 
 	p.expect(token.LBRACK);
 	p.exprLev++;
-	begin := p.parseExpression();
+	begin := p.parseExpr();
 	var end ast.Expr;
 	if p.tok == token.COLON {
 		p.next();
-		end = p.parseExpression();
+		end = p.parseExpr();
 	}
 	p.exprLev--;
 	p.expect(token.RBRACK);
@@ -976,7 +1010,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 	lparen := p.expect(token.LPAREN);
 	var args []ast.Expr;
 	if p.tok != token.RPAREN {
-		args = p.parseExpressionList();
+		args = p.parseExprList();
 	}
 	rparen := p.expect(token.RPAREN);
 
@@ -989,11 +1023,11 @@ func (p *parser) parseElement() ast.Expr {
 		defer un(trace(p, "Element"));
 	}
 
-	x := p.parseExpression();
+	x := p.parseExpr();
 	if p.tok == token.COLON {
 		colon := p.pos;
 		p.next();
-		x = &ast.KeyValueExpr{x, colon, p.parseExpression()};
+		x = &ast.KeyValueExpr{x, colon, p.parseExpr()};
 	}
 
 	return x;
@@ -1204,7 +1238,7 @@ func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
 }
 
 
-func (p *parser) parseExpression() ast.Expr {
+func (p *parser) parseExpr() ast.Expr {
 	if p.trace {
 		defer un(trace(p, "Expression"));
 	}
@@ -1222,7 +1256,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 		defer un(trace(p, "SimpleStmt"));
 	}
 
-	x := p.parseExpressionList();
+	x := p.parseExprList();
 
 	switch p.tok {
 	case token.COLON:
@@ -1230,7 +1264,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 		p.next();
 		if labelOk && len(x) == 1 {
 			if label, isIdent := x[0].(*ast.Ident); isIdent {
-				return &ast.LabeledStmt{label, p.parseStatement()};
+				return &ast.LabeledStmt{label, p.parseStmt()};
 			}
 		}
 		p.Error(x[0].Pos(), "illegal label declaration");
@@ -1244,7 +1278,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 		// assignment statement
 		pos, tok := p.pos, p.tok;
 		p.next();
-		y := p.parseExpressionList();
+		y := p.parseExprList();
 		if len(x) > 1 && len(y) > 1 && len(x) != len(y) {
 			p.Error(x[0].Pos(), "arity of lhs doesn't match rhs");
 		}
@@ -1269,7 +1303,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 
 
 func (p *parser) parseCallExpr() *ast.CallExpr {
-	x := p.parseExpression();
+	x := p.parseExpr();
 	if call, isCall := x.(*ast.CallExpr); isCall {
 		return call;
 	}
@@ -1315,7 +1349,7 @@ func (p *parser) parseReturnStmt() *ast.ReturnStmt {
 	p.expect(token.RETURN);
 	var x []ast.Expr;
 	if p.tok != token.SEMICOLON && p.tok != token.CASE && p.tok != token.DEFAULT && p.tok != token.RBRACE {
-		x = p.parseExpressionList();
+		x = p.parseExprList();
 	}
 
 	return &ast.ReturnStmt{pos, x};
@@ -1400,7 +1434,7 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 	var else_ ast.Stmt;
 	if p.tok == token.ELSE {
 		p.next();
-		else_ = p.parseStatement();
+		else_ = p.parseStmt();
 	}
 
 	return &ast.IfStmt{pos, s1, p.makeExpr(s2), body, else_};
@@ -1417,13 +1451,13 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
 	var x []ast.Expr;
 	if p.tok == token.CASE {
 		p.next();
-		x = p.parseExpressionList();
+		x = p.parseExprList();
 	} else {
 		p.expect(token.DEFAULT);
 	}
 
 	colon := p.expect(token.COLON);
-	body := p.parseStatementList();
+	body := p.parseStmtList();
 
 	return &ast.CaseClause{pos, x, colon, body};
 }
@@ -1445,7 +1479,7 @@ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
 	}
 
 	colon := p.expect(token.COLON);
-	body := p.parseStatementList();
+	body := p.parseStmtList();
 
 	return &ast.TypeCaseClause{pos, typ, colon, body};
 }
@@ -1499,17 +1533,17 @@ func (p *parser) parseCommClause() *ast.CommClause {
 		p.next();
 		if p.tok == token.ARROW {
 			// RecvExpr without assignment
-			rhs = p.parseExpression();
+			rhs = p.parseExpr();
 		} else {
 			// SendExpr or RecvExpr
-			rhs = p.parseExpression();
+			rhs = p.parseExpr();
 			if p.tok == token.ASSIGN || p.tok == token.DEFINE {
 				// RecvExpr with assignment
 				tok = p.tok;
 				p.next();
 				lhs = rhs;
 				if p.tok == token.ARROW {
-					rhs = p.parseExpression();
+					rhs = p.parseExpr();
 				} else {
 					p.expect(token.ARROW);  // use expect() error handling
 				}
@@ -1521,7 +1555,7 @@ func (p *parser) parseCommClause() *ast.CommClause {
 	}
 
 	colon := p.expect(token.COLON);
-	body := p.parseStatementList();
+	body := p.parseStmtList();
 
 	return &ast.CommClause{pos, tok, lhs, rhs, colon, body};
 }
@@ -1595,14 +1629,14 @@ func (p *parser) parseForStmt() ast.Stmt {
 }
 
 
-func (p *parser) parseStatement() ast.Stmt {
+func (p *parser) parseStmt() ast.Stmt {
 	if p.trace {
 		defer un(trace(p, "Statement"));
 	}
 
 	switch p.tok {
 	case token.CONST, token.TYPE, token.VAR:
-		decl, _ := p.parseDeclaration(false);  // do not consume trailing semicolon
+		decl, _ := p.parseDecl(false);  // do not consume trailing semicolon
 		return &ast.DeclStmt{decl};
 	case
 		// tokens that may start a top-level expression
@@ -1694,7 +1728,7 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Sp
 	var values []ast.Expr;
 	if typ != nil || p.tok == token.ASSIGN {
 		p.expect(token.ASSIGN);
-		values = p.parseExpressionList();
+		values = p.parseExprList();
 	}
 	comment, gotSemi := p.parseComment(getSemi);
 
@@ -1725,7 +1759,7 @@ func parseVarSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec
 	var values []ast.Expr;
 	if typ == nil || p.tok == token.ASSIGN {
 		p.expect(token.ASSIGN);
-		values = p.parseExpressionList();
+		values = p.parseExprList();
 	}
 	comment, gotSemi := p.parseComment(getSemi);
 
@@ -1831,7 +1865,7 @@ func (p *parser) parseFunctionDecl() *ast.FuncDecl {
 }
 
 
-func (p *parser) parseDeclaration(getSemi bool) (decl ast.Decl, gotSemi bool) {
+func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
 	if p.trace {
 		defer un(trace(p, "Declaration"));
 	}
@@ -1873,23 +1907,11 @@ func (p *parser) parseDeclaration(getSemi bool) (decl ast.Decl, gotSemi bool) {
 
 
 // ----------------------------------------------------------------------------
-// Packages
+// Source files
 
-// The mode parameter to the Parse function is a set of flags (or 0).
-// They control the amount of source code parsed and other optional
-// parser functionality.
-//
-const (
-	PackageClauseOnly uint = 1 << iota;  // parsing stops after package clause
-	ImportsOnly;  // parsing stops after import declarations
-	ParseComments;  // parse comments and add them to AST
-	Trace;  // print a trace of parsed productions
-)
-
-
-func (p *parser) parsePackage() *ast.Program {
+func (p *parser) parseFile() *ast.File {
 	if p.trace {
-		defer un(trace(p, "Program"));
+		defer un(trace(p, "File"));
 	}
 
 	// package clause
@@ -1912,7 +1934,7 @@ func (p *parser) parsePackage() *ast.Program {
 		if p.mode & ImportsOnly == 0 {
 			// rest of package body
 			for p.tok != token.EOF {
-				decl, _ := p.parseDeclaration(true);  // consume optional semicolon
+				decl, _ := p.parseDecl(true);  // consume optional semicolon
 				list.Push(decl);
 			}
 		}
@@ -1941,119 +1963,5 @@ func (p *parser) parsePackage() *ast.Program {
 		}
 	}
 
-	return &ast.Program{comment, pos, ident, decls, comments};
-}
-
-
-// ----------------------------------------------------------------------------
-// Parser entry points.
-
-func readSource(src interface{}) ([]byte, os.Error) {
-	if src != nil {
-		switch s := src.(type) {
-		case string:
-			return strings.Bytes(s), nil;
-		case []byte:
-			return s, nil;
-		case *bytes.Buffer:
-			// is io.Reader, but src is already available in []byte form
-			if s != nil {
-				return s.Data(), nil;
-			}
-		case io.Reader:
-			var buf bytes.Buffer;
-			n, err := io.Copy(s, &buf);
-			if err != nil {
-				return nil, err;
-			}
-			return buf.Data(), nil;
-		}
-	}
-	return nil, os.ErrorString("invalid source");
-}
-
-
-// scannerMode returns the scanner mode bits given the parser's mode bits.
-func scannerMode(mode uint) uint {
-	if mode & ParseComments != 0 {
-		return scanner.ScanComments;
-	}
-	return 0;
-}
-
-
-func (p *parser) init(filename string, src interface{}, mode uint) os.Error {
-	data, err := readSource(src);
-	if err != nil {
-		return err;
-	}
-
-	// initialize parser state
-	p.ErrorVector.Init();
-	p.scanner.Init(filename, data, p, scannerMode(mode));
-	p.mode = mode;
-	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
-	p.comments.Init(0);
-	p.commentsIndex = noIndex;
-	p.next();
-
-	return nil;
-}
-
-
-// Parse parses a Go program.
-//
-// The filename is only used in AST position information and error messages
-// and may be empty. The program source src may be provided in a variety of
-// formats. At the moment the following types are supported: string, []byte,
-// and io.Reader. The mode parameter controls the amount of source text parsed
-// and other optional parser functionality.
-//
-// Parse returns a complete AST if no error occured. Otherwise, if the
-// source couldn't be read, the returned program is nil and the error
-// indicates the specific failure. If the source was read but syntax
-// errors were found, the result is a partial AST (with ast.BadX nodes
-// representing the fragments of erroneous source code). Multiple errors
-// are returned via a scanner.ErrorList which is sorted by file position.
-//
-func Parse(filename string, src interface{}, mode uint) (*ast.Program, os.Error) {
-	var p parser;
-	if err := p.init(filename, src, mode); err != nil {
-		return nil, err;
-	}
-
-	prog := p.parsePackage();  // TODO 6g bug - function call order in expr lists
-	return prog, p.GetError(scanner.NoMultiples);
-}
-
-
-// ParseStmts parses a list of Go statements and returns the list of
-// corresponding AST nodes. The filename and src arguments have the
-// same interpretation as for Parse. If there is an error, the node
-// list may be nil or contain partial ASTs.
-//
-func ParseStmts(filename string, src interface{}) ([]ast.Stmt, os.Error) {
-	var p parser;
-	if err := p.init(filename, src, 0); err != nil {
-		return nil, err;
-	}
-
-	list := p.parseStatementList();  // TODO 6g bug - function call order in expr lists
-	return list, p.GetError(scanner.Sorted);
-}
-
-
-// ParseExpr parses a single Go expression and returns the corresponding
-// AST node. The filename and src arguments have the same interpretation
-// as for Parse. If there is an error, the result expression may be nil
-// or contain a partial AST.
-//
-func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
-	var p parser;
-	if err := p.init(filename, src, 0); err != nil {
-		return nil, err;
-	}
-
-	x := p.parseExpression();  // TODO 6g bug - function call order in expr lists
-	return x, p.GetError(scanner.Sorted);
+	return &ast.File{comment, pos, ident, decls, comments};
 }

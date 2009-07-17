@@ -177,14 +177,53 @@ func filterDecl(decl Decl) bool {
 // FilterExports returns true if there is an exported declaration; it returns
 // false otherwise.
 //
-func FilterExports(prog *Program) bool {
+func FilterExports(src *File) bool {
 	j := 0;
-	for _, d := range prog.Decls {
+	for _, d := range src.Decls {
 		if filterDecl(d) {
-			prog.Decls[j] = d;
+			src.Decls[j] = d;
 			j++;
 		}
 	}
-	prog.Decls = prog.Decls[0 : j];
+	src.Decls = src.Decls[0 : j];
 	return j > 0;
+}
+
+
+// PackageInterface returns an AST containing only the exported declarations
+// of the package pkg. The pkg AST is modified by PackageInterface.
+//
+func PackageInterface(pkg *Package) *File {
+	// filter each package file
+	for filename, s := range pkg.Files {
+		if !FilterExports(s) {
+			pkg.Files[filename] = nil, false;
+		}
+	}
+
+	// compute total number of top-level declarations in all source files
+	var doc *CommentGroup;
+	n := 0;
+	for _, src := range pkg.Files {
+		if doc == nil && src.Doc != nil {
+			// TODO(gri) what to do with multiple package comments?
+			doc = src.Doc;
+		}
+		n += len(src.Decls);
+	}
+
+	// collect top-level declarations of all source files
+	decls := make([]Decl, n);
+	i := 0;
+	for _, src := range pkg.Files {
+		for _, d := range src.Decls {
+			decls[i] = d;
+			i++;
+		}
+	}
+
+	// TODO(gri) should also collect comments so that this function
+	//           can be used by godoc.
+	var noPos token.Position;
+	return &File{doc, noPos, &Ident{noPos, pkg.Name}, decls, nil};
 }

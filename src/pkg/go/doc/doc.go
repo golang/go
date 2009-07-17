@@ -181,32 +181,32 @@ var (
 )
 
 
-// AddProgram adds the AST for a source file to the DocReader.
+// AddFile adds the AST for a source file to the DocReader.
 // Adding the same AST multiple times is a no-op.
 //
-func (doc *DocReader) AddProgram(prog *ast.Program) {
+func (doc *DocReader) AddFile(src *ast.File) {
 	if bug_markers == nil {
 		bug_markers = makeRex("^/[/*][ \t]*BUG\\(.*\\):[ \t]*");  // BUG(uid):
 		bug_content = makeRex("[^ \n\r\t]+");  // at least one non-whitespace char
 	}
 
-	if doc.name != prog.Name.Value {
+	if doc.name != src.Name.Value {
 		panic("package names don't match");
 	}
 
 	// add package documentation
 	// TODO(gri) what to do if there are multiple files?
-	if prog.Doc != nil {
-		doc.doc = prog.Doc
+	if src.Doc != nil {
+		doc.doc = src.Doc
 	}
 
 	// add all declarations
-	for _, decl := range prog.Decls {
+	for _, decl := range src.Decls {
 		doc.addDecl(decl);
 	}
 
 	// collect BUG(...) comments
-	for _, c := range prog.Comments {
+	for _, c := range src.Comments {
 		text := c.List[0].Text;
 		cstr := string(text);
 		if m := bug_markers.Execute(cstr); len(m) > 0 {

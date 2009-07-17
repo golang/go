@@ -92,6 +92,7 @@ TEST=\
 	flag\
 	fmt\
 	go/parser\
+	go/printer\
 	go/scanner\
 	gob\
 	hash/adler32\

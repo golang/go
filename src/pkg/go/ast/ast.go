@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // The AST package declares the types used to represent
-// syntax trees for Go source files.
+// syntax trees for Go packages.
 //
 package ast
 
@@ -764,15 +764,24 @@ func (d *FuncDecl) Visit(v DeclVisitor) { v.DoFuncDecl(d); }
 
 
 // ----------------------------------------------------------------------------
-// Programs
+// Files and packages
 
-// A Program node represents the root node of an AST
-// for an entire source file.
+// A File node represents a Go source file.
 //
-type Program struct {
+type File struct {
 	Doc *CommentGroup;  // associated documentation; or nil
 	token.Position;  // position of "package" keyword
 	Name *Ident;  // package name
 	Decls []Decl;  // top-level declarations
 	Comments []*CommentGroup;  // list of unassociated comments
+}
+
+
+// A Package node represents a set of source files
+// collectively building a Go package.
+//
+type Package struct {
+	Name string;  // package name
+	Path string;  // package path
+	Files map[string]*File;  // path-relative filenames
 }

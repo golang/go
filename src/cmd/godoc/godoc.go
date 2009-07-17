@@ -159,7 +159,7 @@ type parseErrors struct {
 // Parses a file (path) and returns the corresponding AST and
 // a sorted list (by file position) of errors, if any.
 //
-func parse(path string, mode uint) (*ast.Program, *parseErrors) {
+func parse(path string, mode uint) (*ast.File, *parseErrors) {
 	src, err := io.ReadFile(path);
 	if err != nil {
 		log.Stderrf("ReadFile %s: %v", path, err);
@@ -167,7 +167,7 @@ func parse(path string, mode uint) (*ast.Program, *parseErrors) {
 		return nil, &parseErrors{path, errs, nil};
 	}
 
-	prog, err := parser.Parse(path, src, mode);
+	prog, err := parser.ParseFile(path, src, mode);
 	if err != nil {
 		var errs []parseError;
 		if errors, ok := err.(scanner.ErrorList); ok {
@@ -208,7 +208,7 @@ func nodeText(node interface{}) []byte {
 	var buf bytes.Buffer;
 	tw := makeTabwriter(&buf);
 	mode := uint(0);
-	if _, isProgram := node.(*ast.Program); isProgram {
+	if _, isProgram := node.(*ast.File); isProgram {
 		mode = printer.DocComments;
 	}
 	printer.Fprint(tw, node, mode);
@@ -436,7 +436,7 @@ func findPackage(path string) (canonical string, pd *pakDesc, dirs dirList) {
 		return;
 	}
 
-	// the package name is is the directory name within its parent
+	// the package name is the directory name within its parent
 	_, pakname := pathutil.Split(dirname);
 
 	// collect all files belonging to the package and count the
@@ -489,20 +489,21 @@ func (p *pakDesc) doc() (*doc.PackageDoc, *parseErrors) {
 	}
 
 	// compute documentation
+	// TODO(gri) change doc to work on entire ast.Package at once
 	var r doc.DocReader;
 	i := 0;
 	for filename := range p.filenames {
-		prog, err := parse(p.dirname + "/" + filename, parser.ParseComments);
+		src, err := parse(p.dirname + "/" + filename, parser.ParseComments);
 		if err != nil {
 			return nil, err;
 		}
 		if i == 0 {
 			// first file - initialize doc
-			r.Init(prog.Name.Value, p.importpath);
+			r.Init(src.Name.Value, p.importpath);
 		}
 		i++;
-		ast.FilterExports(prog);  // we only care about exports
-		r.AddProgram(prog);
+		ast.FilterExports(src);  // we only care about exports
+		r.AddFile(src);
 	}
 
 	return r.Doc(), nil;
@@ -625,11 +626,12 @@ func usage() {
 		"	godoc -http=:6060\n"
 	);
 	flag.PrintDefaults();
-	os.Exit(1);
+	os.Exit(2);
 }
 
 
 func main() {
+	flag.Usage = usage;
 	flag.Parse();
 
 	// Check usage first; get usage message out early.

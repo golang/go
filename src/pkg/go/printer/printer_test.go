@@ -39,15 +39,8 @@ func lineString(text []byte, i int) string {
 
 
 func check(t *testing.T, source, golden string, exports bool) {
-	// get source
-	src, err := io.ReadFile(source);
-	if err != nil {
-		t.Error(err);
-		return;
-	}
-
 	// parse source
-	prog, err := parser.Parse(src, parser.ParseComments);
+	prog, err := parser.ParseFile(source, nil, parser.ParseComments);
 	if err != nil {
 		t.Error(err);
 		return;
