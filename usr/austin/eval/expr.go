@@ -31,18 +31,18 @@ type exprCompiler struct {
 	pos token.Position;
 	t Type;
 	// Evaluate this node as the given type.
-	evalBool func (f *Frame) bool;
-	evalUint func (f *Frame) uint64;
-	evalInt func (f *Frame) int64;
-	evalIdealInt func () *bignum.Integer;
-	evalFloat func (f *Frame) float64;
-	evalIdealFloat func () *bignum.Rational;
-	evalString func (f *Frame) string;
-	evalPtr func (f *Frame) Value;
+	evalBool func(f *Frame) bool;
+	evalUint func(f *Frame) uint64;
+	evalInt func(f *Frame) int64;
+	evalIdealInt func() *bignum.Integer;
+	evalFloat func(f *Frame) float64;
+	evalIdealFloat func() *bignum.Rational;
+	evalString func(f *Frame) string;
+	evalPtr func(f *Frame) Value;
 	// Evaluate to the "address of" this value; that is, the
 	// settable Value object.  nil for expressions whose address
 	// cannot be taken.
-	evalAddr func (f *Frame) Value;
+	evalAddr func(f *Frame) Value;
 	// A short string describing this expression for error
 	// messages.  Only necessary if t != nil.
 	desc string;
@@ -93,56 +93,56 @@ func (a *exprCompiler) diagOpTypes(op token.Token, lt Type, rt Type) {
 	a.diag("illegal operand types for '%v' operator\n\t%v\n\t%v", op, lt, rt);
 }
 
-func (a *exprCompiler) asBool() (func (f *Frame) bool) {
+func (a *exprCompiler) asBool() (func(f *Frame) bool) {
 	if a.evalBool == nil {
 		log.Crashf("tried to get %v node as boolType", a.t);
 	}
 	return a.evalBool;
 }
 
-func (a *exprCompiler) asUint() (func (f *Frame) uint64) {
+func (a *exprCompiler) asUint() (func(f *Frame) uint64) {
 	if a.evalUint == nil {
 		log.Crashf("tried to get %v node as uintType", a.t);
 	}
 	return a.evalUint;
 }
 
-func (a *exprCompiler) asInt() (func (f *Frame) int64) {
+func (a *exprCompiler) asInt() (func(f *Frame) int64) {
 	if a.evalInt == nil {
 		log.Crashf("tried to get %v node as intType", a.t);
 	}
 	return a.evalInt;
 }
 
-func (a *exprCompiler) asIdealInt() (func () *bignum.Integer) {
+func (a *exprCompiler) asIdealInt() (func() *bignum.Integer) {
 	if a.evalIdealInt == nil {
 		log.Crashf("tried to get %v node as idealIntType", a.t);
 	}
 	return a.evalIdealInt;
 }
 
-func (a *exprCompiler) asFloat() (func (f *Frame) float64) {
+func (a *exprCompiler) asFloat() (func(f *Frame) float64) {
 	if a.evalFloat == nil {
 		log.Crashf("tried to get %v node as floatType", a.t);
 	}
 	return a.evalFloat;
 }
 
-func (a *exprCompiler) asIdealFloat() (func () *bignum.Rational) {
+func (a *exprCompiler) asIdealFloat() (func() *bignum.Rational) {
 	if a.evalIdealFloat == nil {
 		log.Crashf("tried to get %v node as idealFloatType", a.t);
 	}
 	return a.evalIdealFloat;
 }
 
-func (a *exprCompiler) asString() (func (f *Frame) string) {
+func (a *exprCompiler) asString() (func(f *Frame) string) {
 	if a.evalString == nil {
 		log.Crashf("tried to get %v node as stringType", a.t);
 	}
 	return a.evalString;
 }
 
-func (a *exprCompiler) asPtr() (func (f *Frame) Value) {
+func (a *exprCompiler) asPtr() (func(f *Frame) Value) {
 	if a.evalPtr == nil {
 		log.Crashf("tried to get %v node as PtrType", a.t);
 	}
@@ -165,10 +165,10 @@ func (a *exprCompiler) DoIdent(x *ast.Ident) {
 		switch _ := a.t.literal().(type) {
 		case *idealIntType:
 			val := def.Value.(IdealIntValue).Get();
-			a.evalIdealInt = func () *bignum.Integer { return val; };
+			a.evalIdealInt = func() *bignum.Integer { return val; };
 		case *idealFloatType:
 			val := def.Value.(IdealFloatValue).Get();
-			a.evalIdealFloat = func () *bignum.Rational { return val; };
+			a.evalIdealFloat = func() *bignum.Rational { return val; };
 		default:
 			log.Crashf("unexpected constant type: %v", a.t);
 		}
@@ -181,7 +181,7 @@ func (a *exprCompiler) DoIdent(x *ast.Ident) {
 		a.t = def.Type;
 		defidx := def.Index;
 		a.genIdentOp(def.Type, dscope, defidx);
-		a.evalAddr = func (f *Frame) Value {
+		a.evalAddr = func(f *Frame) Value {
 			return f.Get(dscope, defidx);
 		};
 		a.desc = "variable";
@@ -194,7 +194,7 @@ func (a *exprCompiler) DoIdent(x *ast.Ident) {
 
 func (a *exprCompiler) doIdealInt(i *bignum.Integer) {
 	a.t = IdealIntType;
-	a.evalIdealInt = func () *bignum.Integer { return i };
+	a.evalIdealInt = func() *bignum.Integer { return i };
 }
 
 func (a *exprCompiler) DoIntLit(x *ast.IntLit) {
@@ -224,13 +224,13 @@ func (a *exprCompiler) DoCharLit(x *ast.CharLit) {
 func (a *exprCompiler) DoFloatLit(x *ast.FloatLit) {
 	a.t = IdealFloatType;
 	f, _, _2 := bignum.RatFromString(string(x.Value), 0);
-	a.evalIdealFloat = func () *bignum.Rational { return f };
+	a.evalIdealFloat = func() *bignum.Rational { return f };
 	a.desc = "float literal";
 }
 
 func (a *exprCompiler) doString(s string) {
 	a.t = StringType;
-	a.evalString = func (*Frame) string { return s };
+	a.evalString = func(*Frame) string { return s };
 }
 
 func (a *exprCompiler) DoStringLit(x *ast.StringLit) {
@@ -296,7 +296,7 @@ func (a *exprCompiler) DoStarExpr(x *ast.StarExpr) {
 		a.t = vt.Elem();
 		a.genStarOp(v);
 		vf := v.asPtr();
-		a.evalAddr = func (f *Frame) Value { return vf(f) };
+		a.evalAddr = func(f *Frame) Value { return vf(f) };
 		a.desc = "* expression";
 
 	default:
@@ -383,7 +383,7 @@ func (a *exprCompiler) DoUnaryExpr(x *ast.UnaryExpr) {
 
 	case token.AND:
 		vf := v.evalAddr;
-		a.evalPtr = func (f *Frame) Value { return vf(f) };
+		a.evalPtr = func(f *Frame) Value { return vf(f) };
 
 	default:
 		log.Crashf("Compilation of unary op %v not implemented", x.Op);
@@ -439,22 +439,22 @@ func (a *exprCompiler) convertTo(t Type) *exprCompiler {
 		n, d := rat.Value();
 		f := n.Quo(bignum.MakeInt(false, d));
 		v := f.Abs().Value();
-		res.evalUint = func (*Frame) uint64 { return v };
+		res.evalUint = func(*Frame) uint64 { return v };
 	case *intType:
 		n, d := rat.Value();
 		f := n.Quo(bignum.MakeInt(false, d));
 		v := f.Value();
-		res.evalInt = func (*Frame) int64 { return v };
+		res.evalInt = func(*Frame) int64 { return v };
 	case *idealIntType:
 		n, d := rat.Value();
 		f := n.Quo(bignum.MakeInt(false, d));
-		res.evalIdealInt = func () *bignum.Integer { return f };
+		res.evalIdealInt = func() *bignum.Integer { return f };
 	case *floatType:
 		n, d := rat.Value();
 		v := float64(n.Value())/float64(d.Value());
-		res.evalFloat = func (*Frame) float64 { return v };
+		res.evalFloat = func(*Frame) float64 { return v };
 	case *idealFloatType:
-		res.evalIdealFloat = func () *bignum.Rational { return rat };
+		res.evalIdealFloat = func() *bignum.Rational { return rat };
 	default:
 		log.Crashf("cannot convert to type %T", t);
 	}
@@ -774,7 +774,7 @@ func compileExpr(expr ast.Expr, scope *Scope) *exprCompiler {
  */
 
 type Expr struct {
-	f func (f *Frame) Value;
+	f func(f *Frame) Value;
 }
 
 func (expr *Expr) Eval(f *Frame) Value {
@@ -791,21 +791,21 @@ func CompileExpr(expr ast.Expr, scope *Scope) *Expr {
 	// Need to figure out a better way to do this.
 	switch t := ec.t.(type) {
 	case *boolType:
-		return &Expr{func (f *Frame) Value { return t.value(ec.evalBool(f)) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalBool(f)) }};
 	case *uintType:
-		return &Expr{func (f *Frame) Value { return t.value(ec.evalUint(f)) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalUint(f)) }};
 	case *intType:
-		return &Expr{func (f *Frame) Value { return t.value(ec.evalInt(f)) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalInt(f)) }};
 	case *idealIntType:
-		return &Expr{func (f *Frame) Value { return t.value(ec.evalIdealInt()) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalIdealInt()) }};
 	case *floatType:
-		return &Expr{func (f *Frame) Value { return t.value(ec.evalFloat(f)) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalFloat(f)) }};
 	case *idealFloatType:
-		return &Expr{func (f *Frame) Value { return t.value(ec.evalIdealFloat()) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalIdealFloat()) }};
 	case *stringType:
-		return &Expr{func (f *Frame) Value { return t.value(ec.evalString(f)) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalString(f)) }};
 	case *PtrType:
-		return &Expr{func (f *Frame) Value { return t.value(ec.evalPtr(f)) }};
+		return &Expr{func(f *Frame) Value { return t.value(ec.evalPtr(f)) }};
 	}
 	log.Crashf("unexpected type %v", ec.t);
 	return nil;
