@@ -564,7 +564,7 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 		// operand in a shift operation must be always be of
 		// unsigned integer type or an ideal number that can
 		// be safely converted into an unsigned integer type
-		// (§Arithmetic operators)" suggests so.
+		// (§Arithmetic operators)" suggests so and 6g agrees.
 
 		if !l.t.isInteger() || !(r.t.isInteger() || r.t.isIdeal()) {
 			a.diagOpTypes(x.Op, origlt, origrt);
@@ -580,23 +580,16 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 			if r2 == nil {
 				return;
 			}
-			// If the left operand is ideal, we use the
-			// original right operand so we can perform
-			// constant evaluation.  Otherwise, we use the
-			// conversion.
+
+			// If the left operand is not ideal, convert
+			// the right to not ideal.
 			if !l.t.isIdeal() {
 				r = r2;
-				// XXX(Spec) What is the meaning of
-				// "ideal >> non-ideal"?  Russ says
-				// the ideal should be converted to
-				// an int.  6g says it's illegal.
-				l = l.convertTo(IntType);
-				if l == nil {
-					return;
-				}
-			} else if r.t.isFloat() {
-				// Convert it to an ideal int to
-				// simplify the cases
+			}
+
+			// If both are ideal, but the right side isn't
+			// an ideal int, convert it to simplify things.
+			if l.t.isIdeal() && !r.t.isInteger() {
 				r = r.convertTo(IdealIntType);
 				if r == nil {
 					log.Crashf("conversion to uintType succeeded, but conversion to idealIntType failed");
@@ -606,6 +599,23 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 			a.diag("right operand of shift must be unsigned");
 			return;
 		}
+
+		if l.t.isIdeal() && !r.t.isIdeal() {
+			// XXX(Spec) What is the meaning of "ideal >>
+			// non-ideal"?  Russ says the ideal should be
+			// converted to an int.  6g propagates the
+			// type down from assignments as a hint.
+			l = l.convertTo(IntType);
+			if l == nil {
+				return;
+			}
+		}
+
+		// At this point, we should have one of three cases:
+		// 1) uint SHIFT uint
+		// 2) int SHIFT uint
+		// 3) ideal int SHIFT ideal int
+
 		a.t = l.t;
 
 	case token.LOR, token.LAND:
@@ -710,18 +720,30 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 		a.genBinOpAndNot(l, r);
 
 	case token.SHL:
-		// TODO(austin) bignum.Integer.Shl takes a uint
-		if r.t.isIdeal() {
-			log.Crashf("<< ideal not implemented");
+		if l.t.isIdeal() {
+			lv := l.asIdealInt()();
+			rv := r.asIdealInt()();
+			const maxShift = 99999;
+			if rv.Cmp(bignum.Int(maxShift)) > 0 {
+				a.diag("left shift by %v; exceeds implementation limit of %v", rv, maxShift);
+				a.t = nil;
+				return;
+			}
+			val := lv.Shl(uint(rv.Value()));
+			a.evalIdealInt = func() *bignum.Integer { return val };
+		} else {
+			a.genBinOpShl(l, r);
 		}
-		a.genBinOpShl(l, r);
 
 	case token.SHR:
-		// TODO(austin) bignum.Integer.Shr takes a uint
-		if r.t.isIdeal() {
-			log.Crashf(">> ideal not implemented");
+		if l.t.isIdeal() {
+			lv := l.asIdealInt()();
+			rv := r.asIdealInt()();
+			val := lv.Shr(uint(rv.Value()));
+			a.evalIdealInt = func() *bignum.Integer { return val };
+		} else {
+			a.genBinOpShr(l, r);
 		}
-		a.genBinOpShr(l, r);
 
 	default:
 		log.Crashf("Compilation of binary op %v not implemented", x.Op);
@@ -1131,11 +1153,6 @@ func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler) {
 		lf := l.asInt();
 		rf := r.asUint();
 		a.evalInt = func(f *Frame) int64 { return lf(f) << rf(f) };
-	// case *idealIntType:
-	// 	lf := l.asIdealInt();
-	// 	rf := r.asIdealInt();
-	// 	val := lf().Shl(rf());
-	// 	a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
 		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
 	}
@@ -1151,11 +1168,6 @@ func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler) {
 		lf := l.asInt();
 		rf := r.asUint();
 		a.evalInt = func(f *Frame) int64 { return lf(f) >> rf(f) };
-	// case *idealIntType:
-	// 	lf := l.asIdealInt();
-	// 	rf := r.asIdealInt();
-	// 	val := lf().Shr(rf());
-	// 	a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
 		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
 	}
