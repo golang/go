@@ -37,5 +37,5 @@ func main() {
 	i2 = I2(i);	// ERROR "need explicit|need type assertion"
 
 	e = E(t);	// ok
-	t = T(e);	// ERROR "need explicit|need type assertion"
+	t = T(e);	// ERROR "need explicit|need type assertion|incompatible"
 }
