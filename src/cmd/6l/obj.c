@@ -30,6 +30,7 @@
 
 #define	EXTERN
 #include	"l.h"
+#include	"../ld/elf64.h"
 #include	<ar.h>
 
 char	*noname		= "<none>";
@@ -196,7 +197,7 @@ main(int argc, char *argv[])
 			INITRND = 4096;
 		break;
 	case 7:	/* elf64 executable */
-		HEADR = linuxheadr();
+		HEADR = elf64headr();
 		if(INITTEXT == -1)
 			INITTEXT = (1<<22)+HEADR;
 		if(INITDAT == -1)
