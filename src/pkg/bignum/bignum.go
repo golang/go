@@ -809,7 +809,8 @@ func muladd1(x Natural, d, c digit) Natural {
 // NatFromString returns the natural number corresponding to the
 // longest possible prefix of s representing a natural number in a
 // given conversion base, the actual conversion base used, and the
-// prefix length.
+// prefix length. The syntax of natural numbers follows the syntax
+// of unsigned integer literals in Go.
 //
 // If the base argument is 0, the string prefix determines the actual
 // conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
@@ -1322,7 +1323,8 @@ func (x *Integer) Format(h fmt.State, c int) {
 // IntFromString returns the integer corresponding to the
 // longest possible prefix of s representing an integer in a
 // given conversion base, the actual conversion base used, and
-// the prefix length.
+// the prefix length. The syntax of integers follows the syntax
+// of signed integer literals in Go.
 //
 // If the base argument is 0, the string prefix determines the actual
 // conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
@@ -1499,14 +1501,24 @@ func (x *Rational) Format(h fmt.State, c int) {
 // RatFromString returns the rational number corresponding to the
 // longest possible prefix of s representing a rational number in a
 // given conversion base, the actual conversion base used, and the
-// prefix length.
+// prefix length. The syntax of a rational number is:
+//
+//	rational = mantissa [exponent] .
+//	mantissa = integer ('/' natural | '.' natural) .
+//	exponent = ('e'|'E') integer .
 //
 // If the base argument is 0, the string prefix determines the actual
-// conversion base. A prefix of ``0x'' or ``0X'' selects base 16; the
-// ``0'' prefix selects base 8. Otherwise the selected base is 10.
+// conversion base for the mantissa. A prefix of ``0x'' or ``0X'' selects
+// base 16; the ``0'' prefix selects base 8. Otherwise the selected base is 10.
+// If the mantissa is represented via a division, both the numerator and
+// denominator may have different base prefixes; in that case the base of
+// of the numerator is returned. If the mantissa contains a decimal point,
+// the base for the fractional part is the same as for the part before the
+// decimal point and the fractional part does not accept a base prefix.
+// The base for the exponent is always 10. 
 //
 func RatFromString(s string, base uint) (*Rational, uint, int) {
-	// read nominator
+	// read numerator
 	a, abase, alen := IntFromString(s, base);
 	b := Nat(1);
 
@@ -1528,15 +1540,13 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
 	}
 
 	// read exponent, if any
-	var elen int;
-	mlen := alen + blen;
-	if mlen < len(s) {
-		ch := s[mlen];
+	rlen := alen + blen;
+	if rlen < len(s) {
+		ch := s[rlen];
 		if ch == 'e' || ch == 'E' {
-			var e *Integer;
-			e, base, elen = IntFromString(s[mlen + 1 : len(s)], abase);
-			elen++;
-			assert(base == abase);
+			rlen++;
+			e, _, elen := IntFromString(s[rlen : len(s)], 10);
+			rlen += elen;
 			m := Nat(10).Pow(uint(e.mant.Value()));
 			if e.sign {
 				b = b.Mul(m);
@@ -1546,5 +1556,5 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
 		}
 	}
 
-	return MakeRat(a, b), base, alen + blen + elen;
+	return MakeRat(a, b), base, rlen;
 }
