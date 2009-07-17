@@ -213,9 +213,15 @@ func TestRatConv(t *testing.T) {
 	test(4, slen == 7);
 	rat_eq(5, ratFromString("0.", 0, nil), rat_zero);
 	rat_eq(6, ratFromString("0.001f", 10, nil), bignum.Rat(1, 1000));
-	rat_eq(7, ratFromString("10101.0101", 2, nil), bignum.Rat(0x155, 1<<4));
-	rat_eq(8, ratFromString("-0003.145926", 10, &slen), bignum.Rat(-3145926, 1000000));
-	test(9, slen == 12);
+	rat_eq(7, ratFromString(".1", 0, nil), bignum.Rat(1, 10));
+	rat_eq(8, ratFromString("10101.0101", 2, nil), bignum.Rat(0x155, 1<<4));
+	rat_eq(9, ratFromString("-0003.145926", 10, &slen), bignum.Rat(-3145926, 1000000));
+	test(10, slen == 12);
+	rat_eq(11, ratFromString("1e2", 0, nil), bignum.Rat(100, 1));
+	rat_eq(12, ratFromString("1e-2", 0, nil), bignum.Rat(1, 100));
+	rat_eq(13, ratFromString("1.1e2", 0, nil), bignum.Rat(110, 1));
+	rat_eq(14, ratFromString(".1e2x", 0, &slen), bignum.Rat(10, 1));
+	test(15, slen == 4);
 }
 
 

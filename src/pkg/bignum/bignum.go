@@ -1527,5 +1527,24 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
 		}
 	}
 
-	return MakeRat(a, b), base, alen + blen;
+	// read exponent, if any
+	var elen int;
+	mlen := alen + blen;
+	if mlen < len(s) {
+		ch := s[mlen];
+		if ch == 'e' || ch == 'E' {
+			var e *Integer;
+			e, base, elen = IntFromString(s[mlen + 1 : len(s)], abase);
+			elen++;
+			assert(base == abase);
+			m := Nat(10).Pow(uint(e.mant.Value()));
+			if e.sign {
+				b = b.Mul(m);
+			} else {
+				a = a.MulNat(m);
+			}
+		}
+	}
+
+	return MakeRat(a, b), base, alen + blen + elen;
 }
