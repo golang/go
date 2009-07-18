@@ -126,8 +126,10 @@ asmb(void)
 	uchar *op1;
 	vlong vl, va, fo, w, symo;
 	vlong symdatva = 0x99LL<<32;
+	int strtabindex;
 	Elf64PHdr *ph;
 	Elf64SHdr *sh;
+	char eident[EI_NIDENT];
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -501,6 +503,7 @@ asmb(void)
 
 		w = STRTABSIZE;
 
+		strtabindex = nume64shdr;
 		sh = newElf64SHdr(".shstrtab");
 		sh->type = SHT_STRTAB;
 		sh->off = fo;
@@ -531,15 +534,19 @@ asmb(void)
 		sh->entsize = 24;
 
 		// write out the main header */
-		strnput("\177ELF", 4);		/* e_ident */
-		cput(2);			/* class = 64 bit */
-		cput(1);			/* data = LSB */
-		cput(1);			/* version = CURRENT */
-		strnput("", 9);
+		memset(eident, 0, sizeof eident);
+		eident[EI_MAG0] = '\177';
+		eident[EI_MAG1] = 'E';
+		eident[EI_MAG2] = 'L';
+		eident[EI_MAG3] = 'F';
+		eident[EI_CLASS] = ELFCLASS64;
+		eident[EI_DATA] = ELFDATA2LSB;
+		eident[EI_VERSION] = EV_CURRENT;
+		strnput(eident, EI_NIDENT);
 
-		wputl(2);			/* type = EXEC */
+		wputl(ET_EXEC);			/* type = EXEC */
 		wputl(62);			/* machine = AMD64 */
-		lputl(1L);			/* version = CURRENT */
+		lputl(EV_CURRENT);			/* version = CURRENT */
 		vputl(entryvalue());		/* entry vaddr */
 		vputl(64L);			/* offset to first phdr */
 		vputl(64L+56*nume64phdr);		/* offset to first shdr */
@@ -549,7 +556,7 @@ asmb(void)
 		wputl(nume64phdr);			/* # of Phdrs */
 		wputl(64);			/* Shdr size */
 		wputl(nume64shdr);			/* # of Shdrs */
-		wputl(4);			/* Shdr with strings */
+		wputl(strtabindex);			/* Shdr with strings */
 
 		elf64writephdrs();
 		elf64writeshdrs();
