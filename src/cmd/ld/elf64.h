@@ -49,9 +49,10 @@ typedef struct Elf64Hdr		Elf64Hdr;
 typedef struct Elf64SHdr	Elf64SHdr;
 typedef struct Elf64PHdr	Elf64PHdr;
 
+#define	EI_NIDENT	16
 struct Elf64Hdr
 {
-	uchar ident[16];	/* ELF identification */
+	uchar ident[EI_NIDENT];	/* ELF identification */
 	Elf64_Half	type;	/* Object file type */
 	Elf64_Half	machine;	/* Machine type */
 	Elf64_Word	version;	/* Object file version */
@@ -67,16 +68,49 @@ struct Elf64Hdr
 	Elf64_Half	shstrndx;	/* Section name string table index */
 };
 
+/* E ident indexes */
+#define	EI_MAG0	0 	/* File identification */
+#define	EI_MAG1	1
+#define	EI_MAG2	2
+#define	EI_MAG3	3
+#define	EI_CLASS	4	/* File class */
+#define	EI_DATA		5	/* Data encoding */
+#define	EI_VERSION	6	/* File version */
+#define	EI_OSABI	7	/* OS/ABI identification */
+#define	EI_ABIVERSION	8	/* ABI version */
+#define	EI_PAD	9	/*Start of padding bytes */
+
+/* E types */
+#define	ET_NONE	0	/* No file type */
+#define	ET_REL	1	/* Relocatable object file */
+#define	ET_EXEC	2	/* Executable file */
+#define	ET_DYN	3	/* Shared object file */
+#define	ET_CORE	4	/* Core file */
+#define	ET_LOOS 0xFE00	/* Environment-specific use */
+#define	ET_HIOS 0xFEFF
+#define	ET_LOPROC 0xFF00	/* Processor-specific use */
+#define	ET_HIPROC 0xFFFF
+
+/* E classes */
+#define	ELFCLASS32	1 	/* 32-bit objects */
+#define	ELFCLASS64	2	/* 64-bit objects */
+
+/* E endians */
+#define	ELFDATA2LSB	1	/* little-endian */
+#define	ELFDATA2MSB	2	/* big-endian */
+
+#define	EV_CURRENT	1	/* current version of format */
+
 struct Elf64PHdr
 {
-	Elf64_Word	type;	/* Type of segment */ 
-	Elf64_Word	flags;	/* Segment attributes */ 
-	Elf64_Off	off;	/* Offset in file */ 
-	Elf64_Addr	vaddr;	/* Virtual address in memory */ 
-	Elf64_Addr	paddr;	/* Reserved */ 
-	Elf64_Xword	filesz;	/* Size of segment in file */ 
-	Elf64_Xword	memsz;	/* Size of segment in memory */ 
-	Elf64_Xword	align;	/* Alignment of segment */ 
+	Elf64_Word	type;	/* Type of segment */
+	Elf64_Word	flags;	/* Segment attributes */
+	Elf64_Off	off;	/* Offset in file */
+	Elf64_Addr	vaddr;	/* Virtual address in memory */
+	Elf64_Addr	paddr;	/* Reserved */
+	Elf64_Xword	filesz;	/* Size of segment in file */
+	Elf64_Xword	memsz;	/* Size of segment in memory */
+	Elf64_Xword	align;	/* Alignment of segment */
 };
 
 /* P types */
@@ -116,18 +150,18 @@ struct Elf64SHdr
 #define SHT_HASH	5	/* Symbol hash table */
 #define SHT_DYNAMIC	6	/* Dynamic linking tables */
 #define SHT_NOTE	7	/* Note information */
-#define SHT_NOBITS	8	/* Uninitialized space; does not occupy any space in the file */ 
+#define SHT_NOBITS	8	/* Uninitialized space; does not occupy any space in the file */
 #define SHT_REL		9	/* "Rel" type relocation entries */
 #define SHT_SHLIB	10	/* Reserved */
-#define SHT_DYNSYM	11	/* A dynamic loader symbol table */ 
+#define SHT_DYNSYM	11	/* A dynamic loader symbol table */
 #define SHT_LOOS	0x60000000	/* Environment-specific use */
-#define SHT_HIOS	0x6FFFFFFF 
+#define SHT_HIOS	0x6FFFFFFF
 #define SHT_LOPROC	0x70000000	/* Processor-specific use */
 #define SHT_HIPROC 0x7FFFFFFF
 
 /* S flags */
 #define	SHF_WRITE	0x1 /* Writable data */
-#define	SHF_ALLOC	0x2 /* Allocated in memory image of program */ 
+#define	SHF_ALLOC	0x2 /* Allocated in memory image of program */
 #define	SHF_EXECINSTR	0x4 /* Executable instructions */
 #define	SHF_MASKOS	0x0F000000	/* Environment-specific use */
 #define	SHF_MASKPROC	0xF0000000	/* Processor-specific use */
