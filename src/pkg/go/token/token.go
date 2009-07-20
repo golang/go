@@ -154,7 +154,7 @@ var tokens = map [Token] string {
 
 	ADD_ASSIGN : "+=",
 	SUB_ASSIGN : "-=",
-	MUL_ASSIGN : "+=",
+	MUL_ASSIGN : "*=",
 	QUO_ASSIGN : "/=",
 	REM_ASSIGN : "%=",
 
