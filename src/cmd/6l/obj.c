@@ -197,7 +197,7 @@ main(int argc, char *argv[])
 			INITRND = 4096;
 		break;
 	case 7:	/* elf64 executable */
-		HEADR = elf64headr();
+		HEADR = ELF64FULLHDRSIZE;
 		if(INITTEXT == -1)
 			INITTEXT = (1<<22)+HEADR;
 		if(INITDAT == -1)
