@@ -7,9 +7,8 @@
 #include "../ld/elf64.h"
 
 #define	NSECT	16
-int	nume64phdr;
-int	nume64shdr;
-int	nume64str;
+static	int	nume64str;
+static	Elf64Hdr	hdr;
 static	Elf64PHdr	*phdr[NSECT];
 static	Elf64SHdr	*shdr[NSECT];
 static	char	*sname[NSECT];
@@ -18,29 +17,29 @@ static	char	*str[NSECT];
 void
 elf64phdr(Elf64PHdr *e)
 {
-	lputl(e->type);
-	lputl(e->flags);
-	vputl(e->off);
-	vputl(e->vaddr);
-	vputl(e->paddr);
-	vputl(e->filesz);
-	vputl(e->memsz);
-	vputl(e->align);
+	LPUT(e->type);
+	LPUT(e->flags);
+	VPUT(e->off);
+	VPUT(e->vaddr);
+	VPUT(e->paddr);
+	VPUT(e->filesz);
+	VPUT(e->memsz);
+	VPUT(e->align);
 }
 
 void
 elf64shdr(char *name, Elf64SHdr *e)
 {
-	lputl(e->name);
-	lputl(e->type);
-	vputl(e->flags);
-	vputl(e->addr);
-	vputl(e->off);
-	vputl(e->size);
-	lputl(e->link);
-	lputl(e->info);
-	vputl(e->addralign);
-	vputl(e->entsize);
+	LPUT(e->name);
+	LPUT(e->type);
+	VPUT(e->flags);
+	VPUT(e->addr);
+	VPUT(e->off);
+	VPUT(e->size);
+	LPUT(e->link);
+	LPUT(e->info);
+	VPUT(e->addralign);
+	VPUT(e->entsize);
 }
 
 int
@@ -108,7 +107,7 @@ elf64writeshdrs(void)
 {
 	int i;
 
-	for (i = 0; i < nume64shdr; i++)
+	for (i = 0; i < hdr.shnum; i++)
 		elf64shdr(sname[i], shdr[i]);
 }
 
@@ -117,7 +116,7 @@ elf64writephdrs(void)
 {
 	int i;
 
-	for (i = 0; i < nume64phdr; i++)
+	for (i = 0; i < hdr.phnum; i++)
 		elf64phdr(phdr[i]);
 }
 
@@ -128,10 +127,10 @@ newElf64PHdr(void)
 
 	e = malloc(sizeof *e);
 	memset(e, 0, sizeof *e);
-	if (nume64phdr >= NSECT)
+	if (hdr.phnum >= NSECT)
 		diag("too many phdrs");
 	else
-		phdr[nume64phdr++] = e;
+		phdr[hdr.phnum++] = e;
 	return e;
 }
 
@@ -140,14 +139,44 @@ newElf64SHdr(char *name)
 {
 	Elf64SHdr *e;
 
+	if (strcmp(name, ".shstrtab") == 0)
+		hdr.shstrndx = hdr.shnum;
 	e = malloc(sizeof *e);
 	memset(e, 0, sizeof *e);
 	e->name = stroffset;
-	if (nume64shdr >= NSECT) {
+	if (hdr.shnum >= NSECT) {
 		diag("too many shdrs");
 	} else {
 		e64addstr(name);
-		shdr[nume64shdr++] = e;
+		shdr[hdr.shnum++] = e;
 	}
 	return e;
+}
+
+Elf64Hdr*
+getElf64Hdr(void)
+{
+	return &hdr;
+}
+
+void
+elf64writehdr()
+{
+	int i;
+
+	for (i = 0; i < EI_NIDENT; i++)
+		cput(hdr.ident[i]);
+	WPUT(hdr.type);
+	WPUT(hdr.machine);
+	LPUT(hdr.version);
+	VPUT(hdr.entry);
+	VPUT(hdr.phoff);
+	VPUT(hdr.shoff);
+	LPUT(hdr.flags);
+	WPUT(hdr.ehsize);
+	WPUT(hdr.phentsize);
+	WPUT(hdr.phnum);
+	WPUT(hdr.shentsize);
+	WPUT(hdr.shnum);
+	WPUT(hdr.shstrndx);
 }

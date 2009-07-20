@@ -413,7 +413,7 @@ void	ldpkg(Biobuf*, int64, char*);
 void	loadlib(void);
 void	listinit(void);
 Sym*	lookup(char*, int);
-void	lput(int32);
+void	lputb(int32);
 void	lputl(int32);
 void	main(int, char*[]);
 void	mkfwd(void);
@@ -436,8 +436,9 @@ void	strnput(char*, int);
 void	undef(void);
 void	undefsym(Sym*);
 vlong	vaddr(Adr*);
-void	vputl(vlong);
-void	wput(ushort);
+void	vputl(uint64);
+void	wputb(uint16);
+void	wputl(uint16);
 void	xdefine(char*, int, vlong);
 void	xfol(Prog*);
 void	zaddr(Biobuf*, Adr*, Sym*[]);
@@ -450,6 +451,10 @@ void	machstack(vlong);
 void	machdylink(void);
 uint32	machheadr(void);
 
+/* Native is little-endian */
+#define	LPUT(a)	lputl(a)
+#define	WPUT(a)	wputl(a)
+#define	VPUT(a)	vputl(a)
 
 #pragma	varargck	type	"D"	Adr*
 #pragma	varargck	type	"P"	Prog*

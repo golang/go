@@ -60,21 +60,21 @@ entryvalue(void)
 }
 
 void
-wputl(ushort w)
+wputl(uint16 w)
 {
 	cput(w);
 	cput(w>>8);
 }
 
 void
-wput(ushort w)
+wputb(uint16 w)
 {
 	cput(w>>8);
 	cput(w);
 }
 
 void
-lput(int32 l)
+lputb(int32 l)
 {
 	cput(l>>24);
 	cput(l>>16);
@@ -83,10 +83,10 @@ lput(int32 l)
 }
 
 void
-vput(vlong v)
+vputb(uint64 v)
 {
-	lput(v>>32);
-	lput(v);
+	lputb(v>>32);
+	lputb(v);
 }
 
 void
@@ -99,7 +99,7 @@ lputl(int32 l)
 }
 
 void
-vputl(vlong v)
+vputl(uint64 v)
 {
 	lputl(v);
 	lputl(v>>32);
@@ -126,10 +126,9 @@ asmb(void)
 	uchar *op1;
 	vlong vl, va, fo, w, symo;
 	vlong symdatva = 0x99LL<<32;
-	int strtabindex;
+	Elf64Hdr *eh;
 	Elf64PHdr *ph;
 	Elf64SHdr *sh;
-	char eident[EI_NIDENT];
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -277,29 +276,29 @@ asmb(void)
 		magic |= 0x00008000;		/* fat header */
 		if(dlm)
 			magic |= 0x80000000;	/* dlm */
-		lput(magic);			/* magic */
-		lput(textsize);			/* sizes */
-		lput(datsize);
-		lput(bsssize);
-		lput(symsize);			/* nsyms */
+		lputb(magic);			/* magic */
+		lputb(textsize);			/* sizes */
+		lputb(datsize);
+		lputb(bsssize);
+		lputb(symsize);			/* nsyms */
 		vl = entryvalue();
-		lput(PADDR(vl));		/* va of entry */
-		lput(spsize);			/* sp offsets */
-		lput(lcsize);			/* line offsets */
-		vput(vl);			/* va of entry */
+		lputb(PADDR(vl));		/* va of entry */
+		lputb(spsize);			/* sp offsets */
+		lputb(lcsize);			/* line offsets */
+		vputb(vl);			/* va of entry */
 		break;
 	case 3:	/* plan9 */
 		magic = 4*26*26+7;
 		if(dlm)
 			magic |= 0x80000000;
-		lput(magic);			/* magic */
-		lput(textsize);			/* sizes */
-		lput(datsize);
-		lput(bsssize);
-		lput(symsize);			/* nsyms */
-		lput(entryvalue());		/* va of entry */
-		lput(spsize);			/* sp offsets */
-		lput(lcsize);			/* line offsets */
+		lputb(magic);			/* magic */
+		lputb(textsize);		/* sizes */
+		lputb(datsize);
+		lputb(bsssize);
+		lputb(symsize);			/* nsyms */
+		lputb(entryvalue());		/* va of entry */
+		lputb(spsize);			/* sp offsets */
+		lputb(lcsize);			/* line offsets */
 		break;
 	case 5:
 		strnput("\177ELF", 4);		/* e_ident */
@@ -503,7 +502,6 @@ asmb(void)
 
 		w = STRTABSIZE;
 
-		strtabindex = nume64shdr;
 		sh = newElf64SHdr(".shstrtab");
 		sh->type = SHT_STRTAB;
 		sh->off = fo;
@@ -533,31 +531,27 @@ asmb(void)
 		sh->addralign = 1;
 		sh->entsize = 24;
 
-		// write out the main header */
-		memset(eident, 0, sizeof eident);
-		eident[EI_MAG0] = '\177';
-		eident[EI_MAG1] = 'E';
-		eident[EI_MAG2] = 'L';
-		eident[EI_MAG3] = 'F';
-		eident[EI_CLASS] = ELFCLASS64;
-		eident[EI_DATA] = ELFDATA2LSB;
-		eident[EI_VERSION] = EV_CURRENT;
-		strnput(eident, EI_NIDENT);
+		// main header */
+		eh = getElf64Hdr();
+		eh->ident[EI_MAG0] = '\177';
+		eh->ident[EI_MAG1] = 'E';
+		eh->ident[EI_MAG2] = 'L';
+		eh->ident[EI_MAG3] = 'F';
+		eh->ident[EI_CLASS] = ELFCLASS64;
+		eh->ident[EI_DATA] = ELFDATA2LSB;
+		eh->ident[EI_VERSION] = EV_CURRENT;
 
-		wputl(ET_EXEC);			/* type = EXEC */
-		wputl(62);			/* machine = AMD64 */
-		lputl(EV_CURRENT);			/* version = CURRENT */
-		vputl(entryvalue());		/* entry vaddr */
-		vputl(64L);			/* offset to first phdr */
-		vputl(64L+56*nume64phdr);		/* offset to first shdr */
-		lputl(0L);			/* processor specific flags */
-		wputl(64);			/* Ehdr size */
-		wputl(56);			/* Phdr size */
-		wputl(nume64phdr);			/* # of Phdrs */
-		wputl(64);			/* Shdr size */
-		wputl(nume64shdr);			/* # of Shdrs */
-		wputl(strtabindex);			/* Shdr with strings */
+		eh->type = ET_EXEC;
+		eh->machine = 62;	/* machine = AMD64 */
+		eh->version = EV_CURRENT;
+		eh->entry = entryvalue();
+		eh->phoff = 64L;
+		eh->shoff = 64L+56*eh->phnum;
+		eh->ehsize = 64;
+		eh->phentsize = 56;
+		eh->shentsize = 64;
 
+		elf64writehdr();
 		elf64writephdrs();
 		elf64writeshdrs();
 		cflush();
