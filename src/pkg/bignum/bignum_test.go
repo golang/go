@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package bignum_test
+package bignum
 
 import (
-	bignum "bignum";
-	fmt "fmt";
-	testing "testing";
+	"bignum";
+	"fmt";
+	"testing";
 )
 
 const (
@@ -19,8 +19,8 @@ const (
 	sp = "170141183460469231731687303715884105727";  // prime
 )
 
-func natFromString(s string, base uint, slen *int) bignum.Natural {
-	x, _, len := bignum.NatFromString(s, base);
+func natFromString(s string, base uint, slen *int) Natural {
+	x, _, len := NatFromString(s, base);
 	if slen != nil {
 		*slen = len;
 	}
@@ -28,8 +28,8 @@ func natFromString(s string, base uint, slen *int) bignum.Natural {
 }
 
 
-func intFromString(s string, base uint, slen *int) *bignum.Integer {
-	x, _, len := bignum.IntFromString(s, base);
+func intFromString(s string, base uint, slen *int) *Integer {
+	x, _, len := IntFromString(s, base);
 	if slen != nil {
 		*slen = len;
 	}
@@ -37,8 +37,8 @@ func intFromString(s string, base uint, slen *int) *bignum.Integer {
 }
 
 
-func ratFromString(s string, base uint, slen *int) *bignum.Rational {
-	x, _, len := bignum.RatFromString(s, base);
+func ratFromString(s string, base uint, slen *int) *Rational {
+	x, _, len := RatFromString(s, base);
 	if slen != nil {
 		*slen = len;
 	}
@@ -47,25 +47,25 @@ func ratFromString(s string, base uint, slen *int) *bignum.Rational {
 
 
 var (
-	nat_zero = bignum.Nat(0);
-	nat_one = bignum.Nat(1);
-	nat_two = bignum.Nat(2);
+	nat_zero = Nat(0);
+	nat_one = Nat(1);
+	nat_two = Nat(2);
 
 	a = natFromString(sa, 10, nil);
 	b = natFromString(sb, 10, nil);
 	c = natFromString(sc, 10, nil);
 	p = natFromString(sp, 10, nil);
 
-	int_zero = bignum.Int(0);
-	int_one = bignum.Int(1);
-	int_two = bignum.Int(2);
+	int_zero = Int(0);
+	int_one = Int(1);
+	int_two = Int(2);
 
 	ip = intFromString(sp, 10, nil);
 
-	rat_zero = bignum.Rat(0, 1);
-	rat_half = bignum.Rat(1, 2);
-	rat_one = bignum.Rat(1, 1);
-	rat_two = bignum.Rat(2, 1);
+	rat_zero = Rat(0, 1);
+	rat_half = Rat(1, 2);
+	rat_one = Rat(1, 1);
+	rat_two = Rat(2, 1);
 )
 
 
@@ -79,21 +79,21 @@ func test(n uint, b bool) {
 }
 
 
-func nat_eq(n uint, x, y bignum.Natural) {
+func nat_eq(n uint, x, y Natural) {
 	if x.Cmp(y) != 0 {
 		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, &x, &y);
 	}
 }
 
 
-func int_eq(n uint, x, y *bignum.Integer) {
+func int_eq(n uint, x, y *Integer) {
 	if x.Cmp(y) != 0 {
 		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, x, y);
 	}
 }
 
 
-func rat_eq(n uint, x, y *bignum.Rational) {
+func rat_eq(n uint, x, y *Rational) {
 	if x.Cmp(y) != 0 {
 		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, x, y);
 	}
@@ -112,21 +112,21 @@ func TestNatConv(t *testing.T) {
 		entry1{18446744073709551615, "18446744073709551615"},
 	};
 	for i, e := range tab {
-		test(100 + uint(i), bignum.Nat(e.x).String() == e.s);
+		test(100 + uint(i), Nat(e.x).String() == e.s);
 		test(200 + uint(i), natFromString(e.s, 0, nil).Value() == e.x);
 	}
 
 	test_msg = "NatConvC";
 	z := uint64(7);
 	for i := uint(0); i <= 64; i++ {
-		test(i, bignum.Nat(z).Value() == z);
+		test(i, Nat(z).Value() == z);
 		z <<= 1;
 	}
 
 	test_msg = "NatConvD";
-	nat_eq(0, a, bignum.Nat(991));
-	nat_eq(1, b, bignum.Fact(20));
-	nat_eq(2, c, bignum.Fact(100));
+	nat_eq(0, a, Nat(991));
+	nat_eq(1, b, Fact(20));
+	nat_eq(2, c, Fact(100));
 	test(3, a.String() == sa);
 	test(4, b.String() == sb);
 	test(5, c.String() == sc);
@@ -134,10 +134,10 @@ func TestNatConv(t *testing.T) {
 	test_msg = "NatConvE";
 	var slen int;
 	nat_eq(10, natFromString("0", 0, nil), nat_zero);
-	nat_eq(11, natFromString("123", 0, nil), bignum.Nat(123));
-	nat_eq(12, natFromString("077", 0, nil), bignum.Nat(7*8 + 7));
-	nat_eq(13, natFromString("0x1f", 0, nil), bignum.Nat(1*16 + 15));
-	nat_eq(14, natFromString("0x1fg", 0, &slen), bignum.Nat(1*16 + 15));
+	nat_eq(11, natFromString("123", 0, nil), Nat(123));
+	nat_eq(12, natFromString("077", 0, nil), Nat(7*8 + 7));
+	nat_eq(13, natFromString("0x1f", 0, nil), Nat(1*16 + 15));
+	nat_eq(14, natFromString("0x1fg", 0, &slen), Nat(1*16 + 15));
 	test(4, slen == 4);
 
 	test_msg = "NatConvF";
@@ -147,8 +147,8 @@ func TestNatConv(t *testing.T) {
 	}
 
 	test_msg = "NatConvG";
-	x := bignum.Nat(100);
-	y, b, _ := bignum.NatFromString(fmt.Sprintf("%b", &x), 2);
+	x := Nat(100);
+	y, b, _ := NatFromString(fmt.Sprintf("%b", &x), 2);
 	nat_eq(100, y, x);
 }
 
@@ -177,27 +177,27 @@ func TestIntConv(t *testing.T) {
 		entry2{9223372036854775807, "9223372036854775807"},
 	};
 	for i, e := range tab {
-		test(100 + uint(i), bignum.Int(e.x).String() == e.s);
+		test(100 + uint(i), Int(e.x).String() == e.s);
 		test(200 + uint(i), intFromString(e.s, 0, nil).Value() == e.x);
-		test(300 + uint(i), bignum.Int(e.x).Abs().Value() == abs(e.x));
+		test(300 + uint(i), Int(e.x).Abs().Value() == abs(e.x));
 	}
 
 	test_msg = "IntConvB";
 	var slen int;
 	int_eq(0, intFromString("0", 0, nil), int_zero);
 	int_eq(1, intFromString("-0", 0, nil), int_zero);
-	int_eq(2, intFromString("123", 0, nil), bignum.Int(123));
-	int_eq(3, intFromString("-123", 0, nil), bignum.Int(-123));
-	int_eq(4, intFromString("077", 0, nil), bignum.Int(7*8 + 7));
-	int_eq(5, intFromString("-077", 0, nil), bignum.Int(-(7*8 + 7)));
-	int_eq(6, intFromString("0x1f", 0, nil), bignum.Int(1*16 + 15));
-	int_eq(7, intFromString("-0x1f", 0, &slen), bignum.Int(-(1*16 + 15)));
+	int_eq(2, intFromString("123", 0, nil), Int(123));
+	int_eq(3, intFromString("-123", 0, nil), Int(-123));
+	int_eq(4, intFromString("077", 0, nil), Int(7*8 + 7));
+	int_eq(5, intFromString("-077", 0, nil), Int(-(7*8 + 7)));
+	int_eq(6, intFromString("0x1f", 0, nil), Int(1*16 + 15));
+	int_eq(7, intFromString("-0x1f", 0, &slen), Int(-(1*16 + 15)));
 	test(7, slen == 5);
-	int_eq(8, intFromString("+0x1f", 0, &slen), bignum.Int(+(1*16 + 15)));
+	int_eq(8, intFromString("+0x1f", 0, &slen), Int(+(1*16 + 15)));
 	test(8, slen == 5);
-	int_eq(9, intFromString("0x1fg", 0, &slen), bignum.Int(1*16 + 15));
+	int_eq(9, intFromString("0x1fg", 0, &slen), Int(1*16 + 15));
 	test(9, slen == 4);
-	int_eq(10, intFromString("-0x1fg", 0, &slen), bignum.Int(-(1*16 + 15)));
+	int_eq(10, intFromString("-0x1fg", 0, &slen), Int(-(1*16 + 15)));
 	test(10, slen == 5);
 }
 
@@ -212,20 +212,20 @@ func TestRatConv(t *testing.T) {
 	rat_eq(3, ratFromString("0x14/10", 0, &slen), rat_two);
 	test(4, slen == 7);
 	rat_eq(5, ratFromString("0.", 0, nil), rat_zero);
-	rat_eq(6, ratFromString("0.001f", 10, nil), bignum.Rat(1, 1000));
-	rat_eq(7, ratFromString(".1", 0, nil), bignum.Rat(1, 10));
-	rat_eq(8, ratFromString("10101.0101", 2, nil), bignum.Rat(0x155, 1<<4));
-	rat_eq(9, ratFromString("-0003.145926", 10, &slen), bignum.Rat(-3145926, 1000000));
+	rat_eq(6, ratFromString("0.001f", 10, nil), Rat(1, 1000));
+	rat_eq(7, ratFromString(".1", 0, nil), Rat(1, 10));
+	rat_eq(8, ratFromString("10101.0101", 2, nil), Rat(0x155, 1<<4));
+	rat_eq(9, ratFromString("-0003.145926", 10, &slen), Rat(-3145926, 1000000));
 	test(10, slen == 12);
-	rat_eq(11, ratFromString("1e2", 0, nil), bignum.Rat(100, 1));
-	rat_eq(12, ratFromString("1e-2", 0, nil), bignum.Rat(1, 100));
-	rat_eq(13, ratFromString("1.1e2", 0, nil), bignum.Rat(110, 1));
-	rat_eq(14, ratFromString(".1e2x", 0, &slen), bignum.Rat(10, 1));
+	rat_eq(11, ratFromString("1e2", 0, nil), Rat(100, 1));
+	rat_eq(12, ratFromString("1e-2", 0, nil), Rat(1, 100));
+	rat_eq(13, ratFromString("1.1e2", 0, nil), Rat(110, 1));
+	rat_eq(14, ratFromString(".1e2x", 0, &slen), Rat(10, 1));
 	test(15, slen == 4);
 }
 
 
-func add(x, y bignum.Natural) bignum.Natural {
+func add(x, y Natural) Natural {
 	z1 := x.Add(y);
 	z2 := y.Add(x);
 	if z1.Cmp(z2) != 0 {
@@ -235,10 +235,10 @@ func add(x, y bignum.Natural) bignum.Natural {
 }
 
 
-func sum(n uint64, scale bignum.Natural) bignum.Natural {
+func sum(n uint64, scale Natural) Natural {
 	s := nat_zero;
 	for ; n > 0; n-- {
-		s = add(s, bignum.Nat(n).Mul(scale));
+		s = add(s, Nat(n).Mul(scale));
 	}
 	return s;
 }
@@ -252,13 +252,13 @@ func TestNatAdd(t *testing.T) {
 
 	test_msg = "NatAddB";
 	for i := uint64(0); i < 100; i++ {
-		t := bignum.Nat(i);
+		t := Nat(i);
 		nat_eq(uint(i), sum(i, c), t.Mul(t).Add(t).Shr(1).Mul(c));
 	}
 }
 
 
-func mul(x, y bignum.Natural) bignum.Natural {
+func mul(x, y Natural) Natural {
 	z1 := x.Mul(y);
 	z2 := y.Mul(x);
 	if z1.Cmp(z2) != 0 {
@@ -284,7 +284,7 @@ func TestNatSub(t *testing.T) {
 	for i := uint64(0); i < 100; i++ {
 		t := sum(i, c);
 		for j := uint64(0); j <= i; j++ {
-			t = t.Sub(mul(bignum.Nat(j), c));
+			t = t.Sub(mul(Nat(j), c));
 		}
 		nat_eq(uint(i), t, nat_zero);
 	}
@@ -298,8 +298,8 @@ func TestNatMul(t *testing.T) {
 	nat_eq(1, mul(c, nat_one), c);
 
 	test_msg = "NatMulB";
-	nat_eq(0, b.Mul(bignum.MulRange(0, 100)), nat_zero);
-	nat_eq(1, b.Mul(bignum.MulRange(21, 100)), c);
+	nat_eq(0, b.Mul(MulRange(0, 100)), nat_zero);
+	nat_eq(1, b.Mul(MulRange(21, 100)), c);
 
 	test_msg = "NatMulC";
 	const n = 100;
@@ -314,16 +314,16 @@ func TestNatDiv(t *testing.T) {
 	tester = t;
 	test_msg = "NatDivA";
 	nat_eq(0, c.Div(nat_one), c);
-	nat_eq(1, c.Div(bignum.Nat(100)), bignum.Fact(99));
+	nat_eq(1, c.Div(Nat(100)), Fact(99));
 	nat_eq(2, b.Div(c), nat_zero);
 	nat_eq(4, nat_one.Shl(100).Div(nat_one.Shl(90)), nat_one.Shl(10));
-	nat_eq(5, c.Div(b), bignum.MulRange(21, 100));
+	nat_eq(5, c.Div(b), MulRange(21, 100));
 
 	test_msg = "NatDivB";
 	const n = 100;
-	p := bignum.Fact(n);
+	p := Fact(n);
 	for i := uint(0); i < n; i++ {
-		nat_eq(100+i, p.Div(bignum.MulRange(1, i)), bignum.MulRange(i+1, n));
+		nat_eq(100+i, p.Div(MulRange(1, i)), MulRange(i+1, n));
 	}
 }
 
@@ -344,8 +344,8 @@ func TestIntQuoRem(t *testing.T) {
 	};
 	for i := uint(0); i < uint(len(a)); i++ {
 		e := &a[i];
-		x, y := bignum.Int(e.x).Mul(ip), bignum.Int(e.y).Mul(ip);
-		q, r := bignum.Int(e.q), bignum.Int(e.r).Mul(ip);
+		x, y := Int(e.x).Mul(ip), Int(e.y).Mul(ip);
+		q, r := Int(e.q), Int(e.r).Mul(ip);
 		qq, rr := x.QuoRem(y);
 		int_eq(4*i+0, x.Quo(y), q);
 		int_eq(4*i+1, x.Rem(y), r);
@@ -371,8 +371,8 @@ func TestIntDivMod(t *testing.T) {
 	};
 	for i := uint(0); i < uint(len(a)); i++ {
 		e := &a[i];
-		x, y := bignum.Int(e.x).Mul(ip), bignum.Int(e.y).Mul(ip);
-		q, r := bignum.Int(e.q), bignum.Int(e.r).Mul(ip);
+		x, y := Int(e.x).Mul(ip), Int(e.y).Mul(ip);
+		q, r := Int(e.q), Int(e.r).Mul(ip);
 		qq, rr := x.DivMod(y);
 		int_eq(4*i+0, x.Div(y), q);
 		int_eq(4*i+1, x.Mod(y), r);
@@ -416,7 +416,7 @@ func TestNatShift(t *testing.T) {
 	test_msg = "NatShift3L";
 	{	const m = 3;
 		p := b;
-		f := bignum.Nat(1<<m);
+		f := Nat(1<<m);
 		for i := uint(0); i < 100; i++ {
 			nat_eq(i, b.Shl(i*m), p);
 			p = mul(p, f);
@@ -451,7 +451,7 @@ func TestIntShift(t *testing.T) {
 	test_msg = "IntShift3L";
 	{	const m = 3;
 		p := ip;
-		f := bignum.Int(1<<m);
+		f := Int(1<<m);
 		for i := uint(0); i < 100; i++ {
 			int_eq(i, ip.Shl(i*m), p);
 			p = p.Mul(f);
@@ -467,8 +467,43 @@ func TestIntShift(t *testing.T) {
 	}
 
 	test_msg = "IntShift4R";
-	//int_eq(0, bignum.Int(-43).Shr(1), bignum.Int(-43 >> 1));
-	//int_eq(1, ip.Neg().Shr(10), ip.Neg().Div(bignum.Int(1).Shl(10)));
+	//int_eq(0, Int(-43).Shr(1), Int(-43 >> 1));
+	//int_eq(1, ip.Neg().Shr(10), ip.Neg().Div(Int(1).Shl(10)));
+}
+
+
+func TestNatBitOps(t *testing.T) {
+	tester = t;
+
+	x := uint64(0xf08e6f56bd8c3941);
+	y := uint64(0x3984ef67834bc);
+
+	bx := Nat(x);
+	by := Nat(y);
+
+	test_msg = "NatAnd";
+	bz := Nat(x & y);
+	for i := uint(0); i < 100; i++ {
+		nat_eq(i, bx.Shl(i).And(by.Shl(i)), bz.Shl(i));
+	}
+
+	test_msg = "NatAndNot";
+	bz = Nat(x &^ y);
+	for i := uint(0); i < 100; i++ {
+		nat_eq(i, bx.Shl(i).AndNot(by.Shl(i)), bz.Shl(i));
+	}
+
+	test_msg = "NatOr";
+	bz = Nat(x | y);
+	for i := uint(0); i < 100; i++ {
+		nat_eq(i, bx.Shl(i).Or(by.Shl(i)), bz.Shl(i));
+	}
+
+	test_msg = "NatXor";
+	bz = Nat(x ^ y);
+	for i := uint(0); i < 100; i++ {
+		nat_eq(i, bx.Shl(i).Xor(by.Shl(i)), bz.Shl(i));
+	}
 }
 
 
@@ -490,8 +525,8 @@ func TestNatLog2(t *testing.T) {
 	test_msg = "NatLog2A";
 	test(0, nat_one.Log2() == 0);
 	test(1, nat_two.Log2() == 1);
-	test(2, bignum.Nat(3).Log2() == 1);
-	test(3, bignum.Nat(4).Log2() == 2);
+	test(2, Nat(3).Log2() == 1);
+	test(3, Nat(4).Log2() == 2);
 
 	test_msg = "NatLog2B";
 	for i := uint(0); i < 100; i++ {
@@ -503,8 +538,8 @@ func TestNatLog2(t *testing.T) {
 func TestNatGcd(t *testing.T) {
 	tester = t;
 	test_msg = "NatGcdA";
-	f := bignum.Nat(99991);
-	nat_eq(0, b.Mul(f).Gcd(c.Mul(f)), bignum.MulRange(1, 20).Mul(f));
+	f := Nat(99991);
+	nat_eq(0, b.Mul(f).Gcd(c.Mul(f)), MulRange(1, 20).Mul(f));
 }
 
 
@@ -525,9 +560,9 @@ func TestNatPop(t *testing.T) {
 	test_msg = "NatPopA";
 	test(0, nat_zero.Pop() == 0);
 	test(1, nat_one.Pop() == 1);
-	test(2, bignum.Nat(10).Pop() == 2);
-	test(3, bignum.Nat(30).Pop() == 4);
-	test(4, bignum.Nat(0x1248f).Shl(33).Pop() == 8);
+	test(2, Nat(10).Pop() == 2);
+	test(3, Nat(30).Pop() == 4);
+	test(4, Nat(0x1248f).Shl(33).Pop() == 8);
 
 	test_msg = "NatPopB";
 	for i := uint(0); i < 100; i++ {

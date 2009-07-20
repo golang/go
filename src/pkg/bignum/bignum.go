@@ -614,6 +614,25 @@ func copy(z, x []digit) {
 }
 
 
+// AndNot returns the ``bitwise clear'' x &^ y for the binary representation of x and y.
+//
+func (x Natural) AndNot(y Natural) Natural {
+	n := len(x);
+	m := len(y);
+	if n < m {
+		m = n;
+	}
+
+	z := make(Natural, n);
+	for i := 0; i < m; i++ {
+		z[i] = x[i] &^ y[i];
+	}
+	copy(z[m : n], x[m : n]);
+
+	return normalize(z);
+}
+
+
 // Or returns the ``bitwise or'' x | y for the binary representation of x and y.
 //
 func (x Natural) Or(y Natural) Natural {
@@ -1215,39 +1234,51 @@ func (x *Integer) Shl(s uint) *Integer {
 // Implementation restriction: Shl is not yet implemented for negative x.
 //
 func (x *Integer) Shr(s uint) *Integer {
-	z := MakeInt(x.sign, x.mant.Shr(s));
-	if x.IsNeg() {
-		panic("UNIMPLEMENTED Integer.Shr of negative values");
+	if !x.sign {
+		return MakeInt(false, x.mant.Shr(s));
 	}
-	return z;
+
+	panic("UNIMPLEMENTED Integer.Shr of negative value");
+	return nil;
 }
 
 
 // And returns the ``bitwise and'' x & y for the binary representation of x and y.
-// Implementation restriction: And is not implemented for negative x.
+// Implementation restriction: And is not implemented for negative integers.
 //
 func (x *Integer) And(y *Integer) *Integer {
-	var z *Integer;
 	if !x.sign && !y.sign {
-		z = MakeInt(false, x.mant.And(y.mant));
-	} else {
-		panic("UNIMPLEMENTED Integer.And of negative values");
+		return MakeInt(false, x.mant.And(y.mant));
 	}
-	return z;
+
+	panic("UNIMPLEMENTED Integer.And of negative values");
+	return nil;
+}
+
+
+// AndNot returns the ``bitwise clear'' x &^ y for the binary representation of x and y.
+// Implementation restriction: AndNot is not implemented for negative integers.
+//
+func (x *Integer) AndNot(y *Integer) *Integer {
+	if !x.sign && !y.sign {
+		return MakeInt(false, x.mant.AndNot(y.mant));
+	}
+
+	panic("UNIMPLEMENTED Integer.AndNot of negative values");
+	return nil;
 }
 
 
 // Or returns the ``bitwise or'' x | y for the binary representation of x and y.
-// Implementation restriction: Or is not implemented for negative x.
+// Implementation restriction: Or is not implemented for negative integers.
 //
 func (x *Integer) Or(y *Integer) *Integer {
-	var z *Integer;
 	if !x.sign && !y.sign {
-		z = MakeInt(false, x.mant.Or(y.mant));
-	} else {
-		panic("UNIMPLEMENTED Integer.Or of negative values");
+		return MakeInt(false, x.mant.Or(y.mant));
 	}
-	return z;
+
+	panic("UNIMPLEMENTED Integer.Or of negative values");
+	return nil;
 }
 
 
@@ -1255,13 +1286,12 @@ func (x *Integer) Or(y *Integer) *Integer {
 // Implementation restriction: Xor is not implemented for negative integers.
 //
 func (x *Integer) Xor(y *Integer) *Integer {
-	var z *Integer;
 	if !x.sign && !y.sign {
-		z = MakeInt(false, x.mant.Xor(y.mant));
-	} else {
-		panic("UNIMPLEMENTED Integer.Xor of negative values");
+		return MakeInt(false, x.mant.Xor(y.mant));
 	}
-	return z;
+
+	panic("UNIMPLEMENTED Integer.Xor of negative values");
+	return nil;
 }
 
 
