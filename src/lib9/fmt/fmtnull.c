@@ -16,8 +16,11 @@
  * THE MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
  */
 
-#include <u.h>
-#include <libc.h>
+/* Copyright (c) 2004 Google Inc.; see LICENSE */
+#include <stdarg.h>
+#include <string.h>
+#include "plan9.h"
+#include "fmt.h"
 #include "fmtdef.h"
 
 /*
