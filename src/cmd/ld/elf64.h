@@ -166,9 +166,11 @@ struct Elf64SHdr
 #define	SHF_MASKOS	0x0F000000	/* Environment-specific use */
 #define	SHF_MASKPROC	0xF0000000	/* Processor-specific use */
 
+Elf64Hdr	*getElf64Hdr();
 Elf64SHdr	*newElf64SHdr(char*);
 Elf64PHdr	*newElf64PHdr();
 uint32	elf64headr(void);
+void	elf64writehdr(void);
 void	elf64writephdrs(void);
 void	elf64writeshdrs(void);
 void	elf64writestrtable(void);

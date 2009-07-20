@@ -158,10 +158,10 @@ putsymb(char *s, int t, vlong v, int ver, char *go)
 		s++;
 	l = 4;
 	if(!debug['8']){
-		lput(v>>32);
+		lputb(v>>32);
 		l = 8;
 	}
-	lput(v);
+	lputb(v);
 	if(ver)
 		t += 'a' - 'A';
 	cput(t+0x80);			/* 0x80 is variable length */
@@ -1726,14 +1726,14 @@ asmdyn()
 
 	cflush();
 	off = seek(cout, 0, 1);
-	lput(0);
+	lputb(0);
 	t = 0;
-	lput(imports);
+	lputb(imports);
 	t += 4;
 	for(i = 0; i < NHASH; i++)
 		for(s = hash[i]; s != S; s = s->link)
 			if(s->type == SUNDEF){
-				lput(s->sig);
+				lputb(s->sig);
 				t += 4;
 				t += sput(s->name);
 			}
@@ -1743,7 +1743,7 @@ asmdyn()
 	n = r->n;
 	m = r->m;
 	a = r->a;
-	lput(n);
+	lputb(n);
 	t += 4;
 	for(i = 0; i < n; i++){
 		ra = *a-la;
@@ -1762,11 +1762,11 @@ asmdyn()
 			t++;
 		}
 		else if(c == 1){
-			wput(ra);
+			wputb(ra);
 			t += 2;
 		}
 		else{
-			lput(ra);
+			lputb(ra);
 			t += 4;
 		}
 		la = *a++;
@@ -1774,7 +1774,7 @@ asmdyn()
 
 	cflush();
 	seek(cout, off, 0);
-	lput(t);
+	lputb(t);
 
 	if(debug['v']){
 		Bprint(&bso, "import table entries = %d\n", imports);
