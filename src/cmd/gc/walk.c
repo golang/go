@@ -606,7 +606,10 @@ reswitch:
 			ll = ascompatte(n->op, getinarg(t), n->list, 0, init);
 			n->list = reorder1(ll);
 			if(isselect(n)) {
-				// clear output bool - special prob with selectsend
+				// special prob with selectsend and selectrecv:
+				// if chan is nil, they don't know big the channel
+				// element is and therefore don't know how to find
+				// the output bool, so we clear it before the call.
 				Node *b;
 				b = nodbool(0);
 				lr = ascompatte(n->op, getoutarg(t), list1(b), 0, init);
