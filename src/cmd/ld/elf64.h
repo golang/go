@@ -67,6 +67,7 @@ struct Elf64Hdr
 	Elf64_Half	shnum;	/* Number of section header entries */
 	Elf64_Half	shstrndx;	/* Section name string table index */
 };
+#define	ELF64HDRSIZE	64
 
 /* E ident indexes */
 #define	EI_MAG0	0 	/* File identification */
@@ -112,6 +113,7 @@ struct Elf64PHdr
 	Elf64_Xword	memsz;	/* Size of segment in memory */
 	Elf64_Xword	align;	/* Alignment of segment */
 };
+#define	ELF64PHDRSIZE	56
 
 /* P types */
 #define	PT_NULL		0	/* Unused entry */
@@ -140,6 +142,7 @@ struct Elf64SHdr
 	Elf64_Xword	addralign;	/* Address alignment boundary */
 	Elf64_Xword	entsize;	/* Size of entries, if section has table */
 };
+#define	ELF64SHDRSIZE	64
 
 /* S types */
 #define SHT_NULL	0	/* Unused section header */
@@ -166,16 +169,18 @@ struct Elf64SHdr
 #define	SHF_MASKOS	0x0F000000	/* Environment-specific use */
 #define	SHF_MASKPROC	0xF0000000	/* Processor-specific use */
 
+void	elf64init(void);
 Elf64Hdr	*getElf64Hdr();
 Elf64SHdr	*newElf64SHdr(char*);
 Elf64PHdr	*newElf64PHdr();
-uint32	elf64headr(void);
-void	elf64writehdr(void);
-void	elf64writephdrs(void);
-void	elf64writeshdrs(void);
+uint32	elf64writehdr(void);
+uint32	elf64writephdrs(void);
+uint32	elf64writeshdrs(void);
 void	elf64writestrtable(void);
 
 extern	int	nume64phdr;
 extern	int	nume64shdr;
 
 #define	STRTABSIZE	256
+/* Amount of space to reserve at the start of the file; may waste some */
+#define	ELF64FULLHDRSIZE	2048

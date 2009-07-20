@@ -7,12 +7,22 @@
 #include "../ld/elf64.h"
 
 #define	NSECT	16
-static	int	nume64str;
+static	int	numstr;
 static	Elf64Hdr	hdr;
 static	Elf64PHdr	*phdr[NSECT];
 static	Elf64SHdr	*shdr[NSECT];
 static	char	*sname[NSECT];
 static	char	*str[NSECT];
+
+void
+elf64init(void)
+{
+	hdr.phoff = ELF64HDRSIZE;
+	hdr.shoff = ELF64HDRSIZE;
+	hdr.ehsize = ELF64HDRSIZE;
+	hdr.phentsize = ELF64PHDRSIZE;
+	hdr.shentsize = ELF64SHDRSIZE;
+}
 
 void
 elf64phdr(Elf64PHdr *e)
@@ -56,10 +66,10 @@ void
 elf64writestrtable(void)
 {
 	int i;
-	int size;
+	uint32 size;
 
 	size = 0;
-	for (i = 0; i < nume64str; i++)
+	for (i = 0; i < numstr; i++)
 		size += putelf64strtab(str[i]);
 	if (size > STRTABSIZE)
 		diag("elf64 string table overflow");
@@ -68,56 +78,32 @@ elf64writestrtable(void)
 void
 e64addstr(char *name)
 {
-	if (nume64str >= NSECT) {
+	if (numstr >= NSECT) {
 		diag("too many elf strings");
 		return;
 	}
-	str[nume64str++] = strdup(name);
+	str[numstr++] = strdup(name);
 	stroffset += strlen(name)+1;
 }
 
 uint32
-elf64headr(void)
-{
-	uint32 a;
-
-	a = 64;		/* a.out header */
-
-	/* TODO: calculate these byte counts properly */
-	a += 56;	/* page zero seg */
-	a += 56;	/* text seg */
-	a += 56;	/* stack seg */
-
-	a += 64;	/* nil sect */
-	a += 64;	/* .text sect */
-	a += 64;	/* .data seg */
-	a += 64;	/* .bss sect */
-	a += 64;	/* .shstrtab sect - strings for headers */
-	if (!debug['s']) {
-		a += 56;	/* symdat seg */
-		a += 64;	/* .gosymtab sect */
-		a += 64;	/* .gopclntab sect */
-	}
-
-	return a;
-}
-
-void
 elf64writeshdrs(void)
 {
 	int i;
 
 	for (i = 0; i < hdr.shnum; i++)
 		elf64shdr(sname[i], shdr[i]);
+	return hdr.shnum * ELF64SHDRSIZE;
 }
 
-void
+uint32
 elf64writephdrs(void)
 {
 	int i;
 
 	for (i = 0; i < hdr.phnum; i++)
 		elf64phdr(phdr[i]);
+	return hdr.phnum * ELF64PHDRSIZE;
 }
 
 Elf64PHdr*
@@ -131,6 +117,7 @@ newElf64PHdr(void)
 		diag("too many phdrs");
 	else
 		phdr[hdr.phnum++] = e;
+	hdr.shoff += ELF64PHDRSIZE;
 	return e;
 }
 
@@ -159,7 +146,7 @@ getElf64Hdr(void)
 	return &hdr;
 }
 
-void
+uint32
 elf64writehdr()
 {
 	int i;
@@ -179,4 +166,5 @@ elf64writehdr()
 	WPUT(hdr.shentsize);
 	WPUT(hdr.shnum);
 	WPUT(hdr.shstrndx);
+	return ELF64HDRSIZE;
 }

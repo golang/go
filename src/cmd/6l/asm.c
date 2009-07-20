@@ -196,6 +196,7 @@ asmb(void)
 		debug['8'] = 1;	/* 64-bit addresses */
 		v = rnd(HEADR+textsize, INITRND);
 		seek(cout, v, 0);
+		elf64init();
 		break;
 	}
 
@@ -545,15 +546,14 @@ asmb(void)
 		eh->machine = 62;	/* machine = AMD64 */
 		eh->version = EV_CURRENT;
 		eh->entry = entryvalue();
-		eh->phoff = 64L;
-		eh->shoff = 64L+56*eh->phnum;
-		eh->ehsize = 64;
-		eh->phentsize = 56;
-		eh->shentsize = 64;
 
-		elf64writehdr();
-		elf64writephdrs();
-		elf64writeshdrs();
+		a = 0;
+		a += elf64writehdr();
+		a += elf64writephdrs();
+		a += elf64writeshdrs();
+		if (a > ELF64FULLHDRSIZE) {
+			diag("ELF64FULLHDRSIZE too small:", a);
+		}
 		cflush();
 
 		/* string table */
