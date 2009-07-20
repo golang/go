@@ -877,54 +877,34 @@ Econv(Fmt *fp)
 int
 Jconv(Fmt *fp)
 {
-	char buf[500], buf1[100];
 	Node *n;
 
 	n = va_arg(fp->args, Node*);
-	strcpy(buf, "");
+	if(n->ullman != 0)
+		fmtprint(fp, " u(%d)", n->ullman);
 
-	if(n->ullman != 0) {
-		snprint(buf1, sizeof(buf1), " u(%d)", n->ullman);
-		strncat(buf, buf1, sizeof(buf));
-	}
+	if(n->addable != 0)
+		fmtprint(fp, " a(%d)", n->addable);
 
-	if(n->addable != 0) {
-		snprint(buf1, sizeof(buf1), " a(%d)", n->addable);
-		strncat(buf, buf1, sizeof(buf));
-	}
+	if(n->vargen != 0)
+		fmtprint(fp, " g(%ld)", n->vargen);
 
-	if(n->vargen != 0) {
-		snprint(buf1, sizeof(buf1), " g(%ld)", n->vargen);
-		strncat(buf, buf1, sizeof(buf));
-	}
+	if(n->lineno != 0)
+		fmtprint(fp, " l(%ld)", n->lineno);
 
-	if(n->lineno != 0) {
-		snprint(buf1, sizeof(buf1), " l(%ld)", n->lineno);
-		strncat(buf, buf1, sizeof(buf));
-	}
+	if(n->xoffset != 0)
+		fmtprint(fp, " x(%lld)", n->xoffset);
 
-	if(n->xoffset != 0) {
-		snprint(buf1, sizeof(buf1), " x(%lld)", n->xoffset);
-		strncat(buf, buf1, sizeof(buf));
-	}
+	if(n->class != 0)
+		fmtprint(fp, " class(%d)", n->class);
 
-	if(n->class != 0) {
-		snprint(buf1, sizeof(buf1), " class(%d)", n->class);
-		strncat(buf, buf1, sizeof(buf));
-	}
+	if(n->colas != 0)
+		fmtprint(fp, " colas(%d)", n->colas);
 
-	if(n->colas != 0) {
-		snprint(buf1, sizeof(buf1), " colas(%d)", n->colas);
-		strncat(buf, buf1, sizeof(buf));
-	}
+	if(n->funcdepth != 0)
+		fmtprint(fp, " f(%d)", n->funcdepth);
 
-	if(n->funcdepth != 0) {
-		snprint(buf1, sizeof(buf1), " f(%d)", n->funcdepth);
-		strncat(buf, buf1, sizeof(buf));
-	}
-
-
-	return fmtstrcpy(fp, buf);
+	return 0;
 }
 
 int
@@ -1165,7 +1145,6 @@ Tpretty(Fmt *fp, Type *t)
 int
 Tconv(Fmt *fp)
 {
-	char buf[500], buf1[500];
 	Type *t, *t1;
 	int r, et, sharp, minus;
 
@@ -1179,7 +1158,7 @@ Tconv(Fmt *fp)
 
 	t->trecur++;
 	if(t->trecur > 5) {
-		strncat(buf, "...", sizeof(buf));
+		fmtprint(fp, "...");
 		goto out;
 	}
 
@@ -1200,112 +1179,98 @@ Tconv(Fmt *fp)
 	}
 
 	et = t->etype;
-	snprint(buf, sizeof buf, "%E ", et);
-	if(t->sym != S) {
-		snprint(buf1, sizeof(buf1), "<%S>", t->sym);
-		strncat(buf, buf1, sizeof(buf));
-	}
+	fmtprint(fp, "%E ", et);
+	if(t->sym != S)
+		fmtprint(fp, "<%S>", t->sym);
 
 	switch(et) {
 	default:
-		if(t->type != T) {
-			snprint(buf1, sizeof(buf1), " %T", t->type);
-			strncat(buf, buf1, sizeof(buf));
-		}
+		if(t->type != T)
+			fmtprint(fp, " %T", t->type);
 		break;
 
 	case TFIELD:
-		snprint(buf1, sizeof(buf1), "%T", t->type);
-		strncat(buf, buf1, sizeof(buf));
+		fmtprint(fp, "%T", t->type);
 		break;
 
 	case TFUNC:
 		if(fp->flags & FmtLong)
-			snprint(buf1, sizeof(buf1), "%d%d%d(%lT,%lT)%lT",
+			fmtprint(fp, "%d%d%d(%lT,%lT)%lT",
 				t->thistuple, t->intuple, t->outtuple,
 				t->type, t->type->down->down, t->type->down);
 		else
-			snprint(buf1, sizeof(buf1), "%d%d%d(%T,%T)%T",
+			fmtprint(fp, "%d%d%d(%T,%T)%T",
 				t->thistuple, t->intuple, t->outtuple,
 				t->type, t->type->down->down, t->type->down);
-		strncat(buf, buf1, sizeof(buf));
 		break;
 
 	case TINTER:
-		strncat(buf, "{", sizeof(buf));
-		if(fp->flags & FmtLong) {
-			for(t1=t->type; t1!=T; t1=t1->down) {
-				snprint(buf1, sizeof(buf1), "%lT;", t1);
-				strncat(buf, buf1, sizeof(buf));
-			}
-		}
-		strncat(buf, "}", sizeof(buf));
+		fmtprint(fp, "{");
+		if(fp->flags & FmtLong)
+			for(t1=t->type; t1!=T; t1=t1->down)
+				fmtprint(fp, "%lT;", t1);
+		fmtprint(fp, "}");
 		break;
 
 	case TSTRUCT:
-		strncat(buf, "{", sizeof(buf));
-		if(fp->flags & FmtLong) {
-			for(t1=t->type; t1!=T; t1=t1->down) {
-				snprint(buf1, sizeof(buf1), "%lT;", t1);
-				strncat(buf, buf1, sizeof(buf));
-			}
-		}
-		strncat(buf, "}", sizeof(buf));
+		fmtprint(fp, "{");
+		if(fp->flags & FmtLong)
+			for(t1=t->type; t1!=T; t1=t1->down)
+				fmtprint(fp, "%lT;", t1);
+		fmtprint(fp, "}");
 		break;
 
 	case TMAP:
-		snprint(buf, sizeof(buf), "[%T]%T", t->down, t->type);
+		fmtprint(fp, "[%T]%T", t->down, t->type);
 		break;
 
 	case TARRAY:
 		if(t->bound >= 0)
-			snprint(buf1, sizeof(buf1), "[%ld]%T", t->bound, t->type);
+			fmtprint(fp, "[%ld]%T", t->bound, t->type);
 		else
-			snprint(buf1, sizeof(buf1), "[]%T", t->type);
-		strncat(buf, buf1, sizeof(buf));
+			fmtprint(fp, "[]%T", t->type);
 		break;
 
 	case TPTR32:
 	case TPTR64:
-		snprint(buf1, sizeof(buf1), "%T", t->type);
-		strncat(buf, buf1, sizeof(buf));
+		fmtprint(fp, "%T", t->type);
 		break;
 	}
 
 out:
 	t->trecur--;
-	return fmtstrcpy(fp, buf);
+	return 0;
 }
 
 int
 Nconv(Fmt *fp)
 {
-	char buf[500], buf1[500];
+	char buf1[500];
 	Node *n;
 
 	n = va_arg(fp->args, Node*);
 	if(n == N) {
-		snprint(buf, sizeof(buf), "<N>");
+		fmtprint(fp, "<N>");
 		goto out;
 	}
 
 	switch(n->op) {
 	default:
-		snprint(buf, sizeof(buf), "%O%J", n->op, n);
+		fmtprint(fp, "%O%J", n->op, n);
 		break;
 
 	case ONAME:
 	case ONONAME:
 		if(n->sym == S) {
-			snprint(buf, sizeof(buf), "%O%J", n->op, n);
+			fmtprint(fp, "%O%J", n->op, n);
 			break;
 		}
-		snprint(buf, sizeof(buf), "%O-%S G%ld%J", n->op,
+		fmtprint(fp, "%O-%S G%ld%J", n->op,
 			n->sym, n->sym->vargen, n);
 		goto ptyp;
 
 	case OREGISTER:
-		snprint(buf, sizeof(buf), "%O-%R%J", n->op, n->val.u.reg, n);
+		fmtprint(fp, "%O-%R%J", n->op, n->val.u.reg, n);
 		break;
 
 	case OLITERAL:
@@ -1329,30 +1294,26 @@ Nconv(Fmt *fp)
 			snprint(buf1, sizeof(buf1), "N");
 			break;
 		}
-		snprint(buf, sizeof(buf), "%O-%s%J", n->op, buf1, n);
+		fmtprint(fp, "%O-%s%J", n->op, buf1, n);
 		break;
 
 	case OASOP:
-		snprint(buf, sizeof(buf), "%O-%O%J", n->op, n->etype, n);
+		fmtprint(fp, "%O-%O%J", n->op, n->etype, n);
 		break;
 
 	case OTYPE:
-		snprint(buf, sizeof(buf), "%O %T", n->op, n->type);
+		fmtprint(fp, "%O %T", n->op, n->type);
 		break;
 	}
-	if(n->sym != S) {
-		snprint(buf1, sizeof(buf1), " %S G%ld", n->sym, n->sym->vargen);
-		strncat(buf, buf1, sizeof(buf));
-	}
+	if(n->sym != S)
+		fmtprint(fp, " %S G%ld", n->sym, n->sym->vargen);
 
 ptyp:
-	if(n->type != T) {
-		snprint(buf1, sizeof(buf1), " %T", n->type);
-		strncat(buf, buf1, sizeof(buf));
-	}
+	if(n->type != T)
+		fmtprint(fp, " %T", n->type);
 
 out:
-	return fmtstrcpy(fp, buf);
+	return 0;
 }
 
 Node*
