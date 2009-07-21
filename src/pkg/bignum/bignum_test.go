@@ -467,8 +467,9 @@ func TestIntShift(t *testing.T) {
 	}
 
 	test_msg = "IntShift4R";
-	//int_eq(0, Int(-43).Shr(1), Int(-43 >> 1));
-	//int_eq(1, ip.Neg().Shr(10), ip.Neg().Div(Int(1).Shl(10)));
+	int_eq(0, Int(-43).Shr(1), Int(-43 >> 1));
+	int_eq(0, Int(-1024).Shr(100), Int(-1));
+	int_eq(1, ip.Neg().Shr(10), ip.Neg().Div(Int(1).Shl(10)));
 }
 
 
@@ -503,6 +504,83 @@ func TestNatBitOps(t *testing.T) {
 	bz = Nat(x ^ y);
 	for i := uint(0); i < 100; i++ {
 		nat_eq(i, bx.Shl(i).Xor(by.Shl(i)), bz.Shl(i));
+	}
+}
+
+
+func TestIntBitOps1(t *testing.T) {
+	tester = t;
+	test_msg = "IntBitOps1";
+	type T struct { x, y int64 };
+	a := []T {
+		T{ +7, +3 },
+		T{ +7, -3 },
+		T{ -7, +3 },
+		T{ -7, -3 },
+	};
+	for i := uint(0); i < uint(len(a)); i++ {
+		e := &a[i];
+		int_eq(4*i+0, Int(e.x).And(Int(e.y)), Int(e.x & e.y));
+		int_eq(4*i+1, Int(e.x).AndNot(Int(e.y)), Int(e.x &^ e.y));
+		int_eq(4*i+2, Int(e.x).Or(Int(e.y)), Int(e.x | e.y));
+		int_eq(4*i+3, Int(e.x).Xor(Int(e.y)), Int(e.x ^ e.y));
+	}
+}
+
+
+func TestIntBitOps2(t *testing.T) {
+	tester = t;
+
+	test_msg = "IntNot";
+	int_eq(0, Int(-2).Not(), Int( 1));
+	int_eq(0, Int(-1).Not(), Int( 0));
+	int_eq(0, Int( 0).Not(), Int(-1));
+	int_eq(0, Int( 1).Not(), Int(-2));
+	int_eq(0, Int( 2).Not(), Int(-3));
+
+	test_msg = "IntAnd";
+	for x := int64(-15); x < 5; x++ {
+		bx := Int(x);
+		for y := int64(-5); y < 15; y++ {
+			by := Int(y);
+			for i := uint(50); i < 70; i++ {  // shift across 64bit boundary
+				int_eq(i, bx.Shl(i).And(by.Shl(i)), Int(x & y).Shl(i));
+			}
+		}
+	}
+
+	test_msg = "IntAndNot";
+	for x := int64(-15); x < 5; x++ {
+		bx := Int(x);
+		for y := int64(-5); y < 15; y++ {
+			by := Int(y);
+			for i := uint(50); i < 70; i++ {  // shift across 64bit boundary
+				int_eq(2*i+0, bx.Shl(i).AndNot(by.Shl(i)), Int(x &^ y).Shl(i));
+				int_eq(2*i+1, bx.Shl(i).And(by.Shl(i).Not()), Int(x &^ y).Shl(i));
+			}
+		}
+	}
+
+	test_msg = "IntOr";
+	for x := int64(-15); x < 5; x++ {
+		bx := Int(x);
+		for y := int64(-5); y < 15; y++ {
+			by := Int(y);
+			for i := uint(50); i < 70; i++ {  // shift across 64bit boundary
+				int_eq(i, bx.Shl(i).Or(by.Shl(i)), Int(x | y).Shl(i));
+			}
+		}
+	}
+
+	test_msg = "IntXor";
+	for x := int64(-15); x < 5; x++ {
+		bx := Int(x);
+		for y := int64(-5); y < 15; y++ {
+			by := Int(y);
+			for i := uint(50); i < 70; i++ {  // shift across 64bit boundary
+				int_eq(i, bx.Shl(i).Xor(by.Shl(i)), Int(x ^ y).Shl(i));
+			}
+		}
 	}
 }
 
