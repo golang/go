@@ -109,6 +109,9 @@ BUG: should fail
 =========== bugs/bug169.go
 BUG: errchk: command succeeded unexpectedly:  6g bugs/bug169.go
 
+=========== bugs/bug170.go
+BUG: errchk: command succeeded unexpectedly:  6g bugs/bug170.go
+
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
 
