@@ -226,7 +226,7 @@ func TestAll(t *testing.T) {	// TODO(r): wrap up better
 		t.Errorf("FieldByName says absent field is present");
 	}
 
-	typ = Typeof(([32]int32)(nil));
+	typ = Typeof([32]int32{});
 	testType(t, 7, typ, "[32]int32");
 	testType(t, 8, typ.(*ArrayType).Elem(), "int32");
 
