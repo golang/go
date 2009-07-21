@@ -35,6 +35,10 @@
 
 #define PADDR(a)	((uint32)(a) & ~0x80000000)
 
+char linuxdynld[] = "/lib64/ld-linux-x86-64.so.2";
+
+char	zeroes[32];
+
 vlong
 entryvalue(void)
 {
@@ -124,11 +128,11 @@ asmb(void)
 	int32 v, magic;
 	int a, nl;
 	uchar *op1;
-	vlong vl, va, fo, w, symo;
+	vlong vl, va, startva, fo, w, symo, hashoff;
 	vlong symdatva = 0x99LL<<32;
 	Elf64Hdr *eh;
-	Elf64PHdr *ph;
-	Elf64SHdr *sh;
+	Elf64PHdr *ph, *pph;
+	Elf64SHdr *sh, *dynsh;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -237,7 +241,7 @@ asmb(void)
 			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND);
 			break;
 		case 7:
-			symo = rnd(HEADR+textsize, INITRND)+datsize+STRTABSIZE;
+			symo = rnd(HEADR+textsize, INITRND)+datsize;
 			symo = rnd(symo, INITRND);
 			break;
 		}
@@ -419,16 +423,132 @@ asmb(void)
 		/* elf amd-64 */
 
 		fo = 0;
-		va = INITTEXT & ~((vlong)INITRND - 1);
+		startva = INITTEXT - HEADR;
+		va = startva;
 		w = HEADR+textsize;
 
+		/* This null SHdr must appear before all others */
+		sh = newElf64SHdr("");
+
+		pph = nil;	/* silence compiler */
+
+		/* Dynamic linking sections */
+		if (!debug['d']) {	/* -d suppresses dynamic loader format */
+
+			/* P headers */
+			/* program header info */
+			pph = newElf64PHdr();
+			pph->type = PT_PHDR;
+			pph->flags = PF_R + PF_X;
+			pph->off = ELF64HDRSIZE;
+			pph->vaddr = startva + pph->off;
+			pph->paddr = startva + pph->off;
+			pph->align = 8;
+
+			/* interpreter */
+			ph = newElf64PHdr();
+			ph->type = PT_INTERP;
+			ph->flags = PF_R;
+			ph->off = startelf();
+			ph->vaddr = startva;
+			ph->paddr = startva;
+			write(cout, linuxdynld, sizeof linuxdynld);
+			ph->filesz = endelf() - ph->off;
+			ph->align = 1;
+
+			/* dynamic load section */
+			ph = newElf64PHdr();
+			ph->type = PT_LOAD;
+			ph->flags = PF_R + PF_W;
+			ph->off = 0;
+			ph->vaddr = startva + ph->off;
+			ph->paddr = startva + ph->off;
+			ph->align = 8;
+
+			/* S headers inside dynamic load section */
+			dynsh = newElf64SHdr(".dynamic");	// must be first
+			dynsh->off = startelf();
+
+			seek(cout, ELFDYNAMICSIZE, 1);	// leave room for dynamic table
+
+			sh = newElf64SHdr(".hash");
+			sh->type = SHT_HASH;
+			sh->flags = SHF_ALLOC;
+			sh->entsize = 4;
+			sh->addr = va;
+			sh->off = seek(cout, 0, 1);
+			hashoff = sh->off;
+			sh->addr = startva + sh->off;
+			/* temporary hack: 8 zeroes means 0 buckets, 0 chains */
+			write(cout, zeroes, 8);
+			sh->size = endelf() - sh->off;
+			sh->addralign = 8;
+
+			sh = newElf64SHdr(".got");
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->entsize = 8;
+			sh->addr = va;
+			sh->off = startelf();
+			sh->addr = startva + sh->off;
+			sh->size = endelf() - sh->off;
+			sh->addralign = 8;
+
+			sh = newElf64SHdr(".got.plt");
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->entsize = 8;
+			sh->addr = va;
+			sh->off = startelf();
+			sh->addr = startva + sh->off;
+			sh->size = endelf() - sh->off;
+			sh->addralign = 8;
+
+			/* +8 necessary for now to silence readelf addressing at end of hash section */
+			ph->filesz = endelf() - ph->off +8;	/* dynamic section maps these shdrs' data */
+			ph->memsz = ph->filesz;
+
+			dynsh->type = SHT_DYNAMIC;
+			dynsh->flags = SHF_ALLOC+SHF_WRITE;
+			dynsh->entsize = 16;
+			dynsh->addr = startva + dynsh->off;
+			seek(cout, dynsh->off, 0);
+			elf64writedynent(DT_HASH, startva+hashoff);
+			elf64writedynent(DT_STRTAB, startva+ELF64FULLHDRSIZE-STRTABSIZE);
+			elf64writedynent(DT_SYMTAB, startva);
+			elf64writedynent(DT_RELA, startva);
+			elf64writedynent(DT_RELASZ, 0);	// size of the whole rela in bytes
+			elf64writedynent(DT_RELAENT, ELF64RELASIZE);
+			elf64writedynent(DT_STRSZ, STRTABSIZE);
+			elf64writedynent(DT_SYMENT, 0);
+			elf64writedynent(DT_REL, startva);
+			elf64writedynent(DT_RELSZ, 0);
+			elf64writedynent(DT_RELENT, ELF64RELSIZE);
+			elf64writedynent(DT_NULL, 0);
+			cflush();
+			dynsh->size = seek(cout, 0, 1) - dynsh->off;
+			dynsh->addralign = 8;
+
+			/* dynamic section */
+			ph = newElf64PHdr();
+			ph->type = PT_DYNAMIC;
+			ph->flags = PF_R + PF_W;
+			ph->off = dynsh->off;
+			ph->filesz = dynsh->size;
+			ph->memsz = dynsh->size;
+			ph->vaddr = startva + ph->off;
+			ph->paddr = startva + ph->off;
+			ph->align = 8;
+		}
+
 		ph = newElf64PHdr();
-		ph->type = PT_LOAD; 	
+		ph->type = PT_LOAD;
 		ph->flags = PF_X+PF_R;
-		ph->vaddr = va;
-		ph->paddr = va;
-		ph->filesz = w;
-		ph->memsz = w;
+		ph->vaddr = va + ELF64RESERVE;
+		ph->paddr = va + ELF64RESERVE;
+		ph->off = ELF64RESERVE;
+		ph->filesz = w - ELF64RESERVE;
+		ph->memsz = w - ELF64RESERVE;
 		ph->align = INITRND;
 
 		fo = rnd(fo+w, INITRND);
@@ -462,11 +582,8 @@ asmb(void)
 		ph->flags = PF_X+PF_W+PF_R;
 		ph->align = 8;
 
-		sh = newElf64SHdr("");
-
-		stroffset = 1;  /* 0 means no name, so start at 1 */
-		fo = HEADR;
-		va = (INITTEXT & ~((vlong)INITRND - 1)) + HEADR;
+		fo = ELF64RESERVE;
+		va = startva + fo;
 		w = textsize;
 
 		sh = newElf64SHdr(".text");
@@ -501,38 +618,37 @@ asmb(void)
 		sh->size = w;
 		sh->addralign = 8;
 
-		w = STRTABSIZE;
+		if (!debug['s']) {
+			fo = symo+8;
+			w = symsize;
+
+			sh = newElf64SHdr(".gosymtab");
+			sh->type = SHT_PROGBITS;
+			sh->off = fo;
+			sh->size = w;
+			sh->addralign = 1;
+			sh->entsize = 24;
+
+			fo += w;
+			w = lcsize;
+
+			sh = newElf64SHdr(".gopclntab");
+			sh->type = SHT_PROGBITS;
+			sh->off = fo;
+			sh->size = w;
+			sh->addralign = 1;
+			sh->entsize = 24;
+		}
 
 		sh = newElf64SHdr(".shstrtab");
 		sh->type = SHT_STRTAB;
-		sh->off = fo;
-		sh->size = w;
+		sh->off = startelf();
+		sh->addr = sh->off + startva;
 		sh->addralign = 1;
+		elf64writestrtable();
+		sh->size = endelf() - sh->off;
 
-		if (debug['s'])
-			break;
-
-		fo = symo+8;
-		w = symsize;
-
-		sh = newElf64SHdr(".gosymtab");
-		sh->type = SHT_PROGBITS;
-		sh->off = fo;
-		sh->size = w;
-		sh->addralign = 1;
-		sh->entsize = 24;
-
-		fo += w;
-		w = lcsize;
-
-		sh = newElf64SHdr(".gopclntab");
-		sh->type = SHT_PROGBITS;
-		sh->off = fo;
-		sh->size = w;
-		sh->addralign = 1;
-		sh->entsize = 24;
-
-		// main header */
+		/* Main header */
 		eh = getElf64Hdr();
 		eh->ident[EI_MAG0] = '\177';
 		eh->ident[EI_MAG1] = 'E';
@@ -547,6 +663,12 @@ asmb(void)
 		eh->version = EV_CURRENT;
 		eh->entry = entryvalue();
 
+		if (!debug['d']) {
+			pph->filesz = eh->phnum * ELF64PHDRSIZE;
+			pph->memsz = pph->filesz;
+		}
+
+		seek(cout, 0, 0);
 		a = 0;
 		a += elf64writehdr();
 		a += elf64writephdrs();
@@ -554,11 +676,6 @@ asmb(void)
 		if (a > ELF64FULLHDRSIZE) {
 			diag("ELF64FULLHDRSIZE too small:", a);
 		}
-		cflush();
-
-		/* string table */
-		seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
-		elf64writestrtable();
 		cflush();
 
 		break;

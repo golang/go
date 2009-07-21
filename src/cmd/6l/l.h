@@ -353,7 +353,6 @@ EXTERN	int	imports, nimports;
 EXTERN	int	exports, nexports;
 EXTERN	char*	EXPTAB;
 EXTERN	Prog	undefp;
-EXTERN	uint32	stroffset;
 EXTERN	vlong	textstksiz;
 EXTERN	vlong	textarg;
 
