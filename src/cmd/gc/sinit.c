@@ -368,7 +368,7 @@ sli:
 				continue;
 			if(state != TS_start) {
 				dump("", r);
-				fatal("initsub: ary-first and state=%d", state);
+				fatal("initsub: sli-first and state=%d", state);
 			}
 			state = TS_middle;
 			r->right = w;
@@ -380,7 +380,8 @@ sli:
 		if(r->left != N && sametmp(r->right, nam)) {
 			if(state != TS_middle) {
 				dump("", r);
-				fatal("initsub: ary-last and state=%d", state);
+				setlineno(r);
+				fatal("initsub: sli-last and state=%d", state);
 			}
 			state = TS_end;
 			r->op = OEMPTY;
@@ -392,7 +393,7 @@ sli:
 			continue;
 		if(state != TS_middle) {
 			dump("", r);
-			fatal("initsub: ary-middle and state=%d", state);
+			fatal("initsub: sli-middle and state=%d", state);
 		}
 		state = TS_middle;
 		r->left->left = w->left;
@@ -423,7 +424,7 @@ return;
 				continue;
 			if(state != TS_start) {
 				dump("", r);
-				fatal("initsub: ary-first and state=%d", state);
+				fatal("initsub: map-first and state=%d", state);
 			}
 			state = TS_middle;
 			r->right = w;
@@ -435,7 +436,7 @@ return;
 		if(r->left != N && sametmp(r->right, nam)) {
 			if(state != TS_middle) {
 				dump("", r);
-				fatal("initsub: ary-last and state=%d", state);
+				fatal("initsub: map-last and state=%d", state);
 			}
 			state = TS_end;
 			r->op = OEMPTY;
