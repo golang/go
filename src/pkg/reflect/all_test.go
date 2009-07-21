@@ -59,10 +59,10 @@ var typeTests = []pair {
 	pair { struct { x (func(a int8, b int32)) }{}, "func(int8, int32)" },
 	pair { struct { x struct {c func(chan *reflect.integer, *int8)} }{}, "struct { c func(chan *reflect.integer, *int8) }" },
 	pair { struct { x struct {a int8; b int32} }{}, "struct { a int8; b int32 }" },
-	pair { struct { x struct {a int8; b int8; b int32} }{}, "struct { a int8; b int8; b int32 }" },
-	pair { struct { x struct {a int8; b int8; c int8; b int32} }{}, "struct { a int8; b int8; c int8; b int32 }" },
-	pair { struct { x struct {a int8; b int8; c int8; d int8; b int32} }{}, "struct { a int8; b int8; c int8; d int8; b int32 }" },
-	pair { struct { x struct {a int8; b int8; c int8; d int8; e int8; b int32} }{}, "struct { a int8; b int8; c int8; d int8; e int8; b int32 }" },
+	pair { struct { x struct {a int8; b int8; c int32} }{}, "struct { a int8; b int8; c int32 }" },
+	pair { struct { x struct {a int8; b int8; c int8; d int32} }{}, "struct { a int8; b int8; c int8; d int32 }" },
+	pair { struct { x struct {a int8; b int8; c int8; d int8; e int32} }{}, "struct { a int8; b int8; c int8; d int8; e int32 }" },
+	pair { struct { x struct {a int8; b int8; c int8; d int8; e int8; f int32} }{}, "struct { a int8; b int8; c int8; d int8; e int8; f int32 }" },
 	pair { struct { x struct {a int8 "hi there"; } }{}, `struct { a int8 "hi there" }` },
 	pair { struct { x struct {a int8 "hi \x00there\t\n\"\\"; } }{}, `struct { a int8 "hi \x00there\t\n\"\\" }` },
 	pair { struct { x struct {f func(args ...)} }{}, "struct { f func(...) }" },
@@ -92,7 +92,7 @@ var valueTests = []pair {
 	pair { (func(a int8, b int32))(nil), "func(int8, int32)(0)" },
 	pair { (struct {c func(chan *reflect.integer, *int8)}){}, "struct { c func(chan *reflect.integer, *int8) }{func(chan *reflect.integer, *int8)(0)}" },
 	pair { (struct {a int8; b int32}){}, "struct { a int8; b int32 }{0, 0}" },
-	pair { (struct {a int8; b int8; b int32}){}, "struct { a int8; b int8; b int32 }{0, 0, 0}" },
+	pair { (struct {a int8; b int8; c int32}){}, "struct { a int8; b int8; c int32 }{0, 0, 0}" },
 }
 
 func testType(t *testing.T, i int, typ Type, want string) {
