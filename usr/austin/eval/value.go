@@ -442,6 +442,33 @@ func (t *stringType) value(v string) StringValue {
 }
 
 /*
+ * Array
+ */
+
+type arrayV []Value
+
+func (*arrayV) Type() Type {
+	panic("Not implemented");
+}
+
+func (v *arrayV) String() string {
+	return fmt.Sprint(*v);
+}
+
+func (v *arrayV) Get() ArrayValue {
+	return v;
+}
+
+func (v *arrayV) Elem(i int64) Value {
+	return (*v)[i];
+}
+
+func (t *ArrayType) value(v []Value) ArrayValue {
+	res := arrayV(v);
+	return &res;
+}
+
+/*
  * Pointer
  */
 
