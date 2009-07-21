@@ -5,9 +5,9 @@
 // A package for arbitrary precision arithmethic.
 // It implements the following numeric types:
 //
-// - Natural	unsigned integers
-// - Integer	signed integers
-// - Rational	rational numbers
+//	- Natural	unsigned integers
+//	- Integer	signed integers
+//	- Rational	rational numbers
 //
 package bignum
 
