@@ -116,6 +116,11 @@ func TestNatConv(t *testing.T) {
 		test(200 + uint(i), natFromString(e.s, 0, nil).Value() == e.x);
 	}
 
+	test_msg = "NatConvB";
+	for i := uint(0); i < 100; i++ {
+		test(i, Nat(uint64(i)).String() == fmt.Sprintf("%d", i));
+	}
+
 	test_msg = "NatConvC";
 	z := uint64(7);
 	for i := uint(0); i <= 64; i++ {
