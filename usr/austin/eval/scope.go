@@ -9,11 +9,11 @@ import (
 )
 
 func NewRootScope() *Scope {
-	return &Scope{nil, make(map[string] Def), 0};
+	return &Scope{defs: make(map[string] Def)};
 }
 
 func (s *Scope) Fork() *Scope {
-	return &Scope{s, make(map[string] Def), 0};
+	return &Scope{outer: s, defs: make(map[string] Def)};
 }
 
 func (s *Scope) DefineVar(name string, t Type) *Variable {
@@ -26,11 +26,11 @@ func (s *Scope) DefineVar(name string, t Type) *Variable {
 	return v;
 }
 
-func (s *Scope) DefineConst(name string, v Value) *Constant {
+func (s *Scope) DefineConst(name string, t Type, v Value) *Constant {
 	if _, ok := s.defs[name]; ok {
 		return nil;
 	}
-	c := &Constant{v.Type(), v};
+	c := &Constant{t, v};
 	s.defs[name] = c;
 	return c;
 }
@@ -51,6 +51,27 @@ func (s *Scope) Lookup(name string) (Def, *Scope) {
 		s = s.outer;
 	}
 	return nil, nil;
+}
+
+func (s *Scope) NewFrame(outer *Frame) *Frame {
+	if s.varTypes == nil {
+		// First creation of a frame from this scope.  Compute
+		// and memoize the types of all variables.
+		ts := make([]Type, s.numVars);
+		for _, d := range s.defs {
+			if v, ok := d.(*Variable); ok {
+				ts[v.Index] = v.Type;
+			}
+		}
+		s.varTypes = ts;
+	}
+
+	// Create frame
+	vars := make([]Value, s.numVars);
+	for i, t := range s.varTypes {
+		vars[i] = t.Zero();
+	}
+	return &Frame{outer, s, vars};
 }
 
 func (f *Frame) Get(s *Scope, index int) Value {

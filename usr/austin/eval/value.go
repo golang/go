@@ -16,12 +16,12 @@ import (
 
 type boolV bool
 
-func (*boolV) Type() Type {
-	return BoolType;
-}
-
 func (v *boolV) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *boolV) Assign(o Value) {
+	*v = boolV(o.(BoolValue).Get());
 }
 
 func (v *boolV) Get() bool {
@@ -32,8 +32,8 @@ func (v *boolV) Set(x bool) {
 	*v = boolV(x);
 }
 
-func (t *boolType) value(v bool) BoolValue {
-	res := boolV(v);
+func (t *boolType) Zero() Value {
+	res := boolV(false);
 	return &res;
 }
 
@@ -43,12 +43,12 @@ func (t *boolType) value(v bool) BoolValue {
 
 type uint8V uint8
 
-func (*uint8V) Type() Type {
-	return Uint8Type;
-}
-
 func (v *uint8V) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *uint8V) Assign(o Value) {
+	*v = uint8V(o.(UintValue).Get());
 }
 
 func (v *uint8V) Get() uint64 {
@@ -61,12 +61,12 @@ func (v *uint8V) Set(x uint64) {
 
 type uint16V uint16
 
-func (*uint16V) Type() Type {
-	return Uint16Type;
-}
-
 func (v *uint16V) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *uint16V) Assign(o Value) {
+	*v = uint16V(o.(UintValue).Get());
 }
 
 func (v *uint16V) Get() uint64 {
@@ -79,12 +79,12 @@ func (v *uint16V) Set(x uint64) {
 
 type uint32V uint32
 
-func (*uint32V) Type() Type {
-	return Uint32Type;
-}
-
 func (v *uint32V) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *uint32V) Assign(o Value) {
+	*v = uint32V(o.(UintValue).Get());
 }
 
 func (v *uint32V) Get() uint64 {
@@ -97,12 +97,12 @@ func (v *uint32V) Set(x uint64) {
 
 type uint64V uint64
 
-func (*uint64V) Type() Type {
-	return Uint64Type;
-}
-
 func (v *uint64V) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *uint64V) Assign(o Value) {
+	*v = uint64V(o.(UintValue).Get());
 }
 
 func (v *uint64V) Get() uint64 {
@@ -115,12 +115,12 @@ func (v *uint64V) Set(x uint64) {
 
 type uintV uint
 
-func (*uintV) Type() Type {
-	return UintType;
-}
-
 func (v *uintV) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *uintV) Assign(o Value) {
+	*v = uintV(o.(UintValue).Get());
 }
 
 func (v *uintV) Get() uint64 {
@@ -133,12 +133,12 @@ func (v *uintV) Set(x uint64) {
 
 type uintptrV uintptr
 
-func (*uintptrV) Type() Type {
-	return UintptrType;
-}
-
 func (v *uintptrV) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *uintptrV) Assign(o Value) {
+	*v = uintptrV(o.(UintValue).Get());
 }
 
 func (v *uintptrV) Get() uint64 {
@@ -149,29 +149,28 @@ func (v *uintptrV) Set(x uint64) {
 	*v = uintptrV(x);
 }
 
-func (t *uintType) value(v uint64) UintValue {
-	// TODO(austin) The 'value' methods are only used for
-	// testing right now.  Get rid of them.
-	// TODO(austin) Deal with named types
+func (t *uintType) Zero() Value {
+	// TODO(austin) t may be a named type instead of one of the
+	// base types.
 	switch Type(t) {
 	case Uint8Type:
-		res := uint8V(v);
+		res := uint8V(0);
 		return &res;
 	case Uint16Type:
-		res := uint16V(v);
+		res := uint16V(0);
 		return &res;
 	case Uint32Type:
-		res := uint32V(v);
+		res := uint32V(0);
 		return &res;
 	case Uint64Type:
-		res := uint64V(v);
+		res := uint64V(0);
 		return &res;
 
 	case UintType:
-		res := uintV(v);
+		res := uintV(0);
 		return &res;
 	case UintptrType:
-		res := uintptrV(v);
+		res := uintptrV(0);
 		return &res;
 	}
 	panic("unknown uint type ", t.String());
@@ -183,12 +182,12 @@ func (t *uintType) value(v uint64) UintValue {
 
 type int8V int8
 
-func (*int8V) Type() Type {
-	return Int8Type;
-}
-
 func (v *int8V) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *int8V) Assign(o Value) {
+	*v = int8V(o.(IntValue).Get());
 }
 
 func (v *int8V) Get() int64 {
@@ -201,12 +200,12 @@ func (v *int8V) Set(x int64) {
 
 type int16V int16
 
-func (*int16V) Type() Type {
-	return Int16Type;
-}
-
 func (v *int16V) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *int16V) Assign(o Value) {
+	*v = int16V(o.(IntValue).Get());
 }
 
 func (v *int16V) Get() int64 {
@@ -219,12 +218,12 @@ func (v *int16V) Set(x int64) {
 
 type int32V int32
 
-func (*int32V) Type() Type {
-	return Int32Type;
-}
-
 func (v *int32V) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *int32V) Assign(o Value) {
+	*v = int32V(o.(IntValue).Get());
 }
 
 func (v *int32V) Get() int64 {
@@ -237,12 +236,12 @@ func (v *int32V) Set(x int64) {
 
 type int64V int64
 
-func (*int64V) Type() Type {
-	return Int64Type;
-}
-
 func (v *int64V) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *int64V) Assign(o Value) {
+	*v = int64V(o.(IntValue).Get());
 }
 
 func (v *int64V) Get() int64 {
@@ -255,12 +254,12 @@ func (v *int64V) Set(x int64) {
 
 type intV int
 
-func (*intV) Type() Type {
-	return IntType;
-}
-
 func (v *intV) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *intV) Assign(o Value) {
+	*v = intV(o.(IntValue).Get());
 }
 
 func (v *intV) Get() int64 {
@@ -271,23 +270,23 @@ func (v *intV) Set(x int64) {
 	*v = intV(x);
 }
 
-func (t *intType) value(v int64) IntValue {
+func (t *intType) Zero() Value {
 	switch Type(t) {
 	case Int8Type:
-		res := int8V(v);
+		res := int8V(0);
 		return &res;
 	case Int16Type:
-		res := int16V(v);
+		res := int16V(0);
 		return &res;
 	case Int32Type:
-		res := int32V(v);
+		res := int32V(0);
 		return &res;
 	case Int64Type:
-		res := int64V(v);
+		res := int64V(0);
 		return &res;
 
 	case IntType:
-		res := intV(v);
+		res := intV(0);
 		return &res;
 	}
 	panic("unknown int type ", t.String());
@@ -301,20 +300,20 @@ type idealIntV struct {
 	V *bignum.Integer;
 }
 
-func (*idealIntV) Type() Type {
-	return IdealIntType;
-}
-
 func (v *idealIntV) String() string {
 	return v.V.String();
+}
+
+func (v *idealIntV) Assign(o Value) {
+	v.V = o.(IdealIntValue).Get();
 }
 
 func (v *idealIntV) Get() *bignum.Integer {
 	return v.V;
 }
 
-func (t *idealIntType) value(v *bignum.Integer) IdealIntValue {
-	return &idealIntV{v};
+func (t *idealIntType) Zero() Value {
+	return &idealIntV{bignum.Int(0)};
 }
 
 /*
@@ -323,12 +322,12 @@ func (t *idealIntType) value(v *bignum.Integer) IdealIntValue {
 
 type float32V float32
 
-func (*float32V) Type() Type {
-	return Float32Type;
-}
-
 func (v *float32V) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *float32V) Assign(o Value) {
+	*v = float32V(o.(FloatValue).Get());
 }
 
 func (v *float32V) Get() float64 {
@@ -341,12 +340,12 @@ func (v *float32V) Set(x float64) {
 
 type float64V float64
 
-func (*float64V) Type() Type {
-	return Float64Type;
-}
-
 func (v *float64V) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *float64V) Assign(o Value) {
+	*v = float64V(o.(FloatValue).Get());
 }
 
 func (v *float64V) Get() float64 {
@@ -359,12 +358,12 @@ func (v *float64V) Set(x float64) {
 
 type floatV float
 
-func (*floatV) Type() Type {
-	return FloatType;
-}
-
 func (v *floatV) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *floatV) Assign(o Value) {
+	*v = floatV(o.(FloatValue).Get());
 }
 
 func (v *floatV) Get() float64 {
@@ -375,16 +374,16 @@ func (v *floatV) Set(x float64) {
 	*v = floatV(x);
 }
 
-func (t *floatType) value(v float64) FloatValue {
+func (t *floatType) Zero() Value {
 	switch Type(t) {
 	case Float32Type:
-		res := float32V(v);
+		res := float32V(0);
 		return &res;
 	case Float64Type:
-		res := float64V(v);
+		res := float64V(0);
 		return &res;
 	case FloatType:
-		res := floatV(v);
+		res := floatV(0);
 		return &res;
 	}
 	panic("unknown float type ", t.String());
@@ -398,20 +397,20 @@ type idealFloatV struct {
 	V *bignum.Rational;
 }
 
-func (*idealFloatV) Type() Type {
-	return IdealFloatType;
-}
-
 func (v *idealFloatV) String() string {
 	return ratToString(v.V);
+}
+
+func (v *idealFloatV) Assign(o Value) {
+	v.V = o.(IdealFloatValue).Get();
 }
 
 func (v *idealFloatV) Get() *bignum.Rational {
 	return v.V;
 }
 
-func (t *idealFloatType) value(v *bignum.Rational) IdealFloatValue {
-	return &idealFloatV{v};
+func (t *idealFloatType) Zero() Value {
+	return &idealFloatV{bignum.Rat(1, 0)};
 }
 
 /*
@@ -420,12 +419,12 @@ func (t *idealFloatType) value(v *bignum.Rational) IdealFloatValue {
 
 type stringV string
 
-func (*stringV) Type() Type {
-	return StringType;
-}
-
 func (v *stringV) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *stringV) Assign(o Value) {
+	*v = stringV(o.(StringValue).Get());
 }
 
 func (v *stringV) Get() string {
@@ -436,8 +435,8 @@ func (v *stringV) Set(x string) {
 	*v = stringV(x);
 }
 
-func (t *stringType) value(v string) StringValue {
-	res := stringV(v);
+func (t *stringType) Zero() Value {
+	res := stringV("");
 	return &res;
 }
 
@@ -447,12 +446,16 @@ func (t *stringType) value(v string) StringValue {
 
 type arrayV []Value
 
-func (*arrayV) Type() Type {
-	panic("Not implemented");
-}
-
 func (v *arrayV) String() string {
 	return fmt.Sprint(*v);
+}
+
+func (v *arrayV) Assign(o Value) {
+	oa := o.(ArrayValue);
+	l := int64(len(*v));
+	for i := int64(0); i < l; i++ {
+		(*v)[i].Assign(oa.Elem(i));
+	}
 }
 
 func (v *arrayV) Get() ArrayValue {
@@ -463,8 +466,16 @@ func (v *arrayV) Elem(i int64) Value {
 	return (*v)[i];
 }
 
-func (t *ArrayType) value(v []Value) ArrayValue {
-	res := arrayV(v);
+func (t *ArrayType) Zero() Value {
+	res := arrayV(make([]Value, t.Len));
+	// TODO(austin) It's unfortunate that each element is
+	// separately heap allocated.  We could add ZeroArray to
+	// everything, though that doesn't help with multidimensional
+	// arrays.  Or we could do something unsafe.  We'll have this
+	// same problem with structs.
+	for i := int64(0); i < t.Len; i++ {
+		res[i] = t.Elem.Zero();
+	}
 	return &res;
 }
 
@@ -477,12 +488,12 @@ type ptrV struct {
 	target Value;
 }
 
-func (v *ptrV) Type() Type {
-	return NewPtrType(v.target.Type());
-}
-
 func (v *ptrV) String() string {
 	return "&" + v.target.String();
+}
+
+func (v *ptrV) Assign(o Value) {
+	v.target = o.(PtrValue).Get();
 }
 
 func (v *ptrV) Get() Value {
@@ -493,7 +504,7 @@ func (v *ptrV) Set(x Value) {
 	v.target = x;
 }
 
-func (t *PtrType) value(v Value) PtrValue {
-	res := ptrV{v};
+func (t *PtrType) Zero() Value {
+	res := ptrV{nil};
 	return &res;
 }

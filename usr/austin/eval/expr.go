@@ -632,6 +632,8 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 	}
 
 	// Useful type predicates
+	// TODO(austin) The spec is wrong here.  The types must be
+	// identical, not compatible.
 	compat := func() bool {
 		return l.t.compatible(r.t);
 	};
@@ -829,9 +831,6 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 		a.genBinOpXor(l, r);
 
 	case token.AND_NOT:
-		if l.t.isIdeal() || r.t.isIdeal() {
-			log.Crashf("&^ for ideals not implemented");
-		}
 		a.genBinOpAndNot(l, r);
 
 	case token.SHL:
@@ -911,11 +910,14 @@ func compileExpr(expr ast.Expr, scope *Scope, errors scanner.ErrorHandler) *expr
  */
 
 type Expr struct {
-	f func(f *Frame) Value;
+	t Type;
+	f func(f *Frame, out Value);
 }
 
 func (expr *Expr) Eval(f *Frame) Value {
-	return expr.f(f);
+	v := expr.t.Zero();
+	expr.f(f, v);
+	return v;
 }
 
 func CompileExpr(expr ast.Expr, scope *Scope) (*Expr, os.Error) {
@@ -925,26 +927,23 @@ func CompileExpr(expr ast.Expr, scope *Scope) (*Expr, os.Error) {
 	if ec == nil {
 		return nil, errors.GetError(scanner.Sorted);
 	}
-	// TODO(austin) This still uses Value as a generic container
-	// and is the only user of the 'value' methods on each type.
-	// Need to figure out a better way to do this.
 	switch t := ec.t.(type) {
 	case *boolType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalBool(f)) }}, nil;
+		return &Expr{t, func(f *Frame, out Value) { out.(BoolValue).Set(ec.evalBool(f)) }}, nil;
 	case *uintType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalUint(f)) }}, nil;
+		return &Expr{t, func(f *Frame, out Value) { out.(UintValue).Set(ec.evalUint(f)) }}, nil;
 	case *intType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalInt(f)) }}, nil;
+		return &Expr{t, func(f *Frame, out Value) { out.(IntValue).Set(ec.evalInt(f)) }}, nil;
 	case *idealIntType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalIdealInt()) }}, nil;
+		return &Expr{t, func(f *Frame, out Value) { out.(*idealIntV).V = ec.evalIdealInt() }}, nil;
 	case *floatType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalFloat(f)) }}, nil;
+		return &Expr{t, func(f *Frame, out Value) { out.(FloatValue).Set(ec.evalFloat(f)) }}, nil;
 	case *idealFloatType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalIdealFloat()) }}, nil;
+		return &Expr{t, func(f *Frame, out Value) { out.(*idealFloatV).V = ec.evalIdealFloat() }}, nil;
 	case *stringType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalString(f)) }}, nil;
+		return &Expr{t, func(f *Frame, out Value) { out.(StringValue).Set(ec.evalString(f)) }}, nil;
 	case *PtrType:
-		return &Expr{func(f *Frame) Value { return t.value(ec.evalPtr(f)) }}, nil;
+		return &Expr{t, func(f *Frame, out Value) { out.(PtrValue).Set(ec.evalPtr(f)) }}, nil;
 	}
 	log.Crashf("unexpected type %v", ec.t);
 	panic();
@@ -1282,6 +1281,11 @@ func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler) {
 		lf := l.asInt();
 		rf := r.asInt();
 		a.evalInt = func(f *Frame) int64 { return lf(f) &^ rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().AndNot(rf());
+		a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
 		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
 	}
