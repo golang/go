@@ -112,6 +112,7 @@ setlineno(Node *n)
 	case OTYPE:
 	case OPACK:
 	case OLITERAL:
+	case ONONAME:
 		break;
 	default:
 		lineno = n->lineno;
