@@ -300,12 +300,47 @@ func (t *stringType) String() string {
 
 func (t *stringType) value(v string) StringValue
 
-/*
 type ArrayType struct {
 	commonType;
-	elem Type;
+	Len int64;
+	Elem Type;
+	lit Type;
 }
 
+var arrayTypes = make(map[int64] map[Type] *ArrayType);
+
+func NewArrayType(len int64, elem Type) *ArrayType {
+	ts, ok := arrayTypes[len];
+	if !ok {
+		ts = make(map[Type] *ArrayType);
+		arrayTypes[len] = ts;
+	}
+	t, ok := ts[elem];
+	if !ok {
+		t = &ArrayType{commonType{}, len, elem, nil};
+		ts[elem] = t;
+	}
+	return t;
+}
+
+func (t *ArrayType) literal() Type {
+	if t.lit == nil {
+		t.lit = NewArrayType(t.Len, t.Elem.literal());
+	}
+	return t.lit;
+}
+
+func (t *ArrayType) compatible(o Type) bool {
+	return t.literal() == o.literal();
+}
+
+func (t *ArrayType) String() string {
+	return "[]" + t.Elem.String();
+}
+
+func (t *ArrayType) value(v []Value) ArrayValue
+
+/*
 func (t *ArrayType) literal() Type {
 	// TODO(austin)
 }
@@ -318,7 +353,7 @@ type StructType struct {
 
 type PtrType struct {
 	commonType;
-	elem Type;
+	Elem Type;
 	lit Type;
 }
 
@@ -333,13 +368,9 @@ func NewPtrType(elem Type) *PtrType {
 	return t;
 }
 
-func (t *PtrType) Elem() Type {
-	return t.elem;
-}
-
 func (t *PtrType) literal() Type {
 	if t.lit == nil {
-		t.lit = NewPtrType(t.elem.literal());
+		t.lit = NewPtrType(t.Elem.literal());
 	}
 	return t.lit;
 }
@@ -349,7 +380,7 @@ func (t *PtrType) compatible(o Type) bool {
 }
 
 func (t *PtrType) String() string {
-	return "*" + t.elem.String();
+	return "*" + t.Elem.String();
 }
 
 func (t *PtrType) value(v Value) PtrValue

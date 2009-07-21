@@ -90,6 +90,15 @@ type StringValue interface {
 	Set(string);
 }
 
+type ArrayValue interface {
+	Value;
+	// TODO(austin) Get() is here for uniformity, but is
+	// completely useless.  If a lot of other types have similarly
+	// useless Get methods, just special-case these uses.
+	Get() ArrayValue;
+	Elem(i int64) Value;
+}
+
 type PtrValue interface {
 	Value;
 	Get() Value;

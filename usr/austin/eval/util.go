@@ -40,11 +40,3 @@ func ratToString(rat *bignum.Rational) string {
 	out += "." + dec.String();
 	return out;
 }
-
-func diag(p token.Position, format string, args ...) {
-	if p.IsValid() {
-		fmt.Printf("%s:%d.%d: ", p.Filename, p.Line, p.Column);
-	}
-	fmt.Printf(format, args);
-	fmt.Print("\n");
-}

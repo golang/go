@@ -12,7 +12,7 @@ import (
 	"go/scanner";
 	"go/token";
 	"log";
-"os";
+	"os";
 	"strconv";
 	"strings";
 )
@@ -41,6 +41,7 @@ type exprCompiler struct {
 	evalFloat func(f *Frame) float64;
 	evalIdealFloat func() *bignum.Rational;
 	evalString func(f *Frame) string;
+	evalArray func(f *Frame) ArrayValue;
 	evalPtr func(f *Frame) Value;
 	// Evaluate to the "address of" this value; that is, the
 	// settable Value object.  nil for expressions whose address
@@ -62,6 +63,7 @@ func newExprCompiler(c *exprContext, pos token.Position) *exprCompiler {
 // Operator generators
 // TODO(austin) Remove these forward declarations
 func (a *exprCompiler) genIdentOp(t Type, s *Scope, index int)
+func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler)
 func (a *exprCompiler) genStarOp(v *exprCompiler)
 func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler)
 func (a *exprCompiler) genUnaryOpNot(v *exprCompiler)
@@ -78,7 +80,13 @@ func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler)
 func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler)
 func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler)
 
-func (a *exprCompiler) fork(x ast.Expr) *exprCompiler {
+func (a *exprCompiler) copy() *exprCompiler {
+	ec := newExprCompiler(a.exprContext, a.pos);
+	ec.desc = a.desc;
+	return ec;
+}
+
+func (a *exprCompiler) copyVisit(x ast.Expr) *exprCompiler {
 	ec := newExprCompiler(a.exprContext, x.Pos());
 	x.Visit(ec);
 	return ec;
@@ -145,12 +153,22 @@ func (a *exprCompiler) asString() (func(f *Frame) string) {
 	return a.evalString;
 }
 
+func (a *exprCompiler) asArray() (func(f *Frame) ArrayValue) {
+	if a.evalArray == nil {
+		log.Crashf("tried to get %v node as ArrayType", a.t);
+	}
+	return a.evalArray;
+}
+
 func (a *exprCompiler) asPtr() (func(f *Frame) Value) {
 	if a.evalPtr == nil {
 		log.Crashf("tried to get %v node as PtrType", a.t);
 	}
 	return a.evalPtr;
 }
+
+// TODO(austin) Move convertTo somewhere more reasonable
+func (a *exprCompiler) convertTo(t Type) *exprCompiler
 
 func (a *exprCompiler) DoBadExpr(x *ast.BadExpr) {
 	// Do nothing.  Already reported by parser.
@@ -274,7 +292,103 @@ func (a *exprCompiler) DoSelectorExpr(x *ast.SelectorExpr) {
 }
 
 func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
-	log.Crash("Not implemented");
+	l, r := a.copyVisit(x.X), a.copyVisit(x.Index);
+	if l.t == nil || r.t == nil {
+		return;
+	}
+
+	// Type check object
+	if lt, ok := l.t.literal().(*PtrType); ok {
+		if et, ok := lt.Elem.literal().(*ArrayType); ok {
+			// Automatic dereference
+			nl := l.copy();
+			nl.t = et;
+			nl.genStarOp(l);
+			l = nl;
+		}
+	}
+
+	var at Type;
+	intIndex := false;
+	var maxIndex int64 = -1;
+
+	switch lt := l.t.literal().(type) {
+	case *ArrayType:
+		at = lt.Elem;
+		intIndex = true;
+		maxIndex = lt.Len;
+
+	// TODO(austin) Uncomment when there is a SliceType
+	// case *SliceType:
+	// 	a.t = lt.Elem;
+	// 	intIndex = true;
+
+	case *stringType:
+		at = Uint8Type;
+		intIndex = true;
+
+	// TODO(austin) Uncomment when there is a MapType
+	// case *MapType:
+	// 	log.Crash("Index into map not implemented");
+
+	default:
+		a.diag("cannot index into %v", l.t);
+		return;
+	}
+
+	// Type check index and convert to int if necessary
+	if intIndex {
+		// XXX(Spec) It's unclear if ideal floats with no
+		// fractional part are allowed here.  6g allows it.  I
+		// believe that's wrong.
+		switch _ := r.t.literal().(type) {
+		case *idealIntType:
+			val := r.asIdealInt()();
+			if val.IsNeg() || (maxIndex != -1 && val.Cmp(bignum.Int(maxIndex)) >= 0) {
+				a.diag("array index out of bounds");
+				return;
+			}
+			r = r.convertTo(IntType);
+			if r == nil {
+				return;
+			}
+
+		case *uintType:
+			// Convert to int
+			nr := r.copy();
+			nr.t = IntType;
+			rf := r.asUint();
+			nr.evalInt = func(f *Frame) int64 {
+				return int64(rf(f));
+			};
+			r = nr;
+
+		case *intType:
+			// Good as is
+
+		default:
+			a.diag("illegal operand type for index\n\t%v", r.t);
+			return;
+		}
+	}
+
+	a.t = at;
+
+	// Compile
+	switch lt := l.t.literal().(type) {
+	case *ArrayType:
+		a.t = lt.Elem;
+		// TODO(austin) Bounds check
+		a.genIndexArray(l, r);
+		lf := l.asArray();
+		rf := r.asInt();
+		a.evalAddr = func(f *Frame) Value {
+			return lf(f).Elem(rf(f));
+		};
+
+	default:
+		log.Crashf("Compilation of index into %T not implemented", l.t.literal());
+	}
 }
 
 func (a *exprCompiler) DoTypeAssertExpr(x *ast.TypeAssertExpr) {
@@ -286,14 +400,16 @@ func (a *exprCompiler) DoCallExpr(x *ast.CallExpr) {
 }
 
 func (a *exprCompiler) DoStarExpr(x *ast.StarExpr) {
-	v := a.fork(x.X);
+	v := a.copyVisit(x.X);
 	if v.t == nil {
 		return;
 	}
 
-	switch vt := v.t.(type) {
+	switch vt := v.t.literal().(type) {
 	case *PtrType:
-		a.t = vt.Elem();
+		// TODO(austin) If this is vt.Elem() I get a
+		// "call of a non-function: Type" error
+		a.t = vt.Elem;
 		a.genStarOp(v);
 		vf := v.asPtr();
 		a.evalAddr = func(f *Frame) Value { return vf(f) };
@@ -307,7 +423,7 @@ func (a *exprCompiler) DoStarExpr(x *ast.StarExpr) {
 var unaryOpDescs = make(map[token.Token] string)
 
 func (a *exprCompiler) DoUnaryExpr(x *ast.UnaryExpr) {
-	v := a.fork(x.X);
+	v := a.copyVisit(x.X);
 	if v.t == nil {
 		return;
 	}
@@ -431,9 +547,8 @@ func (a *exprCompiler) convertTo(t Type) *exprCompiler {
 	}
 
 	// Convert rat to type t.
-	res := newExprCompiler(a.exprContext, a.pos);
+	res := a.copy();
 	res.t = t;
-	res.desc = a.desc;
 	switch t := t.(type) {
 	case *uintType:
 		n, d := rat.Value();
@@ -465,7 +580,7 @@ func (a *exprCompiler) convertTo(t Type) *exprCompiler {
 var binOpDescs = make(map[token.Token] string)
 
 func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
-	l, r := a.fork(x.X), a.fork(x.Y);
+	l, r := a.copyVisit(x.X), a.copyVisit(x.Y);
 	if l.t == nil || r.t == nil {
 		return;
 	}
@@ -852,6 +967,8 @@ func (a *exprCompiler) genIdentOp(t Type, s *Scope, index int) {
 		a.evalFloat = func(f *Frame) float64 { return f.Get(s, index).(FloatValue).Get() };
 	case *stringType:
 		a.evalString = func(f *Frame) string { return f.Get(s, index).(StringValue).Get() };
+	case *ArrayType:
+		a.evalArray = func(f *Frame) ArrayValue { return f.Get(s, index).(ArrayValue).Get() };
 	case *PtrType:
 		a.evalPtr = func(f *Frame) Value { return f.Get(s, index).(PtrValue).Get() };
 	default:
@@ -859,9 +976,32 @@ func (a *exprCompiler) genIdentOp(t Type, s *Scope, index int) {
 	}
 }
 
+func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler) {
+	lf := l.asArray();
+	rf := r.asInt();
+	switch _ := a.t.literal().(type) {
+	case *boolType:
+		a.evalBool = func(f *Frame) bool { return lf(f).Elem(rf(f)).(BoolValue).Get() };
+	case *uintType:
+		a.evalUint = func(f *Frame) uint64 { return lf(f).Elem(rf(f)).(UintValue).Get() };
+	case *intType:
+		a.evalInt = func(f *Frame) int64 { return lf(f).Elem(rf(f)).(IntValue).Get() };
+	case *floatType:
+		a.evalFloat = func(f *Frame) float64 { return lf(f).Elem(rf(f)).(FloatValue).Get() };
+	case *stringType:
+		a.evalString = func(f *Frame) string { return lf(f).Elem(rf(f)).(StringValue).Get() };
+	case *ArrayType:
+		a.evalArray = func(f *Frame) ArrayValue { return lf(f).Elem(rf(f)).(ArrayValue).Get() };
+	case *PtrType:
+		a.evalPtr = func(f *Frame) Value { return lf(f).Elem(rf(f)).(PtrValue).Get() };
+	default:
+		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+	}
+}
+
 func (a *exprCompiler) genStarOp(v *exprCompiler) {
 	vf := v.asPtr();
-	switch _ := v.t.literal().(*PtrType).Elem().literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *boolType:
 		a.evalBool = func(f *Frame) bool { return vf(f).(BoolValue).Get() };
 	case *uintType:
@@ -872,15 +1012,17 @@ func (a *exprCompiler) genStarOp(v *exprCompiler) {
 		a.evalFloat = func(f *Frame) float64 { return vf(f).(FloatValue).Get() };
 	case *stringType:
 		a.evalString = func(f *Frame) string { return vf(f).(StringValue).Get() };
+	case *ArrayType:
+		a.evalArray = func(f *Frame) ArrayValue { return vf(f).(ArrayValue).Get() };
 	case *PtrType:
 		a.evalPtr = func(f *Frame) Value { return vf(f).(PtrValue).Get() };
 	default:
-		log.Crashf("unexpected operand type %v at %v", v.t.literal().(*PtrType).Elem().literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", v.t.literal().(*PtrType).Elem.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler) {
-	switch _ := v.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *uintType:
 		vf := v.asUint();
 		a.evalUint = func(f *Frame) uint64 { return -vf(f) };
@@ -899,22 +1041,22 @@ func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler) {
 		val := vf().Neg();
 		a.evalIdealFloat = func() *bignum.Rational { return val };
 	default:
-		log.Crashf("unexpected operand type %v at %v", v.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", v.t.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genUnaryOpNot(v *exprCompiler) {
-	switch _ := v.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *boolType:
 		vf := v.asBool();
 		a.evalBool = func(f *Frame) bool { return !vf(f) };
 	default:
-		log.Crashf("unexpected operand type %v at %v", v.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", v.t.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genUnaryOpXor(v *exprCompiler) {
-	switch _ := v.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *uintType:
 		vf := v.asUint();
 		a.evalUint = func(f *Frame) uint64 { return ^vf(f) };
@@ -926,12 +1068,12 @@ func (a *exprCompiler) genUnaryOpXor(v *exprCompiler) {
 		val := vf().Neg().Sub(bignum.Int(1));
 		a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
-		log.Crashf("unexpected operand type %v at %v", v.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", v.t.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpAdd(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -959,12 +1101,12 @@ func (a *exprCompiler) genBinOpAdd(l *exprCompiler, r *exprCompiler) {
 		rf := r.asString();
 		a.evalString = func(f *Frame) string { return lf(f) + rf(f) };
 	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpSub(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -988,12 +1130,12 @@ func (a *exprCompiler) genBinOpSub(l *exprCompiler, r *exprCompiler) {
 		val := lf().Sub(rf());
 		a.evalIdealFloat = func() *bignum.Rational { return val };
 	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpMul(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1017,12 +1159,12 @@ func (a *exprCompiler) genBinOpMul(l *exprCompiler, r *exprCompiler) {
 		val := lf().Mul(rf());
 		a.evalIdealFloat = func() *bignum.Rational { return val };
 	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpQuo(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1046,12 +1188,12 @@ func (a *exprCompiler) genBinOpQuo(l *exprCompiler, r *exprCompiler) {
 		val := lf().Quo(rf());
 		a.evalIdealFloat = func() *bignum.Rational { return val };
 	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpRem(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1066,12 +1208,12 @@ func (a *exprCompiler) genBinOpRem(l *exprCompiler, r *exprCompiler) {
 		val := lf().Rem(rf());
 		a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpAnd(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1086,12 +1228,12 @@ func (a *exprCompiler) genBinOpAnd(l *exprCompiler, r *exprCompiler) {
 		val := lf().And(rf());
 		a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpOr(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1106,12 +1248,12 @@ func (a *exprCompiler) genBinOpOr(l *exprCompiler, r *exprCompiler) {
 		val := lf().Or(rf());
 		a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpXor(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1126,12 +1268,12 @@ func (a *exprCompiler) genBinOpXor(l *exprCompiler, r *exprCompiler) {
 		val := lf().Xor(rf());
 		a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1141,12 +1283,12 @@ func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler) {
 		rf := r.asInt();
 		a.evalInt = func(f *Frame) int64 { return lf(f) &^ rf(f) };
 	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1156,12 +1298,12 @@ func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler) {
 		rf := r.asUint();
 		a.evalInt = func(f *Frame) int64 { return lf(f) << rf(f) };
 	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler) {
-	switch _ := l.t.literal().(type) {
+	switch _ := a.t.literal().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1171,6 +1313,6 @@ func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler) {
 		rf := r.asUint();
 		a.evalInt = func(f *Frame) int64 { return lf(f) >> rf(f) };
 	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
 	}
 }
