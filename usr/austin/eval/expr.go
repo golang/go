@@ -79,6 +79,7 @@ func (a *exprCompiler) genBinOpXor(l *exprCompiler, r *exprCompiler)
 func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler)
 func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler)
 func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler)
+func genAssign(lt Type, r *exprCompiler) (func(lv Value, f *Frame))
 
 func (a *exprCompiler) copy() *exprCompiler {
 	ec := newExprCompiler(a.exprContext, a.pos);
@@ -103,6 +104,11 @@ func (a *exprCompiler) diagOpType(op token.Token, vt Type) {
 func (a *exprCompiler) diagOpTypes(op token.Token, lt Type, rt Type) {
 	a.diag("illegal operand types for '%v' operator\n\t%v\n\t%v", op, lt, rt);
 }
+
+/*
+ * "As" functions.  These retrieve evaluator functions from an
+ * exprCompiler, panicking if the requested evaluator is nil.
+ */
 
 func (a *exprCompiler) asBool() (func(f *Frame) bool) {
 	if a.evalBool == nil {
@@ -167,8 +173,149 @@ func (a *exprCompiler) asPtr() (func(f *Frame) Value) {
 	return a.evalPtr;
 }
 
-// TODO(austin) Move convertTo somewhere more reasonable
-func (a *exprCompiler) convertTo(t Type) *exprCompiler
+/*
+ * Common expression manipulations
+ */
+
+// a.convertTo(t) converts the value of the analyzed expression a,
+// which must be a constant, ideal number, to a new analyzed
+// expression with a constant value of type t.
+func (a *exprCompiler) convertTo(t Type) *exprCompiler {
+	if !a.t.isIdeal() {
+		log.Crashf("attempted to convert from %v, expected ideal", a.t);
+	}
+
+	var rat *bignum.Rational;
+
+	// XXX(Spec)  The spec says "It is erroneous".
+	//
+	// It is an error to assign a value with a non-zero fractional
+	// part to an integer, or if the assignment would overflow or
+	// underflow, or in general if the value cannot be represented
+	// by the type of the variable.
+	switch a.t {
+	case IdealFloatType:
+		rat = a.asIdealFloat()();
+		if t.isInteger() && !rat.IsInt() {
+			a.diag("constant %v truncated to integer", ratToString(rat));
+			return nil;
+		}
+	case IdealIntType:
+		i := a.asIdealInt()();
+		rat = bignum.MakeRat(i, bignum.Nat(1));
+	default:
+		log.Crashf("unexpected ideal type %v", a.t);
+	}
+
+	// Check bounds
+	if t, ok := t.(BoundedType); ok {
+		if rat.Cmp(t.minVal()) < 0 {
+			a.diag("constant %v underflows %v", ratToString(rat), t);
+			return nil;
+		}
+		if rat.Cmp(t.maxVal()) > 0 {
+			a.diag("constant %v overflows %v", ratToString(rat), t);
+			return nil;
+		}
+	}
+
+	// Convert rat to type t.
+	res := a.copy();
+	res.t = t;
+	switch t := t.(type) {
+	case *uintType:
+		n, d := rat.Value();
+		f := n.Quo(bignum.MakeInt(false, d));
+		v := f.Abs().Value();
+		res.evalUint = func(*Frame) uint64 { return v };
+	case *intType:
+		n, d := rat.Value();
+		f := n.Quo(bignum.MakeInt(false, d));
+		v := f.Value();
+		res.evalInt = func(*Frame) int64 { return v };
+	case *idealIntType:
+		n, d := rat.Value();
+		f := n.Quo(bignum.MakeInt(false, d));
+		res.evalIdealInt = func() *bignum.Integer { return f };
+	case *floatType:
+		n, d := rat.Value();
+		v := float64(n.Value())/float64(d.Value());
+		res.evalFloat = func(*Frame) float64 { return v };
+	case *idealFloatType:
+		res.evalIdealFloat = func() *bignum.Rational { return rat };
+	default:
+		log.Crashf("cannot convert to type %T", t);
+	}
+
+	return res;
+}
+
+// mkAssign takes an optional expected l-value type, lt, and an
+// r-value expression compiler, r, and returns the expected l-value
+// type and a function that evaluates the r-value and assigns it to
+// the l-value lv.
+//
+// If lt is non-nil, the returned l-value type will always be lt.  If
+// lt is nil, mkAssign will infer and return the appropriate l-value
+// type, or produce an error.
+//
+// errOp specifies the operation name to use for error messages, such
+// as "assignment", or "function call".  errPos, if non-zero,
+// specifies the position of this assignment (for tuple assignments or
+// function arguments).  errPosName specifies the name to use for
+// positions.
+//
+// If the assignment fails to typecheck, this generates an error
+// message and returns nil, nil.
+func mkAssign(lt Type, r *exprCompiler, errOp string, errPos int, errPosName string) (Type, func(lv Value, f *Frame)) {
+	// However, when [an ideal is] (used in an expression)
+	// assigned to a variable or typed constant, the destination
+	// must be able to represent the assigned value.
+	if r.t.isIdeal() && (lt == nil || lt.isInteger() || lt.isFloat()) {
+		// If the type is absent and the corresponding
+		// expression is a constant expression of ideal
+		// integer or ideal float type, the type of the
+		// declared variable is int or float respectively.
+		if lt == nil {
+			switch {
+			case r.t.isInteger():
+				lt = IntType;
+			case r.t.isFloat():
+				lt = FloatType;
+			default:
+				log.Crashf("unexpected ideal type %v", r.t);
+			}
+		}
+		r = r.convertTo(lt);
+		if r == nil {
+			return nil, nil;
+		}
+	}
+
+	// TOOD(austin) Deal with assignment special cases
+
+	if lt == nil {
+		lt = r.t;
+	} else {
+		// Values of any type may always be assigned to
+		// variables of compatible static type.
+		if !lt.compatible(r.t) {
+			if errPos == 0 {
+				r.diag("illegal operand types for %s\n\t%v\n\t%v", errOp, lt, r.t);
+			} else {
+				r.diag("illegal operand types in %s %d of %s\n\t%v\n\t%v", errPosName, errPos, errOp, lt, r.t);
+			}
+			return nil, nil;
+		}
+	}
+
+	// Compile
+	return lt, genAssign(lt, r);
+}
+
+/*
+ * Expression visitors
+ */
 
 func (a *exprCompiler) DoBadExpr(x *ast.BadExpr) {
 	// Do nothing.  Already reported by parser.
@@ -506,85 +653,9 @@ func (a *exprCompiler) DoUnaryExpr(x *ast.UnaryExpr) {
 	}
 }
 
-// a.convertTo(t) converts the value of the analyzed expression a,
-// which must be a constant, ideal number, to a new analyzed
-// expression with a constant value of type t.
-func (a *exprCompiler) convertTo(t Type) *exprCompiler {
-	if !a.t.isIdeal() {
-		log.Crashf("attempted to convert from %v, expected ideal", a.t);
-	}
-
-	var rat *bignum.Rational;
-
-	// It is erroneous to assign a value with a non-zero
-	// fractional part to an integer, or if the assignment would
-	// overflow or underflow, or in general if the value cannot be
-	// represented by the type of the variable.
-	switch a.t {
-	case IdealFloatType:
-		rat = a.asIdealFloat()();
-		if t.isInteger() && !rat.IsInt() {
-			a.diag("constant %v truncated to integer", ratToString(rat));
-			return nil;
-		}
-	case IdealIntType:
-		i := a.asIdealInt()();
-		rat = bignum.MakeRat(i, bignum.Nat(1));
-	default:
-		log.Crashf("unexpected ideal type %v", a.t);
-	}
-
-	// Check bounds
-	if t, ok := t.(BoundedType); ok {
-		if rat.Cmp(t.minVal()) < 0 {
-			a.diag("constant %v underflows %v", ratToString(rat), t);
-			return nil;
-		}
-		if rat.Cmp(t.maxVal()) > 0 {
-			a.diag("constant %v overflows %v", ratToString(rat), t);
-			return nil;
-		}
-	}
-
-	// Convert rat to type t.
-	res := a.copy();
-	res.t = t;
-	switch t := t.(type) {
-	case *uintType:
-		n, d := rat.Value();
-		f := n.Quo(bignum.MakeInt(false, d));
-		v := f.Abs().Value();
-		res.evalUint = func(*Frame) uint64 { return v };
-	case *intType:
-		n, d := rat.Value();
-		f := n.Quo(bignum.MakeInt(false, d));
-		v := f.Value();
-		res.evalInt = func(*Frame) int64 { return v };
-	case *idealIntType:
-		n, d := rat.Value();
-		f := n.Quo(bignum.MakeInt(false, d));
-		res.evalIdealInt = func() *bignum.Integer { return f };
-	case *floatType:
-		n, d := rat.Value();
-		v := float64(n.Value())/float64(d.Value());
-		res.evalFloat = func(*Frame) float64 { return v };
-	case *idealFloatType:
-		res.evalIdealFloat = func() *bignum.Rational { return rat };
-	default:
-		log.Crashf("cannot convert to type %T", t);
-	}
-
-	return res;
-}
-
 var binOpDescs = make(map[token.Token] string)
 
-func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
-	l, r := a.copyVisit(x.X), a.copyVisit(x.Y);
-	if l.t == nil || r.t == nil {
-		return;
-	}
-
+func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
 	// Save the original types of l.t and r.t for error messages.
 	origlt := l.t;
 	origrt := r.t;
@@ -602,7 +673,7 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 	// relevant only for / and %?  If I add an ideal int and an
 	// ideal float, I get an ideal float.
 
-	if x.Op != token.SHL && x.Op != token.SHR {
+	if op != token.SHL && op != token.SHR {
 		// Except in shift expressions, if one operand has
 		// numeric type and the other operand is an ideal
 		// number, the ideal number is converted to match the
@@ -653,24 +724,24 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 	};
 
 	// Type check
-	switch x.Op {
+	switch op {
 	case token.ADD:
 		if !compat() || (!integers() && !floats() && !strings()) {
-			a.diagOpTypes(x.Op, origlt, origrt);
+			a.diagOpTypes(op, origlt, origrt);
 			return;
 		}
 		a.t = l.t;
 
 	case token.SUB, token.MUL, token.QUO:
 		if !compat() || (!integers() && !floats()) {
-			a.diagOpTypes(x.Op, origlt, origrt);
+			a.diagOpTypes(op, origlt, origrt);
 			return;
 		}
 		a.t = l.t;
 
 	case token.REM, token.AND, token.OR, token.XOR, token.AND_NOT:
 		if !compat() || !integers() {
-			a.diagOpTypes(x.Op, origlt, origrt);
+			a.diagOpTypes(op, origlt, origrt);
 			return;
 		}
 		a.t = l.t;
@@ -684,7 +755,7 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 		// (§Arithmetic operators)" suggests so and 6g agrees.
 
 		if !l.t.isInteger() || !(r.t.isInteger() || r.t.isIdeal()) {
-			a.diagOpTypes(x.Op, origlt, origrt);
+			a.diagOpTypes(op, origlt, origrt);
 			return;
 		}
 
@@ -759,7 +830,7 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 		// ... booleans may be compared only for equality or
 		// inequality.
 		if l.t.literal() == BoolType || r.t.literal() == BoolType {
-			a.diagOpTypes(x.Op, origlt, origrt);
+			a.diagOpTypes(op, origlt, origrt);
 			return;
 		}
 
@@ -783,23 +854,23 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 		// "except bools" is really weird here, since this is
 		// actually explained in the Comparison compatibility
 		// section.
-		log.Crashf("Binary op %v not implemented", x.Op);
+		log.Crashf("Binary op %v not implemented", op);
 		// TODO(austin) Unnamed bool?  Named bool?
 		a.t = BoolType;
 
 	default:
-		log.Crashf("unknown binary operator %v", x.Op);
+		log.Crashf("unknown binary operator %v", op);
 	}
 
 	var ok bool;
-	a.desc, ok = binOpDescs[x.Op];
+	a.desc, ok = binOpDescs[op];
 	if !ok {
-		a.desc = x.Op.String() + " expression";
-		binOpDescs[x.Op] = a.desc;
+		a.desc = op.String() + " expression";
+		binOpDescs[op] = a.desc;
 	}
 
 	// Compile
-	switch x.Op {
+	switch op {
 	case token.ADD:
 		a.genBinOpAdd(l, r);
 
@@ -860,8 +931,17 @@ func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
 		}
 
 	default:
-		log.Crashf("Compilation of binary op %v not implemented", x.Op);
+		log.Crashf("Compilation of binary op %v not implemented", op);
 	}
+}
+
+func (a *exprCompiler) DoBinaryExpr(x *ast.BinaryExpr) {
+	l, r := a.copyVisit(x.X), a.copyVisit(x.Y);
+	if l.t == nil || r.t == nil {
+		return;
+	}
+
+	a.doBinaryExpr(x.Op, l, r);
 }
 
 func (a *exprCompiler) DoKeyValueExpr(x *ast.KeyValueExpr) {
@@ -1319,4 +1399,33 @@ func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler) {
 	default:
 		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
 	}
+}
+
+func genAssign(lt Type, r *exprCompiler) (func(lv Value, f *Frame)) {
+	switch _ := lt.literal().(type) {
+	case *boolType:
+		rf := r.asBool();
+		return func(lv Value, f *Frame) { lv.(BoolValue).Set(rf(f)) };
+	case *uintType:
+		rf := r.asUint();
+		return func(lv Value, f *Frame) { lv.(UintValue).Set(rf(f)) };
+	case *intType:
+		rf := r.asInt();
+		return func(lv Value, f *Frame) { lv.(IntValue).Set(rf(f)) };
+	case *floatType:
+		rf := r.asFloat();
+		return func(lv Value, f *Frame) { lv.(FloatValue).Set(rf(f)) };
+	case *stringType:
+		rf := r.asString();
+		return func(lv Value, f *Frame) { lv.(StringValue).Set(rf(f)) };
+	case *ArrayType:
+		rf := r.asArray();
+		return func(lv Value, f *Frame) { lv.Assign(rf(f)) };
+	case *PtrType:
+		rf := r.asPtr();
+		return func(lv Value, f *Frame) { lv.(PtrValue).Set(rf(f)) };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", lt.literal(), r.pos);
+	}
+	panic();
 }
