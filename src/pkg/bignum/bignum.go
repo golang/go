@@ -110,10 +110,10 @@ func dump(x []digit) {
 type Natural []digit;
 
 var (
-	natZero Natural = Natural{};
-	natOne Natural = Natural{1};
-	natTwo Natural = Natural{2};
-	natTen Natural = Natural{10};
+	natZero = Natural{};
+	natOne = Natural{1};
+	natTwo = Natural{2};
+	natTen = Natural{10};
 )
 
 
@@ -588,7 +588,7 @@ func (x Natural) Shr(s uint) Natural {
 }
 
 
-// And returns the ``bitwise and'' x & y for the binary representation of x and y.
+// And returns the ``bitwise and'' x & y for the 2's-complement representation of x and y.
 //
 func (x Natural) And(y Natural) Natural {
 	n := len(x);
@@ -614,7 +614,7 @@ func copy(z, x []digit) {
 }
 
 
-// AndNot returns the ``bitwise clear'' x &^ y for the binary representation of x and y.
+// AndNot returns the ``bitwise clear'' x &^ y for the 2's-complement representation of x and y.
 //
 func (x Natural) AndNot(y Natural) Natural {
 	n := len(x);
@@ -633,7 +633,7 @@ func (x Natural) AndNot(y Natural) Natural {
 }
 
 
-// Or returns the ``bitwise or'' x | y for the binary representation of x and y.
+// Or returns the ``bitwise or'' x | y for the 2's-complement representation of x and y.
 //
 func (x Natural) Or(y Natural) Natural {
 	n := len(x);
@@ -652,7 +652,7 @@ func (x Natural) Or(y Natural) Natural {
 }
 
 
-// Xor returns the ``bitwise exclusive or'' x ^ y for the binary representation of x and y.
+// Xor returns the ``bitwise exclusive or'' x ^ y for the 2's-complement representation of x and y.
 //
 func (x Natural) Xor(y Natural) Natural {
 	n := len(x);
@@ -1230,68 +1230,135 @@ func (x *Integer) Shl(s uint) *Integer {
 }
 
 
+// The bitwise operations on integers are defined on the 2's-complement
+// representation of integers. From
+//
+//   -x == ^x + 1  (1)  2's complement representation
+//
+// follows:
+//
+//   -(x) == ^(x) + 1
+//   -(-x) == ^(-x) + 1
+//   x-1 == ^(-x)
+//   ^(x-1) == -x  (2)
+//
+// Using (1) and (2), operations on negative integers of the form -x are
+// converted to operations on negated positive integers of the form ~(x-1).
+
+
 // Shr implements ``shift right'' x >> s. It returns x / 2^s.
-// Implementation restriction: Shl is not yet implemented for negative x.
 //
 func (x *Integer) Shr(s uint) *Integer {
-	if !x.sign {
-		return MakeInt(false, x.mant.Shr(s));
+	if x.sign {
+		// (-x) >> s == ^(x-1) >> s == ^((x-1) >> s) == -(((x-1) >> s) + 1)
+		return MakeInt(true, x.mant.Sub(natOne).Shr(s).Add(natOne));
 	}
-
-	panic("UNIMPLEMENTED Integer.Shr of negative value");
-	return nil;
+	
+	return MakeInt(false, x.mant.Shr(s));
 }
 
 
-// And returns the ``bitwise and'' x & y for the binary representation of x and y.
-// Implementation restriction: And is not implemented for negative integers.
+// Not returns the ``bitwise not'' ^x for the 2's-complement representation of x.
+func (x *Integer) Not() *Integer {
+	if x.sign {
+		// ^(-x) == ^(^(x-1)) == x-1
+		return MakeInt(false, x.mant.Sub(natOne));
+	}
+
+	// ^x == -x-1 == -(x+1)
+	return MakeInt(true, x.mant.Add(natOne));
+}
+
+
+// And returns the ``bitwise and'' x & y for the 2's-complement representation of x and y.
 //
 func (x *Integer) And(y *Integer) *Integer {
-	if !x.sign && !y.sign {
+	if x.sign == y.sign {
+		if x.sign {
+			// (-x) & (-y) == ^(x-1) & ^(y-1) == ^((x-1) | (y-1)) == -(((x-1) | (y-1)) + 1)
+			return MakeInt(true, x.mant.Sub(natOne).Or(y.mant.Sub(natOne)).Add(natOne));
+		}
+
+		// x & y == x & y
 		return MakeInt(false, x.mant.And(y.mant));
 	}
 
-	panic("UNIMPLEMENTED Integer.And of negative values");
-	return nil;
+	// x.sign != y.sign
+	if x.sign {
+		x, y = y, x;  // & is symmetric
+	}
+
+	// x & (-y) == x & ^(y-1) == x &^ (y-1)
+	return MakeInt(false, x.mant.AndNot(y.mant.Sub(natOne)));
 }
 
 
-// AndNot returns the ``bitwise clear'' x &^ y for the binary representation of x and y.
-// Implementation restriction: AndNot is not implemented for negative integers.
+// AndNot returns the ``bitwise clear'' x &^ y for the 2's-complement representation of x and y.
 //
 func (x *Integer) AndNot(y *Integer) *Integer {
-	if !x.sign && !y.sign {
+	if x.sign == y.sign {
+		if x.sign {
+			// (-x) &^ (-y) == ^(x-1) &^ ^(y-1) == ^(x-1) & (y-1) == (y-1) &^ (x-1)
+			return MakeInt(false, y.mant.Sub(natOne).AndNot(x.mant.Sub(natOne)));
+		}
+
+		// x &^ y == x &^ y
 		return MakeInt(false, x.mant.AndNot(y.mant));
 	}
 
-	panic("UNIMPLEMENTED Integer.AndNot of negative values");
-	return nil;
+	if x.sign {
+		// (-x) &^ y == ^(x-1) &^ y == ^(x-1) & ^y == ^((x-1) | y) == -(((x-1) | y) + 1)
+		return MakeInt(true, x.mant.Sub(natOne).Or(y.mant).Add(natOne));
+	}
+
+	// x &^ (-y) == x &^ ^(y-1) == x & (y-1)
+	return MakeInt(false, x.mant.And(y.mant.Sub(natOne)));
 }
 
 
-// Or returns the ``bitwise or'' x | y for the binary representation of x and y.
-// Implementation restriction: Or is not implemented for negative integers.
+// Or returns the ``bitwise or'' x | y for the 2's-complement representation of x and y.
 //
 func (x *Integer) Or(y *Integer) *Integer {
-	if !x.sign && !y.sign {
+	if x.sign == y.sign {
+		if x.sign {
+			// (-x) | (-y) == ^(x-1) | ^(y-1) == ^((x-1) & (y-1)) == -(((x-1) & (y-1)) + 1)
+			return MakeInt(true, x.mant.Sub(natOne).And(y.mant.Sub(natOne)).Add(natOne));
+		}
+
+		// x | y == x | y
 		return MakeInt(false, x.mant.Or(y.mant));
 	}
 
-	panic("UNIMPLEMENTED Integer.Or of negative values");
-	return nil;
+	// x.sign != y.sign
+	if x.sign {
+		x, y = y, x;  // | or symmetric
+	}
+
+	// x | (-y) == x | ^(y-1) == ^((y-1) &^ x) == -(^((y-1) &^ x) + 1)
+	return MakeInt(true, y.mant.Sub(natOne).AndNot(x.mant).Add(natOne));
 }
 
 
-// Xor returns the ``bitwise xor'' x | y for the binary representation of x and y.
-// Implementation restriction: Xor is not implemented for negative integers.
+// Xor returns the ``bitwise xor'' x | y for the 2's-complement representation of x and y.
 //
 func (x *Integer) Xor(y *Integer) *Integer {
-	if !x.sign && !y.sign {
+	if x.sign == y.sign {
+		if x.sign {
+			// (-x) ^ (-y) == ^(x-1) ^ ^(y-1) == (x-1) ^ (y-1)
+			return MakeInt(false, x.mant.Sub(natOne).Xor(y.mant.Sub(natOne)));
+		}
+
+		// x ^ y == x ^ y
 		return MakeInt(false, x.mant.Xor(y.mant));
 	}
 
-	panic("UNIMPLEMENTED Integer.Xor of negative values");
-	return nil;
+	// x.sign != y.sign
+	if x.sign {
+		x, y = y, x;  // ^ is symmetric
+	}
+
+	// x ^ (-y) == x ^ ^(y-1) == ^(x ^ (y-1)) == -((x ^ (y-1)) + 1)
+	return MakeInt(true, x.mant.Xor(y.mant.Sub(natOne)).Add(natOne));
 }
 
 
