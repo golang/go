@@ -68,7 +68,7 @@ func (boolType) String() string {
 	return "bool";
 }
 
-func (t *boolType) value(v bool) BoolValue
+func (t *boolType) Zero() Value
 
 type uintType struct {
 	commonType;
@@ -110,7 +110,7 @@ func (t *uintType) String() string {
 	return t.name;
 }
 
-func (t *uintType) value(v uint64) UintValue
+func (t *uintType) Zero() Value
 
 func (t *uintType) minVal() *bignum.Rational {
 	return bignum.Rat(0, 1);
@@ -158,7 +158,7 @@ func (t *intType) String() string {
 	return t.name;
 }
 
-func (t *intType) value(v int64) IntValue
+func (t *intType) Zero() Value
 
 func (t *intType) minVal() *bignum.Rational {
 	return bignum.MakeRat(bignum.Int(-1).Shl(t.Bits - 1), bignum.Nat(1));
@@ -194,7 +194,7 @@ func (t *idealIntType) String() string {
 	return "ideal integer";
 }
 
-func (t *idealIntType) value(v *bignum.Integer) IdealIntValue
+func (t *idealIntType) Zero() Value
 
 type floatType struct {
 	commonType;
@@ -223,7 +223,7 @@ func (t *floatType) String() string {
 	return "float";
 }
 
-func (t *floatType) value(v float64) FloatValue
+func (t *floatType) Zero() Value
 
 var maxFloat32Val = bignum.MakeRat(bignum.Int(0xffffff).Shl(127-23), bignum.Nat(1));
 var maxFloat64Val = bignum.MakeRat(bignum.Int(0x1fffffffffffff).Shl(1023-52), bignum.Nat(1));
@@ -278,7 +278,7 @@ func (t *idealFloatType) String() string {
 	return "ideal float";
 }
 
-func (t *idealFloatType) value(v *bignum.Rational) IdealFloatValue
+func (t *idealFloatType) Zero() Value
 
 type stringType struct {
 	commonType;
@@ -298,7 +298,7 @@ func (t *stringType) String() string {
 	return "string";
 }
 
-func (t *stringType) value(v string) StringValue
+func (t *stringType) Zero() Value
 
 type ArrayType struct {
 	commonType;
@@ -338,7 +338,7 @@ func (t *ArrayType) String() string {
 	return "[]" + t.Elem.String();
 }
 
-func (t *ArrayType) value(v []Value) ArrayValue
+func (t *ArrayType) Zero() Value
 
 /*
 func (t *ArrayType) literal() Type {
@@ -383,7 +383,7 @@ func (t *PtrType) String() string {
 	return "*" + t.Elem.String();
 }
 
-func (t *PtrType) value(v Value) PtrValue
+func (t *PtrType) Zero() Value
 
 /*
 type FuncType struct {

@@ -12,6 +12,8 @@ import (
  * Types
  */
 
+type Value interface
+
 type Type interface {
 	// literal returns this type with all names recursively
 	// stripped.
@@ -28,6 +30,8 @@ type Type interface {
 	isFloat() bool;
 	// isIdeal returns true if this is an ideal int or float.
 	isIdeal() bool;
+	// ZeroVal returns a new zero value of this type.
+	Zero() Value;
 	// String returns the string representation of this type.
 	String() string;
 }
@@ -45,9 +49,12 @@ type BoundedType interface {
  */
 
 type Value interface {
-	// TODO(austin) Is Type even necessary?
-	Type() Type;
 	String() string;
+	// Assign copies another value into this one.  It should
+	// assume that the other value satisfies the same specific
+	// value interface (BoolValue, etc.), but must not assume
+	// anything about its specific type.
+	Assign(o Value);
 }
 
 type BoolValue interface {
@@ -117,7 +124,6 @@ type Variable struct {
 }
 
 type Constant struct {
-	// TODO(austin) Need Type?
 	Type Type;
 	Value Value;
 }
@@ -129,12 +135,13 @@ type Scope struct {
 	outer *Scope;
 	defs map[string] Def;
 	numVars int;
+	varTypes []Type;
 }
 
 func NewRootScope() *Scope
 func (s *Scope) Fork() *Scope
 func (s *Scope) DefineVar(name string, t Type) *Variable
-func (s *Scope) DefineConst(name string, v Value) *Constant
+func (s *Scope) DefineConst(name string, t Type, v Value) *Constant
 func (s *Scope) DefineType(name string, t Type) bool
 func (s *Scope) Lookup(name string) (Def, *Scope)
 
@@ -149,3 +156,5 @@ type Frame struct {
 }
 
 func (f *Frame) Get(s *Scope, index int) Value
+
+func (s *Scope) NewFrame(outer *Frame) *Frame
