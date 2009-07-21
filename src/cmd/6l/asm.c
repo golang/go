@@ -450,11 +450,20 @@ asmb(void)
 			ph->type = PT_INTERP;
 			ph->flags = PF_R;
 			ph->off = startelf();
-			ph->vaddr = startva;
-			ph->paddr = startva;
+			ph->vaddr = startva + ph->off;
+			ph->paddr = startva + ph->off;
 			write(cout, linuxdynld, sizeof linuxdynld);
 			ph->filesz = endelf() - ph->off;
 			ph->align = 1;
+
+			sh = newElf64SHdr(".interp");
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC;
+			sh->addr = va;
+			sh->off = ph->off;
+			sh->addr = startva + sh->off;
+			sh->size = ph->filesz;
+			sh->addralign = 1;
 
 			/* dynamic load section */
 			ph = newElf64PHdr();
@@ -521,9 +530,6 @@ asmb(void)
 			elf64writedynent(DT_RELAENT, ELF64RELASIZE);
 			elf64writedynent(DT_STRSZ, STRTABSIZE);
 			elf64writedynent(DT_SYMENT, 0);
-			elf64writedynent(DT_REL, startva);
-			elf64writedynent(DT_RELSZ, 0);
-			elf64writedynent(DT_RELENT, ELF64RELSIZE);
 			elf64writedynent(DT_NULL, 0);
 			cflush();
 			dynsh->size = seek(cout, 0, 1) - dynsh->off;
@@ -578,8 +584,8 @@ asmb(void)
 		}
 
 		ph = newElf64PHdr();
-		ph->type = 0x6474e551; 	/* gok */
-		ph->flags = PF_X+PF_W+PF_R;
+		ph->type = 0x6474e551; 	/* GNU_STACK */
+		ph->flags = PF_W+PF_R;
 		ph->align = 8;
 
 		fo = ELF64RESERVE;
