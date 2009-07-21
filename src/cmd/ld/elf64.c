@@ -8,20 +8,25 @@
 
 #define	NSECT	16
 static	int	numstr;
+static	int	stroffset;
 static	Elf64Hdr	hdr;
 static	Elf64PHdr	*phdr[NSECT];
 static	Elf64SHdr	*shdr[NSECT];
 static	char	*sname[NSECT];
 static	char	*str[NSECT];
 
+/*
+ Initialize the global variable that describes the ELF header. It will be updated as
+ we write section and prog headers.
+ */
 void
 elf64init(void)
 {
-	hdr.phoff = ELF64HDRSIZE;
-	hdr.shoff = ELF64HDRSIZE;
-	hdr.ehsize = ELF64HDRSIZE;
-	hdr.phentsize = ELF64PHDRSIZE;
-	hdr.shentsize = ELF64SHDRSIZE;
+	hdr.phoff = ELF64HDRSIZE;	/* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
+	hdr.shoff = ELF64HDRSIZE;	/* Will move as we add PHeaders */
+	hdr.ehsize = ELF64HDRSIZE;	/* Must be ELF64HDRSIZE */
+	hdr.phentsize = ELF64PHDRSIZE;	/* Must be ELF64PHDRSIZE */
+	hdr.shentsize = ELF64SHDRSIZE;	/* Must be ELF64SHDRSIZE */
 }
 
 void
@@ -167,4 +172,58 @@ elf64writehdr()
 	WPUT(hdr.shnum);
 	WPUT(hdr.shstrndx);
 	return ELF64HDRSIZE;
+}
+
+/* Taken directly from the definition document for ELF64 */
+uint32
+elf64_hash(uchar *name)
+{
+	unsigned long h = 0, g;
+	while (*name) {
+		h = (h << 4) + *name++;
+		if (g = h & 0xf0000000)
+			h ^= g >> 24;
+		h &= 0x0fffffff;
+	}
+	return h;
+}
+
+void
+elf64writedynent(int tag, uint64 val)
+{
+	VPUT(tag);
+	VPUT(val);
+}
+
+/* Where to write the next piece of data attached to an SHeader */
+uint64	elfaddr = ELF64FULLHDRSIZE;
+
+/* Mark a start location in the SHeader data */
+uint64
+startelf(void)
+{
+	seek(cout, elfaddr, 0);
+	return elfaddr;
+}
+
+/* Mark the end of a location in the SHeader data */
+uint64
+endelf(void)
+{
+	uint64 p;
+
+	cflush();
+	p = seek(cout, 0, 1);
+	if (p < elfaddr) {
+		diag("endelf before elfaddr");
+	}
+	if ((p & 7) != 0) {
+		p = (p + 7) & ~7LL;
+		seek(cout, p, 0);
+	}
+	elfaddr = p;
+	if (p > ELF64RESERVE) {
+		diag("endelf overflows reserve %lld\n", p);
+	}
+	return elfaddr;
 }
