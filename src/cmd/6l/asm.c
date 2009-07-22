@@ -132,7 +132,7 @@ asmb(void)
 	vlong symdatva = 0x99LL<<32;
 	Elf64Hdr *eh;
 	Elf64PHdr *ph, *pph;
-	Elf64SHdr *sh, *dynsh;
+	Elf64SHdr *sh;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -456,36 +456,21 @@ asmb(void)
 			ph->filesz = endelf() - ph->off;
 			ph->align = 1;
 
+			/* S header for interpreter */
 			sh = newElf64SHdr(".interp");
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC;
-			sh->addr = va;
 			sh->off = ph->off;
 			sh->addr = startva + sh->off;
 			sh->size = ph->filesz;
 			sh->addralign = 1;
 
-			/* dynamic load section */
-			ph = newElf64PHdr();
-			ph->type = PT_LOAD;
-			ph->flags = PF_R + PF_W;
-			ph->off = 0;
-			ph->vaddr = startva + ph->off;
-			ph->paddr = startva + ph->off;
-			ph->align = 8;
-
 			/* S headers inside dynamic load section */
-			dynsh = newElf64SHdr(".dynamic");	// must be first
-			dynsh->off = startelf();
-
-			seek(cout, ELFDYNAMICSIZE, 1);	// leave room for dynamic table
-
 			sh = newElf64SHdr(".hash");
 			sh->type = SHT_HASH;
 			sh->flags = SHF_ALLOC;
 			sh->entsize = 4;
-			sh->addr = va;
-			sh->off = seek(cout, 0, 1);
+			sh->off = startelf();
 			hashoff = sh->off;
 			sh->addr = startva + sh->off;
 			/* temporary hack: 8 zeroes means 0 buckets, 0 chains */
@@ -497,7 +482,6 @@ asmb(void)
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC+SHF_WRITE;
 			sh->entsize = 8;
-			sh->addr = va;
 			sh->off = startelf();
 			sh->addr = startva + sh->off;
 			sh->size = endelf() - sh->off;
@@ -507,21 +491,17 @@ asmb(void)
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC+SHF_WRITE;
 			sh->entsize = 8;
-			sh->addr = va;
 			sh->off = startelf();
 			sh->addr = startva + sh->off;
 			sh->size = endelf() - sh->off;
 			sh->addralign = 8;
 
-			/* +8 necessary for now to silence readelf addressing at end of hash section */
-			ph->filesz = endelf() - ph->off +8;	/* dynamic section maps these shdrs' data */
-			ph->memsz = ph->filesz;
-
-			dynsh->type = SHT_DYNAMIC;
-			dynsh->flags = SHF_ALLOC+SHF_WRITE;
-			dynsh->entsize = 16;
-			dynsh->addr = startva + dynsh->off;
-			seek(cout, dynsh->off, 0);
+			sh = newElf64SHdr(".dynamic");
+			sh->type = SHT_DYNAMIC;
+			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->entsize = 16;
+			sh->addr = startva + sh->off;
+			sh->off = startelf();
 			elf64writedynent(DT_HASH, startva+hashoff);
 			elf64writedynent(DT_STRTAB, startva+ELF64FULLHDRSIZE-STRTABSIZE);
 			elf64writedynent(DT_SYMTAB, startva);
@@ -531,19 +511,29 @@ asmb(void)
 			elf64writedynent(DT_STRSZ, STRTABSIZE);
 			elf64writedynent(DT_SYMENT, 0);
 			elf64writedynent(DT_NULL, 0);
-			cflush();
-			dynsh->size = seek(cout, 0, 1) - dynsh->off;
-			dynsh->addralign = 8;
+			sh->size = endelf() - sh->off;
+			sh->addralign = 8;
 
-			/* dynamic section */
+			/* PT_DYNAMIC for .dynamic section */
 			ph = newElf64PHdr();
 			ph->type = PT_DYNAMIC;
 			ph->flags = PF_R + PF_W;
-			ph->off = dynsh->off;
-			ph->filesz = dynsh->size;
-			ph->memsz = dynsh->size;
+			ph->off = sh->off;
 			ph->vaddr = startva + ph->off;
 			ph->paddr = startva + ph->off;
+			ph->filesz = sh->size;
+			ph->memsz = sh->size;
+			ph->align = 8;
+
+			/* PT_LOAD for all dynamic sections */
+			ph = newElf64PHdr();
+			ph->type = PT_LOAD;
+			ph->flags = PF_R + PF_W;
+			ph->off = 0;
+			ph->vaddr = startva + ph->off;
+			ph->paddr = startva + ph->off;
+			ph->filesz = sh->off + sh->size - ph->off;
+			ph->memsz = ph->filesz;
 			ph->align = 8;
 		}
 
