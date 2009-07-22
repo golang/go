@@ -36,7 +36,7 @@ rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT $TMPBUG
 trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT $TMPBUG" 0 1 2 3 14 15
 
 if $* >$TMPOUT 2>$TMPERR; then
-  echo 1>&2 "BUG: errchk: command succeeded unexpectedly: " "$@"
+  echo 1>&2 "BUG: errchk: command succeeded unexpectedly"
   cat $TMPOUT
   cat 1>&2 $TMPERR
   rm -f $TMPOUT $TMPERR
