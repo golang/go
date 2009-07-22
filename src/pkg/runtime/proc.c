@@ -478,6 +478,10 @@ sys·entersyscall(uint64 callerpc, int64 trap)
 	USED(callerpc, trap);
 
 	lock(&sched);
+	if(sched.predawn) {
+		unlock(&sched);
+		return;
+	}
 	g->status = Gsyscall;
 	// Leave SP around for gc and traceback.
 	// Do before notewakeup so that gc
@@ -502,6 +506,10 @@ void
 sys·exitsyscall(void)
 {
 	lock(&sched);
+	if(sched.predawn) {
+		unlock(&sched);
+		return;
+	}
 	g->status = Grunning;
 	sched.msyscall--;
 	sched.mcpu++;
