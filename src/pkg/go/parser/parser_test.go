@@ -78,7 +78,7 @@ func TestParse4(t *testing.T) {
 	path := ".";
 	pkg, err := ParsePackage(path, filter, 0);
 	if err != nil {
-		t.Errorf("ParsePackage(%s): %v", path, err);
+		t.Fatalf("ParsePackage(%s): %v", path, err);
 	}
 	if pkg.Name != "parser" {
 		t.Errorf("incorrect package name: %s", pkg.Name);
