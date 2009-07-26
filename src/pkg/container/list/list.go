@@ -18,12 +18,14 @@ type Element struct {
 // List represents a doubly linked list.
 type List struct {
 	front, back *Element;
+	len int;
 }
 
 // Init initializes or clears a List.
 func (l *List) Init() *List {
 	l.front = nil;
 	l.back = nil;
+	l.len = 0;
 	return l
 }
 
@@ -57,6 +59,7 @@ func (l *List) Remove(e *Element) {
 
 	e.prev = nil;
 	e.next = nil;
+	l.len--;
 }
 
 func (l *List) insertFront(e *Element) {
@@ -68,6 +71,7 @@ func (l *List) insertFront(e *Element) {
 	} else {
 		l.back = e;
 	}
+	l.len++;
 }
 
 func (l *List) insertBack(e *Element) {
@@ -79,6 +83,7 @@ func (l *List) insertBack(e *Element) {
 	} else {
 		l.front = e;
 	}
+	l.len++;
 }
 
 // PushFront inserts the value at the front of the list, and returns a new Element containing it.
@@ -111,6 +116,11 @@ func (l *List) MoveToBack(e *Element) {
 	}
 	l.Remove(e);
 	l.insertBack(e);
+}
+
+// Len returns the number of elements in the list.
+func (l *List) Len() int {
+	return l.len
 }
 
 func (l *List) iterate(c chan <- *Element) {
