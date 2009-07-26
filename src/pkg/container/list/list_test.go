@@ -42,19 +42,29 @@ func checkListPointers(t *testing.T, l *List, es []*Element) {
 	}
 }
 
+func checkListLen(t *testing.T, l *List, n int) {
+	if an := l.Len(); an != n {
+		t.Errorf("l.Len() = %d, want %d", an, n);
+	}
+}
+
 func TestList(t *testing.T) {
 	l := New();
 	checkListPointers(t, l, []*Element{});
+	checkListLen(t, l, 0);
 
 	// Single element list
 	e := l.PushFront("a");
+	checkListLen(t, l, 1);
 	checkListPointers(t, l, []*Element{ e });
 	l.MoveToFront(e);
 	checkListPointers(t, l, []*Element{ e });
 	l.MoveToBack(e);
 	checkListPointers(t, l, []*Element{ e });
+	checkListLen(t, l, 1);
 	l.Remove(e);
 	checkListPointers(t, l, []*Element{});
+	checkListLen(t, l, 0);
 
 	// Bigger list
 	e2 := l.PushFront(2);
@@ -62,9 +72,11 @@ func TestList(t *testing.T) {
 	e3 := l.PushBack(3);
 	e4 := l.PushBack("banana");
 	checkListPointers(t, l, []*Element{ e1, e2, e3, e4 });
+	checkListLen(t, l, 4);
 
 	l.Remove(e2);
 	checkListPointers(t, l, []*Element{ e1, e3, e4 });
+	checkListLen(t, l, 3);
 
 	l.MoveToFront(e3);  // move from middle
 	checkListPointers(t, l, []*Element{ e3, e1, e4 });
@@ -88,4 +100,5 @@ func TestList(t *testing.T) {
 		l.Remove(e);
 	}
 	checkListPointers(t, l, []*Element{});
+	checkListLen(t, l, 0);
 }
