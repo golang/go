@@ -61,13 +61,16 @@ scanblock(int32 depth, byte *b, int64 n)
 }
 
 static void
-scanstack(G *g)
+scanstack(G *gp)
 {
 	Stktop *stk;
 	byte *sp;
 
-	sp = g->sched.sp;
-	stk = (Stktop*)g->stackbase;
+	if(gp == g)
+		sp = (byte*)&gp;
+	else
+		sp = gp->sched.sp;
+	stk = (Stktop*)gp->stackbase;
 	while(stk) {
 		scanblock(0, sp, (byte*)stk - sp);
 		sp = stk->gobuf.sp;
@@ -220,7 +223,6 @@ gc(int32 force)
 //printf("gc...\n");
 	m->gcing = 1;
 	semacquire(&gcsema);
-	gosave(&g->sched);	// update g's stack pointer for scanstack
 	stoptheworld();
 	if(mheap.Lock.key != 0)
 		throw("mheap locked during gc");
@@ -230,7 +232,6 @@ gc(int32 force)
 		mstats.next_gc = mstats.inuse_pages+mstats.inuse_pages*gcpercent/100;
 	}
 	starttheworld();
-	gosave(&g->sched);	// update g's stack pointer for debugging
 	semrelease(&gcsema);
 	m->gcing = 0;
 }

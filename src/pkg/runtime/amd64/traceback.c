@@ -26,6 +26,7 @@ traceback(byte *pc0, byte *sp, G *g)
 	for(n=0; n<100; n++) {
 		if(pc == (uint64)sys·lessstack) {
 			// pop to earlier stack block
+			// printf("-- stack jump %p => %p\n", sp, stk->gobuf.sp);
 			pc = (uintptr)stk->gobuf.pc;
 			sp = stk->gobuf.sp;
 			stk = (Stktop*)stk->stackbase;
