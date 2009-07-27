@@ -542,7 +542,7 @@ func (f *inflater) dataBlock() os.Error {
 	}
 	n := int(f.buf[0]) | int(f.buf[1])<<8;
 	nn := int(f.buf[2]) | int(f.buf[3])<<8;
-	if nn != ^n {
+	if uint16(nn) != uint16(^n) {
 		return CorruptInputError(f.roffset);
 	}
 
