@@ -858,7 +858,8 @@ reswitch:
 		defaultlit(&n->right, types[TUINT]);
 		if(n->left->type == T || n->right->type == T)
 			goto ret;
-		if(issigned[n->right->type->etype] || !isint[n->right->type->etype])
+		et = n->right->type->etype;
+		if(issigned[et] || !isint[et])
 			goto badt;
 		// check of n->left->type happens in second switch.
 		break;
@@ -2500,14 +2501,14 @@ prcompat(NodeList *all, int fmt, int dopanic)
 			switch(n->val.ctype) {
 			case CTINT:
 				defaultlit(&n, types[TINT64]);
-				l->n = n;
 				break;
 			case CTFLT:
 				defaultlit(&n, types[TFLOAT64]);
-				l->n = n;
 				break;
 			}
 		}
+		defaultlit(&n, nil);
+		l->n = n;
 		if(n->type == T)
 			continue;
 

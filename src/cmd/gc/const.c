@@ -94,7 +94,7 @@ convlit1(Node **np, Type *t, int explicit)
 		break;
 	case OLSH:
 	case ORSH:
-		convlit(&n->left, t);
+		convlit1(&n->left, t, explicit);
 		n->type = n->left->type;
 		return;
 	}
