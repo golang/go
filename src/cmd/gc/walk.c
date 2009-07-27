@@ -3673,6 +3673,10 @@ old2new(Node *n, Type *t, NodeList **init)
 		yyerror("left side of := must be a name");
 		return n;
 	}
+	if(t != T && t->funarg) {
+		yyerror("use of multi func value as single value in :=");
+		return n;
+	}
 	l = newname(n->sym);
 	dodclvar(l, t, init);
 	return l;

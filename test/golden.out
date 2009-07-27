@@ -235,3 +235,9 @@ fixedbugs/bug131.go:7: illegal types for operand: AS
 fixedbugs/bug133.dir/bug2.go:11: undefined: bug0.T field i
 fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN
 	int
+
+=========== fixedbugs/bug175.go
+fixedbugs/bug175.go:8: use of multi func value as single value in :=
+fixedbugs/bug175.go:8: undefined: x
+fixedbugs/bug175.go:8: illegal types for operand: AS
+	(int, bool)
