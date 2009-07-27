@@ -1112,6 +1112,15 @@ Tpretty(Fmt *fp, Type *t)
 		return fmtprint(fp, " }");
 
 	case TSTRUCT:
+		if(t->funarg) {
+			fmtprint(fp, "(");
+			for(t1=t->type; t1!=T; t1=t1->down) {
+				fmtprint(fp, "%T", t1);
+				if(t1->down)
+					fmtprint(fp, ", ");
+			}
+			return fmtprint(fp, ")");
+		}
 		fmtprint(fp, "struct {");
 		for(t1=t->type; t1!=T; t1=t1->down) {
 			fmtprint(fp, " %T", t1);
