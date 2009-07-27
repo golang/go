@@ -338,7 +338,7 @@ walkexpr(Node *n, int top, NodeList **init)
 	NodeList *ll, *lr;
 	Type *t;
 	Sym *s;
-	int et, cl, cr, typeok;
+	int et, cl, cr, typeok, op;
 	int32 lno;
 
 	if(n == N)
@@ -1252,7 +1252,10 @@ reswitch:
  * ======== second switch ========
  */
 
-	switch(n->op) {
+	op = n->op;
+	if(op == OASOP)
+		op = n->etype;
+	switch(op) {
 	default:
 		fatal("walkexpr: switch 2 unknown op %N", n, init);
 		goto ret;
@@ -1423,7 +1426,10 @@ badt:
 		badtype(n->op, n->left->type, T);
 		goto ret;
 	}
-	badtype(n->op, n->left->type, n->right->type);
+	op = n->op;
+	if(op == OASOP)
+		op = n->etype;
+	badtype(op, n->left->type, n->right->type);
 	goto ret;
 
 ret:
