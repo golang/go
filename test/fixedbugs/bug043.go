@@ -18,6 +18,6 @@ func g (x int) float ;  // BUG this doesn't
 func g (x int) float { return 0.0 }
 
 func h (x int) (u int, v int) ;  // BUG this doesn't
-func h (x int) (u int, v int) {}
+func h (x int) (u int, v int) { return; }
 
 func main() {}

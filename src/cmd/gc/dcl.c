@@ -636,7 +636,7 @@ funclit1(Node *ntype, NodeList *body)
 	n->nname = f;
 	n->type = ft;
 	if(body == nil)
-		body = list1(nod(ORETURN, N, N));
+		body = list1(nod(OEMPTY, N, N));
 	n->nbody = body;
 	compile(n);
 	funcdepth--;
