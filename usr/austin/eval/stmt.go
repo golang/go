@@ -6,27 +6,31 @@ package eval
 
 import (
 	"eval";
-	"fmt";
 	"log";
 	"os";
 	"go/ast";
 	"go/scanner";
 	"go/token";
+	"strconv";
 )
 
-type stmtCompiler struct {
-	scope *Scope;
-	errors scanner.ErrorHandler;
-	pos token.Position;
-	f func (f *Frame);
-}
+/*
+ * Statement compiler
+ */
 
-func (a *stmtCompiler) diagAt(pos token.Position, format string, args ...) {
-	a.errors.Error(pos, fmt.Sprintf(format, args));
+type stmtCompiler struct {
+	*blockCompiler;
+	pos token.Position;
+	// err should be initialized to true before visiting and set
+	// to false when the statement is compiled successfully.  The
+	// function invoking Visit should or this with
+	// blockCompiler.err.  This is less error prone than setting
+	// blockCompiler.err on every failure path.
+	err bool;
 }
 
 func (a *stmtCompiler) diag(format string, args ...) {
-	a.diagAt(a.pos, format, args);
+	a.diagAt(&a.pos, format, args);
 }
 
 /*
@@ -42,7 +46,7 @@ func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
 }
 
 func (a *stmtCompiler) DoEmptyStmt(s *ast.EmptyStmt) {
-	log.Crash("Not implemented");
+	a.err = false;
 }
 
 func (a *stmtCompiler) DoLabeledStmt(s *ast.LabeledStmt) {
@@ -50,7 +54,22 @@ func (a *stmtCompiler) DoLabeledStmt(s *ast.LabeledStmt) {
 }
 
 func (a *stmtCompiler) DoExprStmt(s *ast.ExprStmt) {
-	log.Crash("Not implemented");
+	// TODO(austin) Permit any 0 or more valued function call
+	e := a.compileExpr(a.scope, s.X, false);
+	if e == nil {
+		return;
+	}
+
+	if e.exec == nil {
+		a.diag("%s cannot be used as expression statement", e.desc);
+		return;
+	}
+
+	exec := e.exec;
+	a.push(func(v *vm) {
+		exec(v.f);
+	});
+	a.err = false;
 }
 
 func (a *stmtCompiler) DoIncDecStmt(s *ast.IncDecStmt) {
@@ -58,10 +77,6 @@ func (a *stmtCompiler) DoIncDecStmt(s *ast.IncDecStmt) {
 }
 
 func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
-	if len(s.Lhs) != len(s.Rhs) {
-		log.Crashf("Unbalanced assignment not implemented %v %v %v", len(s.Lhs), s.Tok, len(s.Rhs));
-	}
-
 	bad := false;
 
 	// Compile right side first so we have the types when
@@ -69,10 +84,16 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 	// made on the left side.
 	rs := make([]*exprCompiler, len(s.Rhs));
 	for i, re := range s.Rhs {
-		rs[i] = compileExpr(re, a.scope, a.errors);
+		rs[i] = a.compileExpr(a.scope, re, false);
 		if rs[i] == nil {
 			bad = true;
+			continue;
 		}
+	}
+
+	// Check the assignment count
+	if len(s.Lhs) != len(s.Rhs) {
+		log.Crashf("Unbalanced assignment not implemented %v %v %v", len(s.Lhs), s.Tok, len(s.Rhs));
 	}
 
 	// Compile left side and generate assigners
@@ -89,8 +110,10 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 			// Check that it's an identifier
 			ident, ok := le.(*ast.Ident);
 			if !ok {
-				a.diagAt(le.Pos(), "left side of := must be a name");
+				a.diagAt(le, "left side of := must be a name");
 				bad = true;
+				// Suppress new defitions errors
+				nDefs++;
 				continue;
 			}
 
@@ -98,6 +121,7 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 			if _, ok := a.scope.defs[ident.Value]; ok {
 				goto assignment;
 			}
+			nDefs++;
 
 			if rs[i] == nil {
 				// TODO(austin) Define a placeholder.
@@ -106,7 +130,7 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 
 			// Generate assigner and get type
 			var lt Type;
-			lt, as[i] = mkAssign(nil, rs[i], "assignment", errPos, "position");
+			lt, as[i] = mkAssign(nil, rs[i], "assignment", "position", errPos);
 			if lt == nil {
 				bad = true;
 				continue;
@@ -114,14 +138,13 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 
 			// Define identifier
 			v := a.scope.DefineVar(ident.Value, lt);
-			nDefs++;
 			if v == nil {
 				log.Crashf("Failed to define %s", ident.Value);
 			}
 		}
 
 	assignment:
-		ls[i] = compileExpr(le, a.scope, a.errors);
+		ls[i] = a.compileExpr(a.scope, le, false);
 		if ls[i] == nil {
 			bad = true;
 			continue;
@@ -136,18 +159,13 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 		// Generate assigner
 		if as[i] == nil {
 			var lt Type;
-			lt, as[i] = mkAssign(ls[i].t, rs[i], "assignment", errPos, "position");
+			lt, as[i] = mkAssign(ls[i].t, rs[i], "assignment", "position", errPos);
 			if lt == nil {
 				bad = true;
 				continue;
 			}
 		}
 	}
-
-	if bad {
-		return;
-	}
-
 
 	// A short variable declaration may redeclare variables
 	// provided they were originally declared in the same block
@@ -158,26 +176,31 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 		return;
 	}
 
+	if bad {
+		return;
+	}
+
 	n := len(s.Lhs);
 	if n == 1 {
 		lf := ls[0].evalAddr;
 		assign := as[0];
-		a.f = func(f *Frame) { assign(lf(f), f) };
+		a.push(func(v *vm) { assign(lf(v.f), v.f) });
 	} else {
-		a.f = func(f *Frame) {
+		a.push(func(v *vm) {
 			temps := make([]Value, n);
 			// Assign to temporaries
 			for i := 0; i < n; i++ {
 				// TODO(austin) Don't capture ls
 				temps[i] = ls[i].t.Zero();
-				as[i](temps[i], f);
+				as[i](temps[i], v.f);
 			}
 			// Copy to destination
 			for i := 0; i < n; i++ {
-				ls[i].evalAddr(f).Assign(temps[i]);
+				ls[i].evalAddr(v.f).Assign(temps[i]);
 			}
-		}
+		});
 	}
+	a.err = false;
 }
 
 var assignOpToOp = map[token.Token] token.Token {
@@ -201,8 +224,8 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 		return;
 	}
 
-	l := compileExpr(s.Lhs[0], a.scope, a.errors);
-	r := compileExpr(s.Rhs[0], a.scope, a.errors);
+	l := a.compileExpr(a.scope, s.Lhs[0], false);
+	r := a.compileExpr(a.scope, s.Rhs[0], false);
 	if l == nil || r == nil {
 		return;
 	}
@@ -212,19 +235,26 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 		return;
 	}
 
-	ec := r.copy();
-	ec.pos = s.TokPos;
-	ec.doBinaryExpr(assignOpToOp[s.Tok], l, r);
-	if ec.t == nil {
+	effect, l := l.extractEffect();
+
+	binop := r.copy();
+	binop.pos = s.TokPos;
+	binop.doBinaryExpr(assignOpToOp[s.Tok], l, r);
+	if binop.t == nil {
+		return;
+	}
+
+	_, assign := mkAssign(l.t, binop, "assignment", "", 0);
+	if assign == nil {
 		return;
 	}
 
 	lf := l.evalAddr;
-	_, assign := mkAssign(l.t, r, "assignment", 0, "");
-	if assign == nil {
-		return;
-	}
-	a.f = func(f *Frame) { assign(lf(f), f) };
+	a.push(func(v *vm) {
+		effect(v.f);
+		assign(lf(v.f), v.f);
+	});
+	a.err = false;
 }
 
 func (a *stmtCompiler) DoAssignStmt(s *ast.AssignStmt) {
@@ -246,7 +276,65 @@ func (a *stmtCompiler) DoDeferStmt(s *ast.DeferStmt) {
 }
 
 func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
-	log.Crash("Not implemented");
+	// Supress return errors even if we fail to compile this
+	// return statement.
+	a.returned = true;
+
+	if len(s.Results) == 0 && (len(a.outVars) == 0 || a.outVarsNamed) {
+		// Simple case.  Simply exit from the function.
+		a.push(func(v *vm) { v.pc = ^uint(0) });
+		a.err = false;
+		return;
+	}
+
+	// TODO(austin) Might be a call of a multi-valued function.
+	// It might be possible to combine this code with the
+	// assignment code.
+	if len(s.Results) != len(a.outVars) {
+		a.diag("Unbalanced return not implemented");
+		return;
+	}
+
+	// Compile expressions and create assigners
+	bad := false;
+	rs := make([]*exprCompiler, len(s.Results));
+	as := make([]func(lv Value, f *Frame), len(s.Results));
+	for i, re := range s.Results {
+		rs[i] = a.compileExpr(a.scope, re, false);
+		if rs[i] == nil {
+			bad = true;
+			continue;
+		}
+
+		errPos := i + 1;
+		if len(s.Results) == 1 {
+			errPos = 0;
+		}
+		var lt Type;
+		lt, as[i] = mkAssign(a.outVars[i].Type, rs[i], "return", "value", errPos);
+		if as[i] == nil {
+			bad = true;
+		}
+	}
+
+	if bad {
+		return;
+	}
+
+	// Save indexes of return values
+	idxs := make([]int, len(s.Results));
+	for i, outVar := range a.outVars {
+		idxs[i] = outVar.Index;
+	}
+
+	// Compile
+	a.push(func(v *vm) {
+		for i, assign := range as {
+			assign(v.activation.Vars[idxs[i]], v.f);
+		}
+		v.pc = ^uint(0);
+	});
+	a.err = false;
 }
 
 func (a *stmtCompiler) DoBranchStmt(s *ast.BranchStmt) {
@@ -254,7 +342,19 @@ func (a *stmtCompiler) DoBranchStmt(s *ast.BranchStmt) {
 }
 
 func (a *stmtCompiler) DoBlockStmt(s *ast.BlockStmt) {
-	log.Crash("Not implemented");
+	blockScope := a.scope.Fork();
+	bc := &blockCompiler{a.funcCompiler, blockScope, false};
+
+	a.push(func(v *vm) {
+		v.f = blockScope.NewFrame(v.f);
+	});
+	bc.compileBlock(s);
+	a.push(func(v *vm) {
+		v.f = v.f.Outer;
+	});
+
+	a.returned = a.returned || bc.returned;
+	a.err = false;
 }
 
 func (a *stmtCompiler) DoIfStmt(s *ast.IfStmt) {
@@ -293,8 +393,62 @@ func (a *stmtCompiler) DoRangeStmt(s *ast.RangeStmt) {
 	log.Crash("Not implemented");
 }
 
+func (a *blockCompiler) compileBlock(block *ast.BlockStmt) {
+	for i, sub := range block.List {
+		sc := &stmtCompiler{a, sub.Pos(), true};
+		sub.Visit(sc);
+		a.err = a.err || sc.err;
+	}
+}
+
+func (a *compiler) compileFunc(scope *Scope, decl *FuncDecl, body *ast.BlockStmt) (func (f *Frame) Func) {
+	// Create body scope
+	//
+	// The scope of a parameter or result is the body of the
+	// corresponding function.
+	bodyScope := scope.Fork();
+	for i, t := range decl.Type.In {
+		bodyScope.DefineVar(decl.InNames[i].Value, t);
+	}
+	outVars := make([]*Variable, len(decl.Type.Out));
+	for i, t := range decl.Type.Out {
+		if decl.OutNames[i] != nil {
+			outVars[i] = bodyScope.DefineVar(decl.OutNames[i].Value, t);
+		} else {
+			// TODO(austin) It would be nice to have a
+			// better way to define unnamed slots.
+			outVars[i] = bodyScope.DefineVar(":out" + strconv.Itoa(i), t);
+		}
+	}
+
+	// Create block context
+	fc := &funcCompiler{a, outVars, false, newCodeBuf(), false};
+	if len(decl.OutNames) > 0 && decl.OutNames[0] != nil {
+		fc.outVarsNamed = true;
+	}
+	bc := &blockCompiler{fc, bodyScope, false};
+
+	// Compile body
+	bc.compileBlock(body);
+	if fc.err {
+		return nil;
+	}
+
+	// TODO(austin) Check that all gotos were linked?
+
+	// Check that the body returned if necessary
+	if len(decl.Type.Out) > 0 && !bc.returned {
+		// XXX(Spec) Not specified.
+		a.diagAt(&body.Rbrace, "function ends without a return statement");
+		return nil;
+	}
+
+	code := fc.get();
+	return func(f *Frame) Func { return &evalFunc{bodyScope, f, code} };
+}
+
 /*
- * Public interface
+ * Testing interface
  */
 
 type Stmt struct {
@@ -305,12 +459,17 @@ func (s *Stmt) Exec(f *Frame) {
 	s.f(f);
 }
 
-func CompileStmt(stmt ast.Stmt, scope *Scope) (*Stmt, os.Error) {
+func CompileStmt(scope *Scope, stmt ast.Stmt) (*Stmt, os.Error) {
 	errors := scanner.NewErrorVector();
-	sc := &stmtCompiler{scope, errors, stmt.Pos(), nil};
+	cc := &compiler{errors};
+	fc := &funcCompiler{cc, nil, false, newCodeBuf(), false};
+	bc := &blockCompiler{fc, scope, false};
+	sc := &stmtCompiler{bc, stmt.Pos(), true};
 	stmt.Visit(sc);
-	if sc.f == nil {
+	fc.err = fc.err || sc.err;
+	if fc.err {
 		return nil, errors.GetError(scanner.Sorted);
 	}
-	return &Stmt{sc.f}, nil;
+	code := fc.get();
+	return &Stmt{func(f *Frame) { code.exec(f); }}, nil;
 }

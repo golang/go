@@ -7,7 +7,6 @@ package eval
 import (
 	"bignum";
 	"eval";
-	"fmt";
 	"go/ast";
 	"go/scanner";
 	"go/token";
@@ -16,14 +15,6 @@ import (
 	"strconv";
 	"strings";
 )
-
-// An exprContext stores information used throughout the compilation
-// of an entire expression.
-type exprContext struct {
-	scope *Scope;
-	constant bool;
-	errors scanner.ErrorHandler;
-}
 
 // An exprCompiler compiles a single node in an expression.  It stores
 // the whole expression's context plus information specific to this node.
@@ -37,16 +28,22 @@ type exprCompiler struct {
 	evalBool func(f *Frame) bool;
 	evalUint func(f *Frame) uint64;
 	evalInt func(f *Frame) int64;
+	// TODO(austin) evalIdealInt and evalIdealFloat shouldn't be
+	// functions at all.
 	evalIdealInt func() *bignum.Integer;
 	evalFloat func(f *Frame) float64;
 	evalIdealFloat func() *bignum.Rational;
 	evalString func(f *Frame) string;
 	evalArray func(f *Frame) ArrayValue;
 	evalPtr func(f *Frame) Value;
+	evalFunc func(f *Frame) Func;
 	// Evaluate to the "address of" this value; that is, the
 	// settable Value object.  nil for expressions whose address
 	// cannot be taken.
 	evalAddr func(f *Frame) Value;
+	// Execute this expression as a statement.  Only expressions
+	// that are valid expression statements should set this.
+	exec func(f *Frame);
 	// A short string describing this expression for error
 	// messages.  Only necessary if t != nil.
 	desc string;
@@ -62,8 +59,10 @@ func newExprCompiler(c *exprContext, pos token.Position) *exprCompiler {
 
 // Operator generators
 // TODO(austin) Remove these forward declarations
-func (a *exprCompiler) genIdentOp(t Type, s *Scope, index int)
+func (a *exprCompiler) genConstant(v Value)
+func (a *exprCompiler) genIdentOp(s *Scope, index int)
 func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value)
 func (a *exprCompiler) genStarOp(v *exprCompiler)
 func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler)
 func (a *exprCompiler) genUnaryOpNot(v *exprCompiler)
@@ -94,7 +93,7 @@ func (a *exprCompiler) copyVisit(x ast.Expr) *exprCompiler {
 }
 
 func (a *exprCompiler) diag(format string, args ...) {
-	a.errors.Error(a.pos, fmt.Sprintf(format, args));
+	a.diagAt(&a.pos, format, args);
 }
 
 func (a *exprCompiler) diagOpType(op token.Token, vt Type) {
@@ -173,6 +172,13 @@ func (a *exprCompiler) asPtr() (func(f *Frame) Value) {
 	return a.evalPtr;
 }
 
+func (a *exprCompiler) asFunc() (func(f *Frame) Func) {
+	if a.evalFunc == nil {
+		log.Crashf("tried to get %v node as FuncType", a.t);
+	}
+	return a.evalFunc;
+}
+
 /*
  * Common expression manipulations
  */
@@ -208,7 +214,7 @@ func (a *exprCompiler) convertTo(t Type) *exprCompiler {
 	}
 
 	// Check bounds
-	if t, ok := t.(BoundedType); ok {
+	if t, ok := t.rep().(BoundedType); ok {
 		if rat.Cmp(t.minVal()) < 0 {
 			a.diag("constant %v underflows %v", ratToString(rat), t);
 			return nil;
@@ -222,7 +228,7 @@ func (a *exprCompiler) convertTo(t Type) *exprCompiler {
 	// Convert rat to type t.
 	res := a.copy();
 	res.t = t;
-	switch t := t.(type) {
+	switch t := t.rep().(type) {
 	case *uintType:
 		n, d := rat.Value();
 		f := n.Quo(bignum.MakeInt(false, d));
@@ -260,14 +266,13 @@ func (a *exprCompiler) convertTo(t Type) *exprCompiler {
 // type, or produce an error.
 //
 // errOp specifies the operation name to use for error messages, such
-// as "assignment", or "function call".  errPos, if non-zero,
-// specifies the position of this assignment (for tuple assignments or
-// function arguments).  errPosName specifies the name to use for
-// positions.
+// as "assignment", or "function call".  errPosName specifies the name
+// to use for positions.  errPos, if non-zero, specifies the position
+// of this assignment (for tuple assignments or function arguments).
 //
 // If the assignment fails to typecheck, this generates an error
 // message and returns nil, nil.
-func mkAssign(lt Type, r *exprCompiler, errOp string, errPos int, errPosName string) (Type, func(lv Value, f *Frame)) {
+func mkAssign(lt Type, r *exprCompiler, errOp string, errPosName string, errPos int) (Type, func(lv Value, f *Frame)) {
 	// However, when [an ideal is] (used in an expression)
 	// assigned to a variable or typed constant, the destination
 	// must be able to represent the assigned value.
@@ -299,7 +304,7 @@ func mkAssign(lt Type, r *exprCompiler, errOp string, errPos int, errPosName str
 	} else {
 		// Values of any type may always be assigned to
 		// variables of compatible static type.
-		if !lt.compatible(r.t) {
+		if lt.literal() != r.t.literal() {
 			if errPos == 0 {
 				r.diag("illegal operand types for %s\n\t%v\n\t%v", errOp, lt, r.t);
 			} else {
@@ -330,28 +335,16 @@ func (a *exprCompiler) DoIdent(x *ast.Ident) {
 	switch def := def.(type) {
 	case *Constant:
 		a.t = def.Type;
-		switch _ := a.t.literal().(type) {
-		case *idealIntType:
-			val := def.Value.(IdealIntValue).Get();
-			a.evalIdealInt = func() *bignum.Integer { return val; };
-		case *idealFloatType:
-			val := def.Value.(IdealFloatValue).Get();
-			a.evalIdealFloat = func() *bignum.Rational { return val; };
-		default:
-			log.Crashf("unexpected constant type: %v", a.t);
-		}
+		a.genConstant(def.Value);
 		a.desc = "constant";
 	case *Variable:
 		if a.constant {
-			a.diag("expression must be a constant");
+			a.diag("variable %s used in constant expression", x.Value);
 			return;
 		}
 		a.t = def.Type;
 		defidx := def.Index;
-		a.genIdentOp(def.Type, dscope, defidx);
-		a.evalAddr = func(f *Frame) Value {
-			return f.Get(dscope, defidx);
-		};
+		a.genIdentOp(dscope, defidx);
 		a.desc = "variable";
 	case Type:
 		a.diag("type %v used as expression", x.Value);
@@ -423,7 +416,28 @@ func (a *exprCompiler) DoStringList(x *ast.StringList) {
 }
 
 func (a *exprCompiler) DoFuncLit(x *ast.FuncLit) {
-	log.Crash("Not implemented");
+	// TODO(austin) Closures capture their entire defining frame
+	// instead of just the variables they use.
+
+	decl := a.compileFuncType(a.scope, x.Type);
+	if decl == nil {
+		// TODO(austin) Try compiling the body, perhaps with
+		// dummy definitions for the arguments
+		return;
+	}
+
+	evalFunc := a.compileFunc(a.scope, decl, x.Body);
+	if evalFunc == nil {
+		return;
+	}
+
+	if a.constant {
+		a.diag("function literal used in constant expression");
+		return;
+	}
+
+	a.t = decl.Type;
+	a.evalFunc = evalFunc;
 }
 
 func (a *exprCompiler) DoCompositeLit(x *ast.CompositeLit) {
@@ -445,8 +459,8 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
 	}
 
 	// Type check object
-	if lt, ok := l.t.literal().(*PtrType); ok {
-		if et, ok := lt.Elem.literal().(*ArrayType); ok {
+	if lt, ok := l.t.rep().(*PtrType); ok {
+		if et, ok := lt.Elem.rep().(*ArrayType); ok {
 			// Automatic dereference
 			nl := l.copy();
 			nl.t = et;
@@ -459,7 +473,7 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
 	intIndex := false;
 	var maxIndex int64 = -1;
 
-	switch lt := l.t.literal().(type) {
+	switch lt := l.t.rep().(type) {
 	case *ArrayType:
 		at = lt.Elem;
 		intIndex = true;
@@ -488,7 +502,7 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
 		// XXX(Spec) It's unclear if ideal floats with no
 		// fractional part are allowed here.  6g allows it.  I
 		// believe that's wrong.
-		switch _ := r.t.literal().(type) {
+		switch _ := r.t.rep().(type) {
 		case *idealIntType:
 			val := r.asIdealInt()();
 			if val.IsNeg() || (maxIndex != -1 && val.Cmp(bignum.Int(maxIndex)) >= 0) {
@@ -522,7 +536,7 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
 	a.t = at;
 
 	// Compile
-	switch lt := l.t.literal().(type) {
+	switch lt := l.t.rep().(type) {
 	case *ArrayType:
 		a.t = lt.Elem;
 		// TODO(austin) Bounds check
@@ -533,8 +547,18 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
 			return lf(f).Elem(rf(f));
 		};
 
+	case *stringType:
+		// TODO(austin) Bounds check
+		lf := l.asString();
+		rf := r.asInt();
+		// TODO(austin) This pulls over the whole string in a
+		// remote setting, instead of just the one character.
+		a.evalUint = func(f *Frame) uint64 {
+			return uint64(lf(f)[rf(f)]);
+		}
+
 	default:
-		log.Crashf("Compilation of index into %T not implemented", l.t.literal());
+		log.Crashf("Compilation of index into %T not implemented", l.t);
 	}
 }
 
@@ -543,7 +567,95 @@ func (a *exprCompiler) DoTypeAssertExpr(x *ast.TypeAssertExpr) {
 }
 
 func (a *exprCompiler) DoCallExpr(x *ast.CallExpr) {
-	log.Crash("Not implemented");
+	// TODO(austin) Type conversions look like calls, but will
+	// fail in DoIdent right now.
+	//
+	// TODO(austin) Magic built-in functions
+	//
+	// TODO(austin) Variadic functions.
+
+	// Compile children
+	bad := false;
+	l := a.copyVisit(x.Fun);
+	if l.t == nil {
+		bad = true;
+	}
+	as := make([]*exprCompiler, len(x.Args));
+	ats := make([]Type, len(as));
+	for i := 0; i < len(x.Args); i++ {
+		as[i] = a.copyVisit(x.Args[i]);
+		if as[i].t == nil {
+			bad = true;
+		}
+		ats[i] = as[i].t;
+	}
+	if bad {
+		return;
+	}
+
+	// Type check
+	if a.constant {
+		a.diag("function call in constant context");
+		return;
+	}
+
+	// XXX(Spec) Calling a named function type is okay.  I really
+	// think there needs to be a general discussion of named
+	// types.  A named type creates a new, distinct type, but the
+	// type of that type is still whatever it's defined to.  Thus,
+	// in "type Foo int", Foo is still an integer type and in
+	// "type Foo func()", Foo is a function type.
+	lt, ok := l.t.rep().(*FuncType);
+	if !ok {
+		a.diag("cannot call non-function type %v", l.t);
+		return;
+	}
+
+	if len(as) != len(lt.In) {
+		msg := "too many";
+		if len(as) < len(lt.In) {
+			msg = "not enough";
+		}
+		a.diag("%s arguments to call\n\t%s\n\t%s", msg, typeListString(lt.In, nil), typeListString(ats, nil));
+		return;
+	}
+
+	// The arguments must be single-valued expressions assignment
+	// compatible with the parameters of F.
+	afs := make([]func(lv Value, f *Frame), len(as));
+	for i := 0; i < len(as); i++ {
+		var at Type;
+		at, afs[i] = mkAssign(lt.In[i], as[i], "function call", "argument", i + 1);
+		if at == nil {
+			bad = true;
+		}
+	}
+	if bad {
+		return;
+	}
+
+	nResults := len(lt.Out);
+	if nResults != 1 {
+		log.Crashf("Multi-valued return type not implemented");
+	}
+	a.t = lt.Out[0];
+
+	// Compile
+	lf := l.asFunc();
+	call := func(f *Frame) []Value {
+		fun := lf(f);
+		fr := fun.NewFrame();
+		for i, af := range afs {
+			af(fr.Vars[i], f);
+		}
+		fun.Call(fr);
+		return fr.Vars[len(afs):len(afs)+nResults];
+	};
+	a.genFuncCall(call);
+
+	// Function calls, method calls, and channel operations can
+	// appear in statement context.
+	a.exec = func(f *Frame) { call(f) };
 }
 
 func (a *exprCompiler) DoStarExpr(x *ast.StarExpr) {
@@ -552,19 +664,20 @@ func (a *exprCompiler) DoStarExpr(x *ast.StarExpr) {
 		return;
 	}
 
-	switch vt := v.t.literal().(type) {
+	switch vt := v.t.rep().(type) {
 	case *PtrType:
-		// TODO(austin) If this is vt.Elem() I get a
-		// "call of a non-function: Type" error
 		a.t = vt.Elem;
 		a.genStarOp(v);
-		vf := v.asPtr();
-		a.evalAddr = func(f *Frame) Value { return vf(f) };
-		a.desc = "* expression";
+		a.desc = "indirect expression";
 
 	default:
 		a.diagOpType(token.MUL, v.t);
 	}
+}
+
+func (a *exprCompiler) genUnaryAddrOf(v *exprCompiler) {
+	vf := v.evalAddr;
+	a.evalPtr = func(f *Frame) Value { return vf(f) };
 }
 
 var unaryOpDescs = make(map[token.Token] string)
@@ -589,7 +702,6 @@ func (a *exprCompiler) DoUnaryExpr(x *ast.UnaryExpr) {
 			a.diagOpType(x.Op, v.t);
 			return;
 		}
-		// TODO(austin) Unnamed bool?  Named bool?
 		a.t = BoolType;
 
 	case token.XOR:
@@ -645,8 +757,7 @@ func (a *exprCompiler) DoUnaryExpr(x *ast.UnaryExpr) {
 		a.genUnaryOpXor(v);
 
 	case token.AND:
-		vf := v.evalAddr;
-		a.evalPtr = func(f *Frame) Value { return vf(f) };
+		a.genUnaryAddrOf(v);
 
 	default:
 		log.Crashf("Compilation of unary op %v not implemented", x.Op);
@@ -702,11 +813,12 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
 		}
 	}
 
+	// XXX(Spec) "The operand types in binary operations must be
+	// compatible" should say the types must be *identical*.
+
 	// Useful type predicates
-	// TODO(austin) The spec is wrong here.  The types must be
-	// identical, not compatible.
-	compat := func() bool {
-		return l.t.compatible(r.t);
+	same := func() bool {
+		return l.t == r.t;
 	};
 	integers := func() bool {
 		return l.t.isInteger() && r.t.isInteger();
@@ -719,28 +831,27 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
 		return l.t == StringType && r.t == StringType;
 	};
 	booleans := func() bool {
-		// TODO(austin) Deal with named types
-		return l.t == BoolType && r.t == BoolType;
+		return l.t.isBoolean() && r.t.isBoolean();
 	};
 
 	// Type check
 	switch op {
 	case token.ADD:
-		if !compat() || (!integers() && !floats() && !strings()) {
+		if !same() || (!integers() && !floats() && !strings()) {
 			a.diagOpTypes(op, origlt, origrt);
 			return;
 		}
 		a.t = l.t;
 
 	case token.SUB, token.MUL, token.QUO:
-		if !compat() || (!integers() && !floats()) {
+		if !same() || (!integers() && !floats()) {
 			a.diagOpTypes(op, origlt, origrt);
 			return;
 		}
 		a.t = l.t;
 
 	case token.REM, token.AND, token.OR, token.XOR, token.AND_NOT:
-		if !compat() || !integers() {
+		if !same() || !integers() {
 			a.diagOpTypes(op, origlt, origrt);
 			return;
 		}
@@ -783,7 +894,7 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
 					log.Crashf("conversion to uintType succeeded, but conversion to idealIntType failed");
 				}
 			}
-		} else if _, ok := r.t.literal().(*uintType); !ok {
+		} else if _, ok := r.t.rep().(*uintType); !ok {
 			a.diag("right operand of shift must be unsigned");
 			return;
 		}
@@ -793,6 +904,7 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
 			// non-ideal"?  Russ says the ideal should be
 			// converted to an int.  6g propagates the
 			// type down from assignments as a hint.
+
 			l = l.convertTo(IntType);
 			if l == nil {
 				return;
@@ -816,7 +928,6 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
 		// the type of the left operand, and NOT an unnamed
 		// boolean type.
 
-		// TODO(austin) Named bool type
 		a.t = BoolType;
 
 	case token.ARROW:
@@ -829,7 +940,8 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
 	case token.LSS, token.GTR, token.LEQ, token.GEQ:
 		// ... booleans may be compared only for equality or
 		// inequality.
-		if l.t.literal() == BoolType || r.t.literal() == BoolType {
+
+		if l.t.isBoolean() || r.t.isBoolean() {
 			a.diagOpTypes(op, origlt, origrt);
 			return;
 		}
@@ -855,7 +967,6 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
 		// actually explained in the Comparison compatibility
 		// section.
 		log.Crashf("Binary op %v not implemented", op);
-		// TODO(austin) Unnamed bool?  Named bool?
 		a.t = BoolType;
 
 	default:
@@ -976,8 +1087,37 @@ func (a *exprCompiler) DoChanType(x *ast.ChanType) {
 	log.Crash("Not implemented");
 }
 
-func compileExpr(expr ast.Expr, scope *Scope, errors scanner.ErrorHandler) *exprCompiler {
-	ec := newExprCompiler(&exprContext{scope, false, errors}, expr.Pos());
+// TODO(austin) This is a hack to eliminate a circular dependency
+// between type.go and expr.go
+func (a *compiler) compileArrayLen(scope *Scope, expr ast.Expr) (int64, bool) {
+	lenExpr := a.compileExpr(scope, expr, true);
+	if lenExpr == nil {
+		return 0, false;
+	}
+	if !lenExpr.t.isInteger() {
+		a.diagAt(expr, "array size must be an integer");
+		return 0, false;
+	}
+
+	if lenExpr.t.isIdeal() {
+		lenExpr = lenExpr.convertTo(IntType);
+		if lenExpr == nil {
+			return 0, false;
+		}
+	}
+
+	switch _ := lenExpr.t.rep().(type) {
+	case *intType:
+		return lenExpr.evalInt(nil), true;
+	case *uintType:
+		return int64(lenExpr.evalUint(nil)), true;
+	}
+	log.Crashf("unexpected integer type %T", lenExpr.t);
+	return 0, false;
+}
+
+func (a *compiler) compileExpr(scope *Scope, expr ast.Expr, constant bool) *exprCompiler {
+	ec := newExprCompiler(&exprContext{a, scope, constant}, expr.Pos());
 	expr.Visit(ec);
 	if ec.t == nil {
 		return nil;
@@ -985,8 +1125,55 @@ func compileExpr(expr ast.Expr, scope *Scope, errors scanner.ErrorHandler) *expr
 	return ec;
 }
 
+// extractEffect separates out any effects that the expression may
+// have, returning a function that will perform those effects and a
+// new exprCompiler that is guaranteed to be side-effect free.  These
+// are the moral equivalents of "temp := &expr" and "*temp".
+//
+// Implementation limit: The expression must be addressable.
+func (a *exprCompiler) extractEffect() (func(f *Frame), *exprCompiler) {
+	if a.evalAddr == nil {
+		// This is a much easier case, but the code is
+		// completely different.
+		log.Crash("extractEffect only implemented for addressable expressions");
+	}
+
+	// Create temporary
+	tempScope := a.scope;
+	tempType := NewPtrType(a.t);
+	// TODO(austin) These temporaries accumulate in the scope.
+	temp := tempScope.DefineTemp(tempType);
+	tempIdx := temp.Index;
+
+	// Generate "temp := &e"
+	addr := a.copy();
+	addr.t = tempType;
+	addr.genUnaryAddrOf(a);
+
+	_, assign := mkAssign(tempType, addr, "", "", 0);
+	if assign == nil {
+		log.Crashf("extractEffect: mkAssign type check failed");
+	}
+
+	effect := func(f *Frame) {
+		tempVal := f.Get(tempScope, tempIdx);
+		assign(tempVal, f);
+	};
+
+	// Generate "*temp"
+	getTemp := a.copy();
+	getTemp.t = tempType;
+	getTemp.genIdentOp(tempScope, tempIdx);
+
+	deref := a.copy();
+	deref.t = a.t;
+	deref.genStarOp(getTemp);
+
+	return effect, deref;
+}
+
 /*
- * Public interface
+ * Testing interface
  */
 
 type Expr struct {
@@ -1000,14 +1187,15 @@ func (expr *Expr) Eval(f *Frame) Value {
 	return v;
 }
 
-func CompileExpr(expr ast.Expr, scope *Scope) (*Expr, os.Error) {
+func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
 	errors := scanner.NewErrorVector();
+	cc := &compiler{errors};
 
-	ec := compileExpr(expr, scope, errors);
+	ec := cc.compileExpr(scope, expr, false);
 	if ec == nil {
 		return nil, errors.GetError(scanner.Sorted);
 	}
-	switch t := ec.t.(type) {
+	switch t := ec.t.rep().(type) {
 	case *boolType:
 		return &Expr{t, func(f *Frame, out Value) { out.(BoolValue).Set(ec.evalBool(f)) }}, nil;
 	case *uintType:
@@ -1024,6 +1212,8 @@ func CompileExpr(expr ast.Expr, scope *Scope) (*Expr, os.Error) {
 		return &Expr{t, func(f *Frame, out Value) { out.(StringValue).Set(ec.evalString(f)) }}, nil;
 	case *PtrType:
 		return &Expr{t, func(f *Frame, out Value) { out.(PtrValue).Set(ec.evalPtr(f)) }}, nil;
+	case *FuncType:
+		return &Expr{t, func(f *Frame, out Value) { out.(FuncValue).Set(ec.evalFunc(f)) }}, nil;
 	}
 	log.Crashf("unexpected type %v", ec.t);
 	panic();
@@ -1034,8 +1224,46 @@ func CompileExpr(expr ast.Expr, scope *Scope) (*Expr, os.Error) {
  * Everything below here is MACHINE GENERATED by gen.py genOps
  */
 
-func (a *exprCompiler) genIdentOp(t Type, s *Scope, index int) {
-	switch _ := t.literal().(type) {
+func (a *exprCompiler) genConstant(v Value) {
+	switch _ := a.t.rep().(type) {
+	case *boolType:
+		val := v.(BoolValue).Get();
+		a.evalBool = func(f *Frame) bool { return val };
+	case *uintType:
+		val := v.(UintValue).Get();
+		a.evalUint = func(f *Frame) uint64 { return val };
+	case *intType:
+		val := v.(IntValue).Get();
+		a.evalInt = func(f *Frame) int64 { return val };
+	case *idealIntType:
+		val := v.(IdealIntValue).Get();
+		a.evalIdealInt = func() *bignum.Integer { return val };
+	case *floatType:
+		val := v.(FloatValue).Get();
+		a.evalFloat = func(f *Frame) float64 { return val };
+	case *idealFloatType:
+		val := v.(IdealFloatValue).Get();
+		a.evalIdealFloat = func() *bignum.Rational { return val };
+	case *stringType:
+		val := v.(StringValue).Get();
+		a.evalString = func(f *Frame) string { return val };
+	case *ArrayType:
+		val := v.(ArrayValue).Get();
+		a.evalArray = func(f *Frame) ArrayValue { return val };
+	case *PtrType:
+		val := v.(PtrValue).Get();
+		a.evalPtr = func(f *Frame) Value { return val };
+	case *FuncType:
+		val := v.(FuncValue).Get();
+		a.evalFunc = func(f *Frame) Func { return val };
+	default:
+		log.Crashf("unexpected constant type %v at %v", a.t, a.pos);
+	}
+}
+
+func (a *exprCompiler) genIdentOp(s *Scope, index int) {
+	a.evalAddr = func(f *Frame) Value { return f.Get(s, index) };
+	switch _ := a.t.rep().(type) {
 	case *boolType:
 		a.evalBool = func(f *Frame) bool { return f.Get(s, index).(BoolValue).Get() };
 	case *uintType:
@@ -1050,15 +1278,17 @@ func (a *exprCompiler) genIdentOp(t Type, s *Scope, index int) {
 		a.evalArray = func(f *Frame) ArrayValue { return f.Get(s, index).(ArrayValue).Get() };
 	case *PtrType:
 		a.evalPtr = func(f *Frame) Value { return f.Get(s, index).(PtrValue).Get() };
+	case *FuncType:
+		a.evalFunc = func(f *Frame) Func { return f.Get(s, index).(FuncValue).Get() };
 	default:
-		log.Crashf("unexpected identifier type %v at %v", t.literal(), a.pos);
+		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler) {
 	lf := l.asArray();
 	rf := r.asInt();
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *boolType:
 		a.evalBool = func(f *Frame) bool { return lf(f).Elem(rf(f)).(BoolValue).Get() };
 	case *uintType:
@@ -1073,14 +1303,40 @@ func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler) {
 		a.evalArray = func(f *Frame) ArrayValue { return lf(f).Elem(rf(f)).(ArrayValue).Get() };
 	case *PtrType:
 		a.evalPtr = func(f *Frame) Value { return lf(f).Elem(rf(f)).(PtrValue).Get() };
+	case *FuncType:
+		a.evalFunc = func(f *Frame) Func { return lf(f).Elem(rf(f)).(FuncValue).Get() };
 	default:
-		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
+	}
+}
+
+func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value) {
+	switch _ := a.t.rep().(type) {
+	case *boolType:
+		a.evalBool = func(f *Frame) bool { return call(f)[0].(BoolValue).Get() };
+	case *uintType:
+		a.evalUint = func(f *Frame) uint64 { return call(f)[0].(UintValue).Get() };
+	case *intType:
+		a.evalInt = func(f *Frame) int64 { return call(f)[0].(IntValue).Get() };
+	case *floatType:
+		a.evalFloat = func(f *Frame) float64 { return call(f)[0].(FloatValue).Get() };
+	case *stringType:
+		a.evalString = func(f *Frame) string { return call(f)[0].(StringValue).Get() };
+	case *ArrayType:
+		a.evalArray = func(f *Frame) ArrayValue { return call(f)[0].(ArrayValue).Get() };
+	case *PtrType:
+		a.evalPtr = func(f *Frame) Value { return call(f)[0].(PtrValue).Get() };
+	case *FuncType:
+		a.evalFunc = func(f *Frame) Func { return call(f)[0].(FuncValue).Get() };
+	default:
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genStarOp(v *exprCompiler) {
 	vf := v.asPtr();
-	switch _ := a.t.literal().(type) {
+	a.evalAddr = func(f *Frame) Value { return vf(f) };
+	switch _ := a.t.rep().(type) {
 	case *boolType:
 		a.evalBool = func(f *Frame) bool { return vf(f).(BoolValue).Get() };
 	case *uintType:
@@ -1095,13 +1351,15 @@ func (a *exprCompiler) genStarOp(v *exprCompiler) {
 		a.evalArray = func(f *Frame) ArrayValue { return vf(f).(ArrayValue).Get() };
 	case *PtrType:
 		a.evalPtr = func(f *Frame) Value { return vf(f).(PtrValue).Get() };
+	case *FuncType:
+		a.evalFunc = func(f *Frame) Func { return vf(f).(FuncValue).Get() };
 	default:
-		log.Crashf("unexpected result type %v at %v", v.t.literal().(*PtrType).Elem.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *uintType:
 		vf := v.asUint();
 		a.evalUint = func(f *Frame) uint64 { return -vf(f) };
@@ -1120,22 +1378,22 @@ func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler) {
 		val := vf().Neg();
 		a.evalIdealFloat = func() *bignum.Rational { return val };
 	default:
-		log.Crashf("unexpected result type %v at %v", v.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genUnaryOpNot(v *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *boolType:
 		vf := v.asBool();
 		a.evalBool = func(f *Frame) bool { return !vf(f) };
 	default:
-		log.Crashf("unexpected result type %v at %v", v.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genUnaryOpXor(v *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *uintType:
 		vf := v.asUint();
 		a.evalUint = func(f *Frame) uint64 { return ^vf(f) };
@@ -1147,12 +1405,12 @@ func (a *exprCompiler) genUnaryOpXor(v *exprCompiler) {
 		val := vf().Neg().Sub(bignum.Int(1));
 		a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
-		log.Crashf("unexpected result type %v at %v", v.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpAdd(l *exprCompiler, r *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1180,12 +1438,12 @@ func (a *exprCompiler) genBinOpAdd(l *exprCompiler, r *exprCompiler) {
 		rf := r.asString();
 		a.evalString = func(f *Frame) string { return lf(f) + rf(f) };
 	default:
-		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpSub(l *exprCompiler, r *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1209,12 +1467,12 @@ func (a *exprCompiler) genBinOpSub(l *exprCompiler, r *exprCompiler) {
 		val := lf().Sub(rf());
 		a.evalIdealFloat = func() *bignum.Rational { return val };
 	default:
-		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpMul(l *exprCompiler, r *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1238,12 +1496,12 @@ func (a *exprCompiler) genBinOpMul(l *exprCompiler, r *exprCompiler) {
 		val := lf().Mul(rf());
 		a.evalIdealFloat = func() *bignum.Rational { return val };
 	default:
-		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpQuo(l *exprCompiler, r *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1267,12 +1525,12 @@ func (a *exprCompiler) genBinOpQuo(l *exprCompiler, r *exprCompiler) {
 		val := lf().Quo(rf());
 		a.evalIdealFloat = func() *bignum.Rational { return val };
 	default:
-		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpRem(l *exprCompiler, r *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1287,12 +1545,12 @@ func (a *exprCompiler) genBinOpRem(l *exprCompiler, r *exprCompiler) {
 		val := lf().Rem(rf());
 		a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
-		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpAnd(l *exprCompiler, r *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1307,12 +1565,12 @@ func (a *exprCompiler) genBinOpAnd(l *exprCompiler, r *exprCompiler) {
 		val := lf().And(rf());
 		a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
-		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpOr(l *exprCompiler, r *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1327,12 +1585,12 @@ func (a *exprCompiler) genBinOpOr(l *exprCompiler, r *exprCompiler) {
 		val := lf().Or(rf());
 		a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
-		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpXor(l *exprCompiler, r *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1347,12 +1605,12 @@ func (a *exprCompiler) genBinOpXor(l *exprCompiler, r *exprCompiler) {
 		val := lf().Xor(rf());
 		a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
-		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1367,12 +1625,12 @@ func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler) {
 		val := lf().AndNot(rf());
 		a.evalIdealInt = func() *bignum.Integer { return val };
 	default:
-		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1382,12 +1640,12 @@ func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler) {
 		rf := r.asUint();
 		a.evalInt = func(f *Frame) int64 { return lf(f) << rf(f) };
 	default:
-		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler) {
-	switch _ := a.t.literal().(type) {
+	switch _ := a.t.rep().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -1397,12 +1655,12 @@ func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler) {
 		rf := r.asUint();
 		a.evalInt = func(f *Frame) int64 { return lf(f) >> rf(f) };
 	default:
-		log.Crashf("unexpected result type %v at %v", l.t.literal(), a.pos);
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
 func genAssign(lt Type, r *exprCompiler) (func(lv Value, f *Frame)) {
-	switch _ := lt.literal().(type) {
+	switch _ := lt.rep().(type) {
 	case *boolType:
 		rf := r.asBool();
 		return func(lv Value, f *Frame) { lv.(BoolValue).Set(rf(f)) };
@@ -1424,8 +1682,11 @@ func genAssign(lt Type, r *exprCompiler) (func(lv Value, f *Frame)) {
 	case *PtrType:
 		rf := r.asPtr();
 		return func(lv Value, f *Frame) { lv.(PtrValue).Set(rf(f)) };
+	case *FuncType:
+		rf := r.asFunc();
+		return func(lv Value, f *Frame) { lv.(FuncValue).Set(rf(f)) };
 	default:
-		log.Crashf("unexpected left operand type %v at %v", lt.literal(), r.pos);
+		log.Crashf("unexpected left operand type %v at %v", lt, r.pos);
 	}
 	panic();
 }

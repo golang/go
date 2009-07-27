@@ -150,30 +150,29 @@ func (v *uintptrV) Set(x uint64) {
 }
 
 func (t *uintType) Zero() Value {
-	// TODO(austin) t may be a named type instead of one of the
-	// base types.
-	switch Type(t) {
-	case Uint8Type:
+	switch t.Bits {
+	case 0:
+		if t.Ptr {
+			res := uintptrV(0);
+			return &res;
+		} else {
+			res := uintV(0);
+			return &res;
+		}
+	case 8:
 		res := uint8V(0);
 		return &res;
-	case Uint16Type:
+	case 16:
 		res := uint16V(0);
 		return &res;
-	case Uint32Type:
+	case 32:
 		res := uint32V(0);
 		return &res;
-	case Uint64Type:
+	case 64:
 		res := uint64V(0);
 		return &res;
-
-	case UintType:
-		res := uintV(0);
-		return &res;
-	case UintptrType:
-		res := uintptrV(0);
-		return &res;
 	}
-	panic("unknown uint type ", t.String());
+	panic("unexpected uint bit count: ", t.Bits);
 }
 
 /*
@@ -271,25 +270,25 @@ func (v *intV) Set(x int64) {
 }
 
 func (t *intType) Zero() Value {
-	switch Type(t) {
-	case Int8Type:
+	switch t.Bits {
+	case 8:
 		res := int8V(0);
 		return &res;
-	case Int16Type:
+	case 16:
 		res := int16V(0);
 		return &res;
-	case Int32Type:
+	case 32:
 		res := int32V(0);
 		return &res;
-	case Int64Type:
+	case 64:
 		res := int64V(0);
 		return &res;
 
-	case IntType:
+	case 0:
 		res := intV(0);
 		return &res;
 	}
-	panic("unknown int type ", t.String());
+	panic("unexpected int bit count: ", t.Bits);
 }
 
 /*
@@ -375,18 +374,18 @@ func (v *floatV) Set(x float64) {
 }
 
 func (t *floatType) Zero() Value {
-	switch Type(t) {
-	case Float32Type:
+	switch t.Bits {
+	case 32:
 		res := float32V(0);
 		return &res;
-	case Float64Type:
+	case 64:
 		res := float64V(0);
 		return &res;
-	case FloatType:
+	case 0:
 		res := floatV(0);
 		return &res;
 	}
-	panic("unknown float type ", t.String());
+	panic("unexpected float bit count: ", t.Bits);
 }
 
 /*
@@ -505,6 +504,49 @@ func (v *ptrV) Set(x Value) {
 }
 
 func (t *PtrType) Zero() Value {
-	res := ptrV{nil};
-	return &res;
+	return &ptrV{nil};
+}
+
+/*
+ * Functions
+ */
+
+type funcV struct {
+	target Func;
+}
+
+func (v *funcV) String() string {
+	// TODO(austin) Rob wants to see the definition
+	return "func {...}";
+}
+
+func (v *funcV) Assign(o Value) {
+	v.target = o.(FuncValue).Get();
+}
+
+func (v *funcV) Get() Func {
+	return v.target;
+}
+
+func (v *funcV) Set(x Func) {
+	v.target = x;
+}
+
+func (t *FuncType) Zero() Value {
+	return &funcV{nil};
+}
+
+/*
+ * Universal constants
+ */
+
+// TODO(austin) Nothing complains if I accidentally define init with
+// arguments.  Is this intentional?
+func init() {
+	s := universe;
+
+	true := boolV(true);
+	s.DefineConst("true", BoolType, &true);
+	false := boolV(false);
+	s.DefineConst("false", BoolType, &false);
 }
