@@ -409,6 +409,8 @@ mach_semdestroy(uint32 sem)
 	m.tx.semaphore.type = 0;
 
 	while((r = machcall(&m.tx.h, sizeof m, 0)) != 0){
+		if(r == KERN_ABORTED)	// interrupted
+			continue;
 		macherror(r, "semaphore_destroy");
 	}
 }
