@@ -519,8 +519,8 @@ func (v *ArrayValue) Elem(i int) Value {
 // runtime representation of slice
 type SliceHeader struct {
 	Data uintptr;
-	Len uint32;
-	Cap uint32;
+	Len int;
+	Cap int;
 }
 
 // A SliceValue represents a slice.
