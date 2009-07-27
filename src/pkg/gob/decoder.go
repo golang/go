@@ -13,27 +13,30 @@ import (
 	"sync";
 )
 
+// A Decoder manages the receipt of type and data information read from the
+// remote side of a connection.
 type Decoder struct {
-	sync.Mutex;	// each item must be received atomically
+	mutex	sync.Mutex;	// each item must be received atomically
 	r	io.Reader;	// source of the data
-	seen	map[TypeId] *wireType;	// which types we've already seen described
+	seen	map[typeId] *wireType;	// which types we've already seen described
 	state	*decodeState;	// reads data from in-memory buffer
 	countState	*decodeState;	// reads counts from wire
 	buf	[]byte;
 	oneByte	[]byte;
 }
 
+// NewDecoder returns a new decoder that reads from the io.Reader.
 func NewDecoder(r io.Reader) *Decoder {
 	dec := new(Decoder);
 	dec.r = r;
-	dec.seen = make(map[TypeId] *wireType);
+	dec.seen = make(map[typeId] *wireType);
 	dec.state = new(decodeState);	// buffer set in Decode(); rest is unimportant
 	dec.oneByte = make([]byte, 1);
 
 	return dec;
 }
 
-func (dec *Decoder) recvType(id TypeId) {
+func (dec *Decoder) recvType(id typeId) {
 	// Have we already seen this type?  That's an error
 	if wt_, alreadySeen := dec.seen[id]; alreadySeen {
 		dec.state.err = os.ErrorString("gob: duplicate type received");
@@ -47,14 +50,16 @@ func (dec *Decoder) recvType(id TypeId) {
 	dec.seen[id] = wire;
 }
 
+// Decode reads the next value from the connection and stores
+// it in the data represented by the empty interface value.
 // The value underlying e must be the correct type for the next
-// value to be received for this decoder.
+// data item received.
 func (dec *Decoder) Decode(e interface{}) os.Error {
 	rt, indir := indirect(reflect.Typeof(e));
 
 	// Make sure we're single-threaded through here.
-	dec.Lock();
-	defer dec.Unlock();
+	dec.mutex.Lock();
+	defer dec.mutex.Unlock();
 
 	dec.state.err = nil;
 	for {
@@ -81,7 +86,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 		}
 
 		// Receive a type id.
-		id := TypeId(decodeInt(dec.state));
+		id := typeId(decodeInt(dec.state));
 		if dec.state.err != nil {
 			break;
 		}

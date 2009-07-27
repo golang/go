@@ -36,6 +36,7 @@ var encodeT = []EncodeT {
 	EncodeT{ 1<<63,	[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x81} },
 }
 
+
 // Test basic encode/decode routines for unsigned integers
 func TestUintCodec(t *testing.T) {
 	b := new(bytes.Buffer);
@@ -552,7 +553,7 @@ func TestEndToEnd(t *testing.T) {
 	b := new(bytes.Buffer);
 	encode(b, t1);
 	var _t1 T1;
-	decode(b, getTypeInfo(reflect.Typeof(_t1)).typeId, &_t1);
+	decode(b, getTypeInfo(reflect.Typeof(_t1)).id, &_t1);
 	if !reflect.DeepEqual(t1, &_t1) {
 		t.Errorf("encode expected %v got %v", *t1, _t1);
 	}
@@ -570,7 +571,7 @@ func TestNesting(t *testing.T) {
 	b := new(bytes.Buffer);
 	encode(b, rt);
 	var drt RT;
-	decode(b, getTypeInfo(reflect.Typeof(drt)).typeId, &drt);
+	decode(b, getTypeInfo(reflect.Typeof(drt)).id, &drt);
 	if drt.a != rt.a {
 		t.Errorf("nesting: encode expected %v got %v", *rt, drt);
 	}
@@ -612,7 +613,7 @@ func TestAutoIndirection(t *testing.T) {
 	b := new(bytes.Buffer);
 	encode(b, t1);
 	var t0 T0;
-	t0Id := getTypeInfo(reflect.Typeof(t0)).typeId;
+	t0Id := getTypeInfo(reflect.Typeof(t0)).id;
 	decode(b, t0Id, &t0);
 	if t0.a != 17 || t0.b != 177 || t0.c != 1777 || t0.d != 17777 {
 		t.Errorf("t1->t0: expected {17 177 1777 17777}; got %v", t0);
@@ -637,7 +638,7 @@ func TestAutoIndirection(t *testing.T) {
 	b.Reset();
 	encode(b, t0);
 	t1 = T1{};
-	t1Id := getTypeInfo(reflect.Typeof(t1)).typeId;
+	t1Id := getTypeInfo(reflect.Typeof(t1)).id;
 	decode(b, t1Id, &t1);
 	if t1.a != 17 || *t1.b != 177 || **t1.c != 1777 || ***t1.d != 17777 {
 		t.Errorf("t0->t1 expected {17 177 1777 17777}; got {%d %d %d %d}", t1.a, *t1.b, **t1.c, ***t1.d);
@@ -647,7 +648,7 @@ func TestAutoIndirection(t *testing.T) {
 	b.Reset();
 	encode(b, t0);
 	t2 = T2{};
-	t2Id := getTypeInfo(reflect.Typeof(t2)).typeId;
+	t2Id := getTypeInfo(reflect.Typeof(t2)).id;
 	decode(b, t2Id, &t2);
 	if ***t2.a != 17 || **t2.b != 177 || *t2.c != 1777 || t2.d != 17777 {
 		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.a, **t2.b, *t2.c, t2.d);
@@ -685,7 +686,7 @@ func TestReorderedFields(t *testing.T) {
 	rt0.c = 3.14159;
 	b := new(bytes.Buffer);
 	encode(b, rt0);
-	rt0Id := getTypeInfo(reflect.Typeof(rt0)).typeId;
+	rt0Id := getTypeInfo(reflect.Typeof(rt0)).id;
 	var rt1 RT1;
 	// Wire type is RT0, local type is RT1.
 	decode(b, rt0Id, &rt1);
@@ -723,7 +724,7 @@ func TestIgnoredFields(t *testing.T) {
 
 	b := new(bytes.Buffer);
 	encode(b, it0);
-	rt0Id := getTypeInfo(reflect.Typeof(it0)).typeId;
+	rt0Id := getTypeInfo(reflect.Typeof(it0)).id;
 	var rt1 RT1;
 	// Wire type is IT0, local type is RT1.
 	err := decode(b, rt0Id, &rt1);
