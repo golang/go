@@ -628,23 +628,23 @@ gmove(Node *f, Node *t)
 //	case CASE(TINT32, TINT64):	// sign extend int32
 //	case CASE(TINT32, TUINT64):
 //		fatal("gmove TINT32,INT64 not implemented");
-//// 		split64(t, &tlo, &thi);
-//// 		nodreg(&flo, tlo.type, D_AX);
-//// 		nodreg(&fhi, thi.type, D_DX);
-//// 		gmove(f, &flo);
-//// 		gins(ACDQ, N, N);
-//// 		gins(AMOVL, &flo, &tlo);
-//// 		gins(AMOVL, &fhi, &thi);
-//// 		splitclean();
+////		split64(t, &tlo, &thi);
+////		nodreg(&flo, tlo.type, D_AX);
+////		nodreg(&fhi, thi.type, D_DX);
+////		gmove(f, &flo);
+////		gins(ACDQ, N, N);
+////		gins(AMOVL, &flo, &tlo);
+////		gins(AMOVL, &fhi, &thi);
+////		splitclean();
 //		return;
 
 //	case CASE(TUINT32, TINT64):	// zero extend uint32
 //	case CASE(TUINT32, TUINT64):
 //		fatal("gmove TUINT32,INT64 not implemented");
-//// 		split64(t, &tlo, &thi);
-//// 		gmove(f, &tlo);
-//// 		gins(AMOVL, ncon(0), &thi);
-//// 		splitclean();
+////		split64(t, &tlo, &thi);
+////		gmove(f, &tlo);
+////		gins(AMOVL, ncon(0), &thi);
+////		splitclean();
 //		return;
 
 //	/*
@@ -813,23 +813,23 @@ gmove(Node *f, Node *t)
 //	case CASE(TINT64, TFLOAT32):
 //	case CASE(TINT64, TFLOAT64):
 //		fatal("gmove TINT,TFLOAT not implemented");
-//// 		if(t->op != OREGISTER)
-//// 			goto hard;
-//// 		if(f->op == OREGISTER) {
-//// 			cvt = f->type;
-//// 			goto hardmem;
-//// 		}
-//// 		switch(ft) {
-//// 		case TINT16:
-//// 			a = AFMOVW;
-//// 			break;
-//// 		case TINT32:
-//// 			a = AFMOVL;
-//// 			break;
-//// 		default:
-//// 			a = AFMOVV;
-//// 			break;
-//// 		}
+////		if(t->op != OREGISTER)
+////			goto hard;
+////		if(f->op == OREGISTER) {
+////			cvt = f->type;
+////			goto hardmem;
+////		}
+////		switch(ft) {
+////		case TINT16:
+////			a = AFMOVW;
+////			break;
+////		case TINT32:
+////			a = AFMOVL;
+////			break;
+////		default:
+////			a = AFMOVV;
+////			break;
+////		}
 //		break;
 
 //	case CASE(TINT8, TFLOAT32):
@@ -1184,6 +1184,18 @@ naddr(Node *n, Addr *a)
 			a->offset = 0;
 			break;
 		}
+		break;
+
+	case OLEN:
+		// len of string or slice
+		naddr(n->left, a);
+		a->offset += Array_nel;
+		break;
+
+	case OCAP:
+		// cap of string or slice
+		naddr(n->left, a);
+		a->offset += Array_cap;
 		break;
 
 	case OADDR:

@@ -959,6 +959,8 @@ int
 ismem(Node *n)
 {
 	switch(n->op) {
+	case OLEN:
+	case OCAP:
 	case OINDREG:
 	case ONAME:
 	case OPARAM:
@@ -1761,6 +1763,18 @@ naddr(Node *n, Addr *a)
 				break;
 			}
 		fatal("naddr: OADDR\n");
+
+	case OLEN:
+		// len of string or slice
+		naddr(n->left, a);
+		a->offset += Array_nel;
+		break;
+
+	case OCAP:
+		// cap of string or slice
+		naddr(n->left, a);
+		a->offset += Array_cap;
+		break;
 
 //	case OADD:
 //		if(n->right->op == OLITERAL) {
