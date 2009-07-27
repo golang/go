@@ -16,12 +16,14 @@ type Value interface
 
 type Type interface {
 	// literal returns this type with all names recursively
-	// stripped.
-	// TODO(austin) Eliminate the need for this
+	// stripped.  This should only be used when determining
+	// assignment compatibility.  To strip a named type for use in
+	// a type switch, use .rep().
 	literal() Type;
-	// compatible returns true if this type is compatible with o.
-	// XXX Assignment versus comparison compatibility?
-	compatible(o Type) bool;
+	// rep returns the representative type.  If this is a named
+	// type, this is the unnamed underlying type.  Otherwise, this
+	// is an identity operation.
+	rep() Type;
 	// isBoolean returns true if this is a boolean type.
 	isBoolean() bool;
 	// isInteger returns true if this is an integer type.
@@ -112,6 +114,13 @@ type PtrValue interface {
 	Set(Value);
 }
 
+type Func interface
+type FuncValue interface {
+	Value;
+	Get() Func;
+	Set(Func);
+}
+
 /*
  * Scopes
  */
@@ -134,16 +143,20 @@ type Def interface {}
 type Scope struct {
 	outer *Scope;
 	defs map[string] Def;
+	temps map[int] *Variable;
 	numVars int;
 	varTypes []Type;
 }
 
-func NewRootScope() *Scope
 func (s *Scope) Fork() *Scope
 func (s *Scope) DefineVar(name string, t Type) *Variable
+func (s *Scope) DefineTemp(t Type) *Variable
 func (s *Scope) DefineConst(name string, t Type, v Value) *Constant
-func (s *Scope) DefineType(name string, t Type) bool
+func (s *Scope) DefineType(name string, t Type) Type
 func (s *Scope) Lookup(name string) (Def, *Scope)
+
+// The universal scope
+var universe = &Scope{defs: make(map[string] Def), temps: make(map[int] *Variable)};
 
 /*
  * Frames
@@ -156,5 +169,15 @@ type Frame struct {
 }
 
 func (f *Frame) Get(s *Scope, index int) Value
+func (f *Frame) String() string
 
 func (s *Scope) NewFrame(outer *Frame) *Frame
+
+/*
+ * Functions
+ */
+
+type Func interface {
+	NewFrame() *Frame;
+	Call(*Frame);
+}
