@@ -49,7 +49,7 @@ func newCodeBuf() *codeBuf {
 	return &codeBuf{make(code, 0, 16)};
 }
 
-func (b codeBuf) push(instr func(*vm)) {
+func (b *codeBuf) push(instr func(*vm)) {
 	n := len(b.instrs);
 	if n >= cap(b.instrs) {
 		a := make(code, n, n*2);
@@ -62,7 +62,7 @@ func (b codeBuf) push(instr func(*vm)) {
 	b.instrs[n] = instr;
 }
 
-func (b codeBuf) get() code {
+func (b *codeBuf) get() code {
 	// Freeze this buffer into an array of exactly the right size
 	a := make(code, len(b.instrs));
 	for i := range b.instrs {
