@@ -7,9 +7,11 @@
 package main	
  	
 func f1() (x int, y float) {
+	return;
 }
 
 func f2   (x int, y float) {
+	return;
 }
 
 func main() {

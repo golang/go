@@ -1196,7 +1196,7 @@ fnbody:
 	{
 		$$ = $2;
 		if($$ == nil)
-			$$ = list1(nod(ORETURN, N, N));
+			$$ = list1(nod(OEMPTY, N, N));
 		yyoptsemi(0);
 	}
 
