@@ -91,6 +91,20 @@ cgen(Node *n, Node *res)
 		goto ret;
 	}
 
+	// update addressability for string, slice
+	// can't do in walk because n->left->addable
+	// changes if n->left is an escaping local variable.
+	switch(n->op) {
+	case OLEN:
+		if(isslice(n->left->type) || istype(n->left->type, TSTRING))
+			n->addable = n->left->addable;
+		break;
+	case OCAP:
+		if(isslice(n->left->type))
+			n->addable = n->left->addable;
+		break;
+	}
+
 	if(n->addable) {
 		gmove(n, res);
 		goto ret;
