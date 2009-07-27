@@ -12,7 +12,7 @@ import (
 )
 
 type typeT struct {
-	typeId	TypeId;
+	id	typeId;
 	str	string;
 }
 var basicTypes = []typeT {
@@ -33,10 +33,10 @@ func getTypeUnlocked(name string, rt reflect.Type) gobType {
 // Sanity checks
 func TestBasic(t *testing.T) {
 	for _, tt := range basicTypes {
-		if tt.typeId.String() != tt.str {
-			t.Errorf("checkType: expected %q got %s", tt.str, tt.typeId.String())
+		if tt.id.String() != tt.str {
+			t.Errorf("checkType: expected %q got %s", tt.str, tt.id.String())
 		}
-		if tt.typeId == 0 {
+		if tt.id == 0 {
 			t.Errorf("id for %q is zero", tt.str)
 		}
 	}

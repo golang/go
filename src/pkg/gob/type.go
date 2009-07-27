@@ -13,23 +13,23 @@ import (
 	"unicode";
 )
 
-// Types are identified by an integer TypeId.  These can be passed on the wire.
-// Internally, they are used as keys to a map to recover the underlying type info.
-type TypeId int32
+// A typeId represents a gob Type as an integer that can be passed on the wire.
+// Internally, typeIds are used as keys to a map to recover the underlying type info.
+type typeId int32
 
-var nextId	TypeId	// incremented for each new type we build
+var nextId	typeId	// incremented for each new type we build
 var typeLock	sync.Mutex	// set while building a type
 
 type gobType interface {
-	id()	TypeId;
-	setId(id TypeId);
+	id()	typeId;
+	setId(id typeId);
 	Name()	string;
 	String()	string;
-	safeString(seen map[TypeId] bool)	string;
+	safeString(seen map[typeId] bool)	string;
 }
 
 var types = make(map[reflect.Type] gobType)
-var idToType = make(map[TypeId] gobType)
+var idToType = make(map[typeId] gobType)
 
 func setTypeId(typ gobType) {
 	nextId++;
@@ -37,32 +37,34 @@ func setTypeId(typ gobType) {
 	idToType[nextId] = typ;
 }
 
-func (t TypeId) gobType() gobType {
+func (t typeId) gobType() gobType {
 	if t == 0 {
 		return nil
 	}
 	return idToType[t]
 }
 
-func (t TypeId) String() string {
+// String returns the string representation of the type associated with the typeId.
+func (t typeId) String() string {
 	return t.gobType().String()
 }
 
-func (t TypeId) Name() string {
+// Name returns the name of the type associated with the typeId.
+func (t typeId) Name() string {
 	return t.gobType().Name()
 }
 
 // Common elements of all types.
 type commonType struct {
 	name	string;
-	_id	TypeId;
+	_id	typeId;
 }
 
-func (t *commonType) id() TypeId {
+func (t *commonType) id() typeId {
 	return t._id
 }
 
-func (t *commonType) setId(id TypeId) {
+func (t *commonType) setId(id typeId) {
 	t._id = id
 }
 
@@ -79,20 +81,20 @@ func (t *commonType) Name() string {
 }
 
 // Basic type identifiers, predefined.
-var tBool TypeId
-var tInt TypeId
-var tUint TypeId
-var tFloat TypeId
-var tString TypeId
-var tBytes TypeId
+var tBool typeId
+var tInt typeId
+var tUint typeId
+var tFloat typeId
+var tString typeId
+var tBytes typeId
 
 // Predefined because it's needed by the Decoder
-var tWireType TypeId
+var tWireType typeId
 
 // Array type
 type arrayType struct {
 	commonType;
-	Elem	TypeId;
+	Elem	typeId;
 	Len	int;
 }
 
@@ -102,7 +104,7 @@ func newArrayType(name string, elem gobType, length int) *arrayType {
 	return a;
 }
 
-func (a *arrayType) safeString(seen map[TypeId] bool) string {
+func (a *arrayType) safeString(seen map[typeId] bool) string {
 	if _, ok := seen[a._id]; ok {
 		return a.name
 	}
@@ -117,7 +119,7 @@ func (a *arrayType) String() string {
 // Slice type
 type sliceType struct {
 	commonType;
-	Elem	TypeId;
+	Elem	typeId;
 }
 
 func newSliceType(name string, elem gobType) *sliceType {
@@ -126,7 +128,7 @@ func newSliceType(name string, elem gobType) *sliceType {
 	return s;
 }
 
-func (s *sliceType) safeString(seen map[TypeId] bool) string {
+func (s *sliceType) safeString(seen map[typeId] bool) string {
 	if _, ok := seen[s._id]; ok {
 		return s.name
 	}
@@ -135,13 +137,13 @@ func (s *sliceType) safeString(seen map[TypeId] bool) string {
 }
 
 func (s *sliceType) String() string {
-	return s.safeString(make(map[TypeId] bool))
+	return s.safeString(make(map[typeId] bool))
 }
 
 // Struct type
 type fieldType struct {
 	name	string;
-	typeId	TypeId;
+	id	typeId;
 }
 
 type structType struct {
@@ -149,7 +151,7 @@ type structType struct {
 	field	[]*fieldType;
 }
 
-func (s *structType) safeString(seen map[TypeId] bool) string {
+func (s *structType) safeString(seen map[typeId] bool) string {
 	if s == nil {
 		return "<nil>"
 	}
@@ -159,14 +161,14 @@ func (s *structType) safeString(seen map[TypeId] bool) string {
 	seen[s._id] = true;
 	str := s.name + " = struct { ";
 	for _, f := range s.field {
-		str += fmt.Sprintf("%s %s; ", f.name, f.typeId.gobType().safeString(seen));
+		str += fmt.Sprintf("%s %s; ", f.name, f.id.gobType().safeString(seen));
 	}
 	str += "}";
 	return str;
 }
 
 func (s *structType) String() string {
-	return s.safeString(make(map[TypeId] bool))
+	return s.safeString(make(map[typeId] bool))
 }
 
 func newStructType(name string) *structType {
@@ -294,8 +296,14 @@ func getType(name string, rt reflect.Type) gobType {
 	return t;
 }
 
+func checkId(want, got typeId) {
+	if want != got {
+		panicln("bootstrap type wrong id:", got.Name(), got, "not", want);
+	}
+}
+
 // used for building the basic types; called only from init()
-func bootstrapType(name string, e interface{}) TypeId {
+func bootstrapType(name string, e interface{}, expect typeId) typeId {
 	rt := reflect.Typeof(e);
 	_, present := types[rt];
 	if present {
@@ -304,6 +312,7 @@ func bootstrapType(name string, e interface{}) TypeId {
 	typ := &commonType{ name: name };
 	types[rt] = typ;
 	setTypeId(typ);
+	checkId(expect, nextId);
 	return nextId
 }
 
@@ -329,7 +338,7 @@ func (w *wireType) name() string {
 type decEngine struct	// defined in decode.go
 type encEngine struct	// defined in encode.go
 type typeInfo struct {
-	typeId	TypeId;
+	id	typeId;
 	encoder	*encEngine;
 	wire	*wireType;
 }
@@ -346,21 +355,26 @@ func getTypeInfo(rt reflect.Type) *typeInfo {
 	if !ok {
 		info = new(typeInfo);
 		name := rt.Name();
-		info.typeId = getType(name, rt).id();
+		info.id = getType(name, rt).id();
 		// assume it's a struct type
-		info.wire = &wireType{info.typeId.gobType().(*structType)};
+		info.wire = &wireType{info.id.gobType().(*structType)};
 		typeInfoMap[rt] = info;
 	}
 	return info;
 }
 
 func init() {
-	tBool = bootstrapType("bool", false);
-	tInt = bootstrapType("int", int(0));
-	tUint = bootstrapType("uint", uint(0));
-	tFloat = bootstrapType("float", float64(0));
+	// Create and check predefined types
+	tBool = bootstrapType("bool", false, 1);
+	tInt = bootstrapType("int", int(0), 2);
+	tUint = bootstrapType("uint", uint(0), 3);
+	tFloat = bootstrapType("float", float64(0), 4);
 	// The string for tBytes is "bytes" not "[]byte" to signify its specialness.
-	tBytes = bootstrapType("bytes", make([]byte, 0));
-	tString= bootstrapType("string", "");
-	tWireType = getTypeInfo(reflect.Typeof(wireType{})).typeId;
+	tBytes = bootstrapType("bytes", make([]byte, 0), 5);
+	tString= bootstrapType("string", "", 6);
+	tWireType = getTypeInfo(reflect.Typeof(wireType{})).id;
+	checkId(7, tWireType);
+	checkId(8, getTypeInfo(reflect.Typeof(structType{})).id);
+	checkId(9, getTypeInfo(reflect.Typeof(commonType{})).id);
+	checkId(10, getTypeInfo(reflect.Typeof(fieldType{})).id);
 }
