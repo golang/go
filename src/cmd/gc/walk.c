@@ -2715,7 +2715,9 @@ stringop(Node *n, int top, NodeList **init)
 		break;
 
 	case OSLICE:
-		args = list1(n->left);
+		r = nod(OCONV, n->left, N);
+		r->type = types[TSTRING];
+		args = list1(r);
 
 		// sys_slicestring(s, lb, hb)
 		r = nod(OCONV, n->right->left, N);
@@ -2733,7 +2735,10 @@ stringop(Node *n, int top, NodeList **init)
 
 	case OINDEX:
 		// sys_indexstring(s, i)
-		args = list1(n->left);
+		r = nod(OCONV, n->left, N);
+		r->type = types[TSTRING];
+		args = list1(r);
+
 		r = nod(OCONV, n->right, N);
 		r->type = types[TINT];
 		args = list(args, r);
@@ -2753,9 +2758,10 @@ stringop(Node *n, int top, NodeList **init)
 		break;
 
 	case OARRAY:
-		r = n->left;
 		// arraystring([]byte) string;
 		on = syslook("arraystring", 0);
+		r = n->left;
+
 		if(r->type != T && r->type->type != T) {
 			if(istype(r->type->type, TINT) || istype(r->type->type->type, TINT)) {
 				// arraystring([]byte) string;
@@ -4081,7 +4087,7 @@ strng:
 	tempname(ohk, types[TINT]);
 
 	ha = nod(OXXX, N, N);		// hidden string
-	tempname(ha, t);
+	tempname(ha, types[TSTRING]);
 
 	hv = N;
 	if(v != N) {
@@ -4096,7 +4102,9 @@ strng:
 	}
 
 	// ha = s
-	a = nod(OAS, ha, m);
+	a = nod(OCONV, m, N);
+	a->type = ha->type;
+	a = nod(OAS, ha, a);
 	init = list(init, a);
 
 	// ohk = 0
