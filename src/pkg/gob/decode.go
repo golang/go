@@ -446,8 +446,8 @@ func decodeSlice(atyp *reflect.SliceType, state *decodeState, p uintptr, elemOp 
 	// Always write a header at p.
 	hdrp := (*reflect.SliceHeader)(unsafe.Pointer(p));
 	hdrp.Data = uintptr(unsafe.Pointer(&data[0]));
-	hdrp.Len = uint32(length);
-	hdrp.Cap = uint32(length);
+	hdrp.Len = int(length);
+	hdrp.Cap = int(length);
 	return decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, int(length), elemIndir);
 }
 

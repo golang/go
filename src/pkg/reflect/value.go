@@ -559,7 +559,7 @@ func (v *SliceValue) SetLen(n int) {
 	if n < 0 || n > int(s.Cap) {
 		panicln("SetLen", n, "with capacity", s.Cap);
 	}
-	s.Len = uint32(n);
+	s.Len = n;
 }
 
 // Set assigns x to v.
@@ -581,8 +581,8 @@ func (v *SliceValue) Slice(beg, end int) *SliceValue {
 	typ := v.typ.(*SliceType);
 	s := new(SliceHeader);
 	s.Data = uintptr(v.addr()) + uintptr(beg) * typ.Elem().Size();
-	s.Len = uint32(end - beg);
-	s.Cap = uint32(cap - beg);
+	s.Len = end - beg;
+	s.Cap = cap - beg;
 	return newValue(typ, addr(s), v.canSet).(*SliceValue);
 }
 
@@ -607,8 +607,8 @@ func MakeSlice(typ *SliceType, len, cap int) *SliceValue {
 	}
 	data := make([]uint8, size);
 	s.Data = uintptr(addr(&data[0]));
-	s.Len = uint32(len);
-	s.Cap = uint32(cap);
+	s.Len = len;
+	s.Cap = cap;
 	return newValue(typ, addr(s), true).(*SliceValue);
 }
 
