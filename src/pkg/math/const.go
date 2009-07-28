@@ -21,6 +21,11 @@ const (
 	Log2E	= 1/Ln2;
 	Ln10	= 2.30258509299404568401799145468436420760110148862877297603332790;  // A002392
 	Log10E	= 1/Ln10;
+
+	MaxFloat32	= 3.40282346638528860e+38;
+	MinFloat32	= 1.40129846432481707e-45;
+	MaxFloat64	= 1.7976931348623157e+308;
+	MinFloat64	= 5.0e-324;
 )
 
 // BUG(rsc): The manual should define the special cases for all of these functions.
