@@ -7,6 +7,7 @@ package gob
 import (
 	"bytes";
 	"gob";
+	"math";
 	"os";
 	"reflect";
 	"strings";
@@ -347,21 +348,22 @@ func newdecodeState(data []byte) *decodeState {
 // Test instruction execution for decoding.
 // Do not run the machine yet; instead do individual instructions crafted by hand.
 func TestScalarDecInstructions(t *testing.T) {
+	ovfl := os.ErrorString("overflow");
 
 	// bool
 	{
 		var data struct { a bool };
-		instr := &decInstr{ decBool, 6, 0, 0 };
+		instr := &decInstr{ decBool, 6, 0, 0, ovfl };
 		state := newdecodeState(boolResult);
 		execDec("bool", instr, state, t, unsafe.Pointer(&data));
 		if data.a != true {
-			t.Errorf("int a = %v not true", data.a)
+			t.Errorf("bool a = %v not true", data.a)
 		}
 	}
 	// int
 	{
 		var data struct { a int };
-		instr := &decInstr{ decInt, 6, 0, 0 };
+		instr := &decInstr{ decOpMap[valueKind(data.a)], 6, 0, 0, ovfl };
 		state := newdecodeState(signedResult);
 		execDec("int", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
@@ -372,139 +374,150 @@ func TestScalarDecInstructions(t *testing.T) {
 	// uint
 	{
 		var data struct { a uint };
-		instr := &decInstr{ decUint, 6, 0, 0 };
+		instr := &decInstr{ decOpMap[valueKind(data.a)], 6, 0, 0, ovfl };
 		state := newdecodeState(unsignedResult);
 		execDec("uint", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
-			t.Errorf("int a = %v not 17", data.a)
+			t.Errorf("uint a = %v not 17", data.a)
 		}
 	}
 
 	// int8
 	{
 		var data struct { a int8 };
-		instr := &decInstr{ decInt8, 6, 0, 0 };
+		instr := &decInstr{ decInt8, 6, 0, 0, ovfl };
 		state := newdecodeState(signedResult);
 		execDec("int8", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
-			t.Errorf("int a = %v not 17", data.a)
+			t.Errorf("int8 a = %v not 17", data.a)
 		}
 	}
 
 	// uint8
 	{
 		var data struct { a uint8 };
-		instr := &decInstr{ decUint8, 6, 0, 0 };
+		instr := &decInstr{ decUint8, 6, 0, 0, ovfl };
 		state := newdecodeState(unsignedResult);
 		execDec("uint8", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
-			t.Errorf("int a = %v not 17", data.a)
+			t.Errorf("uint8 a = %v not 17", data.a)
 		}
 	}
 
 	// int16
 	{
 		var data struct { a int16 };
-		instr := &decInstr{ decInt16, 6, 0, 0 };
+		instr := &decInstr{ decInt16, 6, 0, 0, ovfl };
 		state := newdecodeState(signedResult);
 		execDec("int16", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
-			t.Errorf("int a = %v not 17", data.a)
+			t.Errorf("int16 a = %v not 17", data.a)
 		}
 	}
 
 	// uint16
 	{
 		var data struct { a uint16 };
-		instr := &decInstr{ decUint16, 6, 0, 0 };
+		instr := &decInstr{ decUint16, 6, 0, 0, ovfl };
 		state := newdecodeState(unsignedResult);
 		execDec("uint16", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
-			t.Errorf("int a = %v not 17", data.a)
+			t.Errorf("uint16 a = %v not 17", data.a)
 		}
 	}
 
 	// int32
 	{
 		var data struct { a int32 };
-		instr := &decInstr{ decInt32, 6, 0, 0 };
+		instr := &decInstr{ decInt32, 6, 0, 0, ovfl };
 		state := newdecodeState(signedResult);
 		execDec("int32", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
-			t.Errorf("int a = %v not 17", data.a)
+			t.Errorf("int32 a = %v not 17", data.a)
 		}
 	}
 
 	// uint32
 	{
 		var data struct { a uint32 };
-		instr := &decInstr{ decUint32, 6, 0, 0 };
+		instr := &decInstr{ decUint32, 6, 0, 0, ovfl };
 		state := newdecodeState(unsignedResult);
 		execDec("uint32", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
-			t.Errorf("int a = %v not 17", data.a)
+			t.Errorf("uint32 a = %v not 17", data.a)
+		}
+	}
+
+	// uintptr
+	{
+		var data struct { a uintptr };
+		instr := &decInstr{ decOpMap[valueKind(data.a)], 6, 0, 0, ovfl };
+		state := newdecodeState(unsignedResult);
+		execDec("uintptr", instr, state, t, unsafe.Pointer(&data));
+		if data.a != 17 {
+			t.Errorf("uintptr a = %v not 17", data.a)
 		}
 	}
 
 	// int64
 	{
 		var data struct { a int64 };
-		instr := &decInstr{ decInt64, 6, 0, 0 };
+		instr := &decInstr{ decInt64, 6, 0, 0, ovfl };
 		state := newdecodeState(signedResult);
 		execDec("int64", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
-			t.Errorf("int a = %v not 17", data.a)
+			t.Errorf("int64 a = %v not 17", data.a)
 		}
 	}
 
 	// uint64
 	{
 		var data struct { a uint64 };
-		instr := &decInstr{ decUint64, 6, 0, 0 };
+		instr := &decInstr{ decUint64, 6, 0, 0, ovfl };
 		state := newdecodeState(unsignedResult);
 		execDec("uint64", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
-			t.Errorf("int a = %v not 17", data.a)
+			t.Errorf("uint64 a = %v not 17", data.a)
 		}
 	}
 
 	// float
 	{
 		var data struct { a float };
-		instr := &decInstr{ decFloat, 6, 0, 0 };
+		instr := &decInstr{ decOpMap[valueKind(data.a)], 6, 0, 0, ovfl };
 		state := newdecodeState(floatResult);
 		execDec("float", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
-			t.Errorf("int a = %v not 17", data.a)
+			t.Errorf("float a = %v not 17", data.a)
 		}
 	}
 
 	// float32
 	{
 		var data struct { a float32 };
-		instr := &decInstr{ decFloat32, 6, 0, 0 };
+		instr := &decInstr{ decFloat32, 6, 0, 0, ovfl };
 		state := newdecodeState(floatResult);
 		execDec("float32", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
-			t.Errorf("int a = %v not 17", data.a)
+			t.Errorf("float32 a = %v not 17", data.a)
 		}
 	}
 
 	// float64
 	{
 		var data struct { a float64 };
-		instr := &decInstr{ decFloat64, 6, 0, 0 };
+		instr := &decInstr{ decFloat64, 6, 0, 0, ovfl };
 		state := newdecodeState(floatResult);
 		execDec("float64", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
-			t.Errorf("int a = %v not 17", data.a)
+			t.Errorf("float64 a = %v not 17", data.a)
 		}
 	}
 
 	// bytes == []uint8
 	{
 		var data struct { a []byte };
-		instr := &decInstr{ decUint8Array, 6, 0, 0 };
+		instr := &decInstr{ decUint8Array, 6, 0, 0, ovfl };
 		state := newdecodeState(bytesResult);
 		execDec("bytes", instr, state, t, unsafe.Pointer(&data));
 		if string(data.a) != "hello" {
@@ -515,7 +528,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	// string
 	{
 		var data struct { a string };
-		instr := &decInstr{ decString, 6, 0, 0 };
+		instr := &decInstr{ decString, 6, 0, 0, ovfl };
 		state := newdecodeState(bytesResult);
 		execDec("bytes", instr, state, t, unsafe.Pointer(&data));
 		if data.a != "hello" {
@@ -558,6 +571,157 @@ func TestEndToEnd(t *testing.T) {
 		t.Errorf("encode expected %v got %v", *t1, _t1);
 	}
 }
+
+func TestOverflow(t *testing.T) {
+	type inputT struct {
+		maxi	int64;
+		mini	int64;
+		maxu	uint64;
+		maxf	float64;
+		minf	float64;
+	}
+	var it inputT;
+	var err os.Error;
+	id := getTypeInfo(reflect.Typeof(it)).id;
+	b := new(bytes.Buffer);
+
+	// int8
+	b.Reset();
+	it = inputT {
+		maxi: math.MaxInt8 + 1,
+	};
+	type outi8 struct {
+		maxi int8;
+		mini int8;
+	}
+	var o1 outi8;
+	encode(b, it);
+	err = decode(b, id, &o1);
+	if err == nil || err.String() != `value for "maxi" out of range` {
+		t.Error("wrong overflow error for int8:", err)
+	}
+	it = inputT {
+		mini: math.MinInt8 - 1,
+	};
+	b.Reset();
+	encode(b, it);
+	err = decode(b, id, &o1);
+	if err == nil || err.String() != `value for "mini" out of range` {
+		t.Error("wrong underflow error for int8:", err)
+	}
+
+	// int16
+	b.Reset();
+	it = inputT {
+		maxi: math.MaxInt16 + 1,
+	};
+	type outi16 struct {
+		maxi int16;
+		mini int16;
+	}
+	var o2 outi16;
+	encode(b, it);
+	err = decode(b, id, &o2);
+	if err == nil || err.String() != `value for "maxi" out of range` {
+		t.Error("wrong overflow error for int16:", err)
+	}
+	it = inputT {
+		mini: math.MinInt16 - 1,
+	};
+	b.Reset();
+	encode(b, it);
+	err = decode(b, id, &o2);
+	if err == nil || err.String() != `value for "mini" out of range` {
+		t.Error("wrong underflow error for int16:", err)
+	}
+
+	// int32
+	b.Reset();
+	it = inputT {
+		maxi: math.MaxInt32 + 1,
+	};
+	type outi32 struct {
+		maxi int32;
+		mini int32;
+	}
+	var o3 outi32;
+	encode(b, it);
+	err = decode(b, id, &o3);
+	if err == nil || err.String() != `value for "maxi" out of range` {
+		t.Error("wrong overflow error for int32:", err)
+	}
+	it = inputT {
+		mini: math.MinInt32 - 1,
+	};
+	b.Reset();
+	encode(b, it);
+	err = decode(b, id, &o3);
+	if err == nil || err.String() != `value for "mini" out of range` {
+		t.Error("wrong underflow error for int32:", err)
+	}
+
+	// uint8
+	b.Reset();
+	it = inputT {
+		maxu: math.MaxUint8 + 1,
+	};
+	type outu8 struct {
+		maxu uint8;
+	}
+	var o4 outu8;
+	encode(b, it);
+	err = decode(b, id, &o4);
+	if err == nil || err.String() != `value for "maxu" out of range` {
+		t.Error("wrong overflow error for uint8:", err)
+	}
+
+	// uint16
+	b.Reset();
+	it = inputT {
+		maxu: math.MaxUint16 + 1,
+	};
+	type outu16 struct {
+		maxu uint16;
+	}
+	var o5 outu16;
+	encode(b, it);
+	err = decode(b, id, &o5);
+	if err == nil || err.String() != `value for "maxu" out of range` {
+		t.Error("wrong overflow error for uint16:", err)
+	}
+
+	// uint32
+	b.Reset();
+	it = inputT {
+		maxu: math.MaxUint32 + 1,
+	};
+	type outu32 struct {
+		maxu uint32;
+	}
+	var o6 outu32;
+	encode(b, it);
+	err = decode(b, id, &o6);
+	if err == nil || err.String() != `value for "maxu" out of range` {
+		t.Error("wrong overflow error for uint32:", err)
+	}
+
+	// float32
+	b.Reset();
+	it = inputT {
+		maxf: math.MaxFloat32 * 2,
+	};
+	type outf32 struct {
+		maxf float32;
+		minf float32;
+	}
+	var o7 outf32;
+	encode(b, it);
+	err = decode(b, id, &o7);
+	if err == nil || err.String() != `value for "maxf" out of range` {
+		t.Error("wrong overflow error for float32:", err)
+	}
+}
+
 
 func TestNesting(t *testing.T) {
 	type RT struct {

@@ -66,7 +66,7 @@
 	unsigned integers may be received into any unsigned integer variable; and floating
 	point values may be received into any floating point variable.  However,
 	the destination variable must be able to represent the value or the decode
-	operation will fail. (TODO(r): enforce this.)
+	operation will fail.
 
 	Structs, arrays and slices are also supported.  Strings and arrays of bytes are
 	supported with a special, efficient representation (see below).
