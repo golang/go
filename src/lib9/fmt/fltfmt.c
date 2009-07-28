@@ -16,10 +16,20 @@
  * THE MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
  */
 
-#include <u.h>
+/* Copyright (c) 2002-2006 Lucent Technologies; see LICENSE */
+#include <stdio.h>
+#include <math.h>
+#include <float.h>
+#include <string.h>
+#include <stdlib.h>
 #include <errno.h>
-#include <libc.h>
+#include <stdarg.h>
+#include <fmt.h>
+#include <assert.h>
+#include "plan9.h"
+#include "fmt.h"
 #include "fmtdef.h"
+#include "nan.h"
 
 enum
 {
@@ -52,8 +62,7 @@ static double pows10[] =
 	1e150, 1e151, 1e152, 1e153, 1e154, 1e155, 1e156, 1e157, 1e158, 1e159,
 };
 #define	npows10 ((int)(sizeof(pows10)/sizeof(pows10[0])))
-#undef pow10
-#define pow10 fmtpow10
+#define	pow10(x)  fmtpow10(x)
 
 static double
 pow10(int n)
