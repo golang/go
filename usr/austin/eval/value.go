@@ -537,6 +537,38 @@ func (t *FuncType) Zero() Value {
 }
 
 /*
+ * Multi-values
+ */
+
+type multiV []Value
+
+func (v multiV) String() string {
+	res := "(";
+	for i, v := range v {
+		if i > 0 {
+			res += ", ";
+		}
+		res += v.String();
+	}
+	return res + ")";
+}
+
+func (v multiV) Assign(o Value) {
+	omv := o.(multiV);
+	for i := range v {
+		v[i].Assign(omv[i]);
+	}
+}
+
+func (t *MultiType) Zero() Value {
+	res := make([]Value, len(t.Elems));
+	for i := 0; i < len(t.Elems); i++ {
+		res[i] = t.Elems[i].Zero();
+	}
+	return multiV(res);
+}
+
+/*
  * Universal constants
  */
 
