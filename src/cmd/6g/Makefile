@@ -36,4 +36,4 @@ clean:
 	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out
 
 install: $(TARG)
-	cp $(TARG) $(BIN)/$(TARG)
+	cp $(TARG) $(GOBIN)/$(TARG)

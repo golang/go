@@ -4,6 +4,8 @@
 
 # ironically, not auto-generated
 
+include ../../Make.conf
+
 O_arm=5
 O_amd64=6
 O_386=8
@@ -71,8 +73,7 @@ gobuild: zzgobuild
 main.$O: phases
 
 nuke: clean
-	rm -f $(HOME)/bin/gobuild
+	rm -f $(GOBIN)/gobuild
 
 install: zzgobuild
-	cp gobuild $(HOME)/bin/gobuild
-
+	cp gobuild $(GOBIN)/gobuild

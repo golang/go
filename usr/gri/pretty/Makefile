@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+include $(GOROOT)/src/Make.conf
 include $(GOROOT)/src/Make.$(GOARCH)
 
 all: godoc gofmt
@@ -19,8 +20,8 @@ smoketest: gofmt
 	./test.sh $(GOROOT)/src/pkg/go/printer/printer.go
 
 install: pretty godoc untab
-	cp godoc $(HOME)/bin/godoc
-	cp gofmt $(HOME)/bin/gofmt
+	cp godoc $(GOBIN)/godoc
+	cp gofmt $(GOBIN)/gofmt
 
 clean:
 	rm -f godoc gofmt *.$O *.a 6.out *~

@@ -11,12 +11,10 @@ HFILES=\
 	a.h\
 	y.tab.h\
 	../6l/6.out.h\
-	compat.h\
 
 OFILES=\
 	y.tab.$O\
 	lex.$O\
-	compat.$O\
 	../6l/enam.$O\
 
 YFILES=\
@@ -39,4 +37,4 @@ clean:
 	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c
 
 install: $(TARG)
-	cp $(TARG) $(BIN)/$(TARG)
+	cp $(TARG) $(GOBIN)/$(TARG)

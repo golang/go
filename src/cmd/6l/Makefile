@@ -23,6 +23,7 @@ HFILES=\
 	l.h\
 	../6l/6.out.h\
 	../ld/elf64.h\
+	../6l/compat.h\
 
 
 $(TARG): $(OFILES)
@@ -37,7 +38,7 @@ clean:
 	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out
 
 install: $(TARG)
-	cp $(TARG) $(BIN)/$(TARG)
+	cp $(TARG) $(GOBIN)/$(TARG)
 
 go.o: ../ld/go.c
 
