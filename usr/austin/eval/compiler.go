@@ -65,10 +65,24 @@ type blockCompiler struct {
 	*funcCompiler;
 	scope *Scope;
 	returned bool;
+	// The PC break statements should jump to, or nil if a break
+	// statement is invalid.
+	breakPC *uint;
+	// The PC continue statements should jump to, or nil if a
+	// continue statement is invalid.
+	continuePC *uint;
+	// The blockCompiler for the block enclosing this one, or nil
+	// for a function-level block.
+	parent *blockCompiler;
+	// The blockCompiler for the nested block currently being
+	// compiled, or nil if compilation is not in a nested block.
+	child *blockCompiler;
 }
 
-func (a *blockCompiler) compileBlock(body *ast.BlockStmt)
-
+func (a *blockCompiler) compileStmt(s ast.Stmt)
+func (a *blockCompiler) compileStmts(body *ast.BlockStmt)
+func (a *blockCompiler) enterChild() *blockCompiler
+func (a *blockCompiler) exit()
 
 // An exprContext stores information used throughout the compilation
 // of a single expression.  It does not embed funcCompiler because

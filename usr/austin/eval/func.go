@@ -62,6 +62,10 @@ func (b *codeBuf) push(instr func(*vm)) {
 	b.instrs[n] = instr;
 }
 
+func (b *codeBuf) nextPC() uint {
+	return uint(len(b.instrs));
+}
+
 func (b *codeBuf) get() code {
 	// Freeze this buffer into an array of exactly the right size
 	a := make(code, len(b.instrs));
