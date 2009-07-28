@@ -79,6 +79,12 @@ func (a *exprCompiler) genBinOpXor(l *exprCompiler, r *exprCompiler)
 func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler)
 func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler)
 func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpLss(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpGtr(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpLeq(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpGeq(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpEql(l *exprCompiler, r *exprCompiler)
+func (a *exprCompiler) genBinOpNeq(l *exprCompiler, r *exprCompiler)
 func genAssign(lt Type, r *exprCompiler) (func(lv Value, f *Frame))
 
 func (a *exprCompiler) copy() *exprCompiler {
@@ -1065,35 +1071,70 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
 		a.t = BoolType;
 
 	case token.LSS, token.GTR, token.LEQ, token.GEQ:
-		// ... booleans may be compared only for equality or
-		// inequality.
+		// XXX(Spec) It's really unclear what types which
+		// comparison operators apply to.  I feel like the
+		// text is trying to paint a Venn diagram for me,
+		// which it's really pretty simple: <, <=, >, >= apply
+		// only to numeric types and strings.  == and != apply
+		// to everything except arrays and structs, and there
+		// are some restrictions on when it applies to slices.
 
-		if l.t.isBoolean() || r.t.isBoolean() {
+		if !same() || (!integers() && !floats() && !strings()) {
 			a.diagOpTypes(op, origlt, origrt);
 			return;
 		}
+		a.t = BoolType;
 
-		fallthrough;
 	case token.EQL, token.NEQ:
-		// When comparing two operands of channel type, the
-		// channel value types must be compatible but the
-		// channel direction is ignored.
-
-		// XXX(Spec) Operators: "When comparing two operands
-		// of channel type, the channel value types must be
-		// compatible but the channel direction is ignored."
-		// By "compatible" this really means "comparison
-		// compatible".  Really, the rules for type checking
-		// comparison operators are entirely different from
-		// other binary operators, but this just barely hints
-		// at that.
+		// XXX(Spec) The rules for type checking comparison
+		// operators are spread across three places that all
+		// partially overlap with each other: the Comparison
+		// Compatibility section, the Operators section, and
+		// the Comparison Operators section.  The Operators
+		// section should just say that operators require
+		// identical types (as it does currently) except that
+		// there a few special cases for comparison, which are
+		// described in section X.  Currently it includes just
+		// one of the four special cases.  The Comparison
+		// Compatibility section and the Comparison Operators
+		// section should either be merged, or at least the
+		// Comparison Compatibility section should be
+		// exclusively about type checking and the Comparison
+		// Operators section should be exclusively about
+		// semantics.
 
 		// XXX(Spec) Comparison operators: "All comparison
-		// operators apply to basic types except bools."
-		// "except bools" is really weird here, since this is
-		// actually explained in the Comparison compatibility
-		// section.
-		log.Crashf("Binary op %v not implemented", op);
+		// operators apply to basic types except bools."  This
+		// is very difficult to parse.  It's explained much
+		// better in the Comparison Compatibility section.
+
+		// XXX(Spec) Comparison compatibility: "Values of any
+		// type may be compared to other values of compatible
+		// static type."  Should be *identical* static type.
+
+		// XXX(Spec) Comparison compatibility: "Function
+		// values are equal if they refer to the same
+		// function." is rather vague.  It should probably be
+		// similar to the way the rule for map values is
+		// written: Function values are equal if they were
+		// created by the same execution of a function literal
+		// or refer to the same function declaration.  This is
+		// *almost* but not quite waht 6g implements.  If a
+		// function literals does not capture any variables,
+		// then multiple executions of it will result in the
+		// same closure.  Russ says he'll change that.
+
+		// TODO(austin) Deal with remaining special cases
+
+		if !same() {
+			a.diagOpTypes(op, origlt, origrt);
+			return;
+		}
+		// Arrays and structs may not be compared to anything.
+		if _, ok := l.t.(*ArrayType); ok {
+			a.diagOpTypes(op, origlt, origrt);
+			return;
+		}
 		a.t = BoolType;
 
 	default:
@@ -1167,6 +1208,24 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
 		} else {
 			a.genBinOpShr(l, r);
 		}
+
+	case token.LSS:
+		a.genBinOpLss(l, r);
+
+	case token.GTR:
+		a.genBinOpGtr(l, r);
+
+	case token.LEQ:
+		a.genBinOpLeq(l, r);
+
+	case token.GEQ:
+		a.genBinOpGeq(l, r);
+
+	case token.EQL:
+		a.genBinOpEql(l, r);
+
+	case token.NEQ:
+		a.genBinOpNeq(l, r);
 
 	default:
 		log.Crashf("Compilation of binary op %v not implemented", op);
@@ -1786,6 +1845,228 @@ func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler) {
 		a.evalInt = func(f *Frame) int64 { return lf(f) >> rf(f) };
 	default:
 		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpLss(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.rep().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalBool = func(f *Frame) bool { return lf(f) < rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalBool = func(f *Frame) bool { return lf(f) < rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().Cmp(rf()) < 0;
+		a.evalBool = func(f *Frame) bool { return val };
+	case *floatType:
+		lf := l.asFloat();
+		rf := r.asFloat();
+		a.evalBool = func(f *Frame) bool { return lf(f) < rf(f) };
+	case *idealFloatType:
+		lf := l.asIdealFloat();
+		rf := r.asIdealFloat();
+		val := lf().Cmp(rf()) < 0;
+		a.evalBool = func(f *Frame) bool { return val };
+	case *stringType:
+		lf := l.asString();
+		rf := r.asString();
+		a.evalBool = func(f *Frame) bool { return lf(f) < rf(f) };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpGtr(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.rep().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalBool = func(f *Frame) bool { return lf(f) > rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalBool = func(f *Frame) bool { return lf(f) > rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().Cmp(rf()) > 0;
+		a.evalBool = func(f *Frame) bool { return val };
+	case *floatType:
+		lf := l.asFloat();
+		rf := r.asFloat();
+		a.evalBool = func(f *Frame) bool { return lf(f) > rf(f) };
+	case *idealFloatType:
+		lf := l.asIdealFloat();
+		rf := r.asIdealFloat();
+		val := lf().Cmp(rf()) > 0;
+		a.evalBool = func(f *Frame) bool { return val };
+	case *stringType:
+		lf := l.asString();
+		rf := r.asString();
+		a.evalBool = func(f *Frame) bool { return lf(f) > rf(f) };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpLeq(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.rep().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalBool = func(f *Frame) bool { return lf(f) <= rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalBool = func(f *Frame) bool { return lf(f) <= rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().Cmp(rf()) <= 0;
+		a.evalBool = func(f *Frame) bool { return val };
+	case *floatType:
+		lf := l.asFloat();
+		rf := r.asFloat();
+		a.evalBool = func(f *Frame) bool { return lf(f) <= rf(f) };
+	case *idealFloatType:
+		lf := l.asIdealFloat();
+		rf := r.asIdealFloat();
+		val := lf().Cmp(rf()) <= 0;
+		a.evalBool = func(f *Frame) bool { return val };
+	case *stringType:
+		lf := l.asString();
+		rf := r.asString();
+		a.evalBool = func(f *Frame) bool { return lf(f) <= rf(f) };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpGeq(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.rep().(type) {
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalBool = func(f *Frame) bool { return lf(f) >= rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalBool = func(f *Frame) bool { return lf(f) >= rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().Cmp(rf()) >= 0;
+		a.evalBool = func(f *Frame) bool { return val };
+	case *floatType:
+		lf := l.asFloat();
+		rf := r.asFloat();
+		a.evalBool = func(f *Frame) bool { return lf(f) >= rf(f) };
+	case *idealFloatType:
+		lf := l.asIdealFloat();
+		rf := r.asIdealFloat();
+		val := lf().Cmp(rf()) >= 0;
+		a.evalBool = func(f *Frame) bool { return val };
+	case *stringType:
+		lf := l.asString();
+		rf := r.asString();
+		a.evalBool = func(f *Frame) bool { return lf(f) >= rf(f) };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpEql(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.rep().(type) {
+	case *boolType:
+		lf := l.asBool();
+		rf := r.asBool();
+		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().Cmp(rf()) == 0;
+		a.evalBool = func(f *Frame) bool { return val };
+	case *floatType:
+		lf := l.asFloat();
+		rf := r.asFloat();
+		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
+	case *idealFloatType:
+		lf := l.asIdealFloat();
+		rf := r.asIdealFloat();
+		val := lf().Cmp(rf()) == 0;
+		a.evalBool = func(f *Frame) bool { return val };
+	case *stringType:
+		lf := l.asString();
+		rf := r.asString();
+		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
+	case *PtrType:
+		lf := l.asPtr();
+		rf := r.asPtr();
+		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
+	case *FuncType:
+		lf := l.asFunc();
+		rf := r.asFunc();
+		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
+	}
+}
+
+func (a *exprCompiler) genBinOpNeq(l *exprCompiler, r *exprCompiler) {
+	switch _ := l.t.rep().(type) {
+	case *boolType:
+		lf := l.asBool();
+		rf := r.asBool();
+		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
+	case *uintType:
+		lf := l.asUint();
+		rf := r.asUint();
+		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
+	case *intType:
+		lf := l.asInt();
+		rf := r.asInt();
+		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
+	case *idealIntType:
+		lf := l.asIdealInt();
+		rf := r.asIdealInt();
+		val := lf().Cmp(rf()) != 0;
+		a.evalBool = func(f *Frame) bool { return val };
+	case *floatType:
+		lf := l.asFloat();
+		rf := r.asFloat();
+		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
+	case *idealFloatType:
+		lf := l.asIdealFloat();
+		rf := r.asIdealFloat();
+		val := lf().Cmp(rf()) != 0;
+		a.evalBool = func(f *Frame) bool { return val };
+	case *stringType:
+		lf := l.asString();
+		rf := r.asString();
+		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
+	case *PtrType:
+		lf := l.asPtr();
+		rf := r.asPtr();
+		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
+	case *FuncType:
+		lf := l.asFunc();
+		rf := r.asFunc();
+		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
+	default:
+		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
 	}
 }
 
