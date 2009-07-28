@@ -309,22 +309,22 @@ func encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, length i
 }
 
 var encOpMap = map[reflect.Type] encOp {
-	reflect.Typeof((*reflect.BoolType)(nil)): encBool,
-	reflect.Typeof((*reflect.IntType)(nil)): encInt,
-	reflect.Typeof((*reflect.Int8Type)(nil)): encInt8,
-	reflect.Typeof((*reflect.Int16Type)(nil)): encInt16,
-	reflect.Typeof((*reflect.Int32Type)(nil)): encInt32,
-	reflect.Typeof((*reflect.Int64Type)(nil)): encInt64,
-	reflect.Typeof((*reflect.UintType)(nil)): encUint,
-	reflect.Typeof((*reflect.Uint8Type)(nil)): encUint8,
-	reflect.Typeof((*reflect.Uint16Type)(nil)): encUint16,
-	reflect.Typeof((*reflect.Uint32Type)(nil)): encUint32,
-	reflect.Typeof((*reflect.Uint64Type)(nil)): encUint64,
-	reflect.Typeof((*reflect.UintptrType)(nil)): encUintptr,
-	reflect.Typeof((*reflect.FloatType)(nil)): encFloat,
-	reflect.Typeof((*reflect.Float32Type)(nil)): encFloat32,
-	reflect.Typeof((*reflect.Float64Type)(nil)): encFloat64,
-	reflect.Typeof((*reflect.StringType)(nil)): encString,
+	valueKind(false): encBool,
+	valueKind(int(0)): encInt,
+	valueKind(int8(0)): encInt8,
+	valueKind(int16(0)): encInt16,
+	valueKind(int32(0)): encInt32,
+	valueKind(int64(0)): encInt64,
+	valueKind(uint(0)): encUint,
+	valueKind(uint8(0)): encUint8,
+	valueKind(uint16(0)): encUint16,
+	valueKind(uint32(0)): encUint32,
+	valueKind(uint64(0)): encUint64,
+	valueKind(uintptr(0)): encUintptr,
+	valueKind(float(0)): encFloat,
+	valueKind(float32(0)): encFloat32,
+	valueKind(float64(0)): encFloat64,
+	valueKind("x"): encString,
 }
 
 func getEncEngine(rt reflect.Type) *encEngine
