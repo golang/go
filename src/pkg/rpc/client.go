@@ -17,7 +17,7 @@ import (
 	"sync";
 )
 
-// Call represents an active RPC
+// Call represents an active RPC.
 type Call struct {
 	ServiceMethod	string;	// The name of the service and method to call.
 	Args	interface{};	// The argument to the function (*struct).
@@ -28,8 +28,10 @@ type Call struct {
 }
 
 // Client represents an RPC Client.
+// There may be multiple outstanding Calls associated
+// with a single Client.
 type Client struct {
-	sync.Mutex;	// protects pending, seq
+	mutex	sync.Mutex;	// protects pending, seq
 	shutdown	os.Error;	// non-nil if the client is shut down
 	sending	sync.Mutex;
 	seq	uint64;
@@ -41,17 +43,17 @@ type Client struct {
 
 func (client *Client) send(c *Call) {
 	// Register this call.
-	client.Lock();
+	client.mutex.Lock();
 	if client.shutdown != nil {
 		c.Error = client.shutdown;
-		client.Unlock();
+		client.mutex.Unlock();
 		doNotBlock := c.Done <- c;
 		return;
 	}
 	c.seq = client.seq;
 	client.seq++;
 	client.pending[c.seq] = c;
-	client.Unlock();
+	client.mutex.Unlock();
 
 	// Encode and send the request.
 	request := new(Request);
@@ -78,10 +80,10 @@ func (client *Client) input() {
 			break
 		}
 		seq := response.Seq;
-		client.Lock();
+		client.mutex.Lock();
 		c := client.pending[seq];
 		client.pending[seq] = c, false;
-		client.Unlock();
+		client.mutex.Unlock();
 		err = client.dec.Decode(c.Reply);
 		c.Error = os.ErrorString(response.Error);
 		// We don't want to block here.  It is the caller's responsibility to make
@@ -89,13 +91,13 @@ func (client *Client) input() {
 		doNotBlock := c.Done <- c;
 	}
 	// Terminate pending calls.
-	client.Lock();
+	client.mutex.Lock();
 	client.shutdown = err;
 	for seq, call := range client.pending {
 		call.Error = err;
 		doNotBlock := call.Done <- call;
 	}
-	client.Unlock();
+	client.mutex.Unlock();
 	log.Stderr("client protocol error:", err);
 }
 
@@ -111,7 +113,7 @@ func NewClient(conn io.ReadWriteCloser) *Client {
 	return client;
 }
 
-// Dial connects to an HTTP RPC server at the specified network address.
+// DialHTTP connects to an HTTP RPC server at the specified network address.
 func DialHTTP(network, address string) (*Client, os.Error) {
 	conn, err := net.Dial(network, "", address);
 	if err != nil {
@@ -142,7 +144,8 @@ func Dial(network, address string) (*Client, os.Error) {
 }
 
 // Go invokes the function asynchronously.  It returns the Call structure representing
-// the invocation.
+// the invocation.  The done channel will signal when the call is complete by returning
+// the same Call object.  If done is nil, Go will allocate a new channel.
 func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
 	c := new(Call);
 	c.ServiceMethod = serviceMethod;
