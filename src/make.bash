@@ -4,6 +4,7 @@
 # license that can be found in the LICENSE file.
 
 set -e
+GOBIN="${GOBIN:-$HOME/bin}"
 export MAKEFLAGS=-j4
 
 if ! test -f $GOROOT/include/u.h
@@ -14,9 +15,9 @@ fi
 
 bash clean.bash
 
-rm -f $HOME/bin/quietgcc
-cp quietgcc.bash $HOME/bin/quietgcc
-chmod +x $HOME/bin/quietgcc
+rm -f $GOBIN/quietgcc
+cp quietgcc.bash $GOBIN/quietgcc
+chmod +x $GOBIN/quietgcc
 
 for i in lib9 libbio libmach_amd64 libregexp cmd pkg cmd/ebnflint cmd/gobuild cmd/godoc cmd/gofmt
 do

@@ -37,4 +37,4 @@ clean:
 	rm -f $(OFILES) $(TARG) *.8 enam.c 8.out a.out
 
 install: $(TARG)
-	cp $(TARG) $(BIN)/$(TARG)
+	cp $(TARG) $(GOBIN)/$(TARG)

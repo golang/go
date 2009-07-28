@@ -19,6 +19,6 @@ clean:
 	rm -f $(OFILES) $(TARG)
 
 install: $(TARG)
-	cp $(TARG) $(BIN)/$(TARG)
+	cp $(TARG) $(GOBIN)/$(TARG)
 
 $(OFILES): $(HFILES)
