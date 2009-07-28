@@ -23,13 +23,19 @@ const (
 	Log10E	= 1/Ln10;
 )
 
-// Limit values
+// Floating-point limit values.
+// Max is the largest finite value representable by the type.
+// Min is the smallest nonzero value representable by the type.
 const (
-	MaxFloat32	= 3.40282346638528860e+38;
-	MinFloat32	= 1.40129846432481707e-45;
-	MaxFloat64	= 1.7976931348623157e+308;
-	MinFloat64	= 5.0e-324;
+	MaxFloat32 = 3.40282346638528859811704183484516925440e+38;	/* 2^127 * (2^24 - 1) / 2^23 */
+	MinFloat32 = 1.401298464324817070923729583289916131280e-45;	/* 1 / 2^(127 - 1 + 23) */
 
+	MaxFloat64 = 1.797693134862315708145274237317043567981e+308;	/* 2^1023 * (2^53 - 1) / 2^52 */
+	MinFloat64 = 4.940656458412465441765687928682213723651e-324;	/* 1 / 2^(1023 - 1 + 52) */
+)
+
+// Integer limit values.
+const (
 	MaxInt8 = 1<<7 - 1;
 	MinInt8 = -1<<7;
 	MaxInt16 = 1<<15 - 1;
