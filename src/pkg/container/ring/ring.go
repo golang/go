@@ -42,7 +42,7 @@ func (r *Ring) Prev() *Ring {
 }
 
 
-// Move moves n % r.Len() elements backward (n < 0) or forward (n > 0)
+// Move moves n % r.Len() elements backward (n < 0) or forward (n >= 0)
 // in the ring and returns that ring element. r must not be empty.
 //
 func (r *Ring) Move(n int) *Ring {
@@ -80,15 +80,15 @@ func New(n int) *Ring {
 }
 
 
-// Link connects ring r with with ring s such that r.Next(1)
-// becomes s and returns the original value for r.Next(1).
+// Link connects ring r with with ring s such that r.Next()
+// becomes s and returns the original value for r.Next().
 // r must not be empty.
 //
 // If r and s point to the same ring, linking
 // them removes the elements between r and s from the ring.
 // The removed elements form a subring and the result is a
 // reference to that subring (if no elements were removed,
-// the result is still the original value for r.Next(1),
+// the result is still the original value for r.Next(),
 // and not nil).
 //
 // If r and s point to different rings, linking
