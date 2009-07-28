@@ -56,7 +56,7 @@ func (t *Arith) Error(args *Args, reply *Reply) os.Error {
 }
 
 func startServer() {
-	rpc.Add(new(Arith));
+	Register(new(Arith));
 
 	l, e := net.Listen("tcp", ":0");	// any available address
 	if e != nil {
@@ -64,7 +64,7 @@ func startServer() {
 	}
 	serverAddr = l.Addr();
 	log.Stderr("Test RPC server listening on ", serverAddr);
-	go rpc.Accept(l);
+	go Accept(l);
 
 	HandleHTTP();
 	l, e = net.Listen("tcp", ":0");	// any available address

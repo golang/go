@@ -2,6 +2,109 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+/*
+	The rpc package provides access to the public methods of an object across a
+	network or other I/O connection.  A server registers an object, making it visible
+	as a service with the name of the type of the object.  After registration, public
+	methods of the object will be accessible remotely.  A server may register multiple
+	objects (services) of different types but it is an error to register multiple
+	objects of the same type.
+
+	Only methods that satisfy these criteria will be made available for remote access;
+	other methods will be ignored:
+
+		- the method name is publicly visible, that is, begins with an upper case letter.
+		- the method has two arguments, both pointers to publicly visible structs.
+		- the method has return type os.Error.
+
+	The method's first argument represents the arguments provided by the caller; the
+	second argument represents the result parameters to be returned to the caller.
+	The method's return value, if non-nil, is passed back as a string that the client
+	sees as an os.ErrorString.
+
+	The server may handle requests on a single connection by calling ServeConn.  More
+	typically it will create a network listener and call Accept or, for an HTTP
+	listener, HandleHTTP and http.Serve.
+
+	A client wishing to use the service establishes a connection and then invokes
+	NewClient on the connection.  The convenience function Dial (DialHTTP) performs
+	both steps for a raw network connection (an HTTP connection).  The resulting
+	Client object has two methods, Call and Go, that specify the service and method to
+	call, a structure containing the arguments, and a structure to receive the result
+	parameters.
+
+	Call waits for the remote call to complete; Go launches the call asynchronously
+	and returns a channel that will signal completion.
+
+	Package "gob" is used to transport the data.
+
+	Here is a simple example.  A server wishes to export an object of type Arith:
+
+		package server
+
+		type Args struct {
+			A, B int
+		}
+
+		type Reply struct {
+			C int
+		}
+
+		type Arith int
+
+		func (t *Arith) Multiply(args *Args, reply *Reply) os.Error {
+			reply.C = args.A * args.B;
+			return nil
+		}
+
+		func (t *Arith) Divide(args *Args, reply *Reply) os.Error {
+			if args.B == 0 {
+				return os.ErrorString("divide by zero");
+			}
+			reply.C = args.A / args.B;
+			return nil
+		}
+
+	The server calls (for HTTP service):
+
+		arith := new(Arith);
+		rpc.Register(arith);
+		rrpc.HandleHTTP();
+		l, e := net.Listen("tcp", ":1234");
+		if e != nil {
+			log.Exit("listen error:", e);
+		}
+		go http.Serve(l, nil);
+
+	At this point, clients can see a service "Arith" with methods "Arith.Multiply" and
+	"Arith.Divide".  To invoke one, a client first dials the server:
+
+		client, err := rpc.DialHTTP("tcp", serverAddress + ":1234");
+		if err != nil {
+			log.Exit("dialing:", err);
+		}
+
+	Then it can make a remote call:
+
+		// Synchronous call
+		args := &server.Args{7,8};
+		reply := new(server.Reply);
+		err = client.Call("Arith.Multiply", args, reply);
+		if err != nil {
+			log.Exit("arith error:", err);
+		}
+		fmt.Printf("Arith: %d*%d=%d", args.A, args.B, reply.C);
+
+	or
+
+		// Asynchronous call
+		divCall := client.Go("Arith.Divide", args, reply, nil);
+		replyCall := <-divCall.Done;	// will be equal to divCall
+		// check errors, print, etc.
+
+	A server implementation will often provide a simple, type-safe wrapper for the
+	client.
+*/
 package rpc
 
 import (
@@ -36,17 +139,21 @@ type service struct {
 	method	map[string] *methodType;	// registered methods
 }
 
-// Request is a header written before every RPC call.
+// Request is a header written before every RPC call.  It is used internally
+// but documented here as an aid to debugging, such as when analyzing
+// network traffic.
 type Request struct {
-	ServiceMethod	string;
-	Seq	uint64;
+	ServiceMethod	string;	// format: "Service.Method"
+	Seq	uint64;	// sequence number chosen by client
 }
 
-// Response is a header written before every RPC return.
+// Response is a header written before every RPC return.  It is used internally
+// but documented here as an aid to debugging, such as when analyzing
+// network traffic.
 type Response struct {
-	ServiceMethod	string;
-	Seq	uint64;
-	Error	string;
+	ServiceMethod	string;	// echoes that of the Request
+	Seq	uint64;	// echoes that of the request
+	Error	string;	// error, if any.
 }
 
 type serverType struct {
@@ -54,8 +161,8 @@ type serverType struct {
 }
 
 // This variable is a global whose "public" methods are really private methods
-// called from the global functions of this package: rpc.Add, rpc.ServeConn, etc.
-// For example, rpc.Add() calls server.add().
+// called from the global functions of this package: rpc.Register, rpc.ServeConn, etc.
+// For example, rpc.Register() calls server.add().
 var server = &serverType{ make(map[string] *service) }
 
 // Is this a publicly vislble - upper case - name?
@@ -64,7 +171,7 @@ func isPublic(name string) bool {
 	return unicode.IsUpper(rune)
 }
 
-func (server *serverType) add(rcvr interface{}) os.Error {
+func (server *serverType) register(rcvr interface{}) os.Error {
 	if server.serviceMap == nil {
 		server.serviceMap = make(map[string] *service);
 	}
@@ -76,9 +183,12 @@ func (server *serverType) add(rcvr interface{}) os.Error {
 		log.Exit("rpc: no service name for type", s.typ.String())
 	}
 	if !isPublic(sname) {
-		s := "rpc Add: type " + sname + " is not public";
+		s := "rpc Register: type " + sname + " is not public";
 		log.Stderr(s);
 		return os.ErrorString(s);
+	}
+	if _, present := server.serviceMap[sname]; present {
+		return os.ErrorString("rpc: service already defined: " + sname);
 	}
 	s.name = sname;
 	s.method = make(map[string] *methodType);
@@ -115,6 +225,14 @@ func (server *serverType) add(rcvr interface{}) os.Error {
 			log.Stderr(mname, "reply type not a pointer to a struct:", replyType.String());
 			continue;
 		}
+		if !isPublic(argType.Elem().Name()) {
+			log.Stderr(mname, "argument type not public:", argType.String());
+			continue;
+		}
+		if !isPublic(replyType.Elem().Name()) {
+			log.Stderr(mname, "reply type not public:", replyType.String());
+			continue;
+		}
 		// Method needs one out: os.Error.
 		if mtype.NumOut() != 1 {
 			log.Stderr("method", mname, "has wrong number of outs:", mtype.NumOut());
@@ -128,7 +246,7 @@ func (server *serverType) add(rcvr interface{}) os.Error {
 	}
 
 	if len(s.method) == 0 {
-		s := "rpc Add: type " + sname + " has no public methods of suitable type";
+		s := "rpc Register: type " + sname + " has no public methods of suitable type";
 		log.Stderr(s);
 		return os.ErrorString(s);
 	}
@@ -136,7 +254,7 @@ func (server *serverType) add(rcvr interface{}) os.Error {
 	return nil;
 }
 
-// A value to be sent as a placeholder for the response when we receive invalid request.
+// A value sent as a placeholder for the response when the server receives an invalid request.
 type InvalidRequest struct {
 	marker int
 }
@@ -234,24 +352,27 @@ func (server *serverType) accept(lis net.Listener) {
 	}
 }
 
-// Add publishes in the server the set of methods of the
+// Register publishes in the server the set of methods of the
 // receiver value that satisfy the following conditions:
 //	- public method
-//	- two arguments, both pointers to structs
+//	- two arguments, both pointers to public structs
 //	- one return value of type os.Error
-// It returns an error if the receiver is not suitable.
-func Add(rcvr interface{}) os.Error {
-	return server.add(rcvr)
+// It returns an error if the receiver is not public or has no
+// suitable methods.
+func Register(rcvr interface{}) os.Error {
+	return server.register(rcvr)
 }
 
 // ServeConn runs the server on a single connection.  When the connection
-// completes, service terminates.
+// completes, service terminates.  ServeConn blocks; the caller typically
+// invokes it in a go statement.
 func ServeConn(conn io.ReadWriteCloser) {
 	go server.input(conn)
 }
 
 // Accept accepts connections on the listener and serves requests
-// for each incoming connection.
+// for each incoming connection.  Accept blocks; the caller typically
+// invokes it in a go statement.
 func Accept(lis net.Listener) {
 	server.accept(lis)
 }
@@ -277,7 +398,7 @@ func serveHTTP(c *http.Conn, req *http.Request) {
 }
 
 // HandleHTTP registers an HTTP handler for RPC messages.
-// It is still necessary to call http.Serve().
+// It is still necessary to invoke http.Serve(), typically in a go statement.
 func HandleHTTP() {
 	http.Handle(rpcPath, http.HandlerFunc(serveHTTP));
 }
