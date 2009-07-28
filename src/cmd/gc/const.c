@@ -145,10 +145,14 @@ convlit1(Node **np, Type *t, int explicit)
 			// let normal conversion code handle it
 			return;
 
+		case TARRAY:
+			if(!isslice(t))
+				goto bad;
+			break;
+
 		case TPTR32:
 		case TPTR64:
 		case TINTER:
-		case TARRAY:
 		case TMAP:
 		case TCHAN:
 		case TFUNC:
