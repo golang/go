@@ -91,21 +91,27 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 		}
 	}
 
-	// Check the assignment count
-	if len(s.Lhs) != len(s.Rhs) {
-		log.Crashf("Unbalanced assignment not implemented %v %v %v", len(s.Lhs), s.Tok, len(s.Rhs));
+	errOp := "assignment";
+	if s.Tok == token.DEFINE {
+		errOp = "definition";
+	}
+	ac, ok := a.checkAssign(s.Pos(), rs, "assignment", "value");
+	if !ok {
+		bad = true;
 	}
 
-	// Compile left side and generate assigners
+	// If this is a definition and the LHS is too big, we won't be
+	// able to produce the usual error message because we can't
+	// begin to infer the types of the LHS.
+	if s.Tok == token.DEFINE && len(s.Lhs) > len(ac.rmt.Elems) {
+		a.diag("not enough values for definition");
+		bad = true;
+	}
+
+	// Compile left side
 	ls := make([]*exprCompiler, len(s.Lhs));
-	as := make([]func(lv Value, f *Frame), len(s.Lhs));
 	nDefs := 0;
 	for i, le := range s.Lhs {
-		errPos := i + 1;
-		if len(s.Lhs) == 1 {
-			errPos = 0;
-		}
-
 		if s.Tok == token.DEFINE {
 			// Check that it's an identifier
 			ident, ok := le.(*ast.Ident);
@@ -123,17 +129,39 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 			}
 			nDefs++;
 
-			if rs[i] == nil {
-				// TODO(austin) Define a placeholder.
-				continue;
-			}
-
-			// Generate assigner and get type
+			// Compute the identifier's type from the RHS
+			// type.  We use the computed MultiType so we
+			// don't have to worry about unpacking.
 			var lt Type;
-			lt, as[i] = mkAssign(nil, rs[i], "assignment", "position", errPos);
-			if lt == nil {
-				bad = true;
-				continue;
+			switch {
+			case i >= len(ac.rmt.Elems):
+				// Define a placeholder.  We already
+				// gave the "not enough" error above.
+				lt = nil;
+
+			case ac.rmt.Elems[i] == nil:
+				// We gave the error when we compiled
+				// the RHS.
+				lt = nil;
+
+			case ac.rmt.Elems[i].isIdeal():
+				// If the type is absent and the
+				// corresponding expression is a
+				// constant expression of ideal
+				// integer or ideal float type, the
+				// type of the declared variable is
+				// int or float respectively.
+				switch {
+				case ac.rmt.Elems[i].isInteger():
+					lt = IntType;
+				case ac.rmt.Elems[i].isFloat():
+					lt = FloatType;
+				default:
+					log.Crashf("unexpected ideal type %v", rs[i].t);
+				}
+
+			default:
+				lt = ac.rmt.Elems[i];
 			}
 
 			// Define identifier
@@ -155,16 +183,6 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 			bad = true;
 			continue;
 		}
-
-		// Generate assigner
-		if as[i] == nil {
-			var lt Type;
-			lt, as[i] = mkAssign(ls[i].t, rs[i], "assignment", "position", errPos);
-			if lt == nil {
-				bad = true;
-				continue;
-			}
-		}
 	}
 
 	// A short variable declaration may redeclare variables
@@ -180,23 +198,58 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 		return;
 	}
 
+	// Create assigner
+	var lt Type;
 	n := len(s.Lhs);
 	if n == 1 {
-		lf := ls[0].evalAddr;
-		assign := as[0];
-		a.push(func(v *vm) { assign(lf(v.f), v.f) });
+		lt = ls[0].t;
 	} else {
-		a.push(func(v *vm) {
-			temps := make([]Value, n);
-			// Assign to temporaries
-			for i := 0; i < n; i++ {
-				// TODO(austin) Don't capture ls
-				temps[i] = ls[i].t.Zero();
-				as[i](temps[i], v.f);
+		lts := make([]Type, len(ls));
+		for i, l := range ls {
+			if l != nil {
+				lts[i] = l.t;
 			}
+		}
+		lt = NewMultiType(lts);
+	}
+	assign := ac.compile(lt);
+	if assign == nil {
+		return;
+	}
+
+	// Compile
+	if n == 1 {
+		// Don't need temporaries and can avoid []Value.
+		lf := ls[0].evalAddr;
+		a.push(func(v *vm) { assign(lf(v.f), v.f) });
+	} else if s.Tok == token.DEFINE && nDefs == n {
+		// Don't need temporaries
+		lfs := make([]func(*Frame) Value, n);
+		for i, l := range ls {
+			lfs[i] = l.evalAddr;
+		}
+		a.push(func(v *vm) {
+			dest := make([]Value, n);
+			for i, lf := range lfs {
+				dest[i] = lf(v.f);
+			}
+			assign(multiV(dest), v.f);
+		});
+	} else {
+		// Need temporaries
+		lmt := lt.(*MultiType);
+		lfs := make([]func(*Frame) Value, n);
+		for i, l := range ls {
+			lfs[i] = l.evalAddr;
+		}
+		a.push(func(v *vm) {
+			temp := lmt.Zero().(multiV);
+			assign(temp, v.f);
 			// Copy to destination
-			for i := 0; i < n; i++ {
-				ls[i].evalAddr(v.f).Assign(temps[i]);
+			for i := 0; i < n; i ++ {
+				// TODO(austin) Need to evaluate LHS
+				// before RHS
+				lfs[i](v.f).Assign(temp[i]);
 			}
 		});
 	}
@@ -244,9 +297,9 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 		return;
 	}
 
-	_, assign := mkAssign(l.t, binop, "assignment", "", 0);
+	assign := a.compileAssign(s.Pos(), l.t, []*exprCompiler{binop}, "assignment", "value");
 	if assign == nil {
-		return;
+		log.Crashf("compileAssign type check failed");
 	}
 
 	lf := l.evalAddr;
@@ -280,58 +333,46 @@ func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
 	// return statement.
 	a.returned = true;
 
-	if len(s.Results) == 0 && (len(a.outVars) == 0 || a.outVarsNamed) {
+	if len(s.Results) == 0 && (len(a.fnType.Out) == 0 || a.outVarsNamed) {
 		// Simple case.  Simply exit from the function.
 		a.push(func(v *vm) { v.pc = ^uint(0) });
 		a.err = false;
 		return;
 	}
 
-	// TODO(austin) Might be a call of a multi-valued function.
-	// It might be possible to combine this code with the
-	// assignment code.
-	if len(s.Results) != len(a.outVars) {
-		a.diag("Unbalanced return not implemented");
-		return;
-	}
-
-	// Compile expressions and create assigners
+	// Compile expressions
 	bad := false;
 	rs := make([]*exprCompiler, len(s.Results));
-	as := make([]func(lv Value, f *Frame), len(s.Results));
 	for i, re := range s.Results {
 		rs[i] = a.compileExpr(a.scope, re, false);
 		if rs[i] == nil {
 			bad = true;
-			continue;
-		}
-
-		errPos := i + 1;
-		if len(s.Results) == 1 {
-			errPos = 0;
-		}
-		var lt Type;
-		lt, as[i] = mkAssign(a.outVars[i].Type, rs[i], "return", "value", errPos);
-		if as[i] == nil {
-			bad = true;
 		}
 	}
-
 	if bad {
 		return;
 	}
 
-	// Save indexes of return values
-	idxs := make([]int, len(s.Results));
-	for i, outVar := range a.outVars {
-		idxs[i] = outVar.Index;
+	// Create assigner
+
+	// However, if the expression list in the "return" statement
+	// is a single call to a multi-valued function, the values
+	// returned from the called function will be returned from
+	// this one.
+	assign := a.compileAssign(s.Pos(), NewMultiType(a.fnType.Out), rs, "return", "value");
+	if assign == nil {
+		return;
 	}
 
+	// XXX(Spec) "The result types of the current function and the
+	// called function must match."  Match is fuzzy.  It should
+	// say that they must be assignment compatible.
+
 	// Compile
+	start := len(a.fnType.In);
+	nout := len(a.fnType.Out);
 	a.push(func(v *vm) {
-		for i, assign := range as {
-			assign(v.activation.Vars[idxs[i]], v.f);
-		}
+		assign(multiV(v.activation.Vars[start:start+nout]), v.f);
 		v.pc = ^uint(0);
 	});
 	a.err = false;
@@ -410,19 +451,17 @@ func (a *compiler) compileFunc(scope *Scope, decl *FuncDecl, body *ast.BlockStmt
 	for i, t := range decl.Type.In {
 		bodyScope.DefineVar(decl.InNames[i].Value, t);
 	}
-	outVars := make([]*Variable, len(decl.Type.Out));
 	for i, t := range decl.Type.Out {
 		if decl.OutNames[i] != nil {
-			outVars[i] = bodyScope.DefineVar(decl.OutNames[i].Value, t);
+			bodyScope.DefineVar(decl.OutNames[i].Value, t);
 		} else {
-			// TODO(austin) It would be nice to have a
-			// better way to define unnamed slots.
-			outVars[i] = bodyScope.DefineVar(":out" + strconv.Itoa(i), t);
+			// TODO(austin) Not technically a temp
+			bodyScope.DefineTemp(t);
 		}
 	}
 
 	// Create block context
-	fc := &funcCompiler{a, outVars, false, newCodeBuf(), false};
+	fc := &funcCompiler{a, decl.Type, false, newCodeBuf(), false};
 	if len(decl.OutNames) > 0 && decl.OutNames[0] != nil {
 		fc.outVarsNamed = true;
 	}

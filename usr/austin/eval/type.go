@@ -45,8 +45,11 @@ type typeArrayMap map[uintptr] *typeArrayMapEntry
 func hashTypeArray(key []Type) uintptr {
 	hash := uintptr(0);
 	for _, t := range key {
-		addr := reflect.NewValue(t).Addr();
 		hash = hash * 33;
+		if t == nil {
+			continue;
+		}
+		addr := reflect.NewValue(t).Addr();
 		hash ^= addr;
 	}
 	return hash;
@@ -153,7 +156,6 @@ type uintType struct {
 	Bits uint;
 	// true for uintptr, false for all others
 	Ptr bool;
-
 	name string;
 }
 
@@ -224,7 +226,6 @@ type intType struct {
 
 	// 0 for architecture-dependent types
 	Bits uint;
-
 	name string;
 }
 
@@ -437,10 +438,8 @@ func (t *stringType) Zero() Value
 
 type ArrayType struct {
 	commonType;
-
 	Len int64;
 	Elem Type;
-
 	lit Type;
 }
 
@@ -595,7 +594,12 @@ func typeListString(ts []Type, ns []*ast.Ident) string {
 		if ns != nil && ns[i] != nil {
 			s += ns[i].Value + " ";
 		}
-		s += t.String();
+		if t == nil {
+			// Some places use nil types to represent errors
+			s += "<none>";
+		} else {
+			s += t.String();
+		}
 	}
 	return s;
 }
@@ -708,3 +712,55 @@ func (t *NamedType) String() string {
 func (t *NamedType) Zero() Value {
 	return t.def.Zero();
 }
+
+/*
+ * Multi-valued type
+ */
+
+// MultiType is a special type used for multi-valued expressions, akin
+// to a tuple type.  It's not generally accessible within the
+// language.
+type MultiType struct {
+	commonType;
+	Elems []Type;
+	lit Type;
+}
+
+var multiTypes = newTypeArrayMap()
+
+func NewMultiType(elems []Type) *MultiType {
+	if t := multiTypes.Get(elems); t != nil {
+		return t.(*MultiType);
+	}
+
+	t := &MultiType{commonType{}, elems, nil};
+	multiTypes.Put(elems, t);
+	return t;
+}
+
+var EmptyType Type = NewMultiType([]Type{});
+
+func (t *MultiType) literal() Type {
+	if t.lit == nil {
+		elems := make([]Type, len(t.Elems));
+		for i, e := range t.Elems {
+			elems[i] = e.literal();
+		}
+
+		t.lit = NewMultiType(elems);
+	}
+	return t.lit;
+}
+
+func (t *MultiType) rep() Type {
+	return t;
+}
+
+func (t *MultiType) String() string {
+	if len(t.Elems) == 0 {
+		return "<none>";
+	}
+	return typeListString(t.Elems, nil);
+}
+
+func (t *MultiType) Zero() Value

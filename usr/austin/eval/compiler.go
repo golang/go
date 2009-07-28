@@ -35,6 +35,9 @@ type FuncDecl struct
 func (a *compiler) compileFunc(scope *Scope, decl *FuncDecl, body *ast.BlockStmt) (func (f *Frame) Func)
 type exprCompiler struct
 func (a *compiler) compileExpr(scope *Scope, expr ast.Expr, constant bool) *exprCompiler
+type assignCompiler struct
+func (a *compiler) checkAssign(pos token.Position, rs []*exprCompiler, errOp, errPosName string) (*assignCompiler, bool)
+func (a *compiler) compileAssign(pos token.Position, lt Type, rs []*exprCompiler, errOp, errPosName string) (func(lv Value, f *Frame))
 func (a *compiler) compileType(scope *Scope, typ ast.Expr) Type
 func (a *compiler) compileFuncType(scope *Scope, typ *ast.FuncType) *FuncDecl
 
@@ -42,11 +45,12 @@ func (a *compiler) compileArrayLen(scope *Scope, expr ast.Expr) (int64, bool)
 
 
 type codeBuf struct
+type FuncType struct
 // A funcCompiler captures information used throughout the compilation
 // of a single function body.
 type funcCompiler struct {
 	*compiler;
-	outVars []*Variable;
+	fnType *FuncType;
 	// Whether the out variables are named.  This affects what
 	// kinds of return statements are legal.
 	outVarsNamed bool;
