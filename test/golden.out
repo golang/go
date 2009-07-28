@@ -91,13 +91,6 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug136.go
 BUG: should not compile
 
-=========== bugs/bug148.go
-2 3
-interface is main.T, not main.T·bug148·1
-throw: interface conversion
-
-panic PC=xxx
-
 =========== bugs/bug159.go
 abc: expected 4 5 6 got 4 4 -4
 BUG: bug159
@@ -232,3 +225,10 @@ fixedbugs/bug131.go:7: illegal types for operand: AS
 fixedbugs/bug133.dir/bug2.go:11: undefined: bug0.T field i
 fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN
 	int
+
+=========== fixedbugs/bug148.go
+2 3
+interface is main.T, not main.T·bug148·1
+throw: interface conversion
+
+panic PC=xxx
