@@ -27,6 +27,11 @@ type typeDoc struct {
 
 
 // DocReader accumulates documentation for a single package.
+// It modifies the AST: Comments (declaration documentation)
+// that have been collected by the DocReader are set to nil
+// in the respective AST nodes so that they are not printed
+// twice (once when printing the documentation and once when
+// printing the corresponding AST node).
 //
 type DocReader struct {
 	name string;  // package name
@@ -151,8 +156,8 @@ func (doc *DocReader) addDecl(decl ast.Decl) {
 					// makeTypeDocs below). Simpler data structures, but
 					// would lose GenDecl documentation if the TypeSpec
 					// has documentation as well.
-					s := spec.(*ast.TypeSpec);
-					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{s}, noPos});
+					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{spec}, noPos});
+					// A new GenDecl node is created, no need to nil out d.Doc.
 				}
 			case token.VAR:
 				// variables are always handled as a group
@@ -197,7 +202,8 @@ func (doc *DocReader) AddFile(src *ast.File) {
 	// add package documentation
 	// TODO(gri) what to do if there are multiple files?
 	if src.Doc != nil {
-		doc.doc = src.Doc
+		doc.doc = src.Doc;
+		src.Doc = nil;  // doc consumed - remove from ast.File node
 	}
 
 	// add all declarations
@@ -206,7 +212,7 @@ func (doc *DocReader) AddFile(src *ast.File) {
 	}
 
 	// collect BUG(...) comments
-	for _, c := range src.Comments {
+	for c := src.Comments; c != nil; c = c.Next {
 		text := c.List[0].Text;
 		cstr := string(text);
 		if m := bug_markers.Execute(cstr); len(m) > 0 {
@@ -215,10 +221,11 @@ func (doc *DocReader) AddFile(src *ast.File) {
 				// non-empty BUG comment; collect comment without BUG prefix
 				list := copyCommentList(c.List);
 				list[0].Text = text[m[1] : len(text)];
-				doc.bugs.Push(&ast.CommentGroup{list, c.EndLine});
+				doc.bugs.Push(&ast.CommentGroup{list, nil});
 			}
 		}
 	}
+	src.Comments = nil;  // consumed unassociated comments - remove from ast.File node
 }
 
 // ----------------------------------------------------------------------------
@@ -282,6 +289,7 @@ func makeValueDocs(v *vector.Vector) []*ValueDoc {
 	for i := range d {
 		decl := v.At(i).(*ast.GenDecl);
 		d[i] = &ValueDoc{astComment(decl.Doc), decl, i};
+		decl.Doc = nil;  // doc consumed - removed from AST
 	}
 	sort.Sort(sortValueDoc(d));
 	return d;
@@ -310,6 +318,7 @@ func makeFuncDocs(m map[string] *ast.FuncDecl) []*FuncDoc {
 	for _, f := range m {
 		doc := new(FuncDoc);
 		doc.Doc = astComment(f.Doc);
+		f.Doc = nil;  // doc consumed - remove from ast.FuncDecl node
 		if f.Recv != nil {
 			doc.Recv = f.Recv.Type;
 		}
@@ -359,10 +368,12 @@ func makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 		typespec := old.decl.Specs[0].(*ast.TypeSpec);
 		t := new(TypeDoc);
 		doc := typespec.Doc;
+		typespec.Doc = nil;  // doc consumed - remove from ast.TypeSpec node
 		if doc == nil {
 			// no doc associated with the spec, use the declaration doc, if any
 			doc = old.decl.Doc;
 		}
+		old.decl.Doc = nil;  // doc consumed - remove from ast.Decl node
 		t.Doc = astComment(doc);
 		t.Type = typespec;
 		t.Factories = makeFuncDocs(old.factories);

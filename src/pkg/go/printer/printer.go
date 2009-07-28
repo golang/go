@@ -16,13 +16,28 @@ import (
 )
 
 
+const (
+	debug = false;  // enable for debugging
+	maxNewlines = 3;  // maximum vertical white space
+)
+
+
 // Printing is controlled with these flags supplied
 // to Fprint via the mode parameter.
 //
 const (
-	DocComments uint = 1 << iota;  // print documentation comments
-	OptCommas;  // print optional commas
+	OptCommas = 1 << iota;  // print optional commas
 	OptSemis;  // print optional semicolons
+)
+
+
+type whiteSpace int
+
+const (
+	blank = whiteSpace(' ');
+	tab = whiteSpace('\t');
+	newline = whiteSpace('\n');
+	formfeed = whiteSpace('\f');
 )
 
 
@@ -31,39 +46,19 @@ type printer struct {
 	output io.Writer;
 	mode uint;
 	errors chan os.Error;
-	comments []*ast.CommentGroup;  // list of unassociated comments; or nil
 
 	// current state (changes during printing)
 	written int;  // number of bytes written
 	level int;  // function nesting level; 0 = package scope, 1 = top-level function scope, etc.
-	indent int;  // indent level
-	pos token.Position;  // output position (possibly estimated) in "AST space"
+	indent int;  // current indentation
+	prev, pos token.Position;
+
+	// buffered whitespace
+	buffer [8]whiteSpace;  // whitespace sequences are short (1 or 2); 8 entries is plenty
+	buflen int;
 
 	// comments
-	cindex int;  // the current comment group index
-	cpos token.Position;  // the position of the next comment group
-}
-
-
-func (p *printer) hasComment(pos token.Position) bool {
-	return p.cpos.Offset < pos.Offset;
-}
-
-
-func (p *printer) nextComment() {
-	p.cindex++;
-	if p.comments != nil && p.cindex < len(p.comments) && p.comments[p.cindex] != nil {
-		p.cpos = p.comments[p.cindex].List[0].Pos();
-	} else {
-		p.cpos = token.Position{"", 1<<30, 1<<30, 1};  // infinite
-	}
-}
-
-
-func (p *printer) setComments(comments []*ast.CommentGroup) {
-	p.comments = comments;
-	p.cindex = -1;
-	p.nextComment();
+	comment *ast.CommentGroup;  // list of comments; or nil
 }
 
 
@@ -71,20 +66,12 @@ func (p *printer) init(output io.Writer, mode uint) {
 	p.output = output;
 	p.mode = mode;
 	p.errors = make(chan os.Error);
-	p.setComments(nil);
 }
 
 
-var (
-	blank = []byte{' '};
-	tab = []byte{'\t'};
-	newline = []byte{'\n'};
-	formfeed = []byte{'\f'};
-)
-
-
 // Writing to p.output is done with write0 which also handles errors.
-// It should only be called by write.
+// It should only be called by write and debug routines which are not
+// supposed to update the p.pos estimation.
 //
 func (p *printer) write0(data []byte) {
 	n, err := p.output.Write(data);
@@ -100,11 +87,13 @@ func (p *printer) write(data []byte) {
 	for i, b := range data {
 		if b == '\n' || b == '\f' {
 			// write segment ending in a newline/formfeed followed by indentation
-			// TODO should convert '\f' into '\n' if the output is not going through
-			//      tabwriter
+			// TODO(gri) should convert '\f' into '\n' if the output is not going
+			//           through tabwriter
 			p.write0(data[i0 : i+1]);
+			// TODO(gri) should not write indentation is there is nothing else
+			//           on the line
 			for j := p.indent; j > 0; j-- {
-				p.write0(tab);
+				p.write0([]byte{'\t'});  // TODO(gri) don't do allocation in every iteration
 			}
 			i0 = i+1;
 
@@ -125,7 +114,39 @@ func (p *printer) write(data []byte) {
 }
 
 
-// TODO(gri) Enable this code to intersperse comments
+// TODO(gri) Don't go through write and make this more efficient.
+func (p *printer) writeByte(b byte) {
+	p.write([]byte{b});
+}
+
+
+func (p *printer) writeNewlines(n int) {
+	if n > maxNewlines {
+		n = maxNewlines;
+	}
+	for ; n > 0; n-- {
+		p.writeByte('\n');
+	}
+}
+
+
+func (p *printer) writePos(pos token.Position) {
+	// use write0 so not to disturb the p.pos update by write
+	p.write0(strings.Bytes(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)));
+}
+
+
+func (p *printer) writeItem(pos token.Position, data []byte) {
+	p.pos = pos;
+	if debug {
+		p.writePos(pos);
+	}
+	p.write(data);
+	p.prev = p.pos;
+}
+
+
+// TODO(gri) decide if this is needed - keep around for now
 /*
 // Reduce contiguous sequences of '\t' in a []byte to a single '\t'.
 func untabify(src []byte) []byte {
@@ -139,26 +160,110 @@ func untabify(src []byte) []byte {
 	}
 	return dst[0 : j];
 }
-
-
-func (p *printer) adjustSpacingAndMergeComments() {
-	for ; p.hasComment(p.pos); p.nextComment() {
-		// we have a comment that comes before the current position
-		comment := p.comments[p.cindex];
-		p.write(untabify(comment.Text));
-		// TODO
-		// - classify comment and provide better formatting
-		// - add extra newlines if so indicated by source positions
-	}
-}
 */
 
 
+func (p *printer) writeComment(comment *ast.Comment) {
+	// separation from previous item
+	if p.prev.IsValid() {
+		// there was a preceding item (otherwise, the comment is the
+		// first item to be printed - in that case do not apply extra
+		// spacing)
+		n := comment.Pos().Line - p.prev.Line;
+		if n == 0 {
+			// comment on the same line as previous item; separate with tab
+			p.writeByte('\t');
+		} else {
+			// comment on a different line; separate with newlines
+			p.writeNewlines(n);
+		}
+	}
+
+	// write comment
+	p.writeItem(comment.Pos(), comment.Text);
+}
+
+
+func (p *printer) intersperseComments(next token.Position) {
+	firstLine := 0;
+	needsNewline := false;
+	for ; p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset; p.comment = p.comment.Next {
+		for _, c := range p.comment.List {
+			if firstLine == 0 {
+				firstLine = c.Pos().Line;
+			}
+			p.writeComment(c);
+			needsNewline = c.Text[1] == '/';
+		}
+	}
+
+	// Eliminate non-newline whitespace from whitespace buffer.
+	j := 0;
+	for i := 0; i < p.buflen; i++ {
+		ch := p.buffer[i];
+		if ch == '\n' || ch == '\f' {
+			p.buffer[j] = ch;
+			j++;
+		}
+	}
+	p.buflen = j;
+
+	// Eliminate extra newlines from whitespace buffer if they
+	// are not present in the original source. This makes sure
+	// that comments that need to be adjacent to a declaration
+	// remain adjacent.
+	if p.prev.IsValid() {
+		n := next.Line - p.prev.Line;
+		if n < p.buflen {
+			p.buflen = n;
+		}
+	}
+
+	// If the whitespace buffer is not empty, it contains only
+	// newline or formfeed chars. Force a formfeed char if the
+	// comments span more than one line - in this case the
+	// structure of the next line is likely to change. Otherwise
+	// use the existing char, if any.
+	if needsNewline {
+		ch := p.buffer[0];  // existing char takes precedence
+		if p.buflen == 0 {
+			p.buflen = 1;
+			ch = newline;  // original ch was a lie
+		}
+		if p.prev.Line > firstLine {
+			ch = formfeed;  // comments span at least 2 lines
+		}
+		p.buffer[0] = ch;
+	}
+}
+
+
+func (p *printer) writeWhitespace() {
+	for i := 0; i < p.buflen; i++ {
+		p.writeByte(byte(p.buffer[i]));
+	}
+	p.buflen = 0;
+}
+
+
+// print prints a list of "items" (roughly corresponding to syntactic
+// tokens, but also including whitespace and formatting information).
+// It is the only print function that should be called directly from
+// any of the AST printing functions below.
+//
+// Whitespace is accumulated until a non-whitespace token appears. Any
+// comments that need to appear before that token are printed first,
+// taking into account the amount and structure of any pending white-
+// space for best commemnt placement. Then, any leftover whitespace is
+// printed, followed by the actual token.
+//
 func (p *printer) print(args ...) {
 	v := reflect.NewValue(args).(*reflect.StructValue);
 	for i := 0; i < v.NumField(); i++ {
-		//p.adjustSpacingAndMergeComments();  // TODO(gri) enable to intersperse comments
 		f := v.Field(i);
+
+		next := p.pos;  // estimated position of next item
+		var data []byte;
 		switch x := f.Interface().(type) {
 		case int:
 			// indentation delta
@@ -166,19 +271,49 @@ func (p *printer) print(args ...) {
 			if p.indent < 0 {
 				panic("print: negative indentation");
 			}
+		case whiteSpace:
+			if p.buflen >= len(p.buffer) {
+				// Whitespace sequences are very short so this should
+				// never happen. Handle gracefully (but possibly with
+				// bad comment placement) if it does happen.
+				p.writeWhitespace();
+			}
+			p.buffer[p.buflen] = x;
+			p.buflen++;
 		case []byte:
-			p.write(x);
+			data = x;
 		case string:
-			p.write(strings.Bytes(x));
+			data = strings.Bytes(x);
 		case token.Token:
-			p.write(strings.Bytes(x.String()));
+			data = strings.Bytes(x.String());
 		case token.Position:
-			// set current position
-			p.pos = x;
+			next = x;  // accurate position of next item
 		default:
 			panicln("print: unsupported argument type", f.Type().String());
 		}
+		p.pos = next;
+
+		if data != nil {
+			// if there are comments before the next item, intersperse them
+			if p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset {
+				p.intersperseComments(next);
+			}
+
+			p.writeWhitespace();
+
+			// intersperse extra newlines if present in the source
+			p.writeNewlines(next.Line - p.pos.Line);
+
+			p.writeItem(next, data);
+		}
 	}
+}
+
+
+// Flush prints any pending whitespace.
+func (p *printer) flush() {
+	// TODO(gri) any special handling of pending comments needed?
+	p.writeWhitespace();
 }
 
 
@@ -189,6 +324,10 @@ func (p *printer) optSemis() bool {
 	return p.mode & OptSemis != 0;
 }
 
+
+// TODO(gri) The code for printing lead and line comments
+//           should be eliminated in favor of reusing the
+//           comment intersperse mechanism above somehow.
 
 // Print a list of individual comments.
 func (p *printer) commentList(list []*ast.Comment) {
@@ -203,20 +342,22 @@ func (p *printer) commentList(list []*ast.Comment) {
 }
 
 
-// Print a leading comment followed by a newline.
-func (p *printer) leadingComment(d *ast.CommentGroup) {
-	if p.mode & DocComments != 0 && d != nil {
+// Print a lead comment followed by a newline.
+func (p *printer) leadComment(d *ast.CommentGroup) {
+	// Ignore the comment if we have comments interspersed (p.comment != nil).
+	if p.comment == nil && d != nil {
 		p.commentList(d.List);
 		p.print(newline);
 	}
 }
 
 
-// Print a tab followed by a trailing comment.
+// Print a tab followed by a line comment.
 // A newline must be printed afterwards since
 // the comment may be a //-style comment.
-func (p *printer) trailingComment(d *ast.CommentGroup) {
-	if d != nil {
+func (p *printer) lineComment(d *ast.CommentGroup) {
+	// Ignore the comment if we have comments interspersed (p.comment != nil).
+	if p.comment == nil && d != nil {
 		p.print(tab);
 		p.commentList(d.List);
 	}
@@ -306,7 +447,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 		isAnon := len(f.Names) == 0;
 		if i > 0 {
 			p.print(token.SEMICOLON);
-			p.trailingComment(lastComment);
+			p.lineComment(lastComment);
 			if lastWasAnon == isAnon {
 				// previous and current line have same structure;
 				// continue with existing columns
@@ -315,13 +456,13 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 				// previous and current line have different structure;
 				// flush tabwriter and start new columns (the "type
 				// column" on a line with named fields may line up
-				// with the "trailing comment column" on a line with
+				// with the "line comment column" on a line with
 				// an anonymous field, leading to bad alignment)
 				p.print(formfeed);
 			}
 		}
 
-		p.leadingComment(f.Doc);
+		p.leadComment(f.Doc);
 		if !isAnon {
 			p.identList(f.Names);
 			p.print(tab);
@@ -350,7 +491,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 	if p.optSemis() {
 		p.print(token.SEMICOLON);
 	}
-	p.trailingComment(lastComment);
+	p.lineComment(lastComment);
 
 	p.print(-1, newline, rbrace, token.RBRACE);
 
@@ -624,11 +765,11 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		var comment *ast.CommentGroup;
 		comment, optSemi = p.decl(s.Decl);
 		if comment != nil {
-			// Trailing comments of declarations in statement lists
+			// Line comments of declarations in statement lists
 			// are not associated with the declaration in the parser;
 			// this case should never happen. Print anyway to continue
 			// gracefully.
-			p.trailingComment(comment);
+			p.lineComment(comment);
 			p.print(newline);
 		}
 
@@ -780,12 +921,12 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 // ----------------------------------------------------------------------------
 // Declarations
 
-// Returns trailing comment, if any, and whether a separating semicolon is optional.
+// Returns line comment, if any, and whether a separating semicolon is optional.
 //
 func (p *printer) spec(spec ast.Spec) (comment *ast.CommentGroup, optSemi bool) {
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
-		p.leadingComment(s.Doc);
+		p.leadComment(s.Doc);
 		if s.Name != nil {
 			p.expr(s.Name);
 		}
@@ -794,7 +935,7 @@ func (p *printer) spec(spec ast.Spec) (comment *ast.CommentGroup, optSemi bool) 
 		comment = s.Comment;
 
 	case *ast.ValueSpec:
-		p.leadingComment(s.Doc);
+		p.leadComment(s.Doc);
 		p.identList(s.Names);
 		if s.Type != nil {
 			p.print(blank);  // TODO switch to tab? (indent problem with structs)
@@ -808,7 +949,7 @@ func (p *printer) spec(spec ast.Spec) (comment *ast.CommentGroup, optSemi bool) 
 		comment = s.Comment;
 
 	case *ast.TypeSpec:
-		p.leadingComment(s.Doc);
+		p.leadComment(s.Doc);
 		p.expr(s.Name);
 		p.print(blank);  // TODO switch to tab? (but indent problem with structs)
 		optSemi = p.expr(s.Type);
@@ -829,7 +970,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 		p.print(d.Pos(), "BadDecl");
 
 	case *ast.GenDecl:
-		p.leadingComment(d.Doc);
+		p.leadComment(d.Doc);
 		p.print(d.Pos(), d.Tok, blank);
 
 		if d.Lparen.IsValid() {
@@ -840,7 +981,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 				for i, s := range d.Specs {
 					if i > 0 {
 						p.print(token.SEMICOLON);
-						p.trailingComment(comment);
+						p.lineComment(comment);
 						p.print(newline);
 					}
 					comment, optSemi = p.spec(s);
@@ -848,7 +989,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 				if p.optSemis() {
 					p.print(token.SEMICOLON);
 				}
-				p.trailingComment(comment);
+				p.lineComment(comment);
 				p.print(-1, newline);
 			}
 			p.print(d.Rparen, token.RPAREN);
@@ -861,7 +1002,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 		}
 
 	case *ast.FuncDecl:
-		p.leadingComment(d.Doc);
+		p.leadComment(d.Doc);
 		p.print(d.Pos(), token.FUNC, blank);
 		if recv := d.Recv; recv != nil {
 			// method: print receiver
@@ -894,9 +1035,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 // Files
 
 func (p *printer) file(src *ast.File) {
-	p.setComments(src.Comments);  // unassociated comments
-
-	p.leadingComment(src.Doc);
+	p.leadComment(src.Doc);
 	p.print(src.Pos(), token.PACKAGE, blank);
 	p.expr(src.Name);
 
@@ -906,7 +1045,7 @@ func (p *printer) file(src *ast.File) {
 		if p.optSemis() {
 			p.print(token.SEMICOLON);
 		}
-		p.trailingComment(comment);
+		p.lineComment(comment);
 	}
 
 	p.print(newline);
@@ -934,12 +1073,14 @@ func Fprint(output io.Writer, node interface{}, mode uint) (int, os.Error) {
 			p.stmt(n);
 		case ast.Decl:
 			comment, _ := p.decl(n);
-			p.trailingComment(comment);  // no newline at end
+			p.lineComment(comment);  // no newline at end
 		case *ast.File:
+			p.comment = n.Comments;
 			p.file(n);
 		default:
 			p.errors <- os.NewError("unsupported node type");
 		}
+		p.flush();
 		p.errors <- nil;  // no errors
 	}();
 	err := <-p.errors;  // wait for completion of goroutine

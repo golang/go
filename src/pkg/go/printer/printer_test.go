@@ -49,12 +49,13 @@ func check(t *testing.T, source, golden string, exports bool) {
 	// filter exports if necessary
 	if exports {
 		ast.FilterExports(prog);  // ignore result
+		prog.Comments = nil;  // don't print comments that are not in AST
 	}
 
 	// format source
 	var buf bytes.Buffer;
 	w := tabwriter.NewWriter(&buf, tabwidth, padding, tabchar, 0);
-	Fprint(w, prog, DocComments);
+	Fprint(w, prog, 0);
 	w.Flush();
 	res := buf.Data();
 

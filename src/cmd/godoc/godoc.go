@@ -207,11 +207,7 @@ func parse(path string, mode uint) (*ast.File, *parseErrors) {
 func nodeText(node interface{}) []byte {
 	var buf bytes.Buffer;
 	tw := makeTabwriter(&buf);
-	mode := uint(0);
-	if _, isProgram := node.(*ast.File); isProgram {
-		mode = printer.DocComments;
-	}
-	printer.Fprint(tw, node, mode);
+	printer.Fprint(tw, node, 0);
 	tw.Flush();
 	return buf.Data();
 }

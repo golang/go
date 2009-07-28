@@ -89,12 +89,12 @@ type Comment struct {
 }
 
 
-// A CommentGroup represents a sequence of single comments
+// A CommentGroup represents a sequence of comments
 // with no other tokens and no empty lines between.
 //
 type CommentGroup struct {
 	List []*Comment;
-	EndLine int;  // line where the last comment in the group ends
+	Next *CommentGroup;  // next comment group in source order
 }
 
 
@@ -116,7 +116,7 @@ type (
 		Names []*Ident;  // field/method/parameter names; nil if anonymous field
 		Type Expr;  // field/method/parameter type
 		Tag []*StringLit;  // field tag; or nil
-		Comment *CommentGroup;  // trailing comments on same line; or nil
+		Comment *CommentGroup;  // line comments; or nil
 	};
 )
 
@@ -675,7 +675,7 @@ type (
 		Doc *CommentGroup;  // associated documentation; or nil
 		Name *Ident;  // local package name (including "."); or nil
 		Path []*StringLit;  // package path
-		Comment *CommentGroup;  // trailing comments on same line; or nil
+		Comment *CommentGroup;  // line comments; or nil
 	};
 
 	// A ValueSpec node represents a constant or variable declaration
@@ -685,7 +685,7 @@ type (
 		Names []*Ident;  // value names
 		Type Expr;  // value type; or nil
 		Values []Expr;  // initial values; or nil
-		Comment *CommentGroup;  // trailing comments on same line; or nil
+		Comment *CommentGroup;  // line comments; or nil
 	};
 
 	// A TypeSpec node represents a type declaration (TypeSpec production).
@@ -693,7 +693,7 @@ type (
 		Doc *CommentGroup;  // associated documentation; or nil
 		Name *Ident;  // type name
 		Type Expr;
-		Comment *CommentGroup;  // trailing comments on same line; or nil
+		Comment *CommentGroup;  // line comments; or nil
 	};
 )
 
@@ -773,7 +773,7 @@ type File struct {
 	token.Position;  // position of "package" keyword
 	Name *Ident;  // package name
 	Decls []Decl;  // top-level declarations
-	Comments []*CommentGroup;  // list of unassociated comments
+	Comments *CommentGroup;  // list of all comments in the source file
 }
 
 
