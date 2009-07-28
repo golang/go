@@ -28,6 +28,7 @@ var (
 
 	// operation modes
 	allgo = flag.Bool("a", false, "include all .go files for package");
+	comments = flag.Bool("c", false, "omit comments");
 	silent = flag.Bool("s", false, "silent mode: parsing only");
 	verbose = flag.Bool("v", false, "verbose mode: trace parsing");
 	exports = flag.Bool("x", false, "show exports only");
@@ -48,7 +49,10 @@ func usage() {
 
 
 func parserMode() uint {
-	mode := parser.ParseComments;
+	mode := uint(0);
+	if !*comments {
+		mode |= parser.ParseComments;
+	}
 	if *verbose {
 		mode |= parser.Trace;
 	}
@@ -99,7 +103,7 @@ func getPackage(path string) (*ast.Package, os.Error) {
 
 
 func printerMode() uint {
-	mode := printer.DocComments;
+	mode := uint(0);
 	if *optcommas {
 		mode |= printer.OptCommas;
 	}

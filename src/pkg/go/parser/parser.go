@@ -22,17 +22,6 @@ import (
 )
 
 
-// Names to index the parser's commentIndex array.
-const (
-	leading = iota;  // index of the leading comments entry
-	trailing;  // index of the trailing comments entry
-)
-
-
-// Initial value for parser.commentsIndex.
-var noIndex = [2]int{-1, -1};
-
-
 // noPos is used when there is no corresponding source position for a token.
 var noPos token.Position;
 
@@ -60,8 +49,10 @@ type parser struct {
 	indent uint;  // indentation used for tracing output
 
 	// Comments
-	comments vector.Vector;  // list of collected, unassociated comment groups
-	commentsIndex [2]int;  // comments indexes of last leading/trailing comment group; or -1
+	comments *ast.CommentGroup;  // list of collected comments
+	lastComment *ast.CommentGroup;  // last comment in the comments list
+	leadComment *ast.CommentGroup;  // the last lead comment
+	lineComment *ast.CommentGroup;  // the last line comment
 
 	// Next token
 	pos token.Position;  // token position
@@ -90,8 +81,6 @@ func (p *parser) init(filename string, src []byte, mode uint) {
 	p.scanner.Init(filename, src, p, scannerMode(mode));
 	p.mode = mode;
 	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
-	p.comments.Init(0);
-	p.commentsIndex = noIndex;
 	p.next();
 }
 
@@ -190,42 +179,49 @@ func (p *parser) consumeCommentGroup() int {
 		group[i] = list.At(i).(*ast.Comment);
 	}
 
-	p.comments.Push(&ast.CommentGroup{group, endline});
+	// add comment group to the comments list
+	g := &ast.CommentGroup{group, nil};
+	if p.lastComment != nil {
+		p.lastComment.Next = g;
+	} else {
+		p.comments = g;
+	}
+	p.lastComment = g;
+
 	return endline;
 }
 
 
 // Advance to the next non-comment token. In the process, collect
-// any comment groups encountered, and remember the last leading
-// and trailing comments.
+// any comment groups encountered, and remember the last lead and
+// and line comments.
 //
-// A leading comment is a comment group that starts and ends in a
+// A lead comment is a comment group that starts and ends in a
 // line without any other tokens and that is followed by a non-comment
 // token on the line immediately after the comment group.
 //
-// A trailing comment is a comment group that follows a non-comment
+// A line comment is a comment group that follows a non-comment
 // token on the same line, and that has no tokens after it on the line
 // where it ends.
 //
-// Leading and trailing comments may be considered documentation
-// that is stored in the AST. In that case they are removed from
-// the parser's list of unassociated comments (via getComment).
+// Lead and line comments may be considered documentation that is
+// stored in the AST.
 //
 func (p *parser) next() {
-	p.commentsIndex = noIndex;
+	p.leadComment = nil;
+	p.lineComment = nil;
 	line := p.pos.Line;  // current line
 	p.next0();
 
 	if p.tok == token.COMMENT {
 		if p.pos.Line == line {
 			// The comment is on same line as previous token; it
-			// cannot be a leading comment but may be a trailing
-			// comment.
+			// cannot be a lead comment but may be a line comment.
 			endline := p.consumeCommentGroup();
 			if p.pos.Line != endline {
 				// The next token is on a different line, thus
-				// the last comment group is a trailing comment.
-				p.commentsIndex[trailing] = p.comments.Len() - 1;
+				// the last comment group is a line comment.
+				p.lineComment = p.lastComment;
 			}
 		}
 
@@ -237,24 +233,10 @@ func (p *parser) next() {
 
 		if endline >= 0 && endline+1 == p.pos.Line {
 			// The next token is following on the line immediately after the
-			// comment group, thus the last comment group is a leading comment.
-			p.commentsIndex[leading] = p.comments.Len() - 1;
+			// comment group, thus the last comment group is a lead comment.
+			p.leadComment = p.lastComment;
 		}
 	}
-}
-
-
-// Get leading/trailing comment group, if any.
-func (p *parser) getComment(kind int) *ast.CommentGroup {
-	i := p.commentsIndex[kind];
-	if i >= 0 {
-		// get comment and remove if from the list of unassociated comment groups
-		c := p.comments.At(i).(*ast.CommentGroup);
-		p.comments.Set(i, nil);  // clear entry
-		p.commentsIndex[kind] = -1;  // comment was consumed
-		return c;
-	}
-	return nil;
 }
 
 
@@ -435,7 +417,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
 		defer un(trace(p, "FieldDecl"));
 	}
 
-	doc := p.getComment(leading);
+	doc := p.leadComment;
 
 	// a list of identifiers looks like a list of type names
 	list := vector.New(0);
@@ -496,9 +478,9 @@ func (p *parser) parseStructType() *ast.StructType {
 			list.Push(f);
 			if p.tok == token.SEMICOLON {
 				p.next();
-				f.Comment = p.getComment(trailing);
+				f.Comment = p.lineComment;
 			} else {
-				f.Comment = p.getComment(trailing);
+				f.Comment = p.lineComment;
 				break;
 			}
 		}
@@ -680,7 +662,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 		defer un(trace(p, "MethodSpec"));
 	}
 
-	doc := p.getComment(leading);
+	doc := p.leadComment;
 	var idents []*ast.Ident;
 	var typ ast.Expr;
 	x := p.parseQualifiedIdent();
@@ -1680,7 +1662,7 @@ func (p *parser) parseStmt() ast.Stmt {
 type parseSpecFunction func(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec, gotSemi bool)
 
 
-// Consume semicolon if there is one and getSemi is set, and get any trailing comment.
+// Consume semicolon if there is one and getSemi is set, and get any line comment.
 // Return the comment if any and indicate if a semicolon was consumed.
 //
 func (p *parser) parseComment(getSemi bool) (comment *ast.CommentGroup, gotSemi bool) {
@@ -1688,7 +1670,7 @@ func (p *parser) parseComment(getSemi bool) (comment *ast.CommentGroup, gotSemi 
 		p.next();
 		gotSemi = true;
 	}
-	return p.getComment(trailing), gotSemi;
+	return p.lineComment, gotSemi;
 }
 
 
@@ -1772,7 +1754,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi 
 		defer un(trace(p, keyword.String() + "Decl"));
 	}
 
-	doc := p.getComment(leading);
+	doc := p.leadComment;
 	pos := p.expect(keyword);
 	var lparen, rparen token.Position;
 	list := vector.New(0);
@@ -1780,7 +1762,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi 
 		lparen = p.pos;
 		p.next();
 		for p.tok != token.RPAREN && p.tok != token.EOF {
-			doc := p.getComment(leading);
+			doc := p.leadComment;
 			spec, semi := f(p, doc, true);  // consume semicolon if any
 			list.Push(spec);
 			if !semi {
@@ -1845,7 +1827,7 @@ func (p *parser) parseFunctionDecl() *ast.FuncDecl {
 		defer un(trace(p, "FunctionDecl"));
 	}
 
-	doc := p.getComment(leading);
+	doc := p.leadComment;
 	pos := p.expect(token.FUNC);
 
 	var recv *ast.Field;
@@ -1883,13 +1865,7 @@ func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
 
 	case token.FUNC:
 		decl = p.parseFunctionDecl();
-		// Do not use parseComment here to consume a semicolon
-		// because we don't want to remove a trailing comment
-		// from the list of unassociated comments.
-		if getSemi && p.tok == token.SEMICOLON {
-			p.next();
-			gotSemi = true;
-		}
+		_, gotSemi := p.parseComment(getSemi);
 		return decl, gotSemi;
 
 	default:
@@ -1915,7 +1891,7 @@ func (p *parser) parseFile() *ast.File {
 	}
 
 	// package clause
-	comment := p.getComment(leading);
+	doc := p.leadComment;
 	pos := p.expect(token.PACKAGE);
 	ident := p.parseIdent();
 	var decls []ast.Decl;
@@ -1946,22 +1922,5 @@ func (p *parser) parseFile() *ast.File {
 		}
 	}
 
-	// convert comments list
-	// 1) determine number of remaining comments
-	n := 0;
-	for i := 0; i < p.comments.Len(); i++ {
-		if p.comments.At(i) != nil {
-			n++;
-		}
-	}
-	// 2) convert the remaining comments
-	comments := make([]*ast.CommentGroup, n);
-	for i, j := 0, 0; i < p.comments.Len(); i++ {
-		if p.comments.At(i) != nil {
-			comments[j] = p.comments.At(i).(*ast.CommentGroup);
-			j++;
-		}
-	}
-
-	return &ast.File{comment, pos, ident, decls, comments};
+	return &ast.File{doc, pos, ident, decls, p.comments};
 }

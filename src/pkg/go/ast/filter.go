@@ -169,7 +169,7 @@ func filterDecl(decl Decl) bool {
 
 
 // FilterExports trims an AST in place such that only exported nodes remain:
-// all top-level identififiers which are not exported and their associated
+// all top-level identifiers which are not exported and their associated
 // information (such as type, initial value, or function body) are removed.
 // Non-exported fields and methods of exported types are stripped, and the
 // function bodies of exported functions are set to nil.
