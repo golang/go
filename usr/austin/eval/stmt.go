@@ -588,7 +588,7 @@ func (a *stmtCompiler) DoForStmt(s *ast.ForStmt) {
 		bc.compileStmt(s.Init);
 	}
 
-	var bodyPC, checkPC, endPC uint;
+	var bodyPC, postPC, checkPC, endPC uint;
 
 	// Jump to condition check.  We generate slightly less code by
 	// placing the condition check after the body.
@@ -598,11 +598,12 @@ func (a *stmtCompiler) DoForStmt(s *ast.ForStmt) {
 	bodyPC = a.nextPC();
 	body := bc.enterChild();
 	body.breakPC = &endPC;
-	body.continuePC = &checkPC;
+	body.continuePC = &postPC;
 	body.compileStmts(s.Body);
 	body.exit();
 
 	// Compile post, if any
+	postPC = a.nextPC();
 	if s.Post != nil {
 		// TODO(austin) Does the parser disallow short
 		// declarations in s.Post?
@@ -711,13 +712,17 @@ func (a *compiler) compileFunc(scope *Scope, decl *FuncDecl, body *ast.BlockStmt
 	// corresponding function.
 	bodyScope := scope.Fork();
 	for i, t := range decl.Type.In {
-		bodyScope.DefineVar(decl.InNames[i].Value, t);
+		if decl.InNames[i] != nil {
+			bodyScope.DefineVar(decl.InNames[i].Value, t);
+		} else {
+			// TODO(austin) Not technically a temp
+			bodyScope.DefineTemp(t);
+		}
 	}
 	for i, t := range decl.Type.Out {
 		if decl.OutNames[i] != nil {
 			bodyScope.DefineVar(decl.OutNames[i].Value, t);
 		} else {
-			// TODO(austin) Not technically a temp
 			bodyScope.DefineTemp(t);
 		}
 	}
