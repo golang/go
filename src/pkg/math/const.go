@@ -21,11 +21,27 @@ const (
 	Log2E	= 1/Ln2;
 	Ln10	= 2.30258509299404568401799145468436420760110148862877297603332790;  // A002392
 	Log10E	= 1/Ln10;
+)
 
+// Limit values
+const (
 	MaxFloat32	= 3.40282346638528860e+38;
 	MinFloat32	= 1.40129846432481707e-45;
 	MaxFloat64	= 1.7976931348623157e+308;
 	MinFloat64	= 5.0e-324;
+
+	MaxInt8 = 1<<7 - 1;
+	MinInt8 = -1<<7;
+	MaxInt16 = 1<<15 - 1;
+	MinInt16 = -1<<15;
+	MaxInt32 = 1<<31 - 1;
+	MinInt32 = -1<<31;
+	MaxInt64 = 1<<63 - 1;
+	MinInt64 = -1<<63;
+	MaxUint8 = 1<<8 - 1;
+	MaxUint16 = 1<<16 - 1;
+	MaxUint32 = 1<<32 - 1;
+	MaxUint64 = 1<<64 - 1;
 )
 
 // BUG(rsc): The manual should define the special cases for all of these functions.
