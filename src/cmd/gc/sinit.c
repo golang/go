@@ -458,6 +458,9 @@ initfix(NodeList *l)
 if(0)
 return xxx.list;
 
+	if(nerrors != 0)
+		return xxx.list;
+
 	// look for the copy-out reference
 	for(l=xxx.list; l; l=l->next) {
 		r = l->n;

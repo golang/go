@@ -4534,7 +4534,7 @@ arraylit(Node *n, Node *var, NodeList **init)
 		if(r->op == OKEY) {
 			b = nonnegconst(r->left);
 			if(b < 0) {
-				yyerror("array index must be non-negative integer");
+				yyerror("array index must be non-negative constant");
 				break;
 			}
 			r = r->right;
