@@ -5,6 +5,7 @@
 package eval
 
 import (
+	"bignum";
 	"eval";
 	"log";
 	"os";
@@ -54,7 +55,6 @@ func (a *stmtCompiler) DoLabeledStmt(s *ast.LabeledStmt) {
 }
 
 func (a *stmtCompiler) DoExprStmt(s *ast.ExprStmt) {
-	// TODO(austin) Permit any 0 or more valued function call
 	e := a.compileExpr(a.scope, s.X, false);
 	if e == nil {
 		return;
@@ -73,7 +73,55 @@ func (a *stmtCompiler) DoExprStmt(s *ast.ExprStmt) {
 }
 
 func (a *stmtCompiler) DoIncDecStmt(s *ast.IncDecStmt) {
-	log.Crash("Not implemented");
+	l := a.compileExpr(a.scope, s.X, false);
+	if l == nil {
+		return;
+	}
+
+	if l.evalAddr == nil {
+		l.diag("cannot assign to %s", l.desc);
+		return;
+	}
+	if !(l.t.isInteger() || l.t.isFloat()) {
+		l.diagOpType(s.Tok, l.t);
+		return;
+	}
+
+	effect, l := l.extractEffect();
+
+	one := l.copy();
+	one.pos = s.Pos();
+	one.t = IdealIntType;
+	one.evalIdealInt = func() *bignum.Integer { return bignum.Int(1) };
+
+	var op token.Token;
+	switch s.Tok {
+	case token.INC:
+		op = token.ADD;
+	case token.DEC:
+		op = token.SUB;
+	default:
+		log.Crashf("Unexpected IncDec token %v", s.Tok);
+	}
+
+	binop := l.copy();
+	binop.pos = s.Pos();
+	binop.doBinaryExpr(op, l, one);
+	if binop.t == nil {
+		return;
+	}
+
+	assign := a.compileAssign(s.Pos(), l.t, []*exprCompiler{binop}, "", "");
+	if assign == nil {
+		log.Crashf("compileAssign type check failed");
+	}
+
+	lf := l.evalAddr;
+	a.push(func(v *vm) {
+		effect(v.f);
+		assign(lf(v.f), v.f);
+	});
+	a.err = false;
 }
 
 func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
@@ -329,6 +377,11 @@ func (a *stmtCompiler) DoDeferStmt(s *ast.DeferStmt) {
 }
 
 func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
+	if a.fnType == nil {
+		a.diag("cannot return at the top level");
+		return;
+	}
+
 	// Supress return errors even if we fail to compile this
 	// return statement.
 	a.returned = true;
@@ -379,27 +432,127 @@ func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
 }
 
 func (a *stmtCompiler) DoBranchStmt(s *ast.BranchStmt) {
-	log.Crash("Not implemented");
+	switch s.Tok {
+	case token.BREAK:
+		if s.Label != nil {
+			log.Crash("break with label not implemented");
+		}
+
+		bc := a.blockCompiler;
+		for ; bc != nil; bc = bc.parent {
+			if bc.breakPC != nil {
+				pc := bc.breakPC;
+				a.push(func(v *vm) { v.pc = *pc });
+				a.err = false;
+				return;
+			}
+		}
+		a.diag("break outside for loop, switch, or select");
+
+	case token.CONTINUE:
+		if s.Label != nil {
+			log.Crash("continue with label not implemented");
+		}
+
+		bc := a.blockCompiler;
+		for ; bc != nil; bc = bc.parent {
+			if bc.continuePC != nil {
+				pc := bc.continuePC;
+				a.push(func(v *vm) { v.pc = *pc });
+				a.err = false;
+				return;
+			}
+		}
+		a.diag("continue outside for loop");
+
+	case token.GOTO:
+		log.Crash("goto not implemented");
+
+	case token.FALLTHROUGH:
+		log.Crash("fallthrough not implemented");
+
+	default:
+		log.Crash("Unexpected branch token %v", s.Tok);
+	}
 }
 
 func (a *stmtCompiler) DoBlockStmt(s *ast.BlockStmt) {
-	blockScope := a.scope.Fork();
-	bc := &blockCompiler{a.funcCompiler, blockScope, false};
-
-	a.push(func(v *vm) {
-		v.f = blockScope.NewFrame(v.f);
-	});
-	bc.compileBlock(s);
-	a.push(func(v *vm) {
-		v.f = v.f.Outer;
-	});
+	bc := a.enterChild();
+	bc.compileStmts(s);
+	bc.exit();
 
 	a.returned = a.returned || bc.returned;
 	a.err = false;
 }
 
 func (a *stmtCompiler) DoIfStmt(s *ast.IfStmt) {
-	log.Crash("Not implemented");
+	// The scope of any variables declared by [the init] statement
+	// extends to the end of the "if" statement and the variables
+	// are initialized once before the statement is entered.
+	//
+	// XXX(Spec) What this really wants to say is that there's an
+	// implicit scope wrapping every if, for, and switch
+	// statement.  This is subtly different from what it actually
+	// says when there's a non-block else clause, because that
+	// else claus has to execute in a scope that is *not* the
+	// surrounding scope.
+	bc := a.blockCompiler;
+	bc = bc.enterChild();
+	defer bc.exit();
+
+	// Compile init statement, if any
+	if s.Init != nil {
+		bc.compileStmt(s.Init);
+	}
+
+	var elsePC, endPC uint;
+
+	// Compile condition, if any.  If there is no condition, we
+	// fall through to the body.
+	bad := false;
+	if s.Cond != nil {
+		e := bc.compileExpr(bc.scope, s.Cond, false);
+		switch {
+		case e == nil:
+			bad = true;
+		case !e.t.isBoolean():
+			e.diag("'if' condition must be boolean\n\t%v", e.t);
+			bad = true;
+		default:
+			eval := e.asBool();
+			a.push(func(v *vm) {
+				if !eval(v.f) {
+					v.pc = elsePC;
+				}
+			});
+		}
+	}
+
+	// Compile body
+	body := bc.enterChild();
+	body.compileStmts(s.Body);
+	body.exit();
+
+	// Compile else
+	if s.Else != nil {
+		// Skip over else if we executed the body
+		a.push(func(v *vm) {
+			v.pc = endPC;
+		});
+		elsePC = a.nextPC();
+		bc.compileStmt(s.Else);
+
+		if body.returned && bc.returned {
+			a.returned = true;
+		}
+	} else {
+		elsePC = a.nextPC();
+	}
+	endPC = a.nextPC();
+
+	if !bad {
+		a.err = false;
+	}
 }
 
 func (a *stmtCompiler) DoCaseClause(s *ast.CaseClause) {
@@ -427,20 +580,129 @@ func (a *stmtCompiler) DoSelectStmt(s *ast.SelectStmt) {
 }
 
 func (a *stmtCompiler) DoForStmt(s *ast.ForStmt) {
-	log.Crash("Not implemented");
+	// Compile init statement, if any
+	bc := a.blockCompiler;
+	if s.Init != nil {
+		bc = bc.enterChild();
+		defer bc.exit();
+		bc.compileStmt(s.Init);
+	}
+
+	var bodyPC, checkPC, endPC uint;
+
+	// Jump to condition check.  We generate slightly less code by
+	// placing the condition check after the body.
+	a.push(func(v *vm) { v.pc = checkPC });
+
+	// Compile body
+	bodyPC = a.nextPC();
+	body := bc.enterChild();
+	body.breakPC = &endPC;
+	body.continuePC = &checkPC;
+	body.compileStmts(s.Body);
+	body.exit();
+
+	// Compile post, if any
+	if s.Post != nil {
+		// TODO(austin) Does the parser disallow short
+		// declarations in s.Post?
+		bc.compileStmt(s.Post);
+	}
+
+	// Compile condition check, if any
+	bad := false;
+	checkPC = a.nextPC();
+	if s.Cond == nil {
+		// If the condition is absent, it is equivalent to true.
+		a.push(func(v *vm) { v.pc = bodyPC });
+	} else {
+		e := bc.compileExpr(bc.scope, s.Cond, false);
+		switch {
+		case e == nil:
+			bad = true;
+		case !e.t.isBoolean():
+			a.diag("'for' condition must be boolean\n\t%v", e.t);
+			bad = true;
+		default:
+			eval := e.asBool();
+			a.push(func(v *vm) {
+				if eval(v.f) {
+					v.pc = bodyPC;
+				}
+			});
+		}
+	}
+
+	endPC = a.nextPC();
+
+	if !bad {
+		a.err = false;
+	}
 }
 
 func (a *stmtCompiler) DoRangeStmt(s *ast.RangeStmt) {
 	log.Crash("Not implemented");
 }
 
-func (a *blockCompiler) compileBlock(block *ast.BlockStmt) {
+/*
+ * Block compiler
+ */
+
+func (a *blockCompiler) compileStmt(s ast.Stmt) {
+	if a.child != nil {
+		log.Crash("Child scope still entered");
+	}
+	sc := &stmtCompiler{a, s.Pos(), true};
+	s.Visit(sc);
+	if a.child != nil {
+		log.Crash("Forgot to exit child scope");
+	}
+	a.err = a.err || sc.err;
+}
+
+func (a *blockCompiler) compileStmts(block *ast.BlockStmt) {
 	for i, sub := range block.List {
-		sc := &stmtCompiler{a, sub.Pos(), true};
-		sub.Visit(sc);
-		a.err = a.err || sc.err;
+		a.compileStmt(sub);
 	}
 }
+
+func (a *blockCompiler) enterChild() *blockCompiler {
+	if a.child != nil {
+		log.Crash("Failed to exit child block before entering another child");
+	}
+	blockScope := a.scope.Fork();
+	bc := &blockCompiler{
+		funcCompiler: a.funcCompiler,
+		scope: blockScope,
+		returned: false,
+		parent: a,
+	};
+	a.child = bc;
+	a.push(func(v *vm) {
+		v.f = blockScope.NewFrame(v.f);
+	});
+	return bc;
+}
+
+func (a *blockCompiler) exit() {
+	if a.parent == nil {
+		log.Crash("Cannot exit top-level block");
+	}
+	if a.parent.child != a {
+		log.Crash("Double exit of block");
+	}
+	if a.child != nil {
+		log.Crash("Exit of parent block without exit of child block");
+	}
+	a.push(func(v *vm) {
+		v.f = v.f.Outer;
+	});
+	a.parent.child = nil;
+}
+
+/*
+ * Function compiler
+ */
 
 func (a *compiler) compileFunc(scope *Scope, decl *FuncDecl, body *ast.BlockStmt) (func (f *Frame) Func) {
 	// Create body scope
@@ -465,17 +727,23 @@ func (a *compiler) compileFunc(scope *Scope, decl *FuncDecl, body *ast.BlockStmt
 	if len(decl.OutNames) > 0 && decl.OutNames[0] != nil {
 		fc.outVarsNamed = true;
 	}
-	bc := &blockCompiler{fc, bodyScope, false};
+	bc := &blockCompiler{
+		funcCompiler: fc,
+		scope: bodyScope,
+		returned: false,
+	};
 
 	// Compile body
-	bc.compileBlock(body);
+	bc.compileStmts(body);
+
+	// TODO(austin) Check that all gotos were linked?
+
 	if fc.err {
 		return nil;
 	}
 
-	// TODO(austin) Check that all gotos were linked?
-
-	// Check that the body returned if necessary
+	// Check that the body returned if necessary.  We only check
+	// this if there were no errors compiling the body.
 	if len(decl.Type.Out) > 0 && !bc.returned {
 		// XXX(Spec) Not specified.
 		a.diagAt(&body.Rbrace, "function ends without a return statement");
@@ -498,14 +766,19 @@ func (s *Stmt) Exec(f *Frame) {
 	s.f(f);
 }
 
-func CompileStmt(scope *Scope, stmt ast.Stmt) (*Stmt, os.Error) {
+func CompileStmts(scope *Scope, stmts []ast.Stmt) (*Stmt, os.Error) {
 	errors := scanner.NewErrorVector();
 	cc := &compiler{errors};
 	fc := &funcCompiler{cc, nil, false, newCodeBuf(), false};
-	bc := &blockCompiler{fc, scope, false};
-	sc := &stmtCompiler{bc, stmt.Pos(), true};
-	stmt.Visit(sc);
-	fc.err = fc.err || sc.err;
+	bc := &blockCompiler{
+		funcCompiler: fc,
+		scope: scope,
+		returned: false
+	};
+	out := make([]*Stmt, len(stmts));
+	for i, stmt := range stmts {
+		bc.compileStmt(stmt);
+	}
 	if fc.err {
 		return nil, errors.GetError(scanner.Sorted);
 	}
