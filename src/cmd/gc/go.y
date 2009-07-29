@@ -400,7 +400,7 @@ typedclname:
 typedcl:
 	typedclname ntype
 	{
-		walkexpr($2, Etype, &$2->ninit);
+		walkexpr(&$2, Etype, &$2->ninit);
 		updatetype($1, $2->type);
 		resumecheckwidth();
 	}
@@ -484,7 +484,7 @@ case:
 
 			// TODO: move
 			e = nerrors;
-			walkexpr(n, Etype | Erv, &$$->ninit);
+			walkexpr(&n, Etype | Erv, &$$->ninit);
 			if(n->op == OTYPE) {
 				n = old2new(typeswvar->right, n->type, &$$->ninit);
 				$$->list = list1(nod(OTYPESW, n, N));
@@ -1143,7 +1143,7 @@ fndcl:
 		n = nod(OTFUNC, N, N);
 		n->list = $3;
 		n->rlist = $5;
-		walkexpr(n, Etype, &n->ninit);
+		walkexpr(&n, Etype, &n->ninit);
 		$$->type = n->type;
 		funchdr($$);
 	}
