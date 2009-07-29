@@ -1324,7 +1324,7 @@ Nconv(Fmt *fp)
 		fmtprint(fp, "<N>");
 		goto out;
 	}
-	
+
 	if(fp->flags & FmtSharp) {
 		exprfmt(fp, n, 0);
 		goto out;
@@ -2123,7 +2123,6 @@ out:
 void
 badtype(int o, Type *tl, Type *tr)
 {
-
 	yyerror("illegal types for operand: %O", o);
 	if(tl != T)
 		print("	%T\n", tl);
@@ -2346,7 +2345,6 @@ tempname(Node *n, Type *t)
 	n->op = ONAME;
 	n->sym = s;
 	n->type = t;
-	n->etype = t->etype;
 	n->class = PAUTO;
 	n->addable = 1;
 	n->ullman = 1;
