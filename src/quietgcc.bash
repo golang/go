@@ -2,6 +2,7 @@
 # Copyright 2009 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+
 # The master for this file is $GOROOT/src/quietgcc.bash
 # Changes made to $HOME/bin/quietgcc will be overridden.
 
@@ -25,9 +26,17 @@ case "`uname -a`" in
 	gcc=/usr/crosstool/v10/gcc-4.2.1-glibc-2.3.2/x86_64-unknown-linux-gnu/x86_64-unknown-linux-gnu/bin/gcc
 esac
 
+# If this is a 64-bit machine, compile 64-bit versions of
+# the host tools, to match the native ptrace.
+case "`uname -m -p`" in
+*x86_64* | *amd64*)
+	gcc="$gcc -m64"
+esac
+
+
 # Run gcc, save error status, redisplay output without noise, exit with gcc status.
 tmp=/tmp/qcc.$$.$USER.out
-$gcc -m64 -Wall -Wno-sign-compare -Wno-missing-braces \
+$gcc -Wall -Wno-sign-compare -Wno-missing-braces \
 	-Wno-parentheses -Wno-unknown-pragmas -Wno-switch -Wno-comment \
 	"$@" >$tmp 2>&1
 status=$?
