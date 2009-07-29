@@ -7,6 +7,7 @@ package gob
 import (
 	"bytes";
 	"gob";
+	"io";
 	"os";
 	"reflect";
 	"strings";
@@ -226,4 +227,20 @@ func TestWrongTypeDecoder(t *testing.T) {
 	badTypeCheck(new(ET2), true, "no fields in common", t);
 	badTypeCheck(new(ET3), false, "different name of field", t);
 	badTypeCheck(new(ET4), true, "different type of field", t);
+}
+
+func corruptDataCheck(s string, err os.Error, t *testing.T) {
+	b := bytes.NewBuffer(strings.Bytes(s));
+	dec := NewDecoder(b);
+	dec.Decode(new(ET2));
+	if dec.state.err != err {
+		t.Error("expected error", err, "got", dec.state.err);
+	}
+}
+
+// Check that we survive bad data.
+func TestBadData(t *testing.T) {
+	corruptDataCheck("\x01\x01\x01", os.EOF, t);
+	corruptDataCheck("\x7Fhi", io.ErrUnexpectedEOF, t);
+	corruptDataCheck("\x03now is the time for all good men", errBadType, t);
 }
