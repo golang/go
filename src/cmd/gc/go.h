@@ -195,6 +195,7 @@ struct	Node
 	uchar	funcdepth;
 	uchar	builtin;	// built-in name, like len or close
 	uchar	walkdef;
+	uchar	typecheck;
 
 	// most nodes
 	Node*	left;
@@ -435,12 +436,11 @@ enum
 
 enum
 {
-	Exxx,
-	Eyyy,
-	Etop,		// evaluated at statement level
-	Elv,		// evaluated in lvalue context
-	Erv,		// evaluated in rvalue context
-	Etype = 1<<8,
+	Etop = 1<<1,	// evaluated at statement level
+	Elv = 1<<2,	// evaluated in lvalue context
+	Erv = 1<<3,	// evaluated in rvalue context
+	Etype = 1<<4,
+	Eideal = 1<<5,
 };
 
 #define	BITS	5
@@ -574,6 +574,7 @@ EXTERN	char*	filename;	// name to uniqify names
 EXTERN	Idir*	idirs;
 
 EXTERN	Type*	types[NTYPE];
+EXTERN	Type*	idealstring;
 EXTERN	uchar	simtype[NTYPE];
 EXTERN	uchar	isptr[NTYPE];
 EXTERN	uchar	isforw[NTYPE];
@@ -581,10 +582,17 @@ EXTERN	uchar	isint[NTYPE];
 EXTERN	uchar	isfloat[NTYPE];
 EXTERN	uchar	issigned[NTYPE];
 EXTERN	uchar	issimple[NTYPE];
+
 EXTERN	uchar	okforeq[NTYPE];
 EXTERN	uchar	okforadd[NTYPE];
 EXTERN	uchar	okforand[NTYPE];
-EXTERN	Type*	idealstring;
+EXTERN	uchar	okfornone[NTYPE];
+EXTERN	uchar	okforcmp[NTYPE];
+EXTERN	uchar	okforbool[NTYPE];
+EXTERN	uchar	okforcap[NTYPE];
+EXTERN	uchar	okforlen[NTYPE];
+EXTERN	uchar	okforarith[NTYPE];
+EXTERN	uchar*	okfor[OEND];
 
 EXTERN	Mpint*	minintval[NTYPE];
 EXTERN	Mpint*	maxintval[NTYPE];
@@ -977,6 +985,8 @@ void	addrescapes(Node*);
 void	heapmoves(void);
 void	walkdeflist(NodeList*);
 void	walkdef(Node*);
+void	typechecklist(NodeList*, int);
+Node*	typecheck(Node**, int);
 
 /*
  *	const.c

@@ -587,6 +587,12 @@ unary:
 		}
 		return;
 
+	case TUP(OCONV, CTINT):
+	case TUP(OCONV, CTFLT):
+	case TUP(OCONV, CTSTR):
+		convlit1(&nl, n->type, 1);
+		break;
+
 	case TUP(OPLUS, CTINT):
 		break;
 	case TUP(OMINUS, CTINT):
@@ -711,7 +717,7 @@ defaultlit(Node **np, Type *t)
 	lineno = n->lineno;
 	switch(n->val.ctype) {
 	default:
-		yyerror("defaultlit: unknown literal: %N", n);
+		yyerror("defaultlit: unknown literal: %#N", n);
 		break;
 	case CTINT:
 		n->type = types[TINT];

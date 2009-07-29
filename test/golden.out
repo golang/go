@@ -133,6 +133,7 @@ fixedbugs/bug039.go:6: variable x redeclared in this block
 	previous declaration at fixedbugs/bug039.go:5
 
 =========== fixedbugs/bug049.go
+fixedbugs/bug049.go:6: invalid operation: s == nil
 fixedbugs/bug049.go:6: illegal types for operand: EQ
 	string
 	nil

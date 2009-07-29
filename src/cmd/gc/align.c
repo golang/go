@@ -257,8 +257,10 @@ typeinit(void)
 	 * initialize okfor
 	 */
 	for(i=0; i<NTYPE; i++) {
-		if(isint[i]) {
+		if(isint[i] || i == TIDEAL) {
 			okforeq[i] = 1;
+			okforcmp[i] = 1;
+			okforarith[i] = 1;
 			okforadd[i] = 1;
 			okforand[i] = 1;
 			issimple[i] = 1;
@@ -267,25 +269,75 @@ typeinit(void)
 		}
 		if(isfloat[i]) {
 			okforeq[i] = 1;
+			okforcmp[i] = 1;
 			okforadd[i] = 1;
+			okforarith[i] = 1;
 			issimple[i] = 1;
 			minfltval[i] = mal(sizeof(*minfltval[i]));
 			maxfltval[i] = mal(sizeof(*maxfltval[i]));
 		}
-		switch(i) {
-		case TBOOL:
-			issimple[i] = 1;
-
-		case TPTR32:
-		case TPTR64:
-		case TINTER:
-		case TMAP:
-		case TCHAN:
-		case TFUNC:
-			okforeq[i] = 1;
-			break;
-		}
 	}
+
+	issimple[TBOOL] = 1;
+
+	okforadd[TSTRING] = 1;
+
+	okforbool[TBOOL] = 1;
+
+	okforcap[TARRAY] = 1;
+	//okforcap[TCHAN] = 1;
+	//okforcap[TMAP] = 1;
+
+	okforlen[TARRAY] = 1;
+	//okforlen[TCHAN] = 1;
+	okforlen[TMAP] = 1;
+	okforlen[TSTRING] = 1;
+
+	okforeq[TPTR32] = 1;
+	okforeq[TPTR64] = 1;
+	okforeq[TINTER] = 1;
+	okforeq[TMAP] = 1;
+	okforeq[TCHAN] = 1;
+	okforeq[TFUNC] = 1;
+	okforeq[TSTRING] = 1;
+	okforeq[TBOOL] = 1;
+	okforeq[TARRAY] = 1;	// refined in typecheck
+
+	okforcmp[TSTRING] = 1;
+
+	for(i=0; i<nelem(okfor); i++)
+		okfor[i] = okfornone;
+
+	// binary
+	okfor[OADD] = okforadd;
+	okfor[OAND] = okforand;
+	okfor[OANDAND] = okforbool;
+	okfor[OANDNOT] = okforand;
+	okfor[ODIV] = okforarith;
+	okfor[OEQ] = okforeq;
+	okfor[OGE] = okforcmp;
+	okfor[OGT] = okforcmp;
+	okfor[OLE] = okforcmp;
+	okfor[OLT] = okforcmp;
+	okfor[OMOD] = okforarith;
+	okfor[OMUL] = okforarith;
+	okfor[ONE] = okforeq;
+	okfor[OOR] = okforand;
+	okfor[OOROR] = okforbool;
+	okfor[OSUB] = okforarith;
+	okfor[OXOR] = okforand;
+	okfor[OLSH] = okforand;
+	okfor[ORSH] = okforand;
+
+	// unary
+	okfor[OCOM] = okforand;
+	okfor[OMINUS] = okforarith;
+	okfor[ONOT] = okforbool;
+	okfor[OPLUS] = okforadd;
+
+	// special
+	okfor[OCAP] = okforcap;
+	okfor[OLEN] = okforlen;
 
 	mpatofix(maxintval[TINT8], "0x7f");
 	mpatofix(minintval[TINT8], "-0x80");
