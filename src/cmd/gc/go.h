@@ -194,6 +194,7 @@ struct	Node
 	uchar	noescape;	// ONAME never move to heap
 	uchar	funcdepth;
 	uchar	builtin;	// built-in name, like len or close
+	uchar	walkdef;
 
 	// most nodes
 	Node*	left;
@@ -926,13 +927,13 @@ Type*	pkgtype(Sym*);
 /*
  *	walk.c
  */
-void	gettype(Node*, NodeList**);
+void	gettype(Node**, NodeList**);
 void	walk(Node*);
-void	walkstmt(Node*);
+void	walkstmt(Node**);
 void	walkstmtlist(NodeList*);
-void	walkexpr(Node*, int, NodeList**);
+void	walkexpr(Node**, int, NodeList**);
 void	walkexprlist(NodeList*, int, NodeList**);
-void	walkconv(Node*, NodeList**);
+void	walkconv(Node**, NodeList**);
 void	walkdottype(Node*, NodeList**);
 void	walkas(Node*);
 void	walkbool(Node**);

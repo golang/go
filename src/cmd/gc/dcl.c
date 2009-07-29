@@ -528,7 +528,7 @@ funclit0(Node *t)
 	autodcl = dcl();
 	autodcl->back = autodcl;
 
-	walkexpr(t, Etype, &t->ninit);
+	walkexpr(&t, Etype, &t->ninit);
 	funcargs(t->type);
 	return t;
 }
@@ -703,7 +703,7 @@ stotype(NodeList *l, int et, Type **t)
 		if(n->op != ODCLFIELD)
 			fatal("stotype: oops %N\n", n);
 		if(n->right != N) {
-			walkexpr(n->right, Etype, &init);
+			walkexpr(&n->right, Etype, &init);
 			n->type = n->right->type;
 			n->right = N;
 			if(n->embedded && n->type != T) {
@@ -1298,7 +1298,7 @@ xanondcl(Node *nt)
 	Node *n;
 	Type *t;
 
-	walkexpr(nt, Etype, &nt->ninit);
+	walkexpr(&nt, Etype, &nt->ninit);
 	t = nt->type;
 	if(nt->op != OTYPE) {
 		yyerror("%S is not a type", nt->sym);
@@ -1318,7 +1318,7 @@ namedcl(Node *nn, Node *nt)
 	if(nn->op == OKEY)
 		nn = nn->left;
 	if(nn->sym == S) {
-		walkexpr(nn, Etype, &nn->ninit);
+		walkexpr(&nn, Etype, &nn->ninit);
 		yyerror("cannot mix anonymous %T with named arguments", nn->type);
 		return xanondcl(nn);
 	}
@@ -1326,7 +1326,7 @@ namedcl(Node *nn, Node *nt)
 	if(nt == N)
 		yyerror("missing type for argument %S", nn->sym);
 	else {
-		walkexpr(nt, Etype, &nt->ninit);
+		walkexpr(&nt, Etype, &nt->ninit);
 		if(nt->op != OTYPE)
 			yyerror("%S is not a type", nt->sym);
 		else
@@ -1650,7 +1650,7 @@ variter(NodeList *vl, Node *nt, NodeList *el)
 
 	t = T;
 	if(nt) {
-		walkexpr(nt, Etype, &nt->ninit);
+		walkexpr(&nt, Etype, &nt->ninit);
 		t = nt->type;
 	}
 
@@ -1668,15 +1668,15 @@ variter(NodeList *vl, Node *nt, NodeList *el)
 			e = N;
 
 		v = vl->n;
-		a = N;
-		if(e != N || funcdepth > 0)
-			a = nod(OAS, v, e);
 		tv = t;
 		if(t == T) {
-			gettype(e, &r);
+			gettype(&e, &r);
 			defaultlit(&e, T);
 			tv = e->type;
 		}
+		a = N;
+		if(e != N || funcdepth > 0)
+			a = nod(OAS, v, e);
 		dodclvar(v, tv, &r);
 		if(a != N)
 			r = list(r, a);
@@ -1763,7 +1763,7 @@ unsafenmagic(Node *fn, NodeList *args)
 
 	n = nod(OLITERAL, N, N);
 	if(strcmp(s->name, "Sizeof") == 0) {
-		walkexpr(r, Erv, &n->ninit);
+		walkexpr(&r, Erv, &n->ninit);
 		tr = r->type;
 		if(r->op == OLITERAL && r->val.ctype == CTSTR)
 			tr = types[TSTRING];
@@ -1775,12 +1775,12 @@ unsafenmagic(Node *fn, NodeList *args)
 	if(strcmp(s->name, "Offsetof") == 0) {
 		if(r->op != ODOT && r->op != ODOTPTR)
 			goto no;
-		walkexpr(r, Erv, &n->ninit);
+		walkexpr(&r, Erv, &n->ninit);
 		v = r->xoffset;
 		goto yes;
 	}
 	if(strcmp(s->name, "Alignof") == 0) {
-		walkexpr(r, Erv, &n->ninit);
+		walkexpr(&r, Erv, &n->ninit);
 		tr = r->type;
 		if(r->op == OLITERAL && r->val.ctype == CTSTR)
 			tr = types[TSTRING];

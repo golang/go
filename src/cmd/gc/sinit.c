@@ -238,7 +238,7 @@ mapindex(Node *n)
 	b = nod(OAS, b, val);
 
 	r = liststmt(list(list1(a), b));
-	walkstmt(r);
+	walkstmt(&r);
 	return r;
 }
 

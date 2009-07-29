@@ -461,7 +461,7 @@ aindex(Node *b, Type *t)
 
 	bound = -1;	// open bound
 	init = nil;
-	walkexpr(b, Erv, &init);
+	walkexpr(&b, Erv, &init);
 	if(b != nil) {
 		switch(consttype(b)) {
 		default:
@@ -2391,7 +2391,7 @@ saferef(Node *n, NodeList **init)
 		r = nod(OXXX, N, N);
 		*r = *n;
 		r->left = l;
-		walkexpr(r, Elv, init);
+		walkexpr(&r, Elv, init);
 		return r;
 
 	case OINDEX:
@@ -2400,10 +2400,10 @@ saferef(Node *n, NodeList **init)
 		l = nod(OXXX, N, N);
 		tempname(l, ptrto(n->type));
 		a = nod(OAS, l, nod(OADDR, n, N));
-		walkexpr(a, Etop, init);
+		walkexpr(&a, Etop, init);
 		*init = list(*init, a);
 		r = nod(OIND, l, N);
-		walkexpr(r, Elv, init);
+		walkexpr(&r, Elv, init);
 		return r;
 	}
 	fatal("saferef %N", n);
@@ -2563,7 +2563,7 @@ adddot(Node *n)
 	int c, d;
 
 	init = nil;
-	walkexpr(n->left, Erv, &init);
+	walkexpr(&n->left, Erv, &init);
 	t = n->left->type;
 	if(t == T)
 		goto ret;

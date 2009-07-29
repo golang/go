@@ -250,7 +250,7 @@ sw0(Node **cp, Type *place, int arg)
 			yyerror("inappropriate case for a type switch");
 			return T;
 		}
-		walkexpr(c, Erv, nil);
+		walkexpr(cp, Erv, nil);
 		break;
 	case OTYPESW:
 		if(arg != Stype)
@@ -592,7 +592,7 @@ exprswitch(Node *sw)
 		if(sw->ntest->val.u.bval == 0)
 			arg = Sfalse;
 	}
-	walkexpr(sw->ntest, Erv, &sw->ninit);
+	walkexpr(&sw->ntest, Erv, &sw->ninit);
 
 	/*
 	 * pass 0,1,2,3
@@ -771,7 +771,7 @@ typeswitch(Node *sw)
 		yyerror("type switch must have an assignment");
 		return;
 	}
-	walkexpr(sw->ntest->right, Erv, &sw->ninit);
+	walkexpr(&sw->ntest->right, Erv, &sw->ninit);
 	if(!istype(sw->ntest->right->type, TINTER)) {
 		yyerror("type switch must be on an interface");
 		return;
