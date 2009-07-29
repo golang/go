@@ -127,9 +127,11 @@ var unusedError *os.Error;
 var typeOfOsError = reflect.Typeof(unusedError).(*reflect.PtrType).Elem()
 
 type methodType struct {
+	sync.Mutex;	// protects counters
 	method	reflect.Method;
 	argType	*reflect.PtrType;
 	replyType	*reflect.PtrType;
+	numCalls	uint;
 }
 
 type service struct {
@@ -157,13 +159,14 @@ type Response struct {
 }
 
 type serverType struct {
+	sync.Mutex;	// protects the serviceMap
 	serviceMap	map[string] *service;
 }
 
 // This variable is a global whose "public" methods are really private methods
 // called from the global functions of this package: rpc.Register, rpc.ServeConn, etc.
 // For example, rpc.Register() calls server.add().
-var server = &serverType{ make(map[string] *service) }
+var server = &serverType{ serviceMap: make(map[string] *service) }
 
 // Is this a publicly vislble - upper case - name?
 func isPublic(name string) bool {
@@ -172,6 +175,8 @@ func isPublic(name string) bool {
 }
 
 func (server *serverType) register(rcvr interface{}) os.Error {
+	server.Lock();
+	defer server.Unlock();
 	if server.serviceMap == nil {
 		server.serviceMap = make(map[string] *service);
 	}
@@ -242,7 +247,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
 			log.Stderr("method", mname, "returns", returnType.String(), "not os.Error");
 			continue;
 		}
-		s.method[mname] = &methodType{method, argType, replyType};
+		s.method[mname] = &methodType{method: method, argType: argType, replyType: replyType};
 	}
 
 	if len(s.method) == 0 {
@@ -279,7 +284,11 @@ func sendResponse(sending *sync.Mutex, req *Request, reply interface{}, enc *gob
 	sending.Unlock();
 }
 
-func (s *service) call(sending *sync.Mutex, function *reflect.FuncValue, req *Request, argv, replyv reflect.Value, enc *gob.Encoder) {
+func (s *service) call(sending *sync.Mutex, mtype *methodType, req *Request, argv, replyv reflect.Value, enc *gob.Encoder) {
+	mtype.Lock();
+	mtype.numCalls++;
+	mtype.Unlock();
+	function := mtype.method.Func;
 	// Invoke the method, providing a new value for the reply.
 	returnValues := function.Call([]reflect.Value{s.rcvr, argv, replyv});
 	// The return value for the method is an os.Error.
@@ -315,7 +324,9 @@ func (server *serverType) input(conn io.ReadWriteCloser) {
 			continue;
 		}
 		// Look up the request.
+		server.Lock();
 		service, ok := server.serviceMap[serviceMethod[0]];
+		server.Unlock();
 		if !ok {
 			s := "rpc: can't find service " + req.ServiceMethod;
 			sendResponse(sending, req, invalidRequest, enc, s);
@@ -337,7 +348,7 @@ func (server *serverType) input(conn io.ReadWriteCloser) {
 			sendResponse(sending, req, replyv.Interface(), enc, err.String());
 			continue;
 		}
-		go service.call(sending, method.Func, req, argv, replyv, enc);
+		go service.call(sending, mtype, req, argv, replyv, enc);
 	}
 	conn.Close();
 }
@@ -379,6 +390,7 @@ func Accept(lis net.Listener) {
 
 // Can connect to RPC service using HTTP CONNECT to rpcPath.
 var rpcPath string = "/_goRPC_"
+var debugPath string = "/debug/rpc"
 var connected = "200 Connected to Go RPC"
 
 func serveHTTP(c *http.Conn, req *http.Request) {
@@ -397,8 +409,11 @@ func serveHTTP(c *http.Conn, req *http.Request) {
 	server.input(conn);
 }
 
+func debugHTTP(c *http.Conn, req *http.Request)
+
 // HandleHTTP registers an HTTP handler for RPC messages.
 // It is still necessary to invoke http.Serve(), typically in a go statement.
 func HandleHTTP() {
 	http.Handle(rpcPath, http.HandlerFunc(serveHTTP));
+	http.Handle(debugPath, http.HandlerFunc(debugHTTP));
 }

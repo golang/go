@@ -37,6 +37,7 @@ O1=\
 
 O2=\
 	client.$O\
+	debug.$O\
 
 
 phases: a1 a2
@@ -47,7 +48,7 @@ a1: $(O1)
 	rm -f $(O1)
 
 a2: $(O2)
-	$(AR) grc _obj$D/rpc.a client.$O
+	$(AR) grc _obj$D/rpc.a client.$O debug.$O
 	rm -f $(O2)
 
 
