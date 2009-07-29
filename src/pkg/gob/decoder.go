@@ -79,10 +79,9 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 		var n int;
 		n, dec.state.err = io.ReadFull(dec.r, dec.buf[0:nbytes]);
 		if dec.state.err != nil {
-			break;
-		}
-		if n < int(nbytes) {
-			dec.state.err = io.ErrUnexpectedEOF;
+			if dec.state.err ==  os.EOF {
+				dec.state.err = io.ErrUnexpectedEOF;
+			}
 			break;
 		}
 

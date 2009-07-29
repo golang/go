@@ -240,7 +240,7 @@ func corruptDataCheck(s string, err os.Error, t *testing.T) {
 
 // Check that we survive bad data.
 func TestBadData(t *testing.T) {
-	corruptDataCheck("\x01\x01\x01", os.EOF, t);
+	corruptDataCheck("", os.EOF, t);
 	corruptDataCheck("\x7Fhi", io.ErrUnexpectedEOF, t);
 	corruptDataCheck("\x03now is the time for all good men", errBadType, t);
 }
