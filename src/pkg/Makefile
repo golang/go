@@ -20,6 +20,7 @@ DIRS=\
 	compress/flate\
 	compress/gzip\
 	container/list\
+	container/ring\
 	container/vector\
 	crypto/aes\
 	crypto/block\
@@ -79,6 +80,7 @@ TEST=\
 	compress/flate\
 	compress/gzip\
 	container/list\
+	container/ring\
 	container/vector\
 	crypto/aes\
 	crypto/block\
