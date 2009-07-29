@@ -672,8 +672,6 @@ type ChanType struct {
  */
 
 type NamedType struct {
-	// Declaration scope
-	scope *Scope;
 	name string;
 	// Underlying type
 	def Type;

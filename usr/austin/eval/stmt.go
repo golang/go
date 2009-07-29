@@ -55,7 +55,7 @@ func (a *stmtCompiler) DoLabeledStmt(s *ast.LabeledStmt) {
 }
 
 func (a *stmtCompiler) DoExprStmt(s *ast.ExprStmt) {
-	e := a.compileExpr(a.scope, s.X, false);
+	e := a.compileExpr(a.block, s.X, false);
 	if e == nil {
 		return;
 	}
@@ -73,7 +73,7 @@ func (a *stmtCompiler) DoExprStmt(s *ast.ExprStmt) {
 }
 
 func (a *stmtCompiler) DoIncDecStmt(s *ast.IncDecStmt) {
-	l := a.compileExpr(a.scope, s.X, false);
+	l := a.compileExpr(a.block, s.X, false);
 	if l == nil {
 		return;
 	}
@@ -132,7 +132,7 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 	// made on the left side.
 	rs := make([]*exprCompiler, len(s.Rhs));
 	for i, re := range s.Rhs {
-		rs[i] = a.compileExpr(a.scope, re, false);
+		rs[i] = a.compileExpr(a.block, re, false);
 		if rs[i] == nil {
 			bad = true;
 			continue;
@@ -172,7 +172,7 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 			}
 
 			// Is this simply an assignment?
-			if _, ok := a.scope.defs[ident.Value]; ok {
+			if _, ok := a.block.defs[ident.Value]; ok {
 				goto assignment;
 			}
 			nDefs++;
@@ -213,14 +213,19 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 			}
 
 			// Define identifier
-			v := a.scope.DefineVar(ident.Value, lt);
+			v := a.block.DefineVar(ident.Value, lt);
 			if v == nil {
 				log.Crashf("Failed to define %s", ident.Value);
 			}
+			// Initialize the variable
+			index := v.Index;
+			a.push(func(v *vm) {
+				v.f.Vars[index] = lt.Zero();
+			});
 		}
 
 	assignment:
-		ls[i] = a.compileExpr(a.scope, le, false);
+		ls[i] = a.compileExpr(a.block, le, false);
 		if ls[i] == nil {
 			bad = true;
 			continue;
@@ -325,8 +330,8 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 		return;
 	}
 
-	l := a.compileExpr(a.scope, s.Lhs[0], false);
-	r := a.compileExpr(a.scope, s.Rhs[0], false);
+	l := a.compileExpr(a.block, s.Lhs[0], false);
+	r := a.compileExpr(a.block, s.Rhs[0], false);
 	if l == nil || r == nil {
 		return;
 	}
@@ -397,7 +402,7 @@ func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
 	bad := false;
 	rs := make([]*exprCompiler, len(s.Results));
 	for i, re := range s.Results {
-		rs[i] = a.compileExpr(a.scope, re, false);
+		rs[i] = a.compileExpr(a.block, re, false);
 		if rs[i] == nil {
 			bad = true;
 		}
@@ -425,7 +430,7 @@ func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
 	start := len(a.fnType.In);
 	nout := len(a.fnType.Out);
 	a.push(func(v *vm) {
-		assign(multiV(v.activation.Vars[start:start+nout]), v.f);
+		assign(multiV(v.f.Vars[start:start+nout]), v.f);
 		v.pc = ^uint(0);
 	});
 	a.err = false;
@@ -496,8 +501,7 @@ func (a *stmtCompiler) DoIfStmt(s *ast.IfStmt) {
 	// says when there's a non-block else clause, because that
 	// else claus has to execute in a scope that is *not* the
 	// surrounding scope.
-	bc := a.blockCompiler;
-	bc = bc.enterChild();
+	bc := a.enterChild();
 	defer bc.exit();
 
 	// Compile init statement, if any
@@ -511,7 +515,7 @@ func (a *stmtCompiler) DoIfStmt(s *ast.IfStmt) {
 	// fall through to the body.
 	bad := false;
 	if s.Cond != nil {
-		e := bc.compileExpr(bc.scope, s.Cond, false);
+		e := bc.compileExpr(bc.block, s.Cond, false);
 		switch {
 		case e == nil:
 			bad = true;
@@ -580,11 +584,12 @@ func (a *stmtCompiler) DoSelectStmt(s *ast.SelectStmt) {
 }
 
 func (a *stmtCompiler) DoForStmt(s *ast.ForStmt) {
+	// Wrap the entire for in a block.
+	bc := a.enterChild();
+	defer bc.exit();
+
 	// Compile init statement, if any
-	bc := a.blockCompiler;
 	if s.Init != nil {
-		bc = bc.enterChild();
-		defer bc.exit();
 		bc.compileStmt(s.Init);
 	}
 
@@ -617,7 +622,7 @@ func (a *stmtCompiler) DoForStmt(s *ast.ForStmt) {
 		// If the condition is absent, it is equivalent to true.
 		a.push(func(v *vm) { v.pc = bodyPC });
 	} else {
-		e := bc.compileExpr(bc.scope, s.Cond, false);
+		e := bc.compileExpr(bc.block, s.Cond, false);
 		switch {
 		case e == nil:
 			bad = true;
@@ -650,12 +655,12 @@ func (a *stmtCompiler) DoRangeStmt(s *ast.RangeStmt) {
  */
 
 func (a *blockCompiler) compileStmt(s ast.Stmt) {
-	if a.child != nil {
+	if a.block.inner != nil {
 		log.Crash("Child scope still entered");
 	}
 	sc := &stmtCompiler{a, s.Pos(), true};
 	s.Visit(sc);
-	if a.child != nil {
+	if a.block.inner != nil {
 		log.Crash("Forgot to exit child scope");
 	}
 	a.err = a.err || sc.err;
@@ -668,49 +673,30 @@ func (a *blockCompiler) compileStmts(block *ast.BlockStmt) {
 }
 
 func (a *blockCompiler) enterChild() *blockCompiler {
-	if a.child != nil {
-		log.Crash("Failed to exit child block before entering another child");
-	}
-	blockScope := a.scope.Fork();
-	bc := &blockCompiler{
+	block := a.block.enterChild();
+	return &blockCompiler{
 		funcCompiler: a.funcCompiler,
-		scope: blockScope,
+		block: block,
 		returned: false,
 		parent: a,
 	};
-	a.child = bc;
-	a.push(func(v *vm) {
-		v.f = blockScope.NewFrame(v.f);
-	});
-	return bc;
 }
 
 func (a *blockCompiler) exit() {
-	if a.parent == nil {
-		log.Crash("Cannot exit top-level block");
-	}
-	if a.parent.child != a {
-		log.Crash("Double exit of block");
-	}
-	if a.child != nil {
-		log.Crash("Exit of parent block without exit of child block");
-	}
-	a.push(func(v *vm) {
-		v.f = v.f.Outer;
-	});
-	a.parent.child = nil;
+	a.block.exit();
 }
 
 /*
  * Function compiler
  */
 
-func (a *compiler) compileFunc(scope *Scope, decl *FuncDecl, body *ast.BlockStmt) (func (f *Frame) Func) {
+func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (func (f *Frame) Func) {
 	// Create body scope
 	//
 	// The scope of a parameter or result is the body of the
 	// corresponding function.
-	bodyScope := scope.Fork();
+	bodyScope := b.ChildScope();
+	defer bodyScope.exit();
 	for i, t := range decl.Type.In {
 		if decl.InNames[i] != nil {
 			bodyScope.DefineVar(decl.InNames[i].Value, t);
@@ -734,7 +720,7 @@ func (a *compiler) compileFunc(scope *Scope, decl *FuncDecl, body *ast.BlockStmt
 	}
 	bc := &blockCompiler{
 		funcCompiler: fc,
-		scope: bodyScope,
+		block: bodyScope.block,
 		returned: false,
 	};
 
@@ -756,7 +742,8 @@ func (a *compiler) compileFunc(scope *Scope, decl *FuncDecl, body *ast.BlockStmt
 	}
 
 	code := fc.get();
-	return func(f *Frame) Func { return &evalFunc{bodyScope, f, code} };
+	maxVars := bodyScope.maxVars;
+	return func(f *Frame) Func { return &evalFunc{f, maxVars, code} };
 }
 
 /*
@@ -777,7 +764,7 @@ func CompileStmts(scope *Scope, stmts []ast.Stmt) (*Stmt, os.Error) {
 	fc := &funcCompiler{cc, nil, false, newCodeBuf(), false};
 	bc := &blockCompiler{
 		funcCompiler: fc,
-		scope: scope,
+		block: scope.block,
 		returned: false
 	};
 	out := make([]*Stmt, len(stmts));

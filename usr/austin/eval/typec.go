@@ -23,13 +23,13 @@ type exprCompiler struct
 
 type typeCompiler struct {
 	*compiler;
-	scope *Scope;
+	block *block;
 }
 
 func (a *typeCompiler) compileType(x ast.Expr) Type
 
 func (a *typeCompiler) compileIdent(x *ast.Ident) Type {
-	def, dscope := a.scope.Lookup(x.Value);
+	_, def := a.block.Lookup(x.Value);
 	if def == nil {
 		a.diagAt(x, "%s: undefined", x.Value);
 		return nil;
@@ -58,7 +58,7 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType) *ArrayType {
 		a.diagAt(x.Len, "... array initailizers not implemented");
 		return nil;
 	}
-	l, ok := a.compileArrayLen(a.scope, x.Len);
+	l, ok := a.compileArrayLen(a.block, x.Len);
 
 	// Compile element type
 	elem := a.compileType(x.Elt);
@@ -191,12 +191,12 @@ notimpl:
  * Type compiler interface
  */
 
-func (a *compiler) compileType(scope *Scope, typ ast.Expr) Type {
-	tc := &typeCompiler{a, scope};
+func (a *compiler) compileType(b *block, typ ast.Expr) Type {
+	tc := &typeCompiler{a, b};
 	return tc.compileType(typ);
 }
 
-func (a *compiler) compileFuncType(scope *Scope, typ *ast.FuncType) *FuncDecl {
-	tc := &typeCompiler{a, scope};
+func (a *compiler) compileFuncType(b *block, typ *ast.FuncType) *FuncDecl {
+	tc := &typeCompiler{a, b};
 	return tc.compileFuncType(typ);
 }

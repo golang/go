@@ -140,23 +140,59 @@ type Constant struct {
 // A definition can be a *Variable, *Constant, or Type.
 type Def interface {}
 
-type Scope struct {
-	outer *Scope;
+type Scope struct
+
+// A block represents a definition block in which a name may not be
+// defined more than once.
+type block struct {
+	// The block enclosing this one, including blocks in other
+	// scopes.
+	outer *block;
+	// The nested block currently being compiled, or nil.
+	inner *block;
+	// The Scope containing this block.
+	scope *Scope;
+	// The Variables, Constants, and Types defined in this block.
 	defs map[string] Def;
-	temps map[int] *Variable;
+	// The index of the first variable defined in this block.
+	// This must be greater than the index of any variable defined
+	// in any parent of this block within the same Scope at the
+	// time this block is entered.
+	offset int;
+	// The number of Variables defined in this block.
 	numVars int;
-	varTypes []Type;
 }
 
-func (s *Scope) Fork() *Scope
-func (s *Scope) DefineVar(name string, t Type) *Variable
-func (s *Scope) DefineTemp(t Type) *Variable
-func (s *Scope) DefineConst(name string, t Type, v Value) *Constant
-func (s *Scope) DefineType(name string, t Type) Type
-func (s *Scope) Lookup(name string) (Def, *Scope)
+// A Scope is the compile-time analogue of a Frame, which captures
+// some subtree of blocks.
+type Scope struct {
+	// The root block of this scope.
+	*block;
+	// The maximum number of variables required at any point in
+	// this Scope.  This determines the number of slots needed in
+	// Frame's created from this Scope at run-time.
+	maxVars int;
+}
+
+func (b *block) enterChild() *block
+func (b *block) exit()
+func (b *block) ChildScope() *Scope
+func (b *block) DefineVar(name string, t Type) *Variable
+func (b *block) DefineTemp(t Type) *Variable
+func (b *block) DefineConst(name string, t Type, v Value) *Constant
+func (b *block) DefineType(name string, t Type) Type
+func (b *block) Lookup(name string) (level int, def Def)
 
 // The universal scope
-var universe = &Scope{defs: make(map[string] Def), temps: make(map[int] *Variable)};
+func newUniverse() *Scope {
+	sc := &Scope{nil, 0};
+	sc.block = &block{
+		scope: sc,
+		defs: make(map[string] Def)
+	};
+	return sc;
+}
+var universe *Scope = newUniverse();
 
 /*
  * Frames
@@ -164,12 +200,11 @@ var universe = &Scope{defs: make(map[string] Def), temps: make(map[int] *Variabl
 
 type Frame struct {
 	Outer *Frame;
-	Scope *Scope;
 	Vars []Value;
 }
 
-func (f *Frame) Get(s *Scope, index int) Value
-func (f *Frame) String() string
+func (f *Frame) Get(level int, index int) Value
+func (f *Frame) child(numVars int) *Frame
 
 func (s *Scope) NewFrame(outer *Frame) *Frame
 
