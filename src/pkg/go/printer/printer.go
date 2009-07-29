@@ -681,7 +681,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
 // Print the statement list indented, but without a newline after the last statement.
 func (p *printer) stmtList(list []ast.Stmt) {
 	if len(list) > 0 {
-		p.print(+1, newline);
+		p.print(+1, formfeed);  // the next lines have different structure
 		optSemi := false;
 		for i, s := range list {
 			if i > 0 {

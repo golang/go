@@ -50,3 +50,11 @@ func f1() {
 	/* 4 */
 	f0();
 }
+
+
+func abs(x int) int {
+	if x < 0 {  // the tab printed before this comment's // must not affect the remaining lines
+		return -x;  // this statement should be properly indented
+	}
+	return x;
+}
