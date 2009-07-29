@@ -15,19 +15,15 @@ import (
 
 type vm struct {
 	pc uint;
-	// The current execution frame.  If execution is within a
-	// block, this may be a child of the original function
-	// activation frame.
+	// The execution frame of this function.  This remains the
+	// same throughout a function invocation.
 	f *Frame;
-	// The original function activation frame.  This is used to
-	// access function out args.
-	activation *Frame;
 }
 
 type code []func(*vm)
 
 func (i code) exec(fr *Frame) {
-	v := vm{0, fr, fr};
+	v := vm{0, fr};
 
 	l := uint(len(i));
 	for v.pc < l {
@@ -80,13 +76,13 @@ func (b *codeBuf) get() code {
  */
 
 type evalFunc struct {
-	sc *Scope;
-	fr *Frame;
+	outer *Frame;
+	frameSize int;
 	code code;
 }
 
 func (f *evalFunc) NewFrame() *Frame {
-	return f.sc.NewFrame(f.fr);
+	return f.outer.child(f.frameSize);
 }
 
 func (f *evalFunc) Call(fr *Frame) {

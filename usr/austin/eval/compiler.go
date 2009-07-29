@@ -32,16 +32,16 @@ func (a *compiler) diagAt(pos positioned, format string, args ...) {
 }
 
 type FuncDecl struct
-func (a *compiler) compileFunc(scope *Scope, decl *FuncDecl, body *ast.BlockStmt) (func (f *Frame) Func)
+func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (func (f *Frame) Func)
 type exprCompiler struct
-func (a *compiler) compileExpr(scope *Scope, expr ast.Expr, constant bool) *exprCompiler
+func (a *compiler) compileExpr(b *block, expr ast.Expr, constant bool) *exprCompiler
 type assignCompiler struct
 func (a *compiler) checkAssign(pos token.Position, rs []*exprCompiler, errOp, errPosName string) (*assignCompiler, bool)
 func (a *compiler) compileAssign(pos token.Position, lt Type, rs []*exprCompiler, errOp, errPosName string) (func(lv Value, f *Frame))
-func (a *compiler) compileType(scope *Scope, typ ast.Expr) Type
-func (a *compiler) compileFuncType(scope *Scope, typ *ast.FuncType) *FuncDecl
+func (a *compiler) compileType(b *block, typ ast.Expr) Type
+func (a *compiler) compileFuncType(b *block, typ *ast.FuncType) *FuncDecl
 
-func (a *compiler) compileArrayLen(scope *Scope, expr ast.Expr) (int64, bool)
+func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool)
 
 
 type codeBuf struct
@@ -63,7 +63,7 @@ type funcCompiler struct {
 // of a single block within a function.
 type blockCompiler struct {
 	*funcCompiler;
-	scope *Scope;
+	block *block;
 	returned bool;
 	// The PC break statements should jump to, or nil if a break
 	// statement is invalid.
@@ -74,9 +74,6 @@ type blockCompiler struct {
 	// The blockCompiler for the block enclosing this one, or nil
 	// for a function-level block.
 	parent *blockCompiler;
-	// The blockCompiler for the nested block currently being
-	// compiled, or nil if compilation is not in a nested block.
-	child *blockCompiler;
 }
 
 func (a *blockCompiler) compileStmt(s ast.Stmt)
@@ -92,6 +89,6 @@ func (a *blockCompiler) exit()
 // this to exprCompiler.
 type exprContext struct {
 	*compiler;
-	scope *Scope;
+	block *block;
 	constant bool;
 }

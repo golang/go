@@ -61,7 +61,7 @@ func newExprCompiler(c *exprContext, pos token.Position) *exprCompiler {
 // Operator generators
 // TODO(austin) Remove these forward declarations
 func (a *exprCompiler) genConstant(v Value)
-func (a *exprCompiler) genIdentOp(s *Scope, index int)
+func (a *exprCompiler) genIdentOp(level int, index int)
 func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler)
 func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value)
 func (a *exprCompiler) genStarOp(v *exprCompiler)
@@ -470,7 +470,7 @@ func (a *exprCompiler) DoBadExpr(x *ast.BadExpr) {
 }
 
 func (a *exprCompiler) DoIdent(x *ast.Ident) {
-	def, dscope := a.scope.Lookup(x.Value);
+	level, def := a.block.Lookup(x.Value);
 	if def == nil {
 		a.diag("%s: undefined", x.Value);
 		return;
@@ -491,7 +491,7 @@ func (a *exprCompiler) DoIdent(x *ast.Ident) {
 		}
 		a.t = def.Type;
 		defidx := def.Index;
-		a.genIdentOp(dscope, defidx);
+		a.genIdentOp(level, defidx);
 		a.desc = "variable";
 	case Type:
 		a.diag("type %v used as expression", x.Value);
@@ -566,14 +566,14 @@ func (a *exprCompiler) DoFuncLit(x *ast.FuncLit) {
 	// TODO(austin) Closures capture their entire defining frame
 	// instead of just the variables they use.
 
-	decl := a.compileFuncType(a.scope, x.Type);
+	decl := a.compileFuncType(a.block, x.Type);
 	if decl == nil {
 		// TODO(austin) Try compiling the body, perhaps with
 		// dummy definitions for the arguments
 		return;
 	}
 
-	evalFunc := a.compileFunc(a.scope, decl, x.Body);
+	evalFunc := a.compileFunc(a.block, decl, x.Body);
 	if evalFunc == nil {
 		return;
 	}
@@ -728,13 +728,11 @@ func (a *exprCompiler) DoCallExpr(x *ast.CallExpr) {
 		bad = true;
 	}
 	as := make([]*exprCompiler, len(x.Args));
-	ats := make([]Type, len(as));
 	for i := 0; i < len(x.Args); i++ {
 		as[i] = a.copyVisit(x.Args[i]);
 		if as[i].t == nil {
 			bad = true;
 		}
-		ats[i] = as[i].t;
 	}
 	if bad {
 		return;
@@ -763,6 +761,7 @@ func (a *exprCompiler) DoCallExpr(x *ast.CallExpr) {
 	//
 	// XXX(Spec) The spec is wrong.  It can also be a single
 	// multi-valued expression.
+	nin := len(lt.In);
 	assign := a.compileAssign(x.Pos(), NewMultiType(lt.In), as, "function call", "argument");
 	if assign == nil {
 		return;
@@ -778,12 +777,23 @@ func (a *exprCompiler) DoCallExpr(x *ast.CallExpr) {
 		a.t = NewMultiType(lt.Out);
 	}
 
+	// Gather argument and out types to initialize frame variables
+	vts := make([]Type, nin + nout);
+	for i, t := range lt.In {
+		vts[i] = t;
+	}
+	for i, t := range lt.Out {
+		vts[i+nin] = t;
+	}
+
 	// Compile
 	lf := l.asFunc();
-	nin := len(lt.In);
 	call := func(f *Frame) []Value {
 		fun := lf(f);
 		fr := fun.NewFrame();
+		for i, t := range vts {
+			fr.Vars[i] = t.Zero();
+		}
 		assign(multiV(fr.Vars[0:nin]), f);
 		fun.Call(fr);
 		return fr.Vars[nin:nin+nout];
@@ -1275,8 +1285,8 @@ func (a *exprCompiler) DoChanType(x *ast.ChanType) {
 
 // TODO(austin) This is a hack to eliminate a circular dependency
 // between type.go and expr.go
-func (a *compiler) compileArrayLen(scope *Scope, expr ast.Expr) (int64, bool) {
-	lenExpr := a.compileExpr(scope, expr, true);
+func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool) {
+	lenExpr := a.compileExpr(b, expr, true);
 	if lenExpr == nil {
 		return 0, false;
 	}
@@ -1302,8 +1312,8 @@ func (a *compiler) compileArrayLen(scope *Scope, expr ast.Expr) (int64, bool) {
 	return 0, false;
 }
 
-func (a *compiler) compileExpr(scope *Scope, expr ast.Expr, constant bool) *exprCompiler {
-	ec := newExprCompiler(&exprContext{a, scope, constant}, expr.Pos());
+func (a *compiler) compileExpr(b *block, expr ast.Expr, constant bool) *exprCompiler {
+	ec := newExprCompiler(&exprContext{a, b, constant}, expr.Pos());
 	expr.Visit(ec);
 	if ec.t == nil {
 		return nil;
@@ -1325,10 +1335,11 @@ func (a *exprCompiler) extractEffect() (func(f *Frame), *exprCompiler) {
 	}
 
 	// Create temporary
-	tempScope := a.scope;
+	tempBlock := a.block;
 	tempType := NewPtrType(a.t);
-	// TODO(austin) These temporaries accumulate in the scope.
-	temp := tempScope.DefineTemp(tempType);
+	// TODO(austin) These temporaries accumulate in the scope.  We
+	// could enter a temporary block, but the caller has to exit it.
+	temp := tempBlock.DefineTemp(tempType);
 	tempIdx := temp.Index;
 
 	// Generate "temp := &e"
@@ -1342,14 +1353,15 @@ func (a *exprCompiler) extractEffect() (func(f *Frame), *exprCompiler) {
 	}
 
 	effect := func(f *Frame) {
-		tempVal := f.Get(tempScope, tempIdx);
+		tempVal := tempType.Zero();
+		f.Vars[tempIdx] = tempVal;
 		assign(tempVal, f);
 	};
 
 	// Generate "*temp"
 	getTemp := a.copy();
 	getTemp.t = tempType;
-	getTemp.genIdentOp(tempScope, tempIdx);
+	getTemp.genIdentOp(0, tempIdx);
 
 	deref := a.copy();
 	deref.t = a.t;
@@ -1377,7 +1389,7 @@ func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
 	errors := scanner.NewErrorVector();
 	cc := &compiler{errors};
 
-	ec := cc.compileExpr(scope, expr, false);
+	ec := cc.compileExpr(scope.block, expr, false);
 	if ec == nil {
 		return nil, errors.GetError(scanner.Sorted);
 	}
@@ -1447,25 +1459,25 @@ func (a *exprCompiler) genConstant(v Value) {
 	}
 }
 
-func (a *exprCompiler) genIdentOp(s *Scope, index int) {
-	a.evalAddr = func(f *Frame) Value { return f.Get(s, index) };
+func (a *exprCompiler) genIdentOp(level int, index int) {
+	a.evalAddr = func(f *Frame) Value { return f.Get(level, index) };
 	switch _ := a.t.rep().(type) {
 	case *boolType:
-		a.evalBool = func(f *Frame) bool { return f.Get(s, index).(BoolValue).Get() };
+		a.evalBool = func(f *Frame) bool { return f.Get(level, index).(BoolValue).Get() };
 	case *uintType:
-		a.evalUint = func(f *Frame) uint64 { return f.Get(s, index).(UintValue).Get() };
+		a.evalUint = func(f *Frame) uint64 { return f.Get(level, index).(UintValue).Get() };
 	case *intType:
-		a.evalInt = func(f *Frame) int64 { return f.Get(s, index).(IntValue).Get() };
+		a.evalInt = func(f *Frame) int64 { return f.Get(level, index).(IntValue).Get() };
 	case *floatType:
-		a.evalFloat = func(f *Frame) float64 { return f.Get(s, index).(FloatValue).Get() };
+		a.evalFloat = func(f *Frame) float64 { return f.Get(level, index).(FloatValue).Get() };
 	case *stringType:
-		a.evalString = func(f *Frame) string { return f.Get(s, index).(StringValue).Get() };
+		a.evalString = func(f *Frame) string { return f.Get(level, index).(StringValue).Get() };
 	case *ArrayType:
-		a.evalArray = func(f *Frame) ArrayValue { return f.Get(s, index).(ArrayValue).Get() };
+		a.evalArray = func(f *Frame) ArrayValue { return f.Get(level, index).(ArrayValue).Get() };
 	case *PtrType:
-		a.evalPtr = func(f *Frame) Value { return f.Get(s, index).(PtrValue).Get() };
+		a.evalPtr = func(f *Frame) Value { return f.Get(level, index).(PtrValue).Get() };
 	case *FuncType:
-		a.evalFunc = func(f *Frame) Func { return f.Get(s, index).(FuncValue).Get() };
+		a.evalFunc = func(f *Frame) Func { return f.Get(level, index).(FuncValue).Get() };
 	default:
 		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos);
 	}
