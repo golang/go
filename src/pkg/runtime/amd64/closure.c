@@ -43,46 +43,48 @@ sys·closure(int32 siz, byte *fn, byte *arg0)
 	p = mal(n);
 	*ret = p;
 	q = p + n - siz;
-	mcpy(q, (byte*)&arg0, siz);
 
-	// SUBQ $siz, SP
-	*p++ = 0x48;
-	*p++ = 0x81;
-	*p++ = 0xec;
-	*(uint32*)p = siz;
-	p += 4;
+	if(siz > 0) {
+		mcpy(q, (byte*)&arg0, siz);
 
-	// MOVQ $q, SI
-	*p++ = 0x48;
-	*p++ = 0xbe;
-	*(byte**)p = q;
-	p += 8;
+		// SUBQ $siz, SP
+		*p++ = 0x48;
+		*p++ = 0x81;
+		*p++ = 0xec;
+		*(uint32*)p = siz;
+		p += 4;
 
-	// MOVQ SP, DI
-	*p++ = 0x48;
-	*p++ = 0x89;
-	*p++ = 0xe7;
+		// MOVQ $q, SI
+		*p++ = 0x48;
+		*p++ = 0xbe;
+		*(byte**)p = q;
+		p += 8;
 
-	if(siz <= 4*8) {
-		for(i=0; i<siz; i+=8) {
-			// MOVSQ
+		// MOVQ SP, DI
+		*p++ = 0x48;
+		*p++ = 0x89;
+		*p++ = 0xe7;
+
+		if(siz <= 4*8) {
+			for(i=0; i<siz; i+=8) {
+				// MOVSQ
+				*p++ = 0x48;
+				*p++ = 0xa5;
+			}
+		} else {
+			// MOVQ $(siz/8), CX  [32-bit immediate siz/8]
+			*p++ = 0x48;
+			*p++ = 0xc7;
+			*p++ = 0xc1;
+			*(uint32*)p = siz/8;
+			p += 4;
+
+			// REP; MOVSQ
+			*p++ = 0xf3;
 			*p++ = 0x48;
 			*p++ = 0xa5;
 		}
-	} else {
-		// MOVQ $(siz/8), CX  [32-bit immediate siz/8]
-		*p++ = 0x48;
-		*p++ = 0xc7;
-		*p++ = 0xc1;
-		*(uint32*)p = siz/8;
-		p += 4;
-
-		// REP; MOVSQ
-		*p++ = 0xf3;
-		*p++ = 0x48;
-		*p++ = 0xa5;
 	}
-
 
 	// call fn
 	pcrel = fn - (p+5);

@@ -553,76 +553,72 @@ funclit1(Node *ntype, NodeList *body)
 	// as we referred to variables from the outer function,
 	// we accumulated a list of PHEAP names in func->cvars.
 	narg = 0;
-	if(func->cvars == nil)
-		ft = type;
-	else {
-		// add PHEAP versions as function arguments.
-		in = nil;
-		for(l=func->cvars; l; l=l->next) {
-			a = l->n;
-			d = nod(ODCLFIELD, a, N);
-			d->type = ptrto(a->type);
-			in = list(in, d);
-
-			// while we're here, set up a->heapaddr for back end
-			n = nod(ONAME, N, N);
-			snprint(namebuf, sizeof namebuf, "&%s", a->sym->name);
-			n->sym = lookup(namebuf);
-			n->type = ptrto(a->type);
-			n->class = PPARAM;
-			n->xoffset = narg*types[tptr]->width;
-			n->addable = 1;
-			n->ullman = 1;
-			narg++;
-			a->heapaddr = n;
-
-			a->xoffset = 0;
-
-			// unlink from actual ONAME in symbol table
-			a->closure->closure = a->outer;
-		}
-
-		// add a dummy arg for the closure's caller pc
+	// add PHEAP versions as function arguments.
+	in = nil;
+	for(l=func->cvars; l; l=l->next) {
+		a = l->n;
 		d = nod(ODCLFIELD, a, N);
-		d->type = types[TUINTPTR];
+		d->type = ptrto(a->type);
 		in = list(in, d);
 
-		// slide param offset to make room for ptrs above.
-		// narg+1 to skip over caller pc.
-		shift = (narg+1)*types[tptr]->width;
+		// while we're here, set up a->heapaddr for back end
+		n = nod(ONAME, N, N);
+		snprint(namebuf, sizeof namebuf, "&%s", a->sym->name);
+		n->sym = lookup(namebuf);
+		n->type = ptrto(a->type);
+		n->class = PPARAM;
+		n->xoffset = narg*types[tptr]->width;
+		n->addable = 1;
+		n->ullman = 1;
+		narg++;
+		a->heapaddr = n;
 
-		// now the original arguments.
-		for(t=structfirst(&save, getinarg(type)); t; t=structnext(&save)) {
-			d = nod(ODCLFIELD, t->nname, N);
-			d->type = t->type;
-			in = list(in, d);
+		a->xoffset = 0;
 
-			a = t->nname;
-			if(a != N) {
-				if(a->stackparam != N)
-					a = a->stackparam;
-				a->xoffset += shift;
-			}
-		}
-
-		// out arguments
-		out = nil;
-		for(t=structfirst(&save, getoutarg(type)); t; t=structnext(&save)) {
-			d = nod(ODCLFIELD, t->nname, N);
-			d->type = t->type;
-			out = list(out, d);
-
-			a = t->nname;
-			if(a != N) {
-				if(a->stackparam != N)
-					a = a->stackparam;
-				a->xoffset += shift;
-			}
-		}
-
-		ft = functype(N, in, out);
-		ft->outnamed = type->outnamed;
+		// unlink from actual ONAME in symbol table
+		a->closure->closure = a->outer;
 	}
+
+	// add a dummy arg for the closure's caller pc
+	d = nod(ODCLFIELD, N, N);
+	d->type = types[TUINTPTR];
+	in = list(in, d);
+
+	// slide param offset to make room for ptrs above.
+	// narg+1 to skip over caller pc.
+	shift = (narg+1)*types[tptr]->width;
+
+	// now the original arguments.
+	for(t=structfirst(&save, getinarg(type)); t; t=structnext(&save)) {
+		d = nod(ODCLFIELD, t->nname, N);
+		d->type = t->type;
+		in = list(in, d);
+
+		a = t->nname;
+		if(a != N) {
+			if(a->stackparam != N)
+				a = a->stackparam;
+			a->xoffset += shift;
+		}
+	}
+
+	// out arguments
+	out = nil;
+	for(t=structfirst(&save, getoutarg(type)); t; t=structnext(&save)) {
+		d = nod(ODCLFIELD, t->nname, N);
+		d->type = t->type;
+		out = list(out, d);
+
+		a = t->nname;
+		if(a != N) {
+			if(a->stackparam != N)
+				a = a->stackparam;
+			a->xoffset += shift;
+		}
+	}
+
+	ft = functype(N, in, out);
+	ft->outnamed = type->outnamed;
 
 	// declare function.
 	vargen++;
@@ -641,10 +637,6 @@ funclit1(Node *ntype, NodeList *body)
 	compile(n);
 	funcdepth--;
 	autodcl = func->dcl;
-
-	// if there's no closure, we can use f directly
-	if(func->cvars == nil)
-		return f;
 
 	// build up type for this instance of the closure func.
 	in = nil;
@@ -1655,7 +1647,7 @@ variter(NodeList *vl, Node *nt, NodeList *el)
 	Type *tv;
 	NodeList *r;
 	Type *t;
-	
+
 	t = T;
 	if(nt) {
 		walkexpr(nt, Etype, &nt->ninit);
