@@ -6,6 +6,7 @@ bytes.install: os.install utf8.install
 compress/flate.install: bufio.install io.install os.install strconv.install
 compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
 container/list.install:
+container/ring.install:
 container/vector.install:
 crypto/aes.install: os.install strconv.install
 crypto/block.install: fmt.install io.install os.install strconv.install
