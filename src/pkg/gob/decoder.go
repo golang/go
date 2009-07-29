@@ -64,11 +64,11 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 	dec.state.err = nil;
 	for {
 		// Read a count.
-		nbytes, err := decodeUintReader(dec.r, dec.oneByte);
-		if err != nil {
-			return err;
+		var nbytes uint64;
+		nbytes, dec.state.err = decodeUintReader(dec.r, dec.oneByte);
+		if dec.state.err != nil {
+			break;
 		}
-
 		// Allocate the buffer.
 		if nbytes > uint64(len(dec.buf)) {
 			dec.buf = make([]byte, nbytes + 1000);
@@ -77,12 +77,13 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 
 		// Read the data
 		var n int;
-		n, err = dec.r.Read(dec.buf[0:nbytes]);
-		if err != nil {
-			return err;
+		n, dec.state.err = io.ReadFull(dec.r, dec.buf[0:nbytes]);
+		if dec.state.err != nil {
+			break;
 		}
 		if n < int(nbytes) {
-			return os.ErrorString("gob decode: short read");
+			dec.state.err = io.ErrUnexpectedEOF;
+			break;
 		}
 
 		// Receive a type id.

@@ -19,6 +19,7 @@ import (
 
 var (
 	errBadUint = os.ErrorString("gob: encoded unsigned integer out of range");
+	errBadType = os.ErrorString("gob: unknown type id or corrupted data");
 	errRange = os.ErrorString("gob: internal error: field numbers out of bounds");
 	errNotStruct = os.ErrorString("gob: TODO: can only handle structs")
 )
@@ -768,6 +769,10 @@ func decode(b *bytes.Buffer, wireId typeId, e interface{}) os.Error {
 		return os.ErrorString("gob: decode can't handle " + rt.String())
 	}
 	typeLock.Lock();
+	if _, ok := idToType[wireId]; !ok {
+		typeLock.Unlock();
+		return errBadType;
+	}
 	enginePtr, err := getDecEnginePtr(wireId, rt);
 	typeLock.Unlock();
 	if err != nil {
