@@ -220,9 +220,6 @@ fixedbugs/bug133.dir/bug2.go:11: undefined: bug0.T field i
 fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN
 	int
 
-=========== fixedbugs/bug136.go
-fixedbugs/bug136.go:9: invalid break label L
-
 =========== fixedbugs/bug148.go
 2 3
 interface is main.T, not main.T·bug148·1
@@ -234,6 +231,9 @@ panic PC=xxx
 
 =========== bugs/bug132.go
 BUG: compilation succeeds incorrectly
+
+=========== bugs/bug136.go
+BUG: errchk: bugs/bug136.go:15: missing expected error: 'L1'
 
 =========== bugs/bug159.go
 abc: expected 4 5 6 got 4 4 -4
