@@ -77,14 +77,16 @@ case $failed in
 	echo FAIL
 esac
 rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.6 6.out
+diffmsg=""
 if ! diff run.out golden.out
 then
+	diffmsg="; test output differs"
 	failed=1
 fi
 
 notinbugs=$(sed '/^== bugs/q' run.out | grep -c '^BUG')
 inbugs=$(sed '1,/^== bugs/d' run.out | grep -c '^BUG')
 
-echo 2>&1 $inbugs known bugs';' $notinbugs unexpected bugs
+echo 2>&1 $inbugs known bugs';' $notinbugs unexpected bugs$diffmsg
 
 exit $failed
