@@ -15,6 +15,8 @@ import (
 	"unsafe";
 )
 
+const uint64Size = unsafe.Sizeof(uint64(0))
+
 // The global execution state of an instance of the encoder.
 // Field numbers are delta encoded and always increase. The field
 // number is initialized to -1 so 0 comes out as delta(1). A delta of
@@ -23,27 +25,33 @@ type encoderState struct {
 	b	*bytes.Buffer;
 	err	os.Error;	// error encountered during encoding;
 	fieldnum	int;	// the last field number written.
-	buf [16]byte;	// buffer used by the encoder; here to avoid allocation.
+	buf [1+uint64Size]byte;	// buffer used by the encoder; here to avoid allocation.
 }
 
-// Integers encode as a variant of Google's protocol buffer varint (varvarint?).
-// The variant is that the continuation bytes have a zero top bit instead of a one.
-// That way there's only one bit to clear and the value is a little easier to see if
-// you're the unfortunate sort of person who must read the hex to debug.
+// Unsigned integers have a two-state encoding.  If the number is less
+// than 128 (0 through 0x7F), its value is written directly.
+// Otherwise the value is written in big-endian byte order preceded
+// by the byte length, negated.
 
 // encodeUint writes an encoded unsigned integer to state.b.  Sets state.err.
 // If state.err is already non-nil, it does nothing.
 func encodeUint(state *encoderState, x uint64) {
-	var n int;
 	if state.err != nil {
 		return
 	}
-	for n = 0; x > 0x7F; n++ {
-		state.buf[n] = uint8(x & 0x7F);
-		x >>= 7;
+	if x <= 0x7F {
+		state.err = state.b.WriteByte(uint8(x));
+		return;
 	}
-	state.buf[n] = 0x80 | uint8(x);
-	n, state.err = state.b.Write(state.buf[0:n+1]);
+	var n, m int;
+	m = uint64Size;
+	for n = 1; x > 0; n++ {
+		state.buf[m] = uint8(x & 0xFF);
+		x >>= 8;
+		m--;
+	}
+	state.buf[m] = uint8(-(n-1));
+	n, state.err = state.b.Write(state.buf[m:uint64Size+1]);
 }
 
 // encodeInt writes an encoded signed integer to state.w.

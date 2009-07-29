@@ -78,11 +78,11 @@
 	The rest of this comment documents the encoding, details that are not important
 	for most users.  Details are presented bottom-up.
 
-	An unsigned integer is encoded as an arbitrary-precision, variable-length sequence
-	of bytes.  It is sent in little-endian order (low bits first), with seven bits per
-	byte.  The high bit of each byte is zero, except that the high bit of the final
-	(highest precision) byte of the encoding will be set.  Thus 0 is transmitted as
-	(80), 7 is transmitted as (87) and 256=2*128 is transmitted as (00 82).
+	An unsigned integer is sent one of two ways.  If it is less than 128, it is sent
+	as a byte with that value.  Otherwise it is sent as a minimal-length big-endian
+	(high byte first) byte stream holding the value, preceded by one byte holding the
+	byte count, negated.  Thus 0 is transmitted as (00), 7 is transmitted as (07) and
+	256 is transmitted as (FE 01 00).
 
 	A boolean is encoded within an unsigned integer: 0 for false, 1 for true.
 

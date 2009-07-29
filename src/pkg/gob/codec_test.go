@@ -21,20 +21,20 @@ type EncodeT struct {
 	b	[]byte;
 }
 var encodeT = []EncodeT {
-	EncodeT{ 0x00,	[]byte{0x80} },
-	EncodeT{ 0x0f,	[]byte{0x8f} },
-	EncodeT{ 0xff,	[]byte{0x7f, 0x81} },
-	EncodeT{ 0xffff,	[]byte{0x7f, 0x7f, 0x83} },
-	EncodeT{ 0xffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x87} },
-	EncodeT{ 0xffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x8f} },
-	EncodeT{ 0xffffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x9f} },
-	EncodeT{ 0xffffffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0xbf} },
-	EncodeT{ 0xffffffffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0xff} },
-	EncodeT{ 0xffffffffffffffff,	[]byte{0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x7f, 0x81} },
-	EncodeT{ 0x1111,	[]byte{0x11, 0xa2} },
-	EncodeT{ 0x1111111111111111,	[]byte{0x11, 0x22, 0x44, 0x08, 0x11, 0x22, 0x44, 0x08, 0x91} },
-	EncodeT{ 0x8888888888888888,	[]byte{0x08, 0x11, 0x22, 0x44, 0x08, 0x11, 0x22, 0x44, 0x08, 0x81} },
-	EncodeT{ 1<<63,	[]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x81} },
+	EncodeT{ 0x00,	[]byte{0x00} },
+	EncodeT{ 0x0F,	[]byte{0x0F} },
+	EncodeT{ 0xFF,	[]byte{0xFF, 0xFF} },
+	EncodeT{ 0xFFFF,	[]byte{0xFE, 0xFF, 0xFF} },
+	EncodeT{ 0xFFFFFF,	[]byte{0xFD, 0xFF, 0xFF, 0xFF} },
+	EncodeT{ 0xFFFFFFFF,	[]byte{0xFC, 0xFF, 0xFF, 0xFF, 0xFF} },
+	EncodeT{ 0xFFFFFFFFFF,	[]byte{0xFB, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF} },
+	EncodeT{ 0xFFFFFFFFFFFF,	[]byte{0xFA, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF} },
+	EncodeT{ 0xFFFFFFFFFFFFFF,	[]byte{0xF9, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF} },
+	EncodeT{ 0xFFFFFFFFFFFFFFFF,	[]byte{0xF8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF} },
+	EncodeT{ 0x1111,	[]byte{0xFE, 0x11, 0x11} },
+	EncodeT{ 0x1111111111111111,	[]byte{0xF8, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11} },
+	EncodeT{ 0x8888888888888888,	[]byte{0xF8, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88} },
+	EncodeT{ 1<<63,	[]byte{0xF8, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} },
 }
 
 
@@ -50,11 +50,10 @@ func TestUintCodec(t *testing.T) {
 			t.Error("encodeUint:", tt.x, encState.err)
 		}
 		if !bytes.Equal(tt.b, b.Data()) {
-			t.Errorf("encodeUint: expected % x got % x", tt.b, b.Data())
+			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Data())
 		}
 	}
-	decState := new(decodeState);
-	decState.b = b;
+	decState := newDecodeState(b);
 	for u := uint64(0); ; u = (u+1) * 7 {
 		b.Reset();
 		encodeUint(encState, u);
@@ -82,8 +81,8 @@ func verifyInt(i int64, t *testing.T) {
 	if encState.err != nil {
 		t.Error("encodeInt:", i, encState.err)
 	}
-	decState := new(decodeState);
-	decState.b = b;
+	decState := newDecodeState(b);
+	decState.buf = make([]byte, 8);
 	j := decodeInt(decState);
 	if decState.err != nil {
 		t.Error("DecodeInt:", i, decState.err)
@@ -109,14 +108,14 @@ func TestIntCodec(t *testing.T) {
 	verifyInt(-1<<63, t);	// a tricky case
 }
 
-// The result of encoding a true boolean with field number 6
-var boolResult = []byte{0x87, 0x81}
-// The result of encoding a number 17 with field number 6
-var signedResult = []byte{0x87, 0xa2}
-var unsignedResult = []byte{0x87, 0x91}
-var floatResult = []byte{0x87, 0x40, 0xe2}
+// The result of encoding a true boolean with field number 7
+var boolResult = []byte{0x07, 0x01}
+// The result of encoding a number 17 with field number 7
+var signedResult = []byte{0x07, 2*17}
+var unsignedResult = []byte{0x07, 17}
+var floatResult = []byte{0x07, 0xFE, 0x31, 0x40}
 // The result of encoding "hello" with field number 6
-var bytesResult = []byte{0x87, 0x85, 'h', 'e', 'l', 'l', 'o'}
+var bytesResult = []byte{0x07, 0x05, 'h', 'e', 'l', 'l', 'o'}
 
 func newencoderState(b *bytes.Buffer) *encoderState {
 	b.Reset();
@@ -338,9 +337,8 @@ func execDec(typ string, instr *decInstr, state *decodeState, t *testing.T, p un
 	state.fieldnum = 6;
 }
 
-func newdecodeState(data []byte) *decodeState {
-	state := new(decodeState);
-	state.b = bytes.NewBuffer(data);
+func newDecodeStateFromData(data []byte) *decodeState {
+	state := newDecodeState(bytes.NewBuffer(data));
 	state.fieldnum = -1;
 	return state;
 }
@@ -354,7 +352,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a bool };
 		instr := &decInstr{ decBool, 6, 0, 0, ovfl };
-		state := newdecodeState(boolResult);
+		state := newDecodeStateFromData(boolResult);
 		execDec("bool", instr, state, t, unsafe.Pointer(&data));
 		if data.a != true {
 			t.Errorf("bool a = %v not true", data.a)
@@ -364,7 +362,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a int };
 		instr := &decInstr{ decOpMap[valueKind(data.a)], 6, 0, 0, ovfl };
-		state := newdecodeState(signedResult);
+		state := newDecodeStateFromData(signedResult);
 		execDec("int", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("int a = %v not 17", data.a)
@@ -375,7 +373,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a uint };
 		instr := &decInstr{ decOpMap[valueKind(data.a)], 6, 0, 0, ovfl };
-		state := newdecodeState(unsignedResult);
+		state := newDecodeStateFromData(unsignedResult);
 		execDec("uint", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("uint a = %v not 17", data.a)
@@ -386,7 +384,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a int8 };
 		instr := &decInstr{ decInt8, 6, 0, 0, ovfl };
-		state := newdecodeState(signedResult);
+		state := newDecodeStateFromData(signedResult);
 		execDec("int8", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("int8 a = %v not 17", data.a)
@@ -397,7 +395,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a uint8 };
 		instr := &decInstr{ decUint8, 6, 0, 0, ovfl };
-		state := newdecodeState(unsignedResult);
+		state := newDecodeStateFromData(unsignedResult);
 		execDec("uint8", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("uint8 a = %v not 17", data.a)
@@ -408,7 +406,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a int16 };
 		instr := &decInstr{ decInt16, 6, 0, 0, ovfl };
-		state := newdecodeState(signedResult);
+		state := newDecodeStateFromData(signedResult);
 		execDec("int16", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("int16 a = %v not 17", data.a)
@@ -419,7 +417,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a uint16 };
 		instr := &decInstr{ decUint16, 6, 0, 0, ovfl };
-		state := newdecodeState(unsignedResult);
+		state := newDecodeStateFromData(unsignedResult);
 		execDec("uint16", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("uint16 a = %v not 17", data.a)
@@ -430,7 +428,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a int32 };
 		instr := &decInstr{ decInt32, 6, 0, 0, ovfl };
-		state := newdecodeState(signedResult);
+		state := newDecodeStateFromData(signedResult);
 		execDec("int32", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("int32 a = %v not 17", data.a)
@@ -441,7 +439,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a uint32 };
 		instr := &decInstr{ decUint32, 6, 0, 0, ovfl };
-		state := newdecodeState(unsignedResult);
+		state := newDecodeStateFromData(unsignedResult);
 		execDec("uint32", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("uint32 a = %v not 17", data.a)
@@ -452,7 +450,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a uintptr };
 		instr := &decInstr{ decOpMap[valueKind(data.a)], 6, 0, 0, ovfl };
-		state := newdecodeState(unsignedResult);
+		state := newDecodeStateFromData(unsignedResult);
 		execDec("uintptr", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("uintptr a = %v not 17", data.a)
@@ -463,7 +461,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a int64 };
 		instr := &decInstr{ decInt64, 6, 0, 0, ovfl };
-		state := newdecodeState(signedResult);
+		state := newDecodeStateFromData(signedResult);
 		execDec("int64", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("int64 a = %v not 17", data.a)
@@ -474,7 +472,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a uint64 };
 		instr := &decInstr{ decUint64, 6, 0, 0, ovfl };
-		state := newdecodeState(unsignedResult);
+		state := newDecodeStateFromData(unsignedResult);
 		execDec("uint64", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("uint64 a = %v not 17", data.a)
@@ -485,7 +483,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a float };
 		instr := &decInstr{ decOpMap[valueKind(data.a)], 6, 0, 0, ovfl };
-		state := newdecodeState(floatResult);
+		state := newDecodeStateFromData(floatResult);
 		execDec("float", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("float a = %v not 17", data.a)
@@ -496,7 +494,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a float32 };
 		instr := &decInstr{ decFloat32, 6, 0, 0, ovfl };
-		state := newdecodeState(floatResult);
+		state := newDecodeStateFromData(floatResult);
 		execDec("float32", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("float32 a = %v not 17", data.a)
@@ -507,7 +505,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a float64 };
 		instr := &decInstr{ decFloat64, 6, 0, 0, ovfl };
-		state := newdecodeState(floatResult);
+		state := newDecodeStateFromData(floatResult);
 		execDec("float64", instr, state, t, unsafe.Pointer(&data));
 		if data.a != 17 {
 			t.Errorf("float64 a = %v not 17", data.a)
@@ -518,7 +516,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a []byte };
 		instr := &decInstr{ decUint8Array, 6, 0, 0, ovfl };
-		state := newdecodeState(bytesResult);
+		state := newDecodeStateFromData(bytesResult);
 		execDec("bytes", instr, state, t, unsafe.Pointer(&data));
 		if string(data.a) != "hello" {
 			t.Errorf(`bytes a = %q not "hello"`, string(data.a))
@@ -529,7 +527,7 @@ func TestScalarDecInstructions(t *testing.T) {
 	{
 		var data struct { a string };
 		instr := &decInstr{ decString, 6, 0, 0, ovfl };
-		state := newdecodeState(bytesResult);
+		state := newDecodeStateFromData(bytesResult);
 		execDec("bytes", instr, state, t, unsafe.Pointer(&data));
 		if data.a != "hello" {
 			t.Errorf(`bytes a = %q not "hello"`, data.a)
