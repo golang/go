@@ -36,15 +36,17 @@ O1=\
 	type.$O\
 
 O2=\
-	decode.$O\
 	encode.$O\
 
 O3=\
-	decoder.$O\
+	decode.$O\
 	encoder.$O\
 
+O4=\
+	decoder.$O\
 
-phases: a1 a2 a3
+
+phases: a1 a2 a3 a4
 _obj$D/gob.a: phases
 
 a1: $(O1)
@@ -52,12 +54,16 @@ a1: $(O1)
 	rm -f $(O1)
 
 a2: $(O2)
-	$(AR) grc _obj$D/gob.a decode.$O encode.$O
+	$(AR) grc _obj$D/gob.a encode.$O
 	rm -f $(O2)
 
 a3: $(O3)
-	$(AR) grc _obj$D/gob.a decoder.$O encoder.$O
+	$(AR) grc _obj$D/gob.a decode.$O encoder.$O
 	rm -f $(O3)
+
+a4: $(O4)
+	$(AR) grc _obj$D/gob.a decoder.$O
+	rm -f $(O4)
 
 
 newpkg: clean
@@ -68,6 +74,7 @@ $(O1): newpkg
 $(O2): a1
 $(O3): a2
 $(O4): a3
+$(O5): a4
 
 nuke: clean
 	rm -f $(GOROOT)/pkg/$(GOOS)_$(GOARCH)$D/gob.a

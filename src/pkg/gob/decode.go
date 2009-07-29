@@ -18,6 +18,7 @@ import (
 )
 
 var (
+	errBadUint = os.ErrorString("gob: encoded unsigned integer out of range");
 	errRange = os.ErrorString("gob: internal error: field numbers out of bounds");
 	errNotStruct = os.ErrorString("gob: TODO: can only handle structs")
 )
@@ -27,6 +28,14 @@ type decodeState struct {
 	b	*bytes.Buffer;
 	err	os.Error;
 	fieldnum	int;	// the last field number read.
+	buf	[]byte;
+}
+
+func newDecodeState(b *bytes.Buffer) *decodeState {
+	d := new(decodeState);
+	d.b = b;
+	d.buf = make([]byte, uint64Size);
+	return d;
 }
 
 func overflow(name string) os.ErrorString {
@@ -35,21 +44,34 @@ func overflow(name string) os.ErrorString {
 
 // decodeUintReader reads an encoded unsigned integer from an io.Reader.
 // Used only by the Decoder to read the message length.
-func decodeUintReader(r io.Reader, oneByte []byte) (x uint64, err os.Error) {
-	for shift := uint(0);; shift += 7 {
-		var n int;
-		n, err = r.Read(oneByte);
-		if err != nil {
-			return 0, err
-		}
-		b := oneByte[0];
-		x |= uint64(b) << shift;
-		if b&0x80 != 0 {
-			x &^= 0x80 << shift;
-			break
-		}
+func decodeUintReader(r io.Reader, buf []byte) (x uint64, err os.Error) {
+	n1, err := r.Read(buf[0:1]);
+	if err != nil {
+		return
 	}
-	return x, nil;
+	b := buf[0];
+	if b <= 0x7f {
+		return uint64(b), nil
+	}
+	nb := -int(int8(b));
+	if nb > uint64Size {
+		err = errBadUint;
+		return;
+	}
+	var n int;
+	n, err = io.ReadFull(r, buf[0:nb]);
+	if err != nil {
+		if err == os.EOF {
+			err = io.ErrUnexpectedEOF
+		}
+		return
+	}
+	// Could check that the high byte is zero but it's not worth it.
+	for i := 0; i < n; i++ {
+		x <<= 8;
+		x |= uint64(buf[i]);
+	}
+	return
 }
 
 // decodeUint reads an encoded unsigned integer from state.r.
@@ -59,17 +81,23 @@ func decodeUint(state *decodeState) (x uint64) {
 	if state.err != nil {
 		return
 	}
-	for shift := uint(0);; shift += 7 {
-		var b uint8;
-		b, state.err = state.b.ReadByte();
-		if state.err != nil {
-			return 0
-		}
-		x |= uint64(b) << shift;
-		if b&0x80 != 0 {
-			x &^= 0x80 << shift;
-			break
-		}
+	var b uint8;
+	b, state.err = state.b.ReadByte();
+	if b <= 0x7f {	// includes state.err != nil
+		return uint64(b)
+	}
+	nb := -int(int8(b));
+	if nb > uint64Size {
+		state.err = errBadUint;
+		return;
+	}
+	var n int;
+	n, state.err = state.b.Read(state.buf[0:nb]);
+	// Don't need to check error; it's safe to loop regardless.
+	// Could check that the high byte is zero but it's not worth it.
+	for i := 0; i < n; i++ {
+		x <<= 8;
+		x |= uint64(state.buf[i]);
 	}
 	return x;
 }
@@ -338,8 +366,7 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer, 
 		}
 		p = *(*uintptr)(up);
 	}
-	state := new(decodeState);
-	state.b = b;
+	state := newDecodeState(b);
 	state.fieldnum = -1;
 	basep := p;
 	for state.err == nil {
@@ -368,8 +395,7 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer, 
 }
 
 func ignoreStruct(engine *decEngine, b *bytes.Buffer) os.Error {
-	state := new(decodeState);
-	state.b = b;
+	state := newDecodeState(b);
 	state.fieldnum = -1;
 	for state.err == nil {
 		delta := int(decodeUint(state));

@@ -50,8 +50,7 @@ func TestBasicEncoder(t *testing.T) {
 	}
 
 	// Decode the result by hand to verify;
-	state := new(decodeState);
-	state.b = b;
+	state := newDecodeState(b);
 	// The output should be:
 	// 0) The length, 38.
 	length := decodeUint(state);

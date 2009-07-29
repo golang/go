@@ -30,7 +30,7 @@ func NewDecoder(r io.Reader) *Decoder {
 	dec := new(Decoder);
 	dec.r = r;
 	dec.seen = make(map[typeId] *wireType);
-	dec.state = new(decodeState);	// buffer set in Decode(); rest is unimportant
+	dec.state = newDecodeState(nil);	// buffer set in Decode(); rest is unimportant
 	dec.oneByte = make([]byte, 1);
 
 	return dec;
