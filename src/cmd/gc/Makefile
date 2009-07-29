@@ -34,6 +34,7 @@ OFILES=\
 	align.$O\
 	gen.$O\
 	obj.$O\
+	print.$O\
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)

@@ -732,6 +732,65 @@ opnames[] =
 	[OXXX]		= "XXX",
 };
 
+static char*
+goopnames[] =
+{
+	[OADDR]		= "&",
+	[OADD]		= "+",
+	[OANDAND]	= "&&",
+	[OANDNOT]	= "&^",
+	[OAND]		= "&",
+	[OAS]		= "=",
+	[OAS2]		= "=",
+	[OBREAK]	= "break",
+	[OCAP]		= "cap",
+	[OCASE]		= "case",
+	[OCLOSED]	= "closed",
+	[OCLOSE]	= "close",
+	[OCOM]		= "^",
+	[OCONTINUE]	= "continue",
+	[ODEC]		= "--",
+	[ODEFER]	= "defer",
+	[ODIV]		= "/",
+	[OEQ]		= "==",
+	[OFALL]		= "fallthrough",
+	[OFOR]		= "for",
+	[OFUNC]		= "func",
+	[OGE]		= ">=",
+	[OGOTO]		= "goto",
+	[OGT]		= ">",
+	[OIF]		= "if",
+	[OINC]		= "++",
+	[OIND]		= "*",
+	[OLEN]		= "len",
+	[OLE]		= "<=",
+	[OLSH]		= "<<",
+	[OLT]		= "<",
+	[OMAKE]		= "make",
+	[OMINUS]	= "-",
+	[OMOD]		= "%",
+	[OMUL]		= "*",
+	[ONEW]		= "new",
+	[ONE]		= "!=",
+	[ONOT]		= "!",
+	[OOROR]		= "||",
+	[OOR]		= "|",
+	[OPANICN]	= "panicln",
+	[OPANIC]	= "panic",
+	[OPLUS]		= "+",
+	[OPRINTN]	= "println",
+	[OPRINT]	= "print",
+	[ORANGE]	= "range",
+	[ORECV]		= "<-",
+	[ORETURN]	= "return",
+	[ORSH]		= ">>",
+	[OSELECT]	= "select",
+	[OSEND]		= "<-",
+	[OSUB]		= "-",
+	[OSWITCH]	= "switch",
+	[OXOR]		= "^",
+};
+
 int
 Oconv(Fmt *fp)
 {
@@ -739,6 +798,8 @@ Oconv(Fmt *fp)
 	int o;
 
 	o = va_arg(fp->args, int);
+	if((fp->flags & FmtSharp) && o >= 0 && o < nelem(goopnames) && goopnames[o] != nil)
+		return fmtstrcpy(fp, goopnames[o]);
 	if(o < 0 || o >= nelem(opnames) || opnames[o] == nil) {
 		snprint(buf, sizeof(buf), "O-%d", o);
 		return fmtstrcpy(fp, buf);
@@ -1261,6 +1322,11 @@ Nconv(Fmt *fp)
 	n = va_arg(fp->args, Node*);
 	if(n == N) {
 		fmtprint(fp, "<N>");
+		goto out;
+	}
+	
+	if(fp->flags & FmtSharp) {
+		exprfmt(fp, n, 0);
 		goto out;
 	}
 
