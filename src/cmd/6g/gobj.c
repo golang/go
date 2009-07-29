@@ -97,6 +97,8 @@ zaddr(Biobuf *b, Addr *a, int s)
 	switch(a->type) {
 
 	case D_BRANCH:
+		if(a->branch == nil)
+			fatal("unpatched branch");
 		a->offset = a->branch->loc;
 
 	default:

@@ -162,7 +162,14 @@ gen(Node *n)
 	case OFALL:
 	case OXCASE:
 	case OXFALL:
+		break;
+
 	case OEMPTY:
+		// insert no-op so that
+		//	L:; for { }
+		// does not treat L as a label for the loop.
+		if(labellist && labellist->label == p3)
+			gused(N);
 		break;
 
 	case OBLOCK:
@@ -181,9 +188,11 @@ gen(Node *n)
 	case OBREAK:
 		if(n->left != N) {
 			for(lab=labellist; lab!=L; lab=lab->link) {
-				if(lab->breakpc != P) {
+				if(lab->sym == n->left->sym) {
+					if(lab->breakpc == P)
+						yyerror("invalid break label %S", n->left->sym);
 					gjmp(lab->breakpc);
-					break;
+					goto donebreak;
 				}
 			}
 			if(lab == L)
@@ -195,26 +204,30 @@ gen(Node *n)
 			break;
 		}
 		gjmp(breakpc);
+	donebreak:
 		break;
 
 	case OCONTINUE:
 		if(n->left != N) {
 			for(lab=labellist; lab!=L; lab=lab->link) {
-				if(lab->continpc != P) {
+				if(lab->sym == n->left->sym) {
+					if(lab->continpc == P)
+						yyerror("invalid continue label %S", n->left->sym);
 					gjmp(lab->continpc);
-					break;
+					goto donecont;
 				}
 			}
 			if(lab == L)
-				yyerror("break label not defined: %S", n->left->sym);
+				yyerror("continue label not defined: %S", n->left->sym);
 			break;
 		}
 
 		if(continpc == P) {
-			yyerror("gen: continue is not in a loop");
+			yyerror("continue is not in a loop");
 			break;
 		}
 		gjmp(continpc);
+	donecont:
 		break;
 
 	case OFOR:
@@ -224,14 +237,10 @@ gen(Node *n)
 		scontin = continpc;
 		continpc = pc;
 
-		// define break and cotinue labels
-		for(lab=labellist; lab!=L; lab=lab->link) {
-			if(lab->label != p3)
-				break;
-			if(lab->op == OLABEL) {
-				lab->breakpc = breakpc;
-				lab->continpc = continpc;
-			}
+		// define break and continue labels
+		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL) {
+			lab->breakpc = breakpc;
+			lab->continpc = continpc;
 		}
 
 		gen(n->nincr);				// contin:	incr
@@ -268,13 +277,8 @@ gen(Node *n)
 		breakpc = gjmp(P);		// break:	goto done
 
 		// define break label
-		for(lab=labellist; lab!=L; lab=lab->link) {
-			if(lab->label != p3)
-				break;
-			if(lab->op == OLABEL) {
-				lab->breakpc = breakpc;
-			}
-		}
+		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL)
+			lab->breakpc = breakpc;
 
 		patch(p1, pc);				// test:
 		genlist(n->nbody);				//		switch(test) body
@@ -288,13 +292,8 @@ gen(Node *n)
 		breakpc = gjmp(P);		// break:	goto done
 
 		// define break label
-		for(lab=labellist; lab!=L; lab=lab->link) {
-			if(lab->label != p3)
-				break;
-			if(lab->op == OLABEL) {
-				lab->breakpc = breakpc;
-			}
-		}
+		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL)
+			lab->breakpc = breakpc;
 
 		patch(p1, pc);				// test:
 		genlist(n->nbody);				//		select() body
