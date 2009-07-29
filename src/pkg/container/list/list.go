@@ -11,6 +11,9 @@ type Element struct {
 	// The front of the list has prev = nil, and the back has next = nil.
 	next, prev *Element;
 
+	// A unique ID for the list to which this element belongs.
+	id *byte;
+
 	// The contents of this list element.
 	Value interface {};
 }
@@ -19,6 +22,7 @@ type Element struct {
 type List struct {
 	front, back *Element;
 	len int;
+	id *byte;
 }
 
 // Init initializes or clears a List.
@@ -26,6 +30,7 @@ func (l *List) Init() *List {
 	l.front = nil;
 	l.back = nil;
 	l.len = 0;
+	l.id = new(byte);
 	return l
 }
 
@@ -46,6 +51,9 @@ func (l *List) Back() *Element {
 
 // Remove removes the element from the list.
 func (l *List) Remove(e *Element) {
+	if e.id != l.id {
+		return
+	}
 	if e.prev == nil {
 		l.front = e.next;
 	} else {
@@ -88,21 +96,27 @@ func (l *List) insertBack(e *Element) {
 
 // PushFront inserts the value at the front of the list, and returns a new Element containing it.
 func (l *List) PushFront(value interface {}) *Element {
-	e := &Element{ nil, nil, value };
+	if l.id == nil {
+		l.Init();
+	}
+	e := &Element{ nil, nil, l.id, value };
 	l.insertFront(e);
 	return e
 }
 
 // PushBack inserts the value at the back of the list, and returns a new Element containing it.
 func (l *List) PushBack(value interface {}) *Element {
-	e := &Element{ nil, nil, value };
+	if l.id == nil {
+		l.Init();
+	}
+	e := &Element{ nil, nil, l.id, value };
 	l.insertBack(e);
 	return e
 }
 
 // MoveToFront moves the element to the front of the list.
 func (l *List) MoveToFront(e *Element) {
-	if l.front == e {
+	if e.id != l.id || l.front == e {
 		return
 	}
 	l.Remove(e);
@@ -111,7 +125,7 @@ func (l *List) MoveToFront(e *Element) {
 
 // MoveToBack moves the element to the back of the list.
 func (l *List) MoveToBack(e *Element) {
-	if l.back == e {
+	if e.id != l.id || l.back == e {
 		return
 	}
 	l.Remove(e);
