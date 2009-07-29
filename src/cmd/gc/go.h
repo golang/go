@@ -816,6 +816,7 @@ int	Oconv(Fmt*);
 int	Sconv(Fmt*);
 int	Tconv(Fmt*);
 int	Nconv(Fmt*);
+void	exprfmt(Fmt*, Node*, int);
 int	Wconv(Fmt*);
 int	Zconv(Fmt*);
 
