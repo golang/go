@@ -1,4 +1,6 @@
 
+== ./
+
 =========== ./cmp2.go
 comparing uncomparable type []int
 throw: interface compare
@@ -49,6 +51,8 @@ survived SIGCHLD
 =========== ./turing.go
 Hello World!
 
+== ken/
+
 =========== ken/intervar.go
  print 1 bio 2 file 3 -- abc
 
@@ -70,8 +74,12 @@ hello world
 =========== ken/string.go
 abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
 
+== chan/
+
 =========== chan/nonblock.go
 PASS
+
+== interface/
 
 =========== interface/fail.go
 *main.S is not main.I: missing method Foo
@@ -85,19 +93,7 @@ throw: interface conversion
 
 panic PC=xxx
 
-=========== bugs/bug132.go
-BUG: compilation succeeds incorrectly
-
-=========== bugs/bug159.go
-abc: expected 4 5 6 got 4 4 -4
-BUG: bug159
-
-=========== bugs/bug162.go
-123
-BUG: should fail
-
-=========== bugs/bug169.go
-BUG: errchk: command succeeded unexpectedly
+== fixedbugs/
 
 =========== fixedbugs/bug016.go
 fixedbugs/bug016.go:7: constant -3 overflows uint
@@ -233,3 +229,19 @@ interface is main.T, not main.T·bug148·1
 throw: interface conversion
 
 panic PC=xxx
+
+== bugs/
+
+=========== bugs/bug132.go
+BUG: compilation succeeds incorrectly
+
+=========== bugs/bug159.go
+abc: expected 4 5 6 got 4 4 -4
+BUG: bug159
+
+=========== bugs/bug162.go
+123
+BUG: should fail
+
+=========== bugs/bug169.go
+BUG: errchk: command succeeded unexpectedly
