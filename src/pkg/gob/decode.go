@@ -666,7 +666,7 @@ func compileDec(wireId typeId, rt reflect.Type) (engine *decEngine, err os.Error
 		localField, present := srt.FieldByName(wireField.name);
 		ovfl := overflow(wireField.name);
 		// TODO(r): anonymous names
-		if !present || localField.Anonymous {
+		if !present {
 			op, err := decIgnoreOpFor(wireField.id);
 			if err != nil {
 				return nil, err

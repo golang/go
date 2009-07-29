@@ -477,7 +477,11 @@ func (t *StructType) Field(i int) (f StructField) {
 	if p.name != nil {
 		f.Name = *p.name;
 	} else {
-		f.Name = f.Type.Name();
+		t := f.Type;
+		if pt, ok := t.(*PtrType); ok {
+			t = pt.Elem();
+		}
+		f.Name = t.Name();
 		f.Anonymous = true;
 	}
 	if p.pkgPath != nil {
@@ -487,28 +491,20 @@ func (t *StructType) Field(i int) (f StructField) {
 		f.Tag = *p.tag;
 	}
 	f.Offset = p.offset;
+	f.Index = i;
 	return;
 }
 
 // FieldByName returns the field with the provided name and a boolean to indicate
-// that the field was found..
+// that the field was found.
 func (t *StructType) FieldByName(name string) (f StructField, present bool) {
 	for i, p := range t.fields {
-		if p.name == nil || *p.name != name {
-			continue;
+		ff := t.Field(i);
+		if ff.Name == name {
+			f = ff;
+			present = true;
+			break;
 		}
-		f.Name = *p.name;
-		f.Type = toType(*p.typ);
-		if p.pkgPath != nil {
-			f.PkgPath = *p.pkgPath;
-		}
-		if p.tag != nil {
-			f.Tag = *p.tag;
-		}
-		f.Offset = p.offset;
-		f.Index = i;
-		present = true;
-		break;
 	}
 	return;
 }

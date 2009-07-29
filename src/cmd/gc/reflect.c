@@ -627,7 +627,7 @@ ok:
 		ot = duint32(s, ot, n);
 		for(t1=t->type; t1!=T; t1=t1->down) {
 			// ../../pkg/runtime/type.go:/structField
-			if(t1->sym) {
+			if(t1->sym && !t1->embedded) {
 				ot = dgostringptr(s, ot, t1->sym->name);
 				if(exportname(t1->sym->name))
 					ot = dgostringptr(s, ot, nil);
