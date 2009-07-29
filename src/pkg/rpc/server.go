@@ -69,7 +69,7 @@
 
 		arith := new(Arith);
 		rpc.Register(arith);
-		rrpc.HandleHTTP();
+		rpc.HandleHTTP();
 		l, e := net.Listen("tcp", ":1234");
 		if e != nil {
 			log.Exit("listen error:", e);
