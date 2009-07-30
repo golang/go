@@ -178,7 +178,7 @@ func (b *block) enterChild() *block
 func (b *block) exit()
 func (b *block) ChildScope() *Scope
 func (b *block) DefineVar(name string, t Type) *Variable
-func (b *block) DefineTemp(t Type) *Variable
+func (b *block) DefineSlot(t Type) *Variable
 func (b *block) DefineConst(name string, t Type, v Value) *Constant
 func (b *block) DefineType(name string, t Type) Type
 func (b *block) Lookup(name string) (level int, def Def)

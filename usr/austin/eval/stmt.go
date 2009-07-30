@@ -15,6 +15,11 @@ import (
 	"strconv";
 )
 
+const (
+	returnPC = ^uint(0);
+	badPC = ^uint(1);
+)
+
 /*
  * Statement compiler
  */
@@ -22,6 +27,8 @@ import (
 type stmtCompiler struct {
 	*blockCompiler;
 	pos token.Position;
+	// This statement's label, or nil if it is not labeled.
+	stmtLabel *label;
 	// err should be initialized to true before visiting and set
 	// to false when the statement is compiled successfully.  The
 	// function invoking Visit should or this with
@@ -32,6 +39,183 @@ type stmtCompiler struct {
 
 func (a *stmtCompiler) diag(format string, args ...) {
 	a.diagAt(&a.pos, format, args);
+}
+
+/*
+ * Flow checker
+ */
+
+type flowEnt struct {
+	// Whether this flow entry is conditional.  If true, flow can
+	// continue to the next PC.
+	cond bool;
+	// True if this will terminate flow (e.g., a return statement).
+	// cond must be false and jumps must be nil if this is true.
+	term bool;
+	// PC's that can be reached from this flow entry.
+	jumps []*uint;
+	// Whether this flow entry has been visited by reachesEnd.
+	visited bool;
+}
+
+type flowBlock struct {
+	// If this is a goto, the target label.
+	target string;
+	// The inner-most block containing definitions.
+	block *block;
+	// The numVars from each block leading to the root of the
+	// scope, starting at block.
+	numVars []int;
+}
+
+type flowBuf struct {
+	cb *codeBuf;
+	// ents is a map from PC's to flow entries.  Any PC missing
+	// from this map is assumed to reach only PC+1.
+	ents map[uint] *flowEnt;
+	// gotos is a map from goto positions to information on the
+	// block at the point of the goto.
+	gotos map[*token.Position] *flowBlock;
+	// labels is a map from label name to information on the block
+	// at the point of the label.  labels are tracked by name,
+	// since mutliple labels at the same PC can have different
+	// blocks.
+	labels map[string] *flowBlock;
+}
+
+func newFlowBuf(cb *codeBuf) *flowBuf {
+	return &flowBuf{cb, make(map[uint] *flowEnt), make(map[*token.Position] *flowBlock), make(map[string] *flowBlock)};
+}
+
+// put creates a flow control point for the next PC in the code buffer.
+// This should be done before pushing the instruction into the code buffer.
+func (f *flowBuf) put(cond bool, term bool, jumps []*uint) {
+	pc := f.cb.nextPC();
+	if ent, ok := f.ents[pc]; ok {
+		log.Crashf("Flow entry already exists at PC %d: %+v", pc, ent);
+	}
+	f.ents[pc] = &flowEnt{cond, term, jumps, false};
+}
+
+// putTerm creates a flow control point at the next PC that
+// unconditionally terminates execution.
+func (f *flowBuf) putTerm() {
+	f.put(false, true, nil);
+}
+
+// put1 creates a flow control point at the next PC that jumps to one
+// PC and, if cond is true, can also continue to the PC following the
+// next PC.
+func (f *flowBuf) put1(cond bool, jumpPC *uint) {
+	f.put(cond, false, []*uint {jumpPC});
+}
+
+func newFlowBlock(target string, b *block) *flowBlock {
+	// Find the inner-most block containing definitions
+	for b.numVars == 0 && b.outer != nil && b.outer.scope == b.scope {
+		b = b.outer;
+	}
+
+	// Count parents leading to the root of the scope
+	n := 0;
+	for bp := b; bp.scope == b.scope; bp = bp.outer {
+		n++;
+	}
+
+	// Capture numVars from each block to the root of the scope
+	numVars := make([]int, n);
+	i := 0;
+	for bp := b; i < n; bp = bp.outer {
+		numVars[i] = bp.numVars;
+		i++;
+	}
+
+	return &flowBlock{target, b, numVars};
+}
+
+// putGoto captures the block at a goto statement.  This should be
+// called in addition to putting a flow control point.
+func (f *flowBuf) putGoto(pos token.Position, target string, b *block) {
+	f.gotos[&pos] = newFlowBlock(target, b);
+}
+
+// putLabel captures the block at a label.
+func (f *flowBuf) putLabel(name string, b *block) {
+	f.labels[name] = newFlowBlock("", b);
+}
+
+// reachesEnd returns true if the end of f's code buffer can be
+// reached from the given program counter.  Error reporting is the
+// caller's responsibility.
+func (f *flowBuf) reachesEnd(pc uint) bool {
+	endPC := f.cb.nextPC();
+	if pc > endPC {
+		log.Crashf("Reached bad PC %d past end PC %d", pc, endPC);
+	}
+
+	for ; pc < endPC; pc++ {
+		ent, ok := f.ents[pc];
+		if !ok {
+			continue;
+		}
+
+		if ent.visited {
+			return false;
+		}
+		ent.visited = true;
+
+		if ent.term {
+			return false;
+		}
+
+		// If anything can reach the end, we can reach the end
+		// from pc.
+		for _, j := range ent.jumps {
+			if f.reachesEnd(*j) {
+				return true;
+			}
+		}
+		// If the jump was conditional, we can reach the next
+		// PC, so try reaching the end from it.
+		if ent.cond {
+			continue;
+		}
+		return false;
+	}
+	return true;
+}
+
+// gotosObeyScopes returns true if no goto statement causes any
+// variables to come into scope that were not in scope at the point of
+// the goto.  Reports any errors using the given compiler.
+func (f *flowBuf) gotosObeyScopes(a *compiler) bool {
+	for pos, src := range f.gotos {
+		tgt := f.labels[src.target];
+
+		// The target block must be a parent of this block
+		numVars := src.numVars;
+		b := src.block;
+		for len(numVars) > 0 && b != tgt.block {
+			b = b.outer;
+			numVars = numVars[1:len(numVars)];
+		}
+		if b != tgt.block {
+			// We jumped into a deeper block
+			a.diagAt(pos, "goto causes variables to come into scope");
+			return false;
+		}
+
+		// There must be no variables in the target block that
+		// did not exist at the jump
+		tgtNumVars := tgt.numVars;
+		for i := range numVars {
+			if tgtNumVars[i] > numVars[i] {
+				a.diagAt(pos, "goto causes variables to come into scope");
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 /*
@@ -51,7 +235,36 @@ func (a *stmtCompiler) DoEmptyStmt(s *ast.EmptyStmt) {
 }
 
 func (a *stmtCompiler) DoLabeledStmt(s *ast.LabeledStmt) {
-	log.Crash("Not implemented");
+	bad := false;
+
+	// Define label
+	l, ok := a.labels[s.Label.Value];
+	if ok {
+		if l.resolved.IsValid() {
+			a.diag("label %s redefined; previous definition at line %d", s.Label.Value, l.resolved.Line);
+			bad = true;
+		}
+	} else {
+		pc := badPC;
+		l = &label{name: s.Label.Value, gotoPC: &pc};
+		a.labels[l.name] = l;
+	}
+	l.desc = "regular label";
+	l.resolved = s.Pos();
+
+	// Set goto PC
+	*l.gotoPC = a.nextPC();
+
+	// Define flow entry so we can check for jumps over declarations.
+	a.flow.putLabel(l.name, a.block);
+
+	// Compile the statement.  Reuse our stmtCompiler for simplicity.
+	a.pos = s.Stmt.Pos();
+	a.stmtLabel = l;
+	s.Stmt.Visit(a);
+	if bad {
+		a.err = true;
+	}
 }
 
 func (a *stmtCompiler) DoExprStmt(s *ast.ExprStmt) {
@@ -73,7 +286,11 @@ func (a *stmtCompiler) DoExprStmt(s *ast.ExprStmt) {
 }
 
 func (a *stmtCompiler) DoIncDecStmt(s *ast.IncDecStmt) {
-	l := a.compileExpr(a.block, s.X, false);
+	// Create temporary block for extractEffect
+	bc := a.enterChild();
+	defer bc.exit();
+
+	l := a.compileExpr(bc.block, s.X, false);
 	if l == nil {
 		return;
 	}
@@ -330,8 +547,12 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 		return;
 	}
 
-	l := a.compileExpr(a.block, s.Lhs[0], false);
-	r := a.compileExpr(a.block, s.Rhs[0], false);
+	// Create temporary block for extractEffect
+	bc := a.enterChild();
+	defer bc.exit();
+
+	l := a.compileExpr(bc.block, s.Lhs[0], false);
+	r := a.compileExpr(bc.block, s.Rhs[0], false);
 	if l == nil || r == nil {
 		return;
 	}
@@ -387,13 +608,10 @@ func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
 		return;
 	}
 
-	// Supress return errors even if we fail to compile this
-	// return statement.
-	a.returned = true;
-
 	if len(s.Results) == 0 && (len(a.fnType.Out) == 0 || a.outVarsNamed) {
 		// Simple case.  Simply exit from the function.
-		a.push(func(v *vm) { v.pc = ^uint(0) });
+		a.flow.putTerm();
+		a.push(func(v *vm) { v.pc = returnPC });
 		a.err = false;
 		return;
 	}
@@ -429,49 +647,68 @@ func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
 	// Compile
 	start := len(a.fnType.In);
 	nout := len(a.fnType.Out);
+	a.flow.putTerm();
 	a.push(func(v *vm) {
 		assign(multiV(v.f.Vars[start:start+nout]), v.f);
-		v.pc = ^uint(0);
+		v.pc = returnPC;
 	});
 	a.err = false;
 }
 
+func (a *stmtCompiler) findLexicalLabel(name *ast.Ident, pred func(*label) bool, errOp, errCtx string) *label {
+	bc := a.blockCompiler;
+	for ; bc != nil; bc = bc.parent {
+		if bc.label == nil {
+			continue;
+		}
+		l := bc.label;
+		if name == nil && pred(l) {
+			return l;
+		}
+		if name != nil && l.name == name.Value {
+			if !pred(l) {
+				a.diag("cannot %s to %s %s", errOp, l.desc, l.name);
+				return nil;
+			}
+			return l;
+		}
+	}
+	if name == nil {
+		a.diag("%s outside %s", errOp, errCtx);
+	} else {
+		a.diag("%s label %s not defined", errOp, name.Value);
+	}
+	return nil;
+}
+
 func (a *stmtCompiler) DoBranchStmt(s *ast.BranchStmt) {
+	var pc *uint;
+
 	switch s.Tok {
 	case token.BREAK:
-		if s.Label != nil {
-			log.Crash("break with label not implemented");
+		l := a.findLexicalLabel(s.Label, func(l *label) bool { return l.breakPC != nil }, "break", "for loop, switch, or select");
+		if l == nil {
+			return;
 		}
-
-		bc := a.blockCompiler;
-		for ; bc != nil; bc = bc.parent {
-			if bc.breakPC != nil {
-				pc := bc.breakPC;
-				a.push(func(v *vm) { v.pc = *pc });
-				a.err = false;
-				return;
-			}
-		}
-		a.diag("break outside for loop, switch, or select");
+		pc = l.breakPC;
 
 	case token.CONTINUE:
-		if s.Label != nil {
-			log.Crash("continue with label not implemented");
+		l := a.findLexicalLabel(s.Label, func(l *label) bool { return l.continuePC != nil }, "continue", "for loop");
+		if l == nil {
+			return;
 		}
-
-		bc := a.blockCompiler;
-		for ; bc != nil; bc = bc.parent {
-			if bc.continuePC != nil {
-				pc := bc.continuePC;
-				a.push(func(v *vm) { v.pc = *pc });
-				a.err = false;
-				return;
-			}
-		}
-		a.diag("continue outside for loop");
+		pc = l.continuePC;
 
 	case token.GOTO:
-		log.Crash("goto not implemented");
+		l, ok := a.labels[s.Label.Value];
+		if !ok {
+			pc := badPC;
+			l = &label{name: s.Label.Value, desc: "unresolved label", gotoPC: &pc, used: s.Pos()};
+			a.labels[l.name] = l;
+		}
+
+		pc = l.gotoPC;
+		a.flow.putGoto(s.Pos(), l.name, a.block);
 
 	case token.FALLTHROUGH:
 		log.Crash("fallthrough not implemented");
@@ -479,6 +716,10 @@ func (a *stmtCompiler) DoBranchStmt(s *ast.BranchStmt) {
 	default:
 		log.Crash("Unexpected branch token %v", s.Tok);
 	}
+
+	a.flow.put1(false, pc);
+	a.push(func(v *vm) { v.pc = *pc });
+	a.err = false;
 }
 
 func (a *stmtCompiler) DoBlockStmt(s *ast.BlockStmt) {
@@ -486,7 +727,6 @@ func (a *stmtCompiler) DoBlockStmt(s *ast.BlockStmt) {
 	bc.compileStmts(s);
 	bc.exit();
 
-	a.returned = a.returned || bc.returned;
 	a.err = false;
 }
 
@@ -509,7 +749,8 @@ func (a *stmtCompiler) DoIfStmt(s *ast.IfStmt) {
 		bc.compileStmt(s.Init);
 	}
 
-	var elsePC, endPC uint;
+	elsePC := badPC;
+	endPC := badPC;
 
 	// Compile condition, if any.  If there is no condition, we
 	// fall through to the body.
@@ -524,6 +765,7 @@ func (a *stmtCompiler) DoIfStmt(s *ast.IfStmt) {
 			bad = true;
 		default:
 			eval := e.asBool();
+			a.flow.put1(true, &elsePC);
 			a.push(func(v *vm) {
 				if !eval(v.f) {
 					v.pc = elsePC;
@@ -540,15 +782,12 @@ func (a *stmtCompiler) DoIfStmt(s *ast.IfStmt) {
 	// Compile else
 	if s.Else != nil {
 		// Skip over else if we executed the body
+		a.flow.put1(false, &endPC);
 		a.push(func(v *vm) {
 			v.pc = endPC;
 		});
 		elsePC = a.nextPC();
 		bc.compileStmt(s.Else);
-
-		if body.returned && bc.returned {
-			a.returned = true;
-		}
 	} else {
 		elsePC = a.nextPC();
 	}
@@ -593,17 +832,27 @@ func (a *stmtCompiler) DoForStmt(s *ast.ForStmt) {
 		bc.compileStmt(s.Init);
 	}
 
-	var bodyPC, postPC, checkPC, endPC uint;
+	bodyPC := badPC;
+	postPC := badPC;
+	checkPC := badPC;
+	endPC := badPC;
 
 	// Jump to condition check.  We generate slightly less code by
 	// placing the condition check after the body.
+	a.flow.put1(false, &checkPC);
 	a.push(func(v *vm) { v.pc = checkPC });
 
 	// Compile body
 	bodyPC = a.nextPC();
 	body := bc.enterChild();
-	body.breakPC = &endPC;
-	body.continuePC = &postPC;
+	if a.stmtLabel != nil {
+		body.label = a.stmtLabel;
+	} else {
+		body.label = &label{resolved: s.Pos()};
+	}
+	body.label.desc = "for loop";
+	body.label.breakPC = &endPC;
+	body.label.continuePC = &postPC;
 	body.compileStmts(s.Body);
 	body.exit();
 
@@ -620,6 +869,7 @@ func (a *stmtCompiler) DoForStmt(s *ast.ForStmt) {
 	checkPC = a.nextPC();
 	if s.Cond == nil {
 		// If the condition is absent, it is equivalent to true.
+		a.flow.put1(false, &bodyPC);
 		a.push(func(v *vm) { v.pc = bodyPC });
 	} else {
 		e := bc.compileExpr(bc.block, s.Cond, false);
@@ -631,6 +881,7 @@ func (a *stmtCompiler) DoForStmt(s *ast.ForStmt) {
 			bad = true;
 		default:
 			eval := e.asBool();
+			a.flow.put1(true, &bodyPC);
 			a.push(func(v *vm) {
 				if eval(v.f) {
 					v.pc = bodyPC;
@@ -658,7 +909,7 @@ func (a *blockCompiler) compileStmt(s ast.Stmt) {
 	if a.block.inner != nil {
 		log.Crash("Child scope still entered");
 	}
-	sc := &stmtCompiler{a, s.Pos(), true};
+	sc := &stmtCompiler{a, s.Pos(), nil, true};
 	s.Visit(sc);
 	if a.block.inner != nil {
 		log.Crash("Forgot to exit child scope");
@@ -677,7 +928,6 @@ func (a *blockCompiler) enterChild() *blockCompiler {
 	return &blockCompiler{
 		funcCompiler: a.funcCompiler,
 		block: block,
-		returned: false,
 		parent: a,
 	};
 }
@@ -701,33 +951,36 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
 		if decl.InNames[i] != nil {
 			bodyScope.DefineVar(decl.InNames[i].Value, t);
 		} else {
-			// TODO(austin) Not technically a temp
-			bodyScope.DefineTemp(t);
+			bodyScope.DefineSlot(t);
 		}
 	}
 	for i, t := range decl.Type.Out {
 		if decl.OutNames[i] != nil {
 			bodyScope.DefineVar(decl.OutNames[i].Value, t);
 		} else {
-			bodyScope.DefineTemp(t);
+			bodyScope.DefineSlot(t);
 		}
 	}
 
 	// Create block context
-	fc := &funcCompiler{a, decl.Type, false, newCodeBuf(), false};
-	if len(decl.OutNames) > 0 && decl.OutNames[0] != nil {
-		fc.outVarsNamed = true;
-	}
+	cb := newCodeBuf();
+	fc := &funcCompiler{
+		compiler: a,
+		fnType: decl.Type,
+		outVarsNamed: len(decl.OutNames) > 0 && decl.OutNames[0] != nil,
+		codeBuf: cb,
+		flow: newFlowBuf(cb),
+		labels: make(map[string] *label),
+		err: false,
+	};
 	bc := &blockCompiler{
 		funcCompiler: fc,
 		block: bodyScope.block,
-		returned: false,
 	};
 
 	// Compile body
 	bc.compileStmts(body);
-
-	// TODO(austin) Check that all gotos were linked?
+	fc.checkLabels();
 
 	if fc.err {
 		return nil;
@@ -735,7 +988,7 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
 
 	// Check that the body returned if necessary.  We only check
 	// this if there were no errors compiling the body.
-	if len(decl.Type.Out) > 0 && !bc.returned {
+	if len(decl.Type.Out) > 0 && fc.flow.reachesEnd(0) {
 		// XXX(Spec) Not specified.
 		a.diagAt(&body.Rbrace, "function ends without a return statement");
 		return nil;
@@ -744,6 +997,30 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
 	code := fc.get();
 	maxVars := bodyScope.maxVars;
 	return func(f *Frame) Func { return &evalFunc{f, maxVars, code} };
+}
+
+// Checks that labels were resolved and that all jumps obey scoping
+// rules.  Reports an error and set fc.err if any check fails.
+func (a *funcCompiler) checkLabels() {
+	bad := false;
+	for _, l := range a.labels {
+		if !l.resolved.IsValid() {
+			a.diagAt(&l.used, "label %s not defined", l.name);
+			bad = true;
+		}
+	}
+	if bad {
+		a.err = true;
+		// Don't check scopes if we have unresolved labels
+		return;
+	}
+
+	// Executing the "goto" statement must not cause any variables
+	// to come into scope that were not already in scope at the
+	// point of the goto.
+	if !a.flow.gotosObeyScopes(a.compiler) {
+		a.err = true;
+	}
 }
 
 /*
@@ -761,16 +1038,25 @@ func (s *Stmt) Exec(f *Frame) {
 func CompileStmts(scope *Scope, stmts []ast.Stmt) (*Stmt, os.Error) {
 	errors := scanner.NewErrorVector();
 	cc := &compiler{errors};
-	fc := &funcCompiler{cc, nil, false, newCodeBuf(), false};
+	cb := newCodeBuf();
+	fc := &funcCompiler{
+		compiler: cc,
+		fnType: nil,
+		outVarsNamed: false,
+		codeBuf: cb,
+		flow: newFlowBuf(cb),
+		labels: make(map[string] *label),
+		err: false,
+	};
 	bc := &blockCompiler{
 		funcCompiler: fc,
 		block: scope.block,
-		returned: false
 	};
 	out := make([]*Stmt, len(stmts));
 	for i, stmt := range stmts {
 		bc.compileStmt(stmt);
 	}
+	fc.checkLabels();
 	if fc.err {
 		return nil, errors.GetError(scanner.Sorted);
 	}

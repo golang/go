@@ -1324,7 +1324,10 @@ func (a *compiler) compileExpr(b *block, expr ast.Expr, constant bool) *exprComp
 // extractEffect separates out any effects that the expression may
 // have, returning a function that will perform those effects and a
 // new exprCompiler that is guaranteed to be side-effect free.  These
-// are the moral equivalents of "temp := &expr" and "*temp".
+// are the moral equivalents of "temp := &expr" and "*temp".  Because
+// this creates a temporary variable, the caller should create a
+// temporary block for the compilation of this expression and the
+// evaluation of the results.
 //
 // Implementation limit: The expression must be addressable.
 func (a *exprCompiler) extractEffect() (func(f *Frame), *exprCompiler) {
@@ -1337,9 +1340,7 @@ func (a *exprCompiler) extractEffect() (func(f *Frame), *exprCompiler) {
 	// Create temporary
 	tempBlock := a.block;
 	tempType := NewPtrType(a.t);
-	// TODO(austin) These temporaries accumulate in the scope.  We
-	// could enter a temporary block, but the caller has to exit it.
-	temp := tempBlock.DefineTemp(tempType);
+	temp := tempBlock.DefineSlot(tempType);
 	tempIdx := temp.Index;
 
 	// Generate "temp := &e"
