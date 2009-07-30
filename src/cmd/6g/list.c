@@ -101,7 +101,10 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_BRANCH:
-		snprint(str, sizeof(str), "%ld", a->branch->loc);
+		if(a->branch == nil)
+			snprint(str, sizeof(str), "<nil>");
+		else
+			snprint(str, sizeof(str), "%ld", a->branch->loc);
 		break;
 
 	case D_EXTERN:

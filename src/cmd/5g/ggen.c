@@ -68,6 +68,8 @@ compile(Node *fn)
 	genlist(curfn->enter);
 	genlist(curfn->nbody);
 	checklabels();
+	if(nerrors != 0)
+		goto ret;
 
 	if(curfn->type->outtuple != 0)
 		ginscall(throwreturn, 0);
