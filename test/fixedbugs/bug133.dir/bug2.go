@@ -12,5 +12,5 @@ type T2 struct { t bug0.T }
 func fn(p *T2) int {
 	// This reference should be invalid, because bug0.T.i is local
 	// to package bug0 and should not be visible in package bug1.
-	return p.t.i
+	return p.t.i;	// ERROR "field|undef"
 }

@@ -11,5 +11,5 @@ func f() int {
 }
 
 func main() {
-  const n = f();  // should report only one error
+  const n = f();  // ERROR "const"
 }

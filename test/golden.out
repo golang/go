@@ -111,42 +111,8 @@ hi
 3 11
 4 0
 
-=========== fixedbugs/bug035.go
-fixedbugs/bug035.go:6: variable i redeclared in this block
-	previous declaration at fixedbugs/bug035.go:5
-fixedbugs/bug035.go:7: variable f redeclared in this block
-	previous declaration at fixedbugs/bug035.go:5
-
-=========== fixedbugs/bug037.go
-fixedbugs/bug037.go:6: undefined: vlong
-fixedbugs/bug037.go:6: undefined: s
-
-=========== fixedbugs/bug039.go
-fixedbugs/bug039.go:6: variable x redeclared in this block
-	previous declaration at fixedbugs/bug039.go:5
-
-=========== fixedbugs/bug049.go
-fixedbugs/bug049.go:6: invalid operation: s == nil
-fixedbugs/bug049.go:6: illegal types for operand: EQ
-	string
-	nil
-
-=========== fixedbugs/bug050.go
-fixedbugs/bug050.go:3: package statement must be first
-
-=========== fixedbugs/bug051.go
-fixedbugs/bug051.go:10: const initializer must be constant
-
-=========== fixedbugs/bug062.go
-fixedbugs/bug062.go:6: illegal types for operand: AS
-	string
-	nil
-
 =========== fixedbugs/bug067.go
 ok
-
-=========== fixedbugs/bug068.go
-fixedbugs/bug068.go:8: unknown escape sequence: '
 
 =========== fixedbugs/bug070.go
 outer loop top k 0
@@ -154,47 +120,11 @@ inner loop top i 0
 do break
 broke
 
-=========== fixedbugs/bug072.go
-fixedbugs/bug072.go:6: undefined: bug
-
-=========== fixedbugs/bug073.go
-fixedbugs/bug073.go:8: illegal types for operand: LSH
-	int
-	int
-fixedbugs/bug073.go:8: illegal types for operand: AS
-	int
-fixedbugs/bug073.go:9: illegal types for operand: RSH
-	int
-	int
-fixedbugs/bug073.go:9: illegal types for operand: AS
-	int
-
-=========== fixedbugs/bug074.go
-fixedbugs/bug074.go:6: invalid type for composite literal: string
-fixedbugs/bug074.go:6: invalid type for composite literal: string
-
 =========== fixedbugs/bug081.go
 fixedbugs/bug081.go:5: fatal error: loop
 
-=========== fixedbugs/bug083.go
-fixedbugs/bug083.dir/bug1.go:9: cannot refer to bug0.t0
-
-=========== fixedbugs/bug086.go
-fixedbugs/bug086.go:5: function ends without a return statement
-
-=========== fixedbugs/bug091.go
-fixedbugs/bug091.go:15: undefined: c
-fixedbugs/bug091.go:15: illegal types for operand: AS
-	undefined
-
 =========== fixedbugs/bug093.go
 M
-
-=========== fixedbugs/bug103.go
-fixedbugs/bug103.go:8: assignment count mismatch: 1 = 0
-fixedbugs/bug103.go:8: function requires a return type
-fixedbugs/bug103.go:8: illegal types for operand: AS
-	int
 
 =========== fixedbugs/bug113.go
 interface is int, not int32
@@ -208,17 +138,6 @@ fixedbugs/bug121.go:20: incomplete type I
 fixedbugs/bug121.go:20: illegal types for operand: AS
 	I
 	*S
-
-=========== fixedbugs/bug131.go
-fixedbugs/bug131.go:7: cannot convert uint64 constant to int64
-fixedbugs/bug131.go:7: illegal types for operand: AS
-	int64
-	uint64
-
-=========== fixedbugs/bug133.go
-fixedbugs/bug133.dir/bug2.go:11: undefined: bug0.T field i
-fixedbugs/bug133.dir/bug2.go:11: illegal types for operand: RETURN
-	int
 
 =========== fixedbugs/bug148.go
 2 3

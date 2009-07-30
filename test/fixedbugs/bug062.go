@@ -7,5 +7,5 @@
 package main
 
 func main() {
-  var s string = nil;  // nil should not be assignment compatible with string
+  var s string = nil;  // ERROR "illegal|invalid"
 }

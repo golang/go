@@ -7,5 +7,5 @@
 package main
 
 func main (x int) {
-  var x int;  // BUG redeclaration error
+  var x int;  // ERROR "redecl"
 }

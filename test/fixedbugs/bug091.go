@@ -16,8 +16,7 @@ func f2() {
 }
 
 func f3() {
-	i := c;	// BUG: compiles but should not. constant is not in scope in this function
-	goto exit;	// BUG: compiles but should not. label is not in this function
+	i := c;	// ERROR "undef"
 }
 
 func main() {
