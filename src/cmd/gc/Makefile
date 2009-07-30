@@ -35,6 +35,7 @@ OFILES=\
 	gen.$O\
 	obj.$O\
 	print.$O\
+	typecheck.$O\
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)

@@ -247,14 +247,15 @@ sw0(Node **cp, Type *place, int arg)
 	switch(c->op) {
 	default:
 		if(arg == Stype) {
-			yyerror("inappropriate case for a type switch");
+			yyerror("expression case in a type switch");
 			return T;
 		}
 		walkexpr(cp, Erv, nil);
 		break;
 	case OTYPESW:
+	case OTYPECASE:
 		if(arg != Stype)
-			yyerror("inappropriate type case");
+			yyerror("type case in an expression switch");
 		break;
 	case OAS:
 		yyerror("inappropriate assignment in a case statement");
@@ -542,12 +543,14 @@ exprbsw(Case *c0, int ncase, int arg)
 			case Sfalse:
 				a = nod(OIF, N, N);
 				a->ntest = nod(ONOT, n->left, N);	// if !val
+				typecheck(&a->ntest, Erv);
 				a->nbody = list1(n->right);			// then goto l
 				break;
 
 			default:
 				a = nod(OIF, N, N);
 				a->ntest = nod(OEQ, exprname, n->left);	// if name == val
+				typecheck(&a->ntest, Erv);
 				a->nbody = list1(n->right);			// then goto l
 				break;
 			}
@@ -566,6 +569,7 @@ exprbsw(Case *c0, int ncase, int arg)
 		c = c->link;
 	a = nod(OIF, N, N);
 	a->ntest = nod(OLE, exprname, c->node->left);
+	typecheck(&a->ntest, Erv);
 	a->nbody = list1(exprbsw(c0, half, arg));
 	a->nelse = list1(exprbsw(c->link, ncase-half, arg));
 	return a;
@@ -619,6 +623,7 @@ exprswitch(Node *sw)
 		exprname = nod(OXXX, N, N);
 		tempname(exprname, sw->ntest->type);
 		cas = list1(nod(OAS, exprname, sw->ntest));
+		typechecklist(cas, Etop);
 	}
 
 	c0 = mkcaselist(sw, arg);
@@ -686,6 +691,7 @@ typeone(Node *t)
 	b = nod(ODOTTYPE, facename, N);
 	b->type = t->left->left->type;		// interface.(type)
 	a->rlist = list1(b);
+	typecheck(&a, Etop);
 	init = list(init, a);
 
 	b = nod(OIF, N, N);
@@ -716,6 +722,7 @@ typebsw(Case *c0, int ncase)
 				v.ctype = CTNIL;
 				a = nod(OIF, N, N);
 				a->ntest = nod(OEQ, facename, nodlit(v));
+				typecheck(&a->ntest, Erv);
 				a->nbody = list1(n->right);		// if i==nil { goto l }
 				cas = list(cas, a);
 				break;
@@ -728,6 +735,7 @@ typebsw(Case *c0, int ncase)
 			case Ttypeconst:
 				a = nod(OIF, N, N);
 				a->ntest = nod(OEQ, hashname, nodintconst(c0->hash));
+				typecheck(&a->ntest, Erv);
 				a->nbody = list1(typeone(n));
 				cas = list(cas, a);
 				break;
@@ -744,6 +752,7 @@ typebsw(Case *c0, int ncase)
 		c = c->link;
 	a = nod(OIF, N, N);
 	a->ntest = nod(OLE, hashname, nodintconst(c->hash));
+	typecheck(&a->ntest, Erv);
 	a->nbody = list1(typebsw(c0, half));
 	a->nelse = list1(typebsw(c->link, ncase-half));
 	return a;
@@ -786,13 +795,16 @@ typeswitch(Node *sw)
 	facename = nod(OXXX, N, N);
 	tempname(facename, sw->ntest->right->type);
 	a = nod(OAS, facename, sw->ntest->right);
+	typecheck(&a, Etop);
 	cas = list(cas, a);
 
 	boolname = nod(OXXX, N, N);
 	tempname(boolname, types[TBOOL]);
+	typecheck(&boolname, Erv);
 
 	hashname = nod(OXXX, N, N);
 	tempname(hashname, types[TUINT32]);
+	typecheck(&hashname, Erv);
 
 	t = sw->ntest->right->type;
 	if(isnilinter(t))
@@ -803,6 +815,7 @@ typeswitch(Node *sw)
 	a = nod(OCALL, a, N);
 	a->list = list1(facename);
 	a = nod(OAS, hashname, a);
+	typecheck(&a, Etop);
 	cas = list(cas, a);
 
 	c0 = mkcaselist(sw, Stype);
@@ -861,8 +874,10 @@ walkswitch(Node *sw)
 	 * both have inserted OBREAK statements
 	 */
 	walkstmtlist(sw->ninit);
-	if(sw->ntest == N)
+	if(sw->ntest == N) {
 		sw->ntest = nodbool(1);
+		typecheck(&sw->ntest, Erv);
+	}
 	casebody(sw);
 
 	if(sw->ntest->op == OTYPESW) {

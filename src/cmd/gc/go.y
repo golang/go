@@ -400,7 +400,7 @@ typedclname:
 typedcl:
 	typedclname ntype
 	{
-		walkexpr(&$2, Etype, &$2->ninit);
+		typecheck(&$2, Etype);
 		updatetype($1, $2->type);
 		resumecheckwidth();
 	}
@@ -478,21 +478,21 @@ case:
 				yyerror("type switch case cannot be list");
 			if(n->op == OLITERAL && n->val.ctype == CTNIL) {
 				// case nil
-				$$->list = list1(nod(OTYPESW, N, N));
+				$$->list = list1(nod(OTYPECASE, N, N));
 				break;
 			}
 
 			// TODO: move
 			e = nerrors;
-			walkexpr(&n, Etype | Erv, &$$->ninit);
+			typecheck(&n, Etype | Erv);
 			if(n->op == OTYPE) {
 				n = old2new(typeswvar->right, n->type, &$$->ninit);
-				$$->list = list1(nod(OTYPESW, n, N));
+				$$->list = list1(nod(OTYPECASE, n, N));
 				break;
 			}
-			// maybe walkexpr found problems that keep
+			// maybe typecheck found problems that keep
 			// e from being valid even outside a type switch.
-			// only complain if walkexpr didn't print new errors.
+			// only complain if typecheck didn't print new errors.
 			if(nerrors == e)
 				yyerror("non-type case in type switch");
 			$$->diag = 1;
@@ -518,6 +518,7 @@ case:
 		// done in casebody()
 		poptodcl();
 		$$ = nod(OXCASE, N, N);
+		typecheck(&$4, Erv);
 		$$->list = list1(nod(OAS, selectas($2, $4, &$$->ninit), $4));
 	}
 |	LDEFAULT ':'
@@ -1143,7 +1144,7 @@ fndcl:
 		n = nod(OTFUNC, N, N);
 		n->list = $3;
 		n->rlist = $5;
-		walkexpr(&n, Etype, &n->ninit);
+		typecheck(&n, Etype);
 		$$->type = n->type;
 		funchdr($$);
 	}

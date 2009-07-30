@@ -89,12 +89,17 @@ convlit1(Node **np, Type *t, int explicit)
 
 	switch(n->op) {
 	default:
+		if(n->type->etype == TIDEAL) {
+			convlit(&n->left, t);
+			convlit(&n->right, t);
+			n->type = t;
+		}
 		return;
 	case OLITERAL:
 		break;
 	case OLSH:
 	case ORSH:
-		convlit1(&n->left, t, explicit);
+		convlit(&n->left, t);
 		n->type = n->left->type;
 		return;
 	}
@@ -259,11 +264,15 @@ overflow(Val v, Type *t)
 		return;
 	switch(v.ctype) {
 	case CTINT:
+		if(!isint[t->etype])
+			fatal("overflow: %T integer constant", t);
 		if(mpcmpfixfix(v.u.xval, minintval[t->etype]) < 0
 		|| mpcmpfixfix(v.u.xval, maxintval[t->etype]) > 0)
 			yyerror("constant %B overflows %T", v.u.xval, t);
 		break;
 	case CTFLT:
+		if(!isfloat[t->etype])
+			fatal("overflow: %T floating-point constant", t);
 		if(mpcmpfltflt(v.u.fval, minfltval[t->etype]) < 0
 		|| mpcmpfltflt(v.u.fval, maxfltval[t->etype]) > 0)
 			yyerror("constant %#F overflows %T", v.u.fval, t);
@@ -324,6 +333,11 @@ evconst(Node *n)
 	int wl, wr, lno, et;
 	Val v;
 	Mpint b;
+
+	switch(n->op) {
+	case OMAKE:
+		return;
+	}
 
 	nl = n->left;
 	if(nl == N || nl->type == T)
@@ -590,6 +604,7 @@ unary:
 	case TUP(OCONV, CTINT):
 	case TUP(OCONV, CTFLT):
 	case TUP(OCONV, CTSTR):
+	case TUP(OCONV, CTNIL):
 		convlit1(&nl, n->type, 1);
 		break;
 
@@ -711,6 +726,11 @@ defaultlit(Node **np, Type *t)
 		defaultlit(&n->left, t);
 		n->type = n->left->type;
 		return;
+	default:
+		defaultlit(&n->left, t);
+		defaultlit(&n->right, t);
+		n->type = n->left->type;
+		return;
 	}
 
 	lno = lineno;
@@ -753,7 +773,7 @@ defaultlit(Node **np, Type *t)
  * get the same type going out.
  */
 void
-defaultlit2(Node **lp, Node **rp)
+defaultlit2(Node **lp, Node **rp, int force)
 {
 	Node *l, *r;
 
@@ -769,6 +789,8 @@ defaultlit2(Node **lp, Node **rp)
 		convlit(lp, r->type);
 		return;
 	}
+	if(!force)
+		return;
 	if(isconst(l, CTFLT) || isconst(r, CTFLT)) {
 		convlit(lp, types[TFLOAT]);
 		convlit(rp, types[TFLOAT]);
