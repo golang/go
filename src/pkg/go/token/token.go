@@ -8,7 +8,11 @@
 //
 package token
 
-import "strconv"
+import (
+	"fmt";
+	"strconv";
+)
+
 
 // Token is the set of lexical tokens of the Go programming language.
 type Token int
@@ -345,4 +349,19 @@ func (pos *Position) Pos() Position {
 // IsValid returns true if the position is valid.
 func (pos *Position) IsValid() bool {
 	return pos.Line > 0
+}
+
+
+func (pos *Position) String() string {
+	s := pos.Filename;
+	if pos.IsValid() {
+		if s != "" {
+			s += ":";
+		}
+		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column);
+	}
+	if s != "" {
+		return s;
+	}
+	return "<unknown position>";
 }
