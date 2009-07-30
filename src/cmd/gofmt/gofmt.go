@@ -60,14 +60,14 @@ func parserMode() uint {
 }
 
 
-func isPkgFile(filename string) bool {
+func isPkgFile(d *os.Dir) bool {
 	// ignore non-Go files
-	if strings.HasPrefix(filename, ".") || !strings.HasSuffix(filename, ".go") {
+	if !d.IsRegular() || strings.HasPrefix(d.Name, ".") || !strings.HasSuffix(d.Name, ".go") {
 		return false;
 	}
 
 	// ignore test files unless explicitly included
-	return *allgo || !strings.HasSuffix(filename, "_test.go");
+	return *allgo || !strings.HasSuffix(d.Name, "_test.go");
 }
 
 
@@ -146,7 +146,7 @@ func main() {
 	if !*silent {
 		w := makeTabwriter(os.Stdout);
 		if *exports {
-			src := ast.PackageInterface(pkg);
+			src := ast.PackageExports(pkg);
 			printer.Fprint(w, src, printerMode());  // ignore errors
 		} else {
 			for _, src := range pkg.Files {

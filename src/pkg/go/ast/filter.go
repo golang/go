@@ -190,40 +190,71 @@ func FilterExports(src *File) bool {
 }
 
 
-// PackageInterface returns an AST containing only the exported declarations
-// of the package pkg. The pkg AST is modified by PackageInterface.
+// separator is an empty //-style comment that is interspersed between
+// different comment groups when they are concatenated into a single group
 //
-func PackageInterface(pkg *Package) *File {
-	// filter each package file
-	for filename, s := range pkg.Files {
-		if !FilterExports(s) {
-			pkg.Files[filename] = nil, false;
-		}
-	}
+var separator = &Comment{noPos, []byte{'/', '/'}};
 
-	// compute total number of top-level declarations in all source files
-	var doc *CommentGroup;
-	n := 0;
-	for _, src := range pkg.Files {
-		if doc == nil && src.Doc != nil {
-			// TODO(gri) what to do with multiple package comments?
-			doc = src.Doc;
-		}
-		n += len(src.Decls);
-	}
 
-	// collect top-level declarations of all source files
-	decls := make([]Decl, n);
+// PackageExports returns an AST containing only the exported declarations
+// of the package pkg. PackageExports modifies the pkg AST.
+//
+func PackageExports(pkg *Package) *File {
+	// Collect all source files with exported declarations and count
+	// the number of package comments and declarations in all files.
+	files := make([]*File, len(pkg.Files));
+	ncomments := 0;
+	ndecls := 0;
 	i := 0;
-	for _, src := range pkg.Files {
-		for _, d := range src.Decls {
-			decls[i] = d;
+	for _, f := range pkg.Files {
+		if f.Doc != nil {
+			ncomments += len(f.Doc.List) + 1;  // +1 for separator
+		}
+		if FilterExports(f) {
+			ndecls += len(f.Decls);
+			files[i] = f;
 			i++;
 		}
 	}
+	files = files[0 : i];
 
-	// TODO(gri) should also collect comments so that this function
-	//           can be used by godoc.
-	var noPos token.Position;
+	// Collect package comments from all package files into a single
+	// CommentGroup - the collected package documentation. The order
+	// is unspecified. In general there should be only one file with
+	// a package comment; but it's better to collect extra comments
+	// than drop them on the floor.
+	var doc *CommentGroup;
+	if ncomments > 0 {
+		list := make([]*Comment, ncomments - 1);  // -1: no separator before first group
+		i := 0;
+		for _, f := range pkg.Files {
+			if f.Doc != nil {
+				if i > 0 {
+					// not the first group - add separator
+					list[i] = separator;
+					i++;
+				}
+				for _, c := range f.Doc.List {
+					list[i] = c;
+					i++
+				}
+			}
+		}
+		doc = &CommentGroup{list, nil};
+	}
+
+	// Collect exported declarations from all package files.
+	var decls []Decl;
+	if ndecls > 0 {
+		decls = make([]Decl, ndecls);
+		i := 0;
+		for _, f := range files {
+			for _, d := range f.Decls {
+				decls[i] = d;
+				i++;
+			}
+		}
+	}
+
 	return &File{doc, noPos, &Ident{noPos, pkg.Name}, decls, nil};
 }

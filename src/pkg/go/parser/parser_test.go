@@ -62,7 +62,7 @@ func TestParse3(t *testing.T) {
 }
 
 
-func filter(filename string) bool {
+func nameFilter(filename string) bool {
 	switch filename {
 	case "parser.go":
 	case "interface.go":
@@ -74,9 +74,14 @@ func filter(filename string) bool {
 }
 
 
+func dirFilter(d *os.Dir) bool {
+	return nameFilter(d.Name);
+}
+
+
 func TestParse4(t *testing.T) {
 	path := ".";
-	pkg, err := ParsePackage(path, filter, 0);
+	pkg, err := ParsePackage(path, dirFilter, 0);
 	if err != nil {
 		t.Fatalf("ParsePackage(%s): %v", path, err);
 	}
@@ -84,7 +89,7 @@ func TestParse4(t *testing.T) {
 		t.Errorf("incorrect package name: %s", pkg.Name);
 	}
 	for filename, _ := range pkg.Files {
-		if !filter(filename) {
+		if !nameFilter(filename) {
 			t.Errorf("unexpected package file: %s", filename);
 		}
 	}

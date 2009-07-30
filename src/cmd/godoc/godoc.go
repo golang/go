@@ -111,14 +111,12 @@ func init() {
 // ----------------------------------------------------------------------------
 // Support
 
-func isDir(name string) bool {
-	d, err := os.Stat(name);
-	return err == nil && d.IsDirectory();
-}
-
-
 func isGoFile(dir *os.Dir) bool {
-	return dir.IsRegular() && pathutil.Ext(dir.Name) == ".go";
+	return
+		dir.IsRegular() &&
+		!strings.HasPrefix(dir.Name, ".")  &&  // ignore .files
+		pathutil.Ext(dir.Name) == ".go" &&
+		!strings.HasSuffix(dir.Name, "_test.go");  // ignore test files
 }
 
 
@@ -374,14 +372,6 @@ func serveFile(c *http.Conn, req *http.Request) {
 // ----------------------------------------------------------------------------
 // Packages
 
-type pakDesc struct {
-	dirname string;  // relative to goroot
-	pakname string;  // same as last component of importpath
-	importpath string;	// import "___"
-	filenames map[string] bool;  // set of file (names) belonging to this package
-}
-
-
 // TODO if we don't plan to use the directory information, simplify to []string
 type dirList []*os.Dir
 
@@ -390,146 +380,97 @@ func (d dirList) Less(i, j int) bool  { return d[i].Name < d[j].Name }
 func (d dirList) Swap(i, j int)  { d[i], d[j] = d[j], d[i] }
 
 
-func isPackageFile(dirname, filename, pakname string) bool {
-	// ignore test files
-	if strings.HasSuffix(filename, "_test.go") {
-		return false;
+func pkgName(filename string) string {
+	file, err := parse(filename, parser.PackageClauseOnly);
+	if err != nil || file == nil {
+		return "";
 	}
-
-	// determine package name
-	prog, errors := parse(dirname + "/" + filename, parser.PackageClauseOnly);
-	if prog == nil {
-		return false;
-	}
-
-	return prog != nil && prog.Name.Value == pakname;
-}
-
-
-// Returns the canonical URL path, the package denoted by path, and
-// the list of sub-directories in the corresponding package directory.
-// If there is no such package, the package descriptor pd is nil.
-// If there are no sub-directories, the dirs list is nil.
-func findPackage(path string) (canonical string, pd *pakDesc, dirs dirList) {
-	canonical = pathutil.Clean(Pkg + path) + "/";
-
-	// get directory contents, if possible
-	importpath := pathutil.Clean(path);  // no trailing '/'
-	dirname := pathutil.Join(*pkgroot, importpath);
-	if !isDir(dirname) {
-		return;
-	}
-
-	fd, err1 := os.Open(dirname, os.O_RDONLY, 0);
-	if err1 != nil {
-		log.Stderrf("open %s: %v", dirname, err1);
-		return;
-	}
-
-	list, err2 := fd.Readdir(-1);
-	if err2 != nil {
-		log.Stderrf("readdir %s: %v", dirname, err2);
-		return;
-	}
-
-	// the package name is the directory name within its parent
-	_, pakname := pathutil.Split(dirname);
-
-	// collect all files belonging to the package and count the
-	// number of sub-directories
-	filenames := make(map[string]bool);
-	nsub := 0;
-	for i, entry := range list {
-		switch {
-		case isGoFile(&entry) && isPackageFile(dirname, entry.Name, pakname):
-			// add file to package desc
-			if tmp, found := filenames[entry.Name]; found {
-				panic("internal error: same file added more than once: " + entry.Name);
-			}
-			filenames[entry.Name] = true;
-		case isPkgDir(&entry):
-			nsub++;
-		}
-	}
-
-	// make the list of sub-directories, if any
-	var subdirs dirList;
-	if nsub > 0 {
-		subdirs = make(dirList, nsub);
-		nsub = 0;
-		for i, entry := range list {
-			if isPkgDir(&entry) {
-				// make a copy here so sorting (and other code) doesn't
-				// have to make one every time an entry is moved
-				copy := new(os.Dir);
-				*copy = entry;
-				subdirs[nsub] = copy;
-				nsub++;
-			}
-		}
-		sort.Sort(subdirs);
-	}
-
-	// if there are no package files, then there is no package
-	if len(filenames) == 0 {
-		return canonical, nil, subdirs;
-	}
-
-	return canonical, &pakDesc{dirname, pakname, importpath, filenames}, subdirs;
-}
-
-
-func (p *pakDesc) doc() (*doc.PackageDoc, *parseErrors) {
-	if p == nil {
-		return nil, nil;
-	}
-
-	// compute documentation
-	// TODO(gri) change doc to work on entire ast.Package at once
-	var r doc.DocReader;
-	i := 0;
-	for filename := range p.filenames {
-		src, err := parse(p.dirname + "/" + filename, parser.ParseComments);
-		if err != nil {
-			return nil, err;
-		}
-		if i == 0 {
-			// first file - initialize doc
-			r.Init(src.Name.Value, p.importpath);
-		}
-		i++;
-		ast.FilterExports(src);  // we only care about exports
-		r.AddFile(src);
-	}
-
-	return r.Doc(), nil;
+	return file.Name.Value;
 }
 
 
 type PageInfo struct {
-	PDoc *doc.PackageDoc;
-	Dirs dirList;
+	PDoc *doc.PackageDoc;  // nil if no package found
+	Dirs dirList;  // nil if no subdirectories found
 }
+
+
+// getPageInfo returns the PageInfo for a given package directory.
+// If there is no corresponding package in the directory,
+// PageInfo.PDoc is nil. If there are no subdirectories,
+// PageInfo.Dirs is nil.
+//
+func getPageInfo(path string) PageInfo {
+	// the path is relative to *pkgroot
+	dirname := pathutil.Join(*pkgroot, path);
+
+	// the package name is the directory name within its parent
+	_, pkgname := pathutil.Split(dirname);
+
+	// filter function to select the desired .go files and
+	// collect subdirectories
+	var subdirlist vector.Vector;
+	subdirlist.Init(0);
+	filter := func(d *os.Dir) bool {
+		if isGoFile(d) {
+			// Some directories contain main packages: Only accept
+			// files that belong to the expected package so that
+			// parser.ParsePackage doesn't return "multiple packages
+			// found" errors.
+			return pkgName(dirname + "/" + d.Name) == pkgname;
+		}
+		if isPkgDir(d) {
+			subdirlist.Push(d);
+		}
+		return false;
+	};
+
+	// get package AST
+	pkg, err := parser.ParsePackage(dirname, filter, parser.ParseComments);
+	if err != nil {
+		log.Stderr(err);
+	}
+
+	// convert and sort subdirectory list, if any
+	var subdirs dirList;
+	if subdirlist.Len() > 0 {
+		subdirs = make(dirList, subdirlist.Len());
+		for i := 0; i < subdirlist.Len(); i++ {
+			subdirs[i] = subdirlist.At(i).(*os.Dir);
+		}
+		sort.Sort(subdirs);
+	}
+
+	// compute package documentation
+	var pdoc *doc.PackageDoc;
+	if pkg != nil {
+		// TODO(gri) Simplify DocReader interface: no need anymore to add
+		//           more than one file because of ast.PackageInterface.
+		var r doc.DocReader;
+		r.Init(pkg.Name, pathutil.Clean(path));  // no trailing '/' in importpath
+		r.AddFile(ast.PackageExports(pkg));
+		pdoc = r.Doc();
+	}
+
+	return PageInfo{pdoc, subdirs};
+}
+
 
 func servePkg(c *http.Conn, r *http.Request) {
 	path := r.Url.Path;
 	path = path[len(Pkg) : len(path)];
-	canonical, desc, dirs := findPackage(path);
 
-	if r.Url.Path != canonical {
+	// canonicalize URL path and redirect if necessary
+	if canonical := pathutil.Clean(Pkg + path) + "/"; r.Url.Path != canonical {
 		http.Redirect(c, canonical, http.StatusMovedPermanently);
 		return;
 	}
 
-	pdoc, errors := desc.doc();
-	if errors != nil {
-		serveParseErrors(c, errors);
-		return;
-	}
+	info := getPageInfo(path);
 
 	var buf bytes.Buffer;
 	if false {	// TODO req.Params["format"] == "text"
-		err := packageText.Execute(PageInfo{pdoc, dirs}, &buf);
+		err := packageText.Execute(info, &buf);
 		if err != nil {
 			log.Stderrf("packageText.Execute: %s", err);
 		}
@@ -537,7 +478,7 @@ func servePkg(c *http.Conn, r *http.Request) {
 		return;
 	}
 
-	err := packageHtml.Execute(PageInfo{pdoc, dirs}, &buf);
+	err := packageHtml.Execute(info, &buf);
 	if err != nil {
 		log.Stderrf("packageHtml.Execute: %s", err);
 	}
@@ -697,20 +638,12 @@ func main() {
 		parseerrorText = parseerrorHtml;
 	}
 
-	_, desc, dirs := findPackage(flag.Arg(0));
-	pdoc, errors := desc.doc();
-	if errors != nil {
-		err := parseerrorText.Execute(errors, os.Stderr);
-		if err != nil {
-			log.Stderrf("parseerrorText.Execute: %s", err);
-		}
-		os.Exit(1);
-	}
+	info := getPageInfo(flag.Arg(0));
 
-	if pdoc != nil && flag.NArg() > 1 {
+	if info.PDoc != nil && flag.NArg() > 1 {
 		args := flag.Args();
-		pdoc.Filter(args[1 : len(args)]);
+		info.PDoc.Filter(args[1 : len(args)]);
 	}
 
-	packageText.Execute(PageInfo{pdoc, dirs}, os.Stdout);
+	packageText.Execute(info, os.Stdout);
 }
