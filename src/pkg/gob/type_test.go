@@ -27,7 +27,11 @@ var basicTypes = []typeT {
 func getTypeUnlocked(name string, rt reflect.Type) gobType {
 	typeLock.Lock();
 	defer typeLock.Unlock();
-	return getType(name, rt);
+	t, err := getType(name, rt);
+	if err != nil {
+		panicln("getTypeUnlocked:", err.String())
+	}
+	return t;
 }
 
 // Sanity checks

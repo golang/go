@@ -202,7 +202,7 @@ func newStructType(name string) *structType {
 }
 
 // Construction
-func newType(name string, rt reflect.Type) gobType
+func getType(name string, rt reflect.Type) (gobType, os.Error)
 
 // Step through the indirections on a type to discover the base type.
 // Return the number of indirections.
@@ -219,55 +219,63 @@ func indirect(t reflect.Type) (rt reflect.Type, count int) {
 	return;
 }
 
-func newTypeObject(name string, rt reflect.Type) gobType {
+func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 	switch t := rt.(type) {
 	// All basic types are easy: they are predefined.
 	case *reflect.BoolType:
-		return tBool.gobType()
+		return tBool.gobType(), nil
 
 	case *reflect.IntType:
-		return tInt.gobType()
+		return tInt.gobType(), nil
 	case *reflect.Int8Type:
-		return tInt.gobType()
+		return tInt.gobType(), nil
 	case *reflect.Int16Type:
-		return tInt.gobType()
+		return tInt.gobType(), nil
 	case *reflect.Int32Type:
-		return tInt.gobType()
+		return tInt.gobType(), nil
 	case *reflect.Int64Type:
-		return tInt.gobType()
+		return tInt.gobType(), nil
 
 	case *reflect.UintType:
-		return tUint.gobType()
+		return tUint.gobType(), nil
 	case *reflect.Uint8Type:
-		return tUint.gobType()
+		return tUint.gobType(), nil
 	case *reflect.Uint16Type:
-		return tUint.gobType()
+		return tUint.gobType(), nil
 	case *reflect.Uint32Type:
-		return tUint.gobType()
+		return tUint.gobType(), nil
 	case *reflect.Uint64Type:
-		return tUint.gobType()
+		return tUint.gobType(), nil
 	case *reflect.UintptrType:
-		return tUint.gobType()
+		return tUint.gobType(), nil
 
 	case *reflect.FloatType:
-		return tFloat.gobType()
+		return tFloat.gobType(), nil
 	case *reflect.Float32Type:
-		return tFloat.gobType()
+		return tFloat.gobType(), nil
 	case *reflect.Float64Type:
-		return tFloat.gobType()
+		return tFloat.gobType(), nil
 
 	case *reflect.StringType:
-		return tString.gobType()
+		return tString.gobType(), nil
 
 	case *reflect.ArrayType:
-		return newArrayType(name, newType("", t.Elem()), t.Len());
+		gt, err := getType("", t.Elem());
+		if err != nil {
+			return nil, err
+		}
+		return newArrayType(name, gt, t.Len()), nil;
 
 	case *reflect.SliceType:
 		// []byte == []uint8 is a special case
 		if _, ok := t.Elem().(*reflect.Uint8Type); ok {
-			return tBytes.gobType()
+			return tBytes.gobType(), nil
 		}
-		return newSliceType(name, newType(t.Elem().Name(), t.Elem()));
+		gt, err := getType(t.Elem().Name(), t.Elem());
+		if err != nil {
+			return nil, err
+		}
+		return newSliceType(name, gt), nil;
 
 	case *reflect.StructType:
 		// Install the struct type itself before the fields so recursive
@@ -283,18 +291,24 @@ func newTypeObject(name string, rt reflect.Type) gobType {
 			if tname == "" {
 				tname = f.Type.String();
 			}
-			field[i] =  &fieldType{ f.Name, newType(tname, f.Type).id() };
+			gt, err := getType(tname, f.Type);
+			if err != nil {
+				return nil, err
+			}
+			field[i] =  &fieldType{ f.Name, gt.id() };
 		}
 		strType.field = field;
-		return strType;
+		return strType, nil;
 
 	default:
-		panicln("gob NewTypeObject can't handle type", rt.String());	// TODO(r): panic?
+		return nil, os.ErrorString("gob NewTypeObject can't handle type: " + rt.String());
 	}
-	return nil
+	return nil, nil
 }
 
-func newType(name string, rt reflect.Type) gobType {
+// getType returns the Gob type describing the given reflect.Type.
+// typeLock must be held.
+func getType(name string, rt reflect.Type) (gobType, os.Error) {
 	// Flatten the data structure by collapsing out pointers
 	for {
 		pt, ok := rt.(*reflect.PtrType);
@@ -305,19 +319,13 @@ func newType(name string, rt reflect.Type) gobType {
 	}
 	typ, present := types[rt];
 	if present {
-		return typ
+		return typ, nil
 	}
-	typ = newTypeObject(name, rt);
-	types[rt] = typ;
-	return typ
-}
-
-// getType returns the Gob type describing the given reflect.Type.
-// typeLock must be held.
-func getType(name string, rt reflect.Type) gobType {
-	// Set lock; all code running under here is synchronized.
-	t := newType(name, rt);
-	return t;
+	typ, err := newTypeObject(name, rt);
+	if err == nil {
+		types[rt] = typ
+	}
+	return typ, err
 }
 
 func checkId(want, got typeId) {
@@ -371,7 +379,7 @@ var typeInfoMap = make(map[reflect.Type] *typeInfo)	// protected by typeLock
 
 // The reflection type must have all its indirections processed out.
 // typeLock must be held.
-func getTypeInfo(rt reflect.Type) *typeInfo {
+func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
 	if pt, ok := rt.(*reflect.PtrType); ok {
 		panicln("pointer type in getTypeInfo:", rt.String())
 	}
@@ -379,12 +387,25 @@ func getTypeInfo(rt reflect.Type) *typeInfo {
 	if !ok {
 		info = new(typeInfo);
 		name := rt.Name();
-		info.id = getType(name, rt).id();
+		gt, err := getType(name, rt);
+		if err != nil {
+			return nil, err
+		}
+		info.id = gt.id();
 		// assume it's a struct type
 		info.wire = &wireType{info.id.gobType().(*structType)};
 		typeInfoMap[rt] = info;
 	}
-	return info;
+	return info, nil;
+}
+
+// Called only when a panic is acceptable and unexpected.
+func getTypeInfoNoError(rt reflect.Type) *typeInfo {
+	t, err := getTypeInfo(rt);
+	if err != nil {
+		panicln("getTypeInfo:", err.String());
+	}
+	return t
 }
 
 func init() {
@@ -396,9 +417,9 @@ func init() {
 	// The string for tBytes is "bytes" not "[]byte" to signify its specialness.
 	tBytes = bootstrapType("bytes", make([]byte, 0), 5);
 	tString= bootstrapType("string", "", 6);
-	tWireType = getTypeInfo(reflect.Typeof(wireType{})).id;
+	tWireType = getTypeInfoNoError(reflect.Typeof(wireType{})).id;
 	checkId(7, tWireType);
-	checkId(8, getTypeInfo(reflect.Typeof(structType{})).id);
-	checkId(9, getTypeInfo(reflect.Typeof(commonType{})).id);
-	checkId(10, getTypeInfo(reflect.Typeof(fieldType{})).id);
+	checkId(8, getTypeInfoNoError(reflect.Typeof(structType{})).id);
+	checkId(9, getTypeInfoNoError(reflect.Typeof(commonType{})).id);
+	checkId(10, getTypeInfoNoError(reflect.Typeof(fieldType{})).id);
 }

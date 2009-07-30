@@ -73,7 +73,7 @@
 
 	Maps are not supported yet, but they will be.  Interfaces, functions, and channels
 	cannot be sent in a gob.  Attempting to encode a value that contains one will
-	fail.  (TODO(r): fix this - it panics now.)
+	fail.
 
 	The rest of this comment documents the encoding, details that are not important
 	for most users.  Details are presented bottom-up.
@@ -267,8 +267,12 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 
 	// Need to send it.
 	typeLock.Lock();
-	info := getTypeInfo(rt);
+	info, err := getTypeInfo(rt);
 	typeLock.Unlock();
+	if err != nil {
+		enc.state.err = err;
+		return;
+	}
 	// Send the pair (-id, type)
 	// Id:
 	encodeInt(enc.state, -int64(info.id));
@@ -285,6 +289,7 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 	for i := 0; i < st.NumField(); i++ {
 		enc.sendType(st.Field(i).Type);
 	}
+	return
 }
 
 // Encode transmits the data item represented by the empty interface value,
