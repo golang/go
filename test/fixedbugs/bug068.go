@@ -9,7 +9,7 @@
 package main
 
 const c = '\'';  // this works
-const s = "\'";  // this doesn't
+const s = "\'";  // ERROR "invalid|escape"
 
 /*
 There is no reason why the escapes need to be different inside strings and chars.

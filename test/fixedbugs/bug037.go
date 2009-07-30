@@ -7,5 +7,5 @@
 package main
 
 func main() {
-	s := vlong(0);  // BUG no vlong specified in the language
+	s := vlong(0);  // ERROR "undef"
 }

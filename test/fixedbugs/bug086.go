@@ -6,7 +6,7 @@
 
 package main
 
-func f() int {
+func f() int {	// ERROR "return"
 	if false {
 		return 0;
 	}

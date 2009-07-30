@@ -9,6 +9,6 @@ package main
 func main() {
 	var s int = 0;
 	var x int = 0;
-	x = x << s;  // should complain that s is not a uint
-	x = x >> s;  // should complain that s is not a uint
+	x = x << s;  // ERROR "illegal|inval|shift"
+	x = x >> s;  // ERROR "illegal|inval|shift"
 }

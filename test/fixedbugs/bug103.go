@@ -9,6 +9,6 @@ package main
 func f() /* no return type */ {}
 
 func main() {
-	x := f();  // should not compile
+	x := f();  // ERROR "mismatch"
 }
 
