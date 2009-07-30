@@ -306,7 +306,7 @@ cgen(Node *n, Node *res)
 		cgen_callret(n, res);
 		break;
 
-	case OCALL:
+	case OCALLFUNC:
 		cgen_call(n, 0);
 		cgen_callret(n, res);
 		break;
@@ -447,7 +447,7 @@ agen(Node *n, Node *res)
 		cgen_aret(n, res);
 		break;
 
-	case OCALL:
+	case OCALLFUNC:
 		cgen_call(n, 0);
 		cgen_aret(n, res);
 		break;
@@ -922,7 +922,7 @@ stkof(Node *n)
 
 	case OCALLMETH:
 	case OCALLINTER:
-	case OCALL:
+	case OCALLFUNC:
 		t = n->left->type;
 		if(isptr[t->etype])
 			t = t->type;

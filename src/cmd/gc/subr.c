@@ -461,7 +461,7 @@ aindex(Node *b, Type *t)
 
 	bound = -1;	// open bound
 	init = nil;
-	walkexpr(&b, Erv, &init);
+	typecheck(&b, Erv);
 	if(b != nil) {
 		switch(consttype(b)) {
 		default:
@@ -638,6 +638,7 @@ opnames[] =
 	[OBAD]		= "BAD",
 	[OBLOCK]		= "BLOCK",
 	[OBREAK]	= "BREAK",
+	[OCALLFUNC]	= "CALLFUNC",
 	[OCALLINTER]	= "CALLINTER",
 	[OCALLMETH]	= "CALLMETH",
 	[OCALL]		= "CALL",
@@ -2100,6 +2101,7 @@ ullmancalc(Node *n)
 			ul++;
 		goto out;
 	case OCALL:
+	case OCALLFUNC:
 	case OCALLMETH:
 	case OCALLINTER:
 		ul = UINF;
@@ -2389,6 +2391,7 @@ saferef(Node *n, NodeList **init)
 		r = nod(OXXX, N, N);
 		*r = *n;
 		r->left = l;
+		typecheck(&r, Elv);
 		walkexpr(&r, Elv, init);
 		return r;
 
@@ -2398,9 +2401,11 @@ saferef(Node *n, NodeList **init)
 		l = nod(OXXX, N, N);
 		tempname(l, ptrto(n->type));
 		a = nod(OAS, l, nod(OADDR, n, N));
+		typecheck(&a, Etop);
 		walkexpr(&a, Etop, init);
 		*init = list(*init, a);
 		r = nod(OIND, l, N);
+		typecheck(&r, Elv);
 		walkexpr(&r, Elv, init);
 		return r;
 	}
@@ -2555,13 +2560,11 @@ out:
 Node*
 adddot(Node *n)
 {
-	NodeList *init;
 	Type *t;
 	Sym *s;
 	int c, d;
 
-	init = nil;
-	walkexpr(&n->left, Erv, &init);
+	typecheck(&n->left, Erv);
 	t = n->left->type;
 	if(t == T)
 		goto ret;
@@ -2589,7 +2592,6 @@ out:
 		n->left->right = newname(dotlist[c].field->sym);
 	}
 ret:
-	n->ninit = concat(init, n->ninit);
 	return n;
 }
 

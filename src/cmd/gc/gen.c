@@ -321,7 +321,7 @@ gen(Node *n)
 		cgen_callinter(n, N, 0);
 		break;
 
-	case OCALL:
+	case OCALLFUNC:
 		cgen_call(n, 0);
 		break;
 
@@ -360,7 +360,7 @@ cgen_callmeth(Node *n, int proc)
 	if(l->op != ODOTMETH)
 		fatal("cgen_callmeth: not dotmethod: %N");
 
-	n->op = OCALL;
+	n->op = OCALLFUNC;
 	n->left = n->left->right;
 	n->left->type = l->type;
 
@@ -387,7 +387,7 @@ cgen_proc(Node *n, int proc)
 		cgen_callinter(n->left, N, proc);
 		break;
 
-	case OCALL:
+	case OCALLFUNC:
 		cgen_call(n->left, proc);
 		break;
 	}

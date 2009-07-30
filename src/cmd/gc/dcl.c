@@ -528,7 +528,7 @@ funclit0(Node *t)
 	autodcl = dcl();
 	autodcl->back = autodcl;
 
-	walkexpr(&t, Etype, &t->ninit);
+	typecheck(&t, Etype);
 	funcargs(t->type);
 	return t;
 }
@@ -703,7 +703,7 @@ stotype(NodeList *l, int et, Type **t)
 		if(n->op != ODCLFIELD)
 			fatal("stotype: oops %N\n", n);
 		if(n->right != N) {
-			walkexpr(&n->right, Etype, &init);
+			typecheck(&n->right, Etype);
 			n->type = n->right->type;
 			n->right = N;
 			if(n->embedded && n->type != T) {
@@ -1298,7 +1298,7 @@ xanondcl(Node *nt)
 	Node *n;
 	Type *t;
 
-	walkexpr(&nt, Etype, &nt->ninit);
+	typecheck(&nt, Etype);
 	t = nt->type;
 	if(nt->op != OTYPE) {
 		yyerror("%S is not a type", nt->sym);
@@ -1318,7 +1318,7 @@ namedcl(Node *nn, Node *nt)
 	if(nn->op == OKEY)
 		nn = nn->left;
 	if(nn->sym == S) {
-		walkexpr(&nn, Etype, &nn->ninit);
+		typecheck(&nn, Etype);
 		yyerror("cannot mix anonymous %T with named arguments", nn->type);
 		return xanondcl(nn);
 	}
@@ -1326,7 +1326,7 @@ namedcl(Node *nn, Node *nt)
 	if(nt == N)
 		yyerror("missing type for argument %S", nn->sym);
 	else {
-		walkexpr(&nt, Etype, &nt->ninit);
+		typecheck(&nt, Etype);
 		if(nt->op != OTYPE)
 			yyerror("%S is not a type", nt->sym);
 		else
@@ -1650,7 +1650,7 @@ variter(NodeList *vl, Node *nt, NodeList *el)
 
 	t = T;
 	if(nt) {
-		walkexpr(&nt, Etype, &nt->ninit);
+		typecheck(&nt, Etype);
 		t = nt->type;
 	}
 
@@ -1763,7 +1763,7 @@ unsafenmagic(Node *fn, NodeList *args)
 
 	n = nod(OLITERAL, N, N);
 	if(strcmp(s->name, "Sizeof") == 0) {
-		walkexpr(&r, Erv, &n->ninit);
+		typecheck(&r, Erv);
 		tr = r->type;
 		if(r->op == OLITERAL && r->val.ctype == CTSTR)
 			tr = types[TSTRING];
@@ -1775,12 +1775,12 @@ unsafenmagic(Node *fn, NodeList *args)
 	if(strcmp(s->name, "Offsetof") == 0) {
 		if(r->op != ODOT && r->op != ODOTPTR)
 			goto no;
-		walkexpr(&r, Erv, &n->ninit);
+		typecheck(&r, Erv);
 		v = r->xoffset;
 		goto yes;
 	}
 	if(strcmp(s->name, "Alignof") == 0) {
-		walkexpr(&r, Erv, &n->ninit);
+		typecheck(&r, Erv);
 		tr = r->type;
 		if(r->op == OLITERAL && r->val.ctype == CTSTR)
 			tr = types[TSTRING];

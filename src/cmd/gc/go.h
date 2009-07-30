@@ -343,14 +343,15 @@ enum
 	OCONTINUE,
 	OADDR,
 	OIND,
-	OCALL, OCALLMETH, OCALLINTER,
+	OCALL, OCALLFUNC, OCALLMETH, OCALLINTER,
 	OINDEX, OSLICE,
 	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
 	OREGISTER, OINDREG,
 	OKEY, OPARAM,
 	OCOMPOS, OCOMPSLICE, OCOMPMAP,
-	OCONV, OCONVNOP,
-	ODOTTYPE, OTYPESW,
+	OCONV, OCONVNOP, OCONVRUNE, OCONVSTRB, OCONVSTRI,
+	OCONVA2S,
+	ODOTTYPE, OTYPESW, OTYPECASE,
 	OBAD,
 
 	OTCHAN, OTMAP, OTSTRUCT, OTINTER, OTFUNC, OTARRAY,
@@ -440,7 +441,7 @@ enum
 	Elv = 1<<2,	// evaluated in lvalue context
 	Erv = 1<<3,	// evaluated in rvalue context
 	Etype = 1<<4,
-	Eideal = 1<<5,
+	Ecall = 1<<5,
 };
 
 #define	BITS	5
@@ -593,6 +594,7 @@ EXTERN	uchar	okforcap[NTYPE];
 EXTERN	uchar	okforlen[NTYPE];
 EXTERN	uchar	okforarith[NTYPE];
 EXTERN	uchar*	okfor[OEND];
+EXTERN	uchar	iscmp[OEND];
 
 EXTERN	Mpint*	minintval[NTYPE];
 EXTERN	Mpint*	maxintval[NTYPE];
@@ -830,7 +832,6 @@ int	Wconv(Fmt*);
 int	Zconv(Fmt*);
 
 int	lookdot0(Sym*, Type*, Type**);
-Type*	lookdot1(Sym*, Type*, Type*);
 int	adddot1(Sym*, Type*, int, Type**);
 Node*	adddot(Node*);
 void	expandmeth(Sym*, Type*);
@@ -846,7 +847,7 @@ Type*	dodcltype(Type*);
 void	updatetype(Type*, Type*);
 void	dodclconst(Node*, Node*);
 void	defaultlit(Node**, Type*);
-void	defaultlit2(Node**, Node**);
+void	defaultlit2(Node**, Node**, int);
 int	structcount(Type*);
 void	addmethod(Node*, Type*, int);
 Node*	methodname(Node*, Type*);

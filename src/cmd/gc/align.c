@@ -339,6 +339,14 @@ typeinit(void)
 	okfor[OCAP] = okforcap;
 	okfor[OLEN] = okforlen;
 
+	// comparison
+	iscmp[OLT] = 1;
+	iscmp[OGT] = 1;
+	iscmp[OGE] = 1;
+	iscmp[OLE] = 1;
+	iscmp[OEQ] = 1;
+	iscmp[ONE] = 1;
+
 	mpatofix(maxintval[TINT8], "0x7f");
 	mpatofix(minintval[TINT8], "-0x80");
 	mpatofix(maxintval[TINT16], "0x7fff");
