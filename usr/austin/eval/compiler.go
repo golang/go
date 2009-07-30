@@ -44,7 +44,27 @@ func (a *compiler) compileFuncType(b *block, typ *ast.FuncType) *FuncDecl
 func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool)
 
 
+type label struct {
+	name string;
+	desc string;
+	// The PC goto statements should jump to, or nil if this label
+	// cannot be goto'd (such as an anonymous for loop label).
+	gotoPC *uint;
+	// The PC break statements should jump to, or nil if a break
+	// statement is invalid.
+	breakPC *uint;
+	// The PC continue statements should jump to, or nil if a
+	// continue statement is invalid.
+	continuePC *uint;
+	// The position where this label was resolved.  If it has not
+	// been resolved yet, an invalid position.
+	resolved token.Position;
+	// The position where this label was first jumped to.
+	used token.Position;
+}
+
 type codeBuf struct
+type flowBuf struct
 type FuncType struct
 // A funcCompiler captures information used throughout the compilation
 // of a single function body.
@@ -55,22 +75,21 @@ type funcCompiler struct {
 	// kinds of return statements are legal.
 	outVarsNamed bool;
 	*codeBuf;
+	flow *flowBuf;
+	labels map[string] *label;
 	err bool;
 }
 
+func (a *funcCompiler) checkLabels()
 
 // A blockCompiler captures information used throughout the compilation
 // of a single block within a function.
 type blockCompiler struct {
 	*funcCompiler;
 	block *block;
-	returned bool;
-	// The PC break statements should jump to, or nil if a break
-	// statement is invalid.
-	breakPC *uint;
-	// The PC continue statements should jump to, or nil if a
-	// continue statement is invalid.
-	continuePC *uint;
+	// The label of this block, used for finding break and
+	// continue labels.
+	label *label;
 	// The blockCompiler for the block enclosing this one, or nil
 	// for a function-level block.
 	parent *blockCompiler;

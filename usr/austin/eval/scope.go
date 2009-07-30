@@ -51,14 +51,14 @@ func (b *block) DefineVar(name string, t Type) *Variable {
 	if _, ok := b.defs[name]; ok {
 		return nil;
 	}
-	v := b.DefineTemp(t);
+	v := b.DefineSlot(t);
 	if v != nil {
 		b.defs[name] = v;
 	}
 	return v;
 }
 
-func (b *block) DefineTemp(t Type) *Variable {
+func (b *block) DefineSlot(t Type) *Variable {
 	if b.inner != nil {
 		log.Crash("Failed to exit child block before defining variable");
 	}
