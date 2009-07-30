@@ -335,11 +335,11 @@ var encOpMap = map[reflect.Type] encOp {
 	valueKind("x"): encString,
 }
 
-func getEncEngine(rt reflect.Type) *encEngine
+func getEncEngine(rt reflect.Type) (*encEngine, os.Error)
 
 // Return the encoding op for the base type under rt and
 // the indirection count to reach it.
-func encOpFor(rt reflect.Type) (encOp, int) {
+func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 	typ, indir := indirect(rt);
 	op, ok := encOpMap[reflect.Typeof(typ)];
 	if !ok {
@@ -352,7 +352,10 @@ func encOpFor(rt reflect.Type) (encOp, int) {
 				break;
 			}
 			// Slices have a header; we decode it to find the underlying array.
-			elemOp, indir := encOpFor(t.Elem());
+			elemOp, indir, err := encOpFor(t.Elem());
+			if err != nil {
+				return nil, 0, err
+			}
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				slice := (*reflect.SliceHeader)(p);
 				if slice.Len == 0 {
@@ -363,15 +366,21 @@ func encOpFor(rt reflect.Type) (encOp, int) {
 			};
 		case *reflect.ArrayType:
 			// True arrays have size in the type.
-			elemOp, indir := encOpFor(t.Elem());
+			elemOp, indir, err := encOpFor(t.Elem());
+			if err != nil {
+				return nil, 0, err
+			}
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				state.update(i);
 				state.err = encodeArray(state.b, uintptr(p), elemOp, t.Elem().Size(), t.Len(), indir);
 			};
 		case *reflect.StructType:
 			// Generate a closure that calls out to the engine for the nested type.
-			engine := getEncEngine(typ);
-			info := getTypeInfo(typ);
+			engine, err := getEncEngine(typ);
+			if err != nil {
+				return nil, 0, err
+			}
+			info := getTypeInfoNoError(typ);
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				state.update(i);
 				// indirect through info to delay evaluation for recursive structs
@@ -380,13 +389,13 @@ func encOpFor(rt reflect.Type) (encOp, int) {
 		}
 	}
 	if op == nil {
-		panicln("can't happen: encode type", rt.String());
+		return op, indir, os.ErrorString("gob enc: can't happen: encode type" + rt.String());
 	}
-	return op, indir
+	return op, indir, nil
 }
 
 // The local Type was compiled from the actual value, so we know it's compatible.
-func compileEnc(rt reflect.Type) *encEngine {
+func compileEnc(rt reflect.Type) (*encEngine, os.Error) {
 	srt, ok := rt.(*reflect.StructType);
 	if !ok {
 		panicln("can't happen: non-struct");
@@ -395,23 +404,29 @@ func compileEnc(rt reflect.Type) *encEngine {
 	engine.instr = make([]encInstr, srt.NumField()+1);	// +1 for terminator
 	for fieldnum := 0; fieldnum < srt.NumField(); fieldnum++ {
 		f := srt.Field(fieldnum);
-		op, indir := encOpFor(f.Type);
+		op, indir, err := encOpFor(f.Type);
+		if err != nil {
+			return nil, err
+		}
 		engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(f.Offset)};
 	}
 	engine.instr[srt.NumField()] = encInstr{encStructTerminator, 0, 0, 0};
-	return engine;
+	return engine, nil;
 }
 
 // typeLock must be held (or we're in initialization and guaranteed single-threaded).
 // The reflection type must have all its indirections processed out.
-func getEncEngine(rt reflect.Type) *encEngine {
-	info := getTypeInfo(rt);
+func getEncEngine(rt reflect.Type) (*encEngine, os.Error) {
+	info, err := getTypeInfo(rt);
+	if err != nil {
+		return nil, err
+	}
 	if info.encoder == nil {
 		// mark this engine as underway before compiling to handle recursive types.
 		info.encoder = new(encEngine);
-		info.encoder = compileEnc(rt);
+		info.encoder, err = compileEnc(rt);
 	}
-	return info.encoder;
+	return info.encoder, err;
 }
 
 func encode(b *bytes.Buffer, e interface{}) os.Error {
@@ -425,7 +440,10 @@ func encode(b *bytes.Buffer, e interface{}) os.Error {
 		return os.ErrorString("gob: encode can't handle " + v.Type().String())
 	}
 	typeLock.Lock();
-	engine := getEncEngine(rt);
+	engine, err := getEncEngine(rt);
 	typeLock.Unlock();
+	if err != nil {
+		return err
+	}
 	return encodeStruct(engine, b, v.Addr());
 }
