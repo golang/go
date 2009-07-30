@@ -69,17 +69,12 @@ type Error struct {
 
 
 func (e *Error) String() string {
-	s := e.Pos.Filename;
-	if s != "" {
-		s += ":";
+	if e.Pos.Filename != "" || e.Pos.IsValid() {
+		// don't print "<unknown position>"
+		// TODO(gri) reconsider the semantics of Position.IsValid
+		return e.Pos.String() + ": " + e.Msg;
 	}
-	if e.Pos.IsValid() {
-		s += fmt.Sprintf("%d:%d:", e.Pos.Line, e.Pos.Column);
-	}
-	if s != "" {
-		s += " ";
-	}
-	return s + e.Msg;
+	return e.Msg;
 }
 
 
