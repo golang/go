@@ -64,7 +64,7 @@
 		fmt.Printf("%v\n", i);
 	will print 23.
 
-	If an operand implements interface Format, that interface
+	If an operand implements interface Formatter, that interface
 	can be used for fine control of formatting.
 
 	If an operand implements method String() string that method
@@ -96,7 +96,7 @@ type State interface {
 	Flag(int)	bool;
 }
 
-// Format is the interface implemented by objects with a custom formatter.
+// Formatter is the interface implemented by objects with a custom formatter.
 // The implementation of Format may call Sprintf or Fprintf(f) etc.
 // to generate its output.
 type Formatter interface {
