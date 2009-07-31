@@ -356,11 +356,32 @@ reswitch:
 		goto ret;
 
 	case OTYPE:
+	case OCALLMETH:
+	case OCALLINTER:
+	case OCALLFUNC:
+	case ONONAME:
+	case OINDREG:
+	case OEMPTY:
+	case OCONVNOP:
+	case OCOMPMAP:
+	case OCOMPSLICE:
 		goto ret;
 
-	case OKEY:
-		walkexpr(&n->left, top | typeok, init);
-		walkexpr(&n->right, top | typeok, init);
+	case ONOT:
+	case OMINUS:
+	case OPLUS:
+	case OCOM:
+	case OLEN:
+	case OCAP:
+	case ODOT:
+	case ODOTPTR:
+	case ODOTMETH:
+	case ODOTINTER:
+		walkexpr(&n->left, Erv, init);
+		goto ret;
+
+	case OIND:
+		walkexpr(&n->left, Erv | Etype, init);
 		goto ret;
 
 	case OPRINT:
@@ -398,18 +419,6 @@ reswitch:
 		n->addable = 1;
 		goto ret;
 
-	case ONONAME:
-		s = n->sym;
-		if(n->diag == 0) {
-			s->undef = 1;
-			n->diag = 1;
-			yyerror("undefined: %S", s);
-			goto ret;
-		}
-		if(top == Etop)
-			goto nottop;
-		goto ret;
-
 	case ONAME:
 		if(top == Etop)
 			goto nottop;
@@ -425,11 +434,6 @@ reswitch:
 				s->undef = 1;
 			}
 		}
-		goto ret;
-
-	case OCALLMETH:
-	case OCALLINTER:
-	case OCALLFUNC:
 		goto ret;
 
 	case OCALL:
@@ -686,10 +690,6 @@ reswitch:
 		}
 		goto ret;
 
-	case OINDREG:
-	case OEMPTY:
-		goto ret;
-
 	case ODOTTYPE:
 		walkdottype(n, init);
 		// fall through
@@ -697,13 +697,6 @@ reswitch:
 		if(!(top & Erv))
 			goto nottop;
 		walkconv(&n, init);
-		goto ret;
-
-	case OCONVNOP:
-		goto ret;
-
-	case OCOMPMAP:
-	case OCOMPSLICE:
 		goto ret;
 
 	case OCOMPOS:
@@ -732,17 +725,6 @@ reswitch:
 		}
 		n = r;
 		goto ret;
-
-	case ONOT:
-		if(!(top & Erv))
-			goto nottop;
-		if(n->op == OLITERAL)
-			goto ret;
-		walkexpr(&n->left, Erv, init);
-		if(n->left == N || n->left->type == T)
-			goto ret;
-		et = n->left->type->etype;
-		break;
 
 	case OASOP:
 		if(top != Etop)
@@ -777,7 +759,7 @@ reswitch:
 		if(issigned[et] || !isint[et])
 			goto badt;
 		// check of n->left->type happens in second switch.
-		break;
+		goto ret;
 
 	case OMOD:
 	case OAND:
@@ -804,14 +786,8 @@ reswitch:
 		walkexpr(&n->right, Erv, init);
 		if(n->left == N || n->right == N)
 			goto ret;
-		evconst(n);
-		if(n->op == OLITERAL)
-			goto ret;
-		defaultlit2(&n->left, &n->right, iscmp[n->op]);
 		if(n->left->type == T || n->right->type == T)
 			goto ret;
-		if(!eqtype(n->left->type, n->right->type))
-			goto badt;
 
 		switch(n->op) {
 		case OANDNOT:
@@ -846,80 +822,60 @@ reswitch:
 			}
 			break;
 		}
-		break;
-
-	case OMINUS:
-	case OPLUS:
-	case OCOM:
-		if(!(top & Erv))
-			goto nottop;
-		walkexpr(&n->left, Erv, init);
-		if(n->left == N)
-			goto ret;
-		if(n->op == OLITERAL)
-			goto ret;
-		break;
-
-	case OLEN:
-		if(!(top & Erv))
-			goto nottop;
-		if(n->left == N) {
-			if(n->list == nil) {
-				yyerror("missing argument to len");
+		
+		switch(n->op) {
+		case OEQ:
+		case ONE:
+			if(isinter(n->left->type)) {
+				n = ifaceop(n);
 				goto ret;
 			}
-			if(n->list->next)
-				yyerror("too many arguments to len");
-			n->left = n->list->n;
-		}
-		walkexpr(&n->left, Erv, init);
-		defaultlit(&n->left, T);
-		t = n->left->type;
-		if(t == T)
-			goto ret;
-		switch(t->etype) {
-		default:
-			goto badt;
-		case TSTRING:
-			if(isconst(n->left, CTSTR))
-				nodconst(n, types[TINT], n->left->val.u.sval->len);
-			break;
-		case TMAP:
-			break;
-		case TARRAY:
-			if(t->bound >= 0)
-				nodconst(n, types[TINT], t->bound);
 			break;
 		}
-		n->type = types[TINT];
-		goto ret;
-
-	case OCAP:
-		if(!(top & Erv))
-			goto nottop;
-		if(n->left == N) {
-			if(n->list == nil) {
-				yyerror("missing argument to cap");
-				goto ret;
-			}
-			if(n->list->next)
-				yyerror("too many arguments to cap");
-			n->left = n->list->n;
-		}
-		walkexpr(&n->left, Erv, init);
-		defaultlit(&n->left, T);
-		t = n->left->type;
-		if(t == T)
-			goto ret;
-		switch(t->etype) {
-		default:
-			goto badt;
-		case TARRAY:
-			if(t->bound >= 0)
-				nodconst(n, types[TINT], t->bound);
+		
+		/*
+		 * rewrite div and mod into function calls
+		 * on 32-bit architectures.
+		 */
+		switch(n->op) {
+		case ODIV:
+		case OMOD:
+			et = n->left->type->etype;
+			if(widthptr > 4 || (et != TUINT64 && et != TINT64))
+				break;
+			if(et == TINT64)
+				strcpy(namebuf, "int64");
+			else
+				strcpy(namebuf, "uint64");
+			if(n->op == ODIV)
+				strcat(namebuf, "div");
+			else
+				strcat(namebuf, "mod");
+			l = syslook(namebuf, 0);
+			n->left = nod(OCONV, n->left, N);
+			n->left->type = types[et];
+			n->right = nod(OCONV, n->right, N);
+			n->right->type = types[et];
+			r = nod(OCALL, l, N);
+			r->list = list(list1(n->left), n->right);
+			r = nod(OCONV, r, N);
+			r->type = n->left->left->type;
+			typecheck(&r, Erv);
+			walkexpr(&r, Erv, init);
+			n = r;
+			break;
+	
+		case OASOP:
+			et = n->left->type->etype;
+			if(widthptr > 4 || (et != TUINT64 && et != TINT64))
+				break;
+			l = saferef(n->left, init);
+			r = nod(OAS, l, nod(n->etype, l, n->right));
+			typecheck(&r, Etop);
+			walkexpr(&r, Etop, init);
+			n = r;
 			break;
 		}
-		n->type = types[TINT];
 		goto ret;
 
 	case OINDEX:
@@ -1040,13 +996,6 @@ reswitch:
 		badtype(OSLICE, n->left->type, T);
 		goto ret;
 
-	case ODOT:
-	case ODOTPTR:
-	case ODOTMETH:
-	case ODOTINTER:
-		walkexpr(&n->left, Erv, init);
-		goto ret;
-
 	case OADDR:
 		if(!(top & Erv))
 			goto nottop;
@@ -1112,28 +1061,6 @@ reswitch:
 		n->type = ptrto(t);
 		goto ret;
 
-	case OIND:
-		if(top == Etop)
-			goto nottop;
-		if(top == Elv)	// even if n is lvalue, n->left is rvalue
-			top = Erv;
-		if(n->left == N)
-			goto ret;
-		walkexpr(&n->left, top | Etype, init);
-		defaultlit(&n->left, T);
-		if(n->left->op == OTYPE) {
-			n->op = OTYPE;
-			n->type = ptrto(n->left->type);
-			goto ret;
-		}
-		t = n->left->type;
-		if(t == T)
-			goto ret;
-		if(!isptr[t->etype])
-			goto badt;
-		n->type = t->type;
-		goto ret;
-
 	case OMAKE:
 		if(!(top & Erv))
 			goto nottop;
@@ -1157,151 +1084,7 @@ reswitch:
 			n = callnew(t);
 		goto ret;
 	}
-
-/*
- * ======== second switch ========
- */
-
-	op = n->op;
-	if(op == OASOP)
-		op = n->etype;
-	switch(op) {
-	default:
-		fatal("walkexpr: switch 2 unknown op %N", n, init);
-		goto ret;
-
-	case OASOP:
-		break;
-
-	case ONOT:
-	case OANDAND:
-	case OOROR:
-		if(n->left->type == T)
-			goto ret;
-		et = n->left->type->etype;
-		if(et != TBOOL)
-			goto badt;
-		t = types[TBOOL];
-		break;
-
-	case OEQ:
-	case ONE:
-		if(n->left->type == T)
-			goto ret;
-		et = n->left->type->etype;
-		if(!okforeq[et] && !isslice(n->left->type))
-			goto badt;
-		if(isinter(n->left->type)) {
-			n = ifaceop(n);
-			goto ret;
-		}
-		t = types[TBOOL];
-		break;
-
-	case OLT:
-	case OLE:
-	case OGE:
-	case OGT:
-		if(n->left->type == T)
-			goto ret;
-		et = n->left->type->etype;
-		if(!okforarith[et] && et != TSTRING)
-			goto badt;
-		t = types[TBOOL];
-		break;
-
-	case OADD:
-	case OSUB:
-	case OMUL:
-	case ODIV:
-	case OPLUS:
-		if(n->left->type == T)
-			goto ret;
-		et = n->left->type->etype;
-		if(!okforarith[et])
-			goto badt;
-		break;
-
-	case OMINUS:
-		if(n->left->type == T)
-			goto ret;
-		et = n->left->type->etype;
-		if(!okforarith[et])
-			goto badt;
-		if(isfloat[et]) {
-			// TODO(rsc): Can do this more efficiently,
-			// but OSUB is wrong.  Should be in back end anyway.
-			n = nod(OMUL, n->left, nodintconst(-1));
-			typecheck(&n, Erv);
-			walkexpr(&n, Erv, init);
-			goto ret;
-		}
-		break;
-
-	case OLSH:
-	case ORSH:
-	case OAND:
-	case OANDNOT:
-	case OOR:
-	case OXOR:
-	case OMOD:
-	case OCOM:
-		if(n->left->type == T)
-			goto ret;
-		et = n->left->type->etype;
-		if(et != TIDEAL && !okforand[et])
-			goto badt;
-		break;
-	}
-
-	/*
-	 * rewrite div and mod into function calls
-	 * on 32-bit architectures.
-	 */
-	switch(n->op) {
-	case ODIV:
-	case OMOD:
-		et = n->left->type->etype;
-		if(widthptr > 4 || (et != TUINT64 && et != TINT64))
-			break;
-		if(et == TINT64)
-			strcpy(namebuf, "int64");
-		else
-			strcpy(namebuf, "uint64");
-		if(n->op == ODIV)
-			strcat(namebuf, "div");
-		else
-			strcat(namebuf, "mod");
-		l = syslook(namebuf, 0);
-		n->left = nod(OCONV, n->left, N);
-		n->left->type = types[et];
-		n->right = nod(OCONV, n->right, N);
-		n->right->type = types[et];
-		r = nod(OCALL, l, N);
-		r->list = list(list1(n->left), n->right);
-		r = nod(OCONV, r, N);
-		r->type = n->left->left->type;
-		typecheck(&r, Erv);
-		walkexpr(&r, Erv, init);
-		n = r;
-		goto ret;
-
-	case OASOP:
-		et = n->left->type->etype;
-		if(widthptr > 4 || (et != TUINT64 && et != TINT64))
-			break;
-		l = saferef(n->left, init);
-		r = nod(OAS, l, nod(n->etype, l, n->right));
-		typecheck(&r, Etop);
-		walkexpr(&r, Etop, init);
-		n = r;
-		goto ret;
-	}
-
-	if(t == T)
-		t = n->left->type;
-	n->type = t;
-	goto ret;
+	fatal("missing switch %#O", n->op);
 
 nottop:
 	if(n->diag)

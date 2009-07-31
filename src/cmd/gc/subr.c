@@ -967,6 +967,9 @@ Jconv(Fmt *fp)
 	if(n->funcdepth != 0)
 		fmtprint(fp, " f(%d)", n->funcdepth);
 
+	if(n->typecheck != 0)
+		fmtprint(fp, " tc(%d)", n->typecheck);
+
 	return 0;
 }
 

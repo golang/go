@@ -28,7 +28,7 @@ typechecklist(NodeList *l, int top)
 Node*
 typecheck(Node **np, int top)
 {
-	int et, et1, et2, op, nerr, len;
+	int et, op, nerr, len;
 	NodeList *ll;
 	Node *n, *l, *r;
 	NodeList *args;
@@ -256,6 +256,7 @@ reswitch:
 			et = TINT;
 		if(t->etype != TIDEAL && !eqtype(l->type, r->type)) {
 		badbinary:
+			defaultlit2(&l, &r, 1);
 			yyerror("invalid operation: %#N (type %T %#O %T)", n, l->type, op, r->type);
 			goto error;
 		}
@@ -270,8 +271,15 @@ reswitch:
 		if(isslice(l->type) && !isnil(l) && !isnil(r))
 			goto badbinary;
 		t = l->type;
-		if(iscmp[n->op])
+		if(iscmp[n->op]) {
 			t = types[TBOOL];
+			evconst(n);
+			if(n->op != OLITERAL) {
+				defaultlit2(&l, &r, 1);
+				n->left = l;
+				n->right = r;
+			}
+		}
 		n->type = t;
 		goto ret;
 
@@ -637,6 +645,8 @@ yyerror("skip %#N", n);
 			yyerror("invalid operation: %#N (non-chan type %T)", n, t);
 			goto error;
 		}
+		if(n->op == OCLOSED)
+			n->type = types[TBOOL];
 		goto ret;
 
 	case OCONV:
@@ -1023,7 +1033,6 @@ convert(Node **np, Type *t, int explicit)
 
 	// no-op conversion
 	if(cvttype(t, n->type) == 1) {
-	nop:
 		if(n->op == OLITERAL) {
 			// can convert literal in place
 			n1 = nod(OXXX, N, N);
