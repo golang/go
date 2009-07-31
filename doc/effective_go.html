@@ -3,7 +3,7 @@
 
 <p>
 This document gives tips for writing clear, idiomatic Go code
-and points out common mistakes to avoid.
+and points out common mistakes.
 It augments the <a href="go_spec.html">language specification</a>
 and the <a href="go_tutorial.html">tutorial</a>, both of which you
 should read first.
@@ -12,7 +12,7 @@ should read first.
 <h3 id="read">Read good code</h3>
 
 <p>
-The first step towards learning to write good code is to read good code.
+The first step in learning to write good code is to read good code.
 The <a href="/src/pkg/">Go package sources</a>
 are intended to serve not
 only as the core library but also as examples of how to
@@ -22,9 +22,18 @@ use the language.  Read them and follow their example.
 <h3 id="be-consistent">Be consistent</h3>
 
 <p>
-Consistency makes programs easy to read.
-If a program says the same thing twice,
-it should say it the same way both times.
+Programmers often want their style to be distinctive,
+writing loops backwards or using custom spacing and
+naming conventions. Such idiosyncracies come at a
+price, however: by making the code look different,
+they make it harder to understand.
+Consistency trumps personal
+expression in programming.
+</p>
+
+<p>
+If a program does the same thing twice,
+it should do it the same way both times.
 Conversely, if two different sections of a
 program look different, the reader will
 expect them to do different things.
@@ -50,51 +59,39 @@ for i := n-1; i &gt;= 0; i-- {
 </pre>
 
 <p>
-The convention in most languages (including Go)
+The convention
 is to count up unless to do so would be incorrect.
 A loop that counts down implicitly says &ldquo;something
 special is happening here.&rdquo;
 A reader who finds a program in which some
 loops count up and the rest count down
 will spend time trying to understand why.
-Don't run loops backwards unless it's necessary.
 </p>
 
 <p>
 Loop direction is just one
-programming decision which a programmer
-may be tempted to be distinctive:
-tabs or spaces, choice of variable names,
-choice of method names, whether a type
-has a constructor, what tests look like, and on and on.
-As in the loop example, inconsistency
-sows confusion, and wastes time.
+programming decision that must be made
+consistently; others include
+formatting, naming variables and methods,
+whether a type
+has a constructor, what tests look like, and so on.
 Why is this variable called <code>n</code> here and <code>cnt</code> there?
 Why is the <code>Log</code> constructor <code>CreateLog</code> when
 the <code>List</code> constructor is <code>NewList</code>?
 Why is this data structure initialized using
 a structure literal when that one
 is initialized using individual assignments?
-And so on.
 These questions distract from the important one:
 what does the code do?
 Moreover, internal consistency is important not only within a single file,
 but also within the the surrounding source files.
-Being consistent about little things
-lets readers concentrate on big ones.
-</p>
-
-<p>
-This document describes how to use Go effectively and idiomatically
-so that a programmer seeing your code for
-the first time can focus on what it does 
-and not why it is inconsistent with typical Go practices.
-Consistency trumps every item listed below.
 When editing code, read the surrounding context
 and try to mimic it as much as possible, even if it
 disagrees with the rules here.
 It should not be possible to tell which lines
 you wrote or edited based on style alone.
+Consistency about little things
+lets readers concentrate on big ones.
 </p>
 
 <h2 id="formatting">Formatting</h2>
@@ -103,21 +100,26 @@ you wrote or edited based on style alone.
 Formatting issues are the most contentious
 but the least consequential.
 People adapt to different formatting styles,
-even if at first the styles &ldquo;look weird,&rdquo;
 but they shouldn't be asked to.
 Everyone
 should use the same formatting; as in English,
 consistent punctuation and spacing make the
 text easier to read.
 Most of the local formatting style can be
-picked up by reading existing Go programs (see above),
+picked up by reading existing Go programs,
 but to make them explicit here are some common points.
 </p>
 
 <h3 id="tabs">Use tabs</h3>
 
 <p>
-The local style is to use tabs, not spaces, for indentation.
+Use tabs, not spaces, for indentation.
+</p>
+
+<h3 id="columns">Don't worry about columnation</h3>
+
+<p>
+Let tools such as <code>gofmt</code> take care of lining things up.
 </p>
 
 <h3 id="white-space">Trim trailing white space</h3>
@@ -126,12 +128,12 @@ The local style is to use tabs, not spaces, for indentation.
 There should be no trailing white space at the end of lines.
 </p>
 
-<h3 id="line-wrapping">Don't wrap lines mechanically</h3>
+<h3 id="line-wrapping">Don't wrap lines</h3>
 
 <p>
 Go has no 80-character limit.  Don't bother with fancy line
 wrapping just because a line is wider than a punched card.
-If you must wrap a line, indent with an extra tab.
+If a line is too long, indent with an extra tab.
 </p>
 
 <h3 id="parens">Omit parentheses in control structures</h3>
@@ -187,7 +189,7 @@ func Quote(s string) string {
 </pre>
 
 <p>
-The complete English sentence form admits
+Use of complete English sentences admits
 a wider variety of automated presentations.
 </p>
 
@@ -338,8 +340,8 @@ hdr, body, checksum := buf[0:20], buf[20:len(buf)-4], buf[len(buf)-4:len(buf)];
 <h3 id="else">Omit needless else bodies</h3>
 
 <p>
-If an <code>if</code> body doesn't flow off the end of the
-body—that is, the body ends in <code>break</code>, <code>continue</code>,
+When an <code>if</code> statement doesn't flow into the next statement—that is,
+the body ends in <code>break</code>, <code>continue</code>,
 <code>goto</code>, or <code>return</code>—omit the <code>else</code>.
 </p>
 
@@ -434,6 +436,16 @@ There is no need to pass a pointer to a return value.
 
 <h2 id="errors">Errors</h2>
 
+<h3 id="error-returns">Return <code>os.Error</code>, not <code>bool</code></h3>
+
+<p>
+Especially in libraries, functions tend to have multiple error modes.
+Instead of returning a boolean to signal success,
+return an <code>os.Error</code> that describes the failure.
+Even if there is only one failure mode now, 
+there may be more later.
+</p>
+
 <h3 id="handle-errors-first">Handle errors first</h3>
 
 <p>
@@ -446,27 +458,17 @@ so that there is <a href="#else">no need for an explicit else</a>.
 
 <pre>
 if len(name) == 0 {
-	return;
+	return os.EINVAL;
 }
 if IsDir(name) {
-	return;
+	return os.EISDIR;
 }
 f, err := os.Open(name, os.O_RDONLY, 0);
 if err != nil {
-	return;
+	return err;
 }
 codeUsing(f);
 </pre>
-
-<h3 id="error-returns">Return <code>os.Error</code>, not <code>bool</code></h3>
-
-<p>
-Few functions have just one failure mode.
-Instead of returning a boolean to signal success,
-return an <code>os.Error</code> that describes the failure.
-Even if there is only one failure mode now, 
-there may be more later.
-</p>
 
 <h3 id="error-context">Return structured errors</h3>
 
