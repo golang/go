@@ -565,6 +565,9 @@ func (t *Template) parse() {
 // If the data for this template is a struct, find the named variable.
 // Names of the form a.b.c are walked down the data tree.
 // The special name "@" (the "cursor") denotes the current data.
+// The value coming in (st.data) might need indirecting to reach
+// a struct while the return value is not indirected - that is,
+// it represents the actual named field.
 func (st *state) findVar(s string) reflect.Value {
 	if s == "@" {
 		return st.data
@@ -588,7 +591,7 @@ func (st *state) findVar(s string) reflect.Value {
 }
 
 // Is there no data to look at?
-func empty(v reflect.Value, indirect_ok bool) bool {
+func empty(v reflect.Value) bool {
 	v = reflect.Indirect(v);
 	if v == nil {
 		return true
@@ -682,7 +685,7 @@ func (t *Template) executeSection(s *sectionElement, st *state) {
 	}
 	st = st.clone(field);
 	start, end := s.start, s.or;
-	if !empty(field, true) {
+	if !empty(field) {
 		// Execute the normal block.
 		if end < 0 {
 			end = s.end
@@ -713,7 +716,7 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 	if !ok {
 		t.execError(st, r.linenum, ".repeated: %s has bad type %s", r.field, field.Type());
 	}
-	if empty(field, true) {
+	if empty(field) {
 		// Execute the .or block, once.  If it's missing, do nothing.
 		start, end := r.or, r.end;
 		if start >= 0 {
