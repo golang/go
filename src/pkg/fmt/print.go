@@ -434,7 +434,7 @@ func (p *pp) printField(field reflect.Value) (was_string bool) {
 			break;
 		}
 		p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
-		s = p.fmt.Fmt_uX64(uint64(v)).Str();
+		s = p.fmt.Fmt_ux64(uint64(v)).Str();
 	case reflect.ArrayOrSliceValue:
 		p.addstr("[");
 		for i := 0; i < f.Len(); i++ {
