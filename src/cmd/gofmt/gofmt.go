@@ -146,8 +146,8 @@ func main() {
 	if !*silent {
 		w := makeTabwriter(os.Stdout);
 		if *exports {
-			src := ast.PackageExports(pkg);
-			printer.Fprint(w, src, printerMode());  // ignore errors
+			ast.PackageExports(pkg);
+			printer.Fprint(w, ast.MergePackageFiles(pkg), printerMode());  // ignore errors
 		} else {
 			for _, src := range pkg.Files {
 				printer.Fprint(w, src, printerMode());  // ignore errors

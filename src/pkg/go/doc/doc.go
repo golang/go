@@ -26,16 +26,14 @@ type typeDoc struct {
 }
 
 
-// DocReader accumulates documentation for a single package.
+// docReader accumulates documentation for a single package.
 // It modifies the AST: Comments (declaration documentation)
 // that have been collected by the DocReader are set to nil
 // in the respective AST nodes so that they are not printed
 // twice (once when printing the documentation and once when
 // printing the corresponding AST node).
 //
-type DocReader struct {
-	name string;  // package name
-	path string;  // import path
+type docReader struct {
 	doc *ast.CommentGroup;  // package documentation, if any
 	consts *vector.Vector;  // list of *ast.GenDecl
 	types map[string] *typeDoc;
@@ -45,12 +43,7 @@ type DocReader struct {
 }
 
 
-// Init initializes a DocReader to collect package documentation
-// for the package with the given package name and import path.
-//
-func (doc *DocReader) Init(pkg, imp string) {
-	doc.name = pkg;
-	doc.path = imp;
+func (doc *docReader) init() {
 	doc.consts = vector.New(0);
 	doc.types = make(map[string] *typeDoc);
 	doc.vars = vector.New(0);
@@ -70,7 +63,7 @@ func baseTypeName(typ ast.Expr) string {
 }
 
 
-func (doc *DocReader) lookupTypeDoc(typ ast.Expr) *typeDoc {
+func (doc *docReader) lookupTypeDoc(typ ast.Expr) *typeDoc {
 	tdoc, found := doc.types[baseTypeName(typ)];
 	if found {
 		return tdoc;
@@ -79,7 +72,7 @@ func (doc *DocReader) lookupTypeDoc(typ ast.Expr) *typeDoc {
 }
 
 
-func (doc *DocReader) addType(decl *ast.GenDecl) {
+func (doc *docReader) addType(decl *ast.GenDecl) {
 	typ := decl.Specs[0].(*ast.TypeSpec);
 	name := typ.Name.Value;
 	if _, found := doc.types[name]; !found {
@@ -91,7 +84,7 @@ func (doc *DocReader) addType(decl *ast.GenDecl) {
 }
 
 
-func (doc *DocReader) addFunc(fun *ast.FuncDecl) {
+func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 	name := fun.Name.Value;
 
 	// determine if it should be associated with a type
@@ -131,7 +124,7 @@ func (doc *DocReader) addFunc(fun *ast.FuncDecl) {
 }
 
 
-func (doc *DocReader) addDecl(decl ast.Decl) {
+func (doc *docReader) addDecl(decl ast.Decl) {
 	switch d := decl.(type) {
 	case *ast.GenDecl:
 		if len(d.Specs) > 0 {
@@ -186,22 +179,22 @@ var (
 )
 
 
-// AddFile adds the AST for a source file to the DocReader.
+// addFile adds the AST for a source file to the docReader.
 // Adding the same AST multiple times is a no-op.
 //
-func (doc *DocReader) AddFile(src *ast.File) {
+func (doc *docReader) addFile(src *ast.File) {
 	if bug_markers == nil {
 		bug_markers = makeRex("^/[/*][ \t]*BUG\\(.*\\):[ \t]*");  // BUG(uid):
 		bug_content = makeRex("[^ \n\r\t]+");  // at least one non-whitespace char
 	}
 
-	if doc.name != src.Name.Value {
-		panic("package names don't match");
-	}
-
 	// add package documentation
-	// TODO(gri) what to do if there are multiple files?
 	if src.Doc != nil {
+		// TODO(gri) This won't do the right thing if there is more
+		//           than one file with package comments. Consider
+		//           using ast.MergePackageFiles which handles these
+		//           comments correctly (but currently looses BUG(...)
+		//           comments).
 		doc.doc = src.Doc;
 		src.Doc = nil;  // doc consumed - remove from ast.File node
 	}
@@ -227,6 +220,32 @@ func (doc *DocReader) AddFile(src *ast.File) {
 	}
 	src.Comments = nil;  // consumed unassociated comments - remove from ast.File node
 }
+
+
+type PackageDoc struct
+func (doc *docReader) newDoc(pkgname, importpath, filepath string, filenames []string) *PackageDoc
+
+func NewFileDoc(file *ast.File) *PackageDoc {
+	var r docReader;
+	r.init();
+	r.addFile(file);
+	return r.newDoc(file.Name.Value, "", "", nil);
+}
+
+
+func NewPackageDoc(pkg *ast.Package, importpath string) *PackageDoc {
+	var r docReader;
+	r.init();
+	filenames := make([]string, len(pkg.Files));
+	i := 0;
+	for filename, f := range pkg.Files {
+		r.addFile(f);
+		filenames[i] = filename;
+		i++;
+	}
+	return r.newDoc(pkg.Name, importpath, pkg.Path, filenames);
+}
+
 
 // ----------------------------------------------------------------------------
 // Conversion to external representation
@@ -402,6 +421,8 @@ func makeBugDocs(v *vector.Vector) []string {
 type PackageDoc struct {
 	PackageName string;
 	ImportPath string;
+	FilePath string;
+	Filenames []string;
 	Doc string;
 	Consts []*ValueDoc;
 	Types []*TypeDoc;
@@ -411,12 +432,15 @@ type PackageDoc struct {
 }
 
 
-// Doc returns the accumulated documentation for the package.
+// newDoc returns the accumulated documentation for the package.
 //
-func (doc *DocReader) Doc() *PackageDoc {
+func (doc *docReader) newDoc(pkgname, importpath, filepath string, filenames []string) *PackageDoc {
 	p := new(PackageDoc);
-	p.PackageName = doc.name;
-	p.ImportPath = doc.path;
+	p.PackageName = pkgname;
+	p.ImportPath = importpath;
+	p.FilePath = filepath;
+	sort.SortStrings(filenames);
+	p.Filenames = filenames;
 	p.Doc = astComment(doc.doc);
 	p.Consts = makeValueDocs(doc.consts);
 	p.Vars = makeValueDocs(doc.vars);

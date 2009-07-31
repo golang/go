@@ -1,15 +1,24 @@
 {.section Dirs}
 	<h2>Subdirectories</h2>
 	{.repeated section @}
-		<a href="{Name|html}/">{Name|html}</a><br />
+		<a href="{Name|html}">{Name|html}</a><br />
 	{.end}
 	<hr />
 {.end}
 {.section PDoc}
 	<h1>package {PackageName|html}</h1>
 	<p><code>import "{ImportPath|html}"</code></p>
-
 	{Doc|html-comment}
+	{.section Filenames}
+		<p>
+		<h4>Package files</h4>
+		<font size=-1>
+		{.repeated section @}
+			<a href="/{FilePath|html}/{@|html}">{@|html}</a>
+		{.end}
+		</font>
+		</p>
+	{.end}
 	{.section Consts}
 		<h2>Constants</h2>
 		{.repeated section @}

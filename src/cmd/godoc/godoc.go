@@ -444,12 +444,8 @@ func getPageInfo(path string) PageInfo {
 	// compute package documentation
 	var pdoc *doc.PackageDoc;
 	if pkg != nil {
-		// TODO(gri) Simplify DocReader interface: no need anymore to add
-		//           more than one file because of ast.PackageInterface.
-		var r doc.DocReader;
-		r.Init(pkg.Name, pathutil.Clean(path));  // no trailing '/' in importpath
-		r.AddFile(ast.PackageExports(pkg));
-		pdoc = r.Doc();
+		ast.PackageExports(pkg);
+		pdoc = doc.NewPackageDoc(pkg, pathutil.Clean(path));  // no trailing '/' in importpath
 	}
 
 	return PageInfo{pdoc, subdirs};
