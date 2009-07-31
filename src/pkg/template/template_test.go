@@ -27,6 +27,7 @@ type S struct {
 	header string;
 	integer int;
 	raw string;
+	innerT T;
 	data []T;
 	pdata []*T;
 	empty []*T;
@@ -199,6 +200,15 @@ var tests = []*Test {
 		"ItemNumber2=ValueNumber2\n"
 	},
 
+	// Nested names
+	&Test{
+		"{.section @ }\n"
+		"{innerT.item}={innerT.value}\n"
+		"{.end}",
+
+		"ItemNumber1=ValueNumber1\n"
+	},
+
 	// Formatters
 	&Test{
 		"{.section pdata }\n"
@@ -232,6 +242,7 @@ func TestAll(t *testing.T) {
 	s.header = "Header";
 	s.integer = 77;
 	s.raw = "&<>!@ #$%^";
+	s.innerT = t1;
 	s.data = []T{ t1, t2 };
 	s.pdata = []*T{ &t1, &t2 };
 	s.empty = []*T{ };

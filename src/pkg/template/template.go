@@ -563,19 +563,27 @@ func (t *Template) parse() {
 // -- Execution
 
 // If the data for this template is a struct, find the named variable.
+// Names of the form a.b.c are walked down the data tree.
 // The special name "@" (the "cursor") denotes the current data.
 func (st *state) findVar(s string) reflect.Value {
 	if s == "@" {
 		return st.data
 	}
 	data := reflect.Indirect(st.data);
-	typ, ok := data.Type().(*reflect.StructType);
-	if ok {
-		if field, ok := typ.FieldByName(s); ok {
-			return data.(*reflect.StructValue).Field(field.Index)
+	elems := strings.Split(s, ".", 0);
+	for i := 0; i < len(elems); i++ {
+		// Look up field; data must be a struct.
+		typ, ok := data.Type().(*reflect.StructType);
+		if !ok {
+			return nil
 		}
+		field, ok := typ.FieldByName(elems[i]);
+		if !ok {
+			return nil
+		}
+		data = reflect.Indirect(data.(*reflect.StructValue).Field(field.Index));
 	}
-	return nil
+	return data
 }
 
 // Is there no data to look at?
