@@ -33,8 +33,8 @@ const debugText =
 		<th align=center>Method</th><th align=center>Calls</th>
 		{.repeated section meth}
 			<tr>
-			<td align=left font=fixed>{name}({.section m}{argType}, {replyType}) os.Error</td>
-			<td align=center>{numCalls}</td>{.end}
+			<td align=left font=fixed>{name}({m.argType}, {m.replyType}) os.Error</td>
+			<td align=center>{m.numCalls}</td>
 			</tr>
 		{.end}
 		</table>
