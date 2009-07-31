@@ -578,7 +578,7 @@ func init() {
 	s := universe;
 
 	true := boolV(true);
-	s.DefineConst("true", BoolType, &true);
+	s.DefineConst("true", universePos, BoolType, &true);
 	false := boolV(false);
-	s.DefineConst("false", BoolType, &false);
+	s.DefineConst("false", universePos, BoolType, &false);
 }

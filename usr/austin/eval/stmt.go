@@ -219,6 +219,35 @@ func (f *flowBuf) gotosObeyScopes(a *compiler) bool {
 }
 
 /*
+ * Statement generation helpers
+ */
+
+func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
+	v, prev := a.block.DefineVar(ident.Value, ident.Pos(), t);
+	if prev != nil {
+		// TODO(austin) It's silly that we have to capture
+		// Pos() in a variable.
+		pos := prev.Pos();
+		if pos.IsValid() {
+			a.diagAt(ident, "variable %s redeclared in this block\n\tprevious declaration at %s", ident.Value, &pos);
+		} else {
+			a.diagAt(ident, "variable %s redeclared in this block", ident.Value);
+		}
+		return nil;
+	}
+
+	// Initialize the variable
+	index := v.Index;
+	a.push(func(v *vm) {
+		v.f.Vars[index] = t.Zero();
+	});
+	return v;
+}
+
+// TODO(austin) Move the real definition
+func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token, declTypeExpr ast.Expr)
+
+/*
  * Statement visitors
  */
 
@@ -227,7 +256,59 @@ func (a *stmtCompiler) DoBadStmt(s *ast.BadStmt) {
 }
 
 func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
-	log.Crash("Not implemented");
+	switch decl := s.Decl.(type) {
+	case *ast.BadDecl:
+		// Do nothing.  Already reported by parser.
+		return;
+
+	case *ast.FuncDecl:
+		log.Crash("FuncDecl at statement level");
+
+	case *ast.GenDecl:
+		switch decl.Tok {
+		case token.IMPORT:
+			log.Crash("import at statement level");
+
+		case token.CONST, token.TYPE:
+			log.Crashf("%v not implemented", decl.Tok);
+
+		case token.VAR:
+			ok := true;
+			for _, spec := range decl.Specs {
+				spec := spec.(*ast.ValueSpec);
+				if spec.Values == nil {
+					// Declaration without assignment
+					var t Type;
+					if spec.Type == nil {
+						// Parser should have caught
+						log.Crash("Type and Values nil");
+					}
+					t = a.compileType(a.block, spec.Type);
+					if t == nil {
+						// Define placeholders
+						ok = false;
+					}
+					for _, n := range spec.Names {
+						if a.defineVar(n, t) == nil {
+							ok = false;
+						}
+					}
+				} else {
+					// Decalaration with assignment
+					lhs := make([]ast.Expr, len(spec.Names));
+					for i, n := range spec.Names {
+						lhs[i] = n;
+					}
+					a.doAssign(lhs, spec.Values, decl.Tok, spec.Type);
+				}
+			}
+			if ok {
+				a.err = false;
+			}
+		}
+	default:
+		log.Crashf("Unexpected Decl type %T", s.Decl);
+	}
 }
 
 func (a *stmtCompiler) DoEmptyStmt(s *ast.EmptyStmt) {
@@ -241,7 +322,7 @@ func (a *stmtCompiler) DoLabeledStmt(s *ast.LabeledStmt) {
 	l, ok := a.labels[s.Label.Value];
 	if ok {
 		if l.resolved.IsValid() {
-			a.diag("label %s redefined; previous definition at line %d", s.Label.Value, l.resolved.Line);
+			a.diag("label %s redeclared in this block\n\tprevious declaration at %s", s.Label.Value, &l.resolved);
 			bad = true;
 		}
 	} else {
@@ -341,26 +422,25 @@ func (a *stmtCompiler) DoIncDecStmt(s *ast.IncDecStmt) {
 	a.err = false;
 }
 
-func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
+func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token, declTypeExpr ast.Expr) {
 	bad := false;
 
 	// Compile right side first so we have the types when
 	// compiling the left side and so we don't see definitions
 	// made on the left side.
-	rs := make([]*exprCompiler, len(s.Rhs));
-	for i, re := range s.Rhs {
+	rs := make([]*exprCompiler, len(rhs));
+	for i, re := range rhs {
 		rs[i] = a.compileExpr(a.block, re, false);
 		if rs[i] == nil {
 			bad = true;
-			continue;
 		}
 	}
 
 	errOp := "assignment";
-	if s.Tok == token.DEFINE {
-		errOp = "definition";
+	if tok == token.DEFINE || tok == token.VAR {
+		errOp = "declaration";
 	}
-	ac, ok := a.checkAssign(s.Pos(), rs, "assignment", "value");
+	ac, ok := a.checkAssign(a.pos, rs, errOp, "value");
 	if !ok {
 		bad = true;
 	}
@@ -368,18 +448,31 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 	// If this is a definition and the LHS is too big, we won't be
 	// able to produce the usual error message because we can't
 	// begin to infer the types of the LHS.
-	if s.Tok == token.DEFINE && len(s.Lhs) > len(ac.rmt.Elems) {
+	if (tok == token.DEFINE || tok == token.VAR) && len(lhs) > len(ac.rmt.Elems) {
 		a.diag("not enough values for definition");
 		bad = true;
 	}
 
+	// Compile left type if there is one
+	var declType Type;
+	if declTypeExpr != nil {
+		declType = a.compileType(a.block, declTypeExpr);
+		if declType == nil {
+			bad = true;
+		}
+	}
+
 	// Compile left side
-	ls := make([]*exprCompiler, len(s.Lhs));
+	ls := make([]*exprCompiler, len(lhs));
 	nDefs := 0;
-	for i, le := range s.Lhs {
-		if s.Tok == token.DEFINE {
+	for i, le := range lhs {
+		// If this is a definition, get the identifier and its type
+		var ident *ast.Ident;
+		var lt Type;
+		switch tok {
+		case token.DEFINE:
 			// Check that it's an identifier
-			ident, ok := le.(*ast.Ident);
+			ident, ok = le.(*ast.Ident);
 			if !ok {
 				a.diagAt(le, "left side of := must be a name");
 				bad = true;
@@ -390,15 +483,27 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 
 			// Is this simply an assignment?
 			if _, ok := a.block.defs[ident.Value]; ok {
-				goto assignment;
+				ident = nil;
+				break;
 			}
 			nDefs++;
 
+		case token.VAR:
+			ident = le.(*ast.Ident);
+		}
+
+		// If it's a definition, get or infer its type.
+		if ident != nil {
 			// Compute the identifier's type from the RHS
 			// type.  We use the computed MultiType so we
 			// don't have to worry about unpacking.
-			var lt Type;
 			switch {
+			case declTypeExpr != nil:
+				// We have a declaration type, use it.
+				// If declType is nil, we gave an
+				// error when we compiled it.
+				lt = declType;
+
 			case i >= len(ac.rmt.Elems):
 				// Define a placeholder.  We already
 				// gave the "not enough" error above.
@@ -428,20 +533,17 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 			default:
 				lt = ac.rmt.Elems[i];
 			}
-
-			// Define identifier
-			v := a.block.DefineVar(ident.Value, lt);
-			if v == nil {
-				log.Crashf("Failed to define %s", ident.Value);
-			}
-			// Initialize the variable
-			index := v.Index;
-			a.push(func(v *vm) {
-				v.f.Vars[index] = lt.Zero();
-			});
 		}
 
-	assignment:
+		// If it's a definition, define the identifier
+		if ident != nil {
+			if a.defineVar(ident, lt) == nil {
+				bad = true;
+				continue;
+			}
+		}
+
+		// Compile LHS
 		ls[i] = a.compileExpr(a.block, le, false);
 		if ls[i] == nil {
 			bad = true;
@@ -459,7 +561,7 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 	// provided they were originally declared in the same block
 	// with the same type, and at least one of the variables is
 	// new.
-	if s.Tok == token.DEFINE && nDefs == 0 {
+	if tok == token.DEFINE && nDefs == 0 {
 		a.diag("at least one new variable must be declared");
 		return;
 	}
@@ -470,7 +572,7 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 
 	// Create assigner
 	var lt Type;
-	n := len(s.Lhs);
+	n := len(lhs);
 	if n == 1 {
 		lt = ls[0].t;
 	} else {
@@ -492,7 +594,7 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
 		// Don't need temporaries and can avoid []Value.
 		lf := ls[0].evalAddr;
 		a.push(func(v *vm) { assign(lf(v.f), v.f) });
-	} else if s.Tok == token.DEFINE && nDefs == n {
+	} else if tok == token.VAR || (tok == token.DEFINE && nDefs == n) {
 		// Don't need temporaries
 		lfs := make([]func(*Frame) Value, n);
 		for i, l := range ls {
@@ -587,7 +689,7 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 func (a *stmtCompiler) DoAssignStmt(s *ast.AssignStmt) {
 	switch s.Tok {
 	case token.ASSIGN, token.DEFINE:
-		a.doAssign(s);
+		a.doAssign(s.Lhs, s.Rhs, s.Tok, nil);
 
 	default:
 		a.doAssignOp(s);
@@ -949,14 +1051,14 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
 	defer bodyScope.exit();
 	for i, t := range decl.Type.In {
 		if decl.InNames[i] != nil {
-			bodyScope.DefineVar(decl.InNames[i].Value, t);
+			bodyScope.DefineVar(decl.InNames[i].Value, decl.InNames[i].Pos(), t);
 		} else {
 			bodyScope.DefineSlot(t);
 		}
 	}
 	for i, t := range decl.Type.Out {
 		if decl.OutNames[i] != nil {
-			bodyScope.DefineVar(decl.OutNames[i].Value, t);
+			bodyScope.DefineVar(decl.OutNames[i].Value, decl.OutNames[i].Pos(), t);
 		} else {
 			bodyScope.DefineSlot(t);
 		}

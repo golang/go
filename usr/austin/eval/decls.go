@@ -6,6 +6,7 @@ package eval
 
 import (
 	"bignum";
+	"go/token";
 )
 
 /*
@@ -36,6 +37,8 @@ type Type interface {
 	Zero() Value;
 	// String returns the string representation of this type.
 	String() string;
+	// The position where this type was defined, if any.
+	Pos() token.Position;
 }
 
 type BoundedType interface {
@@ -125,7 +128,13 @@ type FuncValue interface {
  * Scopes
  */
 
+// A definition can be a *Variable, *Constant, or Type.
+type Def interface {
+	Pos() token.Position;
+}
+
 type Variable struct {
+	token.Position;
 	// Index of this variable in the Frame structure
 	Index int;
 	// Static type of this variable
@@ -133,12 +142,10 @@ type Variable struct {
 }
 
 type Constant struct {
+	token.Position;
 	Type Type;
 	Value Value;
 }
-
-// A definition can be a *Variable, *Constant, or Type.
-type Def interface {}
 
 type Scope struct
 
@@ -177,10 +184,10 @@ type Scope struct {
 func (b *block) enterChild() *block
 func (b *block) exit()
 func (b *block) ChildScope() *Scope
-func (b *block) DefineVar(name string, t Type) *Variable
+func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, Def)
 func (b *block) DefineSlot(t Type) *Variable
-func (b *block) DefineConst(name string, t Type, v Value) *Constant
-func (b *block) DefineType(name string, t Type) Type
+func (b *block) DefineConst(name string, pos token.Position, t Type, v Value) *Constant
+func (b *block) DefineType(name string, pos token.Position, t Type) Type
 func (b *block) Lookup(name string) (level int, def Def)
 
 // The universal scope
