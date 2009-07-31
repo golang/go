@@ -569,10 +569,11 @@ func (st *state) findVar(s string) reflect.Value {
 	if s == "@" {
 		return st.data
 	}
-	data := reflect.Indirect(st.data);
+	data := st.data;
 	elems := strings.Split(s, ".", 0);
 	for i := 0; i < len(elems); i++ {
 		// Look up field; data must be a struct.
+		data = reflect.Indirect(data);
 		typ, ok := data.Type().(*reflect.StructType);
 		if !ok {
 			return nil
@@ -581,7 +582,7 @@ func (st *state) findVar(s string) reflect.Value {
 		if !ok {
 			return nil
 		}
-		data = reflect.Indirect(data.(*reflect.StructValue).Field(field.Index));
+		data = data.(*reflect.StructValue).Field(field.Index);
 	}
 	return data
 }
