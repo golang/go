@@ -365,6 +365,13 @@ flt:	// floating-point.  387 (not SSE2) to interoperate with 6c
 	if(nr != N)
 		goto flt2;
 
+	if(n->op == OMINUS) {
+		nr = nodintconst(-1);
+		convlit(&nr, n->type);
+		n->op = OMUL;
+		goto flt2;
+	}
+
 	// unary
 	cgen(nl, &f0);
 	if(n->op != OCONV)

@@ -192,6 +192,12 @@ cgen(Node *n, Node *res)
 		goto ret;
 
 	case OMINUS:
+		if(isfloat[nl->type->etype]) {
+			nr = nodintconst(-1);
+			convlit(&nr, n->type);
+			a = optoas(OMUL, nl->type);
+			goto sbop;
+		}
 		a = optoas(n->op, nl->type);
 		goto uop;
 
