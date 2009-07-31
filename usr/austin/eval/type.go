@@ -8,6 +8,7 @@ import (
 	"bignum";
 	"eval";
 	"go/ast";
+	"go/token";
 	"log";
 	"reflect";
 	"unsafe";			// For Sizeof
@@ -26,9 +27,7 @@ import (
 // sense in the comparison operators section.  The compatibility and
 // assignment compatibility sections should be rolled into one.
 
-// XXX(Spec) Comparison compatibility: "Values of any type may be
-// compared to other values of compatible static type."  That should
-// be *identical* type.
+var universePos = token.Position{"<universe>", 0, 0, 0};
 
 /*
  * Type array maps.  These are used to memoize composite types.
@@ -114,6 +113,10 @@ func (commonType) isIdeal() bool {
 	return false;
 }
 
+func (commonType) Pos() token.Position {
+	return token.Position{};
+}
+
 /*
  * Bool
  */
@@ -122,7 +125,7 @@ type boolType struct {
 	commonType;
 }
 
-var BoolType = universe.DefineType("bool", &boolType{});
+var BoolType = universe.DefineType("bool", universePos, &boolType{});
 
 func (t *boolType) literal() Type {
 	return t;
@@ -160,13 +163,13 @@ type uintType struct {
 }
 
 var (
-	Uint8Type   = universe.DefineType("uint8",   &uintType{commonType{}, 8,  false, "uint8"});
-	Uint16Type  = universe.DefineType("uint16",  &uintType{commonType{}, 16, false, "uint16"});
-	Uint32Type  = universe.DefineType("uint32",  &uintType{commonType{}, 32, false, "uint32"});
-	Uint64Type  = universe.DefineType("uint64",  &uintType{commonType{}, 64, false, "uint64"});
+	Uint8Type   = universe.DefineType("uint8",   universePos, &uintType{commonType{}, 8,  false, "uint8"});
+	Uint16Type  = universe.DefineType("uint16",  universePos, &uintType{commonType{}, 16, false, "uint16"});
+	Uint32Type  = universe.DefineType("uint32",  universePos, &uintType{commonType{}, 32, false, "uint32"});
+	Uint64Type  = universe.DefineType("uint64",  universePos, &uintType{commonType{}, 64, false, "uint64"});
 
-	UintType    = universe.DefineType("uint",    &uintType{commonType{}, 0,  false, "uint"});
-	UintptrType = universe.DefineType("uintptr", &uintType{commonType{}, 0,  true,  "uintptr"});
+	UintType    = universe.DefineType("uint",    universePos, &uintType{commonType{}, 0,  false, "uint"});
+	UintptrType = universe.DefineType("uintptr", universePos, &uintType{commonType{}, 0,  true,  "uintptr"});
 )
 
 func init() {
@@ -230,12 +233,12 @@ type intType struct {
 }
 
 var (
-	Int8Type  = universe.DefineType("int8",  &intType{commonType{}, 8,  "int8"});
-	Int16Type = universe.DefineType("int16", &intType{commonType{}, 16, "int16"});
-	Int32Type = universe.DefineType("int32", &intType{commonType{}, 32, "int32"});
-	Int64Type = universe.DefineType("int64", &intType{commonType{}, 64, "int64"});
+	Int8Type  = universe.DefineType("int8",  universePos, &intType{commonType{}, 8,  "int8"});
+	Int16Type = universe.DefineType("int16", universePos, &intType{commonType{}, 16, "int16"});
+	Int32Type = universe.DefineType("int32", universePos, &intType{commonType{}, 32, "int32"});
+	Int64Type = universe.DefineType("int64", universePos, &intType{commonType{}, 64, "int64"});
 
-	IntType   = universe.DefineType("int",   &intType{commonType{}, 0,  "int"});
+	IntType   = universe.DefineType("int",   universePos, &intType{commonType{}, 0,  "int"});
 )
 
 func (t *intType) literal() Type {
@@ -318,9 +321,9 @@ type floatType struct {
 }
 
 var (
-	Float32Type = universe.DefineType("float32", &floatType{commonType{}, 32, "float32"});
-	Float64Type = universe.DefineType("float64", &floatType{commonType{}, 64, "float64"});
-	FloatType   = universe.DefineType("float",   &floatType{commonType{}, 0,  "float"});
+	Float32Type = universe.DefineType("float32", universePos, &floatType{commonType{}, 32, "float32"});
+	Float64Type = universe.DefineType("float64", universePos, &floatType{commonType{}, 64, "float64"});
+	FloatType   = universe.DefineType("float",   universePos, &floatType{commonType{}, 0,  "float"});
 )
 
 func (t *floatType) literal() Type {
@@ -416,7 +419,7 @@ type stringType struct {
 	commonType;
 }
 
-var StringType = universe.DefineType("string", &stringType{});
+var StringType = universe.DefineType("string", universePos, &stringType{});
 
 func (t *stringType) literal() Type {
 	return t;
@@ -672,6 +675,7 @@ type ChanType struct {
  */
 
 type NamedType struct {
+	token.Position;
 	name string;
 	// Underlying type
 	def Type;

@@ -7,6 +7,7 @@ package eval
 import (
 	"eval";
 	"fmt";
+	"go/token";
 	"log";
 )
 
@@ -47,15 +48,14 @@ func (b *block) ChildScope() *Scope {
 	return sub.scope;
 }
 
-func (b *block) DefineVar(name string, t Type) *Variable {
-	if _, ok := b.defs[name]; ok {
-		return nil;
+func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, Def) {
+	if prev, ok := b.defs[name]; ok {
+		return nil, prev;
 	}
 	v := b.DefineSlot(t);
-	if v != nil {
-		b.defs[name] = v;
-	}
-	return v;
+	v.Position = pos;
+	b.defs[name] = v;
+	return v, nil;
 }
 
 func (b *block) DefineSlot(t Type) *Variable {
@@ -63,7 +63,7 @@ func (b *block) DefineSlot(t Type) *Variable {
 		log.Crash("Failed to exit child block before defining variable");
 	}
 	index := b.offset+b.numVars;
-	v := &Variable{index, t};
+	v := &Variable{token.Position{}, index, t};
 	b.numVars++;
 	if index+1 > b.scope.maxVars {
 		b.scope.maxVars = index+1;
@@ -71,22 +71,22 @@ func (b *block) DefineSlot(t Type) *Variable {
 	return v;
 }
 
-func (b *block) DefineConst(name string, t Type, v Value) *Constant {
+func (b *block) DefineConst(name string, pos token.Position, t Type, v Value) *Constant {
 	if _, ok := b.defs[name]; ok {
 		return nil;
 	}
-	c := &Constant{t, v};
+	c := &Constant{pos, t, v};
 	b.defs[name] = c;
 	return c;
 }
 
-func (b *block) DefineType(name string, t Type) Type {
+func (b *block) DefineType(name string, pos token.Position, t Type) Type {
 	if _, ok := b.defs[name]; ok {
 		return nil;
 	}
 	// We take the representative type of t because multiple
 	// levels of naming are useless.
-	nt := &NamedType{name, t.rep()};
+	nt := &NamedType{pos, name, t.rep()};
 	b.defs[name] = nt;
 	return nt;
 }
