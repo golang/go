@@ -28,6 +28,7 @@ type S struct {
 	integer int;
 	raw string;
 	innerT T;
+	innerPointerT *T;
 	data []T;
 	pdata []*T;
 	empty []*T;
@@ -339,5 +340,27 @@ func TestCustomDelims(t *testing.T) {
 				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s)
 			}
 		}
+	}
+}
+
+// Test that a variable evaluates to the field itself and does not further indirection
+func TestVarIndirection(t *testing.T) {
+	s := new(S);
+	// initialized by hand for clarity.
+	s.innerPointerT = &t1;
+
+	var buf bytes.Buffer;
+	input := "{.section @}{innerPointerT}{.end}";
+	tmpl, err := Parse(input, nil);
+	if err != nil {
+		t.Fatal("unexpected parse error:", err);
+	}
+	err = tmpl.Execute(s, &buf);
+	if err != nil {
+		t.Fatal("unexpected execute error:", err)
+	}
+	expect := fmt.Sprintf("%v", &t1);	// output should be hex address of t1
+	if string(buf.Data()) != expect {
+		t.Errorf("for %q: expected %q got %q", input, expect, string(buf.Data()));
 	}
 }
