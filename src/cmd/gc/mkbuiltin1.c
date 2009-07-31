@@ -26,7 +26,7 @@ main(int argc, char **argv)
 	name = argv[1];
 	snprintf(initfunc, sizeof(initfunc), "init_%s_function", name);
 
-	snprintf(buf, sizeof(buf), "%s.6", name);
+	snprintf(buf, sizeof(buf), "%s.%s", name, getenv("O"));
 	if((fin = fopen(buf, "r")) == NULL) {
 		fprintf(stderr, "open %s: %s\n", buf, strerror(errno));
 		exit(1);

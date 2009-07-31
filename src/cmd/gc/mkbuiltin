@@ -16,7 +16,7 @@ rm -f _builtin.c
 for i in sys unsafe
 do
 	$GC -A $i.go
-	./mkbuiltin1 $i >>_builtin.c
+	O=$O ./mkbuiltin1 $i >>_builtin.c
 done
 
 # If _builtin.c has changed vs builtin.c.boot,

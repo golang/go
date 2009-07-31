@@ -315,7 +315,9 @@ reswitch:
 	 * exprs
 	 */
 	case OADDR:
-		l = typecheck(&n->left, Elv);
+		typecheck(&n->left, Elv);
+		defaultlit(&n->left, T);
+		l = n->left;
 		if((t = l->type) == T)
 			goto error;
 		n->type = ptrto(t);
@@ -452,6 +454,9 @@ reswitch:
 			break;
 
 		case TMAP:
+			n->etype = 0;
+			if(top & Elv)
+				n->etype = 1;	// clumsy hack
 			ok |= Erv | Elv;
 			defaultlit(&n->right, t->down);
 			n->type = t->type;
@@ -499,6 +504,9 @@ reswitch:
 		if((t = r->type) == T)
 			goto error;
 		// TODO: more aggressive
+		n->etype = 0;
+		if(top & Erv)
+			n->etype = 1;	// clumsy hack
 		ok |= Etop | Erv;
 		n->type = types[TBOOL];
 		goto ret;
@@ -539,12 +547,15 @@ reswitch:
 			goto error;
 
 		case TARRAY:
-			ok |= Elv;
-			n = arrayop(n, Erv);
+			n->type = typ(TARRAY);
+			n->type->type = t;
+			n->type->bound = -1;
+			n = arrayop(n);
 			break;
 
 		case TSTRING:
-			n = stringop(n, Erv, nil);
+			n->type = t;
+			n = stringop(n, nil);
 			break;
 		}
 		goto ret;

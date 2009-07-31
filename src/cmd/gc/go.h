@@ -320,43 +320,75 @@ enum
 {
 	OXXX,
 
-	ONAME, ONONAME, OTYPE, OPACK, OLITERAL,
-	ODCL,
-	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
-	ODCLFUNC, ODCLFIELD, ODCLARG,
-	OCMP, OPTR, OARRAY, ORANGE,
-	ORETURN, OFOR, OIF, OSWITCH, ODEFER,
-	OAS, OAS2, OASOP, OCASE, OXCASE, OFALL, OXFALL,
-	OGOTO, OPROC, OMAKE, ONEW, OEMPTY, OSELECT,
-	OLEN, OCAP, OPANIC, OPANICN, OPRINT, OPRINTN, OTYPEOF,
-	OCLOSE, OCLOSED, OBLOCK,
+	// names
+	ONAME,
+	ONONAME,
+	OTYPE,
+	OPACK,
+	OLITERAL,
 
-	OOROR,
-	OANDAND,
-	OEQ, ONE, OLT, OLE, OGE, OGT,
+	// exprs
 	OADD, OSUB, OOR, OXOR,
-	OMUL, ODIV, OMOD, OLSH, ORSH, OAND, OANDNOT,
-	OINC, ODEC,
-	OFUNC,
-	OLABEL,
-	OBREAK,
-	OCONTINUE,
 	OADDR,
-	OIND,
-	OCALL, OCALLFUNC, OCALLMETH, OCALLINTER,
-	OINDEX, OSLICE,
-	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
-	OREGISTER, OINDREG,
-	OKEY, OPARAM,
-	OCOMPOS, OCOMPSLICE, OCOMPMAP,
-	OCONV, OCONVNOP, OCONVRUNE, OCONVSTRB, OCONVSTRI,
-	OCONVA2S,
-	ODOTTYPE, OTYPESW, OTYPECASE,
+	OANDAND,
+	OARRAY,
+	OAS, OAS2, OASOP,
 	OBAD,
+	OCALL, OCALLFUNC, OCALLMETH, OCALLINTER,
+	OCAP,
+	OCLOSE,
+	OCLOSED,
+	OCOMPOS, OCOMPSLICE, OCOMPMAP,
+	OCONV, OCONVNOP, OCONVRUNE, OCONVSTRB, OCONVSTRI, OCONVA2S,
+	ODCL, ODCLFUNC, ODCLFIELD, ODCLARG,
+	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
+	ODOTTYPE,
+	OEQ, ONE, OLT, OLE, OGE, OGT,
+	OFUNC,
+	OIND,
+	OINDEX, OINDEXSTR, OINDEXMAP, OINDEXARR,
+	OKEY, OPARAM,
+	OLEN,
+	OMAKE,
+	OMUL, ODIV, OMOD, OLSH, ORSH, OAND, OANDNOT,
+	ONEW,
+	ONOT, OCOM, OPLUS, OMINUS,
+	OOROR,
+	OPANIC, OPANICN, OPRINT, OPRINTN,
+	OSEND,
+	OSLICE, OSLICESTR, OSLICEARR,
+	ORECV,
 
-	OTCHAN, OTMAP, OTSTRUCT, OTINTER, OTFUNC, OTARRAY,
+	// stmts
+	OBLOCK,
+	OBREAK,
+	OCASE, OXCASE,
+	OCONTINUE,
+	ODEFER,
+	OEMPTY,
+	OFALL, OXFALL,
+	OFOR,
+	OGOTO,
+	OIF,
+	OLABEL,
+	OPROC,
+	ORANGE,
+	ORETURN,
+	OSELECT,
+	OSWITCH,
+	OTYPECASE,
+	OTYPESW,
 
-	OEXTEND,	// 6g internal
+	// types
+	OTCHAN,
+	OTMAP,
+	OTSTRUCT,
+	OTINTER,
+	OTFUNC,
+	OTARRAY,
+
+	// for back ends
+	OCMP, ODEC, OEXTEND, OINC, OREGISTER, OINDREG,
 
 	OEND,
 };
@@ -936,12 +968,10 @@ Type*	pkgtype(Sym*);
 /*
  *	walk.c
  */
-void	gettype(Node**, NodeList**);
 void	walk(Node*);
 void	walkstmt(Node**);
 void	walkstmtlist(NodeList*);
-void	walkexpr(Node**, int, NodeList**);
-void	walkexprlist(NodeList*, int, NodeList**);
+void	walkexprlist(NodeList*, NodeList**);
 void	walkconv(Node**, NodeList**);
 void	walkdottype(Node*, NodeList**);
 void	walkas(Node*);
@@ -949,21 +979,20 @@ void	walkbool(Node**);
 void	walkswitch(Node*);
 void	walkselect(Node*);
 void	walkdot(Node*, NodeList**);
+void	walkexpr(Node**, NodeList**);
 Node*	ascompatee1(int, Node*, Node*, NodeList**);
 NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
 NodeList*	ascompatet(int, NodeList*, Type**, int, NodeList**);
 NodeList*	ascompatte(int, Type**, NodeList*, int, NodeList**);
 int	ascompat(Type*, Type*);
-Node*	prcompat(NodeList*, int, int);
-Node*	nodpanic(int32);
 Node*	newcompat(Node*);
 Node*	makecompat(Node*);
-Node*	stringop(Node*, int, NodeList**);
+Node*	stringop(Node*, NodeList**);
 Type*	fixmap(Type*);
-Node*	mapop(Node*, int, NodeList**);
+Node*	mapop(Node*, NodeList**);
 Type*	fixchan(Type*);
-Node*	chanop(Node*, int, NodeList**);
-Node*	arrayop(Node*, int);
+Node*	chanop(Node*, NodeList**);
+Node*	arrayop(Node*);
 Node*	ifacecvt(Type*, Node*, int);
 Node*	ifaceop(Node*);
 int	ifaceas(Type*, Type*, int);

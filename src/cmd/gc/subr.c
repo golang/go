@@ -4,6 +4,7 @@
 
 #include	"go.h"
 #include	"y.tab.h"
+#include	"opnames.h"
 
 void
 errorexit(void)
@@ -611,127 +612,6 @@ dump(char *s, Node *n)
 	print("%s [%p]\n", s, n);
 	dodump(n, 1);
 }
-
-/*
-s%,%,\n%g
-s%\n+%\n%g
-s%^[ 	]*O%%g
-s%,.*%%g
-s%.+%	[O&]		= "&",%g
-s%^	........*\]%&~%g
-s%~	%%g
-|sort
-*/
-
-static char*
-opnames[] =
-{
-	[OADDR]		= "ADDR",
-	[OADD]		= "ADD",
-	[OANDAND]	= "ANDAND",
-	[OANDNOT]	= "ANDNOT",
-	[OAND]		= "AND",
-	[OARRAY]	= "ARRAY",
-	[OASOP]		= "ASOP",
-	[OAS]		= "AS",
-	[OAS2]		= "AS2",
-	[OBAD]		= "BAD",
-	[OBLOCK]		= "BLOCK",
-	[OBREAK]	= "BREAK",
-	[OCALLFUNC]	= "CALLFUNC",
-	[OCALLINTER]	= "CALLINTER",
-	[OCALLMETH]	= "CALLMETH",
-	[OCALL]		= "CALL",
-	[OCAP]		= "CAP",
-	[OCASE]		= "CASE",
-	[OCLOSED]	= "CLOSED",
-	[OCLOSE]	= "CLOSE",
-	[OCMP]		= "CMP",
-	[OCOMPMAP]	= "COMPMAP",
-	[OCOMPOS]	= "COMPOS",
-	[OCOMPSLICE]	= "COMPSLICE",
-	[OCOM]		= "COM",
-	[OCONTINUE]	= "CONTINUE",
-	[OCONV]		= "CONV",
-	[OCONVNOP]		= "CONVNOP",
-	[ODCLARG]	= "DCLARG",
-	[ODCLFIELD]	= "DCLFIELD",
-	[ODCLFUNC]	= "DCLFUNC",
-	[ODCL]		= "DCL",
-	[ODEC]		= "DEC",
-	[ODEFER]	= "DEFER",
-	[ODIV]		= "DIV",
-	[ODOTINTER]	= "DOTINTER",
-	[ODOTMETH]	= "DOTMETH",
-	[ODOTPTR]	= "DOTPTR",
-	[ODOTTYPE]	= "DOTTYPE",
-	[ODOT]		= "DOT",
-	[OEMPTY]	= "EMPTY",
-	[OEND]		= "END",
-	[OEQ]		= "EQ",
-	[OEXTEND]	= "EXTEND",
-	[OFALL]		= "FALL",
-	[OFOR]		= "FOR",
-	[OFUNC]		= "FUNC",
-	[OGE]		= "GE",
-	[OGOTO]		= "GOTO",
-	[OGT]		= "GT",
-	[OIF]		= "IF",
-	[OINC]		= "INC",
-	[OINDEX]	= "INDEX",
-	[OINDREG]	= "INDREG",
-	[OIND]		= "IND",
-	[OKEY]		= "KEY",
-	[OLABEL]	= "LABEL",
-	[OLEN]		= "LEN",
-	[OLE]		= "LE",
-	[OLITERAL]	= "LITERAL",
-	[OLSH]		= "LSH",
-	[OLT]		= "LT",
-	[OMAKE]		= "MAKE",
-	[OMINUS]	= "MINUS",
-	[OMOD]		= "MOD",
-	[OMUL]		= "MUL",
-	[ONAME]		= "NAME",
-	[ONEW]		= "NEW",
-	[ONE]		= "NE",
-	[ONONAME]	= "NONAME",
-	[ONOT]		= "NOT",
-	[OOROR]		= "OROR",
-	[OOR]		= "OR",
-	[OPANICN]	= "PANICN",
-	[OPANIC]	= "PANIC",
-	[OPACK]		= "PACK",
-	[OPARAM]	= "PARAM",
-	[OPLUS]		= "PLUS",
-	[OPRINTN]	= "PRINTN",
-	[OPRINT]	= "PRINT",
-	[OPROC]		= "PROC",
-	[OPTR]		= "PTR",
-	[ORANGE]	= "RANGE",
-	[ORECV]		= "RECV",
-	[OREGISTER]	= "REGISTER",
-	[ORETURN]	= "RETURN",
-	[ORSH]		= "RSH",
-	[OSELECT]	= "SELECT",
-	[OSEND]		= "SEND",
-	[OSLICE]	= "SLICE",
-	[OSUB]		= "SUB",
-	[OSWITCH]	= "SWITCH",
-	[OTCHAN]	= "TCHAN",
-	[OTMAP]	= "TMAP",
-	[OTSTRUCT]	= "TSTRUCT",
-	[OTINTER]	= "TINTER",
-	[OTFUNC]	= "TFUNC",
-	[OTARRAY]	= "TARRAY",
-	[OTYPEOF]	= "TYPEOF",
-	[OTYPESW]	= "TYPESW",
-	[OTYPE]		= "TYPE",
-	[OXCASE]	= "XCASE",
-	[OXFALL]	= "XFALL",
-	[OXOR]		= "XOR",
-	[OXXX]		= "XXX",
-};
 
 static char*
 goopnames[] =
@@ -2395,7 +2275,7 @@ saferef(Node *n, NodeList **init)
 		*r = *n;
 		r->left = l;
 		typecheck(&r, Elv);
-		walkexpr(&r, Elv, init);
+		walkexpr(&r, init);
 		return r;
 
 	case OINDEX:
@@ -2405,11 +2285,11 @@ saferef(Node *n, NodeList **init)
 		tempname(l, ptrto(n->type));
 		a = nod(OAS, l, nod(OADDR, n, N));
 		typecheck(&a, Etop);
-		walkexpr(&a, Etop, init);
+		walkexpr(&a, init);
 		*init = list(*init, a);
 		r = nod(OIND, l, N);
 		typecheck(&r, Elv);
-		walkexpr(&r, Elv, init);
+		walkexpr(&r, init);
 		return r;
 	}
 	fatal("saferef %N", n);
