@@ -213,19 +213,21 @@ func nodeText(node interface{}) []byte {
 
 // Convert x, whatever it is, to text form.
 func toText(x interface{}) []byte {
-	type String interface { String() string }
+	type Stringer interface { String() string }
 
 	switch v := x.(type) {
 	case []byte:
 		return v;
 	case string:
 		return strings.Bytes(v);
-	case String:
-		return strings.Bytes(v.String());
 	case ast.Decl:
 		return nodeText(v);
 	case ast.Expr:
 		return nodeText(v);
+	case Stringer:
+		// last resort (AST nodes get a String method
+		// from token.Position - don't call that one)
+		return strings.Bytes(v.String());
 	}
 	var buf bytes.Buffer;
 	fmt.Fprint(&buf, x);
