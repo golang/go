@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 package PACKAGE
 
 // emitted by compiler, not referred to by go programs
@@ -11,7 +10,7 @@ func	mal(int32) *any;
 func	throwindex();
 func	throwreturn();
 func	throwinit();
-func	panicl(int32);
+func	panicl();
 
 func	printbool(bool);
 func	printfloat(float64);

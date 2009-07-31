@@ -4,7 +4,7 @@ char *sysimport =
 	"func sys.throwindex ()\n"
 	"func sys.throwreturn ()\n"
 	"func sys.throwinit ()\n"
-	"func sys.panicl (? int32)\n"
+	"func sys.panicl ()\n"
 	"func sys.printbool (? bool)\n"
 	"func sys.printfloat (? float64)\n"
 	"func sys.printint (? int64)\n"

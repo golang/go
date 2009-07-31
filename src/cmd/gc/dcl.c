@@ -1670,7 +1670,7 @@ variter(NodeList *vl, Node *nt, NodeList *el)
 		v = vl->n;
 		tv = t;
 		if(t == T) {
-			gettype(&e, &r);
+			typecheck(&e, Erv);
 			defaultlit(&e, T);
 			tv = e->type;
 		}

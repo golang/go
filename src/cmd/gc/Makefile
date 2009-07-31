@@ -52,6 +52,11 @@ builtin.c:	sys.go unsafe.go mkbuiltin1.c mkbuiltin
 	./mkbuiltin >builtin.c || \
 	(echo 'mkbuiltin failed; using bootstrap copy of builtin.c'; cp builtin.c.boot builtin.c)
 
+subr.$O: opnames.h
+
+opnames.h:	mkopnames go.h
+	./mkopnames go.h >opnames.h
+
 clean:
 	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB) mkbuiltin1 builtin.c _builtin.c
 
