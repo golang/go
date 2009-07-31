@@ -168,16 +168,17 @@ func filterDecl(decl Decl) bool {
 }
 
 
-// FilterExports trims an AST in place such that only exported nodes remain:
-// all top-level identifiers which are not exported and their associated
-// information (such as type, initial value, or function body) are removed.
-// Non-exported fields and methods of exported types are stripped, and the
-// function bodies of exported functions are set to nil.
+// FileExports trims the AST for a Go source file in place such that only
+// exported nodes remain: all top-level identifiers which are not exported
+// and their associated information (such as type, initial value, or function
+// body) are removed. Non-exported fields and methods of exported types are
+// stripped, and the function bodies of exported functions are set to nil.
+// The File.comments list is not changed.
 //
-// FilterExports returns true if there is an exported declaration; it returns
+// FileExports returns true if there is an exported declaration; it returns
 // false otherwise.
 //
-func FilterExports(src *File) bool {
+func FileExports(src *File) bool {
 	j := 0;
 	for _, d := range src.Decls {
 		if filterDecl(d) {
@@ -190,33 +191,44 @@ func FilterExports(src *File) bool {
 }
 
 
+// PackageExports trims the AST for a Go package in place such that only
+// exported nodes remain. The pkg.Files list is not changed, so that file
+// names and top-level package comments don't get lost.
+//
+// PackageExports returns true if there is an exported declaration; it
+// returns false otherwise.
+//
+func PackageExports(pkg *Package) bool {
+	hasExports := false;
+	for _, f := range pkg.Files {
+		if FileExports(f) {
+			hasExports = true;
+		}
+	}
+	return hasExports;
+}
+
+
 // separator is an empty //-style comment that is interspersed between
 // different comment groups when they are concatenated into a single group
 //
 var separator = &Comment{noPos, []byte{'/', '/'}};
 
 
-// PackageExports returns an AST containing only the exported declarations
-// of the package pkg. PackageExports modifies the pkg AST.
+// MergePackageFiles creates a file AST by merging the ASTs of the
+// files belonging to a package.
 //
-func PackageExports(pkg *Package) *File {
-	// Collect all source files with exported declarations and count
-	// the number of package comments and declarations in all files.
-	files := make([]*File, len(pkg.Files));
+func MergePackageFiles(pkg *Package) *File {
+	// Count the number of package comments and declarations across
+	// all package files.
 	ncomments := 0;
 	ndecls := 0;
-	i := 0;
 	for _, f := range pkg.Files {
 		if f.Doc != nil {
 			ncomments += len(f.Doc.List) + 1;  // +1 for separator
 		}
-		if FilterExports(f) {
-			ndecls += len(f.Decls);
-			files[i] = f;
-			i++;
-		}
+		ndecls += len(f.Decls);
 	}
-	files = files[0 : i];
 
 	// Collect package comments from all package files into a single
 	// CommentGroup - the collected package documentation. The order
@@ -243,12 +255,12 @@ func PackageExports(pkg *Package) *File {
 		doc = &CommentGroup{list, nil};
 	}
 
-	// Collect exported declarations from all package files.
+	// Collect declarations from all package files.
 	var decls []Decl;
 	if ndecls > 0 {
 		decls = make([]Decl, ndecls);
 		i := 0;
-		for _, f := range files {
+		for _, f := range pkg.Files {
 			for _, d := range f.Decls {
 				decls[i] = d;
 				i++;
@@ -256,5 +268,8 @@ func PackageExports(pkg *Package) *File {
 		}
 	}
 
+	// TODO(gri) Should collect comments as well. For that the comment
+	//           list should be changed back into a []*CommentGroup,
+	//           otherwise need to modify the existing linked list.
 	return &File{doc, noPos, &Ident{noPos, pkg.Name}, decls, nil};
 }

@@ -48,7 +48,7 @@ func check(t *testing.T, source, golden string, exports bool) {
 
 	// filter exports if necessary
 	if exports {
-		ast.FilterExports(prog);  // ignore result
+		ast.FileExports(prog);  // ignore result
 		prog.Comments = nil;  // don't print comments that are not in AST
 	}
 
