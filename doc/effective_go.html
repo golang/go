@@ -153,6 +153,51 @@ reserving block comments for top-level package comments
 and commenting out large swaths of code.
 </p>
 
+<h3 id="pkg-comments">Write package comments</h3>
+
+<p>
+Every package should have a package comment, a block
+comment preceding the package clause.
+It should introduce the package and
+provide information relevant to the package as a whole.
+</p>
+
+<pre>
+/*
+	The regexp package implements a simple library for
+	regular expressions.
+
+	The syntax of the regular expressions accepted is:
+
+	regexp:
+		concatenation { '|' concatenation }
+	concatenation:
+		{ closure }
+	closure:
+		term [ '*' | '+' | '?' ]
+	term:
+		'^'
+		'$'
+		'.'
+		character
+		'[' [ '^' ] character-ranges ']'
+		'(' regexp ')'
+*/
+package regexp
+</pre>
+
+<p>
+Consider how the package comment contributes to the appearance
+of the <code>godoc</code> page for the package.  Don't just
+echo the doc comments for the components.  The package comment
+can be brief.
+</p>
+
+<pre>
+// The path package implements utility routines for
+// manipulating slash-separated filename paths.
+</pre>
+
 <h3 id="doc-comments">Write doc comments</h3>
 
 <p>
@@ -193,7 +238,6 @@ Use of complete English sentences admits
 a wider variety of automated presentations.
 </p>
 
-
 <h3 id="ascii-art">Avoid ASCII Art</h3>
 
 <p>
@@ -208,14 +252,15 @@ sure the columns are lined up properly in the output.
 </p>
 
 <p>
-If you must use comments to separate
+If you need comments to separate
 sections in a file, use a simple block comment:
 </p>
 
 <pre>
 /*
- * Helper routines for simplifying the fetching of optional fields of basic type.
- * If the field is missing, they return the zero for the type.
+ * Helper routines for simplifying the fetching of optional
+ * fields of basic type. If the field is missing, they return
+ * the zero for the type.
  */
 </pre>
 
@@ -223,8 +268,9 @@ or
 
 <pre>
 /*
-    Helper routines for simplifying the fetching of optional fields of basic type.
-    If the field is missing, they return the zero for the type.
+    Helper routines for simplifying the fetching of optional
+    fields of basic type. If the field is missing, they return
+    the zero for the type.
  */
 </pre>
 
@@ -232,6 +278,39 @@ or
 Comments are text, not HTML; they contain no markup.
 Refrain from ASCII embellishment like *this* or /this/.
 </p>
+
+<h3 id="groups">Use grouping to organize declarations</h3>
+
+<p>
+Go's declaration syntax allows grouping of declarations.
+A comment can introduce a group of related constants or variables.
+</p>
+
+<pre>
+// Flags to Open wrapping those of the underlying system.
+// Not all flags may be implemented on a given system.
+const (
+	O_RDONLY = syscall.O_RDONLY;	// open the file read-only.
+	O_WRONLY = syscall.O_WRONLY;	// open the file write-only.
+	...
+)
+</pre>
+
+<p>
+A grouping can also indicate relationships between items,
+such as the fact that a set of variables is controlled by
+a mutex.
+</p>
+
+<pre>
+// Variables protected by counterLock.
+var (
+	counterLock	sync.Mutex;
+	inputCount	uint32;
+	outputCount	uint32;
+	errorCount	uint32;
+)
+</pre>
 
 <h2 id="names">Names</h2>
 
@@ -328,11 +407,23 @@ Use these expressions to avoid the repetition of filling
 out a data structure.
 </p>
 
+<pre>
+// Prepare RPCMessage to send to server
+rpc := &amp;RPCMessage {
+	Version: 1,
+	Header: &amp;RPCHeader {
+		Id: nextId(),
+		Signature: sign(body),
+		Method: method,
+	},
+	Body: body,
+};
+</pre>
 
 <h3 id="buffer-slice">Use parallel assignment to slice a buffer</h3>
 
 <pre>
-hdr, body, checksum := buf[0:20], buf[20:len(buf)-4], buf[len(buf)-4:len(buf)];
+header, body, checksum := buf[0:20], buf[20:n-4], buf[n-4:n];
 </pre>
 
 <h2 id="control-flow">Control Flow</h2>
@@ -390,7 +481,8 @@ func shouldEscape(c byte) bool {
 
 <a href="/src/pkg/bytes/bytes.go">go/src/pkg/bytes/bytes.go</a>:
 <pre>
-// Compare returns an integer comparing the two byte arrays lexicographically.
+// Compare returns an integer comparing the two byte arrays
+// lexicographically.
 // The result will be 0 if a==b, -1 if a &lt; b, and +1 if a &gt; b
 func Compare(a, b []byte) int {
     for i := 0; i &lt; len(a) &amp;&amp; i &lt; len(b); i++ {
