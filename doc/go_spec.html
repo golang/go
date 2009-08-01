@@ -9,6 +9,8 @@ Open issues:
 
 
 Todo's:
+[ ] need explicit language about the result type of operations
+[ ] may want to have some examples for the types of shift operations
 [ ] document illegality of package-external tuple assignments to structs
 	w/ private fields: P.T(1, 2) illegal since same as P.T(a: 1, b: 2) for
 	a T struct { a b int }.
@@ -2439,6 +2441,9 @@ The operand types in binary operations must be compatible, with the following ex
 	<li>Except in shift expressions, if both operands are ideal numbers and one is an
 	  ideal float, the other is converted to ideal float
 	  (relevant for <code>/</code> and <code>%</code>).</li>
+
+	<li>In shift operations, the above rules apply to the left operand of the shift as
+	  if the shift operator and the right operand where not present.
 
 	<li>The right operand in a shift operation must be always be of unsigned integer type
 	  or an ideal number that can be safely converted into an unsigned integer type
