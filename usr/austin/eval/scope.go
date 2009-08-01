@@ -86,7 +86,7 @@ func (b *block) DefineType(name string, pos token.Position, t Type) Type {
 	}
 	// We take the representative type of t because multiple
 	// levels of naming are useless.
-	nt := &NamedType{pos, name, t.rep()};
+	nt := &NamedType{pos, name, t.lit()};
 	b.defs[name] = nt;
 	return nt;
 }
