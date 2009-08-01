@@ -72,15 +72,30 @@ func (doc *docReader) lookupTypeDoc(typ ast.Expr) *typeDoc {
 }
 
 
-func (doc *docReader) addType(decl *ast.GenDecl) {
-	typ := decl.Specs[0].(*ast.TypeSpec);
-	name := typ.Name.Value;
-	if _, found := doc.types[name]; !found {
-		tdoc := &typeDoc{decl, make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
-		doc.types[name] = tdoc;
+func isForwardDecl(typ ast.Expr) bool {
+	switch t := typ.(type) {
+	case *ast.StructType:
+		return t.Fields == nil;
+	case *ast.InterfaceType:
+		return t.Methods == nil;
 	}
-	// If the type was found it may have been added as a forward
-	// declaration before, or this is a forward-declaration.
+	return false;
+}
+
+
+func (doc *docReader) addType(decl *ast.GenDecl) {
+	spec := decl.Specs[0].(*ast.TypeSpec);
+	name := spec.Name.Value;
+	if tdoc, found := doc.types[name]; found {
+		if !isForwardDecl(tdoc.decl.Specs[0].(*ast.TypeSpec).Type) || isForwardDecl(spec.Type) {
+			// existing type was not a forward-declaration or the
+			// new type is a forward declaration - leave it alone
+			return;
+		}
+		// replace existing type
+	}
+	tdoc := &typeDoc{decl, make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
+	doc.types[name] = tdoc;
 }
 
 
