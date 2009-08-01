@@ -47,7 +47,6 @@ import (
 	"strings";
 	"sync";
 	"syscall";
-	"tabwriter";
 	"template";
 	"time";
 )
@@ -125,11 +124,6 @@ func isPkgDir(dir *os.Dir) bool {
 }
 
 
-func makeTabwriter(writer io.Writer) *tabwriter.Writer {
-	return tabwriter.NewWriter(writer, *tabwidth, 1, byte(' '), 0);
-}
-
-
 // ----------------------------------------------------------------------------
 // Parsing
 
@@ -201,55 +195,66 @@ func parse(path string, mode uint) (*ast.File, *parseErrors) {
 // ----------------------------------------------------------------------------
 // Templates
 
-// Return text for an AST node.
-func nodeText(node interface{}) []byte {
-	var buf bytes.Buffer;
-	tw := makeTabwriter(&buf);
-	printer.Fprint(tw, node, 0);
-	tw.Flush();
-	return buf.Data();
+// Write an AST-node to w; optionally html-escaped.
+func writeNode(w io.Writer, node interface{}, html bool) {
+	mode := printer.UseSpaces;
+	if html {
+		mode |= printer.GenHTML;
+	}
+	printer.Fprint(w, node, mode, *tabwidth);
 }
 
 
-// Convert x, whatever it is, to text form.
-func toText(x interface{}) []byte {
-	type Stringer interface { String() string }
+// Write text to w; optionally html-escaped.
+func writeText(w io.Writer, text []byte, html bool) {
+	if html {
+		template.HtmlEscape(w, text);
+		return;
+	}
+	w.Write(text);
+}
 
+
+// Write anything to w; optionally html-escaped.
+func writeAny(w io.Writer, x interface{}, html bool) {
 	switch v := x.(type) {
 	case []byte:
-		return v;
+		writeText(w, v, html);
 	case string:
-		return strings.Bytes(v);
+		writeText(w, strings.Bytes(v), html);
 	case ast.Decl:
-		return nodeText(v);
+		writeNode(w, v, html);
 	case ast.Expr:
-		return nodeText(v);
-	case Stringer:
-		// last resort (AST nodes get a String method
-		// from token.Position - don't call that one)
-		return strings.Bytes(v.String());
+		writeNode(w, v, html);
+	default:
+		if html {
+			var buf bytes.Buffer;
+			fmt.Fprint(&buf, x);
+			writeText(w, buf.Data(), true);
+		} else {
+			fmt.Fprint(w, x);
+		}
 	}
-	var buf bytes.Buffer;
-	fmt.Fprint(&buf, x);
-	return buf.Data();
 }
 
 
 // Template formatter for "html" format.
 func htmlFmt(w io.Writer, x interface{}, format string) {
-	template.HtmlEscape(w, toText(x));
+	writeAny(w, x, true);
 }
 
 
 // Template formatter for "html-comment" format.
 func htmlCommentFmt(w io.Writer, x interface{}, format string) {
-	doc.ToHtml(w, toText(x));
+	var buf bytes.Buffer;
+	writeAny(&buf, x, false);
+	doc.ToHtml(w, buf.Data());
 }
 
 
 // Template formatter for "" (default) format.
 func textFmt(w io.Writer, x interface{}, format string) {
-	w.Write(toText(x));
+	writeAny(w, x, false);
 }
 
 
@@ -337,7 +342,7 @@ func serveGoSource(c *http.Conn, name string) {
 
 	var buf bytes.Buffer;
 	fmt.Fprintln(&buf, "<pre>");
-	template.HtmlEscape(&buf, nodeText(prog));
+	writeNode(&buf, prog, true);
 	fmt.Fprintln(&buf, "</pre>");
 
 	servePage(c, name + " - Go source", buf.Data());

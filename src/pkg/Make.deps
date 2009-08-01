@@ -22,7 +22,7 @@ fmt.install: io.install os.install reflect.install strconv.install utf8.install
 go/ast.install: go/token.install unicode.install utf8.install
 go/doc.install: container/vector.install fmt.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
 go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install path.install strings.install
-go/printer.install: fmt.install go/ast.install go/token.install io.install os.install reflect.install strings.install
+go/printer.install: fmt.install go/ast.install go/token.install io.install os.install reflect.install strings.install tabwriter.install
 go/scanner.install: bytes.install container/vector.install fmt.install go/token.install io.install os.install sort.install strconv.install unicode.install utf8.install
 go/token.install: fmt.install strconv.install
 gob.install: bytes.install fmt.install io.install math.install os.install reflect.install strings.install sync.install unicode.install
