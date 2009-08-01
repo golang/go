@@ -127,11 +127,12 @@ type boolType struct {
 
 var BoolType = universe.DefineType("bool", universePos, &boolType{});
 
-func (t *boolType) literal() Type {
-	return t;
+func (t *boolType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*boolType);
+	return ok;
 }
 
-func (t *boolType) rep() Type {
+func (t *boolType) lit() Type {
 	return t;
 }
 
@@ -181,11 +182,12 @@ func init() {
 	universe.defs["byte"] = universe.defs["uint8"];
 }
 
-func (t *uintType) literal() Type {
-	return t;
+func (t *uintType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*uintType);
+	return ok && t == t2;;
 }
 
-func (t *uintType) rep() Type {
+func (t *uintType) lit() Type {
 	return t;
 }
 
@@ -241,11 +243,12 @@ var (
 	IntType   = universe.DefineType("int",   universePos, &intType{commonType{}, 0,  "int"});
 )
 
-func (t *intType) literal() Type {
-	return t;
+func (t *intType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*intType);
+	return ok && t == t2;
 }
 
-func (t *intType) rep() Type {
+func (t *intType) lit() Type {
 	return t;
 }
 
@@ -285,11 +288,12 @@ type idealIntType struct {
 
 var IdealIntType Type = &idealIntType{}
 
-func (t *idealIntType) literal() Type {
-	return t;
+func (t *idealIntType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*idealIntType);
+	return ok;
 }
 
-func (t *idealIntType) rep() Type {
+func (t *idealIntType) lit() Type {
 	return t;
 }
 
@@ -326,11 +330,12 @@ var (
 	FloatType   = universe.DefineType("float",   universePos, &floatType{commonType{}, 0,  "float"});
 )
 
-func (t *floatType) literal() Type {
-	return t;
+func (t *floatType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*floatType);
+	return ok && t == t2;
 }
 
-func (t *floatType) rep() Type {
+func (t *floatType) lit() Type {
 	return t;
 }
 
@@ -389,11 +394,12 @@ type idealFloatType struct {
 
 var IdealFloatType Type = &idealFloatType{};
 
-func (t *idealFloatType) literal() Type {
-	return t;
+func (t *idealFloatType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*idealFloatType);
+	return ok;
 }
 
-func (t *idealFloatType) rep() Type {
+func (t *idealFloatType) lit() Type {
 	return t;
 }
 
@@ -421,11 +427,12 @@ type stringType struct {
 
 var StringType = universe.DefineType("string", universePos, &stringType{});
 
-func (t *stringType) literal() Type {
-	return t;
+func (t *stringType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*stringType);
+	return ok;
 }
 
-func (t *stringType) rep() Type {
+func (t *stringType) lit() Type {
 	return t;
 }
 
@@ -443,15 +450,14 @@ type ArrayType struct {
 	commonType;
 	Len int64;
 	Elem Type;
-	lit Type;
 }
 
 var arrayTypes = make(map[int64] map[Type] *ArrayType);
 
-func NewArrayType(len int64, elem Type) *ArrayType {
-	// Two array types are identical if they have identical
-	// element types and the same array length.
+// Two array types are identical if they have identical element types
+// and the same array length.
 
+func NewArrayType(len int64, elem Type) *ArrayType {
 	ts, ok := arrayTypes[len];
 	if !ok {
 		ts = make(map[Type] *ArrayType);
@@ -459,20 +465,21 @@ func NewArrayType(len int64, elem Type) *ArrayType {
 	}
 	t, ok := ts[elem];
 	if !ok {
-		t = &ArrayType{commonType{}, len, elem, nil};
+		t = &ArrayType{commonType{}, len, elem};
 		ts[elem] = t;
 	}
 	return t;
 }
 
-func (t *ArrayType) literal() Type {
-	if t.lit == nil {
-		t.lit = NewArrayType(t.Len, t.Elem.literal());
+func (t *ArrayType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*ArrayType);
+	if !ok {
+		return false;
 	}
-	return t.lit;
+	return t.Len == t2.Len && t.Elem.compat(t2.Elem, conv);
 }
 
-func (t *ArrayType) rep() Type {
+func (t *ArrayType) lit() Type {
 	return t;
 }
 
@@ -489,31 +496,30 @@ func (t *ArrayType) Zero() Value
 type PtrType struct {
 	commonType;
 	Elem Type;
-	lit Type;
 }
 
 var ptrTypes = make(map[Type] *PtrType)
 
-func NewPtrType(elem Type) *PtrType {
-	// Two pointer types are identical if they have identical base
-	// types.
+// Two pointer types are identical if they have identical base types.
 
+func NewPtrType(elem Type) *PtrType {
 	t, ok := ptrTypes[elem];
 	if !ok {
-		t = &PtrType{commonType{}, elem, nil};
+		t = &PtrType{commonType{}, elem};
 		ptrTypes[elem] = t;
 	}
 	return t;
 }
 
-func (t *PtrType) literal() Type {
-	if t.lit == nil {
-		t.lit = NewPtrType(t.Elem.literal());
+func (t *PtrType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*PtrType);
+	if !ok {
+		return false;
 	}
-	return t.lit;
+	return t.Elem.compat(t2.Elem, conv);
 }
 
-func (t *PtrType) rep() Type {
+func (t *PtrType) lit() Type {
 	return t;
 }
 
@@ -533,19 +539,17 @@ type FuncType struct {
 	In []Type;
 	Variadic bool;
 	Out []Type;
-	lit Type;
 }
 
 var funcTypes = newTypeArrayMap();
 var variadicFuncTypes = newTypeArrayMap();
 
-func NewFuncType(in []Type, variadic bool, out []Type) *FuncType {
-	// Two function types are identical if they have the same
-	// number of parameters and result values and if corresponding
-	// parameter and result types are identical. All "..."
-	// parameters have identical type. Parameter and result names
-	// are not required to match.
+// Two function types are identical if they have the same number of
+// parameters and result values and if corresponding parameter and
+// result types are identical. All "..." parameters have identical
+// type. Parameter and result names are not required to match.
 
+func NewFuncType(in []Type, variadic bool, out []Type) *FuncType {
 	inMap := funcTypes;
 	if variadic {
 		inMap = variadicFuncTypes;
@@ -562,29 +566,33 @@ func NewFuncType(in []Type, variadic bool, out []Type) *FuncType {
 		return tI.(*FuncType);
 	}
 
-	t := &FuncType{commonType{}, in, variadic, out, nil};
+	t := &FuncType{commonType{}, in, variadic, out};
 	outMap.Put(out, t);
 	return t;
 }
 
-func (t *FuncType) literal() Type {
-	if t.lit == nil {
-		in := make([]Type, len(t.In));
-		for i := 0; i < len(in); i++ {
-			in[i] = t.In[i].literal();
-		}
-
-		out := make([]Type, len(t.Out));
-		for i := 0; i < len(out); i++ {
-			out[i] = t.Out[i].literal();
-		}
-
-		t.lit = NewFuncType(in, t.Variadic, out);
+func (t *FuncType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*FuncType);
+	if !ok {
+		return false;
 	}
-	return t.lit;
+	if len(t.In) != len(t2.In) || t.Variadic != t2.Variadic || len(t.Out) != len(t2.Out) {
+		return false;
+	}
+	for i := range t.In {
+		if !t.In[i].compat(t2.In[i], conv) {
+			return false;
+		}
+	}
+	for i := range t.Out {
+		if !t.Out[i].compat(t2.Out[i], conv) {
+			return false;
+		}
+	}
+	return true;
 }
 
-func (t *FuncType) rep() Type {
+func (t *FuncType) lit() Type {
 	return t;
 }
 
@@ -683,12 +691,28 @@ type NamedType struct {
 	//methods map[string] XXX;
 }
 
-func (t *NamedType) literal() Type {
-	return t.def.literal();
+func (t *NamedType) compat(o Type, conv bool) bool {
+	t2, ok := o.(*NamedType);
+	if ok {
+		if conv {
+			// Two named types are conversion compatible
+			// if their literals are conversion
+			// compatible.
+			return t.def.compat(t2.def, conv);
+		} else {
+			// Two named types are compatible if their
+			// type names originate in the same type
+			// declaration.
+			return t == t2;
+		}
+	}
+	// A named and an unnamed type are compatible if the
+	// respective type literals are compatible.
+	return o.compat(t.def, conv);
 }
 
-func (t *NamedType) rep() Type {
-	return t.def.rep();
+func (t *NamedType) lit() Type {
+	return t.def.lit();
 }
 
 func (t *NamedType) isBoolean() bool {
@@ -725,7 +749,6 @@ func (t *NamedType) Zero() Value {
 type MultiType struct {
 	commonType;
 	Elems []Type;
-	lit Type;
 }
 
 var multiTypes = newTypeArrayMap()
@@ -735,26 +758,30 @@ func NewMultiType(elems []Type) *MultiType {
 		return t.(*MultiType);
 	}
 
-	t := &MultiType{commonType{}, elems, nil};
+	t := &MultiType{commonType{}, elems};
 	multiTypes.Put(elems, t);
 	return t;
 }
 
-var EmptyType Type = NewMultiType([]Type{});
-
-func (t *MultiType) literal() Type {
-	if t.lit == nil {
-		elems := make([]Type, len(t.Elems));
-		for i, e := range t.Elems {
-			elems[i] = e.literal();
-		}
-
-		t.lit = NewMultiType(elems);
+func (t *MultiType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*MultiType);
+	if !ok {
+		return false;
 	}
-	return t.lit;
+	if len(t.Elems) != len(t2.Elems) {
+		return false;
+	}
+	for i := range t.Elems {
+		if !t.Elems[i].compat(t2.Elems[i], conv) {
+			return false;
+		}
+	}
+	return true;
 }
 
-func (t *MultiType) rep() Type {
+var EmptyType Type = NewMultiType([]Type{});
+
+func (t *MultiType) lit() Type {
 	return t;
 }
 

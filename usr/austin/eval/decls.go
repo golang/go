@@ -16,15 +16,17 @@ import (
 type Value interface
 
 type Type interface {
-	// literal returns this type with all names recursively
-	// stripped.  This should only be used when determining
-	// assignment compatibility.  To strip a named type for use in
-	// a type switch, use .rep().
-	literal() Type;
-	// rep returns the representative type.  If this is a named
-	// type, this is the unnamed underlying type.  Otherwise, this
-	// is an identity operation.
-	rep() Type;
+	// compat returns whether this type is compatible with another
+	// type.  If conv is false, this is normal compatibility,
+	// where two named types are compatible only if they are the
+	// same named type.  If conv if true, this is conversion
+	// compatibility, where two named types are conversion
+	// compatible if their definitions are conversion compatible.
+	compat(o Type, conv bool) bool;
+	// lit returns this type's literal.  If this is a named type,
+	// this is the unnamed underlying type.  Otherwise, this is an
+	// identity operation.
+	lit() Type;
 	// isBoolean returns true if this is a boolean type.
 	isBoolean() bool;
 	// isInteger returns true if this is an integer type.
