@@ -16,7 +16,6 @@ import (
 	pathutil "path";
 	"sort";
 	"strings";
-	"tabwriter";
 )
 
 
@@ -34,8 +33,9 @@ var (
 	exports = flag.Bool("x", false, "show exports only");
 
 	// layout control
-	tabwidth = flag.Int("tabwidth", 4, "tab width");
-	usetabs = flag.Bool("tabs", false, "align with tabs instead of blanks");
+	tabwidth = flag.Int("tabwidth", 8, "tab width");
+	rawformat = flag.Bool("rawformat", false, "do not use a tabwriter");
+	usespaces = flag.Bool("spaces", false, "align with blanks instead of tabs");
 	optcommas = flag.Bool("optcommas", false, "print optional commas");
 	optsemis = flag.Bool("optsemis", false, "print optional semicolons");
 )
@@ -104,6 +104,12 @@ func getPackage(path string) (*ast.Package, os.Error) {
 
 func printerMode() uint {
 	mode := uint(0);
+	if *rawformat {
+		mode |= printer.RawFormat;
+	}
+	if *usespaces {
+		mode |= printer.UseSpaces;
+	}
 	if *optcommas {
 		mode |= printer.OptCommas;
 	}
@@ -111,15 +117,6 @@ func printerMode() uint {
 		mode |= printer.OptSemis;
 	}
 	return mode;
-}
-
-
-func makeTabwriter(writer io.Writer) *tabwriter.Writer {
-	padchar := byte(' ');
-	if *usetabs {
-		padchar = '\t';
-	}
-	return tabwriter.NewWriter(writer, *tabwidth, 1, padchar, 0);
 }
 
 
@@ -144,15 +141,21 @@ func main() {
 	}
 
 	if !*silent {
-		w := makeTabwriter(os.Stdout);
 		if *exports {
 			ast.PackageExports(pkg);
-			printer.Fprint(w, ast.MergePackageFiles(pkg), printerMode());  // ignore errors
+			_, err := printer.Fprint(os.Stdout, ast.MergePackageFiles(pkg), printerMode(), *tabwidth);
+			if err != nil {
+				fmt.Fprint(os.Stderr, err);
+				os.Exit(2);
+			}
 		} else {
 			for _, src := range pkg.Files {
-				printer.Fprint(w, src, printerMode());  // ignore errors
+				_, err := printer.Fprint(os.Stdout, src, printerMode(), *tabwidth);
+				if err != nil {
+					fmt.Fprint(os.Stderr, err);
+					os.Exit(2);
+				}
 			}
 		}
-		w.Flush();
 	}
 }

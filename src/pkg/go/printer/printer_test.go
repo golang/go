@@ -13,7 +13,6 @@ import (
 	"go/printer";
 	"os";
 	"path";
-	"tabwriter";
 	"testing";
 )
 
@@ -21,8 +20,6 @@ import (
 const (
 	dataDir = "testdata";
 	tabwidth = 4;
-	padding = 1;
-	tabchar = '\t';
 )
 
 
@@ -54,9 +51,9 @@ func check(t *testing.T, source, golden string, exports bool) {
 
 	// format source
 	var buf bytes.Buffer;
-	w := tabwriter.NewWriter(&buf, tabwidth, padding, tabchar, 0);
-	Fprint(w, prog, 0);
-	w.Flush();
+	if _, err := Fprint(&buf, prog, 0, tabwidth); err != nil {
+		t.Error(err);
+	}
 	res := buf.Data();
 
 	// update golden files if necessary

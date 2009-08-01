@@ -13,6 +13,7 @@ import (
 	"os";
 	"reflect";
 	"strings";
+	"tabwriter";
 )
 
 
@@ -26,7 +27,10 @@ const (
 // to Fprint via the mode parameter.
 //
 const (
-	OptCommas = 1 << iota;  // print optional commas
+	GenHTML uint = 1 << iota;  // generate HTML
+	RawFormat;  // do not use a tabwriter; if set, UseSpaces is ignored
+	UseSpaces;  // use spaces instead of tabs for indentation and alignment
+	OptCommas;  // print optional commas
 	OptSemis;  // print optional semicolons
 )
 
@@ -38,6 +42,15 @@ const (
 	tab = whiteSpace('\t');
 	newline = whiteSpace('\n');
 	formfeed = whiteSpace('\f');
+)
+
+
+var (
+	tabs = [...]byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'};
+	newlines = [...]byte{'\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'};  // more than maxNewlines
+	ampersand = strings.Bytes("&amp;");
+	lessthan = strings.Bytes("&lt;");
+	greaterthan = strings.Bytes("&gt;");
 )
 
 
@@ -70,8 +83,7 @@ func (p *printer) init(output io.Writer, mode uint) {
 
 
 // Writing to p.output is done with write0 which also handles errors.
-// It should only be called by write and debug routines which are not
-// supposed to update the p.pos estimation.
+// Does not indent after newlines, or HTML-escape, or update p.pos.
 //
 func (p *printer) write0(data []byte) {
 	n, err := p.output.Write(data);
@@ -85,22 +97,55 @@ func (p *printer) write0(data []byte) {
 func (p *printer) write(data []byte) {
 	i0 := 0;
 	for i, b := range data {
-		if b == '\n' || b == '\f' {
-			// write segment ending in a newline/formfeed followed by indentation
-			// TODO(gri) should convert '\f' into '\n' if the output is not going
-			//           through tabwriter
-			p.write0(data[i0 : i+1]);
-			// TODO(gri) should not write indentation is there is nothing else
-			//           on the line
-			for j := p.indent; j > 0; j-- {
-				p.write0([]byte{'\t'});  // TODO(gri) don't do allocation in every iteration
+		switch b {
+		case '\n', '\f':
+			// write segment ending in b followed by indentation
+			if p.mode & RawFormat != 0 && b == '\f' {
+				// no tabwriter - convert last byte into a newline
+				p.write0(data[i0 : i]);
+				p.write0(newlines[0 : 1]);
+			} else {
+				p.write0(data[i0 : i+1]);
 			}
-			i0 = i+1;
+
+			// write indentation
+			// TODO(gri) should not write indentation if there is nothing else
+			//           on the line
+			j := p.indent;
+			for ; j > len(tabs); j -= len(tabs) {
+				p.write0(&tabs);
+			}
+			p.write0(tabs[0 : j]);
 
 			// update p.pos
 			p.pos.Offset += i+1 - i0 + p.indent;
 			p.pos.Line++;
 			p.pos.Column = p.indent + 1;
+
+			// next segment start
+			i0 = i+1;
+
+		case '&', '<', '>':
+			if p.mode & GenHTML != 0 {
+				// write segment ending in b
+				p.write0(data[i0 : i]);
+
+				// write HTML-escaped b
+				var esc []byte;
+				switch b {
+				case '&': esc = ampersand;
+				case '<': esc = lessthan;
+				case '>': esc = greaterthan;
+				}
+				p.write0(esc);
+
+				// update p.pos
+				p.pos.Offset += i+1 - i0;
+				p.pos.Column += i+1 - i0;
+
+				// next segment start
+				i0 = i+1;
+			}
 		}
 	}
 
@@ -114,33 +159,29 @@ func (p *printer) write(data []byte) {
 }
 
 
-// TODO(gri) Don't go through write and make this more efficient.
-func (p *printer) writeByte(b byte) {
-	p.write([]byte{b});
-}
-
-
 func (p *printer) writeNewlines(n int) {
-	if n > maxNewlines {
-		n = maxNewlines;
+	if n > 0 {
+		if n > maxNewlines {
+			n = maxNewlines;
+		}
+		p.write(newlines[0 : n]);
 	}
-	for ; n > 0; n-- {
-		p.writeByte('\n');
-	}
-}
-
-
-func (p *printer) writePos(pos token.Position) {
-	// use write0 so not to disturb the p.pos update by write
-	p.write0(strings.Bytes(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)));
 }
 
 
 func (p *printer) writeItem(pos token.Position, data []byte) {
 	p.pos = pos;
 	if debug {
-		p.writePos(pos);
+		// do not update p.pos - use write0
+		p.write0(strings.Bytes(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)));
 	}
+	// TODO(gri) Enable once links are generated.
+	/*
+	if p.mode & GenHTML != 0 {
+		// do not HTML-escape or update p.pos - use write0
+		p.write0(strings.Bytes(fmt.Sprintf("<a id=%x></a>", pos.Offset)));
+	}
+	*/
 	p.write(data);
 	p.prev = p.pos;
 }
@@ -172,7 +213,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
 		n := comment.Pos().Line - p.prev.Line;
 		if n == 0 {
 			// comment on the same line as previous item; separate with tab
-			p.writeByte('\t');
+			p.write(tabs[0 : 1]);
 		} else {
 			// comment on a different line; separate with newlines
 			p.writeNewlines(n);
@@ -239,10 +280,16 @@ func (p *printer) intersperseComments(next token.Position) {
 
 
 func (p *printer) writeWhitespace() {
+	var a [len(p.buffer)]byte;
 	for i := 0; i < p.buflen; i++ {
-		p.writeByte(byte(p.buffer[i]));
+		a[i] = byte(p.buffer[i]);
 	}
+
+	var b []byte = &a;
+	b = b[0 : p.buflen];
 	p.buflen = 0;
+
+	p.write(b);
 }
 
 
@@ -254,7 +301,7 @@ func (p *printer) writeWhitespace() {
 // Whitespace is accumulated until a non-whitespace token appears. Any
 // comments that need to appear before that token are printed first,
 // taking into account the amount and structure of any pending white-
-// space for best commemnt placement. Then, any leftover whitespace is
+// space for best comment placement. Then, any leftover whitespace is
 // printed, followed by the actual token.
 //
 func (p *printer) print(args ...) {
@@ -930,8 +977,8 @@ func (p *printer) spec(spec ast.Spec) (comment *ast.CommentGroup, optSemi bool) 
 		if s.Name != nil {
 			p.expr(s.Name);
 		}
-		// TODO fix for longer package names
-		p.print(tab, s.Path[0].Pos(), s.Path[0].Value);
+		p.print(tab);
+		p.expr(&ast.StringList{s.Path});
 		comment = s.Comment;
 
 	case *ast.ValueSpec:
@@ -1057,14 +1104,28 @@ func (p *printer) file(src *ast.File) {
 
 // Fprint "pretty-prints" an AST node to output and returns the number of
 // bytes written, and an error, if any. The node type must be *ast.File,
-// or assignment-compatible to ast.Expr, ast.Decl, or ast.Stmt. Printing is
-// controlled by the mode parameter. For best results, the output should be
-// a tabwriter.Writer.
+// or assignment-compatible to ast.Expr, ast.Decl, or ast.Stmt. Printing
+// is controlled by the mode and tabwidth parameters.
 //
-func Fprint(output io.Writer, node interface{}, mode uint) (int, os.Error) {
+func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, os.Error) {
+	// setup tabwriter if needed and redirect output
+	var tw *tabwriter.Writer;
+	if mode & RawFormat == 0 {
+		padchar := byte('\t');
+		if mode & UseSpaces != 0 {
+			padchar = ' ';
+		}
+		var twmode uint;
+		if mode & GenHTML != 0 {
+			twmode = tabwriter.FilterHTML;
+		}
+		tw = tabwriter.NewWriter(output, tabwidth, 1, padchar, twmode);
+		output = tw;
+	}
+
+	// setup printer and print node
 	var p printer;
 	p.init(output, mode);
-
 	go func() {
 		switch n := node.(type) {
 		case ast.Expr:
@@ -1084,6 +1145,11 @@ func Fprint(output io.Writer, node interface{}, mode uint) (int, os.Error) {
 		p.errors <- nil;  // no errors
 	}();
 	err := <-p.errors;  // wait for completion of goroutine
+
+	// flush tabwriter, if any
+	if tw != nil {
+		tw.Flush();  // ignore errors
+	}
 
 	return p.written, err;
 }
