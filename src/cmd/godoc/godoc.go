@@ -258,10 +258,25 @@ func textFmt(w io.Writer, x interface{}, format string) {
 }
 
 
+// Template formatter for "link" format.
+func linkFmt(w io.Writer, x interface{}, format string) {
+	type Positioner interface { Pos() token.Position }
+	if node, ok := x.(Positioner); ok {
+		pos := node.Pos();
+		if pos.IsValid() {
+			// line id's in html-printed source are of the
+			// form "L%d" where %d stands for the line number
+			fmt.Fprintf(w, "/%s#L%d", pos.Filename, pos.Line);
+		}
+	}
+}
+
+
 var fmap = template.FormatterMap{
 	"": textFmt,
 	"html": htmlFmt,
 	"html-comment": htmlCommentFmt,
+	"link": linkFmt,
 }
 
 
@@ -312,7 +327,9 @@ func servePage(c *http.Conn, title, content interface{}) {
 	d.header = title;
 	d.timestamp = time.SecondsToLocalTime(syncTime.get()).String();
 	d.content = content;
-	godocHtml.Execute(&d, c);
+	if err := godocHtml.Execute(&d, c); err != nil {
+		log.Stderrf("godocHtml.Execute: %s", err);
+	}
 }
 
 
@@ -328,7 +345,9 @@ func serveText(c *http.Conn, text []byte) {
 func serveParseErrors(c *http.Conn, errors *parseErrors) {
 	// format errors
 	var buf bytes.Buffer;
-	parseerrorHtml.Execute(errors, &buf);
+	if err := parseerrorHtml.Execute(errors, &buf); err != nil {
+		log.Stderrf("parseerrorHtml.Execute: %s", err);
+	}
 	servePage(c, errors.filename + " - Parse Errors", buf.Data());
 }
 
@@ -473,16 +492,14 @@ func servePkg(c *http.Conn, r *http.Request) {
 
 	var buf bytes.Buffer;
 	if false {	// TODO req.Params["format"] == "text"
-		err := packageText.Execute(info, &buf);
-		if err != nil {
+		if err := packageText.Execute(info, &buf); err != nil {
 			log.Stderrf("packageText.Execute: %s", err);
 		}
 		serveText(c, buf.Data());
 		return;
 	}
 
-	err := packageHtml.Execute(info, &buf);
-	if err != nil {
+	if err := packageHtml.Execute(info, &buf); err != nil {
 		log.Stderrf("packageHtml.Execute: %s", err);
 	}
 
@@ -648,5 +665,7 @@ func main() {
 		info.PDoc.Filter(args[1 : len(args)]);
 	}
 
-	packageText.Execute(info, os.Stdout);
+	if err := packageText.Execute(info, os.Stdout); err != nil {
+		log.Stderrf("packageText.Execute: %s", err);
+	}
 }
