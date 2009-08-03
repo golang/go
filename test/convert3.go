@@ -21,5 +21,5 @@ var g = []int(nil)
 type H *[4]int
 type J []int
 var h H
-var j1 J = h	// ERROR "compat|illegal"
+var j1 J = h	// ERROR "compat|illegal|cannot|cannot"
 var j2 = J(h)

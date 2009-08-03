@@ -907,6 +907,8 @@ nodarg(Type *t, int fp)
 		n->class = PPARAM;
 		break;
 	}
+
+	n->typecheck = 1;
 	return n;
 }
 

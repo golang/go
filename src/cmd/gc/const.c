@@ -200,8 +200,6 @@ bad:
 		defaultlit(&n, T);
 		*np = n;
 	}
-	yyerror("cannot convert %T constant to %T", n->type, t);
-	n->diag = 1;
 	return;
 }
 
@@ -336,6 +334,9 @@ evconst(Node *n)
 
 	switch(n->op) {
 	case OMAKE:
+	case OMAKEMAP:
+	case OMAKESLICE:
+	case OMAKECHAN:
 		return;
 	}
 
@@ -557,7 +558,7 @@ evconst(Node *n)
 		if(cmpslit(nl, nr) > 0)
 			goto settrue;
 		goto setfalse;
-	case TUP(OADD, CTSTR):
+	case TUP(OADDSTR, CTSTR):
 		len = v.u.sval->len + nr->val.u.sval->len;
 		str = mal(sizeof(*str) + len);
 		str->len = len;
@@ -605,6 +606,7 @@ unary:
 	case TUP(OCONV, CTFLT):
 	case TUP(OCONV, CTSTR):
 	case TUP(OCONV, CTNIL):
+	case TUP(OARRAYBYTESTR, CTNIL):
 		convlit1(&nl, n->type, 1);
 		break;
 

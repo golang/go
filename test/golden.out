@@ -132,13 +132,6 @@ throw: interface conversion
 
 panic PC=xxx
 
-=========== fixedbugs/bug121.go
-fixedbugs/bug121.go:9: syntax error near T
-fixedbugs/bug121.go:20: incomplete type I
-fixedbugs/bug121.go:20: illegal types for operand: AS
-	I
-	*S
-
 =========== fixedbugs/bug148.go
 2 3
 interface is main.T, not main.T·bug148·1

@@ -123,7 +123,8 @@ file:
 	{
 		if(debug['f'])
 			frame(1);
-		fninit($4);
+		if(nerrors == 0)
+			fninit($4);
 		if(nsyntaxerrors == 0)
 			testdclstack();
 	}
@@ -882,7 +883,7 @@ pexpr:
 |	convtype lbrace braced_keyval_list '}'
 	{
 		// composite expression
-		$$ = nod(OCOMPOS, N, $1);
+		$$ = nod(OCOMPLIT, N, $1);
 		$$->list = $3;
 
 		// If the opening brace was an LBODY,
@@ -894,7 +895,7 @@ pexpr:
 |	pexpr '{' braced_keyval_list '}'
 	{
 		// composite expression
-		$$ = nod(OCOMPOS, N, $1);
+		$$ = nod(OCOMPLIT, N, $1);
 		$$->list = $3;
 	}
 |	fnliteral

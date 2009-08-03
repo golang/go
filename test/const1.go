@@ -65,15 +65,15 @@ var (
 func f(int);
 
 func main() {
-	f(Int8);	// ERROR "convert|wrong type"
-	f(Minus1);	// ERROR "convert|wrong type"
-	f(Uint8);	// ERROR "convert|wrong type"
+	f(Int8);	// ERROR "convert|wrong type|cannot"
+	f(Minus1);	// ERROR "convert|wrong type|cannot"
+	f(Uint8);	// ERROR "convert|wrong type|cannot"
 	f(Const);	// OK
-	f(Float32);	// ERROR "convert|wrong type"
-	f(Float);	// ERROR "convert|wrong type"
+	f(Float32);	// ERROR "convert|wrong type|cannot"
+	f(Float);	// ERROR "convert|wrong type|cannot"
 	f(ConstFloat);	// ERROR "truncate"
 	f(ConstFloat - 0.5);	// OK
-	f(Big);	// ERROR "convert|wrong type"
-	f(String);	// ERROR "convert|wrong type"
-	f(Bool);	// ERROR "convert|wrong type"
+	f(Big);	// ERROR "convert|wrong type|cannot"
+	f(String);	// ERROR "convert|wrong type|cannot"
+	f(Bool);	// ERROR "convert|wrong type|cannot"
 }
