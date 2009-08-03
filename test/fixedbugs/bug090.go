@@ -38,9 +38,9 @@ func main() {
 	assert(i != f3div2, "i != f3div2");	// ERROR "truncate"
 
 	const g float64 = 1.0;
-	i = g;  // ERROR "convert|incompatible"
+	i = g;  // ERROR "convert|incompatible|cannot"
 
 	const h float64 = 3.14;
-	i = h;  // ERROR "convert|incompatible"
+	i = h;  // ERROR "convert|incompatible|cannot"
 	i = int(h);	// ERROR "truncate"
 }

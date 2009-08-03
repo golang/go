@@ -208,11 +208,12 @@ exprfmt(Fmt *f, Node *n, int prec)
 		exprfmt(f, n->left, 0);
 		break;
 
-	case OCOMPOS:
+	case OCOMPLIT:
 		fmtprint(f, "<compos>");
 		break;
 
 	case ODOT:
+	case ODOTPTR:
 	case ODOTINTER:
 	case ODOTMETH:
 		exprfmt(f, n->left, 7);

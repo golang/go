@@ -15,10 +15,10 @@ var (
 func main() {
 	cr = c;		// ok
 	cs = c;		// ok
-	c = cr;		// ERROR "illegal types|incompatible"
-	c = cs;		// ERROR "illegal types|incompatible"
-	cr = cs;	// ERROR "illegal types|incompatible"
-	cs = cr;	// ERROR "illegal types|incompatible"
+	c = cr;		// ERROR "illegal types|incompatible|cannot"
+	c = cs;		// ERROR "illegal types|incompatible|cannot"
+	cr = cs;	// ERROR "illegal types|incompatible|cannot"
+	cs = cr;	// ERROR "illegal types|incompatible|cannot"
 
 	c <- 0;		// ok
 	ok := c <- 0;	// ok

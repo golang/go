@@ -328,36 +328,41 @@ enum
 	OLITERAL,
 
 	// exprs
-	OADD, OSUB, OOR, OXOR,
+	OADD, OSUB, OOR, OXOR, OADDSTR,
 	OADDR,
 	OANDAND,
+	OAPPENDSTR,
 	OARRAY,
+	OARRAYBYTESTR, OARRAYRUNESTR,
 	OAS, OAS2, OASOP,
 	OBAD,
 	OCALL, OCALLFUNC, OCALLMETH, OCALLINTER,
 	OCAP,
 	OCLOSE,
 	OCLOSED,
-	OCOMPOS, OCOMPSLICE, OCOMPMAP,
-	OCONV, OCONVNOP, OCONVRUNE, OCONVSTRB, OCONVSTRI, OCONVA2S,
+	OCMPIFACE, OCMPSTR,
+	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT,
+	OCOMPSLICE, OCOMPMAP,
+	OCONV, OCONVNOP, OCONVA2S, OCONVIFACE, OCONVSLICE,
 	ODCL, ODCLFUNC, ODCLFIELD, ODCLARG,
 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
 	ODOTTYPE,
 	OEQ, ONE, OLT, OLE, OGE, OGT,
 	OFUNC,
 	OIND,
-	OINDEX, OINDEXSTR, OINDEXMAP, OINDEXARR,
+	OINDEX, OINDEXSTR, OINDEXMAP,
 	OKEY, OPARAM,
 	OLEN,
-	OMAKE,
+	OMAKE, OMAKECHAN, OMAKEMAP, OMAKESLICE,
 	OMUL, ODIV, OMOD, OLSH, ORSH, OAND, OANDNOT,
 	ONEW,
 	ONOT, OCOM, OPLUS, OMINUS,
 	OOROR,
 	OPANIC, OPANICN, OPRINT, OPRINTN,
-	OSEND,
-	OSLICE, OSLICESTR, OSLICEARR,
+	OSEND, OSENDNB,
+	OSLICE, OSLICEARR, OSLICESTR,
 	ORECV,
+	ORUNESTR,
 
 	// stmts
 	OBLOCK,
@@ -470,10 +475,9 @@ enum
 enum
 {
 	Etop = 1<<1,	// evaluated at statement level
-	Elv = 1<<2,	// evaluated in lvalue context
-	Erv = 1<<3,	// evaluated in rvalue context
-	Etype = 1<<4,
-	Ecall = 1<<5,
+	Erv = 1<<2,	// evaluated in value context
+	Etype = 1<<3,
+	Ecall = 1<<4,
 };
 
 #define	BITS	5
@@ -657,6 +661,8 @@ EXTERN	int32	initstksize;		// stack size for init function
 EXTERN	ushort	blockgen;		// max block number
 EXTERN	ushort	block;			// current block number
 EXTERN	int	hasdefer;		// flag that curfn has defer statetment
+
+EXTERN	Node*	curfn;
 
 EXTERN	int	maxround;
 EXTERN	int	widthptr;
@@ -986,14 +992,12 @@ NodeList*	ascompatet(int, NodeList*, Type**, int, NodeList**);
 NodeList*	ascompatte(int, Type**, NodeList*, int, NodeList**);
 int	ascompat(Type*, Type*);
 Node*	newcompat(Node*);
-Node*	makecompat(Node*);
 Node*	stringop(Node*, NodeList**);
 Type*	fixmap(Type*);
 Node*	mapop(Node*, NodeList**);
 Type*	fixchan(Type*);
 Node*	chanop(Node*, NodeList**);
-Node*	arrayop(Node*);
-Node*	ifacecvt(Type*, Node*, int);
+Node*	ifacecvt(Type*, Node*, int, NodeList**);
 Node*	ifaceop(Node*);
 int	ifaceas(Type*, Type*, int);
 int	ifaceas1(Type*, Type*, int);
@@ -1011,11 +1015,11 @@ Node*	arraylit(Node*, Node*, NodeList**);
 Node*	maplit(Node*, Node*, NodeList**);
 Node*	selectas(Node*, Node*, NodeList**);
 Node*	old2new(Node*, Type*, NodeList**);
-void	addrescapes(Node*);
 void	heapmoves(void);
 void	walkdeflist(NodeList*);
 void	walkdef(Node*);
 void	typechecklist(NodeList*, int);
+Node*	typecheckconv(Node*, Node*, Type*, int);
 Node*	typecheck(Node**, int);
 
 /*

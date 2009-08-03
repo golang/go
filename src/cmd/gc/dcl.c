@@ -672,9 +672,9 @@ funclit1(Node *ntype, NodeList *body)
 	for(l=func->cvars; l; l=l->next) {
 		a = l->n;
 		d = oldname(a->sym);
-		addrescapes(d);
 		args = list(args, nod(OADDR, d, N));
 	}
+	typechecklist(args, Erv);
 
 	n = nod(OCALL, clos, N);
 	n->list = args;
@@ -1642,7 +1642,7 @@ embedded(Sym *s)
 NodeList*
 variter(NodeList *vl, Node *nt, NodeList *el)
 {
-	int doexpr;
+	int doexpr, lno;
 	Node *v, *e, *a;
 	Type *tv;
 	NodeList *r;
@@ -1663,23 +1663,37 @@ variter(NodeList *vl, Node *nt, NodeList *el)
 				break;
 			}
 			e = el->n;
-			el = el->next;
 		} else
 			e = N;
 
 		v = vl->n;
 		tv = t;
-		if(t == T) {
+		if(e) {
+			lno = lineno;
+			lineno = v->lineno;
 			typecheck(&e, Erv);
-			defaultlit(&e, T);
-			tv = e->type;
+			defaultlit(&e, t);
+			if(t)
+				e = typecheckconv(nil, e, t, 0);
+			if(tv == nil)
+				tv = e->type;
+			if(tv && tv->etype == TNIL) {
+				yyerror("cannot initialize %#N to untyped nil", v);
+				tv = nil;
+			}
+			lineno = lno;
 		}
+
 		a = N;
-		if(e != N || funcdepth > 0)
+		if((e != N && tv != T) || funcdepth > 0)
 			a = nod(OAS, v, e);
 		dodclvar(v, tv, &r);
 		if(a != N)
 			r = list(r, a);
+		if(el) {
+			el->n = e;
+			el = el->next;
+		}
 	}
 	if(el != nil)
 		yyerror("extra expr in var dcl");

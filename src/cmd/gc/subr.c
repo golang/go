@@ -1209,6 +1209,14 @@ Nconv(Fmt *fp)
 		goto out;
 	}
 
+	if(fp->flags & FmtSign) {
+		if(n->type == T || n->type->etype == TNIL)
+			fmtprint(fp, "nil");
+		else
+			fmtprint(fp, "%#N (type %T)", n, n->type);
+		goto out;
+	}
+
 	if(fp->flags & FmtSharp) {
 		exprfmt(fp, n, 0);
 		goto out;
@@ -1593,22 +1601,7 @@ eqtype(Type *t1, Type *t2)
 int
 cvttype(Type *dst, Type *src)
 {
-	Sym *ds, *ss;
-	int ret;
-
-	if(eqtype1(dst, src, 0, 0))
-		return 1;
-
-	// Can convert if assignment compatible when
-	// top-level names are ignored.
-	ds = dst->sym;
-	dst->sym = nil;
-	ss = src->sym;
-	src->sym = nil;
-	ret = ascompat(dst, src);
-	dst->sym = ds;
-	src->sym = ss;
-	return ret == 1;
+	return eqtype1(dst, src, 0, 0);
 }
 
 int
@@ -1746,6 +1739,7 @@ noconv(Type *t1, Type *t2)
 void
 argtype(Node *on, Type *t)
 {
+	dowidth(t);
 	if(!subtype(&on->type, t, 0))
 		fatal("argtype: failed %N %T\n", on, t);
 }
@@ -2274,7 +2268,7 @@ saferef(Node *n, NodeList **init)
 		r = nod(OXXX, N, N);
 		*r = *n;
 		r->left = l;
-		typecheck(&r, Elv);
+		typecheck(&r, Erv);
 		walkexpr(&r, init);
 		return r;
 
@@ -2288,7 +2282,7 @@ saferef(Node *n, NodeList **init)
 		walkexpr(&a, init);
 		*init = list(*init, a);
 		r = nod(OIND, l, N);
-		typecheck(&r, Elv);
+		typecheck(&r, Erv);
 		walkexpr(&r, init);
 		return r;
 	}
