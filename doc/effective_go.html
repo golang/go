@@ -2,6 +2,14 @@
 <h2 id="introduction">Introduction</h2>
 
 <p>
+Go is a new language.  Although it's in the C family of languages
+it has some unusual properties that make effective Go programs
+different in character from programs in C, C++, or Java.
+To write Go well, it's important to understand its properties
+and idioms.
+</p>
+
+<p>
 This document gives tips for writing clear, idiomatic Go code
 and points out common mistakes.
 It augments the <a href="go_spec.html">language specification</a>
@@ -287,11 +295,11 @@ A comment can introduce a group of related constants or variables.
 </p>
 
 <pre>
-// Flags to Open wrapping those of the underlying system.
+// Flags to Open, wrapping those of the underlying system.
 // Not all flags may be implemented on a given system.
 const (
-	O_RDONLY = syscall.O_RDONLY;	// open the file read-only.
-	O_WRONLY = syscall.O_WRONLY;	// open the file write-only.
+	O_RDONLY = syscall.O_RDONLY;	// Open file read-only.
+	O_WRONLY = syscall.O_WRONLY;	// Open file write-only.
 	...
 )
 </pre>
@@ -303,9 +311,9 @@ a mutex.
 </p>
 
 <pre>
-// Variables protected by counterLock.
+// Variables protected by countLock.
 var (
-	counterLock	sync.Mutex;
+	countLock	sync.Mutex;
 	inputCount	uint32;
 	outputCount	uint32;
 	errorCount	uint32;
@@ -357,9 +365,8 @@ the buffered <code>Reader</code> is <code>bufio.Reader</code>, not <code>bufio.B
 Similarly, <code>once.Do</code> is as precise and evocative as
 <code>once.DoOrWaitUntilDone</code>, and <code>once.Do(f)</code> reads
 better than <code>once.DoOrWaitUntilDone(f)</code>.
-Contrary to popular belief, encoding small essays into
-function names does not make it possible
-to use them without documentation.
+Encoding small essays into function names is not Go style;
+clear names with good documentation is.
 </p>
 
 <h3 id="interfacers">Use the -er convention for interface names</h3>
@@ -564,24 +571,41 @@ codeUsing(f);
 
 <h3 id="error-context">Return structured errors</h3>
 
-Implementations of <code>os.Error</code>s should
-describe the error but also include context.
+Implementations of <code>os.Error</code> should
+describe the error and provide context.
 For example, <code>os.Open</code> returns an <code>os.PathError</code>:
 
 <a href="/src/pkg/os/file.go">/src/pkg/os/file.go</a>:
 <pre>
-XXX definition of PathError and .String
+// PathError records an error and the operation and
+// file path that caused it.
+type PathError struct {
+	Op string;
+	Path string;
+	Error Error;
+}
+
+func (e *PathError) String() string {
+	return e.Op + " " + e.Path + ": " + e.Error.String();
+}
 </pre>
 
 <code>PathError</code>'s <code>String</code> formats
-the error nicely and is the usual way the error gets used.
+the error nicely, including the operation and file name
+tha failed; just printing the error generates a
+message, such as
+<pre>
+open /etc/passwx: no such file or directory
+</pre>
+that is useful even if printed far from the call that
+triggered it.
+</p>
+
+<p>
 Callers that care about the precise error details can
 use a type switch or a type guard to look for specific
-errors and then extract details.
-
-<pre>
-XXX example here - MkdirAll
-</pre>
+errors and extract details.
+</p>
 
 <h2 id="types">Programmer-defined types</h2>
 
