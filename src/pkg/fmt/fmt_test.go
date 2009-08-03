@@ -270,3 +270,17 @@ func TestMapPrinter(t *testing.T) {
 	presentInMap(Sprintf("%v", m1), a, t);
 	presentInMap(Sprint(m1), a, t);
 }
+
+func TestEmptyMap(t *testing.T) {
+	const emptyMapStr = "map[]";
+	var m map[string]int;
+	s := Sprint(m);
+	if s != emptyMapStr {
+		t.Errorf("nil map printed as %q not %q", s, emptyMapStr);
+	}
+	m = make(map[string]int);
+	s = Sprint(m);
+	if s != emptyMapStr {
+		t.Errorf("empty map printed as %q not %q", s, emptyMapStr);
+	}
+}
