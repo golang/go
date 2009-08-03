@@ -37,7 +37,7 @@
 	{.section Funcs}
 		<hr />
 		{.repeated section @}
-			<h2>func {Name|html}</h2>
+			<h2>func <a href="{Decl|link}">{Name|html}</a></h2>
 			<p><code>{Decl|html}</code></p>
 			{Doc|html-comment}
 		{.end}
@@ -45,16 +45,16 @@
 	{.section Types}
 		{.repeated section @}
 			<hr />
-			<h2>type {.section Type}{Name|html}{.end}</h2>
+			<h2>type <a href="{Decl|link}">{Type.Name|html}</a></h2>
 			{Doc|html-comment}
 			<p><pre>{Decl|html}</pre></p>
 			{.repeated section Factories}
-				<h3>func {Name|html}</h3>
+				<h3>func <a href="{Decl|link}">{Name|html}</a></h3>
 				<p><code>{Decl|html}</code></p>
 				{Doc|html-comment}
 			{.end}
 			{.repeated section Methods}
-				<h3>func ({Recv|html}) {Name|html}</h3>
+				<h3>func ({Recv|html}) <a href="{Decl|link}">{Name|html}</a></h3>
 				<p><code>{Decl|html}</code></p>
 				{Doc|html-comment}
 			{.end}

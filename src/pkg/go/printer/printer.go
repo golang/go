@@ -54,6 +54,19 @@ var (
 )
 
 
+// A lineTag is a token.Position that is used to print
+// line tag id's of the form "L%d" where %d stands for
+// the line indicated by position.
+//
+type lineTag token.Position
+
+
+// A htmlTag specifies a start and end tag.
+type htmlTag struct {
+	start, end string;  // empty if tags are absent
+}
+
+
 type printer struct {
 	// configuration (does not change after initialization)
 	output io.Writer;
@@ -64,7 +77,10 @@ type printer struct {
 	written int;  // number of bytes written
 	level int;  // function nesting level; 0 = package scope, 1 = top-level function scope, etc.
 	indent int;  // current indentation
-	prev, pos token.Position;
+	last token.Position;  // (possibly estimated) position immediately after the last item; in AST space
+	pos token.Position;  // (possibly estimated) position; in AST space
+	tag htmlTag;  // tag to be used around next item
+	lastTaggedLine int;  // last line for which a line tag was written
 
 	// buffered whitespace
 	buffer [8]whiteSpace;  // whitespace sequences are short (1 or 2); 8 entries is plenty
@@ -169,21 +185,38 @@ func (p *printer) writeNewlines(n int) {
 }
 
 
-func (p *printer) writeItem(pos token.Position, data []byte) {
+func (p *printer) writeItem(pos token.Position, data []byte, setLineTag bool) {
 	p.pos = pos;
 	if debug {
 		// do not update p.pos - use write0
 		p.write0(strings.Bytes(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)));
 	}
-	// TODO(gri) Enable once links are generated.
-	/*
 	if p.mode & GenHTML != 0 {
-		// do not HTML-escape or update p.pos - use write0
-		p.write0(strings.Bytes(fmt.Sprintf("<a id=%x></a>", pos.Offset)));
+		// no html-escaping and no p.pos update for tags - use write0
+		if setLineTag && pos.Line > p.lastTaggedLine {
+			// id's must be unique within a document: set
+			// line tag only if line number has increased
+			// (note: for now write complete start and end
+			// tag - shorter versions seem to have issues
+			// with Safari)
+			p.tag.start = fmt.Sprintf(`<a id="L%d"></a>`, pos.Line);
+			p.lastTaggedLine = pos.Line;
+		}
+		// write start tag, if any
+		if p.tag.start != "" {
+			p.write0(strings.Bytes(p.tag.start));
+			p.tag.start = "";  // tag consumed
+		}
+		p.write(data);
+		// write end tag, if any
+		if p.tag.end != "" {
+			p.write0(strings.Bytes(p.tag.end));
+			p.tag.end = "";  // tag consumed
+		}
+	} else {
+		p.write(data);
 	}
-	*/
-	p.write(data);
-	p.prev = p.pos;
+	p.last = p.pos;
 }
 
 
@@ -205,14 +238,14 @@ func untabify(src []byte) []byte {
 
 
 func (p *printer) writeComment(comment *ast.Comment) {
-	// separation from previous item
-	if p.prev.IsValid() {
+	// separation from last item
+	if p.last.IsValid() {
 		// there was a preceding item (otherwise, the comment is the
 		// first item to be printed - in that case do not apply extra
 		// spacing)
-		n := comment.Pos().Line - p.prev.Line;
+		n := comment.Pos().Line - p.last.Line;
 		if n == 0 {
-			// comment on the same line as previous item; separate with tab
+			// comment on the same line as last item; separate with tab
 			p.write(tabs[0 : 1]);
 		} else {
 			// comment on a different line; separate with newlines
@@ -221,7 +254,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
 	}
 
 	// write comment
-	p.writeItem(comment.Pos(), comment.Text);
+	p.writeItem(comment.Pos(), comment.Text, false);
 }
 
 
@@ -253,8 +286,8 @@ func (p *printer) intersperseComments(next token.Position) {
 	// are not present in the original source. This makes sure
 	// that comments that need to be adjacent to a declaration
 	// remain adjacent.
-	if p.prev.IsValid() {
-		n := next.Line - p.prev.Line;
+	if p.last.IsValid() {
+		n := next.Line - p.last.Line;
 		if n < p.buflen {
 			p.buflen = n;
 		}
@@ -271,7 +304,7 @@ func (p *printer) intersperseComments(next token.Position) {
 			p.buflen = 1;
 			ch = newline;  // original ch was a lie
 		}
-		if p.prev.Line > firstLine {
+		if p.last.Line > firstLine {
 			ch = formfeed;  // comments span at least 2 lines
 		}
 		p.buffer[0] = ch;
@@ -305,6 +338,7 @@ func (p *printer) writeWhitespace() {
 // printed, followed by the actual token.
 //
 func (p *printer) print(args ...) {
+	setLineTag := false;
 	v := reflect.NewValue(args).(*reflect.StructValue);
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i);
@@ -334,7 +368,17 @@ func (p *printer) print(args ...) {
 		case token.Token:
 			data = strings.Bytes(x.String());
 		case token.Position:
-			next = x;  // accurate position of next item
+			if x.IsValid() {
+				next = x;  // accurate position of next item
+			}
+		case lineTag:
+			pos := token.Position(x);
+			if pos.IsValid() {
+				next = pos;  // accurate position of next item
+				setLineTag = true;
+			}
+		case htmlTag:
+			p.tag = x;  // tag surrounding next item
 		default:
 			panicln("print: unsupported argument type", f.Type().String());
 		}
@@ -351,7 +395,8 @@ func (p *printer) print(args ...) {
 			// intersperse extra newlines if present in the source
 			p.writeNewlines(next.Line - p.pos.Line);
 
-			p.writeItem(next, data);
+			p.writeItem(next, data, setLineTag);
+			setLineTag = false;
 		}
 	}
 }
@@ -475,8 +520,8 @@ func (p *printer) signature(params, result []*ast.Field) {
 
 // Returns true if the field list ends in a closing brace.
 func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isInterface bool) bool {
-	if !lbrace.IsValid() {
-		// forward declaration without {}'s
+	if list == nil {
+		// forward declaration
 		return false;  // no {}'s
 	}
 
@@ -487,8 +532,8 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 
 	p.print(blank, lbrace, token.LBRACE, +1, newline);
 
-	var lastWasAnon bool;  // true if the previous line was an anonymous field
-	var lastComment *ast.CommentGroup;  // the comment from the previous line
+	var lastWasAnon bool;  // true if the last line was an anonymous field
+	var lastComment *ast.CommentGroup;  // the comment from the last line
 	for i, f := range list {
 		// at least one visible identifier or anonymous field
 		isAnon := len(f.Names) == 0;
@@ -496,11 +541,11 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			p.print(token.SEMICOLON);
 			p.lineComment(lastComment);
 			if lastWasAnon == isAnon {
-				// previous and current line have same structure;
+				// last and current line have same structure;
 				// continue with existing columns
 				p.print(newline);
 			} else {
-				// previous and current line have different structure;
+				// last and current line have different structure;
 				// flush tabwriter and start new columns (the "type
 				// column" on a line with named fields may line up
 				// with the "line comment column" on a line with
@@ -1018,7 +1063,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 
 	case *ast.GenDecl:
 		p.leadComment(d.Doc);
-		p.print(d.Pos(), d.Tok, blank);
+		p.print(lineTag(d.Pos()), d.Tok, blank);
 
 		if d.Lparen.IsValid() {
 			// group of parenthesized declarations
@@ -1050,7 +1095,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 
 	case *ast.FuncDecl:
 		p.leadComment(d.Doc);
-		p.print(d.Pos(), token.FUNC, blank);
+		p.print(lineTag(d.Pos()), token.FUNC, blank);
 		if recv := d.Recv; recv != nil {
 			// method: print receiver
 			p.print(token.LPAREN);
