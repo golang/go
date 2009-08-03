@@ -1008,8 +1008,12 @@ func (v *MapValue) Len() int {
 func (v *MapValue) Keys() []Value {
 	tk := v.Type().(*MapType).Key();
 	m := *(**byte)(v.addr);
+	mlen := int32(0);
+	if m != nil {
+		mlen = maplen(m)
+	}
 	it := mapiterinit(m);
-	a := make([]Value, maplen(m));
+	a := make([]Value, mlen);
 	var i int;
 	for i = 0; i < len(a); i++ {
 		k := MakeZero(tk);
