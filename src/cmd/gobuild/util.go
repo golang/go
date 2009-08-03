@@ -264,36 +264,16 @@ func SourceFiles(dir string) ([]string, os.Error) {
 	return out, nil;
 }
 
-// TODO(rsc): Implement these for real as
-// os.MkdirAll and os.RemoveAll and then
-// make these wrappers that call fatal on error.
-
 func MkdirAll(name string) {
-	p, err := exec.Run("/bin/mkdir", []string{"mkdir", "-p", name}, os.Environ(), exec.DevNull, exec.PassThrough, exec.PassThrough);
+	err := path.MkdirAll(name);
 	if err != nil {
-		fatal("run /bin/mkdir: %v", err);
-	}
-	w, err1 := p.Wait(0);
-	if err1 != nil {
-		fatal("wait /bin/mkdir: %v", err);
-	}
-	if !w.Exited() || w.ExitStatus() != 0 {
-		fatal("/bin/mkdir: %v", w);
+		fatal("MkdirAll: %v", err);
 	}
 }
 
 func RemoveAll(name string) {
-	p, err := exec.Run("/bin/rm", []string{"rm", "-rf", name}, os.Environ(), exec.DevNull, exec.PassThrough, exec.PassThrough);
+	err := path.RemoveAll(name);
 	if err != nil {
-		fatal("run /bin/rm: %v", err);
+		fatal("RemoveAll: %v", err);
 	}
-	w, err := p.Wait(0);
-	if err != nil {
-		fatal("wait /bin/rm: %v", err);
-	}
-	if !w.Exited() || w.ExitStatus() != 0 {
-		fatal("/bin/rm: %v", w);
-	}
-
 }
-
