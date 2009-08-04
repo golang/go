@@ -29,5 +29,8 @@ reverse-complement < output-of-fasta-25000000
 	gc reverse-complement	6.55u 0.70s 7.26r
 	gc_B reverse-complement	6.32u 0.70s 7.10r
 
-nbody -n 50000000
-	gcc -O2 nbody.c	21.33u 0.00s 21.34r
+nbody 50000000
+	gcc -O2 nbody.c	21.61u 0.01s 24.80r
+	gccgo -O2 nbody.go	118.55u 0.02s 120.32r
+	gc nbody	100.84u 0.00s 100.85r
+	gc_B nbody	103.33u 0.00s 103.39r
