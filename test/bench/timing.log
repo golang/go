@@ -11,3 +11,8 @@ fasta -n 25000000
 	6g	13.50u 0.02s 13.53r
 	6g -B	12.99u 0.02s 13.02r
 
+reverse-complement < output-of-fasta-25000000
+	[gcc -O2 reverse-complement.c	2.03u 0.84s 13.04r]
+	gccgo -O2	6.47u 1.14s 15.58r
+	6g	6.55u 1.21s 15.45r
+	6g -B	6.19u 1.26s 15.64r
