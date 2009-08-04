@@ -265,14 +265,14 @@ func SourceFiles(dir string) ([]string, os.Error) {
 }
 
 func MkdirAll(name string) {
-	err := path.MkdirAll(name);
+	err := os.MkdirAll(name, 0755);
 	if err != nil {
 		fatal("MkdirAll: %v", err);
 	}
 }
 
 func RemoveAll(name string) {
-	err := path.RemoveAll(name);
+	err := os.RemoveAll(name);
 	if err != nil {
 		fatal("RemoveAll: %v", err);
 	}
