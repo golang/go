@@ -575,6 +575,15 @@ dodump(Node *n, int dep)
 			print("%O%J\n", n->op, n);
 		dodump(n->left, dep+1);
 		break;
+
+	case OXCASE:
+		print("%N\n", n);
+		dodump(n->left, dep+1);
+		dodump(n->right, dep+1);
+		indent(dep);
+		print("%O-nbody\n", n->op);
+		dodumplist(n->nbody, dep+1);
+		break;
 	}
 
 	if(n->ntype != nil) {
