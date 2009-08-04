@@ -101,6 +101,7 @@ dumpexportconst(Sym *s)
 	Type *t;
 
 	n = s->def;
+	typecheck(&n, Erv);
 	if(n == N || n->op != OLITERAL)
 		fatal("dumpexportconst: oconst nil: %S", s);
 
@@ -142,6 +143,7 @@ dumpexportvar(Sym *s)
 	Type *t;
 
 	n = s->def;
+	typecheck(&n, Erv);
 	if(n == N || n->type == T) {
 		yyerror("variable exported but not defined: %S", s);
 		return;
