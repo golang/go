@@ -334,7 +334,7 @@ enum
 	OAPPENDSTR,
 	OARRAY,
 	OARRAYBYTESTR, OARRAYRUNESTR,
-	OAS, OAS2, OASOP,
+	OAS, OAS2, OAS2MAPW, OAS2FUNC, OAS2RECV, OAS2MAPR, OAS2DOTTYPE, OASOP,
 	OBAD,
 	OCALL, OCALLFUNC, OCALLMETH, OCALLINTER,
 	OCAP,
@@ -952,18 +952,6 @@ void	dumpexport(void);
 void	dumpexporttype(Sym*);
 void	dumpexportvar(Sym*);
 void	dumpexportconst(Sym*);
-void	doimportv1(Node*, Node*);
-void	doimportc1(Node*, Val*);
-void	doimportc2(Node*, Node*, Val*);
-void	doimport1(Node*, Node*, Node*);
-void	doimport2(Node*, Val*, Node*);
-void	doimport3(Node*, Node*);
-void	doimport4(Node*, Node*);
-void	doimport5(Node*, Val*);
-void	doimport6(Node*, Node*);
-void	doimport7(Node*, Node*);
-void	doimport8(Node*, Val*, Node*);
-void	doimport9(Sym*, Node*);
 void	importconst(Sym *s, Type *t, Node *v);
 void	importmethod(Sym *s, Type *t);
 void	importtype(Sym *s, Type *t);
@@ -981,7 +969,6 @@ void	walkexprlist(NodeList*, NodeList**);
 void	walkconv(Node**, NodeList**);
 void	walkdottype(Node*, NodeList**);
 void	walkas(Node*);
-void	walkbool(Node**);
 void	walkswitch(Node*);
 void	walkselect(Node*);
 void	walkdot(Node*, NodeList**);
@@ -990,21 +977,14 @@ Node*	ascompatee1(int, Node*, Node*, NodeList**);
 NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
 NodeList*	ascompatet(int, NodeList*, Type**, int, NodeList**);
 NodeList*	ascompatte(int, Type**, NodeList*, int, NodeList**);
-int	ascompat(Type*, Type*);
-Node*	newcompat(Node*);
-Node*	stringop(Node*, NodeList**);
-Type*	fixmap(Type*);
 Node*	mapop(Node*, NodeList**);
 Type*	fixchan(Type*);
-Node*	chanop(Node*, NodeList**);
 Node*	ifacecvt(Type*, Node*, int, NodeList**);
-Node*	ifaceop(Node*);
 int	ifaceas(Type*, Type*, int);
 int	ifaceas1(Type*, Type*, int);
 void	ifacecheck(Type*, Type*, int, int);
 void	runifacechecks(void);
 Node*	convas(Node*, NodeList**);
-void	arrayconv(Type*, Node*);
 Node*	colas(NodeList*, NodeList*);
 Node*	dorange(Node*);
 NodeList*	reorder1(NodeList*);
@@ -1019,6 +999,7 @@ void	heapmoves(void);
 void	walkdeflist(NodeList*);
 void	walkdef(Node*);
 void	typechecklist(NodeList*, int);
+void	typecheckswitch(Node*);
 Node*	typecheckconv(Node*, Node*, Type*, int);
 Node*	typecheck(Node**, int);
 

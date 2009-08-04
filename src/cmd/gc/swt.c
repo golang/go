@@ -233,112 +233,6 @@ csort(Case *l, int(*f)(Case*, Case*))
 	return l;
 }
 
-/*
- * walktype
- */
-Type*
-sw0(Node **cp, Type *place, int arg)
-{
-	Node *c;
-
-	c = *cp;
-	if(c == N)
-		return T;
-	switch(c->op) {
-	default:
-		if(arg == Stype) {
-			yyerror("expression case in a type switch");
-			return T;
-		}
-		walkexpr(cp, nil);
-		break;
-	case OTYPESW:
-	case OTYPECASE:
-		if(arg != Stype)
-			yyerror("type case in an expression switch");
-		break;
-	case OAS:
-		yyerror("inappropriate assignment in a case statement");
-		break;
-	}
-	return T;
-}
-
-/*
- * return the first type
- */
-Type*
-sw1(Node **cp, Type *place, int arg)
-{
-	Node *c;
-
-	c = *cp;
-	if(place != T)
-		return notideal(c->type);
-	return place;
-}
-
-/*
- * return a suitable type
- */
-Type*
-sw2(Node **cp, Type *place, int arg)
-{
-	return types[TINT];	// botch
-}
-
-/*
- * check that switch type
- * is compat with all the cases
- */
-Type*
-sw3(Node **cp, Type *place, int arg)
-{
-	Node *c;
-
-	c = *cp;
-	if(place == T)
-		return c->type;
-	if(c->type == T)
-		c->type = place;
-	convlit(cp, place);
-	c = *cp;
-	if(!ascompat(place, c->type))
-		badtype(OSWITCH, place, c->type);
-	return place;
-}
-
-/*
- * over all cases, call parameter function.
- * four passes of these are used to allocate
- * types to cases and switch
- */
-Type*
-walkcases(Node *sw, Type*(*call)(Node**, Type*, int arg), int arg)
-{
-	Node *n;
-	NodeList *l;
-	Type *place;
-	int32 lno;
-
-	lno = setlineno(sw);
-	place = call(&sw->ntest, T, arg);
-
-	for(l=sw->list; l; l=l->next) {
-		n = l->n;
-
-		if(n->op != OCASE)
-			fatal("walkcases: not case %O\n", n->op);
-
-		if(n->left != N && !n->diag) {
-			setlineno(n);
-			place = call(&n->left, place, arg);
-		}
-	}
-	lineno = lno;
-	return place;
-}
-
 Node*
 newlabel(void)
 {
@@ -597,22 +491,9 @@ exprswitch(Node *sw)
 			arg = Sfalse;
 	}
 	walkexpr(&sw->ntest, &sw->ninit);
-
-	/*
-	 * pass 0,1,2,3
-	 * walk the cases as appropriate for switch type
-	 */
-	walkcases(sw, sw0, arg);
-	t = notideal(sw->ntest->type);
-	if(t == T)
-		t = walkcases(sw, sw1, arg);
-	if(t == T)
-		t = walkcases(sw, sw2, arg);
+	t = sw->type;
 	if(t == T)
 		return;
-	walkcases(sw, sw3, arg);
-	convlit(&sw->ntest, t);
-
 
 	/*
 	 * convert the switch into OIF statements
@@ -785,7 +666,6 @@ typeswitch(Node *sw)
 		yyerror("type switch must be on an interface");
 		return;
 	}
-	walkcases(sw, sw0, Stype);
 	cas = nil;
 
 	/*
@@ -885,4 +765,65 @@ walkswitch(Node *sw)
 		return;
 	}
 	exprswitch(sw);
+}
+
+/*
+ * type check switch statement
+ */
+void
+typecheckswitch(Node *n)
+{
+	int top, lno;
+	Type *t;
+	NodeList *l, *ll;
+	Node *ncase;
+	Node *def;
+
+	lno = lineno;
+	typechecklist(n->ninit, Etop);
+
+	if(n->ntest != N && n->ntest->op == OTYPESW) {
+		// type switch
+		typecheck(&n->ntest, Etop);
+		top = Etype;
+		t = n->ntest->type;
+		if(t != T && t->etype != TINTER)
+			yyerror("cannot type switch on non-interface value %+N", n->ntest);
+	} else {
+		// value switch
+		top = Erv;
+		if(n->ntest) {
+			typecheck(&n->ntest, Erv);
+			defaultlit(&n->ntest, T);
+			t = n->ntest->type;
+		} else
+			t = types[TBOOL];
+	}
+	n->type = t;
+
+	def = N;
+	for(l=n->list; l; l=l->next) {
+		ncase = l->n;
+		setlineno(n);
+		if(ncase->list == nil) {
+			// default
+			if(def != N)
+				yyerror("multiple defaults in switch (first at %L)", def->lineno);
+			else
+				def = ncase;
+		} else {
+			for(ll=ncase->list; ll; ll=ll->next) {
+				setlineno(ll->n);
+				typecheck(&ll->n, Erv);	// TODO(rsc): top
+				if(ll->n->type == T || t == T || top != Erv)
+					continue;
+				defaultlit(&ll->n, t);
+				if(ll->n->type != T && !eqtype(ll->n->type, t))
+					yyerror("case %+N in switch of %+N %#O", ll->n, n->ntest, ll->n->op);
+			}
+		}
+		typechecklist(ncase->nbody, Etop);
+	}
+
+	lineno = lno;
 }
