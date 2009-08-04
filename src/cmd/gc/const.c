@@ -704,6 +704,7 @@ nodlit(Val v)
 	return n;
 }
 
+// TODO(rsc): combine with convlit
 void
 defaultlit(Node **np, Type *t)
 {
@@ -713,7 +714,7 @@ defaultlit(Node **np, Type *t)
 	n = *np;
 	if(n == N)
 		return;
-	if(n->type == T || n->type->etype != TIDEAL)
+	if(n->type == T || (n->type->etype != TIDEAL && n->type->etype != TNIL))
 		return;
 
 	switch(n->op) {
@@ -739,6 +740,16 @@ defaultlit(Node **np, Type *t)
 	lineno = n->lineno;
 	switch(n->val.ctype) {
 	default:
+		if(t != T) {
+			convlit(np, t);
+			break;
+		}
+		if(n->val.ctype == CTNIL) {
+			lineno = lno;
+			yyerror("use of untyped nil");
+			n->type = T;
+			break;
+		}
 		yyerror("defaultlit: unknown literal: %#N", n);
 		break;
 	case CTINT:

@@ -231,6 +231,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 		break;
 
 	case OINDEX:
+	case OINDEXMAP:
 		exprfmt(f, n->left, 7);
 		fmtprint(f, "[");
 		exprfmt(f, n->right, 0);

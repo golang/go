@@ -12,7 +12,8 @@
  *
  * TODO:
  *	trailing ... section of function calls
- *	statements
+ *	select
+ *	range
  */
 
 #include "go.h"
@@ -26,7 +27,7 @@ static Type*	lookdot1(Sym *s, Type *t, Type *f);
 static int	nokeys(NodeList*);
 static void	typecheckcomplit(Node**);
 static void	addrescapes(Node*);
-
+static void	typecheckas2(Node*);
 static void	checklvalue(Node*, char*);
 static void checkassign(Node*);
 static void checkassignlist(NodeList*);
@@ -815,9 +816,7 @@ reswitch:
 		goto ret;
 
 	case OAS2:
-		typechecklist(n->list, Erv);
-		checkassignlist(n->list);
-		typechecklist(n->rlist, Erv);
+		typecheckas2(n);
 		goto ret;
 
 	case OBREAK:
@@ -836,14 +835,18 @@ reswitch:
 
 	case OFOR:
 		typechecklist(n->ninit, Etop);
-		typecheck(&n->ntest, Erv);	// TODO Ebool
+		typecheck(&n->ntest, Erv);
+		if(n->ntest != N && (t = n->ntest->type) != T && t->etype != TBOOL)
+			yyerror("non-bool %+N used as for condition");
 		typecheck(&n->nincr, Etop);
 		typechecklist(n->nbody, Etop);
 		goto ret;
 
 	case OIF:
 		typechecklist(n->ninit, Etop);
-		typecheck(&n->ntest, Erv);	// TODO Ebool
+		typecheck(&n->ntest, Erv);
+		if(n->ntest != N && (t = n->ntest->type) != T && t->etype != TBOOL)
+			yyerror("non-bool %+N used as if condition");
 		typechecklist(n->nbody, Etop);
 		typechecklist(n->nelse, Etop);
 		goto ret;
@@ -862,13 +865,12 @@ reswitch:
 		goto ret;
 
 	case OSWITCH:
-		typechecklist(n->ninit, Etop);
-		typecheck(&n->ntest, Erv);
-		typechecklist(n->list, Etop);
+		typecheckswitch(n);
 		goto ret;
 
 	case OTYPECASE:
 		typecheck(&n->left, Erv);
+		ok |= Erv;
 		goto ret;
 
 	case OTYPESW:
@@ -888,7 +890,7 @@ ret:
 		goto error;
 	}
 	if((top & (Erv|Etype)) == Etype && n->op != OTYPE) {
-		yyerror("%O is not a type", n->op);
+		yyerror("%#N is not a type", n);
 		goto error;
 	}
 	if((ok & Ecall) && !(top & Ecall)) {
@@ -1043,183 +1045,163 @@ nokeys(NodeList *l)
 	return 1;
 }
 
-Node*
-typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
+static int
+checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
 {
-	int et, op;
-	Node *n1;
-
-	op = OCONV;
-	et = 0;
+	*op = OCONV;
+	*et = 0;
 
 	// preexisting error
 	if(t == T || t->etype == TFORW)
-		return n;
+		return 0;
 
 	/*
 	 * implicit conversions
 	 */
+	if(nt == T)
+		return 0;
 
-	convlit1(&n, t, explicit);
-	if(n->type == T)
-		return n;
-
-	if(eqtype(t, n->type)) {
+	if(eqtype(t, nt)) {
 		exportassignok(t);
-		op = OCONVNOP;
-		if(!explicit || t == n->type)
-			return n;
-		goto conv;
+		*op = OCONVNOP;
+		if(!explicit || t == nt)
+			return 0;
+		return 1;
 	}
 
 	// interfaces are not subject to the name restrictions below.
-	// accept anything involving interfaces and let walkiface
+	// accept anything involving interfaces and let ifacecvt
 	// generate a good message.  some messages have to be
 	// delayed anyway.
-	if(isnilinter(t) || isnilinter(n->type) || isinter(t) || isinter(n->type)) {
-		et = ifaceas1(t, n->type, 0);
-		op = OCONVIFACE;
-		goto conv;
+	if(isnilinter(t) || isnilinter(nt) || isinter(t) || isinter(nt)) {
+		*et = ifaceas1(t, nt, 0);
+		*op = OCONVIFACE;
+		return 1;
 	}
 
 	// otherwise, if concrete types have names, they must match.
-	if(!explicit && t->sym && n->type->sym && t != n->type)
-		goto badimplicit;
+	if(!explicit && t->sym && nt->sym && t != nt)
+		return -1;
 
 	// channel must not lose directionality
-	if(t->etype == TCHAN && n->type->etype == TCHAN) {
-		if(t->chan & ~n->type->chan) {
-			if(!explicit)
-				goto badimplicit;
-			goto badexplicit;
-		}
-		if(eqtype(t->type, n->type->type)) {
-			op = OCONVNOP;
-			goto conv;
+	if(t->etype == TCHAN && nt->etype == TCHAN) {
+		if(t->chan & ~nt->chan)
+			return -1;
+		if(eqtype(t->type, nt->type)) {
+			*op = OCONVNOP;
+			return 1;
 		}
 	}
 
 	// array to slice
-	if(isslice(t) && isptr[n->type->etype] && isfixedarray(n->type->type)
-	&& eqtype(t->type, n->type->type->type)) {
-		op = OCONVSLICE;
-		goto conv;
-	}
-
-	if(!explicit) {
-	badimplicit:
-		yyerror("cannot use %+N as type %T", n, t);
-		n = nod(OCONV, n, N);	// leave type == T
-		n->typecheck = 1;
-		return n;
+	if(isslice(t) && isptr[nt->etype] && isfixedarray(nt->type)
+	&& eqtype(t->type, nt->type->type)) {
+		*op = OCONVSLICE;
+		return 1;
 	}
 
 	/*
 	 * explicit conversions
 	 */
+	if(!explicit)
+		return -1;
 
 	// same representation
-	if(cvttype(t, n->type)) {
-		if(n->op == OLITERAL) {
-			// can convert literal in place
-			n1 = nod(OXXX, N, N);
-			*n1 = *n;
-			n1->type = t;
-			return n1;
-		}
-		op = OCONVNOP;
-		goto conv;
+	if(cvttype(t, nt)) {
+		*op = OCONVNOP;
+		return 1;
 	}
 
 	// simple fix-float
 	if(isint[t->etype] || isfloat[t->etype])
-	if(isint[n->type->etype] || isfloat[n->type->etype]) {
-		// evconst(n);	// XXX is this needed?
-		goto conv;
-	}
+	if(isint[nt->etype] || isfloat[nt->etype])
+		return 1;
 
 	// to string
 	if(istype(t, TSTRING)) {
 		// integer rune
-		if(isint[n->type->etype]) {
-			op = ORUNESTR;
-			goto conv;
+		if(isint[nt->etype]) {
+			*op = ORUNESTR;
+			return 1;
 		}
 
-		// *[10]byte -> string?  convert *[10]byte -> []byte
+		// *[10]byte -> string
 		// in preparation for next step
-		if(isptr[n->type->etype] && isfixedarray(n->type->type)) {
-			switch(n->type->type->type->etype) {
+		if(isptr[nt->etype] && isfixedarray(nt->type)) {
+			switch(nt->type->type->etype) {
 			case TUINT8:
+				*op = OARRAYBYTESTR;
+				return 1;
 			case TINT:
-				n1 = nod(OCONV, n, N);
-				n1->type = typ(TARRAY);
-				n1->type->bound = -1;
-				n1->type->type = n->type->type->type;
-				dowidth(n1->type);
-				typecheck(&n1, Erv);
-				walkexpr(&n1, nil);
-				n = n1;
-				break;
+				*op = OARRAYRUNESTR;
+				return 1;
 			}
 		}
 
 		// []byte -> string
-		if(isslice(n->type)) {
-			switch(n->type->type->etype) {
+		if(isslice(nt)) {
+			switch(nt->type->etype) {
 			case TUINT8:
-				op = OARRAYBYTESTR;
-				goto conv;
+				*op = OARRAYBYTESTR;
+				return 1;
 			case TINT:
-				op = OARRAYRUNESTR;
-				goto conv;
+				*op = OARRAYRUNESTR;
+				return 1;
 			}
 		}
 	}
 
 	// convert to unsafe pointer
 	if(isptrto(t, TANY)
-	&& (isptr[n->type->etype] || n->type->etype == TUINTPTR))
-		goto conv;
+	&& (isptr[nt->etype] || nt->etype == TUINTPTR))
+		return 1;
 
 	// convert from unsafe pointer
-	if(isptrto(n->type, TANY)
+	if(isptrto(nt, TANY)
 	&& (isptr[t->etype] || t->etype == TUINTPTR))
-		goto conv;
+		return 1;
 
-badexplicit:
-	yyerror("cannot convert %+N to type %T", n, t);
-	nconv->type = T;
-	return nconv;
-
-conv:
-	if(nconv == nil) {
-		nconv = nod(OXXX, n, N);
-		nconv->type = t;
-		nconv->typecheck = 1;
-	}
-	nconv->etype = et;
-	nconv->op = op;
-	return nconv;
+	return -1;
 }
 
-/*
- * typecheck assignment: type list = type list
- */
-static void
-typecheckastt(int op, Type *t1, Type *t2)
+Node*
+typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
 {
-	for(t1=t1->type, t2=t2->type; t1; t1=t1->down, t2=t2->down) {
-		if(t2 == nil) {
-			yyerror("too few");
-			return;
-		}
-		if(!eqtype(t1->type, t2->type)) {
-			yyerror("wrong");
-		}
+	int et, op;
+	Node *n1;
+
+	convlit1(&n, t, explicit);
+	if(n->type == T)
+		return n;
+
+	if(cvttype(t, n->type) && n->op == OLITERAL) {
+		// can convert literal in place
+		// TODO(rsc) is this needed?
+		n1 = nod(OXXX, N, N);
+		*n1 = *n;
+		n1->type = t;
+		return n1;
 	}
-	if(t2 != nil)
-		yyerror("too many");
+
+	switch(checkconv(n->type, t, explicit, &op, &et)) {
+	case -1:
+		if(explicit)
+			yyerror("cannot convert %+N to type %T", n, t);
+		else
+			yyerror("cannot use %+N as type %T", n, t);
+		return n;
+
+	case 0:
+		return n;
+	}
+
+	if(nconv == N)
+		nconv = nod(OCONV, n, N);
+	nconv->op = op;
+	nconv->etype = et;
+	nconv->type = t;
+	nconv->typecheck = 1;
+	return nconv;
 }
 
 /*
@@ -1228,34 +1210,57 @@ typecheckastt(int op, Type *t1, Type *t2)
 static void
 typecheckaste(int op, Type *tstruct, NodeList *nl)
 {
-	Type *t, *tl;
+	Type *t, *tl, *tn;
 	Node *n;
+	int lno;
 
-	if(nl != nil && nl->next == nil && nl->n->type != T && nl->n->type->etype == TSTRUCT && nl->n->type->funarg) {
-		typecheckastt(op, tstruct, nl->n->type);
-		return;
+	lno = lineno;
+
+	if(nl != nil && nl->next == nil && (n = nl->n)->type != T)
+	if(n->type->etype == TSTRUCT && n->type->funarg) {
+		setlineno(n);
+		tn = n->type->type;
+		for(tl=tstruct->type; tl; tl=tl->down) {
+			int xx, yy;
+			if(tn == T) {
+				yyerror("not enough arguments to %#O", op);
+				goto out;
+			}
+			if(checkconv(tn->type, tl->type, 0, &xx, &yy) < 0)
+				yyerror("cannot use type %T as type %T", tn->type, tl->type);
+			tn = tn->down;
+		}
+		if(tn != T)
+			yyerror("too many arguments to %#O", op);
+		goto out;
 	}
 
 	for(tl=tstruct->type; tl; tl=tl->down) {
 		t = tl->type;
 		if(isddd(t)) {
-			for(; nl; nl=nl->next)
+			for(; nl; nl=nl->next) {
+				setlineno(nl->n);
 				defaultlit(&nl->n, T);
-			return;
+			}
+			goto out;
 		}
 		if(nl == nil) {
 			yyerror("not enough arguments to %#O", op);
-			return;
+			goto out;
 		}
 		n = nl->n;
+		setlineno(nl->n);
 		if(n->type != T)
 			nl->n = typecheckconv(nil, n, t, 0);
 		nl = nl->next;
 	}
 	if(nl != nil) {
 		yyerror("too many arguments to %#O", op);
-		return;
+		goto out;
 	}
+
+out:
+	lineno = lno;
 }
 
 /*
@@ -1612,6 +1617,9 @@ addrescapes(Node *n)
 	}
 }
 
+/*
+ * lvalue etc
+ */
 static int
 islvalue(Node *n)
 {
@@ -1655,3 +1663,98 @@ checkassignlist(NodeList *l)
 	for(; l; l=l->next)
 		checkassign(l->n);
 }
+
+/*
+ * multiple assignment
+ */
+static void
+typecheckas2(Node *n)
+{
+	int cl, cr, op, et;
+	NodeList *ll, *lr;
+	Node *l, *r;
+	Iter s;
+	Type *t;
+
+	typechecklist(n->list, Erv);
+	checkassignlist(n->list);
+	typechecklist(n->rlist, Erv);
+
+	cl = count(n->list);
+	cr = count(n->rlist);
+
+	if(cl == cr) {
+		// easy
+		for(ll=n->list, lr=n->rlist; ll; ll=ll->next, lr=lr->next)
+			if(ll->n->type != T && lr->n->type != T)
+				lr->n = typecheckconv(nil, lr->n, ll->n->type, 0);
+		return;
+	}
+
+
+	l = n->list->n;
+	r = n->rlist->n;
+
+	// m[i] = x, ok
+	if(cl == 1 && cr == 2 && l->op == OINDEXMAP) {
+		if(l->type == T)
+			return;
+		n->op = OAS2MAPW;
+		n->rlist->n = typecheckconv(nil, r, l->type->down, 0);
+		r = n->rlist->next->n;
+		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 0);
+		return;
+	}
+
+	// x,y,z = f()
+	if(cr == 1) {
+		if(r->type == T)
+			return;
+		switch(r->op) {
+		case OCALLMETH:
+		case OCALLINTER:
+		case OCALLFUNC:
+			if(r->type->etype != TSTRUCT || r->type->funarg == 0)
+				break;
+			cr = structcount(r->type);
+			if(cr != cl)
+				goto mismatch;
+			n->op = OAS2FUNC;
+			t = structfirst(&s, &r->type);
+			for(ll=n->list; ll; ll=ll->next) {
+				if(ll->n->type != T)
+					if(checkconv(t->type, ll->n->type, 0, &op, &et) < 0)
+						yyerror("cannot assign type %T to %+N", t->type, ll->n);
+				t = structnext(&s);
+			}
+			return;
+		}
+	}
+
+	// x, ok = y
+	if(cl == 2 && cr == 1) {
+		if(r->type == T)
+			return;
+		switch(r->op) {
+		case OINDEXMAP:
+			n->op = OAS2MAPR;
+			goto common;
+		case ORECV:
+			n->op = OAS2RECV;
+			goto common;
+		case ODOTTYPE:
+			n->op = OAS2DOTTYPE;
+		common:
+			if(l->type != T && checkconv(r->type, l->type, 0, &op, &et) < 0)
+				yyerror("cannot assign %+N to %+N", r, l);
+			l = n->list->next->n;
+			if(l->type != T && checkconv(types[TBOOL], l->type, 0, &op, &et) < 0)
+				yyerror("cannot assign bool value to %+N", l);
+			return;
+		}
+	}
+
+mismatch:
+	yyerror("assignment count mismatch: %d = %d", cl, cr);
+}
+

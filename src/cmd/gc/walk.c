@@ -221,6 +221,11 @@ walkstmt(Node **np)
 	case OASOP:
 	case OAS:
 	case OAS2:
+	case OAS2DOTTYPE:
+	case OAS2RECV:
+	case OAS2FUNC:
+	case OAS2MAPW:
+	case OAS2MAPR:
 	case OCLOSE:
 	case OCLOSED:
 	case OCALLMETH:
@@ -234,6 +239,8 @@ walkstmt(Node **np)
 	case OPANIC:
 	case OPANICN:
 	case OEMPTY:
+		if(n->typecheck == 0)
+			fatal("missing typecheck");
 		init = n->ninit;
 		n->ninit = nil;
 		walkexpr(&n, &init);
@@ -266,14 +273,14 @@ walkstmt(Node **np)
 
 	case OFOR:
 		walkstmtlist(n->ninit);
-		walkbool(&n->ntest);
+		walkexpr(&n->ntest, &n->ntest->ninit);
 		walkstmt(&n->nincr);
 		walkstmtlist(n->nbody);
 		break;
 
 	case OIF:
 		walkstmtlist(n->ninit);
-		walkbool(&n->ntest);
+		walkexpr(&n->ntest, &n->ntest->ninit);
 		walkstmtlist(n->nbody);
 		walkstmtlist(n->nelse);
 		break;
@@ -331,7 +338,7 @@ walkexpr(Node **np, NodeList **init)
 	Node *r, *l;
 	NodeList *ll, *lr;
 	Type *t;
-	int et, cl, cr;
+	int et;
 	int32 lno;
 	Node *n, *fn;
 
@@ -482,127 +489,104 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OAS2:
+	as2:
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
-
 		walkexprlist(n->list, init);
+		walkexprlist(n->rlist, init);
+		ll = ascompatee(OAS, n->list, n->rlist, init);
+		ll = reorder3(ll);
+		n = liststmt(ll);
+		goto ret;
 
-		cl = count(n->list);
-		cr = count(n->rlist);
-		if(cl == cr) {
-		multias:
-			walkexprlist(n->rlist, init);
-			ll = ascompatee(OAS, n->list, n->rlist, init);
-			ll = reorder3(ll);
-			n = liststmt(ll);
-			goto ret;
-		}
-
-		l = n->list->n;
+	case OAS2FUNC:
+	as2func:
+		// a,b,... = fn()
+		*init = concat(*init, n->ninit);
+		n->ninit = nil;
 		r = n->rlist->n;
+		walkexprlist(n->list, init);
+		walkexpr(&r, init);
+		ll = ascompatet(n->op, n->list, &r->type, 0, init);
+		n = liststmt(concat(list1(r), ll));
+		goto ret;
 
-		// count mismatch - special cases
-		switch(r->op) {
-		case OCALLMETH:
-		case OCALLINTER:
-		case OCALLFUNC:
-		case OCALL:
-			if(cr == 1) {
-				// a,b,... = fn()
-				walkexpr(&r, init);
-				if(r->type == T || r->type->etype != TSTRUCT)
-					break;
-				ll = ascompatet(n->op, n->list, &r->type, 0, init);
-				n = liststmt(concat(list1(r), ll));
-				goto ret;
-			}
+	case OAS2RECV:
+		// a,b = <-c
+		*init = concat(*init, n->ninit);
+		n->ninit = nil;
+		r = n->rlist->n;
+		walkexprlist(n->list, init);
+		walkexpr(&r->left, init);
+		fn = chanfn("chanrecv2", 2, r->left->type);
+		r = mkcall1(fn, getoutargx(fn->type), init, r->left);
+		n->rlist->n = r;
+		n->op = OAS2FUNC;
+		goto as2func;
+
+	case OAS2MAPR:
+		// a,b = m[i];
+		*init = concat(*init, n->ninit);
+		n->ninit = nil;
+		r = n->rlist->n;
+		walkexprlist(n->list, init);
+		walkexpr(&r->left, init);
+		fn = mapfn("mapaccess2", r->left->type);
+		r = mkcall1(fn, getoutargx(fn->type), init, r->left, r->right);
+		n->rlist = list1(r);
+		n->op = OAS2FUNC;
+		goto as2func;
+
+	case OAS2MAPW:
+		// map[] = a,b - mapassign2
+		// a,b = m[i];
+		*init = concat(*init, n->ninit);
+		n->ninit = nil;
+		walkexprlist(n->list, init);
+		l = n->list->n;
+		t = l->left->type;
+		n = mkcall1(mapfn("mapassign2", t), T, init, l->left, l->right, n->rlist->n, n->rlist->next->n);
+		goto ret;
+
+	case OAS2DOTTYPE:
+		// a,b = i.(T)
+		*init = concat(*init, n->ninit);
+		n->ninit = nil;
+		r = n->rlist->n;
+		walkexprlist(n->list, init);
+		walkdottype(r, init);
+		et = ifaceas1(r->type, r->left->type, 1);
+		switch(et) {
+		case I2Isame:
+		case E2Esame:
+			n->rlist = list(list1(r->left), nodbool(1));
+			typechecklist(n->rlist, Erv);
+			goto as2;
+		case I2E:
+			n->list = list(list1(n->right), nodbool(1));
+			typechecklist(n->rlist, Erv);
+			goto as2;
+		case I2T:
+			et = I2T2;
 			break;
-
-		case OINDEXMAP:
-			if(cl == 2 && cr == 1) {
-				// a,b = map[] - mapaccess2
-				walkexpr(&r->left, init);
-				l = mapop(n, init);
-				if(l == N)
-					break;
-				n = l;
-				goto ret;
-			}
+		case I2Ix:
+			et = I2I2;
 			break;
-
-		case ORECV:
-			if(cl == 2 && cr == 1) {
-				// a,b = <chan - chanrecv2
-				walkexpr(&r->left, init);
-				if(!istype(r->left->type, TCHAN))
-					break;
-				l = chanop(n, init);
-				if(l == N)
-					break;
-				n = l;
-				goto ret;
-			}
+		case E2I:
+			et = E2I2;
 			break;
-
-		case ODOTTYPE:
-			walkdottype(r, init);
-			if(cl == 2 && cr == 1) {
-				// a,b = i.(T)
-				if(r->left == N)
-					break;
-				et = ifaceas1(r->type, r->left->type, 1);
-				switch(et) {
-				case I2Isame:
-				case E2Esame:
-					n->rlist = list(list1(r->left), nodbool(1));
-					typechecklist(n->rlist, Erv);
-					goto multias;
-				case I2E:
-					n->list = list(list1(n->right), nodbool(1));
-					typechecklist(n->rlist, Erv);
-					goto multias;
-				case I2T:
-					et = I2T2;
-					break;
-				case I2Ix:
-					et = I2I2;
-					break;
-				case E2I:
-					et = E2I2;
-					break;
-				case E2T:
-					et = E2T2;
-					break;
-				default:
-					et = Inone;
-					break;
-				}
-				if(et == Inone)
-					break;
-				r = ifacecvt(r->type, r->left, et, init);
-				ll = ascompatet(n->op, n->list, &r->type, 0, init);
-				n = liststmt(concat(list1(r), ll));
-				goto ret;
-			}
+		case E2T:
+			et = E2T2;
+			break;
+		default:
+			et = Inone;
 			break;
 		}
-
-		switch(l->op) {
-		case OINDEXMAP:
-			if(cl == 1 && cr == 2) {
-				// map[] = a,b - mapassign2
-				l = mapop(n, init);
-				if(l == N)
-					break;
-				n = l;
-				goto ret;
-			}
+		if(et == Inone)
 			break;
-		}
-		if(l->diag == 0) {
-			l->diag = 1;
-			yyerror("assignment count mismatch: %d = %d", cl, cr);
-		}
+		r = ifacecvt(r->type, r->left, et, init);
+		ll = ascompatet(n->op, n->list, &r->type, 0, init);
+		n = liststmt(concat(list1(r), ll));
 		goto ret;
 
 	case ODOTTYPE:
@@ -946,21 +930,6 @@ makenewvar(Type *t, NodeList **init, Node **nstar)
 }
 
 void
-walkbool(Node **np)
-{
-	Node *n;
-
-	n = *np;
-	if(n == N)
-		return;
-	walkexpr(np, &n->ninit);
-	defaultlit(np, T);
-	n = *np;
-	if(n->type != T && !eqtype(n->type, types[TBOOL]))
-		yyerror("IF and FOR require a boolean type");
-}
-
-void
 walkdottype(Node *n, NodeList **init)
 {
 	walkexpr(&n->left, init);
@@ -1047,10 +1016,6 @@ selcase(Node *n, Node *var, NodeList **init)
 	}
 
 	convlit(&c->right, t->type);
-	if(!ascompat(t->type, c->right->type)) {
-		badtype(c->op, t->type, c->right->type);
-		return N;
-	}
 
 	// selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
 	a = mkcall1(chanfn("selectsend", 2, t), types[TBOOL], init, var, c->left, c->right);
@@ -1255,25 +1220,7 @@ walkselect(Node *sel)
 Node*
 ascompatee1(int op, Node *l, Node *r, NodeList **init)
 {
-	Node *a;
-
-	/*
-	 * check assign expression to
-	 * a expression. called in
-	 *	expr = expr
-	 */
-	if(l->type != T && l->type->etype == TFORW)
-		return N;
-	if(r->type != T && r->type->etype ==TFORW)
-		return N;
-	convlit(&r, l->type);
-	if(!ascompat(l->type, r->type)) {
-		badtype(op, l->type, r->type);
-		return N;
-	}
-	a = nod(OAS, l, r);
-	a = convas(a, init);
-	return a;
+	return convas(nod(OAS, l, r), init);
 }
 
 NodeList*
@@ -1335,10 +1282,6 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
 		if(r == T)
 			break;
 		l = ll->n;
-		if(!ascompat(l->type, r->type)) {
-			badtype(op, l->type, r->type);
-			return nil;
-		}
 
 		// any lv that causes a fn call must be
 		// deferred until all the return arguments
@@ -1592,11 +1535,6 @@ loop:
 		goto ret;
 	}
 
-	if(!ascompat(l->type, r->type)) {
-		badtype(op, l->type, r->type);
-		return nil;
-	}
-
 	a = nod(OAS, nodarg(l, fp), r);
 	a = convas(a, init);
 	nn = list(nn, a);
@@ -1612,58 +1550,6 @@ ret:
 	for(lr=nn; lr; lr=lr->next)
 		lr->n->typecheck = 1;
 	return nn;
-}
-
-/*
- * can we assign var of type src to var of type dst?
- * return 0 if not, 1 if conversion is trivial, 2 if conversion is non-trivial.
- */
-int
-ascompat(Type *dst, Type *src)
-{
-	if(eqtype(dst, src))
-		return 1;
-
-	if(dst == T || src == T)
-		return 0;
-
-	if(dst->etype == TFORWINTER || dst->etype == TFORWSTRUCT || dst->etype == TFORW)
-		return 0;
-	if(src->etype == TFORWINTER || src->etype == TFORWSTRUCT || src->etype == TFORW)
-		return 0;
-
-	// interfaces go through even if names don't match
-	if(isnilinter(dst) || isnilinter(src))
-		return 2;
-
-	if(isinter(dst) && isinter(src))
-		return 2;
-
-	if(isinter(dst) && methtype(src))
-		return 2;
-
-	if(isinter(src) && methtype(dst))
-		return 2;
-
-	// otherwise, if concrete types have names, they must match
-	if(dst->sym && src->sym && dst != src)
-		return 0;
-
-	if(dst->etype == TCHAN && src->etype == TCHAN) {
-		if(!eqtype(dst->type, src->type))
-			return 0;
-		if(dst->chan & ~src->chan)
-			return 0;
-		return 1;
-	}
-
-	if(isslice(dst)
-	&& isptr[src->etype]
-	&& isfixedarray(src->type)
-	&& eqtype(dst->type, src->type->type))
-		return 2;
-
-	return 0;
 }
 
 // generate code for print
@@ -1777,26 +1663,6 @@ callnew(Type *t)
 }
 
 Type*
-fixmap(Type *t)
-{
-	if(t == T)
-		goto bad;
-	if(t->etype != TMAP)
-		goto bad;
-	if(t->down == T || t->type == T)
-		goto bad;
-
-	dowidth(t->down);
-	dowidth(t->type);
-
-	return t;
-
-bad:
-	yyerror("not a map: %lT", t);
-	return T;
-}
-
-Type*
 fixchan(Type *t)
 {
 	if(t == T)
@@ -1818,75 +1684,13 @@ bad:
 Node*
 mapop(Node *n, NodeList **init)
 {
-	Node *r, *a, *l;
+	Node *r, *a;
 	Type *t;
-	Node *fn;
-	int cl, cr;
-	NodeList *args;
 
 	r = n;
 	switch(n->op) {
 	default:
 		fatal("mapop: unknown op %O", n->op);
-
-	case OAS:
-		// mapassign1(hmap map[any-1]any-2, key any-3, val any-4);
-		if(n->left->op != OINDEXMAP)
-			goto shape;
-
-		t = fixmap(n->left->left->type);
-		if(t == T)
-			break;
-
-		r = mkcall1(mapfn("mapassign1", t), T, init, n->left->left, n->left->right, n->right);
-		break;
-
-	case OAS2:
-		cl = count(n->list);
-		cr = count(n->rlist);
-
-		if(cl == 1 && cr == 2)
-			goto assign2;
-		if(cl == 2 && cr == 1)
-			goto access2;
-		goto shape;
-
-	assign2:
-		// mapassign2(hmap map[any]any, key any, val any, pres bool);
-		l = n->list->n;
-		if(l->op != OINDEXMAP)
-			goto shape;
-
-		t = fixmap(l->left->type);
-		if(t == T)
-			break;
-
-		r = mkcall1(mapfn("mapassign2", t), T, init, l->left, l->right, n->rlist->n, n->rlist->next->n);
-		break;
-
-	access2:
-		// mapaccess2(hmap map[any-1]any-2, key any-3) (val-4 any, pres bool);
-
-//dump("access2", n);
-		r = n->rlist->n;
-		if(r->op != OINDEXMAP)
-			goto shape;
-
-		t = fixmap(r->left->type);
-		if(t == T)
-			break;
-
-		args = list1(r->left);		// map
-		args = list(args, r->right);		// key
-
-		fn = mapfn("mapaccess2", t);
-		a = mkcall1(fn, getoutargx(fn->type), init, r->left, r->right);
-		n->rlist = list1(a);
-		typecheck(&n, Etop);
-		walkexpr(&n, init);
-		r = n;
-		break;
-
 	case OASOP:
 		// rewrite map[index] op= right
 		// into tmpi := index; map[tmpi] = map[tmpi] op right
@@ -1911,75 +1715,6 @@ mapop(Node *n, NodeList **init)
 		break;
 	}
 	return r;
-
-shape:
-	dump("shape", n);
-	fatal("mapop: %O", n->op);
-	return N;
-}
-
-Node*
-chanop(Node *n, NodeList **init)
-{
-	Node *r, *fn;
-	Type *t;
-	int cl, cr;
-
-	r = n;
-	switch(n->op) {
-	default:
-		fatal("chanop: unknown op %O", n->op);
-
-	case OAS2:
-		cl = count(n->list);
-		cr = count(n->rlist);
-
-		if(cl != 2 || cr != 1 || n->rlist->n->op != ORECV)
-			goto shape;
-
-		// chanrecv2(hchan *chan any) (elem any, pres bool);
-		r = n->rlist->n;
-		defaultlit(&r->left, T);
-		t = fixchan(r->left->type);
-		if(t == T)
-			break;
-		if(!(t->chan & Crecv)) {
-			yyerror("cannot receive from %T", t);
-			break;
-		}
-
-		fn = chanfn("chanrecv2", 2, t);
-		r = mkcall1(fn, getoutargx(fn->type), init, r->left);
-		n->rlist->n = r;
-		r = n;
-		walkexpr(&r, init);
-		break;
-	}
-	return r;
-
-shape:
-	fatal("chanop: %O", n->op);
-	return N;
-}
-
-
-Type*
-fixarray(Type *t)
-{
-
-	if(t == T)
-		goto bad;
-	if(t->etype != TARRAY)
-		goto bad;
-	if(t->type == T)
-		goto bad;
-	dowidth(t);
-	return t;
-
-bad:
-	yyerror("not an array: %lT", t);
-	return T;
-
 }
 
 /*
@@ -2160,7 +1895,8 @@ convas(Node *n, NodeList **init)
 		goto out;
 
 	if(n->left->op == OINDEXMAP) {
-		n = mapop(n, init);
+		n = mkcall1(mapfn("mapassign1", n->left->left->type), T, init,
+			n->left->left, n->left->right, n->right);
 		goto out;
 	}
 
@@ -2172,11 +1908,6 @@ convas(Node *n, NodeList **init)
 		n->right = ifacecvt(lt, r, et, init);
 		goto out;
 	}
-
-	if(ascompat(lt, rt))
-		goto out;
-
-	badtype(n->op, lt, rt);
 
 out:
 	ullmancalc(n);
