@@ -1,0 +1,13 @@
+All tests on r45
+
+Aug 3 2009
+
+First version of fasta. Translation of fasta.c, fetched from
+	http://shootout.alioth.debian.org/u32q/benchmark.php?test=fasta&lang=gpp&id=4
+
+fasta -n 25000000
+	[gcc -O2 fasta.c	5.98u 0.00s 6.01r]
+	gccgo -O2	8.82u 0.02s 8.85r
+	6g	13.50u 0.02s 13.53r
+	6g -B	12.99u 0.02s 13.02r
+
