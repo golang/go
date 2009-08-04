@@ -66,7 +66,7 @@ type AminoAcid struct {
 var	lastrandom uint32 = 42
 
 // Random number between 0.0 and 1.0
-func myrandom() float {
+func Zmyrandom() float {
 	const (
 		IM = 139968;
 		IA = 3877;
@@ -74,7 +74,25 @@ func myrandom() float {
 	)
 	lastrandom = (lastrandom * IA + IC) % IM;
 	// Integer to float conversions are faster if the integer is signed.
-	return float(lastrandom) / IM;
+	return float(int32(lastrandom)) / IM;
+}
+
+// TODO: delete this when compiler does the reduction for us
+func
+myrandom() float
+{
+	const (
+		IM = 139968;
+		IA = 3877;
+		IC = 29573;
+		S = 46;
+		IM1 = ((1<<S) + IM) / IM;
+	)
+
+	n := (lastrandom * IA + IC);
+	q := uint32((uint64(n) * IM1) >> S);
+	lastrandom = n - q*IM;
+	return float(int32(lastrandom)) / IM;
 }
 
 func AccumulateProbabilities(genelist []AminoAcid) {
