@@ -487,6 +487,25 @@ func (b *Writer) WriteByte(c byte) os.Error {
 	return nil
 }
 
+// WriteString writes a string.
+func (b *Writer) WriteString(s string) os.Error {
+	if b.err != nil {
+		return b.err
+	}
+	// Common case, worth making fast.
+	if b.Available() >= len(s) || len(b.buf) >= len(s) && b.Flush() == nil {
+		for i := 0; i < len(s); i++ {	// loop over bytes, not runes.
+			b.buf[b.n] = s[i];
+			b.n++;
+		}
+		return nil;
+	}
+	for i := 0; i < len(s); i++ {	// loop over bytes, not runes.
+		b.WriteByte(s[i]);
+	}
+	return b.err
+}
+
 // buffered input and output
 
 // ReadWriter stores pointers to a Reader and a Writer.

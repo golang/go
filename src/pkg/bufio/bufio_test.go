@@ -298,3 +298,25 @@ func TestNewWriterSizeIdempotent(t *testing.T) {
 		t.Error("NewWriterSize did not enlarge buffer");
 	}
 }
+
+func TestWriteString(t *testing.T) {
+	const BufSize = 8;
+	buf := new(bytes.Buffer);
+	b, err := NewWriterSize(buf, BufSize);
+	if err != nil {
+		t.Error("NewWriterSize create fail", err);
+	}
+	b.WriteString("0");	// easy
+	b.WriteString("123456");	// still easy
+	b.WriteString("7890");	// easy after flush
+	b.WriteString("abcdefghijklmnopqrstuvwxy");	// hard
+	b.WriteString("z");
+	b.Flush();
+	if b.err != nil {
+		t.Error("WriteString", b.err);
+	}
+	s := "01234567890abcdefghijklmnopqrstuvwxyz";
+	if string(buf.Data()) != s {
+		t.Errorf("WriteString wants %q gets %q", s, string(buf.Data()))
+	}
+}
