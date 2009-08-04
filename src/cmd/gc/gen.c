@@ -39,6 +39,7 @@ allocparams(void)
 		if(n->class != PAUTO)
 			continue;
 
+		typecheck(&n, Erv);
 		dowidth(n->type);
 		w = n->type->width;
 		if(n->class & PHEAP)
@@ -232,7 +233,7 @@ gen(Node *n)
 
 	case OFOR:
 		sbreak = breakpc;
-		p1 = gjmp(P);			// 		goto test
+		p1 = gjmp(P);			//		goto test
 		breakpc = gjmp(P);		// break:	goto done
 		scontin = continpc;
 		continpc = pc;
@@ -263,7 +264,7 @@ gen(Node *n)
 		if(n->ntest != N)
 			if(n->ntest->ninit != nil)
 				genlist(n->ntest->ninit);
-		bgen(n->ntest, 0, p2);			// 		if(!test) goto p2
+		bgen(n->ntest, 0, p2);			//		if(!test) goto p2
 		genlist(n->nbody);				//		then
 		p3 = gjmp(P);			//		goto done
 		patch(p2, pc);				// else:
@@ -273,7 +274,7 @@ gen(Node *n)
 
 	case OSWITCH:
 		sbreak = breakpc;
-		p1 = gjmp(P);			// 		goto test
+		p1 = gjmp(P);			//		goto test
 		breakpc = gjmp(P);		// break:	goto done
 
 		// define break label
@@ -288,7 +289,7 @@ gen(Node *n)
 
 	case OSELECT:
 		sbreak = breakpc;
-		p1 = gjmp(P);			// 		goto test
+		p1 = gjmp(P);			//		goto test
 		breakpc = gjmp(P);		// break:	goto done
 
 		// define break label

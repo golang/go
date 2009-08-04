@@ -123,10 +123,12 @@ file:
 	{
 		if(debug['f'])
 			frame(1);
+		typechecklist($4, Etop);
 		if(nerrors == 0)
 			fninit($4);
 		if(nsyntaxerrors == 0)
 			testdclstack();
+		dclchecks();
 	}
 
 package:
@@ -290,13 +292,11 @@ common_dcl:
 		$$ = $2;
 		if(yylast == LSEMIBRACE)
 			yyoptsemi(0);
-	//	walkdeflist($2);
 	}
 |	LVAR '(' vardcl_list osemi ')'
 	{
 		$$ = $3;
 		yyoptsemi(0);
-	//	walkdeflist($3);
 	}
 |	LVAR '(' ')'
 	{

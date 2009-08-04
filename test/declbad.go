@@ -21,12 +21,12 @@ func main() {
 	{
 		// change of type for f
 		i, f, s := f3();	// GCCGO_ERROR "previous"
-		f, g, t := f3();	// ERROR "redeclared|redefinition"
+		f, g, t := f3();	// ERROR "redeclared|redefinition|cannot assign"
 	}
 	{
 		// change of type for i
 		i, f, s := f3();	// GCCGO_ERROR "previous"
-		j, i, t := f3();	// ERROR "redeclared|redefinition"
+		j, i, t := f3();	// ERROR "redeclared|redefinition|cannot assign"
 	}
 	{
 		// no new variables

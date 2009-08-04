@@ -1200,6 +1200,7 @@ oldname(Sym *s)
 		// inner func is referring to var
 		// in outer func.
 		if(n->closure == N || n->closure->funcdepth != funcdepth) {
+			typecheck(&n, Erv);
 			// create new closure var.
 			c = nod(ONAME, N, N);
 			c->sym = s;
@@ -1640,21 +1641,15 @@ embedded(Sym *s)
  * new_name_list (type | [type] = expr_list)
  */
 NodeList*
-variter(NodeList *vl, Node *nt, NodeList *el)
+variter(NodeList *vl, Node *t, NodeList *el)
 {
-	int doexpr, lno;
-	Node *v, *e, *a;
-	Type *tv;
-	NodeList *r;
-	Type *t;
+	int doexpr, gen;
+	Node *v, *e;
+	NodeList *init;
+	Sym *s;
+	Dcl *r, *d;
 
-	t = T;
-	if(nt) {
-		typecheck(&nt, Etype);
-		t = nt->type;
-	}
-
-	r = nil;
+	init = nil;
 	doexpr = el != nil;
 	for(; vl; vl=vl->next) {
 		if(doexpr) {
@@ -1663,41 +1658,53 @@ variter(NodeList *vl, Node *nt, NodeList *el)
 				break;
 			}
 			e = el->n;
+			el = el->next;
 		} else
 			e = N;
 
 		v = vl->n;
-		tv = t;
-		if(e) {
-			lno = lineno;
-			lineno = v->lineno;
-			typecheck(&e, Erv);
-			defaultlit(&e, t);
-			if(t)
-				e = typecheckconv(nil, e, t, 0);
-			if(tv == nil)
-				tv = e->type;
-			if(tv && tv->etype == TNIL) {
-				yyerror("cannot initialize %#N to untyped nil", v);
-				tv = nil;
-			}
-			lineno = lno;
+		s = v->sym;
+		if(dclcontext == PEXTERN || dclcontext == PFUNC) {
+			r = externdcl;
+			gen = 0;
+		} else {
+			r = autodcl;
+			gen = ++vargen;
+			pushdcl(s);
 		}
 
-		a = N;
-		if((e != N && tv != T) || funcdepth > 0)
-			a = nod(OAS, v, e);
-		dodclvar(v, tv, &r);
-		if(a != N)
-			r = list(r, a);
-		if(el) {
-			el->n = e;
-			el = el->next;
+		redeclare("variable", s);
+		s->def = v;
+		// TODO: vargen
+		s->offset = 0;
+		s->block = block;
+
+		v->op = ONAME;
+		v->class = dclcontext;
+		v->ntype = t;
+		v->funcdepth = funcdepth;
+		v->vargen = gen;
+		if(e != N || funcdepth > 0) {
+			if(funcdepth > 0)
+				init = list(init, nod(ODCL, v, N));
+			e = nod(OAS, v, e);
+			init = list(init, e);
+			if(e->right != N)
+				v->defn = e;
 		}
+
+		d = dcl();
+		d->dsym = s;
+		d->dnode = v;
+		d->op = ONAME;
+		r->back->forw = d;
+		r->back = d;
+
+		autoexport(s);
 	}
 	if(el != nil)
 		yyerror("extra expr in var dcl");
-	return r;
+	return init;
 }
 
 /*
@@ -1829,4 +1836,16 @@ yes:
 	n->val = val;
 	n->type = types[TINT];
 	return n;
+}
+
+void
+dclchecks(void)
+{
+	Dcl *d;
+
+	for(d=externdcl; d!=D; d=d->forw) {
+		if(d->op != ONAME)
+			continue;
+		typecheck(&d->dnode, Erv);
+	}
 }

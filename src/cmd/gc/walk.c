@@ -176,6 +176,35 @@ walkdef(Node *n)
 		n->val = e->val;
 		n->type = e->type;
 		break;
+
+	case ONAME:
+		if(n->ntype != N) {
+			typecheck(&n->ntype, Etype);
+			n->type = n->ntype->type;
+			if(n->type == T) {
+				n->diag = 1;
+				goto ret;
+			}
+			n->ntype = N;
+		}
+		if(n->type != T)
+			break;
+		if(n->defn == N)
+			fatal("var without type, init: %S", n->sym);
+		switch(n->defn->op) {
+		default:
+			fatal("walkdef name defn");
+		case OAS:
+			typecheck(&n->defn->right, Erv);
+			defaultlit(&n->defn->right, T);
+			if((t = n->defn->right->type) == T) {
+				n->diag = 1;
+				goto ret;
+			}
+			n->type = t;
+			break;
+		}
+		break;
 	}
 
 ret:
@@ -1754,11 +1783,8 @@ checkmixed(NodeList *nl, NodeList **init)
 
 		if(!colasname(l))
 			goto allnew;
-		if(l->sym->block == block) {
-			if(!eqtype(l->type, t))
-				goto allnew;
+		if(l->sym->block == block)
 			nred++;
-		}
 		ntot++;
 	}
 

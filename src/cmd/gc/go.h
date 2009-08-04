@@ -933,6 +933,7 @@ NodeList*	constiter(NodeList*, Node*, NodeList*);
 Node*	funclit0(Node*);
 Node*	funclit1(Node*, NodeList*);
 Node*	unsafenmagic(Node*, NodeList*);
+void	dclchecks(void);
 
 /*
  * sinit.c
