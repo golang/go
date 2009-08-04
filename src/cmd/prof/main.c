@@ -66,32 +66,32 @@ PC *counters[Ncounters];
 void
 regprint(void)
 {
-	print("ax\t0x%llux\n", ureg.ax);
-	print("bx\t0x%llux\n", ureg.bx);
-	print("cx\t0x%llux\n", ureg.cx);
-	print("dx\t0x%llux\n", ureg.dx);
-	print("si\t0x%llux\n", ureg.si);
-	print("di\t0x%llux\n", ureg.di);
-	print("bp\t0x%llux\n", ureg.bp);
-	print("r8\t0x%llux\n", ureg.r8);
-	print("r9\t0x%llux\n", ureg.r9);
-	print("r10\t0x%llux\n", ureg.r10);
-	print("r11\t0x%llux\n", ureg.r11);
-	print("r12\t0x%llux\n", ureg.r12);
-	print("r13\t0x%llux\n", ureg.r13);
-	print("r14\t0x%llux\n", ureg.r14);
-	print("r15\t0x%llux\n", ureg.r15);
-	print("ds\t0x%llux\n", ureg.ds);
-	print("es\t0x%llux\n", ureg.es);
-	print("fs\t0x%llux\n", ureg.fs);
-	print("gs\t0x%llux\n", ureg.gs);
-	print("type\t0x%llux\n", ureg.type);
-	print("error\t0x%llux\n", ureg.error);
-	print("pc\t0x%llux\n", ureg.ip);
-	print("cs\t0x%llux\n", ureg.cs);
-	print("flags\t0x%llux\n", ureg.flags);
-	print("sp\t0x%llux\n", ureg.sp);
-	print("ss\t0x%llux\n", ureg.ss);
+	fprint(2, "ax\t0x%llux\n", ureg.ax);
+	fprint(2, "bx\t0x%llux\n", ureg.bx);
+	fprint(2, "cx\t0x%llux\n", ureg.cx);
+	fprint(2, "dx\t0x%llux\n", ureg.dx);
+	fprint(2, "si\t0x%llux\n", ureg.si);
+	fprint(2, "di\t0x%llux\n", ureg.di);
+	fprint(2, "bp\t0x%llux\n", ureg.bp);
+	fprint(2, "r8\t0x%llux\n", ureg.r8);
+	fprint(2, "r9\t0x%llux\n", ureg.r9);
+	fprint(2, "r10\t0x%llux\n", ureg.r10);
+	fprint(2, "r11\t0x%llux\n", ureg.r11);
+	fprint(2, "r12\t0x%llux\n", ureg.r12);
+	fprint(2, "r13\t0x%llux\n", ureg.r13);
+	fprint(2, "r14\t0x%llux\n", ureg.r14);
+	fprint(2, "r15\t0x%llux\n", ureg.r15);
+	fprint(2, "ds\t0x%llux\n", ureg.ds);
+	fprint(2, "es\t0x%llux\n", ureg.es);
+	fprint(2, "fs\t0x%llux\n", ureg.fs);
+	fprint(2, "gs\t0x%llux\n", ureg.gs);
+	fprint(2, "type\t0x%llux\n", ureg.type);
+	fprint(2, "error\t0x%llux\n", ureg.error);
+	fprint(2, "pc\t0x%llux\n", ureg.ip);
+	fprint(2, "cs\t0x%llux\n", ureg.cs);
+	fprint(2, "flags\t0x%llux\n", ureg.flags);
+	fprint(2, "sp\t0x%llux\n", ureg.sp);
+	fprint(2, "ss\t0x%llux\n", ureg.ss);
 }
 
 int
@@ -203,7 +203,7 @@ xptrace(Map *map, uvlong pc, uvlong sp, Symbol *sym)
 {
 	char buf[1024];
 	if(sym == nil){
-		print("syms\n");
+		fprint(2, "syms\n");
 		return;
 	}
 	if(histograms)
@@ -211,14 +211,14 @@ xptrace(Map *map, uvlong pc, uvlong sp, Symbol *sym)
 	if(!histograms || stacks > 1) {
 		if(nextpc == 0)
 			nextpc = sym->value;
-		print("%s(", sym->name);
-		print(")");
+		fprint(2, "%s(", sym->name);
+		fprint(2, ")");
 		if(nextpc != sym->value)
-			print("+%#llux ", nextpc - sym->value);
+			fprint(2, "+%#llux ", nextpc - sym->value);
 		if(have_syms && linenums && fileline(buf, sizeof buf, pc)) {
-			print(" %s", buf);
+			fprint(2, " %s", buf);
 		}
-		print("\n");
+		fprint(2, "\n");
 	}
 	nextpc = pc;
 }
@@ -234,7 +234,7 @@ stacktracepcsp(Map *map, uvlong pc, uvlong sp)
 	else {
 		addtohistogram(nextpc, 0, sp);
 		if(!histograms || stacks > 1)
-			print("\n");
+			fprint(2, "\n");
 	}
 }
 
@@ -245,10 +245,10 @@ printpc(Map *map, uvlong pc, uvlong sp)
 	if(registers)
 		regprint();
 	if(have_syms > 0 && linenums &&  fileline(buf, sizeof buf, pc))
-		print("%s\n", buf);
+		fprint(2, "%s\n", buf);
 	if(have_syms > 0 && functions) {
 		symoff(buf, sizeof(buf), pc, CANY);
-		print("%s\n", buf);
+		fprint(2, "%s\n", buf);
 	}
 	if(stacks){
 		stacktracepcsp(map, pc, sp);
@@ -317,7 +317,8 @@ findfunc(uvlong pc)
 		if(f->s.value == s.value)
 			return f;
 
-	f = mallocz(sizeof *f, 1);
+	f = malloc(sizeof *f);
+	memset(f, 0, sizeof *f);
 	f->s = s;
 	f->next = func[h];
 	func[h] = f;
@@ -374,13 +375,13 @@ dumphistogram()
 	qsort(ff, nfunc, sizeof ff[0], compareleaf);
 
 	// print.
-	print("%d samples (avg %.1g threads)\n", nsample, (double)nsamplethread/nsample);
+	fprint(2, "%d samples (avg %.1g threads)\n", nsample, (double)nsamplethread/nsample);
 	for(i = 0; i < nfunc; i++) {
 		f = ff[i];
-		print("%6.2f%%\t", 100.0*(double)f->leaf/nsample);
+		fprint(2, "%6.2f%%\t", 100.0*(double)f->leaf/nsample);
 		if(stacks)
-			print("%6.2f%%\t", 100.0*(double)f->onstack/nsample);
-		print("%s\n", f->s.name);
+			fprint(2, "%6.2f%%\t", 100.0*(double)f->onstack/nsample);
+		fprint(2, "%s\n", f->s.name);
 	}
 }
 
