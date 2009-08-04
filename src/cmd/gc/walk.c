@@ -5,10 +5,7 @@
 #include	"go.h"
 
 static	Node*	walkprint(Node*, NodeList**);
-static	Node*	mkcall(char*, Type*, NodeList**, ...);
-static	Node*	mkcall1(Node*, Type*, NodeList**, ...);
 static	Node*	conv(Node*, Type*);
-static	Node*	chanfn(char*, int, Type*);
 static	Node*	mapfn(char*, Type*);
 static	Node*	makenewvar(Type*, NodeList**, Node**);
 enum
@@ -929,6 +926,7 @@ makenewvar(Type *t, NodeList **init, Node **nstar)
 	return nvar;
 }
 
+// TODO(rsc): cut
 void
 walkdottype(Node *n, NodeList **init)
 {
@@ -942,6 +940,7 @@ walkdottype(Node *n, NodeList **init)
 	}
 }
 
+// TODO(rsc): cut
 void
 walkconv(Node **np, NodeList **init)
 {
@@ -989,232 +988,6 @@ bad:
 		what = "conversion";
 	if(l->type != T)
 		yyerror("invalid %s: %T to %T", what, l->type, t);
-}
-
-Node*
-selcase(Node *n, Node *var, NodeList **init)
-{
-	Node *a, *r, *c;
-	Type *t;
-
-	if(n->list == nil)
-		goto dflt;
-	c = n->list->n;
-	if(c->op == ORECV)
-		goto recv;
-
-	walkexpr(&c->left, init);		// chan
-	walkexpr(&c->right, init);	// elem
-
-	t = fixchan(c->left->type);
-	if(t == T)
-		return N;
-
-	if(!(t->chan & Csend)) {
-		yyerror("cannot send on %T", t);
-		return N;
-	}
-
-	convlit(&c->right, t->type);
-
-	// selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
-	a = mkcall1(chanfn("selectsend", 2, t), types[TBOOL], init, var, c->left, c->right);
-	goto out;
-
-recv:
-	if(c->right != N)
-		goto recv2;
-
-	walkexpr(&c->left, init);		// chan
-
-	t = fixchan(c->left->type);
-	if(t == T)
-		return N;
-
-	if(!(t->chan & Crecv)) {
-		yyerror("cannot receive from %T", t);
-		return N;
-	}
-
-	// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
-	a = mkcall1(chanfn("selectrecv", 2, t), types[TBOOL], init, var, c->left, nodnil());
-	goto out;
-
-recv2:
-	walkexpr(&c->right, init);	// chan
-
-	t = fixchan(c->right->type);
-	if(t == T)
-		return N;
-
-	if(!(t->chan & Crecv)) {
-		yyerror("cannot receive from %T", t);
-		return N;
-	}
-
-	walkexpr(&c->left, init);
-
-	// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
-	a = mkcall1(chanfn("selectrecv", 2, t), types[TBOOL], init, var, c->right, nod(OADDR, c->left, N));
-	goto out;
-
-dflt:
-	// selectdefault(sel *byte);
-	a = mkcall("selectdefault", types[TBOOL], init, var);
-	goto out;
-
-out:
-	r = nod(OIF, N, N);
-	r->ntest = a;
-
-	return r;
-}
-
-/*
- * enumerate the special cases
- * of the case statement:
- *	case v := <-chan		// select and switch
- */
-Node*
-selectas(Node *name, Node *expr, NodeList **init)
-{
-	Type *t;
-
-	if(expr == N || expr->op != ORECV)
-		goto bad;
-
-	walkexpr(&expr->left, init);
-	t = expr->left->type;
-	if(t == T)
-		goto bad;
-	if(t->etype != TCHAN)
-		goto bad;
-	t = t->type;
-	return old2new(name, t, init);
-
-bad:
-	return name;
-}
-
-void
-walkselect(Node *sel)
-{
-	Node *n, *l, *oc, *on, *r;
-	Node *var, *def;
-	NodeList *res, *bod, *nbod, *init, *ln;
-	int count, op;
-	int32 lno;
-
-	lno = setlineno(sel);
-
-	init = nil;
-
-	// generate sel-struct
-	var = nod(OXXX, N, N);
-	tempname(var, ptrto(types[TUINT8]));
-
-	if(sel->list == nil) {
-		yyerror("empty select");
-		return;
-	}
-
-	count = 0;	// number of cases
-	res = nil;	// entire select body
-	bod = nil;	// body of each case
-	oc = N;		// last case
-	def = N;	// default case
-	for(ln=sel->list; ln; ln=ln->next) {
-		n = ln->n;
-		setlineno(n);
-		if(n->op != OXCASE)
-			fatal("walkselect %O", n->op);
-
-		count++;
-		l = N;
-		if(n->list == nil) {
-			op = ORECV;	// actual value not used
-			if(def != N)
-				yyerror("repeated default; first at %L", def->lineno);
-			def = n;
-		} else {
-			l = n->list->n;
-			op = l->op;
-			if(n->list->next) {
-				yyerror("select cases cannot be lists");
-				continue;
-			}
-		}
-
-		nbod = nil;
-		switch(op) {
-		default:
-			yyerror("select cases must be send, recv or default %O", op);
-			continue;
-
-		case OAS:
-			// convert new syntax (a=recv(chan)) to (recv(a,chan))
-			if(l->right == N || l->right->op != ORECV) {
-				yyerror("select cases must be send, recv or default %O", l->right->op);
-				break;
-			}
-			r = l->right;	// rcv
-			r->right = r->left;
-			r->left = l->left;
-			n->list->n = r;
-
-			// convert case x := foo: body
-			// to case tmp := foo: x := tmp; body.
-			// if x escapes and must be allocated
-			// on the heap, this delays the allocation
-			// until after the select has chosen this branch.
-			if(n->ninit != nil && n->ninit->n->op == ODCL) {
-				on = nod(OXXX, N, N);
-				tempname(on, l->left->type);
-				on->sym = lookup("!tmpselect!");
-				r->left = on;
-				on = nod(OAS, l->left, on);
-				typecheck(&on, Etop);
-				nbod = list(n->ninit, on);
-				n->ninit = nil;
-			}
-			break;
-
-		case OSEND:
-		case OSENDNB:
-		case ORECV:
-			break;
-		}
-
-		nbod = concat(nbod, n->nbody);
-		nbod = list(nbod, nod(OBREAK, N, N));
-		n->nbody = nil;
-
-		oc = selcase(n, var, &init);
-		if(oc != N) {
-			oc->nbody = nbod;
-			res = list(res, oc);
-		}
-	}
-	setlineno(sel);
-
-	// selectgo(sel *byte);
-	res = list(res, mkcall("selectgo", T, nil, var));
-
-	// newselect(size uint32) (sel *byte);
-	r = nod(OAS, var, mkcall("newselect", var->type, nil, nodintconst(count)));
-	typecheck(&r, Etop);
-	typechecklist(res, Etop);
-
-	sel->ninit = list1(r);
-	sel->nbody = res;
-	sel->left = N;
-
-	walkstmtlist(sel->ninit);
-	walkstmtlist(sel->nbody);
-//dump("sel", sel);
-
-	sel->ninit = concat(sel->ninit, init);
-	lineno = lno;
 }
 
 Node*
@@ -2805,7 +2578,7 @@ vmkcall(Node *fn, Type *t, NodeList **init, va_list va)
 	return r;
 }
 
-static Node*
+Node*
 mkcall(char *name, Type *t, NodeList **init, ...)
 {
 	Node *r;
@@ -2817,7 +2590,7 @@ mkcall(char *name, Type *t, NodeList **init, ...)
 	return r;
 }
 
-static Node*
+Node*
 mkcall1(Node *fn, Type *t, NodeList **init, ...)
 {
 	Node *r;
@@ -2840,7 +2613,7 @@ conv(Node *n, Type *t)
 	return n;
 }
 
-static Node*
+Node*
 chanfn(char *name, int n, Type *t)
 {
 	Node *fn;

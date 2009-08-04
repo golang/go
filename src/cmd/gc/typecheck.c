@@ -12,7 +12,6 @@
  *
  * TODO:
  *	trailing ... section of function calls
- *	select
  *	range
  */
 
@@ -859,9 +858,7 @@ reswitch:
 		goto ret;
 
 	case OSELECT:
-		typechecklist(n->ninit, Etop);
-		typecheck(&n->ntest, Erv);
-		typechecklist(n->list, Etop);
+		typecheckselect(n);
 		goto ret;
 
 	case OSWITCH:
@@ -1757,4 +1754,3 @@ typecheckas2(Node *n)
 mismatch:
 	yyerror("assignment count mismatch: %d = %d", cl, cr);
 }
-

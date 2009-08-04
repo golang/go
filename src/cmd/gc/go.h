@@ -363,6 +363,7 @@ enum
 	OSLICE, OSLICEARR, OSLICESTR,
 	ORECV,
 	ORUNESTR,
+	OSELRECV,
 
 	// stmts
 	OBLOCK,
@@ -973,6 +974,9 @@ void	walkswitch(Node*);
 void	walkselect(Node*);
 void	walkdot(Node*, NodeList**);
 void	walkexpr(Node**, NodeList**);
+Node*	mkcall(char*, Type*, NodeList**, ...);
+Node*	mkcall1(Node*, Type*, NodeList**, ...);
+Node*	chanfn(char*, int, Type*);
 Node*	ascompatee1(int, Node*, Node*, NodeList**);
 NodeList*	ascompatee(int, NodeList*, NodeList*, NodeList**);
 NodeList*	ascompatet(int, NodeList*, Type**, int, NodeList**);
@@ -1000,6 +1004,7 @@ void	walkdeflist(NodeList*);
 void	walkdef(Node*);
 void	typechecklist(NodeList*, int);
 void	typecheckswitch(Node*);
+void	typecheckselect(Node*);
 Node*	typecheckconv(Node*, Node*, Type*, int);
 Node*	typecheck(Node**, int);
 

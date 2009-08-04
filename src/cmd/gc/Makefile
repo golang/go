@@ -36,6 +36,7 @@ OFILES=\
 	obj.$O\
 	print.$O\
 	typecheck.$O\
+	select.$O\
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)
