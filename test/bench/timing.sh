@@ -30,12 +30,13 @@ fasta() {
 }
 
 revcomp() {
-	6.out -n 25000000 > x
+	gcc -O2 fasta.c
+	a.out 25000000 > x
 	echo 'reverse-complement < output-of-fasta-25000000'
-	run 'gcc -O2 reverse-complement.c' a.out 25000000 < x
-	run 'gccgo -O2 reverse-complement.go' a.out -n 25000000 < x
-	run 'gc reverse-complement' $O.out -n 25000000 < x
-	run 'gc_B reverse-complement' $O.out -n 25000000 < x
+	run 'gcc -O2 reverse-complement.c' a.out < x
+	run 'gccgo -O2 reverse-complement.go' a.out < x
+	run 'gc reverse-complement' $O.out < x
+	run 'gc_B reverse-complement' $O.out < x
 	rm x
 }
 
