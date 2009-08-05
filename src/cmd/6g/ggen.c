@@ -534,21 +534,46 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
-	Node ax, dx;
+	Node ax, dx, oldax, olddx;
 	int rax, rdx;
+
+	if(nl->ullman >= UINF || nr->ullman >= UINF)
+		fatal("cgen_div UINF");
 
 	rax = reg[D_AX];
 	rdx = reg[D_DX];
-
+	
 	nodreg(&ax, types[TINT64], D_AX);
 	nodreg(&dx, types[TINT64], D_DX);
 	regalloc(&ax, nl->type, &ax);
 	regalloc(&dx, nl->type, &dx);
 
+	// save current ax and dx if they are live
+	memset(&oldax, 0, sizeof oldax);
+	memset(&olddx, 0, sizeof olddx);
+	if(rax > 0) {
+		regalloc(&oldax, nl->type, N);
+		gmove(&ax, &oldax);
+	}
+	if(rdx > 0) {
+		regalloc(&olddx, nl->type, N);
+		gmove(&dx, &olddx);
+	}
+
 	dodiv(op, nl, nr, res, &ax, &dx);
 
 	regfree(&ax);
 	regfree(&dx);
+	
+	if(rax > 0) {
+		gmove(&oldax, &ax);
+		regfree(&oldax);
+	}
+	if(rdx > 0) {
+		gmove(&olddx, &dx);
+		regfree(&olddx);
+	}
+		
 }
 
 /*
