@@ -22,7 +22,7 @@ sysfunc(char *name)
 void
 allocparams(void)
 {
-	Dcl *d;
+	NodeList *l;
 	Node *n;
 	uint32 w;
 
@@ -31,14 +31,10 @@ allocparams(void)
 	 * slots for all automatics.
 	 * allocated starting at -w down.
 	 */
-	for(d=autodcl; d!=D; d=d->forw) {
-		if(d->op != ONAME)
+	for(l=autodcl; l; l=l->next) {
+		n = l->n;
+		if(n->op != ONAME || n->class != PAUTO)
 			continue;
-
-		n = d->dnode;
-		if(n->class != PAUTO)
-			continue;
-
 		typecheck(&n, Erv);
 		dowidth(n->type);
 		w = n->type->width;

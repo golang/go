@@ -8,7 +8,8 @@
  * runtime interface and reflection data structures
  */
 
-static Sym* dtypesym(Type*);
+static	NodeList*	signatlist;
+static	Sym*	dtypesym(Type*);
 
 static int
 sigcmp(Sig *a, Sig *b)
@@ -181,8 +182,8 @@ methods(Type *t)
 		a->tsym = methodsym(method, t);
 		a->type = methodfunc(f);
 
-		if(!a->isym->siggen) {
-			a->isym->siggen = 1;
+		if(!(a->isym->flags & SymSiggen)) {
+			a->isym->flags |= SymSiggen;
 			if(!eqtype(this, it)) {
 				if(oldlist == nil)
 					oldlist = pc;
@@ -198,8 +199,8 @@ methods(Type *t)
 			}
 		}
 
-		if(!a->tsym->siggen) {
-			a->tsym->siggen = 1;
+		if(!(a->tsym->flags & SymSiggen)) {
+			a->tsym->flags |= SymSiggen;
 			if(!eqtype(this, t)) {
 				if(oldlist == nil)
 					oldlist = pc;
@@ -447,7 +448,6 @@ typename(Type *t)
 {
 	Sym *s;
 	Node *n;
-	Dcl *d;
 
 	s = typesym(t);
 	if(s->def == N) {
@@ -460,13 +460,7 @@ typename(Type *t)
 		n->xoffset = 0;
 		s->def = n;
 
-		// copy to signatlist
-		d = dcl();
-		d->dsym = s;
-		d->dtype = t;
-		d->op = OTYPE;
-		d->forw = signatlist;
-		signatlist = d;
+		signatlist = list(signatlist, typenod(t));
 	}
 
 	n = nod(OADDR, s->def, N);
@@ -485,9 +479,9 @@ dtypesym(Type *t)
 	Type *t1;
 
 	s = typesym(t);
-	if(s->siggen)
+	if(s->flags & SymSiggen)
 		return s;
-	s->siggen = 1;
+	s->flags |= SymSiggen;
 
 	// special case (look for runtime below):
 	// when compiling package runtime,
@@ -652,27 +646,24 @@ void
 dumptypestructs(void)
 {
 	int i;
-	Dcl *d, *x;
+	NodeList *l;
+	Node *n;
 	Type *t;
 
 	// copy types from externdcl list to signatlist
-	for(d=externdcl; d!=D; d=d->forw) {
-		if(d->op != OTYPE)
+	for(l=externdcl; l; l=l->next) {
+		n = l->n;
+		if(n->op != OTYPE)
 			continue;
-		t = d->dtype;
-		x = mal(sizeof(*x));
-		x->op = OTYPE;
-		x->dtype = t;
-		x->forw = signatlist;
-		x->block = 0;
-		signatlist = x;
+		signatlist = list(signatlist, n);
 	}
 
 	// process signatlist
-	for(d=signatlist; d!=D; d=d->forw) {
-		if(d->op != OTYPE)
+	for(l=signatlist; l; l=l->next) {
+		n = l->n;
+		if(n->op != OTYPE)
 			continue;
-		t = d->dtype;
+		t = n->type;
 		dtypesym(t);
 		if(t->sym && !isptr[t->etype])
 			dtypesym(ptrto(t));

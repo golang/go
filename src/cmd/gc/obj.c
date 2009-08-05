@@ -38,27 +38,23 @@ dumpobj(void)
 void
 dumpglobls(void)
 {
-	Dcl *d;
-	Sym *s;
 	Node *n;
+	NodeList *l;
 
 	// add globals
-	for(d=externdcl; d!=D; d=d->forw) {
-		if(d->op != ONAME)
+	for(l=externdcl; l; l=l->next) {
+		n = l->n;
+		if(n->op != ONAME)
 			continue;
 
-		s = d->dsym;
-		if(s == S)
-			fatal("external nil");
-		n = d->dnode;
-		if(n == N || n->type == T)
-			fatal("external %S nil\n", s);
-
+		if(n->type == T)
+			fatal("external %#N nil type\n", n);
 		if(n->class == PFUNC)
 			continue;
-
 		dowidth(n->type);
-		ggloblnod(s->def, n->type->width);
+
+		// TODO(rsc): why is this not s/n->sym->def/n/ ?
+		ggloblnod(n->sym->def, n->type->width);
 	}
 }
 

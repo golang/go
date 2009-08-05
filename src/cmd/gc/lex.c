@@ -84,15 +84,7 @@ main(int argc, char *argv[])
 	curio.peekc = 0;
 	curio.peekc1 = 0;
 
-	externdcl = mal(sizeof(*externdcl));
-	externdcl->back = externdcl;
 	dclcontext = PEXTERN;
-
-	exportlist = mal(sizeof(*exportlist));
-	exportlist->back = exportlist;
-
-	typelist = mal(sizeof(*typelist));
-	typelist->back = typelist;
 
 	nerrors = 0;
 	yyparse();

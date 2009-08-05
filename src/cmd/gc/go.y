@@ -274,7 +274,7 @@ xdcl:
 |	xfndcl
 	{
 		if($1 != N && $1->nname != N && $1->type->thistuple == 0)
-			autoexport($1->nname->sym);
+			autoexport($1->nname, dclcontext);
 		$$ = nil;
 	}
 |	';'
@@ -1643,7 +1643,12 @@ hidden_type1:
 	}
 |	LNAME
 	{
-		$$ = oldtype($1);
+		// predefined name like uint8
+		if($1->def == N || $1->def->op != OTYPE) {
+			yyerror("%S is not a type", $1);
+			$$ = T;
+		} else
+			$$ = $1->def->type;
 	}
 |	'[' ']' hidden_type
 	{

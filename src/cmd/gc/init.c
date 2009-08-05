@@ -178,7 +178,7 @@ fninit(NodeList *n)
 	a = nod(ORETURN, N, N);
 	r = list(r, a);
 
-	exportsym(fn->nname->sym);
+	exportsym(fn->nname);
 
 	fn->nbody = r;
 //dump("b", fn);
