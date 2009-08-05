@@ -27,6 +27,7 @@ static int	nokeys(NodeList*);
 static void	typecheckcomplit(Node**);
 static void	addrescapes(Node*);
 static void	typecheckas2(Node*);
+static void	typecheckas(Node*);
 static void	checklvalue(Node*, char*);
 static void checkassign(Node*);
 static void checkassignlist(NodeList*);
@@ -88,8 +89,8 @@ reswitch:
 
 	case ONAME:
 		if(n->etype != 0) {
-			yyerror("must call builtin %S", n->sym);
-			goto error;
+			ok |= Ecall;
+			goto ret;
 		}
 		ok |= Erv;
 		goto ret;
@@ -348,6 +349,7 @@ reswitch:
 	 * exprs
 	 */
 	case OADDR:
+		ok |= Erv;
 		typecheck(&n->left, Erv);
 		if(n->left->type == T)
 			goto error;
@@ -368,6 +370,7 @@ reswitch:
 		goto ret;
 
 	case OCOMPLIT:
+		ok |= Erv;
 		typecheckcomplit(&n);
 		if(n->type == T)
 			goto error;
@@ -403,6 +406,7 @@ reswitch:
 		goto ret;
 
 	case ODOTTYPE:
+		ok |= Erv;
 		typecheck(&n->left, Erv);
 		defaultlit(&n->left, T);
 		l = n->left;
@@ -422,6 +426,7 @@ reswitch:
 		goto ret;
 
 	case OINDEX:
+		ok |= Erv;
 		typecheck(&n->left, Erv);
 		defaultlit(&n->left, T);
 		implicitstar(&n->left);
@@ -436,21 +441,18 @@ reswitch:
 			goto error;
 
 		case TARRAY:
-			ok |= Erv;
 			defaultlit(&n->right, types[TUINT]);
 			n->type = t->type;
 			break;
 
 		case TMAP:
 			n->etype = 0;
-			ok |= Erv;
 			defaultlit(&n->right, t->down);
 			n->type = t->type;
 			n->op = OINDEXMAP;
 			break;
 
 		case TSTRING:
-			ok |= Erv;
 			defaultlit(&n->right, types[TUINT]);
 			n->type = types[TUINT8];
 			n->op = OINDEXSTR;
@@ -459,6 +461,7 @@ reswitch:
 		goto ret;
 
 	case ORECV:
+		ok |= Etop | Erv;
 		typecheck(&n->left, Erv);
 		defaultlit(&n->left, T);
 		l = n->left;
@@ -473,10 +476,10 @@ reswitch:
 			goto error;
 		}
 		n->type = t->type;
-		ok |= Erv;
 		goto ret;
 
 	case OSEND:
+		ok |= Etop | Erv;
 		l = typecheck(&n->left, Erv);
 		typecheck(&n->right, Erv);
 		defaultlit(&n->left, T);
@@ -495,7 +498,6 @@ reswitch:
 		n->etype = 0;
 		if(top & Erv)
 			n->op = OSENDNB;
-		ok |= Etop | Erv;
 		n->type = types[TBOOL];
 		goto ret;
 
@@ -564,7 +566,10 @@ reswitch:
 		typecheck(&n->left, Erv | Etype | Ecall);
 		defaultlit(&n->left, T);
 		l = n->left;
-		typechecklist(n->list, Erv);
+		if(count(n->list) == 1)
+			typecheck(&n->list->n, Erv | Efnstruct);
+		else
+			typechecklist(n->list, Erv);
 		if((t = l->type) == T)
 			goto error;
 		dowidth(t);
@@ -598,12 +603,11 @@ reswitch:
 			break;
 		}
 		typecheckaste(OCALL, getinargx(t), n->list);
-		if(t->outtuple == 0) {
-			ok |= Etop;
+		ok |= Etop;
+		if(t->outtuple == 0)
 			goto ret;
-		}
+		ok |= Erv;
 		if(t->outtuple == 1) {
-			ok |= Erv;
 			t = getoutargx(l->type)->type;
 			if(t->etype == TFIELD)
 				t = t->type;
@@ -611,12 +615,16 @@ reswitch:
 			goto ret;
 		}
 		// multiple return
-		// ok |= Emulti;
+		if(!(top & (Efnstruct | Etop))) {
+			yyerror("multiple-value %#N() in single-value context", l);
+			goto ret;
+		}
 		n->type = getoutargx(l->type);
 		goto ret;
 
 	case OCAP:
 	case OLEN:
+		ok |= Erv;
 		if(onearg(n) < 0)
 			goto error;
 		typecheck(&n->left, Erv);
@@ -671,6 +679,7 @@ reswitch:
 
 	case OCONV:
 	doconv:
+		ok |= Erv;
 		typecheck(&n->left, Erv);
 		defaultlit(&n->left, n->type);
 		if((t = n->left->type) == T || n->type == T)
@@ -681,6 +690,7 @@ reswitch:
 		goto ret;
 
 	case OMAKE:
+		ok |= Erv;
 		args = n->list;
 		if(args == nil) {
 			yyerror("missing argument to make");
@@ -779,6 +789,7 @@ reswitch:
 		goto ret;
 
 	case ONEW:
+		ok |= Erv;
 		args = n->list;
 		if(args == nil) {
 			yyerror("missing argument to new");
@@ -800,6 +811,7 @@ reswitch:
 	case OPANICN:
 	case OPRINT:
 	case OPRINTN:
+		ok |= Etop;
 		typechecklist(n->list, Erv);
 		goto ret;
 
@@ -807,14 +819,12 @@ reswitch:
 	 * statements
 	 */
 	case OAS:
-		typecheck(&n->left, Erv);
-		checkassign(n->left);
-		typecheck(&n->right, Erv);
-		if(n->left->type != T && n->right && n->right->type != T)
-			n->right = typecheckconv(nil, n->right, n->left->type, 0);
+		ok |= Etop;
+		typecheckas(n);
 		goto ret;
 
 	case OAS2:
+		ok |= Etop;
 		typecheckas2(n);
 		goto ret;
 
@@ -825,14 +835,17 @@ reswitch:
 	case OGOTO:
 	case OLABEL:
 	case OXFALL:
+		ok |= Etop;
 		goto ret;
 
 	case ODEFER:
 	case OPROC:
+		ok |= Etop;
 		typecheck(&n->left, Etop);
 		goto ret;
 
 	case OFOR:
+		ok |= Etop;
 		typechecklist(n->ninit, Etop);
 		typecheck(&n->ntest, Erv);
 		if(n->ntest != N && (t = n->ntest->type) != T && t->etype != TBOOL)
@@ -842,6 +855,7 @@ reswitch:
 		goto ret;
 
 	case OIF:
+		ok |= Etop;
 		typechecklist(n->ninit, Etop);
 		typecheck(&n->ntest, Erv);
 		if(n->ntest != N && (t = n->ntest->type) != T && t->etype != TBOOL)
@@ -851,30 +865,35 @@ reswitch:
 		goto ret;
 
 	case ORETURN:
-		typechecklist(n->list, Erv);
+		ok |= Etop;
+		typechecklist(n->list, Erv | Efnstruct);
 		if(curfn->type->outnamed && n->list == nil)
 			goto ret;
 		typecheckaste(ORETURN, getoutargx(curfn->type), n->list);
 		goto ret;
 
 	case OSELECT:
+		ok |= Etop;
 		typecheckselect(n);
 		goto ret;
 
 	case OSWITCH:
+		ok |= Etop;
 		typecheckswitch(n);
 		goto ret;
 
 	case OTYPECASE:
+		ok |= Etop | Erv;
 		typecheck(&n->left, Erv);
-		ok |= Erv;
 		goto ret;
 
 	case OTYPESW:
+		ok |= Etop;
 		typecheck(&n->right, Erv);
 		goto ret;
 
 	case OXCASE:
+		ok |= Etop;
 		typechecklist(n->list, Erv);
 		typechecklist(n->nbody, Etop);
 		goto ret;
@@ -891,7 +910,15 @@ ret:
 		goto error;
 	}
 	if((ok & Ecall) && !(top & Ecall)) {
-		yyerror("must call method %#N", n);
+		yyerror("must call %#N", n);
+		goto error;
+	}
+	if((top & (Ecall|Erv|Etype)) && !(ok & (Erv|Etype|Ecall))) {
+		yyerror("%#N used as value", n);
+		goto error;
+	}
+	if((top & Etop) && !(ok & Etop)) {
+		yyerror("%#N not used", n);
 		goto error;
 	}
 
@@ -1662,8 +1689,41 @@ checkassignlist(NodeList *l)
 }
 
 /*
- * multiple assignment
+ * type check assignment.
+ * if this assignment is the definition of a var on the left side,
+ * fill in the var's type.
  */
+
+static void
+typecheckas(Node *n)
+{
+	// delicate little dance.
+	// the definition of n may refer to this assignment
+	// as its definition, in which case it will call typecheckas.
+	// in that case, do not call typecheck back, or it will cycle.
+	// if the variable has a type (ntype) then typechecking
+	// will not look at defn, so it is okay (and desirable,
+	// so that the conversion below happens).
+	if(n->left->defn != n || n->left->ntype)
+		typecheck(&n->left, Erv);
+
+	checkassign(n->left);
+	typecheck(&n->right, Erv);
+	if(n->left->type != T && n->right && n->right->type != T)
+		n->right = typecheckconv(nil, n->right, n->left->type, 0);
+	if(n->left->defn == n && n->left->ntype == N) {
+		defaultlit(&n->right, T);
+		n->left->type = n->right->type;
+	}
+
+	// second half of dance.
+	// now that right is done, typecheck the left
+	// just to get it over with.  see dance above.
+	n->typecheck = 1;
+	if(n->left->typecheck == 0)
+		typecheck(&n->left, Erv);
+}
+
 static void
 typecheckas2(Node *n)
 {
@@ -1673,19 +1733,30 @@ typecheckas2(Node *n)
 	Iter s;
 	Type *t;
 
-	typechecklist(n->list, Erv);
-	checkassignlist(n->list);
-	typechecklist(n->rlist, Erv);
-
+	for(ll=n->list; ll; ll=ll->next) {
+		// delicate little dance.
+		if(ll->n->defn != n || ll->n->ntype)
+			typecheck(&ll->n, Erv);
+	}
 	cl = count(n->list);
 	cr = count(n->rlist);
+	checkassignlist(n->list);
+	if(cl > 1 && cr == 1)
+		typecheck(&n->rlist->n, Erv | Efnstruct);
+	else
+		typechecklist(n->rlist, Erv);
 
 	if(cl == cr) {
 		// easy
-		for(ll=n->list, lr=n->rlist; ll; ll=ll->next, lr=lr->next)
+		for(ll=n->list, lr=n->rlist; ll; ll=ll->next, lr=lr->next) {
 			if(ll->n->type != T && lr->n->type != T)
 				lr->n = typecheckconv(nil, lr->n, ll->n->type, 0);
-		return;
+			if(ll->n->defn == n && ll->n->ntype == N) {
+				defaultlit(&lr->n, T);
+				ll->n->type = lr->n->type;
+			}
+		}
+		goto out;
 	}
 
 
@@ -1695,18 +1766,18 @@ typecheckas2(Node *n)
 	// m[i] = x, ok
 	if(cl == 1 && cr == 2 && l->op == OINDEXMAP) {
 		if(l->type == T)
-			return;
+			goto out;
 		n->op = OAS2MAPW;
 		n->rlist->n = typecheckconv(nil, r, l->type->down, 0);
 		r = n->rlist->next->n;
 		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 0);
-		return;
+		goto out;
 	}
 
 	// x,y,z = f()
 	if(cr == 1) {
 		if(r->type == T)
-			return;
+			goto out;
 		switch(r->op) {
 		case OCALLMETH:
 		case OCALLINTER:
@@ -1722,16 +1793,18 @@ typecheckas2(Node *n)
 				if(ll->n->type != T)
 					if(checkconv(t->type, ll->n->type, 0, &op, &et) < 0)
 						yyerror("cannot assign type %T to %+N", t->type, ll->n);
+				if(ll->n->defn == n && ll->n->ntype == N)
+					ll->n->type = t->type;
 				t = structnext(&s);
 			}
-			return;
+			goto out;
 		}
 	}
 
 	// x, ok = y
 	if(cl == 2 && cr == 1) {
 		if(r->type == T)
-			return;
+			goto out;
 		switch(r->op) {
 		case OINDEXMAP:
 			n->op = OAS2MAPR;
@@ -1744,13 +1817,24 @@ typecheckas2(Node *n)
 		common:
 			if(l->type != T && checkconv(r->type, l->type, 0, &op, &et) < 0)
 				yyerror("cannot assign %+N to %+N", r, l);
+			if(l->defn == n)
+				l->type = r->type;
 			l = n->list->next->n;
 			if(l->type != T && checkconv(types[TBOOL], l->type, 0, &op, &et) < 0)
 				yyerror("cannot assign bool value to %+N", l);
-			return;
+			if(l->defn == n && l->ntype == N)
+				l->type = types[TBOOL];
+			goto out;
 		}
 	}
 
 mismatch:
 	yyerror("assignment count mismatch: %d = %d", cl, cr);
+
+out:
+	// second half of dance
+	n->typecheck = 1;
+	for(ll=n->list; ll; ll=ll->next)
+		if(ll->n->typecheck == 0)
+			typecheck(&ll->n, Erv);
 }

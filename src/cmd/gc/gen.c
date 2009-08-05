@@ -35,7 +35,9 @@ allocparams(void)
 		n = l->n;
 		if(n->op != ONAME || n->class != PAUTO)
 			continue;
-		typecheck(&n, Erv);
+		typecheck(&n, Erv);	// only needed for unused variables
+		if(n->type == T)
+			continue;
 		dowidth(n->type);
 		w = n->type->width;
 		if(n->class & PHEAP)

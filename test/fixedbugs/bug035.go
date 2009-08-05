@@ -7,7 +7,7 @@
 package main
 
 func f9(a int) (i int, f float) {
-	i := 9;  // ERROR "redecl"
-	f := float(9);  // ERROR "redecl"
+	i := 9;  // ERROR "redecl|no new"
+	f := float(9);  // ERROR "redecl|no new"
 	return i, f;
 }

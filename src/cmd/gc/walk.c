@@ -145,7 +145,6 @@ walkdef(Node *n)
 	if(n->type != T || n->sym == S)	// builtin or no name
 		goto ret;
 
-
 	init = nil;
 	switch(n->op) {
 	case OLITERAL:
@@ -185,25 +184,12 @@ walkdef(Node *n)
 				n->diag = 1;
 				goto ret;
 			}
-			n->ntype = N;
 		}
 		if(n->type != T)
 			break;
 		if(n->defn == N)
 			fatal("var without type, init: %S", n->sym);
-		switch(n->defn->op) {
-		default:
-			fatal("walkdef name defn");
-		case OAS:
-			typecheck(&n->defn->right, Erv);
-			defaultlit(&n->defn->right, T);
-			if((t = n->defn->right->type) == T) {
-				n->diag = 1;
-				goto ret;
-			}
-			n->type = t;
-			break;
-		}
+		typecheck(&n->defn, Etop);	// fills in n->type
 		break;
 	}
 
@@ -1667,7 +1653,7 @@ ifacecvt(Type *tl, Node *n, int et, NodeList **init)
 
 	r = nod(OCALL, on, N);
 	r->list = args;
-	typecheck(&r, Erv);
+	typecheck(&r, Erv | Efnstruct);
 	walkexpr(&r, init);
 	return r;
 }
@@ -1714,276 +1700,6 @@ convas(Node *n, NodeList **init)
 out:
 	ullmancalc(n);
 	return n;
-}
-
-int
-colasname(Node *n)
-{
-	// TODO(rsc): can probably simplify
-	// once late-binding of names goes in
-	switch(n->op) {
-	case ONAME:
-	case ONONAME:
-	case OPACK:
-		break;
-	case OTYPE:
-	case OLITERAL:
-		if(n->sym != S)
-			break;
-		// fallthrough
-	default:
-		return 0;
-	}
-	return 1;
-}
-
-Node*
-old2new(Node *n, Type *t, NodeList **init)
-{
-	Node *l;
-
-	if(!colasname(n)) {
-		yyerror("left side of := must be a name");
-		return n;
-	}
-	if(t != T && t->funarg) {
-		yyerror("use of multi func value as single value in :=");
-		return n;
-	}
-	l = newname(n->sym);
-	dodclvar(l, t, init);
-	return l;
-}
-
-static Node*
-mixedoldnew(Node *n, Type *t)
-{
-	n = nod(OXXX, n, N);
-	n->type = t;
-	return n;
-}
-
-static NodeList*
-checkmixed(NodeList *nl, NodeList **init)
-{
-	Node *a, *l;
-	NodeList *ll, *n;
-	Type *t;
-	int ntot, nred;
-
-	// first pass, check if it is a special
-	// case of new and old declarations
-
-	ntot = 0;	// number assignments
-	nred = 0;	// number redeclarations
-	for(ll=nl; ll; ll=ll->next) {
-		l = ll->n;
-		t = l->type;
-		l = l->left;
-
-		if(!colasname(l))
-			goto allnew;
-		if(l->sym->block == block)
-			nred++;
-		ntot++;
-	}
-
-	// test for special case
-	// a) multi-assignment (ntot>1)
-	// b) at least one redeclaration (red>0)
-	// c) not all redeclarations (nred!=ntot)
-	if(nred == 0 || ntot <= 1 || nred == ntot)
-		goto allnew;
-
-	n = nil;
-	for(ll=nl; ll; ll=ll->next) {
-		l = ll->n;
-		t = l->type;
-		l = l->left;
-
-		a = l;
-		if(l->sym->block != block)
-			a = old2new(l, t, init);
-
-		n = list(n, a);
-	}
-	return n;
-
-allnew:
-	// same as original
-	n = nil;
-	for(ll=nl; ll; ll=ll->next) {
-		l = ll->n;
-		t = l->type;
-		l = l->left;
-
-		a = old2new(l, t, init);
-		n = list(n, a);
-	}
-	return n;
-}
-
-Node*
-colas(NodeList *ll, NodeList *lr)
-{
-	Node *l, *r, *a, *nl, *nr;
-	Iter savet;
-	NodeList *init, *savel, *saver, *n;
-	Type *t;
-	int cl, cr;
-
-	/* nl is an expression list.
-	 * nr is an expression list.
-	 * return a newname-list from
-	 * types derived from the rhs.
-	 */
-	cr = count(lr);
-	cl = count(ll);
-	init = nil;
-	n = nil;
-
-	/* check calls early, to give better message for a := f() */
-	if(cr == 1) {
-		nr = lr->n;
-		switch(nr->op) {
-		case OCALL:
-		case OCALLFUNC:
-			if(nr->left->op == ONAME && nr->left->etype != 0)
-				break;
-			typecheck(&nr->left, Erv | Etype | Ecall);
-			walkexpr(&nr->left, &init);
-			if(nr->left->op == OTYPE)
-				break;
-			goto call;
-		case OCALLMETH:
-		case OCALLINTER:
-			typecheck(&nr->left, Erv);
-			walkexpr(&nr->left, &init);
-		call:
-			convlit(&nr->left, types[TFUNC]);
-			t = nr->left->type;
-			if(t == T)
-				goto outl;	// error already printed
-			if(t->etype == tptr)
-				t = t->type;
-			if(t == T || t->etype != TFUNC) {
-				yyerror("cannot call %T", t);
-				goto outl;
-			}
-			if(t->outtuple != cl) {
-				cr = t->outtuple;
-				goto badt;
-			}
-			// finish call - first half above
-			t = structfirst(&savet, getoutarg(t));
-			if(t == T)
-				goto outl;
-			for(savel=ll; savel; savel=savel->next) {
-				l = savel->n;
-				a = mixedoldnew(l, t->type);
-				n = list(n, a);
-				t = structnext(&savet);
-			}
-			n = checkmixed(n, &init);
-			goto out;
-		}
-	}
-	if(cl != cr) {
-		if(cr == 1) {
-			nr = lr->n;
-			goto multi;
-		}
-		goto badt;
-	}
-
-	for(savel=ll, saver=lr; savel != nil; savel=savel->next, saver=saver->next) {
-		l = savel->n;
-		r = saver->n;
-
-		typecheck(&r, Erv);
-		defaultlit(&r, T);
-		saver->n = r;
-		a = mixedoldnew(l, r->type);
-		n = list(n, a);
-	}
-	n = checkmixed(n, &init);
-	goto out;
-
-multi:
-	typecheck(&nr, Erv);
-	lr->n = nr;
-
-	/*
-	 * there is a list on the left
-	 * and a mono on the right.
-	 * go into the right to get
-	 * individual types for the left.
-	 */
-	switch(nr->op) {
-	default:
-		goto badt;
-
-	case OINDEXMAP:
-		// check if rhs is a map index.
-		// if so, types are valuetype,bool
-		if(cl != 2)
-			goto badt;
-		walkexpr(&nr->left, &init);
-		t = nr->left->type;
-		a = mixedoldnew(ll->n, t->type);
-		n = list1(a);
-		a = mixedoldnew(ll->next->n, types[TBOOL]);
-		n = list(n, a);
-		n = checkmixed(n, &init);
-		break;
-
-	case ODOTTYPE:
-		// a,b := i.(T)
-		walkdottype(nr, &init);
-		if(cl != 2)
-			goto badt;
-		// a,b = iface
-		a = mixedoldnew(ll->n, nr->type);
-		n = list1(a);
-		a = mixedoldnew(ll->next->n, types[TBOOL]);
-		n = list(n, a);
-		n = checkmixed(n, &init);
-		break;
-
-	case ORECV:
-		if(cl != 2)
-			goto badt;
-		walkexpr(&nr->left, &init);
-		t = nr->left->type;
-		if(!istype(t, TCHAN))
-			goto badt;
-		a = mixedoldnew(ll->n, t->type);
-		n = list1(a);
-		a = mixedoldnew(ll->next->n, types[TBOOL]);
-		n = list(n, a);
-		n = checkmixed(n, &init);
-		break;
-	}
-	goto out;
-
-badt:
-	nl = ll->n;
-	if(nl->diag == 0) {
-		nl->diag = 1;
-		yyerror("assignment count mismatch: %d = %d %#N", cl, cr, lr->n);
-	}
-outl:
-	n = ll;
-
-out:
-	// n is the lhs of the assignment.
-	// init holds the list of declarations.
-	a = nod(OAS2, N, N);
-	a->list = n;
-	a->rlist = lr;
-	a->ninit = init;
-	a->colas = 1;
-	return a;
 }
 
 /*
@@ -2596,7 +2312,7 @@ vmkcall(Node *fn, Type *t, NodeList **init, va_list va)
 	r = nod(OCALL, fn, N);
 	r->list = args;
 	if(fn->type->outtuple > 0)
-		typecheck(&r, Erv);
+		typecheck(&r, Erv | Efnstruct);
 	else
 		typecheck(&r, Etop);
 	walkexpr(&r, init);

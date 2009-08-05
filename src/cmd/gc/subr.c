@@ -582,7 +582,7 @@ dodump(Node *n, int dep)
 		print("%O-ntype\n", n->op);
 		dodump(n->ntype, dep+1);
 	}
-	if(n->defn != nil) {
+	if(n->defn != nil && n->defn->op != OAS && n->defn->op != OAS2) {
 		indent(dep);
 		print("%O-defn\n", n->op);
 		dodump(n->defn, dep+1);

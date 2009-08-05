@@ -8,5 +8,5 @@ package main
 
 func main() {
   var x int;
-  x := 0; // BUG: redeclaration - should not compile
+  x := 0; // ERROR "declar|:="
 }
