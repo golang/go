@@ -393,10 +393,11 @@ typ(int et)
 	return t;
 }
 
-Node*
-dobad(void)
+
+Type*
+sortinter(Type *t)
 {
-	return nod(OBAD, N, N);
+	return t;
 }
 
 Node*
@@ -2636,23 +2637,25 @@ NodeList*
 structargs(Type **tl, int mustname)
 {
 	Iter savet;
-	Node *a;
+	Node *a, *n;
 	NodeList *args;
 	Type *t;
-	char nam[100];
-	int n;
+	char buf[100];
+	int gen;
 
 	args = nil;
-	n = 0;
+	gen = 0;
 	for(t = structfirst(&savet, tl); t != T; t = structnext(&savet)) {
+		n = N;
 		if(t->sym)
-			a = nametodcl(newname(t->sym), t->type);
+			n = newname(t->sym);
 		else if(mustname) {
 			// have to give it a name so we can refer to it in trampoline
-			snprint(nam, sizeof nam, ".anon%d", n++);
-			a = nametodcl(newname(lookup(nam)), t->type);
-		} else
-			a = anondcl(t->type);
+			snprint(buf, sizeof buf, ".anon%d", gen++);
+			n = newname(lookup(buf));
+		}
+		a = nod(ODCLFIELD, n, N);
+		a->type = t->type;
 		args = list(args, a);
 	}
 	return args;
@@ -2694,7 +2697,8 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
 	dclcontext = PEXTERN;
 	markdcl();
 
-	this = nametodcl(newname(lookup(".this")), rcvr);
+	this = nod(ODCLFIELD, newname(lookup(".this")), N);
+	this->type = rcvr;
 	in = structargs(getinarg(method->type), 1);
 	out = structargs(getoutarg(method->type), 0);
 
@@ -2982,6 +2986,9 @@ liststmt(NodeList *l)
 	return n;
 }
 
+/*
+ * return nelem of list
+ */
 int
 count(NodeList *l)
 {
@@ -2992,3 +2999,96 @@ count(NodeList *l)
 		n++;
 	return n;
 }
+
+/*
+ * return nelem of list
+ */
+int
+structcount(Type *t)
+{
+	int v;
+	Iter s;
+
+	v = 0;
+	for(t = structfirst(&s, &t); t != T; t = structnext(&s))
+		v++;
+	return v;
+}
+
+/*
+ * when a type's width should be known, we call checkwidth
+ * to compute it.  during a declaration like
+ *
+ *	type T *struct { next T }
+ *
+ * it is necessary to defer the calculation of the struct width
+ * until after T has been initialized to be a pointer to that struct.
+ * similarly, during import processing structs may be used
+ * before their definition.  in those situations, calling
+ * defercheckwidth() stops width calculations until
+ * resumecheckwidth() is called, at which point all the
+ * checkwidths that were deferred are executed.
+ * sometimes it is okay to
+ */
+typedef struct TypeList TypeList;
+struct TypeList {
+	Type *t;
+	TypeList *next;
+};
+
+static TypeList *tlfree;
+static TypeList *tlq;
+static int defercalc;
+
+void
+checkwidth(Type *t)
+{
+	TypeList *l;
+
+	// function arg structs should not be checked
+	// outside of the enclosing function.
+	if(t->funarg)
+		fatal("checkwidth %T", t);
+
+	if(!defercalc) {
+		dowidth(t);
+		return;
+	}
+
+	l = tlfree;
+	if(l != nil)
+		tlfree = l->next;
+	else
+		l = mal(sizeof *l);
+
+	l->t = t;
+	l->next = tlq;
+	tlq = l;
+}
+
+void
+defercheckwidth(void)
+{
+	// we get out of sync on syntax errors, so don't be pedantic.
+	// if(defercalc)
+	//	fatal("defercheckwidth");
+	defercalc = 1;
+}
+
+void
+resumecheckwidth(void)
+{
+	TypeList *l;
+
+	if(!defercalc)
+		fatal("restartcheckwidth");
+	defercalc = 0;
+
+	for(l = tlq; l != nil; l = tlq) {
+		dowidth(l->t);
+		tlq = l->next;
+		l->next = tlfree;
+		tlfree = l;
+	}
+}
+

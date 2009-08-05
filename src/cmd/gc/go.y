@@ -1137,7 +1137,6 @@ fndcl:
 	{
 		Node *n;
 
-		b0stack = dclstack;	// mark base for fn literals
 		$$ = nod(ODCLFUNC, N, N);
 		$$->nname = $1;
 		if($3 == nil && $5 == nil)
@@ -1159,7 +1158,6 @@ fndcl:
 			rcvr = N;
 		}
 
-		b0stack = dclstack;	// mark base for fn literals
 		$$ = nod(ODCLFUNC, N, N);
 		$$->nname = $4;
 		$$->nname = methodname($4, rcvr->type);
