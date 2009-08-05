@@ -585,7 +585,7 @@ func (st *state) findVar(s string) reflect.Value {
 		if !ok {
 			return nil
 		}
-		data = data.(*reflect.StructValue).Field(field.Index);
+		data = data.(*reflect.StructValue).FieldByIndex(field.Index);
 	}
 	return data
 }

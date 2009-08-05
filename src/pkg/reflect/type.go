@@ -463,7 +463,7 @@ type StructField struct {
 	Type Type;
 	Tag string;
 	Offset uintptr;
-	Index int;
+	Index []int;
 	Anonymous bool;
 }
 
@@ -491,22 +491,105 @@ func (t *StructType) Field(i int) (f StructField) {
 		f.Tag = *p.tag;
 	}
 	f.Offset = p.offset;
-	f.Index = i;
+	f.Index = []int{i};
 	return;
 }
 
-// FieldByName returns the field with the provided name and a boolean to indicate
-// that the field was found.
-func (t *StructType) FieldByName(name string) (f StructField, present bool) {
-	for i, p := range t.fields {
-		ff := t.Field(i);
-		if ff.Name == name {
-			f = ff;
-			present = true;
-			break;
+// TODO(gri): Should there be an error/bool indicator if the index
+//            is wrong for FieldByIndex?
+
+// FieldByIndex returns the nested field corresponding to index.
+func (t *StructType) FieldByIndex(index []int) (f StructField) {
+	for i, x := range index {
+		if i > 0 {
+			ft := f.Type;
+			if pt, ok := ft.(*PtrType); ok {
+				ft = pt.Elem();
+			}
+			if st, ok := ft.(*StructType); ok {
+				t = st;
+			} else {
+				var f0 StructField;
+				f = f0;
+				return;
+			}
 		}
+		f = t.Field(x);
 	}
 	return;
+}
+
+const inf = 1 << 30;	// infinity - no struct has that many nesting levels
+
+func (t *StructType) fieldByName(name string, mark map[*StructType]bool, depth int) (ff StructField, fd int) {
+	fd = inf;	// field depth
+
+	if _, marked := mark[t]; marked {
+		// Struct already seen.
+		return;
+	}
+	mark[t] = true;
+
+	var fi int;	// field index
+L:	for i, _ := range t.fields {
+		f := t.Field(i);
+		d := inf;
+		switch {
+		case f.Name == name:
+			// Matching top-level field.
+			d = depth;
+		case f.Anonymous:
+			ft := f.Type;
+			if pt, ok := ft.(*PtrType); ok {
+				ft = pt.Elem();
+			}
+			switch {
+			case ft.Name() == name:
+				// Matching anonymous top-level field.
+				d = depth;
+			case fd > 0:
+				// No top-level field yet; look inside nested structs.
+				if st, ok := ft.(*StructType); ok {
+					f, d = st.fieldByName(name, mark, depth+1);
+				}
+			}
+		}
+
+		switch {
+		case d < fd:
+			// Found field at shallower depth.
+			ff, fi, fd = f, i, d;
+		case d == fd:
+			// More than one matching field at the same depth (or d, fd == inf).
+			// Same as no field found.
+			fd = inf;
+			if d == depth {
+				// Impossible to find a field at lower depth.
+				break L;
+			}
+		}
+	}
+
+	if fd < inf {
+		// Found matching field.
+		if len(ff.Index) <= depth {
+			ff.Index = make([]int, depth+1);
+		}
+		ff.Index[depth] = fi;
+	}
+
+	mark[t] = false, false;
+	return;
+}
+
+// FieldByName returns the struct field with the given name
+// and a boolean to indicate if the field was found.
+func (t *StructType) FieldByName(name string) (f StructField, present bool) {
+	if ff, fd := t.fieldByName(name, make(map[*StructType]bool), 0); fd < inf {
+		ff.Index = ff.Index[0 : fd+1];
+		f, present = ff, true;
+	}
+	return
 }
 
 // NumField returns the number of struct fields.

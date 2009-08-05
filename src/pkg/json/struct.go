@@ -185,7 +185,7 @@ func (b *_StructBuilder) Key(k string) Builder {
 	if v, ok := reflect.Indirect(b.val).(*reflect.StructValue); ok {
 		t := v.Type().(*reflect.StructType);
 		if field, ok := t.FieldByName(k); ok {
-			return &_StructBuilder{ v.Field(field.Index) }
+			return &_StructBuilder{ v.FieldByIndex(field.Index) }
 		}
 		// Again, case-insensitive.
 		for i := 0; i < t.NumField(); i++ {
