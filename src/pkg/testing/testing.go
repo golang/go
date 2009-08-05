@@ -128,7 +128,7 @@ func Main(tests []Test) {
 		os.Exit(1);
 	}
 	for i := 0; i < len(tests); i++ {
-		if !re.Match(tests[i].Name) {
+		if !re.MatchString(tests[i].Name) {
 			continue;
 		}
 		if *chatty {

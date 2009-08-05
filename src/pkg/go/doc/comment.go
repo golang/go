@@ -51,18 +51,18 @@ func commentText(comments []string) string {
 		w := 0;
 		for j, l := range cl {
 			// remove /* and */ lines
-			if comment_junk.Match(l) {
+			if comment_junk.MatchString(l) {
 				continue;
 			}
 
 			// strip trailing white space
-			m := trailing_whitespace.Execute(l);
+			m := trailing_whitespace.ExecuteString(l);
 			if len(m) > 0 {
 				l = l[0 : m[1]];
 			}
 
 			// strip leading comment markers
-			m = comment_markers.Execute(l);
+			m = comment_markers.ExecuteString(l);
 			if len(m) > 0 {
 				l = l[m[1] : len(l)];
 			}

@@ -64,7 +64,7 @@ func TestDialError(t *testing.T) {
 			continue;
 		}
 		s := e.String();
-		match, err := regexp.Match(tt.Pattern, s);
+		match, err := regexp.MatchString(tt.Pattern, s);
 		if !match {
 			t.Errorf("#%d: %q, want match for %#q", i, s, tt.Pattern);
 		}
