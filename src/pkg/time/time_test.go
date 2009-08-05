@@ -60,8 +60,8 @@ func TestSecondsToUTC(t *testing.T) {
 		}
 		if !same(tm, golden) {
 			t.Errorf("SecondsToUTC(%d):", sec);
-			t.Errorf("  want=%v", *golden);
-			t.Errorf("  have=%v", *tm);
+			t.Errorf("  want=%+v", *golden);
+			t.Errorf("  have=%+v", *tm);
 		}
 	}
 }
@@ -77,8 +77,8 @@ func TestSecondsToLocalTime(t *testing.T) {
 		}
 		if !same(tm, golden) {
 			t.Errorf("SecondsToLocalTime(%d):", sec);
-			t.Errorf("  want=%v", *golden);
-			t.Errorf("  have=%v", *tm);
+			t.Errorf("  want=%+v", *golden);
+			t.Errorf("  have=%+v", *tm);
 		}
 	}
 }
