@@ -12,7 +12,6 @@
  *
  * TODO:
  *	trailing ... section of function calls
- *	range
  */
 
 #include "go.h"
@@ -376,6 +375,10 @@ reswitch:
 			goto error;
 		goto ret;
 
+	case OXDOT:
+		n = adddot(n);
+		n->op = ODOT;
+		// fall through
 	case ODOT:
 		l = typecheck(&n->left, Erv);
 		if((t = l->type) == T)
@@ -882,6 +885,11 @@ reswitch:
 		typecheckswitch(n);
 		goto ret;
 
+	case ORANGE:
+		ok |= Etop;
+		typecheckrange(n);
+		goto ret;
+
 	case OTYPECASE:
 		ok |= Etop | Erv;
 		typecheck(&n->left, Erv);
@@ -1069,7 +1077,7 @@ nokeys(NodeList *l)
 	return 1;
 }
 
-static int
+int
 checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
 {
 	*op = OCONV;

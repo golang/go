@@ -594,39 +594,12 @@ colasname(Node *n)
 	return 0;
 }
 
-Node*
-old2new(Node *n, Type *t, NodeList **init)
-{
-	Node *l;
-
-	if(!colasname(n)) {
-		yyerror("left side of := must be a name");
-		return n;
-	}
-	if(t != T && t->funarg) {
-		yyerror("use of multi func value as single value in :=");
-		return n;
-	}
-	l = newname(n->sym);
-	dodclvar(l, t, init);
-	return l;
-}
-
-Node*
-colas(NodeList *left, NodeList *right)
+void
+colasdefn(NodeList *left, Node *defn)
 {
 	int nnew;
-	Node *n, *as;
 	NodeList *l;
-
-	if(count(left) == 1 && count(right) == 1)
-		as = nod(OAS, left->n, right->n);
-	else {
-		as = nod(OAS2, N, N);
-		as->list = left;
-		as->rlist = right;
-	}
-	as->colas = 1;
+	Node *n;
 
 	nnew = 0;
 	for(l=left; l; l=l->next) {
@@ -640,14 +613,34 @@ colas(NodeList *left, NodeList *right)
 		nnew++;
 		n = newname(n->sym);
 		declare(n, dclcontext);
-		if(as->op == OAS)
-			as->left = n;
-		n->defn = as;
-		as->ninit = list(as->ninit, nod(ODCL, n, N));
+		n->defn = defn;
+		defn->ninit = list(defn->ninit, nod(ODCL, n, N));
 		l->n = n;
 	}
 	if(nnew == 0)
 		yyerror("no new variables on left side of :=");
+}
+
+Node*
+colas(NodeList *left, NodeList *right)
+{
+	Node *as;
+
+	as = nod(OAS2, N, N);
+	as->list = left;
+	as->rlist = right;
+	as->colas = 1;
+	colasdefn(left, as);
+
+	// make the tree prettier; not necessary
+	if(count(left) == 1 && count(right) == 1) {
+		as->left = as->list->n;
+		as->right = as->rlist->n;
+		as->list = nil;
+		as->rlist = nil;
+		as->op = OAS;
+	}
+
 	return as;
 }
 

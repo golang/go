@@ -8,32 +8,6 @@
 
 #include "go.h"
 
-/*
- * declare v in
- *	case v := <-chan		// select and switch
- * called during parse
- */
-Node*
-selectas(Node *name, Node *expr, NodeList **init)
-{
-	Type *t;
-
-	if(expr == N || expr->op != ORECV)
-		goto bad;
-
-	walkexpr(&expr->left, init);
-	t = expr->left->type;
-	if(t == T)
-		goto bad;
-	if(t->etype != TCHAN)
-		goto bad;
-	t = t->type;
-	return old2new(name, t, init);
-
-bad:
-	return name;
-}
-
 void
 typecheckselect(Node *sel)
 {

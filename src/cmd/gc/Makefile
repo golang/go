@@ -30,6 +30,7 @@ OFILES=\
 	mparith3.$O\
 	obj.$O\
 	print.$O\
+	range.$O\
 	reflect.$O\
 	select.$O\
 	sinit.$O\

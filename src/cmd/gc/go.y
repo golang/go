@@ -464,8 +464,7 @@ simple_stmt:
 case:
 	LCASE expr_or_type_list ':'
 	{
-		int e;
-		Node *n;
+		Node *n, *ntype;
 
 		// will be converted to OCASE
 		// right will point to next case
@@ -474,29 +473,18 @@ case:
 		$$ = nod(OXCASE, N, N);
 		if(typeswvar != N && typeswvar->right != N) {
 			// type switch
-			n = $2->n;
+			ntype = $2->n;
 			if($2->next != nil)
 				yyerror("type switch case cannot be list");
-			if(n->op == OLITERAL && n->val.ctype == CTNIL) {
+			if(ntype->op == OLITERAL && ntype->val.ctype == CTNIL) {
 				// case nil
 				$$->list = list1(nod(OTYPECASE, N, N));
 				break;
 			}
-
-			// TODO: move
-			e = nerrors;
-			typecheck(&n, Etype | Erv);
-			if(n->op == OTYPE) {
-				n = old2new(typeswvar->right, n->type, &$$->ninit);
-				$$->list = list1(nod(OTYPECASE, n, N));
-				break;
-			}
-			// maybe typecheck found problems that keep
-			// e from being valid even outside a type switch.
-			// only complain if typecheck didn't print new errors.
-			if(nerrors == e)
-				yyerror("non-type case in type switch");
-			$$->diag = 1;
+			n = newname(typeswvar->right->sym);
+			declare(n, dclcontext);
+			n->ntype = ntype;
+			$$->list = list1(nod(OTYPECASE, n, N));
 		} else {
 			// expr switch
 			$$->list = $2;
@@ -519,7 +507,6 @@ case:
 		// done in casebody()
 		poptodcl();
 		$$ = nod(OXCASE, N, N);
-//		$$->list = list1(nod(OAS, selectas($2, $4, &$$->ninit), $4));
 		$$->list = list1(colas(list1($2), list1($4)));
 	}
 |	LDEFAULT ':'
@@ -590,7 +577,8 @@ range_stmt:
 	{
 		$$ = nod(ORANGE, N, $4);
 		$$->list = $1;
-		$$->etype = 1;
+		$$->colas = 1;
+		colasdefn($1, $$);
 	}
 
 for_header:
@@ -612,9 +600,6 @@ for_header:
 		$$->ntest = $1;
 	}
 |	range_stmt
-	{
-		$$ = dorange($1);
-	}
 
 for_body:
 	for_header loop_body
@@ -850,8 +835,7 @@ pexpr:
 			$$ = oldname(s);
 			break;
 		}
-		$$ = nod(ODOT, $1, newname($3));
-		$$ = adddot($$);
+		$$ = nod(OXDOT, $1, newname($3));
 	}
 |	'(' expr_or_type ')'
 	{
@@ -1041,8 +1025,7 @@ dotname:
 			$$ = oldname(s);
 			break;
 		}
-		$$ = nod(ODOT, $1, newname($3));
-		$$ = adddot($$);
+		$$ = nod(OXDOT, $1, newname($3));
 	}
 
 othertype:
