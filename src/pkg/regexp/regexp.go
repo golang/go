@@ -87,7 +87,8 @@ const (
 	_EOT;		// '$' end of text
 	_CHAR;	// 'a' regular character
 	_CHARCLASS;	// [a-z] character class
-	_ANY;		// '.' any character
+	_ANY;		// '.' any character including newline
+	_NOTNL;		// [^\n] special case: any character but newline
 	_BRA;		// '(' parenthesized expression
 	_EBRA;	// ')'; end of '(' parenthesized expression
 	_ALT;		// '|' alternation
@@ -200,6 +201,14 @@ type _Any struct {
 func (any *_Any) kind() int { return _ANY }
 func (any *_Any) print() { print("any") }
 
+// --- NOTNL any character but newline
+type _NotNl struct {
+	common
+}
+
+func (notnl *_NotNl) kind() int { return _NOTNL }
+func (notnl *_NotNl) print() { print("notnl") }
+
 // --- BRA parenthesized expression
 type _Bra struct {
 	common;
@@ -305,7 +314,6 @@ func specialcclass(c int) bool {
 
 func (p *parser) charClass() instr {
 	cc := newCharClass();
-	p.re.add(cc);
 	if p.c() == '^' {
 		cc.negate = true;
 		p.nextc();
@@ -317,6 +325,14 @@ func (p *parser) charClass() instr {
 			if left >= 0 {
 				p.re.setError(ErrBadRange);
 			}
+			// Is it [^\n]?
+			if cc.negate && cc.ranges.Len() == 2 &&
+				cc.ranges.At(0) == '\n' && cc.ranges.At(1) == '\n' {
+				nl := new(_NotNl);
+				p.re.add(nl);
+				return nl;
+			}
+			p.re.add(cc);
 			return cc;
 		case '-':	// do this before backslash processing
 			p.re.setError(ErrBadRange);
@@ -678,6 +694,10 @@ func (re *Regexp) doExecute(str string, pos int) []int {
 				}
 			case _ANY:
 				if c != endOfFile {
+					s[out] = addState(s[out], st.inst.next(), st.match)
+				}
+			case _NOTNL:
+				if c != endOfFile && c != '\n' {
 					s[out] = addState(s[out], st.inst.next(), st.match)
 				}
 			case _BRA:

@@ -27,6 +27,7 @@ var good_re = []string{
 	`[]`,
 	`[abc]`,
 	`[^1234]`,
+	`[^\n]`,
 }
 
 // TODO: nice to do this with a map
@@ -72,6 +73,7 @@ var matches = []tester {
 	tester{ `[a-z]+`,	"abcd",	vec{0,4} },
 	tester{ `[^a-z]+`,	"ab1234cd",	vec{2,6} },
 	tester{ `[a\-\]z]+`,	"az]-bcz",	vec{0,4} },
+	tester{ `[^\n]+`,	"abcd\n",	vec{0,4} },
 	tester{ `[日本語]+`,	"日本語日本語",	vec{0,18} },
 	tester{ `()`,	"",	vec{0,0, 0,0} },
 	tester{ `(a)`,	"a",	vec{0,1, 0,1} },
