@@ -490,6 +490,125 @@ func (t *ArrayType) String() string {
 func (t *ArrayType) Zero() Value
 
 /*
+ * Struct
+ */
+
+type StructField struct {
+	Name string;
+	Type Type;
+	Anonymous bool;
+}
+
+type StructType struct {
+	commonType;
+	Elems []StructField;
+	maxDepth int;
+}
+
+var structTypes = newTypeArrayMap()
+
+// Two struct types are identical if they have the same sequence of
+// fields, and if corresponding fields have the same names and
+// identical types. Two anonymous fields are considered to have the
+// same name.
+
+func NewStructType(fields []StructField) *StructType {
+	// Start by looking up just the types
+	fts := make([]Type, len(fields));
+	for i, f := range fields {
+		fts[i] = f.Type;
+	}
+	tMapI := structTypes.Get(fts);
+	if tMapI == nil {
+		tMapI = structTypes.Put(fts, make(map[string] *StructType));
+	}
+	tMap := tMapI.(map[string] *StructType);
+
+	// Construct key for field names
+	key := "";
+	for _, f := range fields {
+		// XXX(Spec) It's not clear if struct { T } and struct
+		// { T T } are either identical or compatible.  The
+		// "Struct Types" section says that the name of that
+		// field is "T", which suggests that they are
+		// identical, but it really means that it's the name
+		// for the purpose of selector expressions and nothing
+		// else.  We decided that they should be neither
+		// identical or compatible.
+		if f.Anonymous {
+			key += "!";
+		}
+		key += f.Name + " ";
+	}
+
+	// XXX(Spec) Do the tags also have to be identical for the
+	// types to be identical?  I certainly hope so, because
+	// otherwise, this is the only case where two distinct type
+	// objects can represent identical types.
+
+	t, ok := tMap[key];
+	if !ok {
+		// Create new struct type
+
+		// Compute max anonymous field depth
+		maxDepth := 1;
+		for _, f := range fields {
+			// TODO(austin) Careful of type T struct { *T }
+			if st, ok := f.Type.(*StructType); ok {
+				if st.maxDepth + 1 > maxDepth {
+					maxDepth = st.maxDepth + 1;
+				}
+			}
+		}
+
+		t = &StructType{commonType{}, fields, maxDepth};
+		tMap[key] = t;
+	}
+	return t;
+}
+
+func (t *StructType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*StructType);
+	if !ok {
+		return false;
+	}
+	if len(t.Elems) != len(t2.Elems) {
+		return false;
+	}
+	for i, e := range t.Elems {
+		e2 := t2.Elems[i];
+		// XXX(Spec) An anonymous and a non-anonymous field
+		// are neither identical nor compatible.
+		if (e.Anonymous != e2.Anonymous ||
+		    (!e.Anonymous && e.Name != e2.Name) ||
+		    !e.Type.compat(e2.Type, conv)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+func (t *StructType) lit() Type {
+	return t;
+}
+
+func (t *StructType) String() string {
+	s := "struct {";
+	for i, f := range t.Elems {
+		if i > 0 {
+			s += "; ";
+		}
+		if !f.Anonymous {
+			s += f.Name + " ";
+		}
+		s += f.Type.String();
+	}
+	return s + "}";
+}
+
+func (t *StructType) Zero() Value
+
+/*
  * Pointer
  */
 
@@ -682,13 +801,21 @@ type ChanType struct {
  * Named types
  */
 
+type Method struct {
+	decl *FuncDecl;
+	fn Func;
+}
+
 type NamedType struct {
 	token.Position;
 	name string;
-	// Underlying type
+	// Underlying type.  If incomplete is true, this will be nil.
+	// If incomplete is false and this is still nil, then this is
+	// a placeholder type representing an error.
 	def Type;
-	// TODO(austin) Methods can be on NamedType or *NamedType
-	//methods map[string] XXX;
+	// True while this type is being defined.
+	incomplete bool;
+	methods map[string] Method;
 }
 
 func (t *NamedType) compat(o Type, conv bool) bool {

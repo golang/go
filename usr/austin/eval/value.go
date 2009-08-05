@@ -479,6 +479,49 @@ func (t *ArrayType) Zero() Value {
 }
 
 /*
+ * Struct
+ */
+
+type structV []Value
+
+// TODO(austin) Should these methods (and arrayV's) be on structV
+// instead of *structV?
+func (v *structV) String() string {
+	res := "{";
+	for i, v := range *v {
+		if i > 0 {
+			res += "; ";
+		}
+		res += v.String();
+	}
+	return res + "}";
+}
+
+func (v *structV) Assign(o Value) {
+	oa := o.(StructValue);
+	l := len(*v);
+	for i := 0; i < l; i++ {
+		(*v)[i].Assign(oa.Field(i));
+	}
+}
+
+func (v *structV) Get() StructValue {
+	return v;
+}
+
+func (v *structV) Field(i int) Value {
+	return (*v)[i];
+}
+
+func (t *StructType) Zero() Value {
+	res := structV(make([]Value, len(t.Elems)));
+	for i, f := range t.Elems {
+		res[i] = f.Type.Zero();
+	}
+	return &res;
+}
+
+/*
  * Pointer
  */
 
@@ -562,8 +605,8 @@ func (v multiV) Assign(o Value) {
 
 func (t *MultiType) Zero() Value {
 	res := make([]Value, len(t.Elems));
-	for i := 0; i < len(t.Elems); i++ {
-		res[i] = t.Elems[i].Zero();
+	for i, t := range t.Elems {
+		res[i] = t.Zero();
 	}
 	return multiV(res);
 }
