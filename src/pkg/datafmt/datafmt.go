@@ -410,49 +410,6 @@ func (s *State) error(msg string) {
 }
 
 
-// getField searches in val, which must be a struct, for a field
-// with the given name. It returns the value and the embedded depth
-// where it was found.
-//
-func getField(val reflect.Value, fieldname string) (reflect.Value, int) {
-	// do we have a struct in the first place?
-	sval, ok := val.(*reflect.StructValue);
-	if !ok {
-		return nil, 0;
-	}
-	styp := sval.Type().(*reflect.StructType);
-
-	// look for field at the top level
-	if field, ok := styp.FieldByName(fieldname); ok {
-		return sval.Field(field.Index), 0;
-	}
-
-	// look for field in anonymous fields
-	var field reflect.Value;
-	level := 1000;  // infinity (no struct has that many levels)
-	for i := 0; i < styp.NumField(); i++ {
-		f := styp.Field(i);
-		if f.Anonymous {
-			f, l := getField(sval.Field(i), fieldname);
-			// keep the most shallow field
-			if f != nil {
-				switch {
-				case l < level:
-					field, level = f, l;
-				case l == level:
-					// more than one field at the same level,
-					// possibly an error unless there is a more
-					// shallow field found later
-					field = nil;
-				}
-			}
-		}
-	}
-
-	return field, level + 1;
-}
-
-
 // TODO At the moment, unnamed types are simply mapped to the default
 //      names below. For instance, all unnamed arrays are mapped to
 //      'array' which is not really sufficient. Eventually one may want
@@ -613,10 +570,13 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 
 		default:
 			// value is value of named field
-			field, _ := getField(value, t.fieldName);
-			if field == nil {
-				// TODO consider just returning false in this case
-				s.error(fmt.Sprintf("error: no field `%s` in `%s`", t.fieldName, value.Type()));
+			var field reflect.Value;
+			if sval, ok := value.(*reflect.StructValue); ok {
+				field = sval.FieldByName(t.fieldName);
+				if field == nil {
+					// TODO consider just returning false in this case
+					s.error(fmt.Sprintf("error: no field `%s` in `%s`", t.fieldName, value.Type()));
+				}
 			}
 			value = field;
 		}

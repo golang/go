@@ -1126,6 +1126,35 @@ func (v *StructValue) Field(i int) Value {
 	return newValue(f.Type, addr(uintptr(v.addr)+f.Offset), v.canSet && f.PkgPath == "");
 }
 
+// FieldByIndex returns the nested field corresponding to index.
+func (t *StructValue) FieldByIndex(index []int) (v Value) {
+	v = t;
+	for i, x := range index {
+		if i > 0 {
+			if p, ok := v.(*PtrValue); ok {
+				v = p.Elem();
+			}
+			if s, ok := v.(*StructValue); ok {
+				t = s;
+			} else {
+				v = nil;
+				return;
+			}
+		}
+		v = t.Field(x);
+	}
+	return;
+}
+
+// FieldByName returns the struct field with the given name.
+// The result is nil if no field was found.
+func (t *StructValue) FieldByName(name string) Value {
+	if f, ok := t.Type().(*StructType).FieldByName(name); ok {
+		return t.FieldByIndex(f.Index);
+	}
+	return nil;
+}
+
 // NumField returns the number of fields in the struct.
 func (v *StructValue) NumField() int {
 	return v.typ.(*StructType).NumField();

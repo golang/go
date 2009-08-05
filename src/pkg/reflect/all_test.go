@@ -818,3 +818,147 @@ func TestInterfaceSet(t *testing.T) {
 		t.Errorf("Interface Method returned %d; want 250", i);
 	}
 }
+
+type T1 struct { a string; int; }
+
+func TestAnonymousFields(t *testing.T) {
+	var field StructField;
+	var ok bool;
+	var t1 T1;
+	type1 := Typeof(t1).(*StructType);
+	if field, ok = type1.FieldByName("int"); !ok {
+		t.Error("no field 'int'");
+	}
+	if field.Index[0] != 1 {
+		t.Error("field index should be 1; is", field.Index);
+	}
+}
+
+type FTest struct {
+	s interface{};
+	name string;
+	index []int;
+	value int;
+}
+
+type S0 struct {
+	a, b, c, d, d int;
+}
+
+type S1 struct {
+	b int;
+	S0;
+}
+
+type S2 struct {
+	a int;
+	*S1;
+}
+
+type S3 struct {
+	S1;
+	S2;
+	d, e int;
+	*S1;
+}
+
+type S4 struct {
+	*S4;
+	a int;
+}
+
+var fieldTests = []FTest {
+	FTest{ struct{ }{}, "", nil, 0 },
+	FTest{ struct{ }{}, "foo", nil, 0 },
+	FTest{ S0{a: 'a'}, "a", []int{0}, 'a' },
+	FTest{ S0{}, "d", nil, 0 },
+	FTest{ S1{S0: S0{a: 'a'}}, "a", []int{1, 0}, 'a' },
+	FTest{ S1{b: 'b'}, "b", []int{0}, 'b' },
+	FTest{ S1{}, "S0", []int{1}, 0 },
+	FTest{ S1{S0: S0{c: 'c'}}, "c", []int{1, 2}, 'c' },
+	FTest{ S2{a: 'a'}, "a", []int{0}, 'a' },
+	FTest{ S2{}, "S1", []int{1}, 0 },
+	FTest{ S2{S1: &S1{b: 'b'}}, "b", []int{1, 0}, 'b' },
+	FTest{ S2{S1: &S1{S0: S0{c: 'c'}}}, "c", []int{1, 1, 2}, 'c' },
+	FTest{ S2{}, "d", nil, 0 },
+	FTest{ S3{}, "S1", nil, 0 },
+	FTest{ S3{S2: S2{a: 'a'}}, "a", []int{1, 0}, 'a' },
+	FTest{ S3{}, "b", nil, 0 },
+	FTest{ S3{d: 'd'}, "d", []int{2}, 0 },
+	FTest{ S3{e: 'e'}, "e", []int{3}, 'e' },
+	FTest{ S4{a: 'a'}, "a", []int{1}, 'a' },
+	FTest{ S4{}, "b", nil, 0 },
+}
+
+func TestFieldByIndex(t *testing.T) {
+	for _, test := range fieldTests {
+		s := Typeof(test.s).(*StructType);
+		f := s.FieldByIndex(test.index);
+		if f.Name != "" {
+			if test.index != nil {
+				if f.Name != test.name {
+					t.Errorf("%s.%s found; want %s", s.Name(), f.Name, test.name);
+				}
+			} else {
+				t.Errorf("%s.%s found", s.Name(), f.Name);
+			}
+		} else if len(test.index) > 0 {
+			t.Errorf("%s.%s not found", s.Name(), test.name);
+		}
+
+		if test.value != 0 {
+			v := reflect.NewValue(test.s).(*reflect.StructValue).FieldByIndex(test.index);
+			if v != nil {
+				if x, ok := v.Interface().(int); ok {
+					if x != test.value {
+						t.Errorf("%s%v is %d; want %d", s.Name(), test.index, x, test.value);
+					}
+				} else {
+					t.Errorf("%s%v value not an int", s.Name(), test.index);
+				}
+			} else {
+				t.Errorf("%s%v value not found", s.Name(), test.index);
+			}
+		}
+	}
+}
+
+func TestFieldByName(t *testing.T) {
+	for _, test := range fieldTests {
+		s := Typeof(test.s).(*StructType);
+		f, found := s.FieldByName(test.name);
+		if found {
+			if test.index != nil {
+				// Verify field depth and index.
+				if len(f.Index) != len(test.index) {
+					t.Errorf("%s.%s depth %d; want %d", s.Name(), test.name, len(f.Index), len(test.index));
+				} else {
+					for i, x := range f.Index {
+						if x != test.index[i] {
+							t.Errorf("%s.%s.Index[%d] is %d; want %d", s.Name(), test.name, i, x, test.index[i]);
+						}
+					}
+				}
+			} else {
+				t.Errorf("%s.%s found", s.Name(), f.Name);
+			}
+		} else if len(test.index) > 0 {
+			t.Errorf("%s.%s not found", s.Name(), test.name);
+		}
+		
+		if test.value != 0 {
+			v := reflect.NewValue(test.s).(*reflect.StructValue).FieldByName(test.name);
+			if v != nil {
+				if x, ok := v.Interface().(int); ok {
+					if x != test.value {
+						t.Errorf("%s.%s is %d; want %d", s.Name(), test.name, x, test.value);
+					}
+				} else {
+					t.Errorf("%s.%s value not an int", s.Name(), test.name);
+				}
+			} else {
+				t.Errorf("%s.%s value not found", s.Name(), test.name);
+			}
+		}
+	}
+}
