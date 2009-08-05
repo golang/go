@@ -45,3 +45,11 @@ binary-tree 15 # too slow to use 20
 	gccgo -O2 binary-tree-freelist.go	8.48u 0.00s 8.48r
 	gc binary-tree	9.60u 0.01s 9.62r
 	gc binary-tree-freelist	0.48u 0.01s 0.50r
+
+August 5, 2009
+
+fannkuch 12
+	gcc -O2 fannkuch.c	60.09u 0.01s 60.32r
+	gccgo -O2 fannkuch.go	64.89u 0.00s 64.92r
+	gc fannkuch	124.59u 0.00s 124.67r
+	gc_B fannkuch	91.14u 0.00s 91.16r
