@@ -38,3 +38,10 @@ nbody 50000000
 hacked Sqrt in assembler
 	gc nbody	31.97u 0.00s 32.01r
 ]
+
+binary-tree 15 # too slow to use 20
+	gcc -O2 binary-tree.c -lm	0.86u 0.00s 0.87r
+	gccgo -O2 binary-tree.go	1.69u 0.46s 2.15r
+	gccgo -O2 binary-tree-freelist.go	8.48u 0.00s 8.48r
+	gc binary-tree	9.60u 0.01s 9.62r
+	gc binary-tree-freelist	0.48u 0.01s 0.50r
