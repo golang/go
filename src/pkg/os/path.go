@@ -58,7 +58,8 @@ func MkdirAll(path string, perm int) Error {
 
 // RemoveAll removes path and any children it contains.
 // It removes everything it can but returns the first error
-// it encounters.
+// it encounters.  If the path does not exist, RemoveAll
+// returns nil (no error).
 func RemoveAll(path string) Error {
 	// Simple case: if Remove works, we're done.
 	err := Remove(path);
@@ -67,9 +68,12 @@ func RemoveAll(path string) Error {
 	}
 
 	// Otherwise, is this a directory we need to recurse into?
-	dir, err := os.Lstat(path);
-	if err != nil {
-		return err;
+	dir, serr := os.Lstat(path);
+	if serr != nil {
+		if serr, ok := serr.(*PathError); ok && serr.Error == ENOENT {
+			return nil;
+		}
+		return serr;
 	}
 	if !dir.IsDirectory() {
 		// Not a directory; return the error from Remove.
