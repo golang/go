@@ -15,28 +15,30 @@ YFILES=\
 	go.y\
 
 OFILES=\
-	reflect.$O\
-	y.tab.$O\
-	lex.$O\
-	subr.$O\
-	dcl.$O\
-	sinit.$O\
-	export.$O\
-	walk.$O\
-	swt.$O\
+	align.$O\
+	bits.$O\
+	builtin.$O\
+	compat.$O\
 	const.$O\
+	dcl.$O\
+	export.$O\
+	gen.$O\
+	init.$O\
+	lex.$O\
 	mparith1.$O\
 	mparith2.$O\
 	mparith3.$O\
-	builtin.$O\
-	compat.$O\
-	bits.$O\
-	align.$O\
-	gen.$O\
 	obj.$O\
 	print.$O\
-	typecheck.$O\
+	reflect.$O\
 	select.$O\
+	sinit.$O\
+	subr.$O\
+	swt.$O\
+	typecheck.$O\
+	unsafe.$O\
+	walk.$O\
+	y.tab.$O\
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)

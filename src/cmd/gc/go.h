@@ -601,8 +601,6 @@ EXTERN	char	namebuf[NSYMB];
 EXTERN	char	lexbuf[NSYMB];
 EXTERN	char	debug[256];
 EXTERN	Sym*	hash[NHASH];
-EXTERN	Sym*	dclstack;
-EXTERN	Sym*	b0stack;
 EXTERN	Sym*	pkgmyname;	// my name for package
 EXTERN	Sym*	pkgimportname;	// package name from imported package
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
@@ -814,7 +812,6 @@ void	argtype(Node*, Type*);
 int	eqargs(Type*, Type*);
 uint32	typehash(Type*, int, int);
 void	frame(int);
-Node*	dobad(void);
 Node*	nodintconst(int64);
 void	nodconst(Node*, Type*, int64);
 Node*	nodnil(void);
@@ -921,7 +918,6 @@ Type*	newtype(Sym*);
 Type*	oldtype(Sym*);
 void	fninit(NodeList*);
 Node*	nametodcl(Node*, Type*);
-Node*	anondcl(Type*);
 NodeList*	checkarglist(NodeList*);
 void	checkwidth(Type*);
 void	defercheckwidth(void);
