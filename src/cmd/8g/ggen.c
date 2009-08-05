@@ -57,7 +57,6 @@ compile(Node *fn)
 
 	pl = newplist();
 	pl->name = curfn->nname;
-	pl->locals = autodcl;
 
 	nodconst(&nod1, types[TINT32], 0);
 	ptxt = gins(ATEXT, curfn->nname, &nod1);

@@ -59,7 +59,6 @@ compile(Node *fn)
 
 	pl = newplist();
 	pl->name = curfn->nname;
-	pl->locals = autodcl;
 
 	nodconst(&nod1, types[TINT32], 0);
 	ptxt = gins(ATEXT, curfn->nname, &nod1);
@@ -573,7 +572,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 
 	regfree(&ax);
 	regfree(&dx);
-	
+
 	if(oldax.op != 0) {
 		gmove(&oldax, &ax);
 		regfree(&oldax);
@@ -582,7 +581,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 		gmove(&olddx, &dx);
 		regfree(&olddx);
 	}
-		
+
 }
 
 /*

@@ -25,14 +25,11 @@ static	Sym*	dclstack;
 void
 dcopy(Sym *a, Sym *b)
 {
+	a->package = b->package;
 	a->name = b->name;
 	a->def = b->def;
-	a->package = b->package;
-	a->undef = b->undef;
-	a->vargen = b->vargen;
 	a->block = b->block;
 	a->lastlineno = b->lastlineno;
-	a->offset = b->offset;
 }
 
 Sym*
@@ -148,155 +145,79 @@ testdclstack(void)
 /*
  * declare individual names - var, typ, const
  */
-static void
-redeclare(char *str, Sym *s)
+void
+declare(Node *n, int ctxt)
 {
+	Sym *s;
+	char *what;
+	int gen;
+	static int typegen, vargen;
+
+	s = n->sym;
+	gen = 0;
+	if(ctxt == PEXTERN) {
+		externdcl = list(externdcl, n);
+	} else {
+		if(autodcl != nil)
+			autodcl = list(autodcl, n);
+		if(n->op == OTYPE)
+			gen = ++typegen;
+		else if(n->op == ONAME)
+			gen = ++vargen;
+		pushdcl(s);
+	}
+
 	if(s->block == block) {
-		yyerror("%s %S redeclared in this block", str, s);
-		print("	previous declaration at %L\n", s->lastlineno);
+		what = "???";
+		switch(n->op) {
+		case ONAME:
+			what = "variable";
+			break;
+		case OLITERAL:
+			what = "constant";
+			break;
+		case OTYPE:
+			what = "type";
+			break;
+		}
+
+		yyerror("%s %S redeclared in this block", what, s);
+		print("\tprevious declaration at %L\n", s->lastlineno);
 	}
 	s->block = block;
 	s->lastlineno = lineno;
+	s->def = n;
+	n->vargen = gen;
+	n->funcdepth = funcdepth;
+	n->class = ctxt;
+
+	autoexport(n, ctxt);
 }
 
 void
 addvar(Node *n, Type *t, int ctxt)
 {
-	Dcl *r, *d;
-	Sym *s;
-	int gen;
-
 	if(n==N || n->sym == S || (n->op != ONAME && n->op != ONONAME) || t == T)
 		fatal("addvar: n=%N t=%T nil", n, t);
 
-	s = n->sym;
-
-	if(ctxt == PEXTERN || ctxt == PFUNC) {
-		r = externdcl;
-		gen = 0;
-	} else {
-		r = autodcl;
-		vargen++;
-		gen = vargen;
-		pushdcl(s);
-	}
-
-	redeclare("variable", s);
 	n->op = ONAME;
-	s->vargen = gen;
-	s->def = n;
-	s->offset = 0;
-
-	n->funcdepth = funcdepth;
+	declare(n, ctxt);
 	n->type = t;
-	n->vargen = gen;
-	n->class = ctxt;
-
-	d = dcl();
-	d->dsym = s;
-	d->dnode = n;
-	d->op = ONAME;
-
-	r->back->forw = d;
-	r->back = d;
-
-	if(dflag()) {
-		if(ctxt == PEXTERN)
-			print("extern var-dcl %S G%ld %T\n", s, s->vargen, t);
-		else if(ctxt == PFUNC)
-			print("extern func-dcl %S G%ld %T\n", s, s->vargen, t);
-		else
-			print("auto   var-dcl %S G%ld %T\n", s, s->vargen, t);
-	}
 }
 
 void
 addtyp(Type *n, int ctxt)
 {
-	Dcl *r, *d;
-	Sym *s;
-	static int typgen;
+	Node *def;
 
 	if(n==T || n->sym == S)
 		fatal("addtyp: n=%T t=%T nil", n);
 
-	s = n->sym;
+	def = typenod(n);
+	declare(def, ctxt);
+	n->vargen = def->vargen;
 
-	if(ctxt == PEXTERN)
-		r = externdcl;
-	else {
-		r = autodcl;
-		pushdcl(s);
-		n->vargen = ++typgen;
-	}
-
-	redeclare("type", s);
-	s->def = typenod(n);
-
-	d = dcl();
-	d->dsym = s;
-	d->dtype = n;
-	d->op = OTYPE;
-
-	d->back = r->back;
-	r->back->forw = d;
-	r->back = d;
-
-	d = dcl();
-	d->dtype = n;
-	d->op = OTYPE;
-
-	r = typelist;
-	d->back = r->back;
-	r->back->forw = d;
-	r->back = d;
-
-	if(dflag()) {
-		if(ctxt == PEXTERN)
-			print("extern typ-dcl %S G%ld %T\n", s, s->vargen, n);
-		else
-			print("auto   typ-dcl %S G%ld %T\n", s, s->vargen, n);
-	}
-}
-
-// TODO(rsc): cut
-void
-addconst(Node *n, Node *e, int ctxt)
-{
-	Sym *s;
-	Dcl *r, *d;
-
-	if(n->op != ONAME && n->op != ONONAME)
-		fatal("addconst: not a name");
-
-	if(e->op != OLITERAL) {
-		yyerror("expression must be a constant");
-		return;
-	}
-
-	s = n->sym;
-
-	if(ctxt == PEXTERN)
-		r = externdcl;
-	else {
-		r = autodcl;
-		pushdcl(s);
-	}
-
-	redeclare("constant", s);
-	s->def = e;
-	e->sym = s;
-
-	d = dcl();
-	d->dsym = s;
-	d->dnode = e;
-	d->op = OLITERAL;
-	d->back = r->back;
-	r->back->forw = d;
-	r->back = d;
-
-	if(dflag())
-		print("const-dcl %S %N\n", n->sym, n->sym->def);
+	typelist = list(typelist, def);
 }
 
 /*
@@ -320,19 +241,8 @@ dodclvar(Node *n, Type *t, NodeList **init)
 		t = typ(TFORW);
 
 	addvar(n, t, dclcontext);
-	autoexport(n->sym);
 	if(funcdepth > 0)
 		*init = list(*init, nod(ODCL, n, N));
-}
-
-// TODO(rsc): cut
-void
-dodclconst(Node *n, Node *e)
-{
-	if(n == N)
-		return;
-	addconst(n, e, dclcontext);
-	autoexport(n->sym);
 }
 
 /*
@@ -354,15 +264,7 @@ dodcltype(Type *n)
 			n = s->def->type;
 			if(s->block != block) {
 				// completing forward struct from other file
-				Dcl *d, *r;
-				d = dcl();
-				d->dsym = s;
-				d->dtype = n;
-				d->op = OTYPE;
-				r = externdcl;
-				d->back = r->back;
-				r->back->forw = d;
-				r->back = d;
+				externdcl = list(externdcl, typenod(n));
 			}
 			goto found;
 		}
@@ -373,7 +275,7 @@ dodcltype(Type *n)
 
 found:
 	n->local = 1;
-	autoexport(n->sym);
+	autoexport(typenod(n), dclcontext);
 	return n;
 }
 
@@ -458,11 +360,10 @@ updatetype(Type *n, Type *t)
 NodeList*
 variter(NodeList *vl, Node *t, NodeList *el)
 {
-	int doexpr, gen;
+	int doexpr;
 	Node *v, *e;
 	NodeList *init;
 	Sym *s;
-	Dcl *r, *d;
 
 	init = nil;
 	doexpr = el != nil;
@@ -477,28 +378,13 @@ variter(NodeList *vl, Node *t, NodeList *el)
 		} else
 			e = N;
 
-		v = vl->n;		
+		v = vl->n;
 		s = v->sym;
-		if(dclcontext == PEXTERN || dclcontext == PFUNC) {
-			r = externdcl;
-			gen = 0;
-		} else {
-			r = autodcl;
-			gen = ++vargen;
-			pushdcl(s);
-		}
-			
-		redeclare("variable", s);
-		s->def = v;
-		// TODO: vargen
-		s->offset = 0;
-		s->block = block;
 
 		v->op = ONAME;
-		v->class = dclcontext;
+		declare(v, dclcontext);
 		v->ntype = t;
-		v->funcdepth = funcdepth;
-		v->vargen = gen;
+
 		if(e != N || funcdepth > 0) {
 			if(funcdepth > 0)
 				init = list(init, nod(ODCL, v, N));
@@ -507,15 +393,6 @@ variter(NodeList *vl, Node *t, NodeList *el)
 			if(e->right != N)
 				v->defn = e;
 		}
-		
-		d = dcl();
-		d->dsym = s;
-		d->dnode = v;
-		d->op = ONAME;
-		r->back->forw = d;
-		r->back = d;
-
-		autoexport(s);
 	}
 	if(el != nil)
 		yyerror("extra expr in var dcl");
@@ -531,7 +408,6 @@ constiter(NodeList *vl, Node *t, NodeList *cl)
 {
 	Node *v, *c;
 	NodeList *vv;
-	Sym *s;
 
 	vv = vl;
 	if(cl == nil) {
@@ -554,16 +430,11 @@ constiter(NodeList *vl, Node *t, NodeList *cl)
 		cl = cl->next;
 
 		v = vl->n;
-		s = v->sym;
-		if(dclcontext != PEXTERN)
-			pushdcl(s);
-		redeclare("constant", s);
-		s->def = v;
-
 		v->op = OLITERAL;
+		declare(v, dclcontext);
+
 		v->ntype = t;
 		v->defn = c;
-		autoexport(s);
 	}
 	if(cl != nil)
 		yyerror("extra expr in const dcl");
@@ -572,10 +443,8 @@ constiter(NodeList *vl, Node *t, NodeList *cl)
 }
 
 /*
- * this generates a new name that is
- * pushed down on the declaration list.
- * no diagnostics are produced as this
- * name will soon be declared.
+ * this generates a new name node,
+ * typically for labels or other one-off names.
  */
 Node*
 newname(Sym *s)
@@ -591,6 +460,11 @@ newname(Sym *s)
 	return n;
 }
 
+/*
+ * this generates a new name node for a name
+ * being declared.  if at the top level, it might return
+ * an ONONAME node created by an earlier reference.
+ */
 Node*
 dclname(Sym *s)
 {
@@ -685,42 +559,18 @@ newtype(Sym *s)
 	return t;
 }
 
-Type*
-oldtype(Sym *s)
-{
-	Type *t;
-
-	if(s == S)
-		return T;
-	if(s->def == N || s->def->op != OTYPE) {
-		if(!s->undef)
-			yyerror("%S is not a type", s);
-		return T;
-	}
-	t = s->def->type;
-
-	/*
-	 * If t is lowercase and not in our package
-	 * and this isn't a reference during the parsing
-	 * of import data, complain.
-	 */
-	if(pkgimportname == S && !exportname(s->name) && strcmp(s->package, package) != 0)
-		yyerror("cannot use type %T", t);
-	return t;
-}
-
 /*
  * type check top level declarations
  */
 void
 dclchecks(void)
 {
-	Dcl *d;
-	
-	for(d=externdcl; d!=D; d=d->forw) {
-		if(d->op != ONAME)
+	NodeList *l;
+
+	for(l=externdcl; l; l=l->next) {
+		if(l->n->op != ONAME)
 			continue;
-		typecheck(&d->dnode, Erv);
+		typecheck(&l->n, Erv);
 	}
 }
 
@@ -1228,8 +1078,7 @@ funchdr(Node *n)
 	}
 
 	// change the declaration context from extern to auto
-	autodcl = dcl();
-	autodcl->back = autodcl;
+	autodcl = list1(nod(OXXX, N, N));
 
 	if(funcdepth == 0 && dclcontext != PEXTERN)
 		fatal("funchdr: dclcontext");
@@ -1312,8 +1161,7 @@ funclit0(Node *t)
 	funclit = n;
 
 	// new declaration context
-	autodcl = dcl();
-	autodcl->back = autodcl;
+	autodcl = list1(nod(OEMPTY, N, N));
 
 	typecheck(&t, Etype);
 	funcargs(t->type);
@@ -1330,6 +1178,7 @@ funclit1(Node *ntype, NodeList *body)
 	Iter save;
 	int narg, shift;
 	NodeList *args, *l, *in, *out;
+	static int closgen;
 
 	type = ntype->type;
 	popdcl();
@@ -1408,8 +1257,7 @@ funclit1(Node *ntype, NodeList *body)
 	ft->outnamed = type->outnamed;
 
 	// declare function.
-	vargen++;
-	snprint(namebuf, sizeof(namebuf), "_f%.3ld·%s", vargen, filename);
+	snprint(namebuf, sizeof(namebuf), "_f%.3ld·%s", ++closgen, filename);
 	f = newname(lookup(namebuf));
 	addvar(f, ft, PFUNC);
 	f->funcdepth = 0;

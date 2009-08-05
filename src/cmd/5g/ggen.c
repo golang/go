@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 #undef	EXTERN
 #define	EXTERN
 #include "gg.h"
@@ -59,7 +58,6 @@ compile(Node *fn)
 
 	pl = newplist();
 	pl->name = curfn->nname;
-	pl->locals = autodcl;
 
 	nodconst(&nod1, types[TINT32], 0);
 	ptxt = gins(ATEXT, curfn->nname, &nod1);

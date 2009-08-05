@@ -8,49 +8,39 @@
 void dumpsym(Sym*);
 
 void
-addexportsym(Sym *s)
+addexportsym(Node *n)
 {
-	Dcl *d, *r;
-
-	d = mal(sizeof(*d));
-	d->dsym = s;
-	d->dnode = N;
-	d->lineno = lineno;
-
-	r = exportlist;
-	d->back = r->back;
-	r->back->forw = d;
-	r->back = d;
+	exportlist = list(exportlist, n);
 }
 
 void
-exportsym(Sym *s)
+exportsym(Node *n)
 {
-	if(s == S)
+	if(n == N || n->sym == S)
 		return;
-	if(s->export != 0) {
-		if(s->export != 1)
-			yyerror("export/package mismatch: %S", s);
+	if(n->sym->flags & (SymExport|SymPackage)) {
+		if(n->sym->flags & SymPackage)
+			yyerror("export/package mismatch: %S", n->sym);
 		return;
 	}
-	s->export = 1;
+	n->sym->flags |= SymExport;
 
-	addexportsym(s);
+	addexportsym(n);
 }
 
 void
-packagesym(Sym *s)
+packagesym(Node *n)
 {
-	if(s == S)
+	if(n == N || n->sym == S)
 		return;
-	if(s->export != 0) {
-		if(s->export != 2)
-			yyerror("export/package mismatch: %S", s);
+	if(n->sym->flags & (SymExport|SymPackage)) {
+		if(n->sym->flags & SymExport)
+			yyerror("export/package mismatch: %S", n->sym);
 		return;
 	}
-	s->export = 2;
+	n->sym->flags |= SymPackage;
 
-	addexportsym(s);
+	addexportsym(n);
 }
 
 int
@@ -65,17 +55,16 @@ exportname(char *s)
 }
 
 void
-autoexport(Sym *s)
+autoexport(Node *n, int ctxt)
 {
-	if(s == S)
+	if(n == N || n->sym == S)
 		return;
-	if(dclcontext != PEXTERN)
+	if((ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN)
 		return;
-	if(exportname(s->name)) {
-		exportsym(s);
-	} else {
-		packagesym(s);
-	}
+	if(exportname(n->sym->name) || strcmp(n->sym->name, "init") == 0)
+		exportsym(n);
+	else
+		packagesym(n);
 }
 
 void
@@ -187,9 +176,9 @@ dumpsym(Sym *s)
 {
 	Type *f, *t;
 
-	if(s->exported != 0)
+	if(s->flags & SymExported)
 		return;
-	s->exported = 1;
+	s->flags |= SymExported;
 
 	if(s->def == N) {
 		yyerror("unknown export symbol: %S", s);
@@ -236,7 +225,7 @@ dumptype(Type *t)
 void
 dumpexport(void)
 {
-	Dcl *d;
+	NodeList *l;
 	int32 lno;
 
 	lno = lineno;
@@ -246,16 +235,16 @@ dumpexport(void)
 
 	Bprint(bout, "    package %s\n", package);
 
-	for(d=exportlist->forw; d!=D; d=d->forw) {
-		lineno = d->lineno;
-		dumpsym(d->dsym);
+	for(l=exportlist; l; l=l->next) {
+		lineno = l->n->lineno;
+		dumpsym(l->n->sym);
 	}
 
 	Bprint(bout, "\n$$  // local types\n");
 
-	for(d=typelist->forw; d!=D; d=d->forw) {
-		lineno = d->lineno;
-		dumptype(d->dtype);
+	for(l=typelist; l; l=l->next) {
+		lineno = l->n->lineno;
+		dumptype(l->n->type);
 	}
 
 	Bprint(bout, "\n$$\n");
@@ -286,10 +275,10 @@ importsym(Sym *s, int op)
 	// mark the symbol so it is not reexported
 	if(s->def == N) {
 		if(exportname(s->name))
-			s->export = 1;
+			s->flags |= SymExport;
 		else
-			s->export = 2;	// package scope
-		s->imported = 1;
+			s->flags |= SymPackage;	// package scope
+		s->flags |= SymImported;
 	}
 	return s;
 }
@@ -332,7 +321,12 @@ importconst(Sym *s, Type *t, Node *n)
 		return;
 	}
 
-	dodclconst(newname(s), n);
+	if(n->op != OLITERAL) {
+		yyerror("expression must be a constant");
+		return;
+	}
+	n->sym = s;
+	declare(n, PEXTERN);
 
 	if(debug['E'])
 		print("import const %S\n", s);
@@ -341,6 +335,8 @@ importconst(Sym *s, Type *t, Node *n)
 void
 importvar(Sym *s, Type *t, int ctxt)
 {
+	Node *n;
+
 	if(!exportname(s->name) && !mypackage(s))
 		return;
 
@@ -352,7 +348,9 @@ importvar(Sym *s, Type *t, int ctxt)
 			s, s->def->type, t);
 	}
 	checkwidth(t);
-	addvar(newname(s), t, ctxt);
+	n = newname(s);
+	n->type = t;
+	declare(n, ctxt);
 
 	if(debug['E'])
 		print("import var %S %lT\n", s, t);
@@ -393,8 +391,8 @@ importtype(Sym *s, Type *t)
 	case TFORWINTER:
 	case TFORWSTRUCT:
 		// allow re-export in case it gets defined
-		s->export = 0;
-		s->imported = 0;
+		s->flags &= ~(SymExport|SymPackage);
+		s->flags &= ~SymImported;
 		break;
 	default:
 		checkwidth(n->type);

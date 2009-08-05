@@ -307,16 +307,6 @@ remal(void *p, int32 on, int32 n)
 	return p;
 }
 
-Dcl*
-dcl(void)
-{
-	Dcl *d;
-
-	d = mal(sizeof(*d));
-	d->lineno = lineno;
-	return d;
-}
-
 extern int yychar;
 Node*
 nod(int op, Node *nleft, Node *nright)
@@ -965,9 +955,9 @@ Tpretty(Fmt *fp, Type *t)
 				fmtprint(fp, "%lS", s);
 			if(strcmp(s->package, package) != 0)
 				return 0;
-			if(s->imported)
+			if(s->flags & SymImported)
 				return 0;
-			if(t->vargen || !s->export) {
+			if(t->vargen || !(s->flags & (SymExport|SymPackage))) {
 				fmtprint(fp, "·%s", filename);
 				if(t->vargen)
 					fmtprint(fp, "·%d", t->vargen);
@@ -1244,7 +1234,7 @@ Nconv(Fmt *fp)
 			break;
 		}
 		fmtprint(fp, "%O-%S G%ld%J", n->op,
-			n->sym, n->sym->vargen, n);
+			n->sym, n->vargen, n);
 		goto ptyp;
 
 	case OREGISTER:
@@ -1284,7 +1274,7 @@ Nconv(Fmt *fp)
 		break;
 	}
 	if(n->sym != S)
-		fmtprint(fp, " %S G%ld", n->sym, n->sym->vargen);
+		fmtprint(fp, " %S G%ld", n->sym, n->vargen);
 
 ptyp:
 	if(n->type != T)
@@ -1935,30 +1925,32 @@ void
 frame(int context)
 {
 	char *p;
-	Dcl *d;
+	NodeList *l;
+	Node *n;
 	int flag;
 
 	p = "stack";
-	d = autodcl;
+	l = autodcl;
 	if(context) {
 		p = "external";
-		d = externdcl;
+		l = externdcl;
 	}
 
 	flag = 1;
-	for(; d!=D; d=d->forw) {
-		switch(d->op) {
+	for(; l; l=l->next) {
+		n = l->n;
+		switch(n->op) {
 		case ONAME:
 			if(flag)
 				print("--- %s frame ---\n", p);
-			print("%O %S G%ld T\n", d->op, d->dsym, d->dnode->vargen, d->dnode->type);
+			print("%O %S G%ld T\n", n->op, n->sym, n->vargen, n->type);
 			flag = 0;
 			break;
 
 		case OTYPE:
 			if(flag)
 				print("--- %s frame ---\n", p);
-			print("%O %T\n", d->op, d->dnode);
+			print("%O %T\n", n->op, n->type);
 			flag = 0;
 			break;
 		}
@@ -2520,9 +2512,9 @@ expand0(Type *t, int followptr)
 		for(f=u->type; f!=T; f=f->down) {
 			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
 				continue;
-			if(f->sym->uniq)
+			if(f->sym->flags & SymUniq)
 				continue;
-			f->sym->uniq = 1;
+			f->sym->flags |= SymUniq;
 			sl = mal(sizeof(*sl));
 			sl->field = f;
 			sl->link = slist;
@@ -2537,9 +2529,9 @@ expand0(Type *t, int followptr)
 		for(f=u->method; f!=T; f=f->down) {
 			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
 				continue;
-			if(f->sym->uniq)
+			if(f->sym->flags & SymUniq)
 				continue;
-			f->sym->uniq = 1;
+			f->sym->flags |= SymUniq;
 			sl = mal(sizeof(*sl));
 			sl->field = f;
 			sl->link = slist;
@@ -2601,7 +2593,7 @@ expandmeth(Sym *s, Type *t)
 
 	// check each method to be uniquely reachable
 	for(sl=slist; sl!=nil; sl=sl->link) {
-		sl->field->sym->uniq = 0;
+		sl->field->sym->flags &= ~SymUniq;
 		for(d=0; d<nelem(dotlist); d++) {
 			c = adddot1(sl->field->sym, t, d, &f);
 			if(c == 0)

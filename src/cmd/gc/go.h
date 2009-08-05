@@ -131,7 +131,6 @@ typedef	struct	Sym	Sym;
 typedef	struct	Node	Node;
 typedef	struct	NodeList	NodeList;
 typedef	struct	Type	Type;
-typedef	struct	Dcl	Dcl;
 
 struct	Type
 {
@@ -221,7 +220,7 @@ struct	Node
 	NodeList*	enter;
 	NodeList*	exit;
 	NodeList*	cvars;	// closure params
-	Dcl*	dcl;	// outer autodcl
+	NodeList*	dcl;	// outer autodcl
 
 	// OLITERAL/OREGISTER
 	Val	val;
@@ -258,43 +257,31 @@ struct NodeList
 	NodeList*	end;
 };
 
+enum
+{
+	SymExport	= 1<<0,
+	SymPackage	= 1<<1,
+	SymExported	= 1<<2,
+	SymImported	= 1<<3,
+	SymUniq		= 1<<4,
+	SymSiggen	= 1<<5,
+};
+
 struct	Sym
 {
-	ushort	block;		// blocknumber to catch redeclaration
-
-	uchar	undef;		// a diagnostic has been generated
-	uchar	export;		// marked as export
-	uchar	exported;	// exported
-	uchar	imported;	// imported
+	ushort	lexical;
+	uchar	flags;
 	uchar	sym;		// huffman encoding in object file
-	uchar	uniq;		// imbedded field name first found
-	uchar	siggen;		// signature generated
+	Sym*	link;
 
+	// saved and restored by dcopy
 	char*	package;	// package name
 	char*	name;		// variable name
 	Node*	def;		// definition: ONAME OTYPE OPACK or OLITERAL
-	vlong	offset;		// stack location if automatic
-	int32	lexical;
-	int32	vargen;		// unique variable number
+	int32	block;		// blocknumber to catch redeclaration
 	int32	lastlineno;	// last declaration for diagnostic
-	Sym*	link;
 };
 #define	S	((Sym*)0)
-
-struct	Dcl
-{
-	uchar	op;
-	ushort	block;
-	int32	lineno;
-
-	Sym*	dsym;		// for printing only
-	Node*	dnode;		// oname
-	Type*	dtype;		// otype
-
-	Dcl*	forw;
-	Dcl*	back;		// sentinel has pointer to last
-};
-#define	D	((Dcl*)0)
 
 typedef	struct	Iter	Iter;
 struct	Iter
@@ -636,14 +623,11 @@ EXTERN	Mpint*	maxintval[NTYPE];
 EXTERN	Mpflt*	minfltval[NTYPE];
 EXTERN	Mpflt*	maxfltval[NTYPE];
 
-EXTERN	Dcl*	autodcl;
-EXTERN	Dcl*	paramdcl;
-EXTERN	Dcl*	externdcl;
-EXTERN	Dcl*	exportlist;
-EXTERN	Dcl*	signatlist;
-EXTERN	Dcl*	typelist;
+EXTERN	NodeList*	autodcl;
+EXTERN	NodeList*	externdcl;
+EXTERN	NodeList*	exportlist;
+EXTERN	NodeList*	typelist;
 EXTERN	int	dclcontext;		// PEXTERN/PAUTO
-EXTERN	int	importflag;
 EXTERN	int	inimportsys;
 EXTERN	int	initflag;		// compiling the init fn
 EXTERN	int	statuniqgen;		// name generator for static temps
@@ -652,21 +636,17 @@ EXTERN	int	loophack;
 EXTERN	uint32	iota;
 EXTERN	NodeList*	lastconst;
 EXTERN	Node*	lasttype;
-EXTERN	int32	vargen;
-EXTERN	int32	exportgen;
 EXTERN	int32	maxarg;
 EXTERN	int32	stksize;		// stack size for current frame
 EXTERN	int32	initstksize;		// stack size for init function
-EXTERN	ushort	blockgen;		// max block number
-EXTERN	ushort	block;			// current block number
+EXTERN	int32	blockgen;		// max block number
+EXTERN	int32	block;			// current block number
 EXTERN	int	hasdefer;		// flag that curfn has defer statetment
 
 EXTERN	Node*	curfn;
 
 EXTERN	int	maxround;
 EXTERN	int	widthptr;
-
-EXTERN	Node*	retnil;
 
 EXTERN	Node*	typeswvar;
 
@@ -788,7 +768,6 @@ int32	setlineno(Node*);
 Node*	nod(int, Node*, Node*);
 Node*	nodlit(Val);
 Type*	typ(int);
-Dcl*	dcl(void);
 int	algtype(Type*);
 void	dodump(Node*, int);
 void	dump(char*, Node*);
@@ -878,10 +857,10 @@ int	simsimtype(Type*);
 /*
  *	dcl.c
  */
+void	declare(Node*, int);
 void	dodclvar(Node*, Type*, NodeList**);
 Type*	dodcltype(Type*);
 void	updatetype(Type*, Type*);
-void	dodclconst(Node*, Node*);
 void	defaultlit(Node**, Type*);
 void	defaultlit2(Node**, Node**, int);
 int	structcount(Type*);
@@ -941,10 +920,10 @@ NodeList*	initfix(NodeList*);
  *	export.c
  */
 void	renameimports(void);
-void	autoexport(Sym*);
+void	autoexport(Node*, int);
 int	exportname(char*);
-void	exportsym(Sym*);
-void	packagesym(Sym*);
+void	exportsym(Node*);
+void	packagesym(Node*);
 void	dumpe(Sym*);
 void	dumpexport(void);
 void	dumpexporttype(Sym*);
@@ -1065,7 +1044,6 @@ typedef	struct	Plist	Plist;
 struct	Plist
 {
 	Node*	name;
-	Dcl*	locals;
 	Prog*	firstpc;
 	int	recur;
 	Plist*	link;
