@@ -65,9 +65,20 @@ fannkuch() {
 	run 'gc_B fannkuch' $O.out -n 12
 }
 
+regexdna() {
+	gcc -O2 fasta.c
+	a.out 100000 > x
+	echo 'regex-dna 100000'
+	run 'gcc -O2 regex-dna.c -lpcre' a.out <x
+#	run 'gccgo -O2 regex-dna.go' a.out <x	# pages badly; don't run
+	run 'gc regex-dna' $O.out <x
+	run 'gc_B regex-dna' $O.out <x
+	rm x
+}
+
 case $# in
 0)
-	run="fasta revcom nbody binarytree fannkuch"
+	run="fasta revcom nbody binarytree fannkuch regexdna"
 	;;
 *)
 	run=$*

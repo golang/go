@@ -53,3 +53,8 @@ fannkuch 12
 	gccgo -O2 fannkuch.go	64.89u 0.00s 64.92r
 	gc fannkuch	124.59u 0.00s 124.67r
 	gc_B fannkuch	91.14u 0.00s 91.16r
+
+regex-dna 100000
+	gcc -O2 regex-dna.c -lpcre	0.92u 0.00s 0.99r
+	gc regexp-dna	26.94u 0.18s 28.75r
+	gc_B regexp-dna	26.51u 0.09s 26.75r
