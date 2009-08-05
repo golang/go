@@ -48,9 +48,18 @@ nbody() {
 	run 'gc_B nbody' $O.out -n 50000000
 }
 
+binarytree() {
+	echo 'binary-tree 15 # too slow to use 20'
+	run 'gcc -O2 binary-tree.c -lm' a.out 15
+	run 'gccgo -O2 binary-tree.go' a.out -n 15
+	run 'gccgo -O2 binary-tree-freelist.go' $O.out -n 15
+	run 'gc binary-tree' $O.out -n 15
+	run 'gc binary-tree-freelist' $O.out -n 15
+}
+
 case $# in
 0)
-	run="fasta revcom nbody"
+	run="fasta revcom nbody binarytree"
 	;;
 *)
 	run=$*
