@@ -223,9 +223,9 @@ func (doc *docReader) addFile(src *ast.File) {
 	for c := src.Comments; c != nil; c = c.Next {
 		text := c.List[0].Text;
 		cstr := string(text);
-		if m := bug_markers.Execute(cstr); len(m) > 0 {
+		if m := bug_markers.ExecuteString(cstr); len(m) > 0 {
 			// found a BUG comment; maybe empty
-			if bstr := cstr[m[1] : len(cstr)]; bug_content.Match(bstr) {
+			if bstr := cstr[m[1] : len(cstr)]; bug_content.MatchString(bstr) {
 				// non-empty BUG comment; collect comment without BUG prefix
 				list := copyCommentList(c.List);
 				list[0].Text = text[m[1] : len(text)];
@@ -486,7 +486,7 @@ func isRegexp(s string) bool {
 func match(s string, a []string) bool {
 	for _, t := range a {
 		if isRegexp(t) {
-			if matched, err := regexp.Match(t, s); matched {
+			if matched, err := regexp.MatchString(t, s); matched {
 				return true;
 			}
 		}

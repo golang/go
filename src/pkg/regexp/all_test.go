@@ -7,6 +7,7 @@ package regexp
 import (
 	"os";
 	"regexp";
+	"strings";
 	"testing";
 )
 
@@ -117,6 +118,17 @@ func printStrings(t *testing.T, m []string) {
 	}
 }
 
+func printBytes(t *testing.T, b [][]byte) {
+	l := len(b);
+	if l == 0 {
+		t.Log("\t<no match>");
+	} else {
+		for i := 0; i < l; i = i+2 {
+			t.Logf("\t%q", b[i])
+		}
+	}
+}
+
 func equal(m1, m2 []int) bool {
 	l := len(m1);
 	if l != len(m2) {
@@ -143,12 +155,33 @@ func equalStrings(m1, m2 []string) bool {
 	return true
 }
 
+func equalBytes(m1 [][]byte, m2 []string) bool {
+	l := len(m1);
+	if l != len(m2) {
+		return false
+	}
+	for i := 0; i < l; i++ {
+		if string(m1[i]) != m2[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func executeTest(t *testing.T, expr string, str string, match []int) {
 	re := compileTest(t, expr, nil);
 	if re == nil {
 		return
 	}
-	m := re.Execute(str);
+	m := re.ExecuteString(str);
+	if !equal(m, match) {
+		t.Error("ExecuteString failure on `", expr, "` matching `", str, "`:");
+		printVec(t, m);
+		t.Log("should be:");
+		printVec(t, match);
+	}
+	// now try bytes
+	m = re.Execute(strings.Bytes(str));
 	if !equal(m, match) {
 		t.Error("Execute failure on `", expr, "` matching `", str, "`:");
 		printVec(t, m);
@@ -181,7 +214,12 @@ func matchTest(t *testing.T, expr string, str string, match []int) {
 	if re == nil {
 		return
 	}
-	m := re.Match(str);
+	m := re.MatchString(str);
+	if m != (len(match) > 0) {
+		t.Error("MatchString failure on `", expr, "` matching `", str, "`:", m, "should be", len(match) > 0);
+	}
+	// now try bytes
+	m = re.Match(strings.Bytes(str));
 	if m != (len(match) > 0) {
 		t.Error("Match failure on `", expr, "` matching `", str, "`:", m, "should be", len(match) > 0);
 	}
@@ -210,6 +248,14 @@ func matchStringsTest(t *testing.T, expr string, str string, match []int) {
 		t.Log("should be:");
 		printStrings(t, strs);
 	}
+	// now try bytes
+	s := re.MatchSlices(strings.Bytes(str));
+	if !equalBytes(s, strs) {
+		t.Error("MatchSlices failure on `", expr, "` matching `", str, "`:");
+		printBytes(t, s);
+		t.Log("should be:");
+		printStrings(t, strs);
+	}
 }
 
 func TestMatchStrings(t *testing.T) {
@@ -220,7 +266,7 @@ func TestMatchStrings(t *testing.T) {
 }
 
 func matchFunctionTest(t *testing.T, expr string, str string, match []int) {
-	m, err := Match(expr, str);
+	m, err := MatchString(expr, str);
 	if err == nil {
 		return
 	}
@@ -309,7 +355,13 @@ func TestReplaceAll(t *testing.T) {
 			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err);
 			continue;
 		}
-		actual := re.ReplaceAll(tc.input, tc.replacement);
+		actual := re.ReplaceAllString(tc.input, tc.replacement);
+		if actual != tc.output {
+			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
+				tc.pattern, tc.input, tc.replacement, actual, tc.output);
+		}
+		// now try bytes
+		actual = string(re.ReplaceAll(strings.Bytes(tc.input), strings.Bytes(tc.replacement)));
 		if actual != tc.output {
 			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
 				tc.pattern, tc.input, tc.replacement, actual, tc.output);
@@ -347,7 +399,7 @@ func TestQuoteMeta(t *testing.T) {
 			}
 			src := "abc" + tc.pattern + "def";
 			repl := "xyz";
-			replaced := re.ReplaceAll(src, repl);
+			replaced := re.ReplaceAllString(src, repl);
 			expected := "abcxyzdef";
 			if replaced != expected {
 				t.Errorf("QuoteMeta(`%s`).Replace(`%s`,`%s`) = `%s`; want `%s`",

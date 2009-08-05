@@ -645,14 +645,20 @@ func addState(s []state, inst instr, match []int) []state {
 	return s;
 }
 
-func (re *Regexp) doExecute(str string, pos int) []int {
+// Accepts either string or bytes - the logic is identical either way.
+// If bytes == nil, scan str.
+func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 	var s [2][]state;	// TODO: use a vector when state values (not ptrs) can be vector elements
 	s[0] = make([]state, 10)[0:0];
 	s[1] = make([]state, 10)[0:0];
 	in, out := 0, 1;
 	var final state;
 	found := false;
-	for pos <= len(str) {
+	end := len(str);
+	if bytes != nil {
+		end = len(bytes)
+	}
+	for pos <= end {
 		if !found {
 			// prime the pump if we haven't seen a match yet
 			match := make([]int, 2*(re.nbra+1));
@@ -670,8 +676,12 @@ func (re *Regexp) doExecute(str string, pos int) []int {
 		}
 		charwidth := 1;
 		c := endOfFile;
-		if pos < len(str) {
-			c, charwidth = utf8.DecodeRuneInString(str[pos:len(str)]);
+		if pos < end {
+			if bytes == nil {
+				c, charwidth = utf8.DecodeRuneInString(str[pos:end]);
+			} else {
+				c, charwidth = utf8.DecodeRune(bytes[pos:end]);
+			}
 		}
 		for i := 0; i < len(s[in]); i++ {
 			st := s[in][i];
@@ -681,7 +691,7 @@ func (re *Regexp) doExecute(str string, pos int) []int {
 					s[in] = addState(s[in], st.inst.next(), st.match)
 				}
 			case _EOT:
-				if pos == len(str) {
+				if pos == end {
 					s[in] = addState(s[in], st.inst.next(), st.match)
 				}
 			case _CHAR:
@@ -720,7 +730,7 @@ func (re *Regexp) doExecute(str string, pos int) []int {
 				// choose leftmost longest
 				if !found ||	// first
 				   st.match[0] < final.match[0] ||	// leftmost
-				   (st.match[0] == final.match[0] && pos > final.match[1])  {	// longest
+				   (st.match[0] == final.match[0] && pos > final.match[1]) {	// longest
 					final = st;
 					final.match[1] = pos;
 				}
@@ -736,22 +746,41 @@ func (re *Regexp) doExecute(str string, pos int) []int {
 }
 
 
-// Execute matches the Regexp against the string s.
+// ExecuteString matches the Regexp against the string s.
 // The return value is an array of integers, in pairs, identifying the positions of
 // substrings matched by the expression.
 //    s[a[0]:a[1]] is the substring matched by the entire expression.
 //    s[a[2*i]:a[2*i+1]] for i > 0 is the substring matched by the ith parenthesized subexpression.
 // A negative value means the subexpression did not match any element of the string.
 // An empty array means "no match".
-func (re *Regexp) Execute(s string) (a []int) {
-	return re.doExecute(s, 0)
+func (re *Regexp) ExecuteString(s string) (a []int) {
+	return re.doExecute(s, nil, 0)
 }
 
 
-// Match returns whether the Regexp matches the string s.
+// Execute matches the Regexp against the byte slice b.
+// The return value is an array of integers, in pairs, identifying the positions of
+// subslices matched by the expression.
+//    b[a[0]:a[1]] is the subslice matched by the entire expression.
+//    b[a[2*i]:a[2*i+1]] for i > 0 is the subslice matched by the ith parenthesized subexpression.
+// A negative value means the subexpression did not match any element of the slice.
+// An empty array means "no match".
+func (re *Regexp) Execute(b []byte) (a []int) {
+	return re.doExecute("", b, 0)
+}
+
+
+// MatchString returns whether the Regexp matches the string s.
 // The return value is a boolean: true for match, false for no match.
-func (re *Regexp) Match(s string) bool {
-	return len(re.doExecute(s, 0)) > 0
+func (re *Regexp) MatchString(s string) bool {
+	return len(re.doExecute(s, nil, 0)) > 0
+}
+
+
+// Match returns whether the Regexp matches the byte slice b.
+// The return value is a boolean: true for match, false for no match.
+func (re *Regexp) Match(b []byte) bool {
+	return len(re.doExecute("", b, 0)) > 0
 }
 
 
@@ -761,7 +790,7 @@ func (re *Regexp) Match(s string) bool {
 //    a[i] for i > 0 is the substring matched by the ith parenthesized subexpression.
 // An empty array means ``no match''.
 func (re *Regexp) MatchStrings(s string) (a []string) {
-	r := re.doExecute(s, 0);
+	r := re.doExecute(s, nil, 0);
 	if r == nil {
 		return nil
 	}
@@ -774,26 +803,56 @@ func (re *Regexp) MatchStrings(s string) (a []string) {
 	return
 }
 
-// Match checks whether a textual regular expression
-// matches a substring.  More complicated queries need
+// MatchSlices matches the Regexp against the byte slice b.
+// The return value is an array of subslices matched by the expression.
+//    a[0] is the subslice matched by the entire expression.
+//    a[i] for i > 0 is the subslice matched by the ith parenthesized subexpression.
+// An empty array means ``no match''.
+func (re *Regexp) MatchSlices(b []byte) (a [][]byte) {
+	r := re.doExecute("", b, 0);
+	if r == nil {
+		return nil
+	}
+	a = make([][]byte, len(r)/2);
+	for i := 0; i < len(r); i += 2 {
+		if r[i] != -1 {	// -1 means no match for this subexpression
+			a[i/2] = b[r[i] : r[i+1]]
+		}
+	}
+	return
+}
+
+// MatchString checks whether a textual regular expression
+// matches a string.  More complicated queries need
 // to use Compile and the full Regexp interface.
-func Match(pattern string, s string) (matched bool, error os.Error) {
+func MatchString(pattern string, s string) (matched bool, error os.Error) {
 	re, err := Compile(pattern);
 	if err != nil {
 		return false, err
 	}
-	return re.Match(s), nil
+	return re.MatchString(s), nil
 }
 
-// ReplaceAll returns a copy of src in which all matches for the Regexp
+// Match checks whether a textual regular expression
+// matches a byte slice.  More complicated queries need
+// to use Compile and the full Regexp interface.
+func Match(pattern string, b []byte) (matched bool, error os.Error) {
+	re, err := Compile(pattern);
+	if err != nil {
+		return false, err
+	}
+	return re.Match(b), nil
+}
+
+// ReplaceAllString returns a copy of src in which all matches for the Regexp
 // have been replaced by repl.  No support is provided for expressions
 // (e.g. \1 or $1) in the replacement string.
-func (re *Regexp) ReplaceAll(src, repl string) string {
+func (re *Regexp) ReplaceAllString(src, repl string) string {
 	lastMatchEnd := 0; // end position of the most recent match
 	searchPos := 0; // position where we next look for a match
 	buf := new(bytes.Buffer);
 	for searchPos <= len(src) {
-		a := re.doExecute(src, searchPos);
+		a := re.doExecute(src, nil, searchPos);
 		if len(a) == 0 {
 			break; // no more matches
 		}
@@ -827,6 +886,50 @@ func (re *Regexp) ReplaceAll(src, repl string) string {
 	io.WriteString(buf, src[lastMatchEnd:len(src)]);
 
 	return string(buf.Data());
+}
+
+// ReplaceAll returns a copy of src in which all matches for the Regexp
+// have been replaced by repl.  No support is provided for expressions
+// (e.g. \1 or $1) in the replacement text.
+func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
+	lastMatchEnd := 0; // end position of the most recent match
+	searchPos := 0; // position where we next look for a match
+	buf := new(bytes.Buffer);
+	for searchPos <= len(src) {
+		a := re.doExecute("", src, searchPos);
+		if len(a) == 0 {
+			break; // no more matches
+		}
+
+		// Copy the unmatched characters before this match.
+		buf.Write(src[lastMatchEnd:a[0]]);
+
+		// Now insert a copy of the replacement string, but not for a
+		// match of the empty string immediately after another match.
+		// (Otherwise, we get double replacement for patterns that
+		// match both empty and nonempty strings.)
+		if a[1] > lastMatchEnd || a[0] == 0 {
+			buf.Write(repl);
+		}
+		lastMatchEnd = a[1];
+
+		// Advance past this match; always advance at least one character.
+		rune, width := utf8.DecodeRune(src[searchPos:len(src)]);
+		if searchPos + width > a[1] {
+			searchPos += width;
+		} else if searchPos + 1 > a[1] {
+			// This clause is only needed at the end of the input
+			// string.  In that case, DecodeRuneInString returns width=0.
+			searchPos++;
+		} else {
+			searchPos = a[1];
+		}
+	}
+
+	// Copy the unmatched characters after the last match.
+	buf.Write(src[lastMatchEnd:len(src)]);
+
+	return buf.Data();
 }
 
 // QuoteMeta returns a string that quotes all regular expression metacharacters

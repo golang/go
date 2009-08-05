@@ -65,7 +65,7 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
 		t.Fatal("log error", err3);
 	}
 	pattern = "^"+pattern+"hello 23 world$";
-	matched, err4 := regexp.Match(pattern, line);
+	matched, err4 := regexp.MatchString(pattern, line);
 	if err4 != nil{
 		t.Fatal("pattern did not compile:", err4);
 	}
