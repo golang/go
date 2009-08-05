@@ -360,9 +360,9 @@ datastring(char *s, int len, Addr *a)
 	*a = ao;
 
 	// only generate data the first time.
-	if(ao.sym->uniq)
+	if(ao.sym->flags & SymUniq)
 		return;
-	ao.sym->uniq = 1;
+	ao.sym->flags |= SymUniq;
 
 	data();
 	for(w=0; w<len; w+=8) {
@@ -440,9 +440,9 @@ datagostring(Strlit *sval, Addr *a)
 	}
 
 	*a = ao;
-	if(ao.sym->uniq)
+	if(ao.sym->flags & SymUniq)
 		return;
-	ao.sym->uniq = 1;
+	ao.sym->flags |= SymUniq;
 
 	data();
 	// DATA gostring, wp, $cstring
