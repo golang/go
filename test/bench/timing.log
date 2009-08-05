@@ -34,3 +34,7 @@ nbody 50000000
 	gccgo -O2 nbody.go	118.55u 0.02s 120.32r
 	gc nbody	100.84u 0.00s 100.85r
 	gc_B nbody	103.33u 0.00s 103.39r
+[
+hacked Sqrt in assembler
+	gc nbody	31.97u 0.00s 32.01r
+]
