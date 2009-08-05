@@ -16,7 +16,7 @@ func main() {
 	{
 		// simple redeclaration
 		i := f1();
-		i := f1();	// ERROR "redeclared|redefinition"
+		i := f1();	// ERROR "redeclared|redefinition|no new"
 	}
 	{
 		// change of type for f
@@ -31,21 +31,21 @@ func main() {
 	{
 		// no new variables
 		i, f, s := f3();
-		i, f := f2();	// ERROR "redeclared|redefinition"
+		i, f := f2();	// ERROR "redeclared|redefinition|no new"
 	}
 	{
 		// single redeclaration
 		i, f, s := f3();	// GCCGO_ERROR "previous"
-		i := f1();		// ERROR "redeclared|redefinition"
+		i := f1();		// ERROR "redeclared|redefinition|no new"
 	}
 		// double redeclaration
 	{
 		i, f, s := f3();
-		i, f := f2();	// ERROR "redeclared|redefinition"
+		i, f := f2();	// ERROR "redeclared|redefinition|no new"
 	}
 	{
 		// triple redeclaration
 		i, f, s := f3();
-		i, f, s := f3();	// ERROR "redeclared|redefinition"
+		i, f, s := f3();	// ERROR "redeclared|redefinition|no new"
 	}
 }

@@ -465,7 +465,8 @@ enum
 	Etop = 1<<1,	// evaluated at statement level
 	Erv = 1<<2,	// evaluated in value context
 	Etype = 1<<3,
-	Ecall = 1<<4,
+	Ecall = 1<<4,	// call-only expressions are ok
+	Efnstruct = 1<<5,	// multivalue function returns are ok
 };
 
 #define	BITS	5

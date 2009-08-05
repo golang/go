@@ -16,8 +16,9 @@ maketest() {
 	do
 		(
 			xcd $i
-			make clean
-			time make
+		#	make clean
+		#	time make
+			make install
 			make test
 		) || exit $?
 	done

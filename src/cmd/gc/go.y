@@ -519,8 +519,8 @@ case:
 		// done in casebody()
 		poptodcl();
 		$$ = nod(OXCASE, N, N);
-		typecheck(&$4, Erv);
-		$$->list = list1(nod(OAS, selectas($2, $4, &$$->ninit), $4));
+//		$$->list = list1(nod(OAS, selectas($2, $4, &$$->ninit), $4));
+		$$->list = list1(colas(list1($2), list1($4)));
 	}
 |	LDEFAULT ':'
 	{

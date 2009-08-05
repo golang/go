@@ -9,6 +9,6 @@ package main
 func f() /* no return type */ {}
 
 func main() {
-	x := f();  // ERROR "mismatch"
+	x := f();  // ERROR "mismatch|as value"
 }
 

@@ -66,6 +66,10 @@ typecheckselect(Node *sel)
 			ncase->list = nil;
 			setlineno(n);
 			switch(n->op) {
+			default:
+				yyerror("select case must be receive, send or assign recv");;
+				break;
+
 			case OAS:
 				// convert x = <-c into OSELRECV(x, c)
 				if(n->right->op != ORECV) {
@@ -123,6 +127,10 @@ walkselect(Node *sel)
 		r = nod(OIF, N, N);
 		r->nbody = ncase->ninit;
 		ncase->ninit = nil;
+		if(n != nil) {
+			r->nbody = concat(r->nbody, n->ninit);
+			n->ninit = nil;
+		}
 		if(n == nil) {
 			// selectdefault(sel *byte);
 			r->ntest = mkcall("selectdefault", types[TBOOL], &init, var);

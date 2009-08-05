@@ -574,6 +574,83 @@ dclchecks(void)
 	}
 }
 
+/*
+ * := declarations
+ */
+
+static int
+colasname(Node *n)
+{
+	// TODO(rsc): can probably simplify
+	// once late-binding of names goes in
+	switch(n->op) {
+	case ONAME:
+	case ONONAME:
+	case OPACK:
+	case OTYPE:
+	case OLITERAL:
+		return n->sym != S;
+	}
+	return 0;
+}
+
+Node*
+old2new(Node *n, Type *t, NodeList **init)
+{
+	Node *l;
+
+	if(!colasname(n)) {
+		yyerror("left side of := must be a name");
+		return n;
+	}
+	if(t != T && t->funarg) {
+		yyerror("use of multi func value as single value in :=");
+		return n;
+	}
+	l = newname(n->sym);
+	dodclvar(l, t, init);
+	return l;
+}
+
+Node*
+colas(NodeList *left, NodeList *right)
+{
+	int nnew;
+	Node *n, *as;
+	NodeList *l;
+
+	if(count(left) == 1 && count(right) == 1)
+		as = nod(OAS, left->n, right->n);
+	else {
+		as = nod(OAS2, N, N);
+		as->list = left;
+		as->rlist = right;
+	}
+	as->colas = 1;
+
+	nnew = 0;
+	for(l=left; l; l=l->next) {
+		n = l->n;
+		if(!colasname(n)) {
+			yyerror("non-name %#N on left side of :=", n);
+			continue;
+		}
+		if(n->sym->block == block)
+			continue;
+		nnew++;
+		n = newname(n->sym);
+		declare(n, dclcontext);
+		if(as->op == OAS)
+			as->left = n;
+		n->defn = as;
+		as->ninit = list(as->ninit, nod(ODCL, n, N));
+		l->n = n;
+	}
+	if(nnew == 0)
+		yyerror("no new variables on left side of :=");
+	return as;
+}
+
 
 /*
  * structs, functions, and methods.
