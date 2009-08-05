@@ -35,6 +35,7 @@ type exprCompiler struct {
 	evalIdealFloat func() *bignum.Rational;
 	evalString func(f *Frame) string;
 	evalArray func(f *Frame) ArrayValue;
+	evalStruct func(f *Frame) StructValue;
 	evalPtr func(f *Frame) Value;
 	evalFunc func(f *Frame) Func;
 	evalMulti func(f *Frame) []Value;
@@ -64,7 +65,7 @@ func (a *exprCompiler) genConstant(v Value)
 func (a *exprCompiler) genIdentOp(level int, index int)
 func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler)
 func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value)
-func (a *exprCompiler) genStarOp(v *exprCompiler)
+func (a *exprCompiler) genValue(vf func(*Frame) Value)
 func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler)
 func (a *exprCompiler) genUnaryOpNot(v *exprCompiler)
 func (a *exprCompiler) genUnaryOpXor(v *exprCompiler)
@@ -172,6 +173,13 @@ func (a *exprCompiler) asArray() (func(f *Frame) ArrayValue) {
 	return a.evalArray;
 }
 
+func (a *exprCompiler) asStruct() (func(f *Frame) StructValue) {
+	if a.evalStruct == nil {
+		log.Crashf("tried to get %v node as StructType", a.t);
+	}
+	return a.evalStruct;
+}
+
 func (a *exprCompiler) asPtr() (func(f *Frame) Value) {
 	if a.evalPtr == nil {
 		log.Crashf("tried to get %v node as PtrType", a.t);
@@ -270,6 +278,10 @@ func (a *exprCompiler) convertTo(t Type) *exprCompiler {
 	}
 
 	return res;
+}
+
+func (a *exprCompiler) genStarOp(v *exprCompiler) {
+	a.genValue(v.asPtr());
 }
 
 /*
@@ -596,7 +608,135 @@ func (a *exprCompiler) DoParenExpr(x *ast.ParenExpr) {
 }
 
 func (a *exprCompiler) DoSelectorExpr(x *ast.SelectorExpr) {
-	log.Crash("Not implemented");
+	v := a.copyVisit(x.X);
+	if v.t == nil {
+		return;
+	}
+
+	// mark marks a field that matches the selector name.  It
+	// tracks the best depth found so far and whether more than
+	// one field has been found at that depth.
+	bestDepth := -1;
+	ambig := false;
+	amberr := "";
+	mark := func(depth int, pathName string) {
+		switch {
+		case bestDepth == -1 || depth < bestDepth:
+			bestDepth = depth;
+			ambig = false;
+			amberr = "";
+
+		case depth == bestDepth:
+			ambig = true;
+
+		default:
+			log.Crashf("Marked field at depth %d, but already found one at depth %d", depth, bestDepth);
+		}
+		amberr += "\n\t" + pathName[1:len(pathName)];
+	};
+
+	name := x.Sel.Value;
+	visited := make(map[Type] bool);
+
+	// find recursively searches for the named field, starting at
+	// type t.  If it finds the named field, it returns a function
+	// which takes an exprCompiler that retrieves a value of type
+	// 't' and fills 'a' to retrieve the named field.  We delay
+	// exprCompiler construction to avoid filling in anything
+	// until we're sure we have the right field, and to avoid
+	// producing lots of garbage exprCompilers as we search.
+	var find func(Type, int, string) (func (*exprCompiler));
+	find = func(t Type, depth int, pathName string) (func (*exprCompiler)) {
+		// Don't bother looking if we've found something shallower
+		if bestDepth != -1 && bestDepth < depth {
+			return nil;
+		}
+
+		// Don't check the same type twice and avoid loops
+		if _, ok := visited[t]; ok {
+			return nil;
+		}
+		visited[t] = true;
+
+		// Implicit dereference
+		deref := false;
+		if ti, ok := t.(*PtrType); ok {
+			deref = true;
+			t = ti.Elem;
+		}
+
+		// If it's a named type, look for methods
+		if ti, ok := t.(*NamedType); ok {
+			method, ok := ti.methods[name];
+			if ok {
+				mark(depth, pathName + "." + name);
+				log.Crash("Methods not implemented");
+			}
+			t = ti.def;
+		}
+
+		// If it's a struct type, check fields and embedded types
+		var builder func(*exprCompiler);
+		if t, ok := t.(*StructType); ok {
+			for i, f := range t.Elems {
+				var this *exprCompiler;
+				var sub func(*exprCompiler);
+				switch {
+				case f.Name == name:
+					mark(depth, pathName + "." + name);
+					this = a;
+					sub = func(*exprCompiler) {};
+
+				case f.Anonymous:
+					sub = find(f.Type, depth+1, pathName + "." + f.Name);
+					if sub == nil {
+						continue;
+					}
+					this = a.copy();
+
+				default:
+					continue;
+				}
+
+				// We found something.  Create a
+				// builder for accessing this field.
+				ft := f.Type;
+				index := i;
+				builder = func(parent *exprCompiler) {
+					this.t = ft;
+					var evalAddr func(f *Frame) Value;
+					if deref {
+						pf := parent.asPtr();
+						evalAddr = func(f *Frame) Value {
+							return pf(f).(StructValue).Field(index);
+						};
+					} else {
+						pf := parent.asStruct();
+						evalAddr = func(f *Frame) Value {
+							return pf(f).Field(index);
+						};
+					}
+					this.genValue(evalAddr);
+					sub(this);
+				};
+			}
+		}
+
+		return builder;
+	};
+
+	builder := find(v.t, 0, "");
+	if builder == nil {
+		a.diag("type %v has no field or method %s", v.t, name);
+		return;
+	}
+	if ambig {
+		a.diag("field %s is ambiguous in type %v%s", name, v.t, amberr);
+		return;
+	}
+
+	a.desc = "selector expression";
+	builder(v);
 }
 
 func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
@@ -810,6 +950,7 @@ func (a *exprCompiler) DoStarExpr(x *ast.StarExpr) {
 	switch vt := v.t.lit().(type) {
 	case *PtrType:
 		a.t = vt.Elem;
+		// TODO(austin) Deal with nil pointers
 		a.genStarOp(v);
 		a.desc = "indirect expression";
 
@@ -1134,7 +1275,12 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
 			return;
 		}
 		// Arrays and structs may not be compared to anything.
+		// TODO(austin) Use a multi-type switch
 		if _, ok := l.t.(*ArrayType); ok {
+			a.diagOpTypes(op, origlt, origrt);
+			return;
+		}
+		if _, ok := l.t.(*StructType); ok {
 			a.diagOpTypes(op, origlt, origrt);
 			return;
 		}
@@ -1283,16 +1429,18 @@ func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool) {
 	if lenExpr == nil {
 		return 0, false;
 	}
-	if !lenExpr.t.isInteger() {
-		a.diagAt(expr, "array size must be an integer");
-		return 0, false;
-	}
 
+	// XXX(Spec) Are ideal floats with no fractional part okay?
 	if lenExpr.t.isIdeal() {
 		lenExpr = lenExpr.convertTo(IntType);
 		if lenExpr == nil {
 			return 0, false;
 		}
+	}
+
+	if !lenExpr.t.isInteger() {
+		a.diagAt(expr, "array size must be an integer");
+		return 0, false;
 	}
 
 	switch _ := lenExpr.t.lit().(type) {
@@ -1442,6 +1590,9 @@ func (a *exprCompiler) genConstant(v Value) {
 	case *ArrayType:
 		val := v.(ArrayValue).Get();
 		a.evalArray = func(f *Frame) ArrayValue { return val };
+	case *StructType:
+		val := v.(StructValue).Get();
+		a.evalStruct = func(f *Frame) StructValue { return val };
 	case *PtrType:
 		val := v.(PtrValue).Get();
 		a.evalPtr = func(f *Frame) Value { return val };
@@ -1468,6 +1619,8 @@ func (a *exprCompiler) genIdentOp(level int, index int) {
 		a.evalString = func(f *Frame) string { return f.Get(level, index).(StringValue).Get() };
 	case *ArrayType:
 		a.evalArray = func(f *Frame) ArrayValue { return f.Get(level, index).(ArrayValue).Get() };
+	case *StructType:
+		a.evalStruct = func(f *Frame) StructValue { return f.Get(level, index).(StructValue).Get() };
 	case *PtrType:
 		a.evalPtr = func(f *Frame) Value { return f.Get(level, index).(PtrValue).Get() };
 	case *FuncType:
@@ -1493,6 +1646,8 @@ func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler) {
 		a.evalString = func(f *Frame) string { return lf(f).Elem(rf(f)).(StringValue).Get() };
 	case *ArrayType:
 		a.evalArray = func(f *Frame) ArrayValue { return lf(f).Elem(rf(f)).(ArrayValue).Get() };
+	case *StructType:
+		a.evalStruct = func(f *Frame) StructValue { return lf(f).Elem(rf(f)).(StructValue).Get() };
 	case *PtrType:
 		a.evalPtr = func(f *Frame) Value { return lf(f).Elem(rf(f)).(PtrValue).Get() };
 	case *FuncType:
@@ -1517,6 +1672,8 @@ func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value) {
 		a.evalString = func(f *Frame) string { return call(f)[0].(StringValue).Get() };
 	case *ArrayType:
 		a.evalArray = func(f *Frame) ArrayValue { return call(f)[0].(ArrayValue).Get() };
+	case *StructType:
+		a.evalStruct = func(f *Frame) StructValue { return call(f)[0].(StructValue).Get() };
 	case *PtrType:
 		a.evalPtr = func(f *Frame) Value { return call(f)[0].(PtrValue).Get() };
 	case *FuncType:
@@ -1528,9 +1685,8 @@ func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value) {
 	}
 }
 
-func (a *exprCompiler) genStarOp(v *exprCompiler) {
-	vf := v.asPtr();
-	a.evalAddr = func(f *Frame) Value { return vf(f) };
+func (a *exprCompiler) genValue(vf func(*Frame) Value) {
+	a.evalAddr = vf;
 	switch _ := a.t.lit().(type) {
 	case *boolType:
 		a.evalBool = func(f *Frame) bool { return vf(f).(BoolValue).Get() };
@@ -1544,6 +1700,8 @@ func (a *exprCompiler) genStarOp(v *exprCompiler) {
 		a.evalString = func(f *Frame) string { return vf(f).(StringValue).Get() };
 	case *ArrayType:
 		a.evalArray = func(f *Frame) ArrayValue { return vf(f).(ArrayValue).Get() };
+	case *StructType:
+		a.evalStruct = func(f *Frame) StructValue { return vf(f).(StructValue).Get() };
 	case *PtrType:
 		a.evalPtr = func(f *Frame) Value { return vf(f).(PtrValue).Get() };
 	case *FuncType:

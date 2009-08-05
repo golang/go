@@ -39,6 +39,7 @@ type assignCompiler struct
 func (a *compiler) checkAssign(pos token.Position, rs []*exprCompiler, errOp, errPosName string) (*assignCompiler, bool)
 func (a *compiler) compileAssign(pos token.Position, lt Type, rs []*exprCompiler, errOp, errPosName string) (func(lv Value, f *Frame))
 func (a *compiler) compileType(b *block, typ ast.Expr) Type
+func (a *compiler) compileTypeDecl(b *block, decl *ast.GenDecl) bool
 func (a *compiler) compileFuncType(b *block, typ *ast.FuncType) *FuncDecl
 
 func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool)

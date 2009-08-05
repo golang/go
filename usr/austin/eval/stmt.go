@@ -256,10 +256,12 @@ func (a *stmtCompiler) DoBadStmt(s *ast.BadStmt) {
 }
 
 func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
+	ok := true;
+
 	switch decl := s.Decl.(type) {
 	case *ast.BadDecl:
 		// Do nothing.  Already reported by parser.
-		return;
+		ok = false;
 
 	case *ast.FuncDecl:
 		log.Crash("FuncDecl at statement level");
@@ -269,21 +271,22 @@ func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
 		case token.IMPORT:
 			log.Crash("import at statement level");
 
-		case token.CONST, token.TYPE:
+		case token.CONST:
 			log.Crashf("%v not implemented", decl.Tok);
 
+		case token.TYPE:
+			ok = a.compileTypeDecl(a.block, decl);
+
 		case token.VAR:
-			ok := true;
 			for _, spec := range decl.Specs {
 				spec := spec.(*ast.ValueSpec);
 				if spec.Values == nil {
 					// Declaration without assignment
-					var t Type;
 					if spec.Type == nil {
 						// Parser should have caught
 						log.Crash("Type and Values nil");
 					}
-					t = a.compileType(a.block, spec.Type);
+					t := a.compileType(a.block, spec.Type);
 					if t == nil {
 						// Define placeholders
 						ok = false;
@@ -300,14 +303,20 @@ func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
 						lhs[i] = n;
 					}
 					a.doAssign(lhs, spec.Values, decl.Tok, spec.Type);
+					// TODO(austin) This is rediculous.  doAssign
+					// indicates failure by setting a.err.
+					if a.err {
+						ok = false;
+					}
 				}
-			}
-			if ok {
-				a.err = false;
 			}
 		}
 	default:
 		log.Crashf("Unexpected Decl type %T", s.Decl);
+	}
+
+	if ok {
+		a.err = false;
 	}
 }
 

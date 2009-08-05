@@ -22,6 +22,8 @@ type Type interface {
 	// same named type.  If conv if true, this is conversion
 	// compatibility, where two named types are conversion
 	// compatible if their definitions are conversion compatible.
+	//
+	// TODO(austin) Deal with recursive types
 	compat(o Type, conv bool) bool;
 	// lit returns this type's literal.  If this is a named type,
 	// this is the unnamed underlying type.  Otherwise, this is an
@@ -111,6 +113,13 @@ type ArrayValue interface {
 	// useless Get methods, just special-case these uses.
 	Get() ArrayValue;
 	Elem(i int64) Value;
+}
+
+type StructValue interface {
+	Value;
+	// TODO(austin) This is another useless Get()
+	Get() StructValue;
+	Field(i int) Value;
 }
 
 type PtrValue interface {
