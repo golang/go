@@ -285,7 +285,10 @@ walkstmt(Node **np)
 
 	case OFOR:
 		walkstmtlist(n->ninit);
-		walkexpr(&n->ntest, &n->ntest->ninit);
+		if(n->ntest != N) {
+			walkstmtlist(n->ntest->ninit);
+			walkexpr(&n->ntest, &n->ntest->ninit);
+		}
 		walkstmt(&n->nincr);
 		walkstmtlist(n->nbody);
 		break;
@@ -317,6 +320,10 @@ walkstmt(Node **np)
 
 	case OSWITCH:
 		walkswitch(n);
+		break;
+
+	case ORANGE:
+		walkrange(n);
 		break;
 
 	case OXFALL:
@@ -1699,264 +1706,6 @@ convas(Node *n, NodeList **init)
 
 out:
 	ullmancalc(n);
-	return n;
-}
-
-/*
- * rewrite a range statement
- * k and v are names/new_names
- * m is an array or map
- * local is 0 (meaning =) or 1 (meaning :=)
- */
-Node*
-dorange(Node *nn)
-{
-	Node *k, *v, *m;
-	Node *n, *hv, *hc, *ha, *hk, *ohk, *on, *r, *a, *as;
-	NodeList *init, *args;
-	Type *t, *th;
-	int local;
-	NodeList *nl;
-
-	if(nn->op != ORANGE)
-		fatal("dorange not ORANGE");
-
-	nl = nn->list;
-	k = nl->n;
-	if((nl = nl->next) != nil) {
-		v = nl->n;
-		nl = nl->next;
-	} else
-		v = N;
-	if(nl != nil)
-		yyerror("too many variables in range");
-
-	n = nod(OFOR, N, N);
-	init = nil;
-
-	typecheck(&nn->right, Erv);
-	m = nn->right;
-	local = nn->etype;
-
-	t = m->type;
-	if(t == T)
-		goto out;
-	if(t->etype == TARRAY)
-		goto ary;
-	if(t->etype == TMAP)
-		goto map;
-	if(t->etype == TCHAN)
-		goto chan;
-	if(t->etype == TSTRING)
-		goto strng;
-
-	yyerror("range must be over map/array/chan/string");
-	goto out;
-
-ary:
-	hk = nod(OXXX, N, N);		// hidden key
-	tempname(hk, types[TINT]);
-
-	ha = nod(OXXX, N, N);		// hidden array
-	tempname(ha, t);
-
-	a = nod(OAS, hk, nodintconst(0));
-	init = list(init, a);
-
-	a = nod(OAS, ha, m);
-	init = list(init, a);
-
-	n->ntest = nod(OLT, hk, nod(OLEN, ha, N));
-	n->nincr = nod(OASOP, hk, nodintconst(1));
-	n->nincr->etype = OADD;
-
-	if(local)
-		k = old2new(k, hk->type, &init);
-	n->nbody = list1(nod(OAS, k, hk));
-
-	if(v != N) {
-		if(local)
-			v = old2new(v, t->type, &init);
-		n->nbody = list(n->nbody,
-			nod(OAS, v, nod(OINDEX, ha, hk)) );
-	}
-	goto out;
-
-map:
-	th = typ(TARRAY);
-	th->type = ptrto(types[TUINT8]);
-	th->bound = (sizeof(struct Hiter) + types[tptr]->width - 1) /
-			types[tptr]->width;
-	hk = nod(OXXX, N, N);		// hidden iterator
-	tempname(hk, th);		// hashmap hash_iter
-
-	on = syslook("mapiterinit", 1);
-	argtype(on, t->down);
-	argtype(on, t->type);
-	argtype(on, th);
-	a = nod(OADDR, hk, N);
-	r = nod(OCALL, on, N);
-	r->list = list(list1(m), a);
-
-	init = list(init, r);
-
-	r = nod(OINDEX, hk, nodintconst(0));
-	a = nod(OLITERAL, N, N);
-	a->val.ctype = CTNIL;
-	a->type = types[TNIL];
-	r = nod(ONE, r, a);
-	n->ntest = r;
-
-	on = syslook("mapiternext", 1);
-	argtype(on, th);
-	r = nod(OADDR, hk, N);
-	args = list1(r);
-	r = nod(OCALL, on, N);
-	r->list = args;
-	n->nincr = r;
-
-	if(local)
-		k = old2new(k, t->down, &init);
-	if(v == N) {
-		on = syslook("mapiter1", 1);
-		argtype(on, th);
-		argtype(on, t->down);
-		r = nod(OADDR, hk, N);
-		args = list1(r);
-		r = nod(OCALL, on, N);
-		r->list = args;
-		n->nbody = list1(nod(OAS, k, r));
-		goto out;
-	}
-	if(local)
-		v = old2new(v, t->type, &init);
-	on = syslook("mapiter2", 1);
-	argtype(on, th);
-	argtype(on, t->down);
-	argtype(on, t->type);
-	r = nod(OADDR, hk, N);
-	args = list1(r);
-	r = nod(OCALL, on, N);
-	r->list = args;
-	as = nod(OAS2, N, N);
-	as->list = list(list1(k), v);
-	as->rlist = list1(r);
-	n->nbody = list1(as);
-	goto out;
-
-chan:
-	if(v != N)
-		yyerror("chan range can only have one variable");
-
-	hc = nod(OXXX, N, N);	// hidden chan
-	tempname(hc, t);
-
-	hv = nod(OXXX, N, N);	// hidden value
-	tempname(hv, t->type);
-
-	a = nod(OAS, hc, m);
-	init = list(init, a);
-
-	a = nod(ORECV, hc, N);
-	a = nod(OAS, hv, a);
-	init = list(init, a);
-
-	a = nod(OCLOSED, N, N);
-	a->list = list1(hc);
-	n->ntest = nod(ONOT, a, N);
-	n->nincr = nod(OAS, hv, nod(ORECV, hc, N));
-
-	if(local)
-		k = old2new(k, hv->type, &init);
-	n->nbody = list1(nod(OAS, k, hv));
-
-	goto out;
-
-strng:
-	hk = nod(OXXX, N, N);		// hidden key
-	tempname(hk, types[TINT]);
-
-	ohk = nod(OXXX, N, N);		// old hidden key
-	tempname(ohk, types[TINT]);
-
-	ha = nod(OXXX, N, N);		// hidden string
-	tempname(ha, types[TSTRING]);
-
-	hv = N;
-	if(v != N) {
-		hv = nod(OXXX, N, N);		// hidden value
-		tempname(hv, types[TINT]);
-	}
-
-	if(local) {
-		k = old2new(k, types[TINT], &init);
-		if(v != N)
-			v = old2new(v, types[TINT], &init);
-	}
-
-	// ha = s
-	a = nod(OCONV, m, N);
-	a->type = ha->type;
-	a = nod(OAS, ha, a);
-	init = list(init, a);
-
-	// ohk = 0
-	a = nod(OAS, ohk, nodintconst(0));
-	init = list(init, a);
-
-	// hk[,hv] = stringiter(ha,hk)
-	if(v != N) {
-		// hk,v = stringiter2(ha, hk)
-		on = syslook("stringiter2", 0);
-		a = nod(OCALL, on, N);
-		a->list = list(list1(ha), nodintconst(0));
-		as = nod(OAS2, N, N);
-		as->list = list(list1(hk), hv);
-		as->rlist = list1(a);
-		a = as;
-	} else {
-		// hk = stringiter(ha, hk)
-		on = syslook("stringiter", 0);
-		a = nod(OCALL, on, N);
-		a->list = list(list1(ha), nodintconst(0));
-		a = nod(OAS, hk, a);
-	}
-	init = list(init, a);
-
-	// while(hk != 0)
-	n->ntest = nod(ONE, hk, nodintconst(0));
-
-	// hk[,hv] = stringiter(ha,hk)
-	if(v != N) {
-		// hk,hv = stringiter2(ha, hk)
-		on = syslook("stringiter2", 0);
-		a = nod(OCALL, on, N);
-		a->list = list(list1(ha), hk);
-		as = nod(OAS2, N, N);
-		as->list = list(list1(hk), hv);
-		as->rlist = list1(a);
-		a = as;
-	} else {
-		// hk = stringiter(ha, hk)
-		on = syslook("stringiter", 0);
-		a = nod(OCALL, on, N);
-		a->list = list(list1(ha), hk);
-		a = nod(OAS, hk, a);
-	}
-	n->nincr = a;
-
-	// k,ohk[,v] = ohk,hk,[,hv]
-	a = nod(OAS, k, ohk);
-	n->nbody = list1(a);
-	a = nod(OAS, ohk, hk);
-	n->nbody = list(n->nbody, a);
-	if(v != N) {
-		a = nod(OAS, v, hv);
-		n->nbody = list(n->nbody, a);
-	}
-
-out:
-	n->ninit = concat(n->ninit, init);
 	return n;
 }
 

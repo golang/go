@@ -582,11 +582,6 @@ dodump(Node *n, int dep)
 		print("%O-ntype\n", n->op);
 		dodump(n->ntype, dep+1);
 	}
-	if(n->defn != nil && n->defn->op != OAS && n->defn->op != OAS2) {
-		indent(dep);
-		print("%O-defn\n", n->op);
-		dodump(n->defn, dep+1);
-	}
 	if(n->list != nil) {
 		indent(dep);
 		print("%O-list\n", n->op);
@@ -596,6 +591,11 @@ dodump(Node *n, int dep)
 		indent(dep);
 		print("%O-rlist\n", n->op);
 		dodumplist(n->rlist, dep+1);
+	}
+	if(n->nbody != nil) {
+		indent(dep);
+		print("%O-nbody\n", n->op);
+		dodumplist(n->nbody, dep+1);
 	}
 }
 
@@ -2466,10 +2466,8 @@ out:
 		yyerror("ambiguous DOT reference %T.%S", t, s);
 
 	// rebuild elided dots
-	for(c=d-1; c>=0; c--) {
-		n = nod(ODOT, n, n->right);
-		n->left->right = newname(dotlist[c].field->sym);
-	}
+	for(c=d-1; c>=0; c--)
+		n->left = nod(ODOT, n->left, newname(dotlist[c].field->sym));
 ret:
 	return n;
 }
@@ -2705,7 +2703,7 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
 		args = list(args, l->n->left);
 
 	// generate call
-	call = nod(OCALL, adddot(nod(ODOT, this->left, newname(method->sym))), N);
+	call = nod(OCALL, adddot(nod(OXDOT, this->left, newname(method->sym))), N);
 	call->list = args;
 	fn->nbody = list1(call);
 	if(method->type->outtuple > 0) {

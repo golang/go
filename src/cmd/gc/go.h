@@ -332,7 +332,7 @@ enum
 	OCOMPSLICE, OCOMPMAP,
 	OCONV, OCONVNOP, OCONVA2S, OCONVIFACE, OCONVSLICE,
 	ODCL, ODCLFUNC, ODCLFIELD, ODCLARG,
-	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
+	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
 	ODOTTYPE,
 	OEQ, ONE, OLT, OLE, OGE, OGT,
 	OFUNC,
@@ -948,6 +948,7 @@ void	walkconv(Node**, NodeList**);
 void	walkdottype(Node*, NodeList**);
 void	walkas(Node*);
 void	walkswitch(Node*);
+void	walkrange(Node*);
 void	walkselect(Node*);
 void	walkdot(Node*, NodeList**);
 void	walkexpr(Node**, NodeList**);
@@ -967,22 +968,22 @@ void	ifacecheck(Type*, Type*, int, int);
 void	runifacechecks(void);
 Node*	convas(Node*, NodeList**);
 Node*	colas(NodeList*, NodeList*);
-Node*	dorange(Node*);
+void	colasdefn(NodeList*, Node*);
 NodeList*	reorder1(NodeList*);
 NodeList*	reorder3(NodeList*);
 NodeList*	reorder4(NodeList*);
 Node*	structlit(Node*, Node*, NodeList**);
 Node*	arraylit(Node*, Node*, NodeList**);
 Node*	maplit(Node*, Node*, NodeList**);
-Node*	selectas(Node*, Node*, NodeList**);
-Node*	old2new(Node*, Type*, NodeList**);
 void	heapmoves(void);
 void	walkdeflist(NodeList*);
 void	walkdef(Node*);
 void	typechecklist(NodeList*, int);
 void	typecheckswitch(Node*);
 void	typecheckselect(Node*);
+void	typecheckrange(Node*);
 Node*	typecheckconv(Node*, Node*, Type*, int);
+int	checkconv(Type*, Type*, int, int*, int*);
 Node*	typecheck(Node**, int);
 
 /*
