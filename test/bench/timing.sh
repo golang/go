@@ -57,9 +57,17 @@ binarytree() {
 	run 'gc binary-tree-freelist' $O.out -n 15
 }
 
+fannkuch() {
+	echo 'fannkuch 12'
+	run 'gcc -O2 fannkuch.c' a.out 12
+	run 'gccgo -O2 fannkuch.go' a.out -n 12
+	run 'gc fannkuch' $O.out -n 12
+	run 'gc_B fannkuch' $O.out -n 12
+}
+
 case $# in
 0)
-	run="fasta revcom nbody binarytree"
+	run="fasta revcom nbody binarytree fannkuch"
 	;;
 *)
 	run=$*
