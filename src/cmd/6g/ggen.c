@@ -534,28 +534,37 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
-	Node ax, dx, oldax, olddx;
+	Node ax, dx, oldax, olddx, n1, n2;
 	int rax, rdx;
 
-	if(nl->ullman >= UINF || nr->ullman >= UINF)
-		fatal("cgen_div UINF");
+	if(nl->ullman >= UINF) {
+		tempname(&n1, nl->type);
+		cgen(nl, &n1);
+		nl = &n1;
+	}
+	if(nr->ullman >= UINF) {
+		tempname(&n2, nr->type);
+		cgen(nr, &n2);
+		nr = &n2;
+	}
 
 	rax = reg[D_AX];
 	rdx = reg[D_DX];
-	
+
 	nodreg(&ax, types[TINT64], D_AX);
 	nodreg(&dx, types[TINT64], D_DX);
 	regalloc(&ax, nl->type, &ax);
 	regalloc(&dx, nl->type, &dx);
 
 	// save current ax and dx if they are live
+	// and not the destination
 	memset(&oldax, 0, sizeof oldax);
 	memset(&olddx, 0, sizeof olddx);
-	if(rax > 0) {
+	if(rax > 0 && !samereg(&ax, res)) {
 		regalloc(&oldax, nl->type, N);
 		gmove(&ax, &oldax);
 	}
-	if(rdx > 0) {
+	if(rdx > 0 && !samereg(&dx, res)) {
 		regalloc(&olddx, nl->type, N);
 		gmove(&dx, &olddx);
 	}
@@ -565,11 +574,11 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 	regfree(&ax);
 	regfree(&dx);
 	
-	if(rax > 0) {
+	if(oldax.op != 0) {
 		gmove(&oldax, &ax);
 		regfree(&oldax);
 	}
-	if(rdx > 0) {
+	if(olddx.op != 0) {
 		gmove(&olddx, &dx);
 		regfree(&olddx);
 	}
@@ -584,8 +593,8 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 void
 cgen_shift(int op, Node *nl, Node *nr, Node *res)
 {
-	Node n1, n2, n3;
-	int a;
+	Node n1, n2, n3, n4, n5, cx, oldcx;
+	int a, rcx;
 	Prog *p1;
 	uvlong sc;
 
@@ -607,11 +616,33 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		goto ret;
 	}
 
+	if(nl->ullman >= UINF) {
+		tempname(&n4, nl->type);
+		cgen(nl, &n4);
+		nl = &n4;
+	}
+	if(nr->ullman >= UINF) {
+		tempname(&n5, nr->type);
+		cgen(nr, &n5);
+		nr = &n5;
+	}
+
+	rcx = reg[D_CX];
 	nodreg(&n1, types[TUINT32], D_CX);
 	regalloc(&n1, nr->type, &n1);		// to hold the shift type in CX
 	regalloc(&n3, types[TUINT64], &n1);	// to clear high bits of CX
 
-	regalloc(&n2, nl->type, res);
+	nodreg(&cx, types[TUINT64], D_CX);
+	memset(&oldcx, 0, sizeof oldcx);
+	if(rcx > 0 && !samereg(&cx, res)) {
+		regalloc(&oldcx, types[TUINT64], N);
+		gmove(&cx, &oldcx);
+	}
+
+	if(samereg(&cx, res))
+		regalloc(&n2, nl->type, N);
+	else
+		regalloc(&n2, nl->type, res);
 	if(nl->ullman >= nr->ullman) {
 		cgen(nl, &n2);
 		cgen(nr, &n1);
@@ -636,6 +667,11 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	}
 	patch(p1, pc);
 	gins(a, &n1, &n2);
+
+	if(oldcx.op != 0) {
+		gmove(&oldcx, &cx);
+		regfree(&oldcx);
+	}
 
 	gmove(&n2, res);
 
