@@ -107,11 +107,11 @@ func (b *Reader) fill() os.Error {
 
 	// Read new data.
 	n, e := b.rd.Read(b.buf[b.w:len(b.buf)]);
+	b.w += n;
 	if e != nil {
 		b.err = e;
 		return e
 	}
-	b.w += n;
 	return nil
 }
 
