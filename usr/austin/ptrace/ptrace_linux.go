@@ -61,17 +61,17 @@ const (
 type threadState string;
 
 const (
-	running threadState = "Running";
-	singleStepping      = "SingleStepping";	// Transient
-	stopping            = "Stopping";	// Transient
-	stopped             = "Stopped";
-	stoppedBreakpoint   = "StoppedBreakpoint";
-	stoppedSignal       = "StoppedSignal";
-	stoppedThreadCreate = "StoppedThreadCreate";
-	stoppedExiting      = "StoppedExiting";
-	exiting             = "Exiting";	// Transient (except main thread)
-	exited              = "Exited";
-	detached            = "Detached";
+	running             threadState = "Running";
+	singleStepping      threadState = "SingleStepping";	// Transient
+	stopping            threadState = "Stopping";	// Transient
+	stopped             threadState = "Stopped";
+	stoppedBreakpoint   threadState = "StoppedBreakpoint";
+	stoppedSignal       threadState = "StoppedSignal";
+	stoppedThreadCreate threadState = "StoppedThreadCreate";
+	stoppedExiting      threadState = "StoppedExiting";
+	exiting             threadState = "Exiting";	// Transient (except main thread)
+	exited              threadState = "Exited";
+	detached            threadState = "Detached";
 )
 
 func (ts threadState) isRunning() bool {
