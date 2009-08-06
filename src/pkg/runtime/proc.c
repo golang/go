@@ -807,6 +807,29 @@ runtime·LockOSThread(void)
 	g->lockedm = m;
 }
 
+// delete when scheduler is stronger
+void
+runtime·GOMAXPROCS(int32 n)
+{
+	if(n < 1)
+		n = 1;
+
+	lock(&sched);
+	sched.gomaxprocs = n;
+	sched.mcpumax = n;
+	// handle fewer procs
+	while(sched.mcpu > sched.mcpumax) {
+		noteclear(&sched.stopped);
+		sched.waitstop = 1;
+		unlock(&sched);
+		notesleep(&sched.stopped);
+		lock(&sched);
+	}
+	// handle more procs
+	matchmg();
+	unlock(&sched);
+}
+
 void
 runtime·UnlockOSThread(void)
 {
@@ -821,4 +844,3 @@ runtime·mid(uint32 ret)
 	ret = m->id;
 	FLUSH(&ret);
 }
-

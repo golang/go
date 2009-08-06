@@ -40,6 +40,7 @@ import (
 	"flag";
 	"fmt";
 	"math";
+	"runtime";
 )
 
 var n = flag.Int("n", 2000, "count")
@@ -92,6 +93,7 @@ func (v Vec) ATimesTransp(u Vec) {
 
 func main() {
 	flag.Parse();
+	runtime.GOMAXPROCS(*nCPU);
 	N := *n;
 	u := make(Vec, N);
 	for i := 0; i < N; i++ {
