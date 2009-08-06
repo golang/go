@@ -195,13 +195,11 @@ func (b *Reader) UnreadByte() os.Error {
 // rune and its size in bytes.
 func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
 	for b.r + utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) {
-		n := b.w - b.r;
 		b.fill();
 		if b.err != nil {
-			return 0, 0, b.err
-		}
-		if b.w - b.r == n {
-			// no bytes read
+			if b.r == b.w {
+				return 0, 0, b.err;
+			}
 			break;
 		}
 	}

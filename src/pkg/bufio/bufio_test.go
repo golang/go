@@ -168,6 +168,62 @@ func TestReader(t *testing.T) {
 	}
 }
 
+// A StringReader delivers its data one string segment at a time via Read.
+type StringReader struct {
+	data []string;
+	step int;
+}
+
+func (r *StringReader) Read (p []byte) (n int, err os.Error) {
+	if r.step < len(r.data) {
+		s := r.data[r.step];
+		for i := 0; i < len(s); i++ {
+			p[i] = s[i];
+		}
+		n = len(s);
+		r.step++;
+	} else {
+		err = os.EOF;
+	}
+	return;
+}
+
+func readRuneSegments(t *testing.T, segments []string) {
+	got := "";
+	want := strings.Join(segments, "");
+	r := bufio.NewReader(&StringReader{data: segments});
+	for {
+		rune, size, err := r.ReadRune();
+		if err != nil {
+			if err != os.EOF {
+				return;
+			}
+			break;
+		}
+		got += string(rune);
+	}
+	if got != want {
+		t.Errorf("segments=%v got=%s want=%s", segments, got, want);
+	}
+}
+
+var segmentList = [][]string {
+	[]string{},
+	[]string{""},
+	[]string{"日", "本語"},
+	[]string{"\u65e5", "\u672c", "\u8a9e"},
+	[]string{"\U000065e5, "", \U0000672c", "\U00008a9e"},
+	[]string{"\xe6", "\x97\xa5\xe6", "\x9c\xac\xe8\xaa\x9e"},
+	[]string{"Hello", ", ", "World", "!"},
+	[]string{"Hello", ", ", "", "World", "!"},
+}
+
+func TestReadRune(t *testing.T) {
+	for _, s := range segmentList {
+		readRuneSegments(t, s);
+	}
+}
+
 func TestWriter(t *testing.T) {
 	var data [8192]byte;
 
