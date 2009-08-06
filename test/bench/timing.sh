@@ -91,12 +91,21 @@ knucleotide() {
 	run 'gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0' a.out <x
 	run 'gccgo -O2 k-nucleotide.go' a.out <x	# warning: pages badly!
 	run 'gc k-nucleotide' $O.out <x
+	run 'gc_B k-nucleotide' $O.out <x
 	rm x
+}
+
+mandelbrot() {
+	echo 'mandelbrot 16000'
+	run 'gcc -O2 mandelbrot.c' a.out 16000
+	run 'gccgo -O2 mandelbrot.go' a.out -n 16000
+	run 'gc mandelbrot' $O.out -n 16000
+	run 'gc_B mandelbrot' $O.out -n 16000
 }
 
 case $# in
 0)
-	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm knucleotide"
+	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm knucleotide mandelbrot"
 	;;
 *)
 	run=$*
