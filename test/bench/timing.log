@@ -66,3 +66,10 @@ spectral-norm 5500
 	gc_B spectral-norm	49.69u 0.01s 49.83r
 	gc spectral-norm-parallel	24.47u 0.03s 11.05r  # has shift >>1 not div /2
 	[using >>1 instead of /2 : gc gives 24.33u 0.00s 24.33r]
+
+August 6, 2009
+
+k-nucleotide 5000000
+	gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0	k-nucleotide.c: 10.72u 0.01s 10.74r
+	gccgo -O2 k-nucleotide.go	22.69u 0.85s 24.09r
+	gc k-nucleotide	15.63u 0.26s 16.41r
