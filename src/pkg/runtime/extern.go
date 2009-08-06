@@ -40,3 +40,6 @@ func LockOSThread()
 // If the calling goroutine has not called LockOSThread, UnlockOSThread is a no-op.
 func UnlockOSThread()
 
+// GOMAXPROCS sets the maximum number of CPUs that can be executing
+// simultaneously.   This call will go away when the scheduler improves.
+func GOMAXPROCS(n int)
