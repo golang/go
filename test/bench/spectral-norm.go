@@ -31,87 +31,65 @@ POSSIBILITY OF SUCH DAMAGE.
  * http://shootout.alioth.debian.org/
  *
  * contributed by The Go Authors.
+ * Based on spectral-norm.c by Sebastien Loisel
  */
 
 package main
 
 import (
+	"flag";
 	"fmt";
-	"io";
-	"os";
-	"regexp";
-	"strings";
+	"math";
 )
 
-func compile(s string) *regexp.Regexp {
-	r, err := regexp.Compile(s);
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "can't compile pattern %q: %s\n", s, err);
-		os.Exit(2);
-	}
-	return r;
+var n = flag.Int("n", 2000, "count")
+
+func evalA(i, j int) float64 {
+	return 1 / float64(((i + j)*(i + j + 1)/2+ i + 1));
 }
 
-var variants = []string {
-	"agggtaaa|tttaccct",
-	"[cgt]gggtaaa|tttaccc[acg]",
-	"a[act]ggtaaa|tttacc[agt]t",
-	"ag[act]gtaaa|tttac[agt]ct",
-	"agg[act]taaa|ttta[agt]cct",
-	"aggg[acg]aaa|ttt[cgt]ccct",
-	"agggt[cgt]aa|tt[acg]accct",
-	"agggta[cgt]a|t[acg]taccct",
-	"agggtaa[cgt]|[acg]ttaccct",
-}
+type Vec []float64
 
-type Subst struct {
-	pat, repl string
-}
-
-var substs = [] Subst {
-	Subst {"B", "(c|g|t)"},
-	Subst {"D", "(a|g|t)"},
-	Subst {"H", "(a|c|t)"},
-	Subst {"K", "(g|t)"},
-	Subst {"M", "(a|c)"},
-	Subst {"N", "(a|c|g|t)"},
-	Subst {"R", "(a|g)"},
-	Subst {"S", "(c|g)"},
-	Subst {"V", "(a|c|g)"},
-	Subst {"W", "(a|t)"},
-	Subst {"Y", "(c|t)"},
-}
-
-func countMatches(pat string, bytes []byte) int {
-	re := compile(pat);
-	n := 0;
-	pos := 0;
-	for {
-		e := re.Execute(bytes);
-		if len(e) == 0 {
-			break;
+func (v Vec) Times(u Vec) {
+	for i := 0; i < len(v); i++ {
+		v[i] = 0;
+		for j := 0; j < len(u); j++ {
+			v[i] += evalA(i, j)*u[j];
 		}
-		n++;
-		bytes = bytes[e[1]:len(bytes)];
 	}
-	return n;
+}
+
+func (v Vec) TimesTransp(u Vec) {
+	for i := 0; i < len(v); i++ {
+		v[i] = 0;
+		for j := 0; j < len(u); j++ {
+			v[i] += evalA(j, i)*u[j];
+		}
+	}
+}
+
+func (v Vec) ATimesTransp(u Vec) {
+	x := make(Vec, len(u));
+	x.Times(u);
+	v.TimesTransp(x);
 }
 
 func main() {
-	bytes, err := io.ReadFile("/dev/stdin");
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "can't read input: %s\n", err);
-		os.Exit(2);
+	flag.Parse();
+	N := *n;
+	u := make(Vec, N);
+	for i := 0; i < N; i++ {
+		u[i] = 1;
 	}
-	ilen := len(bytes);
-	// Delete the comment lines and newlines
-	bytes = compile("(>[^\n]+)?\n").ReplaceAll(bytes, []byte{});
-	clen := len(bytes);
-	for i, s := range variants {
-		fmt.Printf("%s %d\n", s, countMatches(s, bytes));
+	v := make(Vec, N);
+	for i := 0; i < 10; i++ {
+		v.ATimesTransp(u);
+		u.ATimesTransp(v);
 	}
-	for i, sub := range substs {
-		bytes = compile(sub.pat).ReplaceAll(bytes, strings.Bytes(sub.repl));
+	var vBv, vv float64;
+	for i := 0; i < N; i++ {
+		vBv += u[i]*v[i];
+		vv += v[i]*v[i];
 	}
-	fmt.Printf("\n%d\n%d\n%d\n", ilen, clen, len(bytes));
+	fmt.Printf("%0.9f\n", math.Sqrt(vBv/vv));
 }

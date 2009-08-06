@@ -58,3 +58,11 @@ regex-dna 100000
 	gcc -O2 regex-dna.c -lpcre	0.92u 0.00s 0.99r
 	gc regexp-dna	26.94u 0.18s 28.75r
 	gc_B regexp-dna	26.51u 0.09s 26.75r
+
+spectral-norm 5500
+	gcc -O2 spectral-norm.c -lm	11.54u 0.00s 11.55r
+	gccgo -O2 spectral-norm.go	12.20u 0.00s 12.23r
+	gc spectral-norm	50.23u 0.00s 50.36r
+	gc_B spectral-norm	49.69u 0.01s 49.83r
+	[using >>1 instead of /2 : gc gives 24.33u 0.00s 24.33r]
+
