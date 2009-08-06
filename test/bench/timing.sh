@@ -84,9 +84,19 @@ spectralnorm() {
 	run 'gc_B spectral-norm' $O.out -n 5500
 }
 
+knucleotide() {
+	gcc -O2 fasta.c
+	a.out 1000000 > x  # should be using 25000000
+	echo 'k-nucleotide 1000000'
+	run 'gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0' a.out <x
+	run 'gccgo -O2 k-nucleotide.go' a.out <x	# warning: pages badly!
+	run 'gc k-nucleotide' $O.out <x
+	rm x
+}
+
 case $# in
 0)
-	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm"
+	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm knucleotide"
 	;;
 *)
 	run=$*
