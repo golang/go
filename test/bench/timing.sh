@@ -76,9 +76,17 @@ regexdna() {
 	rm x
 }
 
+spectralnorm() {
+	echo 'spectral-norm 5500'
+	run 'gcc -O2 spectral-norm.c -lm' a.out 5500
+	run 'gccgo -O2 spectral-norm.go' a.out -n 5500
+	run 'gc spectral-norm' $O.out -n 5500
+	run 'gc_B spectral-norm' $O.out -n 5500
+}
+
 case $# in
 0)
-	run="fasta revcom nbody binarytree fannkuch regexdna"
+	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm"
 	;;
 *)
 	run=$*
