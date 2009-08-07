@@ -121,7 +121,7 @@ pidigits() {
 
 case $# in
 0)
-	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm knucleotide mandelbrot meteor pidigits"
+	run="fasta revcomp nbody binarytree fannkuch regexdna spectralnorm knucleotide mandelbrot meteor pidigits"
 	;;
 *)
 	run=$*

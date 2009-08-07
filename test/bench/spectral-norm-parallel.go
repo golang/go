@@ -47,7 +47,7 @@ var n = flag.Int("n", 2000, "count")
 var nCPU = flag.Int("ncpu", 4, "number of cpus")
 
 func evalA(i, j int) float64 {
-	return 1 / float64(((i + j)*(i + j + 1)>>1+ i + 1));
+	return 1 / float64(((i + j)*(i + j + 1)/2 + i + 1));
 }
 
 type Vec []float64

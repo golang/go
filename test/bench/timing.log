@@ -92,3 +92,26 @@ pidigits 10000
 	gc pidigits	77.69u 0.14s 78.18r
 	gc_B pidigits	74.26u 0.18s 75.41r
 	gc_B pidigits	68.48u 0.20s 69.31r   # special case: no bounds checking in bignum
+
+August 7 2009
+
+# New gc does better division by powers of 2.  Significant improvements:
+
+spectral-norm 5500
+	gcc -O2 spectral-norm.c -lm	11.50u 0.00s 11.50r
+	gccgo -O2 spectral-norm.go	12.02u 0.00s 12.02r
+	gc spectral-norm	23.98u 0.00s 24.00r	# new time is 0.48 times old time, 52% faster
+	gc_B spectral-norm	23.71u 0.01s 23.72r	# ditto
+	gc spectral-norm-parallel	24.04u 0.00s 6.26r  # /2 put back.  note: 4x faster (on r70, idle)
+
+k-nucleotide 1000000
+	gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0	10.82u 0.04s 10.87r
+	gccgo -O2 k-nucleotide.go	22.73u 0.89s 23.63r
+	gc k-nucleotide	15.97u 0.03s 16.04r
+	gc_B k-nucleotide	15.86u 0.06s 15.93r	# 8.5% faster, but probably due to weird cache effeccts in previous version
+
+pidigits 10000
+	gcc -O2 pidigits.c -lgmp	2.58u 0.00s 2.58r
+	gc pidigits	71.24u 0.04s 71.28r	# 8.5% faster
+	gc_B pidigits	71.25u 0.03s 71.29r	# 4% faster
+
