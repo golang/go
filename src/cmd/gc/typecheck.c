@@ -879,7 +879,7 @@ reswitch:
 		typechecklist(n->ninit, Etop);
 		typecheck(&n->ntest, Erv);
 		if(n->ntest != N && (t = n->ntest->type) != T && t->etype != TBOOL)
-			yyerror("non-bool %+N used as if condition");
+			yyerror("non-bool %+N used as if condition", n->ntest);
 		typechecklist(n->nbody, Etop);
 		typechecklist(n->nelse, Etop);
 		goto ret;
