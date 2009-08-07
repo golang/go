@@ -1537,6 +1537,8 @@ eqtype1(Type *t1, Type *t2, int d, int names)
 				return 0;
 			if(t1 == T)
 				return 1;
+			if(t1->embedded != t2->embedded)
+				return 0;
 			if(t1->nname != N && t1->nname->sym != S) {
 				if(t2->nname == N || t2->nname->sym == S)
 					return 0;
