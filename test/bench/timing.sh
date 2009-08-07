@@ -126,9 +126,16 @@ threadring() {
 	run 'gc threadring' $O.out -n 50000000
 }
 
+chameneos() {
+	echo 'chameneos 6000000'
+	run 'gcc -O2 chameneosredux.c -lpthread' a.out 6000000
+#	run 'gccgo -O2 chameneosredux.go' a.out -n 6000000	# doesn't support the non-forward-decl variant
+	run 'gc chameneosredux' $O.out -n 6000000
+}
+
 case $# in
 0)
-	run="fasta revcomp nbody binarytree fannkuch regexdna spectralnorm knucleotide mandelbrot meteor pidigits threadring"
+	run="fasta revcomp nbody binarytree fannkuch regexdna spectralnorm knucleotide mandelbrot meteor pidigits threadring chameneos"
 	;;
 *)
 	run=$*
