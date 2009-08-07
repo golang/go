@@ -1309,6 +1309,8 @@ typecheckaste(int op, Type *tstruct, NodeList *nl)
 				yyerror("not enough arguments to %#O", op);
 				goto out;
 			}
+			if(isddd(tl->type))
+				goto out;
 			if(checkconv(tn->type, tl->type, 0, &xx, &yy) < 0)
 				yyerror("cannot use type %T as type %T", tn->type, tl->type);
 			tn = tn->down;

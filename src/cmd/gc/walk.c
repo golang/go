@@ -1314,7 +1314,7 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
 {
 	Type *l, *ll;
 	Node *r, *a;
-	NodeList *nn, *lr0;
+	NodeList *nn, *lr0, *alist;
 	Iter savel, peekl;
 
 	lr0 = lr;
@@ -1326,19 +1326,32 @@ ascompatte(int op, Type **nl, NodeList *lr, int fp, NodeList **init)
 
 	// 1 to many
 	peekl = savel;
-	if(l != T && r != N
-	&& structnext(&peekl) != T
-	&& lr->next == nil
-	&& eqtypenoname(r->type, *nl)) {
-		// clumsy check for differently aligned structs.
-		// now that output structs are aligned separately
-		// from the input structs, should never happen.
-		if(r->type->width != (*nl)->width)
-			fatal("misaligned multiple return\n\t%T\n\t%T", r->type, *nl);
-		a = nodarg(*nl, fp);
-		a->type = r->type;
-		nn = list1(convas(nod(OAS, a, r), init));
-		goto ret;
+	if(l != T && r != N && structnext(&peekl) != T && lr->next == nil
+	&& r->type->etype == TSTRUCT && r->type->funarg) {
+		// optimization - can do block copy
+		if(eqtypenoname(r->type, *nl)) {
+			a = nodarg(*nl, fp);
+			a->type = r->type;
+			nn = list1(convas(nod(OAS, a, r), init));
+			goto ret;
+		}
+		// conversions involved.
+		// copy into temporaries.
+		alist = nil;
+		for(l=structfirst(&savel, &r->type); l; l=structnext(&savel)) {
+			a = nod(OXXX, N, N);
+			tempname(a, l->type);
+			alist = list(alist, a);
+		}
+		a = nod(OAS2, N, N);
+		a->list = alist;
+		a->rlist = lr;
+		typecheck(&a, Etop);
+		walkstmt(&a);
+		*init = list(*init, a);
+		lr = alist;
+		r = lr->n;
+		l = structfirst(&savel, nl);
 	}
 
 loop:
@@ -1369,9 +1382,9 @@ loop:
 	if(l == T || r == N) {
 		if(l != T || r != N) {
 			if(l != T)
-				yyerror("not enough arguments to %O", op);
+				yyerror("xxx not enough arguments to %O", op);
 			else
-				yyerror("too many arguments to %O", op);
+				yyerror("xxx too many arguments to %O", op);
 			dumptypes(nl, "expected");
 			dumpnodetypes(lr0, "given");
 		}
