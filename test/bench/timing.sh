@@ -119,9 +119,16 @@ pidigits() {
 	run 'gc_B  pidigits' $O.out -n 10000
 }
 
+threadring() {
+	echo 'threadring 50000000'
+	run 'gcc -O2 threadring.c -lpthread' a.out 50000000
+	run 'gccgo -O2 threadring.go' a.out -n 50000000
+	run 'gc threadring' $O.out -n 50000000
+}
+
 case $# in
 0)
-	run="fasta revcomp nbody binarytree fannkuch regexdna spectralnorm knucleotide mandelbrot meteor pidigits"
+	run="fasta revcomp nbody binarytree fannkuch regexdna spectralnorm knucleotide mandelbrot meteor pidigits threadring"
 	;;
 *)
 	run=$*
