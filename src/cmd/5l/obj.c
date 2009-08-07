@@ -252,6 +252,7 @@ main(int argc, char *argv[])
 	dtype = 4;
 	if(outfile == 0)
 		outfile = "5.out";
+	unlink(outfile);
 	cout = create(outfile, 1, 0775);
 	if(cout < 0) {
 		diag("%s: cannot create", outfile);

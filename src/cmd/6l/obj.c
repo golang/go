@@ -337,6 +337,7 @@ main(int argc, char *argv[])
 	edatap = P;
 	pc = 0;
 	dtype = 4;
+	unlink(outfile);
 	cout = create(outfile, 1, 0775);
 	if(cout < 0) {
 		diag("cannot create %s", outfile);
