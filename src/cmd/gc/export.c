@@ -61,6 +61,8 @@ autoexport(Node *n, int ctxt)
 		return;
 	if((ctxt != PEXTERN && ctxt != PFUNC) || dclcontext != PEXTERN)
 		return;
+	if(n->ntype && n->ntype->op == OTFUNC && n->ntype->left)	// method
+		return;
 	if(exportname(n->sym->name) || strcmp(n->sym->name, "init") == 0)
 		exportsym(n);
 	else
@@ -347,7 +349,6 @@ importvar(Sym *s, Type *t, int ctxt)
 		warn("redeclare import var %S from %T to %T",
 			s, s->def->type, t);
 	}
-	checkwidth(t);
 	n = newname(s);
 	n->type = t;
 	declare(n, ctxt);
@@ -357,56 +358,19 @@ importvar(Sym *s, Type *t, int ctxt)
 }
 
 void
-importtype(Sym *s, Type *t)
+importtype(Type *pt, Type *t)
 {
-	Node *n;
-	Type *tt;
-
-	importsym(s, OTYPE);
-	n = s->def;
-	if(n != N && n->op == OTYPE) {
-		if(cvttype(t, n->type))
-			return;
-		if(t->etype == TFORWSTRUCT && n->type->etype == TSTRUCT)
-			return;
-		if(t->etype == TFORWINTER && n->type->etype == TINTER)
-			return;
-		if(n->type->etype != TFORW && n->type->etype != TFORWSTRUCT && n->type->etype != TFORWINTER) {
-			yyerror("redeclare import type %S from %lT to %lT", s, n->type, t);
-			n = s->def = typenod(typ(0));
-		}
-	}
-	if(n == N || n->op != OTYPE) {
-		tt = typ(0);
-		tt->sym = s;
-		n = typenod(tt);
-		s->def = n;
-	}
-	if(n->type == T)
-		n->type = typ(0);
-	*n->type = *t;
-	n->type->sym = s;
-	n->type->nod = n;
-	switch(n->type->etype) {
-	case TFORWINTER:
-	case TFORWSTRUCT:
-		// allow re-export in case it gets defined
-		s->flags &= ~(SymExport|SymPackage);
-		s->flags &= ~SymImported;
-		break;
-	default:
-		checkwidth(n->type);
-	}
+	typedcl2(pt, t);
 
 	if(debug['E'])
-		print("import type %S %lT\n", s, t);
+		print("import type %T %lT\n", pt, t);
 }
 
 void
 importmethod(Sym *s, Type *t)
 {
 	checkwidth(t);
-	addmethod(newname(s), t, 0);
+	addmethod(s, t, 0);
 }
 
 /*

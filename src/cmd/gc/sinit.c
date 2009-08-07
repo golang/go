@@ -69,6 +69,12 @@ initlin(NodeList *l)
 
 	for(; l; l=l->next) {
 		n = l->n;
+		switch(n->op) {
+		case ODCLFUNC:
+		case ODCLCONST:
+		case ODCLTYPE:
+			continue;
+		}
 		initlin(n->ninit);
 		n->ninit = nil;
 		xxx.list = list(xxx.list, n);

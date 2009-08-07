@@ -18,7 +18,7 @@ OFILES=\
 	align.$O\
 	bits.$O\
 	builtin.$O\
-	compat.$O\
+	closure.$O\
 	const.$O\
 	dcl.$O\
 	export.$O\
