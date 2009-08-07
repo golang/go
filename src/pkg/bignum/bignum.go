@@ -283,7 +283,7 @@ func (x Natural) Sub(y Natural) Natural {
 
 // Returns c = x*y div B, z = x*y mod B.
 //
-func mul11(x, y digit) (digit, digit) {
+func mul11(x, y digit) (z1, z0 digit) {
 	// Split x and y into 2 sub-digits each,
 	// multiply the digits separately while avoiding overflow,
 	// and return the product as two separate digits.
@@ -296,7 +296,44 @@ func mul11(x, y digit) (digit, digit) {
 	const B2  = 1<<W2;
 	const M2  = _B2 - 1;
 
-	// split x and y into sub-digits
+	if x < y {
+		x, y = y, x;
+	}
+
+	if x < _B2 {
+		// y < _B2 because y <= x
+		// sub-digits of x and y are (0, x) and (0, y)
+		// x = x
+		// y = y
+		t0 := x*y;
+
+		// compute result digits but avoid overflow
+		// z = z1*B + z0 = x*y
+		z0 = t0 & _M;
+		z1 = (t0>>W2) >> (_W-W2);
+		return;
+	}
+
+	if y < _B2 {
+		// split x and y into sub-digits
+		// sub-digits of y are (x1, x0) and (0, y)
+		// x = (x1*B2 + x0)
+		// y = y
+		x1, x0 := x>>W2, x&M2;
+
+		// x*y = t1*B2 + t0
+		t0 := x0*y;
+		t1 := x1*y;
+
+		// compute result digits but avoid overflow
+		// z = z1*B + z0 = x*y
+		z0 = (t1<<W2 + t0)&_M;
+		z1 = (t1 + t0>>W2) >> (_W-W2);
+		return;
+	}
+
+	// general case
+	// sub-digits of x and y are (x1, x0) and (y1, y0)
 	// x = (x1*B2 + x0)
 	// y = (y1*B2 + y0)
 	x1, x0 := x>>W2, x&M2;
@@ -307,12 +344,40 @@ func mul11(x, y digit) (digit, digit) {
 	t1 := x1*y0 + x0*y1;
 	t2 := x1*y1;
 
-	// compute the result digits but avoid overflow
+	// compute result digits but avoid overflow
 	// z = z1*B + z0 = x*y
-	z0 := (t1<<W2 + t0)&_M;
-	z1 := t2<<DW + (t1 + t0>>W2)>>(_W-W2);
+	z0 = (t1<<W2 + t0)&_M;
+	z1 = t2<<DW + (t1 + t0>>W2) >> (_W-W2);
+	return;
+}
 
-	return z1, z0;
+
+func (x Natural) Mul(y Natural) Natural
+
+// Mul1 returns the product x * d.
+//
+func (x Natural) Mul1(d uint64) Natural {
+	switch {
+	case d == 0: return nat[0];
+	case d == 1: return x;
+	case d >= _B: return x.Mul(Nat(d));
+	}
+
+	n := len(x);
+	z := make(Natural, n + 1);
+	if d != 0 {
+		c := digit(0);
+		for i := 0; i < n; i++ {
+			// z[i] += c + x[i]*d;
+			z1, z0 := mul11(x[i], digit(d));
+			t := c + z[i] + z0;
+			c, z[i] = t>>_W, t&_M;
+			c += z1;
+		}
+		z[n] = c;
+	}
+
+	return normalize(z);
 }
 
 
@@ -321,6 +386,13 @@ func mul11(x, y digit) (digit, digit) {
 func (x Natural) Mul(y Natural) Natural {
 	n := len(x);
 	m := len(y);
+	if n < m {
+		return y.Mul(x);
+	}
+
+	if m == 1 && y[0] < _B {
+		return x.Mul1(uint64(y[0]));
+	}
 
 	z := make(Natural, n + m);
 	for j := 0; j < m; j++ {
