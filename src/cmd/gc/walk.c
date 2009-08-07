@@ -111,7 +111,7 @@ walkdeflist(NodeList *l)
 void
 walkdef(Node *n)
 {
-	int lno, maplineno;
+	int lno, maplineno, embedlineno;
 	NodeList *init;
 	Node *e;
 	Type *t;
@@ -210,6 +210,7 @@ walkdef(Node *n)
 		// copy new type and clear fields
 		// that don't come along
 		maplineno = n->type->maplineno;
+		embedlineno = n->type->embedlineno;
 		*n->type = *t;
 		t = n->type;
 		t->sym = n->sym;
@@ -225,6 +226,11 @@ walkdef(Node *n)
 		if(maplineno) {
 			lineno = maplineno;
 			maptype(n->type, types[TBOOL]);
+		}
+		if(embedlineno) {
+			lineno = embedlineno;
+			if(isptr[t->etype])
+				yyerror("embedded type cannot be a pointer");
 		}
 		break;
 	}

@@ -175,6 +175,7 @@ struct	Type
 	int32	bound;		// negative is dynamic array
 
 	int32	maplineno;	// first use of TFORW as map key
+	int32	embedlineno;	// first use of TFORW as embedded type
 };
 #define	T	((Type*)0)
 

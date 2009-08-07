@@ -900,8 +900,10 @@ stotype(NodeList *l, int et, Type **t)
 				t1 = n->type;
 				if(t1->sym == S && isptr[t1->etype])
 					t1 = t1->type;
-				if(t1 != T && isptr[t1->etype])
+				if(isptr[t1->etype])
 					yyerror("embedded type cannot be a pointer");
+				else if(t1->etype == TFORW && t1->embedlineno == 0)
+					t1->embedlineno = lineno;
 			}
 		}
 
