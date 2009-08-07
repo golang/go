@@ -137,3 +137,7 @@ threadring 50000000
 	# change wait code to do <-make(chan int) instead of time.Sleep
 	gc threadring	28.41u 0.01s 29.35r
 	GOMAXPROCS=4 gc threadring	112.59u 232.83s 384.72r
+	
+chameneos 6000000
+	gcc -O2 chameneosredux.c -lpthread	18.14u 276.52s 76.93r
+	gc chameneosredux	20.19u 0.01s 20.23r
