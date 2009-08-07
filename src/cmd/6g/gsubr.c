@@ -1861,3 +1861,55 @@ no:
 	sudoclean();
 	return 0;
 }
+
+int
+powtwo(Node *n)
+{
+	uvlong v, b;
+	int i;
+
+	if(n == N || n->op != OLITERAL || n->type == T)
+		goto no;
+	if(!isint[n->type->etype])
+		goto no;
+
+	v = mpgetfix(n->val.u.xval);
+	b = 1ULL;
+	for(i=0; i<64; i++) {
+		if(b == v)
+			return i;
+		b = b<<1;
+	}
+
+no:
+	return -1;
+}
+
+Type*
+tounsigned(Type *t)
+{
+
+	// this is types[et+1], but not sure
+	// that this relation is immutable
+	switch(t->etype) {
+	default:
+		print("tounsigned: unknown type %T\n", t);
+		break;
+	case TINT:
+		t = types[TUINT];
+		break;
+	case TINT8:
+		t = types[TUINT8];
+		break;
+	case TINT16:
+		t = types[TUINT16];
+		break;
+	case TINT32:
+		t = types[TUINT32];
+		break;
+	case TINT64:
+		t = types[TUINT64];
+		break;
+	}
+	return t;
+}
