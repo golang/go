@@ -161,6 +161,21 @@ func (x *Integer) Sub(y *Integer) *Integer {
 }
 
 
+// Mul1 returns the product x * d.
+//
+func (x *Integer) Mul1(d int64) *Integer {
+	// x * y == x * y
+	// x * (-y) == -(x * y)
+	// (-x) * y == -(x * y)
+	// (-x) * (-y) == x * y
+	f := uint64(d);
+	if d < 0 {
+		f = uint64(-d);
+	}
+	return MakeInt(x.sign != (d < 0), x.mant.Mul1(f));
+}
+
+
 // Mul returns the product x * y.
 //
 func (x *Integer) Mul(y *Integer) *Integer {
