@@ -247,12 +247,22 @@ walkstmtlist(NodeList *l)
 		walkstmt(&l->n);
 }
 
+static int
+samelist(NodeList *a, NodeList *b)
+{
+	for(; a && b; a=a->next, b=b->next)
+		if(a->n != b->n)
+			return 0;
+	return a == b;
+}
+
+
 void
 walkstmt(Node **np)
 {
 	NodeList *init;
-	NodeList *ll;
-	int lno;
+	NodeList *ll, *rl;
+	int cl, lno;
 	Node *n;
 
 	n = *np;
@@ -350,8 +360,28 @@ walkstmt(Node **np)
 
 	case ORETURN:
 		walkexprlist(n->list, &n->ninit);
-		if(curfn->type->outnamed && n->list == nil) {
-			// print("special return\n");
+		if(curfn->type->outnamed && count(n->list) != 1) {
+			if(n->list == nil) {
+				// print("special return\n");
+				break;
+			}
+			// assign to the function out parameters,
+			// so that reorder3 can fix up conflicts
+			rl = nil;
+			for(ll=curfn->dcl; ll != nil; ll=ll->next) {
+				cl = ll->n->class & ~PHEAP;
+				if(cl == PAUTO)
+					break;
+				if(cl == PPARAMOUT)
+					rl = list(rl, ll->n);
+			}
+			if(samelist(rl, n->list)) {
+				// special return in disguise
+				n->list = nil;
+				break;
+			}
+			ll = ascompatee(n->op, rl, n->list, &n->ninit);
+			n->list = reorder3(ll);
 			break;
 		}
 		ll = ascompatte(n->op, getoutarg(curfn->type), n->list, 1, &n->ninit);
