@@ -952,8 +952,7 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
 	p.expect(token.LPAREN);
 	var typ ast.Expr;
 	if p.tok == token.TYPE {
-		// special case for type switch
-		typ = &ast.Ident{p.pos, "type"};
+		// type switch: typ == nil
 		p.next();
 	} else {
 		typ = p.parseType();
@@ -1078,6 +1077,11 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	case *ast.SelectorExpr:
 	case *ast.IndexExpr:
 	case *ast.TypeAssertExpr:
+		if t.Type == nil {
+			// the form X.(type) is only allowed in type switch expressions
+			p.errorExpected(x.Pos(), "expression");
+			x = &ast.BadExpr{x.Pos()};
+		}
 	case *ast.CallExpr:
 	case *ast.StarExpr:
 	case *ast.UnaryExpr:
@@ -1353,15 +1357,6 @@ func (p *parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
 }
 
 
-func (p *parser) isExpr(s ast.Stmt) bool {
-	if s == nil {
-		return true;
-	}
-	dummy, isExpr := s.(*ast.ExprStmt);
-	return isExpr;
-}
-
-
 func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
 	if s == nil {
 		return nil;
@@ -1411,7 +1406,7 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 	}
 
 	pos := p.expect(token.IF);
-	s1, s2, dummy := p.parseControlClause(false);
+	s1, s2, _ := p.parseControlClause(false);
 	body := p.parseBlockStmt();
 	var else_ ast.Stmt;
 	if p.tok == token.ELSE {
@@ -1445,6 +1440,28 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
 }
 
 
+func (p *parser) parseTypeList() []ast.Expr {
+	if p.trace {
+		defer un(trace(p, "TypeList"));
+	}
+
+	list := vector.New(0);
+	list.Push(p.parseType());
+	for p.tok == token.COMMA {
+		p.next();
+		list.Push(p.parseType());
+	}
+
+	// convert list
+	exprs := make([]ast.Expr, list.Len());
+	for i := 0; i < list.Len(); i++ {
+		exprs[i] = list.At(i).(ast.Expr);
+	}
+
+	return exprs;
+}
+
+
 func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
 	if p.trace {
 		defer un(trace(p, "TypeCaseClause"));
@@ -1452,10 +1469,10 @@ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
 
 	// TypeSwitchCase
 	pos := p.pos;
-	var typ ast.Expr;
+	var types []ast.Expr;
 	if p.tok == token.CASE {
 		p.next();
-		typ = p.parseType();
+		types = p.parseTypeList();
 	} else {
 		p.expect(token.DEFAULT);
 	}
@@ -1463,7 +1480,21 @@ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
 	colon := p.expect(token.COLON);
 	body := p.parseStmtList();
 
-	return &ast.TypeCaseClause{pos, typ, colon, body};
+	return &ast.TypeCaseClause{pos, types, colon, body};
+}
+
+
+func isExprSwitch(s ast.Stmt) bool {
+	if s == nil {
+		return true;
+	}
+	if e, ok := s.(*ast.ExprStmt); ok {
+		if a, ok := e.X.(*ast.TypeAssertExpr); ok {
+			return a.Type != nil;  // regular type assertion
+		}
+		return true;
+	}
+	return false;
 }
 
 
@@ -1473,10 +1504,9 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	}
 
 	pos := p.expect(token.SWITCH);
-	s1, s2, dummy := p.parseControlClause(false);
+	s1, s2, _ := p.parseControlClause(false);
 
-	if p.isExpr(s2) {
-		// expression switch
+	if isExprSwitch(s2) {
 		lbrace := p.expect(token.LBRACE);
 		cases := vector.New(0);
 		for p.tok == token.CASE || p.tok == token.DEFAULT {

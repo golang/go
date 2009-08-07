@@ -32,6 +32,7 @@ const (
 	UseSpaces;  // use spaces instead of tabs for indentation and alignment
 	OptCommas;  // print optional commas
 	OptSemis;  // print optional semicolons
+	Reverse;  // print top-level declarations in reverse order without forward-declarations
 )
 
 
@@ -682,7 +683,11 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 	case *ast.TypeAssertExpr:
 		p.expr1(x.X, token.HighestPrec);
 		p.print(token.PERIOD, token.LPAREN);
-		p.expr(x.Type);
+		if x.Type != nil {
+			p.expr(x.Type);
+		} else {
+			p.print(token.TYPE);
+		}
 		p.print(token.RPAREN);
 
 	case *ast.IndexExpr:
@@ -722,6 +727,10 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 		p.expr(x.Elt);
 
 	case *ast.StructType:
+		if x.Fields == nil && p.mode & Reverse != 0 && p.level == 0 {
+			// omit top-level forward declarations in reverse mode
+			return true;
+		}
 		p.print(token.STRUCT);
 		optSemi = p.fieldList(x.Lbrace, x.Fields, x.Rbrace, false);
 
@@ -730,6 +739,10 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 		p.signature(x.Params, x.Results);
 
 	case *ast.InterfaceType:
+		if x.Methods == nil && p.mode & Reverse != 0 && p.level == 0 {
+			// omit top-level forward declarations in reverse mode
+			return true;
+		}
 		p.print(token.INTERFACE);
 		optSemi = p.fieldList(x.Lbrace, x.Methods, x.Rbrace, true);
 
@@ -941,9 +954,9 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		optSemi = true;
 
 	case *ast.TypeCaseClause:
-		if s.Type != nil {
+		if s.Types != nil {
 			p.print(token.CASE, blank);
-			p.expr(s.Type);
+			p.exprList(s.Types);
 		} else {
 			p.print(token.DEFAULT);
 		}
@@ -1070,13 +1083,25 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 			p.print(d.Lparen, token.LPAREN);
 			if len(d.Specs) > 0 {
 				p.print(+1, newline);
-				for i, s := range d.Specs {
-					if i > 0 {
-						p.print(token.SEMICOLON);
-						p.lineComment(comment);
-						p.print(newline);
+				if p.mode & Reverse != 0 && p.level == 0 {
+					for i := len(d.Specs)-1; i >= 0; i-- {
+						s := d.Specs[i];
+						if i < len(d.Specs)-1 {
+							p.print(token.SEMICOLON);
+							p.lineComment(comment);
+							p.print(newline);
+						}
+						comment, optSemi = p.spec(s);
 					}
-					comment, optSemi = p.spec(s);
+				} else {
+					for i, s := range d.Specs {
+						if i > 0 {
+							p.print(token.SEMICOLON);
+							p.lineComment(comment);
+							p.print(newline);
+						}
+						comment, optSemi = p.spec(s);
+					}
 				}
 				if p.optSemis() {
 					p.print(token.SEMICOLON);
@@ -1094,6 +1119,10 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 		}
 
 	case *ast.FuncDecl:
+		if d.Body == nil && p.mode & Reverse != 0 {
+			// omit forward declarations in reverse mode
+			break;
+		}
 		p.leadComment(d.Doc);
 		p.print(lineTag(d.Pos()), token.FUNC, blank);
 		if recv := d.Recv; recv != nil {
@@ -1131,13 +1160,25 @@ func (p *printer) file(src *ast.File) {
 	p.print(src.Pos(), token.PACKAGE, blank);
 	p.expr(src.Name);
 
-	for _, d := range src.Decls {
-		p.print(newline, newline);
-		comment, _ := p.decl(d);
-		if p.optSemis() {
-			p.print(token.SEMICOLON);
+	if p.mode & Reverse != 0 {
+		for i := len(src.Decls)-1; i >= 0; i-- {
+			d := src.Decls[i];
+			p.print(newline, newline);
+			comment, _ := p.decl(d);
+			if p.optSemis() {
+				p.print(token.SEMICOLON);
+			}
+			p.lineComment(comment);
 		}
-		p.lineComment(comment);
+	} else {
+		for _, d := range src.Decls {
+			p.print(newline, newline);
+			comment, _ := p.decl(d);
+			if p.optSemis() {
+				p.print(token.SEMICOLON);
+			}
+			p.lineComment(comment);
+		}
 	}
 
 	p.print(newline);
@@ -1181,7 +1222,10 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, o
 			comment, _ := p.decl(n);
 			p.lineComment(comment);  // no newline at end
 		case *ast.File:
-			p.comment = n.Comments;
+			if mode & Reverse == 0 {
+				// don't print comments in reverse mode
+				p.comment = n.Comments;
+			}
 			p.file(n);
 		default:
 			p.errors <- os.NewError("unsupported node type");
