@@ -27,9 +27,10 @@ static void	typecheckcomplit(Node**);
 static void	addrescapes(Node*);
 static void	typecheckas2(Node*);
 static void	typecheckas(Node*);
+static void	typecheckfunc(Node*);
 static void	checklvalue(Node*, char*);
-static void checkassign(Node*);
-static void checkassignlist(NodeList*);
+static void	checkassign(Node*);
+static void	checkassignlist(NodeList*);
 static int	islvalue(Node*);
 
 void
@@ -52,6 +53,10 @@ typecheck(Node **np, int top)
 	NodeList *args;
 	int lno, ok;
 	Type *t;
+
+	// cannot type check until all the source has been parsed
+	if(!typecheckok)
+		fatal("early typecheck");
 
 	n = *np;
 	if(n == N)
@@ -392,9 +397,10 @@ reswitch:
 			if(t == T)
 				goto error;
 			n->op = ODOTPTR;
+			checkwidth(t);
 		}
 		if(!lookdot(n, t)) {
-			yyerror("%#N undefined (type %T has no field %S)", n, t, n->right->sym);
+			yyerror("%#N undefined (type %p %T has no field %S)", n, t, t, n->right->sym);
 			goto error;
 		}
 		switch(n->op) {
@@ -566,6 +572,10 @@ reswitch:
 			n->right = N;
 			goto reswitch;
 		}
+		if(l->op == ONAME && (r = unsafenmagic(l, n->list)) != N) {
+			n = r;
+			goto reswitch;
+		}
 		typecheck(&n->left, Erv | Etype | Ecall);
 		defaultlit(&n->left, T);
 		l = n->left;
@@ -575,7 +585,7 @@ reswitch:
 			typechecklist(n->list, Erv);
 		if((t = l->type) == T)
 			goto error;
-		dowidth(t);
+		checkwidth(t);
 
 		switch(l->op) {
 		case OTYPE:
@@ -818,6 +828,13 @@ reswitch:
 		typechecklist(n->list, Erv);
 		goto ret;
 
+	case OCLOSURE:
+		ok |= Erv;
+		typecheckclosure(n);
+		if(n->type == T)
+			goto error;
+		goto ret;
+
 	/*
 	 * statements
 	 */
@@ -905,9 +922,40 @@ reswitch:
 		typechecklist(n->list, Erv);
 		typechecklist(n->nbody, Etop);
 		goto ret;
+
+	case ODCLFUNC:
+		ok |= Etop;
+		typecheckfunc(n);
+		goto ret;
+
+	case ODCLCONST:
+		ok |= Etop;
+		typecheck(&n->left, Erv);
+		goto ret;
+
+	case ODCLTYPE:
+		ok |= Etop;
+		typecheck(&n->left, Etype);
+		goto ret;
 	}
 
 ret:
+	t = n->type;
+	if(t && !t->funarg && n->op != OTYPE) {
+		switch(t->etype) {
+		case TFUNC:	// might have TANY; wait until its called
+		case TANY:
+		case TFORW:
+		case TFORWINTER:
+		case TFORWSTRUCT:
+		case TIDEAL:
+		case TNIL:
+			break;
+		default:
+			checkwidth(t);
+		}
+	}
+
 	evconst(n);
 	if(n->op == OTYPE && !(top & Etype)) {
 		yyerror("type %T is not an expression", n->type);
@@ -921,11 +969,12 @@ ret:
 		yyerror("must call %#N", n);
 		goto error;
 	}
-	if((top & (Ecall|Erv|Etype)) && !(ok & (Erv|Etype|Ecall))) {
+	// TODO(rsc): simplify
+	if((top & (Ecall|Erv|Etype)) && !(top & Etop) && !(ok & (Erv|Etype|Ecall))) {
 		yyerror("%#N used as value", n);
 		goto error;
 	}
-	if((top & Etop) && !(ok & Etop)) {
+	if((top & Etop) && !(top & (Ecall|Erv|Etype)) && !(ok & Etop)) {
 		yyerror("%#N not used", n);
 		goto error;
 	}
@@ -1016,6 +1065,7 @@ lookdot(Node *n, Type *t)
 
 	s = n->right->sym;
 
+	dowidth(t);
 	f1 = T;
 	if(t->etype == TSTRUCT || t->etype == TINTER)
 		f1 = lookdot1(s, t, t->type);
@@ -1042,6 +1092,7 @@ lookdot(Node *n, Type *t)
 
 	if(f2 != T) {
 		tt = n->left->type;
+		dowidth(tt);
 		rcvr = getthisx(f2->type)->type->type;
 		if(!eqtype(rcvr, tt)) {
 			if(rcvr->etype == tptr && eqtype(rcvr->type, tt)) {
@@ -1609,12 +1660,18 @@ addrescapes(Node *n)
 		case PPARAM:
 			// if func param, need separate temporary
 			// to hold heap pointer.
+			// the function type has already been checked
+			// (we're in the function body)
+			// so the param already has a valid xoffset.
 			if(n->class == PPARAM) {
 				// expression to refer to stack copy
 				n->stackparam = nod(OPARAM, n, N);
 				n->stackparam->type = n->type;
 				n->stackparam->addable = 1;
+				if(n->xoffset == BADWIDTH)
+					fatal("addrescapes before param assignment");
 				n->stackparam->xoffset = n->xoffset;
+				n->xoffset = 0;
 			}
 
 			n->class |= PHEAP;
@@ -1624,10 +1681,12 @@ addrescapes(Node *n)
 			n->xoffset = 0;
 
 			// create stack variable to hold pointer to heap
-			n->heapaddr = nod(0, N, N);
-			tempname(n->heapaddr, ptrto(n->type));
+			n->heapaddr = nod(ONAME, N, N);
+			n->heapaddr->type = ptrto(n->type);
 			snprint(buf, sizeof buf, "&%S", n->sym);
 			n->heapaddr->sym = lookup(buf);
+			n->heapaddr->class = PHEAP-1;	// defer tempname to allocparams
+			curfn->dcl = list(curfn->dcl, n->heapaddr);
 			break;
 		}
 		break;
@@ -1845,4 +1904,22 @@ out:
 	for(ll=n->list; ll; ll=ll->next)
 		if(ll->n->typecheck == 0)
 			typecheck(&ll->n, Erv);
+}
+
+/*
+ * type check function definition
+ */
+static void
+typecheckfunc(Node *n)
+{
+	Type *t, *rcvr;
+
+	typecheck(&n->nname, Erv);
+	if((t = n->nname->type) == T)
+		return;
+	n->type = t;
+
+	rcvr = getthisx(t)->type;
+	if(rcvr != nil && n->shortname != N)
+		addmethod(n->shortname->sym, t, 1);
 }

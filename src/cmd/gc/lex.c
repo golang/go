@@ -310,6 +310,7 @@ importfile(Val *f)
 	curio.peekc = 0;
 	curio.peekc1 = 0;
 	curio.infile = file;
+	typecheckok = 1;
 	for(;;) {
 		c = getc();
 		if(c == EOF)
@@ -343,6 +344,7 @@ unimportfile(void)
 	curio = pushedio;
 	pushedio.bin = nil;
 	inimportsys = 0;
+	typecheckok = 0;
 }
 
 void
@@ -362,6 +364,7 @@ cannedimports(char *file, char *cp)
 	curio.cp = cp;
 
 	pkgmyname = S;
+	typecheckok = 1;
 	inimportsys = 1;
 }
 
@@ -1308,7 +1311,8 @@ lexinit(void)
 				t = typ(etype);
 				t->sym = s;
 
-				dowidth(t);
+				if(etype != TANY && etype != TSTRING)
+					dowidth(t);
 				types[etype] = t;
 			}
 			s->def = typenod(t);

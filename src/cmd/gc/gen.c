@@ -25,14 +25,25 @@ allocparams(void)
 	NodeList *l;
 	Node *n;
 	uint32 w;
+	Sym *s;
+
+	if(stksize < 0)
+		fatal("allocparams not during code generation");
 
 	/*
 	 * allocate (set xoffset) the stack
 	 * slots for all automatics.
 	 * allocated starting at -w down.
 	 */
-	for(l=autodcl; l; l=l->next) {
+	for(l=curfn->dcl; l; l=l->next) {
 		n = l->n;
+		if(n->op == ONAME && n->class == PHEAP-1) {
+			// heap address variable; finish the job
+			// started in addrescapes.
+			s = n->sym;
+			tempname(n, n->type);
+			n->sym = s;
+		}
 		if(n->op != ONAME || n->class != PAUTO)
 			continue;
 		typecheck(&n, Erv);	// only needed for unused variables
@@ -42,9 +53,10 @@ allocparams(void)
 		w = n->type->width;
 		if(n->class & PHEAP)
 			w = widthptr;
+		if(w >= 100000000)
+			fatal("bad width");
 		stksize += w;
 		stksize = rnd(stksize, w);
-
 		n->xoffset = -stksize;
 	}
 }
@@ -161,6 +173,9 @@ gen(Node *n)
 	case OFALL:
 	case OXCASE:
 	case OXFALL:
+	case ODCLCONST:
+	case ODCLFUNC:
+	case ODCLTYPE:
 		break;
 
 	case OEMPTY:
@@ -511,3 +526,90 @@ cgen_as(Node *nl, Node *nr)
 ret:
 	;
 }
+
+/*
+ * gather series of offsets
+ * >=0 is direct addressed field
+ * <0 is pointer to next field (+1)
+ */
+int
+dotoffset(Node *n, int *oary, Node **nn)
+{
+	int i;
+
+	switch(n->op) {
+	case ODOT:
+		if(n->xoffset == BADWIDTH) {
+			dump("bad width in dotoffset", n);
+			fatal("bad width in dotoffset");
+		}
+		i = dotoffset(n->left, oary, nn);
+		if(i > 0) {
+			if(oary[i-1] >= 0)
+				oary[i-1] += n->xoffset;
+			else
+				oary[i-1] -= n->xoffset;
+			break;
+		}
+		if(i < 10)
+			oary[i++] = n->xoffset;
+		break;
+
+	case ODOTPTR:
+		if(n->xoffset == BADWIDTH) {
+			dump("bad width in dotoffset", n);
+			fatal("bad width in dotoffset");
+		}
+		i = dotoffset(n->left, oary, nn);
+		if(i < 10)
+			oary[i++] = -(n->xoffset+1);
+		break;
+
+	default:
+		*nn = n;
+		return 0;
+	}
+	if(i >= 10)
+		*nn = N;
+	return i;
+}
+
+/*
+ * make a new off the books
+ */
+void
+tempname(Node *n, Type *t)
+{
+	Sym *s;
+	uint32 w;
+
+	if(stksize < 0)
+		fatal("tempname not during code generation");
+
+	if(t == T) {
+		yyerror("tempname called with nil type");
+		t = types[TINT32];
+	}
+
+	// give each tmp a different name so that there
+	// a chance to registerizer them
+	snprint(namebuf, sizeof(namebuf), "autotmp_%.4d", statuniqgen);
+	statuniqgen++;
+	s = lookup(namebuf);
+
+	memset(n, 0, sizeof(*n));
+	n->op = ONAME;
+	n->sym = s;
+	n->type = t;
+	n->class = PAUTO;
+	n->addable = 1;
+	n->ullman = 1;
+	n->noescape = 1;
+
+	dowidth(t);
+	w = t->width;
+	stksize += w;
+	stksize = rnd(stksize, w);
+	n->xoffset = -stksize;
+}
+

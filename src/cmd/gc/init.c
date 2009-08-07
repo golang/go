@@ -50,10 +50,20 @@ anyinit(NodeList *n)
 {
 	uint32 h;
 	Sym *s;
+	NodeList *l;
 
-	// are there any init statements
-	if(n != nil)
-		return 1;
+	// are there any interesting init statements
+	for(l=n; l; l=l->next) {
+		switch(l->n->op) {
+		case ODCLFUNC:
+		case ODCLCONST:
+		case ODCLTYPE:
+		case OEMPTY:
+			break;
+		default:
+			return 1;
+		}
+	}
 
 	// is this main
 	if(strcmp(package, "main") == 0)
@@ -93,6 +103,7 @@ fninit(NodeList *n)
 		return;
 	}
 
+	n = initfix(n);
 	if(!anyinit(n))
 		return;
 
@@ -106,7 +117,6 @@ fninit(NodeList *n)
 	// (2)
 
 	maxarg = 0;
-	stksize = initstksize;
 
 	snprint(namebuf, sizeof(namebuf), "Init·%s", filename);
 
@@ -118,7 +128,7 @@ fninit(NodeList *n)
 	fn = nod(ODCLFUNC, N, N);
 	initsym = lookup(namebuf);
 	fn->nname = newname(initsym);
-	fn->type = functype(N, nil, nil);
+	fn->nname->ntype = nod(OTFUNC, N, N);
 	funchdr(fn);
 
 	// (3)
@@ -181,12 +191,14 @@ fninit(NodeList *n)
 	exportsym(fn->nname);
 
 	fn->nbody = r;
+
 //dump("b", fn);
 //dump("r", fn->nbody);
 
-	popdcl();
 	initflag = 1;	// flag for loader static initialization
-	compile(fn);
+	funcbody(fn);
+	typecheck(&fn, Etop);
+	funccompile(fn);
 	initflag = 0;
 }
 

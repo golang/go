@@ -5,6 +5,8 @@
 #include	"go.h"
 #include	"y.tab.h"
 
+static	void	funcargs(Node*);
+
 int
 dflag(void)
 {
@@ -50,6 +52,8 @@ pushdcl(Sym *s)
 
 	d = push();
 	dcopy(d, s);
+	if(dflag())
+		print("\t%L push %S %p\n", lineno, s, s->def);
 	return d;
 }
 
@@ -67,7 +71,7 @@ popdcl(void)
 		s = pkglookup(d->name, d->package);
 		dcopy(s, d);
 		if(dflag())
-			print("\t%L pop %S\n", lineno, s);
+			print("\t%L pop %S %p\n", lineno, s, s->def);
 	}
 	if(d == S)
 		fatal("popdcl: no mark");
@@ -157,15 +161,21 @@ declare(Node *n, int ctxt)
 	gen = 0;
 	if(ctxt == PEXTERN) {
 		externdcl = list(externdcl, n);
+		if(dflag())
+			print("\t%L global decl %S %p\n", lineno, s, n);
 	} else {
-		if(autodcl != nil)
-			autodcl = list(autodcl, n);
+		if(curfn == nil && ctxt == PAUTO)
+			fatal("automatic outside function");
+		if(curfn != nil)
+			curfn->dcl = list(curfn->dcl, n);
 		if(n->op == OTYPE)
 			gen = ++typegen;
 		else if(n->op == ONAME)
 			gen = ++vargen;
 		pushdcl(s);
 	}
+	if(ctxt == PAUTO)
+		n->xoffset = BADWIDTH;
 
 	if(s->block == block) {
 		what = "???";
@@ -181,7 +191,7 @@ declare(Node *n, int ctxt)
 			break;
 		}
 
-		yyerror("%s %S redeclared in this block", what, s);
+		yyerror("%s %S redeclared in this block %d", what, s, block);
 		print("\tprevious declaration at %L\n", s->lastlineno);
 	}
 	s->block = block;
@@ -205,6 +215,7 @@ addvar(Node *n, Type *t, int ctxt)
 	n->type = t;
 }
 
+// TODO: cut use of below in sigtype and then delete
 void
 addtyp(Type *n, int ctxt)
 {
@@ -221,34 +232,10 @@ addtyp(Type *n, int ctxt)
 }
 
 /*
- * declare (possible list) n of type t.
- * append ODCL nodes to *init
- */
-void
-dodclvar(Node *n, Type *t, NodeList **init)
-{
-	if(n == N)
-		return;
-
-	if(t != T && (t->etype == TIDEAL || t->etype == TNIL))
-		fatal("dodclvar %T", t);
-	dowidth(t);
-
-	// in case of type checking error,
-	// use "undefined" type for variable type,
-	// to avoid fatal in addvar.
-	if(t == T)
-		t = typ(TFORW);
-
-	addvar(n, t, dclcontext);
-	if(funcdepth > 0)
-		*init = list(*init, nod(ODCL, n, N));
-}
-
-/*
  * introduce a type named n
  * but it is an unknown type for now
  */
+// TODO(rsc): cut use of this in sigtype and then delete
 Type*
 dodcltype(Type *n)
 {
@@ -282,6 +269,7 @@ found:
 /*
  * now we know what n is: it's t
  */
+// TODO(rsc): cut use of this in sigtype and then delete
 void
 updatetype(Type *n, Type *t)
 {
@@ -409,7 +397,7 @@ constiter(NodeList *vl, Node *t, NodeList *cl)
 	Node *v, *c;
 	NodeList *vv;
 
-	vv = vl;
+	vv = nil;
 	if(cl == nil) {
 		if(t != N)
 			yyerror("constdcl cannot have type without expr");
@@ -435,6 +423,8 @@ constiter(NodeList *vl, Node *t, NodeList *cl)
 
 		v->ntype = t;
 		v->defn = c;
+
+		vv = list(vv, nod(ODCLCONST, v, N));
 	}
 	if(cl != nil)
 		yyerror("extra expr in const dcl");
@@ -450,6 +440,9 @@ Node*
 newname(Sym *s)
 {
 	Node *n;
+
+	if(s == S)
+		fatal("newname nil");
 
 	n = nod(ONAME, N, N);
 	n->sym = s;
@@ -473,14 +466,15 @@ dclname(Sym *s)
 	// top-level name: might already have been
 	// referred to, in which case s->def is already
 	// set to an ONONAME.
-	if(dclcontext == PEXTERN && s->block == 0) {
+	if(dclcontext == PEXTERN && s->block <= 1) {
 		// toss predefined name like "close"
 		// TODO(rsc): put close in at the end.
 		if(s->def != N && s->def->etype)
 			s->def = N;
 		if(s->def == N)
 			oldname(s);
-		return s->def;
+		if(s->def->op == ONONAME)
+			return s->def;
 	}
 
 	n = newname(s);
@@ -524,20 +518,19 @@ oldname(Sym *s)
 		// inner func is referring to var
 		// in outer func.
 		if(n->closure == N || n->closure->funcdepth != funcdepth) {
-			typecheck(&n, Erv);
 			// create new closure var.
 			c = nod(ONAME, N, N);
 			c->sym = s;
 			c->class = PPARAMREF;
-			c->type = n->type;
+			c->defn = n;
 			c->addable = 0;
 			c->ullman = 2;
 			c->funcdepth = funcdepth;
 			c->outer = n->closure;
 			n->closure = c;
 			c->closure = n;
-			if(funclit != N)
-				funclit->cvars = list(funclit->cvars, c);
+			c->xoffset = 0;
+			curfn->cvars = list(curfn->cvars, c);
 		}
 		// return ref to closure var, not original
 		return n->closure;
@@ -644,6 +637,231 @@ colas(NodeList *left, NodeList *right)
 	return as;
 }
 
+/*
+ * declare the function proper
+ * and declare the arguments.
+ * called in extern-declaration context
+ * returns in auto-declaration context.
+ */
+void
+funchdr(Node *n)
+{
+	Node *nt;
+
+	if(n->nname != N) {
+		// TODO(rsc): remove once forward declarations are gone
+		if(n->nname->sym->def && n->nname->sym->def->class == PFUNC) {
+			nt = n->nname->ntype;
+			n->nname = n->nname->sym->def;
+			n->nname->ntype = nt;
+			n->nname->type = T;
+		} else {
+			n->nname->op = ONAME;
+			declare(n->nname, PFUNC);
+		}
+	}
+
+	// change the declaration context from extern to auto
+	if(funcdepth == 0 && dclcontext != PEXTERN)
+		fatal("funchdr: dclcontext");
+
+	dclcontext = PAUTO;
+	markdcl();
+	funcdepth++;
+
+	n->outer = curfn;
+	curfn = n;
+	if(n->nname)
+		funcargs(n->nname->ntype);
+	else
+		funcargs(n->ntype);
+}
+
+static void
+funcargs(Node *nt)
+{
+	Node *n;
+	NodeList *l;
+
+	if(nt->op != OTFUNC)
+		fatal("funcargs %O", nt->op);
+
+	// declare the receiver and in arguments.
+	// no n->defn because type checking of func header
+	// will fill in the types before we can demand them.
+	if(nt->left != N) {
+		n = nt->left;
+		if(n->op != ODCLFIELD)
+			fatal("funcargs1 %O", n->op);
+		if(n->left != N) {
+			n->left->op = ONAME;
+			n->left->ntype = n->right;
+			declare(n->left, PPARAM);
+		}
+	}
+	for(l=nt->list; l; l=l->next) {
+		n = l->n;
+		if(n->op != ODCLFIELD)
+			fatal("funcargs2 %O", n->op);
+		if(n->left != N) {
+			n->left->op = ONAME;
+			n->left->ntype = n->right;
+			declare(n->left, PPARAM);
+		}
+	}
+
+	// declare the out arguments.
+	for(l=nt->rlist; l; l=l->next) {
+		n = l->n;
+		if(n->op != ODCLFIELD)
+			fatal("funcargs3 %O", n->op);
+		if(n->left != N) {
+			n->left->op = ONAME;
+			n->left->ntype = n->right;
+			declare(n->left, PPARAMOUT);
+		}
+	}
+}
+
+/*
+ * finish the body.
+ * called in auto-declaration context.
+ * returns in extern-declaration context.
+ */
+void
+funcbody(Node *n)
+{
+	// change the declaration context from auto to extern
+	if(dclcontext != PAUTO)
+		fatal("funcbody: dclcontext");
+	popdcl();
+	funcdepth--;
+	curfn = n->outer;
+	n->outer = N;
+	if(funcdepth == 0)
+		dclcontext = PEXTERN;
+}
+
+/*
+ * forward declarations of types
+ * TODO(rsc): delete!
+ */
+
+/*
+ * new type being defined with name s.
+ */
+Node*
+typedcl0(Sym *s)
+{
+	Node *o, *ot, *n;
+	int et;
+
+	// TODO(rsc): throw away once forward declarations are gone
+	if((o = s->def) != N && o != N && o->op == OTYPE && s->block == block) {
+		if((ot = o->ntype) != N && ot->op == OTYPE && ot->type != T)
+		if((et = ot->type->etype) == TFORWSTRUCT || et == TFORWINTER) {
+			// local forward declaration exists!
+			// use it instead of the node we just created.
+			if(ot->walkdef || ot->typecheck)
+				fatal("someone looked at the fwd decl");
+			return o;
+		}
+
+		if(o->type && ((et = o->type->etype) == TFORWSTRUCT || et == TFORWINTER)) {
+			// imported forward declaration exists.
+			// attach the fwd type to the node we just
+			// created, so that when we define the type in walkdef
+			// we will overwrite the fwd version.
+			o->nincr = nod(OXXX, N, N);
+			o->nincr->type = o->type;
+			o->type = T;
+			o->walkdef = 0;
+			o->typecheck = 0;
+			autoexport(o, PEXTERN);
+			return o;
+		}
+	}
+
+	// make a new one
+	n = dclname(s);
+	n->op = OTYPE;
+	declare(n, dclcontext);
+	return n;
+}
+
+/*
+ * node n, which was returned by typedcl0
+ * is being declared to have uncompiled type t.  if n was previously forward
+ * declared, update the forward declaration and undo the dclname.
+ * extra tricky because we have to deal with imported forward declarations.
+ * return the ODCLTYPE node to use.
+ */
+Node*
+typedcl1(Node *n, Node *t, int local)
+{
+	n->ntype = t;
+	n->local = local;
+	return nod(ODCLTYPE, n, N);
+}
+
+/*
+ * node n, which was returned by dclname (newname for imports)
+ * is being forward declared as et (TFORWSTRUCT or TFORWINTER).
+ * if n was previously forward declared, scream.
+ * return the ODCLTYPE node to use.
+ */
+Node*
+fwdtype(Node *n, int et)
+{
+	n->op = OTYPE;
+	n->ntype = typenod(typ(et));
+	return nod(ODCLTYPE, n, N);
+}
+
+/*
+ * typedcl1 but during imports
+ */
+void
+typedcl2(Type *pt, Type *t)
+{
+	Node *n;
+
+	if(pt->etype == TFORW)
+		goto ok;
+	if(pt->etype == TFORWSTRUCT && t->etype == TSTRUCT)
+		goto ok;
+	if(pt->etype == TFORWINTER && t->etype == TINTER)
+		goto ok;
+	if(pt->etype == TSTRUCT && t->etype == TFORWSTRUCT)
+		return;
+	if(pt->etype == TINTER && t->etype == TFORWINTER)
+		return;
+	if(!cvttype(pt, t)) {
+		yyerror("redeclaration of %T during imports\n\t%lT [%p]\n\t%lT [%p]", pt, pt, pt, t, t);
+		return;
+	}
+	return;
+
+ok:
+	n = pt->nod;
+	*pt = *t;
+	pt->method = nil;
+	pt->nod = n;
+	pt->sym = n->sym;
+	declare(n, PEXTERN);
+
+	switch(pt->etype) {
+	case TFORWINTER:
+	case TFORWSTRUCT:
+		// allow re-export in case it gets defined
+		pt->sym->flags &= ~(SymExport|SymPackage);
+		pt->sym->flags &= ~SymImported;
+		break;
+	default:
+		checkwidth(pt);
+		break;
+	}
+}
 
 /*
  * structs, functions, and methods.
@@ -675,6 +893,8 @@ stotype(NodeList *l, int et, Type **t)
 		if(n->right != N) {
 			typecheck(&n->right, Etype);
 			n->type = n->right->type;
+			if(n->left != N)
+				n->left->type = n->type;
 			n->right = N;
 			if(n->embedded && n->type != T) {
 				t1 = n->type;
@@ -791,13 +1011,14 @@ embedded(Sym *s)
 	}
 
 	n = newname(lookup(name));
-	n = nod(ODCLFIELD, n, N);
+	n = nod(ODCLFIELD, n, oldname(s));
 	n->embedded = 1;
-	if(s == S)
-		return n;
-	n->right = oldname(s);
 	return n;
 }
+
+/*
+ * check that the list of declarations is either all anonymous or all named
+ */
 
 static Node*
 findtype(NodeList *l)
@@ -808,59 +1029,11 @@ findtype(NodeList *l)
 	return N;
 }
 
-static Node*
-xanondcl(Node *nt)
-{
-	Node *n;
-	Type *t;
-
-	typecheck(&nt, Etype);
-	t = nt->type;
-	if(nt->op != OTYPE) {
-		yyerror("%S is not a type", nt->sym);
-		t = types[TINT32];
-	}
-	n = nod(ODCLFIELD, N, N);
-	n->type = t;
-	return n;
-}
-
-static Node*
-namedcl(Node *nn, Node *nt)
-{
-	Node *n;
-	Type *t;
-
-	if(nn->op == OKEY)
-		nn = nn->left;
-	if(nn->sym == S) {
-		typecheck(&nn, Etype);
-		yyerror("cannot mix anonymous %T with named arguments", nn->type);
-		return xanondcl(nn);
-	}
-	t = types[TINT32];
-	if(nt == N)
-		yyerror("missing type for argument %S", nn->sym);
-	else {
-		typecheck(&nt, Etype);
-		if(nt->op != OTYPE)
-			yyerror("%S is not a type", nt->sym);
-		else
-			t = nt->type;
-	}
-	n = nod(ODCLFIELD, newname(nn->sym), N);
-	n->type = t;
-	return n;
-}
-
-/*
- * check that the list of declarations is either all anonymous or all named
- */
 NodeList*
 checkarglist(NodeList *all)
 {
 	int named;
-	Node *r;
+	Node *n, *t, *nextt;
 	NodeList *l;
 
 	named = 0;
@@ -870,17 +1043,51 @@ checkarglist(NodeList *all)
 			break;
 		}
 	}
-
-	for(l=all; l; l=l->next) {
-		if(named)
-			l->n = namedcl(l->n, findtype(l));
-		else
-			l->n = xanondcl(l->n);
-		if(l->next != nil) {
-			r = l->n;
-			if(r != N && r->type != T && r->type->etype == TDDD)
-				yyerror("only last argument can have type ...");
+	if(named) {
+		n = N;
+		for(l=all; l; l=l->next) {
+			n = l->n;
+			if(n->op != OKEY && n->sym == S) {
+				yyerror("mixed named and unnamed function parameters");
+				break;
+			}
 		}
+		if(l == nil && n != N && n->op != OKEY)
+			yyerror("final function parameter must have type");
+	}
+
+	nextt = nil;
+	for(l=all; l; l=l->next) {
+		// can cache result from findtype to avoid
+		// quadratic behavior here, but unlikely to matter.
+		n = l->n;
+		if(named) {
+			if(n->op == OKEY) {
+				t = n->right;
+				n = n->left;
+				nextt = nil;
+			} else {
+				if(nextt == nil)
+					nextt = findtype(l);
+				t = nextt;
+			}
+		} else {
+			t = n;
+			n = N;
+		}
+		if(n != N && n->sym == S) {
+			t = n;
+			n = N;
+		}
+		if(n != N) {
+			if(n->op == ONONAME && n->sym->def == n)
+				n->sym->def = N;
+			n = newname(n->sym);
+		}
+		n = nod(ODCLFIELD, n, t);
+		if(l->next != nil && n->right != N && n->right->op == OTYPE && isddd(n->right->type))
+			yyerror("only last argument can have type ...");
+		l->n = n;
 	}
 	return all;
 }
@@ -891,8 +1098,7 @@ fakethis(void)
 {
 	Node *n;
 
-	n = nod(ODCLFIELD, N, N);
-	n->type = ptrto(typ(TSTRUCT));
+	n = nod(ODCLFIELD, N, typenod(ptrto(typ(TSTRUCT))));
 	return n;
 }
 
@@ -943,8 +1149,8 @@ functype(Node *this, NodeList *in, NodeList *out)
 		t->thistuple = 1;
 	t->outtuple = count(out);
 	t->intuple = count(in);
+	t->outnamed = t->outtuple > 0 && out->n->left != N;
 
-	checkwidth(t);
 	return t;
 }
 
@@ -1003,7 +1209,6 @@ methodsym(Sym *nsym, Type *t0)
 		t0 = ptrto(t);
 
 	snprint(buf, sizeof(buf), "%#hT·%s", t0, nsym->name);
-//print("methodname %s\n", buf);
 	return pkglookup(buf, s->package);
 
 bad:
@@ -1022,42 +1227,52 @@ methodname(Node *n, Type *t)
 	return newname(s);
 }
 
+Node*
+methodname1(Node *n, Node *t)
+{
+	char *star;
+	char buf[NSYMB];
+
+	star = "";
+	if(t->op == OIND) {
+		star = "*";
+		t = t->left;
+	}
+	if(t->sym == S)
+		return n;
+	snprint(buf, sizeof(buf), "%s%S·%S", star, t->sym, n->sym);
+	return newname(pkglookup(buf, t->sym->package));
+}
+
 /*
  * add a method, declared as a function,
  * n is fieldname, pa is base type, t is function type
  */
 void
-addmethod(Node *n, Type *t, int local)
+addmethod(Sym *sf, Type *t, int local)
 {
 	Type *f, *d, *pa;
-	Sym *sf;
+	Node *n;
 
 	pa = nil;
-	sf = nil;
 
 	// get field sym
-	if(n == N)
-		goto bad;
-	if(n->op != ONAME)
-		goto bad;
-	sf = n->sym;
 	if(sf == S)
-		goto bad;
+		fatal("no method symbol");
 
 	// get parent type sym
-	pa = *getthis(t);	// ptr to this structure
-	if(pa == T)
-		goto bad;
-	pa = pa->type;		// ptr to this field
-	if(pa == T)
-		goto bad;
-	pa = pa->type;		// ptr to this type
-	if(pa == T)
-		goto bad;
+	pa = getthisx(t)->type;	// ptr to this structure
+	if(pa == T) {
+		yyerror("missing receiver");
+		return;
+	}
 
+	pa = pa->type;
 	f = methtype(pa);
-	if(f == T)
-		goto bad;
+	if(f == T) {
+		yyerror("invalid receiver type %T", pa);
+		return;
+	}
 
 	pa = f;
 	if(pkgimportname != S && !exportname(sf->name))
@@ -1093,295 +1308,35 @@ addmethod(Node *n, Type *t, int local)
 	else
 		stotype(list1(n), 0, &d->down);
 	return;
-
-bad:
-	yyerror("invalid receiver type %T", pa);
 }
 
-/*
- * declare the function proper.
- * and declare the arguments
- * called in extern-declaration context
- * returns in auto-declaration context.
- */
 void
-funchdr(Node *n)
+funccompile(Node *n)
 {
-	Node *on;
-	Sym *s;
+	stksize = BADWIDTH;
+	maxarg = 0;
 
-	s = n->nname->sym;
-	on = s->def;
-	if(on != N && (on->op != ONAME || on->builtin))
-		on = N;
-
-	// check for same types
-	if(on != N) {
-		if(eqtype(n->type, on->type)) {
-			if(!eqargs(n->type, on->type)) {
-				yyerror("function arg names changed: %S", s);
-				print("\t%T\n\t%T\n", on->type, n->type);
-			}
-		} else {
-			yyerror("function redeclared: %S", s);
-			print("\t%T\n\t%T\n", on->type, n->type);
-			on = N;
-		}
+	if(n->type == T) {
+		if(nerrors == 0)
+			fatal("funccompile missing type");
+		return;
 	}
 
-	// check for forward declaration
-	if(on == N) {
-		// initial declaration or redeclaration
-		// declare fun name, argument types and argument names
-		n->nname->type = n->type;
-		if(n->type->thistuple == 0)
-			addvar(n->nname, n->type, PFUNC);
-		else
-			n->nname->class = PFUNC;
-	} else {
-		// identical redeclaration
-		// steal previous names
-		n->nname = on;
-		n->type = on->type;
-		n->class = on->class;
-		n->sym = s;
-	}
+	// assign parameter offsets
+	checkwidth(n->type);
 
-	// change the declaration context from extern to auto
-	autodcl = list1(nod(OXXX, N, N));
+	if(curfn)
+		fatal("funccompile %S inside %S", n->nname->sym, curfn->nname->sym);
+	curfn = n;
+	typechecklist(n->nbody, Etop);
+	curfn = nil;
 
-	if(funcdepth == 0 && dclcontext != PEXTERN)
-		fatal("funchdr: dclcontext");
-
+	stksize = 0;
 	dclcontext = PAUTO;
-	markdcl();
-	funcargs(n->type);
-}
-
-void
-funcargs(Type *ft)
-{
-	Type *t;
-	Iter save;
-	int all;
-
-	funcdepth++;
-
-	// declare the this/in arguments
-	t = funcfirst(&save, ft);
-	while(t != T) {
-		if(t->nname != N) {
-			t->nname->xoffset = t->width;
-			addvar(t->nname, t->type, PPARAM);
-		}
-		t = funcnext(&save);
-	}
-
-	// declare the outgoing arguments
-	all = 0;
-	t = structfirst(&save, getoutarg(ft));
-	while(t != T) {
-		if(t->nname != N)
-			t->nname->xoffset = t->width;
-		if(t->nname != N) {
-			addvar(t->nname, t->type, PPARAMOUT);
-			all |= 1;
-		} else
-			all |= 2;
-		t = structnext(&save);
-	}
-
-	// this test is remarkedly similar to checkarglist
-	if(all == 3)
-		yyerror("cannot mix anonymous and named output arguments");
-
-	ft->outnamed = 0;
-	if(all == 1)
-		ft->outnamed = 1;
-}
-
-/*
- * compile the function.
- * called in auto-declaration context.
- * returns in extern-declaration context.
- */
-void
-funcbody(Node *n)
-{
-
+	funcdepth = n->funcdepth + 1;
 	compile(n);
-
-	// change the declaration context from auto to extern
-	if(dclcontext != PAUTO)
-		fatal("funcbody: dclcontext");
-	popdcl();
-	funcdepth--;
-	if(funcdepth == 0)
-		dclcontext = PEXTERN;
+	curfn = nil;
+	funcdepth = 0;
+	dclcontext = PEXTERN;
 }
 
-Node*
-funclit0(Node *t)
-{
-	Node *n;
-
-	n = nod(OXXX, N, N);
-	n->outer = funclit;
-	n->dcl = autodcl;
-	funclit = n;
-
-	// new declaration context
-	autodcl = list1(nod(OEMPTY, N, N));
-
-	typecheck(&t, Etype);
-	funcargs(t->type);
-	return t;
-}
-
-Node*
-funclit1(Node *ntype, NodeList *body)
-{
-	Node *func;
-	Type *type;
-	Node *a, *d, *f, *n, *clos;
-	Type *ft, *t;
-	Iter save;
-	int narg, shift;
-	NodeList *args, *l, *in, *out;
-	static int closgen;
-
-	type = ntype->type;
-	popdcl();
-	func = funclit;
-	funclit = func->outer;
-
-	// build up type of func f that we're going to compile.
-	// as we referred to variables from the outer function,
-	// we accumulated a list of PHEAP names in func->cvars.
-	narg = 0;
-	// add PHEAP versions as function arguments.
-	in = nil;
-	for(l=func->cvars; l; l=l->next) {
-		a = l->n;
-		d = nod(ODCLFIELD, a, N);
-		d->type = ptrto(a->type);
-		in = list(in, d);
-
-		// while we're here, set up a->heapaddr for back end
-		n = nod(ONAME, N, N);
-		snprint(namebuf, sizeof namebuf, "&%s", a->sym->name);
-		n->sym = lookup(namebuf);
-		n->type = ptrto(a->type);
-		n->class = PPARAM;
-		n->xoffset = narg*types[tptr]->width;
-		n->addable = 1;
-		n->ullman = 1;
-		narg++;
-		a->heapaddr = n;
-
-		a->xoffset = 0;
-
-		// unlink from actual ONAME in symbol table
-		a->closure->closure = a->outer;
-	}
-
-	// add a dummy arg for the closure's caller pc
-	d = nod(ODCLFIELD, N, N);
-	d->type = types[TUINTPTR];
-	in = list(in, d);
-
-	// slide param offset to make room for ptrs above.
-	// narg+1 to skip over caller pc.
-	shift = (narg+1)*types[tptr]->width;
-
-	// now the original arguments.
-	for(t=structfirst(&save, getinarg(type)); t; t=structnext(&save)) {
-		d = nod(ODCLFIELD, t->nname, N);
-		d->type = t->type;
-		in = list(in, d);
-
-		a = t->nname;
-		if(a != N) {
-			if(a->stackparam != N)
-				a = a->stackparam;
-			a->xoffset += shift;
-		}
-	}
-
-	// out arguments
-	out = nil;
-	for(t=structfirst(&save, getoutarg(type)); t; t=structnext(&save)) {
-		d = nod(ODCLFIELD, t->nname, N);
-		d->type = t->type;
-		out = list(out, d);
-
-		a = t->nname;
-		if(a != N) {
-			if(a->stackparam != N)
-				a = a->stackparam;
-			a->xoffset += shift;
-		}
-	}
-
-	ft = functype(N, in, out);
-	ft->outnamed = type->outnamed;
-
-	// declare function.
-	snprint(namebuf, sizeof(namebuf), "_f%.3ld·%s", ++closgen, filename);
-	f = newname(lookup(namebuf));
-	addvar(f, ft, PFUNC);
-	f->funcdepth = 0;
-
-	// compile function
-	n = nod(ODCLFUNC, N, N);
-	n->nname = f;
-	n->type = ft;
-	if(body == nil)
-		body = list1(nod(OEMPTY, N, N));
-	n->nbody = body;
-	compile(n);
-	funcdepth--;
-	autodcl = func->dcl;
-
-	// build up type for this instance of the closure func.
-	in = nil;
-	d = nod(ODCLFIELD, N, N);	// siz
-	d->type = types[TINT];
-	in = list(in, d);
-	d = nod(ODCLFIELD, N, N);	// f
-	d->type = ft;
-	in = list(in, d);
-	for(l=func->cvars; l; l=l->next) {
-		a = l->n;
-		d = nod(ODCLFIELD, N, N);	// arg
-		d->type = ptrto(a->type);
-		in = list(in, d);
-	}
-
-	d = nod(ODCLFIELD, N, N);
-	d->type = type;
-	out = list1(d);
-
-	clos = syslook("closure", 1);
-	clos->type = functype(N, in, out);
-
-	// literal expression is sys.closure(siz, f, arg0, arg1, ...)
-	// which builds a function that calls f after filling in arg0,
-	// arg1, ... for the PHEAP arguments above.
-	args = nil;
-	if(narg*widthptr > 100)
-		yyerror("closure needs too many variables; runtime will reject it");
-	a = nodintconst(narg*widthptr);
-	args = list(args, a);	// siz
-	args = list(args, f);	// f
-	for(l=func->cvars; l; l=l->next) {
-		a = l->n;
-		d = oldname(a->sym);
-		args = list(args, nod(OADDR, d, N));
-	}
-	typechecklist(args, Erv);
-
-	n = nod(OCALL, clos, N);
-	n->list = args;
-	return n;
-}

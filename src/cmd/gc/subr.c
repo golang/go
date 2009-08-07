@@ -380,6 +380,7 @@ typ(int et)
 
 	t = mal(sizeof(*t));
 	t->etype = et;
+	t->width = BADWIDTH;
 	return t;
 }
 
@@ -471,7 +472,6 @@ aindex(Node *b, Type *t)
 	r = typ(TARRAY);
 	r->type = t;
 	r->bound = bound;
-	checkwidth(r);
 	return r;
 }
 
@@ -517,7 +517,12 @@ dodump(Node *n, int dep)
 		break;
 
 	case OTYPE:
-		print("%O %T\n", n->op, n->type);
+		print("%O %S type=%T\n", n->op, n->sym, n->type);
+		if(n->type == T && n->ntype) {
+			indent(dep);
+			print("%O-ntype\n", n->op);
+			dodump(n->ntype, dep+1);
+		}
 		break;
 
 	case OIF:
@@ -577,7 +582,7 @@ dodump(Node *n, int dep)
 		break;
 	}
 
-	if(n->ntype != nil) {
+	if(0 && n->ntype != nil) {
 		indent(dep);
 		print("%O-ntype\n", n->op);
 		dodump(n->ntype, dep+1);
@@ -1930,7 +1935,9 @@ frame(int context)
 	int flag;
 
 	p = "stack";
-	l = autodcl;
+	l = nil;
+	if(curfn)
+		l = curfn->dcl;
 	if(context) {
 		p = "external";
 		l = externdcl;
@@ -2202,42 +2209,6 @@ brrev(int a)
 	return a;
 }
 
-/*
- * make a new off the books
- */
-void
-tempname(Node *n, Type *t)
-{
-	Sym *s;
-	uint32 w;
-
-	if(t == T) {
-		yyerror("tempname called with nil type");
-		t = types[TINT32];
-	}
-
-	// give each tmp a different name so that there
-	// a chance to registerizer them
-	snprint(namebuf, sizeof(namebuf), "autotmp_%.4d", statuniqgen);
-	statuniqgen++;
-	s = lookup(namebuf);
-
-	memset(n, 0, sizeof(*n));
-	n->op = ONAME;
-	n->sym = s;
-	n->type = t;
-	n->class = PAUTO;
-	n->addable = 1;
-	n->ullman = 1;
-	n->noescape = 1;
-
-	dowidth(t);
-	w = t->width;
-	stksize += w;
-	stksize = rnd(stksize, w);
-	n->xoffset = -stksize;
-}
-
 Node*
 staticname(Type *t)
 {
@@ -2297,56 +2268,12 @@ setmaxarg(Type *t)
 {
 	int32 w;
 
+	dowidth(t);
 	w = t->argwid;
+	if(t->argwid >= 100000000)
+		fatal("bad argwid %T", t);
 	if(w > maxarg)
 		maxarg = w;
-}
-
-/*
- * gather series of offsets
- * >=0 is direct addressed field
- * <0 is pointer to next field (+1)
- */
-int
-dotoffset(Node *n, int *oary, Node **nn)
-{
-	int i;
-
-	switch(n->op) {
-	case ODOT:
-		if(n->xoffset == BADWIDTH) {
-			dump("bad width in dotoffset", n);
-			fatal("bad width in dotoffset");
-		}
-		i = dotoffset(n->left, oary, nn);
-		if(i > 0) {
-			if(oary[i-1] >= 0)
-				oary[i-1] += n->xoffset;
-			else
-				oary[i-1] -= n->xoffset;
-			break;
-		}
-		if(i < 10)
-			oary[i++] = n->xoffset;
-		break;
-
-	case ODOTPTR:
-		if(n->xoffset == BADWIDTH) {
-			dump("bad width in dotoffset", n);
-			fatal("bad width in dotoffset");
-		}
-		i = dotoffset(n->left, oary, nn);
-		if(i < 10)
-			oary[i++] = -(n->xoffset+1);
-		break;
-
-	default:
-		*nn = n;
-		return 0;
-	}
-	if(i >= 10)
-		*nn = N;
-	return i;
 }
 
 /*
@@ -2644,8 +2571,7 @@ structargs(Type **tl, int mustname)
 			snprint(buf, sizeof buf, ".anon%d", gen++);
 			n = newname(lookup(buf));
 		}
-		a = nod(ODCLFIELD, n, N);
-		a->type = t->type;
+		a = nod(ODCLFIELD, n, typenod(t->type));
 		args = list(args, a);
 	}
 	return args;
@@ -2677,7 +2603,7 @@ structargs(Type **tl, int mustname)
 void
 genwrapper(Type *rcvr, Type *method, Sym *newnam)
 {
-	Node *this, *fn, *call, *n;
+	Node *this, *fn, *call, *n, *t;
 	NodeList *l, *args, *in, *out;
 
 	if(debug['r'])
@@ -2687,14 +2613,17 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
 	dclcontext = PEXTERN;
 	markdcl();
 
-	this = nod(ODCLFIELD, newname(lookup(".this")), N);
-	this->type = rcvr;
+	this = nod(ODCLFIELD, newname(lookup(".this")), typenod(rcvr));
+	this->left->ntype = this->right;
 	in = structargs(getinarg(method->type), 1);
 	out = structargs(getoutarg(method->type), 0);
 
 	fn = nod(ODCLFUNC, N, N);
 	fn->nname = newname(newnam);
-	fn->type = functype(this, in, out);
+	t = nod(OTFUNC, this, N);
+	t->list = in;
+	t->rlist = out;
+	fn->nname->ntype = t;
 	funchdr(fn);
 
 	// arg list
@@ -2716,6 +2645,8 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam)
 		dumplist("genwrapper body", fn->nbody);
 
 	funcbody(fn);
+	typecheck(&fn, Etop);
+	funccompile(fn);
 }
 
 /*
@@ -3044,6 +2975,9 @@ checkwidth(Type *t)
 		dowidth(t);
 		return;
 	}
+	if(t->deferwidth)
+		return;
+	t->deferwidth = 1;
 
 	l = tlfree;
 	if(l != nil)
@@ -3075,6 +3009,7 @@ resumecheckwidth(void)
 	defercalc = 0;
 
 	for(l = tlq; l != nil; l = tlq) {
+		l->t->deferwidth = 0;
 		dowidth(l->t);
 		tlq = l->next;
 		l->next = tlfree;

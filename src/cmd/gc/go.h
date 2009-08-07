@@ -144,6 +144,7 @@ struct	Type
 	uchar	funarg;
 	uchar	copyany;
 	uchar	local;		// created in this file
+	uchar	deferwidth;
 
 	Node*	nod;		// canonical OTYPE node
 
@@ -195,6 +196,7 @@ struct	Node
 	uchar	builtin;	// built-in name, like len or close
 	uchar	walkdef;
 	uchar	typecheck;
+	uchar	local;
 
 	// most nodes
 	Node*	left;
@@ -217,16 +219,14 @@ struct	Node
 
 	// func
 	Node*	nname;
+	Node*	shortname;
 	NodeList*	enter;
 	NodeList*	exit;
 	NodeList*	cvars;	// closure params
-	NodeList*	dcl;	// outer autodcl
+	NodeList*	dcl;	// autodcl for this func/closure
 
 	// OLITERAL/OREGISTER
 	Val	val;
-
-	// OTFUNC
-	Node*	rcvr;
 
 	// ONAME
 	Node*	ntype;
@@ -250,7 +250,7 @@ struct	Node
 };
 #define	N	((Node*)0)
 
-struct NodeList
+struct	NodeList
 {
 	Node*	n;
 	NodeList*	next;
@@ -327,11 +327,12 @@ enum
 	OCAP,
 	OCLOSE,
 	OCLOSED,
+	OCLOSURE,
 	OCMPIFACE, OCMPSTR,
 	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT,
 	OCOMPSLICE, OCOMPMAP,
 	OCONV, OCONVNOP, OCONVA2S, OCONVIFACE, OCONVSLICE,
-	ODCL, ODCLFUNC, ODCLFIELD, ODCLARG,
+	ODCL, ODCLFUNC, ODCLFIELD, ODCLCONST, ODCLTYPE,
 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
 	ODOTTYPE,
 	OEQ, ONE, OLT, OLE, OGE, OGT,
@@ -624,8 +625,8 @@ EXTERN	Mpint*	maxintval[NTYPE];
 EXTERN	Mpflt*	minfltval[NTYPE];
 EXTERN	Mpflt*	maxfltval[NTYPE];
 
-EXTERN	NodeList*	autodcl;
 EXTERN	NodeList*	externdcl;
+EXTERN	NodeList*	closures;
 EXTERN	NodeList*	exportlist;
 EXTERN	NodeList*	typelist;
 EXTERN	int	dclcontext;		// PEXTERN/PAUTO
@@ -639,7 +640,6 @@ EXTERN	NodeList*	lastconst;
 EXTERN	Node*	lasttype;
 EXTERN	int32	maxarg;
 EXTERN	int32	stksize;		// stack size for current frame
-EXTERN	int32	initstksize;		// stack size for init function
 EXTERN	int32	blockgen;		// max block number
 EXTERN	int32	block;			// current block number
 EXTERN	int	hasdefer;		// flag that curfn has defer statetment
@@ -662,8 +662,8 @@ EXTERN	int	exporting;
 EXTERN	int	noargnames;
 
 EXTERN	int	funcdepth;
+EXTERN	int	typecheckok;
 
-EXTERN	Node*	funclit;
 
 /*
  *	y.tab.c
@@ -859,21 +859,20 @@ int	simsimtype(Type*);
  *	dcl.c
  */
 void	declare(Node*, int);
-void	dodclvar(Node*, Type*, NodeList**);
 Type*	dodcltype(Type*);
 void	updatetype(Type*, Type*);
 void	defaultlit(Node**, Type*);
 void	defaultlit2(Node**, Node**, int);
 int	structcount(Type*);
-void	addmethod(Node*, Type*, int);
+void	addmethod(Sym*, Type*, int);
 Node*	methodname(Node*, Type*);
+Node*	methodname1(Node*, Node*);
 Sym*	methodsym(Sym*, Type*);
 Type*	functype(Node*, NodeList*, NodeList*);
 char*	thistypenam(Node*);
 void	funcnam(Type*, char*);
 Node*	renameinit(Node*);
 void	funchdr(Node*);
-void	funcargs(Type*);
 void	funcbody(Node*);
 Node*	typenod(Type*);
 Type*	dostruct(NodeList*, int);
@@ -906,10 +905,23 @@ Node*	embedded(Sym*);
 NodeList*	variter(NodeList*, Node*, NodeList*);
 NodeList*	constiter(NodeList*, Node*, NodeList*);
 
-Node*	funclit0(Node*);
-Node*	funclit1(Node*, NodeList*);
 Node*	unsafenmagic(Node*, NodeList*);
 void	dclchecks(void);
+void	funccompile(Node*);
+
+Node*	typedcl0(Sym*);
+Node*	typedcl1(Node*, Node*, int);
+Node*	fwdtype(Node*, int);
+void	typedcl2(Type*, Type*);
+
+/*
+ * closure.c
+ */
+void	closurehdr(Node*);
+Node*	closurebody(NodeList*);
+void	typecheckclosure(Node*);
+Node*	walkclosure(Node*, NodeList**);
+
 
 /*
  * sinit.c
@@ -932,10 +944,11 @@ void	dumpexportvar(Sym*);
 void	dumpexportconst(Sym*);
 void	importconst(Sym *s, Type *t, Node *v);
 void	importmethod(Sym *s, Type *t);
-void	importtype(Sym *s, Type *t);
+void	importtype(Type *s, Type *t);
 void	importvar(Sym *s, Type *t, int ctxt);
 void	checkimports(void);
 Type*	pkgtype(Sym*);
+Sym*	importsym(Sym*, int);
 
 /*
  *	walk.c

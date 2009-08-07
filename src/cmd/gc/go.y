@@ -56,7 +56,7 @@
 %type	<node>	for_body for_header for_stmt if_header if_stmt
 %type	<node>	keyval labelname name
 %type	<node>	name_or_type non_expr_type
-%type	<node>	new_name dcl_name oexpr
+%type	<node>	new_name dcl_name oexpr typedclname
 %type	<node>	onew_name
 %type	<node>	osimple_stmt pexpr
 %type	<node>	pseudocall range_stmt select_stmt
@@ -72,8 +72,7 @@
 
 %type	<node>	convtype dotdotdot
 %type	<node>	indcl interfacetype structtype ptrtype
-%type	<type>	new_type typedclname
-%type	<node>	chantype non_chan_type othertype non_fn_type fntype fnlitdcl
+%type	<node>	chantype non_chan_type othertype non_fn_type fntype
 
 %type	<sym>	hidden_importsym hidden_pkg_importsym
 
@@ -85,7 +84,7 @@
 %type	<list>	hidden_interfacedcl_list ohidden_interfacedcl_list
 %type	<list>	hidden_structdcl_list ohidden_structdcl_list
 
-%type	<type>	hidden_type hidden_type1 hidden_type2
+%type	<type>	hidden_type hidden_type1 hidden_type2 hidden_pkgtype
 
 %left		LOROR
 %left		LANDAND
@@ -121,13 +120,28 @@ file:
 	imports
 	xdcl_list
 	{
-		if(debug['f'])
-			frame(1);
-		typechecklist($4, Etop);
-		if(nerrors == 0)
-			fninit($4);
+		NodeList *l;
+
 		if(nsyntaxerrors == 0)
 			testdclstack();
+
+		typecheckok = 1;
+		if(debug['f'])
+			frame(1);
+		defercheckwidth();
+		typechecklist($4, Etop);
+		resumecheckwidth();
+		for(l=$4; l; l=l->next)
+			if(l->n->op == ODCLFUNC)
+				funccompile(l->n);
+		if(nerrors == 0)
+			fninit($4);
+		while(closures) {
+			l = closures;
+			closures = nil;
+			for(; l; l=l->next)
+				funccompile(l->n);
+		}
 		dclchecks();
 	}
 
@@ -266,16 +280,10 @@ import_done:
  * declarations
  */
 xdcl:
-	{ stksize = initstksize; } common_dcl
-	{
-		$$ = $2;
-		initstksize = stksize;
-	}
+	common_dcl
 |	xfndcl
 	{
-		if($1 != N && $1->nname != N && $1->type->thistuple == 0)
-			autoexport($1->nname, dclcontext);
-		$$ = nil;
+		$$ = list1($1);
 	}
 |	';'
 	{
@@ -305,26 +313,23 @@ common_dcl:
 	}
 |	LCONST constdcl
 	{
-		$$ = nil;
+		$$ = $2;
 		iota = 0;
 		lastconst = nil;
-		walkdeflist($2);
 	}
 |	LCONST '(' constdcl osemi ')'
 	{
-		$$ = nil;
+		$$ = $3;
 		iota = 0;
 		lastconst = nil;
 		yyoptsemi(0);
-		walkdeflist($3);
 	}
 |	LCONST '(' constdcl ';' constdcl_list osemi ')'
 	{
-		$$ = nil;
+		$$ = concat($3, $5);
 		iota = 0;
 		lastconst = nil;
 		yyoptsemi(0);
-		walkdeflist(concat($3, $5));
 	}
 |	LCONST '(' ')'
 	{
@@ -333,15 +338,13 @@ common_dcl:
 	}
 |	LTYPE typedcl
 	{
-		$$ = nil;
-	//	$$ = list1($2);
+		$$ = list1($2);
 		if(yylast == LSEMIBRACE)
 			yyoptsemi(0);
 	}
 |	LTYPE '(' typedcl_list osemi ')'
 	{
-		$$ = nil;
-	//	$$ = $3;
+		$$ = $3;
 		yyoptsemi(0);
 	}
 |	LTYPE '(' ')'
@@ -392,28 +395,29 @@ constdcl1:
 	}
 
 typedclname:
-	new_type
+	sym
 	{
-		$$ = dodcltype($1);
-		defercheckwidth();
+		// different from dclname because the name
+		// becomes visible right here, not at the end
+		// of the declaration.
+		$$ = typedcl0($1);
 	}
 
 typedcl:
 	typedclname ntype
 	{
-		typecheck(&$2, Etype);
-		updatetype($1, $2->type);
-		resumecheckwidth();
+		$$ = typedcl1($1, $2, 1);
 	}
+
+// TODO(rsc): delete
 |	typedclname LSTRUCT
 	{
-		updatetype($1, typ(TFORWSTRUCT));
-		resumecheckwidth();
+		$$ = fwdtype($1, TFORWSTRUCT);
 	}
+// TODO(rsc): delete
 |	typedclname LINTERFACE
 	{
-		updatetype($1, typ(TFORWINTER));
-		resumecheckwidth();
+		$$ = fwdtype($1, TFORWINTER);
 	}
 
 simple_stmt:
@@ -814,9 +818,6 @@ uexpr:
 pseudocall:
 	pexpr '(' oexpr_or_type_list ')'
 	{
-		$$ = unsafenmagic($1, $3);
-		if($$)
-			break;
 		$$ = nod(OCALL, $1, N);
 		$$->list = $3;
 	}
@@ -918,12 +919,6 @@ dcl_name:
 		$$ = dclname($1);
 	}
 
-new_type:
-	sym
-	{
-		$$ = newtype($1);
-	}
-
 onew_name:
 	{
 		$$ = N;
@@ -940,7 +935,7 @@ name:
 	}
 
 labelname:
-	name
+	new_name
 
 convtype:
 	'[' oexpr ']' ntype
@@ -1104,14 +1099,10 @@ keyval:
  * all in one place to show how crappy it all is
  */
 xfndcl:
-	LFUNC
+	LFUNC fndcl fnbody
 	{
-		maxarg = 0;
-		stksize = 0;
-	} fndcl fnbody
-	{
-		$$ = $3;
-		$$->nbody = $4;
+		$$ = $2;
+		$$->nbody = $3;
 		funcbody($$);
 	}
 
@@ -1127,13 +1118,13 @@ fndcl:
 		n = nod(OTFUNC, N, N);
 		n->list = $3;
 		n->rlist = $5;
-		typecheck(&n, Etype);
-		$$->type = n->type;
+		// TODO: check if nname already has an ntype
+		$$->nname->ntype = n;
 		funchdr($$);
 	}
 |	'(' oarg_type_list ')' new_name '(' oarg_type_list ')' fnres
 	{
-		Node *rcvr;
+		Node *rcvr, *t;
 
 		rcvr = $2->n;
 		if($2->next != nil || $2->n->op != ODCLFIELD) {
@@ -1142,12 +1133,13 @@ fndcl:
 		}
 
 		$$ = nod(ODCLFUNC, N, N);
-		$$->nname = $4;
-		$$->nname = methodname($4, rcvr->type);
-		$$->type = functype(rcvr, $6, $8);
+		$$->nname = methodname1($4, rcvr->right);
+		t = nod(OTFUNC, rcvr, N);
+		t->list = $6;
+		t->rlist = $8;
+		$$->nname->ntype = t;
+		$$->shortname = $4;
 		funchdr($$);
-		if(rcvr != N)
-			addmethod($4, $$->type, 1);
 	}
 
 fntype:
@@ -1156,19 +1148,6 @@ fntype:
 		$$ = nod(OTFUNC, N, N);
 		$$->list = $3;
 		$$->rlist = $5;
-	}
-
-fnlitdcl:
-	fntype
-	{
-		markdcl();
-		$$ = funclit0($$);
-	}
-
-fnliteral:
-	fnlitdcl '{' stmt_list '}'
-	{
-		$$ = funclit1($1, $3);
 	}
 
 fnbody:
@@ -1196,6 +1175,19 @@ fnres:
 	{
 		$$ = $2;
 	}
+
+fnlitdcl:
+	fntype
+	{
+		closurehdr($1);
+	}
+
+fnliteral:
+	fnlitdcl '{' stmt_list '}'
+	{
+		$$ = closurebody($3);
+	}
+
 
 /*
  * lists of things
@@ -1590,15 +1582,16 @@ hidden_import:
 	{
 		importconst($2, $3, $5);
 	}
-|	LTYPE hidden_pkg_importsym hidden_type
+|	LTYPE hidden_pkgtype hidden_type
 	{
 		importtype($2, $3);
 	}
-|	LTYPE hidden_pkg_importsym LSTRUCT
+// TODO(rsc): delete
+|	LTYPE hidden_pkgtype LSTRUCT
 	{
 		importtype($2, typ(TFORWSTRUCT));
 	}
-|	LTYPE hidden_pkg_importsym LINTERFACE
+|	LTYPE hidden_pkgtype LINTERFACE
 	{
 		importtype($2, typ(TFORWINTER));
 	}
@@ -1613,6 +1606,13 @@ hidden_import:
 			YYERROR;
 		}
 		importmethod($5, functype($3->n, $7, $9));
+	}
+
+hidden_pkgtype:
+	hidden_pkg_importsym
+	{
+		$$ = pkgtype($1);
+		importsym($1, OTYPE);
 	}
 
 hidden_type:
@@ -1690,13 +1690,11 @@ hidden_type2:
 hidden_dcl:
 	sym hidden_type
 	{
-		$$ = nod(ODCLFIELD, newname($1), N);
-		$$->type = $2;
+		$$ = nod(ODCLFIELD, newname($1), typenod($2));
 	}
 |	'?' hidden_type
 	{
-		$$ = nod(ODCLFIELD, N, N);
-		$$->type = $2;
+		$$ = nod(ODCLFIELD, N, typenod($2));
 	}
 
 hidden_structdcl:
@@ -1734,11 +1732,7 @@ hidden_funres:
 	}
 |	hidden_type1
 	{
-		Node *n;
-
-		n = nod(ODCLFIELD, N, N);
-		n->type = $1;
-		$$ = list1(n);
+		$$ = list1(nod(ODCLFIELD, N, typenod($1)));
 	}
 
 hidden_constant:

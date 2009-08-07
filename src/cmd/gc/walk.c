@@ -52,16 +52,9 @@ loop:
 
 	case OGOTO:
 	case ORETURN:
+	case OPANIC:
+	case OPANICN:
 		return 0;
-
-	case OCALL:
-		if(n->left->op == ONAME) {
-			switch(n->left->etype) {
-			case OPANIC:
-			case OPANICN:
-				return 0;
-			}
-		}
 		break;
 	}
 
@@ -118,7 +111,7 @@ walkdeflist(NodeList *l)
 void
 walkdef(Node *n)
 {
-	int lno;
+	int lno, maplineno;
 	NodeList *init;
 	Node *e;
 	Type *t;
@@ -147,6 +140,9 @@ walkdef(Node *n)
 
 	init = nil;
 	switch(n->op) {
+	default:
+		fatal("walkdef %O", n->op);
+
 	case OLITERAL:
 		if(n->ntype != N) {
 			typecheck(&n->ntype, Etype);
@@ -189,7 +185,47 @@ walkdef(Node *n)
 			break;
 		if(n->defn == N)
 			fatal("var without type, init: %S", n->sym);
+		if(n->defn->op == ONAME) {
+			typecheck(&n->defn, Erv);
+			n->type = n->defn->type;
+			break;
+		}
 		typecheck(&n->defn, Etop);	// fills in n->type
+		break;
+
+	case OTYPE:
+		n->walkdef = 1;
+		if(n->nincr != N)	// fwd decl hack
+			n->type = n->nincr->type;
+		else
+			n->type = typ(TFORW);
+		n->type->sym = n->sym;
+		n->typecheck = 1;
+		typecheck(&n->ntype, Etype);
+		if((t = n->ntype->type) == T) {
+			n->diag = 1;
+			goto ret;
+		}
+
+		// copy new type and clear fields
+		// that don't come along
+		maplineno = n->type->maplineno;
+		*n->type = *t;
+		t = n->type;
+		t->sym = n->sym;
+		t->local = n->local;
+		t->vargen = n->vargen;
+		t->siggen = 0;
+		t->printed = 0;
+		t->method = nil;
+		t->nod = N;
+
+		// double-check use of type as map key
+		// TODO(rsc): also use of type as receiver?
+		if(maplineno) {
+			lineno = maplineno;
+			maptype(n->type, types[TBOOL]);
+		}
 		break;
 	}
 
@@ -265,6 +301,8 @@ walkstmt(Node **np)
 	case OFALL:
 	case OGOTO:
 	case OLABEL:
+	case ODCLCONST:
+	case ODCLTYPE:
 		break;
 
 	case OBLOCK:
@@ -918,6 +956,10 @@ walkexpr(Node **np, NodeList **init)
 		argtype(fn, n->left->type->type);		// any-1
 		argtype(fn, n->type->type);			// any-2
 		n = mkcall1(fn, n->type, init, n->left, nodintconst(n->left->type->type->bound));
+		goto ret;
+
+	case OCLOSURE:
+		n = walkclosure(n, init);
 		goto ret;
 	}
 	fatal("missing switch %O", n->op);
@@ -1658,6 +1700,7 @@ ifacecvt(Type *tl, Node *n, int et, NodeList **init)
 		break;
 	}
 
+	dowidth(on->type);
 	r = nod(OCALL, on, N);
 	r->list = args;
 	typecheck(&r, Erv | Efnstruct);

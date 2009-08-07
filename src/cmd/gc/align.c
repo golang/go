@@ -61,10 +61,23 @@ widstruct(Type *t, uint32 o, int flag)
 		if(f->etype != TFIELD)
 			fatal("widstruct: not TFIELD: %lT", f);
 		dowidth(f->type);
+		if(f->type->width < 0 || f->type->width > 100000000)
+			fatal("invalid width %lld", f->type->width);
 		w = f->type->width;
 		m = arrayelemwidth(f->type);
 		o = rnd(o, m);
 		f->width = o;	// really offset for TFIELD
+		if(f->nname != N) {
+			// this same stackparam logic is in addrescapes
+			// in typecheck.c.  usually addrescapes runs after
+			// widstruct, in which case we could drop this,
+			// but function closure functions are the exception.
+			if(f->nname->stackparam) {
+				f->nname->stackparam->xoffset = o;
+				f->nname->xoffset = 0;
+			} else
+				f->nname->xoffset = o;
+		}
 		o += w;
 	}
 	// final width is rounded
@@ -91,6 +104,9 @@ dowidth(Type *t)
 	if(t == T)
 		return;
 
+	if(t->width > 0)
+		return;
+
 	if(t->width == -2) {
 		yyerror("invalid recursive type %T", t);
 		t->width = 0;
@@ -98,7 +114,6 @@ dowidth(Type *t)
 	}
 
 	t->width = -2;
-
 
 	et = t->etype;
 	switch(et) {
@@ -165,13 +180,16 @@ dowidth(Type *t)
 		break;
 	case TFORW:		// should have been filled in
 	case TFORWSTRUCT:
-		yyerror("incomplete type %T", t);
+		yyerror("undefined type %T", t);
 		w = widthptr;
 		break;
-	case TANY:		// implemented as pointer
-		w = widthptr;
+	case TANY:
+		// dummy type; should be replaced before use.
+		fatal("dowidth any");
 		break;
 	case TSTRING:
+		if(sizeof_String == 0)
+			fatal("early dowidth string");
 		w = sizeof_String;
 		break;
 	case TARRAY:
@@ -413,6 +431,9 @@ typeinit(void)
 
 	// string is same as slice wo the cap
 	sizeof_String = rnd(Array_nel+types[TUINT32]->width, maxround);
+
+	dowidth(types[TSTRING]);
+	dowidth(idealstring);
 }
 
 /*

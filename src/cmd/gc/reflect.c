@@ -389,6 +389,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	Type *elem;
 	char *p;
 
+	dowidth(t);
 	s1 = dextratype(t);
 
 	// empty interface pointing at this type.
