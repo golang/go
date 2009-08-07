@@ -1868,6 +1868,7 @@ reorder1(NodeList *all)
  * simultaneous assignment. there cannot
  * be later use of an earlier lvalue.
  */
+
 int
 vmatch2(Node *l, Node *r)
 {
@@ -1908,7 +1909,18 @@ vmatch1(Node *l, Node *r)
 		return 0;
 	switch(l->op) {
 	case ONAME:
-		// match each left with all rights
+		switch(l->class) {
+		case PPARAM:
+		case PPARAMREF:
+		case PAUTO:
+			break;
+		default:
+			// assignment to non-stack variable
+			// must be delayed if right has function calls.
+			if(r->ullman >= UINF)
+				return 1;
+			break;
+		}
 		return vmatch2(l, r);
 	case OLITERAL:
 		return 0;
@@ -1937,6 +1949,7 @@ reorder3(NodeList *all)
 			n2 = l2->n;
 			if(c2 > c1) {
 				if(vmatch1(n1->left, n2->right)) {
+					// delay assignment to n1->left
 					q = nod(OXXX, N, N);
 					tempname(q, n1->right->type);
 					q = nod(OAS, n1->left, q);
