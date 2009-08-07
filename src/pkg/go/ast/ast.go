@@ -219,7 +219,7 @@ type (
 	//
 	TypeAssertExpr struct {
 		X Expr;  // expression
-		Type Expr;  // asserted type
+		Type Expr;  // asserted type; nil means type switch X.(type)
 	};
 
 	// A CallExpr node represents an expression followed by an argument list.
@@ -546,7 +546,7 @@ type (
 	// A TypeCaseClause represents a case of a type switch statement.
 	TypeCaseClause struct {
 		token.Position;  // position of "case" or "default" keyword
-		Type Expr;  // nil means default case
+		Types []Expr;  // nil means default case
 		Colon token.Position;  // position of ":"
 		Body []Stmt;  // statement list; or nil
 	};

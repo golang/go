@@ -57,3 +57,18 @@ func abs(x int) int {
 	}
 	return x
 }
+
+func typeswitch(x interface {}) {
+	switch v := x.(type) {
+	case bool, int, float:
+	case string:
+	default:
+	}
+	switch x.(type) {}
+	switch v0, ok := x.(int); v := x.(type) {}
+	switch v0, ok := x.(int); x.(type) {
+	case bool, int, float:
+	case string:
+	default:
+	}
+}
