@@ -39,7 +39,6 @@ import (
 	"flag";
 	"fmt";
 	"os";
-	"time";
 )
 
 var n = flag.Int("n", 1000, "how many passes")
@@ -58,17 +57,15 @@ func f(i int, in <-chan int, out chan<- int) {
 }
 
 func main() {
-	flag.Parse(); 
+	flag.Parse();
 
 	one := make(chan int);	// will be input to thread 1
 	var in, out chan int = nil, one;
-	for i := 1; i <= Nthread-1; i++ { 
+	for i := 1; i <= Nthread-1; i++ {
 		in, out = out, make(chan int);
-		go f(i, in, out); 
+		go f(i, in, out);
 	}
 	go f(Nthread, out, one);
 	one <- *n;
-	for {
-		time.Sleep(100*1e9);	// wait for ring to run
-	}
+	<-make(chan int);	// hang until ring completes
 }

@@ -120,3 +120,6 @@ threadring 50000000
 	gccgo -O2 threadring.go	90.33u 459.95s 448.03r
 	gc threadring	33.11u 0.00s 33.14r
 	GOMAXPROCS=4 gc threadring	114.48u 226.65s 371.59r
+	# change wait code to do <-make(chan int) instead of time.Sleep
+	gc threadring	28.41u 0.01s 29.35r
+	GOMAXPROCS=4 gc threadring	112.59u 232.83s 384.72r
