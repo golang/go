@@ -499,6 +499,18 @@ ret:
 	;
 }
 
+int
+samereg(Node *a, Node *b)
+{
+	if(a->op != OREGISTER)
+		return 0;
+	if(b->op != OREGISTER)
+		return 0;
+	if(a->val.u.reg != b->val.u.reg)
+		return 0;
+	return 1;
+}
+
 /*
  * generate division.
  * caller must set:
@@ -581,7 +593,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 void
 cgen_shift(int op, Node *nl, Node *nr, Node *res)
 {
-	Node n1, n2;
+	Node n1, n2, cx, oldcx;
 	int a, w;
 	Prog *p1;
 	uvlong sc;
@@ -611,10 +623,20 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 		return;
 	}
 
+	memset(&oldcx, 0, sizeof oldcx);
+	nodreg(&cx, types[TUINT32], D_CX);
+	if(reg[D_CX] > 0 && !samereg(&cx, res)) {
+		regalloc(&oldcx, types[TUINT32], N);
+		gmove(&cx, &oldcx);
+	}
+
 	nodreg(&n1, types[TUINT32], D_CX);
 	regalloc(&n1, nr->type, &n1);		// to hold the shift type in CX
 
-	regalloc(&n2, nl->type, res);
+	if(samereg(&cx, res))
+		regalloc(&n2, nl->type, N);
+	else
+		regalloc(&n2, nl->type, res);
 	if(nl->ullman >= nr->ullman) {
 		cgen(nl, &n2);
 		cgen(nr, &n1);
@@ -633,6 +655,11 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	}
 	patch(p1, pc);
 	gins(a, &n1, &n2);
+	
+	if(oldcx.op != 0) {
+		gmove(&oldcx, &cx);
+		regfree(&oldcx);
+	}
 
 	gmove(&n2, res);
 
