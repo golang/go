@@ -111,9 +111,17 @@ meteor() {
 	run 'gc_B  meteor-contest' $O.out
 }
 
+pidigits() {
+	echo 'pidigits 10000'
+	run 'gcc -O2 pidigits.c -lgmp' a.out 10000
+#	run 'gccgo -O2 pidigits.go' a.out -n 10000  # uncomment when gccgo library updated
+	run 'gc pidigits' $O.out -n 10000
+	run 'gc_B  pidigits' $O.out -n 10000
+}
+
 case $# in
 0)
-	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm knucleotide mandelbrot meteor"
+	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm knucleotide mandelbrot meteor pidigits"
 	;;
 *)
 	run=$*
