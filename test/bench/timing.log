@@ -115,3 +115,8 @@ pidigits 10000
 	gc pidigits	71.24u 0.04s 71.28r	# 8.5% faster
 	gc_B pidigits	71.25u 0.03s 71.29r	# 4% faster
 
+threadring 50000000
+	gcc -O2 threadring.c -lpthread	35.51u 160.21s 199.50r
+	gccgo -O2 threadring.go	90.33u 459.95s 448.03r
+	gc threadring	33.11u 0.00s 33.14r
+	GOMAXPROCS=4 gc threadring	114.48u 226.65s 371.59r
