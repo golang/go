@@ -11,18 +11,19 @@ var	a,b,c,d,e,f,g,h,i int;
 func
 printit()
 {
-	print(a,b,c,d,e,f,g,h,i,"\n");
+	println(a,b,c,d,e,f,g,h,i);
 }
 
 func
-testit() bool
+testit(permuteok bool) bool
 {
 	if a+b+c+d+e+f+g+h+i != 45 {
 		print("sum does not add to 45\n");
 		printit();
-		panic();
+		return false;
 	}
-	return	a == 1 &&
+	return	permuteok ||
+		a == 1 &&
 		b == 2 &&
 		c == 3 &&
 		d == 4 &&
@@ -51,22 +52,19 @@ main()
 	h = 8;
 	i = 9;
 
-	if !testit() { panic("init val\n"); }
+	if !testit(false) { panic("init val\n"); }
 
 	for z:=0; z<100; z++ {
 		a,b,c,d, e,f,g,h,i = b,c,d,a, i,e,f,g,h;
 
-		if testit() {
-			if z == 19 {
-				break;
-			}
+		if !testit(z%20 != 19) {
 			print("on ", z, "th iteration\n");
 			printit();
 			panic();
 		}
 	}
 
-	if !testit() {
+	if !testit(false) {
 		print("final val\n");
 		printit();
 		panic();
@@ -76,8 +74,9 @@ main()
 	if a != 2 || b != 1 {
 		panic("bad swap");
 	}
-//BUG	a, b = swap(swap(a, b));
-//	if a != 2 || b != 1 {
-//		panic("bad swap");
-//	}
+
+	a, b = swap(swap(a, b));
+	if a != 2 || b != 1 {
+		panic("bad swap");
+	}
 }

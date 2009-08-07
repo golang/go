@@ -147,10 +147,6 @@ BUG: compilation succeeds incorrectly
 =========== bugs/bug136.go
 BUG: errchk: command succeeded unexpectedly
 
-=========== bugs/bug159.go
-abc: expected 4 5 6 got 4 4 -4
-BUG: bug159
-
 =========== bugs/bug162.go
 123
 BUG: should fail
