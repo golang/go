@@ -400,7 +400,7 @@ reswitch:
 			checkwidth(t);
 		}
 		if(!lookdot(n, t)) {
-			yyerror("%#N undefined (type %p %T has no field %S)", n, t, t, n->right->sym);
+			yyerror("%#N undefined (type %T has no field %S)", n, t, n->right->sym);
 			goto error;
 		}
 		switch(n->op) {

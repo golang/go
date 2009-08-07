@@ -121,7 +121,7 @@ do break
 broke
 
 =========== fixedbugs/bug081.go
-fixedbugs/bug081.go:5: fatal error: loop
+fixedbugs/bug081.go:5: fatal error: typecheck loop
 
 =========== fixedbugs/bug093.go
 M

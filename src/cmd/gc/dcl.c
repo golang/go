@@ -837,7 +837,7 @@ typedcl2(Type *pt, Type *t)
 	if(pt->etype == TINTER && t->etype == TFORWINTER)
 		return;
 	if(!cvttype(pt, t)) {
-		yyerror("redeclaration of %T during imports\n\t%lT [%p]\n\t%lT [%p]", pt, pt, pt, t, t);
+		yyerror("redeclaration of %T during imports", pt);
 		return;
 	}
 	return;
