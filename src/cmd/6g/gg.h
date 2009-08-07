@@ -125,6 +125,8 @@ void	sudoclean(void);
 int	sudoaddable(int, Node*, Addr*);
 void	afunclit(Addr*);
 void	datagostring(Strlit*, Addr*);
+int	powtwo(Node*);
+Type*	tounsigned(Type*);
 
 /*
  * obj.c
