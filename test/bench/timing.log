@@ -71,9 +71,9 @@ August 6, 2009
 
 k-nucleotide 5000000
 	gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0	k-nucleotide.c: 10.72u 0.01s 10.74r
-	gccgo -O2 k-nucleotide.go	22.69u 0.85s 24.09r
-	gc k-nucleotide	15.63u 0.26s 16.41r
-	gc_B k-nucleotide	17.22u 0.04s 17.28r
+	gccgo -O2 k-nucleotide.go	21.64u 0.83s 22.78r
+	gc k-nucleotide	16.08u 0.06s 16.50r
+	gc_B k-nucleotide	17.32u 0.02s 17.37r
 
 mandelbrot 5500
 	gcc -O2 mandelbrot.c	56.13u 0.02s 56.17r
@@ -86,3 +86,9 @@ meteor 16000
 	gccgo -O2 meteor-contest.go	0.12u 0.00s 0.14r
 	gc meteor-contest	0.24u 0.00s 0.26r
 	gc_B meteor-contest	0.23u 0.00s 0.24r
+
+pidigits 10000
+	gcc -O2 pidigits.c -lgmp	2.60u 0.00s 2.62r
+	gc pidigits	77.69u 0.14s 78.18r
+	gc_B pidigits	74.26u 0.18s 75.41r
+	gc_B pidigits	68.48u 0.20s 69.31r   # special case: no bounds checking in bignum
