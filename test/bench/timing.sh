@@ -103,9 +103,17 @@ mandelbrot() {
 	run 'gc_B mandelbrot' $O.out -n 16000
 }
 
+meteor() {
+	echo 'meteor 16000'
+	run 'gcc -O2 meteor-contest.c' a.out
+	run 'gccgo -O2 meteor-contest.go' a.out
+	run 'gc meteor-contest' $O.out
+	run 'gc_B  meteor-contest' $O.out
+}
+
 case $# in
 0)
-	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm knucleotide mandelbrot"
+	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm knucleotide mandelbrot meteor"
 	;;
 *)
 	run=$*

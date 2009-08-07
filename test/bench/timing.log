@@ -80,3 +80,9 @@ mandelbrot 5500
 	gccgo -O2 mandelbrot.go	57.49u 0.01s 57.51r
 	gc mandelbrot	74.32u 0.00s 74.35r
 	gc_B mandelbrot	74.28u 0.01s 74.31r
+
+meteor 16000
+	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
+	gccgo -O2 meteor-contest.go	0.12u 0.00s 0.14r
+	gc meteor-contest	0.24u 0.00s 0.26r
+	gc_B meteor-contest	0.23u 0.00s 0.24r
