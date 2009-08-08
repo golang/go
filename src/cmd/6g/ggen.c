@@ -601,16 +601,14 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 	if(n < 0)
 		goto divbymul;
 
-	if(op == OMOD) {
-		// todo
-		goto longdiv;
-	}
-
 	switch(n) {
 	case 0:
 		// divide by 1
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
+		if(op == OMOD) {
+			gins(optoas(OXOR, nl->type), &n1, &n1);
+		} else
 		if(s)
 			gins(optoas(OMINUS, nl->type), N, &n1);
 		gmove(&n1, res);
@@ -618,6 +616,17 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 		return;
 	case 1:
 		// divide by 2
+		if(op == OMOD) {
+			if(issigned[nl->type->etype]) 
+				goto longmod;
+			regalloc(&n1, nl->type, res);
+			cgen(nl, &n1);
+			nodconst(&n2, nl->type, 1);
+			gins(optoas(OAND, nl->type), &n2, &n1);
+			gmove(&n1, res);
+			regfree(&n1);
+			return;
+		}
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
 		if(!issigned[nl->type->etype])
@@ -632,6 +641,23 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 		regfree(&n2);
 		break;
 	default:
+		if(op == OMOD) {
+			if(issigned[nl->type->etype]) 
+				goto longmod;
+			regalloc(&n1, nl->type, res);
+			cgen(nl, &n1);
+			nodconst(&n2, nl->type, mpgetfix(nr->val.u.xval)-1);
+			if(!smallintconst(&n2)) {
+				regalloc(&n3, nl->type, N);
+				gmove(&n2, &n3);
+				gins(optoas(OAND, nl->type), &n3, &n1);
+				regfree(&n3);
+			} else
+				gins(optoas(OAND, nl->type), &n2, &n1);
+			gmove(&n1, res);
+			regfree(&n1);
+			return;
+		}
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
 		if(!issigned[nl->type->etype])
@@ -657,6 +683,8 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 	return;
 
 divbymul:
+	// try to do division by multiply by (2^w)/d
+	// see hacker's delight chapter 10
 	switch(simtype[nl->type->etype]) {
 	default:
 		goto longdiv;
@@ -669,14 +697,12 @@ divbymul:
 		umagic(&m);
 		if(m.bad)
 			break;
-		if(op == OMOD) {
-			// todo
-			break;
-		}
 		if(m.ua != 0) {
 			// todo fixup
 			break;
 		}
+		if(op == OMOD)
+			goto longmod;
 
 		savex(D_AX, &ax, &oldax, res, nl->type);
 		savex(D_DX, &dx, &olddx, res, nl->type);
@@ -709,14 +735,12 @@ divbymul:
 		smagic(&m);
 		if(m.bad)
 			break;
-		if(op == OMOD) {
-			// todo
-			break;
-		}
 		if(m.sm < 0) {
 			// todo fixup
 			break;
 		}
+		if(op == OMOD)
+			goto longmod;
 
 		savex(D_AX, &ax, &oldax, res, nl->type);
 		savex(D_DX, &dx, &olddx, res, nl->type);
@@ -751,11 +775,32 @@ divbymul:
 	goto longdiv;
 
 longdiv:
+	// division and mod using (slow) hardware instruction
 	savex(D_AX, &ax, &oldax, res, nl->type);
 	savex(D_DX, &dx, &olddx, res, nl->type);
 	dodiv(op, nl, nr, res, &ax, &dx);
 	restx(&ax, &oldax);
 	restx(&dx, &olddx);
+	return;
+
+longmod:
+	// mod using formula A%B = A-(A/B*B) but
+	// we know that there is a fast algorithm for A/B
+	regalloc(&n1, nl->type, res);
+	cgen(nl, &n1);
+	regalloc(&n2, nl->type, N);
+	cgen_div(ODIV, &n1, nr, &n2);
+	if(!smallintconst(nr)) {
+		regalloc(&n3, nl->type, N);
+		cgen(nr, &n3);
+		gins(optoas(OMUL, nl->type), &n3, &n2);
+		regfree(&n3);
+	} else
+		gins(optoas(OMUL, nl->type), nr, &n2);
+	gins(optoas(OSUB, nl->type), &n2, &n1);
+	gmove(&n1, res);
+	regfree(&n1);
+	regfree(&n2);
 }
 
 /*

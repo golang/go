@@ -9,37 +9,363 @@ package main
 
 import	"rand"
 
-func	test(a,b,c int64);
+const	Count	= 1e6
 
 func
-main()
+i64rand() int64
 {
-	var a, b int64;
+	for {
+		a := int64(rand.Uint32());
+		a = (a<<32) | int64(rand.Uint32());
+		a >>= uint(rand.Intn(64));
+		if -a != a {
+			return a;
+		}
+	}
+	return 0;	// impossible
+}
 
-	for i:=0; i<1e6; i++ {
-		a := rand.Int63() - 1<<62;
-		b = a/1;	test(a,b,1);
-		b = a/2;	test(a,b,2);
-		b = a/3;	test(a,b,3);
-		b = a/4;	test(a,b,4);
-		b = a/5;	test(a,b,5);
-		b = a/6;	test(a,b,6);
-		b = a/7;	test(a,b,7);
-		b = a/8;	test(a,b,8);
-		b = a/16;	test(a,b,16);
-		b = a/32;	test(a,b,32);
-		b = a/64;	test(a,b,64);
-		b = a/128;	test(a,b,128);
-		b = a/256;	test(a,b,256);
-		b = a/16384;	test(a,b,16384);
+func
+i64test(a,b,c int64)
+{
+	d := a/c;
+	if d != b {
+		panicln("i64", a, b, c, d);
 	}
 }
 
 func
-test(a,b,c int64)
+i64run()
+{
+	var a, b int64;
+
+	for i:=0; i<Count; i++ {
+		a = i64rand();
+
+		b = a/1;	i64test(a,b,1);
+		b = a/2;	i64test(a,b,2);
+		b = a/3;	i64test(a,b,3);
+		b = a/4;	i64test(a,b,4);
+		b = a/5;	i64test(a,b,5);
+		b = a/6;	i64test(a,b,6);
+		b = a/7;	i64test(a,b,7);
+		b = a/8;	i64test(a,b,8);
+		b = a/10;	i64test(a,b,10);
+		b = a/16;	i64test(a,b,16);
+		b = a/20;	i64test(a,b,20);
+		b = a/32;	i64test(a,b,32);
+		b = a/60;	i64test(a,b,60);
+		b = a/64;	i64test(a,b,64);
+		b = a/128;	i64test(a,b,128);
+		b = a/256;	i64test(a,b,256);
+		b = a/16384;	i64test(a,b,16384);
+
+		b = a/-1;	i64test(a,b,-1);
+		b = a/-2;	i64test(a,b,-2);
+		b = a/-3;	i64test(a,b,-3);
+		b = a/-4;	i64test(a,b,-4);
+		b = a/-5;	i64test(a,b,-5);
+		b = a/-6;	i64test(a,b,-6);
+		b = a/-7;	i64test(a,b,-7);
+		b = a/-8;	i64test(a,b,-8);
+		b = a/-10;	i64test(a,b,-10);
+		b = a/-16;	i64test(a,b,-16);
+		b = a/-20;	i64test(a,b,-20);
+		b = a/-32;	i64test(a,b,-32);
+		b = a/-60;	i64test(a,b,-60);
+		b = a/-64;	i64test(a,b,-64);
+		b = a/-128;	i64test(a,b,-128);
+		b = a/-256;	i64test(a,b,-256);
+		b = a/-16384;	i64test(a,b,-16384);
+	}
+}
+
+func
+u64rand() uint64
+{
+	a := uint64(rand.Uint32());
+	a = (a<<32) | uint64(rand.Uint32());
+	a >>= uint(rand.Intn(64));
+	return a;
+}
+
+func
+u64test(a,b,c uint64)
 {
 	d := a/c;
 	if d != b {
-		panicln(a, b, c, d);
+		panicln("u64", a, b, c, d);
 	}
+}
+
+func
+u64run()
+{
+	var a, b uint64;
+
+	for i:=0; i<Count; i++ {
+		a = u64rand();
+
+		b = a/1;	u64test(a,b,1);
+		b = a/2;	u64test(a,b,2);
+		b = a/3;	u64test(a,b,3);
+		b = a/4;	u64test(a,b,4);
+		b = a/5;	u64test(a,b,5);
+		b = a/6;	u64test(a,b,6);
+		b = a/7;	u64test(a,b,7);
+		b = a/8;	u64test(a,b,8);
+		b = a/10;	u64test(a,b,10);
+		b = a/16;	u64test(a,b,16);
+		b = a/20;	u64test(a,b,20);
+		b = a/32;	u64test(a,b,32);
+		b = a/60;	u64test(a,b,60);
+		b = a/64;	u64test(a,b,64);
+		b = a/128;	u64test(a,b,128);
+		b = a/256;	u64test(a,b,256);
+		b = a/16384;	u64test(a,b,16384);
+	}
+}
+
+func
+i32rand() int32
+{
+	for {
+		a := int32(rand.Uint32());
+		a >>= uint(rand.Intn(32));
+		if -a != a {
+			return a;
+		}
+	}
+	return 0;	// impossible
+}
+
+func
+i32test(a,b,c int32)
+{
+	d := a/c;
+	if d != b {
+		panicln("i32", a, b, c, d);
+	}
+}
+
+func
+i32run()
+{
+	var a, b int32;
+
+	for i:=0; i<Count; i++ {
+		a = i32rand();
+
+		b = a/1;	i32test(a,b,1);
+		b = a/2;	i32test(a,b,2);
+		b = a/3;	i32test(a,b,3);
+		b = a/4;	i32test(a,b,4);
+		b = a/5;	i32test(a,b,5);
+		b = a/6;	i32test(a,b,6);
+		b = a/7;	i32test(a,b,7);
+		b = a/8;	i32test(a,b,8);
+		b = a/10;	i32test(a,b,10);
+		b = a/16;	i32test(a,b,16);
+		b = a/20;	i32test(a,b,20);
+		b = a/32;	i32test(a,b,32);
+		b = a/60;	i32test(a,b,60);
+		b = a/64;	i32test(a,b,64);
+		b = a/128;	i32test(a,b,128);
+		b = a/256;	i32test(a,b,256);
+		b = a/16384;	i32test(a,b,16384);
+
+		b = a/-1;	i32test(a,b,-1);
+		b = a/-2;	i32test(a,b,-2);
+		b = a/-3;	i32test(a,b,-3);
+		b = a/-4;	i32test(a,b,-4);
+		b = a/-5;	i32test(a,b,-5);
+		b = a/-6;	i32test(a,b,-6);
+		b = a/-7;	i32test(a,b,-7);
+		b = a/-8;	i32test(a,b,-8);
+		b = a/-10;	i32test(a,b,-10);
+		b = a/-16;	i32test(a,b,-16);
+		b = a/-20;	i32test(a,b,-20);
+		b = a/-32;	i32test(a,b,-32);
+		b = a/-60;	i32test(a,b,-60);
+		b = a/-64;	i32test(a,b,-64);
+		b = a/-128;	i32test(a,b,-128);
+		b = a/-256;	i32test(a,b,-256);
+	}
+}
+
+func
+u32rand() uint32
+{
+	a := uint32(rand.Uint32());
+	a >>= uint(rand.Intn(32));
+	return a;
+}
+
+func
+u32test(a,b,c uint32)
+{
+	d := a/c;
+	if d != b {
+		panicln("u32", a, b, c, d);
+	}
+}
+
+func
+u32run()
+{
+	var a, b uint32;
+
+	for i:=0; i<Count; i++ {
+		a = u32rand();
+
+		b = a/1;	u32test(a,b,1);
+		b = a/2;	u32test(a,b,2);
+		b = a/3;	u32test(a,b,3);
+		b = a/4;	u32test(a,b,4);
+		b = a/5;	u32test(a,b,5);
+		b = a/6;	u32test(a,b,6);
+		b = a/7;	u32test(a,b,7);
+		b = a/8;	u32test(a,b,8);
+		b = a/10;	u32test(a,b,10);
+		b = a/16;	u32test(a,b,16);
+		b = a/20;	u32test(a,b,20);
+		b = a/32;	u32test(a,b,32);
+		b = a/60;	u32test(a,b,60);
+		b = a/64;	u32test(a,b,64);
+		b = a/128;	u32test(a,b,128);
+		b = a/256;	u32test(a,b,256);
+		b = a/16384;	u32test(a,b,16384);
+	}
+}
+
+func
+i16rand() int16
+{
+	for {
+		a := int16(rand.Uint32());
+		a >>= uint(rand.Intn(16));
+		if -a != a {
+			return a;
+		}
+	}
+	return 0;	// impossible
+}
+
+func
+i16test(a,b,c int16)
+{
+	d := a/c;
+	if d != b {
+		panicln("i16", a, b, c, d);
+	}
+}
+
+func
+i16run()
+{
+	var a, b int16;
+
+	for i:=0; i<Count; i++ {
+		a = i16rand();
+
+		b = a/1;	i16test(a,b,1);
+		b = a/2;	i16test(a,b,2);
+		b = a/3;	i16test(a,b,3);
+		b = a/4;	i16test(a,b,4);
+		b = a/5;	i16test(a,b,5);
+		b = a/6;	i16test(a,b,6);
+		b = a/7;	i16test(a,b,7);
+		b = a/8;	i16test(a,b,8);
+		b = a/10;	i16test(a,b,10);
+		b = a/16;	i16test(a,b,16);
+		b = a/20;	i16test(a,b,20);
+		b = a/32;	i16test(a,b,32);
+		b = a/60;	i16test(a,b,60);
+		b = a/64;	i16test(a,b,64);
+		b = a/128;	i16test(a,b,128);
+		b = a/256;	i16test(a,b,256);
+		b = a/16384;	i16test(a,b,16384);
+
+		b = a/-1;	i16test(a,b,-1);
+		b = a/-2;	i16test(a,b,-2);
+		b = a/-3;	i16test(a,b,-3);
+		b = a/-4;	i16test(a,b,-4);
+		b = a/-5;	i16test(a,b,-5);
+		b = a/-6;	i16test(a,b,-6);
+		b = a/-7;	i16test(a,b,-7);
+		b = a/-8;	i16test(a,b,-8);
+		b = a/-10;	i16test(a,b,-10);
+		b = a/-16;	i16test(a,b,-16);
+		b = a/-20;	i16test(a,b,-20);
+		b = a/-32;	i16test(a,b,-32);
+		b = a/-60;	i16test(a,b,-60);
+		b = a/-64;	i16test(a,b,-64);
+		b = a/-128;	i16test(a,b,-128);
+		b = a/-256;	i16test(a,b,-256);
+		b = a/-16384;	i16test(a,b,-16384);
+	}
+}
+
+func
+u16rand() uint16
+{
+	a := uint16(rand.Uint32());
+	a >>= uint(rand.Intn(16));
+	return a;
+}
+
+func
+u16test(a,b,c uint16)
+{
+	d := a/c;
+	if d != b {
+		panicln("u16", a, b, c, d);
+	}
+}
+
+func
+u16run()
+{
+	var a, b uint16;
+
+	for i:=0; i<Count; i++ {
+		a = u16rand();
+
+		b = a/1;	u16test(a,b,1);
+		b = a/2;	u16test(a,b,2);
+		b = a/3;	u16test(a,b,3);
+		b = a/4;	u16test(a,b,4);
+		b = a/5;	u16test(a,b,5);
+		b = a/6;	u16test(a,b,6);
+		b = a/7;	u16test(a,b,7);
+		b = a/8;	u16test(a,b,8);
+		b = a/10;	u16test(a,b,10);
+		b = a/16;	u16test(a,b,16);
+		b = a/20;	u16test(a,b,20);
+		b = a/32;	u16test(a,b,32);
+		b = a/60;	u16test(a,b,60);
+		b = a/64;	u16test(a,b,64);
+		b = a/128;	u16test(a,b,128);
+		b = a/256;	u16test(a,b,256);
+		b = a/16384;	u16test(a,b,16384);
+	}
+}
+
+func	xtest()
+
+func
+main()
+{
+	xtest();
+	i64run();
+	u64run();
+	i32run();
+	u32run();
+	i16run();
+	u16run();
+}
+
+func
+xtest()
+{
 }
