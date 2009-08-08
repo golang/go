@@ -525,6 +525,36 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 		gmove(dx, res);
 }
 
+static void
+savex(int dr, Node *x, Node *oldx, Node *res, Type *t)
+{
+	int r;
+
+	r = reg[dr];
+
+	nodreg(x, types[TINT64], dr);
+	regalloc(x, t, x);
+
+	// save current ax and dx if they are live
+	// and not the destination
+	memset(oldx, 0, sizeof *oldx);
+	if(r > 0 && !samereg(x, res)) {
+		regalloc(oldx, t, N);
+		gmove(x, oldx);
+	}
+}
+
+static void
+restx(Node *x, Node *oldx)
+{
+	regfree(x);
+
+	if(oldx->op != 0) {
+		gmove(oldx, x);
+		regfree(oldx);
+	}
+}
+
 /*
  * generate division according to op, one of:
  *	res = nl / nr
@@ -533,18 +563,20 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
-	Node ax, dx, oldax, olddx, n1, n2, n3;
-	int rax, rdx, n, w;
+	Node ax, dx, cx, oldax, olddx, oldcx;
+	Node n1, n2, n3, savl, savr;
+	int n, w, s;
+	Magic m;
 
 	if(nl->ullman >= UINF) {
-		tempname(&n1, nl->type);
-		cgen(nl, &n1);
-		nl = &n1;
+		tempname(&savl, nl->type);
+		cgen(nl, &savl);
+		nl = &savl;
 	}
 	if(nr->ullman >= UINF) {
-		tempname(&n2, nr->type);
-		cgen(nr, &n2);
-		nr = &n2;
+		tempname(&savr, nr->type);
+		cgen(nr, &savr);
+		nr = &savr;
 	}
 
 	if(nr->op != OLITERAL)
@@ -552,8 +584,14 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 
 	// special cases of mod/div
 	// by a constant
-	n = powtwo(nr);
 	w = nl->type->width*8;
+	s = 0;
+	n = powtwo(nr);
+	if(n >= 1000) {
+		// negative power of 2
+		s = 1;
+		n -= 1000;
+	}
 
 	if(n+1 >= w) {
 		// just sign bit
@@ -571,97 +609,132 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 	switch(n) {
 	case 0:
 		// divide by 1
-		cgen(nl, res);
+		regalloc(&n1, nl->type, res);
+		cgen(nl, &n1);
+		if(s)
+			gins(optoas(OMINUS, nl->type), N, &n1);
+		gmove(&n1, res);
+		regfree(&n1);
 		return;
 	case 1:
 		// divide by 2
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
-		if(issigned[nl->type->etype]) {
-			// develop -1 iff nl is negative
-			regalloc(&n2, nl->type, N);
-			gmove(&n1, &n2);
-			nodconst(&n3, nl->type, w-1);
-			gins(optoas(ORSH, nl->type), &n3, &n2);
-			gins(optoas(OSUB, nl->type), &n2, &n1);
-			regfree(&n2);
-		}
-		nodconst(&n2, nl->type, n);
-		gins(optoas(ORSH, nl->type), &n2, &n1);
-		gmove(&n1, res);
-		regfree(&n1);
-		return;
+		if(!issigned[nl->type->etype])
+			break;
+
+		// develop -1 iff nl is negative
+		regalloc(&n2, nl->type, N);
+		gmove(&n1, &n2);
+		nodconst(&n3, nl->type, w-1);
+		gins(optoas(ORSH, nl->type), &n3, &n2);
+		gins(optoas(OSUB, nl->type), &n2, &n1);
+		regfree(&n2);
+		break;
 	default:
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
-		if(issigned[nl->type->etype]) {
-			// develop (2^k)-1 iff nl is negative
-			regalloc(&n2, nl->type, N);
-			gmove(&n1, &n2);
-			nodconst(&n3, nl->type, w-1);
-			gins(optoas(ORSH, nl->type), &n3, &n2);
-			nodconst(&n3, nl->type, w-n);
-			gins(optoas(ORSH, tounsigned(nl->type)), &n3, &n2);
-			gins(optoas(OADD, nl->type), &n2, &n1);
-			regfree(&n2);
-		}
-		nodconst(&n2, nl->type, n);
-		gins(optoas(ORSH, nl->type), &n2, &n1);
-		gmove(&n1, res);
-		regfree(&n1);
+		if(!issigned[nl->type->etype])
+			break;
+
+		// develop (2^k)-1 iff nl is negative
+		regalloc(&n2, nl->type, N);
+		gmove(&n1, &n2);
+		nodconst(&n3, nl->type, w-1);
+		gins(optoas(ORSH, nl->type), &n3, &n2);
+		nodconst(&n3, nl->type, w-n);
+		gins(optoas(ORSH, tounsigned(nl->type)), &n3, &n2);
+		gins(optoas(OADD, nl->type), &n2, &n1);
+		regfree(&n2);
+		break;
 	}
+	nodconst(&n2, nl->type, n);
+	gins(optoas(ORSH, nl->type), &n2, &n1);
+	if(s)
+		gins(optoas(OMINUS, nl->type), N, &n1);
+	gmove(&n1, res);
+	regfree(&n1);
 	return;
 
 divbymul:
+goto longdiv;
 	switch(simtype[nl->type->etype]) {
 	default:
 		goto longdiv;
 
-	case TINT32:
+	case TUINT16:
 	case TUINT32:
-	case TINT64:
 	case TUINT64:
+		m.w = w;
+		m.ud = mpgetfix(nr->val.u.xval);
+		umagic(&m);
+		if(m.bad)
+			break;
+		if(op == OMOD) {
+			// todo
+			break;
+		}
+		if(m.ua != 0) {
+			// todo fixup
+			break;
+		}
 		break;
+
+	case TINT16:
+	case TINT32:
+	case TINT64:
+		m.w = w;
+		m.sd = mpgetfix(nr->val.u.xval);
+		smagic(&m);
+		if(m.bad)
+			break;
+		if(op == OMOD) {
+			// todo
+			break;
+		}
+		if(m.sm < 0) {
+			// todo fixup
+			break;
+		}
+
+		savex(D_AX, &ax, &oldax, res, nl->type);
+		savex(D_DX, &dx, &olddx, res, nl->type);
+		savex(D_CX, &cx, &oldcx, res, nl->type);
+
+		regalloc(&n1, nl->type, N);
+		cgen(nl, &n1);				// num -> reg(n1)
+
+		nodconst(&n2, nl->type, m.sm);
+		gmove(&n2, &ax);			// const->ax
+
+		gins(optoas(OMUL, nl->type), &n1, N);	// imul reg
+
+		nodconst(&n2, nl->type, m.s);
+		gins(optoas(ORSH, nl->type), &n2, &dx);	// shift dx
+
+		nodconst(&n2, nl->type, w-1);
+		gins(optoas(ORSH, nl->type), &n2, &n1);	// -1 iff num is neg
+		gins(optoas(OSUB, nl->type), &n1, &dx);	// added
+
+		if(m.sd < 0)
+			gins(optoas(OMINUS, nl->type), N, &dx);
+
+		regfree(&n1);
+		gmove(&dx, res);
+
+		restx(&ax, &oldax);
+		restx(&dx, &olddx);
+		restx(&cx, &oldcx);
+		return;
 	}
-	// todo
 	goto longdiv;
 
 longdiv:
-	rax = reg[D_AX];
-	rdx = reg[D_DX];
-
-	nodreg(&ax, types[TINT64], D_AX);
-	nodreg(&dx, types[TINT64], D_DX);
-	regalloc(&ax, nl->type, &ax);
-	regalloc(&dx, nl->type, &dx);
-
-	// save current ax and dx if they are live
-	// and not the destination
-	memset(&oldax, 0, sizeof oldax);
-	memset(&olddx, 0, sizeof olddx);
-	if(rax > 0 && !samereg(&ax, res)) {
-		regalloc(&oldax, nl->type, N);
-		gmove(&ax, &oldax);
-	}
-	if(rdx > 0 && !samereg(&dx, res)) {
-		regalloc(&olddx, nl->type, N);
-		gmove(&dx, &olddx);
-	}
-
+	savex(D_AX, &ax, &oldax, res, nl->type);
+	savex(D_DX, &dx, &olddx, res, nl->type);
 	dodiv(op, nl, nr, res, &ax, &dx);
-
-	regfree(&ax);
-	regfree(&dx);
-
-	if(oldax.op != 0) {
-		gmove(&oldax, &ax);
-		regfree(&oldax);
-	}
-	if(olddx.op != 0) {
-		gmove(&olddx, &dx);
-		regfree(&olddx);
-	}
-
+	restx(&ax, &oldax);
+	restx(&dx, &olddx);
 }
 
 /*
