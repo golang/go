@@ -42,6 +42,23 @@ struct	Prog
 	void*	reg;		// pointer to containing Reg struct
 };
 
+typedef	struct	Magic Magic;
+struct	Magic
+{
+	int	w;	// input for both - width
+	int	s;	// output for both - shift
+	int	bad;	// output for both - unexpected failure
+
+	// magic multiplier for signed literal divisors
+	int64	sd;	// input - literal divisor
+	int64	sm;	// output - multiplier
+
+	// magic multiplier for unsigned literal divisors
+	uint64	ud;	// input - literal divisor
+	uint64	um;	// output - multiplier
+	int	ua;	// output - adder
+};
+
 EXTERN	Biobuf*	bout;
 EXTERN	int32	dynloc;
 EXTERN	uchar	reg[D_NONE];
@@ -127,6 +144,8 @@ void	afunclit(Addr*);
 void	datagostring(Strlit*, Addr*);
 int	powtwo(Node*);
 Type*	tounsigned(Type*);
+void	smagic(Magic*);
+void	umagic(Magic*);
 
 /*
  * obj.c
