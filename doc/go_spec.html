@@ -9,6 +9,10 @@ Open issues:
 
 
 Todo's:
+[ ] need language about function/method calls and parameter passing rules
+[ ] update language with respect to forward declarations
+[ ] clarify what a field name is in struct declarations
+    (struct{T} vs struct {T T} vs struct {t T})
 [ ] need explicit language about the result type of operations
 [ ] may want to have some examples for the types of shift operations
 [ ] document illegality of package-external tuple assignments to structs
@@ -3624,21 +3628,26 @@ and optionally provides a result value or values to the caller.
 ReturnStmt = "return" [ ExpressionList ] .
 </pre>
 
+<p>
+In a function without a result type, a "return" statement must not
+specify any result values.
+</p>
 <pre>
-func procedure() {
+func no_result() {
 	return
 }
 </pre>
 
 <p>
-There are two ways to return values from a function with a result
-type.  The first is to explicitly list the return value or values
-in the "return" statement.
-Normally, the expressions
-must be single-valued and assignment-compatible to the elements of
-the result type of the function.
+There are three ways to return values from a function with a result
+type:
 </p>
 
+<ol>
+	<li>The return value or values may be explicitly listed
+		in the "return" statement. Each expression must be single-valued
+		and assignment-compatible to the corresponding element of
+		the result type of the function.
 <pre>
 func simple_f() int {
 	return 2
@@ -3648,29 +3657,25 @@ func complex_f1() (re float, im float) {
 	return -7.0, -4.0
 }
 </pre>
-
-<p>
-However, if the expression list in the "return" statement is a single call
-to a multi-valued function, the values returned from the called function
-will be returned from this one.  The result types of the current function
-and the called function must match.
-</p>
-
+	</li>
+	<li>The expression list in the "return" statement may be a single
+		call to a multi-valued function. The effect is as if each value
+		returned from that function were assigned to a temporary
+		variable with the type of the respective value, followed by a
+		"return" statement listing these variables, at which point the
+		rules of the previous case apply.
 <pre>
 func complex_f2() (re float, im float) {
 	return complex_f1()
 }
 </pre>
-
-<p>
-The second way to return values is to use the elements of the
-result list of the function as variables.  When the function begins
-execution, these variables are initialized to the zero values for
-their type (§The zero value).  The function can assign them as
-necessary; if the "return" provides no values, those of the variables
-will be returned to the caller.
-</p>
-
+	</li>
+	<li>The expression list may be empty if the functions's result
+		type specifies names for its result parameters (§Function Types).
+		The result parameters act as ordinary local variables that are
+		initialized to the zero values for their type (§The zero value)
+		and the function may assign values to them as necessary.
+		The "return" statement returns the values of these variables.
 <pre>
 func complex_f3() (re float, im float) {
 	re = 7.0;
@@ -3678,9 +3683,15 @@ func complex_f3() (re float, im float) {
 	return;
 }
 </pre>
+	</li>
+</ol>
 
 <p>
-TODO: Define when return is required.
+<font color=red>
+TODO: Define when return is required.<br />
+TODO: Language about result parameters needs to go into a section on
+      function/method invocation<br />
+</font>
 </p>
 
 <h3>Break statements</h3>
