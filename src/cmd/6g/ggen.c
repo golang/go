@@ -657,7 +657,6 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 	return;
 
 divbymul:
-goto longdiv;
 	switch(simtype[nl->type->etype]) {
 	default:
 		goto longdiv;
@@ -678,7 +677,29 @@ goto longdiv;
 			// todo fixup
 			break;
 		}
-		break;
+
+		savex(D_AX, &ax, &oldax, res, nl->type);
+		savex(D_DX, &dx, &olddx, res, nl->type);
+		savex(D_CX, &cx, &oldcx, res, nl->type);
+
+		regalloc(&n1, nl->type, N);
+		cgen(nl, &n1);				// num -> reg(n1)
+
+		nodconst(&n2, nl->type, m.um);
+		gmove(&n2, &ax);			// const->ax
+
+		gins(optoas(OHMUL, nl->type), &n1, N);	// imul reg
+
+		nodconst(&n2, nl->type, m.s);
+		gins(optoas(ORSH, nl->type), &n2, &dx);	// shift dx
+
+		regfree(&n1);
+		gmove(&dx, res);
+
+		restx(&ax, &oldax);
+		restx(&dx, &olddx);
+		restx(&cx, &oldcx);
+		return;
 
 	case TINT16:
 	case TINT32:
@@ -707,7 +728,7 @@ goto longdiv;
 		nodconst(&n2, nl->type, m.sm);
 		gmove(&n2, &ax);			// const->ax
 
-		gins(optoas(OMUL, nl->type), &n1, N);	// imul reg
+		gins(optoas(OHMUL, nl->type), &n1, N);	// imul reg
 
 		nodconst(&n2, nl->type, m.s);
 		gins(optoas(ORSH, nl->type), &n2, &dx);	// shift dx
