@@ -1473,26 +1473,48 @@ optoas(int op, Type *t)
 		a = ASARQ;
 		break;
 
+	case CASE(OHMUL, TINT8):
 	case CASE(OMUL, TINT8):
 	case CASE(OMUL, TUINT8):
 		a = AIMULB;
 		break;
 
+	case CASE(OHMUL, TINT16):
 	case CASE(OMUL, TINT16):
 	case CASE(OMUL, TUINT16):
 		a = AIMULW;
 		break;
 
+	case CASE(OHMUL, TINT32):
 	case CASE(OMUL, TINT32):
 	case CASE(OMUL, TUINT32):
 	case CASE(OMUL, TPTR32):
 		a = AIMULL;
 		break;
 
+	case CASE(OHMUL, TINT64):
 	case CASE(OMUL, TINT64):
 	case CASE(OMUL, TUINT64):
 	case CASE(OMUL, TPTR64):
 		a = AIMULQ;
+		break;
+
+	case CASE(OHMUL, TUINT8):
+		a = AMULB;
+		break;
+
+	case CASE(OHMUL, TUINT16):
+		a = AMULW;
+		break;
+
+	case CASE(OHMUL, TUINT32):
+	case CASE(OHMUL, TPTR32):
+		a = AMULL;
+		break;
+
+	case CASE(OHMUL, TUINT64):
+	case CASE(OHMUL, TPTR64):
+		a = AMULQ;
 		break;
 
 	case CASE(OMUL, TFLOAT32):
@@ -1930,8 +1952,8 @@ void
 smagic(Magic *m)
 {
 	int p;
-	uint64 ad, anc, delta, q1, r1, q2, r2, t, two31;
-	uint64 mask;
+	uint64 ad, anc, delta, q1, r1, q2, r2, t;
+	uint64 mask, two31;
 
 	m->bad = 0;
 	switch(m->w) {
@@ -2013,6 +2035,8 @@ smagic(Magic *m)
 	}
 
 	m->sm = q2+1;
+	if(m->sm & two31)
+		m->sm |= ~mask;
 	m->s = p-m->w;
 }
 
@@ -2020,8 +2044,8 @@ void
 umagic(Magic *m)
 {
 	int p;
-	uint64 nc, delta, q1, r1, q2, r2, two31;
-	uint64 mask;
+	uint64 nc, delta, q1, r1, q2, r2;
+	uint64 mask, two31;
 
 	m->bad = 0;
 	m->ua = 0;
