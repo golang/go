@@ -42,7 +42,7 @@ import (
 	"os";
 )
 
-var n = flag.Int("n", 20, "depth")
+var n = flag.Int("n", 15, "depth")
 
 type Node struct {
 	  item	int;
@@ -75,7 +75,7 @@ func main() {
 	stretchDepth := maxDepth + 1;
 
 	check := bottomUpTree(0, stretchDepth).itemCheck();
-	fmt.Println("stretch tree of depth ", stretchDepth, "\t check:", check);
+	fmt.Printf("stretch tree of depth %d\t check: %d\n", stretchDepth, check);
 
 	longLivedTree := bottomUpTree(0, maxDepth);
 
@@ -87,7 +87,7 @@ func main() {
 			check += bottomUpTree(i,depth).itemCheck();
 			check += bottomUpTree(-i,depth).itemCheck();
 		}
-		fmt.Println(iterations*2, "\t trees of depth ", depth, "\t check: ", check);
+		fmt.Printf("%d\t trees of depth %d\t check: %d\n", iterations*2, depth, check);
 	}
-	fmt.Println("long lived tree of depth", maxDepth, "\t check:", longLivedTree.itemCheck());
+	fmt.Printf("long lived tree of depth %d\t check: %d\n", maxDepth, longLivedTree.itemCheck());
 }

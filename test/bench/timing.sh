@@ -6,6 +6,13 @@
 set -e
 . $GOROOT/src/Make.$GOARCH
 
+mode=run
+case X"$1" in
+X-test)
+	mode=test
+	shift
+esac
+
 gc() {
 	$GC $1.go; $LD $1.$O
 }
@@ -14,7 +21,40 @@ gc_B() {
 	$GC -B $1.go; $LD $1.$O
 }
 
+runonly() {
+	if [ $mode = run ]
+	then
+		"$@"
+	fi
+}
+
+
+
 run() {
+	if [ $mode = test ]
+	then
+		if echo $1 | grep -q '^gc '
+		then
+			$1	# compile the program
+			program=$(echo $1 | sed 's/gc //')
+			shift
+			echo $program
+			$1 <fasta-1000.out > /tmp/$$
+			case $program in
+			chameneosredux)
+				# exact numbers may vary but non-numbers should match
+				grep -v '[0-9]' /tmp/$$ > /tmp/$$x
+				grep -v '[0-9]' chameneosredux.txt > /tmp/$$y
+				cmp /tmp/$$x /tmp/$$y
+				rm -f /tmp/$$ /tmp/$$x /tmp/$$y
+				;;
+			*)
+				cmp /tmp/$$ $program.txt
+				rm -f /tmp/$$
+			esac
+		fi
+		return
+	fi
 	echo -n '	'$1'	'
 	$1
 	shift
@@ -22,7 +62,7 @@ run() {
 }
 
 fasta() {
-	echo 'fasta -n 25000000'
+	runonly echo 'fasta -n 25000000'
 	run 'gcc -O2 fasta.c' a.out 25000000
 	#run 'gccgo -O2 fasta.go' a.out -n 25000000	#commented out until WriteString is in bufio
 	run 'gc fasta' $O.out -n 25000000
@@ -30,9 +70,9 @@ fasta() {
 }
 
 revcomp() {
-	gcc -O2 fasta.c
-	a.out 25000000 > x
-	echo 'reverse-complement < output-of-fasta-25000000'
+	runonly gcc -O2 fasta.c
+	runonly a.out 25000000 > x
+	runonly echo 'reverse-complement < output-of-fasta-25000000'
 	run 'gcc -O2 reverse-complement.c' a.out < x
 	run 'gccgo -O2 reverse-complement.go' a.out < x
 	run 'gc reverse-complement' $O.out < x
@@ -41,7 +81,7 @@ revcomp() {
 }
 
 nbody() {
-	echo 'nbody -n 50000000'
+	runonly echo 'nbody -n 50000000'
 	run 'gcc -O2 nbody.c' a.out 50000000
 	run 'gccgo -O2 nbody.go' a.out -n 50000000
 	run 'gc nbody' $O.out -n 50000000
@@ -49,7 +89,7 @@ nbody() {
 }
 
 binarytree() {
-	echo 'binary-tree 15 # too slow to use 20'
+	runonly echo 'binary-tree 15 # too slow to use 20'
 	run 'gcc -O2 binary-tree.c -lm' a.out 15
 	run 'gccgo -O2 binary-tree.go' a.out -n 15
 	run 'gccgo -O2 binary-tree-freelist.go' $O.out -n 15
@@ -58,7 +98,7 @@ binarytree() {
 }
 
 fannkuch() {
-	echo 'fannkuch 12'
+	runonly echo 'fannkuch 12'
 	run 'gcc -O2 fannkuch.c' a.out 12
 	run 'gccgo -O2 fannkuch.go' a.out -n 12
 	run 'gc fannkuch' $O.out -n 12
@@ -66,9 +106,9 @@ fannkuch() {
 }
 
 regexdna() {
-	gcc -O2 fasta.c
-	a.out 100000 > x
-	echo 'regex-dna 100000'
+	runonly gcc -O2 fasta.c
+	runonly a.out 100000 > x
+	runonly echo 'regex-dna 100000'
 	run 'gcc -O2 regex-dna.c -lpcre' a.out <x
 #	run 'gccgo -O2 regex-dna.go' a.out <x	# pages badly; don't run
 	run 'gc regex-dna' $O.out <x
@@ -77,7 +117,7 @@ regexdna() {
 }
 
 spectralnorm() {
-	echo 'spectral-norm 5500'
+	runonly echo 'spectral-norm 5500'
 	run 'gcc -O2 spectral-norm.c -lm' a.out 5500
 	run 'gccgo -O2 spectral-norm.go' a.out -n 5500
 	run 'gc spectral-norm' $O.out -n 5500
@@ -85,9 +125,9 @@ spectralnorm() {
 }
 
 knucleotide() {
-	gcc -O2 fasta.c
-	a.out 1000000 > x  # should be using 25000000
-	echo 'k-nucleotide 1000000'
+	runonly gcc -O2 fasta.c
+	runonly a.out 1000000 > x  # should be using 25000000
+	runonly echo 'k-nucleotide 1000000'
 	run 'gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0' a.out <x
 	run 'gccgo -O2 k-nucleotide.go' a.out <x	# warning: pages badly!
 	run 'gc k-nucleotide' $O.out <x
@@ -96,7 +136,7 @@ knucleotide() {
 }
 
 mandelbrot() {
-	echo 'mandelbrot 16000'
+	runonly echo 'mandelbrot 16000'
 	run 'gcc -O2 mandelbrot.c' a.out 16000
 	run 'gccgo -O2 mandelbrot.go' a.out -n 16000
 	run 'gc mandelbrot' $O.out -n 16000
@@ -104,7 +144,7 @@ mandelbrot() {
 }
 
 meteor() {
-	echo 'meteor 16000'
+	runonly echo 'meteor 16000'
 	run 'gcc -O2 meteor-contest.c' a.out
 	run 'gccgo -O2 meteor-contest.go' a.out
 	run 'gc meteor-contest' $O.out
@@ -112,7 +152,7 @@ meteor() {
 }
 
 pidigits() {
-	echo 'pidigits 10000'
+	runonly echo 'pidigits 10000'
 	run 'gcc -O2 pidigits.c -lgmp' a.out 10000
 #	run 'gccgo -O2 pidigits.go' a.out -n 10000  # uncomment when gccgo library updated
 	run 'gc pidigits' $O.out -n 10000
@@ -120,14 +160,14 @@ pidigits() {
 }
 
 threadring() {
-	echo 'threadring 50000000'
+	runonly echo 'threadring 50000000'
 	run 'gcc -O2 threadring.c -lpthread' a.out 50000000
 	run 'gccgo -O2 threadring.go' a.out -n 50000000
 	run 'gc threadring' $O.out -n 50000000
 }
 
 chameneos() {
-	echo 'chameneos 6000000'
+	runonly echo 'chameneos 6000000'
 	run 'gcc -O2 chameneosredux.c -lpthread' a.out 6000000
 #	run 'gccgo -O2 chameneosredux.go' a.out -n 6000000	# doesn't support the non-forward-decl variant
 	run 'gc chameneosredux' $O.out -n 6000000
@@ -144,5 +184,5 @@ esac
 for i in $run
 do
 	$i
-	echo
+	runonly echo
 done
