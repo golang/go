@@ -75,7 +75,12 @@ func cString(b []byte) string {
 }
 
 func (tr *Reader) octal(b []byte) int64 {
-	if len(b) > 0 && b[len(b)-1] == ' ' {
+	// Removing leading spaces.
+	for len(b) > 0 && b[0] == ' ' {
+		b = b[1:len(b)];
+	}
+	// Removing trailing NULs and spaces.
+	for len(b) > 0 && (b[len(b)-1] == ' ' || b[len(b)-1] == '\x00') {
 		b = b[0:len(b)-1];
 	}
 	x, err := strconv.Btoui64(cString(b), 8);
