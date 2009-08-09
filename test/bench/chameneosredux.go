@@ -169,7 +169,7 @@ func (c *Chameneos) Serve() {
 func play(ref *Referee, color []Color) {
 	cham := make([]Chameneos, len(color));
 	for i, c := range color {
-		fmt.Printf("%s ", c);
+		fmt.Printf(" %s", c);
 		ref.Add(cham[i].Init(i, ref, c));
 	}
 	fmt.Printf("\n");
@@ -179,7 +179,7 @@ func play(ref *Referee, color []Color) {
 		total += c.count;
 		fmt.Printf("%d %s\n", c.count, say(c.same));
 	}
-	fmt.Printf("%s\n\n", say(total));
+	fmt.Printf("%s\n", say(total));
 }
 
 var words = []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}
@@ -198,5 +198,6 @@ func main() {
 	printColorTable();
 	fmt.Print("\n");
 	play(NewReferee(), []Color{blue, red, yellow});
+	fmt.Print("\n");
 	play(NewReferee(), []Color{blue, red, yellow, red, yellow, blue, red, yellow, red, blue});
 }

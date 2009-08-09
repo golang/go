@@ -53,6 +53,10 @@ time make test
 time ./run
 ) || exit $?
 
+(xcd ../test/bench
+./timing.sh -test
+) || exit $?
+
 (xcd ../test
 ./run
 ) || exit $?
