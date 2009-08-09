@@ -343,7 +343,8 @@ enum
 	OKEY, OPARAM,
 	OLEN,
 	OMAKE, OMAKECHAN, OMAKEMAP, OMAKESLICE,
-	OMUL, ODIV, OMOD, OLSH, ORSH, OHMUL, OAND, OANDNOT,
+	OHMUL, ORRC, OLRC,	// high-mul and rotate-carry
+	OMUL, ODIV, OMOD, OLSH, ORSH, OAND, OANDNOT,
 	ONEW,
 	ONOT, OCOM, OPLUS, OMINUS,
 	OOROR,
@@ -540,6 +541,27 @@ struct Idir
 {
 	Idir*	link;
 	char*	dir;
+};
+
+/*
+ * argument passing to/from
+ * smagic and umagic
+ */
+typedef	struct	Magic Magic;
+struct	Magic
+{
+	int	w;	// input for both - width
+	int	s;	// output for both - shift
+	int	bad;	// output for both - unexpected failure
+
+	// magic multiplier for signed literal divisors
+	int64	sd;	// input - literal divisor
+	int64	sm;	// output - multiplier
+
+	// magic multiplier for unsigned literal divisors
+	uint64	ud;	// input - literal divisor
+	uint64	um;	// output - multiplier
+	int	ua;	// output - adder
 };
 
 /*
@@ -855,6 +877,11 @@ void	expandmeth(Sym*, Type*);
 void	genwrapper(Type*, Type*, Sym*);
 
 int	simsimtype(Type*);
+
+int	powtwo(Node*);
+Type*	tounsigned(Type*);
+void	smagic(Magic*);
+void	umagic(Magic*);
 
 /*
  *	dcl.c
