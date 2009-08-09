@@ -839,7 +839,7 @@ enum
 	REGTMP		= D_DI,
 	REGEXT		= D_R15,	/* compiler allocates external registers R15 down */
 	FREGMIN		= D_X0+5,	/* first register variable */
-	FREGEXT		= D_X0+7	/* first external register */
+	FREGEXT		= D_X0+15	/* first external register */
 };
 
 /*
