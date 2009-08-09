@@ -1439,9 +1439,9 @@ BtoR(int32 b)
 
 /*
  *	bit	reg
- *	16	X5
- *	17	X6
- *	18	X7
+ *	16	X5 (FREGMIN)
+ *	...
+ *	26	X15 (FREGEXT)
  */
 int32
 FtoB(int f)
@@ -1455,7 +1455,7 @@ int
 BtoF(int32 b)
 {
 
-	b &= 0x70000L;
+	b &= 0xFF0000L;
 	if(b == 0)
 		return 0;
 	return bitno(b) - 16 + FREGMIN;
