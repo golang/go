@@ -298,6 +298,14 @@ regopt(Prog *firstp)
 		case ASARL:
 		case ASARQ:
 		case ASARW:
+		case ARCLB:
+		case ARCLL:
+		case ARCLQ:
+		case ARCLW:
+		case ARCRB:
+		case ARCRL:
+		case ARCRQ:
+		case ARCRW:
 		case AROLB:
 		case AROLL:
 		case AROLQ:

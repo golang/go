@@ -563,7 +563,7 @@ restx(Node *x, Node *oldx)
 void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
-	Node ax, dx, cx, oldax, olddx, oldcx;
+	Node ax, dx, oldax, olddx;
 	Node n1, n2, n3, savl, savr;
 	int n, w, s;
 	Magic m;
@@ -697,16 +697,11 @@ divbymul:
 		umagic(&m);
 		if(m.bad)
 			break;
-		if(m.ua != 0) {
-			// todo fixup
-			break;
-		}
 		if(op == OMOD)
 			goto longmod;
 
 		savex(D_AX, &ax, &oldax, res, nl->type);
 		savex(D_DX, &dx, &olddx, res, nl->type);
-		savex(D_CX, &cx, &oldcx, res, nl->type);
 
 		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);				// num -> reg(n1)
@@ -716,15 +711,24 @@ divbymul:
 
 		gins(optoas(OHMUL, nl->type), &n1, N);	// imul reg
 
-		nodconst(&n2, nl->type, m.s);
-		gins(optoas(ORSH, nl->type), &n2, &dx);	// shift dx
+		if(m.ua) {
+			// need to add numerator accounting for overflow
+			gins(optoas(OADD, nl->type), &n1, &dx);
+			nodconst(&n2, nl->type, 1);
+			gins(optoas(ORRC, nl->type), &n2, &dx);
+			nodconst(&n2, nl->type, m.s-1);
+			gins(optoas(ORSH, nl->type), &n2, &dx);
+		} else {
+			nodconst(&n2, nl->type, m.s);
+			gins(optoas(ORSH, nl->type), &n2, &dx);	// shift dx
+		}
+
 
 		regfree(&n1);
 		gmove(&dx, res);
 
 		restx(&ax, &oldax);
 		restx(&dx, &olddx);
-		restx(&cx, &oldcx);
 		return;
 
 	case TINT16:
@@ -735,16 +739,11 @@ divbymul:
 		smagic(&m);
 		if(m.bad)
 			break;
-		if(m.sm < 0) {
-			// todo fixup
-			break;
-		}
 		if(op == OMOD)
 			goto longmod;
 
 		savex(D_AX, &ax, &oldax, res, nl->type);
 		savex(D_DX, &dx, &olddx, res, nl->type);
-		savex(D_CX, &cx, &oldcx, res, nl->type);
 
 		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);				// num -> reg(n1)
@@ -754,6 +753,11 @@ divbymul:
 
 		gins(optoas(OHMUL, nl->type), &n1, N);	// imul reg
 
+		if(m.sm < 0) {
+			// need to add numerator
+			gins(optoas(OADD, nl->type), &n1, &dx);
+		}
+
 		nodconst(&n2, nl->type, m.s);
 		gins(optoas(ORSH, nl->type), &n2, &dx);	// shift dx
 
@@ -761,15 +765,17 @@ divbymul:
 		gins(optoas(ORSH, nl->type), &n2, &n1);	// -1 iff num is neg
 		gins(optoas(OSUB, nl->type), &n1, &dx);	// added
 
-		if(m.sd < 0)
+		if(m.sd < 0) {
+			// this could probably be removed
+			// by factoring it into the multiplier
 			gins(optoas(OMINUS, nl->type), N, &dx);
+		}
 
 		regfree(&n1);
 		gmove(&dx, res);
 
 		restx(&ax, &oldax);
 		restx(&dx, &olddx);
-		restx(&cx, &oldcx);
 		return;
 	}
 	goto longdiv;

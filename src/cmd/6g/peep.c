@@ -390,6 +390,14 @@ subprop(Reg *r0)
 		case AMULQ:
 		case AMULW:
 
+		case ARCLB:
+		case ARCLL:
+		case ARCLQ:
+		case ARCLW:
+		case ARCRB:
+		case ARCRL:
+		case ARCRQ:
+		case ARCRW:
 		case AROLB:
 		case AROLL:
 		case AROLQ:
@@ -652,6 +660,14 @@ copyu(Prog *p, Adr *v, Adr *s)
 		}
 		goto caseread;
 
+	case ARCLB:
+	case ARCLL:
+	case ARCLQ:
+	case ARCLW:
+	case ARCRB:
+	case ARCRL:
+	case ARCRQ:
+	case ARCRW:
 	case AROLB:
 	case AROLL:
 	case AROLQ:
