@@ -409,3 +409,102 @@ func TestQuoteMeta(t *testing.T) {
 	}
 }
 
+type matchCase struct {
+	matchfunc string;
+	input string;
+	n int;
+	regexp string;
+	expected []string;
+}
+
+var matchCases = []matchCase {
+	matchCase{"match", " aa b", 0,   "[^ ]+", []string { "aa", "b" }},
+	matchCase{"match", " aa b", 0,   "[^ ]*", []string { "", "aa", "b" }},
+	matchCase{"match", "a b c", 0,   "[^ ]*", []string { "a", "b", "c" }},
+	matchCase{"match", "a:a: a:", 0, "^.:",   []string { "a:" }},
+	matchCase{"match", "", 0,        "[^ ]*", []string { "" }},
+	matchCase{"match", "", 0,        "",      []string { "" }},
+	matchCase{"match", "a", 0,       "",      []string { "", "" }},
+	matchCase{"match", "ab", 0,      "^",     []string { "", }},
+	matchCase{"match", "ab", 0,      "$",     []string { "", }},
+	matchCase{"match", "ab", 0,      "X*",    []string { "", "", "" }},
+	matchCase{"match", "aX", 0,      "X*",    []string { "", "X" }},
+	matchCase{"match", "XabX", 0,    "X*",    []string { "X", "", "X" }},
+
+	matchCase{"matchit", "", 0,      ".",     []string {}},
+	matchCase{"matchit", "abc", 2,   ".",     []string { "a", "b" }},
+	matchCase{"matchit", "abc", 0,   ".",     []string { "a", "b", "c" }},
+}
+
+func printStringSlice(t *testing.T, s []string) {
+	l := len(s);
+	if l == 0 {
+		t.Log("\t<empty>");
+	} else {
+		for i := 0; i < l; i++ {
+			t.Logf("\t%q", s[i])
+		}
+	}
+}
+
+func TestAllMatches(t *testing.T) {
+	ch := make(chan matchCase);
+	go func() {
+		for i, c := range matchCases {
+			ch <- c;
+			stringCase := matchCase{
+				"string" + c.matchfunc,
+				c.input,
+				c.n,
+				c.regexp,
+				c.expected };
+			ch <- stringCase;
+		}
+		close(ch);
+	}();
+
+	for c := range ch {
+		var result []string;
+		re, err := Compile(c.regexp);
+
+		switch c.matchfunc {
+		case "matchit":
+			result = make([]string, len(c.input) + 1);
+			i := 0;
+			b := strings.Bytes(c.input);
+			for match := range re.AllMatchesIter(b, c.n) {
+				result[i] = string(match);
+				i++;
+			}
+			result = result[0:i];
+		case "stringmatchit":
+			result = make([]string, len(c.input) + 1);
+			i := 0;
+			for match := range re.AllMatchesStringIter(c.input, c.n) {
+				result[i] = match;
+				i++;
+			}
+			result = result[0:i];
+		case "match":
+			result = make([]string, len(c.input) + 1);
+			b := strings.Bytes(c.input);
+			i := 0;
+			for j, match := range re.AllMatches(b, c.n) {
+				result[i] = string(match);
+				i++;
+			}
+			result = result[0:i];
+		case "stringmatch":
+			result = re.AllMatchesString(c.input, c.n);
+		}
+
+		if !equalStrings(result, c.expected) {
+			t.Errorf("testing '%s'.%s('%s', %d), expected: ",
+				c.regexp, c.matchfunc, c.input, c.n);
+			printStringSlice(t, c.expected);
+			t.Log("got: ");
+			printStringSlice(t, result);
+			t.Log("\n");
+		}
+	}
+}
