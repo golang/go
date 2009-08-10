@@ -5,6 +5,7 @@
 
 set -e
 . $GOROOT/src/Make.$GOARCH
+PATH=.:$PATH
 
 mode=run
 case X"$1" in
