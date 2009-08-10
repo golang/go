@@ -394,22 +394,25 @@ func (a *stmtCompiler) DoIncDecStmt(s *ast.IncDecStmt) {
 		return;
 	}
 
-	effect, l := l.extractEffect();
+	var op token.Token;
+	var desc string;
+	switch s.Tok {
+	case token.INC:
+		op = token.ADD;
+		desc = "increment statement";
+	case token.DEC:
+		op = token.SUB;
+		desc = "decrement statement";
+	default:
+		log.Crashf("Unexpected IncDec token %v", s.Tok);
+	}
+
+	effect, l := l.extractEffect(desc);
 
 	one := l.copy();
 	one.pos = s.Pos();
 	one.t = IdealIntType;
 	one.evalIdealInt = func() *bignum.Integer { return bignum.Int(1) };
-
-	var op token.Token;
-	switch s.Tok {
-	case token.INC:
-		op = token.ADD;
-	case token.DEC:
-		op = token.SUB;
-	default:
-		log.Crashf("Unexpected IncDec token %v", s.Tok);
-	}
 
 	binop := l.copy();
 	binop.pos = s.Pos();
@@ -673,7 +676,7 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 		return;
 	}
 
-	effect, l := l.extractEffect();
+	effect, l := l.extractEffect("operator-assignment");
 
 	binop := r.copy();
 	binop.pos = s.TokPos;
@@ -822,7 +825,8 @@ func (a *stmtCompiler) DoBranchStmt(s *ast.BranchStmt) {
 		a.flow.putGoto(s.Pos(), l.name, a.block);
 
 	case token.FALLTHROUGH:
-		log.Crash("fallthrough not implemented");
+		a.diag("fallthrough outside switch");
+		return;
 
 	default:
 		log.Crash("Unexpected branch token %v", s.Tok);
@@ -910,11 +914,169 @@ func (a *stmtCompiler) DoIfStmt(s *ast.IfStmt) {
 }
 
 func (a *stmtCompiler) DoCaseClause(s *ast.CaseClause) {
-	log.Crash("Not implemented");
+	a.diag("case clause outside switch");
 }
 
 func (a *stmtCompiler) DoSwitchStmt(s *ast.SwitchStmt) {
-	log.Crash("Not implemented");
+	// Create implicit scope around switch
+	bc := a.enterChild();
+	defer bc.exit();
+
+	// Compile init statement, if any
+	if s.Init != nil {
+		bc.compileStmt(s.Init);
+	}
+
+	// Compile condition, if any, and extract its effects
+	var cond *exprCompiler;
+	condbc := bc.enterChild();
+	bad := false;
+	if s.Tag != nil {
+		e := condbc.compileExpr(condbc.block, s.Tag, false);
+		if e == nil {
+			bad = true;
+		} else {
+			var effect func(f *Frame);
+			effect, cond = e.extractEffect("switch");
+			if effect == nil {
+				bad = true;
+			}
+			a.push(func(v *vm) { effect(v.f) });
+		}
+	}
+
+	// Count cases
+	ncases := 0;
+	hasDefault := false;
+	for i, c := range s.Body.List {
+		clause, ok := c.(*ast.CaseClause);
+		if !ok {
+			a.diagAt(clause, "switch statement must contain case clauses");
+			bad = true;
+			continue;
+		}
+		if clause.Values == nil {
+			if hasDefault {
+				a.diagAt(clause, "switch statement contains more than one default case");
+				bad = true;
+			}
+			hasDefault = true;
+		} else {
+			ncases += len(clause.Values);
+		}
+	}
+
+	// Compile case expressions
+	cases := make([]func(f *Frame) bool, ncases);
+	i := 0;
+	for _, c := range s.Body.List {
+		clause, ok := c.(*ast.CaseClause);
+		if !ok {
+			continue;
+		}
+		for _, v := range clause.Values {
+			e := condbc.compileExpr(condbc.block, v, false);
+			switch {
+			case e == nil:
+				bad = true;
+			case cond == nil && !e.t.isBoolean():
+				a.diagAt(v, "'case' condition must be boolean");
+				bad = true;
+			case cond == nil:
+				cases[i] = e.asBool();
+			case cond != nil:
+				// Create comparison
+				compare := e.copy();
+				// TOOD(austin) This produces bad error messages
+				compare.doBinaryExpr(token.EQL, cond, e);
+				if compare.t == nil {
+					bad = true;
+				} else {
+					cases[i] = compare.asBool();
+				}
+			}
+			i++;
+		}
+	}
+
+	// Emit condition
+	casePCs := make([]*uint, ncases+1);
+	endPC := badPC;
+
+	if !bad {
+		a.flow.put(false, false, casePCs);
+		a.push(func(v *vm) {
+			for i, c := range cases {
+				if c(v.f) {
+					v.pc = *casePCs[i];
+					return;
+				}
+			}
+			v.pc = *casePCs[ncases];
+		});
+	}
+	condbc.exit();
+
+	// Compile cases
+	i = 0;
+	for _, c := range s.Body.List {
+		clause, ok := c.(*ast.CaseClause);
+		if !ok {
+			continue;
+		}
+
+		// Save jump PC's
+		pc := a.nextPC();
+		if clause.Values != nil {
+			for _, v := range clause.Values {
+				casePCs[i] = &pc;
+				i++;
+			}
+		} else {
+			// Default clause
+			casePCs[ncases] = &pc;
+		}
+
+		// Compile body
+		fall := false;
+		for j, s := range clause.Body {
+			if br, ok := s.(*ast.BranchStmt); ok && br.Tok == token.FALLTHROUGH {
+				println("Found fallthrough");
+				// It may be used only as the final
+				// non-empty statement in a case or
+				// default clause in an expression
+				// "switch" statement.
+				for _, s2 := range clause.Body[j+1:len(clause.Body)] {
+					// XXX(Spec) 6g also considers
+					// empty blocks to be empty
+					// statements.
+					if _, ok := s2.(*ast.EmptyStmt); !ok {
+						a.diagAt(s, "fallthrough statement must be final statement in case");
+						bad = true;
+						break;
+					}
+				}
+				fall = true;
+			} else {
+				bc.compileStmt(s);
+			}
+		}
+		// Jump out of switch, unless there was a fallthrough
+		if !fall {
+			a.flow.put1(false, &endPC);
+			a.push(func(v *vm) { v.pc = endPC });
+		}
+	}
+
+	// Get end PC
+	endPC = a.nextPC();
+	if !hasDefault {
+		casePCs[ncases] = &endPC;
+	}
+
+	if !bad {
+		a.err = false;
+	}
 }
 
 func (a *stmtCompiler) DoTypeCaseClause(s *ast.TypeCaseClause) {
