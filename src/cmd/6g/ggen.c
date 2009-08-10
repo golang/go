@@ -600,7 +600,6 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 
 	if(n < 0)
 		goto divbymul;
-
 	switch(n) {
 	case 0:
 		// divide by 1
@@ -618,7 +617,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 		// divide by 2
 		if(op == OMOD) {
 			if(issigned[nl->type->etype]) 
-				goto longmod;
+				goto longdiv;
 			regalloc(&n1, nl->type, res);
 			cgen(nl, &n1);
 			nodconst(&n2, nl->type, 1);
@@ -643,7 +642,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 	default:
 		if(op == OMOD) {
 			if(issigned[nl->type->etype]) 
-				goto longmod;
+				goto longdiv;
 			regalloc(&n1, nl->type, res);
 			cgen(nl, &n1);
 			nodconst(&n2, nl->type, mpgetfix(nr->val.u.xval)-1);
