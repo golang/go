@@ -351,6 +351,114 @@ u16run()
 	}
 }
 
+func
+i8rand() int8
+{
+	for {
+		a := int8(rand.Uint32());
+		a >>= uint(rand.Intn(8));
+		if -a != a {
+			return a;
+		}
+	}
+	return 0;	// impossible
+}
+
+func
+i8test(a,b,c int8)
+{
+	d := a/c;
+	if d != b {
+		panicln("i8", a, b, c, d);
+	}
+}
+
+func
+i8run()
+{
+	var a, b int8;
+
+	for i:=0; i<Count; i++ {
+		a = i8rand();
+
+		b = a/1;	i8test(a,b,1);
+		b = a/2;	i8test(a,b,2);
+		b = a/3;	i8test(a,b,3);
+		b = a/4;	i8test(a,b,4);
+		b = a/5;	i8test(a,b,5);
+		b = a/6;	i8test(a,b,6);
+		b = a/7;	i8test(a,b,7);
+		b = a/8;	i8test(a,b,8);
+		b = a/10;	i8test(a,b,10);
+		b = a/8;	i8test(a,b,8);
+		b = a/20;	i8test(a,b,20);
+		b = a/32;	i8test(a,b,32);
+		b = a/60;	i8test(a,b,60);
+		b = a/64;	i8test(a,b,64);
+		b = a/127;	i8test(a,b,127);
+
+		b = a/-1;	i8test(a,b,-1);
+		b = a/-2;	i8test(a,b,-2);
+		b = a/-3;	i8test(a,b,-3);
+		b = a/-4;	i8test(a,b,-4);
+		b = a/-5;	i8test(a,b,-5);
+		b = a/-6;	i8test(a,b,-6);
+		b = a/-7;	i8test(a,b,-7);
+		b = a/-8;	i8test(a,b,-8);
+		b = a/-10;	i8test(a,b,-10);
+		b = a/-8;	i8test(a,b,-8);
+		b = a/-20;	i8test(a,b,-20);
+		b = a/-32;	i8test(a,b,-32);
+		b = a/-60;	i8test(a,b,-60);
+		b = a/-64;	i8test(a,b,-64);
+		b = a/-128;	i8test(a,b,-128);
+	}
+}
+
+func
+u8rand() uint8
+{
+	a := uint8(rand.Uint32());
+	a >>= uint(rand.Intn(8));
+	return a;
+}
+
+func
+u8test(a,b,c uint8)
+{
+	d := a/c;
+	if d != b {
+		panicln("u8", a, b, c, d);
+	}
+}
+
+func
+u8run()
+{
+	var a, b uint8;
+
+	for i:=0; i<Count; i++ {
+		a = u8rand();
+
+		b = a/1;	u8test(a,b,1);
+		b = a/2;	u8test(a,b,2);
+		b = a/3;	u8test(a,b,3);
+		b = a/4;	u8test(a,b,4);
+		b = a/5;	u8test(a,b,5);
+		b = a/6;	u8test(a,b,6);
+		b = a/7;	u8test(a,b,7);
+		b = a/8;	u8test(a,b,8);
+		b = a/10;	u8test(a,b,10);
+		b = a/8;	u8test(a,b,8);
+		b = a/20;	u8test(a,b,20);
+		b = a/32;	u8test(a,b,32);
+		b = a/60;	u8test(a,b,60);
+		b = a/64;	u8test(a,b,64);
+		b = a/128;	u8test(a,b,128);
+		b = a/184;	u8test(a,b,184);
+	}
+}
+
 func	xtest()
 
 func
@@ -363,6 +471,8 @@ main()
 	u32run();
 	i16run();
 	u16run();
+	i8run();
+	u8run();
 }
 
 func

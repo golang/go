@@ -565,7 +565,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
 	Node ax, dx, oldax, olddx;
 	Node n1, n2, n3, savl, savr;
-	int n, w, s;
+	int n, w, s, a;
 	Magic m;
 
 	if(nl->ullman >= UINF) {
@@ -616,8 +616,8 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 	case 1:
 		// divide by 2
 		if(op == OMOD) {
-			if(issigned[nl->type->etype]) 
-				goto longdiv;
+			if(issigned[nl->type->etype])
+				goto longmod;
 			regalloc(&n1, nl->type, res);
 			cgen(nl, &n1);
 			nodconst(&n2, nl->type, 1);
@@ -641,8 +641,8 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 		break;
 	default:
 		if(op == OMOD) {
-			if(issigned[nl->type->etype]) 
-				goto longdiv;
+			if(issigned[nl->type->etype])
+				goto longmod;
 			regalloc(&n1, nl->type, res);
 			cgen(nl, &n1);
 			nodconst(&n2, nl->type, mpgetfix(nr->val.u.xval)-1);
@@ -688,6 +688,7 @@ divbymul:
 	default:
 		goto longdiv;
 
+	case TUINT8:
 	case TUINT16:
 	case TUINT32:
 	case TUINT64:
@@ -709,6 +710,13 @@ divbymul:
 		gmove(&n2, &ax);			// const->ax
 
 		gins(optoas(OHMUL, nl->type), &n1, N);	// imul reg
+		if(w == 8) {
+			// fix up 8-bit multiply
+			Node ah, dl;
+			nodreg(&ah, types[TUINT8], D_AH);
+			nodreg(&dl, types[TUINT8], D_DL);
+			gins(AMOVB, &ah, &dl);
+		}
 
 		if(m.ua) {
 			// need to add numerator accounting for overflow
@@ -730,6 +738,7 @@ divbymul:
 		restx(&dx, &olddx);
 		return;
 
+	case TINT8:
 	case TINT16:
 	case TINT32:
 	case TINT64:
@@ -751,6 +760,13 @@ divbymul:
 		gmove(&n2, &ax);			// const->ax
 
 		gins(optoas(OHMUL, nl->type), &n1, N);	// imul reg
+		if(w == 8) {
+			// fix up 8-bit multiply
+			Node ah, dl;
+			nodreg(&ah, types[TUINT8], D_AH);
+			nodreg(&dl, types[TUINT8], D_DL);
+			gins(AMOVB, &ah, &dl);
+		}
 
 		if(m.sm < 0) {
 			// need to add numerator
@@ -795,13 +811,19 @@ longmod:
 	cgen(nl, &n1);
 	regalloc(&n2, nl->type, N);
 	cgen_div(ODIV, &n1, nr, &n2);
+	a = optoas(OMUL, nl->type);
+	if(w == 8) {
+		// use 2-operand 16-bit multiply
+		// because there is no 2-operand 8-bit multiply
+		a = AIMULW;
+	}
 	if(!smallintconst(nr)) {
 		regalloc(&n3, nl->type, N);
 		cgen(nr, &n3);
-		gins(optoas(OMUL, nl->type), &n3, &n2);
+		gins(a, &n3, &n2);
 		regfree(&n3);
 	} else
-		gins(optoas(OMUL, nl->type), nr, &n2);
+		gins(a, nr, &n2);
 	gins(optoas(OSUB, nl->type), &n2, &n1);
 	gmove(&n1, res);
 	regfree(&n1);
@@ -908,7 +930,7 @@ ret:
 /*
  * generate byte multiply:
  *	res = nl * nr
- * no byte multiply instruction so have to do
+ * no 2-operand byte multiply instruction so have to do
  * 16-bit multiply and take bottom half.
  */
 void
