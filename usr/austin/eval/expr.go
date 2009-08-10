@@ -546,6 +546,10 @@ func (a *exprCompiler) DoFloatLit(x *ast.FloatLit) {
 }
 
 func (a *exprCompiler) doString(s string) {
+	// Ideal strings don't have a named type but they are
+	// compatible with type string.
+
+	// TODO(austin) Use unnamed string type.
 	a.t = StringType;
 	a.evalString = func(*Frame) string { return s };
 }
@@ -678,7 +682,10 @@ func (a *exprCompiler) DoSelectorExpr(x *ast.SelectorExpr) {
 		// If it's a struct type, check fields and embedded types
 		var builder func(*exprCompiler);
 		if t, ok := t.(*StructType); ok {
-			for i, f := range t.Elems {
+			// TODO(austin) Work around := range bug
+			var i int;
+			var f StructField;
+			for i, f = range t.Elems {
 				var this *exprCompiler;
 				var sub func(*exprCompiler);
 				switch {
@@ -1465,31 +1472,47 @@ func (a *compiler) compileExpr(b *block, expr ast.Expr, constant bool) *exprComp
 // extractEffect separates out any effects that the expression may
 // have, returning a function that will perform those effects and a
 // new exprCompiler that is guaranteed to be side-effect free.  These
-// are the moral equivalents of "temp := &expr" and "*temp".  Because
-// this creates a temporary variable, the caller should create a
-// temporary block for the compilation of this expression and the
-// evaluation of the results.
-//
-// Implementation limit: The expression must be addressable.
-func (a *exprCompiler) extractEffect() (func(f *Frame), *exprCompiler) {
-	if a.evalAddr == nil {
-		// This is a much easier case, but the code is
-		// completely different.
-		log.Crash("extractEffect only implemented for addressable expressions");
+// are the moral equivalents of "temp := expr" and "temp" (or "temp :=
+// &expr" and "*temp" for addressable exprs).  Because this creates a
+// temporary variable, the caller should create a temporary block for
+// the compilation of this expression and the evaluation of the
+// results.
+func (a *exprCompiler) extractEffect(errOp string) (func(f *Frame), *exprCompiler) {
+	// Create "&a" if a is addressable
+	rhs := a;
+	if a.evalAddr != nil {
+		rhs = a.copy();
+		rhs.t = NewPtrType(a.t);
+		rhs.genUnaryAddrOf(a);
 	}
 
-	// Create temporary
+	// Create temp
 	tempBlock := a.block;
-	tempType := NewPtrType(a.t);
+	ac, ok := a.checkAssign(a.pos, []*exprCompiler{rhs}, errOp, "");
+	if !ok {
+		return nil, nil;
+	}
+	if len(ac.rmt.Elems) != 1 {
+		a.diag("multi-valued expression not allowed in %s", errOp);
+		return nil, nil;
+	}
+	tempType := ac.rmt.Elems[0];
+	if tempType.isIdeal() {
+		// It's too bad we have to duplicate this rule.
+		switch {
+		case tempType.isInteger():
+			tempType = IntType;
+		case tempType.isFloat():
+			tempType = FloatType;
+		default:
+			log.Crashf("unexpected ideal type %v", tempType);
+		}
+	}
 	temp := tempBlock.DefineSlot(tempType);
 	tempIdx := temp.Index;
 
-	// Generate "temp := &e"
-	addr := a.copy();
-	addr.t = tempType;
-	addr.genUnaryAddrOf(a);
-
-	assign := a.compileAssign(a.pos, tempType, []*exprCompiler{addr}, "", "");
+	// Create "temp := rhs"
+	assign := ac.compile(tempType);
 	if assign == nil {
 		log.Crashf("compileAssign type check failed");
 	}
@@ -1500,15 +1523,17 @@ func (a *exprCompiler) extractEffect() (func(f *Frame), *exprCompiler) {
 		assign(tempVal, f);
 	};
 
-	// Generate "*temp"
+	// Generate "temp" or "*temp"
 	getTemp := a.copy();
 	getTemp.t = tempType;
 	getTemp.genIdentOp(0, tempIdx);
+	if a.evalAddr == nil {
+		return effect, getTemp;
+	}
 
 	deref := a.copy();
 	deref.t = a.t;
 	deref.genStarOp(getTemp);
-
 	return effect, deref;
 }
 
