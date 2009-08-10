@@ -951,3 +951,122 @@ func QuoteMeta(s string) string {
 	return string(b[0:j]);
 }
 
+// Find matches in slice b if b is non-nil, otherwise find matches in string s.
+func (re *Regexp) allMatches(s string, b []byte, n int, deliver func(int, int)) {
+	var end int;
+	if b == nil {
+		end = len(s);
+	} else {
+		end = len(b);
+	}
+
+	for pos, i, prevMatchEnd := 0, 0, -1; i < n && pos <= end; {
+		matches := re.doExecute(s, b, pos);
+		if len(matches) == 0 {
+			break;
+		}
+
+		accept := true;
+		if matches[1] == pos {
+			// We've found an empty match.
+			if matches[0] == prevMatchEnd {
+				// We don't allow an empty match right
+				// after a previous match, so ignore it.
+				accept = false;
+			}
+			var rune, width int;
+			if b == nil {
+				rune, width = utf8.DecodeRuneInString(s[pos:end]);
+			} else {
+				rune, width = utf8.DecodeRune(b[pos:end]);
+			}
+			if width > 0 {
+				pos += width;
+			} else {
+				pos = end + 1;
+			}
+		} else {
+			pos = matches[1];
+		}
+		prevMatchEnd = matches[1];
+
+		if accept {
+			deliver(matches[0], matches[1]);
+			i++;
+		}
+	}
+}
+
+// AllMatches slices the byte slice b into substrings that are successive
+// matches of the Regexp within b. If n > 0, the function returns at most n
+// matches. Text that does not match the expression will be skipped. Empty
+// matches abutting a preceding match are ignored. The function returns a slice
+// containing the matching substrings.
+func (re *Regexp) AllMatches(b []byte, n int) [][]byte {
+	if n <= 0 {
+		n = len(b) + 1;
+	}
+	result := make([][]byte, n);
+	i := 0;
+	re.allMatches("", b, n, func(start, end int) {
+		result[i] = b[start:end];
+		i++;
+	});
+	return result[0:i];
+}
+
+// AllMatchesString slices the string s into substrings that are successive
+// matches of the Regexp within s. If n > 0, the function returns at most n
+// matches. Text that does not match the expression will be skipped. Empty
+// matches abutting a preceding match are ignored. The function returns a slice
+// containing the matching substrings.
+func (re *Regexp) AllMatchesString(s string, n int) []string {
+	if n <= 0 {
+		n = len(s) + 1;
+	}
+	result := make([]string, n);
+	i := 0;
+	re.allMatches(s, nil, n, func(start, end int) {
+		result[i] = s[start:end];
+		i++;
+	});
+	return result[0:i];
+}
+
+// AllMatchesIter slices the byte slice b into substrings that are successive
+// matches of the Regexp within b. If n > 0, the function returns at most n
+// matches. Text that does not match the expression will be skipped. Empty
+// matches abutting a preceding match are ignored. The function returns a
+// channel that iterates over the matching substrings.
+func (re *Regexp) AllMatchesIter(b []byte, n int) (<-chan []byte) {
+	if n <= 0 {
+		n = len(b) + 1;
+	}
+	c := make(chan []byte, 10);
+	go func() {
+		re.allMatches("", b, n, func(start, end int) {
+			c <- b[start:end];
+		});
+		close(c);
+	}();
+	return c;
+}
+
+// AllMatchesStringIter slices the string s into substrings that are successive
+// matches of the Regexp within s. If n > 0, the function returns at most n
+// matches. Text that does not match the expression will be skipped. Empty
+// matches abutting a preceding match are ignored. The function returns a
+// channel that iterates over the matching substrings.
+func (re *Regexp) AllMatchesStringIter(s string, n int) (<-chan string) {
+	if n <= 0 {
+		n = len(s) + 1;
+	}
+	c := make(chan string, 10);
+	go func() {
+		re.allMatches(s, nil, n, func(start, end int) {
+			c <- s[start:end];
+		});
+		close(c);
+	}();
+	return c;
+}
