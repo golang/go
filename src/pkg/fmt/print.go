@@ -122,7 +122,7 @@ type pp struct {
 
 func newPrinter() *pp {
 	p := new(pp);
-	p.fmt = fmt.New();
+	p.fmt = New();
 	return p;
 }
 

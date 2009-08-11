@@ -419,11 +419,11 @@ func IsExported(name string) bool {
 
 // IsExported returns whether name is an exported Go symbol
 // (i.e., whether it begins with an uppercase letter).
-func (name *ast.Ident) IsExported() bool {
+func (name *Ident) IsExported() bool {
 	return IsExported(name.Value);
 }
 
-func (name *ast.Ident) String() string {
+func (name *Ident) String() string {
 	return name.Value;
 }
 

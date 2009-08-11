@@ -92,7 +92,7 @@ func (file *File) Close() Error {
 	if file == nil {
 		return EINVAL
 	}
-	var err os.Error;
+	var err Error;
 	if e := syscall.Close(file.fd); e != 0 {
 		err = &PathError{"close", file.name, Errno(e)};
 	}
@@ -147,7 +147,7 @@ func (file *File) Write(b []byte) (ret int, err Error) {
 	if e == syscall.EPIPE {
 		file.nepipe++;
 		if file.nepipe >= 10 {
-			os.Exit(syscall.EPIPE);
+			Exit(syscall.EPIPE);
 		}
 	} else {
 		file.nepipe = 0;

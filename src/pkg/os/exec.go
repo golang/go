@@ -54,7 +54,7 @@ func Exec(argv0 string, argv []string, envv []string) Error {
 // TODO(rsc): Should os implement its own syscall.WaitStatus
 // wrapper with the methods, or is exposing the underlying one enough?
 //
-// TODO(rsc): Certainly need to have os.Rusage struct,
+// TODO(rsc): Certainly need to have Rusage struct,
 // since syscall one might have different field types across
 // different OS.
 

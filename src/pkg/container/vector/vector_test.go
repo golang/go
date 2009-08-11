@@ -11,15 +11,15 @@ import "fmt"
 
 
 func TestZeroLen(t *testing.T) {
-	var a *vector.Vector;
+	var a *Vector;
 	if a.Len() != 0 { t.Errorf("A) expected 0, got %d", a.Len()); }
-	a = vector.New(0);
+	a = New(0);
 	if a.Len() != 0 { t.Errorf("B) expected 0, got %d", a.Len()); }
 }
 
 
 func TestInit(t *testing.T) {
-	var a vector.Vector;
+	var a Vector;
 	if a.Init(0).Len() != 0 { t.Error("A") }
 	if a.Init(1).Len() != 1 { t.Error("B") }
 	if a.Init(10).Len() != 10 { t.Error("C") }
@@ -27,9 +27,9 @@ func TestInit(t *testing.T) {
 
 
 func TestNew(t *testing.T) {
-	if vector.New(0).Len() != 0 { t.Error("A") }
-	if vector.New(1).Len() != 1 { t.Error("B") }
-	if vector.New(10).Len() != 10 { t.Error("C") }
+	if New(0).Len() != 0 { t.Error("A") }
+	if New(1).Len() != 1 { t.Error("B") }
+	if New(10).Len() != 10 { t.Error("C") }
 }
 
 
@@ -40,7 +40,7 @@ func val(i int) int {
 
 func TestAccess(t *testing.T) {
 	const n = 100;
-	var a vector.Vector;
+	var a Vector;
 	a.Init(n);
 	for i := 0; i < n; i++ {
 		a.Set(i, val(i));
@@ -53,7 +53,7 @@ func TestAccess(t *testing.T) {
 
 func TestInsertDeleteClear(t *testing.T) {
 	const n = 100;
-	a := vector.New(0);
+	a := New(0);
 
 	for i := 0; i < n; i++ {
 		if a.Len() != i { t.Errorf("A) wrong len %d (expected %d)", a.Len(), i) }
@@ -90,7 +90,7 @@ func TestInsertDeleteClear(t *testing.T) {
 }
 
 
-func verify_slice(t *testing.T, x *vector.Vector, elt, i, j int) {
+func verify_slice(t *testing.T, x *Vector, elt, i, j int) {
 	for k := i; k < j; k++ {
 		if x.At(k).(int) != elt {
 			t.Errorf("M) wrong [%d] element %d (expected %d)", k, x.At(k).(int), elt)
@@ -106,7 +106,7 @@ func verify_slice(t *testing.T, x *vector.Vector, elt, i, j int) {
 }
 
 
-func verify_pattern(t *testing.T, x *vector.Vector, a, b, c int) {
+func verify_pattern(t *testing.T, x *Vector, a, b, c int) {
 	n := a + b + c;
 	if x.Len() != n {
 		t.Errorf("O) wrong len %d (expected %d)", x.Len(), n)
@@ -117,8 +117,8 @@ func verify_pattern(t *testing.T, x *vector.Vector, a, b, c int) {
 }
 
 
-func make_vector(elt, len int) *vector.Vector {
-	x := vector.New(len);
+func make_vector(elt, len int) *Vector {
+	x := New(len);
 	for i := 0; i < len; i++ {
 		x.Set(i, elt);
 	}
@@ -154,13 +154,13 @@ func TestInsertVector(t *testing.T) {
 func TestSorting(t *testing.T) {
 	const n = 100;
 
-	a := vector.NewIntVector(n);
+	a := NewIntVector(n);
 	for i := n-1; i >= 0; i-- {
 		a.Set(i, n-1-i);
 	}
 	if sort.IsSorted(a) { t.Error("int vector not sorted") }
 
-	b := vector.NewStringVector(n);
+	b := NewStringVector(n);
 	for i := n-1; i >= 0; i-- {
 		b.Set(i, fmt.Sprint(n-1-i));
 	}
@@ -171,13 +171,13 @@ func TestSorting(t *testing.T) {
 func TestDo(t *testing.T) {
 	const n = 25;
 	const salt = 17;
-	a := vector.NewIntVector(n);
+	a := NewIntVector(n);
 	for i := 0; i < n; i++ {
 		a.Set(i, salt * i);
 	}
 	count := 0;
 	a.Do(
-		func(e vector.Element) {
+		func(e Element) {
 			i := e.(int);
 			if i != count*salt {
 				t.Error("value at", count, "should be", count*salt, "not", i)
@@ -192,7 +192,7 @@ func TestDo(t *testing.T) {
 
 func TestIter(t *testing.T) {
 	const Len = 100;
-	x := vector.New(Len);
+	x := New(Len);
 	for i := 0; i < Len; i++ {
 		x.Set(i, i*i);
 	}

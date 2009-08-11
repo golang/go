@@ -15,7 +15,7 @@ import "os"
 // and returns nil.
 func MkdirAll(path string, perm int) Error {
 	// If path exists, stop with success or error.
-	dir, err := os.Lstat(path);
+	dir, err := Lstat(path);
 	if err == nil {
 		if dir.IsDirectory() {
 			return nil;
@@ -47,7 +47,7 @@ func MkdirAll(path string, perm int) Error {
 	if err != nil {
 		// Handle arguments like "foo/." by
 		// double-checking that directory doesn't exist.
-		dir, err1 := os.Lstat(path);
+		dir, err1 := Lstat(path);
 		if err1 == nil && dir.IsDirectory() {
 			return nil;
 		}
@@ -68,7 +68,7 @@ func RemoveAll(path string) Error {
 	}
 
 	// Otherwise, is this a directory we need to recurse into?
-	dir, serr := os.Lstat(path);
+	dir, serr := Lstat(path);
 	if serr != nil {
 		if serr, ok := serr.(*PathError); ok && serr.Error == ENOENT {
 			return nil;
@@ -81,7 +81,7 @@ func RemoveAll(path string) Error {
 	}
 
 	// Directory.
-	fd, err := Open(path, os.O_RDONLY, 0);
+	fd, err := Open(path, O_RDONLY, 0);
 	if err != nil {
 		return err;
 	}

@@ -10,7 +10,7 @@ import (
 	"unsafe";
 )
 
-// TODO(rsc): This implementation of time.Tick is a
+// TODO(rsc): This implementation of Tick is a
 // simple placeholder.  Eventually, there will need to be
 // a single central time server no matter how many tickers
 // are active.  There also needs to be a way to cancel a ticker.
@@ -21,13 +21,13 @@ import (
 //	func Ticker(ns int64, c chan int64) {
 //		for {
 //			select { timeout ns: }
-//			nsec, err := time.Nanoseconds();
+//			nsec, err := Nanoseconds();
 //			c <- nsec;
 //		}
 
 func ticker(ns int64, c chan int64) {
 	var tv syscall.Timeval;
-	now := time.Nanoseconds();
+	now := Nanoseconds();
 	when := now;
 	for {
 		when += ns;	// next alarm
@@ -42,8 +42,8 @@ func ticker(ns int64, c chan int64) {
 			when += ns
 		}
 
-		time.Sleep(when - now);
-		now = time.Nanoseconds();
+		Sleep(when - now);
+		now = Nanoseconds();
 		c <- now;
 	}
 }
