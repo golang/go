@@ -159,7 +159,7 @@ func UTC() *Time {
 // SecondsToLocalTime converts sec, in number of seconds since the Unix epoch,
 // into a parsed Time value in the local time zone.
 func SecondsToLocalTime(sec int64) *Time {
-	z, offset := time.lookupTimezone(sec);
+	z, offset := lookupTimezone(sec);
 	t := SecondsToUTC(sec+int64(offset));
 	t.Zone = z;
 	t.ZoneOffset = offset;

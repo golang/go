@@ -78,7 +78,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 	// redirect to strip off any index.html
 	n := len(name) - len(indexPage);
 	if n >= 0 && name[n:len(name)] == indexPage {
-		http.Redirect(c, name[0:n+1], StatusMovedPermanently);
+		Redirect(c, name[0:n+1], StatusMovedPermanently);
 		return;
 	}
 
@@ -103,12 +103,12 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 		url := r.Url.Path;
 		if d.IsDirectory() {
 			if url[len(url)-1] != '/' {
-				http.Redirect(c, url + "/", StatusMovedPermanently);
+				Redirect(c, url + "/", StatusMovedPermanently);
 				return;
 			}
 		} else {
 			if url[len(url)-1] == '/' {
-				http.Redirect(c, url[0:len(url)-1], StatusMovedPermanently);
+				Redirect(c, url[0:len(url)-1], StatusMovedPermanently);
 				return;
 			}
 		}

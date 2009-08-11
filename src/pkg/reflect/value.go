@@ -433,7 +433,7 @@ func (v *UnsafePointerValue) Set(x unsafe.Pointer) {
 	*(*unsafe.Pointer)(v.addr) = x;
 }
 
-func typesMustMatch(t1, t2 reflect.Type) {
+func typesMustMatch(t1, t2 Type) {
 	if t1 != t2 {
 		panicln("type mismatch:", t1.String(), "!=", t2.String());
 	}

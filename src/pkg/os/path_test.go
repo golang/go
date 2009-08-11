@@ -26,7 +26,7 @@ func TestMkdirAll(t *testing.T) {
 
 	// Make file.
 	fpath := path + "/file";
-	fd, err := os.Open(fpath, os.O_WRONLY | os.O_CREAT, 0666);
+	fd, err := Open(fpath, O_WRONLY | O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err);
 	}
@@ -71,7 +71,7 @@ func TestRemoveAll(t *testing.T) {
 	if err := MkdirAll(path, 0777); err != nil {
 		t.Fatalf("MkdirAll %q: %s", path, err);
 	}
-	fd, err := os.Open(fpath, os.O_WRONLY | os.O_CREAT, 0666);
+	fd, err := Open(fpath, O_WRONLY | O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err);
 	}
@@ -79,7 +79,7 @@ func TestRemoveAll(t *testing.T) {
 	if err = RemoveAll(path); err != nil {
 		t.Fatalf("RemoveAll %q (first): %s", path, err);
 	}
-	if dir, err := os.Lstat(path); err == nil {
+	if dir, err := Lstat(path); err == nil {
 		t.Fatalf("Lstat %q succeeded after RemoveAll (first)", path);
 	}
 
@@ -87,12 +87,12 @@ func TestRemoveAll(t *testing.T) {
 	if err = MkdirAll(dpath, 0777); err != nil {
 		t.Fatalf("MkdirAll %q: %s", dpath, err);
 	}
-	fd, err = os.Open(fpath, os.O_WRONLY | os.O_CREAT, 0666);
+	fd, err = Open(fpath, O_WRONLY | O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err);
 	}
 	fd.Close();
-	fd, err = os.Open(dpath+"/file", os.O_WRONLY | os.O_CREAT, 0666);
+	fd, err = Open(dpath+"/file", O_WRONLY | O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err);
 	}
@@ -100,7 +100,7 @@ func TestRemoveAll(t *testing.T) {
 	if err = RemoveAll(path); err != nil {
 		t.Fatalf("RemoveAll %q (second): %s", path, err);
 	}
-	if dir, err := os.Lstat(path); err == nil {
+	if dir, err := Lstat(path); err == nil {
 		t.Fatalf("Lstat %q succeeded after RemoveAll (second)", path);
 	}
 
@@ -110,13 +110,13 @@ func TestRemoveAll(t *testing.T) {
 	}
 
 	for i, s := range []string{fpath, dpath+"/file1", path+"/zzz"} {
-		fd, err = os.Open(s, os.O_WRONLY | os.O_CREAT, 0666);
+		fd, err = Open(s, O_WRONLY | O_CREAT, 0666);
 		if err != nil {
 			t.Fatalf("create %q: %s", s, err);
 		}
 		fd.Close();
 	}
-	if err = os.Chmod(dpath, 0); err != nil {
+	if err = Chmod(dpath, 0); err != nil {
 		t.Fatalf("Chmod %q 0: %s", dpath, err);
 	}
 	if err = RemoveAll(path); err == nil {
@@ -133,18 +133,18 @@ func TestRemoveAll(t *testing.T) {
 	if perr.Path != dpath {
 		t.Fatalf("RemoveAll %q failed at %q not %q", path, perr.Path, dpath);
 	}
-	if err = os.Chmod(dpath, 0777); err != nil {
+	if err = Chmod(dpath, 0777); err != nil {
 		t.Fatalf("Chmod %q 0777: %s", dpath, err);
 	}
 	for i, s := range []string{fpath, path+"/zzz"} {
-		if dir, err := os.Lstat(s); err == nil {
+		if dir, err := Lstat(s); err == nil {
 			t.Fatalf("Lstat %q succeeded after partial RemoveAll", s);
 		}
 	}
 	if err = RemoveAll(path); err != nil {
 		t.Fatalf("RemoveAll %q after partial RemoveAll: %s", path, err);
 	}
-	if dir, err := os.Lstat(path); err == nil {
+	if dir, err := Lstat(path); err == nil {
 		t.Fatalf("Lstat %q succeeded after RemoveAll (final)", path);
 	}
 }

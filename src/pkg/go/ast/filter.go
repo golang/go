@@ -66,7 +66,7 @@ func filterFieldList(list []*Field) []*Field {
 	if j > 0 && j < len(list) {
 		// fields have been stripped but there is at least one left;
 		// add a '...' anonymous field instead
-		list[j] = &ast.Field{nil, nil, &ast.Ellipsis{}, nil, nil};
+		list[j] = &Field{nil, nil, &Ellipsis{}, nil, nil};
 		j++;
 	}
 	return list[0 : j];

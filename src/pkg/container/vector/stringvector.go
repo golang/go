@@ -8,7 +8,7 @@ import "container/vector"
 
 // StringVector is a specialization of Vector that hides the wrapping of Elements around strings.
 type StringVector struct {
-	vector.Vector;
+	Vector;
 }
 
 

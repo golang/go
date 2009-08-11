@@ -93,10 +93,10 @@ func (e *SyscallError) String() string {
 	return e.Syscall + ": " + e.Errno.String();
 }
 
-// NewSyscallError returns, as an os.Error, a new SyscallError
+// NewSyscallError returns, as an Error, a new SyscallError
 // with the given system call name and error number.
 // As a convenience, if errno is 0, NewSyscallError returns nil.
-func NewSyscallError(syscall string, errno int) os.Error {
+func NewSyscallError(syscall string, errno int) Error {
 	if errno == 0 {
 		return nil;
 	}
