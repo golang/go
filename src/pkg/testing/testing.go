@@ -15,8 +15,8 @@ import (
 	"flag";
 	"fmt";
 	"os";
-	"regexp";
 	"runtime";
+	"testing";
 )
 
 // Report as tests are run; default is silent for success.
@@ -122,9 +122,9 @@ func Main(tests []Test) {
 	if len(tests) == 0 {
 		println("testing: warning: no tests to run");
 	}
-	re, err := regexp.Compile(*match);
-	if err != nil {
-		println("invalid regexp for -match:", err.String());
+	re, err := CompileRegexp(*match);
+	if err != "" {
+		println("invalid regexp for -match:", err);
 		os.Exit(1);
 	}
 	for i := 0; i < len(tests); i++ {

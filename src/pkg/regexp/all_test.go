@@ -37,18 +37,18 @@ type stringError struct {
 	err	os.Error;
 }
 var bad_re = []stringError{
-	stringError{ `*`,	 	regexp.ErrBareClosure },
-	stringError{ `(abc`,	regexp.ErrUnmatchedLpar },
-	stringError{ `abc)`,	regexp.ErrUnmatchedRpar },
-	stringError{ `x[a-z`,	regexp.ErrUnmatchedLbkt },
-	stringError{ `abc]`,	regexp.ErrUnmatchedRbkt },
-	stringError{ `[z-a]`,	regexp.ErrBadRange },
-	stringError{ `abc\`,	regexp.ErrExtraneousBackslash },
-	stringError{ `a**`,	regexp.ErrBadClosure },
-	stringError{ `a*+`,	regexp.ErrBadClosure },
-	stringError{ `a??`,	regexp.ErrBadClosure },
-	stringError{ `*`,	 	regexp.ErrBareClosure },
-	stringError{ `\x`,	regexp.ErrBadBackslash },
+	stringError{ `*`,	 	ErrBareClosure },
+	stringError{ `(abc`,	ErrUnmatchedLpar },
+	stringError{ `abc)`,	ErrUnmatchedRpar },
+	stringError{ `x[a-z`,	ErrUnmatchedLbkt },
+	stringError{ `abc]`,	ErrUnmatchedRbkt },
+	stringError{ `[z-a]`,	ErrBadRange },
+	stringError{ `abc\`,	ErrExtraneousBackslash },
+	stringError{ `a**`,	ErrBadClosure },
+	stringError{ `a*+`,	ErrBadClosure },
+	stringError{ `a??`,	ErrBadClosure },
+	stringError{ `*`,	 	ErrBareClosure },
+	stringError{ `\x`,	ErrBadBackslash },
 }
 
 type vec []int;
@@ -88,8 +88,8 @@ var matches = []tester {
 	tester{ `a*(|(b))c*`,	"aacc",	vec{0,4, 2,2, -1,-1} },
 }
 
-func compileTest(t *testing.T, expr string, error os.Error) *regexp.Regexp {
-	re, err := regexp.Compile(expr);
+func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
+	re, err := Compile(expr);
 	if err != error {
 		t.Error("compiling `", expr, "`; unexpected error: ", err.String());
 	}
