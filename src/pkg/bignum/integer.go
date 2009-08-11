@@ -9,9 +9,12 @@
 
 package bignum
 
-import "bignum"
-import "fmt"
+import (
+	"bignum";
+	"fmt";
+)
 
+// TODO(gri) Complete the set of in-place operations.
 
 // Integer represents a signed integer value of arbitrary precision.
 //
@@ -113,61 +116,82 @@ func (x *Integer) Neg() *Integer {
 }
 
 
-// Add returns the sum x + y.
+// Iadd sets z to the sum x + y.
+// z must exist and may be x or y.
 //
-func (x *Integer) Add(y *Integer) *Integer {
-	var z *Integer;
+func Iadd(z, x, y *Integer) {
 	if x.sign == y.sign {
 		// x + y == x + y
 		// (-x) + (-y) == -(x + y)
-		z = MakeInt(x.sign, x.mant.Add(y.mant));
+		z.sign = x.sign;
+		Nadd(&z.mant, x.mant, y.mant);
 	} else {
 		// x + (-y) == x - y == -(y - x)
 		// (-x) + y == y - x == -(x - y)
 		if x.mant.Cmp(y.mant) >= 0 {
-			z = MakeInt(false, x.mant.Sub(y.mant));
+			z.sign = x.sign;
+			Nsub(&z.mant, x.mant, y.mant);
 		} else {
-			z = MakeInt(true, y.mant.Sub(x.mant));
+			z.sign = !x.sign;
+			Nsub(&z.mant, y.mant, x.mant);
 		}
 	}
-	if x.sign {
-		z.sign = !z.sign;
+}
+
+
+// Add returns the sum x + y.
+//
+func (x *Integer) Add(y *Integer) *Integer {
+	var z Integer;
+	Iadd(&z, x, y);
+	return &z;
+}
+
+
+func Isub(z, x, y *Integer) {
+	if x.sign != y.sign {
+		// x - (-y) == x + y
+		// (-x) - y == -(x + y)
+		z.sign = x.sign;
+		Nadd(&z.mant, x.mant, y.mant);
+	} else {
+		// x - y == x - y == -(y - x)
+		// (-x) - (-y) == y - x == -(x - y)
+		if x.mant.Cmp(y.mant) >= 0 {
+			z.sign = x.sign;
+			Nsub(&z.mant, x.mant, y.mant);
+		} else {
+			z.sign = !x.sign;
+			Nsub(&z.mant, y.mant, x.mant);
+		}
 	}
-	return z;
 }
 
 
 // Sub returns the difference x - y.
 //
 func (x *Integer) Sub(y *Integer) *Integer {
-	var z *Integer;
-	if x.sign != y.sign {
-		// x - (-y) == x + y
-		// (-x) - y == -(x + y)
-		z = MakeInt(false, x.mant.Add(y.mant));
-	} else {
-		// x - y == x - y == -(y - x)
-		// (-x) - (-y) == y - x == -(x - y)
-		if x.mant.Cmp(y.mant) >= 0 {
-			z = MakeInt(false, x.mant.Sub(y.mant));
-		} else {
-			z = MakeInt(true, y.mant.Sub(x.mant));
-		}
+	var z Integer;
+	Isub(&z, x, y);
+	return &z;
+}
+
+
+// Nscale sets *z to the scaled value (*z) * d.
+//
+func Iscale(z *Integer, d int64) {
+	f := uint64(d);
+	if d < 0 {
+		f = uint64(-d);
 	}
-	if x.sign {
-		z.sign = !z.sign;
-	}
-	return z;
+	z.sign = z.sign != (d < 0);
+	Nscale(&z.mant, f);
 }
 
 
 // Mul1 returns the product x * d.
 //
 func (x *Integer) Mul1(d int64) *Integer {
-	// x * y == x * y
-	// x * (-y) == -(x * y)
-	// (-x) * y == -(x * y)
-	// (-x) * (-y) == x * y
 	f := uint64(d);
 	if d < 0 {
 		f = uint64(-d);
@@ -326,7 +350,7 @@ func (x *Integer) Shl(s uint) *Integer {
 func (x *Integer) Shr(s uint) *Integer {
 	if x.sign {
 		// (-x) >> s == ^(x-1) >> s == ^((x-1) >> s) == -(((x-1) >> s) + 1)
-		return MakeInt(true, x.mant.Sub(nat[1]).Shr(s).Add(nat[1]));
+		return MakeInt(true, x.mant.Sub(Nat(1)).Shr(s).Add(Nat(1)));
 	}
 	
 	return MakeInt(false, x.mant.Shr(s));
@@ -337,11 +361,11 @@ func (x *Integer) Shr(s uint) *Integer {
 func (x *Integer) Not() *Integer {
 	if x.sign {
 		// ^(-x) == ^(^(x-1)) == x-1
-		return MakeInt(false, x.mant.Sub(nat[1]));
+		return MakeInt(false, x.mant.Sub(Nat(1)));
 	}
 
 	// ^x == -x-1 == -(x+1)
-	return MakeInt(true, x.mant.Add(nat[1]));
+	return MakeInt(true, x.mant.Add(Nat(1)));
 }
 
 
@@ -351,7 +375,7 @@ func (x *Integer) And(y *Integer) *Integer {
 	if x.sign == y.sign {
 		if x.sign {
 			// (-x) & (-y) == ^(x-1) & ^(y-1) == ^((x-1) | (y-1)) == -(((x-1) | (y-1)) + 1)
-			return MakeInt(true, x.mant.Sub(nat[1]).Or(y.mant.Sub(nat[1])).Add(nat[1]));
+			return MakeInt(true, x.mant.Sub(Nat(1)).Or(y.mant.Sub(Nat(1))).Add(Nat(1)));
 		}
 
 		// x & y == x & y
@@ -364,7 +388,7 @@ func (x *Integer) And(y *Integer) *Integer {
 	}
 
 	// x & (-y) == x & ^(y-1) == x &^ (y-1)
-	return MakeInt(false, x.mant.AndNot(y.mant.Sub(nat[1])));
+	return MakeInt(false, x.mant.AndNot(y.mant.Sub(Nat(1))));
 }
 
 
@@ -374,7 +398,7 @@ func (x *Integer) AndNot(y *Integer) *Integer {
 	if x.sign == y.sign {
 		if x.sign {
 			// (-x) &^ (-y) == ^(x-1) &^ ^(y-1) == ^(x-1) & (y-1) == (y-1) &^ (x-1)
-			return MakeInt(false, y.mant.Sub(nat[1]).AndNot(x.mant.Sub(nat[1])));
+			return MakeInt(false, y.mant.Sub(Nat(1)).AndNot(x.mant.Sub(Nat(1))));
 		}
 
 		// x &^ y == x &^ y
@@ -383,11 +407,11 @@ func (x *Integer) AndNot(y *Integer) *Integer {
 
 	if x.sign {
 		// (-x) &^ y == ^(x-1) &^ y == ^(x-1) & ^y == ^((x-1) | y) == -(((x-1) | y) + 1)
-		return MakeInt(true, x.mant.Sub(nat[1]).Or(y.mant).Add(nat[1]));
+		return MakeInt(true, x.mant.Sub(Nat(1)).Or(y.mant).Add(Nat(1)));
 	}
 
 	// x &^ (-y) == x &^ ^(y-1) == x & (y-1)
-	return MakeInt(false, x.mant.And(y.mant.Sub(nat[1])));
+	return MakeInt(false, x.mant.And(y.mant.Sub(Nat(1))));
 }
 
 
@@ -397,7 +421,7 @@ func (x *Integer) Or(y *Integer) *Integer {
 	if x.sign == y.sign {
 		if x.sign {
 			// (-x) | (-y) == ^(x-1) | ^(y-1) == ^((x-1) & (y-1)) == -(((x-1) & (y-1)) + 1)
-			return MakeInt(true, x.mant.Sub(nat[1]).And(y.mant.Sub(nat[1])).Add(nat[1]));
+			return MakeInt(true, x.mant.Sub(Nat(1)).And(y.mant.Sub(Nat(1))).Add(Nat(1)));
 		}
 
 		// x | y == x | y
@@ -410,7 +434,7 @@ func (x *Integer) Or(y *Integer) *Integer {
 	}
 
 	// x | (-y) == x | ^(y-1) == ^((y-1) &^ x) == -(^((y-1) &^ x) + 1)
-	return MakeInt(true, y.mant.Sub(nat[1]).AndNot(x.mant).Add(nat[1]));
+	return MakeInt(true, y.mant.Sub(Nat(1)).AndNot(x.mant).Add(Nat(1)));
 }
 
 
@@ -420,7 +444,7 @@ func (x *Integer) Xor(y *Integer) *Integer {
 	if x.sign == y.sign {
 		if x.sign {
 			// (-x) ^ (-y) == ^(x-1) ^ ^(y-1) == (x-1) ^ (y-1)
-			return MakeInt(false, x.mant.Sub(nat[1]).Xor(y.mant.Sub(nat[1])));
+			return MakeInt(false, x.mant.Sub(Nat(1)).Xor(y.mant.Sub(Nat(1))));
 		}
 
 		// x ^ y == x ^ y
@@ -433,7 +457,7 @@ func (x *Integer) Xor(y *Integer) *Integer {
 	}
 
 	// x ^ (-y) == x ^ ^(y-1) == ^(x ^ (y-1)) == -((x ^ (y-1)) + 1)
-	return MakeInt(true, x.mant.Xor(y.mant.Sub(nat[1])).Add(nat[1]));
+	return MakeInt(true, x.mant.Xor(y.mant.Sub(Nat(1))).Add(Nat(1)));
 }
 
 
