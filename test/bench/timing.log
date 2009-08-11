@@ -231,3 +231,10 @@ chameneos 6000000
 	gcc -O2 chameneosredux.c -lpthread	17.93u 323.65s 88.47r
 	gc chameneosredux	21.72u 0.00s 21.73r
 
+August 10 2009
+
+# In-place versions for some bignum operations.
+pidigits 10000
+	gcc -O2 pidigits.c -lgmp	2.56u 0.00s 2.57r
+	gc pidigits	55.22u 0.04s 55.29r	# *** -23%
+	gc_B pidigits	55.49u 0.02s 55.60r	# *** -23%
