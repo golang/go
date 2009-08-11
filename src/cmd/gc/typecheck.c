@@ -221,7 +221,7 @@ reswitch:
 			goto ret;
 		}
 		if(!isptr[t->etype]) {
-			yyerror("invalid indirect of %+N", n);
+			yyerror("invalid indirect of %+N", n->left);
 			goto error;
 		}
 		ok |= Erv;
