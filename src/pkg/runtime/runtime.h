@@ -64,10 +64,22 @@ typedef	struct	hash		Hmap;
 typedef	struct	Hchan		Hchan;
 
 /*
- * per cpu declaration
+ * per-cpu declaration.
+ * "extern register" is a special storage class implemented by 6c, 8c, etc.
+ * on machines with lots of registers, it allocates a register that will not be
+ * used in generated code.  on the x86, it allocates a slot indexed by a
+ * segment register.
+ *
+ * amd64: allocated downwards from R15
+ * x86: allocated upwards from 0(FS)
+ * arm: allocated upwards from R9
+ * 
+ * every C file linked into a Go program must include runtime.h
+ * so that the C compiler knows to avoid other uses of these registers.
+ * the Go compilers know to avoid them.
  */
-extern	register	G*	g;	// R15
-extern	register	M*	m;	// R14
+extern	register	G*	g;
+extern	register	M*	m;
 
 /*
  * defined constants
