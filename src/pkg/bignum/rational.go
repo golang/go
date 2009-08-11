@@ -22,7 +22,7 @@ type Rational struct {
 //
 func MakeRat(a *Integer, b Natural) *Rational {
 	f := a.mant.Gcd(b);  // f > 0
-	if f.Cmp(nat[1]) != 0 {
+	if f.Cmp(Nat(1)) != 0 {
 		a = MakeInt(a.sign, a.mant.Div(f));
 		b = b.Div(f);
 	}
@@ -75,7 +75,7 @@ func (x *Rational) IsPos() bool {
 // in the form x == x'/1; i.e., if x is an integer value.
 //
 func (x *Rational) IsInt() bool {
-	return x.b.Cmp(nat[1]) == 0;
+	return x.b.Cmp(Nat(1)) == 0;
 }
 
 
@@ -184,7 +184,7 @@ func (x *Rational) Format(h fmt.State, c int) {
 func RatFromString(s string, base uint) (*Rational, uint, int) {
 	// read numerator
 	a, abase, alen := IntFromString(s, base);
-	b := nat[1];
+	b := Nat(1);
 
 	// read denominator or fraction, if any
 	var blen int;
@@ -211,7 +211,7 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
 			rlen++;
 			e, _, elen := IntFromString(s[rlen : len(s)], 10);
 			rlen += elen;
-			m := nat[10].Pow(uint(e.mant.Value()));
+			m := Nat(10).Pow(uint(e.mant.Value()));
 			if e.sign {
 				b = b.Mul(m);
 			} else {
