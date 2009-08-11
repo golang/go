@@ -44,8 +44,6 @@ import (
 )
 
 var n = flag.Int("n", 27, "number of digits");
-
-// TODO for easier profiling, remove eventually
 var silent = flag.Bool("s", false, "don't print result");
 
 var (
@@ -61,13 +59,16 @@ func extract_digit() int64 {
 		return -1;
 	}
 
-	/* Compute (numer * 3 + accum) / denom */
-	tmp1, tmp2 = numer.MulNat(bignum.Nat(3)).Add(accum).QuoRem(denom);
+	// Compute (numer * 3 + accum) / denom
+	tmp1 = numer.Shl(1);
+	bignum.Iadd(tmp1, tmp1, numer);
+	bignum.Iadd(tmp1, tmp1, accum);
+	tmp1, tmp2 := tmp1.QuoRem(denom);
 
-	/* Now, if (numer * 4 + accum) % denom... */
-	tmp2 = tmp2.Add(numer);
+	// Now, if (numer * 4 + accum) % denom...
+	bignum.Iadd(tmp2, tmp2, numer);
 
-	/* ... is normalized, then the two divisions have the same result.  */
+	// ... is normalized, then the two divisions have the same result.
 	if tmp2.Cmp(denom) >= 0 {
 		return -1;
 	}
@@ -79,16 +80,16 @@ func next_term(k int64) {
 	y2 := k*2 + 1;
 
 	tmp1 = numer.Shl(1);
-	accum = accum.Add(tmp1);
-	accum = accum.Mul1(y2);
-	numer = numer.Mul1(k);
-	denom = denom.Mul1(y2);
+	bignum.Iadd(accum, accum, tmp1);
+	bignum.Iscale(accum, y2);
+	bignum.Iscale(numer, k);
+	bignum.Iscale(denom, y2);
 }
 
 func eliminate_digit(d int64) {
-	accum = accum.Sub(denom.Mul1(d));
-	accum = accum.Mul1(10);
-	numer = numer.Mul1(10);
+	bignum.Isub(accum, accum, denom.Mul1(d));
+	bignum.Iscale(accum, 10);
+	bignum.Iscale(numer, 10);
 }
 
 func printf(s string, arg ...) {
