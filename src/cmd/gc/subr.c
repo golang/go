@@ -1215,7 +1215,9 @@ Nconv(Fmt *fp)
 	}
 
 	if(fp->flags & FmtSign) {
-		if(n->type == T || n->type->etype == TNIL)
+		if(n->type == T)
+			fmtprint(fp, "%#N", n);
+		else if(n->type->etype == TNIL)
 			fmtprint(fp, "nil");
 		else
 			fmtprint(fp, "%#N (type %T)", n, n->type);
