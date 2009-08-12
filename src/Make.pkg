@@ -5,7 +5,9 @@
 package: _obj/$(TARG).a
 testpackage: _test/$(TARG).a
 
-dir=$(shell echo $(TARG) | sed 's|[^/]*$$||')
+elem=$(lastword $(subst /, ,$(TARG)))
+dir=$(patsubst %/$(elem),%,$(TARG))
+
 pkgdir=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)
 
 coverage:
@@ -24,7 +26,9 @@ nuke: clean
 testpackage-clean:
 	rm -f _test/$(TARG).a _gotest_.$O
 
-install: package
+install: $(pkgdir)/$(TARG).a
+
+$(pkgdir)/$(TARG).a: package
 	test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
 	cp _obj/$(TARG).a $(pkgdir)/$(TARG).a
 
