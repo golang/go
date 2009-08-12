@@ -15,6 +15,7 @@ Node*
 renameinit(Node *n)
 {
 	Sym *s;
+	static int initgen;
 
 	s = n->sym;
 	if(s == S)
@@ -22,7 +23,7 @@ renameinit(Node *n)
 	if(strcmp(s->name, "init") != 0)
 		return n;
 
-	snprint(namebuf, sizeof(namebuf), "init·%s", filename);
+	snprint(namebuf, sizeof(namebuf), "init·%d", ++initgen);
 	s = lookup(namebuf);
 	return newname(s);
 }
@@ -70,7 +71,7 @@ anyinit(NodeList *n)
 		return 1;
 
 	// is there an explicit init function
-	snprint(namebuf, sizeof(namebuf), "init·%s", filename);
+	snprint(namebuf, sizeof(namebuf), "init·1");
 	s = lookup(namebuf);
 	if(s->def != N)
 		return 1;
@@ -92,6 +93,7 @@ anyinit(NodeList *n)
 void
 fninit(NodeList *n)
 {
+	int i;
 	Node *gatevar;
 	Node *a, *b, *fn;
 	NodeList *r;
@@ -110,7 +112,7 @@ fninit(NodeList *n)
 	r = nil;
 
 	// (1)
-	snprint(namebuf, sizeof(namebuf), "initdone·%s", filename);
+	snprint(namebuf, sizeof(namebuf), "initdone·");
 	gatevar = newname(lookup(namebuf));
 	addvar(gatevar, types[TUINT8], PEXTERN);
 
@@ -118,7 +120,7 @@ fninit(NodeList *n)
 
 	maxarg = 0;
 
-	snprint(namebuf, sizeof(namebuf), "Init·%s", filename);
+	snprint(namebuf, sizeof(namebuf), "Init·");
 
 	// this is a botch since we need a known name to
 	// call the top level init function out of rt0
@@ -168,13 +170,15 @@ fninit(NodeList *n)
 	}
 
 	// (8)
-	r = concat(r, initfix(n));
+	r = concat(r, n);
 
 	// (9)
 	// could check that it is fn of no args/returns
-	snprint(namebuf, sizeof(namebuf), "init·%s", filename);
-	s = lookup(namebuf);
-	if(s->def != N) {
+	for(i=1;; i++) {
+		snprint(namebuf, sizeof(namebuf), "init·%d", i);
+		s = lookup(namebuf);
+		if(s->def == N)
+			break;
 		a = nod(OCALL, s->def, N);
 		r = list(r, a);
 	}

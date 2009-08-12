@@ -649,16 +649,9 @@ funchdr(Node *n)
 	Node *nt;
 
 	if(n->nname != N) {
-		// TODO(rsc): remove once forward declarations are gone
-		if(n->nname->sym->def && n->nname->sym->def->class == PFUNC) {
-			nt = n->nname->ntype;
-			n->nname = n->nname->sym->def;
-			n->nname->ntype = nt;
-			n->nname->type = T;
-		} else {
-			n->nname->op = ONAME;
-			declare(n->nname, PFUNC);
-		}
+		n->nname->op = ONAME;
+		declare(n->nname, PFUNC);
+		n->nname->defn = n;
 	}
 
 	// change the declaration context from extern to auto

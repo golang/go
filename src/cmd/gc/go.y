@@ -120,29 +120,7 @@ file:
 	imports
 	xdcl_list
 	{
-		NodeList *l;
-
-		if(nsyntaxerrors == 0)
-			testdclstack();
-
-		typecheckok = 1;
-		if(debug['f'])
-			frame(1);
-		defercheckwidth();
-		typechecklist($4, Etop);
-		resumecheckwidth();
-		for(l=$4; l; l=l->next)
-			if(l->n->op == ODCLFUNC)
-				funccompile(l->n);
-		if(nerrors == 0)
-			fninit($4);
-		while(closures) {
-			l = closures;
-			closures = nil;
-			for(; l; l=l->next)
-				funccompile(l->n);
-		}
-		dclchecks();
+		xtop = concat(xtop, $4);
 	}
 
 package:
@@ -262,15 +240,17 @@ import_done:
 		if(my == import && strcmp(import->name, package) == 0)
 			break;
 
-		if(my->def != N) {
-			// TODO(rsc): this line is only needed because of the
-			//	package net
-			//	import "net"
-			// convention; if we get rid of it, the check can go away
-			// and we can just always print the error
-			if(my->def->op != OPACK || strcmp(my->name, import->name) != 0)
-				yyerror("redeclaration of %S by import", my);
-		}
+		// TODO(rsc): this line is needed for a package
+		// which does bytes := in a function, which creates
+		// an ONONAME for bytes, but then a different file
+		// imports "bytes".  more generally we need to figure out
+		// what it means if one file imports "bytes" and another
+		// declares a top-level name.
+		if(my->def && my->def->op == ONONAME)
+			my->def = N;
+
+		if(my->def)
+			yyerror("redeclaration of %S by import\n\t%N", my, my->def);
 		my->def = nod(OPACK, N, N);
 		my->def->sym = import;
 		import->block = -1;	// above top level

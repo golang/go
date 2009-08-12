@@ -299,6 +299,8 @@ pkgtype(Sym *s)
 		t->sym = s;
 		s->def = typenod(t);
 	}
+	if(s->def->type == T)
+		yyerror("pkgtype %lS", s);
 	return s->def->type;
 }
 
@@ -314,6 +316,8 @@ mypackage(Sym *s)
 void
 importconst(Sym *s, Type *t, Node *n)
 {
+	Node *n1;
+
 	if(!exportname(s->name) && !mypackage(s))
 		return;
 	importsym(s, OLITERAL);
@@ -326,6 +330,11 @@ importconst(Sym *s, Type *t, Node *n)
 	if(n->op != OLITERAL) {
 		yyerror("expression must be a constant");
 		return;
+	}
+	if(n->sym != S) {
+		n1 = nod(OXXX, N, N);
+		*n1 = *n;
+		n = n1;
 	}
 	n->sym = s;
 	declare(n, PEXTERN);
@@ -360,7 +369,8 @@ importvar(Sym *s, Type *t, int ctxt)
 void
 importtype(Type *pt, Type *t)
 {
-	typedcl2(pt, t);
+	if(pt != T && t != T)
+		typedcl2(pt, t);
 
 	if(debug['E'])
 		print("import type %T %lT\n", pt, t);

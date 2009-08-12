@@ -198,6 +198,7 @@ struct	Node
 	uchar	walkdef;
 	uchar	typecheck;
 	uchar	local;
+	uchar	initorder;
 
 	// most nodes
 	Node*	left;
@@ -649,6 +650,7 @@ EXTERN	Mpint*	maxintval[NTYPE];
 EXTERN	Mpflt*	minfltval[NTYPE];
 EXTERN	Mpflt*	maxfltval[NTYPE];
 
+EXTERN	NodeList*	xtop;
 EXTERN	NodeList*	externdcl;
 EXTERN	NodeList*	closures;
 EXTERN	NodeList*	exportlist;
