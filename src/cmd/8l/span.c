@@ -146,9 +146,9 @@ xdefine(char *p, int t, int32 v)
 }
 
 void
-putsymb(char *s, int t, int32 v, int ver, char *go)
+putsymb(char *s, int t, int32 v, int ver, vlong go)
 {
-	int i, j, f;
+	int i, f;
 
 	if(t == 'f')
 		s++;
@@ -172,14 +172,9 @@ putsymb(char *s, int t, int32 v, int ver, char *go)
 			cput(s[i]);
 		cput(0);
 	}
-	j = 0;
-	if(go) {
-		for(j=0; go[j]; j++)
-			cput(go[j]);
-	}
-	cput(0);
+	lput(go);
 
-	symsize += 4 + 1 + i + 1 + j + 1;
+	symsize += 4 + 1 + i + 1 + 4;
 
 	if(debug['n']) {
 		if(t == 'z' || t == 'Z') {
@@ -208,7 +203,7 @@ asmsym(void)
 
 	s = lookup("etext", 0);
 	if(s->type == STEXT)
-		putsymb(s->name, 'T', s->value, s->version, nil);
+		putsymb(s->name, 'T', s->value, s->version, 0);
 
 	for(h=0; h<NHASH; h++)
 		for(s=hash[h]; s!=S; s=s->link)
@@ -226,7 +221,7 @@ asmsym(void)
 				continue;
 
 			case SFILE:
-				putsymb(s->name, 'f', s->value, s->version, nil);
+				putsymb(s->name, 'f', s->value, s->version, 0);
 				continue;
 			}
 
@@ -238,22 +233,22 @@ asmsym(void)
 		/* filenames first */
 		for(a=p->to.autom; a; a=a->link)
 			if(a->type == D_FILE)
-				putsymb(a->asym->name, 'z', a->aoffset, 0, nil);
+				putsymb(a->asym->name, 'z', a->aoffset, 0, 0);
 			else
 			if(a->type == D_FILE1)
-				putsymb(a->asym->name, 'Z', a->aoffset, 0, nil);
+				putsymb(a->asym->name, 'Z', a->aoffset, 0, 0);
 
 		putsymb(s->name, 'T', s->value, s->version, gotypefor(s->name));
 
 		/* frame, auto and param after */
-		putsymb(".frame", 'm', p->to.offset+4, 0, nil);
+		putsymb(".frame", 'm', p->to.offset+4, 0, 0);
 
 		for(a=p->to.autom; a; a=a->link)
 			if(a->type == D_AUTO)
-				putsymb(a->asym->name, 'a', -a->aoffset, 0, nil);
+				putsymb(a->asym->name, 'a', -a->aoffset, 0, 0);
 			else
 			if(a->type == D_PARAM)
-				putsymb(a->asym->name, 'p', a->aoffset, 0, nil);
+				putsymb(a->asym->name, 'p', a->aoffset, 0, 0);
 	}
 	if(debug['v'] || debug['n'])
 		Bprint(&bso, "symsize = %lud\n", symsize);

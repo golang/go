@@ -150,9 +150,9 @@ xdefine(char *p, int t, vlong v)
 }
 
 void
-putsymb(char *s, int t, vlong v, int ver, char *go)
+putsymb(char *s, int t, vlong v, int ver, vlong go)
 {
-	int i, j, f, l;
+	int i, f, l;
 
 	if(t == 'f')
 		s++;
@@ -181,13 +181,10 @@ putsymb(char *s, int t, vlong v, int ver, char *go)
 			cput(s[i]);
 		cput(0);
 	}
-	j = 0;
-	if(go) {
-		for(j=0; go[j]; j++)
-			cput(go[j]);
-	}
-	cput(0);
-	symsize += l + 1 + i + 1 + j + 1;
+	if(l == 8)
+		lputb(go>>32);
+	lputb(go);
+	symsize += l + 1 + i + 1 + l;
 
 	if(debug['n']) {
 		if(t == 'z' || t == 'Z') {

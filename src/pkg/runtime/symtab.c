@@ -55,7 +55,7 @@ struct Sym
 	uintptr value;
 	byte symtype;
 	byte *name;
-	byte *gotype;
+//	byte *gotype;
 };
 
 // Walk over symtab, calling fn(&s) for each symbol.
@@ -96,11 +96,7 @@ walksymtab(void (*fn)(Sym*))
 				break;
 			p = q+1;
 		}
-		q = mchr(p, '\0', ep);
-		if(q == nil)
-			break;
-		s.gotype = p;
-		p = q+1;
+		p += 4;	// go type
 		fn(&s);
 	}
 }
