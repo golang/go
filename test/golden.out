@@ -156,7 +156,3 @@ BUG: errchk: command succeeded unexpectedly
 
 =========== bugs/bug187.go
 BUG: 0 1
-SIGSEGV: segmentation violation
-Faulting address: 0x40a1f0
-PC=0x40a1f0
-
