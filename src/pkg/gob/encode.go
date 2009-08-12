@@ -6,7 +6,6 @@ package gob
 
 import (
 	"bytes";
-	"gob";
 	"io";
 	"math";
 	"os";
@@ -334,8 +333,6 @@ var encOpMap = map[reflect.Type] encOp {
 	valueKind(float64(0)): encFloat64,
 	valueKind("x"): encString,
 }
-
-func getEncEngine(rt reflect.Type) (*encEngine, os.Error)
 
 // Return the encoding op for the base type under rt and
 // the indirection count to reach it.

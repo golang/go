@@ -6,7 +6,6 @@ package gob
 
 import (
 	"bytes";
-	"gob";
 	"math";
 	"os";
 	"reflect";

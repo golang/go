@@ -9,7 +9,6 @@ package gob
 
 import (
 	"bytes";
-	"gob";
 	"io";
 	"math";
 	"os";
@@ -40,7 +39,7 @@ func newDecodeState(b *bytes.Buffer) *decodeState {
 }
 
 func overflow(name string) os.ErrorString {
-	return os.ErrorString(`value for "` + name + `" out of range`); 
+	return os.ErrorString(`value for "` + name + `" out of range`);
 }
 
 // decodeUintReader reads an encoded unsigned integer from an io.Reader.
@@ -511,9 +510,6 @@ var decIgnoreOpMap = map[typeId] decOp {
 	tBytes: ignoreUint8Array,
 	tString: ignoreUint8Array,
 }
-
-func getDecEnginePtr(wireId typeId, rt reflect.Type) (enginePtr **decEngine, err os.Error)
-func getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err os.Error)
 
 // Return the decoding op for the base type under rt and
 // the indirection count to reach it.

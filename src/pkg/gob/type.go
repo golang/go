@@ -104,16 +104,25 @@ func (t *commonType) Name() string {
 	return t.name
 }
 
-// Basic type identifiers, predefined.
-var tBool typeId
-var tInt typeId
-var tUint typeId
-var tFloat typeId
-var tString typeId
-var tBytes typeId
+// Create and check predefined types
+// The string for tBytes is "bytes" not "[]byte" to signify its specialness.
+
+var tBool = bootstrapType("bool", false, 1)
+var tInt = bootstrapType("int", int(0), 2)
+var tUint = bootstrapType("uint", uint(0), 3)
+var tFloat = bootstrapType("float", float64(0), 4)
+var tBytes = bootstrapType("bytes", make([]byte, 0), 5)
+var tString = bootstrapType("string", "", 6)
 
 // Predefined because it's needed by the Decoder
-var tWireType typeId
+var tWireType = getTypeInfoNoError(reflect.Typeof(wireType{})).id
+
+func init() {
+	checkId(7, tWireType);
+	checkId(8, getTypeInfoNoError(reflect.Typeof(structType{})).id);
+	checkId(9, getTypeInfoNoError(reflect.Typeof(commonType{})).id);
+	checkId(10, getTypeInfoNoError(reflect.Typeof(fieldType{})).id);
+}
 
 // Array type
 type arrayType struct {
@@ -200,9 +209,6 @@ func newStructType(name string) *structType {
 	setTypeId(s);
 	return s;
 }
-
-// Construction
-func getType(name string, rt reflect.Type) (gobType, os.Error)
 
 // Step through the indirections on a type to discover the base type.
 // Return the number of indirections.
@@ -367,8 +373,6 @@ func (w *wireType) name() string {
 	return w.s.name
 }
 
-type decEngine struct	// defined in decode.go
-type encEngine struct	// defined in encode.go
 type typeInfo struct {
 	id	typeId;
 	encoder	*encEngine;
@@ -406,20 +410,4 @@ func getTypeInfoNoError(rt reflect.Type) *typeInfo {
 		panicln("getTypeInfo:", err.String());
 	}
 	return t
-}
-
-func init() {
-	// Create and check predefined types
-	tBool = bootstrapType("bool", false, 1);
-	tInt = bootstrapType("int", int(0), 2);
-	tUint = bootstrapType("uint", uint(0), 3);
-	tFloat = bootstrapType("float", float64(0), 4);
-	// The string for tBytes is "bytes" not "[]byte" to signify its specialness.
-	tBytes = bootstrapType("bytes", make([]byte, 0), 5);
-	tString= bootstrapType("string", "", 6);
-	tWireType = getTypeInfoNoError(reflect.Typeof(wireType{})).id;
-	checkId(7, tWireType);
-	checkId(8, getTypeInfoNoError(reflect.Typeof(structType{})).id);
-	checkId(9, getTypeInfoNoError(reflect.Typeof(commonType{})).id);
-	checkId(10, getTypeInfoNoError(reflect.Typeof(fieldType{})).id);
 }

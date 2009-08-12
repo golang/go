@@ -5,7 +5,6 @@
 package gob
 
 import (
-	"gob";
 	"os";
 	"reflect";
 	"testing";
