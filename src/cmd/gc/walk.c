@@ -230,6 +230,10 @@ walkdef(Node *n)
 				yyerror("embedded type cannot be a pointer");
 		}
 		break;
+
+	case OPACK:
+		// nothing to see here
+		break;
 	}
 
 ret:

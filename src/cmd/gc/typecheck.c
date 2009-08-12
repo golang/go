@@ -86,7 +86,7 @@ reswitch:
 	case OLITERAL:
 		ok |= Erv;
 		if(n->iota && !(top & Eiota))
-			yyerror("use of iota outside of constant initializer");
+			yyerror("use of iota not in constant initializer");
 		goto ret;
 
 	case ONONAME:
@@ -100,6 +100,10 @@ reswitch:
 		}
 		ok |= Erv;
 		goto ret;
+
+	case OPACK:
+		yyerror("use of package %S not in selector", n->sym);
+		goto error;
 
 	/*
 	 * types (OIND is with exprs)
