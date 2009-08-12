@@ -10,6 +10,7 @@
 
 extern int yychar;
 Sym *anysym;
+char nopackage[] = "____";
 
 #define	DBG	if(!debug['x']);else print
 enum
@@ -20,10 +21,11 @@ enum
 int
 main(int argc, char *argv[])
 {
-	int c;
+	int i, c;
+	NodeList *l;
 
 	outfile = nil;
-	package = "____";
+	package = nopackage;
 	ARGBEGIN {
 	default:
 		c = ARGC();
@@ -44,7 +46,7 @@ main(int argc, char *argv[])
 		break;
 	} ARGEND
 
-	if(argc != 1)
+	if(argc < 1)
 		goto usage;
 
 	pathname = mal(100);
@@ -69,31 +71,57 @@ main(int argc, char *argv[])
 	lexinit();
 	typeinit();
 
-	lineno = 1;
-	block = 1;
 	blockgen = 1;
-
-	setfilename(argv[0]);
-	infile = argv[0];
-	linehist(infile, 0, 0);
-
-	curio.infile = infile;
-	curio.bin = Bopen(infile, OREAD);
-	if(curio.bin == nil)
-		fatal("cant open: %s", infile);
-	curio.peekc = 0;
-	curio.peekc1 = 0;
-
 	dclcontext = PEXTERN;
-
 	nerrors = 0;
-	yyparse();
+	lineno = 1;
+
+	for(i=0; i<argc; i++) {
+		if(i == 0)
+			setfilename(argv[i]);
+		infile = argv[i];
+		linehist(infile, 0, 0);
+
+		curio.infile = infile;
+		curio.bin = Bopen(infile, OREAD);
+		if(curio.bin == nil)
+			fatal("open%s: %r", infile);
+		curio.peekc = 0;
+		curio.peekc1 = 0;
+
+		block = 1;
+
+		yyparse();
+		if(nsyntaxerrors != 0)
+			errorexit();
+
+		linehist(nil, 0, 0);
+		if(curio.bin != nil)
+			Bterm(curio.bin);
+	}
+
+	testdclstack();
+
+	typecheckok = 1;
+	if(debug['f'])
+		frame(1);
+	defercheckwidth();
+	typechecklist(xtop, Etop);
+	resumecheckwidth();
+	for(l=xtop; l; l=l->next)
+		if(l->n->op == ODCLFUNC)
+			funccompile(l->n);
+	if(nerrors == 0)
+		fninit(xtop);
+	while(closures) {
+		l = closures;
+		closures = nil;
+		for(; l; l=l->next)
+			funccompile(l->n);
+	}
+	dclchecks();
+
 	runifacechecks();
-
-	linehist(nil, 0, 0);
-	if(curio.bin != nil)
-		Bterm(curio.bin);
-
 	if(nerrors)
 		errorexit();
 
@@ -263,6 +291,8 @@ importfile(Val *f)
 	char *file, *p;
 	int32 c;
 	int len;
+
+// TODO: don't bother reloading imports more than once
 
 	if(f->ctype != CTSTR) {
 		yyerror("import statement not a string");
@@ -1427,6 +1457,16 @@ lexname(int lex)
 	return buf;
 }
 
+int
+specialsym(Sym *s)
+{
+	if(strcmp(s->name, "byte") == 0 && s->def->sym == lookup("uint8"))
+		return 1;
+	if(strcmp(s->name, "iota") == 0 && s->def->sym == S)
+		return 1;
+	return 0;
+}
+
 void
 mkpackage(char* pkg)
 {
@@ -1434,23 +1474,43 @@ mkpackage(char* pkg)
 	int32 h;
 	char *p;
 
-	if(bout != nil) {
-		yyerror("mkpackage: called again %s %s", pkg, package);
-		return;
+	if(package == nopackage) {
+		// redefine all names to be this package.
+		for(h=0; h<NHASH; h++)
+			for(s = hash[h]; s != S; s = s->link)
+				if(s->package == nopackage)
+					s->package = pkg;
+		package = pkg;
+	} else {
+		if(strcmp(pkg, package) != 0)
+			yyerror("package %s; expected %s", pkg, package);
+		for(h=0; h<NHASH; h++) {
+			for(s = hash[h]; s != S; s = s->link) {
+				if(s->def == N || s->package != package)
+					continue;
+				if(s->def->op == OPACK) {
+					// throw away top-level package name leftover
+					// from previous file.
+					s->def = N;
+					continue;
+				}
+				if(s->def->sym != s && !specialsym(s)) {
+					// throw away top-level name left over
+					// from previous import . "x"
+					s->def = N;
+					continue;
+				}
+			}
+		}
 	}
 
-	// redefine all names to be this package
-	for(h=0; h<NHASH; h++)
-		for(s = hash[h]; s != S; s = s->link)
-			if(s->package == package)
-				s->package = pkg;
-	package = pkg;
-
+/*
 	// declare this name as a package
 	s = lookup(package);
 	s->def = nod(OPACK, N, N);
 	s->def->sym = s;
 	s->block = -1;	// above top level
+*/
 
 	if(outfile == nil) {
 		p = strrchr(infile, '/');
