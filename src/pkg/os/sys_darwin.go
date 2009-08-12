@@ -6,10 +6,7 @@
 
 package os
 
-import (
-	"os";
-	"syscall";
-)
+import "syscall"
 
 func Hostname() (name string, err Error) {
 	var errno int;

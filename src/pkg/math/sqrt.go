@@ -4,7 +4,6 @@
 
 package math
 
-import "math"
 
 /*
  *	sqrt returns the square root of its floating

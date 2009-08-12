@@ -74,7 +74,6 @@ package fmt
 
 
 import (
-	"fmt";
 	"io";
 	"os";
 	"reflect";
@@ -197,9 +196,6 @@ func (p *pp) Write(b []byte) (ret int, err os.Error) {
 	p.addbytes(b, 0, len(b));
 	return len(b), nil;
 }
-
-func (p *pp) doprintf(format string, v *reflect.StructValue);
-func (p *pp) doprint(v *reflect.StructValue, addspace, addnewline bool);
 
 // These routines end in 'f' and take a format string.
 

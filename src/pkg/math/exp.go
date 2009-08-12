@@ -4,7 +4,6 @@
 
 package math
 
-import "math"
 
 // The original C code, the long comment, and the constants
 // below are from FreeBSD's /usr/src/lib/msun/src/e_exp.c

@@ -15,7 +15,6 @@ package strconv
 import (
 	"math";
 	"os";
-	"strconv";
 )
 
 var optimize = true	// can change for testing

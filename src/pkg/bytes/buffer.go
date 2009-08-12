@@ -7,7 +7,6 @@ package bytes
 // Simple byte buffer for marshaling data.
 
 import (
-	"bytes";
 	"os";
 )
 

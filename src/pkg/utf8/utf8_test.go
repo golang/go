@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package utf8
+package utf8_test
 
 import (
 	"bytes";
 	"fmt";
 	"strings";
 	"testing";
-	"utf8";
+	. "utf8";
 )
 
 type Utf8Map struct {
@@ -56,19 +56,19 @@ func TestFullRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i];
 		b := makeBytes(m.str);
-		if !utf8.FullRune(b) {
+		if !FullRune(b) {
 			t.Errorf("FullRune(%q) (rune %04x) = false, want true", b, m.rune);
 		}
 		s := m.str;
-		if !utf8.FullRuneInString(s) {
+		if !FullRuneInString(s) {
 			t.Errorf("FullRuneInString(%q) (rune %04x) = false, want true", s, m.rune);
 		}
 		b1 := b[0:len(b)-1];
-		if utf8.FullRune(b1) {
+		if FullRune(b1) {
 			t.Errorf("FullRune(%q) = true, want false", b1);
 		}
 		s1 := string(b1);
-		if utf8.FullRuneInString(s1) {
+		if FullRuneInString(s1) {
 			t.Errorf("FullRune(%q) = true, want false", s1);
 		}
 	}
@@ -79,7 +79,7 @@ func TestEncodeRune(t *testing.T) {
 		m := utf8map[i];
 		b := makeBytes(m.str);
 		var buf [10]byte;
-		n := utf8.EncodeRune(m.rune, &buf);
+		n := EncodeRune(m.rune, &buf);
 		b1 := buf[0:n];
 		if !bytes.Equal(b, b1) {
 			t.Errorf("EncodeRune(0x%04x) = %q want %q", m.rune, b1, b);
@@ -91,23 +91,23 @@ func TestDecodeRune(t *testing.T) {
 	for i := 0; i < len(utf8map); i++ {
 		m := utf8map[i];
 		b := makeBytes(m.str);
-		rune, size := utf8.DecodeRune(b);
+		rune, size := DecodeRune(b);
 		if rune != m.rune || size != len(b) {
 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b));
 		}
 		s := m.str;
-		rune, size = utf8.DecodeRuneInString(s);
+		rune, size = DecodeRuneInString(s);
 		if rune != m.rune || size != len(b) {
 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
 		}
 
 		// there's an extra byte that bytes left behind - make sure trailing byte works
-		rune, size = utf8.DecodeRune(b[0:cap(b)]);
+		rune, size = DecodeRune(b[0:cap(b)]);
 		if rune != m.rune || size != len(b) {
 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, m.rune, len(b));
 		}
 		s = m.str+"\x00";
-		rune, size = utf8.DecodeRuneInString(s);
+		rune, size = DecodeRuneInString(s);
 		if rune != m.rune || size != len(b) {
 			t.Errorf("DecodeRuneInString(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, m.rune, len(b));
 		}
@@ -117,12 +117,12 @@ func TestDecodeRune(t *testing.T) {
 		if wantsize >= len(b) {
 			wantsize = 0;
 		}
-		rune, size = utf8.DecodeRune(b[0:len(b)-1]);
+		rune, size = DecodeRune(b[0:len(b)-1]);
 		if rune != RuneError || size != wantsize {
 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b[0:len(b)-1], rune, size, RuneError, wantsize);
 		}
 		s = m.str[0:len(m.str)-1];
-		rune, size = utf8.DecodeRuneInString(s);
+		rune, size = DecodeRuneInString(s);
 		if rune != RuneError || size != wantsize {
 			t.Errorf("DecodeRuneInString(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, wantsize);
 		}
@@ -133,12 +133,12 @@ func TestDecodeRune(t *testing.T) {
 		} else {
 			b[len(b)-1] = 0x7F;
 		}
-		rune, size = utf8.DecodeRune(b);
+		rune, size = DecodeRune(b);
 		if rune != RuneError || size != 1 {
 			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b, rune, size, RuneError, 1);
 		}
 		s = string(b);
-		rune, size = utf8.DecodeRune(b);
+		rune, size = DecodeRune(b);
 		if rune != RuneError || size != 1 {
 			t.Errorf("DecodeRuneInString(%q) = 0x%04x, %d want 0x%04x, %d", s, rune, size, RuneError, 1);
 		}
@@ -158,10 +158,10 @@ var runecounttests = []RuneCountTest {
 func TestRuneCount(t *testing.T) {
 	for i := 0; i < len(runecounttests); i++ {
 		tt := runecounttests[i];
-		if out := utf8.RuneCountInString(tt.in); out != tt.out {
+		if out := RuneCountInString(tt.in); out != tt.out {
 			t.Errorf("RuneCountInString(%q) = %d, want %d", tt.in, out, tt.out);
 		}
-		if out := utf8.RuneCount(makeBytes(tt.in)); out != tt.out {
+		if out := RuneCount(makeBytes(tt.in)); out != tt.out {
 			t.Errorf("RuneCount(%q) = %d, want %d", tt.in, out, tt.out);
 		}
 	}

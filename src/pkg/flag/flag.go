@@ -8,7 +8,7 @@
 	Usage:
 
 	1) Define flags using flag.String(), Bool(), Int(), etc. Example:
-		import flag "flag"
+		import "flag"
 		var ip *int = flag.Int("flagname", 1234, "help message for flagname")
 	If you like, you can bind the flag to a variable using the Var() functions.
 		var flagvar int

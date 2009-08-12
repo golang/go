@@ -8,7 +8,6 @@ package time
 
 import (
 	"os";
-	"time"
 )
 
 // Seconds reports the number of seconds since the Unix epoch,

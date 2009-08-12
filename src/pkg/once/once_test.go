@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package once
+package once_test
 
 import (
 	"once";
@@ -14,7 +14,7 @@ func call() {
 	ncall++
 }
 
-func TestOnce(t *testing.T) {
+func TestDo(t *testing.T) {
 	ncall = 0;
 	once.Do(call);
 	if ncall != 1 {

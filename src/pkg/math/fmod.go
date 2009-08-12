@@ -4,7 +4,6 @@
 
 package math
 
-import "math"
 
 /*
  *	floating-point mod func without infinity or NaN checking

@@ -8,7 +8,6 @@
 package io
 
 import (
-	"io";
 	"os";
 	"sync";
 )

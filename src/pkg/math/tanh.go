@@ -4,7 +4,6 @@
 
 package math
 
-import "math"
 
 /*
  *	tanh(x) computes the hyperbolic tangent of its floating

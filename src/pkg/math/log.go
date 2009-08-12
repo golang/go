@@ -4,7 +4,6 @@
 
 package math
 
-import "math"
 
 // The original C code, the long comment, and the constants
 // below are from FreeBSD's /usr/src/lib/msun/src/e_log.c
@@ -33,19 +32,17 @@ import "math"
 //		 = 2s + 2/3 s**3 + 2/5 s**5 + .....,
 //	     	 = 2s + s*R
 //      We use a special Reme algorithm on [0,0.1716] to generate
-// 	a polynomial of degree 14 to approximate R The maximum error
+//	a polynomial of degree 14 to approximate R.  The maximum error
 //	of this polynomial approximation is bounded by 2**-58.45. In
 //	other words,
 //		        2      4      6      8      10      12      14
 //	    R(z) ~ L1*s +L2*s +L3*s +L4*s +L5*s  +L6*s  +L7*s
-//  	(the values of L1 to L7 are listed in the program)
-//	and
+//	(the values of L1 to L7 are listed in the program) and
 //	    |      2          14          |     -58.45
 //	    | L1*s +...+L7*s    -  R(z) | <= 2
 //	    |                             |
 //	Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
-//	In order to guarantee error in log below 1ulp, we compute log
-//	by
+//	In order to guarantee error in log below 1ulp, we compute log by
 //		log(1+f) = f - s*(f - R)	(if f is not too large)
 //		log(1+f) = f - (hfsq - s*(hfsq+R)).	(better accuracy)
 //

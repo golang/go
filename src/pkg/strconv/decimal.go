@@ -20,16 +20,6 @@ type decimal struct {
 	nd int;	// number of digits used
 	dp int;	// decimal point
 };
-func (a *decimal) String() string;
-func (a *decimal) Assign(v uint64);
-func (a *decimal) Shift(k int) *decimal;
-func (a *decimal) Round(nd int) *decimal;
-func (a *decimal) RoundUp(nd int) *decimal;
-func (a *decimal) RoundDown(nd int) *decimal;
-func (a *decimal) RoundedInteger() uint64;
-
-
-func digitZero(dst []byte) int;
 
 func (a *decimal) String() string {
 	n := 10 + a.nd;

@@ -7,7 +7,6 @@
 package os
 
 import (
-	"os";
 	"syscall";
 )
 
@@ -256,13 +255,6 @@ func Lstat(name string) (dir *Dir, err Error) {
 	}
 	return dirFromStat(name, new(Dir), &stat, &stat), nil
 }
-
-// Readdirnames reads the contents of the directory associated with file and
-// returns an array of up to count names, in directory order.  Subsequent
-// calls on the same file will yield further names.
-// A negative count means to read until EOF.
-// Readdirnames returns the array and an Error, if any.
-func (file *File) Readdirnames(count int) (names []string, err Error)
 
 // Readdir reads the contents of the directory associated with file and
 // returns an array of up to count Dir structures, as would be returned

@@ -6,7 +6,6 @@
 
 package reflect
 
-import "reflect"
 
 // During deepValueEqual, must keep track of checks that are
 // in progress.  The comparison algorithm assumes that all

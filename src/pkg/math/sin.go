@@ -4,7 +4,6 @@
 
 package math
 
-import "math"
 
 func sinus(x float64, quad int) float64 {
 	// Coefficients are #3370 from Hart & Cheney (18.80D).

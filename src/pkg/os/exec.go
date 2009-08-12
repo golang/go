@@ -5,7 +5,6 @@
 package os
 
 import (
-	"os";
 	"syscall";
 )
 

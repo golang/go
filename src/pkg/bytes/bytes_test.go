@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package bytes
+package bytes_test
 
 import (
-	"bytes";
+	. "bytes";
 	"strings";
 	"testing";
 )
@@ -85,7 +85,7 @@ var explodetests = []ExplodeTest {
 }
 func TestExplode(t *testing.T) {
 	for _, tt := range(explodetests) {
-		a := explode(strings.Bytes(tt.s), tt.n);
+		a := Split(strings.Bytes(tt.s), nil, tt.n);
 		result := arrayOfString(a);
 		if !eq(result, tt.a) {
 			t.Errorf(`Explode("%s", %d) = %v; want %v`, tt.s, tt.n, result, tt.a);

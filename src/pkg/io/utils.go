@@ -8,7 +8,6 @@ package io
 
 import (
 	"bytes";
-	"io";
 	"os";
 )
 

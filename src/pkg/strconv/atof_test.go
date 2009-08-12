@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package strconv
+package strconv_test
+
 import (
 	"fmt";
 	"os";
 	"reflect";
-	"strconv";
-	"testing"
+	. "strconv";
+	"testing";
 )
 
 type atofTest struct {
@@ -104,36 +105,35 @@ func init() {
 }
 
 func testAtof(t *testing.T, opt bool) {
-	oldopt := strconv.optimize;
-	strconv.optimize = opt;
+	oldopt := SetOptimize(opt);
 	for i := 0; i < len(atoftests); i++ {
 		test := &atoftests[i];
-		out, err := strconv.Atof64(test.in);
-		outs := strconv.Ftoa64(out, 'g', -1);
+		out, err := Atof64(test.in);
+		outs := Ftoa64(out, 'g', -1);
 		if outs != test.out || !reflect.DeepEqual(err, test.err) {
-			t.Errorf("strconv.Atof64(%v) = %v, %v want %v, %v\n",
+			t.Errorf("Atof64(%v) = %v, %v want %v, %v\n",
 				test.in, out, err, test.out, test.err);
 		}
 
 		if float64(float32(out)) == out {
-			out32, err := strconv.Atof32(test.in);
-			outs := strconv.Ftoa32(out32, 'g', -1);
+			out32, err := Atof32(test.in);
+			outs := Ftoa32(out32, 'g', -1);
 			if outs != test.out || !reflect.DeepEqual(err, test.err) {
-				t.Errorf("strconv.Atof32(%v) = %v, %v want %v, %v  # %v\n",
+				t.Errorf("Atof32(%v) = %v, %v want %v, %v  # %v\n",
 					test.in, out32, err, test.out, test.err, out);
 			}
 		}
 
 		if FloatSize == 64 || float64(float32(out)) == out {
-			outf, err := strconv.Atof(test.in);
-			outs := strconv.Ftoa(outf, 'g', -1);
+			outf, err := Atof(test.in);
+			outs := Ftoa(outf, 'g', -1);
 			if outs != test.out || !reflect.DeepEqual(err, test.err) {
-				t.Errorf("strconv.Ftoa(%v) = %v, %v want %v, %v  # %v\n",
+				t.Errorf("Ftoa(%v) = %v, %v want %v, %v  # %v\n",
 					test.in, outf, err, test.out, test.err, out);
 			}
 		}
 	}
-	strconv.optimize = oldopt;
+	SetOptimize(oldopt);
 }
 
 func TestAtof(t *testing.T) {
