@@ -163,12 +163,6 @@ dumpexporttype(Sym *s)
 	case TFORW:
 		yyerror("export of incomplete type %T", t);
 		return;
-	case TFORWSTRUCT:
-		Bprint(bout, "type %#T struct\n", t);
-		return;
-	case TFORWINTER:
-		Bprint(bout, "type %#T interface\n", t);
-		return;
 	}
 	Bprint(bout, "type %#T %l#T\n",  t, t);
 }

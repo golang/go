@@ -195,10 +195,7 @@ walkdef(Node *n)
 
 	case OTYPE:
 		n->walkdef = 1;
-		if(n->nincr != N)	// fwd decl hack
-			n->type = n->nincr->type;
-		else
-			n->type = typ(TFORW);
+		n->type = typ(TFORW);
 		n->type->sym = n->sym;
 		n->typecheck = 1;
 		typecheck(&n->ntype, Etype);

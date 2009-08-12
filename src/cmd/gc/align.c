@@ -165,7 +165,6 @@ dowidth(Type *t)
 		w = 2*widthptr;
 		break;
 	case TINTER:		// implemented as 2 pointers
-	case TFORWINTER:
 		offmod(t);
 		w = 2*widthptr;
 		break;
@@ -179,10 +178,6 @@ dowidth(Type *t)
 		w = widthptr;
 		break;
 	case TFORW:		// should have been filled in
-	case TFORWSTRUCT:
-		yyerror("undefined type %T", t);
-		w = widthptr;
-		break;
 	case TANY:
 		// dummy type; should be replaced before use.
 		fatal("dowidth any");
@@ -262,8 +257,6 @@ typeinit(void)
 	isptr[TPTR64] = 1;
 
 	isforw[TFORW] = 1;
-	isforw[TFORWSTRUCT] = 1;
-	isforw[TFORWINTER] = 1;
 
 	issigned[TINT] = 1;
 	issigned[TINT8] = 1;

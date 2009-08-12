@@ -948,8 +948,6 @@ ret:
 		case TFUNC:	// might have TANY; wait until its called
 		case TANY:
 		case TFORW:
-		case TFORWINTER:
-		case TFORWSTRUCT:
 		case TIDEAL:
 		case TNIL:
 			break;

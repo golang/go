@@ -239,28 +239,7 @@ addtyp(Type *n, int ctxt)
 Type*
 dodcltype(Type *n)
 {
-	Sym *s;
-
-	// if n has been forward declared,
-	// use the Type* created then
-	s = n->sym;
-	if((funcdepth == 0 || s->block == block) && s->def != N && s->def->op == OTYPE) {
-		switch(s->def->type->etype) {
-		case TFORWSTRUCT:
-		case TFORWINTER:
-			n = s->def->type;
-			if(s->block != block) {
-				// completing forward struct from other file
-				externdcl = list(externdcl, typenod(n));
-			}
-			goto found;
-		}
-	}
-
-	// otherwise declare a new type
 	addtyp(n, dclcontext);
-
-found:
 	n->local = 1;
 	autoexport(typenod(n), dclcontext);
 	return n;
@@ -288,21 +267,6 @@ updatetype(Type *n, Type *t)
 	case TFORW:
 		break;
 
-	case TFORWSTRUCT:
-		if(t->etype != TSTRUCT) {
-			yyerror("%T forward declared as struct", n);
-			return;
-		}
-		n->local = 1;
-		break;
-
-	case TFORWINTER:
-		if(t->etype != TINTER) {
-			yyerror("%T forward declared as interface", n);
-			return;
-		}
-		break;
-
 	default:
 		fatal("updatetype %T / %T", n, t);
 	}
@@ -323,14 +287,7 @@ updatetype(Type *n, Type *t)
 	n->vargen = vargen;
 	n->nod = N;
 
-	// catch declaration of incomplete type
-	switch(n->etype) {
-	case TFORWSTRUCT:
-	case TFORWINTER:
-		break;
-	default:
-		checkwidth(n);
-	}
+	checkwidth(n);
 
 	// double-check use of type as map key
 	if(maplineno) {
@@ -646,7 +603,6 @@ colas(NodeList *left, NodeList *right)
 void
 funchdr(Node *n)
 {
-	Node *nt;
 
 	if(n->nname != N) {
 		n->nname->op = ONAME;
@@ -736,46 +692,13 @@ funcbody(Node *n)
 }
 
 /*
- * forward declarations of types
- * TODO(rsc): delete!
- */
-
-/*
  * new type being defined with name s.
  */
 Node*
 typedcl0(Sym *s)
 {
-	Node *o, *ot, *n;
-	int et;
+	Node *n;
 
-	// TODO(rsc): throw away once forward declarations are gone
-	if((o = s->def) != N && o != N && o->op == OTYPE && s->block == block) {
-		if((ot = o->ntype) != N && ot->op == OTYPE && ot->type != T)
-		if((et = ot->type->etype) == TFORWSTRUCT || et == TFORWINTER) {
-			// local forward declaration exists!
-			// use it instead of the node we just created.
-			if(ot->walkdef || ot->typecheck)
-				fatal("someone looked at the fwd decl");
-			return o;
-		}
-
-		if(o->type && ((et = o->type->etype) == TFORWSTRUCT || et == TFORWINTER)) {
-			// imported forward declaration exists.
-			// attach the fwd type to the node we just
-			// created, so that when we define the type in walkdef
-			// we will overwrite the fwd version.
-			o->nincr = nod(OXXX, N, N);
-			o->nincr->type = o->type;
-			o->type = T;
-			o->walkdef = 0;
-			o->typecheck = 0;
-			autoexport(o, PEXTERN);
-			return o;
-		}
-	}
-
-	// make a new one
 	n = dclname(s);
 	n->op = OTYPE;
 	declare(n, dclcontext);
@@ -784,9 +707,7 @@ typedcl0(Sym *s)
 
 /*
  * node n, which was returned by typedcl0
- * is being declared to have uncompiled type t.  if n was previously forward
- * declared, update the forward declaration and undo the dclname.
- * extra tricky because we have to deal with imported forward declarations.
+ * is being declared to have uncompiled type t.
  * return the ODCLTYPE node to use.
  */
 Node*
@@ -794,20 +715,6 @@ typedcl1(Node *n, Node *t, int local)
 {
 	n->ntype = t;
 	n->local = local;
-	return nod(ODCLTYPE, n, N);
-}
-
-/*
- * node n, which was returned by dclname (newname for imports)
- * is being forward declared as et (TFORWSTRUCT or TFORWINTER).
- * if n was previously forward declared, scream.
- * return the ODCLTYPE node to use.
- */
-Node*
-fwdtype(Node *n, int et)
-{
-	n->op = OTYPE;
-	n->ntype = typenod(typ(et));
 	return nod(ODCLTYPE, n, N);
 }
 
@@ -821,14 +728,6 @@ typedcl2(Type *pt, Type *t)
 
 	if(pt->etype == TFORW)
 		goto ok;
-	if(pt->etype == TFORWSTRUCT && t->etype == TSTRUCT)
-		goto ok;
-	if(pt->etype == TFORWINTER && t->etype == TINTER)
-		goto ok;
-	if(pt->etype == TSTRUCT && t->etype == TFORWSTRUCT)
-		return;
-	if(pt->etype == TINTER && t->etype == TFORWINTER)
-		return;
 	if(!cvttype(pt, t)) {
 		yyerror("redeclaration of %T during imports", pt);
 		return;
@@ -843,17 +742,7 @@ ok:
 	pt->sym = n->sym;
 	declare(n, PEXTERN);
 
-	switch(pt->etype) {
-	case TFORWINTER:
-	case TFORWSTRUCT:
-		// allow re-export in case it gets defined
-		pt->sym->flags &= ~(SymExport|SymPackage);
-		pt->sym->flags &= ~SymImported;
-		break;
-	default:
-		checkwidth(pt);
-		break;
-	}
+	checkwidth(pt);
 }
 
 /*
@@ -1292,8 +1181,6 @@ addmethod(Sym *sf, Type *t, int local)
 
 	if(local && !pa->local) {
 		// defining method on non-local type.
-		// method must have been forward declared
-		// elsewhere, i.e. where the type was.
 		yyerror("cannot define new methods on non-local type %T", pa);
 		return;
 	}

@@ -532,10 +532,6 @@ ok:
 		ot = duintptr(s, ot, t->chan);
 		break;
 
-	case TFORWSTRUCT:
-	case TFORWINTER:
-		return s;
-
 	case TFUNC:
 		for(t1=getthisx(t)->type; t1; t1=t1->down)
 			dtypesym(t1->type);
