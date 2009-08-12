@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/*
-*/
-
 #include	<u.h>
 #include	<libc.h>
 #include	<bio.h>
-#include	"compat.h"
 
 #ifndef	EXTERN
 #define	EXTERN	extern
@@ -420,8 +416,6 @@ enum
 	TFIELD,
 	TANY,
 	TSTRING,
-	TFORWSTRUCT,
-	TFORWINTER,
 
 	// pseudo-types for literals
 	TIDEAL,
@@ -942,7 +936,6 @@ void	funccompile(Node*);
 
 Node*	typedcl0(Sym*);
 Node*	typedcl1(Node*, Node*, int);
-Node*	fwdtype(Node*, int);
 void	typedcl2(Type*, Type*);
 
 /*

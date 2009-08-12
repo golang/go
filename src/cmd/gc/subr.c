@@ -336,7 +336,7 @@ algtype(Type *t)
 		a = ASTRING;	// string
 	else if(isnilinter(t))
 		a = ANILINTER;	// nil interface
-	else if(t->etype == TINTER || t->etype == TFORWINTER)
+	else if(t->etype == TINTER)
 		a = AINTER;	// interface
 	else
 		a = ANOEQ;	// just bytes, but no hash/eq
@@ -804,8 +804,6 @@ etnames[] =
 	[TSTRING]	= "STRING",
 	[TCHAN]		= "CHAN",
 	[TANY]		= "ANY",
-	[TFORWINTER]	= "FORWINTER",
-	[TFORWSTRUCT]	= "FORWSTRUCT",
 };
 
 int

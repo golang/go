@@ -389,17 +389,6 @@ typedcl:
 		$$ = typedcl1($1, $2, 1);
 	}
 
-// TODO(rsc): delete
-|	typedclname LSTRUCT
-	{
-		$$ = fwdtype($1, TFORWSTRUCT);
-	}
-// TODO(rsc): delete
-|	typedclname LINTERFACE
-	{
-		$$ = fwdtype($1, TFORWINTER);
-	}
-
 simple_stmt:
 	expr
 	{
@@ -1565,15 +1554,6 @@ hidden_import:
 |	LTYPE hidden_pkgtype hidden_type
 	{
 		importtype($2, $3);
-	}
-// TODO(rsc): delete
-|	LTYPE hidden_pkgtype LSTRUCT
-	{
-		importtype($2, typ(TFORWSTRUCT));
-	}
-|	LTYPE hidden_pkgtype LINTERFACE
-	{
-		importtype($2, typ(TFORWINTER));
 	}
 |	LFUNC hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres
 	{
