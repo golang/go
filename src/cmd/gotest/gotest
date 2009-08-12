@@ -78,8 +78,13 @@ if $havex; then
 fi
 
 # They all compile; now generate the code to call them.
-#trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
-importpath=$(make importpath)
+trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
+
+# Suppress output to stdout on Linux
+MAKEFLAGS=
+MAKELEVEL=
+
+importpath=$(make -s importpath)
 {
 	# package spec
 	echo 'package main'
