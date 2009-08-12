@@ -84,7 +84,7 @@ struct	Sym
 	uint	sig;
 	char	type;
 	char	*name;
-	char *gotype;
+	vlong	gotype;
 	int	sequence;	// order in file
 };
 /*

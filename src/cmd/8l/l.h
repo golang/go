@@ -391,7 +391,7 @@ void	whatsys(void);
  *	go.c
  */
 void	deadcode(void);
-char*	gotypefor(char *name);
+vlong	gotypefor(char *name);
 void	ldpkg(Biobuf *f, int64 len, char *filename);
 
 

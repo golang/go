@@ -62,9 +62,10 @@ ilookup(char *name)
 	return x;
 }
 
-char*
+vlong
 gotypefor(char *name)
 {
+/*
 	Import *x;
 	char *s, *p;
 
@@ -81,6 +82,8 @@ gotypefor(char *name)
 	if(strcmp(x->prefix, "var") != 0 && strcmp(x->prefix, "func") != 0)
 		return nil;
 	return x->def;
+*/
+	return 0;
 }
 
 static void loadpkgdata(char*, char*, int);

@@ -326,8 +326,8 @@ printsyms(Sym **symptr, long nsym)
 		else
 			Bprint(&bout, "%*s ", wid, "");
 		Bprint(&bout, "%c %s", s->type, cp);
-		if(tflag && s->gotype && s->gotype[0])
-			Bprint(&bout, " %s", s->gotype);
+		if(tflag && s->gotype)
+			Bprint(&bout, " %*llux", wid, s->gotype);
 		Bprint(&bout, "\n");
 	}
 }
