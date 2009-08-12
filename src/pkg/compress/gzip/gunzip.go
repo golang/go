@@ -71,8 +71,6 @@ type GzipInflater struct {
 	eof bool;
 }
 
-func (z *GzipInflater) readHeader(save bool) os.Error
-
 // NewGzipInflater creates a new GzipInflater reading the given reader.
 // The implementation buffers input and may read more data than necessary from r.
 func NewGzipInflater(r io.Reader) (*GzipInflater, os.Error) {

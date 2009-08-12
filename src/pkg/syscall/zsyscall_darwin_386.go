@@ -3,10 +3,7 @@
 
 package syscall
 
-import (
-	"syscall";
-	"unsafe";
-)
+import "unsafe"
 
 func getgroups(ngid int, gid *_Gid_t) (n int, errno int) {
 	r0, r1, e1 := Syscall(SYS_GETGROUPS, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0);

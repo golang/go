@@ -9,8 +9,6 @@ package unicode
 // These ranges are the characters with the third field "Nd".
 // Should generate automatically etc.
 
-import "unicode"
-
 // Decimal digit is the set of Unicode characters with the "decimal digit" property.
 var DecimalDigit = []Range{
 	Range{0x0030, 0x0039, 1},

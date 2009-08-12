@@ -12,7 +12,6 @@
 package bignum
 
 import (
-	"bignum";
 	"fmt";
 )
 
@@ -307,9 +306,6 @@ func (x Natural) Sub(y Natural) Natural {
 	return z;
 }
 
-
-// MulAdd128 is defined in arith.go and arith.s .
-func MulAdd128(x, y, c uint64) (z1, z0 uint64)
 
 // Returns z1 = (x*y + c) div B, z0 = (x*y + c) mod B.
 //

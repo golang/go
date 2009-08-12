@@ -12,7 +12,6 @@ import (
 	"net";
 	"once";
 	"os";
-	"rpc";
 	"strings";
 	"testing";
 )

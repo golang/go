@@ -16,7 +16,6 @@ import (
 	"io";
 	"log";
 	"os";
-	"rpc";
 	"sort";
 	"template";
 )

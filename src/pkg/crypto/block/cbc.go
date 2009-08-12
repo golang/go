@@ -12,7 +12,6 @@
 package block
 
 import (
-	"crypto/block";
 	"io";
 )
 

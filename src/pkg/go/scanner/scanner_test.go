@@ -5,7 +5,6 @@
 package scanner
 
 import (
-	"go/scanner";
 	"go/token";
 	"os";
 	"strings";
@@ -207,7 +206,7 @@ func TestScan(t *testing.T) {
 	// verify scan
 	index := 0;
 	epos := token.Position{"", 0, 1, 1};
-	nerrors := scanner.Tokenize("", strings.Bytes(src), &TestErrorHandler{t}, scanner.ScanComments,
+	nerrors := Tokenize("", strings.Bytes(src), &TestErrorHandler{t}, ScanComments,
 		func (pos token.Position, tok token.Token, litb []byte) bool {
 			e := elt{token.EOF, "", special};
 			if index < len(tokens) {
@@ -280,7 +279,7 @@ func TestLineComments(t *testing.T) {
 	}
 
 	// verify scan
-	var S scanner.Scanner;
+	var S Scanner;
 	S.Init("TestLineComments", strings.Bytes(src), nil, 0);
 	for _, s := range segments {
 		pos, tok, lit := S.Scan();
@@ -295,7 +294,7 @@ func TestLineComments(t *testing.T) {
 
 // Verify that initializing the same scanner more then once works correctly.
 func TestInit(t *testing.T) {
-	var s scanner.Scanner;
+	var s Scanner;
 
 	// 1st init
 	s.Init("", strings.Bytes("if true { }"), nil, 0);
@@ -320,10 +319,10 @@ func TestInit(t *testing.T) {
 
 
 func TestIllegalChars(t *testing.T) {
-	var s scanner.Scanner;
+	var s Scanner;
 
 	const src = "*?*$*@*";
-	s.Init("", strings.Bytes(src), &TestErrorHandler{t}, scanner.AllowIllegalChars);
+	s.Init("", strings.Bytes(src), &TestErrorHandler{t}, AllowIllegalChars);
 	for offs, ch := range src {
 		pos, tok, lit := s.Scan();
 		if pos.Offset != offs {
@@ -352,9 +351,9 @@ func TestStdErrorHander(t *testing.T) {
 		"@ @ @"  // original file, line 1 again
 	;
 
-	var s scanner.Scanner;
+	var s Scanner;
 	v := NewErrorVector();
-	nerrors := scanner.Tokenize("File1", strings.Bytes(src), v, 0,
+	nerrors := Tokenize("File1", strings.Bytes(src), v, 0,
 		func (pos token.Position, tok token.Token, litb []byte) bool {
 			return tok != token.EOF;
 		}

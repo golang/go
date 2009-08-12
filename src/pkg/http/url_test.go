@@ -6,7 +6,6 @@ package http
 
 import (
 	"fmt";
-	"http";
 	"os";
 	"reflect";
 	"testing";
@@ -14,7 +13,7 @@ import (
 
 // TODO(rsc):
 //	test URLUnescape
-// 	test URLEscape
+//	test URLEscape
 //	test ParseURL
 
 type URLTest struct {

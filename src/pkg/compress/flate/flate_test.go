@@ -11,7 +11,6 @@ package flate
 import (
 	"bytes";
 	"bufio";
-	"compress/flate";
 	"io";
 	"os";
 	"reflect";
@@ -102,7 +101,7 @@ var initDecoderTests = []*InitDecoderTest{
 		fixedHuffmanDecoder,
 		true,
 	},
-	
+
 	// Illegal input.
 	&InitDecoderTest{
 		[]int{ },

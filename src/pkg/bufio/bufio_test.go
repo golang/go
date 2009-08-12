@@ -6,7 +6,6 @@ package bufio
 
 import (
 	"bytes";
-	"bufio";
 	"fmt";
 	"io";
 	"os";
@@ -191,7 +190,7 @@ func (r *StringReader) Read (p []byte) (n int, err os.Error) {
 func readRuneSegments(t *testing.T, segments []string) {
 	got := "";
 	want := strings.Join(segments, "");
-	r := bufio.NewReader(&StringReader{data: segments});
+	r := NewReader(&StringReader{data: segments});
 	for {
 		rune, size, err := r.ReadRune();
 		if err != nil {

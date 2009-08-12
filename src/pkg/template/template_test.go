@@ -10,7 +10,6 @@ import (
 	"io";
 	"os";
 	"reflect";
-	"template";
 	"testing";
 )
 

@@ -36,8 +36,6 @@
 
 package aes
 
-import "crypto/aes"
-
 // Encrypt one block from src into dst, using the expanded key xk.
 func encryptBlock(xk []uint32, src, dst []byte) {
 	var s0, s1, s2, s3, t0, t1, t2, t3 uint32;

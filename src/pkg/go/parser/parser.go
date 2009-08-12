@@ -74,8 +74,6 @@ func scannerMode(mode uint) uint {
 }
 
 
-func (p *parser) next()
-
 func (p *parser) init(filename string, src []byte, mode uint) {
 	p.ErrorVector.Init();
 	p.scanner.Init(filename, src, p, scannerMode(mode));
@@ -266,13 +264,6 @@ func (p *parser) expect(tok token.Token) token.Position {
 
 // ----------------------------------------------------------------------------
 // Common productions
-
-func (p *parser) tryType() ast.Expr
-func (p *parser) parseStringList(x *ast.StringLit) []*ast.StringLit
-func (p *parser) parseExpr() ast.Expr
-func (p *parser) parseStmt() ast.Stmt
-func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool)
-
 
 func (p *parser) parseIdent() *ast.Ident {
 	if p.tok == token.IDENT {

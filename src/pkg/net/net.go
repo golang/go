@@ -5,7 +5,6 @@
 package net
 
 import (
-	"net";
 	"os";
 	"reflect";
 	"strconv";
@@ -157,9 +156,6 @@ var preferIPv4 = !kernelSupportsIPv6()
 func listenBacklog() int {
 	return syscall.SOMAXCONN
 }
-
-func LookupHost(name string) (cname string, addrs []string, err os.Error)
-func LookupPort(network, service string) (port int, err os.Error)
 
 // Split "host:port" into "host" and "port".
 // Host cannot contain colons unless it is bracketed.

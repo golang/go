@@ -5,14 +5,13 @@
 package net
 
 import (
-	"net";
 	"os";
 	"testing";
 	"time";
 )
 
 func testTimeout(t *testing.T, network, addr string) {
-	fd, err := net.Dial(network, "", addr);
+	fd, err := Dial(network, "", addr);
 	defer fd.Close();
 	if err != nil {
 		t.Errorf("dial %s %s failed: %v", network, addr, err);

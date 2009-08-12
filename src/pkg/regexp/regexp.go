@@ -288,8 +288,6 @@ func newParser(re *Regexp) *parser {
 	return p;
 }
 
-func (p *parser) regexp() (start, end instr)
-
 var iNULL instr
 
 func special(c int) bool {

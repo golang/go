@@ -6,7 +6,6 @@ package datafmt
 
 import (
 	"container/vector";
-	"datafmt";
 	"fmt";
 	"go/scanner";
 	"go/token";
@@ -202,8 +201,6 @@ func (p *parser) parseField() expr {
 	return &field{fname, ruleName};
 }
 
-
-func (p *parser) parseExpression() expr
 
 func (p *parser) parseOperand() (x expr) {
 	switch p.tok {

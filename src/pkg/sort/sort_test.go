@@ -7,7 +7,6 @@ package sort
 import (
 	"fmt";
 	"rand";
-	"sort";
 	"testing";
 )
 
@@ -19,8 +18,8 @@ var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "
 func TestSortIntArray(t *testing.T) {
 	data := ints;
 	a := IntArray(&data);
-	sort.Sort(a);
-	if !sort.IsSorted(a) {
+	Sort(a);
+	if !IsSorted(a) {
 		t.Errorf("sorted %v", ints);
 		t.Errorf("   got %v", data);
 	}
@@ -29,8 +28,8 @@ func TestSortIntArray(t *testing.T) {
 func TestSortFloatArray(t *testing.T) {
 	data := floats;
 	a := FloatArray(&data);
-	sort.Sort(a);
-	if !sort.IsSorted(a) {
+	Sort(a);
+	if !IsSorted(a) {
 		t.Errorf("sorted %v", floats);
 		t.Errorf("   got %v", data);
 	}
@@ -39,8 +38,8 @@ func TestSortFloatArray(t *testing.T) {
 func TestSortStringArray(t *testing.T) {
 	data := strings;
 	a := StringArray(&data);
-	sort.Sort(a);
-	if !sort.IsSorted(a) {
+	Sort(a);
+	if !IsSorted(a) {
 		t.Errorf("sorted %v", strings);
 		t.Errorf("   got %v", data);
 	}
@@ -48,8 +47,8 @@ func TestSortStringArray(t *testing.T) {
 
 func TestSortInts(t *testing.T) {
 	data := ints;
-	sort.SortInts(&data);
-	if !sort.IntsAreSorted(&data) {
+	SortInts(&data);
+	if !IntsAreSorted(&data) {
 		t.Errorf("sorted %v", ints);
 		t.Errorf("   got %v", data);
 	}
@@ -57,8 +56,8 @@ func TestSortInts(t *testing.T) {
 
 func TestSortFloats(t *testing.T) {
 	data := floats;
-	sort.SortFloats(&data);
-	if !sort.FloatsAreSorted(&data) {
+	SortFloats(&data);
+	if !FloatsAreSorted(&data) {
 		t.Errorf("sorted %v", floats);
 		t.Errorf("   got %v", data);
 	}
@@ -66,8 +65,8 @@ func TestSortFloats(t *testing.T) {
 
 func TestSortStrings(t *testing.T) {
 	data := strings;
-	sort.SortStrings(&data);
-	if !sort.StringsAreSorted(&data) {
+	SortStrings(&data);
+	if !StringsAreSorted(&data) {
 		t.Errorf("sorted %v", strings);
 		t.Errorf("   got %v", data);
 	}
@@ -78,11 +77,11 @@ func TestSortLarge_Random(t *testing.T) {
 	for i := 0; i < len(data); i++ {
 		data[i] = rand.Intn(100);
 	}
-	if sort.IntsAreSorted(data) {
+	if IntsAreSorted(data) {
 		t.Fatalf("terrible rand.rand");
 	}
-	sort.SortInts(data);
-	if !sort.IntsAreSorted(data) {
+	SortInts(data);
+	if !IntsAreSorted(data) {
 		t.Errorf("sort didn't sort - 1M ints");
 	}
 }
@@ -195,9 +194,9 @@ func TestBentleyMcIlroy(t *testing.T) {
 						for i := 0; i < n; i++ {
 							mdata[i] = data[i];
 						}
-						// sort.SortInts is known to be correct
+						// SortInts is known to be correct
 						// because mode Sort runs after mode _Copy.
-						sort.SortInts(mdata);
+						SortInts(mdata);
 					case _Dither:
 						for i := 0; i < n; i++ {
 							mdata[i] = data[i] + i%5;
@@ -206,7 +205,7 @@ func TestBentleyMcIlroy(t *testing.T) {
 
 					desc := fmt.Sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode]);
 					d := &testingData{desc, t, mdata[0:n], n*lg(n)*12/10, 0};
-					sort.Sort(d);
+					Sort(d);
 
 					// If we were testing C qsort, we'd have to make a copy
 					// of the array and sort it ourselves and then compare
@@ -214,9 +213,9 @@ func TestBentleyMcIlroy(t *testing.T) {
 					// the data, not (for example) overwriting it with zeros.
 					//
 					// In go, we don't have to be so paranoid: since the only
-					// mutating method sort.Sort can call is TestingData.swap,
+					// mutating method Sort can call is TestingData.swap,
 					// it suffices here just to check that the final array is sorted.
-					if !sort.IntsAreSorted(mdata) {
+					if !IntsAreSorted(mdata) {
 						t.Errorf("%s: ints not sorted", desc);
 						t.Errorf("\t%v", mdata);
 						t.FailNow();

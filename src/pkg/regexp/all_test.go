@@ -6,7 +6,6 @@ package regexp
 
 import (
 	"os";
-	"regexp";
 	"strings";
 	"testing";
 )

@@ -5,7 +5,6 @@
 package tar
 
 import (
-	"archive/tar";
 	"bytes";
 	"fmt";
 	"io";

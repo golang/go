@@ -10,7 +10,6 @@
 package bignum
 
 import (
-	"bignum";
 	"fmt";
 )
 
@@ -352,7 +351,7 @@ func (x *Integer) Shr(s uint) *Integer {
 		// (-x) >> s == ^(x-1) >> s == ^((x-1) >> s) == -(((x-1) >> s) + 1)
 		return MakeInt(true, x.mant.Sub(Nat(1)).Shr(s).Add(Nat(1)));
 	}
-	
+
 	return MakeInt(false, x.mant.Shr(s));
 }
 

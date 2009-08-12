@@ -50,8 +50,6 @@ func (d *digest) Size() int {
 	return Size;
 }
 
-func _Block(dig *digest, p []byte) int
-
 func (d *digest) Write(p []byte) (nn int, err os.Error) {
 	nn = len(p);
 	d.len += uint64(nn);

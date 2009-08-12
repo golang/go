@@ -25,7 +25,6 @@ package net
 
 import (
 	"fmt";
-	"net";
 	"os";
 	"reflect";
 )

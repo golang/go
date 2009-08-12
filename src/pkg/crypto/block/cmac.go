@@ -8,7 +8,6 @@
 package block
 
 import (
-	"crypto/block";
 	"io";
 	"os";
 )

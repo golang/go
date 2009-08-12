@@ -8,8 +8,6 @@
 
 package sha1
 
-import "crypto/sha1"
-
 const (
 	_K0 = 0x5A827999;
 	_K1 = 0x6ED9EBA1;

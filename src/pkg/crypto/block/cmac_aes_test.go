@@ -6,14 +6,9 @@
 
 package block
 
-// gobuild: $GC ecb_aes_test.go
-
 import (
 	"crypto/aes";
-	"crypto/block";
 	"testing";
-
-	"./ecb_aes_test";
 )
 
 type cmacAESTest struct {

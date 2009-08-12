@@ -16,7 +16,6 @@ import (
 	"fmt";
 	"os";
 	"runtime";
-	"testing";
 )
 
 // Report as tests are run; default is silent for success.

@@ -6,7 +6,6 @@ package http
 
 import (
 	"fmt";
-	"http";
 	"os";
 	"testing";
 )

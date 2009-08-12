@@ -8,7 +8,6 @@ package sha1
 
 import (
 	"fmt";
-	"crypto/sha1";
 	"io";
 	"testing";
 )

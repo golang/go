@@ -5,7 +5,6 @@
 package ring
 
 import (
-	"container/ring";
 	"fmt";
 	"testing";
 )
@@ -90,7 +89,7 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 	if r.Prev() != r.prev {
 		t.Errorf("r.Prev() != r.prev");
 	}
-	
+
 	// Move
 	if r.Move(0) != r {
 		t.Errorf("r.Move(0) != r");

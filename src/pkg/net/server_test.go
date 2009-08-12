@@ -6,7 +6,6 @@ package net
 
 import (
 	"io";
-	"net";
 	"os";
 	"strings";
 	"syscall";
@@ -27,7 +26,7 @@ func runEcho(fd io.ReadWriter, done chan<- int) {
 }
 
 func runServe(t *testing.T, network, addr string, listening chan<- string, done chan<- int) {
-	l, err := net.Listen(network, addr);
+	l, err := Listen(network, addr);
 	if err != nil {
 		t.Fatalf("net.Listen(%q, %q) = _, %v", network, addr, err);
 	}
@@ -47,7 +46,7 @@ func runServe(t *testing.T, network, addr string, listening chan<- string, done 
 }
 
 func connect(t *testing.T, network, addr string) {
-	fd, err := net.Dial(network, "", addr);
+	fd, err := Dial(network, "", addr);
 	if err != nil {
 		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, "", addr, err);
 	}

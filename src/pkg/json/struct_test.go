@@ -5,7 +5,6 @@
 package json
 
 import (
-	"json";
 	"testing";
 )
 

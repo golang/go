@@ -8,7 +8,6 @@ package hmac
 
 import (
 	"hash";
-	"crypto/hmac";
 	"fmt";
 	"strings";
 	"testing";

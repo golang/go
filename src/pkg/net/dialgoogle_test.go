@@ -7,7 +7,6 @@ package net
 import (
 	"flag";
 	"io";
-	"net";
 	"os";
 	"strings";
 	"syscall";
@@ -19,7 +18,7 @@ var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
 
 // fd is already connected to the destination, port 80.
 // Run an HTTP request to fetch the appropriate page.
-func fetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
+func fetchGoogle(t *testing.T, fd Conn, network, addr string) {
 	req := strings.Bytes("GET /intl/en/privacy.html HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
 	n, err := fd.Write(req);
 
@@ -33,9 +32,9 @@ func fetchGoogle(t *testing.T, fd net.Conn, network, addr string) {
 }
 
 func doDial(t *testing.T, network, addr string) {
-	fd, err := net.Dial(network, "", addr);
+	fd, err := Dial(network, "", addr);
 	if err != nil {
-		t.Errorf("net.Dial(%q, %q, %q) = _, %v", network, "", addr, err);
+		t.Errorf("Dial(%q, %q, %q) = _, %v", network, "", addr, err);
 		return
 	}
 	fetchGoogle(t, fd, network, addr);
@@ -43,9 +42,9 @@ func doDial(t *testing.T, network, addr string) {
 }
 
 func doDialTCP(t *testing.T, network, addr string) {
-	fd, err := net.DialTCP(network, "", addr);
+	fd, err := DialTCP(network, "", addr);
 	if err != nil {
-		t.Errorf("net.DialTCP(%q, %q, %q) = _, %v", network, "", addr, err);
+		t.Errorf("DialTCP(%q, %q, %q) = _, %v", network, "", addr, err);
 	} else {
 		fetchGoogle(t, fd, network, addr);
 	}

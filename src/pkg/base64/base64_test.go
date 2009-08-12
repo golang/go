@@ -5,7 +5,6 @@
 package base64
 
 import (
-	"base64";
 	"bytes";
 	"io";
 	"os";

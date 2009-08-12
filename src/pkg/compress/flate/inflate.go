@@ -263,13 +263,6 @@ type inflater struct {
 	buf [4]byte;
 }
 
-func (f *inflater) dataBlock() os.Error
-func (f *inflater) readHuffman() os.Error
-func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error
-func (f *inflater) moreBits() os.Error
-func (f *inflater) huffSym(h *huffmanDecoder) (int, os.Error)
-func (f *inflater) flush() os.Error
-
 func (f *inflater) inflate() (err os.Error) {
 	final := false;
 	for err == nil && !final {

@@ -6,7 +6,6 @@ package md5
 
 import (
 	"fmt";
-	"crypto/md5";
 	"io";
 	"testing";
 )

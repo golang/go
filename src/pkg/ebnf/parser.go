@@ -6,7 +6,6 @@ package ebnf
 
 import (
 	"container/vector";
-	"ebnf";
 	"fmt";
 	"go/scanner";
 	"go/token";
@@ -85,8 +84,6 @@ func (p *parser) parseToken() *Token {
 	return &Token{pos, value};
 }
 
-
-func (p *parser) parseExpression() Expression
 
 func (p *parser) parseTerm() (x Expression) {
 	pos := p.pos;

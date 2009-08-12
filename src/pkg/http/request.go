@@ -14,7 +14,6 @@ import (
 	"bytes";
 	"container/vector";
 	"fmt";
-	"http";
 	"io";
 	"os";
 	"strconv";

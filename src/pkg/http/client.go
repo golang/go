@@ -9,7 +9,6 @@ package http
 import (
 	"bufio";
 	"fmt";
-	"http";
 	"io";
 	"log";
 	"net";

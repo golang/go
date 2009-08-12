@@ -10,7 +10,6 @@ import (
 	"bytes";
 	"fmt";
 	"go/ast";
-	"go/parser";
 	"go/scanner";
 	"io";
 	"os";

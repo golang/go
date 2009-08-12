@@ -5,7 +5,6 @@
 package list
 
 import (
-	"container/list";
 	"testing";
 )
 

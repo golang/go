@@ -8,7 +8,6 @@ package tar
 //   - pax extensions
 
 import (
-	"archive/tar";
 	"bytes";
 	"io";
 	"os";
@@ -25,8 +24,8 @@ var (
 // and then it can be treated as an io.Reader to access the file's data.
 //
 // Example:
-// 	tr := tar.NewReader(r);
-// 	for {
+//	tr := tar.NewReader(r);
+//	for {
 //		hdr, err := tr.Next();
 //		if err != nil {
 //			// handle error
@@ -36,16 +35,13 @@ var (
 //			break
 //		}
 //		io.Copy(tr, data);
-// 	}
+//	}
 type Reader struct {
 	r io.Reader;
 	err os.Error;
 	nb int64;	// number of unread bytes for current file entry
 	pad int64;	// amount of padding (ignored) after current file entry
 }
-
-func (tr *Reader) skipUnread()
-func (tr *Reader) readHeader() *Header
 
 // NewReader creates a new Reader reading from r.
 func NewReader(r io.Reader) *Reader {

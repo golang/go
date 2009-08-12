@@ -3,10 +3,7 @@
 
 package syscall
 
-import (
-	"syscall";
-	"unsafe";
-)
+import "unsafe"
 
 func pipe(p *[2]_C_int) (errno int) {
 	r0, r1, e1 := Syscall(SYS_PIPE, uintptr(unsafe.Pointer(p)), 0, 0);

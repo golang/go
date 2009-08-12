@@ -7,7 +7,6 @@
 package net
 
 import (
-	"net";
 	"once";
 	"os";
 	"sync";
@@ -73,7 +72,6 @@ type pollServer struct {
 	poll *pollster;	// low-level OS hooks
 	deadline int64;	// next deadline (nsec since 1970)
 }
-func (s *pollServer) Run();
 
 func newPollServer() (s *pollServer, err os.Error) {
 	s = new(pollServer);
@@ -323,8 +321,6 @@ func isEAGAIN(e os.Error) bool {
 	}
 	return e == os.EAGAIN;
 }
-
-func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error)
 
 func (fd *netFD) addr() string {
 	sa, e := syscall.Getsockname(fd.fd);

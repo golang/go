@@ -10,17 +10,12 @@
 
 package block
 
-// gotest: $GC ecb_aes_test.go
-
 import (
 	"bytes";
 	"crypto/aes";
-	"crypto/block";
 	"io";
 	"os";
 	"testing";
-
-	"./ecb_aes_test";
 )
 
 type ofbTest struct {
