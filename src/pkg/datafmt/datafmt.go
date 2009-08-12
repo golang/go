@@ -218,8 +218,6 @@ import (
 // ----------------------------------------------------------------------------
 // Format representation
 
-type State struct
-
 // Custom formatters implement the Formatter function type.
 // A formatter is invoked with the current formatting state, the
 // value to format, and the rule name under which the formatter

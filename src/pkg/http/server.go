@@ -29,8 +29,6 @@ var (
 	ErrHijacked = os.NewError("Conn has been hijacked");
 )
 
-type Conn struct
-
 // Objects implemeting the Handler interface can be
 // registered to serve a particular path or subtree
 // in the HTTP server.

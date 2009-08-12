@@ -8,8 +8,6 @@
 
 package main
 
-type S struct
-
 type I interface {
 	Foo()
 }
