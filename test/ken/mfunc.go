@@ -6,8 +6,6 @@
 
 package main
 
-func	simple(ia,ib,ic int) (oa,ob int);
-
 func
 main()
 {

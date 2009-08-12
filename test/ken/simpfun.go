@@ -7,8 +7,6 @@
 
 package main
 
-func fun(ia,ib,ic int)int;
-
 func
 main()
 {

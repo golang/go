@@ -13,8 +13,6 @@ type C struct
 	x	func(p *C)int;
 }
 
-func	g(p *C)int;
-
 func
 (this *C) f()int
 {

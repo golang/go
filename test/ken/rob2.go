@@ -36,8 +36,6 @@ type Slist struct {
 
 }
 
-func (this *Slist) Print();
-
 func (this *Slist) Car() *Slist {
 	return this.list.car;
 }
@@ -66,9 +64,6 @@ func (slist *Slist) Free() {
 	}
 //	free(slist);
 }
-
-func OpenFile();
-func Parse() *Slist;
 
 //Slist* atom(byte *s, int i);
 

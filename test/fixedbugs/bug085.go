@@ -9,11 +9,11 @@ package P
 var x int
 
 func foo() {
-	print(P.x);  // P should be defined between the outermost "universe" scope and the global scope
+	print(P.x);  // ERROR "undefined"
 }
 
 /*
-uetli:~/Source/go1/test/bugs gri$ 6g bug085.go 
+uetli:~/Source/go1/test/bugs gri$ 6g bug085.go
 bug085.go:6: P: undefined
 Bus error
 */
