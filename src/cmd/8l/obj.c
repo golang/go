@@ -600,7 +600,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 void
 addlib(char *src, char *obj)
 {
-	char name[1024], pname[1024], comp[256], *p, *q;
+	char name[1024], pname[1024], comp[256], *p;
 	int i, search;
 
 	if(histfrogp <= 0)
@@ -657,22 +657,9 @@ addlib(char *src, char *obj)
 			snprint(pname, sizeof pname, "%s/pkg/%s_%s/%s", goroot, goos, goarch, name);
 		strcpy(name, pname);
 	}
+	cleanname(name);
 	if(debug['v'])
 		Bprint(&bso, "%5.2f addlib: %s %s pulls in %s\n", cputime(), obj, src, name);
-
-	p = strrchr(src, '/');
-	q = strrchr(name, '/');
-	if(p != nil && q != nil && p - src == q - name && memcmp(src, name, p - src) == 0) {
-		// leading paths are the same.
-		// if the source file refers to an object in its own directory
-		// and we are inside an archive, ignore the reference, in the hope
-		// that the archive contains that object too.
-		if(strchr(obj, '(')) {
-			if(debug['v'])
-				Bprint(&bso, "%5.2f ignored srcdir object %s\n", cputime(), name);
-			return;
-		}
-	}
 
 	for(i=0; i<libraryp; i++)
 		if(strcmp(name, library[i]) == 0)
