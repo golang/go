@@ -19,8 +19,8 @@ fi
 # Allow overrides
 GC=${_GC:-$GC}
 GL=${GL:-$LD}
-GC="$GC -I _obj"
-GL="$GL -L _obj"
+GC="$GC -I _test"
+GL="$GL -L _test"
 export GC GL
 
 gofiles=""
@@ -42,7 +42,7 @@ done
 
 case "x$gofiles" in
 x)
-	gofiles=$(ls *_test.go 2>/dev/null)
+	gofiles=$(echo -n $(ls *_test.go *_test.pb.go 2>/dev/null))
 esac
 
 case "x$gofiles" in
@@ -51,53 +51,62 @@ x)
 	exit 1
 esac
 
-ofiles=$(echo $gofiles | sed 's/\.go/.'$O'/g')
-files=$(echo $gofiles | sed 's/\.go//g')
-
-
 # Run any commands given in sources, like
 #   // gotest: $GC foo.go
 # to build any test-only dependencies.
 sed -n 's/^\/\/ gotest: //p' $gofiles | sh
 
+# Split $gofiles into external gofiles (those in *_test packages)
+# and internal ones (those in the main package).
+xgofiles=$(echo $(grep '^package[ 	]' $gofiles /dev/null | grep ':.*_test' | sed 's/:.*//'))
+gofiles=$(echo $(grep '^package[ 	]' $gofiles /dev/null | grep -v ':.*_test' | sed 's/:.*//'))
+
+# External $O file
+xofile=""
+havex=false
+if [ "x$xgofiles" != "x" ]; then
+	xofile="_xtest_.$O"
+	havex=true
+fi
+
 set -e
 
-for i in $gofiles
-do
-	$GC $i
-done
+make testpackage-clean
+make testpackage "GOTESTFILES=$gofiles"
+if $havex; then
+	$GC -o $xofile $xgofiles
+fi
 
 # They all compile; now generate the code to call them.
-trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
+#trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
+importpath=$(make importpath)
 {
 	# package spec
 	echo 'package main'
 	echo
 	# imports
-	for i in $files
-	do
-		echo 'import "./'$i'"'
-	done
+	echo 'import "'$importpath'"'
+	if $havex; then
+		echo 'import "./_xtest_"'
+	fi
 	echo 'import "testing"'
 	# test array
 	echo
 	echo 'var tests = []testing.Test {'
-	for ofile in $ofiles
-	do
-		# test functions are named TestFoo
-		# the grep -v eliminates methods and other special names
-		# that have multiple dots.
-		pattern='Test([^a-z].*)?'
-		tests=$(6nm -s $ofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
-		if [ "x$tests" = x ]; then
-			echo 'gotest: warning: no tests matching '$pattern' in '$ofile 1>&2
-		else
-			for i in $tests
-			do
-				echo '	testing.Test{ "'$i'", '$i' },'
-			done
-		fi
-	done
+
+	# test functions are named TestFoo
+	# the grep -v eliminates methods and other special names
+	# that have multiple dots.
+	pattern='Test([^a-z].*)?'
+	tests=$(6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+	if [ "x$tests" = x ]; then
+		echo 'gotest: warning: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
+	else
+		for i in $tests
+		do
+			echo '	testing.Test{ "'$i'", '$i' },'
+		done
+	fi
 	echo '}'
 	# body
 	echo
@@ -107,5 +116,5 @@ trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
 }>_testmain.go
 
 $GC _testmain.go
-$GL _testmain.$O
+$GL _testmain.$O _test/$importpath.a $xofile
 ./$O.out "$@"

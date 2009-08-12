@@ -1,0 +1,57 @@
+# Copyright 2009 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+package: _obj/$(TARG).a
+testpackage: _test/$(TARG).a
+
+dir=$(shell echo $(TARG) | sed 's|[^/]*$$||')
+pkgdir=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)
+
+coverage:
+	gotest
+	6cov -g $(shell pwd) | grep -v '_test\.go:'
+
+clean:
+	rm -rf *.[$(OS)] *.a [$(OS)].out _obj _test _testmain.go
+
+test:
+	gotest
+
+nuke: clean
+	rm -f $(pkgdir)/$(TARG).a
+
+testpackage-clean:
+	rm -f _test/$(TARG).a _gotest_.$O
+
+install: package
+	test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+	cp _obj/$(TARG).a $(pkgdir)/$(TARG).a
+
+_go_.$O: $(GOFILES)
+	$(GC) -o $@ $(GOFILES)
+
+_gotest_.$O: $(GOFILES) $(GOTESTFILES)
+	$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
+
+%.$O: %.c
+	$(CC) $*.c
+
+%.$O: %.s
+	$(AS) $*.s
+
+%.$O: $(HFILES)
+
+_obj/$(TARG).a: _go_.$O $(OFILES)
+	mkdir -p _obj/$(dir)
+	rm -f _obj/$(TARG).a
+	gopack grc $@ _go_.$O $(OFILES)
+
+_test/$(TARG).a: _gotest_.$O $(OFILES)
+	mkdir -p _test/$(dir)
+	rm -f _test/$(TARG).a
+	gopack grc $@ _gotest_.$O $(OFILES)
+
+importpath:
+	@echo $(TARG)
+
