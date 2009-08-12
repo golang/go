@@ -470,6 +470,7 @@ enum
 	Etype = 1<<3,
 	Ecall = 1<<4,	// call-only expressions are ok
 	Efnstruct = 1<<5,	// multivalue function returns are ok
+	Eiota = 1<<6,		// iota is ok
 };
 
 #define	BITS	5

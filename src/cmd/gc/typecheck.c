@@ -85,6 +85,8 @@ reswitch:
 	 */
 	case OLITERAL:
 		ok |= Erv;
+		if(n->iota && !(top & Eiota))
+			yyerror("use of iota outside of constant initializer");
 		goto ret;
 
 	case ONONAME:
@@ -261,8 +263,8 @@ reswitch:
 	case OSUB:
 	case OXOR:
 		ok |= Erv;
-		l = typecheck(&n->left, Erv);
-		r = typecheck(&n->right, Erv);
+		l = typecheck(&n->left, Erv | (top & Eiota));
+		r = typecheck(&n->right, Erv | (top & Eiota));
 		if(l->type == T || r->type == T)
 			goto error;
 		op = n->op;
@@ -339,7 +341,7 @@ reswitch:
 	case ONOT:
 	case OPLUS:
 		ok |= Erv;
-		l = typecheck(&n->left, Erv);
+		l = typecheck(&n->left, Erv | (top & Eiota));
 		if((t = l->type) == T)
 			goto error;
 		if(!okfor[n->op][t->etype]) {
@@ -995,6 +997,8 @@ error:
 out:
 	lineno = lno;
 	n->typecheck = 1;
+	if(n->iota)
+		n->typecheck = 0;
 	*np = n;
 	return n;
 }

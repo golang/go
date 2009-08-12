@@ -160,7 +160,7 @@ walkdef(Node *n)
 			dump("walkdef nil defn", n);
 			yyerror("xxx");
 		}
-		typecheck(&e, Erv);
+		typecheck(&e, Erv | Eiota);
 		if(e->op != OLITERAL) {
 			yyerror("const initializer must be constant");
 			goto ret;
