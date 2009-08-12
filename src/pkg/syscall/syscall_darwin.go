@@ -11,10 +11,7 @@
 
 package syscall
 
-import (
-	"syscall";
-	"unsafe";
-)
+import "unsafe"
 
 const OS = "darwin"
 

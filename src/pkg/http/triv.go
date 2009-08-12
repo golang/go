@@ -10,7 +10,6 @@ import (
 	"exvar";
 	"flag";
 	"fmt";
-	"http";
 	"io";
 	"log";
 	"net";

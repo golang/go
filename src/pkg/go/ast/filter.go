@@ -5,7 +5,6 @@
 package ast
 
 import (
-	"go/ast";
 	"go/token";
 )
 
@@ -38,8 +37,6 @@ func isExportedType(typ Expr) bool {
 	return false;
 }
 
-
-func filterType(typ Expr)
 
 func filterFieldList(list []*Field) []*Field {
 	j := 0;

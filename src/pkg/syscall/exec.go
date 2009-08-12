@@ -8,7 +8,6 @@ package syscall
 
 import (
 	"sync";
-	"syscall";
 	"unsafe";
 )
 

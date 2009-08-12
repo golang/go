@@ -7,7 +7,6 @@ package tabwriter
 import (
 	"io";
 	"os";
-	"tabwriter";
 	"testing";
 )
 
@@ -47,7 +46,7 @@ func (b *buffer) String() string {
 }
 
 
-func write(t *testing.T, testname string, w *tabwriter.Writer, src string) {
+func write(t *testing.T, testname string, w *Writer, src string) {
 	written, err := io.WriteString(w, src);
 	if err != nil {
 		t.Errorf("--- test: %s\n--- src:\n%s\n--- write error: %v\n", testname, src, err);
@@ -58,7 +57,7 @@ func write(t *testing.T, testname string, w *tabwriter.Writer, src string) {
 }
 
 
-func verify(t *testing.T, testname string, w *tabwriter.Writer, b *buffer, src, expected string) {
+func verify(t *testing.T, testname string, w *Writer, b *buffer, src, expected string) {
 	err := w.Flush();
 	if err != nil {
 		t.Errorf("--- test: %s\n--- src:\n%s\n--- flush error: %v\n", testname, src, err);
@@ -75,7 +74,7 @@ func check(t *testing.T, testname string, tabwidth, padding int, padchar byte, f
 	var b buffer;
 	b.init(1000);
 
-	var w tabwriter.Writer;
+	var w Writer;
 	w.Init(&b, tabwidth, padding, padchar, flags);
 
 	// write all at once
@@ -143,7 +142,7 @@ var tests = []entry {
 
 	entry{
 		"4b",
-		8, 1, '.', tabwriter.AlignRight,
+		8, 1, '.', AlignRight,
 		"\t",  // '\t' terminates an empty cell on last line - nothing to print
 		""
 	},
@@ -171,7 +170,7 @@ var tests = []entry {
 
 	entry{
 		"5d",
-		8, 1, '.', tabwriter.AlignRight,
+		8, 1, '.', AlignRight,
 		"*\t*\t",
 		".......**"
 	},
@@ -220,14 +219,14 @@ var tests = []entry {
 
 	entry{
 		"7f",
-		8, 1, '.', tabwriter.FilterHTML,
+		8, 1, '.', FilterHTML,
 		"f) f&lt;o\t<b>bar</b>\t\n",
 		"f) f&lt;o..<b>bar</b>.....\n"
 	},
 
 	entry{
 		"7g",
-		8, 1, '.', tabwriter.FilterHTML,
+		8, 1, '.', FilterHTML,
 		"g) f&lt;o\t<b>bar</b>\t non-terminated entity &amp",
 		"g) f&lt;o..<b>bar</b>..... non-terminated entity &amp"
 	},
@@ -251,7 +250,7 @@ var tests = []entry {
 
 	entry{
 		"9b",
-		0, 0, '.', tabwriter.FilterHTML,
+		0, 0, '.', FilterHTML,
 		"1\t2<!---\f--->\t3\t4\n"  // \f inside HTML is ignored
 		"11\t222\t3333\t44444\n",
 
@@ -297,7 +296,7 @@ var tests = []entry {
 
 	entry{
 		"12a",
-		8, 1, ' ', tabwriter.AlignRight,
+		8, 1, ' ', AlignRight,
 		"a\tè\tc\t\n"
 		"aa\tèèè\tcccc\tddddd\t\n"
 		"aaa\tèèèè\t\n",
@@ -373,7 +372,7 @@ var tests = []entry {
 
 	entry{
 		"13c",
-		8, 1, '\t', tabwriter.FilterHTML,
+		8, 1, '\t', FilterHTML,
 		"4444\t333\t22\t1\t333\n"
 		"999999999\t22\n"
 		"7\t22\n"
@@ -393,7 +392,7 @@ var tests = []entry {
 
 	entry{
 		"14",
-		0, 2, ' ', tabwriter.AlignRight,
+		0, 2, ' ', AlignRight,
 		".0\t.3\t2.4\t-5.1\t\n"
 		"23.0\t12345678.9\t2.4\t-989.4\t\n"
 		"5.1\t12.0\t2.4\t-7.0\t\n"

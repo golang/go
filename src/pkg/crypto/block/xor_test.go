@@ -6,7 +6,6 @@ package block
 
 import (
 	"bytes";
-	"crypto/block";
 	"fmt";
 	"io";
 	"testing";

@@ -6,7 +6,6 @@ package net
 
 import (
 	"bufio";
-	"net";
 	"os";
 	"testing";
 )

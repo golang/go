@@ -13,12 +13,9 @@ package block
 import (
 	"bytes";
 	"crypto/aes";
-	"crypto/block";
 	"io";
 	"os";
 	"testing";
-
-	"./ecb_aes_test";
 )
 
 type ctrTest struct {
@@ -86,7 +83,7 @@ func TestCTR_AES(t *testing.T) {
 		for j := 0; j <= 5; j += 5 {
 			var crypt bytes.Buffer;
 			in := tt.in[0:len(tt.in) - j];
-			w := block.NewCTRWriter(c, tt.iv, &crypt);
+			w := NewCTRWriter(c, tt.iv, &crypt);
 			var r io.Reader = io.NewByteReader(in);
 			n, err := io.Copy(r, w);
 			if n != int64(len(in)) || err != nil {
@@ -99,7 +96,7 @@ func TestCTR_AES(t *testing.T) {
 		for j := 0; j <= 7; j += 7 {
 			var plain bytes.Buffer;
 			out := tt.out[0:len(tt.out) - j];
-			r := block.NewCTRReader(c, tt.iv, io.NewByteReader(out));
+			r := NewCTRReader(c, tt.iv, io.NewByteReader(out));
 			w := &plain;
 			n, err := io.Copy(r, w);
 			if n != int64(len(out)) || err != nil {

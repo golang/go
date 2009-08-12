@@ -9,7 +9,6 @@ package json
 import (
 	"container/vector";
 	"fmt";
-	"json";
 	"math";
 	"strconv";
 	"strings";

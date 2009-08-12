@@ -8,7 +8,6 @@ package log
 
 import (
 	"bufio";
-	"log";
 	"os";
 	"regexp";
 	"testing";

@@ -13,7 +13,6 @@ package block
 import (
 	"bytes";
 	"crypto/aes";
-	"crypto/block";
 	"io";
 	"os";
 	"testing";

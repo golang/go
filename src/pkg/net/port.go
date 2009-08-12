@@ -8,7 +8,6 @@ package net
 
 import (
 	"io";
-	"net";
 	"once";
 	"os";
 )

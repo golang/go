@@ -8,7 +8,6 @@ import (
 	"container/vector";
 	"fmt";
 	"go/ast";
-	"go/doc";
 	"go/token";
 	"io";
 	"regexp";
@@ -236,9 +235,6 @@ func (doc *docReader) addFile(src *ast.File) {
 	src.Comments = nil;  // consumed unassociated comments - remove from ast.File node
 }
 
-
-type PackageDoc struct
-func (doc *docReader) newDoc(pkgname, importpath, filepath string, filenames []string) *PackageDoc
 
 func NewFileDoc(file *ast.File) *PackageDoc {
 	var r docReader;

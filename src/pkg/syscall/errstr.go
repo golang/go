@@ -4,7 +4,6 @@
 
 package syscall
 
-import "syscall"
 
 func str(val int) string {  // do it here rather than with fmt to avoid dependency
 	if val < 0 {

@@ -409,8 +409,6 @@ func serveHTTP(c *http.Conn, req *http.Request) {
 	server.input(conn);
 }
 
-func debugHTTP(c *http.Conn, req *http.Request)
-
 // HandleHTTP registers an HTTP handler for RPC messages.
 // It is still necessary to invoke http.Serve(), typically in a go statement.
 func HandleHTTP() {

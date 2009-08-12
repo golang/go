@@ -15,7 +15,6 @@
 package block
 
 import (
-	"crypto/block";
 	"fmt";
 	"io";
 	"os";

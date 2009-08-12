@@ -8,8 +8,6 @@
 
 package md5
 
-import "crypto/md5"
-
 // table[i] = int((1<<32) * abs(sin(i+1 radians))).
 var table = []uint32 {
 	// round 1

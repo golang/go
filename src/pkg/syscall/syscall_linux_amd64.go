@@ -4,8 +4,6 @@
 
 package syscall
 
-import "syscall"
-
 //sys	Chown(path string, uid int, gid int) (errno int)
 //sys	Fchown(fd int, uid int, gid int) (errno int)
 //sys	Fstat(fd int, stat *Stat_t) (errno int)

@@ -5,7 +5,6 @@
 package bignum
 
 import (
-	"bignum";
 	"fmt";
 	"testing";
 )

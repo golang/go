@@ -11,7 +11,6 @@ package scanner
 import (
 	"bytes";
 	"go/token";
-	"go/scanner";
 	"strconv";
 	"unicode";
 	"utf8";

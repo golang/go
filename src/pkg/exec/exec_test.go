@@ -5,14 +5,13 @@
 package exec
 
 import (
-	"exec";
 	"io";
 	"testing";
 )
 
 func TestRunCat(t *testing.T) {
-	cmd, err := exec.Run("/bin/cat", []string{"cat"}, nil,
-		exec.Pipe, exec.Pipe, exec.DevNull);
+	cmd, err := Run("/bin/cat", []string{"cat"}, nil,
+		Pipe, Pipe, DevNull);
 	if err != nil {
 		t.Fatalf("opencmd /bin/cat: %v", err);
 	}
@@ -32,7 +31,7 @@ func TestRunCat(t *testing.T) {
 
 func TestRunEcho(t *testing.T) {
 	cmd, err := Run("/bin/echo", []string{"echo", "hello", "world"}, nil,
-		exec.DevNull, exec.Pipe, exec.DevNull);
+		DevNull, Pipe, DevNull);
 	if err != nil {
 		t.Fatalf("opencmd /bin/echo: %v", err);
 	}

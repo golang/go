@@ -4,10 +4,7 @@
 
 package syscall
 
-import (
-	"syscall";
-	"unsafe";
-)
+import "unsafe"
 
 func Getpagesize() int {
 	return 4096

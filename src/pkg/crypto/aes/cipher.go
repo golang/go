@@ -5,7 +5,6 @@
 package aes
 
 import (
-	"crypto/aes";
 	"os";
 	"strconv";
 )

@@ -5,7 +5,6 @@
 package strings
 
 import (
-	"strings";
 	"testing";
 )
 

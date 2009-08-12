@@ -7,7 +7,6 @@
 package net
 
 import (
-	"net";
 	"os";
 	"syscall";
 )

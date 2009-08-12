@@ -8,7 +8,6 @@ package tar
 // - catch more errors (no first header, write after close, etc.)
 
 import (
-	"archive/tar";
 	"bytes";
 	"io";
 	"os";
@@ -28,7 +27,7 @@ var (
 // writing at most hdr.Size bytes in total.
 //
 // Example:
-// 	tw := tar.NewWriter(w);
+//	tw := tar.NewWriter(w);
 //	hdr := new(Header);
 //	hdr.Size = length of data in bytes;
 //	// populate other hdr fields as desired

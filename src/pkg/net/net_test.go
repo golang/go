@@ -5,7 +5,6 @@
 package net
 
 import (
-	"net";
 	"os";
 	"regexp";
 	"testing";
@@ -55,7 +54,7 @@ var dialErrorTests = []DialErrorTest {
 
 func TestDialError(t *testing.T) {
 	for i, tt := range dialErrorTests {
-		c, e := net.Dial(tt.Net, tt.Laddr, tt.Raddr);
+		c, e := Dial(tt.Net, tt.Laddr, tt.Raddr);
 		if c != nil {
 			c.Close();
 		}

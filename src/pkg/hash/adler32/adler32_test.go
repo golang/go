@@ -5,7 +5,6 @@
 package adler32
 
 import (
-	"hash/adler32";
 	"io";
 	"testing";
 )

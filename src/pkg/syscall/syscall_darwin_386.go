@@ -4,8 +4,6 @@
 
 package syscall
 
-import "syscall"
-
 func Getpagesize() int {
 	return 4096
 }

@@ -14,7 +14,6 @@ package http
 import (
 	"bufio";
 	"fmt";
-	"http";
 	"io";
 	"log";
 	"net";
@@ -69,8 +68,6 @@ func newConn(rwc io.ReadWriteCloser, raddr string, handler Handler) (c *Conn, er
 	c.buf = bufio.NewReadWriter(br, bw);
 	return c, nil
 }
-
-func (c *Conn) SetHeader(hdr, val string)
 
 // Read next request from connection.
 func (c *Conn) readRequest() (req *Request, err os.Error) {
@@ -547,7 +544,6 @@ func Serve(l net.Listener, handler Handler) os.Error {
 //	package main
 //
 //	import (
-//		"http";
 //		"io";
 //	)
 //

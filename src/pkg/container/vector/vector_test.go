@@ -4,7 +4,6 @@
 
 package vector
 
-import "container/vector"
 import "testing"
 import "sort"
 import "fmt"

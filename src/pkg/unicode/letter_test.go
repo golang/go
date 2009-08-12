@@ -4,10 +4,7 @@
 
 package unicode
 
-import (
-	"testing";
-	"unicode";
-)
+import "testing"
 
 var upper = []int{
 	0x41,

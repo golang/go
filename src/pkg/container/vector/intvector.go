@@ -4,7 +4,6 @@
 
 package vector
 
-import "container/vector"
 
 // IntVector is a specialization of Vector that hides the wrapping of Elements around ints.
 type IntVector struct {

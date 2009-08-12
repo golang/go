@@ -8,7 +8,6 @@ package http
 
 import (
 	"fmt";
-	"http";
 	"io";
 	"os";
 	"path";

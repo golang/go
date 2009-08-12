@@ -13,7 +13,6 @@
 package net
 
 import (
-	"net"
 )
 
 // IP address lengths (bytes).

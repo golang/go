@@ -5,7 +5,6 @@
 package net
 
 import (
-	"net";
 	"testing"
 )
 

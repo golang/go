@@ -6,7 +6,6 @@
 
 package bignum
 
-import "bignum"
 import "fmt"
 
 
@@ -179,7 +178,7 @@ func (x *Rational) Format(h fmt.State, c int) {
 // of the numerator is returned. If the mantissa contains a decimal point,
 // the base for the fractional part is the same as for the part before the
 // decimal point and the fractional part does not accept a base prefix.
-// The base for the exponent is always 10. 
+// The base for the exponent is always 10.
 //
 func RatFromString(s string, base uint) (*Rational, uint, int) {
 	// read numerator

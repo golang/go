@@ -12,7 +12,6 @@ import (
 	"log";
 	"net";
 	"os";
-	"rpc";
 	"strconv";
 	"sync";
 )

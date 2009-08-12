@@ -5,7 +5,6 @@
 package ebnf
 
 import (
-	"ebnf";
 	"io";
 	"strings";
 	"testing";

@@ -457,8 +457,6 @@ func (p *printer) lineComment(d *ast.CommentGroup) {
 }
 
 
-func (p *printer) expr(x ast.Expr) bool
-
 func (p *printer) identList(list []*ast.Ident) {
 	for i, x := range list {
 		if i > 0 {
@@ -594,8 +592,6 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 
 // ----------------------------------------------------------------------------
 // Expressions
-
-func (p *printer) stmt(s ast.Stmt) (optSemi bool)
 
 // Returns true if a separating semicolon is optional.
 func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
@@ -780,8 +776,6 @@ func (p *printer) expr(x ast.Expr) bool {
 
 // ----------------------------------------------------------------------------
 // Statements
-
-func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
 
 // Print the statement list indented, but without a newline after the last statement.
 func (p *printer) stmtList(list []ast.Stmt) {

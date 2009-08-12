@@ -63,7 +63,6 @@ import (
 	"reflect";
 	"runtime";
 	"strings";
-	"template";
 )
 
 // Errors returned during parsing and execution.  Users may extract the information and reformat
@@ -442,8 +441,7 @@ func (t *Template) parseSimple(item []byte) (done bool, tok int, w []string) {
 	return false, tok, w
 }
 
-// parseSection and parseRepeated are mutually recursive
-func (t *Template) parseSection(words []string) *sectionElement
+// parseRepeated and parseSection are mutually recursive
 
 func (t *Template) parseRepeated(words []string) *repeatedElement {
 	r := new(repeatedElement);
@@ -640,10 +638,6 @@ func (t *Template) writeVariable(v *variableElement, st *state) {
 	}
 	t.execError(st, v.linenum, "missing formatter %s for variable %s", v.formatter, v.name)
 }
-
-// execute{|Element|Section|Repeated} are mutually recursive
-func (t *Template) executeSection(s *sectionElement, st *state)
-func (t *Template) executeRepeated(r *repeatedElement, st *state)
 
 // Execute element i.  Return next index to execute.
 func (t *Template) executeElement(i int, st *state) int {

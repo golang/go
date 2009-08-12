@@ -4,10 +4,7 @@
 
 package unicode
 
-import (
-	"testing";
-	"unicode";
-)
+import "testing"
 
 // To get data:
 //	grep '^....;[^;]*;Nd;' UnicodeData.txt

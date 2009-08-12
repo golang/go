@@ -5,7 +5,6 @@
 package path
 
 import (
-	"path";
 	"testing"
 )
 
@@ -120,7 +119,6 @@ type ExtTest struct {
 var exttests = []ExtTest {
 	ExtTest{"path.go", ".go"},
 	ExtTest{"path.pb.go", ".go"},
-	ExtTest{"path", ""},
 	ExtTest{"a.dir/b", ""},
 	ExtTest{"a.dir/b.go", ".go"},
 	ExtTest{"a.dir/", ""},

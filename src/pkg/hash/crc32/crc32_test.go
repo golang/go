@@ -5,7 +5,6 @@
 package crc32
 
 import (
-	"hash/crc32";
 	"io";
 	"testing";
 )
