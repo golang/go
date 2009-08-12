@@ -87,9 +87,6 @@ func (m *HashMap) Probe (key *KeyType) *Entry {
 }
 
 
-func (m *HashMap) Resize();
-
-
 func (m *HashMap) Lookup (key *KeyType, insert bool) *Entry {
 	// Find a matching entry.
 	var p *Entry = m.Probe(key);

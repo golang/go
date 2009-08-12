@@ -41,8 +41,6 @@ var chnames string
 var chnameserial int
 var seqno int
 
-func Init();
-
 func mkdch() *dch {
 	c := chnameserial % len(chnames);
 	chnameserial++;
@@ -428,7 +426,7 @@ func Poly(a []rat) PS {
 */
 
 // Multiply. The algorithm is
-// 	let U = u + x*UU
+//	let U = u + x*UU
 //	let V = v + x*VV
 //	then UV = u*v + x*(u*VV+v*UU) + x*x*UU*VV
 
@@ -547,7 +545,7 @@ func Exp(U PS) PS {
 // Substitute V for x in U, where the leading term of V is zero
 //	let U = u + x*UU
 //	let V = v + x*VV
-// 	then S(U,V) = u + VV*S(V,UU)
+//	then S(U,V) = u + VV*S(V,UU)
 // bug: a nonzero constant term is ignored
 
 func Subst(U, V PS) PS {
