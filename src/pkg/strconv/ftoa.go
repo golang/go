@@ -10,10 +10,7 @@
 
 package strconv
 
-import (
-	"math";
-	"strconv";
-)
+import "math"
 
 // TODO: move elsewhere?
 type floatInfo struct {
@@ -23,13 +20,6 @@ type floatInfo struct {
 }
 var float32info = floatInfo{ 23, 8, -127 }
 var float64info = floatInfo{ 52, 11, -1023 }
-
-func fmtB(neg bool, mant uint64, exp int, flt *floatInfo) string
-func fmtE(neg bool, d *decimal, prec int) string
-func fmtF(neg bool, d *decimal, prec int) string
-func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string
-func max(a, b int) int
-func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo)
 
 func floatsize() int {
 	// Figure out whether float is float32 or float64.

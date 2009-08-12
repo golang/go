@@ -4,7 +4,6 @@
 
 package math
 
-import "math"
 
 // Atan returns the arc tangent of y/x, using
 // the signs of the two to determine the quadrant

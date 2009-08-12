@@ -8,7 +8,6 @@ package os
 
 import (
 	"once";
-	"os";
 )
 
 // ENOENV is the Error indicating that an environment variable does not exist.

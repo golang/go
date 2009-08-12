@@ -4,10 +4,7 @@
 
 package os
 
-import (
-	"os";
-	"syscall"
-)
+import "syscall"
 
 
 // Time returns the current time, in whole seconds and

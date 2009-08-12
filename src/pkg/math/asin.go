@@ -4,7 +4,6 @@
 
 package math
 
-import "math"
 
 /*
  * asin(arg) and acos(arg) return the arcsin, arccos,

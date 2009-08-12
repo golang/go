@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package io
+package io_test
 
 import (
 	"fmt";
-	"io";
+	. "io";
 	"os";
 	"strings";
 	"testing";
@@ -84,6 +84,11 @@ func TestPipe2(t *testing.T) {
 	}
 }
 
+type pipeReturn struct {
+	n int;
+	err os.Error;
+}
+
 // Test a large write that requires multiple reads to satisfy.
 func writer(w WriteCloser, buf []byte, c chan pipeReturn) {
 	n, err := w.Write(buf);
@@ -156,10 +161,10 @@ func (p pipeTest) String() string {
 var pipeTests = []pipeTest {
 	pipeTest{ true, nil, false },
 	pipeTest{ true, nil, true },
-	pipeTest{ true, io.ErrShortWrite, true },
+	pipeTest{ true, ErrShortWrite, true },
 	pipeTest{ false, nil, false },
 	pipeTest{ false, nil, true },
-	pipeTest{ false, io.ErrShortWrite, true },
+	pipeTest{ false, ErrShortWrite, true },
 }
 
 func delayClose(t *testing.T, cl closer, ch chan int, tt pipeTest) {

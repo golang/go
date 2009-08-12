@@ -9,7 +9,6 @@
 package os
 
 import (
-	"os";
 	"syscall";
 	"unsafe";
 )
@@ -27,7 +26,6 @@ func clen(n []byte) int {
 	return len(n)
 }
 
-// Negative count means read until EOF.
 func (file *File) Readdirnames(count int) (names []string, err Error) {
 	// If this file has no dirinfo, create one.
 	if file.dirinfo == nil {

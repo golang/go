@@ -4,7 +4,6 @@
 
 package math
 
-import "math"
 
 /*
  *	Sinh(x) returns the hyperbolic sine of x

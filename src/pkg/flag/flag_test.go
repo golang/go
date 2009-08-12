@@ -2,21 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package flag
+package flag_test
 
 import (
-	"flag";
+	. "flag";
 	"fmt";
 	"testing";
 )
 
 var (
-	test_bool = flag.Bool("test_bool", false, "bool value");
-	test_int = flag.Int("test_int", 0, "int value");
-	test_int64 = flag.Int64("test_int64", 0, "int64 value");
-	test_uint = flag.Uint("test_uint", 0, "uint value");
-	test_uint64 = flag.Uint64("test_uint64", 0, "uint64 value");
-	test_string = flag.String("test_string", "0", "string value");
+	test_bool = Bool("test_bool", false, "bool value");
+	test_int = Int("test_int", 0, "int value");
+	test_int64 = Int64("test_int64", 0, "int64 value");
+	test_uint = Uint("test_uint", 0, "uint value");
+	test_uint64 = Uint64("test_uint64", 0, "uint64 value");
+	test_string = String("test_string", "0", "string value");
 )
 
 func boolString(s string) string {
@@ -27,9 +27,9 @@ func boolString(s string) string {
 }
 
 func TestEverything(t *testing.T) {
-	m := make(map[string] *flag.Flag);
+	m := make(map[string] *Flag);
 	desired := "0";
-	visitor := func(f *flag.Flag) {
+	visitor := func(f *Flag) {
 		if len(f.Name) > 5 && f.Name[0:5] == "test_" {
 			m[f.Name] = f;
 			ok := false;
@@ -40,36 +40,36 @@ func TestEverything(t *testing.T) {
 				ok = true;
 			}
 			if !ok {
-				t.Error("flag.Visit: bad value", f.Value.String(), "for", f.Name);
+				t.Error("Visit: bad value", f.Value.String(), "for", f.Name);
 			}
 		}
 	};
-	flag.VisitAll(visitor);
+	VisitAll(visitor);
 	if len(m) != 6 {
-		t.Error("flag.VisitAll misses some flags");
+		t.Error("VisitAll misses some flags");
 		for k, v := range m {
 			t.Log(k, *v)
 		}
 	}
-	m = make(map[string] *flag.Flag);
-	flag.Visit(visitor);
+	m = make(map[string] *Flag);
+	Visit(visitor);
 	if len(m) != 0 {
-		t.Errorf("flag.Visit sees unset flags");
+		t.Errorf("Visit sees unset flags");
 		for k, v := range m {
 			t.Log(k, *v)
 		}
 	}
 	// Now set all flags
-	flag.Set("test_bool", "true");
-	flag.Set("test_int", "1");
-	flag.Set("test_int64", "1");
-	flag.Set("test_uint", "1");
-	flag.Set("test_uint64", "1");
-	flag.Set("test_string", "1");
+	Set("test_bool", "true");
+	Set("test_int", "1");
+	Set("test_int64", "1");
+	Set("test_uint", "1");
+	Set("test_uint64", "1");
+	Set("test_string", "1");
 	desired = "1";
-	flag.Visit(visitor);
+	Visit(visitor);
 	if len(m) != 6 {
-		t.Error("flag.Visit fails after set");
+		t.Error("Visit fails after set");
 		for k, v := range m {
 			t.Log(k, *v)
 		}

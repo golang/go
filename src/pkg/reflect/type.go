@@ -226,11 +226,6 @@ type StructType struct {
  * The compiler does not know about the data structures and methods below.
  */
 
-type Type interface
-type addr unsafe.Pointer
-type FuncValue struct
-func newFuncValue(typ Type, addr addr, canSet bool) *FuncValue
-
 // Method represents a single method.
 type Method struct {
 	PkgPath string;		// empty for uppercase Name
@@ -280,8 +275,6 @@ type Type interface {
 
 	uncommon() *uncommonType;
 }
-
-func toType(i interface{}) Type
 
 func (t *uncommonType) uncommon() *uncommonType {
 	return t;

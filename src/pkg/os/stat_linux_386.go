@@ -10,10 +10,7 @@
 
 package os
 
-import (
-	"os";
-	"syscall";
-)
+import "syscall"
 
 func isSymlink(stat *syscall.Stat_t) bool {
 	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK

@@ -3,10 +3,8 @@
 // license that can be found in the LICENSE file.
 
 package strconv
-import (
-	"os";
-	"strconv"
-)
+
+import "os"
 
 type NumError struct {
 	Num string;
@@ -25,7 +23,7 @@ func computeIntsize() uint {
 	}
 	return siz
 }
-var intsize = computeIntsize();
+var IntSize = computeIntsize();
 
 // Return the first number n such that n*base >= 1<<64.
 func cutoff64(base int) uint64 {
@@ -189,9 +187,9 @@ func Atoi(s string) (i int, err os.Error) {
 	i = int(i1);
 	if int64(i) != i1 {
 		if i1 < 0 {
-			return -1<<(intsize-1), &NumError{s, os.ERANGE}
+			return -1<<(IntSize-1), &NumError{s, os.ERANGE}
 		}
-		return 1<<(intsize-1) - 1, &NumError{s, os.ERANGE}
+		return 1<<(IntSize-1) - 1, &NumError{s, os.ERANGE}
 	}
 	return i, nil
 }

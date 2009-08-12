@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package strconv
+package strconv_test
 
 import (
 	"fmt";
-	"strconv";
+	. "strconv";
 	"testing";
 )
 
@@ -33,7 +33,7 @@ func TestDecimalShift(t *testing.T) {
 	ok := true;
 	for i := 0; i < len(shifttests); i++ {
 		test := &shifttests[i];
-		s := strconv.newDecimal(test.i).Shift(test.shift).String();
+		s := NewDecimal(test.i).Shift(test.shift).String();
 		if s != test.out {
 			t.Errorf("Decimal %v << %v = %v, want %v\n",
 				test.i, test.shift, s, test.out);
@@ -69,17 +69,17 @@ var roundtests = []roundTest {
 func TestDecimalRound(t *testing.T) {
 	for i := 0; i < len(roundtests); i++ {
 		test := &roundtests[i];
-		s := strconv.newDecimal(test.i).RoundDown(test.nd).String();
+		s := NewDecimal(test.i).RoundDown(test.nd).String();
 		if s != test.down {
 			t.Errorf("Decimal %v RoundDown %d = %v, want %v\n",
 				test.i, test.nd, s, test.down);
 		}
-		s = strconv.newDecimal(test.i).Round(test.nd).String();
+		s = NewDecimal(test.i).Round(test.nd).String();
 		if s != test.round {
 			t.Errorf("Decimal %v Round %d = %v, want %v\n",
 				test.i, test.nd, s, test.down);
 		}
-		s = strconv.newDecimal(test.i).RoundUp(test.nd).String();
+		s = NewDecimal(test.i).RoundUp(test.nd).String();
 		if s != test.up {
 			t.Errorf("Decimal %v RoundUp %d = %v, want %v\n",
 				test.i, test.nd, s, test.up);
@@ -109,11 +109,10 @@ var roundinttests = []roundIntTest {
 func TestDecimalRoundedInteger(t *testing.T) {
 	for i := 0; i < len(roundinttests); i++ {
 		test := roundinttests[i];
-		// TODO: should be able to use int := here.
-		int1 := strconv.newDecimal(test.i).Shift(test.shift).RoundedInteger();
-		if int1 != test.int {
+		int := NewDecimal(test.i).Shift(test.shift).RoundedInteger();
+		if int != test.int {
 			t.Errorf("Decimal %v >> %v RoundedInteger = %v, want %v\n",
-				test.i, test.shift, int1, test.int);
+				test.i, test.shift, int, test.int);
 		}
 	}
 }

@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Reflection library.
 // Formatting of reflection types and values for debugging.
 // Not defined as methods so they do not need to be linked into most binaries;
 // the functions are not used by the library itself, only in tests.
 
-package reflect
+package reflect_test
 
 import (
-	"reflect";
+	. "reflect";
 	"strconv";
 )
 
@@ -113,7 +112,7 @@ func valueToString(val Value) string {
 		v := val;
 		return typ.String() + "(" + strconv.Itoa64(int64(v.Get())) + ")";
 	default:
-		panicln("reflect.valueToString: can't print type ", typ.String());
+		panicln("valueToString: can't print type ", typ.String());
 	}
-	return "reflect.valueToString: can't happen";
+	return "valueToString: can't happen";
 }

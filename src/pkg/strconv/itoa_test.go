@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package strconv
+package strconv_test
 
 import (
 	"fmt";
 	"os";
-	"strconv";
+	. "strconv";
 	"testing";
 )
 
@@ -61,62 +61,62 @@ var itob64tests = []itob64Test {
 
 func TestItoa(t *testing.T) {
 	for i, test := range itob64tests {
-		s := strconv.Itob64(test.in, test.base);
+		s := Itob64(test.in, test.base);
 		if s != test.out {
-			t.Errorf("strconv.Itob64(%v, %v) = %v want %v\n",
+			t.Errorf("Itob64(%v, %v) = %v want %v\n",
 				test.in, test.base, s, test.out);
 		}
 
 		if test.in >= 0 {
-			s := strconv.Uitob64(uint64(test.in), test.base);
+			s := Uitob64(uint64(test.in), test.base);
 			if s != test.out {
-				t.Errorf("strconv.Uitob64(%v, %v) = %v want %v\n",
+				t.Errorf("Uitob64(%v, %v) = %v want %v\n",
 					test.in, test.base, s, test.out);
 			}
 		}
 
 		if int64(int(test.in)) == test.in {
-			s := strconv.Itob(int(test.in), test.base);
+			s := Itob(int(test.in), test.base);
 			if s != test.out {
-				t.Errorf("strconv.Itob(%v, %v) = %v want %v\n",
+				t.Errorf("Itob(%v, %v) = %v want %v\n",
 					test.in, test.base, s, test.out);
 			}
 
 			if test.in >= 0  {
-				s := strconv.Uitob(uint(test.in), test.base);
+				s := Uitob(uint(test.in), test.base);
 				if s != test.out {
-					t.Errorf("strconv.Uitob(%v, %v) = %v want %v\n",
+					t.Errorf("Uitob(%v, %v) = %v want %v\n",
 						test.in, test.base, s, test.out);
 				}
 			}
 		}
 
 		if test.base == 10 {
-			s := strconv.Itoa64(test.in);
+			s := Itoa64(test.in);
 			if s != test.out {
-				t.Errorf("strconv.Itoa64(%v) = %v want %v\n",
+				t.Errorf("Itoa64(%v) = %v want %v\n",
 					test.in, s, test.out);
 			}
 
 			if test.in >= 0 {
-				s := strconv.Uitob64(uint64(test.in), test.base);
+				s := Uitob64(uint64(test.in), test.base);
 				if s != test.out {
-					t.Errorf("strconv.Uitob64(%v, %v) = %v want %v\n",
+					t.Errorf("Uitob64(%v, %v) = %v want %v\n",
 						test.in, test.base, s, test.out);
 				}
 			}
 
 			if int64(int(test.in)) == test.in {
-				s := strconv.Itoa(int(test.in));
+				s := Itoa(int(test.in));
 				if s != test.out {
-					t.Errorf("strconv.Itoa(%v) = %v want %v\n",
+					t.Errorf("Itoa(%v) = %v want %v\n",
 						test.in, s, test.out);
 				}
 
 				if test.in >= 0 {
-					s := strconv.Uitoa(uint(test.in));
+					s := Uitoa(uint(test.in));
 					if s != test.out {
-						t.Errorf("strconv.Uitoa(%v) = %v want %v\n",
+						t.Errorf("Uitoa(%v) = %v want %v\n",
 							test.in, s, test.out);
 					}
 				}
@@ -141,31 +141,31 @@ var uitob64tests = []uitob64Test {
 
 func TestUitoa(t *testing.T) {
 	for i, test := range uitob64tests {
-		s := strconv.Uitob64(test.in, test.base);
+		s := Uitob64(test.in, test.base);
 		if s != test.out {
-			t.Errorf("strconv.Uitob64(%v, %v) = %v want %v\n",
+			t.Errorf("Uitob64(%v, %v) = %v want %v\n",
 				test.in, test.base, s, test.out);
 		}
 
 		if uint64(uint(test.in)) == test.in {
-			s := strconv.Uitob(uint(test.in), test.base);
+			s := Uitob(uint(test.in), test.base);
 			if s != test.out {
-				t.Errorf("strconv.Uitob(%v, %v) = %v want %v\n",
+				t.Errorf("Uitob(%v, %v) = %v want %v\n",
 					test.in, test.base, s, test.out);
 			}
 		}
 
 		if test.base == 10 {
-			s := strconv.Uitoa64(test.in);
+			s := Uitoa64(test.in);
 			if s != test.out {
-				t.Errorf("strconv.Uitoa64(%v) = %v want %v\n",
+				t.Errorf("Uitoa64(%v) = %v want %v\n",
 					test.in, s, test.out);
 			}
 
 			if uint64(uint(test.in)) == test.in {
-				s := strconv.Uitoa(uint(test.in));
+				s := Uitoa(uint(test.in));
 				if s != test.out {
-					t.Errorf("strconv.Uitoa(%v) = %v want %v\n",
+					t.Errorf("Uitoa(%v) = %v want %v\n",
 						test.in, s, test.out);
 				}
 			}

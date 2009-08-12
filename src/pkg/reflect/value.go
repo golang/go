@@ -5,14 +5,13 @@
 package reflect
 
 import (
-	"reflect";
 	"runtime";
 	"unsafe";
 )
 
 const ptrSize = uintptr(unsafe.Sizeof((*byte)(nil)))
-
 const cannotSet = "cannot set value obtained via unexported struct field"
+type addr unsafe.Pointer
 
 // TODO: This will have to go away when
 // the new gc goes in.
@@ -72,8 +71,6 @@ type Value interface {
 	getAddr()	addr;
 }
 
-func MakeZero(typ Type) Value
-
 type value struct {
 	typ Type;
 	addr addr;
@@ -91,11 +88,6 @@ func (v *value) Addr() uintptr {
 func (v *value) getAddr() addr {
 	return v.addr;
 }
-
-func (v *value) Method(i int) *FuncValue
-
-type InterfaceValue struct
-type StructValue struct
 
 func (v *value) Interface() interface{} {
 	if typ, ok := v.typ.(*InterfaceType); ok {
@@ -116,9 +108,6 @@ func (v *value) Interface() interface{} {
 func (v *value) CanSet() bool {
 	return v.canSet;
 }
-
-func newValue(typ Type, addr addr, canSet bool) Value
-func NewValue(i interface{}) Value
 
 /*
  * basic types
@@ -420,7 +409,6 @@ type UnsafePointerValue struct {
 // Get returns the underlying uintptr value.
 // Get returns uintptr, not unsafe.Pointer, so that
 // programs that do not import "unsafe" cannot
-// obtain a value of unsafe.Pointer type from "reflect".
 func (v *UnsafePointerValue) Get() uintptr {
 	return uintptr(*(*unsafe.Pointer)(v.addr));
 }

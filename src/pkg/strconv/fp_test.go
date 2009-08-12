@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package strconv
+package strconv_test
 import (
 	"bufio";
 	"fmt";
@@ -144,6 +144,5 @@ func TestFp(t *testing.T) {
 			t.Error("testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
 				"want ", a[3], " got ", s);
 		}
-//else print("testfp.txt:", lineno, ": worked! ", s, "\n");
 	}
 }

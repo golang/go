@@ -6,7 +6,6 @@ package time
 
 import (
 	"syscall";
-	"time";
 	"unsafe";
 )
 

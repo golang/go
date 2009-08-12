@@ -4,7 +4,6 @@
 
 package math
 
-import "math"
 
 /*
  *	floating point tangent

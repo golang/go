@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package reflect
+package reflect_test
 
 import (
 	"io";
 	"os";
-	"reflect";
+	. "reflect";
 	"testing";
 	"unsafe";
 )
@@ -50,14 +50,14 @@ var typeTests = []pair {
 	pair { struct { x float64 }{}, "float64" },
 	pair { struct { x int8 }{}, "int8" },
 	pair { struct { x (**int8) }{}, "**int8" },
-	pair { struct { x (**reflect.integer) }{}, "**reflect.integer" },
+	pair { struct { x (**integer) }{}, "**reflect_test.integer" },
 	pair { struct { x ([32]int32) }{}, "[32]int32" },
 	pair { struct { x ([]int8) }{}, "[]int8" },
 	pair { struct { x (map[string]int32) }{}, "map[string] int32" },
 	pair { struct { x (chan<-string) }{}, "chan<- string" },
 	pair { struct { x struct {c chan *int32; d float32} }{}, "struct { c chan *int32; d float32 }" },
 	pair { struct { x (func(a int8, b int32)) }{}, "func(int8, int32)" },
-	pair { struct { x struct {c func(chan *reflect.integer, *int8)} }{}, "struct { c func(chan *reflect.integer, *int8) }" },
+	pair { struct { x struct {c func(chan *integer, *int8)} }{}, "struct { c func(chan *reflect_test.integer, *int8) }" },
 	pair { struct { x struct {a int8; b int32} }{}, "struct { a int8; b int32 }" },
 	pair { struct { x struct {a int8; b int8; c int32} }{}, "struct { a int8; b int8; c int32 }" },
 	pair { struct { x struct {a int8; b int8; c int8; d int32} }{}, "struct { a int8; b int8; c int8; d int32 }" },
@@ -85,12 +85,12 @@ var valueTests = []pair {
 	pair { (*int8)(nil), "*int8(0)" },
 	pair { (**int8)(nil), "**int8(0)" },
 	pair { ([5]int32){}, "[5]int32{0, 0, 0, 0, 0}" },
-	pair { (**reflect.integer)(nil), "**reflect.integer(0)" },
+	pair { (**integer)(nil), "**reflect_test.integer(0)" },
 	pair { (map[string]int32)(nil), "map[string] int32{<can't iterate on maps>}" },
 	pair { (chan<-string)(nil), "chan<- string" },
 	pair { (struct {c chan *int32; d float32}){}, "struct { c chan *int32; d float32 }{chan *int32, 0}" },
 	pair { (func(a int8, b int32))(nil), "func(int8, int32)(0)" },
-	pair { (struct {c func(chan *reflect.integer, *int8)}){}, "struct { c func(chan *reflect.integer, *int8) }{func(chan *reflect.integer, *int8)(0)}" },
+	pair { (struct {c func(chan *integer, *int8)}){}, "struct { c func(chan *reflect_test.integer, *int8) }{func(chan *reflect_test.integer, *int8)(0)}" },
 	pair { (struct {a int8; b int32}){}, "struct { a int8; b int32 }{0, 0}" },
 	pair { (struct {a int8; b int8; c int32}){}, "struct { a int8; b int8; c int32 }{0, 0, 0}" },
 }
@@ -112,35 +112,35 @@ func TestValue(t *testing.T) {
 	for i, tt := range valueTests {
 		v := NewValue(tt.i);
 		switch v := v.(type) {
-		case *reflect.IntValue:
+		case *IntValue:
 			v.Set(132);
-		case *reflect.Int8Value:
+		case *Int8Value:
 			v.Set(8);
-		case *reflect.Int16Value:
+		case *Int16Value:
 			v.Set(16);
-		case *reflect.Int32Value:
+		case *Int32Value:
 			v.Set(32);
-		case *reflect.Int64Value:
+		case *Int64Value:
 			v.Set(64);
-		case *reflect.UintValue:
+		case *UintValue:
 			v.Set(132);
-		case *reflect.Uint8Value:
+		case *Uint8Value:
 			v.Set(8);
-		case *reflect.Uint16Value:
+		case *Uint16Value:
 			v.Set(16);
-		case *reflect.Uint32Value:
+		case *Uint32Value:
 			v.Set(32);
-		case *reflect.Uint64Value:
+		case *Uint64Value:
 			v.Set(64);
-		case *reflect.FloatValue:
+		case *FloatValue:
 			v.Set(3200.0);
-		case *reflect.Float32Value:
+		case *Float32Value:
 			v.Set(32.1);
-		case *reflect.Float64Value:
+		case *Float64Value:
 			v.Set(64.2);
-		case *reflect.StringValue:
+		case *StringValue:
 			v.Set("stringy cheese");
-		case *reflect.BoolValue:
+		case *BoolValue:
 			v.Set(true);
 		}
 		s := valueToString(v);
@@ -157,8 +157,8 @@ var valueToStringTests = []pair {
 	pair { 123.4, "123.4" },
 	pair { byte(123), "123" },
 	pair { "abc", "abc" },
-	pair { T{123, 456.75, "hello", &_i}, "reflect.T{123, 456.75, hello, *int(&7)}" },
-	pair { new(chan *T), "*chan *reflect.T(&chan *reflect.T)" },
+	pair { T{123, 456.75, "hello", &_i}, "reflect_test.T{123, 456.75, hello, *int(&7)}" },
+	pair { new(chan *T), "*chan *reflect_test.T(&chan *reflect_test.T)" },
 	pair { [10]int{1,2,3,4,5,6,7,8,9,10}, "[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}" },
 	pair { &[10]int{1,2,3,4,5,6,7,8,9,10}, "*[10]int(&[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})" },
 	pair { []int{1,2,3,4,5,6,7,8,9,10}, "[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}" },
@@ -771,7 +771,7 @@ func (p Point) Dist(scale int) int {
 func TestMethod(t *testing.T) {
 	// Non-curried method of type.
 	p := Point{3, 4};
-	i := reflect.Typeof(p).Method(0).Func.Call([]Value{NewValue(p), NewValue(10)})[0].(*IntValue).Get();
+	i := Typeof(p).Method(0).Func.Call([]Value{NewValue(p), NewValue(10)})[0].(*IntValue).Get();
 	if i != 250 {
 		t.Errorf("Type Method returned %d; want 250", i);
 	}
@@ -812,7 +812,7 @@ func TestInterfaceSet(t *testing.T) {
 	if q := s.P.(*Point); q != p {
 		t.Errorf("i: have %p want %p", q, p);
 	}
-	
+
 	i := pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get();
 	if i != 250 {
 		t.Errorf("Interface Method returned %d; want 250", i);
@@ -907,7 +907,7 @@ func TestFieldByIndex(t *testing.T) {
 		}
 
 		if test.value != 0 {
-			v := reflect.NewValue(test.s).(*reflect.StructValue).FieldByIndex(test.index);
+			v := NewValue(test.s).(*StructValue).FieldByIndex(test.index);
 			if v != nil {
 				if x, ok := v.Interface().(int); ok {
 					if x != test.value {
@@ -945,9 +945,9 @@ func TestFieldByName(t *testing.T) {
 		} else if len(test.index) > 0 {
 			t.Errorf("%s.%s not found", s.Name(), test.name);
 		}
-		
+
 		if test.value != 0 {
-			v := reflect.NewValue(test.s).(*reflect.StructValue).FieldByName(test.name);
+			v := NewValue(test.s).(*StructValue).FieldByName(test.name);
 			if v != nil {
 				if x, ok := v.Interface().(int); ok {
 					if x != test.value {

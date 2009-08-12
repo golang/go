@@ -5,7 +5,6 @@
 package os
 
 import (
-	"os";
 	"syscall";
 	"unsafe";
 )
@@ -14,7 +13,6 @@ const (
 	blockSize = 4096	// TODO(r): use statfs
 )
 
-// Negative count means read until EOF.
 func (file *File) Readdirnames(count int) (names []string, err Error) {
 	// If this file has no dirinfo, create one.
 	if file.dirinfo == nil {

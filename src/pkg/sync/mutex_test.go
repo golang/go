@@ -4,17 +4,17 @@
 
 // GOMAXPROCS=10 gotest
 
-package sync
+package sync_test
 
 import (
-	"sync";
+	. "sync";
 	"testing"
 )
 
 func HammerSemaphore(s *int32, cdone chan bool) {
 	for i := 0; i < 1000; i++ {
-		semacquire(s);
-		semrelease(s);
+		Semacquire(s);
+		Semrelease(s);
 	}
 	cdone <- true;
 }
