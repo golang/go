@@ -36,13 +36,6 @@ import (
 // node sizes a bit.
 
 
-type (
-	ExprVisitor interface;
-	StmtVisitor interface;
-	DeclVisitor interface;
-)
-
-
 // All expression nodes implement the Expr interface.
 type Expr interface {
 	// For a (dynamic) node type X, calling Visit with an expression
@@ -101,24 +94,17 @@ type CommentGroup struct {
 // ----------------------------------------------------------------------------
 // Expressions and types
 
-// Support types.
-type (
-	Ident struct;
-	StringLit struct;
-	FuncType struct;
-	BlockStmt struct;
-
-	// A Field represents a Field declaration list in a struct type,
-	// a method in an interface type, or a parameter/result declaration
-	// in a signature.
-	Field struct {
-		Doc *CommentGroup;  // associated documentation; or nil
-		Names []*Ident;  // field/method/parameter names; nil if anonymous field
-		Type Expr;  // field/method/parameter type
-		Tag []*StringLit;  // field tag; or nil
-		Comment *CommentGroup;  // line comments; or nil
-	};
-)
+// A Field represents a Field declaration list in a struct type,
+// a method in an interface type, or a parameter/result declaration
+// in a signature.
+//
+type Field struct {
+	Doc *CommentGroup;  // associated documentation; or nil
+	Names []*Ident;  // field/method/parameter names; nil if anonymous field
+	Type Expr;  // field/method/parameter type
+	Tag []*StringLit;  // field tag; or nil
+	Comment *CommentGroup;  // line comments; or nil
+};
 
 
 // An expression is represented by a tree consisting of one

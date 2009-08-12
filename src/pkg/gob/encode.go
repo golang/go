@@ -66,7 +66,6 @@ func encodeInt(state *encoderState, i int64){
 	encodeUint(state, uint64(x))
 }
 
-type encInstr struct
 type encOp func(i *encInstr, state *encoderState, p unsafe.Pointer)
 
 // The 'instructions' of the encoding machine

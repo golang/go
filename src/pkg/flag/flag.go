@@ -59,15 +59,6 @@ func atob(str string) (value bool, ok bool) {
 	return false, false
 }
 
-type (
-	boolValue struct;
-	intValue struct;
-	int64Value struct;
-	uintValue struct;
-	uint64Value struct;
-	stringValue struct;
-)
-
 // -- Bool Value
 type boolValue struct {
 	p *bool;

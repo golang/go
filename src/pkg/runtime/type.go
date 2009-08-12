@@ -23,8 +23,6 @@ import "unsafe"
 // so that the compiler can lay out references as data.
 type Type interface { }
 
-type uncommonType struct
-
 // All types begin with a few common fields needed for
 // the interface runtime.
 type commonType struct {

@@ -8,8 +8,6 @@
 
 package main
 
-type I2 interface
-
 type I1 interface {
 	foo() I2
 }

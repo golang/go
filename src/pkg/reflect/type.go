@@ -24,8 +24,6 @@ import (
  * copy in order to access the private fields.
  */
 
-type uncommonType struct
-
 type commonType struct {
 	size uintptr;
 	hash uint32;

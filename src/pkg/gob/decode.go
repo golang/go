@@ -116,7 +116,6 @@ func decodeInt(state *decodeState) int64 {
 	return int64(x >> 1)
 }
 
-type decInstr struct
 type decOp func(i *decInstr, state *decodeState, p unsafe.Pointer);
 
 // The 'instructions' of the decoding machine
