@@ -184,14 +184,6 @@ func Sleep(nsec int64) (errno int) {
 	return err;
 }
 
-// Implemented in syscall_linux_*.go
-func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int)
-func bind(s int, addr uintptr, addrlen _Socklen) (errno int)
-func connect(s int, addr uintptr, addrlen _Socklen) (errno int)
-func socket(domain int, typ int, proto int) (fd int, errno int)
-func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
-func Listen(s int, n int) (errno int)
-
 // For testing: clients can set this flag to force
 // creation of IPv6 sockets to return EAFNOSUPPORT.
 var SocketDisableIPv6 bool
