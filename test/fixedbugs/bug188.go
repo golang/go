@@ -6,13 +6,9 @@
 
 package main
 
-const X = iota
-
-func f(x int) { }
+import "sort"
 
 func main() {
-	f(X);
-	f(iota);	// ERROR "iota.*initializer"
-	f(X);
-	f(iota);	// ERROR "iota.*initializer"
+	var x int;
+	sort(x);	// ERROR "package.*selector"
 }
