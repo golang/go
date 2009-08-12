@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 #undef	EXTERN
 #define	EXTERN
 #include "gg.h"
@@ -531,17 +530,17 @@ savex(int dr, Node *x, Node *oldx, Node *res, Type *t)
 	int r;
 
 	r = reg[dr];
-
 	nodreg(x, types[TINT64], dr);
-	regalloc(x, t, x);
 
 	// save current ax and dx if they are live
 	// and not the destination
 	memset(oldx, 0, sizeof *oldx);
 	if(r > 0 && !samereg(x, res)) {
-		regalloc(oldx, t, N);
+		regalloc(oldx, types[TINT64], N);
 		gmove(x, oldx);
 	}
+
+	regalloc(x, t, x);
 }
 
 static void
@@ -550,6 +549,7 @@ restx(Node *x, Node *oldx)
 	regfree(x);
 
 	if(oldx->op != 0) {
+		x->type = types[TINT64];
 		gmove(oldx, x);
 		regfree(oldx);
 	}

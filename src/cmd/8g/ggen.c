@@ -524,32 +524,64 @@ samereg(Node *a, Node *b)
 void
 dodiv(int op, Type *t, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 {
-	int a;
-	Node n3, n4;
+	Node n1, t1, t2, nz;
 
-	regalloc(&n3, t, res);
-	a = optoas(op, t);
+	tempalloc(&t1, nl->type);
+	tempalloc(&t2, nr->type);
+	cgen(nl, &t1);
+	cgen(nr, &t2);
 
-	if(nl->ullman >= UINF) {
-		cgen(nl, &n3);
-		gmove(&n3, ax);
-		cgen(nr, &n3);
-	} else {
-		cgen(nr, &n3);
-		cgen(nl, ax);
-	}
+	if(!samereg(ax, res) && !samereg(dx, res))
+		regalloc(&n1, t, res);
+	else
+		regalloc(&n1, t, N);
+	gmove(&t2, &n1);
+	gmove(&t1, ax);
 	if(!issigned[t->etype]) {
-		nodconst(&n4, t, 0);
-		gmove(&n4, dx);
+		nodconst(&nz, t, 0);
+		gmove(&nz, dx);
 	} else
 		gins(optoas(OEXTEND, t), N, N);
-	gins(a, &n3, N);
-	regfree(&n3);
+	gins(optoas(op, t), &n1, N);
+	regfree(&n1);
+	tempfree(&t2);
+	tempfree(&t1);
 
 	if(op == ODIV)
 		gmove(ax, res);
 	else
 		gmove(dx, res);
+}
+
+static void
+savex(int dr, Node *x, Node *oldx, Node *res, Type *t)
+{
+	int r;
+
+	r = reg[dr];
+	nodreg(x, types[TINT32], dr);
+
+	// save current ax and dx if they are live
+	// and not the destination
+	memset(oldx, 0, sizeof *oldx);
+	if(r > 0 && !samereg(x, res)) {
+		tempalloc(oldx, types[TINT32]);
+		gmove(x, oldx);
+	}
+
+	regalloc(x, t, x);
+}
+
+static void
+restx(Node *x, Node *oldx)
+{
+	regfree(x);
+
+	if(oldx->op != 0) {
+		x->type = types[TINT32];
+		gmove(oldx, x);
+		tempfree(oldx);
+	}
 }
 
 /*
@@ -560,7 +592,7 @@ dodiv(int op, Type *t, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
-	Node ax, dx;
+	Node ax, dx, oldax, olddx;
 	int rax, rdx;
 	Type *t;
 
@@ -574,15 +606,11 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
 	if(t->width == 1)
 		t = types[t->etype+2];	// int8 -> int16, uint8 -> uint16
 
-	nodreg(&ax, types[TINT32], D_AX);
-	nodreg(&dx, types[TINT32], D_DX);
-	regalloc(&ax, t, &ax);
-	regalloc(&dx, t, &dx);
-
+	savex(D_AX, &ax, &oldax, res, t);
+	savex(D_DX, &dx, &olddx, res, t);
 	dodiv(op, t, nl, nr, res, &ax, &dx);
-
-	regfree(&ax);
-	regfree(&dx);
+	restx(&dx, &olddx);
+	restx(&ax, &oldax);
 }
 
 /*
@@ -600,9 +628,6 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 
 	if(nl->type->width > 4)
 		fatal("cgen_shift %T", nl->type->width);
-
-	if(nl->type->width == 1 && nl->type->etype != TUINT8)
-		fatal("cgen_shift %T", nl->type);
 
 	w = nl->type->width * 8;
 
@@ -655,7 +680,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	}
 	patch(p1, pc);
 	gins(a, &n1, &n2);
-	
+
 	if(oldcx.op != 0) {
 		gmove(&oldcx, &cx);
 		regfree(&oldcx);
