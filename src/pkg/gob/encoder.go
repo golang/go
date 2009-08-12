@@ -183,7 +183,6 @@ package gob
 
 import (
 	"bytes";
-	"gob";
 	"io";
 	"os";
 	"reflect";
