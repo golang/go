@@ -13,7 +13,7 @@
 #	  the (x, y, z int) shorthand is not allowed.
 #	* If the return parameter is an error number, it must be named errno.
 
-$cmdline = "mksyscall " . join(' ', @ARGV);
+$cmdline = "mksyscall.sh " . join(' ', @ARGV);
 $errors = 0;
 $_32bit = "";
 
@@ -26,7 +26,7 @@ if($ARGV[0] eq "-b32") {
 }
 
 if($ARGV[0] =~ /^-/) {
-	print STDERR "usage: mksyscall [-b32 | -l32] [file ...]\n";
+	print STDERR "usage: mksyscall.sh [-b32 | -l32] [file ...]\n";
 	exit 1;
 }
 

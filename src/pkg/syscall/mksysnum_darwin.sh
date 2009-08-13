@@ -6,7 +6,7 @@
 # Generate system call table for Darwin from master list
 # (for example, xnu-1228/bsd/kern/syscalls.master).
 
-my $command = "mksysnum_darwin " . join(' ', @ARGV);
+my $command = "mksysnum_darwin.sh " . join(' ', @ARGV);
 
 print <<EOF;
 // $command
