@@ -123,6 +123,7 @@ addr(Biobuf *bp)
 	off = 0;
 	a.sym = -1;
 	a.flags = Bgetc(bp);			/* flags */
+	a.gotype = 0;
 	if(a.flags & T_INDEX)
 		skip(bp, 2);
 	if(a.flags & T_OFFSET){

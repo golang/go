@@ -28,6 +28,7 @@ struct	Addr
 	uchar	index;
 	uchar	etype;
 	uchar	scale;	/* doubles as width in DATA op */
+	Sym*	gotype;
 };
 #define	A	((Addr*)0)
 
@@ -167,5 +168,5 @@ int	Rconv(Fmt*);
 int	Yconv(Fmt*);
 void	listinit(void);
 
-void	zaddr(Biobuf*, Addr*, int);
+void	zaddr(Biobuf*, Addr*, int, int);
 

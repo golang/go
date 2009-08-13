@@ -69,6 +69,7 @@ struct	Adr
 	uchar	index;
 	char	scale;
 	int32	offset2;
+	Sym*	gotype;
 };
 
 #define	offset	u0.u0offset
@@ -102,6 +103,7 @@ struct	Auto
 	Auto*	link;
 	int32	aoffset;
 	short	type;
+	Sym*	gotype;
 };
 struct	Sym
 {
@@ -392,7 +394,6 @@ void	whatsys(void);
  *	go.c
  */
 void	deadcode(void);
-vlong	gotypefor(char *name);
 void	ldpkg(Biobuf *f, int64 len, char *filename);
 
 

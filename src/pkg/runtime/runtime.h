@@ -352,7 +352,6 @@ void	ready(G*);
 byte*	getenv(int8*);
 int32	atoi(byte*);
 void	newosproc(M *m, G *g, void *stk, void (*fn)(void));
-void	sigaltstack(void*, void*);
 void	signalstack(byte*, int32);
 G*	malg(int32);
 void	minit(void);
