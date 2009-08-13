@@ -6,7 +6,6 @@ package ptrace
 
 import (
 	"os";
-	"ptrace";
 	"strconv";
 	"syscall";
 )
