@@ -184,7 +184,7 @@ func Exitf(format string, v ...) {
 	exit.Output(2, fmt.Sprintf(format, v))
 }
 
-// Crash is equivalent to Stderrf() followed by a call to panic().
+// Crash is equivalent to Stderr() followed by a call to panic().
 func Crash(v ...) {
 	crash.Output(2, fmt.Sprintln(v))
 }
