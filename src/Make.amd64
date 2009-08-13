@@ -8,3 +8,4 @@ CC=${O}c
 GC=${O}g
 LD=${O}l
 OS=568vq
+CFLAGS=-FVw
