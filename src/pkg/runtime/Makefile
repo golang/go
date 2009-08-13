@@ -138,7 +138,7 @@ runtime.acid: runtime.h proc.c
 chan.acid: runtime.h chan.c
 	$(CC) -a chan.c >chan.acid
 
-$(GOARCH)/asm.h: runtime.acid mkasmh
-	./mkasmh >$@.x
+$(GOARCH)/asm.h: runtime.acid mkasmh.sh
+	./mkasmh.sh >$@.x
 	mv -f $@.x $@
 
