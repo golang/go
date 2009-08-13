@@ -366,6 +366,8 @@ mark(Sym *s)
 		marktext(s->text);
 	if(s->data)
 		markdata(s->data, s);
+	if(s->gotype)
+		mark(s->gotype);
 }
 
 static void

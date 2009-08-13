@@ -939,7 +939,8 @@ naddr(Node *n, Addr *a)
 		if(n->type != T) {
 			a->etype = simtype[n->type->etype];
 			a->width = n->type->width;
-		//	a->gotype = typename(n->type)->left->sym;
+			if(n->sym != S && strncmp(n->sym->name, "autotmp_", 8) != 0)
+				a->gotype = typename(n->type)->left->sym;
 		}
 		a->offset = n->xoffset;
 		a->sym = n->sym;

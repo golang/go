@@ -119,6 +119,7 @@ struct	Sym
 	Sym*	link;
 	Prog*	text;
 	Prog*	data;
+	Sym*	gotype;
 };
 struct	Optab
 {

@@ -442,7 +442,10 @@ dclname(Sym *s)
 Node*
 typenod(Type *t)
 {
-	if(t->nod == N) {
+	// if we copied another type with *t = *u
+	// then t->nod might be out of date, so
+	// check t->nod->type too
+	if(t->nod == N || t->nod->type != t) {
 		t->nod = nod(OTYPE, N, N);
 		t->nod->type = t;
 		t->nod->sym = t->sym;

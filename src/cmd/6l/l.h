@@ -106,6 +106,7 @@ struct	Auto
 	Auto*	link;
 	int32	aoffset;
 	short	type;
+	Sym*	gotype;
 };
 struct	Sym
 {
@@ -123,6 +124,7 @@ struct	Sym
 	Sym*	link;
 	Prog*	text;
 	Prog*	data;
+	Sym*	gotype;
 };
 struct	Optab
 {
@@ -403,7 +405,6 @@ void	follow(void);
 void	addstachmark(void);
 void	gethunk(void);
 void	gotypestrings(void);
-vlong	gotypefor(char*);
 void	histtoauto(void);
 double	ieeedtod(Ieee*);
 int32	ieeedtof(Ieee*);
