@@ -27,80 +27,6 @@ only as the core library but also as examples of how to
 use the language.  Read them and follow their example.
 </p>
 
-<h3 id="be-consistent">Be consistent</h3>
-
-<p>
-Programmers often want their style to be distinctive,
-writing loops backwards or using custom spacing and
-naming conventions. Such idiosyncracies come at a
-price, however: by making the code look different,
-they make it harder to understand.
-Consistency trumps personal
-expression in programming.
-</p>
-
-<p>
-If a program does the same thing twice,
-it should do it the same way both times.
-Conversely, if two different sections of a
-program look different, the reader will
-expect them to do different things.
-</p>
-
-<p>
-Consider <code>for</code> loops.
-Traditionally, a loop over <code>n</code>
-elements begins:
-</p>
-
-<pre>
-for i := 0; i &lt; n; i++ {
-</pre>
-
-<p>
-Much of the time, the loop could run in the opposite order
-and still be correct:
-</p>
-
-<pre>
-for i := n-1; i &gt;= 0; i-- {
-</pre>
-
-<p>
-The convention
-is to count up unless to do so would be incorrect.
-A loop that counts down implicitly says &ldquo;something
-special is happening here.&rdquo;
-A reader who finds a program in which some
-loops count up and the rest count down
-will spend time trying to understand why.
-</p>
-
-<p>
-Loop direction is just one
-programming decision that must be made
-consistently; others include
-formatting, naming variables and methods,
-whether a type
-has a constructor, what tests look like, and so on.
-Why is this variable called <code>n</code> here and <code>cnt</code> there?
-Why is the <code>Log</code> constructor <code>CreateLog</code> when
-the <code>List</code> constructor is <code>NewList</code>?
-Why is this data structure initialized using
-a structure literal when that one
-is initialized using individual assignments?
-These questions distract from the important one:
-what does the code do?
-Moreover, internal consistency is important not only within a single file,
-but also within the the surrounding source files.
-When editing code, read the surrounding context
-and try to mimic it as much as possible, even if it
-disagrees with the rules here.
-It should not be possible to tell which lines
-you wrote or edited based on style alone.
-Consistency about little things
-lets readers concentrate on big ones.
-</p>
 
 <h2 id="formatting">Formatting</h2>
 
@@ -403,18 +329,19 @@ or <code>n</code> and <code>cnt</code>.
 
 <h2 id="idioms">Idioms</h2>
 
-TODO: Add links to code once godoc can handle it.
-
-<h3 id="address-literals">Address literals to allocate and initialize</h3>
+<h3 id="struct-allocation">Allocate using literals</h3>
 
 <p>
-Taking the address of a struct or array literal evaluates to a
-new instance each time it is evaluated.
-Use these expressions to avoid the repetition of filling
+A struct literal is an expression that creates a
+new instance each time it is evaluated.  The address of such
+an expression therefore points to a fresh instance each time.
+Use such expressions to avoid the repetition of filling
 out a data structure.
 </p>
 
 <pre>
+length := Point{x, y}.Abs();
+
 // Prepare RPCMessage to send to server
 rpc := &amp;RPCMessage {
 	Version: 1,
@@ -426,6 +353,11 @@ rpc := &amp;RPCMessage {
 	Body: body,
 };
 </pre>
+
+<p>
+Array, slice, and map literals behave similarly, although it is
+unusual to need the address of a slice or map.
+</p>
 
 <h3 id="buffer-slice">Use parallel assignment to slice a buffer</h3>
 
@@ -586,17 +518,20 @@ type PathError struct {
 }
 
 func (e *PathError) String() string {
-	return e.Op + " " + e.Path + ": " + e.Error.String();
+	return e.Op + &quot; &quot; + e.Path + &quot;: &quot; + e.Error.String();
 }
 </pre>
 
+<p>
 <code>PathError</code>'s <code>String</code> formats
 the error nicely, including the operation and file name
 tha failed; just printing the error generates a
 message, such as
+</p>
 <pre>
 open /etc/passwx: no such file or directory
 </pre>
+<p>
 that is useful even if printed far from the call that
 triggered it.
 </p>
@@ -604,7 +539,10 @@ triggered it.
 <p>
 Callers that care about the precise error details can
 use a type switch or a type guard to look for specific
-errors and extract details.
+errors and extract details.  For <code>PathErrors</code>
+this might include examining the internal <code>Error</code>
+to see if it is <code>os.EPERM</code> or <code>os.ENOENT</code>,
+for instance.
 </p>
 
 <h2 id="types">Programmer-defined types</h2>
@@ -615,7 +553,7 @@ errors and extract details.
 The constructor for the type <code>pkg.MyType</code> should
 be named <code>pkg.NewMyType</code> and should return <code>*pkg.MyType</code>.
 The implementation of <code>NewTypeName</code> often uses the
-<a href="#allocating-a-struct">struct allocation idiom</a>.
+<a href="#struct-allocation">struct allocation idiom</a>.
 </p>
 
 <a href="xxx">go/src/pkg/os/file.go</a>:
@@ -782,6 +720,81 @@ If a function returns a complex data structure,
 <code>reflect.DeepEqual</code> combined with table-driven testing
 makes it easy to check that the return value is 
 exactly as expected.
+</p>
+
+<h2 id="be-consistent">Be consistent</h2>
+
+<p>
+Programmers often want their style to be distinctive,
+writing loops backwards or using custom spacing and
+naming conventions. Such idiosyncracies come at a
+price, however: by making the code look different,
+they make it harder to understand.
+Consistency trumps personal
+expression in programming.
+</p>
+
+<p>
+If a program does the same thing twice,
+it should do it the same way both times.
+Conversely, if two different sections of a
+program look different, the reader will
+expect them to do different things.
+</p>
+
+<p>
+Consider <code>for</code> loops.
+Traditionally, a loop over <code>n</code>
+elements begins:
+</p>
+
+<pre>
+for i := 0; i &lt; n; i++ {
+</pre>
+
+<p>
+Much of the time, the loop could run in the opposite order
+and still be correct:
+</p>
+
+<pre>
+for i := n-1; i &gt;= 0; i-- {
+</pre>
+
+<p>
+The convention
+is to count up unless to do so would be incorrect.
+A loop that counts down implicitly says &ldquo;something
+special is happening here.&rdquo;
+A reader who finds a program in which some
+loops count up and the rest count down
+will spend time trying to understand why.
+</p>
+
+<p>
+Loop direction is just one
+programming decision that must be made
+consistently; others include
+formatting, naming variables and methods,
+whether a type
+has a constructor, what tests look like, and so on.
+Why is this variable called <code>n</code> here and <code>cnt</code> there?
+Why is the <code>Log</code> constructor <code>CreateLog</code> when
+the <code>List</code> constructor is <code>NewList</code>?
+Why is this data structure initialized using
+a structure literal when that one
+is initialized using individual assignments?
+These questions distract from the important one:
+what does the code do?
+Moreover, internal consistency is important not only within a single file,
+but also within the the surrounding source files.
+When editing code, read the surrounding context
+and try to mimic it as much as possible, even if it
+disagrees with the rules here.
+It should not be possible to tell which lines
+you wrote or edited based on style alone.
+Consistency about little things
+lets readers concentrate on big ones.
 </p>
 
 </div>
