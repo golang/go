@@ -6,7 +6,6 @@ package eval
 
 import (
 	"bignum";
-	"eval";
 	"go/ast";
 	"go/token";
 	"log";
@@ -147,7 +146,10 @@ func (boolType) String() string {
 	return "<bool>";
 }
 
-func (t *boolType) Zero() Value
+func (t *boolType) Zero() Value {
+	res := boolV(false);
+	return &res;
+}
 
 /*
  * Uint
@@ -199,7 +201,31 @@ func (t *uintType) String() string {
 	return "<" + t.name + ">";
 }
 
-func (t *uintType) Zero() Value
+func (t *uintType) Zero() Value {
+	switch t.Bits {
+	case 0:
+		if t.Ptr {
+			res := uintptrV(0);
+			return &res;
+		} else {
+			res := uintV(0);
+			return &res;
+		}
+	case 8:
+		res := uint8V(0);
+		return &res;
+	case 16:
+		res := uint16V(0);
+		return &res;
+	case 32:
+		res := uint32V(0);
+		return &res;
+	case 64:
+		res := uint64V(0);
+		return &res;
+	}
+	panic("unexpected uint bit count: ", t.Bits);
+}
 
 func (t *uintType) minVal() *bignum.Rational {
 	return bignum.Rat(0, 1);
@@ -260,7 +286,27 @@ func (t *intType) String() string {
 	return "<" + t.name + ">";
 }
 
-func (t *intType) Zero() Value
+func (t *intType) Zero() Value {
+	switch t.Bits {
+	case 8:
+		res := int8V(0);
+		return &res;
+	case 16:
+		res := int16V(0);
+		return &res;
+	case 32:
+		res := int32V(0);
+		return &res;
+	case 64:
+		res := int64V(0);
+		return &res;
+
+	case 0:
+		res := intV(0);
+		return &res;
+	}
+	panic("unexpected int bit count: ", t.Bits);
+}
 
 func (t *intType) minVal() *bignum.Rational {
 	bits := t.Bits;
@@ -309,7 +355,9 @@ func (t *idealIntType) String() string {
 	return "ideal integer";
 }
 
-func (t *idealIntType) Zero() Value
+func (t *idealIntType) Zero() Value {
+	return &idealIntV{bignum.Int(0)};
+}
 
 /*
  * Float
@@ -347,7 +395,20 @@ func (t *floatType) String() string {
 	return "<" + t.name + ">";
 }
 
-func (t *floatType) Zero() Value
+func (t *floatType) Zero() Value {
+	switch t.Bits {
+	case 32:
+		res := float32V(0);
+		return &res;
+	case 64:
+		res := float64V(0);
+		return &res;
+	case 0:
+		res := floatV(0);
+		return &res;
+	}
+	panic("unexpected float bit count: ", t.Bits);
+}
 
 var maxFloat32Val = bignum.MakeRat(bignum.Int(0xffffff).Shl(127-23), bignum.Nat(1));
 var maxFloat64Val = bignum.MakeRat(bignum.Int(0x1fffffffffffff).Shl(1023-52), bignum.Nat(1));
@@ -415,7 +476,9 @@ func (t *idealFloatType) String() string {
 	return "ideal float";
 }
 
-func (t *idealFloatType) Zero() Value
+func (t *idealFloatType) Zero() Value {
+	return &idealFloatV{bignum.Rat(1, 0)};
+}
 
 /*
  * String
@@ -440,7 +503,10 @@ func (t *stringType) String() string {
 	return "<string>";
 }
 
-func (t *stringType) Zero() Value
+func (t *stringType) Zero() Value {
+	res := stringV("");
+	return &res;
+}
 
 /*
  * Array
@@ -487,7 +553,18 @@ func (t *ArrayType) String() string {
 	return "[]" + t.Elem.String();
 }
 
-func (t *ArrayType) Zero() Value
+func (t *ArrayType) Zero() Value {
+	res := arrayV(make([]Value, t.Len));
+	// TODO(austin) It's unfortunate that each element is
+	// separately heap allocated.  We could add ZeroArray to
+	// everything, though that doesn't help with multidimensional
+	// arrays.  Or we could do something unsafe.  We'll have this
+	// same problem with structs.
+	for i := int64(0); i < t.Len; i++ {
+		res[i] = t.Elem.Zero();
+	}
+	return &res;
+}
 
 /*
  * Struct
@@ -606,7 +683,13 @@ func (t *StructType) String() string {
 	return s + "}";
 }
 
-func (t *StructType) Zero() Value
+func (t *StructType) Zero() Value {
+	res := structV(make([]Value, len(t.Elems)));
+	for i, f := range t.Elems {
+		res[i] = f.Type.Zero();
+	}
+	return &res;
+}
 
 /*
  * Pointer
@@ -646,7 +729,9 @@ func (t *PtrType) String() string {
 	return "*" + t.Elem.String();
 }
 
-func (t *PtrType) Zero() Value
+func (t *PtrType) Zero() Value {
+	return &ptrV{nil};
+}
 
 /*
  * Function
@@ -749,7 +834,9 @@ func (t *FuncType) String() string {
 	return s;
 }
 
-func (t *FuncType) Zero() Value
+func (t *FuncType) Zero() Value {
+	return &funcV{nil};
+}
 
 type FuncDecl struct {
 	Type *FuncType;
@@ -919,4 +1006,10 @@ func (t *MultiType) String() string {
 	return typeListString(t.Elems, nil);
 }
 
-func (t *MultiType) Zero() Value
+func (t *MultiType) Zero() Value {
+	res := make([]Value, len(t.Elems));
+	for i, t := range t.Elems {
+		res[i] = t.Zero();
+	}
+	return multiV(res);
+}

@@ -5,7 +5,6 @@
 package eval
 
 import (
-	"eval";
 	"fmt";
 	"go/token";
 	"log";

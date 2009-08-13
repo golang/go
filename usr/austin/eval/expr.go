@@ -6,7 +6,6 @@ package eval
 
 import (
 	"bignum";
-	"eval";
 	"go/ast";
 	"go/scanner";
 	"go/token";
@@ -58,35 +57,6 @@ func newExprCompiler(c *exprContext, pos token.Position) *exprCompiler {
 		desc: "<missing description>"
 	};
 }
-
-// Operator generators
-// TODO(austin) Remove these forward declarations
-func (a *exprCompiler) genConstant(v Value)
-func (a *exprCompiler) genIdentOp(level int, index int)
-func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value)
-func (a *exprCompiler) genValue(vf func(*Frame) Value)
-func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler)
-func (a *exprCompiler) genUnaryOpNot(v *exprCompiler)
-func (a *exprCompiler) genUnaryOpXor(v *exprCompiler)
-func (a *exprCompiler) genBinOpAdd(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpSub(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpMul(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpQuo(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpRem(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpAnd(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpOr(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpXor(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpLss(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpGtr(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpLeq(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpGeq(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpEql(l *exprCompiler, r *exprCompiler)
-func (a *exprCompiler) genBinOpNeq(l *exprCompiler, r *exprCompiler)
-func genAssign(lt Type, r *exprCompiler) (func(lv Value, f *Frame))
 
 func (a *exprCompiler) copy() *exprCompiler {
 	ec := newExprCompiler(a.exprContext, a.pos);

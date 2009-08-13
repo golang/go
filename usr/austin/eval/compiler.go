@@ -5,7 +5,6 @@
 package eval
 
 import (
-	"eval";
 	"fmt";
 	"go/ast";
 	"go/scanner";
@@ -31,19 +30,6 @@ func (a *compiler) diagAt(pos positioned, format string, args ...) {
 	a.errors.Error(pos.Pos(), fmt.Sprintf(format, args));
 }
 
-type FuncDecl struct
-func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (func (f *Frame) Func)
-type exprCompiler struct
-func (a *compiler) compileExpr(b *block, expr ast.Expr, constant bool) *exprCompiler
-type assignCompiler struct
-func (a *compiler) checkAssign(pos token.Position, rs []*exprCompiler, errOp, errPosName string) (*assignCompiler, bool)
-func (a *compiler) compileAssign(pos token.Position, lt Type, rs []*exprCompiler, errOp, errPosName string) (func(lv Value, f *Frame))
-func (a *compiler) compileType(b *block, typ ast.Expr) Type
-func (a *compiler) compileTypeDecl(b *block, decl *ast.GenDecl) bool
-func (a *compiler) compileFuncType(b *block, typ *ast.FuncType) *FuncDecl
-
-func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool)
-
 
 type label struct {
 	name string;
@@ -64,9 +50,6 @@ type label struct {
 	used token.Position;
 }
 
-type codeBuf struct
-type flowBuf struct
-type FuncType struct
 // A funcCompiler captures information used throughout the compilation
 // of a single function body.
 type funcCompiler struct {
@@ -81,8 +64,6 @@ type funcCompiler struct {
 	err bool;
 }
 
-func (a *funcCompiler) checkLabels()
-
 // A blockCompiler captures information used throughout the compilation
 // of a single block within a function.
 type blockCompiler struct {
@@ -95,11 +76,6 @@ type blockCompiler struct {
 	// for a function-level block.
 	parent *blockCompiler;
 }
-
-func (a *blockCompiler) compileStmt(s ast.Stmt)
-func (a *blockCompiler) compileStmts(body *ast.BlockStmt)
-func (a *blockCompiler) enterChild() *blockCompiler
-func (a *blockCompiler) exit()
 
 // An exprContext stores information used throughout the compilation
 // of a single expression.  It does not embed funcCompiler because

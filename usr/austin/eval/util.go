@@ -6,7 +6,6 @@ package eval
 
 import (
 	"bignum";
-	"eval";
 	"fmt";
 	"go/token";
 )
