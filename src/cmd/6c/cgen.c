@@ -32,7 +32,7 @@
 
 /* ,x/^(print|prtree)\(/i/\/\/ */
 int castup(Type*, Type*);
-int vaddr(Node *n, int a)
+int vaddr(Node *n, int a);
 
 void
 cgen(Node *n, Node *nn)
