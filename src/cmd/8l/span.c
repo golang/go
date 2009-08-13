@@ -146,9 +146,10 @@ xdefine(char *p, int t, int32 v)
 }
 
 void
-putsymb(char *s, int t, int32 v, int ver, vlong go)
+putsymb(char *s, int t, int32 v, int ver, Sym *go)
 {
 	int i, f;
+	vlong gv;
 
 	if(t == 'f')
 		s++;
@@ -172,9 +173,12 @@ putsymb(char *s, int t, int32 v, int ver, vlong go)
 			cput(s[i]);
 		cput(0);
 	}
-	lput(go);
+	gv = 0;
+	if(go)
+		gv = go->value+INITDAT;
+	lput(gv);
 
-	symsize += 4 + 1 + i + 1 + 4;
+	symsize += 4 + 1 + i+1 + 4;
 
 	if(debug['n']) {
 		if(t == 'z' || t == 'Z') {
@@ -187,9 +191,9 @@ putsymb(char *s, int t, int32 v, int ver, vlong go)
 			return;
 		}
 		if(ver)
-			Bprint(&bso, "%c %.8lux %s<%d>\n", t, v, s, ver);
+			Bprint(&bso, "%c %.8lux %s<%d> %s (%.8llux)\n", t, v, s, ver, go ? go->name : "", gv);
 		else
-			Bprint(&bso, "%c %.8lux %s\n", t, v, s);
+			Bprint(&bso, "%c %.8lux %s\n", t, v, s, go ? go->name : "", gv);
 	}
 }
 
@@ -209,15 +213,15 @@ asmsym(void)
 		for(s=hash[h]; s!=S; s=s->link)
 			switch(s->type) {
 			case SCONST:
-				putsymb(s->name, 'D', s->value, s->version, gotypefor(s->name));
+				putsymb(s->name, 'D', s->value, s->version, s->gotype);
 				continue;
 
 			case SDATA:
-				putsymb(s->name, 'D', s->value+INITDAT, s->version, gotypefor(s->name));
+				putsymb(s->name, 'D', s->value+INITDAT, s->version, s->gotype);
 				continue;
 
 			case SBSS:
-				putsymb(s->name, 'B', s->value+INITDAT, s->version, gotypefor(s->name));
+				putsymb(s->name, 'B', s->value+INITDAT, s->version, s->gotype);
 				continue;
 
 			case SFILE:
@@ -238,17 +242,17 @@ asmsym(void)
 			if(a->type == D_FILE1)
 				putsymb(a->asym->name, 'Z', a->aoffset, 0, 0);
 
-		putsymb(s->name, 'T', s->value, s->version, gotypefor(s->name));
+		putsymb(s->name, 'T', s->value, s->version, s->gotype);
 
 		/* frame, auto and param after */
 		putsymb(".frame", 'm', p->to.offset+4, 0, 0);
 
 		for(a=p->to.autom; a; a=a->link)
 			if(a->type == D_AUTO)
-				putsymb(a->asym->name, 'a', -a->aoffset, 0, 0);
+				putsymb(a->asym->name, 'a', -a->aoffset, 0, a->gotype);
 			else
 			if(a->type == D_PARAM)
-				putsymb(a->asym->name, 'p', a->aoffset, 0, 0);
+				putsymb(a->asym->name, 'p', a->aoffset, 0, a->gotype);
 	}
 	if(debug['v'] || debug['n'])
 		Bprint(&bso, "symsize = %lud\n", symsize);

@@ -572,19 +572,26 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	}
 	if(t & T_TYPE)
 		a->type = Bgetc(f);
+	if(t & T_GOTYPE)
+		a->gotype = h[Bgetc(f)];
 	s = a->sym;
 	if(s == S)
 		return;
 
 	t = a->type;
-	if(t != D_AUTO && t != D_PARAM)
+	if(t != D_AUTO && t != D_PARAM) {
+		if(a->gotype)
+			s->gotype = a->gotype;
 		return;
+	}
 	l = a->offset;
 	for(u=curauto; u; u=u->link) {
 		if(u->asym == s)
 		if(u->type == t) {
 			if(u->aoffset > l)
 				u->aoffset = l;
+			if(a->gotype)
+				u->gotype = a->gotype;
 			return;
 		}
 	}
@@ -595,6 +602,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	u->asym = s;
 	u->aoffset = l;
 	u->type = t;
+	u->gotype = a->gotype;
 }
 
 void

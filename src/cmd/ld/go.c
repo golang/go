@@ -62,30 +62,6 @@ ilookup(char *name)
 	return x;
 }
 
-vlong
-gotypefor(char *name)
-{
-/*
-	Import *x;
-	char *s, *p;
-
-	s = strdup(name);
-	p = utfrune(s, 0xB7);	// center dot
-	if(p == nil)
-		return nil;
-	*p++ = '.';
-	memmove(p, p+1, strlen(p));
-	x = ilookup(s);
-	free(s);
-	if(x == nil || x->prefix == nil)
-		return nil;
-	if(strcmp(x->prefix, "var") != 0 && strcmp(x->prefix, "func") != 0)
-		return nil;
-	return x->def;
-*/
-	return 0;
-}
-
 static void loadpkgdata(char*, char*, int);
 static int parsemethod(char**, char*, char**);
 static int parsepkgdata(char*, char**, char*, char**, char**, char**);

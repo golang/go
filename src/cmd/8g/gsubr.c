@@ -1658,6 +1658,7 @@ naddr(Node *n, Addr *a)
 	a->scale = 0;
 	a->index = D_NONE;
 	a->type = D_NONE;
+	a->gotype = S;
 	if(n == N)
 		return;
 
@@ -1688,8 +1689,11 @@ naddr(Node *n, Addr *a)
 
 	case ONAME:
 		a->etype = 0;
-		if(n->type != T)
+		if(n->type != T) {
 			a->etype = simtype[n->type->etype];
+			if(n->sym != S && strncmp(n->sym->name, "autotmp_", 8) != 0)
+				a->gotype = typename(n->type)->left->sym;
+		}
 		a->offset = n->xoffset;
 		a->sym = n->sym;
 		if(a->sym == S)
