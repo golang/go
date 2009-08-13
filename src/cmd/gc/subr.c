@@ -60,9 +60,12 @@ fatal(char *fmt, ...)
 	vfprint(1, fmt, arg);
 	va_end(arg);
 	print("\n");
-	if(debug['h'])
+	if(debug['h']) {
+		if(outfile)
+			unlink(outfile);
 		*(int*)0 = 0;
-	exit(1);
+	}
+	errorexit();
 }
 
 void
@@ -87,7 +90,7 @@ linehist(char *file, int32 off, int relative)
 		file = cp;
 	}
 
-	h = alloc(sizeof(Hist));
+	h = mal(sizeof(Hist));
 	h->name = file;
 	h->line = lineno;
 	h->offset = off;
