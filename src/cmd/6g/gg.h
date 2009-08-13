@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 #include <u.h>
 #include <libc.h>
 
@@ -22,6 +21,7 @@ struct	Addr
 	Prog*	branch;
 	char	sval[NSNAME];
 
+	Sym*	gotype;
 	Sym*	sym;
 	int	width;
 	uchar	type;
@@ -107,8 +107,6 @@ int	conv2pt(Type*);
 vlong	convvtox(vlong, int);
 void	fnparam(Type*, int, int);
 Prog*	gop(int, Node*, Node*, Node*);
-void	setconst(Addr*, vlong);
-void	setaddr(Addr*, Node*);
 int	optoas(int, Type*);
 void	ginit(void);
 void	gclean(void);
@@ -141,5 +139,5 @@ int	Rconv(Fmt*);
 int	Yconv(Fmt*);
 void	listinit(void);
 
-void	zaddr(Biobuf*, Addr*, int);
+void	zaddr(Biobuf*, Addr*, int, int);
 

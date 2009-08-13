@@ -213,7 +213,7 @@ asmsym(void)
 
 	s = lookup("etext", 0);
 	if(s->type == STEXT)
-		putsymb(s->name, 'T', s->value, s->version, nil);
+		putsymb(s->name, 'T', s->value, s->version, 0);
 
 	for(h=0; h<NHASH; h++)
 		for(s=hash[h]; s!=S; s=s->link)
@@ -231,7 +231,7 @@ asmsym(void)
 				continue;
 
 			case SFILE:
-				putsymb(s->name, 'f', s->value, s->version, nil);
+				putsymb(s->name, 'f', s->value, s->version, 0);
 				continue;
 			}
 
@@ -241,25 +241,25 @@ asmsym(void)
 		/* filenames first */
 		for(a=p->to.autom; a; a=a->link)
 			if(a->type == D_FILE)
-				putsymb(a->asym->name, 'z', a->aoffset, 0, nil);
+				putsymb(a->asym->name, 'z', a->aoffset, 0, 0);
 			else
 			if(a->type == D_FILE1)
-				putsymb(a->asym->name, 'Z', a->aoffset, 0, nil);
+				putsymb(a->asym->name, 'Z', a->aoffset, 0, 0);
 
 		if(s->type != STEXT)
 			continue;
 		putsymb(s->name, 'T', s->value, s->version, gotypefor(s->name));
 
 		/* frame, auto and param after */
-		putsymb(".frame", 'm', p->to.offset+8, 0, nil);
+		putsymb(".frame", 'm', p->to.offset+8, 0, 0);
 
 		/* TODO(rsc): Add types for D_AUTO and D_PARAM */
 		for(a=p->to.autom; a; a=a->link)
 			if(a->type == D_AUTO)
-				putsymb(a->asym->name, 'a', -a->aoffset, 0, nil);
+				putsymb(a->asym->name, 'a', -a->aoffset, 0, gotypefor(nil));
 			else
 			if(a->type == D_PARAM)
-				putsymb(a->asym->name, 'p', a->aoffset, 0, nil);
+				putsymb(a->asym->name, 'p', a->aoffset, 0, gotypefor(nil));
 	}
 	if(debug['v'] || debug['n'])
 		Bprint(&bso, "symsize = %lud\n", symsize);
