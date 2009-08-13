@@ -10,6 +10,6 @@ type T func()
 
 type I interface {
 	f, g ();
-	h T;  // ERROR "syntax"
+	h T;  // ERROR "syntax|signature"
 }
 

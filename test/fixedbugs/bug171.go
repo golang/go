@@ -6,5 +6,5 @@
 
 package main
 
-func f() int { }	// ERROR "return"
-func g() (foo int) { }	// ERROR "return"
+func f() int { }	// ERROR "return|control"
+func g() (foo int) { }	// ERROR "return|control"
