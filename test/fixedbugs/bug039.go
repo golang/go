@@ -6,6 +6,6 @@
 
 package main
 
-func main (x int) {
-  var x int;  // ERROR "redecl"
+func main (x int) {	// GCCGO_ERROR "previous"
+  var x int;  // ERROR "redecl|redefinition"
 }
