@@ -5,7 +5,6 @@
 package eval
 
 import (
-	"eval";
 	"go/ast";
 	"go/token";
 	"log";
@@ -16,12 +15,6 @@ import (
  * Type compiler
  */
 
-// TODO(austin) Without this, I get a "conflicting definitions for
-// eval.compiler" when gopack'ing typec.6 from gobuild.
-// Interestingly, if I create the Makefile with this line, then
-// comment it out and use the Makefile, things work.
-type exprCompiler struct
-
 type typeCompiler struct {
 	*compiler;
 	block *block;
@@ -31,8 +24,6 @@ type typeCompiler struct {
 	// eliminate forward declarations.
 	lateCheck func() bool
 }
-
-func (a *typeCompiler) compileType(x ast.Expr, allowRec bool) Type
 
 func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
 	_, def := a.block.Lookup(x.Value);

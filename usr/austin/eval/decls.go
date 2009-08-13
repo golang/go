@@ -13,8 +13,6 @@ import (
  * Types
  */
 
-type Value interface
-
 type Type interface {
 	// compat returns whether this type is compatible with another
 	// type.  If conv is false, this is normal compatibility,
@@ -128,7 +126,6 @@ type PtrValue interface {
 	Set(Value);
 }
 
-type Func interface
 type FuncValue interface {
 	Value;
 	Get() Func;
@@ -157,8 +154,6 @@ type Constant struct {
 	Type Type;
 	Value Value;
 }
-
-type Scope struct
 
 // A block represents a definition block in which a name may not be
 // defined more than once.
@@ -192,15 +187,6 @@ type Scope struct {
 	maxVars int;
 }
 
-func (b *block) enterChild() *block
-func (b *block) exit()
-func (b *block) ChildScope() *Scope
-func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, Def)
-func (b *block) DefineSlot(t Type) *Variable
-func (b *block) DefineConst(name string, pos token.Position, t Type, v Value) *Constant
-func (b *block) DefineType(name string, pos token.Position, t Type) Type
-func (b *block) Lookup(name string) (level int, def Def)
-
 // The universal scope
 func newUniverse() *Scope {
 	sc := &Scope{nil, 0};
@@ -220,11 +206,6 @@ type Frame struct {
 	Outer *Frame;
 	Vars []Value;
 }
-
-func (f *Frame) Get(level int, index int) Value
-func (f *Frame) child(numVars int) *Frame
-
-func (s *Scope) NewFrame(outer *Frame) *Frame
 
 /*
  * Functions

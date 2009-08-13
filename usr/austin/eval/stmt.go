@@ -6,7 +6,6 @@ package eval
 
 import (
 	"bignum";
-	"eval";
 	"log";
 	"os";
 	"go/ast";
@@ -244,8 +243,7 @@ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
 	return v;
 }
 
-// TODO(austin) Move the real definition
-func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token, declTypeExpr ast.Expr)
+// TODO(austin) Move doAssign to here
 
 /*
  * Statement visitors

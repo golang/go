@@ -4,11 +4,6 @@
 
 package eval
 
-import (
-	"container/vector";
-	"eval";
-)
-
 /*
  * Virtual machine
  */

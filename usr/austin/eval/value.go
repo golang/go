@@ -6,7 +6,6 @@ package eval
 
 import (
 	"bignum";
-	"eval";
 	"fmt";
 )
 
@@ -30,11 +29,6 @@ func (v *boolV) Get() bool {
 
 func (v *boolV) Set(x bool) {
 	*v = boolV(x);
-}
-
-func (t *boolType) Zero() Value {
-	res := boolV(false);
-	return &res;
 }
 
 /*
@@ -149,32 +143,6 @@ func (v *uintptrV) Set(x uint64) {
 	*v = uintptrV(x);
 }
 
-func (t *uintType) Zero() Value {
-	switch t.Bits {
-	case 0:
-		if t.Ptr {
-			res := uintptrV(0);
-			return &res;
-		} else {
-			res := uintV(0);
-			return &res;
-		}
-	case 8:
-		res := uint8V(0);
-		return &res;
-	case 16:
-		res := uint16V(0);
-		return &res;
-	case 32:
-		res := uint32V(0);
-		return &res;
-	case 64:
-		res := uint64V(0);
-		return &res;
-	}
-	panic("unexpected uint bit count: ", t.Bits);
-}
-
 /*
  * Int
  */
@@ -269,28 +237,6 @@ func (v *intV) Set(x int64) {
 	*v = intV(x);
 }
 
-func (t *intType) Zero() Value {
-	switch t.Bits {
-	case 8:
-		res := int8V(0);
-		return &res;
-	case 16:
-		res := int16V(0);
-		return &res;
-	case 32:
-		res := int32V(0);
-		return &res;
-	case 64:
-		res := int64V(0);
-		return &res;
-
-	case 0:
-		res := intV(0);
-		return &res;
-	}
-	panic("unexpected int bit count: ", t.Bits);
-}
-
 /*
  * Ideal int
  */
@@ -309,10 +255,6 @@ func (v *idealIntV) Assign(o Value) {
 
 func (v *idealIntV) Get() *bignum.Integer {
 	return v.V;
-}
-
-func (t *idealIntType) Zero() Value {
-	return &idealIntV{bignum.Int(0)};
 }
 
 /*
@@ -373,21 +315,6 @@ func (v *floatV) Set(x float64) {
 	*v = floatV(x);
 }
 
-func (t *floatType) Zero() Value {
-	switch t.Bits {
-	case 32:
-		res := float32V(0);
-		return &res;
-	case 64:
-		res := float64V(0);
-		return &res;
-	case 0:
-		res := floatV(0);
-		return &res;
-	}
-	panic("unexpected float bit count: ", t.Bits);
-}
-
 /*
  * Ideal float
  */
@@ -406,10 +333,6 @@ func (v *idealFloatV) Assign(o Value) {
 
 func (v *idealFloatV) Get() *bignum.Rational {
 	return v.V;
-}
-
-func (t *idealFloatType) Zero() Value {
-	return &idealFloatV{bignum.Rat(1, 0)};
 }
 
 /*
@@ -432,11 +355,6 @@ func (v *stringV) Get() string {
 
 func (v *stringV) Set(x string) {
 	*v = stringV(x);
-}
-
-func (t *stringType) Zero() Value {
-	res := stringV("");
-	return &res;
 }
 
 /*
@@ -463,19 +381,6 @@ func (v *arrayV) Get() ArrayValue {
 
 func (v *arrayV) Elem(i int64) Value {
 	return (*v)[i];
-}
-
-func (t *ArrayType) Zero() Value {
-	res := arrayV(make([]Value, t.Len));
-	// TODO(austin) It's unfortunate that each element is
-	// separately heap allocated.  We could add ZeroArray to
-	// everything, though that doesn't help with multidimensional
-	// arrays.  Or we could do something unsafe.  We'll have this
-	// same problem with structs.
-	for i := int64(0); i < t.Len; i++ {
-		res[i] = t.Elem.Zero();
-	}
-	return &res;
 }
 
 /*
@@ -513,14 +418,6 @@ func (v *structV) Field(i int) Value {
 	return (*v)[i];
 }
 
-func (t *StructType) Zero() Value {
-	res := structV(make([]Value, len(t.Elems)));
-	for i, f := range t.Elems {
-		res[i] = f.Type.Zero();
-	}
-	return &res;
-}
-
 /*
  * Pointer
  */
@@ -544,10 +441,6 @@ func (v *ptrV) Get() Value {
 
 func (v *ptrV) Set(x Value) {
 	v.target = x;
-}
-
-func (t *PtrType) Zero() Value {
-	return &ptrV{nil};
 }
 
 /*
@@ -575,10 +468,6 @@ func (v *funcV) Set(x Func) {
 	v.target = x;
 }
 
-func (t *FuncType) Zero() Value {
-	return &funcV{nil};
-}
-
 /*
  * Multi-values
  */
@@ -601,14 +490,6 @@ func (v multiV) Assign(o Value) {
 	for i := range v {
 		v[i].Assign(omv[i]);
 	}
-}
-
-func (t *MultiType) Zero() Value {
-	res := make([]Value, len(t.Elems));
-	for i, t := range t.Elems {
-		res[i] = t.Zero();
-	}
-	return multiV(res);
 }
 
 /*
