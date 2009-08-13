@@ -2,6 +2,10 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+include $(GOROOT)/src/Make.$(GOARCH)
+
+TARG=runtime
+
 # Set SIZE to 32 or 64.
 SIZE_386=32
 SIZE_amd64=64
@@ -15,19 +19,9 @@ CFLAGS_64=-D_64BIT
 CFLAGS_arm=-N
 CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH))
 
-# Set O to right letter.
-O_386=8
-O_amd64=6
-O_arm=5
-O=$(O_$(GOARCH))
-
-# Tools
-CC=$(O)c
-GC=$(O)g
-AS=$(O)a
-AR=gopack
-
-LIB=runtime.a
+GOFILES=\
+	extern.go\
+	type.go\
 
 # 386-specific object files
 OFILES_386=\
@@ -45,7 +39,6 @@ OFILES=\
 	asm.$O\
 	chan.$O\
 	closure.$O\
-	extern.$O\
 	float.$O\
 	hashmap.$O\
 	iface.$O\
@@ -71,7 +64,6 @@ OFILES=\
 	sys.$O\
 	thread.$O\
 	traceback.$O\
-	type.$O\
 	$(OFILES_$(GOARCH))\
 
 HFILES=\
@@ -82,33 +74,23 @@ HFILES=\
 	$(GOOS)/os.h\
 	$(GOOS)/$(GOARCH)/defs.h\
 
-all: $(LIB) runtime.acid
+include $(GOROOT)/src/Make.pkg
 
-TARG=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)/$(LIB)
+clean: clean-local
 
-install: $(TARG)
+clean-local:
+	rm -f runtime.acid cgo2c */asm.h
 
-$(TARG): $(LIB) runtime.acid
-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)
-	cp $(LIB) $(TARG)
-	cp runtime.acid $(GOROOT)/acid/runtime.acid
+$(GOARCH)/asm.h: runtime.acid mkasmh
+	./mkasmh >$@.x
+	mv -f $@.x $@
 
-$(LIB): $(OFILES)
-	$(AR) grc $(LIB) $(OFILES)
+cgo2c: cgo2c.c
+	quietgcc -o $@ $<
 
-$(OFILES): $(HFILES)
-
-nuke:
-	rm -f *.[568] *.a $(TARG)
-
-clean:
-	rm -f *.[568] *.a runtime.acid cgo2c */asm.h
-
-%.$O:	%.go
-	$(GC) $<
-
-%.$O:	%.c
-	$(CC) $(CFLAGS) $<
+%.c:	%.cgo cgo2c
+	./cgo2c $< > $@.tmp
+	mv -f $@.tmp $@
 
 %.$O:	$(GOARCH)/%.c
 	$(CC) $(CFLAGS) $<
@@ -119,26 +101,25 @@ clean:
 %.$O:	$(GOOS)/$(GOARCH)/%.c
 	$(CC) $(CFLAGS) $<
 
-%.$O:	$(GOARCH)/%.s
+%.$O:	$(GOARCH)/%.s $(GOARCH)/asm.h
 	$(AS) $<
 
-%.$O:	$(GOOS)/$(GOARCH)/%.s
+%.$O:	$(GOOS)/$(GOARCH)/%.s $(GOARCH)/asm.h
 	$(AS) $<
 
-cgo2c: cgo2c.c
-	quietgcc -o $@ $<
 
-%.c:	%.cgo cgo2c
-	./cgo2c $< > $@.tmp
-	mv -f $@.tmp $@
+# acid support files
+
+all: runtime.acid
+
+install: $(GOROOT)/acid/runtime.acid
+
+$(GOROOT)/acid/runtime.acid: runtime.acid
+	cp runtime.acid $@
 
 runtime.acid: runtime.h proc.c
 	$(CC) -a proc.c >runtime.acid
 
 chan.acid: runtime.h chan.c
 	$(CC) -a chan.c >chan.acid
-
-$(GOARCH)/asm.h: runtime.acid mkasmh.sh
-	./mkasmh.sh >$@.x
-	mv -f $@.x $@
 

@@ -2,11 +2,12 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+all: package
 package: _obj/$(TARG).a
 testpackage: _test/$(TARG).a
 
 elem=$(lastword $(subst /, ,$(TARG)))
-dir=$(patsubst %/$(elem),%,$(TARG))
+dir=$(patsubst %/$(elem),%,./$(TARG))
 
 pkgdir=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)
 
@@ -39,7 +40,7 @@ _gotest_.$O: $(GOFILES) $(GOTESTFILES)
 	$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
 
 %.$O: %.c
-	$(CC) $*.c
+	$(CC) $(CFLAGS) $*.c
 
 %.$O: %.s
 	$(AS) $*.s
@@ -58,4 +59,7 @@ _test/$(TARG).a: _gotest_.$O $(OFILES)
 
 importpath:
 	@echo $(TARG)
+
+dir:
+	@echo $(dir)
 
