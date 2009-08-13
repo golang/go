@@ -41,6 +41,7 @@ struct Addr
 {
 	char	sym;
 	char	flags;
+	char gotype;
 };
 static	Addr	addr(Biobuf*);
 static	char	type2char(int);
@@ -152,6 +153,8 @@ addr(Biobuf *bp)
 		if(a.sym > 0 && (t==D_PARAM || t==D_AUTO))
 			_offset(a.sym, off);
 	}
+	if(a.flags & T_GOTYPE)
+		a.gotype = Bgetc(bp);
 	return a;
 }
 

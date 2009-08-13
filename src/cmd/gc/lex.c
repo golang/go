@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 #define		EXTERN
 #include	"go.h"
 #include	"y.tab.h"
@@ -85,7 +84,7 @@ main(int argc, char *argv[])
 		curio.infile = infile;
 		curio.bin = Bopen(infile, OREAD);
 		if(curio.bin == nil)
-			fatal("open%s: %r", infile);
+			fatal("open %s: %r", infile);
 		curio.peekc = 0;
 		curio.peekc1 = 0;
 

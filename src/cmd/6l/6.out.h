@@ -831,6 +831,7 @@ enum
 	T_SYM		= 1<<4,
 	T_SCONST	= 1<<5,
 	T_64		= 1<<6,
+	T_GOTYPE	= 1<<7,
 
 	REGARG		= -1,
 	REGRET		= D_AX,

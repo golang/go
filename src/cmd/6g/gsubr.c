@@ -882,6 +882,8 @@ naddr(Node *n, Addr *a)
 	a->scale = 0;
 	a->index = D_NONE;
 	a->type = D_NONE;
+	a->gotype = S;
+
 	if(n == N)
 		return;
 
@@ -937,6 +939,7 @@ naddr(Node *n, Addr *a)
 		if(n->type != T) {
 			a->etype = simtype[n->type->etype];
 			a->width = n->type->width;
+		//	a->gotype = typename(n->type)->left->sym;
 		}
 		a->offset = n->xoffset;
 		a->sym = n->sym;

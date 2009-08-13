@@ -71,6 +71,7 @@ struct	Adr
 	short	type;
 	char	index;
 	char	scale;
+	Sym*	gotype;
 };
 
 #define	offset	u0.u0offset

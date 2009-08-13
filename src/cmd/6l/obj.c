@@ -607,6 +607,8 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	}
 	if(t & T_TYPE)
 		a->type = Bgetc(f);
+	if(t & T_GOTYPE)
+		a->gotype = h[Bgetc(f)];
 	s = a->sym;
 	if(s == S)
 		return;
@@ -635,7 +637,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 void
 addlib(char *src, char *obj)
 {
-	char name[1024], pname[1024], comp[256], *p, *q;
+	char name[1024], pname[1024], comp[256], *p;
 	int i, search;
 
 	if(histfrogp <= 0)
