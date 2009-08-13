@@ -450,6 +450,8 @@ typename(Type *t)
 	Sym *s;
 	Node *n;
 
+	if(isptr[t->etype] && t->type == T)
+		fatal("typename %T", t);
 	s = typesym(t);
 	if(s->def == N) {
 		n = nod(ONAME, N, N);
@@ -495,6 +497,8 @@ dtypesym(Type *t)
 		if(t == types[t->etype])
 			goto ok;
 		if(t1 && t1 == types[t1->etype])
+			goto ok;
+		if(t1 && t1->etype == tptr && t1->type->etype == TANY)
 			goto ok;
 	}
 
@@ -666,13 +670,13 @@ dumptypestructs(void)
 			dtypesym(ptrto(t));
 	}
 
-	// do basic types if compiling package runtime, type.go.
+	// do basic types if compiling package runtime.
 	// they have to be in at least one package,
 	// and reflect is always loaded implicitly,
 	// so this is as good as any.
 	// another possible choice would be package main,
 	// but using runtime means fewer copies in .6 files.
-	if(strcmp(package, "runtime") == 0 && strcmp(filename, "type") == 0) {
+	if(strcmp(package, "runtime") == 0) {
 		for(i=1; i<=TBOOL; i++)
 			if(i != TFLOAT80)
 				dtypesym(ptrto(types[i]));

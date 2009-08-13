@@ -51,6 +51,8 @@ dumpglobls(void)
 			fatal("external %#N nil type\n", n);
 		if(n->class == PFUNC)
 			continue;
+		if(n->sym->package != package)
+			continue;
 		dowidth(n->type);
 
 		// TODO(rsc): why is this not s/n->sym->def/n/ ?

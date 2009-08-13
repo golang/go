@@ -614,14 +614,19 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 		return;
 
 	t = a->type;
-	if(t != D_AUTO && t != D_PARAM)
+	if(t != D_AUTO && t != D_PARAM) {
+		if(a->gotype)
+			s->gotype = a->gotype;
 		return;
+	}
 	l = a->offset;
 	for(u=curauto; u; u=u->link) {
 		if(u->asym == s)
 		if(u->type == t) {
 			if(u->aoffset > l)
 				u->aoffset = l;
+			if(a->gotype)
+				u->gotype = a->gotype;
 			return;
 		}
 	}
@@ -632,6 +637,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	u->asym = s;
 	u->aoffset = l;
 	u->type = t;
+	u->gotype = a->gotype;
 }
 
 void
@@ -1062,7 +1068,7 @@ loop:
 		s = p->from.sym;
 		if(s != S && s->dupok) {
 			if(debug['v'])
-				Bprint(&bso, "skipping %s in %s: dupok", s->name, pn);
+				Bprint(&bso, "skipping %s in %s: dupok\n", s->name, pn);
 			goto loop;
 		}
 		if(s != S) {
@@ -1107,6 +1113,11 @@ loop:
 				goto casdef;
 			}
 			diag("%s: redefinition: %s\n%P", pn, s->name, p);
+		}
+		if(p->from.gotype) {
+			if(s->gotype && s->gotype != p->from.gotype)
+				diag("%s: type mismatch for %s", pn, s->name);
+			s->gotype = p->from.gotype;
 		}
 		newtext(p, s);
 		goto loop;
