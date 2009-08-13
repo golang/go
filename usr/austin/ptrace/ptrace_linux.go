@@ -9,7 +9,6 @@ import (
 	"fmt";
 	"io";
 	"os";
-	"ptrace";
 	"runtime";
 	"strconv";
 	"strings";
@@ -98,8 +97,6 @@ func (ts threadState) String() string {
  * Basic types
  */
 
-type thread struct
-
 // A breakpoint stores information about a single breakpoint,
 // including its program counter, the overwritten text if the
 // breakpoint is installed.
@@ -175,8 +172,6 @@ type thread struct {
 	// If state == Exited
 	exitStatus int;
 }
-
-func (p *process) newThread(tid int, signal int, cloned bool) (*thread, os.Error)
 
 /*
  * Errors
