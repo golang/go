@@ -139,12 +139,12 @@ set, it appends a newline, and then writes the result.
 
 Notice that "main.main" is a niladic function with no return type.
 It's defined that way.  Falling off the end of "main.main" means
-''success''; if you want to signal erroneous return, use
+''success''; if you want to signal an erroneous return, call
 
-	sys.Exit(1)
+	os.Exit(1)
 
-The "sys" package is built in and contains some essentials for getting
-started; for instance, "sys.Args" is an array used by the
+The "os" package contains other essentials for getting
+started; for instance, "os.Args" is an array used by the
 "flag" package to access the command-line arguments.
 
 An Interlude about Types
@@ -261,7 +261,7 @@ or the more idiomatic
 
 	t := new(T);
 
-Some types - maps, slices, and channels (see below) have reference semantics.
+Some types - maps, slices, and channels (see below) - have reference semantics.
 If you're holding a slice or a map and you modify its contents, other variables
 referencing the same underlying data will see the modification.  For these three
 types you want to use the built-in function "make()":
@@ -385,9 +385,9 @@ be negative and "NewFile" will return "nil".
 About those errors:  The "os" library includes a general notion of an error
 string, maintaining a unique set of errors throughout the program. It's a
 good idea to use its facility in your own interfaces, as we do here, for
-consistent error handling throughout Go code.   In "Open" we use the
-routine "os.ErrnoToError" to translate Unix's integer "errno" value into
-an error string, which will be stored in a unique instance of "*os.Error".
+consistent error handling throughout Go code.   In "Open" we use a
+conversion to "os.Errno" to translate Unix's integer "errno" value into
+an error value, which will be stored in a unique instance of type "os.Error".
 
 Now that we can build "Files", we can write methods for them. To declare
 a method of a type, we define a function to have an explicit receiver
@@ -406,15 +406,18 @@ array, not just for "structs".   We'll see an example with arrays later.
 The "String" method is so called because of printing convention we'll
 describe later.
 
-The methods use the public variable "os.EINVAL" to return the ("*os.Error"
-version of the) Unix error code EINVAL.  The "os" library defines a standard
+The methods use the public variable "os.EINVAL" to return the ("os.Error"
+version of the) Unix error code "EINVAL".  The "os" library defines a standard
 set of such error values.
 
-Finally, we can use our new package:
+We can now use our new package:
 
 --PROG progs/helloworld3.go
 
-And now we can run the program:
+The import of ''"./file"'' tells the compiler to use our own package rather than
+something from the directory of installed packages.
+
+Finally we can run the program:
 
 	% helloworld3
 	hello, world
@@ -509,7 +512,7 @@ implement a "writer", or any other interface built from its methods that
 fits the current situation. Consider the <i>empty interface</i>
 
 <pre>
-	type interface Empty {}
+	type Empty interface {}
 </pre>
 
 <i>Every</i> type implements the empty interface, which makes it
@@ -562,13 +565,13 @@ We've seen simple uses of the package "fmt", which
 implements "Printf", "Fprintf", and so on.
 Within the "fmt" package, "Printf" is declared with this signature:
 
-	Printf(format string, v ...) (n int, errno *os.Error)
+	Printf(format string, v ...) (n int, errno os.Error)
 
 That "..." represents the variadic argument list that in C would
 be handled using the "stdarg.h" macros, but in Go is passed using
 an empty interface variable ("interface {}") that is then unpacked
 using the reflection library.  It's off topic here but the use of
-reflection helps explain some of the nice properties of Go's Printf,
+reflection helps explain some of the nice properties of Go's "Printf",
 due to the ability of "Printf" to discover the type of its arguments
 dynamically.
 
@@ -661,7 +664,7 @@ not a file.  Instead, it is a variable of type "io.Writer", which is an
 interface type defined in the "io" library:
 
 	type Writer interface {
-		Write(p []byte) (n int, err *os.Error);
+		Write(p []byte) (n int, err os.Error);
 	}
 
 (This interface is another conventional name, this time for "Write"; there are also
@@ -756,7 +759,9 @@ returns the channel to the caller.  It is a factory for concurrent
 execution, starting the goroutine and returning its connection.
 
 The function literal notation (lines 8-12) allows us to construct an
-anonymous function and invoke it on the spot.
+anonymous function and invoke it on the spot. Notice that the local
+variable "ch" is available to the function literal and lives on even
+after "generate" returns.
 
 The same change can be made to "filter":
 
