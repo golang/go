@@ -457,33 +457,26 @@ func (p *parser) parseStructType() *ast.StructType {
 	}
 
 	pos := p.expect(token.STRUCT);
-	var lbrace, rbrace token.Position;
-	var fields []*ast.Field;
-	if p.tok == token.LBRACE {
-		lbrace = p.pos;
-		p.next();
-
-		list := vector.New(0);
-		for p.tok != token.RBRACE && p.tok != token.EOF {
-			f := p.parseFieldDecl();
-			list.Push(f);
-			if p.tok == token.SEMICOLON {
-				p.next();
-				f.Comment = p.lineComment;
-			} else {
-				f.Comment = p.lineComment;
-				break;
-			}
+	lbrace := p.expect(token.LBRACE);
+	list := vector.New(0);
+	for p.tok != token.RBRACE && p.tok != token.EOF {
+		f := p.parseFieldDecl();
+		list.Push(f);
+		if p.tok == token.SEMICOLON {
+			p.next();
+			f.Comment = p.lineComment;
+		} else {
+			f.Comment = p.lineComment;
+			break;
 		}
+	}
+	rbrace := p.expect(token.RBRACE);
+	p.optSemi = true;
 
-		rbrace = p.expect(token.RBRACE);
-		p.optSemi = true;
-
-		// convert vector
-		fields = make([]*ast.Field, list.Len());
-		for i := list.Len() - 1; i >= 0; i-- {
-			fields[i] = list.At(i).(*ast.Field);
-		}
+	// convert vector
+	fields := make([]*ast.Field, list.Len());
+	for i := list.Len() - 1; i >= 0; i-- {
+		fields[i] = list.At(i).(*ast.Field);
 	}
 
 	return &ast.StructType{pos, lbrace, fields, rbrace};
@@ -677,28 +670,21 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	}
 
 	pos := p.expect(token.INTERFACE);
-	var lbrace, rbrace token.Position;
-	var methods []*ast.Field;
-	if p.tok == token.LBRACE {
-		lbrace = p.pos;
-		p.next();
-
-		list := vector.New(0);
-		for p.tok == token.IDENT {
-			list.Push(p.parseMethodSpec());
-			if p.tok != token.RBRACE {
-				p.expect(token.SEMICOLON);
-			}
+	lbrace := p.expect(token.LBRACE);
+	list := vector.New(0);
+	for p.tok == token.IDENT {
+		list.Push(p.parseMethodSpec());
+		if p.tok != token.RBRACE {
+			p.expect(token.SEMICOLON);
 		}
+	}
+	rbrace := p.expect(token.RBRACE);
+	p.optSemi = true;
 
-		rbrace = p.expect(token.RBRACE);
-		p.optSemi = true;
-
-		// convert vector
-		methods = make([]*ast.Field, list.Len());
-		for i := list.Len() - 1; i >= 0; i-- {
-			methods[i] = list.At(i).(*ast.Field);
-		}
+	// convert vector
+	methods := make([]*ast.Field, list.Len());
+	for i := list.Len() - 1; i >= 0; i-- {
+		methods[i] = list.At(i).(*ast.Field);
 	}
 
 	return &ast.InterfaceType{pos, lbrace, methods, rbrace};
