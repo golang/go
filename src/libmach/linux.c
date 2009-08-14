@@ -199,6 +199,7 @@ attachthread(int pid, int tid, int *new, int newstate)
 	t = malloc(sizeof *t);
 	if(t == nil)
 		return nil;
+        memset(t, 0, sizeof *t);
 
 	thr[nthr++] = t;
 	t->pid = pid;
