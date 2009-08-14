@@ -60,7 +60,9 @@ traceback(byte *pc0, byte *sp, G *g)
 		printf("%S", f->name);
 		if(pc > f->entry)
 			printf("+%p", (uintptr)(pc - f->entry));
-		printf(" %S:%d\n", f->src, funcline(f, pc-1));	// -1 to get to CALL instr.
+		if(n > 0)
+			pc--;	// get to CALL instruction
+		printf(" %S:%d\n", f->src, funcline(f, pc));
 		printf("\t%S(", f->name);
 		for(i = 0; i < f->args; i++) {
 			if(i != 0)
@@ -144,4 +146,3 @@ runtime·Caller(int32 n, uintptr retpc, String retfile, int32 retline, bool retb
 	FLUSH(&retline);
 	FLUSH(&retbool);
 }
-
