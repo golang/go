@@ -33,6 +33,22 @@
 #include "y.tab.h"
 #include <ctype.h>
 
+enum
+{
+	Plan9	= 1<<0,
+	Unix	= 1<<1,
+	Windows	= 1<<2,
+};
+
+int
+systemtype(int sys)
+{
+	return sys&Plan9;
+}
+
+void*	alloc(int32);
+void*	allocn(void*, int32, int32);
+
 void
 main(int argc, char *argv[])
 {
@@ -127,7 +143,7 @@ assemble(char *file)
 	int i, of;
 
 	strcpy(ofile, file);
-	p = utfrrune(ofile, pathchar());
+	p = utfrrune(ofile, '/');
 	if(p) {
 		include[0] = ofile;
 		*p++ = 0;
@@ -656,7 +672,7 @@ outhist(void)
 	int n;
 
 	g = nullgen;
-	c = pathchar();
+	c = '/';
 	for(h = hist; h != H; h = h->link) {
 		p = h->name;
 		op = 0;
