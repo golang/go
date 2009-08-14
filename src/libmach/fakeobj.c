@@ -10,7 +10,7 @@
 #include <libc.h>
 #include <bio.h>
 #include <ar.h>
-#include <mach_amd64.h>
+#include <mach.h>
 #include "obj.h"
 
 int _is2(char* x) { return 0; }

@@ -33,7 +33,7 @@
 #include <u.h>
 #include <libc.h>
 #include <bio.h>
-#include <mach_amd64.h>
+#include <mach.h>
 
 static	int	mget(Map*, uvlong, void*, int);
 static	int	mput(Map*, uvlong, void*, int);

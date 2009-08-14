@@ -37,7 +37,7 @@
 #include <errno.h>
 #include <libc.h>
 #include <bio.h>
-#include <mach_amd64.h>
+#include <mach.h>
 #define Ureg Ureg32
 #include <ureg_x86.h>
 #undef Ureg

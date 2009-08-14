@@ -28,7 +28,7 @@
 
 include ../Make.conf
 
-LIB=libmach_amd64.a
+LIB=libmach.a
 OFILES=\
 	executable.$O\
 	fakeobj.$O\
@@ -46,32 +46,8 @@ OFILES=\
 	6obj.$O\
 	8obj.$O\
 	$(GOOS).$O\
-#	v.$O\
-#	k.$O\
-#	u.$O\
-#	q.$O\
-#	0.$O\
-#	2.$O\
-#	5.$O\
-#	7.$O\
-#	9.$O\
-#	vdb.$O\
-#	kdb.$O\
-#	udb.$O\
-#	qdb.$O\
-#	2db.$O\
-#	5db.$O\
-#	7db.$O\
-#	vobj.$O\
-#	kobj.$O\
-#	uobj.$O\
-#	2obj.$O\
-#	7obj.$O\
-#	9obj.$O\
-#	qobj.$O\
-#	vcodas.$O\
 
-HFILES=$(GOROOT)/include/mach_amd64.h elf.h macho.h obj.h
+HFILES=$(GOROOT)/include/mach.h elf.h macho.h obj.h
 
 install: $(LIB)
 	cp $(LIB) $(GOROOT)/lib

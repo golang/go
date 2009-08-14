@@ -34,7 +34,7 @@
 #include <libc.h>
 #include <bio.h>
 #include <ar.h>
-#include <mach_amd64.h>
+#include <mach.h>
 #include "obj.h"
 
 #define islocal(t)	((t)=='a' || (t)=='p')
@@ -333,7 +333,7 @@ _offset(int id, vlong off)
 /*
  * update the type of a global text or data symbol
  */
-static void 
+static void
 objupdate(int id, int type)
 {
 	Sym *s;

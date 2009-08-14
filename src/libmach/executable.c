@@ -1,11 +1,11 @@
 // Inferno libmach/executable.c
 // http://code.google.com/p/inferno-os/source/browse/utils/libmach/executable.c
 //
-//	Copyright © 1994-1999 Lucent Technologies Inc.
-//	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
-//	Portions Copyright © 1997-1999 Vita Nuova Limited.
-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
-//	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
+// 	Copyright © 1994-1999 Lucent Technologies Inc.
+// 	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
+// 	Portions Copyright © 1997-1999 Vita Nuova Limited.
+// 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
+// 	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
 //	Portions Copyright © 2009 The Go Authors.  All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -30,7 +30,7 @@
 #include	<libc.h>
 #include	<bio.h>
 #include	<bootexec.h>
-#include	<mach_amd64.h>
+#include	<mach.h>
 #include	"elf.h"
 #include	"macho.h"
 
@@ -268,7 +268,7 @@ ExecTable exectab[] =
 		sizeof(Machhdr),
 		nil,
 		machdotout },
-	{ MACH32_MAG,			/* 64-bit MACH (apple mac) */
+	{ MACH32_MAG,			/* 32-bit MACH (apple mac) */
 		"mach executable",
 		nil,
 		FI386,

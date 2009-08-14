@@ -17,7 +17,7 @@ OFILES=\
 #	fns.h\
 
 $(TARG): $(OFILES)
-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach_amd64 -lbio -l9
+	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lbio -l9
 
 clean:
 	rm -f $(OFILES) $(TARG)

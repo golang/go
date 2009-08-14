@@ -9,7 +9,7 @@
 #include <ctype.h>
 
 #include <ureg_amd64.h>
-#include <mach_amd64.h>
+#include <mach.h>
 
 char* file = "6.out";
 static Fhdr fhdr;

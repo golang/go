@@ -29,7 +29,7 @@
 #include <u.h>
 #include <libc.h>
 #include <bio.h>
-#include <mach_amd64.h>
+#include <mach.h>
 #define Ureg UregAmd64
 #include <ureg_amd64.h>
 #undef Ureg
@@ -226,7 +226,7 @@ i386trace(Map *map, uvlong pc, uvlong sp, uvlong link, Tracer trace)
 			findsym(pc, CTEXT, &s);
 			(*trace)(map, pc, sp, &s1);		// morestack's caller; caller's caller's PC/SP
 			continue;
-		} 
+		}
 
 		if(pc == lessstack) {
 			// ../pkg/runtime/runtime.h
