@@ -11,12 +11,10 @@ HFILES=\
 	a.h\
 	y.tab.h\
 	../5l/5.out.h\
-	compat.h\
 
 OFILES=\
 	y.tab.$O\
 	lex.$O\
-	compat.$O\
 #	../5l/enam.$O\
 
 YFILES=\
