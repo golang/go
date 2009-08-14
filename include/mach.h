@@ -29,15 +29,7 @@
 
 /*
  *	Architecture-dependent application data
- *	This is just Plan 9's mach.h, tweaked to support only amd64 for now.
  */
-/*
- * Start of Plan 9 a.out.h
- * Don't use system a.out; instead just lay in the Plan 9 one for now.
- */
-/*
-#include "a.out.h"
-*/
 
 typedef	struct	Exec	Exec;
 struct	Exec
@@ -87,10 +79,6 @@ struct	Sym
 	vlong	gotype;
 	int	sequence;	// order in file
 };
-/*
- * End of Plan 9 a.out.h
- * Don't use system a.out; instead just lay in the Plan 9 one for now.
- */
 
 
 /*

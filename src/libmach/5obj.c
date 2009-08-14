@@ -32,7 +32,7 @@
 #include <u.h>
 #include <libc.h>
 #include <bio.h>
-#include <mach_amd64.h>
+#include <mach.h>
 #include "../cmd/5l/5.out.h"
 #include "obj.h"
 

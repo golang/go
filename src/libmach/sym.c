@@ -29,7 +29,7 @@
 #include <u.h>
 #include <libc.h>
 #include <bio.h>
-#include <mach_amd64.h>
+#include <mach.h>
 
 #define	HUGEINT	0x7fffffff
 #define	NNAME	20		/* a relic of the past */

@@ -15,7 +15,7 @@
 #include "tree.h"
 
 #include <ureg_amd64.h>
-#include <mach_amd64.h>
+#include <mach.h>
 typedef struct Ureg Ureg;
 
 void
