@@ -156,3 +156,6 @@ BUG: errchk: command succeeded unexpectedly
 
 =========== bugs/bug187.go
 BUG: 0 1
+
+=========== bugs/bug189.go
+BUG: errchk: command succeeded unexpectedly
