@@ -186,41 +186,63 @@ makepath(byte *buf, int32 nbuf, byte *path)
 
 // walk symtab accumulating path names for use by pc/ln table.
 // don't need the full generality of the z entry history stack because
-// there are no includes in go (and only sensible includes in our c).
+// there are no includes in go (and only sensible includes in our c);
+// assume code only appear in top-level files.
 static void
 dosrcline(Sym *sym)
 {
 	static byte srcbuf[1000];
-	static String srcstring;
-	static int32 lno, incstart;
-	static int32 nf, nhist;
+	static struct {
+		String srcstring;
+		int32 aline;
+		int32 delta;
+	} files[200];
+	static int32 incstart;
+	static int32 nfunc, nfile, nhist;
 	Func *f;
+	int32 i;
 
 	switch(sym->symtype) {
 	case 't':
 	case 'T':
 		if(strcmp(sym->name, (byte*)"etext") == 0)
 			break;
-		f = &func[nf++];
-		f->src = srcstring;
-		f->ln0 += lno;
+		f = &func[nfunc++];
+		// find source file
+		for(i = 0; i < nfile - 1; i++) {
+			if (files[i+1].aline > f->ln0)
+				break;
+		}
+		f->src = files[i].srcstring;
+		f->ln0 -= files[i].delta;
 		break;
 	case 'z':
 		if(sym->value == 1) {
 			// entry for main source file for a new object.
 			makepath(srcbuf, sizeof srcbuf, sym->name+1);
-			srcstring = gostring(srcbuf);
-			lno = 0;
 			nhist = 0;
+			nfile = 0;
+			if(nfile == nelem(files))
+				continue;
+			files[nfile].srcstring = gostring(srcbuf);
+			files[nfile].aline = 0;
+			files[nfile++].delta = 0;
 		} else {
 			// push or pop of included file.
 			makepath(srcbuf, sizeof srcbuf, sym->name+1);
 			if(srcbuf[0] != '\0') {
 				if(nhist++ == 0)
 					incstart = sym->value;
+				if(nhist == 0 && nfile < nelem(files)) {
+					// new top-level file
+					files[nfile].srcstring = gostring(srcbuf);
+					files[nfile].aline = sym->value;
+					// this is "line 0"
+					files[nfile++].delta = sym->value - 1;
+				}
 			}else{
 				if(--nhist == 0)
-					lno -= sym->value - incstart;
+					files[nfile-1].delta += sym->value - incstart;
 			}
 		}
 	}
@@ -251,7 +273,7 @@ splitpcln(void)
 	f->pc0 = pc - PcQuant;
 	line = 0;
 	for(; p < ep; p++) {
-		if(f < ef && pc >= (f+1)->entry) {
+		if(f < ef && pc > (f+1)->entry) {
 			f->pcln.nel = p - f->pcln.array;
 			f->pcln.cap = f->pcln.nel;
 			f++;
@@ -292,9 +314,7 @@ funcline(Func *f, uint64 targetpc)
 	ep = p + f->pcln.nel;
 	pc = f->pc0;
 	line = f->ln0;
-	for(; p < ep; p++) {
-		if(pc >= targetpc)
-			return line;
+	for(; p < ep && pc <= targetpc; p++) {
 		if(*p == 0) {
 			line += (p[1]<<24) | (p[2]<<16) | (p[3]<<8) | p[4];
 			p += 4;
