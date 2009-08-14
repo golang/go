@@ -34,10 +34,12 @@ traceback(byte *pc0, byte *sp, G *g)
 			sp = stk->gobuf.sp;
 			stk = (Stktop*)stk->stackbase;
 		}
+                p = (byte*)pc;
+		if(n > 0 && pc != (uint64)goexit)
+			pc--;	// get to CALL instruction
 		f = findfunc(pc);
 		if(f == nil) {
 			// dangerous, but poke around to see if it is a closure
-			p = (byte*)pc;
 			// ADDL $xxx, SP; RET
 			if(p != 0 && p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
 				sp += *(uint32*)(p+2) + 8;
@@ -60,8 +62,6 @@ traceback(byte *pc0, byte *sp, G *g)
 		printf("%S", f->name);
 		if(pc > f->entry)
 			printf("+%p", (uintptr)(pc - f->entry));
-		if(n > 0)
-			pc--;	// get to CALL instruction
 		printf(" %S:%d\n", f->src, funcline(f, pc));
 		printf("\t%S(", f->name);
 		for(i = 0; i < f->args; i++) {
