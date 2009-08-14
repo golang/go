@@ -223,7 +223,7 @@ dosrcline(Sym *sym)
 			nhist = 0;
 			nfile = 0;
 			if(nfile == nelem(files))
-				continue;
+				return;
 			files[nfile].srcstring = gostring(srcbuf);
 			files[nfile].aline = 0;
 			files[nfile++].delta = 0;
