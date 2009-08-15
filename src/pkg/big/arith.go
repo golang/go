@@ -13,11 +13,13 @@ import "unsafe"
 
 // ----------------------------------------------------------------------------
 // Elementary operations on words
+//
+// These operations are used by the vector operations below.
 
 func addWW_s(x, y, c Word) (z1, z0 Word)
 
 // z1<<_W + z0 = x+y+c, with c == 0 or 1
-func addWW(x, y, c Word) (z1, z0 Word) {
+func addWW_g(x, y, c Word) (z1, z0 Word) {
 	yc := y+c;
 	z0 = x+yc;
 	if z0 < x || yc < y {
@@ -30,7 +32,7 @@ func addWW(x, y, c Word) (z1, z0 Word) {
 func subWW_s(x, y, c Word) (z1, z0 Word)
 
 // z1<<_W + z0 = x-y-c, with c == 0 or 1
-func subWW(x, y, c Word) (z1, z0 Word) {
+func subWW_g(x, y, c Word) (z1, z0 Word) {
 	yc := y+c;
 	z0 = x-yc;
 	if z0 > x || yc < y {
@@ -40,8 +42,12 @@ func subWW(x, y, c Word) (z1, z0 Word) {
 }
 
 
+// TODO(gri) mulWW_g is not needed anymore. Keep around for
+//           now since mulAddWWW_g should use some of the
+//           optimizations from mulWW_g eventually.
+
 // z1<<_W + z0 = x*y
-func mulW(x, y Word) (z1, z0 Word) {
+func mulWW_g(x, y Word) (z1, z0 Word) {
 	// Split x and y into 2 halfWords each, multiply
 	// the halfWords separately while avoiding overflow,
 	// and return the product as 2 Words.
@@ -96,7 +102,7 @@ func mulW(x, y Word) (z1, z0 Word) {
 
 
 // z1<<_W + z0 = x*y + c
-func mulAddWW(x, y, c Word) (z1, z0 Word) {
+func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
 	// Split x and y into 2 halfWords each, multiply
 	// the halfWords separately while avoiding overflow,
 	// and return the product as 2 Words.
@@ -124,17 +130,17 @@ func mulAddWW(x, y, c Word) (z1, z0 Word) {
 }
 
 
-func divWW_s(x1, x0, y Word) (q, r Word)
+func divWWW_s(x1, x0, y Word) (q, r Word)
 
 // q = (x1<<_W + x0 - r)/y
-func divWW(x1, x0, y Word) (q, r Word) {
+func divWW_g(x1, x0, y Word) (q, r Word) {
 	if x1 == 0 {
 		q, r = x0/y, x0%y;
 		return;
 	}
 
 	// TODO(gri) implement general case w/o assembly code
-	q, r = divWW_s(x1, x0, y);
+	q, r = divWWW_s(x1, x0, y);
 	return;
 }
 
@@ -142,98 +148,105 @@ func divWW(x1, x0, y Word) (q, r Word) {
 // ----------------------------------------------------------------------------
 // Elementary operations on vectors
 
-// For each function f there is a corresponding function f_s which
-// implements the same functionality as f but is written in assembly.
+// All higher-level functions use these elementary vector operations.
+// The function pointers f are initialized with default implementations
+// f_g, written in Go for portability. The corresponding assembly routines
+// f_s should be installed if they exist.
+var (
+	// addVV sets z and returns c such that z+c = x+y.
+	addVV func(z, x, y *Word, n int) (c Word)	= addVV_g;
+
+	// subVV sets z and returns c such that z-c = x-y.
+	subVV func(z, x, y *Word, n int) (c Word)	= subVV_g;
+
+	// addVW sets z and returns c such that z+c = x-y.
+	addVW func(z, x *Word, y Word, n int) (c Word)	= addVW_g;
+
+	// subVW sets z and returns c such that z-c = x-y.
+	subVW func(z, x *Word, y Word, n int) (c Word)	= subVW_g;
+
+	// mulAddVWW sets z and returns c such that z+c = x*y + r.
+	mulAddVWW func(z, x *Word, y, r Word, n int) (c Word)	= mulAddVWW_g;
+
+	// divWVW sets z and returns r such that z-r = (xn<<(n*_W) + x) / y.
+	divWVW func(z* Word, xn Word, x *Word, y Word, n int) (r Word)	= divWVW_g;
+)
+
+
+func useAsm() bool
+
+func init() {
+	if useAsm() {
+		// Install assemby routines.
+		// TODO(gri) This should only be done if the assembly routines are present.
+		addVV = addVV_s;
+		subVV = subVV_s;
+		addVW = addVW_s;
+		subVW = subVW_s;
+		mulAddVWW = mulAddVWW_s;
+		divWVW = divWVW_s;
+	}
+}
+
+
+func (p *Word) at(i int) *Word {
+	return (*Word)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) + uintptr(i)*_S));
+}
 
 
 func addVV_s(z, x, y *Word, n int) (c Word)
-
-// addVV sets z and returns c such that z+c = x+y.
-// z, x, y are n-word vectors.
-func addVV(z, x, y *Word, n int) (c Word) {
+func addVV_g(z, x, y *Word, n int) (c Word) {
 	for i := 0; i < n; i++ {
-		c, *z = addWW(*x, *y, c);
-		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
-		y = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(y)) + _S)));
-		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
-
+		c, *z.at(i) = addWW_g(*x.at(i), *y.at(i), c);
 	}
 	return
 }
 
 
 func subVV_s(z, x, y *Word, n int) (c Word)
-
-// subVV sets z and returns c such that z-c = x-y.
-// z, x, y are n-word vectors.
-func subVV(z, x, y *Word, n int) (c Word) {
+func subVV_g(z, x, y *Word, n int) (c Word) {
 	for i := 0; i < n; i++ {
-		c, *z = subWW(*x, *y, c);
-		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
-		y = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(y)) + _S)));
-		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
+		c, *z.at(i) = subWW_g(*x.at(i), *y.at(i), c);
 	}
 	return
 }
 
 
 func addVW_s(z, x *Word, y Word, n int) (c Word)
-
-// addVW sets z and returns c such that z+c = x-y.
-// z, x are n-word vectors.
-func addVW(z, x *Word, y Word, n int) (c Word) {
+func addVW_g(z, x *Word, y Word, n int) (c Word) {
 	c = y;
 	for i := 0; i < n; i++ {
-		c, *z = addWW(*x, c, 0);
-		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
-		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
-
+		c, *z.at(i) = addWW_g(*x.at(i), c, 0);
 	}
 	return
 }
+
 
 func subVW_s(z, x *Word, y Word, n int) (c Word)
-
-// subVW sets z and returns c such that z-c = x-y.
-// z, x are n-word vectors.
-func subVW(z, x *Word, y Word, n int) (c Word) {
+func subVW_g(z, x *Word, y Word, n int) (c Word) {
 	c = y;
 	for i := 0; i < n; i++ {
-		c, *z = subWW(*x, c, 0);
-		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
-		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
-
+		c, *z.at(i) = subWW_g(*x.at(i), c, 0);
 	}
 	return
 }
 
 
-func mulVW_s(z, x *Word, y Word, n int) (c Word)
-
-// mulVW sets z and returns c such that z+c = x*y.
-// z, x are n-word vectors.
-func mulVW(z, x *Word, y Word, n int) (c Word) {
+func mulAddVWW_s(z, x *Word, y, r Word, n int) (c Word)
+func mulAddVWW_g(z, x *Word, y, r Word, n int) (c Word) {
+	c = r;
 	for i := 0; i < n; i++ {
-		c, *z = mulAddWW(*x, y, c);
-		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + _S)));
-		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + _S)));
+		c, *z.at(i) = mulAddWWW_g(*x.at(i), y, c);
 	}
 	return
 }
 
 
 func divWVW_s(z* Word, xn Word, x *Word, y Word, n int) (r Word)
-
-// divWVW sets z and returns r such that z-r = (xn<<(n*_W) + x) / y.
-// z, x are n-word vectors; xn is the extra word x[n] of x.
-func divWVW(z* Word, xn Word, x *Word, y Word, n int) (r Word) {
+func divWVW_g(z* Word, xn Word, x *Word, y Word, n int) (r Word) {
 	r = xn;
-	x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) + uintptr(n-1)*_S)));
-	z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) + uintptr(n-1)*_S)));
 	for i := n-1; i >= 0; i-- {
-		*z, r = divWW(r, *x, y);
-		x = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(x)) - _S)));
-		z = (*Word)(unsafe.Pointer((uintptr(unsafe.Pointer(z)) - _S)));
+		*z.at(i), r = divWW_g(r, *x.at(i), y);
 	}
 	return;
 }

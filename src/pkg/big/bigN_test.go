@@ -73,5 +73,16 @@ func TestStringN(t *testing.T) {
 		if s != a.s {
 			t.Errorf("stringN%+v\n\tgot s = %s; want %s", a, s, a.s);
 		}
+
+		x, b, n := scanN(nil, a.s, a.b);
+		if cmpNN(x, a.x) != 0 {
+			t.Errorf("scanN%+v\n\tgot z = %v; want %v", a, x, a.x);
+		}
+		if b != a.b {
+			t.Errorf("scanN%+v\n\tgot b = %d; want %d", a, b, a.b);
+		}
+		if n != len(a.s) {
+			t.Errorf("scanN%+v\n\tgot n = %d; want %d", a, n, len(a.s));
+		}
 	}
 }

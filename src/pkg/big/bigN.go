@@ -20,6 +20,9 @@ package big
 // always normalized before returning the final result. The normalized
 // representation of 0 is the empty or nil slice (length = 0).
 
+// TODO(gri) - convert these routines into methods for type 'nat'
+//           - decide if type 'nat' should be exported
+
 func normN(z []Word) []Word {
 	i := len(z);
 	for i > 0 && z[i-1] == 0 {
@@ -45,7 +48,7 @@ func makeN(z []Word, m int) []Word {
 
 func newN(z []Word, x uint64) []Word {
 	if x == 0 {
-		return nil;  // len == 0
+		return makeN(z, 0);
 	}
 
 	// single-digit values
@@ -95,6 +98,7 @@ func addNN(z, x, y []Word) []Word {
 		// result is x
 		return setN(z, x);
 	}
+	// m > 0
 
 	z = makeN(z, m);
 	c := addVV(&z[0], &x[0], &y[0], n);
@@ -124,6 +128,7 @@ func subNN(z, x, y []Word) []Word {
 		// result is x
 		return setN(z, x);
 	}
+	// m > 0
 
 	z = makeN(z, m);
 	c := subVV(&z[0], &x[0], &y[0], n);
@@ -133,8 +138,8 @@ func subNN(z, x, y []Word) []Word {
 	if c != 0 {
 		panic("underflow");
 	}
-
 	z = normN(z);
+
 	return z;
 }
 
@@ -160,27 +165,38 @@ func cmpNN(x, y []Word) int {
 }
 
 
-func mulNW(z, x []Word, y Word) []Word {
+func mulAddNWW(z, x []Word, y, r Word) []Word {
 	m := len(x);
-	switch {
-	case m == 0 || y == 0:
-		return setN(z, nil);  // result is 0
-	case y == 1:
-		return setN(z, x);  // result is x
+	if m == 0 || y == 0 {
+		return newN(z, uint64(r));	// result is r
 	}
 	// m > 0
-	z = makeN(z, m+1);
-	c := mulVW(&z[0], &x[0], y, m);
+
+	z = makeN(z, m);
+	c := mulAddVWW(&z[0], &x[0], y, r, m);
 	if c > 0 {
 		z = z[0 : m+1];
 		z[m] = c;
 	}
+
 	return z;
 }
 
 
 func mulNN(z, x, y []Word) []Word {
+	m := len(x);
+	n := len(y);
+
+	switch {
+	case m < n:
+		return mulNN(z, x, y);
+	case m == 0 || n == 0:
+		return makeN(z, 0);
+	}
+	// m > 0 && n > 0 && m >= n
+
 	panic("mulNN unimplemented");
+
 	return z
 }
 
@@ -274,7 +290,7 @@ func scanN(z []Word, s string, base int) ([]Word, int, int) {
 	for ; i < n; i++ {
 		d := hexValue(s[i]);
 		if 0 <= d && d < base {
-			panic("scanN needs mulAddVWW");
+			z = mulAddNWW(z, z, Word(base), Word(d));
 		} else {
 			break;
 		}

@@ -3,10 +3,11 @@
 // license that can be found in the LICENSE file.
 
 // This file provides fast assembly versions of the routines in arith.go.
-//
-// Note: Eventually, these functions should be named like their corresponding
-//       Go implementations. For now their names have "_s" appended so that
-//       they can be linked and tested together.
+
+TEXT big·useAsm(SB),7,$0
+	MOVB $1, 8(SP)
+	RET
+
 
 // ----------------------------------------------------------------------------
 // Elementary operations on words
@@ -39,21 +40,10 @@ TEXT big·subWW_s(SB),7,$0
 	RET
 
 
-// func mulWW_s(x, y Word) (z1, z0 Word)
-// z1<<64 + z0 = x*y
-//
-TEXT big·mulWW_s(SB),7,$0
-	MOVQ a+0(FP), AX
-	MULQ a+8(FP)
-	MOVQ DX, a+16(FP)
-	MOVQ AX, a+24(FP)
-	RET
-
-
-// func mulAddWW_s(x, y, c Word) (z1, z0 Word)
+// func mulAddWWW_s(x, y, c Word) (z1, z0 Word)
 // z1<<64 + z0 = x*y + c
 //
-TEXT big·mulAddWW_s(SB),7,$0
+TEXT big·mulAddWWW_s(SB),7,$0
 	MOVQ a+0(FP), AX
 	MULQ a+8(FP)
 	ADDQ a+16(FP), AX
@@ -63,10 +53,10 @@ TEXT big·mulAddWW_s(SB),7,$0
 	RET
 
 
-// func divWW_s(x1, x0, y Word) (q, r Word)
+// func divWWW_s(x1, x0, y Word) (q, r Word)
 // q = (x1<<64 + x0)/y + r
 //
-TEXT big·divWW_s(SB),7,$0
+TEXT big·divWWW_s(SB),7,$0
 	MOVQ a+0(FP), DX
 	MOVQ a+8(FP), AX
 	DIVQ a+16(FP)
@@ -174,17 +164,17 @@ E4:	CMPQ BX, R11		// i < n
 	RET
 
 
-// func mulVW_s(z, x *Word, y Word, n int) (c Word)
-TEXT big·mulVW_s(SB),7,$0
+// func mulAddVWW_s(z, x *Word, y, r Word, n int) (c Word)
+TEXT big·mulAddVWW_s(SB),7,$0
 	MOVQ a+0(FP), R10	// z
 	MOVQ a+8(FP), R8	// x
 	MOVQ a+16(FP), R9	// y
-	MOVL a+24(FP), R11	// n
+	MOVQ a+24(FP), CX	// c = r
+	MOVL a+32(FP), R11	// n
 	XORQ BX, BX			// i = 0
-	XORQ CX, CX			// c = 0
-	JMP E5
+	JMP E6
 
-L5:	MOVQ (R8)(BX*8), AX
+L6:	MOVQ (R8)(BX*8), AX
 	MULQ R9
 	ADDQ CX, AX
 	ADCQ $0, DX
@@ -192,10 +182,10 @@ L5:	MOVQ (R8)(BX*8), AX
 	MOVQ DX, CX
 	ADDL $1, BX			// i++
 
-E5:	CMPQ BX, R11		// i < n
-	JL L5
+E6:	CMPQ BX, R11		// i < n
+	JL L6
 
-	MOVQ CX, a+32(FP)	// return c
+	MOVQ CX, a+40(FP)	// return c
 	RET
 
 
@@ -206,14 +196,14 @@ TEXT big·divWVW_s(SB),7,$0
 	MOVQ a+16(FP), R8	// x
 	MOVQ a+24(FP), R9	// y
 	MOVL a+32(FP), BX	// i = n
-	JMP E6
+	JMP E7
 
-L6:	MOVQ (R8)(BX*8), AX
+L7:	MOVQ (R8)(BX*8), AX
 	DIVQ R9
 	MOVQ AX, (R10)(BX*8)
 
-E6:	SUBL $1, BX
-	JGE L6
+E7:	SUBL $1, BX			// i--
+	JGE L7				// i >= 0
 
 	MOVQ DX, a+40(FP)	// return r
 	RET

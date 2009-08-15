@@ -6,118 +6,118 @@
 
 package big
 
-// A Z represents a signed multi-precision integer.
-// The zero value for a Z represents the value 0.
-type Z struct {
+// An Int represents a signed multi-precision integer.
+// The zero value for an Int represents the value 0.
+type Int struct {
 	neg bool;  // sign
-	m []Word;  // mantissa
+	abs []Word;  // absolute value of the integer
 }
 
 
-// NewZ sets z to x.
-func NewZ(z Z, x int64) Z {
+// New sets z to x.
+func (z *Int) New(x int64) *Int {
 	z.neg = false;
 	if x < 0 {
 		z.neg = true;
 		x = -x;
 	}
-	z.m = newN(z.m, uint64(x));
+	z.abs = newN(z.abs, uint64(x));
 	return z;
 }
 
 
-// SetZ sets z to x.
-func SetZ(z, x Z) Z {
+// Set sets z to x.
+func (z *Int) Set(x *Int) *Int {
 	z.neg = x.neg;
-	z.m = setN(z.m, x.m);
+	z.abs = setN(z.abs, x.abs);
 	return z;
 }
 
 
-// AddZZ computes z = x+y.
-func AddZZ(z, x, y Z) Z {
+// Add computes z = x+y.
+func (z *Int) Add(x, y *Int) *Int {
 	if x.neg == y.neg {
 		// x + y == x + y
 		// (-x) + (-y) == -(x + y)
 		z.neg = x.neg;
-		z.m = addNN(z.m, x.m, y.m);
+		z.abs = addNN(z.abs, x.abs, y.abs);
 	} else {
 		// x + (-y) == x - y == -(y - x)
 		// (-x) + y == y - x == -(x - y)
-		if cmpNN(x.m, y.m) >= 0 {
+		if cmpNN(x.abs, y.abs) >= 0 {
 			z.neg = x.neg;
-			z.m = subNN(z.m, x.m, y.m);
+			z.abs = subNN(z.abs, x.abs, y.abs);
 		} else {
 			z.neg = !x.neg;
-			z.m = subNN(z.m, y.m, x.m);
+			z.abs = subNN(z.abs, y.abs, x.abs);
 		}
 	}
-	if len(z.m) == 0 {
+	if len(z.abs) == 0 {
 		z.neg = false;  // 0 has no sign
 	}
 	return z
 }
 
 
-// AddZZ computes z = x-y.
-func SubZZ(z, x, y Z) Z {
+// Sub computes z = x-y.
+func (z *Int) Sub(x, y *Int) *Int {
 	if x.neg != y.neg {
 		// x - (-y) == x + y
 		// (-x) - y == -(x + y)
 		z.neg = x.neg;
-		z.m = addNN(z.m, x.m, y.m);
+		z.abs = addNN(z.abs, x.abs, y.abs);
 	} else {
 		// x - y == x - y == -(y - x)
 		// (-x) - (-y) == y - x == -(x - y)
-		if cmpNN(x.m, y.m) >= 0 {
+		if cmpNN(x.abs, y.abs) >= 0 {
 			z.neg = x.neg;
-			z.m = subNN(z.m, x.m, y.m);
+			z.abs = subNN(z.abs, x.abs, y.abs);
 		} else {
 			z.neg = !x.neg;
-			z.m = subNN(z.m, y.m, x.m);
+			z.abs = subNN(z.abs, y.abs, x.abs);
 		}
 	}
-	if len(z.m) == 0 {
+	if len(z.abs) == 0 {
 		z.neg = false;  // 0 has no sign
 	}
 	return z
 }
 
 
-// MulZZ computes z = x*y.
-func MulZZ(z, x, y Z) Z {
+// Mul computes z = x*y.
+func (z *Int) Mul(x, y *Int) *Int {
 	// x * y == x * y
 	// x * (-y) == -(x * y)
 	// (-x) * y == -(x * y)
 	// (-x) * (-y) == x * y
 	z.neg = x.neg != y.neg;
-	z.m = mulNN(z.m, x.m, y.m);
+	z.abs = mulNN(z.abs, x.abs, y.abs);
 	return z
 }
 
 
-// NegZ computes z = -x.
-func NegZ(z, x Z) Z {
-	z.neg = len(x.m) > 0 && !x.neg;  // 0 has no sign
-	z.m = setN(z.m, x.m);
+// Neg computes z = -x.
+func (z *Int) Neg(x *Int) *Int {
+	z.neg = len(x.abs) > 0 && !x.neg;  // 0 has no sign
+	z.abs = setN(z.abs, x.abs);
 	return z;
 }
 
 
-// Cmp compares x and y. The result is an int value that is
+// CmpInt compares x and y. The result is an int value that is
 //
 //   <  0 if x <  y
 //   == 0 if x == y
 //   >  0 if x >  y
 //
-func CmpZZ(x, y Z) (r int) {
+func CmpInt(x, y *Int) (r int) {
 	// x cmp y == x cmp y
 	// x cmp (-y) == x
 	// (-x) cmp y == y
 	// (-x) cmp (-y) == -(x cmp y)
 	switch {
 	case x.neg == y.neg:
-		r = cmpNN(x.m, y.m);
+		r = cmpNN(x.abs, y.abs);
 		if x.neg {
 			r = -r;
 		}
@@ -130,10 +130,10 @@ func CmpZZ(x, y Z) (r int) {
 }
 
 
-func (x Z) String() string {
+func (x *Int) String() string {
 	s := "";
 	if x.neg {
 		s = "-";
 	}
-	return s + stringN(x.m, 10);
+	return s + stringN(x.abs, 10);
 }
