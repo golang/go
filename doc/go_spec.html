@@ -10,7 +10,9 @@ Open issues:
 
 Todo's:
 [ ] need language about function/method calls and parameter passing rules
-[ ] update language with respect to forward declarations
+[ ] clarify new scope rules for package-level identifiers
+[ ] clarify scope of identifiers denoting imported packages (file scope)
+[ ] package identifier not in any scope
 [ ] clarify what a field name is in struct declarations
     (struct{T} vs struct {T T} vs struct {t T})
 [ ] need explicit language about the result type of operations
@@ -451,17 +453,6 @@ channels.
 </p>
 
 <p>
-At any point in the source code, a type may be <i>complete</i> or
-<i>incomplete</i>.  An incomplete type is one whose size is not
-yet known, such as a struct whose fields are not yet fully
-defined or a forward declared type (§Forward declarations).
-Most types are always complete; for instance, a pointer
-type is always complete even if it points to an incomplete type
-because the size of the pointer itself is always known.
-(TODO: Need to figure out how forward declarations of
-interface fit in here.)
-</p>
-<p>
 A type may have a <i>method set</i> associated with it
 (§Interface types, §Method declarations).
 The method set of an interface type (§Interface types) is its interface.
@@ -569,15 +560,15 @@ is a string literal.
 
 <p>
 An array is a numbered sequence of elements of a single
-type, called the element type, which must be complete
-(§Types). The number of elements is called the length and is never
+type, called the element type.
+The number of elements is called the length and is never
 negative.
 </p>
 
 <pre class="ebnf">
 ArrayType   = "[" ArrayLength "]" ElementType .
 ArrayLength = Expression .
-ElementType = CompleteType .
+ElementType = Type .
 </pre>
 
 <p>
@@ -677,13 +668,13 @@ new([100]int)[0:50]
 A struct is a sequence of named
 elements, called fields, with various types. A struct type declares
 an identifier and type for each field. Within a struct, field identifiers
-must be unique and  field types must be complete (§Types).
+must be unique.
 </p>
 
 <pre class="ebnf">
 StructType = "struct" "{" [ FieldDeclList ] "}" .
 FieldDeclList = FieldDecl { ";" FieldDecl } [ ";" ] .
-FieldDecl = (IdentifierList CompleteType | [ "*" ] TypeName) [ Tag ] .
+FieldDecl = (IdentifierList Type | [ "*" ] TypeName) [ Tag ] .
 Tag = StringLit .
 </pre>
 
@@ -802,10 +793,10 @@ A function value may be <code>nil</code>.
 <pre class="ebnf">
 FunctionType   = "func" Signature .
 Signature      = Parameters [ Result ] .
-Result         = Parameters | CompleteType .
+Result         = Parameters | Type .
 Parameters     = "(" [ ParameterList ] ")" .
 ParameterList  = ParameterDecl { "," ParameterDecl } .
-ParameterDecl  = [ IdentifierList ] ( CompleteType | "..." ) .
+ParameterDecl  = [ IdentifierList ] ( Type | "..." ) .
 </pre>
 
 <p>
@@ -815,8 +806,6 @@ stands for one item (parameter or result) of the specified type; if absent, each
 type stands for one item of that type.  Parameter and result
 lists are always parenthesized except that if there is exactly
 one unnamed result that is not a function type it may writen as an unparenthesized type.
-The types of parameters and results must be complete.
-(TODO: is completeness necessary?)
 </p>
 <p>
 For the last parameter only, instead of a type one may write
@@ -920,7 +909,7 @@ as the <code>File</code> interface.
 <p>
 An interface may contain an interface type name <code>T</code>
 in place of a method specification.
-In this notation, <code>T</code> must denote a different, complete interface type
+In this notation, <code>T</code> must denote a different interface type
 and the effect is equivalent to enumerating the methods of <code>T</code> explicitly
 in the interface.
 </p>
@@ -942,17 +931,15 @@ type File interface {
 <p>
 A map is an unordered group of elements of one type, called the
 value type, indexed by a set of unique <i>keys</i> of another type,
-called the key type.  Both key and value types must be complete.
-(§Types).
-(TODO: is completeness necessary here?)
+called the key type.
 A map value may be <code>nil</code>.
 
 </p>
 
 <pre class="ebnf">
 MapType     = "map" "[" KeyType "]" ValueType .
-KeyType     = CompleteType .
-ValueType   = CompleteType .
+KeyType     = Type .
+ValueType   = Type .
 </pre>
 
 <p>
@@ -1001,8 +988,7 @@ stored in them.
 <p>
 A channel provides a mechanism for two concurrently executing functions
 to synchronize execution and communicate by passing a value of a
-specified element type. The element type must be complete (§Types).
-(TODO: is completeness necessary here?)
+specified element type.
 A value of channel type may be <code>nil</code>.
 </p>
 
@@ -1358,16 +1344,14 @@ right.
 <pre class="ebnf">
 ConstDecl      = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
 ConstSpecList  = ConstSpec { ";" ConstSpec } [ ";" ] .
-ConstSpec      = IdentifierList [ [ CompleteType ] "=" ExpressionList ] .
+ConstSpec      = IdentifierList [ [ Type ] "=" ExpressionList ] .
 
 IdentifierList = identifier { "," identifier } .
 ExpressionList = Expression { "," Expression } .
-
-CompleteType = Type .
 </pre>
 
 <p>
-If the type (CompleteType) is omitted, the constants take the
+If the type is omitted, the constants take the
 individual types of the corresponding expressions, which may be
 <i>ideal integer</i> or <i>ideal float</i> (§Ideal number).  If the type
 is present, all constants take the type specified, and the types
@@ -1502,12 +1486,11 @@ type Comparable interface {
 <p>
 A variable declaration creates a variable, binds an identifier to it and
 gives it a type and optionally an initial value.
-The type must be complete (§Types).
 </p>
 <pre class="ebnf">
 VarDecl     = "var" ( VarSpec | "(" [ VarSpecList ] ")" ) .
 VarSpecList = VarSpec { ";" VarSpec } [ ";" ] .
-VarSpec     = IdentifierList ( CompleteType [ "=" ExpressionList ] | "=" ExpressionList ) .
+VarSpec     = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
 </pre>
 
 <pre>
@@ -1613,6 +1596,11 @@ A function declaration binds an identifier to a function (§Function types).
 FunctionDecl = "func" identifier Signature [ Block ] .
 </pre>
 
+<p>
+A function declaration may omit the body. Such a declaration provides the
+signature for a function implemented outside Go, such as an assembly routine.
+</p>
+
 <pre>
 func min(x int, y int) int {
 	if x &lt; y {
@@ -1620,10 +1608,11 @@ func min(x int, y int) int {
 	}
 	return y;
 }
+
+func flushICache(begin, end uintptr)  // implemented externally
 </pre>
 
 <p>
-A function must be declared or forward-declared before it can be invoked (§Forward declarations).
 Implementation restriction: Functions can only be declared at the package level.
 </p>
 
@@ -1676,9 +1665,6 @@ general to parameters of functions and methods.
 </p>
 
 <p>
-Methods can be declared
-only after their base type is declared or forward-declared, and invoked
-only after their own declaration or forward-declaration (§Forward declarations).
 Implementation restriction: They can only be declared at package level.
 </p>
 
@@ -1695,46 +1681,6 @@ argument.  For instance, the method <code>Scale</code> has type
 However, a function declared this way is not a method.
 </p>
 
-<h3>Forward declarations</h3>
-
-<p>
-Mutually-recursive types require that one be
-<i>forward declared</i> so that it may be named in the other.
-A forward declaration of a type omits the block containing the fields
-or methods of the type.
-</p>
-
-<pre>
-type List struct  // forward declaration of List
-type Item struct {
-	value int;
-	next *List;
-}
-type List struct {
-	head, tail *Item
-}
-</pre>
-<p>
-A forward-declared type is incomplete (§Types)
-until it is fully declared. The full declaration must follow
-before the end of the block containing the forward declaration;
-it cannot be contained in an inner block.
-</p>
-<p>
-Functions and methods may similarly be forward-declared by omitting their body.
-</p>
-<pre>
-func F(a int) int  // forward declaration of F
-func G(a, b int) int {
-	return F(a) + F(b)
-}
-func F(a int) int {
-	if a <= 0 { return 0 }
-	return G(a-1, b+1)
-}
-</pre>
-
-<hr/>
 
 <h2>Expressions</h2>
 
@@ -4303,7 +4249,7 @@ When <code>main.main()</code> returns, the program exits.
 </p>
 <p>
 Implementation restriction: The compiler assumes package <code>main</code>
-is created by a single source file and that it is not imported by any other package.
+is not imported by any other package.
 </p>
 
 <hr/>
@@ -4339,7 +4285,7 @@ a <code>Pointer</code> and vice versa.
 </p>
 <p>
 The function <code>Sizeof</code> takes an expression denoting a
-variable of any (complete) type and returns the size of the variable in bytes.
+variable of any type and returns the size of the variable in bytes.
 </p>
 <p>
 The function <code>Offsetof</code> takes a selector (§Selectors) denoting a struct
