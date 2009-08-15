@@ -221,8 +221,8 @@ gc(int32 force)
 		return;
 
 //printf("gc...\n");
-	m->gcing = 1;
 	semacquire(&gcsema);
+	m->gcing = 1;
 	stoptheworld();
 	if(mheap.Lock.key != 0)
 		throw("mheap locked during gc");
@@ -232,6 +232,6 @@ gc(int32 force)
 		mstats.next_gc = mstats.inuse_pages+mstats.inuse_pages*gcpercent/100;
 	}
 	starttheworld();
-	semrelease(&gcsema);
 	m->gcing = 0;
+	semrelease(&gcsema);
 }
