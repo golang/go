@@ -56,20 +56,22 @@ func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
 }
 
 func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
+	// Compile element type
+	elem := a.compileType(x.Elt, allowRec);
+
 	// Compile length expression
 	if x.Len == nil {
-		a.diagAt(x, "slice types not implemented");
-		return nil;
+		if elem == nil {
+			return nil;
+		}
+		return NewSliceType(elem);
 	}
+
 	if _, ok := x.Len.(*ast.Ellipsis); ok {
 		a.diagAt(x.Len, "... array initailizers not implemented");
 		return nil;
 	}
 	l, ok := a.compileArrayLen(a.block, x.Len);
-
-	// Compile element type
-	elem := a.compileType(x.Elt, allowRec);
-
 	if !ok {
 		return nil;
 	}

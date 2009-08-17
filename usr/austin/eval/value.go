@@ -383,6 +383,11 @@ func (v *arrayV) Elem(i int64) Value {
 	return (*v)[i];
 }
 
+func (v *arrayV) From(i int64) ArrayValue {
+	res := (*v)[i:len(*v)];
+	return &res;
+}
+
 /*
  * Struct
  */
@@ -466,6 +471,37 @@ func (v *funcV) Get() Func {
 
 func (v *funcV) Set(x Func) {
 	v.target = x;
+}
+
+/*
+ * Slices
+ */
+
+type sliceV struct {
+	Slice;
+}
+
+func (v *sliceV) String() string {
+	res := "{";
+	for i := int64(0); i < v.Len; i++ {
+		if i > 0 {
+			res += ", ";
+		}
+		res += v.Base.Elem(i).String();
+	}
+	return res + "}";
+}
+
+func (v *sliceV) Assign(o Value) {
+	v.Slice = o.(SliceValue).Get();
+}
+
+func (v *sliceV) Get() Slice {
+	return v.Slice;
+}
+
+func (v *sliceV) Set(x Slice) {
+	v.Slice = x;
 }
 
 /*

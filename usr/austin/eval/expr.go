@@ -37,6 +37,7 @@ type exprCompiler struct {
 	evalStruct func(f *Frame) StructValue;
 	evalPtr func(f *Frame) Value;
 	evalFunc func(f *Frame) Func;
+	evalSlice func(f *Frame) Slice;
 	evalMulti func(f *Frame) []Value;
 	// Evaluate to the "address of" this value; that is, the
 	// settable Value object.  nil for expressions whose address
@@ -162,6 +163,13 @@ func (a *exprCompiler) asFunc() (func(f *Frame) Func) {
 		log.Crashf("tried to get %v node as FuncType", a.t);
 	}
 	return a.evalFunc;
+}
+
+func (a *exprCompiler) asSlice() (func(f *Frame) Slice) {
+	if a.evalSlice == nil {
+		log.Crashf("tried to get %v node as SliceType", a.t);
+	}
+	return a.evalSlice;
 }
 
 func (a *exprCompiler) asMulti() (func(f *Frame) []Value) {
@@ -366,6 +374,41 @@ func (a *assignCompiler) compile(lt Type) (func(lv Value, f *Frame)) {
 
 	bad := false;
 
+	// If this is an unpack, create a temporary to store the
+	// multi-value and replace the RHS with expressions to pull
+	// out values from the temporary.  Technically, this is only
+	// necessary when we need to perform assignment conversions.
+	var effect func(f *Frame);
+	if isUnpack {
+		// TODO(austin) Is it safe to exit the block?  What if
+		// there are multiple unpacks in one statement, such
+		// as for function calls?
+		//bc := a.rs[0].block.enterChild();
+		//defer bc.exit();
+
+		// This leaks a slot, but is definitely safe.
+		bc := a.rs[0].block;
+		temp := bc.DefineSlot(a.rmt);
+		tempIdx := temp.Index;
+		rf := a.rs[0].asMulti();
+		effect = func(f *Frame) {
+			f.Vars[tempIdx] = multiV(rf(f));
+		};
+		orig := a.rs[0];
+		a.rs = make([]*exprCompiler, len(a.rmt.Elems));
+		for i, t := range a.rmt.Elems {
+			if t.isIdeal() {
+				log.Crashf("Right side of unpack contains ideal: %s", rmt);
+			}
+			a.rs[i] = orig.copy();
+			a.rs[i].t = t;
+			index := i;
+			a.rs[i].genValue(func(f *Frame) Value { return f.Vars[tempIdx].(multiV)[index] });
+		}
+	}
+	// Now len(a.rs) == len(a.rmt) and we've reduced any unpacking
+	// to multi-assignment.
+
 	// TODO(austin) Deal with assignment special cases.  This is
 	// tricky in the unpack case, since some of the conversions
 	// can apply to single types within the multi-type.
@@ -373,23 +416,38 @@ func (a *assignCompiler) compile(lt Type) (func(lv Value, f *Frame)) {
 	// Values of any type may always be assigned to variables of
 	// compatible static type.
 	for i, lt := range lmt.Elems {
-		// Check each type individually so we can produce a
-		// better error message.
 		rt := rmt.Elems[i];
 
 		// When [an ideal is] (used in an expression) assigned
 		// to a variable or typed constant, the destination
 		// must be able to represent the assigned value.
 		if rt.isIdeal() {
-			if isUnpack {
-				log.Crashf("Right side of unpack contains ideal: %s", rmt);
-			}
 			a.rs[i] = a.rs[i].convertTo(lmt.Elems[i]);
 			if a.rs[i] == nil {
 				bad = true;
 				continue;
 			}
 			rt = a.rs[i].t;
+		}
+
+		// A pointer p to an array can be assigned to a slice
+		// variable v with compatible element type if the type
+		// of p or v is unnamed.
+		if rpt, ok := rt.lit().(*PtrType); ok {
+			if at, ok := rpt.Elem.lit().(*ArrayType); ok {
+				if lst, ok := lt.lit().(*SliceType); ok {
+					if lst.Elem.compat(at.Elem, false) && (rt.lit() == Type(rt) || lt.lit() == Type(lt)) {
+						rf := a.rs[i].asPtr();
+						a.rs[i] = a.rs[i].copy();
+						a.rs[i].t = lt;
+						len := at.Len;
+						a.rs[i].evalSlice = func(f *Frame) Slice {
+							return Slice{rf(f).(ArrayValue), len, len};
+						};
+						rt = a.rs[i].t;
+					}
+				}
+			}
 		}
 
 		if !lt.compat(rt, false) {
@@ -406,30 +464,24 @@ func (a *assignCompiler) compile(lt Type) (func(lv Value, f *Frame)) {
 	}
 
 	// Compile
-	switch {
-	case !isMT:
+	if !isMT {
 		// Case 1
 		return genAssign(lt, a.rs[0]);
-	case !isUnpack:
-		// Case 2
-		as := make([]func(lv Value, f *Frame), len(a.rs));
-		for i, r := range a.rs {
-			as[i] = genAssign(lmt.Elems[i], r);
-		}
-		return func(lv Value, f *Frame) {
-			lmv := lv.(multiV);
-			for i, a := range as {
-				a(lmv[i], f);
-			}
-		};
-	default:
-		// Case 3
-		rf := a.rs[0].asMulti();
-		return func(lv Value, f *Frame) {
-			lv.Assign(multiV(rf(f)));
-		};
 	}
-	panic();
+	// Case 2 or 3
+	as := make([]func(lv Value, f *Frame), len(a.rs));
+	for i, r := range a.rs {
+		as[i] = genAssign(lmt.Elems[i], r);
+	}
+	return func(lv Value, f *Frame) {
+		if effect != nil {
+			effect(f);
+		}
+		lmv := lv.(multiV);
+		for i, a := range as {
+			a(lmv[i], f);
+		}
+	};
 }
 
 // compileAssign compiles an assignment operation without the full
@@ -652,10 +704,7 @@ func (a *exprCompiler) DoSelectorExpr(x *ast.SelectorExpr) {
 		// If it's a struct type, check fields and embedded types
 		var builder func(*exprCompiler);
 		if t, ok := t.(*StructType); ok {
-			// TODO(austin) Work around := range bug
-			var i int;
-			var f StructField;
-			for i, f = range t.Elems {
+			for i, f := range t.Elems {
 				var this *exprCompiler;
 				var sub func(*exprCompiler);
 				switch {
@@ -743,10 +792,9 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
 		intIndex = true;
 		maxIndex = lt.Len;
 
-	// TODO(austin) Uncomment when there is a SliceType
-	// case *SliceType:
-	// 	a.t = lt.Elem;
-	// 	intIndex = true;
+	case *SliceType:
+		at = lt.Elem;
+		intIndex = true;
 
 	case *stringType:
 		at = Uint8Type;
@@ -802,13 +850,21 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
 	// Compile
 	switch lt := l.t.lit().(type) {
 	case *ArrayType:
-		a.t = lt.Elem;
 		// TODO(austin) Bounds check
 		a.genIndexArray(l, r);
 		lf := l.asArray();
 		rf := r.asInt();
 		a.evalAddr = func(f *Frame) Value {
 			return lf(f).Elem(rf(f));
+		};
+
+	case *SliceType:
+		// TODO(austin) Bounds check
+		a.genIndexSlice(l, r);
+		lf := l.asSlice();
+		rf := r.asInt();
+		a.evalAddr = func(f *Frame) Value {
+			return lf(f).Base.Elem(rf(f));
 		};
 
 	case *stringType:
@@ -1549,6 +1605,8 @@ func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
 		return &Expr{t, func(f *Frame, out Value) { out.(PtrValue).Set(ec.evalPtr(f)) }}, nil;
 	case *FuncType:
 		return &Expr{t, func(f *Frame, out Value) { out.(FuncValue).Set(ec.evalFunc(f)) }}, nil;
+	case *SliceType:
+		return &Expr{t, func(f *Frame, out Value) { out.(SliceValue).Set(ec.evalSlice(f)) }}, nil;
 	}
 	log.Crashf("unexpected type %v", ec.t);
 	panic();
@@ -1594,6 +1652,9 @@ func (a *exprCompiler) genConstant(v Value) {
 	case *FuncType:
 		val := v.(FuncValue).Get();
 		a.evalFunc = func(f *Frame) Func { return val };
+	case *SliceType:
+		val := v.(SliceValue).Get();
+		a.evalSlice = func(f *Frame) Slice { return val };
 	default:
 		log.Crashf("unexpected constant type %v at %v", a.t, a.pos);
 	}
@@ -1620,6 +1681,8 @@ func (a *exprCompiler) genIdentOp(level int, index int) {
 		a.evalPtr = func(f *Frame) Value { return f.Get(level, index).(PtrValue).Get() };
 	case *FuncType:
 		a.evalFunc = func(f *Frame) Func { return f.Get(level, index).(FuncValue).Get() };
+	case *SliceType:
+		a.evalSlice = func(f *Frame) Slice { return f.Get(level, index).(SliceValue).Get() };
 	default:
 		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos);
 	}
@@ -1647,6 +1710,37 @@ func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler) {
 		a.evalPtr = func(f *Frame) Value { return lf(f).Elem(rf(f)).(PtrValue).Get() };
 	case *FuncType:
 		a.evalFunc = func(f *Frame) Func { return lf(f).Elem(rf(f)).(FuncValue).Get() };
+	case *SliceType:
+		a.evalSlice = func(f *Frame) Slice { return lf(f).Elem(rf(f)).(SliceValue).Get() };
+	default:
+		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
+	}
+}
+
+func (a *exprCompiler) genIndexSlice(l *exprCompiler, r *exprCompiler) {
+	lf := l.asSlice();
+	rf := r.asInt();
+	switch _ := a.t.lit().(type) {
+	case *boolType:
+		a.evalBool = func(f *Frame) bool { return lf(f).Base.Elem(rf(f)).(BoolValue).Get() };
+	case *uintType:
+		a.evalUint = func(f *Frame) uint64 { return lf(f).Base.Elem(rf(f)).(UintValue).Get() };
+	case *intType:
+		a.evalInt = func(f *Frame) int64 { return lf(f).Base.Elem(rf(f)).(IntValue).Get() };
+	case *floatType:
+		a.evalFloat = func(f *Frame) float64 { return lf(f).Base.Elem(rf(f)).(FloatValue).Get() };
+	case *stringType:
+		a.evalString = func(f *Frame) string { return lf(f).Base.Elem(rf(f)).(StringValue).Get() };
+	case *ArrayType:
+		a.evalArray = func(f *Frame) ArrayValue { return lf(f).Base.Elem(rf(f)).(ArrayValue).Get() };
+	case *StructType:
+		a.evalStruct = func(f *Frame) StructValue { return lf(f).Base.Elem(rf(f)).(StructValue).Get() };
+	case *PtrType:
+		a.evalPtr = func(f *Frame) Value { return lf(f).Base.Elem(rf(f)).(PtrValue).Get() };
+	case *FuncType:
+		a.evalFunc = func(f *Frame) Func { return lf(f).Base.Elem(rf(f)).(FuncValue).Get() };
+	case *SliceType:
+		a.evalSlice = func(f *Frame) Slice { return lf(f).Base.Elem(rf(f)).(SliceValue).Get() };
 	default:
 		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
@@ -1673,6 +1767,8 @@ func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value) {
 		a.evalPtr = func(f *Frame) Value { return call(f)[0].(PtrValue).Get() };
 	case *FuncType:
 		a.evalFunc = func(f *Frame) Func { return call(f)[0].(FuncValue).Get() };
+	case *SliceType:
+		a.evalSlice = func(f *Frame) Slice { return call(f)[0].(SliceValue).Get() };
 	case *MultiType:
 		a.evalMulti = func(f *Frame) []Value { return call(f) };
 	default:
@@ -1701,6 +1797,8 @@ func (a *exprCompiler) genValue(vf func(*Frame) Value) {
 		a.evalPtr = func(f *Frame) Value { return vf(f).(PtrValue).Get() };
 	case *FuncType:
 		a.evalFunc = func(f *Frame) Func { return vf(f).(FuncValue).Get() };
+	case *SliceType:
+		a.evalSlice = func(f *Frame) Slice { return vf(f).(SliceValue).Get() };
 	default:
 		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
@@ -2249,12 +2347,18 @@ func genAssign(lt Type, r *exprCompiler) (func(lv Value, f *Frame)) {
 	case *ArrayType:
 		rf := r.asArray();
 		return func(lv Value, f *Frame) { lv.Assign(rf(f)) };
+	case *StructType:
+		rf := r.asStruct();
+		return func(lv Value, f *Frame) { lv.Assign(rf(f)) };
 	case *PtrType:
 		rf := r.asPtr();
 		return func(lv Value, f *Frame) { lv.(PtrValue).Set(rf(f)) };
 	case *FuncType:
 		rf := r.asFunc();
 		return func(lv Value, f *Frame) { lv.(FuncValue).Set(rf(f)) };
+	case *SliceType:
+		rf := r.asSlice();
+		return func(lv Value, f *Frame) { lv.(SliceValue).Set(rf(f)) };
 	default:
 		log.Crashf("unexpected left operand type %v at %v", lt, r.pos);
 	}
