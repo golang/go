@@ -111,6 +111,9 @@ type ArrayValue interface {
 	// useless Get methods, just special-case these uses.
 	Get() ArrayValue;
 	Elem(i int64) Value;
+	// From returns an ArrayValue backed by the same array that
+	// starts from element i.
+	From(i int64) ArrayValue;
 }
 
 type StructValue interface {
@@ -126,10 +129,26 @@ type PtrValue interface {
 	Set(Value);
 }
 
+type Func interface {
+	NewFrame() *Frame;
+	Call(*Frame);
+}
+
 type FuncValue interface {
 	Value;
 	Get() Func;
 	Set(Func);
+}
+
+type Slice struct {
+	Base ArrayValue;
+	Len, Cap int64;
+}
+
+type SliceValue interface {
+	Value;
+	Get() Slice;
+	Set(Slice);
 }
 
 /*
@@ -205,13 +224,4 @@ var universe *Scope = newUniverse();
 type Frame struct {
 	Outer *Frame;
 	Vars []Value;
-}
-
-/*
- * Functions
- */
-
-type Func interface {
-	NewFrame() *Frame;
-	Call(*Frame);
 }

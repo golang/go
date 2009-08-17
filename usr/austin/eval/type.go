@@ -579,7 +579,6 @@ type StructField struct {
 type StructType struct {
 	commonType;
 	Elems []StructField;
-	maxDepth int;
 }
 
 var structTypes = newTypeArrayMap()
@@ -626,19 +625,7 @@ func NewStructType(fields []StructField) *StructType {
 	t, ok := tMap[key];
 	if !ok {
 		// Create new struct type
-
-		// Compute max anonymous field depth
-		maxDepth := 1;
-		for _, f := range fields {
-			// TODO(austin) Careful of type T struct { *T }
-			if st, ok := f.Type.(*StructType); ok {
-				if st.maxDepth + 1 > maxDepth {
-					maxDepth = st.maxDepth + 1;
-				}
-			}
-		}
-
-		t = &StructType{commonType{}, fields, maxDepth};
+		t = &StructType{commonType{}, fields};
 		tMap[key] = t;
 	}
 	return t;
@@ -870,11 +857,47 @@ func (t *FuncDecl) String() string {
 type InterfaceType struct {
 	// TODO(austin)
 }
+*/
 
 type SliceType struct {
-	// TODO(austin)
+	commonType;
+	Elem Type;
 }
 
+var sliceTypes = make(map[Type] *SliceType)
+
+// Two slice types are identical if they have identical element types.
+
+func NewSliceType(elem Type) *SliceType {
+	t, ok := sliceTypes[elem];
+	if !ok {
+		t = &SliceType{commonType{}, elem};
+		sliceTypes[elem] = t;
+	}
+	return t;
+}
+
+func (t *SliceType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*SliceType);
+	if !ok {
+		return false;
+	}
+	return t.Elem.compat(t2.Elem, conv);
+}
+
+func (t *SliceType) lit() Type {
+	return t;
+}
+
+func (t *SliceType) String() string {
+	return "[]" + t.Elem.String();
+}
+
+func (t *SliceType) Zero() Value {
+	return &sliceV{Slice{nil, 0, 0}};
+}
+
+/*
 type MapType struct {
 	// TODO(austin)
 }
