@@ -3,4 +3,5 @@
 // license that can be found in the LICENSE file.
 
 package bug0
+
 const A = -1

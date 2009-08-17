@@ -38,5 +38,5 @@ func Sieve() {
 }
 
 func main() {
-  Sieve()
+	Sieve()
 }

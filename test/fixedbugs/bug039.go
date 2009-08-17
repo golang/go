@@ -7,5 +7,5 @@
 package main
 
 func main (x int) {	// GCCGO_ERROR "previous"
-  var x int;  // ERROR "redecl|redefinition"
+	var x int;	// ERROR "redecl|redefinition"
 }

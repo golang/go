@@ -7,11 +7,11 @@
 package main
 
 func main() {
-  var i int;
-  i = '\'';
-  i = '\\';
-  var s string;
-  s = "\"";
+	var i int;
+	i = '\'';
+	i = '\\';
+	var s string;
+	s = "\"";
 }
 /*
 bug.go:5: unknown escape sequence: '

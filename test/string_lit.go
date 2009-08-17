@@ -68,14 +68,14 @@ func main() {
 	       "\a\b\f\n\r\t\v\\\"",
 	       "backslashes");
 	assert("\\a\\b\\f\\n\\r\\t\\v\\\\\\\"",
-	       `\a\b\f\n\r\t\v\\\"`,
+		`\a\b\f\n\r\t\v\\\"`,
 	       "backslashes (backquote)");
 	assert("\x00\x53\000\xca\376S몾몾",
-	       "\000\123\x00\312\xFE\u0053\ubabe\U0000babe",
-		   "backslashes 2");
+		"\000\123\x00\312\xFE\u0053\ubabe\U0000babe",
+		"backslashes 2");
 	assert("\\000\\123\\x00\\312\\xFE\\u0123\\ubabe\\U0000babe",
-	       `\000\123\x00\312\xFE\u0123\ubabe\U0000babe`,
-           "backslashes 2 (backquote)");
+		`\000\123\x00\312\xFE\u0123\ubabe\U0000babe`,
+		"backslashes 2 (backquote)");
 	assert("\\x\\u\\U\\", `\x\u\U\`, "backslash 3 (backquote)");
 
 	// test large runes. perhaps not the most logical place for this test.

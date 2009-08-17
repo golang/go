@@ -7,15 +7,15 @@
 package main
 
 type T struct {
-  s string;
+	s string;
 }
 
 
 func main() {
-  s := "";
-  l1 := len(s);
-  var t T;
-  l2 := len(t.s);  // BUG: cannot take len() of a string field
+	s := "";
+	l1 := len(s);
+	var t T;
+	l2 := len(t.s);	// BUG: cannot take len() of a string field
 }
 
 /*

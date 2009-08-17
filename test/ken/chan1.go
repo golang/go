@@ -17,7 +17,7 @@ func
 r(c chan int, m int)
 {
 	for {
-	       	select {
+		select {
 		case r := <- c:
 			if h[r] != 1 {
 				panicln("r",
@@ -28,7 +28,7 @@ r(c chan int, m int)
 			}
 			h[r] = 2;
 		}
-        }
+	}
 }
 
 func

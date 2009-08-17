@@ -96,7 +96,7 @@ panic PC=xxx
 == fixedbugs/
 
 =========== fixedbugs/bug016.go
-fixedbugs/bug016.go:7: constant -3 overflows uint
+fixedbugs/bug016.go:11: constant -3 overflows uint
 
 =========== fixedbugs/bug027.go
 hi
@@ -121,7 +121,7 @@ do break
 broke
 
 =========== fixedbugs/bug081.go
-fixedbugs/bug081.go:5: fatal error: typecheck loop
+fixedbugs/bug081.go:9: fatal error: typecheck loop
 
 =========== fixedbugs/bug093.go
 M
