@@ -14,6 +14,7 @@ all: install
 DIRS=\
 	archive/tar\
 	base64\
+	big\
 	bignum\
 	bufio\
 	bytes\
@@ -74,6 +75,7 @@ DIRS=\
 TEST=\
 	archive/tar\
 	base64\
+	big\
 	bignum\
 	bufio\
 	bytes\
