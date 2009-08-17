@@ -28,7 +28,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include	<lib9.h>
+#include	<u.h>
+#include	<libc.h>
 #include	<bio.h>
 #include	"../8l/8.out.h"
 

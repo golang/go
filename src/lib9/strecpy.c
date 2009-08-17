@@ -24,7 +24,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#include <lib9.h>
+#include <u.h>
+#include <libc.h>
 
 char*
 strecpy(char *to, char *e, char *from)

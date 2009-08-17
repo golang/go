@@ -28,7 +28,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include	<lib9.h>
+#include	<u.h>
+#include	<libc.h>
 #include	<bio.h>
 #include	"../5l/5.out.h"
 
@@ -74,6 +75,7 @@ struct	Adr
 	char	name;
 	int32	offset2; // argsize
 	char	class;
+	Sym*	gotype;
 };
 
 #define	offset	u0.u0offset
@@ -128,6 +130,7 @@ struct	Sym
 	Sym*	link;
 	Prog*	text;
 	Prog*	data;
+	Sym*	gotype;
 };
 
 #define SIGNINTERN	(1729*325*1729)
@@ -138,6 +141,7 @@ struct	Autom
 	Auto*	link;
 	int32	aoffset;
 	short	type;
+	Sym*	gotype;
 };
 struct	Optab
 {
@@ -318,7 +322,6 @@ EXTERN	char*	library[50];
 EXTERN	char*	libraryobj[50];
 EXTERN	int	libraryp;
 EXTERN	int	xrefresolv;
-EXTERN	char*	hunk;
 EXTERN	uchar	inuxi1[1];
 EXTERN	uchar	inuxi2[2];
 EXTERN	uchar	inuxi4[4];
@@ -326,7 +329,6 @@ EXTERN	Prog*	lastp;
 EXTERN	int32	lcsize;
 EXTERN	char	literal[32];
 EXTERN	int	nerrors;
-EXTERN	int32	nhunk;
 EXTERN	int32	instoffset;
 EXTERN	Opcross	opcross[8];
 EXTERN	Oprang	oprange[ALAST];
@@ -419,7 +421,6 @@ void	exchange(Prog*);
 void	export(void);
 int	find1(int32, int);
 void	follow(void);
-void	gethunk(void);
 void	histtoauto(void);
 void	hputl(int);
 double	ieeedtod(Ieee*);
