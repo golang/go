@@ -9,8 +9,8 @@ GOFILES=\
 	defs.go\
 	arith.go\
 	big.go\
-	bigN.go\
-	bigZ.go\
+	nat.go\
+	int.go\
 
 OFILES=\
 	arith_$(GOARCH).$O\
