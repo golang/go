@@ -41,7 +41,7 @@ pc: 0x4558
 */
 
 /* An array composite literal needs to be created freshly every time.
-   It is a "construction" of an array after all. If I pass the address
-   of the array to some function, it may store it globally. Same applies
-   to struct literals.
+	 It is a "construction" of an array after all. If I pass the address
+	 of the array to some function, it may store it globally. Same applies
+	 to struct literals.
 */

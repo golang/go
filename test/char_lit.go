@@ -9,36 +9,36 @@ package main
 import "os"
 
 func main() {
-  var i uint64 =
-    ' ' +
-    'a' +
-    'ä' +
-    '本' +
-    '\a' +
-    '\b' +
-    '\f' +
-    '\n' +
-    '\r' +
-    '\t' +
-    '\v' +
-    '\\' +
-    '\'' +
-    '\000' +
-    '\123' +
-    '\x00' +
-    '\xca' +
-    '\xFE' +
-    '\u0123' +
-    '\ubabe' +
-    '\U0123ABCD' +
-    '\Ucafebabe'
-  ;
-  if '\Ucafebabe' != 0xcafebabe {
-  	print("cafebabe wrong\n");
-  	os.Exit(1)
-  }
-  if i != 0xcc238de1 {
-  	print("number is ", i, " should be ", 0xcc238de1, "\n");
-  	os.Exit(1)
-  }
+	var i uint64 =
+		' ' +
+		'a' +
+		'ä' +
+		'本' +
+		'\a' +
+		'\b' +
+		'\f' +
+		'\n' +
+		'\r' +
+		'\t' +
+		'\v' +
+		'\\' +
+		'\'' +
+		'\000' +
+		'\123' +
+		'\x00' +
+		'\xca' +
+		'\xFE' +
+		'\u0123' +
+		'\ubabe' +
+		'\U0123ABCD' +
+		'\Ucafebabe'
+		;
+	if '\Ucafebabe' != 0xcafebabe {
+		print("cafebabe wrong\n");
+		os.Exit(1)
+	}
+	if i != 0xcc238de1 {
+		print("number is ", i, " should be ", 0xcc238de1, "\n");
+		os.Exit(1)
+		}
 }

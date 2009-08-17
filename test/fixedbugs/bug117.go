@@ -8,18 +8,18 @@ package main
 type S struct { a int }
 type PS *S
 func (p *S) get() int {
-  return p.a
+	return p.a
 }
 
 func fn(p PS) int {
-  // p has type PS, and PS has no methods.
-  // (a compiler might see that p is a pointer
-  // and go looking in S without noticing PS.)
-  return p.get()	// ERROR "undefined"
+	// p has type PS, and PS has no methods.
+	// (a compiler might see that p is a pointer
+	// and go looking in S without noticing PS.)
+	return p.get()	// ERROR "undefined"
 }
 func main() {
-  s := S{1};
-  if s.get() != 1 {
-    panic()
-  }
+	s := S{1};
+	if s.get() != 1 {
+		panic()
+	}
 }

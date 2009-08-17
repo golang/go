@@ -6,10 +6,10 @@
 
 package main
 
-import(
-        "fmt";
-        "os";
-        "utf8";
+import (
+	"fmt";
+	"os";
+	"utf8";
 )
 
 func main() {

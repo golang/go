@@ -12,7 +12,7 @@ type T struct {}
 func (t *T) foo() {}
 
 func main() {
-  t := new(T);
-  var i interface {};
-  f, ok := i.(Foo);
+	t := new(T);
+	var i interface {};
+	f, ok := i.(Foo);
 }
