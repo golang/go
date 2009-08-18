@@ -6,7 +6,6 @@ include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=big
 GOFILES=\
-	defs.go\
 	arith.go\
 	big.go\
 	nat.go\
