@@ -36,10 +36,14 @@ func normN(z []Word) []Word {
 func makeN(z []Word, m int, clear bool) []Word {
 	if len(z) > m {
 		z = z[0 : m];  // reuse z - has at least one extra word for a carry, if any
-		for i := range z {
-			z[i] = 0;
+		if clear {
+			for i := range z {
+				z[i] = 0;
+			}
 		}
+		return z;
 	}
+
 	c := 4;  // minimum capacity
 	if m > c {
 		c = m;
