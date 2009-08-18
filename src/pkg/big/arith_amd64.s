@@ -2,71 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file provides fast assembly versions of the routines in arith.go.
+// This file provides fast assembly versions for the elementary
+// arithmetic operations on vectors implemented in arith.go.
 
 TEXT big·useAsm(SB),7,$0
-	MOVB $1, 8(SP)
+	MOVB $1, 8(SP)  // assembly routines enabled
 	RET
 
-
-// ----------------------------------------------------------------------------
-// Elementary operations on words
-
-// func addWW_s(x, y, c Word) (z1, z0 Word)
-// z1<<_W + z0 = x+y+c, with c == 0 or 1
-TEXT big·addWW_s(SB),7,$0
-	MOVQ a+0(FP), AX
-	XORQ DX, DX
-	ADDQ a+8(FP), AX
-	ADCQ $0, DX
-	ADDQ a+16(FP), AX
-	ADCQ $0, DX
-	MOVQ DX, a+24(FP)
-	MOVQ AX, a+32(FP)
-	RET
-
-
-// func subWW_s(x, y, c Word) (z1, z0 Word)
-// z1<<_W + z0 = x-y-c, with c == 0 or 1
-TEXT big·subWW_s(SB),7,$0
-	MOVQ a+0(FP), AX
-	XORQ DX, DX
-	SUBQ a+8(FP), AX
-	ADCQ $0, DX
-	SUBQ a+16(FP), AX
-	ADCQ $0, DX
-	MOVQ DX, a+24(FP)
-	MOVQ AX, a+32(FP)
-	RET
-
-
-// func mulAddWWW_s(x, y, c Word) (z1, z0 Word)
-// z1<<64 + z0 = x*y + c
-//
-TEXT big·mulAddWWW_s(SB),7,$0
-	MOVQ a+0(FP), AX
-	MULQ a+8(FP)
-	ADDQ a+16(FP), AX
-	ADCQ $0, DX
-	MOVQ DX, a+24(FP)
-	MOVQ AX, a+32(FP)
-	RET
-
-
-// func divWWW_s(x1, x0, y Word) (q, r Word)
-// q = (x1<<64 + x0)/y + r
-//
-TEXT big·divWWW_s(SB),7,$0
-	MOVQ a+0(FP), DX
-	MOVQ a+8(FP), AX
-	DIVQ a+16(FP)
-	MOVQ AX, a+24(FP)
-	MOVQ DX, a+32(FP)
-	RET
-
-
-// ----------------------------------------------------------------------------
-// Elementary operations on vectors
 
 // TODO(gri) - experiment with unrolled loops for faster execution
 
@@ -233,4 +175,15 @@ E7:	SUBL $1, BX			// i--
 	JGE L7				// i >= 0
 
 	MOVQ DX, a+40(FP)	// return r
+	RET
+
+
+// TODO(gri) Implement this routine completely in Go.
+//           At the moment we need this assembly version.
+TEXT big·divWWW_s(SB),7,$0
+	MOVQ a+0(FP), DX
+	MOVQ a+8(FP), AX
+	DIVQ a+16(FP)
+	MOVQ AX, a+24(FP)
+	MOVQ DX, a+32(FP)
 	RET

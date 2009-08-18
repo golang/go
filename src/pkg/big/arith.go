@@ -16,8 +16,6 @@ import "unsafe"
 //
 // These operations are used by the vector operations below.
 
-func addWW_s(x, y, c Word) (z1, z0 Word)
-
 // z1<<_W + z0 = x+y+c, with c == 0 or 1
 func addWW_g(x, y, c Word) (z1, z0 Word) {
 	yc := y+c;
@@ -28,8 +26,6 @@ func addWW_g(x, y, c Word) (z1, z0 Word) {
 	return;
 }
 
-
-func subWW_s(x, y, c Word) (z1, z0 Word)
 
 // z1<<_W + z0 = x-y-c, with c == 0 or 1
 func subWW_g(x, y, c Word) (z1, z0 Word) {
@@ -130,6 +126,7 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
 }
 
 
+// TODO(gri) get rid of this eventually
 func divWWW_s(x1, x0, y Word) (q, r Word)
 
 // q = (x1<<_W + x0 - r)/y
@@ -176,6 +173,7 @@ var (
 )
 
 
+// UseAsm returns true if the assembly routines are enabled.
 func useAsm() bool
 
 func init() {
