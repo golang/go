@@ -79,7 +79,6 @@ main(int argc, char *argv[])
 	char *a;
 
 	Binit(&bso, 1, OWRITE);
-	srand(time(0));
 	cout = -1;
 	listinit();
 	outfile = 0;
@@ -556,23 +555,13 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 		break;
 
 	case D_SCONST:
-		while(nhunk < NSNAME)
-			gethunk();
-		a->sval = (char*)hunk;
-		nhunk -= NSNAME;
-		hunk += NSNAME;
-
+		a->sval = mal(NSNAME);
 		Bread(f, a->sval, NSNAME);
 		c += NSNAME;
 		break;
 
 	case D_FCONST:
-		while(nhunk < sizeof(Ieee))
-			gethunk();
-		a->ieee = (Ieee*)hunk;
-		nhunk -= NSNAME;
-		hunk += NSNAME;
-
+		a->ieee = mal(sizeof(Ieee));
 		a->ieee->l = Bget4(f);
 		a->ieee->h = Bget4(f);
 		break;
@@ -593,12 +582,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 			return;
 		}
 
-	while(nhunk < sizeof(Auto))
-		gethunk();
-	u = (Auto*)hunk;
-	nhunk -= sizeof(Auto);
-	hunk += sizeof(Auto);
-
+	u = mal(sizeof(Auto));
 	u->link = curauto;
 	curauto = u;
 	u->asym = s;
@@ -888,12 +872,7 @@ loop:
 		goto loop;
 	}
 
-	if(nhunk < sizeof(Prog))
-		gethunk();
-	p = (Prog*)hunk;
-	nhunk -= sizeof(Prog);
-	hunk += sizeof(Prog);
-
+	p = mal(sizeof(Prog));
 	p->as = o;
 	p->scond = Bgetc(f);
 	p->reg = Bgetc(f);
@@ -1229,12 +1208,7 @@ lookup(char *symb, int v)
 		if(memcmp(s->name, symb, l) == 0)
 			return s;
 
-	while(nhunk < sizeof(Sym))
-		gethunk();
-	s = (Sym*)hunk;
-	nhunk -= sizeof(Sym);
-	hunk += sizeof(Sym);
-
+	s = mal(sizeof(Sym));
 	s->name = malloc(l);
 	memmove(s->name, symb, l);
 
@@ -1254,36 +1228,9 @@ prg(void)
 {
 	Prog *p;
 
-	while(nhunk < sizeof(Prog))
-		gethunk();
-	p = (Prog*)hunk;
-	nhunk -= sizeof(Prog);
-	hunk += sizeof(Prog);
-
+	p = mal(sizeof(Prog));
 	*p = zprg;
 	return p;
-}
-
-void
-gethunk(void)
-{
-	char *h;
-	int32 nh;
-
-	nh = NHUNK;
-	if(thunk >= 5L*NHUNK) {
-		nh = 5L*NHUNK;
-		if(thunk >= 25L*NHUNK)
-			nh = 25L*NHUNK;
-	}
-	h = mysbrk(nh);
-	if(h == (char*)-1) {
-		diag("out of memory");
-		errorexit();
-	}
-	hunk = h;
-	nhunk = nh;
-	thunk += nh;
 }
 
 void

@@ -83,7 +83,7 @@ void
 zaddr(Biobuf *b, Addr *a, int s)
 {
 	int32 l;
-	Ieee e;
+//	Ieee e;
 	int i;
 	char *n;
 
@@ -142,18 +142,19 @@ zaddr(Biobuf *b, Addr *a, int s)
 		break;
 
 	case D_FCONST:
-		ieeedtod(&e, a->dval);
-		l = e.l;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24);
-		l = e.h;
-		Bputc(b, l);
-		Bputc(b, l>>8);
-		Bputc(b, l>>16);
-		Bputc(b, l>>24);
-		break;
+		fatal("zaddr D_FCONST not implemented");
+		//ieeedtod(&e, a->dval);
+		//l = e.l;
+		//Bputc(b, l);
+		//Bputc(b, l>>8);
+		//Bputc(b, l>>16);
+		//Bputc(b, l>>24);
+		//l = e.h;
+		//Bputc(b, l);
+		//Bputc(b, l>>8);
+		//Bputc(b, l>>16);
+		//Bputc(b, l>>24);
+		//break;
 	}
 }
 

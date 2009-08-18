@@ -111,7 +111,7 @@ void
 ginscall(Node *f, int proc)
 {
 	Prog *p;
-	Node reg, con;
+//	Node reg, con;
 
 	switch(proc) {
 	default:
@@ -340,7 +340,7 @@ cgen_asop(Node *n)
 {
 	Node n1, n2, n3, n4;
 	Node *nl, *nr;
-	Prog *p1;
+//	Prog *p1;
 	Addr addr;
 	int a;
 
