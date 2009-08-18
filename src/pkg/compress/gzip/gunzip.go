@@ -84,6 +84,7 @@ func NewGzipInflater(r io.Reader) (*GzipInflater, os.Error) {
 	return z, nil;
 }
 
+// GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
 func get4(p []byte) uint32 {
 	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24;
 }
