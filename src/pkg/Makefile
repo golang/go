@@ -20,6 +20,7 @@ DIRS=\
 	bytes\
 	compress/flate\
 	compress/gzip\
+	compress/zlib\
 	container/list\
 	container/ring\
 	container/vector\
@@ -81,6 +82,7 @@ TEST=\
 	bytes\
 	compress/flate\
 	compress/gzip\
+	compress/zlib\
 	container/list\
 	container/ring\
 	container/vector\
