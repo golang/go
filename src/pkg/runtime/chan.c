@@ -223,8 +223,6 @@ loop:
 		goto loop;
 	freesg(c, sg);
 	unlock(&chanlock);
-	if(pres != nil)
-		*pres = true;
 	return;
 
 asynch:
@@ -325,8 +323,6 @@ loop:
 	c->elemalg->copy(c->elemsize, ep, sg->elem);
 	freesg(c, sg);
 	unlock(&chanlock);
-	if(pres != nil)
-		*pres = true;
 	return;
 
 asynch:
