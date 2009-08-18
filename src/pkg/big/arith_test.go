@@ -37,19 +37,15 @@ func TestFunWW(t *testing.T) {
 	for _, a := range sumWW {
 		arg := a;
 		testFunWW(t, "addWW_g", addWW_g, arg);
-		testFunWW(t, "addWW_s", addWW_s, arg);
 
 		arg = argWW{a.y, a.x, a.c, a.z1, a.z0};
 		testFunWW(t, "addWW_g symmetric", addWW_g, arg);
-		testFunWW(t, "addWW_s symmetric", addWW_s, arg);
 
 		arg = argWW{a.z0, a.x, a.c, a.z1, a.y};
 		testFunWW(t, "subWW_g", subWW_g, arg);
-		testFunWW(t, "subWW_s", subWW_s, arg);
 
 		arg = argWW{a.z0, a.y, a.c, a.z1, a.x};
 		testFunWW(t, "subWW_g symmetric", subWW_g, arg);
-		testFunWW(t, "subWW_s symmetric", subWW_s, arg);
 	}
 }
 
@@ -98,19 +94,19 @@ func TestFunVV(t *testing.T) {
 	for _, a := range sumVV {
 		arg := a;
 		testFunVV(t, "addVV_g", addVV_g, arg);
-		testFunVV(t, "addVV_s", addVV_s, arg);
+		testFunVV(t, "addVV", addVV, arg);
 
 		arg = argVV{a.z, a.y, a.x, a.c};
 		testFunVV(t, "addVV_g symmetric", addVV_g, arg);
-		testFunVV(t, "addVV_s symmetric", addVV_s, arg);
+		testFunVV(t, "addVV symmetric", addVV, arg);
 
 		arg = argVV{a.x, a.z, a.y, a.c};
 		testFunVV(t, "subVV_g", subVV_g, arg);
-		testFunVV(t, "subVV_s", subVV_s, arg);
+		testFunVV(t, "subVV", subVV, arg);
 
 		arg = argVV{a.y, a.z, a.x, a.c};
 		testFunVV(t, "subVV_g symmetric", subVV_g, arg);
-		testFunVV(t, "subVV_s symmetric", subVV_s, arg);
+		testFunVV(t, "subVV symmetric", subVV, arg);
 	}
 }
 
@@ -163,11 +159,11 @@ func TestFunVW(t *testing.T) {
 	for _, a := range sumVW {
 		arg := a;
 		testFunVW(t, "addVW_g", addVW_g, arg);
-		testFunVW(t, "addVW_s", addVW_s, arg);
+		testFunVW(t, "addVW", addVW, arg);
 
 		arg = argVW{a.x, a.z, a.y, a.c};
 		testFunVW(t, "subVW_g", subVW_g, arg);
-		testFunVW(t, "subVW_s", subVW_s, arg);
+		testFunVW(t, "subVW", subVW, arg);
 	}
 }
 
@@ -244,12 +240,12 @@ func TestFunVWW(t *testing.T) {
 	for _, a := range prodVWW {
 		arg := a;
 		testFunVWW(t, "mulAddVWW_g", mulAddVWW_g, arg);
-		testFunVWW(t, "mulAddVWW_s", mulAddVWW_s, arg);
+		testFunVWW(t, "mulAddVWW", mulAddVWW, arg);
 
 		if a.y != 0 && a.r < a.y {
 			arg := argWVW{a.x, a.c, a.z, a.y, a.r};
 			testFunWVW(t, "divWVW_g", divWVW_g, arg);
-			testFunWVW(t, "divWVW_s", divWVW_s, arg);
+			testFunWVW(t, "divWVW", divWVW, arg);
 		}
 	}
 }
