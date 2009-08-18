@@ -420,8 +420,9 @@ gmove(Node *f, Node *t)
 {
 	int a, ft, tt;
 	Type *cvt;
-	Node r1, r2, t1, t2, flo, fhi, tlo, thi, con, f0, f1, ax, dx, cx;
-	Prog *p1, *p2, *p3;
+	Node r1, con;
+//	Node r1, r2, t1, t2, flo, fhi, tlo, thi, con, f0, f1, ax, dx, cx;
+//	Prog *p1, *p2, *p3;
 
 	if(debug['M'])
 		print("gmove %N -> %N\n", f, t);
@@ -948,7 +949,7 @@ gmove(Node *f, Node *t)
 	gins(a, f, t);
 	return;
 
-rdst:
+//rdst:
 	// requires register destination
 	regalloc(&r1, t->type, t);
 	gins(a, f, &r1);
@@ -964,7 +965,7 @@ hard:
 	regfree(&r1);
 	return;
 
-hardmem:
+//hardmem:
 	// requires memory intermediate
 	tempalloc(&r1, cvt);
 	gmove(f, &r1);
@@ -1000,8 +1001,8 @@ samaddr(Node *f, Node *t)
 Prog*
 gins(int as, Node *f, Node *t)
 {
-	Node nod;
-	int32 v;
+//	Node nod;
+//	int32 v;
 	Prog *p;
 
 	if(f != N && f->op == OINDEX) {
@@ -1775,13 +1776,13 @@ lit:
 //		break;
 //	}
 
-//	cleani += 2;
-//	reg = &clean[cleani-1];
-//	reg1 = &clean[cleani-2];
-//	reg->op = OEMPTY;
-//	reg1->op = OEMPTY;
-//	naddr(n, a);
-//	goto yes;
+	cleani += 2;
+	reg = &clean[cleani-1];
+	reg1 = &clean[cleani-2];
+	reg->op = OEMPTY;
+	reg1->op = OEMPTY;
+	naddr(n, a);
+	goto yes;
 
 odot:
 	o = dotoffset(n, oary, &nn);

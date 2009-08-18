@@ -76,10 +76,10 @@ Pconv(Fmt *fp)
 int
 Dconv(Fmt *fp)
 {
-	char str[100], s[100];
+	char str[100]; //, s[100];
 	Addr *a;
 	int i;
-	uint32 d1, d2;
+//	uint32 d1, d2;
 
 	a = va_arg(fp->args, Addr*);
 	i = a->type;
@@ -128,7 +128,7 @@ Dconv(Fmt *fp)
 //		a->type = D_ADDR;
 //		goto conv;
 	}
-conv:
+//conv:
 	return fmtstrcpy(fp, str);
 }
 

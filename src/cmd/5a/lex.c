@@ -53,7 +53,7 @@ void
 main(int argc, char *argv[])
 {
 	char *p;
-	int nout, nproc, status, i, c;
+	int nout, nproc, i, c;
 
 	thechar = '5';
 	thestring = "arm";
