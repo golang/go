@@ -14,7 +14,7 @@ type Int struct {
 }
 
 
-// New sets z to x.
+// New allocates and returns a new Int set to x.
 func (z *Int) New(x int64) *Int {
 	z.neg = false;
 	if x < 0 {
@@ -90,25 +90,27 @@ func (z *Int) Mul(x, y *Int) *Int {
 	// x * (-y) == -(x * y)
 	// (-x) * y == -(x * y)
 	// (-x) * (-y) == x * y
-	z.neg = x.neg != y.neg;
 	z.abs = mulNN(z.abs, x.abs, y.abs);
+	z.neg = len(z.abs) > 0 && x.neg != y.neg;  // 0 has no sign
 	return z
 }
 
 
 // Neg computes z = -x.
 func (z *Int) Neg(x *Int) *Int {
-	z.neg = len(x.abs) > 0 && !x.neg;  // 0 has no sign
 	z.abs = setN(z.abs, x.abs);
+	z.neg = len(z.abs) > 0 && !x.neg;  // 0 has no sign
 	return z;
 }
 
 
-// CmpInt compares x and y. The result is an int value that is
+// TODO(gri) Should this be x.Cmp(y) instead?
+
+// CmpInt compares x and y. The result is
 //
-//   <  0 if x <  y
-//   == 0 if x == y
-//   >  0 if x >  y
+//   -1 if x <  y
+//    0 if x == y
+//   +1 if x >  y
 //
 func CmpInt(x, y *Int) (r int) {
 	// x cmp y == x cmp y
