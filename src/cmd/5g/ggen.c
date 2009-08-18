@@ -167,7 +167,7 @@ cgen_callinter(Node *n, Node *res, int proc)
 //		i = &tmpi;
 //	}
 
-//	gen(n->right);			// args
+//	genlist(n->list);			// args
 
 //	regalloc(&nodr, types[tptr], res);
 //	regalloc(&nodo, types[tptr], &nodr);
@@ -217,7 +217,7 @@ cgen_call(Node *n, int proc)
 		cgen(n->left, &afun);
 	}
 
-	gen(n->right);		// assign the args
+	genlist(n->list);		// assign the args
 	t = n->left->type;
 
 	setmaxarg(t);
