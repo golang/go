@@ -172,10 +172,37 @@ TEXT big·mulAddVWW_s(SB),7,$0
 	MOVQ a+24(FP), CX	// c = r
 	MOVL a+32(FP), R11	// n
 	XORQ BX, BX			// i = 0
+	JMP E5
+
+L5:	MOVQ (R8)(BX*8), AX
+	MULQ R9
+	ADDQ CX, AX
+	ADCQ $0, DX
+	MOVQ AX, (R10)(BX*8)
+	MOVQ DX, CX
+	ADDL $1, BX			// i++
+
+E5:	CMPQ BX, R11		// i < n
+	JL L5
+
+	MOVQ CX, a+40(FP)	// return c
+	RET
+
+
+// func addMulVVW_s(z, x *Word, y Word, n int) (c Word)
+TEXT big·addMulVVW_s(SB),7,$0
+	MOVQ a+0(FP), R10	// z
+	MOVQ a+8(FP), R8	// x
+	MOVQ a+16(FP), R9	// y
+	MOVL a+24(FP), R11	// n
+	XORQ BX, BX			// i = 0
+	XORQ CX, CX			// c = 0
 	JMP E6
 
 L6:	MOVQ (R8)(BX*8), AX
 	MULQ R9
+	ADDQ (R10)(BX*8), AX
+	ADCQ $0, DX
 	ADDQ CX, AX
 	ADCQ $0, DX
 	MOVQ AX, (R10)(BX*8)
@@ -185,7 +212,7 @@ L6:	MOVQ (R8)(BX*8), AX
 E6:	CMPQ BX, R11		// i < n
 	JL L6
 
-	MOVQ CX, a+40(FP)	// return c
+	MOVQ CX, a+32(FP)	// return c
 	RET
 
 

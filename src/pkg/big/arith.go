@@ -168,6 +168,9 @@ var (
 	// mulAddVWW sets z and returns c such that z+c = x*y + r.
 	mulAddVWW func(z, x *Word, y, r Word, n int) (c Word)	= mulAddVWW_g;
 
+	// addMulVVW sets z and returns c such that z+c = z + x*y.
+	addMulVVW func(z, x *Word, y Word, n int) (c Word)	= addMulVVW_g;
+
 	// divWVW sets z and returns r such that z-r = (xn<<(n*_W) + x) / y.
 	divWVW func(z* Word, xn Word, x *Word, y Word, n int) (r Word)	= divWVW_g;
 )
@@ -184,6 +187,7 @@ func init() {
 		addVW = addVW_s;
 		subVW = subVW_s;
 		mulAddVWW = mulAddVWW_s;
+		addMulVVW = addMulVVW_s;
 		divWVW = divWVW_s;
 	}
 }
@@ -239,6 +243,17 @@ func mulAddVWW_g(z, x *Word, y, r Word, n int) (c Word) {
 		c, *z.at(i) = mulAddWWW_g(*x.at(i), y, c);
 	}
 	return
+}
+
+
+func addMulVVW_s(z, x *Word, y Word, n int) (c Word)
+func addMulVVW_g(z, x *Word, y Word, n int) (c Word) {
+	for i := 0; i < n; i++ {
+		z1, z0 := mulAddWWW_g(*x.at(i), y, *z.at(i));
+		c, *z.at(i) = addWW_g(z0, c, 0);
+		c += z1;
+	}
+	return;
 }
 
 

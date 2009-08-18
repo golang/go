@@ -23,6 +23,17 @@ var sumNN = []argNN{
 	argNN{[]Word{0, 0, 0, 1}, []Word{0, 0, _M}, []Word{0, 0, 1}},
 }
 
+var prodNN = []argNN {
+	argNN{},
+	argNN{nil, nil, nil},
+	argNN{nil, []Word{991}, nil},
+	argNN{[]Word{991}, []Word{991}, []Word{1}},
+	argNN{[]Word{991*991}, []Word{991}, []Word{991}},
+	argNN{[]Word{0, 0, 991*991}, []Word{0, 991}, []Word{0, 991}},
+	argNN{[]Word{1*991, 2*991, 3*991, 4*991}, []Word{1, 2, 3, 4}, []Word{991}},
+	argNN{[]Word{4, 11, 20, 30, 20, 11, 4}, []Word{1, 2, 3, 4}, []Word{4, 3, 2, 1}},
+}
+
 
 func TestSetN(t *testing.T) {
 	for _, a := range sumNN {
@@ -55,6 +66,14 @@ func TestFunNN(t *testing.T) {
 
 		arg = argNN{a.y, a.z, a.x};
 		testFunNN(t, "subNN symmetric", subNN, arg);
+	}
+
+	for _, a := range prodNN {
+		arg := a;
+		testFunNN(t, "mulNN", mulNN, arg);
+
+		arg = argNN{a.z, a.y, a.x};
+		testFunNN(t, "mulNN symmetric", mulNN, arg);
 	}
 }
 
