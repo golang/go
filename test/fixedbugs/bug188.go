@@ -10,5 +10,5 @@ import "sort"
 
 func main() {
 	var x int;
-	sort(x);	// ERROR "package.*selector"
+	sort(x);	// ERROR "package"
 }

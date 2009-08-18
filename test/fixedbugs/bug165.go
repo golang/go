@@ -11,5 +11,5 @@ type I interface {
 }
 
 type S struct {
-	m map[S] bool;	// ERROR "map key type|complete"
+	m map[S] bool;	// ERROR "map key type"
 }
