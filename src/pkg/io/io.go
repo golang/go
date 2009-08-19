@@ -59,6 +59,17 @@ type Closer interface {
 	Close() os.Error;
 }
 
+// Seeker is the interface that wraps the basic Seek method.
+//
+// Seek sets the offset for the next Read or Write to offset,
+// interpreted according to whence: 0 means relative to the origin of
+// the file, 1 means relative to the current offset, and 2 means
+// relative to the end.  Seek returns the new offset and an Error, if
+// any.
+type Seeker interface {
+	Seek(offset int64, whence int) (ret int64, err os.Error);
+}
+
 // ReadWrite is the interface that groups the basic Read and Write methods.
 type ReadWriter interface {
 	Reader;
@@ -82,6 +93,25 @@ type ReadWriteCloser interface {
 	Reader;
 	Writer;
 	Closer;
+}
+
+// ReadSeeker is the interface that groups the basic Read and Seek methods.
+type ReadSeeker interface {
+	Reader;
+	Seeker;
+}
+
+// WriteSeeker is the interface that groups the basic Write and Seek methods.
+type WriteSeeker interface {
+	Writer;
+	Seeker;
+}
+
+// ReadWriteSeeker is the interface that groups the basic Read, Write and Seek methods.
+type ReadWriteSeeker interface {
+	Reader;
+	Writer;
+	Seeker;
 }
 
 // WriteString writes the contents of the string s to w, which accepts an array of bytes.
