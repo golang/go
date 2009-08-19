@@ -10,9 +10,7 @@ Open issues:
 
 Todo's:
 [ ] need language about function/method calls and parameter passing rules
-[ ] clarify new scope rules for package-level identifiers
-[ ] clarify scope of identifiers denoting imported packages (file scope)
-[ ] package identifier not in any scope
+[ ] need to say something about "scope" of selectors?
 [ ] clarify what a field name is in struct declarations
     (struct{T} vs struct {T T} vs struct {t T})
 [ ] need explicit language about the result type of operations
@@ -1226,74 +1224,119 @@ They will be equal only if they have the same dynamic type and the underlying va
 <hr/>
 
 
-<h2>Declarations and Scope</h2>
+<h2>Blocks</h2>
 
 <p>
-A declaration binds an identifier to a language entity such as
-a variable or function and specifies properties such as its type.
-Every identifier in a program must be declared.
+A <i>block</i> is a sequence of declarations and statements within matching
+brace brackets.
 </p>
 
 <pre class="ebnf">
-Declaration = ConstDecl | TypeDecl | VarDecl | FunctionDecl | MethodDecl .
+Block = "{" StatementList "}" .
 </pre>
 
 <p>
-The <i>scope</i> of an identifier is the extent of source text within which the
-identifier denotes the bound entity. No identifier may be declared twice in a
-single scope, but inner blocks can declare a new entity with the same
-identifier, in which case the scope created by the outer declaration excludes
-that created by the inner.
-</p>
-<p>
-There are levels of scoping in effect before each source file is compiled.
-In order from outermost to innermost:
-</p>
-<ol>
-	<li>The <i>universe</i> scope contains all predeclared identifiers.</li>
-	<li>An implicit scope contains only the package name.</li>
-	<li>The <i>package-level</i> scope surrounds all declarations at the
-	    top level of the file, that is, outside the body of any
-	    function or method.  That scope is shared across all
-	    source files within the package (§Packages), allowing
-	    package-level identifiers to be shared between source
-	    files.</li>
-</ol>
-
-<p>
-The scope of an identifier depends on the entity declared:
+In addition to explicit blocks in the source code, there are implicit blocks:
 </p>
 
 <ol>
-	<li> The scope of predeclared identifiers is the universe scope.</li>
+	<li>The <i>universe block</i> encompasses all Go source text.</li>
 
-	<li> The scope of an identifier denoting a type, function or package
-	     extends from the point of the identifier in the declaration
-	     to the end of the innermost surrounding block.</li>
+	<li>Each package (§Packages) has a <i>package block</i> containing all
+	    Go source text for that package.</li>
 
-	<li> The scope of a constant or variable extends textually from
-	     the end of its declaration to the end of the innermost
-	     surrounding block. If the variable is declared in the
-	     <i>init</i> statement of an <code>if</code>,  <code>for</code>,
-	     or  <code>switch </code> statement, the
-	     innermost surrounding block is the block associated
-	     with that statement.</li>
+	<li>Each file has a <i>file block</i> containing all Go source text
+	    in that file.</li>
 
-	<li> The scope of a parameter or result is the body of the
-	     corresponding function.</li>
+	<li>Each <code>if</code>, <code>for</code>, and <code>switch</code>
+	    statement is considered to be in its own implicit block.</li>
 
-	<li> The scope of a field or method is selectors for the
-	     corresponding type containing the field or method (§Selectors).</li>
-
-	<li> The scope of a label is a special scope emcompassing
-	     the body of the innermost surrounding function, excluding
-	     nested functions.  Labels do not conflict with non-label identifiers.</li>
+	<li>Each case or type case clause in a <code>switch</code> statement,
+	    and each communication clause in a <code>select</code> statement
+	    acts as an implicit block.</li>
 </ol>
+
+<p>
+Blocks nest and influence scoping (§Declarations and Scope).
+</p>
+
+
+<h2>Declarations and Scope</h2>
+
+<p>
+A declaration binds an identifier to a constant, type, variable, function, or package.
+Every identifier in a program must be declared.
+No identifier may be declared twice in the same block, and
+no identifier may be declared in both the file and package block.
+</p>
+
+<pre class="ebnf">
+Declaration   = ConstDecl | TypeDecl | VarDecl .
+TopLevelDecl  = Declaration | FunctionDecl | MethodDecl .
+</pre>
+
+<p>
+The <i>scope</i> of a declared identifier is the extent of source text in which
+the identifier denotes the specified constant, type, variable, function, or package.
+</p>
+
+<p>
+Go is lexically scoped using blocks:
+</p>
+
+<ol>
+	<li>The scope of a predeclared identifier is the universe block.</li>
+
+	<li>The scope of an identifier denoting a constant, type, variable,
+	    or function declared at top level (outside any function) is the
+	    package block.</li>
+
+	<li>The scope of an imported package identifier is the file block
+	    of the file containing the import declaration.</li>
+
+	<li>The scope of an identifier denoting a function parameter or
+	    result variable is the function body.</li>
+
+	<li>The scope of a constant or variable identifier declared
+	    inside a function begins at the end of the ConstSpec or VarSpec
+	    and ends at the end of the innermost containing block.</li>
+
+	<li>The scope of a type identifier declared inside a function
+	    begins immediately after the identifier in the TypeSpec
+	    and ends at the end of the innermost containing block.</li>
+</ol>
+
+<p>
+An identifier declared in a block may be redeclared in an inner block.
+While the identifier of the inner declaration is in scope, it denotes
+the entity declared by the inner declaration.
+</p>
+
+<p>
+The package clause (§Package clause) is not a declaration; the package name
+does not appear in any scope. Its purpose is to identify the files belonging
+to the same package (§Packages) and to specify the default name for import
+declarations.
+</p>
+
+
+<h3>Label scopes</h3>
+
+<p>
+Labels are declared by labeled statements (§Labeled statements) and are
+used in the <code>break</code>, <code>continue</code>, and <code>goto</code>
+statements (§Break statements, §Continue statements, §Goto statements).
+In contrast to other identifiers, labels are not block scoped and do
+not conflict with identifiers that are not labels. The scope of a label
+is the body of the function in which it is declared and excludes
+the body of any nested function.
+</p>
+
 
 <h3>Predeclared identifiers</h3>
 
 <p>
-The following identifiers are implicitly declared in the outermost scope:
+The following identifiers are implicitly declared in the universe block:
 </p>
 <pre class="grammar">
 Basic types:
@@ -1593,7 +1636,8 @@ A function declaration binds an identifier to a function (§Function types).
 </p>
 
 <pre class="ebnf">
-FunctionDecl = "func" identifier Signature [ Block ] .
+FunctionDecl = "func" identifier Signature [ Body ] .
+Body         = Block.
 </pre>
 
 <p>
@@ -1612,10 +1656,6 @@ func min(x int, y int) int {
 func flushICache(begin, end uintptr)  // implemented externally
 </pre>
 
-<p>
-Implementation restriction: Functions can only be declared at the package level.
-</p>
-
 <h3>Method declarations</h3>
 
 <p>
@@ -1623,7 +1663,7 @@ A method declaration binds an identifier to a method,
 which is a function with a <i>receiver</i>.
 </p>
 <pre class="ebnf">
-MethodDecl = "func" Receiver identifier Signature [ Block ] .
+MethodDecl = "func" Receiver identifier Signature [ Body ] .
 Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
 </pre>
 
@@ -1662,10 +1702,6 @@ to the base type <code>Point</code>.
 If the receiver's value is not referenced inside the the body of the method,
 its identifier may be omitted in the declaration. The same applies in
 general to parameters of functions and methods.
-</p>
-
-<p>
-Implementation restriction: They can only be declared at package level.
 </p>
 
 <p>
@@ -1918,8 +1954,7 @@ It consists of a specification of the function type and a function body.
 </p>
 
 <pre class="ebnf">
-FunctionLit   = FunctionType Block .
-Block         = "{" StatementList "}" .
+FunctionLit = FunctionType Body .
 </pre>
 
 <pre>
@@ -3218,10 +3253,7 @@ indicate that control should flow from the end of this clause to
 the first statement of the next clause.
 Otherwise control flows to the end of the "switch" statement.
 </p>
-<p>
-Each case clause acts as a block for scoping purposes
-(§Declarations and scope rules).
-</p>
+
 <p>
 A "switch" statement may include a simple statement before the
 expression.
@@ -3505,10 +3537,6 @@ SendExpr =  Expression "&lt;-" Expression .
 RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
 </pre>
 
-<p>
-Each communication clause acts as a block for the purpose of scoping
-(§Declarations and scope rules).
-</p>
 <p>
 For all the send and receive expressions in the "select"
 statement, the channel expression is evaluated.  Any expressions
@@ -3973,13 +4001,11 @@ Each source file consists of a package clause defining the package
 to which it belongs, followed by a possibly empty set of import
 declarations that declare packages whose contents it wishes to use,
 followed by a possibly empty set of declarations of functions,
-types, variables, and constants.  The source text following the
-package clause acts as a block for scoping (§Declarations and scope
-rules).
+types, variables, and constants.
 </p>
 
 <pre class="ebnf">
-SourceFile       = PackageClause { ImportDecl [ ";" ] } { Declaration [ ";" ] } .
+SourceFile       = PackageClause { ImportDecl [ ";" ] } { TopLevelDecl [ ";" ] } .
 </pre>
 
 <h3>Package clause</h3>
@@ -4002,7 +4028,7 @@ A set of files sharing the same PackageName form the implementation of a package
 An implementation may require that all source files for a package inhabit the same directory.
 </p>
 
-<h3>Import</h3>
+<h3>Import declarations</h3>
 
 <p>
 A source file gains access to exported identifiers (§Exported
