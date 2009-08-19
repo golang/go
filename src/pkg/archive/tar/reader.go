@@ -91,16 +91,12 @@ func (ignoreWriter) Write(b []byte) (n int, err os.Error) {
 	return len(b), nil
 }
 
-type seeker interface {
-	Seek(offset int64, whence int) (ret int64, err os.Error);
-}
-
 // Skip any unread bytes in the existing file entry, as well as any alignment padding.
 func (tr *Reader) skipUnread() {
 	nr := tr.nb + tr.pad;	// number of bytes to skip
 
 	var n int64;
-	if sr, ok := tr.r.(seeker); ok {
+	if sr, ok := tr.r.(io.Seeker); ok {
 		n, tr.err = sr.Seek(nr, 1);
 	} else {
 		n, tr.err = io.Copyn(tr.r, ignoreWriter{}, nr);
