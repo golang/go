@@ -70,31 +70,55 @@ func (l *List) Remove(e *Element) {
 	l.len--;
 }
 
-func (l *List) insertFront(e *Element) {
-	e.prev = nil;
-	e.next = l.front;
-	l.front = e;
-	if e.next != nil {
-		e.next.prev = e;
+func (l *List) insertBefore(e *Element, mark *Element) {
+	if mark.prev == nil {
+		// new front of the list
+		l.front = e;
 	} else {
-		l.back = e;
+		mark.prev.next = e;
 	}
+	e.prev = mark.prev;
+	mark.prev = e;
+	e.next = mark;
 	l.len++;
+}
+
+func (l *List) insertAfter(e *Element, mark *Element) {
+	if mark.next == nil {
+		// new back of the list
+		l.back = e;
+	} else {
+		mark.next.prev = e;
+	}
+	e.next = mark.next;
+	mark.next = e;
+	e.prev = mark;
+	l.len++;
+}
+
+func (l *List) insertFront(e *Element) {
+	if l.front == nil {
+		// empty list
+		l.front, l.back = e, e;
+		e.prev, e.next = nil, nil;
+		l.len = 1;
+		return
+	}
+	l.insertBefore(e, l.front);
 }
 
 func (l *List) insertBack(e *Element) {
-	e.next = nil;
-	e.prev = l.back;
-	l.back = e;
-	if e.prev != nil {
-		e.prev.next = e;
-	} else {
-		l.front = e;
+	if l.back == nil {
+		// empty list
+		l.front, l.back = e, e;
+		e.prev, e.next = nil, nil;
+		l.len = 1;
+		return
 	}
-	l.len++;
+	l.insertAfter(e, l.back);
 }
 
-// PushFront inserts the value at the front of the list, and returns a new Element containing it.
+// PushFront inserts the value at the front of the list and returns a new Element containing the value.
 func (l *List) PushFront(value interface {}) *Element {
 	if l.id == nil {
 		l.Init();
@@ -104,13 +128,33 @@ func (l *List) PushFront(value interface {}) *Element {
 	return e
 }
 
-// PushBack inserts the value at the back of the list, and returns a new Element containing it.
+// PushBack inserts the value at the back of the list and returns a new Element containing the value.
 func (l *List) PushBack(value interface {}) *Element {
 	if l.id == nil {
 		l.Init();
 	}
 	e := &Element{ nil, nil, l.id, value };
 	l.insertBack(e);
+	return e
+}
+
+// InsertBefore inserts the value immediately before mark and returns a new Element containing the value.
+func (l *List) InsertBefore(value interface {}, mark *Element) *Element {
+	if mark.id != l.id {
+		return nil
+	}
+	e := &Element{ nil, nil, l.id, value };
+	l.insertBefore(e, mark);
+	return e
+}
+
+// InsertAfter inserts the value immediately after mark and returns a new Element containing the value.
+func (l *List) InsertAfter(value interface {}, mark *Element) *Element {
+	if mark.id != l.id {
+		return nil
+	}
+	e := &Element{ nil, nil, l.id, value };
+	l.insertAfter(e, mark);
 	return e
 }
 

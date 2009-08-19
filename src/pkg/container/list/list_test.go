@@ -94,6 +94,26 @@ func TestList(t *testing.T) {
 	l.MoveToBack(e3);  // should be no-op
 	checkListPointers(t, l, []*Element{ e1, e4, e3 });
 
+	e2 = l.InsertBefore(2, e1);  // insert before front
+	checkListPointers(t, l, []*Element{ e2, e1, e4, e3 });
+	l.Remove(e2);
+	e2 = l.InsertBefore(2, e4);  // insert before middle
+	checkListPointers(t, l, []*Element{ e1, e2, e4, e3 });
+	l.Remove(e2);
+	e2 = l.InsertBefore(2, e3);  // insert before back
+	checkListPointers(t, l, []*Element{ e1, e4, e2, e3 });
+	l.Remove(e2);
+
+	e2 = l.InsertAfter(2, e1);  // insert after front
+	checkListPointers(t, l, []*Element{ e1, e2, e4, e3 });
+	l.Remove(e2);
+	e2 = l.InsertAfter(2, e4);  // insert after middle
+	checkListPointers(t, l, []*Element{ e1, e4, e2, e3 });
+	l.Remove(e2);
+	e2 = l.InsertAfter(2, e3);  // insert after back
+	checkListPointers(t, l, []*Element{ e1, e4, e3, e2 });
+	l.Remove(e2);
+
 	// Clear all elements by iterating
 	for e := range l.Iter() {
 		l.Remove(e);
