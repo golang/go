@@ -570,110 +570,77 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
 void
 genembedtramp(Type *rcvr, Type *method, Sym *newnam)
 {
-	fatal("genembedtramp not implemented");
-	// TODO(kaib): re-lift from 8g
-//	Sym *e;
-//	int c, d, o, loaded;
-//	Prog *p;
-//	Type *f;
+	Sym *e;
+	int c, d, o;
+	Prog *p;
+	Type *f;
 
-//	e = lookup(b->name);
-//	for(d=0; d<nelem(dotlist); d++) {
-//		c = adddot1(e, t, d, nil);
-//		if(c == 1)
-//			goto out;
-//	}
-//	fatal("genembedtramp %T.%s", t, b->name);
+	e = method->sym;
+	for(d=0; d<nelem(dotlist); d++) {
+		c = adddot1(e, rcvr, d, nil);
+		if(c == 1)
+			goto out;
+	}
+	fatal("genembedtramp %T.%S", rcvr, method->sym);
 
-// out:
-// //	print("genembedtramp %d\n", d);
-// //	print("	t    = %lT\n", t);
-// //	print("	name = %s\n", b->name);
-// //	print("	sym  = %S\n", b->sym);
-// //	print("	hash = 0x%ux\n", b->hash);
+out:
+	newplist()->name = newname(newnam);
 
-//	newplist()->name = newname(b->sym);
+	//TEXT	main·S_test2(SB),7,$0
+	p = pc;
+	gins(ATEXT, N, N);
+	p->from.type = D_OREG;
+	p->from.name = D_EXTERN;
+	p->from.sym = newnam;
+	p->to.type = D_CONST2;
+	p->reg = 7;
+	p->to.offset2 = 0;
+	p->to.reg = NREG;
+print("1. %P\n", p);
 
-//	//TEXT	main·S_test2(SB),7,$0
-//	p = pc;
-//	gins(ATEXT, N, N);
-//	p->from.type = D_EXTERN;
-//	p->from.sym = b->sym;
-//	p->to.type = D_CONST;
-//	p->to.offset = 0;
-//	p->reg = 7;
-// //print("1. %P\n", p);
+	o = 0;
+	for(c=d-1; c>=0; c--) {
+		f = dotlist[c].field;
+		o += f->width;
+		if(!isptr[f->type->etype])
+			continue;
 
-//	loaded = 0;
-//	o = 0;
-//	for(c=d-1; c>=0; c--) {
-//		f = dotlist[c].field;
-//		o += f->width;
-//		if(!isptr[f->type->etype])
-//			continue;
-//		if(!loaded) {
-//			loaded = 1;
-//			//MOVQ	8(SP), AX
-//			p = pc;
-//			gins(AMOVQ, N, N);
-//			p->from.type = D_INDIR+D_SP;
-//			p->from.offset = 8;
-//			p->to.type = D_AX;
-// //print("2. %P\n", p);
-//		}
+		//MOVW	o(R0), R0
+		p = pc;
+		gins(AMOVW, N, N);
+		p->from.type = D_OREG;
+		p->from.reg = REGARG;
+		p->from.offset = o;
+		p->to.type = D_REG;
+		p->to.reg = REGARG;
+print("2. %P\n", p);
+		o = 0;
+	}
+	if(o != 0) {
+		//MOVW	$XX(R0), R0
+		p = pc;
+		gins(AMOVW, N, N);
+		p->from.type = D_CONST;
+		p->from.reg = REGARG;
+		p->from.offset = o;
+		p->to.type = D_REG;
+		p->to.reg = REGARG;
+print("3. %P\n", p);
+	}
 
-//		//MOVQ	o(AX), AX
-//		p = pc;
-//		gins(AMOVQ, N, N);
-//		p->from.type = D_INDIR+D_AX;
-//		p->from.offset = o;
-//		p->to.type = D_AX;
-// //print("3. %P\n", p);
-//		o = 0;
-//	}
-//	if(o != 0) {
-//		//ADDQ	$XX, AX
-//		p = pc;
-//		gins(AADDQ, N, N);
-//		p->from.type = D_CONST;
-//		p->from.offset = o;
-//		if(loaded)
-//			p->to.type = D_AX;
-//		else {
-//			p->to.type = D_INDIR+D_SP;
-//			p->to.offset = 8;
-//		}
-// //print("4. %P\n", p);
-//	}
+	f = dotlist[0].field;
+	//B	main·*Sub_test2(SB)
+	if(isptr[f->type->etype])
+		f = f->type;
+	p = pc;
+	gins(AB, N, N);
+	p->to.type = D_OREG;
+	p->to.reg = NREG;
+	p->to.name = D_EXTERN;
+	p->to.sym = methodsym(method->sym, ptrto(f->type));
+print("4. %P\n", p);
 
-//	//MOVQ	AX, 8(SP)
-//	if(loaded) {
-//		p = pc;
-//		gins(AMOVQ, N, N);
-//		p->from.type = D_AX;
-//		p->to.type = D_INDIR+D_SP;
-//		p->to.offset = 8;
-// //print("5. %P\n", p);
-//	} else {
-//		// TODO(rsc): obviously this is unnecessary,
-//		// but 6l has a bug, and it can't handle
-//		// JMP instructions too close to the top of
-//		// a new function.
-//		p = pc;
-//		gins(ANOP, N, N);
-//	}
-
-//	f = dotlist[0].field;
-//	//JMP	main·*Sub_test2(SB)
-//	if(isptr[f->type->etype])
-//		f = f->type;
-//	p = pc;
-//	gins(AJMP, N, N);
-//	p->to.type = D_EXTERN;
-//	p->to.sym = methodsym(lookup(b->name), ptrto(f->type));
-// //print("6. %P\n", p);
-
-//	pc->as = ARET;	// overwrite AEND
+	pc->as = ARET;	// overwrite AEND
 }
 
 void
