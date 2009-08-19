@@ -73,7 +73,7 @@ func shouldEscape(c byte) bool {
 func URLUnescape(s string) (string, os.Error) {
 	// Count %, check that they're well-formed.
 	n := 0;
-	anyPlusses := false;
+	hasPlus := false;
 	for i := 0; i < len(s); {
 		switch s[i] {
 		case '%':
@@ -87,14 +87,14 @@ func URLUnescape(s string) (string, os.Error) {
 			}
 			i += 3;
 		case '+':
-			anyPlusses = true;
+			hasPlus = true;
 			i++;
 		default:
 			i++
 		}
 	}
 
-	if n == 0 && !anyPlusses {
+	if n == 0 && !hasPlus {
 		return s, nil
 	}
 
