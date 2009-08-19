@@ -2,29 +2,41 @@
 <h2 id="introduction">Introduction</h2>
 
 <p>
-Go is a new language.  Although it's in the C family of languages
+Go is a new language.  Although it's in the C family
 it has some unusual properties that make effective Go programs
-different in character from programs in C, C++, or Java.
-To write Go well, it's important to understand its properties
+different in character from programs in existing languages.
+A straightforward translation of a C++ or Java program into Go
+is unlikely to produce a satisfactory result - Java programs
+are written in Java, not Go.
+On the other hand, thinking about the problem from a Go
+perspective could produce a successful but quite different
+program.
+In other words,
+to write Go well, it's important to understand its properties
 and idioms.
+It's also important to know the established conventions for
+programming in Go, such as naming, formatting, program
+construction, and so on, so that programs you write
+will be easy for other Go programmers to understand.
 </p>
 
 <p>
-This document gives tips for writing clear, idiomatic Go code
-and points out common mistakes.
+This document gives tips for writing clear, idiomatic Go code.
 It augments the <a href="go_spec.html">language specification</a>
 and the <a href="go_tutorial.html">tutorial</a>, both of which you
 should read first.
 </p>
 
-<h3 id="read">Read good code</h3>
+<h3 id="read">Examples</h3>
 
 <p>
-The first step in learning to write good code is to read good code.
 The <a href="/src/pkg/">Go package sources</a>
 are intended to serve not
 only as the core library but also as examples of how to
-use the language.  Read them and follow their example.
+use the language.
+If you have a question about how to approach a problem or how something
+might be implemented they can provide answers, ideas and
+background.
 </p>
 
 
@@ -33,49 +45,86 @@ use the language.  Read them and follow their example.
 <p>
 Formatting issues are the most contentious
 but the least consequential.
-People adapt to different formatting styles,
-but they shouldn't be asked to.
-Everyone
-should use the same formatting; as in English,
-consistent punctuation and spacing make the
-text easier to read.
-Most of the local formatting style can be
-picked up by reading existing Go programs,
-but to make them explicit here are some common points.
+People can adapt to different formatting styles
+but it's better if they don't have to, and
+less time is devoted to the topic
+if everyone adheres to the same style.
+The problem is how to approach this Utopia without a long
+prescriptive style guide.
 </p>
-
-<h3 id="tabs">Use tabs</h3>
 
 <p>
-Use tabs, not spaces, for indentation.
+With Go we take a different, somewhat radical
+approach and let the machine
+take care of most formatting issues.
+A program, <code>gofmt</code>, reads a Go program
+and emits the source in a standard style of indentation
+and vertical alignment, retaining and if necessary
+reformatting comments.
+If you want to know how to handle some new layout
+situation, run <code>gofmt</code>; if the answer doesn't
+seem right, fix the program (or file a bug), don't work around it.
 </p>
-
-<h3 id="columns">Don't worry about columnation</h3>
 
 <p>
-Let tools such as <code>gofmt</code> take care of lining things up.
+As an example, there's no need to spend time lining up
+the comments on the fields of a structure.
+<code>Gofmt</code> will do that for you.  Given the
+declaration
 </p>
 
-<h3 id="white-space">Trim trailing white space</h3>
+<pre>
+type T struct {
+    name string; // name of the object
+    value int; // its value
+}
+</pre>
 
 <p>
-There should be no trailing white space at the end of lines.
+<code>gofmt</code> will make the columns line up:
 </p>
 
-<h3 id="line-wrapping">Don't wrap lines</h3>
+<pre>
+type T struct {
+    name    string; // name of the object
+    value   int;    // its value
+}
+</pre>
 
 <p>
-Go has no 80-character limit.  Don't bother with fancy line
-wrapping just because a line is wider than a punched card.
-If a line is too long, indent with an extra tab.
+All code in the libraries has been formatted with <code>gofmt</code>.
+<font color=red>TODO</font>
 </p>
 
-<h3 id="parens">Omit parentheses in control structures</h3>
 
-<p>Go does not require parentheses around the expression
-following the <code>for</code>, <code>if</code>, <code>range</code>,
-<code>switch</code>, and <code>return</code> keywords.
+<p>
+Some formatting details remain.  Very briefly:
 </p>
+
+<dl>
+	<dt>Indentation</dt>
+	<dd>We use tabs for indentation and <code>gofmt</code> emits them by default.
+	Use spaces if you must.
+	</dd>
+	<dt>Line length</dt>
+	<dd>
+	Go has no line length limit.  Don't worry about overflowing a punched card.
+	If a line feels too long, wrap it and indent with an extra tab.
+	</dd>
+	<dt>Parentheses</dt>
+	<dd>
+	Go needs fewer parentheses: control structures (<code>if</code>,
+	<code>for</code>, <code>switch</code>) do not have parentheses in
+	their syntax.
+	Also, the operator precedence hierarchy is shorter and clearer, so
+<pre>
+x&lt;&lt;8 + y&lt;&lt;16
+</pre>
+	means what the spacing implies.
+	</dd>
+</dl>
+
+<h2>Commentary</h2>
 
 <h3 id="line-comments">Use line comments</h3>
 
@@ -121,6 +170,7 @@ package regexp
 </pre>
 
 <p>
+XXX no extra *s or boxes XXX
 Consider how the package comment contributes to the appearance
 of the <code>godoc</code> page for the package.  Don't just
 echo the doc comments for the components.  The package comment
@@ -175,6 +225,7 @@ a wider variety of automated presentations.
 <h3 id="ascii-art">Avoid ASCII Art</h3>
 
 <p>
+XXX to the formatting section XXX
 Go programs are meant to read equally well using 
 fixed-width and variable-width fonts.
 Don't use fancy formattings that depend on fixed-width fonts.
@@ -210,7 +261,7 @@ or
 
 <p>
 Comments are text, not HTML; they contain no markup.
-Refrain from ASCII embellishment like *this* or /this/.
+Refrain from ASCII embellishment such as <code>*this*</code> or <code>/this/</code>.
 </p>
 
 <h3 id="groups">Use grouping to organize declarations</h3>
@@ -292,7 +343,7 @@ Similarly, <code>once.Do</code> is as precise and evocative as
 <code>once.DoOrWaitUntilDone</code>, and <code>once.Do(f)</code> reads
 better than <code>once.DoOrWaitUntilDone(f)</code>.
 Encoding small essays into function names is not Go style;
-clear names with good documentation is.
+using clear names supported by good documentation is.
 </p>
 
 <h3 id="interfacers">Use the -er convention for interface names</h3>
@@ -306,6 +357,7 @@ the method name plus the -er suffix: <code>Reader</code>,
 <h3 id="common-names">Use canonical names</h3>
 
 <p>
+XXX permits interfaces String() not ToString() XXX
 A few method names—<code>Read</code>, <code>Write</code>, <code>Close</code>, <code>Flush</code>, <code>String</code>—have
 canonical signatures and meanings.  To avoid confusion,
 don't give your method one of those names unless it
@@ -334,14 +386,16 @@ or <code>n</code> and <code>cnt</code>.
 <p>
 A struct literal is an expression that creates a
 new instance each time it is evaluated.  The address of such
-an expression therefore points to a fresh instance each time.
+an expression points to a fresh instance each time.
 Use such expressions to avoid the repetition of filling
 out a data structure.
 </p>
 
 <pre>
 length := Point{x, y}.Abs();
+</pre>
 
+<pre>
 // Prepare RPCMessage to send to server
 rpc := &amp;RPCMessage {
 	Version: 1,
@@ -353,11 +407,6 @@ rpc := &amp;RPCMessage {
 	Body: body,
 };
 </pre>
-
-<p>
-Array, slice, and map literals behave similarly, although it is
-unusual to need the address of a slice or map.
-</p>
 
 <h3 id="buffer-slice">Use parallel assignment to slice a buffer</h3>
 
@@ -387,7 +436,8 @@ codeUsing(f);
 
 <p>
 Go's <code>switch</code> is more general than C's.
-When an <code>if</code>-<code>else if</code>-<code>else</code> chain has three or more bodies,
+When an <code>if</code>-<code>else</code>-<code>if</code>-<code>else</code>
+chain has three or more bodies,
 or an <code>if</code> condition has a long list of alternatives,
 it will be clearer if rewritten as a <code>switch</code>.
 </p>
@@ -483,7 +533,7 @@ there may be more later.
 Error cases tend to be simpler than non-error cases,
 and it helps readability when the non-error flow
 of control is always down the page.
-Also, error cases tend to end in jumps,
+Also, error cases tend to end in <code>return</code> statements,
 so that there is <a href="#else">no need for an explicit else</a>.
 </p>
 
@@ -566,7 +616,7 @@ func NewFile(fd int, name string) *File {
 }
 </pre>
 
-<p>Packages that export only a single type sometimes
+<p>Packages that export only a single type can
 shorten <code>NewTypeName</code> to <code>New</code>;
 the vector constructor is
 <code>vector.New</code>, not <code>vector.NewVector</code>.
@@ -670,9 +720,14 @@ Tests should not stop early just because one case has misbehaved.
 If at all possible, let tests continue, in order to characterize the
 problem in more detail.
 For example, it is more useful for a test to report that <code>isPrime</code>
-gives the wrong answer for 2, 3, 5, and 7 (or for 2, 4, 8, and 16) than to report
-that <code>isPrime</code> gives the wrong answer for 2 and therefore
+gives the wrong answer for 4, 8, 16 and 32 than to report
+that <code>isPrime</code> gives the wrong answer for 4 and therefore
 no more tests were run.
+XXX
+test bottom up
+test runs top to bottom
+how to use gotest
+XXX
 </p>
 
 <h3 id="good-errors">Print useful errors when tests fail</h3>
