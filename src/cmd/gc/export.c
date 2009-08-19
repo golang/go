@@ -258,15 +258,8 @@ dumpexport(void)
 Sym*
 importsym(Sym *s, int op)
 {
-	if(s->def != N && s->def->op != op) {
-		// Clumsy hack for
-		//	package parser
-		//	import "go/parser"	// defines type parser
-		if(s == lookup(package))
-			s->def = N;
-		else
-			yyerror("redeclaration of %lS during import", s, s->def->op, op);
-	}
+	if(s->def != N && s->def->op != op)
+		redeclare(s, "during import");
 
 	// mark the symbol so it is not reexported
 	if(s->def == N) {
@@ -349,7 +342,7 @@ importvar(Sym *s, Type *t, int ctxt)
 	if(s->def != N && s->def->op == ONAME) {
 		if(cvttype(t, s->def->type))
 			return;
-		warn("redeclare import var %S from %T to %T",
+		yyerror("inconsistent definition for var %S during import\n\t%T\n\t%T",
 			s, s->def->type, t);
 	}
 	n = newname(s);

@@ -14,23 +14,35 @@ errorexit(void)
 	exit(1);
 }
 
+extern int yychar;
+int
+parserline(void)
+{
+	if(yychar != 0 && yychar != -2)	// parser has one symbol lookahead
+		return prevlineno;
+	return lineno;
+}
+
 void
 yyerror(char *fmt, ...)
 {
 	va_list arg;
 
-	print("%L: ", lineno);
+	if(strcmp(fmt, "syntax error") == 0) {
+		print("%L: syntax error near %s\n", lexlineno, lexbuf);
+		nsyntaxerrors++;
+		goto out;
+	}
+
+	print("%L: ", parserline());
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
 	va_end(arg);
-	if(strcmp(fmt, "syntax error") == 0) {
-		nsyntaxerrors++;
-		print(" near %s", lexbuf);
-	}
 	print("\n");
+
+out:
 	if(debug['h'])
 		*(int*)0 = 0;
-
 	nerrors++;
 	if(nerrors >= 10 && !debug['e'])
 		fatal("too many errors");
@@ -92,7 +104,7 @@ linehist(char *file, int32 off, int relative)
 
 	h = mal(sizeof(Hist));
 	h->name = file;
-	h->line = lineno;
+	h->line = lexlineno;
 	h->offset = off;
 	h->link = H;
 	if(ehist == H) {
@@ -245,7 +257,7 @@ importdot(Sym *opkg)
 				continue;
 			s1 = lookup(s->name);
 			if(s1->def != N) {
-				yyerror("redeclaration of %S during import", s1);
+				redeclare(s1, "during import");
 				continue;
 			}
 			s1->def = s->def;
@@ -310,7 +322,6 @@ remal(void *p, int32 on, int32 n)
 	return p;
 }
 
-extern int yychar;
 Node*
 nod(int op, Node *nleft, Node *nright)
 {
@@ -320,10 +331,7 @@ nod(int op, Node *nleft, Node *nright)
 	n->op = op;
 	n->left = nleft;
 	n->right = nright;
-	if(yychar <= 0)	// no lookahead
-		n->lineno = lineno;
-	else
-		n->lineno = prevlineno;
+	n->lineno = parserline();
 	n->xoffset = BADWIDTH;
 	return n;
 }

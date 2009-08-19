@@ -73,7 +73,7 @@ main(int argc, char *argv[])
 	blockgen = 1;
 	dclcontext = PEXTERN;
 	nerrors = 0;
-	lineno = 1;
+	lexlineno = 1;
 
 	for(i=0; i<argc; i++) {
 		if(i == 0)
@@ -369,7 +369,7 @@ unimportfile(void)
 		Bterm(curio.bin);
 		curio.bin = nil;
 	} else
-		lineno--;	// re correct sys.6 line number
+		lexlineno--;	// re correct sys.6 line number
 	curio = pushedio;
 	pushedio.bin = nil;
 	inimportsys = 0;
@@ -382,7 +382,7 @@ cannedimports(char *file, char *cp)
 	if(!debug['A'])
 		anysym->def = typenod(types[TANY]);
 
-	lineno++;		// if sys.6 is included on line 1,
+	lexlineno++;		// if sys.6 is included on line 1,
 	linehist(file, 0, 0);	// the debugger gets confused
 
 	pushedio = curio;
@@ -420,7 +420,6 @@ _yylex(void)
 	vlong v;
 	char *cp;
 	Rune rune;
-	int32 lno;
 	Sym *s;
 
 	prevlineno = lineno;
@@ -429,6 +428,8 @@ l0:
 	c = getc();
 	if(isspace(c))
 		goto l0;
+
+	lineno = lexlineno;	/* start of token */
 
 	if(c >= Runeself) {
 		/* all multibyte runes are alpha */
@@ -504,11 +505,10 @@ l0:
 		clen = sizeof(int32);
 
 	casebq:
-		lno = lineno;
 		for(;;) {
 			c = getc();
 			if(c == EOF) {
-				yyerror("eof in string starting at line %L", lno);
+				yyerror("eof in string");
 				break;
 			}
 			if(c == '`')
@@ -791,7 +791,7 @@ l0:
 		goto lx;
 	case '{':
 		if(loophack == 1) {
-			DBG("%L lex: LBODY\n", lineno);
+			DBG("%L lex: LBODY\n", lexlineno);
 			loophack = 0;
 			return LBODY;
 		}
@@ -804,9 +804,9 @@ l0:
 
 lx:
 	if(c > 0xff)
-		DBG("%L lex: TOKEN %s\n", lineno, lexname(c));
+		DBG("%L lex: TOKEN %s\n", lexlineno, lexname(c));
 	else
-		DBG("%L lex: TOKEN '%c'\n", lineno, c);
+		DBG("%L lex: TOKEN '%c'\n", lexlineno, c);
 	if(isfrog(c)) {
 		yyerror("illegal character 0x%ux", c);
 		goto l0;
@@ -1044,7 +1044,7 @@ getc(void)
 		curio.peekc = curio.peekc1;
 		curio.peekc1 = 0;
 		if(c == '\n')
-			lineno++;
+			lexlineno++;
 		return c;
 	}
 
@@ -1063,7 +1063,7 @@ getc(void)
 		return EOF;
 
 	case '\n':
-		lineno++;
+		lexlineno++;
 		break;
 	}
 	return c;
@@ -1075,7 +1075,7 @@ ungetc(int c)
 	curio.peekc1 = curio.peekc;
 	curio.peekc = c;
 	if(c == '\n')
-		lineno--;
+		lexlineno--;
 }
 
 int32
@@ -1104,24 +1104,6 @@ loop:
 		print("\n");
 	}
 	return rune;
-}
-
-int
-getnsc(void)
-{
-	int c;
-
-	c = getc();
-	for(;;) {
-		if(!isspace(c))
-			return c;
-		if(c == '\n') {
-			lineno++;
-			return c;
-		}
-		c = getc();
-	}
-	return 0;
 }
 
 
