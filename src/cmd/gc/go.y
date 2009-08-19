@@ -43,7 +43,7 @@
 %token		LIGNORE LINC LLE LLSH LLT LNE LOROR LRSH
 %token		LSEMIBRACE
 
-%type	<lint>	lbrace
+%type	<lint>	lbrace import_here
 %type	<sym>	sym packname
 %type	<val>	oliteral
 
@@ -126,6 +126,7 @@ file:
 package:
 	%prec NotPackage
 	{
+		prevlineno = lineno;
 		yyerror("package statement must be first");
 		mkpackage("main");
 	}
@@ -158,63 +159,7 @@ import:
 |	LIMPORT '(' ')'
 
 import_stmt:
-	import_here import_package import_there import_done
-
-import_stmt_list:
-	import_stmt
-|	import_stmt_list ';' import_stmt
-
-import_here:
-	LLITERAL
-	{
-		// import with original name
-		pkgimportname = S;
-		pkgmyname = S;
-		importfile(&$1);
-	}
-|	sym LLITERAL
-	{
-		// import with given name
-		pkgimportname = S;
-		pkgmyname = $1;
-		importfile(&$2);
-	}
-|	'.' LLITERAL
-	{
-		// import into my name space
-		pkgmyname = lookup(".");
-		importfile(&$2);
-	}
-
-import_package:
-	LPACKAGE sym
-	{
-		pkgimportname = $2;
-		if(strcmp($2->name, "main") == 0)
-			yyerror("cannot import package main");
-	}
-
-import_there:
-	{
-		defercheckwidth();
-	}
-	hidden_import_list '$' '$'
-	{
-		resumecheckwidth();
-		checkimports();
-		unimportfile();
-	}
-|	LIMPORT '$' '$'
-	{
-		defercheckwidth();
-	}
-	hidden_import_list '$' '$'
-	{
-		resumecheckwidth();
-		checkimports();
-	}
-
-import_done:
+	import_here import_package import_there
 	{
 		Sym *import, *my;
 
@@ -249,11 +194,70 @@ import_done:
 		if(my->def && my->def->op == ONONAME)
 			my->def = N;
 
-		if(my->def)
-			yyerror("redeclaration of %S by import\n\t%N", my, my->def);
 		my->def = nod(OPACK, N, N);
 		my->def->sym = import;
+		my->lastlineno = $1;
 		import->block = -1;	// above top level
+	}
+	
+
+import_stmt_list:
+	import_stmt
+|	import_stmt_list ';' import_stmt
+
+import_here:
+	LLITERAL
+	{
+		// import with original name
+		$$ = parserline();
+		pkgimportname = S;
+		pkgmyname = S;
+		importfile(&$1);
+	}
+|	sym LLITERAL
+	{
+		// import with given name
+		$$ = parserline();
+		pkgimportname = S;
+		pkgmyname = $1;
+		if(pkgmyname->def)
+			redeclare(pkgmyname, "as imported package name");
+		importfile(&$2);
+	}
+|	'.' LLITERAL
+	{
+		// import into my name space
+		$$ = parserline();
+		pkgmyname = lookup(".");
+		importfile(&$2);
+	}
+
+import_package:
+	LPACKAGE sym
+	{
+		pkgimportname = $2;
+		if(strcmp($2->name, "main") == 0)
+			yyerror("cannot import package main");
+	}
+
+import_there:
+	{
+		defercheckwidth();
+	}
+	hidden_import_list '$' '$'
+	{
+		resumecheckwidth();
+		checkimports();
+		unimportfile();
+	}
+|	LIMPORT '$' '$'
+	{
+		defercheckwidth();
+	}
+	hidden_import_list '$' '$'
+	{
+		resumecheckwidth();
+		checkimports();
 	}
 
 /*

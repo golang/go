@@ -593,6 +593,7 @@ EXTERN	Dlist	dotlist[10];	// size is max depth of embeddeds
 
 EXTERN	Io	curio;
 EXTERN	Io	pushedio;
+EXTERN	int32	lexlineno;
 EXTERN	int32	lineno;
 EXTERN	int32	prevlineno;
 EXTERN	char*	pathname;
@@ -704,7 +705,6 @@ void	typeinit(void);
 void	lexinit(void);
 char*	lexname(int);
 int32	getr(void);
-int	getnsc(void);
 int	escchar(int, int*, vlong*);
 int	getc(void);
 void	ungetc(int);
@@ -782,6 +782,7 @@ Sym*	pkglookup(char*, char*);
 Sym*	restrictlookup(char*, char*);
 void	importdot(Sym*);
 void	yyerror(char*, ...);
+int	parserline(void);
 void	warn(char*, ...);
 void	fatal(char*, ...);
 void	linehist(char*, int32, int);
@@ -879,6 +880,8 @@ int	powtwo(Node*);
 Type*	tounsigned(Type*);
 void	smagic(Magic*);
 void	umagic(Magic*);
+
+void	redeclare(Sym*, char*);
 
 /*
  *	dcl.c

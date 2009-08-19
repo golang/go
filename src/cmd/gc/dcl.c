@@ -146,6 +146,14 @@ testdclstack(void)
 	}
 }
 
+void
+redeclare(Sym *s, char *where)
+{
+	yyerror("%S redeclared %s\n"
+		"\tprevious declaration at %L",
+		s, where, s->lastlineno);
+}
+
 /*
  * declare individual names - var, typ, const
  */
@@ -153,7 +161,6 @@ void
 declare(Node *n, int ctxt)
 {
 	Sym *s;
-	char *what;
 	int gen;
 	static int typegen, vargen;
 
@@ -177,25 +184,11 @@ declare(Node *n, int ctxt)
 	if(ctxt == PAUTO)
 		n->xoffset = BADWIDTH;
 
-	if(s->block == block) {
-		what = "???";
-		switch(n->op) {
-		case ONAME:
-			what = "variable";
-			break;
-		case OLITERAL:
-			what = "constant";
-			break;
-		case OTYPE:
-			what = "type";
-			break;
-		}
+	if(s->block == block)
+		redeclare(s, "in this block");
 
-		yyerror("%s %S redeclared in this block %d", what, s, block);
-		print("\tprevious declaration at %L\n", s->lastlineno);
-	}
 	s->block = block;
-	s->lastlineno = lineno;
+	s->lastlineno = parserline();
 	s->def = n;
 	n->vargen = gen;
 	n->funcdepth = funcdepth;
@@ -731,10 +724,8 @@ typedcl2(Type *pt, Type *t)
 
 	if(pt->etype == TFORW)
 		goto ok;
-	if(!cvttype(pt, t)) {
-		yyerror("redeclaration of %T during imports", pt);
-		return;
-	}
+	if(!cvttype(pt, t))
+		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt, t);
 	return;
 
 ok:
@@ -743,6 +734,7 @@ ok:
 	pt->method = nil;
 	pt->nod = n;
 	pt->sym = n->sym;
+	pt->sym->lastlineno = parserline();
 	declare(n, PEXTERN);
 
 	checkwidth(pt);
