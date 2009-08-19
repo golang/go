@@ -21,7 +21,8 @@ chmod +x $GOBIN/quietgcc
 
 # TODO(kaib): converge with normal build
 #for i in lib9 libbio libmach libregexp cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
-for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/malloc pkg/sort pkg/unicode
+for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync
+#for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/malloc pkg/sort pkg/unicode
 # pkg/hash
 # pkg/math
 do
