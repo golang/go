@@ -239,7 +239,7 @@ importdot(Sym *opkg)
 		for(s = hash[h]; s != S; s = s->link) {
 			if(s->package[0] != c)
 				continue;
-			if(!exportname(s->name))
+			if(!exportname(s->name) || utfrune(s->name, 0xb7))	// 0xb7 = center dot
 				continue;
 			if(strcmp(s->package, opkg->name) != 0)
 				continue;

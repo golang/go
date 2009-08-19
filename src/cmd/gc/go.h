@@ -956,7 +956,6 @@ NodeList*	initfix(NodeList*);
 /*
  *	export.c
  */
-void	renameimports(void);
 void	autoexport(Node*, int);
 int	exportname(char*);
 void	exportsym(Node*);
