@@ -6,7 +6,7 @@ Go is a new language.  Although it's in the C family
 it has some unusual properties that make effective Go programs
 different in character from programs in existing languages.
 A straightforward translation of a C++ or Java program into Go
-is unlikely to produce a satisfactory result - Java programs
+is unlikely to produce a satisfactory result—Java programs
 are written in Java, not Go.
 On the other hand, thinking about the problem from a Go
 perspective could produce a successful but quite different
@@ -54,7 +54,7 @@ prescriptive style guide.
 </p>
 
 <p>
-With Go we take a different, somewhat radical
+With Go we take an unusual
 approach and let the machine
 take care of most formatting issues.
 A program, <code>gofmt</code>, reads a Go program
@@ -126,23 +126,33 @@ x&lt;&lt;8 + y&lt;&lt;16
 
 <h2>Commentary</h2>
 
-<h3 id="line-comments">Use line comments</h3>
-
 <p>
 Go provides C-style <code>/* */</code> block comments 
 and C++-style <code>//</code> line comments.
-Use line comments by default,
-reserving block comments for top-level package comments
-and commenting out large swaths of code.
+Line comments are the norm;
+block comments appear mostly as package comments and
+are also useful to disable large swaths of code.
 </p>
 
-<h3 id="pkg-comments">Write package comments</h3>
+<p>
+The program—and web server—<code>godoc</code> processes
+Go source files to extract documentation about the contents of the
+package.
+Comments that appear before top-level declarations, with no intervening newlines,
+are extracted along with the declaration to serve as explanatory text for the item.
+The nature and style of these comments determines the
+quality of the documentation <code>godoc</code> produces.
+</p>
 
 <p>
-Every package should have a package comment, a block
+Every package should have a <i>package comment</i>, a block
 comment preceding the package clause.
-It should introduce the package and
+For multi-file packages, the package comment only needs to be
+present in one file, and any one will do.
+The package comment should introduce the package and
 provide information relevant to the package as a whole.
+It will appear first on the <code>godoc</code> page and
+should set up the detailed documentation that follows.
 </p>
 
 <pre>
@@ -170,11 +180,7 @@ package regexp
 </pre>
 
 <p>
-XXX no extra *s or boxes XXX
-Consider how the package comment contributes to the appearance
-of the <code>godoc</code> page for the package.  Don't just
-echo the doc comments for the components.  The package comment
-can be brief.
+If the package is simple, the package comment can be brief.
 </p>
 
 <pre>
@@ -182,113 +188,58 @@ can be brief.
 // manipulating slash-separated filename paths.
 </pre>
 
-<h3 id="doc-comments">Write doc comments</h3>
-
 <p>
-If a comment immediately precedes a top-level declaration,
-the <a href="/">Go documentation server</a>
-<font color=red>(TODO: that's not a public URL.)</font>
-uses that comment as the documentation
-for the constant, function, method, package, type or variable being declared.
-These are called <i>doc comments</i>.
-To detach a comment from a declaration, insert a blank
-line between them.
+Comments do not need extra formatting such as banners of stars.
+The generated output may not even be presented in a fixed-width font, so don't depend
+on spacing for alignment—<code>godoc</code>, like <code>gofmt</code>,
+takes care of that.
+Finally, the comments are uninterpreted plain text, so HTML and other
+annotations such as <code>_this_</code> will reproduce <i>verbatim</i> and should
+not be used.
 </p>
 
 <p>
+Inside a package, any comment immediately preceding a top-level declaration
+serves as a <i>doc comment</i> for that declaration.
 Every exported (capitalized) name in a program should
-have a doc comment, as should the package declaration itself.
-If a name appears multiple times due to forward declarations
-or appearance in multiple source files within a package, only
-one instance requires a doc comment, and any one will do.
+have a doc comment.
 </p>
 
 <p>
-Doc comments consist of complete English sentences.
+Doc comments work best as complete English sentences, which allow
+a wide variety of automated presentations.
 The first sentence should be a one-sentence summary that
 starts with the name being declared:
 </p>
 
 <pre>
-// Quote returns a double-quoted Go string literal
-// representing s.  The returned string s uses Go escape
-// sequences (\t, \n, \xFF, \u0100) for control characters
-// and non-ASCII characters.
-func Quote(s string) string {
+// Compile parses a regular expression and returns, if successful, a Regexp
+// object that can be used to match against text.
+func Compile(str string) (regexp *Regexp, error os.Error) {
 </pre>
-
-<p>
-Use of complete English sentences admits
-a wider variety of automated presentations.
-</p>
-
-<h3 id="ascii-art">Avoid ASCII Art</h3>
-
-<p>
-XXX to the formatting section XXX
-Go programs are meant to read equally well using 
-fixed-width and variable-width fonts.
-Don't use fancy formattings that depend on fixed-width fonts.
-In particular, don't assume that a single space is the same
-width as every other character.
-If you need to make a columnated table, use tabs to separate
-the columns and the pretty printer will make
-sure the columns are lined up properly in the output.
-</p>
-
-<p>
-If you need comments to separate
-sections in a file, use a simple block comment:
-</p>
-
-<pre>
-/*
- * Helper routines for simplifying the fetching of optional
- * fields of basic type. If the field is missing, they return
- * the zero for the type.
- */
-</pre>
-
-or
-
-<pre>
-/*
-    Helper routines for simplifying the fetching of optional
-    fields of basic type. If the field is missing, they return
-    the zero for the type.
- */
-</pre>
-
-<p>
-Comments are text, not HTML; they contain no markup.
-Refrain from ASCII embellishment such as <code>*this*</code> or <code>/this/</code>.
-</p>
-
-<h3 id="groups">Use grouping to organize declarations</h3>
 
 <p>
 Go's declaration syntax allows grouping of declarations.
-A comment can introduce a group of related constants or variables.
+A single doc comment can introduce a group of related constants or variables.
+Since the whole declaration is presented, such a comment can often be perfunctory.
 </p>
 
 <pre>
-// Flags to Open, wrapping those of the underlying system.
-// Not all flags may be implemented on a given system.
-const (
-	O_RDONLY = syscall.O_RDONLY;	// Open file read-only.
-	O_WRONLY = syscall.O_WRONLY;	// Open file write-only.
+// Error codes returned by failures to parse an expression.
+var (
+	ErrInternal = os.NewError("internal error");
+	ErrUnmatchedLpar = os.NewError("unmatched '('");
+	ErrUnmatchedRpar = os.NewError("unmatched ')'");
 	...
 )
 </pre>
 
 <p>
-A grouping can also indicate relationships between items,
-such as the fact that a set of variables is controlled by
-a mutex.
+Even for private names, grouping can also indicate relationships between items,
+such as the fact that a set of variables is controlled by a mutex.
 </p>
 
 <pre>
-// Variables protected by countLock.
 var (
 	countLock	sync.Mutex;
 	inputCount	uint32;
