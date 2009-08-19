@@ -14,7 +14,7 @@ cgen(Node *n, Node *res)
 {
 	Node *nl, *nr, *r;
 	Node n1, n2;
-	int a;
+	int a, w;
 	Prog *p1, *p2, *p3;
 	Addr addr;
 
@@ -69,7 +69,7 @@ cgen(Node *n, Node *res)
 			goto gen;
 
 		a = optoas(OAS, res->type);
-		if(sudoaddable(a, res, &addr)) {
+		if(sudoaddable(a, res, &addr, &w)) {
 			if(n->op != OREGISTER) {
 				regalloc(&n2, res->type, N);
 				cgen(n, &n2);
@@ -78,6 +78,7 @@ cgen(Node *n, Node *res)
 			} else
 				p1 = gins(a, n, N);
 			p1->to = addr;
+			p1->reg = w;
 			if(debug['g'])
 				print("%P [ignore previous line]\n", p1);
 			sudoclean();
@@ -124,14 +125,16 @@ cgen(Node *n, Node *res)
 	}
 
 	a = optoas(OAS, n->type);
-	if(sudoaddable(a, n, &addr)) {
+	if(sudoaddable(a, n, &addr, &w)) {
 		if(res->op == OREGISTER) {
 			p1 = gins(a, N, res);
 			p1->from = addr;
+			p1->reg = w;
 		} else {
 			regalloc(&n2, n->type, N);
 			p1 = gins(a, N, &n2);
 			p1->from = addr;
+			p1->reg = w;
 			gins(a, &n2, res);
 			regfree(&n2);
 		}
@@ -181,8 +184,11 @@ cgen(Node *n, Node *res)
 		goto ret;
 
 	case OMINUS:
-		a = optoas(n->op, nl->type);
-		goto uop;
+		nr = nl;
+		nl = &n1;
+		nodconst(nl, nr->type, 0);
+		a = optoas(OSUB, nr->type);
+		goto abop;
 
 	// symmetric binary
 	case OAND:
@@ -314,9 +320,10 @@ abop:	// asymmetric binary
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
 
-		if(sudoaddable(a, nr, &addr)) {
+		if(sudoaddable(a, nr, &addr, &w)) {
 			p1 = gins(a, N, &n1);
 			p1->from = addr;
+			p1->reg = w;
 			gmove(&n1, res);
 			sudoclean();
 			regfree(&n1);
@@ -454,7 +461,7 @@ agen(Node *n, Node *res)
 					n1.op = OINDREG;
 					n1.type = types[tptr];
 					n1.xoffset = Array_nel;
-					nodconst(&n2, types[TUINT64], v);
+					nodconst(&n2, types[TUINT32], v);
 					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
 					ginscall(throwindex, 0);
@@ -484,9 +491,9 @@ agen(Node *n, Node *res)
 		}
 
 		// type of the index
-		t = types[TUINT64];
+		t = types[TUINT32];
 		if(issigned[n1.type->etype])
-			t = types[TINT64];
+			t = types[TINT32];
 
 		regalloc(&n2, t, &n1);			// i
 		gmove(&n1, &n2);
@@ -500,7 +507,7 @@ agen(Node *n, Node *res)
 				n1.type = types[tptr];
 				n1.xoffset = Array_nel;
 			} else
-				nodconst(&n1, types[TUINT64], nl->type->bound);
+				nodconst(&n1, types[TUINT32], nl->type->bound);
 			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
 			ginscall(throwindex, 0);
@@ -548,7 +555,7 @@ agen(Node *n, Node *res)
 		}
 		cgen(n->heapaddr, res);
 		if(n->xoffset != 0) {
-			nodconst(&n1, types[TINT64], n->xoffset);
+			nodconst(&n1, types[TINT32], n->xoffset);
 			gins(optoas(OADD, types[tptr]), &n1, res);
 		}
 		break;
@@ -560,7 +567,7 @@ agen(Node *n, Node *res)
 	case ODOT:
 		agen(nl, res);
 		if(n->xoffset != 0) {
-			nodconst(&n1, types[TINT64], n->xoffset);
+			nodconst(&n1, types[TINT32], n->xoffset);
 			gins(optoas(OADD, types[tptr]), &n1, res);
 		}
 		break;
@@ -568,7 +575,7 @@ agen(Node *n, Node *res)
 	case ODOTPTR:
 		cgen(nl, res);
 		if(n->xoffset != 0) {
-			nodconst(&n1, types[TINT64], n->xoffset);
+			nodconst(&n1, types[TINT32], n->xoffset);
 			gins(optoas(OADD, types[tptr]), &n1, res);
 		}
 		break;

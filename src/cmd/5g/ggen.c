@@ -147,52 +147,51 @@ ginscall(Node *f, int proc)
 void
 cgen_callinter(Node *n, Node *res, int proc)
 {
-	fatal("cgen_callinter not implemented");
-//	Node *i, *f;
-//	Node tmpi, nodo, nodr, nodsp;
+	Node *i, *f;
+	Node tmpi, nodo, nodr, nodsp;
 
-//	i = n->left;
-//	if(i->op != ODOTINTER)
-//		fatal("cgen_callinter: not ODOTINTER %O", i->op);
+	i = n->left;
+	if(i->op != ODOTINTER)
+		fatal("cgen_callinter: not ODOTINTER %O", i->op);
 
-//	f = i->right;		// field
-//	if(f->op != ONAME)
-//		fatal("cgen_callinter: not ONAME %O", f->op);
+	f = i->right;		// field
+	if(f->op != ONAME)
+		fatal("cgen_callinter: not ONAME %O", f->op);
 
-//	i = i->left;		// interface
+	i = i->left;		// interface
 
-//	if(!i->addable) {
-//		tempname(&tmpi, i->type);
-//		cgen(i, &tmpi);
-//		i = &tmpi;
-//	}
+	if(!i->addable) {
+		tempname(&tmpi, i->type);
+		cgen(i, &tmpi);
+		i = &tmpi;
+	}
 
-//	genlist(n->list);			// args
+	genlist(n->list);			// args
 
-//	regalloc(&nodr, types[tptr], res);
-//	regalloc(&nodo, types[tptr], &nodr);
-//	nodo.op = OINDREG;
+	regalloc(&nodr, types[tptr], res);
+	regalloc(&nodo, types[tptr], &nodr);
+	nodo.op = OINDREG;
 
-//	agen(i, &nodr);		// REG = &inter
+	agen(i, &nodr);		// REG = &inter
 
-//	nodindreg(&nodsp, types[tptr], D_SP);
-//	nodo.xoffset += widthptr;
-//	cgen(&nodo, &nodsp);	// 0(SP) = 8(REG) -- i.s
+	nodindreg(&nodsp, types[tptr], REGSP);
+	nodo.xoffset += widthptr;
+	cgen(&nodo, &nodsp);	// 0(SP) = 8(REG) -- i.s
 
-//	nodo.xoffset -= widthptr;
-//	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.m
+	nodo.xoffset -= widthptr;
+	cgen(&nodo, &nodr);	// REG = 0(REG) -- i.m
 
-//	nodo.xoffset = n->left->xoffset + 4*widthptr;
-//	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.m->fun[f]
+	nodo.xoffset = n->left->xoffset + 4*widthptr;
+	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.m->fun[f]
 
-//	// BOTCH nodr.type = fntype;
-//	nodr.type = n->left->type;
-//	ginscall(&nodr, proc);
+	// BOTCH nodr.type = fntype;
+	nodr.type = n->left->type;
+	ginscall(&nodr, proc);
 
-//	regfree(&nodr);
-//	regfree(&nodo);
+	regfree(&nodr);
+	regfree(&nodo);
 
-//	setmaxarg(n->left->type);
+	setmaxarg(n->left->type);
 }
 
 /*
@@ -289,34 +288,33 @@ cgen_callret(Node *n, Node *res)
 void
 cgen_aret(Node *n, Node *res)
 {
-	fatal("cgen_aret not implemented");
-//	Node nod1, nod2;
-//	Type *fp, *t;
-//	Iter flist;
+	Node nod1, nod2;
+	Type *fp, *t;
+	Iter flist;
 
-//	t = n->left->type;
-//	if(isptr[t->etype])
-//		t = t->type;
+	t = n->left->type;
+	if(isptr[t->etype])
+		t = t->type;
 
-//	fp = structfirst(&flist, getoutarg(t));
-//	if(fp == T)
-//		fatal("cgen_aret: nil");
+	fp = structfirst(&flist, getoutarg(t));
+	if(fp == T)
+		fatal("cgen_aret: nil");
 
-//	memset(&nod1, 0, sizeof(nod1));
-//	nod1.op = OINDREG;
-//	nod1.val.u.reg = D_SP;
-//	nod1.addable = 1;
+	memset(&nod1, 0, sizeof(nod1));
+	nod1.op = OINDREG;
+	nod1.val.u.reg = REGSP;
+	nod1.addable = 1;
 
-//	nod1.xoffset = fp->width;
-//	nod1.type = fp->type;
+	nod1.xoffset = fp->width;
+	nod1.type = fp->type;
 
-//	if(res->op != OREGISTER) {
-//		regalloc(&nod2, types[tptr], res);
-//		gins(ALEAL, &nod1, &nod2);
-//		gins(AMOVL, &nod2, res);
-//		regfree(&nod2);
-//	} else
-//		gins(ALEAL, &nod1, res);
+	if(res->op != OREGISTER) {
+		regalloc(&nod2, types[tptr], res);
+		agen(&nod1, &nod2);
+		gins(AMOVW, &nod2, res);
+		regfree(&nod2);
+	} else
+		agen(&nod1, res);
 }
 
 /*
@@ -342,7 +340,7 @@ cgen_asop(Node *n)
 	Node *nl, *nr;
 //	Prog *p1;
 	Addr addr;
-	int a;
+	int a, w;
 
 	nl = n->left;
 	nr = n->right;
@@ -380,12 +378,13 @@ cgen_asop(Node *n)
 			goto ret;
 		}
 		if(nr->ullman < UINF)
-		if(sudoaddable(a, nl, &addr)) {
+		if(sudoaddable(a, nl, &addr, &w)) {
 			fatal("cgen_asop sudoaddable not implemented");
 //			regalloc(&n2, nr->type, N);
 //			cgen(nr, &n2);
 //			p1 = gins(a, &n2, N);
 //			p1->to = addr;
+//			p1->reg = w;
 //			regfree(&n2);
 //			sudoclean();
 //			goto ret;
@@ -434,83 +433,40 @@ samereg(Node *a, Node *b)
 }
 
 /*
- * generate division.
- * caller must set:
- *	ax = allocated AX register
- *	dx = allocated DX register
- * generates one of:
- *	res = nl / nr
- *	res = nl % nr
- * according to op.
- */
-// TODO(kaib): This probably isn't needed for arm, delete once you complete cgen_div.
-void
-dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
-{
-	int a;
-	Node n3, n4;
-	Type *t;
-
-	t = nl->type;
-	if(t->width == 1) {
-		if(issigned[t->etype])
-			t = types[TINT32];
-		else
-			t = types[TUINT32];
-	}
-	a = optoas(op, t);
-
-	regalloc(&n3, nr->type, N);
-	if(nl->ullman >= nr->ullman) {
-		cgen(nl, ax);
-		if(!issigned[t->etype]) {
-			nodconst(&n4, t, 0);
-			gmove(&n4, dx);
-		} else
-			gins(optoas(OEXTEND, t), N, N);
-		cgen(nr, &n3);
-	} else {
-		cgen(nr, &n3);
-		cgen(nl, ax);
-		if(!issigned[t->etype]) {
-			nodconst(&n4, t, 0);
-			gmove(&n4, dx);
-		} else
-			gins(optoas(OEXTEND, t), N, N);
-	}
-	gins(a, &n3, N);
-	regfree(&n3);
-
-	if(op == ODIV)
-		gmove(ax, res);
-	else
-		gmove(dx, res);
-}
-
-/*
  * generate division according to op, one of:
  *	res = nl / nr
  *	res = nl % nr
  */
+// TODO(kaib): rip out and just insert into cgen
 void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
-	fatal("cgen_div not implemented");
-//	Node ax, dx;
-//	int rax, rdx;
-
-//	rax = reg[D_AX];
-//	rdx = reg[D_DX];
-
-//	nodreg(&ax, types[TINT64], D_AX);
-//	nodreg(&dx, types[TINT64], D_DX);
-//	regalloc(&ax, nl->type, &ax);
-//	regalloc(&dx, nl->type, &dx);
-
-//	dodiv(op, nl, nr, res, &ax, &dx);
-
-//	regfree(&ax);
-//	regfree(&dx);
+	Node nod, nod1;
+	Prog* p;
+	Addr ta;
+	if(res == Z) {
+		// TODO(kaib): add back warning for null
+//		nullwarn(l, r);
+		return;
+	}
+	if(nl->ullman >= nr->ullman) {
+		regalloc(&nod, nl->type, res);
+		cgen(nl, &nod);
+		regalloc(&nod1, nr->type, Z);
+		cgen(nr, &nod1);
+		gins(optoas(op, nod1.type), &nod1, &nod);
+	} else {
+		regalloc(&nod, nr->type, res);
+		cgen(nr, &nod);
+		regalloc(&nod1, nl->type, Z);
+		cgen(nl, &nod1);
+		p = gins(optoas(op, nod.type), &nod, &nod);
+		naddr(&nod1, &ta);
+		p->reg = ta.reg;
+	}
+	gins(optoas(OAS, nod.type), &nod, res);
+	regfree(&nod);
+	regfree(&nod1);
 }
 
 /*
@@ -518,6 +474,7 @@ cgen_div(int op, Node *nl, Node *nr, Node *res)
  *	res = nl << nr
  *	res = nl >> nr
  */
+// TODO(kaib): rip out and replace with simple isntruction
 void
 cgen_shift(int op, Node *nl, Node *nr, Node *res)
 {
@@ -588,6 +545,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
  * no byte multiply instruction so have to do
  * 16-bit multiply and take bottom half.
  */
+// TODO(kaib): figure out if we can replace this normal multiply
 void
 cgen_bmul(int op, Node *nl, Node *nr, Node *res)
 {
