@@ -201,6 +201,8 @@ cgen(Node *n, Node *res)
 
 	// asymmetric binary
 	case OSUB:
+	case OLSH:
+	case ORSH:
 		a = optoas(n->op, nl->type);
 		goto abop;
 
@@ -294,17 +296,8 @@ cgen(Node *n, Node *res)
 
 	case OMOD:
 	case ODIV:
-		if(isfloat[n->type->etype]) {
-			a = optoas(n->op, nl->type);
-			goto abop;
-		}
-		cgen_div(n->op, nl, nr, res);
-		break;
-
-	case OLSH:
-	case ORSH:
-		cgen_shift(n->op, nl, nr, res);
-		break;
+		a = optoas(n->op, nl->type);
+		goto abop;
 	}
 	goto ret;
 
@@ -341,14 +334,6 @@ abop:	// asymmetric binary
 	gmove(&n1, res);
 	regfree(&n1);
 	regfree(&n2);
-	goto ret;
-
-uop:	// unary
-	regalloc(&n1, nl->type, res);
-	cgen(nl, &n1);
-	gins(a, N, &n1);
-	gmove(&n1, res);
-	regfree(&n1);
 	goto ret;
 
 ret:

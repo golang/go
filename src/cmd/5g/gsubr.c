@@ -393,8 +393,8 @@ gconreg(int as, vlong c, int reg)
 {
 	Node n1, n2;
 
-	nodconst(&n1, types[TINT64], c);
-	nodreg(&n2, types[TINT64], reg);
+	nodconst(&n1, types[TINT32], c);
+	nodreg(&n2, types[TINT32], reg);
 	gins(as, &n1, &n2);
 }
 
@@ -489,18 +489,21 @@ gmove(Node *f, Node *t)
 	 * integer copy and truncate
 	 */
 	case CASE(TINT8, TINT8):	// same size
-	case CASE(TINT8, TUINT8):
 	case CASE(TUINT8, TINT8):
-	case CASE(TUINT8, TUINT8):
 	case CASE(TINT16, TINT8):	// truncate
 	case CASE(TUINT16, TINT8):
 	case CASE(TINT32, TINT8):
 	case CASE(TUINT32, TINT8):
+		a = AMOVB;
+		break;
+
+	case CASE(TINT8, TUINT8):
+	case CASE(TUINT8, TUINT8):
 	case CASE(TINT16, TUINT8):
 	case CASE(TUINT16, TUINT8):
 	case CASE(TINT32, TUINT8):
 	case CASE(TUINT32, TUINT8):
-		a = AMOVB;
+		a = AMOVBU;
 		break;
 
 	case CASE(TINT64, TINT8):	// truncate low word
@@ -516,14 +519,17 @@ gmove(Node *f, Node *t)
 		return;
 
 	case CASE(TINT16, TINT16):	// same size
-	case CASE(TINT16, TUINT16):
 	case CASE(TUINT16, TINT16):
-	case CASE(TUINT16, TUINT16):
 	case CASE(TINT32, TINT16):	// truncate
 	case CASE(TUINT32, TINT16):
+		a = AMOVH;
+		break;
+
+	case CASE(TINT16, TUINT16):
+	case CASE(TUINT16, TUINT16):
 	case CASE(TINT32, TUINT16):
 	case CASE(TUINT32, TUINT16):
-		a = AMOVH;
+		a = AMOVHU;
 		break;
 
 	case CASE(TINT64, TINT16):	// truncate low word
@@ -582,45 +588,41 @@ gmove(Node *f, Node *t)
 	/*
 	 * integer up-conversions
 	 */
-//	case CASE(TINT8, TINT16):	// sign extend int8
-//	case CASE(TINT8, TUINT16):
-//		a = AMOVBWSX;
-//		goto rdst;
-//	case CASE(TINT8, TINT32):
-//	case CASE(TINT8, TUINT32):
-//		a = AMOVBLSX;
-//		goto rdst;
+	case CASE(TINT8, TINT16):	// sign extend int8
+	case CASE(TINT8, TUINT16):
+	case CASE(TINT8, TINT32):
+	case CASE(TINT8, TUINT32):
+		a = AMOVB;
+		goto rdst;
 //	case CASE(TINT8, TINT64):	// convert via int32
 //	case CASE(TINT8, TUINT64):
 //		cvt = types[TINT32];
 //		goto hard;
 
-//	case CASE(TUINT8, TINT16):	// zero extend uint8
-//	case CASE(TUINT8, TUINT16):
-//		a = AMOVBWZX;
-//		goto rdst;
-//	case CASE(TUINT8, TINT32):
-//	case CASE(TUINT8, TUINT32):
-//		a = AMOVBLZX;
-//		goto rdst;
+	case CASE(TUINT8, TINT16):	// zero extend uint8
+	case CASE(TUINT8, TUINT16):
+	case CASE(TUINT8, TINT32):
+	case CASE(TUINT8, TUINT32):
+		a = AMOVBU;
+		goto rdst;
 //	case CASE(TUINT8, TINT64):	// convert via uint32
 //	case CASE(TUINT8, TUINT64):
 //		cvt = types[TUINT32];
 //		goto hard;
 
-//	case CASE(TINT16, TINT32):	// sign extend int16
-//	case CASE(TINT16, TUINT32):
-//		a = AMOVWLSX;
-//		goto rdst;
+	case CASE(TINT16, TINT32):	// sign extend int16
+	case CASE(TINT16, TUINT32):
+		a = AMOVH;
+		goto rdst;
 //	case CASE(TINT16, TINT64):	// convert via int32
 //	case CASE(TINT16, TUINT64):
 //		cvt = types[TINT32];
 //		goto hard;
 
-//	case CASE(TUINT16, TINT32):	// zero extend uint16
-//	case CASE(TUINT16, TUINT32):
-//		a = AMOVWLZX;
-//		goto rdst;
+	case CASE(TUINT16, TINT32):	// zero extend uint16
+	case CASE(TUINT16, TUINT32):
+		a = AMOVHU;
+		goto rdst;
 //	case CASE(TUINT16, TINT64):	// convert via uint32
 //	case CASE(TUINT16, TUINT64):
 //		cvt = types[TUINT32];
@@ -728,7 +730,9 @@ gmove(Node *f, Node *t)
 	gins(a, f, t);
 	return;
 
-//rdst:
+rdst:
+	// TODO(kaib): we almost always require a register dest anyway, this can probably be
+	// removed.
 	// requires register destination
 	regalloc(&r1, t->type, t);
 	gins(a, f, &r1);
@@ -1221,21 +1225,15 @@ optoas(int op, Type *t)
 		a = ASUBD;
 		break;
 
-//	case CASE(OAND, TINT8):
-//	case CASE(OAND, TUINT8):
-//		a = AANDB;
-//		break;
-
-//	case CASE(OAND, TINT16):
-//	case CASE(OAND, TUINT16):
-//		a = AANDW;
-//		break;
-
-//	case CASE(OAND, TINT32):
-//	case CASE(OAND, TUINT32):
-//	case CASE(OAND, TPTR32):
-//		a = AANDL;
-//		break;
+	case CASE(OAND, TINT8):
+	case CASE(OAND, TUINT8):
+	case CASE(OAND, TINT16):
+	case CASE(OAND, TUINT16):
+	case CASE(OAND, TINT32):
+	case CASE(OAND, TUINT32):
+	case CASE(OAND, TPTR32):
+		a = AAND;
+		break;
 
 //	case CASE(OAND, TINT64):
 //	case CASE(OAND, TUINT64):
@@ -1243,21 +1241,15 @@ optoas(int op, Type *t)
 //		a = AANDQ;
 //		break;
 
-//	case CASE(OOR, TINT8):
-//	case CASE(OOR, TUINT8):
-//		a = AORB;
-//		break;
-
-//	case CASE(OOR, TINT16):
-//	case CASE(OOR, TUINT16):
-//		a = AORW;
-//		break;
-
-//	case CASE(OOR, TINT32):
-//	case CASE(OOR, TUINT32):
-//	case CASE(OOR, TPTR32):
-//		a = AORL;
-//		break;
+	case CASE(OOR, TINT8):
+	case CASE(OOR, TUINT8):
+	case CASE(OOR, TINT16):
+	case CASE(OOR, TUINT16):
+	case CASE(OOR, TINT32):
+	case CASE(OOR, TUINT32):
+	case CASE(OOR, TPTR32):
+		a = AORR;
+		break;
 
 //	case CASE(OOR, TINT64):
 //	case CASE(OOR, TUINT64):
@@ -1265,21 +1257,15 @@ optoas(int op, Type *t)
 //		a = AORQ;
 //		break;
 
-//	case CASE(OXOR, TINT8):
-//	case CASE(OXOR, TUINT8):
-//		a = AXORB;
-//		break;
-
-//	case CASE(OXOR, TINT16):
-//	case CASE(OXOR, TUINT16):
-//		a = AXORW;
-//		break;
-
-//	case CASE(OXOR, TINT32):
-//	case CASE(OXOR, TUINT32):
-//	case CASE(OXOR, TPTR32):
-//		a = AXORL;
-//		break;
+	case CASE(OXOR, TINT8):
+	case CASE(OXOR, TUINT8):
+	case CASE(OXOR, TINT16):
+	case CASE(OXOR, TUINT16):
+	case CASE(OXOR, TINT32):
+	case CASE(OXOR, TUINT32):
+	case CASE(OXOR, TPTR32):
+		a = AEOR;
+		break;
 
 //	case CASE(OXOR, TINT64):
 //	case CASE(OXOR, TUINT64):
@@ -1287,21 +1273,15 @@ optoas(int op, Type *t)
 //		a = AXORQ;
 //		break;
 
-//	case CASE(OLSH, TINT8):
-//	case CASE(OLSH, TUINT8):
-//		a = ASHLB;
-//		break;
-
-//	case CASE(OLSH, TINT16):
-//	case CASE(OLSH, TUINT16):
-//		a = ASHLW;
-//		break;
-
-//	case CASE(OLSH, TINT32):
-//	case CASE(OLSH, TUINT32):
-//	case CASE(OLSH, TPTR32):
-//		a = ASHLL;
-//		break;
+	case CASE(OLSH, TINT8):
+	case CASE(OLSH, TUINT8):
+	case CASE(OLSH, TINT16):
+	case CASE(OLSH, TUINT16):
+	case CASE(OLSH, TINT32):
+	case CASE(OLSH, TUINT32):
+	case CASE(OLSH, TPTR32):
+		a = ASLL;
+		break;
 
 //	case CASE(OLSH, TINT64):
 //	case CASE(OLSH, TUINT64):
@@ -1309,47 +1289,38 @@ optoas(int op, Type *t)
 //		a = ASHLQ;
 //		break;
 
-//	case CASE(ORSH, TUINT8):
-//		a = ASHRB;
-//		break;
-
-//	case CASE(ORSH, TUINT16):
-//		a = ASHRW;
-//		break;
-
-//	case CASE(ORSH, TUINT32):
-//	case CASE(ORSH, TPTR32):
-//		a = ASHRL;
-//		break;
+	case CASE(ORSH, TUINT8):
+	case CASE(ORSH, TUINT16):
+	case CASE(ORSH, TUINT32):
+	case CASE(ORSH, TPTR32):
+		a = ASRL;
+		break;
 
 //	case CASE(ORSH, TUINT64):
 //	case CASE(ORSH, TPTR64):
 //		a = ASHRQ;
 //		break;
 
-//	case CASE(ORSH, TINT8):
-//		a = ASARB;
-//		break;
-
-//	case CASE(ORSH, TINT16):
-//		a = ASARW;
-//		break;
-
-//	case CASE(ORSH, TINT32):
-//		a = ASARL;
-//		break;
+	case CASE(ORSH, TINT8):
+	case CASE(ORSH, TINT16):
+	case CASE(ORSH, TINT32):
+		a = ASRA;
+		break;
 
 //	case CASE(ORSH, TINT64):
 //		a = ASARQ;
 //		break;
 
-	case CASE(OMUL, TINT8):
 	case CASE(OMUL, TUINT8):
-	case CASE(OMUL, TINT16):
 	case CASE(OMUL, TUINT16):
-	case CASE(OMUL, TINT32):
 	case CASE(OMUL, TUINT32):
 	case CASE(OMUL, TPTR32):
+		a = AMULU;
+		break;
+
+	case CASE(OMUL, TINT8):
+	case CASE(OMUL, TINT16):
+	case CASE(OMUL, TINT32):
 		a = AMUL;
 		break;
 
@@ -1359,31 +1330,37 @@ optoas(int op, Type *t)
 //		a = AIMULQ;
 //		break;
 
-//	case CASE(OMUL, TFLOAT32):
-//		a = AMULSS;
-//		break;
+	case CASE(OMUL, TFLOAT32):
+		a = AMULF;
+		break;
 
-//	case CASE(OMUL, TFLOAT64):
-//		a = AMULSD;
-//		break;
+	case CASE(OMUL, TFLOAT64):
+		a = AMULD;
+		break;
 
-	case CASE(ODIV, TINT8):
 	case CASE(ODIV, TUINT8):
-	case CASE(ODIV, TINT16):
 	case CASE(ODIV, TUINT16):
-	case CASE(ODIV, TINT32):
 	case CASE(ODIV, TUINT32):
 	case CASE(ODIV, TPTR32):
+		a = ADIVU;
+		break;
+
+	case CASE(ODIV, TINT8):
+	case CASE(ODIV, TINT16):
+	case CASE(ODIV, TINT32):
 		a = ADIV;
 		break;
 
-	case CASE(OMOD, TINT8):
 	case CASE(OMOD, TUINT8):
-	case CASE(OMOD, TINT16):
 	case CASE(OMOD, TUINT16):
-	case CASE(OMOD, TINT32):
 	case CASE(OMOD, TUINT32):
 	case CASE(OMOD, TPTR32):
+		a = AMODU;
+		break;
+
+	case CASE(OMOD, TINT8):
+	case CASE(OMOD, TINT16):
+	case CASE(OMOD, TINT32):
 		a = AMOD;
 		break;
 
@@ -1411,13 +1388,13 @@ optoas(int op, Type *t)
 //		a = ACQO;
 //		break;
 
-//	case CASE(ODIV, TFLOAT32):
-//		a = ADIVSS;
-//		break;
+	case CASE(ODIV, TFLOAT32):
+		a = ADIVF;
+		break;
 
-//	case CASE(ODIV, TFLOAT64):
-//		a = ADIVSD;
-//		break;
+	case CASE(ODIV, TFLOAT64):
+		a = ADIVD;
+		break;
 
 	}
 	return a;
@@ -1621,9 +1598,9 @@ oindex:
 			n2.type = types[tptr];
 			n2.xoffset = Array_nel;
 		} else {
-			nodconst(&n2, types[TUINT64], l->type->bound);
+			nodconst(&n2, types[TUINT32], l->type->bound);
 			if(o & OPtrto)
-				nodconst(&n2, types[TUINT64], l->type->type->bound);
+				nodconst(&n2, types[TUINT32], l->type->type->bound);
 		}
 		gins(optoas(OCMP, types[TUINT32]), reg1, &n2);
 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
@@ -1666,7 +1643,7 @@ oindex_const:
 			n1.op = OINDREG;
 			n1.type = types[tptr];
 			n1.xoffset = Array_nel;
-			nodconst(&n2, types[TUINT64], v);
+			nodconst(&n2, types[TUINT32], v);
 			gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
 			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
 			ginscall(throwindex, 0);
