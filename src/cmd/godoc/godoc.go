@@ -120,7 +120,7 @@ func isGoFile(dir *os.Dir) bool {
 
 
 func isPkgDir(dir *os.Dir) bool {
-	return dir.IsDirectory() && dir.Name != "_obj";
+	return dir.IsDirectory() && len(dir.Name) > 0 && dir.Name[0] != '_';
 }
 
 
