@@ -143,6 +143,7 @@ struct	Type
 	uchar	deferwidth;
 
 	Node*	nod;		// canonical OTYPE node
+	int		lineno;
 
 	// TFUNCT
 	uchar	thistuple;

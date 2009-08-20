@@ -567,7 +567,7 @@ func exec(c *http.Conn, args []string) bool {
 }
 
 
-func sync(c *http.Conn, r *http.Request) {
+func dosync(c *http.Conn, r *http.Request) {
 	args := []string{"/bin/sh", "-c", *syncCmd};
 	if !exec(c, args) {
 		*syncMin = 0;  // disable sync
@@ -622,7 +622,7 @@ func main() {
 
 		http.Handle(Pkg, http.HandlerFunc(servePkg));
 		if *syncCmd != "" {
-			http.Handle("/debug/sync", http.HandlerFunc(sync));
+			http.Handle("/debug/sync", http.HandlerFunc(dosync));
 		}
 		http.Handle("/", http.HandlerFunc(serveFile));
 
@@ -638,7 +638,7 @@ func main() {
 					log.Stderrf("sync every %dmin", *syncMin);
 				}
 				for *syncMin > 0 {
-					sync(nil, nil);
+					dosync(nil, nil);
 					time.Sleep(int64(*syncMin) * (60 * 1e9));
 				}
 				if *verbose {

@@ -161,10 +161,10 @@ BUG: 0 1
 BUG: errchk: command succeeded unexpectedly
 
 =========== bugs/bug190.go
-<epoch>: invalid recursive type []S
-<epoch>: invalid recursive type S
-<epoch>: invalid recursive type S
-<epoch>: invalid recursive type chan S
-<epoch>: invalid recursive type S
-<epoch>: invalid recursive type func(S) (S)
+bugs/bug190.go:11: invalid recursive type []S
+bugs/bug190.go:16: invalid recursive type S
+bugs/bug190.go:16: invalid recursive type S
+bugs/bug190.go:13: invalid recursive type chan S
+bugs/bug190.go:16: invalid recursive type S
+bugs/bug190.go:15: invalid recursive type func(S) (S)
 BUG: should compile

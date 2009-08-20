@@ -97,6 +97,7 @@ dowidth(Type *t)
 {
 	int32 et;
 	uint32 w;
+	int lno;
 
 	if(maxround == 0 || widthptr == 0)
 		fatal("dowidth without betypeinit");
@@ -108,11 +109,16 @@ dowidth(Type *t)
 		return;
 
 	if(t->width == -2) {
+		lno = lineno;
+		lineno = t->lineno;
 		yyerror("invalid recursive type %T", t);
 		t->width = 0;
+		lineno = lno;
 		return;
 	}
 
+	lno = lineno;
+	lineno = t->lineno;
 	t->width = -2;
 
 	et = t->etype;
@@ -218,6 +224,7 @@ dowidth(Type *t)
 	}
 
 	t->width = w;
+	lineno = lno;
 }
 
 void
