@@ -250,85 +250,105 @@ var (
 
 <h2 id="names">Names</h2>
 
-<h3 id="mixed-caps">Use MixedCaps</h3>
-
 <p>
-Go uses the case of the first letter in a name to decide
-whether the name is visible in other packages.
-Multiword names use MixedCaps or mixedCaps
-rather than underscores.
+Names are as important in Go as in any other language.
+In some cases they even have semantic effect: for instance,
+the visibility of a name outside a package is determined by whether its
+first character is an upper case letter,
+while methods are looked up by name alone (although the type must match too).
+It's therefore worth spending a little time talking about naming conventions
+in Go programs.
 </p>
 
-<h3 id="package-names">Use short package names</h3>
+
+<h3 id="package-names">Package names</h3>
 
 <p>
-Package names are lower case single-word names:
-there should be no need for underscore or mixedCaps.
-The package name is conventionally the base name of
-the source directory: the package in <code>src/pkg/container/vector</code>
+When a package is imported, the package name becomes an accessor for the
+contents.  After
+</p>
+
+<pre>
+import "bytes"
+</pre>
+
+<p>
+the importing package can talk about <code>bytes.Buffer</code>.  It's
+helpful if everyone using the package can use the same name to refer to
+its contents, which implies that the package name should be good:
+short, concise, evocative.  By convention, packages are given
+lower case, single-word names; there should be no need for underscores
+or mixedCaps.
+Err on the side of brevity, since everyone using your
+package will be typing that name.
+And don't worry about collisions <i>a priori</i>.
+The package name is only the default name for imports; it need not be unique
+across all source code, and in the rare case of a collision the
+importing package can choose a different name to use locally.
+</p>
+
+<p>
+Another convention is that the package name is the base name of
+its source directory;
+the package in <code>src/pkg/container/vector</code>
 is installed as <code>"container/vector"</code> but has name <code>vector</code>,
 not <code>container_vector</code> and not <code>containerVector</code>.
-The package name is only the default name used
-when importing the package; it need not be unique
-across all source code.
-</p>
-
-<h3 id="name-length">Avoid long names</h3>
-
-<p>
-A name's length should not exceed its information content.
-For a function-local variable
-in scope only for a few lines, the name <code>i</code> conveys just
-as much information as <code>index</code> or <code>idx</code> and is easier to read.
-Letters are easier to distinguish than numbers; use <code>i</code> and <code>j</code>
-not <code>i1</code> and <code>i2</code>.
 </p>
 
 <p>
-Exported names must convey more information
-because they appear far from their origin.
-Even so, longer names are not always better,
-and the package name can help convey information:
-the buffered <code>Reader</code> is <code>bufio.Reader</code>, not <code>bufio.BufReader</code>.
-Similarly, <code>once.Do</code> is as precise and evocative as
-<code>once.DoOrWaitUntilDone</code>, and <code>once.Do(f)</code> reads
-better than <code>once.DoOrWaitUntilDone(f)</code>.
-Encoding small essays into function names is not Go style;
-using clear names supported by good documentation is.
+The importer of a package will use the name to refer to its contents
+(the <code>import .</code> notation is intended mostly for tests and other
+unusual situations), and exported names in the package can use that fact
+to avoid stutter.
+For instance, the buffered reader type in the <code>bufio</code> package is called <code>Reader</code>,
+not <code>BufReader</code>, because users see it as <code>bufio.Reader</code>,
+which is a clear, concise name.
+Moreover,
+because imported entities are always addressed with their package name, <code>bufio.Reader</code>
+does not conflict with <code>io.Reader</code>.
+Use the package structure to help you choose good names.
 </p>
 
-<h3 id="interfacers">Use the -er convention for interface names</h3>
+<p>
+Another short example is <code>once.Do</code>;
+<code>once.Do(setup)</code> reads well and would not be improved by
+writing <code>once.DoOrWaitUntilDone(setup)</code>.
+Long names don't automatically make things more readable.
+If the name represents something intricate or subtle, it's usually better
+to write a helpful doc comment than to attempt to put all the information
+into the name.
+</p>
+
+<h3 id="interface-names">Interface names</h3>
 
 <p>
-One-method interfaces are conventionally named by
+By convention, one-method interfaces are named by
 the method name plus the -er suffix: <code>Reader</code>,
-<code>Writer</code>, <code>Formatter</code>.
+<code>Writer</code>, <code>Formatter</code> etc.
 </p>
 
-<h3 id="common-names">Use canonical names</h3>
-
 <p>
-XXX permits interfaces String() not ToString() XXX
-A few method names—<code>Read</code>, <code>Write</code>, <code>Close</code>, <code>Flush</code>, <code>String</code>—have
+There are a number of such names and it's productive to honor them and the function
+names they capture.
+<code>Read</code>, <code>Write</code>, <code>Close</code>, <code>Flush</code>,
+<code>String</code> and so on have
 canonical signatures and meanings.  To avoid confusion,
 don't give your method one of those names unless it
 has the same signature and meaning.
 Conversely, if your type implements a method with the
 same meaning as a method on a well-known type,
-give it the same name and signature.
+give it the same name and signature;
+call your string-converter method <code>String</code> not <code>ToString</code>.
 </p>
 
+<h3 id="mixed-caps">MixedCaps</h3>
+
 <p>
-Some function-local variables have canonical names too.
-Just as <code>i</code> is idiomatic in Go for an
-index variable, <code>n</code> is idiomatic for a count, <code>b</code> for a <code>[]byte</code>,
-<code>s</code> for a <code>string</code>, <code>r</code> for a <code>Reader</code>,
-<code>err</code> for an <code>os.Error</code>
-and so on.
-Don't mix shorthands: it is especially confusing to
-have two different variables <code>i</code> and <code>idx</code>,
-or <code>n</code> and <code>cnt</code>.
+Finally, the convention in Go is to used <code>MixedCaps</code>
+or <code>mixedCaps</code> rather than underscores to write
+multiword names.
 </p>
+
 
 <h2 id="idioms">Idioms</h2>
 
