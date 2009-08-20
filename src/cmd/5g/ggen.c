@@ -392,7 +392,6 @@ cgen_asop(Node *n)
 	}
 
 hard:
-	fatal("cgen_asop hard not implemented");
 	if(nr->ullman > nl->ullman) {
 		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
@@ -432,200 +431,52 @@ samereg(Node *a, Node *b)
 	return 1;
 }
 
-/*
- * generate division according to op, one of:
- *	res = nl / nr
- *	res = nl % nr
- */
-// TODO(kaib): rip out and just insert into cgen
-void
-cgen_div(int op, Node *nl, Node *nr, Node *res)
-{
-	Node nod, nod1;
-	Prog* p;
-	Addr ta;
-	if(res == Z) {
-		// TODO(kaib): add back warning for null
-//		nullwarn(l, r);
-		return;
-	}
-	if(nl->ullman >= nr->ullman) {
-		regalloc(&nod, nl->type, res);
-		cgen(nl, &nod);
-		regalloc(&nod1, nr->type, Z);
-		cgen(nr, &nod1);
-		gins(optoas(op, nod1.type), &nod1, &nod);
-	} else {
-		regalloc(&nod, nr->type, res);
-		cgen(nr, &nod);
-		regalloc(&nod1, nl->type, Z);
-		cgen(nl, &nod1);
-		p = gins(optoas(op, nod.type), &nod, &nod);
-		naddr(&nod1, &ta);
-		p->reg = ta.reg;
-	}
-	gins(optoas(OAS, nod.type), &nod, res);
-	regfree(&nod);
-	regfree(&nod1);
-}
-
-/*
- * generate shift according to op, one of:
- *	res = nl << nr
- *	res = nl >> nr
- */
-// TODO(kaib): rip out and replace with simple isntruction
-void
-cgen_shift(int op, Node *nl, Node *nr, Node *res)
-{
-	fatal("cgen_shift not implemented");
-//	Node n1, n2, n3;
-//	int a;
-//	Prog *p1;
-
-//	a = optoas(op, nl->type);
-
-//	if(nr->op == OLITERAL) {
-//		regalloc(&n1, nl->type, res);
-//		cgen(nl, &n1);
-//		if(mpgetfix(nr->val.u.xval) >= nl->type->width*8) {
-//			// large shift gets 2 shifts by width
-//			nodconst(&n3, types[TUINT32], nl->type->width*8-1);
-//			gins(a, &n3, &n1);
-//			gins(a, &n3, &n1);
-//		} else
-//			gins(a, nr, &n1);
-//		gmove(&n1, res);
-//		regfree(&n1);
-//		goto ret;
-//	}
-
-//	nodreg(&n1, types[TUINT32], D_CX);
-//	regalloc(&n1, nr->type, &n1);		// to hold the shift type in CX
-//	regalloc(&n3, types[TUINT64], &n1);	// to clear high bits of CX
-
-//	regalloc(&n2, nl->type, res);
-//	if(nl->ullman >= nr->ullman) {
-//		cgen(nl, &n2);
-//		cgen(nr, &n1);
-//		gmove(&n1, &n3);
-//	} else {
-//		cgen(nr, &n1);
-//		gmove(&n1, &n3);
-//		cgen(nl, &n2);
-//	}
-//	regfree(&n3);
-
-//	// test and fix up large shifts
-//	nodconst(&n3, types[TUINT64], nl->type->width*8);
-//	gins(optoas(OCMP, types[TUINT64]), &n1, &n3);
-//	p1 = gbranch(optoas(OLT, types[TUINT64]), T);
-//	if(op == ORSH && issigned[nl->type->etype]) {
-//		nodconst(&n3, types[TUINT32], nl->type->width*8-1);
-//		gins(a, &n3, &n2);
-//	} else {
-//		nodconst(&n3, nl->type, 0);
-//		gmove(&n3, &n2);
-//	}
-//	patch(p1, pc);
-//	gins(a, &n1, &n2);
-
-//	gmove(&n2, res);
-
-//	regfree(&n1);
-//	regfree(&n2);
-
-//ret:
-//	;
-}
-
-/*
- * generate byte multiply:
- *	res = nl * nr
- * no byte multiply instruction so have to do
- * 16-bit multiply and take bottom half.
- */
-// TODO(kaib): figure out if we can replace this normal multiply
-void
-cgen_bmul(int op, Node *nl, Node *nr, Node *res)
-{
-	fatal("cgen_bmul not implemented");
-//	Node n1b, n2b, n1w, n2w;
-//	Type *t;
-//	int a;
-
-//	if(nl->ullman >= nr->ullman) {
-//		regalloc(&n1b, nl->type, res);
-//		cgen(nl, &n1b);
-//		regalloc(&n2b, nr->type, N);
-//		cgen(nr, &n2b);
-//	} else {
-//		regalloc(&n2b, nr->type, N);
-//		cgen(nr, &n2b);
-//		regalloc(&n1b, nl->type, res);
-//		cgen(nl, &n1b);
-//	}
-
-//	// copy from byte to short registers
-//	t = types[TUINT16];
-//	if(issigned[nl->type->etype])
-//		t = types[TINT16];
-
-//	regalloc(&n2w, t, &n2b);
-//	cgen(&n2b, &n2w);
-
-//	regalloc(&n1w, t, &n1b);
-//	cgen(&n1b, &n1w);
-
-//	a = optoas(op, t);
-//	gins(a, &n2w, &n1w);
-//	cgen(&n1w, &n1b);
-//	cgen(&n1b, res);
-
-//	regfree(&n1w);
-//	regfree(&n2w);
-//	regfree(&n1b);
-//	regfree(&n2b);
-}
-
 void
 clearfat(Node *nl)
 {
-	fatal("clearfat not implemented");
-//	uint32 w, c, q;
-//	Node n1;
+	uint32 w, c, q;
+	Node dst, nc, nz;
+	Prog *p;
 
-//	/* clear a fat object */
-//	if(debug['g'])
-//		dump("\nclearfat", nl);
+	/* clear a fat object */
+	if(debug['g'])
+		dump("\nclearfat", nl);
 
-//	w = nl->type->width;
-//	c = w % 8;	// bytes
-//	q = w / 8;	// quads
+	w = nl->type->width;
+	c = w % 4;	// bytes
+	q = w / 4;	// quads
 
-//	gconreg(AMOVQ, 0, D_AX);
-//	nodreg(&n1, types[tptr], D_DI);
-//	agen(nl, &n1);
+	regalloc(&dst, types[tptr], N);
+	agen(nl, &dst);
+	nodconst(&nc, types[TUINT32], 0);
+	regalloc(&nz, types[TUINT32], 0);
+	cgen(&nc, &nz);
 
-//	if(q >= 4) {
+	if(q >= 4) {
+		fatal("clearfat q >=4 not implemented");
 //		gconreg(AMOVQ, q, D_CX);
 //		gins(AREP, N, N);	// repeat
 //		gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
-//	} else
-//	while(q > 0) {
-//		gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
-//		q--;
-//	}
+	} else
+	while(q > 0) {
+		p = gins(AMOVW, &nz, &dst);
+		p->to.type = D_OREG;
+		p->to.offset = 4;
+ 		p->scond |= C_PBIT;
+//print("1. %P\n", p);
+		q--;
+	}
 
-//	if(c >= 4) {
-//		gconreg(AMOVQ, c, D_CX);
-//		gins(AREP, N, N);	// repeat
-//		gins(ASTOSB, N, N);	// STOB AL,*(DI)+
-//	} else
-//	while(c > 0) {
-//		gins(ASTOSB, N, N);	// STOB AL,*(DI)+
-//		c--;
-//	}
+	while(c > 0) {
+		gins(AMOVBU, &nz, &dst);
+		p->to.type = D_OREG;
+		p->to.offset = 1;
+ 		p->scond |= C_PBIT;
+//print("2. %P\n", p);
+		c--;
+	}
+	regfree(&dst);
+	regfree(&nz);
 }
 
 int

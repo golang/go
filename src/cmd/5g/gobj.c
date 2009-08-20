@@ -596,7 +596,7 @@ out:
 	p->reg = 7;
 	p->to.offset2 = 0;
 	p->to.reg = NREG;
-print("1. %P\n", p);
+//print("1. %P\n", p);
 
 	o = 0;
 	for(c=d-1; c>=0; c--) {
@@ -613,7 +613,7 @@ print("1. %P\n", p);
 		p->from.offset = o;
 		p->to.type = D_REG;
 		p->to.reg = REGARG;
-print("2. %P\n", p);
+//print("2. %P\n", p);
 		o = 0;
 	}
 	if(o != 0) {
@@ -625,7 +625,7 @@ print("2. %P\n", p);
 		p->from.offset = o;
 		p->to.type = D_REG;
 		p->to.reg = REGARG;
-print("3. %P\n", p);
+//print("3. %P\n", p);
 	}
 
 	f = dotlist[0].field;
@@ -638,7 +638,7 @@ print("3. %P\n", p);
 	p->to.reg = NREG;
 	p->to.name = D_EXTERN;
 	p->to.sym = methodsym(method->sym, ptrto(f->type));
-print("4. %P\n", p);
+//print("4. %P\n", p);
 
 	pc->as = ARET;	// overwrite AEND
 }
