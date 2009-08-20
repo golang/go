@@ -3791,14 +3791,14 @@ for i := 0; i &lt;= 3; i++ {
 <pre class="grammar">
 Call       Argument type       Result
 
-len(s)    string, *string      string length (in bytes)
+len(s)    string               string length (in bytes)
           [n]T, *[n]T          array length (== n)
-          []T, *[]T            slice length
-          map[K]T, *map[K]T    map length
+          []T                  slice length
+          map[K]T              map length
           chan T               number of elements in channel buffer
 
-cap(s)    []T, *[]T            capacity of s
-          map[K]T, *map[K]T    capacity of s
+cap(s)    [n]T, *[n]T          array length (== n)
+          []T                  slice capacity
           chan T               channel buffer capacity
 </pre>
 
@@ -3962,6 +3962,7 @@ buffered channels:
 
 <pre>
 s := make([]int, 10, 100);        # slice with len(s) == 10, cap(s) == 100
+s := make([]int, 10);             # slice with len(s) == cap(s) == 10
 c := make(chan int, 10);          # channel with a buffer size of 10
 m := make(map[string] int, 100);  # map with initial space for 100 elements
 </pre>
@@ -4060,25 +4061,12 @@ import   "lib/math"         math.Sin
 import . "lib/math"         Sin
 </pre>
 
-<h3>Multi-file packages</h3>
+<h3>Multiple-file packages</h3>
 
 <p>
-TODO: Update for whole-package compilation.
-</p>
-
-<p>
-If a package is constructed from multiple source files, all names
-at package-level scope, not just exported names, are visible to all the
-files in the package. An import declaration is still necessary to
-declare intention to use the names,
-but the imported names do not need a qualified identifer to be
-accessed.
-</p>
-
-<p>
-The compilation of a multi-file package may require
-that the files be compiled and installed in an order that satisfies
-the resolution of names imported within the package.
+If a package is constructed from multiple source files,
+all names declared in the package block, not just uppercase ones,
+are in scope in all the files in the package.
 </p>
 
 <p>
@@ -4093,19 +4081,9 @@ function Sin(x float) float { return ... }
 </pre>
 
 <p>
-and file <code>"math2.go"</code> begins
-</p>
-<pre>
-package math
-
-import "lib/math"
-</pre>
-
-<p>
-then, provided <code>"math1.go"</code> is compiled first and
-installed in <code>"lib/math"</code>, <code>math2.go</code>
-may refer directly to <code>Sin</code> and <code>twoPi</code>
-without a qualified identifier.
+then a second file <code>math2.go</code> also in
+<code>package math</code>
+may refer directly to <code>Sin</code> and <code>twoPi</code>.
 </p>
 
 <h3>An example package</h3>
@@ -4366,11 +4344,9 @@ The following minimal alignment properties are guaranteed:
 <h2><font color=red>Differences between this doc and implementation - TODO</font></h2>
 <p>
 <font color=red>
-Implementation accepts only ASCII digits for digits; doc says Unicode.
-<br/>
 Implementation does not honor the restriction on goto statements and targets (no intervening declarations).
 <br/>
-cap() does not work on maps or chans.
+cap() does not work on chans.
 <br/>
 len() does not work on chans.
 </font>
