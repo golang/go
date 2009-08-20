@@ -274,6 +274,7 @@ Elf64PHdr	*newElf64PHdr();
 uint32	elf64writehdr(void);
 uint32	elf64writephdrs(void);
 uint32	elf64writeshdrs(void);
+uint32	elf64addstr(char*);
 void	elf64writestrtable(void);
 void	elf64writedynent(int, uint64);
 uint32	elf64_hash(uchar*);

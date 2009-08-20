@@ -13,7 +13,7 @@ static	Elf64Hdr	hdr;
 static	Elf64PHdr	*phdr[NSECT];
 static	Elf64SHdr	*shdr[NSECT];
 static	char	*sname[NSECT];
-static	char	*str[NSECT];
+static	char	*str[20];
 
 /*
  Initialize the global variable that describes the ELF header. It will be updated as
@@ -80,15 +80,19 @@ elf64writestrtable(void)
 		diag("elf64 string table overflow");
 }
 
-void
-e64addstr(char *name)
+uint32
+elf64addstr(char *name)
 {
-	if (numstr >= NSECT) {
+	int r;
+
+	if (numstr >= nelem(str)) {
 		diag("too many elf strings");
-		return;
+		return 0;
 	}
 	str[numstr++] = strdup(name);
+	r = stroffset;
 	stroffset += strlen(name)+1;
+	return r;
 }
 
 uint32
@@ -135,11 +139,10 @@ newElf64SHdr(char *name)
 		hdr.shstrndx = hdr.shnum;
 	e = malloc(sizeof *e);
 	memset(e, 0, sizeof *e);
-	e->name = stroffset;
+	e->name = elf64addstr(name);
 	if (hdr.shnum >= NSECT) {
 		diag("too many shdrs");
 	} else {
-		e64addstr(name);
 		shdr[hdr.shnum++] = e;
 	}
 	return e;
@@ -152,7 +155,7 @@ getElf64Hdr(void)
 }
 
 uint32
-elf64writehdr()
+elf64writehdr(void)
 {
 	int i;
 

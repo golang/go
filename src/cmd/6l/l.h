@@ -390,6 +390,7 @@ double	cputime(void);
 void	datblk(int32, int32);
 void	deadcode(void);
 void	diag(char*, ...);
+void	dobss(void);
 void	dodata(void);
 void	doinit(void);
 void	doprof1(void);

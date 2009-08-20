@@ -128,7 +128,7 @@ asmb(void)
 	int32 v, magic;
 	int a, nl;
 	uchar *op1;
-	vlong vl, va, startva, fo, w, symo, hashoff;
+	vlong vl, va, startva, fo, w, symo, hashoff, dstrtab, off;
 	vlong symdatva = 0x99LL<<32;
 	Elf64Hdr *eh;
 	Elf64PHdr *ph, *pph;
@@ -431,6 +431,7 @@ asmb(void)
 		sh = newElf64SHdr("");
 
 		pph = nil;	/* silence compiler */
+		dstrtab = 0;
 
 		/* Dynamic linking sections */
 		if (!debug['d']) {	/* -d suppresses dynamic loader format */
@@ -443,7 +444,7 @@ asmb(void)
 			pph->off = ELF64HDRSIZE;
 			pph->vaddr = startva + pph->off;
 			pph->paddr = startva + pph->off;
-			pph->align = 8;
+			pph->align = INITRND;
 
 			/* interpreter */
 			ph = newElf64PHdr();
@@ -503,13 +504,19 @@ asmb(void)
 			sh->addr = startva + sh->off;
 			sh->off = startelf();
 			elf64writedynent(DT_HASH, startva+hashoff);
-			elf64writedynent(DT_STRTAB, startva+ELF64FULLHDRSIZE-STRTABSIZE);
 			elf64writedynent(DT_SYMTAB, startva);
 			elf64writedynent(DT_RELA, startva);
 			elf64writedynent(DT_RELASZ, 0);	// size of the whole rela in bytes
 			elf64writedynent(DT_RELAENT, ELF64RELASIZE);
-			elf64writedynent(DT_STRSZ, STRTABSIZE);
 			elf64writedynent(DT_SYMENT, 0);
+//			elf64writedynent(DT_NEEDED, elf64addstr("libc.so.6"));
+
+			/* make space for these now but fill them in later */
+			cflush();
+			dstrtab = seek(cout, 0, 1);
+			elf64writedynent(DT_STRTAB, -1);
+			elf64writedynent(DT_STRSZ, -1);
+
 			elf64writedynent(DT_NULL, 0);
 			sh->size = endelf() - sh->off;
 			sh->addralign = 8;
@@ -534,7 +541,7 @@ asmb(void)
 			ph->paddr = startva + ph->off;
 			ph->filesz = sh->off + sh->size - ph->off;
 			ph->memsz = ph->filesz;
-			ph->align = 8;
+			ph->align = INITRND;
 		}
 
 		ph = newElf64PHdr();
@@ -643,6 +650,17 @@ asmb(void)
 		sh->addralign = 1;
 		elf64writestrtable();
 		sh->size = endelf() - sh->off;
+
+		if(dstrtab != 0) {
+			// update DT_STRTAB entry
+			cflush();
+			off = seek(cout, 0, 1);
+			seek(cout, dstrtab, 0);
+			elf64writedynent(DT_STRTAB, sh->addr);
+			elf64writedynent(DT_STRSZ, sh->size);
+			cflush();
+			seek(cout, off, 0);
+		}
 
 		/* Main header */
 		eh = getElf64Hdr();

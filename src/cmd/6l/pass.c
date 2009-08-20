@@ -124,6 +124,14 @@ dodata(void)
 		}
 		datsize += u;
 	}
+}
+
+void
+dobss(void)
+{
+	int i;
+	Sym *s;
+	int32 t;
 
 	/* now the bss */
 	bsssize = 0;
@@ -137,6 +145,7 @@ dodata(void)
 		s->value = bsssize + datsize;
 		bsssize += t;
 	}
+	xdefine("data", SBSS, 0);
 	xdefine("edata", SBSS, datsize);
 	xdefine("end", SBSS, bsssize + datsize);
 }
