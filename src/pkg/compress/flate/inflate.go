@@ -460,7 +460,7 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
 					return err;
 				}
 			}
-			dist = int(f.b & 0x1F);
+			dist = int(reverseByte[(f.b & 0x1F) << 3]);
 			f.b >>= 5;
 			f.nb -= 5;
 		} else {
@@ -628,7 +628,6 @@ func makeReader(r io.Reader) Reader {
 // Inflate reads DEFLATE-compressed data from r and writes
 // the uncompressed data to w.
 func (f *inflater) inflater(r io.Reader, w io.Writer) os.Error {
-	var ok bool;	// TODO(rsc): why not := on next line?
 	f.r = makeReader(r);
 	f.w = w;
 	f.woffset = 0;
@@ -643,7 +642,7 @@ func (f *inflater) inflater(r io.Reader, w io.Writer) os.Error {
 
 // NewInflater returns a new ReadCloser that can be used
 // to read the uncompressed version of r.  It is the caller's
-// responsibility to call Close on the ReadClosed when
+// responsibility to call Close on the ReadCloser when
 // finished reading.
 func NewInflater(r io.Reader) io.ReadCloser {
 	var f inflater;
