@@ -168,3 +168,4 @@ bugs/bug190.go:13: invalid recursive type chan S
 bugs/bug190.go:16: invalid recursive type S
 bugs/bug190.go:15: invalid recursive type func(S) (S)
 BUG: should compile
+bugs/bug191.go succeeded with no output.
