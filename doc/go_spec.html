@@ -1251,8 +1251,7 @@ In addition to explicit blocks in the source code, there are implicit blocks:
 	<li>Each <code>if</code>, <code>for</code>, and <code>switch</code>
 	    statement is considered to be in its own implicit block.</li>
 
-	<li>Each case or type case clause in a <code>switch</code> statement,
-	    and each communication clause in a <code>select</code> statement
+	<li>Each clause in a <code>switch</code> or <code>select</code> statement
 	    acts as an implicit block.</li>
 </ol>
 
@@ -1302,7 +1301,7 @@ Go is lexically scoped using blocks:
 	    and ends at the end of the innermost containing block.</li>
 
 	<li>The scope of a type identifier declared inside a function
-	    begins immediately after the identifier in the TypeSpec
+	    begins at the identifier in the TypeSpec
 	    and ends at the end of the innermost containing block.</li>
 </ol>
 
@@ -1755,8 +1754,7 @@ A qualified identifier is an identifier qualified by a package name prefix.
 </p>
 
 <pre class="ebnf">
-QualifiedIdent = [ ( LocalPackageName | PackageName ) "." ] identifier .
-LocalPackageName = identifier .
+QualifiedIdent = [ PackageName "." ] identifier .
 PackageName = identifier .
 </pre>
 
@@ -1765,20 +1763,10 @@ A qualified identifier accesses an identifier in
 a separate package.  The identifier must be exported by that package, which
 means that it must begin with a Unicode upper case letter (§Exported identifiers).
 </p>
-<p>
-The LocalPackageName is that of the package in which the qualified identifier
-appears and is only necessary to access names hidden by intervening declarations
-of a package-level identifier.
-</p>
 
 <pre>
 Math.Sin
-mypackage.hiddenName
-mypackage.Math.Sin  // if Math is declared in an intervening scope
 </pre>
-
-TODO: 6g does not implement LocalPackageName.  Is this new?
-Is it needed?
 
 <h3>Composite literals</h3>
 
@@ -3183,10 +3171,8 @@ if x > 0 {
 </pre>
 
 <p>
-An "if" statement may include a simple statement before the expression.
-The scope of any variables declared by that statement
-extends to the end of the "if" statement
-and the variables are initialized once before the statement is entered.
+The expression may be preceded by a simple statement, which
+executes before the expression is evaluated.
 </p>
 
 <pre>
@@ -3255,11 +3241,8 @@ Otherwise control flows to the end of the "switch" statement.
 </p>
 
 <p>
-A "switch" statement may include a simple statement before the
-expression.
-The scope of any variables declared by that statement
-extends to the end of the "switch" statement
-and the variables are initialized once before the statement is entered.
+The expression may be preceded by a simple statement, which
+executes before the expression is evaluated.
 </p>
 
 <pre>
@@ -3355,6 +3338,11 @@ there can be only one type per "case", and
 the "fallthrough" statement is not allowed.
 </p>
 
+<p>
+The type switch guard may be preceded by a simple statement, which
+executes before the guard is evaluated.
+</p>
+
 <h3>For statements</h3>
 
 <p>
@@ -3384,10 +3372,8 @@ for a &lt; b {
 A "for" statement with a "for" clause is also controlled by its condition, but
 additionally it may specify an <i>init</i>
 and a <i>post</i> statement, such as an assignment,
-an increment or decrement statement. The init statement (but not the post
-statement) may also be a short variable declaration; the scope of the variables
-it declares ends at the end of the statement
-(§Declarations and scope rules).
+an increment or decrement statement. The init statement may be a
+short variable declaration, but the post statement must not.
 </p>
 
 <pre class="ebnf">
@@ -3562,8 +3548,6 @@ which single communication will execute.
 <p>
 The receive case may declare a new variable using a short variable declaration
 (§Short variable declarations).
-The scope of such variables continues to the end of the
-respective case's statements.
 </p>
 
 <pre>
@@ -4057,11 +4041,10 @@ identifer will have the form <code>p1.</code><i>N</i>.  If no name
 is provided in the import declaration, <i>P</i> will be the package
 name declared within the source files of the imported package.
 Finally, if the import declaration uses an explicit period
-(<code>.</code>) for the package name, <i>N</i> will appear
-in the package-level scope of the current file and the qualified name is
-unnecessary and erroneous.  In this form, it is an error if the import introduces
-a name conflict.
+(<code>.</code>) for the package name, <i>N</i> will be declared
+in the current file's file block and can be accessed without a qualifier.
 </p>
+
 <p>
 In this table, assume we have compiled a package named
 <code>math</code>, which exports function <code>Sin</code>, and
@@ -4078,6 +4061,10 @@ import . "lib/math"         Sin
 </pre>
 
 <h3>Multi-file packages</h3>
+
+<p>
+TODO: Update for whole-package compilation.
+</p>
 
 <p>
 If a package is constructed from multiple source files, all names
