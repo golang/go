@@ -80,7 +80,7 @@ func TestOFB_AES(t *testing.T) {
 			var crypt bytes.Buffer;
 			in := tt.in[0:len(tt.in) - j];
 			w := NewOFBWriter(c, tt.iv, &crypt);
-			var r io.Reader = io.NewByteReader(in);
+			var r io.Reader = bytes.NewBuffer(in);
 			n, err := io.Copy(r, w);
 			if n != int64(len(in)) || err != nil {
 				t.Errorf("%s/%d: OFBWriter io.Copy = %d, %v want %d, nil", test, len(in), n, err, len(in));
@@ -92,7 +92,7 @@ func TestOFB_AES(t *testing.T) {
 		for j := 0; j <= 7; j += 7 {
 			var plain bytes.Buffer;
 			out := tt.out[0:len(tt.out) - j];
-			r := NewOFBReader(c, tt.iv, io.NewByteReader(out));
+			r := NewOFBReader(c, tt.iv, bytes.NewBuffer(out));
 			w := &plain;
 			n, err := io.Copy(r, w);
 			if n != int64(len(out)) || err != nil {

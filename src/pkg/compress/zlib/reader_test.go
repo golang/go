@@ -75,14 +75,14 @@ var zlibTests = []zlibTest {
 	},
 }
 
-func TestZlibInflater(t *testing.T) {
+func TestInflater(t *testing.T) {
 	b := new(bytes.Buffer);
 	for i, tt := range zlibTests {
-		in := io.NewByteReader(tt.compressed);
-		zlib, err := NewZlibInflater(in);
+		in := bytes.NewBuffer(tt.compressed);
+		zlib, err := NewInflater(in);
 		if err != nil {
 			if err != tt.err {
-				t.Errorf("%s: NewZlibInflater: %s", tt.desc, err);
+				t.Errorf("%s: NewInflater: %s", tt.desc, err);
 			}
 			continue;
 		}

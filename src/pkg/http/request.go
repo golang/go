@@ -574,7 +574,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 		if err != nil || uint64(n) < length {
 			return nil, ErrShortBody
 		}
-		req.Body = io.NewByteReader(raw);
+		req.Body = bytes.NewBuffer(raw);
 	}
 
 	return req, nil

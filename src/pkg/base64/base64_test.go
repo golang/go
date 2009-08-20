@@ -113,7 +113,7 @@ func TestDecode(t *testing.T) {
 
 func TestDecoder(t *testing.T) {
 	for _, p := range pairs {
-		decoder := NewDecoder(StdEncoding, io.NewByteReader(strings.Bytes(p.encoded)));
+		decoder := NewDecoder(StdEncoding, bytes.NewBuffer(strings.Bytes(p.encoded)));
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
 		count, err := decoder.Read(dbuf);
 		if err != nil && err != os.EOF {
@@ -131,7 +131,7 @@ func TestDecoder(t *testing.T) {
 func TestDecoderBuffering(t *testing.T) {
 	input := strings.Bytes(bigtest.encoded);
 	for bs := 1; bs <= 12; bs++ {
-		decoder := NewDecoder(StdEncoding, io.NewByteReader(input));
+		decoder := NewDecoder(StdEncoding, bytes.NewBuffer(input));
 		buf := make([]byte, len(bigtest.decoded) + 12);
 		var total int;
 		for total = 0; total < len(bigtest.decoded); {

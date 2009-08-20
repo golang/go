@@ -69,7 +69,7 @@ func TestECBEncrypter(t *testing.T) {
 		for frag := 0; frag < 2; frag++ {
 			c := &IncCipher{block, 0, true};
 			b.Reset();
-			r := io.NewByteReader(&plain);
+			r := bytes.NewBuffer(&plain);
 			w := NewECBEncrypter(c, b);
 
 			// copy plain into w in increasingly large chunks: 1, 1, 2, 4, 8, ...
@@ -135,7 +135,7 @@ func testECBDecrypter(t *testing.T, maxio int) {
 				test := fmt.Sprintf("block=%d mode=%d frag=%d maxio=%d", block, mode, frag, maxio);
 				c := &IncCipher{block, 0, false};
 				b.Reset();
-				r := NewECBDecrypter(c, readers[mode](io.NewByteReader(crypt[0:maxio])));
+				r := NewECBDecrypter(c, readers[mode](bytes.NewBuffer(crypt[0:maxio])));
 
 				// read from crypt in increasingly large chunks: 1, 1, 2, 4, 8, ...
 				// if frag == 1, move the 1 to the end to cause fragmentation.
