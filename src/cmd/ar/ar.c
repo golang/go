@@ -37,6 +37,7 @@
 #define rcmd your_rcmd
 
 #include <u.h>
+#include <time.h>
 #include <libc.h>
 #include <bio.h>
 #include <mach.h>
