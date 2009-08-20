@@ -303,11 +303,10 @@ typeinit(void)
 	okforbool[TBOOL] = 1;
 
 	okforcap[TARRAY] = 1;
-	//okforcap[TCHAN] = 1;
-	//okforcap[TMAP] = 1;
+	okforcap[TCHAN] = 1;
 
 	okforlen[TARRAY] = 1;
-	//okforlen[TCHAN] = 1;
+	okforlen[TCHAN] = 1;
 	okforlen[TMAP] = 1;
 	okforlen[TSTRING] = 1;
 

@@ -39,10 +39,10 @@ struct	WaitQ
 
 struct	Hchan
 {
+	uint32	qcount;			// total data in the q
+	uint32	dataqsiz;		// size of the circular q
 	uint16	elemsize;
 	uint16	closed;			// Wclosed Rclosed errorcount
-	uint32	dataqsiz;		// size of the circular q
-	uint32	qcount;			// total data in the q
 	Alg*	elemalg;		// interface for element type
 	Link*	senddataq;		// pointer for sender
 	Link*	recvdataq;		// pointer for receiver

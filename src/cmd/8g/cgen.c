@@ -237,7 +237,7 @@ cgen(Node *n, Node *res)
 		break;
 
 	case OLEN:
-		if(istype(nl->type, TMAP)) {
+		if(istype(nl->type, TMAP) || istype(nl->type, TCHAN)) {
 			// map has len in the first 32-bit word.
 			// a zero pointer means zero length
 			tempalloc(&n1, types[tptr]);
@@ -280,6 +280,28 @@ cgen(Node *n, Node *res)
 		break;
 
 	case OCAP:
+		if(istype(nl->type, TCHAN)) {
+			// chan has cap in the second 32-bit word.
+			// a zero pointer means zero length
+			regalloc(&n1, types[tptr], res);
+			cgen(nl, &n1);
+
+			nodconst(&n2, types[tptr], 0);
+			gins(optoas(OCMP, types[tptr]), &n1, &n2);
+			p1 = gbranch(optoas(OEQ, types[tptr]), T);
+
+			n2 = n1;
+			n2.op = OINDREG;
+			n2.xoffset = 4;
+			n2.type = types[TINT32];
+			gmove(&n2, &n1);
+
+			patch(p1, pc);
+
+			gmove(&n1, res);
+			regfree(&n1);
+			break;
+		}
 		if(isslice(nl->type)) {
 			igen(nl, &n1, res);
 			n1.op = OINDREG;
