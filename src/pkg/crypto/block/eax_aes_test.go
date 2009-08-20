@@ -204,7 +204,7 @@ func TestEAXEncrypt_AES(t *testing.T) {
 		}
 		b.Reset();
 		enc := NewEAXEncrypter(c, tt.nonce, tt.header, 16, b);
-		n, err := io.Copy(io.NewByteReader(tt.msg), enc);
+		n, err := io.Copy(bytes.NewBuffer(tt.msg), enc);
 		if n != int64(len(tt.msg)) || err != nil {
 			t.Fatalf("%s: io.Copy into encrypter: %d, %s", test, n, err);
 		}
@@ -227,7 +227,7 @@ func TestEAXDecrypt_AES(t *testing.T) {
 			t.Fatalf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err);
 		}
 		b.Reset();
-		dec := NewEAXDecrypter(c, tt.nonce, tt.header, 16, io.NewByteReader(tt.cipher));
+		dec := NewEAXDecrypter(c, tt.nonce, tt.header, 16, bytes.NewBuffer(tt.cipher));
 		n, err := io.Copy(dec, b);
 		if n != int64(len(tt.msg)) || err != nil {
 			t.Fatalf("%s: io.Copy into decrypter: %d, %s", test, n, err);

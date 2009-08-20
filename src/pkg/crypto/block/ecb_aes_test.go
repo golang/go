@@ -111,7 +111,7 @@ func TestECB_AES(t *testing.T) {
 
 		var crypt bytes.Buffer;
 		w := NewECBEncrypter(c, &crypt);
-		var r io.Reader = io.NewByteReader(tt.in);
+		var r io.Reader = bytes.NewBuffer(tt.in);
 		n, err := io.Copy(r, w);
 		if n != int64(len(tt.in)) || err != nil {
 			t.Errorf("%s: ECBReader io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
@@ -120,7 +120,7 @@ func TestECB_AES(t *testing.T) {
 		}
 
 		var plain bytes.Buffer;
-		r = NewECBDecrypter(c, io.NewByteReader(tt.out));
+		r = NewECBDecrypter(c, bytes.NewBuffer(tt.out));
 		w = &plain;
 		n, err = io.Copy(r, w);
 		if n != int64(len(tt.out)) || err != nil {

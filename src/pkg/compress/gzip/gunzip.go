@@ -38,23 +38,23 @@ func makeReader(r io.Reader) flate.Reader {
 var HeaderError os.Error = os.ErrorString("invalid gzip header")
 var ChecksumError os.Error = os.ErrorString("gzip checksum error")
 
-// A GzipInflater is an io.Reader that can be read to retrieve
+// An Inflater is an io.Reader that can be read to retrieve
 // uncompressed data from a gzip-format compressed file.
 // The gzip file stores a header giving metadata about the compressed file.
-// That header is exposed as the fields of the GzipInflater struct.
+// That header is exposed as the fields of the Inflater struct.
 //
 // In general, a gzip file can be a concatenation of gzip files,
-// each with its own header.  Reads from the GzipInflater
+// each with its own header.  Reads from the Inflater
 // return the concatenation of the uncompressed data of each.
-// Only the first header is recorded in the GzipInflater fields.
+// Only the first header is recorded in the Inflater fields.
 //
 // Gzip files store a length and checksum of the uncompressed data.
-// The GzipInflater will return a ChecksumError when Read
+// The Inflater will return a ChecksumError when Read
 // reaches the end of the uncompressed data if it does not
 // have the expected length or checksum.  Clients should treat data
 // returned by Read as tentative until they receive the successful
 // (zero length, nil error) Read marking the end of the data.
-type GzipInflater struct {
+type Inflater struct {
 	Comment string;	// comment
 	Extra []byte;		// "extra data"
 	Mtime uint32;		// modification time (seconds since January 1, 1970)
@@ -71,10 +71,10 @@ type GzipInflater struct {
 	eof bool;
 }
 
-// NewGzipInflater creates a new GzipInflater reading the given reader.
+// NewInflater creates a new Inflater reading the given reader.
 // The implementation buffers input and may read more data than necessary from r.
-func NewGzipInflater(r io.Reader) (*GzipInflater, os.Error) {
-	z := new(GzipInflater);
+func NewInflater(r io.Reader) (*Inflater, os.Error) {
+	z := new(Inflater);
 	z.r = makeReader(r);
 	z.digest = crc32.NewIEEE();
 	if err := z.readHeader(true); err != nil {
@@ -89,7 +89,7 @@ func get4(p []byte) uint32 {
 	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24;
 }
 
-func (z *GzipInflater) readString() (string, os.Error) {
+func (z *Inflater) readString() (string, os.Error) {
 	var err os.Error;
 	for i := 0;; i++ {
 		if i >= len(z.buf) {
@@ -106,7 +106,7 @@ func (z *GzipInflater) readString() (string, os.Error) {
 	panic("not reached");
 }
 
-func (z *GzipInflater) read2() (uint32, os.Error) {
+func (z *Inflater) read2() (uint32, os.Error) {
 	_, err := z.r.Read(z.buf[0:2]);
 	if err != nil {
 		return 0, err;
@@ -114,7 +114,7 @@ func (z *GzipInflater) read2() (uint32, os.Error) {
 	return uint32(z.buf[0]) | uint32(z.buf[1])<<8, nil;
 }
 
-func (z *GzipInflater) readHeader(save bool) os.Error {
+func (z *Inflater) readHeader(save bool) os.Error {
 	n, err := io.ReadFull(z.r, z.buf[0:10]);
 	if err != nil {
 		return err;
@@ -181,7 +181,7 @@ func (z *GzipInflater) readHeader(save bool) os.Error {
 	return nil;
 }
 
-func (z *GzipInflater) Read(p []byte) (n int, err os.Error) {
+func (z *Inflater) Read(p []byte) (n int, err os.Error) {
 	if z.err != nil {
 		return 0, z.err;
 	}

@@ -53,7 +53,7 @@ func testXorWriter(t *testing.T, maxio int) {
 		for frag := 0; frag < 2; frag++ {
 			test := fmt.Sprintf("block=%d frag=%d maxio=%d", block, frag, maxio);
 			b.Reset();
-			r := io.NewByteReader(&plain);
+			r := bytes.NewBuffer(&plain);
 			s := newIncStream(block);
 			w := newXorWriter(s, b);
 
@@ -123,7 +123,7 @@ func testXorReader(t *testing.T, maxio int) {
 				test := fmt.Sprintf("block=%d mode=%d frag=%d maxio=%d", block, mode, frag, maxio);
 				s := newIncStream(block);
 				b.Reset();
-				r := newXorReader(s, readers[mode](io.NewByteReader(crypt[0:maxio])));
+				r := newXorReader(s, readers[mode](bytes.NewBuffer(crypt[0:maxio])));
 
 				// read from crypt in increasingly large chunks: 1, 1, 2, 4, 8, ...
 				// if frag == 1, move the 1 to the end to cause fragmentation.

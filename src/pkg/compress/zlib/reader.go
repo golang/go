@@ -28,9 +28,9 @@ type reader struct {
 	err os.Error;
 }
 
-// NewZlibInflater creates a new io.Reader that satisfies reads by decompressing data read from r.
+// NewInflater creates a new io.Reader that satisfies reads by decompressing data read from r.
 // The implementation buffers input and may read more data than necessary from r.
-func NewZlibInflater(r io.Reader) (io.Reader, os.Error) {
+func NewInflater(r io.Reader) (io.Reader, os.Error) {
 	z := new(reader);
 	if fr, ok := r.(flate.Reader); ok {
 		z.r = fr;

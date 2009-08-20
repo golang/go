@@ -264,13 +264,13 @@ var gzipTests = []gzipTest {
 	},
 }
 
-func TestGzipInflater(t *testing.T) {
+func TestInflater(t *testing.T) {
 	b := new(bytes.Buffer);
 	for i, tt := range gzipTests {
-		in := io.NewByteReader(tt.gzip);
-		gzip, err := NewGzipInflater(in);
+		in := bytes.NewBuffer(tt.gzip);
+		gzip, err := NewInflater(in);
 		if err != nil {
-			t.Errorf("%s: NewGzipInflater: %s", tt.name, err);
+			t.Errorf("%s: NewInflater: %s", tt.name, err);
 			continue;
 		}
 		if tt.name != gzip.Name {
