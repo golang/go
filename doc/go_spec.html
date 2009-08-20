@@ -26,7 +26,7 @@ Todo's:
 -->
 
 
-<h2>Introduction</h2>
+<h2 id="Introduction">Introduction</h2>
 
 <p>
 This is a reference manual for the Go programming language. For
@@ -48,7 +48,7 @@ The grammar is compact and regular, allowing for easy analysis by
 automatic tools such as integrated development environments.
 </p>
 <hr/>
-<h2>Notation</h2>
+<h2 id="Notation">Notation</h2>
 <p>
 The syntax is specified using Extended Backus-Naur Form (EBNF):
 </p>
@@ -87,7 +87,7 @@ The form <code>a ... b</code> represents the set of characters from
 
 <hr/>
 
-<h2>Source code representation</h2>
+<h2 id="Source_code_representation">Source code representation</h2>
 
 <p>
 Source code is Unicode text encoded in UTF-8. The text is not
@@ -101,7 +101,7 @@ Each code point is distinct; for instance, upper and lower case letters
 are different characters.
 </p>
 
-<h3>Characters</h3>
+<h3 id="Characters">Characters</h3>
 
 <p>
 The following terms are used to denote specific Unicode character classes:
@@ -114,7 +114,7 @@ unicode_digit  = /* a Unicode code point classified as "Digit" */ .
 
 (The Unicode Standard, Section 4.5 General Category - Normative.)
 
-<h3>Letters and digits</h3>
+<h3 id="Letters_and_digits">Letters and digits</h3>
 
 <p>
 The underscore character <code>_</code> (U+005F) is considered a letter.
@@ -127,9 +127,9 @@ hex_digit     = "0" ... "9" | "A" ... "F" | "a" ... "f" .
 </pre>
 <hr/>
 
-<h2>Lexical elements</h2>
+<h2 id="Lexical_elements">Lexical elements</h2>
 
-<h3>Comments</h3>
+<h3 id="Comments">Comments</h3>
 
 <p>
 There are two forms of comments.  The first starts at the character
@@ -138,7 +138,7 @@ second starts at the character sequence <code>/*</code> and continues
 through the character sequence <code>*/</code>.  Comments do not nest.
 </p>
 
-<h3>Tokens</h3>
+<h3 id="Tokens">Tokens</h3>
 
 <p>
 Tokens form the vocabulary of the Go language.
@@ -151,7 +151,7 @@ the next token is the longest sequence of characters that form a
 valid token.
 </p>
 
-<h3>Identifiers</h3>
+<h3 id="Identifiers">Identifiers</h3>
 
 <p>
 Identifiers name program entities such as variables and types.
@@ -167,9 +167,9 @@ _x9
 ThisVariableIsExported
 αβ
 </pre>
-Some identifiers are predeclared (§Predeclared identifiers).
+Some identifiers are predeclared (§<a href="#Predeclared_identifiers">Predeclared identifiers</a>).
 
-<h3>Keywords</h3>
+<h3 id="Keywords">Keywords</h3>
 
 <p>
 The following keywords are reserved and may not be used as identifiers.
@@ -182,7 +182,7 @@ const        fallthrough  if           range        type
 continue     for          import       return       var
 </pre>
 
-<h3>Operators and Delimiters</h3>
+<h3 id="Operators_and_Delimiters">Operators and Delimiters</h3>
 
 <p>
 The following character sequences represent operators, delimiters, and other special tokens:
@@ -196,7 +196,7 @@ The following character sequences represent operators, delimiters, and other spe
      &amp;^          &amp;^=
 </pre>
 
-<h3>Integer literals</h3>
+<h3 id="Integer_literals">Integer literals</h3>
 
 <p>
 An integer literal is a sequence of one or more digits in the
@@ -219,7 +219,7 @@ hex_lit       = "0" ( "x" | "X" ) hex_digit { hex_digit } .
 170141183460469231731687303715884105727
 </pre>
 
-<h3>Floating-point literals</h3>
+<h3 id="Floating-point_literals">Floating-point literals</h3>
 <p>
 A floating-point literal is a decimal representation of a floating-point
 number.  It has an integer part, a decimal point, a fractional part,
@@ -247,7 +247,7 @@ exponent = ( "e" | "E" ) [ "+" | "-" ] decimals .
 .12345E+5
 </pre>
 
-<h3>Ideal numbers</h3>
+<h3 id="Ideal_numbers">Ideal numbers</h3>
 
 <p>
 Integer literals represent values of arbitrary precision, or <i>ideal
@@ -263,7 +263,7 @@ by choosing an internal representation with at least twice the precision
 of any machine type.
 </p>
 
-<h3>Character literals</h3>
+<h3 id="Character_literals">Character literals</h3>
 
 <p>
 A character literal represents an integer value, typically a
@@ -348,12 +348,12 @@ The value of a character literal is an ideal integer, just as with
 integer literals.
 </p>
 
-<h3>String literals</h3>
+<h3 id="String_literals">String literals</h3>
 
 <p>
 String literals represent <i>ideal string</i> values. Ideal strings don't
 have a named type but they are compatible with type <code>string</code>
-(§Type identity and compatibility).
+(§<a href="#Type_identity_and_compatibility">Type identity and compatibility</a>).
 There are two forms: raw string literals and interpreted string
 literals.
 </p>
@@ -427,12 +427,12 @@ literal.
 </p>
 <hr/>
 
-<h2>Types</h2>
+<h2 id="Types">Types</h2>
 
 <p>
 A type determines the set of values and operations specific to values of that
 type.  A type may be specified by a (possibly qualified) <i>type name</i>
-(§Qualified identifier, §Type declarations) or a <i>type literal</i>,
+(§<a href="#Qualified_identifier">Qualified identifier</a>, §<a href="#Type_declarations">Type declarations</a>) or a <i>type literal</i>,
 which composes a new type from previously declared types.
 </p>
 
@@ -444,7 +444,7 @@ TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType 
 </pre>
 
 <p>
-<i>Basic types</i> such as <code>int</code> are predeclared (§Predeclared identifiers).
+<i>Basic types</i> such as <code>int</code> are predeclared (§<a href="#Predeclared_identifiers">Predeclared identifiers</a>).
 Other types may be constructed from these, recursively,
 including arrays, structs, pointers, functions, interfaces, slices, maps, and
 channels.
@@ -452,8 +452,8 @@ channels.
 
 <p>
 A type may have a <i>method set</i> associated with it
-(§Interface types, §Method declarations).
-The method set of an interface type (§Interface types) is its interface.
+(§<a href="#Interface_types">Interface types</a>, §<a href="#Method_declarations">Method declarations</a>).
+The method set of an interface type (§<a href="#Interface_types">Interface types</a>) is its interface.
 The method set of any other named type <code>T</code>
 consists of all methods with receiver
 type <code>T</code>.
@@ -465,20 +465,20 @@ Any other type has an empty method set.
 <p>
 The <i>static type</i> (or just <i>type</i>) of a variable is the
 type defined by its declaration.  Variables of interface type
-(§Interface types) also have a distinct <i>dynamic type</i>, which
+(§<a href="#Interface_types">Interface types</a>) also have a distinct <i>dynamic type</i>, which
 is the actual type of the value stored in the variable at run-time.
 The dynamic type may vary during execution but is always compatible
 with the static type of the interface variable.  For non-interface
 types, the dynamic type is always the static type.
 </p>
 
-<h3>Basic types</h3>
+<h3 id="Basic_types">Basic types</h3>
 
 <p>
 Basic types include traditional numeric types, booleans, and strings. All are predeclared.
 </p>
 
-<h3>Numeric types</h3>
+<h3 id="Numeric_types">Numeric types</h3>
 
 <p>
 The architecture-independent numeric types are:
@@ -528,14 +528,14 @@ are not the same type even though they may have the same size on a
 particular architecture.
 
 
-<h3>Booleans</h3>
+<h3 id="Booleans">Booleans</h3>
 
 The type <code>bool</code> comprises the Boolean truth values
 represented by the predeclared constants <code>true</code>
 and <code>false</code>.
 
 
-<h3>Strings</h3>
+<h3 id="Strings">Strings</h3>
 
 <p>
 The <code>string</code> type represents the set of string values.
@@ -544,7 +544,7 @@ it is impossible to change the contents of a string.
 
 <p>
 The elements of strings have type <code>byte</code> and may be
-accessed using the usual indexing operations (§Indexes).  It is
+accessed using the usual indexing operations (§<a href="#Indexes">Indexes</a>).  It is
 illegal to take the address of such an element, that is, even if
 <code>s[i]</code> is the <code>i</code><sup>th</sup> byte of a
 string, <code>&amp;s[i]</code> is invalid.  The length of string
@@ -554,7 +554,7 @@ is a string literal.
 </p>
 
 
-<h3>Array types</h3>
+<h3 id="Array_types">Array types</h3>
 
 <p>
 An array is a numbered sequence of elements of a single
@@ -571,11 +571,11 @@ ElementType = Type .
 
 <p>
 The length is part of the array's type and must must be a constant
-expression (§Constant expressions) that evaluates to a non-negative
+expression (§<a href="#Constant_expressions">Constant expressions</a>) that evaluates to a non-negative
 integer value.  The length of array <code>a</code> can be discovered
 using the built-in function <code>len(a)</code>, which is a
 compile-time constant.  The elements can be indexed by integer
-indices 0 through the <code>len(a)-1</code> (§Indexes).
+indices 0 through the <code>len(a)-1</code> (§<a href="#Indexes">Indexes</a>).
 </p>
 
 <pre>
@@ -584,7 +584,7 @@ indices 0 through the <code>len(a)-1</code> (§Indexes).
 [1000]*float64
 </pre>
 
-<h3>Slice types</h3>
+<h3 id="Slice_types">Slice types</h3>
 
 <p>
 A slice is a reference to a contiguous segment of an array and
@@ -602,7 +602,7 @@ Like arrays, slices are indexable and have a length.  The length of a
 slice <code>s</code> can be discovered by the built-in function
 <code>len(s)</code>; unlike with arrays it may change during
 execution.  The elements can be addressed by integer indices 0
-through <code>len(s)-1</code> (§Indexes).  The slice index of a
+through <code>len(s)-1</code> (§<a href="#Indexes">Indexes</a>).  The slice index of a
 given element may be less than the index of the same element in the
 underlying array.
 </p>
@@ -617,7 +617,7 @@ The array underlying a slice may extend past the end of the slice.
 The <i>capacity</i> is a measure of that extent: it is the sum of
 the length of the slice and the length of the array beyond the slice;
 a slice of length up to that capacity can be created by `slicing' a new
-one from the original slice (§Slices).
+one from the original slice (§<a href="#Slices">Slices</a>).
 The capacity of a slice <code>a</code> can be discovered using the
 built-in function <code>cap(a)</code> and the relationship between
 <code>len()</code> and <code>cap()</code> is:
@@ -660,7 +660,7 @@ new([100]int)[0:50]
 </pre>
 
 
-<h3>Struct types</h3>
+<h3 id="Struct_types">Struct types</h3>
 
 <p>
 A struct is a sequence of named
@@ -723,8 +723,8 @@ struct {
 </pre>
 
 <p>
-Fields and methods (§Method declarations) of an anonymous field are
-promoted to be ordinary fields and methods of the struct (§Selectors).
+Fields and methods (§<a href="#Method_declarations">Method declarations</a>) of an anonymous field are
+promoted to be ordinary fields and methods of the struct (§<a href="#Selectors">Selectors</a>).
 The following rules apply for a struct type named <code>S</code> and
 a type named <code>T</code>:
 </p>
@@ -762,7 +762,7 @@ struct {
 }
 </pre>
 
-<h3>Pointer types</h3>
+<h3 id="Pointer_types">Pointer types</h3>
 
 <p>
 A pointer type denotes the set of all pointers to variables of a given
@@ -780,7 +780,7 @@ BaseType = Type .
 *map[string] *chan int
 </pre>
 
-<h3>Function types</h3>
+<h3 id="Function_types">Function types</h3>
 
 <p>
 A function type denotes the set of all functions with the same parameter
@@ -826,7 +826,7 @@ func (n int) (func (p* T))
 </pre>
 
 
-<h3>Interface types</h3>
+<h3 id="Interface_types">Interface types</h3>
 
 <p>
 An interface type specifies a method set called its <i>interface</i>.
@@ -881,7 +881,7 @@ interface { }
 
 <p>
 Similarly, consider this interface specification,
-which appears within a type declaration (§Type declarations)
+which appears within a type declaration (§<a href="#Type_declarations">Type declarations</a>)
 to define an interface called <code>Lock</code>:
 </p>
 
@@ -924,7 +924,7 @@ type File interface {
 }
 </pre>
 
-<h3>Map types</h3>
+<h3 id="Map_types">Map types</h3>
 
 <p>
 A map is an unordered group of elements of one type, called the
@@ -942,7 +942,7 @@ ValueType   = Type .
 
 <p>
 The comparison operators <code>==</code> and <code>!=</code>
-(§Comparison operators) must be fully defined for operands of the
+(§<a href="#Comparison_operators">Comparison operators</a>) must be fully defined for operands of the
 key type; thus the key type must be a basic, pointer, interface,
 map, or channel type. If the key type is an interface type, these
 comparison operators must be defined for the dynamic key values;
@@ -964,7 +964,7 @@ The value of an uninitialized map is <code>nil</code>.
 </p>
 <p>
 Upon creation, a map is empty.  Values may be added and removed
-during execution using special forms of assignment (§Assignments).
+during execution using special forms of assignment (§<a href="#Assignments">Assignments</a>).
 A new, empty map value is made using the built-in
 function <code>make</code>, which takes the map type and an optional
 capacity hint as arguments:
@@ -981,7 +981,7 @@ maps grow to accommodate the number of items
 stored in them.
 </p>
 
-<h3>Channel types</h3>
+<h3 id="Channel_types">Channel types</h3>
 
 <p>
 A channel provides a mechanism for two concurrently executing functions
@@ -1037,7 +1037,7 @@ the zero value for the channel's type.  After at least one such zero value has b
 received, <code>closed(c)</code> returns true.
 </p>
 
-<h2>General properties of types and values</h2>
+<h2 id="General_properties_of_types_and_values">General properties of types and values</h2>
 
 <p>
 Two types may be <i>identical</i>, <i>compatible</i>, or <i>incompatible</i>.
@@ -1046,13 +1046,13 @@ Go is <i>type safe</i>: a value of one type cannot be assigned to a variable of 
 incompatible type, and two values of incompatible types cannot be mixed in
 binary operations.</p>
 
-<h3>Type identity and compatibility</h3>
+<h3 id="Type_identity_and_compatibility">Type identity and compatibility</h3>
 
-<h4>Type identity</h4>
+<h4 id="Type_identity">Type identity</h4>
 
 <p>
 Two named types are identical if their type names originate in the same
-type declaration (§Declarations and Scope). A named and an unnamed type
+type declaration (§<a href="#Declarations_and_Scope">Declarations and Scope</a>). A named and an unnamed type
 are never identical. Two unnamed types are identical if the corresponding
 type literals have the same literal structure and corresponding components have
 identical types. In detail:
@@ -1085,7 +1085,7 @@ identical types. In detail:
 	    the same direction.</li>
 </ul>
 
-<h4>Type compatibility</h4>
+<h4 id="Type_compatibility">Type compatibility</h4>
 
 <p>
 Type compatibility is less stringent than type identity: a named and an unnamed
@@ -1142,7 +1142,7 @@ T4 and func (x int, y float) *[]string
 they have different field names.
 </p>
 
-<h3>Assignment compatibility</h3>
+<h3 id="Assignment_compatibility">Assignment compatibility</h3>
 
 <p>
 Values of any type may always be assigned to variables
@@ -1170,12 +1170,12 @@ if the type of <code>c</code> or <code>v</code> is unnamed.
 </li>
 </ul>
 
-<h3>Comparison compatibility</h3>
+<h3 id="Comparison_compatibility">Comparison compatibility</h3>
 
 <p>
 Values of any type may be compared to other values of compatible static
 type.  Values of numeric and string type may be compared using the
-full range of comparison operators as described in §Comparison operators;
+full range of comparison operators as described in §<a href="#Comparison_operators;">Comparison operators;</a>
 booleans may be compared only for equality or inequality.
 </p>
 
@@ -1214,7 +1214,7 @@ Function values are equal if they refer to the same function.
 </li>
 <li>
 Channel and map values are equal if they were created by the same call to <code>make</code>
-(§Making slices, maps, and channels).
+(§<a href="#Making_slices">Making slices</a>, maps, and channels).
 </li>
 <li>
 Interface values may be compared if they have compatible static types.
@@ -1224,7 +1224,7 @@ They will be equal only if they have the same dynamic type and the underlying va
 <hr/>
 
 
-<h2>Blocks</h2>
+<h2 id="Blocks">Blocks</h2>
 
 <p>
 A <i>block</i> is a sequence of declarations and statements within matching
@@ -1242,7 +1242,7 @@ In addition to explicit blocks in the source code, there are implicit blocks:
 <ol>
 	<li>The <i>universe block</i> encompasses all Go source text.</li>
 
-	<li>Each package (§Packages) has a <i>package block</i> containing all
+	<li>Each package (§<a href="#Packages">Packages</a>) has a <i>package block</i> containing all
 	    Go source text for that package.</li>
 
 	<li>Each file has a <i>file block</i> containing all Go source text
@@ -1256,11 +1256,11 @@ In addition to explicit blocks in the source code, there are implicit blocks:
 </ol>
 
 <p>
-Blocks nest and influence scoping (§Declarations and Scope).
+Blocks nest and influence scoping (§<a href="#Declarations_and_Scope">Declarations and Scope</a>).
 </p>
 
 
-<h2>Declarations and Scope</h2>
+<h2 id="Declarations_and_Scope">Declarations and Scope</h2>
 
 <p>
 A declaration binds an identifier to a constant, type, variable, function, or package.
@@ -1312,19 +1312,19 @@ the entity declared by the inner declaration.
 </p>
 
 <p>
-The package clause (§Package clause) is not a declaration; the package name
+The package clause (§<a href="#Package_clause">Package clause</a>) is not a declaration; the package name
 does not appear in any scope. Its purpose is to identify the files belonging
-to the same package (§Packages) and to specify the default name for import
+to the same package (§<a href="#Packages">Packages</a>) and to specify the default name for import
 declarations.
 </p>
 
 
-<h3>Label scopes</h3>
+<h3 id="Label_scopes">Label scopes</h3>
 
 <p>
-Labels are declared by labeled statements (§Labeled statements) and are
+Labels are declared by labeled statements (§<a href="#Labeled_statements">Labeled statements</a>) and are
 used in the <code>break</code>, <code>continue</code>, and <code>goto</code>
-statements (§Break statements, §Continue statements, §Goto statements).
+statements (§<a href="#Break_statements">Break statements</a>, §<a href="#Continue_statements">Continue statements</a>, §<a href="#Goto_statements">Goto statements</a>).
 In contrast to other identifiers, labels are not block scoped and do
 not conflict with identifiers that are not labels. The scope of a label
 is the body of the function in which it is declared and excludes
@@ -1332,7 +1332,7 @@ the body of any nested function.
 </p>
 
 
-<h3>Predeclared identifiers</h3>
+<h3 id="Predeclared_identifiers">Predeclared identifiers</h3>
 
 <p>
 The following identifiers are implicitly declared in the universe block:
@@ -1355,12 +1355,12 @@ Packages:
 	unsafe
 </pre>
 
-<h3>Exported identifiers</h3>
+<h3 id="Exported_identifiers">Exported identifiers</h3>
 
 <p>
 By default, identifiers are visible only within the package in which they are declared.
 Some identifiers are <i>exported</i> and can be referenced using
-<i>qualified identifiers</i> in other packages (§Qualified identifiers).
+<i>qualified identifiers</i> in other packages (§<a href="#Qualified_identifiers">Qualified identifiers</a>).
 If an identifier satisfies these two conditions:
 </p>
 <ol>
@@ -1372,12 +1372,12 @@ declared at the top level;
 it will be exported.
 </p>
 
-<h3>Const declarations</h3>
+<h3 id="Const_declarations">Const declarations</h3>
 
 <p>
 A constant declaration binds a list of identifiers (the names of
 the constants) to the values of a list of constant expressions
-(§Constant expressions).  The number of identifiers must be equal
+(§<a href="#Constant_expressions">Constant expressions</a>).  The number of identifiers must be equal
 to the number of expressions, and the n<sup>th</sup> identifier on
 the left is bound to value of the n<sup>th</sup> expression on the
 right.
@@ -1395,7 +1395,7 @@ ExpressionList = Expression { "," Expression } .
 <p>
 If the type is omitted, the constants take the
 individual types of the corresponding expressions, which may be
-<i>ideal integer</i> or <i>ideal float</i> (§Ideal number).  If the type
+<i>ideal integer</i> or <i>ideal float</i> (§<a href="#Ideal_number">Ideal number</a>).  If the type
 is present, all constants take the type specified, and the types
 of all the expressions must be assignment-compatible
 with that type.
@@ -1421,7 +1421,7 @@ Omitting the list of expressions is therefore equivalent to
 repeating the previous list.  The number of identifiers must be equal
 to the number of expressions in the previous list.
 Together with the <code>iota</code> constant generator
-(§Iota) this mechanism permits light-weight declaration of sequential values:
+(§<a href="#Iota">Iota</a>) this mechanism permits light-weight declaration of sequential values:
 </p>
 
 <pre>
@@ -1438,7 +1438,7 @@ const (
 </pre>
 
 
-<h3>Iota</h3>
+<h3 id="Iota">Iota</h3>
 
 <p>
 Within a constant declaration, the predeclared pseudo-constant
@@ -1490,7 +1490,7 @@ last non-empty expression list.
 </p>
 
 
-<h3>Type declarations</h3>
+<h3 id="Type_declarations">Type declarations</h3>
 
 <p>
 A type declaration binds an identifier, the <i>type name</i>,
@@ -1523,7 +1523,7 @@ type Comparable interface {
 }
 </pre>
 
-<h3>Variable declarations</h3>
+<h3 id="Variable_declarations">Variable declarations</h3>
 
 <p>
 A variable declaration creates a variable, binds an identifier to it and
@@ -1551,7 +1551,7 @@ If there are expressions, their number must be equal
 to the number of identifiers, and the n<sup>th</sup> variable
 is initialized to the value of the n<sup>th</sup> expression.
 Otherwise, each variable is initialized to the <i>zero</i>
-of the type (§The zero value).
+of the type (§<a href="#The_zero_value">The zero value</a>).
 The expressions can be general expressions; they need not be constants.
 </p>
 <p>
@@ -1573,7 +1573,7 @@ var i = 0       // i has type int
 var f = 3.1415  // f has type float
 </pre>
 
-<h3>Short variable declarations</h3>
+<h3 id="Short_variable_declarations">Short variable declarations</h3>
 
 A <i>short variable declaration</i> uses the syntax
 
@@ -1595,7 +1595,7 @@ ch := make(chan int);
 
 <p>
 Unlike regular variable declarations, short variable declarations
-can be used, by analogy with tuple assignment (§Assignments), to
+can be used, by analogy with tuple assignment (§<a href="#Assignments">Assignments</a>), to
 receive the individual elements of a multi-valued expression such
 as a call to a multi-valued function.  In this form, the ExpressionList
 must be a single such multi-valued expression, the number of
@@ -1625,13 +1625,13 @@ field2, offset := nextField(str, offset);  // redeclares offset
 Short variable declarations may appear only inside functions.
 In some contexts such as the initializers for <code>if</code>,
 <code>for</code>, or <code>switch</code> statements,
-they can be used to declare local temporary variables (§Statements).
+they can be used to declare local temporary variables (§<a href="#Statements">Statements</a>).
 </p>
 
-<h3>Function declarations</h3>
+<h3 id="Function_declarations">Function declarations</h3>
 
 <p>
-A function declaration binds an identifier to a function (§Function types).
+A function declaration binds an identifier to a function (§<a href="#Function_types">Function types</a>).
 </p>
 
 <pre class="ebnf">
@@ -1655,7 +1655,7 @@ func min(x int, y int) int {
 func flushICache(begin, end uintptr)  // implemented externally
 </pre>
 
-<h3>Method declarations</h3>
+<h3 id="Method_declarations">Method declarations</h3>
 
 <p>
 A method declaration binds an identifier to a method,
@@ -1674,7 +1674,7 @@ The base type must not be a pointer or interface type and must be
 declared in the same source file as the method.
 The method is said to be <i>bound</i> to the base type
 and is visible only within selectors for that type
-(§Type declarations, §Selectors).
+(§<a href="#Type_declarations">Type declarations</a>, §<a href="#Selectors">Selectors</a>).
 </p>
 
 <p>
@@ -1717,7 +1717,7 @@ However, a function declared this way is not a method.
 </p>
 
 
-<h2>Expressions</h2>
+<h2 id="Expressions">Expressions</h2>
 
 <p>
 An expression specifies the computation of a value by applying
@@ -1725,7 +1725,7 @@ operators and functions to operands. An expression has a value
 and a type.
 </p>
 
-<h3>Operands</h3>
+<h3 id="Operands">Operands</h3>
 
 Operands denote the elementary values in an expression.
 
@@ -1736,18 +1736,18 @@ BasicLit   = int_lit | float_lit | char_lit | StringLit .
 </pre>
 
 
-<h3>Constants</h3>
+<h3 id="Constants">Constants</h3>
 
 <p>
 A <i>constant</i> is a literal of a basic type
 (including the predeclared constants <code>true</code>, <code>false</code>
 and <code>nil</code>
 and values denoted by <code>iota</code>)
-or a constant expression (§Constant expressions).
+or a constant expression (§<a href="#Constant_expressions">Constant expressions</a>).
 Constants have values that are known at compile time.
 </p>
 
-<h3>Qualified identifiers</h3>
+<h3 id="Qualified_identifiers">Qualified identifiers</h3>
 
 <p>
 A qualified identifier is an identifier qualified by a package name prefix.
@@ -1761,14 +1761,14 @@ PackageName = identifier .
 <p>
 A qualified identifier accesses an identifier in
 a separate package.  The identifier must be exported by that package, which
-means that it must begin with a Unicode upper case letter (§Exported identifiers).
+means that it must begin with a Unicode upper case letter (§<a href="#Exported_identifiers">Exported identifiers</a>).
 </p>
 
 <pre>
 Math.Sin
 </pre>
 
-<h3>Composite literals</h3>
+<h3 id="Composite_literals">Composite literals</h3>
 
 <p>
 Composite literals construct values for structs, arrays, slices, and maps
@@ -1857,7 +1857,7 @@ For array and slice literals the following rules apply:
 </ul>
 
 <p>
-Taking the address of a composite literal (§Address operators)
+Taking the address of a composite literal (§<a href="#Address_operators">Address operators</a>)
 generates a unique pointer to an instance of the literal's value.
 </p>
 <pre>
@@ -1934,7 +1934,7 @@ noteFrequency := map[string]float{
 </pre>
 
 
-<h3>Function literals</h3>
+<h3 id="Function_literals">Function literals</h3>
 
 <p>
 A function literal represents an anonymous function.
@@ -1966,7 +1966,7 @@ as they are accessible.
 </p>
 
 
-<h3>Primary expressions</h3>
+<h3 id="Primary_expressions">Primary expressions</h3>
 
 <pre class="ebnf">
 PrimaryExpr =
@@ -1999,7 +1999,7 @@ f.p[i].x()
 </pre>
 
 
-<h3>Selectors</h3>
+<h3 id="Selectors">Selectors</h3>
 
 <p>
 A primary expression of the form
@@ -2114,7 +2114,7 @@ TODO: Specify what happens to receivers.
 </font>
 
 
-<h3>Indexes</h3>
+<h3 id="Indexes">Indexes</h3>
 
 <p>
 A primary expression of the form
@@ -2133,8 +2133,8 @@ rules apply:
 
 <p>
 For <code>a</code> of type <code>A</code> or <code>*A</code>
-where <code>A</code> is an array type (§Array types),
-or for <code>a</code> of type <code>S</code> where <code>S</code> is a slice type (§Slice types):
+where <code>A</code> is an array type (§<a href="#Array_types">Array types</a>),
+or for <code>a</code> of type <code>S</code> where <code>S</code> is a slice type (§<a href="#Slice_types">Slice types</a>):
 </p>
 <ul>
 	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code>
@@ -2144,7 +2144,7 @@ or for <code>a</code> of type <code>S</code> where <code>S</code> is a slice typ
 
 <p>
 For <code>a</code> of type <code>T</code>
-where <code>T</code> is a string type (§Strings):
+where <code>T</code> is a string type (§<a href="#Strings">Strings</a>):
 </p>
 <ul>
 	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code>
@@ -2155,7 +2155,7 @@ where <code>T</code> is a string type (§Strings):
 
 <p>
 For <code>a</code> of type <code>M</code>
-where <code>M</code> is a map type (§Map types):
+where <code>M</code> is a map type (§<a href="#Map_types">Map types</a>):
 </p>
 <ul>
 	<li><code>x</code>'s type must be compatible with the key type of <code>M</code>
@@ -2185,10 +2185,10 @@ the result of the index expression is a pair of values with types
 If the key is present in the map,
 the expression returns the pair <code>(a[x], true)</code>;
 otherwise it returns <code>(Z, false)</code> where <code>Z</code> is
-the zero value for <code>V</code> (§The zero value).
+the zero value for <code>V</code> (§<a href="#The_zero_value">The zero value</a>).
 No run-time exception occurs in this case.
 The index expression in this construct thus acts like a function call
-returning a value and a boolean indicating success.  (§Assignments)
+returning a value and a boolean indicating success.  (§<a href="#Assignments">Assignments</a>)
 </p>
 
 <p>
@@ -2206,7 +2206,7 @@ the entry for key <code>x</code> is deleted from the map; if
 a regular assignment to an element of the map.
 </p>
 
-<h3>Slices</h3>
+<h3 id="Slices">Slices</h3>
 
 <p>
 Strings, arrays, and slices can be <i>sliced</i> to construct substrings or descriptors
@@ -2237,12 +2237,12 @@ For arrays or strings, the indexes
 for slices, the upper bound is the capacity rather than the length.
 <p>
 If the sliced operand is a string, the result of the slice operation is another, new
-string (§Strings). If the sliced operand is an array or slice, the result
-of the slice operation is a slice (§Slice types).
+string (§<a href="#Strings">Strings</a>). If the sliced operand is an array or slice, the result
+of the slice operation is a slice (§<a href="#Slice_types">Slice types</a>).
 </p>
 
 
-<h3>Type assertions</h3>
+<h3 id="Type_assertions">Type assertions</h3>
 
 <p>
 For an expression <code>x</code> and a type <code>T</code>, the primary expression
@@ -2261,9 +2261,9 @@ The type of <code>x</code> must be an interface type.
 <p>
 More precisely, if <code>T</code> is not an interface type, <code>x.(T)</code> asserts
 that the dynamic type of <code>x</code> is identical to the type <code>T</code>
-(§Type identity and compatibility).
+(§<a href="#Type_identity_and_compatibility">Type identity and compatibility</a>).
 If <code>T</code> is an interface type, <code>x.(T)</code> asserts that the dynamic type
-of <code>T</code> implements the interface <code>T</code> (§Interface types).
+of <code>T</code> implements the interface <code>T</code> (§<a href="#Interface_types">Interface types</a>).
 </p>
 <p>
 If the type assertion holds, the value of the expression is the value
@@ -2285,14 +2285,14 @@ v, ok := x.(T)
 the result of the assertion is a pair of values with types <code>(T, bool)</code>.
 If the assertion holds, the expression returns the pair <code>(x.(T), true)</code>;
 otherwise, the expression returns <code>(Z, false)</code> where <code>Z</code>
-is the zero value for type <code>T</code> (§The zero value).
+is the zero value for type <code>T</code> (§<a href="#The_zero_value">The zero value</a>).
 No run-time exception occurs in this case.
 The type assertion in this construct thus acts like a function call
-returning a value and a boolean indicating success.  (§Assignments)
+returning a value and a boolean indicating success.  (§<a href="#Assignments">Assignments</a>)
 </p>
 
 
-<h3>Calls</h3>
+<h3 id="Calls">Calls</h3>
 
 <p>
 Given an expression <code>f</code> of function type
@@ -2339,7 +2339,7 @@ p.Scale(3.5)
 There is no distinct method type and there are no method literals.
 </p>
 
-<h3>Passing arguments to <code>...</code> parameters</h3>
+<h3 id="Passing_arguments_to_..._parameters">Passing arguments to <code>...</code> parameters</h3>
 
 <p>
 When a function <code>f</code> has a <code>...</code> parameter,
@@ -2383,7 +2383,7 @@ for a <code>...</code> in a call to another function with a <code>...</code> par
 the parameter is not wrapped again but passed directly. In short, a formal <code>...</code>
 parameter is passed unchanged as an actual <code>...</code> parameter.
 
-<h3>Operators</h3>
+<h3 id="Operators">Operators</h3>
 
 <p>
 Operators combine operands into expressions.
@@ -2409,7 +2409,7 @@ The operand types in binary operations must be compatible, with the following ex
 <ul>
 	<li>Except in shift expressions, if one operand has numeric type and the other operand is
 	  an ideal number, the ideal number is converted to match the type of
-	  the other operand (§Expressions).</li>
+	  the other operand (§<a href="#Expressions">Expressions</a>).</li>
 
 	<li>Except in shift expressions, if both operands are ideal numbers and one is an
 	  ideal float, the other is converted to ideal float
@@ -2420,7 +2420,7 @@ The operand types in binary operations must be compatible, with the following ex
 
 	<li>The right operand in a shift operation must be always be of unsigned integer type
 	  or an ideal number that can be safely converted into an unsigned integer type
-	  (§Arithmetic operators).</li>
+	  (§<a href="#Arithmetic_operators">Arithmetic operators</a>).</li>
 
 	<li>The operands in channel sends differ in type: one is always a channel and the
 	other is a variable or value of the channel's element type.</li>
@@ -2470,7 +2470,7 @@ x == y + 1 &amp;&amp; &lt;-chan_ptr > 0
 </pre>
 
 
-<h3>Arithmetic operators</h3>
+<h3 id="Arithmetic_operators">Arithmetic operators</h3>
 <p>
 Arithmetic operators apply to numeric types and yield a result of the same
 type as the first operand. The four standard arithmetic operators (<code>+</code>,
@@ -2572,14 +2572,14 @@ For floating point numbers,
 while <code>-x</code> is the negation of <code>x</code>.
 </p>
 
-<h3>Integer overflow</h3>
+<h3 id="Integer_overflow">Integer overflow</h3>
 
 <p>
 For unsigned integer values, the operations <code>+</code>,
 <code>-</code>, <code>*</code>, and <code>&lt;&lt;</code> are
 computed modulo 2<sup><i>n</i></sup>, where <i>n</i> is the bit width of
 the unsigned integer's type
-(§Numeric types). Loosely speaking, these unsigned integer operations
+(§<a href="#Numeric_types">Numeric types</a>). Loosely speaking, these unsigned integer operations
 discard high bits upon overflow, and programs may rely on ``wrap around''.
 </p>
 <p>
@@ -2593,7 +2593,7 @@ not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is alw
 </p>
 
 
-<h3>Comparison operators</h3>
+<h3 id="Comparison_operators">Comparison operators</h3>
 
 <p>
 Comparison operators yield a boolean result. All comparison operators apply
@@ -2622,11 +2622,11 @@ Booleans are equal if they are either both "true" or both "false".
 </p>
 <p>
 The rules for comparison of composite types are described in the
-section on §Comparison compatibility.
+section on §<a href="#Comparison_compatibility">Comparison compatibility</a>.
 </p>
 
 
-<h3>Logical operators</h3>
+<h3 id="Logical_operators">Logical operators</h3>
 
 <p>
 Logical operators apply to boolean operands and yield a boolean result.
@@ -2640,7 +2640,7 @@ The right operand is evaluated conditionally.
 </pre>
 
 
-<h3>Address operators</h3>
+<h3 id="Address_operators">Address operators</h3>
 
 <p>
 The unary prefix address-of operator <code>&amp;</code> generates the address of its operand, which must be a variable,
@@ -2733,7 +2733,7 @@ is equivalent to the function call
 
 <p>
 <font color=red>
-TODO: should probably describe the effect of (t.m) under §Expressions if t.m
+TODO: should probably describe the effect of (t.m) under §<a href="#Expressions_if_t">Expressions if t</a>.m
 denotes a method: Effect is as described above, converts into function.
 </font>
 </p>
@@ -2773,10 +2773,10 @@ of a result parameter (e.g.: func f() (x int, p *int) { return 2, &amp;x }).
 </font>
 </p>
 
-<h3>Communication operators</h3>
+<h3 id="Communication_operators">Communication operators</h3>
 
 <p>
-The term <i>channel</i> means "variable of channel type" (§Channel types).
+The term <i>channel</i> means "variable of channel type" (§<a href="#Channel_types">Channel types</a>).
 </p>
 <p>
 The send operation uses the binary operator "&lt;-", which operates on
@@ -2856,7 +2856,7 @@ If the operation can proceeed, the boolean variable
 and the value stored in <code>x</code>; otherwise
 <code>ok</code> is set
 to <code>false</code> and <code>x</code> is set to the
-zero value for its type (§The zero value).
+zero value for its type (§<a href="#The_zero_value">The zero value</a>).
 </p>
 
 <p>
@@ -2864,7 +2864,7 @@ zero value for its type (§The zero value).
 need to be presented regarding send, receive, select, and goroutines.</font>
 </p>
 
-<h3>Constant expressions</h3>
+<h3 id="Constant_expressions">Constant expressions</h3>
 
 <p>
 Constant expressions may contain only constants, <code>iota</code>,
@@ -2875,7 +2875,7 @@ In practice, constant expressions are those that can be evaluated at compile tim
 <p>
 The type of a constant expression is determined by the type of its
 elements.  If it contains only numeric literals, its type is <i>ideal
-integer</i> or <i>ideal float</i> (§Ideal number).  Whether a literal
+integer</i> or <i>ideal float</i> (§<a href="#Ideal_number">Ideal number</a>).  Whether a literal
 is an integer or float depends on the syntax of the literals (123 vs. 123.0).
 The nature of the arithmetic
 operations within the expression depends, elementwise, on the values;
@@ -2949,7 +2949,7 @@ Also it may be possible to make typed constants more like variables, at the cost
 overflow etc. errors being caught.
 </p>
 
-<h3>Order of evaluation</h3>
+<h3 id="Order_of_evaluation">Order of evaluation</h3>
 
 <p>
 When evaluating the elements of an assignment or expression,
@@ -2975,7 +2975,7 @@ of <code>y</code> is not specified.
 
 <hr/>
 
-<h2>Statements</h2>
+<h2 id="Statements">Statements</h2>
 
 <p>
 Statements control execution.
@@ -3000,12 +3000,12 @@ which may be omitted only if the previous statement:
 </p>
 <ul>
 	<li>ends with the closing parenthesis ")" of a list of declarations
-	    (§Declarations and Scope); or</li>
+	    (§<a href="#Declarations_and_Scope">Declarations and Scope</a>); or</li>
 	<li>ends with a closing brace "}" that is not part of an expression.
 </ul>
 
 
-<h3>Empty statements</h3>
+<h3 id="Empty_statements">Empty statements</h3>
 
 <p>
 The empty statement does nothing.
@@ -3021,7 +3021,7 @@ adding an empty statement.
 </p>
 
 
-<h3>Labeled statements</h3>
+<h3 id="Labeled_statements">Labeled statements</h3>
 
 <p>
 A labeled statement may be the target of a <code>goto</code>,
@@ -3038,7 +3038,7 @@ Error: log.Fatal("error encountered")
 </pre>
 
 
-<h3>Expression statements</h3>
+<h3 id="Expression_statements">Expression statements</h3>
 
 <p>
 Function calls, method calls, and channel operations
@@ -3056,7 +3056,7 @@ f(x+y)
 </pre>
 
 
-<h3>IncDec statements</h3>
+<h3 id="IncDec_statements">IncDec statements</h3>
 
 <p>
 The "++" and "--" statements increment or decrement their operands
@@ -3069,7 +3069,7 @@ IncDecStmt = Expression ( "++" | "--" ) .
 </pre>
 
 <p>
-The following assignment statements (§Assignments) are semantically
+The following assignment statements (§<a href="#Assignments">Assignments</a>) are semantically
 equivalent:
 </p>
 
@@ -3079,7 +3079,7 @@ x++                 x += 1
 x--                 x -= 1
 </pre>
 
-<h3>Assignments</h3>
+<h3 id="Assignments">Assignments</h3>
 
 <pre class="ebnf">
 Assignment = ExpressionList assign_op ExpressionList .
@@ -3116,8 +3116,8 @@ a[i] <<= 2
 A tuple assignment assigns the individual elements of a multi-valued
 operation to a list of variables.  There are two forms.  In the
 first, the right hand operand is a single multi-valued expression
-such as a function evaluation or channel or map operation (§Channel
-operations, §Map operations) or a type assertion (§Type assertions).
+such as a function evaluation or channel or map operation (§<a href="#Channel">Channel</a>
+operations, §<a href="#Map_operations">Map operations</a>) or a type assertion (§<a href="#Type_assertions">Type assertions</a>).
 The number of operands on the left
 hand side must match the number of values.  For instance, If
 <code>f</code> is a function returning two values,
@@ -3145,12 +3145,12 @@ a, b = b, a  // exchange a and b
 
 <p>
 In assignments, the type of each value must be assignment compatible
-(§Assignment compatibility) with the type of the
+(§<a href="#Assignment_compatibility">Assignment compatibility</a>) with the type of the
 operand to which it is assigned.
 </p>
 
 
-<h3>If statements</h3>
+<h3 id="If_statements">If statements</h3>
 
 <p>
 "If" statements specify the conditional execution of two branches
@@ -3186,7 +3186,7 @@ if x := f(); x < y {
 </pre>
 
 
-<h3>Switch statements</h3>
+<h3 id="Switch_statements">Switch statements</h3>
 
 <p>
 "Switch" statements provide multi-way execution.
@@ -3207,7 +3207,7 @@ In a type switch, the cases contain types that are compared against the
 type of a specially annotated switch expression.
 </p>
 
-<h4>Expression switches</h4>
+<h4 id="Expression_switches">Expression switches</h4>
 
 <p>
 In an expression switch,
@@ -3234,7 +3234,7 @@ ExprSwitchCase = "case" ExpressionList | "default" .
 <p>
 In a case or default clause,
 the last statement only may be a "fallthrough" statement
-(§Fallthrough statement) to
+(§<a href="#Fallthrough_statement">Fallthrough statement</a>) to
 indicate that control should flow from the end of this clause to
 the first statement of the next clause.
 Otherwise control flows to the end of the "switch" statement.
@@ -3264,13 +3264,13 @@ case x == 4: f3();
 }
 </pre>
 
-<h4>Type switches</h4>
+<h4 id="Type_switches">Type switches</h4>
 
 <p>
 A type switch compares types rather than values. It is otherwise similar
 to an expression switch. It is introduced by special
 notation in the form of a simple declaration whose right hand side
-has the form of a type assertion (§Type assertions)
+has the form of a type assertion (§<a href="#Type_assertions">Type assertions</a>)
 using the reserved word <code>type</code> rather than an actual type.
 Cases then match literal types against the dynamic type of the expression
 in the type assertion.
@@ -3286,7 +3286,7 @@ TypeSwitchCase  = "case" Type | "default" .
 <p>
 As a special case, the type in the type switch case may be an
 identifier denoting the predeclared constant <code>nil</code>
-(§Predeclared identifiers).
+(§<a href="#Predeclared_identifiers">Predeclared identifiers</a>).
 If the interface value equals <code>nil</code>,
 only an explict <code>nil</code> case or "default"
 case will execute.
@@ -3343,7 +3343,7 @@ The type switch guard may be preceded by a simple statement, which
 executes before the guard is evaluated.
 </p>
 
-<h3>For statements</h3>
+<h3 id="For_statements">For statements</h3>
 
 <p>
 A "for" statement specifies repeated execution of a block. The iteration is
@@ -3450,7 +3450,7 @@ it does not process the zero value sent before the channel is closed.
 </p>
 <p>
 The iteration variables may be declared by the "range" clause (":="), in which
-case their scope ends at the end of the "for" statement (§Declarations and
+case their scope ends at the end of the "for" statement (§<a href="#Declarations_and">Declarations and</a>
 scope rules). In this case their types are set to
 <code>int</code> and the array element type, or the map key and value types, respectively.
 If the iteration variables are declared outside the "for" statement,
@@ -3483,7 +3483,7 @@ they will not be processed. If map entries are inserted during iteration, the
 behavior is implementation-dependent, but each entry will be processed at most once.
 </p>
 
-<h3>Go statements</h3>
+<h3 id="Go_statements">Go statements</h3>
 
 <p>
 A "go" statement starts the execution of a function or method call
@@ -3507,7 +3507,7 @@ go func(ch chan <- bool) { for { sleep(10); ch <- true; }} (c)
 </pre>
 
 
-<h3>Select statements</h3>
+<h3 id="Select_statements">Select statements</h3>
 
 <p>
 A "select" statement chooses which of a set of possible communications
@@ -3547,7 +3547,7 @@ If multiple cases can proceed, a uniform fair choice is made to decide
 which single communication will execute.
 <p>
 The receive case may declare a new variable using a short variable declaration
-(§Short variable declarations).
+(§<a href="#Short_variable_declarations">Short variable declarations</a>).
 </p>
 
 <pre>
@@ -3575,7 +3575,7 @@ TODO: Make semantics more precise.
 </font>
 
 
-<h3>Return statements</h3>
+<h3 id="Return_statements">Return statements</h3>
 
 <p>
 A "return" statement terminates execution of the containing function
@@ -3629,9 +3629,9 @@ func complex_f2() (re float, im float) {
 </pre>
 	</li>
 	<li>The expression list may be empty if the functions's result
-		type specifies names for its result parameters (§Function Types).
+		type specifies names for its result parameters (§<a href="#Function_Types">Function Types</a>).
 		The result parameters act as ordinary local variables that are
-		initialized to the zero values for their type (§The zero value)
+		initialized to the zero values for their type (§<a href="#The_zero_value">The zero value</a>)
 		and the function may assign values to them as necessary.
 		The "return" statement returns the values of these variables.
 <pre>
@@ -3652,7 +3652,7 @@ TODO: Language about result parameters needs to go into a section on
 </font>
 </p>
 
-<h3>Break statements</h3>
+<h3 id="Break_statements">Break statements</h3>
 
 <p>
 A "break" statement terminates execution of the innermost
@@ -3667,7 +3667,7 @@ BreakStmt = "break" [ Label ].
 If there is a label, it must be that of an enclosing
 "for", "switch" or "select" statement, and that is the one whose execution
 terminates
-(§For statements, §Switch statements, §Select statements).
+(§<a href="#For_statements">For statements</a>, §<a href="#Switch_statements">Switch statements</a>, §<a href="#Select_statements">Select statements</a>).
 </p>
 
 <pre>
@@ -3678,11 +3678,11 @@ L: for i < n {
 }
 </pre>
 
-<h3>Continue statements</h3>
+<h3 id="Continue_statements">Continue statements</h3>
 
 <p>
 A "continue" statement begins the next iteration of the
-innermost "for" loop at the post statement (§For statements).
+innermost "for" loop at the post statement (§<a href="#For_statements">For statements</a>).
 </p>
 
 <pre class="ebnf">
@@ -3693,7 +3693,7 @@ ContinueStmt = "continue" [ Label ].
 The optional label is analogous to that of a "break" statement.
 </p>
 
-<h3>Goto statements</h3>
+<h3 id="Goto_statements">Goto statements</h3>
 
 <p>
 A "goto" statement transfers control to the statement with the corresponding label.
@@ -3725,11 +3725,11 @@ the creation of <code>v</code>.
 (TODO: Eliminate in favor of used and not set errors?)
 </p>
 
-<h3>Fallthrough statements</h3>
+<h3 id="Fallthrough_statements">Fallthrough statements</h3>
 
 <p>
 A "fallthrough" statement transfers control to the first statement of the
-next case clause in a expression "switch" statement (§Expression switches). It may
+next case clause in a expression "switch" statement (§<a href="#Expression_switches">Expression switches</a>). It may
 be used only as the final non-empty statement in a case or default clause in an
 expression "switch" statement.
 </p>
@@ -3739,7 +3739,7 @@ FallthroughStmt = "fallthrough" .
 </pre>
 
 
-<h3>Defer statements</h3>
+<h3 id="Defer_statements">Defer statements</h3>
 
 <p>
 A "defer" statement invokes a function whose execution is deferred to the moment
@@ -3772,7 +3772,7 @@ for i := 0; i &lt;= 3; i++ {
 
 <hr/>
 
-<h2>Predeclared functions</h2>
+<h2 id="Predeclared_functions">Predeclared functions</h2>
 <ul>
 	<li>cap
 	<li>close
@@ -3786,7 +3786,7 @@ for i := 0; i &lt;= 3; i++ {
 	<li>println
 </ul>
 
-<h3>Length and capacity</h3>
+<h3 id="Length_and_capacity">Length and capacity</h3>
 
 <pre class="grammar">
 Call       Argument type       Result
@@ -3816,7 +3816,7 @@ space allocated in the underlying array (for a slice) or map. For a slice
 </pre>
 
 
-<h3>Conversions</h3>
+<h3 id="Conversions">Conversions</h3>
 
 <p>
 Conversions look like function calls of the form
@@ -3842,7 +3842,7 @@ to a variable of type T.
 <li>
 2) The conversion succeeds if the value would be assignment-compatible
 to a variable of type T if the value type or T or any of their component
-types are unnamed (§Type identity and compatibility).
+types are unnamed (§<a href="#Type_identity_and_compatibility">Type identity and compatibility</a>).
 </li>
 <li>
 3) Between integer types.  If the value is a signed quantity, it is
@@ -3893,17 +3893,17 @@ string([]byte{'h', 'e', 'l', 'l', 'o'})  // "hello"
 There is no linguistic mechanism to convert between pointers and integers.
 The <code>unsafe</code> package
 implements this functionality under
-restricted circumstances (§Package <code>unsafe</code>).
+restricted circumstances (§<a href="#Package_unsafe">Package <code>unsafe</code></a>).
 </p>
 
 
-<h3>Allocation</h3>
+<h3 id="Allocation">Allocation</h3>
 
 <p>
 The built-in function <code>new</code> takes a type <code>T</code> and
 returns a value of type <code>*T</code>.
 The memory is initialized as described in the section on initial values
-(§The zero value).
+(§<a href="#The_zero_value">The zero value</a>).
 </p>
 
 <pre>
@@ -3926,7 +3926,7 @@ and returns a value of type <code>*S</code> containing the address
 of the memory.
 </p>
 
-<h3>Making slices, maps and channels</h3>
+<h3 id="Making_slices_maps_and_channels">Making slices, maps and channels</h3>
 
 <p>
 Slices, maps and channels are reference types that do not require the
@@ -3936,7 +3936,7 @@ which must be a slice, map or channel type,
 optionally followed by a type-specific list of expressions.
 It returns a value of type <code>T</code> (not <code>*T</code>).
 The memory is initialized as described in the section on initial values
-(§The zero value).
+(§<a href="#The_zero_value">The zero value</a>).
 </p>
 
 <pre>
@@ -3969,7 +3969,7 @@ m := make(map[string] int, 100);  # map with initial space for 100 elements
 
 <hr/>
 
-<h2>Packages</h2>
+<h2 id="Packages">Packages</h2>
 
 <p>
 Go programs are constructed by linking together <i>packages</i>.
@@ -3979,7 +3979,7 @@ and variables.  Those elements may be <i>imported</i> and used in
 another package.
 </p>
 
-<h3>Source file organization</h3>
+<h3 id="Source_file_organization">Source file organization</h3>
 
 <p>
 Each source file consists of a package clause defining the package
@@ -3993,7 +3993,7 @@ types, variables, and constants.
 SourceFile       = PackageClause { ImportDecl [ ";" ] } { TopLevelDecl [ ";" ] } .
 </pre>
 
-<h3>Package clause</h3>
+<h3 id="Package_clause">Package clause</h3>
 
 <p>
 A package clause begins each source file and defines the package
@@ -4013,10 +4013,10 @@ A set of files sharing the same PackageName form the implementation of a package
 An implementation may require that all source files for a package inhabit the same directory.
 </p>
 
-<h3>Import declarations</h3>
+<h3 id="Import_declarations">Import declarations</h3>
 
 <p>
-A source file gains access to exported identifiers (§Exported
+A source file gains access to exported identifiers (§<a href="#Exported">Exported</a>
 identifiers) from another package through an import declaration.
 In the general form, an import declaration provides an identifier
 that code in the source file may use to access the imported package's
@@ -4035,7 +4035,7 @@ PackageFileName  = StringLit .
 <p>
 After an import, in the usual case an exported name <i>N</i> from the imported
 package <i>P</i> may be accessed by the qualified identifier
-<i>P</i><code>.</code><i>N</i> (§Qualified identifiers).  The actual
+<i>P</i><code>.</code><i>N</i> (§<a href="#Qualified_identifiers">Qualified identifiers</a>).  The actual
 name <i>P</i> depends on the form of the import declaration.  If
 an explicit package name <code>p1</code> is provided, the qualified
 identifer will have the form <code>p1.</code><i>N</i>.  If no name
@@ -4061,7 +4061,7 @@ import   "lib/math"         math.Sin
 import . "lib/math"         Sin
 </pre>
 
-<h3>Multiple-file packages</h3>
+<h3 id="Multiple-file_packages">Multiple-file packages</h3>
 
 <p>
 If a package is constructed from multiple source files,
@@ -4086,7 +4086,7 @@ then a second file <code>math2.go</code> also in
 may refer directly to <code>Sin</code> and <code>twoPi</code>.
 </p>
 
-<h3>An example package</h3>
+<h3 id="An_example_package">An example package</h3>
 
 <p>
 Here is a complete Go package that implements a concurrent prime sieve.
@@ -4134,9 +4134,9 @@ func main() {
 
 <hr/>
 
-<h2>Program initialization and execution</h2>
+<h2 id="Program_initialization_and_execution">Program initialization and execution</h2>
 
-<h3>The zero value</h3>
+<h3 id="The_zero_value">The zero value</h3>
 <p>
 When memory is allocated to store a value, either through a declaration
 or <code>new()</code>, and no explicit initialization is provided, the memory is
@@ -4183,7 +4183,7 @@ The same would also be true after
 var t T
 </pre>
 
-<h3>Program execution</h3>
+<h3 id="Program_execution">Program execution</h3>
 <p>
 A package with no imports is initialized by assigning initial values to
 all its package-level variables in declaration order and then calling any
@@ -4245,9 +4245,9 @@ is not imported by any other package.
 
 <hr/>
 
-<h2>System considerations</h2>
+<h2 id="System_considerations">System considerations</h2>
 
-<h3>Package <code>unsafe</code></h3>
+<h3 id="Package_unsafe">Package <code>unsafe</code></h3>
 
 <p>
 The built-in package <code>unsafe</code>, known to the compiler,
@@ -4279,7 +4279,7 @@ The function <code>Sizeof</code> takes an expression denoting a
 variable of any type and returns the size of the variable in bytes.
 </p>
 <p>
-The function <code>Offsetof</code> takes a selector (§Selectors) denoting a struct
+The function <code>Offsetof</code> takes a selector (§<a href="#Selectors">Selectors</a>) denoting a struct
 field of any type and returns the field offset in bytes relative to the
 struct's address. For a struct <code>s</code> with field <code>f</code>:
 </p>
@@ -4310,9 +4310,9 @@ Calls to <code>Alignof</code>, <code>Offsetof</code>, and
 </p>
 
 
-<h3>Size and alignment guarantees</h3>
+<h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
 
-For the numeric types (§Numeric types), the following sizes are guaranteed:
+For the numeric types (§<a href="#Numeric_types">Numeric types</a>), the following sizes are guaranteed:
 
 <pre class="grammar">
 type                      size in bytes
@@ -4341,7 +4341,7 @@ The following minimal alignment properties are guaranteed:
 
 <hr/>
 
-<h2><font color=red>Differences between this doc and implementation - TODO</font></h2>
+<h2 id="Implementation_differences"><font color=red>Implementation differences - TODO</font></h2>
 <p>
 <font color=red>
 Implementation does not honor the restriction on goto statements and targets (no intervening declarations).
