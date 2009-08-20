@@ -447,6 +447,7 @@ l0:
 
 	switch(c) {
 	case EOF:
+		lineno = prevlineno;
 		ungetc(EOF);
 		return -1;
 

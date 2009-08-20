@@ -177,14 +177,6 @@ import_stmt:
 			break;
 		}
 
-		// In order to allow multifile packages to use type names
-		// that are the same as the package name (i.e. go/parser
-		// is package parser and has a type called parser), we have
-		// to not bother trying to declare the package if it is our package.
-		// TODO(rsc): Is there a better way to tell if the package is ours?
-		if(my == import && strcmp(import->name, package) == 0)
-			break;
-
 		// TODO(rsc): this line is needed for a package
 		// which does bytes := in a function, which creates
 		// an ONONAME for bytes, but then a different file
@@ -197,7 +189,7 @@ import_stmt:
 		my->def = nod(OPACK, N, N);
 		my->def->sym = import;
 		my->lastlineno = $1;
-		import->block = -1;	// above top level
+		import->block = 1;	// at top level
 	}
 	
 

@@ -392,6 +392,7 @@ typ(int et)
 	t = mal(sizeof(*t));
 	t->etype = et;
 	t->width = BADWIDTH;
+	t->lineno = lineno;
 	return t;
 }
 
