@@ -390,6 +390,7 @@ main(int argc, char *argv[])
 	patch();
 	follow();
 	dodata();
+	dobss();
 	dostkoff();
 	paramspace = "SP";	/* (FP) now (SP) on output */
 	if(debug['p'])

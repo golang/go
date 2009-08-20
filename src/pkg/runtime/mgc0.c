@@ -19,6 +19,7 @@ enum {
 	Debug = 0
 };
 
+extern byte data[];
 extern byte etext[];
 extern byte end[];
 
@@ -84,7 +85,7 @@ mark(void)
 	G *gp;
 
 	// mark data+bss
-	scanblock(0, etext, end - etext);
+	scanblock(0, data, end - data);
 
 	// mark stacks
 	for(gp=allg; gp!=nil; gp=gp->alllink) {
