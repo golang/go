@@ -458,8 +458,6 @@ u8run()
 	}
 }
 
-func	xtest()
-
 func
 main()
 {
