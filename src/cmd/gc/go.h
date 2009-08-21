@@ -485,6 +485,7 @@ struct	Var
 {
 	vlong	offset;
 	Sym*	sym;
+	Sym*	gotype;
 	int	width;
 	char	name;
 	char	etype;
@@ -883,6 +884,7 @@ void	smagic(Magic*);
 void	umagic(Magic*);
 
 void	redeclare(Sym*, char*);
+Sym*	ngotype(Node*);
 
 /*
  *	dcl.c

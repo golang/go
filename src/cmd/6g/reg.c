@@ -682,6 +682,7 @@ addmove(Reg *r, int bn, int rn, int f)
 	a->offset = v->offset;
 	a->etype = v->etype;
 	a->type = v->name;
+	a->gotype = v->gotype;
 
 	// need to clean this up with wptr and
 	// some of the defaults
@@ -869,6 +870,7 @@ mkvar(Reg *r, Adr *a)
 	v->sym = s;
 	v->offset = o;
 	v->name = n;
+	v->gotype = a->gotype;
 	v->etype = et;
 	v->width = w;
 	if(debug['R'])

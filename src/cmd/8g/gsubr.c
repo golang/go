@@ -1691,9 +1691,7 @@ naddr(Node *n, Addr *a)
 		a->etype = 0;
 		if(n->type != T) {
 			a->etype = simtype[n->type->etype];
-			if(n->sym != S && strncmp(n->sym->name, "autotmp_", 8) != 0)
-			if(n->type->etype != TFUNC || n->type->thistuple == 0)
-				a->gotype = typename(n->type)->left->sym;
+			a->gotype = ngotype(n);
 		}
 		a->offset = n->xoffset;
 		a->sym = n->sym;

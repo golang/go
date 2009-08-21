@@ -312,12 +312,16 @@ markdata(Prog *p, Sym *s)
 static void
 marktext(Prog *p)
 {
+	Auto *a;
+
 	if(p == P)
 		return;
 	if(p->as != ATEXT) {
 		diag("marktext: %P", p);
 		return;
 	}
+	for(a=p->to.autom; a; a=a->link)
+		mark(a->gotype);
 	markdepth++;
 	if(debug['v'] > 1)
 		Bprint(&bso, "%d marktext %s\n", markdepth, p->from.sym->name);

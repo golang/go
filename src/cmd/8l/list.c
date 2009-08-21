@@ -177,7 +177,10 @@ brk:
 		strcat(str, s);
 	}
 conv:
-	return fmtstrcpy(fp, str);
+	fmtstrcpy(fp, str);
+	if(a->gotype)
+		fmtprint(fp, "«%s»", a->gotype->name);
+	return 0;
 }
 
 char*	regstr[] =

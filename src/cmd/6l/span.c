@@ -183,8 +183,11 @@ putsymb(char *s, int t, vlong v, int ver, Sym *go)
 		cput(0);
 	}
 	gv = 0;
-	if(go)
+	if(go) {
+		if(!go->reachable)
+			sysfatal("unreachable type %s", go->name);
 		gv = go->value+INITDAT;
+	}
 	if(l == 8)
 		lputb(gv>>32);
 	lputb(gv);
@@ -219,18 +222,24 @@ asmsym(void)
 	if(s->type == STEXT)
 		putsymb(s->name, 'T', s->value, s->version, 0);
 
-	for(h=0; h<NHASH; h++)
-		for(s=hash[h]; s!=S; s=s->link)
+	for(h=0; h<NHASH; h++) {
+		for(s=hash[h]; s!=S; s=s->link) {
 			switch(s->type) {
 			case SCONST:
+				if(!s->reachable)
+					continue;
 				putsymb(s->name, 'D', s->value, s->version, s->gotype);
 				continue;
 
 			case SDATA:
+				if(!s->reachable)
+					continue;
 				putsymb(s->name, 'D', s->value+INITDAT, s->version, s->gotype);
 				continue;
 
 			case SBSS:
+				if(!s->reachable)
+					continue;
 				putsymb(s->name, 'B', s->value+INITDAT, s->version, s->gotype);
 				continue;
 
@@ -238,6 +247,8 @@ asmsym(void)
 				putsymb(s->name, 'f', s->value, s->version, 0);
 				continue;
 			}
+		}
+	}
 
 	for(p = textp; p != P; p = p->pcond) {
 		s = p->from.sym;
@@ -685,11 +696,15 @@ vaddr(Adr *a)
 				ckoff(s, v);
 			case STEXT:
 			case SCONST:
+				if(!s->reachable)
+					sysfatal("unreachable symbol in vaddr - %s", s->name);
 				if((uvlong)s->value < (uvlong)INITTEXT)
 					v += INITTEXT;	/* TO DO */
 				v += s->value;
 				break;
 			default:
+				if(!s->reachable)
+					sysfatal("unreachable symbol in vaddr - %s", s->name);
 				v += INITDAT + s->value;
 			}
 		}
@@ -1662,8 +1677,8 @@ grow(Reloc *r)
 	r->t += 64;
 	m = r->m;
 	a = r->a;
-	r->m = nm = malloc(r->t*sizeof(uchar));
-	r->a = na = malloc(r->t*sizeof(uint32));
+	r->m = nm = mal(r->t*sizeof(uchar));
+	r->a = na = mal(r->t*sizeof(uint32));
 	memmove(nm, m, t*sizeof(uchar));
 	memmove(na, a, t*sizeof(uint32));
 	free(m);

@@ -468,7 +468,7 @@ objfile(char *file)
 	 */
 	Bseek(f, off, 0);
 	cnt = esym - off;
-	start = malloc(cnt + 10);
+	start = mal(cnt + 10);
 	cnt = Bread(f, start, cnt);
 	if(cnt <= 0){
 		Bterm(f);
@@ -677,10 +677,10 @@ addlib(char *src, char *obj)
 		return;
 	}
 
-	p = malloc(strlen(name) + 1);
+	p = mal(strlen(name) + 1);
 	strcpy(p, name);
 	library[libraryp] = p;
-	p = malloc(strlen(obj) + 1);
+	p = mal(strlen(obj) + 1);
 	strcpy(p, obj);
 	libraryobj[libraryp] = p;
 	libraryp++;
@@ -709,9 +709,9 @@ addhist(int32 line, int type)
 	Sym *s;
 	int i, j, k;
 
-	u = malloc(sizeof(Auto));
-	s = malloc(sizeof(Sym));
-	s->name = malloc(2*(histfrogp+1) + 1);
+	u = mal(sizeof(Auto));
+	s = mal(sizeof(Sym));
+	s->name = mal(2*(histfrogp+1) + 1);
 
 	u->asym = s;
 	u->type = type;
@@ -1198,7 +1198,7 @@ lookup(char *symb, int v)
 			return s;
 
 	s = mal(sizeof(Sym));
-	s->name = malloc(l + 1);
+	s->name = mal(l + 1);
 	memmove(s->name, symb, l);
 
 	s->link = hash[h];
