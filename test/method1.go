@@ -1,4 +1,4 @@
-// # errchk $G $D/$F.go
+// errchk $G $D/$F.go
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -14,5 +14,4 @@ func f(int, string);	// GCCGO_ERROR "previous"
 func f(int, float) { }  // ERROR "redeclared|redefinition"
 
 func g(a int, b string);  // GCCGO_ERROR "previous"
-func g(a int, c string);  // ERROR "names changed"
-
+func g(a int, c string);  // ERROR "redeclared|redefinition"
