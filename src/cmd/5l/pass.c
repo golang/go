@@ -138,6 +138,7 @@ dodata(void)
 
 	xdefine("setR12", SDATA, 0L+BIG);
 	xdefine("bdata", SDATA, 0L);
+	xdefine("data", SBSS, 0);
 	xdefine("edata", SDATA, datsize);
 	xdefine("end", SBSS, datsize+bsssize);
 	xdefine("etext", STEXT, 0L);
