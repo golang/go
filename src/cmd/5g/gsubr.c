@@ -206,6 +206,8 @@ regalloc(Node *n, Type *t, Node *o)
 	if(t == T)
 		fatal("regalloc: t nil");
 	et = simtype[t->etype];
+	if(is64(t))
+		fatal("regalloc: 64 bit type %T");
 
 	switch(et) {
 	case TINT8:
@@ -214,10 +216,7 @@ regalloc(Node *n, Type *t, Node *o)
 	case TUINT16:
 	case TINT32:
 	case TUINT32:
-	case TINT64:
-	case TUINT64:
 	case TPTR32:
-	case TPTR64:
 	case TBOOL:
 		if(o != N && o->op == OREGISTER) {
 			i = o->val.u.reg;
@@ -385,17 +384,18 @@ fp:
 }
 
 /*
- * generate
- *	as $c, reg
+ * return constant i node.
+ * overwritten by next call, but useful in calls to gins.
  */
-void
-gconreg(int as, vlong c, int reg)
+Node*
+ncon(uint32 i)
 {
-	Node n1, n2;
+	static Node n;
 
-	nodconst(&n1, types[TINT32], c);
-	nodreg(&n2, types[TINT32], reg);
-	gins(as, &n1, &n2);
+	if(n.type == T)
+		nodconst(&n, types[TUINT32], 0);
+	mpmovecfix(n.val.u.xval, i);
+	return &n;
 }
 
 /*
@@ -413,6 +413,76 @@ ismem(Node *n)
 	return 0;
 }
 
+Node sclean[10];
+int nsclean;
+
+/*
+ * n is a 64-bit value.  fill in lo and hi to refer to its 32-bit halves.
+ */
+void
+split64(Node *n, Node *lo, Node *hi)
+{
+	Node n1;
+	int64 i;
+
+	if(!is64(n->type))
+		fatal("split64 %T", n->type);
+
+	sclean[nsclean].op = OEMPTY;
+	if(nsclean >= nelem(sclean))
+		fatal("split64 clean");
+	nsclean++;
+	switch(n->op) {
+	default:
+		if(!dotaddable(n, &n1)) {
+			igen(n, &n1, N);
+			sclean[nsclean-1] = n1;
+		}
+		n = &n1;
+		goto common;
+	case ONAME:
+		if(n->class == PPARAMREF) {
+			cgen(n->heapaddr, &n1);
+			sclean[nsclean-1] = n1;
+			// fall through.
+			n = &n1;
+		}
+		goto common;
+	case OINDREG:
+	common:
+		*lo = *n;
+		*hi = *n;
+		lo->type = types[TUINT32];
+		if(n->type->etype == TINT64)
+			hi->type = types[TINT32];
+		else
+			hi->type = types[TUINT32];
+		hi->xoffset += 4;
+		break;
+
+	case OLITERAL:
+		convconst(&n1, n->type, &n->val);
+		i = mpgetfix(n1.val.u.xval);
+		nodconst(lo, types[TUINT32], (uint32)i);
+		i >>= 32;
+		if(n->type->etype == TINT64)
+			nodconst(hi, types[TINT32], (int32)i);
+		else
+			nodconst(hi, types[TUINT32], (uint32)i);
+		break;
+	}
+}
+
+void
+splitclean(void)
+{
+	if(nsclean <= 0)
+		fatal("splitclean");
+	nsclean--;
+	if(sclean[nsclean].op != OEMPTY)
+		regfree(&sclean[nsclean]);
+}
+
 #define	CASE(a,b)	(((a)<<16)|((b)<<0))
 
 void
@@ -420,9 +490,8 @@ gmove(Node *f, Node *t)
 {
 	int a, ft, tt;
 	Type *cvt;
-	Node r1, con;
-//	Node r1, r2, t1, t2, flo, fhi, tlo, thi, con, f0, f1, ax, dx, cx;
-//	Prog *p1, *p2, *p3;
+	Node r1, r2, flo, fhi, tlo, thi, con;
+	Prog *p1;
 
 	if(debug['M'])
 		print("gmove %N -> %N\n", f, t);
@@ -433,9 +502,8 @@ gmove(Node *f, Node *t)
 
 	// cannot have two integer memory operands;
 	// except 64-bit, which always copies via registers anyway.
-	// TODO(kaib): re-enable check
-//	if(isint[ft] && isint[tt] && !is64(f->type) && !is64(t->type) && ismem(f) && ismem(t))
-//		goto hard;
+	if(isint[ft] && isint[tt] && !is64(f->type) && !is64(t->type) && ismem(f) && ismem(t))
+		goto hard;
 
 	// convert constant to desired type
 	if(f->op == OLITERAL) {
@@ -471,7 +539,7 @@ gmove(Node *f, Node *t)
 		ft = simsimtype(con.type);
 
 		// constants can't move directly to memory
-		if(ismem(t)) goto hard;
+		if(ismem(t) && !is64(t->type)) goto hard;
 	}
 
 	// value -> value copy, only one memory operand.
@@ -508,15 +576,13 @@ gmove(Node *f, Node *t)
 
 	case CASE(TINT64, TINT8):	// truncate low word
 	case CASE(TUINT64, TINT8):
+		a = AMOVB;
+		goto trunc64;
+
 	case CASE(TINT64, TUINT8):
 	case CASE(TUINT64, TUINT8):
-		fatal("gmove INT64,INT8 not implemented");
-//		split64(f, &flo, &fhi);
-//		nodreg(&r1, t->type, D_AX);
-//		gins(AMOVB, &flo, &r1);
-//		gins(AMOVB, &r1, t);
-//		splitclean();
-		return;
+		a = AMOVBU;
+		goto trunc64;
 
 	case CASE(TINT16, TINT16):	// same size
 	case CASE(TUINT16, TINT16):
@@ -534,15 +600,13 @@ gmove(Node *f, Node *t)
 
 	case CASE(TINT64, TINT16):	// truncate low word
 	case CASE(TUINT64, TINT16):
+		a = AMOVH;
+		goto trunc64;
+
 	case CASE(TINT64, TUINT16):
 	case CASE(TUINT64, TUINT16):
-		fatal("gmove INT64,INT16 not implemented");
-//		split64(f, &flo, &fhi);
-//		nodreg(&r1, t->type, D_AX);
-//		gins(AMOVW, &flo, &r1);
-//		gins(AMOVW, &r1, t);
-//		splitclean();
-		return;
+		a = AMOVHU;
+		goto trunc64;
 
 	case CASE(TINT32, TINT32):	// same size
 	case CASE(TINT32, TUINT32):
@@ -555,34 +619,35 @@ gmove(Node *f, Node *t)
 	case CASE(TUINT64, TINT32):
 	case CASE(TINT64, TUINT32):
 	case CASE(TUINT64, TUINT32):
-		fatal("gmove INT64,INT32 not implemented");
-//		split64(f, &flo, &fhi);
-//		nodreg(&r1, t->type, D_AX);
-//		gins(AMOVL, &flo, &r1);
-//		gins(AMOVL, &r1, t);
-//		splitclean();
+		split64(f, &flo, &fhi);
+		regalloc(&r1, t->type, N);
+		gins(AMOVW, &flo, &r1);
+		gins(AMOVW, &r1, t);
+		regfree(&r1);
+		splitclean();
 		return;
 
 	case CASE(TINT64, TINT64):	// same size
 	case CASE(TINT64, TUINT64):
 	case CASE(TUINT64, TINT64):
 	case CASE(TUINT64, TUINT64):
-		fatal("gmove INT64,INT64 not implemented");
-//		split64(f, &flo, &fhi);
-//		split64(t, &tlo, &thi);
-//		if(f->op == OLITERAL) {
-//			gins(AMOVL, &flo, &tlo);
-//			gins(AMOVL, &fhi, &thi);
-//		} else {
-//			nodreg(&r1, t->type, D_AX);
-//			nodreg(&r2, t->type, D_DX);
-//			gins(AMOVL, &flo, &r1);
-//			gins(AMOVL, &fhi, &r2);
-//			gins(AMOVL, &r1, &tlo);
-//			gins(AMOVL, &r2, &thi);
-//		}
-//		splitclean();
-//		splitclean();
+		split64(f, &flo, &fhi);
+		split64(t, &tlo, &thi);
+		if(f->op == OLITERAL) {
+			gins(AMOVW, &flo, &tlo);
+			gins(AMOVW, &fhi, &thi);
+		} else {
+			regalloc(&r1, flo.type, N);
+			regalloc(&r2, fhi.type, N);
+			gins(AMOVW, &flo, &r1);
+			gins(AMOVW, &fhi, &r2);
+			gins(AMOVW, &r1, &tlo);
+			gins(AMOVW, &r2, &thi);
+			regfree(&r1);
+			regfree(&r2);
+		}
+		splitclean();
+		splitclean();
 		return;
 
 	/*
@@ -594,10 +659,10 @@ gmove(Node *f, Node *t)
 	case CASE(TINT8, TUINT32):
 		a = AMOVB;
 		goto rdst;
-//	case CASE(TINT8, TINT64):	// convert via int32
-//	case CASE(TINT8, TUINT64):
-//		cvt = types[TINT32];
-//		goto hard;
+	case CASE(TINT8, TINT64):	// convert via int32
+	case CASE(TINT8, TUINT64):
+		cvt = types[TINT32];
+		goto hard;
 
 	case CASE(TUINT8, TINT16):	// zero extend uint8
 	case CASE(TUINT8, TUINT16):
@@ -605,49 +670,53 @@ gmove(Node *f, Node *t)
 	case CASE(TUINT8, TUINT32):
 		a = AMOVBU;
 		goto rdst;
-//	case CASE(TUINT8, TINT64):	// convert via uint32
-//	case CASE(TUINT8, TUINT64):
-//		cvt = types[TUINT32];
-//		goto hard;
+	case CASE(TUINT8, TINT64):	// convert via uint32
+	case CASE(TUINT8, TUINT64):
+		cvt = types[TUINT32];
+		goto hard;
 
 	case CASE(TINT16, TINT32):	// sign extend int16
 	case CASE(TINT16, TUINT32):
 		a = AMOVH;
 		goto rdst;
-//	case CASE(TINT16, TINT64):	// convert via int32
-//	case CASE(TINT16, TUINT64):
-//		cvt = types[TINT32];
-//		goto hard;
+	case CASE(TINT16, TINT64):	// convert via int32
+	case CASE(TINT16, TUINT64):
+		cvt = types[TINT32];
+		goto hard;
 
 	case CASE(TUINT16, TINT32):	// zero extend uint16
 	case CASE(TUINT16, TUINT32):
 		a = AMOVHU;
 		goto rdst;
-//	case CASE(TUINT16, TINT64):	// convert via uint32
-//	case CASE(TUINT16, TUINT64):
-//		cvt = types[TUINT32];
-//		goto hard;
+	case CASE(TUINT16, TINT64):	// convert via uint32
+	case CASE(TUINT16, TUINT64):
+		cvt = types[TUINT32];
+		goto hard;
 
 	case CASE(TINT32, TINT64):	// sign extend int32
 	case CASE(TINT32, TUINT64):
-		fatal("gmove TINT32,INT64 not implemented");
-//		split64(t, &tlo, &thi);
-//		nodreg(&flo, tlo.type, D_AX);
-//		nodreg(&fhi, thi.type, D_DX);
-//		gmove(f, &flo);
-//		gins(ACDQ, N, N);
-//		gins(AMOVL, &flo, &tlo);
-//		gins(AMOVL, &fhi, &thi);
-//		splitclean();
+		split64(t, &tlo, &thi);
+		regalloc(&r1, tlo.type, N);
+		regalloc(&r2, thi.type, N);
+		gmove(f, &r1);
+		p1 = gins(AMOVW, &r1, &r2);
+		p1->from.type = D_SHIFT;
+		p1->from.offset = 2 << 5 | 31 << 7 | r1.val.u.reg; // r1->31
+		p1->from.reg = NREG;
+//print("gmove: %P\n", p1);
+		gins(AMOVW, &r1, &tlo);
+		gins(AMOVW, &r2, &thi);
+		regfree(&r1);
+		regfree(&r2);
+		splitclean();
 		return;
 
 	case CASE(TUINT32, TINT64):	// zero extend uint32
 	case CASE(TUINT32, TUINT64):
-		fatal("gmove TUINT32,INT64 not implemented");
-//		split64(t, &tlo, &thi);
-//		gmove(f, &tlo);
-//		gins(AMOVL, ncon(0), &thi);
-//		splitclean();
+		split64(t, &tlo, &thi);
+		gmove(f, &tlo);
+		gins(AMOVW, ncon(0), &thi);
+		splitclean();
 		return;
 
 	/*
@@ -742,18 +811,20 @@ rdst:
 
 hard:
 	// requires register intermediate
-	regalloc(&r1, cvt, t);
+	regalloc(&r1, cvt, T);
 	gmove(f, &r1);
 	gmove(&r1, t);
 	regfree(&r1);
 	return;
 
-//hardmem:
-	// requires memory intermediate
-	tempalloc(&r1, cvt);
-	gmove(f, &r1);
-	gmove(&r1, t);
-	tempfree(&r1);
+trunc64:
+	// truncate 64 bit integer
+	split64(f, &flo, &fhi);
+	regalloc(&r1, t->type, N);
+	gins(a, &flo, &r1);
+	gins(a, &r1, t);
+	regfree(&r1);
+	splitclean();
 	return;
 
 fatal:
@@ -1118,25 +1189,13 @@ optoas(int op, Type *t)
 	case CASE(OCMP, TBOOL):
 	case CASE(OCMP, TINT8):
 	case CASE(OCMP, TUINT8):
-		a = ACMP;
-		break;
-
-//	case CASE(OCMP, TINT16):
-//	case CASE(OCMP, TUINT16):
-//		a = ACMPW;
-//		break;
-
+	case CASE(OCMP, TINT16):
+	case CASE(OCMP, TUINT16):
 	case CASE(OCMP, TINT32):
 	case CASE(OCMP, TUINT32):
 	case CASE(OCMP, TPTR32):
 		a = ACMP;
 		break;
-
-//	case CASE(OCMP, TINT64):
-//	case CASE(OCMP, TUINT64):
-//	case CASE(OCMP, TPTR64):
-//		a = ACMPQ;
-//		break;
 
 	case CASE(OCMP, TFLOAT32):
 		a = ACMPF;
@@ -1163,12 +1222,6 @@ optoas(int op, Type *t)
 		a = AMOVW;
 		break;
 
-//	case CASE(OAS, TINT64):
-//	case CASE(OAS, TUINT64):
-//	case CASE(OAS, TPTR64):
-//		a = AMOVQ;
-//		break;
-
 	case CASE(OAS, TFLOAT32):
 		a = AMOVF;
 		break;
@@ -1186,12 +1239,6 @@ optoas(int op, Type *t)
 	case CASE(OADD, TPTR32):
 		a = AADD;
 		break;
-
-//	case CASE(OADD, TINT64):
-//	case CASE(OADD, TUINT64):
-//	case CASE(OADD, TPTR64):
-//		a = AADDQ;
-//		break;
 
 	case CASE(OADD, TFLOAT32):
 		a = AADDF;
@@ -1211,12 +1258,6 @@ optoas(int op, Type *t)
 		a = ASUB;
 		break;
 
-//	case CASE(OSUB, TINT64):
-//	case CASE(OSUB, TUINT64):
-//	case CASE(OSUB, TPTR64):
-//		a = ASUBQ;
-//		break;
-
 	case CASE(OSUB, TFLOAT32):
 		a = ASUBF;
 		break;
@@ -1235,12 +1276,6 @@ optoas(int op, Type *t)
 		a = AAND;
 		break;
 
-//	case CASE(OAND, TINT64):
-//	case CASE(OAND, TUINT64):
-//	case CASE(OAND, TPTR64):
-//		a = AANDQ;
-//		break;
-
 	case CASE(OOR, TINT8):
 	case CASE(OOR, TUINT8):
 	case CASE(OOR, TINT16):
@@ -1250,12 +1285,6 @@ optoas(int op, Type *t)
 	case CASE(OOR, TPTR32):
 		a = AORR;
 		break;
-
-//	case CASE(OOR, TINT64):
-//	case CASE(OOR, TUINT64):
-//	case CASE(OOR, TPTR64):
-//		a = AORQ;
-//		break;
 
 	case CASE(OXOR, TINT8):
 	case CASE(OXOR, TUINT8):
@@ -1267,12 +1296,6 @@ optoas(int op, Type *t)
 		a = AEOR;
 		break;
 
-//	case CASE(OXOR, TINT64):
-//	case CASE(OXOR, TUINT64):
-//	case CASE(OXOR, TPTR64):
-//		a = AXORQ;
-//		break;
-
 	case CASE(OLSH, TINT8):
 	case CASE(OLSH, TUINT8):
 	case CASE(OLSH, TINT16):
@@ -1283,12 +1306,6 @@ optoas(int op, Type *t)
 		a = ASLL;
 		break;
 
-//	case CASE(OLSH, TINT64):
-//	case CASE(OLSH, TUINT64):
-//	case CASE(OLSH, TPTR64):
-//		a = ASHLQ;
-//		break;
-
 	case CASE(ORSH, TUINT8):
 	case CASE(ORSH, TUINT16):
 	case CASE(ORSH, TUINT32):
@@ -1296,20 +1313,11 @@ optoas(int op, Type *t)
 		a = ASRL;
 		break;
 
-//	case CASE(ORSH, TUINT64):
-//	case CASE(ORSH, TPTR64):
-//		a = ASHRQ;
-//		break;
-
 	case CASE(ORSH, TINT8):
 	case CASE(ORSH, TINT16):
 	case CASE(ORSH, TINT32):
 		a = ASRA;
 		break;
-
-//	case CASE(ORSH, TINT64):
-//		a = ASARQ;
-//		break;
 
 	case CASE(OMUL, TUINT8):
 	case CASE(OMUL, TUINT16):
@@ -1323,12 +1331,6 @@ optoas(int op, Type *t)
 	case CASE(OMUL, TINT32):
 		a = AMUL;
 		break;
-
-//	case CASE(OMUL, TINT64):
-//	case CASE(OMUL, TUINT64):
-//	case CASE(OMUL, TPTR64):
-//		a = AIMULQ;
-//		break;
 
 	case CASE(OMUL, TFLOAT32):
 		a = AMULF;
@@ -1363,18 +1365,6 @@ optoas(int op, Type *t)
 	case CASE(OMOD, TINT32):
 		a = AMOD;
 		break;
-
-//	case CASE(ODIV, TINT64):
-//	case CASE(OMOD, TINT64):
-//		a = AIDIVQ;
-//		break;
-
-//	case CASE(ODIV, TUINT64):
-//	case CASE(ODIV, TPTR64):
-//	case CASE(OMOD, TUINT64):
-//	case CASE(OMOD, TPTR64):
-//		a = ADIVQ;
-//		break;
 
 //	case CASE(OEXTEND, TINT16):
 //		a = ACWD;
@@ -1417,6 +1407,25 @@ sudoclean(void)
 	if(clean[cleani-2].op != OEMPTY)
 		regfree(&clean[cleani-2]);
 	cleani -= 2;
+}
+
+int
+dotaddable(Node *n, Node *n1)
+{
+	int o, oary[10];
+	Node *nn;
+
+	if(n->op != ODOT)
+		return 0;
+
+	o = dotoffset(n, oary, &nn);
+	if(nn != N && nn->addable && o == 1 && oary[0] >= 0) {
+		*n1 = *nn;
+		n1->type = n->type;
+		n1->xoffset += oary[0];
+		return 1;
+	}
+	return 0;
 }
 
 /*

@@ -100,6 +100,12 @@ void	naddr(Node*, Addr*);
 void	cgen_aret(Node*, Node*);
 
 /*
+ * cgen64.c
+ */
+void	cmp64(Node*, Node*, int, Prog*);
+void	cgen64(Node*, Node*);
+
+/*
  * gsubr.c
  */
 void	clearp(Prog*);
@@ -124,14 +130,16 @@ void	tempfree(Node*);
 Node*	nodarg(Type*, int);
 void	nodreg(Node*, Type*, int);
 void	nodindreg(Node*, Type*, int);
-void	gconreg(int, vlong, int);
 void	buildtxt(void);
 Plist*	newplist(void);
 int	isfat(Type*);
+int	dotaddable(Node*, Node*);
 void	sudoclean(void);
 int	sudoaddable(int, Node*, Addr*, int*);
 void	afunclit(Addr*);
 void	datagostring(Strlit*, Addr*);
+void	split64(Node*, Node*, Node*);
+void	splitclean(void);
 
 /*
  * obj.c

@@ -77,8 +77,10 @@ int
 Dconv(Fmt *fp)
 {
 	char str[100]; //, s[100];
+	char *op;
 	Addr *a;
 	int i;
+	int32 v;
 //	uint32 d1, d2;
 
 	a = va_arg(fp->args, Addr*);
@@ -109,6 +111,17 @@ Dconv(Fmt *fp)
 
 	case D_CONST2:
 		sprint(str, "$%d-%d", a->offset, a->offset2);
+		break;
+
+	case D_SHIFT:
+		v = a->offset;
+		op = "<<>>->@>" + (((v>>5) & 3) << 1);
+		if(v & (1<<4))
+			sprint(str, "R%d%c%cR%d", v&15, op[0], op[1], (v>>8)&15);
+		else
+			sprint(str, "R%d%c%c%d", v&15, op[0], op[1], (v>>7)&31);
+		if(a->reg != NREG)
+			sprint(str+strlen(str), "(R%d)", a->reg);
 		break;
 
 	case D_FCONST:
