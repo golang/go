@@ -179,11 +179,11 @@ type ThreadCreate struct {
 	thread Thread;
 }
 
-func (c ThreadCreate) NewThread() Thread {
+func (c *ThreadCreate) NewThread() Thread {
 	return c.thread;
 }
 
-func (c ThreadCreate) String() string {
+func (c *ThreadCreate) String() string {
 	return "thread create";
 }
 
@@ -197,28 +197,28 @@ type ThreadExit struct {
 }
 
 // Exited returns true if the thread exited normally.
-func (c ThreadExit) Exited() bool {
+func (c *ThreadExit) Exited() bool {
 	return c.exitStatus != -1;
 }
 
 // ExitStatus returns the exit status of the thread if it exited
 // normally or -1 otherwise.
-func (c ThreadExit) ExitStatus() int {
+func (c *ThreadExit) ExitStatus() int {
 	return c.exitStatus;
 }
 
 // Signaled returns true if the thread was terminated by a signal.
-func (c ThreadExit) Signaled() bool {
+func (c *ThreadExit) Signaled() bool {
 	return c.exitStatus == -1;
 }
 
 // StopSignal returns the signal that terminated the thread, or "" if
 // it was not terminated by a signal.
-func (c ThreadExit) StopSignal() string {
+func (c *ThreadExit) StopSignal() string {
 	return c.signal;
 }
 
-func (c ThreadExit) String() string {
+func (c *ThreadExit) String() string {
 	res := "thread exited ";
 	switch {
 	case c.Exited():

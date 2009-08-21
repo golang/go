@@ -33,8 +33,9 @@ import (
 // as well as experimentation and examination of gdb's behavior.
 
 const (
-	trace = true;
+	trace = false;
 	traceIP = false;
+	traceMem = false;
 )
 
 /*
@@ -215,11 +216,17 @@ func (e *newThreadError) String() string {
 
 func (t *thread) ptracePeekText(addr uintptr, out []byte) (int, os.Error) {
 	c, err := syscall.PtracePeekText(t.tid, addr, out);
+	if traceMem {
+		fmt.Printf("peek(%#x) => %v, %v\n", addr, out, err);
+	}
 	return c, os.NewSyscallError("ptrace(PEEKTEXT)", err);
 }
 
 func (t *thread) ptracePokeText(addr uintptr, out []byte) (int, os.Error) {
 	c, err := syscall.PtracePokeText(t.tid, addr, out);
+	if traceMem {
+		fmt.Printf("poke(%#x, %v) => %v\n", addr, out, err);
+	}
 	return c, os.NewSyscallError("ptrace(POKETEXT)", err);
 }
 
@@ -889,13 +896,13 @@ func (t *thread) Stopped() (Cause, os.Error) {
 			c = Signal(sigName(t.signal));
 
 		case stoppedThreadCreate:
-			c = ThreadCreate{t.newThread};
+			c = &ThreadCreate{t.newThread};
 
 		case stoppedExiting, exiting, exited:
 			if t.signal == -1 {
-				c = ThreadExit{t.exitStatus, ""};
+				c = &ThreadExit{t.exitStatus, ""};
 			} else {
-				c = ThreadExit{t.exitStatus, sigName(t.signal)};
+				c = &ThreadExit{t.exitStatus, sigName(t.signal)};
 			}
 
 		default:
