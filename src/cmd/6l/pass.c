@@ -67,6 +67,8 @@ dodata(void)
 	datsize = 0;
 	for(i=0; i<NHASH; i++)
 	for(s = hash[i]; s != S; s = s->link) {
+		if(!s->reachable)
+			continue;
 		if(s->type != SDATA)
 		if(s->type != SBSS)
 			continue;
@@ -89,6 +91,8 @@ dodata(void)
 	/* allocate the rest of the data */
 	for(i=0; i<NHASH; i++)
 	for(s = hash[i]; s != S; s = s->link) {
+		if(!s->reachable)
+			continue;
 		if(s->type != SDATA) {
 			if(s->type == SDATA1)
 				s->type = SDATA;
@@ -112,6 +116,8 @@ dodata(void)
 		u -= datsize;
 		for(i=0; i<NHASH; i++)
 		for(s = hash[i]; s != S; s = s->link) {
+			if(!s->reachable)
+				continue;
 			if(s->type != SBSS)
 				continue;
 			t = s->value;
@@ -137,6 +143,8 @@ dobss(void)
 	bsssize = 0;
 	for(i=0; i<NHASH; i++)
 	for(s = hash[i]; s != S; s = s->link) {
+		if(!s->reachable)
+			continue;
 		if(s->type != SBSS)
 			continue;
 		t = s->value;
@@ -984,7 +992,7 @@ export(void)
 			   s->type != SUNDEF &&
 			   (nexports == 0 || s->subtype == SEXPORT))
 				n++;
-	esyms = malloc(n*sizeof(Sym*));
+	esyms = mal(n*sizeof(Sym*));
 	ne = n;
 	n = 0;
 	for(i = 0; i < NHASH; i++)

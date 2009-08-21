@@ -738,6 +738,8 @@ datblk(int32 s, int32 n)
 	memset(buf.dbuf, 0, n+Dbufslop);
 	for(p = datap; p != P; p = p->link) {
 		curp = p;
+		if(!p->from.sym->reachable)
+			sysfatal("unreachable symbol in datblk - %s", p->from.sym->name);
 		l = p->from.sym->value + p->from.offset - s;
 		c = p->from.scale;
 		i = 0;

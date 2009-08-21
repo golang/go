@@ -3298,3 +3298,13 @@ umagic(Magic *m)
 	m->um = q2+1;
 	m->s = p-m->w;
 }
+
+Sym*
+ngotype(Node *n)
+{
+	if(n->sym != S && strncmp(n->sym->name, "autotmp_", 8) != 0)
+	if(n->type->etype != TFUNC || n->type->thistuple == 0)
+	if(n->type->etype != TSTRUCT || n->type->funarg == 0)
+		return typename(n->type)->left->sym;
+	return S;
+}
