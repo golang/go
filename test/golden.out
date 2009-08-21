@@ -168,3 +168,8 @@ bugs/bug190.go:13: invalid recursive type chan S
 bugs/bug190.go:16: invalid recursive type S
 bugs/bug190.go:15: invalid recursive type func(S) (S)
 BUG: should compile
+
+=========== bugs/bug193.go
+BUG: errchk: bugs/bug193.go:13: error message does not match 'shift'
+bugs/bug193.go:13: fatal error: optoas: no entry LSH-float
+errchk: bugs/bug193.go:14: missing expected error: 'shift'
