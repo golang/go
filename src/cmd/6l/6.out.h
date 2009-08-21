@@ -822,7 +822,7 @@ enum
 
 	D_INDIR,	/* additive */
 
-	D_SBIG = D_INDIR + D_INDIR,
+	D_SIZE = D_INDIR + D_INDIR,	/* 6l internal */
 
 	T_TYPE		= 1<<0,
 	T_INDEX		= 1<<1,

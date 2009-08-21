@@ -10,7 +10,7 @@ TARG=\
 OFILES=\
 	asm.$O\
 	compat.$O\
-	elf64.$O\
+	elf.$O\
 	enam.$O\
 	go.$O\
 	list.$O\
@@ -22,7 +22,7 @@ OFILES=\
 HFILES=\
 	l.h\
 	../6l/6.out.h\
-	../ld/elf64.h\
+	../ld/elf.h\
 	../6l/compat.h\
 
 
@@ -42,4 +42,4 @@ install: $(TARG)
 
 go.o: ../ld/go.c
 
-elf64.o: ../ld/elf64.c
+elf.o: ../ld/elf.c
