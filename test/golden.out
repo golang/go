@@ -173,3 +173,7 @@ BUG: should compile
 BUG: errchk: bugs/bug193.go:13: error message does not match 'shift'
 bugs/bug193.go:13: fatal error: optoas: no entry LSH-float
 errchk: bugs/bug193.go:14: missing expected error: 'shift'
+
+=========== bugs/bug194.go
+BUG should compile and run
+$RUNFILE: line 1: PID Segmentation fault      (core dumped) $G $D/$F.go
