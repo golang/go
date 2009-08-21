@@ -1547,41 +1547,41 @@ var (
 </pre>
 
 <p>
-If there are expressions, their number must be equal
-to the number of identifiers, and the n<sup>th</sup> variable
-is initialized to the value of the n<sup>th</sup> expression.
-Otherwise, each variable is initialized to the <i>zero</i>
-of the type (§<a href="#The_zero_value">The zero value</a>).
-The expressions can be general expressions; they need not be constants.
+If a list of expressions is given, the variables are initialized
+by assigning those expressions to the variables (§<a href="#Assignments">Assignments</a>).
+Otherwise, each variable is initialized to its <i>zero value</i>
+(§<a href="#The_zero_value">The zero value</a>).
 </p>
+
 <p>
-Either the type or the expression list must be present.  If the
-type is present, it sets the type of each variable and the expressions
-(if any) must be assignment-compatible to that type.  If the type
-is absent, the variables take the types of the corresponding
-expressions.
+If the type is present, each variable is given that type.
+Otherwise, the types are deduced from the assignment
+of the expression list.
 </p>
+
 <p>
 If the type is absent and the corresponding expression is a constant
-expression of ideal integer or ideal float type, the type of the
-declared variable is <code>int</code> or <code>float</code>
-respectively:
+expression of ideal integer, float, or string type, the type of the
+declared variable is <code>int</code>, <code>float</code>,
+or <code>string</code> respectively:
 </p>
 
 <pre>
 var i = 0       // i has type int
 var f = 3.1415  // f has type float
+var s = "OMDB"  // s has type string
 </pre>
 
 <h3 id="Short_variable_declarations">Short variable declarations</h3>
 
-A <i>short variable declaration</i> uses the syntax
+A <i>short variable declaration</i> uses the syntax:
 
 <pre class="ebnf">
 ShortVarDecl = IdentifierList ":=" ExpressionList .
 </pre>
 
-and is shorthand for the declaration syntax
+It is a shorthand for a regular variable declaration with
+initializer expressions but no types:
 
 <pre class="grammar">
 "var" IdentifierList = ExpressionList .
@@ -1591,24 +1591,11 @@ and is shorthand for the declaration syntax
 i, j := 0, 10;
 f := func() int { return 7; }
 ch := make(chan int);
-</pre>
-
-<p>
-Unlike regular variable declarations, short variable declarations
-can be used, by analogy with tuple assignment (§<a href="#Assignments">Assignments</a>), to
-receive the individual elements of a multi-valued expression such
-as a call to a multi-valued function.  In this form, the ExpressionList
-must be a single such multi-valued expression, the number of
-identifiers must equal the number of values, and the declared
-variables will be assigned the corresponding values.
-</p>
-
-<pre>
 r, w := os.Pipe(fd);  // os.Pipe() returns two values
 </pre>
 
 <p>
-A short variable declaration may redeclare variables provided they
+Unlike regular variable declarations, a short variable declaration may redeclare variables provided they
 were originally declared in the same block with the same type, and at
 least one of the variables is new.  As a consequence, redeclaration
 can only appear in a multi-variable short declaration.
@@ -3133,7 +3120,9 @@ assigns the first value to <code>x</code> and the second to <code>y</code>.
 
 <p>
 In the second form, the number of operands on the left must equal the number
-of expressions on the right, each of which must be single-valued.
+of expressions on the right, each of which must be single-valued, and the
+<i>n</i>th expression on the right is assigned to the <i>n</i>th
+operand on the left.
 The expressions on the right are evaluated before assigning to
 any of the operands on the left, but otherwise the evaluation
 order is unspecified.
@@ -4141,7 +4130,7 @@ func main() {
 When memory is allocated to store a value, either through a declaration
 or <code>new()</code>, and no explicit initialization is provided, the memory is
 given a default initialization.  Each element of such a value is
-set to the zero value for its type: <code>false</code> for booleans,
+set to the <i>zero value</i> for its type: <code>false</code> for booleans,
 <code>0</code> for integers, <code>0.0</code> for floats, <code>""</code>
 for strings, and <code>nil</code> for pointers and interfaces.
 This initialization is done recursively, so for instance each element of an
