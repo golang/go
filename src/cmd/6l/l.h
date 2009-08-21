@@ -120,6 +120,7 @@ struct	Sym
 	uchar	dupok;
 	uchar	reachable;
 	vlong	value;
+	vlong	size;
 	int32	sig;
 	Sym*	link;
 	Prog*	text;
@@ -358,6 +359,7 @@ EXTERN	char*	EXPTAB;
 EXTERN	Prog	undefp;
 EXTERN	vlong	textstksiz;
 EXTERN	vlong	textarg;
+extern	char	thechar;
 
 #define	UP	(&undefp)
 
@@ -373,6 +375,11 @@ int	Sconv(Fmt*);
 void	addhist(int32, int);
 void	addstackmark(void);
 Prog*	appendp(Prog*);
+vlong	addstring(Sym*, char*);
+vlong	adduint32(Sym*, uint32);
+vlong	adduint64(Sym*, uint64);
+vlong	addaddr(Sym*, Sym*);
+vlong	addsize(Sym*, Sym*);
 void	asmb(void);
 void	asmdyn(void);
 void	asmins(Prog*);
@@ -392,6 +399,7 @@ void	deadcode(void);
 void	diag(char*, ...);
 void	dobss(void);
 void	dodata(void);
+void	doelf(void);
 void	doinit(void);
 void	doprof1(void);
 void	doprof2(void);
@@ -438,6 +446,7 @@ void	strnput(char*, int);
 void	undef(void);
 void	undefsym(Sym*);
 vlong	vaddr(Adr*);
+vlong	symaddr(Sym*);
 void	vputl(uint64);
 void	wputb(uint16);
 void	wputl(uint16);

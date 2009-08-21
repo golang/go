@@ -30,7 +30,7 @@
 
 #define	EXTERN
 #include	"l.h"
-#include	"../ld/elf64.h"
+#include	"../ld/elf.h"
 #include	<ar.h>
 
 char	*noname		= "<none>";
@@ -197,7 +197,8 @@ main(int argc, char *argv[])
 			INITRND = 4096;
 		break;
 	case 7:	/* elf64 executable */
-		HEADR = ELF64RESERVE;
+		elfinit();
+		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)
 			INITTEXT = (1<<22)+HEADR;
 		if(INITDAT == -1)
@@ -389,6 +390,7 @@ main(int argc, char *argv[])
 
 	patch();
 	follow();
+	doelf();
 	dodata();
 	dobss();
 	dostkoff();
@@ -438,7 +440,6 @@ loop:
 void
 errorexit(void)
 {
-
 	if(nerrors) {
 		if(cout >= 0)
 			remove(outfile);

@@ -185,7 +185,7 @@ putsymb(char *s, int t, vlong v, int ver, Sym *go)
 	gv = 0;
 	if(go) {
 		if(!go->reachable)
-			sysfatal("unreachable type %s", go->name);
+			diag("unreachable type %s", go->name);
 		gv = go->value+INITDAT;
 	}
 	if(l == 8)
@@ -268,7 +268,6 @@ asmsym(void)
 		/* frame, auto and param after */
 		putsymb(".frame", 'm', p->to.offset+8, 0, 0);
 
-		/* TODO(rsc): Add types for D_AUTO and D_PARAM */
 		for(a=p->to.autom; a; a=a->link)
 			if(a->type == D_AUTO)
 				putsymb(a->asym->name, 'a', -a->aoffset, 0, a->gotype);
@@ -674,6 +673,18 @@ put8(vlong v)
 }
 
 vlong
+symaddr(Sym *s)
+{
+	Adr a;
+
+	a.type = D_ADDR;
+	a.index = D_EXTERN;
+	a.offset = 0;
+	a.sym = s;
+	return vaddr(&a);
+}
+
+vlong
 vaddr(Adr *a)
 {
 	int t;
@@ -697,14 +708,14 @@ vaddr(Adr *a)
 			case STEXT:
 			case SCONST:
 				if(!s->reachable)
-					sysfatal("unreachable symbol in vaddr - %s", s->name);
+					diag("unreachable symbol in vaddr - %s", s->name);
 				if((uvlong)s->value < (uvlong)INITTEXT)
 					v += INITTEXT;	/* TO DO */
 				v += s->value;
 				break;
 			default:
 				if(!s->reachable)
-					sysfatal("unreachable symbol in vaddr - %s", s->name);
+					diag("unreachable symbol in vaddr - %s", s->name);
 				v += INITDAT + s->value;
 			}
 		}

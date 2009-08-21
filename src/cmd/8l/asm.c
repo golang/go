@@ -700,7 +700,7 @@ datblk(int32 s, int32 n)
 	for(p = datap; p != P; p = p->link) {
 		curp = p;
 		if(!p->from.sym->reachable)
-			sysfatal("unreachable symbol in datblk - %s", p->from.sym->name);
+			diag("unreachable symbol in datblk - %s", p->from.sym->name);
 		l = p->from.sym->value + p->from.offset - s;
 		c = p->from.scale;
 		i = 0;
@@ -765,19 +765,6 @@ datblk(int32 s, int32 n)
 			}
 			for(; i<c; i++) {
 				buf.dbuf[l] = p->to.scon[i];
-				l++;
-			}
-			break;
-
-		case D_SBIG:
-			if(debug['a'] && i == 0) {
-				Bprint(&bso, pcstr, l+s+INITDAT);
-				for(j=0; j<c; j++)
-					Bprint(&bso, "%.2ux", p->to.scon[j] & 0xff);
-				Bprint(&bso, "\t%P\n", curp);
-			}
-			for(; i<c; i++) {
-				buf.dbuf[l] = p->to.sbig[i];
 				l++;
 			}
 			break;

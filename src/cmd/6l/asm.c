@@ -29,7 +29,7 @@
 // THE SOFTWARE.
 
 #include	"l.h"
-#include	"../ld/elf64.h"
+#include	"../ld/elf.h"
 
 #define	Dbufslop	100
 
@@ -121,18 +121,276 @@ strnput(char *s, int n)
 	}
 }
 
+vlong
+addstring(Sym *s, char *str)
+{
+	int n, m;
+	vlong r;
+	Prog *p;
+
+	if(s->type == 0)
+		s->type = SDATA;
+	s->reachable = 1;
+	r = s->value;
+	n = strlen(str)+1;
+	while(n > 0) {
+		m = n;
+		if(m > sizeof(p->to.scon))
+			m = sizeof(p->to.scon);
+		p = newdata(s, s->value, m, D_EXTERN);
+		p->to.type = D_SCONST;
+		memmove(p->to.scon, str, m);
+		s->value += m;
+		str += m;
+		n -= m;
+	}
+	return r;
+}
+
+vlong
+adduint32(Sym *s, uint32 v)
+{
+	vlong r;
+	Prog *p;
+
+	if(s->type == 0)
+		s->type = SDATA;
+	s->reachable = 1;
+	r = s->value;
+	p = newdata(s, s->value, 4, D_EXTERN);
+	s->value += 4;
+	p->to.type = D_CONST;
+	p->to.offset = v;
+	return r;
+}
+
+vlong
+adduint64(Sym *s, uint64 v)
+{
+	vlong r;
+	Prog *p;
+
+	if(s->type == 0)
+		s->type = SDATA;
+	s->reachable = 1;
+	r = s->value;
+	p = newdata(s, s->value, 8, D_EXTERN);
+	s->value += 8;
+	p->to.type = D_CONST;
+	p->to.offset = v;
+	return r;
+}
+
+vlong
+addaddr(Sym *s, Sym *t)
+{
+	vlong r;
+	Prog *p;
+	enum { Ptrsize = 8 };
+
+	if(s->type == 0)
+		s->type = SDATA;
+	s->reachable = 1;
+	r = s->value;
+	p = newdata(s, s->value, Ptrsize, D_EXTERN);
+	s->value += Ptrsize;
+	p->to.type = D_ADDR;
+	p->to.index = D_EXTERN;
+	p->to.offset = 0;
+	p->to.sym = t;
+	return r;
+}
+
+vlong
+addsize(Sym *s, Sym *t)
+{
+	vlong r;
+	Prog *p;
+	enum { Ptrsize = 8 };
+
+	if(s->type == 0)
+		s->type = SDATA;
+	s->reachable = 1;
+	r = s->value;
+	p = newdata(s, s->value, Ptrsize, D_EXTERN);
+	s->value += Ptrsize;
+	p->to.type = D_SIZE;
+	p->to.index = D_EXTERN;
+	p->to.offset = 0;
+	p->to.sym = t;
+	return r;
+}
+
+vlong
+datoff(vlong addr)
+{
+	if(addr >= INITDAT)
+		return addr - INITDAT + rnd(HEADR+textsize, INITRND);
+	diag("datoff %#llx", addr);
+	return 0;
+}
+
+int nrela;
+
+enum {
+	ElfStrEmpty,
+	ElfStrInterp,
+	ElfStrHash,
+	ElfStrGot,
+	ElfStrGotPlt,
+	ElfStrDynamic,
+	ElfStrDynsym,
+	ElfStrDynstr,
+	ElfStrRela,
+	ElfStrText,
+	ElfStrData,
+	ElfStrBss,
+	ElfStrGosymtab,
+	ElfStrGopclntab,
+	ElfStrShstrtab,
+	NElfStr
+};
+
+vlong elfstr[NElfStr];
+
+void
+doelf(void)
+{
+	Sym *s, *shstrtab;
+
+	if(HEADTYPE != 7)
+		return;
+
+	/* predefine strings we need for section headers */
+	shstrtab = lookup(".shstrtab", 0);
+	elfstr[ElfStrEmpty] = addstring(shstrtab, "");
+	elfstr[ElfStrText] = addstring(shstrtab, ".text");
+	elfstr[ElfStrData] = addstring(shstrtab, ".data");
+	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
+	if(!debug['s']) {
+		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
+		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
+	}
+	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
+
+	if(!debug['d']) {	/* -d suppresses dynamic loader format */
+		elfstr[ElfStrInterp] = addstring(shstrtab, ".interp");
+		elfstr[ElfStrHash] = addstring(shstrtab, ".hash");
+		elfstr[ElfStrGot] = addstring(shstrtab, ".got");
+		elfstr[ElfStrGotPlt] = addstring(shstrtab, ".got.plt");
+		elfstr[ElfStrDynamic] = addstring(shstrtab, ".dynamic");
+		elfstr[ElfStrDynsym] = addstring(shstrtab, ".dynsym");
+		elfstr[ElfStrDynstr] = addstring(shstrtab, ".dynstr");
+		elfstr[ElfStrRela] = addstring(shstrtab, ".rela");
+
+		/* interpreter string */
+		s = lookup(".interp", 0);
+		s->reachable = 1;
+		s->type = SDATA;	// TODO: rodata
+		addstring(lookup(".interp", 0), linuxdynld);
+
+		/* hash table - empty for now */
+		s = lookup(".hash", 0);
+		s->type = SDATA;	// TODO: rodata
+		s->reachable = 1;
+		s->value += 8;	// two leading zeros
+
+		/* dynamic symbol table - first entry all zeros */
+		s = lookup(".dynsym", 0);
+		s->type = SDATA;
+		s->reachable = 1;
+		s->value += ELF64SYMSIZE;
+
+		/* dynamic string table */
+		s = lookup(".dynstr", 0);
+		addstring(s, "");
+
+		/* relocation table */
+		s = lookup(".rela", 0);
+		s->reachable = 1;
+		s->type = SDATA;
+
+		/* global offset table */
+		s = lookup(".got", 0);
+		s->reachable = 1;
+		s->type = SDATA;
+
+		/* got.plt - ??? */
+		s = lookup(".got.plt", 0);
+		s->reachable = 1;
+		s->type = SDATA;
+
+		/* define dynamic elf table */
+		s = lookup(".dynamic", 0);
+		elfwritedynentsym(s, DT_HASH, lookup(".hash", 0));
+		elfwritedynentsym(s, DT_SYMTAB, lookup(".dynsym", 0));
+		elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE);
+		elfwritedynentsym(s, DT_STRTAB, lookup(".dynstr", 0));
+		elfwritedynentsymsize(s, DT_STRSZ, lookup(".dynstr", 0));
+		elfwritedynentsym(s, DT_RELA, lookup(".rela", 0));
+		elfwritedynentsymsize(s, DT_RELASZ, lookup(".rela", 0));
+		elfwritedynent(s, DT_RELAENT, ELF64RELASIZE);
+		elfwritedynent(s, DT_NULL, 0);
+	}
+
+/*
+	putc = lookup("main·putc", 0);
+	if(putc->type != SDATA && putc->type != SBSS)
+		return;
+
+	// smash main.putc with putc
+	s = lookup(".elfrela", 0);
+	s->type = SDATA;
+	s->value = 24;
+	p = newdata(s, 0, 8, D_EXTERN);	// r_offset
+	p->to.type = D_ADDR;
+	p->to.index = D_EXTERN;
+	p->to.sym = putc;
+
+	p = newdata(s, 8, 8, D_EXTERN);	// r_info
+	p->to.type = D_CONST;
+	p->to.offset = ELF64_R_INFO(0, 1);	// use 0 as symbol value; 1 is S+A calculation
+
+	p = newdata(s, 16, 8, D_EXTERN);	// r_addend
+	p->to.type = D_CONST;
+	p->to.offset = 1000;
+
+	nrela = 1;
+*/
+
+}
+
+void
+shsym(Elf64_Shdr *sh, Sym *s)
+{
+	sh->addr = symaddr(s);
+	sh->off = datoff(sh->addr);
+	sh->size = s->size;
+}
+
+void
+phsh(Elf64_Phdr *ph, Elf64_Shdr *sh)
+{
+	ph->vaddr = sh->addr;
+	ph->paddr = ph->vaddr;
+	ph->off = sh->off;
+	ph->filesz = sh->size;
+	ph->memsz = sh->size;
+	ph->align = sh->addralign;
+}
+
 void
 asmb(void)
 {
 	Prog *p;
 	int32 v, magic;
-	int a, nl;
+	int a, nl, dynsym;
 	uchar *op1;
-	vlong vl, va, startva, fo, w, symo, hashoff, dstrtab, off;
+	vlong vl, va, startva, fo, w, symo;
 	vlong symdatva = 0x99LL<<32;
-	Elf64Hdr *eh;
-	Elf64PHdr *ph, *pph;
-	Elf64SHdr *sh;
+	Elf64_Ehdr *eh;
+	Elf64_Phdr *ph, *pph;
+	Elf64_Shdr *sh;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -200,7 +458,6 @@ asmb(void)
 		debug['8'] = 1;	/* 64-bit addresses */
 		v = rnd(HEADR+textsize, INITRND);
 		seek(cout, v, 0);
-		elf64init();
 		break;
 	}
 
@@ -422,143 +679,53 @@ asmb(void)
 	case 7:
 		/* elf amd-64 */
 
+		eh = getElf64_Ehdr();
 		fo = 0;
 		startva = INITTEXT - HEADR;
 		va = startva;
 		w = HEADR+textsize;
 
 		/* This null SHdr must appear before all others */
-		sh = newElf64SHdr("");
+		sh = newElf64_Shdr(elfstr[ElfStrEmpty]);
 
-		pph = nil;	/* silence compiler */
-		dstrtab = 0;
+		/* program header info */
+		pph = newElf64_Phdr();
+		pph->type = PT_PHDR;
+		pph->flags = PF_R + PF_X;
+		pph->off = eh->ehsize;
+		pph->vaddr = startva + pph->off;
+		pph->paddr = startva + pph->off;
+		pph->align = INITRND;
 
-		/* Dynamic linking sections */
-		if (!debug['d']) {	/* -d suppresses dynamic loader format */
-
-			/* P headers */
-			/* program header info */
-			pph = newElf64PHdr();
-			pph->type = PT_PHDR;
-			pph->flags = PF_R + PF_X;
-			pph->off = ELF64HDRSIZE;
-			pph->vaddr = startva + pph->off;
-			pph->paddr = startva + pph->off;
-			pph->align = INITRND;
-
+		if(!debug['d']) {
 			/* interpreter */
-			ph = newElf64PHdr();
+			sh = newElf64_Shdr(elfstr[ElfStrInterp]);
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC;
+			sh->addralign = 1;
+			shsym(sh, lookup(".interp", 0));
+
+			ph = newElf64_Phdr();
 			ph->type = PT_INTERP;
 			ph->flags = PF_R;
-			ph->off = startelf();
-			ph->vaddr = startva + ph->off;
-			ph->paddr = startva + ph->off;
-			write(cout, linuxdynld, sizeof linuxdynld);
-			ph->filesz = endelf() - ph->off;
-			ph->align = 1;
-
-			/* S header for interpreter */
-			sh = newElf64SHdr(".interp");
-			sh->type = SHT_PROGBITS;
-			sh->flags = SHF_ALLOC;
-			sh->off = ph->off;
-			sh->addr = startva + sh->off;
-			sh->size = ph->filesz;
-			sh->addralign = 1;
-
-			/* S headers inside dynamic load section */
-			sh = newElf64SHdr(".hash");
-			sh->type = SHT_HASH;
-			sh->flags = SHF_ALLOC;
-			sh->entsize = 4;
-			sh->off = startelf();
-			hashoff = sh->off;
-			sh->addr = startva + sh->off;
-			/* temporary hack: 8 zeroes means 0 buckets, 0 chains */
-			write(cout, zeroes, 8);
-			sh->size = endelf() - sh->off;
-			sh->addralign = 8;
-
-			sh = newElf64SHdr(".got");
-			sh->type = SHT_PROGBITS;
-			sh->flags = SHF_ALLOC+SHF_WRITE;
-			sh->entsize = 8;
-			sh->off = startelf();
-			sh->addr = startva + sh->off;
-			sh->size = endelf() - sh->off;
-			sh->addralign = 8;
-
-			sh = newElf64SHdr(".got.plt");
-			sh->type = SHT_PROGBITS;
-			sh->flags = SHF_ALLOC+SHF_WRITE;
-			sh->entsize = 8;
-			sh->off = startelf();
-			sh->addr = startva + sh->off;
-			sh->size = endelf() - sh->off;
-			sh->addralign = 8;
-
-			sh = newElf64SHdr(".dynamic");
-			sh->type = SHT_DYNAMIC;
-			sh->flags = SHF_ALLOC+SHF_WRITE;
-			sh->entsize = 16;
-			sh->addr = startva + sh->off;
-			sh->off = startelf();
-			elf64writedynent(DT_HASH, startva+hashoff);
-			elf64writedynent(DT_SYMTAB, startva);
-			elf64writedynent(DT_RELA, startva);
-			elf64writedynent(DT_RELASZ, 0);	// size of the whole rela in bytes
-			elf64writedynent(DT_RELAENT, ELF64RELASIZE);
-			elf64writedynent(DT_SYMENT, 0);
-//			elf64writedynent(DT_NEEDED, elf64addstr("libc.so.6"));
-
-			/* make space for these now but fill them in later */
-			cflush();
-			dstrtab = seek(cout, 0, 1);
-			elf64writedynent(DT_STRTAB, -1);
-			elf64writedynent(DT_STRSZ, -1);
-
-			elf64writedynent(DT_NULL, 0);
-			sh->size = endelf() - sh->off;
-			sh->addralign = 8;
-
-			/* PT_DYNAMIC for .dynamic section */
-			ph = newElf64PHdr();
-			ph->type = PT_DYNAMIC;
-			ph->flags = PF_R + PF_W;
-			ph->off = sh->off;
-			ph->vaddr = startva + ph->off;
-			ph->paddr = startva + ph->off;
-			ph->filesz = sh->size;
-			ph->memsz = sh->size;
-			ph->align = 8;
-
-			/* PT_LOAD for all dynamic sections */
-			ph = newElf64PHdr();
-			ph->type = PT_LOAD;
-			ph->flags = PF_R + PF_W;
-			ph->off = 0;
-			ph->vaddr = startva + ph->off;
-			ph->paddr = startva + ph->off;
-			ph->filesz = sh->off + sh->size - ph->off;
-			ph->memsz = ph->filesz;
-			ph->align = INITRND;
+			phsh(ph, sh);
 		}
 
-		ph = newElf64PHdr();
+		ph = newElf64_Phdr();
 		ph->type = PT_LOAD;
 		ph->flags = PF_X+PF_R;
-		ph->vaddr = va + ELF64RESERVE;
-		ph->paddr = va + ELF64RESERVE;
-		ph->off = ELF64RESERVE;
-		ph->filesz = w - ELF64RESERVE;
-		ph->memsz = w - ELF64RESERVE;
+		ph->vaddr = va;
+		ph->paddr = va;
+		ph->off = 0;
+		ph->filesz = w;
+		ph->memsz = w;
 		ph->align = INITRND;
 
 		fo = rnd(fo+w, INITRND);
 		va = rnd(va+w, INITRND);
 		w = datsize;
 
-		ph = newElf64PHdr();
+		ph = newElf64_Phdr();
 		ph->type = PT_LOAD;
 		ph->flags = PF_W+PF_R;
 		ph->off = fo;
@@ -569,7 +736,7 @@ asmb(void)
 		ph->align = INITRND;
 
 		if(!debug['s']) {
-			ph = newElf64PHdr();
+			ph = newElf64_Phdr();
 			ph->type = PT_LOAD;
 			ph->flags = PF_W+PF_R;
 			ph->off = symo;
@@ -580,16 +747,78 @@ asmb(void)
 			ph->align = INITRND;
 		}
 
-		ph = newElf64PHdr();
+		/* Dynamic linking sections */
+		if (!debug['d']) {	/* -d suppresses dynamic loader format */
+			/* S headers for dynamic linking */
+			sh = newElf64_Shdr(elfstr[ElfStrHash]);
+			sh->type = SHT_HASH;
+			sh->flags = SHF_ALLOC;
+			sh->entsize = 4;
+			sh->addralign = 8;
+			// sh->link = xxx;
+			shsym(sh, lookup(".hash", 0));
+
+			sh = newElf64_Shdr(elfstr[ElfStrGot]);
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->entsize = 8;
+			sh->addralign = 8;
+			shsym(sh, lookup(".got", 0));
+
+			sh = newElf64_Shdr(elfstr[ElfStrGotPlt]);
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->entsize = 8;
+			sh->addralign = 8;
+			shsym(sh, lookup(".got.plt", 0));
+
+			dynsym = eh->shnum;
+			sh = newElf64_Shdr(elfstr[ElfStrDynsym]);
+			sh->type = SHT_DYNSYM;
+			sh->flags = SHF_ALLOC;
+			sh->entsize = 1;
+			sh->addralign = 8;
+			sh->link = dynsym+1;	// dynstr
+			// sh->info = index of first non-local symbol (number of local symbols)
+			shsym(sh, lookup(".dynsym", 0));
+
+			sh = newElf64_Shdr(elfstr[ElfStrDynstr]);
+			sh->type = SHT_STRTAB;
+			sh->flags = SHF_ALLOC;
+			sh->addralign = 1;
+			shsym(sh, lookup(".dynstr", 0));
+
+			sh = newElf64_Shdr(elfstr[ElfStrRela]);
+			sh->type = SHT_RELA;
+			sh->flags = SHF_ALLOC;
+			sh->addralign = 8;
+			sh->link = dynsym;
+			shsym(sh, lookup(".rela", 0));
+
+			/* sh and PT_DYNAMIC for .dynamic section */
+			sh = newElf64_Shdr(elfstr[ElfStrDynamic]);
+			sh->type = SHT_DYNAMIC;
+			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->entsize = 16;
+			sh->addralign = 8;
+			sh->link = dynsym+1;	// dynstr
+			shsym(sh, lookup(".dynamic", 0));
+			ph = newElf64_Phdr();
+			ph->type = PT_DYNAMIC;
+			ph->flags = PF_R + PF_W;
+			phsh(ph, sh);
+		}
+
+		ph = newElf64_Phdr();
 		ph->type = 0x6474e551; 	/* GNU_STACK */
 		ph->flags = PF_W+PF_R;
 		ph->align = 8;
 
-		fo = ELF64RESERVE;
+		fo = ELFRESERVE;
 		va = startva + fo;
 		w = textsize;
 
-		sh = newElf64SHdr(".text");
+		sh = newElf64_Shdr(elfstr[ElfStrText]);
 		sh->type = SHT_PROGBITS;
 		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
 		sh->addr = va;
@@ -601,7 +830,7 @@ asmb(void)
 		va = rnd(va+w, INITRND);
 		w = datsize;
 
-		sh = newElf64SHdr(".data");
+		sh = newElf64_Shdr(elfstr[ElfStrData]);
 		sh->type = SHT_PROGBITS;
 		sh->flags = SHF_WRITE+SHF_ALLOC;
 		sh->addr = va;
@@ -613,7 +842,7 @@ asmb(void)
 		va += w;
 		w = bsssize;
 
-		sh = newElf64SHdr(".bss");
+		sh = newElf64_Shdr(elfstr[ElfStrBss]);
 		sh->type = SHT_NOBITS;
 		sh->flags = SHF_WRITE+SHF_ALLOC;
 		sh->addr = va;
@@ -625,7 +854,7 @@ asmb(void)
 			fo = symo+8;
 			w = symsize;
 
-			sh = newElf64SHdr(".gosymtab");
+			sh = newElf64_Shdr(elfstr[ElfStrGosymtab]);
 			sh->type = SHT_PROGBITS;
 			sh->off = fo;
 			sh->size = w;
@@ -635,7 +864,7 @@ asmb(void)
 			fo += w;
 			w = lcsize;
 
-			sh = newElf64SHdr(".gopclntab");
+			sh = newElf64_Shdr(elfstr[ElfStrGopclntab]);
 			sh->type = SHT_PROGBITS;
 			sh->off = fo;
 			sh->size = w;
@@ -643,27 +872,12 @@ asmb(void)
 			sh->entsize = 24;
 		}
 
-		sh = newElf64SHdr(".shstrtab");
+		sh = newElf64_Shstrtab(elfstr[ElfStrShstrtab]);
 		sh->type = SHT_STRTAB;
-		sh->off = startelf();
-		sh->addr = sh->off + startva;
 		sh->addralign = 1;
-		elf64writestrtable();
-		sh->size = endelf() - sh->off;
-
-		if(dstrtab != 0) {
-			// update DT_STRTAB entry
-			cflush();
-			off = seek(cout, 0, 1);
-			seek(cout, dstrtab, 0);
-			elf64writedynent(DT_STRTAB, sh->addr);
-			elf64writedynent(DT_STRSZ, sh->size);
-			cflush();
-			seek(cout, off, 0);
-		}
+		shsym(sh, lookup(".shstrtab", 0));
 
 		/* Main header */
-		eh = getElf64Hdr();
 		eh->ident[EI_MAG0] = '\177';
 		eh->ident[EI_MAG1] = 'E';
 		eh->ident[EI_MAG2] = 'L';
@@ -677,18 +891,16 @@ asmb(void)
 		eh->version = EV_CURRENT;
 		eh->entry = entryvalue();
 
-		if (!debug['d']) {
-			pph->filesz = eh->phnum * ELF64PHDRSIZE;
-			pph->memsz = pph->filesz;
-		}
+		pph->filesz = eh->phnum * eh->phentsize;
+		pph->memsz = pph->filesz;
 
 		seek(cout, 0, 0);
 		a = 0;
 		a += elf64writehdr();
 		a += elf64writephdrs();
 		a += elf64writeshdrs();
-		if (a > ELF64FULLHDRSIZE) {
-			diag("ELF64FULLHDRSIZE too small:", a);
+		if (a > ELFRESERVE) {
+			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
 		}
 		cflush();
 
@@ -739,7 +951,7 @@ datblk(int32 s, int32 n)
 	for(p = datap; p != P; p = p->link) {
 		curp = p;
 		if(!p->from.sym->reachable)
-			sysfatal("unreachable symbol in datblk - %s", p->from.sym->name);
+			diag("unreachable symbol in datblk - %s", p->from.sym->name);
 		l = p->from.sym->value + p->from.offset - s;
 		c = p->from.scale;
 		i = 0;
@@ -795,17 +1007,10 @@ datblk(int32 s, int32 n)
 			}
 			break;
 
-		case D_SBIG:
-			if(debug['a'] && i == 0)
-				outa(c, (uchar*)p->to.sbig, nil, l+s+INITDAT);
-			for(; i<c; i++) {
-				buf.dbuf[l] = p->to.sbig[i];
-				l++;
-			}
-			break;
-
 		default:
 			o = p->to.offset;
+			if(p->to.type == D_SIZE)
+				o += p->to.sym->size;
 			if(p->to.type == D_ADDR) {
 				if(p->to.index != D_STATIC && p->to.index != D_EXTERN)
 					diag("DADDR type%P", p);

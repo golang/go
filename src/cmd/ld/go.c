@@ -325,6 +325,8 @@ marktext(Prog *p)
 	markdepth++;
 	if(debug['v'] > 1)
 		Bprint(&bso, "%d marktext %s\n", markdepth, p->from.sym->name);
+	for(a=p->to.autom; a; a=a->link)
+		mark(a->gotype);
 	for(p=p->link; p != P; p=p->link) {
 		if(p->as == ATEXT || p->as == ADATA || p->as == AGLOBL)
 			break;

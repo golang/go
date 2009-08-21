@@ -449,8 +449,7 @@ enum
 
 	D_INDIR,	/* additive */
 
-	D_SBIG = D_INDIR + D_INDIR,
-	D_CONST2,
+	D_CONST2 = D_INDIR+D_INDIR,
 
 	T_TYPE		= 1<<0,
 	T_INDEX		= 1<<1,

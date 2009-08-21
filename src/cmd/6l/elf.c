@@ -3,4 +3,4 @@
 // license that can be found in the LICENSE file.
 
 #include "l.h"
-#include "../ld/elf64.c"
+#include "../ld/elf.c"
