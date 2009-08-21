@@ -134,6 +134,7 @@ dodata(void)
 		s->value = bsssize + datsize;
 		bsssize += t;
 	}
+	xdefine("data", SBSS, 0);
 	xdefine("edata", SBSS, datsize);
 	xdefine("end", SBSS, bsssize + datsize);
 }
