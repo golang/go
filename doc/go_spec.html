@@ -351,7 +351,7 @@ integer literals.
 <h3 id="String_literals">String literals</h3>
 
 <p>
-String literals represent <i>ideal string</i> values. Ideal strings don't
+String literals represent <i>ideal string</i> values. Ideal strings do not
 have a named type but they are compatible with type <code>string</code>
 (§<a href="#Type_identity_and_compatibility">Type identity and compatibility</a>).
 There are two forms: raw string literals and interpreted string
@@ -1037,7 +1037,7 @@ the zero value for the channel's type.  After at least one such zero value has b
 received, <code>closed(c)</code> returns true.
 </p>
 
-<h2 id="General_properties_of_types_and_values">General properties of types and values</h2>
+<h2 id="Properties_of_types_and_values">Properties of types and values</h2>
 
 <p>
 Two types may be <i>identical</i>, <i>compatible</i>, or <i>incompatible</i>.
@@ -1215,6 +1215,8 @@ Function values are equal if they refer to the same function.
 <li>
 Channel and map values are equal if they were created by the same call to <code>make</code>
 (§<a href="#Making_slices">Making slices</a>, maps, and channels).
+When comparing two values of channel type, the channel value types
+must be compatible but the channel direction is ignored.
 </li>
 <li>
 Interface values may be compared if they have compatible static types.
@@ -2391,30 +2393,50 @@ unary_op   = "+" | "-" | "!" | "^" | "*" | "&amp;" | "&lt;-" .
 </pre>
 
 <p>
-The operand types in binary operations must be compatible, with the following exceptions:
+Comparisons are discussed elsewhere
+(§<a href="#Comparison_compatibility">Comparison compatibility</a>).
+For other binary operators, the
+operand types must be identical
+(§<a href="#Properties_of_types_and_values">Properties of types and values</a>)
+unless the operation involves
+channels, shifts, or ideal constants.
 </p>
-<ul>
-	<li>Except in shift expressions, if one operand has numeric type and the other operand is
-	  an ideal number, the ideal number is converted to match the type of
-	  the other operand (§<a href="#Expressions">Expressions</a>).</li>
 
-	<li>Except in shift expressions, if both operands are ideal numbers and one is an
-	  ideal float, the other is converted to ideal float
-	  (relevant for <code>/</code> and <code>%</code>).</li>
+<p>
+In a channel send, the first operand is always a channel and the
+second is a value of the channel's element type.
+</p>
 
-	<li>In shift operations, the above rules apply to the left operand of the shift as
-	  if the shift operator and the right operand where not present.
+<p>
+Except for shift operations,
+if one operand has ideal type and the other operand does not,
+the ideal operand is converted converted to match the type of
+the other operand (§<a href="#Expressions">Expressions</a>).
+If both operands are ideal numbers and one is an
+ideal float, the other is converted to ideal float
+(relevant for <code>/</code> and <code>%</code>).
+</p>
 
-	<li>The right operand in a shift operation must be always be of unsigned integer type
-	  or an ideal number that can be safely converted into an unsigned integer type
-	  (§<a href="#Arithmetic_operators">Arithmetic operators</a>).</li>
+<p>
+The right operand in a shift operation must have unsigned integer type
+or be an ideal number that can be converted to unsigned integer type
+(§<a href="#Arithmetic_operators">Arithmetic operators</a>).
+</p>
 
-	<li>The operands in channel sends differ in type: one is always a channel and the
-	other is a variable or value of the channel's element type.</li>
+<p>
+If the left operand of a non-constant shift operation is an ideal number,
+the type of the ideal number
+is what it would be if the shift operation were replaced by the left operand alone.
+</p>
 
-	<li>When comparing two operands of channel type, the channel value types
-	  must be compatible but the channel direction is ignored.</li>
-</ul>
+<pre>
+var s uint = 33;
+var i = 1&lt;&lt;s;          // 1 has type int
+var j = int32(1&lt;&lt;s);   // 1 has type int32; j == 0
+var u = uint64(1&lt;&lt;s);  // 1 has type uint64; u == 1&lt;&lt;33
+var f = float(1&lt;&lt;s);   // illegal: 1 has type float, cannot shift
+var g = float(1&lt;&lt;33);  // legal; 1&lt;&lt;33 is a constant shift operation; g == 1&lt;&lt;33
+</pre>
 
 <p>
 Unary operators have the highest precedence.
