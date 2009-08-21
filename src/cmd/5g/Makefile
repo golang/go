@@ -14,13 +14,14 @@ HFILES=\
 	opt.h\
 
 OFILES=\
-	list.$O\
-	gobj.$O\
-	galign.$O\
-	ggen.$O\
-	cgen.$O\
-	gsubr.$O\
 	../5l/enam.$O\
+	list.$O\
+	galign.$O\
+	gobj.$O\
+	ggen.$O\
+	gsubr.$O\
+	cgen.$O\
+	cgen64.$O
 
 LIB=\
 	../gc/gc.a$O

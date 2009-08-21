@@ -435,8 +435,8 @@ void
 clearfat(Node *nl)
 {
 	uint32 w, c, q;
-	Node dst, nc, nz;
-	Prog *p;
+	Node dst, nc, nz, end;
+	Prog *p, *pl;
 
 	/* clear a fat object */
 	if(debug['g'])
@@ -453,10 +453,21 @@ clearfat(Node *nl)
 	cgen(&nc, &nz);
 
 	if(q >= 4) {
-		fatal("clearfat q >=4 not implemented");
-//		gconreg(AMOVQ, q, D_CX);
-//		gins(AREP, N, N);	// repeat
-//		gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
+		regalloc(&end, types[tptr], N);
+		p = gins(AMOVW, &dst, &end);
+		p->from.type = D_CONST;
+		p->from.offset = q*4;
+
+		p = gins(AMOVW, &nz, &dst);
+		p->to.type = D_OREG;
+		p->to.offset = 4;
+		p->scond |= C_PBIT;
+		pl = p;
+
+		gins(ACMP, &dst, &end);
+		patch(gbranch(ABNE, T), pl);
+
+		regfree(&end);
 	} else
 	while(q > 0) {
 		p = gins(AMOVW, &nz, &dst);
@@ -468,7 +479,7 @@ clearfat(Node *nl)
 	}
 
 	while(c > 0) {
-		gins(AMOVBU, &nz, &dst);
+		p = gins(AMOVBU, &nz, &dst);
 		p->to.type = D_OREG;
 		p->to.offset = 1;
  		p->scond |= C_PBIT;

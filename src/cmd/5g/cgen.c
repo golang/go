@@ -4,6 +4,35 @@
 
 #include "gg.h"
 
+void
+mgen(Node *n, Node *n1, Node *rg)
+{
+	n1->ostk = 0;
+	n1->op = OEMPTY;
+
+	if(n->addable) {
+		*n1 = *n;
+		n1->ostk = 0;
+		if(n1->op == OREGISTER || n1->op == OINDREG)
+			reg[n->val.u.reg]++;
+		return;
+	}
+	if(n->type->width > widthptr)
+		tempalloc(n1, n->type);
+	else
+		regalloc(n1, n->type, rg);
+	cgen(n, n1);
+}
+
+void
+mfree(Node *n)
+{
+	if(n->ostk)
+		tempfree(n);
+	else if(n->op == OREGISTER)
+		regfree(n);
+}
+
 /*
  * generate:
  *	res = n;
@@ -124,22 +153,42 @@ cgen(Node *n, Node *res)
 		goto ret;
 	}
 
-	a = optoas(OAS, n->type);
-	if(sudoaddable(a, n, &addr, &w)) {
-		if(res->op == OREGISTER) {
-			p1 = gins(a, N, res);
-			p1->from = addr;
-			p1->reg = w;
-		} else {
-			regalloc(&n2, n->type, N);
-			p1 = gins(a, N, &n2);
-			p1->from = addr;
-			p1->reg = w;
-			gins(a, &n2, res);
-			regfree(&n2);
+	// 64-bit ops are hard on 32-bit machine.
+	if(is64(n->type) || is64(res->type) || n->left != N && is64(n->left->type)) {
+		print("64 bit op %O\n", n->op);
+		switch(n->op) {
+		// math goes to cgen64.
+		case OMINUS:
+		case OCOM:
+		case OADD:
+		case OSUB:
+		case OMUL:
+		case OLSH:
+		case ORSH:
+		case OAND:
+		case OOR:
+		case OXOR:
+			cgen64(n, res);
+			return;
 		}
-		sudoclean();
-		goto ret;
+	} else {
+		a = optoas(OAS, n->type);
+		if(sudoaddable(a, n, &addr, &w)) {
+			if(res->op == OREGISTER) {
+				p1 = gins(a, N, res);
+				p1->from = addr;
+				p1->reg = w;
+			} else {
+				regalloc(&n2, n->type, N);
+				p1 = gins(a, N, &n2);
+				p1->from = addr;
+				p1->reg = w;
+				gins(a, &n2, res);
+				regfree(&n2);
+			}
+			sudoclean();
+			goto ret;
+		}
 	}
 
 	switch(n->op) {
@@ -207,10 +256,13 @@ cgen(Node *n, Node *res)
 		goto abop;
 
 	case OCONV:
-		regalloc(&n1, nl->type, res);
-		cgen(nl, &n1);
+		if(eqtype(n->type, nl->type) || noconv(n->type, nl->type)) {
+			cgen(nl, res);
+			break;
+		}
+		mgen(nl, &n1, res);
 		gmove(&n1, res);
-		regfree(&n1);
+		mfree(&n1);
 		break;
 
 	case ODOT:
@@ -358,11 +410,8 @@ agen(Node *n, Node *res)
 		dump("\nagen-res", res);
 		dump("agen-r", n);
 	}
-	if(n == N || n->type == T)
-		return;
-
-	if(!isptr[res->type->etype])
-		fatal("agen: not tptr: %T", res->type);
+	if(n == N || n->type == T || res == N || res->type == T)
+		fatal("agen");
 
 	while(n->op == OCONVNOP)
 		n = n->left;
@@ -828,7 +877,7 @@ sgen(Node *n, Node *res, int32 w)
 {
 	Node dst, src, tmp, nend;
 	int32 c, q, odst, osrc;
-	Prog *p;
+	Prog *p, *ploop;
 
 	if(debug['g']) {
 		print("\nsgen w=%d\n", w);
@@ -848,6 +897,9 @@ sgen(Node *n, Node *res, int32 w)
 	osrc = stkof(n);
 	odst = stkof(res);
 
+	if(osrc % 4 != 0 || odst %4 != 0)
+		fatal("sgen: non word(4) aligned offset src %d or dst %d", osrc, odst);
+
 	regalloc(&dst, types[tptr], N);
 	regalloc(&src, types[tptr], N);
 	regalloc(&tmp, types[TUINT32], N);
@@ -866,44 +918,54 @@ sgen(Node *n, Node *res, int32 w)
 	// if we are copying forward on the stack and
 	// the src and dst overlap, then reverse direction
 	if(osrc < odst && odst < osrc+w) {
-		fatal("sgen reverse copy not implemented");
-//		// reverse direction
-//		gins(ASTD, N, N);		// set direction flag
-//		if(c > 0) {
-//			gconreg(AADDQ, w-1, D_SI);
-//			gconreg(AADDQ, w-1, D_DI);
+		if(c != 0)
+			fatal("sgen: reverse character copy not implemented");
+		if(q >= 4) {
+			regalloc(&nend, types[TUINT32], N);
+			// set up end marker to 4 bytes before source
+			p = gins(AMOVW, &src, &nend);
+			p->from.type = D_CONST;
+			p->from.offset = -4;
 
-//			gconreg(AMOVQ, c, D_CX);
-//			gins(AREP, N, N);	// repeat
-//			gins(AMOVSB, N, N);	// MOVB *(SI)-,*(DI)-
-//		}
+			// move src and dest to the end of block
+			p = gins(AMOVW, &src, &src);
+			p->from.type = D_CONST;
+			p->from.offset = (q-1)*4;
 
-//		if(q > 0) {
-//			if(c > 0) {
-//				gconreg(AADDQ, -7, D_SI);
-//				gconreg(AADDQ, -7, D_DI);
-//			} else {
-//				gconreg(AADDQ, w-8, D_SI);
-//				gconreg(AADDQ, w-8, D_DI);
-//			}
-//			gconreg(AMOVQ, q, D_CX);
-//			gins(AREP, N, N);	// repeat
-//			gins(AMOVSQ, N, N);	// MOVQ *(SI)-,*(DI)-
-//		}
-//		// we leave with the flag clear
-//		gins(ACLD, N, N);
+			p = gins(AMOVW, &dst, &dst);
+			p->from.type = D_CONST;
+			p->from.offset = (q-1)*4;
+
+			p = gins(AMOVW, &src, &tmp);
+			p->from.type = D_OREG;
+			p->from.offset = -4;
+			p->scond |= C_PBIT;
+			ploop = p;
+
+			p = gins(AMOVW, &tmp, &dst);
+			p->to.type = D_OREG;
+			p->to.offset = -4;
+			p->scond |= C_PBIT;
+
+			gins(ACMP, &src, &nend);
+
+			patch(gbranch(ABNE, T), ploop);
+
+ 			regfree(&nend);
+		}
 	} else {
 		// normal direction
 		if(q >= 4) {
 			regalloc(&nend, types[TUINT32], N);
 			p = gins(AMOVW, &src, &nend);
 			p->from.type = D_CONST;
-			p->from.offset = q;
+			p->from.offset = q*4;
 
 			p = gins(AMOVW, &src, &tmp);
 			p->from.type = D_OREG;
 			p->from.offset = 4;
 			p->scond |= C_PBIT;
+			ploop = p;
 
 			p = gins(AMOVW, &tmp, &dst);
 			p->to.type = D_OREG;
@@ -911,9 +973,9 @@ sgen(Node *n, Node *res, int32 w)
 			p->scond |= C_PBIT;
 
 			gins(ACMP, &src, &nend);
-			fatal("sgen loop not implemented");
-			p = gins(ABNE, N, N);
-			// TODO(PC offset)
+
+			patch(gbranch(ABNE, T), ploop);
+
  			regfree(&nend);
 		} else
 		while(q > 0) {
@@ -931,16 +993,7 @@ sgen(Node *n, Node *res, int32 w)
 		}
 
 		if (c != 0)
-			fatal("sgen character copy not implemented");
-//		if(c >= 4) {
-
-//			gins(AMOVSL, N, N);	// MOVL *(SI)+,*(DI)+
-//			c -= 4;
-//		}
-//		while(c > 0) {
-//			gins(AMOVSB, N, N);	// MOVB *(SI)+,*(DI)+
-//			c--;
-//		}
+			fatal("sgen: character copy not implemented");
 	}
  	regfree(&dst);
 	regfree(&src);

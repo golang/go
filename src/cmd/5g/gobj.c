@@ -141,6 +141,10 @@ zaddr(Biobuf *b, Addr *a, int s)
 		}
 		break;
 
+	case D_REGREG:
+		Bputc(b, a->offset);
+		break;
+
 	case D_FCONST:
 		fatal("zaddr D_FCONST not implemented");
 		//ieeedtod(&e, a->dval);
