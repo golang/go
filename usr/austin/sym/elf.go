@@ -168,24 +168,30 @@ func NewElf(r io.ReadSeeker) (*Elf, os.Error) {
 	}
 	blob := make([]byte, e.Sections[shstrndx].Size);
 	n, err = io.ReadFull(r, blob);
-	strings := make(map[uint32] string);
-	strStart := uint32(0);
-	for i, c := range blob {
-		if c == 0 {
-			strings[strStart] = string(blob[strStart:i]);
-			strStart = uint32(i+1);
-		}
-	}
 
 	for i, s := range e.Sections {
 		var ok bool;
-		s.Name, ok = strings[secNames[i]];
+		s.Name, ok = getString(blob, int(secNames[i]));
 		if !ok {
 			return nil, &FormatError{start + shoff + int64(i*shentsize), "bad section name", secNames[i]};
 		}
 	}
 
 	return e, nil;
+}
+
+// getString extracts a string from an ELF string table.
+func getString(section []byte, index int) (string, bool) {
+	if index < 0 || index >= len(section) {
+		return "", false;
+	}
+
+	for end := index; end < len(section); end++ {
+		if section[end] == 0 {
+			return string(section[index:end]), true;
+		}
+	}
+	return "", false;
 }
 
 // Section returns a section with the given name, or nil if no such
