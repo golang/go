@@ -301,7 +301,7 @@ func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
 						lhs[i] = n;
 					}
 					a.doAssign(lhs, spec.Values, decl.Tok, spec.Type);
-					// TODO(austin) This is rediculous.  doAssign
+					// TODO(austin) This is ridiculous.  doAssign
 					// indicates failure by setting a.err.
 					if a.err {
 						ok = false;
@@ -454,6 +454,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 	if !ok {
 		bad = true;
 	}
+	ac.allowMapForms(len(lhs));
 
 	// If this is a definition and the LHS is too big, we won't be
 	// able to produce the usual error message because we can't
@@ -560,7 +561,27 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 			continue;
 		}
 
-		if ls[i].evalAddr == nil {
+		if ls[i].evalMapValue != nil {
+			// Map indexes are not generally addressable,
+			// but they are assignable.  If function call
+			// compiling took semantic values, this might
+			// be easier to implement as a function call.
+			sub := ls[i];
+			ls[i] = sub.copy();
+			ls[i].t, ls[i].desc = sub.t, sub.desc;
+			ls[i].evalMapValue = sub.evalMapValue;
+			mvf := sub.evalMapValue;
+			et := sub.t;
+			ls[i].evalAddr = func(f *Frame) Value {
+				m, k := mvf(f);
+				e := m.Elem(k);
+				if e == nil {
+					e = et.Zero();
+					m.SetElem(k, e);
+				}
+				return e;
+			};
+		} else if ls[i].evalAddr == nil {
 			ls[i].diag("cannot assign to %s", ls[i].desc);
 			bad = true;
 			continue;
@@ -577,6 +598,12 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 	}
 
 	if bad {
+		return;
+	}
+
+	// Check for 'a[x] = r, ok'
+	if len(ls) == 1 && len(rs) == 2 && ls[0].evalMapValue != nil {
+		a.diag("a[x] = r, ok form not implemented");
 		return;
 	}
 

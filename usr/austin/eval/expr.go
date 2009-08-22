@@ -38,7 +38,11 @@ type exprCompiler struct {
 	evalPtr func(f *Frame) Value;
 	evalFunc func(f *Frame) Func;
 	evalSlice func(f *Frame) Slice;
+	evalMap func(f *Frame) Map;
 	evalMulti func(f *Frame) []Value;
+	// Map index expressions permit special forms of assignment,
+	// for which we need to know the Map and key.
+	evalMapValue func(f *Frame) (Map, interface{});
 	// Evaluate to the "address of" this value; that is, the
 	// settable Value object.  nil for expressions whose address
 	// cannot be taken.
@@ -172,11 +176,50 @@ func (a *exprCompiler) asSlice() (func(f *Frame) Slice) {
 	return a.evalSlice;
 }
 
+func (a *exprCompiler) asMap() (func(f *Frame) Map) {
+	if a.evalMap == nil {
+		log.Crashf("tried to get %v node as MapType", a.t);
+	}
+	return a.evalMap;
+}
+
 func (a *exprCompiler) asMulti() (func(f *Frame) []Value) {
 	if a.evalMulti == nil {
 		log.Crashf("tried to get %v node as MultiType", a.t);
 	}
 	return a.evalMulti;
+}
+
+func (a *exprCompiler) asInterface() (func(f *Frame) interface {}) {
+	switch _ := a.t.lit().(type) {
+	case *boolType:
+		sf := a.asBool();
+		return func(f *Frame) interface {} { return sf(f) };
+	case *uintType:
+		sf := a.asUint();
+		return func(f *Frame) interface {} { return sf(f) };
+	case *intType:
+		sf := a.asInt();
+		return func(f *Frame) interface {} { return sf(f) };
+	case *floatType:
+		sf := a.asFloat();
+		return func(f *Frame) interface {} { return sf(f) };
+	case *stringType:
+		sf := a.asString();
+		return func(f *Frame) interface {} { return sf(f) };
+	case *PtrType:
+		sf := a.asPtr();
+		return func(f *Frame) interface {} { return sf(f) };
+	case *FuncType:
+		sf := a.asFunc();
+		return func(f *Frame) interface {} { return sf(f) };
+	case *MapType:
+		sf := a.asMap();
+		return func(f *Frame) interface {} { return sf(f) };
+	default:
+		log.Crashf("unexpected expression node type %v at %v", a.t, a.pos);
+	}
+	panic();
 }
 
 /*
@@ -289,6 +332,10 @@ type assignCompiler struct {
 	rmt *MultiType;
 	// Whether this is an unpack assignment (case 3).
 	isUnpack bool;
+	// Whether map special assignment forms are allowed.
+	allowMap bool;
+	// Whether this is a "r, ok = a[x]" assignment.
+	isMapUnpack bool;
 	// The operation name to use in error messages, such as
 	// "assignment" or "function call".
 	errOp string;
@@ -343,6 +390,17 @@ func (a *compiler) checkAssign(pos token.Position, rs []*exprCompiler, errOp, er
 	return c, ok;
 }
 
+func (a *assignCompiler) allowMapForms(nls int) {
+	a.allowMap = true;
+
+	// Update unpacking info if this is r, ok = a[x]
+	if nls == 2 && len(a.rs) == 1 && a.rs[0].evalMapValue != nil {
+		a.isUnpack = true;
+		a.rmt = NewMultiType([]Type {a.rs[0].t, BoolType});
+		a.isMapUnpack = true;
+	}
+}
+
 // compile type checks and compiles an assignment operation, returning
 // a function that expects an l-value and the frame in which to
 // evaluate the RHS expressions.  The l-value must have exactly the
@@ -390,10 +448,25 @@ func (a *assignCompiler) compile(lt Type) (func(lv Value, f *Frame)) {
 		bc := a.rs[0].block;
 		temp := bc.DefineSlot(a.rmt);
 		tempIdx := temp.Index;
-		rf := a.rs[0].asMulti();
-		effect = func(f *Frame) {
-			f.Vars[tempIdx] = multiV(rf(f));
-		};
+		if a.isMapUnpack {
+			rf := a.rs[0].evalMapValue;
+			vt := a.rmt.Elems[0];
+			effect = func(f *Frame) {
+				m, k := rf(f);
+				v := m.Elem(k);
+				found := boolV(true);
+				if v == nil {
+					found = boolV(false);
+					v = vt.Zero();
+				}
+				f.Vars[tempIdx] = multiV([]Value {v, &found});
+			};
+		} else {
+			rf := a.rs[0].asMulti();
+			effect = func(f *Frame) {
+				f.Vars[tempIdx] = multiV(rf(f));
+			};
+		}
 		orig := a.rs[0];
 		a.rs = make([]*exprCompiler, len(a.rmt.Elems));
 		for i, t := range a.rmt.Elems {
@@ -409,9 +482,7 @@ func (a *assignCompiler) compile(lt Type) (func(lv Value, f *Frame)) {
 	// Now len(a.rs) == len(a.rmt) and we've reduced any unpacking
 	// to multi-assignment.
 
-	// TODO(austin) Deal with assignment special cases.  This is
-	// tricky in the unpack case, since some of the conversions
-	// can apply to single types within the multi-type.
+	// TODO(austin) Deal with assignment special cases.
 
 	// Values of any type may always be assigned to variables of
 	// compatible static type.
@@ -800,9 +871,18 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
 		at = Uint8Type;
 		intIndex = true;
 
-	// TODO(austin) Uncomment when there is a MapType
-	// case *MapType:
-	// 	log.Crash("Index into map not implemented");
+	case *MapType:
+		at = lt.Elem;
+		if r.t.isIdeal() {
+			r = r.convertTo(lt.Key);
+			if r == nil {
+				return;
+			}
+		}
+		if !lt.Key.compat(r.t, false) {
+			a.diag("cannot use %s as index into %s", r.t, lt);
+			return;
+		}
 
 	default:
 		a.diag("cannot index into %v", l.t);
@@ -846,6 +926,7 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
 	}
 
 	a.t = at;
+	a.desc = "index expression";
 
 	// Compile
 	switch lt := l.t.lit().(type) {
@@ -860,6 +941,7 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
 
 	case *SliceType:
 		// TODO(austin) Bounds check
+		// TODO(austin) Can this be done with genValue?
 		a.genIndexSlice(l, r);
 		lf := l.asSlice();
 		rf := r.asInt();
@@ -877,8 +959,29 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
 			return uint64(lf(f)[rf(f)]);
 		}
 
+	case *MapType:
+		// TODO(austin) Bounds check
+		lf := l.asMap();
+		rf := r.asInterface();
+		a.genValue(func(f *Frame) Value {
+			m := lf(f);
+			k := rf(f);
+			e := m.Elem(k);
+			if e == nil {
+				// TODO(austin) Use an exception
+				panic("key ", k, " not found in map");
+			}
+			return e;
+		});
+		// genValue makes things addressable, but map values
+		// aren't addressable.
+		a.evalAddr = nil;
+		a.evalMapValue = func(f *Frame) (Map, interface{}) {
+			return lf(f), rf(f);
+		};
+
 	default:
-		log.Crashf("Compilation of index into %T not implemented", l.t);
+		log.Crashf("unexpected left operand type %T", l.t.lit());
 	}
 }
 
@@ -1131,6 +1234,7 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
 	}
 
 	// Useful type predicates
+	// TODO(austin) CL 33668 mandates identical types except for comparisons.
 	compat := func() bool {
 		return l.t.compat(r.t, false);
 	};
@@ -1655,6 +1759,9 @@ func (a *exprCompiler) genConstant(v Value) {
 	case *SliceType:
 		val := v.(SliceValue).Get();
 		a.evalSlice = func(f *Frame) Slice { return val };
+	case *MapType:
+		val := v.(MapValue).Get();
+		a.evalMap = func(f *Frame) Map { return val };
 	default:
 		log.Crashf("unexpected constant type %v at %v", a.t, a.pos);
 	}
@@ -1683,6 +1790,8 @@ func (a *exprCompiler) genIdentOp(level int, index int) {
 		a.evalFunc = func(f *Frame) Func { return f.Get(level, index).(FuncValue).Get() };
 	case *SliceType:
 		a.evalSlice = func(f *Frame) Slice { return f.Get(level, index).(SliceValue).Get() };
+	case *MapType:
+		a.evalMap = func(f *Frame) Map { return f.Get(level, index).(MapValue).Get() };
 	default:
 		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos);
 	}
@@ -1712,6 +1821,8 @@ func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler) {
 		a.evalFunc = func(f *Frame) Func { return lf(f).Elem(rf(f)).(FuncValue).Get() };
 	case *SliceType:
 		a.evalSlice = func(f *Frame) Slice { return lf(f).Elem(rf(f)).(SliceValue).Get() };
+	case *MapType:
+		a.evalMap = func(f *Frame) Map { return lf(f).Elem(rf(f)).(MapValue).Get() };
 	default:
 		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
@@ -1741,6 +1852,8 @@ func (a *exprCompiler) genIndexSlice(l *exprCompiler, r *exprCompiler) {
 		a.evalFunc = func(f *Frame) Func { return lf(f).Base.Elem(rf(f)).(FuncValue).Get() };
 	case *SliceType:
 		a.evalSlice = func(f *Frame) Slice { return lf(f).Base.Elem(rf(f)).(SliceValue).Get() };
+	case *MapType:
+		a.evalMap = func(f *Frame) Map { return lf(f).Base.Elem(rf(f)).(MapValue).Get() };
 	default:
 		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
@@ -1769,6 +1882,8 @@ func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value) {
 		a.evalFunc = func(f *Frame) Func { return call(f)[0].(FuncValue).Get() };
 	case *SliceType:
 		a.evalSlice = func(f *Frame) Slice { return call(f)[0].(SliceValue).Get() };
+	case *MapType:
+		a.evalMap = func(f *Frame) Map { return call(f)[0].(MapValue).Get() };
 	case *MultiType:
 		a.evalMulti = func(f *Frame) []Value { return call(f) };
 	default:
@@ -1799,6 +1914,8 @@ func (a *exprCompiler) genValue(vf func(*Frame) Value) {
 		a.evalFunc = func(f *Frame) Func { return vf(f).(FuncValue).Get() };
 	case *SliceType:
 		a.evalSlice = func(f *Frame) Slice { return vf(f).(SliceValue).Get() };
+	case *MapType:
+		a.evalMap = func(f *Frame) Map { return vf(f).(MapValue).Get() };
 	default:
 		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
@@ -2277,6 +2394,10 @@ func (a *exprCompiler) genBinOpEql(l *exprCompiler, r *exprCompiler) {
 		lf := l.asFunc();
 		rf := r.asFunc();
 		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
+	case *MapType:
+		lf := l.asMap();
+		rf := r.asMap();
+		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
 	default:
 		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
 	}
@@ -2322,6 +2443,10 @@ func (a *exprCompiler) genBinOpNeq(l *exprCompiler, r *exprCompiler) {
 		lf := l.asFunc();
 		rf := r.asFunc();
 		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
+	case *MapType:
+		lf := l.asMap();
+		rf := r.asMap();
+		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
 	default:
 		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
 	}
@@ -2359,6 +2484,9 @@ func genAssign(lt Type, r *exprCompiler) (func(lv Value, f *Frame)) {
 	case *SliceType:
 		rf := r.asSlice();
 		return func(lv Value, f *Frame) { lv.(SliceValue).Set(rf(f)) };
+	case *MapType:
+		rf := r.asMap();
+		return func(lv Value, f *Frame) { lv.(MapValue).Set(rf(f)) };
 	default:
 		log.Crashf("unexpected left operand type %v at %v", lt, r.pos);
 	}

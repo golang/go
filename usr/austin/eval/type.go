@@ -124,7 +124,7 @@ type boolType struct {
 	commonType;
 }
 
-var BoolType = universe.DefineType("bool", universePos, &boolType{});
+var BoolType = universe.DefineType("bool", universePos, &boolType{})
 
 func (t *boolType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*boolType);
@@ -410,10 +410,10 @@ func (t *floatType) Zero() Value {
 	panic("unexpected float bit count: ", t.Bits);
 }
 
-var maxFloat32Val = bignum.MakeRat(bignum.Int(0xffffff).Shl(127-23), bignum.Nat(1));
-var maxFloat64Val = bignum.MakeRat(bignum.Int(0x1fffffffffffff).Shl(1023-52), bignum.Nat(1));
-var minFloat32Val = maxFloat32Val.Neg();
-var minFloat64Val = maxFloat64Val.Neg();
+var maxFloat32Val = bignum.MakeRat(bignum.Int(0xffffff).Shl(127-23), bignum.Nat(1))
+var maxFloat64Val = bignum.MakeRat(bignum.Int(0x1fffffffffffff).Shl(1023-52), bignum.Nat(1))
+var minFloat32Val = maxFloat32Val.Neg()
+var minFloat64Val = maxFloat64Val.Neg()
 
 func (t *floatType) minVal() *bignum.Rational {
 	bits := t.Bits;
@@ -488,7 +488,7 @@ type stringType struct {
 	commonType;
 }
 
-var StringType = universe.DefineType("string", universePos, &stringType{});
+var StringType = universe.DefineType("string", universePos, &stringType{})
 
 func (t *stringType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*stringType);
@@ -518,7 +518,7 @@ type ArrayType struct {
 	Elem Type;
 }
 
-var arrayTypes = make(map[int64] map[Type] *ArrayType);
+var arrayTypes = make(map[int64] map[Type] *ArrayType)
 
 // Two array types are identical if they have identical element types
 // and the same array length.
@@ -732,8 +732,8 @@ type FuncType struct {
 	Out []Type;
 }
 
-var funcTypes = newTypeArrayMap();
-var variadicFuncTypes = newTypeArrayMap();
+var funcTypes = newTypeArrayMap()
+var variadicFuncTypes = newTypeArrayMap()
 
 // Two function types are identical if they have the same number of
 // parameters and result values and if corresponding parameter and
@@ -898,10 +898,52 @@ func (t *SliceType) Zero() Value {
 }
 
 /*
+ * Map type
+ */
+
 type MapType struct {
-	// TODO(austin)
+	commonType;
+	Key Type;
+	Elem Type;
 }
 
+var mapTypes = make(map[Type] map[Type] *MapType)
+
+func NewMapType(key Type, elem Type) *MapType {
+	ts, ok := mapTypes[key];
+	if !ok {
+		ts = make(map[Type] *MapType);
+		mapTypes[key] = ts;
+	}
+	t, ok := ts[elem];
+	if !ok {
+		t = &MapType{commonType{}, key, elem};
+		ts[elem] = t;
+	}
+	return t;
+}
+
+func (t *MapType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*MapType);
+	if !ok {
+		return false;
+	}
+	return t.Elem.compat(t2.Elem, conv) && t.Key.compat(t2.Key, conv);
+}
+
+func (t *MapType) lit() Type {
+	return t;
+}
+
+func (t *MapType) String() string {
+	return "map[" + t.Key.String() + "] " + t.Elem.String();
+}
+
+func (t *MapType) Zero() Value {
+	return &mapV{nil};
+}
+
+/*
 type ChanType struct {
 	// TODO(austin)
 }
@@ -1016,7 +1058,7 @@ func (t *MultiType) compat(o Type, conv bool) bool {
 	return true;
 }
 
-var EmptyType Type = NewMultiType([]Type{});
+var EmptyType Type = NewMultiType([]Type{})
 
 func (t *MultiType) lit() Type {
 	return t;

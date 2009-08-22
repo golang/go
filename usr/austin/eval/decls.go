@@ -151,6 +151,23 @@ type SliceValue interface {
 	Set(Slice);
 }
 
+type Map interface {
+	Len() int64;
+	// Retrieve an element from the map, returning nil if it does
+	// not exist.
+	Elem(key interface{}) Value;
+	// Set an entry in the map.  If val is nil, delete the entry.
+	SetElem(key interface{}, val Value);
+	// TODO(austin)  Perhaps there should be an iterator interface instead.
+	Iter(func(key interface{}, val Value) bool);
+}
+
+type MapValue interface {
+	Value;
+	Get() Map;
+	Set(Map);
+}
+
 /*
  * Scopes
  */
