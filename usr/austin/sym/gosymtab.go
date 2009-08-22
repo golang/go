@@ -15,6 +15,7 @@ import (
 	"io";
 	"os";
 	"sort";
+	"strconv";
 	"strings";
 )
 
@@ -82,6 +83,8 @@ type TextSym struct {
 	CommonSym;
 	obj *object;
 	lt *lineTable;
+	// The value of the next text sym, or the end of the text segment.
+	End uint64;
 	// Ths size of this function's frame.
 	FrameSize int;
 	// The value of each parameter symbol is its positive offset
@@ -147,6 +150,7 @@ type GoSymTable struct {
 	textEnd uint64;
 	Syms []GoSym;
 	funcs []*TextSym;
+	files map[string] *object;
 }
 
 func growGoSyms(s *[]GoSym) (*GoSym) {
@@ -274,6 +278,7 @@ func (t *GoSymTable) processTextSyms() {
 	count := 0;
 	var obj *object;
 	var objCount int;
+	var prevTextSym *TextSym;
 	for i := 0; i < len(t.Syms); i++ {
 		switch sym := t.Syms[i].(type) {
 		case *PathSym:
@@ -297,6 +302,19 @@ func (t *GoSymTable) processTextSyms() {
 				obj.paths[j] = s.(*PathSym);
 			}
 
+			// Record file names
+			depth := 0;
+			for _, s := range obj.paths {
+				if s.Name == "" {
+					depth--;
+				} else {
+					if depth == 0 {
+						t.files[s.Name] = obj;
+					}
+					depth++;
+				}
+			}
+
 			objCount = 0;
 			i = end-1;
 
@@ -304,6 +322,11 @@ func (t *GoSymTable) processTextSyms() {
 			if sym.Name == "etext" {
 				continue;
 			}
+
+			if prevTextSym != nil {
+				prevTextSym.End = sym.Value;
+			}
+			prevTextSym = sym;
 
 			// Count parameter and local syms
 			var np, nl int;
@@ -349,6 +372,9 @@ func (t *GoSymTable) processTextSyms() {
 
 	if obj != nil {
 		obj.funcs = make([]*TextSym, 0, objCount);
+	}
+	if prevTextSym != nil {
+		prevTextSym.End = t.textEnd;
 	}
 
 	// Extract text symbols into function array and individual
@@ -426,6 +452,29 @@ func (t *GoSymTable) LineFromPC(pc uint64) (string, int, *TextSym) {
 	return path, line, sym;
 }
 
+// PCFromLine looks up the first program counter on the given line in
+// the named file.  Returns UnknownPathError or UnknownLineError if
+// there is an error looking up this line.
+func (t *GoSymTable) PCFromLine(file string, line int) (uint64, *TextSym, os.Error) {
+	obj, ok := t.files[file];
+	if !ok {
+		return 0, nil, UnknownFileError(file);
+	}
+
+	aline, err := obj.alineFromLine(file, line);
+	if err != nil {
+		return 0, nil, err;
+	}
+
+	for _, f := range obj.funcs {
+		pc := f.lt.pcFromAline(aline, f.End);
+		if pc != 0 {
+			return pc, f, nil;
+		}
+	}
+	return 0, nil, &UnknownLineError{file, line};
+}
+
 // SymFromName looks up a symbol by name.  The name must refer to a
 // global text, data, or BSS symbol.
 func (t *GoSymTable) SymFromName(name string) GoSym {
@@ -459,20 +508,6 @@ func (t *GoSymTable) SymFromAddr(addr uint64) GoSym {
 	return nil;
 }
 
-// TODO(austin) Implement PCFromLine.  This is more difficult because
-// we first have to figure out which object file PC is in, and which
-// segment of the line table that corresponds to.
-//
-// For each place path appears (either from push or pop),
-// 1. Turn line into an absolute line number using the history stack
-// 2. minpc = Entry of the first text sym in the object
-// 3. maxpc = Entry of the first text sym in the next object
-// 4. lt = lt.slice(minpc);
-// 5. Find PC of first occurrence of absolute line number between minpc and maxpc
-//
-// I'm not sure if this guarantees a PC at the begining of an
-// instruction.
-
 /*
  * Object files
  */
@@ -485,16 +520,17 @@ func (o *object) lineFromAline(aline int) (string, int) {
 		prev *stackEnt;
 	};
 
-	noPath := &stackEnt{"<malformed absolute line>", 0, 0, nil};
+	noPath := &stackEnt{"", 0, 0, nil};
 	tos := noPath;
 
 	// TODO(austin) I have no idea how 'Z' symbols work, except
 	// that they pop the stack.
+pathloop:
 	for _, s := range o.paths {
 		val := int(s.Value);
 		switch {
 		case val > aline:
-			break;
+			break pathloop;
 
 		case val == 1:
 			// Start a new stack
@@ -514,14 +550,61 @@ func (o *object) lineFromAline(aline int) (string, int) {
 		}
 	}
 
+	if tos == noPath {
+		return "", 0;
+	}
 	return tos.path, aline - tos.start - tos.offset + 1;
+}
+
+func (o *object) alineFromLine(path string, line int) (int, os.Error) {
+	if line < 1 {
+		return 0, &UnknownLineError{path, line};
+	}
+
+	for i, s := range o.paths {
+		// Find this path
+		if s.Name != path {
+			continue;
+		}
+
+		// Find this line at this stack level
+		depth := 0;
+		var incstart int;
+		line += int(s.Value);
+	pathloop:
+		for _, s := range o.paths[i:len(o.paths)] {
+			val := int(s.Value);
+			switch {
+			case depth == 1 && val >= line:
+				return line - 1, nil;
+
+			case s.Name == "":
+				depth--;
+				if depth == 0 {
+					break pathloop;
+				} else if depth == 1 {
+					line += val - incstart;
+				}
+
+			default:
+				if depth == 1 {
+					incstart = val;
+				}
+				depth++;
+			}
+		}
+		return 0, &UnknownLineError{path, line};
+	}
+	return 0, UnknownFileError(path);
 }
 
 /*
  * Line tables
  */
 
-func (lt *lineTable) parse(targetPC uint64) ([]byte, uint64, int) {
+const quantum = 1;
+
+func (lt *lineTable) parse(targetPC uint64, targetLine int) ([]byte, uint64, int) {
 	// The PC/line table can be thought of as a sequence of
 	//  <pc update>* <line update>
 	// batches.  Each update batch results in a (pc, line) pair,
@@ -531,15 +614,14 @@ func (lt *lineTable) parse(targetPC uint64) ([]byte, uint64, int) {
 	// Here we process each update individually, which simplifies
 	// the code, but makes the corner cases more confusing.
 
-	const quantum = 1;
 	b, pc, line := lt.blob, lt.pc, lt.line;
-	for pc <= targetPC && len(b) != 0 {
+	for pc <= targetPC && line != targetLine && len(b) != 0 {
 		code := b[0];
 		b = b[1:len(b)];
 		switch {
 		case code == 0:
 			if len(b) < 4 {
-				b = b[0:1];
+				b = b[0:0];
 				break;
 			}
 			val := msb.Uint32(b);
@@ -559,13 +641,48 @@ func (lt *lineTable) parse(targetPC uint64) ([]byte, uint64, int) {
 }
 
 func (lt *lineTable) slice(pc uint64) *lineTable {
-	blob, pc, line := lt.parse(pc);
+	blob, pc, line := lt.parse(pc, -1);
 	return &lineTable{blob, pc, line};
 }
 
 func (lt *lineTable) alineFromPC(targetPC uint64) int {
-	_1, _2, aline := lt.parse(targetPC);
+	_1, _2, aline := lt.parse(targetPC, -1);
 	return aline;
+}
+
+func (lt *lineTable) pcFromAline(aline int, maxPC uint64) uint64 {
+	_1, pc, line := lt.parse(maxPC, aline);
+	if line != aline {
+		// Never found aline
+		return 0;
+	}
+	// Subtract quantum from PC to account for post-line increment
+	return pc - quantum;
+}
+
+/*
+ * Errors
+ */
+
+// UnknownFileError represents a failure to find the specific file in
+// the symbol table.
+type UnknownFileError string
+
+func (e UnknownFileError) String() string {
+	// TODO(austin) string conversion required because of 6g bug
+	return "unknown file " + string(e);
+}
+
+// UnknownLineError represents a failure to map a line to a program
+// counter, either because the line is beyond the bounds of the file
+// or because there is no code on the given line.
+type UnknownLineError struct {
+	File string;
+	Line int;
+}
+
+func (e *UnknownLineError) String() string {
+	return "no code on line " + e.File + ":" + strconv.Itoa(e.Line);
 }
 
 /*
@@ -578,7 +695,10 @@ func ElfGoSyms(elf *Elf) (*GoSymTable, os.Error) {
 		return nil, nil;
 	}
 
-	tab := &GoSymTable{textEnd: text.Addr + text.Size};
+	tab := &GoSymTable{
+		textEnd: text.Addr + text.Size,
+		files: make(map[string] *object),
+	};
 
 	// Symbol table
 	sec := elf.Section(".gosymtab");

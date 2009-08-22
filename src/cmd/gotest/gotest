@@ -21,7 +21,7 @@ GC=${_GC:-$GC}
 GL=${GL:-$LD}
 GC="$GC -I _test"
 GL="$GL -L _test"
-export GC GL
+export GC GL O AS CC LD
 
 gofiles=""
 loop=true
