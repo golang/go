@@ -178,9 +178,6 @@ errchk: bugs/bug193.go:14: missing expected error: 'shift'
 bugs/bug194.go:15: array index must be non-negative integer constant
 BUG should compile and run
 
-=========== bugs/bug195.go
-bugs/bug195.go:9: BUG: errchk: compiler crashed
-
 =========== bugs/bug196.go
 too many calls: 5
 panic PC=xxx
