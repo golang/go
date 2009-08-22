@@ -846,7 +846,7 @@ cmpslit(Node *l, Node *r)
 int
 smallintconst(Node *n)
 {
-	if(n->op == OLITERAL)
+	if(n->op == OLITERAL && n->type != T)
 	switch(simtype[n->type->etype]) {
 	case TINT8:
 	case TUINT8:
@@ -864,7 +864,7 @@ smallintconst(Node *n)
 long
 nonnegconst(Node *n)
 {
-	if(n->op == OLITERAL)
+	if(n->op == OLITERAL && n->type != T)
 	switch(simtype[n->type->etype]) {
 	case TINT8:
 	case TUINT8:

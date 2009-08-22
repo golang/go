@@ -175,8 +175,13 @@ bugs/bug193.go:13: fatal error: optoas: no entry LSH-float
 errchk: bugs/bug193.go:14: missing expected error: 'shift'
 
 =========== bugs/bug194.go
+bugs/bug194.go:15: array index must be non-negative integer constant
 BUG should compile and run
-$RUNFILE: line 1: PID Segmentation fault      (core dumped) $G $D/$F.go
 
 =========== bugs/bug195.go
 bugs/bug195.go:9: BUG: errchk: compiler crashed
+
+=========== bugs/bug196.go
+too many calls: 5
+panic PC=xxx
+BUG: bug196
