@@ -34,11 +34,21 @@ rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPBUG
 
 trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPBUG" 0 1 2 3 14 15
 
-if $* >$TMPOUT 2>$TMPERR; then
-  echo 1>&2 "BUG: errchk: command succeeded unexpectedly"
+(if $* >$TMPOUT 2>$TMPERR; then
+   echo 1>&4 "BUG: errchk: command succeeded unexpectedly"
+   cat 1>&3 $TMPOUT
+   cat 1>&4 $TMPERR
+   rm -f $TMPOUT $TMPERR
+ fi) 3>&1 4>&2 >$TMPTMP 2>&1
+
+if ! test -f $TMPOUT; then
+  exit 0
+fi
+
+if test -s $TMPTMP; then
+  echo 1>&2 BUG: errchk: compiler crashed
   cat $TMPOUT
   cat 1>&2 $TMPERR
-  rm -f $TMPOUT $TMPERR
   exit 0
 fi
 
