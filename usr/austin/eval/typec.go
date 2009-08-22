@@ -233,6 +233,28 @@ func (a *typeCompiler) compileFuncType(x *ast.FuncType, allowRec bool) *FuncDecl
 	return &FuncDecl{NewFuncType(in, false, out), nil, inNames, outNames};
 }
 
+func (a *typeCompiler) compileMapType(x *ast.MapType) Type {
+	key := a.compileType(x.Key, true);
+	val := a.compileType(x.Value, true);
+	if key == nil || val == nil {
+		return nil;
+	}
+	// XXX(Spec) The Map types section explicitly lists all types
+	// that can be map keys except for function types.
+	switch _ := key.lit().(type) {
+	case *StructType:
+		a.diagAt(x, "map key cannot be a struct type");
+		return nil;
+	case *ArrayType:
+		a.diagAt(x, "map key cannot be an array type");
+		return nil;
+	case *SliceType:
+		a.diagAt(x, "map key cannot be a slice type");
+		return nil;
+	}
+	return NewMapType(key, val);
+}
+
 func (a *typeCompiler) compileType(x ast.Expr, allowRec bool) Type {
 	switch x := x.(type) {
 	case *ast.BadExpr:
@@ -261,7 +283,7 @@ func (a *typeCompiler) compileType(x ast.Expr, allowRec bool) Type {
 		goto notimpl;
 
 	case *ast.MapType:
-		goto notimpl;
+		return a.compileMapType(x);
 
 	case *ast.ChanType:
 		goto notimpl;

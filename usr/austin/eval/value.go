@@ -505,6 +505,69 @@ func (v *sliceV) Set(x Slice) {
 }
 
 /*
+ * Maps
+ */
+
+type mapV struct {
+	target Map;
+}
+
+func (v *mapV) String() string {
+	res := "map[";
+	i := 0;
+	v.target.Iter(func(key interface{}, val Value) bool {
+		if i > 0 {
+			res += ", ";
+		}
+		i++;
+		res += fmt.Sprint(key) + ":" + val.String();
+		return true;
+	});
+	return res + "]";
+}
+
+func (v *mapV) Assign(o Value) {
+	v.target = o.(MapValue).Get();
+}
+
+func (v *mapV) Get() Map {
+	return v.target;
+}
+
+func (v *mapV) Set(x Map) {
+	v.target = x;
+}
+
+type evalMap map[interface{}] Value
+
+func (m evalMap) Len() int64 {
+	return int64(len(m));
+}
+
+func (m evalMap) Elem(key interface{}) Value {
+	if v, ok := m[key]; ok {
+		return v;
+	}
+	return nil;
+}
+
+func (m evalMap) SetElem(key interface{}, val Value) {
+	if val == nil {
+		m[key] = nil, false;
+	} else {
+		m[key] = val;
+	}
+}
+
+func (m evalMap) Iter(cb func(key interface{}, val Value) bool) {
+	for k, v := range m {
+		if !cb(k, v) {
+			break;
+		}
+	}
+}
+
+/*
  * Multi-values
  */
 
