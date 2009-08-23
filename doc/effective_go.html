@@ -349,71 +349,150 @@ or <code>mixedCaps</code> rather than underscores to write
 multiword names.
 </p>
 
-
-<h2 id="idioms">Idioms</h2>
-
-<h3 id="struct-allocation">Allocate using literals</h3>
+<h2 id="semicolons">Semicolons</h2>
 
 <p>
-A struct literal is an expression that creates a
-new instance each time it is evaluated.  The address of such
-an expression points to a fresh instance each time.
-Use such expressions to avoid the repetition of filling
-out a data structure.
+Go needs fewer semicolons between statements than do other C variants.
+Semicolons are never required at the top level.
+Also they are separators, not terminators, so they
+can be left off the last element of a statement or declaration list,
+a convenience
+for one-line <code>funcs</code> and the like:
 </p>
 
 <pre>
-length := Point{x, y}.Abs();
+func CopyInBackground(src, dst chan Item) {
+    go func() { for { dst &lt;- &lt;-src } }()
+}
 </pre>
-
-<pre>
-// Prepare RPCMessage to send to server
-rpc := &amp;RPCMessage {
-	Version: 1,
-	Header: &amp;RPCHeader {
-		Id: nextId(),
-		Signature: sign(body),
-		Method: method,
-	},
-	Body: body,
-};
-</pre>
-
-<h3 id="buffer-slice">Use parallel assignment to slice a buffer</h3>
-
-<pre>
-header, body, checksum := buf[0:20], buf[20:n-4], buf[n-4:n];
-</pre>
-
-<h2 id="control-flow">Control Flow</h2>
-
-<h3 id="else">Omit needless else bodies</h3>
 
 <p>
-When an <code>if</code> statement doesn't flow into the next statement—that is,
+In fact, semicolons can omitted at the end of any "StatementList" in the
+grammar, which includes things like cases in <code>switch</code>
+statements:
+</p>
+
+<pre>
+switch {
+case a &lt; b:
+    return -1
+case a == b:
+    return 0
+case a &gt; b:
+    return 1
+}
+
+</pre>
+
+<p>
+The grammar admits an empty statement after any statement list, which
+means a terminal semicolon is always OK.  As a result,
+it's fine to put semicolons everywhere you'd put them in a
+C program—they would be fine after those return statements,
+for instance—but they can often be omitted.
+By convention, they're always left off top-level declarations (for
+instance, they don't appear after the closing brace of <code>struct</code>
+declarations, or of <code>funcs</code> for that matter)
+and often left off one-liners.  But within functions, place them
+as you see fit.
+</p>
+
+<h2 id="control-structures">Control structures</h2>
+
+<p>
+The control structures of Go are related to those of C but different
+in important ways.
+There is no <code>do</code> or <code>while</code> loop, only a
+slightly generalized
+<code>for</code>;
+<code>switch</code> is more flexible;
+<code>if</code> and <code>switch</code> accept an optional
+initialization statement like that of <code>for</code>;
+and there are new control structures including a type switch and a
+multiway communications multiplexer, <code>select</code>.
+The syntax is also slightly different: parentheses are not part of the syntax
+and the bodies must always be brace-delimited.
+</p>
+
+<h3 id="if">If</h3>
+
+<p>
+In Go a simple <code>if</code> looks like this:
+</p>
+<pre>
+if x > 0 {
+    return y
+}
+</pre>
+
+<p>
+Mandatory braces encourage writing simple <code>if</code> statements
+on multiple lines.  It's good style to do so anyway,
+especially when the body contains a control statement such as a
+<code>return</code> or <code>break</code>.
+</p>
+
+<p>
+Since <code>if</code> and <code>switch</code> accept an initialization
+statement, it's common to see one used to set up a local variable:
+</p>
+
+<pre>
+if err := file.Chmod(0664); err != nil {
+    log.Stderr(err)
+}
+</pre>
+
+<p id="else">
+In the Go libraries, you'll find that
+when an <code>if</code> statement doesn't flow into the next statement—that is,
 the body ends in <code>break</code>, <code>continue</code>,
-<code>goto</code>, or <code>return</code>—omit the <code>else</code>.
+<code>goto</code>, or <code>return</code>—the unnecessary
+<code>else</code> is omitted.
 </p>
 
 <pre>
 f, err := os.Open(name, os.O_RDONLY, 0);
 if err != nil {
-	return err;
+    return err;
 }
 codeUsing(f);
 </pre>
+
+<p>
+This is a example of a common situation where code must analyze a
+sequence of error possibilities.  The code reads well if the
+successful flow of control runs down the page, eliminating error cases
+as they arise.  Since error cases tend to end in <code>return</code>
+statements, the resulting code needs no <code>else</code> statements:
+</p>
+
+<pre>
+f, err := os.Open(name, os.O_RDONLY, 0);
+if err != nil {
+    return err;
+}
+d, err := f.Stat();
+if err != nil {
+    return err;
+}
+codeUsing(f, d);
+</pre>
+
 
 <h3 id="switch">Switch</h3>
 
 <p>
 Go's <code>switch</code> is more general than C's.
-When an <code>if</code>-<code>else</code>-<code>if</code>-<code>else</code>
-chain has three or more bodies,
-or an <code>if</code> condition has a long list of alternatives,
-it will be clearer if rewritten as a <code>switch</code>.
+The expressions need not be constants or even integers,
+the cases are evaluated top to bottom until a match is found,
+and if the <code>switch</code> has no expression it switches on
+<code>true</code>.
+It's therefore possible—and idiomatic—to write an
+<code>if</code>-<code>else</code>-<code>if</code>-<code>else</code>
+chain as a <code>switch</code>:
 </p>
 
-<a href="/src/pkg/http/url.go">go/src/pkg/http/url.go</a>:
 <pre>
 func unhex(c byte) byte {
     switch {
@@ -428,7 +507,9 @@ func unhex(c byte) byte {
 }
 </pre>
 
-<a href="/src/pkg/http/url.go">go/src/pkg/http/url.go</a>:
+<p>
+There is no automatic fall through, but cases can be presented
+in comma-separated lists:
 <pre>
 func shouldEscape(c byte) bool {
     switch c {
@@ -439,11 +520,13 @@ func shouldEscape(c byte) bool {
 }
 </pre>
 
-<a href="/src/pkg/bytes/bytes.go">go/src/pkg/bytes/bytes.go</a>:
+<p>
+Here's a comparison routine for byte arrays that uses two
+<code>switch</code> statements:
 <pre>
 // Compare returns an integer comparing the two byte arrays
 // lexicographically.
-// The result will be 0 if a==b, -1 if a &lt; b, and +1 if a &gt; b
+// The result will be 0 if a == b, -1 if a &lt; b, and +1 if a &gt; b
 func Compare(a, b []byte) int {
     for i := 0; i &lt; len(a) &amp;&amp; i &lt; len(b); i++ {
         switch {
@@ -486,6 +569,41 @@ do so directly.
 There is no need to pass a pointer to a return value.
 </p>
 
+<h2 id="idioms">Idioms</h2>
+
+<h3 id="struct-allocation">Allocate using literals</h3>
+
+<p>
+A struct literal is an expression that creates a
+new instance each time it is evaluated.  The address of such
+an expression points to a fresh instance each time.
+Use such expressions to avoid the repetition of filling
+out a data structure.
+</p>
+
+<pre>
+length := Point{x, y}.Abs();
+</pre>
+
+<pre>
+// Prepare RPCMessage to send to server
+rpc := &amp;RPCMessage {
+	Version: 1,
+	Header: &amp;RPCHeader {
+		Id: nextId(),
+		Signature: sign(body),
+		Method: method,
+	},
+	Body: body,
+};
+</pre>
+
+<h3 id="buffer-slice">Use parallel assignment to slice a buffer</h3>
+
+<pre>
+header, body, checksum := buf[0:20], buf[20:n-4], buf[n-4:n];
+</pre>
+
 <h2 id="errors">Errors</h2>
 
 <h3 id="error-returns">Return <code>os.Error</code>, not <code>bool</code></h3>
@@ -497,30 +615,6 @@ return an <code>os.Error</code> that describes the failure.
 Even if there is only one failure mode now, 
 there may be more later.
 </p>
-
-<h3 id="handle-errors-first">Handle errors first</h3>
-
-<p>
-Error cases tend to be simpler than non-error cases,
-and it helps readability when the non-error flow
-of control is always down the page.
-Also, error cases tend to end in <code>return</code> statements,
-so that there is <a href="#else">no need for an explicit else</a>.
-</p>
-
-<pre>
-if len(name) == 0 {
-	return os.EINVAL;
-}
-if IsDir(name) {
-	return os.EISDIR;
-}
-f, err := os.Open(name, os.O_RDONLY, 0);
-if err != nil {
-	return err;
-}
-codeUsing(f);
-</pre>
 
 <h3 id="error-context">Return structured errors</h3>
 
