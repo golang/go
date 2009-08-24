@@ -102,7 +102,7 @@ ldpkg(Biobuf *f, int64 len, char *filename)
 	while(*p0 == ' ' || *p0 == '\t' || *p0 == '\n')
 		p0++;
 	if(strncmp(p0, "package ", 8) != 0) {
-		fprint(2, "%s: bad package section in %s\n", argv0, filename);
+		fprint(2, "%s: bad package section in %s - %s\n", argv0, filename, p0);
 		return;
 	}
 	p0 += 8;
@@ -200,8 +200,6 @@ again:
 
 	// prefix: (var|type|func|const)
 	prefix = p;
-
-	prefix = p;
 	if(p + 6 > ep)
 		return -1;
 	if(strncmp(p, "var ", 4) == 0)
@@ -251,7 +249,7 @@ again:
 		goto again;
 	} else {
 	err:
-		fprint(2, "%s: confused in pkg data near <<%.20s>>\n", argv0, prefix);
+		fprint(2, "%s: confused in pkg data near <<%.40s>>\n", argv0, prefix);
 		nerrors++;
 		return -1;
 	}

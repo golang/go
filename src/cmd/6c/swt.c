@@ -232,6 +232,19 @@ outcode(void)
 	Binit(&b, f, OWRITE);
 
 	Bprint(&b, "%s\n", thestring);
+	if(nffi > 0) {
+		int i;
+
+		if(package == nil) {
+			yyerror("#pragma ffi without #pragma package");
+			package = "_ffi_";
+		}
+		Bprint(&b, "\n$$  // ffi\n", thestring);
+		Bprint(&b, "package %s\n", package);
+		for(i=0; i<nffi; i++)
+			Bprint(&b, "//ffi %c %s %s %s\n", ffi[i].type, ffi[i].local, ffi[i].remote, ffi[i].path);
+		Bprint(&b, "$$\n\n$$\n\n");
+	}
 	Bprint(&b, "!\n");
 
 	outhist(&b);

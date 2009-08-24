@@ -200,13 +200,35 @@ arginit(void)
 	flagbits['X'] = flagbits['o'];
 }
 
+static char*
+getquoted(void)
+{
+	int c;
+	char *t;
+	Rune r;
+
+	c = getnsc();
+	if(c != '"')
+		return nil;
+	t = fmtbuf;
+	for(;;) {
+		r = getr();
+		if(r == ' ' || r == '\n')
+			return nil;
+		if(r == '"')
+			break;
+		t += runetochar(t, &r);
+	}
+	*t = 0;
+	return strdup(fmtbuf);
+}
+
 void
 pragvararg(void)
 {
 	Sym *s;
 	int n, c;
 	char *t;
-	Rune r;
 	Type *ty;
 
 	if(!debug['F'])
@@ -251,20 +273,9 @@ ckflag:
 
 cktype:
 /*#pragma	varargck	type	O	int*/
-	c = getnsc();
-	if(c != '"')
+	t = getquoted();
+	if(t == nil)
 		goto bad;
-	t = fmtbuf;
-	for(;;) {
-		r = getr();
-		if(r == ' ' || r == '\n')
-			goto bad;
-		if(r == '"')
-			break;
-		t += runetochar(t, &r);
-	}
-	*t = 0;
-	t = strdup(fmtbuf);
 	s = getsym();
 	if(s == S)
 		goto bad;
@@ -516,3 +527,64 @@ out:
 	if(debug['f'])
 		print("%s incomplete\n", s->name);
 }
+
+void
+pragffi(void)
+{
+	Sym *local, *remote, *type;
+	char *path;
+	Ffi *f;
+
+	type = getsym();
+	if(type == nil)
+		goto err;
+
+	local = getsym();
+	if(local == nil)
+		goto err;
+
+	remote = getsym();
+	if(remote == nil)
+		goto err;
+
+	path = getquoted();
+	if(path == nil)
+		goto err;
+
+	if(nffi%32 == 0)
+		ffi = realloc(ffi, (nffi+32)*sizeof ffi[0]);
+	f = &ffi[nffi++];
+	f->type = type->name[0];
+	f->local = local->name;
+	f->remote = remote->name;
+	f->path = path;
+	goto out;
+
+err:
+	yyerror("usage: #pragma ffi typechar local remote \"path\"");
+
+out:
+	while(getnsc() != '\n')
+		;
+}
+
+void
+pragpackage(void)
+{
+	Sym *s;
+
+	s = getsym();
+	if(s == nil)
+		goto err;
+
+	package = s->name;
+	goto out;
+
+err:
+	yyerror("malformed #pragma package");
+
+out:
+	while(getnsc() != '\n')
+		;
+}
+

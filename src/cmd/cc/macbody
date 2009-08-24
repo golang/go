@@ -283,7 +283,7 @@ macdef(void)
 			continue;
 		}
 		if(ischr){
-			if(c == '\\'){ 
+			if(c == '\\'){
 				base = allocn(base, len, 1);
 				base[len++] = c;
 				c = getc();
@@ -400,7 +400,7 @@ macexpand(Sym *s, char *b)
 			print("#expand %s %s\n", s->name, ob);
 		return;
 	}
-	
+
 	nargs = (char)(*s->macro & ~VARMAC) - 1;
 	dots = *s->macro & VARMAC;
 
@@ -737,6 +737,14 @@ macprag(void)
 		pragincomplete();
 		return;
 	}
+	if(s && strcmp(s->name, "ffi") == 0) {
+		pragffi();
+		return;
+	}
+	if(s && strcmp(s->name, "package") == 0) {
+		pragpackage();
+		return;
+	}
 	while(getnsc() != '\n')
 		;
 	return;
@@ -763,7 +771,7 @@ praglib:
 		goto bad;
 
 	/*
-	 * put pragma-line in as a funny history 
+	 * put pragma-line in as a funny history
 	 */
 	c = strlen(symb) + 1;
 	hp = alloc(c);
