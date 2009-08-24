@@ -323,8 +323,16 @@ reswitch:
 				n->op = OADDSTR;
 		}
 		if(et == TINTER) {
-			n->etype = n->op;
-			n->op = OCMPIFACE;
+			if(l->op == OLITERAL && l->val.ctype == CTNIL) {
+				// swap for back end
+				n->left = r;
+				n->right = l;
+			} else if(r->op == OLITERAL && r->val.ctype == CTNIL) {
+				// leave alone for back end
+			} else {
+				n->etype = n->op;
+				n->op = OCMPIFACE;
+			}
 		}
 		n->type = t;
 		goto ret;

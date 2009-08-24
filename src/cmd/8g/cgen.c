@@ -838,6 +838,25 @@ bgen(Node *n, int true, Prog *to)
 			regfree(&n1);
 			break;
 		}
+		
+		if(isinter(nl->type)) {
+			// front end shold only leave cmp to literal nil
+			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
+				yyerror("illegal interface comparison");
+				break;
+			}
+			a = optoas(a, types[tptr]);
+			regalloc(&n1, types[tptr], N);
+			agen(nl, &n1);
+			n2 = n1;
+			n2.op = OINDREG;
+			n2.xoffset = 0;
+			nodconst(&tmp, types[tptr], 0);
+			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
+			patch(gbranch(a, types[tptr]), to);
+			regfree(&n1);
+			break;
+		}
 
 		if(isfloat[nr->type->etype]) {
 			nodreg(&tmp, nr->type, D_F0);
