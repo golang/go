@@ -1,4 +1,4 @@
-// godefs -gsyscall -f-m32 types_darwin.c types_darwin_386.c
+// godefs -gsyscall -f-m32 types_darwin.c
 
 // MACHINE GENERATED - DO NOT EDIT.
 

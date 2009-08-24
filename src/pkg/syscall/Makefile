@@ -18,6 +18,5 @@ GOFILES=\
 
 OFILES=\
 	asm_$(GOOS)_$(GOARCH).$O\
-	types_$(GOOS)_$(GOARCH).$O\
 
 include $(GOROOT)/src/Make.pkg

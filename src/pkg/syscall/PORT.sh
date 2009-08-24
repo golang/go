@@ -54,11 +54,6 @@
 # there is almost always a #define that can get the real ones.
 # See types_darwin.c and types_linux.c for examples.
 #
-# * types_${GOOS}_${GOARCH}.c
-#
-# Same as types_${GOOS}_${GOARCH}.go except that it contains
-# definitions specific to ${GOOS} one one particular architecture.
-#
 # * zerror_${GOOS}_${GOARCH}.go
 #
 # This machine-generated file defines the system's error numbers,
@@ -117,9 +112,4 @@ esac
 echo "$mkerrors >zerrors_$GOOSARCH.go"
 echo "$mksyscall syscall_$GOOS.go syscall_$GOOSARCH.go >zsyscall_$GOOSARCH.go"
 echo "$mksysnum >zsysnum_$GOOSARCH.go"
-echo "$mktypes types_$GOOS.c types_$GOOSARCH.c >ztypes_$GOOSARCH.go"
-
-port=$(ls *.go | grep -v _)
-arch=$(ls *_$GOOSARCH.s *_$GOOSARCH.go *_$GOOS.go)
-all=$(ls $port $arch)	# sort them
-echo gobuild $all
+echo "$mktypes types_$GOOS.c >ztypes_$GOOSARCH.go"
