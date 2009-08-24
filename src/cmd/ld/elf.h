@@ -3,8 +3,15 @@
  * $FreeBSD: src/sys/sys/elf32.h,v 1.8.14.1 2005/12/30 22:13:58 marcel Exp $
  * $FreeBSD: src/sys/sys/elf64.h,v 1.10.14.1 2005/12/30 22:13:58 marcel Exp $
  * $FreeBSD: src/sys/sys/elf_common.h,v 1.15.8.1 2005/12/30 22:13:58 marcel Exp $
+ * $FreeBSD: src/sys/alpha/include/elf.h,v 1.14 2003/09/25 01:10:22 peter Exp $
+ * $FreeBSD: src/sys/amd64/include/elf.h,v 1.18 2004/08/03 08:21:48 dfr Exp $
+ * $FreeBSD: src/sys/arm/include/elf.h,v 1.5.2.1 2006/06/30 21:42:52 cognet Exp $
+ * $FreeBSD: src/sys/i386/include/elf.h,v 1.16 2004/08/02 19:12:17 dfr Exp $
+ * $FreeBSD: src/sys/powerpc/include/elf.h,v 1.7 2004/11/02 09:47:01 ssouhlal Exp $
+ * $FreeBSD: src/sys/sparc64/include/elf.h,v 1.12 2003/09/25 01:10:26 peter Exp $
  *
  * Copyright (c) 1996-1998 John D. Polstra.  All rights reserved.
+ * Copyright (c) 2001 David E. O'Brien
  * Portions Copyright 2009 The Go Authors.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -460,6 +467,292 @@ typedef struct {
 #define ELF32_R_INFO(sym, type)	(((sym) << 8) + (unsigned char)(type))
 
 /*
+ * Relocation types.
+ */
+
+#define	R_X86_64_NONE	0	/* No relocation. */
+#define	R_X86_64_64	1	/* Add 64 bit symbol value. */
+#define	R_X86_64_PC32	2	/* PC-relative 32 bit signed sym value. */
+#define	R_X86_64_GOT32	3	/* PC-relative 32 bit GOT offset. */
+#define	R_X86_64_PLT32	4	/* PC-relative 32 bit PLT offset. */
+#define	R_X86_64_COPY	5	/* Copy data from shared object. */
+#define	R_X86_64_GLOB_DAT 6	/* Set GOT entry to data address. */
+#define	R_X86_64_JMP_SLOT 7	/* Set GOT entry to code address. */
+#define	R_X86_64_RELATIVE 8	/* Add load address of shared object. */
+#define	R_X86_64_GOTPCREL 9	/* Add 32 bit signed pcrel offset to GOT. */
+#define	R_X86_64_32	10	/* Add 32 bit zero extended symbol value */
+#define	R_X86_64_32S	11	/* Add 32 bit sign extended symbol value */
+#define	R_X86_64_16	12	/* Add 16 bit zero extended symbol value */
+#define	R_X86_64_PC16	13	/* Add 16 bit signed extended pc relative symbol value */
+#define	R_X86_64_8	14	/* Add 8 bit zero extended symbol value */
+#define	R_X86_64_PC8	15	/* Add 8 bit signed extended pc relative symbol value */
+#define	R_X86_64_DTPMOD64 16	/* ID of module containing symbol */
+#define	R_X86_64_DTPOFF64 17	/* Offset in TLS block */
+#define	R_X86_64_TPOFF64 18	/* Offset in static TLS block */
+#define	R_X86_64_TLSGD	19	/* PC relative offset to GD GOT entry */
+#define	R_X86_64_TLSLD	20	/* PC relative offset to LD GOT entry */
+#define	R_X86_64_DTPOFF32 21	/* Offset in TLS block */
+#define	R_X86_64_GOTTPOFF 22	/* PC relative offset to IE GOT entry */
+#define	R_X86_64_TPOFF32 23	/* Offset in static TLS block */
+
+#define	R_X86_64_COUNT	24	/* Count of defined relocation types. */
+
+
+#define	R_ALPHA_NONE		0	/* No reloc */
+#define	R_ALPHA_REFLONG		1	/* Direct 32 bit */
+#define	R_ALPHA_REFQUAD		2	/* Direct 64 bit */
+#define	R_ALPHA_GPREL32		3	/* GP relative 32 bit */
+#define	R_ALPHA_LITERAL		4	/* GP relative 16 bit w/optimization */
+#define	R_ALPHA_LITUSE		5	/* Optimization hint for LITERAL */
+#define	R_ALPHA_GPDISP		6	/* Add displacement to GP */
+#define	R_ALPHA_BRADDR		7	/* PC+4 relative 23 bit shifted */
+#define	R_ALPHA_HINT		8	/* PC+4 relative 16 bit shifted */
+#define	R_ALPHA_SREL16		9	/* PC relative 16 bit */
+#define	R_ALPHA_SREL32		10	/* PC relative 32 bit */
+#define	R_ALPHA_SREL64		11	/* PC relative 64 bit */
+#define	R_ALPHA_OP_PUSH		12	/* OP stack push */
+#define	R_ALPHA_OP_STORE	13	/* OP stack pop and store */
+#define	R_ALPHA_OP_PSUB		14	/* OP stack subtract */
+#define	R_ALPHA_OP_PRSHIFT	15	/* OP stack right shift */
+#define	R_ALPHA_GPVALUE		16
+#define	R_ALPHA_GPRELHIGH	17
+#define	R_ALPHA_GPRELLOW	18
+#define	R_ALPHA_IMMED_GP_16	19
+#define	R_ALPHA_IMMED_GP_HI32	20
+#define	R_ALPHA_IMMED_SCN_HI32	21
+#define	R_ALPHA_IMMED_BR_HI32	22
+#define	R_ALPHA_IMMED_LO32	23
+#define	R_ALPHA_COPY		24	/* Copy symbol at runtime */
+#define	R_ALPHA_GLOB_DAT	25	/* Create GOT entry */
+#define	R_ALPHA_JMP_SLOT	26	/* Create PLT entry */
+#define	R_ALPHA_RELATIVE	27	/* Adjust by program base */
+
+#define	R_ALPHA_COUNT		28
+
+
+#define	R_ARM_NONE		0	/* No relocation. */
+#define	R_ARM_PC24		1
+#define	R_ARM_ABS32		2
+#define	R_ARM_REL32		3
+#define	R_ARM_PC13		4
+#define	R_ARM_ABS16		5
+#define	R_ARM_ABS12		6
+#define	R_ARM_THM_ABS5		7
+#define	R_ARM_ABS8		8
+#define	R_ARM_SBREL32		9
+#define	R_ARM_THM_PC22		10
+#define	R_ARM_THM_PC8		11
+#define	R_ARM_AMP_VCALL9	12
+#define	R_ARM_SWI24		13
+#define	R_ARM_THM_SWI8		14
+#define	R_ARM_XPC25		15
+#define	R_ARM_THM_XPC22		16
+#define	R_ARM_COPY		20	/* Copy data from shared object. */
+#define	R_ARM_GLOB_DAT		21	/* Set GOT entry to data address. */
+#define	R_ARM_JUMP_SLOT		22	/* Set GOT entry to code address. */
+#define	R_ARM_RELATIVE		23	/* Add load address of shared object. */
+#define	R_ARM_GOTOFF		24	/* Add GOT-relative symbol address. */
+#define	R_ARM_GOTPC		25	/* Add PC-relative GOT table address. */
+#define	R_ARM_GOT32		26	/* Add PC-relative GOT offset. */
+#define	R_ARM_PLT32		27	/* Add PC-relative PLT offset. */
+#define	R_ARM_GNU_VTENTRY	100
+#define	R_ARM_GNU_VTINHERIT	101
+#define	R_ARM_RSBREL32		250
+#define	R_ARM_THM_RPC22		251
+#define	R_ARM_RREL32		252
+#define	R_ARM_RABS32		253
+#define	R_ARM_RPC24		254
+#define	R_ARM_RBASE		255
+
+#define	R_ARM_COUNT		33	/* Count of defined relocation types. */
+
+
+#define	R_386_NONE	0	/* No relocation. */
+#define	R_386_32	1	/* Add symbol value. */
+#define	R_386_PC32	2	/* Add PC-relative symbol value. */
+#define	R_386_GOT32	3	/* Add PC-relative GOT offset. */
+#define	R_386_PLT32	4	/* Add PC-relative PLT offset. */
+#define	R_386_COPY	5	/* Copy data from shared object. */
+#define	R_386_GLOB_DAT	6	/* Set GOT entry to data address. */
+#define	R_386_JMP_SLOT	7	/* Set GOT entry to code address. */
+#define	R_386_RELATIVE	8	/* Add load address of shared object. */
+#define	R_386_GOTOFF	9	/* Add GOT-relative symbol address. */
+#define	R_386_GOTPC	10	/* Add PC-relative GOT table address. */
+#define	R_386_TLS_TPOFF	14	/* Negative offset in static TLS block */
+#define	R_386_TLS_IE	15	/* Absolute address of GOT for -ve static TLS */
+#define	R_386_TLS_GOTIE	16	/* GOT entry for negative static TLS block */
+#define	R_386_TLS_LE	17	/* Negative offset relative to static TLS */
+#define	R_386_TLS_GD	18	/* 32 bit offset to GOT (index,off) pair */
+#define	R_386_TLS_LDM	19	/* 32 bit offset to GOT (index,zero) pair */
+#define	R_386_TLS_GD_32	24	/* 32 bit offset to GOT (index,off) pair */
+#define	R_386_TLS_GD_PUSH 25	/* pushl instruction for Sun ABI GD sequence */
+#define	R_386_TLS_GD_CALL 26	/* call instruction for Sun ABI GD sequence */
+#define	R_386_TLS_GD_POP 27	/* popl instruction for Sun ABI GD sequence */
+#define	R_386_TLS_LDM_32 28	/* 32 bit offset to GOT (index,zero) pair */
+#define	R_386_TLS_LDM_PUSH 29	/* pushl instruction for Sun ABI LD sequence */
+#define	R_386_TLS_LDM_CALL 30	/* call instruction for Sun ABI LD sequence */
+#define	R_386_TLS_LDM_POP 31	/* popl instruction for Sun ABI LD sequence */
+#define	R_386_TLS_LDO_32 32	/* 32 bit offset from start of TLS block */
+#define	R_386_TLS_IE_32	33	/* 32 bit offset to GOT static TLS offset entry */
+#define	R_386_TLS_LE_32	34	/* 32 bit offset within static TLS block */
+#define	R_386_TLS_DTPMOD32 35	/* GOT entry containing TLS index */
+#define	R_386_TLS_DTPOFF32 36	/* GOT entry containing TLS offset */
+#define	R_386_TLS_TPOFF32 37	/* GOT entry of -ve static TLS offset */
+
+#define	R_386_COUNT	38	/* Count of defined relocation types. */
+
+#define	R_PPC_NONE		0	/* No relocation. */
+#define	R_PPC_ADDR32		1
+#define	R_PPC_ADDR24		2
+#define	R_PPC_ADDR16		3
+#define	R_PPC_ADDR16_LO		4
+#define	R_PPC_ADDR16_HI		5
+#define	R_PPC_ADDR16_HA		6
+#define	R_PPC_ADDR14		7
+#define	R_PPC_ADDR14_BRTAKEN	8
+#define	R_PPC_ADDR14_BRNTAKEN	9
+#define	R_PPC_REL24		10
+#define	R_PPC_REL14		11
+#define	R_PPC_REL14_BRTAKEN	12
+#define	R_PPC_REL14_BRNTAKEN	13
+#define	R_PPC_GOT16		14
+#define	R_PPC_GOT16_LO		15
+#define	R_PPC_GOT16_HI		16
+#define	R_PPC_GOT16_HA		17
+#define	R_PPC_PLTREL24		18
+#define	R_PPC_COPY		19
+#define	R_PPC_GLOB_DAT		20
+#define	R_PPC_JMP_SLOT		21
+#define	R_PPC_RELATIVE		22
+#define	R_PPC_LOCAL24PC		23
+#define	R_PPC_UADDR32		24
+#define	R_PPC_UADDR16		25
+#define	R_PPC_REL32		26
+#define	R_PPC_PLT32		27
+#define	R_PPC_PLTREL32		28
+#define	R_PPC_PLT16_LO		29
+#define	R_PPC_PLT16_HI		30
+#define	R_PPC_PLT16_HA		31
+#define	R_PPC_SDAREL16		32
+#define	R_PPC_SECTOFF		33
+#define	R_PPC_SECTOFF_LO	34
+#define	R_PPC_SECTOFF_HI	35
+#define	R_PPC_SECTOFF_HA	36
+
+#define	R_PPC_COUNT		37	/* Count of defined relocation types. */
+
+#define R_PPC_TLS		67
+#define R_PPC_DTPMOD32		68
+#define R_PPC_TPREL16		69
+#define R_PPC_TPREL16_LO	70
+#define R_PPC_TPREL16_HI	71
+#define R_PPC_TPREL16_HA	72
+#define R_PPC_TPREL32		73
+#define R_PPC_DTPREL16		74
+#define R_PPC_DTPREL16_LO	75
+#define R_PPC_DTPREL16_HI	76
+#define R_PPC_DTPREL16_HA	77
+#define R_PPC_DTPREL32		78
+#define R_PPC_GOT_TLSGD16	79
+#define R_PPC_GOT_TLSGD16_LO	80
+#define R_PPC_GOT_TLSGD16_HI	81
+#define R_PPC_GOT_TLSGD16_HA	82
+#define R_PPC_GOT_TLSLD16	83
+#define R_PPC_GOT_TLSLD16_LO	84
+#define R_PPC_GOT_TLSLD16_HI	85
+#define R_PPC_GOT_TLSLD16_HA	86
+#define R_PPC_GOT_TPREL16	87
+#define R_PPC_GOT_TPREL16_LO	88
+#define R_PPC_GOT_TPREL16_HI	89
+#define R_PPC_GOT_TPREL16_HA	90
+
+#define	R_PPC_EMB_NADDR32	101
+#define	R_PPC_EMB_NADDR16	102
+#define	R_PPC_EMB_NADDR16_LO	103
+#define	R_PPC_EMB_NADDR16_HI	104
+#define	R_PPC_EMB_NADDR16_HA	105
+#define	R_PPC_EMB_SDAI16	106
+#define	R_PPC_EMB_SDA2I16	107
+#define	R_PPC_EMB_SDA2REL	108
+#define	R_PPC_EMB_SDA21		109
+#define	R_PPC_EMB_MRKREF	110
+#define	R_PPC_EMB_RELSEC16	111
+#define	R_PPC_EMB_RELST_LO	112
+#define	R_PPC_EMB_RELST_HI	113
+#define	R_PPC_EMB_RELST_HA	114
+#define	R_PPC_EMB_BIT_FLD	115
+#define	R_PPC_EMB_RELSDA	116
+
+					/* Count of defined relocation types. */
+#define	R_PPC_EMB_COUNT		(R_PPC_EMB_RELSDA - R_PPC_EMB_NADDR32 + 1)
+
+
+#define R_SPARC_NONE		0
+#define R_SPARC_8		1
+#define R_SPARC_16		2
+#define R_SPARC_32		3
+#define R_SPARC_DISP8		4
+#define R_SPARC_DISP16		5
+#define R_SPARC_DISP32		6
+#define R_SPARC_WDISP30		7
+#define R_SPARC_WDISP22		8
+#define R_SPARC_HI22		9
+#define R_SPARC_22		10
+#define R_SPARC_13		11
+#define R_SPARC_LO10		12
+#define R_SPARC_GOT10		13
+#define R_SPARC_GOT13		14
+#define R_SPARC_GOT22		15
+#define R_SPARC_PC10		16
+#define R_SPARC_PC22		17
+#define R_SPARC_WPLT30		18
+#define R_SPARC_COPY		19
+#define R_SPARC_GLOB_DAT	20
+#define R_SPARC_JMP_SLOT	21
+#define R_SPARC_RELATIVE	22
+#define R_SPARC_UA32		23
+#define R_SPARC_PLT32		24
+#define R_SPARC_HIPLT22		25
+#define R_SPARC_LOPLT10		26
+#define R_SPARC_PCPLT32		27
+#define R_SPARC_PCPLT22		28
+#define R_SPARC_PCPLT10		29
+#define R_SPARC_10		30
+#define R_SPARC_11		31
+#define R_SPARC_64		32
+#define R_SPARC_OLO10		33
+#define R_SPARC_HH22		34
+#define R_SPARC_HM10		35
+#define R_SPARC_LM22		36
+#define R_SPARC_PC_HH22		37
+#define R_SPARC_PC_HM10		38
+#define R_SPARC_PC_LM22		39
+#define R_SPARC_WDISP16		40
+#define R_SPARC_WDISP19		41
+#define R_SPARC_GLOB_JMP	42
+#define R_SPARC_7		43
+#define R_SPARC_5		44
+#define R_SPARC_6		45
+#define	R_SPARC_DISP64		46
+#define	R_SPARC_PLT64		47
+#define	R_SPARC_HIX22		48
+#define	R_SPARC_LOX10		49
+#define	R_SPARC_H44		50
+#define	R_SPARC_M44		51
+#define	R_SPARC_L44		52
+#define	R_SPARC_REGISTER	53
+#define	R_SPARC_UA64		54
+#define	R_SPARC_UA16		55
+
+
+/*
+ * Magic number for the elf trampoline, chosen wisely to be an immediate
+ * value.
+ */
+#define ARM_MAGIC_TRAMP_NUMBER	0x5c000003
+
+
+/*
  * Symbol table entries.
  */
 
@@ -599,7 +892,7 @@ typedef struct {
 #define ELF64_R_TYPE(info)	((info) & 0xffffffffL)
 
 /* Macro for constructing r_info from field values. */
-#define ELF64_R_INFO(sym, type)	(((sym) << 32) + ((type) & 0xffffffffL))
+#define ELF64_R_INFO(sym, type)	((((uint64)(sym)) << 32) + (((uint64)(type)) & 0xffffffffULL))
 
 /*
  * Symbol table entries.
