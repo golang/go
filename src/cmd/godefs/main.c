@@ -149,6 +149,7 @@ main(int argc, char **argv)
 {
 	int p[2], pid, i, j, n, off, npad, prefix;
 	char **av, *q, *r, *tofree, *name;
+	char nambuf[100];
 	Biobuf *bin, *bout;
 	Type *t;
 	Field *f;
@@ -371,6 +372,10 @@ main(int argc, char **argv)
 				name = f->name;
 				if(cutprefix(name))
 					name += prefix;
+				if(strcmp(name, "") == 0) {
+					snprint(nambuf, sizeof nambuf, "Pad%d", npad++);
+					name = nambuf;
+				}
 				Bprint(bout, "\t%lT;\n", name, f->type);
 				if(t->kind == Union && lang == &go)
 					break;
@@ -530,6 +535,10 @@ int
 cutprefix(char *name)
 {
 	char *p;
+
+	// special case: orig_ in register struct
+	if(strncmp(name, "orig_", 5) == 0)
+		return 0;
 
 	for(p=name; *p; p++) {
 		if(*p == '_')

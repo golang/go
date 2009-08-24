@@ -1,4 +1,4 @@
-// godefs -gsyscall -f-m64 types_darwin.c types_darwin_amd64.c
+// godefs -gsyscall -f-m64 types_darwin.c
 
 // MACHINE GENERATED - DO NOT EDIT.
 

@@ -171,10 +171,7 @@ print <<EOF;
 
 package syscall
 
-import (
-	"syscall";
-	"unsafe";
-)
+import "unsafe"
 
 $text
 

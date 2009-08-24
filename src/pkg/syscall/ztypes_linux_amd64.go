@@ -1,4 +1,4 @@
-// godefs -gsyscall -f-m64 types_linux.c types_linux_amd64.c
+// godefs -gsyscall -f-m64 types_linux.c
 
 // MACHINE GENERATED - DO NOT EDIT.
 
@@ -166,18 +166,18 @@ type Timex struct {
 	Calcnt int64;
 	Errcnt int64;
 	Stbcnt int64;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
+	Pad3 int32;
+	Pad4 int32;
+	Pad5 int32;
+	Pad6 int32;
+	Pad7 int32;
+	Pad8 int32;
+	Pad9 int32;
+	Pad10 int32;
+	Pad11 int32;
+	Pad12 int32;
+	Pad13 int32;
+	Pad14 int32;
 }
 
 type Time_t int64

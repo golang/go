@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-Input to godefs.  See PORT.
+Input to godefs.  See PORT.sh
  */
 
 #define _LARGEFILE_SOURCE

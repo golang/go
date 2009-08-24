@@ -43,7 +43,7 @@ godefs -gsyscall "$@" _errors.c
 
 # Run C program to print error strings.
 (
-	echo "
+	/bin/echo "
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
@@ -57,10 +57,12 @@ int errors[] = {
 "
 	for i in $errors
 	do
-		echo '	'$i,
+		/bin/echo '	'$i,
 	done
 
-	echo '
+	# Use /bin/echo to avoid builtin echo,
+	# which interprets \n itself
+	/bin/echo '
 };
 
 int
@@ -89,5 +91,4 @@ main(void)
 '
 ) >_errors.c
 
-gcc -o _errors _errors.c && ./_errors
-rm -f _errors.c _errors
+gcc -o _errors _errors.c && ./_errors && rm -f _errors.c _errors
