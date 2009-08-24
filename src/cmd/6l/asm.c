@@ -148,7 +148,7 @@ addstring(Sym *s, char *str)
 }
 
 vlong
-adduint32(Sym *s, uint32 v)
+adduintxx(Sym *s, uint64 v, int wid)
 {
 	vlong r;
 	Prog *p;
@@ -157,28 +157,35 @@ adduint32(Sym *s, uint32 v)
 		s->type = SDATA;
 	s->reachable = 1;
 	r = s->value;
-	p = newdata(s, s->value, 4, D_EXTERN);
-	s->value += 4;
+	p = newdata(s, s->value, wid, D_EXTERN);
+	s->value += wid;
 	p->to.type = D_CONST;
 	p->to.offset = v;
 	return r;
 }
 
 vlong
+adduint8(Sym *s, uint8 v)
+{
+	return adduintxx(s, v, 1);
+}
+
+vlong
+adduint16(Sym *s, uint16 v)
+{
+	return adduintxx(s, v, 2);
+}
+
+vlong
+adduint32(Sym *s, uint32 v)
+{
+	return adduintxx(s, v, 4);
+}
+
+vlong
 adduint64(Sym *s, uint64 v)
 {
-	vlong r;
-	Prog *p;
-
-	if(s->type == 0)
-		s->type = SDATA;
-	s->reachable = 1;
-	r = s->value;
-	p = newdata(s, s->value, 8, D_EXTERN);
-	s->value += 8;
-	p->to.type = D_CONST;
-	p->to.offset = v;
-	return r;
+	return adduintxx(s, v, 8);
 }
 
 vlong
@@ -230,8 +237,6 @@ datoff(vlong addr)
 	return 0;
 }
 
-int nrela;
-
 enum {
 	ElfStrEmpty,
 	ElfStrInterp,
@@ -274,6 +279,8 @@ doelf(void)
 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
 
 	if(!debug['d']) {	/* -d suppresses dynamic loader format */
+		Sym *dynamic, *dynstr;
+
 		elfstr[ElfStrInterp] = addstring(shstrtab, ".interp");
 		elfstr[ElfStrHash] = addstring(shstrtab, ".hash");
 		elfstr[ElfStrGot] = addstring(shstrtab, ".got");
@@ -289,7 +296,12 @@ doelf(void)
 		s->type = SDATA;	// TODO: rodata
 		addstring(lookup(".interp", 0), linuxdynld);
 
-		/* hash table - empty for now */
+		/*
+		 * hash table - empty for now.
+		 * we should have to fill it out with an entry for every
+		 * symbol in .dynsym, but it seems to work not to,
+		 * which is fine with me.
+		 */
 		s = lookup(".hash", 0);
 		s->type = SDATA;	// TODO: rodata
 		s->reachable = 1;
@@ -304,6 +316,7 @@ doelf(void)
 		/* dynamic string table */
 		s = lookup(".dynstr", 0);
 		addstring(s, "");
+		dynstr = s;
 
 		/* relocation table */
 		s = lookup(".rela", 0);
@@ -322,6 +335,32 @@ doelf(void)
 
 		/* define dynamic elf table */
 		s = lookup(".dynamic", 0);
+		dynamic = s;
+
+		/*
+		 * relocation demo - overwrite go func
+		 * var main.extern_c_fib with fib symbol from fib.so
+		 */
+		Sym *fib;
+		fib = lookup("main·extern_c_fib", 0);
+		if(fib->type == SDATA || fib->type == SBSS) {
+			s = lookup(".rela", 0);
+			addaddr(s, fib);
+			adduint64(s, ELF64_R_INFO(1, R_X86_64_64));	// 1 = first symbol in dynsym
+			adduint64(s, 0);
+
+			s = lookup(".dynsym", 0);
+			adduint32(s, addstring(lookup(".dynstr", 0), "fib"));
+			adduint8(s, (STB_GLOBAL<<4) | STT_FUNC);
+			adduint8(s, 0);		/* reserved */
+			adduint16(s, SHN_UNDEF);	/* section where symbol is defined */
+			adduint64(s, 0);	/* value */
+			adduint64(s, 0);	/* size of object */
+
+			elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, "fib.so"));
+		}
+
+		s = dynamic;
 		elfwritedynentsym(s, DT_HASH, lookup(".hash", 0));
 		elfwritedynentsym(s, DT_SYMTAB, lookup(".dynsym", 0));
 		elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE);
@@ -332,32 +371,6 @@ doelf(void)
 		elfwritedynent(s, DT_RELAENT, ELF64RELASIZE);
 		elfwritedynent(s, DT_NULL, 0);
 	}
-
-/*
-	putc = lookup("main·putc", 0);
-	if(putc->type != SDATA && putc->type != SBSS)
-		return;
-
-	// smash main.putc with putc
-	s = lookup(".elfrela", 0);
-	s->type = SDATA;
-	s->value = 24;
-	p = newdata(s, 0, 8, D_EXTERN);	// r_offset
-	p->to.type = D_ADDR;
-	p->to.index = D_EXTERN;
-	p->to.sym = putc;
-
-	p = newdata(s, 8, 8, D_EXTERN);	// r_info
-	p->to.type = D_CONST;
-	p->to.offset = ELF64_R_INFO(0, 1);	// use 0 as symbol value; 1 is S+A calculation
-
-	p = newdata(s, 16, 8, D_EXTERN);	// r_addend
-	p->to.type = D_CONST;
-	p->to.offset = 1000;
-
-	nrela = 1;
-*/
-
 }
 
 void
@@ -750,14 +763,6 @@ asmb(void)
 		/* Dynamic linking sections */
 		if (!debug['d']) {	/* -d suppresses dynamic loader format */
 			/* S headers for dynamic linking */
-			sh = newElf64_Shdr(elfstr[ElfStrHash]);
-			sh->type = SHT_HASH;
-			sh->flags = SHF_ALLOC;
-			sh->entsize = 4;
-			sh->addralign = 8;
-			// sh->link = xxx;
-			shsym(sh, lookup(".hash", 0));
-
 			sh = newElf64_Shdr(elfstr[ElfStrGot]);
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC+SHF_WRITE;
@@ -776,7 +781,7 @@ asmb(void)
 			sh = newElf64_Shdr(elfstr[ElfStrDynsym]);
 			sh->type = SHT_DYNSYM;
 			sh->flags = SHF_ALLOC;
-			sh->entsize = 1;
+			sh->entsize = ELF64SYMSIZE;
 			sh->addralign = 8;
 			sh->link = dynsym+1;	// dynstr
 			// sh->info = index of first non-local symbol (number of local symbols)
@@ -788,9 +793,18 @@ asmb(void)
 			sh->addralign = 1;
 			shsym(sh, lookup(".dynstr", 0));
 
+			sh = newElf64_Shdr(elfstr[ElfStrHash]);
+			sh->type = SHT_HASH;
+			sh->flags = SHF_ALLOC;
+			sh->entsize = 4;
+			sh->addralign = 8;
+			sh->link = dynsym;
+			shsym(sh, lookup(".hash", 0));
+
 			sh = newElf64_Shdr(elfstr[ElfStrRela]);
 			sh->type = SHT_RELA;
 			sh->flags = SHF_ALLOC;
+			sh->entsize = ELF64RELASIZE;
 			sh->addralign = 8;
 			sh->link = dynsym;
 			shsym(sh, lookup(".rela", 0));
@@ -859,7 +873,6 @@ asmb(void)
 			sh->off = fo;
 			sh->size = w;
 			sh->addralign = 1;
-			sh->entsize = 24;
 
 			fo += w;
 			w = lcsize;
@@ -869,7 +882,6 @@ asmb(void)
 			sh->off = fo;
 			sh->size = w;
 			sh->addralign = 1;
-			sh->entsize = 24;
 		}
 
 		sh = newElf64_Shstrtab(elfstr[ElfStrShstrtab]);
