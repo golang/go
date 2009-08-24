@@ -1550,6 +1550,7 @@ parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
 
 	// skip white space
 	p = *pp;
+again:
 	while(p < ep && (*p == ' ' || *p == '\t'))
 		p++;
 	if(p == ep)
@@ -1569,7 +1570,13 @@ parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
 		p += 5;
 	else if(strncmp(p, "const ", 6) == 0)
 		p += 6;
-	else{
+	else if(strncmp(p, "//", 2) == 0) {
+		p = memchr(p, '\n', ep - p);
+		if(p == nil)
+			return 0;
+		p++;
+		goto again;
+	} else {
 		fprint(2, "ar: confused in pkg data near <<%.20s>>\n", p);
 		errors++;
 		return -1;

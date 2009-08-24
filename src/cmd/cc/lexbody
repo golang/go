@@ -47,6 +47,20 @@ pragvararg(void)
 }
 
 void
+pragffi(void)
+{
+	while(getnsc() != '\n')
+		;
+}
+
+void
+pragpackage(void)
+{
+	while(getnsc() != '\n')
+		;
+}
+
+void
 pragfpround(void)
 {
 	while(getnsc() != '\n')

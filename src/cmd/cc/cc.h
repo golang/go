@@ -49,6 +49,7 @@ typedef	struct	Hist	Hist;
 typedef	struct	Term	Term;
 typedef	struct	Init	Init;
 typedef	struct	Bits	Bits;
+typedef	struct	Ffi Ffi;
 
 #define	NHUNK		50000L
 #define	BUFSIZ		8192
@@ -436,6 +437,18 @@ struct	Funct
 	Sym*	castfr[NTYPE];
 };
 
+struct	Ffi
+{
+	char	type;
+	char*	local;
+	char*	remote;
+	char*	path;
+};
+
+EXTERN	Ffi	*ffi;
+EXTERN	int	nffi;
+EXTERN	char*	package;
+
 EXTERN struct
 {
 	Type*	tenum;		/* type of entire enum */
@@ -740,6 +753,8 @@ void	pragpack(void);
 void	pragfpround(void);
 void	pragtextflag(void);
 void	pragincomplete(void);
+void	pragffi(void);
+void	pragpackage(void);
 
 /*
  * calls to machine depend part
