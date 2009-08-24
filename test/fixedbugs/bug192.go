@@ -6,6 +6,6 @@
 
 package main
 
-import "fmt"
+import "fmt"	// GCCGO_ERROR "previous"
 
-var fmt int	// ERROR "redecl"
+var fmt int	// ERROR "redecl|redefinition"
