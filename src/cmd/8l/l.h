@@ -116,6 +116,7 @@ struct	Sym
 	uchar	subtype;
 	uchar	dupok;
 	uchar	reachable;
+	uchar	ffitype;
 	ushort	file;
 	int32	value;
 	int32	sig;
@@ -123,6 +124,9 @@ struct	Sym
 	Prog*	text;
 	Prog*	data;
 	Sym*	gotype;
+	char*	ffiname;
+	char*	ffilib;
+
 };
 struct	Optab
 {

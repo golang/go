@@ -190,6 +190,7 @@ parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char
 	char *p, *prefix, *name, *def, *edef, *meth;
 	int n;
 
+again:
 	// skip white space
 	p = *pp;
 	while(p < ep && (*p == ' ' || *p == '\t' || *p == '\n'))
@@ -211,8 +212,46 @@ parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char
 		p += 5;
 	else if(strncmp(p, "const ", 6) == 0)
 		p += 6;
-	else{
-		fprint(2, "%s: confused in pkg data near <<%.20s>>\n", argv0, p);
+	else if(strncmp(p, "//ffi ", 6) == 0) {
+		Sym *s;
+		char type, *lib;
+
+		p += 6;
+		if(*p == 0 || *(p+1) != ' ')
+			goto err;
+		type = *p;
+		p += 2;
+		name = p;
+		p = strchr(name, ' ');
+		if(p == nil)
+			goto err;
+		while(*p == ' ')
+			p++;
+		def = p;
+		p = strchr(def, ' ');
+		if(p == nil)
+			goto err;
+		while(*p == ' ')
+			p++;
+		lib = p;
+		p = strchr(lib, '\n');
+		if(p == nil)
+			goto err;
+
+		// successful parse: now can edit the line
+		*strchr(name, ' ') = 0;
+		*strchr(def, ' ') = 0;
+		*strchr(lib, '\n') = 0;
+		*pp = p+1;
+
+		s = lookup(name, 0);
+		s->ffitype = type;
+		s->ffilib = lib;
+		s->ffiname = def;
+		goto again;
+	} else {
+	err:
+		fprint(2, "%s: confused in pkg data near <<%.20s>>\n", argv0, prefix);
 		nerrors++;
 		return -1;
 	}
