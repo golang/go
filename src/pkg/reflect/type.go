@@ -522,6 +522,7 @@ func (t *StructType) fieldByName(name string, mark map[*StructType]bool, depth i
 	mark[t] = true;
 
 	var fi int;	// field index
+	n := 0;  // number of matching fields at depth fd
 L:	for i, _ := range t.fields {
 		f := t.Field(i);
 		d := inf;
@@ -538,7 +539,7 @@ L:	for i, _ := range t.fields {
 			case ft.Name() == name:
 				// Matching anonymous top-level field.
 				d = depth;
-			case fd > 0:
+			case fd > depth:
 				// No top-level field yet; look inside nested structs.
 				if st, ok := ft.(*StructType); ok {
 					f, d = st.fieldByName(name, mark, depth+1);
@@ -550,10 +551,11 @@ L:	for i, _ := range t.fields {
 		case d < fd:
 			// Found field at shallower depth.
 			ff, fi, fd = f, i, d;
+			n = 1;
 		case d == fd:
 			// More than one matching field at the same depth (or d, fd == inf).
-			// Same as no field found.
-			fd = inf;
+			// Same as no field found at this depth.
+			n++;
 			if d == depth {
 				// Impossible to find a field at lower depth.
 				break L;
@@ -561,12 +563,15 @@ L:	for i, _ := range t.fields {
 		}
 	}
 
-	if fd < inf {
+	if n == 1 {
 		// Found matching field.
 		if len(ff.Index) <= depth {
 			ff.Index = make([]int, depth+1);
 		}
 		ff.Index[depth] = fi;
+	} else {
+		// None or more than one matching field found.
+		fd = inf;
 	}
 
 	mark[t] = false, false;
