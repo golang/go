@@ -1608,6 +1608,8 @@ typecheckcomplit(Node **np)
 				ll->n->left->typecheck = 1;
 				f = f->down;
 			}
+			if(f != nil)
+				yyerror("too few values in struct initializer");
 		} else {
 			// keyed list
 			for(ll=n->list; ll; ll=ll->next) {
