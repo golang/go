@@ -35,7 +35,7 @@ type Type interface {
 	isFloat() bool;
 	// isIdeal returns true if this is an ideal int or float.
 	isIdeal() bool;
-	// ZeroVal returns a new zero value of this type.
+	// Zero returns a new zero value of this type.
 	Zero() Value;
 	// String returns the string representation of this type.
 	String() string;
@@ -82,6 +82,8 @@ type IntValue interface {
 	Set(int64);
 }
 
+// TODO(austin) IdealIntValue and IdealFloatValue should not exist
+// because ideals are not l-values.
 type IdealIntValue interface {
 	Value;
 	Get() *bignum.Integer;
@@ -183,6 +185,10 @@ type Variable struct {
 	Index int;
 	// Static type of this variable
 	Type Type;
+	// Value of this variable.  This is only used by Scope.NewFrame;
+	// therefore, it is useful for global scopes but cannot be used
+	// in function scopes.
+	Init Value;
 }
 
 type Constant struct {

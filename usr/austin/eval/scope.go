@@ -11,7 +11,7 @@ import (
 )
 
 func (b *block) enterChild() *block {
-	if b.inner != nil {
+	if b.inner != nil && b.inner.scope == b.scope {
 		log.Crash("Failed to exit child block before entering another child");
 	}
 	sub := &block{
@@ -28,17 +28,19 @@ func (b *block) exit() {
 	if b.outer == nil {
 		log.Crash("Cannot exit top-level block");
 	}
-	if b.outer.inner != b {
-		log.Crash("Already exited block");
-	}
-	if b.inner != nil {
-		log.Crash("Exit of parent block without exit of child block");
+	if b.outer.scope == b.scope {
+		if b.outer.inner != b {
+			log.Crash("Already exited block");
+		}
+		if b.inner != nil && b.inner.scope == b.scope {
+			log.Crash("Exit of parent block without exit of child block");
+		}
 	}
 	b.outer.inner = nil;
 }
 
 func (b *block) ChildScope() *Scope {
-	if b.inner != nil {
+	if b.inner != nil && b.inner.scope == b.scope {
 		log.Crash("Failed to exit child block before entering a child scope");
 	}
 	sub := b.enterChild();
@@ -58,11 +60,11 @@ func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, D
 }
 
 func (b *block) DefineSlot(t Type) *Variable {
-	if b.inner != nil {
+	if b.inner != nil && b.inner.scope == b.scope {
 		log.Crash("Failed to exit child block before defining variable");
 	}
 	index := b.offset+b.numVars;
-	v := &Variable{token.Position{}, index, t};
+	v := &Variable{token.Position{}, index, t, nil};
 	b.numVars++;
 	if index+1 > b.scope.maxVars {
 		b.scope.maxVars = index+1;
@@ -107,7 +109,14 @@ func (b *block) Lookup(name string) (level int, def Def) {
 }
 
 func (s *Scope) NewFrame(outer *Frame) *Frame {
-	return outer.child(s.maxVars);
+	fr := outer.child(s.maxVars);
+	for _, v := range s.defs {
+		switch v := v.(type) {
+		case *Variable:
+			fr.Vars[v.Index] = v.Init;
+		}
+	}
+	return fr;
 }
 
 func (f *Frame) Get(level int, index int) Value {
