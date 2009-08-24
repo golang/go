@@ -100,7 +100,12 @@ convlit1(Node **np, Type *t, int explicit)
 	case OLSH:
 	case ORSH:
 		convlit(&n->left, t);
-		n->type = n->left->type;
+		t = n->left->type;
+		if(t != T && !isint[t->etype]) {
+			yyerror("invalid operation: %#N (shift of type %T)", n, t);
+			t = T;
+		}
+		n->type = t;
 		return;
 	}
 	// avoided repeated calculations, errors
@@ -728,7 +733,12 @@ defaultlit(Node **np, Type *t)
 	case OLSH:
 	case ORSH:
 		defaultlit(&n->left, t);
-		n->type = n->left->type;
+		t = n->left->type;
+		if(t != T && !isint[t->etype]) {
+			yyerror("invalid operation: %#N (shift of type %T)", n, t);
+			t = T;
+		}
+		n->type = t;
 		return;
 	default:
 		defaultlit(&n->left, t);
