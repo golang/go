@@ -335,6 +335,11 @@ reswitch:
 			yyerror("invalid operation: %#N (shift count type %T)", n, r->type);
 			goto error;
 		}
+		t = l->type;
+		if(t != T && t->etype != TIDEAL && !isint[t->etype]) {
+			yyerror("invalid operation: %#N (shift of type %T)", n, t);
+			goto error;
+		}
 		// no defaultlit for left
 		// the outer context gives the type
 		n->type = l->type;
