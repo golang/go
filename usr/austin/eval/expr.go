@@ -1705,6 +1705,8 @@ func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
 		return &Expr{t, func(f *Frame, out Value) { out.(*idealFloatV).V = ec.evalIdealFloat() }}, nil;
 	case *stringType:
 		return &Expr{t, func(f *Frame, out Value) { out.(StringValue).Set(ec.evalString(f)) }}, nil;
+	case *ArrayType:
+		return &Expr{t, func(f *Frame, out Value) { out.(ArrayValue).Assign(ec.evalArray(f)) }}, nil;
 	case *PtrType:
 		return &Expr{t, func(f *Frame, out Value) { out.(PtrValue).Set(ec.evalPtr(f)) }}, nil;
 	case *FuncType:

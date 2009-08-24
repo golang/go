@@ -400,7 +400,7 @@ func (v *structV) String() string {
 	res := "{";
 	for i, v := range *v {
 		if i > 0 {
-			res += "; ";
+			res += ", ";
 		}
 		res += v.String();
 	}
