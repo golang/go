@@ -77,6 +77,8 @@ convlit1(Node **np, Type *t, int explicit)
 		return;
 	if(eqtype(t, n->type))
 		return;
+	if(!explicit && n->type->etype != TIDEAL && n->type != idealstring && n->type->etype != TNIL)
+		return;
 
 //dump("convlit1", n);
 	if(n->op == OLITERAL) {

@@ -258,6 +258,9 @@ exprfmt(Fmt *f, Node *n, int prec)
 		break;
 
 	case OCONV:
+	case OCONVNOP:
+	case OCONVSLICE:
+	case OCONVIFACE:
 		fmtprint(f, "%T(", n->type);
 		exprfmt(f, n->left, 0);
 		fmtprint(f, ")");
