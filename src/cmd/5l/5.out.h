@@ -203,6 +203,12 @@ enum	as
 #define C_SCOND_NONE	14
 #define C_SCOND_NV	15
 
+/* D_SHIFT type */
+#define SHIFT_LL		0<<5
+#define SHIFT_LR		1<<5
+#define SHIFT_AR		2<<5
+#define SHIFT_RR		3<<5
+
 /* type/name */
 #define	D_GOK	0
 #define	D_NONE	1
