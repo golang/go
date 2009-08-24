@@ -87,6 +87,8 @@ reswitch:
 		ok |= Erv;
 		if(n->iota && !(top & Eiota))
 			yyerror("use of iota not in constant initializer");
+		if(n->val.ctype == CTSTR)
+			n->type = idealstring;
 		goto ret;
 
 	case ONONAME:
@@ -1268,7 +1270,9 @@ typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
 	if(n->type == T)
 		return n;
 
-	if(cvttype(t, n->type) && n->op == OLITERAL) {
+	if(n->op == OLITERAL)
+	if(explicit || n->type->etype == TIDEAL || n->type == idealstring || n->type->etype == TNIL)
+	if(cvttype(t, n->type)) {
 		// can convert literal in place
 		// TODO(rsc) is this needed?
 		n1 = nod(OXXX, N, N);
@@ -1286,6 +1290,10 @@ typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
 		return n;
 
 	case 0:
+		if(nconv) {
+			nconv->op = OCONVNOP;
+			return nconv;
+		}
 		return n;
 	}
 
