@@ -811,7 +811,7 @@ rdst:
 
 hard:
 	// requires register intermediate
-	regalloc(&r1, cvt, T);
+	regalloc(&r1, cvt, N);
 	gmove(f, &r1);
 	gmove(&r1, t);
 	regfree(&r1);

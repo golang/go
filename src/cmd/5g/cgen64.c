@@ -17,7 +17,7 @@ cgen64(Node *n, Node *res)
 	Node al, ah, bl, bh, cl, ch; //, s1, s2;
 	Prog *p1;
  //, *p2;
-//	uint64 v;
+	uint64 v;
 //	uint32 lv, hv;
 
 	if(res->op != OINDREG && res->op != ONAME) {
@@ -191,54 +191,83 @@ cgen64(Node *n, Node *res)
 //		regfree(&s2);
 //		break;
 
-//	case ORSH:
-//		if(r->op == OLITERAL) {
-//			fatal("cgen64 ORSH, OLITERAL not implemented");
-//			v = mpgetfix(r->val.u.xval);
-//			if(v >= 64) {
-//				if(is64(r->type))
-//					splitclean();
-//				splitclean();
-//				split64(res, &lo2, &hi2);
-//				if(hi1.type->etype == TINT32) {
-//					gmove(&hi1, &lo2);
-//					gins(ASARL, ncon(31), &lo2);
-//					gmove(&hi1, &hi2);
-//					gins(ASARL, ncon(31), &hi2);
-//				} else {
-//					gins(AMOVL, ncon(0), &lo2);
-//					gins(AMOVL, ncon(0), &hi2);
-//				}
-//				splitclean();
-//				goto out;
-//			}
-//			if(v >= 32) {
-//				if(is64(r->type))
-//					splitclean();
-//				split64(res, &lo2, &hi2);
-//				gmove(&hi1, &lo2);
-//				if(v > 32)
-//					gins(optoas(ORSH, hi1.type), ncon(v-32), &lo2);
-//				if(hi1.type->etype == TINT32) {
-//					gmove(&hi1, &hi2);
-//					gins(ASARL, ncon(31), &hi2);
-//				} else
-//					gins(AMOVL, ncon(0), &hi2);
-//				splitclean();
-//				splitclean();
-//				goto out;
-//			}
+	case ORSH:
+		if(r->op == OLITERAL) {
+			v = mpgetfix(r->val.u.xval);
+			if(v >= 64) {
+				if(hi1.type->etype == TINT32) {
+					//	MOVW	hi1->31, al
+					p1 = gins(AMOVW, &hi1, &al);
+					p1->from.type = D_SHIFT;
+					p1->from.offset = SHIFT_AR | 31 << 7 | hi1.val.u.reg;
+					p1->from.reg = NREG;
 
-//			// general shift
-//			gins(AMOVL, &lo1, &ax);
-//			gins(AMOVL, &hi1, &dx);
-//			p1 = gins(ASHRL, ncon(v), &ax);
-//			p1->from.index = D_DX;	// double-width shift
-//			p1->from.scale = 0;
-//			gins(optoas(ORSH, hi1.type), ncon(v), &dx);
-//			break;
-//		}
-//		fatal("cgen64 ORSH, !OLITERAL not implemented");
+					//	MOVW	hi1->31, ah
+					p1 = gins(AMOVW, &hi1, &ah);
+					p1->from.type = D_SHIFT;
+					p1->from.offset = SHIFT_AR | 31 << 7 | hi1.val.u.reg;
+					p1->from.reg = NREG;
+				} else {
+					gins(AEOR, &al, &al);
+					gins(AEOR, &ah, &ah);
+				}
+				break;
+			}
+			if(v >= 32) {
+				if(hi1.type->etype == TINT32) {
+					//	MOVW	hi1->(v-32), al
+					p1 = gins(AMOVW, &hi1, &al);
+					p1->from.type = D_SHIFT;
+					p1->from.offset = SHIFT_AR | (v-32)<<7 | hi1.val.u.reg;
+					p1->from.reg = NREG;
+
+					//	MOVW	hi1->31, ah
+					p1 = gins(AMOVW, &hi1, &ah);
+					p1->from.type = D_SHIFT;
+					p1->from.offset = SHIFT_AR | 31<<7 | hi1.val.u.reg;
+					p1->from.reg = NREG;
+				} else {
+					//	MOVW	hi1>>(v-32), al
+					p1 = gins(AMOVW, &hi1, &al);
+					p1->from.type = D_SHIFT;
+					p1->from.offset = SHIFT_LR | (v-32)<<7 | hi1.val.u.reg;
+					p1->from.reg = NREG;
+					gins(AEOR, &ah, &ah);
+				}
+				break;
+			}
+
+			// general shift
+
+			//	MOVW	lo1>>v, al
+			p1 = gins(AMOVW, &lo1, &al);
+			p1->from.type = D_SHIFT;
+			p1->from.offset = SHIFT_LR | v<<7 | lo1.val.u.reg;
+			p1->from.reg = NREG;
+
+			//	OR		hi1<<(32-v), al, al
+			p1 = gins(AORR, &hi1, &al);
+			p1->from.type = D_SHIFT;
+			p1->from.offset = SHIFT_LL | (32-v)<<7 | hi1.val.u.reg;
+			p1->from.reg = NREG;
+			p1->reg = al.val.u.reg;
+
+			if(hi1.type->etype == TINT32) {
+				//	MOVW	hi1->v, ah
+				p1 = gins(AMOVW, &hi1, &ah);
+				p1->from.type = D_SHIFT;
+				p1->from.offset = SHIFT_AR | v<<7 | hi1.val.u.reg;
+				p1->from.reg = NREG;
+			} else {
+				//	MOVW	hi1>>v, ah
+				p1 = gins(AMOVW, &hi1, &ah);
+				p1->from.type = D_SHIFT;
+				p1->from.offset = SHIFT_LR | v<<7 | hi1.val.u.reg;
+				p1->from.reg = NREG;
+			}
+			break;
+		}
+		fatal("cgen64 ORSH, !OLITERAL not implemented");
 
 //		// load value into DX:AX.
 //		gins(AMOVL, &lo1, &ax);
