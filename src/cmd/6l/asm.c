@@ -258,10 +258,27 @@ enum {
 
 vlong elfstr[NElfStr];
 
+static int
+needlib(char *name)
+{
+	char *p;
+	Sym *s;
+
+	/* reuse hash code in symbol table */
+	p = smprint(".elfload.%s", name);
+	s = lookup(p, 0);
+	if(s->type == 0) {
+		s->type = 100;	// avoid SDATA, etc.
+		return 1;
+	}
+	return 0;
+}
+
 void
 doelf(void)
 {
-	Sym *s, *shstrtab;
+	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
+	int h, nsym, t;
 
 	if(HEADTYPE != 7)
 		return;
@@ -279,8 +296,6 @@ doelf(void)
 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
 
 	if(!debug['d']) {	/* -d suppresses dynamic loader format */
-		Sym *dynamic, *dynstr;
-
 		elfstr[ElfStrInterp] = addstring(shstrtab, ".interp");
 		elfstr[ElfStrHash] = addstring(shstrtab, ".hash");
 		elfstr[ElfStrGot] = addstring(shstrtab, ".got");
@@ -338,28 +353,45 @@ doelf(void)
 		dynamic = s;
 
 		/*
-		 * relocation demo - overwrite go func
-		 * var main.extern_c_fib with fib symbol from fib.so
+		 * relocation entries for extern ffi symbols
 		 */
-		Sym *fib;
-		fib = lookup("main·extern_c_fib", 0);
-		if(fib->type == SDATA || fib->type == SBSS) {
-			s = lookup(".rela", 0);
-			addaddr(s, fib);
-			adduint64(s, ELF64_R_INFO(1, R_X86_64_64));	// 1 = first symbol in dynsym
-			adduint64(s, 0);
+		nsym = 1;	// sym 0 is reserved
+		for(h=0; h<NHASH; h++) {
+			for(s=hash[h]; s!=S; s=s->link) {
+				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->ffiname == nil)
+					continue;
 
-			s = lookup(".dynsym", 0);
-			adduint32(s, addstring(lookup(".dynstr", 0), "fib"));
-			adduint8(s, (STB_GLOBAL<<4) | STT_FUNC);
-			adduint8(s, 0);		/* reserved */
-			adduint16(s, SHN_UNDEF);	/* section where symbol is defined */
-			adduint64(s, 0);	/* value */
-			adduint64(s, 0);	/* size of object */
+				d = lookup(".rela", 0);
+				addaddr(d, s);
+				adduint64(d, ELF64_R_INFO(nsym, R_X86_64_64));
+				adduint64(d, 0);
+				nsym++;
 
-			elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, "fib.so"));
+				d = lookup(".dynsym", 0);
+				adduint32(d, addstring(lookup(".dynstr", 0), s->ffiname));
+				t = STB_GLOBAL << 4;
+				switch(s->ffitype) {
+				case 'T':
+					t |= STT_FUNC;
+					break;
+				case 'D':
+					t |= STT_OBJECT;
+					break;
+				}
+				adduint8(d, t);
+				adduint8(d, 0);	/* reserved */
+				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
+				adduint64(d, 0);	/* value */
+				adduint64(d, 0);	/* size of object */
+
+				if(needlib(s->ffilib))
+					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->ffilib));
+			}
 		}
 
+		/*
+		 * .dynamic table
+		 */
 		s = dynamic;
 		elfwritedynentsym(s, DT_HASH, lookup(".hash", 0));
 		elfwritedynentsym(s, DT_SYMTAB, lookup(".dynsym", 0));
