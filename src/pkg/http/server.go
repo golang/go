@@ -209,11 +209,6 @@ func errorKludge(c *Conn, req *Request) {
 		return;
 	}
 
-	// Is it text?  ("Content-Type" is always in the map)
-	if s := c.header["Content-Type"]; len(s) < 5 || s[0:5] != "text/" {
-		return;
-	}
-
 	// Is it a broken browser?
 	var msg string;
 	switch agent := req.UserAgent; {
@@ -225,9 +220,21 @@ func errorKludge(c *Conn, req *Request) {
 		return;
 	}
 	msg += " would ignore this error page if this text weren't here.\n";
-	io.WriteString(c, "\n");
-	for c.written < min {
-		io.WriteString(c, msg);
+
+	// Is it text?  ("Content-Type" is always in the map)
+	baseType := strings.Split(c.header["Content-Type"], ";", 2)[0];
+	switch baseType {
+	case "text/html":
+		io.WriteString(c, "<!-- ");
+		for c.written < min {
+			io.WriteString(c, msg);
+		}
+		io.WriteString(c, " -->");
+	case "text/plain":
+		io.WriteString(c, "\n");
+		for c.written < min {
+			io.WriteString(c, msg);
+		}
 	}
 }
 
