@@ -6,12 +6,15 @@
 #include "cgocall.h"
 
 Cgo *cgo;	/* filled in by dynamic linker when Cgo is available */
+int64 ncgocall;
 
 void
 cgocall(void (*fn)(void*), void *arg)
 {
 	CgoWork w;
 	CgoServer *s;
+
+	ncgocall++;
 
 	if(cgo == nil)
 		throw("cgocall unavailable");
@@ -36,3 +39,11 @@ cgocall(void (*fn)(void*), void *arg)
 	}
 	notesleep(&w.note);
 }
+
+void
+runtime·Cgocalls(int64 ret)
+{
+	ret = ncgocall;
+	FLUSH(&ret);
+}
+
