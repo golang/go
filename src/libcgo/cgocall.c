@@ -218,25 +218,25 @@ newserver(void)
 	pthread_t p;
 
 	lock(&cgo.lock);
-	if(cgo.idle == nil) {
-		// kick off new servers with work to do
-		for(w=cgo.whead; w; w=next) {
-			next = w;
-			w->next = nil;
-			f = malloc(sizeof *f);
-			memset(f, 0, sizeof *f);
-			f->work = w;
-			noteclear(&f->note);
-			notewakeup(&f->note);
-			if(pthread_create(&p, nil, go_pthread, f) < 0) {
-				fprintf(stderr, "pthread_create: %s\n", strerror(errno));
-				*(int*)0 = 0;
-			}
+	// kick off new servers with work to do
+	for(w=cgo.whead; w; w=next) {
+		next = w;
+		w->next = nil;
+		f = malloc(sizeof *f);
+		memset(f, 0, sizeof *f);
+		f->work = w;
+		noteclear(&f->note);
+		notewakeup(&f->note);
+		if(pthread_create(&p, nil, go_pthread, f) < 0) {
+			fprintf(stderr, "pthread_create: %s\n", strerror(errno));
+			*(int*)0 = 0;
 		}
-		cgo.whead = nil;
-		cgo.wtail = nil;
+	}
+	cgo.whead = nil;
+	cgo.wtail = nil;
 
-		// kick off one more server to sit idle
+	// kick off one more server to sit idle
+	if(cgo.idle == nil) {
 		f = malloc(sizeof *f);
 		memset(f, 0, sizeof *f);
 		f->next = cgo.idle;
@@ -256,23 +256,41 @@ go_pthread(void *v)
 	CgoServer *f;
 	CgoWork *w;
 
+	// newserver queued us; wait for work
 	f = v;
+	goto wait;
+
 	for(;;) {
-		// wait for work
-		notesleep(&f->note);
+		// kick off new server to handle requests while we work
+		newserver();
 
 		// do work
 		w = f->work;
 		w->fn(w->arg);
 		notewakeup(&w->note);
+		f->work = nil;
 
-		// queue f on idle list
+		// take some work if available
+		lock(&cgo.lock);
+		if((w = cgo.whead) != nil) {
+			cgo.whead = w->next;
+			if(cgo.whead == nil)
+				cgo.wtail = nil;
+			unlock(&cgo.lock);
+			f->work = w;
+			continue;
+		}
+
+		// otherwise queue
 		f->work = nil;
 		noteclear(&f->note);
-		lock(&cgo.lock);
 		f->next = cgo.idle;
 		cgo.idle = f;
 		unlock(&cgo.lock);
+
+wait:
+		// wait for work
+		notesleep(&f->note);
 	}
 }
 
