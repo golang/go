@@ -141,9 +141,6 @@ panic PC=xxx
 
 == bugs/
 
-=========== bugs/bug132.go
-BUG: compilation succeeds incorrectly
-
 =========== bugs/bug136.go
 BUG: errchk: command succeeded unexpectedly
 

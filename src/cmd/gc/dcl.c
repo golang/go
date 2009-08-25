@@ -752,12 +752,13 @@ ok:
 Type**
 stotype(NodeList *l, int et, Type **t)
 {
-	Type *f, *t1;
+	Type *f, *t1, **t0;
 	Strlit *note;
 	int lno;
 	NodeList *init;
 	Node *n;
 
+	t0 = t;
 	init = nil;
 	lno = lineno;
 	for(; l; l=l->next) {
@@ -837,6 +838,14 @@ stotype(NodeList *l, int et, Type **t)
 			f->sym = f->nname->sym;
 			if(pkgimportname != S && !exportname(f->sym->name))
 				f->sym = pkglookup(f->sym->name, structpkg);
+			if(f->sym) {
+				for(t1=*t0; t1!=T; t1=t1->down) {
+					if(t1->sym == f->sym) {
+						yyerror("duplicate field %s", t1->sym->name);
+						break;
+					}
+				}
+			}
 		}
 
 		*t = f;

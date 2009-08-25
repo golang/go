@@ -1,4 +1,4 @@
-// ! $G $D/$F.go || echo BUG: compilation succeeds incorrectly
+// errchk $G $D/$F.go
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -7,7 +7,7 @@
 package main
 
 type T struct {
-	x, x int  // this should be a compile-time error
+	x, x int  // ERROR "duplicate"
 }
 
 /*
@@ -18,7 +18,7 @@ tume error at the declaration point.
 
 /* Condensed e-mail thread:
 
----------- Russ Cox	
+---------- Russ Cox
 I don't think this is an error as long as you don't refer to x. I like the fact that you could name
 multiple elements in the struct "pad".
 
