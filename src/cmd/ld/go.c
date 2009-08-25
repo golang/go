@@ -63,6 +63,7 @@ ilookup(char *name)
 }
 
 static void loadpkgdata(char*, char*, int);
+static void loaddynld(char*, char*, int);
 static int parsemethod(char**, char*, char**);
 static int parsepkgdata(char*, char**, char*, char**, char**, char**);
 
@@ -99,19 +100,21 @@ ldpkg(Biobuf *f, int64 len, char *filename)
 		fprint(2, "%s: cannot find end of exports in %s\n", argv0, filename);
 		return;
 	}
-	while(*p0 == ' ' || *p0 == '\t' || *p0 == '\n')
+	while(p0 < p1 && (*p0 == ' ' || *p0 == '\t' || *p0 == '\n'))
 		p0++;
-	if(strncmp(p0, "package ", 8) != 0) {
-		fprint(2, "%s: bad package section in %s - %s\n", argv0, filename, p0);
-		return;
-	}
-	p0 += 8;
-	while(*p0 == ' ' || *p0 == '\t' || *p0 == '\n')
-		p0++;
-	while(*p0 != ' ' && *p0 != '\t' && *p0 != '\n')
-		p0++;
+	if(p0 < p1) {
+		if(strncmp(p0, "package ", 8) != 0) {
+			fprint(2, "%s: bad package section in %s - %s\n", argv0, filename, p0);
+			return;
+		}
+		p0 += 8;
+		while(*p0 == ' ' || *p0 == '\t' || *p0 == '\n')
+			p0++;
+		while(*p0 != ' ' && *p0 != '\t' && *p0 != '\n')
+			p0++;
 
-	loadpkgdata(filename, p0, p1 - p0);
+		loadpkgdata(filename, p0, p1 - p0);
+	}
 
 	// local types begin where exports end.
 	// skip rest of line after $$ we found above
@@ -127,6 +130,24 @@ ldpkg(Biobuf *f, int64 len, char *filename)
 	}
 
 	loadpkgdata(filename, p0, p1 - p0);
+
+	// look for dynld section
+	p0 = strstr(p1, "\n$$  // dynld");
+	if(p0 != nil) {
+		p0 = strchr(p0+1, '\n');
+		if(p0 == nil) {
+			fprint(2, "%s: found $$ // dynld but no newline in %s\n", argv0, filename);
+			return;
+		}
+		p1 = strstr(p0, "\n$$");
+		if(p1 == nil)
+			p1 = strstr(p0, "\n!\n");
+		if(p1 == nil) {
+			fprint(2, "%s: cannot find end of // dynld section in %s\n", argv0, filename);
+			return;
+		}
+		loaddynld(filename, p0 + 1, p1 - p0);
+	}
 }
 
 /*
@@ -190,7 +211,6 @@ parsepkgdata(char *file, char **pp, char *ep, char **prefixp, char **namep, char
 	char *p, *prefix, *name, *def, *edef, *meth;
 	int n;
 
-again:
 	// skip white space
 	p = *pp;
 	while(p < ep && (*p == ' ' || *p == '\t' || *p == '\n'))
@@ -210,45 +230,7 @@ again:
 		p += 5;
 	else if(strncmp(p, "const ", 6) == 0)
 		p += 6;
-	else if(strncmp(p, "//ffi ", 6) == 0) {
-		Sym *s;
-		char type, *lib;
-
-		p += 6;
-		if(*p == 0 || *(p+1) != ' ')
-			goto err;
-		type = *p;
-		p += 2;
-		name = p;
-		p = strchr(name, ' ');
-		if(p == nil)
-			goto err;
-		while(*p == ' ')
-			p++;
-		def = p;
-		p = strchr(def, ' ');
-		if(p == nil)
-			goto err;
-		while(*p == ' ')
-			p++;
-		lib = p;
-		p = strchr(lib, '\n');
-		if(p == nil)
-			goto err;
-
-		// successful parse: now can edit the line
-		*strchr(name, ' ') = 0;
-		*strchr(def, ' ') = 0;
-		*strchr(lib, '\n') = 0;
-		*pp = p+1;
-
-		s = lookup(name, 0);
-		s->ffitype = type;
-		s->ffilib = lib;
-		s->ffiname = def;
-		goto again;
-	} else {
-	err:
+	else {
 		fprint(2, "%s: confused in pkg data near <<%.40s>>\n", argv0, prefix);
 		nerrors++;
 		return -1;
@@ -329,6 +311,54 @@ parsemethod(char **pp, char *ep, char **methp)
 	*p++ = '\0';
 	*pp = p;
 	return 1;
+}
+
+static void
+loaddynld(char *file, char *p, int n)
+{
+	char *next, *name, *def, *p0, *lib;
+	Sym *s;
+
+	p[n] = '\0';
+
+	p0 = p;
+	for(; *p; p=next) {
+		next = strchr(p, '\n');
+		if(next == nil)
+			next = "";
+		else
+			*next++ = '\0';
+		p0 = p;
+		if(strncmp(p, "dynld ", 6) != 0)
+			goto err;
+		p += 6;
+		name = p;
+		p = strchr(name, ' ');
+		if(p == nil)
+			goto err;
+		while(*p == ' ')
+			p++;
+		def = p;
+		p = strchr(def, ' ');
+		if(p == nil)
+			goto err;
+		while(*p == ' ')
+			p++;
+		lib = p;
+
+		// successful parse: now can edit the line
+		*strchr(name, ' ') = 0;
+		*strchr(def, ' ') = 0;
+
+		s = lookup(name, 0);
+		s->dynldlib = lib;
+		s->dynldname = def;
+	}
+	return;
+
+err:
+	fprint(2, "%s: invalid dynld line: %s\n", argv0, p0);
+	nerrors++;
 }
 
 static void mark(Sym*);

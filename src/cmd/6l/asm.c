@@ -353,12 +353,12 @@ doelf(void)
 		dynamic = s;
 
 		/*
-		 * relocation entries for extern ffi symbols
+		 * relocation entries for dynld symbols
 		 */
 		nsym = 1;	// sym 0 is reserved
 		for(h=0; h<NHASH; h++) {
 			for(s=hash[h]; s!=S; s=s->link) {
-				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->ffiname == nil)
+				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynldname == nil)
 					continue;
 
 				d = lookup(".rela", 0);
@@ -368,24 +368,17 @@ doelf(void)
 				nsym++;
 
 				d = lookup(".dynsym", 0);
-				adduint32(d, addstring(lookup(".dynstr", 0), s->ffiname));
+				adduint32(d, addstring(lookup(".dynstr", 0), s->dynldname));
 				t = STB_GLOBAL << 4;
-				switch(s->ffitype) {
-				case 'T':
-					t |= STT_FUNC;
-					break;
-				case 'D':
-					t |= STT_OBJECT;
-					break;
-				}
+				t |= STT_OBJECT;	// works for func too, empirically
 				adduint8(d, t);
 				adduint8(d, 0);	/* reserved */
 				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
 				adduint64(d, 0);	/* value */
 				adduint64(d, 0);	/* size of object */
 
-				if(needlib(s->ffilib))
-					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->ffilib));
+				if(needlib(s->dynldlib))
+					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynldlib));
 			}
 		}
 
