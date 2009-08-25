@@ -43,3 +43,6 @@ func UnlockOSThread()
 // GOMAXPROCS sets the maximum number of CPUs that can be executing
 // simultaneously.   This call will go away when the scheduler improves.
 func GOMAXPROCS(n int)
+
+// Cgocalls returns the number of cgo calls made by the current process.
+func Cgocalls() int64
