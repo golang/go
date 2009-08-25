@@ -45,7 +45,7 @@ enum {
 	Uint,
 	Uintptr,
 	String,
-	Array,
+	Slice,
 };
 
 static struct {
@@ -61,7 +61,7 @@ static struct {
 	"uint",		4,
 	"uintptr",	4,
 	"String",	8,
-	"Array",	12,
+	"Slice",	12,
 
 	/* fixed size */
 	"float32",	4,
@@ -710,7 +710,7 @@ main(int argc, char **argv)
 		if(goarch != NULL && strcmp(goarch, "amd64") == 0) {
 			type_table[Uintptr].size = 8;
 			type_table[String].size = 16;
-			type_table[Array].size = 8+4+4;
+			type_table[Slice].size = 8+4+4;
 			structround = 8;
 		}
 	}

@@ -157,26 +157,26 @@ func intstring(v int64) (s String) {
 	s.len = runetochar(s.str, v);
 }
 
-func arraystring(b Array) (s String) {
-	s = gostringsize(b.nel);
+func slicebytetostring(b Slice) (s String) {
+	s = gostringsize(b.len);
 	mcpy(s.str, b.array, s.len);
 }
 
 
-func arraystringi(b Array) (s String) {
+func sliceinttostring(b Slice) (s String) {
 	int32 siz1, siz2, i;
 	int32 *a;
 	byte dum[8];
 
 	a = (int32*)b.array;
 	siz1 = 0;
-	for(i=0; i<b.nel; i++) {
+	for(i=0; i<b.len; i++) {
 		siz1 += runetochar(dum, a[i]);
 	}
 
 	s = gostringsize(siz1+4);
 	siz2 = 0;
-	for(i=0; i<b.nel; i++) {
+	for(i=0; i<b.len; i++) {
 		// check for race
 		if(siz2 >= siz1)
 			break;

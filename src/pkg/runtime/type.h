@@ -39,7 +39,7 @@ struct UncommonType
 {
 	String *name;
 	String *pkgPath;
-	Array mhdr;
+	Slice mhdr;
 	Method m[];
 };
 
@@ -62,7 +62,7 @@ struct IMethod
 struct InterfaceType
 {
 	Type;
-	Array mhdr;
+	Slice mhdr;
 	IMethod m[];
 };
 

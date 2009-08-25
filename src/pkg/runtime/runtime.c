@@ -142,8 +142,8 @@ rnd(uint32 n, uint32 m)
 static int32	argc;
 static uint8**	argv;
 
-Array os·Args;
-Array os·Envs;
+Slice os·Args;
+Slice os·Envs;
 
 void
 args(int32 c, uint8 **v)
@@ -168,13 +168,13 @@ goargs(void)
 	for(i=0; i<argc; i++)
 		gargv[i] = gostring(argv[i]);
 	os·Args.array = (byte*)gargv;
-	os·Args.nel = argc;
+	os·Args.len = argc;
 	os·Args.cap = argc;
 
 	for(i=0; i<envc; i++)
 		genvv[i] = gostring(argv[argc+1+i]);
 	os·Envs.array = (byte*)genvv;
-	os·Envs.nel = envc;
+	os·Envs.len = envc;
 	os·Envs.cap = envc;
 }
 
@@ -189,7 +189,7 @@ getenv(int8 *s)
 	bs = (byte*)s;
 	len = findnull(bs);
 	envv = (String*)os·Envs.array;
-	envc = os·Envs.nel;
+	envc = os·Envs.len;
 	for(i=0; i<envc; i++){
 		if(envv[i].len <= len)
 			continue;

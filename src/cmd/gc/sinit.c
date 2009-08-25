@@ -146,8 +146,8 @@ slicerewrite(Node *n)
 	while(n->op == OCONVNOP)
 		n = n->left;
 
-	// call to newarray - find nel argument
-	nel = findarg(n, "nel", "newarray");
+	// call to makeslice - find nel argument
+	nel = findarg(n, "nel", "makeslice");
 	if(nel == N || !isslice(n->type))
 		goto no;
 
@@ -177,8 +177,8 @@ maprewrite(Node *n)
 	Type *ta, *tb;
 	Node *a;
 
-	// call to newarray - find nel argument
-	nel = findarg(n, "hint", "newmap");
+	// call to makemap - find len argument
+	nel = findarg(n, "hint", "makemap");
 	if(nel == N)
 		goto no;
 	ta = n->type;
@@ -371,7 +371,7 @@ sli:
 		if(r->op != OAS && r->op != OEMPTY)
 			continue;
 
-		// first usage "nam = (newarray CALL args)"
+		// first usage "nam = (makeslice CALL args)"
 		if(r->right != N && sametmp(r->left, nam)) {
 			w = slicerewrite(r->right);
 			if(w == N)
@@ -427,7 +427,7 @@ return;
 		if(r->op != OAS && r->op != OEMPTY)
 			continue;
 
-		// first usage "nam = (newmap CALL args)"
+		// first usage "nam = (makemap CALL args)"
 		if(r->right != N && sametmp(r->left, nam)) {
 			w = maprewrite(r->right);
 			if(w == N)

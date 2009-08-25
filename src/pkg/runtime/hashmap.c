@@ -664,7 +664,7 @@ donothing(uint32 s, void *a, void *b)
 
 static	int32	debug	= 0;
 
-// newmap(keysize uint32, valsize uint32,
+// makemap(keysize uint32, valsize uint32,
 //	keyalg uint32, valalg uint32,
 //	hint uint32) (hmap *map[any]any);
 Hmap*
@@ -675,12 +675,12 @@ makemap(uint32 keysize, uint32 valsize,
 
 	if(keyalg >= nelem(algarray) || algarray[keyalg].hash == nohash) {
 		printf("map(keyalg=%d)\n", keyalg);
-		throw("sys·newmap: unsupported map key type");
+		throw("sys·makemap: unsupported map key type");
 	}
 
 	if(valalg >= nelem(algarray)) {
 		printf("map(valalg=%d)\n", valalg);
-		throw("sys·newmap: unsupported map value type");
+		throw("sys·makemap: unsupported map value type");
 	}
 
 	h = mal(sizeof(*h));
@@ -720,18 +720,18 @@ makemap(uint32 keysize, uint32 valsize,
 	h->po2 = rnd(h->vo2+valsize, 1);
 
 	if(debug) {
-		printf("newmap: map=%p; keysize=%d; valsize=%d; keyalg=%d; valalg=%d; offsets=%d,%d; %d,%d,%d; %d,%d,%d\n",
+		printf("makemap: map=%p; keysize=%d; valsize=%d; keyalg=%d; valalg=%d; offsets=%d,%d; %d,%d,%d; %d,%d,%d\n",
 			h, keysize, valsize, keyalg, valalg, h->ko0, h->vo0, h->ko1, h->vo1, h->po1, h->ko2, h->vo2, h->po2);
 	}
 
 	return h;
 }
 
-// newmap(keysize uint32, valsize uint32,
+// makemap(keysize uint32, valsize uint32,
 //	keyalg uint32, valalg uint32,
 //	hint uint32) (hmap *map[any]any);
 void
-sys·newmap(uint32 keysize, uint32 valsize,
+sys·makemap(uint32 keysize, uint32 valsize,
 	uint32 keyalg, uint32 valalg, uint32 hint,
 	Hmap *ret)
 {

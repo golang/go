@@ -42,7 +42,6 @@ typedef	uint32		uintptr;
 typedef	uint8			bool;
 typedef	uint8			byte;
 typedef	struct	Alg		Alg;
-typedef	struct	Array		Array;
 typedef	struct	Func		Func;
 typedef	struct	G		G;
 typedef	struct	Gobuf		Gobuf;
@@ -50,6 +49,7 @@ typedef	struct	Lock		Lock;
 typedef	struct	M		M;
 typedef	struct	Mem		Mem;
 typedef	union	Note		Note;
+typedef	struct	Slice		Slice;
 typedef	struct	Stktop		Stktop;
 typedef	struct	String		String;
 typedef	struct	Usema		Usema;
@@ -140,10 +140,10 @@ struct Eface
 	void*	data;
 };
 
-struct	Array
+struct	Slice
 {				// must not move anything
 	byte*	array;		// actual data
-	uint32	nel;		// number of elements
+	uint32	len;		// number of elements
 	uint32	cap;		// allocated number of elements
 };
 struct	Gobuf
@@ -252,7 +252,7 @@ struct	Func
 	String	src;	// src file name
 	uint64	entry;	// entry pc
 	int64	frame;	// stack frame size
-	Array	pcln;	// pc/ln tab for this func
+	Slice	pcln;	// pc/ln tab for this func
 	int64	pc0;	// starting pc, ln for table
 	int32	ln0;
 	int32	args;	// number of 32-bit in/out args
@@ -426,7 +426,7 @@ void	notewakeup(Note*);
 #define sys_memclr sys·memclr
 #define sys_getcallerpc sys·getcallerpc
 #define sys_mmap sys·mmap
-#define sys_printarray sys·printarray
+#define sys_printslice sys·printslice
 #define sys_printbool sys·printbool
 #define sys_printfloat sys·printfloat
 #define sys_printhex sys·printhex
@@ -461,7 +461,7 @@ void	sys_printpc(void*);
 void	sys_printpointer(void*);
 void	sys_printuint(uint64);
 void	sys_printhex(uint64);
-void	sys_printarray(Array);
+void	sys_printslice(Slice);
 
 /*
  * wrapped for go users

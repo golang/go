@@ -27,23 +27,23 @@
 
 // Return a pointer to a byte array containing the symbol table segment.
 void
-sys·symdat(Array *symtab, Array *pclntab)
+sys·symdat(Slice *symtab, Slice *pclntab)
 {
-	Array *a;
+	Slice *a;
 	int32 *v;
 
 	v = SYMCOUNTS;
 
 	a = mal(sizeof *a);
-	a->nel = v[0];
-	a->cap = a->nel;
+	a->len = v[0];
+	a->cap = a->len;
 	a->array = SYMDATA;
 	symtab = a;
 	FLUSH(&symtab);
 
 	a = mal(sizeof *a);
-	a->nel = v[1];
-	a->cap = a->nel;
+	a->len = v[1];
+	a->cap = a->len;
 	a->array = SYMDATA + v[0];
 	pclntab = a;
 	FLUSH(&pclntab);
@@ -274,8 +274,8 @@ splitpcln(void)
 	line = 0;
 	for(; p < ep; p++) {
 		if(f < ef && pc > (f+1)->entry) {
-			f->pcln.nel = p - f->pcln.array;
-			f->pcln.cap = f->pcln.nel;
+			f->pcln.len = p - f->pcln.array;
+			f->pcln.cap = f->pcln.len;
 			f++;
 			f->pcln.array = p;
 			f->pc0 = pc;
@@ -295,8 +295,8 @@ splitpcln(void)
 		pc += PcQuant;
 	}
 	if(f < ef) {
-		f->pcln.nel = p - f->pcln.array;
-		f->pcln.cap = f->pcln.nel;
+		f->pcln.len = p - f->pcln.array;
+		f->pcln.cap = f->pcln.len;
 	}
 }
 
@@ -311,7 +311,7 @@ funcline(Func *f, uint64 targetpc)
 	int32 line;
 
 	p = f->pcln.array;
-	ep = p + f->pcln.nel;
+	ep = p + f->pcln.len;
 	pc = f->pc0;
 	line = f->ln0;
 	for(; p < ep && pc <= targetpc; p++) {

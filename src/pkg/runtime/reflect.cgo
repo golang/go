@@ -87,7 +87,7 @@ func setiface(typ *byte, x *byte, ret *byte) {
 	InterfaceType *t;
 
 	t = (InterfaceType*)gettype(typ);
-	if(t->mhdr.nel == 0) {
+	if(t->mhdr.len == 0) {
 		// already an empty interface
 		*(Eface*)ret = *(Eface*)x;
 		return;
