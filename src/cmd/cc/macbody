@@ -737,12 +737,8 @@ macprag(void)
 		pragincomplete();
 		return;
 	}
-	if(s && strcmp(s->name, "ffi") == 0) {
-		pragffi();
-		return;
-	}
-	if(s && strcmp(s->name, "package") == 0) {
-		pragpackage();
+	if(s && strcmp(s->name, "dynld") == 0) {
+		pragdynld();
 		return;
 	}
 	while(getnsc() != '\n')

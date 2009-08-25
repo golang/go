@@ -529,15 +529,11 @@ out:
 }
 
 void
-pragffi(void)
+pragdynld(void)
 {
-	Sym *local, *remote, *type;
+	Sym *local, *remote;
 	char *path;
-	Ffi *f;
-
-	type = getsym();
-	if(type == nil)
-		goto err;
+	Dynld *f;
 
 	local = getsym();
 	if(local == nil)
@@ -551,40 +547,18 @@ pragffi(void)
 	if(path == nil)
 		goto err;
 
-	if(nffi%32 == 0)
-		ffi = realloc(ffi, (nffi+32)*sizeof ffi[0]);
-	f = &ffi[nffi++];
-	f->type = type->name[0];
+	if(ndynld%32 == 0)
+		dynld = realloc(dynld, (ndynld+32)*sizeof dynld[0]);
+	f = &dynld[ndynld++];
 	f->local = local->name;
 	f->remote = remote->name;
 	f->path = path;
 	goto out;
 
 err:
-	yyerror("usage: #pragma ffi typechar local remote \"path\"");
+	yyerror("usage: #pragma dynld local remote \"path\"");
 
 out:
 	while(getnsc() != '\n')
 		;
 }
-
-void
-pragpackage(void)
-{
-	Sym *s;
-
-	s = getsym();
-	if(s == nil)
-		goto err;
-
-	package = s->name;
-	goto out;
-
-err:
-	yyerror("malformed #pragma package");
-
-out:
-	while(getnsc() != '\n')
-		;
-}
-

@@ -715,7 +715,9 @@ bad:
 	return;
 
 foundend:
-	if (start == 0 || end == 0)
+	if (start == 0)
+		return;
+	if (end == 0)
 		goto bad;
 	if (pkgstmt == nil) {
 		/* this is the first package */
@@ -1550,7 +1552,6 @@ parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
 
 	// skip white space
 	p = *pp;
-again:
 	while(p < ep && (*p == ' ' || *p == '\t'))
 		p++;
 	if(p == ep)
@@ -1570,13 +1571,7 @@ again:
 		p += 5;
 	else if(strncmp(p, "const ", 6) == 0)
 		p += 6;
-	else if(strncmp(p, "//", 2) == 0) {
-		p = memchr(p, '\n', ep - p);
-		if(p == nil)
-			return 0;
-		p++;
-		goto again;
-	} else {
+	else {
 		fprint(2, "ar: confused in pkg data near <<%.20s>>\n", p);
 		errors++;
 		return -1;
