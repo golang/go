@@ -841,8 +841,17 @@ type FTest struct {
 	value int;
 }
 
+type D1 struct {
+	d int;
+}
+type D2 struct {
+	d int;
+}
+
 type S0 struct {
-	a, b, c, d, d int;
+	a, b, c int;
+	D1;
+	D2;
 }
 
 type S1 struct {
@@ -855,11 +864,19 @@ type S2 struct {
 	*S1;
 }
 
-type S3 struct {
+type S1x struct {
 	S1;
+}
+
+type S1y struct {
+	S1;
+}
+
+type S3 struct {
+	S1x;
 	S2;
 	d, e int;
-	*S1;
+	*S1y;
 }
 
 type S4 struct {
