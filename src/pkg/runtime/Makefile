@@ -37,6 +37,7 @@ OFILES_arm=\
 OFILES=\
 	array.$O\
 	asm.$O\
+	cgocall.$O\
 	chan.$O\
 	closure.$O\
 	float.$O\
@@ -67,6 +68,7 @@ OFILES=\
 	$(OFILES_$(GOARCH))\
 
 HFILES=\
+	cgocall.h\
 	runtime.h\
 	hashmap.h\
 	malloc.h\
