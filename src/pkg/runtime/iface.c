@@ -45,7 +45,7 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
 	Itab *m;
 	UncommonType *x;
 
-	if(inter->mhdr.nel == 0)
+	if(inter->mhdr.len == 0)
 		throw("internal error - misuse of itab");
 
 	// easy case
@@ -90,7 +90,7 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
 		}
 	}
 
-	ni = inter->mhdr.nel;
+	ni = inter->mhdr.len;
 	m = malloc(sizeof(*m) + ni*sizeof m->fun[0]);
 	m->inter = inter;
 	m->type = type;
@@ -100,9 +100,9 @@ search:
 	// so can iterate over both in lock step;
 	// the loop is O(ni+nt) not O(ni*nt).
 	i = inter->m;
-	ei = i + inter->mhdr.nel;
+	ei = i + inter->mhdr.len;
 	t = x->m;
-	et = t + x->mhdr.nel;
+	et = t + x->mhdr.len;
 	for(; i < ei; i++) {
 		ihash = i->hash;
 		iname = i->name;

@@ -6,9 +6,9 @@
 
 static	int32	debug	= 0;
 
-// newarray(nel int, cap int, width int) (ary []any);
+// makeslice(nel int, cap int, width int) (ary []any);
 void
-sys·newarray(uint32 nel, uint32 cap, uint32 width, Array ret)
+sys·makeslice(uint32 nel, uint32 cap, uint32 width, Slice ret)
 {
 	uint64 size;
 
@@ -16,21 +16,21 @@ sys·newarray(uint32 nel, uint32 cap, uint32 width, Array ret)
 		cap = nel;
 	size = cap*width;
 
-	ret.nel = nel;
+	ret.len = nel;
 	ret.cap = cap;
 	ret.array = mal(size);
 
 	FLUSH(&ret);
 
 	if(debug) {
-		prints("newarray: nel=");
+		prints("makeslice: nel=");
 		sys·printint(nel);
 		prints("; cap=");
 		sys·printint(cap);
 		prints("; width=");
 		sys·printint(width);
 		prints("; ret=");
-		sys·printarray(ret);
+		sys·printslice(ret);
 		prints("\n");
 	}
 }
@@ -48,15 +48,15 @@ throwslice(uint32 lb, uint32 hb, uint32 n)
 	throw("array slice");
 }
 
-// arraysliced(old []any, lb int, hb int, width int) (ary []any);
+// sliceslice(old []any, lb int, hb int, width int) (ary []any);
 void
-sys·arraysliced(Array old, uint32 lb, uint32 hb, uint32 width, Array ret)
+sys·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
 {
 
 	if(hb > old.cap || lb > hb) {
 		if(debug) {
-			prints("sys·arraysliced: old=");
-			sys·printarray(old);
+			prints("sys·sliceslice: old=");
+			sys·printslice(old);
 			prints("; lb=");
 			sys·printint(lb);
 			prints("; hb=");
@@ -66,7 +66,7 @@ sys·arraysliced(Array old, uint32 lb, uint32 hb, uint32 width, Array ret)
 			prints("\n");
 
 			prints("oldarray: nel=");
-			sys·printint(old.nel);
+			sys·printint(old.len);
 			prints("; cap=");
 			sys·printint(old.cap);
 			prints("\n");
@@ -75,15 +75,15 @@ sys·arraysliced(Array old, uint32 lb, uint32 hb, uint32 width, Array ret)
 	}
 
 	// new array is inside old array
-	ret.nel = hb-lb;
+	ret.len = hb-lb;
 	ret.cap = old.cap - lb;
 	ret.array = old.array + lb*width;
 
 	FLUSH(&ret);
 
 	if(debug) {
-		prints("sys·arraysliced: old=");
-		sys·printarray(old);
+		prints("sys·sliceslice: old=");
+		sys·printslice(old);
 		prints("; lb=");
 		sys·printint(lb);
 		prints("; hb=");
@@ -91,19 +91,19 @@ sys·arraysliced(Array old, uint32 lb, uint32 hb, uint32 width, Array ret)
 		prints("; width=");
 		sys·printint(width);
 		prints("; ret=");
-		sys·printarray(ret);
+		sys·printslice(ret);
 		prints("\n");
 	}
 }
 
-// arrayslices(old *any, nel int, lb int, hb int, width int) (ary []any);
+// slicearray(old *any, nel int, lb int, hb int, width int) (ary []any);
 void
-sys·arrayslices(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Array ret)
+sys·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Slice ret)
 {
 
 	if(hb > nel || lb > hb) {
 		if(debug) {
-			prints("sys·arrayslices: old=");
+			prints("sys·slicearray: old=");
 			sys·printpointer(old);
 			prints("; nel=");
 			sys·printint(nel);
@@ -119,14 +119,14 @@ sys·arrayslices(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Arra
 	}
 
 	// new array is inside old array
-	ret.nel = hb-lb;
+	ret.len = hb-lb;
 	ret.cap = nel-lb;
 	ret.array = old + lb*width;
 
 	FLUSH(&ret);
 
 	if(debug) {
-		prints("sys·arrayslices: old=");
+		prints("sys·slicearray: old=");
 		sys·printpointer(old);
 		prints("; nel=");
 		sys·printint(nel);
@@ -137,37 +137,37 @@ sys·arrayslices(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Arra
 		prints("; width=");
 		sys·printint(width);
 		prints("; ret=");
-		sys·printarray(ret);
+		sys·printslice(ret);
 		prints("\n");
 	}
 }
 
-// arrays2d(old *any, nel int) (ary []any)
+// arraytoslice(old *any, nel int) (ary []any)
 void
-sys·arrays2d(byte* old, uint32 nel, Array ret)
+sys·arraytoslice(byte* old, uint32 nel, Slice ret)
 {
 
 	// new dope to old array
-	ret.nel = nel;
+	ret.len = nel;
 	ret.cap = nel;
 	ret.array = old;
 
 	FLUSH(&ret);
 
 	if(debug) {
-		prints("sys·arrays2d: old=");
+		prints("sys·slicearrayp: old=");
 		sys·printpointer(old);
 		prints("; ret=");
-		sys·printarray(ret);
+		sys·printslice(ret);
 		prints("\n");
 	}
 }
 
 void
-sys·printarray(Array a)
+sys·printslice(Slice a)
 {
 	prints("[");
-	sys·printint(a.nel);
+	sys·printint(a.len);
 	prints("/");
 	sys·printint(a.cap);
 	prints("]");

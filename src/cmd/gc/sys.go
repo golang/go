@@ -20,7 +20,7 @@ func	printstring(string);
 func	printpointer(any);
 func	printiface(any);
 func	printeface(any);
-func	printarray(any);
+func	printslice(any);
 func	printnl();
 func	printsp();
 
@@ -29,8 +29,8 @@ func	cmpstring(string, string) int;
 func	slicestring(string, int, int) string;
 func	indexstring(string, int) byte;
 func	intstring(int64) string;
-func	arraystring([]byte) string;
-func	arraystringi([]int) string;
+func	slicebytetostring([]byte) string;
+func	sliceinttostring([]int) string;
 func	stringiter(string, int) int;
 func	stringiter2(string, int) (retk int, retv int);
 
@@ -51,7 +51,7 @@ func	efaceeq(i1 any, i2 any) (ret bool);
 func	ifacethash(i1 any) (ret uint32);
 func	efacethash(i1 any) (ret uint32);
 
-func	newmap(keysize int, valsize int,
+func	makemap(keysize int, valsize int,
 			keyalg int, valalg int,
 			hint int) (hmap map[any]any);
 func	mapaccess1(hmap map[any]any, key any) (val any);
@@ -63,7 +63,7 @@ func	mapiternext(hiter *any);
 func	mapiter1(hiter *any) (key any);
 func	mapiter2(hiter *any) (key any, val any);
 
-func	newchan(elemsize int, elemalg int, hint int) (hchan chan any);
+func	makechan(elemsize int, elemalg int, hint int) (hchan chan any);
 func	chanrecv1(hchan <-chan any) (elem any);
 func	chanrecv2(hchan <-chan any) (elem any, pres bool);
 func	chansend1(hchan chan<- any, elem any);
@@ -77,10 +77,10 @@ func	selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool);
 func	selectdefault(sel *byte) (selected bool);
 func	selectgo(sel *byte);
 
-func	newarray(nel int, cap int, width int) (ary []any);
-func	arraysliced(old []any, lb int, hb int, width int) (ary []any);
-func	arrayslices(old *any, nel int, lb int, hb int, width int) (ary []any);
-func	arrays2d(old *any, nel int) (ary []any);
+func	makeslice(nel int, cap int, width int) (ary []any);
+func	sliceslice(old []any, lb int, hb int, width int) (ary []any);
+func	slicearray(old *any, nel int, lb int, hb int, width int) (ary []any);
+func	arraytoslice(old *any, nel int) (ary []any);
 
 func	closure();	// has args, but compiler fills in
 

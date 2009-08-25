@@ -773,9 +773,9 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&n->right->left, init);
 		walkexpr(&n->right->right, init);
 		// dynamic slice
-		// arraysliced(old []any, lb int, hb int, width int) (ary []any)
+		// sliceslice(old []any, lb int, hb int, width int) (ary []any)
 		t = n->type;
-		fn = syslook("arraysliced", 1);
+		fn = syslook("sliceslice", 1);
 		argtype(fn, t->type);			// any-1
 		argtype(fn, t->type);			// any-2
 		n = mkcall1(fn, t, init,
@@ -790,9 +790,9 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&n->right->left, init);
 		walkexpr(&n->right->right, init);
 		// static slice
-		// arrayslices(old *any, nel int, lb int, hb int, width int) (ary []any)
+		// slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
 		t = n->type;
-		fn = syslook("arrayslices", 1);
+		fn = syslook("slicearray", 1);
 		argtype(fn, n->left->type);	// any-1
 		argtype(fn, t->type);			// any-2
 		n = mkcall1(fn, t, init,
@@ -897,7 +897,7 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OMAKECHAN:
-		n = mkcall1(chanfn("newchan", 1, n->type), n->type, init,
+		n = mkcall1(chanfn("makechan", 1, n->type), n->type, init,
 			nodintconst(n->type->type->width),
 			nodintconst(algtype(n->type->type)),
 			conv(n->left, types[TINT]));
@@ -906,7 +906,7 @@ walkexpr(Node **np, NodeList **init)
 	case OMAKEMAP:
 		t = n->type;
 
-		fn = syslook("newmap", 1);
+		fn = syslook("makemap", 1);
 		argtype(fn, t->down);	// any-1
 		argtype(fn, t->type);	// any-2
 
@@ -919,9 +919,9 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OMAKESLICE:
-		// newarray(nel int, max int, width int) (ary []any)
+		// makeslice(nel int, max int, width int) (ary []any)
 		t = n->type;
-		fn = syslook("newarray", 1);
+		fn = syslook("makeslice", 1);
 		argtype(fn, t->type);			// any-1
 		n = mkcall1(fn, n->type, nil,
 			conv(n->left, types[TINT]),
@@ -935,13 +935,13 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OARRAYBYTESTR:
-		// arraystring([]byte) string;
-		n = mkcall("arraystring", n->type, init, n->left);
+		// slicebytetostring([]byte) string;
+		n = mkcall("slicebytetostring", n->type, init, n->left);
 		goto ret;
 
 	case OARRAYRUNESTR:
-		// arraystring([]byte) string;
-		n = mkcall("arraystringi", n->type, init, n->left);
+		// sliceinttostring([]byte) string;
+		n = mkcall("sliceinttostring", n->type, init, n->left);
 		goto ret;
 
 	case OCMPIFACE:
@@ -988,8 +988,8 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OCONVSLICE:
-		// arrays2d(old *any, nel int) (ary []any)
-		fn = syslook("arrays2d", 1);
+		// arraytoslice(old *any, nel int) (ary []any)
+		fn = syslook("arraytoslice", 1);
 		argtype(fn, n->left->type->type);		// any-1
 		argtype(fn, n->type->type);			// any-2
 		n = mkcall1(fn, n->type, init, n->left, nodintconst(n->left->type->type->bound));
@@ -1490,7 +1490,7 @@ walkprint(Node *nn, NodeList **init)
 			on = syslook("printpointer", 1);
 			argtype(on, n->type);	// any-1
 		} else if(isslice(n->type)) {
-			on = syslook("printarray", 1);
+			on = syslook("printslice", 1);
 			argtype(on, n->type);	// any-1
 		} else if(isint[et]) {
 			if(et == TUINT64)

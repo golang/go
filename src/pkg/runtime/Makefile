@@ -35,7 +35,6 @@ OFILES_arm=\
 	vlrt.$O\
 
 OFILES=\
-	array.$O\
 	asm.$O\
 	cgocall.$O\
 	chan.$O\
@@ -60,6 +59,7 @@ OFILES=\
 	rt0.$O\
 	sema.$O\
 	signal.$O\
+	slice.$O\
 	string.$O\
 	symtab.$O\
 	sys.$O\

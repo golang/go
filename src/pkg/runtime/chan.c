@@ -95,7 +95,7 @@ makechan(uint32 elemsize, uint32 elemalg, uint32 hint)
 
 	if(elemalg >= nelem(algarray)) {
 		printf("chan(alg=%d)\n", elemalg);
-		throw("sys·newchan: unsupported elem type");
+		throw("sys·makechan: unsupported elem type");
 	}
 
 	c = mal(sizeof(*c));
@@ -124,7 +124,7 @@ makechan(uint32 elemsize, uint32 elemalg, uint32 hint)
 	}
 
 	if(debug) {
-		prints("newchan: chan=");
+		prints("makechan: chan=");
 		sys·printpointer(c);
 		prints("; elemsize=");
 		sys·printint(elemsize);
@@ -138,9 +138,9 @@ makechan(uint32 elemsize, uint32 elemalg, uint32 hint)
 	return c;
 }
 
-// newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
+// makechan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
 void
-sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint, Hchan *ret)
+sys·makechan(uint32 elemsize, uint32 elemalg, uint32 hint, Hchan *ret)
 {
 	ret = makechan(elemsize, elemalg, hint);
 	FLUSH(&ret);

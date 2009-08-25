@@ -186,7 +186,9 @@ dowidth(Type *t)
 	case TFORW:		// should have been filled in
 	case TANY:
 		// dummy type; should be replaced before use.
-		fatal("dowidth any");
+		if(!debug['A'])
+			fatal("dowidth any");
+		w = 1;	// anything will do
 		break;
 	case TSTRING:
 		if(sizeof_String == 0)
