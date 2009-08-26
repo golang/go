@@ -68,7 +68,7 @@ func (c *common) setNext(i instr) { c._next = i }
 func (c *common) index() int { return c._index }
 func (c *common) setIndex(i int) { c._index = i }
 
-// The representation of a compiled regular expression.
+// Regexp is the representation of a compiled regular expression.
 // The public interface is entirely through methods.
 type Regexp struct {
 	expr	string;	// the original expression
