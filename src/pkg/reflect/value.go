@@ -636,6 +636,8 @@ func chansend(ch, val *byte, pres *bool)
 func chanrecv(ch, val *byte, pres *bool)
 func chanclosed(ch *byte) bool
 func chanclose(ch *byte)
+func chanlen(ch *byte) int32
+func chancap(ch *byte) int32
 
 // Closed returns the result of closed(c) on the underlying channel.
 func (v *ChanValue) Closed() bool {
@@ -647,6 +649,16 @@ func (v *ChanValue) Closed() bool {
 func (v *ChanValue) Close() {
 	ch := *(**byte)(v.addr);
 	chanclose(ch);
+}
+
+func (v *ChanValue) Len() int {
+	ch := *(**byte)(v.addr);
+	return int(chanlen(ch));
+}
+
+func (v *ChanValue) Cap() int {
+	ch := *(**byte)(v.addr);
+	return int(chancap(ch));
 }
 
 // internal send; non-blocking if b != nil

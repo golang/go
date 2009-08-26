@@ -86,6 +86,14 @@ func chanclosed(ch *byte) (r bool) {
 	r = chanclosed((Hchan*)ch);
 }
 
+func chanlen(ch *byte) (r int32) {
+	r = chanlen((Hchan*)ch);
+}
+
+func chancap(ch *byte) (r int32) {
+	r = chancap((Hchan*)ch);
+}
+
 
 /*
  * Go wrappers around the functions in iface.c

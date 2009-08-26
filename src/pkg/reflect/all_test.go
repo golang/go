@@ -757,6 +757,17 @@ func TestChan(t *testing.T) {
 	if cv.TryRecv() != nil {
 		t.Errorf("TryRecv on sync chan succeeded");
 	}
+
+	// len/cap
+	cv = MakeChan(Typeof(c).(*ChanType), 10);
+	c = cv.Interface().(chan int);
+	for i := 0; i < 3; i++ {
+		c <- i;
+	}
+	if l, m := cv.Len(), cv.Cap(); l != len(c) || m != cap(c) {
+		t.Errorf("Len/Cap = %d/%d want %d/%d", l, m, len(c), cap(c));
+	}
+
 }
 
 // Difficult test for function call because of

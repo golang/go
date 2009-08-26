@@ -493,5 +493,7 @@ void	chansend(Hchan*, void*, bool*);
 void	chanrecv(Hchan*, void*, bool*);
 void	chanclose(Hchan*);
 bool	chanclosed(Hchan*);
+int32	chanlen(Hchan*);
+int32	chancap(Hchan*);
 
 void	ifaceE2I(struct InterfaceType*, Eface, Iface*);

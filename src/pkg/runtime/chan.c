@@ -917,6 +917,18 @@ chanclosed(Hchan *c)
 	return (c->closed & Rclosed) != 0;
 }
 
+int32
+chanlen(Hchan *c)
+{
+	return c->qcount;
+}
+
+int32
+chancap(Hchan *c)
+{
+	return c->dataqsiz;
+}
+
 
 // closedchan(sel *byte) bool;
 void
