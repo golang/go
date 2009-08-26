@@ -81,6 +81,7 @@ var readMakers = []readMaker {
 	readMaker{ "full", func(r io.Reader) io.Reader { return r } },
 	readMaker{ "byte", iotest.OneByteReader },
 	readMaker{ "half", iotest.HalfReader },
+	readMaker{ "data+err", iotest.DataErrReader },
 }
 
 // Call ReadLineString (which ends up calling everything else)

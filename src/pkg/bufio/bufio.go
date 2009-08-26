@@ -90,12 +90,8 @@ func NewReader(rd io.Reader) *Reader {
 	return b;
 }
 
-//.fill reads a new chunk into the buffer.
-func (b *Reader) fill() os.Error {
-	if b.err != nil {
-		return b.err
-	}
-
+// fill reads a new chunk into the buffer.
+func (b *Reader) fill() {
 	// Slide existing data to beginning.
 	if b.w > b.r {
 		copySlice(b.buf[0:b.w-b.r], b.buf[b.r:b.w]);
@@ -110,9 +106,7 @@ func (b *Reader) fill() os.Error {
 	b.w += n;
 	if e != nil {
 		b.err = e;
-		return e
 	}
-	return nil
 }
 
 // Read reads data into p.
@@ -125,6 +119,9 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 	for len(p) > 0 {
 		n := len(p);
 		if b.w == b.r {
+			if b.err != nil {
+				return nn, b.err
+			}
 			if len(p) >= len(b.buf) {
 				// Large read, empty buffer.
 				// Read directly into p to avoid copy.
@@ -134,15 +131,10 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 				}
 				p = p[n:len(p)];
 				nn += n;
-				if b.err != nil {
-					return nn, b.err
-				}
 				continue;
 			}
 			b.fill();
-			if b.err != nil {
-				return nn, b.err
-			}
+			continue;
 		}
 		if n > b.w - b.r {
 			n = b.w - b.r
@@ -159,11 +151,11 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 // ReadByte reads and returns a single byte.
 // If no byte is available, returns an error.
 func (b *Reader) ReadByte() (c byte, err os.Error) {
-	if b.w == b.r {
-		b.fill();
+	for b.w == b.r {
 		if b.err != nil {
 			return 0, b.err
 		}
+		b.fill();
 	}
 	c = b.buf[b.r];
 	b.r++;
@@ -173,9 +165,6 @@ func (b *Reader) ReadByte() (c byte, err os.Error) {
 
 // UnreadByte unreads the last byte.  Only the most recently read byte can be unread.
 func (b *Reader) UnreadByte() os.Error {
-	if b.err != nil {
-		return b.err
-	}
 	if b.r == b.w && b.lastbyte >= 0 {
 		b.w = 1;
 		b.r = 0;
@@ -194,14 +183,11 @@ func (b *Reader) UnreadByte() os.Error {
 // ReadRune reads a single UTF-8 encoded Unicode character and returns the
 // rune and its size in bytes.
 func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
-	for b.r + utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) {
+	for b.r + utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) && b.err == nil {
 		b.fill();
-		if b.err != nil {
-			if b.r == b.w {
-				return 0, 0, b.err;
-			}
-			break;
-		}
+	}
+	if b.r == b.w {
+		return 0, 0, b.err;
 	}
 	rune, size = int(b.buf[b.r]), 1;
 	if rune >= 0x80 {
@@ -235,10 +221,6 @@ func (b *Reader) Buffered() int {
 // For internal or advanced use only; most uses should
 // call ReadLineString or ReadLineBytes instead.
 func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
-	if b.err != nil {
-		return nil, b.err
-	}
-
 	// Look in buffer.
 	if i := findByte(b.buf[b.r:b.w], delim); i >= 0 {
 		line1 := b.buf[b.r:b.r+i+1];
@@ -248,13 +230,14 @@ func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
 
 	// Read more into buffer, until buffer fills or we find delim.
 	for {
-		n := b.Buffered();
-		b.fill();
 		if b.err != nil {
 			line := b.buf[b.r:b.w];
 			b.r = b.w;
 			return line, b.err
 		}
+
+		n := b.Buffered();
+		b.fill();
 
 		// Search new part of buffer
 		if i := findByte(b.buf[n:b.w], delim); i >= 0 {
@@ -277,10 +260,6 @@ func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
 // and the error.  (It can't leave the data in the buffer because
 // it might have read more than the buffer size.)
 func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
-	if b.err != nil {
-		return nil, b.err
-	}
-
 	// Use ReadLineSlice to look for array,
 	// accumulating full buffers.
 	var frag []byte;
@@ -353,13 +332,10 @@ func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
 // If savedelim, keep delim in the result; otherwise drop it.
 func (b *Reader) ReadLineString(delim byte, savedelim bool) (line string, err os.Error) {
 	bytes, e := b.ReadLineBytes(delim);
-	if e != nil {
-		return string(bytes), e
+	if n := len(bytes); !savedelim && n > 0 && bytes[n-1] == delim {
+		bytes = bytes[0:n-1]
 	}
-	if !savedelim {
-		bytes = bytes[0:len(bytes)-1]
-	}
-	return string(bytes), nil
+	return string(bytes), e;
 }
 
 
