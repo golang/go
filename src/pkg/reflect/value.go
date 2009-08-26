@@ -409,6 +409,7 @@ type UnsafePointerValue struct {
 // Get returns the underlying uintptr value.
 // Get returns uintptr, not unsafe.Pointer, so that
 // programs that do not import "unsafe" cannot
+// obtain a value of unsafe.Pointer type from "reflect".
 func (v *UnsafePointerValue) Get() uintptr {
 	return uintptr(*(*unsafe.Pointer)(v.addr));
 }
