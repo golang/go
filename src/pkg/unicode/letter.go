@@ -18,8 +18,7 @@ type Range struct {
 func Is(ranges []Range, rune int) bool {
 	// common case: rune is ASCII or Latin-1
 	if rune < 0x100 {
-		for i := 0; i < len(ranges); i++ {
-			r := ranges[i];
+		for i, r := range ranges {
 			if rune > r.Hi {
 				continue;
 			}
@@ -51,20 +50,33 @@ func Is(ranges []Range, rune int) bool {
 
 // IsUpper reports whether the rune is an upper case letter.
 func IsUpper(rune int) bool {
+	if rune < 0x80 {	// quick ASCII check
+		return 'A' <= rune && rune <= 'Z';
+	}
 	return Is(Upper, rune);
 }
 
 // IsLower reports whether the rune is a lower case letter.
 func IsLower(rune int) bool {
+	if rune < 0x80 {	// quick ASCII check
+		return 'a' <= rune && rune <= 'z';
+	}
 	return Is(Lower, rune);
 }
 
 // IsTitle reports whether the rune is a title case letter.
 func IsTitle(rune int) bool {
+	if rune < 0x80 {	// quick ASCII check
+		return false;
+	}
 	return Is(Title, rune);
 }
 
 // IsLetter reports whether the rune is a letter.
 func IsLetter(rune int) bool {
+	if rune < 0x80 {	// quick ASCII check
+		rune &^= ' ';
+		return 'A' <= rune && rune <= 'Z';
+	}
 	return Is(Letter, rune);
 }
