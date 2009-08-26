@@ -7,6 +7,15 @@ include $(GOROOT)/src/Make.$(GOARCH)
 TARG=unicode
 GOFILES=\
 	decimaldigit.go\
+	digittables.go\
 	letter.go\
+	lettertables.go\
 
 include $(GOROOT)/src/Make.pkg
+
+tables:
+	$(GC) maketables.go
+	$(LD) -o maketables maketables.$O
+	maketables --digits > digittables.go
+	maketables > lettertables.go
+	rm -f maketables

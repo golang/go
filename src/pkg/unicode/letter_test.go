@@ -6,7 +6,7 @@ package unicode
 
 import "testing"
 
-var upper = []int{
+var upperTest = []int{
 	0x41,
 	0xc0,
 	0xd8,
@@ -30,7 +30,7 @@ var upper = []int{
 	0x1d7ca,
 }
 
-var notupper = []int{
+var notupperTest = []int{
 	0x40,
 	0x5b,
 	0x61,
@@ -43,7 +43,7 @@ var notupper = []int{
 	0x10000,
 }
 
-var letter = []int{
+var letterTest = []int{
 	0x41,
 	0x61,
 	0xaa,
@@ -78,7 +78,7 @@ var letter = []int{
 	0x2fa1d,
 }
 
-var notletter = []int{
+var notletterTest = []int{
 	0x20,
 	0x35,
 	0x375,
@@ -90,17 +90,17 @@ var notletter = []int{
 }
 
 func TestIsLetter(t *testing.T) {
-	for i, r := range upper {
+	for i, r := range upperTest {
 		if !IsLetter(r) {
 			t.Errorf("IsLetter(%#x) = false, want true\n", r);
 		}
 	}
-	for i, r := range letter {
+	for i, r := range letterTest {
 		if !IsLetter(r) {
 			t.Errorf("IsLetter(%#x) = false, want true\n", r);
 		}
 	}
-	for i, r := range notletter {
+	for i, r := range notletterTest {
 		if IsLetter(r) {
 			t.Errorf("IsLetter(%#x) = true, want false\n", r);
 		}
@@ -108,17 +108,17 @@ func TestIsLetter(t *testing.T) {
 }
 
 func TestIsUpper(t *testing.T) {
-	for i, r := range upper {
+	for i, r := range upperTest {
 		if !IsUpper(r) {
 			t.Errorf("IsUpper(%#x) = false, want true\n", r);
 		}
 	}
-	for i, r := range notupper {
+	for i, r := range notupperTest {
 		if IsUpper(r) {
 			t.Errorf("IsUpper(%#x) = true, want false\n", r);
 		}
 	}
-	for i, r := range notletter {
+	for i, r := range notletterTest {
 		if IsUpper(r) {
 			t.Errorf("IsUpper(%#x) = true, want false\n", r);
 		}
