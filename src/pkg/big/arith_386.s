@@ -21,12 +21,13 @@ TEXT big·divWVW_s(SB),7,$0
 	RET
 
 
+// func divWWW_s(x1, x0, y Word) (q, r Word)
 // TODO(gri) Implement this routine completely in Go.
 //           At the moment we need this assembly version.
 TEXT big·divWWW_s(SB),7,$0
-	MOVL a+0(FP), DX
-	MOVL a+4(FP), AX
-	DIVL a+8(FP)
-	MOVL AX, a+12(FP)
-	MOVL DX, a+16(FP)
+	MOVL x1+0(FP), DX
+	MOVL x0+4(FP), AX
+	DIVL y+8(FP)
+	MOVL AX, q+12(FP)
+	MOVL DX, r+16(FP)
 	RET

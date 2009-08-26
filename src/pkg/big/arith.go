@@ -190,8 +190,7 @@ func useAsm() bool
 
 func init() {
 	if useAsm() {
-		// Install assemby routines.
-		// TODO(gri) This should only be done if the assembly routines are present.
+		// Install assembly routines.
 		addVV = addVV_s;
 		subVV = subVV_s;
 		addVW = addVW_s;

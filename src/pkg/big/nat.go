@@ -6,6 +6,15 @@
 // These are the building blocks for the operations on signed integers
 // and rationals.
 
+// This package implements multi-precision arithmetic (big numbers).
+// The following numeric types are supported:
+//
+//	- Int	signed integers
+//
+// All methods on Int take the result as the receiver; if it is one
+// of the operands it may be overwritten (and its memory reused).
+// To enable chaining of operations, the result is also returned.
+//
 package big
 
 // An unsigned integer x of the form
@@ -242,9 +251,9 @@ func divNW(z, x []Word, y Word) (q []Word, r Word) {
 }
 
 
-// log2 computes the binary logarithm of x.
+// log2 computes the integer binary logarithm of x.
 // The result is the integer n for which 2^n <= x < 2^(n+1).
-// If x == 0, the result is < 0.
+// If x == 0, the result is -1.
 func log2(x Word) int {
 	n := 0;
 	for ; x > 0; x >>= 1 {
@@ -254,9 +263,9 @@ func log2(x Word) int {
 }
 
 
-// log2N computes the binary logarithm of x.
+// log2N computes the integer binary logarithm of x.
 // The result is the integer n for which 2^n <= x < 2^(n+1).
-// If x == 0, the result is < 0.
+// If x == 0, the result is -1.
 func log2N(x []Word) int {
 	m := len(x);
 	if m > 0 {
