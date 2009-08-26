@@ -176,14 +176,3 @@ E7:	SUBL $1, BX         // i--
 
 	MOVQ DX, r+40(FP)
 	RET
-
-
-// TODO(gri) Implement this routine completely in Go.
-//           At the moment we need this assembly version.
-TEXT big·divWWW_s(SB),7,$0
-	MOVQ x1+0(FP), DX
-	MOVQ x0+8(FP), AX
-	DIVQ y+16(FP)
-	MOVQ AX, q+24(FP)
-	MOVQ DX, r+32(FP)
-	RET
