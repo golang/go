@@ -168,7 +168,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	{
 		b.Reset();
 		data := struct { a int8 } { 17 };
-		instr := &encInstr{ encInt, 6, 0, 0 };
+		instr := &encInstr{ encInt8, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
 		if !bytes.Equal(signedResult, b.Data()) {
@@ -180,7 +180,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	{
 		b.Reset();
 		data := struct { a uint8 } { 17 };
-		instr := &encInstr{ encUint, 6, 0, 0 };
+		instr := &encInstr{ encUint8, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
 		if !bytes.Equal(unsignedResult, b.Data()) {
@@ -255,7 +255,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	{
 		b.Reset();
 		data := struct { a uint64 } { 17 };
-		instr := &encInstr{ encUint, 6, 0, 0 };
+		instr := &encInstr{ encUint64, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
 		if !bytes.Equal(unsignedResult, b.Data()) {
