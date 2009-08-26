@@ -142,6 +142,12 @@ func send(req *Request) (resp *Response, err os.Error) {
 	r := io.Reader(reader);
 	if v := resp.GetHeader("Transfer-Encoding"); v == "chunked" {
 		r = newChunkedReader(reader);
+	} else if v := resp.GetHeader("Content-Length"); v != "" {
+		n, err := strconv.Atoi64(v);
+		if err != nil {
+			return nil, &badStringError{"invalid Content-Length", v};
+		}
+		r = io.LimitReader(r, n);
 	}
 	resp.Body = readClose{ r, conn };
 
