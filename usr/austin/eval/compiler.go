@@ -76,15 +76,3 @@ type blockCompiler struct {
 	// for a function-level block.
 	parent *blockCompiler;
 }
-
-// An exprContext stores information used throughout the compilation
-// of a single expression.  It does not embed funcCompiler because
-// expressions can appear at top level.
-//
-// TODO(austin) Rename exprCompiler to exprNodeCompiler and rename
-// this to exprCompiler.
-type exprContext struct {
-	*compiler;
-	block *block;
-	constant bool;
-}

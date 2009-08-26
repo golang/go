@@ -356,7 +356,10 @@ func (a *stmtCompiler) DoLabeledStmt(s *ast.LabeledStmt) {
 }
 
 func (a *stmtCompiler) DoExprStmt(s *ast.ExprStmt) {
-	e := a.compileExpr(a.block, s.X, false);
+	bc := a.enterChild();
+	defer bc.exit();
+
+	e := a.compileExpr(bc.block, false, s.X);
 	if e == nil {
 		return;
 	}
@@ -378,7 +381,7 @@ func (a *stmtCompiler) DoIncDecStmt(s *ast.IncDecStmt) {
 	bc := a.enterChild();
 	defer bc.exit();
 
-	l := a.compileExpr(bc.block, s.X, false);
+	l := a.compileExpr(bc.block, false, s.X);
 	if l == nil {
 		return;
 	}
@@ -405,21 +408,18 @@ func (a *stmtCompiler) DoIncDecStmt(s *ast.IncDecStmt) {
 		log.Crashf("Unexpected IncDec token %v", s.Tok);
 	}
 
-	effect, l := l.extractEffect(desc);
+	effect, l := l.extractEffect(bc.block, desc);
 
-	one := l.copy();
+	one := l.newExpr(IdealIntType, "constant");
 	one.pos = s.Pos();
-	one.t = IdealIntType;
 	one.evalIdealInt = func() *bignum.Integer { return bignum.Int(1) };
 
-	binop := l.copy();
-	binop.pos = s.Pos();
-	binop.doBinaryExpr(op, l, one);
-	if binop.t == nil {
+	binop := l.compileBinaryExpr(op, l, one);
+	if binop == nil {
 		return;
 	}
 
-	assign := a.compileAssign(s.Pos(), l.t, []*exprCompiler{binop}, "", "");
+	assign := a.compileAssign(s.Pos(), bc.block, l.t, []*expr{binop}, "", "");
 	if assign == nil {
 		log.Crashf("compileAssign type check failed");
 	}
@@ -438,9 +438,9 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 	// Compile right side first so we have the types when
 	// compiling the left side and so we don't see definitions
 	// made on the left side.
-	rs := make([]*exprCompiler, len(rhs));
+	rs := make([]*expr, len(rhs));
 	for i, re := range rhs {
-		rs[i] = a.compileExpr(a.block, re, false);
+		rs[i] = a.compileExpr(a.block, false, re);
 		if rs[i] == nil {
 			bad = true;
 		}
@@ -474,7 +474,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 	}
 
 	// Compile left side
-	ls := make([]*exprCompiler, len(lhs));
+	ls := make([]*expr, len(lhs));
 	nDefs := 0;
 	for i, le := range lhs {
 		// If this is a definition, get the identifier and its type
@@ -555,7 +555,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 		}
 
 		// Compile LHS
-		ls[i] = a.compileExpr(a.block, le, false);
+		ls[i] = a.compileExpr(a.block, false, le);
 		if ls[i] == nil {
 			bad = true;
 			continue;
@@ -563,12 +563,13 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 
 		if ls[i].evalMapValue != nil {
 			// Map indexes are not generally addressable,
-			// but they are assignable.  If function call
-			// compiling took semantic values, this might
+			// but they are assignable.
+			//
+			// TODO(austin) Now that the expression
+			// compiler uses semantic values, this might
 			// be easier to implement as a function call.
 			sub := ls[i];
-			ls[i] = sub.copy();
-			ls[i].t, ls[i].desc = sub.t, sub.desc;
+			ls[i] = ls[i].newExpr(sub.t, sub.desc);
 			ls[i].evalMapValue = sub.evalMapValue;
 			mvf := sub.evalMapValue;
 			et := sub.t;
@@ -621,7 +622,9 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 		}
 		lt = NewMultiType(lts);
 	}
-	assign := ac.compile(lt);
+	bc := a.enterChild();
+	defer bc.exit();
+	assign := ac.compile(bc.block, lt);
 	if assign == nil {
 		return;
 	}
@@ -690,8 +693,8 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 	bc := a.enterChild();
 	defer bc.exit();
 
-	l := a.compileExpr(bc.block, s.Lhs[0], false);
-	r := a.compileExpr(bc.block, s.Rhs[0], false);
+	l := a.compileExpr(bc.block, false, s.Lhs[0]);
+	r := a.compileExpr(bc.block, false, s.Rhs[0]);
 	if l == nil || r == nil {
 		return;
 	}
@@ -701,16 +704,14 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 		return;
 	}
 
-	effect, l := l.extractEffect("operator-assignment");
+	effect, l := l.extractEffect(bc.block, "operator-assignment");
 
-	binop := r.copy();
-	binop.pos = s.TokPos;
-	binop.doBinaryExpr(assignOpToOp[s.Tok], l, r);
-	if binop.t == nil {
+	binop := r.compileBinaryExpr(assignOpToOp[s.Tok], l, r);
+	if binop == nil {
 		return;
 	}
 
-	assign := a.compileAssign(s.Pos(), l.t, []*exprCompiler{binop}, "assignment", "value");
+	assign := a.compileAssign(s.Pos(), bc.block, l.t, []*expr{binop}, "assignment", "value");
 	if assign == nil {
 		log.Crashf("compileAssign type check failed");
 	}
@@ -755,11 +756,14 @@ func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
 		return;
 	}
 
+	bc := a.enterChild();
+	defer bc.exit();
+
 	// Compile expressions
 	bad := false;
-	rs := make([]*exprCompiler, len(s.Results));
+	rs := make([]*expr, len(s.Results));
 	for i, re := range s.Results {
-		rs[i] = a.compileExpr(a.block, re, false);
+		rs[i] = a.compileExpr(bc.block, false, re);
 		if rs[i] == nil {
 			bad = true;
 		}
@@ -774,7 +778,7 @@ func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
 	// is a single call to a multi-valued function, the values
 	// returned from the called function will be returned from
 	// this one.
-	assign := a.compileAssign(s.Pos(), NewMultiType(a.fnType.Out), rs, "return", "value");
+	assign := a.compileAssign(s.Pos(), bc.block, NewMultiType(a.fnType.Out), rs, "return", "value");
 	if assign == nil {
 		return;
 	}
@@ -896,7 +900,7 @@ func (a *stmtCompiler) DoIfStmt(s *ast.IfStmt) {
 	// fall through to the body.
 	bad := false;
 	if s.Cond != nil {
-		e := bc.compileExpr(bc.block, s.Cond, false);
+		e := bc.compileExpr(bc.block, false, s.Cond);
 		switch {
 		case e == nil:
 			bad = true;
@@ -953,16 +957,16 @@ func (a *stmtCompiler) DoSwitchStmt(s *ast.SwitchStmt) {
 	}
 
 	// Compile condition, if any, and extract its effects
-	var cond *exprCompiler;
+	var cond *expr;
 	condbc := bc.enterChild();
 	bad := false;
 	if s.Tag != nil {
-		e := condbc.compileExpr(condbc.block, s.Tag, false);
+		e := condbc.compileExpr(condbc.block, false, s.Tag);
 		if e == nil {
 			bad = true;
 		} else {
 			var effect func(f *Frame);
-			effect, cond = e.extractEffect("switch");
+			effect, cond = e.extractEffect(condbc.block, "switch");
 			if effect == nil {
 				bad = true;
 			}
@@ -1000,7 +1004,7 @@ func (a *stmtCompiler) DoSwitchStmt(s *ast.SwitchStmt) {
 			continue;
 		}
 		for _, v := range clause.Values {
-			e := condbc.compileExpr(condbc.block, v, false);
+			e := condbc.compileExpr(condbc.block, false, v);
 			switch {
 			case e == nil:
 				bad = true;
@@ -1011,10 +1015,9 @@ func (a *stmtCompiler) DoSwitchStmt(s *ast.SwitchStmt) {
 				cases[i] = e.asBool();
 			case cond != nil:
 				// Create comparison
-				compare := e.copy();
 				// TOOD(austin) This produces bad error messages
-				compare.doBinaryExpr(token.EQL, cond, e);
-				if compare.t == nil {
+				compare := e.compileBinaryExpr(token.EQL, cond, e);
+				if compare == nil {
 					bad = true;
 				} else {
 					cases[i] = compare.asBool();
@@ -1170,7 +1173,7 @@ func (a *stmtCompiler) DoForStmt(s *ast.ForStmt) {
 		a.flow.put1(false, &bodyPC);
 		a.push(func(v *vm) { v.pc = bodyPC });
 	} else {
-		e := bc.compileExpr(bc.block, s.Cond, false);
+		e := bc.compileExpr(bc.block, false, s.Cond);
 		switch {
 		case e == nil:
 			bad = true;
