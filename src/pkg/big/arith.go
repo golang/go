@@ -138,8 +138,55 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
 }
 
 
-// TODO(gri) get rid of this eventually
-func divWWW_s(x1, x0, y Word) (q, r Word)
+// q = (x1<<_W + x0 - r)/y
+// The most significant bit of y must be 1.
+func divStep(x1, x0, y Word) (q, r Word) {
+	d1, d0 := y>>_W2, y&_M2;
+	q1, r1 := x1/d1, x1%d1;
+	m := q1*d0;
+	r1 = r1*_B2 | x0>>_W2;
+	if r1 < m {
+		q1--;
+		r1 += y;
+		if r1 >= y && r1 < m {
+			q1--;
+			r1 += y;
+		}
+	}
+	r1 -= m;
+
+	r0 := r1%d1;
+	q0 := r1/d1;
+	m = q0*d0;
+	r0 = r0*_B2 | x0&_M2;
+	if r0 < m {
+		q0--;
+		r0 += y;
+		if r0 >= y && r0 < m {
+			q0--;
+			r0 += y;
+		}
+	}
+	r0 -= m;
+
+	q = q1*_B2 | q0;
+	r = r0;
+	return;
+}
+
+
+// Number of leading zeros in x.
+func leadingZeros(x Word) (n uint) {
+	if x == 0 {
+		return uint(_W);
+	}
+	for x & (1<<(_W-1)) == 0 {
+		n++;
+		x <<= 1;
+	}
+	return;
+}
+
 
 // q = (x1<<_W + x0 - r)/y
 func divWW_g(x1, x0, y Word) (q, r Word) {
@@ -148,9 +195,39 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
 		return;
 	}
 
-	// TODO(gri) implement general case w/o assembly code
-	q, r = divWWW_s(x1, x0, y);
-	return;
+	var q0, q1 Word;
+	z := leadingZeros(y);
+	if y > x1 {
+		if z != 0 {
+			y <<= z;
+			x1 = (x1 << z) | (x0 >> (uint(_W) - z));
+			x0 <<= z;
+		}
+		q0, x0 = divStep(x1, x0, y);
+		q1 = 0;
+	} else {
+		if z == 0 {
+			x1 -= y;
+			q1 = 1;
+		} else {
+			z1 := uint(_W) - z;
+			y <<= z;
+			x2 := x1 >> z1;
+			x1 = (x1 << z) | (x0 >> z1);
+			x0 <<= z;
+			q1, x1 = divStep(x2, x1, y);
+		}
+
+		q0, x0 = divStep(x1, x0, y);
+	}
+
+	r = x0 >> z;
+
+	if q1 != 0 {
+		panic("div out of range");
+	}
+
+	return q0, r;
 }
 
 
