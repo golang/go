@@ -6,7 +6,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=unicode
 GOFILES=\
-	decimaldigit.go\
+	digit.go\
 	digittables.go\
 	letter.go\
 	lettertables.go\

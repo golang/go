@@ -188,7 +188,7 @@ func isLetter(ch int) bool {
 func isDigit(ch int) bool {
 	return
 		'0' <= ch && ch <= '9' ||
-		ch >= 0x80 && unicode.IsDecimalDigit(ch);
+		ch >= 0x80 && unicode.IsDigit(ch);
 }
 
 
