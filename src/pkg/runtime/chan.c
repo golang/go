@@ -905,14 +905,24 @@ sys·closechan(Hchan *c)
 	unlock(&chanlock);
 }
 
+void
+chanclose(Hchan *c)
+{
+	sys·closechan(c);
+}
+
+bool
+chanclosed(Hchan *c)
+{
+	return (c->closed & Rclosed) != 0;
+}
+
+
 // closedchan(sel *byte) bool;
 void
 sys·closedchan(Hchan *c, bool closed)
 {
-	// test Rclosed
-	closed = 0;
-	if(c->closed & Rclosed)
-		closed = 1;
+	closed = chanclosed(c);
 	FLUSH(&closed);
 }
 

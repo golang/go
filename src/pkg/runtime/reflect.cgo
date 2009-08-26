@@ -78,6 +78,14 @@ func chanrecv(ch *byte, val *byte, pres *bool) {
 	chanrecv((Hchan*)ch, val, pres);
 }
 
+func chanclose(ch *byte) {
+	chanclose((Hchan*)ch);
+}
+
+func chanclosed(ch *byte) (r bool) {
+	r = chanclosed((Hchan*)ch);
+}
+
 
 /*
  * Go wrappers around the functions in iface.c
