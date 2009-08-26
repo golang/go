@@ -433,6 +433,7 @@ scheduler(void)
 				gp->lockedm = nil;
 				m->lockedg = nil;
 			}
+			gfput(gp);
 			if(--sched.gcount == 0)
 				exit(0);
 			break;
