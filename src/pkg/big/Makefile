@@ -7,7 +7,6 @@ include $(GOROOT)/src/Make.$(GOARCH)
 TARG=big
 GOFILES=\
 	arith.go\
-	big.go\
 	nat.go\
 	int.go\
 
