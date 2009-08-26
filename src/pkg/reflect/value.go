@@ -634,6 +634,20 @@ func (v *ChanValue) Get() uintptr {
 func makechan(typ *runtime.ChanType, size uint32) (ch *byte)
 func chansend(ch, val *byte, pres *bool)
 func chanrecv(ch, val *byte, pres *bool)
+func chanclosed(ch *byte) bool
+func chanclose(ch *byte)
+
+// Closed returns the result of closed(c) on the underlying channel.
+func (v *ChanValue) Closed() bool {
+	ch := *(**byte)(v.addr);
+	return chanclosed(ch);
+}
+
+// Close closes the channel.
+func (v *ChanValue) Close() {
+	ch := *(**byte)(v.addr);
+	chanclose(ch);
+}
 
 // internal send; non-blocking if b != nil
 func (v *ChanValue) send(x Value, b *bool) {

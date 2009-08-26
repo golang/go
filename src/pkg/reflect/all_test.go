@@ -726,6 +726,25 @@ func TestChan(t *testing.T) {
 				t.Errorf("TrySend 6, recv %d", i);
 			}
 		}
+
+		// Close
+		c <- 123;
+		cv.Close();
+		if cv.Closed() {
+			t.Errorf("closed too soon - 1");
+		}
+		if i := cv.Recv().(*IntValue).Get(); i != 123 {
+			t.Errorf("send 123 then close; Recv %d", i);
+		}
+		if cv.Closed() {
+			t.Errorf("closed too soon - 2");
+		}
+		if i := cv.Recv().(*IntValue).Get(); i != 0 {
+			t.Errorf("after close Recv %d", i);
+		}
+		if !cv.Closed() {
+			t.Errorf("not closed");
+		}
 	}
 
 	// check creation of unbuffered channel
