@@ -1172,3 +1172,171 @@ yes:
 //print("%P\n", p);
 	return 1;
 }
+
+void
+getargs(NodeList *nn, Node *reg, int n)
+{
+	NodeList *l;
+	int i;
+
+	l = nn;
+	for(i=0; i<n; i++) {
+		if(!smallintconst(l->n->right)) {
+			regalloc(reg+i, l->n->right->type, N);
+			cgen(l->n->right, reg+i);
+		} else
+			reg[i] = *l->n->right;
+		l = l->next;
+	}
+	// botch - need second pass to sort by offset
+}
+
+void
+cmpandthrow(Node *nodes, int l, int r)
+{
+	vlong cl, cr;
+	Prog *p1;
+	int op, c;
+
+	op = OLE;
+	if(smallintconst(nodes+l)) {
+		cl = mpgetfix((nodes+l)->val.u.xval);
+		if(cl == 0)
+			return;
+		if(smallintconst(nodes+r)) {
+			cr = mpgetfix((nodes+r)->val.u.xval);
+			if(cl > cr)
+				ginscall(throwindex, 0);
+			return;
+		}
+
+		// put the constant on the right
+		op = brrev(op);
+		c = l;
+		l = r;
+		r = c;
+	}
+
+	gins(optoas(OCMP, types[TUINT32]), nodes+l, nodes+r);
+	p1 = gbranch(optoas(op, types[TUINT32]), T);
+	ginscall(throwindex, 0);
+	patch(p1, pc);
+}
+
+// generate inline code for
+//	slicearray
+//	sliceslice
+//	arraytoslice
+int
+cgen_inline(Node *n, Node *res)
+{
+	Node nodes[10];
+	Node n1, n2;
+	vlong v;
+	int i;
+
+	if(n->op != OCALLFUNC)
+		goto no;
+	if(n->left->op != ONAME)
+		goto no;
+	if(!res->addable)
+		goto no;
+	if(strcmp(n->left->sym->package, "sys") != 0)
+		goto no;
+	if(strcmp(n->left->sym->name, "slicearray") == 0)
+		goto slicearray;
+	if(strcmp(n->left->sym->name, "sliceslice") == 0)
+		goto sliceslice;
+	if(strcmp(n->left->sym->name, "arraytoslice") == 0)
+		goto arraytoslice;
+	goto no;
+
+slicearray:
+	getargs(n->list, nodes, 5);
+
+	// if(hb[3] > nel[1]) goto throw
+	cmpandthrow(nodes, 3, 1);
+
+	// if(lb[2] > hb[3]) goto throw
+	cmpandthrow(nodes, 2, 3);
+
+
+	// len = hb[3] - lb[2] (destroys hb)
+	n2 = *res;
+	n2.xoffset += Array_nel;
+
+	if(smallintconst(nodes+3) && smallintconst(nodes+2)) {
+		v = mpgetfix((nodes+3)->val.u.xval) -
+			mpgetfix((nodes+2)->val.u.xval);
+		nodconst(&n1, types[TUINT32], v);
+		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
+	} else {
+		regalloc(&n1, types[TUINT32], nodes+3);
+		gmove(nodes+3, &n1);
+		gins(optoas(OSUB, types[TUINT32]), nodes+2, &n1);
+		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
+		regfree(&n1);
+	}
+
+	// cap = nel[1] - lb[2] (destroys nel)
+	n2 = *res;
+	n2.xoffset += Array_cap;
+
+	if(smallintconst(nodes+1) && smallintconst(nodes+2)) {
+		v = mpgetfix((nodes+1)->val.u.xval) -
+			mpgetfix((nodes+2)->val.u.xval);
+		nodconst(&n1, types[TUINT32], v);
+		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
+	} else {
+		regalloc(&n1, types[TUINT32], nodes+1);
+		gmove(nodes+1, &n1);
+		gins(optoas(OSUB, types[TUINT32]), nodes+2, &n1);
+		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
+		regfree(&n1);
+	}
+
+	// ary = old[0] + (lb[2] * width[4]) (destroys old)
+	n2 = *res;
+	n2.xoffset += Array_array;
+
+	if(smallintconst(nodes+2) && smallintconst(nodes+4)) {
+		v = mpgetfix((nodes+2)->val.u.xval) *
+			mpgetfix((nodes+4)->val.u.xval);
+		nodconst(&n1, types[tptr], v);
+		gins(optoas(OADD, types[tptr]), &n1, nodes+0);
+	} else {
+		regalloc(&n1, types[tptr], nodes+2);
+		gmove(nodes+2, &n1);
+		if(!smallintconst(nodes+4) || mpgetfix((nodes+4)->val.u.xval) != 1)
+			gins(optoas(OMUL, types[tptr]), nodes+4, &n1);
+		gins(optoas(OADD, types[tptr]), &n1, nodes+0);
+		regfree(&n1);
+	}
+	gins(optoas(OAS, types[tptr]), nodes+0, &n2);
+
+	// ret.len = hb[3]-lb[2];
+	// ret.cap = nel[1]-lb[2];
+	// ret.array = old[0] + lb[3]*width[4];
+	for(i=0; i<5; i++) {
+		if(!smallintconst(nodes+i))
+			regfree(nodes+i);
+	}
+	return 1;
+
+sliceslice:
+	// if(hb > old.cap) goto throw;
+	// if(lb > hb) goto throw;
+	// ret.len = hb-lb;
+	// ret.cap = old.cap - lb;
+	// ret.array = old.array + lb*width;
+	goto no;
+
+arraytoslice:
+	// ret.len = nel;
+	// ret.cap = nel;
+	// ret.array = old;
+	goto no;
+
+no:
+	return 0;
+}
