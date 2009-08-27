@@ -28,12 +28,6 @@ type stmtCompiler struct {
 	pos token.Position;
 	// This statement's label, or nil if it is not labeled.
 	stmtLabel *label;
-	// err should be initialized to true before visiting and set
-	// to false when the statement is compiled successfully.  The
-	// function invoking Visit should or this with
-	// blockCompiler.err.  This is less error prone than setting
-	// blockCompiler.err on every failure path.
-	err bool;
 }
 
 func (a *stmtCompiler) diag(format string, args ...) {
@@ -187,7 +181,7 @@ func (f *flowBuf) reachesEnd(pc uint) bool {
 // gotosObeyScopes returns true if no goto statement causes any
 // variables to come into scope that were not in scope at the point of
 // the goto.  Reports any errors using the given compiler.
-func (f *flowBuf) gotosObeyScopes(a *compiler) bool {
+func (f *flowBuf) gotosObeyScopes(a *compiler) {
 	for pos, src := range f.gotos {
 		tgt := f.labels[src.target];
 
@@ -201,7 +195,7 @@ func (f *flowBuf) gotosObeyScopes(a *compiler) bool {
 		if b != tgt.block {
 			// We jumped into a deeper block
 			a.diagAt(pos, "goto causes variables to come into scope");
-			return false;
+			return;
 		}
 
 		// There must be no variables in the target block that
@@ -210,11 +204,10 @@ func (f *flowBuf) gotosObeyScopes(a *compiler) bool {
 		for i := range numVars {
 			if tgtNumVars[i] > numVars[i] {
 				a.diagAt(pos, "goto causes variables to come into scope");
-				return false;
+				return;
 			}
 		}
 	}
-	return true;
 }
 
 /*
@@ -246,20 +239,98 @@ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
 // TODO(austin) Move doAssign to here
 
 /*
- * Statement visitors
+ * Statement compiler
  */
 
-func (a *stmtCompiler) DoBadStmt(s *ast.BadStmt) {
-	// Do nothing.  Already reported by parser.
+func (a *stmtCompiler) compile(s ast.Stmt) {
+	if a.block.inner != nil {
+		log.Crash("Child scope still entered");
+	}
+
+	notimpl := false;
+	switch s := s.(type) {
+	case *ast.BadStmt:
+		// Error already reported by parser.
+		a.silentErrors++;
+
+	case *ast.DeclStmt:
+		a.compileDeclStmt(s);
+
+	case *ast.EmptyStmt:
+		// Do nothing.
+
+	case *ast.LabeledStmt:
+		a.compileLabeledStmt(s);
+
+	case *ast.ExprStmt:
+		a.compileExprStmt(s);
+
+	case *ast.IncDecStmt:
+		a.compileIncDecStmt(s);
+
+	case *ast.AssignStmt:
+		a.compileAssignStmt(s);
+
+	case *ast.GoStmt:
+		notimpl = true;
+
+	case *ast.DeferStmt:
+		notimpl = true;
+
+	case *ast.ReturnStmt:
+		a.compileReturnStmt(s);
+
+	case *ast.BranchStmt:
+		a.compileBranchStmt(s);
+
+	case *ast.BlockStmt:
+		a.compileBlockStmt(s);
+
+	case *ast.IfStmt:
+		a.compileIfStmt(s);
+
+	case *ast.CaseClause:
+		a.diag("case clause outside switch");
+
+	case *ast.SwitchStmt:
+		a.compileSwitchStmt(s);
+
+	case *ast.TypeCaseClause:
+		notimpl = true;
+
+	case *ast.TypeSwitchStmt:
+		notimpl = true;
+
+	case *ast.CommClause:
+		notimpl = true;
+
+	case *ast.SelectStmt:
+		notimpl = true;
+
+	case *ast.ForStmt:
+		a.compileForStmt(s);
+
+	case *ast.RangeStmt:
+		notimpl = true;
+
+	default:
+		log.Crashf("unexpected ast node type %T", s);
+	}
+
+	if notimpl {
+		a.diag("%T statment node not implemented", s);
+	}
+
+	if a.block.inner != nil {
+		log.Crash("Forgot to exit child scope");
+	}
 }
 
-func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
-	ok := true;
-
+func (a *stmtCompiler) compileDeclStmt(s *ast.DeclStmt) {
 	switch decl := s.Decl.(type) {
 	case *ast.BadDecl:
 		// Do nothing.  Already reported by parser.
-		ok = false;
+		a.silentErrors++;
 
 	case *ast.FuncDecl:
 		log.Crash("FuncDecl at statement level");
@@ -273,7 +344,7 @@ func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
 			log.Crashf("%v not implemented", decl.Tok);
 
 		case token.TYPE:
-			ok = a.compileTypeDecl(a.block, decl);
+			a.compileTypeDecl(a.block, decl);
 
 		case token.VAR:
 			for _, spec := range decl.Specs {
@@ -285,14 +356,9 @@ func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
 						log.Crash("Type and Values nil");
 					}
 					t := a.compileType(a.block, spec.Type);
-					if t == nil {
-						// Define placeholders
-						ok = false;
-					}
+					// Define placeholders even if type compile failed
 					for _, n := range spec.Names {
-						if a.defineVar(n, t) == nil {
-							ok = false;
-						}
+						a.defineVar(n, t);
 					}
 				} else {
 					// Decalaration with assignment
@@ -301,36 +367,21 @@ func (a *stmtCompiler) DoDeclStmt(s *ast.DeclStmt) {
 						lhs[i] = n;
 					}
 					a.doAssign(lhs, spec.Values, decl.Tok, spec.Type);
-					// TODO(austin) This is ridiculous.  doAssign
-					// indicates failure by setting a.err.
-					if a.err {
-						ok = false;
-					}
 				}
 			}
 		}
+
 	default:
 		log.Crashf("Unexpected Decl type %T", s.Decl);
 	}
-
-	if ok {
-		a.err = false;
-	}
 }
 
-func (a *stmtCompiler) DoEmptyStmt(s *ast.EmptyStmt) {
-	a.err = false;
-}
-
-func (a *stmtCompiler) DoLabeledStmt(s *ast.LabeledStmt) {
-	bad := false;
-
+func (a *stmtCompiler) compileLabeledStmt(s *ast.LabeledStmt) {
 	// Define label
 	l, ok := a.labels[s.Label.Value];
 	if ok {
 		if l.resolved.IsValid() {
 			a.diag("label %s redeclared in this block\n\tprevious declaration at %s", s.Label.Value, &l.resolved);
-			bad = true;
 		}
 	} else {
 		pc := badPC;
@@ -347,15 +398,11 @@ func (a *stmtCompiler) DoLabeledStmt(s *ast.LabeledStmt) {
 	a.flow.putLabel(l.name, a.block);
 
 	// Compile the statement.  Reuse our stmtCompiler for simplicity.
-	a.pos = s.Stmt.Pos();
-	a.stmtLabel = l;
-	s.Stmt.Visit(a);
-	if bad {
-		a.err = true;
-	}
+	sc := &stmtCompiler{a.blockCompiler, s.Stmt.Pos(), l};
+	sc.compile(s.Stmt);
 }
 
-func (a *stmtCompiler) DoExprStmt(s *ast.ExprStmt) {
+func (a *stmtCompiler) compileExprStmt(s *ast.ExprStmt) {
 	bc := a.enterChild();
 	defer bc.exit();
 
@@ -373,10 +420,9 @@ func (a *stmtCompiler) DoExprStmt(s *ast.ExprStmt) {
 	a.push(func(v *vm) {
 		exec(v.f);
 	});
-	a.err = false;
 }
 
-func (a *stmtCompiler) DoIncDecStmt(s *ast.IncDecStmt) {
+func (a *stmtCompiler) compileIncDecStmt(s *ast.IncDecStmt) {
 	// Create temporary block for extractEffect
 	bc := a.enterChild();
 	defer bc.exit();
@@ -429,11 +475,10 @@ func (a *stmtCompiler) DoIncDecStmt(s *ast.IncDecStmt) {
 		effect(v.f);
 		assign(lf(v.f), v.f);
 	});
-	a.err = false;
 }
 
 func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token, declTypeExpr ast.Expr) {
-	bad := false;
+	nerr := a.numError();
 
 	// Compile right side first so we have the types when
 	// compiling the left side and so we don't see definitions
@@ -441,9 +486,6 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 	rs := make([]*expr, len(rhs));
 	for i, re := range rhs {
 		rs[i] = a.compileExpr(a.block, false, re);
-		if rs[i] == nil {
-			bad = true;
-		}
 	}
 
 	errOp := "assignment";
@@ -451,9 +493,6 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 		errOp = "declaration";
 	}
 	ac, ok := a.checkAssign(a.pos, rs, errOp, "value");
-	if !ok {
-		bad = true;
-	}
 	ac.allowMapForms(len(lhs));
 
 	// If this is a definition and the LHS is too big, we won't be
@@ -461,16 +500,12 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 	// begin to infer the types of the LHS.
 	if (tok == token.DEFINE || tok == token.VAR) && len(lhs) > len(ac.rmt.Elems) {
 		a.diag("not enough values for definition");
-		bad = true;
 	}
 
 	// Compile left type if there is one
 	var declType Type;
 	if declTypeExpr != nil {
 		declType = a.compileType(a.block, declTypeExpr);
-		if declType == nil {
-			bad = true;
-		}
 	}
 
 	// Compile left side
@@ -486,7 +521,6 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 			ident, ok = le.(*ast.Ident);
 			if !ok {
 				a.diagAt(le, "left side of := must be a name");
-				bad = true;
 				// Suppress new defitions errors
 				nDefs++;
 				continue;
@@ -549,7 +583,6 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 		// If it's a definition, define the identifier
 		if ident != nil {
 			if a.defineVar(ident, lt) == nil {
-				bad = true;
 				continue;
 			}
 		}
@@ -557,7 +590,6 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 		// Compile LHS
 		ls[i] = a.compileExpr(a.block, false, le);
 		if ls[i] == nil {
-			bad = true;
 			continue;
 		}
 
@@ -584,7 +616,6 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 			};
 		} else if ls[i].evalAddr == nil {
 			ls[i].diag("cannot assign to %s", ls[i].desc);
-			bad = true;
 			continue;
 		}
 	}
@@ -598,7 +629,9 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 		return;
 	}
 
-	if bad {
+	// If there have been errors, our arrays are full of nil's so
+	// get out of here now.
+	if nerr != a.numError() {
 		return;
 	}
 
@@ -665,7 +698,6 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 			}
 		});
 	}
-	a.err = false;
 }
 
 var assignOpToOp = map[token.Token] token.Token {
@@ -721,10 +753,9 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 		effect(v.f);
 		assign(lf(v.f), v.f);
 	});
-	a.err = false;
 }
 
-func (a *stmtCompiler) DoAssignStmt(s *ast.AssignStmt) {
+func (a *stmtCompiler) compileAssignStmt(s *ast.AssignStmt) {
 	switch s.Tok {
 	case token.ASSIGN, token.DEFINE:
 		a.doAssign(s.Lhs, s.Rhs, s.Tok, nil);
@@ -734,15 +765,7 @@ func (a *stmtCompiler) DoAssignStmt(s *ast.AssignStmt) {
 	}
 }
 
-func (a *stmtCompiler) DoGoStmt(s *ast.GoStmt) {
-	log.Crash("Not implemented");
-}
-
-func (a *stmtCompiler) DoDeferStmt(s *ast.DeferStmt) {
-	log.Crash("Not implemented");
-}
-
-func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
+func (a *stmtCompiler) compileReturnStmt(s *ast.ReturnStmt) {
 	if a.fnType == nil {
 		a.diag("cannot return at the top level");
 		return;
@@ -752,7 +775,6 @@ func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
 		// Simple case.  Simply exit from the function.
 		a.flow.putTerm();
 		a.push(func(v *vm) { v.pc = returnPC });
-		a.err = false;
 		return;
 	}
 
@@ -779,9 +801,6 @@ func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
 	// returned from the called function will be returned from
 	// this one.
 	assign := a.compileAssign(s.Pos(), bc.block, NewMultiType(a.fnType.Out), rs, "return", "value");
-	if assign == nil {
-		return;
-	}
 
 	// XXX(Spec) "The result types of the current function and the
 	// called function must match."  Match is fuzzy.  It should
@@ -795,7 +814,6 @@ func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
 		assign(multiV(v.f.Vars[start:start+nout]), v.f);
 		v.pc = returnPC;
 	});
-	a.err = false;
 }
 
 func (a *stmtCompiler) findLexicalLabel(name *ast.Ident, pred func(*label) bool, errOp, errCtx string) *label {
@@ -824,7 +842,7 @@ func (a *stmtCompiler) findLexicalLabel(name *ast.Ident, pred func(*label) bool,
 	return nil;
 }
 
-func (a *stmtCompiler) DoBranchStmt(s *ast.BranchStmt) {
+func (a *stmtCompiler) compileBranchStmt(s *ast.BranchStmt) {
 	var pc *uint;
 
 	switch s.Tok {
@@ -863,18 +881,15 @@ func (a *stmtCompiler) DoBranchStmt(s *ast.BranchStmt) {
 
 	a.flow.put1(false, pc);
 	a.push(func(v *vm) { v.pc = *pc });
-	a.err = false;
 }
 
-func (a *stmtCompiler) DoBlockStmt(s *ast.BlockStmt) {
+func (a *stmtCompiler) compileBlockStmt(s *ast.BlockStmt) {
 	bc := a.enterChild();
 	bc.compileStmts(s);
 	bc.exit();
-
-	a.err = false;
 }
 
-func (a *stmtCompiler) DoIfStmt(s *ast.IfStmt) {
+func (a *stmtCompiler) compileIfStmt(s *ast.IfStmt) {
 	// The scope of any variables declared by [the init] statement
 	// extends to the end of the "if" statement and the variables
 	// are initialized once before the statement is entered.
@@ -898,15 +913,13 @@ func (a *stmtCompiler) DoIfStmt(s *ast.IfStmt) {
 
 	// Compile condition, if any.  If there is no condition, we
 	// fall through to the body.
-	bad := false;
 	if s.Cond != nil {
 		e := bc.compileExpr(bc.block, false, s.Cond);
 		switch {
 		case e == nil:
-			bad = true;
+			// Error reported by compileExpr
 		case !e.t.isBoolean():
 			e.diag("'if' condition must be boolean\n\t%v", e.t);
-			bad = true;
 		default:
 			eval := e.asBool();
 			a.flow.put1(true, &elsePC);
@@ -936,17 +949,9 @@ func (a *stmtCompiler) DoIfStmt(s *ast.IfStmt) {
 		elsePC = a.nextPC();
 	}
 	endPC = a.nextPC();
-
-	if !bad {
-		a.err = false;
-	}
 }
 
-func (a *stmtCompiler) DoCaseClause(s *ast.CaseClause) {
-	a.diag("case clause outside switch");
-}
-
-func (a *stmtCompiler) DoSwitchStmt(s *ast.SwitchStmt) {
+func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 	// Create implicit scope around switch
 	bc := a.enterChild();
 	defer bc.exit();
@@ -959,17 +964,11 @@ func (a *stmtCompiler) DoSwitchStmt(s *ast.SwitchStmt) {
 	// Compile condition, if any, and extract its effects
 	var cond *expr;
 	condbc := bc.enterChild();
-	bad := false;
 	if s.Tag != nil {
 		e := condbc.compileExpr(condbc.block, false, s.Tag);
-		if e == nil {
-			bad = true;
-		} else {
+		if e != nil {
 			var effect func(f *Frame);
 			effect, cond = e.extractEffect(condbc.block, "switch");
-			if effect == nil {
-				bad = true;
-			}
 			a.push(func(v *vm) { effect(v.f) });
 		}
 	}
@@ -981,13 +980,11 @@ func (a *stmtCompiler) DoSwitchStmt(s *ast.SwitchStmt) {
 		clause, ok := c.(*ast.CaseClause);
 		if !ok {
 			a.diagAt(clause, "switch statement must contain case clauses");
-			bad = true;
 			continue;
 		}
 		if clause.Values == nil {
 			if hasDefault {
 				a.diagAt(clause, "switch statement contains more than one default case");
-				bad = true;
 			}
 			hasDefault = true;
 		} else {
@@ -1007,19 +1004,16 @@ func (a *stmtCompiler) DoSwitchStmt(s *ast.SwitchStmt) {
 			e := condbc.compileExpr(condbc.block, false, v);
 			switch {
 			case e == nil:
-				bad = true;
+				// Error reported by compileExpr
 			case cond == nil && !e.t.isBoolean():
 				a.diagAt(v, "'case' condition must be boolean");
-				bad = true;
 			case cond == nil:
 				cases[i] = e.asBool();
 			case cond != nil:
 				// Create comparison
 				// TOOD(austin) This produces bad error messages
 				compare := e.compileBinaryExpr(token.EQL, cond, e);
-				if compare == nil {
-					bad = true;
-				} else {
+				if compare != nil {
 					cases[i] = compare.asBool();
 				}
 			}
@@ -1031,18 +1025,16 @@ func (a *stmtCompiler) DoSwitchStmt(s *ast.SwitchStmt) {
 	casePCs := make([]*uint, ncases+1);
 	endPC := badPC;
 
-	if !bad {
-		a.flow.put(false, false, casePCs);
-		a.push(func(v *vm) {
-			for i, c := range cases {
-				if c(v.f) {
-					v.pc = *casePCs[i];
-					return;
-				}
+	a.flow.put(false, false, casePCs);
+	a.push(func(v *vm) {
+		for i, c := range cases {
+			if c(v.f) {
+				v.pc = *casePCs[i];
+				return;
 			}
-			v.pc = *casePCs[ncases];
-		});
-	}
+		}
+		v.pc = *casePCs[ncases];
+	});
 	condbc.exit();
 
 	// Compile cases
@@ -1080,7 +1072,6 @@ func (a *stmtCompiler) DoSwitchStmt(s *ast.SwitchStmt) {
 					// statements.
 					if _, ok := s2.(*ast.EmptyStmt); !ok {
 						a.diagAt(s, "fallthrough statement must be final statement in case");
-						bad = true;
 						break;
 					}
 				}
@@ -1101,29 +1092,9 @@ func (a *stmtCompiler) DoSwitchStmt(s *ast.SwitchStmt) {
 	if !hasDefault {
 		casePCs[ncases] = &endPC;
 	}
-
-	if !bad {
-		a.err = false;
-	}
 }
 
-func (a *stmtCompiler) DoTypeCaseClause(s *ast.TypeCaseClause) {
-	log.Crash("Not implemented");
-}
-
-func (a *stmtCompiler) DoTypeSwitchStmt(s *ast.TypeSwitchStmt) {
-	log.Crash("Not implemented");
-}
-
-func (a *stmtCompiler) DoCommClause(s *ast.CommClause) {
-	log.Crash("Not implemented");
-}
-
-func (a *stmtCompiler) DoSelectStmt(s *ast.SelectStmt) {
-	log.Crash("Not implemented");
-}
-
-func (a *stmtCompiler) DoForStmt(s *ast.ForStmt) {
+func (a *stmtCompiler) compileForStmt(s *ast.ForStmt) {
 	// Wrap the entire for in a block.
 	bc := a.enterChild();
 	defer bc.exit();
@@ -1166,7 +1137,6 @@ func (a *stmtCompiler) DoForStmt(s *ast.ForStmt) {
 	}
 
 	// Compile condition check, if any
-	bad := false;
 	checkPC = a.nextPC();
 	if s.Cond == nil {
 		// If the condition is absent, it is equivalent to true.
@@ -1176,10 +1146,9 @@ func (a *stmtCompiler) DoForStmt(s *ast.ForStmt) {
 		e := bc.compileExpr(bc.block, false, s.Cond);
 		switch {
 		case e == nil:
-			bad = true;
+			// Error reported by compileExpr
 		case !e.t.isBoolean():
 			a.diag("'for' condition must be boolean\n\t%v", e.t);
-			bad = true;
 		default:
 			eval := e.asBool();
 			a.flow.put1(true, &bodyPC);
@@ -1192,14 +1161,6 @@ func (a *stmtCompiler) DoForStmt(s *ast.ForStmt) {
 	}
 
 	endPC = a.nextPC();
-
-	if !bad {
-		a.err = false;
-	}
-}
-
-func (a *stmtCompiler) DoRangeStmt(s *ast.RangeStmt) {
-	log.Crash("Not implemented");
 }
 
 /*
@@ -1207,15 +1168,8 @@ func (a *stmtCompiler) DoRangeStmt(s *ast.RangeStmt) {
  */
 
 func (a *blockCompiler) compileStmt(s ast.Stmt) {
-	if a.block.inner != nil {
-		log.Crash("Child scope still entered");
-	}
-	sc := &stmtCompiler{a, s.Pos(), nil, true};
-	s.Visit(sc);
-	if a.block.inner != nil {
-		log.Crash("Forgot to exit child scope");
-	}
-	a.err = a.err || sc.err;
+	sc := &stmtCompiler{a, s.Pos(), nil};
+	sc.compile(s);
 }
 
 func (a *blockCompiler) compileStmts(block *ast.BlockStmt) {
@@ -1272,7 +1226,6 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
 		codeBuf: cb,
 		flow: newFlowBuf(cb),
 		labels: make(map[string] *label),
-		err: false,
 	};
 	bc := &blockCompiler{
 		funcCompiler: fc,
@@ -1280,10 +1233,10 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
 	};
 
 	// Compile body
+	nerr := a.numError();
 	bc.compileStmts(body);
 	fc.checkLabels();
-
-	if fc.err {
+	if nerr != a.numError() {
 		return nil;
 	}
 
@@ -1303,15 +1256,13 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
 // Checks that labels were resolved and that all jumps obey scoping
 // rules.  Reports an error and set fc.err if any check fails.
 func (a *funcCompiler) checkLabels() {
-	bad := false;
+	nerr := a.numError();
 	for _, l := range a.labels {
 		if !l.resolved.IsValid() {
 			a.diagAt(&l.used, "label %s not defined", l.name);
-			bad = true;
 		}
 	}
-	if bad {
-		a.err = true;
+	if nerr != a.numError() {
 		// Don't check scopes if we have unresolved labels
 		return;
 	}
@@ -1319,9 +1270,7 @@ func (a *funcCompiler) checkLabels() {
 	// Executing the "goto" statement must not cause any variables
 	// to come into scope that were not already in scope at the
 	// point of the goto.
-	if !a.flow.gotosObeyScopes(a.compiler) {
-		a.err = true;
-	}
+	a.flow.gotosObeyScopes(a.compiler);
 }
 
 /*
@@ -1338,7 +1287,7 @@ func (s *Stmt) Exec(f *Frame) {
 
 func CompileStmts(scope *Scope, stmts []ast.Stmt) (*Stmt, os.Error) {
 	errors := scanner.NewErrorVector();
-	cc := &compiler{errors};
+	cc := &compiler{errors, 0, 0};
 	cb := newCodeBuf();
 	fc := &funcCompiler{
 		compiler: cc,
@@ -1347,18 +1296,18 @@ func CompileStmts(scope *Scope, stmts []ast.Stmt) (*Stmt, os.Error) {
 		codeBuf: cb,
 		flow: newFlowBuf(cb),
 		labels: make(map[string] *label),
-		err: false,
 	};
 	bc := &blockCompiler{
 		funcCompiler: fc,
 		block: scope.block,
 	};
 	out := make([]*Stmt, len(stmts));
+	nerr := cc.numError();
 	for i, stmt := range stmts {
 		bc.compileStmt(stmt);
 	}
 	fc.checkLabels();
-	if fc.err {
+	if nerr != cc.numError() {
 		return nil, errors.GetError(scanner.Sorted);
 	}
 	code := fc.get();
