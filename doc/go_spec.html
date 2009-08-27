@@ -3272,9 +3272,9 @@ case x &lt; 0: return -x
 default: return x
 }
 
-switch {          // missing expression means "true"
-case x < y: f1();
-case x < z: f2();
+switch {  // missing expression means "true"
+case x &lt; y: f1();
+case x &lt; z: f2();
 case x == 4: f3();
 }
 </pre>
@@ -3283,9 +3283,8 @@ case x == 4: f3();
 
 <p>
 A type switch compares types rather than values. It is otherwise similar
-to an expression switch. It is introduced by special
-notation in the form of a simple declaration whose right hand side
-has the form of a type assertion (§<a href="#Type_assertions">Type assertions</a>)
+to an expression switch. It is marked by a special switch expression which
+has the form of a <a href="#Type_assertions">type assertion</a>
 using the reserved word <code>type</code> rather than an actual type.
 Cases then match literal types against the dynamic type of the expression
 in the type assertion.
@@ -3293,23 +3292,30 @@ in the type assertion.
 
 <pre class="ebnf">
 TypeSwitchStmt  = "switch" [ [ SimpleStmt ] ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
-TypeSwitchGuard = identifier ":=" Expression "." "(" "type" ")" .
+TypeSwitchGuard = [ identifier ":=" ] Expression "." "(" "type" ")" .
 TypeCaseClause  = TypeSwitchCase ":" [ StatementList ] .
 TypeSwitchCase  = "case" Type | "default" .
 </pre>
 
 <p>
-As a special case, the type in the type switch case may be an
-identifier denoting the predeclared constant <code>nil</code>
-(§<a href="#Predeclared_identifiers">Predeclared identifiers</a>).
-If the interface value equals <code>nil</code>,
-only an explict <code>nil</code> case or "default"
-case will execute.
+The TypeSwitchGuard may include a
+<a href="#Short_variable_declarations">short variable declaration</a>.
+When that form is used, the variable is declared in each clause.
+In clauses with a case listing exactly one type, the variable
+has that type; otherwise, the variable has the type of the expression
+in the TypeSwitchGuard.
 </p>
 
 <p>
-Given a function <code>f</code>
-that returns a value of interface type,
+The type in a case may be <code>nil</code>
+(§<a href="#Predeclared_identifiers">Predeclared identifiers</a>);
+that case is used when the expression in the TypeSwitchGuard
+is a nil interface value.
+</p>
+
+<p>
+Given a function <code>f</code> that returns
+a value of type <code>interface{}</code>,
 the following type switch:
 </p>
 
@@ -3318,11 +3324,13 @@ switch i := f().(type) {
 case nil:
 	printString("f() returns nil");
 case int:
-	printInt(i);	// i is an int
+	printInt(i);  // i is an int
 case float:
-	printFloat(i);	// i is a float
+	printFloat(i);  // i is a float
 case func(int) float:
-	printFunction(i);	// i is a function
+	printFunction(i);  // i is a function
+case bool, string:
+	printString("type is bool or string");  // i is an interface{}
 default:
 	printString("don't know the type");
 }
@@ -3337,25 +3345,31 @@ v := f();
 if v == nil {
 	printString("f() returns nil");
 } else if i, is_int := v.(int); is_int {
-	printInt(i);	// i is an int
+	printInt(i);  // i is an int
 } else if i, is_float := v.(float); is_float {
-	printFloat(i);	// i is a float
+	printFloat(i);  // i is a float
 } else if i, is_func := v.(func(int) float); is_func {
-	printFunction(i);	// i is a function
+	printFunction(i);  // i is a function
 } else {
-	printString("don't know the type");
+	i1, is_bool := v.(bool);
+	i2, is_string := v.(string);
+	if is_bool || is_string {
+		i := v;
+		printString("type is bool or string");  // i is an interface{}
+	} else {
+		i := v;
+		printString("don't know the type");  // i is an interface{}
+	}
 }
 </pre>
 
-<p>
-In a type switch, the guard is mandatory,
-there can be only one type per "case", and
-the "fallthrough" statement is not allowed.
-</p>
-
-<p>
+<p>	
 The type switch guard may be preceded by a simple statement, which
 executes before the guard is evaluated.
+</p> 
+
+<p>
+The "fallthrough" statement is not permitted in a type switch.
 </p>
 
 <h3 id="For_statements">For statements</h3>
