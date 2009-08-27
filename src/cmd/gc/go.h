@@ -805,6 +805,7 @@ int	isslice(Type*);
 int	isinter(Type*);
 int	isnilinter(Type*);
 int	isddd(Type*);
+int	isideal(Type*);
 Type*	maptype(Type*, Type*);
 Type*	methtype(Type*);
 Node*	typename(Type*);

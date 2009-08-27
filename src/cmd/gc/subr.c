@@ -1468,6 +1468,16 @@ isddd(Type *t)
 	return 0;
 }
 
+int
+isideal(Type *t)
+{
+	if(t == T)
+		return 0;
+	if(t == idealstring)
+		return 1;
+	return t->etype == TNIL || t->etype == TIDEAL;
+}
+
 /*
  * given receiver of type t (t == r or t == *r)
  * return type to hang methods off (r).

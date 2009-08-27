@@ -320,7 +320,7 @@ dextratype(Type *t)
 		else
 			ot = duintptr(s, ot, 0);
 	}
-	ggloblsym(s, ot, 1);
+	ggloblsym(s, ot, 0);
 
 	return s;
 }
@@ -480,6 +480,10 @@ dtypesym(Type *t)
 	Sym *s, *s1, *s2;
 	Sig *a, *m;
 	Type *t1;
+	Sym *tsym;
+
+	if(t->etype == TNIL || t->etype == TIDEAL || t == idealstring)
+		fatal("dtypesym ideal %T", t);
 
 	s = typesym(t);
 	if(s->flags & SymSiggen)
@@ -492,6 +496,11 @@ dtypesym(Type *t)
 	t1 = T;
 	if(isptr[t->etype])
 		t1 = t->type;
+	tsym = S;
+	if(t1)
+		tsym = t1->sym;
+	else
+		tsym = t->sym;
 
 	if(strcmp(package, "runtime") == 0) {
 		if(t == types[t->etype])
@@ -639,7 +648,7 @@ ok:
 		break;
 	}
 
-	ggloblsym(s, ot, 1);
+	ggloblsym(s, ot, tsym == nil);
 	return s;
 }
 

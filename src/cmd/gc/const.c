@@ -66,18 +66,13 @@ convlit(Node **np, Type *t)
 void
 convlit1(Node **np, Type *t, int explicit)
 {
-	int et, ct;
+	int ct, et;
 	Node *n, *nn;
 
 	n = *np;
-	if(n == N || t == T || n->type == T)
+	if(n == N || t == T || n->type == T || isideal(t) || eqtype(t, n->type))
 		return;
-	et = t->etype;
-	if(et == TIDEAL || et == TNIL)
-		return;
-	if(eqtype(t, n->type))
-		return;
-	if(!explicit && n->type->etype != TIDEAL && n->type != idealstring && n->type->etype != TNIL)
+	if(!explicit && !isideal(n->type))
 		return;
 
 //dump("convlit1", n);
@@ -120,6 +115,7 @@ convlit1(Node **np, Type *t, int explicit)
 	if(ct < 0)
 		goto bad;
 
+	et = t->etype;
 	if(et == TINTER) {
 		if(ct == CTNIL && n->type == types[TNIL]) {
 			n->type = t;
@@ -127,21 +123,6 @@ convlit1(Node **np, Type *t, int explicit)
 		}
 		defaultlit(np, T);
 		return;
-	}
-
-	// if already has non-ideal type, cannot change implicitly
-	if(!explicit) {
-		switch(n->type->etype) {
-		case TIDEAL:
-		case TNIL:
-			break;
-		case TSTRING:
-			if(n->type == idealstring)
-				break;
-			// fall through
-		default:
-			goto bad;
-		}
 	}
 
 	switch(ct) {
@@ -203,7 +184,7 @@ convlit1(Node **np, Type *t, int explicit)
 	return;
 
 bad:
-	if(n->type->etype == TIDEAL) {
+	if(isideal(n->type)) {
 		defaultlit(&n, T);
 		*np = n;
 	}
@@ -720,9 +701,7 @@ defaultlit(Node **np, Type *t)
 	Node *n, *nn;
 
 	n = *np;
-	if(n == N)
-		return;
-	if(n->type == T || (n->type->etype != TIDEAL && n->type->etype != TNIL))
+	if(n == N || !isideal(n->type))
 		return;
 
 	switch(n->op) {
@@ -749,8 +728,7 @@ defaultlit(Node **np, Type *t)
 		return;
 	}
 
-	lno = lineno;
-	lineno = n->lineno;
+	lno = setlineno(n);
 	switch(n->val.ctype) {
 	default:
 		if(t != T) {
@@ -761,6 +739,10 @@ defaultlit(Node **np, Type *t)
 			lineno = lno;
 			yyerror("use of untyped nil");
 			n->type = T;
+			break;
+		}
+		if(n->val.ctype == CTSTR) {
+			n->type = types[TSTRING];
 			break;
 		}
 		yyerror("defaultlit: unknown literal: %#N", n);
