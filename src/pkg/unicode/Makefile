@@ -7,15 +7,22 @@ include $(GOROOT)/src/Make.$(GOARCH)
 TARG=unicode
 GOFILES=\
 	digit.go\
-	digittables.go\
 	letter.go\
-	lettertables.go\
+	tables.go\
 
 include $(GOROOT)/src/Make.pkg
 
-tables:
+maketables: maketables.go
 	$(GC) maketables.go
 	$(LD) -o maketables maketables.$O
-	maketables --digits > digittables.go
-	maketables > lettertables.go
+
+tables:	maketables
+	$(GC) maketables.go
+	$(LD) -o maketables maketables.$O
+	./maketables --tables=all > tables.go
+	rm -f maketables
+
+testtables: maketables
+	echo '***' Be sure to make tables and make install first
+	./maketables -test
 	rm -f maketables
