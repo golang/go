@@ -202,7 +202,7 @@ func main() {
 	}
 	input := bufio.NewReader(resp.Body);
 	for {
-		line, err := input.ReadLineString('\n', false);
+		line, err := input.ReadString('\n', false);
 		if err != nil {
 			if err == os.EOF {
 				break;

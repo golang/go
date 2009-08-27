@@ -84,12 +84,12 @@ var readMakers = []readMaker {
 	readMaker{ "data+err", iotest.DataErrReader },
 }
 
-// Call ReadLineString (which ends up calling everything else)
+// Call ReadString (which ends up calling everything else)
 // to accumulate the text of a file.
 func readLines(b *Reader) string {
 	s := "";
 	for {
-		s1, e := b.ReadLineString('\n', true);
+		s1, e := b.ReadString('\n');
 		if e == os.EOF {
 			break
 		}

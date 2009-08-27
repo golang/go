@@ -28,7 +28,10 @@ func TestReadLine(t *testing.T) {
 	lineno := 1;
 	byteno := 0;
 	for {
-		bline, berr := br.ReadLineString('\n', false);
+		bline, berr := br.ReadString('\n');
+		if n := len(bline); n > 0 {
+			bline = bline[0:n-1];
+		}
 		line, ok := file.readLine();
 		if (berr != nil) != !ok || bline != line {
 			t.Fatalf("%s:%d (#%d)\nbufio => %q, %v\nnet => %q, %v",

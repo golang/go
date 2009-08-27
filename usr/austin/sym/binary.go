@@ -134,11 +134,15 @@ func (r *binaryReader) ReadInt64() int64 {
 	return int64(r.ReadUint64());
 }
 
-// ReadCString reads a NULL-terminated string.
+// ReadCString reads a NUL-terminated string.
 func (r *binaryReader) ReadCString() string {
-	str, err := r.Reader.ReadLineString('\x00', false);
+	str, err := r.Reader.ReadString('\x00');
 	if r.err == nil && err != nil {
 		r.err = err;
+	}
+	n := len(str);
+	if n > 0 {
+		str = str[0:n-1];
 	}
 	return str;
 }

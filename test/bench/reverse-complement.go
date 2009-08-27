@@ -96,7 +96,7 @@ func main() {
 	buf := make([]byte, 100*1024);
 	top := 0;
 	for {
-		line, err := in.ReadLineSlice('\n');
+		line, err := in.ReadSlice('\n');
 		if err != nil {
 			break
 		}

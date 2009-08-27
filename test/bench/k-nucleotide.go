@@ -114,7 +114,7 @@ func main() {
 	buf := new(bytes.Buffer);
 	three := strings.Bytes(">THREE ");
 	for {
-		line, err := in.ReadLineSlice('\n');
+		line, err := in.ReadSlice('\n');
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "ReadLine err:", err);
 			os.Exit(2);

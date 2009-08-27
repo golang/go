@@ -59,10 +59,11 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
 	} else {
 		l.Log("hello", 23, "world");
 	}
-	line, err3 := buf.ReadLineString('\n', false);
+	line, err3 := buf.ReadString('\n');
 	if err3 != nil {
 		t.Fatal("log error", err3);
 	}
+	line = line[0:len(line)-1];
 	pattern = "^"+pattern+"hello 23 world$";
 	matched, err4 := regexp.MatchString(pattern, line);
 	if err4 != nil{
