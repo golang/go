@@ -1173,6 +1173,12 @@ yes:
 	return 1;
 }
 
+static int
+regcmp(Node *ra, Node *rb)
+{
+	return ra->xoffset - rb->xoffset;
+}
+
 void
 getargs(NodeList *nn, Node *reg, int n)
 {
@@ -1181,30 +1187,34 @@ getargs(NodeList *nn, Node *reg, int n)
 
 	l = nn;
 	for(i=0; i<n; i++) {
-		if(!smallintconst(l->n->right)) {
+		if(!smallintconst(l->n->right) && !isslice(l->n->right->type)) {
 			regalloc(reg+i, l->n->right->type, N);
 			cgen(l->n->right, reg+i);
 		} else
 			reg[i] = *l->n->right;
+		reg[i].xoffset = l->n->left->xoffset;
 		l = l->next;
 	}
-	// botch - need second pass to sort by offset
+	qsort(reg, n, sizeof(*reg), regcmp);
+	for(i=0; i<n; i++)
+		reg[i].xoffset = 0;
 }
 
 void
-cmpandthrow(Node *nodes, int l, int r)
+cmpandthrow(Node *nl, Node *nr)
 {
 	vlong cl, cr;
 	Prog *p1;
-	int op, c;
+	int op;
+	Node *c;
 
 	op = OLE;
-	if(smallintconst(nodes+l)) {
-		cl = mpgetfix((nodes+l)->val.u.xval);
+	if(smallintconst(nl)) {
+		cl = mpgetfix(nl->val.u.xval);
 		if(cl == 0)
 			return;
-		if(smallintconst(nodes+r)) {
-			cr = mpgetfix((nodes+r)->val.u.xval);
+		if(smallintconst(nr)) {
+			cr = mpgetfix(nr->val.u.xval);
 			if(cl > cr)
 				ginscall(throwindex, 0);
 			return;
@@ -1212,12 +1222,12 @@ cmpandthrow(Node *nodes, int l, int r)
 
 		// put the constant on the right
 		op = brrev(op);
-		c = l;
-		l = r;
-		r = c;
+		c = nl;
+		nl = nr;
+		nr = c;
 	}
 
-	gins(optoas(OCMP, types[TUINT32]), nodes+l, nodes+r);
+	gins(optoas(OCMP, types[TUINT32]), nl, nr);
 	p1 = gbranch(optoas(op, types[TUINT32]), T);
 	ginscall(throwindex, 0);
 	patch(p1, pc);
@@ -1255,10 +1265,10 @@ slicearray:
 	getargs(n->list, nodes, 5);
 
 	// if(hb[3] > nel[1]) goto throw
-	cmpandthrow(nodes, 3, 1);
+	cmpandthrow(nodes+3, nodes+1);
 
 	// if(lb[2] > hb[3]) goto throw
-	cmpandthrow(nodes, 2, 3);
+	cmpandthrow(nodes+2, nodes+3);
 
 
 	// len = hb[3] - lb[2] (destroys hb)
@@ -1314,22 +1324,27 @@ slicearray:
 	}
 	gins(optoas(OAS, types[tptr]), nodes+0, &n2);
 
-	// ret.len = hb[3]-lb[2];
-	// ret.cap = nel[1]-lb[2];
-	// ret.array = old[0] + lb[3]*width[4];
 	for(i=0; i<5; i++) {
-		if(!smallintconst(nodes+i))
+		if((nodes+i)->op == OREGISTER)
 			regfree(nodes+i);
 	}
 	return 1;
 
 sliceslice:
+goto no;
+	getargs(n->list, nodes, 4);
+
 	// if(hb > old.cap) goto throw;
 	// if(lb > hb) goto throw;
 	// ret.len = hb-lb;
 	// ret.cap = old.cap - lb;
 	// ret.array = old.array + lb*width;
-	goto no;
+
+	for(i=0; i<4; i++) {
+		if((nodes+i)->op == OREGISTER)
+			regfree(nodes+i);
+	}
+	return 1;
 
 arraytoslice:
 	// ret.len = nel;
