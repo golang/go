@@ -796,7 +796,7 @@ walkexpr(Node **np, NodeList **init)
 		argtype(fn, n->left->type);	// any-1
 		argtype(fn, t->type);			// any-2
 		n = mkcall1(fn, t, init,
-			nod(OADDR, n->left, N), nodintconst(t->bound),
+			nod(OADDR, n->left, N), nodintconst(n->left->type->bound),
 			conv(n->right->left, types[TINT]),
 			conv(n->right->right, types[TINT]),
 			nodintconst(t->type->width));
