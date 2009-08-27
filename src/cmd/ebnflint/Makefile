@@ -2,24 +2,14 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include $(GOROOT)/src/Make.conf
 include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=ebnflint
-OFILES=\
-	ebnflint.$O\
+GOFILES=\
+	ebnflint.go\
 
-$(TARG): $(OFILES)
-	$(LD) -o $(TARG) $(OFILES)
+include $(GOROOT)/src/Make.cmd
 
 test: $(TARG)
 	$(TARG) -start="SourceFile" $(GOROOT)/doc/go_spec.html
 
-clean:
-	rm -f $(OFILES) $(TARG)
-
-install: $(TARG)
-	cp $(TARG) $(GOBIN)/$(TARG)
-
-%.$O:	%.go
-	$(GC) $<

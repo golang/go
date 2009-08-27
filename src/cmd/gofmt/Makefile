@@ -2,15 +2,13 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include $(GOROOT)/src/Make.conf
 include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=gofmt
-OFILES=\
-	gofmt.$O\
+GOFILES=\
+	gofmt.go\
 
-$(TARG): $(OFILES)
-	$(LD) -o $(TARG) $(OFILES)
+include $(GOROOT)/src/Make.cmd
 
 test: $(TARG)
 	./test.sh
@@ -18,11 +16,3 @@ test: $(TARG)
 smoketest: $(TARG)
 	./test.sh $(GOROOT)/src/pkg/go/parser/parser.go
 
-clean:
-	rm -f $(OFILES) $(TARG)
-
-install: $(TARG)
-	cp $(TARG) $(GOBIN)/$(TARG)
-
-%.$O:	%.go
-	$(GC) $<
