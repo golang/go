@@ -35,6 +35,10 @@ cgen(Node *n, Node *res)
 	if(initflag && gen_as_init(n, res))
 		goto ret;
 
+	// inline slices
+	if(cgen_inline(n, res))
+		goto ret;
+
 	if(n->ullman >= UINF) {
 		if(n->op == OINDREG)
 			fatal("cgen: this is going to misscompile");
