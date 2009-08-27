@@ -433,6 +433,9 @@ type ptrV struct {
 }
 
 func (v *ptrV) String() string {
+	if v.target == nil {
+		return "<nil>";
+	}
 	return "&" + v.target.String();
 }
 
@@ -482,6 +485,9 @@ type sliceV struct {
 }
 
 func (v *sliceV) String() string {
+	if v.Base == nil {
+		return "<nil>";
+	}
 	res := "{";
 	for i := int64(0); i < v.Len; i++ {
 		if i > 0 {
@@ -513,6 +519,9 @@ type mapV struct {
 }
 
 func (v *mapV) String() string {
+	if v.target == nil {
+		return "<nil>";
+	}
 	res := "map[";
 	i := 0;
 	v.target.Iter(func(key interface{}, val Value) bool {
