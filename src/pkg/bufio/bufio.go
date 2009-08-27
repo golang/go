@@ -214,13 +214,17 @@ func (b *Reader) Buffered() int {
 	return b.w - b.r;
 }
 
-// ReadLineSlice reads until the first occurrence of delim in the input,
+// ReadSlice reads until the first occurrence of delim in the input,
 // returning a slice pointing at the bytes in the buffer.
 // The bytes stop being valid at the next read call.
-// Fails if the line doesn't fit in the buffer.
-// For internal or advanced use only; most uses should
-// call ReadLineString or ReadLineBytes instead.
-func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
+// If ReadSlice encounters an error before finding a delimiter,
+// it returns all the data in the buffer and the error itself (often os.EOF).
+// ReadSlice fails with error ErrBufferFull if the buffer fills without a delim.
+// Because the data returned from ReadSlice will be overwritten
+// by the next I/O operation, most clients should use
+// ReadBytes or ReadString instead.
+// ReadSlice returns err != nil if and only if line does not end in delim.
+func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
 	// Look in buffer.
 	if i := findByte(b.buf[b.r:b.w], delim); i >= 0 {
 		line1 := b.buf[b.r:b.r+i+1];
@@ -254,13 +258,13 @@ func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
 	panic("not reached");
 }
 
-// ReadLineBytes reads until the first occurrence of delim in the input,
-// returning a new byte array containing the line.
-// If an error happens, returns the data (without a delimiter)
-// and the error.  (It can't leave the data in the buffer because
-// it might have read more than the buffer size.)
-func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
-	// Use ReadLineSlice to look for array,
+// ReadBytes reads until the first occurrence of delim in the input,
+// returning a string containing the data up to and including the delimiter.
+// If ReadBytes encounters an error before finding a delimiter,
+// it returns the data read before the error and the error itself (often os.EOF).
+// ReadBytes returns err != nil if and only if line does not end in delim.
+func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
+	// Use ReadSlice to look for array,
 	// accumulating full buffers.
 	var frag []byte;
 	var full [][]byte;
@@ -269,7 +273,7 @@ func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
 
 	for {
 		var e os.Error;
-		frag, e = b.ReadLineSlice(delim);
+		frag, e = b.ReadSlice(delim);
 		if e == nil {	// got final fragment
 			break
 		}
@@ -327,14 +331,13 @@ func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
 	return buf, err
 }
 
-// ReadLineString reads until the first occurrence of delim in the input,
-// returning a new string containing the line.
-// If savedelim, keep delim in the result; otherwise drop it.
-func (b *Reader) ReadLineString(delim byte, savedelim bool) (line string, err os.Error) {
-	bytes, e := b.ReadLineBytes(delim);
-	if n := len(bytes); !savedelim && n > 0 && bytes[n-1] == delim {
-		bytes = bytes[0:n-1]
-	}
+// ReadString reads until the first occurrence of delim in the input,
+// returning a string containing the data up to and including the delimiter.
+// If ReadString encounters an error before finding a delimiter,
+// it returns the data read before the error and the error itself (often os.EOF).
+// ReadString returns err != nil if and only if line does not end in delim.
+func (b *Reader) ReadString(delim byte) (line string, err os.Error) {
+	bytes, e := b.ReadBytes(delim);
 	return string(bytes), e;
 }
 

@@ -204,7 +204,7 @@ func (req *Request) write(w io.Writer) os.Error {
 // The returned bytes are a pointer into storage in
 // the bufio, so they are only valid until the next bufio read.
 func readLineBytes(b *bufio.Reader) (p []byte, err os.Error) {
-	if p, err = b.ReadLineSlice('\n'); err != nil {
+	if p, err = b.ReadSlice('\n'); err != nil {
 		// We always know when EOF is coming.
 		// If the caller asked for a line, there should be a line.
 		if err == os.EOF {

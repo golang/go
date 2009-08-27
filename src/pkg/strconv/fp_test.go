@@ -104,13 +104,14 @@ func TestFp(t *testing.T) {
 
 	lineno := 0;
 	for {
-		line, err2 := b.ReadLineString('\n', false);
+		line, err2 := b.ReadString('\n');
 		if err2 == os.EOF {
 			break;
 		}
 		if err2 != nil {
 			panicln("testfp: read testfp.txt:", err2.String());
 		}
+		line = line[0:len(line)-1];
 		lineno++;
 		if len(line) == 0 || line[0] == '#' {
 			continue
