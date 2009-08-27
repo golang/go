@@ -3283,7 +3283,7 @@ case x == 4: f3();
 
 <p>
 A type switch compares types rather than values. It is otherwise similar
-to an expression switch. It is marked by a special switch expression which
+to an expression switch. It is marked by a special switch expression that
 has the form of a <a href="#Type_assertions">type assertion</a>
 using the reserved word <code>type</code> rather than an actual type.
 Cases then match literal types against the dynamic type of the expression
@@ -3310,7 +3310,7 @@ in the TypeSwitchGuard.
 The type in a case may be <code>nil</code>
 (§<a href="#Predeclared_identifiers">Predeclared identifiers</a>);
 that case is used when the expression in the TypeSwitchGuard
-is a nil interface value.
+is a <code>nil</code> interface value.
 </p>
 
 <p>
@@ -3366,7 +3366,7 @@ if v == nil {
 <p>	
 The type switch guard may be preceded by a simple statement, which
 executes before the guard is evaluated.
-</p> 
+</p>
 
 <p>
 The "fallthrough" statement is not permitted in a type switch.
