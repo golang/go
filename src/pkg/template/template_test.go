@@ -6,6 +6,7 @@ package template
 
 import (
 	"bytes";
+	"container/vector";
 	"fmt";
 	"io";
 	"os";
@@ -14,7 +15,7 @@ import (
 )
 
 type Test struct {
-	in, out string
+	in, out, err string
 }
 
 type T struct {
@@ -33,6 +34,7 @@ type S struct {
 	empty []*T;
 	emptystring string;
 	null []*T;
+	vec *vector.Vector;
 }
 
 var t1 = T{ "ItemNumber1", "ValueNumber1" }
@@ -70,100 +72,100 @@ var formatters = FormatterMap {
 
 var tests = []*Test {
 	// Simple
-	&Test{ "", "" },
-	&Test{ "abc\ndef\n", "abc\ndef\n" },
-	&Test{ " {.meta-left}   \n", "{" },
-	&Test{ " {.meta-right}   \n", "}" },
-	&Test{ " {.space}   \n", " " },
-	&Test{ " {.tab}   \n", "\t" },
-	&Test{ "     {#comment}   \n", "" },
+	&Test{ "", "", "" },
+	&Test{ "abc\ndef\n", "abc\ndef\n", "" },
+	&Test{ " {.meta-left}   \n", "{", "" },
+	&Test{ " {.meta-right}   \n", "}", "" },
+	&Test{ " {.space}   \n", " ", "" },
+	&Test{ " {.tab}   \n", "\t", "" },
+	&Test{ "     {#comment}   \n", "", "" },
 
 	// Variables at top level
 	&Test{
-		"{header}={integer}\n",
+		in: "{header}={integer}\n",
 
-		"Header=77\n"
+		out: "Header=77\n"
 	},
 
 	// Section
 	&Test{
-		"{.section data }\n"
+		in: "{.section data }\n"
 		"some text for the section\n"
 		"{.end}\n",
 
-		"some text for the section\n"
+		out: "some text for the section\n"
 	},
 	&Test{
-		"{.section data }\n"
+		in: "{.section data }\n"
 		"{header}={integer}\n"
 		"{.end}\n",
 
-		"Header=77\n"
+		out: "Header=77\n"
 	},
 	&Test{
-		"{.section pdata }\n"
+		in: "{.section pdata }\n"
 		"{header}={integer}\n"
 		"{.end}\n",
 
-		"Header=77\n"
+		out: "Header=77\n"
 	},
 	&Test{
-		"{.section pdata }\n"
+		in: "{.section pdata }\n"
 		"data present\n"
 		"{.or}\n"
 		"data not present\n"
 		"{.end}\n",
 
-		"data present\n"
+		out: "data present\n"
 	},
 	&Test{
-		"{.section empty }\n"
-		"data present\n"
-		"{.or}\n"
-		"data not present\n"
-		"{.end}\n",
-
-		"data not present\n"
-	},
-	&Test{
-		"{.section null }\n"
+		in: "{.section empty }\n"
 		"data present\n"
 		"{.or}\n"
 		"data not present\n"
 		"{.end}\n",
 
-		"data not present\n"
+		out: "data not present\n"
 	},
 	&Test{
-		"{.section pdata }\n"
+		in: "{.section null }\n"
+		"data present\n"
+		"{.or}\n"
+		"data not present\n"
+		"{.end}\n",
+
+		out: "data not present\n"
+	},
+	&Test{
+		in: "{.section pdata }\n"
 		"{header}={integer}\n"
 		"{.section @ }\n"
 		"{header}={integer}\n"
 		"{.end}\n"
 		"{.end}\n",
 
-		"Header=77\n"
+		out: "Header=77\n"
 		"Header=77\n"
 	},
 	&Test{
-		"{.section data}{.end} {header}\n",
+		in: "{.section data}{.end} {header}\n",
 
-		" Header\n"
+		out: " Header\n"
 	},
 
 	// Repeated
 	&Test{
-		"{.section pdata }\n"
+		in: "{.section pdata }\n"
 		"{.repeated section @ }\n"
 		"{item}={value}\n"
 		"{.end}\n"
 		"{.end}\n",
 
-		"ItemNumber1=ValueNumber1\n"
+		out: "ItemNumber1=ValueNumber1\n"
 		"ItemNumber2=ValueNumber2\n"
 	},
 	&Test{
-		"{.section pdata }\n"
+		in: "{.section pdata }\n"
 		"{.repeated section @ }\n"
 		"{item}={value}\n"
 		"{.or}\n"
@@ -171,11 +173,11 @@ var tests = []*Test {
 		"{.end}\n"
 		"{.end}\n",
 
-		"ItemNumber1=ValueNumber1\n"
+		out: "ItemNumber1=ValueNumber1\n"
 		"ItemNumber2=ValueNumber2\n"
 	},
 	&Test{
-		"{.section @ }\n"
+		in: "{.section @ }\n"
 		"{.repeated section empty }\n"
 		"{item}={value}\n"
 		"{.or}\n"
@@ -183,10 +185,10 @@ var tests = []*Test {
 		"{.end}\n"
 		"{.end}\n",
 
-		"this should appear: empty field\n"
+		out: "this should appear: empty field\n"
 	},
 	&Test{
-		"{.section pdata }\n"
+		in: "{.section pdata }\n"
 		"{.repeated section @ }\n"
 		"{item}={value}\n"
 		"{.alternates with}DIVIDER\n"
@@ -195,44 +197,57 @@ var tests = []*Test {
 		"{.end}\n"
 		"{.end}\n",
 
-		"ItemNumber1=ValueNumber1\n"
+		out: "ItemNumber1=ValueNumber1\n"
 		"DIVIDER\n"
 		"ItemNumber2=ValueNumber2\n"
+	},
+	&Test{
+		in: "{.repeated section vec }\n"
+		"{@}\n"
+		"{.end}\n",
+
+		out: "elt1\n"
+		"elt2\n"
+	},
+	&Test{
+		in: "{.repeated section integer}{.end}",
+
+		err: "line 0: .repeated: cannot repeat integer (type int)",
 	},
 
 	// Nested names
 	&Test{
-		"{.section @ }\n"
+		in: "{.section @ }\n"
 		"{innerT.item}={innerT.value}\n"
 		"{.end}",
 
-		"ItemNumber1=ValueNumber1\n"
+		out: "ItemNumber1=ValueNumber1\n"
 	},
 
 	// Formatters
 	&Test{
-		"{.section pdata }\n"
+		in: "{.section pdata }\n"
 		"{header|uppercase}={integer|+1}\n"
 		"{header|html}={integer|str}\n"
 		"{.end}\n",
 
-		"HEADER=78\n"
+		out: "HEADER=78\n"
 		"Header=77\n"
 	},
 
 	&Test{
-		"{raw}\n"
+		in: "{raw}\n"
 		"{raw|html}\n",
 
-		"&<>!@ #$%^\n"
+		out: "&<>!@ #$%^\n"
 		"&amp;&lt;&gt;!@ #$%^\n"
 	},
 
 	&Test{
-		"{.section emptystring}emptystring{.end}\n"
+		in: "{.section emptystring}emptystring{.end}\n"
 		"{.section header}header{.end}\n",
 
-		"\nheader\n"
+		out: "\nheader\n"
 	},
 }
 
@@ -247,6 +262,9 @@ func TestAll(t *testing.T) {
 	s.pdata = []*T{ &t1, &t2 };
 	s.empty = []*T{ };
 	s.null = nil;
+	s.vec = vector.New(0);
+	s.vec.Push("elt1");
+	s.vec.Push("elt2");
 
 	var buf bytes.Buffer;
 	for i, test := range tests {
@@ -257,8 +275,14 @@ func TestAll(t *testing.T) {
 			continue;
 		}
 		err = tmpl.Execute(s, &buf);
-		if err != nil {
-			t.Error("unexpected execute error:", err)
+		if test.err == "" {
+			if err != nil {
+				t.Error("unexpected execute error:", err);
+			}
+		} else {
+			if err == nil || err.String() != test.err {
+				t.Errorf("expected execute error %q, got %q", test.err, err.String());
+			}
 		}
 		if string(buf.Data()) != test.out {
 			t.Errorf("for %q: expected %q got %q", test.in, test.out, string(buf.Data()));

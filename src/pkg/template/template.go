@@ -696,6 +696,25 @@ func (t *Template) executeSection(s *sectionElement, st *state) {
 	}
 }
 
+// Return the result of calling the Iter method on v, or nil.
+func iter(v reflect.Value) *reflect.ChanValue {
+	for j := 0; j < v.Type().NumMethod(); j++ {
+		mth := v.Type().Method(j);
+		fv := v.Method(j);
+		ft := fv.Type().(*reflect.FuncType);
+		// TODO(rsc): NumIn() should return 0 here, because ft is from a curried FuncValue.
+		if mth.Name != "Iter" || ft.NumIn() != 1 || ft.NumOut() != 1 {
+			continue
+		}
+		ct, ok := ft.Out(0).(*reflect.ChanType);
+		if !ok || ct.Dir() & reflect.RecvDir == 0 {
+			continue
+		}
+		return fv.Call(nil)[0].(*reflect.ChanValue)
+	}
+	return nil
+}
+
 // Execute a .repeated section
 func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 	// Find driver data for this section.  It must be in the current struct.
@@ -703,15 +722,59 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 	if field == nil {
 		t.execError(st, r.linenum, ".repeated: cannot find field %s in %s", r.field, reflect.Indirect(st.data).Type());
 	}
-	field = reflect.Indirect(field);
 
-	// Must be an array/slice
-	array, ok := field.(reflect.ArrayOrSliceValue);
-	if !ok {
-		t.execError(st, r.linenum, ".repeated: %s has bad type %s", r.field, field.Type());
+	start, end := r.start, r.or;
+	if end < 0 {
+		end = r.end
 	}
-	if empty(field) {
-		// Execute the .or block, once.  If it's missing, do nothing.
+	if r.altstart >= 0 {
+		end = r.altstart
+	}
+	first := true;
+
+	if array, ok := field.(reflect.ArrayOrSliceValue); ok {
+		for j := 0; j < array.Len(); j++ {
+			newst := st.clone(array.Elem(j));
+
+			// .alternates between elements
+			if !first && r.altstart >= 0 {
+				for i := r.altstart; i < r.altend; i++ {
+					i = t.executeElement(i, newst)
+				}
+			}
+			first = false;
+
+			for i := start; i < end; {
+				i = t.executeElement(i, newst)
+			}
+		}
+	} else if ch := iter(field); ch != nil {
+		for {
+			e := ch.Recv();
+			if ch.Closed() {
+				break
+			}
+			newst := st.clone(e);
+
+			// .alternates between elements
+			if !first && r.altstart >= 0 {
+				for i := r.altstart; i < r.altend; i++ {
+					i = t.executeElement(i, newst)
+				}
+			}
+			first = false;
+
+			for i := start; i < end; {
+				i = t.executeElement(i, newst)
+			}
+		}
+	} else {
+		t.execError(st, r.linenum, ".repeated: cannot repeat %s (type %s)",
+			    r.field, field.Type());
+	}
+
+	if first {
+		// Empty. Execute the .or block, once.  If it's missing, do nothing.
 		start, end := r.or, r.end;
 		if start >= 0 {
 			newst := st.clone(field);
@@ -720,28 +783,6 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 			}
 		}
 		return
-	}
-	// Execute the normal block.
-	start, end := r.start, r.or;
-	if end < 0 {
-		end = r.end
-	}
-	if r.altstart >= 0 {
-		end = r.altstart
-	}
-	if field != nil {
-		for j := 0; j < array.Len(); j++ {
-			newst := st.clone(array.Elem(j));
-			for i := start; i < end; {
-				i = t.executeElement(i, newst)
-			}
-			// If appropriate, do .alternates between elements
-			if j < array.Len() - 1 && r.altstart >= 0 {
-				for i := r.altstart; i < r.altend; i++ {
-					i = t.executeElement(i, newst)
-				}
-			}
-		}
 	}
 }
 
