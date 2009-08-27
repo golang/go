@@ -615,6 +615,7 @@ func (a *exprCompiler) compile(x ast.Expr) *expr {
 	// Remaining expressions
 	case *ast.BadExpr:
 		// Error already reported by parser
+		a.silentErrors++;
 		return nil;
 
 	case *ast.BinaryExpr:
@@ -740,6 +741,7 @@ func (a *exprInfo) compileIdent(b *block, constant bool, name string) *expr {
 func (a *exprInfo) compileVariable(level int, v *Variable) *expr {
 	if v.Type == nil {
 		// Placeholder definition from an earlier error
+		a.silentErrors++;
 		return nil;
 	}
 	expr := a.newExpr(v.Type, "variable");
@@ -1614,7 +1616,12 @@ func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool) {
 
 func (a *compiler) compileExpr(b *block, constant bool, expr ast.Expr) *expr {
 	ec := &exprCompiler{a, b, constant};
-	return ec.compile(expr);
+	nerr := a.numError();
+	e := ec.compile(expr);
+	if e == nil && nerr == a.numError() {
+		log.Crashf("expression compilation failed without reporting errors");
+	}
+	return e;
 }
 
 // extractEffect separates out any effects that the expression may
@@ -1698,7 +1705,7 @@ func (expr *Expr) Eval(f *Frame) Value {
 
 func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
 	errors := scanner.NewErrorVector();
-	cc := &compiler{errors};
+	cc := &compiler{errors, 0, 0};
 
 	ec := cc.compileExpr(scope.block, false, expr);
 	if ec == nil {

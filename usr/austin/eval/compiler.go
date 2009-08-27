@@ -24,13 +24,21 @@ type positioned interface {
 // case it should be package compiler.
 type compiler struct {
 	errors scanner.ErrorHandler;
+	numErrors int;
+	silentErrors int;
 }
 
 func (a *compiler) diagAt(pos positioned, format string, args ...) {
 	a.errors.Error(pos.Pos(), fmt.Sprintf(format, args));
+	a.numErrors++;
+}
+
+func (a *compiler) numError() int {
+	return a.numErrors + a.silentErrors;
 }
 
 
+// TODO(austin) These can all go in stmt.go now
 type label struct {
 	name string;
 	desc string;
@@ -61,7 +69,6 @@ type funcCompiler struct {
 	*codeBuf;
 	flow *flowBuf;
 	labels map[string] *label;
-	err bool;
 }
 
 // A blockCompiler captures information used throughout the compilation
