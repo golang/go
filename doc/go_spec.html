@@ -191,8 +191,8 @@ The following character sequences represent operators, delimiters, and other spe
 +    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
 -    |     -=    |=     ||    &lt;     &lt;=    [    ]
 *    ^     *=    ^=     &lt;-    &gt;     &gt;=    {    }
-/    <<    /=    <<=    ++    =     :=    ,    ;
-%    >>    %=    >>=    --    !     ...   .    :
+/    &lt;&lt;    /=    &lt;&lt;=    ++    =     :=    ,    ;
+%    &gt;&gt;    %=    &gt;&gt;=    --    !     ...   .    :
      &amp;^          &amp;^=
 </pre>
 
@@ -570,8 +570,8 @@ ElementType = Type .
 </pre>
 
 <p>
-The length is part of the array's type and must must be a constant
-expression (§<a href="#Constant_expressions">Constant expressions</a>) that evaluates to a non-negative
+The length is part of the array's type and must must be a
+<a href="#Constant_expressions">constant expression</a> that evaluates to a non-negative
 integer value.  The length of array <code>a</code> can be discovered
 using the built-in function <code>len(a)</code>, which is a
 compile-time constant.  The elements can be indexed by integer
@@ -881,7 +881,7 @@ interface { }
 
 <p>
 Similarly, consider this interface specification,
-which appears within a type declaration (§<a href="#Type_declarations">Type declarations</a>)
+which appears within a <a href="#Type_declarations">type declaration</a>
 to define an interface called <code>Lock</code>:
 </p>
 
@@ -1351,7 +1351,7 @@ Constants:
 	true false iota nil
 
 Functions:
-	cap len make new panic panicln print println
+	cap close closed len make new panic panicln print println
 
 Packages:
 	unsafe
@@ -1458,9 +1458,9 @@ const (            // iota is reset to 0
 )
 
 const (
-	a = 1 << iota;  // a == 1 (iota has been reset)
-	b = 1 << iota;  // b == 2
-	c = 1 << iota;  // c == 4
+	a = 1 &lt;&lt; iota;  // a == 1 (iota has been reset)
+	b = 1 &lt;&lt; iota;  // b == 2
+	c = 1 &lt;&lt; iota;  // c == 4
 )
 
 const (
@@ -1480,7 +1480,7 @@ it is only incremented at a semicolon:
 
 <pre>
 const (
-	bit0, mask0 = 1 << iota, 1 << iota - 1;  // bit0 == 1, mask0 == 0
+	bit0, mask0 = 1 &lt;&lt; iota, 1 &lt;&lt; iota - 1;  // bit0 == 1, mask0 == 0
 	bit1, mask1;                             // bit1 == 2, mask1 == 1
 	bit2, mask2;                             // bit2 == 4, mask2 == 3
 )
@@ -1781,7 +1781,7 @@ Value         = Expression .
 The LiteralType must be a struct, array, slice, or map type
 (the grammar enforces this constraint except when the type is given
 as a TypeName).
-The types of the expressions must be assignment compatible to
+The types of the expressions must be <a href="#Assignment_compatibility">assignment compatible</a> to
 the respective field, element, and key types of the LiteralType;
 there is no additional conversion.
 The key is interpreted as a field name for struct literals,
@@ -2297,7 +2297,7 @@ f(a1, a2, ... an)
 <p>
 calls <code>f</code> with arguments <code>a1, a2, ... an</code>.
 The arguments must be single-valued expressions
-assignment compatible with the parameters of
+<a href="#Assignment_compatibility">assignment compatible</a> with the parameters of
 <code>F</code> and are evaluated before the function is called.
 The type of the expression is the result type
 of <code>F</code>.
@@ -2389,7 +2389,7 @@ log_op     = "||" | "&amp;&amp;" .
 com_op     = "&lt;-" .
 rel_op     = "==" | "!=" | "&lt;" | "&lt;=" | ">" | ">=" .
 add_op     = "+" | "-" | "|" | "^" .
-mul_op     = "*" | "/" | "%" | "&lt;&lt;" | ">>" | "&amp;" | "&amp;^" .
+mul_op     = "*" | "/" | "%" | "&lt;&lt;" | "&gt;&gt;" | "&amp;" | "&amp;^" .
 
 unary_op   = "+" | "-" | "!" | "^" | "*" | "&amp;" | "&lt;-" .
 </pre>
@@ -2455,7 +2455,7 @@ operators, comparison operators, communication operators,
 
 <pre class="grammar">
 Precedence    Operator
-    6             *  /  %  &lt;&lt;  >>  &amp;  &amp;^
+    6             *  /  %  &lt;&lt;  &gt;&gt;  &amp;  &amp;^
     5             +  -  |  ^
     4             ==  !=  &lt;  &lt;=  >  >=
     3             &lt;-
@@ -2475,7 +2475,7 @@ Examples:
 +x
 23 + 3*x[i]
 x &lt;= f()
-^a >> b
+^a &gt;&gt; b
 f() || g()
 x == y + 1 &amp;&amp; &lt;-chan_ptr > 0
 </pre>
@@ -2502,8 +2502,8 @@ to strings; all other arithmetic operators apply to integers only.
 ^    bitwise xor            integers
 &amp;^   bit clear (and not)    integers
 
-<<   left shift             integer << unsigned integer
->>   right shift            integer >> unsigned integer
+&lt;&lt;   left shift             integer &lt;&lt; unsigned integer
+&gt;&gt;   right shift            integer &gt;&gt; unsigned integer
 </pre>
 
 <p>
@@ -2547,7 +2547,7 @@ be replaced by a bitwise "and" operation:
 </p>
 
 <pre>
- x     x / 4     x % 4     x >> 2     x &amp; 3
+ x     x / 4     x % 4     x &gt;&gt; 2     x &amp; 3
  11      2         3         2          3
 -11     -2        -3        -3          1
 </pre>
@@ -2559,8 +2559,8 @@ integer and logical shifts if it is an unsigned integer. The shift count must
 be an unsigned integer. There is no upper limit on the shift count. Shifts behave
 as if the left operand is shifted <code>n</code> times by 1 for a shift
 count of <code>n</code>.
-As a result, <code>x << 1</code> is the same as <code>x*2</code>
-and <code>x >> 1</code> is the same as
+As a result, <code>x &lt;&lt; 1</code> is the same as <code>x*2</code>
+and <code>x &gt;&gt; 1</code> is the same as
 <code>x/2</code> truncated towards negative infinity.
 </p>
 
@@ -2913,8 +2913,8 @@ in the language.  The following are legal declarations:
 </p>
 
 <pre>
-const Huge = 1 << 100;
-const Four int8 = Huge >> 98;
+const Huge = 1 &lt;&lt; 100;
+const Four int8 = Huge &gt;&gt; 98;
 </pre>
 
 <p>
@@ -3122,7 +3122,7 @@ only once.  The <i>op</i><code>=</code> construct is a single token.
 </p>
 
 <pre>
-a[i] <<= 2
+a[i] &lt;&lt;= 2
 </pre>
 
 <p>
@@ -3159,8 +3159,8 @@ a, b = b, a  // exchange a and b
 </pre>
 
 <p>
-In assignments, the type of each value must be assignment compatible
-(§<a href="#Assignment_compatibility">Assignment compatibility</a>) with the type of the
+In assignments, the type of each value must be
+<a href="#Assignment_compatibility">assignment compatible</a> with the type of the
 operand to which it is assigned.
 </p>
 
@@ -3402,7 +3402,7 @@ A "for" statement with a "for" clause is also controlled by its condition, but
 additionally it may specify an <i>init</i>
 and a <i>post</i> statement, such as an assignment,
 an increment or decrement statement. The init statement may be a
-short variable declaration, but the post statement must not.
+<a href="#Short_variable_declarations">short variable declaration</a>, but the post statement must not.
 </p>
 
 <pre class="ebnf">
@@ -3460,7 +3460,7 @@ map key, and the second variable, if present, is set to the corresponding
 string or array element or map value.
 The types of the array or slice index (always <code>int</code>)
 and element, or of the map key and value respectively,
-must be assignment compatible to the iteration variables.
+must be <a href="#Assignment_compatibility">assignment compatible</a> to the iteration variables.
 </p>
 <p>
 For strings, the "range" clause iterates over the Unicode code points
@@ -3575,8 +3575,8 @@ in the "select" statement.
 If multiple cases can proceed, a uniform fair choice is made to decide
 which single communication will execute.
 <p>
-The receive case may declare a new variable using a short variable declaration
-(§<a href="#Short_variable_declarations">Short variable declarations</a>).
+The receive case may declare a new variable using a
+<a href="#Short_variable_declarations">short variable declaration</a>.
 </p>
 
 <pre>
@@ -3633,7 +3633,7 @@ type:
 <ol>
 	<li>The return value or values may be explicitly listed
 		in the "return" statement. Each expression must be single-valued
-		and assignment-compatible to the corresponding element of
+		and <a href="#Assignment_compatibility">assignment compatible</a> to the corresponding element of
 		the result type of the function.
 <pre>
 func simple_f() int {
