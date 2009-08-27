@@ -46,6 +46,7 @@ DIRS=\
 	hash/adler32\
 	hash/crc32\
 	http\
+	image\
 	io\
 	json\
 	log\

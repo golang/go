@@ -32,6 +32,7 @@ hash.install: io.install
 hash/adler32.install: hash.install os.install
 hash/crc32.install: hash.install os.install
 http.install: bufio.install bytes.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
+image.install:
 io.install: bytes.install os.install strings.install sync.install
 json.install: bytes.install container/vector.install fmt.install math.install reflect.install strconv.install strings.install utf8.install
 log.install: fmt.install io.install os.install runtime.install time.install
