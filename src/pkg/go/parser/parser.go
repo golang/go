@@ -1793,7 +1793,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi 
 	// convert vector
 	specs := make([]ast.Spec, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		specs[i] = list.At(i);
+		specs[i] = list.At(i).(ast.Spec);
 	}
 
 	return &ast.GenDecl{doc, pos, keyword, lparen, specs, rparen}, gotSemi;

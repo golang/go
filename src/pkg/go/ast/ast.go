@@ -31,44 +31,32 @@ import (
 // That position information is needed to properly position comments
 // when printing the construct.
 
-// TODO: For comment positioning only the byte position and not
-// a complete token.Position field is needed. May be able to trim
-// node sizes a bit.
+
+// All node types implement the Node interface.
+type Node interface {
+	// Pos returns the (beginning) position of the node.
+	Pos() token.Position;
+}
 
 
 // All expression nodes implement the Expr interface.
 type Expr interface {
-	// For a (dynamic) node type X, calling Visit with an expression
-	// visitor v invokes the node-specific DoX function of the visitor.
-	//
-	Visit(v ExprVisitor);
-
-	// Pos returns the (beginning) position of the expression.
-	Pos() token.Position;
+	Node;
+	exprNode();
 }
 
 
 // All statement nodes implement the Stmt interface.
 type Stmt interface {
-	// For a (dynamic) node type X, calling Visit with a statement
-	// visitor v invokes the node-specific DoX function of the visitor.
-	//
-	Visit(v StmtVisitor);
-
-	// Pos returns the (beginning) position of the statement.
-	Pos() token.Position;
+	Node;
+	stmtNode();
 }
 
 
 // All declaration nodes implement the Decl interface.
 type Decl interface {
-	// For a (dynamic) node type X, calling Visit with a declaration
-	// visitor v invokes the node-specific DoX function of the visitor.
-	//
-	Visit(v DeclVisitor);
-
-	// Pos returns the (beginning) position of the declaration.
-	Pos() token.Position;
+	Node;
+	declNode();
 }
 
 
@@ -329,71 +317,34 @@ func (x *BinaryExpr) Pos() token.Position  { return x.X.Pos(); }
 func (x *KeyValueExpr) Pos() token.Position  { return x.Key.Pos(); }
 
 
-// All expression/type nodes implement a Visit method which takes
-// an ExprVisitor as argument. For a given node x of type X, and
-// an implementation v of an ExprVisitor, calling x.Visit(v) will
-// result in a call of v.DoX(x) (through a double-dispatch).
-//
-type ExprVisitor interface {
-	// Expressions
-	DoBadExpr(x *BadExpr);
-	DoIdent(x *Ident);
-	DoIntLit(x *IntLit);
-	DoFloatLit(x *FloatLit);
-	DoCharLit(x *CharLit);
-	DoStringLit(x *StringLit);
-	DoStringList(x *StringList);
-	DoFuncLit(x *FuncLit);
-	DoCompositeLit(x *CompositeLit);
-	DoParenExpr(x *ParenExpr);
-	DoSelectorExpr(x *SelectorExpr);
-	DoIndexExpr(x *IndexExpr);
-	DoTypeAssertExpr(x *TypeAssertExpr);
-	DoCallExpr(x *CallExpr);
-	DoStarExpr(x *StarExpr);
-	DoUnaryExpr(x *UnaryExpr);
-	DoBinaryExpr(x *BinaryExpr);
-	DoKeyValueExpr(x *KeyValueExpr);
+// exprNode() ensures that only expression/type nodes can be
+// assigned to an ExprNode.
+func (x *BadExpr) exprNode() {}
+func (x *Ident) exprNode() {}
+func (x *Ellipsis) exprNode() {}
+func (x *IntLit) exprNode() {}
+func (x *FloatLit) exprNode() {}
+func (x *CharLit) exprNode() {}
+func (x *StringLit) exprNode() {}
+func (x *StringList) exprNode() {}
+func (x *FuncLit) exprNode() {}
+func (x *CompositeLit) exprNode() {}
+func (x *ParenExpr) exprNode() {}
+func (x *SelectorExpr) exprNode() {}
+func (x *IndexExpr) exprNode() {}
+func (x *TypeAssertExpr) exprNode() {}
+func (x *CallExpr) exprNode() {}
+func (x *StarExpr) exprNode() {}
+func (x *UnaryExpr) exprNode() {}
+func (x *BinaryExpr) exprNode() {}
+func (x *KeyValueExpr) exprNode() {}
 
-	// Type expressions
-	DoEllipsis(x *Ellipsis);
-	DoArrayType(x *ArrayType);
-	DoStructType(x *StructType);
-	DoFuncType(x *FuncType);
-	DoInterfaceType(x *InterfaceType);
-	DoMapType(x *MapType);
-	DoChanType(x *ChanType);
-}
-
-
-// Visit() implementations for all expression/type nodes.
-//
-func (x *BadExpr) Visit(v ExprVisitor) { v.DoBadExpr(x); }
-func (x *Ident) Visit(v ExprVisitor) { v.DoIdent(x); }
-func (x *Ellipsis) Visit(v ExprVisitor) { v.DoEllipsis(x); }
-func (x *IntLit) Visit(v ExprVisitor) { v.DoIntLit(x); }
-func (x *FloatLit) Visit(v ExprVisitor) { v.DoFloatLit(x); }
-func (x *CharLit) Visit(v ExprVisitor) { v.DoCharLit(x); }
-func (x *StringLit) Visit(v ExprVisitor) { v.DoStringLit(x); }
-func (x *StringList) Visit(v ExprVisitor) { v.DoStringList(x); }
-func (x *FuncLit) Visit(v ExprVisitor) { v.DoFuncLit(x); }
-func (x *CompositeLit) Visit(v ExprVisitor) { v.DoCompositeLit(x); }
-func (x *ParenExpr) Visit(v ExprVisitor) { v.DoParenExpr(x); }
-func (x *SelectorExpr) Visit(v ExprVisitor) { v.DoSelectorExpr(x); }
-func (x *IndexExpr) Visit(v ExprVisitor) { v.DoIndexExpr(x); }
-func (x *TypeAssertExpr) Visit(v ExprVisitor) { v.DoTypeAssertExpr(x); }
-func (x *CallExpr) Visit(v ExprVisitor) { v.DoCallExpr(x); }
-func (x *StarExpr) Visit(v ExprVisitor) { v.DoStarExpr(x); }
-func (x *UnaryExpr) Visit(v ExprVisitor) { v.DoUnaryExpr(x); }
-func (x *BinaryExpr) Visit(v ExprVisitor) { v.DoBinaryExpr(x); }
-func (x *KeyValueExpr) Visit(v ExprVisitor) { v.DoKeyValueExpr(x); }
-
-func (x *ArrayType) Visit(v ExprVisitor) { v.DoArrayType(x); }
-func (x *StructType) Visit(v ExprVisitor) { v.DoStructType(x); }
-func (x *FuncType) Visit(v ExprVisitor) { v.DoFuncType(x); }
-func (x *InterfaceType) Visit(v ExprVisitor) { v.DoInterfaceType(x); }
-func (x *MapType) Visit(v ExprVisitor) { v.DoMapType(x); }
-func (x *ChanType) Visit(v ExprVisitor) { v.DoChanType(x); }
+func (x *ArrayType) exprNode() {}
+func (x *StructType) exprNode() {}
+func (x *FuncType) exprNode() {}
+func (x *InterfaceType) exprNode() {}
+func (x *MapType) exprNode() {}
+func (x *ChanType) exprNode() {}
 
 
 // IsExported returns whether name is an exported Go symbol
@@ -591,59 +542,30 @@ func (s *IncDecStmt) Pos() token.Position { return s.X.Pos(); }
 func (s *AssignStmt) Pos() token.Position { return s.Lhs[0].Pos(); }
 
 
-// All statement nodes implement a Visit method which takes
-// a StmtVisitor as argument. For a given node x of type X, and
-// an implementation v of a StmtVisitor, calling x.Visit(v) will
-// result in a call of v.DoX(x) (through a double-dispatch).
+// stmtNode() ensures that only statement nodes can be
+// assigned to a StmtNode.
 //
-type StmtVisitor interface {
-	DoBadStmt(s *BadStmt);
-	DoDeclStmt(s *DeclStmt);
-	DoEmptyStmt(s *EmptyStmt);
-	DoLabeledStmt(s *LabeledStmt);
-	DoExprStmt(s *ExprStmt);
-	DoIncDecStmt(s *IncDecStmt);
-	DoAssignStmt(s *AssignStmt);
-	DoGoStmt(s *GoStmt);
-	DoDeferStmt(s *DeferStmt);
-	DoReturnStmt(s *ReturnStmt);
-	DoBranchStmt(s *BranchStmt);
-	DoBlockStmt(s *BlockStmt);
-	DoIfStmt(s *IfStmt);
-	DoCaseClause(s *CaseClause);
-	DoSwitchStmt(s *SwitchStmt);
-	DoTypeCaseClause(s *TypeCaseClause);
-	DoTypeSwitchStmt(s *TypeSwitchStmt);
-	DoCommClause(s *CommClause);
-	DoSelectStmt(s *SelectStmt);
-	DoForStmt(s *ForStmt);
-	DoRangeStmt(s *RangeStmt);
-}
-
-
-// Visit() implementations for all statement nodes.
-//
-func (s *BadStmt) Visit(v StmtVisitor) { v.DoBadStmt(s); }
-func (s *DeclStmt) Visit(v StmtVisitor) { v.DoDeclStmt(s); }
-func (s *EmptyStmt) Visit(v StmtVisitor) { v.DoEmptyStmt(s); }
-func (s *LabeledStmt) Visit(v StmtVisitor) { v.DoLabeledStmt(s); }
-func (s *ExprStmt) Visit(v StmtVisitor) { v.DoExprStmt(s); }
-func (s *IncDecStmt) Visit(v StmtVisitor) { v.DoIncDecStmt(s); }
-func (s *AssignStmt) Visit(v StmtVisitor) { v.DoAssignStmt(s); }
-func (s *GoStmt) Visit(v StmtVisitor) { v.DoGoStmt(s); }
-func (s *DeferStmt) Visit(v StmtVisitor) { v.DoDeferStmt(s); }
-func (s *ReturnStmt) Visit(v StmtVisitor) { v.DoReturnStmt(s); }
-func (s *BranchStmt) Visit(v StmtVisitor) { v.DoBranchStmt(s); }
-func (s *BlockStmt) Visit(v StmtVisitor) { v.DoBlockStmt(s); }
-func (s *IfStmt) Visit(v StmtVisitor) { v.DoIfStmt(s); }
-func (s *CaseClause) Visit(v StmtVisitor) { v.DoCaseClause(s); }
-func (s *SwitchStmt) Visit(v StmtVisitor) { v.DoSwitchStmt(s); }
-func (s *TypeCaseClause) Visit(v StmtVisitor) { v.DoTypeCaseClause(s); }
-func (s *TypeSwitchStmt) Visit(v StmtVisitor) { v.DoTypeSwitchStmt(s); }
-func (s *CommClause) Visit(v StmtVisitor) { v.DoCommClause(s); }
-func (s *SelectStmt) Visit(v StmtVisitor) { v.DoSelectStmt(s); }
-func (s *ForStmt) Visit(v StmtVisitor) { v.DoForStmt(s); }
-func (s *RangeStmt) Visit(v StmtVisitor) { v.DoRangeStmt(s); }
+func (s *BadStmt) stmtNode() {}
+func (s *DeclStmt) stmtNode() {}
+func (s *EmptyStmt) stmtNode() {}
+func (s *LabeledStmt) stmtNode() {}
+func (s *ExprStmt) stmtNode() {}
+func (s *IncDecStmt) stmtNode() {}
+func (s *AssignStmt) stmtNode() {}
+func (s *GoStmt) stmtNode() {}
+func (s *DeferStmt) stmtNode() {}
+func (s *ReturnStmt) stmtNode() {}
+func (s *BranchStmt) stmtNode() {}
+func (s *BlockStmt) stmtNode() {}
+func (s *IfStmt) stmtNode() {}
+func (s *CaseClause) stmtNode() {}
+func (s *SwitchStmt) stmtNode() {}
+func (s *TypeCaseClause) stmtNode() {}
+func (s *TypeSwitchStmt) stmtNode() {}
+func (s *CommClause) stmtNode() {}
+func (s *SelectStmt) stmtNode() {}
+func (s *ForStmt) stmtNode() {}
+func (s *RangeStmt) stmtNode() {}
 
 
 // ----------------------------------------------------------------------------
@@ -654,7 +576,9 @@ func (s *RangeStmt) Visit(v StmtVisitor) { v.DoRangeStmt(s); }
 //
 type (
 	// The Spec type stands for any of *ImportSpec, *ValueSpec, and *TypeSpec.
-	Spec interface {};
+	Spec interface {
+		specNode();
+	};
 
 	// An ImportSpec node represents a single package import.
 	ImportSpec struct {
@@ -682,6 +606,14 @@ type (
 		Comment *CommentGroup;  // line comments; or nil
 	};
 )
+
+
+// specNode() ensures that only spec nodes can be
+// assigned to a Spec.
+//
+func (s *ImportSpec) specNode() {}
+func (s *ValueSpec) specNode() {}
+func (s *TypeSpec) specNode() {}
 
 
 // A declaration is represented by one of the following declaration nodes.
@@ -730,23 +662,12 @@ type (
 func (d *FuncDecl) Pos() token.Position  { return d.Type.Pos(); }
 
 
-// All declaration nodes implement a Visit method which takes
-// a DeclVisitor as argument. For a given node x of type X, and
-// an implementation v of a DeclVisitor, calling x.Visit(v) will
-// result in a call of v.DoX(x) (through a double-dispatch).
+// declNode() ensures that only declaration nodes can be
+// assigned to a DeclNode.
 //
-type DeclVisitor interface {
-	DoBadDecl(d *BadDecl);
-	DoGenDecl(d *GenDecl);
-	DoFuncDecl(d *FuncDecl);
-}
-
-
-// Visit() implementations for all declaration nodes.
-//
-func (d *BadDecl) Visit(v DeclVisitor) { v.DoBadDecl(d); }
-func (d *GenDecl) Visit(v DeclVisitor) { v.DoGenDecl(d); }
-func (d *FuncDecl) Visit(v DeclVisitor) { v.DoFuncDecl(d); }
+func (d *BadDecl) declNode() {}
+func (d *GenDecl) declNode() {}
+func (d *FuncDecl) declNode() {}
 
 
 // ----------------------------------------------------------------------------
