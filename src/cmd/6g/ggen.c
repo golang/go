@@ -1236,6 +1236,17 @@ cmpandthrow(Node *nl, Node *nr)
 	patch(p1, pc);
 }
 
+int
+sleasy(Node *n)
+{
+	if(n->op != ONAME)
+		return 0;
+	if(!n->addable)
+		return 0;
+return 0;
+	return 1;
+}
+
 // generate inline code for
 //	slicearray
 //	sliceslice
@@ -1252,7 +1263,7 @@ cgen_inline(Node *n, Node *res)
 		goto no;
 	if(!n->left->addable)
 		goto no;
-	if(!res->addable)
+	if(!sleasy(res))
 		goto no;
 	if(strcmp(n->left->sym->package, "sys") != 0)
 		goto no;
@@ -1338,42 +1349,42 @@ slicearray:
 
 sliceslice:
 	getargs(n->list, nodes, 4);
-	if(!(nodes+0)->addable) {
+	if(!sleasy(&nodes[0])) {
 		for(i=0; i<4; i++) {
-			if((nodes+i)->op == OREGISTER)
-				regfree(nodes+i);
+			if(nodes[i].op == OREGISTER)
+				regfree(&nodes[i]);
 		}
 		goto no;
 	}
 
 	// if(hb[2] > old.cap[0]) goto throw;
-	n2 = *(nodes+0);
+	n2 = nodes[0];
 	n2.xoffset += Array_cap;
 	cmpandthrow(nodes+2, &n2);
 
 	// if(lb[1] > hb[2]) goto throw;
-	cmpandthrow(nodes+1, nodes+2);
+	cmpandthrow(&nodes[1], &nodes[2]);
 
 	// ret.len = hb[2]-lb[1]; (destroys hb[2])
 	n2 = *res;
 	n2.xoffset += Array_nel;
 
-	if(smallintconst(nodes+2) && smallintconst(nodes+1)) {
+	if(smallintconst(&nodes[2]) && smallintconst(&nodes[1])) {
 		v = mpgetfix((nodes+2)->val.u.xval) -
-			mpgetfix((nodes+1)->val.u.xval);
+			mpgetfix(nodes[2].val.u.xval);
 		nodconst(&n1, types[TUINT32], v);
 		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
 	} else {
 		regalloc(&n1, types[TUINT32], nodes+2);
 		gmove(nodes+2, &n1);
-		if(!smallintconst(nodes+1) || mpgetfix((nodes+1)->val.u.xval) != 0)
-			gins(optoas(OSUB, types[TUINT32]), nodes+1, &n1);
+		if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
+			gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
 		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
 		regfree(&n1);
 	}
 
 	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])
-	n2 = *(nodes+0);
+	n2 = nodes[0];
 	n2.xoffset += Array_cap;
 
 	regalloc(&n1, types[TUINT32], nodes+2);
@@ -1387,12 +1398,12 @@ sliceslice:
 	regfree(&n1);
 
 	// ret.array = old.array[0]+lb[1]*width[3]; (uses lb)
-	n2 = *(nodes+0);
+	n2 = nodes[0];
 	n2.xoffset += Array_array;
 
 	regalloc(&n1, types[tptr], nodes+1);
 	if(smallintconst(nodes+1) && smallintconst(nodes+3)) {
-		gins(optoas(OAS, types[TUINT32]), &n2, &n1);
+		gins(optoas(OAS, types[tptr]), &n2, &n1);
 		v = mpgetfix((nodes+1)->val.u.xval) *
 			mpgetfix((nodes+3)->val.u.xval);
 		if(v != 0) {
