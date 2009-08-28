@@ -115,7 +115,7 @@ var EOF Error = eofError(0)
 // It returns the number of bytes read and an Error, if any.
 // EOF is signaled by a zero count with err set to EOF.
 // TODO(r): Add Pread, Pwrite (maybe ReadAt, WriteAt).
-func (file *File) Read(b []byte) (ret int, err Error) {
+func (file *File) Read(b []byte) (n int, err Error) {
 	if file == nil {
 		return 0, EINVAL
 	}
@@ -132,10 +132,31 @@ func (file *File) Read(b []byte) (ret int, err Error) {
 	return n, err
 }
 
+// ReadAt reads len(b) bytes from the File starting at byte offset off.
+// It returns the number of bytes read and the Error, if any.
+// EOF is signaled by a zero count with err set to EOF.
+// ReadAt always returns a non-nil Error when n != len(b).
+func (file *File) ReadAt(b []byte, off int64) (n int, err Error) {
+	if file == nil {
+		return 0, EINVAL;
+	}
+	for len(b) > 0 {
+		m, e := syscall.Pread(file.fd, b, off);
+		n += m;
+		if e != 0 {
+			err = &PathError{"read", file.name, Errno(e)};
+			break;
+		}
+		b = b[m:len(b)];
+		off += int64(m);
+	}
+	return;
+}
+
 // Write writes len(b) bytes to the File.
 // It returns the number of bytes written and an Error, if any.
-// If the byte count differs from len(b), it usually implies an error occurred.
-func (file *File) Write(b []byte) (ret int, err Error) {
+// Write returns a non-nil Error when n != len(b).
+func (file *File) Write(b []byte) (n int, err Error) {
 	if file == nil {
 		return 0, EINVAL
 	}
@@ -155,6 +176,26 @@ func (file *File) Write(b []byte) (ret int, err Error) {
 		err = &PathError{"write", file.name, Errno(e)};
 	}
 	return n, err
+}
+
+// WriteAt writes len(b) bytes to the File starting at byte offset off.
+// It returns the number of bytes written and an Error, if any.
+// WriteAt returns a non-nil Error when n != len(b).
+func (file *File) WriteAt(b []byte, off int64) (n int, err Error) {
+	if file == nil {
+		return 0, EINVAL;
+	}
+	for len(b) > 0 {
+		m, e := syscall.Pwrite(file.fd, b, off);
+		n += m;
+		if e != 0 {
+			err = &PathError{"write", file.name, Errno(e)};
+			break;
+		}
+		b = b[m:len(b)];
+		off += int64(m);
+	}
+	return;
 }
 
 // Seek sets the offset for the next Read or Write on file to offset, interpreted

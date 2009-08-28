@@ -628,3 +628,43 @@ func TestHostname(t *testing.T) {
 		t.Errorf("Hostname() = %q, want %q", hostname, want);
 	}
 }
+
+func TestReadAt(t *testing.T) {
+	f, err := Open("_obj/readtest", O_CREAT|O_RDWR|O_TRUNC, 0666);
+	if err != nil {
+		t.Fatalf("open _obj/readtest: %s", err);
+	}
+	const data = "hello, world\n";
+	io.WriteString(f, data);
+
+	b := make([]byte, 5);
+	n, err := f.ReadAt(b, 7);
+	if err != nil || n != len(b) {
+		t.Fatalf("ReadAt 7: %d, %r", n, err);
+	}
+	if string(b) != "world" {
+		t.Fatalf("ReadAt 7: have %q want %q", string(b), "world");
+	}
+}
+
+func TestWriteAt(t *testing.T) {
+	f, err := Open("_obj/writetest", O_CREAT|O_RDWR|O_TRUNC, 0666);
+	if err != nil {
+		t.Fatalf("open _obj/writetest: %s", err);
+	}
+	const data = "hello, world\n";
+	io.WriteString(f, data);
+
+	n, err := f.WriteAt(strings.Bytes("WORLD"), 7);
+	if err != nil || n != 5 {
+		t.Fatalf("WriteAt 7: %d, %v", n, err);
+	}
+
+	b, err := io.ReadFile("_obj/writetest");
+	if err != nil {
+		t.Fatalf("ReadFile _obj/writetest: %v", err);
+	}
+	if string(b) != "hello, WORLD\n" {
+		t.Fatalf("after write: have %q want %q", string(b), "hello, WORLD\n");
+	}
+}
