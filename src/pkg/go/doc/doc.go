@@ -65,20 +65,35 @@ func (doc *docReader) addType(decl *ast.GenDecl) {
 }
 
 
-func baseTypeName(typ ast.Expr) string {
-	switch t := typ.(type) {
-	case *ast.Ident:
-		return string(t.Value);
-	case *ast.StarExpr:
-		return baseTypeName(t.X);
-	}
-	return "";
+var predeclaredTypes = map[string]int {
+		// basic types
+		"bool": 0,
+		"byte": 0,
+		"int8": 0,
+		"int16": 0,
+		"int32": 0,
+		"int64": 0,
+		"uint8": 0,
+		"uint16": 0,
+		"uint32": 0,
+		"uint64": 0,
+		"float32": 0,
+		"float64": 0,
+		"string": 0,
+		// convenience types
+		"int": 0,
+		"uint": 0,
+		"uintptr": 0,
+		"float": 0,
 }
 
 
 func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
 	if name == "" {
 		return nil;  // no type docs for anonymous types
+	}
+	if _, found := predeclaredTypes[name]; found {
+		return nil;  // no type docs for prdeclared types
 	}
 	if tdoc, found := doc.types[name]; found {
 		return tdoc;
@@ -90,6 +105,17 @@ func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
 }
 
 
+func baseTypeName(typ ast.Expr) string {
+	switch t := typ.(type) {
+	case *ast.Ident:
+		return string(t.Value);
+	case *ast.StarExpr:
+		return baseTypeName(t.X);
+	}
+	return "";
+}
+
+
 func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 	name := fun.Name.Value;
 
@@ -98,7 +124,8 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 		// method
 		typ := doc.lookupTypeDoc(baseTypeName(fun.Recv.Type));
 		// typ should always be != nil since receiver base
-		// types must be named - be conservative and check
+		// types must be named and cannot be predeclared -
+		// be conservative and check
 		if typ != nil {
 			typ.methods[name] = fun;
 			return;
@@ -113,7 +140,7 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 			// exactly one (named or anonymous) result type
 			typ := doc.lookupTypeDoc(baseTypeName(res.Type));
 			if typ != nil {
-				// named result type
+				// named result type that is not predeclared
 				typ.factories[name] = fun;
 				return;
 			}
@@ -379,7 +406,7 @@ func (p sortTypeDoc) Less(i, j int) bool {
 // NOTE(rsc): This would appear not to be correct for type ( )
 // blocks, but the doc extractor above has split them into
 // individual declarations.
-func makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
+func (doc *docReader) makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 	d := make([]*TypeDoc, len(m));
 	i := 0;
 	for _, old := range m {
@@ -404,6 +431,26 @@ func makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 			t.order = i;
 			d[i] = t;
 			i++;
+		} else {
+			// no corresponding type declaration found - add any associated
+			// factory functions to the top-level functions lists so they
+			// are not lost (this should only happen for factory methods
+			// returning a type that is imported via a "." import such
+			// that the type name is not a qualified identifier, or if
+			// the package file containing the type declaration is missing)
+			for name, f := range old.factories {
+				doc.funcs[name] = f;
+			}
+			// add any associated methods to the top-level functions
+			// list so they are not lost, but only do it if they don't
+			// have the same names as existing top-level functions
+			// (this could happen if a package file containing the type
+			// declaration is missing)
+			for name, f := range old.methods {
+				if _, found := doc.funcs[name]; !found {
+					doc.funcs[name] = f;
+				}
+			}
 		}
 	}
 	d = d[0 : i];  // some types may have been ignored
@@ -449,7 +496,9 @@ func (doc *docReader) newDoc(pkgname, importpath, filepath string, filenames []s
 	p.Doc = astComment(doc.doc);
 	p.Consts = makeValueDocs(doc.values, token.CONST);
 	p.Vars = makeValueDocs(doc.values, token.VAR);
-	p.Types = makeTypeDocs(doc.types);
+	// makeTypeDocs may extend the list of doc.funcs
+	// and thus should be called before makeFuncDocs
+	p.Types = doc.makeTypeDocs(doc.types);
 	p.Funcs = makeFuncDocs(doc.funcs);
 	p.Bugs = makeBugDocs(doc.bugs);
 	return p;
