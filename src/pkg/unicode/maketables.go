@@ -14,6 +14,7 @@ import (
 	"http";
 	"log";
 	"os";
+	"sort";
 	"strconv";
 	"strings";
 	"regexp";
@@ -235,7 +236,7 @@ func printCategories() {
 		die.Log(err);
 	}
 	if resp.StatusCode != 200 {
-		die.Log("bad GET status for UnicodeData.txt", resp.StatusCode);
+		die.Log("bad GET status for UnicodeData.txt", resp.Status);
 	}
 	input := bufio.NewReader(resp.Body);
 	for {
@@ -279,6 +280,8 @@ func printCategories() {
 		fmt.Printf("}\n\n");
 	}
 
+	decl := make(sort.StringArray, len(list));
+	ndecl := 0;
 	for _, name := range list {
 		if _, ok := category[name]; !ok {
 			die.Log("unknown category", name);
@@ -286,56 +289,52 @@ func printCategories() {
 		// We generate an UpperCase name to serve as concise documentation and an _UnderScored
 		// name to store the data.  This stops godoc dumping all the tables but keeps them
 		// available to clients.
+		// Cases deserving special comments
+		varDecl := "";
+		switch name {
+		case "letter":
+			varDecl = "\tLetter = letter;	// Letter is the set of Unicode letters.\n";
+		case "Nd":
+			varDecl = "\tDigit = _Nd;	// Digit is the set of Unicode characters with the \"decimal digit\" property.\n";
+		case "Lu":
+			varDecl = "\tUpper = _Lu;	// Upper is the set of Unicode upper case letters.\n";
+		case "Ll":
+			varDecl = "\tLower = _Ll;	// Lower is the set of Unicode lower case letters.\n";
+		case "Lt":
+			varDecl = "\tTitle = _Lt;	// Title is the set of Unicode title case letters.\n";
+		}
+		if name != "letter" {
+			varDecl += fmt.Sprintf(
+				"\t%s = _%s;	// %s is the set of Unicode characters in category %s.\n",
+				name, name, name, name
+			);
+		}
+		decl[ndecl] = varDecl;
+		ndecl++;
 		if name == "letter" {	// special case
 			dumpRange(
-				"\n// Letter is the set of Unicode letters.\n"
-				"var Letter = letter\n"
 				"var letter = []Range {\n",
-				letterOp,
-				"}\n"
+				letterOp
 			);
 			continue;
 		}
-		// Cases deserving special comments
-		switch name {
-		case "Nd":
-			fmt.Printf(
-				"\n// Digit is the set of Unicode characters with the \"decimal digit\" property.\n"
-				"var Digit = Nd\n\n"
-			)
-		case "Lu":
-			fmt.Printf(
-				"\n// Upper is the set of Unicode upper case letters.\n"
-				"var Upper = Lu\n\n"
-			)
-		case "Ll":
-			fmt.Printf(
-				"\n// Lower is the set of Unicode lower case letters.\n"
-				"var Lower = Ll\n\n"
-			)
-		case "Lt":
-			fmt.Printf(
-				"\n// Title is the set of Unicode title case letters.\n"
-				"var Title = Lt\n\n"
-			)
-		}
 		dumpRange(
-			fmt.Sprintf(
-				"// %s is the set of Unicode characters in category %s.\n"
-				"var %s = _%s\n"
-				"var _%s = []Range {\n",
-				name, name, name, name, name
-			),
-			func(code int) bool { return chars[code].category == name },
-			"}\n\n"
+			fmt.Sprintf("var _%s = []Range {\n", name),
+			func(code int) bool { return chars[code].category == name }
 		);
 	}
+	decl.Sort();
+	fmt.Println("var (");
+	for _, d := range decl {
+		fmt.Print(d);
+	}
+	fmt.Println(")\n");
 }
 
 type Op func(code int) bool
 const format = "\tRange{0x%04x, 0x%04x, %d},\n";
 
-func dumpRange(header string, inCategory Op, trailer string) {
+func dumpRange(header string, inCategory Op) {
 	fmt.Print(header);
 	next := 0;
 	// one Range for each iteration
@@ -382,7 +381,7 @@ func dumpRange(header string, inCategory Op, trailer string) {
 		// next range: start looking where this range ends
 		next = hi + 1;
 	}
-	fmt.Print(trailer);
+	fmt.Print("}\n\n");
 }
 
 func fullCategoryTest(list []string) {
@@ -510,19 +509,27 @@ func printScripts() {
 		fmt.Printf("}\n\n");
 	}
 
+	decl := make(sort.StringArray, len(list));
+	ndecl := 0;
 	for _, name := range list {
-		fmt.Printf(
-			"// %s is the set of Unicode characters in script %s.\n"
-			"var %s = _%s\n"
-			"var _%s = []Range {\n",
-			name, name, name, name, name
+		decl[ndecl] = fmt.Sprintf(
+			"\t%s = _%s;\t// %s is the set of Unicode characters in script %s.\n",
+			name, name, name, name
 		);
+		ndecl++;
+		fmt.Printf("var _%s = []Range {\n", name);
 		ranges := foldAdjacent(scripts[name]);
 		for _, s := range ranges {
 			fmt.Printf(format, s.Lo, s.Hi, s.Stride);
 		}
 		fmt.Printf("}\n\n");
 	}
+	decl.Sort();
+	fmt.Println("var (");
+	for _, d := range decl {
+		fmt.Print(d);
+	}
+	fmt.Println(")\n");
 }
 
 // The script tables have a lot of adjacent elements. Fold them together.

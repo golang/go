@@ -132,43 +132,38 @@ var inCategoryTest = []T {
 }
 
 func TestScripts(t *testing.T) {
+	notTested := make(map[string] bool);
+	for k := range Scripts {
+		notTested[k] = true
+	}
 	for i, test := range inTest {
 		if !Is(Scripts[test.script], test.rune) {
 			t.Errorf("IsScript(%#x, %s) = false, want true\n", test.rune, test.script);
 		}
+		notTested[test.script] = false, false
 	}
 	for i, test := range outTest {
 		if Is(Scripts[test.script], test.rune) {
 			t.Errorf("IsScript(%#x, %s) = true, want false\n", test.rune, test.script);
 		}
 	}
-	tested := make(map[string] bool);
-	for k := range Scripts {
-		tested[k] = true
-	}
-	for _, test := range inTest {
-		tested[test.script] = false, false
-	}
-	for k := range tested {
+	for k := range notTested {
 		t.Error("not tested:", k)
 	}
 }
 
-
 func TestCategories(t *testing.T) {
+	notTested := make(map[string] bool);
+	for k := range Categories {
+		notTested[k] = true
+	}
 	for i, test := range inCategoryTest {
 		if !Is(Categories[test.script], test.rune) {
 			t.Errorf("IsCategory(%#x, %s) = false, want true\n", test.rune, test.script);
 		}
+		notTested[test.script] = false, false
 	}
-	tested := make(map[string] bool);
-	for k := range Categories {
-		tested[k] = true
-	}
-	for _, test := range inCategoryTest {
-		tested[test.script] = false, false
-	}
-	for k := range tested {
+	for k := range notTested {
 		t.Error("not tested:", k)
 	}
 }
