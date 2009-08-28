@@ -98,13 +98,13 @@ cgen64(Node *n, Node *res)
 		regfree(&bh);
 		break;
 
-//	case OSUB:
-//		// TODO: Constants.
-//		gins(AMOVL, &lo1, &ax);
-//		gins(AMOVL, &hi1, &dx);
-//		gins(ASUBL, &lo2, &ax);
-//		gins(ASBBL, &hi2, &dx);
-//		break;
+	case OSUB:
+		// TODO: Constants.
+		gins(AMOVW, &lo1, &al);
+		gins(AMOVW, &hi1, &ah);
+		gins(ASUB, &lo2, &al);
+		gins(ASBC, &hi2, &ah);
+		break;
 
 	case OMUL:
 		// TODO(kaib): this can be done with 4 regs and does not need 6
@@ -156,40 +156,53 @@ cgen64(Node *n, Node *res)
 
 		break;
 
-//	case OLSH:
-		// TODO(kaib): optimize for OLITERAL
-//		regalloc(&s1, types[TPTR32], N);
-//		regalloc(&s2, types[TPTR32], N);
+	case OLSH:
+		if(r->op == OLITERAL) {
+			v = mpgetfix(r->val.u.xval);
+			if(v >= 64) {
+				// TODO(kaib): replace with gins(AMOVW, nodintconst(0), &al)
+				// here and below (verify it optimizes to EOR)
+				gins(AEOR, &al, &al);
+				gins(AEOR, &ah, &ah);
+				break;
+			}
+			if(v >= 32) {
+				gins(AEOR, &al, &al);
+				//	MOVW	lo1<<(v-32), ah
+				p1 = gins(AMOVW, &lo1, &ah);
+				p1->from.type = D_SHIFT;
+				p1->from.offset = SHIFT_LL | (v-32)<<7 | lo1.val.u.reg;
+				p1->from.reg = NREG;
+				break;
+			}
 
-//		gins(AMOVW, &lo1, &al);
-//		gins(AMOVW, &hi1, &ah);
-//		if(is64(r->type)) {
-//			gins(AMOVW, &lo2, &s1);
-//			gins(AMOVW, &hi2, &s2);
-//			p1 = gins(AOR, &s2, &s1);
-//			p1->from.type = D_SHIFT;
-//			p1->from.offset = 5 << 7 | s2.val.u.reg; // s2<<7
-//			p1->from.reg = NREG;
-//		} else
-//			gins(AMOVW, r, &s1
-//		p1 = gins(AMOVW, &s1, &s2);
-//		p1->from.offset = -32;
+			// general literal left shift
 
-//		//	MOVW	ah<<s1, ah
-//		p1 = gins(AMOVW, &ah, &ah);
-//		p1->from.offset = ah.val.u.reg | 1<<4 | s1.val.u.reg <<8;
+			//	MOVW	lo1<<v, al
+			p1 = gins(AMOVW, &lo1, &al);
+			p1->from.type = D_SHIFT;
+			p1->from.offset = SHIFT_LL | v<<7 | lo1.val.u.reg;
+			p1->from.reg = NREG;
+			break;
 
-		//	OR		al<<s2, ah
-//		p1 = gins(AOR, &al, &ah);
-//		p1->from.offset = al.val.u.reg | 1<<4 | s2.val.u.reg << 8;
+			//	MOVW	hi1<<v, ah
+			p1 = gins(AMOVW, &hi1, &ah);
+			p1->from.type = D_SHIFT;
+			p1->from.offset = SHIFT_LL | v<<7 | hi1.val.u.reg;
+			p1->from.reg = NREG;
+			break;
 
-		//	MOVW	al<<s1, al
-//		p1 = gins(AMOVW, &al, &al);
-//		p1->from.offset = al.val.u.reg | 1<<4 | s1.val.u.reg <<8;
+			//	OR		lo1>>(32-v), ah
+			p1 = gins(AORR, &lo1, &ah);
+			p1->from.type = D_SHIFT;
+			p1->from.offset = SHIFT_LR | (32-v)<<7 | lo1.val.u.reg;
+			p1->from.reg = NREG;
+			break;
+		}
 
-//		regfree(&s1);
-//		regfree(&s2);
-//		break;
+		fatal("cgen64 OLSH, !OLITERAL not implemented");
+		break;
+
 
 	case ORSH:
 		if(r->op == OLITERAL) {
@@ -237,7 +250,7 @@ cgen64(Node *n, Node *res)
 				break;
 			}
 
-			// general shift
+			// general literal right shift
 
 			//	MOVW	lo1>>v, al
 			p1 = gins(AMOVW, &lo1, &al);
@@ -319,10 +332,11 @@ cgen64(Node *n, Node *res)
 //		patch(p2, pc);
 //		break;
 
-//	case OXOR:
-//	case OAND:
-//	case OOR:
-//		// make constant the right side (it usually is anyway).
+	case OXOR:
+	case OAND:
+	case OOR:
+		// TODO(kaib): literal optimizations
+		// make constant the right side (it usually is anyway).
 //		if(lo1.op == OLITERAL) {
 //			nswap(&lo1, &lo2);
 //			nswap(&hi1, &hi2);
@@ -413,11 +427,11 @@ cgen64(Node *n, Node *res)
 //			splitclean();
 //			goto out;
 //		}
-//		gins(AMOVL, &lo1, &ax);
-//		gins(AMOVL, &hi1, &dx);
-//		gins(optoas(n->op, lo1.type), &lo2, &ax);
-//		gins(optoas(n->op, lo1.type), &hi2, &dx);
-//		break;
+		gins(AMOVW, &lo1, &al);
+		gins(AMOVW, &hi1, &ah);
+		gins(optoas(n->op, lo1.type), &lo2, &al);
+		gins(optoas(n->op, lo1.type), &hi2, &ah);
+		break;
 	}
 	if(is64(r->type))
 		splitclean();

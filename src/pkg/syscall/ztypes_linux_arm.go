@@ -1,4 +1,4 @@
-// godefs -gsyscall -f-m32 types_linux.c types_linux_386.c
+// godefs -gsyscall -f-m32 types_linux.c
 
 // MACHINE GENERATED - DO NOT EDIT.
 
@@ -163,18 +163,18 @@ type Timex struct {
 	Calcnt int32;
 	Errcnt int32;
 	Stbcnt int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
-	 int32;
+	Pad0 int32;
+	Pad1 int32;
+	Pad2 int32;
+	Pad3 int32;
+	Pad4 int32;
+	Pad5 int32;
+	Pad6 int32;
+	Pad7 int32;
+	Pad8 int32;
+	Pad9 int32;
+	Pad10 int32;
+	Pad11 int32;
 }
 
 type Time_t int32
@@ -314,7 +314,7 @@ type PtraceRegs struct {
 	__fs uint16;
 	Gs uint16;
 	__gs uint16;
-	Eax int32;
+	Orig_eax int32;
 	Eip int32;
 	Cs uint16;
 	__cs uint16;
