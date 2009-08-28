@@ -85,6 +85,10 @@ var fmttests = []fmtTest{
 	fmtTest{ "%v",		&array,			"&[1 2 3 4 5]" },
 	fmtTest{ "%v",		&iarray,			"&[1 hello 2.5 <nil>]" },
 
+	// erroneous formats
+	fmtTest{ "",		2,			"?(extra int=2)" },
+	fmtTest{ "%d",		"hello",		"%d(string=hello)%" },
+
 	// old test/fmt_test.go
 	fmtTest{ "%d",		1234,			"1234" },
 	fmtTest{ "%d",		-1234,			"-1234" },
