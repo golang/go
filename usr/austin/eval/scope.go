@@ -85,12 +85,10 @@ func (b *block) DefineType(name string, pos token.Position, t Type) Type {
 	if _, ok := b.defs[name]; ok {
 		return nil;
 	}
-	// We take the representative type of t because multiple
-	// levels of naming are useless.
+	nt := &NamedType{pos, name, nil, true, make(map[string] Method)};
 	if t != nil {
-		t = t.lit();
+		nt.Complete(t);
 	}
-	nt := &NamedType{pos, name, t, false, make(map[string] Method)};
 	b.defs[name] = nt;
 	return nt;
 }
