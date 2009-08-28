@@ -1281,8 +1281,8 @@ type Stmt struct {
 	f func (f *Frame);
 }
 
-func (s *Stmt) Exec(f *Frame) {
-	s.f(f);
+func (s *Stmt) Exec(f *Frame) os.Error {
+	return Try(func() {s.f(f)});
 }
 
 func CompileStmts(scope *Scope, stmts []ast.Stmt) (*Stmt, os.Error) {
