@@ -6,6 +6,8 @@ include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=eval
 GOFILES=\
+	abort.go\
+	bridge.go\
 	compiler.go\
 	decls.go\
 	expr.go\

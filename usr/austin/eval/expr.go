@@ -990,8 +990,12 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 		switch _ := r.t.lit().(type) {
 		case *idealIntType:
 			val := r.asIdealInt()();
-			if val.IsNeg() || (maxIndex != -1 && val.Cmp(bignum.Int(maxIndex)) >= 0) {
-				a.diag("array index out of bounds");
+			if val.IsNeg() {
+				a.diag("negative index: %s", val);
+				return nil;
+			}
+			if maxIndex != -1 && val.Cmp(bignum.Int(maxIndex)) >= 0 {
+				a.diag("index %s exceeds length %d", val, maxIndex);
 				return nil;
 			}
 			r = r.convertTo(IntType);
@@ -1022,36 +1026,45 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 	// Compile
 	switch lt := l.t.lit().(type) {
 	case *ArrayType:
-		// TODO(austin) Bounds check
-		expr.genIndexArray(l, r);
 		lf := l.asArray();
 		rf := r.asInt();
-		expr.evalAddr = func(f *Frame) Value {
-			return lf(f).Elem(rf(f));
-		};
+		bound := lt.Len;
+		expr.genValue(func(f *Frame) Value {
+			l, r := lf(f), rf(f);
+			if r < 0 || r >= bound {
+				Abort(IndexOutOfBounds{r, bound});
+			}
+			return l.Elem(r);
+		});
 
 	case *SliceType:
-		// TODO(austin) Bounds check
-		// TODO(austin) Can this be done with genValue?
-		expr.genIndexSlice(l, r);
 		lf := l.asSlice();
 		rf := r.asInt();
-		expr.evalAddr = func(f *Frame) Value {
-			return lf(f).Base.Elem(rf(f));
-		};
+		expr.genValue(func(f *Frame) Value {
+			l, r := lf(f), rf(f);
+			if l.Base == nil {
+				Abort(NilPointer{});
+			}
+			if r < 0 || r >= l.Len {
+				Abort(IndexOutOfBounds{r, l.Len});
+			}
+			return l.Base.Elem(r);
+		});
 
 	case *stringType:
-		// TODO(austin) Bounds check
 		lf := l.asString();
 		rf := r.asInt();
 		// TODO(austin) This pulls over the whole string in a
 		// remote setting, instead of just the one character.
 		expr.evalUint = func(f *Frame) uint64 {
-			return uint64(lf(f)[rf(f)]);
+			l, r := lf(f), rf(f);
+			if r < 0 || r >= int64(len(l)) {
+				Abort(IndexOutOfBounds{r, int64(len(l))});
+			}
+			return uint64(l[r]);
 		}
 
 	case *MapType:
-		// TODO(austin) Bounds check
 		lf := l.asMap();
 		rf := r.asInterface();
 		expr.genValue(func(f *Frame) Value {
@@ -1059,8 +1072,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 			k := rf(f);
 			e := m.Elem(k);
 			if e == nil {
-				// TODO(austin) Use an exception
-				panic("key ", k, " not found in map");
+				Abort(KeyNotFound{k});
 			}
 			return e;
 		});
@@ -1068,6 +1080,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 		// aren't addressable.
 		expr.evalAddr = nil;
 		expr.evalMapValue = func(f *Frame) (Map, interface{}) {
+			// TODO(austin) Key check?
 			return lf(f), rf(f);
 		};
 
@@ -1153,8 +1166,14 @@ func (a *exprInfo) compileStarExpr(v *expr) *expr {
 	switch vt := v.t.lit().(type) {
 	case *PtrType:
 		expr := a.newExpr(vt.Elem, "indirect expression");
-		// TODO(austin) Deal with nil pointers
-		expr.genValue(v.asPtr());
+		vf := v.asPtr();
+		expr.genValue(func(f *Frame) Value {
+			v := vf(f);
+			if v == nil {
+				Abort(NilPointer{});
+			}
+			return v;
+		});
 		return expr;
 	}
 
@@ -1496,6 +1515,18 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 		binOpDescs[op] = desc;
 	}
 
+	// Check for ideal divide by zero
+	switch op {
+	case token.QUO, token.REM:
+		if r.t.isIdeal() {
+			if (r.t.isInteger() && r.asIdealInt()().IsZero()) ||
+				(r.t.isFloat() && r.asIdealFloat()().IsZero()) {
+				a.diag("divide by zero");
+				return nil;
+			}
+		}
+	}
+
 	// Compile
 	expr := a.newExpr(t, desc);
 	switch op {
@@ -1509,13 +1540,11 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 		expr.genBinOpMul(l, r);
 
 	case token.QUO:
-		// TODO(austin) What if divisor is zero?
 		// TODO(austin) Clear higher bits that may have
 		// accumulated in our temporary.
 		expr.genBinOpQuo(l, r);
 
 	case token.REM:
-		// TODO(austin) What if divisor is zero?
 		// TODO(austin) Clear higher bits that may have
 		// accumulated in our temporary.
 		expr.genBinOpRem(l, r);
@@ -1697,10 +1726,10 @@ type Expr struct {
 	f func(f *Frame, out Value);
 }
 
-func (expr *Expr) Eval(f *Frame) Value {
+func (expr *Expr) Eval(f *Frame) (Value, os.Error) {
 	v := expr.t.Zero();
-	expr.f(f, v);
-	return v;
+	err := Try(func() {expr.f(f, v)});
+	return v, err;
 }
 
 func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
@@ -1817,68 +1846,6 @@ func (a *expr) genIdentOp(level int, index int) {
 		a.evalMap = func(f *Frame) Map { return f.Get(level, index).(MapValue).Get() };
 	default:
 		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genIndexArray(l, r *expr) {
-	lf := l.asArray();
-	rf := r.asInt();
-	switch _ := a.t.lit().(type) {
-	case *boolType:
-		a.evalBool = func(f *Frame) bool { return lf(f).Elem(rf(f)).(BoolValue).Get() };
-	case *uintType:
-		a.evalUint = func(f *Frame) uint64 { return lf(f).Elem(rf(f)).(UintValue).Get() };
-	case *intType:
-		a.evalInt = func(f *Frame) int64 { return lf(f).Elem(rf(f)).(IntValue).Get() };
-	case *floatType:
-		a.evalFloat = func(f *Frame) float64 { return lf(f).Elem(rf(f)).(FloatValue).Get() };
-	case *stringType:
-		a.evalString = func(f *Frame) string { return lf(f).Elem(rf(f)).(StringValue).Get() };
-	case *ArrayType:
-		a.evalArray = func(f *Frame) ArrayValue { return lf(f).Elem(rf(f)).(ArrayValue).Get() };
-	case *StructType:
-		a.evalStruct = func(f *Frame) StructValue { return lf(f).Elem(rf(f)).(StructValue).Get() };
-	case *PtrType:
-		a.evalPtr = func(f *Frame) Value { return lf(f).Elem(rf(f)).(PtrValue).Get() };
-	case *FuncType:
-		a.evalFunc = func(f *Frame) Func { return lf(f).Elem(rf(f)).(FuncValue).Get() };
-	case *SliceType:
-		a.evalSlice = func(f *Frame) Slice { return lf(f).Elem(rf(f)).(SliceValue).Get() };
-	case *MapType:
-		a.evalMap = func(f *Frame) Map { return lf(f).Elem(rf(f)).(MapValue).Get() };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genIndexSlice(l, r *expr) {
-	lf := l.asSlice();
-	rf := r.asInt();
-	switch _ := a.t.lit().(type) {
-	case *boolType:
-		a.evalBool = func(f *Frame) bool { return lf(f).Base.Elem(rf(f)).(BoolValue).Get() };
-	case *uintType:
-		a.evalUint = func(f *Frame) uint64 { return lf(f).Base.Elem(rf(f)).(UintValue).Get() };
-	case *intType:
-		a.evalInt = func(f *Frame) int64 { return lf(f).Base.Elem(rf(f)).(IntValue).Get() };
-	case *floatType:
-		a.evalFloat = func(f *Frame) float64 { return lf(f).Base.Elem(rf(f)).(FloatValue).Get() };
-	case *stringType:
-		a.evalString = func(f *Frame) string { return lf(f).Base.Elem(rf(f)).(StringValue).Get() };
-	case *ArrayType:
-		a.evalArray = func(f *Frame) ArrayValue { return lf(f).Base.Elem(rf(f)).(ArrayValue).Get() };
-	case *StructType:
-		a.evalStruct = func(f *Frame) StructValue { return lf(f).Base.Elem(rf(f)).(StructValue).Get() };
-	case *PtrType:
-		a.evalPtr = func(f *Frame) Value { return lf(f).Base.Elem(rf(f)).(PtrValue).Get() };
-	case *FuncType:
-		a.evalFunc = func(f *Frame) Func { return lf(f).Base.Elem(rf(f)).(FuncValue).Get() };
-	case *SliceType:
-		a.evalSlice = func(f *Frame) Slice { return lf(f).Base.Elem(rf(f)).(SliceValue).Get() };
-	case *MapType:
-		a.evalMap = func(f *Frame) Map { return lf(f).Base.Elem(rf(f)).(MapValue).Get() };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
@@ -2091,11 +2058,11 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
-		a.evalUint = func(f *Frame) uint64 { return lf(f) / rf(f) };
+		a.evalUint = func(f *Frame) uint64 { l, r := lf(f), rf(f); if r == 0 { Abort(DivByZero{}) }; return l / r };
 	case *intType:
 		lf := l.asInt();
 		rf := r.asInt();
-		a.evalInt = func(f *Frame) int64 { return lf(f) / rf(f) };
+		a.evalInt = func(f *Frame) int64 { l, r := lf(f), rf(f); if r == 0 { Abort(DivByZero{}) }; return l / r };
 	case *idealIntType:
 		lf := l.asIdealInt();
 		rf := r.asIdealInt();
@@ -2104,7 +2071,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 	case *floatType:
 		lf := l.asFloat();
 		rf := r.asFloat();
-		a.evalFloat = func(f *Frame) float64 { return lf(f) / rf(f) };
+		a.evalFloat = func(f *Frame) float64 { l, r := lf(f), rf(f); if r == 0 { Abort(DivByZero{}) }; return l / r };
 	case *idealFloatType:
 		lf := l.asIdealFloat();
 		rf := r.asIdealFloat();
@@ -2120,11 +2087,11 @@ func (a *expr) genBinOpRem(l, r *expr) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
-		a.evalUint = func(f *Frame) uint64 { return lf(f) % rf(f) };
+		a.evalUint = func(f *Frame) uint64 { l, r := lf(f), rf(f); if r == 0 { Abort(DivByZero{}) }; return l % r };
 	case *intType:
 		lf := l.asInt();
 		rf := r.asInt();
-		a.evalInt = func(f *Frame) int64 { return lf(f) % rf(f) };
+		a.evalInt = func(f *Frame) int64 { l, r := lf(f), rf(f); if r == 0 { Abort(DivByZero{}) }; return l % r };
 	case *idealIntType:
 		lf := l.asIdealInt();
 		rf := r.asIdealInt();
