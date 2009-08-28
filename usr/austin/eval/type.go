@@ -980,6 +980,11 @@ func (t *NamedType) Complete(def Type) {
 	if !t.incomplete {
 		log.Crashf("cannot complete already completed NamedType %+v", *t);
 	}
+	// We strip the name from def because multiple levels of
+	// naming are useless.
+	if ndef, ok := def.(*NamedType); ok {
+		def = ndef.Def;
+	}
 	t.Def = def;
 	t.incomplete = false;
 }
