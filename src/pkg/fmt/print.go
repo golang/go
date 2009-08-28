@@ -700,14 +700,20 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 
 			default:
 			badtype:
-				s = "%" + string(c) + "(" + field.Type().String() + ")%";
+				s = "%" + string(c) + "(" + field.Type().String() + "=";
+				p.addstr(s);
+				p.printField(field);
+				s= ")%";
 		}
 		p.addstr(s);
 	}
 	if fieldnum < v.NumField() {
 		p.addstr("?(extra ");
 		for ; fieldnum < v.NumField(); fieldnum++ {
-			p.addstr(getField(v, fieldnum).Type().String());
+			field := getField(v, fieldnum);
+			p.addstr(field.Type().String());
+			p.addstr("=");
+			p.printField(field);
 			if fieldnum + 1 < v.NumField() {
 				p.addstr(", ");
 			}
