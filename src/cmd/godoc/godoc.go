@@ -55,6 +55,36 @@ import (
 const Pkg = "/pkg/"	// name for auto-generated package documentation tree
 
 
+type delayTime struct {
+	mutex sync.RWMutex;
+	minutes int;
+}
+
+
+func (dt *delayTime) set(minutes int) {
+	dt.mutex.Lock();
+	dt.minutes = minutes;
+	dt.mutex.Unlock();
+}
+
+
+func (dt *delayTime) backoff(max int) {
+	dt.mutex.Lock();
+	dt.minutes *= 2;
+	if dt.minutes > max {
+		dt.minutes = max
+	}
+	dt.mutex.Unlock();
+}
+
+
+func (dt *delayTime) get() int {
+	dt.mutex.RLock();
+	defer dt.mutex.RUnlock();
+	return dt.minutes;
+}
+
+
 type timeStamp struct {
 	mutex sync.RWMutex;
 	seconds int64;
@@ -86,6 +116,7 @@ var (
 	// periodic sync
 	syncCmd = flag.String("sync", "", "sync command; disabled if empty");
 	syncMin = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0");
+	syncDelay delayTime;  // actual sync delay in minutes; usually syncDelay == syncMin, but delay may back off exponentially
 	syncTime timeStamp;  // time of last p4 sync
 
 	// layout control
@@ -569,11 +600,14 @@ func exec(c *http.Conn, args []string) bool {
 
 func dosync(c *http.Conn, r *http.Request) {
 	args := []string{"/bin/sh", "-c", *syncCmd};
-	if !exec(c, args) {
-		*syncMin = 0;  // disable sync
-		return;
+	if exec(c, args) {
+		// sync succeeded
+		syncTime.set();
+		syncDelay.set(*syncMin);  //  revert to regular sync schedule
+	} else {
+		// sync failed - back off exponentially, but try at least once a day
+		syncDelay.backoff(24*60);
 	}
-	syncTime.set();
 }
 
 
@@ -633,16 +667,14 @@ func main() {
 
 		// Start sync goroutine, if enabled.
 		if *syncCmd != "" && *syncMin > 0 {
+			syncDelay.set(*syncMin);  // initial sync delay
 			go func() {
-				if *verbose {
-					log.Stderrf("sync every %dmin", *syncMin);
-				}
-				for *syncMin > 0 {
+				for {
 					dosync(nil, nil);
-					time.Sleep(int64(*syncMin) * (60 * 1e9));
-				}
-				if *verbose {
-					log.Stderrf("periodic sync stopped");
+					if *verbose {
+						log.Stderrf("next sync in %dmin", syncDelay.get());
+					}
+					time.Sleep(int64(syncDelay.get()) * (60 * 1e9));
 				}
 			}();
 		}
