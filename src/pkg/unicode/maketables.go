@@ -115,7 +115,18 @@ var scripts = make(map[string] []Script)
 
 var lastChar uint32 = 0;
 
-func parseCategory(line string) {
+// In UnicodeData.txt, some ranges are marked like this:
+// 3400;<CJK Ideograph Extension A, First>;Lo;0;L;;;;;N;;;;;
+// 4DB5;<CJK Ideograph Extension A, Last>;Lo;0;L;;;;;N;;;;;
+// parseCategory returns a state variable indicating the weirdness.
+type State int
+const (
+	SNormal State = iota;	// known to be zero for the type
+	SFirst;
+	SLast;
+)
+
+func parseCategory(line string) (state State) {
 	field := strings.Split(line, ";", -1);
 	if len(field) != NumField {
 		die.Logf("%5s: %d fields (expected %d)\n", line, len(field), NumField);
@@ -155,6 +166,13 @@ func parseCategory(line string) {
 	case "Lm", "Lo":
 		char.letter(field[FSimpleUppercaseMapping], field[FSimpleLowercaseMapping], field[FSimpleTitlecaseMapping]);
 	}
+	switch {
+	case strings.Index(field[FName], ", First>") > 0:
+		state = SFirst
+	case strings.Index(field[FName], ", Last>") > 0:
+		state = SLast
+	}
+	return
 }
 
 func (char *Char) dump(s string) {
@@ -239,6 +257,7 @@ func printCategories() {
 		die.Log("bad GET status for UnicodeData.txt", resp.Status);
 	}
 	input := bufio.NewReader(resp.Body);
+	var first uint32 = 0;
 	for {
 		line, err := input.ReadString('\n');
 		if err != nil {
@@ -247,7 +266,26 @@ func printCategories() {
 			}
 			die.Log(err);
 		}
-		parseCategory(line[0:len(line)-1]);
+		switch parseCategory(line[0:len(line)-1]) {
+		case SNormal:
+			if first != 0 {
+				die.Logf("bad state normal at U+%04X", lastChar)
+			}
+		case SFirst:
+			if first != 0 {
+				die.Logf("bad state first at U+%04X", lastChar)
+			}
+			first = lastChar
+		case SLast:
+			if first == 0 {
+				die.Logf("bad state last at U+%04X", lastChar)
+			}
+			for i := first+1; i <= lastChar; i++ {
+				chars[i] = chars[first];
+				chars[i].codePoint = i;
+			}
+			first = 0
+		}
 	}
 	resp.Body.Close();
 	// Find out which categories to dump
