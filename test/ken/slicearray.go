@@ -4,7 +4,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 package main
 
 var	bx	[10]byte
@@ -17,6 +16,12 @@ var	t	int
 func
 main()
 {
+	lb = 0; hb = 10;
+	by = &bx; tstb();
+
+	lb = 0; hb = 10;
+	fy = &fx; tstf();
+
 	// width 1 (byte)
 	lb = 0; hb = 10;
 	by = bx[lb:hb]; tstb();

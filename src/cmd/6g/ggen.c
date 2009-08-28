@@ -1180,11 +1180,15 @@ regcmp(Node *ra, Node *rb)
 	return ra->local - rb->local;
 }
 
+static	Prog*	throwpc;
+
 void
 getargs(NodeList *nn, Node *reg, int n)
 {
 	NodeList *l;
 	int i;
+
+	throwpc = nil;
 
 	l = nn;
 	for(i=0; i<n; i++) {
@@ -1218,8 +1222,13 @@ cmpandthrow(Node *nl, Node *nr)
 			return;
 		if(smallintconst(nr)) {
 			cr = mpgetfix(nr->val.u.xval);
-			if(cl > cr)
-				ginscall(throwslice, 0);
+			if(cl > cr) {
+				if(throwpc == nil) {
+					throwpc = pc;
+					ginscall(throwslice, 0);
+				} else
+					patch(gbranch(AJMP, T), throwpc);
+			}
 			return;
 		}
 
@@ -1231,9 +1240,16 @@ cmpandthrow(Node *nl, Node *nr)
 	}
 
 	gins(optoas(OCMP, types[TUINT32]), nl, nr);
-	p1 = gbranch(optoas(op, types[TUINT32]), T);
-	ginscall(throwslice, 0);
-	patch(p1, pc);
+	if(throwpc == nil) {
+		p1 = gbranch(optoas(op, types[TUINT32]), T);
+		throwpc = pc;
+		ginscall(throwslice, 0);
+		patch(p1, pc);
+	} else {
+		op = brcom(op);
+		p1 = gbranch(optoas(op, types[TUINT32]), T);
+		patch(p1, throwpc);
+	}
 }
 
 int
@@ -1253,7 +1269,7 @@ sleasy(Node *n)
 int
 cgen_inline(Node *n, Node *res)
 {
-	Node nodes[10];
+	Node nodes[5];
 	Node n1, n2;
 	vlong v;
 	int i;
@@ -1278,25 +1294,25 @@ slicearray:
 	getargs(n->list, nodes, 5);
 
 	// if(hb[3] > nel[1]) goto throw
-	cmpandthrow(nodes+3, nodes+1);
+	cmpandthrow(&nodes[3], &nodes[1]);
 
 	// if(lb[2] > hb[3]) goto throw
-	cmpandthrow(nodes+2, nodes+3);
+	cmpandthrow(&nodes[2], &nodes[3]);
 
 	// len = hb[3] - lb[2] (destroys hb)
 	n2 = *res;
 	n2.xoffset += Array_nel;
 
-	if(smallintconst(nodes+3) && smallintconst(nodes+2)) {
-		v = mpgetfix((nodes+3)->val.u.xval) -
-			mpgetfix((nodes+2)->val.u.xval);
+	if(smallintconst(&nodes[3]) && smallintconst(&nodes[2])) {
+		v = mpgetfix(nodes[3].val.u.xval) -
+			mpgetfix(nodes[2].val.u.xval);
 		nodconst(&n1, types[TUINT32], v);
 		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
 	} else {
-		regalloc(&n1, types[TUINT32], nodes+3);
-		gmove(nodes+3, &n1);
-		if(!smallintconst(nodes+2) || mpgetfix((nodes+2)->val.u.xval) != 0)
-			gins(optoas(OSUB, types[TUINT32]), nodes+2, &n1);
+		regalloc(&n1, types[TUINT32], &nodes[3]);
+		gmove(&nodes[3], &n1);
+		if(!smallintconst(&nodes[2]) || mpgetfix(nodes[2].val.u.xval) != 0)
+			gins(optoas(OSUB, types[TUINT32]), &nodes[2], &n1);
 		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
 		regfree(&n1);
 	}
@@ -1305,16 +1321,16 @@ slicearray:
 	n2 = *res;
 	n2.xoffset += Array_cap;
 
-	if(smallintconst(nodes+1) && smallintconst(nodes+2)) {
-		v = mpgetfix((nodes+1)->val.u.xval) -
-			mpgetfix((nodes+2)->val.u.xval);
+	if(smallintconst(&nodes[1]) && smallintconst(&nodes[2])) {
+		v = mpgetfix(nodes[1].val.u.xval) -
+			mpgetfix(nodes[2].val.u.xval);
 		nodconst(&n1, types[TUINT32], v);
 		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
 	} else {
-		regalloc(&n1, types[TUINT32], nodes+1);
-		gmove(nodes+1, &n1);
-		if(!smallintconst(nodes+2) || mpgetfix((nodes+2)->val.u.xval) != 0)
-			gins(optoas(OSUB, types[TUINT32]), nodes+2, &n1);
+		regalloc(&n1, types[TUINT32], &nodes[1]);
+		gmove(&nodes[1], &n1);
+		if(!smallintconst(&nodes[2]) || mpgetfix(nodes[2].val.u.xval) != 0)
+			gins(optoas(OSUB, types[TUINT32]), &nodes[2], &n1);
 		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
 		regfree(&n1);
 	}
@@ -1323,73 +1339,97 @@ slicearray:
 	n2 = *res;
 	n2.xoffset += Array_array;
 
-	if(smallintconst(nodes+2) && smallintconst(nodes+4)) {
-		v = mpgetfix((nodes+2)->val.u.xval) *
-			mpgetfix((nodes+4)->val.u.xval);
+	if(smallintconst(&nodes[2]) && smallintconst(&nodes[4])) {
+		v = mpgetfix(nodes[2].val.u.xval) *
+			mpgetfix(nodes[4].val.u.xval);
 		if(v != 0) {
 			nodconst(&n1, types[tptr], v);
-			gins(optoas(OADD, types[tptr]), &n1, nodes+0);
+			gins(optoas(OADD, types[tptr]), &n1, &nodes[0]);
 		}
 	} else {
-		regalloc(&n1, types[tptr], nodes+2);
-		gmove(nodes+2, &n1);
-		if(!smallintconst(nodes+4) || mpgetfix((nodes+4)->val.u.xval) != 1)
-			gins(optoas(OMUL, types[tptr]), nodes+4, &n1);
-		gins(optoas(OADD, types[tptr]), &n1, nodes+0);
+		regalloc(&n1, types[tptr], &nodes[2]);
+		gmove(&nodes[2], &n1);
+		if(!smallintconst(&nodes[4]) || mpgetfix(nodes[4].val.u.xval) != 1)
+			gins(optoas(OMUL, types[tptr]), &nodes[4], &n1);
+		gins(optoas(OADD, types[tptr]), &n1, &nodes[0]);
 		regfree(&n1);
 	}
-	gins(optoas(OAS, types[tptr]), nodes+0, &n2);
+	gins(optoas(OAS, types[tptr]), &nodes[0], &n2);
 
 	for(i=0; i<5; i++) {
-		if((nodes+i)->op == OREGISTER)
-			regfree(nodes+i);
+		if(nodes[i].op == OREGISTER)
+			regfree(&nodes[i]);
+	}
+	return 1;
+
+arraytoslice:
+	getargs(n->list, nodes, 2);
+
+	// ret.len = nel[1];
+	n2 = *res;
+	n2.xoffset += Array_nel;
+	gins(optoas(OAS, types[TUINT32]), &nodes[1], &n2);
+
+	// ret.cap = nel[1];
+	n2 = *res;
+	n2.xoffset += Array_cap;
+	gins(optoas(OAS, types[TUINT32]), &nodes[1], &n2);
+
+	// ret.array = old[0];
+	n2 = *res;
+	n2.xoffset += Array_array;
+	gins(optoas(OAS, types[tptr]), &nodes[0], &n2);
+
+	for(i=0; i<2; i++) {
+		if(nodes[i].op == OREGISTER)
+			regfree(&nodes[i]);
 	}
 	return 1;
 
 sliceslice:
 	getargs(n->list, nodes, 4);
-	if(!sleasy(nodes+0)) {
+	if(!sleasy(&nodes[0])) {
 		for(i=0; i<4; i++) {
-			if((nodes+i)->op == OREGISTER)
-				regfree(nodes+i);
+			if(nodes[i].op == OREGISTER)
+				regfree(&nodes[i]);
 		}
 		goto no;
 	}
 
 	// if(hb[2] > old.cap[0]) goto throw;
-	n2 = *(nodes+0);
+	n2 = nodes[0];
 	n2.xoffset += Array_cap;
-	cmpandthrow(nodes+2, &n2);
+	cmpandthrow(&nodes[2], &n2);
 
 	// if(lb[1] > hb[2]) goto throw;
-	cmpandthrow(nodes+1, nodes+2);
+	cmpandthrow(&nodes[1], &nodes[2]);
 
 	// ret.len = hb[2]-lb[1]; (destroys hb[2])
 	n2 = *res;
 	n2.xoffset += Array_nel;
 
-	if(smallintconst(nodes+2) && smallintconst(nodes+1)) {
-		v = mpgetfix((nodes+2)->val.u.xval) -
-			mpgetfix((nodes+1)->val.u.xval);
+	if(smallintconst(&nodes[2]) && smallintconst(&nodes[1])) {
+		v = mpgetfix(nodes[2].val.u.xval) -
+			mpgetfix(nodes[1].val.u.xval);
 		nodconst(&n1, types[TUINT32], v);
 		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
 	} else {
-		regalloc(&n1, types[TUINT32], nodes+2);
-		gmove(nodes+2, &n1);
-		if(!smallintconst(nodes+1) || mpgetfix((nodes+1)->val.u.xval) != 0)
-			gins(optoas(OSUB, types[TUINT32]), nodes+1, &n1);
+		regalloc(&n1, types[TUINT32], &nodes[2]);
+		gmove(&nodes[2], &n1);
+		if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
+			gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
 		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
 		regfree(&n1);
 	}
 
 	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])
-	n2 = *(nodes+0);
+	n2 = nodes[0];
 	n2.xoffset += Array_cap;
 
-	regalloc(&n1, types[TUINT32], nodes+2);
+	regalloc(&n1, types[TUINT32], &nodes[2]);
 	gins(optoas(OAS, types[TUINT32]), &n2, &n1);
-	if(!smallintconst(nodes+1) || mpgetfix((nodes+1)->val.u.xval) != 0)
-		gins(optoas(OSUB, types[TUINT32]), nodes+1, &n1);
+	if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
+		gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
 
 	n2 = *res;
 	n2.xoffset += Array_cap;
@@ -1397,22 +1437,22 @@ sliceslice:
 	regfree(&n1);
 
 	// ret.array = old.array[0]+lb[1]*width[3]; (uses lb[1])
-	n2 = *(nodes+0);
+	n2 = nodes[0];
 	n2.xoffset += Array_array;
 
-	regalloc(&n1, types[tptr], nodes+1);
-	if(smallintconst(nodes+1) && smallintconst(nodes+3)) {
+	regalloc(&n1, types[tptr], &nodes[1]);
+	if(smallintconst(&nodes[1]) && smallintconst(&nodes[3])) {
 		gins(optoas(OAS, types[tptr]), &n2, &n1);
-		v = mpgetfix((nodes+1)->val.u.xval) *
-			mpgetfix((nodes+3)->val.u.xval);
+		v = mpgetfix(nodes[1].val.u.xval) *
+			mpgetfix(nodes[3].val.u.xval);
 		if(v != 0) {
 			nodconst(&n2, types[tptr], v);
 			gins(optoas(OADD, types[tptr]), &n2, &n1);
 		}
 	} else {
-		gmove(nodes+1, &n1);
-		if(!smallintconst(nodes+3) || mpgetfix((nodes+3)->val.u.xval) != 1)
-			gins(optoas(OMUL, types[tptr]), nodes+3, &n1);
+		gmove(&nodes[1], &n1);
+		if(!smallintconst(&nodes[3]) || mpgetfix(nodes[3].val.u.xval) != 1)
+			gins(optoas(OMUL, types[tptr]), &nodes[3], &n1);
 		gins(optoas(OADD, types[tptr]), &n2, &n1);
 	}
 
@@ -1422,16 +1462,10 @@ sliceslice:
 	regfree(&n1);
 
 	for(i=0; i<4; i++) {
-		if((nodes+i)->op == OREGISTER)
-			regfree(nodes+i);
+		if(nodes[i].op == OREGISTER)
+			regfree(&nodes[i]);
 	}
 	return 1;
-
-arraytoslice:
-	// ret.len = nel;
-	// ret.cap = nel;
-	// ret.array = old;
-	goto no;
 
 no:
 	return 0;
