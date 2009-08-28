@@ -16,24 +16,30 @@ import (
 	"os";
 	"strconv";
 	"strings";
+	"regexp";
 	"unicode";
 )
 
+var dataUrl = flag.String("data", "", "full URL for UnicodeData.txt; defaults to --url/UnicodeData.txt");
 var url = flag.String("url",
-	"http://www.unicode.org/Public/5.1.0/ucd/UnicodeData.txt",
-	"URL of Unicode database")
-var tables = flag.String("tables",
+	"http://www.unicode.org/Public/5.1.0/ucd/",
+	"URL of Unicode database directory")
+var tablelist = flag.String("tables",
 	"all",
-	"comma-separated list of which tables to generate; default is all; can be letter");
+	"comma-separated list of which tables to generate; can be letter");
+var scriptlist = flag.String("scripts",
+	"all",
+	"comma-separated list of which script tables to generate");
 var test = flag.Bool("test",
 	false,
 	"test existing tables; can be used to compare web data with package data");
+var scriptRe *regexp.Regexp
 
 var die = log.New(os.Stderr, nil, "", log.Lexit|log.Lshortfile);
 
 var category = map[string] bool{ "letter":true }	// Nd Lu etc. letter is a special case
 
-// Data has form:
+// UnicodeData.txt has form:
 //	0037;DIGIT SEVEN;Nd;0;EN;;7;7;7;N;;;;;
 //	007A;LATIN SMALL LETTER Z;Ll;0;L;;;;;N;;;005A;;005A
 // See http://www.unicode.org/Public/5.1.0/ucd/UCD.html for full explanation
@@ -87,11 +93,28 @@ type Char struct {
 	titleCase	uint32;
 }
 
+// Scripts.txt has form:
+//	A673          ; Cyrillic # Po       SLAVONIC ASTERISK
+//	A67C..A67D    ; Cyrillic # Mn   [2] COMBINING CYRILLIC KAVYKA..COMBINING CYRILLIC PAYEROK
+// See http://www.unicode.org/Public/5.1.0/ucd/UCD.html for full explanation
+
+type Script struct {
+	lo, hi	uint32;	// range of code points
+	script	string;
+}
+
+func main() {
+	flag.Parse();
+	printCategories();
+	printScripts();
+}
+
 var chars = make([]Char, MaxChar)
+var scripts = make(map[string] []Script)
 
 var lastChar uint32 = 0;
 
-func parse(line string) {
+func parseCategory(line string) {
 	field := strings.Split(line, ";", -1);
 	if len(field) != NumField {
 		die.Logf("%5s: %d fields (expected %d)\n", line, len(field), NumField);
@@ -169,6 +192,16 @@ func allCategories() []string {
 	return a;
 }
 
+func allScripts() []string {
+	a := make([]string, len(scripts));
+	i := 0;
+	for k := range scripts {
+		a[i] = k;
+		i++;
+	}
+	return a;
+}
+
 // Extract the version number from the URL
 func version() string {
 	// Break on slashes and look for the first numeric field
@@ -190,35 +223,39 @@ func letterOp(code int) bool {
 	return false
 }
 
-func main() {
-	flag.Parse();
-
-	resp, _, err := http.Get(*url);
+func printCategories() {
+	if *tablelist == "" {
+		return
+	}
+	if *dataUrl == "" {
+		flag.Set("data", *url + "UnicodeData.txt");
+	}
+	resp, _, err := http.Get(*dataUrl);
 	if err != nil {
 		die.Log(err);
 	}
 	if resp.StatusCode != 200 {
-		die.Log("bad GET status", resp.StatusCode);
+		die.Log("bad GET status for UnicodeData.txt", resp.StatusCode);
 	}
 	input := bufio.NewReader(resp.Body);
 	for {
-		line, err := input.ReadString('\n', false);
+		line, err := input.ReadString('\n');
 		if err != nil {
 			if err == os.EOF {
 				break;
 			}
 			die.Log(err);
 		}
-		parse(line);
+		parseCategory(line[0:len(line)-1]);
 	}
 	resp.Body.Close();
 	// Find out which categories to dump
-	list := strings.Split(*tables, ",", 0);
-	if *tables == "all" {
-		list = allCategories();
+	list := strings.Split(*tablelist, ",", 0);
+	if *tablelist == "all" {
+		list = allCategories()
 	}
 	if *test {
-		fullTest(list);
+		fullCategoryTest(list);
 		return
 	}
 	fmt.Printf(
@@ -226,16 +263,16 @@ func main() {
 		"//	maketables --tables=%s --url=%s\n"
 		"// DO NOT EDIT\n\n"
 		"package unicode\n\n",
-		*tables,
+		*tablelist,
 		*url
 	);
 
 	fmt.Println("// Version is the Unicode edition from which the tables are derived.");
 	fmt.Printf("const Version = %q\n\n", version());
 
-	if *tables == "all" {
-		fmt.Println("// Tables is the set of Unicode data tables.");
-			fmt.Println("var Tables = map[string] []Range {");
+	if *tablelist == "all" {
+		fmt.Println("// Categories is the set of Unicode data tables.");
+			fmt.Println("var Categories = map[string] []Range {");
 		for k, _ := range category {
 			fmt.Printf("\t%q: %s,\n", k, k);
 		}
@@ -284,7 +321,7 @@ func main() {
 		}
 		dumpRange(
 			fmt.Sprintf(
-				"// %s is the set of Unicode characters in category %s\n"
+				"// %s is the set of Unicode characters in category %s.\n"
 				"var %s = _%s\n"
 				"var _%s = []Range {\n",
 				name, name, name, name, name
@@ -296,10 +333,10 @@ func main() {
 }
 
 type Op func(code int) bool
+const format = "\tRange{0x%04x, 0x%04x, %d},\n";
 
 func dumpRange(header string, inCategory Op, trailer string) {
 	fmt.Print(header);
-	const format = "\tRange{0x%04x, 0x%04x, %d},\n";
 	next := 0;
 	// one Range for each iteration
 	for {
@@ -348,12 +385,12 @@ func dumpRange(header string, inCategory Op, trailer string) {
 	fmt.Print(trailer);
 }
 
-func fullTest(list []string) {
+func fullCategoryTest(list []string) {
 	for _, name := range list {
 		if _, ok := category[name]; !ok {
 			die.Log("unknown category", name);
 		}
-		r, ok := unicode.Tables[name];
+		r, ok := unicode.Categories[name];
 		if !ok {
 			die.Log("unknown table", name);
 		}
@@ -375,6 +412,150 @@ func verifyRange(name string, inCategory Op, table []unicode.Range) {
 		pkg := unicode.Is(table, i);
 		if web != pkg {
 			fmt.Fprintf(os.Stderr, "%s: U+%04X: web=%t pkg=%t\n", name, i, web, pkg);
+		}
+	}
+}
+
+func parseScript(line string) {
+	comment := strings.Index(line, "#");
+	if comment >= 0 {
+		line = line[0:comment]
+	}
+	line = strings.TrimSpaceASCII(line);
+	if len(line) == 0 {
+		return
+	}
+	field := strings.Split(line, ";", -1);
+	if len(field) != 2 {
+		die.Logf("%s: %d fields (expected 2)\n", line, len(field));
+	}
+	matches := scriptRe.MatchStrings(line);
+	if len(matches) != 4 {
+		die.Logf("%s: %d matches (expected 3)\n", line, len(matches));
+	}
+	lo, err := strconv.Btoui64(matches[1], 16);
+	if err != nil {
+		die.Log("%.5s...:", err)
+	}
+	hi := lo;
+	if len(matches[2]) > 2 {	// ignore leading ..
+		hi, err = strconv.Btoui64(matches[2][2:len(matches[2])], 16);
+		if err != nil {
+			die.Log("%.5s...:", err)
+		}
+	}
+	name := matches[3];
+	s, ok := scripts[name];
+	if len(s) == cap(s) {
+		ns := make([]Script, len(s), len(s)+100);
+		for i, sc := range s {
+			ns[i] = sc
+		}
+		s = ns;
+	}
+	s = s[0:len(s)+1];
+	s[len(s)-1] = Script{ uint32(lo), uint32(hi), name };
+	scripts[name] = s;
+}
+
+func printScripts() {
+	var err os.Error;
+	scriptRe, err = regexp.Compile(`([0-9A-F]+)(\.\.[0-9A-F]+)? +; ([A-Za-z_]+)`);
+	if err != nil {
+		die.Log("re error:", err)
+	}
+	resp, _, err := http.Get(*url + "Scripts.txt");
+	if err != nil {
+		die.Log(err);
+	}
+	if resp.StatusCode != 200 {
+		die.Log("bad GET status for Scripts.txt", resp.Status);
+	}
+	input := bufio.NewReader(resp.Body);
+	for {
+		line, err := input.ReadString('\n');
+		if err != nil {
+			if err == os.EOF {
+				break;
+			}
+			die.Log(err);
+		}
+		parseScript(line[0:len(line)-1]);
+	}
+	resp.Body.Close();
+
+	// Find out which scripts to dump
+	list := strings.Split(*scriptlist, ",", 0);
+	if *scriptlist == "all" {
+		list = allScripts();
+	}
+	if *test {
+		fullScriptTest(list);
+		return;
+	}
+
+	fmt.Printf(
+		"// Generated by running\n"
+		"//	maketables --scripts=%s --url=%s\n"
+		"// DO NOT EDIT\n\n",
+		*scriptlist,
+		*url
+	);
+	if *scriptlist == "all" {
+		fmt.Println("// Scripts is the set of Unicode script tables.");
+			fmt.Println("var Scripts = map[string] []Range {");
+		for k, _ := range scripts {
+			fmt.Printf("\t%q: %s,\n", k, k);
+		}
+		fmt.Printf("}\n\n");
+	}
+
+	for _, name := range list {
+		fmt.Printf(
+			"// %s is the set of Unicode characters in script %s.\n"
+			"var %s = _%s\n"
+			"var _%s = []Range {\n",
+			name, name, name, name, name
+		);
+		ranges := foldAdjacent(scripts[name]);
+		for _, s := range ranges {
+			fmt.Printf(format, s.Lo, s.Hi, s.Stride);
+		}
+		fmt.Printf("}\n\n");
+	}
+}
+
+// The script tables have a lot of adjacent elements. Fold them together.
+func foldAdjacent(r []Script) []unicode.Range {
+	s := make([]unicode.Range, 0, len(r));
+	j := 0;
+	for i := 0; i < len(r); i++ {
+		if j>0 && int(r[i].lo) == s[j-1].Hi+1 {
+			s[j-1].Hi = int(r[i].hi);
+		} else {
+			s = s[0:j+1];
+			s[j] = unicode.Range{int(r[i].lo), int(r[i].hi), 1};
+			j++;
+		}
+	}
+	return s;
+}
+
+func fullScriptTest(list []string) {
+	for _, name := range list {
+		if _, ok := scripts[name]; !ok {
+			die.Log("unknown script", name);
+		}
+		r, ok := unicode.Scripts[name];
+		if !ok {
+			die.Log("unknown table", name);
+		}
+		for _, script := range scripts[name] {
+			for r := script.lo; r <= script.hi; r++ {
+				if !unicode.Is(unicode.Scripts[name], int(r)) {
+					fmt.Fprintf(os.Stderr, "U+%04X: not in script %s\n", r, name);
+				}
+			}
 		}
 	}
 }
