@@ -55,6 +55,7 @@ EXTERN	Node*	newproc;
 EXTERN	Node*	deferproc;
 EXTERN	Node*	deferreturn;
 EXTERN	Node*	throwindex;
+EXTERN	Node*	throwslice;
 EXTERN	Node*	throwreturn;
 
 /*

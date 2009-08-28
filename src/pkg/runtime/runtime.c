@@ -46,6 +46,12 @@ sys·throwindex(void)
 }
 
 void
+sys·throwslice(void)
+{
+	throw("slice out of range");
+}
+
+void
 sys·throwreturn(void)
 {
 	throw("no return at end of a typed function");
