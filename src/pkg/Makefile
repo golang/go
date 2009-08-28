@@ -122,6 +122,7 @@ TEST=\
 	sync\
 	tabwriter\
 	template\
+	testing\
 	time\
 	unicode\
 	utf8\
