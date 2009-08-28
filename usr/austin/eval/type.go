@@ -960,14 +960,28 @@ type Method struct {
 
 type NamedType struct {
 	token.Position;
-	name string;
+	Name string;
 	// Underlying type.  If incomplete is true, this will be nil.
 	// If incomplete is false and this is still nil, then this is
 	// a placeholder type representing an error.
-	def Type;
+	Def Type;
 	// True while this type is being defined.
 	incomplete bool;
 	methods map[string] Method;
+}
+
+// TODO(austin) This is temporarily needed by the debugger's remote
+// type parser.  This should only be possible with block.DefineType.
+func NewNamedType(name string) *NamedType {
+	return &NamedType{token.Position{}, name, nil, true, make(map[string] Method)};
+}
+
+func (t *NamedType) Complete(def Type) {
+	if !t.incomplete {
+		log.Crashf("cannot complete already completed NamedType %+v", *t);
+	}
+	t.Def = def;
+	t.incomplete = false;
 }
 
 func (t *NamedType) compat(o Type, conv bool) bool {
@@ -977,7 +991,7 @@ func (t *NamedType) compat(o Type, conv bool) bool {
 			// Two named types are conversion compatible
 			// if their literals are conversion
 			// compatible.
-			return t.def.compat(t2.def, conv);
+			return t.Def.compat(t2.Def, conv);
 		} else {
 			// Two named types are compatible if their
 			// type names originate in the same type
@@ -987,23 +1001,23 @@ func (t *NamedType) compat(o Type, conv bool) bool {
 	}
 	// A named and an unnamed type are compatible if the
 	// respective type literals are compatible.
-	return o.compat(t.def, conv);
+	return o.compat(t.Def, conv);
 }
 
 func (t *NamedType) lit() Type {
-	return t.def.lit();
+	return t.Def.lit();
 }
 
 func (t *NamedType) isBoolean() bool {
-	return t.def.isBoolean();
+	return t.Def.isBoolean();
 }
 
 func (t *NamedType) isInteger() bool {
-	return t.def.isInteger();
+	return t.Def.isInteger();
 }
 
 func (t *NamedType) isFloat() bool {
-	return t.def.isFloat();
+	return t.Def.isFloat();
 }
 
 func (t *NamedType) isIdeal() bool {
@@ -1011,11 +1025,11 @@ func (t *NamedType) isIdeal() bool {
 }
 
 func (t *NamedType) String() string {
-	return t.name;
+	return t.Name;
 }
 
 func (t *NamedType) Zero() Value {
-	return t.def.Zero();
+	return t.Def.Zero();
 }
 
 /*

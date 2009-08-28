@@ -117,7 +117,7 @@ func TypeFromNative(t reflect.Type) Type {
 	}
 
 	if nt != nil {
-		nt.def = et;
+		nt.Complete(et);
 		et = nt;
 	}
 
