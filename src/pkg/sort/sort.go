@@ -164,7 +164,7 @@ func (p FloatArray) Less(i, j int) bool  { return p[i] < p[j]; }
 func (p FloatArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 // Sort is a convenience method.
-ffunc (p FloatArray) Sort()       { Sort(p); }
+func (p FloatArray) Sort()       { Sort(p); }
 
 
 // StringArray attaches the methods of SortInterface to []string, sorting in increasing order.
@@ -175,7 +175,7 @@ func (p StringArray) Less(i, j int) bool  { return p[i] < p[j]; }
 func (p StringArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
 
 // Sort is a convenience method.
-ffunc (p StringArray) Sort()       { Sort(p); }
+func (p StringArray) Sort()       { Sort(p); }
 
 
 // Convenience wrappers for common cases
