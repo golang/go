@@ -43,7 +43,7 @@ func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
 			a.diagAt(x, "illegal recursive type");
 			return nil;
 		}
-		if !def.incomplete && def.def == nil {
+		if !def.incomplete && def.Def == nil {
 			// Placeholder type from an earlier error
 			return nil;
 		}
@@ -158,12 +158,12 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type 
 			// type name acts as the field identifier.
 			switch t := ts[i].(type) {
 			case *NamedType:
-				name = t.name;
+				name = t.Name;
 				nt = t;
 			case *PtrType:
 				switch t := t.Elem.(type) {
 				case *NamedType:
-					name = t.name;
+					name = t.Name;
 					nt = t;
 				}
 			}
@@ -338,15 +338,14 @@ func (a *compiler) compileTypeDecl(b *block, decl *ast.GenDecl) bool {
 		}
 		// Fill incomplete type
 		if nt != nil {
-			nt.(*NamedType).def = t;
-			nt.(*NamedType).incomplete = false;
+			nt.(*NamedType).Complete(t);
 		}
 		// Perform late type checking with complete type
 		if !tc.lateCheck() {
 			ok = false;
 			if nt != nil {
 				// Make the type a placeholder
-				nt.(*NamedType).def = nil;
+				nt.(*NamedType).Def = nil;
 			}
 		}
 	}

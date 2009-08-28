@@ -876,7 +876,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 				mark(depth, pathName + "." + name);
 				log.Crash("Methods not implemented");
 			}
-			t = ti.def;
+			t = ti.Def;
 		}
 
 		// If it's a struct type, check fields and embedded types
