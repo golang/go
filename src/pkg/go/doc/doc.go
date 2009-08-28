@@ -19,7 +19,10 @@ import (
 // ----------------------------------------------------------------------------
 
 type typeDoc struct {
-	decl *ast.GenDecl;  // len(decl.Specs) == 1, and the element type is *ast.TypeSpec
+	// len(decl.Specs) == 1, and the element type is *ast.TypeSpec
+	// if the type declaration hasn't been seen yet, decl is nil
+	decl *ast.GenDecl;
+	// factory functions and methods associated with the type
 	factories map[string] *ast.FuncDecl;
 	methods map[string] *ast.FuncDecl;
 }
@@ -34,20 +37,31 @@ type typeDoc struct {
 //
 type docReader struct {
 	doc *ast.CommentGroup;  // package documentation, if any
-	consts *vector.Vector;  // list of *ast.GenDecl
+	values *vector.Vector;  // list of *ast.GenDecl (consts and vars)
 	types map[string] *typeDoc;
-	vars *vector.Vector;  // list of *ast.GenDecl
 	funcs map[string] *ast.FuncDecl;
 	bugs *vector.Vector;  // list of *ast.CommentGroup
 }
 
 
 func (doc *docReader) init() {
-	doc.consts = vector.New(0);
+	doc.values = vector.New(0);
 	doc.types = make(map[string] *typeDoc);
-	doc.vars = vector.New(0);
 	doc.funcs = make(map[string] *ast.FuncDecl);
 	doc.bugs = vector.New(0);
+}
+
+
+func (doc *docReader) addType(decl *ast.GenDecl) {
+	spec := decl.Specs[0].(*ast.TypeSpec);
+	typ := doc.lookupTypeDoc(spec.Name.Value);
+	// typ should always be != nil since declared types
+	// are always named - be conservative and check
+	if typ != nil {
+		// a type should be added at most once, so typ.decl
+		// should be nil - if it isn't, simply overwrite it
+		typ.decl = decl;
+	}
 }
 
 
@@ -62,39 +76,17 @@ func baseTypeName(typ ast.Expr) string {
 }
 
 
-func (doc *docReader) lookupTypeDoc(typ ast.Expr) *typeDoc {
-	tdoc, found := doc.types[baseTypeName(typ)];
-	if found {
+func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
+	if name == "" {
+		return nil;  // no type docs for anonymous types
+	}
+	if tdoc, found := doc.types[name]; found {
 		return tdoc;
 	}
-	return nil;
-}
-
-
-func isForwardDecl(typ ast.Expr) bool {
-	switch t := typ.(type) {
-	case *ast.StructType:
-		return t.Fields == nil;
-	case *ast.InterfaceType:
-		return t.Methods == nil;
-	}
-	return false;
-}
-
-
-func (doc *docReader) addType(decl *ast.GenDecl) {
-	spec := decl.Specs[0].(*ast.TypeSpec);
-	name := spec.Name.Value;
-	if tdoc, found := doc.types[name]; found {
-		if !isForwardDecl(tdoc.decl.Specs[0].(*ast.TypeSpec).Type) || isForwardDecl(spec.Type) {
-			// existing type was not a forward-declaration or the
-			// new type is a forward declaration - leave it alone
-			return;
-		}
-		// replace existing type
-	}
-	tdoc := &typeDoc{decl, make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
+	// type wasn't found - add one without declaration
+	tdoc := &typeDoc{nil, make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
 	doc.types[name] = tdoc;
+	return tdoc;
 }
 
 
@@ -102,21 +94,15 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 	name := fun.Name.Value;
 
 	// determine if it should be associated with a type
-	var typ *typeDoc;
 	if fun.Recv != nil {
 		// method
-		// (all receiver types must be declared before they are used)
-		// TODO(gri) Reconsider this logic if no forward-declarations
-		//           are required anymore.
-		typ = doc.lookupTypeDoc(fun.Recv.Type);
+		typ := doc.lookupTypeDoc(baseTypeName(fun.Recv.Type));
+		// typ should always be != nil since receiver base
+		// types must be named - be conservative and check
 		if typ != nil {
-			// type found (i.e., exported)
 			typ.methods[name] = fun;
+			return;
 		}
-		// if the type wasn't found, it wasn't exported
-		// TODO(gri): a non-exported type may still have exported functions
-		//            determine what to do in that case
-		return;
 	}
 
 	// perhaps a factory function
@@ -125,8 +111,9 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 		res := fun.Type.Results[0];
 		if len(res.Names) <= 1 {
 			// exactly one (named or anonymous) result type
-			typ = doc.lookupTypeDoc(res.Type);
+			typ := doc.lookupTypeDoc(baseTypeName(res.Type));
 			if typ != nil {
+				// named result type
 				typ.factories[name] = fun;
 				return;
 			}
@@ -134,6 +121,7 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 	}
 
 	// ordinary function
+	// (or method that was not associated to a type for some reason)
 	doc.funcs[name] = fun;
 }
 
@@ -143,11 +131,9 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 	case *ast.GenDecl:
 		if len(d.Specs) > 0 {
 			switch d.Tok {
-			case token.IMPORT:
-				// ignore
-			case token.CONST:
-				// constants are always handled as a group
-				doc.consts.Push(d);
+			case token.CONST, token.VAR:
+				// constants and variables are always handled as a group
+				doc.values.Push(d);
 			case token.TYPE:
 				// types are handled individually
 				var noPos token.Position;
@@ -166,9 +152,6 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{spec}, noPos});
 					// A new GenDecl node is created, no need to nil out d.Doc.
 				}
-			case token.VAR:
-				// variables are always handled as a group
-				doc.vars.Push(d);
 			}
 		}
 	case *ast.FuncDecl:
@@ -314,13 +297,18 @@ func (p sortValueDoc) Less(i, j int) bool {
 }
 
 
-func makeValueDocs(v *vector.Vector) []*ValueDoc {
-	d := make([]*ValueDoc, v.Len());
+func makeValueDocs(v *vector.Vector, tok token.Token) []*ValueDoc {
+	d := make([]*ValueDoc, v.Len());  // big enough in any case
+	n := 0;
 	for i := range d {
 		decl := v.At(i).(*ast.GenDecl);
-		d[i] = &ValueDoc{astComment(decl.Doc), decl, i};
-		decl.Doc = nil;  // doc consumed - removed from AST
+		if decl.Tok == tok {
+			d[n] = &ValueDoc{astComment(decl.Doc), decl, i};
+			n++;
+			decl.Doc = nil;  // doc consumed - removed from AST
+		}
 	}
+	d = d[0 : n];
 	sort.Sort(sortValueDoc(d));
 	return d;
 }
@@ -395,24 +383,30 @@ func makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 	d := make([]*TypeDoc, len(m));
 	i := 0;
 	for _, old := range m {
-		typespec := old.decl.Specs[0].(*ast.TypeSpec);
-		t := new(TypeDoc);
-		doc := typespec.Doc;
-		typespec.Doc = nil;  // doc consumed - remove from ast.TypeSpec node
-		if doc == nil {
-			// no doc associated with the spec, use the declaration doc, if any
-			doc = old.decl.Doc;
+		// all typeDocs should have a declaration associated with
+		// them after processing an entire package - be conservative
+		// and check
+		if decl := old.decl; decl != nil {
+			typespec := decl.Specs[0].(*ast.TypeSpec);
+			t := new(TypeDoc);
+			doc := typespec.Doc;
+			typespec.Doc = nil;  // doc consumed - remove from ast.TypeSpec node
+			if doc == nil {
+				// no doc associated with the spec, use the declaration doc, if any
+				doc = decl.Doc;
+			}
+			decl.Doc = nil;  // doc consumed - remove from ast.Decl node
+			t.Doc = astComment(doc);
+			t.Type = typespec;
+			t.Factories = makeFuncDocs(old.factories);
+			t.Methods = makeFuncDocs(old.methods);
+			t.Decl = old.decl;
+			t.order = i;
+			d[i] = t;
+			i++;
 		}
-		old.decl.Doc = nil;  // doc consumed - remove from ast.Decl node
-		t.Doc = astComment(doc);
-		t.Type = typespec;
-		t.Factories = makeFuncDocs(old.factories);
-		t.Methods = makeFuncDocs(old.methods);
-		t.Decl = old.decl;
-		t.order = i;
-		d[i] = t;
-		i++;
 	}
+	d = d[0 : i];  // some types may have been ignored
 	sort.Sort(sortTypeDoc(d));
 	return d;
 }
@@ -453,8 +447,8 @@ func (doc *docReader) newDoc(pkgname, importpath, filepath string, filenames []s
 	sort.SortStrings(filenames);
 	p.Filenames = filenames;
 	p.Doc = astComment(doc.doc);
-	p.Consts = makeValueDocs(doc.consts);
-	p.Vars = makeValueDocs(doc.vars);
+	p.Consts = makeValueDocs(doc.values, token.CONST);
+	p.Vars = makeValueDocs(doc.values, token.VAR);
 	p.Types = makeTypeDocs(doc.types);
 	p.Funcs = makeFuncDocs(doc.funcs);
 	p.Bugs = makeBugDocs(doc.bugs);
