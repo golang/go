@@ -37,6 +37,17 @@ func (a *compiler) numError() int {
 	return a.numErrors + a.silentErrors;
 }
 
+// The universal scope
+func newUniverse() *Scope {
+	sc := &Scope{nil, 0};
+	sc.block = &block{
+		scope: sc,
+		defs: make(map[string] Def)
+	};
+	return sc;
+}
+var universe *Scope = newUniverse();
+
 
 // TODO(austin) These can all go in stmt.go now
 type label struct {

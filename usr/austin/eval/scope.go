@@ -10,6 +10,65 @@ import (
 	"log";
 )
 
+/*
+ * Blocks and scopes
+ */
+
+// A definition can be a *Variable, *Constant, or Type.
+type Def interface {
+	Pos() token.Position;
+}
+
+type Variable struct {
+	token.Position;
+	// Index of this variable in the Frame structure
+	Index int;
+	// Static type of this variable
+	Type Type;
+	// Value of this variable.  This is only used by Scope.NewFrame;
+	// therefore, it is useful for global scopes but cannot be used
+	// in function scopes.
+	Init Value;
+}
+
+type Constant struct {
+	token.Position;
+	Type Type;
+	Value Value;
+}
+
+// A block represents a definition block in which a name may not be
+// defined more than once.
+type block struct {
+	// The block enclosing this one, including blocks in other
+	// scopes.
+	outer *block;
+	// The nested block currently being compiled, or nil.
+	inner *block;
+	// The Scope containing this block.
+	scope *Scope;
+	// The Variables, Constants, and Types defined in this block.
+	defs map[string] Def;
+	// The index of the first variable defined in this block.
+	// This must be greater than the index of any variable defined
+	// in any parent of this block within the same Scope at the
+	// time this block is entered.
+	offset int;
+	// The number of Variables defined in this block.
+	numVars int;
+}
+
+// A Scope is the compile-time analogue of a Frame, which captures
+// some subtree of blocks.
+type Scope struct {
+	// The root block of this scope.
+	*block;
+	// The maximum number of variables required at any point in
+	// this Scope.  This determines the number of slots needed in
+	// Frame's created from this Scope at run-time.
+	maxVars int;
+}
+
 func (b *block) enterChild() *block {
 	if b.inner != nil && b.inner.scope == b.scope {
 		log.Crash("Failed to exit child block before entering another child");
@@ -115,6 +174,15 @@ func (s *Scope) NewFrame(outer *Frame) *Frame {
 		}
 	}
 	return fr;
+}
+
+/*
+ * Frames
+ */
+
+type Frame struct {
+	Outer *Frame;
+	Vars []Value;
 }
 
 func (f *Frame) Get(level int, index int) Value {

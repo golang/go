@@ -9,7 +9,6 @@ GOFILES=\
 	abort.go\
 	bridge.go\
 	compiler.go\
-	decls.go\
 	expr.go\
 	func.go\
 	scope.go\
