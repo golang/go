@@ -103,12 +103,12 @@ var testLetter = []int {
 func TestDigit(t *testing.T) {
 	for i, r := range testDigit {
 		if !IsDigit(r) {
-			t.Errorf("IsDigit(%#x) = false, want true\n", r);
+			t.Errorf("IsDigit(U+%04X) = false, want true\n", r);
 		}
 	}
 	for i, r := range testLetter {
 		if IsDigit(r) {
-			t.Errorf("IsDigit(%#x) = true, want false\n", r);
+			t.Errorf("IsDigit(U+%04X) = true, want false\n", r);
 		}
 	}
 }
