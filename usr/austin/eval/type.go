@@ -26,6 +26,44 @@ import (
 // sense in the comparison operators section.  The compatibility and
 // assignment compatibility sections should be rolled into one.
 
+type Type interface {
+	// compat returns whether this type is compatible with another
+	// type.  If conv is false, this is normal compatibility,
+	// where two named types are compatible only if they are the
+	// same named type.  If conv if true, this is conversion
+	// compatibility, where two named types are conversion
+	// compatible if their definitions are conversion compatible.
+	//
+	// TODO(austin) Deal with recursive types
+	compat(o Type, conv bool) bool;
+	// lit returns this type's literal.  If this is a named type,
+	// this is the unnamed underlying type.  Otherwise, this is an
+	// identity operation.
+	lit() Type;
+	// isBoolean returns true if this is a boolean type.
+	isBoolean() bool;
+	// isInteger returns true if this is an integer type.
+	isInteger() bool;
+	// isFloat returns true if this is a floating type.
+	isFloat() bool;
+	// isIdeal returns true if this is an ideal int or float.
+	isIdeal() bool;
+	// Zero returns a new zero value of this type.
+	Zero() Value;
+	// String returns the string representation of this type.
+	String() string;
+	// The position where this type was defined, if any.
+	Pos() token.Position;
+}
+
+type BoundedType interface {
+	Type;
+	// minVal returns the smallest value of this type.
+	minVal() *bignum.Rational;
+	// maxVal returns the largest value of this type.
+	maxVal() *bignum.Rational;
+}
+
 var universePos = token.Position{"<universe>", 0, 0, 0};
 
 /*

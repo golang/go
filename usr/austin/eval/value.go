@@ -9,6 +9,121 @@ import (
 	"fmt";
 )
 
+type Value interface {
+	String() string;
+	// Assign copies another value into this one.  It should
+	// assume that the other value satisfies the same specific
+	// value interface (BoolValue, etc.), but must not assume
+	// anything about its specific type.
+	Assign(o Value);
+}
+
+type BoolValue interface {
+	Value;
+	Get() bool;
+	Set(bool);
+}
+
+type UintValue interface {
+	Value;
+	Get() uint64;
+	Set(uint64);
+}
+
+type IntValue interface {
+	Value;
+	Get() int64;
+	Set(int64);
+}
+
+// TODO(austin) IdealIntValue and IdealFloatValue should not exist
+// because ideals are not l-values.
+type IdealIntValue interface {
+	Value;
+	Get() *bignum.Integer;
+}
+
+type FloatValue interface {
+	Value;
+	Get() float64;
+	Set(float64);
+}
+
+type IdealFloatValue interface {
+	Value;
+	Get() *bignum.Rational;
+}
+
+type StringValue interface {
+	Value;
+	Get() string;
+	Set(string);
+}
+
+type ArrayValue interface {
+	Value;
+	// TODO(austin) Get() is here for uniformity, but is
+	// completely useless.  If a lot of other types have similarly
+	// useless Get methods, just special-case these uses.
+	Get() ArrayValue;
+	Elem(i int64) Value;
+	// From returns an ArrayValue backed by the same array that
+	// starts from element i.
+	From(i int64) ArrayValue;
+}
+
+type StructValue interface {
+	Value;
+	// TODO(austin) This is another useless Get()
+	Get() StructValue;
+	Field(i int) Value;
+}
+
+type PtrValue interface {
+	Value;
+	Get() Value;
+	Set(Value);
+}
+
+type Func interface {
+	NewFrame() *Frame;
+	Call(*Frame);
+}
+
+type FuncValue interface {
+	Value;
+	Get() Func;
+	Set(Func);
+}
+
+type Slice struct {
+	Base ArrayValue;
+	Len, Cap int64;
+}
+
+type SliceValue interface {
+	Value;
+	Get() Slice;
+	Set(Slice);
+}
+
+type Map interface {
+	Len() int64;
+	// Retrieve an element from the map, returning nil if it does
+	// not exist.
+	Elem(key interface{}) Value;
+	// Set an entry in the map.  If val is nil, delete the entry.
+	SetElem(key interface{}, val Value);
+	// TODO(austin)  Perhaps there should be an iterator interface instead.
+	Iter(func(key interface{}, val Value) bool);
+}
+
+type MapValue interface {
+	Value;
+	Get() Map;
+	Set(Map);
+}
+
 /*
  * Bool
  */
