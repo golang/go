@@ -175,15 +175,6 @@ var (
 	UintptrType = universe.DefineType("uintptr", universePos, &uintType{commonType{}, 0,  true,  "uintptr"});
 )
 
-func init() {
-	// To avoid portability issues all numeric types are distinct
-	// except byte, which is an alias for uint8.
-
-	// Make byte an alias for the named type uint8.  Type aliases
-	// are otherwise impossible in Go, so just hack it here.
-	universe.defs["byte"] = universe.defs["uint8"];
-}
-
 func (t *uintType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*uintType);
 	return ok && t == t2;;
@@ -730,10 +721,25 @@ type FuncType struct {
 	In []Type;
 	Variadic bool;
 	Out []Type;
+	builtin string;
 }
 
 var funcTypes = newTypeArrayMap()
 var variadicFuncTypes = newTypeArrayMap()
+
+// Create singleton function types for magic built-in functions
+var (
+	capType     = &FuncType{builtin: "cap"};
+	closeType   = &FuncType{builtin: "close"};
+	closedType  = &FuncType{builtin: "closed"};
+	lenType     = &FuncType{builtin: "len"};
+	makeType    = &FuncType{builtin: "make"};
+	newType     = &FuncType{builtin: "new"};
+	panicType   = &FuncType{builtin: "panic"};
+	paniclnType = &FuncType{builtin: "panicln"};
+	printType   = &FuncType{builtin: "print"};
+	printlnType = &FuncType{builtin: "println"};
+)
 
 // Two function types are identical if they have the same number of
 // parameters and result values and if corresponding parameter and
@@ -757,7 +763,7 @@ func NewFuncType(in []Type, variadic bool, out []Type) *FuncType {
 		return tI.(*FuncType);
 	}
 
-	t := &FuncType{commonType{}, in, variadic, out};
+	t := &FuncType{commonType{}, in, variadic, out, ""};
 	outMap.Put(out, t);
 	return t;
 }
@@ -807,6 +813,9 @@ func typeListString(ts []Type, ns []*ast.Ident) string {
 }
 
 func (t *FuncType) String() string {
+	if t.builtin != "" {
+		return "built-in function " + t.builtin;
+	}
 	args := typeListString(t.In, nil);
 	if t.Variadic {
 		if len(args) > 0 {
@@ -894,6 +903,8 @@ func (t *SliceType) String() string {
 }
 
 func (t *SliceType) Zero() Value {
+	// The value of an uninitialized slice is nil. The length and
+	// capacity of a nil slice are 0.
 	return &sliceV{Slice{nil, 0, 0}};
 }
 
@@ -940,6 +951,7 @@ func (t *MapType) String() string {
 }
 
 func (t *MapType) Zero() Value {
+	// The value of an uninitialized map is nil.
 	return &mapV{nil};
 }
 
@@ -1096,4 +1108,29 @@ func (t *MultiType) Zero() Value {
 		res[i] = t.Zero();
 	}
 	return multiV(res);
+}
+
+/*
+ * Initialize the universe
+ */
+
+func init() {
+	// To avoid portability issues all numeric types are distinct
+	// except byte, which is an alias for uint8.
+
+	// Make byte an alias for the named type uint8.  Type aliases
+	// are otherwise impossible in Go, so just hack it here.
+	universe.defs["byte"] = universe.defs["uint8"];
+
+	// Built-in functions
+	universe.DefineConst("cap", universePos, capType, nil);
+	universe.DefineConst("close", universePos, closeType, nil);
+	universe.DefineConst("closed", universePos, closedType, nil);
+	universe.DefineConst("len", universePos, lenType, nil);
+	universe.DefineConst("make", universePos, makeType, nil);
+	universe.DefineConst("new", universePos, newType, nil);
+	universe.DefineConst("panic", universePos, panicType, nil);
+	universe.DefineConst("panicln", universePos, paniclnType, nil);
+	universe.DefineConst("print", universePos, printType, nil);
+	universe.DefineConst("println", universePos, printlnType, nil);
 }

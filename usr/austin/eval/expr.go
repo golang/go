@@ -47,6 +47,10 @@ type expr struct {
 	// Execute this expression as a statement.  Only expressions
 	// that are valid expression statements should set this.
 	exec func(f *Frame);
+	// If this expression is a type, this is its compiled type.
+	// This is only permitted in the function position of a call
+	// expression.  In this case, t should be nil.
+	valType Type;
 	// A short string describing this expression for error
 	// messages.
 	desc string;
@@ -287,6 +291,59 @@ func (a *expr) convertTo(t Type) *expr {
 	}
 
 	return res;
+}
+
+// convertToInt converts this expression to an integer, if possible,
+// or produces an error if not.  This accepts ideal ints, uints, and
+// ints.  If max is not -1, produces an error if possible if the value
+// exceeds max.  If negErr is not "", produces an error if possible if
+// the value is negative.
+func (a *expr) convertToInt(max int64, negErr string, errOp string) *expr {
+	switch _ := a.t.lit().(type) {
+	case *idealIntType:
+		val := a.asIdealInt()();
+		if negErr != "" && val.IsNeg() {
+			a.diag("negative %s: %s", negErr, val);
+			return nil;
+		}
+		if max != -1 && val.Cmp(bignum.Int(max)) >= 0 {
+			a.diag("index %s exceeds length %d", val, max);
+			return nil;
+		}
+		return a.convertTo(IntType);
+
+	case *uintType:
+		// Convert to int
+		na := a.newExpr(IntType, a.desc);
+		af := a.asUint();
+		na.evalInt = func(f *Frame) int64 {
+			return int64(af(f));
+		};
+		return na;
+
+	case *intType:
+		// Good as is
+		return a;
+	}
+
+	a.diag("illegal operand type for %s\n\t%v", errOp, a.t);
+	return nil;
+}
+
+// derefArray returns an expression of array type if the given
+// expression is a *array type.  Otherwise, returns the given
+// expression.
+func (a *expr) derefArray() *expr {
+	if pt, ok := a.t.lit().(*PtrType); ok {
+		if at, ok := pt.Elem.lit().(*ArrayType); ok {
+			deref := a.compileStarExpr(a);
+			if deref == nil {
+				log.Crashf("failed to dereference *array");
+			}
+			return deref;
+		}
+	}
+	return a;
 }
 
 /*
@@ -556,7 +613,11 @@ type exprCompiler struct {
 	constant bool;
 }
 
-func (a *exprCompiler) compile(x ast.Expr) *expr {
+// compile compiles an expression AST.  callCtx should be true if this
+// AST is in the function position of a function call node; it allows
+// the returned expression to be a type or a built-in function (which
+// otherwise result in errors).
+func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 	ei := &exprInfo{a.compiler, x.Pos()};
 
 	switch x := x.(type) {
@@ -595,22 +656,23 @@ func (a *exprCompiler) compile(x ast.Expr) *expr {
 
 	// Types
 	case *ast.ArrayType:
-		goto notimpl;
+		// TODO(austin) Use a multi-type case
+		goto typeexpr;
 
 	case *ast.ChanType:
-		goto notimpl;
+		goto typeexpr;
 
 	case *ast.Ellipsis:
-		goto notimpl;
+		goto typeexpr;
 
 	case *ast.FuncType:
-		goto notimpl;
+		goto typeexpr;
 
 	case *ast.InterfaceType:
-		goto notimpl;
+		goto typeexpr;
 
 	case *ast.MapType:
-		goto notimpl;
+		goto typeexpr;
 
 	// Remaining expressions
 	case *ast.BadExpr:
@@ -619,18 +681,23 @@ func (a *exprCompiler) compile(x ast.Expr) *expr {
 		return nil;
 
 	case *ast.BinaryExpr:
-		l, r := a.compile(x.X), a.compile(x.Y);
+		l, r := a.compile(x.X, false), a.compile(x.Y, false);
 		if l == nil || r == nil {
 			return nil;
 		}
 		return ei.compileBinaryExpr(x.Op, l, r);
 
 	case *ast.CallExpr:
-		l := a.compile(x.Fun);
+		l := a.compile(x.Fun, true);
 		args := make([]*expr, len(x.Args));
 		bad := false;
 		for i, arg := range x.Args {
-			args[i] = a.compile(arg);
+			if i == 0 && l.t == Type(makeType) {
+				argei := &exprInfo{a.compiler, arg.Pos()};
+				args[i] = argei.exprFromType(a.compileType(a.block, arg));
+			} else {
+				args[i] = a.compile(arg, false);
+			}
 			if args[i] == nil {
 				bad = true;
 			}
@@ -642,17 +709,25 @@ func (a *exprCompiler) compile(x ast.Expr) *expr {
 			a.diagAt(x, "function call in constant context");
 			return nil;
 		}
-		return ei.compileCallExpr(a.block, l, args);
+
+		if l.valType != nil {
+			a.diagAt(x, "type conversions not implemented");
+			return nil;
+		} else if ft, ok := l.t.(*FuncType); ok && ft.builtin != "" {
+			return ei.compileBuiltinCallExpr(a.block, ft, args);
+		} else {
+			return ei.compileCallExpr(a.block, l, args);
+		}
 
 	case *ast.Ident:
-		return ei.compileIdent(a.block, a.constant, x.Value);
+		return ei.compileIdent(a.block, a.constant, callCtx, x.Value);
 
 	case *ast.IndexExpr:
 		if x.End != nil {
 			a.diagAt(x, "slice expression not implemented");
 			return nil;
 		}
-		l, r := a.compile(x.X), a.compile(x.Index);
+		l, r := a.compile(x.X, false), a.compile(x.Index, false);
 		if l == nil || r == nil {
 			return nil;
 		}
@@ -662,19 +737,25 @@ func (a *exprCompiler) compile(x ast.Expr) *expr {
 		goto notimpl;
 
 	case *ast.ParenExpr:
-		return a.compile(x.X);
+		return a.compile(x.X, callCtx);
 
 	case *ast.SelectorExpr:
-		v := a.compile(x.X);
+		v := a.compile(x.X, false);
 		if v == nil {
 			return nil;
 		}
 		return ei.compileSelectorExpr(v, x.Sel.Value);
 
 	case *ast.StarExpr:
-		v := a.compile(x.X);
+		// We pass down our call context because this could be
+		// a pointer type (and thus a type conversion)
+		v := a.compile(x.X, callCtx);
 		if v == nil {
 			return nil;
+		}
+		if v.valType != nil {
+			// Turns out this was a pointer type, not a dereference
+			return ei.exprFromType(NewPtrType(v.valType));
 		}
 		return ei.compileStarExpr(v);
 
@@ -682,7 +763,7 @@ func (a *exprCompiler) compile(x ast.Expr) *expr {
 		strings := make([]*expr, len(x.Strings));
 		bad := false;
 		for i, s := range x.Strings {
-			strings[i] = a.compile(s);
+			strings[i] = a.compile(s, false);
 			if strings[i] == nil {
 				bad = true;
 			}
@@ -699,7 +780,7 @@ func (a *exprCompiler) compile(x ast.Expr) *expr {
 		goto notimpl;
 
 	case *ast.UnaryExpr:
-		v := a.compile(x.X);
+		v := a.compile(x.X, false);
 		if v == nil {
 			return nil;
 		}
@@ -708,12 +789,28 @@ func (a *exprCompiler) compile(x ast.Expr) *expr {
 	log.Crashf("unexpected ast node type %T", x);
 	panic();
 
+typeexpr:
+	if !callCtx {
+		a.diagAt(x, "type used as expression");
+		return nil;
+	}
+	return ei.exprFromType(a.compileType(a.block, x));
+
 notimpl:
 	a.diagAt(x, "%T expression node not implemented", x);
 	return nil;
 }
 
-func (a *exprInfo) compileIdent(b *block, constant bool, name string) *expr {
+func (a *exprInfo) exprFromType(t Type) *expr {
+	if t == nil {
+		return nil;
+	}
+	expr := a.newExpr(nil, "type");
+	expr.valType = t;
+	return expr;
+}
+
+func (a *exprInfo) compileIdent(b *block, constant bool, callCtx bool, name string) *expr {
 	level, def := b.Lookup(name);
 	if def == nil {
 		a.diag("%s: undefined", name);
@@ -722,7 +819,18 @@ func (a *exprInfo) compileIdent(b *block, constant bool, name string) *expr {
 	switch def := def.(type) {
 	case *Constant:
 		expr := a.newExpr(def.Type, "constant");
-		expr.genConstant(def.Value);
+		if ft, ok := def.Type.(*FuncType); ok && ft.builtin != "" {
+			// XXX(Spec) I don't think anything says that
+			// built-in functions can't be used as values.
+			if !callCtx {
+				a.diag("built-in function %s cannot be used as a value", ft.builtin);
+				return nil;
+			}
+			// Otherwise, we leave the evaluators empty
+			// because this is handled specially
+		} else {
+			expr.genConstant(def.Value);
+		}
 		return expr;
 	case *Variable:
 		if constant {
@@ -731,6 +839,9 @@ func (a *exprInfo) compileIdent(b *block, constant bool, name string) *expr {
 		}
 		return a.compileVariable(level, def);
 	case Type:
+		if callCtx {
+			return a.exprFromType(def);
+		}
 		a.diag("type %v used as expression", name);
 		return nil;
 	}
@@ -936,15 +1047,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 
 func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 	// Type check object
-	if lt, ok := l.t.lit().(*PtrType); ok {
-		if et, ok := lt.Elem.lit().(*ArrayType); ok {
-			// Automatic dereference
-			l = a.compileStarExpr(l);
-			if l == nil {
-				return nil;
-			}
-		}
-	}
+	l = l.derefArray();
 
 	var at Type;
 	intIndex := false;
@@ -987,36 +1090,8 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 		// XXX(Spec) It's unclear if ideal floats with no
 		// fractional part are allowed here.  6g allows it.  I
 		// believe that's wrong.
-		switch _ := r.t.lit().(type) {
-		case *idealIntType:
-			val := r.asIdealInt()();
-			if val.IsNeg() {
-				a.diag("negative index: %s", val);
-				return nil;
-			}
-			if maxIndex != -1 && val.Cmp(bignum.Int(maxIndex)) >= 0 {
-				a.diag("index %s exceeds length %d", val, maxIndex);
-				return nil;
-			}
-			r = r.convertTo(IntType);
-			if r == nil {
-				return nil;
-			}
-
-		case *uintType:
-			// Convert to int
-			nr := a.newExpr(IntType, r.desc);
-			rf := r.asUint();
-			nr.evalInt = func(f *Frame) int64 {
-				return int64(rf(f));
-			};
-			r = nr;
-
-		case *intType:
-			// Good as is
-
-		default:
-			a.diag("illegal operand type for index\n\t%v", r.t);
+		r = r.convertToInt(maxIndex, "index", "index");
+		if r == nil {
 			return nil;
 		}
 	}
@@ -1070,6 +1145,9 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 		expr.genValue(func(f *Frame) Value {
 			m := lf(f);
 			k := rf(f);
+			if m == nil {
+				Abort(NilPointer{});
+			}
 			e := m.Elem(k);
 			if e == nil {
 				Abort(KeyNotFound{k});
@@ -1080,7 +1158,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 		// aren't addressable.
 		expr.evalAddr = nil;
 		expr.evalMapValue = func(f *Frame) (Map, interface{}) {
-			// TODO(austin) Key check?
+			// TODO(austin) Key check?  nil check?
 			return lf(f), rf(f);
 		};
 
@@ -1092,11 +1170,6 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 }
 
 func (a *exprInfo) compileCallExpr(b *block, l *expr, as []*expr) *expr {
-	// TODO(austin) Type conversions look like calls, but will
-	// fail in DoIdent right now.
-	//
-	// TODO(austin) Magic built-in functions
-	//
 	// TODO(austin) Variadic functions.
 
 	// Type check
@@ -1160,6 +1233,193 @@ func (a *exprInfo) compileCallExpr(b *block, l *expr, as []*expr) *expr {
 	expr.genFuncCall(call);
 
 	return expr;
+}
+
+func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *expr {
+	checkCount := func(min, max int) bool {
+		if len(as) < min {
+			a.diag("not enough arguments to %s", ft.builtin);
+			return false;
+		} else if len(as) > max {
+			a.diag("too many arguments to %s", ft.builtin);
+			return false;
+		}
+		return true;
+	};
+
+	switch ft {
+	case capType:
+		if !checkCount(1, 1) {
+			return nil;
+		}
+		arg := as[0].derefArray();
+		expr := a.newExpr(IntType, "function call");
+		switch t := arg.t.lit().(type) {
+		case *ArrayType:
+			// TODO(austin) It would be nice if this could
+			// be a constant int.
+			v := t.Len;
+			expr.evalInt = func(f *Frame) int64 {
+				return v;
+			};
+
+		case *SliceType:
+			vf := arg.asSlice();
+			expr.evalInt = func(f *Frame) int64 {
+				return vf(f).Cap;
+			};
+
+		//case *ChanType:
+
+		default:
+			a.diag("illegal argument type for cap function\n\t%v", arg.t);
+			return nil;
+		}
+		return expr;
+
+	case lenType:
+		if !checkCount(1, 1) {
+			return nil;
+		}
+		arg := as[0].derefArray();
+		expr := a.newExpr(IntType, "function call");
+		switch t := arg.t.lit().(type) {
+		case *stringType:
+			vf := arg.asString();
+			expr.evalInt = func(f *Frame) int64 {
+				return int64(len(vf(f)));
+			};
+
+		case *ArrayType:
+			// TODO(austin) It would be nice if this could
+			// be a constant int.
+			v := t.Len;
+			expr.evalInt = func(f *Frame) int64 {
+				return v;
+			};
+
+		case *SliceType:
+			vf := arg.asSlice();
+			expr.evalInt = func(f *Frame) int64 {
+				return vf(f).Len;
+			};
+
+		case *MapType:
+			vf := arg.asMap();
+			expr.evalInt = func(f *Frame) int64 {
+				// XXX(Spec) What's the len of an
+				// uninitialized map?
+				m := vf(f);
+				if m == nil {
+					return 0;
+				}
+				return m.Len();
+			};
+
+		//case *ChanType:
+
+		default:
+			a.diag("illegal argument type for len function\n\t%v", arg.t);
+			return nil;
+		}
+		return expr;
+
+	case makeType:
+		if !checkCount(1, 3) {
+			return nil;
+		}
+		// XXX(Spec) What are the types of the
+		// arguments?  Do they have to be ints?  6g
+		// accepts any integral type.
+		var lenexpr, capexpr *expr;
+		var lenf, capf func(f *Frame) int64;
+		if len(as) > 1 {
+			lenexpr = as[1].convertToInt(-1, "length", "make function");
+			if lenexpr == nil {
+				return nil;
+			}
+			lenf = lenexpr.asInt();
+		}
+		if len(as) > 2 {
+			capexpr = as[2].convertToInt(-1, "capacity", "make function");
+			if capexpr == nil {
+				return nil;
+			}
+			capf = capexpr.asInt();
+		}
+
+		switch t := as[0].valType.lit().(type) {
+		case *SliceType:
+			// A new, initialized slice value for a given
+			// element type T is made using the built-in
+			// function make, which takes a slice type and
+			// parameters specifying the length and
+			// optionally the capacity.
+			if !checkCount(2, 3) {
+				return nil;
+			}
+			et := t.Elem;
+			expr := a.newExpr(t, "function call");
+			expr.evalSlice = func(f *Frame) Slice {
+				l := lenf(f);
+				// XXX(Spec) What if len or cap is
+				// negative?  The runtime panics.
+				if l < 0 {
+					Abort(NegativeLength{l});
+				}
+				c := l;
+				if capf != nil {
+					c = capf(f);
+					if c < 0 {
+						Abort(NegativeCapacity{c});
+					}
+					// XXX(Spec) What happens if
+					// len > cap?  The runtime
+					// sets cap to len.
+					if l > c {
+						c = l;
+					}
+				}
+				base := arrayV(make([]Value, c));
+				for i := int64(0); i < c; i++ {
+					base[i] = et.Zero();
+				}
+				return Slice{&base, l, c};
+			};
+			return expr;
+
+		case *MapType:
+			// A new, empty map value is made using the
+			// built-in function make, which takes the map
+			// type and an optional capacity hint as
+			// arguments.
+			if !checkCount(1, 2) {
+				return nil;
+			}
+			expr := a.newExpr(t, "function call");
+			expr.evalMap = func(f *Frame) Map {
+				if lenf == nil {
+					return make(evalMap);
+				}
+				l := lenf(f);
+				return make(evalMap, l);
+			};
+			return expr;
+
+		//case *ChanType:
+
+		default:
+			a.diag("illegal argument type for make function\n\t%v", as[0].valType);
+			return nil;
+		}
+
+	case closeType, closedType, newType, panicType, paniclnType, printType, printlnType:
+		a.diag("built-in function %s not implemented", ft.builtin);
+		return nil;
+	}
+
+	log.Crashf("unexpected built-in function '%s'", ft.builtin);
+	panic();
 }
 
 func (a *exprInfo) compileStarExpr(v *expr) *expr {
@@ -1646,7 +1906,7 @@ func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool) {
 func (a *compiler) compileExpr(b *block, constant bool, expr ast.Expr) *expr {
 	ec := &exprCompiler{a, b, constant};
 	nerr := a.numError();
-	e := ec.compile(expr);
+	e := ec.compile(expr, false);
 	if e == nil && nerr == a.numError() {
 		log.Crashf("expression compilation failed without reporting errors");
 	}

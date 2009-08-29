@@ -67,5 +67,21 @@ type KeyNotFound struct {
 }
 
 func (e KeyNotFound) String() string {
-	return fmt.Sprintf("key %s not found in map", e.Key);
+	return fmt.Sprintf("key '%v' not found in map", e.Key);
+}
+
+type NegativeLength struct {
+	Len int64;
+}
+
+func (e NegativeLength) String() string {
+	return fmt.Sprintf("negative length: %d", e.Len);
+}
+
+type NegativeCapacity struct {
+	Len int64;
+}
+
+func (e NegativeCapacity) String() string {
+	return fmt.Sprintf("negative capacity: %d", e.Len);
 }

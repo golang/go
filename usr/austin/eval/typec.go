@@ -258,6 +258,8 @@ func (a *typeCompiler) compileMapType(x *ast.MapType) Type {
 func (a *typeCompiler) compileType(x ast.Expr, allowRec bool) Type {
 	switch x := x.(type) {
 	case *ast.BadExpr:
+		// Error already reported by parser
+		a.silentErrors++;
 		return nil;
 
 	case *ast.Ident:
