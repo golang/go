@@ -1175,8 +1175,12 @@ yes:
 }
 
 static int
-regcmp(Node *ra, Node *rb)
+regcmp(const void *va, const void *vb)
 {
+	Node *ra, *rb;
+
+	ra = (Node*)va;
+	rb = (Node*)vb;
 	return ra->local - rb->local;
 }
 

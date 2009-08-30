@@ -106,6 +106,16 @@ regopt(Prog *firstp)
 		first = 0;
 	}
 
+	// count instructions
+	nr = 0;
+	for(p=firstp; p!=P; p=p->link)
+		nr++;
+	// if too big dont bother
+	if(nr >= 10000) {
+		print("********** %S is too big (%d)\n", curfn->nname->sym, nr);
+		return;
+	}
+
 	r1 = R;
 	firstr = R;
 	lastr = R;
@@ -1464,49 +1474,56 @@ BtoF(int32 b)
 }
 
 void
-dumpit(char *str, Reg *r0)
+dumpone(Reg *r)
 {
-	Reg *r, *r1;
 	int z;
 	Bits bit;
 
+	print("%ld:%P", r->loop, r->prog);
+	for(z=0; z<BITS; z++)
+		bit.b[z] =
+			r->set.b[z] |
+			r->use1.b[z] |
+			r->use2.b[z] |
+			r->refbehind.b[z] |
+			r->refahead.b[z] |
+			r->calbehind.b[z] |
+			r->calahead.b[z] |
+			r->regdiff.b[z] |
+			r->act.b[z] |
+				0;
+	if(bany(&bit)) {
+		print("\t");
+		if(bany(&r->set))
+			print(" s:%Q", r->set);
+		if(bany(&r->use1))
+			print(" u1:%Q", r->use1);
+		if(bany(&r->use2))
+			print(" u2:%Q", r->use2);
+		if(bany(&r->refbehind))
+			print(" rb:%Q ", r->refbehind);
+		if(bany(&r->refahead))
+			print(" ra:%Q ", r->refahead);
+		if(bany(&r->calbehind))
+			print("cb:%Q ", r->calbehind);
+		if(bany(&r->calahead))
+			print(" ca:%Q ", r->calahead);
+		if(bany(&r->regdiff))
+			print(" d:%Q ", r->regdiff);
+		if(bany(&r->act))
+			print(" a:%Q ", r->act);
+	}
+	print("\n");
+}
+
+void
+dumpit(char *str, Reg *r0)
+{
+	Reg *r, *r1;
+
 	print("\n%s\n", str);
 	for(r = r0; r != R; r = r->link) {
-		print("%ld:%P", r->loop, r->prog);
-		for(z=0; z<BITS; z++)
-			bit.b[z] =
-				r->set.b[z] |
-				r->use1.b[z] |
-				r->use2.b[z] |
-				r->refbehind.b[z] |
-				r->refahead.b[z] |
-				r->calbehind.b[z] |
-				r->calahead.b[z] |
-				r->regdiff.b[z] |
-				r->act.b[z] |
-					0;
-		if(bany(&bit)) {
-			print("\t");
-			if(bany(&r->set))
-				print(" s:%Q", r->set);
-			if(bany(&r->use1))
-				print(" u1:%Q", r->use1);
-			if(bany(&r->use2))
-				print(" u2:%Q", r->use2);
-			if(bany(&r->refbehind))
-				print(" rb:%Q ", r->refbehind);
-			if(bany(&r->refahead))
-				print(" ra:%Q ", r->refahead);
-			if(bany(&r->calbehind))
-				print("cb:%Q ", r->calbehind);
-			if(bany(&r->calahead))
-				print(" ca:%Q ", r->calahead);
-			if(bany(&r->regdiff))
-				print(" d:%Q ", r->regdiff);
-			if(bany(&r->act))
-				print(" a:%Q ", r->act);
-		}
-		print("\n");
+		dumpone(r);
 		r1 = r->p2;
 		if(r1 != R) {
 			print("	pred:");
@@ -1535,6 +1552,7 @@ noreturn(Prog *p)
 	if(symlist[0] == S) {
 		symlist[0] = pkglookup("throwindex", "sys");
 		symlist[0] = pkglookup("throwslice", "sys");
+		symlist[0] = pkglookup("throwinit", "sys");
 		symlist[1] = pkglookup("panicl", "sys");
 	}
 
