@@ -137,7 +137,8 @@ void	paint1(Reg*, int);
 uint32	paint2(Reg*, int);
 void	paint3(Reg*, int, int32, int);
 void	addreg(Adr*, int);
-void	dumpit(char *str, Reg *r0);
+void	dumpone(Reg*);
+void	dumpit(char*, Reg*);
 int	noreturn(Prog *p);
 
 /*
