@@ -112,7 +112,7 @@ regopt(Prog *firstp)
 		nr++;
 	// if too big dont bother
 	if(nr >= 10000) {
-		print("********** %S is too big (%d)\n", curfn->nname->sym, nr);
+//		print("********** %S is too big (%d)\n", curfn->nname->sym, nr);
 		return;
 	}
 
