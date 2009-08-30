@@ -738,7 +738,7 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 
 			// .alternates between elements
 			if !first && r.altstart >= 0 {
-				for i := r.altstart; i < r.altend; i++ {
+				for i := r.altstart; i < r.altend; {
 					i = t.executeElement(i, newst)
 				}
 			}
@@ -758,7 +758,7 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 
 			// .alternates between elements
 			if !first && r.altstart >= 0 {
-				for i := r.altstart; i < r.altend; i++ {
+				for i := r.altstart; i < r.altend; {
 					i = t.executeElement(i, newst)
 				}
 			}
