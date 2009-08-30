@@ -188,6 +188,17 @@ var tests = []*Test {
 		out: "this should appear: empty field\n"
 	},
 	&Test{
+		in: "{.repeated section pdata }\n"
+		"{item}\n"
+		"{.alternates with}\n"
+		"is\nover\nmultiple\nlines\n"
+		"{.end}\n",
+
+		out: "ItemNumber1\n"
+		"is\nover\nmultiple\nlines\n"
+		"ItemNumber2\n"
+	},
+	&Test{
 		in: "{.section pdata }\n"
 		"{.repeated section @ }\n"
 		"{item}={value}\n"
