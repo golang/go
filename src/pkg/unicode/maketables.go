@@ -636,13 +636,13 @@ type caseState struct {
 // Is d a continuation of the state of c?
 func (c *caseState) adjacent(d *caseState) bool {
 	if d.point < c.point {
-		return d.adjacent(c)
+		c, d = d, c
 	}
 	switch {
-	case d.point != c.point+1:
+	case d.point != c.point+1:	// code points not adjacent (shouldn't happen)
 		return false
-	case d._case != c._case:
-		return false
+	case d._case != c._case:	// different cases
+		return c.upperLowerAdjacent(d);
 	case c._case == CaseNone:
 		return false
 	case c._case == CaseMissing:
@@ -655,6 +655,70 @@ func (c *caseState) adjacent(d *caseState) bool {
 		return false
 	}
 	return true; 
+}
+
+// Is d the same as c, but opposite in upper/lower case? this would make it
+// an element of an UpperLower sequence.
+func (c *caseState) upperLowerAdjacent(d *caseState) bool {
+	// check they're a matched case pair.  we know they have adjacent values
+	switch {
+	case c._case == CaseUpper && d._case != CaseLower:
+		return false
+	case c._case == CaseLower && d._case != CaseUpper:
+		return false
+	}
+	// matched pair (at least in upper/lower).  make the order Upper Lower
+	if c._case == CaseLower {
+		c, d = d, c
+	}
+	// for an Upper Lower sequence the deltas have to be in order
+	//	c: 0 1 0
+	//	d: -1 0 -1
+	switch {
+	case c.deltaToUpper != 0:
+		return false
+	case c.deltaToLower != 1:
+		return false
+	case c.deltaToTitle != 0:
+		return false
+	case d.deltaToUpper != -1:
+		return false
+	case d.deltaToLower != 0:
+		return false
+	case d.deltaToTitle != -1:
+		return false
+	}
+	return true
+}
+
+// Does this character start an UpperLower sequence?
+func (c *caseState) isUpperLower() bool {
+	// for an Upper Lower sequence the deltas have to be in order
+	//	c: 0 1 0
+	switch {
+	case c.deltaToUpper != 0:
+		return false
+	case c.deltaToLower != 1:
+		return false
+	case c.deltaToTitle != 0:
+		return false
+	}
+	return true
+}
+
+// Does this character start a LowerUpper sequence?
+func (c *caseState) isLowerUpper() bool {
+	// for an Upper Lower sequence the deltas have to be in order
+	//	c: -1 0 -1
+	switch {
+	case c.deltaToUpper != -1:
+		return false
+	case c.deltaToLower != 0:
+		return false
+	case c.deltaToTitle != -1:
+		return false
+	}
+	return true
 }
 
 func getCaseState(i int) (c *caseState) {
@@ -729,9 +793,19 @@ func printCaseRange(lo, hi *caseState) {
 		// character represents itself in all cases - no need to mention it
 		return
 	}
-	fmt.Printf("\tCaseRange{0x%04X, 0x%04X, d{%d, %d, %d}},\n",
-		lo.point, hi.point,
-		lo.deltaToUpper, lo.deltaToLower, lo.deltaToTitle)
+	switch {
+	case hi.point > lo.point && lo.isUpperLower():
+		fmt.Printf("\tCaseRange{0x%04X, 0x%04X, d{UpperLower, UpperLower, UpperLower}},\n",
+			lo.point, hi.point)
+	case hi.point > lo.point && lo.isLowerUpper():
+		die.Log("LowerUpper sequence: should not happen: U+%04X\n", lo.point);
+		fmt.Printf("\tCaseRange{0x%04X, 0x%04X, d{LowerUpper, LowerUpper, LowerUpper}},\n",
+			lo.point, hi.point)
+	default:
+		fmt.Printf("\tCaseRange{0x%04X, 0x%04X, d{%d, %d, %d}},\n",
+			lo.point, hi.point,
+			lo.deltaToUpper, lo.deltaToLower, lo.deltaToTitle)
+	}
 }
 
 // If the cased value in the Char is 0, it means use the rune itself.

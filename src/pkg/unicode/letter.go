@@ -18,7 +18,15 @@ type Range struct {
 // The range runs from Lo to Hi inclusive, with a fixed stride of 1.  Deltas
 // are the number to add to the code point to reach the code point for a
 // different case for that character.  They may be negative.  If zero, it
-// means the character is in the corresponding case.
+// means the character is in the corresponding case. There is a special
+// case representing sequences of alternating corresponding Upper and Lower
+// pairs.  It appears with the usual Lo and Hi values and a Delta of
+//	{0, UpperLower, 0}
+// The constant UpperLower has (meaningful) value 1.  The lower case
+// letters in such sequences are assumed; were they present they would
+// have a Delta of
+//	{LowerUpper, 0, LowerUpper}
+// where LowerUpper has value -1.
 type CaseRange struct {
 	Lo	int;
 	Hi	int;
@@ -38,8 +46,9 @@ type d [MaxCase]int32	// to make the CaseRanges text shorter
 // this CaseRange represents a sequence of the form (say)
 // Upper Lower Upper Lower.
 const (
-	UpperLower	= 1;
-	LowerUpper	= -1;
+	MaxChar		= 0x10FFFF;
+	UpperLower      = MaxChar + 2;	// cannot be a valid delta
+	LowerUpper	= MaxChar + 3;
 )
 
 // Is tests whether rune is in the specified table of ranges.
@@ -103,10 +112,26 @@ func IsTitle(rune int) bool {
 // IsLetter reports whether the rune is a letter.
 func IsLetter(rune int) bool {
 	if rune < 0x80 {	// quick ASCII check
-		rune &^= ' ';
+		rune &^= 'a'-'A';
 		return 'A' <= rune && rune <= 'Z';
 	}
 	return Is(Letter, rune);
+}
+
+// In an Upper-Lower sequence, which always starts with an UpperCase letter,
+// the real deltas always look like:
+//	0 1 0
+//	-1 0 -1
+// This is a single-dimensioned array addressed by the case shifted up one bit
+// (the column of this table) or'ed with the low bit of the position in
+// the sequence (the row of the table).
+var ulDelta = [8]int{
+	(UpperCase<<1) | 0: 0,
+	(UpperCase<<1) | 1: -1,
+	(LowerCase<<1) | 0: 1,
+	(LowerCase<<1) | 1: 0,
+	(TitleCase<<1) | 0: 0,
+	(TitleCase<<1) | 1: -1,
 }
 
 // To maps the rune to the specified case, UpperCase, LowerCase, or TitleCase
@@ -121,7 +146,13 @@ func To(_case int, rune int) int {
 		m := lo + (hi - lo)/2;
 		r := CaseRanges[m];
 		if r.Lo <= rune && rune <= r.Hi {
-			return rune + int(r.Delta[_case]);
+			delta := int(r.Delta[_case]);
+			if delta > MaxChar {
+				// Somewhere inside an UpperLower sequence. Use
+				// the precomputed delta table to get our offset.
+				delta = ulDelta[((_case<<1) | ((rune-r.Lo)&1))];
+			}
+			return rune + delta;
 		}
 		if rune < r.Lo {
 			hi = m;
@@ -136,7 +167,7 @@ func To(_case int, rune int) int {
 func ToUpper(rune int) int {
 	if rune < 0x80 {	// quick ASCII check
 		if 'a' <= rune && rune <= 'z' {
-			rune &^= ' '
+			rune -= 'a'-'A'
 		}
 		return rune
 	}
@@ -147,7 +178,7 @@ func ToUpper(rune int) int {
 func ToLower(rune int) int {
 	if rune < 0x80 {	// quick ASCII check
 		if 'A' <= rune && rune <= 'Z' {
-			rune |= ' '
+			rune += 'a'-'A'
 		}
 		return rune
 	}
@@ -158,7 +189,7 @@ func ToLower(rune int) int {
 func ToTitle(rune int) int {
 	if rune < 0x80 {	// quick ASCII check
 		if 'a' <= rune && rune <= 'z' {	// title case is upper case for ASCII
-			rune &^= ' '
+			rune -= 'a'-'A'
 		}
 		return rune
 	}
