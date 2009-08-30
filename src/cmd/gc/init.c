@@ -32,19 +32,22 @@ renameinit(Node *n)
  * hand-craft the following initialization code
  *	var initdone·<file> uint8 			(1)
  *	func	Init·<file>()				(2)
- *		if initdone·<file> {			(3)
+ *		if initdone·<file> != 0 {		(3)
  *			if initdone·<file> == 2		(4)
  *				return
  *			throw();			(5)
  *		}
- *		initdone.<file>++;			(6)
+ *		initdone.<file> += 1;			(6)
  *		// over all matching imported symbols
  *			<pkg>.init·<file>()		(7)
  *		{ <init stmts> }			(8)
  *		init·<file>()	// if any		(9)
- *		initdone.<file>++;			(10)
+ *		initdone.<file> += 1;			(10)
  *		return					(11)
  *	}
+ * note that this code cannot have an assignment
+ * statement or, because of the initflag,  it will
+ * be converted into a data statement.
  */
 int
 anyinit(NodeList *n)
@@ -119,7 +122,6 @@ fninit(NodeList *n)
 	// (2)
 
 	maxarg = 0;
-
 	snprint(namebuf, sizeof(namebuf), "Init·");
 
 	// this is a botch since we need a known name to
@@ -196,14 +198,9 @@ fninit(NodeList *n)
 
 	fn->nbody = r;
 
-//dump("b", fn);
-//dump("r", fn->nbody);
-
 	initflag = 1;	// flag for loader static initialization
 	funcbody(fn);
 	typecheck(&fn, Etop);
 	funccompile(fn);
 	initflag = 0;
 }
-
-

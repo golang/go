@@ -609,7 +609,7 @@ dodump(Node *n, int dep)
 		print("%O-rlist\n", n->op);
 		dodumplist(n->rlist, dep+1);
 	}
-	if(n->nbody != nil) {
+	if(n->op != OIF && n->nbody != nil) {
 		indent(dep);
 		print("%O-nbody\n", n->op);
 		dodumplist(n->nbody, dep+1);
