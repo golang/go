@@ -157,7 +157,7 @@ var caseTest = []caseT {
 	caseT{LowerCase,	0xA65F,	0xA65F},
 	caseT{TitleCase,	0xA65F,	0xA65E},
 
-	// From a LowerUpper sequence
+	// From another UpperLower sequence
 	// 0139;LATIN CAPITAL LETTER L WITH ACUTE;Lu;0;L;004C 0301;;;;N;LATIN CAPITAL LETTER L ACUTE;;;013A;
 	caseT{UpperCase,	0x0139,	0x0139},
 	caseT{LowerCase,	0x0139,	0x013A},
