@@ -798,7 +798,7 @@ func printCaseRange(lo, hi *caseState) {
 		fmt.Printf("\tCaseRange{0x%04X, 0x%04X, d{UpperLower, UpperLower, UpperLower}},\n",
 			lo.point, hi.point)
 	case hi.point > lo.point && lo.isLowerUpper():
-		die.Log("LowerUpper sequence: should not happen: U+%04X\n", lo.point);
+		die.Log("LowerUpper sequence: should not happen: U+%04X.  If it's real, need to fix To()", lo.point);
 		fmt.Printf("\tCaseRange{0x%04X, 0x%04X, d{LowerUpper, LowerUpper, LowerUpper}},\n",
 			lo.point, hi.point)
 	default:
