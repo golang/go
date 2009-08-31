@@ -48,6 +48,14 @@ TYPES
 {.repeated section @}
 {Decl}
 {Doc}
+{.repeated section Consts}
+{Decl}
+{Doc}
+{.end}
+{.repeated section Vars}
+{Decl}
+{Doc}
+{.end}
 {.repeated section Factories}
 {Decl}
 {Doc}
