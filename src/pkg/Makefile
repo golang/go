@@ -74,58 +74,20 @@ DIRS=\
 	unicode\
 	utf8\
 
+NOTEST=\
+	go/ast\
+	go/doc\
+	go/token\
+	hash\
+	image\
+	malloc\
+	rand\
+	runtime\
+	syscall\
+	testing/iotest\
+
 TEST=\
-	archive/tar\
-	base64\
-	big\
-	bignum\
-	bufio\
-	bytes\
-	compress/flate\
-	compress/gzip\
-	compress/zlib\
-	container/list\
-	container/ring\
-	container/vector\
-	crypto/aes\
-	crypto/block\
-	crypto/hmac\
-	crypto/md5\
-	crypto/sha1\
-	datafmt\
-	ebnf\
-	exec\
-	exvar\
-	flag\
-	fmt\
-	go/parser\
-	go/printer\
-	go/scanner\
-	gob\
-	hash/adler32\
-	hash/crc32\
-	http\
-	io\
-	json\
-	log\
-	math\
-	net\
-	once\
-	os\
-	path\
-	reflect\
-	regexp\
-	rpc\
-	sort\
-	strconv\
-	strings\
-	sync\
-	tabwriter\
-	template\
-	testing\
-	time\
-	unicode\
-	utf8\
+	$(filter-out $(NOTEST),$(DIRS))
 
 clean.dirs: $(addsuffix .clean, $(DIRS))
 install.dirs: $(addsuffix .install, $(DIRS))
