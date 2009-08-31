@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package strings
+package strings_test
 
 import (
+	. "strings";
 	"testing";
 )
 
@@ -92,7 +93,7 @@ var explodetests = []ExplodeTest {
 }
 func TestExplode(t *testing.T) {
 	for _, tt := range explodetests {
-		a := explode(tt.s, tt.n);
+		a := Split(tt.s, "", tt.n);
 		if !eq(a, tt.a) {
 			t.Errorf("explode(%q, %d) = %v; want %v", tt.s, tt.n, a, tt.a);
 			continue;

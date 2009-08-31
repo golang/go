@@ -6,11 +6,12 @@
 // This package calls a Unicode character a rune for brevity.
 package utf8
 
+import "unicode"	// only needed for a couple of constants
+
 // Numbers fundamental to the encoding.
 const (
-	RuneError = 0xFFFD;	// the "error" Rune or "replacement character".
+	RuneError = unicode.ReplacementChar;	// the "error" Rune or "replacement character".
 	RuneSelf = 0x80;	// characters below Runeself are represented as themselves in a single byte.
-	RuneMax = 0x10FFFF;	// maximum Unicode code point.
 	UTFMax = 4;	// maximum number of bytes of a UTF-8 encoded Unicode character.
 )
 
@@ -239,7 +240,7 @@ func EncodeRune(rune int, p []byte) int {
 		return 2;
 	}
 
-	if rune > RuneMax {
+	if rune > unicode.MaxRune {
 		rune = RuneError
 	}
 
