@@ -241,22 +241,30 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 
 	// We only send structs - everything else is basic or an error
 	switch t := rt.(type) {
-	case *reflect.StructType:
+	case *reflect.StructType:	// TODO: when compiler handles type lists, can fold these
 		break;	// we handle these
 	case *reflect.ChanType:
-		enc.badType(rt);
-		return;
-	case *reflect.MapType:
 		enc.badType(rt);
 		return;
 	case *reflect.FuncType:
 		enc.badType(rt);
 		return;
+	case *reflect.MapType:
+		enc.badType(rt);
+		return;
 	case *reflect.InterfaceType:
 		enc.badType(rt);
 		return;
+	// Array and slice types are not sent, only their element types.
+	// If we see one here it's user error.
+	case *reflect.ArrayType:
+		enc.badType(rt);
+		return;
+	case *reflect.SliceType:
+		enc.badType(rt);
+		return;
 	default:
-		return;	// basic, array, etc; not a type to be sent.
+		return;	// basic, not a type to be sent.
 	}
 
 	// Have we already sent this type?  This time we ask about the base type.
