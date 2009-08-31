@@ -115,20 +115,20 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
 		shortest = true;
 		roundShortest(d, mant, exp, flt);
 		switch fmt {
-		case 'e':
+		case 'e', 'E':
 			prec = d.nd - 1;
 		case 'f':
 			prec = max(d.nd - d.dp, 0);
-		case 'g':
+		case 'g', 'G':
 			prec = d.nd;
 		}
 	} else {
 		switch fmt {
-		case 'e':
+		case 'e', 'E':
 			d.Round(prec+1);
 		case 'f':
 			d.Round(d.dp+prec);
-		case 'g':
+		case 'g', 'G':
 			if prec == 0 {
 				prec = 1;
 			}
@@ -137,11 +137,11 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
 	}
 
 	switch fmt {
-	case 'e':
-		return fmtE(neg, d, prec);
+	case 'e', 'E':
+		return fmtE(neg, d, prec, fmt);
 	case 'f':
 		return fmtF(neg, d, prec);
-	case 'g':
+	case 'g', 'G':
 		// trailing zeros are removed.
 		if prec > d.nd {
 			prec = d.nd;
@@ -155,7 +155,7 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
 		}
 		exp := d.dp - 1;
 		if exp < -4 || exp >= eprec {
-			return fmtE(neg, d, prec - 1);
+			return fmtE(neg, d, prec - 1, fmt + 'e' - 'g');
 		}
 		return fmtF(neg, d, max(prec - d.dp, 0));
 	}
@@ -251,7 +251,7 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 }
 
 // %e: -d.ddddde±dd
-func fmtE(neg bool, d *decimal, prec int) string {
+func fmtE(neg bool, d *decimal, prec int, fmt byte) string {
 	buf := make([]byte, 3+max(prec, 0)+30);	// "-0." + prec digits + exp
 	w := 0;	// write index
 
@@ -284,7 +284,7 @@ func fmtE(neg bool, d *decimal, prec int) string {
 	}
 
 	// e±
-	buf[w] = 'e';
+	buf[w] = fmt;
 	w++;
 	exp := d.dp - 1;
 	if d.nd == 0 {	// special case: 0 has exponent 0

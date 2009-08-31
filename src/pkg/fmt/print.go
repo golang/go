@@ -10,8 +10,11 @@
 	The verbs:
 
 	General:
-		%v	for any operand type, the value in a default format.
+		%v	the value in a default format.
 			when printing structs, the plus flag (%+v) adds field names
+		%#v	a Go-syntax representation of the value
+		%T	a Go-syntax representation of the type of the value
+
 	Boolean:
 		%t	the word true or false
 	Integer:
@@ -23,16 +26,16 @@
 		%X	base 16, with upper-case letters for A-F
 	Floating-point:
 		%e	scientific notation, e.g. -1234.456e+78
+		%E	scientific notation, e.g. -1234.456E+78
 		%f	decimal point but no exponent, e.g. 123.456
 		%g	whichever of %e or %f produces more compact output
+		%G	whichever of %E or %f produces more compact output
 	String and slice of bytes:
 		%s	the uninterpreted bytes of the string or slice
 		%q	a double-quoted string safely escaped with Go syntax
 		%x	base 16 notation with two characters per byte
 	Pointer:
 		%p	base 16 notation, with leading 0x
-	Type:
-		%T	a Go-syntax representation of the type of the operand
 
 	There is no 'u' flag.  Integers are printed unsigned if they have unsigned type.
 	Similarly, there is no need to specify the size of the operand (int8, int64).
@@ -95,19 +98,27 @@ type State interface {
 	Flag(int)	bool;
 }
 
-// Formatter is the interface implemented by objects with a custom formatter.
+// Formatter is the interface implemented by values with a custom formatter.
 // The implementation of Format may call Sprintf or Fprintf(f) etc.
 // to generate its output.
 type Formatter interface {
 	Format(f State, c int);
 }
 
-// String represents any object being printed that has a String() method that
-// returns a string, which defines the ``native'' format for that object.
-// Any such object will be printed using that method if passed
-// as operand to a %s or %v format or to an unformatted printer such as Print.
+// Stringer is implemented by any value that has a String method(),
+// which defines the ``native'' format for that value.
+// The String method is used to print values passed as an operand
+// to a %s or %v format or to an unformatted printer such as Print.
 type Stringer interface {
 	String() string
+}
+
+// GoStringer is implemented by any value that has a GoString() method,
+// which defines the Go syntax for that value.
+// The GoString method is used to print values passed as an operand
+// to a %#v format.
+type GoStringer interface {
+	GoString() string
 }
 
 const runeSelf = utf8.RuneSelf
@@ -392,15 +403,28 @@ func parsenum(s string, start, end int) (n int, got bool, newi int) {
 	return num, isnum, start;
 }
 
-func (p *pp) printField(field reflect.Value) (was_string bool) {
+type uintptrGetter interface {
+	Get() uintptr;
+}
+
+func (p *pp) printField(field reflect.Value, plus, sharp bool, depth int) (was_string bool) {
 	inter := field.Interface();
 	if inter != nil {
-		if stringer, ok := inter.(Stringer); ok {
-			p.addstr(stringer.String());
-			return false;	// this value is not a string
+		switch {
+		default:
+			if stringer, ok := inter.(Stringer); ok {
+				p.addstr(stringer.String());
+				return false;	// this value is not a string
+			}
+		case sharp:
+			if stringer, ok := inter.(GoStringer); ok {
+				p.addstr(stringer.GoString());
+				return false;	// this value is not a string
+			}
 		}
 	}
 	s := "";
+BigSwitch:
 	switch f := field.(type) {
 	case *reflect.BoolValue:
 		s = p.fmt.Fmt_boolean(f.Get()).Str();
@@ -415,79 +439,160 @@ func (p *pp) printField(field reflect.Value) (was_string bool) {
 			s = p.fmt.Fmt_g64(float64(f.Get())).Str();
 		}
 	case *reflect.StringValue:
-		s = p.fmt.Fmt_s(f.Get()).Str();
-		was_string = true;
-	case *reflect.PtrValue:
-		v := f.Get();
-		if v == 0 {
-			s = "<nil>";
-			break;
+		if sharp {
+			s = p.fmt.Fmt_q(f.Get()).Str();
+		} else {
+			s = p.fmt.Fmt_s(f.Get()).Str();
+			was_string = true;
 		}
-		// pointer to array?
-		if a, ok := f.Elem().(reflect.ArrayOrSliceValue); ok {
-			p.addstr("&");
-			p.printField(a);
-			break;
-		}
-		p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
-		s = p.fmt.Fmt_ux64(uint64(v)).Str();
-	case reflect.ArrayOrSliceValue:
-		p.addstr("[");
-		for i := 0; i < f.Len(); i++ {
-			if i > 0 {
-				p.addstr(" ");
-			}
-			p.printField(f.Elem(i));
-		}
-		p.addstr("]");
 	case *reflect.MapValue:
-		p.addstr("map[");
+		if sharp {
+			p.addstr(field.Type().String());
+			p.addstr("{");
+		} else {
+			p.addstr("map[");
+		}
 		keys := f.Keys();
 		for i, key := range keys {
 			if i > 0 {
-				p.addstr(" ");
+				if sharp {
+					p.addstr(", ");
+				} else {
+					p.addstr(" ");
+				}
 			}
-			p.printField(key);
+			p.printField(key, plus, sharp, depth+1);
 			p.addstr(":");
-			p.printField(f.Elem(key));
+			p.printField(f.Elem(key), plus, sharp, depth+1);
 		}
-		p.addstr("]");
+		if sharp {
+			p.addstr("}");
+		} else {
+			p.addstr("]");
+		}
 	case *reflect.StructValue:
+		if sharp {
+			p.addstr(field.Type().String());
+		}
 		p.add('{');
 		v := f;
 		t := v.Type().(*reflect.StructType);
-		donames := p.fmt.plus;
 		p.fmt.clearflags();	// clear flags for p.printField
 		for i := 0; i < v.NumField();  i++ {
 			if i > 0 {
-				p.add(' ')
+				if sharp {
+					p.addstr(", ");
+				} else {
+					p.addstr(" ");
+				}
 			}
-			if donames {
+			if plus || sharp {
 				if f := t.Field(i); f.Name != "" {
 					p.addstr(f.Name);
 					p.add(':');
 				}
 			}
-			p.printField(getField(v, i));
+			p.printField(getField(v, i), plus, sharp, depth+1);
 		}
-		p.add('}');
+		p.addstr("}");
 	case *reflect.InterfaceValue:
 		value := f.Elem();
 		if value == nil {
-			s = "<nil>"
+			if sharp {
+				p.addstr(field.Type().String());
+				p.addstr("(nil)");
+			} else {
+				s = "<nil>"
+			}
 		} else {
-			return p.printField(value);
+			return p.printField(value, plus, sharp, depth+1);
 		}
-	case *reflect.UintptrValue:
-		p.fmt.sharp = !p.fmt.sharp;  // turn 0x on by default
-		s = p.fmt.Fmt_ux64(uint64(f.Get())).Str();
+	case reflect.ArrayOrSliceValue:
+		if sharp {
+			p.addstr(field.Type().String());
+			p.addstr("{");
+		} else {
+			p.addstr("[");
+		}
+		for i := 0; i < f.Len(); i++ {
+			if i > 0 {
+				if sharp {
+					p.addstr(", ");
+				} else {
+					p.addstr(" ");
+				}
+			}
+			p.printField(f.Elem(i), plus, sharp, depth+1);
+		}
+		if sharp {
+			p.addstr("}");
+		} else {
+			p.addstr("]");
+		}
+	case *reflect.PtrValue:
+		v := f.Get();
+		// pointer to array or slice or struct?  ok at top level
+		// but not embedded (avoid loops)
+		if v != 0 && depth == 0 {
+			switch a := f.Elem().(type) {
+			case reflect.ArrayOrSliceValue:
+				p.addstr("&");
+				p.printField(a, plus, sharp, depth+1);
+				break BigSwitch;
+			case *reflect.StructValue:
+				p.addstr("&");
+				p.printField(a, plus, sharp, depth+1);
+				break BigSwitch;
+			}
+		}
+		if sharp {
+			p.addstr("(");
+			p.addstr(field.Type().String());
+			p.addstr(")(");
+			if v == 0 {
+				p.addstr("nil");
+			} else {
+				p.fmt.sharp = true;
+				p.addstr(p.fmt.Fmt_ux64(uint64(v)).Str());
+			}
+			p.addstr(")");
+			break;
+		}
+		if v == 0 {
+			s = "<nil>";
+			break;
+		}
+		p.fmt.sharp = true;  // turn 0x on
+		s = p.fmt.Fmt_ux64(uint64(v)).Str();
+	case uintptrGetter:
+		v := f.Get();
+		if sharp {
+			p.addstr("(");
+			p.addstr(field.Type().String());
+			p.addstr(")(");
+			if v == 0 {
+				p.addstr("nil");
+			} else {
+				p.fmt.sharp = true;
+				p.addstr(p.fmt.Fmt_ux64(uint64(v)).Str());
+			}
+			p.addstr(")");
+		} else {
+			p.fmt.sharp = true;  // turn 0x on
+			p.addstr(p.fmt.Fmt_ux64(uint64(f.Get())).Str());
+		}
 	default:
 		v, signed, ok := getInt(field);
 		if ok {
 			if signed {
 				s = p.fmt.Fmt_d64(v).Str();
 			} else {
-				s = p.fmt.Fmt_ud64(uint64(v)).Str();
+				if sharp {
+					p.fmt.sharp = true;	// turn on 0x
+					s = p.fmt.Fmt_ux64(uint64(v)).Str();
+				} else {
+					s = p.fmt.Fmt_ud64(uint64(v)).Str();
+				}
 			}
 			break;
 		}
@@ -548,13 +653,17 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 		}
 		field := getField(v, fieldnum);
 		fieldnum++;
+
+		// Try formatter except for %T,
+		// which is special and handled internally.
 		inter := field.Interface();
-		if inter != nil && c != 'T' {	// don't want thing to describe itself if we're asking for its type
+		if inter != nil && c != 'T' {
 			if formatter, ok := inter.(Formatter); ok {
 				formatter.Format(p, c);
 				continue;
 			}
 		}
+
 		s := "";
 		switch c {
 			// bool
@@ -640,6 +749,14 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 				} else {
 					goto badtype
 				}
+			case 'E':
+				if v, ok := getFloat32(field); ok {
+					s = p.fmt.Fmt_E32(v).Str()
+				} else if v, ok := getFloat64(field); ok {
+					s = p.fmt.Fmt_E64(v).Str()
+				} else {
+					goto badtype
+				}
 			case 'f':
 				if v, ok := getFloat32(field); ok {
 					s = p.fmt.Fmt_f32(v).Str()
@@ -653,6 +770,14 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 					s = p.fmt.Fmt_g32(v).Str()
 				} else if v, ok := getFloat64(field); ok {
 					s = p.fmt.Fmt_g64(v).Str()
+				} else {
+					goto badtype
+				}
+			case 'G':
+				if v, ok := getFloat32(field); ok {
+					s = p.fmt.Fmt_G32(v).Str()
+				} else if v, ok := getFloat64(field); ok {
+					s = p.fmt.Fmt_G64(v).Str()
 				} else {
 					goto badtype
 				}
@@ -692,7 +817,10 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 
 			// arbitrary value; do your best
 			case 'v':
-				p.printField(field);
+				plus, sharp := p.fmt.plus, p.fmt.sharp;
+				p.fmt.plus = false;
+				p.fmt.sharp = false;
+				p.printField(field, plus, sharp, 0);
 
 			// the value's type
 			case 'T':
@@ -702,8 +830,8 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 			badtype:
 				s = "%" + string(c) + "(" + field.Type().String() + "=";
 				p.addstr(s);
-				p.printField(field);
-				s= ")%";
+				p.printField(field, false, false, 0);
+				s = ")";
 		}
 		p.addstr(s);
 	}
@@ -713,7 +841,7 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 			field := getField(v, fieldnum);
 			p.addstr(field.Type().String());
 			p.addstr("=");
-			p.printField(field);
+			p.printField(field, false, false, 0);
 			if fieldnum + 1 < v.NumField() {
 				p.addstr(", ");
 			}
@@ -733,7 +861,7 @@ func (p *pp) doprint(v *reflect.StructValue, addspace, addnewline bool) {
 				p.add(' ');
 			}
 		}
-		prev_string = p.printField(field);
+		prev_string = p.printField(field, false, false, 0);
 	}
 	if addnewline {
 		p.add('\n')
