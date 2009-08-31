@@ -134,12 +134,50 @@ var inCategoryTest = []T {
 	T{0x04aa, "letter"},
 }
 
+var inPropTest = []T {
+	T{0x0046, "ASCII_Hex_Digit"},
+	T{0x200F, "Bidi_Control"},
+	T{0x2212, "Dash"},
+	T{0xE0001, "Deprecated"},
+	T{0x00B7, "Diacritic"},
+	T{0x30FE, "Extender"},
+	T{0xFF46, "Hex_Digit"},
+	T{0x2E17, "Hyphen"},
+	T{0x2FFB, "IDS_Binary_Operator"},
+	T{0x2FF3, "IDS_Trinary_Operator"},
+	T{0xFA6A, "Ideographic"},
+	T{0x200D, "Join_Control"},
+	T{0x0EC4, "Logical_Order_Exception"},
+	T{0x2FFFF, "Noncharacter_Code_Point"},
+	T{0x065E, "Other_Alphabetic"},
+	T{0x2069, "Other_Default_Ignorable_Code_Point"},
+	T{0x0BD7, "Other_Grapheme_Extend"},
+	T{0x0387, "Other_ID_Continue"},
+	T{0x212E, "Other_ID_Start"},
+	T{0x2094, "Other_Lowercase"},
+	T{0x2040, "Other_Math"},
+	T{0x216F, "Other_Uppercase"},
+	T{0x0027, "Pattern_Syntax"},
+	T{0x0020, "Pattern_White_Space"},
+	T{0x300D, "Quotation_Mark"},
+	T{0x2EF3, "Radical"},
+	T{0x061F, "STerm"},
+	T{0x2071, "Soft_Dotted"},
+	T{0x003A, "Terminal_Punctuation"},
+	T{0x9FC3, "Unified_Ideograph"},
+	T{0xFE0F, "Variation_Selector"},
+	T{0x0020, "White_Space"},
+}
+
 func TestScripts(t *testing.T) {
 	notTested := make(map[string] bool);
 	for k := range Scripts {
 		notTested[k] = true
 	}
 	for i, test := range inTest {
+		if _, ok := Scripts[test.script]; !ok {
+			t.Fatal(test.script, "not a known script")
+		}
 		if !Is(Scripts[test.script], test.rune) {
 			t.Errorf("IsScript(%#x, %s) = false, want true\n", test.rune, test.script);
 		}
@@ -161,6 +199,9 @@ func TestCategories(t *testing.T) {
 		notTested[k] = true
 	}
 	for i, test := range inCategoryTest {
+		if _, ok := Categories[test.script]; !ok {
+			t.Fatal(test.script, "not a known category")
+		}
 		if !Is(Categories[test.script], test.rune) {
 			t.Errorf("IsCategory(%#x, %s) = false, want true\n", test.rune, test.script);
 		}
@@ -171,3 +212,21 @@ func TestCategories(t *testing.T) {
 	}
 }
 
+func TestProps(t *testing.T) {
+	notTested := make(map[string] bool);
+	for k := range Props {
+		notTested[k] = true
+	}
+	for i, test := range inPropTest {
+		if _, ok := Props[test.script]; !ok {
+			t.Fatal(test.script, "not a known prop")
+		}
+		if !Is(Props[test.script], test.rune) {
+			t.Errorf("IsCategory(%#x, %s) = false, want true\n", test.rune, test.script);
+		}
+		notTested[test.script] = false, false
+	}
+	for k := range notTested {
+		t.Error("not tested:", k)
+	}
+}
