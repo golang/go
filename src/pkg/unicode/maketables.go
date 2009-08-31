@@ -558,7 +558,7 @@ func printScriptOrProperty(doProps bool) {
 		flaglist = *proplist;
 		file = "PropList.txt";
 		table = props;
-		installed = unicode.Props;
+		installed = unicode.Properties;
 	}
 	if flaglist == "" {
 		return
@@ -608,8 +608,8 @@ func printScriptOrProperty(doProps bool) {
 	);
 	if flaglist == "all" {
 		if doProps {
-			fmt.Println("// Props is the set of Unicode property tables.");
-			fmt.Println("var Props = map[string] []Range {");
+			fmt.Println("// Properties is the set of Unicode property tables.");
+			fmt.Println("var Properties = map[string] []Range {");
 		} else {
 			fmt.Println("// Scripts is the set of Unicode script tables.");
 			fmt.Println("var Scripts = map[string] []Range {");

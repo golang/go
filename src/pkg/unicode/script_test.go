@@ -212,16 +212,16 @@ func TestCategories(t *testing.T) {
 	}
 }
 
-func TestProps(t *testing.T) {
+func TestProperties(t *testing.T) {
 	notTested := make(map[string] bool);
-	for k := range Props {
+	for k := range Properties {
 		notTested[k] = true
 	}
 	for i, test := range inPropTest {
-		if _, ok := Props[test.script]; !ok {
+		if _, ok := Properties[test.script]; !ok {
 			t.Fatal(test.script, "not a known prop")
 		}
-		if !Is(Props[test.script], test.rune) {
+		if !Is(Properties[test.script], test.rune) {
 			t.Errorf("IsCategory(%#x, %s) = false, want true\n", test.rune, test.script);
 		}
 		notTested[test.script] = false, false
