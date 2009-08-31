@@ -20,13 +20,9 @@ type Range struct {
 // different case for that character.  They may be negative.  If zero, it
 // means the character is in the corresponding case. There is a special
 // case representing sequences of alternating corresponding Upper and Lower
-// pairs.  It appears with the usual Lo and Hi values and a Delta of
-//	{0, UpperLower, 0}
-// The constant UpperLower has (meaningful) value 1.  The lower case
-// letters in such sequences are assumed; were they present they would
-// have a Delta of
-//	{LowerUpper, 0, LowerUpper}
-// where LowerUpper has value -1.
+// pairs.  It appears with a fixed Delta of
+//	{UpperLower, UpperLower, UpperLower}
+// The constant UpperLower has an otherwise impossible delta value.
 type CaseRange struct {
 	Lo	int;
 	Hi	int;
@@ -46,9 +42,8 @@ type d [MaxCase]int32	// to make the CaseRanges text shorter
 // this CaseRange represents a sequence of the form (say)
 // Upper Lower Upper Lower.
 const (
-	MaxChar		= 0x10FFFF;
-	UpperLower      = MaxChar + 2;	// cannot be a valid delta
-	LowerUpper	= MaxChar + 3;
+	MaxChar		= 0x10FFFF;	// Maximum valid Unicode character value.
+	UpperLower      = MaxChar + 1;	// (Cannot be a valid delta.)
 )
 
 // Is tests whether rune is in the specified table of ranges.
@@ -118,22 +113,6 @@ func IsLetter(rune int) bool {
 	return Is(Letter, rune);
 }
 
-// In an Upper-Lower sequence, which always starts with an UpperCase letter,
-// the real deltas always look like:
-//	0 1 0
-//	-1 0 -1
-// This is a single-dimensioned array addressed by the case shifted up one bit
-// (the column of this table) or'ed with the low bit of the position in
-// the sequence (the row of the table).
-var ulDelta = [8]int{
-	(UpperCase<<1) | 0: 0,
-	(UpperCase<<1) | 1: -1,
-	(LowerCase<<1) | 0: 1,
-	(LowerCase<<1) | 1: 0,
-	(TitleCase<<1) | 0: 0,
-	(TitleCase<<1) | 1: -1,
-}
-
 // To maps the rune to the specified case, UpperCase, LowerCase, or TitleCase
 func To(_case int, rune int) int {
 	if _case < 0 || MaxCase <= _case {
@@ -148,9 +127,17 @@ func To(_case int, rune int) int {
 		if r.Lo <= rune && rune <= r.Hi {
 			delta := int(r.Delta[_case]);
 			if delta > MaxChar {
-				// Somewhere inside an UpperLower sequence. Use
-				// the precomputed delta table to get our offset.
-				delta = ulDelta[((_case<<1) | ((rune-r.Lo)&1))];
+				// In an Upper-Lower sequence, which always starts with
+				// an UpperCase letter, the real deltas always look like:
+				//	{0, 1, 0}    UpperCase (Lower is next)
+				//	{-1, 0, -1}  LowerCase (Upper, Title are previous)
+				// The characters at even offsets from the beginning of the
+				// sequence are upper case; the ones at odd offsets are lower.
+				// The correct mapping can be done by clearing or setting the low
+				// bit in the sequence offset. 
+				// The constants UpperCase and TitleCase are even while LowerCase
+				// is odd so we take the low bit from _case.
+				return r.Lo + ((rune - r.Lo)&^1 | _case&1);
 			}
 			return rune + delta;
 		}
