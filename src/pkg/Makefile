@@ -30,6 +30,7 @@ DIRS=\
 	crypto/md5\
 	crypto/sha1\
 	datafmt\
+	debug/elf\
 	ebnf\
 	exec\
 	exvar\
