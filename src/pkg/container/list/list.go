@@ -18,6 +18,16 @@ type Element struct {
 	Value interface {};
 }
 
+// Next returns the next list element or nil.
+func (e *Element) Next() *Element {
+	return e.next
+}
+
+// Prev returns the previous list element or nil.
+func (e *Element) Prev() *Element {
+	return e.prev
+}
+
 // List represents a doubly linked list.
 type List struct {
 	front, back *Element;
@@ -181,18 +191,15 @@ func (l *List) Len() int {
 	return l.len
 }
 
-func (l *List) iterate(c chan <- *Element) {
-	var next *Element;
-	for e := l.front; e != nil; e = next {
-		// Save next in case reader of c changes e.
-		next = e.next;
-		c <- e;
+func (l *List) iterate(c chan<- interface {}) {
+	for e := l.front; e != nil; e = e.next {
+		c <- e.Value;
 	}
 	close(c);
 }
 
-func (l *List) Iter() <-chan *Element {
-	c := make(chan *Element);
+func (l *List) Iter() <-chan interface {} {
+	c := make(chan interface {});
 	go l.iterate(c);
 	return c
 }

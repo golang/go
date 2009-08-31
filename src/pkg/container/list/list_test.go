@@ -114,8 +114,21 @@ func TestList(t *testing.T) {
 	checkListPointers(t, l, []*Element{ e1, e4, e3, e2 });
 	l.Remove(e2);
 
-	// Clear all elements by iterating
+	// Check standard iteration.
+	sum := 0;
 	for e := range l.Iter() {
+		if i, ok := e.(int); ok {
+			sum += i;
+		}
+	}
+	if sum != 4 {
+		t.Errorf("sum over l.Iter() = %d, want 4", sum);
+	}
+
+	// Clear all elements by iterating
+	var next *Element;
+	for e := l.Front(); e != nil; e = next {
+		next = e.Next();
 		l.Remove(e);
 	}
 	checkListPointers(t, l, []*Element{});

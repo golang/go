@@ -32,13 +32,13 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 		t.Errorf("r.Len() == %d; expected %d", n, N);
 	}
 
-	// forward iteration
+	// iteration
 	n = 0;
 	s := 0;
-	for p := range r.Forward() {
+	for p := range r.Iter() {
 		n++;
-		if p.Value != nil {
-			s += p.Value.(int);
+		if p != nil {
+			s += p.(int);
 		}
 	}
 	if n != N {
@@ -46,22 +46,6 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 	}
 	if sum >= 0 && s != sum {
 		t.Errorf("forward ring sum = %d; expected %d", s, sum);
-	}
-
-	// backward iteration
-	n = 0;
-	s = 0;
-	for p := range r.Backward() {
-		n++;
-		if p.Value != nil {
-			s += p.Value.(int);
-		}
-	}
-	if n != N {
-		t.Errorf("number of backward iterations == %d; expected %d", n, N);
-	}
-	if sum >= 0 && s != sum {
-		t.Errorf("backward ring sum = %d; expected %d", s, sum);
 	}
 
 	if r == nil {
@@ -147,8 +131,8 @@ func makeN(n int) *Ring {
 
 func sum(r *Ring) int {
 	s := 0;
-	for p := range r.Forward() {
-		s += p.Value.(int);
+	for p := range r.Iter() {
+		s += p.(int);
 	}
 	return s;
 }
