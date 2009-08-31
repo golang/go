@@ -6,6 +6,7 @@ package strconv
 
 import (
 	"os";
+	"unicode";
 	"utf8";
 )
 
@@ -175,7 +176,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 			value = v;
 			break;
 		}
-		if v > utf8.RuneMax {
+		if v > unicode.MaxRune {
 			err = os.EINVAL;
 			return;
 		}

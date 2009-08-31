@@ -3,8 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // This package provides data and functions to test some properties of Unicode code points.
-// It is rudimentary but will improve.
 package unicode
+
+const (
+	MaxRune	= 0x10FFFF;	// Maximum valid Unicode code point.
+	ReplacementChar	= 0xFFFD;	// Represents invalid code points.
+)
+
 
 // The representation of a range of Unicode code points.  The range runs from Lo to Hi
 // inclusive and has the specified stride.
@@ -42,8 +47,7 @@ type d [MaxCase]int32	// to make the CaseRanges text shorter
 // this CaseRange represents a sequence of the form (say)
 // Upper Lower Upper Lower.
 const (
-	MaxChar		= 0x10FFFF;	// Maximum valid Unicode character value.
-	UpperLower      = MaxChar + 1;	// (Cannot be a valid delta.)
+	UpperLower      = MaxRune + 1;	// (Cannot be a valid delta.)
 )
 
 // Is tests whether rune is in the specified table of ranges.
@@ -113,10 +117,10 @@ func IsLetter(rune int) bool {
 	return Is(Letter, rune);
 }
 
-// To maps the rune to the specified case, UpperCase, LowerCase, or TitleCase
+// To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase
 func To(_case int, rune int) int {
 	if _case < 0 || MaxCase <= _case {
-		return 0xFFFD	// as reasonable an error as any
+		return ReplacementChar	// as reasonable an error as any
 	}
 	// binary search over ranges
 	lo := 0;
@@ -126,7 +130,7 @@ func To(_case int, rune int) int {
 		r := CaseRanges[m];
 		if r.Lo <= rune && rune <= r.Hi {
 			delta := int(r.Delta[_case]);
-			if delta > MaxChar {
+			if delta > MaxRune {
 				// In an Upper-Lower sequence, which always starts with
 				// an UpperCase letter, the real deltas always look like:
 				//	{0, 1, 0}    UpperCase (Lower is next)
