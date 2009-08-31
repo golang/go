@@ -10,6 +10,7 @@ import (
 	"math";
 	"strings";
 	"testing";
+	"unsafe";
 )
 
 func TestFmtInterface(t *testing.T) {
@@ -31,6 +32,15 @@ const b32 uint32 = 1<<32 - 1
 const b64 uint64 = 1<<64 - 1
 var array = []int{1, 2, 3, 4, 5}
 var iarray = []interface{}{1, "hello", 2.5, nil}
+
+type A struct {
+	i int;
+	j uint;
+	s string;
+	x []int;
+}
+
+var b byte;
 
 var fmttests = []fmtTest{
 	// basic string
@@ -79,15 +89,9 @@ var fmttests = []fmtTest{
 	fmtTest{ "%+d",		-12345,	"-12345" },
 	fmtTest{ "% d",		12345,	" 12345" },
 
-	// arrays
-	fmtTest{ "%v",		array,			"[1 2 3 4 5]" },
-	fmtTest{ "%v",		iarray,			"[1 hello 2.5 <nil>]" },
-	fmtTest{ "%v",		&array,			"&[1 2 3 4 5]" },
-	fmtTest{ "%v",		&iarray,			"&[1 hello 2.5 <nil>]" },
-
 	// erroneous formats
 	fmtTest{ "",		2,			"?(extra int=2)" },
-	fmtTest{ "%d",		"hello",		"%d(string=hello)%" },
+	fmtTest{ "%d",		"hello",		"%d(string=hello)" },
 
 	// old test/fmt_test.go
 	fmtTest{ "%d",		1234,			"1234" },
@@ -123,6 +127,17 @@ var fmttests = []fmtTest{
 	fmtTest{ "%g",		float64(-7),		"-7" },
 	fmtTest{ "%g",		float64(-1e-9),		"-1e-09",	 },
 	fmtTest{ "%g",		float32(-1e-9),		"-1e-09" },
+	fmtTest{ "%E",		float64(1),		"1.000000E+00" },
+	fmtTest{ "%E",		float64(1234.5678e3),	"1.234568E+06" },
+	fmtTest{ "%E",		float64(1234.5678e-8),	"1.234568E-05" },
+	fmtTest{ "%E",		float64(-7),		"-7.000000E+00" },
+	fmtTest{ "%E",		float64(-1e-9),		"-1.000000E-09" },
+	fmtTest{ "%G",		float64(1234.5678e3),	"1.2345678E+06" },
+	fmtTest{ "%G",		float32(1234.5678e3),	"1.2345678E+06" },
+	fmtTest{ "%G",		float64(1234.5678e-8),	"1.2345678E-05" },
+	fmtTest{ "%G",		float64(-7),		"-7" },
+	fmtTest{ "%G",		float64(-1e-9),		"-1E-09",	 },
+	fmtTest{ "%G",		float32(-1e-9),		"-1E-09" },
 	fmtTest{ "%c",		'x',			"x" },
 	fmtTest{ "%c",		0xe4,			"ä" },
 	fmtTest{ "%c",		0x672c,			"本" },
@@ -158,11 +173,39 @@ var fmttests = []fmtTest{
 	fmtTest{ "%20e",	math.Inf(1),		"                +Inf" },
 	fmtTest{ "%-20f",	math.Inf(-1),		"-Inf                " },
 	fmtTest{ "%20g",	math.NaN(),		"                 NaN" },
+
+	// arrays
+	fmtTest{ "%v",		array,			"[1 2 3 4 5]" },
+	fmtTest{ "%v",		iarray,			"[1 hello 2.5 <nil>]" },
+	fmtTest{ "%v",		&array,			"&[1 2 3 4 5]" },
+	fmtTest{ "%v",		&iarray,			"&[1 hello 2.5 <nil>]" },
+
+	// structs
+	fmtTest{ "%v",		A{1,2,"a",[]int{1,2}},	`{1 2 a [1 2]}` },
+	fmtTest{ "%+v",		A{1,2,"a",[]int{1,2}},	`{i:1 j:2 s:a x:[1 2]}` },
+
+	// go syntax
+	fmtTest{ "%#v",		A{1,2,"a",[]int{1,2}},	`fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}` },
+	fmtTest{ "%#v",		&b,			"(*uint8)(PTR)" },
+	fmtTest{ "%#v",		TestFmtInterface,	"(func(*testing.T))(PTR)" },
+	fmtTest{ "%#v",		make(chan int),		"(chan int)(PTR)" },
+	fmtTest{ "%#v",		uint64(1<<64-1),	"0xffffffffffffffff" },
+	fmtTest{ "%#v",		1000000000,		"1000000000" },
 }
 
 func TestSprintf(t *testing.T) {
 	for i, tt := range fmttests {
 		s := Sprintf(tt.fmt, tt.val);
+		if i := strings.Index(s, "0x"); i >= 0 && strings.Index(tt.out, "PTR") >= 0 {
+			j := i+2;
+			for ; j < len(s); j++ {
+				c := s[j];
+				if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+					break;
+				}
+			}
+			s = s[0:i] + "PTR" + s[j:len(s)];
+		}
 		if s != tt.out {
 			if ss, ok := tt.val.(string); ok {
 				// Don't requote the already-quoted strings.

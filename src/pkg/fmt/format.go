@@ -465,6 +465,11 @@ func (f *Fmt) Fmt_e64(v float64) *Fmt {
 	return fmtString(f, strconv.Ftoa64(v, 'e', doPrec(f, 6)));
 }
 
+// Fmt_E64 formats a float64 in the form -1.23E+12.
+func (f *Fmt) Fmt_E64(v float64) *Fmt {
+	return fmtString(f, strconv.Ftoa64(v, 'E', doPrec(f, 6)));
+}
+
 // Fmt_f64 formats a float64 in the form -1.23.
 func (f *Fmt) Fmt_f64(v float64) *Fmt {
 	return fmtString(f, strconv.Ftoa64(v, 'f', doPrec(f, 6)));
@@ -473,6 +478,11 @@ func (f *Fmt) Fmt_f64(v float64) *Fmt {
 // Fmt_g64 formats a float64 in the 'f' or 'e' form according to size.
 func (f *Fmt) Fmt_g64(v float64) *Fmt {
 	return fmtString(f, strconv.Ftoa64(v, 'g', doPrec(f, -1)));
+}
+
+// Fmt_g64 formats a float64 in the 'f' or 'E' form according to size.
+func (f *Fmt) Fmt_G64(v float64) *Fmt {
+	return fmtString(f, strconv.Ftoa64(v, 'G', doPrec(f, -1)));
 }
 
 // Fmt_fb64 formats a float64 in the form -123p3 (exponent is power of 2).
@@ -489,6 +499,11 @@ func (f *Fmt) Fmt_e32(v float32) *Fmt {
 	return fmtString(f, strconv.Ftoa32(v, 'e', doPrec(f, 6)));
 }
 
+// Fmt_E32 formats a float32 in the form -1.23E+12.
+func (f *Fmt) Fmt_E32(v float32) *Fmt {
+	return fmtString(f, strconv.Ftoa32(v, 'e', doPrec(f, 6)));
+}
+
 // Fmt_f32 formats a float32 in the form -1.23.
 func (f *Fmt) Fmt_f32(v float32) *Fmt {
 	return fmtString(f, strconv.Ftoa32(v, 'f', doPrec(f, 6)));
@@ -497,6 +512,11 @@ func (f *Fmt) Fmt_f32(v float32) *Fmt {
 // Fmt_g32 formats a float32 in the 'f' or 'e' form according to size.
 func (f *Fmt) Fmt_g32(v float32) *Fmt {
 	return fmtString(f, strconv.Ftoa32(v, 'g', doPrec(f, -1)));
+}
+
+// Fmt_G32 formats a float32 in the 'f' or 'E' form according to size.
+func (f *Fmt) Fmt_G32(v float32) *Fmt {
+	return fmtString(f, strconv.Ftoa32(v, 'G', doPrec(f, -1)));
 }
 
 // Fmt_fb32 formats a float32 in the form -123p3 (exponent is power of 2).
