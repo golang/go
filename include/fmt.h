@@ -1,7 +1,7 @@
 #ifndef _FMT_H_
 #define _FMT_H_ 1
 #if defined(__cplusplus)
-extern "C" { 
+extern "C" {
 #endif
 /*
  * The authors of this software are Rob Pike and Ken Thompson.
@@ -30,7 +30,7 @@ struct Fmt{
 	void	*farg;			/* to make flush a closure */
 	int	nfmt;			/* num chars formatted so far */
 	va_list	args;			/* args passed to dofmt */
-	int	r;			/* % format Rune */
+	Rune	r;			/* % format Rune */
 	int	width;
 	int	prec;
 	unsigned long	flags;
@@ -38,8 +38,8 @@ struct Fmt{
 
 	/* For %'d */
 	char *thousands;	/* separator for thousands */
-	
-	/* 
+
+	/*
 	 * Each char is an integer indicating #digits before next separator. Values:
 	 *	\xFF: no more grouping (or \x7F; defined to be CHAR_MAX in POSIX)
 	 *	\x00: repeat previous indefinitely
