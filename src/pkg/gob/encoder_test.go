@@ -243,3 +243,25 @@ func TestBadData(t *testing.T) {
 	corruptDataCheck("\x7Fhi", io.ErrUnexpectedEOF, t);
 	corruptDataCheck("\x03now is the time for all good men", errBadType, t);
 }
+
+// Types not supported by the Encoder (only structs work at the top level).
+// Basic types work implicitly.
+var unsupportedValues = []interface{} {
+	[]int{ 1, 2, 3 },
+	[3]int{ 1, 2, 3 },
+	make(chan int),
+	func(a int) bool { return true },
+	make(map[string] int),
+	new(interface{}),
+}
+
+func TestUnsupported(t *testing.T) {
+	var b bytes.Buffer;
+	enc := NewEncoder(&b);
+	for _, v := range unsupportedValues {
+		err := enc.Encode(v);
+		if err == nil {
+			t.Errorf("expected error for %T; got none", v)
+		}
+	}
+}
