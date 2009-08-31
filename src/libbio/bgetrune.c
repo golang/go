@@ -33,7 +33,7 @@ Bgetrune(Biobuf *bp)
 {
 	int c, i;
 	Rune rune;
-	char str[4];
+	char str[UTFmax];
 
 	c = Bgetc(bp);
 	if(c < Runeself) {		/* one char */

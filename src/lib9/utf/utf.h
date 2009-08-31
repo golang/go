@@ -18,7 +18,7 @@
 
 #include <stdint.h>
 
-typedef signed int Rune;	/* Code-point values in Unicode 4.0 are 21 bits wide.*/
+typedef unsigned int Rune;	/* Code-point values in Unicode 4.0 are 21 bits wide.*/
 
 enum
 {

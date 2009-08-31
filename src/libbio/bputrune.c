@@ -32,7 +32,7 @@ int
 Bputrune(Biobuf *bp, long c)
 {
 	Rune rune;
-	char str[4];
+	char str[UTFmax];
 	int n;
 
 	rune = c;
