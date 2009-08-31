@@ -119,12 +119,11 @@ func baseTypeName(typ ast.Expr) string {
 
 func (doc *docReader) addValue(decl *ast.GenDecl) {
 	// determine if decl should be associated with a type
-	// Heuristic: Collect all types and determine the most frequent type.
-	//            If it is "dominant enough" the decl is associated with
-	//            that type.
-
-	// determine type frequencies
-	freq := make(map[string]int);
+	// Heuristic: For each typed entry, determine the type name, if any.
+	//            If there is exactly one type name that is sufficiently
+	//            frequent, associate the decl with the respective type.
+	domName := "";
+	domFreq := 0;
 	prev := "";
 	for _, s := range decl.Specs {
 		if v, ok := s.(*ast.ValueSpec); ok {
@@ -141,30 +140,25 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
 				name = prev;
 			}
 			if name != "" {
-				// increase freq count for name
-				f := 0;
-				if f0, found := freq[name]; found {
-					f = f0;
+				// entry has a named type
+				if domName != "" && domName != name {
+					// more than one type name - do not associate
+					// with any type
+					domName = "";
+					break;
 				}
-				freq[name] = f+1;
+				domName = name;
+				domFreq++;
 			}
 			prev = name;
-		}
-	}
-
-	// determine most common type
-	domName, domFreq := "", 0;
-	for name, f := range freq {
-		if f > domFreq {
-			domName, domFreq = name, f;
 		}
 	}
 
 	// determine values list
 	const threshold = 0.75;
 	values := doc.values;
-	if domFreq >= int(float(len(decl.Specs)) * threshold) {
-		// most common type is "dominant enough"
+	if domName != "" && domFreq >= int(float(len(decl.Specs)) * threshold) {
+		// typed entries are sufficiently frequent
 		typ := doc.lookupTypeDoc(domName);
 		if typ != nil {
 			values = typ.values;  // associate with that type
