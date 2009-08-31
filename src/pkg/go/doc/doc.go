@@ -22,7 +22,8 @@ type typeDoc struct {
 	// len(decl.Specs) == 1, and the element type is *ast.TypeSpec
 	// if the type declaration hasn't been seen yet, decl is nil
 	decl *ast.GenDecl;
-	// factory functions and methods associated with the type
+	// values, factory functions, and methods associated with the type
+	values *vector.Vector;  // list of *ast.GenDecl (consts and vars)
 	factories map[string] *ast.FuncDecl;
 	methods map[string] *ast.FuncDecl;
 }
@@ -93,13 +94,13 @@ func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
 		return nil;  // no type docs for anonymous types
 	}
 	if _, found := predeclaredTypes[name]; found {
-		return nil;  // no type docs for prdeclared types
+		return nil;  // no type docs for predeclared types
 	}
 	if tdoc, found := doc.types[name]; found {
 		return tdoc;
 	}
 	// type wasn't found - add one without declaration
-	tdoc := &typeDoc{nil, make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
+	tdoc := &typeDoc{nil, vector.New(0), make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
 	doc.types[name] = tdoc;
 	return tdoc;
 }
@@ -113,6 +114,64 @@ func baseTypeName(typ ast.Expr) string {
 		return baseTypeName(t.X);
 	}
 	return "";
+}
+
+
+func (doc *docReader) addValue(decl *ast.GenDecl) {
+	// determine if decl should be associated with a type
+	// Heuristic: Collect all types and determine the most frequent type.
+	//            If it is "dominant enough" the decl is associated with
+	//            that type.
+
+	// determine type frequencies
+	freq := make(map[string]int);
+	prev := "";
+	for _, s := range decl.Specs {
+		if v, ok := s.(*ast.ValueSpec); ok {
+			name := "";
+			switch {
+			case v.Type != nil:
+				// a type is present; determine it's name
+				name = baseTypeName(v.Type);
+			case decl.Tok == token.CONST:
+				// no type is present but we have a constant declaration;
+				// use the previous type name (w/o more type information
+				// we cannot handle the case of unnamed variables with
+				// initializer expressions except for some trivial cases)
+				name = prev;
+			}
+			if name != "" {
+				// increase freq count for name
+				f := 0;
+				if f0, found := freq[name]; found {
+					f = f0;
+				}
+				freq[name] = f+1;
+			}
+			prev = name;
+		}
+	}
+
+	// determine most common type
+	domName, domFreq := "", 0;
+	for name, f := range freq {
+		if f > domFreq {
+			domName, domFreq = name, f;
+		}
+	}
+
+	// determine values list
+	const threshold = 0.75;
+	values := doc.values;
+	if domFreq >= int(float(len(decl.Specs)) * threshold) {
+		// most common type is "dominant enough"
+		typ := doc.lookupTypeDoc(domName);
+		if typ != nil {
+			values = typ.values;  // associate with that type
+		}
+	}
+
+	values.Push(decl);
 }
 
 
@@ -160,7 +219,7 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 			switch d.Tok {
 			case token.CONST, token.VAR:
 				// constants and variables are always handled as a group
-				doc.values.Push(d);
+				doc.addValue(d);
 			case token.TYPE:
 				// types are handled individually
 				var noPos token.Position;
@@ -378,11 +437,14 @@ func makeFuncDocs(m map[string] *ast.FuncDecl) []*FuncDoc {
 
 
 // TypeDoc is the documentation for a declared type.
+// Consts and Vars are sorted lists of constants and variables of (mostly) that type.
 // Factories is a sorted list of factory functions that return that type.
 // Methods is a sorted list of method functions on that type.
 type TypeDoc struct {
 	Doc string;
 	Type *ast.TypeSpec;
+	Consts []*ValueDoc;
+	Vars []*ValueDoc;
 	Factories []*FuncDoc;
 	Methods []*FuncDoc;
 	Decl *ast.GenDecl;
@@ -425,6 +487,8 @@ func (doc *docReader) makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 			decl.Doc = nil;  // doc consumed - remove from ast.Decl node
 			t.Doc = astComment(doc);
 			t.Type = typespec;
+			t.Consts = makeValueDocs(old.values, token.CONST);
+			t.Vars = makeValueDocs(old.values, token.VAR);
 			t.Factories = makeFuncDocs(old.factories);
 			t.Methods = makeFuncDocs(old.methods);
 			t.Decl = old.decl;
@@ -432,21 +496,20 @@ func (doc *docReader) makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 			d[i] = t;
 			i++;
 		} else {
-			// no corresponding type declaration found - add any associated
-			// factory functions to the top-level functions lists so they
-			// are not lost (this should only happen for factory methods
-			// returning a type that is imported via a "." import such
-			// that the type name is not a qualified identifier, or if
-			// the package file containing the type declaration is missing)
+			// no corresponding type declaration found - move any associated
+			// values, factory functions, and methods back to the top-level
+			// so that they are not lost (this should only happen if a package
+			// file containing the explicit type declaration is missing or if
+			// an unqualified type name was used after a "." import)
+			// 1) move values
+			doc.values.AppendVector(old.values);
+			// 2) move factory functions
 			for name, f := range old.factories {
 				doc.funcs[name] = f;
 			}
-			// add any associated methods to the top-level functions
-			// list so they are not lost, but only do it if they don't
-			// have the same names as existing top-level functions
-			// (this could happen if a package file containing the type
-			// declaration is missing)
+			// 3) move methods
 			for name, f := range old.methods {
+				// don't overwrite functions with the same name
 				if _, found := doc.funcs[name]; !found {
 					doc.funcs[name] = f;
 				}
@@ -494,11 +557,12 @@ func (doc *docReader) newDoc(pkgname, importpath, filepath string, filenames []s
 	sort.SortStrings(filenames);
 	p.Filenames = filenames;
 	p.Doc = astComment(doc.doc);
+	// makeTypeDocs may extend the list of doc.values and
+	// doc.funcs and thus must be called before any other
+	// function consuming those lists
+	p.Types = doc.makeTypeDocs(doc.types);
 	p.Consts = makeValueDocs(doc.values, token.CONST);
 	p.Vars = makeValueDocs(doc.values, token.VAR);
-	// makeTypeDocs may extend the list of doc.funcs
-	// and thus should be called before makeFuncDocs
-	p.Types = doc.makeTypeDocs(doc.types);
 	p.Funcs = makeFuncDocs(doc.funcs);
 	p.Bugs = makeBugDocs(doc.bugs);
 	return p;

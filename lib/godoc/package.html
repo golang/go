@@ -48,6 +48,14 @@
 			<h2>type <a href="{Decl|link}">{Type.Name|html}</a></h2>
 			{Doc|html-comment}
 			<p><pre>{Decl|html}</pre></p>
+			{.repeated section Consts}
+				{Doc|html-comment}
+				<pre>{Decl|html}</pre>
+			{.end}
+			{.repeated section Vars}
+				{Doc|html-comment}
+				<pre>{Decl|html}</pre>
+			{.end}
 			{.repeated section Factories}
 				<h3>func <a href="{Decl|link}">{Name|html}</a></h3>
 				<p><code>{Decl|html}</code></p>
