@@ -470,9 +470,9 @@ agen(Node *n, Node *res)
 			agen(nl, &n3);
 			goto index;
 		}
-		cgen(nr, res);
 		tempname(&tmp, nr->type);
-		gmove(res, &tmp);
+		cgen(nr, &tmp);
+		nr = &tmp;
 
 	irad:
 		regalloc(&n3, types[tptr], res);
@@ -792,7 +792,7 @@ bgen(Node *n, int true, Prog *to)
 			regfree(&n1);
 			break;
 		}
-		
+
 		if(isinter(nl->type)) {
 			// front end shold only leave cmp to literal nil
 			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
