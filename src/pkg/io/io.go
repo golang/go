@@ -114,6 +114,34 @@ type ReadWriteSeeker interface {
 	Seeker;
 }
 
+// ReaderAt is the interface that wraps the basic ReadAt method.
+//
+// ReadAt reads len(p) bytes into p starting at offset off in the
+// underlying data stream.  It returns the number of bytes
+// read (0 <= n <= len(p)) and any error encountered.
+//
+// Even if ReadAt returns n < len(p),
+// it may use all of p as scratch space during the call.
+// If some data is available but not len(p) bytes, ReadAt blocks
+// until either all the data is available or an error occurs.
+//
+// At the end of the input stream, ReadAt returns 0, os.EOF.
+// ReadAt may return a non-zero number of bytes with a non-nil err.
+// In particular, a ReadAt that exhausts the input may return n > 0, os.EOF.
+type ReaderAt interface {
+	ReadAt(p []byte, off int64) (n int, err os.Error);
+}
+
+// WriterAt is the interface that wraps the basic WriteAt method.
+//
+// WriteAt writes len(p) bytes from p to the underlying data stream
+// at offset off.  It returns the number of bytes written from p (0 <= n <= len(p))
+// and any error encountered that caused the write to stop early.
+// WriteAt must return a non-nil error if it returns n < len(p).
+type WriterAt interface {
+	WriteAt(p []byte, off int64) (n int, err os.Error);
+}
+
 // WriteString writes the contents of the string s to w, which accepts an array of bytes.
 func WriteString(w Writer, s string) (n int, err os.Error) {
 	return w.Write(strings.Bytes(s))
@@ -236,3 +264,60 @@ func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
 	l.n -= int64(n);
 	return;
 }
+
+// NewSectionReader returns a SectionReader that reads from r
+// starting at offset off and stops with os.EOF after n bytes.
+func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
+	return &SectionReader{r, off, off, off+n};
+}
+
+// SectionReader implements Read, Seek, and ReadAt on a section
+// of an underlying ReaderAt.
+type SectionReader struct {
+	r ReaderAt;
+	base int64;
+	off int64;
+	limit int64;
+}
+
+func (s *SectionReader) Read(p []byte) (n int, err os.Error) {
+	if s.off >= s.limit {
+		return 0, os.EOF;
+	}
+	if max := s.limit - s.off; int64(len(p)) > max {
+		p = p[0:max];
+	}
+	n, err = s.r.ReadAt(p, s.off);
+	s.off += int64(n);
+	return;
+}
+
+func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err os.Error) {
+	switch whence {
+	default:
+		return 0, os.EINVAL
+	case 0:
+		offset += s.base
+	case 1:
+		offset += s.off
+	case 2:
+		offset += s.limit
+	}
+	if offset < s.off || offset > s.limit {
+		return 0, os.EINVAL
+	}
+	s.off = offset;
+	return offset - s.base, nil
+}
+
+func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
+	if off < 0 || off >= s.limit - s.base {
+		return 0, os.EOF;
+	}
+	off += s.base;
+	if max := s.limit - off; int64(len(p)) > max {
+		p = p[0:max];
+	}
+	return s.r.ReadAt(p, off);
+}
+
