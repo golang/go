@@ -8,7 +8,7 @@ void
 traceback(byte *pc0, byte *sp, G *g)
 {
 	Stktop *stk;
-	uint64 pc;
+	uint64 pc, tracepc;
 	int32 i, n;
 	Func *f;
 	byte *p;
@@ -31,10 +31,11 @@ traceback(byte *pc0, byte *sp, G *g)
 			sp = stk->gobuf.sp;
 			stk = (Stktop*)stk->stackbase;
 		}
-                p = (byte*)pc;
+		p = (byte*)pc;
+		tracepc = pc;	// used for line number, function
 		if(n > 0 && pc != (uint64)goexit)
-			pc--;	// get to CALL instruction
-		f = findfunc(pc);
+			tracepc--;	// get to CALL instruction
+		f = findfunc(tracepc);
 		if(f == nil) {
 			// dangerous, but poke around to see if it is a closure
 			// ADDQ $xxx, SP; RET
@@ -59,7 +60,7 @@ traceback(byte *pc0, byte *sp, G *g)
 		printf("%S", f->name);
 		if(pc > f->entry)
 			printf("+%p", (uintptr)(pc - f->entry));
-		printf(" %S:%d\n", f->src, funcline(f, pc));
+		printf(" %S:%d\n", f->src, funcline(f, tracepc));
 		printf("\t%S(", f->name);
 		for(i = 0; i < f->args; i++) {
 			if(i != 0)
