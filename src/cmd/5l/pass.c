@@ -222,6 +222,10 @@ loop:
 	a = p->as;
 	if(a == ATEXT)
 		curtext = p;
+	if(!curtext->from.sym->reachable) {
+		p = p->cond;
+		goto loop;
+	}
 	if(a == AB) {
 		q = p->cond;
 		if(q != P) {

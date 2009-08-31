@@ -433,22 +433,6 @@ sweeplist(Prog **first, Prog **last)
 		case ADATA:
 		case AGLOBL:
 			reachable = p->from.sym->reachable;
-			if(!reachable) {
-				if(debug['v'] > 1)
-					Bprint(&bso, "discard %s\n", p->from.sym->name);
-				p->from.sym->type = Sxxx;
-				break;
-			}
-			if(p->as == ATEXT) {
-				// keeping this function; link into textp list
-				if(etextp == P)
-					textp = p;
-				else
-					etextp->pcond = p;
-				etextp = p;
-				etextp->pcond = P;
-			}
-			break;
 		}
 		if(reachable) {
 			if(q == P)
@@ -495,15 +479,6 @@ deadcode(void)
 	mark(lookup(INITENTRY, 0));
 	for(i=0; i<nelem(morename); i++)
 		mark(lookup(morename[i], 0));
-
-	// remove dead code.
-	// sweeplist will rebuild the list of functions at textp
-	textp = P;
-	etextp = P;
-
-	// follow is going to redo the firstp, lastp list
-	// but update it anyway just to keep things consistent.
-	sweeplist(&firstp, &lastp);
 
 	// remove dead data
 	sweeplist(&datap, &edatap);

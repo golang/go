@@ -251,6 +251,9 @@ asmsym(void)
 			if(a->type == D_FILE1)
 				putsymb(a->asym->name, 'Z', a->aoffset, 0, 0);
 
+		if(!s->reachable)
+			continue;
+
 		putsymb(s->name, 'T', s->value, s->version, s->gotype);
 
 		/* frame, auto and param after */

@@ -621,6 +621,9 @@ asmsym(void)
 			if(a->type == D_FILE1)
 				putsymb(a->asym->name, 'Z', a->aoffset, 0);
 
+		if(!s->reachable)
+			continue;
+
 		if(s->type == STEXT)
 			putsymb(s->name, 'T', s->value, s->version);
 		else
