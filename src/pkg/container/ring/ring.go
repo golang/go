@@ -138,37 +138,16 @@ func (r *Ring) Len() int {
 }
 
 
-// Forward returns a channel for forward iteration through a ring.
-// Iteration is undefined if the ring is changed during iteration.
-//
-func (r *Ring) Forward() <-chan *Ring {
-	c := make(chan *Ring);
+func (r *Ring) Iter() <-chan interface {} {
+	c := make(chan interface {});
 	go func() {
 		if r != nil {
-			c <- r;
+			c <- r.Value;
 			for p := r.Next(); p != r; p = p.next {
-				c <- p;
+				c <- p.Value;
 			}
 		}
 		close(c);
 	}();
-	return c;
-}
-
-
-// Backward returns a channel for backward iteration through a ring.
-// Iteration is undefined if the ring is changed during iteration.
-//
-func (r *Ring) Backward() <-chan *Ring {
-	c := make(chan *Ring);
-	go func() {
-		if r != nil {
-			c <- r;
-			for p := r.Prev(); p != r; p = p.prev {
-				c <- p;
-			}
-		}
-		close(c);
-	}();
-	return c;
+	return c
 }

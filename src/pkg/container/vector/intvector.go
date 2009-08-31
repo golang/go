@@ -101,7 +101,7 @@ func (p *IntVector) Less(i, j int) bool {
 
 
 // Iterate over all elements; driver for range
-func (p *IntVector) iterate(c chan int) {
+func (p *IntVector) iterate(c chan<- int) {
 	for i, v := range p.a {
 		c <- v.(int)
 	}
@@ -110,7 +110,7 @@ func (p *IntVector) iterate(c chan int) {
 
 
 // Channel iterator for range.
-func (p *IntVector) Iter() chan int {
+func (p *IntVector) Iter() <-chan int {
 	c := make(chan int);
 	go p.iterate(c);
 	return c;

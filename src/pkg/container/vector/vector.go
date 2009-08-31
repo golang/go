@@ -228,7 +228,7 @@ func (p *Vector) Swap(i, j int) {
 
 
 // Iterate over all elements; driver for range
-func (p *Vector) iterate(c chan Element) {
+func (p *Vector) iterate(c chan<- Element) {
 	for i, v := range p.a {
 		c <- v
 	}
@@ -237,7 +237,7 @@ func (p *Vector) iterate(c chan Element) {
 
 
 // Channel iterator for range.
-func (p *Vector) Iter() chan Element {
+func (p *Vector) Iter() <-chan Element {
 	c := make(chan Element);
 	go p.iterate(c);
 	return c;
