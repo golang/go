@@ -2792,8 +2792,8 @@ var (
 //	maketables --props=all --url=http://www.unicode.org/Public/5.1.0/ucd/
 // DO NOT EDIT
 
-// Props is the set of Unicode property tables.
-var Props = map[string] []Range {
+// Properties is the set of Unicode property tables.
+var Properties = map[string] []Range {
 	"Pattern_Syntax": Pattern_Syntax,
 	"Other_ID_Start": Other_ID_Start,
 	"Pattern_White_Space": Pattern_White_Space,
