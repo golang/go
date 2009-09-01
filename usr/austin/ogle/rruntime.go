@@ -123,9 +123,27 @@ type rt1Gobuf struct {
 }
 
 type rt1G struct {
-	stackguard uintptr;
+	// Fields beginning with _ are only for padding
+	_stackguard uintptr;
 	stackbase *rt1Stktop;
+	_defer uintptr;
+	sched rt1Gobuf;
+	_stack0 uintptr;
+	_entry uintptr;
+	alllink *rt1G;
+	_param uintptr;
+	status int16;
 }
+
+var rt1GStatus = runtimeGStatus{
+	Gidle: 0,
+	Grunnable: 1,
+	Grunning: 2,
+	Gsyscall: 3,
+	Gwaiting: 4,
+	Gmoribund: 5,
+	Gdead: 6,
+};
 
 // runtimeIndexes stores the indexes of fields in the runtime
 // structures.  It is filled in using reflection, so the name of the
@@ -175,8 +193,13 @@ type runtimeIndexes struct {
 		Sp, Pc, G int;
 	};
 	G struct {
-		Stackguard, Stackbase int;
+		Stackbase, Sched, Status int;
 	};
+}
+
+// Values of G status codes
+type runtimeGStatus struct {
+	Gidle, Grunnable, Grunning, Gsyscall, Gwaiting, Gmoribund, Gdead int64;
 }
 
 // runtimeValues stores the types and values that correspond to those
@@ -200,6 +223,8 @@ type runtimeValues struct {
 	PArrayType, PStringType, PStructType, PPtrType, PFuncType,
 	PInterfaceType, PSliceType, PMapType, PChanType,
 	PDotDotDotType, PUnsafePointerType ptrace.Word;
+	// G status values
+	runtimeGStatus;
 }
 
 // fillRuntimeIndexes fills a runtimeIndexes structure will the field

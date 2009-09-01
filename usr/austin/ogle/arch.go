@@ -28,6 +28,7 @@ type Arch interface {
 	ToFloat64(bits uint64) float64;
 	// FromFloat64 is to float64 as FromFloat32 is to float32.
 	FromFloat64(f float64) uint64;
+
 	// IntSize returns the number of bytes in an 'int'.
 	IntSize() int;
 	// PtrSize returns the number of bytes in a 'uintptr'.
@@ -37,8 +38,17 @@ type Arch interface {
 	// Align rounds offset up to the appropriate offset for a
 	// basic type with the given width.
 	Align(offset, width int) int;
+
 	// G returns the current G pointer.
 	G(regs ptrace.Regs) ptrace.Word;
+
+	// ClosureSize returns the number of bytes expected by
+	// ParseClosure.
+	ClosureSize() int;
+	// ParseClosure takes ClosureSize bytes read from a return PC
+	// in a remote process, determines if the code is a closure,
+	// and returns the frame size of the closure if it is.
+	ParseClosure(data []byte) (frame int, ok bool);
 }
 
 type ArchLSB struct {}
@@ -113,6 +123,17 @@ func (a *amd64) G(regs ptrace.Regs) ptrace.Word {
 	}
 
 	return regs.Get(a.gReg);
+}
+
+func (a *amd64) ClosureSize() int {
+	return 8;
+}
+
+func (a *amd64) ParseClosure(data []byte) (int, bool) {
+	if data[0] == 0x48 && data[1] == 0x81 && data[2] == 0xc4 && data[7] == 0xc3 {
+		return int(a.ToWord(data[3:7]) + 8), true;
+	}
+	return 0, false;
 }
 
 var Amd64 = &amd64{gReg: -1};
