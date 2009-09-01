@@ -20,37 +20,28 @@ import (
 type expr struct {
 	*exprInfo;
 	t Type;
+
 	// Evaluate this node as the given type.
-	evalBool func(f *Frame) bool;
-	evalUint func(f *Frame) uint64;
-	evalInt func(f *Frame) int64;
-	// TODO(austin) evalIdealInt and evalIdealFloat shouldn't be
-	// functions at all.
-	evalIdealInt func() *bignum.Integer;
-	evalFloat func(f *Frame) float64;
-	evalIdealFloat func() *bignum.Rational;
-	evalString func(f *Frame) string;
-	evalArray func(f *Frame) ArrayValue;
-	evalStruct func(f *Frame) StructValue;
-	evalPtr func(f *Frame) Value;
-	evalFunc func(f *Frame) Func;
-	evalSlice func(f *Frame) Slice;
-	evalMap func(f *Frame) Map;
-	evalMulti func(f *Frame) []Value;
+	eval interface{};
+
 	// Map index expressions permit special forms of assignment,
 	// for which we need to know the Map and key.
 	evalMapValue func(f *Frame) (Map, interface{});
+
 	// Evaluate to the "address of" this value; that is, the
 	// settable Value object.  nil for expressions whose address
 	// cannot be taken.
 	evalAddr func(f *Frame) Value;
+
 	// Execute this expression as a statement.  Only expressions
 	// that are valid expression statements should set this.
 	exec func(f *Frame);
+
 	// If this expression is a type, this is its compiled type.
 	// This is only permitted in the function position of a call
 	// expression.  In this case, t should be nil.
 	valType Type;
+
 	// A short string describing this expression for error
 	// messages.
 	desc string;
@@ -82,133 +73,82 @@ func (a *exprInfo) diagOpTypes(op token.Token, lt Type, rt Type) {
 
 /*
  * "As" functions.  These retrieve evaluator functions from an
- * expr, panicking if the requested evaluator is nil.
+ * expr, panicking if the requested evaluator has the wrong type.
  */
-
-func (a *expr) asBool() (func(f *Frame) bool) {
-	if a.evalBool == nil {
-		log.Crashf("tried to get %v node as boolType", a.t);
-	}
-	return a.evalBool;
+func (a *expr) asBool() (func(*Frame) bool) {
+	return a.eval.(func(*Frame)bool);
 }
 
 func (a *expr) asUint() (func(f *Frame) uint64) {
-	if a.evalUint == nil {
-		log.Crashf("tried to get %v node as uintType", a.t);
-	}
-	return a.evalUint;
+	return a.eval.(func(*Frame)uint64);
 }
 
 func (a *expr) asInt() (func(f *Frame) int64) {
-	if a.evalInt == nil {
-		log.Crashf("tried to get %v node as intType", a.t);
-	}
-	return a.evalInt;
+	return a.eval.(func(*Frame)int64);
 }
 
 func (a *expr) asIdealInt() (func() *bignum.Integer) {
-	if a.evalIdealInt == nil {
-		log.Crashf("tried to get %v node as idealIntType", a.t);
-	}
-	return a.evalIdealInt;
+	return a.eval.(func()*bignum.Integer);
 }
 
 func (a *expr) asFloat() (func(f *Frame) float64) {
-	if a.evalFloat == nil {
-		log.Crashf("tried to get %v node as floatType", a.t);
-	}
-	return a.evalFloat;
+	return a.eval.(func(*Frame)float64)
 }
 
 func (a *expr) asIdealFloat() (func() *bignum.Rational) {
-	if a.evalIdealFloat == nil {
-		log.Crashf("tried to get %v node as idealFloatType", a.t);
-	}
-	return a.evalIdealFloat;
+	return a.eval.(func()*bignum.Rational)
 }
 
 func (a *expr) asString() (func(f *Frame) string) {
-	if a.evalString == nil {
-		log.Crashf("tried to get %v node as stringType", a.t);
-	}
-	return a.evalString;
+	return a.eval.(func(*Frame)string)
 }
 
 func (a *expr) asArray() (func(f *Frame) ArrayValue) {
-	if a.evalArray == nil {
-		log.Crashf("tried to get %v node as ArrayType", a.t);
-	}
-	return a.evalArray;
+	return a.eval.(func(*Frame)ArrayValue)
 }
 
 func (a *expr) asStruct() (func(f *Frame) StructValue) {
-	if a.evalStruct == nil {
-		log.Crashf("tried to get %v node as StructType", a.t);
-	}
-	return a.evalStruct;
+	return a.eval.(func(*Frame)StructValue)
 }
 
 func (a *expr) asPtr() (func(f *Frame) Value) {
-	if a.evalPtr == nil {
-		log.Crashf("tried to get %v node as PtrType", a.t);
-	}
-	return a.evalPtr;
+	return a.eval.(func(*Frame)Value)
 }
 
 func (a *expr) asFunc() (func(f *Frame) Func) {
-	if a.evalFunc == nil {
-		log.Crashf("tried to get %v node as FuncType", a.t);
-	}
-	return a.evalFunc;
+	return a.eval.(func(*Frame)Func)
 }
 
 func (a *expr) asSlice() (func(f *Frame) Slice) {
-	if a.evalSlice == nil {
-		log.Crashf("tried to get %v node as SliceType", a.t);
-	}
-	return a.evalSlice;
+	return a.eval.(func(*Frame)Slice)
 }
 
 func (a *expr) asMap() (func(f *Frame) Map) {
-	if a.evalMap == nil {
-		log.Crashf("tried to get %v node as MapType", a.t);
-	}
-	return a.evalMap;
+	return a.eval.(func(*Frame)Map)
 }
 
 func (a *expr) asMulti() (func(f *Frame) []Value) {
-	if a.evalMulti == nil {
-		log.Crashf("tried to get %v node as MultiType", a.t);
-	}
-	return a.evalMulti;
+	return a.eval.(func(*Frame)[]Value)
 }
 
-func (a *expr) asInterface() (func(f *Frame) interface {}) {
-	switch _ := a.t.lit().(type) {
-	case *boolType:
-		sf := a.asBool();
-		return func(f *Frame) interface {} { return sf(f) };
-	case *uintType:
-		sf := a.asUint();
-		return func(f *Frame) interface {} { return sf(f) };
-	case *intType:
-		sf := a.asInt();
-		return func(f *Frame) interface {} { return sf(f) };
-	case *floatType:
-		sf := a.asFloat();
-		return func(f *Frame) interface {} { return sf(f) };
-	case *stringType:
-		sf := a.asString();
-		return func(f *Frame) interface {} { return sf(f) };
-	case *PtrType:
-		sf := a.asPtr();
-		return func(f *Frame) interface {} { return sf(f) };
-	case *FuncType:
-		sf := a.asFunc();
-		return func(f *Frame) interface {} { return sf(f) };
-	case *MapType:
-		sf := a.asMap();
-		return func(f *Frame) interface {} { return sf(f) };
+func (a *expr) asInterface() (func(f *Frame) interface{}) {
+	switch sf := a.eval.(type) {
+	case func(*Frame)bool:
+		return func(f *Frame) interface{} { return sf(f) };
+	case func(*Frame)uint64:
+		return func(f *Frame) interface{} { return sf(f) };
+	case func(*Frame)int64:
+		return func(f *Frame) interface{} { return sf(f) };
+	case func(*Frame)float64:
+		return func(f *Frame) interface{} { return sf(f) };
+	case func(*Frame)string:
+		return func(f *Frame) interface{} { return sf(f) };
+	case func(*Frame)Value:
+		return func(f *Frame) interface{} { return sf(f) };
+	case func(*Frame)Func:
+		return func(f *Frame) interface{} { return sf(f) };
+	case func(*Frame)Map:
+		return func(f *Frame) interface{} { return sf(f) };
 	default:
 		log.Crashf("unexpected expression node type %v at %v", a.t, a.pos);
 	}
@@ -270,22 +210,22 @@ func (a *expr) convertTo(t Type) *expr {
 		n, d := rat.Value();
 		f := n.Quo(bignum.MakeInt(false, d));
 		v := f.Abs().Value();
-		res.evalUint = func(*Frame) uint64 { return v };
+		res.eval = func(*Frame) uint64 { return v };
 	case *intType:
 		n, d := rat.Value();
 		f := n.Quo(bignum.MakeInt(false, d));
 		v := f.Value();
-		res.evalInt = func(*Frame) int64 { return v };
+		res.eval = func(*Frame) int64 { return v };
 	case *idealIntType:
 		n, d := rat.Value();
 		f := n.Quo(bignum.MakeInt(false, d));
-		res.evalIdealInt = func() *bignum.Integer { return f };
+		res.eval = func() *bignum.Integer { return f };
 	case *floatType:
 		n, d := rat.Value();
 		v := float64(n.Value())/float64(d.Value());
-		res.evalFloat = func(*Frame) float64 { return v };
+		res.eval = func(*Frame) float64 { return v };
 	case *idealFloatType:
-		res.evalIdealFloat = func() *bignum.Rational { return rat };
+		res.eval = func() *bignum.Rational { return rat };
 	default:
 		log.Crashf("cannot convert to type %T", t);
 	}
@@ -316,7 +256,7 @@ func (a *expr) convertToInt(max int64, negErr string, errOp string) *expr {
 		// Convert to int
 		na := a.newExpr(IntType, a.desc);
 		af := a.asUint();
-		na.evalInt = func(f *Frame) int64 {
+		na.eval = func(f *Frame) int64 {
 			return int64(af(f));
 		};
 		return na;
@@ -544,7 +484,7 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(lv Value, f *Frame)) {
 						rf := a.rs[i].asPtr();
 						a.rs[i] = a.rs[i].newExpr(lt, a.rs[i].desc);
 						len := at.Len;
-						a.rs[i].evalSlice = func(f *Frame) Slice {
+						a.rs[i].eval = func(f *Frame) Slice {
 							return Slice{rf(f).(ArrayValue), len, len};
 						};
 						rt = a.rs[i].t;
@@ -862,7 +802,7 @@ func (a *exprInfo) compileVariable(level int, v *Variable) *expr {
 
 func (a *exprInfo) compileIdealInt(i *bignum.Integer, desc string) *expr {
 	expr := a.newExpr(IdealIntType, desc);
-	expr.evalIdealInt = func() *bignum.Integer { return i };
+	expr.eval = func() *bignum.Integer { return i };
 	return expr;
 }
 
@@ -888,7 +828,7 @@ func (a *exprInfo) compileFloatLit(lit string) *expr {
 		log.Crashf("malformed float literal %s at %v passed parser", lit, a.pos);
 	}
 	expr := a.newExpr(IdealFloatType, "float literal");
-	expr.evalIdealFloat = func() *bignum.Rational { return f };
+	expr.eval = func() *bignum.Rational { return f };
 	return expr;
 }
 
@@ -898,7 +838,7 @@ func (a *exprInfo) compileString(s string) *expr {
 
 	// TODO(austin) Use unnamed string type.
 	expr := a.newExpr(StringType, "string literal");
-	expr.evalString = func(*Frame) string { return s };
+	expr.eval = func(*Frame) string { return s };
 	return expr;
 }
 
@@ -921,7 +861,7 @@ func (a *exprInfo) compileStringList(list []*expr) *expr {
 
 func (a *exprInfo) compileFuncLit(decl *FuncDecl, fn func(f *Frame) Func) *expr {
 	expr := a.newExpr(decl.Type, "function literal");
-	expr.evalFunc = fn;
+	expr.eval = fn;
 	return expr;
 }
 
@@ -1131,7 +1071,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 		rf := r.asInt();
 		// TODO(austin) This pulls over the whole string in a
 		// remote setting, instead of just the one character.
-		expr.evalUint = func(f *Frame) uint64 {
+		expr.eval = func(f *Frame) uint64 {
 			l, r := lf(f), rf(f);
 			if r < 0 || r >= int64(len(l)) {
 				Abort(IndexOutOfBounds{r, int64(len(l))});
@@ -1259,13 +1199,13 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 			// TODO(austin) It would be nice if this could
 			// be a constant int.
 			v := t.Len;
-			expr.evalInt = func(f *Frame) int64 {
+			expr.eval = func(f *Frame) int64 {
 				return v;
 			};
 
 		case *SliceType:
 			vf := arg.asSlice();
-			expr.evalInt = func(f *Frame) int64 {
+			expr.eval = func(f *Frame) int64 {
 				return vf(f).Cap;
 			};
 
@@ -1286,7 +1226,7 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 		switch t := arg.t.lit().(type) {
 		case *stringType:
 			vf := arg.asString();
-			expr.evalInt = func(f *Frame) int64 {
+			expr.eval = func(f *Frame) int64 {
 				return int64(len(vf(f)));
 			};
 
@@ -1294,19 +1234,19 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 			// TODO(austin) It would be nice if this could
 			// be a constant int.
 			v := t.Len;
-			expr.evalInt = func(f *Frame) int64 {
+			expr.eval = func(f *Frame) int64 {
 				return v;
 			};
 
 		case *SliceType:
 			vf := arg.asSlice();
-			expr.evalInt = func(f *Frame) int64 {
+			expr.eval = func(f *Frame) int64 {
 				return vf(f).Len;
 			};
 
 		case *MapType:
 			vf := arg.asMap();
-			expr.evalInt = func(f *Frame) int64 {
+			expr.eval = func(f *Frame) int64 {
 				// XXX(Spec) What's the len of an
 				// uninitialized map?
 				m := vf(f);
@@ -1360,7 +1300,7 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 			}
 			et := t.Elem;
 			expr := a.newExpr(t, "function call");
-			expr.evalSlice = func(f *Frame) Slice {
+			expr.eval = func(f *Frame) Slice {
 				l := lenf(f);
 				// XXX(Spec) What if len or cap is
 				// negative?  The runtime panics.
@@ -1397,7 +1337,7 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 				return nil;
 			}
 			expr := a.newExpr(t, "function call");
-			expr.evalMap = func(f *Frame) Map {
+			expr.eval = func(f *Frame) Map {
 				if lenf == nil {
 					return make(evalMap);
 				}
@@ -1516,7 +1456,7 @@ func (a *exprInfo) compileUnaryExpr(op token.Token, v *expr) *expr {
 
 	case token.AND:
 		vf := v.evalAddr;
-		expr.evalPtr = func(f *Frame) Value { return vf(f) };
+		expr.eval = func(f *Frame) Value { return vf(f) };
 
 	default:
 		log.Crashf("Compilation of unary op %v not implemented", op);
@@ -1832,7 +1772,7 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 				return nil;
 			}
 			val := lv.Shl(uint(rv.Value()));
-			expr.evalIdealInt = func() *bignum.Integer { return val };
+			expr.eval = func() *bignum.Integer { return val };
 		} else {
 			expr.genBinOpShl(l, r);
 		}
@@ -1842,7 +1782,7 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 			lv := l.asIdealInt()();
 			rv := r.asIdealInt()();
 			val := lv.Shr(uint(rv.Value()));
-			expr.evalIdealInt = func() *bignum.Integer { return val };
+			expr.eval = func() *bignum.Integer { return val };
 		} else {
 			expr.genBinOpShr(l, r);
 		}
@@ -1895,9 +1835,9 @@ func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool) {
 
 	switch _ := lenExpr.t.lit().(type) {
 	case *intType:
-		return lenExpr.evalInt(nil), true;
+		return lenExpr.asInt()(nil), true;
 	case *uintType:
-		return int64(lenExpr.evalUint(nil)), true;
+		return int64(lenExpr.asUint()(nil)), true;
 	}
 	log.Crashf("unexpected integer type %T", lenExpr.t);
 	return 0, false;
@@ -2000,745 +1940,31 @@ func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
 	if ec == nil {
 		return nil, errors.GetError(scanner.Sorted);
 	}
-	switch t := ec.t.lit().(type) {
-	case *boolType:
-		return &Expr{t, func(f *Frame, out Value) { out.(BoolValue).Set(ec.evalBool(f)) }}, nil;
-	case *uintType:
-		return &Expr{t, func(f *Frame, out Value) { out.(UintValue).Set(ec.evalUint(f)) }}, nil;
-	case *intType:
-		return &Expr{t, func(f *Frame, out Value) { out.(IntValue).Set(ec.evalInt(f)) }}, nil;
-	case *idealIntType:
-		return &Expr{t, func(f *Frame, out Value) { out.(*idealIntV).V = ec.evalIdealInt() }}, nil;
-	case *floatType:
-		return &Expr{t, func(f *Frame, out Value) { out.(FloatValue).Set(ec.evalFloat(f)) }}, nil;
-	case *idealFloatType:
-		return &Expr{t, func(f *Frame, out Value) { out.(*idealFloatV).V = ec.evalIdealFloat() }}, nil;
-	case *stringType:
-		return &Expr{t, func(f *Frame, out Value) { out.(StringValue).Set(ec.evalString(f)) }}, nil;
-	case *ArrayType:
-		return &Expr{t, func(f *Frame, out Value) { out.(ArrayValue).Assign(ec.evalArray(f)) }}, nil;
-	case *PtrType:
-		return &Expr{t, func(f *Frame, out Value) { out.(PtrValue).Set(ec.evalPtr(f)) }}, nil;
-	case *FuncType:
-		return &Expr{t, func(f *Frame, out Value) { out.(FuncValue).Set(ec.evalFunc(f)) }}, nil;
-	case *SliceType:
-		return &Expr{t, func(f *Frame, out Value) { out.(SliceValue).Set(ec.evalSlice(f)) }}, nil;
+	t := ec.t;
+	switch e := ec.eval.(type) {
+	case func(*Frame)bool:
+		return &Expr{t, func(f *Frame, out Value) { out.(BoolValue).Set(e(f)) }}, nil;
+	case func(*Frame)uint64:
+		return &Expr{t, func(f *Frame, out Value) { out.(UintValue).Set(e(f)) }}, nil;
+	case func(*Frame)int64:
+		return &Expr{t, func(f *Frame, out Value) { out.(IntValue).Set(e(f)) }}, nil;
+	case func()*bignum.Integer:
+		return &Expr{t, func(f *Frame, out Value) { out.(*idealIntV).V = e() }}, nil;
+	case func(*Frame)float64:
+		return &Expr{t, func(f *Frame, out Value) { out.(FloatValue).Set(e(f)) }}, nil;
+	case func()*bignum.Rational:
+		return &Expr{t, func(f *Frame, out Value) { out.(*idealFloatV).V = e() }}, nil;
+	case func(*Frame)string:
+		return &Expr{t, func(f *Frame, out Value) { out.(StringValue).Set(e(f)) }}, nil;
+	case func(*Frame)ArrayValue:
+		return &Expr{t, func(f *Frame, out Value) { out.(ArrayValue).Assign(e(f)) }}, nil;
+	case func(*Frame)Value:
+		return &Expr{t, func(f *Frame, out Value) { out.(PtrValue).Set(e(f)) }}, nil;
+	case func(*Frame)Func:
+		return &Expr{t, func(f *Frame, out Value) { out.(FuncValue).Set(e(f)) }}, nil;
+	case func(*Frame)Slice:
+		return &Expr{t, func(f *Frame, out Value) { out.(SliceValue).Set(e(f)) }}, nil;
 	}
 	log.Crashf("unexpected type %v", ec.t);
-	panic();
-}
-
-/*
- * Operator generators
- * Everything below here is MACHINE GENERATED by gen.py genOps
- */
-
-func (a *expr) genConstant(v Value) {
-	switch _ := a.t.lit().(type) {
-	case *boolType:
-		val := v.(BoolValue).Get();
-		a.evalBool = func(f *Frame) bool { return val };
-	case *uintType:
-		val := v.(UintValue).Get();
-		a.evalUint = func(f *Frame) uint64 { return val };
-	case *intType:
-		val := v.(IntValue).Get();
-		a.evalInt = func(f *Frame) int64 { return val };
-	case *idealIntType:
-		val := v.(IdealIntValue).Get();
-		a.evalIdealInt = func() *bignum.Integer { return val };
-	case *floatType:
-		val := v.(FloatValue).Get();
-		a.evalFloat = func(f *Frame) float64 { return val };
-	case *idealFloatType:
-		val := v.(IdealFloatValue).Get();
-		a.evalIdealFloat = func() *bignum.Rational { return val };
-	case *stringType:
-		val := v.(StringValue).Get();
-		a.evalString = func(f *Frame) string { return val };
-	case *ArrayType:
-		val := v.(ArrayValue).Get();
-		a.evalArray = func(f *Frame) ArrayValue { return val };
-	case *StructType:
-		val := v.(StructValue).Get();
-		a.evalStruct = func(f *Frame) StructValue { return val };
-	case *PtrType:
-		val := v.(PtrValue).Get();
-		a.evalPtr = func(f *Frame) Value { return val };
-	case *FuncType:
-		val := v.(FuncValue).Get();
-		a.evalFunc = func(f *Frame) Func { return val };
-	case *SliceType:
-		val := v.(SliceValue).Get();
-		a.evalSlice = func(f *Frame) Slice { return val };
-	case *MapType:
-		val := v.(MapValue).Get();
-		a.evalMap = func(f *Frame) Map { return val };
-	default:
-		log.Crashf("unexpected constant type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genIdentOp(level int, index int) {
-	a.evalAddr = func(f *Frame) Value { return f.Get(level, index) };
-	switch _ := a.t.lit().(type) {
-	case *boolType:
-		a.evalBool = func(f *Frame) bool { return f.Get(level, index).(BoolValue).Get() };
-	case *uintType:
-		a.evalUint = func(f *Frame) uint64 { return f.Get(level, index).(UintValue).Get() };
-	case *intType:
-		a.evalInt = func(f *Frame) int64 { return f.Get(level, index).(IntValue).Get() };
-	case *floatType:
-		a.evalFloat = func(f *Frame) float64 { return f.Get(level, index).(FloatValue).Get() };
-	case *stringType:
-		a.evalString = func(f *Frame) string { return f.Get(level, index).(StringValue).Get() };
-	case *ArrayType:
-		a.evalArray = func(f *Frame) ArrayValue { return f.Get(level, index).(ArrayValue).Get() };
-	case *StructType:
-		a.evalStruct = func(f *Frame) StructValue { return f.Get(level, index).(StructValue).Get() };
-	case *PtrType:
-		a.evalPtr = func(f *Frame) Value { return f.Get(level, index).(PtrValue).Get() };
-	case *FuncType:
-		a.evalFunc = func(f *Frame) Func { return f.Get(level, index).(FuncValue).Get() };
-	case *SliceType:
-		a.evalSlice = func(f *Frame) Slice { return f.Get(level, index).(SliceValue).Get() };
-	case *MapType:
-		a.evalMap = func(f *Frame) Map { return f.Get(level, index).(MapValue).Get() };
-	default:
-		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genFuncCall(call func(f *Frame) []Value) {
-	a.exec = func(f *Frame) { call(f) };
-	switch _ := a.t.lit().(type) {
-	case *boolType:
-		a.evalBool = func(f *Frame) bool { return call(f)[0].(BoolValue).Get() };
-	case *uintType:
-		a.evalUint = func(f *Frame) uint64 { return call(f)[0].(UintValue).Get() };
-	case *intType:
-		a.evalInt = func(f *Frame) int64 { return call(f)[0].(IntValue).Get() };
-	case *floatType:
-		a.evalFloat = func(f *Frame) float64 { return call(f)[0].(FloatValue).Get() };
-	case *stringType:
-		a.evalString = func(f *Frame) string { return call(f)[0].(StringValue).Get() };
-	case *ArrayType:
-		a.evalArray = func(f *Frame) ArrayValue { return call(f)[0].(ArrayValue).Get() };
-	case *StructType:
-		a.evalStruct = func(f *Frame) StructValue { return call(f)[0].(StructValue).Get() };
-	case *PtrType:
-		a.evalPtr = func(f *Frame) Value { return call(f)[0].(PtrValue).Get() };
-	case *FuncType:
-		a.evalFunc = func(f *Frame) Func { return call(f)[0].(FuncValue).Get() };
-	case *SliceType:
-		a.evalSlice = func(f *Frame) Slice { return call(f)[0].(SliceValue).Get() };
-	case *MapType:
-		a.evalMap = func(f *Frame) Map { return call(f)[0].(MapValue).Get() };
-	case *MultiType:
-		a.evalMulti = func(f *Frame) []Value { return call(f) };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genValue(vf func(*Frame) Value) {
-	a.evalAddr = vf;
-	switch _ := a.t.lit().(type) {
-	case *boolType:
-		a.evalBool = func(f *Frame) bool { return vf(f).(BoolValue).Get() };
-	case *uintType:
-		a.evalUint = func(f *Frame) uint64 { return vf(f).(UintValue).Get() };
-	case *intType:
-		a.evalInt = func(f *Frame) int64 { return vf(f).(IntValue).Get() };
-	case *floatType:
-		a.evalFloat = func(f *Frame) float64 { return vf(f).(FloatValue).Get() };
-	case *stringType:
-		a.evalString = func(f *Frame) string { return vf(f).(StringValue).Get() };
-	case *ArrayType:
-		a.evalArray = func(f *Frame) ArrayValue { return vf(f).(ArrayValue).Get() };
-	case *StructType:
-		a.evalStruct = func(f *Frame) StructValue { return vf(f).(StructValue).Get() };
-	case *PtrType:
-		a.evalPtr = func(f *Frame) Value { return vf(f).(PtrValue).Get() };
-	case *FuncType:
-		a.evalFunc = func(f *Frame) Func { return vf(f).(FuncValue).Get() };
-	case *SliceType:
-		a.evalSlice = func(f *Frame) Slice { return vf(f).(SliceValue).Get() };
-	case *MapType:
-		a.evalMap = func(f *Frame) Map { return vf(f).(MapValue).Get() };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genUnaryOpNeg(v *expr) {
-	switch _ := a.t.lit().(type) {
-	case *uintType:
-		vf := v.asUint();
-		a.evalUint = func(f *Frame) uint64 { return -vf(f) };
-	case *intType:
-		vf := v.asInt();
-		a.evalInt = func(f *Frame) int64 { return -vf(f) };
-	case *idealIntType:
-		vf := v.asIdealInt();
-		val := vf().Neg();
-		a.evalIdealInt = func() *bignum.Integer { return val };
-	case *floatType:
-		vf := v.asFloat();
-		a.evalFloat = func(f *Frame) float64 { return -vf(f) };
-	case *idealFloatType:
-		vf := v.asIdealFloat();
-		val := vf().Neg();
-		a.evalIdealFloat = func() *bignum.Rational { return val };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genUnaryOpNot(v *expr) {
-	switch _ := a.t.lit().(type) {
-	case *boolType:
-		vf := v.asBool();
-		a.evalBool = func(f *Frame) bool { return !vf(f) };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genUnaryOpXor(v *expr) {
-	switch _ := a.t.lit().(type) {
-	case *uintType:
-		vf := v.asUint();
-		a.evalUint = func(f *Frame) uint64 { return ^vf(f) };
-	case *intType:
-		vf := v.asInt();
-		a.evalInt = func(f *Frame) int64 { return ^vf(f) };
-	case *idealIntType:
-		vf := v.asIdealInt();
-		val := vf().Neg().Sub(bignum.Int(1));
-		a.evalIdealInt = func() *bignum.Integer { return val };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpAdd(l, r *expr) {
-	switch _ := a.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalUint = func(f *Frame) uint64 { return lf(f) + rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalInt = func(f *Frame) int64 { return lf(f) + rf(f) };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().Add(rf());
-		a.evalIdealInt = func() *bignum.Integer { return val };
-	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
-		a.evalFloat = func(f *Frame) float64 { return lf(f) + rf(f) };
-	case *idealFloatType:
-		lf := l.asIdealFloat();
-		rf := r.asIdealFloat();
-		val := lf().Add(rf());
-		a.evalIdealFloat = func() *bignum.Rational { return val };
-	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
-		a.evalString = func(f *Frame) string { return lf(f) + rf(f) };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpSub(l, r *expr) {
-	switch _ := a.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalUint = func(f *Frame) uint64 { return lf(f) - rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalInt = func(f *Frame) int64 { return lf(f) - rf(f) };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().Sub(rf());
-		a.evalIdealInt = func() *bignum.Integer { return val };
-	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
-		a.evalFloat = func(f *Frame) float64 { return lf(f) - rf(f) };
-	case *idealFloatType:
-		lf := l.asIdealFloat();
-		rf := r.asIdealFloat();
-		val := lf().Sub(rf());
-		a.evalIdealFloat = func() *bignum.Rational { return val };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpMul(l, r *expr) {
-	switch _ := a.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalUint = func(f *Frame) uint64 { return lf(f) * rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalInt = func(f *Frame) int64 { return lf(f) * rf(f) };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().Mul(rf());
-		a.evalIdealInt = func() *bignum.Integer { return val };
-	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
-		a.evalFloat = func(f *Frame) float64 { return lf(f) * rf(f) };
-	case *idealFloatType:
-		lf := l.asIdealFloat();
-		rf := r.asIdealFloat();
-		val := lf().Mul(rf());
-		a.evalIdealFloat = func() *bignum.Rational { return val };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpQuo(l, r *expr) {
-	switch _ := a.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalUint = func(f *Frame) uint64 { l, r := lf(f), rf(f); if r == 0 { Abort(DivByZero{}) }; return l / r };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalInt = func(f *Frame) int64 { l, r := lf(f), rf(f); if r == 0 { Abort(DivByZero{}) }; return l / r };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().Quo(rf());
-		a.evalIdealInt = func() *bignum.Integer { return val };
-	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
-		a.evalFloat = func(f *Frame) float64 { l, r := lf(f), rf(f); if r == 0 { Abort(DivByZero{}) }; return l / r };
-	case *idealFloatType:
-		lf := l.asIdealFloat();
-		rf := r.asIdealFloat();
-		val := lf().Quo(rf());
-		a.evalIdealFloat = func() *bignum.Rational { return val };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpRem(l, r *expr) {
-	switch _ := a.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalUint = func(f *Frame) uint64 { l, r := lf(f), rf(f); if r == 0 { Abort(DivByZero{}) }; return l % r };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalInt = func(f *Frame) int64 { l, r := lf(f), rf(f); if r == 0 { Abort(DivByZero{}) }; return l % r };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().Rem(rf());
-		a.evalIdealInt = func() *bignum.Integer { return val };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpAnd(l, r *expr) {
-	switch _ := a.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalUint = func(f *Frame) uint64 { return lf(f) & rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalInt = func(f *Frame) int64 { return lf(f) & rf(f) };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().And(rf());
-		a.evalIdealInt = func() *bignum.Integer { return val };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpOr(l, r *expr) {
-	switch _ := a.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalUint = func(f *Frame) uint64 { return lf(f) | rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalInt = func(f *Frame) int64 { return lf(f) | rf(f) };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().Or(rf());
-		a.evalIdealInt = func() *bignum.Integer { return val };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpXor(l, r *expr) {
-	switch _ := a.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalUint = func(f *Frame) uint64 { return lf(f) ^ rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalInt = func(f *Frame) int64 { return lf(f) ^ rf(f) };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().Xor(rf());
-		a.evalIdealInt = func() *bignum.Integer { return val };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpAndNot(l, r *expr) {
-	switch _ := a.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalUint = func(f *Frame) uint64 { return lf(f) &^ rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalInt = func(f *Frame) int64 { return lf(f) &^ rf(f) };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().AndNot(rf());
-		a.evalIdealInt = func() *bignum.Integer { return val };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpShl(l, r *expr) {
-	switch _ := a.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalUint = func(f *Frame) uint64 { return lf(f) << rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asUint();
-		a.evalInt = func(f *Frame) int64 { return lf(f) << rf(f) };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpShr(l, r *expr) {
-	switch _ := a.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalUint = func(f *Frame) uint64 { return lf(f) >> rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asUint();
-		a.evalInt = func(f *Frame) int64 { return lf(f) >> rf(f) };
-	default:
-		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpLss(l, r *expr) {
-	switch _ := l.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalBool = func(f *Frame) bool { return lf(f) < rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalBool = func(f *Frame) bool { return lf(f) < rf(f) };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().Cmp(rf()) < 0;
-		a.evalBool = func(f *Frame) bool { return val };
-	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
-		a.evalBool = func(f *Frame) bool { return lf(f) < rf(f) };
-	case *idealFloatType:
-		lf := l.asIdealFloat();
-		rf := r.asIdealFloat();
-		val := lf().Cmp(rf()) < 0;
-		a.evalBool = func(f *Frame) bool { return val };
-	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
-		a.evalBool = func(f *Frame) bool { return lf(f) < rf(f) };
-	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpGtr(l, r *expr) {
-	switch _ := l.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalBool = func(f *Frame) bool { return lf(f) > rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalBool = func(f *Frame) bool { return lf(f) > rf(f) };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().Cmp(rf()) > 0;
-		a.evalBool = func(f *Frame) bool { return val };
-	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
-		a.evalBool = func(f *Frame) bool { return lf(f) > rf(f) };
-	case *idealFloatType:
-		lf := l.asIdealFloat();
-		rf := r.asIdealFloat();
-		val := lf().Cmp(rf()) > 0;
-		a.evalBool = func(f *Frame) bool { return val };
-	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
-		a.evalBool = func(f *Frame) bool { return lf(f) > rf(f) };
-	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpLeq(l, r *expr) {
-	switch _ := l.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalBool = func(f *Frame) bool { return lf(f) <= rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalBool = func(f *Frame) bool { return lf(f) <= rf(f) };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().Cmp(rf()) <= 0;
-		a.evalBool = func(f *Frame) bool { return val };
-	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
-		a.evalBool = func(f *Frame) bool { return lf(f) <= rf(f) };
-	case *idealFloatType:
-		lf := l.asIdealFloat();
-		rf := r.asIdealFloat();
-		val := lf().Cmp(rf()) <= 0;
-		a.evalBool = func(f *Frame) bool { return val };
-	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
-		a.evalBool = func(f *Frame) bool { return lf(f) <= rf(f) };
-	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpGeq(l, r *expr) {
-	switch _ := l.t.lit().(type) {
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalBool = func(f *Frame) bool { return lf(f) >= rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalBool = func(f *Frame) bool { return lf(f) >= rf(f) };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().Cmp(rf()) >= 0;
-		a.evalBool = func(f *Frame) bool { return val };
-	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
-		a.evalBool = func(f *Frame) bool { return lf(f) >= rf(f) };
-	case *idealFloatType:
-		lf := l.asIdealFloat();
-		rf := r.asIdealFloat();
-		val := lf().Cmp(rf()) >= 0;
-		a.evalBool = func(f *Frame) bool { return val };
-	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
-		a.evalBool = func(f *Frame) bool { return lf(f) >= rf(f) };
-	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpEql(l, r *expr) {
-	switch _ := l.t.lit().(type) {
-	case *boolType:
-		lf := l.asBool();
-		rf := r.asBool();
-		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().Cmp(rf()) == 0;
-		a.evalBool = func(f *Frame) bool { return val };
-	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
-		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
-	case *idealFloatType:
-		lf := l.asIdealFloat();
-		rf := r.asIdealFloat();
-		val := lf().Cmp(rf()) == 0;
-		a.evalBool = func(f *Frame) bool { return val };
-	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
-		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
-	case *PtrType:
-		lf := l.asPtr();
-		rf := r.asPtr();
-		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
-	case *FuncType:
-		lf := l.asFunc();
-		rf := r.asFunc();
-		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
-	case *MapType:
-		lf := l.asMap();
-		rf := r.asMap();
-		a.evalBool = func(f *Frame) bool { return lf(f) == rf(f) };
-	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
-	}
-}
-
-func (a *expr) genBinOpNeq(l, r *expr) {
-	switch _ := l.t.lit().(type) {
-	case *boolType:
-		lf := l.asBool();
-		rf := r.asBool();
-		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
-	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
-		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
-	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
-		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
-	case *idealIntType:
-		lf := l.asIdealInt();
-		rf := r.asIdealInt();
-		val := lf().Cmp(rf()) != 0;
-		a.evalBool = func(f *Frame) bool { return val };
-	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
-		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
-	case *idealFloatType:
-		lf := l.asIdealFloat();
-		rf := r.asIdealFloat();
-		val := lf().Cmp(rf()) != 0;
-		a.evalBool = func(f *Frame) bool { return val };
-	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
-		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
-	case *PtrType:
-		lf := l.asPtr();
-		rf := r.asPtr();
-		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
-	case *FuncType:
-		lf := l.asFunc();
-		rf := r.asFunc();
-		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
-	case *MapType:
-		lf := l.asMap();
-		rf := r.asMap();
-		a.evalBool = func(f *Frame) bool { return lf(f) != rf(f) };
-	default:
-		log.Crashf("unexpected left operand type %v at %v", l.t, a.pos);
-	}
-}
-
-func genAssign(lt Type, r *expr) (func(lv Value, f *Frame)) {
-	switch _ := lt.lit().(type) {
-	case *boolType:
-		rf := r.asBool();
-		return func(lv Value, f *Frame) { lv.(BoolValue).Set(rf(f)) };
-	case *uintType:
-		rf := r.asUint();
-		return func(lv Value, f *Frame) { lv.(UintValue).Set(rf(f)) };
-	case *intType:
-		rf := r.asInt();
-		return func(lv Value, f *Frame) { lv.(IntValue).Set(rf(f)) };
-	case *floatType:
-		rf := r.asFloat();
-		return func(lv Value, f *Frame) { lv.(FloatValue).Set(rf(f)) };
-	case *stringType:
-		rf := r.asString();
-		return func(lv Value, f *Frame) { lv.(StringValue).Set(rf(f)) };
-	case *ArrayType:
-		rf := r.asArray();
-		return func(lv Value, f *Frame) { lv.Assign(rf(f)) };
-	case *StructType:
-		rf := r.asStruct();
-		return func(lv Value, f *Frame) { lv.Assign(rf(f)) };
-	case *PtrType:
-		rf := r.asPtr();
-		return func(lv Value, f *Frame) { lv.(PtrValue).Set(rf(f)) };
-	case *FuncType:
-		rf := r.asFunc();
-		return func(lv Value, f *Frame) { lv.(FuncValue).Set(rf(f)) };
-	case *SliceType:
-		rf := r.asSlice();
-		return func(lv Value, f *Frame) { lv.(SliceValue).Set(rf(f)) };
-	case *MapType:
-		rf := r.asMap();
-		return func(lv Value, f *Frame) { lv.(MapValue).Set(rf(f)) };
-	default:
-		log.Crashf("unexpected left operand type %v at %v", lt, r.pos);
-	}
 	panic();
 }
