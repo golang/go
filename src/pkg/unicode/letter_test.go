@@ -318,3 +318,34 @@ func TestIsSpace(t *testing.T) {
 		}
 	}
 }
+
+// Check that the optimizations for IsLetter etc. agree with the tables.
+// We only need to check the Latin-1 range.
+func TestLetterOptimizations(t *testing.T) {
+	for i := 0; i < 0x100; i++ {
+		if Is(Letter, i) != IsLetter(i) {
+			t.Errorf("IsLetter(U+%04X) disagrees with Is(Letter)", i)
+		}
+		if Is(Upper, i) != IsUpper(i) {
+			t.Errorf("IsUpper(U+%04X) disagrees with Is(Upper)", i)
+		}
+		if Is(Lower, i) != IsLower(i) {
+			t.Errorf("IsLower(U+%04X) disagrees with Is(Lower)", i)
+		}
+		if Is(Title, i) != IsTitle(i) {
+			t.Errorf("IsTitle(U+%04X) disagrees with Is(Title)", i)
+		}
+		if Is(White_Space, i) != IsSpace(i) {
+			t.Errorf("IsSpace(U+%04X) disagrees with Is(White_Space)", i)
+		}
+		if To(UpperCase, i) != ToUpper(i) {
+			t.Errorf("ToUpper(U+%04X) disagrees with To(Upper)", i)
+		}
+		if To(LowerCase, i) != ToLower(i) {
+			t.Errorf("ToLower(U+%04X) disagrees with To(Lower)", i)
+		}
+		if To(TitleCase, i) != ToTitle(i) {
+			t.Errorf("ToTitle(U+%04X) disagrees with To(Title)", i)
+		}
+	}
+}
