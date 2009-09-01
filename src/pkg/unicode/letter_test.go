@@ -92,6 +92,20 @@ var notletterTest = []int{
 	0x10ffff,
 }
 
+// Contains all the special cased Latin-1 chars.
+var spaceTest = []int{
+	0x09,
+	0x0a,
+	0x0b,
+	0x0c,
+	0x0d,
+	0x20,
+	0x85,
+	0xA0,
+	0x2000,
+	0x3000,
+}
+
 type caseT struct {
 	cas, in, out int
 }
@@ -288,6 +302,19 @@ func TestToTitleCase(t *testing.T) {
 		r := ToTitle(c.in);
 		if c.out != r {
 			t.Errorf("ToTitle(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out);
+		}
+	}
+}
+
+func TestIsSpace(t *testing.T) {
+	for _, c := range spaceTest {
+		if !IsSpace(c) {
+			t.Errorf("IsSpace(U+%04X) = false; want true", c);
+		}
+	}
+	for _, c := range letterTest {
+		if IsSpace(c) {
+			t.Errorf("IsSpace(U+%04X) = true; want false", c);
 		}
 	}
 }

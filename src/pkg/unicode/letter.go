@@ -117,6 +117,18 @@ func IsLetter(rune int) bool {
 	return Is(Letter, rune);
 }
 
+// IsSpace reports whether the rune is a white space character.
+func IsSpace(rune int) bool {
+	if rune <= 0xFF {	// quick Latin-1 check
+		switch rune {
+		case '\t', '\n', '\v', '\f', '\r', ' ', 0x85, 0xA0:
+			return true;
+		}
+		return false;
+	}
+	return Is(White_Space, rune);
+}
+
 // To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase
 func To(_case int, rune int) int {
 	if _case < 0 || MaxCase <= _case {
