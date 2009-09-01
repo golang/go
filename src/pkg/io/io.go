@@ -321,3 +321,7 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
 	return s.r.ReadAt(p, off);
 }
 
+// Size returns the size of the section in bytes.
+func (s *SectionReader) Size() int64 {
+	return s.limit - s.base
+}
