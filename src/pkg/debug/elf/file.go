@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package elf implements access to ELF object files.
 package elf
 
 import (
 	"debug/binary";
-"fmt";
+	"fmt";
 	"io";
 	"os";
 )
@@ -64,6 +65,13 @@ type Section struct {
 	// with other clients.
 	io.ReaderAt;
 	sr *io.SectionReader;
+}
+
+// Data reads and returns the contents of the ELF section.
+func (s *Section) Data() ([]byte, os.Error) {
+	dat := make([]byte, s.sr.Size());
+	n, err := s.sr.ReadAt(dat, 0);
+	return dat[0:n], err;
 }
 
 // Open returns a new ReadSeeker reading the ELF section.

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This package implements translation between
+// unsigned integer values and byte sequences.
 package binary
 
 import (
@@ -12,7 +14,7 @@ import (
 )
 
 // A ByteOrder specifies how to convert byte sequences into
-// 16-, 32-, or 64-bit integers.
+// 16-, 32-, or 64-bit unsigned integers.
 type ByteOrder interface {
 	Uint16(b []byte) uint16;
 	Uint32(b []byte) uint32;
