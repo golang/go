@@ -1052,7 +1052,7 @@ binary operations.</p>
 
 <p>
 Two named types are identical if their type names originate in the same
-type declaration (§<a href="#Declarations_and_Scope">Declarations and Scope</a>). A named and an unnamed type
+type declaration (§<a href="#Declarations_and_scope">Declarations and scope</a>). A named and an unnamed type
 are never identical. Two unnamed types are identical if the corresponding
 type literals have the same literal structure and corresponding components have
 identical types. In detail:
@@ -1258,11 +1258,11 @@ In addition to explicit blocks in the source code, there are implicit blocks:
 </ol>
 
 <p>
-Blocks nest and influence scoping (§<a href="#Declarations_and_Scope">Declarations and Scope</a>).
+Blocks nest and influence scoping (§<a href="#Declarations_and_scope">Declarations and scope</a>).
 </p>
 
 
-<h2 id="Declarations_and_Scope">Declarations and Scope</h2>
+<h2 id="Declarations_and_scope">Declarations and scope</h2>
 
 <p>
 A declaration binds an identifier to a constant, type, variable, function, or package.
@@ -1357,22 +1357,23 @@ Packages:
 	unsafe
 </pre>
 
+
 <h3 id="Exported_identifiers">Exported identifiers</h3>
 
 <p>
-By default, identifiers are visible only within the package in which they are declared.
-Some identifiers are <i>exported</i> and can be referenced using
-<i>qualified identifiers</i> in other packages (§<a href="#Qualified_identifiers">Qualified identifiers</a>).
-If an identifier satisfies these two conditions:
+An identifier may be <i>exported</i> to permit access to it from another package
+using a <a href="#Qualified_identifiers">qualified identifier</a>. An identifier
+is exported if both:
 </p>
 <ol>
-<li>the first character of the identifier's name is a Unicode upper case letter (Unicode class "Lu");
-<li>the identifier is declared at the package level or is a field or method of a type
-declared at the top level;
+	<li>the first character of the identifier's name is a Unicode upper case letter (Unicode class "Lu"); and
+	<li>the identifier is declared in the <a href="#Blocks">package block</a> or is a field or method of a type
+	    declared in that block.
 </ol>
 <p>
-it will be exported.
+All other identifiers are not exported.
 </p>
+
 
 <h3 id="Const_declarations">Const declarations</h3>
 
@@ -1748,9 +1749,9 @@ PackageName = identifier .
 </pre>
 
 <p>
-A qualified identifier accesses an identifier in
-a separate package.  The identifier must be exported by that package, which
-means that it must begin with a Unicode upper case letter (§<a href="#Exported_identifiers">Exported identifiers</a>).
+A qualified identifier accesses an identifier in a separate package.
+The identifier must be <a href="#Exported_identifiers">exported</a> by that
+package, which means that it must begin with a Unicode upper case letter.
 </p>
 
 <pre>
@@ -3013,7 +3014,7 @@ which may be omitted only if the previous statement:
 </p>
 <ul>
 	<li>ends with the closing parenthesis ")" of a list of declarations
-	    (§<a href="#Declarations_and_Scope">Declarations and Scope</a>); or</li>
+	    (§<a href="#Declarations_and_scope">Declarations and scope</a>); or</li>
 	<li>ends with a closing brace "}" that is not part of an expression.
 </ul>
 
@@ -3363,7 +3364,7 @@ if v == nil {
 }
 </pre>
 
-<p>	
+<p>
 The type switch guard may be preceded by a simple statement, which
 executes before the guard is evaluated.
 </p>
@@ -4045,8 +4046,8 @@ An implementation may require that all source files for a package inhabit the sa
 <h3 id="Import_declarations">Import declarations</h3>
 
 <p>
-A source file gains access to exported identifiers (§<a href="#Exported">Exported</a>
-identifiers) from another package through an import declaration.
+A source file gains access to <a href="#Exported_identifiers">exported identifiers</a>
+from another package through an import declaration.
 In the general form, an import declaration provides an identifier
 that code in the source file may use to access the imported package's
 contents and a file name referring to the (compiled) implementation of
