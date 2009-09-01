@@ -595,6 +595,8 @@ func empty(v reflect.Value) bool {
 		return true
 	}
 	switch v := v.(type) {
+	case *reflect.BoolValue:
+		return v.Get() == false;
 	case *reflect.StringValue:
 		return v.Get() == "";
 	case *reflect.StructValue:
@@ -608,13 +610,13 @@ func empty(v reflect.Value) bool {
 }
 
 // Look up a variable, up through the parent if necessary.
-func (t *Template) varValue(v *variableElement, st *state) reflect.Value {
-	field := st.findVar(v.name);
+func (t *Template) varValue(name string, st *state) reflect.Value {
+	field := st.findVar(name);
 	if field == nil {
 		if st.parent == nil {
-			t.execError(st, t.linenum, "name not found: %s", v.name)
+			t.execError(st, t.linenum, "name not found: %s", name)
 		}
-		return t.varValue(v, st.parent);
+		return t.varValue(name, st.parent);
 	}
 	return field;
 }
@@ -623,7 +625,7 @@ func (t *Template) varValue(v *variableElement, st *state) reflect.Value {
 // If it has a formatter attached ({var|formatter}) run that too.
 func (t *Template) writeVariable(v *variableElement, st *state) {
 	formatter := v.formatter;
-	val := t.varValue(v, st).Interface();
+	val := t.varValue(v.name, st).Interface();
 	// is it in user-supplied map?
 	if t.fmap != nil {
 		if fn, ok := t.fmap[v.formatter]; ok {
@@ -673,7 +675,7 @@ func (t *Template) execute(start, end int, st *state) {
 // Execute a .section
 func (t *Template) executeSection(s *sectionElement, st *state) {
 	// Find driver data for this section.  It must be in the current struct.
-	field := st.findVar(s.field);
+	field := t.varValue(s.field, st);
 	if field == nil {
 		t.execError(st, s.linenum, ".section: cannot find field %s in %s", s.field, reflect.Indirect(st.data).Type());
 	}
@@ -718,7 +720,7 @@ func iter(v reflect.Value) *reflect.ChanValue {
 // Execute a .repeated section
 func (t *Template) executeRepeated(r *repeatedElement, st *state) {
 	// Find driver data for this section.  It must be in the current struct.
-	field := st.findVar(r.field);
+	field := t.varValue(r.field, st);
 	if field == nil {
 		t.execError(st, r.linenum, ".repeated: cannot find field %s in %s", r.field, reflect.Indirect(st.data).Type());
 	}

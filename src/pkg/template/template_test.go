@@ -35,6 +35,8 @@ type S struct {
 	emptystring string;
 	null []*T;
 	vec *vector.Vector;
+	true bool;
+	false bool;
 }
 
 var t1 = T{ "ItemNumber1", "ValueNumber1" }
@@ -234,6 +236,14 @@ var tests = []*Test {
 
 		out: "ItemNumber1=ValueNumber1\n"
 	},
+	&Test{
+		in: "{.section @ }\n"
+		"{innerT.item}={.section innerT}{.section value}{@}{.end}{.end}\n"
+		"{.end}",
+
+		out: "ItemNumber1=ValueNumber1\n"
+	},
+
 
 	// Formatters
 	&Test{
@@ -260,6 +270,13 @@ var tests = []*Test {
 
 		out: "\nheader\n"
 	},
+
+	&Test {
+		in: "{.section true}1{.or}2{.end}\n"
+		"{.section false}3{.or}4{.end}\n",
+
+		out: "1\n4\n"
+	},
 }
 
 func TestAll(t *testing.T) {
@@ -276,6 +293,8 @@ func TestAll(t *testing.T) {
 	s.vec = vector.New(0);
 	s.vec.Push("elt1");
 	s.vec.Push("elt2");
+	s.true = true;
+	s.false = false;
 
 	var buf bytes.Buffer;
 	for i, test := range tests {
