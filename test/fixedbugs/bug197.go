@@ -11,18 +11,18 @@ type U int
 
 var x int
 
-var t T = int(0)	// ERROR "cannot use"
-var t1 T = int(x)	// ERROR "cannot use"
-var u U = int(0)	// ERROR "cannot use"
-var u1 U = int(x)	// ERROR "cannot use"
+var t T = int(0)	// ERROR "cannot use|incompatible"
+var t1 T = int(x)	// ERROR "cannot use|incompatible"
+var u U = int(0)	// ERROR "cannot use|incompatible"
+var u1 U = int(x)	// ERROR "cannot use|incompatible"
 
 type S string
 var s S
 
 var s1 = s + "hello"
 var s2 = "hello" + s
-var s3 = s + string("hello")	// ERROR "invalid operation"
-var s4 = string("hello") + s	// ERROR "invalid operation"
+var s3 = s + string("hello")	// ERROR "invalid operation|incompatible"
+var s4 = string("hello") + s	// ERROR "invalid operation|incompatible"
 
 var r string
 
