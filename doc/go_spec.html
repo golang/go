@@ -4372,7 +4372,10 @@ The following minimal alignment properties are guaranteed:
 <h2 id="Implementation_differences"><font color=red>Implementation differences - TODO</font></h2>
 <p>
 <font color=red>
-Implementation does not honor the restriction on goto statements and targets (no intervening declarations).
+<ul>
+	<li>Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</li>
+	<li>A type switch must have an assignment in the guard expression and does not support multiple types per case.</li>
+</ul>
 </font>
 </p>
 
