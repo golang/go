@@ -265,6 +265,15 @@ readylocked(G *g)
 		matchmg();
 }
 
+// Same as readylocked but a different symbol so that
+// debuggers can set a breakpoint here and catch all
+// new goroutines.
+static void
+newprocreadylocked(G *g)
+{
+	readylocked(g);
+}
+
 // Pass g to m for running.
 static void
 mnextg(M *m, G *g)
@@ -739,7 +748,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 	goidgen++;
 	newg->goid = goidgen;
 
-	readylocked(newg);
+	newprocreadylocked(newg);
 	unlock(&sched);
 
 //printf(" goid=%d\n", newg->goid);
