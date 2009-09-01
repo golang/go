@@ -5,7 +5,10 @@
 // A package of simple functions to manipulate strings.
 package strings
 
-import "utf8"
+import (
+	"unicode";
+	"utf8";
+)
 
 // explode splits s into an array of UTF-8 sequences, one per Unicode character (still strings) up to a maximum of n (n <= 0 means no limit).
 // Invalid UTF-8 sequences become correct encodings of U+FFF8.
@@ -145,65 +148,84 @@ func HasSuffix(s, suffix string) bool {
 	return len(s) >= len(suffix) && s[len(s)-len(suffix):len(s)] == suffix
 }
 
-// Upper returns a copy of the string s, with all low ASCII lowercase letters
-// converted to uppercase.
-// TODO: full Unicode support
-func UpperASCII(s string) string {
-	// Note, we can work byte-by-byte because UTF-8 multibyte characters
-	// don't use any low ASCII byte values.
-	b := make([]byte, len(s));
-	for i := 0; i < len(s); i++ {
-		c := s[i];
-		if 'a' <= c && c <= 'z' {
-			c -= 'a' - 'A';
+// Map returns a copy of the string s with all its characters modified
+// according to mapping function.
+func Map(mapping func(rune int) int, s string) string {
+	// In the worst case, the string can grow when mapped, making
+	// things unpleasant.  But it's so rare we barge in assuming it's
+	// fine.  It could also shrink but that falls out naturally.
+	maxbytes := len(s);	// length of b
+	nbytes := 0;	// number of bytes encoded in b
+	b := make([]byte, maxbytes);
+	for i, c := range s {
+		rune := mapping(c);
+		wid := 1;
+		if rune >= utf8.RuneSelf {
+			wid = utf8.RuneLen(rune);
 		}
-		b[i] = c;
-	}
-	return string(b);
-}
-
-// Upper returns a copy of the string s, with all low ASCII lowercase letters
-// converted to lowercase.
-// TODO: full Unicode support
-func LowerASCII(s string) string {
-	// Note, we can work byte-by-byte because UTF-8 multibyte characters
-	// don't use any low ASCII byte values.
-	b := make([]byte, len(s));
-	for i := 0; i < len(s); i++ {
-		c := s[i];
-		if 'A' <= c && c <= 'Z' {
-			c += 'a' - 'A';
+		if nbytes + wid > maxbytes {
+			// Grow the buffer.
+			maxbytes = maxbytes*2 + utf8.UTFMax;
+			nb := make([]byte, maxbytes);
+			for i, c := range b[0:nbytes] {
+				nb[i] = c
+			}
+			b = nb;
 		}
-		b[i] = c;
+		nbytes += utf8.EncodeRune(rune, b[nbytes:maxbytes]);
 	}
-	return string(b);
+	return string(b[0:nbytes]);
 }
 
-func isWhitespaceASCII(c byte) bool {
-	switch int(c) {
-	case ' ', '\t', '\r', '\n':
-		return true;
-	}
- 	return false;
+// ToUpper returns a copy of the string s with all letters mapped to their upper case.
+func ToUpper(s string) string {
+	return Map(unicode.ToUpper, s)
 }
 
-// Trim returns a slice of the string s, with all leading and trailing whitespace
-// removed.  "Whitespace" for now defined as space, tab, CR, or LF.
-// TODO: full Unicode whitespace support (need a unicode.IsWhitespace method)
-func TrimSpaceASCII(s string) string {
-	// Note, we can work byte-by-byte because UTF-8 multibyte characters
-	// don't use any low ASCII byte values.
+// ToUpper returns a copy of the string s with all letters mapped to their lower case.
+func ToLower(s string) string {
+	return Map(unicode.ToLower, s)
+}
+
+// ToTitle returns a copy of the string s with all letters mapped to their title case.
+func Title(s string) string {
+	return Map(unicode.ToTitle, s)
+}
+
+// Trim returns a slice of the string s, with all leading and trailing white space
+// removed, as defined by Unicode.
+func TrimSpace(s string) string {
 	start, end := 0, len(s);
-	for start < end && isWhitespaceASCII(s[start]) {
-		start++;
+	for wid := 0; start < end; start += wid {
+		wid = 1;
+		rune := int(s[start]);
+		if rune >= utf8.RuneSelf {
+			rune, wid = utf8.DecodeRuneInString(s[start:end])
+		}
+		if !unicode.IsSpace(rune) {
+			break;
+		}
 	}
-	for start < end && isWhitespaceASCII(s[end-1]) {
-		end--;
+	for wid := 0; start < end; end -= wid {
+		wid = 1;
+		rune := int(s[end-1]);
+		if rune >= utf8.RuneSelf {
+			// Back up carefully looking for beginning of rune. Mustn't pass start.
+			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {
+			}
+			if start > end-wid {	// invalid UTF-8 sequence; stop processing
+				return s[start:end]
+			}
+			rune, wid = utf8.DecodeRuneInString(s[end-wid:end]);
+		}
+		if !unicode.IsSpace(rune) {
+			break;
+		}
 	}
 	return s[start:end];
 }
 
-// Bytes returns an array of the bytes in s.
+// Bytes returns a new slice containing the bytes in s.
 func Bytes(s string) []byte {
 	b := make([]byte, len(s));
 	for i := 0; i < len(s); i++ {
@@ -211,4 +233,3 @@ func Bytes(s string) []byte {
 	}
 	return b;
 }
-

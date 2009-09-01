@@ -290,3 +290,9 @@ func RuneCountInString(s string) int {
 	return n;
 }
 
+// RuneStart reports whether the byte could be the first byte of
+// an encoded rune.  Second and subsequent bytes always have the top
+// two bits set to 10.
+func RuneStart(b byte) bool {
+	return b & 0xC0 != 0x80
+}

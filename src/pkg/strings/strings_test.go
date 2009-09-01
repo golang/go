@@ -7,6 +7,8 @@ package strings_test
 import (
 	. "strings";
 	"testing";
+	"unicode";
+	"utf8";
 )
 
 func eq(a, b []string) bool {
@@ -155,39 +157,131 @@ func runStringTests(t *testing.T, f func(string) string, funcName string, testCa
 	}
 }
 
-var upperASCIITests = []StringTest {
+var upperTests = []StringTest {
 	StringTest{"", ""},
 	StringTest{"abc", "ABC"},
 	StringTest{"AbC123", "ABC123"},
-	StringTest{"azAZ09_", "AZAZ09_"}
+	StringTest{"azAZ09_", "AZAZ09_"},
+	StringTest{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"},	// grows one byte per char
 }
 
-var lowerASCIITests = []StringTest {
+var lowerTests = []StringTest {
 	StringTest{"", ""},
 	StringTest{"abc", "abc"},
 	StringTest{"AbC123", "abc123"},
-	StringTest{"azAZ09_", "azaz09_"}
+	StringTest{"azAZ09_", "azaz09_"},
+	StringTest{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"},	// shrinks one byte per char
 }
 
-var trimSpaceASCIITests = []StringTest {
+const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
+
+var trimSpaceTests = []StringTest {
 	StringTest{"", ""},
 	StringTest{"abc", "abc"},
+	StringTest{space + "abc" + space, "abc"},
 	StringTest{" ", ""},
 	StringTest{" \t\r\n \t\t\r\r\n\n ", ""},
 	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
-	StringTest{" \t\r\n x\t\t\r\r\ny\n ", "x\t\t\r\r\ny"},
+	StringTest{" \u2000\t\r\n x\t\t\r\r\ny\n \u3000", "x\t\t\r\r\ny"},
 	StringTest{"1 \t\r\n2", "1 \t\r\n2"},
+	StringTest{" x\x80", "x\x80"},	// invalid UTF-8 on end
+	StringTest{" x\xc0", "x\xc0"},	// invalid UTF-8 on end
 }
 
-func TestUpperASCII(t *testing.T) {
-	runStringTests(t, UpperASCII, "UpperASCII", upperASCIITests);
+func tenRunes(rune int) string {
+	r := make([]int, 10);
+	for i := range r {
+		r[i] = rune
+	}
+	return string(r)
 }
 
-func TestLowerASCII(t *testing.T) {
-	runStringTests(t, LowerASCII, "LowerASCII", lowerASCIITests);
+func TestMap(t *testing.T) {
+	// Run a couple of awful growth/shrinkage tests
+	a := tenRunes('a');
+	// 1.  Grow.  This triggers two reallocations in Map.
+	maxRune := func(rune int) int { return unicode.MaxRune };
+	m := Map(maxRune, a);
+	expect := tenRunes(unicode.MaxRune);
+	if m != expect {
+		t.Errorf("growing: expected %q got %q", expect, m);
+	}
+	// 2. Shrink
+	minRune := func(rune int) int { return 'a' };
+	m = Map(minRune, tenRunes(unicode.MaxRune));
+	expect = a;
+	if m != expect {
+		t.Errorf("shrinking: expected %q got %q", expect, m);
+	}
 }
 
-func TestTrimSpaceASCII(t *testing.T) {
-	runStringTests(t, TrimSpaceASCII, "TrimSpaceASCII", trimSpaceASCIITests);
+func TestToUpper(t *testing.T) {
+	runStringTests(t, ToUpper, "ToUpper", upperTests);
 }
 
+func TestToLower(t *testing.T) {
+	runStringTests(t, ToLower, "ToLower", lowerTests);
+}
+
+func TestTrimSpace(t *testing.T) {
+	runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests);
+}
+
+func equal(m string, s1, s2 string, t *testing.T) bool {
+	if s1 == s2 {
+		return true
+	}
+	e1 := Split(s1, "", 0);
+	e2 := Split(s2, "", 0);
+	for i, c1 := range e1 {
+		if i > len(e2) {
+			break
+		}
+		r1, w := utf8.DecodeRuneInString(c1);
+		r2, w := utf8.DecodeRuneInString(e2[i]);
+		if r1 != r2 {
+			t.Errorf("%s diff at %d: U+%04X U+%04X", m, i, r1, r2)
+		}
+	}
+	return false;
+}
+
+func TestCaseConsistency(t *testing.T) {
+	// Make a string of all the runes.
+	a := make([]int, unicode.MaxRune+1);
+	for i := range a {
+		a[i] = i
+	}
+	s := string(a);
+	// convert the cases.
+	upper := ToUpper(s);
+	lower := ToLower(s);
+
+	// Consistency checks
+	if n := utf8.RuneCountInString(upper); n != unicode.MaxRune+1 {
+		t.Error("rune count wrong in upper:", n);
+	}
+	if n := utf8.RuneCountInString(lower); n != unicode.MaxRune+1 {
+		t.Error("rune count wrong in lower:", n);
+	}
+	if !equal("ToUpper(upper)", ToUpper(upper), upper, t) {
+		t.Error("ToUpper(upper) consistency fail");
+	}
+	if !equal("ToLower(lower)", ToLower(lower), lower, t) {
+		t.Error("ToLower(lower) consistency fail");
+	}
+	/*
+	  These fail because of non-one-to-oneness of the data, such as multiple
+	  upper case 'I' mapping to 'i'.  We comment them out but keep them for
+	  interest.
+	  For instance: CAPITAL LETTER I WITH DOT ABOVE:
+		unicode.ToUpper(unicode.ToLower('\u0130')) != '\u0130'
+
+	if !equal("ToUpper(lower)", ToUpper(lower), upper, t) {
+		t.Error("ToUpper(lower) consistency fail");
+	}
+	if !equal("ToLower(upper)", ToLower(upper), lower, t) {
+		t.Error("ToLower(upper) consistency fail");
+	}
+	*/
+}

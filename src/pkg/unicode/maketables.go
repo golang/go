@@ -474,7 +474,7 @@ func parseScript(line string, scripts map[string] []Script) {
 	if comment >= 0 {
 		line = line[0:comment]
 	}
-	line = strings.TrimSpaceASCII(line);
+	line = strings.TrimSpace(line);
 	if len(line) == 0 {
 		return
 	}
