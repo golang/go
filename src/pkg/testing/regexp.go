@@ -265,7 +265,7 @@ func (re *Regexp) add(i instr) instr {
 	i.setIndex(len(re.inst));
 	if n >= cap(re.inst) {
 		ni := make([]instr, n, 2*n);
-		for i, j := range ni {
+		for i, j := range re.inst {
 			ni[i] = j
 		}
 		re.inst = ni;
