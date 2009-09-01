@@ -6,6 +6,8 @@
 // These are the building blocks for the operations on signed integers
 // and rationals.
 
+//	NOTE: PACKAGE UNDER CONSTRUCTION (use bignum for the time being)
+//
 // This package implements multi-precision arithmetic (big numbers).
 // The following numeric types are supported:
 //
