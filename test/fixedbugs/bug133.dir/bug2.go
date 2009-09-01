@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package bug1
+package bug2
 
 import "./bug1"
 import "./bug0"
