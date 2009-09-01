@@ -458,7 +458,7 @@ func (a *stmtCompiler) compileIncDecStmt(s *ast.IncDecStmt) {
 
 	one := l.newExpr(IdealIntType, "constant");
 	one.pos = s.Pos();
-	one.evalIdealInt = func() *bignum.Integer { return bignum.Int(1) };
+	one.eval = func() *bignum.Integer { return bignum.Int(1) };
 
 	binop := l.compileBinaryExpr(op, l, one);
 	if binop == nil {

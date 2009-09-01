@@ -10,6 +10,7 @@ GOFILES=\
 	bridge.go\
 	compiler.go\
 	expr.go\
+	expr1.go\
 	func.go\
 	scope.go\
 	stmt.go\
