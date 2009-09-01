@@ -132,37 +132,39 @@ func (a *expr) asMulti() (func(f *Frame) []Value) {
 }
 
 func (a *expr) asInterface() (func(f *Frame) interface {}) {
+	// TODO(austin) We need the argument names in this type switch
+	// to work around a 6g bug.
 	switch sf := a.eval.(type) {
-	case func(*Frame)bool:
+	case func(f *Frame)bool:
 		return func(f *Frame) interface{} { return sf(f) };
-	case func(*Frame)uint64:
+	case func(f *Frame)uint64:
 		return func(f *Frame) interface{} { return sf(f) };
-	case func(*Frame)int64:
+	case func(f *Frame)int64:
 		return func(f *Frame) interface{} { return sf(f) };
 	case func()*bignum.Integer:
 		return func(f *Frame) interface{} { return sf() };
-	case func(*Frame)float64:
+	case func(f *Frame)float64:
 		return func(f *Frame) interface{} { return sf(f) };
 	case func()*bignum.Rational:
 		return func(f *Frame) interface{} { return sf() };
-	case func(*Frame)string:
+	case func(f *Frame)string:
 		return func(f *Frame) interface{} { return sf(f) };
-	case func(*Frame)ArrayValue:
+	case func(f *Frame)ArrayValue:
 		return func(f *Frame) interface{} { return sf(f) };
-	case func(*Frame)StructValue:
+	case func(f *Frame)StructValue:
 		return func(f *Frame) interface{} { return sf(f) };
-	case func(*Frame)Value:
+	case func(f *Frame)Value:
 		return func(f *Frame) interface{} { return sf(f) };
-	case func(*Frame)Func:
+	case func(f *Frame)Func:
 		return func(f *Frame) interface{} { return sf(f) };
-	case func(*Frame)Slice:
+	case func(f *Frame)Slice:
 		return func(f *Frame) interface{} { return sf(f) };
-	case func(*Frame)Map:
+	case func(f *Frame)Map:
 		return func(f *Frame) interface{} { return sf(f) };
-	case func(*Frame)[]Value:
+	case func(f *Frame)[]Value:
 		return func(f *Frame) interface{} { return sf(f) };
 	}
-	log.Crashf("unexpected expression node type %v at %v", a.t, a.pos);
+	log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos);
 	panic();
 }
 
@@ -824,11 +826,15 @@ func (a *exprInfo) compileIntLit(lit string) *expr {
 
 func (a *exprInfo) compileCharLit(lit string) *expr {
 	if lit[0] != '\'' {
-		log.Crashf("malformed character literal %s at %v passed parser", lit, a.pos);
+		// Caught by parser
+		a.silentErrors++;
+		return nil;
 	}
 	v, mb, tail, err := strconv.UnquoteChar(lit[1:len(lit)], '\'');
 	if err != nil || tail != "'" {
-		log.Crashf("malformed character literal %s at %v passed parser", lit, a.pos);
+		// Caught by parser
+		a.silentErrors++;
+		return nil;
 	}
 	return a.compileIdealInt(bignum.Int(int64(v)), "character literal");
 }
@@ -1933,18 +1939,24 @@ func (a *expr) extractEffect(b *block, errOp string) (func(f *Frame), *expr) {
  */
 
 type Expr struct {
-	t Type;
-	f func(f *Frame) interface{};
+	e *expr;
 }
 
 func (expr *Expr) Type() Type {
-	return expr.t;
+	return expr.e.t;
 }
 
-func (expr *Expr) Eval(f *Frame) (interface{}, os.Error) {
-	var res interface{};
-	err := Try(func() {res = expr.f(f)});
-	return res, err;
+func (expr *Expr) Eval(f *Frame) (Value, os.Error) {
+	switch _ := expr.e.t.(type) {
+	case *idealIntType:
+		return &idealIntV{expr.e.asIdealInt()()}, nil;
+	case *idealFloatType:
+		return &idealFloatV{expr.e.asIdealFloat()()}, nil;
+	}
+	v := expr.e.t.Zero();
+	eval := genAssign(expr.e.t, expr.e);
+	err := Try(func() {eval(v, f)});
+	return v, err;
 }
 
 func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
@@ -1955,5 +1967,5 @@ func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
 	if ec == nil {
 		return nil, errors.GetError(scanner.Sorted);
 	}
-	return &Expr{ec.t, ec.asInterface()}, nil;
+	return &Expr{ec}, nil;
 }
