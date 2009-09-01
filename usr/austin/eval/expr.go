@@ -131,7 +131,7 @@ func (a *expr) asMulti() (func(f *Frame) []Value) {
 	return a.eval.(func(*Frame)[]Value)
 }
 
-func (a *expr) asInterface() (func(f *Frame) interface{}) {
+func (a *expr) asInterface() (func(f *Frame) interface {}) {
 	switch sf := a.eval.(type) {
 	case func(*Frame)bool:
 		return func(f *Frame) interface{} { return sf(f) };
@@ -139,19 +139,30 @@ func (a *expr) asInterface() (func(f *Frame) interface{}) {
 		return func(f *Frame) interface{} { return sf(f) };
 	case func(*Frame)int64:
 		return func(f *Frame) interface{} { return sf(f) };
+	case func()*bignum.Integer:
+		return func(f *Frame) interface{} { return sf() };
 	case func(*Frame)float64:
 		return func(f *Frame) interface{} { return sf(f) };
+	case func()*bignum.Rational:
+		return func(f *Frame) interface{} { return sf() };
 	case func(*Frame)string:
+		return func(f *Frame) interface{} { return sf(f) };
+	case func(*Frame)ArrayValue:
+		return func(f *Frame) interface{} { return sf(f) };
+	case func(*Frame)StructValue:
 		return func(f *Frame) interface{} { return sf(f) };
 	case func(*Frame)Value:
 		return func(f *Frame) interface{} { return sf(f) };
 	case func(*Frame)Func:
 		return func(f *Frame) interface{} { return sf(f) };
+	case func(*Frame)Slice:
+		return func(f *Frame) interface{} { return sf(f) };
 	case func(*Frame)Map:
 		return func(f *Frame) interface{} { return sf(f) };
-	default:
-		log.Crashf("unexpected expression node type %v at %v", a.t, a.pos);
+	case func(*Frame)[]Value:
+		return func(f *Frame) interface{} { return sf(f) };
 	}
+	log.Crashf("unexpected expression node type %v at %v", a.t, a.pos);
 	panic();
 }
 
@@ -1918,18 +1929,22 @@ func (a *expr) extractEffect(b *block, errOp string) (func(f *Frame), *expr) {
 }
 
 /*
- * Testing interface
+ * Public interface
  */
 
 type Expr struct {
 	t Type;
-	f func(f *Frame, out Value);
+	f func(f *Frame) interface{};
 }
 
-func (expr *Expr) Eval(f *Frame) (Value, os.Error) {
-	v := expr.t.Zero();
-	err := Try(func() {expr.f(f, v)});
-	return v, err;
+func (expr *Expr) Type() Type {
+	return expr.t;
+}
+
+func (expr *Expr) Eval(f *Frame) (interface{}, os.Error) {
+	var res interface{};
+	err := Try(func() {res = expr.f(f)});
+	return res, err;
 }
 
 func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
@@ -1940,31 +1955,5 @@ func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
 	if ec == nil {
 		return nil, errors.GetError(scanner.Sorted);
 	}
-	t := ec.t;
-	switch e := ec.eval.(type) {
-	case func(*Frame)bool:
-		return &Expr{t, func(f *Frame, out Value) { out.(BoolValue).Set(e(f)) }}, nil;
-	case func(*Frame)uint64:
-		return &Expr{t, func(f *Frame, out Value) { out.(UintValue).Set(e(f)) }}, nil;
-	case func(*Frame)int64:
-		return &Expr{t, func(f *Frame, out Value) { out.(IntValue).Set(e(f)) }}, nil;
-	case func()*bignum.Integer:
-		return &Expr{t, func(f *Frame, out Value) { out.(*idealIntV).V = e() }}, nil;
-	case func(*Frame)float64:
-		return &Expr{t, func(f *Frame, out Value) { out.(FloatValue).Set(e(f)) }}, nil;
-	case func()*bignum.Rational:
-		return &Expr{t, func(f *Frame, out Value) { out.(*idealFloatV).V = e() }}, nil;
-	case func(*Frame)string:
-		return &Expr{t, func(f *Frame, out Value) { out.(StringValue).Set(e(f)) }}, nil;
-	case func(*Frame)ArrayValue:
-		return &Expr{t, func(f *Frame, out Value) { out.(ArrayValue).Assign(e(f)) }}, nil;
-	case func(*Frame)Value:
-		return &Expr{t, func(f *Frame, out Value) { out.(PtrValue).Set(e(f)) }}, nil;
-	case func(*Frame)Func:
-		return &Expr{t, func(f *Frame, out Value) { out.(FuncValue).Set(e(f)) }}, nil;
-	case func(*Frame)Slice:
-		return &Expr{t, func(f *Frame, out Value) { out.(SliceValue).Set(e(f)) }}, nil;
-	}
-	log.Crashf("unexpected type %v", ec.t);
-	panic();
+	return &Expr{ec.t, ec.asInterface()}, nil;
 }

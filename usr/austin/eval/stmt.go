@@ -1274,15 +1274,15 @@ func (a *funcCompiler) checkLabels() {
 }
 
 /*
- * Testing interface
+ * Public interface
  */
 
 type Stmt struct {
-	f func (f *Frame);
+	code code;
 }
 
 func (s *Stmt) Exec(f *Frame) os.Error {
-	return Try(func() {s.f(f)});
+	return Try(func() {s.code.exec(f)});
 }
 
 func CompileStmts(scope *Scope, stmts []ast.Stmt) (*Stmt, os.Error) {
@@ -1311,5 +1311,5 @@ func CompileStmts(scope *Scope, stmts []ast.Stmt) (*Stmt, os.Error) {
 		return nil, errors.GetError(scanner.Sorted);
 	}
 	code := fc.get();
-	return &Stmt{func(f *Frame) { code.exec(f); }}, nil;
+	return &Stmt{code}, nil;
 }
