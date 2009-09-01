@@ -66,35 +66,9 @@ func (doc *docReader) addType(decl *ast.GenDecl) {
 }
 
 
-var predeclaredTypes = map[string]int {
-		// basic types
-		"bool": 0,
-		"byte": 0,
-		"int8": 0,
-		"int16": 0,
-		"int32": 0,
-		"int64": 0,
-		"uint8": 0,
-		"uint16": 0,
-		"uint32": 0,
-		"uint64": 0,
-		"float32": 0,
-		"float64": 0,
-		"string": 0,
-		// convenience types
-		"int": 0,
-		"uint": 0,
-		"uintptr": 0,
-		"float": 0,
-}
-
-
 func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
 	if name == "" {
 		return nil;  // no type docs for anonymous types
-	}
-	if _, found := predeclaredTypes[name]; found {
-		return nil;  // no type docs for predeclared types
 	}
 	if tdoc, found := doc.types[name]; found {
 		return tdoc;
@@ -109,7 +83,11 @@ func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
 func baseTypeName(typ ast.Expr) string {
 	switch t := typ.(type) {
 	case *ast.Ident:
-		return string(t.Value);
+		// if the type is not exported, the effect to
+		// a client is as if there were no type name
+		if t.IsExported() {
+			return string(t.Value);
+		}
 	case *ast.StarExpr:
 		return baseTypeName(t.X);
 	}
@@ -176,13 +154,16 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 	if fun.Recv != nil {
 		// method
 		typ := doc.lookupTypeDoc(baseTypeName(fun.Recv.Type));
-		// typ should always be != nil since receiver base
-		// types must be named and cannot be predeclared -
-		// be conservative and check
 		if typ != nil {
+			// exported receiver type
 			typ.methods[name] = fun;
-			return;
 		}
+		// otherwise don't show the method
+		// TODO(gri): There may be exported methods of non-exported types
+		// that can be called because of exported values (consts, vars, or
+		// function results) of that type. Could determine if that is the
+		// case and then show those methods in an appropriate section.
+		return;
 	}
 
 	// perhaps a factory function
@@ -193,7 +174,7 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 			// exactly one (named or anonymous) result type
 			typ := doc.lookupTypeDoc(baseTypeName(res.Type));
 			if typ != nil {
-				// named result type that is not predeclared
+				// named and exported result type
 				typ.factories[name] = fun;
 				return;
 			}
@@ -201,7 +182,6 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 	}
 
 	// ordinary function
-	// (or method that was not associated to a type for some reason)
 	doc.funcs[name] = fun;
 }
 
