@@ -1289,7 +1289,7 @@ gmove(Node *f, Node *t)
 		if(t->op == OREGISTER)
 			goto hardmem;
 		nodreg(&r1, types[ft], D_F0);
-		if(ft == TFLOAT32)
+		if(ft == TFLOAT32 && f->op != OREGISTER)
 			gins(AFMOVF, f, &r1);
 		else
 			gins(AFMOVD, f, &r1);
@@ -1629,6 +1629,9 @@ Prog*
 gins(int as, Node *f, Node *t)
 {
 	Prog *p;
+
+	if(as == AFMOVF && f && f->op == OREGISTER && t && t->op == OREGISTER)
+		fatal("gins MOVF reg, reg");
 
 	switch(as) {
 	case AMOVB:
