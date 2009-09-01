@@ -149,7 +149,7 @@ func HasSuffix(s, suffix string) bool {
 }
 
 // Map returns a copy of the string s with all its characters modified
-// according to mapping function.
+// according to the mapping function.
 func Map(mapping func(rune int) int, s string) string {
 	// In the worst case, the string can grow when mapped, making
 	// things unpleasant.  But it's so rare we barge in assuming it's
@@ -177,17 +177,17 @@ func Map(mapping func(rune int) int, s string) string {
 	return string(b[0:nbytes]);
 }
 
-// ToUpper returns a copy of the string s with all letters mapped to their upper case.
+// ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
 func ToUpper(s string) string {
 	return Map(unicode.ToUpper, s)
 }
 
-// ToUpper returns a copy of the string s with all letters mapped to their lower case.
+// ToUpper returns a copy of the string s with all Unicode letters mapped to their lower case.
 func ToLower(s string) string {
 	return Map(unicode.ToLower, s)
 }
 
-// ToTitle returns a copy of the string s with all letters mapped to their title case.
+// ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.
 func Title(s string) string {
 	return Map(unicode.ToTitle, s)
 }
