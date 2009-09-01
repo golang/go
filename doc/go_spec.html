@@ -1503,18 +1503,16 @@ to a new type.  <font color=red>TODO: what exactly is a "new type"?</font>
 <pre class="ebnf">
 TypeDecl     = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ) .
 TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
-TypeSpec     = identifier ( Type | "struct" | "interface" ) .
+TypeSpec     = identifier Type .
 </pre>
 
 <pre>
-type IntArray [16] int
+type IntArray [16]int
 
 type (
 	Point struct { x, y float };
 	Polar Point
 )
-
-type Comparable interface
 
 type TreeNode struct {
 	left, right *TreeNode;
