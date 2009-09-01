@@ -188,7 +188,7 @@ func (b *_StructBuilder) Key(k string) Builder {
 		}
 		// Again, case-insensitive.
 		for i := 0; i < t.NumField(); i++ {
-			if strings.LowerASCII(t.Field(i).Name) == k {
+			if strings.ToLower(t.Field(i).Name) == k {
 				return &_StructBuilder{ v.Field(i) }
 			}
 		}
