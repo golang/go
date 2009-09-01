@@ -8,6 +8,7 @@ import (
 	. "bytes";
 	"strings";
 	"testing";
+	"unicode";
 )
 
 func eq(a, b []string) bool {
@@ -162,4 +163,101 @@ func TestCopy(t *testing.T) {
 			continue;
 		}
 	}
+}
+
+// Test case for any function which accepts and returns a byte array.
+// For ease of creation, we write the byte arrays as strings.
+type StringTest struct {
+	in, out string;
+}
+
+var upperTests = []StringTest {
+	StringTest{"", ""},
+	StringTest{"abc", "ABC"},
+	StringTest{"AbC123", "ABC123"},
+	StringTest{"azAZ09_", "AZAZ09_"},
+	StringTest{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"},	// grows one byte per char
+}
+
+var lowerTests = []StringTest {
+	StringTest{"", ""},
+	StringTest{"abc", "abc"},
+	StringTest{"AbC123", "abc123"},
+	StringTest{"azAZ09_", "azaz09_"},
+	StringTest{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"},	// shrinks one byte per char
+}
+
+const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
+
+var trimSpaceTests = []StringTest {
+	StringTest{"", ""},
+	StringTest{"abc", "abc"},
+	StringTest{space + "abc" + space, "abc"},
+	StringTest{" ", ""},
+	StringTest{" \t\r\n \t\t\r\r\n\n ", ""},
+	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
+	StringTest{" \u2000\t\r\n x\t\t\r\r\ny\n \u3000", "x\t\t\r\r\ny"},
+	StringTest{"1 \t\r\n2", "1 \t\r\n2"},
+	StringTest{" x\x80", "x\x80"},	// invalid UTF-8 on end
+	StringTest{" x\xc0", "x\xc0"},	// invalid UTF-8 on end
+}
+
+// Bytes returns a new slice containing the bytes in s.
+// Borrowed from strings to avoid dependency.
+func Bytes(s string) []byte {
+	b := make([]byte, len(s));
+	for i := 0; i < len(s); i++ {
+		b[i] = s[i];
+	}
+	return b;
+}
+
+// Execute f on each test case.  funcName should be the name of f; it's used
+// in failure reports.
+func runStringTests(t *testing.T, f func([]byte) []byte, funcName string, testCases []StringTest) {
+	for i, tc := range testCases {
+		actual := string(f(Bytes(tc.in)));
+		if actual != tc.out {
+			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out);
+		}
+	}
+}
+
+func tenRunes(rune int) string {
+	r := make([]int, 10);
+	for i := range r {
+		r[i] = rune
+	}
+	return string(r)
+}
+
+func TestMap(t *testing.T) {
+	// Run a couple of awful growth/shrinkage tests
+	a := tenRunes('a');
+	// 1.  Grow.  This triggers two reallocations in Map.
+	maxRune := func(rune int) int { return unicode.MaxRune };
+	m := Map(maxRune, Bytes(a));
+	expect := tenRunes(unicode.MaxRune);
+	if string(m) != expect {
+		t.Errorf("growing: expected %q got %q", expect, m);
+	}
+	// 2. Shrink
+	minRune := func(rune int) int { return 'a' };
+	m = Map(minRune, Bytes(tenRunes(unicode.MaxRune)));
+	expect = a;
+	if string(m) != expect {
+		t.Errorf("shrinking: expected %q got %q", expect, m);
+	}
+}
+
+func TestToUpper(t *testing.T) {
+	runStringTests(t, ToUpper, "ToUpper", upperTests);
+}
+
+func TestToLower(t *testing.T) {
+	runStringTests(t, ToLower, "ToLower", lowerTests);
+}
+
+func TestTrimSpace(t *testing.T) {
+	runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests);
 }

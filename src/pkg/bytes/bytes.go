@@ -6,7 +6,10 @@
 // Analagous to the facilities of the strings package.
 package bytes
 
-import "utf8"
+import (
+	"unicode";
+	"utf8";
+)
 
 // Compare returns an integer comparing the two byte arrays lexicographically.
 // The result will be 0 if a==b, -1 if a < b, and +1 if a > b
@@ -176,4 +179,84 @@ func HasPrefix(s, prefix []byte) bool {
 // HasSuffix tests whether the byte array s ends with suffix.
 func HasSuffix(s, suffix []byte) bool {
 	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix):len(s)], suffix)
+}
+
+// Map returns a copy of the byte array s with all its characters modified
+// according to the mapping function.
+func Map(mapping func(rune int) int, s []byte) []byte {
+	// In the worst case, the array can grow when mapped, making
+	// things unpleasant.  But it's so rare we barge in assuming it's
+	// fine.  It could also shrink but that falls out naturally.
+	maxbytes := len(s);	// length of b
+	nbytes := 0;	// number of bytes encoded in b
+	b := make([]byte, maxbytes);
+	for wid, i := 0, 0; i < len(s); i += wid {
+		wid = 1;
+		rune := int(s[i]);
+		if rune < utf8.RuneSelf {
+			rune = mapping(rune);
+		} else {
+			rune, wid = utf8.DecodeRune(s[i:len(s)]);
+		}
+		rune = mapping(rune);
+		if nbytes + utf8.RuneLen(rune) > maxbytes {
+			// Grow the buffer.
+			maxbytes = maxbytes*2 + utf8.UTFMax;
+			nb := make([]byte, maxbytes);
+			for i, c := range b[0:nbytes] {
+				nb[i] = c
+			}
+			b = nb;
+		}
+		nbytes += utf8.EncodeRune(rune, b[nbytes:maxbytes]);
+	}
+	return b[0:nbytes];
+}
+
+// ToUpper returns a copy of the byte array s with all Unicode letters mapped to their upper case.
+func ToUpper(s []byte) []byte {
+	return Map(unicode.ToUpper, s)
+}
+
+// ToUpper returns a copy of the byte array s with all Unicode letters mapped to their lower case.
+func ToLower(s []byte) []byte {
+	return Map(unicode.ToLower, s)
+}
+
+// ToTitle returns a copy of the byte array s with all Unicode letters mapped to their title case.
+func Title(s []byte) []byte {
+	return Map(unicode.ToTitle, s)
+}
+
+// Trim returns a slice of the string s, with all leading and trailing white space
+// removed, as defined by Unicode.
+func TrimSpace(s []byte) []byte {
+	start, end := 0, len(s);
+	for wid := 0; start < end; start += wid {
+		wid = 1;
+		rune := int(s[start]);
+		if rune >= utf8.RuneSelf {
+			rune, wid = utf8.DecodeRune(s[start:end])
+		}
+		if !unicode.IsSpace(rune) {
+			break;
+		}
+	}
+	for wid := 0; start < end; end -= wid {
+		wid = 1;
+		rune := int(s[end-1]);
+		if rune >= utf8.RuneSelf {
+			// Back up carefully looking for beginning of rune. Mustn't pass start.
+			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {
+			}
+			if start > end-wid {	// invalid UTF-8 sequence; stop processing
+				return s[start:end]
+			}
+			rune, wid = utf8.DecodeRune(s[end-wid:end]);
+		}
+		if !unicode.IsSpace(rune) {
+			break;
+		}
+	}
+	return s[start:end];
 }
