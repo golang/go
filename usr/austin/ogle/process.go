@@ -29,6 +29,14 @@ func (e UnknownArchitecture) String() string {
 	return "unknown architecture: " + sym.ElfMachine(e).String();
 }
 
+// A ProcessNotStopped error occurs when attempting to read or write
+// memory or registers of a process that is not stopped.
+type ProcessNotStopped struct {}
+
+func (e ProcessNotStopped) String() string {
+	return "process not stopped";
+}
+
 // A Process represents a remote attached process.
 type Process struct {
 	Arch;
@@ -37,10 +45,11 @@ type Process struct {
 	// The symbol table of this process
 	syms *sym.GoSymTable;
 
-	// Current thread
-	thread ptrace.Thread;
 	// Current frame, or nil if the current thread is not stopped
-	frame *frame;
+	frame *Frame;
+
+	// A possibly-stopped OS thread, or nil
+	threadCache ptrace.Thread;
 
 	// Types parsed from the remote process
 	types map[ptrace.Word] *remoteType;
@@ -50,6 +59,11 @@ type Process struct {
 
 	// Runtime field indexes
 	f runtimeIndexes;
+
+	// Globals from the sys package (or from no package)
+	sys struct {
+		lessstack, goexit, newproc, deferproc *sym.TextSym;
+	};
 }
 
 // NewProcess constructs a new remote process around a ptrace'd
@@ -59,7 +73,6 @@ func NewProcess(proc ptrace.Process, arch Arch, syms *sym.GoSymTable) *Process {
 		Arch: arch,
 		Process: proc,
 		syms: syms,
-		thread: proc.Threads()[0],
 		types: make(map[ptrace.Word] *remoteType),
 	};
 
@@ -124,6 +137,57 @@ func (p *Process) bootstrap() {
 		rtv.Field(i).(*reflect.Uint64Value).Set(sym.Common().Value);
 	}
 
-	// Get field indexes
+	// Get runtime field indexes
 	fillRuntimeIndexes(&p.runtime, &p.f);
+
+	// Fill G status
+	p.runtime.runtimeGStatus = rt1GStatus;
+
+	// Get globals
+	globalFn := func(name string) *sym.TextSym {
+		if sym, ok := p.syms.SymFromName(name).(*sym.TextSym); ok {
+			return sym;
+		}
+		return nil;
+	};
+	p.sys.lessstack = globalFn("sys·lessstack");
+	p.sys.goexit = globalFn("goexit");
+	p.sys.newproc = globalFn("sys·newproc");
+	p.sys.deferproc = globalFn("sys·deferproc");
+}
+
+func (p *Process) someStoppedThread() ptrace.Thread {
+	if p.threadCache != nil {
+		if _, err := p.threadCache.Stopped(); err == nil {
+			return p.threadCache;
+		}
+	}
+
+	for _, t := range p.Threads() {
+		if _, err := t.Stopped(); err == nil {
+			p.threadCache = t;
+			return t;
+		}
+	}
+	return nil;
+}
+
+func (p *Process) Peek(addr ptrace.Word, out []byte) (int, os.Error) {
+	thr := p.someStoppedThread();
+	if thr == nil {
+		return 0, ProcessNotStopped{};
+	}
+	return thr.Peek(addr, out);
+}
+
+func (p *Process) Poke(addr ptrace.Word, b []byte) (int, os.Error) {
+	thr := p.someStoppedThread();
+	if thr == nil {
+		return 0, ProcessNotStopped{};
+	}
+	return thr.Poke(addr, b);
+}
+
+func (p *Process) peekUintptr(addr ptrace.Word) ptrace.Word {
+	return ptrace.Word(mkUintptr(remote{addr, p}).(remoteUint).Get());
 }

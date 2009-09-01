@@ -53,7 +53,7 @@ func (v remote) Get(size int) uint64 {
 	// collector from collecting objects out from under us.
 	var arr [8]byte;
 	buf := arr[0:size];
-	_, err := v.p.thread.Peek(v.base, buf);
+	_, err := v.p.Peek(v.base, buf);
 	if err != nil {
 		eval.Abort(err);
 	}
@@ -64,7 +64,7 @@ func (v remote) Set(size int, x uint64) {
 	var arr [8]byte;
 	buf := arr[0:size];
 	v.p.FromWord(ptrace.Word(x), buf);
-	_, err := v.p.thread.Poke(v.base, buf);
+	_, err := v.p.Poke(v.base, buf);
 	if err != nil {
 		eval.Abort(err);
 	}
@@ -291,7 +291,7 @@ func (v remoteString) Get() string {
 	len := rs.Field(v.r.p.f.String.Len).(remoteInt).Get();
 	
 	bytes := make([]uint8, len);
-	_, err := v.r.p.thread.Peek(str, bytes);
+	_, err := v.r.p.Peek(str, bytes);
 	if err != nil {
 		eval.Abort(err);
 	}
