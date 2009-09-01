@@ -7,7 +7,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
 TARG=ptrace
 GOFILES=\
 	proc.go\
-	proc_linux.go\
+	proc_$(GOOS).go\
 	regs_$(GOOS)_$(GOARCH).go\
 
 include $(GOROOT)/src/Make.pkg

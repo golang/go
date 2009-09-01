@@ -3,9 +3,3 @@
 // license that can be found in the LICENSE file.
 
 package proc
-
-import "syscall"
-
-func newRegs(regs *syscall.PtraceRegs, setter func (*syscall.PtraceRegs) os.Error) Regs {
-	panic("newRegs unimplemented on darwin/amd64");
-}
