@@ -172,7 +172,7 @@ methods(Type *t)
 		a = b;
 
 		a->name = method->name;
-		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0, 0);
+		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type);
 		if(!exportname(a->name)) {
 			a->package = method->package;
 			a->hash += PRIME10*stringhash(a->package);
@@ -248,7 +248,7 @@ imethods(Type *t)
 		a = b;
 
 		a->name = f->sym->name;
-		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0, 0);
+		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type);
 		if(!exportname(a->name)) {
 			a->package = f->sym->package;
 			a->hash += PRIME10*stringhash(a->package);
@@ -411,7 +411,7 @@ dcommontype(Sym *s, int ot, Type *t)
 	//		*nameInfo;
 	//	}
 	ot = duintptr(s, ot, t->width);
-	ot = duint32(s, ot, typehash(t, 1, 0));
+	ot = duint32(s, ot, typehash(t));
 	ot = duint8(s, ot, algtype(t));
 	elem = t;
 	while(elem->etype == TARRAY && elem->bound >= 0)

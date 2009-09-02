@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include	"go.h"
+#include	"md5.h"
 #include	"y.tab.h"
 #include	"opnames.h"
 
@@ -1892,53 +1893,35 @@ eqargs(Type *t1, Type *t2)
 	return 1;
 }
 
+/*
+ * compute a hash value for type t.
+ * if t is a method type, ignore the receiver
+ * so that the hash can be used in interface checks.
+ * %#-T (which calls Tpretty, above) already contains
+ * all the necessary logic to generate a representation
+ * of the type that completely describes it.
+ * using smprint here avoids duplicating that code.
+ * using md5 here is overkill, but i got tired of
+ * accidental collisions making the runtime think
+ * two types are equal when they really aren't.
+ */
 uint32
-typehash(Type *at, int addsym, int d)
+typehash(Type *t)
 {
-	uint32 h;
-	Type *t;
+	char *p;
+	MD5 d;
 
-	if(at == T)
-		return PRIME2;
-	if(d >= 5)
-		return PRIME3;
-
-	h = at->etype*PRIME4;
-
-	if(addsym && at->sym != S)
-		h += stringhash(at->sym->name);
-
-	switch(at->etype) {
-	default:
-		h += PRIME5 * typehash(at->type, addsym, d+1);
-		break;
-
-	case TINTER:
-		// botch -- should be sorted?
-		for(t=at->type; t!=T; t=t->down)
-			h += PRIME6 * typehash(t, addsym, d+1);
-		break;
-
-	case TSTRUCT:
-		for(t=at->type; t!=T; t=t->down) {
-			if(at->funarg)	// walk into TFIELD in function argument struct
-				h += PRIME7 * typehash(t->type, addsym, d+1);
-			else
-				h += PRIME7 * typehash(t, addsym, d+1);
-		}
-		break;
-
-	case TFUNC:
-		t = at->type;
-		// skip this (receiver) argument
-		if(t != T)
-			t = t->down;
-		for(; t!=T; t=t->down)
-			h += PRIME7 * typehash(t, addsym, d+1);
-		break;
-	}
-
-	return h;
+	if(t->thistuple) {
+		// hide method receiver from Tpretty
+		t->thistuple = 0;
+		p = smprint("%#-T", t);
+		t->thistuple = 1;
+	}else
+		p = smprint("%#-T", t);
+	md5reset(&d);
+	md5write(&d, (uchar*)p, strlen(p));
+	free(p);
+	return md5sum(&d);
 }
 
 Type*
@@ -2747,7 +2730,7 @@ ifacelookdot(Sym *s, Type *t, int *followptr)
 // check whether non-interface type t
 // satisifes inteface type iface.
 int
-ifaceokT2I(Type *t0, Type *iface, Type **m)
+ifaceokT2I(Type *t0, Type *iface, Type **m, Type **samename)
 {
 	Type *t, *im, *tm, *rcvr;
 	int imhash, followptr;
@@ -2766,10 +2749,11 @@ ifaceokT2I(Type *t0, Type *iface, Type **m)
 	// so we can both be wrong together.
 
 	for(im=iface->type; im; im=im->down) {
-		imhash = typehash(im, 0, 0);
+		imhash = typehash(im->type);
 		tm = ifacelookdot(im->sym, t, &followptr);
-		if(tm == T || typehash(tm, 0, 0) != imhash) {
+		if(tm == T || typehash(tm->type) != imhash) {
 			*m = im;
+			*samename = tm;
 			return 0;
 		}
 		// if pointer receiver in method,
@@ -2779,6 +2763,7 @@ ifaceokT2I(Type *t0, Type *iface, Type **m)
 			if(debug['r'])
 				yyerror("interface pointer mismatch");
 			*m = im;
+			*samename = nil;
 			return 0;
 		}
 	}
@@ -2797,7 +2782,7 @@ ifaceokI2I(Type *i1, Type *i2, Type **m)
 
 	for(m2=i2->type; m2; m2=m2->down) {
 		for(m1=i1->type; m1; m1=m1->down)
-			if(m1->sym == m2->sym && typehash(m1, 0, 0) == typehash(m2, 0, 0))
+			if(m1->sym == m2->sym && typehash(m1) == typehash(m2))
 				goto found;
 		*m = m2;
 		return 0;
@@ -2811,7 +2796,7 @@ runifacechecks(void)
 {
 	Icheck *p;
 	int lno, wrong, needexplicit;
-	Type *m, *t, *iface;
+	Type *m, *t, *iface, *samename;
 
 	lno = lineno;
 	for(p=icheck; p; p=p->next) {
@@ -2819,6 +2804,7 @@ runifacechecks(void)
 		wrong = 0;
 		needexplicit = 0;
 		m = nil;
+		samename = nil;
 		if(isinter(p->dst) && isinter(p->src)) {
 			iface = p->dst;
 			t = p->src;
@@ -2827,20 +2813,26 @@ runifacechecks(void)
 		else if(isinter(p->dst)) {
 			t = p->src;
 			iface = p->dst;
-			wrong = !ifaceokT2I(t, iface, &m);
+			wrong = !ifaceokT2I(t, iface, &m, &samename);
 		} else {
 			t = p->dst;
 			iface = p->src;
-			wrong = !ifaceokT2I(t, iface, &m);
+			wrong = !ifaceokT2I(t, iface, &m, &samename);
 			needexplicit = 1;
 		}
-		if(wrong)
+		if(wrong) {
 			yyerror("%T is not %T\n\tmissing %S%hhT",
 				t, iface, m->sym, m->type);
+			if(samename)
+				print("\tdo have %S%hhT\n", samename->sym, samename->type);
+		}
 		else if(!p->explicit && needexplicit) {
-			if(m)
+			if(m) {
 				yyerror("need type assertion to use %T as %T\n\tmissing %S%hhT",
 					p->src, p->dst, m->sym, m->type);
+				if(samename)
+					print("\tdo have %S%hhT\n", samename->sym, samename->type);
+			}
 			else
 				yyerror("need type assertion to use %T as %T",
 					p->src, p->dst);

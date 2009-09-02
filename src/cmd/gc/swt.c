@@ -357,7 +357,7 @@ mkcaselist(Node *sw, int arg)
 				continue;
 			}
 
-			c->hash = typehash(n->left->left->type, 1, 0);
+			c->hash = typehash(n->left->left->type);
 			c->type = Ttypeconst;
 			continue;
 
