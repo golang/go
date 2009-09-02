@@ -387,7 +387,7 @@ mkcaselist(Node *sw, int arg)
 				continue;
 			setlineno(c1->link->node);
 			yyerror("duplicate case in switch");
-			print("    previous case at %L\n",
+			print("\tprevious case at %L\n",
 				c1->node->lineno);
 		}
 		break;
@@ -400,7 +400,7 @@ mkcaselist(Node *sw, int arg)
 				continue;
 			setlineno(c1->link->node);
 			yyerror("duplicate case in switch");
-			print("    previous case at %L\n",
+			print("\tprevious case at %L\n",
 				c1->node->lineno);
 		}
 		break;
