@@ -57,34 +57,32 @@ func (a *expr) asMulti() (func(*Frame) []Value) {
 }
 
 func (a *expr) asInterface() (func(*Frame) interface{}) {
-	// TODO(rsc): Drop f from (f *Frame) in case labels
-	// after fixing 6g type switch bug.
 	switch sf := a.eval.(type) {
-	case func(f *Frame)bool:
+	case func(*Frame)bool:
 		return func(f *Frame) interface{} { return sf(f) }
-	case func(f *Frame)uint64:
+	case func(*Frame)uint64:
 		return func(f *Frame) interface{} { return sf(f) }
-	case func(f *Frame)int64:
+	case func(*Frame)int64:
 		return func(f *Frame) interface{} { return sf(f) }
-	case func(f *Frame)*bignum.Integer:
+	case func(*Frame)*bignum.Integer:
 		return func(f *Frame) interface{} { return sf(f) }
-	case func(f *Frame)float64:
+	case func(*Frame)float64:
 		return func(f *Frame) interface{} { return sf(f) }
-	case func(f *Frame)*bignum.Rational:
+	case func(*Frame)*bignum.Rational:
 		return func(f *Frame) interface{} { return sf(f) }
-	case func(f *Frame)string:
+	case func(*Frame)string:
 		return func(f *Frame) interface{} { return sf(f) }
-	case func(f *Frame)ArrayValue:
+	case func(*Frame)ArrayValue:
 		return func(f *Frame) interface{} { return sf(f) }
-	case func(f *Frame)StructValue:
+	case func(*Frame)StructValue:
 		return func(f *Frame) interface{} { return sf(f) }
-	case func(f *Frame)Value:
+	case func(*Frame)Value:
 		return func(f *Frame) interface{} { return sf(f) }
-	case func(f *Frame)Func:
+	case func(*Frame)Func:
 		return func(f *Frame) interface{} { return sf(f) }
-	case func(f *Frame)Slice:
+	case func(*Frame)Slice:
 		return func(f *Frame) interface{} { return sf(f) }
-	case func(f *Frame)Map:
+	case func(*Frame)Map:
 		return func(f *Frame) interface{} { return sf(f) }
 	default:
 		log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos);
