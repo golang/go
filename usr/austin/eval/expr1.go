@@ -379,11 +379,11 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); if r == 0 { Abort(DivByZeroError{}) } return l / r }
+		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l / r }
 	case *intType:
 		lf := l.asInt();
 		rf := r.asInt();
-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); if r == 0 { Abort(DivByZeroError{}) } return l / r }
+		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l / r }
 	case *idealIntType:
 		l := l.asIdealInt()();
 		r := r.asIdealInt()();
@@ -392,7 +392,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 	case *floatType:
 		lf := l.asFloat();
 		rf := r.asFloat();
-		a.eval = func(t *Thread) float64 { l, r := lf(t), rf(t); if r == 0 { Abort(DivByZeroError{}) } return l / r }
+		a.eval = func(t *Thread) float64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l / r }
 	case *idealFloatType:
 		l := l.asIdealFloat()();
 		r := r.asIdealFloat()();
@@ -408,11 +408,11 @@ func (a *expr) genBinOpRem(l, r *expr) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
-		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); if r == 0 { Abort(DivByZeroError{}) } return l % r }
+		a.eval = func(t *Thread) uint64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l % r }
 	case *intType:
 		lf := l.asInt();
 		rf := r.asInt();
-		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); if r == 0 { Abort(DivByZeroError{}) } return l % r }
+		a.eval = func(t *Thread) int64 { l, r := lf(t), rf(t); if r == 0 { t.Abort(DivByZeroError{}) } return l % r }
 	case *idealIntType:
 		l := l.asIdealInt()();
 		r := r.asIdealInt()();

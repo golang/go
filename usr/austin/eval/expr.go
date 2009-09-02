@@ -967,7 +967,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 		expr.genValue(func(t *Thread) Value {
 			l, r := lf(t), rf(t);
 			if r < 0 || r >= bound {
-				Abort(IndexError{r, bound});
+				t.Abort(IndexError{r, bound});
 			}
 			return l.Elem(r);
 		});
@@ -978,10 +978,10 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 		expr.genValue(func(t *Thread) Value {
 			l, r := lf(t), rf(t);
 			if l.Base == nil {
-				Abort(NilPointerError{});
+				t.Abort(NilPointerError{});
 			}
 			if r < 0 || r >= l.Len {
-				Abort(IndexError{r, l.Len});
+				t.Abort(IndexError{r, l.Len});
 			}
 			return l.Base.Elem(r);
 		});
@@ -994,7 +994,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 		expr.eval = func(t *Thread) uint64 {
 			l, r := lf(t), rf(t);
 			if r < 0 || r >= int64(len(l)) {
-				Abort(IndexError{r, int64(len(l))});
+				t.Abort(IndexError{r, int64(len(l))});
 			}
 			return uint64(l[r]);
 		}
@@ -1006,11 +1006,11 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 			m := lf(t);
 			k := rf(t);
 			if m == nil {
-				Abort(NilPointerError{});
+				t.Abort(NilPointerError{});
 			}
 			e := m.Elem(k);
 			if e == nil {
-				Abort(KeyError{k});
+				t.Abort(KeyError{k});
 			}
 			return e;
 		});
@@ -1228,13 +1228,13 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 				// XXX(Spec) What if len or cap is
 				// negative?  The runtime panics.
 				if l < 0 {
-					Abort(NegativeLengthError{l});
+					t.Abort(NegativeLengthError{l});
 				}
 				c := l;
 				if capf != nil {
 					c = capf(t);
 					if c < 0 {
-						Abort(NegativeCapacityError{c});
+						t.Abort(NegativeCapacityError{c});
 					}
 					// XXX(Spec) What happens if
 					// len > cap?  The runtime
@@ -1293,7 +1293,7 @@ func (a *exprInfo) compileStarExpr(v *expr) *expr {
 		expr.genValue(func(t *Thread) Value {
 			v := vf(t);
 			if v == nil {
-				Abort(NilPointerError{});
+				t.Abort(NilPointerError{});
 			}
 			return v;
 		});
@@ -1863,7 +1863,7 @@ func (expr *Expr) Eval(f *Frame) (Value, os.Error) {
 	}
 	v := expr.e.t.Zero();
 	eval := genAssign(expr.e.t, expr.e);
-	err := Try(func() {eval(v, t)});
+	err := t.Try(func(t *Thread){eval(v, t)});
 	return v, err;
 }
 
