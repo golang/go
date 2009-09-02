@@ -146,8 +146,8 @@ func (f *nativeFunc) NewFrame() *Frame {
 	return &Frame{nil, vars};
 }
 
-func (f *nativeFunc) Call(fr *Frame) {
-	f.fn(fr.Vars[0:f.in], fr.Vars[f.in:f.in+f.out]);
+func (f *nativeFunc) Call(t *Thread) {
+	f.fn(t.f.Vars[0:f.in], t.f.Vars[f.in:f.in+f.out]);
 }
 
 // FuncFromNative creates an interpreter function from a native

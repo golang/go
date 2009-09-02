@@ -277,12 +277,12 @@ func (*testFunc) NewFrame() *Frame {
 	return &Frame{nil, &[2]Value {}};
 }
 
-func (*testFunc) Call(fr *Frame) {
-	n := fr.Vars[0].(IntValue).Get();
+func (*testFunc) Call(t *Thread) {
+	n := t.f.Vars[0].(IntValue).Get();
 
 	res := n + 1;
 
-	fr.Vars[1].(IntValue).Set(res);
+	t.f.Vars[1].(IntValue).Set(res);
 }
 
 type oneTwoFunc struct {};
@@ -291,9 +291,9 @@ func (*oneTwoFunc) NewFrame() *Frame {
 	return &Frame{nil, &[2]Value {}};
 }
 
-func (*oneTwoFunc) Call(fr *Frame) {
-	fr.Vars[0].(IntValue).Set(1);
-	fr.Vars[1].(IntValue).Set(2);
+func (*oneTwoFunc) Call(t *Thread) {
+	t.f.Vars[0].(IntValue).Set(1);
+	t.f.Vars[1].(IntValue).Set(2);
 }
 
 type voidFunc struct {};
@@ -302,7 +302,7 @@ func (*voidFunc) NewFrame() *Frame {
 	return &Frame{nil, []Value {}};
 }
 
-func (*voidFunc) Call(fr *Frame) {
+func (*voidFunc) Call(t *Thread) {
 }
 
 func newTestScope() *Scope {

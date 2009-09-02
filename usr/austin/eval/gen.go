@@ -91,12 +91,12 @@ var binOps = []Op{
 	Op{ Name: "Sub", Expr: "l - r", ConstExpr: "l.Sub(r)", Types: numbers },
 	Op{ Name: "Mul", Expr: "l * r", ConstExpr: "l.Mul(r)", Types: numbers },
 	Op{ Name: "Quo",
-		Body: "if r == 0 { Abort(DivByZero{}) } return l / r",
+		Body: "if r == 0 { Abort(DivByZeroError{}) } return l / r",
 		ConstExpr: "l.Quo(r)",
 		Types: numbers,
 	},
 	Op{ Name: "Rem",
-		Body: "if r == 0 { Abort(DivByZero{}) } return l % r",
+		Body: "if r == 0 { Abort(DivByZeroError{}) } return l % r",
 		ConstExpr: "l.Rem(r)",
 		Types: integers,
 	},
@@ -151,23 +151,23 @@ func (a *expr) «As»() (func() «Native») {
 	return a.eval.(func()(«Native»))
 }
 «.or»
-func (a *expr) «As»() (func(*Frame) «Native») {
-	return a.eval.(func(*Frame)(«Native»))
+func (a *expr) «As»() (func(*Thread) «Native») {
+	return a.eval.(func(*Thread)(«Native»))
 }
 «.end»
 «.end»
-func (a *expr) asMulti() (func(*Frame) []Value) {
-	return a.eval.(func(*Frame)[]Value)
+func (a *expr) asMulti() (func(*Thread) []Value) {
+	return a.eval.(func(*Thread)[]Value)
 }
 
-func (a *expr) asInterface() (func(*Frame) interface{}) {
+func (a *expr) asInterface() (func(*Thread) interface{}) {
 	switch sf := a.eval.(type) {
 «.repeated section Types»
-	case func(*Frame)«Native»:
+	case func(*Thread)«Native»:
 «.section IsIdeal»
-		return func(f *Frame) interface{} { return sf(f) }
+		return func(t *Thread) interface{} { return sf(t) }
 «.or»
-		return func(f *Frame) interface{} { return sf(f) }
+		return func(t *Thread) interface{} { return sf(t) }
 «.end»
 «.end»
 	default:
@@ -188,7 +188,7 @@ func (a *expr) genConstant(v Value) {
 «.section IsIdeal»
 		a.eval = func() «Native» { return val }
 «.or»
-		a.eval = func(f *Frame) «Native» { return val }
+		a.eval = func(t *Thread) «Native» { return val }
 «.end»
 «.end»
 	default:
@@ -197,13 +197,13 @@ func (a *expr) genConstant(v Value) {
 }
 
 func (a *expr) genIdentOp(level, index int) {
-	a.evalAddr = func(f *Frame) Value { return f.Get(level, index) };
+	a.evalAddr = func(t *Thread) Value { return t.f.Get(level, index) };
 	switch _ := a.t.lit().(type) {
 «.repeated section Types»
 «.section IsIdeal»
 «.or»
 	case «Repr»:
-		a.eval = func(f *Frame) «Native» { return f.Get(level, index).(«Value»).Get() }
+		a.eval = func(t *Thread) «Native» { return t.f.Get(level, index).(«Value»).Get() }
 «.end»
 «.end»
 	default:
@@ -211,31 +211,31 @@ func (a *expr) genIdentOp(level, index int) {
 	}
 }
 
-func (a *expr) genFuncCall(call func(f *Frame) []Value) {
-	a.exec = func(f *Frame) { call(f)};
+func (a *expr) genFuncCall(call func(t *Thread) []Value) {
+	a.exec = func(t *Thread) { call(t)};
 	switch _ := a.t.lit().(type) {
 «.repeated section Types»
 «.section IsIdeal»
 «.or»
 	case «Repr»:
-		a.eval = func(f *Frame) «Native» { return call(f)[0].(«Value»).Get() }
+		a.eval = func(t *Thread) «Native» { return call(t)[0].(«Value»).Get() }
 «.end»
 «.end»
 	case *MultiType:
-		a.eval = func(f *Frame) []Value { return call(f) }
+		a.eval = func(t *Thread) []Value { return call(t) }
 	default:
 		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
 }
 
-func (a *expr) genValue(vf func(*Frame) Value) {
+func (a *expr) genValue(vf func(*Thread) Value) {
 	a.evalAddr = vf;
 	switch _ := a.t.lit().(type) {
 «.repeated section Types»
 «.section IsIdeal»
 «.or»
 	case «Repr»:
-		a.eval = func(f *Frame) «Native» { return vf(f).(«Value»).Get() }
+		a.eval = func(t *Thread) «Native» { return vf(t).(«Value»).Get() }
 «.end»
 «.end»
 	default:
@@ -254,7 +254,7 @@ func (a *expr) genUnaryOp«Name»(v *expr) {
 		a.eval = func() «Native» { return val }
 «.or»
 		vf := v.«As»();
-		a.eval = func(f *Frame) «Native» { v := vf(f); return «Expr» }
+		a.eval = func(t *Thread) «Native» { v := vf(t); return «Expr» }
 «.end»
 «.end»
 	default:
@@ -273,14 +273,14 @@ func (a *expr) genBinOp«Name»(l, r *expr) {
 		r := r.«As»()();
 		val := «ConstExpr»;
 «.section ReturnType»
-		a.eval = func(f *Frame) «ReturnType» { return val }
+		a.eval = func(t *Thread) «ReturnType» { return val }
 «.or»
 		a.eval = func() «Native» { return val }
 «.end»
 «.or»
 		lf := l.«As»();
 		rf := r.«.section AsRightName»«@»«.or»«As»«.end»();
-		a.eval = func(f *Frame) «.section ReturnType»«@»«.or»«Native»«.end» { l, r := lf(f), rf(f); «.section Body»«Body»«.or»return «Expr»«.end» }
+		a.eval = func(t *Thread) «.section ReturnType»«@»«.or»«Native»«.end» { l, r := lf(t), rf(t); «.section Body»«Body»«.or»return «Expr»«.end» }
 «.end»
 «.end»
 	default:
@@ -289,14 +289,14 @@ func (a *expr) genBinOp«Name»(l, r *expr) {
 }
 
 «.end»
-func genAssign(lt Type, r *expr) (func(lv Value, f *Frame)) {
+func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
 	switch _ := lt.lit().(type) {
 «.repeated section Types»
 «.section IsIdeal»
 «.or»
 	case «Repr»:
 		rf := r.«As»();
-		return func(lv Value, f *Frame) { «.section HasAssign»lv.Assign(rf(f))«.or»lv.(«Value»).Set(rf(f))«.end» }
+		return func(lv Value, t *Thread) { «.section HasAssign»lv.Assign(rf(t))«.or»lv.(«Value»).Set(rf(t))«.end» }
 «.end»
 «.end»
 	default:

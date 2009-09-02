@@ -87,7 +87,7 @@ type PtrValue interface {
 
 type Func interface {
 	NewFrame() *Frame;
-	Call(*Frame);
+	Call(*Thread);
 }
 
 type FuncValue interface {
