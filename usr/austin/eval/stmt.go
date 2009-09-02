@@ -1061,7 +1061,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 		fall := false;
 		for j, s := range clause.Body {
 			if br, ok := s.(*ast.BranchStmt); ok && br.Tok == token.FALLTHROUGH {
-				println("Found fallthrough");
+				// println("Found fallthrough");
 				// It may be used only as the final
 				// non-empty statement in a case or
 				// default clause in an expression

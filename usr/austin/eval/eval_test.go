@@ -17,7 +17,7 @@ import (
 )
 
 // Print each statement or expression before parsing it
-const noisy = true
+const noisy = false
 
 /*
  * Generic statement/expression test framework
