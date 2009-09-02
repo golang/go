@@ -21,6 +21,7 @@ DIRS=\
 	compress/flate\
 	compress/gzip\
 	compress/zlib\
+	container/heap\
 	container/list\
 	container/ring\
 	container/vector\
