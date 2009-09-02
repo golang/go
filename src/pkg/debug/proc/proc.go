@@ -9,9 +9,19 @@
 // memory and registers.
 package proc
 
+// TODO(rsc): Have to import everything that proc_linux.go
+// and proc_darwin.go do, because deps.bash only looks at
+// this file.
 import (
+	"container/vector";
+	"fmt";
+	"io";
 	"os";
+	"runtime";
 	"strconv";
+	"strings";
+	"sync";
+	"syscall";
 )
 
 type Word uint64
