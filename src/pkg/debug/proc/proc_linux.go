@@ -4,6 +4,8 @@
 
 package proc
 
+// TODO(rsc): Imports here after to be in proc.go too in order
+// for deps.bash to get the right answer.
 import (
 	"container/vector";
 	"fmt";
