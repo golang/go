@@ -10,6 +10,7 @@ LIB=\
 HFILES=\
 	go.h\
 	y.tab.h\
+	md5.h\
 
 YFILES=\
 	go.y\
@@ -25,6 +26,7 @@ OFILES=\
 	gen.$O\
 	init.$O\
 	lex.$O\
+	md5.$O\
 	mparith1.$O\
 	mparith2.$O\
 	mparith3.$O\

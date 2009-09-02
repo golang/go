@@ -814,7 +814,7 @@ int	cvttype(Type*, Type*);
 int	eqtypenoname(Type*, Type*);
 void	argtype(Node*, Type*);
 int	eqargs(Type*, Type*);
-uint32	typehash(Type*, int, int);
+uint32	typehash(Type*);
 void	frame(int);
 Node*	nodintconst(int64);
 void	nodconst(Node*, Type*, int64);
