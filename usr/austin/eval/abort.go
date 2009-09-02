@@ -10,33 +10,29 @@ import (
 	"runtime";
 )
 
-// TODO(austin) This is not thread-safe.  We could include the abort
-// channel in the Frame structure, but then the Value methods need to
-// take the Frame.  However, passing something to the Value methods
-// might be necessary to generate back traces.
-var abortChan = make(chan os.Error)
-
-// Abort aborts the current computation.  If this is called within the
-// extent of a Try call, this immediately returns to the Try with the
-// given error.  If not, then this panic's.
-func Abort(e os.Error) {
-	if abortChan == nil {
-		panic("Abort: " + e.String());
+// Abort aborts the thread's current computation,
+// causing the innermost Try to return err.
+func (t *Thread) Abort(err os.Error) {
+	if t.abort == nil {
+		panicln("abort:", err.String());
 	}
-	abortChan <- e;
+	t.abort <- err;
 	runtime.Goexit();
 }
 
-// Try executes a computation with the ability to Abort.
-func Try(f func()) os.Error {
-	abortChan = make(chan os.Error);
+// Try executes a computation; if the computation
+// Aborts, Try returns the error passed to abort.
+func (t *Thread) Try(f func(t *Thread)) os.Error {
+	oc := t.abort;
+	c := make(chan os.Error);
+	t.abort = c;
 	go func() {
-		f();
-		abortChan <- nil;
+		f(t);
+		c <- nil;
 	}();
-	res := <-abortChan;
-	abortChan = nil;
-	return res;
+	err := <-c;
+	t.abort = oc;
+	return err;
 }
 
 type DivByZeroError struct {}

@@ -4,11 +4,14 @@
 
 package eval
 
+import "os"
+
 /*
  * Virtual machine
  */
 
 type Thread struct {
+	abort chan os.Error;
 	pc uint;
 	// The execution frame of this function.  This remains the
 	// same throughout a function invocation.
@@ -18,13 +21,15 @@ type Thread struct {
 type code []func(*Thread)
 
 func (i code) exec(t *Thread) {
-	v := Thread{0, t.f};	// TODO: reuse t
+	opc := t.pc;
+	t.pc = 0;
 	l := uint(len(i));
-	for v.pc < l {
-		pc := v.pc;
-		v.pc++;
-		i[pc](&v);
+	for t.pc < l {
+		pc := t.pc;
+		t.pc++;
+		i[pc](t);
 	}
+	t.pc = opc;
 }
 
 /*

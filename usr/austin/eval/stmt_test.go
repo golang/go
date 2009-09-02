@@ -302,7 +302,7 @@ var stmtTests = []test {
 	SErr("type T struct { x int }; type U struct { x int }; var y struct { T; U }; y.x = 42", "ambiguous.*\tT\\.x\n\tU\\.x"),
 	SErr("type T struct { *T }; var x T; x.foo", "no field"),
 
-	//Val1("fib := func(int) int{return 0;}; fib = func(v int) int { if v < 2 { return 1 } return fib(v-1)+fib(v-2) }; i = fib(20)", "i", 0),
+	Val1("fib := func(int) int{return 0;}; fib = func(v int) int { if v < 2 { return 1 } return fib(v-1)+fib(v-2) }; i = fib(20)", "i", 10946),
 
 	// Make slice
 	Val2("x := make([]int, 2); x[0] = 42; i, i2 = x[0], x[1]", "i", 42, "i2", 0),
