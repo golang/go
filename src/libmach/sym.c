@@ -1316,7 +1316,7 @@ pc2line(uvlong pc)
 	if(pc<currpc || pc>txtend)
 		return ~0;
 
-	for(c = pcline; c < pclineend && pc <= currpc; c++) {
+	for(c = pcline; c < pclineend && currpc < pc; c++) {
 		u = *c;
 		if(u == 0) {
 			currline += (c[1]<<24)|(c[2]<<16)|(c[3]<<8)|c[4];
