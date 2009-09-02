@@ -32,6 +32,8 @@ DIRS=\
 	datafmt\
 	debug/binary\
 	debug/elf\
+	debug/gosym\
+	debug/proc\
 	ebnf\
 	exec\
 	exvar\
@@ -77,6 +79,7 @@ DIRS=\
 	utf8\
 
 NOTEST=\
+	debug/proc\
 	go/ast\
 	go/doc\
 	go/token\

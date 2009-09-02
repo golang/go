@@ -18,6 +18,8 @@ crypto/sha1.install: hash.install os.install
 datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
 debug/binary.install: io.install math.install os.install reflect.install
 debug/elf.install: debug/binary.install fmt.install io.install os.install strconv.install
+debug/gosym.install: debug/binary.install fmt.install io.install os.install strconv.install strings.install
+debug/proc.install: container/vector.install fmt.install io.install os.install runtime.install strconv.install strings.install sync.install syscall.install
 ebnf.install: container/vector.install fmt.install go/scanner.install go/token.install os.install strconv.install strings.install unicode.install utf8.install
 exec.install: os.install strings.install
 exvar.install: bytes.install fmt.install http.install io.install log.install strconv.install sync.install
