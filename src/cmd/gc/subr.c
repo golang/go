@@ -1920,8 +1920,12 @@ typehash(Type *at, int addsym, int d)
 		break;
 
 	case TSTRUCT:
-		for(t=at->type; t!=T; t=t->down)
-			h += PRIME7 * typehash(t, addsym, d+1);
+		for(t=at->type; t!=T; t=t->down) {
+			if(at->funarg)	// walk into TFIELD in function argument struct
+				h += PRIME7 * typehash(t->type, addsym, d+1);
+			else
+				h += PRIME7 * typehash(t, addsym, d+1);
+		}
 		break;
 
 	case TFUNC:
