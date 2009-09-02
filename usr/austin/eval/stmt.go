@@ -230,7 +230,7 @@ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
 
 	// Initialize the variable
 	index := v.Index;
-	a.push(func(v *vm) {
+	a.push(func(v *Thread) {
 		v.f.Vars[index] = t.Zero();
 	});
 	return v;
@@ -416,10 +416,7 @@ func (a *stmtCompiler) compileExprStmt(s *ast.ExprStmt) {
 		return;
 	}
 
-	exec := e.exec;
-	a.push(func(v *vm) {
-		exec(v.f);
-	});
+	a.push(e.exec);
 }
 
 func (a *stmtCompiler) compileIncDecStmt(s *ast.IncDecStmt) {
@@ -471,9 +468,9 @@ func (a *stmtCompiler) compileIncDecStmt(s *ast.IncDecStmt) {
 	}
 
 	lf := l.evalAddr;
-	a.push(func(v *vm) {
-		effect(v.f);
-		assign(lf(v.f), v.f);
+	a.push(func(v *Thread) {
+		effect(v);
+		assign(lf(v), v);
 	});
 }
 
@@ -605,8 +602,8 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 			ls[i].evalMapValue = sub.evalMapValue;
 			mvf := sub.evalMapValue;
 			et := sub.t;
-			ls[i].evalAddr = func(f *Frame) Value {
-				m, k := mvf(f);
+			ls[i].evalAddr = func(t *Thread) Value {
+				m, k := mvf(t);
 				e := m.Elem(k);
 				if e == nil {
 					e = et.Zero();
@@ -666,35 +663,35 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 	if n == 1 {
 		// Don't need temporaries and can avoid []Value.
 		lf := ls[0].evalAddr;
-		a.push(func(v *vm) { assign(lf(v.f), v.f) });
+		a.push(func(t *Thread) { assign(lf(t), t) });
 	} else if tok == token.VAR || (tok == token.DEFINE && nDefs == n) {
 		// Don't need temporaries
-		lfs := make([]func(*Frame) Value, n);
+		lfs := make([]func(*Thread) Value, n);
 		for i, l := range ls {
 			lfs[i] = l.evalAddr;
 		}
-		a.push(func(v *vm) {
+		a.push(func(t *Thread) {
 			dest := make([]Value, n);
 			for i, lf := range lfs {
-				dest[i] = lf(v.f);
+				dest[i] = lf(t);
 			}
-			assign(multiV(dest), v.f);
+			assign(multiV(dest), t);
 		});
 	} else {
 		// Need temporaries
 		lmt := lt.(*MultiType);
-		lfs := make([]func(*Frame) Value, n);
+		lfs := make([]func(*Thread) Value, n);
 		for i, l := range ls {
 			lfs[i] = l.evalAddr;
 		}
-		a.push(func(v *vm) {
+		a.push(func(t *Thread) {
 			temp := lmt.Zero().(multiV);
-			assign(temp, v.f);
+			assign(temp, t);
 			// Copy to destination
 			for i := 0; i < n; i ++ {
 				// TODO(austin) Need to evaluate LHS
 				// before RHS
-				lfs[i](v.f).Assign(temp[i]);
+				lfs[i](t).Assign(temp[i]);
 			}
 		});
 	}
@@ -749,9 +746,9 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 	}
 
 	lf := l.evalAddr;
-	a.push(func(v *vm) {
-		effect(v.f);
-		assign(lf(v.f), v.f);
+	a.push(func(t *Thread) {
+		effect(t);
+		assign(lf(t), t);
 	});
 }
 
@@ -774,7 +771,7 @@ func (a *stmtCompiler) compileReturnStmt(s *ast.ReturnStmt) {
 	if len(s.Results) == 0 && (len(a.fnType.Out) == 0 || a.outVarsNamed) {
 		// Simple case.  Simply exit from the function.
 		a.flow.putTerm();
-		a.push(func(v *vm) { v.pc = returnPC });
+		a.push(func(v *Thread) { v.pc = returnPC });
 		return;
 	}
 
@@ -810,9 +807,9 @@ func (a *stmtCompiler) compileReturnStmt(s *ast.ReturnStmt) {
 	start := len(a.fnType.In);
 	nout := len(a.fnType.Out);
 	a.flow.putTerm();
-	a.push(func(v *vm) {
-		assign(multiV(v.f.Vars[start:start+nout]), v.f);
-		v.pc = returnPC;
+	a.push(func(t *Thread) {
+		assign(multiV(t.f.Vars[start:start+nout]), t);
+		t.pc = returnPC;
 	});
 }
 
@@ -880,7 +877,7 @@ func (a *stmtCompiler) compileBranchStmt(s *ast.BranchStmt) {
 	}
 
 	a.flow.put1(false, pc);
-	a.push(func(v *vm) { v.pc = *pc });
+	a.push(func(v *Thread) { v.pc = *pc });
 }
 
 func (a *stmtCompiler) compileBlockStmt(s *ast.BlockStmt) {
@@ -923,9 +920,9 @@ func (a *stmtCompiler) compileIfStmt(s *ast.IfStmt) {
 		default:
 			eval := e.asBool();
 			a.flow.put1(true, &elsePC);
-			a.push(func(v *vm) {
-				if !eval(v.f) {
-					v.pc = elsePC;
+			a.push(func(t *Thread) {
+				if !eval(t) {
+					t.pc = elsePC;
 				}
 			});
 		}
@@ -940,7 +937,7 @@ func (a *stmtCompiler) compileIfStmt(s *ast.IfStmt) {
 	if s.Else != nil {
 		// Skip over else if we executed the body
 		a.flow.put1(false, &endPC);
-		a.push(func(v *vm) {
+		a.push(func(v *Thread) {
 			v.pc = endPC;
 		});
 		elsePC = a.nextPC();
@@ -967,9 +964,9 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 	if s.Tag != nil {
 		e := condbc.compileExpr(condbc.block, false, s.Tag);
 		if e != nil {
-			var effect func(f *Frame);
+			var effect func(*Thread);
 			effect, cond = e.extractEffect(condbc.block, "switch");
-			a.push(func(v *vm) { effect(v.f) });
+			a.push(effect);
 		}
 	}
 
@@ -993,7 +990,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 	}
 
 	// Compile case expressions
-	cases := make([]func(f *Frame) bool, ncases);
+	cases := make([]func(*Thread) bool, ncases);
 	i := 0;
 	for _, c := range s.Body.List {
 		clause, ok := c.(*ast.CaseClause);
@@ -1026,14 +1023,14 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 	endPC := badPC;
 
 	a.flow.put(false, false, casePCs);
-	a.push(func(v *vm) {
+	a.push(func(t *Thread) {
 		for i, c := range cases {
-			if c(v.f) {
-				v.pc = *casePCs[i];
+			if c(t) {
+				t.pc = *casePCs[i];
 				return;
 			}
 		}
-		v.pc = *casePCs[ncases];
+		t.pc = *casePCs[ncases];
 	});
 	condbc.exit();
 
@@ -1083,7 +1080,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 		// Jump out of switch, unless there was a fallthrough
 		if !fall {
 			a.flow.put1(false, &endPC);
-			a.push(func(v *vm) { v.pc = endPC });
+			a.push(func(v *Thread) { v.pc = endPC });
 		}
 	}
 
@@ -1112,7 +1109,7 @@ func (a *stmtCompiler) compileForStmt(s *ast.ForStmt) {
 	// Jump to condition check.  We generate slightly less code by
 	// placing the condition check after the body.
 	a.flow.put1(false, &checkPC);
-	a.push(func(v *vm) { v.pc = checkPC });
+	a.push(func(v *Thread) { v.pc = checkPC });
 
 	// Compile body
 	bodyPC = a.nextPC();
@@ -1141,7 +1138,7 @@ func (a *stmtCompiler) compileForStmt(s *ast.ForStmt) {
 	if s.Cond == nil {
 		// If the condition is absent, it is equivalent to true.
 		a.flow.put1(false, &bodyPC);
-		a.push(func(v *vm) { v.pc = bodyPC });
+		a.push(func(v *Thread) { v.pc = bodyPC });
 	} else {
 		e := bc.compileExpr(bc.block, false, s.Cond);
 		switch {
@@ -1152,9 +1149,9 @@ func (a *stmtCompiler) compileForStmt(s *ast.ForStmt) {
 		default:
 			eval := e.asBool();
 			a.flow.put1(true, &bodyPC);
-			a.push(func(v *vm) {
-				if eval(v.f) {
-					v.pc = bodyPC;
+			a.push(func(t *Thread) {
+				if eval(t) {
+					t.pc = bodyPC;
 				}
 			});
 		}
@@ -1195,7 +1192,7 @@ func (a *blockCompiler) exit() {
  * Function compiler
  */
 
-func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (func (f *Frame) Func) {
+func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (func (*Thread) Func) {
 	// Create body scope
 	//
 	// The scope of a parameter or result is the body of the
@@ -1250,7 +1247,7 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
 
 	code := fc.get();
 	maxVars := bodyScope.maxVars;
-	return func(f *Frame) Func { return &evalFunc{f, maxVars, code} };
+	return func(t *Thread) Func { return &evalFunc{t.f, maxVars, code} };
 }
 
 // Checks that labels were resolved and that all jumps obey scoping
@@ -1282,7 +1279,9 @@ type Stmt struct {
 }
 
 func (s *Stmt) Exec(f *Frame) os.Error {
-	return Try(func() {s.code.exec(f)});
+	t := new(Thread);
+	t.f = f;
+	return Try(func() {s.code.exec(t)});
 }
 
 func CompileStmts(scope *Scope, stmts []ast.Stmt) (*Stmt, os.Error) {

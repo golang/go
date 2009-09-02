@@ -26,16 +26,16 @@ type expr struct {
 
 	// Map index expressions permit special forms of assignment,
 	// for which we need to know the Map and key.
-	evalMapValue func(f *Frame) (Map, interface{});
+	evalMapValue func(t *Thread) (Map, interface{});
 
 	// Evaluate to the "address of" this value; that is, the
 	// settable Value object.  nil for expressions whose address
 	// cannot be taken.
-	evalAddr func(f *Frame) Value;
+	evalAddr func(t *Thread) Value;
 
 	// Execute this expression as a statement.  Only expressions
 	// that are valid expression statements should set this.
-	exec func(f *Frame);
+	exec func(t *Thread);
 
 	// If this expression is a type, this is its compiled type.
 	// This is only permitted in the function position of a call
@@ -126,12 +126,12 @@ func (a *expr) convertTo(t Type) *expr {
 		n, d := rat.Value();
 		f := n.Quo(bignum.MakeInt(false, d));
 		v := f.Abs().Value();
-		res.eval = func(*Frame) uint64 { return v };
+		res.eval = func(*Thread) uint64 { return v };
 	case *intType:
 		n, d := rat.Value();
 		f := n.Quo(bignum.MakeInt(false, d));
 		v := f.Value();
-		res.eval = func(*Frame) int64 { return v };
+		res.eval = func(*Thread) int64 { return v };
 	case *idealIntType:
 		n, d := rat.Value();
 		f := n.Quo(bignum.MakeInt(false, d));
@@ -139,7 +139,7 @@ func (a *expr) convertTo(t Type) *expr {
 	case *floatType:
 		n, d := rat.Value();
 		v := float64(n.Value())/float64(d.Value());
-		res.eval = func(*Frame) float64 { return v };
+		res.eval = func(*Thread) float64 { return v };
 	case *idealFloatType:
 		res.eval = func() *bignum.Rational { return rat };
 	default:
@@ -172,8 +172,8 @@ func (a *expr) convertToInt(max int64, negErr string, errOp string) *expr {
 		// Convert to int
 		na := a.newExpr(IntType, a.desc);
 		af := a.asUint();
-		na.eval = func(f *Frame) int64 {
-			return int64(af(f));
+		na.eval = func(t *Thread) int64 {
+			return int64(af(t));
 		};
 		return na;
 
@@ -302,7 +302,7 @@ func (a *assignCompiler) allowMapForms(nls int) {
 // a function that expects an l-value and the frame in which to
 // evaluate the RHS expressions.  The l-value must have exactly the
 // type given by lt.  Returns nil if type checking fails.
-func (a *assignCompiler) compile(b *block, lt Type) (func(lv Value, f *Frame)) {
+func (a *assignCompiler) compile(b *block, lt Type) (func(Value, *Thread)) {
 	lmt, isMT := lt.(*MultiType);
 	rmt, isUnpack := a.rmt, a.isUnpack;
 
@@ -333,7 +333,7 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(lv Value, f *Frame)) {
 	// multi-value and replace the RHS with expressions to pull
 	// out values from the temporary.  Technically, this is only
 	// necessary when we need to perform assignment conversions.
-	var effect func(f *Frame);
+	var effect func(*Thread);
 	if isUnpack {
 		// This leaks a slot, but is definitely safe.
 		temp := b.DefineSlot(a.rmt);
@@ -341,20 +341,20 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(lv Value, f *Frame)) {
 		if a.isMapUnpack {
 			rf := a.rs[0].evalMapValue;
 			vt := a.rmt.Elems[0];
-			effect = func(f *Frame) {
-				m, k := rf(f);
+			effect = func(t *Thread) {
+				m, k := rf(t);
 				v := m.Elem(k);
 				found := boolV(true);
 				if v == nil {
 					found = boolV(false);
 					v = vt.Zero();
 				}
-				f.Vars[tempIdx] = multiV([]Value {v, &found});
+				t.f.Vars[tempIdx] = multiV([]Value {v, &found});
 			};
 		} else {
 			rf := a.rs[0].asMulti();
-			effect = func(f *Frame) {
-				f.Vars[tempIdx] = multiV(rf(f));
+			effect = func(t *Thread) {
+				t.f.Vars[tempIdx] = multiV(rf(t));
 			};
 		}
 		orig := a.rs[0];
@@ -365,7 +365,7 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(lv Value, f *Frame)) {
 			}
 			a.rs[i] = orig.newExpr(t, orig.desc);
 			index := i;
-			a.rs[i].genValue(func(f *Frame) Value { return f.Vars[tempIdx].(multiV)[index] });
+			a.rs[i].genValue(func(t *Thread) Value { return t.f.Vars[tempIdx].(multiV)[index] });
 		}
 	}
 	// Now len(a.rs) == len(a.rmt) and we've reduced any unpacking
@@ -400,8 +400,8 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(lv Value, f *Frame)) {
 						rf := a.rs[i].asPtr();
 						a.rs[i] = a.rs[i].newExpr(lt, a.rs[i].desc);
 						len := at.Len;
-						a.rs[i].eval = func(f *Frame) Slice {
-							return Slice{rf(f).(ArrayValue), len, len};
+						a.rs[i].eval = func(t *Thread) Slice {
+							return Slice{rf(t).(ArrayValue), len, len};
 						};
 						rt = a.rs[i].t;
 					}
@@ -428,17 +428,17 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(lv Value, f *Frame)) {
 		return genAssign(lt, a.rs[0]);
 	}
 	// Case 2 or 3
-	as := make([]func(lv Value, f *Frame), len(a.rs));
+	as := make([]func(lv Value, t *Thread), len(a.rs));
 	for i, r := range a.rs {
 		as[i] = genAssign(lmt.Elems[i], r);
 	}
-	return func(lv Value, f *Frame) {
+	return func(lv Value, t *Thread) {
 		if effect != nil {
-			effect(f);
+			effect(t);
 		}
 		lmv := lv.(multiV);
 		for i, a := range as {
-			a(lmv[i], f);
+			a(lmv[i], t);
 		}
 	};
 }
@@ -446,7 +446,7 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(lv Value, f *Frame)) {
 // compileAssign compiles an assignment operation without the full
 // generality of an assignCompiler.  See assignCompiler for a
 // description of the arguments.
-func (a *compiler) compileAssign(pos token.Position, b *block, lt Type, rs []*expr, errOp, errPosName string) (func(lv Value, f *Frame)) {
+func (a *compiler) compileAssign(pos token.Position, b *block, lt Type, rs []*expr, errOp, errPosName string) (func(Value, *Thread)) {
 	ac, ok := a.checkAssign(pos, rs, errOp, errPosName);
 	if !ok {
 		return nil;
@@ -758,7 +758,7 @@ func (a *exprInfo) compileString(s string) *expr {
 
 	// TODO(austin) Use unnamed string type.
 	expr := a.newExpr(StringType, "string literal");
-	expr.eval = func(*Frame) string { return s };
+	expr.eval = func(*Thread) string { return s };
 	return expr;
 }
 
@@ -779,7 +779,7 @@ func (a *exprInfo) compileStringList(list []*expr) *expr {
 	return a.compileString(strings.Join(ss, ""));
 }
 
-func (a *exprInfo) compileFuncLit(decl *FuncDecl, fn func(f *Frame) Func) *expr {
+func (a *exprInfo) compileFuncLit(decl *FuncDecl, fn func(*Thread) Func) *expr {
 	expr := a.newExpr(decl.Type, "function literal");
 	expr.eval = fn;
 	return expr;
@@ -880,8 +880,8 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 					}
 					expr := a.newExpr(ft, "selector expression");
 					pf := parent.asStruct();
-					evalAddr := func(f *Frame) Value {
-						return pf(f).Field(index);
+					evalAddr := func(t *Thread) Value {
+						return pf(t).Field(index);
 					};
 					expr.genValue(evalAddr);
 					return sub(expr);
@@ -964,10 +964,10 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 		lf := l.asArray();
 		rf := r.asInt();
 		bound := lt.Len;
-		expr.genValue(func(f *Frame) Value {
-			l, r := lf(f), rf(f);
+		expr.genValue(func(t *Thread) Value {
+			l, r := lf(t), rf(t);
 			if r < 0 || r >= bound {
-				Abort(IndexOutOfBounds{r, bound});
+				Abort(IndexError{r, bound});
 			}
 			return l.Elem(r);
 		});
@@ -975,13 +975,13 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 	case *SliceType:
 		lf := l.asSlice();
 		rf := r.asInt();
-		expr.genValue(func(f *Frame) Value {
-			l, r := lf(f), rf(f);
+		expr.genValue(func(t *Thread) Value {
+			l, r := lf(t), rf(t);
 			if l.Base == nil {
-				Abort(NilPointer{});
+				Abort(NilPointerError{});
 			}
 			if r < 0 || r >= l.Len {
-				Abort(IndexOutOfBounds{r, l.Len});
+				Abort(IndexError{r, l.Len});
 			}
 			return l.Base.Elem(r);
 		});
@@ -991,10 +991,10 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 		rf := r.asInt();
 		// TODO(austin) This pulls over the whole string in a
 		// remote setting, instead of just the one character.
-		expr.eval = func(f *Frame) uint64 {
-			l, r := lf(f), rf(f);
+		expr.eval = func(t *Thread) uint64 {
+			l, r := lf(t), rf(t);
 			if r < 0 || r >= int64(len(l)) {
-				Abort(IndexOutOfBounds{r, int64(len(l))});
+				Abort(IndexError{r, int64(len(l))});
 			}
 			return uint64(l[r]);
 		}
@@ -1002,24 +1002,24 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 	case *MapType:
 		lf := l.asMap();
 		rf := r.asInterface();
-		expr.genValue(func(f *Frame) Value {
-			m := lf(f);
-			k := rf(f);
+		expr.genValue(func(t *Thread) Value {
+			m := lf(t);
+			k := rf(t);
 			if m == nil {
-				Abort(NilPointer{});
+				Abort(NilPointerError{});
 			}
 			e := m.Elem(k);
 			if e == nil {
-				Abort(KeyNotFound{k});
+				Abort(KeyError{k});
 			}
 			return e;
 		});
 		// genValue makes things addressable, but map values
 		// aren't addressable.
 		expr.evalAddr = nil;
-		expr.evalMapValue = func(f *Frame) (Map, interface{}) {
+		expr.evalMapValue = func(t *Thread) (Map, interface{}) {
 			// TODO(austin) Key check?  nil check?
-			return lf(f), rf(f);
+			return lf(t), rf(t);
 		};
 
 	default:
@@ -1080,14 +1080,17 @@ func (a *exprInfo) compileCallExpr(b *block, l *expr, as []*expr) *expr {
 
 	// Compile
 	lf := l.asFunc();
-	call := func(f *Frame) []Value {
-		fun := lf(f);
+	call := func(t *Thread) []Value {
+		fun := lf(t);
 		fr := fun.NewFrame();
 		for i, t := range vts {
 			fr.Vars[i] = t.Zero();
 		}
-		assign(multiV(fr.Vars[0:nin]), f);
-		fun.Call(fr);
+		assign(multiV(fr.Vars[0:nin]), t);
+		oldf := t.f;
+		t.f = fr;
+		fun.Call(t);
+		t.f = oldf;
 		return fr.Vars[nin:nin+nout];
 	};
 	expr.genFuncCall(call);
@@ -1119,14 +1122,14 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 			// TODO(austin) It would be nice if this could
 			// be a constant int.
 			v := t.Len;
-			expr.eval = func(f *Frame) int64 {
+			expr.eval = func(t *Thread) int64 {
 				return v;
 			};
 
 		case *SliceType:
 			vf := arg.asSlice();
-			expr.eval = func(f *Frame) int64 {
-				return vf(f).Cap;
+			expr.eval = func(t *Thread) int64 {
+				return vf(t).Cap;
 			};
 
 		//case *ChanType:
@@ -1146,30 +1149,30 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 		switch t := arg.t.lit().(type) {
 		case *stringType:
 			vf := arg.asString();
-			expr.eval = func(f *Frame) int64 {
-				return int64(len(vf(f)));
+			expr.eval = func(t *Thread) int64 {
+				return int64(len(vf(t)));
 			};
 
 		case *ArrayType:
 			// TODO(austin) It would be nice if this could
 			// be a constant int.
 			v := t.Len;
-			expr.eval = func(f *Frame) int64 {
+			expr.eval = func(t *Thread) int64 {
 				return v;
 			};
 
 		case *SliceType:
 			vf := arg.asSlice();
-			expr.eval = func(f *Frame) int64 {
-				return vf(f).Len;
+			expr.eval = func(t *Thread) int64 {
+				return vf(t).Len;
 			};
 
 		case *MapType:
 			vf := arg.asMap();
-			expr.eval = func(f *Frame) int64 {
+			expr.eval = func(t *Thread) int64 {
 				// XXX(Spec) What's the len of an
 				// uninitialized map?
-				m := vf(f);
+				m := vf(t);
 				if m == nil {
 					return 0;
 				}
@@ -1192,7 +1195,7 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 		// arguments?  Do they have to be ints?  6g
 		// accepts any integral type.
 		var lenexpr, capexpr *expr;
-		var lenf, capf func(f *Frame) int64;
+		var lenf, capf func(*Thread) int64;
 		if len(as) > 1 {
 			lenexpr = as[1].convertToInt(-1, "length", "make function");
 			if lenexpr == nil {
@@ -1220,18 +1223,18 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 			}
 			et := t.Elem;
 			expr := a.newExpr(t, "function call");
-			expr.eval = func(f *Frame) Slice {
-				l := lenf(f);
+			expr.eval = func(t *Thread) Slice {
+				l := lenf(t);
 				// XXX(Spec) What if len or cap is
 				// negative?  The runtime panics.
 				if l < 0 {
-					Abort(NegativeLength{l});
+					Abort(NegativeLengthError{l});
 				}
 				c := l;
 				if capf != nil {
-					c = capf(f);
+					c = capf(t);
 					if c < 0 {
-						Abort(NegativeCapacity{c});
+						Abort(NegativeCapacityError{c});
 					}
 					// XXX(Spec) What happens if
 					// len > cap?  The runtime
@@ -1257,11 +1260,11 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 				return nil;
 			}
 			expr := a.newExpr(t, "function call");
-			expr.eval = func(f *Frame) Map {
+			expr.eval = func(t *Thread) Map {
 				if lenf == nil {
 					return make(evalMap);
 				}
-				l := lenf(f);
+				l := lenf(t);
 				return make(evalMap, l);
 			};
 			return expr;
@@ -1287,10 +1290,10 @@ func (a *exprInfo) compileStarExpr(v *expr) *expr {
 	case *PtrType:
 		expr := a.newExpr(vt.Elem, "indirect expression");
 		vf := v.asPtr();
-		expr.genValue(func(f *Frame) Value {
-			v := vf(f);
+		expr.genValue(func(t *Thread) Value {
+			v := vf(t);
 			if v == nil {
-				Abort(NilPointer{});
+				Abort(NilPointerError{});
 			}
 			return v;
 		});
@@ -1376,7 +1379,7 @@ func (a *exprInfo) compileUnaryExpr(op token.Token, v *expr) *expr {
 
 	case token.AND:
 		vf := v.evalAddr;
-		expr.eval = func(f *Frame) Value { return vf(f) };
+		expr.eval = func(t *Thread) Value { return vf(t) };
 
 	default:
 		log.Crashf("Compilation of unary op %v not implemented", op);
@@ -1781,7 +1784,7 @@ func (a *compiler) compileExpr(b *block, constant bool, expr ast.Expr) *expr {
 // temporary variable, the caller should create a temporary block for
 // the compilation of this expression and the evaluation of the
 // results.
-func (a *expr) extractEffect(b *block, errOp string) (func(f *Frame), *expr) {
+func (a *expr) extractEffect(b *block, errOp string) (func(*Thread), *expr) {
 	// Create "&a" if a is addressable
 	rhs := a;
 	if a.evalAddr != nil {
@@ -1818,10 +1821,10 @@ func (a *expr) extractEffect(b *block, errOp string) (func(f *Frame), *expr) {
 		log.Crashf("compileAssign type check failed");
 	}
 
-	effect := func(f *Frame) {
+	effect := func(t *Thread) {
 		tempVal := tempType.Zero();
-		f.Vars[tempIdx] = tempVal;
-		assign(tempVal, f);
+		t.f.Vars[tempIdx] = tempVal;
+		assign(tempVal, t);
 	};
 
 	// Generate "temp" or "*temp"
@@ -1850,6 +1853,8 @@ func (expr *Expr) Type() Type {
 }
 
 func (expr *Expr) Eval(f *Frame) (Value, os.Error) {
+	t := new(Thread);
+	t.f = f;
 	switch _ := expr.e.t.(type) {
 	case *idealIntType:
 		return &idealIntV{expr.e.asIdealInt()()}, nil;
@@ -1858,7 +1863,7 @@ func (expr *Expr) Eval(f *Frame) (Value, os.Error) {
 	}
 	v := expr.e.t.Zero();
 	eval := genAssign(expr.e.t, expr.e);
-	err := Try(func() {eval(v, f)});
+	err := Try(func() {eval(v, t)});
 	return v, err;
 }
 

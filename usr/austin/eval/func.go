@@ -8,18 +8,17 @@ package eval
  * Virtual machine
  */
 
-type vm struct {
+type Thread struct {
 	pc uint;
 	// The execution frame of this function.  This remains the
 	// same throughout a function invocation.
 	f *Frame;
 }
 
-type code []func(*vm)
+type code []func(*Thread)
 
-func (i code) exec(fr *Frame) {
-	v := vm{0, fr};
-
+func (i code) exec(t *Thread) {
+	v := Thread{0, t.f};	// TODO: reuse t
 	l := uint(len(i));
 	for v.pc < l {
 		pc := v.pc;
@@ -40,7 +39,7 @@ func newCodeBuf() *codeBuf {
 	return &codeBuf{make(code, 0, 16)};
 }
 
-func (b *codeBuf) push(instr func(*vm)) {
+func (b *codeBuf) push(instr func(*Thread)) {
 	n := len(b.instrs);
 	if n >= cap(b.instrs) {
 		a := make(code, n, n*2);
@@ -80,6 +79,6 @@ func (f *evalFunc) NewFrame() *Frame {
 	return f.outer.child(f.frameSize);
 }
 
-func (f *evalFunc) Call(fr *Frame) {
-	f.code.exec(fr);
+func (f *evalFunc) Call(t *Thread) {
+	f.code.exec(t);
 }

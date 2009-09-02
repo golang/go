@@ -39,49 +39,49 @@ func Try(f func()) os.Error {
 	return res;
 }
 
-type DivByZero struct {}
+type DivByZeroError struct {}
 
-func (DivByZero) String() string {
+func (DivByZeroError) String() string {
 	return "divide by zero";
 }
 
-type NilPointer struct {}
+type NilPointerError struct {}
 
-func (NilPointer) String() string {
+func (NilPointerError) String() string {
 	return "nil pointer dereference";
 }
 
-type IndexOutOfBounds struct {
+type IndexError struct {
 	Idx, Len int64;
 }
 
-func (e IndexOutOfBounds) String() string {
+func (e IndexError) String() string {
 	if e.Idx < 0 {
 		return fmt.Sprintf("negative index: %d", e.Idx);
 	}
 	return fmt.Sprintf("index %d exceeds length %d", e.Idx, e.Len);
 }
 
-type KeyNotFound struct {
+type KeyError struct {
 	Key interface {};
 }
 
-func (e KeyNotFound) String() string {
+func (e KeyError) String() string {
 	return fmt.Sprintf("key '%v' not found in map", e.Key);
 }
 
-type NegativeLength struct {
+type NegativeLengthError struct {
 	Len int64;
 }
 
-func (e NegativeLength) String() string {
+func (e NegativeLengthError) String() string {
 	return fmt.Sprintf("negative length: %d", e.Len);
 }
 
-type NegativeCapacity struct {
+type NegativeCapacityError struct {
 	Len int64;
 }
 
-func (e NegativeCapacity) String() string {
+func (e NegativeCapacityError) String() string {
 	return fmt.Sprintf("negative capacity: %d", e.Len);
 }
