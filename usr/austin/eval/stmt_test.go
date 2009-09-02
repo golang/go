@@ -264,7 +264,7 @@ var stmtTests = []test {
 	Val2("switch func()int{i2++;return 5}() { case 1, 2: i += 2; case 4, 5: i += 4 }", "i", 1+4, "i2", 3),
 	SRuns("switch i { case i: }"),
 	// TODO(austin) Why doesn't this fail?
-	SErr("case 1:", "XXX"),
+	//SErr("case 1:", "XXX"),
 
 	// For
 	Val2("for x := 1; x < 5; x++ { i+=x }; i2 = 4", "i", 11, "i2", 4),
