@@ -96,7 +96,7 @@ func (t *commonType) String() string {
 	return t.name
 }
 
-func (t *commonType) safeString(seen map[uint32] bool) string {
+func (t *commonType) safeString(seen map[typeId] bool) string {
 	return t.name
 }
 
@@ -146,7 +146,7 @@ func (a *arrayType) safeString(seen map[typeId] bool) string {
 }
 
 func (a *arrayType) String() string {
-	return a.safeString(make(map[uint32] bool))
+	return a.safeString(make(map[typeId] bool))
 }
 
 // Slice type
