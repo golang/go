@@ -56,6 +56,10 @@ type block struct {
 	offset int;
 	// The number of Variables defined in this block.
 	numVars int;
+	// If global, do not allocate new vars and consts in
+	// the frame; assume that the refs will be compiled in
+	// using defs[name].Init.
+	global bool;
 }
 
 // A Scope is the compile-time analogue of a Frame, which captures
@@ -112,21 +116,25 @@ func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, D
 	if prev, ok := b.defs[name]; ok {
 		return nil, prev;
 	}
-	v := b.DefineSlot(t);
+	v := b.defineSlot(t, false);
 	v.Position = pos;
 	b.defs[name] = v;
 	return v, nil;
 }
 
-func (b *block) DefineSlot(t Type) *Variable {
+func (b *block) DefineTemp(t Type) *Variable {
+	return b.defineSlot(t, true)
+}
+
+func (b *block) defineSlot(t Type, temp bool) *Variable {
 	if b.inner != nil && b.inner.scope == b.scope {
 		log.Crash("Failed to exit child block before defining variable");
 	}
 	index := -1;
-	if b.offset >= 0 {
+	if !b.global || temp {
 		index = b.offset+b.numVars;
 		b.numVars++;
-		if index+1 > b.scope.maxVars {
+		if index >= b.scope.maxVars {
 			b.scope.maxVars = index+1;
 		}
 	}
@@ -169,18 +177,7 @@ func (b *block) Lookup(name string) (bl *block, level int, def Def) {
 }
 
 func (s *Scope) NewFrame(outer *Frame) *Frame {
-	fr := outer.child(s.maxVars);
-	// TODO(rsc): Take this loop out once eval_test.go
-	// no longer fiddles with init.
-	for _, v := range s.defs {
-		switch v := v.(type) {
-		case *Variable:
-			if v.Index >= 0 {
-				fr.Vars[v.Index] = v.Init;
-			}
-		}
-	}
-	return fr;
+	return outer.child(s.maxVars);
 }
 
 /*
