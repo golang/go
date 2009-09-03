@@ -6,9 +6,11 @@ package ogle
 
 import (
 	"eval";
+	"fmt";
+	"log";
+	"os";
 	"ptrace";
 	"reflect";
-	"os";
 	"sym";
 )
 
@@ -37,16 +39,32 @@ func (e ProcessNotStopped) String() string {
 	return "process not stopped";
 }
 
+// An UnknownThread error is an internal error representing an
+// unrecognized G structure pointer.
+type UnknownThread struct {
+	OSThread ptrace.Thread;
+	GoThread ptrace.Word;
+}
+
+func (e UnknownThread) String() string {
+	return fmt.Sprintf("internal error: unknown thread (G %#x)", e.GoThread);
+}
+
+// A NoCurrentThread error occurs when no thread is currently selected
+// in a process (or when there are no threads in a process).
+type NoCurrentThread struct {}
+
+func (e NoCurrentThread) String() string {
+	return "no current thread";
+}
+
 // A Process represents a remote attached process.
 type Process struct {
 	Arch;
-	ptrace.Process;
+	proc ptrace.Process;
 
 	// The symbol table of this process
 	syms *sym.GoSymTable;
-
-	// Current frame, or nil if the current thread is not stopped
-	frame *Frame;
 
 	// A possibly-stopped OS thread, or nil
 	threadCache ptrace.Thread;
@@ -62,24 +80,76 @@ type Process struct {
 
 	// Globals from the sys package (or from no package)
 	sys struct {
-		lessstack, goexit, newproc, deferproc *sym.TextSym;
+		lessstack, goexit, newproc, deferproc, newprocreadylocked *sym.TextSym;
+		allg remotePtr;
+		g0 remoteStruct;
 	};
+
+	// Event queue
+	posted []Event;
+	pending []Event;
+	event Event;
+
+	// Event hooks
+	breakpointHooks map[ptrace.Word] *breakpointHook;
+	threadCreateHook *threadCreateHook;
+	threadExitHook *threadExitHook;
+
+	// Current thread, or nil if there are no threads
+	curThread *Thread;
+
+	// Threads by the address of their G structure
+	threads map[ptrace.Word] *Thread;
 }
+
+/*
+ * Process creation
+ */
 
 // NewProcess constructs a new remote process around a ptrace'd
 // process, an architecture, and a symbol table.
-func NewProcess(proc ptrace.Process, arch Arch, syms *sym.GoSymTable) *Process {
+func NewProcess(proc ptrace.Process, arch Arch, syms *sym.GoSymTable) (*Process, os.Error) {
 	p := &Process{
 		Arch: arch,
-		Process: proc,
+		proc: proc,
 		syms: syms,
 		types: make(map[ptrace.Word] *remoteType),
+		breakpointHooks: make(map[ptrace.Word] *breakpointHook),
+		threadCreateHook: new(threadCreateHook),
+		threadExitHook: new(threadExitHook),
+		threads: make(map[ptrace.Word] *Thread),
 	};
 
-	// TODO(austin) Set p.frame if proc is stopped
-
+	// Fill in remote runtime
 	p.bootstrap();
-	return p;
+
+	switch {
+	case p.sys.allg.addr().base == 0:
+		return nil, FormatError("failed to find runtime symbol 'allg'");
+	case p.sys.g0.addr().base == 0:
+		return nil, FormatError("failed to find runtime symbol 'g0'");
+	case p.sys.newprocreadylocked == nil:
+		return nil, FormatError("failed to find runtime symbol 'newprocreadylocked'");
+	case p.sys.goexit == nil:
+		return nil, FormatError("failed to find runtime symbol 'sys.goexit'");
+	}
+
+	// Get current threads
+	p.threads[p.sys.g0.addr().base] = &Thread{p.sys.g0, nil, false};
+	g := p.sys.allg.Get();
+	for g != nil {
+		gs := g.(remoteStruct);
+		fmt.Printf("*** Found thread at %#x\n", gs.addr().base);
+		p.threads[gs.addr().base] = &Thread{gs, nil, false};
+		g = gs.Field(p.f.G.Alllink).(remotePtr).Get();
+	}
+	p.selectSomeThread();
+
+	// Create internal breakpoints to catch new and exited threads
+	p.OnBreakpoint(ptrace.Word(p.sys.newprocreadylocked.Entry())).(*breakpointHook).addHandler(readylockedBP, true);
+	p.OnBreakpoint(ptrace.Word(p.sys.goexit.Entry())).(*breakpointHook).addHandler(goexitBP, true);
+
+	return p, nil;
 }
 
 // NewProcessElf constructs a new remote process around a ptrace'd
@@ -99,7 +169,7 @@ func NewProcessElf(proc ptrace.Process, elf *sym.Elf) (*Process, os.Error) {
 	default:
 		return nil, UnknownArchitecture(elf.Machine);
 	}
-	return NewProcess(proc, arch, syms), nil;
+	return NewProcess(proc, arch, syms);
 }
 
 // bootstrap constructs the runtime structure of a remote process.
@@ -154,16 +224,39 @@ func (p *Process) bootstrap() {
 	p.sys.goexit = globalFn("goexit");
 	p.sys.newproc = globalFn("sys·newproc");
 	p.sys.deferproc = globalFn("sys·deferproc");
+	p.sys.newprocreadylocked = globalFn("newprocreadylocked");
+	if allg := p.syms.SymFromName("allg"); allg != nil {
+		p.sys.allg = remotePtr{remote{ptrace.Word(allg.Common().Value), p}, p.runtime.G};
+	}
+	if g0 := p.syms.SymFromName("g0"); g0 != nil {
+		p.sys.g0 = p.runtime.G.mk(remote{ptrace.Word(g0.Common().Value), p}).(remoteStruct);
+	}
 }
 
-func (p *Process) someStoppedThread() ptrace.Thread {
+func (p *Process) selectSomeThread() {
+	// Once we have friendly thread ID's, there might be a more
+	// reasonable behavior for this.
+	p.curThread = nil;
+	for _, t := range p.threads {
+		if !t.isG0() {
+			p.curThread = t;
+			return;
+		}
+	}
+}
+
+/*
+ * Process memory
+ */
+
+func (p *Process) someStoppedOSThread() ptrace.Thread {
 	if p.threadCache != nil {
 		if _, err := p.threadCache.Stopped(); err == nil {
 			return p.threadCache;
 		}
 	}
 
-	for _, t := range p.Threads() {
+	for _, t := range p.proc.Threads() {
 		if _, err := t.Stopped(); err == nil {
 			p.threadCache = t;
 			return t;
@@ -173,7 +266,7 @@ func (p *Process) someStoppedThread() ptrace.Thread {
 }
 
 func (p *Process) Peek(addr ptrace.Word, out []byte) (int, os.Error) {
-	thr := p.someStoppedThread();
+	thr := p.someStoppedOSThread();
 	if thr == nil {
 		return 0, ProcessNotStopped{};
 	}
@@ -181,7 +274,7 @@ func (p *Process) Peek(addr ptrace.Word, out []byte) (int, os.Error) {
 }
 
 func (p *Process) Poke(addr ptrace.Word, b []byte) (int, os.Error) {
-	thr := p.someStoppedThread();
+	thr := p.someStoppedOSThread();
 	if thr == nil {
 		return 0, ProcessNotStopped{};
 	}
@@ -190,4 +283,226 @@ func (p *Process) Poke(addr ptrace.Word, b []byte) (int, os.Error) {
 
 func (p *Process) peekUintptr(addr ptrace.Word) ptrace.Word {
 	return ptrace.Word(mkUintptr(remote{addr, p}).(remoteUint).Get());
+}
+
+/*
+ * Events
+ */
+
+// OnBreakpoint returns the hook that is run when the program reaches
+// the given program counter.
+func (p *Process) OnBreakpoint(pc ptrace.Word) EventHook {
+	if bp, ok := p.breakpointHooks[pc]; ok {
+		return bp;
+	}
+	// The breakpoint will register itself when a handler is added
+	return &breakpointHook{commonHook{nil, 0}, p, pc};
+}
+
+// OnThreadCreate returns the hook that is run when a Go thread is created.
+func (p *Process) OnThreadCreate() EventHook {
+	return p.threadCreateHook;
+}
+
+// OnThreadExit returns the hook 
+func (p *Process) OnThreadExit() EventHook {
+	return p.threadExitHook;
+}
+
+// osThreadToThread looks up the Go thread running on an OS thread.
+func (p *Process) osThreadToThread(t ptrace.Thread) (*Thread, os.Error) {
+	regs, err := t.Regs();
+	if err != nil {
+		return nil, err;
+	}
+	g := p.G(regs);
+	gt, ok := p.threads[g];
+	if !ok {
+		return nil, UnknownThread{t, g};
+	}
+	return gt, nil;
+}
+
+// causesToEvents translates the stop causes of the underlying process
+// into an event queue.
+func (p *Process) causesToEvents() ([]Event, os.Error) {
+	// Count causes we're interested in
+	nev := 0;
+	for _, t := range p.proc.Threads() {
+		if c, err := t.Stopped(); err == nil {
+			switch c := c.(type) {
+			case ptrace.Breakpoint:
+				nev++;
+			case ptrace.Signal:
+				// TODO(austin)
+				//nev++;
+			}
+		}
+	}
+
+	// Translate causes to events
+	events := make([]Event, nev);
+	i := 0;
+	for _, t := range p.proc.Threads() {
+		if c, err := t.Stopped(); err == nil {
+			switch c := c.(type) {
+			case ptrace.Breakpoint:
+				gt, err := p.osThreadToThread(t);
+				if err != nil {
+					return nil, err;
+				}
+				events[i] = &Breakpoint{commonEvent{p, gt}, t, ptrace.Word(c)};
+				i++;
+			case ptrace.Signal:
+				// TODO(austin)
+			}
+		}
+	}
+
+	return events, nil;
+}
+
+// postEvent appends an event to the posted queue.  These events will
+// be processed before any currently pending events.
+func (p *Process) postEvent(ev Event) {
+	n := len(p.posted);
+	m := n*2;
+	if m == 0 {
+		m = 4;
+	}
+	posted := make([]Event, n+1, m);
+	for i, p := range p.posted {
+		posted[i] = p;
+	}
+	posted[n] = ev;
+	p.posted = posted;
+}
+
+// processEvents processes events in the event queue until no events
+// remain, a handler returns EAStop, or a handler returns an error.
+// It returns either EAStop or EAContinue and possibly an error.
+func (p *Process) processEvents() (EventAction, os.Error) {
+	var ev Event;
+	for len(p.posted) > 0 {
+		ev, p.posted = p.posted[0], p.posted[1:len(p.posted)];
+		action, err := p.processEvent(ev);
+		if action == EAStop {
+			return action, err;
+		}
+	}
+
+	for len(p.pending) > 0 {
+		ev, p.pending = p.pending[0], p.pending[1:len(p.pending)];
+		action, err := p.processEvent(ev);
+		if action == EAStop {
+			return action, err;
+		}
+	}
+
+	return EAContinue, nil;
+}
+
+// processEvent processes a single event, without manipulating the
+// event queues.  It returns either EAStop or EAContinue and possibly
+// an error.
+func (p *Process) processEvent(ev Event) (EventAction, os.Error) {
+	p.event = ev;
+
+	var action EventAction;
+	var err os.Error;
+	switch ev := p.event.(type) {
+	case *Breakpoint:
+		hook, ok := p.breakpointHooks[ev.pc];
+		if !ok {
+			break;
+		}
+		p.curThread = ev.Thread();
+		action, err = hook.handle(ev);
+
+	case *ThreadCreate:
+		p.curThread = ev.Thread();
+		action, err = p.threadCreateHook.handle(ev);
+
+	case *ThreadExit:
+		action, err = p.threadExitHook.handle(ev);
+
+	default:
+		log.Crashf("Unknown event type %T in queue", p.event);
+	}
+
+	if err != nil {
+		return EAStop, err;
+	} else if action == EAStop {
+		return EAStop, nil;
+	}
+	return EAContinue, nil;
+}
+
+// Event returns the last event that caused the process to stop.  This
+// may return nil if the process has never been stopped by an event.
+//
+// TODO(austin) Return nil if the user calls p.Stop()?
+func (p *Process) Event() Event {
+	return p.event;
+}
+
+/*
+ * Process control
+ */
+
+// TODO(austin) Cont, WaitStop, and Stop.  Need to figure out how
+// event handling works with these.  Originally I did it only in
+// WaitStop, but if you Cont and there are pending events, then you
+// have to not actually continue and wait until a WaitStop to process
+// them, even if the event handlers will tell you to continue.  We
+// could handle them in both Cont and WaitStop to avoid this problem,
+// but it's still weird if an event happens after the Cont and before
+// the WaitStop that the handlers say to continue from.  Or we could
+// handle them on a separate thread.  Then obviously you get weird
+// asynchrony things, like prints while the user it typing a command,
+// but that's not necessarily a bad thing.
+
+// ContWait resumes process execution and waits for an event to occur
+// that stops the process.
+func (p *Process) ContWait() os.Error {
+	for {
+		a, err := p.processEvents();
+		if err != nil {
+			return err;
+		} else if a == EAStop {
+			break;
+		}
+		err = p.proc.Continue();
+		if err != nil {
+			return err;
+		}
+		err = p.proc.WaitStop();
+		if err != nil {
+			return err;
+		}
+		for _, t := range p.threads {
+			t.resetFrame();
+		}
+		p.pending, err = p.causesToEvents();
+		if err != nil {
+			return err;
+		}
+	}
+	return nil;
+}
+
+// Out selects the caller frame of the current frame.
+func (p *Process) Out() os.Error {
+	if p.curThread == nil {
+		return NoCurrentThread{};
+	}
+	return p.curThread.Out();
+}
+
+// In selects the frame called by the current frame.
+func (p *Process) In() os.Error {
+	if p.curThread == nil {
+		return NoCurrentThread{};
+	}
+	return p.curThread.In();
 }
