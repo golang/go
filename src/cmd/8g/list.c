@@ -52,18 +52,18 @@ Pconv(Fmt *fp)
 	sconsize = 8;
 	switch(p->as) {
 	default:
-		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%D",
+		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%D",
 			p->loc, p->lineno, p->as, &p->from, &p->to);
 		break;
 
 	case ADATA:
 		sconsize = p->from.scale;
-		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D/%d,%D",
+		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D/%d,%D",
 			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
 		break;
 
 	case ATEXT:
-		snprint(str, sizeof(str), "%.4ld (%4ld) %-7A %D,%lD",
+		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%lD",
 			p->loc, p->lineno, p->as, &p->from, &p->to);
 		break;
 	}
