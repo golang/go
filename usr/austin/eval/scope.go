@@ -122,12 +122,15 @@ func (b *block) DefineSlot(t Type) *Variable {
 	if b.inner != nil && b.inner.scope == b.scope {
 		log.Crash("Failed to exit child block before defining variable");
 	}
-	index := b.offset+b.numVars;
-	v := &Variable{token.Position{}, index, t, nil};
-	b.numVars++;
-	if index+1 > b.scope.maxVars {
-		b.scope.maxVars = index+1;
+	index := -1;
+	if b.offset >= 0 {
+		index = b.offset+b.numVars;
+		b.numVars++;
+		if index+1 > b.scope.maxVars {
+			b.scope.maxVars = index+1;
+		}
 	}
+	v := &Variable{token.Position{}, index, t, nil};
 	return v;
 }
 
@@ -152,25 +155,29 @@ func (b *block) DefineType(name string, pos token.Position, t Type) Type {
 	return nt;
 }
 
-func (b *block) Lookup(name string) (level int, def Def) {
+func (b *block) Lookup(name string) (bl *block, level int, def Def) {
 	for b != nil {
 		if d, ok := b.defs[name]; ok {
-			return level, d;
+			return b, level, d;
 		}
 		if b.outer != nil && b.scope != b.outer.scope {
 			level++;
 		}
 		b = b.outer;
 	}
-	return 0, nil;
+	return nil, 0, nil;
 }
 
 func (s *Scope) NewFrame(outer *Frame) *Frame {
 	fr := outer.child(s.maxVars);
+	// TODO(rsc): Take this loop out once eval_test.go
+	// no longer fiddles with init.
 	for _, v := range s.defs {
 		switch v := v.(type) {
 		case *Variable:
-			fr.Vars[v.Index] = v.Init;
+			if v.Index >= 0 {
+				fr.Vars[v.Index] = v.Init;
+			}
 		}
 	}
 	return fr;

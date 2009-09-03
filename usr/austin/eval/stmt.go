@@ -230,9 +230,11 @@ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
 
 	// Initialize the variable
 	index := v.Index;
-	a.push(func(v *Thread) {
-		v.f.Vars[index] = t.Zero();
-	});
+	if v.Index >= 0 {
+		a.push(func(v *Thread) {
+			v.f.Vars[index] = t.Zero();
+		});
+	}
 	return v;
 }
 
