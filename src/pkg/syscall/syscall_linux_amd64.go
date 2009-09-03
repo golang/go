@@ -62,3 +62,10 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 	return;
 }
 
+func (r *PtraceRegs) PC() uint64 {
+	return r.Rip;
+}
+
+func (r *PtraceRegs) SetPC(pc uint64) {
+	r.Rip = pc;
+}

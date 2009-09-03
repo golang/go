@@ -307,21 +307,21 @@ type PtraceRegs struct {
 	Ebp int32;
 	Eax int32;
 	Ds uint16;
-	__ds uint16;
+	X__ds uint16;
 	Es uint16;
-	__es uint16;
+	X__es uint16;
 	Fs uint16;
-	__fs uint16;
+	X__fs uint16;
 	Gs uint16;
-	__gs uint16;
+	X__gs uint16;
 	Orig_eax int32;
 	Eip int32;
 	Cs uint16;
-	__cs uint16;
+	X__cs uint16;
 	Eflags int32;
 	Esp int32;
 	Ss uint16;
-	__ss uint16;
+	X__ss uint16;
 }
 
 type FdSet struct {

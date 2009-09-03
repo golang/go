@@ -136,3 +136,11 @@ func Listen(s int, n int) (errno int) {
 	_, errno = socketcall(_LISTEN, uintptr(s), uintptr(n), 0, 0, 0, 0);
 	return;
 }
+
+func (r *PtraceRegs) PC() uint64 {
+	return uint64(uint32(r.Eip));
+}
+
+func (r *PtraceRegs) SetPC(pc uint64) {
+	r.Eip = int32(pc);
+}

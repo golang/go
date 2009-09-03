@@ -289,7 +289,7 @@ func (t *thread) logTrace(format string, args ...) {
 		var regs syscall.PtraceRegs;
 		err := t.ptraceGetRegs(&regs);
 		if err == nil {
-			fmt.Fprintf(os.Stderr, "@%x", regs.Rip);
+			fmt.Fprintf(os.Stderr, "@%x", regs.PC());
 		}
 	}
 	fmt.Fprint(os.Stderr, ": ");
@@ -516,7 +516,7 @@ func (ev *debugEvent) doTrap() (threadState, os.Error) {
 		return stopped, err;
 	}
 
-	b, ok := t.proc.breakpoints[uintptr(regs.Rip)-uintptr(len(bpinst386))];
+	b, ok := t.proc.breakpoints[uintptr(regs.PC())-uintptr(len(bpinst386))];
 	if !ok {
 		// We must have hit a breakpoint that was actually in
 		// the program.  Leave the IP where it is so we don't
@@ -526,9 +526,9 @@ func (ev *debugEvent) doTrap() (threadState, os.Error) {
 	}
 
 	t.breakpoint = b;
-	t.logTrace("at breakpoint %v, backing up PC from %#x", b, regs.Rip);
+	t.logTrace("at breakpoint %v, backing up PC from %#x", b, regs.PC());
 
-	regs.Rip = uint64(b.pc);
+	regs.SetPC(uint64(b.pc));
 	err = t.ptraceSetRegs(&regs);
 	if err != nil {
 		return stopped, err;
@@ -997,7 +997,7 @@ func (p *process) Continue() os.Error {
 			if err != nil {
 				return err;
 			}
-			if b, ok := p.breakpoints[uintptr(regs.Rip)]; ok {
+			if b, ok := p.breakpoints[uintptr(regs.PC())]; ok {
 				t.logTrace("stepping over breakpoint %v", b);
 				if err := t.stepAsync(ready); err != nil {
 					return err;
