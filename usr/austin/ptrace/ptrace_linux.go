@@ -384,6 +384,9 @@ func (p *process) installBreakpoints() os.Error {
 //
 // Must be called from the monitor thread.
 func (p *process) uninstallBreakpoints() os.Error {
+	if len(p.threads) == 0 {
+		return nil;
+	}
 	n := 0;
 	main := p.someStoppedThread();
 	for _, b := range p.breakpoints {
