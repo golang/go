@@ -22,11 +22,8 @@ type visit struct {
 // comparisons that have already been seen, which allows short circuiting on
 // recursive types.
 func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
-	if v1 == nil {
-		return v2 == nil
-	}
-	if v2 == nil {
-		return false
+	if v1 == nil || v2 == nil {
+		return v1 == v2
 	}
 	if v1.Type() != v2.Type() {
 		return false;
@@ -126,11 +123,11 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 // but will scan members of arrays, slices, and fields of structs. It correctly
 // handles recursive types.
 func DeepEqual(a1, a2 interface{}) bool {
+	if a1 == nil || a2 == nil {
+		return a1 == a2;
+	}
 	v1 := NewValue(a1);
 	v2 := NewValue(a2);
-	if v1 == nil {
-		return v1 == v2;
-	}
 	if v1.Type() != v2.Type() {
 		return false;
 	}
