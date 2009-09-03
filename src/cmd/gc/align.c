@@ -199,9 +199,12 @@ dowidth(Type *t)
 		if(t->type == T)
 			break;
 		dowidth(t->type);
-		w = sizeof_Array;
 		if(t->bound >= 0)
 			w = t->bound * t->type->width;
+		else if(t->bound == -1)
+			w = sizeof_Array;
+		else
+			fatal("dowidth %T", t);	// probably [...]T
 		break;
 
 	case TSTRUCT:

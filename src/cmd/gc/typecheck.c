@@ -159,7 +159,8 @@ reswitch:
 		n->type = t;
 		n->left = N;
 		n->right = N;
-		checkwidth(t);
+		if(t->bound != -100)
+			checkwidth(t);
 		break;
 
 	case OTMAP:
