@@ -378,6 +378,8 @@ var deepEqualTests = []DeepEqualTest {
 	DeepEqualTest{ map[int]string{ 1:"one", 2:"txo" }, map[int]string{ 2:"two", 1:"one" }, false },
 	DeepEqualTest{ map[int]string{ 1:"one", }, map[int]string{ 2:"two", 1:"one" }, false },
 	DeepEqualTest{ map[int]string{ 2:"two", 1:"one" }, map[int]string{ 1:"one", }, false },
+	DeepEqualTest{ nil, 1, false },
+	DeepEqualTest{ 1, nil, false },
 
 	// Mismatched types
 	DeepEqualTest{ 1, 1.0, false },
