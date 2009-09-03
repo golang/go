@@ -667,7 +667,7 @@ func (a *exprInfo) exprFromType(t Type) *expr {
 }
 
 func (a *exprInfo) compileIdent(b *block, constant bool, callCtx bool, name string) *expr {
-	level, def := b.Lookup(name);
+	bl, level, def := b.Lookup(name);
 	if def == nil {
 		a.diag("%s: undefined", name);
 		return nil;
@@ -693,6 +693,9 @@ func (a *exprInfo) compileIdent(b *block, constant bool, callCtx bool, name stri
 			a.diag("variable %s used in constant expression", name);
 			return nil;
 		}
+		if bl.offset < 0 {
+			return a.compileGlobalVariable(def);
+		}
 		return a.compileVariable(level, def);
 	case Type:
 		if callCtx {
@@ -713,6 +716,21 @@ func (a *exprInfo) compileVariable(level int, v *Variable) *expr {
 	}
 	expr := a.newExpr(v.Type, "variable");
 	expr.genIdentOp(level, v.Index);
+	return expr;
+}
+
+func (a *exprInfo) compileGlobalVariable(v *Variable) *expr {
+	if v.Type == nil {
+		// Placeholder definition from an earlier error
+		a.silentErrors++;
+		return nil;
+	}
+	if v.Init == nil {
+		v.Init = v.Type.Zero();
+	}
+	expr := a.newExpr(v.Type, "variable");
+	val := v.Init;
+	expr.genValue(func(t *Thread) Value { return val });
 	return expr;
 }
 

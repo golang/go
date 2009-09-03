@@ -18,5 +18,6 @@ GOFILES=\
 	typec.go\
 	util.go\
 	value.go\
+	world.go\
 
 include $(GOROOT)/src/Make.pkg

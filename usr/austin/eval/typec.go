@@ -26,7 +26,7 @@ type typeCompiler struct {
 }
 
 func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
-	_, def := a.block.Lookup(x.Value);
+	_bl, _index, def := a.block.Lookup(x.Value);
 	if def == nil {
 		a.diagAt(x, "%s: undefined", x.Value);
 		return nil;
