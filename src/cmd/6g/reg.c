@@ -1551,9 +1551,9 @@ noreturn(Prog *p)
 
 	if(symlist[0] == S) {
 		symlist[0] = pkglookup("throwindex", "sys");
-		symlist[0] = pkglookup("throwslice", "sys");
-		symlist[0] = pkglookup("throwinit", "sys");
-		symlist[1] = pkglookup("panicl", "sys");
+		symlist[1] = pkglookup("throwslice", "sys");
+		symlist[2] = pkglookup("throwinit", "sys");
+		symlist[3] = pkglookup("panicl", "sys");
 	}
 
 	s = p->to.sym;
