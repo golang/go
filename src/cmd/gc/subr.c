@@ -1061,6 +1061,8 @@ Tpretty(Fmt *fp, Type *t)
 	case TARRAY:
 		if(t->bound >= 0)
 			return fmtprint(fp, "[%d]%T", (int)t->bound, t->type);
+		if(t->bound == -100)
+			return fmtprint(fp, "[...]%T", t->type);
 		return fmtprint(fp, "[]%T", t->type);
 
 	case TINTER:
