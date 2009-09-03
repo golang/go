@@ -134,7 +134,7 @@ panic PC=xxx
 
 =========== fixedbugs/bug148.go
 2 3
-interface is main.T, not main.T·bug148·1
+interface is main.T, not main.T·1
 throw: interface conversion
 
 panic PC=xxx
