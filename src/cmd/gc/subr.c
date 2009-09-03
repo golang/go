@@ -973,11 +973,8 @@ Tpretty(Fmt *fp, Type *t)
 				return 0;
 			if(s->flags & SymImported)
 				return 0;
-			if(t->vargen || !(s->flags & (SymExport|SymPackage))) {
-				fmtprint(fp, "·%s", filename);
-				if(t->vargen)
-					fmtprint(fp, "·%d", t->vargen);
-			}
+			if(t->vargen)
+				fmtprint(fp, "·%d", t->vargen);
 			return 0;
 		}
 		return fmtprint(fp, "%S", s);
@@ -2227,7 +2224,7 @@ staticname(Type *t)
 {
 	Node *n;
 
-	snprint(namebuf, sizeof(namebuf), "statictmp_%.4d·%s", statuniqgen, filename);
+	snprint(namebuf, sizeof(namebuf), "statictmp_%.4d", statuniqgen);
 	statuniqgen++;
 	n = newname(lookup(namebuf));
 	addvar(n, t, PEXTERN);

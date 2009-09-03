@@ -76,8 +76,6 @@ main(int argc, char *argv[])
 	lexlineno = 1;
 
 	for(i=0; i<argc; i++) {
-		if(i == 0)
-			setfilename(argv[i]);
 		infile = argv[i];
 		linehist(infile, 0, 0);
 
@@ -147,29 +145,6 @@ usage:
 	print("  -x print lex tokens\n");
 	exit(0);
 	return 0;
-}
-
-void
-setfilename(char *file)
-{
-	char *p;
-	int c;
-
-	p = strrchr(file, '/');
-	if(p != nil)
-		file = p+1;
-	strncpy(namebuf, file, sizeof(namebuf));
-	p = strrchr(namebuf, '.');
-	if(p != nil && strcmp(p, ".go") == 0)
-		*p = 0;
-	filename = strdup(namebuf);
-
-	// turn invalid identifier chars into _
-	for(p=filename; *p; p++) {
-		c = *p & 0xFF;
-		if(c < 0x80 && !isalpha(c) && !isdigit(c) && c != '_')
-			*p = '_';
-	}
 }
 
 int

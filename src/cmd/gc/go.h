@@ -617,7 +617,6 @@ EXTERN	Sym*	pkgimportname;	// package name from imported package
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
 extern	char*	sysimport;
 extern	char*	unsafeimport;
-EXTERN	char*	filename;	// name to uniqify names
 EXTERN	Idir*	idirs;
 
 EXTERN	Type*	types[NTYPE];
@@ -696,7 +695,6 @@ int	yyparse(void);
 /*
  *	lex.c
  */
-void	setfilename(char*);
 void	addidir(char*);
 void	importfile(Val*);
 void	cannedimports(char*, char*);
