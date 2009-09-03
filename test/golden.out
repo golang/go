@@ -151,9 +151,6 @@ BUG: should fail
 =========== bugs/bug169.go
 BUG: errchk: command succeeded unexpectedly
 
-=========== bugs/bug187.go
-BUG: 0 1
-
 =========== bugs/bug190.go
 bugs/bug190.go:11: invalid recursive type []S
 bugs/bug190.go:16: invalid recursive type S
