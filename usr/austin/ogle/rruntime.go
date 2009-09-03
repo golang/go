@@ -110,20 +110,24 @@ type rt1ArrayType struct {
  * See $GOROOT/src/pkg/runtime/runtime.h
  */
 
+// Fields beginning with _ are only for padding
+
 type rt1Stktop struct {
 	stackguard uintptr;
 	stackbase *rt1Stktop;
 	gobuf rt1Gobuf;
+	_args uint32;
+	_fp uintptr;
 }
 
 type rt1Gobuf struct {
 	sp uintptr;
 	pc uintptr;
 	g *rt1G;
+	r0 uintptr;
 }
 
 type rt1G struct {
-	// Fields beginning with _ are only for padding
 	_stackguard uintptr;
 	stackbase *rt1Stktop;
 	_defer uintptr;
@@ -133,6 +137,7 @@ type rt1G struct {
 	alllink *rt1G;
 	_param uintptr;
 	status int16;
+	// Incomplete
 }
 
 var rt1GStatus = runtimeGStatus{
@@ -193,7 +198,7 @@ type runtimeIndexes struct {
 		Sp, Pc, G int;
 	};
 	G struct {
-		Stackbase, Sched, Status int;
+		Stackbase, Sched, Status, Alllink int;
 	};
 }
 

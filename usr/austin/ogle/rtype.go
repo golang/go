@@ -54,6 +54,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 		basicType(eval.Uint8Type,   mkUint8,   1, 0);
 		basicType(eval.Uint32Type,  mkUint32,  4, 0);
 		basicType(eval.UintptrType, mkUintptr, arch.PtrSize(), 0);
+		basicType(eval.Int16Type,   mkInt16,   2, 0);
 		basicType(eval.Int32Type,   mkInt32,   4, 0);
 		basicType(eval.IntType,     mkInt,     arch.IntSize(), 0);
 		basicType(eval.StringType,  mkString,  arch.PtrSize() + arch.IntSize(), arch.PtrSize());

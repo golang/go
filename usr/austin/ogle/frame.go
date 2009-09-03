@@ -47,7 +47,7 @@ func NewFrame(g remoteStruct) *Frame {
 	// figure out if it's on an OS thread or not.  However, this
 	// is difficult because the state isn't updated atomically
 	// with scheduling changes.
-	for _, t := range p.Threads() {
+	for _, t := range p.proc.Threads() {
 		regs, err := t.Regs();
 		if err != nil {
 			// TODO(austin) What to do?
@@ -181,6 +181,8 @@ func (f *Frame) Outer() *Frame {
 	if pc < 0x1000 {
 		return nil;
 	}
+
+	// TODO(austin) Register this frame for shoot-down.
 
 	f.outer = prepareFrame(pc, sp, f.stk, f);
 	return f.outer;
