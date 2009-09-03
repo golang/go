@@ -3814,7 +3814,7 @@ for i := 0; i &lt;= 3; i++ {
 <h3 id="Length_and_capacity">Length and capacity</h3>
 
 <pre class="grammar">
-Call       Argument type       Result
+Call      Argument type        Result
 
 len(s)    string               string length (in bytes)
           [n]T, *[n]T          array length (== n)
@@ -4367,14 +4367,10 @@ The following minimal alignment properties are guaranteed:
 <hr/>
 
 <h2 id="Implementation_differences"><font color=red>Implementation differences - TODO</font></h2>
-<p>
-<font color=red>
 <ul>
-	<li>Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</li>
-	<li>A type switch must have an assignment in the guard expression and does not support multiple types per case.</li>
+	<li><font color=red>Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</font></li>
+	<li><font color=red>A type switch must have an assignment in the guard expression and does not support multiple types per case.</font></li>
 </ul>
-</font>
-</p>
 
 </div>
 </body>
