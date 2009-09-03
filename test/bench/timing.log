@@ -238,3 +238,96 @@ pidigits 10000
 	gcc -O2 pidigits.c -lgmp	2.56u 0.00s 2.57r
 	gc pidigits	55.22u 0.04s 55.29r	# *** -23%
 	gc_B pidigits	55.49u 0.02s 55.60r	# *** -23%
+
+September 3 2009
+
+# New 6g inlines slices, has a few other tweaks.
+# Complete rerun. Significant changes marked.
+
+fasta -n 25000000
+	# probably I/O library inefficiencies
+	gcc -O2 fasta.c	5.96u 0.00s 5.96r
+	gc fasta	10.63u 0.02s 10.66r
+	gc_B fasta	9.92u 0.01s 9.94r
+
+reverse-complement < output-of-fasta-25000000
+	# we don't know - memory cache behavior?
+	gcc -O2 reverse-complement.c	1.92u 0.33s 2.93r
+	gccgo -O2 reverse-complement.go	6.76u 0.72s 7.58r	# +5%
+	gc reverse-complement	6.59u 0.70s 7.29r	# +2%
+	gc_B reverse-complement	5.57u 0.80s 6.37r	# -10%
+
+nbody 50000000
+	# math.Sqrt needs to be in assembly; inlining is probably the other 50%
+	# also loop alignment appears to be critical
+	gcc -O2 nbody.c	21.28u 0.00s 21.28r
+	gccgo -O2 nbody.go	119.21u 0.00s 119.22r	# +2%
+	gc nbody	109.72u 0.00s 109.78r	# + 28% *****
+	gc_B nbody	85.90u 0.00s 85.91r
+
+binary-tree 15 # too slow to use 20
+	# memory allocation and garbage collection
+	gcc -O2 binary-tree.c -lm	0.86u 0.00s 0.87r
+	gccgo -O2 binary-tree.go	1.88u 0.54s 2.42r	# +17%
+	gccgo -O2 binary-tree-freelist.go	0.01u 0.01s 0.02r
+	gc binary-tree	8.94u 0.01s 8.96r	# -2%
+	gc binary-tree-freelist	0.47u 0.01s 0.48r
+
+fannkuch 12
+	# bounds checking is half the difference
+	# rest might be registerization
+	gcc -O2 fannkuch.c	60.12u 0.00s 60.12r
+	gccgo -O2 fannkuch.go	92.62u 0.00s 92.66r		# +41% ***
+	gc fannkuch	123.90u 0.00s 123.92r
+	gc_B fannkuch	89.71u 0.00s 89.74r	# -1%
+
+regex-dna 100000
+	# regexp code is slow on trivial regexp
+	gcc -O2 regex-dna.c -lpcre	0.88u 0.00s 0.88r
+	gc regex-dna	25.77u 0.01s 25.79r		# -5%
+	gc_B regex-dna	26.05u 0.02s 26.09r	# -12% ***
+
+spectral-norm 5500
+	# possibly inline evalA
+	gcc -O2 spectral-norm.c -lm	11.51u 0.00s 11.51r
+	gccgo -O2 spectral-norm.go	11.95u 0.00s 11.96r
+	gc spectral-norm	24.23u 0.00s 24.23r
+	gc_B spectral-norm	23.83u 0.00s 23.84r
+
+k-nucleotide 1000000
+	# string maps are slower than glib string maps
+	gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0	10.68u 0.04s 10.72r
+	gccgo -O2 k-nucleotide.go	23.03u 0.88s 23.92r
+	gc k-nucleotide	15.79u 0.05s 15.85r	# -5% (but this one seems to vary by more than that)
+	gc_B k-nucleotide	17.88u 0.05s 17.95r # +8% (ditto)
+
+mandelbrot 16000
+	gcc -O2 mandelbrot.c	56.17u 0.02s 56.20r
+	gccgo -O2 mandelbrot.go	56.74u 0.02s 56.79r	 # -1%
+	gc mandelbrot	63.31u 0.01s 63.35r	# -1%
+	gc_B mandelbrot	63.29u 0.00s 63.31r	# -1%
+
+meteor 16000
+	# we don't know
+	gcc -O2 meteor-contest.c	0.10u 0.00s 0.10r
+	gccgo -O2 meteor-contest.go	0.11u 0.00s 0.12r
+	gc meteor-contest	0.18u 0.00s 0.19r
+	gc_B meteor-contest	0.17u 0.00s 0.18r
+
+pidigits 10000
+	# bignum is slower than gmp
+	gcc -O2 pidigits.c -lgmp	2.56u 0.00s 2.57r
+	gc pidigits	55.87u 0.03s 55.91r
+	gc_B pidigits	55.93u 0.03s 55.99r
+
+# these tests are compared using real time, since they run multiple processors
+# accuracy probably low
+threadring 50000000
+	gcc -O2 threadring.c -lpthread	26.31u 164.69s 199.92r	# -2%
+	gccgo -O2 threadring.go	87.90u 487.26s 472.81r	# +6%
+	gc threadring	28.89u 0.00s 28.90r	# -25% ***
+
+chameneos 6000000
+	gcc -O2 chameneosredux.c -lpthread	16.41u 296.91s 81.17r	# -8%
+	gc chameneosredux	19.97u 0.00s 19.97r	# -8%
+
