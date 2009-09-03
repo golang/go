@@ -52,7 +52,10 @@ import (
 )
 
 
-const Pkg = "/pkg/"	// name for auto-generated package documentation tree
+const (
+	Pkg = "/pkg/";	// name for auto-generated package documentation tree
+	Spec = "/doc/go_spec.html";
+)
 
 
 type delayTime struct {
@@ -399,6 +402,16 @@ func serveGoSource(c *http.Conn, name string) {
 }
 
 
+func serveGoSpec(c *http.Conn, r *http.Request) {
+	src, err := io.ReadFile(pathutil.Join(goroot, Spec));
+	if err != nil {
+		http.NotFound(c, r);
+		return;
+	}
+	linkify(c, src);
+}
+
+
 var fileServer = http.FileServer(".", "");
 
 func serveFile(c *http.Conn, req *http.Request) {
@@ -654,6 +667,7 @@ func main() {
 			handler = loggingHandler(handler);
 		}
 
+		http.Handle(Spec, http.HandlerFunc(serveGoSpec));
 		http.Handle(Pkg, http.HandlerFunc(servePkg));
 		if *syncCmd != "" {
 			http.Handle("/debug/sync", http.HandlerFunc(dosync));
