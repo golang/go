@@ -1631,7 +1631,7 @@ func (p *parser) parseStmt() ast.Stmt {
 		// tokens that may start a top-level expression
 		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,  // operand
 		token.LBRACK, token.STRUCT,  // composite type
-		token.MUL, token.AND, token.ARROW:  // unary operators
+		token.MUL, token.AND, token.ARROW, token.ADD, token.SUB, token.XOR:  // unary operators
 		return p.parseSimpleStmt(true);
 	case token.GO:
 		return p.parseGoStmt();
