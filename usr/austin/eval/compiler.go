@@ -41,8 +41,9 @@ func (a *compiler) numError() int {
 func newUniverse() *Scope {
 	sc := &Scope{nil, 0};
 	sc.block = &block{
-		offset: -1,
+		offset: 0,
 		scope: sc,
+		global: true,
 		defs: make(map[string] Def)
 	};
 	return sc;

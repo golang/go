@@ -6,6 +6,7 @@ package eval
 
 import (
 	"bignum";
+	"flag";
 	"fmt";
 	"go/parser";
 	"go/scanner";
@@ -17,23 +18,23 @@ import (
 )
 
 // Print each statement or expression before parsing it
-const noisy = false
+var noisy = false
+func init() {
+	flag.BoolVar(&noisy, "noisy", false, "chatter during eval tests");
+}
 
 /*
  * Generic statement/expression test framework
  */
 
-type test struct {
-	code string;
-	rterr string;
-	exprs []exprTest;
-	cerr string;
-}
+type test []job
 
-type exprTest struct {
+type job struct {
 	code string;
-	val interface{};
+	cerr string;
 	rterr string;
+	val Value;
+	noval bool;
 }
 
 func runTests(t *testing.T, baseName string, tests []test) {
@@ -43,168 +44,102 @@ func runTests(t *testing.T, baseName string, tests []test) {
 	}
 }
 
-func (a *test) run(t *testing.T, name string) {
-	sc := newTestScope();
-
-	var fr *Frame;
-	var cerr os.Error;
-
-	if a.code != "" {
+func (a test) run(t *testing.T, name string) {
+	w := newTestWorld();
+	for _, j := range a {
+		src := j.code;
 		if noisy {
-			println(a.code);
+			println("code:", src);
 		}
 
-		// Compile statements
-		asts, err := parser.ParseStmtList(name, a.code);
-		if err != nil && cerr == nil {
-			cerr = err;
-		}
-		code, err := CompileStmts(sc, asts);
-		if err != nil && cerr == nil {
-			cerr = err;
-		}
-
-		// Execute statements
-		if cerr == nil {
-			fr = sc.NewFrame(nil);
-			rterr := code.Exec(fr);
-			if a.rterr == "" && rterr != nil {
-				t.Errorf("%s: expected %s to run, got runtime error %v", name, a.code, rterr);
-				return;
-			} else if !checkRTError(t, name, a.code, rterr, a.rterr) {
-				return;
+		code, err := w.Compile(src);
+		if err != nil {
+			if j.cerr == "" {
+				t.Errorf("%s: Compile %s: %v", name, src, err);
+				break;
 			}
+			if !match(t, err, j.cerr) {
+				t.Errorf("%s: Compile %s = error %s; want %v", name, src, err, j.cerr);
+				break;
+			}
+			continue;
 		}
-	}
-
-	if fr == nil {
-		fr = sc.NewFrame(nil);
-	}
-	for _, e := range a.exprs {
-		if cerr != nil {
+		if j.cerr != "" {
+			t.Errorf("%s: Compile %s succeeded; want %s", name, src, j.cerr);
 			break;
 		}
-
-		if noisy {
-			println(e.code);
-		}
-
-		// Compile expression
-		ast, err := parser.ParseExpr(name, e.code);
-		if err != nil && cerr == nil {
-			cerr = err;
-		}
-		code, err := CompileExpr(sc, ast);
-		if err != nil && cerr == nil {
-			cerr = err;
-		}
-
-		// Evaluate expression
-		if cerr == nil {
-			val, rterr := code.Eval(fr);
-			if e.rterr == "" && rterr != nil {
-				t.Errorf("%s: expected %q to have value %T(%v), got runtime error %v", name, e.code, e.val, e.val, rterr);
-			} else if !checkRTError(t, name, e.code, rterr, e.rterr) {
-				continue;
-			}
-			if e.val != nil {
-				wantval := toValue(e.val);
-				if !reflect.DeepEqual(val, wantval) {
-					t.Errorf("%s: expected %q to have value %T(%v), got %T(%v)", name, e.code, wantval, wantval, val, val);
-				}
-			}
-		}
-	}
-
-	// Check compile errors
-	switch {
-	case cerr == nil && a.cerr == "":
-		// Good
-	case cerr == nil && a.cerr != "":
-		t.Errorf("%s: expected compile error matching %q, got no errors", name, a.cerr);
-	case cerr != nil && a.cerr == "":
-		t.Errorf("%s: expected no compile error, got error %v", name, cerr);
-	case cerr != nil && a.cerr != "":
-		cerr := cerr.(scanner.ErrorList);
-		if len(cerr) > 1 {
-			t.Errorf("%s: expected 1 compile error matching %q, got %v", name, a.cerr, cerr);
-			break;
-		}
-		m, err := testing.MatchString(a.cerr, cerr.String());
-		if err != "" {
-			t.Fatalf("%s: failed to compile regexp %q: %s", name, a.cerr, err);
-		}
-		if !m {
-			t.Errorf("%s: expected compile error matching %q, got compile error %v", name, a.cerr, cerr);
-		}
-	}
-}
-
-func checkRTError(t *testing.T, name string, code string, rterr os.Error, pat string) bool {
-	switch {
-	case rterr == nil && pat == "":
-		return true;
 		
-	case rterr == nil && pat != "":
-		t.Errorf("%s: expected %s to fail with runtime error matching %q, got no error", name, code, pat);
-		return false;
-
-	case rterr != nil && pat != "":
-		m, err := testing.MatchString(pat, rterr.String());
-		if err != "" {
-			t.Fatalf("%s: failed to compile regexp %q: %s", name, pat, err);
+		val, err := code.Run();
+		if err != nil {
+			if j.rterr == "" {
+				t.Errorf("%s: Run %s: %v", name, src, err);
+				break;
+			}
+			if !match(t, err, j.rterr) {
+				t.Errorf("%s: Run %s = error %s; want %v", name, src, err, j.rterr);
+				break;
+			}
+			continue;
 		}
-		if !m {
-			t.Errorf("%s: expected runtime error matching %q, got runtime error %v", name, pat, rterr);
-			return false;
+		if j.rterr != "" {
+			t.Errorf("%s: Run %s succeeded; want %s", name, src, j.rterr);
+			break;
 		}
-		return true;
+	
+		if !j.noval && !reflect.DeepEqual(val, j.val) {
+			t.Errorf("%s: Run %s = %T(%v) want %T(%v)", name, src, val, val, j.val, j.val);
+		}
 	}
-	panic("rterr != nil && pat == \"\" should have been handled by the caller");
 }
+
+func match(t *testing.T, err os.Error, pat string) bool {
+	ok, errstr := testing.MatchString(pat, err.String());
+	if errstr != "" {
+		t.Fatalf("compile regexp %s: %v", pat, errstr);
+	}
+	return ok;
+}
+
 
 /*
  * Test constructors
  */
 
 // Expression compile error
-func EErr(expr string, cerr string) test {
-	return test{"", "", []exprTest{exprTest{expr, nil, ""}}, cerr};
+func CErr(expr string, cerr string) test {
+	return test([]job{job{code: expr, cerr: cerr}})
 }
 
 // Expression runtime error
-func ERTErr(expr string, rterr string) test {
-	return test{"", "", []exprTest{exprTest{expr, nil, rterr}}, ""};
+func RErr(expr string, rterr string) test {
+	return test([]job{job{code: expr, rterr: rterr}})
 }
 
 // Expression value
 func Val(expr string, val interface{}) test {
-	return test{"", "", []exprTest{exprTest{expr, val, ""}}, ""};
-}
-
-// Statement compile error
-func SErr(stmts string, cerr string) test {
-	return test{stmts, "", nil, cerr};
-}
-
-// Statement runtime error
-func SRTErr(stmts string, rterr string) test {
-	return test{stmts, rterr, nil, ""};
+	return test([]job{job{code: expr, val: toValue(val)}})
 }
 
 // Statement runs without error
-func SRuns(stmts string) test {
-	return test{stmts, "", nil, ""};
+func Run(stmts string) test {
+	return test([]job{job{code: stmts, noval: true}})
 }
 
 // Statement runs and test one expression's value
 func Val1(stmts string, expr1 string, val1 interface{}) test {
-	return test{stmts, "", []exprTest{exprTest{expr1, val1, ""}}, ""};
+	return test([]job{
+		job{code: stmts, noval: true},
+		job{code: expr1, val: toValue(val1)}
+	})
 }
 
 // Statement runs and test two expressions' values
 func Val2(stmts string, expr1 string, val1 interface{}, expr2 string, val2 interface{}) test {
-	return test{stmts, "", []exprTest{exprTest{expr1, val1, ""}, exprTest{expr2, val2, ""}}, ""};
+	return test([]job{
+		job{code: stmts, noval: true},
+		job{code: expr1, val: toValue(val1)},
+		job{code: expr2, val: toValue(val2)}
+	})
 }
 
 /*
@@ -305,16 +240,14 @@ func (*voidFunc) NewFrame() *Frame {
 func (*voidFunc) Call(t *Thread) {
 }
 
-func newTestScope() *Scope {
-	sc := universe.ChildScope();
-	p := token.Position{"<testScope>", 0, 0, 0};
+func newTestWorld() *World {
+	w := NewWorld();
 
 	def := func(name string, t Type, val interface{}) {
-		v, _ := sc.DefineVar(name, p, t);
-		v.Init = toValue(val);
+		w.DefineVar(name, t, toValue(val));
 	};
 
-	sc.DefineConst("c", p, IdealIntType, toValue(bignum.Int(1)));
+	w.DefineConst("c", IdealIntType, toValue(bignum.Int(1)));
 	def("i", IntType, 1);
 	def("i2", IntType, 2);
 	def("u", UintType, uint(1));
@@ -329,5 +262,5 @@ func newTestScope() *Scope {
 	def("void", NewFuncType([]Type{}, false, []Type {}), &voidFunc{});
 	def("sli", NewSliceType(IntType), vslice{varray{1, 2, 3}, 2, 3});
 
-	return sc;
+	return w;
 }

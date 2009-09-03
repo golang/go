@@ -336,8 +336,11 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(Value, *Thread)) {
 	var effect func(*Thread);
 	if isUnpack {
 		// This leaks a slot, but is definitely safe.
-		temp := b.DefineSlot(a.rmt);
+		temp := b.DefineTemp(a.rmt);
 		tempIdx := temp.Index;
+		if tempIdx < 0 {
+			panicln("tempidx", tempIdx);
+		}
 		if a.isMapUnpack {
 			rf := a.rs[0].evalMapValue;
 			vt := a.rmt.Elems[0];
@@ -693,7 +696,7 @@ func (a *exprInfo) compileIdent(b *block, constant bool, callCtx bool, name stri
 			a.diag("variable %s used in constant expression", name);
 			return nil;
 		}
-		if bl.offset < 0 {
+		if bl.global {
 			return a.compileGlobalVariable(def);
 		}
 		return a.compileVariable(level, def);
@@ -1830,7 +1833,7 @@ func (a *expr) extractEffect(b *block, errOp string) (func(*Thread), *expr) {
 			log.Crashf("unexpected ideal type %v", tempType);
 		}
 	}
-	temp := b.DefineSlot(tempType);
+	temp := b.DefineTemp(tempType);
 	tempIdx := temp.Index;
 
 	// Create "temp := rhs"
@@ -1856,42 +1859,4 @@ func (a *expr) extractEffect(b *block, errOp string) (func(*Thread), *expr) {
 		return nil, nil;
 	}
 	return effect, deref;
-}
-
-/*
- * Public interface
- */
-
-type Expr struct {
-	e *expr;
-}
-
-func (expr *Expr) Type() Type {
-	return expr.e.t;
-}
-
-func (expr *Expr) Eval(f *Frame) (Value, os.Error) {
-	t := new(Thread);
-	t.f = f;
-	switch _ := expr.e.t.(type) {
-	case *idealIntType:
-		return &idealIntV{expr.e.asIdealInt()()}, nil;
-	case *idealFloatType:
-		return &idealFloatV{expr.e.asIdealFloat()()}, nil;
-	}
-	v := expr.e.t.Zero();
-	eval := genAssign(expr.e.t, expr.e);
-	err := t.Try(func(t *Thread){eval(v, t)});
-	return v, err;
-}
-
-func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
-	errors := scanner.NewErrorVector();
-	cc := &compiler{errors, 0, 0};
-
-	ec := cc.compileExpr(scope.block, false, expr);
-	if ec == nil {
-		return nil, errors.GetError(scanner.Sorted);
-	}
-	return &Expr{ec}, nil;
 }

@@ -341,40 +341,83 @@ func (a *stmtCompiler) compileDeclStmt(s *ast.DeclStmt) {
 		switch decl.Tok {
 		case token.IMPORT:
 			log.Crash("import at statement level");
-
 		case token.CONST:
 			log.Crashf("%v not implemented", decl.Tok);
-
 		case token.TYPE:
 			a.compileTypeDecl(a.block, decl);
-
 		case token.VAR:
-			for _, spec := range decl.Specs {
-				spec := spec.(*ast.ValueSpec);
-				if spec.Values == nil {
-					// Declaration without assignment
-					if spec.Type == nil {
-						// Parser should have caught
-						log.Crash("Type and Values nil");
-					}
-					t := a.compileType(a.block, spec.Type);
-					// Define placeholders even if type compile failed
-					for _, n := range spec.Names {
-						a.defineVar(n, t);
-					}
-				} else {
-					// Decalaration with assignment
-					lhs := make([]ast.Expr, len(spec.Names));
-					for i, n := range spec.Names {
-						lhs[i] = n;
-					}
-					a.doAssign(lhs, spec.Values, decl.Tok, spec.Type);
-				}
-			}
+			a.compileVarDecl(decl);
 		}
 
 	default:
 		log.Crashf("Unexpected Decl type %T", s.Decl);
+	}
+}
+
+// decl might or might not be at top level;
+func (a *stmtCompiler) compileVarDecl(decl *ast.GenDecl) {
+	for _, spec := range decl.Specs {
+		spec := spec.(*ast.ValueSpec);
+		if spec.Values == nil {
+			// Declaration without assignment
+			if spec.Type == nil {
+				// Parser should have caught
+				log.Crash("Type and Values nil");
+			}
+			t := a.compileType(a.block, spec.Type);
+			// Define placeholders even if type compile failed
+			for _, n := range spec.Names {
+				a.defineVar(n, t);
+			}
+		} else {
+			// Decalaration with assignment
+			lhs := make([]ast.Expr, len(spec.Names));
+			for i, n := range spec.Names {
+				lhs[i] = n;
+			}
+			a.doAssign(lhs, spec.Values, decl.Tok, spec.Type);
+		}
+	}
+}
+
+// decl is top level
+func (a *stmtCompiler) compileDecl(decl ast.Decl) {
+	switch d := decl.(type) {
+	case *ast.BadDecl:
+		// Do nothing.  Already reported by parser.
+		a.silentErrors++;
+
+	case *ast.FuncDecl:
+		decl := a.compileFuncType(a.block, d.Type);
+		if decl == nil {
+			return;
+		}
+		// Declare and initialize v before compiling func
+		// so that body can refer to itself.
+		c := a.block.DefineConst(d.Name.Value, a.pos, decl.Type, decl.Type.Zero());
+		// TODO(rsc): How to mark v as constant
+		// so the type checker rejects assignments to it?
+		fn := a.compileFunc(a.block, decl, d.Body);
+		if fn == nil {
+			return;
+		}
+		var zeroThread Thread;
+		c.Value.(FuncValue).Set(fn(&zeroThread));
+
+	case *ast.GenDecl:
+		switch d.Tok {
+		case token.IMPORT:
+			log.Crashf("%v not implemented", d.Tok);
+		case token.CONST:
+			log.Crashf("%v not implemented", d.Tok);
+		case token.TYPE:
+			a.compileTypeDecl(a.block, d);
+		case token.VAR:
+			a.compileVarDecl(d);
+		}
+
+	default:
+		log.Crashf("Unexpected Decl type %T", decl);
 	}
 }
 
@@ -1205,14 +1248,14 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
 		if decl.InNames[i] != nil {
 			bodyScope.DefineVar(decl.InNames[i].Value, decl.InNames[i].Pos(), t);
 		} else {
-			bodyScope.DefineSlot(t);
+			bodyScope.DefineTemp(t);
 		}
 	}
 	for i, t := range decl.Type.Out {
 		if decl.OutNames[i] != nil {
 			bodyScope.DefineVar(decl.OutNames[i].Value, decl.OutNames[i].Pos(), t);
 		} else {
-			bodyScope.DefineSlot(t);
+			bodyScope.DefineTemp(t);
 		}
 	}
 
@@ -1270,47 +1313,4 @@ func (a *funcCompiler) checkLabels() {
 	// to come into scope that were not already in scope at the
 	// point of the goto.
 	a.flow.gotosObeyScopes(a.compiler);
-}
-
-/*
- * Public interface
- */
-
-type Stmt struct {
-	code code;
-}
-
-func (s *Stmt) Exec(f *Frame) os.Error {
-	t := new(Thread);
-	t.f = f;
-	return t.Try(func(t *Thread){s.code.exec(t)});
-}
-
-func CompileStmts(scope *Scope, stmts []ast.Stmt) (*Stmt, os.Error) {
-	errors := scanner.NewErrorVector();
-	cc := &compiler{errors, 0, 0};
-	cb := newCodeBuf();
-	fc := &funcCompiler{
-		compiler: cc,
-		fnType: nil,
-		outVarsNamed: false,
-		codeBuf: cb,
-		flow: newFlowBuf(cb),
-		labels: make(map[string] *label),
-	};
-	bc := &blockCompiler{
-		funcCompiler: fc,
-		block: scope.block,
-	};
-	out := make([]*Stmt, len(stmts));
-	nerr := cc.numError();
-	for i, stmt := range stmts {
-		bc.compileStmt(stmt);
-	}
-	fc.checkLabels();
-	if nerr != cc.numError() {
-		return nil, errors.GetError(scanner.Sorted);
-	}
-	code := fc.get();
-	return &Stmt{code}, nil;
 }
