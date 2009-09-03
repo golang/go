@@ -38,33 +38,34 @@ var (
 func extractEBNF(src []byte) []byte {
 	var buf bytes.Buffer;
 
-	for i, j, n := 0, 0, len(src); ; {
-		// i = beginning of EBNF section
-		i = bytes.Index(src[j : n], open);
+	for {
+		// i = beginning of EBNF text
+		i := bytes.Index(src, open);
 		if i < 0 {
-			break;
+			break;  // no EBNF found - we are done
 		}
-		i += j+len(open);
+		i += len(open);
 
 		// write as many newlines as found in the excluded text
 		// to maintain correct line numbers in error messages 
-		for _, ch := range src[j : i] {
+		for _, ch := range src[0 : i] {
 			if ch == '\n' {
 				buf.WriteByte('\n');
 			}
 		}
 
-		// j = end of EBNF section
-		j = bytes.Index(src[i : n], close);
+		// j = end of EBNF text (or end of source)
+		j := bytes.Index(src[i : len(src)], close);  // close marker
 		if j < 0 {
-			// missing closing
-			// TODO(gri) should this be an error?
-			j = n-i;
+			j = len(src)-i;
 		}
 		j += i;
 
-		// copy EBNF section
+		// copy EBNF text
 		buf.Write(src[i : j]);
+
+		// advance
+		src = src[j : len(src)];
 	}
 
 	return buf.Data();
