@@ -161,8 +161,9 @@ bad:
 	*rune = Bad;
 	return 1;
 badlen:
+	// was return 0, but return 1 is more convenient for the runtime.
 	*rune = Bad;
-	return 0;
+	return 1;
 
 }
 
