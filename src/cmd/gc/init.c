@@ -9,7 +9,7 @@
  * it is called by the initialization before
  * main is run. to make it unique within a
  * package and also uncallable, the name,
- * normally "pkg.init", is altered to "pkg.init·filename".
+ * normally "pkg.init", is altered to "pkg.init·1".
  */
 Node*
 renameinit(Node *n)
