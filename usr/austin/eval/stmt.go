@@ -402,7 +402,7 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
 			return;
 		}
 		var zeroThread Thread;
-		c.Value.(FuncValue).Set(fn(&zeroThread));
+		c.Value.(FuncValue).Set(nil, fn(&zeroThread));
 
 	case *ast.GenDecl:
 		switch d.Tok {
@@ -649,10 +649,10 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 			et := sub.t;
 			ls[i].evalAddr = func(t *Thread) Value {
 				m, k := mvf(t);
-				e := m.Elem(k);
+				e := m.Elem(t, k);
 				if e == nil {
 					e = et.Zero();
-					m.SetElem(k, e);
+					m.SetElem(t, k, e);
 				}
 				return e;
 			};
@@ -736,7 +736,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 			for i := 0; i < n; i ++ {
 				// TODO(austin) Need to evaluate LHS
 				// before RHS
-				lfs[i](t).Assign(temp[i]);
+				lfs[i](t).Assign(t, temp[i]);
 			}
 		});
 	}
