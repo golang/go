@@ -63,7 +63,7 @@ func (c *CommonSym) PackageName() string {
 func (c *CommonSym) ReceiverName() string {
 	l := strings.Index(c.Name, "·");
 	r := strings.LastIndex(c.Name, "·");
-	if l == -1 || r == -1 {
+	if l == -1 || r == -1 || l == r {
 		return "";
 	}
 	return c.Name[l+len("·"):r];
