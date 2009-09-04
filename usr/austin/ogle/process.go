@@ -39,23 +39,24 @@ func (e ProcessNotStopped) String() string {
 	return "process not stopped";
 }
 
-// An UnknownThread error is an internal error representing an
+// An UnknownGoroutine error is an internal error representing an
 // unrecognized G structure pointer.
-type UnknownThread struct {
+type UnknownGoroutine struct {
 	OSThread ptrace.Thread;
-	GoThread ptrace.Word;
+	Goroutine ptrace.Word;
 }
 
-func (e UnknownThread) String() string {
-	return fmt.Sprintf("internal error: unknown thread (G %#x)", e.GoThread);
+func (e UnknownGoroutine) String() string {
+	return fmt.Sprintf("internal error: unknown goroutine (G %#x)", e.Goroutine);
 }
 
-// A NoCurrentThread error occurs when no thread is currently selected
-// in a process (or when there are no threads in a process).
-type NoCurrentThread struct {}
+// A NoCurrentGoroutine error occurs when no goroutine is currently
+// selected in a process (or when there are no goroutines in a
+// process).
+type NoCurrentGoroutine struct {}
 
-func (e NoCurrentThread) String() string {
-	return "no current thread";
+func (e NoCurrentGoroutine) String() string {
+	return "no current goroutine";
 }
 
 // A Process represents a remote attached process.
@@ -92,14 +93,14 @@ type Process struct {
 
 	// Event hooks
 	breakpointHooks map[ptrace.Word] *breakpointHook;
-	threadCreateHook *threadCreateHook;
-	threadExitHook *threadExitHook;
+	goroutineCreateHook *goroutineCreateHook;
+	goroutineExitHook *goroutineExitHook;
 
-	// Current thread, or nil if there are no threads
-	curThread *Thread;
+	// Current goroutine, or nil if there are no goroutines
+	curGoroutine *Goroutine;
 
-	// Threads by the address of their G structure
-	threads map[ptrace.Word] *Thread;
+	// Goroutines by the address of their G structure
+	goroutines map[ptrace.Word] *Goroutine;
 }
 
 /*
@@ -115,9 +116,9 @@ func NewProcess(proc ptrace.Process, arch Arch, syms *sym.GoSymTable) (*Process,
 		syms: syms,
 		types: make(map[ptrace.Word] *remoteType),
 		breakpointHooks: make(map[ptrace.Word] *breakpointHook),
-		threadCreateHook: new(threadCreateHook),
-		threadExitHook: new(threadExitHook),
-		threads: make(map[ptrace.Word] *Thread),
+		goroutineCreateHook: new(goroutineCreateHook),
+		goroutineExitHook: new(goroutineExitHook),
+		goroutines: make(map[ptrace.Word] *Goroutine),
 	};
 
 	// Fill in remote runtime
@@ -134,18 +135,18 @@ func NewProcess(proc ptrace.Process, arch Arch, syms *sym.GoSymTable) (*Process,
 		return nil, FormatError("failed to find runtime symbol 'sys.goexit'");
 	}
 
-	// Get current threads
-	p.threads[p.sys.g0.addr().base] = &Thread{p.sys.g0, nil, false};
+	// Get current goroutines
+	p.goroutines[p.sys.g0.addr().base] = &Goroutine{p.sys.g0, nil, false};
 	g := p.sys.allg.Get();
 	for g != nil {
 		gs := g.(remoteStruct);
-		fmt.Printf("*** Found thread at %#x\n", gs.addr().base);
-		p.threads[gs.addr().base] = &Thread{gs, nil, false};
+		fmt.Printf("*** Found goroutine at %#x\n", gs.addr().base);
+		p.goroutines[gs.addr().base] = &Goroutine{gs, nil, false};
 		g = gs.Field(p.f.G.Alllink).(remotePtr).Get();
 	}
-	p.selectSomeThread();
+	p.selectSomeGoroutine();
 
-	// Create internal breakpoints to catch new and exited threads
+	// Create internal breakpoints to catch new and exited goroutines
 	p.OnBreakpoint(ptrace.Word(p.sys.newprocreadylocked.Entry())).(*breakpointHook).addHandler(readylockedBP, true);
 	p.OnBreakpoint(ptrace.Word(p.sys.goexit.Entry())).(*breakpointHook).addHandler(goexitBP, true);
 
@@ -233,13 +234,13 @@ func (p *Process) bootstrap() {
 	}
 }
 
-func (p *Process) selectSomeThread() {
-	// Once we have friendly thread ID's, there might be a more
+func (p *Process) selectSomeGoroutine() {
+	// Once we have friendly goroutine ID's, there might be a more
 	// reasonable behavior for this.
-	p.curThread = nil;
-	for _, t := range p.threads {
+	p.curGoroutine = nil;
+	for _, t := range p.goroutines {
 		if !t.isG0() {
-			p.curThread = t;
+			p.curGoroutine = t;
 			return;
 		}
 	}
@@ -299,26 +300,26 @@ func (p *Process) OnBreakpoint(pc ptrace.Word) EventHook {
 	return &breakpointHook{commonHook{nil, 0}, p, pc};
 }
 
-// OnThreadCreate returns the hook that is run when a Go thread is created.
-func (p *Process) OnThreadCreate() EventHook {
-	return p.threadCreateHook;
+// OnGoroutineCreate returns the hook that is run when a goroutine is created.
+func (p *Process) OnGoroutineCreate() EventHook {
+	return p.goroutineCreateHook;
 }
 
-// OnThreadExit returns the hook 
-func (p *Process) OnThreadExit() EventHook {
-	return p.threadExitHook;
+// OnGoroutineExit returns the hook that is run when a goroutine exits.
+func (p *Process) OnGoroutineExit() EventHook {
+	return p.goroutineExitHook;
 }
 
-// osThreadToThread looks up the Go thread running on an OS thread.
-func (p *Process) osThreadToThread(t ptrace.Thread) (*Thread, os.Error) {
+// osThreadToGoroutine looks up the goroutine running on an OS thread.
+func (p *Process) osThreadToGoroutine(t ptrace.Thread) (*Goroutine, os.Error) {
 	regs, err := t.Regs();
 	if err != nil {
 		return nil, err;
 	}
 	g := p.G(regs);
-	gt, ok := p.threads[g];
+	gt, ok := p.goroutines[g];
 	if !ok {
-		return nil, UnknownThread{t, g};
+		return nil, UnknownGoroutine{t, g};
 	}
 	return gt, nil;
 }
@@ -347,7 +348,7 @@ func (p *Process) causesToEvents() ([]Event, os.Error) {
 		if c, err := t.Stopped(); err == nil {
 			switch c := c.(type) {
 			case ptrace.Breakpoint:
-				gt, err := p.osThreadToThread(t);
+				gt, err := p.osThreadToGoroutine(t);
 				if err != nil {
 					return nil, err;
 				}
@@ -416,15 +417,15 @@ func (p *Process) processEvent(ev Event) (EventAction, os.Error) {
 		if !ok {
 			break;
 		}
-		p.curThread = ev.Thread();
+		p.curGoroutine = ev.Goroutine();
 		action, err = hook.handle(ev);
 
-	case *ThreadCreate:
-		p.curThread = ev.Thread();
-		action, err = p.threadCreateHook.handle(ev);
+	case *GoroutineCreate:
+		p.curGoroutine = ev.Goroutine();
+		action, err = p.goroutineCreateHook.handle(ev);
 
-	case *ThreadExit:
-		action, err = p.threadExitHook.handle(ev);
+	case *GoroutineExit:
+		action, err = p.goroutineExitHook.handle(ev);
 
 	default:
 		log.Crashf("Unknown event type %T in queue", p.event);
@@ -480,7 +481,7 @@ func (p *Process) ContWait() os.Error {
 		if err != nil {
 			return err;
 		}
-		for _, t := range p.threads {
+		for _, t := range p.goroutines {
 			t.resetFrame();
 		}
 		p.pending, err = p.causesToEvents();
@@ -493,16 +494,16 @@ func (p *Process) ContWait() os.Error {
 
 // Out selects the caller frame of the current frame.
 func (p *Process) Out() os.Error {
-	if p.curThread == nil {
-		return NoCurrentThread{};
+	if p.curGoroutine == nil {
+		return NoCurrentGoroutine{};
 	}
-	return p.curThread.Out();
+	return p.curGoroutine.Out();
 }
 
 // In selects the frame called by the current frame.
 func (p *Process) In() os.Error {
-	if p.curThread == nil {
-		return NoCurrentThread{};
+	if p.curGoroutine == nil {
+		return NoCurrentGoroutine{};
 	}
-	return p.curThread.In();
+	return p.curGoroutine.In();
 }
