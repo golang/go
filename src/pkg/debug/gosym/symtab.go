@@ -52,7 +52,7 @@ func (s *Sym) PackageName() string {
 func (s *Sym) ReceiverName() string {
 	l := strings.Index(s.Name, ".");
 	r := strings.LastIndex(s.Name, ".");
-	if l == -1 || r == -1 {
+	if l == -1 || r == -1 || l == r {
 		return "";
 	}
 	return s.Name[l+1:r];
