@@ -54,7 +54,7 @@ type EventHook interface {
 
 type Event interface {
 	Process() *Process;
-	Thread() *Thread;
+	Goroutine() *Goroutine;
 	String() string;
 }
 
@@ -147,15 +147,15 @@ func (h *commonHook) handle(e Event) (EventAction, os.Error) {
 type commonEvent struct {
 	// The process of this event
 	p *Process;
-	// The thread of this event.
-	t *Thread;
+	// The goroutine of this event.
+	t *Goroutine;
 }
 
 func (e *commonEvent) Process() *Process {
 	return e.p;
 }
 
-func (e *commonEvent) Thread() *Thread {
+func (e *commonEvent) Goroutine() *Goroutine {
 	return e.t;
 }
 
@@ -187,8 +187,8 @@ type breakpointHook struct {
 }
 
 // A Breakpoint event occurs when a process reaches a particular
-// program counter.  When this event is handled, the current thread
-// will be the thread that reached the program counter.
+// program counter.  When this event is handled, the current goroutine
+// will be the goroutine that reached the program counter.
 type Breakpoint struct {
 	commonEvent;
 	osThread ptrace.Thread;
@@ -234,38 +234,38 @@ func (b *Breakpoint) PC() ptrace.Word {
 }
 
 func (b *Breakpoint) String() string {
-	// TODO(austin) Include process name and thread
+	// TODO(austin) Include process name and goroutine
 	// TODO(austin) Use line:pc or at least sym+%#x
 	return fmt.Sprintf("breakpoint at %#x", b.pc);
 }
 
 /*
- * Thread create/exit
+ * Goroutine create/exit
  */
 
-type threadCreateHook struct {
+type goroutineCreateHook struct {
 	commonHook;
 }
 
-func (h *threadCreateHook) String() string {
-	return "thread create";
+func (h *goroutineCreateHook) String() string {
+	return "goroutine create";
 }
 
-// A ThreadCreate event occurs when a process creates a new Go thread.
-// When this event is handled, the current thread will be the newly
-// created thread.
-type ThreadCreate struct {
+// A GoroutineCreate event occurs when a process creates a new
+// goroutine.  When this event is handled, the current goroutine will
+// be the newly created goroutine.
+type GoroutineCreate struct {
 	commonEvent;
-	parent *Thread;
+	parent *Goroutine;
 }
 
-// Parent returns the thread that created this thread.  May be nil if
-// this event is the creation of the first thread.
-func (e *ThreadCreate) Parent() *Thread {
+// Parent returns the goroutine that created this goroutine.  May be
+// nil if this event is the creation of the first goroutine.
+func (e *GoroutineCreate) Parent() *Goroutine {
 	return e.parent;
 }
 
-func (e *ThreadCreate) String() string {
+func (e *GoroutineCreate) String() string {
 	// TODO(austin) Include process name
 	if e.parent == nil {
 		return fmt.Sprintf("%v created", e.t);
@@ -273,22 +273,22 @@ func (e *ThreadCreate) String() string {
 	return fmt.Sprintf("%v created by %v", e.t, e.parent);
 }
 
-type threadExitHook struct {
+type goroutineExitHook struct {
 	commonHook;
 }
 
-func (h *threadExitHook) String() string {
-	return "thread exit";
+func (h *goroutineExitHook) String() string {
+	return "goroutine exit";
 }
 
-// A ThreadExit event occurs when a Go thread exits.
-type ThreadExit struct {
+// A GoroutineExit event occurs when a Go goroutine exits.
+type GoroutineExit struct {
 	commonEvent;
 }
 
-func (e *ThreadExit) String() string {
+func (e *GoroutineExit) String() string {
 	// TODO(austin) Include process name
 	//return fmt.Sprintf("%v exited", e.t);
 	// For debugging purposes
-	return fmt.Sprintf("thread %#x exited", e.t.g.addr().base);
+	return fmt.Sprintf("goroutine %#x exited", e.t.g.addr().base);
 }

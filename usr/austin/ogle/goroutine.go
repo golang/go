@@ -10,27 +10,28 @@ import (
 	"ptrace";
 )
 
-// A Thread represents a Go thread.
-type Thread struct {
+// A Goroutine represents a goroutine in a remote process.
+type Goroutine struct {
 	g remoteStruct;
 	frame *Frame;
 	dead bool;
 }
 
-func (t *Thread) String() string {
+func (t *Goroutine) String() string {
 	if t.dead {
 		return "<dead thread>";
 	}
-	// TODO(austin) Give threads friendly ID's
+	// TODO(austin) Give threads friendly ID's, possibly including
+	// the name of the entry function.
 	return fmt.Sprintf("thread %#x", t.g.addr().base);
 }
 
 // isG0 returns true if this thread if the internal idle thread
-func (t *Thread) isG0() bool {
+func (t *Goroutine) isG0() bool {
 	return t.g.addr().base == t.g.r.p.sys.g0.addr().base;
 }
 
-func (t *Thread) resetFrame() {
+func (t *Goroutine) resetFrame() {
 	// TODO(austin) NewFrame can abort
 	// TODO(austin) Reuse any live part of the current frame stack
 	// so existing references to Frame's keep working.
@@ -38,7 +39,7 @@ func (t *Thread) resetFrame() {
 }
 
 // Out selects the caller frame of the current frame.
-func (t *Thread) Out() os.Error {
+func (t *Goroutine) Out() os.Error {
 	// TODO(austin) Outer can abort
 	f := t.frame.Outer();
 	if f != nil {
@@ -48,7 +49,7 @@ func (t *Thread) Out() os.Error {
 }
 
 // In selects the frame called by the current frame.
-func (t *Thread) In() os.Error {
+func (t *Goroutine) In() os.Error {
 	f := t.frame.Inner();
 	if f != nil {
 		t.frame = f;
@@ -69,24 +70,24 @@ func readylockedBP(ev Event) (EventAction, os.Error) {
 	sp := regs.SP();
 	addr := sp + ptrace.Word(p.PtrSize());
 	arg := remotePtr{remote{addr, p}, p.runtime.G};
-	g := arg.Get();
-	if g == nil {
-		return EAStop, UnknownThread{b.osThread, 0};
+	gp := arg.Get();
+	if gp == nil {
+		return EAStop, UnknownGoroutine{b.osThread, 0};
 	}
-	gs := g.(remoteStruct);
-	t := &Thread{gs, nil, false};
-	p.threads[gs.addr().base] = t;
+	gs := gp.(remoteStruct);
+	g := &Goroutine{gs, nil, false};
+	p.goroutines[gs.addr().base] = g;
 
-	// Enqueue thread creation event
-	parent := b.Thread();
+	// Enqueue goroutine creation event
+	parent := b.Goroutine();
 	if parent.isG0() {
 		parent = nil;
 	}
-	p.postEvent(&ThreadCreate{commonEvent{p, t}, parent});
+	p.postEvent(&GoroutineCreate{commonEvent{p, g}, parent});
 
 	// If we don't have any thread selected, select this one
-	if p.curThread == nil {
-		p.curThread = t;
+	if p.curGoroutine == nil {
+		p.curGoroutine = g;
 	}
 
 	return EADefault, nil;
@@ -96,18 +97,18 @@ func goexitBP(ev Event) (EventAction, os.Error) {
 	b := ev.(*Breakpoint);
 	p := b.Process();
 
-	t := b.Thread();
-	t.dead = true;
+	g := b.Goroutine();
+	g.dead = true;
 
-	addr := t.g.addr().base;
-	p.threads[addr] = nil, false;
+	addr := g.g.addr().base;
+	p.goroutines[addr] = nil, false;
 
 	// Enqueue thread exit event
-	p.postEvent(&ThreadExit{commonEvent{p, t}});
+	p.postEvent(&GoroutineExit{commonEvent{p, g}});
 
-	// If we just exited our selected thread, selected another
-	if p.curThread == t {
-		p.selectSomeThread();
+	// If we just exited our selected goroutine, selected another
+	if p.curGoroutine == g {
+		p.selectSomeGoroutine();
 	}
 
 	return EADefault, nil;
