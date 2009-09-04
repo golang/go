@@ -346,7 +346,7 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(Value, *Thread)) {
 			vt := a.rmt.Elems[0];
 			effect = func(t *Thread) {
 				m, k := rf(t);
-				v := m.Elem(k);
+				v := m.Elem(t, k);
 				found := boolV(true);
 				if v == nil {
 					found = boolV(false);
@@ -902,7 +902,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 					expr := a.newExpr(ft, "selector expression");
 					pf := parent.asStruct();
 					evalAddr := func(t *Thread) Value {
-						return pf(t).Field(index);
+						return pf(t).Field(t, index);
 					};
 					expr.genValue(evalAddr);
 					return sub(expr);
@@ -990,7 +990,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 			if r < 0 || r >= bound {
 				t.Abort(IndexError{r, bound});
 			}
-			return l.Elem(r);
+			return l.Elem(t, r);
 		});
 
 	case *SliceType:
@@ -1004,7 +1004,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 			if r < 0 || r >= l.Len {
 				t.Abort(IndexError{r, l.Len});
 			}
-			return l.Base.Elem(r);
+			return l.Base.Elem(t, r);
 		});
 
 	case *stringType:
@@ -1029,7 +1029,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 			if m == nil {
 				t.Abort(NilPointerError{});
 			}
-			e := m.Elem(k);
+			e := m.Elem(t, k);
 			if e == nil {
 				t.Abort(KeyError{k});
 			}
@@ -1197,7 +1197,7 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 				if m == nil {
 					return 0;
 				}
-				return m.Len();
+				return m.Len(t);
 			};
 
 		//case *ChanType:

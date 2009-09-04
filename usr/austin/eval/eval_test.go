@@ -213,11 +213,11 @@ func (*testFunc) NewFrame() *Frame {
 }
 
 func (*testFunc) Call(t *Thread) {
-	n := t.f.Vars[0].(IntValue).Get();
+	n := t.f.Vars[0].(IntValue).Get(t);
 
 	res := n + 1;
 
-	t.f.Vars[1].(IntValue).Set(res);
+	t.f.Vars[1].(IntValue).Set(t, res);
 }
 
 type oneTwoFunc struct {};
@@ -227,8 +227,8 @@ func (*oneTwoFunc) NewFrame() *Frame {
 }
 
 func (*oneTwoFunc) Call(t *Thread) {
-	t.f.Vars[0].(IntValue).Set(1);
-	t.f.Vars[1].(IntValue).Set(2);
+	t.f.Vars[0].(IntValue).Set(t, 1);
+	t.f.Vars[1].(IntValue).Set(t, 2);
 }
 
 type voidFunc struct {};

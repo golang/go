@@ -184,11 +184,11 @@ func (a *expr) genConstant(v Value) {
 	switch _ := a.t.lit().(type) {
 «.repeated section Types»
 	case «Repr»:
-		val := v.(«Value»).Get();
 «.section IsIdeal»
+		val := v.(«Value»).Get();
 		a.eval = func() «Native» { return val }
 «.or»
-		a.eval = func(t *Thread) «Native» { return val }
+		a.eval = func(t *Thread) «Native» { return v.(«Value»).Get(t) }
 «.end»
 «.end»
 	default:
@@ -203,7 +203,7 @@ func (a *expr) genIdentOp(level, index int) {
 «.section IsIdeal»
 «.or»
 	case «Repr»:
-		a.eval = func(t *Thread) «Native» { return t.f.Get(level, index).(«Value»).Get() }
+		a.eval = func(t *Thread) «Native» { return t.f.Get(level, index).(«Value»).Get(t) }
 «.end»
 «.end»
 	default:
@@ -218,7 +218,7 @@ func (a *expr) genFuncCall(call func(t *Thread) []Value) {
 «.section IsIdeal»
 «.or»
 	case «Repr»:
-		a.eval = func(t *Thread) «Native» { return call(t)[0].(«Value»).Get() }
+		a.eval = func(t *Thread) «Native» { return call(t)[0].(«Value»).Get(t) }
 «.end»
 «.end»
 	case *MultiType:
@@ -235,7 +235,7 @@ func (a *expr) genValue(vf func(*Thread) Value) {
 «.section IsIdeal»
 «.or»
 	case «Repr»:
-		a.eval = func(t *Thread) «Native» { return vf(t).(«Value»).Get() }
+		a.eval = func(t *Thread) «Native» { return vf(t).(«Value»).Get(t) }
 «.end»
 «.end»
 	default:
@@ -296,7 +296,7 @@ func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
 «.or»
 	case «Repr»:
 		rf := r.«As»();
-		return func(lv Value, t *Thread) { «.section HasAssign»lv.Assign(rf(t))«.or»lv.(«Value»).Set(rf(t))«.end» }
+		return func(lv Value, t *Thread) { «.section HasAssign»lv.Assign(t, rf(t))«.or»lv.(«Value»).Set(t, rf(t))«.end» }
 «.end»
 «.end»
 	default:

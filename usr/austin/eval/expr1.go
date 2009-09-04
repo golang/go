@@ -97,44 +97,33 @@ func (a *expr) asInterface() (func(*Thread) interface{}) {
 func (a *expr) genConstant(v Value) {
 	switch _ := a.t.lit().(type) {
 	case *boolType:
-		val := v.(BoolValue).Get();
-		a.eval = func(t *Thread) bool { return val }
+		a.eval = func(t *Thread) bool { return v.(BoolValue).Get(t) }
 	case *uintType:
-		val := v.(UintValue).Get();
-		a.eval = func(t *Thread) uint64 { return val }
+		a.eval = func(t *Thread) uint64 { return v.(UintValue).Get(t) }
 	case *intType:
-		val := v.(IntValue).Get();
-		a.eval = func(t *Thread) int64 { return val }
+		a.eval = func(t *Thread) int64 { return v.(IntValue).Get(t) }
 	case *idealIntType:
 		val := v.(IdealIntValue).Get();
 		a.eval = func() *bignum.Integer { return val }
 	case *floatType:
-		val := v.(FloatValue).Get();
-		a.eval = func(t *Thread) float64 { return val }
+		a.eval = func(t *Thread) float64 { return v.(FloatValue).Get(t) }
 	case *idealFloatType:
 		val := v.(IdealFloatValue).Get();
 		a.eval = func() *bignum.Rational { return val }
 	case *stringType:
-		val := v.(StringValue).Get();
-		a.eval = func(t *Thread) string { return val }
+		a.eval = func(t *Thread) string { return v.(StringValue).Get(t) }
 	case *ArrayType:
-		val := v.(ArrayValue).Get();
-		a.eval = func(t *Thread) ArrayValue { return val }
+		a.eval = func(t *Thread) ArrayValue { return v.(ArrayValue).Get(t) }
 	case *StructType:
-		val := v.(StructValue).Get();
-		a.eval = func(t *Thread) StructValue { return val }
+		a.eval = func(t *Thread) StructValue { return v.(StructValue).Get(t) }
 	case *PtrType:
-		val := v.(PtrValue).Get();
-		a.eval = func(t *Thread) Value { return val }
+		a.eval = func(t *Thread) Value { return v.(PtrValue).Get(t) }
 	case *FuncType:
-		val := v.(FuncValue).Get();
-		a.eval = func(t *Thread) Func { return val }
+		a.eval = func(t *Thread) Func { return v.(FuncValue).Get(t) }
 	case *SliceType:
-		val := v.(SliceValue).Get();
-		a.eval = func(t *Thread) Slice { return val }
+		a.eval = func(t *Thread) Slice { return v.(SliceValue).Get(t) }
 	case *MapType:
-		val := v.(MapValue).Get();
-		a.eval = func(t *Thread) Map { return val }
+		a.eval = func(t *Thread) Map { return v.(MapValue).Get(t) }
 	default:
 		log.Crashf("unexpected constant type %v at %v", a.t, a.pos);
 	}
@@ -144,27 +133,27 @@ func (a *expr) genIdentOp(level, index int) {
 	a.evalAddr = func(t *Thread) Value { return t.f.Get(level, index) };
 	switch _ := a.t.lit().(type) {
 	case *boolType:
-		a.eval = func(t *Thread) bool { return t.f.Get(level, index).(BoolValue).Get() }
+		a.eval = func(t *Thread) bool { return t.f.Get(level, index).(BoolValue).Get(t) }
 	case *uintType:
-		a.eval = func(t *Thread) uint64 { return t.f.Get(level, index).(UintValue).Get() }
+		a.eval = func(t *Thread) uint64 { return t.f.Get(level, index).(UintValue).Get(t) }
 	case *intType:
-		a.eval = func(t *Thread) int64 { return t.f.Get(level, index).(IntValue).Get() }
+		a.eval = func(t *Thread) int64 { return t.f.Get(level, index).(IntValue).Get(t) }
 	case *floatType:
-		a.eval = func(t *Thread) float64 { return t.f.Get(level, index).(FloatValue).Get() }
+		a.eval = func(t *Thread) float64 { return t.f.Get(level, index).(FloatValue).Get(t) }
 	case *stringType:
-		a.eval = func(t *Thread) string { return t.f.Get(level, index).(StringValue).Get() }
+		a.eval = func(t *Thread) string { return t.f.Get(level, index).(StringValue).Get(t) }
 	case *ArrayType:
-		a.eval = func(t *Thread) ArrayValue { return t.f.Get(level, index).(ArrayValue).Get() }
+		a.eval = func(t *Thread) ArrayValue { return t.f.Get(level, index).(ArrayValue).Get(t) }
 	case *StructType:
-		a.eval = func(t *Thread) StructValue { return t.f.Get(level, index).(StructValue).Get() }
+		a.eval = func(t *Thread) StructValue { return t.f.Get(level, index).(StructValue).Get(t) }
 	case *PtrType:
-		a.eval = func(t *Thread) Value { return t.f.Get(level, index).(PtrValue).Get() }
+		a.eval = func(t *Thread) Value { return t.f.Get(level, index).(PtrValue).Get(t) }
 	case *FuncType:
-		a.eval = func(t *Thread) Func { return t.f.Get(level, index).(FuncValue).Get() }
+		a.eval = func(t *Thread) Func { return t.f.Get(level, index).(FuncValue).Get(t) }
 	case *SliceType:
-		a.eval = func(t *Thread) Slice { return t.f.Get(level, index).(SliceValue).Get() }
+		a.eval = func(t *Thread) Slice { return t.f.Get(level, index).(SliceValue).Get(t) }
 	case *MapType:
-		a.eval = func(t *Thread) Map { return t.f.Get(level, index).(MapValue).Get() }
+		a.eval = func(t *Thread) Map { return t.f.Get(level, index).(MapValue).Get(t) }
 	default:
 		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos);
 	}
@@ -174,27 +163,27 @@ func (a *expr) genFuncCall(call func(t *Thread) []Value) {
 	a.exec = func(t *Thread) { call(t)};
 	switch _ := a.t.lit().(type) {
 	case *boolType:
-		a.eval = func(t *Thread) bool { return call(t)[0].(BoolValue).Get() }
+		a.eval = func(t *Thread) bool { return call(t)[0].(BoolValue).Get(t) }
 	case *uintType:
-		a.eval = func(t *Thread) uint64 { return call(t)[0].(UintValue).Get() }
+		a.eval = func(t *Thread) uint64 { return call(t)[0].(UintValue).Get(t) }
 	case *intType:
-		a.eval = func(t *Thread) int64 { return call(t)[0].(IntValue).Get() }
+		a.eval = func(t *Thread) int64 { return call(t)[0].(IntValue).Get(t) }
 	case *floatType:
-		a.eval = func(t *Thread) float64 { return call(t)[0].(FloatValue).Get() }
+		a.eval = func(t *Thread) float64 { return call(t)[0].(FloatValue).Get(t) }
 	case *stringType:
-		a.eval = func(t *Thread) string { return call(t)[0].(StringValue).Get() }
+		a.eval = func(t *Thread) string { return call(t)[0].(StringValue).Get(t) }
 	case *ArrayType:
-		a.eval = func(t *Thread) ArrayValue { return call(t)[0].(ArrayValue).Get() }
+		a.eval = func(t *Thread) ArrayValue { return call(t)[0].(ArrayValue).Get(t) }
 	case *StructType:
-		a.eval = func(t *Thread) StructValue { return call(t)[0].(StructValue).Get() }
+		a.eval = func(t *Thread) StructValue { return call(t)[0].(StructValue).Get(t) }
 	case *PtrType:
-		a.eval = func(t *Thread) Value { return call(t)[0].(PtrValue).Get() }
+		a.eval = func(t *Thread) Value { return call(t)[0].(PtrValue).Get(t) }
 	case *FuncType:
-		a.eval = func(t *Thread) Func { return call(t)[0].(FuncValue).Get() }
+		a.eval = func(t *Thread) Func { return call(t)[0].(FuncValue).Get(t) }
 	case *SliceType:
-		a.eval = func(t *Thread) Slice { return call(t)[0].(SliceValue).Get() }
+		a.eval = func(t *Thread) Slice { return call(t)[0].(SliceValue).Get(t) }
 	case *MapType:
-		a.eval = func(t *Thread) Map { return call(t)[0].(MapValue).Get() }
+		a.eval = func(t *Thread) Map { return call(t)[0].(MapValue).Get(t) }
 	case *MultiType:
 		a.eval = func(t *Thread) []Value { return call(t) }
 	default:
@@ -206,27 +195,27 @@ func (a *expr) genValue(vf func(*Thread) Value) {
 	a.evalAddr = vf;
 	switch _ := a.t.lit().(type) {
 	case *boolType:
-		a.eval = func(t *Thread) bool { return vf(t).(BoolValue).Get() }
+		a.eval = func(t *Thread) bool { return vf(t).(BoolValue).Get(t) }
 	case *uintType:
-		a.eval = func(t *Thread) uint64 { return vf(t).(UintValue).Get() }
+		a.eval = func(t *Thread) uint64 { return vf(t).(UintValue).Get(t) }
 	case *intType:
-		a.eval = func(t *Thread) int64 { return vf(t).(IntValue).Get() }
+		a.eval = func(t *Thread) int64 { return vf(t).(IntValue).Get(t) }
 	case *floatType:
-		a.eval = func(t *Thread) float64 { return vf(t).(FloatValue).Get() }
+		a.eval = func(t *Thread) float64 { return vf(t).(FloatValue).Get(t) }
 	case *stringType:
-		a.eval = func(t *Thread) string { return vf(t).(StringValue).Get() }
+		a.eval = func(t *Thread) string { return vf(t).(StringValue).Get(t) }
 	case *ArrayType:
-		a.eval = func(t *Thread) ArrayValue { return vf(t).(ArrayValue).Get() }
+		a.eval = func(t *Thread) ArrayValue { return vf(t).(ArrayValue).Get(t) }
 	case *StructType:
-		a.eval = func(t *Thread) StructValue { return vf(t).(StructValue).Get() }
+		a.eval = func(t *Thread) StructValue { return vf(t).(StructValue).Get(t) }
 	case *PtrType:
-		a.eval = func(t *Thread) Value { return vf(t).(PtrValue).Get() }
+		a.eval = func(t *Thread) Value { return vf(t).(PtrValue).Get(t) }
 	case *FuncType:
-		a.eval = func(t *Thread) Func { return vf(t).(FuncValue).Get() }
+		a.eval = func(t *Thread) Func { return vf(t).(FuncValue).Get(t) }
 	case *SliceType:
-		a.eval = func(t *Thread) Slice { return vf(t).(SliceValue).Get() }
+		a.eval = func(t *Thread) Slice { return vf(t).(SliceValue).Get(t) }
 	case *MapType:
-		a.eval = func(t *Thread) Map { return vf(t).(MapValue).Get() }
+		a.eval = func(t *Thread) Map { return vf(t).(MapValue).Get(t) }
 	default:
 		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
 	}
@@ -767,37 +756,37 @@ func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
 	switch _ := lt.lit().(type) {
 	case *boolType:
 		rf := r.asBool();
-		return func(lv Value, t *Thread) { lv.(BoolValue).Set(rf(t)) }
+		return func(lv Value, t *Thread) { lv.(BoolValue).Set(t, rf(t)) }
 	case *uintType:
 		rf := r.asUint();
-		return func(lv Value, t *Thread) { lv.(UintValue).Set(rf(t)) }
+		return func(lv Value, t *Thread) { lv.(UintValue).Set(t, rf(t)) }
 	case *intType:
 		rf := r.asInt();
-		return func(lv Value, t *Thread) { lv.(IntValue).Set(rf(t)) }
+		return func(lv Value, t *Thread) { lv.(IntValue).Set(t, rf(t)) }
 	case *floatType:
 		rf := r.asFloat();
-		return func(lv Value, t *Thread) { lv.(FloatValue).Set(rf(t)) }
+		return func(lv Value, t *Thread) { lv.(FloatValue).Set(t, rf(t)) }
 	case *stringType:
 		rf := r.asString();
-		return func(lv Value, t *Thread) { lv.(StringValue).Set(rf(t)) }
+		return func(lv Value, t *Thread) { lv.(StringValue).Set(t, rf(t)) }
 	case *ArrayType:
 		rf := r.asArray();
-		return func(lv Value, t *Thread) { lv.Assign(rf(t)) }
+		return func(lv Value, t *Thread) { lv.Assign(t, rf(t)) }
 	case *StructType:
 		rf := r.asStruct();
-		return func(lv Value, t *Thread) { lv.Assign(rf(t)) }
+		return func(lv Value, t *Thread) { lv.Assign(t, rf(t)) }
 	case *PtrType:
 		rf := r.asPtr();
-		return func(lv Value, t *Thread) { lv.(PtrValue).Set(rf(t)) }
+		return func(lv Value, t *Thread) { lv.(PtrValue).Set(t, rf(t)) }
 	case *FuncType:
 		rf := r.asFunc();
-		return func(lv Value, t *Thread) { lv.(FuncValue).Set(rf(t)) }
+		return func(lv Value, t *Thread) { lv.(FuncValue).Set(t, rf(t)) }
 	case *SliceType:
 		rf := r.asSlice();
-		return func(lv Value, t *Thread) { lv.(SliceValue).Set(rf(t)) }
+		return func(lv Value, t *Thread) { lv.(SliceValue).Set(t, rf(t)) }
 	case *MapType:
 		rf := r.asMap();
-		return func(lv Value, t *Thread) { lv.(MapValue).Set(rf(t)) }
+		return func(lv Value, t *Thread) { lv.(MapValue).Set(t, rf(t)) }
 	default:
 		log.Crashf("unexpected left operand type %v at %v", lt, r.pos);
 	}
