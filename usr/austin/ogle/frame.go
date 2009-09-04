@@ -6,6 +6,7 @@ package ogle
 
 import (
 	"fmt";
+	"os";
 	"ptrace";
 	"sym";
 )
@@ -29,14 +30,19 @@ type Frame struct {
 	inner, outer *Frame;
 }
 
-// NewFrame returns the top-most Frame of the given g's thread.
-// This function can abort.
-func NewFrame(g remoteStruct) *Frame {
+// newFrame returns the top-most Frame of the given g's thread.
+func newFrame(g remoteStruct) (*Frame, os.Error) {
+	var f *Frame;
+	err := try(func(a aborter) { f = aNewFrame(a, g) });
+	return f, err;
+}
+
+func aNewFrame(a aborter, g remoteStruct) *Frame {
 	p := g.r.p;
 	var pc, sp ptrace.Word;
 
 	// Is this G alive?
-	switch g.Field(p.f.G.Status).(remoteInt).Get() {
+	switch g.field(p.f.G.Status).(remoteInt).aGet(a) {
 	case p.runtime.Gidle, p.runtime.Gmoribund, p.runtime.Gdead:
 		return nil;
 	}
@@ -61,7 +67,7 @@ func NewFrame(g remoteStruct) *Frame {
 
 			// If this thread crashed, try to recover it
 			if pc == 0 {
-				pc = p.peekUintptr(pc);
+				pc = p.peekUintptr(a, pc);
 				sp += 8;
 			}
 
@@ -72,22 +78,21 @@ func NewFrame(g remoteStruct) *Frame {
 	if pc == 0 && sp == 0 {
 		// G is not mapped to an OS thread.  Use the
 		// scheduler's stored PC and SP.
-		sched := g.Field(p.f.G.Sched).(remoteStruct);
-		pc = ptrace.Word(sched.Field(p.f.Gobuf.Pc).(remoteUint).Get());
-		sp = ptrace.Word(sched.Field(p.f.Gobuf.Sp).(remoteUint).Get());
+		sched := g.field(p.f.G.Sched).(remoteStruct);
+		pc = ptrace.Word(sched.field(p.f.Gobuf.Pc).(remoteUint).aGet(a));
+		sp = ptrace.Word(sched.field(p.f.Gobuf.Sp).(remoteUint).aGet(a));
 	}
 
 	// Get Stktop
-	stk := g.Field(p.f.G.Stackbase).(remotePtr).Get().(remoteStruct);
+	stk := g.field(p.f.G.Stackbase).(remotePtr).aGet(a).(remoteStruct);
 
-	return prepareFrame(pc, sp, stk, nil);
+	return prepareFrame(a, pc, sp, stk, nil);
 }
 
 // prepareFrame creates a Frame from the PC and SP within that frame,
 // as well as the active stack segment.  This function takes care of
-// traversing stack breaks and unwinding closures.  This function can
-// abort.
-func prepareFrame(pc, sp ptrace.Word, stk remoteStruct, inner *Frame) *Frame {
+// traversing stack breaks and unwinding closures.
+func prepareFrame(a aborter, pc, sp ptrace.Word, stk remoteStruct, inner *Frame) *Frame {
 	// Based on src/pkg/runtime/amd64/traceback.c:traceback
 	p := stk.r.p;
 	top := inner == nil;
@@ -101,11 +106,11 @@ func prepareFrame(pc, sp ptrace.Word, stk remoteStruct, inner *Frame) *Frame {
 		// Traverse segmented stack breaks
 		if p.sys.lessstack != nil && pc == ptrace.Word(p.sys.lessstack.Value) {
 			// Get stk->gobuf.pc
-			pc = ptrace.Word(stk.Field(p.f.Stktop.Gobuf).(remoteStruct).Field(p.f.Gobuf.Pc).(remoteUint).Get());
+			pc = ptrace.Word(stk.field(p.f.Stktop.Gobuf).(remoteStruct).field(p.f.Gobuf.Pc).(remoteUint).aGet(a));
 			// Get stk->gobuf.sp
-			sp = ptrace.Word(stk.Field(p.f.Stktop.Gobuf).(remoteStruct).Field(p.f.Gobuf.Sp).(remoteUint).Get());
+			sp = ptrace.Word(stk.field(p.f.Stktop.Gobuf).(remoteStruct).field(p.f.Gobuf.Sp).(remoteUint).aGet(a));
 			// Get stk->stackbase
-			stk = stk.Field(p.f.Stktop.Stackbase).(remotePtr).Get().(remoteStruct);
+			stk = stk.field(p.f.Stktop.Stackbase).(remotePtr).aGet(a).(remoteStruct);
 			continue;
 		}
 
@@ -129,7 +134,7 @@ func prepareFrame(pc, sp ptrace.Word, stk remoteStruct, inner *Frame) *Frame {
 		spdelta, ok := p.ParseClosure(buf);
 		if ok {
 			sp += ptrace.Word(spdelta);
-			pc = p.peekUintptr(sp - ptrace.Word(p.PtrSize()));
+			pc = p.peekUintptr(a, sp - ptrace.Word(p.PtrSize()));
 		}
 	}
 	if fn == nil {
@@ -159,8 +164,14 @@ func prepareFrame(pc, sp ptrace.Word, stk remoteStruct, inner *Frame) *Frame {
 }
 
 // Outer returns the Frame that called this Frame, or nil if this is
-// the outermost frame.  This function can abort.
-func (f *Frame) Outer() *Frame {
+// the outermost frame.
+func (f *Frame) Outer() (*Frame, os.Error) {
+	var fr *Frame;
+	err := try(func(a aborter) { fr = f.aOuter(a) });
+	return fr, err;
+}
+
+func (f *Frame) aOuter(a aborter) *Frame {
 	// Is there a cached outer frame
 	if f.outer != nil {
 		return f.outer;
@@ -177,14 +188,14 @@ func (f *Frame) Outer() *Frame {
 		sp += ptrace.Word(2 * p.PtrSize());
 	}
 
-	pc := p.peekUintptr(f.fp - ptrace.Word(p.PtrSize()));
+	pc := p.peekUintptr(a, f.fp - ptrace.Word(p.PtrSize()));
 	if pc < 0x1000 {
 		return nil;
 	}
 
 	// TODO(austin) Register this frame for shoot-down.
 
-	f.outer = prepareFrame(pc, sp, f.stk, f);
+	f.outer = prepareFrame(a, pc, sp, f.stk, f);
 	return f.outer;
 }
 

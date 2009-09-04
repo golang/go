@@ -5,6 +5,7 @@
 package ogle
 
 import (
+	"eval";
 	"fmt";
 	"os";
 	"ptrace";
@@ -31,21 +32,21 @@ func (t *Goroutine) isG0() bool {
 	return t.g.addr().base == t.g.r.p.sys.g0.addr().base;
 }
 
-func (t *Goroutine) resetFrame() {
-	// TODO(austin) NewFrame can abort
+func (t *Goroutine) resetFrame() (err os.Error) {
 	// TODO(austin) Reuse any live part of the current frame stack
 	// so existing references to Frame's keep working.
-	t.frame = NewFrame(t.g);
+	t.frame, err = newFrame(t.g);
+	return;
 }
 
 // Out selects the caller frame of the current frame.
 func (t *Goroutine) Out() os.Error {
 	// TODO(austin) Outer can abort
-	f := t.frame.Outer();
+	f, err := t.frame.Outer();
 	if f != nil {
 		t.frame = f;
 	}
-	return nil;
+	return err;
 }
 
 // In selects the frame called by the current frame.
@@ -70,7 +71,11 @@ func readylockedBP(ev Event) (EventAction, os.Error) {
 	sp := regs.SP();
 	addr := sp + ptrace.Word(p.PtrSize());
 	arg := remotePtr{remote{addr, p}, p.runtime.G};
-	gp := arg.Get();
+	var gp eval.Value;
+	err = try(func(a aborter) { gp = arg.aGet(a) });
+	if err != nil {
+		return EAStop, err;
+	}
 	if gp == nil {
 		return EAStop, UnknownGoroutine{b.osThread, 0};
 	}
