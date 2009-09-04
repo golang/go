@@ -6,10 +6,15 @@
 
 package main
 
+var nbad int
+
 func assert(cond bool, msg string) {
 	if !cond {
-		print("assertion fail: ", msg, "\n");
-		panic(1);
+		if nbad == 0 {
+			print("BUG");
+		}
+		nbad++;
+		print(" ", msg);
 	}
 }
 
@@ -210,4 +215,8 @@ func main() {
 	assert(sj0 == sj1, "sj1");
 	assert(sj0 == sj2, "sj2");
 	assert(sj0 == sj3, "sj3");
+
+	if nbad > 0 {
+		println()
+	}
 }
