@@ -365,7 +365,7 @@ func (a *stmtCompiler) compileVarDecl(decl *ast.GenDecl) {
 				a.defineVar(n, t);
 			}
 		} else {
-			// Decalaration with assignment
+			// Declaration with assignment
 			lhs := make([]ast.Expr, len(spec.Names));
 			for i, n := range spec.Names {
 				lhs[i] = n;
@@ -388,9 +388,17 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
 		}
 		// Declare and initialize v before compiling func
 		// so that body can refer to itself.
-		c := a.block.DefineConst(d.Name.Value, a.pos, decl.Type, decl.Type.Zero());
+		c, prev := a.block.DefineConst(d.Name.Value, a.pos, decl.Type, decl.Type.Zero());
+		if prev != nil {
+			pos := prev.Pos();
+			if pos.IsValid() {
+				a.diagAt(d.Name, "identifier %s redeclared in this block\n\tprevious declaration at %s", d.Name.Value, &pos);
+			} else {
+				a.diagAt(d.Name, "identifier %s redeclared in this block", d.Name.Value);
+			}
+		}
 		fn := a.compileFunc(a.block, decl, d.Body);
-		if fn == nil {
+		if c == nil || fn == nil {
 			return;
 		}
 		var zeroThread Thread;
