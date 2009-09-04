@@ -8,9 +8,11 @@ package parser
 
 import (
 	"bytes";
+	"container/vector";
 	"fmt";
 	"go/ast";
 	"go/scanner";
+	"go/token";
 	"io";
 	"os";
 	pathutil "path";
@@ -82,6 +84,24 @@ func ParseStmtList(filename string, src interface{}) ([]ast.Stmt, os.Error) {
 	var p parser;
 	p.init(filename, data, 0);
 	list := p.parseStmtList();  // TODO 6g bug - function call order in expr lists
+	return list, p.GetError(scanner.Sorted);
+}
+
+
+// ParseDeclList parses a list of Go declarations and returns the list
+// of corresponding AST nodes.  The filename and src arguments have the same
+// interpretation as for ParseFile. If there is an error, the node
+// list may be nil or contain partial ASTs.
+//
+func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
+	data, err := readSource(filename, src);
+	if err != nil {
+		return nil, err;
+	}
+
+	var p parser;
+	p.init(filename, data, 0);
+	list := p.parseDeclList();  // TODO 6g bug - function call order in expr lists
 	return list, p.GetError(scanner.Sorted);
 }
 
