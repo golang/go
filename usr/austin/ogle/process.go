@@ -137,12 +137,17 @@ func NewProcess(proc ptrace.Process, arch Arch, syms *sym.GoSymTable) (*Process,
 
 	// Get current goroutines
 	p.goroutines[p.sys.g0.addr().base] = &Goroutine{p.sys.g0, nil, false};
-	g := p.sys.allg.Get();
-	for g != nil {
-		gs := g.(remoteStruct);
-		fmt.Printf("*** Found goroutine at %#x\n", gs.addr().base);
-		p.goroutines[gs.addr().base] = &Goroutine{gs, nil, false};
-		g = gs.Field(p.f.G.Alllink).(remotePtr).Get();
+	err := try(func(a aborter) {
+		g := p.sys.allg.aGet(a);
+		for g != nil {
+			gs := g.(remoteStruct);
+			fmt.Printf("*** Found goroutine at %#x\n", gs.addr().base);
+			p.goroutines[gs.addr().base] = &Goroutine{gs, nil, false};
+			g = gs.field(p.f.G.Alllink).(remotePtr).aGet(a);
+		}
+	});
+	if err != nil {
+		return nil, err;
 	}
 	p.selectSomeGoroutine();
 
@@ -282,8 +287,8 @@ func (p *Process) Poke(addr ptrace.Word, b []byte) (int, os.Error) {
 	return thr.Poke(addr, b);
 }
 
-func (p *Process) peekUintptr(addr ptrace.Word) ptrace.Word {
-	return ptrace.Word(mkUintptr(remote{addr, p}).(remoteUint).Get());
+func (p *Process) peekUintptr(a aborter, addr ptrace.Word) ptrace.Word {
+	return ptrace.Word(mkUintptr(remote{addr, p}).(remoteUint).aGet(a));
 }
 
 /*

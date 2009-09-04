@@ -122,7 +122,7 @@ var prtIndent = "";
 
 // parseRemoteType parses a Type structure in a remote process to
 // construct the corresponding interpreter type and remote type.
-func parseRemoteType(rs remoteStruct) *remoteType {
+func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 	addr := rs.addr().base;
 	p := rs.addr().p;
 
@@ -156,17 +156,17 @@ func parseRemoteType(rs remoteStruct) *remoteType {
 	}
 
 	// Get Type header
-	itype := ptrace.Word(rs.Field(p.f.Type.Typ).(remoteUint).Get());
-	typ := rs.Field(p.f.Type.Ptr).(remotePtr).Get().(remoteStruct);
+	itype := ptrace.Word(rs.field(p.f.Type.Typ).(remoteUint).aGet(a));
+	typ := rs.field(p.f.Type.Ptr).(remotePtr).aGet(a).(remoteStruct);
 
 	// Is this a named type?
 	var nt *eval.NamedType;
-	uncommon := typ.Field(p.f.CommonType.UncommonType).(remotePtr).Get();
+	uncommon := typ.field(p.f.CommonType.UncommonType).(remotePtr).aGet(a);
 	if uncommon != nil {
-		name := uncommon.(remoteStruct).Field(p.f.UncommonType.Name).(remotePtr).Get();
+		name := uncommon.(remoteStruct).field(p.f.UncommonType.Name).(remotePtr).aGet(a);
 		if name != nil {
 			// TODO(austin) Declare type in appropriate remote package
-			nt = eval.NewNamedType(name.(remoteString).Get());
+			nt = eval.NewNamedType(name.(remoteString).aGet(a));
 			rt.Type = nt;
 		}
 	}
@@ -227,8 +227,8 @@ func parseRemoteType(rs remoteStruct) *remoteType {
 	case p.runtime.PArrayType:
 		// Cast to an ArrayType
 		typ := p.runtime.ArrayType.mk(typ.addr()).(remoteStruct);
-		len := int64(typ.Field(p.f.ArrayType.Len).(remoteUint).Get());
-		elem := parseRemoteType(typ.Field(p.f.ArrayType.Elem).(remotePtr).Get().(remoteStruct));
+		len := int64(typ.field(p.f.ArrayType.Len).(remoteUint).aGet(a));
+		elem := parseRemoteType(a, typ.field(p.f.ArrayType.Elem).(remotePtr).aGet(a).(remoteStruct));
 		t = eval.NewArrayType(len, elem.Type);
 		mk = func(r remote) eval.Value {
 			return remoteArray{r, len, elem};
@@ -237,22 +237,22 @@ func parseRemoteType(rs remoteStruct) *remoteType {
 	case p.runtime.PStructType:
 		// Cast to a StructType
 		typ := p.runtime.StructType.mk(typ.addr()).(remoteStruct);
-		fs := typ.Field(p.f.StructType.Fields).(remoteSlice).Get();
+		fs := typ.field(p.f.StructType.Fields).(remoteSlice).aGet(a);
 
 		fields := make([]eval.StructField, fs.Len);
 		layout := make([]remoteStructField, fs.Len);
 		for i := range fields {
-			f := fs.Base.Elem(int64(i)).(remoteStruct);
-			elemrs := f.Field(p.f.StructField.Typ).(remotePtr).Get().(remoteStruct);
-			elem := parseRemoteType(elemrs);
+			f := fs.Base.(remoteArray).elem(int64(i)).(remoteStruct);
+			elemrs := f.field(p.f.StructField.Typ).(remotePtr).aGet(a).(remoteStruct);
+			elem := parseRemoteType(a, elemrs);
 			fields[i].Type = elem.Type;
-			name := f.Field(p.f.StructField.Name).(remotePtr).Get();
+			name := f.field(p.f.StructField.Name).(remotePtr).aGet(a);
 			if name == nil {
 				fields[i].Anonymous = true;
 			} else {
-				fields[i].Name = name.(remoteString).Get();
+				fields[i].Name = name.(remoteString).aGet(a);
 			}
-			layout[i].offset = int(f.Field(p.f.StructField.Offset).(remoteUint).Get());
+			layout[i].offset = int(f.field(p.f.StructField.Offset).(remoteUint).aGet(a));
 			layout[i].fieldType = elem;
 		}
 
@@ -264,7 +264,7 @@ func parseRemoteType(rs remoteStruct) *remoteType {
 	case p.runtime.PPtrType:
 		// Cast to a PtrType
 		typ := p.runtime.PtrType.mk(typ.addr()).(remoteStruct);
-		elem := parseRemoteType(typ.Field(p.f.PtrType.Elem).(remotePtr).Get().(remoteStruct));
+		elem := parseRemoteType(a, typ.field(p.f.PtrType.Elem).(remotePtr).aGet(a).(remoteStruct));
 		t = eval.NewPtrType(elem.Type);
 		mk = func(r remote) eval.Value {
 			return remotePtr{r, elem};
@@ -273,7 +273,7 @@ func parseRemoteType(rs remoteStruct) *remoteType {
 	case p.runtime.PSliceType:
 		// Cast to a SliceType
 		typ := p.runtime.SliceType.mk(typ.addr()).(remoteStruct);
-		elem := parseRemoteType(typ.Field(p.f.SliceType.Elem).(remotePtr).Get().(remoteStruct));
+		elem := parseRemoteType(a, typ.field(p.f.SliceType.Elem).(remotePtr).aGet(a).(remoteStruct));
 		t = eval.NewSliceType(elem.Type);
 		mk = func(r remote) eval.Value {
 			return remoteSlice{r, elem};
@@ -291,7 +291,7 @@ func parseRemoteType(rs remoteStruct) *remoteType {
 			name = sym.Common().Name;
 		}
 		err := fmt.Sprintf("runtime type at %#x has unexpected type %#x (%s)", addr, itype, name);
-		eval.Abort(FormatError(err));
+		a.Abort(FormatError(err));
 	}
 
 	// Fill in the remote type
@@ -300,7 +300,7 @@ func parseRemoteType(rs remoteStruct) *remoteType {
 	} else {
 		rt.Type = t;
 	}
-	rt.size = int(typ.Field(p.f.CommonType.Size).(remoteUint).Get());
+	rt.size = int(typ.field(p.f.CommonType.Size).(remoteUint).aGet(a));
 	rt.mk = mk;
 
 	return rt;

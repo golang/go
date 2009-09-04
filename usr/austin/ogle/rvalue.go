@@ -7,6 +7,7 @@ package ogle
 import (
 	"eval";
 	"fmt";
+	"os";
 	"ptrace";
 )
 
@@ -34,7 +35,7 @@ type remote struct {
 	p *Process;
 }
 
-func (v remote) Get(size int) uint64 {
+func (v remote) Get(a aborter, size int) uint64 {
 	// TODO(austin) This variable might temporarily be in a
 	// register.  We could trace the assembly back from the
 	// current PC, looking for the beginning of the function or a
@@ -55,23 +56,32 @@ func (v remote) Get(size int) uint64 {
 	buf := arr[0:size];
 	_, err := v.p.Peek(v.base, buf);
 	if err != nil {
-		eval.Abort(err);
+		a.Abort(err);
 	}
 	return uint64(v.p.ToWord(buf));
 }
 
-func (v remote) Set(size int, x uint64) {
+func (v remote) Set(a aborter, size int, x uint64) {
 	var arr [8]byte;
 	buf := arr[0:size];
 	v.p.FromWord(ptrace.Word(x), buf);
 	_, err := v.p.Poke(v.base, buf);
 	if err != nil {
-		eval.Abort(err);
+		a.Abort(err);
 	}
 }
 
 func (v remote) plus(x ptrace.Word) remote {
 	return remote{v.base + x, v.p};
+}
+
+func tryRVString(f func(a aborter) string) string {
+	var s string;
+	err := try(func(a aborter) { s = f(a) });
+	if err != nil {
+		return fmt.Sprintf("<error: %v>", err);
+	}
+	return s;
 }
 
 /*
@@ -83,22 +93,30 @@ type remoteBool struct {
 }
 
 func (v remoteBool) String() string {
-	return fmt.Sprintf("%v", v.Get());
+	return tryRVString(func(a aborter) string { return fmt.Sprintf("%v", v.aGet(a)) });
 }
 
-func (v remoteBool) Assign(o eval.Value) {
-	v.Set(o.(eval.BoolValue).Get());
+func (v remoteBool) Assign(t *eval.Thread, o eval.Value) {
+	v.Set(t, o.(eval.BoolValue).Get(t));
 }
 
-func (v remoteBool) Get() bool {
-	return v.r.Get(1) != 0;
+func (v remoteBool) Get(t *eval.Thread) bool {
+	return v.aGet(t);
 }
 
-func (v remoteBool) Set(x bool) {
+func (v remoteBool) aGet(a aborter) bool {
+	return v.r.Get(a, 1) != 0;
+}
+
+func (v remoteBool) Set(t *eval.Thread, x bool) {
+	v.aSet(t, x);
+}
+
+func (v remoteBool) aSet(a aborter, x bool) {
 	if x {
-		v.r.Set(1, 1);
+		v.r.Set(a, 1, 1);
 	} else {
-		v.r.Set(1, 0);
+		v.r.Set(a, 1, 0);
 	}
 }
 
@@ -120,19 +138,27 @@ type remoteUint struct {
 }
 
 func (v remoteUint) String() string {
-	return fmt.Sprintf("%v", v.Get());
+	return tryRVString(func(a aborter) string { return fmt.Sprintf("%v", v.aGet(a)) });
 }
 
-func (v remoteUint) Assign(o eval.Value) {
-	v.Set(o.(eval.UintValue).Get());
+func (v remoteUint) Assign(t *eval.Thread, o eval.Value) {
+	v.Set(t, o.(eval.UintValue).Get(t));
 }
 
-func (v remoteUint) Get() uint64 {
-	return v.r.Get(v.size);
+func (v remoteUint) Get(t *eval.Thread) uint64 {
+	return v.aGet(t);
 }
 
-func (v remoteUint) Set(x uint64) {
-	v.r.Set(v.size, x);
+func (v remoteUint) aGet(a aborter) uint64 {
+	return v.r.Get(a, v.size);
+}
+
+func (v remoteUint) Set(t *eval.Thread, x uint64) {
+	v.aSet(t, x);
+}
+
+func (v remoteUint) aSet(a aborter, x uint64) {
+	v.r.Set(a, v.size, x);
 }
 
 func (v remoteUint) addr() remote {
@@ -173,19 +199,27 @@ type remoteInt struct {
 }
 
 func (v remoteInt) String() string {
-	return fmt.Sprintf("%v", v.Get());
+	return tryRVString(func(a aborter) string { return fmt.Sprintf("%v", v.aGet(a)) });
 }
 
-func (v remoteInt) Assign(o eval.Value) {
-	v.Set(o.(eval.IntValue).Get());
+func (v remoteInt) Assign(t *eval.Thread, o eval.Value) {
+	v.Set(t, o.(eval.IntValue).Get(t));
 }
 
-func (v remoteInt) Get() int64 {
-	return int64(v.r.Get(v.size));
+func (v remoteInt) Get(t *eval.Thread) int64 {
+	return v.aGet(t);
 }
 
-func (v remoteInt) Set(x int64) {
-	v.r.Set(v.size, uint64(x));
+func (v remoteInt) aGet(a aborter) int64 {
+	return int64(v.r.Get(a, v.size));
+}
+
+func (v remoteInt) Set(t *eval.Thread, x int64) {
+	v.aSet(t, x);
+}
+
+func (v remoteInt) aSet(a aborter, x int64) {
+	v.r.Set(a, v.size, uint64(x));
 }
 
 func (v remoteInt) addr() remote {
@@ -222,15 +256,19 @@ type remoteFloat struct {
 }
 
 func (v remoteFloat) String() string {
-	return fmt.Sprintf("%v", v.Get());
+	return tryRVString(func(a aborter) string { return fmt.Sprintf("%v", v.aGet(a)) });
 }
 
-func (v remoteFloat) Assign(o eval.Value) {
-	v.Set(o.(eval.FloatValue).Get());
+func (v remoteFloat) Assign(t *eval.Thread, o eval.Value) {
+	v.Set(t, o.(eval.FloatValue).Get(t));
 }
 
-func (v remoteFloat) Get() float64 {
-	bits := v.r.Get(v.size);
+func (v remoteFloat) Get(t *eval.Thread) float64 {
+	return v.aGet(t);
+}
+
+func (v remoteFloat) aGet(a aborter) float64 {
+	bits := v.r.Get(a, v.size);
 	switch v.size {
 	case 4:
 		return float64(v.r.p.ToFloat32(uint32(bits)));
@@ -240,7 +278,11 @@ func (v remoteFloat) Get() float64 {
 	panic("Unexpected float size ", v.size);
 }
 
-func (v remoteFloat) Set(x float64) {
+func (v remoteFloat) Set(t *eval.Thread, x float64) {
+	v.aSet(t, x);
+}
+
+func (v remoteFloat) aSet(a aborter, x float64) {
 	var bits uint64;
 	switch v.size{
 	case 4:
@@ -250,7 +292,7 @@ func (v remoteFloat) Set(x float64) {
 	default:
 		panic("Unexpected float size ", v.size);
 	}
-	v.r.Set(v.size, bits);
+	v.r.Set(a, v.size, bits);
 }
 
 func (v remoteFloat) addr() remote {
@@ -278,30 +320,38 @@ type remoteString struct {
 }
 
 func (v remoteString) String() string {
-	return v.Get();
+	return tryRVString(func(a aborter) string { return v.aGet(a) });
 }
 
-func (v remoteString) Assign(o eval.Value) {
-	v.Set(o.(eval.StringValue).Get());
+func (v remoteString) Assign(t *eval.Thread, o eval.Value) {
+	v.Set(t, o.(eval.StringValue).Get(t));
 }
 
-func (v remoteString) Get() string {
+func (v remoteString) Get(t *eval.Thread) string {
+	return v.aGet(t);
+}
+
+func (v remoteString) aGet(a aborter) string {
 	rs := v.r.p.runtime.String.mk(v.r).(remoteStruct);
-	str := ptrace.Word(rs.Field(v.r.p.f.String.Str).(remoteUint).Get());
-	len := rs.Field(v.r.p.f.String.Len).(remoteInt).Get();
+	str := ptrace.Word(rs.field(v.r.p.f.String.Str).(remoteUint).aGet(a));
+	len := rs.field(v.r.p.f.String.Len).(remoteInt).aGet(a);
 	
 	bytes := make([]uint8, len);
 	_, err := v.r.p.Peek(str, bytes);
 	if err != nil {
-		eval.Abort(err);
+		a.Abort(err);
 	}
 	return string(bytes);
 }
 
-func (v remoteString) Set(x string) {
+func (v remoteString) Set(t *eval.Thread, x string) {
+	v.aSet(t, x);
+}
+
+func (v remoteString) aSet(a aborter, x string) {
 	// TODO(austin) This isn't generally possible without the
 	// ability to allocate remote memory.
-	eval.Abort(RemoteMismatchError("remote strings cannot be assigned to"));
+	a.Abort(RemoteMismatchError("remote strings cannot be assigned to"));
 }
 
 func mkString(r remote) eval.Value {
@@ -324,30 +374,34 @@ func (v remoteArray) String() string {
 		if i > 0 {
 			res += ", ";
 		}
-		res += v.Elem(i).String();
+		res += v.elem(i).String();
 	}
 	return res + "}";
 }
 
-func (v remoteArray) Assign(o eval.Value) {
+func (v remoteArray) Assign(t *eval.Thread, o eval.Value) {
  	// TODO(austin) Could do a bigger memcpy if o is a
 	// remoteArray in the same Process.
 	oa := o.(eval.ArrayValue);
 	for i := int64(0); i < v.len; i++ {
-		v.Elem(i).Assign(oa.Elem(i));
+		v.Elem(t, i).Assign(t, oa.Elem(t, i));
 	}
 }
 
-func (v remoteArray) Get() eval.ArrayValue {
+func (v remoteArray) Get(t *eval.Thread) eval.ArrayValue {
 	return v;
 }
 
-func (v remoteArray) Elem(i int64) eval.Value {
+func (v remoteArray) Elem(t *eval.Thread, i int64) eval.Value {
+	return v.elem(i);
+}
+
+func (v remoteArray) elem(i int64) eval.Value {
 	return v.elemType.mk(v.r.plus(ptrace.Word(int64(v.elemType.size) * i)));
 }
 
-func (v remoteArray) From(i int64) eval.ArrayValue {
-	return remoteArray{v.r.plus(ptrace.Word(int64(v.elemType.size) * i)), v.len - i, v.elemType};
+func (v remoteArray) Sub(i int64, len int64) eval.ArrayValue {
+	return remoteArray{v.r.plus(ptrace.Word(int64(v.elemType.size) * i)), len, v.elemType};
 }
 
 /*
@@ -370,25 +424,29 @@ func (v remoteStruct) String() string {
 		if i > 0 {
 			res += ", ";
 		}
-		res += v.Field(i).String();
+		res += v.field(i).String();
 	}
 	return res + "}";
 }
 
-func (v remoteStruct) Assign(o eval.Value) {
+func (v remoteStruct) Assign(t *eval.Thread, o eval.Value) {
 	// TODO(austin) Could do a bigger memcpy.
 	oa := o.(eval.StructValue);
 	l := len(v.layout);
 	for i := 0; i < l; i++ {
-		v.Field(i).Assign(oa.Field(i));
+		v.Field(t, i).Assign(t, oa.Field(t, i));
 	}
 }
 
-func (v remoteStruct) Get() eval.StructValue {
+func (v remoteStruct) Get(t *eval.Thread) eval.StructValue {
 	return v;
 }
 
-func (v remoteStruct) Field(i int) eval.Value {
+func (v remoteStruct) Field(t *eval.Thread, i int) eval.Value {
+	return v.field(i);
+}
+
+func (v remoteStruct) field(i int) eval.Value {
 	f := &v.layout[i];
 	return f.fieldType.mk(v.r.plus(ptrace.Word(f.offset)));
 }
@@ -411,35 +469,45 @@ type remotePtr struct {
 }
 
 func (v remotePtr) String() string {
-	e := v.Get();
-	if e == nil {
-		return "<nil>";
-	}
-	return "&" + e.String();
+	return tryRVString(func(a aborter) string {
+		e := v.aGet(a);
+		if e == nil {
+			return "<nil>";
+		}
+		return "&" + e.String();
+	});
 }
 
-func (v remotePtr) Assign(o eval.Value) {
-	v.Set(o.(eval.PtrValue).Get());
+func (v remotePtr) Assign(t *eval.Thread, o eval.Value) {
+	v.Set(t, o.(eval.PtrValue).Get(t));
 }
 
-func (v remotePtr) Get() eval.Value {
-	addr := ptrace.Word(v.r.Get(v.r.p.PtrSize()));
+func (v remotePtr) Get(t *eval.Thread) eval.Value {
+	return v.aGet(t);
+}
+
+func (v remotePtr) aGet(a aborter) eval.Value {
+	addr := ptrace.Word(v.r.Get(a, v.r.p.PtrSize()));
 	if addr == 0 {
 		return nil;
 	}
 	return v.elemType.mk(remote{addr, v.r.p});
 }
 
-func (v remotePtr) Set(x eval.Value) {
+func (v remotePtr) Set(t *eval.Thread, x eval.Value) {
+	v.aSet(t, x);
+}
+
+func (v remotePtr) aSet(a aborter, x eval.Value) {
 	if x == nil {
-		v.r.Set(v.r.p.PtrSize(), 0);
+		v.r.Set(a, v.r.p.PtrSize(), 0);
 		return;
 	}
 	xr, ok := x.(remoteValue);
 	if !ok || v.r.p != xr.addr().p {
-		eval.Abort(RemoteMismatchError("remote pointer must point within the same process"));
+		a.Abort(RemoteMismatchError("remote pointer must point within the same process"));
 	}
-	v.r.Set(v.r.p.PtrSize(), uint64(xr.addr().base));
+	v.r.Set(a, v.r.p.PtrSize(), uint64(xr.addr().base));
 }
 
 func (v remotePtr) addr() remote {
@@ -456,39 +524,49 @@ type remoteSlice struct {
 }
 
 func (v remoteSlice) String() string {
-	b := v.Get().Base;
-	if b == nil {
-		return "<nil>";
-	}
-	return b.String();
+	return tryRVString(func(a aborter) string {
+		b := v.aGet(a).Base;
+		if b == nil {
+			return "<nil>";
+		}
+		return b.String();
+	});
 }
 
-func (v remoteSlice) Assign(o eval.Value) {
-	v.Set(o.(eval.SliceValue).Get());
+func (v remoteSlice) Assign(t *eval.Thread, o eval.Value) {
+	v.Set(t, o.(eval.SliceValue).Get(t));
 }
 
-func (v remoteSlice) Get() eval.Slice {
+func (v remoteSlice) Get(t *eval.Thread) eval.Slice {
+	return v.aGet(t);
+}
+
+func (v remoteSlice) aGet(a aborter) eval.Slice {
 	rs := v.r.p.runtime.Slice.mk(v.r).(remoteStruct);
-	base := ptrace.Word(rs.Field(v.r.p.f.Slice.Array).(remoteUint).Get());
-	nel := rs.Field(v.r.p.f.Slice.Len).(remoteInt).Get();
-	cap := rs.Field(v.r.p.f.Slice.Cap).(remoteInt).Get();
+	base := ptrace.Word(rs.field(v.r.p.f.Slice.Array).(remoteUint).aGet(a));
+	nel := rs.field(v.r.p.f.Slice.Len).(remoteInt).aGet(a);
+	cap := rs.field(v.r.p.f.Slice.Cap).(remoteInt).aGet(a);
 	if base == 0 {
 		return eval.Slice{nil, nel, cap};
 	}
 	return eval.Slice{remoteArray{remote{base, v.r.p}, nel, v.elemType}, nel, cap};
 }
 
-func (v remoteSlice) Set(x eval.Slice) {
+func (v remoteSlice) Set(t *eval.Thread, x eval.Slice) {
+	v.aSet(t, x);
+}
+
+func (v remoteSlice) aSet(a aborter, x eval.Slice) {
 	rs := v.r.p.runtime.Slice.mk(v.r).(remoteStruct);
 	if x.Base == nil {
-		rs.Field(v.r.p.f.Slice.Array).(remoteUint).Set(0);
+		rs.field(v.r.p.f.Slice.Array).(remoteUint).aSet(a, 0);
 	} else {
 		ar, ok := x.Base.(remoteArray);
 		if !ok || v.r.p != ar.r.p {
-			eval.Abort(RemoteMismatchError("remote slice must point within the same process"));
+			a.Abort(RemoteMismatchError("remote slice must point within the same process"));
 		}
-		rs.Field(v.r.p.f.Slice.Array).(remoteUint).Set(uint64(ar.r.base));
+		rs.field(v.r.p.f.Slice.Array).(remoteUint).aSet(a, uint64(ar.r.base));
 	}
-	rs.Field(v.r.p.f.Slice.Len).(remoteInt).Set(x.Len);
-	rs.Field(v.r.p.f.Slice.Cap).(remoteInt).Set(x.Cap);
+	rs.field(v.r.p.f.Slice.Len).(remoteInt).aSet(a, x.Len);
+	rs.field(v.r.p.f.Slice.Cap).(remoteInt).aSet(a, x.Cap);
 }
