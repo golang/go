@@ -5,6 +5,7 @@
 package eval
 
 import (
+	"fmt";
 	"go/ast";
 	"go/parser";
 	"go/scanner";
@@ -154,12 +155,34 @@ func (w *World) Compile(text string) (Code, os.Error) {
 	return nil, err;
 }
 
-func (w *World) DefineConst(name string, t Type, val Value) {
-	w.scope.DefineConst(name, token.Position{}, t, val);
+type RedefinitionError struct {
+	Name string;
+	Prev Def;
 }
 
-func (w *World) DefineVar(name string, t Type, val Value) {
-	v, _ := w.scope.DefineVar(name, token.Position{}, t);
+func (e *RedefinitionError) String() string {
+	res := "identifier " + e.Name + " redeclared";
+	pos := e.Prev.Pos();
+	if pos.IsValid() {
+		res += "; previous declaration at " + pos.String();
+	}
+	return res;
+}
+
+func (w *World) DefineConst(name string, t Type, val Value) os.Error {
+	_, prev := w.scope.DefineConst(name, token.Position{}, t, val);
+	if prev != nil {
+		return &RedefinitionError{name, prev};
+	}
+	return nil;
+}
+
+func (w *World) DefineVar(name string, t Type, val Value) os.Error {
+	v, prev := w.scope.DefineVar(name, token.Position{}, t);
+	if prev != nil {
+		return &RedefinitionError{name, prev};
+	}
 	v.Init = val;
+	return nil;
 }
 
