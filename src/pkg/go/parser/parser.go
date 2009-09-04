@@ -1889,6 +1889,20 @@ func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
 }
 
 
+func (p *parser) parseDeclList() []ast.Decl {
+	var list vector.Vector;
+	for p.tok != token.EOF {
+		decl, _ := p.parseDecl(true);	// consume optional semicolon
+		list.Push(decl);
+	}
+	decls := make([]ast.Decl, list.Len());
+	for i := 0; i < list.Len(); i++ {
+		decls[i] = list.At(i).(ast.Decl);
+	}
+	return decls;
+}
+
+
 // ----------------------------------------------------------------------------
 // Source files
 
