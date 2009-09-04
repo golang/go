@@ -73,7 +73,7 @@ func (w *World) compileStmts(stmts []ast.Stmt) (Code, os.Error) {
 	return &stmtCode{w, fc.get()}, nil;
 }
 
-func (w *World) compileDecls(decls []ast.Decl) (Code, os.Error) {
+func (w *World) compileDecls(decls []ast.Decl) (Code, os.Error) {	
 	stmts := make([]ast.Stmt, len(decls));
 	for i, d := range decls {
 		stmts[i] = &ast.DeclStmt{d};
@@ -144,7 +144,7 @@ func (w *World) Compile(text string) (Code, os.Error) {
 
 	// Otherwise try as DeclList.
 	decls, err1 := parser.ParseDeclList("input", text);
-	if err == nil {
+	if err1 == nil {
 		return w.compileDecls(decls);
 	}
 

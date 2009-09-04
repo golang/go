@@ -335,26 +335,21 @@ func (a *stmtCompiler) compileDeclStmt(s *ast.DeclStmt) {
 		a.silentErrors++;
 
 	case *ast.FuncDecl:
-		log.Crash("FuncDecl at statement level");
+		if !a.block.global {
+			log.Crash("FuncDecl at statement level");
+		}
 
 	case *ast.GenDecl:
-		switch decl.Tok {
-		case token.IMPORT:
+		if decl.Tok == token.IMPORT && !a.block.global {
 			log.Crash("import at statement level");
-		case token.CONST:
-			log.Crashf("%v not implemented", decl.Tok);
-		case token.TYPE:
-			a.compileTypeDecl(a.block, decl);
-		case token.VAR:
-			a.compileVarDecl(decl);
 		}
 
 	default:
 		log.Crashf("Unexpected Decl type %T", s.Decl);
 	}
+	a.compileDecl(s.Decl);
 }
 
-// decl might or might not be at top level;
 func (a *stmtCompiler) compileVarDecl(decl *ast.GenDecl) {
 	for _, spec := range decl.Specs {
 		spec := spec.(*ast.ValueSpec);
@@ -380,7 +375,6 @@ func (a *stmtCompiler) compileVarDecl(decl *ast.GenDecl) {
 	}
 }
 
-// decl is top level
 func (a *stmtCompiler) compileDecl(decl ast.Decl) {
 	switch d := decl.(type) {
 	case *ast.BadDecl:
@@ -395,8 +389,6 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
 		// Declare and initialize v before compiling func
 		// so that body can refer to itself.
 		c := a.block.DefineConst(d.Name.Value, a.pos, decl.Type, decl.Type.Zero());
-		// TODO(rsc): How to mark v as constant
-		// so the type checker rejects assignments to it?
 		fn := a.compileFunc(a.block, decl, d.Body);
 		if fn == nil {
 			return;
