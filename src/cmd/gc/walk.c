@@ -1977,6 +1977,8 @@ isliteral(Node *n)
 	return 0;
 }
 
+void	arraylit(Node *n, Node *var, int pass, NodeList **init);
+
 void
 structlit(Node *n, Node *var, int pass, NodeList **init)
 {
@@ -1990,6 +1992,20 @@ structlit(Node *n, Node *var, int pass, NodeList **init)
 			fatal("structlit: rhs not OKEY: %N", r);
 		index = r->left;
 		value = r->right;
+
+		switch(value->op) {
+		case OARRAYLIT:
+			if(value->type->bound < 0)
+				break;
+			a = nod(ODOT, var, newname(index->sym));
+			arraylit(value, a, pass, init);
+			continue;
+
+		case OSTRUCTLIT:
+			a = nod(ODOT, var, newname(index->sym));
+			structlit(value, a, pass, init);
+			continue;
+		}
 
 		if(isliteral(value)) {
 			if(pass == 2)
@@ -2026,6 +2042,20 @@ arraylit(Node *n, Node *var, int pass, NodeList **init)
 		index = r->left;
 		value = r->right;
 
+		switch(value->op) {
+		case OARRAYLIT:
+			if(value->type->bound < 0)
+				break;
+			a = nod(OINDEX, var, index);
+			arraylit(value, a, pass, init);
+			continue;
+
+		case OSTRUCTLIT:
+			a = nod(OINDEX, var, index);
+			structlit(value, a, pass, init);
+			continue;
+		}
+
 		if(isliteral(index) && isliteral(value)) {
 			if(pass == 2)
 				continue;
@@ -2052,21 +2082,72 @@ slicelit(Node *n, Node *var, NodeList **init)
 {
 	Node *r, *a;
 	NodeList *l;
+	Type *t;
+	Node *vstat, *vheap;
+	Node *index, *value;
 
-	// slice
-	a = nod(OMAKE, N, N);
-	a->list = list(list1(typenod(n->type)), n->right);
-	a = nod(OAS, var, a);
+	// make an array type
+	t = shallow(n->type);
+	t->bound = mpgetfix(n->right->val.u.xval);
+	t->width = 0;
+	dowidth(t);
+
+	// make static initialized array
+	vstat = staticname(t);
+	arraylit(n, vstat, 1, init);
+
+	// make new *array heap
+	vheap = nod(OXXX, N, N);
+	tempname(vheap, ptrto(t));
+
+	a = nod(ONEW, N, N);
+	a->list = list1(typenod(t));
+	a = nod(OAS, vheap, a);
 	typecheck(&a, Etop);
 	walkexpr(&a, init);
 	*init = list(*init, a);
 
+	// copy static to heap
+	a = nod(OIND, vheap, N);
+	a = nod(OAS, a, vstat);
+	typecheck(&a, Etop);
+	walkexpr(&a, init);
+	*init = list(*init, a);
+
+	// make slice out of heap
+	a = nod(OAS, var, vheap);
+	typecheck(&a, Etop);
+	walkexpr(&a, init);
+	*init = list(*init, a);
+
+	// put dynamics into slice
 	for(l=n->list; l; l=l->next) {
 		r = l->n;
+		if(r->op != OKEY)
+			fatal("slicelit: rhs not OKEY: %N", r);
+		index = r->left;
+		value = r->right;
+
+		switch(value->op) {
+		case OARRAYLIT:
+			if(value->type->bound < 0)
+				break;
+			a = nod(OINDEX, var, index);
+			arraylit(value, a, 2, init);
+			continue;
+
+		case OSTRUCTLIT:
+			a = nod(OINDEX, var, index);
+			structlit(value, a, 2, init);
+			continue;
+		}
+
+		if(isliteral(index) && isliteral(value))
+			continue;
 
 		// build list of var[c] = expr
-		a = nod(OINDEX, var, r->left);
-		a = nod(OAS, a, r->right);
+		a = nod(OINDEX, var, index);
+		a = nod(OAS, a, value);
 		typecheck(&a, Etop);
 		walkexpr(&a, init);	// add any assignments in r to top
 		*init = list(*init, a);
