@@ -196,6 +196,7 @@ struct	Node
 	uchar	typecheck;
 	uchar	local;
 	uchar	initorder;
+	uchar	dodata;		// compile literal assignment as data statement
 
 	// most nodes
 	Node*	left;
@@ -329,7 +330,6 @@ enum
 	OCLOSURE,
 	OCMPIFACE, OCMPSTR,
 	OCOMPLIT, OMAPLIT, OSTRUCTLIT, OARRAYLIT,
-	OCOMPSLICE, OCOMPMAP,
 	OCONV, OCONVNOP, OCONVIFACE, OCONVSLICE,
 	ODCL, ODCLFUNC, ODCLFIELD, ODCLCONST, ODCLTYPE,
 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT,
@@ -653,7 +653,6 @@ EXTERN	NodeList*	exportlist;
 EXTERN	NodeList*	typelist;
 EXTERN	int	dclcontext;		// PEXTERN/PAUTO
 EXTERN	int	inimportsys;
-EXTERN	int	initflag;		// compiling the init fn
 EXTERN	int	statuniqgen;		// name generator for static temps
 EXTERN	int	loophack;
 
@@ -826,7 +825,6 @@ Node*	syslook(char*, int);
 Node*	treecopy(Node*);
 NodeList*	listtreecopy(NodeList*);
 int	isselect(Node*);
-void	tempname(Node*, Type*);
 Node*	staticname(Type*);
 int	iscomposite(Type*);
 Node*	callnew(Type*);
@@ -1013,9 +1011,7 @@ void	colasdefn(NodeList*, Node*);
 NodeList*	reorder1(NodeList*);
 NodeList*	reorder3(NodeList*);
 NodeList*	reorder4(NodeList*);
-Node*	structlit(Node*, Node*, NodeList**);
-Node*	arraylit(Node*, Node*, NodeList**);
-Node*	maplit(Node*, Node*, NodeList**);
+void	anylit(Node*, Node*, NodeList**);
 void	heapmoves(void);
 void	walkdeflist(NodeList*);
 void	walkdef(Node*);
@@ -1171,5 +1167,5 @@ int	duint64(Sym *s, int off, uint64 v);
 int	duintptr(Sym *s, int off, uint64 v);
 int	duintxx(Sym *s, int off, uint64 v, int wid);
 void	genembedtramp(Type*, Type*, Sym*);
-int	gen_as_init(Node*, Node*);
+int	gen_as_init(Node*);
 

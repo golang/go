@@ -324,6 +324,8 @@ gen(Node *n)
 		break;
 
 	case OAS:
+		if(gen_as_init(n))
+			break;
 		cgen_as(n->left, n->right);
 		break;
 
@@ -455,8 +457,6 @@ cgen_as(Node *nl, Node *nr)
 			if(nl->class == PEXTERN)
 				return;
 			if(nl->class & PHEAP)
-				return;
-			if(gen_as_init(nr, nl))
 				return;
 		}
 
@@ -612,4 +612,3 @@ tempname(Node *n, Type *t)
 	stksize = rnd(stksize, w);
 	n->xoffset = -stksize;
 }
-

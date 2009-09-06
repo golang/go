@@ -152,8 +152,7 @@ fninit(NodeList *n)
 	a->nbody = list(a->nbody, b);
 
 	// (6)
-	a = nod(OASOP, gatevar, nodintconst(1));
-	a->etype = OADD;
+	a = nod(OAS, gatevar, nodintconst(1));
 	r = list(r, a);
 
 	// (7)
@@ -186,8 +185,7 @@ fninit(NodeList *n)
 	}
 
 	// (10)
-	a = nod(OASOP, gatevar, nodintconst(1));
-	a->etype = OADD;
+	a = nod(OAS, gatevar, nodintconst(2));
 	r = list(r, a);
 
 	// (11)
@@ -197,10 +195,7 @@ fninit(NodeList *n)
 	exportsym(fn->nname);
 
 	fn->nbody = r;
-
-	initflag = 1;	// flag for loader static initialization
 	funcbody(fn);
 	typecheck(&fn, Etop);
 	funccompile(fn);
-	initflag = 0;
 }
