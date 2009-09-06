@@ -51,6 +51,7 @@ init1(Node *n, NodeList **out)
 		case OAS:
 			if(n->defn->left != n)
 				goto bad;
+			n->dodata = 1;
 			init1(n->defn->right, out);
 			if(debug['j'])
 				print("%S\n", n->sym);
@@ -63,7 +64,7 @@ init1(Node *n, NodeList **out)
 
 bad:
 	dump("defn", n->defn);
-	fatal("bad defn");
+	fatal("init1: bad defn");
 }
 
 static void

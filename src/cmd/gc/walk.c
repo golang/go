@@ -812,21 +812,10 @@ walkexpr(Node **np, NodeList **init)
 		// and replace expression with nvar
 		switch(n->left->op) {
 		case OARRAYLIT:
-			nvar = makenewvar(n->type, init, &nstar);
-			arraylit(n->left, nstar, init);
-			n = nvar;
-			goto ret;
-
 		case OMAPLIT:
-			nvar = makenewvar(n->type, init, &nstar);
-			maplit(n->left, nstar, init);
-			n = nvar;
-			goto ret;
-
-
 		case OSTRUCTLIT:
 			nvar = makenewvar(n->type, init, &nstar);
-			structlit(n->left, nstar, init);
+			anylit(n->left, nstar, init);
 			n = nvar;
 			goto ret;
 		}
@@ -963,15 +952,12 @@ walkexpr(Node **np, NodeList **init)
 		goto ret;
 
 	case OARRAYLIT:
-		n = arraylit(n, N, init);
-		goto ret;
-
 	case OMAPLIT:
-		n = maplit(n, N, init);
-		goto ret;
-
 	case OSTRUCTLIT:
-		n = structlit(n, N, init);
+		nvar = nod(OXXX, N, N);
+		tempname(nvar, n->type);
+		anylit(n, nvar, init);
+		n = nvar;
 		goto ret;
 
 	case OSEND:
@@ -1982,79 +1968,102 @@ reorder4(NodeList *ll)
 	return ll;
 }
 
-Node*
-structlit(Node *n, Node *var, NodeList **init)
+static int
+isliteral(Node *n)
 {
-	Type *t;
-	Node *r, *a;
-	NodeList *nl;
-
-	t = n->type;
-	if(t->etype != TSTRUCT)
-		fatal("structlit: not struct");
-
-	if(var == N) {
-		var = nod(OXXX, N, N);
-		tempname(var, t);
-	}
-
-	nl = n->list;
-
-	if(count(n->list) < structcount(t)) {
-		a = nod(OAS, var, N);
-		typecheck(&a, Etop);
-		walkexpr(&a, init);
-		*init = list(*init, a);
-	}
-
-	for(; nl; nl=nl->next) {
-		r = nl->n;
-
-		// build list of var.field = expr
-		a = nod(ODOT, var, newname(r->left->sym));
-		a = nod(OAS, a, r->right);
-		typecheck(&a, Etop);
-		walkexpr(&a, init);
-		*init = list(*init, a);
-	}
-	return var;
+	if(n->op == OLITERAL)
+		if(n->val.ctype != CTNIL)
+			return 1;
+	return 0;
 }
 
-Node*
-arraylit(Node *n, Node *var, NodeList **init)
+void
+structlit(Node *n, Node *var, int pass, NodeList **init)
 {
-	Type *t;
 	Node *r, *a;
-	NodeList *l;
+	NodeList *nl;
+	Node *index, *value;
 
-	t = n->type;
+	for(nl=n->list; nl; nl=nl->next) {
+		r = nl->n;
+		if(r->op != OKEY)
+			fatal("structlit: rhs not OKEY: %N", r);
+		index = r->left;
+		value = r->right;
 
-	if(var == N) {
-		var = nod(OXXX, N, N);
-		tempname(var, t);
-	}
+		if(isliteral(value)) {
+			if(pass == 2)
+				continue;
+		} else
+			if(pass == 1)
+				continue;
 
-	if(t->bound < 0) {
-		// slice
-		a = nod(OMAKE, N, N);
-		a->list = list(list1(typenod(t)), n->right);
-		a = nod(OAS, var, a);
+		// build list of var.field = expr
+		a = nod(ODOT, var, newname(index->sym));
+		a = nod(OAS, a, value);
 		typecheck(&a, Etop);
 		walkexpr(&a, init);
-		*init = list(*init, a);
-	} else {
-		// if entire array isnt initialized,
-		// then clear the array
-		if(count(n->list) < t->bound) {
-			a = nod(OAS, var, N);
-			typecheck(&a, Etop);
-			walkexpr(&a, init);
-			*init = list(*init, a);
+		if(pass == 1) {
+			if(a->op != OAS)
+				fatal("structlit: not as");
+			a->dodata = 2;
 		}
+		*init = list(*init, a);
 	}
+}
+
+void
+arraylit(Node *n, Node *var, int pass, NodeList **init)
+{
+	Node *r, *a;
+	NodeList *l;
+	Node *index, *value;
 
 	for(l=n->list; l; l=l->next) {
 		r = l->n;
+		if(r->op != OKEY)
+			fatal("arraylit: rhs not OKEY: %N", r);
+		index = r->left;
+		value = r->right;
+
+		if(isliteral(index) && isliteral(value)) {
+			if(pass == 2)
+				continue;
+		} else
+			if(pass == 1)
+				continue;
+
+		// build list of var[index] = value
+		a = nod(OINDEX, var, index);
+		a = nod(OAS, a, value);
+		typecheck(&a, Etop);
+		walkexpr(&a, init);	// add any assignments in r to top
+		if(pass == 1) {
+			if(a->op != OAS)
+				fatal("structlit: not as");
+			a->dodata = 2;
+		}
+		*init = list(*init, a);
+	}
+}
+
+void
+slicelit(Node *n, Node *var, NodeList **init)
+{
+	Node *r, *a;
+	NodeList *l;
+
+	// slice
+	a = nod(OMAKE, N, N);
+	a->list = list(list1(typenod(n->type)), n->right);
+	a = nod(OAS, var, a);
+	typecheck(&a, Etop);
+	walkexpr(&a, init);
+	*init = list(*init, a);
+
+	for(l=n->list; l; l=l->next) {
+		r = l->n;
+
 		// build list of var[c] = expr
 		a = nod(OINDEX, var, r->left);
 		a = nod(OAS, a, r->right);
@@ -2062,31 +2071,20 @@ arraylit(Node *n, Node *var, NodeList **init)
 		walkexpr(&a, init);	// add any assignments in r to top
 		*init = list(*init, a);
 	}
-
-	return var;
 }
 
-Node*
+void
 maplit(Node *n, Node *var, NodeList **init)
 {
-	Type *t;
 	Node *r, *a;
 	Node* hash[101];
 	NodeList *l;
 	int nerr;
 
 	nerr = nerrors;
-	t = n->type;
-	if(t->etype != TMAP)
-		fatal("maplit: not map");
-
-	if(var == N) {
-		var = nod(OXXX, N, N);
-		tempname(var, t);
-	}
 
 	a = nod(OMAKE, N, N);
-	a->list = list1(typenod(t));
+	a->list = list1(typenod(n->type));
 	a = nod(OAS, var, a);
 	typecheck(&a, Etop);
 	walkexpr(&a, init);
@@ -2105,7 +2103,108 @@ maplit(Node *n, Node *var, NodeList **init)
 
 		*init = list(*init, a);
 	}
-	return var;
+}
+
+static int
+simplename(Node *n)
+{
+	if(n->op != ONAME)
+		goto no;
+	if(!n->addable)
+		goto no;
+	if(n->class & PHEAP)
+		goto no;
+	if(n->class == PPARAMREF)
+		goto no;
+	return 1;
+
+no:
+	return 0;
+}
+
+void
+anylit(Node *n, Node *var, NodeList **init)
+{
+	Type *t;
+	Node *a, *vstat;
+
+	t = n->type;
+	switch(n->op) {
+	default:
+		fatal("anylit: not lit");
+
+	case OSTRUCTLIT:
+		if(t->etype != TSTRUCT)
+			fatal("anylit: not struct");
+
+		if(simplename(var)) {
+
+			// lay out static data
+			vstat = staticname(t);
+			structlit(n, vstat, 1, init);
+
+			// copy static to automatic
+			a = nod(OAS, var, vstat);
+			typecheck(&a, Etop);
+			walkexpr(&a, init);
+			*init = list(*init, a);
+
+			// add expressions to automatic
+			structlit(n, var, 2, init);
+			break;
+		}
+
+		// initialize of not completely specified
+		if(count(n->list) < structcount(t)) {
+			a = nod(OAS, var, N);
+			typecheck(&a, Etop);
+			walkexpr(&a, init);
+			*init = list(*init, a);
+		}
+		structlit(n, var, 3, init);
+		break;
+
+	case OARRAYLIT:
+		if(t->etype != TARRAY)
+			fatal("anylit: not array");
+		if(t->bound < 0) {
+			slicelit(n, var, init);
+			break;
+		}
+
+		if(simplename(var)) {
+
+			// lay out static data
+			vstat = staticname(t);
+			arraylit(n, vstat, 1, init);
+
+			// copy static to automatic
+			a = nod(OAS, var, vstat);
+			typecheck(&a, Etop);
+			walkexpr(&a, init);
+			*init = list(*init, a);
+
+			// add expressions to automatic
+			arraylit(n, var, 2, init);
+			break;
+		}
+
+		// initialize of not completely specified
+		if(count(n->list) < t->bound) {
+			a = nod(OAS, var, N);
+			typecheck(&a, Etop);
+			walkexpr(&a, init);
+			*init = list(*init, a);
+		}
+		arraylit(n, var, 3, init);
+		break;
+
+	case OMAPLIT:
+		if(t->etype != TMAP)
+			fatal("anylit: not map");
+		maplit(n, var, init);
+		break;
+	}
 }
 
 /*

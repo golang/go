@@ -31,10 +31,6 @@ cgen(Node *n, Node *res)
 	while(n->op == OCONVNOP)
 		n = n->left;
 
-	// static initializations
-	if(initflag && gen_as_init(n, res))
-		goto ret;
-
 	// inline slices
 	if(cgen_inline(n, res))
 		goto ret;

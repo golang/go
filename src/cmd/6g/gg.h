@@ -79,7 +79,7 @@ void	genconv(Type*, Type*);
 void	allocparams(void);
 void	checklabels();
 void	ginscall(Node*, int);
-int	gen_as_init(Node*, Node*);
+int	gen_as_init(Node*);
 
 /*
  * cgen

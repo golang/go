@@ -866,6 +866,9 @@ Jconv(Fmt *fp)
 	if(n->typecheck != 0)
 		fmtprint(fp, " tc(%d)", n->typecheck);
 
+	if(n->dodata != 0)
+		fmtprint(fp, " dd(%d)", n->dodata);
+
 	return 0;
 }
 

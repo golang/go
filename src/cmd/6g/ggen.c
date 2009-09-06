@@ -1031,6 +1031,7 @@ stataddr(Node *nam, Node *n)
 		goto no;
 
 	switch(n->op) {
+
 	case ONAME:
 		*nam = *n;
 		return n->addable;
@@ -1060,58 +1061,31 @@ no:
 }
 
 int
-gen_as_init(Node *nr, Node *nl)
+gen_as_init(Node *n)
 {
+	Node *nr, *nl;
 	Node nam, nod1;
 	Prog *p;
 
-	if(!initflag)
+	if(n->dodata == 0)
 		goto no;
 
+	nr = n->right;
+	nl = n->left;
 	if(nr == N) {
 		if(!stataddr(&nam, nl))
 			goto no;
 		if(nam.class != PEXTERN)
 			goto no;
-		return 1;
-	}
-
-	if(nr->op == OCOMPSLICE) {
-		// create a slice pointing to an array
-		if(!stataddr(&nam, nl)) {
-			dump("stataddr", nl);
-			goto no;
-		}
-
-		p = gins(ADATA, &nam, nr->left);
-		p->from.scale = types[tptr]->width;
-		p->to.index = p->to.type;
-		p->to.type = D_ADDR;
-//print("%P\n", p);
-
-		nodconst(&nod1, types[TINT32], nr->left->type->bound);
-		p = gins(ADATA, &nam, &nod1);
-		p->from.scale = types[TINT32]->width;
-		p->from.offset += types[tptr]->width;
-//print("%P\n", p);
-
-		p = gins(ADATA, &nam, &nod1);
-		p->from.scale = types[TINT32]->width;
-		p->from.offset += types[tptr]->width+types[TINT32]->width;
-
 		goto yes;
 	}
 
-	if(nr->op == OCOMPMAP) {
-		goto yes;
-	}
-
-	if(nr->type == T ||
-	   !eqtype(nl->type, nr->type))
+	if(nr->type == T || !eqtype(nl->type, nr->type))
 		goto no;
 
 	if(!stataddr(&nam, nl))
 		goto no;
+
 	if(nam.class != PEXTERN)
 		goto no;
 
@@ -1120,20 +1094,14 @@ gen_as_init(Node *nr, Node *nl)
 		goto no;
 
 	case OLITERAL:
-		goto lit;
+		break;
 	}
 
-no:
-	return 0;
-
-lit:
 	switch(nr->type->etype) {
 	default:
 		goto no;
 
 	case TBOOL:
-		if(memcmp(nam.sym->name, "initdone·", 9) == 0)
-			goto no;
 	case TINT8:
 	case TUINT8:
 	case TINT16:
@@ -1144,14 +1112,19 @@ lit:
 	case TUINT64:
 	case TINT:
 	case TUINT:
+	case TUINTPTR:
+	case TPTR32:
+	case TPTR64:
 	case TFLOAT32:
 	case TFLOAT64:
 	case TFLOAT:
+		p = gins(ANOP, N, N); // in case the data is the dest of a goto
 		p = gins(ADATA, &nam, nr);
 		p->from.scale = nr->type->width;
 		break;
 
 	case TSTRING:
+		gins(ANOP, N, N); // in case the data is the dest of a goto
 		p = gins(ADATA, &nam, N);
 		datastring(nr->val.u.sval->s, nr->val.u.sval->len, &p->to);
 		p->from.scale = types[tptr]->width;
@@ -1168,10 +1141,14 @@ lit:
 	}
 
 yes:
-//dump("\ngen_as_init", nl);
-//dump("", nr);
-//print("%P\n", p);
 	return 1;
+
+no:
+	if(n->dodata == 2) {
+		dump("\ngen_as_init", n);
+		fatal("gen_as_init couldnt make data statement");
+	}
+	return 0;
 }
 
 static int
