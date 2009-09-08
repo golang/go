@@ -1314,9 +1314,9 @@ the entity declared by the inner declaration.
 </p>
 
 <p>
-The package clause (§<a href="#Package_clause">Package clause</a>) is not a declaration; the package name
+The <a href="#Package_clause">package clause</a> is not a declaration; the package name
 does not appear in any scope. Its purpose is to identify the files belonging
-to the same package (§<a href="#Packages">Packages</a>) and to specify the default name for import
+to the same <a href="#Packages">package</a> and to specify the default name for import
 declarations.
 </p>
 
@@ -1324,7 +1324,7 @@ declarations.
 <h3 id="Label_scopes">Label scopes</h3>
 
 <p>
-Labels are declared by labeled statements (§<a href="#Labeled_statements">Labeled statements</a>) and are
+Labels are declared by <a href="#Labeled_statements">labeled statements</a> and are
 used in the <code>break</code>, <code>continue</code>, and <code>goto</code>
 statements (§<a href="#Break_statements">Break statements</a>, §<a href="#Continue_statements">Continue statements</a>, §<a href="#Goto_statements">Goto statements</a>).
 In contrast to other identifiers, labels are not block scoped and do
@@ -1376,10 +1376,10 @@ All other identifiers are not exported.
 
 <p>
 A constant declaration binds a list of identifiers (the names of
-the constants) to the values of a list of constant expressions
-(§<a href="#Constant_expressions">Constant expressions</a>).  The number of identifiers must be equal
-to the number of expressions, and the n<sup>th</sup> identifier on
-the left is bound to value of the n<sup>th</sup> expression on the
+the constants) to the values of a list of <a href="#Constant_expressions">constant expressions</a>.
+The number of identifiers must be equal
+to the number of expressions, and the <i>n</i>th identifier on
+the left is bound to the value of the <i>n</i>th expression on the
 right.
 </p>
 
@@ -1395,8 +1395,8 @@ ExpressionList = Expression { "," Expression } .
 <p>
 If the type is omitted, the constants take the
 individual types of the corresponding expressions, which may be
-<i>ideal integer</i> or <i>ideal float</i> (§<a href="#Ideal_number">Ideal number</a>).  If the type
-is present, all constants take the type specified, and the types
+an <a href="#Ideal_numbers">ideal number</a> or <a href="#String_literals">ideal string</a>.
+If the type is present, all constants take the type specified, and the types
 of all the expressions must be assignment-compatible
 with that type.
 </p>
@@ -1420,8 +1420,8 @@ first preceding non-empty expression list, and its type if any.
 Omitting the list of expressions is therefore equivalent to
 repeating the previous list.  The number of identifiers must be equal
 to the number of expressions in the previous list.
-Together with the <code>iota</code> constant generator
-(§<a href="#Iota">Iota</a>) this mechanism permits light-weight declaration of sequential values:
+Together with the <a href="#Iota"><code>iota</code> constant generator</a>
+this mechanism permits light-weight declaration of sequential values:
 </p>
 
 <pre>
@@ -1547,8 +1547,7 @@ var (
 <p>
 If a list of expressions is given, the variables are initialized
 by assigning those expressions to the variables (§<a href="#Assignments">Assignments</a>).
-Otherwise, each variable is initialized to its <i>zero value</i>
-(§<a href="#The_zero_value">The zero value</a>).
+Otherwise, each variable is initialized to its <a href="#The_zero_value"><i>zero value</i></a>.
 </p>
 
 <p>
@@ -2118,8 +2117,8 @@ rules apply:
 
 <p>
 For <code>a</code> of type <code>A</code> or <code>*A</code>
-where <code>A</code> is an array type (§<a href="#Array_types">Array types</a>),
-or for <code>a</code> of type <code>S</code> where <code>S</code> is a slice type (§<a href="#Slice_types">Slice types</a>):
+where <code>A</code> is an <a href="#Array_types">array type</a>,
+or for <code>a</code> of type <code>S</code> where <code>S</code> is a <a href="#Slice_types">slice type</a>:
 </p>
 <ul>
 	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code>
@@ -2129,7 +2128,7 @@ or for <code>a</code> of type <code>S</code> where <code>S</code> is a slice typ
 
 <p>
 For <code>a</code> of type <code>T</code>
-where <code>T</code> is a string type (§<a href="#Strings">Strings</a>):
+where <code>T</code> is a <a href="#Strings">string type</a>:
 </p>
 <ul>
 	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code>
@@ -2140,7 +2139,7 @@ where <code>T</code> is a string type (§<a href="#Strings">Strings</a>):
 
 <p>
 For <code>a</code> of type <code>M</code>
-where <code>M</code> is a map type (§<a href="#Map_types">Map types</a>):
+where <code>M</code> is a <a href="#Map_types">map type</a>:
 </p>
 <ul>
 	<li><code>x</code>'s type must be compatible with the key type of <code>M</code>
@@ -2171,7 +2170,7 @@ the result of the index expression is a pair of values with types
 If the key is present in the map,
 the expression returns the pair <code>(a[x], true)</code>;
 otherwise it returns <code>(Z, false)</code> where <code>Z</code> is
-the zero value for <code>V</code> (§<a href="#The_zero_value">The zero value</a>).
+the <a href="#The_zero_value">zero value</a> for <code>V</code>.
 No run-time exception occurs in this case.
 The index expression in this construct thus acts like a function call
 returning a value and a boolean indicating success.  (§<a href="#Assignments">Assignments</a>)
@@ -2223,8 +2222,8 @@ For arrays or strings, the indexes
 for slices, the upper bound is the capacity rather than the length.
 <p>
 If the sliced operand is a string, the result of the slice operation is another, new
-string (§<a href="#Strings">Strings</a>). If the sliced operand is an array or slice, the result
-of the slice operation is a slice (§<a href="#Slice_types">Slice types</a>).
+<a href="#Strings">string</a>. If the sliced operand is an array or slice, the result
+of the slice operation is a <a href="#Slice_types">slice</a>.
 </p>
 
 
@@ -2272,7 +2271,7 @@ var v, ok = x.(T)
 the result of the assertion is a pair of values with types <code>(T, bool)</code>.
 If the assertion holds, the expression returns the pair <code>(x.(T), true)</code>;
 otherwise, the expression returns <code>(Z, false)</code> where <code>Z</code>
-is the zero value for type <code>T</code> (§<a href="#The_zero_value">The zero value</a>).
+is the <a href="#The_zero_value">zero value</a> for type <code>T</code>.
 No run-time exception occurs in this case.
 The type assertion in this construct thus acts like a function call
 returning a value and a boolean indicating success.  (§<a href="#Assignments">Assignments</a>)
@@ -2884,7 +2883,7 @@ In practice, constant expressions are those that can be evaluated at compile tim
 <p>
 The type of a constant expression is determined by the type of its
 elements.  If it contains only numeric literals, its type is <i>ideal
-integer</i> or <i>ideal float</i> (§<a href="#Ideal_number">Ideal number</a>).  Whether a literal
+integer</i> or <i>ideal float</i> (§<a href="#Ideal_numbers">Ideal numbers</a>).  Whether a literal
 is an integer or float depends on the syntax of the literals (123 vs. 123.0).
 The nature of the arithmetic
 operations within the expression depends, elementwise, on the values;
@@ -3008,8 +3007,7 @@ Elements of a list of statements are separated by semicolons,
 which may be omitted only if the previous statement:
 </p>
 <ul>
-	<li>ends with the closing parenthesis ")" of a list of declarations
-	    (§<a href="#Declarations_and_scope">Declarations and scope</a>); or</li>
+	<li>ends with the closing parenthesis ")" of a list of <a href="#Declarations_and_scope">declarations</a>; or</li>
 	<li>ends with a closing brace "}" that is not part of an expression.
 </ul>
 
@@ -3078,7 +3076,7 @@ IncDecStmt = Expression ( "++" | "--" ) .
 </pre>
 
 <p>
-The following assignment statements (§<a href="#Assignments">Assignments</a>) are semantically
+The following <a href="#Assignments">assignment statements</a> are semantically
 equivalent:
 </p>
 
@@ -3125,8 +3123,8 @@ a[i] &lt;&lt;= 2
 A tuple assignment assigns the individual elements of a multi-valued
 operation to a list of variables.  There are two forms.  In the
 first, the right hand operand is a single multi-valued expression
-such as a function evaluation or channel or map operation (§<a href="#Channel">Channel</a>
-operations, §<a href="#Map_operations">Map operations</a>) or a type assertion (§<a href="#Type_assertions">Type assertions</a>).
+such as a function evaluation or <a href="#Channel_types">channel</a> or
+<a href="#Map_types">map</a> operation or a <a href="#Type_assertions">type assertion</a>.
 The number of operands on the left
 hand side must match the number of values.  For instance, If
 <code>f</code> is a function returning two values,
