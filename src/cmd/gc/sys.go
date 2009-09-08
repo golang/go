@@ -51,9 +51,8 @@ func	efaceeq(i1 any, i2 any) (ret bool);
 func	ifacethash(i1 any) (ret uint32);
 func	efacethash(i1 any) (ret uint32);
 
-func	makemap(keysize int, valsize int,
-			keyalg int, valalg int,
-			hint int) (hmap map[any]any);
+// *byte is really *runtime.Type
+func	makemap(key, val *byte, hint int) (hmap map[any]any);
 func	mapaccess1(hmap map[any]any, key any) (val any);
 func	mapaccess2(hmap map[any]any, key any) (val any, pres bool);
 func	mapassign1(hmap map[any]any, key any, val any);
@@ -63,7 +62,8 @@ func	mapiternext(hiter *any);
 func	mapiter1(hiter *any) (key any);
 func	mapiter2(hiter *any) (key any, val any);
 
-func	makechan(elemsize int, elemalg int, hint int) (hchan chan any);
+// *byte is really *runtime.Type
+func	makechan(elem *byte, hint int) (hchan chan any);
 func	chanrecv1(hchan <-chan any) (elem any);
 func	chanrecv2(hchan <-chan any) (elem any, pres bool);
 func	chansend1(hchan chan<- any, elem any);

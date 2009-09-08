@@ -52,7 +52,7 @@ func makemap(typ *byte) (map *byte) {
 	MapType *t;
 
 	t = (MapType*)gettype(typ);
-	map = (byte*)makemap(t->key->size, t->elem->size, t->key->alg, t->elem->alg, 0);
+	map = (byte*)makemap(t->key, t->elem, 0);
 }
 
 /*
@@ -67,7 +67,7 @@ func makechan(typ *byte, size uint32) (ch *byte) {
 	// in front of the raw ChanType.  the -2 below backs up
 	// to the interface value header.
 	t = (ChanType*)gettype(typ);
-	ch = (byte*)makechan(t->elem->size, t->elem->alg, size);
+	ch = (byte*)makechan(t->elem, size);
 }
 
 func chansend(ch *byte, val *byte, pres *bool) {
