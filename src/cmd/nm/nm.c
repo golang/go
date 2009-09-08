@@ -1,25 +1,25 @@
 // Inferno utils/nm/nm.c
 // http://code.google.com/p/inferno-os/source/browse/utils/nm/nm.c
-// 
-// 	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
-// 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
-// 	Portions Copyright © 1997-1999 Vita Nuova Limited
-// 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
-// 	Portions Copyright © 2004,2006 Bruce Ellis
-// 	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
-// 	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-// 	Portions Copyright © 2009 The Go Authors. All rights reserved.
-// 
+//
+//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+//	Portions Copyright © 1997-1999 Vita Nuova Limited
+//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+//	Portions Copyright © 2004,2006 Bruce Ellis
+//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+//	Portions Copyright © 2009 The Go Authors. All rights reserved.
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
@@ -50,6 +50,7 @@ int	gflag;
 int	hflag;
 int	nflag;
 int	sflag;
+int	Sflag;
 int	uflag;
 int	Tflag;
 int	tflag;
@@ -90,6 +91,7 @@ main(int argc, char *argv[])
 	case 'h':	hflag = 1; break;
 	case 'n':	nflag = 1; break;
 	case 's':	sflag = 1; break;
+	case 'S':	nflag = Sflag = 1; break;
 	case 'u':	uflag = 1; break;
 	case 't':	tflag = 1; break;
 	case 'T':	Tflag = 1; break;
@@ -295,7 +297,7 @@ psym(Sym *s, void* p)
 void
 printsyms(Sym **symptr, long nsym)
 {
-	int i, wid;
+	int i, j, wid;
 	Sym *s;
 	char *cp;
 	char path[512];
@@ -325,6 +327,19 @@ printsyms(Sym **symptr, long nsym)
 			Bprint(&bout, "%*llux ", wid, s->value);
 		else
 			Bprint(&bout, "%*s ", wid, "");
+		if(Sflag) {
+			vlong siz;
+
+			siz = 0;
+			for(j=i+1; j<nsym; j++) {
+				if(symptr[j]->type != 'a' && symptr[j]->type != 'p') {
+					siz = symptr[j]->value - s->value;
+					break;
+				}
+			}
+			if(siz > 0)
+				Bprint(&bout, "%*llud ", wid, siz);
+		}
 		Bprint(&bout, "%c %s", s->type, cp);
 		if(tflag && s->gotype)
 			Bprint(&bout, " %*llux", wid, s->gotype);
