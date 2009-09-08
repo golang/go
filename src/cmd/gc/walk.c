@@ -2158,10 +2158,13 @@ void
 maplit(Node *n, Node *var, NodeList **init)
 {
 	Node *r, *a;
-	Node* hash[101];
 	NodeList *l;
-	int nerr;
+	int nerr, b;
+	Type *t, *tk, *tv, *t1;
+	Node *vstat, *index, *value;
+	Sym *syma, *symb;
 
+	// make the map var
 	nerr = nerrors;
 
 	a = nod(OMAKE, N, N);
@@ -2171,9 +2174,127 @@ maplit(Node *n, Node *var, NodeList **init)
 	walkexpr(&a, init);
 	*init = list(*init, a);
 
-	memset(hash, 0, sizeof(hash));
+	// count the initializers
+	b = 0;
 	for(l=n->list; l; l=l->next) {
 		r = l->n;
+
+		if(r->op != OKEY)
+			fatal("slicelit: rhs not OKEY: %N", r);
+		index = r->left;
+		value = r->right;
+
+		if(isliteral(index) && isliteral(value))
+			b++;
+	}
+
+	t = T;
+	if(b != 0) {
+		// build type [count]struct { a Tindex, b Tvalue }
+		t = n->type;
+		tk = t->down;
+		tv = t->type;
+
+		symb = lookup("b");
+		t = typ(TFIELD);
+		t->type = tv;
+		t->sym = symb;
+
+		syma = lookup("a");
+		t1 = t;
+		t = typ(TFIELD);
+		t->type = tk;
+		t->sym = syma;
+		t->down = t1;
+
+		t1 = t;
+		t = typ(TSTRUCT);
+		t->type = t1;
+
+		t1 = t;
+		t = typ(TARRAY);
+		t->bound = b;
+		t->type = t1;
+
+		dowidth(t);
+
+		// make and initialize static array
+		vstat = staticname(t);
+		b = 0;
+		for(l=n->list; l; l=l->next) {
+			r = l->n;
+
+			if(r->op != OKEY)
+				fatal("slicelit: rhs not OKEY: %N", r);
+			index = r->left;
+			value = r->right;
+
+			if(isliteral(index) && isliteral(value)) {
+				// build vstat[b].a = key;
+				a = nodintconst(b);
+				a = nod(OINDEX, vstat, a);
+				a = nod(ODOT, a, newname(syma));
+				a = nod(OAS, a, index);
+				typecheck(&a, Etop);
+				walkexpr(&a, init);
+				a->dodata = 2;
+				*init = list(*init, a);
+
+				// build vstat[b].b = value;
+				a = nodintconst(b);
+				a = nod(OINDEX, vstat, a);
+				a = nod(ODOT, a, newname(symb));
+				a = nod(OAS, a, value);
+				typecheck(&a, Etop);
+				walkexpr(&a, init);
+				a->dodata = 2;
+				*init = list(*init, a);
+				
+				b++;
+			}
+		}
+
+		// loop adding structure elements to map
+		// for i = 0; i < len(vstat); i++ {
+		//	map[vstat[i].a] = vstat[i].b
+		// }
+		index = nod(OXXX, N, N);
+		tempname(index, types[TINT]);
+
+		a = nod(OINDEX, vstat, index);
+		a = nod(ODOT, a, newname(symb));
+
+		r = nod(OINDEX, vstat, index);
+		r = nod(ODOT, r, newname(syma));
+		r = nod(OINDEX, var, r);
+
+		r = nod(OAS, r, a);
+
+		a = nod(OFOR, N, N);
+		a->nbody = list1(r);
+
+		a->ninit = list1(nod(OAS, index, nodintconst(0)));
+		a->ntest = nod(OLT, index, nodintconst(t->bound));
+		a->nincr = nod(OASOP, index, nodintconst(1));
+		a->nincr->etype = OADD;
+
+		typecheck(&a, Etop);
+		walkstmt(&a);
+		*init = list(*init, a);
+	}
+
+	// put in dynamic entries one-at-a-time
+	for(l=n->list; l; l=l->next) {
+		r = l->n;
+
+		if(r->op != OKEY)
+			fatal("slicelit: rhs not OKEY: %N", r);
+		index = r->left;
+		value = r->right;
+
+		if(isliteral(index) && isliteral(value))
+			continue;
+
 		// build list of var[c] = expr
 		a = nod(OINDEX, var, r->left);
 		a = nod(OAS, a, r->right);
