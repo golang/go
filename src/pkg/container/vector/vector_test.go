@@ -52,7 +52,7 @@ func TestAccess(t *testing.T) {
 
 func TestInsertDeleteClear(t *testing.T) {
 	const n = 100;
-	a := New(0);
+	var a Vector;
 
 	for i := 0; i < n; i++ {
 		if a.Len() != i { t.Errorf("A) wrong len %d (expected %d)", a.Len(), i) }
@@ -188,6 +188,7 @@ func TestDo(t *testing.T) {
 		t.Error("should visit", n, "values; did visit", count)
 	}
 }
+
 
 func TestIter(t *testing.T) {
 	const Len = 100;

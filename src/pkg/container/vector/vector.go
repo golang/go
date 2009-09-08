@@ -12,6 +12,7 @@ type Element interface {}
 
 
 // Vector is the container itself.
+// The zero value for Vector is an empty vector ready to use.
 type Vector struct {
 	a []Element
 }
