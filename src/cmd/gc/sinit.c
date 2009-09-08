@@ -51,7 +51,7 @@ init1(Node *n, NodeList **out)
 		case OAS:
 			if(n->defn->left != n)
 				goto bad;
-			n->dodata = 1;
+			n->defn->dodata = 1;
 			init1(n->defn->right, out);
 			if(debug['j'])
 				print("%S\n", n->sym);
