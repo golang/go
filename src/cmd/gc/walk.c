@@ -887,8 +887,7 @@ walkexpr(Node **np, NodeList **init)
 
 	case OMAKECHAN:
 		n = mkcall1(chanfn("makechan", 1, n->type), n->type, init,
-			nodintconst(n->type->type->width),
-			nodintconst(algtype(n->type->type)),
+			typename(n->type->type),
 			conv(n->left, types[TINT]));
 		goto ret;
 
@@ -900,10 +899,8 @@ walkexpr(Node **np, NodeList **init)
 		argtype(fn, t->type);	// any-2
 
 		n = mkcall1(fn, n->type, init,
-			nodintconst(t->down->width),	// key width
-			nodintconst(t->type->width),		// val width
-			nodintconst(algtype(t->down)),	// key algorithm
-			nodintconst(algtype(t->type)),		// val algorithm
+			typename(t->down),	// key type
+			typename(t->type),		// value type
 			conv(n->left, types[TINT]));
 		goto ret;
 
@@ -2249,7 +2246,7 @@ maplit(Node *n, Node *var, NodeList **init)
 				walkexpr(&a, init);
 				a->dodata = 2;
 				*init = list(*init, a);
-				
+
 				b++;
 			}
 		}

@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "type.h"
 
 static	int32	debug	= 0;
 static	Lock		chanlock;
@@ -43,6 +44,7 @@ struct	Hchan
 	uint32	dataqsiz;		// size of the circular q
 	uint16	elemsize;
 	uint16	closed;			// Wclosed Rclosed errorcount
+	uint8	elemalign;
 	Alg*	elemalg;		// interface for element type
 	Link*	senddataq;		// pointer for sender
 	Link*	recvdataq;		// pointer for receiver
@@ -88,20 +90,21 @@ static	uint32	fastrand1(void);
 static	uint32	fastrand2(void);
 
 Hchan*
-makechan(uint32 elemsize, uint32 elemalg, uint32 hint)
+makechan(Type *elem, uint32 hint)
 {
 	Hchan *c;
 	int32 i;
 
-	if(elemalg >= nelem(algarray)) {
-		printf("chan(alg=%d)\n", elemalg);
+	if(elem->alg >= nelem(algarray)) {
+		printf("chan(alg=%d)\n", elem->alg);
 		throw("sys·makechan: unsupported elem type");
 	}
 
 	c = mal(sizeof(*c));
 
-	c->elemsize = elemsize;
-	c->elemalg = &algarray[elemalg];
+	c->elemsize = elem->size;
+	c->elemalg = &algarray[elem->alg];
+	c->elemalign = elem->align;
 
 	if(hint > 0) {
 		Link *d, *b, *e;
@@ -127,9 +130,11 @@ makechan(uint32 elemsize, uint32 elemalg, uint32 hint)
 		prints("makechan: chan=");
 		sys·printpointer(c);
 		prints("; elemsize=");
-		sys·printint(elemsize);
+		sys·printint(elem->size);
 		prints("; elemalg=");
-		sys·printint(elemalg);
+		sys·printint(elem->alg);
+		prints("; elemalign=");
+		sys·printint(elem->align);
 		prints("; dataqsiz=");
 		sys·printint(c->dataqsiz);
 		prints("\n");
@@ -140,9 +145,9 @@ makechan(uint32 elemsize, uint32 elemalg, uint32 hint)
 
 // makechan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
 void
-sys·makechan(uint32 elemsize, uint32 elemalg, uint32 hint, Hchan *ret)
+sys·makechan(Type *elem, uint32 hint, Hchan *ret)
 {
-	ret = makechan(elemsize, elemalg, hint);
+	ret = makechan(elem, hint);
 	FLUSH(&ret);
 }
 
@@ -379,7 +384,7 @@ sys·chansend1(Hchan* c, ...)
 	int32 o;
 	byte *ae;
 
-	o = rnd(sizeof(c), c->elemsize);
+	o = rnd(sizeof(c), c->elemalign);
 	ae = (byte*)&c + o;
 	chansend(c, ae, nil);
 }
@@ -391,7 +396,7 @@ sys·chansend2(Hchan* c, ...)
 	int32 o;
 	byte *ae, *ap;
 
-	o = rnd(sizeof(c), c->elemsize);
+	o = rnd(sizeof(c), c->elemalign);
 	ae = (byte*)&c + o;
 	o = rnd(o+c->elemsize, Structrnd);
 	ap = (byte*)&c + o;

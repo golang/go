@@ -4,6 +4,7 @@
 
 #include "runtime.h"
 #include "hashmap.h"
+#include "type.h"
 
 /* Return a pointer to the struct/union of type "type"
    whose "field" field is addressed by pointer "p". */
@@ -664,14 +665,17 @@ donothing(uint32 s, void *a, void *b)
 
 static	int32	debug	= 0;
 
-// makemap(keysize uint32, valsize uint32,
-//	keyalg uint32, valalg uint32,
-//	hint uint32) (hmap *map[any]any);
+// makemap(key, val *Type, hint uint32) (hmap *map[any]any);
 Hmap*
-makemap(uint32 keysize, uint32 valsize,
-	uint32 keyalg, uint32 valalg, uint32 hint)
+makemap(Type *key, Type *val, uint32 hint)
 {
 	Hmap *h;
+	int32 keyalg, valalg, keysize, valsize;
+
+	keyalg = key->alg;
+	valalg = val->alg;
+	keysize = key->size;
+	valsize = val->size;
 
 	if(keyalg >= nelem(algarray) || algarray[keyalg].hash == nohash) {
 		printf("map(keyalg=%d)\n", keyalg);
@@ -707,16 +711,16 @@ makemap(uint32 keysize, uint32 valsize,
 
 	// func() (key, val)
 	h->ko0 = rnd(sizeof(h), Structrnd);
-	h->vo0 = rnd(h->ko0+keysize, valsize);
+	h->vo0 = rnd(h->ko0+keysize, val->align);
 
 	// func(key) (val[, pres])
-	h->ko1 = rnd(sizeof(h), keysize);
+	h->ko1 = rnd(sizeof(h), key->align);
 	h->vo1 = rnd(h->ko1+keysize, Structrnd);
 	h->po1 = rnd(h->vo1+valsize, 1);
 
 	// func(key, val[, pres])
-	h->ko2 = rnd(sizeof(h), keysize);
-	h->vo2 = rnd(h->ko2+keysize, valsize);
+	h->ko2 = rnd(sizeof(h), key->align);
+	h->vo2 = rnd(h->ko2+keysize, val->align);
 	h->po2 = rnd(h->vo2+valsize, 1);
 
 	if(debug) {
@@ -727,15 +731,11 @@ makemap(uint32 keysize, uint32 valsize,
 	return h;
 }
 
-// makemap(keysize uint32, valsize uint32,
-//	keyalg uint32, valalg uint32,
-//	hint uint32) (hmap *map[any]any);
+// makemap(key, val *Type, hint uint32) (hmap *map[any]any);
 void
-sys·makemap(uint32 keysize, uint32 valsize,
-	uint32 keyalg, uint32 valalg, uint32 hint,
-	Hmap *ret)
+sys·makemap(Type *key, Type *val, uint32 hint, Hmap *ret)
 {
-	ret = makemap(keysize, valsize, keyalg, valalg, hint);
+	ret = makemap(key, val, hint);
 	FLUSH(&ret);
 }
 
