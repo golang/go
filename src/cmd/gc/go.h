@@ -1012,6 +1012,7 @@ NodeList*	reorder1(NodeList*);
 NodeList*	reorder3(NodeList*);
 NodeList*	reorder4(NodeList*);
 void	anylit(Node*, Node*, NodeList**);
+int	oaslit(Node*, NodeList**);
 void	heapmoves(void);
 void	walkdeflist(NodeList*);
 void	walkdef(Node*);

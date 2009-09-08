@@ -572,6 +572,8 @@ walkexpr(Node **np, NodeList **init)
 		*init = concat(*init, n->ninit);
 		n->ninit = nil;
 		walkexpr(&n->left, init);
+		if(oaslit(n, init))
+			goto ret;
 		walkexpr(&n->right, init);
 		l = n->left;
 		r = n->right;
@@ -2404,6 +2406,50 @@ anylit(Node *n, Node *var, NodeList **init)
 		maplit(n, var, init);
 		break;
 	}
+}
+
+int
+oaslit(Node *n, NodeList **init)
+{
+	Type *t;
+
+	if(n->left == N || n->right == N)
+		goto no;
+	if(!simplename(n->left))
+		goto no;
+	if(n->dodata == 1)
+		goto initctxt;
+
+no:
+	// not a special composit literal assignment
+	return 0;
+
+initctxt:
+	switch(n->right->op) {
+	default:
+		goto no;
+
+	case OSTRUCTLIT:
+		structlit(n->right, n->left, 3, init);
+		break;
+
+	case OARRAYLIT:
+		t = n->right->type;
+		if(t == T)
+			goto no;
+		if(t->bound < 0) {
+			slicelit(n->right, n->left, init);
+			break;
+		}
+		arraylit(n->right, n->left, 3, init);
+		break;
+
+	case OMAPLIT:
+		maplit(n->right, n->left, init);
+		break;
+	}
+	n->op = OEMPTY;
+	return 1;
 }
 
 /*
