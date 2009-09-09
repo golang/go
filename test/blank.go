@@ -6,10 +6,18 @@
 
 package main
 
+import _ "fmt"
+
 var call string
 
 type T struct {
 	_, _, _ int;
+}
+
+func (T) _() {
+}
+
+func (T) _() {
 }
 
 const (
@@ -44,8 +52,7 @@ func i() int {
 	return 23;
 }
 
-func main()
-{
+func main() {
 	_, _ = f();
 	a, _ := f();
 	if a != 1 {panic(a)}

@@ -1123,8 +1123,8 @@ methodname1(Node *n, Node *t)
 		star = "*";
 		t = t->left;
 	}
-	if(t->sym == S)
-		return n;
+	if(t->sym == S || isblank(n))
+		return newname(n->sym);
 	snprint(buf, sizeof(buf), "%s%S·%S", star, t->sym, n->sym);
 	return newname(pkglookup(buf, t->sym->package));
 }

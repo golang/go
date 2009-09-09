@@ -61,7 +61,7 @@ typecheck(Node **np, int top)
 	n = *np;
 	if(n == N)
 		return N;
-	
+
 	// Skip typecheck if already done.
 	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
 	if(n->typecheck == 1) {
@@ -614,7 +614,7 @@ reswitch:
 		}
 		yyerror("cannot slice %#N (type %T)", l, t);
 		goto error;
-	
+
 	/*
 	 * call and call like
 	 */
@@ -1196,7 +1196,7 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
 	 */
 	if(nt == T)
 		return 0;
-	
+
 	if(t->etype == TBLANK) {
 		*op = OCONVNOP;
 		return 0;
@@ -1982,12 +1982,13 @@ typecheckfunc(Node *n)
 {
 	Type *t, *rcvr;
 
+//dump("nname", n->nname);
 	typecheck(&n->nname, Erv | Easgn);
 	if((t = n->nname->type) == T)
 		return;
 	n->type = t;
 
 	rcvr = getthisx(t)->type;
-	if(rcvr != nil && n->shortname != N)
+	if(rcvr != nil && n->shortname != N && !isblank(n->shortname))
 		addmethod(n->shortname->sym, t, 1);
 }
