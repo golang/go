@@ -6,6 +6,10 @@
 #include	<libc.h>
 #include	<bio.h>
 
+// avoid <ctype.h>
+#undef isblank
+#define isblank goisblank
+
 #ifndef	EXTERN
 #define	EXTERN	extern
 #endif
@@ -421,6 +425,7 @@ enum
 	// pseudo-types for literals
 	TIDEAL,
 	TNIL,
+	TBLANK,
 
 	NTYPE,
 };
@@ -467,6 +472,7 @@ enum
 	Ecall = 1<<4,	// call-only expressions are ok
 	Efnstruct = 1<<5,	// multivalue function returns are ok
 	Eiota = 1<<6,		// iota is ok
+	Easgn = 1<<7,		// assigning to expression
 };
 
 #define	BITS	5
@@ -803,6 +809,7 @@ int	isinter(Type*);
 int	isnilinter(Type*);
 int	isddd(Type*);
 int	isideal(Type*);
+int	isblank(Node*);
 Type*	maptype(Type*, Type*);
 Type*	methtype(Type*);
 Node*	typename(Type*);

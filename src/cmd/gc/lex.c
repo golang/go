@@ -1352,6 +1352,13 @@ lexinit(void)
 	// (the type of x in const x = "hello").
 	// TODO(rsc): this may need some more thought.
 	idealstring = typ(TSTRING);
+
+	s = lookup("_");
+	s->block = -100;
+	s->def = nod(ONAME, N, N);
+	s->def->sym = s;
+	types[TBLANK] = typ(TBLANK);
+	s->def->type = types[TBLANK];
 }
 
 struct
@@ -1430,6 +1437,9 @@ mkpackage(char* pkg)
 	Sym *s;
 	int32 h;
 	char *p;
+
+	if(strcmp(pkg, "_") == 0)
+		yyerror("invalid package name _");
 
 	if(package == nopackage) {
 		// redefine all names to be this package.

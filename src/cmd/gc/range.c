@@ -19,7 +19,7 @@ typecheckrange(Node *n)
 	// delicate little dance.  see typecheckas2
 	for(ll=n->list; ll; ll=ll->next)
 		if(ll->n->defn != n)
-			typecheck(&ll->n, Erv);
+			typecheck(&ll->n, Erv | Easgn);
 
 	typecheck(&n->right, Erv);
 	if((t = n->right->type) == T)
@@ -121,7 +121,7 @@ walkrange(Node *n)
 
 	case TARRAY:
 		hv1 = nod(OXXX, N, n);
-		tempname(hv1, v1->type);
+		tempname(hv1, types[TINT]);
 
 		init = list(init, nod(OAS, hv1, N));
 		n->ntest = nod(OLT, hv1, nod(OLEN, ha, N));
@@ -169,7 +169,7 @@ walkrange(Node *n)
 
 	case TCHAN:
 		hv1 = nod(OXXX, N, n);
-		tempname(hv1, v1->type);
+		tempname(hv1, t->type);
 
 		n->ntest = nod(ONOT, nod(OCLOSED, ha, N), N);
 		n->ntest->ninit = list1(nod(OAS, hv1, nod(ORECV, ha, N)));

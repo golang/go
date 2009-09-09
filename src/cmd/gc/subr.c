@@ -953,6 +953,7 @@ basicnames[] =
 	[TSTRING]		= "string",
 	[TNIL]		= "nil",
 	[TIDEAL]		= "ideal",
+	[TBLANK]		= "blank",
 };
 
 int
@@ -1419,6 +1420,19 @@ int
 isslice(Type *t)
 {
 	return t != T && t->etype == TARRAY && t->bound < 0;
+}
+
+int
+isblank(Node *n)
+{
+	char *p;
+
+	if(n == N || n->sym == S)
+		return 0;
+	p = n->sym->name;
+	if(p == nil)
+		return 0;
+	return p[0] == '_' && p[1] == '\0';
 }
 
 int
