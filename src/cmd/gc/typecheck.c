@@ -500,18 +500,24 @@ reswitch:
 
 		case TARRAY:
 			defaultlit(&n->right, types[TUINT]);
+			if(n->right->type != T && !isint[n->right->type->etype])
+				yyerror("non-integer array index %#N", n->right);
 			n->type = t->type;
 			break;
 
 		case TMAP:
 			n->etype = 0;
 			defaultlit(&n->right, t->down);
+			if(n->right->type != T && !eqtype(n->right->type, t->down))
+				yyerror("invalid map index %#N - need type %T", n->right, t->down);
 			n->type = t->type;
 			n->op = OINDEXMAP;
 			break;
 
 		case TSTRING:
 			defaultlit(&n->right, types[TUINT]);
+			if(n->right->type != T && !isint[n->right->type->etype])
+				yyerror("non-integer string index %#N", n->right);
 			n->type = types[TUINT8];
 			n->op = OINDEXSTR;
 			break;
