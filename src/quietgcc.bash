@@ -40,6 +40,13 @@ $gcc -Wall -Wno-sign-compare -Wno-missing-braces \
 	-Wno-parentheses -Wno-unknown-pragmas -Wno-switch -Wno-comment \
 	"$@" >$tmp 2>&1
 status=$?
-egrep -v "$ignore" $tmp | uniq
-rm -f $tmp
+egrep -v "$ignore" $tmp | uniq | tee $tmp.1
+
+# Make incompatible pointer type "warnings" stop the build.
+# Not quite perfect--we should remove the object file--but
+# a step in the right direction.
+if egrep 'incompatible pointer type' $tmp.1 >/dev/null; then
+	status=1
+fi
+rm -f $tmp $tmp.1
 exit $status
