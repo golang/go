@@ -164,6 +164,9 @@ declare(Node *n, int ctxt)
 	int gen;
 	static int typegen, vargen;
 
+	if(isblank(n))
+		return;
+
 	s = n->sym;
 	gen = 0;
 	if(ctxt == PEXTERN) {
@@ -301,7 +304,6 @@ variter(NodeList *vl, Node *t, NodeList *el)
 	int doexpr;
 	Node *v, *e;
 	NodeList *init;
-	Sym *s;
 
 	init = nil;
 	doexpr = el != nil;
@@ -317,8 +319,6 @@ variter(NodeList *vl, Node *t, NodeList *el)
 			e = N;
 
 		v = vl->n;
-		s = v->sym;
-
 		v->op = ONAME;
 		declare(v, dclcontext);
 		v->ntype = t;
@@ -550,6 +550,8 @@ colasdefn(NodeList *left, Node *defn)
 	nnew = 0;
 	for(l=left; l; l=l->next) {
 		n = l->n;
+		if(isblank(n))
+			continue;
 		if(!colasname(n)) {
 			yyerror("non-name %#N on left side of :=", n);
 			continue;
@@ -838,7 +840,7 @@ stotype(NodeList *l, int et, Type **t)
 			f->sym = f->nname->sym;
 			if(pkgimportname != S && !exportname(f->sym->name))
 				f->sym = pkglookup(f->sym->name, structpkg);
-			if(f->sym) {
+			if(f->sym && !isblank(f->nname)) {
 				for(t1=*t0; t1!=T; t1=t1->down) {
 					if(t1->sym == f->sym) {
 						yyerror("duplicate field %s", t1->sym->name);
@@ -963,6 +965,8 @@ checkarglist(NodeList *all)
 			t = n;
 			n = N;
 		}
+		if(isblank(n))
+			n = N;
 		if(n != N && n->sym == S) {
 			t = n;
 			n = N;

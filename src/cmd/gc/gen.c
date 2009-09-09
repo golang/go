@@ -431,6 +431,60 @@ cgen_dcl(Node *n)
 }
 
 /*
+ * generate discard of value
+ */
+void
+cgen_discard(Node *nr)
+{
+	Node tmp;
+
+	if(nr == N)
+		return;
+
+	switch(nr->op) {
+	case ONAME:
+		break;
+
+	// unary
+	case OADD:
+	case OAND:
+	case ODIV:
+	case OEQ:
+	case OGE:
+	case OGT:
+	case OLE:
+	case OLSH:
+	case OLT:
+	case OMOD:
+	case OMUL:
+	case ONE:
+	case OOR:
+	case ORSH:
+	case OSUB:
+	case OXOR:
+		cgen_discard(nr->left);
+		cgen_discard(nr->right);
+		break;
+
+	// binary
+	case OCAP:
+	case OCOM:
+	case OLEN:
+	case OMINUS:
+	case ONOT:
+	case OPLUS:
+		cgen_discard(nr->left);
+		break;
+
+	// special enough to just evaluate
+	default:
+		tempname(&tmp, nr->type);
+		cgen_as(&tmp, nr);
+		gused(&tmp);
+	}
+}
+
+/*
  * generate assignment:
  *	nl = nr
  * nr == N means zero nl.
@@ -448,6 +502,11 @@ cgen_as(Node *nl, Node *nr)
 	if(debug['g']) {
 		dump("cgen_as", nl);
 		dump("cgen_as = ", nr);
+	}
+
+	if(isblank(nl)) {
+		cgen_discard(nr);
+		return;
 	}
 
 	iszer = 0;

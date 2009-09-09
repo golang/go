@@ -139,7 +139,7 @@ dowidth(Type *t)
 	w = 0;
 	switch(et) {
 	default:
-		fatal("dowidth: unknown type: %E", t->etype);
+		fatal("dowidth: unknown type: %T", t);
 		break;
 
 	/* compiler-specific stuff */

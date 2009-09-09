@@ -48,7 +48,7 @@ compile(Node *fn)
 
 	hasdefer = 0;
 	walk(curfn);
-	if(nerrors != 0)
+	if(nerrors != 0 || isblank(curfn->nname))
 		goto ret;
 
 	allocparams();

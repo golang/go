@@ -61,7 +61,10 @@ typecheck(Node **np, int top)
 	n = *np;
 	if(n == N)
 		return N;
-	if(n->typecheck == 1 && n->op != ONAME)	// XXX for test/func4.go
+	
+	// Skip typecheck if already done.
+	// But re-typecheck ONAME node in case context has changed.
+	if(n->typecheck == 1 && n->op != ONAME)
 		return n;
 	if(n->typecheck == 2)
 		fatal("typecheck loop");
@@ -85,8 +88,10 @@ reswitch:
 	 */
 	case OLITERAL:
 		ok |= Erv;
-		if(n->iota && !(top & Eiota))
+		if(n->iota && !(top & Eiota)) {
 			yyerror("use of iota not in constant initializer");
+			goto error;
+		}
 		if(n->val.ctype == CTSTR)
 			n->type = idealstring;
 		goto ret;
@@ -99,6 +104,10 @@ reswitch:
 		if(n->etype != 0) {
 			ok |= Ecall;
 			goto ret;
+		}
+		if(isblank(n) && !(top & Easgn)) {
+			yyerror("cannot use _ as value");
+			goto error;
 		}
 		ok |= Erv;
 		goto ret;
@@ -581,7 +590,7 @@ reswitch:
 		}
 		yyerror("cannot slice %#N (type %T)", l, t);
 		goto error;
-
+	
 	/*
 	 * call and call like
 	 */
@@ -970,6 +979,7 @@ ret:
 		case TFORW:
 		case TIDEAL:
 		case TNIL:
+		case TBLANK:
 			break;
 		default:
 			checkwidth(t);
@@ -1165,6 +1175,11 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
 	 */
 	if(nt == T)
 		return 0;
+	
+	if(t->etype == TBLANK) {
+		*op = OCONVNOP;
+		return 0;
+	}
 
 	if(eqtype(t, nt)) {
 		exportassignok(t);
@@ -1804,7 +1819,7 @@ typecheckas(Node *n)
 	// will not look at defn, so it is okay (and desirable,
 	// so that the conversion below happens).
 	if(n->left->defn != n || n->left->ntype)
-		typecheck(&n->left, Erv);
+		typecheck(&n->left, Erv | Easgn);
 
 	checkassign(n->left);
 	typecheck(&n->right, Erv);
@@ -1820,7 +1835,7 @@ typecheckas(Node *n)
 	// just to get it over with.  see dance above.
 	n->typecheck = 1;
 	if(n->left->typecheck == 0)
-		typecheck(&n->left, Erv);
+		typecheck(&n->left, Erv | Easgn);
 }
 
 static void
@@ -1835,7 +1850,7 @@ typecheckas2(Node *n)
 	for(ll=n->list; ll; ll=ll->next) {
 		// delicate little dance.
 		if(ll->n->defn != n || ll->n->ntype)
-			typecheck(&ll->n, Erv);
+			typecheck(&ll->n, Erv | Easgn);
 	}
 	cl = count(n->list);
 	cr = count(n->rlist);
@@ -1946,7 +1961,7 @@ typecheckfunc(Node *n)
 {
 	Type *t, *rcvr;
 
-	typecheck(&n->nname, Erv);
+	typecheck(&n->nname, Erv | Easgn);
 	if((t = n->nname->type) == T)
 		return;
 	n->type = t;

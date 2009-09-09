@@ -1103,7 +1103,7 @@ ascompatee(int op, NodeList *nl, NodeList *nr, NodeList **init)
 }
 
 /*
- * n is an lv and t is the type of an rv
+ * l is an lv and rt is the type of an rv
  * return 1 if this implies a function call
  * evaluating the lv or a function call
  * in the conversion of the types
@@ -1141,6 +1141,10 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
 		if(r == T)
 			break;
 		l = ll->n;
+		if(isblank(l)) {
+			r = structnext(&saver);
+			continue;
+		}
 
 		// any lv that causes a fn call must be
 		// deferred until all the return arguments

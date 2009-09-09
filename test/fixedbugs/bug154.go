@@ -16,7 +16,7 @@ func f0() string {
 
 func f1() string {
 	const f = 3.141592;
-	_ := float64(float32(f));  // appears to change the precision of f
+	x := float64(float32(f));  // appears to change the precision of f
 	return fmt.Sprintf("%v", float64(f));
 }
 
