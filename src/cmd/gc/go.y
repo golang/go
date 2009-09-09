@@ -191,7 +191,7 @@ import_stmt:
 		my->lastlineno = $1;
 		import->block = 1;	// at top level
 	}
-	
+
 
 import_stmt_list:
 	import_stmt
@@ -230,10 +230,10 @@ import_package:
 		pkgimportname = $2;
 		if(strcmp($2->name, "main") == 0)
 			yyerror("cannot import package main");
-			
+
 		// TODO(rsc): This is not quite precise enough a check
 		// (it excludes google/util/hash from importing hash)
-		// but it is enough to reduce confusion during the 
+		// but it is enough to reduce confusion during the
 		// 2009/09/01 release when all the "import myself"
 		// statements have to go away in programs building
 		// against the release.  Once the programs have converted
@@ -424,7 +424,7 @@ simple_stmt:
 				yyerror("expr.(type) must be alone in list");
 			else if($1->next != nil)
 				yyerror("argument count mismatch: %d = %d", count($1), 1);
-			$$ = nod(OTYPESW, $1->n, $3->n->left);
+			$$ = nod(OTYPESW, $1->n, $3->n->right);
 			break;
 		}
 		$$ = colas($1, $3);
@@ -443,30 +443,19 @@ simple_stmt:
 case:
 	LCASE expr_or_type_list ':'
 	{
-		Node *n, *ntype;
+		Node *n;
 
 		// will be converted to OCASE
 		// right will point to next case
 		// done in casebody()
 		poptodcl();
 		$$ = nod(OXCASE, N, N);
-		if(typeswvar != N && typeswvar->right != N) {
-			// type switch
-			ntype = $2->n;
-			if($2->next != nil)
-				yyerror("type switch case cannot be list");
-			if(ntype->op == OLITERAL && ntype->val.ctype == CTNIL) {
-				// case nil
-				$$->list = list1(nod(OTYPECASE, N, N));
-				break;
-			}
-			n = newname(typeswvar->right->sym);
+		$$->list = $2;
+		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
+			// type switch - declare variable
+			n = newname(n->sym);
 			declare(n, dclcontext);
-			n->ntype = ntype;
-			$$->list = list1(nod(OTYPECASE, n, N));
-		} else {
-			// expr switch
-			$$->list = $2;
+			$$->nname = n;
 		}
 		break;
 	}
@@ -490,8 +479,16 @@ case:
 	}
 |	LDEFAULT ':'
 	{
+		Node *n;
+
 		poptodcl();
 		$$ = nod(OXCASE, N, N);
+		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
+			// type switch - declare variable
+			n = newname(n->sym);
+			declare(n, dclcontext);
+			$$->nname = n;
+		}
 	}
 
 compound_stmt:
@@ -637,18 +634,16 @@ switch_stmt:
 	{
 		Node *n;
 		n = $3->ntest;
-		if(n != N && n->op == OTYPESW)
-			n = n->left;
-		else
+		if(n != N && n->op != OTYPESW)
 			n = N;
-		typeswvar = nod(OXXX, typeswvar, n);
+		typesw = nod(OXXX, typesw, n);
 	}
 	switch_body
 	{
 		$$ = $3;
 		$$->op = OSWITCH;
 		$$->list = $5;
-		typeswvar = typeswvar->left;
+		typesw = typesw->left;
 		popdcl();
 	}
 
@@ -823,7 +818,7 @@ pexpr:
 	}
 |	pexpr '.' '(' LTYPE ')'
 	{
-		$$ = nod(OTYPESW, $1, N);
+		$$ = nod(OTYPESW, N, $1);
 	}
 |	pexpr '[' expr ']'
 	{
@@ -1289,20 +1284,14 @@ arg_type:
 	name_or_type
 |	sym name_or_type
 	{
-		$$ = $1->def;
-		if($$ == N) {
-			$$ = nod(ONONAME, N, N);
-			$$->sym = $1;
-		}
+		$$ = nod(ONONAME, N, N);
+		$$->sym = $1;
 		$$ = nod(OKEY, $$, $2);
 	}
 |	sym dotdotdot
 	{
-		$$ = $1->def;
-		if($$ == N) {
-			$$ = nod(ONONAME, N, N);
-			$$->sym = $1;
-		}
+		$$ = nod(ONONAME, N, N);
+		$$->sym = $1;
 		$$ = nod(OKEY, $$, $2);
 	}
 |	dotdotdot

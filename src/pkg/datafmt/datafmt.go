@@ -415,7 +415,7 @@ func (s *State) error(msg string) {
 //
 
 func typename(typ reflect.Type) string {
-	switch t := typ.(type) {
+	switch typ.(type) {
 	case *reflect.ArrayType:
 		return "array";
 	case *reflect.SliceType:

@@ -375,7 +375,7 @@ enum
 	OSELECT,
 	OSWITCH,
 	OTYPECASE,
-	OTYPESW,
+	OTYPESW,	// l = r.(type)
 
 	// types
 	OTCHAN,
@@ -676,7 +676,8 @@ EXTERN	Node*	curfn;
 EXTERN	int	maxround;
 EXTERN	int	widthptr;
 
-EXTERN	Node*	typeswvar;
+EXTERN	Node*	typesw;
+EXTERN	Node*	nblank;
 
 EXTERN	char*	structpkg;
 extern	int	thechar;
