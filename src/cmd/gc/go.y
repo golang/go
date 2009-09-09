@@ -176,6 +176,8 @@ import_stmt:
 			importdot(import);
 			break;
 		}
+		if(my->name[0] == '_' && my->name[1] == '\0')
+			break;
 
 		// TODO(rsc): this line is needed for a package
 		// which does bytes := in a function, which creates
@@ -212,8 +214,8 @@ import_here:
 		$$ = parserline();
 		pkgimportname = S;
 		pkgmyname = $1;
-		if(pkgmyname->def)
-			redeclare(pkgmyname, "as imported package name");
+		if($1->def && ($1->name[0] != '_' || $1->name[1] != '\0'))
+			redeclare($1, "as imported package name");
 		importfile(&$2);
 	}
 |	'.' LLITERAL
@@ -1172,6 +1174,7 @@ xdcl_list:
 |	xdcl_list xdcl
 	{
 		$$ = concat($1, $2);
+		testdclstack();
 	}
 
 vardcl_list:
