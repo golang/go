@@ -12,7 +12,6 @@ func f(x int) { }
 
 func main() {
 	f(X);
-	f(iota);	// ERROR "iota.*initializer"
+	f(iota);	// ERROR "iota"
 	f(X);
-	f(iota);	// ERROR "iota.*initializer"
 }

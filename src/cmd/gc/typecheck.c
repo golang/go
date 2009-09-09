@@ -63,14 +63,25 @@ typecheck(Node **np, int top)
 		return N;
 	
 	// Skip typecheck if already done.
-	// But re-typecheck ONAME node in case context has changed.
-	if(n->typecheck == 1 && n->op != ONAME)
-		return n;
+	// But re-typecheck ONAME/OTYPE/OLITERAL/OPACK node in case context has changed.
+	if(n->typecheck == 1) {
+		switch(n->op) {
+		case ONAME:
+		case OTYPE:
+		case OLITERAL:
+		case OPACK:
+			break;
+		default:
+			return n;
+		}
+	}
+
 	if(n->typecheck == 2)
 		fatal("typecheck loop");
 	n->typecheck = 2;
 
-	if(n->sym && n->walkdef != 1)
+redo:
+	if(n->sym)
 		walkdef(n);
 
 	lno = setlineno(n);
@@ -88,10 +99,6 @@ reswitch:
 	 */
 	case OLITERAL:
 		ok |= Erv;
-		if(n->iota && !(top & Eiota)) {
-			yyerror("use of iota not in constant initializer");
-			goto error;
-		}
 		if(n->val.ctype == CTSTR)
 			n->type = idealstring;
 		goto ret;
@@ -115,6 +122,15 @@ reswitch:
 	case OPACK:
 		yyerror("use of package %S not in selector", n->sym);
 		goto error;
+
+	case OIOTA:
+		// looked like iota during parsing but might
+		// have been redefined.  decide.
+		if(n->left->op != ONONAME)
+			n = n->left;
+		else
+			n = n->right;
+		goto redo;
 
 	/*
 	 * types (OIND is with exprs)
@@ -1025,8 +1041,6 @@ error:
 out:
 	lineno = lno;
 	n->typecheck = 1;
-	if(n->iota)
-		n->typecheck = 0;
 	*np = n;
 	return n;
 }
@@ -1592,7 +1606,7 @@ typecheckcomplit(Node **np)
 				len = i;
 				if(t->bound >= 0 && len > t->bound) {
 					setlineno(l);
-					yyerror("array index out of bounds");
+					yyerror("array index %d out of bounds [0:%d]", len, t->bound);
 					t->bound = -1;	// no more errors
 				}
 			}

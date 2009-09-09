@@ -13,7 +13,7 @@ import "unsafe"
 type Word uintptr
 
 const (
-	_S = uintptr(unsafe.Sizeof(Word));  // TODO(gri) should Sizeof return a uintptr?
+	_S = uintptr(unsafe.Sizeof(Word(0)));  // TODO(gri) should Sizeof return a uintptr?
 	_W = _S*8;
 	_B = 1<<_W;
 	_M = _B-1;

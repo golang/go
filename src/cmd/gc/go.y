@@ -1582,8 +1582,9 @@ hidden_type1:
 |	LNAME
 	{
 		// predefined name like uint8
+		$1 = pkglookup($1->name, "/builtin/");
 		if($1->def == N || $1->def->op != OTYPE) {
-			yyerror("%S is not a type", $1);
+			yyerror("%s is not a type", $1->name);
 			$$ = T;
 		} else
 			$$ = $1->def->type;
@@ -1660,11 +1661,15 @@ hidden_structdcl:
 	}
 |	'?' hidden_type oliteral
 	{
-		if(isptr[$2->etype]) {
-			$$ = embedded($2->type->sym);
-			$$->right = nod(OIND, $$->right, N);
-		} else
-			$$ = embedded($2->sym);
+		Sym *s;
+
+		s = $2->sym;
+		if(s == S && isptr[$2->etype])
+			s = $2->type->sym;
+		if(s && strcmp(s->package, "/builtin/") == 0)
+			s = lookup(s->name);
+		$$ = embedded(s);
+		$$->right = typenod($2);
 		$$->val = $3;
 	}
 
@@ -1709,9 +1714,9 @@ hidden_constant:
 			yyerror("bad negated constant");
 		}
 	}
-|	name
+|	sym
 	{
-		$$ = $1;
+		$$ = oldname(pkglookup($1->name, "/builtin/"));
 		if($$->op != OLITERAL)
 			yyerror("bad constant %S", $$->sym);
 	}

@@ -356,6 +356,7 @@ enum
 	ORECV,
 	ORUNESTR,
 	OSELRECV,
+	OIOTA,
 
 	// stmts
 	OBLOCK,

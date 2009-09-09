@@ -237,7 +237,7 @@ typeinit(void)
 {
 	int i, etype, sameas;
 	Type *t;
-	Sym *s;
+	Sym *s, *s1;
 
 	if(widthptr == 0)
 		fatal("typeinit before betypeinit");
@@ -403,6 +403,7 @@ typeinit(void)
 	/* pick up the backend typedefs */
 	for(i=0; typedefs[i].name; i++) {
 		s = lookup(typedefs[i].name);
+		s1 = pkglookup(typedefs[i].name, "/builtin/");
 
 		etype = typedefs[i].etype;
 		if(etype < 0 || etype >= nelem(types))
@@ -425,7 +426,7 @@ typeinit(void)
 
 		dowidth(t);
 		types[etype] = t;
-		s->def = typenod(t);
+		s1->def = typenod(t);
 	}
 
 	Array_array = rnd(0, widthptr);
