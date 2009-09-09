@@ -249,13 +249,13 @@ newlabel(void)
  * deal with fallthrough, break, unreachable statements
  */
 void
-casebody(Node *sw)
+casebody(Node *sw, Node *typeswvar)
 {
 	Node *os, *oc, *n, *c, *last;
 	Node *def;
 	NodeList *cas, *stat, *l, *lc;
 	Node *go, *br;
-	int32 lno;
+	int32 lno, needvar;
 
 	lno = setlineno(sw);
 	if(sw->list == nil)
@@ -274,6 +274,7 @@ casebody(Node *sw)
 		if(n->op != OXCASE)
 			fatal("casebody %O", n->op);
 		n->op = OCASE;
+		needvar = count(n->list) != 1 || n->list->n->op == OLITERAL;
 
 		go = nod(OGOTO, newlabel(), N);
 		if(n->list == nil) {
@@ -300,6 +301,14 @@ casebody(Node *sw)
 		}
 
 		stat = list(stat, nod(OLABEL, go->left, N));
+		if(typeswvar && needvar && n->nname != N) {
+			NodeList *l;
+
+			l = list1(nod(ODCL, n->nname, N));
+			l = list(l, nod(OAS, n->nname, typeswvar));
+			typechecklist(l, Etop);
+			stat = concat(stat, l);
+		}
 		stat = concat(stat, n->nbody);
 
 		// botch - shouldnt fall thru declaration
@@ -348,16 +357,16 @@ mkcaselist(Node *sw, int arg)
 		switch(arg) {
 		case Stype:
 			c->hash = 0;
-			if(n->left->left == N) {
+			if(n->left->op == OLITERAL) {
 				c->type = Ttypenil;
 				continue;
 			}
-			if(istype(n->left->left->type, TINTER)) {
+			if(istype(n->left->type, TINTER)) {
 				c->type = Ttypevar;
 				continue;
 			}
 
-			c->hash = typehash(n->left->left->type);
+			c->hash = typehash(n->left->type);
 			c->type = Ttypeconst;
 			continue;
 
@@ -483,6 +492,7 @@ exprswitch(Node *sw)
 	Type *t;
 	int arg, ncase;
 
+	casebody(sw, N);
 
 	arg = Snorm;
 	if(isconst(sw->ntest, CTBOOL)) {
@@ -564,13 +574,18 @@ typeone(Node *t)
 	NodeList *init;
 	Node *a, *b, *var;
 
-	var = t->left->left;
-	init = list1(nod(ODCL, var, N));
+	var = t->nname;
+	init = nil;
+	if(var == N) {
+		typecheck(&nblank, Erv | Easgn);
+		var = nblank;
+	} else
+		init = list1(nod(ODCL, var, N));
 
 	a = nod(OAS2, N, N);
 	a->list = list(list1(var), boolname);	// var,bool =
 	b = nod(ODOTTYPE, facename, N);
-	b->type = t->left->left->type;		// interface.(type)
+	b->type = t->left->type;		// interface.(type)
 	a->rlist = list1(b);
 	typecheck(&a, Etop);
 	init = list(init, a);
@@ -678,6 +693,8 @@ typeswitch(Node *sw)
 	typecheck(&a, Etop);
 	cas = list(cas, a);
 
+	casebody(sw, facename);
+
 	boolname = nod(OXXX, N, N);
 	tempname(boolname, types[TBOOL]);
 	typecheck(&boolname, Erv);
@@ -758,10 +775,10 @@ walkswitch(Node *sw)
 		sw->ntest = nodbool(1);
 		typecheck(&sw->ntest, Erv);
 	}
-	casebody(sw);
-
+	
 	if(sw->ntest->op == OTYPESW) {
 		typeswitch(sw);
+//dump("sw", sw);
 		return;
 	}
 	exprswitch(sw);
@@ -776,7 +793,7 @@ typecheckswitch(Node *n)
 	int top, lno;
 	Type *t;
 	NodeList *l, *ll;
-	Node *ncase;
+	Node *ncase, *nvar;
 	Node *def;
 
 	lno = lineno;
@@ -784,11 +801,11 @@ typecheckswitch(Node *n)
 
 	if(n->ntest != N && n->ntest->op == OTYPESW) {
 		// type switch
-		typecheck(&n->ntest, Etop);
 		top = Etype;
-		t = n->ntest->type;
+		typecheck(&n->ntest->right, Erv);
+		t = n->ntest->right->type;
 		if(t != T && t->etype != TINTER)
-			yyerror("cannot type switch on non-interface value %+N", n->ntest);
+			yyerror("cannot type switch on non-interface value %+N", n->ntest->right);
 	} else {
 		// value switch
 		top = Erv;
@@ -814,12 +831,37 @@ typecheckswitch(Node *n)
 		} else {
 			for(ll=ncase->list; ll; ll=ll->next) {
 				setlineno(ll->n);
-				typecheck(&ll->n, Erv);	// TODO(rsc): top
-				if(ll->n->type == T || t == T || top != Erv)
+				typecheck(&ll->n, Erv | Etype);
+				if(ll->n->type == T || t == T)
 					continue;
-				defaultlit(&ll->n, t);
-				if(ll->n->type != T && !eqtype(ll->n->type, t))
-					yyerror("case %+N in switch of %+N %#O", ll->n, n->ntest, ll->n->op);
+				switch(top) {
+				case Erv:	// expression switch
+					defaultlit(&ll->n, t);
+					if(ll->n->op == OTYPE)
+						yyerror("type %T is not an expression", ll->n->type);
+					else if(ll->n->type != T && !eqtype(ll->n->type, t))
+						yyerror("case %+N in switch of %+N %#O", ll->n, n->ntest, ll->n->op);
+					break;
+				case Etype:	// type switch
+					if(ll->n->op == OLITERAL && istype(ll->n->type, TNIL))
+						;
+					else if(ll->n->op != OTYPE && ll->n->type != T)
+						yyerror("%#N is not a type", ll->n);
+					break;
+				}
+			}
+		}
+		if(top == Etype && n->type != T) {
+			ll = ncase->list;
+			nvar = ncase->nname;
+			if(nvar != N) {
+				if(ll && ll->next == nil && ll->n->type != T && !istype(ll->n->type, TNIL)) {
+					// single entry type switch
+					nvar->ntype = typenod(ll->n->type);
+				} else {
+					// multiple entry type switch or default
+					nvar->ntype = typenod(n->type);
+				}
 			}
 		}
 		typechecklist(ncase->nbody, Etop);

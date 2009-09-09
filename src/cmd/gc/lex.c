@@ -1359,6 +1359,7 @@ lexinit(void)
 	s->def->sym = s;
 	types[TBLANK] = typ(TBLANK);
 	s->def->type = types[TBLANK];
+	nblank = s->def;
 }
 
 struct

@@ -19,12 +19,8 @@ type _StructBuilder struct {
 var nobuilder *_StructBuilder
 
 func isfloat(v reflect.Value) bool {
-	switch v := v.(type) {
-	case *reflect.FloatValue:
-		return true;
-	case *reflect.Float32Value:
-		return true;
-	case *reflect.Float64Value:
+	switch v.(type) {
+	case *reflect.FloatValue, *reflect.Float32Value, *reflect.Float64Value:
 		return true;
 	}
 	return false;
