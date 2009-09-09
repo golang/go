@@ -8,8 +8,8 @@
 #include <ar.h>
 
 extern int yychar;
-Sym *anysym;
 char nopackage[] = "____";
+void lexfini(void);
 
 #define	DBG	if(!debug['x']);else print
 enum
@@ -96,8 +96,8 @@ main(int argc, char *argv[])
 		if(curio.bin != nil)
 			Bterm(curio.bin);
 	}
-
 	testdclstack();
+	lexfini();
 
 	typecheckok = 1;
 	if(debug['f'])
@@ -278,9 +278,6 @@ importfile(Val *f)
 		return;
 	}
 
-	if(!debug['A'])
-		anysym->def = typenod(types[TANY]);
-
 	if(!findpkg(f->u.sval))
 		fatal("can't find import: %Z", f->u.sval);
 	imp = Bopen(namebuf, OREAD);
@@ -337,9 +334,6 @@ unimportfile(void)
 {
 	linehist(nil, 0, 0);
 
-	if(!debug['A'])
-		anysym->def = nil;
-
 	if(curio.bin != nil) {
 		Bterm(curio.bin);
 		curio.bin = nil;
@@ -354,9 +348,6 @@ unimportfile(void)
 void
 cannedimports(char *file, char *cp)
 {
-	if(!debug['A'])
-		anysym->def = typenod(types[TANY]);
-
 	lexlineno++;		// if sys.6 is included on line 1,
 	linehist(file, 0, 0);	// the debugger gets confused
 
@@ -1274,10 +1265,9 @@ void
 lexinit(void)
 {
 	int i, lex;
-	Sym *s;
+	Sym *s, *s1;
 	Type *t;
 	int etype;
-	Val v;
 
 	/*
 	 * initialize basic types array
@@ -1287,7 +1277,6 @@ lexinit(void)
 		lex = syms[i].lexical;
 		s = lookup(syms[i].name);
 		s->lexical = lex;
-		s->package = package;
 
 		etype = syms[i].etype;
 		if(etype != Txxx) {
@@ -1302,48 +1291,26 @@ lexinit(void)
 					dowidth(t);
 				types[etype] = t;
 			}
-			s->def = typenod(t);
-			if(etype == TANY) {
-				anysym = s;
-				if(!debug['A'])
-					s->def = nil;
-			}
-			continue;
-		}
-
-		etype = syms[i].op;
-		if(etype != OXXX) {
-			s->def = nod(ONAME, N, N);
-			s->def->sym = s;
-			s->def->etype = etype;
-			s->def->builtin = 1;
+			s1 = pkglookup(syms[i].name, "/builtin/");	// impossible pkg name for builtins
+			s1->lexical = LNAME;
+			s1->def = typenod(t);
 			continue;
 		}
 	}
 
-	// there's only so much table-driven we can handle.
-	// these are special cases.
-	types[TNIL] = typ(TNIL);
-	s = lookup("nil");
-	v.ctype = CTNIL;
-	s->def = nodlit(v);
-	s->def->sym = s;
-	s->block = -1;	// above top level
-
-	s = lookup("true");
-	s->def = nodbool(1);
-	s->def->sym = s;
-	s->block = -1;	// above top level
-
-	s = lookup("false");
-	s->def = nodbool(0);
-	s->def->sym = s;
-	s->block = -1;	// above top level
-
 	s = lookup("iota");
-	s->def = nodintconst(iota);
-	s->def->iota = 1;	// flag to reevaluate on copy
-	s->block = -1;	// above top level
+	s->def = nod(ONONAME, N, N);
+	s->def->iota = 1;
+	s->def->sym = s;
+	
+	s = pkglookup("true", "/builtin/");
+	s->def = nodbool(1);
+	s->def->sym = lookup("true");
+
+	s = pkglookup("false", "/builtin/");
+	s->def = nodbool(0);
+	s->def->sym = lookup("false");
+
 
 	// logically, the type of a string literal.
 	// types[TSTRING] is the named type string
@@ -1360,6 +1327,63 @@ lexinit(void)
 	types[TBLANK] = typ(TBLANK);
 	s->def->type = types[TBLANK];
 	nblank = s->def;
+}
+
+void
+lexfini(void)
+{
+	Sym *s;
+	int lex, etype, i;
+	Val v;
+
+	for(i=0; i<nelem(syms); i++) {
+		lex = syms[i].lexical;
+		if(lex != LNAME)
+			continue;
+		s = lookup(syms[i].name);
+		s->lexical = lex;
+
+		etype = syms[i].etype;
+		if(etype != Txxx && (etype != TANY || debug['A']))
+		if(s->def != N && s->def->op == ONONAME)
+			*s->def = *typenod(types[etype]);
+
+		etype = syms[i].op;
+		if(etype != OXXX && s->def != N && s->def->op == ONONAME) {
+			s->def->op = ONAME;
+			s->def->sym = s;
+			s->def->etype = etype;
+			s->def->builtin = 1;
+		}
+	}
+
+	for(i=0; typedefs[i].name; i++) {
+		s = lookup(typedefs[i].name);
+		if(s->def != N && s->def->op == ONONAME)
+			*s->def = *typenod(types[typedefs[i].etype]);
+	}
+
+	// there's only so much table-driven we can handle.
+	// these are special cases.
+	types[TNIL] = typ(TNIL);
+	s = lookup("nil");
+	if(s->def != N && s->def->op == ONONAME) {
+		v.ctype = CTNIL;
+		*s->def = *nodlit(v);
+		s->def->sym = s;
+	}
+
+	s = lookup("true");
+	if(s->def != N && s->def->op == ONONAME) {
+		*s->def = *nodbool(1);
+		s->def->sym = s;
+	}
+
+	s = lookup("false");
+	if(s->def != N && s->def->op == ONONAME) {
+		*s->def = *nodbool(0);
+		s->def->sym = s;
+	}
 }
 
 struct
@@ -1422,16 +1446,6 @@ lexname(int lex)
 	return buf;
 }
 
-int
-specialsym(Sym *s)
-{
-	if(strcmp(s->name, "byte") == 0 && s->def->sym == lookup("uint8"))
-		return 1;
-	if(strcmp(s->name, "iota") == 0 && s->def->sym == S)
-		return 1;
-	return 0;
-}
-
 void
 mkpackage(char* pkg)
 {
@@ -1459,10 +1473,13 @@ mkpackage(char* pkg)
 				if(s->def->op == OPACK) {
 					// throw away top-level package name leftover
 					// from previous file.
+					// TODO(rsc): remember that there was a package
+					// name, so that the name cannot be redeclared
+					// as a non-package in other files.
 					s->def = N;
 					continue;
 				}
-				if(s->def->sym != s && !specialsym(s)) {
+				if(s->def->sym != s) {
 					// throw away top-level name left over
 					// from previous import . "x"
 					s->def = N;

@@ -722,6 +722,10 @@ defaultlit(Node **np, Type *t)
 		n->type = t;
 		return;
 	default:
+		if(n->left == N) {
+			dump("defaultlit", n);
+			fatal("defaultlit");
+		}
 		defaultlit(&n->left, t);
 		defaultlit(&n->right, t);
 		n->type = n->left->type;

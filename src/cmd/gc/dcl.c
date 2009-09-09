@@ -417,10 +417,6 @@ dclname(Sym *s)
 	// referred to, in which case s->def is already
 	// set to an ONONAME.
 	if(dclcontext == PEXTERN && s->block <= 1) {
-		// toss predefined name like "close"
-		// TODO(rsc): put close in at the end.
-		if(s->def != N && s->def->etype)
-			s->def = N;
 		if(s->def == N)
 			oldname(s);
 		if(s->def->op == ONONAME)
@@ -971,11 +967,8 @@ checkarglist(NodeList *all)
 			t = n;
 			n = N;
 		}
-		if(n != N) {
-			if(n->op == ONONAME && n->sym->def == n)
-				n->sym->def = N;
+		if(n != N)
 			n = newname(n->sym);
-		}
 		n = nod(ODCLFIELD, n, t);
 		if(l->next != nil && n->right != N && n->right->op == OTYPE && isddd(n->right->type))
 			yyerror("only last argument can have type ...");

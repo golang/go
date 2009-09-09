@@ -161,7 +161,7 @@ walkdef(Node *n)
 			yyerror("xxx");
 		}
 		typecheck(&e, Erv | Eiota);
-		if(e->op != OLITERAL) {
+		if(e->type != T && e->op != OLITERAL) {
 			yyerror("const initializer must be constant");
 			goto ret;
 		}

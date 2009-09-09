@@ -1324,13 +1324,13 @@ treecopy(Node *n)
 			abort();
 		break;
 
-	case OLITERAL:
+	case ONONAME:
 		if(n->iota) {
-			m = nodintconst(iota);
+			m = nod(OIOTA, n, nodintconst(iota));
 			break;
 		}
 		// fall through
-	case ONONAME:
+	case OLITERAL:
 	case ONAME:
 	case OTYPE:
 		m = n;
