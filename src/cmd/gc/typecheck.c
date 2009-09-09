@@ -307,6 +307,8 @@ reswitch:
 		defaultlit2(&l, &r, 0);
 		n->left = l;
 		n->right = r;
+		if(l->type == T || r->type == T)
+			goto error;
 		t = l->type;
 		if(t->etype == TIDEAL)
 			t = r->type;
@@ -960,9 +962,8 @@ reswitch:
 		goto ret;
 
 	case OTYPESW:
-		ok |= Etop;
-		typecheck(&n->right, Erv);
-		goto ret;
+		yyerror("use of .(type) outside type switch");
+		goto error;
 
 	case OXCASE:
 		ok |= Etop;
