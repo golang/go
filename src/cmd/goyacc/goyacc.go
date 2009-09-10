@@ -1313,18 +1313,18 @@ cpyact(curprod []int, max int)
 				putrune(ftable, c);
 				return;
 			}
-	
+
 		case '{':
 			if brac == 0 {
 			}
 				putrune(ftable, '\t');
 			brac++;
-			
+
 		case '$':
 			s := 1;
 			tok := -1;
 			c = getrune(finput);
-	
+
 			// type description
 			if c == '<' {
 				ungetrune(finput, c);
@@ -1336,7 +1336,7 @@ cpyact(curprod []int, max int)
 			}
 			if c == '$' {
 				fmt.Fprintf(ftable, "YYVAL");
-	
+
 				// put out the proper tag...
 				if ntypes != 0 {
 					if tok < 0 {
@@ -1398,7 +1398,7 @@ cpyact(curprod []int, max int)
 				continue loop;
 			}
 			fmt.Fprintf(ftable, "YYS[yypt-%v]", max-j-1);
-	
+
 			// put out the proper tag
 			if ntypes != 0 {
 				if j <= 0 && tok < 0 {
@@ -1899,7 +1899,7 @@ closure(i int)
 				}
 				pi := wsets[v].pitem.prod;
 				ipi := wsets[v].pitem.off + 1;
-				
+
 				wsets[v].flag = 0;
 				if nolook != 0 {
 					continue;
@@ -2284,7 +2284,7 @@ output()
 				} else
 				if temp1[k] < 0 { // reduce/reduce conflict
 					if foutput != nil {
-						fmt.Fprintf(foutput, 
+						fmt.Fprintf(foutput,
 							"\n %v: reduce/reduce conflict  (red'ns "
 							"%v and %v) on %v",
 							i, -temp1[k], lastred, symnam(k));
@@ -2324,7 +2324,7 @@ precftn(r, t, s int)
 	if PLEVEL(lt) == 0 || PLEVEL(lp) == 0 {
 		// conflict
 		if foutput != nil {
-			fmt.Fprintf(foutput, 
+			fmt.Fprintf(foutput,
 				"\n%v: shift/reduce conflict (shift %v(%v), red'n %v(%v)) on %v",
 				s, temp1[t], PLEVEL(lt), r, PLEVEL(lp), symnam(t));
 		}

@@ -10,3 +10,8 @@ GOFILES=\
 
 include $(GOROOT)/src/Make.cmd
 
+units: goyacc units.y
+	goyacc units.y
+	$(GC) y.go
+	$(LD) -o units y.$O
+
