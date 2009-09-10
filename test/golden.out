@@ -176,8 +176,4 @@ bugs/bug198.go:10: too many arguments to CALL
 BUG: errchk: compiler crashed
 
 =========== bugs/bug206.go
-0
-throw: index out of range
-
-panic PC=xxx
 BUG: bug206
