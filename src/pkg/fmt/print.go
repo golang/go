@@ -666,172 +666,172 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 
 		s := "";
 		switch c {
-			// bool
-			case 't':
-				if v, ok := getBool(field); ok {
-					if v {
-						s = "true";
-					} else {
-						s = "false";
-					}
+		// bool
+		case 't':
+			if v, ok := getBool(field); ok {
+				if v {
+					s = "true";
 				} else {
-					goto badtype;
+					s = "false";
 				}
+			} else {
+				goto badtype;
+			}
 
-			// int
-			case 'b':
-				if v, signed, ok := getInt(field); ok {
-					s = p.fmt.Fmt_b64(uint64(v)).Str()	// always unsigned
-				} else if v, ok := getFloat32(field); ok {
-					s = p.fmt.Fmt_fb32(v).Str()
-				} else if v, ok := getFloat64(field); ok {
-					s = p.fmt.Fmt_fb64(v).Str()
+		// int
+		case 'b':
+			if v, signed, ok := getInt(field); ok {
+				s = p.fmt.Fmt_b64(uint64(v)).Str()	// always unsigned
+			} else if v, ok := getFloat32(field); ok {
+				s = p.fmt.Fmt_fb32(v).Str()
+			} else if v, ok := getFloat64(field); ok {
+				s = p.fmt.Fmt_fb64(v).Str()
+			} else {
+				goto badtype
+			}
+		case 'c':
+			if v, signed, ok := getInt(field); ok {
+				s = p.fmt.Fmt_c(int(v)).Str()
+			} else {
+				goto badtype
+			}
+		case 'd':
+			if v, signed, ok := getInt(field); ok {
+				if signed {
+					s = p.fmt.Fmt_d64(v).Str()
 				} else {
-					goto badtype
+					s = p.fmt.Fmt_ud64(uint64(v)).Str()
 				}
-			case 'c':
-				if v, signed, ok := getInt(field); ok {
-					s = p.fmt.Fmt_c(int(v)).Str()
+			} else {
+				goto badtype
+			}
+		case 'o':
+			if v, signed, ok := getInt(field); ok {
+				if signed {
+					s = p.fmt.Fmt_o64(v).Str()
 				} else {
-					goto badtype
+					s = p.fmt.Fmt_uo64(uint64(v)).Str()
 				}
-			case 'd':
-				if v, signed, ok := getInt(field); ok {
-					if signed {
-						s = p.fmt.Fmt_d64(v).Str()
-					} else {
-						s = p.fmt.Fmt_ud64(uint64(v)).Str()
-					}
+			} else {
+				goto badtype
+			}
+		case 'x':
+			if v, signed, ok := getInt(field); ok {
+				if signed {
+					s = p.fmt.Fmt_x64(v).Str()
 				} else {
-					goto badtype
+					s = p.fmt.Fmt_ux64(uint64(v)).Str()
 				}
-			case 'o':
-				if v, signed, ok := getInt(field); ok {
-					if signed {
-						s = p.fmt.Fmt_o64(v).Str()
-					} else {
-						s = p.fmt.Fmt_uo64(uint64(v)).Str()
-					}
+			} else if v, ok := getString(field); ok {
+				s = p.fmt.Fmt_sx(v).Str();
+			} else {
+				goto badtype
+			}
+		case 'X':
+			if v, signed, ok := getInt(field); ok {
+				if signed {
+					s = p.fmt.Fmt_X64(v).Str()
 				} else {
-					goto badtype
+					s = p.fmt.Fmt_uX64(uint64(v)).Str()
 				}
-			case 'x':
-				if v, signed, ok := getInt(field); ok {
-					if signed {
-						s = p.fmt.Fmt_x64(v).Str()
-					} else {
-						s = p.fmt.Fmt_ux64(uint64(v)).Str()
-					}
-				} else if v, ok := getString(field); ok {
-					s = p.fmt.Fmt_sx(v).Str();
-				} else {
-					goto badtype
-				}
-			case 'X':
-				if v, signed, ok := getInt(field); ok {
-					if signed {
-						s = p.fmt.Fmt_X64(v).Str()
-					} else {
-						s = p.fmt.Fmt_uX64(uint64(v)).Str()
-					}
-				} else if v, ok := getString(field); ok {
-					s = p.fmt.Fmt_sX(v).Str();
-				} else {
-					goto badtype
-				}
+			} else if v, ok := getString(field); ok {
+				s = p.fmt.Fmt_sX(v).Str();
+			} else {
+				goto badtype
+			}
 
-			// float
-			case 'e':
-				if v, ok := getFloat32(field); ok {
-					s = p.fmt.Fmt_e32(v).Str()
-				} else if v, ok := getFloat64(field); ok {
-					s = p.fmt.Fmt_e64(v).Str()
-				} else {
-					goto badtype
-				}
-			case 'E':
-				if v, ok := getFloat32(field); ok {
-					s = p.fmt.Fmt_E32(v).Str()
-				} else if v, ok := getFloat64(field); ok {
-					s = p.fmt.Fmt_E64(v).Str()
-				} else {
-					goto badtype
-				}
-			case 'f':
-				if v, ok := getFloat32(field); ok {
-					s = p.fmt.Fmt_f32(v).Str()
-				} else if v, ok := getFloat64(field); ok {
-					s = p.fmt.Fmt_f64(v).Str()
-				} else {
-					goto badtype
-				}
-			case 'g':
-				if v, ok := getFloat32(field); ok {
-					s = p.fmt.Fmt_g32(v).Str()
-				} else if v, ok := getFloat64(field); ok {
-					s = p.fmt.Fmt_g64(v).Str()
-				} else {
-					goto badtype
-				}
-			case 'G':
-				if v, ok := getFloat32(field); ok {
-					s = p.fmt.Fmt_G32(v).Str()
-				} else if v, ok := getFloat64(field); ok {
-					s = p.fmt.Fmt_G64(v).Str()
-				} else {
-					goto badtype
-				}
+		// float
+		case 'e':
+			if v, ok := getFloat32(field); ok {
+				s = p.fmt.Fmt_e32(v).Str()
+			} else if v, ok := getFloat64(field); ok {
+				s = p.fmt.Fmt_e64(v).Str()
+			} else {
+				goto badtype
+			}
+		case 'E':
+			if v, ok := getFloat32(field); ok {
+				s = p.fmt.Fmt_E32(v).Str()
+			} else if v, ok := getFloat64(field); ok {
+				s = p.fmt.Fmt_E64(v).Str()
+			} else {
+				goto badtype
+			}
+		case 'f':
+			if v, ok := getFloat32(field); ok {
+				s = p.fmt.Fmt_f32(v).Str()
+			} else if v, ok := getFloat64(field); ok {
+				s = p.fmt.Fmt_f64(v).Str()
+			} else {
+				goto badtype
+			}
+		case 'g':
+			if v, ok := getFloat32(field); ok {
+				s = p.fmt.Fmt_g32(v).Str()
+			} else if v, ok := getFloat64(field); ok {
+				s = p.fmt.Fmt_g64(v).Str()
+			} else {
+				goto badtype
+			}
+		case 'G':
+			if v, ok := getFloat32(field); ok {
+				s = p.fmt.Fmt_G32(v).Str()
+			} else if v, ok := getFloat64(field); ok {
+				s = p.fmt.Fmt_G64(v).Str()
+			} else {
+				goto badtype
+			}
 
-			// string
-			case 's':
-				if inter != nil {
-					// if object implements String, use the result.
-					if stringer, ok := inter.(Stringer); ok {
-						s = p.fmt.Fmt_s(stringer.String()).Str();
-						break;
-					}
+		// string
+		case 's':
+			if inter != nil {
+				// if object implements String, use the result.
+				if stringer, ok := inter.(Stringer); ok {
+					s = p.fmt.Fmt_s(stringer.String()).Str();
+					break;
 				}
-				if v, ok := getString(field); ok {
-					s = p.fmt.Fmt_s(v).Str()
+			}
+			if v, ok := getString(field); ok {
+				s = p.fmt.Fmt_s(v).Str()
+			} else {
+				goto badtype
+			}
+		case 'q':
+			if v, ok := getString(field); ok {
+				s = p.fmt.Fmt_q(v).Str()
+			} else {
+				goto badtype
+			}
+
+		// pointer
+		case 'p':
+			if v, ok := getPtr(field); ok {
+				if v == 0 {
+					s = "<nil>"
 				} else {
-					goto badtype
+					s = "0x" + p.fmt.Fmt_uX64(uint64(v)).Str()
 				}
-			case 'q':
-				if v, ok := getString(field); ok {
-					s = p.fmt.Fmt_q(v).Str()
-				} else {
-					goto badtype
-				}
+			} else {
+				goto badtype
+			}
 
-			// pointer
-			case 'p':
-				if v, ok := getPtr(field); ok {
-					if v == 0 {
-						s = "<nil>"
-					} else {
-						s = "0x" + p.fmt.Fmt_uX64(uint64(v)).Str()
-					}
-				} else {
-					goto badtype
-				}
+		// arbitrary value; do your best
+		case 'v':
+			plus, sharp := p.fmt.plus, p.fmt.sharp;
+			p.fmt.plus = false;
+			p.fmt.sharp = false;
+			p.printField(field, plus, sharp, 0);
 
-			// arbitrary value; do your best
-			case 'v':
-				plus, sharp := p.fmt.plus, p.fmt.sharp;
-				p.fmt.plus = false;
-				p.fmt.sharp = false;
-				p.printField(field, plus, sharp, 0);
+		// the value's type
+		case 'T':
+			s = field.Type().String();
 
-			// the value's type
-			case 'T':
-				s = field.Type().String();
-
-			default:
-			badtype:
-				s = "%" + string(c) + "(" + field.Type().String() + "=";
-				p.addstr(s);
-				p.printField(field, false, false, 0);
-				s = ")";
+		default:
+		badtype:
+			s = "%" + string(c) + "(" + field.Type().String() + "=";
+			p.addstr(s);
+			p.printField(field, false, false, 0);
+			s = ")";
 		}
 		p.addstr(s);
 	}
