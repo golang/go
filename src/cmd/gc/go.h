@@ -1020,6 +1020,7 @@ void	colasdefn(NodeList*, Node*);
 NodeList*	reorder1(NodeList*);
 NodeList*	reorder3(NodeList*);
 NodeList*	reorder4(NodeList*);
+int	vmatch1(Node*, Node*);
 void	anylit(Node*, Node*, NodeList**);
 int	oaslit(Node*, NodeList**);
 void	heapmoves(void);

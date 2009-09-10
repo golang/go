@@ -1093,6 +1093,9 @@ gen_as_init(Node *n)
 	default:
 		goto no;
 
+	case OCONVSLICE:
+		goto slice;
+
 	case OLITERAL:
 		break;
 	}
@@ -1142,6 +1145,34 @@ gen_as_init(Node *n)
 
 yes:
 	return 1;
+
+slice:
+	p = gins(ANOP, N, N); // in case the data is the dest of a goto
+	nr = n->right->left;
+	if(nr == N || nr->op != OADDR)
+		goto no;
+	nr = nr->left;
+	if(nr == N || nr->op != ONAME)
+		goto no;
+
+	// nr is the array being converted to a slice
+	if(nr->type == T || nr->type->etype != TARRAY || nr->type->bound < 0)
+		goto no;
+
+	nam.xoffset += Array_array;
+	p = gins(ADATA, &nam, n->right->left);
+	p->from.scale = types[tptr]->width;
+
+	nam.xoffset += Array_nel-Array_array;
+	nodconst(&nod1, types[TINT32], nr->type->bound);
+	p = gins(ADATA, &nam, &nod1);
+	p->from.scale = types[TINT32]->width;
+
+	nam.xoffset += Array_cap-Array_nel;
+	p = gins(ADATA, &nam, &nod1);
+	p->from.scale = types[TINT32]->width;
+
+	goto yes;
 
 no:
 	if(n->dodata == 2) {

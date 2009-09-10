@@ -205,6 +205,8 @@ dowidth(Type *t)
 			w = sizeof_Array;
 		else
 			fatal("dowidth %T", t);	// probably [...]T
+		if(w == 0)
+			w = maxround;
 		break;
 
 	case TSTRUCT:
