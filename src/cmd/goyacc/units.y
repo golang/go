@@ -17,9 +17,11 @@
 //	./6.out $GOROOT/src/cmd/goyacc/units
 //	you have: c
 //	you want: furlongs/fortnight
-//		* 1.8026178e+12 
-//		/ 5.5474878e-13 
+//		* 1.8026178e+12
+//		/ 5.5474878e-13
 //	you have:
+
+package main
 
 import
 (
@@ -294,7 +296,7 @@ main()
 
 	flag.Parse();
 
-	file = "units";
+	file = "units.txt";
 	if flag.NArg() > 0 {
 		file = flag.Arg(0);
 	}
