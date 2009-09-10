@@ -167,7 +167,7 @@ _x9
 ThisVariableIsExported
 αβ
 </pre>
-Some identifiers are predeclared (§<a href="#Predeclared_identifiers">Predeclared identifiers</a>).
+Some identifiers are <a href="#Predeclared_identifiers">predeclared</a>.
 
 <h3 id="Keywords">Keywords</h3>
 
@@ -665,8 +665,8 @@ new([100]int)[0:50]
 <p>
 A struct is a sequence of named
 elements, called fields, with various types. A struct type declares
-an identifier and type for each field. Within a struct, field identifiers
-must be unique.
+an identifier and type for each field. Within a struct, non-<a href="#Blank_identifier">blank</a>
+field identifiers must be unique.
 </p>
 
 <pre class="ebnf">
@@ -680,10 +680,11 @@ Tag = StringLit .
 // An empty struct.
 struct {}
 
-// A struct with 5 fields.
+// A struct with 6 fields.
 struct {
 	x, y int;
 	u float;
+	_ float;  // padding
 	A *[]int;
 	F func();
 }
@@ -1168,6 +1169,9 @@ A bidirectional channel <code>c</code> can be assigned to a channel variable
 <code>v</code> with compatible channel value type
 if the type of <code>c</code> or <code>v</code> is unnamed.
 </li>
+<li>
+A value can always be assigned to the <a href="#Blank_identifier">blank identifier</a>.
+</li>
 </ul>
 
 <h3 id="Comparison_compatibility">Comparison compatibility</h3>
@@ -1244,7 +1248,7 @@ In addition to explicit blocks in the source code, there are implicit blocks:
 <ol>
 	<li>The <i>universe block</i> encompasses all Go source text.</li>
 
-	<li>Each package (§<a href="#Packages">Packages</a>) has a <i>package block</i> containing all
+	<li>Each <a href="#Packages">package</a> has a <i>package block</i> containing all
 	    Go source text for that package.</li>
 
 	<li>Each file has a <i>file block</i> containing all Go source text
@@ -1258,14 +1262,15 @@ In addition to explicit blocks in the source code, there are implicit blocks:
 </ol>
 
 <p>
-Blocks nest and influence scoping (§<a href="#Declarations_and_scope">Declarations and scope</a>).
+Blocks nest and influence <a href="#Declarations_and_scope">scoping</a>.
 </p>
 
 
 <h2 id="Declarations_and_scope">Declarations and scope</h2>
 
 <p>
-A declaration binds an identifier to a constant, type, variable, function, or package.
+A declaration binds a non-<a href="#Blank_identifier">blank</a>
+identifier to a constant, type, variable, function, or package.
 Every identifier in a program must be declared.
 No identifier may be declared twice in the same block, and
 no identifier may be declared in both the file and package block.
@@ -1372,6 +1377,14 @@ All other identifiers are not exported.
 </p>
 
 
+<h3 id="Blank_identifier">Blank identifier</h3>
+
+<p>
+The <i>blank identifier</i>, represented by the underscore character <code>_</code>, may be used in a declaration like
+any other identifier but the declaration does not introduce a new binding.
+</p>
+
+
 <h3 id="Const_declarations">Const declarations</h3>
 
 <p>
@@ -1449,7 +1462,7 @@ set of related constants:
 </p>
 
 <pre>
-const (            // iota is reset to 0
+const (  // iota is reset to 0
 	c0 = iota;  // c0 == 0
 	c1 = iota;  // c1 == 1
 	c2 = iota   // c2 == 2
@@ -1480,7 +1493,8 @@ it is only incremented at a semicolon:
 const (
 	bit0, mask0 = 1 &lt;&lt; iota, 1 &lt;&lt; iota - 1;  // bit0 == 1, mask0 == 0
 	bit1, mask1;                             // bit1 == 2, mask1 == 1
-	bit2, mask2;                             // bit2 == 4, mask2 == 3
+	_, _;                                    // skips iota == 2
+	bit3, mask3;                             // bit3 == 8, mask3 == 7
 )
 </pre>
 
@@ -1542,6 +1556,8 @@ var (
 	i int;
 	u, v, s = 2.0, 3.0, "bar"
 )
+var re, im = complexSqrt(-1)
+var _, found = entries[name];  // map lookup; only interested in "found"
 </pre>
 
 <p>
@@ -1589,12 +1605,13 @@ i, j := 0, 10;
 f := func() int { return 7; }
 ch := make(chan int);
 r, w := os.Pipe(fd);  // os.Pipe() returns two values
+_, y, _ := coord(p);  // coord() returns three values; only interested in y "projection"
 </pre>
 
 <p>
 Unlike regular variable declarations, a short variable declaration may redeclare variables provided they
 were originally declared in the same block with the same type, and at
-least one of the variables is new.  As a consequence, redeclaration
+least one of the non-<a href="#Blank_identifier">blank</a> variables is new.  As a consequence, redeclaration
 can only appear in a multi-variable short declaration.
 Redeclaration does not introduce a new
 variable; it just assigns a new value to the original.
@@ -1734,12 +1751,11 @@ Constants have values that are known at compile time.
 <h3 id="Qualified_identifiers">Qualified identifiers</h3>
 
 <p>
-A qualified identifier is an identifier qualified by a package name prefix.
+A qualified identifier is a non-<a href="#Blank_identifier">blank</a> identifier qualified by a package name prefix.
 </p>
 
 <pre class="ebnf">
 QualifiedIdent = [ PackageName "." ] identifier .
-PackageName = identifier .
 </pre>
 
 <p>
@@ -1751,6 +1767,10 @@ package, which means that it must begin with a Unicode upper case letter.
 <pre>
 Math.Sin
 </pre>
+
+<p>
+<font color=red>TODO: Unify this section with Selectors - it's the same syntax.</font>
+</p>
 
 <h3 id="Composite_literals">Composite literals</h3>
 
@@ -1998,7 +2018,7 @@ denotes the field or method <code>f</code> of the value denoted by <code>x</code
 (or of <code>*x</code> if
 <code>x</code> is of pointer type). The identifier <code>f</code>
 is called the (field or method)
-<i>selector</i>.
+<i>selector</i>; it must not be the <a href="#Blank_identifier">blank identifier</a>.
 The type of the expression is the type of <code>f</code>.
 </p>
 <p>
@@ -3096,7 +3116,7 @@ assign_op = [ add_op | mul_op ] "=" .
 
 <p>
 Each left-hand side operand must be a variable, pointer indirection,
-field selector, or index expression.
+field selector, index expression, or <a href="#Blank_identifier">blank identifier</a>.
 </p>
 
 <pre>
@@ -3126,7 +3146,7 @@ first, the right hand operand is a single multi-valued expression
 such as a function evaluation or <a href="#Channel_types">channel</a> or
 <a href="#Map_types">map</a> operation or a <a href="#Type_assertions">type assertion</a>.
 The number of operands on the left
-hand side must match the number of values.  For instance, If
+hand side must match the number of values.  For instance, if
 <code>f</code> is a function returning two values,
 </p>
 
@@ -3136,7 +3156,13 @@ x, y = f()
 
 <p>
 assigns the first value to <code>x</code> and the second to <code>y</code>.
+The <a href="#Blank_identifier">blank identifier</a> provides a convenient
+way to ignore values returned by a multi-valued expression:
 </p>
+
+<pre>
+x, _ = f()  // ignore second value returned by f()
+</pre>
 
 <p>
 In the second form, the number of operands on the left must equal the number
@@ -3998,7 +4024,7 @@ m := make(map[string] int, 100);  # map with initial space for 100 elements
 Go programs are constructed by linking together <i>packages</i>.
 A package is in turn constructed from one or more source files that
 together provide access to a set of types, constants, functions,
-and variables.  Those elements may be <i>imported</i> and used in
+and variables.  Those elements may be <i>exported</i> and used in
 another package.
 </p>
 
@@ -4024,8 +4050,13 @@ to which the file belongs.
 </p>
 
 <pre class="ebnf">
-PackageClause    = "package" PackageName .
+PackageClause  = "package" PackageName .
+PackageName    = identifier .
 </pre>
+
+<p>
+The PackageName must not be the <a href="#Blank_identifier">blank identifier</a>.
+</p>
 
 <pre>
 package math
