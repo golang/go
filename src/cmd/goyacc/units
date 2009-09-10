@@ -1,0 +1,604 @@
+/ Plan 9's /lib/units
+/ http://plan9.bell-labs.com/sources/plan9/lib/units
+/
+/ Copyright (C) 2003, Lucent Technologies Inc. and others. All Rights Reserved.
+/ Distributed under the terms of the Lucent Public License Version 1.02
+/ See http://plan9.bell-labs.com/plan9/license.html
+/
+/order of evaluation
+/ + -
+/ * /
+/ juxtaposition (meaning *)
+/ ¹ ² ³ ^
+/ | (meaning /)
+/ name number ()
+
+/dimensions
+m			#
+kg			#
+sec			#
+coul			#
+candela			#
+$			#
+radian			#
+bit			#
+erlang			#
+°K			#
+°C			#
+°F			#
+
+/constants
+
+π			3.14159265358979323846
+pi			π
+c			2.997925e+8 m/sec
+g			9.80665 m/sec²
+au			1.49597871e+11 m
+mole			6.022169e+23
+e			1.6021917e-19 coul
+energy			c²
+force			g
+mercury			1.33322e+5 kg/m²sec²
+hg			mercury
+h			6.62620e-34 m²kg/sec
+ℏ			h/2 π
+hbar			ℏ
+nonillion		1e30
+octillion		1e27
+septillion		1e24
+sextillion		1e21
+pentillion		1e18
+quadrillion		1e15
+trillion		1e12
+billion			1e9
+million			1e6
+thousand		1e3
+hundred			1e2
+
+/dimensionless
+
+°			1|180 π radian
+degree			°
+circle			2 π radian
+turn			2 π radian
+grad			.9 °
+arcdeg			1 °
+arcmin			1|60 °
+arcsec			1|3600 °
+ccs			1|36 erlang
+
+steradian		radian²
+sphere			4 π steradian
+sr			steradian
+giga		1024 1024 1024
+
+/Time
+
+second			sec
+s			sec
+minute			60 sec
+min			minute
+hour			60 min
+hr			hour
+day			24 hr
+da			day
+week			7 day
+year			365.24219879 day
+yr			year
+month			1|12 year
+ms			millisec
+us			microsec
+
+/Mass
+
+gram			millikg
+gm			gram
+mg			milligram
+metricton		kilokg
+
+/Avoirdupois
+
+lb			.45359237 kg
+lbf			lb g
+pound			lb
+ounce			1|16 lb
+oz			ounce
+dram			1|16 oz
+dr			dram
+grain			1|7000 lb
+gr			grain
+shortton		2000 lb
+ton			shortton
+longton			2240 lb
+
+/Apothecary
+
+scruple			20 grain
+apdram			60 grain
+apounce			480 grain
+troyounce		apounce
+appound			5760 grain
+troypound		appound
+
+/Length
+
+meter			m
+cm			centimeter
+mm			millimeter
+km			kilometer
+nm			nanometer
+micron			micrometer
+µ			micrometer
+Å			decinanometer
+angstrom		Å
+
+inch			2.54 cm
+"			inch
+in			inch
+inches		inch
+'			12"
+foot			12 in
+feet			foot
+ft			foot
+yard			3 ft
+yd			yard
+rod			5.5 yd
+rd			rod
+mile			5280 ft
+mi			mile
+
+british			1200|3937 m/ft
+nmile			1852 m
+
+acre			4840 yd²
+
+cc			cm³
+liter			kilocc
+ml			milliliter
+
+/US Liquid
+
+gallon			231 in³
+imperial		1.20095
+epa			0.8
+gal			gallon
+quart			1|4 gal
+qt			quart
+pint			1|2 qt
+pt			pint
+
+floz			1|16 pt
+fldr			1|8 floz
+
+/US Dry
+
+dry			268.8025 in³/gallon
+peck			8 dry quart
+pk			peck
+bushel			4 peck
+bu			bushel
+
+/British
+
+brgallon		277.420 in³
+brquart			1|4 brgallon
+brpint			1|2 brquart
+brfloz			1|20 brpint
+brpeck			554.84 in³
+brbushel		4 brpeck
+
+/Energy Work
+
+newton			kg m/sec²
+nt			newton
+joule			nt m
+cal			4.1868 joule
+
+/Electrical
+
+coulomb			coul
+ampere			coul/sec
+amp			ampere
+watt			joule/sec
+volt			watt/amp
+Ω			volt/amp
+ohm			Ω
+mho			1/Ω
+farad			coul/volt
+henry			sec²/farad
+weber			volt sec
+
+/Light
+
+cd			candela
+lumen			cd sr
+lux			cd sr/m²
+
+/ MONEY DATE
+/ Fri Oct 27 15:52:13 EDT 2000
+
+/ MONEY START
+argentpeso		1 | .9998 $
+australiadollar		1 | 1.9175 $
+brazilreal		1 | 1.9300 $
+britainpound		1 | .6972 $
+canadadollar		1 | 1.5237 $
+chilepeso		1 | 576.45 $
+chinayuan		1 | 8.2782 $
+colombiapeso		1 | 2165.00 $
+czechrepkoruna		1 | 42.11 $
+denmarkkrone		1 | 9.0134 $
+dominicanpeso		1 | 16.00 $
+egyptpound		1 | 3.6750 $
+euro			1 | 1.08863 $
+hongkongdollar		1 | 7.7991 $
+hungaryforint		1 | 317.59 $
+indiarupee		1 | 46.600 $
+indnsiarupiah		1 | 9025.00 $
+israelshekel		1 | 4.1450 $
+japanyen		1 | 108.34 $
+jordandinar		1 | .71098 $
+lebanonpound		1 | 1514.00 $
+malaysiaringgit		1 | 3.7996 $
+mexicopeso		1 | 9.6850 $
+newzealanddollar	1 | 2.4938 $
+norwaykrone		1 | 9.5940 $
+pakistanrupee		1 | 57.75 $
+perunewsol		1 | 3.510 $
+philpinspeso		1 | 50.10 $
+polandzloty		1 | 4.70 $
+russiaruble		1 | 27.9200 $
+sdr			1 | .7841 $
+saudiarabriyal		1 | 3.7508 $
+singaporedollar		1 | 1.7546 $
+slovakrepkoruna		1 | 52.65 $
+southafricarand		1 | 7.6725 $
+southkoreawon		1 | 1137.20 $
+swedenkrona		1 | 10.2621 $
+switzerlndfranc		1 | 1.8195 $
+taiwandollar		1 | 32.09 $
+thailandbaht		1 | 43.58 $
+turkeylira		1 | 687860 $
+uaedirham		1 | 3.6728 $
+uruguaynewpeso		1 | 12.4180 $
+venezuelabolivar	1 | 693.2500 $
+/ MONEY END
+
+€			euro
+£			britainpound
+¥			japanyen
+dollar			$
+
+bef			1 | 40.3399 €
+belgiumfranc	bef
+dem			1 | 1.95583 €
+germanymark	dem
+grd			1 | 340.750 €
+greecedrachma	grd
+esp			1 | 166.386 €
+spainpeseta		esp
+frf			1 | 6.55957 €
+francefranc	frf
+iep			1 | .787564 €
+irelandpunt	iep
+itl			1 | 1936.27 €
+italylira		itl
+luf			1 | 40.3399 €
+luxembourgfranc	luf
+nlg			1 | 2.20371 €
+netherlandsguilder	nlg
+ats			1 | 13.7603 €
+austriaschilling	ats
+pte			1 | 200.482 €
+portugalescudo	pte
+fim			1 | 5.94573 €
+finlandmark	fim
+
+baht			thailandbaht
+bolivar			venezuelabolivar
+brpound			britainpound
+dinar			jordandinar
+dirham			uaedirham
+drachma			greecedrachma
+escudo			portugalescudo
+forint			hungaryforint
+franc			francefranc
+guilder			netherlandsguilder
+krona			swedenkrona
+lira			italylira
+mark			germanymark
+peseta			spainpeseta
+peso			mexicopeso
+punt			irelandpunt
+rand			southafricarand
+real			brazilreal
+yuan			chinayuan
+ringgit			malaysiaringgit
+riyal			saudiarabriyal
+ruble			russiaruble
+rupee			indiarupee
+rupiah			indnsiarupiah
+shekel			israelshekel
+sol			perunewsol
+won			southkoreawon
+yen			japanyen
+zloty			polandzloty
+
+usdollar		dollar
+sterling		britainpound | pound
+poundsterling		britainpound
+
+/bits
+
+baud			bit/sec
+byte			8 bit
+short			2 byte
+long			4 byte
+vlong			8 bytes
+frame			2352 byte
+
+/Australian liquid measure
+
+pony			7 brfloz
+midie			10 brfloz
+pot			midie
+handle			midie
+schooner		15 brfloz
+jug			40 brfloz
+resch			midie
+alf			midie
+tinny			13 brfloz
+stubby			tinny
+twisty			250 ml
+longneck		2 tinny
+slab			24 tinny
+sixpack			6 tinny
+nip			brfloz
+
+/wine
+winebottle		750 ml
+balthazar		16 winebottle
+jeroboam		4 winebottle
+magnum			2 winebottle
+mathusalem		8 winebottle
+methuselah		8 winebottle
+nebuchadnezzar		20 winebottle
+rehoboam		6 winebottle
+salmanazar		12 winebottle
+split			0.25 winebottle
+jigger			1.5 floz
+
+/Trivia
+
+%			1|100
+admiraltyknot		6080 ft/hr
+ε₀			(1e-9/36π) farad/m
+α			(1/4π ε₀) e²/ℏ c
+alpha			α
+apostilb		cd/π m²
+are			1e+2 m²
+arpentcan		27.52 mi
+arpentlin		191.835 ft
+astronomicalunit	au
+atmosphere		1.01325e+5 nt/m²
+atm			atmosphere
+atomicmassunit		1.66044e-27 kg
+amu			atomicmassunit
+bag			94 lb
+bakersdozen		13
+bar			1e+5 nt/m²
+barie			1e-1 nt/m²
+barleycorn		1|3 in
+barn			1e-28 m²
+barrel			42 gal
+barye			1e-1 nt/m²
+bev			1e+9 e volt
+biot			10 amp
+blondel			cd/π m²
+boardfoot		144 in³
+bolt			40 yd
+bottommeasure		1|40 in
+britishthermalunit	1.05506e+3 joule
+btu			britishthermalunit
+quad			1.0e+15 btu
+refrigeration		12000 btu/ton hour
+buck			dollar
+cable			720 ft
+caliber			1e-2 in
+calorie			cal
+carat			205 mg
+cent			centidollar
+cental			100 lb
+centesimalminute	1e-2 grad
+centesimalsecond	1e-4 grad
+century			100 year
+cfs			ft³/sec
+chain			66 ft
+circularinch		1|4 π in²
+circularmil		1e-6|4 π in²
+clusec			1e-8 mm hg m³/s
+coomb			4 bu
+cord			128 ft³
+cordfoot		cord
+crith			9.06e-2 gm
+cubit			18 in
+cup			1|2 pt
+curie			3.7e+10/sec
+cusec			ft³/sec
+dalton			amu
+decade			10 yr
+degK			°K
+degC			°C
+degF			°F
+dipotre			1/m
+displacementton		35 ft³
+doppelzentner		100 kg
+dozen			12
+drop			.03 cm³
+dyne			cm gm/sec²
+electronvolt		e volt
+ell			45 in
+engineerschain		100 ft
+engineerslink		100|100 ft
+equivalentfootcandle	lumen/π ft²
+equivalentlux		lumen/π m²
+equivalentphot		cd/π cm²
+erg			cm²gm/sec²
+ev			e volt
+faraday			9.652e+4 coul
+fathom			6 ft
+fermi			1e-15 m
+fifth			4|5 qt
+fin			5 dollar
+finger			7|8 in
+firkin			9 gal
+footcandle		lumen/ft²
+footlambert		cd/π ft²
+fortnight		14 da
+franklin		3.33564e-10 coul
+frigorie		kilocal
+furlong			220 yd
+galileo			1e-2 m/sec²
+gamma			1e-9 weber/m²
+gauss			1e-4 weber/m²
+geodeticfoot		british ft
+geographicalmile	1852 m
+gilbert			7.95775e-1 amp
+gill			1|4 pt
+gross			144
+gunterschain		22 yd
+hand			4 in
+hectare			1e+4 m²
+hefnercandle		.92 cd
+hertz			1/sec
+hogshead		2 barrel
+hd			hogshead
+homestead		1|4 mi²
+horsepower		550 ft lb g/sec
+hp			horsepower
+hyl			gm force sec²/m
+hz			1/sec
+imaginarycubicfoot	1.4 ft³
+karat			1|24
+kcal			kilocal
+kcalorie		kilocal
+kev			1e+3 e volt
+key			kg
+khz			1e+3/sec
+kilderkin		18 gal
+knot			nmile/hr
+kwh			kilowatt hour
+lambert			cd/π cm²
+langley			cal/cm²
+last			80 bu
+league			3 mi
+lightyear		c yr
+ly			lightyear
+lightsecond		c sec
+line			1|12 in
+link			66|100 ft
+longhundredweight	112 lb
+longquarter		28 lb
+lusec			1e-6 mm hg m³/s
+mach			331.46 m/sec
+marineleague		3 nmile
+maxwell			1e-8 weber
+metriccarat		200 mg
+mev			1e+6 e volt
+mgd			megagal/day
+mh			millihenry
+mhz			1e+6/sec
+mil			1e-3 in
+millenium		1000 year
+minersinch		1.5 ft³/min
+minim			1|60 fldr
+mo			month
+mpg			mile/gal
+mph			mile/hr
+nail			1|16 yd
+nauticalmile		nmile
+nit			cd/m²
+noggin			1|8 qt
+nox			1e-3 lux
+ns			nanosec
+oersted			2.5e+2 amp/m π
+oe			oersted
+pace			36 in
+palm			3 in
+parasang		3.5 mi
+parsec			au radian/arcsec
+pascal			nt/m²
+pc			parsec
+pennyweight		1|20 oz
+percent			%
+perch			rd
+pf			picofarad
+phot			lumen/cm²
+pica			1|6 in
+pieze			1e+3 nt/m²
+pipe			4 barrel
+point			1|72 in
+poise			gm/cm sec
+pole			rd
+poundal			ft lb/sec²
+pdl			poundal
+proof			1/200
+psi			lb g/in²
+quarter			9 in
+quartersection		1|4 mi²
+quintal			100 kg
+quire			25
+rad			100 erg/gm
+ream			500
+registerton		100 ft³
+rhe			10 m²/nt sec
+rontgen			2.58e-4 curie/kg
+rood			1.21e+3 yd
+rope			20 ft
+rutherford		1e+6/sec
+rydberg			1.36054e+1 ev
+sabin			1 ft²
+sack			3 bu
+seam			8 bu
+section			mi²
+shippington		40 ft³
+shorthundredweight	100 lb
+shortquarter		25 lb
+siemens			1/Ω
+σ			5.66956e-5 erg/cm² °K^4 sec
+sigma			σ
+skein			120 yd
+skot			1e-3 apostilb
+slug			lb g sec²/ft
+span			9 in
+spat			4 π sr
+spindle			14400 yd
+square			100 ft²
+squidge			1|972 inch
+catsquidge		1|432 inch
+stere			m³
+sthene			1e+3 nt
+stilb			cd/cm²
+stoke			1e-4 m²/sec
+stone			14 lb
+strike			2 bu
+surveyfoot		british ft
+surveyorschain		66 ft
+surveyorslink		66|100 ft
+tablespoon		4 fldr
+teaspoon		4|3 fldr
+tesla			weber/m²
+therm			1e+5 btu
+thermie			1e+6 cal
+timberfoot		ft³
+tnt			4.6e+6 m²/sec²
+tonne			1e+6 gm
+torr			mm hg
+township		36 mi²
+tun			8 barrel
+water			.22491|2.54 kg/m²sec²
+wey			40 bu
+weymass			252 lb
+Xunit			1.00202e-13 m
+k			1.38047e-16 erg/°K
+foal			9223372036854775807
