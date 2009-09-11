@@ -62,7 +62,7 @@ type Inflater struct {
 	OS byte;			// operating system type
 
 	r flate.Reader;
-	inflater io.Reader;
+	inflater io.ReadCloser;
 	digest hash.Hash32;
 	size uint32;
 	flg byte;
@@ -73,6 +73,7 @@ type Inflater struct {
 
 // NewInflater creates a new Inflater reading the given reader.
 // The implementation buffers input and may read more data than necessary from r.
+// It is the caller's responsibility to call Close on the Inflater when done.
 func NewInflater(r io.Reader) (*Inflater, os.Error) {
 	z := new(Inflater);
 	z.r = makeReader(r);
@@ -219,5 +220,10 @@ func (z *Inflater) Read(p []byte) (n int, err os.Error) {
 	z.digest.Reset();
 	z.size = 0;
 	return z.Read(p);
+}
+
+// Calling Close does not close the wrapped io.Reader originally passed to NewInflater.
+func (z *Inflater) Close() os.Error {
+	return z.inflater.Close();
 }
 
