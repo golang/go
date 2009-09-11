@@ -3890,22 +3890,27 @@ to a variable of type T.
 </li>
 <li>
 2) The conversion succeeds if the value would be assignment-compatible
-to a variable of type T if the value type or T or any of their component
+to a variable of type T if the value's type, or T, or any of their component
 types are unnamed (§<a href="#Type_identity_and_compatibility">Type identity and compatibility</a>).
 </li>
 <li>
-3) Between integer types.  If the value is a signed quantity, it is
+3a) From an ideal number to an integer type.
+The ideal number must be representable in the result type; it must not overflow.
+For example, <code>uint8(0xFF)</code> is legal but <code>int8(0xFF)</code> is not.
+</li>
+<li>
+3b) From a non-ideal integer value to an integer type.  If the value is a signed quantity, it is
 sign extended to implicit infinite precision; otherwise it is zero
-extended.  It is then truncated to fit in the result type size.
-For example, <code>uint32(int8(0xFF))</code> is <code>0xFFFFFFFF</code>.
-The conversion always yields a valid value; there is no signal for overflow.
+extended.  It is then truncated to fit in the result type's size.
+For example, if <code>x := uint16(0x10F0)</code>, then <code>uint32(int8(x)) == 0xFFFFFFF0</code>.
+The conversion always yields a valid value; there is no indication of overflow.
 </li>
 <li>
 4) Between integer and floating point types, or between floating point
 types.  To avoid overdefining the properties of the conversion, for
 now it is defined as a ``best effort'' conversion.  The conversion
 always succeeds but the value may be a NaN or other problematic
-result. <font color=red>TODO: clarify?</font>
+result. <font color=red>TODO: clarify</font>
 </li>
 <li>
 5) Strings permit three special conversions:
@@ -3915,7 +3920,7 @@ result. <font color=red>TODO: clarify?</font>
 representation of the integer.
 
 <pre>
-string(0x65e5)  // "\u65e5"
+string(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
 </pre>
 
 </li>
@@ -3924,9 +3929,9 @@ string(0x65e5)  // "\u65e5"
 concatenation of the individual integers converted to strings.
 If the slice value is <code>nil</code>, the result is the empty string.
 <pre>
-string([]int{0x65e5, 0x672c, 0x8a9e})  // "\u65e5\u672c\u8a9e"
-</pre>
+string([]int{0x65e5, 0x672c, 0x8a9e})  // "\u65e5\u672c\u8a9e" == "日本語"</pre>
 </li>
+
 <li>
 5c) Converting a slice of bytes yields a string whose successive
 bytes are those of the slice. If the slice value is <code>nil</code>,
