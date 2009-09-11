@@ -36,9 +36,6 @@ var (
 	tabwidth = flag.Int("tabwidth", 8, "tab width");
 	rawformat = flag.Bool("rawformat", false, "do not use a tabwriter");
 	usespaces = flag.Bool("spaces", false, "align with blanks instead of tabs");
-	optcommas = flag.Bool("optcommas", false, "print optional commas");
-	optsemis = flag.Bool("optsemis", false, "print optional semicolons");
-	reverse = flag.Bool("reverse", false, "print top-level declarations in reverse order without forward-declarations");
 )
 
 
@@ -110,15 +107,6 @@ func printerMode() uint {
 	}
 	if *usespaces {
 		mode |= printer.UseSpaces;
-	}
-	if *optcommas {
-		mode |= printer.OptCommas;
-	}
-	if *optsemis {
-		mode |= printer.OptSemis;
-	}
-	if *reverse {
-		mode |= printer.Reverse;
 	}
 	return mode;
 }

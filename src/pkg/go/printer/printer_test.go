@@ -101,6 +101,7 @@ type entry struct {
 var data = []entry{
 	entry{ "source1.go", "golden1.go", false },
 	entry{ "source1.go", "golden1.x", true },
+	entry{ "linebreaks.go", "linebreaks.golden", false },
 }
 
 
