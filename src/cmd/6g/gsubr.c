@@ -192,8 +192,8 @@ afunclit(Addr *a)
 
 static	int	resvd[] =
 {
-//	D_DI,	// for movstring
-//	D_SI,	// for movstring
+	D_DI,	// for movstring
+	D_SI,	// for movstring
 
 	D_AX,	// for divide
 	D_CX,	// for shift

@@ -95,6 +95,8 @@ int	samaddr(Node*, Node*);
 void	naddr(Node*, Addr*);
 void	cgen_aret(Node*, Node*);
 int	cgen_inline(Node*, Node*);
+void	restx(Node*, Node*);
+void	savex(int, Node*, Node*, Node*, Type*);
 
 /*
  * gsubr.c

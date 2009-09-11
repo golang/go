@@ -898,7 +898,7 @@ stkof(Node *n)
 void
 sgen(Node *n, Node *ns, int32 w)
 {
-	Node nodl, nodr;
+	Node nodl, nodr, oldl, oldr, cx, oldcx;
 	int32 c, q, odst, osrc;
 
 	if(debug['g']) {
@@ -919,19 +919,29 @@ sgen(Node *n, Node *ns, int32 w)
 	osrc = stkof(n);
 	odst = stkof(ns);
 
-	nodreg(&nodl, types[tptr], D_DI);
-	nodreg(&nodr, types[tptr], D_SI);
 
 	if(n->ullman >= ns->ullman) {
+		savex(D_SI, &nodr, &oldr, N, types[tptr]);
 		agen(n, &nodr);
+
+		regalloc(&nodr, types[tptr], &nodr);	// mark nodr as live
+		savex(D_DI, &nodl, &oldl, N, types[tptr]);
 		agen(ns, &nodl);
+		regfree(&nodr);
 	} else {
+		savex(D_DI, &nodl, &oldl, N, types[tptr]);
 		agen(ns, &nodl);
+
+		regalloc(&nodl, types[tptr], &nodl);	// mark nodl as live
+		savex(D_SI, &nodr, &oldr, N, types[tptr]);
 		agen(n, &nodr);
+		regfree(&nodl);
 	}
 
 	c = w % 8;	// bytes
 	q = w / 8;	// quads
+
+	savex(D_CX, &cx, &oldcx, N, types[TINT64]);
 
 	// if we are copying forward on the stack and
 	// the src and dst overlap, then reverse direction
@@ -982,4 +992,9 @@ sgen(Node *n, Node *ns, int32 w)
 			c--;
 		}
 	}
+
+
+	restx(&nodl, &oldl);
+	restx(&nodr, &oldr);
+	restx(&cx, &oldcx);
 }
