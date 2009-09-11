@@ -461,6 +461,8 @@ ret:
 int
 samereg(Node *a, Node *b)
 {
+	if(a == N || b == N)
+		return 0;
 	if(a->op != OREGISTER)
 		return 0;
 	if(b->op != OREGISTER)
@@ -481,11 +483,12 @@ samereg(Node *a, Node *b)
  * according to op.
  */
 void
-dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+dodiv(int op, Node *nl, Node *nr, Node *res)
 {
 	int a;
 	Node n3, n4;
 	Type *t;
+	Node ax, dx, oldax, olddx;
 
 	t = nl->type;
 	if(t->width == 1) {
@@ -495,62 +498,73 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 			t = types[TUINT32];
 	}
 	a = optoas(op, t);
-	ax->type = t;
-	dx->type = t;
 
 	regalloc(&n3, t, N);
 	if(nl->ullman >= nr->ullman) {
-		cgen(nl, ax);
-		if(!issigned[t->etype]) {
-			nodconst(&n4, t, 0);
-			gmove(&n4, dx);
-		} else
-			gins(optoas(OEXTEND, t), N, N);
+		savex(D_AX, &ax, &oldax, res, t);
+		cgen(nl, &ax);
+		regalloc(&ax, t, &ax);	// mark ax live during cgen
 		cgen(nr, &n3);
+		regfree(&ax);
 	} else {
 		cgen(nr, &n3);
-		cgen(nl, ax);
-		if(!issigned[t->etype]) {
-			nodconst(&n4, t, 0);
-			gmove(&n4, dx);
-		} else
-			gins(optoas(OEXTEND, t), N, N);
+		savex(D_AX, &ax, &oldax, res, t);
+		cgen(nl, &ax);
 	}
+	savex(D_DX, &dx, &olddx, res, t);
+	if(!issigned[t->etype]) {
+		nodconst(&n4, t, 0);
+		gmove(&n4, &dx);
+	} else
+		gins(optoas(OEXTEND, t), N, N);
 	gins(a, &n3, N);
 	regfree(&n3);
 
 	if(op == ODIV)
-		gmove(ax, res);
+		gmove(&ax, res);
 	else
-		gmove(dx, res);
+		gmove(&dx, res);
+	restx(&ax, &oldax);
+	restx(&dx, &olddx);
 }
 
-static void
+/*
+ * register dr is one of the special ones (AX, CX, DI, SI, etc.).
+ * we need to use it.  if it is already allocated as a temporary
+ * (r > 1; can only happen if a routine like sgen passed a
+ * special as cgen's res and then cgen used regalloc to reuse
+ * it as its own temporary), then move it for now to another
+ * register.  caller must call restx to move it back.
+ * the move is not necessary if dr == res, because res is
+ * known to be dead.
+ */
+void
 savex(int dr, Node *x, Node *oldx, Node *res, Type *t)
 {
 	int r;
 
 	r = reg[dr];
-	nodreg(x, types[TINT64], dr);
 
 	// save current ax and dx if they are live
 	// and not the destination
 	memset(oldx, 0, sizeof *oldx);
-	if(r > 0 && !samereg(x, res)) {
+	nodreg(x, t, dr);
+	if(r > 1 && !samereg(x, res)) {
 		regalloc(oldx, types[TINT64], N);
+		x->type = types[TINT64];
 		gmove(x, oldx);
+		x->type = t;
+		oldx->ostk = r;	// squirrel away old r value
+		reg[dr] = 1;
 	}
-
-	regalloc(x, t, x);
 }
 
-static void
+void
 restx(Node *x, Node *oldx)
 {
-	regfree(x);
-
 	if(oldx->op != 0) {
 		x->type = types[TINT64];
+		reg[x->val.u.reg] = oldx->ostk;
 		gmove(oldx, x);
 		regfree(oldx);
 	}
@@ -564,8 +578,8 @@ restx(Node *x, Node *oldx)
 void
 cgen_div(int op, Node *nl, Node *nr, Node *res)
 {
-	Node ax, dx, oldax, olddx;
 	Node n1, n2, n3, savl, savr;
+	Node ax, dx, oldax, olddx;
 	int n, w, s, a;
 	Magic m;
 
@@ -701,11 +715,11 @@ divbymul:
 		if(op == OMOD)
 			goto longmod;
 
-		savex(D_AX, &ax, &oldax, res, nl->type);
-		savex(D_DX, &dx, &olddx, res, nl->type);
-
 		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);				// num -> reg(n1)
+
+		savex(D_AX, &ax, &oldax, res, nl->type);
+		savex(D_DX, &dx, &olddx, res, nl->type);
 
 		nodconst(&n2, nl->type, m.um);
 		gmove(&n2, &ax);			// const->ax
@@ -751,11 +765,11 @@ divbymul:
 		if(op == OMOD)
 			goto longmod;
 
-		savex(D_AX, &ax, &oldax, res, nl->type);
-		savex(D_DX, &dx, &olddx, res, nl->type);
-
 		regalloc(&n1, nl->type, N);
 		cgen(nl, &n1);				// num -> reg(n1)
+
+		savex(D_AX, &ax, &oldax, res, nl->type);
+		savex(D_DX, &dx, &olddx, res, nl->type);
 
 		nodconst(&n2, nl->type, m.sm);
 		gmove(&n2, &ax);			// const->ax
@@ -798,11 +812,7 @@ divbymul:
 
 longdiv:
 	// division and mod using (slow) hardware instruction
-	savex(D_AX, &ax, &oldax, res, nl->type);
-	savex(D_DX, &dx, &olddx, res, nl->type);
-	dodiv(op, nl, nr, res, &ax, &dx);
-	restx(&ax, &oldax);
-	restx(&dx, &olddx);
+	dodiv(op, nl, nr, res);
 	return;
 
 longmod:
@@ -979,7 +989,7 @@ void
 clearfat(Node *nl)
 {
 	uint32 w, c, q;
-	Node n1;
+	Node n1, oldn1, ax, oldax;
 
 	/* clear a fat object */
 	if(debug['g'])
@@ -989,9 +999,11 @@ clearfat(Node *nl)
 	c = w % 8;	// bytes
 	q = w / 8;	// quads
 
-	gconreg(AMOVQ, 0, D_AX);
-	nodreg(&n1, types[tptr], D_DI);
+	savex(D_DI, &n1, &oldn1, N, types[tptr]);
 	agen(nl, &n1);
+
+	savex(D_AX, &ax, &oldax, N, types[tptr]);
+	gconreg(AMOVQ, 0, D_AX);
 
 	if(q >= 4) {
 		gconreg(AMOVQ, q, D_CX);
@@ -1012,6 +1024,9 @@ clearfat(Node *nl)
 		gins(ASTOSB, N, N);	// STOB AL,*(DI)+
 		c--;
 	}
+
+	restx(&n1, &oldn1);
+	restx(&ax, &oldax);
 }
 
 int
