@@ -215,109 +215,81 @@ lumen			cd sr
 lux			cd sr/m²
 
 / MONEY DATE
-/ Fri Oct 27 15:52:13 EDT 2000
+/ Thu Sep 10 2009
 
-/ MONEY START
-argentpeso		1 | .9998 $
-australiadollar		1 | 1.9175 $
-brazilreal		1 | 1.9300 $
-britainpound		1 | .6972 $
-canadadollar		1 | 1.5237 $
-chilepeso		1 | 576.45 $
-chinayuan		1 | 8.2782 $
-colombiapeso		1 | 2165.00 $
-czechrepkoruna		1 | 42.11 $
-denmarkkrone		1 | 9.0134 $
-dominicanpeso		1 | 16.00 $
-egyptpound		1 | 3.6750 $
-euro			1 | 1.08863 $
-hongkongdollar		1 | 7.7991 $
-hungaryforint		1 | 317.59 $
-indiarupee		1 | 46.600 $
-indnsiarupiah		1 | 9025.00 $
-israelshekel		1 | 4.1450 $
-japanyen		1 | 108.34 $
-jordandinar		1 | .71098 $
-lebanonpound		1 | 1514.00 $
-malaysiaringgit		1 | 3.7996 $
-mexicopeso		1 | 9.6850 $
-newzealanddollar	1 | 2.4938 $
-norwaykrone		1 | 9.5940 $
-pakistanrupee		1 | 57.75 $
-perunewsol		1 | 3.510 $
-philpinspeso		1 | 50.10 $
-polandzloty		1 | 4.70 $
-russiaruble		1 | 27.9200 $
-sdr			1 | .7841 $
-saudiarabriyal		1 | 3.7508 $
-singaporedollar		1 | 1.7546 $
-slovakrepkoruna		1 | 52.65 $
-southafricarand		1 | 7.6725 $
-southkoreawon		1 | 1137.20 $
-swedenkrona		1 | 10.2621 $
-switzerlndfranc		1 | 1.8195 $
-taiwandollar		1 | 32.09 $
-thailandbaht		1 | 43.58 $
-turkeylira		1 | 687860 $
-uaedirham		1 | 3.6728 $
-uruguaynewpeso		1 | 12.4180 $
-venezuelabolivar	1 | 693.2500 $
-/ MONEY END
+argentinapeso			1 | 0.2595 $
+australiadollar			1 | 0.8618 $
+boliviaboliviano		1 | 0.1425 $
+brazilreal			1 | 0.5522 $
+britainpound			1 | 1.6651 $
+canadadollar			1 | 0.9277 $
+chilepeso			1 | 0.0018 $
+chinayuan			1 | 0.1464 $
+colombiapeso			1 | 0.0005 $
+czechkoruna			1 | 0.0572 $
+denmarkkrone			1 | 0.1958 $
+dominicanpeso			1 | 0.0278 $
+egyptpound			1 | 0.181 $
+elsalvadorcolon			1 | 0.1143 $
+europeuro			1 | 1.4577 $
+guatemalaquetzal		1 | 0.121 $
+honduraslempira			1 | 0.0529 $
+hongkongdollar			1 | 0.129 $
+hungaryforint			1 | 0.0054 $
+indiarupee			1 | 0.0207 $
+indonesiarupiah			1 | 0.0001 $
+israelshekel			1 | 0.2643 $
+japanyen			1 | 0.0109 $
+kenyashilling			1 | 0.0132 $
+kuwaitdinar			1 | 3.4854 $
+lebanonpound			1 | 0.0007 $
+malaysiaringgit			1 | 0.286 $
+mexicopeso			1 | 0.0748 $
+newzealanddollar		1 | 0.7028 $
+nicaraguacordoba		1 | 0.0487 $
+norwaykrone			1 | 0.1681 $
+pakistanrupee			1 | 0.0121 $
+paraguayguarani			1 | 0.0002 $
+perunewsol			1 | 0.3384 $
+philippinespeso			1 | 0.0207 $
+polandzloty			1 | 0.352 $
+russiaruble			1 | 0.0324 $
+saudiarabiariyal		1 | 0.2666 $
+singaporedollar			1 | 0.7018 $
+slovakkoruna			1 | 0.0484 $
+southafricarand			1 | 0.132 $
+southkoreawon			1 | 0.0008 $
+swedenkrona			1 | 0.1429 $
+switzerlandfranc		1 | 0.9627 $
+taiwandollar			1 | 0.0306 $
+thailandbaht			1 | 0.0294 $
+turkeynewlira			1 | 0.6678 $
+uaedirham			1 | 0.2722 $
+uruguaynewpeso			1 | 0.0451 $
+vietnamdong			1 | 0.0001 $
 
-€			euro
+/ END MONEY
+ 
+€			europeuro
 £			britainpound
 ¥			japanyen
 dollar			$
 
-bef			1 | 40.3399 €
-belgiumfranc	bef
-dem			1 | 1.95583 €
-germanymark	dem
-grd			1 | 340.750 €
-greecedrachma	grd
-esp			1 | 166.386 €
-spainpeseta		esp
-frf			1 | 6.55957 €
-francefranc	frf
-iep			1 | .787564 €
-irelandpunt	iep
-itl			1 | 1936.27 €
-italylira		itl
-luf			1 | 40.3399 €
-luxembourgfranc	luf
-nlg			1 | 2.20371 €
-netherlandsguilder	nlg
-ats			1 | 13.7603 €
-austriaschilling	ats
-pte			1 | 200.482 €
-portugalescudo	pte
-fim			1 | 5.94573 €
-finlandmark	fim
-
 baht			thailandbaht
-bolivar			venezuelabolivar
 brpound			britainpound
-dinar			jordandinar
 dirham			uaedirham
-drachma			greecedrachma
-escudo			portugalescudo
+euro			europeuro
 forint			hungaryforint
-franc			francefranc
-guilder			netherlandsguilder
 krona			swedenkrona
-lira			italylira
-mark			germanymark
-peseta			spainpeseta
 peso			mexicopeso
-punt			irelandpunt
 rand			southafricarand
 real			brazilreal
 yuan			chinayuan
 ringgit			malaysiaringgit
-riyal			saudiarabriyal
+riyal			saudiarabiariyal
 ruble			russiaruble
 rupee			indiarupee
-rupiah			indnsiarupiah
+rupiah			indonesiarupiah
 shekel			israelshekel
 sol			perunewsol
 won			southkoreawon

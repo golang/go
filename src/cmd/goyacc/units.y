@@ -296,7 +296,7 @@ main()
 
 	flag.Parse();
 
-	file = "units.txt";
+	file = os.Getenv("GOROOT") + "/src/cmd/goyacc/units.txt";
 	if flag.NArg() > 0 {
 		file = flag.Arg(0);
 	}
