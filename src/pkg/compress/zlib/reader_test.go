@@ -86,6 +86,7 @@ func TestInflater(t *testing.T) {
 			}
 			continue;
 		}
+		defer zlib.Close();
 		b.Reset();
 		n, err := io.Copy(zlib, b);
 		if err != nil {

@@ -52,6 +52,7 @@ DIRS=\
 	hash/crc32\
 	http\
 	image\
+	image/png\
 	io\
 	json\
 	log\
@@ -86,6 +87,7 @@ NOTEST=\
 	go/token\
 	hash\
 	image\
+	image/png\
 	malloc\
 	rand\
 	runtime\

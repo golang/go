@@ -289,6 +289,7 @@ func TestInflater(t *testing.T) {
 			t.Errorf("%s: NewInflater: %s", tt.name, err);
 			continue;
 		}
+		defer gzip.Close();
 		if tt.name != gzip.Name {
 			t.Errorf("%s: got name %s", tt.name, gzip.Name);
 		}
