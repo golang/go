@@ -575,6 +575,9 @@ func (st *state) findVar(s string) reflect.Value {
 	for i := 0; i < len(elems); i++ {
 		// Look up field; data must be a struct.
 		data = reflect.Indirect(data);
+		if data == nil {
+			return nil
+		}
 		typ, ok := data.Type().(*reflect.StructType);
 		if !ok {
 			return nil
