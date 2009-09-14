@@ -64,10 +64,6 @@ cgen(Node *n, Node *res)
 	while(n->op == OCONVNOP)
 		n = n->left;
 
-	// static initializations
-	if(initflag && gen_as_init(n, res))
-		return;
-
 	// function calls on both sides?  introduce temporary
 	if(n->ullman >= UINF && res->ullman >= UINF) {
 		tempalloc(&n1, n->type);
