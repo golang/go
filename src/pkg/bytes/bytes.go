@@ -260,3 +260,45 @@ func TrimSpace(s []byte) []byte {
 	}
 	return s[start:end];
 }
+
+// How big to make a byte array when growing.
+// Heuristic: Scale by 50% to give n log n time.
+func resize(n int) int {
+	if n < 16 {
+		n = 16
+	}
+	return n + n/2;
+}
+
+// Add appends the contents of t to the end of s and returns the result.
+// If s has enough capacity, it is extended in place; otherwise a
+// new array is allocated and returned.
+func Add(s, t []byte) []byte {
+	lens := len(s);
+	lent := len(t);
+	if lens + lent <= cap(s) {
+		s = s[0:lens+lent];
+	} else {
+		news := make([]byte, lens+lent, resize(lens+lent));
+		Copy(news, s);
+		s = news;
+	}
+	Copy(s[lens:lens+lent], t);
+	return s;
+}
+
+// AddByte appends byte b to the end of s and returns the result.
+// If s has enough capacity, it is extended in place; otherwise a
+// new array is allocated and returned.
+func AddByte(s []byte, t byte) []byte {
+	lens := len(s);
+	if lens + 1 <= cap(s) {
+		s = s[0:lens+1];
+	} else {
+		news := make([]byte, lens+1, resize(lens+1));
+		Copy(news, s);
+		s = news;
+	}
+	s[lens] = t;
+	return s;
+}

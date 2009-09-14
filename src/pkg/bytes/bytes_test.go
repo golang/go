@@ -121,6 +121,7 @@ var splittests = []SplitTest {
 	SplitTest{ "123",	"",	2, []string{"1", "23"} },
 	SplitTest{ "123",	"",	17, []string{"1", "2", "3"} },
 }
+
 func TestSplit(t *testing.T) {
 	for _, tt := range splittests {
 		a := Split(strings.Bytes(tt.s), strings.Bytes(tt.sep), tt.n);
@@ -260,4 +261,44 @@ func TestToLower(t *testing.T) {
 
 func TestTrimSpace(t *testing.T) {
 	runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests);
+}
+
+type AddTest struct {
+	s, t string;
+	cap	int;
+}
+var addtests = []AddTest {
+	AddTest{ "", "", 0 },
+	AddTest{ "a", "", 1 },
+	AddTest{ "a", "b", 1 },
+	AddTest{ "abc", "def", 100 },
+}
+
+func TestAdd(t *testing.T) {
+	for i, test := range addtests {
+		b := make([]byte, len(test.s), test.cap);
+		for i := 0; i < len(test.s); i++ {
+			b[i] = test.s[i]
+		}
+		b = Add(b, strings.Bytes(test.t));
+		if string(b) != test.s+test.t {
+			t.Errorf("Add(%q,%q) = %q", test.s, test.t, string(b));
+		}
+	}
+}
+
+func TestAddByte(t *testing.T) {
+	const N = 2e5;
+	b := make([]byte, 0);
+	for i := 0; i < N; i++ {
+		b = AddByte(b, byte(i))
+	}
+	if len(b) != N {
+		t.Errorf("AddByte: too small; expected %d got %d", N, len(b));
+	}
+	for i, c := range b {
+		if c != byte(i) {
+			t.Fatalf("AddByte: b[%d] should be %d is %d", i, c, byte(i));
+		}
+	}
 }
