@@ -52,6 +52,11 @@ func three(x int) {
 
 var notmain func()
 
+func emptyresults() () {}
+func noresults() {}
+
+var nothing func()
+
 func main() {
 	three(call(add, 1, 2));
 	three(call1(add, 1, 2));
@@ -73,5 +78,12 @@ func main() {
 	three(<-c);
 	go func(a, b int, c chan int){c <- a+b}(1, 2, c);
 	three(<-c);
+
+	emptyresults();
+	noresults();
+	nothing = emptyresults;
+	nothing();
+	nothing = noresults;
+	nothing();
 }
 
