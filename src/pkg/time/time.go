@@ -250,6 +250,7 @@ var shortDayNames = []string{
 }
 
 var shortMonthNames = []string{
+	"---",
 	"Jan",
 	"Feb",
 	"Mar",
@@ -301,7 +302,7 @@ func format(t *Time, fmt string) string {
 			case 'a':	// %a abbreviated weekday name
 				bp = addString(buf, bp, shortDayNames[t.Weekday]);
 			case 'b':	// %b abbreviated month name
-				bp = addString(buf, bp, shortMonthNames[t.Month-1]);
+				bp = addString(buf, bp, shortMonthNames[t.Month]);
 			case 'd':	// %d day of month (01-31)
 				decimal(buf[bp:bp+2], t.Day);
 				bp += 2;
