@@ -60,10 +60,6 @@ cgen(Node *n, Node *res)
 	while(n->op == OCONVNOP)
 		n = n->left;
 
-	// static initializations
-	if(initflag && gen_as_init(n, res))
-		goto ret;
-
 	if(n->ullman >= UINF) {
 		if(n->op == OINDREG)
 			fatal("cgen: this is going to misscompile");
