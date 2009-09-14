@@ -618,31 +618,112 @@ func Compare(a, b []byte) int {
 }
 </pre>
 
+<h2 id="functions">Functions</h2>
+
+<h3 id="multiple-returns">Multiple return values</h3>
+
+<p>
+One of Go's unusual properties is that functions and methods
+can return multiple values.  This feature can be used to
+improve on a couple of clumsy idioms in C program: in-band
+error returns (<code>-1</code> for <code>EOF</code> for example)
+and modifying an argument.
+</p>
+
+<p>
+In C, a write error is signaled by a negative byte count with the
+error code secreted away in a volatile location.
+In Go, <code>Write</code>
+can return a byte count <i>and</i> an error: "Yes, you wrote some
+bytes but not all of them because you filled the device".
+The signature of <code>*File.Write</code> in package <code>os</code> is:
+</p>
+
+<pre>
+func (file *File) Write(b []byte) (n int, err Error)
+</pre>
+
+<p>
+and as the documentation says, it returns the number of bytes
+written and a non-nil <code>Error</code> when <code>n</code>
+<code>!=</code> <code>len(b)</code>.
+This is a common style; see the section on error handling for more examples.
+</p>
+
+<p>
+A similar approach obviates the need to pass a pointer to a return
+value to overwrite an argument.  Here's a simple-minded function to
+grab a number from a position in a byte array, returning the number
+and the next position.
+</p>
+
+<pre>
+func nextInt(b []byte, i int) (int, int) {
+	for ; i < len(b) &amp;&amp; !isDigit(b[i]); i++ {
+	}
+	x := 0;
+	for ; i < len(b) &amp;&amp; isDigit(b[i]); i++ {
+		x = x*10 + int(b[i])-'0'
+	}
+	return x, i;
+}
+</pre>
+
+<p>
+You could use it to scan the numbers in an input array <code>a</code> like this:
+</p>
+
+<pre>
+	for i := 0; i < len(a); {
+		x, i = nextInt(a, i);
+		fmt.Println(x);
+	}
+</pre>
+
+<h3 id="named-results">Named result parameters</h3>
+
+<p>
+The return or result "parameters" of a Go function can be given names and
+used as regular variables, just like the incoming parameters.
+When named, they are initialized to the zero for their type when
+the function begins; if the function executes a <code>return</code> statement
+with no arguments, the current values of the result parameters are 
+used as the returned values.
+</p>
+
+<p>
+The names are not mandatory but they can make code shorter and clearer:
+they're documentation.
+If we name the results of <code>nextInt</code> it becomes
+obvious which returned <code>int</code>
+is which.
+</p>
+
+<pre>
+func nextInt(b []byte, pos int) (value, nextPos int) {
+</pre>
+
+<p>
+Because named results are initialized and tied to an unadorned return, they can simplify
+as well as clarify.  Here's a version
+of <code>io.ReadFull</code> that uses them well:
+</p>
+
+<pre>
+func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
+	for len(buf) > 0 && err != nil {
+		var nr int;
+		nr, err = r.Read(buf);
+		n += nr;
+		buf = buf[nr:len(buf)];
+	}
+	return;
+}
+</pre>
+
 <h2>More to come</h2>
 
 <!---
-<h2 id="functions">Functions</h2>
-
-<h3 id="omit-wrappers">Omit needless wrappers</h3>
-
-<p>
-Functions are great for factoring out common code, but
-if a function is only called once,
-ask whether it is necessary,
-especially if it is just a short wrapper around another function.
-This style is rampant in C++ code: wrappers
-call wrappers that call wrappers that call wrappers.
-This style hinders people trying to understand the program,
-not to mention computers trying to execute it.
-</p>
-
-<h3 id="multiple-returns">Return multiple values</h3>
-
-<p>
-If a function must return multiple values, it can
-do so directly.
-There is no need to pass a pointer to a return value.
-</p>
 
 <h2 id="idioms">Idioms</h2>
 
