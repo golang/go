@@ -65,6 +65,8 @@ func (e FormatError) String() string {
 	return "invalid PNG format: " + e;
 }
 
+var chunkOrderError = FormatError("chunk out of order")
+
 // An IDATDecodingError wraps an inner error (such as a ZLIB decoding error) encountered while processing an IDAT chunk.
 type IDATDecodingError struct {
 	Err os.Error;
@@ -347,25 +349,25 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
 	switch string(d.scratch[0:4]) {
 	case "IHDR":
 		if d.stage != dsStart {
-			return FormatError("chunk out of order");
+			return chunkOrderError;
 		}
 		d.stage = dsSeenIHDR;
 		err = d.parseIHDR(r, crc, length);
 	case "PLTE":
 		if d.stage != dsSeenIHDR {
-			return FormatError("chunk out of order");
+			return chunkOrderError;
 		}
 		d.stage = dsSeenPLTE;
 		err = d.parsePLTE(r, crc, length);
 	case "IDAT":
-		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT {
-			return FormatError("chunk out of order");
+		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.colorType == ctPaletted && d.stage == dsSeenIHDR) {
+			return chunkOrderError;
 		}
 		d.stage = dsSeenIDAT;
 		err = d.parseIDAT(r, crc, length);
 	case "IEND":
 		if d.stage != dsSeenIDAT {
-			return FormatError("chunk out of order");
+			return chunkOrderError;
 		}
 		d.stage = dsSeenIEND;
 		err = d.parseIEND(r, crc, length);
