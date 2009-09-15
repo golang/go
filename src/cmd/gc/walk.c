@@ -67,6 +67,9 @@ void
 walk(Node *fn)
 {
 	char s[50];
+	NodeList *l;
+	Node *n;
+	int lno;
 
 	curfn = fn;
 	if(debug['W']) {
@@ -77,6 +80,17 @@ walk(Node *fn)
 		if(walkret(curfn->nbody))
 			yyerror("function ends without a return statement");
 	typechecklist(curfn->nbody, Etop);
+	lno = lineno;
+	for(l=fn->dcl; l; l=l->next) {
+		n = l->n;
+		if(n->op != ONAME || n->class != PAUTO)
+			continue;
+		lineno = n->lineno;
+		typecheck(&n, Erv | Easgn);	// only needed for unused variables
+		if(!n->used && n->sym->name[0] != '&')
+			yyerror("%S declared and not used", n->sym);
+	}
+	lineno = lno;
 	if(nerrors != 0)
 		return;
 	walkstmtlist(curfn->nbody);

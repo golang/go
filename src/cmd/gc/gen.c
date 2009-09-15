@@ -48,12 +48,8 @@ allocparams(void)
 		}
 		if(n->op != ONAME || n->class != PAUTO)
 			continue;
-		lineno = n->lineno;
-		typecheck(&n, Erv | Easgn);	// only needed for unused variables
 		if(n->type == T)
 			continue;
-	//	if(!n->used && n->sym->name[0] != '&')
-	//		yyerror("%S declared and not used", n->sym);
 		dowidth(n->type);
 		w = n->type->width;
 		if(w >= 100000000)
@@ -447,6 +443,7 @@ cgen_discard(Node *nr)
 
 	switch(nr->op) {
 	case ONAME:
+		gused(nr);
 		break;
 
 	// unary
