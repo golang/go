@@ -175,7 +175,7 @@ func play(ref *Referee, color []Color) {
 	fmt.Printf("\n");
 	<-ref.done;
 	total := 0;
-	for i, c := range cham {
+	for _, c := range cham {
 		total += c.count;
 		fmt.Printf("%d %s\n", c.count, say(c.same));
 	}

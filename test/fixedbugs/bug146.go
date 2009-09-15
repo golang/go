@@ -11,4 +11,5 @@ func main() {
 	a := [...]byte{ 0 };
 	b := Slice(&a);		// This should be OK.
 	c := Slice(a);		// ERROR "invalid|illegal|cannot"
+	_, _ = b, c;
 }

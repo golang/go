@@ -14,8 +14,8 @@ type T string
 func main() {
 	var t T = "hello";
 	println(t[0:4], t[4]);
-	for i, x := range t {
+	for _, _ = range t {
 	}
-	for i := range t {
+	for _ = range t {
 	}
 }

@@ -17,35 +17,42 @@ func main() {
 		// simple redeclaration
 		i := f1();
 		i := f1();	// ERROR "redeclared|no new"
+		_ = i;
 	}
 	{
 		// change of type for f
 		i, f, s := f3();
 		f, g, t := f3();	// ERROR "redeclared|cannot assign|incompatible"
+		_, _, _, _, _ = i, f, s, g, t;
 	}
 	{
 		// change of type for i
 		i, f, s := f3();
 		j, i, t := f3();	// ERROR "redeclared|cannot assign|incompatible"
+		_, _, _, _, _ = i, f, s, j, t;
 	}
 	{
 		// no new variables
 		i, f, s := f3();
 		i, f := f2();	// ERROR "redeclared|no new"
+		_, _, _ = i, f, s;
 	}
 	{
 		// single redeclaration
 		i, f, s := f3();
 		i := f1();		// ERROR "redeclared|no new|incompatible"
+		_, _, _ = i, f, s;
 	}
 		// double redeclaration
 	{
 		i, f, s := f3();
 		i, f := f2();	// ERROR "redeclared|no new"
+		_, _, _ = i, f, s;
 	}
 	{
 		// triple redeclaration
 		i, f, s := f3();
 		i, f, s := f3();	// ERROR "redeclared|no new"
+		_, _, _ = i, f, s;
 	}
 }

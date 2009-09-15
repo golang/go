@@ -18,13 +18,16 @@ func main() {
 	mp := &m;
 
 	{
-		x, ok := m["key"]
+		x, ok := m["key"];
+		_, _ = x, ok;
 	}
 	{
-		x, ok := (*mp)["key"]
+		x, ok := (*mp)["key"];
+		_, _ = x, ok;
 	}
 	{
-		x, ok := f()["key"]
+		x, ok := f()["key"];
+		_, _ = x, ok;
 	}
 	{
 		var x int;

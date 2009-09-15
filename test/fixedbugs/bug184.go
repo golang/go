@@ -39,9 +39,11 @@ func fmter() (s string, i int, t string) {
 func main() {
 	b := g();
 	bb, ok := b.(*Buffer);
+	_, _, _ = b, bb, ok;
 
 	b, ok = i();
 	bb, ok = b.(*Buffer);
+	_, _, _ = b, bb, ok;
 
 	s := fmt.Sprintf(fmter());
 	if s != "0x64 \"hello\"" {

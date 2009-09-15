@@ -22,27 +22,36 @@ func main() {
 
 	c <- 0;		// ok
 	ok := c <- 0;	// ok
+	_ = ok;
 	<-c;		// ok
 	x, ok := <-c;	// ok
+	_, _ = x, ok;
 
 	cr <- 0;	// ERROR "send"
 	ok = cr <- 0;	// ERROR "send"
+	_ = ok;
 	<-cr;		// ok
 	x, ok = <-cr;	// ok
+	_, _ = x, ok;
 
 	cs <- 0;	// ok
 	ok = cs <- 0;	// ok
+	_ = ok;
 	<-cs;		// ERROR "receive"
 	x, ok = <-cs;	// ERROR "receive"
+	_, _ = x, ok;
 
 	select {
 	case c <- 0:	// ok
 	case x := <-c:	// ok
+		_ = x;
 
 	case cr <- 0:	// ERROR "send"
 	case x := <-cr:	// ok
+		_ = x;
 
 	case cs <- 0:	// ok;
 	case x := <-cs:	// ERROR "receive"
+		_ = x;
 	}
 }

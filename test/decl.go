@@ -14,6 +14,7 @@ func f3() (float, int, string) { return 1, 2, "3" }
 
 func x() (s string) {
 	a, b, s := f3();
+	_, _ = a, b;
 	return	// tests that result var is in scope for redeclaration
 }
 

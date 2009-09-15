@@ -18,4 +18,6 @@ func main() {
 
 	type M map[int] int;
 	m0 := M{7:8};
+
+	_, _ = t, m0;
 }
