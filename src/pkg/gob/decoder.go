@@ -37,7 +37,7 @@ func NewDecoder(r io.Reader) *Decoder {
 
 func (dec *Decoder) recvType(id typeId) {
 	// Have we already seen this type?  That's an error
-	if wt_, alreadySeen := dec.seen[id]; alreadySeen {
+	if _, alreadySeen := dec.seen[id]; alreadySeen {
 		dec.state.err = os.ErrorString("gob: duplicate type received");
 		return
 	}
@@ -54,8 +54,6 @@ func (dec *Decoder) recvType(id typeId) {
 // The value underlying e must be the correct type for the next
 // data item received.
 func (dec *Decoder) Decode(e interface{}) os.Error {
-	rt, indir := indirect(reflect.Typeof(e));
-
 	// Make sure we're single-threaded through here.
 	dec.mutex.Lock();
 	defer dec.mutex.Unlock();

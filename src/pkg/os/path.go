@@ -90,7 +90,7 @@ func RemoveAll(path string) Error {
 	err = nil;
 	for {
 		names, err1 := fd.Readdirnames(100);
-		for i, name := range names {
+		for _, name := range names {
 			err1 := RemoveAll(path + "/" + name);
 			if err == nil {
 				err = err1;

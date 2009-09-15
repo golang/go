@@ -190,7 +190,7 @@ func ufmt(u *URL) string {
 }
 
 func DoTest(t *testing.T, parse func(string) (*URL, os.Error), name string, tests []URLTest) {
-	for i, tt := range tests {
+	for _, tt := range tests {
 		u, err := parse(tt.in);
 		if err != nil {
 			t.Errorf("%s(%q) returned error %s", name, tt.in, err);
@@ -214,7 +214,7 @@ func TestParseURLReference(t *testing.T) {
 }
 
 func DoTestString(t *testing.T, parse func(string) (*URL, os.Error), name string, tests []URLTest) {
-	for i, tt := range tests {
+	for _, tt := range tests {
 		u, err := parse(tt.in);
 		if err != nil {
 			t.Errorf("%s(%q) returned error %s", name, tt.in, err);
@@ -305,7 +305,7 @@ var unescapeTests = []URLEscapeTest {
 }
 
 func TestURLUnescape(t *testing.T) {
-	for i, tt := range unescapeTests {
+	for _, tt := range unescapeTests {
 		actual, err := URLUnescape(tt.in);
 		if actual != tt.out || (err != nil) != (tt.err != nil) {
 			t.Errorf("URLUnescape(%q) = %q, %s; want %q, %s", tt.in, actual, err, tt.out, tt.err);
@@ -342,7 +342,7 @@ var escapeTests = []URLEscapeTest {
 }
 
 func TestURLEscape(t *testing.T) {
-	for i, tt := range escapeTests {
+	for _, tt := range escapeTests {
 		actual := URLEscape(tt.in);
 		if tt.out != actual {
 			t.Errorf("URLEscape(%q) = %q, want %q", tt.in, actual, tt.out);

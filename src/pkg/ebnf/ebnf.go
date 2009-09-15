@@ -123,7 +123,7 @@ func (p *Production) Pos() token.Position {
 // Grammar verification
 
 func isLexical(name string) bool {
-	ch, len := utf8.DecodeRuneInString(name);
+	ch, _ := utf8.DecodeRuneInString(name);
 	return !unicode.IsUpper(ch);
 }
 

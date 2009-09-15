@@ -194,7 +194,7 @@ var fmttests = []fmtTest{
 }
 
 func TestSprintf(t *testing.T) {
-	for i, tt := range fmttests {
+	for _, tt := range fmttests {
 		s := Sprintf(tt.fmt, tt.val);
 		if i := strings.Index(s, "0x"); i >= 0 && strings.Index(tt.out, "PTR") >= 0 {
 			j := i+2;
@@ -207,7 +207,7 @@ func TestSprintf(t *testing.T) {
 			s = s[0:i] + "PTR" + s[j:len(s)];
 		}
 		if s != tt.out {
-			if ss, ok := tt.val.(string); ok {
+			if _, ok := tt.val.(string); ok {
 				// Don't requote the already-quoted strings.
 				// It's too confusing to read the errors.
 				t.Errorf("Sprintf(%q, %q) = %s want %s", tt.fmt, tt.val, s, tt.out);
@@ -258,7 +258,7 @@ var flagtests = []flagTest {
 
 func TestFlagParser(t *testing.T) {
 	var flagprinter flagPrinter;
-	for i, tt := range flagtests {
+	for _, tt := range flagtests {
 		s := Sprintf(tt.in, &flagprinter);
 		if s != tt.out {
 			t.Errorf("Sprintf(%q, &flagprinter) => %q, want %q", tt.in, s, tt.out);
@@ -283,7 +283,7 @@ func TestStructPrinter(t *testing.T) {
 		Test{ "%v", "{abc def 123}" },
 		Test{ "%+v", "{a:abc b:def c:123}" },
 	};
-	for i, tt := range tests {
+	for _, tt := range tests {
 		out := Sprintf(tt.fmt, s);
 		if out != tt.out {
 			t.Errorf("Sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out);

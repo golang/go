@@ -292,7 +292,7 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 		field := make([]*fieldType, t.NumField());
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i);
-			typ, _indir := indirect(f.Type);
+			typ, _ := indirect(f.Type);
 			tname := typ.Name();
 			if tname == "" {
 				tname = f.Type.String();
@@ -384,7 +384,7 @@ var typeInfoMap = make(map[reflect.Type] *typeInfo)	// protected by typeLock
 // The reflection type must have all its indirections processed out.
 // typeLock must be held.
 func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
-	if pt, ok := rt.(*reflect.PtrType); ok {
+	if _, ok := rt.(*reflect.PtrType); ok {
 		panicln("pointer type in getTypeInfo:", rt.String())
 	}
 	info, ok := typeInfoMap[rt];

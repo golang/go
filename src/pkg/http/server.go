@@ -367,7 +367,7 @@ func Redirect(c *Conn, url string, code int) {
 		// no leading http://server
 		if url == "" || url[0] != '/' {
 			// make relative path absolute
-			olddir, oldfile := path.Split(oldpath);
+			olddir, _ := path.Split(oldpath);
 			url = olddir + url;
 		}
 

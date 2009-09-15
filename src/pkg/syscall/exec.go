@@ -85,7 +85,7 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
 	} else {
 		flag &= ^O_NONBLOCK;
 	}
-	flag, err = fcntl(fd, F_SETFL, flag);
+	_, err = fcntl(fd, F_SETFL, flag);
 	return err;
 }
 
@@ -133,7 +133,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
 
 	// Enable tracing if requested.
 	if traceme {
-		r1, r2, err1 = RawSyscall(SYS_PTRACE, uintptr(_PTRACE_TRACEME), 0, 0);
+		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(_PTRACE_TRACEME), 0, 0);
 		if err1 != 0 {
 			goto childerror;
 		}
@@ -141,7 +141,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
 
 	// Chdir
 	if dir != nil {
-		r1, r2, err1 = RawSyscall(SYS_CHDIR, uintptr(unsafe.Pointer(dir)), 0, 0);
+		_, _, err1 = RawSyscall(SYS_CHDIR, uintptr(unsafe.Pointer(dir)), 0, 0);
 		if err1 != 0 {
 			goto childerror;
 		}
@@ -151,7 +151,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
 	// so that pass 2 won't stomp on an fd it needs later.
 	nextfd = int(len(fd));
 	if pipe < nextfd {
-		r1, r2, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0);
+		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0);
 		if err1 != 0 {
 			goto childerror;
 		}
@@ -161,7 +161,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
 	}
 	for i = 0; i < len(fd); i++ {
 		if fd[i] >= 0 && fd[i] < int(i) {
-			r1, r2, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0);
+			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0);
 			if err1 != 0 {
 				goto childerror;
 			}
@@ -183,7 +183,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
 		if fd[i] == int(i) {
 			// dup2(i, i) won't clear close-on-exec flag on Linux,
 			// probably not elsewhere either.
-			r1, r2, err1 = RawSyscall(SYS_FCNTL, uintptr(fd[i]), F_SETFD, 0);
+			_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(fd[i]), F_SETFD, 0);
 			if err1 != 0 {
 				goto childerror;
 			}
@@ -191,7 +191,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
 		}
 		// The new fd is created NOT close-on-exec,
 		// which is exactly what we want.
-		r1, r2, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(i), 0);
+		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(i), 0);
 		if err1 != 0 {
 			goto childerror;
 		}
@@ -206,7 +206,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
 	}
 
 	// Time to exec.
-	r1, r2, err1 = RawSyscall(SYS_EXECVE,
+	_, _, err1 = RawSyscall(SYS_EXECVE,
 		uintptr(unsafe.Pointer(argv0)),
 		uintptr(unsafe.Pointer(&argv[0])),
 		uintptr(unsafe.Pointer(&envv[0])));
@@ -287,9 +287,9 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
 
 		// Child failed; wait for it to exit, to make sure
 		// the zombies don't accumulate.
-		pid1, err1 := Wait4(pid, &wstatus, 0, nil);
+		_, err1 := Wait4(pid, &wstatus, 0, nil);
 		for err1 == EINTR {
-			pid1, err1 = Wait4(pid, &wstatus, 0, nil);
+			_, err1 = Wait4(pid, &wstatus, 0, nil);
 		}
 		return 0, err
 	}
@@ -314,7 +314,7 @@ func PtraceForkExec(argv0 string, argv []string, envv []string, dir string, fd [
 
 // Ordinary exec.
 func Exec(argv0 string, argv []string, envv []string) (err int) {
-	r1, r2, err1 := RawSyscall(SYS_EXECVE,
+	_, _, err1 := RawSyscall(SYS_EXECVE,
 		uintptr(unsafe.Pointer(StringBytePtr(argv0))),
 		uintptr(unsafe.Pointer(&StringArrayPtr(argv)[0])),
 		uintptr(unsafe.Pointer(&StringArrayPtr(envv)[0])));

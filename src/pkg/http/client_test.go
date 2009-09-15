@@ -17,7 +17,7 @@ func TestClient(t *testing.T) {
 	// TODO: add a proper test suite.  Current test merely verifies that
 	// we can retrieve the Google robots.txt file.
 
-	r, url, err := Get("http://www.google.com/robots.txt");
+	r, _, err := Get("http://www.google.com/robots.txt");
 	var b []byte;
 	if err == nil {
 		b, err = io.ReadAll(r.Body);

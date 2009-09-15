@@ -54,7 +54,7 @@ const (
 func Is(ranges []Range, rune int) bool {
 	// common case: rune is ASCII or Latin-1
 	if rune < 0x100 {
-		for i, r := range ranges {
+		for _, r := range ranges {
 			if rune > r.Hi {
 				continue;
 			}
@@ -150,7 +150,7 @@ func To(_case int, rune int) int {
 				// The characters at even offsets from the beginning of the
 				// sequence are upper case; the ones at odd offsets are lower.
 				// The correct mapping can be done by clearing or setting the low
-				// bit in the sequence offset. 
+				// bit in the sequence offset.
 				// The constants UpperCase and TitleCase are even while LowerCase
 				// is odd so we take the low bit from _case.
 				return r.Lo + ((rune - r.Lo)&^1 | _case&1);

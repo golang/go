@@ -67,7 +67,7 @@ var cbcAESTests = []cbcTest {
 }
 
 func TestCBC_AES(t *testing.T) {
-	for i, tt := range cbcAESTests {
+	for _, tt := range cbcAESTests {
 		test := tt.name;
 
 		c, err := aes.NewCipher(tt.key);

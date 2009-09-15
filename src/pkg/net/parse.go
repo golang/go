@@ -46,7 +46,7 @@ func (f *file) readLine() (s string, ok bool) {
 	}
 	if len(f.data) < cap(f.data) {
 		ln := len(f.data);
-		n, err := io.ReadFull(f.file, f.data[ln:cap(f.data)]);
+		n, _ := io.ReadFull(f.file, f.data[ln:cap(f.data)]);
 		if n >= 0 {
 			f.data = f.data[0:ln+n];
 		}

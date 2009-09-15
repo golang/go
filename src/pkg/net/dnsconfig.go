@@ -79,19 +79,19 @@ func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
 				s := f[i];
 				switch {
 				case len(s) >= 6 && s[0:6] == "ndots:":
-					n, i, ok := dtoi(s, 6);
+					n, _, _ := dtoi(s, 6);
 					if n < 1 {
 						n = 1
 					}
 					conf.ndots = n;
 				case len(s) >= 8 && s[0:8] == "timeout:":
-					n, i, ok := dtoi(s, 8);
+					n, _, _ := dtoi(s, 8);
 					if n < 1 {
 						n = 1
 					}
 					conf.timeout = n;
 				case len(s) >= 8 && s[0:9] == "attempts:":
-					n, i, ok := dtoi(s, 9);
+					n, _, _ := dtoi(s, 9);
 					if n < 1 {
 						n = 1
 					}

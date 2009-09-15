@@ -847,7 +847,7 @@ func (p *printer) block(s *ast.BlockStmt) {
 func (p *printer) switchBlock(s *ast.BlockStmt) {
 	p.print(s.Pos(), token.LBRACE);
 	if len(s.List) > 0 {
-		for i, s := range s.List {
+		for _, s := range s.List {
 			// s is one of *ast.CaseClause, *ast.TypeCaseClause, *ast.CommClause;
 			p.print(newline);
 			p.stmt(s);

@@ -63,12 +63,12 @@ func (t *LineTable) slice(pc uint64) *LineTable {
 }
 
 func (t *LineTable) PCToLine(pc uint64) int {
-	b, pc, line := t.parse(pc, -1);
+	_, _, line := t.parse(pc, -1);
 	return line;
 }
 
 func (t *LineTable) LineToPC(line int, maxpc uint64) uint64 {
-	b, pc, line1 := t.parse(maxpc, line);
+	_, pc, line1 := t.parse(maxpc, line);
 	if line1 != line {
 		return 0;
 	}

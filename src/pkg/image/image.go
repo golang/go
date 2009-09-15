@@ -185,7 +185,7 @@ func (p PalettedColorModel) Convert(c Color) Color {
 	// TODO(nigeltao): Revisit the "pick the palette color which minimizes sum-squared-difference"
 	// algorithm when the premultiplied vs unpremultiplied issue is resolved.
 	// Currently, we only compare the R, G and B values, and ignore A.
-	cr, cg, cb, ca := c.RGBA();
+	cr, cg, cb, _ := c.RGBA();
 	// Shift by 17 bits to avoid potential uint32 overflow in sum-squared-difference.
 	cr >>= 17;
 	cg >>= 17;
@@ -193,7 +193,7 @@ func (p PalettedColorModel) Convert(c Color) Color {
 	result := Color(nil);
 	bestSSD := uint32(1<<32 - 1);
 	for _, v := range p {
-		vr, vg, vb, va := v.RGBA();
+		vr, vg, vb, _ := v.RGBA();
 		vr >>= 17;
 		vg >>= 17;
 		vb >>= 17;

@@ -282,7 +282,7 @@ func TestLineComments(t *testing.T) {
 	var S Scanner;
 	S.Init("TestLineComments", strings.Bytes(src), nil, 0);
 	for _, s := range segments {
-		pos, tok, lit := S.Scan();
+		pos, _, lit := S.Scan();
 		checkPos(t, string(lit), pos, token.Position{s.filename, pos.Offset, s.line, pos.Column});
 	}
 
@@ -300,14 +300,14 @@ func TestInit(t *testing.T) {
 	s.Init("", strings.Bytes("if true { }"), nil, 0);
 	s.Scan();  // if
 	s.Scan();  // true
-	pos, tok, lit := s.Scan();  // {
+	_, tok, _ := s.Scan();  // {
 	if tok != token.LBRACE {
 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.LBRACE);
 	}
 
 	// 2nd init
 	s.Init("", strings.Bytes("go true { ]"), nil, 0);
-	pos, tok, lit = s.Scan();  // go
+	_, tok, _ = s.Scan();  // go
 	if tok != token.GO {
 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.GO);
 	}

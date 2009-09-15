@@ -1195,7 +1195,7 @@ func newFuncValue(typ Type, addr addr, canSet bool) *FuncValue {
 func newValue(typ Type, addr addr, canSet bool) Value {
 	// FuncValue has a different layout;
 	// it needs a extra space for the fixed receivers.
-	if t, ok := typ.(*FuncType); ok {
+	if _, ok := typ.(*FuncType); ok {
 		return newFuncValue(typ, addr, canSet);
 	}
 

@@ -266,7 +266,7 @@ func TestInterfaceValue(t *testing.T) {
 	assert(t, v3.Type().String(), "float");
 
 	i3 := v2.Interface();
-	if f, ok := i3.(float); !ok {
+	if _, ok := i3.(float); !ok {
 		t.Error("v2.Interface() did not return float, got ", Typeof(i3));
 	}
 }
@@ -392,7 +392,7 @@ var deepEqualTests = []DeepEqualTest {
 }
 
 func TestDeepEqual(t *testing.T) {
-	for i, test := range deepEqualTests {
+	for _, test := range deepEqualTests {
 		if r := DeepEqual(test.a, test.b); r != test.eq {
 			t.Errorf("DeepEqual(%v, %v) = %v, want %v", test.a, test.b, r, test.eq);
 		}
@@ -400,7 +400,7 @@ func TestDeepEqual(t *testing.T) {
 }
 
 func TestTypeof(t *testing.T) {
-	for i, test := range deepEqualTests {
+	for _, test := range deepEqualTests {
 		v := NewValue(test.a);
 		if v == nil {
 			continue;
@@ -510,10 +510,10 @@ func NotNil(a interface{}, t *testing.T) {
 func TestIsNil(t *testing.T) {
 	// These do not implement IsNil
 	doNotNil := []interface{}{ int(0), float32(0), struct{a int}{} };
-	for i, ts := range doNotNil {
+	for _, ts := range doNotNil {
 		ty := Typeof(ts);
 		v := MakeZero(ty);
-		if nilable, ok := v.(IsNiller); ok {
+		if _, ok := v.(IsNiller); ok {
 			t.Errorf("%s is nilable; should not be", ts)
 		}
 	}
@@ -528,10 +528,10 @@ func TestIsNil(t *testing.T) {
 		struct{x chan int}{},
 		struct{x []string}{}
 	};
-	for i, ts := range doNil {
+	for _, ts := range doNil {
 		ty := Typeof(ts).(*StructType).Field(0).Type;
 		v := MakeZero(ty);
-		if nilable, ok := v.(IsNiller); !ok {
+		if _, ok := v.(IsNiller); !ok {
 			t.Errorf("%s %T is not nilable; should be", ts, v)
 		}
 	}

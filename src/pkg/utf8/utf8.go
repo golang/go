@@ -187,13 +187,13 @@ func decodeRuneInStringInternal(s string) (rune, size int, short bool) {
 // FullRune reports whether the bytes in p begin with a full UTF-8 encoding of a rune.
 // An invalid encoding is considered a full Rune since it will convert as a width-1 error rune.
 func FullRune(p []byte) bool {
-	rune, size, short := decodeRuneInternal(p);
+	_, _, short := decodeRuneInternal(p);
 	return !short
 }
 
 // FullRuneInString is like FullRune but its input is a string.
 func FullRuneInString(s string) bool {
-	rune, size, short := decodeRuneInStringInternal(s);
+	_, _, short := decodeRuneInStringInternal(s);
 	return !short
 }
 
@@ -265,7 +265,7 @@ func RuneCount(p []byte) int {
 		if p[i] < RuneSelf {
 			i++;
 		} else {
-			rune, size := DecodeRune(p[i:len(p)]);
+			_, size := DecodeRune(p[i:len(p)]);
 			i += size;
 		}
 	}
@@ -276,12 +276,12 @@ func RuneCount(p []byte) int {
 func RuneCountInString(s string) int {
 	ei := len(s);
 	i := 0;
-	n := 0;
+	var n int;
 	for n = 0; i < ei; n++ {
 		if s[i] < RuneSelf {
 			i++;
 		} else {
-			rune, size, short := decodeRuneInStringInternal(s[i:ei]);
+			_, size, _ := decodeRuneInStringInternal(s[i:ei]);
 			i += size;
 		}
 	}

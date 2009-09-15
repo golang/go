@@ -563,7 +563,7 @@ func isRegexp(s string) bool {
 func match(s string, a []string) bool {
 	for _, t := range a {
 		if isRegexp(t) {
-			if matched, err := regexp.MatchString(t, s); matched {
+			if matched, _ := regexp.MatchString(t, s); matched {
 				return true;
 			}
 		}

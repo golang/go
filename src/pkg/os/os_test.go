@@ -110,9 +110,9 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
 	if err2 != nil {
 		t.Fatalf("readdirnames %q failed: %v", err2);
 	}
-	for i, m := range contents {
+	for _, m := range contents {
 		found := false;
-		for j, n := range s {
+		for _, n := range s {
 			if n == "." || n == ".." {
 				t.Errorf("got %s in directory", n);
 			}
@@ -139,9 +139,9 @@ func testReaddir(dir string, contents []string, t *testing.T) {
 	if err2 != nil {
 		t.Fatalf("readdir %q failed: %v", dir, err2);
 	}
-	for i, m := range contents {
+	for _, m := range contents {
 		found := false;
-		for j, n := range s {
+		for _, n := range s {
 			if m == n.Name {
 				if found {
 					t.Error("present twice:", m);
@@ -412,7 +412,7 @@ func TestChown(t *testing.T) {
 		t.Fatalf("getgroups: %s", err);
 	}
 	t.Log("groups: ", groups);
-	for i, g := range groups {
+	for _, g := range groups {
 		if err = Chown(Path, -1, g); err != nil {
 			t.Fatalf("chown %s -1 %d: %s", Path, g, err);
 		}
@@ -468,7 +468,7 @@ func TestChdirAndGetwd(t *testing.T) {
 	// (unlike, say, /var, /etc, and /tmp).
 	dirs := []string{ "/bin", "/", "/usr/bin" };
 	for mode := 0; mode < 2; mode++ {
-		for i, d := range dirs {
+		for _, d := range dirs {
 			if mode == 0 {
 				err = Chdir(d);
 			} else {
@@ -577,7 +577,7 @@ var openErrorTests = []openErrorTest {
 }
 
 func TestOpenError(t *testing.T) {
-	for i, tt := range openErrorTests {
+	for _, tt := range openErrorTests {
 		f, err := Open(tt.path, tt.mode, 0);
 		if err == nil {
 			t.Errorf("Open(%q, %d) succeeded", tt.path, tt.mode);

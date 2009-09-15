@@ -40,7 +40,7 @@ type Response struct {
 // response headers with the given key, it returns the empty string and
 // false.  Keys are not case sensitive.
 func (r *Response) GetHeader(key string) (value string) {
-	value, present := r.Header[CanonicalHeaderKey(key)];
+	value, _ = r.Header[CanonicalHeaderKey(key)];
 	return;
 }
 

@@ -147,7 +147,7 @@ func TestPartialRead(t *testing.T) {
 		t.Fatalf("Didn't get first file: %v", err);
 	}
 	buf := make([]byte, 4);
-	if n, err := io.ReadFull(tr, buf); err != nil {
+	if _, err := io.ReadFull(tr, buf); err != nil {
 		t.Fatalf("Unexpected error: %v", err);
 	}
 	if expected := strings.Bytes("Kilt"); !bytes.Equal(buf, expected) {
@@ -160,7 +160,7 @@ func TestPartialRead(t *testing.T) {
 		t.Fatalf("Didn't get second file: %v", err);
 	}
 	buf = make([]byte, 6);
-	if n, err := io.ReadFull(tr, buf); err != nil {
+	if _, err := io.ReadFull(tr, buf); err != nil {
 		t.Fatalf("Unexpected error: %v", err);
 	}
 	if expected := strings.Bytes("Google"); !bytes.Equal(buf, expected) {

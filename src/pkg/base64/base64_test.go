@@ -158,7 +158,7 @@ func TestDecodeCorrupt(t *testing.T) {
 
 	for _, e := range examples {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(e.e)));
-		count, err := StdEncoding.Decode(strings.Bytes(e.e), dbuf);
+		_, err := StdEncoding.Decode(strings.Bytes(e.e), dbuf);
 		switch err := err.(type) {
 		case CorruptInputError:
 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);

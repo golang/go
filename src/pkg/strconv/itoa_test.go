@@ -60,7 +60,7 @@ var itob64tests = []itob64Test {
 }
 
 func TestItoa(t *testing.T) {
-	for i, test := range itob64tests {
+	for _, test := range itob64tests {
 		s := Itob64(test.in, test.base);
 		if s != test.out {
 			t.Errorf("Itob64(%v, %v) = %v want %v\n",
@@ -140,7 +140,7 @@ var uitob64tests = []uitob64Test {
 }
 
 func TestUitoa(t *testing.T) {
-	for i, test := range uitob64tests {
+	for _, test := range uitob64tests {
 		s := Uitob64(test.in, test.base);
 		if s != test.out {
 			t.Errorf("Uitob64(%v, %v) = %v want %v\n",

@@ -89,7 +89,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 		return os.NewError("binary.Read: invalid type " + v.Type().String());
 	}
 	d := &decoder{order: order, buf: make([]byte, size)};
-	if n, err := io.ReadFull(r, d.buf); err != nil {
+	if _, err := io.ReadFull(r, d.buf); err != nil {
 		return err;
 	}
 	d.value(v);

@@ -64,7 +64,7 @@ var writerTests = []*writerTest{
 func bytestr(offset int, b []byte) string {
 	const rowLen = 32;
 	s := fmt.Sprintf("%04x ", offset);
-	for i, ch := range b {
+	for _, ch := range b {
 		switch {
 		case '0' <= ch && ch <= '9', 'A' <= ch && ch <= 'Z', 'a' <= ch && ch <= 'z':
 			s += fmt.Sprintf("  %c", ch);
@@ -114,7 +114,7 @@ testLoop:
 				t.Errorf("test %d, entry %d: Failed writing header: %v", i, j, err);
 				continue testLoop
 			}
-			if n, err := io.WriteString(tw, entry.contents); err != nil {
+			if _, err := io.WriteString(tw, entry.contents); err != nil {
 				t.Errorf("test %d, entry %d: Failed writing contents: %v", i, j, err);
 				continue testLoop
 			}

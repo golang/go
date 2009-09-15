@@ -868,7 +868,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 		lastMatchEnd = a[1];
 
 		// Advance past this match; always advance at least one character.
-		rune, width := utf8.DecodeRuneInString(src[searchPos:len(src)]);
+		_, width := utf8.DecodeRuneInString(src[searchPos:len(src)]);
 		if searchPos + width > a[1] {
 			searchPos += width;
 		} else if searchPos + 1 > a[1] {
@@ -912,7 +912,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 		lastMatchEnd = a[1];
 
 		// Advance past this match; always advance at least one character.
-		rune, width := utf8.DecodeRune(src[searchPos:len(src)]);
+		_, width := utf8.DecodeRune(src[searchPos:len(src)]);
 		if searchPos + width > a[1] {
 			searchPos += width;
 		} else if searchPos + 1 > a[1] {

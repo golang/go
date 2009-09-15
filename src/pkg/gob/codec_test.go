@@ -42,7 +42,7 @@ func TestUintCodec(t *testing.T) {
 	b := new(bytes.Buffer);
 	encState := new(encoderState);
 	encState.b = b;
-	for i, tt := range encodeT {
+	for _, tt := range encodeT {
 		b.Reset();
 		encodeUint(encState, tt.x);
 		if encState.err != nil {

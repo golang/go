@@ -38,7 +38,7 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
 			}
 		case io.Reader:
 			var buf bytes.Buffer;
-			n, err := io.Copy(s, &buf);
+			_, err := io.Copy(s, &buf);
 			if err != nil {
 				return nil, err;
 			}

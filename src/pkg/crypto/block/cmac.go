@@ -70,7 +70,7 @@ func (d *cmac) Reset() {
 // Write adds the given data to the digest state.
 func (d *cmac) Write(p []byte) (n int, err os.Error) {
 	// Xor input into ci.
-	for i, c := range p {
+	for _, c := range p {
 		// If ci is full, encrypt and start over.
 		if d.p >= len(d.ci) {
 			d.c.Encrypt(d.ci, d.ci);

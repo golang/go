@@ -106,7 +106,7 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 	if length != 13 {
 		return FormatError("bad IHDR length");
 	}
-	n, err := io.ReadFull(r, d.scratch[0:13]);
+	_, err := io.ReadFull(r, d.scratch[0:13]);
 	if err != nil {
 		return err;
 	}
@@ -402,7 +402,7 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
 }
 
 func (d *decoder) checkHeader(r io.Reader) os.Error {
-	n, err := io.ReadFull(r, d.scratch[0:8]);
+	_, err := io.ReadFull(r, d.scratch[0:8]);
 	if err != nil {
 		return err;
 	}

@@ -92,7 +92,7 @@ func (client *Client) input() {
 	// Terminate pending calls.
 	client.mutex.Lock();
 	client.shutdown = err;
-	for seq, call := range client.pending {
+	for _, call := range client.pending {
 		call.Error = err;
 		_ = call.Done <- call;	// do not block
 	}

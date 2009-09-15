@@ -14,7 +14,7 @@ func Floor(x float64) float64 {
 		}
 		return -d;
 	}
-	d, fract := Modf(x);
+	d, _ := Modf(x);
 	return d;
 }
 

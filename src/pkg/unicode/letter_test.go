@@ -214,17 +214,17 @@ var caseTest = []caseT {
 }
 
 func TestIsLetter(t *testing.T) {
-	for i, r := range upperTest {
+	for _, r := range upperTest {
 		if !IsLetter(r) {
 			t.Errorf("IsLetter(U+%04X) = false, want true\n", r);
 		}
 	}
-	for i, r := range letterTest {
+	for _, r := range letterTest {
 		if !IsLetter(r) {
 			t.Errorf("IsLetter(U+%04X) = false, want true\n", r);
 		}
 	}
-	for i, r := range notletterTest {
+	for _, r := range notletterTest {
 		if IsLetter(r) {
 			t.Errorf("IsLetter(U+%04X) = true, want false\n", r);
 		}
@@ -232,17 +232,17 @@ func TestIsLetter(t *testing.T) {
 }
 
 func TestIsUpper(t *testing.T) {
-	for i, r := range upperTest {
+	for _, r := range upperTest {
 		if !IsUpper(r) {
 			t.Errorf("IsUpper(U+%04X) = false, want true\n", r);
 		}
 	}
-	for i, r := range notupperTest {
+	for _, r := range notupperTest {
 		if IsUpper(r) {
 			t.Errorf("IsUpper(U+%04X) = true, want false\n", r);
 		}
 	}
-	for i, r := range notletterTest {
+	for _, r := range notletterTest {
 		if IsUpper(r) {
 			t.Errorf("IsUpper(U+%04X) = true, want false\n", r);
 		}
@@ -262,7 +262,7 @@ func caseString(c int) string {
 }
 
 func TestTo(t *testing.T) {
-	for i, c := range caseTest {
+	for _, c := range caseTest {
 		r := To(c.cas, c.in);
 		if c.out != r {
 			t.Errorf("To(U+%04X, %s) = U+%04X want U+%04X\n", c.in, caseString(c.cas), r, c.out);
@@ -271,7 +271,7 @@ func TestTo(t *testing.T) {
 }
 
 func TestToUpperCase(t *testing.T) {
-	for i, c := range caseTest {
+	for _, c := range caseTest {
 		if c.cas != UpperCase {
 			continue
 		}
@@ -283,7 +283,7 @@ func TestToUpperCase(t *testing.T) {
 }
 
 func TestToLowerCase(t *testing.T) {
-	for i, c := range caseTest {
+	for _, c := range caseTest {
 		if c.cas != LowerCase {
 			continue
 		}
@@ -295,7 +295,7 @@ func TestToLowerCase(t *testing.T) {
 }
 
 func TestToTitleCase(t *testing.T) {
-	for i, c := range caseTest {
+	for _, c := range caseTest {
 		if c.cas != TitleCase {
 			continue
 		}

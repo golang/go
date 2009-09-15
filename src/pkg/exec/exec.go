@@ -158,9 +158,9 @@ func (p *Cmd) Close() os.Error {
 		// Loop on interrupt, but
 		// ignore other errors -- maybe
 		// caller has already waited for pid.
-		w, err := p.Wait(0);
+		_, err := p.Wait(0);
 		for err == os.EINTR {
-			w, err = p.Wait(0);
+			_, err = p.Wait(0);
 		}
 	}
 
@@ -209,7 +209,7 @@ func LookPath(file string) (string, os.Error) {
 		return "", os.ENOENT;
 	}
 	pathenv := os.Getenv("PATH");
-	for i, dir := range strings.Split(pathenv, ":", 0) {
+	for _, dir := range strings.Split(pathenv, ":", 0) {
 		if dir == "" {
 			// Unix shell semantics: path element "" means "."
 			dir = ".";
