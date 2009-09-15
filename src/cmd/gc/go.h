@@ -201,6 +201,7 @@ struct	Node
 	uchar	local;
 	uchar	initorder;
 	uchar	dodata;		// compile literal assignment as data statement
+	uchar	used;
 
 	// most nodes
 	Node*	left;

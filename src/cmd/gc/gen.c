@@ -26,6 +26,7 @@ allocparams(void)
 	Node *n;
 	uint32 w;
 	Sym *s;
+	int lno;
 
 	if(stksize < 0)
 		fatal("allocparams not during code generation");
@@ -35,6 +36,7 @@ allocparams(void)
 	 * slots for all automatics.
 	 * allocated starting at -w down.
 	 */
+	lno = lineno;
 	for(l=curfn->dcl; l; l=l->next) {
 		n = l->n;
 		if(n->op == ONAME && n->class == PHEAP-1) {
@@ -46,19 +48,21 @@ allocparams(void)
 		}
 		if(n->op != ONAME || n->class != PAUTO)
 			continue;
-		typecheck(&n, Erv);	// only needed for unused variables
+		lineno = n->lineno;
+		typecheck(&n, Erv | Easgn);	// only needed for unused variables
 		if(n->type == T)
 			continue;
+	//	if(!n->used && n->sym->name[0] != '&')
+	//		yyerror("%S declared and not used", n->sym);
 		dowidth(n->type);
 		w = n->type->width;
-		if(n->class & PHEAP)
-			w = widthptr;
 		if(w >= 100000000)
 			fatal("bad width");
 		stksize += w;
 		stksize = rnd(stksize, w);
 		n->xoffset = -stksize;
 	}
+	lineno = lno;
 }
 
 void

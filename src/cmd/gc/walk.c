@@ -1771,6 +1771,9 @@ convas(Node *n, NodeList **init)
 	if(lt == T || rt == T)
 		goto out;
 
+	if(isblank(n->left))
+		goto out;
+
 	if(n->left->op == OINDEXMAP) {
 		n = mkcall1(mapfn("mapassign1", n->left->left->type), T, init,
 			n->left->left, n->left->right, n->right);
