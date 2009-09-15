@@ -1750,7 +1750,7 @@ and a type.
 Operands denote the elementary values in an expression.
 
 <pre class="ebnf">
-Operand    = Literal | QualifiedIdent | "(" Expression ")" .
+Operand    = Literal | QualifiedIdent | MethodExpr | "(" Expression ")" .
 Literal    = BasicLit | CompositeLit | FunctionLit .
 BasicLit   = int_lit | float_lit | char_lit | StringLit .
 </pre>
@@ -2710,122 +2710,6 @@ to by the operand.
 *pf(x)
 </pre>
 
-<p>
-<font color=red>TODO: This text needs to be cleaned up and go elsewhere, there are no address
-operators involved.
-</font>
-</p>
-<p>
-Methods are a form of function and a method ``value'' has a function type.
-Consider the type T with method M:
-</p>
-
-<pre>
-type T struct {
-	a int;
-}
-func (tp *T) M(a int) int;
-var t *T;
-</pre>
-
-<p>
-To construct the value of method M, one writes
-</p>
-
-<pre>
-t.M
-</pre>
-
-<p>
-using the variable t (not the type T).
-<font color=red>TODO: It makes perfect sense to be able to say T.M (in fact, it makes more
-sense then t.M, since only the type T is needed to find the method M, i.e.,
-its address). TBD.
-</font>
-</p>
-
-<p>
-The expression t.M is a function value with type
-</p>
-
-<pre>
-func (t *T, a int) int
-</pre>
-
-<p>
-and may be invoked only as a function, not as a method:
-</p>
-
-<pre>
-var f func (t *T, a int) int;
-f = t.M;
-x := f(t, 7);
-</pre>
-
-<p>
-Note that one does not write t.f(7); taking the value of a method demotes
-it to a function.
-</p>
-
-<p>
-In general, given type T with method M and variable t of type T,
-the method invocation
-</p>
-
-<pre>
-t.M(args)
-</pre>
-
-<p>
-is equivalent to the function call
-</p>
-
-<pre>
-(t.M)(t, args)
-</pre>
-
-<p>
-<font color=red>
-TODO: should probably describe the effect of (t.m) under §<a href="#Expressions_if_t">Expressions if t</a>.m
-denotes a method: Effect is as described above, converts into function.
-</font>
-</p>
-<p>
-If T is an interface type, the expression t.M does not determine which
-underlying type's M is called until the point of the call itself. Thus given
-T1 and T2, both implementing interface I with method M, the sequence
-</p>
-
-<pre>
-var t1 *T1;
-var t2 *T2;
-var i I = t1;
-m := i.M;
-m(t2, 7);
-</pre>
-
-<p>
-will invoke t2.M() even though m was constructed with an expression involving
-t1. Effectively, the value of m is a function literal
-</p>
-
-<pre>
-func (recv I, a int) {
-	recv.M(a);
-}
-</pre>
-
-<p>
-that is automatically created.
-</p>
-<p>
-<font color=red>
-TODO: Document implementation restriction: It is illegal to take the address
-of a result parameter (e.g.: func f() (x int, p *int) { return 2, &amp;x }).
-(TBD: is it an implementation restriction or fact?)
-</font>
-</p>
-
 <h3 id="Communication_operators">Communication operators</h3>
 
 <p>
@@ -2915,8 +2799,126 @@ zero value for its type (§<a href="#The_zero_value">The zero value</a>).
 </p>
 
 <p>
-<font color=red>TODO: Probably in a separate section, communication semantices
+<font color=red>TODO: Probably in a separate section, communication semantics
 need to be presented regarding send, receive, select, and goroutines.</font>
+</p>
+
+<h3 id="Method_expressions">Method expressions</h3>
+
+<p>
+If <code>M</code> is in the method set of type <code>T</code>,
+<code>T.M</code> is a function that is callable as a regular function
+with the same arguments as <code>M</code> prefixed by an additional
+argument that is the receiver of the method.
+</p>
+
+<pre class="grammar">
+MethodExpr    = ReceiverType "." MethodName .
+ReceiverType  = TypeName | "(" "*" TypeName ")" .
+MethodName    = identifier .
+</pre>
+
+<p>
+Consider a struct type <code>T</code> with two methods,
+<code>Mv</code>, whose receiver is of type <code>T</code>, and
+<code>Mp</code>, whose receiver is of type <code>*T</code>.
+</p>
+
+<pre>
+type T struct {
+	a int;
+}
+func (tv  T) Mv(a int)   int   { return 0 }  // value receiver
+func (tp *T) Mp(f float) float { return 1 }  // pointer receiver
+var t T;
+</pre>
+
+<p>
+The expression
+</p>
+
+<pre>
+T.Mv
+</pre>
+
+<p>
+yields a function equivalent to <code>Mv</code> but
+with an explicit receiver as its first argument; it has signature
+</p>
+
+<pre>
+func (tv T, a int) int
+</pre>
+
+<p>
+That function may be called normally with an explicit receiver, so
+these three invocations are equivalent:
+</p>
+
+<pre>
+t.Mv(7)
+T.Mv(t, 7)
+f := T.Mv; f(t, 7)
+</pre>
+
+<p>
+Similarly, the expression
+</p>
+
+<pre>
+(*T).Mp
+</pre>
+
+<p>
+yields a function value representing <code>Mp</code> with signature
+</p>
+
+<pre>
+func (tp *T, f float) float
+</pre>
+
+<p>
+For a method with a value receiver, one can derive a function
+with an explicit pointer receiver, so
+</p>
+
+<pre>
+(*T).Mv
+</pre>
+
+<p>
+yields a function value representing <code>Mv</code> with signature
+</p>
+
+<pre>
+func (tv *T, f int) int
+</pre>
+
+<p>
+Such a function indirects through the receiver to create a value
+to pass as the receiver to the underlying method;
+the method does not overwrite the value whose address is passed in
+the function call.
+</p>
+
+<p>
+The final case, a value-receiver function for a pointer-receiver method,
+is illegal because pointer-receiver methods are not in the method set
+of the value type.
+</p>
+
+<p>
+Function values derived from methods are called with function call syntax;
+the receiver is provided as the first argument to the call.
+That is, given <code>f := T.Mv</code>, <code>f</code> is invoked
+as <code>f(t, 7)</code> not <code>t.f(7)</code>.
+To construct a function that binds the receiver, use a
+<a href="Function_literals">closure</a>.
+</p>
+
+<p>
+It is legal to derive a function value from a method of an interface type.
+The resulting function takes an explicit receiver of that interface type.
 </p>
 
 <h3 id="Constant_expressions">Constant expressions</h3>
@@ -4309,8 +4311,8 @@ mentions <code>B</code>, or mentions a function that
 mentions <code>B</code>, recursively.
 If two items are not interdependent, they will be initialized
 in the order they appear in the source.
-Since the dependency analysis is done per package, it can be
-defeated  if <code>A</code>'s initializer calls a function defined
+Since the dependency analysis is done per package, it can produce
+unspecified results  if <code>A</code>'s initializer calls a function defined
 in another package that refers to <code>B</code>.
 </p>
 <p>
