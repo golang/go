@@ -2557,7 +2557,7 @@ Examples:
 
 <p>
 If the dividend is positive and the divisor is a constant power of 2,
-the division may be replaced by a left shift, and computing the remainder may
+the division may be replaced by a right shift, and computing the remainder may
 be replaced by a bitwise "and" operation:
 </p>
 
@@ -3011,12 +3011,12 @@ Statements control execution.
 
 <pre class="ebnf">
 Statement =
-	Declaration | EmptyStmt | LabeledStmt |
-	SimpleStmt | GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
+	Declaration | LabeledStmt | SimpleStmt |
+	GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
 	FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
 	DeferStmt .
 
-SimpleStmt = ExpressionStmt | IncDecStmt | Assignment | ShortVarDecl .
+SimpleStmt = EmptyStmt | ExpressionStmt | IncDecStmt | Assignment | ShortVarDecl .
 
 StatementList = Statement { Separator Statement } .
 Separator     = [ ";" ] .
@@ -3196,7 +3196,7 @@ is equivalent to <code>true</code>.
 </p>
 
 <pre class="ebnf">
-IfStmt    = "if" [ [ SimpleStmt ] ";" ] [ Expression ] Block [ "else" Statement ] .
+IfStmt    = "if" [ SimpleStmt ";" ] [ Expression ] Block [ "else" Statement ] .
 </pre>
 
 <pre>
@@ -3261,7 +3261,7 @@ the expression <code>true</code>.
 </p>
 
 <pre class="ebnf">
-ExprSwitchStmt = "switch" [ [ SimpleStmt ] ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
+ExprSwitchStmt = "switch" [ SimpleStmt ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
 ExprCaseClause = ExprSwitchCase ":" [ StatementList ] .
 ExprSwitchCase = "case" ExpressionList | "default" .
 </pre>
@@ -3311,7 +3311,7 @@ in the type assertion.
 </p>
 
 <pre class="ebnf">
-TypeSwitchStmt  = "switch" [ [ SimpleStmt ] ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
+TypeSwitchStmt  = "switch" [ SimpleStmt ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
 TypeSwitchGuard = [ identifier ":=" ] Expression "." "(" "type" ")" .
 TypeCaseClause  = TypeSwitchCase ":" [ StatementList ] .
 TypeSwitchCase  = "case" Type | "default" .
@@ -3426,7 +3426,7 @@ an increment or decrement statement. The init statement may be a
 </p>
 
 <pre class="ebnf">
-ForClause = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ] .
+ForClause = InitStmt ";" [ Condition ] ";" PostStmt .
 InitStmt = SimpleStmt .
 PostStmt = SimpleStmt .
 </pre>
