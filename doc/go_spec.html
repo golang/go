@@ -36,7 +36,7 @@ href="/">the Go home page</a>.
 
 <p>
 Go is a general-purpose language designed with systems programming
-in mind. It is strongly typed and garbage-collected, and has explicit
+in mind. It is strongly typed and garbage-collected and has explicit
 support for concurrent programming.  Programs are constructed from
 <i>packages</i>, whose properties allow efficient management of
 dependencies. The existing implementations use a traditional
@@ -77,7 +77,7 @@ operators, in increasing precedence:
 <p>
 Lower-case production names are used to identify lexical tokens.
 Non-terminals are in CamelCase. Lexical symbols are enclosed in
-double <code>""</code> or back quotes <code>``</code>.
+double quotes <code>""</code> or back quotes <code>``</code>.
 </p>
 
 <p>
@@ -112,7 +112,13 @@ unicode_letter = /* a Unicode code point classified as "Letter" */ .
 unicode_digit  = /* a Unicode code point classified as "Digit" */ .
 </pre>
 
-(The Unicode Standard, Section 4.5 General Category - Normative.)
+<p>
+In <i>The Unicode Standard 5.0</i>,
+Section 4.5 General Category-Normative
+defines a set of character categories.  Go treats
+those characters in category Lu, Ll, Lt, Lm, or Lo as Unicode letters,
+and those in category Nd as Unicode digits.
+</p>
 
 <h3 id="Letters_and_digits">Letters and digits</h3>
 
@@ -259,8 +265,9 @@ the destination must be able to represent the assigned value.
 </p>
 <p>
 Implementation restriction: A compiler may implement ideal numbers
-by choosing an internal representation with at least twice the precision
-of any machine type.
+by choosing an internal representation with at least twice as many
+bits as any machine type; for floats, both the mantissa and exponent
+must be twice as large.
 </p>
 
 <h3 id="Character_literals">Character literals</h3>
@@ -295,8 +302,8 @@ the digits in the corresponding base.
 <p>
 Although these representations all result in an integer, they have
 different valid ranges.  Octal escapes must represent a value between
-0 and 255 inclusive.  (Hexadecimal escapes satisfy this condition
-by construction). The `Unicode' escapes <code>\u</code> and <code>\U</code>
+0 and 255 inclusive.  Hexadecimal escapes satisfy this condition
+by construction. The escapes <code>\u</code> and <code>\U</code>
 represent Unicode code points so within them some values are illegal,
 in particular those above <code>0x10FFFF</code> and surrogate halves.
 </p>
@@ -427,6 +434,14 @@ literal.
 </p>
 <hr/>
 
+<h3 id="Boolean_literals">Boolean literals</h3>
+
+<p>
+A boolean literal is one of the predeclared constants
+<code>true</code> or <code>false</code>.  The value of a boolean
+literal is an <i>ideal bool</i>.
+</p>
+
 <h2 id="Types">Types</h2>
 
 <p>
@@ -545,11 +560,11 @@ it is impossible to change the contents of a string.
 <p>
 The elements of strings have type <code>byte</code> and may be
 accessed using the usual indexing operations (§<a href="#Indexes">Indexes</a>).  It is
-illegal to take the address of such an element, that is, even if
-<code>s[i]</code> is the <code>i</code><sup>th</sup> byte of a
+illegal to take the address of such an element; if
+<code>s[i]</code> is the <i>i</i>th byte of a
 string, <code>&amp;s[i]</code> is invalid.  The length of string
 <code>s</code> can be discovered using the built-in function
-<code>len(s)</code>. It is a compile-time constant if <code>s</code>
+<code>len(s)</code>. The length is a compile-time constant if <code>s</code>
 is a string literal.
 </p>
 
@@ -642,7 +657,7 @@ make([]T, length, capacity)
 
 <p>
 The <code>make()</code> call allocates a new, hidden array to which the returned
-slice value refers. That is, calling <code>make</code>
+slice value refers. That is, executing
 </p>
 
 <pre>
@@ -710,8 +725,8 @@ struct {
 </pre>
 
 <p>
-The unqualified type name of an anonymous field must not conflict with the
-field identifier (or unqualified type name for an anonymous field) of any
+The unqualified type name of an anonymous field must be distinct from the
+field identifier (or unqualified type name for an anonymous field) of every
 other field within the struct. The following declaration is illegal:
 </p>
 
@@ -749,17 +764,17 @@ a type named <code>T</code>:
 A field declaration may be followed by an optional string literal <i>tag</i>,
 which becomes an attribute for all the identifiers in the corresponding
 field declaration. The tags are made
-visible through a reflection library (TODO: reference?)
+visible through a reflection library <font color=red>TODO: reference?</font>
 but are otherwise ignored.
 </p>
 
 <pre>
-// A struct corresponding to the EventIdMessage protocol buffer.
+// A struct corresponding to the TimeStamp protocol buffer.
 // The tag strings define the protocol buffer field numbers.
 struct {
-	time_usec uint64 "field 1";
-	server_ip uint32 "field 2";
-	process_id uint32 "field 3";
+	microsec  uint64 "field 1";
+	serverIP6 uint64 "field 2";
+	process   string "field 3";
 }
 </pre>
 
@@ -810,8 +825,7 @@ one unnamed result that is not a function type it may writen as an unparenthesiz
 For the last parameter only, instead of a type one may write
 <code>...</code> to indicate that the function may be invoked with
 zero or more additional arguments of any
-type. If parameters of such a function are named, the final identifier
-list must be a single name, that of the <code>...</code> parameter.
+type.
 </p>
 
 <pre>
@@ -961,11 +975,11 @@ map [string] interface {}
 The number of elements is called the length and is never negative.
 The length of a map <code>m</code> can be discovered using the
 built-in function <code>len(m)</code> and may change during execution.
-The value of an uninitialized map is <code>nil</code>.
+Values may be added and removed
+during execution using special forms of <a href="#Assignments">assignment</a>.
 </p>
 <p>
-Upon creation, a map is empty.  Values may be added and removed
-during execution using special forms of assignment (§<a href="#Assignments">Assignments</a>).
+The value of an uninitialized map is <code>nil</code>.
 A new, empty map value is made using the built-in
 function <code>make</code>, which takes the map type and an optional
 capacity hint as arguments:
@@ -1024,7 +1038,7 @@ make(chan int, 100)
 
 <p>
 The capacity, in number of elements, sets the size of the buffer in the channel. If the
-capacity is greater than zero, the channel is asynchronous and, provided the
+capacity is greater than zero, the channel is asynchronous: provided the
 buffer is not full, sends can succeed without blocking. If the capacity is zero
 or absent, the communication succeeds only when both a sender and receiver are ready.
 </p>
@@ -1073,7 +1087,7 @@ identical types. In detail:
 
 	<li>Two function types are identical if they have the same number of parameters
 	    and result values and if corresponding parameter and result types are
-	    identical. All "..." parameters have identical type.
+	    identical. All "..." parameters are defined to have identical type.
 	    Parameter and result names are not required to match.</li>
 
 	<li>Two interface types are identical if they have the same set of methods
@@ -1103,11 +1117,11 @@ Given the declarations
 <pre>
 type (
 	T0 []string;
-	T1 []string
+	T1 []string;
 	T2 struct { a, b int };
 	T3 struct { a, c int };
-	T4 func (int, float) *T0
-	T5 func (x int, y float) *[]string
+	T4 func (int, float) *T0;
+	T5 func (x int, y float) *[]string;
 )
 </pre>
 
@@ -1177,9 +1191,10 @@ A value can always be assigned to the <a href="#Blank_identifier">blank identifi
 <h3 id="Comparison_compatibility">Comparison compatibility</h3>
 
 <p>
-Values of any type may be compared to other values of compatible static
-type.  Values of numeric and string type may be compared using the
-full range of comparison operators as described in §<a href="#Comparison_operators;">Comparison operators;</a>
+Except as noted, values of any type may be compared to other values of
+<a href="#Type_compatibility">compatible static type</a>.
+Values of numeric and string type may be compared using the
+full range of <a href="#Comparison_operators;">comparison operators</a>;
 booleans may be compared only for equality or inequality.
 </p>
 
@@ -1195,15 +1210,13 @@ Arrays and structs may not be compared to anything.
 <li>
 A slice value may only be compared explicitly against <code>nil</code>.
 A slice value is equal to <code>nil</code> if it has been assigned the explicit
-value <code>nil</code> or if it is a variable (or array element,
-field, etc.) that has not been modified since it was created
-uninitialized.
+value <code>nil</code>, if it is uninitialized, or if it has
+been assigned another slice value equal to <code>nil</code>·
 </li>
 <li>
 Similarly, an interface value is equal to <code>nil</code> if it has
-been assigned the explicit value <code>nil</code> or if it is a
-variable (or array element, field, etc.) that has not been modified
-since it was created uninitialized.
+been assigned the explicit value <code>nil</code>, if it is uninitialized,
+or if it has been assigned another interface value equal to <code>nil</code>.
 </li>
 <li>
 For types that can be compared to <code>nil</code>,
@@ -1369,7 +1382,7 @@ is exported if both:
 </p>
 <ol>
 	<li>the first character of the identifier's name is a Unicode upper case letter (Unicode class "Lu"); and
-	<li>the identifier is declared in the <a href="#Blocks">package block</a> or is a field or method of a type
+	<li>the identifier is declared in the <a href="#Blocks">package block</a> or denotes a field or method of a type
 	    declared in that block.
 </ol>
 <p>
@@ -1408,7 +1421,8 @@ ExpressionList = Expression { "," Expression } .
 <p>
 If the type is omitted, the constants take the
 individual types of the corresponding expressions, which may be
-an <a href="#Ideal_numbers">ideal number</a> or <a href="#String_literals">ideal string</a>.
+an <a href="#Ideal_numbers">ideal number</a>, <a href="#String_literals">ideal string</a>,
+or  <a href="#Boolean_literals">ideal bool</a>.
 If the type is present, all constants take the type specified, and the types
 of all the expressions must be assignment-compatible
 with that type.
@@ -1429,7 +1443,7 @@ const u, v float = 0, 3      // u = 0.0, v = 3.0
 Within a parenthesized <code>const</code> declaration list the
 expression list may be omitted from any but the first declaration.
 Such an empty list is equivalent to the textual substitution of the
-first preceding non-empty expression list, and its type if any.
+first preceding non-empty expression list and its type if any.
 Omitting the list of expressions is therefore equivalent to
 repeating the previous list.  The number of identifiers must be equal
 to the number of expressions in the previous list.
@@ -1530,8 +1544,10 @@ type TreeNode struct {
 	value *Comparable;
 }
 
-type Comparable interface {
-	cmp(Comparable) int
+type Cipher interface {
+	BlockSize() int;
+	Encrypt(src, dst []byte);
+	Decrypt(src, dst []byte);
 }
 </pre>
 
@@ -1551,7 +1567,7 @@ VarSpec     = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList 
 var i int
 var U, V, W float
 var k = 0
-var x, y float = -1.0, -2.0
+var x, y float = -1, -2
 var (
 	i int;
 	u, v, s = 2.0, 3.0, "bar"
@@ -1562,7 +1578,8 @@ var _, found = entries[name];  // map lookup; only interested in "found"
 
 <p>
 If a list of expressions is given, the variables are initialized
-by assigning those expressions to the variables (§<a href="#Assignments">Assignments</a>).
+by assigning the expressions to the variables (§<a href="#Assignments">Assignments</a>)
+in order; all expressions must be consumed and all variables initialized from them.
 Otherwise, each variable is initialized to its <a href="#The_zero_value"><i>zero value</i></a>.
 </p>
 
@@ -1574,15 +1591,16 @@ of the expression list.
 
 <p>
 If the type is absent and the corresponding expression is a constant
-expression of ideal integer, float, or string type, the type of the
+expression of ideal integer, float, string or bool type, the type of the
 declared variable is <code>int</code>, <code>float</code>,
-or <code>string</code> respectively:
+<code>string</code>, or <code>bool</code> respectively:
 </p>
 
 <pre>
 var i = 0       // i has type int
 var f = 3.1415  // f has type float
 var s = "OMDB"  // s has type string
+var t = true    // t has type bool
 </pre>
 
 <h3 id="Short_variable_declarations">Short variable declarations</h3>
@@ -1605,7 +1623,7 @@ i, j := 0, 10;
 f := func() int { return 7; }
 ch := make(chan int);
 r, w := os.Pipe(fd);  // os.Pipe() returns two values
-_, y, _ := coord(p);  // coord() returns three values; only interested in y "projection"
+_, y, _ := coord(p);  // coord() returns three values; only interested in y coordinate
 </pre>
 
 <p>
@@ -1694,7 +1712,8 @@ func (p *Point) Scale(factor float) {
 </pre>
 
 <p>
-bind the methods <code>Length</code> and <code>Scale</code>
+bind the methods <code>Length</code> and <code>Scale</code>,
+with receiver type <code>*Point</code>,
 to the base type <code>Point</code>.
 </p>
 
@@ -1765,7 +1784,7 @@ package, which means that it must begin with a Unicode upper case letter.
 </p>
 
 <pre>
-Math.Sin
+math.Sin
 </pre>
 
 <p>
@@ -1788,7 +1807,9 @@ LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
                 SliceType | MapType | TypeName .
 ElementList   = Element { "," Element } [ "," ] .
 Element       = [ Key ":" ] Value .
-Key           = Expression .
+Key           = FieldName | Index .
+FieldName     = identifier .
+Index         = Expression .
 Value         = Expression .
 </pre>
 
@@ -1800,7 +1821,7 @@ The types of the expressions must be <a href="#Assignment_compatibility">assignm
 the respective field, element, and key types of the LiteralType;
 there is no additional conversion.
 The key is interpreted as a field name for struct literals,
-an index for array and slice literals, and a key for map literals.
+an index expression for array and slice literals, and a key for map literals.
 For map literals, all elements must have a key. It is an error
 to specify multiple elements with the same field name or
 constant key value.
@@ -1810,13 +1831,13 @@ constant key value.
 For struct literals the following rules apply:
 </p>
 <ul>
-	<li>A literal which does not contain any keys must
+	<li>A literal that does not contain any keys must
 	    list an element for each struct field in the
 	    order in which the fields are declared.
 	</li>
 	<li>If any element has a key, every element must have a key.
 	</li>
-	<li>A literal which contains keys does not need to
+	<li>A literal that contains keys does not need to
 	    have an element for each struct field. Omitted fields
 	    get the zero value for that field.
 	</li>
@@ -1885,7 +1906,7 @@ days := [...]string{"Sat", "Sun"};    // len(days) == 2
 
 <p>
 A slice literal describes the entire underlying array literal.
-Thus, the length and capacity of a slice literal is the maximum
+Thus, the length and capacity of a slice literal are the maximum
 element index plus one. A slice literal has the form
 </p>
 
@@ -2058,7 +2079,7 @@ If no value or <code>nil</code> was assigned to <code>x</code>, <code>x.f</code>
 In all other cases, <code>x.f</code> is illegal.
 </ol>
 <p>
-Selectors automatically dereference pointers as necessary.
+Selectors automatically dereference pointers.
 If <code>x</code> is of pointer type, <code>x.y</code>
 is shorthand for <code>(*x).y</code>; if <code>y</code>
 is also of pointer type, <code>x.y.z</code> is shorthand
@@ -2129,9 +2150,9 @@ a[x]
 </pre>
 
 <p>
-denotes the array or map element of <code>a</code> indexed by <code>x</code>.
+denotes the element of the array, slice, string or map <code>a</code> indexed by <code>x</code>.
 The value <code>x</code> is called the
-<i>array index</i> or <i>map key</i>, respectively. The following
+<i>index</i> or <i>map key</i>, respectively. The following
 rules apply:
 </p>
 
@@ -2329,9 +2350,9 @@ pt.Scale(3.5)  // method call with receiver pt
 
 <p>
 A method call <code>x.m()</code> is valid if the method set of
-(the type of) <code>x</code> contains <code>m</code> (and the
-argument list is compatible with the parameter list of <code>m</code>).
-If <code>x</code> is addressable and <code>&amp;x</code>'s method
+(the type of) <code>x</code> contains <code>m</code> and the
+argument list is compatible with the parameter list of <code>m</code>.
+If <code>x</code> is <a href="#Address_operators">addressable</a> and <code>&amp;x</code>'s method
 set contains <code>m</code>, <code>x.m()</code> is shorthand
 for <code>(&amp;x).m()</code>:
 </p>
@@ -2622,10 +2643,11 @@ not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is alw
 <h3 id="Comparison_operators">Comparison operators</h3>
 
 <p>
-Comparison operators yield a boolean result. All comparison operators apply
-to basic types except bools.
+Comparison operators yield a boolean result.
 The operators <code>==</code> and <code>!=</code> apply, at least in some cases,
 to all types except arrays and structs.
+All other comparison operators apply only
+to basic types except <code>bool</code>.
 </p>
 
 <pre class="grammar">
@@ -2669,10 +2691,15 @@ The right operand is evaluated conditionally.
 <h3 id="Address_operators">Address operators</h3>
 
 <p>
-The unary prefix address-of operator <code>&amp;</code> generates the address of its operand, which must be a variable,
-pointer indirection, field selector, or array or slice indexing operation. It is illegal to take the address of a function
-result variable.
-Given an operand of pointer type, the unary prefix pointer indirection operator <code>*</code> retrieves the value pointed
+The address-of operator <code>&amp;</code> generates the address of its operand,
+which must be <i>addressable</i>,
+that is, either a variable, pointer indirection, array or slice indexing
+operation,
+or a field selector of an addressable struct operand.
+A function result variable is not addressable.
+(<font color=red>TODO: remove this restriction.</font>)
+Given an operand of pointer type, the pointer indirection
+operator <code>*</code> retrieves the value pointed
 to by the operand.
 </p>
 
@@ -2802,7 +2829,7 @@ of a result parameter (e.g.: func f() (x int, p *int) { return 2, &amp;x }).
 <h3 id="Communication_operators">Communication operators</h3>
 
 <p>
-The term <i>channel</i> means "variable of channel type" (§<a href="#Channel_types">Channel types</a>).
+The term <i>channel</i> means "value of <a href="#Channel_types">channel type</a>".
 </p>
 <p>
 The send operation uses the binary operator "&lt;-", which operates on
@@ -2817,9 +2844,9 @@ ch <- 3
 The send operation sends the value on the channel.  Both the channel
 and the expression are evaluated before communication begins.
 Communication blocks until the send can proceed, at which point the
-value is transmitted on the channel.  A send can proceed if the
-channel is asynchronous and there is room in its buffer or the
-channel is synchronous and a receiver is ready.
+value is transmitted on the channel.
+A send on an unbuffered channel can proceed if a receiver is ready.
+A send on a buffered channel can proceed if there is room in the buffer.
 </p>
 <p>
 If the send operation appears in an expression context, the value
@@ -2879,7 +2906,7 @@ var x, ok = <-ch
 
 <p>
 the receive operation becomes non-blocking.
-If the operation can proceeed, the boolean variable
+If the operation can proceed, the boolean variable
 <code>ok</code> will be set to <code>true</code>
 and the value stored in <code>x</code>; otherwise
 <code>ok</code> is set
@@ -2959,7 +2986,7 @@ uint8(100) * 100  // error, out of range
 
 <p>
 The mask used by the unary bitwise complement operator matches
-the rule for non-constants: the mask is the all 1s for unsigned constants
+the rule for non-constants: the mask is all 1s for unsigned constants
 and -1 for signed and ideal constants.
 </p>
 
@@ -2972,9 +2999,11 @@ int8(^1)    // same as int8(-2)
 </pre>
 
 <p>
+<font color=red>
 TODO: perhaps ^ should be disallowed on non-uints instead of assuming twos complement.
 Also it may be possible to make typed constants more like variables, at the cost of fewer
 overflow etc. errors being caught.
+</font>
 </p>
 
 <h3 id="Order_of_evaluation">Order of evaluation</h3>
@@ -3115,8 +3144,9 @@ assign_op = [ add_op | mul_op ] "=" .
 </pre>
 
 <p>
-Each left-hand side operand must be a variable, pointer indirection,
-field selector, index expression, or <a href="#Blank_identifier">blank identifier</a>.
+Each left-hand side operand must be <a href="#Address_operators">addressable</a>,
+a map index expresssion,
+or the <a href="#Blank_identifier">blank identifier</a>.
 </p>
 
 <pre>
@@ -3124,7 +3154,6 @@ x = 1
 *p = f()
 a[i] = 23
 k = <-ch
-i &amp;^= 1&lt;&lt;n
 </pre>
 
 <p>
@@ -3133,10 +3162,13 @@ An <i>assignment operation</i> <code>x</code> <i>op</i><code>=</code>
 to <code>x</code> <code>=</code> <code>x</code> <i>op</i>
 <code>y</code> but evalutates <code>x</code>
 only once.  The <i>op</i><code>=</code> construct is a single token.
+In assignment operations, both the left- and right-hand expression lists
+must contain exactly one single-valued expression.
 </p>
 
 <pre>
 a[i] &lt;&lt;= 2
+i &amp;^= 1&lt;&lt;n
 </pre>
 
 <p>
@@ -3156,7 +3188,7 @@ x, y = f()
 
 <p>
 assigns the first value to <code>x</code> and the second to <code>y</code>.
-The <a href="#Blank_identifier">blank identifier</a> provides a convenient
+The <a href="#Blank_identifier">blank identifier</a> provides a
 way to ignore values returned by a multi-valued expression:
 </p>
 
@@ -3171,7 +3203,7 @@ of expressions on the right, each of which must be single-valued, and the
 operand on the left.
 The expressions on the right are evaluated before assigning to
 any of the operands on the left, but otherwise the evaluation
-order is unspecified.
+order is unspecified beyond <a href="#Order_of_evaluation">the usual rules</a>.
 </p>
 
 <pre>
@@ -3314,7 +3346,8 @@ in the type assertion.
 TypeSwitchStmt  = "switch" [ SimpleStmt ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
 TypeSwitchGuard = [ identifier ":=" ] Expression "." "(" "type" ")" .
 TypeCaseClause  = TypeSwitchCase ":" [ StatementList ] .
-TypeSwitchCase  = "case" Type | "default" .
+TypeSwitchCase  = "case" TypeList | "default" .
+TypeList        = Type { "," Type } .
 </pre>
 
 <p>
@@ -3418,7 +3451,7 @@ for a &lt; b {
 </pre>
 
 <p>
-A "for" statement with a "for" clause is also controlled by its condition, but
+A "for" statement with a ForClause is also controlled by its condition, but
 additionally it may specify an <i>init</i>
 and a <i>post</i> statement, such as an assignment,
 an increment or decrement statement. The init statement may be a
@@ -3442,14 +3475,14 @@ If non-empty, the init statement is executed once before evaluating the
 condition for the first iteration;
 the post statement is executed after each execution of the block (and
 only if the block was executed).
-Any element of the "for" clause may be empty but the semicolons are
+Any element of the ForClause may be empty but the semicolons are
 required unless there is only a condition.
 If the condition is absent, it is equivalent to <code>true</code>.
 </p>
 
 <pre>
-for ; cond ; { S() }    is the same as    for cond { S() }
-for true { S() }        is the same as    for      { S() }
+for cond { S() }    is the same as    for ; cond ; { S() }
+for      { S() }    is the same as    for true     { S() }
 </pre>
 
 <p>
@@ -3467,7 +3500,7 @@ RangeClause = ExpressionList ( "=" | ":=" ) "range" Expression .
 
 <p>
 The type of the right-hand expression in the "range" clause must be an
-array, slice, string or map, or a pointer to an array, slice, string or map;
+array, slice, string or map, or a pointer to an array;
 or it may be a channel.
 Except for channels,
 the identifier list must contain one or two expressions
@@ -3485,7 +3518,7 @@ must be <a href="#Assignment_compatibility">assignment compatible</a> to the ite
 <p>
 For strings, the "range" clause iterates over the Unicode code points
 in the string.  On successive iterations, the index variable will be the
-index of successive UTF-8-encoded code points in the string, and
+index of the first byte of successive UTF-8-encoded code points in the string, and
 the second variable, of type <code>int</code>, will be the value of
 the corresponding code point.  If the iteration encounters an invalid
 UTF-8 sequence, the second variable will be <code>0xFFFD</code>,
@@ -3519,8 +3552,8 @@ for i, s := range a {
 
 var key string;
 var val interface {};  // value type of m is assignment-compatible to val
-for key, value = range m {
-	h(key, value)
+for key, val = range m {
+	h(key, val)
 }
 // key == last map key encountered in iteration
 // val == map[key]
@@ -3731,7 +3764,7 @@ L: for i < n {
 
 <p>
 A "continue" statement begins the next iteration of the
-innermost "for" loop at the post statement (§<a href="#For_statements">For statements</a>).
+innermost "for" loop at its post statement (§<a href="#For_statements">For statements</a>).
 </p>
 
 <pre class="ebnf">
@@ -3771,7 +3804,7 @@ L:
 <p>
 is erroneous because the jump to label <code>L</code> skips
 the creation of <code>v</code>.
-(TODO: Eliminate in favor of used and not set errors?)
+(<font color=red>TODO: Eliminate in favor of used and not set errors?</font>)
 </p>
 
 <h3 id="Fallthrough_statements">Fallthrough statements</h3>
@@ -3803,10 +3836,10 @@ DeferStmt = "defer" Expression .
 The expression must be a function or method call.
 Each time the "defer" statement
 executes, the parameters to the function call are evaluated and saved anew but the
-function is not invoked. Immediately before the innermost function surrounding
-the "defer" statement returns, but after its return value (if any) is evaluated,
-each deferred function is executed with its saved parameters. Deferred functions
-are executed in LIFO order.
+function is not invoked.
+Deferred function calls are executed in LIFO order
+immediately before the surrounding function returns,
+but after the return values, if any, have been evaluated.
 </p>
 
 <pre>
@@ -3843,8 +3876,8 @@ Call      Argument type        Result
 len(s)    string               string length (in bytes)
           [n]T, *[n]T          array length (== n)
           []T                  slice length
-          map[K]T              map length
-          chan T               number of elements in channel buffer
+          map[K]T              map length (number of defined keys)
+          chan T               number of elements sent queued in channel buffer
 
 cap(s)    [n]T, *[n]T          array length (== n)
           []T                  slice capacity
@@ -3907,10 +3940,12 @@ The conversion always yields a valid value; there is no indication of overflow.
 </li>
 <li>
 4) Between integer and floating point types, or between floating point
-types.  To avoid overdefining the properties of the conversion, for
-now it is defined as a ``best effort'' conversion.  The conversion
-always succeeds but the value may be a NaN or other problematic
-result. <font color=red>TODO: clarify</font>
+types.
+When converting a floating point number to an integer, the fraction is discarded
+(truncation towards zero).
+In all conversions involving floating point, if the result type cannot represent the
+value the conversion succeeds but the result value is unspecified.
+<font color=red>This behavior may change.</font>
 </li>
 <li>
 5) Strings permit three special conversions:
@@ -4198,11 +4233,12 @@ func main() {
 <h3 id="The_zero_value">The zero value</h3>
 <p>
 When memory is allocated to store a value, either through a declaration
-or <code>new()</code>, and no explicit initialization is provided, the memory is
+or <code>make()</code> or <code>new()</code> call,
+and no explicit initialization is provided, the memory is
 given a default initialization.  Each element of such a value is
 set to the <i>zero value</i> for its type: <code>false</code> for booleans,
 <code>0</code> for integers, <code>0.0</code> for floats, <code>""</code>
-for strings, and <code>nil</code> for pointers and interfaces.
+for strings, and <code>nil</code> for pointers, interfaces, slices, channels, and maps.
 This initialization is done recursively, so for instance each element of an
 array of structs will have its fields zeroed if no value is specified.
 </p>
@@ -4245,7 +4281,9 @@ var t T
 <h3 id="Program_execution">Program execution</h3>
 <p>
 A package with no imports is initialized by assigning initial values to
-all its package-level variables in declaration order and then calling any
+all its package-level variables in data-dependency order
+(<font color=red>TODO: clarify</font>)
+and then calling any
 package-level function with the name and signature of
 </p>
 <pre>
@@ -4324,9 +4362,11 @@ type Pointer *ArbitraryType
 
 func Alignof(variable ArbitraryType) int
 func Offsetof(selector ArbitraryType) int
-func Reflect(i interface {}) (value uint64, typestring string, indir bool)
 func Sizeof(variable ArbitraryType) int
-func Unreflect(value uint64, typestring string, indir bool) interface {}
+
+func Reflect(val interface {}) (typ runtime.Type, addr uintptr)
+func Typeof(val interface {}) reflect.Type
+func Unreflect(typ runtime.Type, addr uintptr) interface{}
 </pre>
 
 <p>
@@ -4340,7 +4380,8 @@ variable of any type and returns the size of the variable in bytes.
 <p>
 The function <code>Offsetof</code> takes a selector (§<a href="#Selectors">Selectors</a>) denoting a struct
 field of any type and returns the field offset in bytes relative to the
-struct's address. For a struct <code>s</code> with field <code>f</code>:
+struct's address.
+For a struct <code>s</code> with field <code>f</code>:
 </p>
 
 <pre>
@@ -4362,10 +4403,24 @@ uintptr(unsafe.Pointer(&amp;x)) % uintptr(unsafe.Alignof(x)) == 0
 
 <p>
 Calls to <code>Alignof</code>, <code>Offsetof</code>, and
-<code>Sizeof</code> are constant expressions of type <code>int</code>.
+<code>Sizeof</code> are compile-time constant expressions of type <code>int</code>.
 </p>
 <p>
-<font color=red>TODO describe Reflect, Unreflect</font>
+The functions <code>unsafe.Typeof</code>,
+<code>unsafe.Reflect</code>,
+and <code>unsafe.Unreflect</code> allow access at run time to the dynamic 
+types and values stored in interfaces.
+<code>Typeof</code> returns a representation of
+<code>val</code>'s
+dynamic type as a <code>runtime.Type</code>.
+<code>Reflect</code> allocates a copy of
+<code>val</code>'s dynamic
+value and returns both the type and the address of the copy.
+<code>Unreflect</code> inverts <code>Reflect</code>,
+creating an
+interface value from a type and address.
+The <code>reflect</code> package built on these primitives
+provides a safe, more convenient way to inspect interface values.
 </p>
 
 
