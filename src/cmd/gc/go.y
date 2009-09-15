@@ -456,6 +456,7 @@ case:
 		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
 			// type switch - declare variable
 			n = newname(n->sym);
+			n->used = 1;	// TODO(rsc): better job here
 			declare(n, dclcontext);
 			$$->nname = n;
 		}
@@ -488,6 +489,7 @@ case:
 		if(typesw != N && typesw->right != N && (n=typesw->right->left) != N) {
 			// type switch - declare variable
 			n = newname(n->sym);
+			n->used = 1;	// TODO(rsc): better job here
 			declare(n, dclcontext);
 			$$->nname = n;
 		}

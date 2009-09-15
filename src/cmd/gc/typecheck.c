@@ -112,9 +112,13 @@ reswitch:
 			ok |= Ecall;
 			goto ret;
 		}
-		if(isblank(n) && !(top & Easgn)) {
-			yyerror("cannot use _ as value");
-			goto error;
+		if(!(top & Easgn)) {
+			// not a write to the variable
+			if(isblank(n)) {
+				yyerror("cannot use _ as value");
+				goto error;
+			}
+			n->used = 1;
 		}
 		ok |= Erv;
 		goto ret;
