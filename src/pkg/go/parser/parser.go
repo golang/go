@@ -873,12 +873,17 @@ func (p *parser) parseStringList(x *ast.BasicLit) []*ast.BasicLit {
 }
 
 
-func (p *parser) parseFuncLit() ast.Expr {
+func (p *parser) parseFuncTypeOrLit() ast.Expr {
 	if p.trace {
-		defer un(trace(p, "FuncLit"));
+		defer un(trace(p, "FuncTypeOrLit"));
 	}
 
 	typ := p.parseFuncType();
+	if p.tok != token.LBRACE {
+		// function type only
+		return typ;
+	}
+
 	p.exprLev++;
 	body := p.parseBlockStmt(nil);
 	p.optSemi = false;  // function body requires separating ";"
@@ -918,10 +923,10 @@ func (p *parser) parseOperand() ast.Expr {
 		return &ast.ParenExpr{lparen, x, rparen};
 
 	case token.FUNC:
-		return p.parseFuncLit();
+		return p.parseFuncTypeOrLit();
 
 	default:
-		t := p.tryRawType(true);  // could be type for composite literal
+		t := p.tryRawType(true);  // could be type for composite literal or conversion
 		if t != nil {
 			return t;
 		}
