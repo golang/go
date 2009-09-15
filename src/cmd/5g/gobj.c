@@ -120,12 +120,22 @@ zaddr(Biobuf *b, Addr *a, int s)
 		Bputc(b, l>>24); // fall through
 	case D_OREG:
 	case D_CONST:
-	case D_BRANCH:
 	case D_SHIFT:
 	case D_STATIC:
 	case D_AUTO:
 	case D_EXTERN:
 	case D_PARAM:
+		l = a->offset;
+		Bputc(b, l);
+		Bputc(b, l>>8);
+		Bputc(b, l>>16);
+		Bputc(b, l>>24);
+		break;
+
+	case D_BRANCH:
+		if(a->branch == nil)
+			fatal("unpatched branch");
+		a->offset = a->branch->loc;
 		l = a->offset;
 		Bputc(b, l);
 		Bputc(b, l>>8);
