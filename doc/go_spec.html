@@ -764,7 +764,7 @@ a type named <code>T</code>:
 A field declaration may be followed by an optional string literal <i>tag</i>,
 which becomes an attribute for all the identifiers in the corresponding
 field declaration. The tags are made
-visible through a reflection library <font color=red>TODO: reference?</font>
+visible through a <a href="#Package_unsafe">reflection interface</a>
 but are otherwise ignored.
 </p>
 
@@ -2384,7 +2384,7 @@ its dynamic type is a structure whose sequential fields are the
 trailing arguments of the call.  That is, the actual arguments
 provided for a <code>...</code> parameter are wrapped into a struct
 that is passed to the function instead of the actual arguments.
-Using the reflection library (TODO: reference), <code>f</code> may
+Using the <a href="#Package_unsafe">reflection</a> interface, <code>f</code> may
 unpack the elements of the dynamic type to recover the actual
 arguments.
 </p>
@@ -4281,8 +4281,7 @@ var t T
 <h3 id="Program_execution">Program execution</h3>
 <p>
 A package with no imports is initialized by assigning initial values to
-all its package-level variables in data-dependency order
-(<font color=red>TODO: clarify</font>)
+all its package-level variables
 and then calling any
 package-level function with the name and signature of
 </p>
@@ -4294,6 +4293,25 @@ defined in its source. Since a package may contain more
 than one source file, there may be more than one
 <code>init()</code> function in a package, but
 only one per source file.
+</p>
+<p>
+Within a package, package-level variables are initialized,
+and constant values are determined, in
+data-dependent order: if the initializer of <code>A</code>
+depends on the value of <code>B</code>, <code>A</code>
+will be set after <code>B</code>.
+It is an error if such dependencies form a cycle.
+Dependency analysis is done lexically: <code>A</code>
+depends on <code>B</code> if the value of <code>A</code>
+contains a mention of <code>B</code>, contains a value
+whose initializer
+mentions <code>B</code>, or mentions a function that
+mentions <code>B</code>, recursively.
+If two items are not interdependent, they will be initialized
+in the order they appear in the source.
+Since the dependency analysis is done per package, it can be
+defeated  if <code>A</code>'s initializer calls a function defined
+in another package that refers to <code>B</code>.
 </p>
 <p>
 Initialization code may contain "go" statements, but the functions
