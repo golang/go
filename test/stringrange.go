@@ -15,7 +15,6 @@ import (
 func main() {
 	s := "\000\123\x00\xca\xFE\u0123\ubabe\U0000babe\U0010FFFFx";
 	expect := []int{ 0, 0123, 0, 0xFFFD, 0xFFFD, 0x123, 0xbabe, 0xbabe, 0x10FFFF, 'x' };
-	var rune, size int;
 	offset := 0;
 	var i, c int;
 	ok := true;

@@ -7,7 +7,7 @@
 package main
 
 func main() {
-	var i, j, k int;
+	var i, k int;
 	outer:
 	for k=0; k<2; k++ {
 		print("outer loop top k ", k, "\n");

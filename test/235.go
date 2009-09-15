@@ -53,7 +53,6 @@ func main() {
 	}
 
 	for i := 0; i < len(OUT); i++ {
-		t := min(xs);
 		for i := 0; i < n; i++ {
 			ins[i] <- x;
 		}

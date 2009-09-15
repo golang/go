@@ -13,6 +13,7 @@ func f0() {
 
 func f1() {
 	x := 0;
+	_ = x;
 }
 
 
@@ -27,5 +28,5 @@ bug094.go:11: left side of := must be a name
 bad top
 .   LITERAL-I0 l(343)
 bug094.go:11: fatal error: walktype: top=3 LITERAL
-uetli:~/Source/go1/test/bugs gri$ 
+uetli:~/Source/go1/test/bugs gri$
 */

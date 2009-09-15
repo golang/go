@@ -7,5 +7,6 @@
 package foo
 import "fmt"
 func f() {
-	fmt := 1
+	fmt := 1;
+	_ = fmt;
 }

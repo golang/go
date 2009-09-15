@@ -20,6 +20,7 @@ func main() {
 	t.x = 1;
 	t.y = 2;
 	r10 := t.m(1, 3.0);
+	_ = r10;
 }
 /*
 bug11.go:16: fatal error: walktype: switch 1 unknown op CALLMETH l(16) <int32>INT32

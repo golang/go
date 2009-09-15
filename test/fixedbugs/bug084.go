@@ -20,4 +20,5 @@ func main() {
 	c := make(chan string);
 	a := new(Service);
 	go a.Serve(1234);
+	_ = c;
 }

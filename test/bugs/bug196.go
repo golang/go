@@ -26,6 +26,8 @@ func xxx() {
 	xx, ok = i.(int);
 
 	a,b := multi();
+
+	_, _, _, _, _ = x, ok, xx, a, b;
 }
 
 func f() map[int]int {

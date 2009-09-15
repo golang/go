@@ -73,37 +73,37 @@ func main() {
 	case 6:
 	case 7:
 	case 8:
-	case 9: 
+	case 9:
 	default: assert(i5 == 5, "good");
 	}
 
 	switch i5 {
-	case 0: dummy := 0; fallthrough;
-	case 1: dummy := 0; fallthrough;
-	case 2: dummy := 0; fallthrough;
-	case 3: dummy := 0; fallthrough;
-	case 4: dummy := 0; assert(false, "4");
-	case 5: dummy := 0; fallthrough;
-	case 6: dummy := 0; fallthrough;
-	case 7: dummy := 0; fallthrough;
-	case 8: dummy := 0; fallthrough;
-	case 9: dummy := 0; fallthrough;
-	default: dummy := 0; assert(i5 == 5, "good");
+	case 0: dummy := 0; _ = dummy; fallthrough;
+	case 1: dummy := 0; _ = dummy; fallthrough;
+	case 2: dummy := 0; _ = dummy; fallthrough;
+	case 3: dummy := 0; _ = dummy; fallthrough;
+	case 4: dummy := 0; _ = dummy; assert(false, "4");
+	case 5: dummy := 0; _ = dummy; fallthrough;
+	case 6: dummy := 0; _ = dummy; fallthrough;
+	case 7: dummy := 0; _ = dummy; fallthrough;
+	case 8: dummy := 0; _ = dummy; fallthrough;
+	case 9: dummy := 0; _ = dummy; fallthrough;
+	default: dummy := 0; _ = dummy; assert(i5 == 5, "good");
 	}
 
 	fired := false;
 	switch i5 {
-	case 0: dummy := 0; fallthrough;  // tests scoping of cases
-	case 1: dummy := 0; fallthrough;
-	case 2: dummy := 0; fallthrough;
-	case 3: dummy := 0; fallthrough;
-	case 4: dummy := 0; assert(false, "4");
-	case 5: dummy := 0; fallthrough;
-	case 6: dummy := 0; fallthrough;
-	case 7: dummy := 0; fallthrough;
-	case 8: dummy := 0; fallthrough;
-	case 9: dummy := 0; fallthrough;
-	default: dummy := 0; fired = !fired; assert(i5 == 5, "good");
+	case 0: dummy := 0; _ = dummy; fallthrough;  // tests scoping of cases
+	case 1: dummy := 0; _ = dummy; fallthrough;
+	case 2: dummy := 0; _ = dummy; fallthrough;
+	case 3: dummy := 0; _ = dummy; fallthrough;
+	case 4: dummy := 0; _ = dummy; assert(false, "4");
+	case 5: dummy := 0; _ = dummy; fallthrough;
+	case 6: dummy := 0; _ = dummy; fallthrough;
+	case 7: dummy := 0; _ = dummy; fallthrough;
+	case 8: dummy := 0; _ = dummy; fallthrough;
+	case 9: dummy := 0; _ = dummy; fallthrough;
+	default: dummy := 0; _ = dummy; fired = !fired; assert(i5 == 5, "good");
 	}
 	assert(fired, "fired");
 

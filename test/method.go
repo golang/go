@@ -33,7 +33,6 @@ func main() {
 	var ps *S1;
 	var i I;
 	var pi *I1;
-	var t T;
 	var pt *T1;
 
 	if s.val() != 1 { panicln("s.val:", s.val()) }

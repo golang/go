@@ -58,12 +58,14 @@ func control_structs() {
 	var p *Point = new(Point).Initialize(2, 3);
 	i := p.Distance();
 	var f float = 0.3;
+	_ = f;
 	for {}
 	for {};
 	for j := 0; j < i; j++ {
 		if i == 0 {
 		} else i = 0;
 		var x float;
+		_ = x;
 	}
 	foo:	// a label
 	var j int;

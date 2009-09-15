@@ -22,6 +22,7 @@ func (i *TInt) TypeName() string {
 func main() {
 	var t Type;
 	t = nil;
+	_ = t;
 }
 
 /*

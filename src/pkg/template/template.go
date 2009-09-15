@@ -397,12 +397,12 @@ func (t *Template) newVariable(name_formatter string) (v *variableElement) {
 
 	// Is it in user-supplied map?
 	if t.fmap != nil {
-		if fn, ok := t.fmap[formatter]; ok {
+		if _, ok := t.fmap[formatter]; ok {
 			return
 		}
 	}
 	// Is it in builtin map?
-	if fn, ok := builtins[formatter]; ok {
+	if _, ok := builtins[formatter]; ok {
 		return
 	}
 	t.parseError("unknown formatter: %s", formatter);
@@ -631,17 +631,17 @@ func (t *Template) writeVariable(v *variableElement, st *state) {
 	val := t.varValue(v.name, st).Interface();
 	// is it in user-supplied map?
 	if t.fmap != nil {
-		if fn, ok := t.fmap[v.formatter]; ok {
-			fn(st.wr, val, v.formatter);
+		if fn, ok := t.fmap[formatter]; ok {
+			fn(st.wr, val, formatter);
 			return;
 		}
 	}
 	// is it in builtin map?
-	if fn, ok := builtins[v.formatter]; ok {
-		fn(st.wr, val, v.formatter);
+	if fn, ok := builtins[formatter]; ok {
+		fn(st.wr, val, formatter);
 		return;
 	}
-	t.execError(st, v.linenum, "missing formatter %s for variable %s", v.formatter, v.name)
+	t.execError(st, v.linenum, "missing formatter %s for variable %s", formatter, v.name)
 }
 
 // Execute element i.  Return next index to execute.
@@ -796,7 +796,7 @@ func validDelim(d []byte) bool {
 	if len(d) == 0 {
 		return false
 	}
-	for i, c := range d {
+	for _, c := range d {
 		if white(c) {
 			return false
 		}

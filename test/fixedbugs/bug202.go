@@ -6,11 +6,11 @@
 
 package main
 func f() {
-		v := [...]string{"a", "b"};
+	v := [...]string{"a", "b"};
+	_ = v;
 }
 func main() {
 	f();
 }
 
 
- 

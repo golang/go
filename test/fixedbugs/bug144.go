@@ -10,6 +10,7 @@ const c = 1;
 
 func main() {
 	c := 0;
+	_ = c;
 }
 
 /*

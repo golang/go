@@ -149,7 +149,6 @@ func WhiteSpace(c int) bool
 func NextToken()
 {
 	var i, c int;
-	var backslash bool;
 
 	tokenbuf[0] = nilchar;	// clear previous token
 	c = Get();
@@ -222,8 +221,7 @@ func ParseList() *Slist
 
 func atom(i int) *Slist	// BUG: uses tokenbuf; should take argument
 {
-	var h, length int;
-	var slist, tail *Slist;
+	var slist *Slist;
 
 	slist = new(Slist);
 	if token == '0' {

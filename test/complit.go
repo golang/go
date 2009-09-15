@@ -46,7 +46,7 @@ func main() {
 	oai = []int{1,2,3};
 	if len(oai) != 3 { panic("oai") }
 
-	at := [...]*T{&t, &t, &t};
+	at := [...]*T{&t, tp, &t};
 	if len(at) != 3 { panic("at") }
 
 	c := make(chan int);
