@@ -82,7 +82,7 @@ out:
 	n->typecheck = 1;
 	for(ll=n->list; ll; ll=ll->next)
 		if(ll->n->typecheck == 0)
-			typecheck(&ll->n, Erv);
+			typecheck(&ll->n, Erv | Easgn);
 }
 
 void
