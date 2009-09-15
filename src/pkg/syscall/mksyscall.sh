@@ -127,17 +127,21 @@ while(<>) {
 
 	# Actual call.
 	my $args = join(', ', @args);
-	$text .= "\tr0, r1, e1 := $asm($sysname, $args);\n";
+	my $call = "$asm($sysname, $args)";
 
 	# Assign return values.
+	my $body = "";
+	my @ret = ("_", "_", "_");
 	for(my $i=0; $i<@out; $i++) {
 		my $p = $out[$i];
 		my ($name, $type) = parseparam($p);
 		my $reg = "";
 		if($name eq "errno") {
 			$reg = "e1";
+			$ret[2] = $reg;
 		} else {
 			$reg = sprintf("r%d", $i);
+			$ret[$i] = $reg;
 		}
 		if($type eq "bool") {
 			$reg = "$reg != 0";
@@ -152,10 +156,18 @@ while(<>) {
 			} else {
 				$reg = sprintf("int64(r%d)<<32 | int64(r%d)", $i+1, $i);
 			}
+			$ret[$i] = sprintf("r%d", $i);
+			$ret[$i+1] = sprintf("r%d", $i+1);
 			$i++;		# loop will do another $i++
 		}
-		$text .= "\t$name = $type($reg);\n";
+		$body .= "\t$name = $type($reg);\n";
 	}
+	if ($ret[0] eq "_" && $ret[1] eq "_" && $ret[2] eq "_") {
+		$text .= "\t$call;\n";
+	} else {
+		$text .= "\t$ret[0], $ret[1], $ret[2] := $call;\n";
+	}
+	$text .= $body;
 
 	$text .= "\treturn;\n";
 	$text .= "}\n\n";
