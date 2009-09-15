@@ -49,7 +49,7 @@ func days() {
 	Thursday :=  day{ 4, "THU", "Thursday" };
 	Friday :=    day{ 5, "FRI", "Friday" };
 	Saturday :=  day{ 6, "SAT", "Saturday" };
-	data := []*day{&Tuesday, &Thursday, &Sunday, &Monday, &Friday};
+	data := []*day{&Tuesday, &Thursday, &Wednesday, &Sunday, &Monday, &Friday, &Saturday};
 	a := dayArray{data};
 	sort.Sort(&a);
 	if !sort.IsSorted(&a) {

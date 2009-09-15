@@ -72,8 +72,7 @@ func (p *parser) parseToken() *Token {
 	pos := p.pos;
 	value := "";
 	if p.tok == token.STRING {
-		var err os.Error;
-		value, err = strconv.Unquote(string(p.lit));
+		value, _ = strconv.Unquote(string(p.lit));
 		// Unquote may fail with an error, but only if the scanner found
 		// an illegal string in the first place. In this case the error
 		// has already been reported.

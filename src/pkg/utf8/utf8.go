@@ -199,15 +199,13 @@ func FullRuneInString(s string) bool {
 
 // DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and its width in bytes.
 func DecodeRune(p []byte) (rune, size int) {
-	var short bool;
-	rune, size, short = decodeRuneInternal(p);
+	rune, size, _ = decodeRuneInternal(p);
 	return;
 }
 
 // DecodeRuneInString is like DecodeRune but its input is a string.
 func DecodeRuneInString(s string) (rune, size int) {
-	var short bool;
-	rune, size, short = decodeRuneInStringInternal(s);
+	rune, size, _ = decodeRuneInStringInternal(s);
 	return;
 }
 

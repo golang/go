@@ -25,7 +25,6 @@ import (
 //		}
 
 func ticker(ns int64, c chan int64) {
-	var tv syscall.Timeval;
 	now := Nanoseconds();
 	when := now;
 	for {
@@ -44,6 +43,9 @@ func ticker(ns int64, c chan int64) {
 		Sleep(when - now);
 		now = Nanoseconds();
 		c <- now;
+		if closed(c) {
+			return;
+		}
 	}
 }
 

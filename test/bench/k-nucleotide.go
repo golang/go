@@ -111,7 +111,6 @@ func print(m map[string] int) {
 
 func main() {
 	in = bufio.NewReader(os.Stdin);
-	buf := new(bytes.Buffer);
 	three := strings.Bytes(">THREE ");
 	for {
 		line, err := in.ReadSlice('\n');

@@ -247,7 +247,6 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
 			rname += ".";
 		}
 		// Can try as ordinary name.
-		var dnserr *DNSError;
 		addrs, err = tryOneName(cfg, rname);
 		if err == nil {
 			cname = rname;
@@ -264,7 +263,6 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
 		if rname[len(rname)-1] != '.' {
 			rname += "."
 		}
-		var dnserr *DNSError;
 		addrs, err = tryOneName(cfg, rname);
 		if err == nil {
 			cname = rname;

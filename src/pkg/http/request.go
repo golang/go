@@ -431,8 +431,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
 	if cr.n == 0 && cr.err == nil {
 		// end of chunk (CRLF)
 		b := make([]byte, 2);
-		var nb int;
-		if nb, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
+		if _, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
 			if b[0] != '\r' || b[1] != '\n' {
 				cr.err = os.NewError("malformed chunked encoding");
 			}

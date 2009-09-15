@@ -109,7 +109,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 	s := slicer(header);
 
 	// TODO(dsymonds): handle names longer than 100 chars
-	nr := bytes.Copy(s.next(100), strings.Bytes(hdr.Name));
+	bytes.Copy(s.next(100), strings.Bytes(hdr.Name));
 
 	tw.octal(s.next(8), hdr.Mode);	// 100:108
 	tw.octal(s.next(8), hdr.Uid);	// 108:116
@@ -136,8 +136,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 		return tw.err
 	}
 
-	var n int;
-	n, tw.err = tw.w.Write(header);
+	_, tw.err = tw.w.Write(header);
 
 	return tw.err
 }
@@ -169,8 +168,7 @@ func (tw *Writer) Close() os.Error {
 
 	// trailer: two zero blocks
 	for i := 0; i < 2; i++ {
-		var n int;
-		n, tw.err = tw.w.Write(zeroBlock);
+		_, tw.err = tw.w.Write(zeroBlock);
 		if tw.err != nil {
 			break
 		}

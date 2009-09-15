@@ -211,7 +211,6 @@ func TestUnlink(t *testing.T) {
 	s10 := r10.Move(6);
 
 	sum10 := sumN(10);
-	sum6 := sumN(6);
 
 	verify(t, r10, 10, sum10);
 	verify(t, s10, 10, sum10);

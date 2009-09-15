@@ -248,10 +248,8 @@ func (b *_StructBuilder) Key(k string) Builder {
 // On a syntax error, it returns with ok set to false and errtok
 // set to the offending token.
 func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
-	var errindx int;
-	var val1 interface{};
 	b := &_StructBuilder{ reflect.NewValue(val) };
-	ok, errindx, errtok = Parse(s, b);
+	ok, _, errtok = Parse(s, b);
 	if !ok {
 		return false, errtok
 	}

@@ -80,7 +80,6 @@ func TestEncoder(t *testing.T) {
 func TestEncoderBuffering(t *testing.T) {
 	input := strings.Bytes(bigtest.decoded);
 	for bs := 1; bs <= 12; bs++ {
-		buf := make([]byte, bs);
 		bb := &bytes.Buffer{};
 		encoder := NewEncoder(StdEncoding, bb);
 		for pos := 0; pos < len(input); pos += bs {

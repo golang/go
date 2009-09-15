@@ -125,7 +125,6 @@ func Join(dir, file string) string {
 // in the final slash-separated element of path;
 // it is empty if there is no dot.
 func Ext(path string) string {
-	dot := -1;
 	for i := len(path)-1; i >= 0 && path[i] != '/'; i-- {
 		if path[i] == '.' {
 			return path[i:len(path)];

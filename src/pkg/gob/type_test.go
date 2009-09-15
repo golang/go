@@ -64,7 +64,6 @@ func TestReregistration(t *testing.T) {
 func TestArrayType(t *testing.T) {
 	var a3 [3]int;
 	a3int := getTypeUnlocked("foo", reflect.Typeof(a3));
-	var newa3 [3]int;
 	newa3int := getTypeUnlocked("bar", reflect.Typeof(a3));
 	if a3int != newa3int {
 		t.Errorf("second registration of [3]int creates new type");

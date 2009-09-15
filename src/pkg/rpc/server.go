@@ -338,7 +338,6 @@ func (server *serverType) input(conn io.ReadWriteCloser) {
 			sendResponse(sending, req, invalidRequest, enc, s);
 			continue;
 		}
-		method := mtype.method;
 		// Decode the argument value.
 		argv := _new(mtype.argType);
 		replyv := _new(mtype.replyType);
