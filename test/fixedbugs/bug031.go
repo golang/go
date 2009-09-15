@@ -23,6 +23,7 @@ prog := "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"+
 "xxxxxxxx"+
 "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ;
+_ = prog;
 }
 
 /* Segmentation fault */

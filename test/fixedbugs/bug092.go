@@ -9,6 +9,7 @@ package main
 func main() {
 	var a [1000] int64;  // this alone works
 	var b [10000] int64;  // this causes a runtime crash
+	_, _ = a, b;
 }
 
 /*

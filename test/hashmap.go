@@ -171,6 +171,7 @@ func main() {
 	var x1 *Number = MakeNumber(1001);
 	var x2 *Number = MakeNumber(2002);
 	var x3 *Number = MakeNumber(3003);
+	_, _, _ = x1, x2, x3;
 
 	// this doesn't work I think...
 	//hmap.Lookup(x1, true);

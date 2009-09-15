@@ -11,6 +11,7 @@ type A []int;
 func main() {
 	a := &A{0};
 	b := &A{0, 1};
+	_, _ = a, b;
 }
 
 /*

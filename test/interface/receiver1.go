@@ -27,17 +27,23 @@ func main() {
 
 	v = t;
 	p = t;	// ERROR "is not|requires a pointer"
+	_, _= v, p;
 	v = &t;
 	p = &t;
+	_, _= v, p;
 
 	v = s;
 	p = s;	// ERROR "is not|requires a pointer"
+	_, _= v, p;
 	v = &s;
 	p = &s;
+	_, _= v, p;
 
 	v = sp;
 	p = sp;	// no error!
+	_, _= v, p;
 	v = &sp;
 	p = &sp;
+	_, _= v, p;
 }
 

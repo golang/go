@@ -22,7 +22,6 @@ var a = []int{ 1, 2, 3 }
 var NIL []int;
 
 func arraycmptest() {
-	a1 := a;
 	if NIL != nil {
 		println("fail1:", NIL, "!= nil");
 	}
@@ -112,6 +111,7 @@ func interfacetest() {
 	i = e;
 	e1 := i.(E);
 	// nothing to check; just verify it doesn't crash
+	_ = e1;
 }
 
 func main() {

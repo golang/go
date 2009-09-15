@@ -15,4 +15,5 @@ func main() {
 	t := new(T);
 	var i interface {};
 	f, ok := i.(Foo);
+	_, _, _ = t, f, ok;
 }

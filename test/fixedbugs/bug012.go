@@ -10,6 +10,7 @@ package main
 func main() {
 	var u30 uint64 = 0;
 	var u31 uint64 = 1;
+	_, _ = u30, u31;
 	var u32 uint64 = 18446744073709551615;
 	var u33 uint64 = +18446744073709551615;
 	if u32 != (1<<64)-1 { panic("u32\n"); }

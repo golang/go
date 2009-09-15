@@ -12,6 +12,7 @@ func main() {
 	i = '\\';
 	var s string;
 	s = "\"";
+	_, _ = i, s;
 }
 /*
 bug.go:5: unknown escape sequence: '

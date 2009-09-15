@@ -17,5 +17,6 @@ func main() {
 	i = 0;
 	type s2 int;
 	var k = func (a int) int { return a+1 }(3);
+	_, _ = j, k;
 ro:
 }

@@ -108,6 +108,7 @@ func main() {
 	var u31 uint64 = 1;
 	var u32 uint64 = 18446744073709551615;
 	var u33 uint64 = +18446744073709551615;
+	_, _, _, _ = u30, u31, u32, u33;
 
 	// float
 	var f00 float = 3.14159;
@@ -192,6 +193,7 @@ func main() {
 	assert(s1[4] == 0xc3, "s1-4");
 	assert(s1[5] == 0xb4, "s1-5");
 	var s2 string = "\a\b\f\n\r\t\v";
+	_, _ = s0, s2;
 
 	var s00 string = "\000";
 	var s01 string = "\007";

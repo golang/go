@@ -16,6 +16,7 @@ func main() {
 	l1 := len(s);
 	var t T;
 	l2 := len(t.s);	// BUG: cannot take len() of a string field
+	_, _ = l1, l2;
 }
 
 /*

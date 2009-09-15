@@ -8,6 +8,7 @@ package main
 
 func main() {
 	var s2 string = "\a\b\f\n\r\t\v";  // \r is miscompiled
+	_ = s2;
 }
 /*
 main.go.c: In function ‘main_main’:

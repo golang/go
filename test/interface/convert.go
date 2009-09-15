@@ -102,8 +102,7 @@ func main() {
 	hello(t.String());
 
 	// I2T2 false
-	var u1 U;
-	u1, ok = s.(U);
+	_, ok = s.(U);
 	false(ok);
 
 	// I2I2 true

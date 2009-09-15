@@ -29,7 +29,8 @@ func main() {
 	{
 		var x int;
 		var ok bool;
-		x, ok = f()["key"]
+		x, ok = f()["key"];
+		_, _ = x, ok;
 	}
 }
 

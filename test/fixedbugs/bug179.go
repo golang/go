@@ -17,6 +17,7 @@ L:
 
 L1:
 	x := 1;
+	_ = x;
 	for {
 		break L1;	// ERROR "L1"
 		continue L1;	// ERROR "L1"

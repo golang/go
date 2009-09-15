@@ -32,4 +32,6 @@ func main() {
 	i = nil;
 	ta = make([]IN, 1);
 	ta[0] = nil;
+
+	_, _, _, _, _, _, _, _ = i, f, s, m, c, t, in, ta;
 }

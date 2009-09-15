@@ -19,4 +19,5 @@ type dch struct {
 
 func dosplit(in *dch){
 	dat := <-in.dat;
+	_ = dat;
 }

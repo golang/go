@@ -30,8 +30,10 @@ func main() {
 		k := f1();
 		m, g, s := f3();
 		m, h, s := f3();
+		_, _, _, _, _, _, _, _, _ = i, f, s, j, k, m, g, s, h;
 	}
 	if x() != "3" {
 		println("x() failed");
 	}
+	_, _, _, _, _, _, _, _, _ = i, f, s, j, k, m, g, s, h;
 }

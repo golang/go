@@ -10,6 +10,7 @@ import "malloc"
 
 func mk2() {
 	b := new([10000]byte);
+	_ = b;
 //	println(b, "stored at", &b);
 }
 

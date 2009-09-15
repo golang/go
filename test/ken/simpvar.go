@@ -19,6 +19,7 @@ main()
 		var x int;
 		x = 25;
 		y = 25;
+		_ = x;
 	}
 	x = x+y;
 	if(x != 40) { panic(x); }

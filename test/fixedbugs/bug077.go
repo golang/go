@@ -9,4 +9,5 @@ package main
 func main() {
 	var exit int;
 exit:
+	_ = exit;
 }
