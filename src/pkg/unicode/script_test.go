@@ -174,7 +174,7 @@ func TestScripts(t *testing.T) {
 	for k := range Scripts {
 		notTested[k] = true
 	}
-	for i, test := range inTest {
+	for _, test := range inTest {
 		if _, ok := Scripts[test.script]; !ok {
 			t.Fatal(test.script, "not a known script")
 		}
@@ -183,7 +183,7 @@ func TestScripts(t *testing.T) {
 		}
 		notTested[test.script] = false, false
 	}
-	for i, test := range outTest {
+	for _, test := range outTest {
 		if Is(Scripts[test.script], test.rune) {
 			t.Errorf("IsScript(%#x, %s) = true, want false\n", test.rune, test.script);
 		}
@@ -198,7 +198,7 @@ func TestCategories(t *testing.T) {
 	for k := range Categories {
 		notTested[k] = true
 	}
-	for i, test := range inCategoryTest {
+	for _, test := range inCategoryTest {
 		if _, ok := Categories[test.script]; !ok {
 			t.Fatal(test.script, "not a known category")
 		}
@@ -217,7 +217,7 @@ func TestProperties(t *testing.T) {
 	for k := range Properties {
 		notTested[k] = true
 	}
-	for i, test := range inPropTest {
+	for _, test := range inPropTest {
 		if _, ok := Properties[test.script]; !ok {
 			t.Fatal(test.script, "not a known prop")
 		}

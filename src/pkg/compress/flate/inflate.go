@@ -121,7 +121,7 @@ func (h *huffmanDecoder) init(bits []int) bool {
 	// compute min and max length.
 	var count [maxCodeLen+1]int;
 	var min, max int;
-	for i, n := range bits {
+	for _, n := range bits {
 		if n == 0 {
 			continue;
 		}

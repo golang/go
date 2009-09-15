@@ -203,14 +203,14 @@ var flags *allFlags = &allFlags{make(map[string] *Flag), make(map[string] *Flag)
 
 // VisitAll visits the flags, calling fn for each. It visits all flags, even those not set.
 func VisitAll(fn func(*Flag)) {
-	for k, f := range flags.formal {
+	for _, f := range flags.formal {
 		fn(f)
 	}
 }
 
 // Visit visits the flags, calling fn for each. It visits only those flags that have been set.
 func Visit(fn func(*Flag)) {
-	for k, f := range flags.actual {
+	for _, f := range flags.actual {
 		fn(f)
 	}
 }
@@ -243,7 +243,7 @@ func Set(name, value string) bool {
 func PrintDefaults() {
 	VisitAll(func(f *Flag) {
 		format := "  -%s=%s: %s\n";
-		if s, ok := f.Value.(*stringValue); ok {
+		if _, ok := f.Value.(*stringValue); ok {
 			// put quotes on the value
 			format = "  -%s=%q: %s\n";
 		}
@@ -285,7 +285,7 @@ func Args() []string {
 func add(name string, value FlagValue, usage string) {
 	// Remember the default value as a string; it won't change.
 	f := &Flag{name, usage, value, value.String()};
-	dummy, alreadythere := flags.formal[name];
+	_, alreadythere := flags.formal[name];
 	if alreadythere {
 		fmt.Fprintln(os.Stderr, "flag redefined:", name);
 		panic("flag redefinition");	// Happens only if flags are declared with identical names

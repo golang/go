@@ -591,7 +591,7 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
 // If y == 0, a division-by-zero run-time error occurs.
 //
 func (x Natural) Div(y Natural) Natural {
-	q, r := divmod(unpack(x), unpack(y));
+	q, _ := divmod(unpack(x), unpack(y));
 	return pack(q);
 }
 
@@ -601,7 +601,7 @@ func (x Natural) Div(y Natural) Natural {
 // If y == 0, a division-by-zero run-time error occurs.
 //
 func (x Natural) Mod(y Natural) Natural {
-	q, r := divmod(unpack(x), unpack(y));
+	_, r := divmod(unpack(x), unpack(y));
 	return pack(r);
 }
 

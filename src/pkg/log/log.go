@@ -97,7 +97,7 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
 		}
 	}
 	if l.flag & (Lshortfile | Llongfile) != 0 {
-		pc, file, line, ok := runtime.Caller(calldepth);
+		_, file, line, ok := runtime.Caller(calldepth);
 		if ok {
 			if l.flag & Lshortfile != 0 {
 				short, ok := shortnames[file];

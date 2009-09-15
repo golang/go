@@ -156,7 +156,7 @@ func TestReader(t *testing.T) {
 					bufreader := bufreaders[j];
 					bufsize := bufsizes[k];
 					read := readmaker.fn(bytes.NewBuffer(textbytes));
-					buf, e := NewReaderSize(read, bufsize);
+					buf, _ := NewReaderSize(read, bufsize);
 					s := bufreader.fn(buf);
 					if s != text {
 						t.Errorf("reader=%s fn=%s bufsize=%d want=%q got=%q",
@@ -193,7 +193,7 @@ func readRuneSegments(t *testing.T, segments []string) {
 	want := strings.Join(segments, "");
 	r := NewReader(&StringReader{data: segments});
 	for {
-		rune, size, err := r.ReadRune();
+		rune, _, err := r.ReadRune();
 		if err != nil {
 			if err != os.EOF {
 				return;
@@ -293,9 +293,9 @@ var errorWriterTests = []errorWriterTest {
 }
 
 func TestWriteErrors(t *testing.T) {
-	for i, w := range errorWriterTests {
+	for _, w := range errorWriterTests {
 		buf := NewWriter(w);
-		n, e := buf.Write(strings.Bytes("hello world"));
+		_, e := buf.Write(strings.Bytes("hello world"));
 		if e != nil {
 			t.Errorf("Write hello to %v: %v", w, e);
 			continue;

@@ -220,7 +220,7 @@ func hostPortToIP(net, hostport, mode string) (ip IP, iport int, err os.Error) {
 	}
 	if addr == nil {
 		// Not an IP address.  Try as a DNS name.
-		hostname, addrs, err1 := LookupHost(host);
+		_, addrs, err1 := LookupHost(host);
 		if err1 != nil {
 			err = err1;
 			goto Error;

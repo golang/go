@@ -372,7 +372,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 			};
 		case *reflect.StructType:
 			// Generate a closure that calls out to the engine for the nested type.
-			engine, err := getEncEngine(typ);
+			_, err := getEncEngine(typ);
 			if err != nil {
 				return nil, 0, err
 			}

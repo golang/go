@@ -67,7 +67,7 @@ var ofbAESTests = []ofbTest {
 }
 
 func TestOFB_AES(t *testing.T) {
-	for i, tt := range ofbAESTests {
+	for _, tt := range ofbAESTests {
 		test := tt.name;
 
 		c, err := aes.NewCipher(tt.key);

@@ -45,7 +45,7 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 
 	// ... or already seen
 	h := 17 * addr1 + addr2;
-	seen, ok := visited[h];
+	seen, _ := visited[h];
 	typ := v1.Type();
 	for p := seen; p != nil; p = p.next {
 		if p.a1 == addr1 && p.a2 == addr2 && p.typ == typ {
@@ -105,7 +105,7 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 		if map1.Len() != map2.Len() {
 			return false;
 		}
-		for i, k := range map1.Keys() {
+		for _, k := range map1.Keys() {
 			if !deepValueEqual(map1.Elem(k), map2.Elem(k), visited, depth+1) {
 				return false;
 			}

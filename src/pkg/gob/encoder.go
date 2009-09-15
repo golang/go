@@ -237,7 +237,7 @@ func (enc *Encoder) send() {
 
 func (enc *Encoder) sendType(origt reflect.Type) {
 	// Drill down to the base type.
-	rt, indir_ := indirect(origt);
+	rt, _ := indirect(origt);
 
 	// We only send structs - everything else is basic or an error
 	switch rt.(type) {
@@ -259,7 +259,7 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 	}
 
 	// Have we already sent this type?  This time we ask about the base type.
-	if id_, alreadySent := enc.sent[rt]; alreadySent {
+	if _, alreadySent := enc.sent[rt]; alreadySent {
 		return
 	}
 
@@ -296,7 +296,7 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 	if enc.state.b.Len() > 0 || enc.countState.b.Len() > 0 {
 		panicln("Encoder: buffer not empty")
 	}
-	rt, indir := indirect(reflect.Typeof(e));
+	rt, _ := indirect(reflect.Typeof(e));
 
 	// Make sure we're single-threaded through here.
 	enc.mutex.Lock();
@@ -304,7 +304,7 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 
 	// Make sure the type is known to the other side.
 	// First, have we already sent this type?
-	if id_, alreadySent := enc.sent[rt]; !alreadySent {
+	if _, alreadySent := enc.sent[rt]; !alreadySent {
 		// No, so send it.
 		enc.sendType(rt);
 		if enc.state.err != nil {

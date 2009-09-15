@@ -368,7 +368,7 @@ func Parse(filename string, src []byte, fmap FormatterMap) (Format, os.Error) {
 	// add custom formatters, if any
 	for name, form := range fmap {
 		name = remap(&p, name);
-		if t, found := p.rules[name]; !found {
+		if _, found := p.rules[name]; !found {
 			p.rules[name] = &custom{name, form};
 		} else {
 			var invalidPos token.Position;

@@ -195,7 +195,7 @@ func (p *parser) parse(filename string, src []byte) Grammar {
 	for p.tok != token.EOF {
 		prod := p.parseProduction();
 		name := prod.Name.String;
-		if prev, found := grammar[name]; !found {
+		if _, found := grammar[name]; !found {
 			grammar[name] = prod;
 		} else {
 			p.Error(prod.Pos(), name + " declared already");

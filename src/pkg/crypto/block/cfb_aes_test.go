@@ -271,7 +271,7 @@ var cfbAESTests = []cfbTest {
 }
 
 func TestCFB_AES(t *testing.T) {
-	for i, tt := range cfbAESTests {
+	for _, tt := range cfbAESTests {
 		test := tt.name;
 
 		if tt.s == 1 {

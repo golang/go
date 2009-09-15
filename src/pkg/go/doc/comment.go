@@ -43,13 +43,13 @@ func setupRegexps() {
 func commentText(comments []string) string {
 	once.Do(setupRegexps);
 	lines := make([]string, 0, 20);
-	for i, c := range comments {
+	for _, c := range comments {
 		// split on newlines
 		cl := strings.Split(c, "\n", 0);
 
 		// walk lines, stripping comment markers
 		w := 0;
-		for j, l := range cl {
+		for _, l := range cl {
 			// remove /* and */ lines
 			if comment_junk.MatchString(l) {
 				continue;
@@ -85,7 +85,7 @@ func commentText(comments []string) string {
 		// add this comment to total list
 		// TODO: maybe separate with a single blank line
 		// if there is already a comment and len(cl) > 0?
-		for j, l := range cl {
+		for _, l := range cl {
 			n := len(lines);
 			if n+1 >= cap(lines) {
 				newlines := make([]string, n, 2*cap(lines));
@@ -205,7 +205,7 @@ func unindent(block [][]byte) {
 
 	// compute maximum common white prefix
 	prefix := block[0][0 : indentLen(block[0])];
-	for i, line := range block {
+	for _, line := range block {
 		if !isBlank(line) {
 			prefix = commonPrefix(prefix, line[0 : indentLen(line)]);
 		}
@@ -288,7 +288,7 @@ func ToHtml(w io.Writer, s []byte) {
 			// they don't get the nice text formatting,
 			// just html escaping
 			w.Write(html_pre);
-			for k, line := range block {
+			for _, line := range block {
 				template.HtmlEscape(w, line);
 			}
 			w.Write(html_endpre);

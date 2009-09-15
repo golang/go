@@ -26,7 +26,7 @@ func TestMkdirAll(t *testing.T) {
 
 	// Make file.
 	fpath := path + "/file";
-	fd, err := Open(fpath, O_WRONLY | O_CREAT, 0666);
+	_, err = Open(fpath, O_WRONLY | O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err);
 	}
@@ -79,7 +79,7 @@ func TestRemoveAll(t *testing.T) {
 	if err = RemoveAll(path); err != nil {
 		t.Fatalf("RemoveAll %q (first): %s", path, err);
 	}
-	if dir, err := Lstat(path); err == nil {
+	if _, err := Lstat(path); err == nil {
 		t.Fatalf("Lstat %q succeeded after RemoveAll (first)", path);
 	}
 
@@ -100,7 +100,7 @@ func TestRemoveAll(t *testing.T) {
 	if err = RemoveAll(path); err != nil {
 		t.Fatalf("RemoveAll %q (second): %s", path, err);
 	}
-	if dir, err := Lstat(path); err == nil {
+	if _, err := Lstat(path); err == nil {
 		t.Fatalf("Lstat %q succeeded after RemoveAll (second)", path);
 	}
 
@@ -109,7 +109,7 @@ func TestRemoveAll(t *testing.T) {
 		t.Fatalf("MkdirAll %q: %s", dpath, err);
 	}
 
-	for i, s := range []string{fpath, dpath+"/file1", path+"/zzz"} {
+	for _, s := range []string{fpath, dpath+"/file1", path+"/zzz"} {
 		fd, err = Open(s, O_WRONLY | O_CREAT, 0666);
 		if err != nil {
 			t.Fatalf("create %q: %s", s, err);
@@ -120,7 +120,7 @@ func TestRemoveAll(t *testing.T) {
 		t.Fatalf("Chmod %q 0: %s", dpath, err);
 	}
 	if err = RemoveAll(path); err == nil {
-		dir, err := Lstat(path);
+		_, err := Lstat(path);
 		if err == nil {
 			t.Errorf("Can lstat %q after supposed RemoveAll", path);
 		}
@@ -136,15 +136,15 @@ func TestRemoveAll(t *testing.T) {
 	if err = Chmod(dpath, 0777); err != nil {
 		t.Fatalf("Chmod %q 0777: %s", dpath, err);
 	}
-	for i, s := range []string{fpath, path+"/zzz"} {
-		if dir, err := Lstat(s); err == nil {
+	for _, s := range []string{fpath, path+"/zzz"} {
+		if _, err := Lstat(s); err == nil {
 			t.Fatalf("Lstat %q succeeded after partial RemoveAll", s);
 		}
 	}
 	if err = RemoveAll(path); err != nil {
 		t.Fatalf("RemoveAll %q after partial RemoveAll: %s", path, err);
 	}
-	if dir, err := Lstat(path); err == nil {
+	if _, err := Lstat(path); err == nil {
 		t.Fatalf("Lstat %q succeeded after RemoveAll (final)", path);
 	}
 }

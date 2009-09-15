@@ -102,7 +102,7 @@ func (p *IntVector) Less(i, j int) bool {
 
 // Iterate over all elements; driver for range
 func (p *IntVector) iterate(c chan<- int) {
-	for i, v := range p.a {
+	for _, v := range p.a {
 		c <- v.(int)
 	}
 	close(c);

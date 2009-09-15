@@ -29,7 +29,7 @@ func sinus(x float64, quad int) float64 {
 		var e float64;
 		e, y = Modf(x);
 		e = e + float64(quad);
-		temp1, f := Modf(0.25*e);
+		_, f := Modf(0.25*e);
 		quad = int(e - 4*f);
 	} else {
 		k := int32(x);

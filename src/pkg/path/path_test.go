@@ -63,7 +63,7 @@ var cleantests = []CleanTest {
 }
 
 func TestClean(t *testing.T) {
-	for i, test := range cleantests {
+	for _, test := range cleantests {
 		if s := Clean(test.path); s != test.clean {
 			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.clean);
 		}
@@ -83,7 +83,7 @@ var splittests = []SplitTest {
 }
 
 func TestSplit(t *testing.T) {
-	for i, test := range splittests {
+	for _, test := range splittests {
 		if d, f := Split(test.path); d != test.dir || f != test.file {
 			t.Errorf("Split(%q) = %q, %q, want %q, %q", test.path, d, f, test.dir, test.file);
 		}
@@ -105,7 +105,7 @@ var jointests = []JoinTest {
 }
 
 func TestJoin(t *testing.T) {
-	for i, test := range jointests {
+	for _, test := range jointests {
 		if p := Join(test.dir, test.file); p != test.path {
 			t.Errorf("Join(%q, %q) = %q, want %q", test.dir, test.file, p, test.path);
 		}
@@ -125,7 +125,7 @@ var exttests = []ExtTest {
 }
 
 func TestExt(t *testing.T) {
-	for i, test := range exttests {
+	for _, test := range exttests {
 		if x := Ext(test.path); x != test.ext {
 			t.Errorf("Ext(%q) = %q, want %q", test.path, x, test.ext);
 		}

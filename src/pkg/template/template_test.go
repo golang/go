@@ -297,7 +297,7 @@ func TestAll(t *testing.T) {
 	s.false = false;
 
 	var buf bytes.Buffer;
-	for i, test := range tests {
+	for _, test := range tests {
 		buf.Reset();
 		tmpl, err := Parse(test.in, formatters);
 		if err != nil {

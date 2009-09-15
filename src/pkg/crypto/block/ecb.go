@@ -127,7 +127,7 @@ func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
 	if i < n {
 		p = p[i:n];
 		for j, v := range p {
-			x.buf[j] = p[j];
+			x.buf[j] = v;
 		}
 		x.crypt = x.buf[0:len(p)];
 		n = i;

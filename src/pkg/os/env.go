@@ -18,7 +18,7 @@ var env map[string] string;
 
 func copyenv() {
 	env = make(map[string] string);
-	for i, s := range Envs {
+	for _, s := range Envs {
 		for j := 0; j < len(s); j++ {
 			if s[j] == '=' {
 				env[s[0:j]] = s[j+1:len(s)];

@@ -60,14 +60,14 @@ func testXorWriter(t *testing.T, maxio int) {
 			// copy plain into w in increasingly large chunks: 1, 1, 2, 4, 8, ...
 			// if frag != 0, move the 1 to the end to cause fragmentation.
 			if frag == 0 {
-				nn, err := io.Copyn(r, w, 1);
+				_, err := io.Copyn(r, w, 1);
 				if err != nil {
 					t.Errorf("%s: first Copyn: %s", test, err);
 					continue;
 				}
 			}
 			for n := 1; n <= len(plain)/2; n *= 2 {
-				nn, err := io.Copyn(r, w, int64(n));
+				_, err := io.Copyn(r, w, int64(n));
 				if err != nil {
 					t.Errorf("%s: Copyn %d: %s", test, n, err);
 				}
@@ -128,14 +128,14 @@ func testXorReader(t *testing.T, maxio int) {
 				// read from crypt in increasingly large chunks: 1, 1, 2, 4, 8, ...
 				// if frag == 1, move the 1 to the end to cause fragmentation.
 				if frag == 0 {
-					nn, err := io.Copyn(r, b, 1);
+					_, err := io.Copyn(r, b, 1);
 					if err != nil {
 						t.Errorf("%s: first Copyn: %s", test, err);
 						continue;
 					}
 				}
 				for n := 1; n <= maxio/2; n *= 2 {
-					nn, err := io.Copyn(r, b, int64(n));
+					_, err := io.Copyn(r, b, int64(n));
 					if err != nil {
 						t.Errorf("%s: Copyn %d: %s", test, n, err);
 					}

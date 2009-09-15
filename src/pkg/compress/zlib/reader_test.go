@@ -77,7 +77,7 @@ var zlibTests = []zlibTest {
 
 func TestInflater(t *testing.T) {
 	b := new(bytes.Buffer);
-	for i, tt := range zlibTests {
+	for _, tt := range zlibTests {
 		in := bytes.NewBuffer(tt.compressed);
 		zlib, err := NewInflater(in);
 		if err != nil {

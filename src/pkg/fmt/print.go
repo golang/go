@@ -680,7 +680,7 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 
 		// int
 		case 'b':
-			if v, signed, ok := getInt(field); ok {
+			if v, _, ok := getInt(field); ok {
 				s = p.fmt.Fmt_b64(uint64(v)).Str()	// always unsigned
 			} else if v, ok := getFloat32(field); ok {
 				s = p.fmt.Fmt_fb32(v).Str()
@@ -690,7 +690,7 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 				goto badtype
 			}
 		case 'c':
-			if v, signed, ok := getInt(field); ok {
+			if v, _, ok := getInt(field); ok {
 				s = p.fmt.Fmt_c(int(v)).Str()
 			} else {
 				goto badtype

@@ -21,7 +21,7 @@ var illegalInputs = []interface{} {
 
 func TestParseIllegalInputs(t *testing.T) {
 	for _, src := range illegalInputs {
-		prog, err := ParseFile("", src, 0);
+		_, err := ParseFile("", src, 0);
 		if err == nil {
 			t.Errorf("ParseFile(%v) should have failed", src);
 		}
@@ -37,7 +37,7 @@ var validPrograms = []interface{} {
 
 func TestParseValidPrograms(t *testing.T) {
 	for _, src := range validPrograms {
-		prog, err := ParseFile("", src, 0);
+		_, err := ParseFile("", src, 0);
 		if err != nil {
 			t.Errorf("ParseFile(%q): %v", src, err);
 		}
@@ -53,7 +53,7 @@ var validFiles = []string {
 
 func TestParse3(t *testing.T) {
 	for _, filename := range validFiles {
-		prog, err := ParseFile(filename, nil, 0);
+		_, err := ParseFile(filename, nil, 0);
 		if err != nil {
 			t.Errorf("ParseFile(%s): %v", filename, err);
 		}

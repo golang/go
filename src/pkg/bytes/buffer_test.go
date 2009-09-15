@@ -164,7 +164,7 @@ func TestMixedReadsAndWrites(t *testing.T) {
 
 		rlen := rand.Intn(len(data));
 		fub := make([]byte, rlen);
-		n, err := buf.Read(fub);
+		n, _ := buf.Read(fub);
 		s = s[n : len(s)];
 	}
 	empty(t, "TestMixedReadsAndWrites (2)", &buf, s, make([]byte, buf.Len()));

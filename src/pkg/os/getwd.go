@@ -65,8 +65,8 @@ func Getwd() (string, Error) {
 				fd.Close();
 				return "", err;
 			}
-			for i, name := range names {
-				d, err := Lstat(parent + "/" + name);
+			for _, name := range names {
+				d, _ := Lstat(parent + "/" + name);
 				if d.Dev == dot.Dev && d.Ino == dot.Ino {
 					pwd = "/" + name + pwd;
 					goto Found;

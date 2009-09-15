@@ -101,7 +101,7 @@ func (p *StringVector) Less(i, j int) bool {
 
 // Iterate over all elements; driver for range
 func (p *StringVector) iterate(c chan<- string) {
-	for i, v := range p.a {
+	for _, v := range p.a {
 		c <- v.(string)
 	}
 	close(c);

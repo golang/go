@@ -650,7 +650,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 	var idents []*ast.Ident;
 	var typ ast.Expr;
 	x := p.parseQualifiedIdent();
-	if tmp, isIdent := x.(*ast.Ident); isIdent && (p.tok == token.COMMA || p.tok == token.LPAREN) {
+	if _, isIdent := x.(*ast.Ident); isIdent && (p.tok == token.COMMA || p.tok == token.LPAREN) {
 		// methods
 		idents = p.parseIdentList(x);
 		params, results := p.parseSignature();

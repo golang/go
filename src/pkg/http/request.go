@@ -508,7 +508,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	// like
 	//	Cache-Control: no-cache
 	if v, present := req.Header["Pragma"]; present && v == "no-cache" {
-		if cc, presentcc := req.Header["Cache-Control"]; !presentcc {
+		if _, presentcc := req.Header["Cache-Control"]; !presentcc {
 			req.Header["Cache-Control"] = "no-cache"
 		}
 	}

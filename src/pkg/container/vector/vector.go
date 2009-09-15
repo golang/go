@@ -230,7 +230,7 @@ func (p *Vector) Swap(i, j int) {
 
 // Iterate over all elements; driver for range
 func (p *Vector) iterate(c chan<- Element) {
-	for i, v := range p.a {
+	for _, v := range p.a {
 		c <- v
 	}
 	close(c);

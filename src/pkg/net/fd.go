@@ -244,8 +244,8 @@ func (s *pollServer) Run() {
 		}
 		if fd == s.pr.Fd() {
 			// Drain our wakeup pipe.
-			for nn, e := s.pr.Read(&scratch); nn > 0; {
-				nn, e = s.pr.Read(&scratch)
+			for nn, _ := s.pr.Read(&scratch); nn > 0; {
+				nn, _ = s.pr.Read(&scratch)
 			}
 
 			// Read from channels
@@ -327,7 +327,7 @@ func (fd *netFD) addr() string {
 	if e != 0 {
 		return "";
 	}
-	addr, err := sockaddrToString(sa);
+	addr, _ := sockaddrToString(sa);
 	return addr;
 }
 
@@ -336,7 +336,7 @@ func (fd *netFD) remoteAddr() string {
 	if e != 0 {
 		return "";
 	}
-	addr, err := sockaddrToString(sa);
+	addr, _ := sockaddrToString(sa);
 	return addr;
 }
 

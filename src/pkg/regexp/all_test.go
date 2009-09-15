@@ -348,7 +348,7 @@ var replaceTests = []ReplaceTest {
 }
 
 func TestReplaceAll(t *testing.T) {
-	for i, tc := range replaceTests {
+	for _, tc := range replaceTests {
 		re, err := Compile(tc.pattern);
 		if err != nil {
 			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err);
@@ -379,7 +379,7 @@ var quoteMetaTests = []QuoteMetaTest {
 }
 
 func TestQuoteMeta(t *testing.T) {
-	for i, tc := range quoteMetaTests {
+	for _, tc := range quoteMetaTests {
 		// Verify that QuoteMeta returns the expected string.
 		quoted := QuoteMeta(tc.pattern);
 		if quoted != tc.output {
@@ -449,7 +449,7 @@ func printStringSlice(t *testing.T, s []string) {
 func TestAllMatches(t *testing.T) {
 	ch := make(chan matchCase);
 	go func() {
-		for i, c := range matchCases {
+		for _, c := range matchCases {
 			ch <- c;
 			stringCase := matchCase{
 				"string" + c.matchfunc,
@@ -464,7 +464,7 @@ func TestAllMatches(t *testing.T) {
 
 	for c := range ch {
 		var result []string;
-		re, err := Compile(c.regexp);
+		re, _ := Compile(c.regexp);
 
 		switch c.matchfunc {
 		case "matchit":
@@ -488,7 +488,7 @@ func TestAllMatches(t *testing.T) {
 			result = make([]string, len(c.input) + 1);
 			b := strings.Bytes(c.input);
 			i := 0;
-			for j, match := range re.AllMatches(b, c.n) {
+			for _, match := range re.AllMatches(b, c.n) {
 				result[i] = string(match);
 				i++;
 			}

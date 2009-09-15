@@ -170,7 +170,7 @@ var server = &serverType{ serviceMap: make(map[string] *service) }
 
 // Is this a publicly vislble - upper case - name?
 func isPublic(name string) bool {
-	rune, wid_ := utf8.DecodeRuneInString(name);
+	rune, _ := utf8.DecodeRuneInString(name);
 	return unicode.IsUpper(rune)
 }
 
@@ -354,7 +354,7 @@ func (server *serverType) input(conn io.ReadWriteCloser) {
 
 func (server *serverType) accept(lis net.Listener) {
 	for {
-		conn, addr, err := lis.Accept();
+		conn, _, err := lis.Accept();
 		if err != nil {
 			log.Exit("rpc.Serve: accept:", err.String());	// TODO(r): exit?
 		}
@@ -399,7 +399,7 @@ func serveHTTP(c *http.Conn, req *http.Request) {
 		io.WriteString(c, "405 must CONNECT to " + rpcPath + "\n");
 		return;
 	}
-	conn, buf, err := c.Hijack();
+	conn, _, err := c.Hijack();
 	if err != nil {
 		log.Stderr("rpc hijacking ", c.RemoteAddr, ": ", err.String());
 		return;

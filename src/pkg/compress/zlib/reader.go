@@ -39,7 +39,7 @@ func NewInflater(r io.Reader) (io.ReadCloser, os.Error) {
 	} else {
 		z.r = bufio.NewReader(r);
 	}
-	n, err := io.ReadFull(z.r, z.scratch[0:2]);
+	_, err := io.ReadFull(z.r, z.scratch[0:2]);
 	if err != nil {
 		return nil, err;
 	}

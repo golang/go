@@ -132,7 +132,7 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 	abbrev := d.read(n[NChar]);
 
 	// Leap-second time pairs
-	leapdata := data{d.read(n[NLeap]*8), false};
+	d.read(n[NLeap]*8);
 
 	// Whether tx times associated with local time types
 	// are specified as standard time or wall time.

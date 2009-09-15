@@ -216,7 +216,7 @@ func Bytes(s string) []byte {
 // Execute f on each test case.  funcName should be the name of f; it's used
 // in failure reports.
 func runStringTests(t *testing.T, f func([]byte) []byte, funcName string, testCases []StringTest) {
-	for i, tc := range testCases {
+	for _, tc := range testCases {
 		actual := string(f(Bytes(tc.in)));
 		if actual != tc.out {
 			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out);
@@ -275,7 +275,7 @@ var addtests = []AddTest {
 }
 
 func TestAdd(t *testing.T) {
-	for i, test := range addtests {
+	for _, test := range addtests {
 		b := make([]byte, len(test.s), test.cap);
 		for i := 0; i < len(test.s); i++ {
 			b[i] = test.s[i]

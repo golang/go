@@ -33,7 +33,7 @@ func runServe(t *testing.T, network, addr string, listening chan<- string, done 
 	listening <- l.Addr();
 
 	for {
-		fd, addr, err := l.Accept();
+		fd, _, err := l.Accept();
 		if err != nil {
 			break;
 		}

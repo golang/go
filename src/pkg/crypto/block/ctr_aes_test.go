@@ -71,7 +71,7 @@ var ctrAESTests = []ctrTest {
 }
 
 func TestCTR_AES(t *testing.T) {
-	for i, tt := range ctrAESTests {
+	for _, tt := range ctrAESTests {
 		test := tt.name;
 
 		c, err := aes.NewCipher(tt.key);

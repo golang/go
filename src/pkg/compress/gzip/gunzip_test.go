@@ -282,7 +282,7 @@ var gzipTests = []gzipTest {
 
 func TestInflater(t *testing.T) {
 	b := new(bytes.Buffer);
-	for i, tt := range gzipTests {
+	for _, tt := range gzipTests {
 		in := bytes.NewBuffer(tt.gzip);
 		gzip, err := NewInflater(in);
 		if err != nil {

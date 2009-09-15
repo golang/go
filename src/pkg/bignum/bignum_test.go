@@ -152,7 +152,7 @@ func TestNatConv(t *testing.T) {
 
 	test_msg = "NatConvG";
 	x := Nat(100);
-	y, b, _ := NatFromString(fmt.Sprintf("%b", &x), 2);
+	y, _, _ := NatFromString(fmt.Sprintf("%b", &x), 2);
 	nat_eq(100, y, x);
 }
 

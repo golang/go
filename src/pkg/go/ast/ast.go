@@ -350,7 +350,7 @@ func (x *ChanType) exprNode() {}
 // IsExported returns whether name is an exported Go symbol
 // (i.e., whether it begins with an uppercase letter).
 func IsExported(name string) bool {
-	ch, len := utf8.DecodeRuneInString(name);
+	ch, _ := utf8.DecodeRuneInString(name);
 	return unicode.IsUpper(ch);
 }
 

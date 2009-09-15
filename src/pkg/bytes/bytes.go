@@ -190,8 +190,8 @@ func Map(mapping func(rune int) int, s []byte) []byte {
 	maxbytes := len(s);	// length of b
 	nbytes := 0;	// number of bytes encoded in b
 	b := make([]byte, maxbytes);
-	for wid, i := 0, 0; i < len(s); i += wid {
-		wid = 1;
+	for i := 0; i < len(s); {
+		wid := 1;
 		rune := int(s[i]);
 		if rune < utf8.RuneSelf {
 			rune = mapping(rune);
@@ -209,6 +209,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
 			b = nb;
 		}
 		nbytes += utf8.EncodeRune(rune, b[nbytes:maxbytes]);
+		i += wid;
 	}
 	return b[0:nbytes];
 }
@@ -232,8 +233,8 @@ func Title(s []byte) []byte {
 // removed, as defined by Unicode.
 func TrimSpace(s []byte) []byte {
 	start, end := 0, len(s);
-	for wid := 0; start < end; start += wid {
-		wid = 1;
+	for start < end {
+		wid := 1;
 		rune := int(s[start]);
 		if rune >= utf8.RuneSelf {
 			rune, wid = utf8.DecodeRune(s[start:end])
@@ -241,9 +242,10 @@ func TrimSpace(s []byte) []byte {
 		if !unicode.IsSpace(rune) {
 			break;
 		}
+		start += wid;
 	}
-	for wid := 0; start < end; end -= wid {
-		wid = 1;
+	for start < end {
+		wid := 1;
 		rune := int(s[end-1]);
 		if rune >= utf8.RuneSelf {
 			// Back up carefully looking for beginning of rune. Mustn't pass start.
@@ -257,6 +259,7 @@ func TrimSpace(s []byte) []byte {
 		if !unicode.IsSpace(rune) {
 			break;
 		}
+		end -= wid;
 	}
 	return s[start:end];
 }

@@ -116,7 +116,7 @@ func (z *Inflater) read2() (uint32, os.Error) {
 }
 
 func (z *Inflater) readHeader(save bool) os.Error {
-	n, err := io.ReadFull(z.r, z.buf[0:10]);
+	_, err := io.ReadFull(z.r, z.buf[0:10]);
 	if err != nil {
 		return err;
 	}

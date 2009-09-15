@@ -13,7 +13,7 @@ import (
 // Seconds reports the number of seconds since the Unix epoch,
 // January 1, 1970 00:00:00 UTC.
 func Seconds() int64 {
-	sec, nsec, err := os.Time();
+	sec, _, err := os.Time();
 	if err != nil {
 		panic("time: os.Time: ", err.String());
 	}

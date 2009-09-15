@@ -100,7 +100,7 @@ var ecbAESTests = []ecbTest {
 }
 
 func TestECB_AES(t *testing.T) {
-	for i, tt := range ecbAESTests {
+	for _, tt := range ecbAESTests {
 		test := tt.name;
 
 		c, err := aes.NewCipher(tt.key);
