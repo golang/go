@@ -42,7 +42,7 @@ func makearray() []int {
 
 func testarray() {
 	s := 0;
-	for k, v := range makearray() {
+	for _, v := range makearray() {
 		s += v;
 	}
 	if nmake != 1 {

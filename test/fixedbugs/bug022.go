@@ -10,6 +10,7 @@ func putint(digits *string) {
 	var i byte;
 	i = (*digits)[7];  // compiles
 	i = digits[7];  // ERROR "illegal|is not|invalid"
+	_ = i;
 }
 
 func main() {

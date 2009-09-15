@@ -106,10 +106,10 @@ func main() {
 	// Delete the comment lines and newlines
 	bytes = compile("(>[^\n]+)?\n").ReplaceAll(bytes, []byte{});
 	clen := len(bytes);
-	for i, s := range variants {
+	for _, s := range variants {
 		fmt.Printf("%s %d\n", s, countMatches(s, bytes));
 	}
-	for i, sub := range substs {
+	for _, sub := range substs {
 		bytes = compile(sub.pat).ReplaceAll(bytes, strings.Bytes(sub.repl));
 	}
 	fmt.Printf("\n%d\n%d\n%d\n", ilen, clen, len(bytes));

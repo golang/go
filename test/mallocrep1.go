@@ -87,7 +87,7 @@ func AllocAndFree(size, count int) {
 }
 
 func atoi(s string) int {
-	i, xx1 := strconv.Atoi(s);
+	i, _ := strconv.Atoi(s);
 	return i
 }
 

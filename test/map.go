@@ -140,7 +140,6 @@ func main() {
 		s := strconv.Itoa(i);
 		s10 := strconv.Itoa(i*10);
 		f := float(i);
-		t := T{int64(i), f};
 		// BUG m := M(i, i+1);
 		if mib[i] != (i != 0) {
 			fmt.Printf("mib[%d] = %t\n", i, mib[i]);
@@ -193,133 +192,132 @@ func main() {
 	for i := 0; i < count; i++ {
 		s := strconv.Itoa(i);
 		f := float(i);
-		t := T{int64(i), f};
 		{
-			a, b := mib[i];
+			_, b := mib[i];
 			if !b {
 				fmt.Printf("tuple existence decl: mib[%d]\n", i);
 			}
-			a, b = mib[i];
+			_, b = mib[i];
 			if !b {
 				fmt.Printf("tuple existence assign: mib[%d]\n", i);
 			}
 		}
 		{
-			a, b := mii[i];
+			_, b := mii[i];
 			if !b {
 				fmt.Printf("tuple existence decl: mii[%d]\n", i);
 			}
-			a, b = mii[i];
+			_, b = mii[i];
 			if !b {
 				fmt.Printf("tuple existence assign: mii[%d]\n", i);
 			}
 		}
 		{
-			a, b := mfi[f];
+			_, b := mfi[f];
 			if !b {
 				fmt.Printf("tuple existence decl: mfi[%d]\n", i);
 			}
-			a, b = mfi[f];
+			_, b = mfi[f];
 			if !b {
 				fmt.Printf("tuple existence assign: mfi[%d]\n", i);
 			}
 		}
 		{
-			a, b := mif[i];
+			_, b := mif[i];
 			if !b {
 				fmt.Printf("tuple existence decl: mif[%d]\n", i);
 			}
-			a, b = mif[i];
+			_, b = mif[i];
 			if !b {
 				fmt.Printf("tuple existence assign: mif[%d]\n", i);
 			}
 		}
 		{
-			a, b := mis[i];
+			_, b := mis[i];
 			if !b {
 				fmt.Printf("tuple existence decl: mis[%d]\n", i);
 			}
-			a, b = mis[i];
+			_, b = mis[i];
 			if !b {
 				fmt.Printf("tuple existence assign: mis[%d]\n", i);
 			}
 		}
 		{
-			a, b := msi[s];
+			_, b := msi[s];
 			if !b {
 				fmt.Printf("tuple existence decl: msi[%d]\n", i);
 			}
-			a, b = msi[s];
+			_, b = msi[s];
 			if !b {
 				fmt.Printf("tuple existence assign: msi[%d]\n", i);
 			}
 		}
 		{
-			a, b := mss[s];
+			_, b := mss[s];
 			if !b {
 				fmt.Printf("tuple existence decl: mss[%d]\n", i);
 			}
-			a, b = mss[s];
+			_, b = mss[s];
 			if !b {
 				fmt.Printf("tuple existence assign: mss[%d]\n", i);
 			}
 		}
 		{
-			a, b := mspa[s];
+			_, b := mspa[s];
 			if !b {
 				fmt.Printf("tuple existence decl: mspa[%d]\n", i);
 			}
-			a, b = mspa[s];
+			_, b = mspa[s];
 			if !b {
 				fmt.Printf("tuple existence assign: mspa[%d]\n", i);
 			}
 		}
 		{
-			a, b := mipT[i];
+			_, b := mipT[i];
 			if !b {
 				fmt.Printf("tuple existence decl: mipT[%d]\n", i);
 			}
-			a, b = mipT[i];
+			_, b = mipT[i];
 			if !b {
 				fmt.Printf("tuple existence assign: mipT[%d]\n", i);
 			}
 		}
 		{
-			a, b := mpTi[apT[i]];
+			_, b := mpTi[apT[i]];
 			if !b {
 				fmt.Printf("tuple existence decl: mpTi[apT[%d]]\n", i);
 			}
-			a, b = mpTi[apT[i]];
+			_, b = mpTi[apT[i]];
 			if !b {
 				fmt.Printf("tuple existence assign: mpTi[apT[%d]]\n", i);
 			}
 		}
 		{
-			a, b := mipM[i];
+			_, b := mipM[i];
 			if !b {
 				fmt.Printf("tuple existence decl: mipM[%d]\n", i);
 			}
-			a, b = mipM[i];
+			_, b = mipM[i];
 			if !b {
 				fmt.Printf("tuple existence assign: mipM[%d]\n", i);
 			}
 		}
 		{
-			a, b := mit[i];
+			_, b := mit[i];
 			if !b {
 				fmt.Printf("tuple existence decl: mit[%d]\n", i);
 			}
-			a, b = mit[i];
+			_, b = mit[i];
 			if !b {
 				fmt.Printf("tuple existence assign: mit[%d]\n", i);
 			}
 		}
 //		{
-//			a, b := mti[t];
+//			_, b := mti[t];
 //			if !b {
 //				fmt.Printf("tuple existence decl: mti[%d]\n", i);
 //			}
-//			a, b = mti[t];
+//			_, b = mti[t];
 //			if !b {
 //				fmt.Printf("tuple existence assign: mti[%d]\n", i);
 //			}
@@ -331,133 +329,132 @@ func main() {
 	for i := count; i < 2*count; i++ {
 		s := strconv.Itoa(i);
 		f := float(i);
-		t := T{int64(i),f};
 		{
-			a, b := mib[i];
+			_, b := mib[i];
 			if b {
 				fmt.Printf("tuple nonexistence decl: mib[%d]", i);
 			}
-			a, b = mib[i];
+			_, b = mib[i];
 			if b {
 				fmt.Printf("tuple nonexistence assign: mib[%d]", i);
 			}
 		}
 		{
-			a, b := mii[i];
+			_, b := mii[i];
 			if b {
 				fmt.Printf("tuple nonexistence decl: mii[%d]", i);
 			}
-			a, b = mii[i];
+			_, b = mii[i];
 			if b {
 				fmt.Printf("tuple nonexistence assign: mii[%d]", i);
 			}
 		}
 		{
-			a, b := mfi[f];
+			_, b := mfi[f];
 			if b {
 				fmt.Printf("tuple nonexistence decl: mfi[%d]", i);
 			}
-			a, b = mfi[f];
+			_, b = mfi[f];
 			if b {
 				fmt.Printf("tuple nonexistence assign: mfi[%d]", i);
 			}
 		}
 		{
-			a, b := mif[i];
+			_, b := mif[i];
 			if b {
 				fmt.Printf("tuple nonexistence decl: mif[%d]", i);
 			}
-			a, b = mif[i];
+			_, b = mif[i];
 			if b {
 				fmt.Printf("tuple nonexistence assign: mif[%d]", i);
 			}
 		}
 		{
-			a, b := mis[i];
+			_, b := mis[i];
 			if b {
 				fmt.Printf("tuple nonexistence decl: mis[%d]", i);
 			}
-			a, b = mis[i];
+			_, b = mis[i];
 			if b {
 				fmt.Printf("tuple nonexistence assign: mis[%d]", i);
 			}
 		}
 		{
-			a, b := msi[s];
+			_, b := msi[s];
 			if b {
 				fmt.Printf("tuple nonexistence decl: msi[%d]", i);
 			}
-			a, b = msi[s];
+			_, b = msi[s];
 			if b {
 				fmt.Printf("tuple nonexistence assign: msi[%d]", i);
 			}
 		}
 		{
-			a, b := mss[s];
+			_, b := mss[s];
 			if b {
 				fmt.Printf("tuple nonexistence decl: mss[%d]", i);
 			}
-			a, b = mss[s];
+			_, b = mss[s];
 			if b {
 				fmt.Printf("tuple nonexistence assign: mss[%d]", i);
 			}
 		}
 		{
-			a, b := mspa[s];
+			_, b := mspa[s];
 			if b {
 				fmt.Printf("tuple nonexistence decl: mspa[%d]", i);
 			}
-			a, b = mspa[s];
+			_, b = mspa[s];
 			if b {
 				fmt.Printf("tuple nonexistence assign: mspa[%d]", i);
 			}
 		}
 		{
-			a, b := mipT[i];
+			_, b := mipT[i];
 			if b {
 				fmt.Printf("tuple nonexistence decl: mipT[%d]", i);
 			}
-			a, b = mipT[i];
+			_, b = mipT[i];
 			if b {
 				fmt.Printf("tuple nonexistence assign: mipT[%d]", i);
 			}
 		}
 		{
-			a, b := mpTi[apT[i]];
+			_, b := mpTi[apT[i]];
 			if b {
 				fmt.Printf("tuple nonexistence decl: mpTi[apt[%d]]", i);
 			}
-			a, b = mpTi[apT[i]];
+			_, b = mpTi[apT[i]];
 			if b {
 				fmt.Printf("tuple nonexistence assign: mpTi[apT[%d]]", i);
 			}
 		}
 		{
-			a, b := mipM[i];
+			_, b := mipM[i];
 			if b {
 				fmt.Printf("tuple nonexistence decl: mipM[%d]", i);
 			}
-			a, b = mipM[i];
+			_, b = mipM[i];
 			if b {
 				fmt.Printf("tuple nonexistence assign: mipM[%d]", i);
 			}
 		}
 //		{
-//			a, b := mti[t];
+//			_, b := mti[t];
 //			if b {
 //				fmt.Printf("tuple nonexistence decl: mti[%d]", i);
 //			}
-//			a, b = mti[t];
+//			_, b = mti[t];
 //			if b {
 //				fmt.Printf("tuple nonexistence assign: mti[%d]", i);
 //			}
 //		}
 		{
-			a, b := mit[i];
+			_, b := mit[i];
 			if b {
 				fmt.Printf("tuple nonexistence decl: mit[%d]", i);
 			}
-			a, b = mit[i];
+			_, b = mit[i];
 			if b {
 				fmt.Printf("tuple nonexistence assign: mit[%d]", i);
 			}
@@ -487,10 +484,10 @@ func main() {
 			fmt.Printf("update mipM[%d][%d] = %i\n", i, i, mipM[i][i]);
 		}
 	}
-	
+
 	// test range on nil map
 	var mnil map[string] int;
-	for x, y := range mnil {
+	for _, _ = range mnil {
 		panic("range mnil");
 	}
 }

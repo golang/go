@@ -13,7 +13,7 @@ type IntArray []int;
 func (arr IntArray) Iter() <-chan interface {} {
 	ch := make(chan interface {});
 	go func() {
-		for i, x := range arr {
+		for _, x := range arr {
 			ch <- x
 		}
 		close(ch)

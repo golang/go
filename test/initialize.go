@@ -50,7 +50,7 @@ var same = []Same {
 
 func main() {
 	ok := true;
-	for i, s := range same {
+	for _, s := range same {
 		if !reflect.DeepEqual(s.a, s.b) {
 			ok = false;
 			fmt.Printf("not same: %v and %v\n", s.a, s.b);

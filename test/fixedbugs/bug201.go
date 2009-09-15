@@ -16,18 +16,18 @@ func (MyInt) m(*T1) { }
 func main() {
 	{
 		var i interface{} = new(T1);
-		v1, ok1 := i.(*T1);
-		v2, ok2 := i.(*T2);
-		v3, ok3 := i.(*T3);
+		_, ok1 := i.(*T1);
+		_, ok2 := i.(*T2);
+		_, ok3 := i.(*T3);
 		if !ok1 || ok2 || ok3 {
 			panicln("*T1", ok1, ok2, ok3);
 		}
 	}
 	{
 		var i interface{} = MyInt(0);
-		v1, ok1 := i.(interface{ m(*T1) });
-		v2, ok2 := i.(interface{ m(*T2) });
-		v3, ok3 := i.(interface{ m(*T3) });
+		_, ok1 := i.(interface{ m(*T1) });
+		_, ok2 := i.(interface{ m(*T2) });
+		_, ok3 := i.(interface{ m(*T3) });
 		if !ok1 || ok2 || ok3 {
 			panicln("T", ok1, ok2, ok3);
 		}

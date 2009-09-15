@@ -55,7 +55,7 @@ func days() {
 	if !sort.IsSorted(&a) {
 		panic()
 	}
-	for i, d := range data {
+	for _, d := range data {
 		fmt.Printf("%s ", d.long_name)
 	}
 	fmt.Printf("\n")

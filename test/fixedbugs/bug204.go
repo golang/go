@@ -9,7 +9,7 @@ package main
 func main() {
 	nchar := 0;
 	a := []int { '日', '本', '語', 0xFFFD };
-	for pos, char := range "日本語\xc0" {
+	for _, char := range "日本語\xc0" {
 		if nchar >= len(a) {
 			println("BUG");
 			break;

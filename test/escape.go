@@ -112,7 +112,7 @@ func select_escapes1(x int, y int) (*int, *int) {
 func range_escapes(x int) *int {
 	var a [1]int;
 	a[0] = x;
-	for k, v := range a {
+	for _, v := range a {
 		return &v;
 	}
 	return nil;

@@ -12,4 +12,5 @@ func main() {
 	y1 := float(ss);
 	y2 := float(1<<s);  // ERROR "shift"
 	y3 := string(1<<s);  // ERROR "shift"
+	_, _, _, _, _ = s, ss, y1, y2, y3;
 }
