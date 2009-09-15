@@ -633,19 +633,14 @@ gmove(Node *f, Node *t)
 	case CASE(TUINT64, TUINT64):
 		split64(f, &flo, &fhi);
 		split64(t, &tlo, &thi);
-		if(f->op == OLITERAL) {
-			gins(AMOVW, &flo, &tlo);
-			gins(AMOVW, &fhi, &thi);
-		} else {
-			regalloc(&r1, flo.type, N);
-			regalloc(&r2, fhi.type, N);
-			gins(AMOVW, &flo, &r1);
-			gins(AMOVW, &fhi, &r2);
-			gins(AMOVW, &r1, &tlo);
-			gins(AMOVW, &r2, &thi);
-			regfree(&r1);
-			regfree(&r2);
-		}
+		regalloc(&r1, flo.type, N);
+		regalloc(&r2, fhi.type, N);
+		gins(AMOVW, &flo, &r1);
+		gins(AMOVW, &fhi, &r2);
+		gins(AMOVW, &r1, &tlo);
+		gins(AMOVW, &r2, &thi);
+		regfree(&r1);
+		regfree(&r2);
 		splitclean();
 		splitclean();
 		return;
