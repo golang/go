@@ -65,7 +65,7 @@ func explode(s []byte, n int) [][]byte {
 		n = len(s);
 	}
 	a := make([][]byte, n);
-	var size, rune int;
+	var size int;
 	na := 0;
 	for len(s) > 0 {
 		if na+1 >= n {
@@ -73,7 +73,7 @@ func explode(s []byte, n int) [][]byte {
 			na++;
 			break
 		}
-		rune, size = utf8.DecodeRune(s);
+		_, size = utf8.DecodeRune(s);
 		a[na] = s[0:size];
 		s = s[size:len(s)];
 		na++;

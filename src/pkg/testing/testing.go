@@ -116,7 +116,6 @@ func tRunner(t *T, test *Test) {
 // of gotest.
 func Main(tests []Test) {
 	flag.Parse();
-	args := flag.Args();
 	ok := true;
 	if len(tests) == 0 {
 		println("testing: warning: no tests to run");

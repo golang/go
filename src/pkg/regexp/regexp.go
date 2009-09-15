@@ -972,11 +972,11 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func(int, int)) 
 				// after a previous match, so ignore it.
 				accept = false;
 			}
-			var rune, width int;
+			var width int;
 			if b == nil {
-				rune, width = utf8.DecodeRuneInString(s[pos:end]);
+				_, width = utf8.DecodeRuneInString(s[pos:end]);
 			} else {
-				rune, width = utf8.DecodeRune(b[pos:end]);
+				_, width = utf8.DecodeRune(b[pos:end]);
 			}
 			if width > 0 {
 				pos += width;

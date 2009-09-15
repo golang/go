@@ -46,7 +46,7 @@ func (client *Client) send(c *Call) {
 	if client.shutdown != nil {
 		c.Error = client.shutdown;
 		client.mutex.Unlock();
-		doNotBlock := c.Done <- c;
+		_ = c.Done <- c;	// do not block
 		return;
 	}
 	c.seq = client.seq;
@@ -87,14 +87,14 @@ func (client *Client) input() {
 		c.Error = os.ErrorString(response.Error);
 		// We don't want to block here.  It is the caller's responsibility to make
 		// sure the channel has enough buffer space. See comment in Go().
-		doNotBlock := c.Done <- c;
+		_ = c.Done <- c;	// do not block
 	}
 	// Terminate pending calls.
 	client.mutex.Lock();
 	client.shutdown = err;
 	for seq, call := range client.pending {
 		call.Error = err;
-		doNotBlock := call.Done <- call;
+		_ = call.Done <- call;	// do not block
 	}
 	client.mutex.Unlock();
 	log.Stderr("client protocol error:", err);
@@ -161,7 +161,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 	c.Done = done;
 	if client.shutdown != nil {
 		c.Error = client.shutdown;
-		doNotBlock := c.Done <- c;
+		_ = c.Done <- c;	// do not block
 		return c;
 	}
 	client.send(c);

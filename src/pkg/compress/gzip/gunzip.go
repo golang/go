@@ -138,8 +138,7 @@ func (z *Inflater) readHeader(save bool) os.Error {
 			return err;
 		}
 		data := make([]byte, n);
-		var nn int;
-		if nn, err = io.ReadFull(z.r, data); err != nil {
+		if _, err = io.ReadFull(z.r, data); err != nil {
 			return err;
 		}
 		if save {

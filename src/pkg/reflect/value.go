@@ -16,7 +16,6 @@ type addr unsafe.Pointer
 // TODO: This will have to go away when
 // the new gc goes in.
 func memmove(adst, asrc addr, n uintptr) {
-	var p uintptr;	// dummy for sizeof
 	dst := uintptr(adst);
 	src := uintptr(asrc);
 	switch {
@@ -680,7 +679,6 @@ func (v *ChanValue) recv(b *bool) Value {
 		panic("recv on send-only channel");
 	}
 	ch := *(**byte)(v.addr);
-	newval := MakeZero(t.Elem());
 	x := MakeZero(t.Elem());
 	chanrecv(ch, (*byte)(x.getAddr()), b);
 	return x;

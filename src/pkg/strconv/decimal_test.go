@@ -30,7 +30,6 @@ var shifttests = []shiftTest {
 }
 
 func TestDecimalShift(t *testing.T) {
-	ok := true;
 	for i := 0; i < len(shifttests); i++ {
 		test := &shifttests[i];
 		s := NewDecimal(test.i).Shift(test.shift).String();

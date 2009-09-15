@@ -95,11 +95,10 @@ func (ignoreWriter) Write(b []byte) (n int, err os.Error) {
 func (tr *Reader) skipUnread() {
 	nr := tr.nb + tr.pad;	// number of bytes to skip
 
-	var n int64;
 	if sr, ok := tr.r.(io.Seeker); ok {
-		n, tr.err = sr.Seek(nr, 1);
+		_, tr.err = sr.Seek(nr, 1);
 	} else {
-		n, tr.err = io.Copyn(tr.r, ignoreWriter{}, nr);
+		_, tr.err = io.Copyn(tr.r, ignoreWriter{}, nr);
 	}
 	tr.nb, tr.pad = 0, 0;
 }
@@ -116,14 +115,13 @@ func (tr *Reader) verifyChecksum(header []byte) bool {
 
 func (tr *Reader) readHeader() *Header {
 	header := make([]byte, blockSize);
-	var n int;
-	if n, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
+	if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
 		return nil
 	}
 
 	// Two blocks of zero bytes marks the end of the archive.
 	if bytes.Equal(header, zeroBlock[0:blockSize]) {
-		if n, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
+		if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
 			return nil
 		}
 		if !bytes.Equal(header, zeroBlock[0:blockSize]) {

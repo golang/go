@@ -93,7 +93,6 @@ func verifyInt(i int64, t *testing.T) {
 
 // Test basic encode/decode routines for signed integers
 func TestIntCodec(t *testing.T) {
-	var b = new(bytes.Buffer);
 	for u := uint64(0); ; u = (u+1) * 7 {
 		// Do positive and negative values
 		i := int64(u);
@@ -191,9 +190,6 @@ func TestScalarEncInstructions(t *testing.T) {
 	// int16
 	{
 		b.Reset();
-		v := int16(17);
-		pv := &v;
-		ppv := &pv;
 		data := struct { a int16 } { 17 };
 		instr := &encInstr{ encInt16, 6, 0, 0 };
 		state := newencoderState(b);

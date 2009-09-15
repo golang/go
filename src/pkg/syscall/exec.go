@@ -228,7 +228,6 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
 	(pid int, err int)
 {
 	var p [2]int;
-	var r1 int;
 	var n int;
 	var err1 uintptr;
 	var wstatus WaitStatus;
@@ -254,11 +253,10 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
 	if err = Pipe(&p); err != 0 {
 		goto error;
 	}
-	var val int;
-	if val, err = fcntl(p[0], F_SETFD, FD_CLOEXEC); err != 0 {
+	if _, err = fcntl(p[0], F_SETFD, FD_CLOEXEC); err != 0 {
 		goto error;
 	}
-	if val, err = fcntl(p[1], F_SETFD, FD_CLOEXEC); err != 0 {
+	if _, err = fcntl(p[1], F_SETFD, FD_CLOEXEC); err != 0 {
 		goto error;
 	}
 

@@ -49,7 +49,6 @@ func Getwd() (string, Error) {
 	// General algorithm: find name in parent
 	// and then find name of parent.  Each iteration
 	// adds /name to the beginning of pwd.
-	elem := make([]string, 0, 16);
 	pwd = "";
 	for parent := "..";; parent = "../" + parent {
 		if len(parent) >= 1024 {	// Sanity check

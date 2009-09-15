@@ -351,7 +351,6 @@ func TestStdErrorHander(t *testing.T) {
 		"@ @ @"  // original file, line 1 again
 	;
 
-	var s Scanner;
 	v := NewErrorVector();
 	nerrors := Tokenize("File1", strings.Bytes(src), v, 0,
 		func (pos token.Position, tok token.Token, litb []byte) bool {

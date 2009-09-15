@@ -63,7 +63,7 @@ echo $alphabet | testit cat "" $alphabet
 echo $alphabet | testit cat_rot13 "--rot13" $rot13
 echo $rot13 | testit cat_rot13 "--rot13" $alphabet
 
-testit sortmain "" "Sunday Monday Tuesday Thursday Friday"
+testit sortmain "" "Sunday Monday Tuesday Wednesday Thursday Friday Saturday"
 
 testit print "" "18446744073709551615 -1 18446744073709551615 {77 Sunset Strip} [1 2 3 4] 18446744073709551615 {77 Sunset Strip} [1 2 3 4] 18446744073709551615 {77 Sunset Strip} [1 2 3 4]"
 testit print_string "" "77 Sunset Strip"

@@ -84,7 +84,6 @@ func valueToString(val Value) string {
 		return str;
 	case *MapValue:
 		t := typ.(*MapType);
-		v := val;
 		str = t.String();
 		str += "{";
 		str += "<can't iterate on maps>";

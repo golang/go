@@ -94,7 +94,6 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
 		return nil, false
 	}
-	vers := p[0];
 
 	// six big-endian 32-bit integers:
 	//	number of UTC/local indicators
@@ -213,12 +212,11 @@ func setupZone() {
 	// $TZ="foo" means use /usr/share/zoneinfo/foo.
 
 	tz, err := os.Getenverror("TZ");
-	var ok bool;
 	switch {
 	case err == os.ENOENV:
-		zones, ok = readinfofile("/etc/localtime");
+		zones, _ = readinfofile("/etc/localtime");
 	case len(tz) > 0:
-		zones, ok = readinfofile(zoneDir + tz);
+		zones, _ = readinfofile(zoneDir + tz);
 	case len(tz) == 0:
 		// do nothing: use UTC
 	}

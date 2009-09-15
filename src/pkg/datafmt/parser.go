@@ -124,8 +124,7 @@ func (p *parser) parseRuleName() (string, bool) {
 func (p *parser) parseString() string {
 	s := "";
 	if p.tok == token.STRING {
-		var err os.Error;
-		s, err = strconv.Unquote(string(p.lit));
+		s, _ = strconv.Unquote(string(p.lit));
 		// Unquote may fail with an error, but only if the scanner found
 		// an illegal string in the first place. In this case the error
 		// has already been reported.

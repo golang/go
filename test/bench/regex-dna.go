@@ -85,7 +85,6 @@ var substs = [] Subst {
 func countMatches(pat string, bytes []byte) int {
 	re := compile(pat);
 	n := 0;
-	pos := 0;
 	for {
 		e := re.Execute(bytes);
 		if len(e) == 0 {

@@ -316,11 +316,10 @@ func (b *_JsonBuilder) Key(k string) Builder {
 // If StringToJson encounters a syntax error, it returns with
 // ok set to false and errtok set to a fragment of the offending syntax.
 func StringToJson(s string) (json Json, ok bool, errtok string) {
-	var errindx int;
 	var j Json;
 	b := new(_JsonBuilder);
 	b.ptr = &j;
-	ok, errindx, errtok = Parse(s, b);
+	ok, _, errtok = Parse(s, b);
 	if !ok {
 		return nil, false, errtok
 	}
