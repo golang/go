@@ -6,6 +6,7 @@
 package printer
 
 import (
+	"container/vector";
 	"fmt";
 	"go/ast";
 	"go/token";
@@ -383,12 +384,7 @@ func (p *printer) print(args ...) {
 		p.pos = next;
 
 		if data != nil {
-			// if there are comments before the next item, intersperse them
-			if p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset {
-				p.intersperseComments(next);
-			}
-
-			p.writeWhitespace();
+			p.flush(next);
 
 			// intersperse extra newlines if present in the source
 			p.writeNewlines(next.Line - p.pos.Line);
@@ -400,9 +396,15 @@ func (p *printer) print(args ...) {
 }
 
 
-// Flush prints any pending whitespace.
-func (p *printer) flush() {
-	// TODO(gri) any special handling of pending comments needed?
+// Flush prints any pending comments and whitespace occuring
+// textually before the position of the next item.
+//
+func (p *printer) flush(next token.Position) {
+	// if there are comments before the next item, intersperse them
+	if p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset {
+		p.intersperseComments(next);
+	}
+
 	p.writeWhitespace();
 }
 
@@ -459,7 +461,7 @@ func (p *printer) identList(list []*ast.Ident) {
 }
 
 
-func (p *printer) stringList(list []*ast.StringLit) {
+func (p *printer) stringList(list []*ast.BasicLit) {
 	// convert into an expression list
 	xlist := make([]ast.Expr, len(list));
 	for i, x := range list {
@@ -484,8 +486,7 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
 		return;
 	}
 
-	n := len(list)-1;  // TODO 6g compiler bug - need temporary variable n
-	if list[0].Pos().Line == list[n].Pos().Line {
+	if list[0].Pos().Line == list[len(list)-1].Pos().Line {
 		// all list entries on a single line
 		if mode & blankStart != 0 {
 			p.print(blank);
@@ -644,7 +645,76 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 // ----------------------------------------------------------------------------
 // Expressions
 
-// Returns true if a separating semicolon is optional.
+func needsBlanks(expr ast.Expr) bool {
+	switch x := expr.(type) {
+	case *ast.Ident:
+		// "long" identifiers look better with blanks around them
+		return len(x.Value) > 12;  // adjust as looks best
+	case *ast.BasicLit:
+		// "long" literals look better with blanks around them
+		return len(x.Value) > 6;  // adjust as looks best
+	case *ast.ParenExpr:
+		// parenthesized expressions don't need blanks around them
+		return false;
+	case *ast.CallExpr:
+		// call expressions need blanks if they have more than one
+		// argument or if the function or the argument need blanks
+		return len(x.Args) > 1 || needsBlanks(x.Fun) || len(x.Args) == 1 && needsBlanks(x.Args[0]);
+	}
+	return true;
+}
+
+
+// TODO(gri) Write this recursively; get rid of vector use.
+func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int) {
+	prec := x.Op.Precedence();
+	if prec < prec1 {
+		// parenthesis needed
+		// Note: The parser inserts an ast.ParenExpr node; thus this case
+		//       can only occur if the AST is created in a different way.
+		p.print(token.LPAREN);
+		p.expr(x);
+		p.print(token.RPAREN);
+		return;
+	}
+
+	// Traverse left, collect all operations at same precedence
+	// and determine if blanks should be printed.
+	//
+	// This algorithm assumes that the right-hand side of a binary
+	// operation has a different (higher) precedence then the current
+	// node, which is how the parser creates the AST.
+	var list vector.Vector;
+	printBlanks := prec <= token.EQL.Precedence() || needsBlanks(x.Y);
+	for {
+		list.Push(x);
+		if t, ok := x.X.(*ast.BinaryExpr); ok && t.Op.Precedence() == prec {
+			x = t;
+			if needsBlanks(x.Y) {
+				printBlanks = true;
+			}
+		} else {
+			break;
+		}
+	}
+	if needsBlanks(x.X) {
+		printBlanks = true;
+	}
+
+	// Print collected operations left-to-right, with blanks if necessary.
+	p.expr1(x.X, prec);
+	for list.Len() > 0 {
+		x = list.Pop().(*ast.BinaryExpr);
+		if printBlanks {
+			p.print(blank, x.OpPos, x.Op, blank);
+		} else {
+			p.print(x.OpPos, x.Op);
+		}
+		p.expr1(x.Y, prec);
+	}
+}
+
+
 func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 	p.print(expr.Pos());
 
@@ -656,16 +726,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 		p.print(x.Value);
 
 	case *ast.BinaryExpr:
-		prec := x.Op.Precedence();
-		if prec < prec1 {
-			p.print(token.LPAREN);
-		}
-		p.expr1(x.X, prec);
-		p.print(blank, x.OpPos, x.Op, blank);
-		p.expr1(x.Y, prec);
-		if prec < prec1 {
-			p.print(token.RPAREN);
-		}
+		p.binaryExpr(x, prec1);
 
 	case *ast.KeyValueExpr:
 		p.expr(x.Key);
@@ -677,29 +738,22 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 		p.expr(x.X);
 
 	case *ast.UnaryExpr:
-		prec := token.UnaryPrec;
+		const prec = token.UnaryPrec;
 		if prec < prec1 {
+			// parenthesis needed
 			p.print(token.LPAREN);
-		}
-		p.print(x.Op);
-		if x.Op == token.RANGE {
-			p.print(blank);
-		}
-		p.expr1(x.X, prec);
-		if prec < prec1 {
+			p.expr(x);
 			p.print(token.RPAREN);
+		} else {
+			// no parenthesis needed
+			p.print(x.Op);
+			if x.Op == token.RANGE {
+				p.print(blank);
+			}
+			p.expr1(x.X, prec);
 		}
 
-	case *ast.IntLit:
-		p.print(x.Value);
-
-	case *ast.FloatLit:
-		p.print(x.Value);
-
-	case *ast.CharLit:
-		p.print(x.Value);
-
-	case *ast.StringLit:
+	case *ast.BasicLit:
 		p.print(x.Value);
 
 	case *ast.StringList:
@@ -735,9 +789,15 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 	case *ast.IndexExpr:
 		p.expr1(x.X, token.HighestPrec);
 		p.print(token.LBRACK);
-		p.expr(x.Index);
+		p.expr1(x.Index, token.LowestPrec);
 		if x.End != nil {
-			p.print(blank, token.COLON, blank);
+			if needsBlanks(x.Index) || needsBlanks(x.End) {
+				// blanks around ":"
+				p.print(blank, token.COLON, blank);
+			} else {
+				// no blanks around ":"
+				p.print(token.COLON);
+			}
 			p.expr(x.End);
 		}
 		p.print(token.RBRACK);
@@ -799,12 +859,12 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 		panic("unreachable");
 	}
 
-	return optSemi;
+	return;
 }
 
 
 // Returns true if a separating semicolon is optional.
-func (p *printer) expr(x ast.Expr) bool {
+func (p *printer) expr(x ast.Expr) (optSemi bool) {
 	return p.expr1(x, token.LowestPrec);
 }
 
@@ -910,9 +970,9 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		// nothing to do
 
 	case *ast.LabeledStmt:
-		p.print(-1, newline);
+		p.print(-1, formfeed);
 		p.expr(s.Label);
-		p.print(token.COLON, tab, +1);
+		p.print(token.COLON, tab, +1, formfeed);
 		optSemi = p.stmt(s.Stmt);
 
 	case *ast.ExprStmt:
@@ -1046,7 +1106,7 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		panic("unreachable");
 	}
 
-	return optSemi;
+	return;
 }
 
 
@@ -1054,15 +1114,29 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 // Declarations
 
 // Returns line comment, if any, and whether a separating semicolon is optional.
+// The parameters m and n control layout; m has different meanings for different
+// specs, n is the number of specs in the group.
 //
-func (p *printer) spec(spec ast.Spec) (comment *ast.CommentGroup, optSemi bool) {
+// ImportSpec:
+//   m = number of imports with a rename
+//
+func (p *printer) spec(spec ast.Spec, m, n int) (comment *ast.CommentGroup, optSemi bool) {
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
 		p.leadComment(s.Doc);
-		if s.Name != nil {
-			p.expr(s.Name);
+		if m > 0 {
+			// we may have a rename
+			if s.Name != nil {
+				p.expr(s.Name);
+			}
+			if m > 1 {
+				// more than one rename - align with tab
+				p.print(tab);
+			} else {
+				// only one rename - no need for alignment with tab
+				p.print(blank);
+			}
 		}
-		p.print(tab);
 		p.expr(&ast.StringList{s.Path});
 		comment = s.Comment;
 
@@ -1095,6 +1169,16 @@ func (p *printer) spec(spec ast.Spec) (comment *ast.CommentGroup, optSemi bool) 
 }
 
 
+func countImportRenames(list []ast.Spec) (n int) {
+	for _, s := range list {
+		if s.(*ast.ImportSpec).Name != nil {
+			n++;
+		}
+	}
+	return;
+}
+
+
 // Returns true if a separating semicolon is optional.
 func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) {
 	switch d := decl.(type) {
@@ -1104,6 +1188,12 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 	case *ast.GenDecl:
 		p.leadComment(d.Doc);
 		p.print(lineTag(d.Pos()), d.Tok, blank);
+
+		// determine layout constant m
+		var m int;
+		if d.Tok == token.IMPORT {
+			m = countImportRenames(d.Specs);
+		}
 
 		if d.Lparen.IsValid() {
 			// group of parenthesized declarations
@@ -1116,7 +1206,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 						p.lineComment(comment);
 						p.print(newline);
 					}
-					comment, optSemi = p.spec(s);
+					comment, optSemi = p.spec(s, m, len(d.Specs));
 				}
 				p.print(token.SEMICOLON);
 				p.lineComment(comment);
@@ -1128,7 +1218,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 
 		} else {
 			// single declaration
-			comment, optSemi = p.spec(d.Specs[0]);
+			comment, optSemi = p.spec(d.Specs[0], m, 1);
 		}
 
 	case *ast.FuncDecl:
@@ -1182,6 +1272,9 @@ func (p *printer) file(src *ast.File) {
 // ----------------------------------------------------------------------------
 // Public interface
 
+var inf = token.Position{Offset: 1<<30, Line: 1<<30}
+
+
 // Fprint "pretty-prints" an AST node to output and returns the number of
 // bytes written, and an error, if any. The node type must be *ast.File,
 // or assignment-compatible to ast.Expr, ast.Decl, or ast.Stmt. Printing
@@ -1221,7 +1314,7 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, o
 		default:
 			p.errors <- os.NewError("unsupported node type");
 		}
-		p.flush();
+		p.flush(inf);
 		p.errors <- nil;  // no errors
 	}();
 	err := <-p.errors;  // wait for completion of goroutine

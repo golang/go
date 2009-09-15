@@ -36,7 +36,7 @@ apply1() {
 	# TODO: restructure script so these files are only excluded from idempotency testing
 	comment.go | net.go | powser1.go | powser2.go | bug052.go | simpbool.go | "shift.go" | range.go | \
 	goyacc.go | godoc.go | rpc.go | struct.go | log.go | decimal.go | tabwriter.go | encoder.go | debug.go | \
-	elf.go | meteor-contest.go | elffmt.go | \
+	elf.go | meteor-contest.go | elffmt.go | xml.go | \
 	\
 	test_errors.go | calc.go | method1.go | selftest1.go | func3.go | const2.go | \
 	bug014.go | bug025.go | bug029.go | bug032.go | bug039.go | bug040.go | bug050.go |  bug068.go | \

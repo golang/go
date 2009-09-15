@@ -5,13 +5,13 @@
 package linebreaks
 
 import (
-		"bytes";
-		"fmt";
-		"io";
-		"os";
-		"reflect";
-		"strings";
-		"testing";
+	"bytes";
+	"fmt";
+	"io";
+	"os";
+	"reflect";
+	"strings";
+	"testing";
 )
 
 type untarTest struct {
@@ -118,7 +118,8 @@ var facts	= map[int]string{
 
 func TestReader(t *testing.T) {
 
-testLoop:	for i, test := range untarTests {
+testLoop:	
+	for i, test := range untarTests {
 		f, err := os.Open(test.file, os.O_RDONLY, 0444);
 		if err != nil {
 			t.Errorf("test %d: Unexpected error: %v", i, err);
