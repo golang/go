@@ -180,7 +180,7 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 
 func Sleep(nsec int64) (errno int) {
 	tv := NsecToTimeval(nsec);
-	n, err := Select(0, nil, nil, nil, &tv);
+	_, err := Select(0, nil, nil, nil, &tv);
 	return err;
 }
 

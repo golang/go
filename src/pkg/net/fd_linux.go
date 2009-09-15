@@ -135,7 +135,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 	}
 
 	// Other events are error conditions - wake whoever is waiting.
-	events, already := p.events[fd];
+	events, _ := p.events[fd];
 	if events & writeFlags != 0 {
 		p.StopWaiting(fd, writeFlags);
 		return fd, 'w', nil;
