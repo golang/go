@@ -898,7 +898,7 @@ func (p *printer) block(s *ast.BlockStmt) {
 	p.print(s.Pos(), token.LBRACE);
 	if len(s.List) > 0 {
 		p.stmtList(s.List);
-		p.print(newline);
+		p.print(formfeed);
 	}
 	p.print(s.Rbrace, token.RBRACE);
 }
@@ -909,10 +909,10 @@ func (p *printer) switchBlock(s *ast.BlockStmt) {
 	if len(s.List) > 0 {
 		for _, s := range s.List {
 			// s is one of *ast.CaseClause, *ast.TypeCaseClause, *ast.CommClause;
-			p.print(newline);
+			p.print(formfeed);
 			p.stmt(s);
 		}
-		p.print(newline);
+		p.print(formfeed);
 	}
 	p.print(s.Rbrace, token.RBRACE);
 }
