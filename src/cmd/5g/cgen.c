@@ -697,11 +697,18 @@ bgen(Node *n, int true, Prog *to)
 		if(n->addable == 0)
 			goto def;
 		nodconst(&n1, n->type, 0);
-		gins(optoas(OCMP, n->type), n, &n1);
+		regalloc(&n2, n->type, N);
+		regalloc(&n3, n->type, N);
+		cgen(&n1, &n2);
+		cgen(n, &n3);
+		p1 = gins(optoas(OCMP, n->type), &n2, N);
+		p1->reg = n3.val.u.reg;
 		a = ABNE;
 		if(!true)
 			a = ABEQ;
 		patch(gbranch(a, n->type), to);
+		regfree(&n2);
+		regfree(&n3);
 		goto ret;
 
 	case OANDAND:
