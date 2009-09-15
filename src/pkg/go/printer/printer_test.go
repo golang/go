@@ -99,14 +99,20 @@ type entry struct {
 
 // Use gotest -update to create/update the respective golden files.
 var data = []entry{
-	entry{ "source1.go", "golden1.go", false },
-	entry{ "source1.go", "golden1.x", true },
+	entry{ "comments.go", "comments.golden", false },
+	entry{ "comments.go", "comments.x", true },
 	entry{ "linebreaks.go", "linebreaks.golden", false },
+	entry{ "expressions.go", "expressions.golden", false },
+	entry{ "declarations.go", "declarations.golden", false },
 }
 
 
 func Test(t *testing.T) {
 	for _, e := range data {
-		check(t, path.Join(dataDir, e.source), path.Join(dataDir, e.golden), e.exports);
+		source := path.Join(dataDir, e.source);
+		golden := path.Join(dataDir, e.golden);
+		check(t, source, golden, e.exports);
+		// TODO(gri) check that golden is idempotent
+		//check(t, golden, golden, e.exports);
 	}
 }

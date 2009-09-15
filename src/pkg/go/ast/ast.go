@@ -90,7 +90,7 @@ type Field struct {
 	Doc *CommentGroup;  // associated documentation; or nil
 	Names []*Ident;  // field/method/parameter names; nil if anonymous field
 	Type Expr;  // field/method/parameter type
-	Tag []*StringLit;  // field tag; or nil
+	Tag []*BasicLit;  // field tag; or nil
 	Comment *CommentGroup;  // line comments; or nil
 };
 
@@ -120,37 +120,20 @@ type (
 		token.Position;  // position of "..."
 	};
 
-	// An IntLit node represents an integer literal.
-	IntLit struct {
-		token.Position;  // int literal position
-		Value []byte;  // literal string; e.g. 42 or 0x7f
-	};
-
-	// A FloatLit node represents a floating-point literal.
-	FloatLit struct {
-		token.Position;  // float literal position
-		Value []byte;  // literal string; e.g. 3.14 or 1e-9
-	};
-
-	// A CharLit node represents a character literal.
-	CharLit struct {
-		token.Position;  // char literal position
-		Value []byte;  // literal string, including quotes; e.g. 'a' or '\x7f'
-	};
-
-	// A StringLit node represents a string literal.
-	StringLit struct {
-		token.Position;  // string literal position
-		Value []byte;  // literal string, including quotes; e.g. "foo" or `\m\n\o`
+	// A BasicLit node represents a literal of basic type.
+	BasicLit struct {
+		token.Position;  // literal position
+		Kind token.Token;  //  token.INT, token.FLOAT, token.CHAR, or token.STRING
+		Value []byte;  // literal string; e.g. 42, 0x7f, 3.14, 1e-9, 'a', '\x7f', "foo" or `\m\n\o`
 	};
 
 	// A StringList node represents a sequence of adjacent string literals.
-	// A single string literal (common case) is represented by a StringLit
+	// A single string literal (common case) is represented by a BasicLit
 	// node; StringList nodes are used only if there are two or more string
 	// literals in a sequence.
 	//
 	StringList struct {
-		Strings []*StringLit;  // list of strings, len(Strings) > 1
+		Strings []*BasicLit;  // list of strings, len(Strings) > 1
 	};
 
 	// A FuncLit node represents a function literal.
@@ -322,10 +305,7 @@ func (x *KeyValueExpr) Pos() token.Position  { return x.Key.Pos(); }
 func (x *BadExpr) exprNode() {}
 func (x *Ident) exprNode() {}
 func (x *Ellipsis) exprNode() {}
-func (x *IntLit) exprNode() {}
-func (x *FloatLit) exprNode() {}
-func (x *CharLit) exprNode() {}
-func (x *StringLit) exprNode() {}
+func (x *BasicLit) exprNode() {}
 func (x *StringList) exprNode() {}
 func (x *FuncLit) exprNode() {}
 func (x *CompositeLit) exprNode() {}
@@ -584,7 +564,7 @@ type (
 	ImportSpec struct {
 		Doc *CommentGroup;  // associated documentation; or nil
 		Name *Ident;  // local package name (including "."); or nil
-		Path []*StringLit;  // package path
+		Path []*BasicLit;  // package path
 		Comment *CommentGroup;  // line comments; or nil
 	};
 

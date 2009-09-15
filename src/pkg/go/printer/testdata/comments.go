@@ -6,18 +6,18 @@
 //
 package main
 
-import 	"fmt"	// fmt
+import "fmt"  // fmt
 
-const c0	= 0	// zero
+const c0 = 0;  // zero
 const (
-	c1	= iota;	// c1
-	c2;	// c2
+	c1 = iota;  // c1
+	c2;  // c2
 )
 
 
 // The T type.
 type T struct {
-	a, b, c	int;	// 3 fields
+	a, b, c int  // 3 fields
 }
 
 // This comment group should be separated
@@ -26,17 +26,17 @@ type T struct {
 
 // This comment should NOT be associated with the next declaration.
 
-var x int	// x
+var x int;  // x
 var ()
 
 
 // This comment SHOULD be associated with the next declaration.
 func f0() {
-	const pi		= 3.14;					// pi
-	var s1 struct{}	/* an empty struct */	/* foo */
+	const pi = 3.14;  // pi
+	var s1 struct {}  /* an empty struct */ /* foo */
 	// a struct constructor
 	// --------------------
-	var s2 struct{}	= struct{}{};
+	var s2 struct {} = struct {}{};
 	x := pi;
 }
 //
@@ -51,12 +51,14 @@ func f1() {
 	f0();
 }
 
+
 func abs(x int) int {
-	if x < 0 {	// the tab printed before this comment's // must not affect the remaining lines
-		return -x;	// this statement should be properly indented
+	if x < 0 {  // the tab printed before this comment's // must not affect the remaining lines
+		return -x;  // this statement should be properly indented
 	}
 	return x;
 }
+
 
 func typeswitch(x interface{}) {
 	switch v := x.(type) {
@@ -64,11 +66,18 @@ func typeswitch(x interface{}) {
 	case string:
 	default:
 	}
-	switch x.(type) {}
-	switch v0, ok := x.(int); v := x.(type) {}
+
+	switch x.(type) {
+	}
+
+	switch v0, ok := x.(int); v := x.(type) {
+	}
+
 	switch v0, ok := x.(int); x.(type) {
 	case bool, int, float:
 	case string:
 	default:
 	}
 }
+
+// This comment is the last entry in this file. It must be printed.

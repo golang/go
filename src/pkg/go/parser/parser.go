@@ -62,6 +62,11 @@ type parser struct {
 	// Non-syntactic parser control
 	optSemi bool;  // true if semicolon separator is optional in statement list
 	exprLev int;  // < 0: in control clause, >= 0: in expression
+
+	// Scopes
+	pkgScope *ast.Scope;
+	fileScope *ast.Scope;
+	topScope *ast.Scope;
 };
 
 
@@ -153,7 +158,7 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
 	comment = &ast.Comment{p.pos, p.lit};
 	p.next0();
 
-	return comment, endline;
+	return;
 }
 
 
@@ -259,6 +264,34 @@ func (p *parser) expect(tok token.Token) token.Position {
 	}
 	p.next();  // make progress in any case
 	return pos;
+}
+
+
+// ----------------------------------------------------------------------------
+// Scope support
+
+func openScope(p *parser) *parser {
+	p.topScope = ast.NewScope(p.topScope);
+	return p;
+}
+
+
+func close/*Scope*/(p *parser) {
+	p.topScope = p.topScope.Outer;
+}
+
+
+func (p *parser) declare(ident *ast.Ident) {
+	if !p.topScope.Declare(ident) {
+		p.Error(p.pos, "'" + ident.Value + "' declared already");
+	}
+}
+
+
+func (p *parser) declareList(idents []*ast.Ident) {
+	for _, ident := range idents {
+		p.declare(ident);
+	}
 }
 
 
@@ -426,7 +459,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
 	typ := p.tryType();
 
 	// optional tag
-	var tag []*ast.StringLit;
+	var tag []*ast.BasicLit;
 	if p.tok == token.STRING {
 		tag = p.parseStringList(nil);
 	}
@@ -625,7 +658,7 @@ func (p *parser) parseSignature() (params []*ast.Field, results []*ast.Field) {
 	params = p.parseParameters(true);
 	results = p.parseResult();
 
-	return params, results;
+	return;
 }
 
 
@@ -796,10 +829,12 @@ func (p *parser) parseStmtList() []ast.Stmt {
 }
 
 
-func (p *parser) parseBlockStmt() *ast.BlockStmt {
+func (p *parser) parseBlockStmt(idents []*ast.Ident) *ast.BlockStmt {
 	if p.trace {
 		defer un(trace(p, "BlockStmt"));
 	}
+
+	defer close(openScope(p));
 
 	lbrace := p.expect(token.LBRACE);
 	list := p.parseStmtList();
@@ -813,7 +848,7 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
 // ----------------------------------------------------------------------------
 // Expressions
 
-func (p *parser) parseStringList(x *ast.StringLit) []*ast.StringLit {
+func (p *parser) parseStringList(x *ast.BasicLit) []*ast.BasicLit {
 	if p.trace {
 		defer un(trace(p, "StringList"));
 	}
@@ -824,14 +859,14 @@ func (p *parser) parseStringList(x *ast.StringLit) []*ast.StringLit {
 	}
 
 	for p.tok == token.STRING {
-		list.Push(&ast.StringLit{p.pos, p.lit});
+		list.Push(&ast.BasicLit{p.pos, token.STRING, p.lit});
 		p.next();
 	}
 
 	// convert list
-	strings := make([]*ast.StringLit, list.Len());
+	strings := make([]*ast.BasicLit, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		strings[i] = list.At(i).(*ast.StringLit);
+		strings[i] = list.At(i).(*ast.BasicLit);
 	}
 
 	return strings;
@@ -845,7 +880,7 @@ func (p *parser) parseFuncLit() ast.Expr {
 
 	typ := p.parseFuncType();
 	p.exprLev++;
-	body := p.parseBlockStmt();
+	body := p.parseBlockStmt(nil);
 	p.optSemi = false;  // function body requires separating ";"
 	p.exprLev--;
 
@@ -865,25 +900,10 @@ func (p *parser) parseOperand() ast.Expr {
 	case token.IDENT:
 		return p.parseIdent();
 
-	case token.INT:
-		x := &ast.IntLit{p.pos, p.lit};
+	case token.INT, token.FLOAT, token.CHAR, token.STRING:
+		x := &ast.BasicLit{p.pos, p.tok, p.lit};
 		p.next();
-		return x;
-
-	case token.FLOAT:
-		x := &ast.FloatLit{p.pos, p.lit};
-		p.next();
-		return x;
-
-	case token.CHAR:
-		x := &ast.CharLit{p.pos, p.lit};
-		p.next();
-		return x;
-
-	case token.STRING:
-		x := &ast.StringLit{p.pos, p.lit};
-		p.next();
-		if p.tok == token.STRING {
+		if p.tok == token.STRING && p.tok == token.STRING {
 			return &ast.StringList{p.parseStringList(x)};
 		}
 		return x;
@@ -1043,10 +1063,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	switch t := x.(type) {
 	case *ast.BadExpr:
 	case *ast.Ident:
-	case *ast.IntLit:
-	case *ast.FloatLit:
-	case *ast.CharLit:
-	case *ast.StringLit:
+	case *ast.BasicLit:
 	case *ast.StringList:
 	case *ast.FuncLit:
 	case *ast.CompositeLit:
@@ -1382,9 +1399,12 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 		defer un(trace(p, "IfStmt"));
 	}
 
+	// IfStmt block
+	defer close(openScope(p));
+
 	pos := p.expect(token.IF);
 	s1, s2, _ := p.parseControlClause(false);
-	body := p.parseBlockStmt();
+	body := p.parseBlockStmt(nil);
 	var else_ ast.Stmt;
 	if p.tok == token.ELSE {
 		p.next();
@@ -1399,6 +1419,9 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
 	if p.trace {
 		defer un(trace(p, "CaseClause"));
 	}
+
+	// CaseClause block
+	defer close(openScope(p));
 
 	// SwitchCase
 	pos := p.pos;
@@ -1444,6 +1467,9 @@ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
 		defer un(trace(p, "TypeCaseClause"));
 	}
 
+	// TypeCaseClause block
+	defer close(openScope(p));
+
 	// TypeSwitchCase
 	pos := p.pos;
 	var types []ast.Expr;
@@ -1480,6 +1506,9 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 		defer un(trace(p, "SwitchStmt"));
 	}
 
+	// SwitchStmt block
+	defer close(openScope(p));
+
 	pos := p.expect(token.SWITCH);
 	s1, s2, _ := p.parseControlClause(false);
 
@@ -1513,6 +1542,9 @@ func (p *parser) parseCommClause() *ast.CommClause {
 	if p.trace {
 		defer un(trace(p, "CommClause"));
 	}
+
+	// CommClause block
+	defer close(openScope(p));
 
 	// CommCase
 	pos := p.pos;
@@ -1574,9 +1606,12 @@ func (p *parser) parseForStmt() ast.Stmt {
 		defer un(trace(p, "ForStmt"));
 	}
 
+	// ForStmt block
+	defer close(openScope(p));
+
 	pos := p.expect(token.FOR);
 	s1, s2, s3 := p.parseControlClause(true);
-	body := p.parseBlockStmt();
+	body := p.parseBlockStmt(nil);
 
 	if as, isAssign := s2.(*ast.AssignStmt); isAssign {
 		// possibly a for statement with a range clause; check assignment operator
@@ -1642,7 +1677,7 @@ func (p *parser) parseStmt() ast.Stmt {
 	case token.BREAK, token.CONTINUE, token.GOTO, token.FALLTHROUGH:
 		return p.parseBranchStmt(p.tok);
 	case token.LBRACE:
-		return p.parseBlockStmt();
+		return p.parseBlockStmt(nil);
 	case token.IF:
 		return p.parseIfStmt();
 	case token.SWITCH:
@@ -1694,7 +1729,7 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.S
 		ident = p.parseIdent();
 	}
 
-	var path []*ast.StringLit;
+	var path []*ast.BasicLit;
 	if p.tok == token.STRING {
 		path = p.parseStringList(nil);
 	} else {
@@ -1847,7 +1882,7 @@ func (p *parser) parseFunctionDecl() *ast.FuncDecl {
 
 	var body *ast.BlockStmt;
 	if p.tok == token.LBRACE {
-		body = p.parseBlockStmt();
+		body = p.parseBlockStmt(nil);
 	}
 
 	return &ast.FuncDecl{doc, recv, ident, &ast.FuncType{pos, params, results}, body};
@@ -1884,21 +1919,27 @@ func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
 		return decl, gotSemi;
 	}
 
-	decl, gotSemi = p.parseGenDecl(p.tok, f, getSemi);  // TODO 6g/spec issue
-	return;
+	return p.parseGenDecl(p.tok, f, getSemi);
 }
 
 
 func (p *parser) parseDeclList() []ast.Decl {
-	var list vector.Vector;
+	if p.trace {
+		defer un(trace(p, "DeclList"));
+	}
+
+	list := vector.New(0);
 	for p.tok != token.EOF {
 		decl, _ := p.parseDecl(true);	// consume optional semicolon
 		list.Push(decl);
 	}
+
+	// convert vector
 	decls := make([]ast.Decl, list.Len());
 	for i := 0; i < list.Len(); i++ {
 		decls[i] = list.At(i).(ast.Decl);
 	}
+
 	return decls;
 }
 
@@ -1910,6 +1951,9 @@ func (p *parser) parseFile() *ast.File {
 	if p.trace {
 		defer un(trace(p, "File"));
 	}
+
+	// file block
+	defer close(openScope(p));
 
 	// package clause
 	doc := p.leadComment;

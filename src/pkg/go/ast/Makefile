@@ -7,6 +7,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
 TARG=go/ast
 GOFILES=\
 	ast.go\
+	scope.go\
 	filter.go\
 
 include $(GOROOT)/src/Make.pkg
