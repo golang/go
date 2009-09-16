@@ -352,18 +352,16 @@ func (pos *Position) IsValid() bool {
 }
 
 
-func (pos *Position) String() string {
-	if pos != nil {
-		s := pos.Filename;
-		if pos.IsValid() {
-			if s != "" {
-				s += ":";
-			}
-			s += fmt.Sprintf("%d:%d", pos.Line, pos.Column);
-		}
+func (pos Position) String() string {
+	s := pos.Filename;
+	if pos.IsValid() {
 		if s != "" {
-			return s;
+			s += ":";
 		}
+		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column);
 	}
-	return "<unknown position>";
+	if s == "" {
+		s = "???";
+	}
+	return s;
 }
