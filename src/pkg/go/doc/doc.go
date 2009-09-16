@@ -304,18 +304,6 @@ func NewPackageDoc(pkg *ast.Package, importpath string) *PackageDoc {
 // ----------------------------------------------------------------------------
 // Conversion to external representation
 
-func astComment(comment *ast.CommentGroup) string {
-	if comment != nil {
-		text := make([]string, len(comment.List));
-		for i, c := range comment.List {
-			text[i] = string(c.Text);
-		}
-		return commentText(text);
-	}
-	return "";
-}
-
-
 // ValueDoc is the documentation for a group of declared
 // values, either vars or consts.
 //
@@ -363,7 +351,7 @@ func makeValueDocs(v *vector.Vector, tok token.Token) []*ValueDoc {
 	for i := range d {
 		decl := v.At(i).(*ast.GenDecl);
 		if decl.Tok == tok {
-			d[n] = &ValueDoc{astComment(decl.Doc), decl, i};
+			d[n] = &ValueDoc{CommentText(decl.Doc), decl, i};
 			n++;
 			decl.Doc = nil;  // doc consumed - removed from AST
 		}
@@ -395,7 +383,7 @@ func makeFuncDocs(m map[string] *ast.FuncDecl) []*FuncDoc {
 	i := 0;
 	for _, f := range m {
 		doc := new(FuncDoc);
-		doc.Doc = astComment(f.Doc);
+		doc.Doc = CommentText(f.Doc);
 		f.Doc = nil;  // doc consumed - remove from ast.FuncDecl node
 		if f.Recv != nil {
 			doc.Recv = f.Recv.Type;
@@ -459,7 +447,7 @@ func (doc *docReader) makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 				doc = decl.Doc;
 			}
 			decl.Doc = nil;  // doc consumed - remove from ast.Decl node
-			t.Doc = astComment(doc);
+			t.Doc = CommentText(doc);
 			t.Type = typespec;
 			t.Consts = makeValueDocs(old.values, token.CONST);
 			t.Vars = makeValueDocs(old.values, token.VAR);
@@ -499,7 +487,7 @@ func (doc *docReader) makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 func makeBugDocs(v *vector.Vector) []string {
 	d := make([]string, v.Len());
 	for i := 0; i < v.Len(); i++ {
-		d[i] = astComment(v.At(i).(*ast.CommentGroup));
+		d[i] = CommentText(v.At(i).(*ast.CommentGroup));
 	}
 	return d;
 }
@@ -530,7 +518,7 @@ func (doc *docReader) newDoc(pkgname, importpath, filepath string, filenames []s
 	p.FilePath = filepath;
 	sort.SortStrings(filenames);
 	p.Filenames = filenames;
-	p.Doc = astComment(doc.doc);
+	p.Doc = CommentText(doc.doc);
 	// makeTypeDocs may extend the list of doc.values and
 	// doc.funcs and thus must be called before any other
 	// function consuming those lists
