@@ -52,6 +52,20 @@ func Pop(h HeapInterface) interface{} {
 }
 
 
+// Remove removes the element at index i from the heap.
+// The complexity is O(log(n)) where n = h.Len().
+//
+func Remove(h HeapInterface, i int) interface{} {
+	n := h.Len()-1;
+	if n != i {
+		h.Swap(n, i);
+		down(h, i, n);
+		up(h, i);
+	}
+	return h.Pop();
+}
+
+
 func up(h HeapInterface, j int) {
 	for {
 		i := (j-1)/2;
