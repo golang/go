@@ -314,8 +314,8 @@ func TestAll(t *testing.T) {
 				t.Errorf("expected execute error %q, got %q", test.err, err.String());
 			}
 		}
-		if string(buf.Data()) != test.out {
-			t.Errorf("for %q: expected %q got %q", test.in, test.out, string(buf.Data()));
+		if string(buf.Bytes()) != test.out {
+			t.Errorf("for %q: expected %q got %q", test.in, test.out, string(buf.Bytes()));
 		}
 	}
 }
@@ -330,7 +330,7 @@ func TestStringDriverType(t *testing.T) {
 	if err != nil {
 		t.Error("unexpected execute error:", err)
 	}
-	s := string(b.Data());
+	s := string(b.Bytes());
 	if s != "template: hello" {
 		t.Errorf("failed passing string as data: expected %q got %q", "template: hello", s)
 	}
@@ -346,7 +346,7 @@ func TestTwice(t *testing.T) {
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
-	s := string(b.Data());
+	s := string(b.Bytes());
 	text := "template: hello";
 	if s != text {
 		t.Errorf("failed passing string as data: expected %q got %q", text, s);
@@ -355,7 +355,7 @@ func TestTwice(t *testing.T) {
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
-	s = string(b.Data());
+	s = string(b.Bytes());
 	text += text;
 	if s != text {
 		t.Errorf("failed passing string as data: expected %q got %q", text, s);
@@ -388,7 +388,7 @@ func TestCustomDelims(t *testing.T) {
 			}
 			var b bytes.Buffer;
 			err = tmpl.Execute("hello", &b);
-			s := string(b.Data());
+			s := string(b.Bytes());
 			if s != "template: hello" + ldelim + rdelim {
 				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s)
 			}
@@ -413,7 +413,7 @@ func TestVarIndirection(t *testing.T) {
 		t.Fatal("unexpected execute error:", err)
 	}
 	expect := fmt.Sprintf("%v", &t1);	// output should be hex address of t1
-	if string(buf.Data()) != expect {
-		t.Errorf("for %q: expected %q got %q", input, expect, string(buf.Data()));
+	if string(buf.Bytes()) != expect {
+		t.Errorf("for %q: expected %q got %q", input, expect, string(buf.Bytes()));
 	}
 }

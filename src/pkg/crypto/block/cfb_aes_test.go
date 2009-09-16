@@ -291,7 +291,7 @@ func TestCFB_AES(t *testing.T) {
 		n, err := io.Copy(r, w);
 		if n != int64(len(tt.in)) || err != nil {
 			t.Errorf("%s: CFBEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
-		} else if d := crypt.Data(); !same(tt.out, d) {
+		} else if d := crypt.Bytes(); !same(tt.out, d) {
 			t.Errorf("%s: CFBEncrypter\nhave %x\nwant %x", test, d, tt.out);
 		}
 
@@ -301,7 +301,7 @@ func TestCFB_AES(t *testing.T) {
 		n, err = io.Copy(r, w);
 		if n != int64(len(tt.out)) || err != nil {
 			t.Errorf("%s: CFBDecrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
-		} else if d := plain.Data(); !same(tt.in, d) {
+		} else if d := plain.Bytes(); !same(tt.in, d) {
 			t.Errorf("%s: CFBDecrypter\nhave %x\nwant %x", test, d, tt.in);
 		}
 

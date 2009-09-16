@@ -53,7 +53,7 @@ func check(t *testing.T, source, golden string, exports bool) {
 	if _, err := Fprint(&buf, prog, 0, tabwidth); err != nil {
 		t.Error(err);
 	}
-	res := buf.Data();
+	res := buf.Bytes();
 
 	// update golden files if necessary
 	if *update {

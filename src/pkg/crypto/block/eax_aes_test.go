@@ -212,7 +212,7 @@ func TestEAXEncrypt_AES(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: enc.Close: %s", test, err);
 		}
-		if d := b.Data(); !same(d, tt.cipher) {
+		if d := b.Bytes(); !same(d, tt.cipher) {
 			t.Fatalf("%s: got %x want %x", test, d, tt.cipher);
 		}
 	}
@@ -232,7 +232,7 @@ func TestEAXDecrypt_AES(t *testing.T) {
 		if n != int64(len(tt.msg)) || err != nil {
 			t.Fatalf("%s: io.Copy into decrypter: %d, %s", test, n, err);
 		}
-		if d := b.Data(); !same(d, tt.msg) {
+		if d := b.Bytes(); !same(d, tt.msg) {
 			t.Fatalf("%s: got %x want %x", test, d, tt.msg);
 		}
 	}

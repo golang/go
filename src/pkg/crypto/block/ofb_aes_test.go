@@ -84,7 +84,7 @@ func TestOFB_AES(t *testing.T) {
 			n, err := io.Copy(r, w);
 			if n != int64(len(in)) || err != nil {
 				t.Errorf("%s/%d: OFBWriter io.Copy = %d, %v want %d, nil", test, len(in), n, err, len(in));
-			} else if d, out := crypt.Data(), tt.out[0:len(in)]; !same(out, d) {
+			} else if d, out := crypt.Bytes(), tt.out[0:len(in)]; !same(out, d) {
 				t.Errorf("%s/%d: OFBWriter\ninpt %x\nhave %x\nwant %x", test, len(in), in, d, out);
 			}
 		}
@@ -97,7 +97,7 @@ func TestOFB_AES(t *testing.T) {
 			n, err := io.Copy(r, w);
 			if n != int64(len(out)) || err != nil {
 				t.Errorf("%s/%d: OFBReader io.Copy = %d, %v want %d, nil", test, len(out), n, err, len(out));
-			} else if d, in := plain.Data(), tt.in[0:len(out)]; !same(in, d) {
+			} else if d, in := plain.Bytes(), tt.in[0:len(out)]; !same(in, d) {
 				t.Errorf("%s/%d: OFBReader\nhave %x\nwant %x", test, len(out), d, in);
 			}
 		}

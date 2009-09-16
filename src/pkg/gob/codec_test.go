@@ -48,8 +48,8 @@ func TestUintCodec(t *testing.T) {
 		if encState.err != nil {
 			t.Error("encodeUint:", tt.x, encState.err)
 		}
-		if !bytes.Equal(tt.b, b.Data()) {
-			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Data())
+		if !bytes.Equal(tt.b, b.Bytes()) {
+			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Bytes())
 		}
 	}
 	decState := newDecodeState(b);
@@ -134,8 +134,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encBool, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(boolResult, b.Data()) {
-			t.Errorf("bool enc instructions: expected % x got % x", boolResult, b.Data())
+		if !bytes.Equal(boolResult, b.Bytes()) {
+			t.Errorf("bool enc instructions: expected % x got % x", boolResult, b.Bytes())
 		}
 	}
 
@@ -146,8 +146,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encInt, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(signedResult, b.Data()) {
-			t.Errorf("int enc instructions: expected % x got % x", signedResult, b.Data())
+		if !bytes.Equal(signedResult, b.Bytes()) {
+			t.Errorf("int enc instructions: expected % x got % x", signedResult, b.Bytes())
 		}
 	}
 
@@ -158,8 +158,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encUint, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(unsignedResult, b.Data()) {
-			t.Errorf("uint enc instructions: expected % x got % x", unsignedResult, b.Data())
+		if !bytes.Equal(unsignedResult, b.Bytes()) {
+			t.Errorf("uint enc instructions: expected % x got % x", unsignedResult, b.Bytes())
 		}
 	}
 
@@ -170,8 +170,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encInt8, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(signedResult, b.Data()) {
-			t.Errorf("int8 enc instructions: expected % x got % x", signedResult, b.Data())
+		if !bytes.Equal(signedResult, b.Bytes()) {
+			t.Errorf("int8 enc instructions: expected % x got % x", signedResult, b.Bytes())
 		}
 	}
 
@@ -182,8 +182,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encUint8, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(unsignedResult, b.Data()) {
-			t.Errorf("uint8 enc instructions: expected % x got % x", unsignedResult, b.Data())
+		if !bytes.Equal(unsignedResult, b.Bytes()) {
+			t.Errorf("uint8 enc instructions: expected % x got % x", unsignedResult, b.Bytes())
 		}
 	}
 
@@ -194,8 +194,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encInt16, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(signedResult, b.Data()) {
-			t.Errorf("int16 enc instructions: expected % x got % x", signedResult, b.Data())
+		if !bytes.Equal(signedResult, b.Bytes()) {
+			t.Errorf("int16 enc instructions: expected % x got % x", signedResult, b.Bytes())
 		}
 	}
 
@@ -206,8 +206,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encUint16, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(unsignedResult, b.Data()) {
-			t.Errorf("uint16 enc instructions: expected % x got % x", unsignedResult, b.Data())
+		if !bytes.Equal(unsignedResult, b.Bytes()) {
+			t.Errorf("uint16 enc instructions: expected % x got % x", unsignedResult, b.Bytes())
 		}
 	}
 
@@ -218,8 +218,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encInt32, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(signedResult, b.Data()) {
-			t.Errorf("int32 enc instructions: expected % x got % x", signedResult, b.Data())
+		if !bytes.Equal(signedResult, b.Bytes()) {
+			t.Errorf("int32 enc instructions: expected % x got % x", signedResult, b.Bytes())
 		}
 	}
 
@@ -230,8 +230,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encUint32, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(unsignedResult, b.Data()) {
-			t.Errorf("uint32 enc instructions: expected % x got % x", unsignedResult, b.Data())
+		if !bytes.Equal(unsignedResult, b.Bytes()) {
+			t.Errorf("uint32 enc instructions: expected % x got % x", unsignedResult, b.Bytes())
 		}
 	}
 
@@ -242,8 +242,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encInt64, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(signedResult, b.Data()) {
-			t.Errorf("int64 enc instructions: expected % x got % x", signedResult, b.Data())
+		if !bytes.Equal(signedResult, b.Bytes()) {
+			t.Errorf("int64 enc instructions: expected % x got % x", signedResult, b.Bytes())
 		}
 	}
 
@@ -254,8 +254,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encUint64, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(unsignedResult, b.Data()) {
-			t.Errorf("uint64 enc instructions: expected % x got % x", unsignedResult, b.Data())
+		if !bytes.Equal(unsignedResult, b.Bytes()) {
+			t.Errorf("uint64 enc instructions: expected % x got % x", unsignedResult, b.Bytes())
 		}
 	}
 
@@ -266,8 +266,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encFloat, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(floatResult, b.Data()) {
-			t.Errorf("float enc instructions: expected % x got % x", floatResult, b.Data())
+		if !bytes.Equal(floatResult, b.Bytes()) {
+			t.Errorf("float enc instructions: expected % x got % x", floatResult, b.Bytes())
 		}
 	}
 
@@ -278,8 +278,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encFloat32, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(floatResult, b.Data()) {
-			t.Errorf("float32 enc instructions: expected % x got % x", floatResult, b.Data())
+		if !bytes.Equal(floatResult, b.Bytes()) {
+			t.Errorf("float32 enc instructions: expected % x got % x", floatResult, b.Bytes())
 		}
 	}
 
@@ -290,8 +290,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encFloat64, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(floatResult, b.Data()) {
-			t.Errorf("float64 enc instructions: expected % x got % x", floatResult, b.Data())
+		if !bytes.Equal(floatResult, b.Bytes()) {
+			t.Errorf("float64 enc instructions: expected % x got % x", floatResult, b.Bytes())
 		}
 	}
 
@@ -302,8 +302,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encUint8Array, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(bytesResult, b.Data()) {
-			t.Errorf("bytes enc instructions: expected % x got % x", bytesResult, b.Data())
+		if !bytes.Equal(bytesResult, b.Bytes()) {
+			t.Errorf("bytes enc instructions: expected % x got % x", bytesResult, b.Bytes())
 		}
 	}
 
@@ -314,8 +314,8 @@ func TestScalarEncInstructions(t *testing.T) {
 		instr := &encInstr{ encString, 6, 0, 0 };
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
-		if !bytes.Equal(bytesResult, b.Data()) {
-			t.Errorf("string enc instructions: expected % x got % x", bytesResult, b.Data())
+		if !bytes.Equal(bytesResult, b.Bytes()) {
+			t.Errorf("string enc instructions: expected % x got % x", bytesResult, b.Bytes())
 		}
 	}
 }

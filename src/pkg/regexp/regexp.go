@@ -883,7 +883,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 	// Copy the unmatched characters after the last match.
 	io.WriteString(buf, src[lastMatchEnd:len(src)]);
 
-	return string(buf.Data());
+	return string(buf.Bytes());
 }
 
 // ReplaceAll returns a copy of src in which all matches for the Regexp
@@ -927,7 +927,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 	// Copy the unmatched characters after the last match.
 	buf.Write(src[lastMatchEnd:len(src)]);
 
-	return buf.Data();
+	return buf.Bytes();
 }
 
 // QuoteMeta returns a string that quotes all regular expression metacharacters

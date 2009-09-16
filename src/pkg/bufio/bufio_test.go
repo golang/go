@@ -256,7 +256,7 @@ func TestWriter(t *testing.T) {
 				t.Errorf("%s: buf.Flush = %v", context, e);
 			}
 
-			written := w.Data();
+			written := w.Bytes();
 			if len(written) != nwrite {
 				t.Errorf("%s: %d bytes written", context, len(written));
 			}
@@ -372,7 +372,7 @@ func TestWriteString(t *testing.T) {
 		t.Error("WriteString", b.err);
 	}
 	s := "01234567890abcdefghijklmnopqrstuvwxyz";
-	if string(buf.Data()) != s {
-		t.Errorf("WriteString wants %q gets %q", s, string(buf.Data()))
+	if string(buf.Bytes()) != s {
+		t.Errorf("WriteString wants %q gets %q", s, string(buf.Bytes()))
 	}
 }

@@ -68,7 +68,7 @@ func extractEBNF(src []byte) []byte {
 		src = src[j : len(src)];
 	}
 
-	return buf.Data();
+	return buf.Bytes();
 }
 
 

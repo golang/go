@@ -25,16 +25,16 @@ func init() {
 
 // Verify that contents of buf match the string s.
 func check(t *testing.T, testname string, buf *Buffer, s string) {
-	if buf.Len() != len(buf.Data()) {
-		t.Errorf("%s: buf.Len() == %d, len(buf.Data()) == %d\n", testname, buf.Len(), len(buf.Data()))
+	if buf.Len() != len(buf.Bytes()) {
+		t.Errorf("%s: buf.Len() == %d, len(buf.Bytes()) == %d\n", testname, buf.Len(), len(buf.Bytes()))
 	}
 
 	if buf.Len() != len(s) {
 		t.Errorf("%s: buf.Len() == %d, len(s) == %d\n", testname, buf.Len(), len(s))
 	}
 
-	if string(buf.Data()) != s {
-		t.Errorf("%s: string(buf.Data()) == %q, s == %q\n", testname, string(buf.Data()), s)
+	if string(buf.Bytes()) != s {
+		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q\n", testname, string(buf.Bytes()), s)
 	}
 }
 
