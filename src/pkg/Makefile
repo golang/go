@@ -82,7 +82,6 @@ DIRS=\
 	utf8\
 
 NOTEST=\
-	debug/dwarf\
 	debug/proc\
 	go/ast\
 	go/doc\

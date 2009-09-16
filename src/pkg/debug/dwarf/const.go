@@ -350,3 +350,84 @@ func (t Tag) GoString() string {
 	return "dwarf.Tag(" + strconv.Itoa64(int64(t)) + ")";
 }
 
+// Location expression operators.
+// The debug info encodes value locations like 8(R3)
+// as a sequence of these op codes.
+// This package does not implement full expressions;
+// the opPlusUconst operator is expected by the type parser.
+const (
+	opAddr = 0x03;	/* 1 op, const addr */
+	opDeref = 0x06;
+	opConst1u = 0x08;	/* 1 op, 1 byte const */
+	opConst1s = 0x09;	/*	" signed */
+	opConst2u = 0x0A;	/* 1 op, 2 byte const  */
+	opConst2s = 0x0B;	/*	" signed */
+	opConst4u = 0x0C;	/* 1 op, 4 byte const */
+	opConst4s = 0x0D;	/*	" signed */
+	opConst8u = 0x0E;	/* 1 op, 8 byte const */
+	opConst8s = 0x0F;	/*	" signed */
+	opConstu = 0x10;	/* 1 op, LEB128 const */
+	opConsts = 0x11;	/*	" signed */
+	opDup = 0x12;
+	opDrop = 0x13;
+	opOver = 0x14;
+	opPick = 0x15;		/* 1 op, 1 byte stack index */
+	opSwap = 0x16;
+	opRot = 0x17;
+	opXderef = 0x18;
+	opAbs = 0x19;
+	opAnd = 0x1A;
+	opDiv = 0x1B;
+	opMinus = 0x1C;
+	opMod = 0x1D;
+	opMul = 0x1E;
+	opNeg = 0x1F;
+	opNot = 0x20;
+	opOr = 0x21;
+	opPlus = 0x22;
+	opPlusUconst = 0x23;	/* 1 op, ULEB128 addend */
+	opShl = 0x24;
+	opShr = 0x25;
+	opShra = 0x26;
+	opXor = 0x27;
+	opSkip = 0x2F;		/* 1 op, signed 2-byte constant */
+	opBra = 0x28;		/* 1 op, signed 2-byte constant */
+	opEq = 0x29;
+	opGe = 0x2A;
+	opGt = 0x2B;
+	opLe = 0x2C;
+	opLt = 0x2D;
+	opNe = 0x2E;
+	opLit0 = 0x30;
+		/* OpLitN = OpLit0 + N for N = 0..31 */
+	opReg0 = 0x50;
+		/* OpRegN = OpReg0 + N for N = 0..31 */
+	opBreg0 = 0x70;	/* 1 op, signed LEB128 constant */
+		/* OpBregN = OpBreg0 + N for N = 0..31 */
+	opRegx = 0x90;	/* 1 op, ULEB128 register */
+	opFbreg = 0x91;	/* 1 op, SLEB128 offset */
+	opBregx = 0x92;	/* 2 op, ULEB128 reg; SLEB128 off */
+	opPiece = 0x93;	/* 1 op, ULEB128 size of piece */
+	opDerefSize = 0x94;	/* 1-byte size of data retrieved */
+	opXderefSize = 0x95;	/* 1-byte size of data retrieved */
+	opNop = 0x96;
+	/* next four new in Dwarf v3 */
+	opPushObjAddr = 0x97;
+	opCall2 = 0x98;	/* 2-byte offset of DIE */
+	opCall4 = 0x99;	/* 4-byte offset of DIE */
+	opCallRef = 0x9A	/* 4- or 8- byte offset of DIE */
+	/* 0xE0-0xFF reserved for user-specific */
+)
+
+// Basic type encodings -- the value for AttrEncoding in a TagBaseType Entry.
+const (
+	encAddress = 0x01;
+	encBoolean = 0x02;
+	encComplexFloat = 0x03;
+	encFloat = 0x04;
+	encSigned = 0x05;
+	encSignedChar = 0x06;
+	encUnsigned = 0x07;
+	encUnsignedChar = 0x08;
+	encImaginaryFloat = 0x09;
+)

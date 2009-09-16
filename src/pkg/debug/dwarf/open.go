@@ -30,6 +30,7 @@ type Data struct {
 	abbrevCache map[uint32] abbrevTable;
 	addrsize int;
 	order binary.ByteOrder;
+	typeCache map[Offset] Type;
 	unit []unit;
 }
 
@@ -51,6 +52,7 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
 		ranges: ranges,
 		str: str,
 		abbrevCache: make(map[uint32]abbrevTable),
+		typeCache: make(map[uint32]Type),
 	};
 
 	// Sniff .debug_info to figure out byte order.
