@@ -152,6 +152,6 @@ type DecodeError struct {
 }
 
 func (e DecodeError) String() string {
-	return "decoding dwarf section " + e.Name + " at offset " + strconv.Itoa64(int64(e.Offset)) + ": " + e.Error;
+	return "decoding dwarf section " + e.Name + " at offset 0x" + strconv.Itob64(int64(e.Offset), 16) + ": " + e.Error;
 }
 

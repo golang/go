@@ -10,6 +10,7 @@ GOFILES=\
 	const.go\
 	entry.go\
 	open.go\
+	type.go\
 	unit.go\
 
 include $(GOROOT)/src/Make.pkg

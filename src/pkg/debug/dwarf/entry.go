@@ -107,6 +107,22 @@ type Field struct {
 	Val interface{};
 }
 
+// Val returns the value associated with attribute Attr in Entry,
+// or nil if there is no such attribute.
+//
+// A common idiom is to merge the check for nil return with
+// the check that the value has the expected dynamic type, as in:
+//	v, ok := e.Val(AttrSibling).(int64);
+//
+func (e *Entry) Val(a Attr) interface{} {
+	for _, f := range e.Field {
+		if f.Attr == a {
+			return f.Val;
+		}
+	}
+	return nil;
+}
+
 // An Offset represents the location of an Entry within the DWARF info.
 // (See Reader.Seek.)
 type Offset uint32
@@ -157,17 +173,17 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 
 		// constant
 		case formData1:
-			val = uint64(b.uint8());
+			val = int64(b.uint8());
 		case formData2:
-			val = uint64(b.uint16());
+			val = int64(b.uint16());
 		case formData4:
-			val = uint64(b.uint32());
+			val = int64(b.uint32());
 		case formData8:
-			val = uint64(b.uint64());
+			val = int64(b.uint64());
 		case formSdata:
 			val = int64(b.int());
 		case formUdata:
-			val = uint64(b.uint());
+			val = int64(b.uint());
 
 		// flag
 		case formFlag:
@@ -212,11 +228,17 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 }
 
 // A Reader allows reading Entry structures from a DWARF ``info'' section.
+// The Entry structures are arranged in a tree.  The Reader's Next function
+// return successive entries from a pre-order traversal of the tree.
+// If an entry has children, its Children field will be true, and the children
+// follow, terminated by an Entry with Tag 0.
 type Reader struct {
 	b buf;
 	d *Data;
 	err os.Error;
 	unit int;
+	lastChildren bool;	// .Children of last entry returned by Next
+	lastSibling Offset;	// .Val(AttrSibling) of last entry returned by Next
 }
 
 // Reader returns a new Reader for Data.
@@ -232,6 +254,7 @@ func (d *Data) Reader() *Reader {
 func (r *Reader) Seek(off Offset) {
 	d := r.d;
 	r.err = nil;
+	r.lastChildren = false;
 	if off == 0 {
 		if len(d.unit) == 0 {
 			return;
@@ -258,7 +281,7 @@ func (r *Reader) Seek(off Offset) {
 
 // maybeNextUnit advances to the next unit if this one is finished.
 func (r *Reader) maybeNextUnit() {
-	for len(r.b.data) == 0 && r.unit < len(r.d.unit) {
+	for len(r.b.data) == 0 && r.unit+1 < len(r.d.unit) {
 		r.unit++;
 		u := &r.d.unit[r.unit];
 		r.b = makeBuf(r.d, "info", u.off, u.data, u.addrsize);
@@ -279,6 +302,46 @@ func (r *Reader) Next() (*Entry, os.Error) {
 	}
 	u := &r.d.unit[r.unit];
 	e := r.b.entry(u.atable, u.base);
-	r.err = r.b.err;
-	return e, r.err;
+	if r.b.err != nil {
+		r.err = r.b.err;
+		return nil, r.err;
+	}
+	if e != nil {
+		r.lastChildren = e.Children;
+		if r.lastChildren {
+			r.lastSibling, _ = e.Val(AttrSibling).(Offset);
+		}
+	} else {
+		r.lastChildren = false;
+	}
+	return e, nil;
 }
+
+// SkipChildren skips over the child entries associated with
+// the last Entry returned by Next.  If that Entry did not have
+// children or Next has not been called, SkipChildren is a no-op.
+func (r *Reader) SkipChildren() {
+	if r.err != nil || !r.lastChildren{
+		return;
+	}
+
+	// If the last entry had a sibling attribute,
+	// that attribute gives the offset of the next
+	// sibling, so we can avoid decoding the
+	// child subtrees.
+	if r.lastSibling >= r.b.off {
+		r.Seek(r.lastSibling);
+		return;
+	}
+
+	for {
+		e, err := r.Next();
+		if err != nil || e == nil || e.Tag == 0 {
+			break;
+		}
+		if e.Children {
+			r.SkipChildren();
+		}
+	}
+}
+
