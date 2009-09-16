@@ -3609,9 +3609,10 @@ RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
 
 <p>
 For all the send and receive expressions in the "select"
-statement, the channel expression is evaluated.  Any expressions
-that appear on the right hand side of send expressions are also
-evaluated. If any of the resulting channels can proceed, one is
+statement, the channel expressions are evaluated, along with
+any expressions that appear on the right hand side of send expressions,
+in top-to-bottom order.
+If any of the resulting operations can proceed, one is
 chosen and the corresponding communication and statements are
 evaluated.  Otherwise, if there is a default case, that executes;
 if not, the statement blocks until one of the communications can
@@ -3653,10 +3654,6 @@ for {  // send random sequence of bits to c
 	}
 }
 </pre>
-
-<font color=red>
-TODO: Make semantics more precise.
-</font>
 
 
 <h3 id="Return_statements">Return statements</h3>
@@ -4489,6 +4486,7 @@ The following minimal alignment properties are guaranteed:
 <ul>
 	<li><font color=red>Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</font></li>
 	<li><font color=red>Gccgo does not implement the blank identifier.</font></li>
+	<li><font color=red>Method expressions are not implemented.</font></li>
 </ul>
 
 </div>
