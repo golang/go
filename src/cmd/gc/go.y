@@ -113,6 +113,9 @@
 
 %left		'{'
 
+%left		NotSemi
+%left		';'
+
 %%
 file:
 	loadsys
@@ -154,9 +157,9 @@ imports:
 |	imports import
 
 import:
-	LIMPORT import_stmt
-|	LIMPORT '(' import_stmt_list osemi ')'
-|	LIMPORT '(' ')'
+	LIMPORT import_stmt osemi
+|	LIMPORT '(' import_stmt_list osemi ')' osemi
+|	LIMPORT '(' ')' osemi
 
 import_stmt:
 	import_here import_package import_there
@@ -268,18 +271,19 @@ import_there:
  * declarations
  */
 xdcl:
-	common_dcl
-|	xfndcl
+	common_dcl osemi
+|	xfndcl osemi
 	{
 		$$ = list1($1);
 	}
-|	';'
+|	error osemi
 	{
 		$$ = nil;
 	}
-|	error xdcl
+|	';'
 	{
-		$$ = $2;
+		yyerror("empty top-level declaration");
+		$$ = nil;
 	}
 
 common_dcl:
@@ -1479,6 +1483,7 @@ braced_keyval_list:
  * optional things
  */
 osemi:
+	%prec NotSemi
 |	';'
 
 ocomma:
