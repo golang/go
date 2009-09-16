@@ -96,7 +96,7 @@ func TestECBEncrypter(t *testing.T) {
 			}
 
 			// check output
-			data := b.Data();
+			data := b.Bytes();
 			if len(data) != len(crypt) {
 				t.Errorf("block=%d frag=%d: want %d bytes, got %d", block, frag, len(crypt), len(data));
 				continue;
@@ -161,7 +161,7 @@ func testECBDecrypter(t *testing.T, maxio int) {
 				}
 
 				// check output
-				data := b.Data();
+				data := b.Bytes();
 				if len(data) != maxio {
 					t.Errorf("%s: want %d bytes, got %d", test, maxio, len(data));
 					continue;

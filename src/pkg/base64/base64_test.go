@@ -73,7 +73,7 @@ func TestEncoder(t *testing.T) {
 		encoder := NewEncoder(StdEncoding, bb);
 		encoder.Write(strings.Bytes(p.decoded));
 		encoder.Close();
-		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(bb.Data()), p.encoded);
+		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(bb.Bytes()), p.encoded);
 	}
 }
 
@@ -93,7 +93,7 @@ func TestEncoderBuffering(t *testing.T) {
 		}
 		err := encoder.Close();
 		testEqual(t, "Close gave error %v, want %v", err, os.Error(nil));
-		testEqual(t, "Encoding/%d of %q = %q, want %q", bs, bigtest.decoded, string(bb.Data()), bigtest.encoded);
+		testEqual(t, "Encoding/%d of %q = %q, want %q", bs, bigtest.decoded, string(bb.Bytes()), bigtest.encoded);
 	}
 }
 

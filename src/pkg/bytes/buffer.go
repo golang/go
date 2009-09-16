@@ -26,14 +26,20 @@ type Buffer struct {
 	off	int;	// read at &buf[off], write at &buf[len(buf)]
 }
 
-// Data returns the contents of the unread portion of the buffer;
-// len(b.Data()) == b.Len().
-func (b *Buffer) Data() []byte {
+// Bytes returns the contents of the unread portion of the buffer;
+// len(b.Bytes()) == b.Len().
+func (b *Buffer) Bytes() []byte {
 	return b.buf[b.off : len(b.buf)]
 }
 
+// String returns the contents of the unread portion of the buffer
+// as a string.
+func (b *Buffer) String() string {
+	return string(b.buf[b.off : len(b.buf)])
+}
+
 // Len returns the number of bytes of the unread portion of the buffer;
-// b.Len() == len(b.Data()).
+// b.Len() == len(b.Bytes()).
 func (b *Buffer) Len() int {
 	return len(b.buf) - b.off
 }

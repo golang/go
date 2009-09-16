@@ -121,7 +121,7 @@ testLoop:
 		}
 		tw.Close();
 
-		actual := buf.Data();
+		actual := buf.Bytes();
 		if !bytes.Equal(expected, actual) {
 			t.Errorf("test %d: Incorrect result: (-=expected, +=actual)\n%v",
 			         i, bytediff(expected, actual));

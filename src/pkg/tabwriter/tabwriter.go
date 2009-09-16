@@ -241,7 +241,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (int, os.Error) {
 			switch {
 			default: // align left
 
-				if err := b.write0(b.buf.Data()[pos : pos + c.size]); err != nil {
+				if err := b.write0(b.buf.Bytes()[pos : pos + c.size]); err != nil {
 					return pos, err;
 				}
 				pos += c.size;
@@ -258,7 +258,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (int, os.Error) {
 						return pos, err;
 					}
 				}
-				if err := b.write0(b.buf.Data()[pos : pos + c.size]); err != nil {
+				if err := b.write0(b.buf.Bytes()[pos : pos + c.size]); err != nil {
 					return pos, err;
 				}
 				pos += c.size;
@@ -268,7 +268,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (int, os.Error) {
 		if i+1 == b.lines.Len() {
 			// last buffered line - we don't have a newline, so just write
 			// any outstanding buffered data
-			if err := b.write0(b.buf.Data()[pos : pos + b.cell.size]); err != nil {
+			if err := b.write0(b.buf.Bytes()[pos : pos + b.cell.size]); err != nil {
 				return pos, err;
 			}
 			pos += b.cell.size;
@@ -339,7 +339,7 @@ func (b *Writer) append(text []byte, updateWidth bool) {
 	b.buf.Write(text);
 	b.cell.size += len(text);
 	if updateWidth {
-		b.cell.width += utf8.RuneCount(b.buf.Data()[b.pos : b.buf.Len()]);
+		b.cell.width += utf8.RuneCount(b.buf.Bytes()[b.pos : b.buf.Len()]);
 		b.pos = b.buf.Len();
 	}
 }

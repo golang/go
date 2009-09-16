@@ -52,5 +52,5 @@ func HtmlEscape(w io.Writer, s []byte) {
 func HtmlFormatter(w io.Writer, value interface{}, format string) {
 	var b bytes.Buffer;
 	fmt.Fprint(&b, value);
-	HtmlEscape(w, b.Data());
+	HtmlEscape(w, b.Bytes());
 }

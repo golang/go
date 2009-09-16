@@ -64,7 +64,7 @@ func (v *Map) String() string {
 		first = false;
 	}
 	fmt.Fprintf(b, "}");
-	return string(b.Data())
+	return string(b.Bytes())
 }
 
 func (v *Map) Init() *Map {

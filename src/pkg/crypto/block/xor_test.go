@@ -75,7 +75,7 @@ func testXorWriter(t *testing.T, maxio int) {
 
 			// check output
 			crypt := crypt[0:len(crypt) - frag];
-			data := b.Data();
+			data := b.Bytes();
 			if len(data) != len(crypt) {
 				t.Errorf("%s: want %d bytes, got %d", test, len(crypt), len(data));
 				continue;
@@ -142,7 +142,7 @@ func testXorReader(t *testing.T, maxio int) {
 				}
 
 				// check output
-				data := b.Data();
+				data := b.Bytes();
 				crypt := crypt[0:maxio - frag];
 				plain := plain[0:maxio - frag];
 				if len(data) != len(plain) {

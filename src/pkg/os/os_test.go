@@ -326,7 +326,7 @@ func TestForkExec(t *testing.T) {
 
 	var b bytes.Buffer;
 	io.Copy(r, &b);
-	output := string(b.Data());
+	output := string(b.Bytes());
 	expect := "/\n";
 	if output != expect {
 		t.Errorf("exec /bin/pwd returned %q wanted %q", output, expect);
@@ -605,7 +605,7 @@ func run(t *testing.T, cmd []string) string {
 	var b bytes.Buffer;
 	io.Copy(r, &b);
 	Wait(pid, 0);
-	output := string(b.Data());
+	output := string(b.Bytes());
 	if n := len(output); n > 0 && output[n-1] == '\n' {
 		output = output[0:n-1];
 	}

@@ -115,7 +115,7 @@ func TestECB_AES(t *testing.T) {
 		n, err := io.Copy(r, w);
 		if n != int64(len(tt.in)) || err != nil {
 			t.Errorf("%s: ECBReader io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
-		} else if d := crypt.Data(); !same(tt.out, d) {
+		} else if d := crypt.Bytes(); !same(tt.out, d) {
 			t.Errorf("%s: ECBReader\nhave %x\nwant %x", test, d, tt.out);
 		}
 
@@ -125,7 +125,7 @@ func TestECB_AES(t *testing.T) {
 		n, err = io.Copy(r, w);
 		if n != int64(len(tt.out)) || err != nil {
 			t.Errorf("%s: ECBWriter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
-		} else if d := plain.Data(); !same(tt.in, d) {
+		} else if d := plain.Bytes(); !same(tt.in, d) {
 			t.Errorf("%s: ECBWriter\nhave %x\nwant %x", test, d, tt.in);
 		}
 

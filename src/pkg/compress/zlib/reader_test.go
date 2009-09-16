@@ -95,7 +95,7 @@ func TestInflater(t *testing.T) {
 			}
 			continue;
 		}
-		s := string(b.Data());
+		s := string(b.Bytes());
 		if s != tt.raw {
 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw);
 		}

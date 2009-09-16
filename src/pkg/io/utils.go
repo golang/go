@@ -15,7 +15,7 @@ import (
 func ReadAll(r Reader) ([]byte, os.Error) {
 	var buf bytes.Buffer;
 	_, err := Copy(r, &buf);
-	return buf.Data(), err;
+	return buf.Bytes(), err;
 }
 
 // ReadFile reads the file named by filename and returns the contents.

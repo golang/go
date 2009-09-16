@@ -264,7 +264,7 @@ func writeAny(w io.Writer, x interface{}, html bool) {
 		if html {
 			var buf bytes.Buffer;
 			fmt.Fprint(&buf, x);
-			writeText(w, buf.Data(), true);
+			writeText(w, buf.Bytes(), true);
 		} else {
 			fmt.Fprint(w, x);
 		}
@@ -282,7 +282,7 @@ func htmlFmt(w io.Writer, x interface{}, format string) {
 func htmlCommentFmt(w io.Writer, x interface{}, format string) {
 	var buf bytes.Buffer;
 	writeAny(&buf, x, false);
-	doc.ToHtml(w, buf.Data());
+	doc.ToHtml(w, buf.Bytes());
 }
 
 
@@ -382,7 +382,7 @@ func serveParseErrors(c *http.Conn, errors *parseErrors) {
 	if err := parseerrorHtml.Execute(errors, &buf); err != nil {
 		log.Stderrf("parseerrorHtml.Execute: %s", err);
 	}
-	servePage(c, errors.filename + " - Parse Errors", buf.Data());
+	servePage(c, errors.filename + " - Parse Errors", buf.Bytes());
 }
 
 
@@ -398,7 +398,7 @@ func serveGoSource(c *http.Conn, name string) {
 	writeNode(&buf, prog, true);
 	fmt.Fprintln(&buf, "</pre>");
 
-	servePage(c, name + " - Go source", buf.Data());
+	servePage(c, name + " - Go source", buf.Bytes());
 }
 
 
@@ -539,7 +539,7 @@ func servePkg(c *http.Conn, r *http.Request) {
 		if err := packageText.Execute(info, &buf); err != nil {
 			log.Stderrf("packageText.Execute: %s", err);
 		}
-		serveText(c, buf.Data());
+		serveText(c, buf.Bytes());
 		return;
 	}
 
@@ -550,7 +550,7 @@ func servePkg(c *http.Conn, r *http.Request) {
 	if path == "" {
 		path = ".";  // don't display an empty path
 	}
-	servePage(c, path + " - Go package documentation", buf.Data());
+	servePage(c, path + " - Go package documentation", buf.Bytes());
 }
 
 
@@ -589,22 +589,22 @@ func exec(c *http.Conn, args []string) bool {
 	io.Copy(r, &buf);
 	wait, err := os.Wait(pid, 0);
 	if err != nil {
-		os.Stderr.Write(buf.Data());
+		os.Stderr.Write(buf.Bytes());
 		log.Stderrf("os.Wait(%d, 0): %v\n", pid, err);
 		return false;
 	}
 	if !wait.Exited() || wait.ExitStatus() != 0 {
-		os.Stderr.Write(buf.Data());
+		os.Stderr.Write(buf.Bytes());
 		log.Stderrf("executing %v failed (exit status = %d)", args, wait.ExitStatus());
 		return false;
 	}
 
 	if *verbose {
-		os.Stderr.Write(buf.Data());
+		os.Stderr.Write(buf.Bytes());
 	}
 	if c != nil {
 		c.SetHeader("content-type", "text/plain; charset=utf-8");
-		c.Write(buf.Data());
+		c.Write(buf.Bytes());
 	}
 
 	return true;

@@ -34,7 +34,7 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
 		case *bytes.Buffer:
 			// is io.Reader, but src is already available in []byte form
 			if s != nil {
-				return s.Data(), nil;
+				return s.Bytes(), nil;
 			}
 		case io.Reader:
 			var buf bytes.Buffer;
@@ -42,7 +42,7 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
 			if err != nil {
 				return nil, err;
 			}
-			return buf.Data(), nil;
+			return buf.Bytes(), nil;
 		default:
 			return nil, os.ErrorString("invalid source");
 		}
