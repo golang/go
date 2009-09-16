@@ -28,7 +28,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-ed - ../6l/6.out.h <<'!'
+/bin/ed - ../6l/6.out.h <<'!'
 v/^	A/d
 ,s/^	A/	"/
 g/ .*$/s///
