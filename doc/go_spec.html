@@ -1809,7 +1809,6 @@ ElementList   = Element { "," Element } [ "," ] .
 Element       = [ Key ":" ] Value .
 Key           = FieldName | Index .
 FieldName     = identifier .
-Index         = Expression .
 Value         = Expression .
 </pre>
 
@@ -1996,6 +1995,7 @@ as they are accessible.
 <pre class="ebnf">
 PrimaryExpr =
 	Operand |
+	Conversion |
 	PrimaryExpr Selector |
 	PrimaryExpr Index |
 	PrimaryExpr Slice |
@@ -3906,7 +3906,7 @@ space allocated in the underlying array (for a slice) or map. For a slice
 Conversions look like function calls of the form
 </p>
 
-<pre class="grammar">
+<pre>
 T(value)
 </pre>
 
@@ -3915,6 +3915,12 @@ where <code>T</code> is a type
 and <code>value</code> is an expression
 that can be converted to a value
 of result type <code>T</code>.
+</p>
+
+<pre class="ebnf">
+Conversion = ( TypeName | "(" Type ")" ) Expression .
+</pre>
+
 <p>
 The following conversion rules apply:
 </p>
@@ -4057,6 +4063,10 @@ s := make([]int, 10);             # slice with len(s) == cap(s) == 10
 c := make(chan int, 10);          # channel with a buffer size of 10
 m := make(map[string] int, 100);  # map with initial space for 100 elements
 </pre>
+
+<p>
+<font color=red>TODO: Need syntax that permits a type as first argument for built-ins.</font>
+</p>
 
 <hr/>
 
