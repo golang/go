@@ -32,6 +32,7 @@ DIRS=\
 	crypto/sha1\
 	datafmt\
 	debug/binary\
+	debug/dwarf\
 	debug/elf\
 	debug/gosym\
 	debug/proc\
@@ -81,6 +82,7 @@ DIRS=\
 	utf8\
 
 NOTEST=\
+	debug/dwarf\
 	debug/proc\
 	go/ast\
 	go/doc\
