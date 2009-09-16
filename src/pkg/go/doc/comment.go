@@ -8,6 +8,7 @@ package doc
 
 import (
 	"fmt";
+	"go/ast";
 	"io";
 	"once";
 	"regexp";
@@ -39,8 +40,17 @@ func setupRegexps() {
 	comment_junk = makeRex("^[ \t]*(/\\*|\\*/)[ \t]*$");
 }
 
-// Aggregate comment text, without comment markers.
-func commentText(comments []string) string {
+// CommentText returns the text of comment,
+// with the comment markers - //, /*, and */ - removed.
+func CommentText(comment *ast.CommentGroup) string {
+	if comment == nil {
+		return "";
+	}
+	comments := make([]string, len(comment.List));
+	for i, c := range comment.List {
+		comments[i] = string(c.Text);
+	}
+
 	once.Do(setupRegexps);
 	lines := make([]string, 0, 20);
 	for _, c := range comments {
