@@ -236,6 +236,7 @@ struct	Node
 	// ONAME
 	Node*	ntype;
 	Node*	defn;
+	Node*	pack;	// real package for import . names
 
 	// ONAME func param with PHEAP
 	Node*	heapaddr;	// temp holding heap address of param
@@ -246,7 +247,7 @@ struct	Node
 	Node*	outer;	// outer PPARAMREF in nested closure
 	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
 
-	Sym*	psym;		// import
+	char*	pline;
 	Sym*	sym;		// various
 	int32	vargen;		// unique name for OTYPE/ONAME
 	int32	lineno;
@@ -694,6 +695,7 @@ EXTERN	int	noargnames;
 EXTERN	int	funcdepth;
 EXTERN	int	typecheckok;
 
+EXTERN	char*	importline;
 
 /*
  *	y.tab.c
@@ -704,7 +706,7 @@ int	yyparse(void);
  *	lex.c
  */
 void	addidir(char*);
-void	importfile(Val*);
+void	importfile(Val*, int line);
 void	cannedimports(char*, char*);
 void	unimportfile();
 int32	yylex(void);
@@ -788,7 +790,7 @@ uint32	stringhash(char*);
 Sym*	lookup(char*);
 Sym*	pkglookup(char*, char*);
 Sym*	restrictlookup(char*, char*);
-void	importdot(Sym*);
+void	importdot(Sym*, Node*);
 void	yyerror(char*, ...);
 int	parserline(void);
 void	warn(char*, ...);

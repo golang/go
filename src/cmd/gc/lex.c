@@ -97,6 +97,7 @@ main(int argc, char *argv[])
 			Bterm(curio.bin);
 	}
 	testdclstack();
+	mkpackage(package);	// final import not used checks
 	lexfini();
 
 	typecheckok = 1;
@@ -259,12 +260,18 @@ findpkg(Strlit *name)
 }
 
 void
-importfile(Val *f)
+importfile(Val *f, int line)
 {
 	Biobuf *imp;
 	char *file, *p;
 	int32 c;
 	int len;
+
+	// Once we push the new file, we will not be able
+	// to print the current lineno correctly with %L.
+	// In case that line is the line of the import (likely),
+	// save the text for use in error messages.
+	importline = smprint("%L", line);
 
 // TODO: don't bother reloading imports more than once
 
@@ -339,6 +346,7 @@ unimportfile(void)
 		curio.bin = nil;
 	} else
 		lexlineno--;	// re correct sys.6 line number
+
 	curio = pushedio;
 	pushedio.bin = nil;
 	inimportsys = 0;
@@ -1302,7 +1310,7 @@ lexinit(void)
 	s->def = nod(ONONAME, N, N);
 	s->def->iota = 1;
 	s->def->sym = s;
-	
+
 	s = pkglookup("true", "/builtin/");
 	s->def = nodbool(1);
 	s->def->sym = lookup("true");
@@ -1453,10 +1461,10 @@ mkpackage(char* pkg)
 	int32 h;
 	char *p;
 
-	if(strcmp(pkg, "_") == 0)
-		yyerror("invalid package name _");
-
 	if(package == nopackage) {
+		if(strcmp(pkg, "_") == 0)
+			yyerror("invalid package name _");
+
 		// redefine all names to be this package.
 		for(h=0; h<NHASH; h++)
 			for(s = hash[h]; s != S; s = s->link)
@@ -1476,26 +1484,27 @@ mkpackage(char* pkg)
 					// TODO(rsc): remember that there was a package
 					// name, so that the name cannot be redeclared
 					// as a non-package in other files.
+					if(!s->def->used) {
+						print("%s: imported and not used: %s\n", s->def->pline, s->def->sym->name);
+						nerrors++;
+					}
 					s->def = N;
 					continue;
 				}
 				if(s->def->sym != s) {
 					// throw away top-level name left over
 					// from previous import . "x"
+					if(s->def->pack != N && !s->def->pack->used) {
+						print("%s: imported and not used: %s\n", s->def->pack->pline, s->def->pack->sym->name);
+						nerrors++;
+						s->def->pack->used = 1;
+					}
 					s->def = N;
 					continue;
 				}
 			}
 		}
 	}
-
-/*
-	// declare this name as a package
-	s = lookup(package);
-	s->def = nod(OPACK, N, N);
-	s->def->sym = s;
-	s->block = -1;	// above top level
-*/
 
 	if(outfile == nil) {
 		p = strrchr(infile, '/');

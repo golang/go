@@ -165,6 +165,7 @@ import_stmt:
 	import_here import_package import_there
 	{
 		Sym *import, *my;
+		Node *pack;
 
 		import = pkgimportname;
 		my = pkgmyname;
@@ -173,10 +174,16 @@ import_stmt:
 
 		if(import == S)
 			break;
+
+		pack = nod(OPACK, N, N);
+		pack->sym = import;
+		pack->lineno = $1;
+		pack->pline = importline;
+
 		if(my == S)
 			my = import;
 		if(my->name[0] == '.') {
-			importdot(import);
+			importdot(import, pack);
 			break;
 		}
 		if(my->name[0] == '_' && my->name[1] == '\0')
@@ -191,8 +198,7 @@ import_stmt:
 		if(my->def && my->def->op == ONONAME)
 			my->def = N;
 
-		my->def = nod(OPACK, N, N);
-		my->def->sym = import;
+		my->def = pack;
 		my->lastlineno = $1;
 		import->block = 1;	// at top level
 	}
@@ -209,7 +215,7 @@ import_here:
 		$$ = parserline();
 		pkgimportname = S;
 		pkgmyname = S;
-		importfile(&$1);
+		importfile(&$1, $$);
 	}
 |	sym LLITERAL
 	{
@@ -219,14 +225,14 @@ import_here:
 		pkgmyname = $1;
 		if($1->def && ($1->name[0] != '_' || $1->name[1] != '\0'))
 			redeclare($1, "as imported package name");
-		importfile(&$2);
+		importfile(&$2, $$);
 	}
 |	'.' LLITERAL
 	{
 		// import into my name space
 		$$ = parserline();
 		pkgmyname = lookup(".");
-		importfile(&$2);
+		importfile(&$2, $$);
 	}
 
 import_package:
@@ -811,6 +817,7 @@ pexpr:
 		if($1->op == OPACK) {
 			Sym *s;
 			s = restrictlookup($3->name, $1->sym->name);
+			$1->used = 1;
 			$$ = oldname(s);
 			break;
 		}
@@ -910,6 +917,8 @@ name:
 	sym
 	{
 		$$ = oldname($1);
+		if($$->pack != N)
+			$$->pack->used = 1;
 	}
 
 labelname:
@@ -995,6 +1004,7 @@ dotname:
 		if($1->op == OPACK) {
 			Sym *s;
 			s = restrictlookup($3->name, $1->sym->name);
+			$1->used = 1;
 			$$ = oldname(s);
 			break;
 		}
@@ -1245,6 +1255,14 @@ structdcl:
 
 packname:
 	LNAME
+	{
+		Node *n;
+
+		$$ = $1;
+		n = oldname($1);
+		if(n->pack != N)
+			n->pack->used = 1;
+	}
 |	LNAME '.' sym
 	{
 		char *pkg;
@@ -1252,8 +1270,10 @@ packname:
 		if($1->def == N || $1->def->op != OPACK) {
 			yyerror("%S is not a package", $1);
 			pkg = $1->name;
-		} else
+		} else {
+			$1->def->used = 1;
 			pkg = $1->def->sym->name;
+		}
 		$$ = restrictlookup($3->name, pkg);
 	}
 
