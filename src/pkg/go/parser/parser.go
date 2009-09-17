@@ -512,7 +512,7 @@ func (p *parser) parseStructType() *ast.StructType {
 		fields[i] = list.At(i).(*ast.Field);
 	}
 
-	return &ast.StructType{pos, lbrace, fields, rbrace};
+	return &ast.StructType{pos, lbrace, fields, rbrace, false};
 }
 
 
@@ -720,7 +720,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 		methods[i] = list.At(i).(*ast.Field);
 	}
 
-	return &ast.InterfaceType{pos, lbrace, methods, rbrace};
+	return &ast.InterfaceType{pos, lbrace, methods, rbrace, false};
 }
 
 

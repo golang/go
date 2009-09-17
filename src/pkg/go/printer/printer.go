@@ -550,7 +550,8 @@ func (p *printer) parameters(list []*ast.Field) {
 }
 
 
-func (p *printer) signature(params, result []*ast.Field) {
+// Returns true if a separating semicolon is optional.
+func (p *printer) signature(params, result []*ast.Field) (optSemi bool) {
 	p.parameters(params);
 	if result != nil {
 		p.print(blank);
@@ -559,29 +560,35 @@ func (p *printer) signature(params, result []*ast.Field) {
 			// single anonymous result; no ()'s unless it's a function type
 			f := result[0];
 			if _, isFtyp := f.Type.(*ast.FuncType); !isFtyp {
-				p.expr(f.Type);
+				optSemi = p.expr(f.Type);
 				return;
 			}
 		}
 
 		p.parameters(result);
 	}
+	return;
 }
 
 
-// Returns true if the field list ends in a closing brace.
-func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isInterface bool) bool {
-	if list == nil {
-		// forward declaration
-		// TODO(gri) remove this logic once godoc doesn't produce field
-		//           lists that resemble forward declarations anymore
-		return false;  // no {}'s
+func incompleteMsg(isInterface bool) string {
+	if isInterface {
+		return "// contains unexported methods";
 	}
+	return "// contains unexported fields";
+}
 
+
+func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete, isInterface bool) {
 	if len(list) == 0 {
-		// no blank between keyword and {} in this case
-		p.print(lbrace, token.LBRACE, rbrace, token.RBRACE);
-		return true;  // empty list with {}'s
+		if isIncomplete {
+			// all entries were stripped
+			p.print(blank, lbrace, token.LBRACE, +1, newline, incompleteMsg(isInterface), -1, newline, rbrace, token.RBRACE);
+		} else {
+			// no blank between keyword and {} in this case
+			p.print(lbrace, token.LBRACE, rbrace, token.RBRACE);
+		}
+		return;
 	}
 
 	p.print(blank, lbrace, token.LBRACE, +1, newline);
@@ -636,9 +643,13 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 
 	p.print(token.SEMICOLON);
 	p.lineComment(lastComment);
-	p.print(-1, formfeed, rbrace, token.RBRACE);
 
-	return true;  // field list with {}'s
+	if isIncomplete {
+		// at least one entry printed, but some entries were stripped
+		p.print(newline, incompleteMsg(isInterface));
+	}
+
+	p.print(-1, formfeed, rbrace, token.RBRACE);
 }
 
 
@@ -715,6 +726,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int) {
 }
 
 
+// Returns true if a separating semicolon is optional.
 func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 	p.print(expr.Pos());
 
@@ -735,7 +747,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 
 	case *ast.StarExpr:
 		p.print(token.MUL);
-		p.expr(x.X);
+		optSemi = p.expr(x.X);
 
 	case *ast.UnaryExpr:
 		const prec = token.UnaryPrec;
@@ -823,25 +835,27 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 			p.expr(x.Len);
 		}
 		p.print(token.RBRACK);
-		p.expr(x.Elt);
+		optSemi = p.expr(x.Elt);
 
 	case *ast.StructType:
 		p.print(token.STRUCT);
-		optSemi = p.fieldList(x.Lbrace, x.Fields, x.Rbrace, false);
+		p.fieldList(x.Lbrace, x.Fields, x.Rbrace, x.Incomplete, false);
+		optSemi = true;
 
 	case *ast.FuncType:
 		p.print(token.FUNC);
-		p.signature(x.Params, x.Results);
+		optSemi = p.signature(x.Params, x.Results);
 
 	case *ast.InterfaceType:
 		p.print(token.INTERFACE);
-		optSemi = p.fieldList(x.Lbrace, x.Methods, x.Rbrace, true);
+		p.fieldList(x.Lbrace, x.Methods, x.Rbrace, x.Incomplete, true);
+		optSemi = true;
 
 	case *ast.MapType:
 		p.print(token.MAP, token.LBRACK);
 		p.expr(x.Key);
 		p.print(token.RBRACK);
-		p.expr(x.Value);
+		optSemi = p.expr(x.Value);
 
 	case *ast.ChanType:
 		switch x.Dir {
@@ -853,7 +867,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 			p.print(token.CHAN, token.ARROW);
 		}
 		p.print(blank);
-		p.expr(x.Value);
+		optSemi = p.expr(x.Value);
 
 	default:
 		panic("unreachable");
