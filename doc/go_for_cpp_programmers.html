@@ -1,0 +1,673 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+   "http://www.w3.org/TR/html4/transitional.dtd">
+<html>
+<head>
+
+<!--
+To convert <h2>Foo</h2> into <h2 id="Foo">Foo</h2>
+and convert §Foo into §<a href="#Foo">Foo</a>:
+
+	Edit ,s/<(h.)>(.*)(<\/h.>)/<\1 id="\2">\2\3/g
+	Edit ,x g/id="/ x/id="[^"]+"/ s/ /_/g
+	Edit ,s/§([^),.]+)/§<a href="#\1">\1<\/a>/g
+	Edit ,x/href="#[^"]+"/ s/ /_/g
+-->
+
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Go For C++ Programmers</title>
+
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <script type="text/javascript" src="godocs.js"></script>
+
+</head>
+
+<body>
+
+<div id="topnav">
+<table summary=""><tr>
+<td id="headerImage">
+<a href="./"><img src="./logo_blue.png" height="44" width="120" alt="Go Home Page" style="border:0" /></a>
+</td>
+<td id="headerDocSetTitle">The Go Programming Language</td>
+</tr>
+</table>
+</div>
+
+<div id="linkList">
+
+  <ul>
+    <li class="navhead">Related Guides</li>
+    <li><a href="go_tutorial.html">Tutorial</a></li>
+    <li class="blank">&nbsp;</li>
+    <li class="navhead">Other Resources</li>
+    <li><a href="./">Go Docs</a></li>
+    <li><a href="/pkg">Library documentation</a></li>
+  </ul>
+</div>
+
+<div id="content">
+
+<h1 id="The_Go_Programming_Language_Specification">Go For C++ Programmers</h1>
+
+<p>
+Go is a systems programming language intended as an alternative to C++.
+These are some notes on Go for experienced C++ programmers. This
+document discusses the differences between Go and C++, and says little
+to nothing about the similarities.
+
+<p>
+For a more general introduction to Go, see the
+<a href="go_tutorial.html">Go tutorial</a>.
+
+<p>
+For a detailed description of the Go language, see the
+<a href="go_spec.html">Go spec</a>.
+
+<p>
+There is more <a href="./">documentation about go</a>.
+
+
+  <!-- The Table of Contents is automatically inserted in this <div>.
+       Do not delete this <div>. -->
+  <div id="nav"></div>
+
+<h2 id="Conceptual_Differences">Conceptual Differences</h2>
+
+<ul>
+<li>Go does not have classes with constructors or destructors.
+    Instead of class methods, a class inheritance hierarchy,
+    and virtual functions, Go provides <em>interfaces</em>, which are
+    <a href="#Interfaces">discussed in more detail below</a>.
+    Interfaces are also used where C++ uses templates.
+
+<li>Go uses garbage collection. It is not necessary (or currently possible)
+    to explicitly release memory. The garbage collection is (intended to be)
+    incremental and highly efficient on modern processors.
+
+<li>Go supports pointers, but does not support pointer arithmetic. You cannot
+    use a pointer variable to walk through the bytes of a string.
+
+<li>Arrays in Go are first class values. When an array is used as a
+    function parameter, the function receives a copy of the array,
+    not a pointer to it. However, in practice functions often use
+    slices for parameters, rather than arrays. This is discussed further
+    below.
+
+<li>Strings are provided by the language. They may not change once they
+    have been created.
+
+<li>Hash tables are provided by the language. They are called maps.
+
+<li>Processes, and communication channels between them, are provided by
+    the language. This is discussed further below.
+
+<li>Certain types (maps, channels, and slices, all described further below)
+    are passed by reference, not by value. That is, passing a map to a
+    function does not copy the map, and if the function changes the map
+    the change will be seen by the caller.
+
+<li>Go does not use header files. Instead, each source file is part of a
+    defined <em>package</em>. When a package defines an object
+    (type, constant, variable, function) with a name which starts with an
+    uppercase letter, than object is visible to any other file which
+    imports that package.
+
+<li>Go does not support implicit type conversion. Operations that mix
+    different types require casts (called conversions in Go).
+
+<li>Go does not support function overloading and does not support user
+    defined operators.
+
+<li>Go does not support <code>const</code> or <code>volatile</code> qualifiers.
+
+<li>Go uses <code>nil</code> for invalid pointers, where C++ uses
+    <code>NULL</code> or simply <code>0</code>.
+</ul>
+
+<h2 id="Syntax">Syntax</h2>
+
+<p>
+The declaration syntax is reversed compared to C++. You write the name
+followed by the type. Unlike C++, the syntax for a type does not match
+the way in which the variable is used. Type declarations may be read
+easily from left to right.
+
+<pre>
+<b>Go                           C++</b>
+var v1 int;               // int v1;
+var v2 string;            // approximately const std::string v2;
+var v3 [10]int;           // int v3[10];
+var v4 []int;             // approximately int* v4;
+var v5 struct { f int };  // struct { int f; } v5;
+var v6 *int;              // int* v6;  // but no pointer arithmetic
+var v7 map[string]int;       // approximately unordered_map&lt;string, int&gt;* v7;
+var v8 func(a int) int;   // int (*v8)(int a);
+</pre>
+
+<p>
+Declarations generally take the form of a keyword followed by the name
+of the object being declared.  The keyword is one of <code>var</code>,
+<code>func</code>,
+<code>const</code>, or <code>type</code>.  Method declarations are a minor
+exception in that
+the receiver appears before the name of the object begin declared; see
+the discussion of interfaces.
+
+<p>
+You can also use a keyword followed by a series of declarations in
+parentheses.
+
+<pre>
+var (i int; m float)
+</pre>
+
+<p>
+When declaring a function, you must provide a name for each parameter
+or not provide a name for any parameter; you can't omit some names
+and provide others.  You may group several names with the same type:
+
+<pre>
+func f (i, j, k int);
+</pre>
+
+<p>
+A variable may be initialized when it is declared.  When this is done,
+specifying the type is permitted but not required.  When the type is
+not specified, the type of the variable is the type of the
+initialization expression.
+
+<pre>
+var v = *p;
+</pre>
+
+<p>
+See also the <a href="#Constants">discussion of constants, below</a>.
+If a variable is not initialized, the type must be specified.
+In that case it will be
+implicitly initialized to 0 (or nil, or whatever).  There are no
+uninitialized variables in Go.
+
+<p>
+Within a function, a simple declaration syntax is available with
+<code>:=</code> .
+
+<pre>
+v1 := v2;
+</pre>
+
+<p>
+This is equivalent to
+
+<pre>
+var v1 = v2;
+</pre>
+
+<p>
+Go permits multiple assignments which are done in parallel.
+
+<pre>
+i, j = j, i;   // Swap i and j.
+</pre>
+
+<p>
+Functions may have multiple return values, indicating by a list in
+parentheses.
+
+<pre>
+func f() (i int, j int);
+v1, v2 = f();
+</pre>
+
+<p>
+Go treats semicolons as separators, not terminators.  Moreover,
+a semicolon
+is not required after a curly brace ending a type declaration (e.g.,
+<code>var s struct {}</code>) or a block.  Semicolons are never required at the
+top level of a file (between global declarations). However, they are
+always <em>permitted</em> at
+the end of a statement, so you can continue using them as in C++.
+
+<p>
+Go treats semicolons as separators, not terminators.  Moreover,
+a semicolon
+is not required after a curly brace ending a type declaration (e.g.,
+<code>var s struct {}</code>) or a block.  Semicolons are never required at the
+top level of a file (between global declarations). However, they are
+always <em>permitted</em> at
+the end of a statement, so you can continue using them as in C++.
+
+<p>
+When using a pointer, you use <code>.</code> instead of <code>-&gt;</code>.
+Thus syntactically
+speaking there is no difference between a structure and a pointer to a
+structure.
+
+<pre>
+type my_struct struct { i int }
+var v9 my_struct;             // v9 has structure type
+var p9 *my_struct;            // p9 is a pointer to a structure
+f(v9.i, p9.i)
+</pre>
+
+<p>
+Go does not require parentheses around the condition of a <code>if</code>
+statement, or the expressions of a <code>for</code> statement, or the value of a
+<code>switch</code> statement.  On the other hand, it does require curly braces
+around the body of an <code>if</code> or <code>for</code> statement.
+
+<pre>
+if a &lt; b { f() }    // Valid
+if (a &lt; b) { f() }  // Valid
+if (a &lt; b) f();     // INVALID
+</pre>
+
+<p>
+Go does not have a <code>while</code> statement nor does it have a
+<code>do/while</code>
+statement.  The <code>for</code> statement may be used with a single condition,
+which makes it equivalent to a <code>while</code> statement.  Omitting the
+condition entirely is an endless loop.
+
+<p>
+Go permits <code>break</code> and <code>continue</code> to specify a label.
+The label must
+refer to a <code>for</code>, <code>switch</code>, or <code>select</code>
+statement.
+
+<p>
+In a <code>switch</code> statement, <code>case</code> labels do not fall
+through.  You can
+make them fall through using the <code>fallthrough</code> keyword.  This applies
+even to adjacent cases.
+
+<pre>
+switch i { case 0: case 1: f() } // f is not called when i == 0!
+</pre>
+
+<p>
+But a <code>case</code> can have multiple values.
+
+<pre>
+switch i { case 0, 1: f() } // f is called if i == 0 || i == 1.
+</pre>
+
+<p>
+The values in a <code>case</code> need not be constants - or even integers;
+any type
+that supports the equality comparison operator, such as strings or
+pointers, can be used - and if the <code>switch</code>
+value is omitted it defaults to <code>true</code>.
+
+<pre>
+switch { case i &lt; 0: f1() case i == 0: f2() case i &gt; 0: f3() }
+</pre>
+
+<p>
+The <code>++</code> and <code>--</code> operators may only be used in
+statements, not in expressions.
+You cannot write <code>c = *p++</code>.  <code>*p++</code> is parsed as
+<code>(*p)++</code>.
+
+<h2 id="Constants">Constants </h2>
+
+<p>
+In Go integer and floating-point constants have so-called ideal types.
+This applies even to constants named with a <code>const</code> declaration,
+if no
+type is given in the declaration.  An ideal type becomes concrete when
+it is actually used.  This permits constants to be used relatively
+freely without requiring general implicit type conversion.
+
+<pre>
+var a uint; f(a + 1)  // Ideal type of "1" becomes "uint".
+</pre>
+
+<p>
+The language does not impose any limits on the size of an abstract
+integer constant or constant expression.  A limit is only applied when
+a constant expression is used where a type is required.
+
+<pre>
+const huge = 1 &lt;&lt; 100; f(huge &gt;&gt; 98)
+</pre>
+
+<p>
+Go does not support enums.  Instead, you can use the special name
+<code>iota</code> in a single <code>const</code> declaration to get a
+series of increasing
+value.  When an initialization expression is omitted for a <code>const</code>,
+it reuses the preceding expression.
+
+<pre>
+const ( red = iota; blue; green ) // red == 0, blue == 1, green == 2
+</pre>
+
+<h2 id="Slices">Slices</h2>
+
+<p>
+A slice is a pointer to an array, a length, and a capacity.  Slices support
+the <code>[]</code> operator to access elements.  The builtin
+<code>len</code> function returns the
+length of the slice.  The builtin <code>cap</code> function returns the
+capacity.
+
+<p>
+Given an array, or another slice, a new slice is created via
+<code>a[I:J]</code>.  This
+creates a new slice which refers to <code>a</code>, starts at
+index <code>I</code>, and ends at index
+<code>J - 1</code>.  It has length <code>J - I</code>.
+If <code>a</code> is itself a slice, the new slice refers to the same array
+to which <code>a</code>
+refers.  That is, changes made using the new slice may be seen using
+<code>a</code>.  The
+capacity of the new slice is simply the capacity of <code>a</code> minus
+<code>I</code>.  The capacity
+of an array is the length of the array.  You may also assign a pointer to an
+array to a
+variable of slice type; given <code>var s []int; var a[10] int</code>,
+<code>s = &amp;a</code> is more or
+less the same as <code>s = a[0:len(a)]</code>.
+
+<p>
+What this means is that Go uses slices for some cases where C++ uses pointers.
+If you create a value of type <code>[100]byte</code> (an array of 100 bytes,
+perhaps a
+buffer) and you want to pass it to a function without copying it, you should
+declare the function parameter to have type <code>[]byte</code>, and pass the
+address
+of the array.  Unlike C++, it is not
+necessary to pass the length of the buffer; it is efficiently accessible via
+<code>len</code>.
+
+<p>
+The slice syntax may also be used with a string.  It returns a new string,
+whose value is a substring of the original string.
+
+<h2 id="Making_values">Making values</h2>
+
+<p>
+Go has a builtin function <code>new</code> which takes a type and
+allocates space
+on the heap. The allocated space will be zero-initialized for the type.
+For example, <code>new(int)</code> returns a new object of type
+<code>*int</code>,
+allocated on the heap and initialized with the value <code>0</code>.
+Unlike C++, <code>new</code> is a function, not an operator;
+<code>new int</code> is a syntax error.
+
+<p>
+Map and channel values must be allocated using the builtin function
+<code>make</code>.
+A variable declared with map or channel type without an initializer will be
+automatically initialized to <code>nil</code>.
+Calling <code>make(map[int]int)</code> returns a newly allocated value of
+type <code>map[int]int</code>.
+Note that <code>make</code> returns a value, not a pointer.  This is
+consistent with
+the fact that map and channel values are passed by reference.  Calling
+<code>make</code> with
+a map type takes an optional argument which is the expected capacity of the
+map.  Calling <code>make</code> with a channel type takes an optional
+argument which is the
+buffering capacity of the channel.
+
+<p>
+The <code>make</code> function may also be used to allocate a slice.
+In this case it
+allocates memory for the underlying array and returns a slice referring to it.
+There is one required argument, which is the number of elements in the slice.
+A second, optional, argument is the capacity of the slice.  For example,
+<code>make([]int, 10, 20)</code>.  This is identical to
+<code>new([20]int)[0:10]</code>.  Since
+Go uses garbage collection, the newly allocated array will be discarded
+sometime after there are no references to the returned slice.
+
+<h2 id="Interfaces">Interfaces</h2>
+
+<p>
+Where C++ provides classes and templates, Go provides interfaces.  A
+Go interface is similar to a C++ pure abstract class: a class with no
+data members, with methods which are all pure virtual.  However, in
+Go, any type which provides the methods named in the interface may be
+treated as an implementation of the interface.  No explicitly declared
+inheritance is required.  The implementation of the interface is
+entirely separate from the interface itself.
+
+<p>
+A method looks like an ordinary function definition, except that it
+has a receiver.  The receiver is similar to the <code>this</code> pointer in a
+C++ class method.
+
+<pre>
+type my_type struct { i int }
+func (p *my_type) get() int { return p.i }
+</pre>
+
+<p>
+This declares a method <code>get</code> associated with <code>my_type</code>.
+The receiver is named <code>p</code> in the body of the function.
+
+<p>
+Given this interface:
+
+<pre>
+type my_interface interface {
+  get() int;
+  set(i int);
+}
+</pre>
+
+<p>
+we can make <code>my_type</code> satisfy the interface by additionally writing
+
+<pre>
+func (p *my_type) set(i int) { p.i = i }
+</pre>
+
+<p>
+Now any function which takes <code>my_interface</code> as a parameter
+will accept a
+variable of type <code>*my_type</code>.
+
+<pre>
+func get_and_set(x my_interface);
+func f1() {
+  var p my_type;
+  get_and_set(&amp;p);
+}
+</pre>
+
+<p>
+In other words, if we view <code>my_interface</code> as a C++ pure abstract
+base
+class, defining <code>set</code> and <code>get</code> for
+<code>*my_type</code> made <code>*my_type</code> automatically
+inherit from <code>my_interface</code>.  A type may satisfy multiple interfaces.
+
+<p>
+An anonymous field may be used to implement something much like a C++ child
+class.
+
+<pre>
+type my_child_type struct { my_type; j int }
+func (p *my_child_type) get() int { p.j++; return (&amp;p.my_type).get() }
+</pre>
+
+<p>
+This effectively implements <code>my_child_type</code> as a child of
+<code>my_type</code>.
+
+<pre>
+func f2() {
+   var p my_child_type;
+   get_and_set(&amp;p)
+}
+</pre>
+
+<p>
+The <code>set</code> method is effectively inherited from
+<code>my_child_type</code>, because
+methods associated with the anonymous type are promoted to become methods
+of the enclosing type.  In this case, because <code>my_child_type</code> has an
+anonymous field of type <code>my_type</code>, the methods of
+<code>my_type</code> also become methods of <code>my_child_type</code>.
+In this example, the <code>get</code> method was
+overridden, and the <code>set</code> method was inherited.
+
+<p>
+This is not precisely the same as a child class in C++.  When a parent
+method is called, it receives a pointer to the field in the child class.
+If the parent method calls some other method on its argument, it will call
+the method associated with the parent class, not the method associated with
+the child class.  In other words, methods are not virtual functions.  When
+you want the equivalent of a virtual function, use an interface.
+
+<p>
+A variable which has an interface type may be converted to have a
+different interface type.  This conversion is implemented dynamically
+at runtime, like C++ <code>dynamic_cast</code>.  Unlike
+<code>dynamic_cast</code>, there does
+not need to be any declared relationship between the two interfaces.
+
+<pre>
+type my_compare_interface interface {
+  print();
+}
+func f3(x my_interface) {
+  x.(my_compare_interface).print()
+}
+</pre>
+
+<p>
+The conversion to <code>my_compare_interface</code> is entirely dynamic.
+It will
+work as long as the underlying type of x (the "dynamic type") defines
+a <code>print</code> method.
+
+<p>
+Because the conversion is dynamic, it may be used to implement generic
+programming similar to templates in C++.  This is done by, e.g.,
+manipulating values of the minimal interface.
+
+<pre>
+type Any interface { }
+</pre>
+
+<p>
+Containers may be written in terms of <code>Any</code>, and the caller may cast
+the values back to the desired type.  As the typing is dynamic rather
+than static, there is no equivalent of the way that a C++ template may
+inline the relevant operations.  The operations are fully type-checked
+at runtime, but all operations will involve a function call.
+
+<pre>
+type iterator interface {
+  get() Any;
+  set(v Any);
+  increment();
+  equal(arg *iterator) bool;
+}
+</pre>
+
+<h2 id="Processes">Processes</h2>
+
+<p>
+Go permits starting a new process (a "goroutine") using the <code>go</code>
+statement.  The go statement runs a function in a different process.
+All processes in a single program share the same address space.
+
+<pre>
+func server(i int) { for { print(i); sys.sleep(10) } }
+go server(1); go server(2);
+</pre>
+
+<p>
+(Note that the <code>for</code> statement in the <code>server</code>
+function is equivalent to a C++ <code>while (true)</code> loop).
+
+<p>
+Processes are (intended to be) cheap.
+
+<p>
+Function literals can be useful with the <code>go</code> statement.
+
+<pre>
+var g int // global variable
+go func(i int) {
+  s := 0
+  for j := 0; j &lt; i; j++ { s += j }
+  g = s
+} (1000) // Passes argument 1000 to the function literal.
+</pre>
+
+<h2 id="Channels">Channels</h2>
+
+<p>
+Channels are used to communicate between processes.  Any value may be
+sent over a channel.  Channels are (intended to be) efficient and
+cheap.  To send a value on a channel, use <code>&lt;-</code> as a binary
+operator.  To
+receive a value on a channel, use <code>&lt;-</code> as a unary operator.
+When calling
+functions, channels are passed by reference.
+
+<p>
+The Go library provides mutexes, but you can also use
+a single process with a shared channel.
+Here is an example of using a manager function to control access to a
+single value.
+
+<pre>
+type cmd struct { get bool; val int }
+func manager(ch chan cmd) {
+  var val int = 0;
+  for {
+    c := &lt;- ch
+    if c.get { c.val = val; ch &lt;- c }
+    else { val = c.val }
+  }
+}
+</pre>
+
+<p>
+In that example the same channel is used for input and output.  This
+means that if two processes try to retrieve the value at the same
+time, the first process may read the response which was triggered by
+the second process's request. In simple cases that is fine.  For more
+complex cases, pass in a channel.
+
+<pre>
+type cmd2 struct { get bool; val int; ch &lt;- chan int; }
+func manager2(ch chan cmd2) {
+  var val int = 0;
+  for {
+    c := &lt;- ch
+    if c.get { c.ch &lt;- val }
+    else { val = c.val }
+  }
+}
+</pre>
+
+<p>
+To use manager2, given a channel to it:
+
+<pre>
+func f4(ch &lt;- chan cmd2) int {
+  my_ch := make(chan int);
+  c := cmd2 { true, 0, my_ch };  // Composite literal syntax.
+  ch &lt;- c;
+  return &lt;- my_ch;
+}
+</pre>
+
+</div>
+
+<div id="footer">
+<p>Except as noted, this content is
+   licensed under <a href="http://creativecommons.org/licenses/by/3.0/">
+   Creative Commons Attribution 3.0</a>.
+</div>
+
+</body>
+</html>

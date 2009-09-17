@@ -1,0 +1,134 @@
+code, .code {
+  font-size: 9pt; 
+  font-family: Courier, Courier New, monospace; 
+  color:#007000;
+}
+
+kbd {
+  font-family: Courier, Courier New, monospace; 
+  font-weight: bold;
+}
+
+pre.ebnf {
+  background-color: beige;
+}
+
+pre.grammar {
+  background-color: beige;
+}
+
+p.rule {
+  font-style: italic
+}
+
+span.event {
+  font-style: italic
+}
+
+body {
+  font: 13px Helvetica, Arial, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: Helvetica, Arial, sans-serif;
+  margin-bottom: 0.25em;
+}
+
+h2 {
+  background-color: #e5ecf9;
+  margin-top: 2em;
+  border-top:1px solid #36C;
+}
+
+pre{
+  font-size: 9pt;
+  background-color: #fafaff;
+  margin: 1em 0 0 0;
+  padding: .99em;
+  line-height: 125%;
+  overflow: auto;
+  word-wrap: break-word;
+}
+
+li {
+  padding-bottom: 0.5em;
+}
+
+li pre {
+  margin: 0.5em 0px 1em 0px;
+}
+
+/* Above this comment, styles meant to help page authors achieve beauty. */
+/* Below this comment, styles used in the boilerplate-ish parts of pages. */
+
+div#content {
+  margin-left: 20%;
+  padding: 0 1em 2em 1em;
+  margin-top: -2px;
+  border: 2px solid #e5ecf9;
+}
+
+#topnav {
+  margin: 0px;
+  padding: .1em 0px;
+  width: 100%;
+  white-space: nowrap;
+  background-color: #e5ecf9;
+  border-top:1px solid #36C;
+  font: bold large Helvetica, Arial, sans-serif;
+}
+
+div#linkList {
+  font: 13px Helvetica, Arial, sans-serif;
+  float: left;
+  width: 20%;
+}
+
+div#linkList ul {
+  padding: 1px;
+  list-style-type: none;
+}
+
+div#linkList li {
+  margin-left: 1em;
+}
+
+div#linkList li.navhead {
+  font-weight: bold;
+  margin-left: 0px;
+}
+
+#nav dl {
+  margin: 0 0.5em 0 0.5em;
+  padding: 0px;
+}
+
+.navtop {
+  font-size: xx-small; 
+  float: right;
+}
+
+#footer {
+  margin: 2em;
+  text-align: center;
+  color: #555;
+  font-size: small;
+}
+
+#footer a {
+  color: #555;
+}
+
+@media print {
+  div#linkList {
+    display: none;
+  }
+  .navtop {
+    display: none;
+  }
+  div#content {
+    margin-left: 0px;
+    border: none;
+  }
+}
+

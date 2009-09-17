@@ -1,5 +1,57 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+   "http://www.w3.org/TR/html4/transitional.dtd">
+<html>
+<head>
 
-<h1>The Go memory model</h1>
+<!--
+To convert <h2>Foo</h2> into <h2 id="Foo">Foo</h2>
+and convert §Foo into §<a href="#Foo">Foo</a>:
+
+	Edit ,s/<(h.)>(.*)(<\/h.>)/<\1 id="\2">\2\3/g
+	Edit ,x g/id="/ x/id="[^"]+"/ s/ /_/g
+	Edit ,s/§([^),.]+)/§<a href="#\1">\1<\/a>/g
+	Edit ,x/href="#[^"]+"/ s/ /_/g
+-->
+
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>The Go Memory Model</title>
+
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <script type="text/javascript" src="godocs.js"></script>
+
+</head>
+
+<body>
+
+<div id="topnav">
+<table summary=""><tr>
+<td id="headerImage">
+<a href="./"><img src="./logo_blue.png" height="44" width="120" alt="Go Home Page" style="border:0" /></a>
+</td>
+<td id="headerDocSetTitle">The Go Progrmming Language</td>
+</tr>
+</table>
+</div>
+
+<div id="linkList">
+
+  <ul>
+    <li class="navhead">Related Guides</li>
+    <li><a href="go_spec.html">Language Specification</a></li>
+    <li class="blank">&nbsp;</li>
+    <li class="navhead">Other Resources</li>
+    <li><a href="./">Go Docs</a></li>
+  </ul>
+</div>
+
+<div id="content">
+
+<h1 id="The_Go_Programming_Language_Specification">The Go Memory Model</h1>
+
+
+  <!-- The Table of Contents is automatically inserted in this <div>.
+       Do not delete this <div>. -->
+  <div id="nav"></div>
 
 <h2>Introduction</h2>
 
@@ -452,6 +504,15 @@ value for <code>g.msg</code>.
 In all these examples, the solution is the same:
 use explicit synchronization.
 </p>
+
+</div>
+
+<div id="footer">
+<p>Except as noted, this content is
+   licensed under <a href="http://creativecommons.org/licenses/by/3.0/">
+   Creative Commons Attribution 3.0</a>.
+</div>
+
 
 </body>
 </html>

@@ -1,4 +1,60 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+   "http://www.w3.org/TR/html4/transitional.dtd">
+<html>
+<head>
 
+<!--
+To convert <h2>Foo</h2> into <h2 id="Foo">Foo</h2>
+and convert §Foo into §<a href="#Foo">Foo</a>:
+
+        Edit ,s/<(h.)>(.*)(<\/h.>)/<\1 id="\2">\2\3/g
+        Edit ,x g/id="/ x/id="[^"]+"/ s/ /_/g
+        Edit ,s/§([^),.]+)/§<a href="#\1">\1<\/a>/g
+        Edit ,x/href="#[^"]+"/ s/ /_/g
+-->
+
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>The Go Programming Language Specification</title>
+
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <script type="text/javascript" src="godocs.js"></script>
+
+</head>
+
+<body>
+
+<div id="topnav">
+<table summary=""><tr>
+<td id="headerImage">
+<a href="./"><img src="./logo_blue.png" height="44" width="120" alt="Go Home Page" style="border:0" /></a>
+</td>
+<td id="headerDocSetTitle">The Go Programming Language</td>
+</tr>
+</table>
+</div>
+
+<div id="linkList">
+
+  <ul>
+    <li class="navhead">Related Guides</li>
+    <li><a href="go_tutorial.html">Tutorial</a></li>
+    <li><a href="go_for_cpp_programmers.html">Go for C++ Programmers</a></li>
+    <li class="blank">&nbsp;</li>
+    <li class="navhead">Other Resources</li>
+    <li><a href="./">Go Docs</a></li>
+    <li><a href="/pkg">Library documentation</a></li>
+    <li><a href="go_faq.html">FAQ</a></li>
+  </ul>
+</div>
+
+<div id="content">
+
+<h1 id="The_Go_Programming_Language_Specification">The Go Programming Language Specification</h1> 
+
+
+  <!-- The Table of Contents is automatically inserted in this <div>.
+       Do not delete this <div>. -->
+  <div id="nav"></div>
 
 <!--
 Open issues:
@@ -47,7 +103,7 @@ compile/link model to generate executable binaries.
 The grammar is compact and regular, allowing for easy analysis by
 automatic tools such as integrated development environments.
 </p>
-<hr/>
+
 <h2 id="Notation">Notation</h2>
 <p>
 The syntax is specified using Extended Backus-Naur Form (EBNF):
@@ -84,8 +140,6 @@ double quotes <code>""</code> or back quotes <code>``</code>.
 The form <code>a ... b</code> represents the set of characters from
 <code>a</code> through <code>b</code> as alternatives.
 </p>
-
-<hr/>
 
 <h2 id="Source_code_representation">Source code representation</h2>
 
@@ -131,7 +185,6 @@ decimal_digit = "0" ... "9" .
 octal_digit   = "0" ... "7" .
 hex_digit     = "0" ... "9" | "A" ... "F" | "a" ... "f" .
 </pre>
-<hr/>
 
 <h2 id="Lexical_elements">Lexical elements</h2>
 
@@ -432,7 +485,6 @@ an error if placed in a character literal (it is not a single code
 point), and will appear as two code points if placed in a string
 literal.
 </p>
-<hr/>
 
 <h3 id="Boolean_literals">Boolean literals</h3>
 
@@ -1240,8 +1292,6 @@ Interface values may be compared if they have compatible static types.
 They will be equal only if they have the same dynamic type and the underlying values are equal.
 </li>
 </ul>
-<hr/>
-
 
 <h2 id="Blocks">Blocks</h2>
 
@@ -3032,8 +3082,6 @@ and indexing of <code>x</code> and the evaluation
 of <code>y</code> is not specified.
 </p>
 
-<hr/>
-
 <h2 id="Statements">Statements</h2>
 
 <p>
@@ -3851,8 +3899,6 @@ for i := 0; i &lt;= 3; i++ {
 }
 </pre>
 
-<hr/>
-
 <h2 id="Predeclared_functions">Predeclared functions</h2>
 <ul>
 	<li>cap
@@ -4065,8 +4111,6 @@ m := make(map[string] int, 100);  # map with initial space for 100 elements
 <font color=red>TODO: Need syntax that permits a type as first argument for built-ins.</font>
 </p>
 
-<hr/>
-
 <h2 id="Packages">Packages</h2>
 
 <p>
@@ -4235,8 +4279,6 @@ func main() {
 }
 </pre>
 
-<hr/>
-
 <h2 id="Program_initialization_and_execution">Program initialization and execution</h2>
 
 <h3 id="The_zero_value">The zero value</h3>
@@ -4367,8 +4409,6 @@ Implementation restriction: The compiler assumes package <code>main</code>
 is not imported by any other package.
 </p>
 
-<hr/>
-
 <h2 id="System_considerations">System considerations</h2>
 
 <h3 id="Package_unsafe">Package <code>unsafe</code></h3>
@@ -4480,8 +4520,6 @@ The following minimal alignment properties are guaranteed:
    <code>unsafe.Alignof(x[0])</code>, but at least 1.
 </ol>
 
-<hr/>
-
 <h2 id="Implementation_differences"><font color=red>Implementation differences - TODO</font></h2>
 <ul>
 	<li><font color=red>Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</font></li>
@@ -4490,5 +4528,12 @@ The following minimal alignment properties are guaranteed:
 </ul>
 
 </div>
+
+<div id="footer">
+<p>Except as noted, this content is
+   licensed under <a href="http://creativecommons.org/licenses/by/3.0/">
+   Creative Commons Attribution 3.0</a>.
+</div>
+
 </body>
 </html>
