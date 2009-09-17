@@ -6,7 +6,6 @@ package gzip
 
 import (
 	"bytes";
-	"fmt";
 	"io";
 	"os";
 	"testing";

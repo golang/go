@@ -40,13 +40,11 @@ import (
 	"http";
 	"io";
 	"log";
-	"net";
 	"os";
 	pathutil "path";
 	"sort";
 	"strings";
 	"sync";
-	"syscall";
 	"template";
 	"time";
 )

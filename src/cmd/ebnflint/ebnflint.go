@@ -13,7 +13,6 @@ import (
 	"io";
 	"os";
 	"path";
-	"sort";
 	"strings";
 )
 
@@ -47,7 +46,7 @@ func extractEBNF(src []byte) []byte {
 		i += len(open);
 
 		// write as many newlines as found in the excluded text
-		// to maintain correct line numbers in error messages 
+		// to maintain correct line numbers in error messages
 		for _, ch := range src[0 : i] {
 			if ch == '\n' {
 				buf.WriteByte('\n');

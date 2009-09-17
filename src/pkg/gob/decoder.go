@@ -8,7 +8,6 @@ import (
 	"bytes";
 	"io";
 	"os";
-	"reflect";
 	"sync";
 )
 

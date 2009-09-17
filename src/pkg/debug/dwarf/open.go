@@ -9,7 +9,6 @@ package dwarf
 
 import (
 	"debug/binary";
-	"fmt";
 	"os";
 )
 

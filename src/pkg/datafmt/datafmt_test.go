@@ -6,7 +6,6 @@ package datafmt
 
 import (
 	"fmt";
-	"os";
 	"strings";
 	"testing";
 )

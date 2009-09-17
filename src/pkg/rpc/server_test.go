@@ -5,9 +5,7 @@
 package rpc
 
 import (
-	"gob";
 	"http";
-	"io";
 	"log";
 	"net";
 	"once";

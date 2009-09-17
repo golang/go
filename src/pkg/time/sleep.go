@@ -7,7 +7,6 @@ package time
 import (
 	"os";
 	"syscall";
-	"unsafe";
 )
 
 // Sleep pauses the current goroutine for ns nanoseconds.

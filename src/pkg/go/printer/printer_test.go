@@ -10,7 +10,6 @@ import (
 	"io";
 	"go/ast";
 	"go/parser";
-	"os";
 	"path";
 	"testing";
 )

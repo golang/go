@@ -8,9 +8,6 @@ import (
 	"bytes";
 	"fmt";
 	"io";
-	"os";
-	"reflect";
-	"strings";
 	"testing";
 )
 

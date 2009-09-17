@@ -10,10 +10,7 @@
 
 package dwarf
 
-import (
-	"os";
-	"strconv";
-)
+import "os"
 
 // a single entry's description: a sequence of attributes
 type abbrev struct {

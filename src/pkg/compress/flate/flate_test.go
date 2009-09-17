@@ -10,11 +10,7 @@ package flate
 
 import (
 	"bytes";
-	"bufio";
-	"io";
-	"os";
 	"reflect";
-	"strconv";
 	"testing";
 )
 

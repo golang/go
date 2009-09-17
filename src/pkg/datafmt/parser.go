@@ -6,7 +6,6 @@ package datafmt
 
 import (
 	"container/vector";
-	"fmt";
 	"go/scanner";
 	"go/token";
 	"os";

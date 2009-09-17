@@ -10,7 +10,6 @@ import (
 	"math";
 	"os";
 	"reflect";
-	"sync";
 	"unsafe";
 )
 

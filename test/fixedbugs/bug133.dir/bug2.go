@@ -4,7 +4,7 @@
 
 package bug2
 
-import "./bug1"
+import _ "./bug1"
 import "./bug0"
 
 type T2 struct { t bug0.T }

@@ -10,15 +10,11 @@
 package parser
 
 import (
-	"bytes";
 	"container/vector";
 	"fmt";
 	"go/ast";
 	"go/scanner";
 	"go/token";
-	"io";
-	"os";
-	"strings";
 )
 
 

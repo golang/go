@@ -13,15 +13,15 @@ package proc
 // and proc_darwin.go do, because deps.bash only looks at
 // this file.
 import (
-	"container/vector";
-	"fmt";
-	"io";
+	_ "container/vector";
+	_ "fmt";
+	_ "io";
 	"os";
-	"runtime";
+	_ "runtime";
 	"strconv";
-	"strings";
-	"sync";
-	"syscall";
+	_ "strings";
+	_ "sync";
+	_ "syscall";
 )
 
 type Word uint64

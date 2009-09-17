@@ -11,7 +11,6 @@ import (
 	"reflect";
 	"strings";
 	"testing";
-	"unsafe";
 )
 
 type ET2 struct {

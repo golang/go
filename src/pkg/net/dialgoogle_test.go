@@ -7,7 +7,6 @@ package net
 import (
 	"flag";
 	"io";
-	"os";
 	"strings";
 	"syscall";
 	"testing";

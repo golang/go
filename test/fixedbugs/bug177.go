@@ -5,7 +5,6 @@
 // license that can be found in the LICENSE file.
 
 package main
-import "fmt"
 import "reflect"
 type S1 struct { i int }
 type S2 struct { S1 }

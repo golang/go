@@ -6,7 +6,6 @@ package utf8_test
 
 import (
 	"bytes";
-	"fmt";
 	"strings";
 	"testing";
 	. "utf8";

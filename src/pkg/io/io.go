@@ -10,7 +10,6 @@
 package io
 
 import (
-	"bytes";
 	"os";
 	"strings";
 )

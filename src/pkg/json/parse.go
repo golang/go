@@ -12,10 +12,7 @@ package json
 
 import (
 	"bytes";
-	"fmt";
-	"math";
 	"strconv";
-	"strings";
 	"utf8";
 )
 

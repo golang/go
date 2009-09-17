@@ -7,10 +7,7 @@
 
 package block
 
-import (
-	"io";
-	"os";
-)
+import "os"
 
 const (
 	// minimal irreducible polynomial of degree b

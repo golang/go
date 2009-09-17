@@ -8,9 +8,7 @@ import (
 	"fmt";
 	"os";
 	"reflect";
-	"strings";
 	"sync";
-	"unicode";
 )
 
 type kind reflect.Type

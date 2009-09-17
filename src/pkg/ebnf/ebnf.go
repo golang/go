@@ -24,12 +24,9 @@ package ebnf
 
 import (
 	"container/vector";
-	"fmt";
 	"go/scanner";
 	"go/token";
 	"os";
-	"strconv";
-	"strings";
 	"unicode";
 	"utf8";
 )
