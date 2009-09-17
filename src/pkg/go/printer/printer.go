@@ -571,84 +571,70 @@ func (p *printer) signature(params, result []*ast.Field) (optSemi bool) {
 }
 
 
-func incompleteMsg(isInterface bool) string {
-	if isInterface {
-		return "// contains unexported methods";
+func separator(useTab bool) whiteSpace {
+	if useTab {
+		return tab;
 	}
-	return "// contains unexported fields";
+	return blank;
 }
 
 
-func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete, isInterface bool) {
-	if len(list) == 0 {
-		if isIncomplete {
-			// all entries were stripped
-			p.print(blank, lbrace, token.LBRACE, +1, newline, incompleteMsg(isInterface), -1, newline, rbrace, token.RBRACE);
-		} else {
-			// no blank between keyword and {} in this case
-			p.print(lbrace, token.LBRACE, rbrace, token.RBRACE);
-		}
+func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete, isStruct bool) {
+	if len(list) == 0 && !isIncomplete {
+		// no blank between keyword and {} in this case
+		// TODO(gri): This will not look nice if there are comments inside the {}'s.
+		p.print(lbrace, token.LBRACE, rbrace, token.RBRACE);
 		return;
 	}
 
-	p.print(blank, lbrace, token.LBRACE, +1, newline);
-
-	var lastWasAnon bool;  // true if the last line was an anonymous field
-	var lastComment *ast.CommentGroup;  // the comment from the last line
-	for i, f := range list {
-		// at least one visible identifier or anonymous field
-		isAnon := len(f.Names) == 0;
-		if i > 0 {
+	// at least one entry or incomplete
+	p.print(blank, lbrace, token.LBRACE, +1, formfeed);
+	if isStruct {
+		sep := separator(len(list) > 1);
+		for i, f := range list {
+			p.leadComment(f.Doc);
+			if len(f.Names) > 0 {
+				p.identList(f.Names);
+				p.print(sep);
+			}
+			p.expr(f.Type);
+			if f.Tag != nil {
+				p.print(sep);
+				p.expr(&ast.StringList{f.Tag});
+			}
 			p.print(token.SEMICOLON);
-			p.lineComment(lastComment);
-			if lastWasAnon == isAnon {
-				// last and current line have same structure;
-				// continue with existing columns
+			p.lineComment(f.Comment);
+			if i+1 < len(list) || isIncomplete {
 				p.print(newline);
-			} else {
-				// last and current line have different structure;
-				// flush tabwriter and start new columns (the "type
-				// column" on a line with named fields may line up
-				// with the "line comment column" on a line with
-				// an anonymous field, leading to bad alignment)
-				p.print(formfeed);
 			}
 		}
-
-		p.leadComment(f.Doc);
-		if !isAnon {
-			p.identList(f.Names);
-			p.print(tab);
+		if isIncomplete {
+			p.print("// contains unexported fields");
 		}
-
-		if isInterface {
+	} else { // interface
+		for i, f := range list {
+			p.leadComment(f.Doc);
+			p.identList(f.Names);
+			if len(f.Names) > 1 {
+				p.print(blank);
+			}
 			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
-				// methods
+				// method(s)
 				p.signature(ftyp.Params, ftyp.Results);
 			} else {
 				// embedded interface
 				p.expr(f.Type);
 			}
-		} else {
-			p.expr(f.Type);
-			if f.Tag != nil {
-				p.print(tab);
-				p.expr(&ast.StringList{f.Tag});
+			p.print(token.SEMICOLON);
+			p.lineComment(f.Comment);
+			if i+1 < len(list) || isIncomplete {
+				p.print(newline);
 			}
 		}
-
-		lastWasAnon = isAnon;
-		lastComment = f.Comment;
+		if isIncomplete {
+			p.print("// contains unexported methods");
+		}
 	}
-
-	p.print(token.SEMICOLON);
-	p.lineComment(lastComment);
-
-	if isIncomplete {
-		// at least one entry printed, but some entries were stripped
-		p.print(newline, incompleteMsg(isInterface));
-	}
-
 	p.print(-1, formfeed, rbrace, token.RBRACE);
 }
 
@@ -839,7 +825,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 
 	case *ast.StructType:
 		p.print(token.STRUCT);
-		p.fieldList(x.Lbrace, x.Fields, x.Rbrace, x.Incomplete, false);
+		p.fieldList(x.Lbrace, x.Fields, x.Rbrace, x.Incomplete, true);
 		optSemi = true;
 
 	case *ast.FuncType:
@@ -848,7 +834,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 
 	case *ast.InterfaceType:
 		p.print(token.INTERFACE);
-		p.fieldList(x.Lbrace, x.Methods, x.Rbrace, x.Incomplete, true);
+		p.fieldList(x.Lbrace, x.Methods, x.Rbrace, x.Incomplete, false);
 		optSemi = true;
 
 	case *ast.MapType:
@@ -1134,22 +1120,21 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 // ImportSpec:
 //   m = number of imports with a rename
 //
+// ValueSpec:
+//   m = number of values with a type
+//
 func (p *printer) spec(spec ast.Spec, m, n int) (comment *ast.CommentGroup, optSemi bool) {
+	sep := separator(n > 1);
+
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
 		p.leadComment(s.Doc);
 		if m > 0 {
-			// we may have a rename
+			// at least one entry with a rename
 			if s.Name != nil {
 				p.expr(s.Name);
 			}
-			if m > 1 {
-				// more than one rename - align with tab
-				p.print(tab);
-			} else {
-				// only one rename - no need for alignment with tab
-				p.print(blank);
-			}
+			p.print(sep);
 		}
 		p.expr(&ast.StringList{s.Path});
 		comment = s.Comment;
@@ -1157,12 +1142,17 @@ func (p *printer) spec(spec ast.Spec, m, n int) (comment *ast.CommentGroup, optS
 	case *ast.ValueSpec:
 		p.leadComment(s.Doc);
 		p.identList(s.Names);
-		if s.Type != nil {
-			p.print(blank);  // TODO switch to tab? (indent problem with structs)
-			optSemi = p.expr(s.Type);
+		if m > 0 {
+			// at least one entry with a type
+			if s.Type != nil {
+				p.print(sep);
+				optSemi = p.expr(s.Type);
+			} else if s.Values != nil {
+				p.print(sep);
+			}
 		}
 		if s.Values != nil {
-			p.print(tab, token.ASSIGN);
+			p.print(sep, token.ASSIGN);
 			p.exprList(s.Values, blankStart | commaSep);
 			optSemi = false;
 		}
@@ -1171,7 +1161,7 @@ func (p *printer) spec(spec ast.Spec, m, n int) (comment *ast.CommentGroup, optS
 	case *ast.TypeSpec:
 		p.leadComment(s.Doc);
 		p.expr(s.Name);
-		p.print(blank);  // TODO switch to tab? (but indent problem with structs)
+		p.print(sep);
 		optSemi = p.expr(s.Type);
 		comment = s.Comment;
 
@@ -1193,6 +1183,16 @@ func countImportRenames(list []ast.Spec) (n int) {
 }
 
 
+func countValueTypes(list []ast.Spec) (n int) {
+	for _, s := range list {
+		if s.(*ast.ValueSpec).Type != nil {
+			n++;
+		}
+	}
+	return;
+}
+
+
 // Returns true if a separating semicolon is optional.
 func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) {
 	switch d := decl.(type) {
@@ -1205,8 +1205,11 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 
 		// determine layout constant m
 		var m int;
-		if d.Tok == token.IMPORT {
+		switch d.Tok {
+		case token.IMPORT:
 			m = countImportRenames(d.Specs);
+		case token.CONST, token.VAR:
+			m = countValueTypes(d.Specs);
 		}
 
 		if d.Lparen.IsValid() {
@@ -1220,7 +1223,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 						p.lineComment(comment);
 						p.print(newline);
 					}
-					comment, optSemi = p.spec(s, m, len(d.Specs));
+					comment, _ = p.spec(s, m, len(d.Specs));
 				}
 				p.print(token.SEMICOLON);
 				p.lineComment(comment);

@@ -25,6 +25,7 @@ import (
 	c "i" "o";
 )
 
+
 func _() {
 	// the following decls need a semicolon at the end
 	type _ int;
@@ -71,4 +72,161 @@ func _() {
 	var _ func() interface{}
 }
 
-// TODO(gri) add more test cases
+
+// no tabs for single or ungrouped decls
+func _() {
+	const xxxxxx = 0;
+	type x int;
+	var xxx int;
+	var yyyy float = 3.14;
+	var zzzzz = "bar";
+
+	const (
+		xxxxxx = 0;
+	)
+	type (
+		x int;
+	)
+	var (
+		xxx int;
+	)
+	var (
+		yyyy float = 3.14;
+	)
+	var (
+		zzzzz = "bar";
+	)
+}
+
+// tabs for multiple or grouped decls
+func _() {
+	// no entry has a type
+	const (
+		zzzzzz = 1;
+		z = 2;
+		zzz = 3;
+	)
+	// some entries have a type
+	const (
+		xxxxxx = 1;
+		x = 2;
+		xxx = 3;
+		yyyyyyyy float = iota;
+		yyyy = "bar";
+		yyy;
+		yy = 2;
+	)
+}
+
+func _() {
+	// no entry has a type
+	var (
+		zzzzzz = 1;
+		z = 2;
+		zzz = 3;
+	)
+	// some entries have a type
+	var (
+		xxxxxx int;
+		x float;
+		xxx string;
+		yyyyyyyy int = 1234;
+		y float = 3.14;
+		yyyy = "bar";
+		yyy string = "foo";
+	)
+}
+
+func _() {
+	type (
+		xxxxxx int;
+		x float;
+		xxx string;
+		xxxxx []x;
+		xx struct{};
+		xxxxxxx struct {
+			_, _ int;
+			_ float;
+		};
+		xxxx chan<- string;
+	)
+}
+
+
+// formatting of structs
+type ES struct{}
+
+type _ struct {  // this comment must not change indentation
+	f int;
+	f, ff, fff, ffff int;
+}
+
+type _ struct {
+	string;
+}
+
+type _ struct {
+	string;  // comment
+}
+
+type _ struct {
+	string "tag"
+}
+
+type _ struct {
+	string "tag"  // comment
+}
+
+type _ struct {
+	f int;
+}
+
+type _ struct {
+	f int;  // comment
+}
+
+type _ struct {
+	f int "tag";
+}
+
+type _ struct {
+	f int "tag";  // comment
+}
+
+type _ struct {
+	bool;
+	a, b, c int;
+	int "tag";
+	ES; // comment
+	float "tag";  // comment
+	f int;  // comment
+	f, ff, fff, ffff int;  // comment
+	g float "tag";
+	h float "tag";  // comment
+}
+
+
+// formatting of interfaces
+type EI interface{}
+
+type _ interface {
+	EI;
+}
+
+type _ interface {
+	f();
+	fffff, g ();
+}
+
+type _ interface {
+	EI;
+	f();
+	fffff, g ();
+}
+
+type _ interface {  // this comment must not change indentation
+	EI;  // here's a comment
+	f();  // no blank between f and ()
+	fffff, g ();  // blank between identifiers and ()
+	gggggggggggg, hhhhhhhhhhhhhh (x, y, z int) ();  // hurray
+}
