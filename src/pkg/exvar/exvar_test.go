@@ -5,7 +5,6 @@
 package exvar
 
 import (
-	"fmt";
 	"json";
 	"testing";
 )

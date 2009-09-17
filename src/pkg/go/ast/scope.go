@@ -4,9 +4,6 @@
 
 package ast
 
-import "go/token";
-
-
 type Scope struct {
 	Outer *Scope;
 	Names map[string]*Ident

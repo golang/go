@@ -5,8 +5,6 @@
 package strconv_test
 
 import (
-	"fmt";
-	"os";
 	. "strconv";
 	"testing";
 )

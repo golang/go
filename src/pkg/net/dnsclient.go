@@ -16,7 +16,6 @@
 package net
 
 import (
-	"io";
 	"once";
 	"os";
 	"strings";

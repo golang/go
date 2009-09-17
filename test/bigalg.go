@@ -6,11 +6,6 @@
 
 package main
 
-import (
-	"fmt";
-	"os";
-)
-
 type T struct {
 	a float64;
 	b int64;

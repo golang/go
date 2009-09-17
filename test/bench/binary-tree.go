@@ -39,7 +39,6 @@ package main
 import (
 	"flag";
 	"fmt";
-	"os";
 )
 
 var n = flag.Int("n", 15, "depth")

@@ -4,5 +4,5 @@
 
 package bug1
 
-import "./bug0"
+import _ "./bug0"
 

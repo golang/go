@@ -10,7 +10,6 @@ import (
 	"bufio";
 	"fmt";
 	"io";
-	"log";
 	"net";
 	"os";
 	"strconv";

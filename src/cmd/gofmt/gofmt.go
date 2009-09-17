@@ -11,10 +11,8 @@ import (
 	"go/parser";
 	"go/printer";
 	"go/scanner";
-	"io";
 	"os";
 	pathutil "path";
-	"sort";
 	"strings";
 )
 

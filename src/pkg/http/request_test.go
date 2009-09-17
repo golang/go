@@ -4,11 +4,7 @@
 
 package http
 
-import (
-	"fmt";
-	"os";
-	"testing";
-)
+import "testing"
 
 type stringMultimap map[string] []string
 

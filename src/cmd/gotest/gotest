@@ -86,11 +86,23 @@ MAKELEVEL=
 
 importpath=$(make -s importpath)
 {
+	# test functions are named TestFoo
+	# the grep -v eliminates methods and other special names
+	# that have multiple dots.
+	pattern='Test([^a-z].*)?'
+	tests=$(6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+	if [ "x$tests" = x ]; then
+		echo 'gotest: error: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
+		exit 2
+	fi
+
 	# package spec
 	echo 'package main'
 	echo
 	# imports
-	echo 'import "'$importpath'"'
+	if echo "$tests" | egrep -v '_test\.' >/dev/null; then
+		echo 'import "'$importpath'"'
+	fi
 	if $havex; then
 		echo 'import "./_xtest_"'
 	fi
@@ -98,20 +110,10 @@ importpath=$(make -s importpath)
 	# test array
 	echo
 	echo 'var tests = []testing.Test {'
-
-	# test functions are named TestFoo
-	# the grep -v eliminates methods and other special names
-	# that have multiple dots.
-	pattern='Test([^a-z].*)?'
-	tests=$(6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
-	if [ "x$tests" = x ]; then
-		echo 'gotest: warning: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
-	else
-		for i in $tests
-		do
-			echo '	testing.Test{ "'$i'", '$i' },'
-		done
-	fi
+	for i in $tests
+	do
+		echo '	testing.Test{ "'$i'", '$i' },'
+	done
 	echo '}'
 	# body
 	echo

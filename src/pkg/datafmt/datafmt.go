@@ -203,15 +203,12 @@ package datafmt
 
 import (
 	"bytes";
-	"container/vector";
 	"fmt";
 	"go/token";
 	"io";
 	"os";
 	"reflect";
 	"runtime";
-	"strconv";
-	"strings";
 )
 
 

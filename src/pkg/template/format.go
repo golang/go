@@ -10,7 +10,6 @@ import (
 	"bytes";
 	"fmt";
 	"io";
-	"reflect";
 	"strings";
 )
 

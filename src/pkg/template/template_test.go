@@ -9,8 +9,6 @@ import (
 	"container/vector";
 	"fmt";
 	"io";
-	"os";
-	"reflect";
 	"testing";
 )
 

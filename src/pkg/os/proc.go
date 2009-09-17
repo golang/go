@@ -6,10 +6,7 @@
 
 package os
 
-import (
-	"syscall";
-	"unsafe";
-)
+import "syscall"
 
 var Args []string;	// provided by runtime
 var Envs []string;	// provided by runtime

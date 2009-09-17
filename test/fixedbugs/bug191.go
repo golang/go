@@ -9,5 +9,8 @@ package main
 import . "./a"
 import . "./b"
 
+var _ T
+var _ V
+
 func main() {
 }

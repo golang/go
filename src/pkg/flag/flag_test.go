@@ -6,7 +6,6 @@ package flag_test
 
 import (
 	. "flag";
-	"fmt";
 	"testing";
 )
 

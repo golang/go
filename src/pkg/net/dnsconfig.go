@@ -6,11 +6,7 @@
 
 package net
 
-import (
-	"io";
-	"os";
-	"strconv";
-)
+import "os"
 
 type _DNS_Config struct {
 	servers []string;	// servers to use

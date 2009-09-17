@@ -6,13 +6,10 @@ package doc
 
 import (
 	"container/vector";
-	"fmt";
 	"go/ast";
 	"go/token";
-	"io";
 	"regexp";
 	"sort";
-	"strings";
 )
 
 

@@ -7,7 +7,6 @@
 package doc
 
 import (
-	"fmt";
 	"go/ast";
 	"io";
 	"once";

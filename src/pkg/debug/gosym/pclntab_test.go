@@ -6,8 +6,6 @@ package gosym
 
 import (
 	"debug/elf";
-	"exec";
-	"io";
 	"os";
 	"testing";
 	"syscall";

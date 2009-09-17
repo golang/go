@@ -6,6 +6,7 @@
 
 package main
 import os "os"
+type _ os.Error
 func f() (os int) {
 	 // In the next line "os" should refer to the result variable, not
 	 // to the package.

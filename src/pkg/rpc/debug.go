@@ -11,10 +11,7 @@ package rpc
 
 import (
 	"fmt";
-	"gob";
 	"http";
-	"io";
-	"log";
 	"os";
 	"sort";
 	"template";

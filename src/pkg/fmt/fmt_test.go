@@ -10,7 +10,6 @@ import (
 	"math";
 	"strings";
 	"testing";
-	"unsafe";
 )
 
 func TestFmtInterface(t *testing.T) {

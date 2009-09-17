@@ -6,7 +6,6 @@ package tar
 
 import (
 	"bytes";
-	"fmt";
 	"io";
 	"os";
 	"reflect";

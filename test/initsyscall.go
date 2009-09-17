@@ -12,7 +12,6 @@
 
 package main
 
-import "log"
 import "time"
 
 func f() {

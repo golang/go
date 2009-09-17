@@ -4,11 +4,6 @@
 
 package time
 
-import (
-	"syscall";
-	"unsafe";
-)
-
 // TODO(rsc): This implementation of Tick is a
 // simple placeholder.  Eventually, there will need to be
 // a single central time server no matter how many tickers

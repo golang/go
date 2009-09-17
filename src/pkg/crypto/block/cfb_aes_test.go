@@ -14,7 +14,6 @@ import (
 	"bytes";
 	"crypto/aes";
 	"io";
-	"os";
 	"testing";
 )
 

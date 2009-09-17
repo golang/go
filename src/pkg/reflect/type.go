@@ -7,7 +7,6 @@ package reflect
 import (
 	"runtime";
 	"strconv";
-	"strings";
 	"unsafe";
 )
 

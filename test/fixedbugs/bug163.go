@@ -6,8 +6,6 @@
 
 package main
 
-import "fmt"
-
 func main() {
 	x⊛y := 1;	// ERROR "identifier"
 }

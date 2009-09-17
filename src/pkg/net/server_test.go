@@ -6,7 +6,6 @@ package net
 
 import (
 	"io";
-	"os";
 	"strings";
 	"syscall";
 	"testing";

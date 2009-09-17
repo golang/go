@@ -11,7 +11,6 @@ import (
 	"bytes";
 	"fmt";
 	"http";
-	"io";
 	"log";
 	"strconv";
 	"sync";

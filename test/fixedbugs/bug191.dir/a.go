@@ -7,3 +7,6 @@ package a
 func init() {
 	println("a");
 }
+
+type T int;
+
