@@ -4,9 +4,7 @@
 
 package ast
 
-import (
-	"go/token";
-)
+import "go/token";
 
 
 func filterIdentList(list []*Ident) []*Ident {
@@ -38,7 +36,7 @@ func isExportedType(typ Expr) bool {
 }
 
 
-func filterFieldList(list []*Field) []*Field {
+func filterFieldList(list []*Field, incomplete *bool) []*Field {
 	j := 0;
 	for _, f := range list {
 		exported := false;
@@ -51,7 +49,11 @@ func filterFieldList(list []*Field) []*Field {
 			// type information.)
 			exported = isExportedType(f.Type);
 		} else {
+			n := len(f.Names);
 			f.Names = filterIdentList(f.Names);
+			if len(f.Names) < n {
+				*incomplete = true;
+			}
 			exported = len(f.Names) > 0;
 		}
 		if exported {
@@ -60,11 +62,8 @@ func filterFieldList(list []*Field) []*Field {
 			j++;
 		}
 	}
-	if j > 0 && j < len(list) {
-		// fields have been stripped but there is at least one left;
-		// add a '...' anonymous field instead
-		list[j] = &Field{nil, nil, &Ellipsis{}, nil, nil};
-		j++;
+	if j < len(list) {
+		*incomplete = true;
 	}
 	return list[0 : j];
 }
@@ -84,30 +83,12 @@ func filterType(typ Expr) {
 	case *ArrayType:
 		filterType(t.Elt);
 	case *StructType:
-		// don't change if empty struct
-		if len(t.Fields) > 0 {
-			t.Fields = filterFieldList(t.Fields);
-			if len(t.Fields) == 0 {
-				// all fields have been stripped - make look like forward-decl
-				t.Lbrace = noPos;
-				t.Fields = nil;
-				t.Rbrace = noPos;
-			}
-		}
+		t.Fields = filterFieldList(t.Fields, &t.Incomplete);
 	case *FuncType:
 		filterParamList(t.Params);
 		filterParamList(t.Results);
 	case *InterfaceType:
-		// don't change if empty interface
-		if len(t.Methods) > 0 {
-			t.Methods = filterFieldList(t.Methods);
-			if len(t.Methods) == 0 {
-				// all methods have been stripped - make look like forward-decl
-				t.Lbrace = noPos;
-				t.Methods = nil;
-				t.Rbrace = noPos;
-			}
-		}
+		t.Methods = filterFieldList(t.Methods, &t.Incomplete);
 	case *MapType:
 		filterType(t.Key);
 		filterType(t.Value);

@@ -83,12 +83,12 @@ type CommentGroup struct {
 // Expressions and types
 
 // A Field represents a Field declaration list in a struct type,
-// a method in an interface type, or a parameter/result declaration
+// a method list in an interface type, or a parameter/result declaration
 // in a signature.
 //
 type Field struct {
 	Doc *CommentGroup;  // associated documentation; or nil
-	Names []*Ident;  // field/method/parameter names; nil if anonymous field
+	Names []*Ident;  // field/method/parameter names; or nil if anonymous field
 	Type Expr;  // field/method/parameter type
 	Tag []*BasicLit;  // field tag; or nil
 	Comment *CommentGroup;  // line comments; or nil
@@ -249,8 +249,9 @@ type (
 	StructType struct {
 		token.Position;  // position of "struct" keyword
 		Lbrace token.Position;  // position of "{"
-		Fields []*Field;  // list of field declarations; nil if forward declaration
+		Fields []*Field;  // list of field declarations
 		Rbrace token.Position;  // position of "}"
+		Incomplete bool;  // true if (source) fields are missing in the Fields list
 	};
 
 	// Pointer types are represented via StarExpr nodes.
@@ -266,8 +267,9 @@ type (
 	InterfaceType struct {
 		token.Position;  // position of "interface" keyword
 		Lbrace token.Position;  // position of "{"
-		Methods []*Field; // list of methods; nil if forward declaration
+		Methods []*Field; // list of methods
 		Rbrace token.Position;  // position of "}"
+		Incomplete bool;  // true if (source) methods are missing in the Methods list
 	};
 
 	// A MapType node represents a map type.

@@ -15,9 +15,47 @@ const (
 )
 
 
-// The T type.
-type T struct {
-	a, b, c int  // 3 fields
+// The SZ struct; it is empty.
+type SZ struct {}
+
+// The S0 struct; no field is exported.
+type S0 struct {
+	int;
+	x, y, z int;  // 3 unexported fields
+}
+
+// The S1 struct; some fields are not exported.
+type S1 struct {
+	S0;
+	A, B, C float;  // 3 exported fields
+	D, b, c int;  // 2 unexported fields
+}
+
+// The S2 struct; all fields are exported.
+type S2 struct {
+	S1;
+	A, B, C float;  // 3 exported fields
+}
+
+// The IZ interface; it is empty.
+type SZ interface {}
+
+// The I0 interface; no method is exported.
+type I0 interface {
+	f, g (x int) int;  // 2 unexported methods
+}
+
+// The I1 interface; some methods are not exported.
+type I1 interface {
+	I0;
+	F, G (x float) float;  // 2 exported methods
+	H, g (x int) int;  // 1 unexported method
+}
+
+// The I2 interface; all methods are exported.
+type I1 interface {
+	I0;
+	F, G (x float) float;  // 2 exported methods
 }
 
 // This comment group should be separated
