@@ -8,7 +8,7 @@ package main
 
 import "fmt"	// fmt
 
-const c0	= 0	// zero
+const c0 = 0	// zero
 const (
 	c1	= iota;	// c1
 	c2;	// c2
@@ -42,20 +42,20 @@ type SZ interface{}
 
 // The I0 interface; no method is exported.
 type I0 interface {
-	f, g	(x int) int;	// 2 unexported methods
+	f, g (x int) int;	// 2 unexported methods
 }
 
 // The I1 interface; some methods are not exported.
 type I1 interface {
 	I0;
-	F, G	(x float) float;	// 2 exported methods
-	H, g	(x int) int;		// 1 unexported method
+	F, G (x float) float;	// 2 exported methods
+	H, g (x int) int;		// 1 unexported method
 }
 
 // The I2 interface; all methods are exported.
 type I1 interface {
 	I0;
-	F, G	(x float) float;	// 2 exported methods
+	F, G (x float) float;	// 2 exported methods
 }
 
 // This comment group should be separated
@@ -70,11 +70,11 @@ var ()
 
 // This comment SHOULD be associated with the next declaration.
 func f0() {
-	const pi		= 3.14;					// pi
-	var s1 struct{}	/* an empty struct */	/* foo */
+	const pi = 3.14;	// pi
+	var s1 struct{}		/* an empty struct */	/* foo */
 	// a struct constructor
 	// --------------------
-	var s2 struct{}	= struct{}{};
+	var s2 struct{} = struct{}{};
 	x := pi;
 }
 //

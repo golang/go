@@ -19,7 +19,7 @@ type untarTest struct {
 	headers	[]*Header;
 }
 
-var untarTests	= []*untarTest{
+var untarTests = []*untarTest{
 	&untarTest{
 		file: "testdata/gnu.tar",
 		headers: []*Header{
@@ -103,7 +103,7 @@ var untarTests	= []*untarTest{
 	},
 }
 
-var facts	= map[int]string{
+var facts = map[int]string{
 	0: "1",
 	1: "1",
 	2: "2",

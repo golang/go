@@ -5,14 +5,14 @@
 package expressions
 
 type T struct {
-	x, y, z	int;
+	x, y, z int;
 }
 
 var (
-	a, b, c, d, e int;
-	longIdentifier1, longIdentifier2, longIdentifier3 int;
-	t0, t1, t2 T;
-	s string;
+	a, b, c, d, e										int;
+	longIdentifier1, longIdentifier2, longIdentifier3	int;
+	t0, t1, t2											T;
+	s													string;
 )
 
 func main() {
