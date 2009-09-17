@@ -238,15 +238,16 @@ restrictlookup(char *name, char *pkg)
 // find all the exported symbols in package opkg
 // and make them available in the current package
 void
-importdot(Sym *opkg)
+importdot(Sym *opkg, Node *pack)
 {
 	Sym *s, *s1;
 	uint32 h;
-	int c;
+	int c, n;
 
 	if(strcmp(opkg->name, package) == 0)
 		return;
 
+	n = 0;
 	c = opkg->name[0];
 	for(h=0; h<NHASH; h++) {
 		for(s = hash[h]; s != S; s = s->link) {
@@ -262,7 +263,14 @@ importdot(Sym *opkg)
 				continue;
 			}
 			s1->def = s->def;
+			s1->def->pack = pack;
+			n++;
 		}
+	}
+	if(n == 0) {
+		// can't possibly be used - there were no symbols
+		print("%L: imported and not used: %s\n", pack->pline, pack->sym->name);
+		nerrors++;
 	}
 }
 
