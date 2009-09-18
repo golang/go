@@ -73,7 +73,7 @@ func TestEncoder(t *testing.T) {
 		encoder := NewEncoder(StdEncoding, bb);
 		encoder.Write(strings.Bytes(p.decoded));
 		encoder.Close();
-		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(bb.Bytes()), p.encoded);
+		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded);
 	}
 }
 
@@ -93,7 +93,7 @@ func TestEncoderBuffering(t *testing.T) {
 		}
 		err := encoder.Close();
 		testEqual(t, "Close gave error %v, want %v", err, os.Error(nil));
-		testEqual(t, "Encoding/%d of %q = %q, want %q", bs, bigtest.decoded, string(bb.Bytes()), bigtest.encoded);
+		testEqual(t, "Encoding/%d of %q = %q, want %q", bs, bigtest.decoded, bb.String(), bigtest.encoded);
 	}
 }
 
@@ -112,7 +112,7 @@ func TestDecode(t *testing.T) {
 
 func TestDecoder(t *testing.T) {
 	for _, p := range pairs {
-		decoder := NewDecoder(StdEncoding, bytes.NewBuffer(strings.Bytes(p.encoded)));
+		decoder := NewDecoder(StdEncoding, strings.NewBuffer(p.encoded));
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
 		count, err := decoder.Read(dbuf);
 		if err != nil && err != os.EOF {
@@ -128,9 +128,8 @@ func TestDecoder(t *testing.T) {
 }
 
 func TestDecoderBuffering(t *testing.T) {
-	input := strings.Bytes(bigtest.encoded);
 	for bs := 1; bs <= 12; bs++ {
-		decoder := NewDecoder(StdEncoding, bytes.NewBuffer(input));
+		decoder := NewDecoder(StdEncoding, strings.NewBuffer(bigtest.encoded));
 		buf := make([]byte, len(bigtest.decoded) + 12);
 		var total int;
 		for total = 0; total < len(bigtest.decoded); {

@@ -60,13 +60,13 @@ func readBytes(buf *Reader) string {
 }
 
 func TestReaderSimple(t *testing.T) {
-	data := strings.Bytes("hello world");
-	b := NewReader(bytes.NewBuffer(data));
+	data := "hello world";
+	b := NewReader(strings.NewBuffer(data));
 	if s := readBytes(b); s != "hello world" {
 		t.Errorf("simple hello world test failed: got %q", s);
 	}
 
-	b = NewReader(newRot13Reader(bytes.NewBuffer(data)));
+	b = NewReader(newRot13Reader(strings.NewBuffer(data)));
 	if s := readBytes(b); s != "uryyb jbeyq" {
 		t.Error("rot13 hello world test failed: got %q", s);
 	}
@@ -148,14 +148,13 @@ func TestReader(t *testing.T) {
 
 	for h := 0; h < len(texts); h++ {
 		text := texts[h];
-		textbytes := strings.Bytes(text);
 		for i := 0; i < len(readMakers); i++ {
 			for j := 0; j < len(bufreaders); j++ {
 				for k := 0; k < len(bufsizes); k++ {
 					readmaker := readMakers[i];
 					bufreader := bufreaders[j];
 					bufsize := bufsizes[k];
-					read := readmaker.fn(bytes.NewBuffer(textbytes));
+					read := readmaker.fn(strings.NewBuffer(text));
 					buf, _ := NewReaderSize(read, bufsize);
 					s := bufreader.fn(buf);
 					if s != text {
@@ -309,7 +308,7 @@ func TestWriteErrors(t *testing.T) {
 
 func TestNewReaderSizeIdempotent(t *testing.T) {
 	const BufSize = 1000;
-	b, err := NewReaderSize(bytes.NewBuffer(strings.Bytes("hello world")), BufSize);
+	b, err := NewReaderSize(strings.NewBuffer("hello world"), BufSize);
 	if err != nil {
 		t.Error("NewReaderSize create fail", err);
 	}

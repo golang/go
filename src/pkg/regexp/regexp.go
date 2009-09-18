@@ -883,7 +883,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 	// Copy the unmatched characters after the last match.
 	io.WriteString(buf, src[lastMatchEnd:len(src)]);
 
-	return string(buf.Bytes());
+	return buf.String();
 }
 
 // ReplaceAll returns a copy of src in which all matches for the Regexp
