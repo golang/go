@@ -464,7 +464,8 @@ clearfat(Node *nl)
 		p->scond |= C_PBIT;
 		pl = p;
 
-		gins(ACMP, &dst, &end);
+		p = gins(ACMP, &dst, N);
+		raddr(&end, p);
 		patch(gbranch(ABNE, T), pl);
 
 		regfree(&end);
