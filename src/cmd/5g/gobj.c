@@ -83,7 +83,7 @@ void
 zaddr(Biobuf *b, Addr *a, int s)
 {
 	int32 l;
-//	Ieee e;
+	uint64 e;
 	int i;
 	char *n;
 
@@ -156,19 +156,18 @@ zaddr(Biobuf *b, Addr *a, int s)
 		break;
 
 	case D_FCONST:
-		fatal("zaddr D_FCONST not implemented");
-		//ieeedtod(&e, a->dval);
-		//l = e.l;
-		//Bputc(b, l);
-		//Bputc(b, l>>8);
-		//Bputc(b, l>>16);
-		//Bputc(b, l>>24);
-		//l = e.h;
-		//Bputc(b, l);
-		//Bputc(b, l>>8);
-		//Bputc(b, l>>16);
-		//Bputc(b, l>>24);
-		//break;
+		ieeedtod(&e, a->dval);
+		l = e;
+		Bputc(b, l);
+		Bputc(b, l>>8);
+		Bputc(b, l>>16);
+		Bputc(b, l>>24);
+		l = e >> 32;
+		Bputc(b, l);
+		Bputc(b, l>>8);
+		Bputc(b, l>>16);
+		Bputc(b, l>>24);
+		break;
 	}
 }
 
@@ -217,7 +216,7 @@ dumpfuncs(void)
 				sf = s->sym;
 				if(sf < 0 || sf >= NSYM)
 					sf = 0;
-				t = p->from.type;
+				t = p->from.name;
 				if(t == D_ADDR)
 					t = p->from.name;
 				if(h[sf].type == t)
@@ -239,7 +238,7 @@ dumpfuncs(void)
 				st = s->sym;
 				if(st < 0 || st >= NSYM)
 					st = 0;
-				t = p->to.type;
+				t = p->to.name;
 				if(t == D_ADDR)
 					t = p->to.name;
 				if(h[st].type == t)
