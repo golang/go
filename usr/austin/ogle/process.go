@@ -149,11 +149,17 @@ func NewProcess(proc ptrace.Process, arch Arch, syms *sym.GoSymTable) (*Process,
 	if err != nil {
 		return nil, err;
 	}
-	p.selectSomeGoroutine();
 
 	// Create internal breakpoints to catch new and exited goroutines
 	p.OnBreakpoint(ptrace.Word(p.sys.newprocreadylocked.Entry())).(*breakpointHook).addHandler(readylockedBP, true);
 	p.OnBreakpoint(ptrace.Word(p.sys.goexit.Entry())).(*breakpointHook).addHandler(goexitBP, true);
+
+	// Select current frames
+	for _, g := range p.goroutines {
+		g.resetFrame();
+	}
+
+	p.selectSomeGoroutine();
 
 	return p, nil;
 }
@@ -243,9 +249,9 @@ func (p *Process) selectSomeGoroutine() {
 	// Once we have friendly goroutine ID's, there might be a more
 	// reasonable behavior for this.
 	p.curGoroutine = nil;
-	for _, t := range p.goroutines {
-		if !t.isG0() {
-			p.curGoroutine = t;
+	for _, g := range p.goroutines {
+		if !g.isG0() && g.frame != nil {
+			p.curGoroutine = g;
 			return;
 		}
 	}
@@ -486,8 +492,8 @@ func (p *Process) ContWait() os.Error {
 		if err != nil {
 			return err;
 		}
-		for _, t := range p.goroutines {
-			t.resetFrame();
+		for _, g := range p.goroutines {
+			g.resetFrame();
 		}
 		p.pending, err = p.causesToEvents();
 		if err != nil {

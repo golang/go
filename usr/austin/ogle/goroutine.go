@@ -41,7 +41,6 @@ func (t *Goroutine) resetFrame() (err os.Error) {
 
 // Out selects the caller frame of the current frame.
 func (t *Goroutine) Out() os.Error {
-	// TODO(austin) Outer can abort
 	f, err := t.frame.Outer();
 	if f != nil {
 		t.frame = f;
