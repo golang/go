@@ -21,6 +21,14 @@ func (e RemoteMismatchError) String() string {
 	return string(e);
 }
 
+// A ReadOnlyError occurs when attempting to set or assign to a
+// read-only value.
+type ReadOnlyError string
+
+func (e ReadOnlyError) String() string {
+	return string(e);
+}
+
 // A maker is a function that converts a remote address into an
 // interpreter Value.
 type maker func(remote) eval.Value
@@ -351,7 +359,7 @@ func (v remoteString) Set(t *eval.Thread, x string) {
 func (v remoteString) aSet(a aborter, x string) {
 	// TODO(austin) This isn't generally possible without the
 	// ability to allocate remote memory.
-	a.Abort(RemoteMismatchError("remote strings cannot be assigned to"));
+	a.Abort(ReadOnlyError("remote strings cannot be assigned to"));
 }
 
 func mkString(r remote) eval.Value {
