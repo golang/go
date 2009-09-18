@@ -3,7 +3,11 @@
 // license that can be found in the LICENSE file.
 
 /*
-gcc -gdwarf-2 -c typedef.c && gcc -gdwarf-2 -o typedef.elf typedef.o
+Linux ELF:
+gcc -gdwarf-2 -m64 -c typedef.c && gcc -gdwarf-2 -m64 -o typedef.elf typedef.o
+
+OS X Mach-O:
+gcc -gdwarf-2 -m64 -c typedef.c -o typedef.macho
 */
 
 typedef volatile int* t_ptr_volatile_int;

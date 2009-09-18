@@ -7,6 +7,7 @@ package elf
 
 import (
 	"debug/binary";
+	"debug/dwarf";
 	"fmt";
 	"io";
 	"os";
@@ -329,4 +330,27 @@ func (f *File) Section(name string) *Section {
 		}
 	}
 	return nil;
+}
+
+func (f *File) DWARF() (*dwarf.Data, os.Error) {
+	// There are many other DWARF sections, but these
+	// are the required ones, and the debug/dwarf package
+	// does not use the others, so don't bother loading them.
+	var names = [...]string{"abbrev", "info", "str"};
+	var dat [len(names)][]byte;
+	for i, name := range names {
+		name = ".debug_" + name;
+		s := f.Section(name);
+		if s == nil {
+			continue;
+		}
+		b, err := s.Data();
+		if err != nil && uint64(len(b)) < s.Size {
+			return nil, err;
+		}
+		dat[i] = b;
+	}
+
+	abbrev, info, str := dat[0], dat[1], dat[2];
+	return dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str);
 }

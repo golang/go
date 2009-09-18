@@ -33,6 +33,7 @@ DIRS=\
 	datafmt\
 	debug/binary\
 	debug/dwarf\
+	debug/macho\
 	debug/elf\
 	debug/gosym\
 	debug/proc\

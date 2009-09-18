@@ -103,7 +103,7 @@ type ArrayType struct {
 	CommonType;
 	Type Type;
 	StrideBitSize int64;	// if > 0, number of bits to hold each element
-	Count int64;
+	Count int64;	// if == -1, an incomplete array, like char x[].
 }
 
 func (t *ArrayType) String() string {
@@ -111,8 +111,6 @@ func (t *ArrayType) String() string {
 }
 
 // A VoidType represents the C void type.
-// It is only used as the subtype for a pointer:
-// a FuncType that returns no value has a nil ReturnType.
 type VoidType struct {
 	CommonType;
 }
@@ -306,8 +304,8 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 	typeOf := func(e *Entry) Type {
 		toff, ok := e.Val(AttrType).(Offset);
 		if !ok {
-			err = DecodeError{"info", e.Offset, "missing type attribute"};
-			return nil;
+			// It appears that no Type means "void".
+			return new(VoidType);
 		}
 		var t Type;
 		if t, err = d.Type(toff); err != nil {
@@ -343,8 +341,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 			case TagSubrangeType:
 				max, ok := kid.Val(AttrUpperBound).(int64);
 				if !ok {
-					err = DecodeError{"info", kid.Offset, "missing upper bound"};
-					goto Error;
+					max = -2;	 // Count == -1, as in x[].
 				}
 				if ndim == 0 {
 					t.Count = max+1;
@@ -548,10 +545,8 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		t := new(FuncType);
 		typ = t;
 		d.typeCache[off] = t;
-		if e.Val(AttrType) != nil {
-			if t.ReturnType = typeOf(e); err != nil {
-				goto Error;
-			}
+		if t.ReturnType = typeOf(e); err != nil {
+			goto Error;
 		}
 		t.ParamType = make([]Type, 0, 8);
 		for kid := next(); kid != nil; kid = next() {
