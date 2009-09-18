@@ -149,6 +149,7 @@ void	datastring(char*, int, Addr*);
  * list.c
  */
 int	Aconv(Fmt*);
+int	Cconv(Fmt*);
 int	Dconv(Fmt*);
 int	Mconv(Fmt*);
 int	Pconv(Fmt*);

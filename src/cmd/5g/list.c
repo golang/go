@@ -38,7 +38,8 @@ listinit(void)
 {
 
 	fmtinstall('A', Aconv);		// as
-	fmtinstall('P', Pconv);		// Prog*
+	fmtinstall('C', Cconv);		// conditional execution bit
+	fmtinstall('P', Pconv);			// Prog*
 	fmtinstall('D', Dconv);		// Addr*
 	fmtinstall('Y', Yconv);		// sconst
 	fmtinstall('R', Rconv);		// register
@@ -55,20 +56,22 @@ Pconv(Fmt *fp)
 	sconsize = 8;
 	switch(p->as) {
 	default:
-		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%D",
-			p->loc, p->lineno, p->as, &p->from, &p->to);
+		if(p->reg == NREG)
+			snprint(str, sizeof(str), "%.4ld (%L) %-7A%C	%D,%D", 
+				p->loc, p->lineno, p->as, p->scond, &p->from, &p->to);
+		else if (p->from.type != D_FREG)
+			snprint(str, sizeof(str), "%.4ld (%L) %-7A%C	%D,R%d,%D", 
+				p->loc, p->lineno, p->as, p->scond, &p->from, p->reg, &p->to);
+		else
+			snprint(str, sizeof(str), "%.4ld (%L) %-7A%C	%D,F%d,%D",
+				p->loc, p->lineno, p->as, p->scond, &p->from, p->reg, &p->to);
 		break;
 
 	case ADATA:
 	case AINIT:
 	case ADYNT:
-		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D/%d,%D",
+		snprint(str, sizeof(str), "%.4ld (%L) %-7A	%D/%d,%D",
 			p->loc, p->lineno, p->as, &p->from, p->reg, &p->to);
-		break;
-
-	case ATEXT:
-		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D,%lD",
-			p->loc, p->lineno, p->as, &p->from, &p->to);
 		break;
 	}
 	return fmtstrcpy(fp, str);
@@ -77,33 +80,24 @@ Pconv(Fmt *fp)
 int
 Dconv(Fmt *fp)
 {
-	char str[100]; //, s[100];
+	char str[STRINGSZ];
 	char *op;
 	Addr *a;
 	int i;
 	int32 v;
-//	uint32 d1, d2;
 
 	a = va_arg(fp->args, Addr*);
 	i = a->type;
 	switch(i) {
 
 	default:
-		if(a->type == D_OREG)
-			snprint(str, sizeof(str), "$%d(R%d)", a->offset, a->reg);
-		else
-			snprint(str, sizeof(str), "R%d", a->reg);
+		sprint(str, "GOK-type(%d)", a->type);
 		break;
 
 	case D_NONE:
 		str[0] = 0;
-		break;
-
-	case D_BRANCH:
-		if(a->sym != S)
-			sprint(str, "%s+%d(APC)", a->sym->name, a->offset);
-		else
-			sprint(str, "%d(APC)", a->offset);
+		if(a->name != D_NONE || a->reg != NREG || a->sym != S)
+			sprint(str, "%M(R%d)(NONE)", a, a->reg);
 		break;
 
 	case D_CONST:
@@ -126,6 +120,44 @@ Dconv(Fmt *fp)
 			sprint(str, "R%d%c%c%d", v&15, op[0], op[1], (v>>7)&31);
 		if(a->reg != NREG)
 			sprint(str+strlen(str), "(R%d)", a->reg);
+		break;
+
+	case D_OCONST:
+		sprint(str, "$*$%M", a);
+		if(a->reg != NREG)
+			sprint(str, "%M(R%d)(CONST)", a, a->reg);
+		break;
+
+	case D_OREG:
+		if(a->reg != NREG)
+			sprint(str, "%M(R%d)", a, a->reg);
+		else
+			sprint(str, "%M", a);
+		break;
+
+	case D_REG:
+		sprint(str, "R%d", a->reg);
+		if(a->name != D_NONE || a->sym != S)
+			sprint(str, "%M(R%d)(REG)", a, a->reg);
+		break;
+
+	case D_REGREG:
+		sprint(str, "(R%d,R%d)", a->reg, (int)a->offset);
+		if(a->name != D_NONE || a->sym != S)
+			sprint(str, "%M(R%d)(REG)", a, a->reg);
+		break;
+
+	case D_FREG:
+		sprint(str, "F%d", a->reg);
+		if(a->name != D_NONE || a->sym != S)
+			sprint(str, "%M(R%d)(REG)", a, a->reg);
+		break;
+
+	case D_BRANCH:
+		if(a->sym != S)
+			sprint(str, "%s+%d(APC)", a->sym->name, a->offset);
+		else
+			sprint(str, "%d(APC)", a->offset);
 		break;
 
 	case D_FCONST:
@@ -158,6 +190,44 @@ Aconv(Fmt *fp)
 	return fmtstrcpy(fp, anames[i]);
 }
 
+char*	strcond[16] =
+{
+	".EQ",
+	".NE",
+	".HS",
+	".LO",
+	".MI",
+	".PL",
+	".VS",
+	".VC",
+	".HI",
+	".LS",
+	".GE",
+	".LT",
+	".GT",
+	".LE",
+	"",
+	".NV"
+};
+
+int
+Cconv(Fmt *fp)
+{
+	char s[20];
+	int c;
+
+	c = va_arg(fp->args, int);
+	strcpy(s, strcond[c & C_SCOND]);
+	if(c & C_SBIT)
+		strcat(s, ".S");
+	if(c & C_PBIT)
+		strcat(s, ".P");
+	if(c & C_WBIT)
+		strcat(s, ".W");
+	if(c & C_UBIT)		/* ambiguous with FBIT */
+		strcat(s, ".U");
+	return fmtstrcpy(fp, s);
+}
 
 int
 Yconv(Fmt *fp)
@@ -223,6 +293,14 @@ Mconv(Fmt *fp)
 
 	a = va_arg(fp->args, Addr*);
 	switch(a->name) {
+	default:
+		snprint(str, sizeof(str),  "GOK-name(%d)", a->name);
+		break;
+
+	case D_NONE:
+		snprint(str, sizeof(str), "%d", a->offset);
+		break;
+
 	case D_EXTERN:
 		snprint(str, sizeof(str), "%S+%d(SB)", a->sym, a->offset);
 		break;
