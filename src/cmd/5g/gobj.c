@@ -427,7 +427,6 @@ datagostring(Strlit *sval, Addr *a)
 
 	// $string len+ptr
 	datastring(sval->s, sval->len, &ap);
-	ap.name = ap.type;
 	ap.type = D_CONST;
 	ap.etype = TINT32;
 
