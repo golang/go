@@ -427,9 +427,10 @@ datagostring(Strlit *sval, Addr *a)
 
 	// $string len+ptr
 	datastring(sval->s, sval->len, &ap);
-
+	ap.name = ap.type;
 	ap.type = D_CONST;
 	ap.etype = TINT32;
+
 	wi = types[TUINT32]->width;
 	wp = types[tptr]->width;
 
@@ -470,7 +471,7 @@ datagostring(Strlit *sval, Addr *a)
 	p->to.offset = sval->len;
 
 	p = pc;
-	ggloblsym(ao.sym, types[TSTRING]->width, ao.type == D_EXTERN);
+	ggloblsym(ao.sym, types[TSTRING]->width, ao.name == D_EXTERN);
 	if(ao.name == D_STATIC)
 		p->from.name = D_STATIC;
 	text();
@@ -549,7 +550,7 @@ dgostrlitptr(Sym *s, int off, Strlit *lit)
 	p->from.name = D_EXTERN;
 	p->from.sym = s;
 	p->from.offset = off;
-	p->from.reg = widthptr;
+	p->reg = widthptr;
 	datagostring(lit, &p->to);
 	p->to.type = D_CONST;
 	p->to.etype = TINT32;
