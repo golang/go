@@ -1,0 +1,1358 @@
+<h1>Let's Go</h1>
+<p>
+Rob Pike
+<p>
+<hr>
+(March 18, 2009)
+<p>
+<p>
+This document is a tutorial introduction to the basics of the Go systems programming
+language, intended for programmers familiar with C or C++. It is not a comprehensive
+guide to the language; at the moment the document closest to that is the draft
+specification:
+<p>
+<pre>
+    /doc/go_spec.html
+
+</pre>
+To check out the compiler and tools and be ready to run Go programs, see
+<p>
+<pre>
+    /doc/go_setup.html
+
+</pre>
+The presentation proceeds through a series of modest programs to illustrate
+key features of the language.  All the programs work (at time of writing) and are
+checked in at
+<p>
+<pre>
+    /doc/progs
+
+</pre>
+Program snippets are annotated with the line number in the original file; for
+cleanliness, blank lines remain blank.
+<p>
+<h2>Hello, World</h2>
+<p>
+Let's start in the usual way:
+<p>
+<pre> <!-- progs/helloworld.go -->
+01    package main
+<p>
+03    import fmt &quot;fmt&quot;  // Package implementing formatted I/O.
+<p>
+05    func main() {
+06        fmt.Printf(&quot;Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n&quot;);
+07    }
+</pre>
+<p>
+Every Go source file declares, using a <code>package</code> statement, which package it's part of.
+The <code>main</code> package's <code>main</code> function is where the program starts running (after
+any initialization).  It may also import other packages to use their facilities.
+This program imports the package <code>fmt</code> to gain access to
+our old, now capitalized and package-qualified friend, <code>fmt.Printf</code>.
+<p>
+Function declarations are introduced with the <code>func</code> keyword.
+<p>
+Notice that string constants can contain Unicode characters, encoded in UTF-8.
+Go is defined to accept UTF-8 input.  Strings are arrays of bytes, usually used
+to store Unicode strings represented in UTF-8.
+<p>
+The comment convention is the same as in C++:
+<p>
+<pre>
+    /* ... */
+    // ...
+
+</pre>
+Later we'll have much more to say about printing.
+<p>
+<h2>Echo</h2>
+<p>
+Next up, here's a version of the Unix utility <code>echo(1)</code>:
+<p>
+<pre> <!-- progs/echo.go -->
+01    package main
+<p>
+03    import (
+04        &quot;os&quot;;
+05        &quot;flag&quot;;
+06    )
+<p>
+08    var n_flag = flag.Bool(&quot;n&quot;, false, &quot;don't print final newline&quot;)
+<p>
+10    const (
+11        kSpace = &quot; &quot;;
+12        kNewline = &quot;\n&quot;;
+13    )
+<p>
+15    func main() {
+16        flag.Parse();   // Scans the arg list and sets up flags
+17        var s string = &quot;&quot;;
+18        for i := 0; i &lt; flag.NArg(); i++ {
+19            if i &gt; 0 {
+20                s += kSpace
+21            }
+22            s += flag.Arg(i)
+23        }
+24        if !*n_flag {
+25            s += kNewline
+26        }
+27        os.Stdout.WriteString(s);
+28    }
+</pre>
+<p>
+This program is small but it's doing a number of new things.  In the last example,
+we saw <code>func</code> introducing a function.  The keywords <code>var</code>, <code>const</code>, and <code>type</code>
+(not used yet) also introduce declarations, as does <code>import</code>.
+Notice that we can group declarations of the same sort into
+parenthesized, semicolon-separated lists if we want, as on lines 3-6 and 10-13.
+But it's not necessary to do so; we could have said
+<p>
+<pre>
+    const Space = " "
+    const Newline = "\n"
+
+</pre>
+Semicolons aren't needed here; in fact, semicolons are unnecessary after any
+top-level declaration, even though they are needed as separators <i>within</i>
+a parenthesized list of declarations.
+<p>
+This program imports the <code>&quot;os&quot;</code> package to access its <code>Stdout</code> variable, of type
+<code>*os.File</code>.  The <code>import</code> statement is actually a declaration: in its general form,
+as used in our ``hello world'' program,
+it names the identifier (<code>fmt</code>)
+that will be used to access members of the package imported from the file (<code>&quot;fmt&quot;</code>),
+found in the current directory or in a standard location.
+In this program, though, we've dropped the explicit name from the imports; by default,
+packages are imported using the name defined by the imported package,
+which by convention is of course the file name itself.  Our ``hello world'' program
+could have said just <code>import &quot;fmt&quot;</code>.
+<p>
+You can specify your
+own import names if you want but it's only necessary if you need to resolve
+a naming conflict.
+<p>
+Given <code>os.Stdout</code> we can use its <code>WriteString</code> method to print the string.
+<p>
+Having imported the <code>flag</code> package, line 8 creates a global variable to hold
+the value of echo's <code>-n</code> flag. The variable <code>n_flag</code> has type <code>*bool</code>, pointer
+to <code>bool</code>.
+<p>
+In <code>main.main</code>, we parse the arguments (line 16) and then create a local
+string variable we will use to build the output.
+<p>
+The declaration statement has the form
+<p>
+<pre>
+    var s string = "";
+
+</pre>
+This is the <code>var</code> keyword, followed by the name of the variable, followed by
+its type, followed by an equals sign and an initial value for the variable.
+<p>
+Go tries to be terse, and this declaration could be shortened.  Since the
+string constant is of type string, we don't have to tell the compiler that.
+We could write
+<p>
+<pre>
+    var s = "";
+
+</pre>
+or we could go even shorter and write the idiom
+<p>
+<pre>
+    s := "";
+
+</pre>
+The <code>:=</code> operator is used a lot in Go to represent an initializing declaration.
+(For those who know Limbo, its <code>:=</code> construct is the same, but notice
+that Go has no colon after the name in a full <code>var</code> declaration.
+Also, for simplicity of parsing, <code>:=</code> only works inside functions, not at
+the top level.)
+There's one in the <code>for</code> clause on the next line:
+<p>
+<pre> <!-- progs/echo.go /for/ -->
+18        for i := 0; i &lt; flag.NArg(); i++ {
+</pre>
+<p>
+The <code>flag</code> package has parsed the arguments and left the non-flag arguments
+in a list that can be iterated over in the obvious way.
+<p>
+The Go <code>for</code> statement differs from that of C in a number of ways.  First,
+it's the only looping construct; there is no <code>while</code> or <code>do</code>.  Second,
+there are no parentheses on the clause, but the braces on the body
+are mandatory.  The same applies to the <code>if</code> and <code>switch</code> statements.
+Later examples will show some other ways <code>for</code> can be written.
+<p>
+The body of the loop builds up the string <code>s</code> by appending (using <code>+=</code>)
+the flags and separating spaces. After the loop, if the <code>-n</code> flag is not
+set, it appends a newline, and then writes the result.
+<p>
+Notice that <code>main.main</code> is a niladic function with no return type.
+It's defined that way.  Falling off the end of <code>main.main</code> means
+''success''; if you want to signal an erroneous return, call
+<p>
+<pre>
+    os.Exit(1)
+
+</pre>
+The <code>os</code> package contains other essentials for getting
+started; for instance, <code>os.Args</code> is an array used by the
+<code>flag</code> package to access the command-line arguments.
+<p>
+<h2>An Interlude about Types</h2>
+<p>
+Go has some familiar types such as <code>int</code> and <code>float</code>, which represent
+values of the ''appropriate'' size for the machine. It also defines
+specifically-sized types such as <code>int8</code>, <code>float64</code>, and so on, plus
+unsigned integer types such as <code>uint</code>, <code>uint32</code>, etc.  These are
+distinct types; even if <code>int</code> and <code>int32</code> are both 32 bits in size,
+they are not the same type.  There is also a <code>byte</code> synonym for
+<code>uint8</code>, which is the element type for strings.
+<p>
+Speaking of <code>string</code>, that's a built-in type as well.  Strings are
+<i>immutable values</i> -- they are not just arrays of <code>byte</code> values.
+Once you've built a string <i>value</i>, you can't change it, although
+of course you can change a string <i>variable</i> simply by
+reassigning it.  This snippet from <code>strings.go</code> is legal code:
+<p>
+<pre> <!-- progs/strings.go /hello/ /ciao/ -->
+07        s := &quot;hello&quot;;
+08        if s[1] != 'e' { os.Exit(1) }
+09        s = &quot;good bye&quot;;
+10        var p *string = &amp;s;
+11        *p = &quot;ciao&quot;;
+</pre>
+<p>
+However the following statements are illegal because they would modify
+a <code>string</code> value:
+<p>
+<pre>
+    s[0] = 'x';
+    (*p)[1] = 'y';
+
+</pre>
+In C++ terms, Go strings are a bit like <code>const strings</code>, while pointers
+to strings are analogous to <code>const string</code> references.
+<p>
+Yes, there are pointers.  However, Go simplifies their use a little;
+read on.
+<p>
+Arrays are declared like this:
+<p>
+<pre>
+    var array_of_int [10]int;
+
+</pre>
+Arrays, like strings, are values, but they are mutable. This differs
+from C, in which <code>array_of_int</code> would be usable as a pointer to <code>int</code>.
+In Go, since arrays are values, it's meaningful (and useful) to talk
+about pointers to arrays.
+<p>
+The size of the array is part of its type; however, one can declare
+a <i>slice</i> variable, to which one can assign a pointer to
+any array
+with the same element type or - much more commonly - a <i>slice
+expression</i> of the form <code>a[low : high]</code>, representing
+the subarray indexed by <code>low</code> through <code>high-1</code>.
+Slices look a lot like arrays but have
+no explicit size (<code>[]</code> vs. <code>[10]</code>) and they reference a segment of
+an underlying, often anonymous, regular array.  Multiple slices
+can share data if they represent pieces of the same array;
+multiple arrays can never share data.
+<p>
+Slices are actually much more common in Go programs than
+regular arrays; they're more flexible, have reference semantics,
+and are efficient.  What they lack is the precise control of storage
+layout of a regular array; if you want to have a hundred elements
+of an array stored within your structure, you should use a regular
+array.
+<p>
+When passing an array to a function, you almost always want
+to declare the formal parameter to be a slice.  When you call
+the function, take the address of the array and  Go will automatically
+create (efficiently) a slice reference and pass that.
+<p>
+Using slices one can write this function (from <code>sum.go</code>):
+<p>
+<pre> <!-- progs/sum.go /sum/ /^}/ -->
+05    func sum(a []int) int {   // returns an int
+06        s := 0;
+07        for i := 0; i &lt; len(a); i++ {
+08            s += a[i]
+09        }
+10        return s
+11    }
+</pre>
+<p>
+and invoke it like this:
+<p>
+<pre> <!-- progs/sum.go /1,2,3/ -->
+15        s := sum(&amp;[3]int{1,2,3});  // a slice of the array is passed to sum
+</pre>
+<p>
+Note how the return type (<code>int</code>) is defined for <code>sum()</code> by stating it
+after the parameter list.
+The expression <code>[3]int{1,2,3}</code> -- a type followed by a brace-bounded expression
+-- is a constructor for a value, in this case an array of 3 <code>ints</code>.  Putting an <code>&</code>
+in front gives us the address of a unique instance of the value.  We pass the
+pointer to <code>sum()</code> by (automatically) promoting it to a slice.
+<p>
+If you are creating a regular array but want the compiler to count the
+elements for you, use <code>...</code> as the array size:
+<p>
+<pre>
+    s := sum(&amp;[...]int{1,2,3});
+
+</pre>
+In practice, though, unless you're meticulous about storage layout within a
+data structure, a slice itself - using empty brackets and no <code>&</code> - is all you need:
+<p>
+<pre>
+    s := sum([]int{1,2,3});
+
+</pre>
+There are also maps, which you can initialize like this:
+<p>
+<pre>
+    m := map[string] int {"one":1 , "two":2}
+
+</pre>
+The built-in function <code>len()</code>, which returns number of elements,
+makes its first appearance in <code>sum</code>.  It works on strings, arrays,
+slices, and maps.
+<p>
+<p>
+<h2>An Interlude about Allocation</h2>
+<p>
+Most types in Go are values. If you have an <code>int</code> or a <code>struct</code>
+or an array, assignment
+copies the contents of the object.  To allocate something on the stack,
+just declare a variable.  To allocate it on the heap, use <code>new()</code>, which
+returns a pointer to the allocated storage.
+<p>
+<pre>
+    type T struct { a, b int }
+    var t *T = new(T);
+
+</pre>
+or the more idiomatic
+<p>
+<pre>
+    t := new(T);
+
+</pre>
+Some types - maps, slices, and channels (see below) - have reference semantics.
+If you're holding a slice or a map and you modify its contents, other variables
+referencing the same underlying data will see the modification.  For these three
+types you want to use the built-in function <code>make()</code>:
+<p>
+<pre>
+    m := make(map[string] int);
+
+</pre>
+This statement initializes a new map ready to store entries.
+If you just declare the map, as in
+<p>
+<pre>
+    var m map[string] int;
+
+</pre>
+it creates a <code>nil</code> reference that cannot hold anything. To use the map,
+you must first initialize the reference using <code>make()</code> or by assignment to an
+existing map.
+<p>
+Note that <code>new(T)</code> returns type <code>*T</code> while <code>make(T)</code> returns type
+<code>T</code>.  If you (mistakenly) allocate a reference object with <code>new()</code>,
+you receive a pointer to an uninitialized reference, equivalent to
+declaring an uninitialized variable and taking its address.
+<p>
+<h2>An Interlude about Constants</h2>
+<p>
+Although integers come in lots of sizes in Go, integer constants do not.
+There are no constants like <code>0ll</code> or <code>0x0UL</code>.   Instead, integer
+constants are evaluated as ideal, large-precision values that
+can overflow only when they are assigned to an integer variable with
+too little precision to represent the value.
+<p>
+<pre>
+    const hard_eight = (1 &lt;&lt; 100) &gt;&gt; 97  // legal
+
+</pre>
+There are nuances that deserve redirection to the legalese of the
+language specification but here are some illustrative examples:
+<p>
+<pre>
+    var a uint64 = 0  // a has type uint64, value 0
+    a := uint64(0)    // equivalent; use a "conversion"
+    i := 0x1234       // i gets default type: int
+    var j int = 1e6   // legal - 1000000 is representable in an int
+    x := 1.5          // a float
+    i3div2 := 3/2     // integer division - result is 1
+    f3div2 := 3./2.   // floating point division - result is 1.5
+
+</pre>
+Conversions only work for simple cases such as converting <code>ints</code> of one
+sign or size to another, and between <code>ints</code> and <code>floats</code>, plus a few other
+simple cases.  There are no automatic numeric conversions of any kind in Go,
+other than that of making constants have concrete size and type when
+assigned to a variable.
+<p>
+<h2>An I/O Package</h2>
+<p>
+Next we'll look at a simple package for doing file I/O with the usual
+sort of open/close/read/write interface.  Here's the start of <code>file.go</code>:
+<p>
+<pre> <!-- progs/file.go /package/ /^}/ -->
+01    package file
+<p>
+03    import (
+04        &quot;os&quot;;
+05        &quot;syscall&quot;;
+06    )
+<p>
+08    type File struct {
+09        fd      int;  // file descriptor number
+10        name    string; // file name at Open time
+11    }
+</pre>
+<p>
+The first line declares the name of the package -- <code>file</code> --
+and then we import two packages.  The <code>os</code> package hides the differences
+between various operating systems to give a consistent view of files and
+so on; here we're only going to use its error handling utilities
+and reproduce the rudiments of its file I/O.
+<p>
+The other item is the low-level, external <code>syscall</code> package, which provides
+a primitive interface to the underlying operating system's calls.
+<p>
+Next is a type definition: the <code>type</code> keyword introduces a type declaration,
+in this case a data structure called <code>File</code>.
+To make things a little more interesting, our <code>File</code> includes the name of the file
+that the file descriptor refers to.
+<p>
+Because <code>File</code> starts with a capital letter, the type is available outside the package,
+that is, by users of the package.   In Go the rule about visibility of information is
+simple: if a name (of a top-level type, function, method, constant, variable, or of
+a structure field) is capitalized, users of the package may see it. Otherwise, the
+name and hence the thing being named is visible only inside the package in which
+it is declared.  This is more than a convention; the rule is enforced by the compiler.
+In Go, the term for publicly visible names is ''exported''.
+<p>
+In the case of <code>File</code>, all its fields are lower case and so invisible to users, but we
+will soon give it some exported, upper-case methods.
+<p>
+First, though, here is a factory to create them:
+<p>
+<pre> <!-- progs/file.go /newFile/ /^}/ -->
+13    func newFile(fd int, name string) *File {
+14        if fd &lt; 0 {
+15            return nil
+16        }
+17        return &amp;File{fd, name}
+18    }
+</pre>
+<p>
+This returns a pointer to a new <code>File</code> structure with the file descriptor and name
+filled in.  This code uses Go's notion of a ''composite literal'', analogous to
+the ones used to build maps and arrays, to construct a new heap-allocated
+object.  We could write
+<p>
+<pre>
+    n := new(File);
+    n.fd = fd;
+    n.name = name;
+    return n
+
+</pre>
+but for simple structures like <code>File</code> it's easier to return the address of a nonce
+composite literal, as is done here on line 17.
+<p>
+We can use the factory to construct some familiar, exported variables of type <code>*File</code>:
+<p>
+<pre> <!-- progs/file.go /var/ /^.$/ -->
+20    var (
+21        Stdin  = newFile(0, &quot;/dev/stdin&quot;);
+22        Stdout = newFile(1, &quot;/dev/stdout&quot;);
+23        Stderr = newFile(2, &quot;/dev/stderr&quot;);
+24    )
+</pre>
+<p>
+The <code>newFile</code> function was not exported because it's internal. The proper,
+exported factory to use is <code>Open</code>:
+<p>
+<pre> <!-- progs/file.go /func.Open/ /^}/ -->
+26    func Open(name string, mode int, perm int) (file *File, err os.Error) {
+27        r, e := syscall.Open(name, mode, perm);
+28        if e != 0 {
+29            err = os.Errno(e);
+30        }
+31        return newFile(r, name), err
+32    }
+</pre>
+<p>
+There are a number of new things in these few lines.  First, <code>Open</code> returns
+multiple values, an <code>File</code> and an error (more about errors in a moment).
+We declare the
+multi-value return as a parenthesized list of declarations; syntactically
+they look just like a second parameter list.  The function
+<code>syscall.Open</code>
+also has a multi-value return, which we can grab with the multi-variable
+declaration on line 27; it declares <code>r</code> and <code>e</code> to hold the two values,
+both of type <code>int64</code> (although you'd have to look at the <code>syscall</code> package
+to see that).  Finally, line 28 returns two values: a pointer to the new <code>File</code>
+and the error.  If <code>syscall.Open</code> fails, the file descriptor <code>r</code> will
+be negative and <code>NewFile</code> will return <code>nil</code>.
+<p>
+About those errors:  The <code>os</code> library includes a general notion of an error
+string, maintaining a unique set of errors throughout the program. It's a
+good idea to use its facility in your own interfaces, as we do here, for
+consistent error handling throughout Go code.   In <code>Open</code> we use a
+conversion to <code>os.Errno</code> to translate Unix's integer <code>errno</code> value into
+an error value, which will be stored in a unique instance of type <code>os.Error</code>.
+<p>
+Now that we can build <code>Files</code>, we can write methods for them. To declare
+a method of a type, we define a function to have an explicit receiver
+of that type, placed
+in parentheses before the function name. Here are some methods for <code>*File</code>,
+each of which declares a receiver variable <code>file</code>.
+<p>
+<pre> <!-- progs/file.go /Close/ END -->
+34    func (file *File) Close() os.Error {
+35        if file == nil {
+36            return os.EINVAL
+37        }
+38        e := syscall.Close(file.fd);
+39        file.fd = -1;  // so it can't be closed again
+40        if e != 0 {
+41            return os.Errno(e);
+42        }
+43        return nil
+44    }
+<p>
+46    func (file *File) Read(b []byte) (ret int, err os.Error) {
+47        if file == nil {
+48            return -1, os.EINVAL
+49        }
+50        r, e := syscall.Read(file.fd, b);
+51        if e != 0 {
+52            err = os.Errno(e);
+53        }
+54        return int(r), err
+55    }
+<p>
+57    func (file *File) Write(b []byte) (ret int, err os.Error) {
+58        if file == nil {
+59            return -1, os.EINVAL
+60        }
+61        r, e := syscall.Write(file.fd, b);
+62        if e != 0 {
+63            err = os.Errno(e);
+64        }
+65        return int(r), err
+66    }
+<p>
+68    func (file *File) String() string {
+69        return file.name
+70    }
+</pre>
+<p>
+There is no implicit <code>this</code> and the receiver variable must be used to access
+members of the structure.  Methods are not declared within
+the <code>struct</code> declaration itself.  The <code>struct</code> declaration defines only data members.
+In fact, methods can be created for any type you name, such as an integer or
+array, not just for <code>structs</code>.   We'll see an example with arrays later.
+<p>
+The <code>String</code> method is so called because of printing convention we'll
+describe later.
+<p>
+The methods use the public variable <code>os.EINVAL</code> to return the (<code>os.Error</code>
+version of the) Unix error code <code>EINVAL</code>.  The <code>os</code> library defines a standard
+set of such error values.
+<p>
+We can now use our new package:
+<p>
+<pre> <!-- progs/helloworld3.go -->
+01    package main
+<p>
+03    import (
+04        &quot;./file&quot;;
+05        &quot;fmt&quot;;
+06        &quot;os&quot;;
+07    )
+<p>
+09    func main() {
+10        hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'};
+11        file.Stdout.Write(hello);
+12        file, err := file.Open(&quot;/does/not/exist&quot;,  0,  0);
+13        if file == nil {
+14            fmt.Printf(&quot;can't open file; err=%s\n&quot;,  err.String());
+15            os.Exit(1);
+16        }
+17    }
+</pre>
+<p>
+The import of ''<code>./file</code>'' tells the compiler to use our own package rather than
+something from the directory of installed packages.
+<p>
+Finally we can run the program:
+<p>
+<pre>
+    % helloworld3
+    hello, world
+    can't open file; err=No such file or directory
+    % 
+
+</pre>
+<h2>Rotting cats</h2>
+<p>
+Building on the <code>file</code> package, here's a simple version of the Unix utility <code>cat(1)</code>,
+<code>progs/cat.go</code>:
+<p>
+<pre> <!-- progs/cat.go -->
+01    package main
+<p>
+03    import (
+04        &quot;./file&quot;;
+05        &quot;flag&quot;;
+06        &quot;fmt&quot;;
+07        &quot;os&quot;;
+08    )
+<p>
+10    func cat(f *file.File) {
+11        const NBUF = 512;
+12        var buf [NBUF]byte;
+13        for {
+14            switch nr, er := f.Read(&amp;buf); true {
+15            case nr &lt; 0:
+16                fmt.Fprintf(os.Stderr, &quot;error reading from %s: %s\n&quot;, f.String(), er.String());
+17                os.Exit(1);
+18            case nr == 0:  // EOF
+19                return;
+20            case nr &gt; 0:
+21                if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
+22                    fmt.Fprintf(os.Stderr, &quot;error writing from %s: %s\n&quot;, f.String(), ew.String());
+23                }
+24            }
+25        }
+26    }
+<p>
+28    func main() {
+29        flag.Parse();   // Scans the arg list and sets up flags
+30        if flag.NArg() == 0 {
+31            cat(file.Stdin);
+32        }
+33        for i := 0; i &lt; flag.NArg(); i++ {
+34            f, err := file.Open(flag.Arg(i), 0, 0);
+35            if f == nil {
+36                fmt.Fprintf(os.Stderr, &quot;can't open %s: error %s\n&quot;, flag.Arg(i), err);
+37                os.Exit(1);
+38            }
+39            cat(f);
+40            f.Close();
+41        }
+42    }
+</pre>
+<p>
+By now this should be easy to follow, but the <code>switch</code> statement introduces some
+new features.  Like a <code>for</code> loop, an <code>if</code> or <code>switch</code> can include an
+initialization statement.  The <code>switch</code> on line 14 uses one to create variables
+<code>nr</code> and <code>er</code> to hold the return values from <code>f.Read()</code>.  (The <code>if</code> on line 21
+has the same idea.)  The <code>switch</code> statement is general: it evaluates the cases
+from  top to bottom looking for the first case that matches the value; the
+case expressions don't need to be constants or even integers, as long as
+they all have the same type.
+<p>
+Since the <code>switch</code> value is just <code>true</code>, we could leave it off -- as is also
+the situation
+in a <code>for</code> statement, a missing value means <code>true</code>.  In fact, such a <code>switch</code>
+is a form of <code>if-else</code> chain. While we're here, it should be mentioned that in
+<code>switch</code> statements each <code>case</code> has an implicit <code>break</code>.
+<p>
+Line 21 calls <code>Write()</code> by slicing the incoming buffer, which is itself a slice.
+Slices provide the standard Go way to handle I/O buffers.
+<p>
+Now let's make a variant of <code>cat</code> that optionally does <code>rot13</code> on its input.
+It's easy to do by just processing the bytes, but instead we will exploit
+Go's notion of an <i>interface</i>.
+<p>
+The <code>cat()</code> subroutine uses only two methods of <code>f</code>: <code>Read()</code> and <code>String()</code>,
+so let's start by defining an interface that has exactly those two methods.
+Here is code from <code>progs/cat_rot13.go</code>:
+<p>
+<pre> <!-- progs/cat_rot13.go /type.reader/ /^}/ -->
+22    type reader interface {
+23        Read(b []byte) (ret int, err os.Error);
+24        String() string;
+25    }
+</pre>
+<p>
+Any type that implements the two methods of <code>reader</code> -- regardless of whatever
+other methods the type may also contain -- is said to <i>implement</i> the
+interface.  Since <code>file.File</code> implements these methods, it implements the
+<code>reader</code> interface.  We could tweak the <code>cat</code> subroutine to accept a <code>reader</code>
+instead of a <code>*file.File</code> and it would work just fine, but let's embellish a little
+first by writing a second type that implements <code>reader</code>, one that wraps an
+existing <code>reader</code> and does <code>rot13</code> on the data. To do this, we just define
+the type and implement the methods and with no other bookkeeping,
+we have a second implementation of the <code>reader</code> interface.
+<p>
+<pre> <!-- progs/cat_rot13.go /type.rotate13/ /end.of.rotate13/ -->
+27    type rotate13 struct {
+28        source    reader;
+29    }
+<p>
+31    func newRotate13(source reader) *rotate13 {
+32        return &amp;rotate13{source}
+33    }
+<p>
+35    func (r13 *rotate13) Read(b []byte) (ret int, err os.Error) {
+36        r, e := r13.source.Read(b);
+37        for i := 0; i &lt; r; i++ {
+38            b[i] = rot13(b[i])
+39        }
+40        return r, e
+41    }
+<p>
+43    func (r13 *rotate13) String() string {
+44        return r13.source.String()
+45    }
+46    // end of rotate13 implementation
+</pre>
+<p>
+(The <code>rot13</code> function called on line 38 is trivial and not worth reproducing.)
+<p>
+To use the new feature, we define a flag:
+<p>
+<pre> <!-- progs/cat_rot13.go /rot13_flag/ -->
+10    var rot13_flag = flag.Bool(&quot;rot13&quot;, false, &quot;rot13 the input&quot;)
+</pre>
+<p>
+and use it from within a mostly unchanged <code>cat()</code> function:
+<p>
+<pre> <!-- progs/cat_rot13.go /func.cat/ /^}/ -->
+48    func cat(r reader) {
+49        const NBUF = 512;
+50        var buf [NBUF]byte;
+<p>
+52        if *rot13_flag {
+53            r = newRotate13(r)
+54        }
+55        for {
+56            switch nr, er := r.Read(&amp;buf); {
+57            case nr &lt; 0:
+58                fmt.Fprintf(os.Stderr, &quot;error reading from %s: %s\n&quot;, r.String(), er.String());
+59                os.Exit(1);
+60            case nr == 0:  // EOF
+61                return;
+62            case nr &gt; 0:
+63                nw, ew := file.Stdout.Write(buf[0:nr]);
+64                if nw != nr {
+65                    fmt.Fprintf(os.Stderr, &quot;error writing from %s: %s\n&quot;, r.String(), ew.String());
+66                }
+67            }
+68        }
+69    }
+</pre>
+<p>
+(We could also do the wrapping in <code>main</code> and leave <code>cat()</code> mostly alone, except
+for changing the type of the argument; consider that an exercise.)
+Lines 52 through 55 set it all up: If the <code>rot13</code> flag is true, wrap the <code>reader</code>
+we received into a <code>rotate13</code> and proceed.  Note that the interface variables
+are values, not pointers: the argument is of type <code>reader</code>, not <code>*reader</code>,
+even though under the covers it holds a pointer to a <code>struct</code>.
+<p>
+Here it is in action:
+<p>
+<pre>
+    % echo abcdefghijklmnopqrstuvwxyz | ./cat
+    abcdefghijklmnopqrstuvwxyz
+    % echo abcdefghijklmnopqrstuvwxyz | ./cat --rot13
+    nopqrstuvwxyzabcdefghijklm
+    % 
+</pre>
+<p>
+Fans of dependency injection may take cheer from how easily interfaces
+allow us to substitute the implementation of a file descriptor.
+<p>
+Interfaces are a distinct feature of Go.  An interface is implemented by a
+type if the type implements all the methods declared in the interface.
+This means
+that a type may implement an arbitrary number of different interfaces.
+There is no type hierarchy; things can be much more <i>ad hoc</i>,
+as we saw with <code>rot13</code>.  The type <code>file.File</code> implements <code>reader</code>; it could also
+implement a <code>writer</code>, or any other interface built from its methods that
+fits the current situation. Consider the <i>empty interface</i>
+<p>
+<pre>
+    type Empty interface {}
+</pre>
+<p>
+<i>Every</i> type implements the empty interface, which makes it
+useful for things like containers.
+<p>
+<h2>Sorting</h2>
+<p>
+Interfaces provide a simple form of polymorphism since they completely
+separate the definition of what an object does from how it does it, allowing
+distinct implementations to be represented at different times by the
+same interface variable.
+<p>
+As an example, consider this simple sort algorithm taken from <code>progs/sort.go</code>:
+<p>
+<pre> <!-- progs/sort.go /func.Sort/ /^}/ -->
+09    func Sort(data SortInterface) {
+10        for i := 1; i &lt; data.Len(); i++ {
+11            for j := i; j &gt; 0 &amp;&amp; data.Less(j, j-1); j-- {
+12                data.Swap(j, j-1);
+13            }
+14        }
+15    }
+</pre>
+<p>
+The code needs only three methods, which we wrap into <code>SortInterface</code>:
+<p>
+<pre> <!-- progs/sort.go /interface/ /^}/ -->
+03    type SortInterface interface {
+04        Len() int;
+05        Less(i, j int) bool;
+06        Swap(i, j int);
+07    }
+</pre>
+<p>
+We can apply <code>Sort</code> to any type that implements <code>Len</code>, <code>Less</code>, and <code>Swap</code>.
+The <code>sort</code> package includes the necessary methods to allow sorting of
+arrays of integers, strings, etc.; here's the code for arrays of <code>int</code>
+<p>
+<pre> <!-- progs/sort.go /type.*IntArray/ /swap/ -->
+29    type IntArray []int
+<p>
+31    func (p IntArray) Len() int            { return len(p); }
+32    func (p IntArray) Less(i, j int) bool  { return p[i] &lt; p[j]; }
+33    func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+<p>
+<p>
+36    type FloatArray []float
+<p>
+38    func (p FloatArray) Len() int            { return len(p); }
+39    func (p FloatArray) Less(i, j int) bool  { return p[i] &lt; p[j]; }
+40    func (p FloatArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+<p>
+<p>
+43    type StringArray []string
+<p>
+45    func (p StringArray) Len() int            { return len(p); }
+46    func (p StringArray) Less(i, j int) bool  { return p[i] &lt; p[j]; }
+47    func (p StringArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+<p>
+<p>
+50    // Convenience wrappers for common cases
+<p>
+52    func SortInts(a []int)        { Sort(IntArray(a)); }
+53    func SortFloats(a []float)    { Sort(FloatArray(a)); }
+54    func SortStrings(a []string)  { Sort(StringArray(a)); }
+<p>
+<p>
+57    func IntsAreSorted(a []int) bool       { return IsSorted(IntArray(a)); }
+58    func FloatsAreSorted(a []float) bool   { return IsSorted(FloatArray(a)); }
+59    func StringsAreSorted(a []string) bool { return IsSorted(StringArray(a)); }
+</pre>
+<p>
+Here we see methods defined for non-<code>struct</code> types.  You can define methods
+for any type you define and name in your package.
+<p>
+And now a routine to test it out, from <code>progs/sortmain.go</code>.  This
+uses a function in the <code>sort</code> package, omitted here for brevity,
+to test that the result is sorted.
+<p>
+<pre> <!-- progs/sortmain.go /func.ints/ /^}/ -->
+08    func ints() {
+09        data := []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586};
+10        a := sort.IntArray(data);
+11        sort.Sort(a);
+12        if !sort.IsSorted(a) {
+13            panic()
+14        }
+15    }
+</pre>
+<p>
+If we have a new type we want to be able to sort, all we need to do is
+to implement the three methods for that type, like this:
+<p>
+<pre> <!-- progs/sortmain.go /type.day/ /Swap/ -->
+26    type day struct {
+27        num        int;
+28        short_name string;
+29        long_name  string;
+30    }
+<p>
+32    type dayArray struct {
+33        data []*day;
+34    }
+<p>
+36    func (p *dayArray) Len() int            { return len(p.data); }
+37    func (p *dayArray) Less(i, j int) bool  { return p.data[i].num &lt; p.data[j].num; }
+38    func (p *dayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+</pre>
+<p>
+<p>
+<h2>Printing</h2>
+<p>
+The examples of formatted printing so far have been modest.  In this section
+we'll talk about how formatted I/O can be done well in Go.
+<p>
+We've seen simple uses of the package <code>fmt</code>, which
+implements <code>Printf</code>, <code>Fprintf</code>, and so on.
+Within the <code>fmt</code> package, <code>Printf</code> is declared with this signature:
+<p>
+<pre>
+    Printf(format string, v ...) (n int, errno os.Error)
+
+</pre>
+That <code>...</code> represents the variadic argument list that in C would
+be handled using the <code>stdarg.h</code> macros, but in Go is passed using
+an empty interface variable (<code>interface {}</code>) that is then unpacked
+using the reflection library.  It's off topic here but the use of
+reflection helps explain some of the nice properties of Go's <code>Printf</code>,
+due to the ability of <code>Printf</code> to discover the type of its arguments
+dynamically.
+<p>
+For example, in C each format must correspond to the type of its
+argument.  It's easier in many cases in Go.  Instead of <code>%llud</code> you
+can just say <code>%d</code>; <code>Printf</code> knows the size and signedness of the
+integer and can do the right thing for you.  The snippet
+<p>
+<pre> <!-- progs/print.go NR==6 NR==7 -->
+06        var u64 uint64 = 1&lt;&lt;64-1;
+07        fmt.Printf(&quot;%d %d\n&quot;, u64, int64(u64));
+</pre>
+<p>
+prints
+<p>
+<pre>
+    18446744073709551615 -1
+
+</pre>
+In fact, if you're lazy the format <code>%v</code> will print, in a simple
+appropriate style, any value, even an array or structure.  The output of
+<p>
+<pre> <!-- progs/print.go NR==10 NR==13 -->
+10        type T struct { a int; b string };
+11        t := T{77, &quot;Sunset Strip&quot;};
+12        a := []int{1, 2, 3, 4};
+13        fmt.Printf(&quot;%v %v %v\n&quot;, u64, t, a);
+</pre>
+<p>
+is
+<p>
+<pre>
+    18446744073709551615 {77 Sunset Strip} [1 2 3 4]
+
+</pre>
+You can drop the formatting altogether if you use <code>Print</code> or <code>Println</code>
+instead of <code>Printf</code>.  Those routines do fully automatic formatting.
+The <code>Print</code> function just prints its elements out using the equivalent
+of <code>%v</code> while <code>Println</code> automatically inserts spaces between arguments
+and adds a newline.  The output of each of these two lines is identical
+to that of the <code>Printf</code> call above.
+<p>
+<pre> <!-- progs/print.go NR==14 NR==15 -->
+14        fmt.Print(u64, &quot; &quot;, t, &quot; &quot;, a, &quot;\n&quot;);
+15        fmt.Println(u64, t, a);
+</pre>
+<p>
+If you have your own type you'd like <code>Printf</code> or <code>Print</code> to format,
+just give it a <code>String()</code> method that returns a string.  The print
+routines will examine the value to inquire whether it implements
+the method and if so, use it rather than some other formatting.
+Here's a simple example.
+<p>
+<pre> <!-- progs/print_string.go NR==5 END -->
+05    type testType struct { a int; b string }
+<p>
+07    func (t *testType) String() string {
+08        return fmt.Sprint(t.a) + &quot; &quot; + t.b
+09    }
+<p>
+11    func main() {
+12        t := &amp;testType{77, &quot;Sunset Strip&quot;};
+13        fmt.Println(t)
+14    }
+</pre>
+<p>
+Since <code>*T</code> has a <code>String()</code> method, the
+default formatter for that type will use it and produce the output
+<p>
+<pre>
+    77 Sunset Strip
+
+</pre>
+Observe that the <code>String()</code> method calls <code>Sprint</code> (the obvious Go
+variant that returns a string) to do its formatting; special formatters
+can use the <code>fmt</code> library recursively.
+<p>
+Another feature of <code>Printf</code> is that the format <code>%T</code> will print a string
+representation of the type of a value, which can be handy when debugging
+polymorphic code.
+<p>
+It's possible to write full custom print formats with flags and precisions
+and such, but that's getting a little off the main thread so we'll leave it
+as an exploration exercise.
+<p>
+You might ask, though, how <code>Printf</code> can tell whether a type implements
+the <code>String()</code> method.  Actually what it does is ask if the value can
+be converted to an interface variable that implements the method.
+Schematically, given a value <code>v</code>, it does this:
+<p>
+<p>
+<pre>
+    type Stringer interface {
+        String() string
+    }
+
+    s, ok := v.(Stringer);  // Test whether v implements "String()"
+    if ok {
+        result = s.String()
+    } else {
+        result = default_output(v)
+    }
+
+</pre>
+The code uses a ``type assertion'' (<code>v.(Stringer)</code>) to test if the value stored in
+<code>v</code> satisfies the <code>Stringer</code> interface; if it does, <code>s</code>
+will become an interface variable implementing the method and <code>ok</code> will
+be <code>true</code>.  We then use the interface variable to call the method.
+(The ''comma, ok'' pattern is a Go idiom used to test the success of
+operations such as type conversion, map update, communications, and so on,
+although this is the only appearance in this tutorial.)
+If the value does not satisfy the interface, <code>ok</code> will be false.
+<p>
+In this snippet the name <code>Stringer</code> follows the convention that we add <code>[e]r</code>
+to interfaces describing simple method sets like this.
+<p>
+One last wrinkle.  To complete the suite, besides <code>Printf</code> etc. and <code>Sprintf</code>
+etc., there are also <code>Fprintf</code> etc.  Unlike in C, <code>Fprintf</code>'s first argument is
+not a file.  Instead, it is a variable of type <code>io.Writer</code>, which is an
+interface type defined in the <code>io</code> library:
+<p>
+<pre>
+    type Writer interface {
+        Write(p []byte) (n int, err os.Error);
+    }
+
+</pre>
+(This interface is another conventional name, this time for <code>Write</code>; there are also
+<code>io.Reader</code>, <code>io.ReadWriter</code>, and so on.)
+Thus you can call <code>Fprintf</code> on any type that implements a standard <code>Write()</code>
+method, not just files but also network channels, buffers, rot13ers, whatever
+you want.
+<p>
+<h2>Prime numbers</h2>
+<p>
+Now we come to processes and communication -- concurrent programming.
+It's a big subject so to be brief we assume some familiarity with the topic.
+<p>
+A classic program in the style is the prime sieve of Eratosthenes.
+It works by taking a stream of all the natural numbers and introducing
+a sequence of filters, one for each prime, to winnow the multiples of
+that prime.  At each step we have a sequence of filters of the primes
+so far, and the next number to pop out is the next prime, which triggers
+the creation of the next filter in the chain.
+<p>
+Here's a flow diagram; each box represents a filter element whose
+creation is triggered by the first number that flowed from the
+elements before it.
+<p>
+<br>
+<p>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src='sieve.gif'>
+<p>
+<br>
+<p>
+To create a stream of integers, we use a Go <i>channel</i>, which,
+borrowing from CSP's descendants, represents a communications
+channel that can connect two concurrent computations.
+In Go, channel variables are references to a run-time object that
+coordinates the communication; as with maps and slices, use
+<code>make</code> to create a new channel.
+<p>
+Here is the first function in <code>progs/sieve.go</code>:
+<p>
+<pre> <!-- progs/sieve.go /Send/ /^}/ -->
+05    // Send the sequence 2, 3, 4, ... to channel 'ch'.
+06    func generate(ch chan int) {
+07        for i := 2; ; i++ {
+08            ch &lt;- i  // Send 'i' to channel 'ch'.
+09        }
+10    }
+</pre>
+<p>
+The <code>generate</code> function sends the sequence 2, 3, 4, 5, ... to its
+argument channel, <code>ch</code>, using the binary communications operator <code>&lt;-</code>.
+Channel operations block, so if there's no recipient for the value on <code>ch</code>,
+the send operation will wait until one becomes available.
+<p>
+The <code>filter</code> function has three arguments: an input channel, an output
+channel, and a prime number.  It copies values from the input to the
+output, discarding anything divisible by the prime.  The unary communications
+operator <code>&lt;-</code> (receive) retrieves the next value on the channel.
+<p>
+<pre> <!-- progs/sieve.go /Copy/ /^}/ -->
+12    // Copy the values from channel 'in' to channel 'out',
+13    // removing those divisible by 'prime'.
+14    func filter(in, out chan int, prime int) {
+15        for {
+16            i := &lt;-in;  // Receive value of new variable 'i' from 'in'.
+17            if i % prime != 0 {
+18                out &lt;- i  // Send 'i' to channel 'out'.
+19            }
+20        }
+21    }
+</pre>
+<p>
+The generator and filters execute concurrently.  Go has
+its own model of process/threads/light-weight processes/coroutines,
+so to avoid notational confusion we'll call concurrently executing
+computations in Go <i>goroutines</i>.  To start a goroutine,
+invoke the function, prefixing the call with the keyword <code>go</code>;
+this starts the function running in parallel with the current
+computation but in the same address space:
+<p>
+<pre>
+    go sum(huge_array); // calculate sum in the background
+
+</pre>
+If you want to know when the calculation is done, pass a channel
+on which it can report back:
+<p>
+<pre>
+    ch := make(chan int);
+    go sum(huge_array, ch);
+    // ... do something else for a while
+    result := &lt;-ch;  // wait for, and retrieve, result
+
+</pre>
+Back to our prime sieve.  Here's how the sieve pipeline is stitched
+together:
+<p>
+<pre> <!-- progs/sieve.go /func.main/ /^}/ -->
+24    func main() {
+25        ch := make(chan int);  // Create a new channel.
+26        go generate(ch);  // Start generate() as a goroutine.
+27        for {
+28            prime := &lt;-ch;
+29            fmt.Println(prime);
+30            ch1 := make(chan int);
+31            go filter(ch, ch1, prime);
+32            ch = ch1
+33        }
+34    }
+</pre>
+<p>
+Line 25 creates the initial channel to pass to <code>generate</code>, which it
+then starts up.  As each prime pops out of the channel, a new <code>filter</code>
+is added to the pipeline and <i>its</i> output becomes the new value
+of <code>ch</code>.
+<p>
+The sieve program can be tweaked to use a pattern common
+in this style of programming.  Here is a variant version
+of <code>generate</code>, from <code>progs/sieve1.go</code>:
+<p>
+<pre> <!-- progs/sieve1.go /func.generate/ /^}/ -->
+06    func generate() chan int {
+07        ch := make(chan int);
+08        go func(){
+09            for i := 2; ; i++ {
+10                ch &lt;- i
+11            }
+12        }();
+13        return ch;
+14    }
+</pre>
+<p>
+This version does all the setup internally. It creates the output
+channel, launches a goroutine internally using a function literal, and
+returns the channel to the caller.  It is a factory for concurrent
+execution, starting the goroutine and returning its connection.
+<p>
+The function literal notation (lines 8-12) allows us to construct an
+anonymous function and invoke it on the spot. Notice that the local
+variable <code>ch</code> is available to the function literal and lives on even
+after <code>generate</code> returns.
+<p>
+The same change can be made to <code>filter</code>:
+<p>
+<pre> <!-- progs/sieve1.go /func.filter/ /^}/ -->
+17    func filter(in chan int, prime int) chan int {
+18        out := make(chan int);
+19        go func() {
+20            for {
+21                if i := &lt;-in; i % prime != 0 {
+22                    out &lt;- i
+23                }
+24            }
+25        }();
+26        return out;
+27    }
+</pre>
+<p>
+The <code>sieve</code> function's main loop becomes simpler and clearer as a
+result, and while we're at it let's turn it into a factory too:
+<p>
+<pre> <!-- progs/sieve1.go /func.sieve/ /^}/ -->
+29    func sieve() chan int {
+30        out := make(chan int);
+31        go func() {
+32            ch := generate();
+33            for {
+34                prime := &lt;-ch;
+35                out &lt;- prime;
+36                ch = filter(ch, prime);
+37            }
+38        }();
+39        return out;
+40    }
+</pre>
+<p>
+Now <code>main</code>'s interface to the prime sieve is a channel of primes:
+<p>
+<pre> <!-- progs/sieve1.go /func.main/ /^}/ -->
+42    func main() {
+43        primes := sieve();
+44        for {
+45            fmt.Println(&lt;-primes);
+46        }
+47    }
+</pre>
+<p>
+<h2>Multiplexing</h2>
+<p>
+With channels, it's possible to serve multiple independent client goroutines without
+writing an actual multiplexer.  The trick is to send the server a channel in the message,
+which it will then use to reply to the original sender.
+A realistic client-server program is a lot of code, so here is a very simple substitute
+to illustrate the idea.  It starts by defining a <code>request</code> type, which embeds a channel
+that will be used for the reply.
+<p>
+<pre> <!-- progs/server.go /type.request/ /^}/ -->
+05    type request struct {
+06        a, b    int;
+07        replyc  chan int;
+08    }
+</pre>
+<p>
+The server will be trivial: it will do simple binary operations on integers.  Here's the
+code that invokes the operation and responds to the request:
+<p>
+<pre> <!-- progs/server.go /type.binOp/ /^}/ -->
+10    type binOp func(a, b int) int
+<p>
+12    func run(op binOp, req *request) {
+13        reply := op(req.a, req.b);
+14        req.replyc &lt;- reply;
+15    }
+</pre>
+<p>
+Line 10 defines the name <code>binOp</code> to be a function taking two integers and
+returning a third.
+<p>
+The <code>server</code> routine loops forever, receiving requests and, to avoid blocking due to
+a long-running operation, starting a goroutine to do the actual work.
+<p>
+<pre> <!-- progs/server.go /func.server/ /^}/ -->
+17    func server(op binOp, service chan *request) {
+18        for {
+19            req := &lt;-service;
+20            go run(op, req);  // don't wait for it
+21        }
+22    }
+</pre>
+<p>
+We construct a server in a familiar way, starting it up and returning a channel to
+connect to it:
+<p>
+<pre> <!-- progs/server.go /func.startServer/ /^}/ -->
+24    func startServer(op binOp) chan *request {
+25        req := make(chan *request);
+26        go server(op, req);
+27        return req;
+28    }
+</pre>
+<p>
+Here's a simple test.  It starts a server with an addition operator, and sends out
+lots of requests but doesn't wait for the reply.  Only after all the requests are sent
+does it check the results.
+<p>
+<pre> <!-- progs/server.go /func.main/ /^}/ -->
+30    func main() {
+31        adder := startServer(func(a, b int) int { return a + b });
+32        const N = 100;
+33        var reqs [N]request;
+34        for i := 0; i &lt; N; i++ {
+35            req := &amp;reqs[i];
+36            req.a = i;
+37            req.b = i + N;
+38            req.replyc = make(chan int);
+39            adder &lt;- req;
+40        }
+41        for i := N-1; i &gt;= 0; i-- {   // doesn't matter what order
+42            if &lt;-reqs[i].replyc != N + 2*i {
+43                fmt.Println(&quot;fail at&quot;, i);
+44            }
+45        }
+46        fmt.Println(&quot;done&quot;);
+47    }
+</pre>
+<p>
+One annoyance with this program is that it doesn't exit cleanly; when <code>main</code> returns
+there are a number of lingering goroutines blocked on communication.  To solve this,
+we can provide a second, <code>quit</code> channel to the server:
+<p>
+<pre> <!-- progs/server1.go /func.startServer/ /^}/ -->
+28    func startServer(op binOp) (service chan *request, quit chan bool) {
+29        service = make(chan *request);
+30        quit = make(chan bool);
+31        go server(op, service, quit);
+32        return service, quit;
+33    }
+</pre>
+<p>
+It passes the quit channel to the <code>server</code> function, which uses it like this:
+<p>
+<pre> <!-- progs/server1.go /func.server/ /^}/ -->
+17    func server(op binOp, service chan *request, quit chan bool) {
+18        for {
+19            select {
+20            case req := &lt;-service:
+21                go run(op, req);  // don't wait for it
+22            case &lt;-quit:
+23                return;
+24            }
+25        }
+26    }
+</pre>
+<p>
+Inside <code>server</code>, a <code>select</code> statement chooses which of the multiple communications
+listed by its cases can proceed.  If all are blocked, it waits until one can proceed; if
+multiple can proceed, it chooses one at random.  In this instance, the <code>select</code> allows
+the server to honor requests until it receives a quit message, at which point it
+returns, terminating its execution.
+<p>
+<p>
+All that's left is to strobe the <code>quit</code> channel
+at the end of main:
+<p>
+<pre> <!-- progs/server1.go /adder,.quit/ -->
+36        adder, quit := startServer(func(a, b int) int { return a + b });
+</pre>
+...
+<pre> <!-- progs/server1.go /quit....true/ -->
+51        quit &lt;- true;
+</pre>
+<p>
+There's a lot more to Go programming and concurrent programming in general but this
+quick tour should give you some of the basics.
+</table>
+</body>
+</html>
