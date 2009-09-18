@@ -38,7 +38,8 @@
 #define	ALLTHUMBS	(1<<3)
 
 #define	REGRET		0
-#define	REGARG		0
+/* -1 disables use of REGARG */
+#define	REGARG		-1
 /* compiler allocates R1 up as temps */
 /* compiler allocates register variables R3 up */
 #define	REGEXT		10

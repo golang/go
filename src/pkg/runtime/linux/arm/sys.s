@@ -12,8 +12,9 @@
 #define SYS_mmap2 (SYS_BASE + 192)
 
 TEXT write(SB),7,$0
-	MOVW	8(SP), R1
-	MOVW	12(SP), R2
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1
+	MOVW	8(FP), R2
     	SWI	$SYS_write
 	RET
 
@@ -22,6 +23,7 @@ TEXT exit(SB),7,$0
 	SWI	$SYS_exit
 
 TEXT sys·mmap(SB),7,$0
+	MOVW	0(FP), R0
 	MOVW	4(FP), R1
 	MOVW	8(FP), R2
 	MOVW	12(FP), R3

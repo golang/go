@@ -275,7 +275,7 @@ cgen_callret(Node *n, Node *res)
 	nod.val.u.reg = REGSP;
 	nod.addable = 1;
 
-	nod.xoffset = fp->width;
+	nod.xoffset = fp->width + 4; // +4: saved lr at 0(SP)
 	nod.type = fp->type;
 	cgen_as(res, &nod);
 }
@@ -305,7 +305,7 @@ cgen_aret(Node *n, Node *res)
 	nod1.val.u.reg = REGSP;
 	nod1.addable = 1;
 
-	nod1.xoffset = fp->width;
+	nod1.xoffset = fp->width + 4; // +4: saved lr at 0(SP)
 	nod1.type = fp->type;
 
 	if(res->op != OREGISTER) {
