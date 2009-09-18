@@ -92,6 +92,7 @@ TEXT	breakpoint(SB),7,$0
 // uintptr gosave(Gobuf*)
 // save state in Gobuf; setjmp
 TEXT gosave(SB), 7, $0
+	MOVW	0(FP), R0
 	MOVW	SP, gobuf_sp(R0)
 	MOVW	LR, gobuf_pc(R0)
 	MOVW	g, gobuf_g(R0)
@@ -101,8 +102,8 @@ TEXT gosave(SB), 7, $0
 // void gogo(Gobuf*, uintptr)
 // restore state from Gobuf; longjmp
 TEXT	gogo(SB), 7, $0
-	MOVW	R0, R1			// gobuf
-	MOVW	8(SP), R0		// return 2nd arg
+	MOVW	0(FP), R1			// gobuf
+	MOVW	4(FP), R0		// return 2nd arg
 	MOVW	gobuf_g(R1), g
 	MOVW	0(g), R2		// make sure g != nil
 	MOVW	gobuf_sp(R1), SP	// restore SP
@@ -113,7 +114,8 @@ TEXT	gogo(SB), 7, $0
 // (call fn, returning to state in Gobuf)
 // using frame size $-4 means do not save LR on stack.
 TEXT gogocall(SB), 7, $-4
-	MOVW	8(SP), R1		// fn
+	MOVW	0(FP), R0
+	MOVW	4(FP), R1		// fn
 	MOVW	gobuf_g(R0), g
 	MOVW	0(g), R2		// make sure g != nil
 	MOVW	gobuf_sp(R0), SP	// restore SP
@@ -222,6 +224,7 @@ TEXT sys·morestackx(SB), 7, $-4
 #define	STREX(a,v,r)	WORD	$(0xe<<28|0x01800f90 | (a)<<16 | (r)<<12 | (v)<<0)
 
 TEXT	cas+0(SB),0,$12		/* r0 holds p */
+	MOVW	0(FP), R0
 	MOVW	ov+4(FP), R1
 	MOVW	nv+8(FP), R2
 spin:
@@ -253,7 +256,7 @@ TEXT jmpdefer(SB), 7, $0
 //	JMP	AX	// but first run the deferred function
 
 TEXT	sys·memclr(SB),7,$20
-// R0 = addr and passes implicitly to memset
+	MOVW	0(FP), R0
 	MOVW	$0, R1		// c = 0
 	MOVW	R1, -16(SP)
 	MOVW	4(FP), R1	// n

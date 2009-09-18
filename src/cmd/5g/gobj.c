@@ -621,6 +621,9 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
 void
 genembedtramp(Type *rcvr, Type *method, Sym *newnam)
 {
+	// TODO(kaib): re-implement genembedtramp
+	genwrapper(rcvr, method, newnam);
+/*
 	Sym *e;
 	int c, d, o;
 	Prog *p;
@@ -692,6 +695,7 @@ out:
 //print("4. %P\n", p);
 
 	pc->as = ARET;	// overwrite AEND
+*/
 }
 
 void
