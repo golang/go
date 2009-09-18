@@ -117,8 +117,10 @@ func TypeFromNative(t reflect.Type) Type {
 	}
 
 	if nt != nil {
-		nt.Complete(et);
-		et = nt;
+		if _, ok := et.(*NamedType); !ok {
+			nt.Complete(et);
+			et = nt;
+		}
 	}
 
 	nativeTypes[et] = t;
@@ -137,7 +139,7 @@ func TypeOfNative(v interface {}) Type {
  */
 
 type nativeFunc struct {
-	fn func([]Value, []Value);
+	fn func(*Thread, []Value, []Value);
 	in, out int;
 }
 
@@ -147,14 +149,14 @@ func (f *nativeFunc) NewFrame() *Frame {
 }
 
 func (f *nativeFunc) Call(t *Thread) {
-	f.fn(t.f.Vars[0:f.in], t.f.Vars[f.in:f.in+f.out]);
+	f.fn(t, t.f.Vars[0:f.in], t.f.Vars[f.in:f.in+f.out]);
 }
 
 // FuncFromNative creates an interpreter function from a native
 // function that takes its in and out arguments as slices of
 // interpreter Value's.  While somewhat inconvenient, this avoids
 // value marshalling.
-func FuncFromNative(fn func([]Value, []Value), t *FuncType) FuncValue {
+func FuncFromNative(fn func(*Thread, []Value, []Value), t *FuncType) FuncValue {
 	return &funcV{&nativeFunc{fn, len(t.In), len(t.Out)}};
 }
 
@@ -162,7 +164,7 @@ func FuncFromNative(fn func([]Value, []Value), t *FuncType) FuncValue {
 // function type from a function pointer using reflection.  Typically,
 // the type will be given as a nil pointer to a function with the
 // desired signature.
-func FuncFromNativeTyped(fn func([]Value, []Value), t interface{}) (*FuncType, FuncValue) {
+func FuncFromNativeTyped(fn func(*Thread, []Value, []Value), t interface{}) (*FuncType, FuncValue) {
 	ft := TypeOfNative(t).(*FuncType);
 	return ft, FuncFromNative(fn, ft);
 }

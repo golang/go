@@ -265,12 +265,18 @@ readylocked(G *g)
 		matchmg();
 }
 
+static void
+nop(void)
+{
+}
+
 // Same as readylocked but a different symbol so that
 // debuggers can set a breakpoint here and catch all
 // new goroutines.
 static void
 newprocreadylocked(G *g)
 {
+	nop();	// avoid inlining in 6l
 	readylocked(g);
 }
 
