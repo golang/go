@@ -1,9 +1,14 @@
+<!--
+	Copyright 2009 The Go Authors. All rights reserved.
+	Use of this source code is governed by a BSD-style
+	license that can be found in the LICENSE file.
+-->
+
 {.section Dirs}
 	<h2>Subdirectories</h2>
 	{.repeated section @}
 		<a href="{Name|html}">{Name|html}</a><br />
 	{.end}
-	<hr />
 {.end}
 {.section PDoc}
 	<h1>package {PackageName|html}</h1>
@@ -27,7 +32,6 @@
 		{.end}
 	{.end}
 	{.section Vars}
-		<hr />
 		<h2>Variables</h2>
 		{.repeated section @}
 			{Doc|html-comment}
@@ -35,7 +39,6 @@
 		{.end}
 	{.end}
 	{.section Funcs}
-		<hr />
 		{.repeated section @}
 			<h2>func <a href="{Decl|link}">{Name|html}</a></h2>
 			<p><code>{Decl|html}</code></p>
@@ -44,7 +47,6 @@
 	{.end}
 	{.section Types}
 		{.repeated section @}
-			<hr />
 			<h2>type <a href="{Decl|link}">{Type.Name|html}</a></h2>
 			{Doc|html-comment}
 			<p><pre>{Decl|html}</pre></p>
@@ -69,7 +71,6 @@
 		{.end}
 	{.end}
 	{.section Bugs}
-		<hr />
 		<h2>Bugs</h2>
 		{.repeated section @}
 		{@|html-comment}
