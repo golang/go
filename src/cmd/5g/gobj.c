@@ -477,6 +477,44 @@ datagostring(Strlit *sval, Addr *a)
 	text();
 }
 
+void
+gdata(Node *nam, Node *nr, int wid)
+{
+	Prog *p;
+	vlong v;
+
+	if(wid == 8 && is64(nr->type)) {
+		v = mpgetfix(nr->val.u.xval);
+		p = gins(ADATA, nam, nodintconst(v));
+		p->reg = 4;
+		p = gins(ADATA, nam, nodintconst(v>>32));
+		p->reg = 4;
+		p->from.offset += 4;
+		return;
+	}
+	p = gins(ADATA, nam, nr);
+	p->reg = wid;
+}
+
+void
+gdatastring(Node *nam, Strlit *sval)
+{
+	Prog *p;
+	Node nod1;
+
+	p = gins(ADATA, nam, N);
+	datastring(sval->s, sval->len, &p->to);
+	p->reg = types[tptr]->width;
+	p->to.type = D_CONST;
+	p->to.etype = TINT32;
+//print("%P\n", p);
+
+	nodconst(&nod1, types[TINT32], sval->len);
+	p = gins(ADATA, nam, &nod1);
+	p->reg = types[TINT32]->width;
+	p->from.offset += types[tptr]->width;
+}
+
 int
 dstringptr(Sym *s, int off, char *str)
 {
