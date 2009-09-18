@@ -52,8 +52,8 @@ dodata(void)
 				s->type, s->name, p);
 		v = p->from.offset + p->reg;
 		if(v > s->value)
-			diag("initialize bounds (%ld): %s\n%P",
-				s->value, s->name, p);
+			diag("initialize bounds (%ld/%ld): %s\n%P",
+				v, s->value, s->name, p);
 		if((s->type == SBSS || s->type == SDATA) && (p->to.type == D_CONST || p->to.type == D_OCONST) && (p->to.name == D_EXTERN || p->to.name == D_STATIC)){
 			s = p->to.sym;
 			if(s != S && (s->type == STEXT || s->type == SLEAF || s->type == SCONST || s->type == SXREF))
