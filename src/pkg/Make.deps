@@ -18,22 +18,23 @@ crypto/md5.install: hash.install os.install
 crypto/sha1.install: hash.install os.install
 datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
 debug/binary.install: io.install math.install os.install reflect.install
-debug/dwarf.install: debug/binary.install fmt.install os.install strconv.install
-debug/elf.install: debug/binary.install fmt.install io.install os.install strconv.install
-debug/gosym.install: debug/binary.install fmt.install io.install os.install strconv.install strings.install
+debug/dwarf.install: debug/binary.install os.install strconv.install
+debug/macho.install: bytes.install debug/binary.install debug/dwarf.install fmt.install io.install os.install strconv.install
+debug/elf.install: debug/binary.install debug/dwarf.install fmt.install io.install os.install strconv.install
+debug/gosym.install: debug/binary.install fmt.install os.install strconv.install strings.install
 debug/proc.install: container/vector.install fmt.install io.install os.install runtime.install strconv.install strings.install sync.install syscall.install
-ebnf.install: container/vector.install fmt.install go/scanner.install go/token.install os.install strconv.install strings.install unicode.install utf8.install
+ebnf.install: container/vector.install go/scanner.install go/token.install os.install strconv.install unicode.install utf8.install
 exec.install: os.install strings.install
-exvar.install: bytes.install fmt.install http.install io.install log.install strconv.install sync.install
+exvar.install: bytes.install fmt.install http.install log.install strconv.install sync.install
 flag.install: fmt.install os.install strconv.install
 fmt.install: io.install os.install reflect.install strconv.install utf8.install
 go/ast.install: go/token.install unicode.install utf8.install
-go/doc.install: container/vector.install fmt.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
+go/doc.install: container/vector.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
 go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install path.install strings.install
 go/printer.install: container/vector.install fmt.install go/ast.install go/token.install io.install os.install reflect.install strings.install tabwriter.install
 go/scanner.install: bytes.install container/vector.install fmt.install go/token.install io.install os.install sort.install strconv.install unicode.install utf8.install
 go/token.install: fmt.install strconv.install
-gob.install: bytes.install fmt.install io.install math.install os.install reflect.install strings.install sync.install unicode.install
+gob.install: bytes.install fmt.install io.install math.install os.install reflect.install sync.install
 hash.install: io.install
 hash/adler32.install: hash.install os.install
 hash/crc32.install: hash.install os.install
@@ -50,9 +51,9 @@ once.install: sync.install
 os.install: once.install syscall.install
 path.install: strings.install
 rand.install:
-reflect.install: runtime.install strconv.install strings.install
+reflect.install: runtime.install strconv.install
 regexp.install: bytes.install container/vector.install io.install os.install runtime.install utf8.install
-rpc.install: bufio.install fmt.install gob.install http.install io.install log.install net.install os.install reflect.install sort.install strconv.install strings.install sync.install template.install unicode.install utf8.install
+rpc.install: bufio.install fmt.install gob.install http.install io.install log.install net.install os.install reflect.install sort.install strings.install sync.install template.install unicode.install utf8.install
 runtime.install:
 sort.install:
 strconv.install: bytes.install math.install os.install unicode.install utf8.install

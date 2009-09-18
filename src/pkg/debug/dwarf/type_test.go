@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package dwarf
+package dwarf_test
 
 import (
+	. "debug/dwarf";
 	"debug/elf";
+	"debug/macho";
 	"testing";
 )
 
@@ -32,30 +34,37 @@ func elfData(t *testing.T, name string) *Data {
 	if err != nil {
 		t.Fatal(err);
 	}
-	
-	dat := func(name string) []byte {
-		s := f.Section(".debug_" + name);
-		if s == nil {
-			return nil
-		}
-		b, err := s.Data();
-		if err != nil {
-			t.Fatal(".debug_"+name+":", err);
-		}
-		return b;
-	};
-	
-	d, err := New(dat("abbrev"), nil, nil, dat("info"), nil, nil, nil, dat("str"));
+
+	d, err := f.DWARF();
 	if err != nil {
-		t.Fatal("New:", err);
+		t.Fatal(err);
 	}
-	
+	return d;
+}
+
+func machoData(t *testing.T, name string) *Data {
+	f, err := macho.Open(name);
+	if err != nil {
+		t.Fatal(err);
+	}
+
+	d, err := f.DWARF();
+	if err != nil {
+		t.Fatal(err);
+	}
 	return d;
 }
 
 
-func TestTypedefs(t *testing.T) {
-	d := elfData(t, "testdata/typedef.elf");
+func TestTypedefsELF(t *testing.T) {
+	testTypedefs(t, elfData(t, "testdata/typedef.elf"));
+}
+
+func TestTypedefsMachO(t *testing.T) {
+	testTypedefs(t, machoData(t, "testdata/typedef.macho"));
+}
+
+func testTypedefs(t *testing.T, d *Data) {
 	r := d.Reader();
 	seen := make(map[string]bool);
 	for {
@@ -78,7 +87,7 @@ func TestTypedefs(t *testing.T) {
 			} else {
 				typstr = t1.Type.String();
 			}
-			
+
 			if want, ok := typedefTests[t1.Name]; ok {
 				if _, ok := seen[t1.Name]; ok {
 					t.Errorf("multiple definitions for %s", t1.Name);
@@ -93,7 +102,7 @@ func TestTypedefs(t *testing.T) {
 			r.SkipChildren();
 		}
 	}
-	
+
 	for k := range typedefTests {
 		if _, ok := seen[k]; !ok {
 			t.Errorf("missing %s", k);
