@@ -6,6 +6,9 @@ include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=cgo
 GOFILES=\
-	cgo.go\
+	ast.go\
+	gcc.go\
+	main.go\
+	util.go\
 
 include $(GOROOT)/src/Make.cmd
