@@ -364,7 +364,7 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 	y.doinit();
 	z.doinit();
 	if m == nil {
-		C.mpz_pow(&z.i, &x.i, &y.i);
+		C.mpz_pow_ui(&z.i, &x.i, mpz_get_ui(&y.i));
 	} else {
 		C.mpz_powm(&z.i, &x.i, &y.i, &m.i);
 	}
