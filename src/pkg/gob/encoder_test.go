@@ -228,7 +228,7 @@ func TestWrongTypeDecoder(t *testing.T) {
 }
 
 func corruptDataCheck(s string, err os.Error, t *testing.T) {
-	b := bytes.NewBuffer(strings.Bytes(s));
+	b := strings.NewBuffer(s);
 	dec := NewDecoder(b);
 	dec.Decode(new(ET2));
 	if dec.state.err != err {

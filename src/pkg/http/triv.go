@@ -43,7 +43,7 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
 	case "POST":
 		buf := new(bytes.Buffer);
 		io.Copy(req.Body, buf);
-		body := string(buf.Bytes());
+		body := buf.String();
 		if n, err := strconv.Atoi(body); err != nil {
 			fmt.Fprintf(c, "bad POST: %v\nbody: [%v]\n", err, body);
 		} else {

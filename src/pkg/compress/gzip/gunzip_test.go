@@ -297,7 +297,7 @@ func TestInflater(t *testing.T) {
 		if err != tt.err {
 			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err);
 		}
-		s := string(b.Bytes());
+		s := b.String();
 		if s != tt.raw {
 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw);
 		}

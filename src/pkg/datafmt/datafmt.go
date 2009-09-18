@@ -729,5 +729,5 @@ func (f Format) Sprint(args ...) string {
 	if err != nil {
 		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(args), err);
 	}
-	return string(buf.Bytes());
+	return buf.String();
 }

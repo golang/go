@@ -166,7 +166,7 @@ func Quote(s string) string {
 	}
 	chr[0] = '"';
 	b.Write(chr0);
-	return string(b.Bytes());
+	return b.String();
 }
 
 
