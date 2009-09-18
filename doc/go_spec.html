@@ -167,7 +167,7 @@ unicode_digit  = /* a Unicode code point classified as "Digit" */ .
 </pre>
 
 <p>
-In <i>The Unicode Standard 5.0</i>,
+In <a href="http://www.unicode.org/versions/Unicode5.1.0/">The Unicode Standard 5.1</a>,
 Section 4.5 General Category-Normative
 defines a set of character categories.  Go treats
 those characters in category Lu, Ll, Lt, Lm, or Lo as Unicode letters,
@@ -218,7 +218,7 @@ An identifier is a sequence of one or more letters and digits.
 The first character in an identifier must be a letter.
 </p>
 <pre class="ebnf">
-identifier    = letter { letter | unicode_digit } .
+identifier = letter { letter | unicode_digit } .
 </pre>
 <pre>
 a
@@ -244,7 +244,7 @@ continue     for          import       return       var
 <h3 id="Operators_and_Delimiters">Operators and Delimiters</h3>
 
 <p>
-The following character sequences represent operators, delimiters, and other special tokens:
+The following character sequences represent <a href="#Operators">operators</a>, delimiters, and other special tokens:
 </p>
 <pre class="grammar">
 +    &amp;     +=    &amp;=     &amp;&amp;    ==    !=    (    )
@@ -265,10 +265,10 @@ sets a non-decimal base: <code>0</code> for octal, <code>0x</code> or
 <code>a-f</code> and <code>A-F</code> represent values 10 through 15.
 </p>
 <pre class="ebnf">
-int_lit       = decimal_lit | octal_lit | hex_lit .
-decimal_lit   = ( "1" ... "9" ) { decimal_digit } .
-octal_lit     = "0" { octal_digit } .
-hex_lit       = "0" ( "x" | "X" ) hex_digit { hex_digit } .
+int_lit     = decimal_lit | octal_lit | hex_lit .
+decimal_lit = ( "1" ... "9" ) { decimal_digit } .
+octal_lit   = "0" { octal_digit } .
+hex_lit     = "0" ( "x" | "X" ) hex_digit { hex_digit } .
 </pre>
 
 <pre>
@@ -289,11 +289,11 @@ integer part or the fractional part may be elided; one of the decimal
 point or the exponent may be elided.
 </p>
 <pre class="ebnf">
-float_lit    = decimals "." [ decimals ] [ exponent ] |
-               decimals exponent |
-               "." decimals [ exponent ] .
-decimals = decimal_digit { decimal_digit } .
-exponent = ( "e" | "E" ) [ "+" | "-" ] decimals .
+float_lit = decimals "." [ decimals ] [ exponent ] |
+            decimals exponent |
+            "." decimals [ exponent ] .
+decimals  = decimal_digit { decimal_digit } .
+exponent  = ( "e" | "E" ) [ "+" | "-" ] decimals .
 </pre>
 
 <pre>
@@ -2527,6 +2527,7 @@ var f = float(1&lt;&lt;s);   // illegal: 1 has type float, cannot shift
 var g = float(1&lt;&lt;33);  // legal; 1&lt;&lt;33 is a constant shift operation; g == 1&lt;&lt;33
 </pre>
 
+<h3 id="Operator_precedence">Operator precedence</h3>
 <p>
 Unary operators have the highest precedence.
 As the  <code>++</code> and <code>--</code> operators form
@@ -2536,7 +2537,7 @@ As a consequence, statement <code>*p++</code> is the same as <code>(*p)++</code>
 <p>
 There are six precedence levels for binary operators.
 Multiplication operators bind strongest, followed by addition
-operators, comparison operators, communication operators,
+operators, comparison operators, <code>&lt;-</code> (channel send),
 <code>&amp;&amp;</code> (logical and), and finally <code>||</code> (logical or):
 </p>
 
@@ -2552,10 +2553,7 @@ Precedence    Operator
 
 <p>
 Binary operators of the same precedence associate from left to right.
-For instance, <code>x / y / z</code> is the same as <code>(x / y) / z</code>.
-</p>
-<p>
-Examples:
+For instance, <code>x / y * z</code> is the same as <code>(x / y) * z</code>.
 </p>
 
 <pre>
@@ -2564,7 +2562,7 @@ Examples:
 x &lt;= f()
 ^a &gt;&gt; b
 f() || g()
-x == y + 1 &amp;&amp; &lt;-chan_ptr > 0
+x == y+1 &amp;&amp; &lt;-chan_ptr > 0
 </pre>
 
 
@@ -2963,7 +2961,7 @@ the receiver is provided as the first argument to the call.
 That is, given <code>f := T.Mv</code>, <code>f</code> is invoked
 as <code>f(t, 7)</code> not <code>t.f(7)</code>.
 To construct a function that binds the receiver, use a
-<a href="Function_literals">closure</a>.
+<a href="#Function_literals">closure</a>.
 </p>
 
 <p>
