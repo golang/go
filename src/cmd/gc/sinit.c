@@ -634,3 +634,156 @@ initctxt:
 	n->op = OEMPTY;
 	return 1;
 }
+
+int
+getlit(Node *lit)
+{
+	if(smallintconst(lit))
+		return mpgetfix(lit->val.u.xval);
+	return -1;
+}
+
+int
+stataddr(Node *nam, Node *n)
+{
+	int l;
+
+	if(n == N)
+		goto no;
+
+	switch(n->op) {
+
+	case ONAME:
+		*nam = *n;
+		return n->addable;
+
+	case ODOT:
+		if(!stataddr(nam, n->left))
+			break;
+		nam->xoffset += n->xoffset;
+		nam->type = n->type;
+		return 1;
+
+	case OINDEX:
+		if(n->left->type->bound < 0)
+			break;
+		if(!stataddr(nam, n->left))
+			break;
+		l = getlit(n->right);
+		if(l < 0)
+			break;
+		nam->xoffset += l*n->type->width;
+		nam->type = n->type;
+		return 1;
+	}
+
+no:
+	return 0;
+}
+
+int
+gen_as_init(Node *n)
+{
+	Node *nr, *nl;
+	Node nam, nod1;
+
+	if(n->dodata == 0)
+		goto no;
+
+	nr = n->right;
+	nl = n->left;
+	if(nr == N) {
+		if(!stataddr(&nam, nl))
+			goto no;
+		if(nam.class != PEXTERN)
+			goto no;
+		goto yes;
+	}
+
+	if(nr->type == T || !eqtype(nl->type, nr->type))
+		goto no;
+
+	if(!stataddr(&nam, nl))
+		goto no;
+
+	if(nam.class != PEXTERN)
+		goto no;
+
+	switch(nr->op) {
+	default:
+		goto no;
+
+	case OCONVSLICE:
+		goto slice;
+
+	case OLITERAL:
+		break;
+	}
+
+	switch(nr->type->etype) {
+	default:
+		goto no;
+
+	case TBOOL:
+	case TINT8:
+	case TUINT8:
+	case TINT16:
+	case TUINT16:
+	case TINT32:
+	case TUINT32:
+	case TINT64:
+	case TUINT64:
+	case TINT:
+	case TUINT:
+	case TUINTPTR:
+	case TPTR32:
+	case TPTR64:
+	case TFLOAT32:
+	case TFLOAT64:
+	case TFLOAT:
+		gused(N); // in case the data is the dest of a goto
+		gdata(&nam, nr, nr->type->width);
+		break;
+
+	case TSTRING:
+		gused(N); // in case the data is the dest of a goto
+		gdatastring(&nam, nr->val.u.sval);
+		break;
+	}
+
+yes:
+	return 1;
+
+slice:
+	gused(N); // in case the data is the dest of a goto
+	nr = n->right->left;
+	if(nr == N || nr->op != OADDR)
+		goto no;
+	nr = nr->left;
+	if(nr == N || nr->op != ONAME)
+		goto no;
+
+	// nr is the array being converted to a slice
+	if(nr->type == T || nr->type->etype != TARRAY || nr->type->bound < 0)
+		goto no;
+
+	nam.xoffset += Array_array;
+	gdata(&nam, n->right->left, types[tptr]->width);
+
+	nam.xoffset += Array_nel-Array_array;
+	nodconst(&nod1, types[TINT32], nr->type->bound);
+	gdata(&nam, &nod1, types[TINT32]->width);
+
+	nam.xoffset += Array_cap-Array_nel;
+	gdata(&nam, &nod1, types[TINT32]->width);
+
+	goto yes;
+
+no:
+	if(n->dodata == 2) {
+		dump("\ngen_as_init", n);
+		fatal("gen_as_init couldnt make data statement");
+	}
+	return 0;
+}
+
