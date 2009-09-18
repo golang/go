@@ -42,7 +42,7 @@ void
 cgen(Node *n, Node *res)
 {
 	Node *nl, *nr, *r;
-	Node n1, n2;
+	Node n1, n2, n3;
 	int a, w;
 	Prog *p1, *p2, *p3;
 	Addr addr;
@@ -132,7 +132,14 @@ cgen(Node *n, Node *res)
 	}
 
 	if(n->addable) {
-		gmove(n, res);
+		if (n->op == OREGISTER || is64(n->type) || is64(res->type)) {
+			gmove(n, res);
+		} else {
+			regalloc(&n1, n->type, N);
+			gmove(n, &n1);
+			cgen(&n1, res);
+			regfree(&n1);
+		}
 		goto ret;
 	}
 
@@ -151,7 +158,6 @@ cgen(Node *n, Node *res)
 
 	// 64-bit ops are hard on 32-bit machine.
 	if(is64(n->type) || is64(res->type) || n->left != N && is64(n->left->type)) {
-		print("64 bit op %O\n", n->op);
 		switch(n->op) {
 		// math goes to cgen64.
 		case OMINUS:
@@ -279,8 +285,10 @@ cgen(Node *n, Node *res)
 			cgen(nl, &n1);
 
 			nodconst(&n2, types[tptr], 0);
+			regalloc(&n3, n2.type, N);
 			p1 = gins(optoas(OCMP, types[tptr]), &n1, N);
-			raddr(&n2, p1);
+			raddr(&n3, p1);
+			regfree(&n3);
 			p1 = gbranch(optoas(OEQ, types[tptr]), T);
 
 			n2 = n1;
@@ -396,7 +404,7 @@ void
 agen(Node *n, Node *res)
 {
 	Node *nl, *nr;
-	Node n1, n2, n3, tmp;
+	Node n1, n2, n3, n4, tmp;
 	Prog *p1;
 	uint32 w;
 	uint64 v;
@@ -492,7 +500,11 @@ agen(Node *n, Node *res)
 					n1.type = types[tptr];
 					n1.xoffset = Array_nel;
 					nodconst(&n2, types[TUINT32], v);
-					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
+					regalloc(&n4, n2.type, N);
+					cgen(&n2, &n4);
+					p1 = gins(optoas(OCMP, types[TUINT32]), &n1, N);
+					raddr(&n4, p1);
+					regfree(&n4);
 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
 					ginscall(throwindex, 0);
 					patch(p1, pc);
@@ -536,9 +548,14 @@ agen(Node *n, Node *res)
 				n1.op = OINDREG;
 				n1.type = types[tptr];
 				n1.xoffset = Array_nel;
-			} else
+			} else {
 				nodconst(&n1, types[TUINT32], nl->type->bound);
-			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
+			}
+			regalloc(&n4, n1.type, N);
+			cgen(&n1, &n4);
+			p1 = gins(optoas(OCMP, types[TUINT32]), &n2, N);
+			raddr(&n4, p1);
+			regfree(&n4);
 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
 			ginscall(throwindex, 0);
 			patch(p1, pc);
@@ -702,7 +719,7 @@ bgen(Node *n, int true, Prog *to)
 		cgen(&n1, &n2);
 		cgen(n, &n3);
 		p1 = gins(optoas(OCMP, n->type), &n2, N);
-		p1->reg = n3.val.u.reg;
+		raddr(&n3, p1);
 		a = ABNE;
 		if(!true)
 			a = ABEQ;
@@ -783,13 +800,17 @@ bgen(Node *n, int true, Prog *to)
 			}
 			a = optoas(a, types[tptr]);
 			regalloc(&n1, types[tptr], N);
+			regalloc(&n3, types[tptr], N);
 			agen(nl, &n1);
 			n2 = n1;
 			n2.op = OINDREG;
 			n2.xoffset = Array_array;
 			nodconst(&tmp, types[tptr], 0);
-			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
+			cgen(&tmp, &n3);
+			p1 = gins(optoas(OCMP, types[tptr]), &n2, N);
+			raddr(&n3, p1);
 			patch(gbranch(a, types[tptr]), to);
+			regfree(&n3);
 			regfree(&n1);
 			break;
 		}
@@ -802,14 +823,18 @@ bgen(Node *n, int true, Prog *to)
 			}
 			a = optoas(a, types[tptr]);
 			regalloc(&n1, types[tptr], N);
+			regalloc(&n3, types[tptr], N);
 			agen(nl, &n1);
 			n2 = n1;
 			n2.op = OINDREG;
 			n2.xoffset = 0;
 			nodconst(&tmp, types[tptr], 0);
-			gins(optoas(OCMP, types[tptr]), &n2, &tmp);
+			cgen(&tmp, &n3);
+			p1 = gins(optoas(OCMP, types[tptr]), &n2, N);
+			raddr(&n3, p1);
 			patch(gbranch(a, types[tptr]), to);
 			regfree(&n1);
+			regfree(&n3);
 			break;
 		}
 
@@ -826,10 +851,11 @@ bgen(Node *n, int true, Prog *to)
 			regalloc(&n1, nl->type, N);
 			cgen(nl, &n1);
 
-			regalloc(&n2, nr->type, &n2);
+			regalloc(&n2, nr->type, N);
 			cgen(&tmp, &n2);
 
-			gins(optoas(OCMP, nr->type), &n1, &n2);
+			p1 = gins(optoas(OCMP, nr->type), &n1, N);
+			raddr(&n2, p1);
 			patch(gbranch(a, nr->type), to);
 
 			regfree(&n1);
@@ -969,7 +995,8 @@ sgen(Node *n, Node *res, int32 w)
 			p->to.offset = -4;
 			p->scond |= C_PBIT;
 
-			gins(ACMP, &src, &nend);
+			p = gins(ACMP, &src, N);
+			raddr(&nend, p);
 
 			patch(gbranch(ABNE, T), ploop);
 
@@ -994,7 +1021,8 @@ sgen(Node *n, Node *res, int32 w)
 			p->to.offset = 4;
 			p->scond |= C_PBIT;
 
-			gins(ACMP, &src, &nend);
+			p = gins(ACMP, &src, N);
+			raddr(&nend, p);
 
 			patch(gbranch(ABNE, T), ploop);
 

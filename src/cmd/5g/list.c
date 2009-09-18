@@ -60,9 +60,10 @@ Pconv(Fmt *fp)
 		break;
 
 	case ADATA:
-		sconsize = p->reg;
+	case AINIT:
+	case ADYNT:
 		snprint(str, sizeof(str), "%.4ld (%L) %-7A %D/%d,%D",
-			p->loc, p->lineno, p->as, &p->from, sconsize, &p->to);
+			p->loc, p->lineno, p->as, &p->from, p->reg, &p->to);
 		break;
 
 	case ATEXT:
@@ -99,7 +100,10 @@ Dconv(Fmt *fp)
 		break;
 
 	case D_BRANCH:
-		snprint(str, sizeof(str), "%d", a->branch->loc);
+		if(a->sym != S)
+			sprint(str, "%s+%d(APC)", a->sym->name, a->offset);
+		else
+			sprint(str, "%d(APC)", a->offset);
 		break;
 
 	case D_CONST:
