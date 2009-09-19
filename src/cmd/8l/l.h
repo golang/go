@@ -288,7 +288,7 @@ EXTERN	uchar	inuxi2[2];
 EXTERN	uchar	inuxi4[4];
 EXTERN	uchar	ycover[Ymax*Ymax];
 EXTERN	uchar*	andptr;
-EXTERN	uchar	and[30];
+EXTERN	uchar	and[100];
 EXTERN	char	reg[D_NONE];
 EXTERN	Prog*	lastp;
 EXTERN	int32	lcsize;

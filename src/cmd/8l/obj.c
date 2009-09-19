@@ -151,6 +151,9 @@ main(int argc, char *argv[])
 		if(strcmp(goos, "darwin") == 0)
 			HEADTYPE = 6;
 		else
+		if(strcmp(goos, "nacl") == 0)
+			HEADTYPE = 8;
+		else
 			print("goos is not known: %sn", goos);
 	}
 
@@ -220,6 +223,15 @@ main(int argc, char *argv[])
 		HEADR = elfheadr();
 		if(INITTEXT == -1)
 			INITTEXT = 0x08048000+HEADR;
+		if(INITDAT == -1)
+			INITDAT = 0;
+		if(INITRND == -1)
+			INITRND = 4096;
+		break;
+	case 8:	/* native client elf32 executable */
+		HEADR = 4096;
+		if(INITTEXT == -1)
+			INITTEXT = 0x20000;
 		if(INITDAT == -1)
 			INITDAT = 0;
 		if(INITRND == -1)

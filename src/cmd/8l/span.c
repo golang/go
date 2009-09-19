@@ -64,6 +64,7 @@ span(void)
 				p->as = ANOP;
 		}
 	}
+
 	n = 0;
 start:
 	do{
@@ -77,20 +78,29 @@ start:
 		}
 		c = INITTEXT;
 		for(p = firstp; p != P; p = p->link) {
-			if(p->as == ATEXT)
+			if(p->as == ATEXT) {
 				curtext = p;
+				if(HEADTYPE == 8)
+					c = (c+31)&~31;
+			}
 			if(p->to.type == D_BRANCH)
 				if(p->back)
 					p->pc = c;
-			if(n == 0 || p->to.type == D_BRANCH) {
+			if(n == 0 || HEADTYPE == 8 || p->to.type == D_BRANCH) {
+				if(HEADTYPE == 8)
+					p->pc = c;
 				asmins(p);
 				m = andptr-and;
+				if(p->mark != m)
+					again = 1;
 				p->mark = m;
 			}
-			if(c != p->pc)
-				again = 1;
-			p->pc = c;
-			c += p->mark;
+			if(HEADTYPE == 8) {
+				c = p->pc + p->mark;
+			} else {
+				p->pc = c;
+				c += p->mark;
+			}
 		}
 		textsize = c;
 		n++;
@@ -1292,9 +1302,35 @@ mfound:
 void
 asmins(Prog *p)
 {
+	if(HEADTYPE == 8) {
+		ulong npc;
 
-	andptr = and;
-	doasm(p);
+		// native client
+		// - pad indirect jump targets (aka ATEXT) to 32-byte boundary
+		// - instructions cannot cross 32-byte boundary
+		// - end of call (return address) must be on 32-byte boundary
+		if(p->as == ATEXT)
+			p->pc += 31 & -p->pc;
+		if(p->as == ACALL)
+			while((p->pc+5)&31)
+				p->pc++;
+		andptr = and;
+		doasm(p);
+		npc = p->pc + (andptr - and);
+		if((p->pc&~31) != ((npc-1)&~31)) {
+			// crossed 32-byte boundary; pad to boundary and try again
+			p->pc += 31 & -p->pc;
+			andptr = and;
+			doasm(p);
+		}
+	} else {
+		andptr = and;
+		doasm(p);
+	}
+	if(andptr > and+sizeof and) {
+		print("and[] is too short - %d byte instruction\n", andptr - and);
+		errorexit();
+	}
 }
 
 enum{
