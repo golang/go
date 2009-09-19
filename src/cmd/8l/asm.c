@@ -132,6 +132,7 @@ asmb(void)
 	int a, np, nl, ns;
 	uint32 va, fo, w, symo;
 	uchar *op1;
+	ulong expectpc;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -143,17 +144,39 @@ asmb(void)
 	for(p = firstp; p != P; p = p->link) {
 		if(p->as == ATEXT)
 			curtext = p;
+		curp = p;
+		if(HEADTYPE == 8) {
+			// native client
+			expectpc = p->pc;
+			p->pc = pc;
+			asmins(p);
+			if(p->pc != expectpc) {
+				Bflush(&bso);
+				diag("phase error %lux sb %lux in %s", p->pc, expectpc, TNAME);
+			}
+			while(pc < p->pc) {
+				cput(0x90);	// nop
+				pc++;
+			}
+		}
 		if(p->pc != pc) {
+			Bflush(&bso);
 			if(!debug['a'])
 				print("%P\n", curp);
 			diag("phase error %lux sb %lux in %s", p->pc, pc, TNAME);
 			pc = p->pc;
 		}
-		curp = p;
-		asmins(p);
+		if(HEADTYPE != 8) {
+			asmins(p);
+			if(pc != p->pc) {
+				Bflush(&bso);
+				diag("asmins changed pc %lux sb %lux in %s", p->pc, pc, TNAME);
+			}
+		}
 		if(cbc < sizeof(and))
 			cflush();
 		a = (andptr - and);
+
 		if(debug['a']) {
 			Bprint(&bso, pcstr, pc);
 			for(op1 = and; op1 < andptr; op1++)
@@ -170,6 +193,12 @@ asmb(void)
 		cbp += a;
 		pc += a;
 		cbc -= a;
+	}
+	if(HEADTYPE == 8) {
+		while(pc < INITDAT) {
+			cput(0xf4);	// hlt
+			pc++;
+		}
 	}
 	cflush();
 	switch(HEADTYPE) {
@@ -200,6 +229,7 @@ asmb(void)
 		cflush();
 		break;
 	case 7:
+	case 8:
 		seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
 		strtabsize = elfstrtable();
 		cflush();
@@ -254,6 +284,7 @@ asmb(void)
 			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND);
 			break;
 		case 7:
+		case 8:
 			symo = rnd(HEADR+textsize, INITRND)+datsize+strtabsize;
 			symo = rnd(symo, INITRND);
 			break;
@@ -485,10 +516,12 @@ asmb(void)
 		break;
 
 	case 7:
+	case 8:
 		np = 3;
 		ns = 5;
 		if(!debug['s']) {
-			np++;
+			if(HEADTYPE != 8)	// no loading of debug info under native client
+				np++;
 			ns += 2;
 		}
 
@@ -497,14 +530,24 @@ asmb(void)
 		cput(1);			/* class = 32 bit */
 		cput(1);			/* data = LSB */
 		cput(1);			/* version = CURRENT */
-		strnput("", 9);
+		if(HEADTYPE == 8) {
+			cput(123);	/* os abi - native client */
+			cput(5);		/* nacl abi version */
+		} else {
+			cput(0);
+			cput(0);
+		}
+		strnput("", 7);
 		wputl(2);			/* type = EXEC */
 		wputl(3);			/* machine = AMD64 */
 		lputl(1L);			/* version = CURRENT */
 		lputl(entryvalue());		/* entry vaddr */
 		lputl(52L);			/* offset to first phdr */
 		lputl(52L+32L*np);		/* offset to first shdr */
-		lputl(0L);			/* processor specific flags */
+		if(HEADTYPE == 8)
+			lputl(0x200000);	/* native client - align mod 32 */
+		else
+			lputl(0L);			/* processor specific flags */
 		wputl(52L);			/* Ehdr size */
 		wputl(32L);			/* Phdr size */
 		wputl(np);			/* # of Phdrs */
@@ -513,13 +556,13 @@ asmb(void)
 		wputl(4);			/* Shdr with strings */
 
 		/* prog headers */
-		fo = 0;
-		va = INITTEXT & ~((vlong)INITRND - 1);
-		w = HEADR+textsize;
+		fo = HEADR;
+		va = INITTEXT;
+		w = textsize;
 
 		elfphdr(1,			/* text - type = PT_LOAD */
 			1L+4L,			/* text - flags = PF_X+PF_R */
-			0,			/* file offset */
+			fo,			/* file offset */
 			va,			/* vaddr */
 			va,			/* paddr */
 			w,			/* file size */
@@ -539,7 +582,7 @@ asmb(void)
 			w+bsssize,		/* memory size */
 			INITRND);		/* alignment */
 
-		if(!debug['s']) {
+		if(!debug['s'] && HEADTYPE != 8) {
 			elfphdr(1,			/* data - type = PT_LOAD */
 				2L+4L,			/* data - flags = PF_W+PF_R */
 				symo,		/* file offset */
@@ -573,7 +616,7 @@ asmb(void)
 
 		stroffset = 1;  /* 0 means no name, so start at 1 */
 		fo = HEADR;
-		va = (INITTEXT & ~((vlong)INITRND - 1)) + HEADR;
+		va = INITTEXT;
 		w = textsize;
 
 		elfshdr(".text",		/* name */
