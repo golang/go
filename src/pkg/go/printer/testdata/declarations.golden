@@ -39,7 +39,7 @@ func _() {
 	var _ map[string]int;
 	var _ chan int;
 	var _ func() int;
-	
+
 	// the following decls don't need a semicolon at the end
 	type _ struct{}
 	type _ *struct{}
