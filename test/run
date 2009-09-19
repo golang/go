@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+export E=""
 case X"$GOARCH" in
 Xamd64)
 	export A=6
@@ -12,6 +13,7 @@ X386)
 	;;
 Xarm)
 	export A=5
+	export E="qemu-arm -cpu cortex-a8 "
 	;;
 *)
 	echo 1>&2 run: unsupported '$GOARCH'
@@ -24,7 +26,7 @@ export GOTRACEBACK=0
 
 failed=0
 
-PATH=/bin:/usr/bin:${GOBIN:-$HOME/bin}:`pwd`
+PATH=/bin:/usr/bin:/usr/local/bin:${GOBIN:-$HOME/bin}:`pwd`
 
 RUNFILE=/tmp/gorun-$$-$USER
 TMP1FILE=/tmp/gotest1-$$-$USER
@@ -42,7 +44,7 @@ do
 	do
 		export F=$(basename $i .go)
 		export D=$dir
-		sed '/^\/\//!q' $i | sed 's@//@@; $d' > $RUNFILE
+		sed '/^\/\//!q; s|//||g; s|./\$A.out|$E &|' $i >$RUNFILE
 		if ! sh $RUNFILE >$TMP1FILE 2>$TMP2FILE
 		then
 			echo
@@ -70,13 +72,14 @@ done | # clean up some stack noise
 		/^Trace\/breakpoint trap/d
 		/^Trace\/BPT trap/d
 		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
-		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d' > run.out
+		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
+		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
 
 case $failed in
 1)
 	echo FAIL
 esac
-rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.6 6.out
+rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
 diffmsg=""
 if ! diff run.out golden.out
 then
