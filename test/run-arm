@@ -1,0 +1,81 @@
+#!/bin/sh
+# Copyright 2009 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+export E=""
+case X"$GOARCH" in
+Xamd64)
+	export A=6
+	;;
+X386)
+	export A=8
+	;;
+Xarm)
+	export A=5
+	export E="qemu-arm -cpu cortex-a8 "
+	;;
+*)
+	echo 1>&2 run: unsupported '$GOARCH'
+	exit 1
+esac
+
+export G=${A}g
+export L=${A}l
+export GOTRACEBACK=0
+
+failed=0
+
+PATH=/bin:/usr/bin:/usr/local/bin:${GOBIN:-$HOME/bin}:`pwd`
+
+RUNFILE=/tmp/gorun-$$-$USER
+TMP1FILE=/tmp/gotest1-$$-$USER
+TMP2FILE=/tmp/gotest2-$$-$USER
+
+# don't run the machine out of memory: limit individual processes to 4GB.
+# on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
+ulimit -v 4000000
+
+
+for i in $(cat arm-pass.txt)
+do
+	export F=$(basename $i .go)
+	dir=$(dirname $i)
+	export D=$dir
+	sed '/^\/\//!q; s|//||g; s|./\$A.out|$E &|' $i >$RUNFILE
+	if ! sh $RUNFILE >$TMP1FILE 2>$TMP2FILE
+	then
+		echo
+		echo "===========" $i
+		cat $TMP1FILE
+		cat $TMP2FILE
+		echo >&2 fail: $i
+	elif test -s $TMP1FILE || test -s $TMP2FILE
+	then
+		echo
+		echo "===========" $i
+		cat $TMP1FILE
+		cat $TMP2FILE
+	elif [ $dir = "bugs" ]
+	then
+		echo $i succeeded with no output.
+	fi
+done | # clean up some stack noise
+	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
+	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/
+		s!'$RUNFILE'!$RUNFILE!g
+		s/ PC=0x[0-9a-f]*/ PC=xxx/
+		s/^pc: 0x[0-9a-f]*/pc: xxx/
+		/^Trace\/breakpoint trap/d
+		/^Trace\/BPT trap/d
+		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
+		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
+		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
+
+case $failed in
+1)
+	echo FAIL
+esac
+rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
+
+exit $failed

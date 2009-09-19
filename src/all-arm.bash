@@ -8,6 +8,15 @@ bash make-arm.bash
 
 # TODO(kaib): add in proper tests
 #bash run.bash
-5g -o hello.5 /home/kaib/work/go/hello.go
-5l -o 5.out hello.5
-qemu-arm -cpu cortex-a8 5.out|grep -q "Hello World"
+
+set -e
+
+xcd() {
+	echo
+	echo --- cd $1
+	builtin cd $1
+}
+
+(xcd ../test
+./run-arm
+) || exit $?
