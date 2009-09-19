@@ -6,6 +6,7 @@
 package printer
 
 import (
+	"bytes";
 	"container/vector";
 	"fmt";
 	"go/ast";
@@ -74,7 +75,6 @@ type printer struct {
 
 	// current state (changes during printing)
 	written int;  // number of bytes written
-	level int;  // function nesting level; 0 = package scope, 1 = top-level function scope, etc.
 	indent int;  // current indentation
 	last token.Position;  // (possibly estimated) position immediately after the last item; in AST space
 	pos token.Position;  // (possibly estimated) position; in AST space
@@ -97,8 +97,8 @@ func (p *printer) init(output io.Writer, mode uint) {
 }
 
 
-// Writing to p.output is done with write0 which also handles errors.
-// Does not indent after newlines, or HTML-escape, or update p.pos.
+// write0 writes raw (uninterpreted) data to p.output and handles errors.
+// write0 does not indent after newlines, and does not HTML-escape or update p.pos.
 //
 func (p *printer) write0(data []byte) {
 	n, err := p.output.Write(data);
@@ -109,23 +109,19 @@ func (p *printer) write0(data []byte) {
 }
 
 
+// write interprets data and writes it to p.output. It inserts indentation
+// after newline or formfeed, converts formfeed characters into newlines if
+// RawFormat is set, and HTML-escapes data if GenHTML is set.
+//
 func (p *printer) write(data []byte) {
 	i0 := 0;
 	for i, b := range data {
 		switch b {
 		case '\n', '\f':
 			// write segment ending in b followed by indentation
-			if p.mode & RawFormat != 0 && b == '\f' {
-				// no tabwriter - convert last byte into a newline
-				p.write0(data[i0 : i]);
-				p.write0(newlines[0 : 1]);
-			} else {
-				p.write0(data[i0 : i+1]);
-			}
+			p.write0(data[i0 : i+1]);
 
 			// write indentation
-			// TODO(gri) should not write indentation if there is nothing else
-			//           on the line
 			j := p.indent;
 			for ; j > len(tabs); j -= len(tabs) {
 				p.write0(&tabs);
@@ -532,19 +528,17 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
 func (p *printer) parameters(list []*ast.Field) {
 	p.print(token.LPAREN);
 	if len(list) > 0 {
-		p.level++;  // adjust nesting level for parameters
 		for i, par := range list {
 			if i > 0 {
 				p.print(token.COMMA, blank);
 			}
-			p.identList(par.Names);  // p.level > 0; all identifiers will be printed
+			p.identList(par.Names);
 			if len(par.Names) > 0 {
 				// at least one identifier
 				p.print(blank);
 			};
 			p.expr(par.Type);
 		}
-		p.level--;
 	}
 	p.print(token.RPAREN);
 }
@@ -760,9 +754,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 	case *ast.FuncLit:
 		p.expr(x.Type);
 		p.print(blank);
-		p.level++;  // adjust nesting level for function body
 		p.stmt(x.Body);
-		p.level--;
 
 	case *ast.ParenExpr:
 		p.print(token.LPAREN);
@@ -1255,9 +1247,7 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 		p.signature(d.Type.Params, d.Type.Results);
 		if d.Body != nil {
 			p.print(blank);
-			p.level++;  // adjust nesting level for function body
 			p.stmt(d.Body);
-			p.level--;
 		}
 
 	default:
@@ -1287,6 +1277,79 @@ func (p *printer) file(src *ast.File) {
 
 
 // ----------------------------------------------------------------------------
+// Trimmer
+
+// A trimmer is an io.Writer filter for stripping trailing blanks
+// and tabs, and for converting formfeed characters into newlines.
+//
+type trimmer struct {
+	output io.Writer;
+	buf bytes.Buffer;
+}
+
+
+func (p *trimmer) Write(data []byte) (n int, err os.Error) {
+	// m < 0: no unwritten data except for whitespace
+	// m >= 0: data[m:n] unwritten and no whitespace
+	m := 0;
+	if p.buf.Len() > 0 {
+		m = -1;
+	}
+
+	var b byte;
+	for n, b = range data {
+		switch b {
+		default:
+			// write any pending whitespace
+			if m < 0 {
+				if _, err = p.output.Write(p.buf.Bytes()); err != nil {
+					return;
+				}
+				p.buf.Reset();
+				m = n;
+			}
+
+		case '\t', ' ':
+			// write any pending (non-whitespace) data
+			if m >= 0 {
+				if _, err = p.output.Write(data[m:n]); err != nil {
+					return;
+				}
+				m = -1;
+			}
+			// collect whitespace
+			p.buf.WriteByte(b);  // WriteByte returns no errors
+
+		case '\f', '\n':
+			// discard whitespace
+			p.buf.Reset();
+			// write any pending (non-whitespace) data
+			if m >= 0 {
+				if _, err = p.output.Write(data[m:n]); err != nil {
+					return;
+				}
+				m = -1;
+			}
+			// convert formfeed into newline
+			if _, err = p.output.Write(newlines[0:1]); err != nil {
+				return;
+			}
+		}
+	}
+	n = len(data);
+
+	// write any pending non-whitespace
+	if m >= 0 {
+		if _, err = p.output.Write(data[m:n]); err != nil {
+			return;
+		}
+	}
+
+	return;
+}
+
+
+// ----------------------------------------------------------------------------
 // Public interface
 
 var inf = token.Position{Offset: 1<<30, Line: 1<<30}
@@ -1298,6 +1361,12 @@ var inf = token.Position{Offset: 1<<30, Line: 1<<30}
 // is controlled by the mode and tabwidth parameters.
 //
 func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, os.Error) {
+	// redirect output through a trimmer to eliminate trailing whitespace
+	// (Input to a tabwriter must be untrimmed since trailing tabs provide
+	// formatting information. The tabwriter could provide trimming
+	// functionality but no tabwriter is used when RawFormat is set.)
+	output = &trimmer{output: output};
+
 	// setup tabwriter if needed and redirect output
 	var tw *tabwriter.Writer;
 	if mode & RawFormat == 0 {
