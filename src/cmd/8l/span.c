@@ -65,56 +65,37 @@ span(void)
 		}
 	}
 	n = 0;
-
 start:
-	if(debug['v'])
-		Bprint(&bso, "%5.2f span\n", cputime());
-	Bflush(&bso);
-	c = INITTEXT;
-	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT)
-			curtext = p;
-		if(p->to.type == D_BRANCH)
-			if(p->back)
-				p->pc = c;
-		asmins(p);
-		p->pc = c;
-		m = andptr-and;
-		p->mark = m;
-		c += m;
-	}
-
-loop:
-	n++;
-	if(debug['v'])
-		Bprint(&bso, "%5.2f span %d\n", cputime(), n);
-	Bflush(&bso);
-	if(n > 50) {
-		print("span must be looping\n");
-		errorexit();
-	}
-	again = 0;
-	c = INITTEXT;
-	for(p = firstp; p != P; p = p->link) {
-		if(p->as == ATEXT)
-			curtext = p;
-		if(p->to.type == D_BRANCH) {
-			if(p->back)
-				p->pc = c;
-			asmins(p);
-			m = andptr-and;
-			if(m != p->mark) {
-				p->mark = m;
-				again++;
-			}
+	do{
+		again = 0;
+		if(debug['v'])
+			Bprint(&bso, "%5.2f span %d\n", cputime(), n);
+		Bflush(&bso);
+		if(n > 50) {
+			print("span must be looping\n");
+			errorexit();
 		}
-		p->pc = c;
-		c += p->mark;
-	}
-	if(again) {
+		c = INITTEXT;
+		for(p = firstp; p != P; p = p->link) {
+			if(p->as == ATEXT)
+				curtext = p;
+			if(p->to.type == D_BRANCH)
+				if(p->back)
+					p->pc = c;
+			if(n == 0 || p->to.type == D_BRANCH) {
+				asmins(p);
+				m = andptr-and;
+				p->mark = m;
+			}
+			if(c != p->pc)
+				again = 1;
+			p->pc = c;
+			c += p->mark;
+		}
 		textsize = c;
-		goto loop;
-	}
+		n++;
+	}while(again);
+	
 	if(INITRND) {
 		INITDAT = rnd(c, INITRND);
 		if(INITDAT != idat) {
