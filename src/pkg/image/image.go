@@ -233,6 +233,10 @@ func (p *Paletted) At(x, y int) Color {
 	return p.Palette[p.Pixel[y][x]];
 }
 
+func (p *Paletted) ColorIndexAt(x, y int) uint8 {
+	return p.Pixel[y][x];
+}
+
 func (p *Paletted) SetColorIndex(x, y int, index uint8) {
 	p.Pixel[y][x] = index;
 }

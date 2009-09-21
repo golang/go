@@ -89,7 +89,6 @@ NOTEST=\
 	go/token\
 	hash\
 	image\
-	image/png\
 	malloc\
 	rand\
 	runtime\
