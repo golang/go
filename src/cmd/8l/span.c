@@ -877,6 +877,22 @@ subreg(Prog *p, int from, int to)
 		print("%P\n", p);
 }
 
+// nacl RET:
+//	POPL BX
+//	ANDL BX, $~31
+//	JMP BX
+uchar naclret[] = { 0x5b, 0x83, 0xe3, ~31, 0xff, 0xe3 };
+
+// nacl JMP BX:
+//	ANDL BX, $~31
+//	JMP BX
+uchar nacljmpbx[] = { 0x83, 0xe3, ~31, 0xff, 0xe3 };
+
+// nacl CALL BX:
+//	ANDL BX, $~31
+//	CALL BX
+uchar naclcallbx[] = { 0x83, 0xe3, ~31, 0xff, 0xd3 };
+
 void
 doasm(Prog *p)
 {
@@ -936,6 +952,12 @@ found:
 		break;
 
 	case Zlit:
+		if(HEADTYPE == 8 && p->as == ARET) {
+			// native client return.
+			for(z=0; z<sizeof(naclret); z++)
+				*andptr++ = naclret[z];
+			break;
+		}
 		for(; op = o->op[z]; z++)
 			*andptr++ = op;
 		break;
@@ -967,6 +989,42 @@ found:
 		break;
 
 	case Zo_m:
+		if(HEADTYPE == 8) {
+			Adr a;
+
+			switch(p->as) {
+			case AJMP:
+				if(p->to.type < D_AX || p->to.type > D_DI)
+					diag("indirect jmp must use register in native client");
+				// ANDL $~31, REG
+				*andptr++ = 0x83;
+				asmand(&p->to, 04);
+				*andptr++ = ~31;
+				// JMP REG
+				*andptr++ = 0xFF;
+				asmand(&p->to, 04);
+				return;
+
+			case ACALL:
+				a = p->to;
+				// native client indirect call
+				if(a.type < D_AX || a.type > D_DI) {
+					// MOVL target into BX
+					*andptr++ = 0x8b;
+					asmand(&p->to, reg[D_BX]);
+					memset(&a, 0, sizeof a);
+					a.type = D_BX;
+				}
+				// ANDL $~31, REG
+				*andptr++ = 0x83;
+				asmand(&a, 04);
+				*andptr++ = ~31;
+				// CALL REG
+				*andptr++ = 0xFF;
+				asmand(&a, 02);
+				return;
+			}
+		}
 		*andptr++ = op;
 		asmand(&p->to, o->op[z+1]);
 		break;
@@ -1320,9 +1378,14 @@ asmins(Prog *p)
 		// - end of call (return address) must be on 32-byte boundary
 		if(p->as == ATEXT)
 			p->pc += 31 & -p->pc;
-		if(p->as == ACALL)
-			while((p->pc+5)&31)
-				p->pc++;
+		if(p->as == ACALL) {
+			// must end on 32-byte boundary.
+			// doasm to find out how long the CALL encoding is.
+			andptr = and;
+			doasm(p);
+			npc = p->pc + (andptr - and);
+			p->pc += 31 & -npc;
+		}
 		andptr = and;
 		doasm(p);
 		npc = p->pc + (andptr - and);
