@@ -9,7 +9,6 @@ import (
 	"io";
 	"os";
 	"reflect";
-	"strings";
 	"testing";
 )
 
@@ -228,7 +227,7 @@ func TestWrongTypeDecoder(t *testing.T) {
 }
 
 func corruptDataCheck(s string, err os.Error, t *testing.T) {
-	b := strings.NewBufferString(s);
+	b := bytes.NewBufferString(s);
 	dec := NewDecoder(b);
 	dec.Decode(new(ET2));
 	if dec.state.err != err {

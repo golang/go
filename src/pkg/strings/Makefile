@@ -6,7 +6,6 @@ include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=strings
 GOFILES=\
-	buffer.go\
 	strings.go\
 
 include $(GOROOT)/src/Make.pkg
