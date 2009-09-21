@@ -630,6 +630,7 @@ EXTERN	Idir*	idirs;
 
 EXTERN	Type*	types[NTYPE];
 EXTERN	Type*	idealstring;
+EXTERN	Type*	idealbool;
 EXTERN	uchar	simtype[NTYPE];
 EXTERN	uchar	isptr[NTYPE];
 EXTERN	uchar	isforw[NTYPE];

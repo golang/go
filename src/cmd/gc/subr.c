@@ -462,7 +462,7 @@ nodbool(int b)
 	c = nodintconst(0);
 	c->val.ctype = CTBOOL;
 	c->val.u.bval = b;
-	c->type = types[TBOOL];
+	c->type = idealbool;
 	return c;
 }
 
@@ -992,8 +992,11 @@ Tpretty(Fmt *fp, Type *t)
 		return fmtprint(fp, "%S", s);
 	}
 
-	if(t->etype < nelem(basicnames) && basicnames[t->etype] != nil)
+	if(t->etype < nelem(basicnames) && basicnames[t->etype] != nil) {
+		if(isideal(t) && t->etype != TIDEAL && t->etype != TNIL)
+			fmtprint(fp, "ideal ");
 		return fmtprint(fp, "%s", basicnames[t->etype]);
+	}
 
 	switch(t->etype) {
 	case TPTR32:
@@ -1498,9 +1501,7 @@ isideal(Type *t)
 {
 	if(t == T)
 		return 0;
-	if(t == idealstring)
-		return 1;
-	return t->etype == TNIL || t->etype == TIDEAL;
+	return t == idealstring || t == idealbool || t->etype == TNIL || t->etype == TIDEAL;
 }
 
 /*

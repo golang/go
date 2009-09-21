@@ -136,7 +136,7 @@ cgen(Node *n, Node *res)
 		tempfree(&n1);
 		return;
 	}
-
+	
 	// 64-bit ops are hard on 32-bit machine.
 	if(is64(n->type) || is64(res->type) || n->left != N && is64(n->left->type)) {
 		switch(n->op) {
@@ -156,7 +156,7 @@ cgen(Node *n, Node *res)
 		}
 	}
 
-	if(isfloat[n->type->etype] && isfloat[nl->type->etype])
+	if(nl != N && isfloat[n->type->etype] && isfloat[nl->type->etype])
 		goto flt;
 
 	switch(n->op) {
@@ -392,7 +392,7 @@ flt:	// floating-point.  387 (not SSE2) to interoperate with 6c
 
 	// unary
 	cgen(nl, &f0);
-	if(n->op != OCONV)
+	if(n->op != OCONV && n->op != OPLUS)
 		gins(foptoas(n->op, n->type, 0), &f0, &f0);
 	gmove(&f0, res);
 	return;

@@ -450,7 +450,7 @@ typename(Type *t)
 	Sym *s;
 	Node *n;
 
-	if(isptr[t->etype] && t->type == T)
+	if((isptr[t->etype] && t->type == T) || isideal(t))
 		fatal("typename %T", t);
 	s = typesym(t);
 	if(s->def == N) {
@@ -482,8 +482,8 @@ dtypesym(Type *t)
 	Type *t1;
 	Sym *tsym;
 
-	if(t->etype == TNIL || t->etype == TIDEAL || t == idealstring)
-		fatal("dtypesym ideal %T", t);
+	if(isideal(t))
+		fatal("dtypesym %T", t);
 
 	s = typesym(t);
 	if(s->flags & SymSiggen)

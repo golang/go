@@ -840,7 +840,7 @@ typecheckswitch(Node *n)
 					if(ll->n->op == OTYPE)
 						yyerror("type %T is not an expression", ll->n->type);
 					else if(ll->n->type != T && !eqtype(ll->n->type, t))
-						yyerror("case %+N in switch of %+N %#O", ll->n, n->ntest, ll->n->op);
+						yyerror("case %+N in %T switch", ll->n, t);
 					break;
 				case Etype:	// type switch
 					if(ll->n->op == OLITERAL && istype(ll->n->type, TNIL))
