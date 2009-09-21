@@ -450,7 +450,7 @@ naddr(Node *n, Adr *a)
 		break;
 
 	case OEXREG:
-		a->type = D_INDIR + D_FS;
+		a->type = D_INDIR + D_GS;
 		a->offset = n->reg - 1;
 		break;
 

@@ -13,8 +13,8 @@ EOF
 
 case "$GOARCH" in
 386)
-	echo '#define	g	0(FS)'
-	echo '#define	m	4(FS)'
+	echo '#define	g	0(GS)'
+	echo '#define	m	4(GS)'
 	;;
 amd64)
 	echo '#define	g	R15'
