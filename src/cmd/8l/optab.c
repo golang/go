@@ -260,7 +260,8 @@ uchar	yloop[] =
 uchar	ycall[] =
 {
 	Ynone,	Yml,	Zo_m,	2,
-	Ynone,	Ybr,	Zcall,	1,
+	Ynone,	Ybr,	Zcall,	0,
+	Ynone,	Yi32,	Zcallcon,	1,
 	0
 };
 uchar	yjmp[] =

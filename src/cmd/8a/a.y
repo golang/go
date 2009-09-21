@@ -285,6 +285,7 @@ rom:
 	}
 |	reg
 |	omem
+|	imm
 
 rim:
 	rem
