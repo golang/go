@@ -70,7 +70,7 @@ convlit1(Node **np, Type *t, int explicit)
 	Node *n, *nn;
 
 	n = *np;
-	if(n == N || t == T || n->type == T || isideal(t) || eqtype(t, n->type))
+	if(n == N || t == T || n->type == T || isideal(t) || n->type == t)
 		return;
 	if(!explicit && !isideal(n->type))
 		return;
@@ -285,12 +285,19 @@ tostr(Val v)
 		s = mal(sizeof(*s)+l);
 		s->len = l;
 		runetochar((char*)s->s, &rune);
+		memset(&v, 0, sizeof v);
 		v.ctype = CTSTR;
 		v.u.sval = s;
 		break;
 
 	case CTFLT:
 		yyerror("no float -> string");
+	
+	case CTNIL:
+		memset(&v, 0, sizeof v);
+		v.ctype = CTSTR;
+		v.u.sval = mal(sizeof *s);
+		break;
 	}
 	return v;
 }
@@ -593,11 +600,17 @@ unary:
 		}
 		return;
 
+	case TUP(OCONV, CTNIL):
+	case TUP(OARRAYBYTESTR, CTNIL):
+		if(n->type->etype == TSTRING) {
+			v = tostr(v);
+			nl->type = n->type;
+			break;
+		}
+		// fall through
 	case TUP(OCONV, CTINT):
 	case TUP(OCONV, CTFLT):
 	case TUP(OCONV, CTSTR):
-	case TUP(OCONV, CTNIL):
-	case TUP(OARRAYBYTESTR, CTNIL):
 		convlit1(&nl, n->type, 1);
 		break;
 
@@ -679,10 +692,10 @@ nodlit(Val v)
 	default:
 		fatal("nodlit ctype %d", v.ctype);
 	case CTSTR:
-		n->type = types[TSTRING];
+		n->type = idealstring;
 		break;
 	case CTBOOL:
-		n->type = types[TBOOL];
+		n->type = idealbool;
 		break;
 	case CTINT:
 	case CTFLT:
@@ -730,7 +743,10 @@ defaultlit(Node **np, Type *t)
 		}
 		defaultlit(&n->left, t);
 		defaultlit(&n->right, t);
-		n->type = n->left->type;
+		if(n->type == idealbool || n->type == idealstring)
+			n->type = types[n->type->etype];
+		else
+			n->type = n->left->type;
 		return;
 	}
 
@@ -752,6 +768,9 @@ defaultlit(Node **np, Type *t)
 			break;
 		}
 		yyerror("defaultlit: unknown literal: %#N", n);
+		break;
+	case CTBOOL:
+		n->type = types[TBOOL];
 		break;
 	case CTINT:
 		n->type = types[TINT];
@@ -795,11 +814,11 @@ defaultlit2(Node **lp, Node **rp, int force)
 	r = *rp;
 	if(l->type == T || r->type == T)
 		return;
-	if(l->type->etype != TIDEAL && l->type->etype != TNIL) {
+	if(!isideal(l->type)) {
 		convlit(rp, l->type);
 		return;
 	}
-	if(r->type->etype != TIDEAL && r->type->etype != TNIL) {
+	if(!isideal(r->type)) {
 		convlit(lp, r->type);
 		return;
 	}

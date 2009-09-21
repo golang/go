@@ -102,7 +102,7 @@ dumpexportconst(Sym *s)
 
 	Bprint(bout, "\t");
 	Bprint(bout, "const %lS", s);
-	if(t != T && t->etype != TIDEAL)
+	if(t != T && !isideal(t))
 		Bprint(bout, " %#T", t);
 	Bprint(bout, " = ");
 

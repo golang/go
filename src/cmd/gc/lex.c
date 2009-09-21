@@ -1311,15 +1311,6 @@ lexinit(void)
 	s->def->iota = 1;
 	s->def->sym = s;
 
-	s = pkglookup("true", "/builtin/");
-	s->def = nodbool(1);
-	s->def->sym = lookup("true");
-
-	s = pkglookup("false", "/builtin/");
-	s->def = nodbool(0);
-	s->def->sym = lookup("false");
-
-
 	// logically, the type of a string literal.
 	// types[TSTRING] is the named type string
 	// (the type of x in var x string or var x = "hello").
@@ -1327,6 +1318,17 @@ lexinit(void)
 	// (the type of x in const x = "hello").
 	// TODO(rsc): this may need some more thought.
 	idealstring = typ(TSTRING);
+	idealbool = typ(TBOOL);
+
+	s = pkglookup("true", "/builtin/");
+	s->def = nodbool(1);
+	s->def->sym = lookup("true");
+	s->def->type = idealbool;
+
+	s = pkglookup("false", "/builtin/");
+	s->def = nodbool(0);
+	s->def->sym = lookup("false");
+	s->def->type = idealbool;
 
 	s = lookup("_");
 	s->block = -100;

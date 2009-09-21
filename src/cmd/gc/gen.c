@@ -443,7 +443,8 @@ cgen_discard(Node *nr)
 
 	switch(nr->op) {
 	case ONAME:
-		gused(nr);
+		if(!(nr->class & PHEAP))
+			gused(nr);
 		break;
 
 	// unary

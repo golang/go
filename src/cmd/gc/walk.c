@@ -718,7 +718,7 @@ walkexpr(Node **np, NodeList **init)
 		if(n->etype == OANDNOT) {
 			n->etype = OAND;
 			n->right = nod(OCOM, n->right, N);
-			n->right->type = n->right->left->type;
+			typecheck(&n->right, Erv);
 			goto ret;
 		}
 
@@ -740,7 +740,7 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&n->right, init);
 		n->op = OAND;
 		n->right = nod(OCOM, n->right, N);
-		n->right->type = n->right->left->type;
+		typecheck(&n->right, Erv);
 		goto ret;
 
 	case ODIV:

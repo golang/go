@@ -337,7 +337,7 @@ reswitch:
 			goto badbinary;
 		t = l->type;
 		if(iscmp[n->op]) {
-			t = types[TBOOL];
+			t = idealbool;
 			evconst(n);
 			if(n->op != OLITERAL) {
 				defaultlit2(&l, &r, 1);
@@ -564,9 +564,11 @@ reswitch:
 			goto error;
 		// TODO: more aggressive
 		n->etype = 0;
-		if(top & Erv)
+		n->type = T;
+		if(top & Erv) {
 			n->op = OSENDNB;
-		n->type = types[TBOOL];
+			n->type = idealbool;
+		}
 		goto ret;
 
 	case OSLICE:
@@ -743,7 +745,7 @@ reswitch:
 			goto error;
 		}
 		if(n->op == OCLOSED) {
-			n->type = types[TBOOL];
+			n->type = idealbool;
 			ok |= Erv;
 		} else
 			ok |= Etop;
@@ -1185,11 +1187,16 @@ nokeys(NodeList *l)
 	return 1;
 }
 
+/*
+ * check implicit or explicit conversion from node type nt to type t.
+ */
 int
 checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
 {
 	*op = OCONV;
 	*et = 0;
+
+	
 
 	// preexisting error
 	if(t == T || t->etype == TFORW)
@@ -1218,6 +1225,8 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
 	// accept anything involving interfaces and let ifacecvt
 	// generate a good message.  some messages have to be
 	// delayed anyway.
+	// TODO(rsc): now that everything is delayed for whole-package
+	// compilation, the messages could be generated right here.
 	if(isnilinter(t) || isnilinter(nt) || isinter(t) || isinter(nt)) {
 		*et = ifaceas1(t, nt, 0);
 		*op = OCONVIFACE;
@@ -1320,7 +1329,7 @@ typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
 		return n;
 
 	if(n->op == OLITERAL)
-	if(explicit || n->type->etype == TIDEAL || n->type == idealstring || n->type->etype == TNIL)
+	if(explicit || isideal(n->type))
 	if(cvttype(t, n->type)) {
 		// can convert literal in place
 		// TODO(rsc) is this needed?
@@ -1345,6 +1354,9 @@ typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
 		}
 		return n;
 	}
+
+	if(op == OCONVIFACE)
+		defaultlit(&n, T);
 
 	if(nconv == N)
 		nconv = nod(OCONV, n, N);
@@ -1909,7 +1921,7 @@ typecheckas2(Node *n)
 		n->op = OAS2MAPW;
 		n->rlist->n = typecheckconv(nil, r, l->type->down, 0);
 		r = n->rlist->next->n;
-		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 0);
+		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 1);
 		goto out;
 	}
 
@@ -1959,7 +1971,7 @@ typecheckas2(Node *n)
 			if(l->defn == n)
 				l->type = r->type;
 			l = n->list->next->n;
-			if(l->type != T && checkconv(types[TBOOL], l->type, 0, &op, &et) < 0)
+			if(l->type != T && checkconv(idealbool, l->type, 0, &op, &et) < 0)
 				yyerror("cannot assign bool value to %+N", l);
 			if(l->defn == n && l->ntype == N)
 				l->type = types[TBOOL];
