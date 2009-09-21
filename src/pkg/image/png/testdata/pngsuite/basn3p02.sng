@@ -1,0 +1,50 @@
+#SNG: from basn3p02.png
+IHDR {
+    width: 32; height: 32; bitdepth: 2;
+    using color palette;
+}
+gAMA {1.0000}
+sBIT {
+    red: 1; green: 1; blue: 1;
+}
+PLTE {
+    (  0,255,  0)     # rgb = (0x00,0xff,0x00) green1
+    (255,  0,  0)     # rgb = (0xff,0x00,0x00) red1
+    (255,255,  0)     # rgb = (0xff,0xff,0x00) yellow1
+    (  0,  0,255)     # rgb = (0x00,0x00,0xff) blue1
+}
+IMAGE {
+    pixels hex
+ff55aa00ff55aa00
+ff55aa00ff55aa00
+ff55aa00ff55aa00
+ff55aa00ff55aa00
+00ff55aa00ff55aa
+00ff55aa00ff55aa
+00ff55aa00ff55aa
+00ff55aa00ff55aa
+aa00ff55aa00ff55
+aa00ff55aa00ff55
+aa00ff55aa00ff55
+aa00ff55aa00ff55
+55aa00ff55aa00ff
+55aa00ff55aa00ff
+55aa00ff55aa00ff
+55aa00ff55aa00ff
+ff55aa00ff55aa00
+ff55aa00ff55aa00
+ff55aa00ff55aa00
+ff55aa00ff55aa00
+00ff55aa00ff55aa
+00ff55aa00ff55aa
+00ff55aa00ff55aa
+00ff55aa00ff55aa
+aa00ff55aa00ff55
+aa00ff55aa00ff55
+aa00ff55aa00ff55
+aa00ff55aa00ff55
+55aa00ff55aa00ff
+55aa00ff55aa00ff
+55aa00ff55aa00ff
+55aa00ff55aa00ff
+}

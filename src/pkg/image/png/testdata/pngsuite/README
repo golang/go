@@ -1,0 +1,9 @@
+The *.png and README.original files in this directory are copied from
+libpng.org, specifically contrib/pngsuite/* in libpng-1.2.40.tar.gz.
+README.original gives the following license for those files:
+
+	Permission to use, copy, and distribute these images for any purpose
+	and without fee is hereby granted.
+
+The *.sng files in this directory were generated from the *.png files
+by the sng command-line tool.

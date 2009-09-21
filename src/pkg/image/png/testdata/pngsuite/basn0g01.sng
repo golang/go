@@ -1,0 +1,41 @@
+#SNG: from basn0g01.png
+IHDR {
+    width: 32; height: 32; bitdepth: 1;
+    using grayscale;
+}
+gAMA {1.0000}
+IMAGE {
+    pixels hex
+fffffffe
+fffffffc
+fffffff8
+fffffff0
+f3f3ffe0
+f3f3ffc0
+f3f3ff80
+f333ff00
+f333fe00
+f333fc00
+f807f800
+f807f000
+fccfe000
+fccfc000
+ffff8000
+ffff0000
+fffe0000
+fffc0000
+fff80fe0
+fff00fe0
+ffe00c30
+ffc00c30
+ff800fe0
+ff000fe0
+fe000c30
+fc000c30
+f8000fe0
+f0000fe0
+e0000000
+c0000000
+80000000
+00000000
+}
