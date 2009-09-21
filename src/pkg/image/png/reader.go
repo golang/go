@@ -62,7 +62,7 @@ type decoder struct {
 type FormatError string
 
 func (e FormatError) String() string {
-	return "invalid PNG format: " + e;
+	return "invalid PNG format: " + string(e);
 }
 
 var chunkOrderError = FormatError("chunk out of order")
@@ -80,7 +80,7 @@ func (e IDATDecodingError) String() string {
 type UnsupportedError string
 
 func (e UnsupportedError) String() string {
-	return "unsupported PNG feature: " + e;
+	return "unsupported PNG feature: " + string(e);
 }
 
 // Big-endian.
