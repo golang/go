@@ -105,7 +105,7 @@ start:
 		textsize = c;
 		n++;
 	}while(again);
-	
+
 	if(INITRND) {
 		INITDAT = rnd(c, INITRND);
 		if(INITDAT != idat) {
@@ -1107,6 +1107,15 @@ found:
 			*andptr++ = v>>16;
 			*andptr++ = v>>24;
 		}
+		break;
+
+	case Zcallcon:
+		v = p->to.offset - p->pc - 5;
+		*andptr++ = op;
+		*andptr++ = v;
+		*andptr++ = v>>8;
+		*andptr++ = v>>16;
+		*andptr++ = v>>24;
 		break;
 
 	case Zjmp:
