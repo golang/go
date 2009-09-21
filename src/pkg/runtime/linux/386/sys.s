@@ -8,20 +8,6 @@
 
 #include "386/asm.h"
 
-TEXT syscall(SB),7,$0
-	MOVL 4(SP), AX	// syscall number
-	MOVL 8(SP), BX	// arg1
-	MOVL 12(SP), CX	// arg2
-	MOVL 16(SP), DX	// arg3
-	MOVL 20(SP), SI	// arg4
-	MOVL 24(SP), DI	// arg5
-	MOVL 28(SP), BP	// arg6
-	INT $0x80
-	CMPL AX, $0xfffff001
-	JLS 2(PC)
-	INT $3	// not reached
-	RET
-
 TEXT exit(SB),7,$0
 	MOVL	$252, AX	// syscall number
 	MOVL	4(SP), BX
@@ -159,7 +145,7 @@ TEXT clone(SB),7,$0
 	POPAL
 	SHLL	$3, DI	// segment# is ldt*8 + 7 (different 7 than above)
 	ADDL	$7, DI
-	MOVW	DI, FS
+	MOVW	DI, GS
 
 	// Now segment is established.  Initialize m, g.
 	MOVL	DX, g
@@ -190,15 +176,15 @@ TEXT sigaltstack(SB),7,$-8
 
 // <asm-i386/ldt.h>
 // struct user_desc {
-// 	unsigned int  entry_number;
-// 	unsigned long base_addr;
-// 	unsigned int  limit;
-// 	unsigned int  seg_32bit:1;
-// 	unsigned int  contents:2;
-// 	unsigned int  read_exec_only:1;
-// 	unsigned int  limit_in_pages:1;
-// 	unsigned int  seg_not_present:1;
-// 	unsigned int  useable:1;
+//	unsigned int  entry_number;
+//	unsigned long base_addr;
+//	unsigned int  limit;
+//	unsigned int  seg_32bit:1;
+//	unsigned int  contents:2;
+//	unsigned int  read_exec_only:1;
+//	unsigned int  limit_in_pages:1;
+//	unsigned int  seg_not_present:1;
+//	unsigned int  useable:1;
 // };
 #define SEG_32BIT 0x01
 // contents are the 2 bits 0x02 and 0x04.
@@ -223,10 +209,15 @@ TEXT setldt(SB),7,$32
 	MOVL	$(SEG_32BIT|USEABLE|CONTENTS_DATA), 12(AX)	// flag bits
 
 	// call modify_ldt
-	MOVL	$123, 0(SP)	// syscall - modify_ldt
-	MOVL	$1, 4(SP)	// func = 1 (write)
-	MOVL	AX, 8(SP)	// user_desc
-	MOVL	$16, 12(SP)	// sizeof(user_desc)
-	CALL	syscall(SB)
+	MOVL	$1, BX	// func = 1 (write)
+	MOVL	AX, CX	// user_desc
+	MOVL	$16, DX	// sizeof(user_desc)
+	MOVL	$123, AX	// syscall - modify_ldt
+	INT	$0x80
+
+	// breakpoint on error
+	CMPL AX, $0xfffff001
+	JLS 2(PC)
+	INT $3
 	RET
 

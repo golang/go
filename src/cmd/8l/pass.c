@@ -464,6 +464,7 @@ dostkoff(void)
 	int a, f, curframe, curbecome, maxbecome;
 	Prog *pmorestack;
 	Sym *symmorestack;
+	static int fsreg;
 
 	pmorestack = P;
 	symmorestack = lookup("sys·morestack", 0);
@@ -565,7 +566,7 @@ dostkoff(void)
 			if(!(p->from.scale & NOSPLIT)) {
 				p = appendp(p);	// load g into CX
 				p->as = AMOVL;
-				p->from.type = D_INDIR+D_FS;
+				p->from.type = D_INDIR+D_GS;
 				p->from.offset = 0;
 				p->to.type = D_CX;
 

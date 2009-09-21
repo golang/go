@@ -15,12 +15,12 @@ TEXT _rt0_386(SB),7,$0
 
 	CALL	ldt0setup(SB)
 
-	// set up %fs to refer to that ldt entry
+	// set up %gs to refer to that ldt entry
 	MOVL	$(7*8+7), AX
-	MOVW	AX, FS
+	MOVW	AX, GS
 
 	// store through it, to make sure it works
-	MOVL	$0x123, 0(FS)
+	MOVL	$0x123, 0(GS)
 	MOVL	tls0(SB), AX
 	CMPL	AX, $0x123
 	JEQ	ok

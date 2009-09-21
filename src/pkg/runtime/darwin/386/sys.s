@@ -139,7 +139,7 @@ TEXT bsdthread_start(SB),7,$0
 	POPAL
 	SHLL	$3, DI	// segment# is ldt*8 + 7.
 	ADDL	$7, DI
-	MOVW	DI, FS
+	MOVW	DI, GS
 
 	// Now segment is established.  Initialize m, g.
 	MOVL	AX, g
