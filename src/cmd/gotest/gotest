@@ -16,6 +16,12 @@ if [ -z "$O" ]; then
 	exit 1
 fi
 
+E=""
+case "$GOOS" in
+nacl)
+	E="nacl"
+esac
+
 # Allow overrides
 GC=${_GC:-$GC}
 GL=${GL:-$LD}
@@ -124,4 +130,4 @@ importpath=$(make -s importpath)
 
 $GC _testmain.go
 $GL _testmain.$O _test/$importpath.a $xofile
-./$O.out "$@"
+$E ./$O.out "$@"

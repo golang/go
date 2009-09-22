@@ -3,26 +3,14 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-export E=""
 case X"$GOARCH" in
-Xamd64)
-	export A=6
-	;;
 X386)
 	export A=8
-	;;
-Xarm)
-	export A=5
-	export E="qemu-arm -cpu cortex-a8 "
+	export E=nacl
 	;;
 *)
 	echo 1>&2 run: unsupported '$GOARCH'
 	exit 1
-esac
-
-case X"$GOOS" in
-Xnacl)
-	export E="nacl"
 esac
 
 export G=${A}g
@@ -41,37 +29,29 @@ TMP2FILE=/tmp/gotest2-$$-$USER
 # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
 ulimit -v 4000000
 
-true >pass.out
-
-for dir in . ken chan interface fixedbugs bugs
+for i in $(cat nacl-pass.txt)
 do
-	echo
-	echo '==' $dir'/'
-	for i in $dir/*.go
-	do
-		export F=$(basename $i .go)
-		export D=$dir
-		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|' >$RUNFILE
-		if ! sh $RUNFILE >$TMP1FILE 2>$TMP2FILE
-		then
-			echo
-			echo "===========" $i
-			cat $TMP1FILE
-			cat $TMP2FILE
-			echo >&2 fail: $i
-		elif test -s $TMP1FILE || test -s $TMP2FILE
-		then
-			echo
-			echo "===========" $i
-			cat $TMP1FILE
-			cat $TMP2FILE
-		elif [ $dir = "bugs" ]
-		then
-			echo $i succeeded with no output.
-		else
-			echo $i >>pass.out
-		fi
-	done
+	export F=$(basename $i .go)
+	dir=$(dirname $i)
+	export D=$dir
+	sed '/^\/\//!q; s|//||g; s|./\$A.out|$E &|' $i >$RUNFILE
+	if ! sh $RUNFILE >$TMP1FILE 2>$TMP2FILE
+	then
+		echo
+		echo "===========" $i
+		cat $TMP1FILE
+		cat $TMP2FILE
+		echo >&2 fail: $i
+	elif test -s $TMP1FILE || test -s $TMP2FILE
+	then
+		echo
+		echo "===========" $i
+		cat $TMP1FILE
+		cat $TMP2FILE
+	elif [ $dir = "bugs" ]
+	then
+		echo $i succeeded with no output.
+	fi
 done | # clean up some stack noise
 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
 	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/
@@ -85,20 +65,12 @@ done | # clean up some stack noise
 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
 
 case $failed in
+0)
+	echo PASS
+	;;
 1)
 	echo FAIL
 esac
 rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
-diffmsg=""
-if ! diff run.out golden.out
-then
-	diffmsg="; test output differs"
-	failed=1
-fi
-
-notinbugs=$(sed '/^== bugs/q' run.out | grep -c '^BUG')
-inbugs=$(sed '1,/^== bugs/d' run.out | grep -c '^BUG')
-
-echo 2>&1 $inbugs known bugs';' $notinbugs unexpected bugs$diffmsg
 
 exit $failed

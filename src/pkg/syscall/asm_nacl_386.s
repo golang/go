@@ -85,8 +85,7 @@ ok6:
 	RET
 
 // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
-TEXT syscall·RawSyscall(SB),7,$0
-TEXT	syscall·Syscall(SB),7,$20
+TEXT syscall·RawSyscall(SB),7,$20
 	MOVL	trap+0(FP), AX	// syscall entry
 	MOVL	a1+4(FP), BX
 	MOVL	a2+8(FP), CX
