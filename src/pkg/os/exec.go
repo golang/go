@@ -148,12 +148,10 @@ func (w Waitmsg) String() string {
 
 // Getpid returns the process id of the caller.
 func Getpid() int {
-	p, _, _ := syscall.Syscall(syscall.SYS_GETPID, 0, 0, 0);
-	return int(p)
+	return syscall.Getpid();
 }
 
 // Getppid returns the process id of the caller's parent.
 func Getppid() int {
-	p, _, _ := syscall.Syscall(syscall.SYS_GETPPID, 0, 0, 0);
-	return int(p)
+	return syscall.Getppid();
 }
