@@ -103,6 +103,15 @@ linux_amd64)
 	mksysnum="mksysnum_linux.sh /usr/include/asm/unistd_64.h"
 	mktypes="godefs -gsyscall -f-m64"
 	;;
+nacl_386)
+	NACL="/home/rsc/pub/nacl/native_client"
+	NACLRUN="$NACL/src/trusted/service_runtime"
+	NACLSDK="$NACL/src/third_party/nacl_sdk/linux/sdk/nacl-sdk/nacl"
+	mksyscall="mksyscall.sh -l32"
+	mksysnum="mksysnum_nacl.sh $NACLRUN/include/bits/nacl_syscalls.h"
+	mktypes="godefs -gsyscall -f-m32 -f-I$NACLSDK/include -f-I$NACL"
+	mkerrors="mkerrors_nacl.sh $NACLRUN/include/sys/errno.h"
+	;;
 *)
 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
 	exit 1

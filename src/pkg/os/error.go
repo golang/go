@@ -46,7 +46,6 @@ var (
 	ENOMEM Error = Errno(syscall.ENOMEM);
 	EACCES Error = Errno(syscall.EACCES);
 	EFAULT Error = Errno(syscall.EFAULT);
-	ENOTBLK Error = Errno(syscall.ENOTBLK);
 	EBUSY Error = Errno(syscall.EBUSY);
 	EEXIST Error = Errno(syscall.EEXIST);
 	EXDEV Error = Errno(syscall.EXDEV);
@@ -57,7 +56,6 @@ var (
 	ENFILE Error = Errno(syscall.ENFILE);
 	EMFILE Error = Errno(syscall.EMFILE);
 	ENOTTY Error = Errno(syscall.ENOTTY);
-	ETXTBSY Error = Errno(syscall.ETXTBSY);
 	EFBIG Error = Errno(syscall.EFBIG);
 	ENOSPC Error = Errno(syscall.ENOSPC);
 	ESPIPE Error = Errno(syscall.ESPIPE);
