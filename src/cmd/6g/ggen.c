@@ -1129,15 +1129,13 @@ int
 cgen_inline(Node *n, Node *res)
 {
 	Node nodes[5];
-	Node n1, n2;
+	Node n1, n2, nres, nnode0, ntemp;
 	vlong v;
-	int i;
+	int i, bad;
 
 	if(n->op != OCALLFUNC)
 		goto no;
 	if(!n->left->addable)
-		goto no;
-	if(!sleasy(res))
 		goto no;
 	if(strcmp(n->left->sym->package, "sys") != 0)
 		goto no;
@@ -1150,6 +1148,8 @@ cgen_inline(Node *n, Node *res)
 	goto no;
 
 slicearray:
+	if(!sleasy(res))
+		goto no;
 	getargs(n->list, nodes, 5);
 
 	// if(hb[3] > nel[1]) goto throw
@@ -1222,6 +1222,8 @@ slicearray:
 	return 1;
 
 arraytoslice:
+	if(!sleasy(res))
+		goto no;
 	getargs(n->list, nodes, 2);
 
 	// ret.len = nel[1];
@@ -1247,16 +1249,35 @@ arraytoslice:
 
 sliceslice:
 	getargs(n->list, nodes, 4);
-	if(!sleasy(&nodes[0])) {
+
+	nres = *res;		// result
+	nnode0 = nodes[0];	// input slice
+	if(!sleasy(res) || !sleasy(&nodes[0])) {
+		bad = 0;
+		if(res->ullman >= UINF)
+			bad = 1;
 		for(i=0; i<4; i++) {
+			if(nodes[i].ullman >= UINF)
+				bad = 1;
 			if(nodes[i].op == OREGISTER)
 				regfree(&nodes[i]);
 		}
-		goto no;
+
+		if(bad)
+			goto no;
+
+		tempname(&ntemp, res->type);
+		if(!sleasy(&nodes[0])) {
+			cgen(&nodes[0], &ntemp);
+			nnode0 = ntemp;
+		}
+		getargs(n->list, nodes, 4);
+		if(!sleasy(res))
+			nres = ntemp;
 	}
 
 	// if(hb[2] > old.cap[0]) goto throw;
-	n2 = nodes[0];
+	n2 = nnode0;
 	n2.xoffset += Array_cap;
 	cmpandthrow(&nodes[2], &n2);
 
@@ -1264,7 +1285,7 @@ sliceslice:
 	cmpandthrow(&nodes[1], &nodes[2]);
 
 	// ret.len = hb[2]-lb[1]; (destroys hb[2])
-	n2 = *res;
+	n2 = nres;
 	n2.xoffset += Array_nel;
 
 	if(smallintconst(&nodes[2]) && smallintconst(&nodes[1])) {
@@ -1282,7 +1303,7 @@ sliceslice:
 	}
 
 	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])
-	n2 = nodes[0];
+	n2 = nnode0;
 	n2.xoffset += Array_cap;
 
 	regalloc(&n1, types[TUINT32], &nodes[2]);
@@ -1290,13 +1311,13 @@ sliceslice:
 	if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
 		gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
 
-	n2 = *res;
+	n2 = nres;
 	n2.xoffset += Array_cap;
 	gins(optoas(OAS, types[TUINT32]), &n1, &n2);
 	regfree(&n1);
 
 	// ret.array = old.array[0]+lb[1]*width[3]; (uses lb[1])
-	n2 = nodes[0];
+	n2 = nnode0;
 	n2.xoffset += Array_array;
 
 	regalloc(&n1, types[tptr], &nodes[1]);
@@ -1315,7 +1336,7 @@ sliceslice:
 		gins(optoas(OADD, types[tptr]), &n2, &n1);
 	}
 
-	n2 = *res;
+	n2 = nres;
 	n2.xoffset += Array_array;
 	gins(optoas(OAS, types[tptr]), &n1, &n2);
 	regfree(&n1);
@@ -1323,6 +1344,10 @@ sliceslice:
 	for(i=0; i<4; i++) {
 		if(nodes[i].op == OREGISTER)
 			regfree(&nodes[i]);
+	}
+
+	if(!sleasy(res)) {
+		cgen(&nres, res);
 	}
 	return 1;
 
