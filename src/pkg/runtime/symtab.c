@@ -32,6 +32,15 @@ sys·symdat(Slice *symtab, Slice *pclntab)
 	Slice *a;
 	int32 *v;
 
+	// TODO(rsc): Remove once TODO at top of file is done.
+	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0) {
+		symtab = mal(sizeof *a);
+		pclntab = mal(sizeof *a);
+		FLUSH(&symtab);
+		FLUSH(&pclntab);
+		return;
+	}
+
 	v = SYMCOUNTS;
 
 	a = mal(sizeof *a);
@@ -65,6 +74,10 @@ walksymtab(void (*fn)(Sym*))
 	int32 *v;
 	byte *p, *ep, *q;
 	Sym s;
+
+	// TODO(rsc): Remove once TODO at top of file is done.
+	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
+		return;
 
 	v = SYMCOUNTS;
 	p = SYMDATA;
@@ -259,6 +272,10 @@ splitpcln(void)
 	byte *p, *ep;
 	Func *f, *ef;
 	int32 *v;
+
+	// TODO(rsc): Remove once TODO at top of file is done.
+	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
+		return;
 
 	// pc/ln table bounds
 	v = SYMCOUNTS;

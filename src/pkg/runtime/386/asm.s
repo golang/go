@@ -13,11 +13,8 @@ TEXT _rt0_386(SB),7,$0
 	MOVL	AX, 120(SP)		// save argc, argv away
 	MOVL	BX, 124(SP)
 
+	// set up %gs
 	CALL	ldt0setup(SB)
-
-	// set up %gs to refer to that ldt entry
-	MOVL	$(7*8+7), AX
-	MOVW	AX, GS
 
 	// store through it, to make sure it works
 	MOVL	$0x123, 0(GS)
@@ -80,7 +77,7 @@ TEXT mainstart(SB),7,$0
 	RET
 
 TEXT	breakpoint(SB),7,$0
-	BYTE $0xcc
+	INT $3
 	RET
 
 /*
@@ -280,6 +277,7 @@ TEXT	sys·setcallerpc+0(SB),7,$0
 TEXT ldt0setup(SB),7,$16
 	// set up ldt 7 to point at tls0
 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
+	// the entry number is just a hint.  setldt will set up GS with what it used.
 	MOVL	$7, 0(SP)
 	LEAL	tls0(SB), AX
 	MOVL	AX, 4(SP)
@@ -297,4 +295,3 @@ TEXT emptyfunc(SB),0,$0
 
 TEXT	abort(SB),7,$0
 	INT $0x3
-
