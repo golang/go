@@ -219,5 +219,12 @@ TEXT setldt(SB),7,$32
 	CMPL AX, $0xfffff001
 	JLS 2(PC)
 	INT $3
+
+	// compute segment selector - (entry*8+7)
+	MOVL	entry+0(FP), AX
+	SHLL	$3, AX
+	ADDL	$7, AX
+	MOVW	AX, GS
+
 	RET
 

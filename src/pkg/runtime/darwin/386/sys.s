@@ -270,6 +270,12 @@ TEXT setldt(SB),7,$32
 	MOVL	AX, 4(SP)
 	MOVL	$1, 8(SP)
 	CALL	i386_set_ldt(SB)
+
+	// compute segment selector - (entry*8+7)
+	MOVL	entry+0(FP), AX
+	SHLL	$3, AX
+	ADDL	$7, AX
+	MOVW	AX, GS
 	RET
 
 TEXT i386_set_ldt(SB),7,$0

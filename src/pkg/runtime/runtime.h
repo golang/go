@@ -308,6 +308,7 @@ int32	goidgen;
 extern	int32	gomaxprocs;
 extern	int32	panicking;
 extern	int32	maxround;
+int8*	goos;
 
 /*
  * common functions and data

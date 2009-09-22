@@ -13,6 +13,7 @@ EOF
 
 case "$GOARCH" in
 386)
+	# The offsets 0 and 4 are known to nacl/thread.c:/^newosproc too.
 	echo '#define	g	0(GS)'
 	echo '#define	m	4(GS)'
 	;;
