@@ -331,3 +331,60 @@ chameneos 6000000
 	gcc -O2 chameneosredux.c -lpthread	16.41u 296.91s 81.17r	# -8%
 	gc chameneosredux	19.97u 0.00s 19.97r	# -8%
 
+Sep 22, 2009
+
+# 6g inlines sliceslice in most cases.
+
+fasta -n 25000000
+	# probably I/O library inefficiencies
+	gc fasta	10.24u 0.00s 10.25r	# -4%
+	gc_B fasta	9.68u 0.01s 9.69r	# -3%
+
+reverse-complement < output-of-fasta-25000000
+	# we don't know - memory cache behavior?
+	gc reverse-complement	6.67u 0.69s 7.37r	# +1%
+	gc_B reverse-complement	6.00u 0.64s 6.65r	# +7%
+
+nbody -n 50000000
+	# math.Sqrt needs to be in assembly; inlining is probably the other 50%
+	# also loop alignment appears to be critical
+	gc nbody	86.27u 0.00s 86.29r	# -21%
+	gc_B nbody	104.52u 0.00s 104.54r	# +22%
+
+fannkuch 12
+	# bounds checking is half the difference
+	# rest might be registerization
+	gc fannkuch	128.36u 0.00s 128.37r	# +4%
+	gc_B fannkuch	89.32u 0.00s 89.34r
+
+regex-dna 100000
+	# regexp code is slow on trivial regexp
+	gc regex-dna	24.82u 0.01s 24.86r	# -4%
+	gc_B regex-dna	24.55u 0.01s 24.57r	# -6%
+
+spectral-norm 5500
+	# possibly inline evalA
+	gc spectral-norm	24.05u 0.00s 24.07r	# -1%
+	gc_B spectral-norm	23.60u 0.00s 23.65r	 # -1%
+
+k-nucleotide 1000000
+	# string maps are slower than glib string maps
+	gc k-nucleotide	17.84u 0.04s 17.89r	# +13% but mysterious variation continues
+	gc_B k-nucleotide	15.56u 0.08s 15.65r	# -13% (ditto)
+
+mandelbrot 16000
+	gc mandelbrot	64.08u 0.01s 64.11r	# +1%
+	gc_B mandelbrot	64.04u 0.00s 64.05r	# +1%
+
+pidigits 10000
+	# bignum is slower than gmp
+	gc pidigits	58.68u 0.02s 58.72r	# +5%
+	gc_B pidigits	58.86u 0.05s 58.99r	# +5%
+
+# these tests are compared using real time, since they run multiple processors
+# accuracy probably low
+threadring 50000000
+	gc threadring	32.70u 0.02s 32.77r	# +13%
+
+chameneos 6000000
+	gc chameneosredux	26.62u 0.00s 26.63r	# +13%
