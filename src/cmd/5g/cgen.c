@@ -103,7 +103,6 @@ cgen(Node *n, Node *res)
 			} else
 				p1 = gins(a, n, N);
 			p1->to = addr;
-			p1->reg = w;
 			if(debug['g'])
 				print("%P [ignore previous line]\n", p1);
 			sudoclean();
@@ -179,12 +178,10 @@ cgen(Node *n, Node *res)
 			if(res->op == OREGISTER) {
 				p1 = gins(a, N, res);
 				p1->from = addr;
-				p1->reg = w;
 			} else {
 				regalloc(&n2, n->type, N);
 				p1 = gins(a, N, &n2);
 				p1->from = addr;
-				p1->reg = w;
 				gins(a, &n2, res);
 				regfree(&n2);
 			}
@@ -372,7 +369,6 @@ abop:	// asymmetric binary
 		if(sudoaddable(a, nr, &addr, &w)) {
 			p1 = gins(a, N, &n1);
 			p1->from = addr;
-			p1->reg = w;
 			gmove(&n1, res);
 			sudoclean();
 			regfree(&n1);
@@ -574,7 +570,6 @@ agen(Node *n, Node *res)
 			tmp.op = OADDR;
 			tmp.left = &n2;
 			p1 = gins(AMOVW, &tmp, &n3);
-			p1->reg = w;
 		} else {
 			nodconst(&n1, t, w);
 			gins(optoas(OMUL, t), &n1, &n2);
