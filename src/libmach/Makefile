@@ -45,7 +45,7 @@ OFILES=\
 	5obj.$O\
 	6obj.$O\
 	8obj.$O\
-	$(GOOS).$O\
+	$(shell uname | tr A-Z a-z).$O\
 
 HFILES=$(GOROOT)/include/mach.h elf.h macho.h obj.h
 
