@@ -464,7 +464,6 @@ dostkoff(void)
 	int a, f, curframe, curbecome, maxbecome;
 	Prog *pmorestack;
 	Sym *symmorestack;
-	static int fsreg;
 
 	pmorestack = P;
 	symmorestack = lookup("sys·morestack", 0);

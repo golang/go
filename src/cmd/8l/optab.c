@@ -267,7 +267,8 @@ uchar	ycall[] =
 uchar	yjmp[] =
 {
 	Ynone,	Yml,	Zo_m,	2,
-	Ynone,	Ybr,	Zjmp,	1,
+	Ynone,	Ybr,	Zjmp,	0,
+	Ynone,	Yi32,	Zjmpcon,	1,
 	0
 };
 
