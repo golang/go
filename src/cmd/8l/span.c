@@ -72,8 +72,9 @@ start:
 		if(debug['v'])
 			Bprint(&bso, "%5.2f span %d\n", cputime(), n);
 		Bflush(&bso);
-		if(n > 50) {
-			print("span must be looping\n");
+		if(n > 500) {
+			// TODO(rsc): figure out why nacl takes so long to converge.
+			print("span must be looping - %d\n", textsize);
 			errorexit();
 		}
 		c = INITTEXT;
@@ -1045,6 +1046,12 @@ found:
 	case Z_ib:
 		v = vaddr(&p->to);
 	case Zib_:
+		if(HEADTYPE == 8 && p->as == AINT && v == 3) {
+			// native client disallows all INT instructions.
+			// translate INT $3 to HLT.
+			*andptr++ = 0xf4;
+			break;
+		}
 		*andptr++ = op;
 		*andptr++ = v;
 		break;
@@ -1192,6 +1199,15 @@ found:
 				*andptr++ = v>>24;
 			}
 		}
+		break;
+
+	case Zjmpcon:
+		v = p->to.offset - p->pc - 5;
+		*andptr++ = o->op[z+1];
+		*andptr++ = v;
+		*andptr++ = v>>8;
+		*andptr++ = v>>16;
+		*andptr++ = v>>24;
 		break;
 
 	case Zloop:
@@ -1371,6 +1387,7 @@ asmins(Prog *p)
 {
 	if(HEADTYPE == 8) {
 		ulong npc;
+		static Prog *prefix;
 
 		// native client
 		// - pad indirect jump targets (aka ATEXT) to 32-byte boundary
@@ -1386,15 +1403,27 @@ asmins(Prog *p)
 			npc = p->pc + (andptr - and);
 			p->pc += 31 & -npc;
 		}
+		if(p->as == AREP || p->as == AREPN) {
+			// save prefix for next instruction,
+			// so that inserted NOPs do not split (e.g.) REP / MOVSL sequence.
+			prefix = p;
+			andptr = and;
+			return;
+		}
 		andptr = and;
+		if(prefix)
+			doasm(prefix);
 		doasm(p);
 		npc = p->pc + (andptr - and);
-		if((p->pc&~31) != ((npc-1)&~31)) {
+		if(andptr > and && (p->pc&~31) != ((npc-1)&~31)) {
 			// crossed 32-byte boundary; pad to boundary and try again
 			p->pc += 31 & -p->pc;
 			andptr = and;
+			if(prefix)
+				doasm(prefix);
 			doasm(p);
 		}
+		prefix = nil;
 	} else {
 		andptr = and;
 		doasm(p);
