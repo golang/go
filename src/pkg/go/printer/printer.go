@@ -911,29 +911,36 @@ func (p *printer) switchBlock(s *ast.BlockStmt) {
 
 
 func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, post ast.Stmt) {
+	p.print(blank);
+	needsBlank := false;
 	if init == nil && post == nil {
 		// no semicolons required
 		if expr != nil {
-			p.print(blank);
 			p.expr(expr);
+			needsBlank = true;
 		}
 	} else {
 		// all semicolons required
 		// (they are not separators, print them explicitly)
-		p.print(blank);
 		if init != nil {
 			p.stmt(init);
 		}
 		p.print(token.SEMICOLON, blank);
 		if expr != nil {
 			p.expr(expr);
+			needsBlank = true;
 		}
 		if isForStmt {
 			p.print(token.SEMICOLON, blank);
+			needsBlank = false;
 			if post != nil {
 				p.stmt(post);
+				needsBlank = true;
 			}
 		}
+	}
+	if needsBlank {
+		p.print(blank);
 	}
 }
 
@@ -1007,7 +1014,6 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 	case *ast.IfStmt:
 		p.print(token.IF);
 		p.controlClause(false, s.Init, s.Cond, nil);
-		p.print(blank);
 		p.block(s.Body);
 		optSemi = true;
 		if s.Else != nil {
@@ -1028,7 +1034,6 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 	case *ast.SwitchStmt:
 		p.print(token.SWITCH);
 		p.controlClause(false, s.Init, s.Tag, nil);
-		p.print(blank);
 		p.switchBlock(s.Body);
 		optSemi = true;
 
@@ -1077,7 +1082,6 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 	case *ast.ForStmt:
 		p.print(token.FOR);
 		p.controlClause(true, s.Init, s.Cond, s.Post);
-		p.print(blank);
 		p.block(s.Body);
 		optSemi = true;
 

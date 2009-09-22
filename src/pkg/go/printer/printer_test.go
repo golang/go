@@ -103,6 +103,7 @@ var data = []entry{
 	entry{ "linebreaks.go", "linebreaks.golden", false },
 	entry{ "expressions.go", "expressions.golden", false },
 	entry{ "declarations.go", "declarations.golden", false },
+	entry{ "statements.go", "statements.golden", false },
 }
 
 
