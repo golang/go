@@ -33,16 +33,16 @@ TEXT	syscall·Syscall(SB),7,$20
 
 	CMPL	AX, $0xfffff001
 	JLS	ok
-	MOVL	$-1, 20(SP)	// r1
-	MOVL	$0, 24(SP)	// r2
+	MOVL	$-1, r1+16(FP)
+	MOVL	$0, r2+20(FP)
 	NEGL	AX
-	MOVL	AX, 28(SP)  // errno
+	MOVL	AX, errno+24(FP)
 	CALL	sys·exitsyscall(SB)
 	RET
 ok:
-	MOVL	AX, 20(SP)	// r1
-	MOVL	DX, 24(SP)	// r2
-	MOVL	$0, 28(SP)	// errno
+	MOVL	AX, r1+16(FP)
+	MOVL	DX, r2+20(FP)
+	MOVL	$0, errno+24(FP)
 	CALL	sys·exitsyscall(SB)
 	RET
 
@@ -71,16 +71,16 @@ TEXT	syscall·Syscall6(SB),7,$20
 
 	CMPL	AX, $0xfffff001
 	JLS	ok6
-	MOVL	$-1, 32(SP)	// r1
-	MOVL	$0, 36(SP)	// r2
+	MOVL	$-1, r1+28(FP)
+	MOVL	$0, r2+32(FP)
 	NEGL	AX
-	MOVL	AX, 40(SP)  // errno
+	MOVL	AX, errno+36(FP)
 	CALL	sys·exitsyscall(SB)
 	RET
 ok6:
-	MOVL	AX, 32(SP)	// r1
-	MOVL	DX, 36(SP)	// r2
-	MOVL	$0, 40(SP)	// errno
+	MOVL	AX, r1+28(FP)
+	MOVL	DX, r2+32(FP)
+	MOVL	$0, errno+36(FP)
 	CALL	sys·exitsyscall(SB)
 	RET
 
@@ -107,14 +107,14 @@ TEXT	syscall·Syscall(SB),7,$20
 
 	CMPL	AX, $0xfffff001
 	JLS	ok1
-	MOVL	$-1, 20(SP)	// r1
-	MOVL	$0, 24(SP)	// r2
+	MOVL	$-1, r1+16(FP)
+	MOVL	$0, r2+20(FP)
 	NEGL	AX
-	MOVL	AX, 28(SP)  // errno
+	MOVL	AX, errno+24(FP)
 	RET
 ok1:
-	MOVL	AX, 20(SP)	// r1
-	MOVL	DX, 24(SP)	// r2
-	MOVL	$0, 28(SP)	// errno
+	MOVL	AX, r1+16(FP)
+	MOVL	DX, r2+20(FP)
+	MOVL	$0, errno+24(FP)
 	RET
 
