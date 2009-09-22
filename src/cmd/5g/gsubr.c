@@ -184,11 +184,12 @@ isfat(Type *t)
  * naddr of func generates code for address of func.
  * if using opcode that can take address implicitly,
  * call afunclit to fix up the argument.
+ * also fix up direct register references to be D_OREG.
  */
 void
 afunclit(Addr *a)
 {
-	if(a->type == D_ADDR && a->name == D_EXTERN) {
+	if(a->type == D_ADDR && a->name == D_EXTERN || a->type == D_REG) {
 		a->type = D_OREG;
 	}
 }
@@ -1441,7 +1442,7 @@ sudoaddable(int as, Node *n, Addr *a, int *w)
 	int o, i;
 	int oary[10];
 	int64 v;
-	Node n1, n2, n3, *nn, *l, *r;
+	Node n1, n2, n3, n4, *nn, *l, *r;
 	Node *reg, *reg1;
 	Prog *p1;
 	Type *t;
@@ -1655,8 +1656,11 @@ oindex_const:
 			nodconst(&n2, types[TUINT32], v);
 			regalloc(&n3, types[TUINT32], N);
 			cgen(&n2, &n3);
-			p1 = gins(optoas(OCMP, types[TUINT32]), &n1, N);
+			regalloc(&n4, n1.type, N);
+			cgen(&n1, &n4);
+			p1 = gins(optoas(OCMP, types[TUINT32]), &n4, N);
 			raddr(&n3, p1);
+			regfree(&n4);
 			regfree(&n3);
 			p1 = gbranch(optoas(OGT, types[TUINT32]), T);
 			ginscall(throwindex, 0);
