@@ -1,22 +1,16 @@
 Let's Go
 ----
 
-Rob Pike
-
-----
-(March 18, 2009)
-
-
 This document is a tutorial introduction to the basics of the Go systems programming
 language, intended for programmers familiar with C or C++. It is not a comprehensive
 guide to the language; at the moment the document closest to that is the draft
 specification:
 
-	/doc/go_spec.html
+	http://go/go/doc/go_spec.html
 
 To check out the compiler and tools and be ready to run Go programs, see
 
-	/doc/go_setup.html
+	http://go/go/doc/go_setup.html
 
 The presentation proceeds through a series of modest programs to illustrate
 key features of the language.  All the programs work (at time of writing) and are
