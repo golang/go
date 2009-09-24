@@ -5,7 +5,6 @@
 package eval
 
 import (
-	"fmt";
 	"go/ast";
 	"go/parser";
 	"go/scanner";
@@ -64,7 +63,7 @@ func (w *World) compileStmts(stmts []ast.Stmt) (Code, os.Error) {
 		block: w.scope.block,
 	};
 	nerr := cc.numError();
-	for i, stmt := range stmts {
+	for _, stmt := range stmts {
 		bc.compileStmt(stmt);
 	}
 	fc.checkLabels();
@@ -107,11 +106,16 @@ func (w *World) compileExpr(e ast.Expr) (Code, os.Error) {
 		return nil, errors.GetError(scanner.Sorted);
 	}
 	var eval func(Value, *Thread);
-	switch _ := ec.t.(type) {
+	switch t := ec.t.(type) {
 	case *idealIntType:
 		// nothing
 	case *idealFloatType:
 		// nothing
+	case *MultiType:
+		if len(t.Elems) == 0 {
+			return &stmtCode{w, code{ec.exec}}, nil;
+		}
+		fallthrough;
 	default:
 		eval = genAssign(ec.t, ec);
 	}

@@ -165,7 +165,7 @@ type boolType struct {
 var BoolType = universe.DefineType("bool", universePos, &boolType{})
 
 func (t *boolType) compat(o Type, conv bool) bool {
-	t2, ok := o.lit().(*boolType);
+	_, ok := o.lit().(*boolType);
 	return ok;
 }
 
@@ -364,7 +364,7 @@ type idealIntType struct {
 var IdealIntType Type = &idealIntType{}
 
 func (t *idealIntType) compat(o Type, conv bool) bool {
-	t2, ok := o.lit().(*idealIntType);
+	_, ok := o.lit().(*idealIntType);
 	return ok;
 }
 
@@ -485,7 +485,7 @@ type idealFloatType struct {
 var IdealFloatType Type = &idealFloatType{};
 
 func (t *idealFloatType) compat(o Type, conv bool) bool {
-	t2, ok := o.lit().(*idealFloatType);
+	_, ok := o.lit().(*idealFloatType);
 	return ok;
 }
 
@@ -520,7 +520,7 @@ type stringType struct {
 var StringType = universe.DefineType("string", universePos, &stringType{})
 
 func (t *stringType) compat(o Type, conv bool) bool {
-	t2, ok := o.lit().(*stringType);
+	_, ok := o.lit().(*stringType);
 	return ok;
 }
 

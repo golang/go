@@ -26,7 +26,7 @@ type typeCompiler struct {
 }
 
 func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
-	_bl, _index, def := a.block.Lookup(x.Value);
+	_, _, def := a.block.Lookup(x.Value);
 	if def == nil {
 		a.diagAt(x, "%s: undefined", x.Value);
 		return nil;
@@ -106,7 +106,7 @@ func (a *typeCompiler) compileFields(fs []*ast.Field, allowRec bool) ([]Type, []
 
 	bad := false;
 	i := 0;
-	for fi, f := range fs {
+	for _, f := range fs {
 		t := a.compileType(f.Type, allowRec);
 		if t == nil {
 			bad = true;

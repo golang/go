@@ -7,10 +7,8 @@ package eval
 import (
 	"bignum";
 	"go/ast";
-	"go/scanner";
 	"go/token";
 	"log";
-	"os";
 	"strconv";
 	"strings";
 )
@@ -191,7 +189,7 @@ func (a *expr) convertToInt(max int64, negErr string, errOp string) *expr {
 // expression.
 func (a *expr) derefArray() *expr {
 	if pt, ok := a.t.lit().(*PtrType); ok {
-		if at, ok := pt.Elem.lit().(*ArrayType); ok {
+		if _, ok := pt.Elem.lit().(*ArrayType); ok {
 			deref := a.compileStarExpr(a);
 			if deref == nil {
 				log.Crashf("failed to dereference *array");
@@ -481,14 +479,22 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 
 	switch x := x.(type) {
 	// Literals
-	case *ast.CharLit:
-		return ei.compileCharLit(string(x.Value));
+	case *ast.BasicLit:
+		switch x.Kind {
+		case token.INT:
+			return ei.compileIntLit(string(x.Value));
+		case token.FLOAT:
+			return ei.compileFloatLit(string(x.Value));
+		case token.CHAR:
+			return ei.compileCharLit(string(x.Value));
+		case token.STRING:
+			return ei.compileStringLit(string(x.Value));
+		default:
+			log.Crashf("unexpected basic literal type %v", x.Kind);
+		}
 
 	case *ast.CompositeLit:
 		goto notimpl;
-
-	case *ast.FloatLit:
-		return ei.compileFloatLit(string(x.Value));
 
 	case *ast.FuncLit:
 		decl := ei.compileFuncType(a.block, x.Type);
@@ -506,12 +512,6 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 			return nil;
 		}
 		return ei.compileFuncLit(decl, fn);
-
-	case *ast.IntLit:
-		return ei.compileIntLit(string(x.Value));
-
-	case *ast.StringLit:
-		return ei.compileStringLit(string(x.Value));
 
 	// Types
 	case *ast.ArrayType:
@@ -744,7 +744,7 @@ func (a *exprInfo) compileIdealInt(i *bignum.Integer, desc string) *expr {
 }
 
 func (a *exprInfo) compileIntLit(lit string) *expr {
-	i, _, _2 := bignum.IntFromString(lit, 0);
+	i, _, _ := bignum.IntFromString(lit, 0);
 	return a.compileIdealInt(i, "integer literal");
 }
 
@@ -754,7 +754,7 @@ func (a *exprInfo) compileCharLit(lit string) *expr {
 		a.silentErrors++;
 		return nil;
 	}
-	v, mb, tail, err := strconv.UnquoteChar(lit[1:len(lit)], '\'');
+	v, _, tail, err := strconv.UnquoteChar(lit[1:len(lit)], '\'');
 	if err != nil || tail != "'" {
 		// Caught by parser
 		a.silentErrors++;
@@ -863,7 +863,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 
 		// If it's a named type, look for methods
 		if ti, ok := t.(*NamedType); ok {
-			method, ok := ti.methods[name];
+			_, ok := ti.methods[name];
 			if ok {
 				mark(depth, pathName + "." + name);
 				log.Crash("Methods not implemented");
@@ -1638,12 +1638,8 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 			return nil;
 		}
 		// Arrays and structs may not be compared to anything.
-		// TODO(austin) Use a multi-type switch
-		if _, ok := l.t.(*ArrayType); ok {
-			a.diagOpTypes(op, origlt, origrt);
-			return nil;
-		}
-		if _, ok := l.t.(*StructType); ok {
+		switch l.t.(type) {
+		case *ArrayType, *StructType:
 			a.diagOpTypes(op, origlt, origrt);
 			return nil;
 		}

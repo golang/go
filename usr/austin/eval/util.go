@@ -6,8 +6,6 @@ package eval
 
 import (
 	"bignum";
-	"fmt";
-	"go/token";
 )
 
 // TODO(austin): Maybe add to bignum in more general form
