@@ -13,6 +13,14 @@ import (
 	"strconv";
 )
 
+// A Type conventionally represents a pointer to any of the
+// specific Type structures (CharType, StructType, etc.).
+type Type interface {
+	Common() *CommonType;
+	String() string;
+	Size() int64;
+}
+
 // A CommonType holds fields common to multiple types.
 // If a field is not known or not applicable for a given type,
 // the zero value is used.
@@ -23,6 +31,10 @@ type CommonType struct {
 
 func (c *CommonType) Common() *CommonType {
 	return c;
+}
+
+func (c *CommonType) Size() int64 {
+	return c.ByteSize;
 }
 
 // Basic types
@@ -98,6 +110,10 @@ func (t *QualType) String() string {
 	return t.Qual + " " + t.Type.String();
 }
 
+func (t *QualType) Size() int64 {
+	return t.Type.Size();
+}
+
 // An ArrayType represents a fixed size array type.
 type ArrayType struct {
 	CommonType;
@@ -108,6 +124,10 @@ type ArrayType struct {
 
 func (t *ArrayType) String() string {
 	return "[" + strconv.Itoa64(t.Count) + "]" + t.Type.String();
+}
+
+func (t *ArrayType) Size() int64 {
+	return t.Count * t.Type.Size();
 }
 
 // A VoidType represents the C void type.
@@ -252,11 +272,8 @@ func (t *TypedefType) String() string {
 	return t.Name;
 }
 
-// A Type conventionally represents a pointer to any of the
-// specific Type structures (CharType, StructType, etc.).
-type Type interface {
-	Common() *CommonType;
-	String() string;
+func (t *TypedefType) Size() int64 {
+	return t.Type.Size();
 }
 
 func (d *Data) Type(off Offset) (Type, os.Error) {
@@ -589,7 +606,11 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		goto Error;
 	}
 
-	typ.Common().ByteSize, _ = e.Val(AttrByteSize).(int64);
+	b, ok := e.Val(AttrByteSize).(int64);
+	if !ok {
+		b = -1;
+	}
+	typ.Common().ByteSize = b;
 
 	return typ, nil;
 
