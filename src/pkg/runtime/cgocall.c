@@ -47,3 +47,26 @@ runtime·Cgocalls(int64 ret)
 	FLUSH(&ret);
 }
 
+void (*_cgo_malloc)(void*);
+void (*_cgo_free)(void*);
+
+void*
+cmalloc(uintptr n)
+{
+	struct a {
+		uint64 n;
+		void *ret;
+	} a;
+
+	a.n = n;
+	a.ret = nil;
+	cgocall(_cgo_malloc, &a);
+	return a.ret;
+}
+
+void
+cfree(void *p)
+{
+	cgocall(_cgo_free, p);
+}
+
