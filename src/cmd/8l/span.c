@@ -573,6 +573,18 @@ put4(int32 v)
 }
 
 int32
+symaddr(Sym *s)
+{
+	Adr a;
+
+	a.type = D_ADDR;
+	a.index = D_EXTERN;
+	a.offset = 0;
+	a.sym = s;
+	return vaddr(&a);
+}
+
+int32
 vaddr(Adr *a)
 {
 	int t;

@@ -399,7 +399,7 @@ doelf(void)
 }
 
 void
-shsym(Elf64_Shdr *sh, Sym *s)
+shsym(ElfShdr *sh, Sym *s)
 {
 	sh->addr = symaddr(s);
 	sh->off = datoff(sh->addr);
@@ -407,7 +407,7 @@ shsym(Elf64_Shdr *sh, Sym *s)
 }
 
 void
-phsh(Elf64_Phdr *ph, Elf64_Shdr *sh)
+phsh(ElfPhdr *ph, ElfShdr *sh)
 {
 	ph->vaddr = sh->addr;
 	ph->paddr = ph->vaddr;
@@ -426,9 +426,9 @@ asmb(void)
 	uchar *op1;
 	vlong vl, va, startva, fo, w, symo;
 	vlong symdatva = 0x99LL<<32;
-	Elf64_Ehdr *eh;
-	Elf64_Phdr *ph, *pph;
-	Elf64_Shdr *sh;
+	ElfEhdr *eh;
+	ElfPhdr *ph, *pph;
+	ElfShdr *sh;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -600,53 +600,6 @@ asmb(void)
 		lputb(spsize);			/* sp offsets */
 		lputb(lcsize);			/* line offsets */
 		break;
-	case 5:
-		strnput("\177ELF", 4);		/* e_ident */
-		cput(1);			/* class = 32 bit */
-		cput(1);			/* data = LSB */
-		cput(1);			/* version = CURRENT */
-		strnput("", 9);
-		wputl(2);			/* type = EXEC */
-		wputl(62);			/* machine = AMD64 */
-		lputl(1L);			/* version = CURRENT */
-		lputl(PADDR(entryvalue()));	/* entry vaddr */
-		lputl(52L);			/* offset to first phdr */
-		lputl(0L);			/* offset to first shdr */
-		lputl(0L);			/* processor specific flags */
-		wputl(52);			/* Ehdr size */
-		wputl(32);			/* Phdr size */
-		wputl(3);			/* # of Phdrs */
-		wputl(40);			/* Shdr size */
-		wputl(0);			/* # of Shdrs */
-		wputl(0);			/* Shdr string size */
-
-		lputl(1L);			/* text - type = PT_LOAD */
-		lputl(HEADR);			/* file offset */
-		lputl(INITTEXT);		/* vaddr */
-		lputl(PADDR(INITTEXT));		/* paddr */
-		lputl(textsize);		/* file size */
-		lputl(textsize);		/* memory size */
-		lputl(0x05L);			/* protections = RX */
-		lputl(INITRND);			/* alignment */
-
-		lputl(1L);			/* data - type = PT_LOAD */
-		lputl(HEADR+textsize);		/* file offset */
-		lputl(INITDAT);			/* vaddr */
-		lputl(PADDR(INITDAT));		/* paddr */
-		lputl(datsize);			/* file size */
-		lputl(datsize+bsssize);		/* memory size */
-		lputl(0x06L);			/* protections = RW */
-		lputl(INITRND);			/* alignment */
-
-		lputl(0L);			/* data - type = PT_NULL */
-		lputl(HEADR+textsize+datsize);	/* file offset */
-		lputl(0L);
-		lputl(0L);
-		lputl(symsize);			/* symbol table size */
-		lputl(lcsize);			/* line number size */
-		lputl(0x04L);			/* protections = R */
-		lputl(0x04L);			/* alignment */
-		break;
 	case 6:
 		/* apple MACH */
 		va = 4096;
@@ -717,44 +670,44 @@ asmb(void)
 	case 7:
 		/* elf amd-64 */
 
-		eh = getElf64_Ehdr();
-		fo = 0;
+		eh = getElfEhdr();
+		fo = HEADR;
 		startva = INITTEXT - HEADR;
-		va = startva;
-		w = HEADR+textsize;
+		va = startva + fo;
+		w = textsize;
 
 		/* This null SHdr must appear before all others */
-		sh = newElf64_Shdr(elfstr[ElfStrEmpty]);
+		sh = newElfShdr(elfstr[ElfStrEmpty]);
 
 		/* program header info */
-		pph = newElf64_Phdr();
+		pph = newElfPhdr();
 		pph->type = PT_PHDR;
 		pph->flags = PF_R + PF_X;
 		pph->off = eh->ehsize;
-		pph->vaddr = startva + pph->off;
-		pph->paddr = startva + pph->off;
+		pph->vaddr = INITTEXT - HEADR + pph->off;
+		pph->paddr = INITTEXT - HEADR + pph->off;
 		pph->align = INITRND;
 
 		if(!debug['d']) {
 			/* interpreter */
-			sh = newElf64_Shdr(elfstr[ElfStrInterp]);
+			sh = newElfShdr(elfstr[ElfStrInterp]);
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC;
 			sh->addralign = 1;
 			shsym(sh, lookup(".interp", 0));
 
-			ph = newElf64_Phdr();
+			ph = newElfPhdr();
 			ph->type = PT_INTERP;
 			ph->flags = PF_R;
 			phsh(ph, sh);
 		}
 
-		ph = newElf64_Phdr();
+		ph = newElfPhdr();
 		ph->type = PT_LOAD;
 		ph->flags = PF_X+PF_R;
 		ph->vaddr = va;
 		ph->paddr = va;
-		ph->off = 0;
+		ph->off = fo;
 		ph->filesz = w;
 		ph->memsz = w;
 		ph->align = INITRND;
@@ -763,7 +716,7 @@ asmb(void)
 		va = rnd(va+w, INITRND);
 		w = datsize;
 
-		ph = newElf64_Phdr();
+		ph = newElfPhdr();
 		ph->type = PT_LOAD;
 		ph->flags = PF_W+PF_R;
 		ph->off = fo;
@@ -774,7 +727,7 @@ asmb(void)
 		ph->align = INITRND;
 
 		if(!debug['s']) {
-			ph = newElf64_Phdr();
+			ph = newElfPhdr();
 			ph->type = PT_LOAD;
 			ph->flags = PF_W+PF_R;
 			ph->off = symo;
@@ -788,14 +741,14 @@ asmb(void)
 		/* Dynamic linking sections */
 		if (!debug['d']) {	/* -d suppresses dynamic loader format */
 			/* S headers for dynamic linking */
-			sh = newElf64_Shdr(elfstr[ElfStrGot]);
+			sh = newElfShdr(elfstr[ElfStrGot]);
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC+SHF_WRITE;
 			sh->entsize = 8;
 			sh->addralign = 8;
 			shsym(sh, lookup(".got", 0));
 
-			sh = newElf64_Shdr(elfstr[ElfStrGotPlt]);
+			sh = newElfShdr(elfstr[ElfStrGotPlt]);
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC+SHF_WRITE;
 			sh->entsize = 8;
@@ -803,7 +756,7 @@ asmb(void)
 			shsym(sh, lookup(".got.plt", 0));
 
 			dynsym = eh->shnum;
-			sh = newElf64_Shdr(elfstr[ElfStrDynsym]);
+			sh = newElfShdr(elfstr[ElfStrDynsym]);
 			sh->type = SHT_DYNSYM;
 			sh->flags = SHF_ALLOC;
 			sh->entsize = ELF64SYMSIZE;
@@ -812,13 +765,13 @@ asmb(void)
 			// sh->info = index of first non-local symbol (number of local symbols)
 			shsym(sh, lookup(".dynsym", 0));
 
-			sh = newElf64_Shdr(elfstr[ElfStrDynstr]);
+			sh = newElfShdr(elfstr[ElfStrDynstr]);
 			sh->type = SHT_STRTAB;
 			sh->flags = SHF_ALLOC;
 			sh->addralign = 1;
 			shsym(sh, lookup(".dynstr", 0));
 
-			sh = newElf64_Shdr(elfstr[ElfStrHash]);
+			sh = newElfShdr(elfstr[ElfStrHash]);
 			sh->type = SHT_HASH;
 			sh->flags = SHF_ALLOC;
 			sh->entsize = 4;
@@ -826,7 +779,7 @@ asmb(void)
 			sh->link = dynsym;
 			shsym(sh, lookup(".hash", 0));
 
-			sh = newElf64_Shdr(elfstr[ElfStrRela]);
+			sh = newElfShdr(elfstr[ElfStrRela]);
 			sh->type = SHT_RELA;
 			sh->flags = SHF_ALLOC;
 			sh->entsize = ELF64RELASIZE;
@@ -835,21 +788,21 @@ asmb(void)
 			shsym(sh, lookup(".rela", 0));
 
 			/* sh and PT_DYNAMIC for .dynamic section */
-			sh = newElf64_Shdr(elfstr[ElfStrDynamic]);
+			sh = newElfShdr(elfstr[ElfStrDynamic]);
 			sh->type = SHT_DYNAMIC;
 			sh->flags = SHF_ALLOC+SHF_WRITE;
 			sh->entsize = 16;
 			sh->addralign = 8;
 			sh->link = dynsym+1;	// dynstr
 			shsym(sh, lookup(".dynamic", 0));
-			ph = newElf64_Phdr();
+			ph = newElfPhdr();
 			ph->type = PT_DYNAMIC;
 			ph->flags = PF_R + PF_W;
 			phsh(ph, sh);
 		}
 
-		ph = newElf64_Phdr();
-		ph->type = 0x6474e551; 	/* GNU_STACK */
+		ph = newElfPhdr();
+		ph->type = PT_GNU_STACK;
 		ph->flags = PF_W+PF_R;
 		ph->align = 8;
 
@@ -857,7 +810,7 @@ asmb(void)
 		va = startva + fo;
 		w = textsize;
 
-		sh = newElf64_Shdr(elfstr[ElfStrText]);
+		sh = newElfShdr(elfstr[ElfStrText]);
 		sh->type = SHT_PROGBITS;
 		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
 		sh->addr = va;
@@ -869,7 +822,7 @@ asmb(void)
 		va = rnd(va+w, INITRND);
 		w = datsize;
 
-		sh = newElf64_Shdr(elfstr[ElfStrData]);
+		sh = newElfShdr(elfstr[ElfStrData]);
 		sh->type = SHT_PROGBITS;
 		sh->flags = SHF_WRITE+SHF_ALLOC;
 		sh->addr = va;
@@ -881,7 +834,7 @@ asmb(void)
 		va += w;
 		w = bsssize;
 
-		sh = newElf64_Shdr(elfstr[ElfStrBss]);
+		sh = newElfShdr(elfstr[ElfStrBss]);
 		sh->type = SHT_NOBITS;
 		sh->flags = SHF_WRITE+SHF_ALLOC;
 		sh->addr = va;
@@ -893,7 +846,7 @@ asmb(void)
 			fo = symo+8;
 			w = symsize;
 
-			sh = newElf64_Shdr(elfstr[ElfStrGosymtab]);
+			sh = newElfShdr(elfstr[ElfStrGosymtab]);
 			sh->type = SHT_PROGBITS;
 			sh->off = fo;
 			sh->size = w;
@@ -902,14 +855,14 @@ asmb(void)
 			fo += w;
 			w = lcsize;
 
-			sh = newElf64_Shdr(elfstr[ElfStrGopclntab]);
+			sh = newElfShdr(elfstr[ElfStrGopclntab]);
 			sh->type = SHT_PROGBITS;
 			sh->off = fo;
 			sh->size = w;
 			sh->addralign = 1;
 		}
 
-		sh = newElf64_Shstrtab(elfstr[ElfStrShstrtab]);
+		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
 		sh->type = SHT_STRTAB;
 		sh->addralign = 1;
 		shsym(sh, lookup(".shstrtab", 0));
@@ -924,7 +877,7 @@ asmb(void)
 		eh->ident[EI_VERSION] = EV_CURRENT;
 
 		eh->type = ET_EXEC;
-		eh->machine = 62;	/* machine = AMD64 */
+		eh->machine = EM_X86_64;
 		eh->version = EV_CURRENT;
 		eh->entry = entryvalue();
 
@@ -933,9 +886,9 @@ asmb(void)
 
 		seek(cout, 0, 0);
 		a = 0;
-		a += elf64writehdr();
-		a += elf64writephdrs();
-		a += elf64writeshdrs();
+		a += elfwritehdr();
+		a += elfwritephdrs();
+		a += elfwriteshdrs();
 		if (a > ELFRESERVE) {
 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
 		}

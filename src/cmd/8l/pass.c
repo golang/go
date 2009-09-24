@@ -72,11 +72,12 @@ dodata(void)
 		if(s->type != SBSS)
 			continue;
 		t = s->value;
-		if(t == 0) {
+		if(t == 0 && s->name[0] != '.') {
 			diag("%s: no size", s->name);
 			t = 1;
 		}
-		t = rnd(t, 4);;
+		t = rnd(t, 4);
+		s->size = t;
 		s->value = t;
 		if(t > MINSIZ)
 			continue;
@@ -94,6 +95,7 @@ dodata(void)
 			continue;
 		}
 		t = s->value;
+		s->size = t;
 		s->value = datsize;
 		datsize += t;
 	}
@@ -115,6 +117,7 @@ dodata(void)
 			if(t > u)
 				continue;
 			u -= t;
+			s->size = t;
 			s->value = datsize;
 			s->type = SDATA;
 			datsize += t;
@@ -131,6 +134,7 @@ dodata(void)
 		if(s->type != SBSS)
 			continue;
 		t = s->value;
+		s->size = t;
 		s->value = bsssize + datsize;
 		bsssize += t;
 	}

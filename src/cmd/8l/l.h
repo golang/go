@@ -118,6 +118,7 @@ struct	Sym
 	uchar	reachable;
 	ushort	file;
 	int32	value;
+	int32	size;
 	int32	sig;
 	Sym*	link;
 	Prog*	text;
@@ -309,6 +310,7 @@ EXTERN	int32	thunk;
 EXTERN	int	version;
 EXTERN	Prog	zprg;
 EXTERN	int	dtype;
+EXTERN	char	thechar;
 
 EXTERN	Adr*	reloca;
 EXTERN	int	doexp, dlm;
@@ -345,6 +347,7 @@ double	cputime(void);
 void	datblk(int32, int32);
 void	diag(char*, ...);
 void	dodata(void);
+void	doelf(void);
 void	doinit(void);
 void	doprof1(void);
 void	doprof2(void);
@@ -367,6 +370,7 @@ void	listinit(void);
 Sym*	lookup(char*, int);
 void	lput(int32);
 void	lputl(int32);
+void	vputl(uvlong);
 void	main(int, char*[]);
 void	mkfwd(void);
 void*	mal(uint32);
@@ -386,14 +390,23 @@ void	span(void);
 void	undef(void);
 void	undefsym(Sym*);
 int32	vaddr(Adr*);
+int32	symaddr(Sym*);
 void	wput(ushort);
+void	wputl(ushort);
 void	xdefine(char*, int, int32);
 void	xfol(Prog*);
 void	zaddr(Biobuf*, Adr*, Sym*[]);
 void	zerosig(char*);
 uint32	machheadr(void);
-uint32	elfheadr(void);
 void	whatsys(void);
+vlong		addaddr(Sym *s, Sym *t);
+vlong		addsize(Sym *s, Sym *t);
+vlong		addstring(Sym *s, char *str);
+vlong		adduint16(Sym *s, uint16 v);
+vlong		adduint32(Sym *s, uint32 v);
+vlong		adduint64(Sym *s, uint64 v);
+vlong		adduint8(Sym *s, uint8 v);
+vlong		adduintxx(Sym *s, uint64 v, int wid);
 
 /*
  *	go.c
@@ -406,6 +419,11 @@ void	ldpkg(Biobuf *f, int64 len, char *filename);
 extern	char*	goroot;
 extern	char*	goarch;
 extern	char*	goos;
+
+/* Native is little-endian */
+#define	LPUT(a)	lputl(a)
+#define	WPUT(a)	wputl(a)
+#define	VPUT(a)	vputl(a)
 
 #pragma	varargck	type	"D"	Adr*
 #pragma	varargck	type	"P"	Prog*
