@@ -38,7 +38,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 	}
 
 	// Get the type map for this architecture
-	typeMap, ok := manualTypes[arch];
+	typeMap, _ := manualTypes[arch];
 	if typeMap == nil {
 		typeMap = make(map[eval.Type] *remoteType);
 		manualTypes[arch] = typeMap;
@@ -74,7 +74,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 		rt = &remoteType{t, arch.PtrSize(), arch.PtrSize(), mk};
 		// Construct the element type after registering the
 		// type to break cycles.
-		typeMap[t] = rt;
+		typeMap[eval.Type(t)] = rt;
 		elem = newManualType(t.Elem, arch);
 
 	case *eval.ArrayType:
