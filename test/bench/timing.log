@@ -388,3 +388,13 @@ threadring 50000000
 
 chameneos 6000000
 	gc chameneosredux	26.62u 0.00s 26.63r	# +13%
+
+Sep 24, 2009
+
+# Sqrt now in assembler for 6g.
+nbody -n 50000000
+	# remember, at least for 6g, alignment of loops may be important
+	gcc -O2 nbody.c	21.24u 0.00s 21.25r
+	gccgo -O2 nbody.go	121.03u 0.00s 121.04r
+	gc nbody	30.26u 0.00s 30.27r	# -65% ***
+	gc_B nbody	30.20u 0.02s 30.22r	# -72% *** 
