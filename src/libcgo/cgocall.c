@@ -294,3 +294,15 @@ wait:
 	}
 }
 
+// Helper.
+
+void
+_cgo_malloc(void *p)
+{
+	struct a {
+		long long n;
+		void *ret;
+	} *a = p;
+
+	a->ret = malloc(a->n);
+}

@@ -7,13 +7,13 @@
 package main
 
 import (
-	"debug/dwarf";
 	"fmt";
 	"go/ast";
 	"go/doc";
 	"go/parser";
 	"go/scanner";
 	"os";
+	"strings";
 )
 
 // A Cref refers to an expression of the form C.xxx in the AST.
@@ -22,14 +22,35 @@ type Cref struct {
 	Expr *ast.Expr;
 	Context string;	// "type", "expr", or "call"
 	TypeName bool;	// whether xxx is a C type name
-	DebugType dwarf.Type;	// the type of xxx
+	Type *Type;	// the type of xxx
+	FuncType *FuncType;
 }
 
 // A Prog collects information about a cgo program.
 type Prog struct {
 	AST *ast.File;	// parsed AST
 	Preamble string;	// C preamble (doc comment on import "C")
+	PackagePath string;
+	Package string;
 	Crefs []*Cref;
+	Typedef map[string]ast.Expr;
+	Vardef map[string]*Type;
+	Funcdef map[string]*FuncType;
+}
+
+// A Type collects information about a type in both the C and Go worlds.
+type Type struct {
+	Size int64;
+	Align int64;
+	C string;
+	Go ast.Expr;
+}
+
+// A FuncType collects information about a function type in both the C and Go worlds.
+type FuncType struct {
+	Params []*Type;
+	Result *Type;
+	Go *ast.FuncType;
 }
 
 func openProg(name string) *Prog {
@@ -49,35 +70,64 @@ func openProg(name string) *Prog {
 		}
 		fatal("parsing %s: %s", name, err);
 	}
+	p.Package = p.AST.Name.Value;
 
 	// Find the import "C" line and get any extra C preamble.
-	found := false;
-	for _, d := range p.AST.Decls {
-		d, ok := d.(*ast.GenDecl);
+	// Delete the import "C" line along the way or convert it
+	// to an import of "unsafe" (needed for the translation of void*).
+	sawC := false;
+	sawUnsafe := false;
+	rewroteUnsafe := false;
+	w := 0;
+	for _, decl := range p.AST.Decls {
+		d, ok := decl.(*ast.GenDecl);
 		if !ok {
+			p.AST.Decls[w] = decl;
+			w++;
 			continue;
 		}
-		for _, s := range d.Specs {
-			s, ok := s.(*ast.ImportSpec);
-			if !ok {
+		ws := 0;
+		for _, spec := range d.Specs {
+			s, ok := spec.(*ast.ImportSpec);
+			if !ok || len(s.Path) != 1 || string(s.Path[0].Value) != `"C"` {
+				if s != nil && len(s.Path) == 1 && string(s.Path[0].Value) == `"unsafe"` {
+					if rewroteUnsafe {
+						// we rewrote the import "C" into import "unsafe",
+						// so drop this one.
+						continue;
+					}
+					sawUnsafe = true;
+				}
+				d.Specs[ws] = spec;
+				ws++;
 				continue;
 			}
-			if len(s.Path) != 1 || string(s.Path[0].Value) != `"C"` {
-				continue;
-			}
-			found = true;
+			sawC = true;
 			if s.Name != nil {
 				error(s.Path[0].Pos(), `cannot rename import "C"`);
 			}
 			if s.Doc != nil {
 				p.Preamble += doc.CommentText(s.Doc) + "\n";
-			}
-			else if len(d.Specs) == 1 && d.Doc != nil {
+			} else if len(d.Specs) == 1 && d.Doc != nil {
 				p.Preamble += doc.CommentText(d.Doc) + "\n";
 			}
+			if !sawUnsafe {
+				rewroteUnsafe = true;
+				s.Path[0].Value = strings.Bytes(`"unsafe"`);
+				d.Specs[ws] = spec;
+				ws++;
+			}
 		}
+		if ws == 0 {
+			continue;
+		}
+		d.Specs = d.Specs[0:ws];
+		p.AST.Decls[w] = d;
+		w++;
 	}
-	if !found {
+	p.AST.Decls = p.AST.Decls[0:w];
+
+	if !sawC {
 		error(noPos, `cannot find import "C"`);
 	}
 
@@ -194,9 +244,9 @@ func walk(x interface{}, p *Prog, context string) {
 		walk(n.Lhs, p, "expr");
 		walk(n.Rhs, p, "expr");
 	case *ast.GoStmt:
-		walk(&n.Call, p, "expr");
+		walk(n.Call, p, "expr");
 	case *ast.DeferStmt:
-		walk(&n.Call, p, "expr");
+		walk(n.Call, p, "expr");
 	case *ast.ReturnStmt:
 		walk(n.Results, p, "expr");
 	case *ast.BranchStmt:
@@ -253,7 +303,9 @@ func walk(x interface{}, p *Prog, context string) {
 			walk(n.Recv, p, "field");
 		}
 		walk(n.Type, p, "type");
-		walk(n.Body, p, "stmt");
+		if n.Body != nil {
+			walk(n.Body, p, "stmt");
+		}
 
 	case *ast.File:
 		walk(n.Decls, p, "decl");

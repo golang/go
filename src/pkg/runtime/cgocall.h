@@ -5,7 +5,8 @@
 /*
  * Cgo interface.
  * Dynamically linked shared libraries compiled with gcc
- * know these data structures too.  See ../../libcgo/cgocall.c
+ * know these data structures and functions too.
+ * See ../../libcgo/cgocall.c
  */
 
 typedef struct CgoWork CgoWork;
@@ -37,3 +38,5 @@ struct CgoWork
 
 void cgocall(void (*fn)(void*), void*);
 
+void *cmalloc(uintptr);
+void cfree(void*);
