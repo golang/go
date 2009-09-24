@@ -5,9 +5,9 @@
 package ogle
 
 import (
+	"debug/proc";
 	"fmt";
 	"os";
-	"ptrace";
 )
 
 /*
@@ -183,7 +183,7 @@ func EventStop(ev Event) (EventAction, os.Error) {
 type breakpointHook struct {
 	commonHook;
 	p *Process;
-	pc ptrace.Word;
+	pc proc.Word;
 }
 
 // A Breakpoint event occurs when a process reaches a particular
@@ -191,8 +191,8 @@ type breakpointHook struct {
 // will be the goroutine that reached the program counter.
 type Breakpoint struct {
 	commonEvent;
-	osThread ptrace.Thread;
-	pc ptrace.Word;
+	osThread proc.Thread;
+	pc proc.Word;
 }
 
 func (h *breakpointHook) AddHandler(eh EventHandler) {
@@ -229,7 +229,7 @@ func (h *breakpointHook) String() string {
 	return fmt.Sprintf("breakpoint at %#x", h.pc);
 }
 
-func (b *Breakpoint) PC() ptrace.Word {
+func (b *Breakpoint) PC() proc.Word {
 	return b.pc;
 }
 

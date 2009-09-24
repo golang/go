@@ -6,12 +6,12 @@ package ogle
 
 import (
 	"bufio";
+	"debug/proc";
 	"eval";
 	"fmt";
 	"go/scanner";
 	"go/token";
 	"os";
-	"ptrace";
 	"strconv";
 	"strings";
 	"sym";
@@ -139,7 +139,7 @@ func cmdLoad(args []byte) os.Error {
 
 	// Parse argument and start or attach to process
 	var fname string;
-	var proc ptrace.Process;
+	var tproc proc.Process;
 	if len(path) >= 4 && path[0:4] == "pid:" {
 		pid, err := strconv.Atoi(path[4:len(path)]);
 		if err != nil {
@@ -149,7 +149,7 @@ func cmdLoad(args []byte) os.Error {
 		if err != nil {
 			return err;
 		}
-		proc, err = ptrace.Attach(pid);
+		tproc, err = proc.Attach(pid);
 		if err != nil {
 			return err;
 		}
@@ -161,30 +161,30 @@ func cmdLoad(args []byte) os.Error {
 		} else {
 			fname = parts[0];
 		}
-		proc, err = ptrace.ForkExec(fname, parts, os.Environ(), "", []*os.File{os.Stdin, os.Stdout, os.Stderr});
+		tproc, err = proc.ForkExec(fname, parts, os.Environ(), "", []*os.File{os.Stdin, os.Stdout, os.Stderr});
 		if err != nil {
 			return err;
 		}
 		println("Started", path);
-		// TODO(austin) If we fail after this point, kill proc
+		// TODO(austin) If we fail after this point, kill tproc
 		// before detaching.
 	}
 
 	// Get symbols
 	f, err := os.Open(fname, os.O_RDONLY, 0);
 	if err != nil {
-		proc.Detach();
+		tproc.Detach();
 		return err;
 	}
 	defer f.Close();
 	elf, err := sym.NewElf(f);
 	if err != nil {
-		proc.Detach();
+		tproc.Detach();
 		return err;
 	}
-	curProc, err = NewProcessElf(proc, elf);
+	curProc, err = NewProcessElf(tproc, elf);
 	if err != nil {
-		proc.Detach();
+		tproc.Detach();
 		return err;
 	}
 
@@ -194,7 +194,7 @@ func cmdLoad(args []byte) os.Error {
 
 	err = curProc.populateWorld(world);
 	if err != nil {
-		proc.Detach();
+		tproc.Detach();
 		return err;
 	}
 
@@ -374,5 +374,5 @@ func fnBpSet(t *eval.Thread, args []eval.Value, res []eval.Value) {
 	if !ok {
 		t.Abort(UsageError("symbol " + name + " is not a function"));
 	}
-	curProc.OnBreakpoint(ptrace.Word(fn.Entry())).AddHandler(EventStop);
+	curProc.OnBreakpoint(proc.Word(fn.Entry())).AddHandler(EventStop);
 }

@@ -5,9 +5,9 @@
 package ogle
 
 import (
+	"debug/proc";
 	"fmt";
 	"os";
-	"ptrace";
 	"sym";
 )
 
@@ -16,7 +16,7 @@ type Frame struct {
 	// pc is the PC of the next instruction that will execute in
 	// this frame.  For lower frames, this is the instruction
 	// following the CALL instruction.
-	pc, sp, fp ptrace.Word;
+	pc, sp, fp proc.Word;
 	// The runtime.Stktop of the active stack segment
 	stk remoteStruct;
 	// The function this stack frame is in
@@ -39,7 +39,7 @@ func newFrame(g remoteStruct) (*Frame, os.Error) {
 
 func aNewFrame(a aborter, g remoteStruct) *Frame {
 	p := g.r.p;
-	var pc, sp ptrace.Word;
+	var pc, sp proc.Word;
 
 	// Is this G alive?
 	switch g.field(p.f.G.Status).(remoteInt).aGet(a) {
@@ -79,8 +79,8 @@ func aNewFrame(a aborter, g remoteStruct) *Frame {
 		// G is not mapped to an OS thread.  Use the
 		// scheduler's stored PC and SP.
 		sched := g.field(p.f.G.Sched).(remoteStruct);
-		pc = ptrace.Word(sched.field(p.f.Gobuf.Pc).(remoteUint).aGet(a));
-		sp = ptrace.Word(sched.field(p.f.Gobuf.Sp).(remoteUint).aGet(a));
+		pc = proc.Word(sched.field(p.f.Gobuf.Pc).(remoteUint).aGet(a));
+		sp = proc.Word(sched.field(p.f.Gobuf.Sp).(remoteUint).aGet(a));
 	}
 
 	// Get Stktop
@@ -92,7 +92,7 @@ func aNewFrame(a aborter, g remoteStruct) *Frame {
 // prepareFrame creates a Frame from the PC and SP within that frame,
 // as well as the active stack segment.  This function takes care of
 // traversing stack breaks and unwinding closures.
-func prepareFrame(a aborter, pc, sp ptrace.Word, stk remoteStruct, inner *Frame) *Frame {
+func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *Frame {
 	// Based on src/pkg/runtime/amd64/traceback.c:traceback
 	p := stk.r.p;
 	top := inner == nil;
@@ -104,11 +104,11 @@ func prepareFrame(a aborter, pc, sp ptrace.Word, stk remoteStruct, inner *Frame)
 
 	for i := 0; i < 100; i++ {
 		// Traverse segmented stack breaks
-		if p.sys.lessstack != nil && pc == ptrace.Word(p.sys.lessstack.Value) {
+		if p.sys.lessstack != nil && pc == proc.Word(p.sys.lessstack.Value) {
 			// Get stk->gobuf.pc
-			pc = ptrace.Word(stk.field(p.f.Stktop.Gobuf).(remoteStruct).field(p.f.Gobuf.Pc).(remoteUint).aGet(a));
+			pc = proc.Word(stk.field(p.f.Stktop.Gobuf).(remoteStruct).field(p.f.Gobuf.Pc).(remoteUint).aGet(a));
 			// Get stk->gobuf.sp
-			sp = ptrace.Word(stk.field(p.f.Stktop.Gobuf).(remoteStruct).field(p.f.Gobuf.Sp).(remoteUint).aGet(a));
+			sp = proc.Word(stk.field(p.f.Stktop.Gobuf).(remoteStruct).field(p.f.Gobuf.Sp).(remoteUint).aGet(a));
 			// Get stk->stackbase
 			stk = stk.field(p.f.Stktop.Stackbase).(remotePtr).aGet(a).(remoteStruct);
 			continue;
@@ -116,7 +116,7 @@ func prepareFrame(a aborter, pc, sp ptrace.Word, stk remoteStruct, inner *Frame)
 
 		// Get the PC of the call instruction
 		callpc := pc;
-		if !top && (p.sys.goexit == nil || pc != ptrace.Word(p.sys.goexit.Value)) {
+		if !top && (p.sys.goexit == nil || pc != proc.Word(p.sys.goexit.Value)) {
 			callpc--;
 		}
 
@@ -133,8 +133,8 @@ func prepareFrame(a aborter, pc, sp ptrace.Word, stk remoteStruct, inner *Frame)
 		}
 		spdelta, ok := p.ParseClosure(buf);
 		if ok {
-			sp += ptrace.Word(spdelta);
-			pc = p.peekUintptr(a, sp - ptrace.Word(p.PtrSize()));
+			sp += proc.Word(spdelta);
+			pc = p.peekUintptr(a, sp - proc.Word(p.PtrSize()));
 		}
 	}
 	if fn == nil {
@@ -142,11 +142,11 @@ func prepareFrame(a aborter, pc, sp ptrace.Word, stk remoteStruct, inner *Frame)
 	}
 
 	// Compute frame pointer
-	var fp ptrace.Word;
+	var fp proc.Word;
 	if fn.FrameSize < p.PtrSize() {
-		fp = sp + ptrace.Word(p.PtrSize());
+		fp = sp + proc.Word(p.PtrSize());
 	} else {
-		fp = sp + ptrace.Word(fn.FrameSize);
+		fp = sp + proc.Word(fn.FrameSize);
 	}
 	// TODO(austin) To really figure out if we're in the prologue,
 	// we need to disassemble the function and look for the call
@@ -154,10 +154,10 @@ func prepareFrame(a aborter, pc, sp ptrace.Word, stk remoteStruct, inner *Frame)
 	//
 	// TODO(austin) What if we're in the call to morestack in the
 	// prologue?  Then top == false.
-	if top && pc == ptrace.Word(fn.Entry()) {
+	if top && pc == proc.Word(fn.Entry()) {
 		// We're in the function prologue, before SP
 		// has been adjusted for the frame.
-		fp -= ptrace.Word(fn.FrameSize - p.PtrSize());
+		fp -= proc.Word(fn.FrameSize - p.PtrSize());
 	}
 
 	return &Frame{pc, sp, fp, stk, fn, path, line, inner, nil};
@@ -185,10 +185,10 @@ func (f *Frame) aOuter(a aborter) *Frame {
 		// around calls to go and defer.  Russ says this
 		// should get fixed in the compiler, but we account
 		// for it for now.
-		sp += ptrace.Word(2 * p.PtrSize());
+		sp += proc.Word(2 * p.PtrSize());
 	}
 
-	pc := p.peekUintptr(a, f.fp - ptrace.Word(p.PtrSize()));
+	pc := p.peekUintptr(a, f.fp - proc.Word(p.PtrSize()));
 	if pc < 0x1000 {
 		return nil;
 	}
@@ -207,8 +207,8 @@ func (f *Frame) Inner() *Frame {
 
 func (f *Frame) String() string {
 	res := f.fn.Name;
-	if f.pc > ptrace.Word(f.fn.Value) {
-		res += fmt.Sprintf("+%#x", f.pc - ptrace.Word(f.fn.Entry()));
+	if f.pc > proc.Word(f.fn.Value) {
+		res += fmt.Sprintf("+%#x", f.pc - proc.Word(f.fn.Entry()));
 	}
 	return res + fmt.Sprintf(" %s:%d", f.path, f.line);
 }

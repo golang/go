@@ -5,9 +5,9 @@
 package ogle
 
 import (
+	"debug/proc";
 	"eval";
 	"fmt";
-	"ptrace";
 )
 
 // A RemoteMismatchError occurs when an operation that requires two
@@ -38,7 +38,7 @@ type remoteValue interface {
 
 // remote represents an address in a remote process.
 type remote struct {
-	base ptrace.Word;
+	base proc.Word;
 	p *Process;
 }
 
@@ -71,14 +71,14 @@ func (v remote) Get(a aborter, size int) uint64 {
 func (v remote) Set(a aborter, size int, x uint64) {
 	var arr [8]byte;
 	buf := arr[0:size];
-	v.p.FromWord(ptrace.Word(x), buf);
+	v.p.FromWord(proc.Word(x), buf);
 	_, err := v.p.Poke(v.base, buf);
 	if err != nil {
 		a.Abort(err);
 	}
 }
 
-func (v remote) plus(x ptrace.Word) remote {
+func (v remote) plus(x proc.Word) remote {
 	return remote{v.base + x, v.p};
 }
 
@@ -340,9 +340,9 @@ func (v remoteString) Get(t *eval.Thread) string {
 
 func (v remoteString) aGet(a aborter) string {
 	rs := v.r.p.runtime.String.mk(v.r).(remoteStruct);
-	str := ptrace.Word(rs.field(v.r.p.f.String.Str).(remoteUint).aGet(a));
+	str := proc.Word(rs.field(v.r.p.f.String.Str).(remoteUint).aGet(a));
 	len := rs.field(v.r.p.f.String.Len).(remoteInt).aGet(a);
-	
+
 	bytes := make([]uint8, len);
 	_, err := v.r.p.Peek(str, bytes);
 	if err != nil {
@@ -404,11 +404,11 @@ func (v remoteArray) Elem(t *eval.Thread, i int64) eval.Value {
 }
 
 func (v remoteArray) elem(i int64) eval.Value {
-	return v.elemType.mk(v.r.plus(ptrace.Word(int64(v.elemType.size) * i)));
+	return v.elemType.mk(v.r.plus(proc.Word(int64(v.elemType.size) * i)));
 }
 
 func (v remoteArray) Sub(i int64, len int64) eval.ArrayValue {
-	return remoteArray{v.r.plus(ptrace.Word(int64(v.elemType.size) * i)), len, v.elemType};
+	return remoteArray{v.r.plus(proc.Word(int64(v.elemType.size) * i)), len, v.elemType};
 }
 
 /*
@@ -455,7 +455,7 @@ func (v remoteStruct) Field(t *eval.Thread, i int) eval.Value {
 
 func (v remoteStruct) field(i int) eval.Value {
 	f := &v.layout[i];
-	return f.fieldType.mk(v.r.plus(ptrace.Word(f.offset)));
+	return f.fieldType.mk(v.r.plus(proc.Word(f.offset)));
 }
 
 func (v remoteStruct) addr() remote {
@@ -494,7 +494,7 @@ func (v remotePtr) Get(t *eval.Thread) eval.Value {
 }
 
 func (v remotePtr) aGet(a aborter) eval.Value {
-	addr := ptrace.Word(v.r.Get(a, v.r.p.PtrSize()));
+	addr := proc.Word(v.r.Get(a, v.r.p.PtrSize()));
 	if addr == 0 {
 		return nil;
 	}
@@ -550,7 +550,7 @@ func (v remoteSlice) Get(t *eval.Thread) eval.Slice {
 
 func (v remoteSlice) aGet(a aborter) eval.Slice {
 	rs := v.r.p.runtime.Slice.mk(v.r).(remoteStruct);
-	base := ptrace.Word(rs.field(v.r.p.f.Slice.Array).(remoteUint).aGet(a));
+	base := proc.Word(rs.field(v.r.p.f.Slice.Array).(remoteUint).aGet(a));
 	nel := rs.field(v.r.p.f.Slice.Len).(remoteInt).aGet(a);
 	cap := rs.field(v.r.p.f.Slice.Cap).(remoteInt).aGet(a);
 	if base == 0 {
