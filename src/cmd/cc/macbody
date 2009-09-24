@@ -55,7 +55,7 @@ getsym(void)
 	char *cp;
 
 	c = getnsc();
-	if(!isalpha(c) && c != '_') {
+	if(!isalpha(c) && c != '_' && c < 0x80) {
 		unget(c);
 		return S;
 	}
@@ -63,7 +63,7 @@ getsym(void)
 		if(cp <= symb+NSYMB-4)
 			*cp++ = c;
 		c = getc();
-		if(isalnum(c) || c == '_')
+		if(isalnum(c) || c == '_' || c >= 0x80)
 			continue;
 		unget(c);
 		break;
