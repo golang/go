@@ -84,7 +84,7 @@ func (r *binaryReader) Error() os.Error {
 
 func (r *binaryReader) ReadUint8() uint8 {
 	var buf [1]byte;
-	n, err := io.ReadFull(r.Reader, &buf);
+	_, err := io.ReadFull(r.Reader, &buf);
 	if r.err == nil && err != nil {
 		r.err = err;
 	}
@@ -93,7 +93,7 @@ func (r *binaryReader) ReadUint8() uint8 {
 
 func (r *binaryReader) ReadUint16() uint16 {
 	var buf [2]byte;
-	n, err := io.ReadFull(r.Reader, &buf);
+	_, err := io.ReadFull(r.Reader, &buf);
 	if r.err == nil && err != nil {
 		r.err = err;
 	}
@@ -102,7 +102,7 @@ func (r *binaryReader) ReadUint16() uint16 {
 
 func (r *binaryReader) ReadUint32() uint32 {
 	var buf [4]byte;
-	n, err := io.ReadFull(r.Reader, &buf);
+	_, err := io.ReadFull(r.Reader, &buf);
 	if r.err == nil && err != nil {
 		r.err = err;
 	}
@@ -111,7 +111,7 @@ func (r *binaryReader) ReadUint32() uint32 {
 
 func (r *binaryReader) ReadUint64() uint64 {
 	var buf [8]byte;
-	n, err := io.ReadFull(r.Reader, &buf);
+	_, err := io.ReadFull(r.Reader, &buf);
 	if r.err == nil && err != nil {
 		r.err = err;
 	}
