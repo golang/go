@@ -94,7 +94,7 @@ var cmds = []cmd {
 // successful, it returns the command and the bytes remaining after
 // the command, which should be passed to the command.
 func getCmd(line []byte) (*cmd, []byte) {
-	sc, ev := newScanner(line);
+	sc, _ := newScanner(line);
 	pos, tok, lit := sc.Scan();
 	if sc.ErrorCount != 0 || tok != token.IDENT {
 		return nil, nil;
@@ -208,8 +208,7 @@ func parseLoad(args []byte) (ident string, path string, err os.Error) {
 	var toks [4]token.Token;
 	var lits [4][]byte;
 	for i := range toks {
-		var pos token.Position;
-		pos, toks[i], lits[i] = sc.Scan();
+		_, toks[i], lits[i] = sc.Scan();
 	}
 	if sc.ErrorCount != 0 {
 		err = ev.GetError(scanner.NoMultiples);
@@ -287,7 +286,7 @@ func cmdBt(args []byte) os.Error {
 
 func parseNoArgs(args []byte, usage string) os.Error {
 	sc, ev := newScanner(args);
-	pos, tok, lit := sc.Scan();
+	_, tok, _ := sc.Scan();
 	if sc.ErrorCount != 0 {
 		return ev.GetError(scanner.NoMultiples);
 	}

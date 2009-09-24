@@ -142,7 +142,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 
 		// Symbol name
 		name := sc.BaseName();
-		if prev, ok := pkg[name]; ok {
+		if _, ok := pkg[name]; ok {
 			log.Stderrf("Multiple definitions of symbol %s", sc.Name);
 			continue;
 		}

@@ -7,7 +7,6 @@ package ogle
 import (
 	"eval";
 	"fmt";
-	"os";
 	"ptrace";
 )
 
