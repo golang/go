@@ -14,6 +14,7 @@ import (
 	"io";
 	"os";
 	"reflect";
+	"runtime";
 	"strings";
 	"tabwriter";
 )
@@ -105,6 +106,7 @@ func (p *printer) write0(data []byte) {
 	p.written += n;
 	if err != nil {
 		p.errors <- err;
+		runtime.Goexit();
 	}
 }
 
@@ -1402,7 +1404,8 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, o
 			p.comment = n.Comments;
 			p.file(n);
 		default:
-			p.errors <- os.NewError("unsupported node type");
+			p.errors <- os.NewError(fmt.Sprintf("unsupported node type %T", n));
+			runtime.Goexit();
 		}
 		p.flush(inf);
 		p.errors <- nil;  // no errors
