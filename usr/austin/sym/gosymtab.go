@@ -646,12 +646,12 @@ func (lt *lineTable) slice(pc uint64) *lineTable {
 }
 
 func (lt *lineTable) alineFromPC(targetPC uint64) int {
-	_1, _2, aline := lt.parse(targetPC, -1);
+	_, _, aline := lt.parse(targetPC, -1);
 	return aline;
 }
 
 func (lt *lineTable) pcFromAline(aline int, maxPC uint64) uint64 {
-	_1, pc, line := lt.parse(maxPC, aline);
+	_, pc, line := lt.parse(maxPC, aline);
 	if line != aline {
 		// Never found aline
 		return 0;

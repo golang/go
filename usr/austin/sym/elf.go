@@ -7,7 +7,6 @@ package sym
 import (
 	"fmt";
 	"io";
-	"log";
 	"os";
 )
 
@@ -62,7 +61,7 @@ func NewElf(r io.ReadSeeker) (*Elf, os.Error) {
 		return nil, err;
 	}
 	start := off;
-	n, err := io.ReadFull(r, &ident);
+	_, err = io.ReadFull(r, &ident);
 	if err != nil {
 		if err == os.EOF {
 			err = io.ErrUnexpectedEOF;
@@ -167,7 +166,7 @@ func NewElf(r io.ReadSeeker) (*Elf, os.Error) {
 		return nil, err;
 	}
 	blob := make([]byte, e.Sections[shstrndx].Size);
-	n, err = io.ReadFull(r, blob);
+	_, err = io.ReadFull(r, blob);
 
 	for i, s := range e.Sections {
 		var ok bool;
