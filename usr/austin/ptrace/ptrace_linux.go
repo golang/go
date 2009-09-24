@@ -419,7 +419,6 @@ func (p *process) uninstallBreakpoints() os.Error {
 // event.
 func (t *thread) wait() {
 	for {
-		var err os.Error;
 		var ev debugEvent;
 		ev.t = t;
 		t.logTrace("beginning wait");
@@ -762,7 +761,7 @@ func (p *process) do(f func () os.Error) os.Error {
 // stopMonitor stops the monitor with the given error.  If the monitor
 // is already stopped, does nothing.
 func (p *process) stopMonitor(err os.Error) {
-	doNotBlock := p.stopReq <- err;
+	_ = p.stopReq <- err;
 	// TODO(austin) Wait until monitor has exited?
 }
 
@@ -1213,7 +1212,7 @@ func (p *process) attachAllThreads() os.Error {
 				continue;
 			}
 
-			t, err := p.attachThread(tid);
+			_, err = p.attachThread(tid);
 			if err != nil {
 				// There could have been a race, or
 				// this process could be a zobmie.
@@ -1308,7 +1307,7 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.F
 		p.pid = pid;
 
 		// The process will raise SIGTRAP when it reaches execve.
-		t, err := p.newThread(pid, syscall.SIGTRAP, false);
+		_, err := p.newThread(pid, syscall.SIGTRAP, false);
 		return err;
 	});
 	if err != nil {
