@@ -5,7 +5,14 @@
 include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=math
-GOFILES=\
+
+OFILES_amd64=\
+	sqrt_amd64.$O\
+
+OFILES=\
+	$(OFILES_$(GOARCH))
+
+ALLGOFILES=\
 	asin.go\
 	atan.go\
 	atan2.go\
@@ -24,5 +31,12 @@ GOFILES=\
 	sqrt.go\
 	tan.go\
 	tanh.go\
+
+NOGOFILES=\
+	$(subst _$(GOARCH).$O,.go,$(OFILES_$(GOARCH)))
+
+GOFILES=\
+	$(filter-out $(NOGOFILES),$(ALLGOFILES))\
+	$(subst .go,_decl.go,$(NOGOFILES))\
 
 include $(GOROOT)/src/Make.pkg
