@@ -1,11 +1,12 @@
 code, .code {
-  font-size: 9pt; 
-  font-family: Courier, Courier New, monospace; 
+  font-size: 100%;
+  font-family: monospace;
   color:#007000;
 }
 
 kbd {
-  font-family: Courier, Courier New, monospace; 
+  font-size: 100%;
+  font-family: monospace;
   font-weight: bold;
 }
 
@@ -104,7 +105,7 @@ div#linkList li.navhead {
 }
 
 .navtop {
-  font-size: xx-small; 
+  font-size: xx-small;
   float: right;
 }
 
