@@ -5,11 +5,11 @@
 package ogle
 
 import (
+	"debug/proc";
 	"eval";
 	"fmt";
 	"log";
 	"os";
-	"ptrace";
 	"reflect";
 	"sym";
 )
@@ -42,8 +42,8 @@ func (e ProcessNotStopped) String() string {
 // An UnknownGoroutine error is an internal error representing an
 // unrecognized G structure pointer.
 type UnknownGoroutine struct {
-	OSThread ptrace.Thread;
-	Goroutine ptrace.Word;
+	OSThread proc.Thread;
+	Goroutine proc.Word;
 }
 
 func (e UnknownGoroutine) String() string {
@@ -62,16 +62,16 @@ func (e NoCurrentGoroutine) String() string {
 // A Process represents a remote attached process.
 type Process struct {
 	Arch;
-	proc ptrace.Process;
+	proc proc.Process;
 
 	// The symbol table of this process
 	syms *sym.GoSymTable;
 
 	// A possibly-stopped OS thread, or nil
-	threadCache ptrace.Thread;
+	threadCache proc.Thread;
 
 	// Types parsed from the remote process
-	types map[ptrace.Word] *remoteType;
+	types map[proc.Word] *remoteType;
 
 	// Types and values from the remote runtime package
 	runtime runtimeValues;
@@ -92,7 +92,7 @@ type Process struct {
 	event Event;
 
 	// Event hooks
-	breakpointHooks map[ptrace.Word] *breakpointHook;
+	breakpointHooks map[proc.Word] *breakpointHook;
 	goroutineCreateHook *goroutineCreateHook;
 	goroutineExitHook *goroutineExitHook;
 
@@ -100,25 +100,25 @@ type Process struct {
 	curGoroutine *Goroutine;
 
 	// Goroutines by the address of their G structure
-	goroutines map[ptrace.Word] *Goroutine;
+	goroutines map[proc.Word] *Goroutine;
 }
 
 /*
  * Process creation
  */
 
-// NewProcess constructs a new remote process around a ptrace'd
+// NewProcess constructs a new remote process around a traced
 // process, an architecture, and a symbol table.
-func NewProcess(proc ptrace.Process, arch Arch, syms *sym.GoSymTable) (*Process, os.Error) {
+func NewProcess(tproc proc.Process, arch Arch, syms *sym.GoSymTable) (*Process, os.Error) {
 	p := &Process{
 		Arch: arch,
-		proc: proc,
+		proc: tproc,
 		syms: syms,
-		types: make(map[ptrace.Word] *remoteType),
-		breakpointHooks: make(map[ptrace.Word] *breakpointHook),
+		types: make(map[proc.Word] *remoteType),
+		breakpointHooks: make(map[proc.Word] *breakpointHook),
 		goroutineCreateHook: new(goroutineCreateHook),
 		goroutineExitHook: new(goroutineExitHook),
-		goroutines: make(map[ptrace.Word] *Goroutine),
+		goroutines: make(map[proc.Word] *Goroutine),
 	};
 
 	// Fill in remote runtime
@@ -151,8 +151,8 @@ func NewProcess(proc ptrace.Process, arch Arch, syms *sym.GoSymTable) (*Process,
 	}
 
 	// Create internal breakpoints to catch new and exited goroutines
-	p.OnBreakpoint(ptrace.Word(p.sys.newprocreadylocked.Entry())).(*breakpointHook).addHandler(readylockedBP, true);
-	p.OnBreakpoint(ptrace.Word(p.sys.goexit.Entry())).(*breakpointHook).addHandler(goexitBP, true);
+	p.OnBreakpoint(proc.Word(p.sys.newprocreadylocked.Entry())).(*breakpointHook).addHandler(readylockedBP, true);
+	p.OnBreakpoint(proc.Word(p.sys.goexit.Entry())).(*breakpointHook).addHandler(goexitBP, true);
 
 	// Select current frames
 	for _, g := range p.goroutines {
@@ -164,9 +164,9 @@ func NewProcess(proc ptrace.Process, arch Arch, syms *sym.GoSymTable) (*Process,
 	return p, nil;
 }
 
-// NewProcessElf constructs a new remote process around a ptrace'd
+// NewProcessElf constructs a new remote process around a traced
 // process and the process' ELF object.
-func NewProcessElf(proc ptrace.Process, elf *sym.Elf) (*Process, os.Error) {
+func NewProcessElf(tproc proc.Process, elf *sym.Elf) (*Process, os.Error) {
 	syms, err := sym.ElfGoSyms(elf);
 	if err != nil {
 		return nil, err;
@@ -181,7 +181,7 @@ func NewProcessElf(proc ptrace.Process, elf *sym.Elf) (*Process, os.Error) {
 	default:
 		return nil, UnknownArchitecture(elf.Machine);
 	}
-	return NewProcess(proc, arch, syms);
+	return NewProcess(tproc, arch, syms);
 }
 
 // bootstrap constructs the runtime structure of a remote process.
@@ -238,10 +238,10 @@ func (p *Process) bootstrap() {
 	p.sys.deferproc = globalFn("sys·deferproc");
 	p.sys.newprocreadylocked = globalFn("newprocreadylocked");
 	if allg := p.syms.SymFromName("allg"); allg != nil {
-		p.sys.allg = remotePtr{remote{ptrace.Word(allg.Common().Value), p}, p.runtime.G};
+		p.sys.allg = remotePtr{remote{proc.Word(allg.Common().Value), p}, p.runtime.G};
 	}
 	if g0 := p.syms.SymFromName("g0"); g0 != nil {
-		p.sys.g0 = p.runtime.G.mk(remote{ptrace.Word(g0.Common().Value), p}).(remoteStruct);
+		p.sys.g0 = p.runtime.G.mk(remote{proc.Word(g0.Common().Value), p}).(remoteStruct);
 	}
 }
 
@@ -261,7 +261,7 @@ func (p *Process) selectSomeGoroutine() {
  * Process memory
  */
 
-func (p *Process) someStoppedOSThread() ptrace.Thread {
+func (p *Process) someStoppedOSThread() proc.Thread {
 	if p.threadCache != nil {
 		if _, err := p.threadCache.Stopped(); err == nil {
 			return p.threadCache;
@@ -277,7 +277,7 @@ func (p *Process) someStoppedOSThread() ptrace.Thread {
 	return nil;
 }
 
-func (p *Process) Peek(addr ptrace.Word, out []byte) (int, os.Error) {
+func (p *Process) Peek(addr proc.Word, out []byte) (int, os.Error) {
 	thr := p.someStoppedOSThread();
 	if thr == nil {
 		return 0, ProcessNotStopped{};
@@ -285,7 +285,7 @@ func (p *Process) Peek(addr ptrace.Word, out []byte) (int, os.Error) {
 	return thr.Peek(addr, out);
 }
 
-func (p *Process) Poke(addr ptrace.Word, b []byte) (int, os.Error) {
+func (p *Process) Poke(addr proc.Word, b []byte) (int, os.Error) {
 	thr := p.someStoppedOSThread();
 	if thr == nil {
 		return 0, ProcessNotStopped{};
@@ -293,8 +293,8 @@ func (p *Process) Poke(addr ptrace.Word, b []byte) (int, os.Error) {
 	return thr.Poke(addr, b);
 }
 
-func (p *Process) peekUintptr(a aborter, addr ptrace.Word) ptrace.Word {
-	return ptrace.Word(mkUintptr(remote{addr, p}).(remoteUint).aGet(a));
+func (p *Process) peekUintptr(a aborter, addr proc.Word) proc.Word {
+	return proc.Word(mkUintptr(remote{addr, p}).(remoteUint).aGet(a));
 }
 
 /*
@@ -303,7 +303,7 @@ func (p *Process) peekUintptr(a aborter, addr ptrace.Word) ptrace.Word {
 
 // OnBreakpoint returns the hook that is run when the program reaches
 // the given program counter.
-func (p *Process) OnBreakpoint(pc ptrace.Word) EventHook {
+func (p *Process) OnBreakpoint(pc proc.Word) EventHook {
 	if bp, ok := p.breakpointHooks[pc]; ok {
 		return bp;
 	}
@@ -322,7 +322,7 @@ func (p *Process) OnGoroutineExit() EventHook {
 }
 
 // osThreadToGoroutine looks up the goroutine running on an OS thread.
-func (p *Process) osThreadToGoroutine(t ptrace.Thread) (*Goroutine, os.Error) {
+func (p *Process) osThreadToGoroutine(t proc.Thread) (*Goroutine, os.Error) {
 	regs, err := t.Regs();
 	if err != nil {
 		return nil, err;
@@ -343,9 +343,9 @@ func (p *Process) causesToEvents() ([]Event, os.Error) {
 	for _, t := range p.proc.Threads() {
 		if c, err := t.Stopped(); err == nil {
 			switch c := c.(type) {
-			case ptrace.Breakpoint:
+			case proc.Breakpoint:
 				nev++;
-			case ptrace.Signal:
+			case proc.Signal:
 				// TODO(austin)
 				//nev++;
 			}
@@ -358,14 +358,14 @@ func (p *Process) causesToEvents() ([]Event, os.Error) {
 	for _, t := range p.proc.Threads() {
 		if c, err := t.Stopped(); err == nil {
 			switch c := c.(type) {
-			case ptrace.Breakpoint:
+			case proc.Breakpoint:
 				gt, err := p.osThreadToGoroutine(t);
 				if err != nil {
 					return nil, err;
 				}
-				events[i] = &Breakpoint{commonEvent{p, gt}, t, ptrace.Word(c)};
+				events[i] = &Breakpoint{commonEvent{p, gt}, t, proc.Word(c)};
 				i++;
-			case ptrace.Signal:
+			case proc.Signal:
 				// TODO(austin)
 			}
 		}

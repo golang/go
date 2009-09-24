@@ -5,10 +5,10 @@
 package ogle
 
 import (
+	"debug/proc";
 	"eval";
 	"fmt";
 	"os";
-	"ptrace";
 )
 
 // A Goroutine represents a goroutine in a remote process.
@@ -68,7 +68,7 @@ func readylockedBP(ev Event) (EventAction, os.Error) {
 		return EAStop, err;
 	}
 	sp := regs.SP();
-	addr := sp + ptrace.Word(p.PtrSize());
+	addr := sp + proc.Word(p.PtrSize());
 	arg := remotePtr{remote{addr, p}, p.runtime.G};
 	var gp eval.Value;
 	err = try(func(a aborter) { gp = arg.aGet(a) });

@@ -4,7 +4,7 @@
 
 include $(GOROOT)/src/Make.$(GOARCH)
 
-TARG=ptrace
+TARG=debug/proc
 GOFILES=\
 	proc.go\
 	proc_$(GOOS).go\

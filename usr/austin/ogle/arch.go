@@ -5,17 +5,17 @@
 package ogle
 
 import (
+	"debug/proc";
 	"math";
-	"ptrace";
 )
 
 type Arch interface {
 	// ToWord converts an array of up to 8 bytes in memory order
 	// to a word.
-	ToWord(data []byte) ptrace.Word;
+	ToWord(data []byte) proc.Word;
 	// FromWord converts a word to an array of up to 8 bytes in
 	// memory order.
-	FromWord(v ptrace.Word, out []byte);
+	FromWord(v proc.Word, out []byte);
 	// ToFloat32 converts a word to a float.  The order of this
 	// word will be the order returned by ToWord on the memory
 	// representation of a float, and thus may require reversing.
@@ -40,7 +40,7 @@ type Arch interface {
 	Align(offset, width int) int;
 
 	// G returns the current G pointer.
-	G(regs ptrace.Regs) ptrace.Word;
+	G(regs proc.Regs) proc.Word;
 
 	// ClosureSize returns the number of bytes expected by
 	// ParseClosure.
@@ -53,15 +53,15 @@ type Arch interface {
 
 type ArchLSB struct {}
 
-func (ArchLSB) ToWord(data []byte) ptrace.Word {
-	var v ptrace.Word;
+func (ArchLSB) ToWord(data []byte) proc.Word {
+	var v proc.Word;
 	for i, b := range data {
-		v |= ptrace.Word(b) << (uint(i)*8);
+		v |= proc.Word(b) << (uint(i)*8);
 	}
 	return v;
 }
 
-func (ArchLSB) FromWord(v ptrace.Word, out []byte) {
+func (ArchLSB) FromWord(v proc.Word, out []byte) {
 	for i := range out {
 		out[i] = byte(v);
 		v >>= 8;
@@ -110,7 +110,7 @@ func (a *amd64) FloatSize() int {
 	return 4;
 }
 
-func (a *amd64) G(regs ptrace.Regs) ptrace.Word {
+func (a *amd64) G(regs proc.Regs) proc.Word {
 	// See src/pkg/runtime/mkasmh
 	if a.gReg == -1 {
 		ns := regs.Names();

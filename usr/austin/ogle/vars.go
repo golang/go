@@ -5,10 +5,10 @@
 package ogle
 
 import (
+	"debug/proc";
 	"eval";
 	"log";
 	"os";
-	"ptrace";
 	"sym";
 )
 
@@ -160,7 +160,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 			if rt == nil {
 				continue;
 			}
-			pkg[name] = def{rt.Type, rt.mk(remote{ptrace.Word(sc.Value), p})};
+			pkg[name] = def{rt.Type, rt.mk(remote{proc.Word(sc.Value), p})};
 
 		case 'T', 't', 'L', 'l':
 			// Function
@@ -207,7 +207,7 @@ func (p *Process) typeOfSym(s *sym.CommonSym) (*remoteType, os.Error) {
 	if s.GoType == 0 {
 		return nil, nil;
 	}
-	addr := ptrace.Word(s.GoType);
+	addr := proc.Word(s.GoType);
 	var rt *remoteType;
 	err := try(func(a aborter) {
 		rt = parseRemoteType(a, p.runtime.Type.mk(remote{addr, p}).(remoteStruct));

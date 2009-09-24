@@ -5,10 +5,10 @@
 package ogle
 
 import (
+	"debug/proc";
 	"eval";
 	"fmt";
 	"log";
-	"ptrace";
 )
 
 const debugParseRemoteType = false
@@ -156,7 +156,7 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 	}
 
 	// Get Type header
-	itype := ptrace.Word(rs.field(p.f.Type.Typ).(remoteUint).aGet(a));
+	itype := proc.Word(rs.field(p.f.Type.Typ).(remoteUint).aGet(a));
 	typ := rs.field(p.f.Type.Ptr).(remotePtr).aGet(a).(remoteStruct);
 
 	// Is this a named type?

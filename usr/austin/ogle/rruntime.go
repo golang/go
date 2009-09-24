@@ -5,8 +5,8 @@
 package ogle
 
 import (
+	"debug/proc";
 	"eval";
-	"ptrace";
 	"reflect";
 )
 
@@ -227,7 +227,7 @@ type runtimeValues struct {
 	PFloat32Type, PFloat64Type, PFloatType,
 	PArrayType, PStringType, PStructType, PPtrType, PFuncType,
 	PInterfaceType, PSliceType, PMapType, PChanType,
-	PDotDotDotType, PUnsafePointerType ptrace.Word;
+	PDotDotDotType, PUnsafePointerType proc.Word;
 	// G status values
 	runtimeGStatus;
 }
