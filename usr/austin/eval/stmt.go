@@ -7,11 +7,8 @@ package eval
 import (
 	"bignum";
 	"log";
-	"os";
 	"go/ast";
-	"go/scanner";
 	"go/token";
-	"strconv";
 )
 
 const (
@@ -1018,7 +1015,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 	// Count cases
 	ncases := 0;
 	hasDefault := false;
-	for i, c := range s.Body.List {
+	for _, c := range s.Body.List {
 		clause, ok := c.(*ast.CaseClause);
 		if !ok {
 			a.diagAt(clause, "switch statement must contain case clauses");
@@ -1090,7 +1087,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 		// Save jump PC's
 		pc := a.nextPC();
 		if clause.Values != nil {
-			for _, v := range clause.Values {
+			for _ = range clause.Values {
 				casePCs[i] = &pc;
 				i++;
 			}
@@ -1215,7 +1212,7 @@ func (a *blockCompiler) compileStmt(s ast.Stmt) {
 }
 
 func (a *blockCompiler) compileStmts(block *ast.BlockStmt) {
-	for i, sub := range block.List {
+	for _, sub := range block.List {
 		a.compileStmt(sub);
 	}
 }
