@@ -110,6 +110,7 @@ typedef struct {
 #define ELFOSABI_OPENVMS	13	/* Open VMS */
 #define ELFOSABI_NSK		14	/* HP Non-Stop Kernel */
 #define ELFOSABI_ARM		97	/* ARM */
+#define ELFOSABI_NACL		123	/* Native Client */
 #define ELFOSABI_STANDALONE	255	/* Standalone (embedded) application */
 
 #define ELFOSABI_SYSV		ELFOSABI_NONE	/* symbol used in old spec */
@@ -247,6 +248,7 @@ typedef struct {
 #define PT_HIOS		0x6fffffff	/* Last OS-specific. */
 #define PT_LOPROC	0x70000000	/* First processor-specific type. */
 #define PT_HIPROC	0x7fffffff	/* Last processor-specific type. */
+#define PT_GNU_STACK	0x6474e551
 
 /* Values for p_flags. */
 #define PF_X		0x1		/* Executable. */
@@ -931,23 +933,34 @@ typedef struct {
 #define	ELF32HDRSIZE	sizeof(Elf32_Ehdr)
 #define	ELF32PHDRSIZE	sizeof(Elf32_Phdr)
 #define	ELF32SHDRSIZE	sizeof(Elf32_Shdr)
+#define	ELF32SYMSIZE	sizeof(Elf32_Sym)
+#define	ELF32RELSIZE	8
+
+/*
+ * The interface uses the 64-bit structures always,
+ * to avoid code duplication.  The writers know how to
+ * marshal a 32-bit representation from the 64-bit structure.
+ */
+typedef Elf64_Ehdr ElfEhdr;
+typedef Elf64_Shdr ElfShdr;
+typedef Elf64_Phdr ElfPhdr;
 
 void	elfinit(void);
-Elf64_Ehdr	*getElf64_Ehdr();
-Elf64_Shdr	*newElf64_Shstrtab(vlong);
-Elf64_Shdr	*newElf64_Shdr(vlong);
-Elf64_Phdr	*newElf64_Phdr();
-uint32	elf64writehdr(void);
-uint32	elf64writephdrs(void);
-uint32	elf64writeshdrs(void);
+ElfEhdr	*getElfEhdr();
+ElfShdr	*newElfShstrtab(vlong);
+ElfShdr	*newElfShdr(vlong);
+ElfPhdr	*newElfPhdr();
+uint32	elfwritehdr(void);
+uint32	elfwritephdrs(void);
+uint32	elfwriteshdrs(void);
 void	elfwritedynent(Sym*, int, uint64);
 void	elfwritedynentsym(Sym*, int, Sym*);
 void	elfwritedynentsymsize(Sym*, int, Sym*);
-uint32	elf64_hash(uchar*);
+uint32	elfhash(uchar*);
 uint64	startelf(void);
 uint64	endelf(void);
-extern	int	nume64phdr;
-extern	int	nume64shdr;
+extern	int	numelfphdr;
+extern	int	numelfshdr;
 
 /*
  * Total amount of ELF space to reserve at the start of the file

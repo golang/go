@@ -29,8 +29,11 @@
 // THE SOFTWARE.
 
 #include	"l.h"
+#include	"../ld/elf.h"
 
 #define	Dbufslop	100
+
+char linuxdynld[] = "/lib/ld-linux.so.2";
 
 uint32 symdatva = 0x99<<24;
 uint32 stroffset;
@@ -124,15 +127,315 @@ strnput(char *s, int n)
 	}
 }
 
+vlong
+addstring(Sym *s, char *str)
+{
+	int n, m;
+	vlong r;
+	Prog *p;
+
+	if(s->type == 0)
+		s->type = SDATA;
+	s->reachable = 1;
+	r = s->value;
+	n = strlen(str)+1;
+	while(n > 0) {
+		m = n;
+		if(m > sizeof(p->to.scon))
+			m = sizeof(p->to.scon);
+		p = newdata(s, s->value, m, D_EXTERN);
+		p->to.type = D_SCONST;
+		memmove(p->to.scon, str, m);
+		s->value += m;
+		str += m;
+		n -= m;
+	}
+	return r;
+}
+
+vlong
+adduintxx(Sym *s, uint64 v, int wid)
+{
+	vlong r;
+	Prog *p;
+
+	if(s->type == 0)
+		s->type = SDATA;
+	s->reachable = 1;
+	r = s->value;
+	p = newdata(s, s->value, wid, D_EXTERN);
+	s->value += wid;
+	p->to.type = D_CONST;
+	p->to.offset = v;
+	return r;
+}
+
+vlong
+adduint8(Sym *s, uint8 v)
+{
+	return adduintxx(s, v, 1);
+}
+
+vlong
+adduint16(Sym *s, uint16 v)
+{
+	return adduintxx(s, v, 2);
+}
+
+vlong
+adduint32(Sym *s, uint32 v)
+{
+	return adduintxx(s, v, 4);
+}
+
+vlong
+adduint64(Sym *s, uint64 v)
+{
+	return adduintxx(s, v, 8);
+}
+
+vlong
+addaddr(Sym *s, Sym *t)
+{
+	vlong r;
+	Prog *p;
+	enum { Ptrsize = 4 };
+
+	if(s->type == 0)
+		s->type = SDATA;
+	s->reachable = 1;
+	r = s->value;
+	p = newdata(s, s->value, Ptrsize, D_EXTERN);
+	s->value += Ptrsize;
+	p->to.type = D_ADDR;
+	p->to.index = D_EXTERN;
+	p->to.offset = 0;
+	p->to.sym = t;
+	return r;
+}
+
+vlong
+addsize(Sym *s, Sym *t)
+{
+	vlong r;
+	Prog *p;
+	enum { Ptrsize = 4 };
+
+	if(s->type == 0)
+		s->type = SDATA;
+	s->reachable = 1;
+	r = s->value;
+	p = newdata(s, s->value, Ptrsize, D_EXTERN);
+	s->value += Ptrsize;
+	p->to.type = D_SIZE;
+	p->to.index = D_EXTERN;
+	p->to.offset = 0;
+	p->to.sym = t;
+	return r;
+}
+
+vlong
+datoff(vlong addr)
+{
+	if(addr >= INITDAT)
+		return addr - INITDAT + rnd(HEADR+textsize, INITRND);
+	diag("datoff %#llx", addr);
+	return 0;
+}
+
+enum {
+	ElfStrEmpty,
+	ElfStrInterp,
+	ElfStrHash,
+	ElfStrGot,
+	ElfStrGotPlt,
+	ElfStrDynamic,
+	ElfStrDynsym,
+	ElfStrDynstr,
+	ElfStrRel,
+	ElfStrText,
+	ElfStrData,
+	ElfStrBss,
+	ElfStrGosymtab,
+	ElfStrGopclntab,
+	ElfStrShstrtab,
+	NElfStr
+};
+
+vlong elfstr[NElfStr];
+
+static int
+needlib(char *name)
+{
+	char *p;
+	Sym *s;
+
+	/* reuse hash code in symbol table */
+	p = smprint(".elfload.%s", name);
+	s = lookup(p, 0);
+	if(s->type == 0) {
+		s->type = 100;	// avoid SDATA, etc.
+		return 1;
+	}
+	return 0;
+}
+
+void
+doelf(void)
+{
+	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
+	int h, nsym, t;
+
+	if(HEADTYPE != 7 && HEADTYPE != 8)
+		return;
+
+	/* predefine strings we need for section headers */
+	shstrtab = lookup(".shstrtab", 0);
+	shstrtab->reachable = 1;
+	elfstr[ElfStrEmpty] = addstring(shstrtab, "");
+	elfstr[ElfStrText] = addstring(shstrtab, ".text");
+	elfstr[ElfStrData] = addstring(shstrtab, ".data");
+	elfstr[ElfStrBss] = addstring(shstrtab, ".bss");
+	if(!debug['s']) {
+		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
+		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
+	}
+	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
+
+	if(!debug['d']) {	/* -d suppresses dynamic loader format */
+		elfstr[ElfStrInterp] = addstring(shstrtab, ".interp");
+		elfstr[ElfStrHash] = addstring(shstrtab, ".hash");
+		elfstr[ElfStrGot] = addstring(shstrtab, ".got");
+		elfstr[ElfStrGotPlt] = addstring(shstrtab, ".got.plt");
+		elfstr[ElfStrDynamic] = addstring(shstrtab, ".dynamic");
+		elfstr[ElfStrDynsym] = addstring(shstrtab, ".dynsym");
+		elfstr[ElfStrDynstr] = addstring(shstrtab, ".dynstr");
+		elfstr[ElfStrRel] = addstring(shstrtab, ".rel");
+
+		/* interpreter string */
+		s = lookup(".interp", 0);
+		s->reachable = 1;
+		s->type = SDATA;	// TODO: rodata
+		addstring(lookup(".interp", 0), linuxdynld);
+
+		/*
+		 * hash table - empty for now.
+		 * we should have to fill it out with an entry for every
+		 * symbol in .dynsym, but it seems to work not to,
+		 * which is fine with me.
+		 */
+		s = lookup(".hash", 0);
+		s->type = SDATA;	// TODO: rodata
+		s->reachable = 1;
+		s->value += 8;	// two leading zeros
+
+		/* dynamic symbol table - first entry all zeros */
+		s = lookup(".dynsym", 0);
+		s->type = SDATA;
+		s->reachable = 1;
+		s->value += ELF64SYMSIZE;
+
+		/* dynamic string table */
+		s = lookup(".dynstr", 0);
+		addstring(s, "");
+		dynstr = s;
+
+		/* relocation table */
+		s = lookup(".rel", 0);
+		s->reachable = 1;
+		s->type = SDATA;
+
+		/* global offset table */
+		s = lookup(".got", 0);
+		s->reachable = 1;
+		s->type = SDATA;
+
+		/* got.plt - ??? */
+		s = lookup(".got.plt", 0);
+		s->reachable = 1;
+		s->type = SDATA;
+
+		/* define dynamic elf table */
+		s = lookup(".dynamic", 0);
+		dynamic = s;
+
+		/*
+		 * relocation entries for dynld symbols
+		 */
+		nsym = 1;	// sym 0 is reserved
+		for(h=0; h<NHASH; h++) {
+			for(s=hash[h]; s!=S; s=s->link) {
+				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynldname == nil)
+					continue;
+
+				d = lookup(".rela", 0);
+				addaddr(d, s);
+				adduint64(d, ELF64_R_INFO(nsym, R_X86_64_64));
+				adduint64(d, 0);
+				nsym++;
+
+				d = lookup(".dynsym", 0);
+				adduint32(d, addstring(lookup(".dynstr", 0), s->dynldname));
+				t = STB_GLOBAL << 4;
+				t |= STT_OBJECT;	// works for func too, empirically
+				adduint8(d, t);
+				adduint8(d, 0);	/* reserved */
+				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
+				adduint64(d, 0);	/* value */
+				adduint64(d, 0);	/* size of object */
+
+				if(needlib(s->dynldlib))
+					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynldlib));
+			}
+		}
+
+		/*
+		 * .dynamic table
+		 */
+		s = dynamic;
+		elfwritedynentsym(s, DT_HASH, lookup(".hash", 0));
+		elfwritedynentsym(s, DT_SYMTAB, lookup(".dynsym", 0));
+		elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE);
+		elfwritedynentsym(s, DT_STRTAB, lookup(".dynstr", 0));
+		elfwritedynentsymsize(s, DT_STRSZ, lookup(".dynstr", 0));
+		elfwritedynentsym(s, DT_REL, lookup(".rel", 0));
+		elfwritedynentsymsize(s, DT_RELSZ, lookup(".rel", 0));
+		elfwritedynent(s, DT_RELENT, ELF32RELSIZE);
+		elfwritedynent(s, DT_NULL, 0);
+	}
+}
+
+void
+shsym(Elf64_Shdr *sh, Sym *s)
+{
+	sh->addr = symaddr(s);
+	sh->off = datoff(sh->addr);
+	sh->size = s->size;
+}
+
+void
+phsh(Elf64_Phdr *ph, Elf64_Shdr *sh)
+{
+	ph->vaddr = sh->addr;
+	ph->paddr = ph->vaddr;
+	ph->off = sh->off;
+	ph->filesz = sh->size;
+	ph->memsz = sh->size;
+	ph->align = sh->addralign;
+}
+
 void
 asmb(void)
 {
 	Prog *p;
 	int32 v, magic;
-	int a, np, nl, ns;
-	uint32 va, fo, w, symo;
+	int a, nl, dynsym;
+	uint32 va, fo, w, symo, startva;
 	uchar *op1;
 	ulong expectpc;
+	Elf64_Ehdr *eh;
+	Elf64_Phdr *ph, *pph;
+	Elf64_Shdr *sh;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -201,6 +504,7 @@ asmb(void)
 		}
 	}
 	cflush();
+
 	switch(HEADTYPE) {
 	default:
 		diag("unknown header type %d", HEADTYPE);
@@ -230,9 +534,6 @@ asmb(void)
 		break;
 	case 7:
 	case 8:
-		seek(cout, rnd(HEADR+textsize, INITRND)+datsize, 0);
-		strtabsize = elfstrtable();
-		cflush();
 		v = rnd(HEADR+textsize, INITRND);
 		seek(cout, v, 0);
 		break;
@@ -517,192 +818,243 @@ asmb(void)
 
 	case 7:
 	case 8:
-		np = 3;
-		ns = 5;
-		if(!debug['s']) {
-			if(HEADTYPE != 8)	// no loading of debug info under native client
-				np++;
-			ns += 2;
-		}
-
-		/* ELF header */
-		strnput("\177ELF", 4);		/* e_ident */
-		cput(1);			/* class = 32 bit */
-		cput(1);			/* data = LSB */
-		cput(1);			/* version = CURRENT */
-		if(HEADTYPE == 8) {
-			cput(123);	/* os abi - native client */
-			cput(5);		/* nacl abi version */
-		} else {
-			cput(0);
-			cput(0);
-		}
-		strnput("", 7);
-		wputl(2);			/* type = EXEC */
-		wputl(3);			/* machine = AMD64 */
-		lputl(1L);			/* version = CURRENT */
-		lputl(entryvalue());		/* entry vaddr */
-		lputl(52L);			/* offset to first phdr */
-		lputl(52L+32L*np);		/* offset to first shdr */
+		/* elf 386 */
 		if(HEADTYPE == 8)
-			lputl(0x200000);	/* native client - align mod 32 */
-		else
-			lputl(0L);			/* processor specific flags */
-		wputl(52L);			/* Ehdr size */
-		wputl(32L);			/* Phdr size */
-		wputl(np);			/* # of Phdrs */
-		wputl(40L);			/* Shdr size */
-		wputl(ns);			/* # of Shdrs */
-		wputl(4);			/* Shdr with strings */
+			debug['d'] = 1;
 
-		/* prog headers */
+		eh = getElfEhdr();
 		fo = HEADR;
-		va = INITTEXT;
+		startva = INITTEXT - HEADR;
+		va = startva + fo;
 		w = textsize;
 
-		elfphdr(1,			/* text - type = PT_LOAD */
-			1L+4L,			/* text - flags = PF_X+PF_R */
-			fo,			/* file offset */
-			va,			/* vaddr */
-			va,			/* paddr */
-			w,			/* file size */
-			w,			/* memory size */
-			INITRND);		/* alignment */
+		/* This null SHdr must appear before all others */
+		sh = newElfShdr(elfstr[ElfStrEmpty]);
+
+		/* program header info - but not on native client */
+		pph = nil;
+		if(HEADTYPE != 8) {
+			pph = newElfPhdr();
+			pph->type = PT_PHDR;
+			pph->flags = PF_R + PF_X;
+			pph->off = eh->ehsize;
+			pph->vaddr = INITTEXT - HEADR + pph->off;
+			pph->paddr = INITTEXT - HEADR + pph->off;
+			pph->align = INITRND;
+		}
+
+		if(!debug['d']) {
+			/* interpreter */
+			sh = newElfShdr(elfstr[ElfStrInterp]);
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC;
+			sh->addralign = 1;
+			shsym(sh, lookup(".interp", 0));
+
+			ph = newElfPhdr();
+			ph->type = PT_INTERP;
+			ph->flags = PF_R;
+			phsh(ph, sh);
+		}
+
+		ph = newElfPhdr();
+		ph->type = PT_LOAD;
+		ph->flags = PF_X+PF_R;
+		ph->vaddr = va;
+		ph->paddr = va;
+		ph->off = fo;
+		ph->filesz = w;
+		ph->memsz = w;
+		ph->align = INITRND;
 
 		fo = rnd(fo+w, INITRND);
 		va = rnd(va+w, INITRND);
 		w = datsize;
 
-		elfphdr(1,			/* data - type = PT_LOAD */
-			2L+4L,			/* data - flags = PF_W+PF_R */
-			fo,			/* file offset */
-			va,			/* vaddr */
-			va,			/* paddr */
-			w,			/* file size */
-			w+bsssize,		/* memory size */
-			INITRND);		/* alignment */
+		ph = newElfPhdr();
+		ph->type = PT_LOAD;
+		ph->flags = PF_W+PF_R;
+		ph->off = fo;
+		ph->vaddr = va;
+		ph->paddr = va;
+		ph->filesz = w;
+		ph->memsz = w+bsssize;
+		ph->align = INITRND;
 
 		if(!debug['s'] && HEADTYPE != 8) {
-			elfphdr(1,			/* data - type = PT_LOAD */
-				2L+4L,			/* data - flags = PF_W+PF_R */
-				symo,		/* file offset */
-				symdatva,			/* vaddr */
-				symdatva,			/* paddr */
-				8+symsize+lcsize,			/* file size */
-				8+symsize+lcsize,		/* memory size */
-				INITRND);		/* alignment */
+			ph = newElfPhdr();
+			ph->type = PT_LOAD;
+			ph->flags = PF_W+PF_R;
+			ph->off = symo;
+			ph->vaddr = symdatva;
+			ph->paddr = symdatva;
+			ph->filesz = 8+symsize+lcsize;
+			ph->memsz = 8+symsize+lcsize;
+			ph->align = INITRND;
 		}
 
-		elfphdr(0x6474e551,		/* gok - type = gok */
-			1L+2L+4L,		/* gok - flags = PF_X+PF_W+PF_R */
-			0,			/* file offset */
-			0,			/* vaddr */
-			0,			/* paddr */
-			0,			/* file size */
-			0,			/* memory size */
-			8);			/* alignment */
+		/* Dynamic linking sections */
+		if (!debug['d']) {	/* -d suppresses dynamic loader format */
+			/* S headers for dynamic linking */
+			sh = newElfShdr(elfstr[ElfStrGot]);
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->entsize = 4;
+			sh->addralign = 4;
+			shsym(sh, lookup(".got", 0));
 
-		/* segment headers */
-		elfshdr(nil,			/* name */
-			0,			/* type */
-			0,			/* flags */
-			0,			/* addr */
-			0,			/* off */
-			0,			/* size */
-			0,			/* link */
-			0,			/* info */
-			0,			/* align */
-			0);			/* entsize */
+			sh = newElfShdr(elfstr[ElfStrGotPlt]);
+			sh->type = SHT_PROGBITS;
+			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->entsize = 4;
+			sh->addralign = 4;
+			shsym(sh, lookup(".got.plt", 0));
 
-		stroffset = 1;  /* 0 means no name, so start at 1 */
-		fo = HEADR;
-		va = INITTEXT;
+			dynsym = eh->shnum;
+			sh = newElfShdr(elfstr[ElfStrDynsym]);
+			sh->type = SHT_DYNSYM;
+			sh->flags = SHF_ALLOC;
+			sh->entsize = ELF32SYMSIZE;
+			sh->addralign = 4;
+			sh->link = dynsym+1;	// dynstr
+			// sh->info = index of first non-local symbol (number of local symbols)
+			shsym(sh, lookup(".dynsym", 0));
+
+			sh = newElfShdr(elfstr[ElfStrDynstr]);
+			sh->type = SHT_STRTAB;
+			sh->flags = SHF_ALLOC;
+			sh->addralign = 1;
+			shsym(sh, lookup(".dynstr", 0));
+
+			sh = newElfShdr(elfstr[ElfStrHash]);
+			sh->type = SHT_HASH;
+			sh->flags = SHF_ALLOC;
+			sh->entsize = 4;
+			sh->addralign = 4;
+			sh->link = dynsym;
+			shsym(sh, lookup(".hash", 0));
+
+			sh = newElfShdr(elfstr[ElfStrRel]);
+			sh->type = SHT_REL;
+			sh->flags = SHF_ALLOC;
+			sh->entsize = ELF32RELSIZE;
+			sh->addralign = 4;
+			sh->link = dynsym;
+			shsym(sh, lookup(".rel", 0));
+
+			/* sh and PT_DYNAMIC for .dynamic section */
+			sh = newElfShdr(elfstr[ElfStrDynamic]);
+			sh->type = SHT_DYNAMIC;
+			sh->flags = SHF_ALLOC+SHF_WRITE;
+			sh->entsize = 8;
+			sh->addralign = 4;
+			sh->link = dynsym+1;	// dynstr
+			shsym(sh, lookup(".dynamic", 0));
+			ph = newElfPhdr();
+			ph->type = PT_DYNAMIC;
+			ph->flags = PF_R + PF_W;
+			phsh(ph, sh);
+		}
+
+		ph = newElfPhdr();
+		ph->type = PT_GNU_STACK;
+		ph->flags = PF_W+PF_R;
+		ph->align = 4;
+
+		fo = ELFRESERVE;
+		va = startva + fo;
 		w = textsize;
 
-		elfshdr(".text",		/* name */
-			1,			/* type */
-			6,			/* flags */
-			va,			/* addr */
-			fo,			/* off */
-			w,			/* size */
-			0,			/* link */
-			0,			/* info */
-			8,			/* align */
-			0);			/* entsize */
+		sh = newElfShdr(elfstr[ElfStrText]);
+		sh->type = SHT_PROGBITS;
+		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
+		sh->addr = va;
+		sh->off = fo;
+		sh->size = w;
+		sh->addralign = 4;
 
 		fo = rnd(fo+w, INITRND);
 		va = rnd(va+w, INITRND);
 		w = datsize;
 
-		elfshdr(".data",		/* name */
-			1,			/* type */
-			3,			/* flags */
-			va,			/* addr */
-			fo,			/* off */
-			w,			/* size */
-			0,			/* link */
-			0,			/* info */
-			8,			/* align */
-			0);			/* entsize */
+		sh = newElfShdr(elfstr[ElfStrData]);
+		sh->type = SHT_PROGBITS;
+		sh->flags = SHF_WRITE+SHF_ALLOC;
+		sh->addr = va;
+		sh->off = fo;
+		sh->size = w;
+		sh->addralign = 4;
 
 		fo += w;
 		va += w;
 		w = bsssize;
 
-		elfshdr(".bss",		/* name */
-			8,			/* type */
-			3,			/* flags */
-			va,			/* addr */
-			fo,			/* off */
-			w,			/* size */
-			0,			/* link */
-			0,			/* info */
-			8,			/* align */
-			0);			/* entsize */
+		sh = newElfShdr(elfstr[ElfStrBss]);
+		sh->type = SHT_NOBITS;
+		sh->flags = SHF_WRITE+SHF_ALLOC;
+		sh->addr = va;
+		sh->off = fo;
+		sh->size = w;
+		sh->addralign = 4;
 
-		w = strtabsize;
+		if (!debug['s']) {
+			fo = symo+8;
+			w = symsize;
 
-		elfshdr(".shstrtab",		/* name */
-			3,			/* type */
-			0,			/* flags */
-			0,			/* addr */
-			fo,			/* off */
-			w,			/* size */
-			0,			/* link */
-			0,			/* info */
-			1,			/* align */
-			0);			/* entsize */
+			sh = newElfShdr(elfstr[ElfStrGosymtab]);
+			sh->type = SHT_PROGBITS;
+			sh->off = fo;
+			sh->size = w;
+			sh->addralign = 1;
 
-		if (debug['s'])
-			break;
+			fo += w;
+			w = lcsize;
 
-		fo = symo+8;
-		w = symsize;
+			sh = newElfShdr(elfstr[ElfStrGopclntab]);
+			sh->type = SHT_PROGBITS;
+			sh->off = fo;
+			sh->size = w;
+			sh->addralign = 1;
+		}
 
-		elfshdr(".gosymtab",		/* name */
-			1,			/* type 1 = SHT_PROGBITS */
-			0,			/* flags */
-			0,			/* addr */
-			fo,			/* off */
-			w,			/* size */
-			0,			/* link */
-			0,			/* info */
-			1,			/* align */
-			24);			/* entsize */
+		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
+		sh->type = SHT_STRTAB;
+		sh->addralign = 1;
+		shsym(sh, lookup(".shstrtab", 0));
 
-		fo += w;
-		w = lcsize;
+		/* Main header */
+		eh->ident[EI_MAG0] = '\177';
+		eh->ident[EI_MAG1] = 'E';
+		eh->ident[EI_MAG2] = 'L';
+		eh->ident[EI_MAG3] = 'F';
+		eh->ident[EI_CLASS] = ELFCLASS32;
+		eh->ident[EI_DATA] = ELFDATA2LSB;
+		eh->ident[EI_VERSION] = EV_CURRENT;
+		if(HEADTYPE == 8) {
+			eh->ident[EI_OSABI] = ELFOSABI_NACL;
+			eh->ident[EI_ABIVERSION] = 5;
+			eh->flags = 0x200000;	// aligned mod 32
+		}
 
-		elfshdr(".gopclntab",		/* name */
-			1,			/* type 1 = SHT_PROGBITS*/
-			0,			/* flags */
-			0,			/* addr */
-			fo,			/* off */
-			w,			/* size */
-			0,			/* link */
-			0,			/* info */
-			1,			/* align */
-			24);			/* entsize */
+		eh->type = ET_EXEC;
+		eh->machine = EM_386;
+		eh->version = EV_CURRENT;
+		eh->entry = entryvalue();
+
+		if(pph != nil) {
+			pph->filesz = eh->phnum * eh->phentsize;
+			pph->memsz = pph->filesz;
+		}
+
+		seek(cout, 0, 0);
+		a = 0;
+		a += elfwritehdr();
+		a += elfwritephdrs();
+		a += elfwriteshdrs();
+		if (a > ELFRESERVE) {
+			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+		}
+		cflush();
 		break;
 	}
 	cflush();
@@ -814,6 +1166,8 @@ datblk(int32 s, int32 n)
 
 		default:
 			fl = p->to.offset;
+			if(p->to.type == D_SIZE)
+				fl += p->to.sym->size;
 			if(p->to.type == D_ADDR) {
 				if(p->to.index != D_STATIC && p->to.index != D_EXTERN)
 					diag("DADDR type%P", p);
@@ -1014,93 +1368,4 @@ machheadr(void)
 	}
 
 	return a;
-}
-
-uint32
-elfheadr(void)
-{
-	uint32 a;
-
-	a = 52;		/* elf header */
-
-	a += 32;	/* page zero seg */
-	a += 32;	/* text seg */
-	a += 32;	/* stack seg */
-
-	a += 40;	/* nil sect */
-	a += 40;	/* .text sect */
-	a += 40;	/* .data seg */
-	a += 40;	/* .bss sect */
-	a += 40;	/* .shstrtab sect - strings for headers */
-	if (!debug['s']) {
-		a += 32;	/* symdat seg */
-		a += 40;	/* .gosymtab sect */
-		a += 40;	/* .gopclntab sect */
-	}
-
-	return a;
-}
-
-
-void
-elfphdr(int type, int flags, uint32 foff,
-	uint32 vaddr, uint32 paddr,
-	uint32 filesize, uint32 memsize, uint32 align)
-{
-
-	lputl(type);			/* text - type = PT_LOAD */
-	lputl(foff);			/* file offset */
-	lputl(vaddr);			/* vaddr */
-	lputl(paddr);			/* paddr */
-	lputl(filesize);		/* file size */
-	lputl(memsize);		/* memory size */
-	lputl(flags);			/* text - flags = PF_X+PF_R */
-	lputl(align);			/* alignment */
-}
-
-void
-elfshdr(char *name, uint32 type, uint32 flags, uint32 addr, uint32 off,
-	uint32 size, uint32 link, uint32 info, uint32 align, uint32 entsize)
-{
-	lputl(stroffset);
-	lputl(type);
-	lputl(flags);
-	lputl(addr);
-	lputl(off);
-	lputl(size);
-	lputl(link);
-	lputl(info);
-	lputl(align);
-	lputl(entsize);
-
-	if(name != nil)
-		stroffset += strlen(name)+1;
-}
-
-int
-putstrtab(char* name)
-{
-	int w;
-
-	w = strlen(name)+1;
-	strnput(name, w);
-	return w;
-}
-
-int
-elfstrtable(void)
-{
-	int size;
-
-	size = 0;
-	size += putstrtab("");
-	size += putstrtab(".text");
-	size += putstrtab(".data");
-	size += putstrtab(".bss");
-	size += putstrtab(".shstrtab");
-	if (!debug['s']) {
-		size += putstrtab(".gosymtab");
-		size += putstrtab(".gopclntab");
-	}
-	return size;
 }

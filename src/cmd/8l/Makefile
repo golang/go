@@ -10,6 +10,7 @@ TARG=\
 OFILES=\
 	asm.$O\
 	compat.$O\
+	elf.$O\
 	enam.$O\
 	list.$O\
 	obj.$O\
@@ -21,6 +22,7 @@ OFILES=\
 HFILES=\
 	l.h\
 	../8l/8.out.h\
+	../ld/elf.h\
 
 
 $(TARG): $(OFILES)
@@ -38,3 +40,4 @@ install: $(TARG)
 	cp $(TARG) $(GOBIN)/$(TARG)
 
 go.o: ../ld/go.c
+elf.o: ../ld/elf.c

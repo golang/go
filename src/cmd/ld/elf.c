@@ -12,10 +12,9 @@
 #define	NSECT	16
 
 static	int	elf64;
-static	Elf64_Ehdr	hdr;
-static	Elf64_Phdr	*phdr[NSECT];
-static	Elf64_Shdr	*shdr[NSECT];
-static	char	*sname[NSECT];
+static	ElfEhdr	hdr;
+static	ElfPhdr	*phdr[NSECT];
+static	ElfShdr	*shdr[NSECT];
 
 /*
  Initialize the global variable that describes the ELF header. It will be updated as
@@ -42,12 +41,11 @@ elfinit(void)
 		hdr.ehsize = ELF32HDRSIZE;	/* Must be ELF32HDRSIZE */
 		hdr.phentsize = ELF32PHDRSIZE;	/* Must be ELF32PHDRSIZE */
 		hdr.shentsize = ELF32SHDRSIZE;	/* Must be ELF32SHDRSIZE */
-
 	}
 }
 
 void
-elf64phdr(Elf64_Phdr *e)
+elf64phdr(ElfPhdr *e)
 {
 	LPUT(e->type);
 	LPUT(e->flags);
@@ -60,7 +58,20 @@ elf64phdr(Elf64_Phdr *e)
 }
 
 void
-elf64shdr(char *name, Elf64_Shdr *e)
+elf32phdr(ElfPhdr *e)
+{
+	LPUT(e->type);
+	LPUT(e->off);
+	LPUT(e->vaddr);
+	LPUT(e->paddr);
+	LPUT(e->filesz);
+	LPUT(e->memsz);
+	LPUT(e->flags);
+	LPUT(e->align);
+}
+
+void
+elf64shdr(ElfShdr *e)
 {
 	LPUT(e->name);
 	LPUT(e->type);
@@ -74,30 +85,55 @@ elf64shdr(char *name, Elf64_Shdr *e)
 	VPUT(e->entsize);
 }
 
+void
+elf32shdr(ElfShdr *e)
+{
+	LPUT(e->name);
+	LPUT(e->type);
+	LPUT(e->flags);
+	LPUT(e->addr);
+	LPUT(e->off);
+	LPUT(e->size);
+	LPUT(e->link);
+	LPUT(e->info);
+	LPUT(e->addralign);
+	LPUT(e->entsize);
+}
+
 uint32
-elf64writeshdrs(void)
+elfwriteshdrs(void)
 {
 	int i;
 
+	if (elf64) {
+		for (i = 0; i < hdr.shnum; i++)
+			elf64shdr(shdr[i]);
+		return hdr.shnum * ELF64SHDRSIZE;
+	}
 	for (i = 0; i < hdr.shnum; i++)
-		elf64shdr(sname[i], shdr[i]);
-	return hdr.shnum * ELF64SHDRSIZE;
+		elf32shdr(shdr[i]);
+	return hdr.shnum * ELF32SHDRSIZE;
 }
 
 uint32
-elf64writephdrs(void)
+elfwritephdrs(void)
 {
 	int i;
 
+	if (elf64) {
+		for (i = 0; i < hdr.phnum; i++)
+			elf64phdr(phdr[i]);
+		return hdr.phnum * ELF64PHDRSIZE;
+	}
 	for (i = 0; i < hdr.phnum; i++)
-		elf64phdr(phdr[i]);
-	return hdr.phnum * ELF64PHDRSIZE;
+		elf32phdr(phdr[i]);
+	return hdr.phnum * ELF32PHDRSIZE;
 }
 
-Elf64_Phdr*
-newElf64_Phdr(void)
+ElfPhdr*
+newElfPhdr(void)
 {
-	Elf64_Phdr *e;
+	ElfPhdr *e;
 
 	e = malloc(sizeof *e);
 	memset(e, 0, sizeof *e);
@@ -105,21 +141,24 @@ newElf64_Phdr(void)
 		diag("too many phdrs");
 	else
 		phdr[hdr.phnum++] = e;
-	hdr.shoff += ELF64PHDRSIZE;
+	if (elf64)
+		hdr.shoff += ELF64PHDRSIZE;
+	else
+		hdr.shoff += ELF32PHDRSIZE;
 	return e;
 }
 
-Elf64_Shdr*
-newElf64_Shstrtab(vlong name)
+ElfShdr*
+newElfShstrtab(vlong name)
 {
 	hdr.shstrndx = hdr.shnum;
-	return newElf64_Shdr(name);
+	return newElfShdr(name);
 }
 
-Elf64_Shdr*
-newElf64_Shdr(vlong name)
+ElfShdr*
+newElfShdr(vlong name)
 {
-	Elf64_Shdr *e;
+	ElfShdr *e;
 
 	e = malloc(sizeof *e);
 	memset(e, 0, sizeof *e);
@@ -132,8 +171,8 @@ newElf64_Shdr(vlong name)
 	return e;
 }
 
-Elf64_Ehdr*
-getElf64_Ehdr(void)
+ElfEhdr*
+getElfEhdr(void)
 {
 	return &hdr;
 }
@@ -161,11 +200,42 @@ elf64writehdr(void)
 	return ELF64HDRSIZE;
 }
 
+uint32
+elf32writehdr(void)
+{
+	int i;
+
+	for (i = 0; i < EI_NIDENT; i++)
+		cput(hdr.ident[i]);
+	WPUT(hdr.type);
+	WPUT(hdr.machine);
+	LPUT(hdr.version);
+	LPUT(hdr.entry);
+	LPUT(hdr.phoff);
+	LPUT(hdr.shoff);
+	LPUT(hdr.flags);
+	WPUT(hdr.ehsize);
+	WPUT(hdr.phentsize);
+	WPUT(hdr.phnum);
+	WPUT(hdr.shentsize);
+	WPUT(hdr.shnum);
+	WPUT(hdr.shstrndx);
+	return ELF32HDRSIZE;
+}
+
+uint32
+elfwritehdr(void)
+{
+	if(elf64)
+		return elf64writehdr();
+	return elf32writehdr();
+}
+
 /* Taken directly from the definition document for ELF64 */
 uint32
-elf64_hash(uchar *name)
+elfhash(uchar *name)
 {
-	unsigned long h = 0, g;
+	uint32 h = 0, g;
 	while (*name) {
 		h = (h << 4) + *name++;
 		if (g = h & 0xf0000000)

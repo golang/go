@@ -30,6 +30,7 @@
 
 #define	EXTERN
 #include	"l.h"
+#include	"../ld/elf.h"
 #include	<ar.h>
 
 #ifndef	DEFAULT
@@ -220,7 +221,8 @@ main(int argc, char *argv[])
 			INITRND = 4096;
 		break;
 	case 7:	/* elf32 executable */
-		HEADR = elfheadr();
+		elfinit();
+		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)
 			INITTEXT = 0x08048000+HEADR;
 		if(INITDAT == -1)
@@ -229,6 +231,7 @@ main(int argc, char *argv[])
 			INITRND = 4096;
 		break;
 	case 8:	/* native client elf32 executable */
+		elfinit();
 		HEADR = 4096;
 		if(INITTEXT == -1)
 			INITTEXT = 0x20000;
@@ -367,6 +370,7 @@ main(int argc, char *argv[])
 	}
 	patch();
 	follow();
+	doelf();
 	dodata();
 	dostkoff();
 	if(debug['p'])
