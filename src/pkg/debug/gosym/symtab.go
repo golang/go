@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
 // Package gosym implements access to the Go symbol
 // and line number tables embedded in Go binaries generated
 // by the gc compilers.
@@ -31,6 +30,8 @@ type Sym struct {
 	Type byte;
 	Name string;
 	GoType uint64;
+	// If this symbol if a function symbol, the corresponding Func
+	Func *Func;
 }
 
 // Static returns whether this symbol is static (not visible outside its file).
@@ -287,6 +288,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 			n := len(t.Funcs);
 			t.Funcs = t.Funcs[0:n+1];
 			fn := &t.Funcs[n];
+			sym.Func = fn;
 			fn.Params = make([]*Sym, 0, np);
 			fn.Locals = make([]*Sym, 0, na);
 			fn.Sym = sym;

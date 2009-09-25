@@ -6,6 +6,7 @@ package ogle
 
 import (
 	"bufio";
+	"debug/elf";
 	"debug/proc";
 	"eval";
 	"fmt";
@@ -14,7 +15,6 @@ import (
 	"os";
 	"strconv";
 	"strings";
-	"sym";
 )
 
 var world *eval.World;
@@ -177,7 +177,7 @@ func cmdLoad(args []byte) os.Error {
 		return err;
 	}
 	defer f.Close();
-	elf, err := sym.NewElf(f);
+	elf, err := elf.NewFile(f);
 	if err != nil {
 		tproc.Detach();
 		return err;
@@ -366,13 +366,9 @@ func fnBpSet(t *eval.Thread, args []eval.Value, res []eval.Value) {
 		t.Abort(NoCurrentGoroutine{});
 	}
 	name := args[0].(eval.StringValue).Get(t);
-	s := curProc.syms.SymFromName(name);
-	if s == nil {
-		t.Abort(UsageError("symbol " + name + " not defined"));
+	fn := curProc.syms.LookupFunc(name);
+	if fn == nil {
+		t.Abort(UsageError("no such function " + name));
 	}
-	fn, ok := s.(*sym.TextSym);
-	if !ok {
-		t.Abort(UsageError("symbol " + name + " is not a function"));
-	}
-	curProc.OnBreakpoint(proc.Word(fn.Entry())).AddHandler(EventStop);
+	curProc.OnBreakpoint(proc.Word(fn.Entry)).AddHandler(EventStop);
 }

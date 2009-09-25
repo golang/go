@@ -5,13 +5,14 @@
 package ogle
 
 import (
+	"debug/elf";
+	"debug/gosym";
 	"debug/proc";
 	"eval";
 	"fmt";
 	"log";
 	"os";
 	"reflect";
-	"sym";
 )
 
 // A FormatError indicates a failure to process information in or
@@ -25,10 +26,10 @@ func (e FormatError) String() string {
 
 // An UnknownArchitecture occurs when trying to load an object file
 // that indicates an architecture not supported by the debugger.
-type UnknownArchitecture sym.ElfMachine
+type UnknownArchitecture elf.Machine
 
 func (e UnknownArchitecture) String() string {
-	return "unknown architecture: " + sym.ElfMachine(e).String();
+	return "unknown architecture: " + elf.Machine(e).String();
 }
 
 // A ProcessNotStopped error occurs when attempting to read or write
@@ -65,7 +66,7 @@ type Process struct {
 	proc proc.Process;
 
 	// The symbol table of this process
-	syms *sym.GoSymTable;
+	syms *gosym.Table;
 
 	// A possibly-stopped OS thread, or nil
 	threadCache proc.Thread;
@@ -81,7 +82,7 @@ type Process struct {
 
 	// Globals from the sys package (or from no package)
 	sys struct {
-		lessstack, goexit, newproc, deferproc, newprocreadylocked *sym.TextSym;
+		lessstack, goexit, newproc, deferproc, newprocreadylocked *gosym.Func;
 		allg remotePtr;
 		g0 remoteStruct;
 	};
@@ -109,7 +110,7 @@ type Process struct {
 
 // NewProcess constructs a new remote process around a traced
 // process, an architecture, and a symbol table.
-func NewProcess(tproc proc.Process, arch Arch, syms *sym.GoSymTable) (*Process, os.Error) {
+func NewProcess(tproc proc.Process, arch Arch, syms *gosym.Table) (*Process, os.Error) {
 	p := &Process{
 		Arch: arch,
 		proc: tproc,
@@ -151,8 +152,8 @@ func NewProcess(tproc proc.Process, arch Arch, syms *sym.GoSymTable) (*Process, 
 	}
 
 	// Create internal breakpoints to catch new and exited goroutines
-	p.OnBreakpoint(proc.Word(p.sys.newprocreadylocked.Entry())).(*breakpointHook).addHandler(readylockedBP, true);
-	p.OnBreakpoint(proc.Word(p.sys.goexit.Entry())).(*breakpointHook).addHandler(goexitBP, true);
+	p.OnBreakpoint(proc.Word(p.sys.newprocreadylocked.Entry)).(*breakpointHook).addHandler(readylockedBP, true);
+	p.OnBreakpoint(proc.Word(p.sys.goexit.Entry)).(*breakpointHook).addHandler(goexitBP, true);
 
 	// Select current frames
 	for _, g := range p.goroutines {
@@ -164,10 +165,36 @@ func NewProcess(tproc proc.Process, arch Arch, syms *sym.GoSymTable) (*Process, 
 	return p, nil;
 }
 
+func elfGoSyms(f *elf.File) (*gosym.Table, os.Error) {
+	text := f.Section(".text");
+	symtab := f.Section(".gosymtab");
+	pclntab := f.Section(".gopclntab");
+	if text == nil || symtab == nil || pclntab == nil {
+		return nil, nil;
+	}
+
+	symdat, err := symtab.Data();
+	if err != nil {
+		return nil, err;
+	}
+	pclndat, err := pclntab.Data();
+	if err != nil {
+		return nil, err;
+	}
+
+	pcln := gosym.NewLineTable(pclndat, text.Addr);
+	tab, err := gosym.NewTable(symdat, pcln);
+	if err != nil {
+		return nil, err;
+	}
+
+	return tab, nil;
+}
+
 // NewProcessElf constructs a new remote process around a traced
 // process and the process' ELF object.
-func NewProcessElf(tproc proc.Process, elf *sym.Elf) (*Process, os.Error) {
-	syms, err := sym.ElfGoSyms(elf);
+func NewProcessElf(tproc proc.Process, f *elf.File) (*Process, os.Error) {
+	syms, err := elfGoSyms(f);
 	if err != nil {
 		return nil, err;
 	}
@@ -175,11 +202,11 @@ func NewProcessElf(tproc proc.Process, elf *sym.Elf) (*Process, os.Error) {
 		return nil, FormatError("Failed to find symbol table");
 	}
 	var arch Arch;
-	switch elf.Machine {
-	case sym.ElfX86_64:
+	switch f.Machine {
+	case elf.EM_X86_64:
 		arch = Amd64;
 	default:
-		return nil, UnknownArchitecture(elf.Machine);
+		return nil, UnknownArchitecture(f.Machine);
 	}
 	return NewProcess(tproc, arch, syms);
 }
@@ -204,7 +231,7 @@ func (p *Process) bootstrap() {
 	p.runtime.Gobuf = newManualType(eval.TypeOfNative(rt1Gobuf{}), p.Arch);
 	p.runtime.G = newManualType(eval.TypeOfNative(rt1G{}), p.Arch);
 
-	// Get addresses of type·*runtime.XType for discrimination.
+	// Get addresses of type.*runtime.XType for discrimination.
 	rtv := reflect.Indirect(reflect.NewValue(&p.runtime)).(*reflect.StructValue);
 	rtvt := rtv.Type().(*reflect.StructType);
 	for i := 0; i < rtv.NumField(); i++ {
@@ -212,11 +239,11 @@ func (p *Process) bootstrap() {
 		if n[0] != 'P' || n[1] < 'A' || n[1] > 'Z' {
 			continue;
 		}
-		sym := p.syms.SymFromName("type·*runtime." + n[1:len(n)]);
+		sym := p.syms.LookupSym("type.*runtime." + n[1:len(n)]);
 		if sym == nil {
 			continue;
 		}
-		rtv.Field(i).(*reflect.Uint64Value).Set(sym.Common().Value);
+		rtv.Field(i).(*reflect.Uint64Value).Set(sym.Value);
 	}
 
 	// Get runtime field indexes
@@ -226,22 +253,16 @@ func (p *Process) bootstrap() {
 	p.runtime.runtimeGStatus = rt1GStatus;
 
 	// Get globals
-	globalFn := func(name string) *sym.TextSym {
-		if sym, ok := p.syms.SymFromName(name).(*sym.TextSym); ok {
-			return sym;
-		}
-		return nil;
-	};
-	p.sys.lessstack = globalFn("sys·lessstack");
-	p.sys.goexit = globalFn("goexit");
-	p.sys.newproc = globalFn("sys·newproc");
-	p.sys.deferproc = globalFn("sys·deferproc");
-	p.sys.newprocreadylocked = globalFn("newprocreadylocked");
-	if allg := p.syms.SymFromName("allg"); allg != nil {
-		p.sys.allg = remotePtr{remote{proc.Word(allg.Common().Value), p}, p.runtime.G};
+	p.sys.lessstack = p.syms.LookupFunc("sys.lessstack");
+	p.sys.goexit = p.syms.LookupFunc("goexit");
+	p.sys.newproc = p.syms.LookupFunc("sys.newproc");
+	p.sys.deferproc = p.syms.LookupFunc("sys.deferproc");
+	p.sys.newprocreadylocked = p.syms.LookupFunc("newprocreadylocked");
+	if allg := p.syms.LookupSym("allg"); allg != nil {
+		p.sys.allg = remotePtr{remote{proc.Word(allg.Value), p}, p.runtime.G};
 	}
-	if g0 := p.syms.SymFromName("g0"); g0 != nil {
-		p.sys.g0 = p.runtime.G.mk(remote{proc.Word(g0.Common().Value), p}).(remoteStruct);
+	if g0 := p.syms.LookupSym("g0"); g0 != nil {
+		p.sys.g0 = p.runtime.G.mk(remote{proc.Word(g0.Value), p}).(remoteStruct);
 	}
 }
 

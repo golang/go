@@ -5,11 +5,11 @@
 package ogle
 
 import (
+	"debug/gosym";
 	"debug/proc";
 	"eval";
 	"log";
 	"os";
-	"sym";
 )
 
 /*
@@ -19,7 +19,7 @@ import (
 // A NotOnStack error occurs when attempting to access a variable in a
 // remote frame where that remote frame is not on the current stack.
 type NotOnStack struct {
-	Fn *sym.TextSym;
+	Fn *gosym.Func;
 	Goroutine *Goroutine;
 }
 
@@ -34,7 +34,7 @@ func (e NotOnStack) String() string {
 // that function.
 type remoteFramePtr struct {
 	p *Process;
-	fn *sym.TextSym;
+	fn *gosym.Func;
 	rt *remoteType;
 }
 
@@ -121,14 +121,13 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 	packages := make(map[string] map[string] def);
 
 	for _, s := range p.syms.Syms {
-		sc := s.Common();
-		if sc.ReceiverName() != "" {
+		if s.ReceiverName() != "" {
 			// TODO(austin)
 			continue;
 		}
 
 		// Package
-		pkgName := sc.PackageName();
+		pkgName := s.PackageName();
 		switch pkgName {
 		case "", "type", "extratype", "string", "go":
 			// "go" is really "go.string"
@@ -141,30 +140,30 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 		}
 
 		// Symbol name
-		name := sc.BaseName();
+		name := s.BaseName();
 		if _, ok := pkg[name]; ok {
-			log.Stderrf("Multiple definitions of symbol %s", sc.Name);
+			log.Stderrf("Multiple definitions of symbol %s", s.Name);
 			continue;
 		}
 
 		// Symbol type
-		rt, err := p.typeOfSym(sc);
+		rt, err := p.typeOfSym(&s);
 		if err != nil {
 			return err;
 		}
 
 		// Definition
-		switch sc.Type {
+		switch s.Type {
 		case 'D', 'd', 'B', 'b':
 			// Global variable
 			if rt == nil {
 				continue;
 			}
-			pkg[name] = def{rt.Type, rt.mk(remote{proc.Word(sc.Value), p})};
+			pkg[name] = def{rt.Type, rt.mk(remote{proc.Word(s.Value), p})};
 
 		case 'T', 't', 'L', 'l':
 			// Function
-			s := s.(*sym.TextSym);
+			s := s.Func;
 			// TODO(austin): Ideally, this would *also* be
 			// callable.  How does that interact with type
 			// conversion syntax?
@@ -203,7 +202,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 
 // typeOfSym returns the type associated with a symbol.  If the symbol
 // has no type, returns nil.
-func (p *Process) typeOfSym(s *sym.CommonSym) (*remoteType, os.Error) {
+func (p *Process) typeOfSym(s *gosym.Sym) (*remoteType, os.Error) {
 	if s.GoType == 0 {
 		return nil, nil;
 	}
@@ -221,7 +220,7 @@ func (p *Process) typeOfSym(s *sym.CommonSym) (*remoteType, os.Error) {
 // makeFrameType constructs a struct type for the frame of a function.
 // The offsets in this struct type are such that the struct can be
 // instantiated at this function's frame pointer.
-func (p *Process) makeFrameType(s *sym.TextSym) (*remoteType, os.Error) {
+func (p *Process) makeFrameType(s *gosym.Func) (*remoteType, os.Error) {
 	n := len(s.Params) + len(s.Locals);
 	fields := make([]eval.StructField, n);
 	layout := make([]remoteStructField, n);
@@ -235,7 +234,7 @@ func (p *Process) makeFrameType(s *sym.TextSym) (*remoteType, os.Error) {
 	// things like "i", where there's an obvious right answer.
 
 	for _, param := range s.Params {
-		rt, err := p.typeOfSym(param.Common());
+		rt, err := p.typeOfSym(param);
 		if err != nil {
 			return nil, err;
 		}
@@ -254,7 +253,7 @@ func (p *Process) makeFrameType(s *sym.TextSym) (*remoteType, os.Error) {
 	}
 
 	for _, local := range s.Locals {
-		rt, err := p.typeOfSym(local.Common());
+		rt, err := p.typeOfSym(local);
 		if err != nil {
 			return nil, err;
 		}

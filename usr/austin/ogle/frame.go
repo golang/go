@@ -5,10 +5,10 @@
 package ogle
 
 import (
+	"debug/gosym";
 	"debug/proc";
 	"fmt";
 	"os";
-	"sym";
 )
 
 // A Frame represents a single frame on a remote call stack.
@@ -20,7 +20,7 @@ type Frame struct {
 	// The runtime.Stktop of the active stack segment
 	stk remoteStruct;
 	// The function this stack frame is in
-	fn *sym.TextSym;
+	fn *gosym.Func;
 	// The path and line of the CALL or current instruction.  Note
 	// that this differs slightly from the meaning of Frame.pc.
 	path string;
@@ -100,7 +100,7 @@ func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *
 	// Get function
 	var path string;
 	var line int;
-	var fn *sym.TextSym;
+	var fn *gosym.Func;
 
 	for i := 0; i < 100; i++ {
 		// Traverse segmented stack breaks
@@ -121,7 +121,7 @@ func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *
 		}
 
 		// Look up function
-		path, line, fn = p.syms.LineFromPC(uint64(callpc));
+		path, line, fn = p.syms.PCToLine(uint64(callpc));
 		if fn != nil {
 			break;
 		}
@@ -154,7 +154,7 @@ func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *
 	//
 	// TODO(austin) What if we're in the call to morestack in the
 	// prologue?  Then top == false.
-	if top && pc == proc.Word(fn.Entry()) {
+	if top && pc == proc.Word(fn.Entry) {
 		// We're in the function prologue, before SP
 		// has been adjusted for the frame.
 		fp -= proc.Word(fn.FrameSize - p.PtrSize());
@@ -208,7 +208,7 @@ func (f *Frame) Inner() *Frame {
 func (f *Frame) String() string {
 	res := f.fn.Name;
 	if f.pc > proc.Word(f.fn.Value) {
-		res += fmt.Sprintf("+%#x", f.pc - proc.Word(f.fn.Entry()));
+		res += fmt.Sprintf("+%#x", f.pc - proc.Word(f.fn.Entry));
 	}
 	return res + fmt.Sprintf(" %s:%d", f.path, f.line);
 }
