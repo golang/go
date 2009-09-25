@@ -337,8 +337,8 @@ reswitch:
 			goto badbinary;
 		t = l->type;
 		if(iscmp[n->op]) {
-			t = idealbool;
 			evconst(n);
+			t = types[TBOOL];
 			if(n->op != OLITERAL) {
 				defaultlit2(&l, &r, 1);
 				n->left = l;
@@ -567,7 +567,7 @@ reswitch:
 		n->type = T;
 		if(top & Erv) {
 			n->op = OSENDNB;
-			n->type = idealbool;
+			n->type = types[TBOOL];
 		}
 		goto ret;
 
@@ -745,7 +745,7 @@ reswitch:
 			goto error;
 		}
 		if(n->op == OCLOSED) {
-			n->type = idealbool;
+			n->type = types[TBOOL];
 			ok |= Erv;
 		} else
 			ok |= Etop;
@@ -1196,7 +1196,7 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
 	*op = OCONV;
 	*et = 0;
 
-	
+
 
 	// preexisting error
 	if(t == T || t->etype == TFORW)
@@ -1921,7 +1921,7 @@ typecheckas2(Node *n)
 		n->op = OAS2MAPW;
 		n->rlist->n = typecheckconv(nil, r, l->type->down, 0);
 		r = n->rlist->next->n;
-		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 1);
+		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 0);
 		goto out;
 	}
 
@@ -1971,7 +1971,7 @@ typecheckas2(Node *n)
 			if(l->defn == n)
 				l->type = r->type;
 			l = n->list->next->n;
-			if(l->type != T && checkconv(idealbool, l->type, 0, &op, &et) < 0)
+			if(l->type != T && checkconv(types[TBOOL], l->type, 0, &op, &et) < 0)
 				yyerror("cannot assign bool value to %+N", l);
 			if(l->defn == n && l->ntype == N)
 				l->type = types[TBOOL];
