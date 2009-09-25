@@ -8,9 +8,6 @@ import (
 	"bignum";
 	"flag";
 	"fmt";
-	"go/parser";
-	"go/scanner";
-	"go/token";
 	"log";
 	"os";
 	"reflect";
