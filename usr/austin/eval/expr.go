@@ -153,7 +153,7 @@ func (a *expr) convertTo(t Type) *expr {
 // exceeds max.  If negErr is not "", produces an error if possible if
 // the value is negative.
 func (a *expr) convertToInt(max int64, negErr string, errOp string) *expr {
-	switch _ := a.t.lit().(type) {
+	switch a.t.lit().(type) {
 	case *idealIntType:
 		val := a.asIdealInt()();
 		if negErr != "" && val.IsNeg() {
@@ -1773,7 +1773,7 @@ func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool) {
 		return 0, false;
 	}
 
-	switch _ := lenExpr.t.lit().(type) {
+	switch lenExpr.t.lit().(type) {
 	case *intType:
 		return lenExpr.asInt()(nil), true;
 	case *uintType:

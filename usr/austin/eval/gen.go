@@ -181,7 +181,7 @@ func (a *expr) asInterface() (func(*Thread) interface{}) {
  */
 
 func (a *expr) genConstant(v Value) {
-	switch _ := a.t.lit().(type) {
+	switch a.t.lit().(type) {
 «.repeated section Types»
 	case «Repr»:
 «.section IsIdeal»
@@ -198,7 +198,7 @@ func (a *expr) genConstant(v Value) {
 
 func (a *expr) genIdentOp(level, index int) {
 	a.evalAddr = func(t *Thread) Value { return t.f.Get(level, index) };
-	switch _ := a.t.lit().(type) {
+	switch a.t.lit().(type) {
 «.repeated section Types»
 «.section IsIdeal»
 «.or»
@@ -213,7 +213,7 @@ func (a *expr) genIdentOp(level, index int) {
 
 func (a *expr) genFuncCall(call func(t *Thread) []Value) {
 	a.exec = func(t *Thread) { call(t)};
-	switch _ := a.t.lit().(type) {
+	switch a.t.lit().(type) {
 «.repeated section Types»
 «.section IsIdeal»
 «.or»
@@ -230,7 +230,7 @@ func (a *expr) genFuncCall(call func(t *Thread) []Value) {
 
 func (a *expr) genValue(vf func(*Thread) Value) {
 	a.evalAddr = vf;
-	switch _ := a.t.lit().(type) {
+	switch a.t.lit().(type) {
 «.repeated section Types»
 «.section IsIdeal»
 «.or»
@@ -245,7 +245,7 @@ func (a *expr) genValue(vf func(*Thread) Value) {
 
 «.repeated section UnaryOps»
 func (a *expr) genUnaryOp«Name»(v *expr) {
-	switch _ := a.t.lit().(type) {
+	switch a.t.lit().(type) {
 «.repeated section Types»
 	case «Repr»:
 «.section IsIdeal»
@@ -265,7 +265,7 @@ func (a *expr) genUnaryOp«Name»(v *expr) {
 «.end»
 «.repeated section BinaryOps»
 func (a *expr) genBinOp«Name»(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 «.repeated section Types»
 	case «Repr»:
 «.section IsIdeal»
@@ -290,7 +290,7 @@ func (a *expr) genBinOp«Name»(l, r *expr) {
 
 «.end»
 func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
-	switch _ := lt.lit().(type) {
+	switch lt.lit().(type) {
 «.repeated section Types»
 «.section IsIdeal»
 «.or»

@@ -129,7 +129,7 @@ func (e *exprCode) Type() Type {
 func (e *exprCode) Run() (Value, os.Error) {
 	t := new(Thread);
 	t.f = e.w.scope.NewFrame(nil);
-	switch _ := e.e.t.(type) {
+	switch e.e.t.(type) {
 	case *idealIntType:
 		return &idealIntV{e.e.asIdealInt()()}, nil;
 	case *idealFloatType:

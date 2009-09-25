@@ -241,7 +241,7 @@ func (a *typeCompiler) compileMapType(x *ast.MapType) Type {
 	}
 	// XXX(Spec) The Map types section explicitly lists all types
 	// that can be map keys except for function types.
-	switch _ := key.lit().(type) {
+	switch key.lit().(type) {
 	case *StructType:
 		a.diagAt(x, "map key cannot be a struct type");
 		return nil;

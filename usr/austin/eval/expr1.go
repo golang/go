@@ -95,7 +95,7 @@ func (a *expr) asInterface() (func(*Thread) interface{}) {
  */
 
 func (a *expr) genConstant(v Value) {
-	switch _ := a.t.lit().(type) {
+	switch a.t.lit().(type) {
 	case *boolType:
 		a.eval = func(t *Thread) bool { return v.(BoolValue).Get(t) }
 	case *uintType:
@@ -131,7 +131,7 @@ func (a *expr) genConstant(v Value) {
 
 func (a *expr) genIdentOp(level, index int) {
 	a.evalAddr = func(t *Thread) Value { return t.f.Get(level, index) };
-	switch _ := a.t.lit().(type) {
+	switch a.t.lit().(type) {
 	case *boolType:
 		a.eval = func(t *Thread) bool { return t.f.Get(level, index).(BoolValue).Get(t) }
 	case *uintType:
@@ -161,7 +161,7 @@ func (a *expr) genIdentOp(level, index int) {
 
 func (a *expr) genFuncCall(call func(t *Thread) []Value) {
 	a.exec = func(t *Thread) { call(t)};
-	switch _ := a.t.lit().(type) {
+	switch a.t.lit().(type) {
 	case *boolType:
 		a.eval = func(t *Thread) bool { return call(t)[0].(BoolValue).Get(t) }
 	case *uintType:
@@ -193,7 +193,7 @@ func (a *expr) genFuncCall(call func(t *Thread) []Value) {
 
 func (a *expr) genValue(vf func(*Thread) Value) {
 	a.evalAddr = vf;
-	switch _ := a.t.lit().(type) {
+	switch a.t.lit().(type) {
 	case *boolType:
 		a.eval = func(t *Thread) bool { return vf(t).(BoolValue).Get(t) }
 	case *uintType:
@@ -222,7 +222,7 @@ func (a *expr) genValue(vf func(*Thread) Value) {
 }
 
 func (a *expr) genUnaryOpNeg(v *expr) {
-	switch _ := a.t.lit().(type) {
+	switch a.t.lit().(type) {
 	case *uintType:
 		vf := v.asUint();
 		a.eval = func(t *Thread) uint64 { v := vf(t); return -v }
@@ -246,7 +246,7 @@ func (a *expr) genUnaryOpNeg(v *expr) {
 }
 
 func (a *expr) genUnaryOpNot(v *expr) {
-	switch _ := a.t.lit().(type) {
+	switch a.t.lit().(type) {
 	case *boolType:
 		vf := v.asBool();
 		a.eval = func(t *Thread) bool { v := vf(t); return !v }
@@ -256,7 +256,7 @@ func (a *expr) genUnaryOpNot(v *expr) {
 }
 
 func (a *expr) genUnaryOpXor(v *expr) {
-	switch _ := a.t.lit().(type) {
+	switch a.t.lit().(type) {
 	case *uintType:
 		vf := v.asUint();
 		a.eval = func(t *Thread) uint64 { v := vf(t); return ^v }
@@ -273,7 +273,7 @@ func (a *expr) genUnaryOpXor(v *expr) {
 }
 
 func (a *expr) genBinOpAdd(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -306,7 +306,7 @@ func (a *expr) genBinOpAdd(l, r *expr) {
 }
 
 func (a *expr) genBinOpSub(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -335,7 +335,7 @@ func (a *expr) genBinOpSub(l, r *expr) {
 }
 
 func (a *expr) genBinOpMul(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -364,7 +364,7 @@ func (a *expr) genBinOpMul(l, r *expr) {
 }
 
 func (a *expr) genBinOpQuo(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -393,7 +393,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 }
 
 func (a *expr) genBinOpRem(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -413,7 +413,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 }
 
 func (a *expr) genBinOpAnd(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -433,7 +433,7 @@ func (a *expr) genBinOpAnd(l, r *expr) {
 }
 
 func (a *expr) genBinOpOr(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -453,7 +453,7 @@ func (a *expr) genBinOpOr(l, r *expr) {
 }
 
 func (a *expr) genBinOpXor(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -473,7 +473,7 @@ func (a *expr) genBinOpXor(l, r *expr) {
 }
 
 func (a *expr) genBinOpAndNot(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -493,7 +493,7 @@ func (a *expr) genBinOpAndNot(l, r *expr) {
 }
 
 func (a *expr) genBinOpShl(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -508,7 +508,7 @@ func (a *expr) genBinOpShl(l, r *expr) {
 }
 
 func (a *expr) genBinOpShr(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -523,7 +523,7 @@ func (a *expr) genBinOpShr(l, r *expr) {
 }
 
 func (a *expr) genBinOpLss(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -556,7 +556,7 @@ func (a *expr) genBinOpLss(l, r *expr) {
 }
 
 func (a *expr) genBinOpGtr(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -589,7 +589,7 @@ func (a *expr) genBinOpGtr(l, r *expr) {
 }
 
 func (a *expr) genBinOpLeq(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -622,7 +622,7 @@ func (a *expr) genBinOpLeq(l, r *expr) {
 }
 
 func (a *expr) genBinOpGeq(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *uintType:
 		lf := l.asUint();
 		rf := r.asUint();
@@ -655,7 +655,7 @@ func (a *expr) genBinOpGeq(l, r *expr) {
 }
 
 func (a *expr) genBinOpEql(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *boolType:
 		lf := l.asBool();
 		rf := r.asBool();
@@ -704,7 +704,7 @@ func (a *expr) genBinOpEql(l, r *expr) {
 }
 
 func (a *expr) genBinOpNeq(l, r *expr) {
-	switch _ := l.t.lit().(type) {
+	switch l.t.lit().(type) {
 	case *boolType:
 		lf := l.asBool();
 		rf := r.asBool();
@@ -753,7 +753,7 @@ func (a *expr) genBinOpNeq(l, r *expr) {
 }
 
 func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
-	switch _ := lt.lit().(type) {
+	switch lt.lit().(type) {
 	case *boolType:
 		rf := r.asBool();
 		return func(lv Value, t *Thread) { lv.(BoolValue).Set(t, rf(t)) }
