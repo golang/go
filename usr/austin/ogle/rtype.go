@@ -145,10 +145,10 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 	}
 
 	if debugParseRemoteType {
-		sym := p.syms.SymFromAddr(uint64(addr));
+		sym := p.syms.SymByAddr(uint64(addr));
 		name := "<unknown>";
 		if sym != nil {
-			name = sym.Common().Name;
+			name = sym.Name;
 		}
 		log.Stderrf("%sParsing type at %#x (%s)", prtIndent, addr, name);
 		prtIndent += " ";
@@ -285,10 +285,10 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 		mk = mkUintptr;
 
 	default:
-		sym := p.syms.SymFromAddr(uint64(itype));
+		sym := p.syms.SymByAddr(uint64(itype));
 		name := "<unknown symbol>";
 		if sym != nil {
-			name = sym.Common().Name;
+			name = sym.Name;
 		}
 		err := fmt.Sprintf("runtime type at %#x has unexpected type %#x (%s)", addr, itype, name);
 		a.Abort(FormatError(err));
