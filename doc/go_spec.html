@@ -64,7 +64,8 @@ Open issues:
 	- no mechanism to declare a local type name: type T P.T
 
 
-Todo's:
+Todo
+[ ] clarify: two equal lowercase identifiers from different packages denote different objects
 [ ] need language about function/method calls and parameter passing rules
 [ ] need to say something about "scope" of selectors?
 [ ] clarify what a field name is in struct declarations
@@ -78,7 +79,6 @@ Todo's:
 	though obvious
 [ ] specify iteration direction for range clause
 [ ] review language on implicit dereferencing
-[ ] document T.m mechanism to obtain a function from a method
 -->
 
 
@@ -86,8 +86,7 @@ Todo's:
 
 <p>
 This is a reference manual for the Go programming language. For
-more information and other documents, see <a
-href="/">the Go home page</a>.
+more information and other documents, see <a href="http://go/go">go/go</a>.
 </p>
 
 <p>
@@ -258,9 +257,9 @@ The following character sequences represent <a href="#Operators">operators</a>, 
 <h3 id="Integer_literals">Integer literals</h3>
 
 <p>
-An integer literal is a sequence of one or more digits in the
-corresponding base, which may be 8, 10, or 16.  An optional prefix
-sets a non-decimal base: <code>0</code> for octal, <code>0x</code> or
+An integer literal is a sequence of digits representing an
+<a href="#Constants">integer constant</a>.
+An optional prefix sets a non-decimal base: <code>0</code> for octal, <code>0x</code> or
 <code>0X</code> for hexadecimal.  In hexadecimal literals, letters
 <code>a-f</code> and <code>A-F</code> represent values 10 through 15.
 </p>
@@ -280,8 +279,9 @@ hex_lit     = "0" ( "x" | "X" ) hex_digit { hex_digit } .
 
 <h3 id="Floating-point_literals">Floating-point literals</h3>
 <p>
-A floating-point literal is a decimal representation of a floating-point
-number.  It has an integer part, a decimal point, a fractional part,
+A floating-point literal is a decimal representation of a
+<a href="#Constants">floating-point constant</a>.
+It has an integer part, a decimal point, a fractional part,
 and an exponent part.  The integer and fractional part comprise
 decimal digits; the exponent part is an <code>e</code> or <code>E</code>
 followed by an optionally signed decimal exponent.  One of the
@@ -306,28 +306,12 @@ exponent  = ( "e" | "E" ) [ "+" | "-" ] decimals .
 .12345E+5
 </pre>
 
-<h3 id="Ideal_numbers">Ideal numbers</h3>
-
-<p>
-Integer literals represent values of arbitrary precision, or <i>ideal
-integers</i>.  Similarly, floating-point literals represent values
-of arbitrary precision, or <i>ideal floats</i>.  These <i>ideal
-numbers</i> have no size or named type and cannot overflow.  However,
-when (used in an expression) assigned to a variable or typed constant,
-the destination must be able to represent the assigned value.
-</p>
-<p>
-Implementation restriction: A compiler may implement ideal numbers
-by choosing an internal representation with at least twice as many
-bits as any machine type; for floats, both the mantissa and exponent
-must be twice as large.
-</p>
 
 <h3 id="Character_literals">Character literals</h3>
 
 <p>
-A character literal represents an integer value, typically a
-Unicode code point, as one or more characters enclosed in single
+A character literal represents an <a href="#Constants">integer constant</a>,
+typically a Unicode code point, as one or more characters enclosed in single
 quotes.  Within the quotes, any character may appear except single
 quote and newline. A single quoted character represents itself,
 while multi-character sequences beginning with a backslash encode
@@ -389,6 +373,7 @@ big_u_value      = `\` "U" hex_digit hex_digit hex_digit hex_digit
                            hex_digit hex_digit hex_digit hex_digit .
 escaped_char     = `\` ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | `\` | "'" | `"` ) .
 </pre>
+
 <pre>
 'a'
 'ä'
@@ -403,19 +388,13 @@ escaped_char     = `\` ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | `\` | "'" | `
 '\U00101234'
 </pre>
 
-<p>
-The value of a character literal is an ideal integer, just as with
-integer literals.
-</p>
 
 <h3 id="String_literals">String literals</h3>
 
 <p>
-String literals represent <i>ideal string</i> values. Ideal strings do not
-have a named type but they are compatible with type <code>string</code>
-(§<a href="#Type_identity_and_compatibility">Type identity and compatibility</a>).
-There are two forms: raw string literals and interpreted string
-literals.
+A string literal represents a <a href="#Constants">string constant</a>
+obtained from concatenating a sequence of characters. There are two forms:
+raw string literals and interpreted string literals.
 </p>
 <p>
 Raw string literals are character sequences between back quotes
@@ -486,13 +465,62 @@ point), and will appear as two code points if placed in a string
 literal.
 </p>
 
-<h3 id="Boolean_literals">Boolean literals</h3>
+
+<h2 id="Constants">Constants</h2>
+
+<p>There are <i>boolean constants</i>, <i>integer constants</i>, <i>floating-point constants</i>,
+and <i>string constants</i>. Integer and floating-point constants are
+collectively called <i>numeric constants</i>.
+</p>
 
 <p>
-A boolean literal is one of the predeclared constants
-<code>true</code> or <code>false</code>.  The value of a boolean
-literal is an <i>ideal bool</i>.
+A constant value is represented by an
+<a href="#Integer_literals">integer</a>,
+<a href="#Floating-point_literals">floating-point</a>,
+<a href="#Character_literals">character</a>, or
+<a href="#String_literals">string</a> literal,
+an identifier denoting a constant,
+a <a href="#Constant_expressions">constant expression</a>, or
+the result value of some built-in functions such as <code>unsafe.Sizeof</code>
+and <code>cap</code> or <code>len</code> applied to an array,
+or <code>len</code> applied to a string constant.
+The boolean truth values are represented by the predeclared constants
+<code>true</code> and <code>false</code>. The predeclared identifier
+<a href="#Iota">iota</a> denotes an integer constant.
 </p>
+
+<p>
+Numeric constants represent values of arbitrary precision that
+have no size and cannot overflow.
+</p>
+
+<p>
+Constants may be <a href="#Types">typed</a> or untyped.
+Literal constants, <code>true</code>, <code>false</code>, <code>iota</code>,
+and certain <a href="#Constant_expressions">constant expressions</a>
+containing only untyped constant operands are untyped.
+</p>
+
+<p>
+A constant may be given a type explicitly by a <a href="#Constant_declarations">constant declaration</a>
+or <a href="#Conversions">conversion</a>, or implicitly when used in a
+<a href="#Variable_declarations">variable declaration</a> or an
+<a href="#Assignments">assignment</a> or as an
+operand in an <a href="#Expressions">expression</a>.
+It is an error if the constant value
+cannot be accurately represented as a value of the respective type.
+For instance, <code>3.0</code> can be given any integer type but also any
+floating-point type, while <code>-1e12</code> can be given the types
+<code>float32</code>, <code>float64</code>, or even <code>int64</code> but
+not <code>uint64</code> or <code>string</code>.
+</p>
+
+<p>
+Implementation restriction: A compiler may implement numeric constants by choosing
+an internal representation with at least twice as many bits as any machine type;
+for floating-point values, both the mantissa and exponent must be twice as large.
+</p>
+
 
 <h2 id="Types">Types</h2>
 
@@ -511,16 +539,14 @@ TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType 
 </pre>
 
 <p>
-<i>Basic types</i> such as <code>int</code> are predeclared (§<a href="#Predeclared_identifiers">Predeclared identifiers</a>).
-Other types may be constructed from these, recursively,
-including arrays, structs, pointers, functions, interfaces, slices, maps, and
-channels.
+Named instances of the boolean, numeric, and string types are <a href="#Predeclared_identifiers">predeclared</a>.
+Array, struct, pointer, function, interface, slice, map, and channel types may be constructed using type literals.
 </p>
 
 <p>
 A type may have a <i>method set</i> associated with it
 (§<a href="#Interface_types">Interface types</a>, §<a href="#Method_declarations">Method declarations</a>).
-The method set of an interface type (§<a href="#Interface_types">Interface types</a>) is its interface.
+The method set of an <a href="#Interface_types">interface type</a> is its interface.
 The method set of any other named type <code>T</code>
 consists of all methods with receiver
 type <code>T</code>.
@@ -532,23 +558,26 @@ Any other type has an empty method set.
 <p>
 The <i>static type</i> (or just <i>type</i>) of a variable is the
 type defined by its declaration.  Variables of interface type
-(§<a href="#Interface_types">Interface types</a>) also have a distinct <i>dynamic type</i>, which
+also have a distinct <i>dynamic type</i>, which
 is the actual type of the value stored in the variable at run-time.
-The dynamic type may vary during execution but is always compatible
-with the static type of the interface variable.  For non-interface
+The dynamic type may vary during execution but is always assignment compatible
+to the static type of the interface variable.  For non-interface
 types, the dynamic type is always the static type.
 </p>
 
-<h3 id="Basic_types">Basic types</h3>
 
-<p>
-Basic types include traditional numeric types, booleans, and strings. All are predeclared.
-</p>
+<h3 id="Boolean_types">Boolean types</h3>
+
+A <i>boolean type</i> represents the set of Boolean truth values
+denoted by the predeclared constants <code>true</code>
+and <code>false</code>. The predeclared boolean type is <code>bool</code>.
+
 
 <h3 id="Numeric_types">Numeric types</h3>
 
 <p>
-The architecture-independent numeric types are:
+A <i>numeric type</i> represents sets of integer or floating-point values.
+The predeclared architecture-independent numeric types are:
 </p>
 
 <pre class="grammar">
@@ -562,8 +591,8 @@ int16    the set of all signed 16-bit integers (-32768 to 32767)
 int32    the set of all signed 32-bit integers (-2147483648 to 2147483647)
 int64    the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
 
-float32  the set of all valid IEEE-754 32-bit floating point numbers
-float64  the set of all valid IEEE-754 64-bit floating point numbers
+float32  the set of all IEEE-754 32-bit floating-point numbers
+float64  the set of all IEEE-754 64-bit floating-point numbers
 
 byte     familiar alias for uint8
 </pre>
@@ -575,7 +604,7 @@ as the two's complement of its absolute value.
 </p>
 
 <p>
-There is also a set of numeric types with implementation-specific sizes:
+There is also a set of predeclared numeric types with implementation-specific sizes:
 </p>
 
 <pre class="grammar">
@@ -595,19 +624,13 @@ are not the same type even though they may have the same size on a
 particular architecture.
 
 
-<h3 id="Booleans">Booleans</h3>
-
-The type <code>bool</code> comprises the Boolean truth values
-represented by the predeclared constants <code>true</code>
-and <code>false</code>.
-
-
-<h3 id="Strings">Strings</h3>
+<h3 id="String_types">String types</h3>
 
 <p>
-The <code>string</code> type represents the set of string values.
+A <i>string type</i> represents the set of string values.
 Strings behave like arrays of bytes but are immutable: once created,
 it is impossible to change the contents of a string.
+The predeclared string type is <code>string</code>.
 
 <p>
 The elements of strings have type <code>byte</code> and may be
@@ -616,7 +639,7 @@ illegal to take the address of such an element; if
 <code>s[i]</code> is the <i>i</i>th byte of a
 string, <code>&amp;s[i]</code> is invalid.  The length of string
 <code>s</code> can be discovered using the built-in function
-<code>len(s)</code>. The length is a compile-time constant if <code>s</code>
+<code>len</code>. The length is a compile-time constant if <code>s</code>
 is a string literal.
 </p>
 
@@ -943,7 +966,7 @@ instance, all types implement the <i>empty interface</i>:
 </p>
 
 <pre>
-interface { }
+interface{}
 </pre>
 
 <p>
@@ -1002,7 +1025,7 @@ A map value may be <code>nil</code>.
 </p>
 
 <pre class="ebnf">
-MapType     = "map" "[" KeyType "]" ValueType .
+MapType     = "map" "[" KeyType "]" ElementType .
 KeyType     = Type .
 ValueType   = Type .
 </pre>
@@ -1010,7 +1033,7 @@ ValueType   = Type .
 <p>
 The comparison operators <code>==</code> and <code>!=</code>
 (§<a href="#Comparison_operators">Comparison operators</a>) must be fully defined for operands of the
-key type; thus the key type must be a basic, pointer, interface,
+key type; thus the key type must be a boolean, numeric, string, pointer, function, interface,
 map, or channel type. If the key type is an interface type, these
 comparison operators must be defined for the dynamic key values;
 failure will cause a run-time error.
@@ -1109,9 +1132,7 @@ received, <code>closed(c)</code> returns true.
 <p>
 Two types may be <i>identical</i>, <i>compatible</i>, or <i>incompatible</i>.
 Two identical types are always compatible, but two compatible types may not be identical.
-Go is <i>type safe</i>: a value of one type cannot be assigned to a variable of an
-incompatible type, and two values of incompatible types cannot be mixed in
-binary operations.</p>
+</p>
 
 <h3 id="Type_identity_and_compatibility">Type identity and compatibility</h3>
 
@@ -1212,33 +1233,45 @@ they have different field names.
 <h3 id="Assignment_compatibility">Assignment compatibility</h3>
 
 <p>
-Values of any type may always be assigned to variables
-of compatible static type. Some types and values have conditions under which they may
-be assigned to otherwise incompatible types:
+A value <code>v</code> of static type <code>V</code> is <i>assignment compatible</i>
+with a type <code>T</code> if one of the following conditions applies:
 </p>
+
 <ul>
 <li>
-A value can be assigned to an interface variable if the static
-type of the value implements the interface.
+<code>V</code> is compatible with <code>T</code>.
 </li>
 <li>
-The predeclared constant <code>nil</code> can be assigned to any
-pointer, function, slice, map, channel, or interface variable.
-<li>
-A pointer <code>p</code> to an array can be assigned to a slice variable
-<code>v</code> with compatible element type
-if the type of <code>p</code> or <code>v</code> is unnamed.
-The slice variable then refers to the original array; the data is not copied.
+<code>T</code> is an interface type and
+<code>V</code> <a href="#Interface_types">implements</a> <code>T</code>.
 </li>
 <li>
-A bidirectional channel <code>c</code> can be assigned to a channel variable
-<code>v</code> with compatible channel value type
-if the type of <code>c</code> or <code>v</code> is unnamed.
+<code>V</code> is a pointer to an array and <code>T</code> is a slice type
+with compatible element type and at least one of <code>V</code> or <code>T</code> is unnamed.
+After assignment, the slice variable refers to the original array; the elements are not
+copied.
 </li>
 <li>
-A value can always be assigned to the <a href="#Blank_identifier">blank identifier</a>.
+<code>V</code> is a bidirectional channel and <code>T</code> is a channel type
+with compatible element type and at least one of <code>V</code> or <code>T</code> is unnamed.
 </li>
 </ul>
+
+<p>
+An untyped <a href="#Constants">constant</a> <code>v</code>
+is assignment compatible with type <code>T</code> if <code>v</code>
+can be represented accurately as a value of type <code>T</code>.
+</p>
+
+<p>
+The predeclared identifier <code>nil</code> is assignment compatible with any
+pointer, function, slice, map, channel, or interface type and
+represents the <a href="#The_zero_value">zero value<a> for that type.
+</p>
+
+<p>
+Any value may be assigned to the <a href="#Blank_identifier">blank identifier</a>.
+</p>
 
 <h3 id="Comparison_compatibility">Comparison compatibility</h3>
 
@@ -1416,7 +1449,10 @@ Architecture-specific convenience types:
 	float int uint uintptr
 
 Constants:
-	true false iota nil
+	true false iota
+
+Zero value:
+	nil
 
 Functions:
 	cap close closed len make new panic panicln print println
@@ -1448,7 +1484,7 @@ any other identifier but the declaration does not introduce a new binding.
 </p>
 
 
-<h3 id="Const_declarations">Const declarations</h3>
+<h3 id="Constant_declarations">Constant declarations</h3>
 
 <p>
 A constant declaration binds a list of identifiers (the names of
@@ -1469,23 +1505,25 @@ ExpressionList = Expression { "," Expression } .
 </pre>
 
 <p>
+If the type is present, all constants take the type specified, and
+the expressions must be <a href="#Assignment_compatibility">assignment compatible</a> with that type.
 If the type is omitted, the constants take the
-individual types of the corresponding expressions, which may be
-an <a href="#Ideal_numbers">ideal number</a>, <a href="#String_literals">ideal string</a>,
-or  <a href="#Boolean_literals">ideal bool</a>.
-If the type is present, all constants take the type specified, and the types
-of all the expressions must be assignment-compatible
-with that type.
+individual types of the corresponding expressions.
+If the expression values are untyped <a href="#Constants">constants</a>,
+the declared constants remain untyped and the constant identifiers
+denote the constant values. For instance, if the expression is a
+floating-point literal, the constant identifier denotes a floating-point
+constant, even if the literal's fractional part is zero.
 </p>
 
 <pre>
 const Pi float64 = 3.14159265358979323846
-const E = 2.718281828
+const zero = 0.0             // untyped floating-point constant
 const (
 	size int64 = 1024;
-	eof = -1;
+	eof = -1;            // untyped integer constant
 )
-const a, b, c = 3, 4, "foo"  // a = 3, b = 4, c = "foo"
+const a, b, c = 3, 4, "foo"  // a = 3, b = 4, c = "foo", untyped integer and string constants
 const u, v float = 0, 3      // u = 0.0, v = 3.0
 </pre>
 
@@ -1519,9 +1557,9 @@ const (
 
 <p>
 Within a constant declaration, the predeclared pseudo-constant
-<code>iota</code> represents successive integers. It is reset to 0
-whenever the reserved word <code>const</code> appears in the source
-and increments with each semicolon. It can be used to construct a
+<code>iota</code> represents successive untyped integer <a href="#Constants">
+constants</a>. It is reset to 0 whenever the reserved word <code>const</code>
+appears in the source and increments with each semicolon. It can be used to construct a
 set of related constants:
 </p>
 
@@ -1539,9 +1577,9 @@ const (
 )
 
 const (
-	u       = iota * 42;  // u == 0     (ideal integer)
-	v float = iota * 42;  // v == 42.0  (float)
-	w       = iota * 42;  // w == 84    (ideal integer)
+	u       = iota * 42;  // u == 0     (untyped integer constant)
+	v float = iota * 42;  // v == 42.0  (float constant)
+	w       = iota * 42;  // w == 84    (untyped integer constant)
 )
 
 const x = iota;  // x == 0 (iota has been reset)
@@ -1640,17 +1678,18 @@ of the expression list.
 </p>
 
 <p>
-If the type is absent and the corresponding expression is a constant
-expression of ideal integer, float, string or bool type, the type of the
-declared variable is <code>int</code>, <code>float</code>,
-<code>string</code>, or <code>bool</code> respectively:
+If the type is absent and the corresponding expression evaluates to an
+untyped <a href="#Constants">constant</a>, the type of the declared variable
+is <code>bool</code>, <code>int</code>, <code>float</code>, or <code>string</code>
+respectively, depending on whether the value is a boolean, integer,
+floating-point, or string constant:
 </p>
 
 <pre>
+var b = true    // t has type bool
 var i = 0       // i has type int
-var f = 3.1415  // f has type float
+var f = 3.0     // f has type float
 var s = "OMDB"  // s has type string
-var t = true    // t has type bool
 </pre>
 
 <h3 id="Short_variable_declarations">Short variable declarations</h3>
@@ -1792,8 +1831,7 @@ However, a function declared this way is not a method.
 
 <p>
 An expression specifies the computation of a value by applying
-operators and functions to operands. An expression has a value
-and a type.
+operators and functions to operands.
 </p>
 
 <h3 id="Operands">Operands</h3>
@@ -1806,17 +1844,6 @@ Literal    = BasicLit | CompositeLit | FunctionLit .
 BasicLit   = int_lit | float_lit | char_lit | StringLit .
 </pre>
 
-
-<h3 id="Constants">Constants</h3>
-
-<p>
-A <i>constant</i> is a literal of a basic type
-(including the predeclared constants <code>true</code>, <code>false</code>
-and <code>nil</code>
-and values denoted by <code>iota</code>)
-or a constant expression (§<a href="#Constant_expressions">Constant expressions</a>).
-Constants have values that are known at compile time.
-</p>
 
 <h3 id="Qualified_identifiers">Qualified identifiers</h3>
 
@@ -2220,7 +2247,7 @@ or for <code>a</code> of type <code>S</code> where <code>S</code> is a <a href="
 
 <p>
 For <code>a</code> of type <code>T</code>
-where <code>T</code> is a <a href="#Strings">string type</a>:
+where <code>T</code> is a <a href="#String_types">string type</a>:
 </p>
 <ul>
 	<li><code>x</code> must be an integer value and <code>0 &lt;= x &lt; len(a)</code>
@@ -2307,15 +2334,18 @@ s[1] == 3
 </pre>
 
 <p>
-The slice length must be non-negative.
+The slice length must not be negative.
 For arrays or strings, the indexes
 <code>lo</code> and <code>hi</code> must satisfy
 0 &lt;= <code>lo</code> &lt;= <code>hi</code> &lt;= length;
 for slices, the upper bound is the capacity rather than the length.
+</p>
+
 <p>
-If the sliced operand is a string, the result of the slice operation is another, new
-<a href="#Strings">string</a>. If the sliced operand is an array or slice, the result
-of the slice operation is a <a href="#Slice_types">slice</a>.
+If the sliced operand is a string or slice, the result of the slice operation
+is a string or slice of the same type.
+If the sliced operand is an array, the result of the slice operation is a slice
+with the same element type as the array.
 </p>
 
 
@@ -2482,13 +2512,12 @@ unary_op   = "+" | "-" | "!" | "^" | "*" | "&amp;" | "&lt;-" .
 </pre>
 
 <p>
-Comparisons are discussed elsewhere
-(§<a href="#Comparison_compatibility">Comparison compatibility</a>).
-For other binary operators, the
-operand types must be identical
+Comparisons are discussed <a href="#Comparison_operators">elsewhere</a>.
+For other binary operators, the operand types must be identical
 (§<a href="#Properties_of_types_and_values">Properties of types and values</a>)
-unless the operation involves
-channels, shifts, or ideal constants.
+unless the operation involves channels, shifts, or untyped <a href="#Constants">constants</a>.
+For operations involving constants only, see the section on
+<a href="#Constant_expressions">constant expressions</a>.
 </p>
 
 <p>
@@ -2498,24 +2527,20 @@ second is a value of the channel's element type.
 
 <p>
 Except for shift operations,
-if one operand has ideal type and the other operand does not,
-the ideal operand is converted to match the type of
-the other operand (§<a href="#Expressions">Expressions</a>).
-If both operands are ideal numbers and one is an
-ideal float, the other is converted to ideal float
-(relevant for <code>/</code> and <code>%</code>).
+if one operand is an untyped <a href="#Constants">constant</a>
+and the other operand is not, the constant is <a href="#Conversions">converted</a>
+to the type of the other operand.
 </p>
 
 <p>
 The right operand in a shift operation must have unsigned integer type
-or be an ideal number that can be converted to unsigned integer type
-(§<a href="#Arithmetic_operators">Arithmetic operators</a>).
+or be an untyped constant that can be converted to unsigned integer type.
 </p>
 
 <p>
-If the left operand of a non-constant shift operation is an ideal number,
-the type of the ideal number
-is what it would be if the shift operation were replaced by the left operand alone.
+If the left operand of a non-constant shift operation is an untyped constant,
+the type of constant is what it would be if the shift operation were replaced by
+the left operand alone.
 </p>
 
 <pre>
@@ -2568,11 +2593,11 @@ x == y+1 &amp;&amp; &lt;-chan_ptr > 0
 
 <h3 id="Arithmetic_operators">Arithmetic operators</h3>
 <p>
-Arithmetic operators apply to numeric types and yield a result of the same
+Arithmetic operators apply to numeric values and yield a result of the same
 type as the first operand. The four standard arithmetic operators (<code>+</code>,
-<code>-</code>,  <code>*</code>, <code>/</code>) apply both to integer and
-floating point types, while <code>+</code> applies also
-to strings; all other arithmetic operators apply to integers only.
+<code>-</code>,  <code>*</code>, <code>/</code>) apply to integer and
+floating-point types; <code>+</code> also applies
+to strings. All other arithmetic operators apply to integers only.
 </p>
 
 <pre class="grammar">
@@ -2663,7 +2688,7 @@ follows:
 </pre>
 
 <p>
-For floating point numbers,
+For floating-point numbers,
 <code>+x</code> is the same as <code>x</code>,
 while <code>-x</code> is the negation of <code>x</code>.
 </p>
@@ -2692,11 +2717,10 @@ not occur. For instance, it may not assume that <code>x &lt; x + 1</code> is alw
 <h3 id="Comparison_operators">Comparison operators</h3>
 
 <p>
-Comparison operators yield a boolean result.
+Comparison operators yield a value of type <code>bool</code>.
 The operators <code>==</code> and <code>!=</code> apply, at least in some cases,
-to all types except arrays and structs.
-All other comparison operators apply only
-to basic types except <code>bool</code>.
+to operands of all types except arrays and structs.
+All other comparison operators apply only to numeric and string values.
 </p>
 
 <pre class="grammar">
@@ -2709,13 +2733,14 @@ to basic types except <code>bool</code>.
 </pre>
 
 <p>
-Numeric basic types are compared in the usual way.
+Operands of numeric type are compared in the usual way.
 </p>
 <p>
-Strings are compared byte-wise (lexically).
+Operands of string type are compared byte-wise (lexically).
 </p>
 <p>
-Booleans are equal if they are either both "true" or both "false".
+Operands of boolean type are equal if they are either both <code>true</code>
+or both <code>false</code>.
 </p>
 <p>
 The rules for comparison of composite types are described in the
@@ -2726,7 +2751,8 @@ section on §<a href="#Comparison_compatibility">Comparison compatibility</a>.
 <h3 id="Logical_operators">Logical operators</h3>
 
 <p>
-Logical operators apply to boolean operands and yield a boolean result.
+Logical operators apply to <a href="#Boolean_types">boolean</a> values
+and yield a result of the same type as the operands.
 The right operand is evaluated conditionally.
 </p>
 
@@ -2972,36 +2998,31 @@ The resulting function takes an explicit receiver of that interface type.
 <h3 id="Constant_expressions">Constant expressions</h3>
 
 <p>
-Constant expressions may contain only constants, <code>iota</code>,
-numeric literals, string literals, and
-some constant-valued built-in functions such as <code>unsafe.Sizeof</code>
-and <code>len</code> applied to an array.
-In practice, constant expressions are those that can be evaluated at compile time.
-<p>
-The type of a constant expression is determined by the type of its
-elements.  If it contains only numeric literals, its type is <i>ideal
-integer</i> or <i>ideal float</i> (§<a href="#Ideal_numbers">Ideal numbers</a>).  Whether a literal
-is an integer or float depends on the syntax of the literals (123 vs. 123.0).
-The nature of the arithmetic
-operations within the expression depends, elementwise, on the values;
-for example, 3/2 is an integer division yielding 1, while 3./2. is
-a floating point division yielding 1.5.  Thus
-</p>
-
-<pre>
-const x = 3./2. + 3/2;
-</pre>
-
-<p>
-yields a floating point constant of ideal float value 2.5 (1.5 +
-1); its constituent expressions are evaluated using distinct rules
-for division.
+Constant expressions may contain only <a href="#Constants">constant</a>
+operands and are evaluated at compile-time.
 </p>
 
 <p>
-Intermediate values and the constants themselves
-may require precision significantly larger than any concrete type
-in the language.  The following are legal declarations:
+Untyped boolean, numeric, and string constants may be used as operands
+wherever it is legal to use an operand of boolean, numeric, or string type,
+respectively. Except for shift operations, if the operands of a binary operation
+are an untyped integer constant and an untyped floating-point constant,
+the integer constant is converted to an untyped floating-point constant
+(relevant for <code>/</code> and <code>%</code>).
+<p>
+
+</p>
+Applying an operator to untyped constants results in an untyped
+constant of the same kind (that is, a boolean, integer, floating-point, or
+string constant), except for
+<a href="#Comparison_operators">comparison operators</a> which result in
+a constant of type <code>bool</code>.
+</p>
+
+<p>
+Constant expressions are always evaluated exactly; intermediate values and the
+constants themselves may require precision significantly larger than supported
+by any predeclared type in the language. The following are legal declarations:
 </p>
 
 <pre>
@@ -3010,38 +3031,26 @@ const Four int8 = Huge &gt;&gt; 98;
 </pre>
 
 <p>
-A constant expression may appear in any context, such as assignment
-to a variable of any numeric type, as long as the value of the
-expression can be represented accurately in that context.
-It is erroneous to assign a value with a non-zero fractional part
-to an integer, or if the assignment would overflow or underflow,
-or in general if the value cannot be represented by the type of
-the variable.
-For
-instance, <code>3</code> can be assigned to any integer variable but also to any
-floating point variable, while <code>-1e12</code> can be assigned to a
-<code>float32</code>, <code>float64</code>, or even <code>int64</code>
-but not <code>uint64</code> or <code>string</code>.
-</p>
-
-<p>
-If a typed constant expression evaluates to a value that is not
-representable by that type, the compiler reports an error.
+The values of <i>typed</i> constants must always be accurately representable as values
+of the constant type. The following constant expressions are illegal:
 </p>
 
 <pre>
-uint8(-1)         // error, out of range
-uint8(100) * 100  // error, out of range
+uint(-1)       // -1 overflows uint
+int(3.14)      // 3.14 truncated to integer
+int64(Huge)    // 1&lt;&lt;100 overflows int64
+Four * 300     // 300 overflows int8
+Four * 100     // 400 overflows int8
 </pre>
 
 <p>
-The mask used by the unary bitwise complement operator matches
+The mask used by the unary bitwise complement operator <code>^</code> matches
 the rule for non-constants: the mask is all 1s for unsigned constants
-and -1 for signed and ideal constants.
+and -1 for signed and untyped constants.
 </p>
 
 <pre>
-^1          // ideal constant, equal to -2
+^1          // untyped integer constant, equal to -2
 uint8(^1)   // error, same as uint8(-2), out of range
 ^uint8(1)   // typed uint8 constant, same as 0xFF ^ uint8(1) = uint8(0xFE)
 int8(^1)    // same as int8(-2)
@@ -3055,6 +3064,7 @@ Also it may be possible to make typed constants more like variables, at the cost
 overflow etc. errors being caught.
 </font>
 </p>
+
 
 <h3 id="Order_of_evaluation">Order of evaluation</h3>
 
@@ -3164,8 +3174,9 @@ f(x+y)
 
 <p>
 The "++" and "--" statements increment or decrement their operands
-by the ideal numeric value 1.  As with an assignment, the operand
-must be a variable, pointer indirection, field selector or index expression.
+by the untyped <a href="#Constants">constant</a> <code>1</code>.
+As with an assignment, the operand must be a variable, pointer indirection,
+field selector or index expression.
 </p>
 
 <pre class="ebnf">
@@ -3259,9 +3270,13 @@ a, b = b, a  // exchange a and b
 </pre>
 
 <p>
-In assignments, the type of each value must be
+In assignments, each value must be
 <a href="#Assignment_compatibility">assignment compatible</a> with the type of the
-operand to which it is assigned.
+operand to which it is assigned. If an untyped <a href="#Constants">constant</a>
+is assigned to a variable of interface type, the constant is <a href="#Conversions">converted</a>
+to type <code>bool</code>, <code>int</code>, <code>float</code>, or <code>string</code>
+respectively, depending on whether the value is a boolean, integer, floating-point,
+or string constant.
 </p>
 
 
@@ -3599,7 +3614,7 @@ for i, s := range a {
 }
 
 var key string;
-var val interface {};  // value type of m is assignment-compatible to val
+var val interface {};  // value type of m is assignment compatible to val
 for key, val = range m {
 	h(key, val)
 }
@@ -3967,32 +3982,26 @@ The following conversion rules apply:
 </p>
 <ul>
 <li>
-1) The conversion succeeds if the value is assignment-compatible
-to a variable of type T.
+1) The conversion succeeds if the value is <a href="#Assignment_compatibility">assignment compatible</a>
+with type <code>T</code>.
 </li>
 <li>
-2) The conversion succeeds if the value would be assignment-compatible
-to a variable of type T if the value's type, or T, or any of their component
-types are unnamed (§<a href="#Type_identity_and_compatibility">Type identity and compatibility</a>).
+2) The conversion succeeds if the value would be assignment compatible
+with type <code>T</code> if the value's type, or <code>T</code>, or any of their component
+types were unnamed (§<a href="#Type_identity_and_compatibility">Type identity and compatibility</a>).
 </li>
 <li>
-3a) From an ideal number to an integer type.
-The ideal number must be representable in the result type; it must not overflow.
-For example, <code>uint8(0xFF)</code> is legal but <code>int8(0xFF)</code> is not.
-</li>
-<li>
-3b) From a non-ideal integer value to an integer type.  If the value is a signed quantity, it is
+3) Between integer types.  If the value is a signed quantity, it is
 sign extended to implicit infinite precision; otherwise it is zero
 extended.  It is then truncated to fit in the result type's size.
 For example, if <code>x := uint16(0x10F0)</code>, then <code>uint32(int8(x)) == 0xFFFFFFF0</code>.
 The conversion always yields a valid value; there is no indication of overflow.
 </li>
 <li>
-4) Between integer and floating point types, or between floating point
-types.
-When converting a floating point number to an integer, the fraction is discarded
+4) Between integer and floating-point types, or between floating-point types.
+When converting a floating-point number to an integer, the fraction is discarded
 (truncation towards zero).
-In all conversions involving floating point, if the result type cannot represent the
+In all conversions involving floating-point values, if the result type cannot represent the
 value the conversion succeeds but the result value is unspecified.
 <font color=red>This behavior may change.</font>
 </li>
@@ -4029,9 +4038,9 @@ string([]byte{'h', 'e', 'l', 'l', 'o'})  // "hello"
 
 <p>
 There is no linguistic mechanism to convert between pointers and integers.
-The <code>unsafe</code> package
+The package <a href="#Package_unsafe"><code>unsafe</code></a>
 implements this functionality under
-restricted circumstances (§<a href="#Package_unsafe">Package <code>unsafe</code></a>).
+restricted circumstances.
 </p>
 
 
@@ -4287,7 +4296,7 @@ and no explicit initialization is provided, the memory is
 given a default initialization.  Each element of such a value is
 set to the <i>zero value</i> for its type: <code>false</code> for booleans,
 <code>0</code> for integers, <code>0.0</code> for floats, <code>""</code>
-for strings, and <code>nil</code> for pointers, interfaces, slices, channels, and maps.
+for strings, and <code>nil</code> for pointers, functions, interfaces, slices, channels, and maps.
 This initialization is done recursively, so for instance each element of an
 array of structs will have its fields zeroed if no value is specified.
 </p>
