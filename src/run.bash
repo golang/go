@@ -26,6 +26,7 @@ maketest() {
 
 maketest \
 	pkg \
+	../usr/austin/eval \
 
 # all of these are subtly different
 # from what maketest does.
@@ -47,6 +48,11 @@ time make smoketest
 make clean
 time make
 time make test
+) || exit $?
+
+(xcd ../usr/austin/ogle
+make clean
+time make ogle
 ) || exit $?
 
 (xcd ../doc/progs

@@ -20,8 +20,8 @@ GOFILES=\
 
 include $(GOROOT)/src/Make.pkg
 
-main.6: main.go
+main.$O: main.go package
 	$(GC) -I_obj $<
 
-ogle: main.6 package
+ogle: main.$O
 	$(LD) -L_obj -o $@ $<
