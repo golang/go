@@ -2,15 +2,51 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Format file for printing AST nodes.
+// This is the datafmt format file for printing AST nodes.
+// It is used by go/ast/format.go. It assumes that the output
+// is fed through a tabwriter.Writer for proper alignment.
+// Form feed chars ('\f') are used to control the tabwriter's
+// column formatting.
 
+// TODO change these to "go/ast", "go/token" once
+//      the full path is returned by reflection
 ast "ast";
 token "token";
+
+
+// ----------------------------------------------------------------------------
+// Custom formatters
+//
+// TODO should be able to reduce this number/find better primitives
+// The following formatters are defined in go/ast/format.go:
+//
+// allCode
+// setComments
+// isVisible (currently not used)
+// isValidPos
+// isParenResult
+// isSend
+// isRecv
+// writeComment
+// clearOptSemi
+// setOptSemi
+// optSemi
+// token.Position
+
 
 // ----------------------------------------------------------------------------
 // Basic types, support rules
 
 array =
+	*;
+
+bytes =
+	{*};
+
+char =
+	"%c";
+
+interface =
 	*;
 
 ptr =
@@ -19,26 +55,12 @@ ptr =
 string =
 	"%s";
 
-char =
-	"%c";
-
-bytes =
-	{*};
-
 empty =
 	;
 
 exists =
 	*:empty;
 
-ast.Expr =
-	*;
-
-ast.Stmt =
-	*;
-
-ast.Decl =
-	*;
 
 // ----------------------------------------------------------------------------
 // Tokens and comments
@@ -47,10 +69,7 @@ token.Token =
 	@:string;
 
 ast.Comment =
-	// TODO this doesn't indent properly after //-style comments because
-	//      the '\n'-char is printed as part of the comment - need to
-	//      address this
-	Text:string [Text:isMultiLineComment "\n"];
+	Position Text:writeComment;
 
 ast.Comments =
 	{*};
@@ -60,28 +79,31 @@ ast.Comments =
 // Expressions & Types
 
 ast.Field =
-	[Names:exists {Names / ", "} " "] Type;
+	[Names:exists {Names / ", "} "\t"] Type ["\t" Tag];
+
+ast.Expr =
+	*;
 
 ast.BadExpr =
-	"BAD EXPR";
+	Position "BAD EXPR";
 
 ast.Ident =
-	Value;
+	Position Value;
 
 ast.Ellipsis =
-	"...";
+	Position "...";
 
 ast.IntLit =
-	Value:string;
+	Position Value:string;
 
 ast.FloatLit =
-	Value:string;
+	Position Value:string;
 
 ast.CharLit =
-	Value:string;
+	Position Value:string;
 
 ast.StringLit =
-	Value:string;
+	Position Value:string;
 
 ast.StringList =
 	{Strings / "\n"};
@@ -90,71 +112,77 @@ ast.FuncLit =
 	Type " " Body @:clearOptSemi;  // no optional ; after a func literal body
 
 ast.CompositeLit =
-	Type "{" {Elts / ", "} "}";
+	Type Lbrace "{" {Elts / ", "} Rbrace "}";
 
 ast.ParenExpr =
-	"(" X ")";
+	Position "(" X ")";
 
 ast.SelectorExpr =
 	X "." Sel;
 
 ast.IndexExpr =
-	X "[" Index [":" End] "]";
+	X "[" Index [" : " End] "]";
 
 ast.TypeAssertExpr =
 	X ".(" Type ")";
 
 ast.CallExpr =
-	Fun "(" {Args / ", "} ")";
+	Fun Lparen "(" {Args / ", "} Rparen ")";
 
 ast.StarExpr =
-	"*" X;
+	Position "*" X;
 
 ast.UnaryExpr =
-	Op X;
+	Position Op X;
 
 ast.BinaryExpr =
-	X " " Op " " Y;
+	X " " OpPos Op " " Y;
 
 ast.KeyValueExpr =
-	Key ": " Value;
+	Key  Colon ": " Value;
 
 ast.ArrayType =
-	"[" [Len] "]" Elt;
+	Position "[" [Len] "]" Elt;
 
 ast.StructType =
-	"struct"
-	[Lbrace:isValidPos " {"]
+	Position "struct"
+	[Lbrace:isValidPos " " Lbrace "{"]
 	[	Fields:exists
-		( "\t" >> "\n"
+		( "\t" >> "\f"
 			{Fields / ";\n"}
 		) "\n"
 	]
-	[Rbrace:isValidPos "}"];
+	[Rbrace:isValidPos Rbrace "}"];
 
 signature =
-	"(" {Params / ", "} ")" [Results:exists " (" {Results / ", "} ")"];
+	"(" {Params / ", "} ")"
+	[	Results:exists " "
+		(	Results:isParenResult "(" {Results / ", "} ")"
+		|	{Results}
+		)
+	];
 
 funcSignature =
 	*:signature;
 
 ast.FuncType =
-	[Position:isValidPos "func"] @:signature;
+	[Position:isValidPos Position "func"] @:signature;
 
 ast.InterfaceType =
-	"interface"
-	[Lbrace:isValidPos " {"]
+	Position "interface"
+	[Lbrace:isValidPos " " Lbrace "{"]
 	[	Methods:exists
-		( "\t" >> "\n"
+		( "\t" >> "\f"
 			{Methods / ";\n"}
 		) "\n"
 	]
-	[Rbrace:isValidPos "}"];
+	[Rbrace:isValidPos Rbrace "}"];
 
 ast.MapType =
-	"map[" Key "]" Value;
+	Position "map[" Key "]" Value;
 
 ast.ChanType =
+	Position
 	(	Dir:isSend Dir:isRecv
 		"chan "
 	|	Dir:isSend
@@ -167,14 +195,17 @@ ast.ChanType =
 // ----------------------------------------------------------------------------
 // Statements
 
+ast.Stmt =
+	*;
+
 ast.BadStmt =
-	"BAD STMT";
+	Position "BAD STMT";
 
 ast.DeclStmt =
 	Decl;
 
 ast.EmptyStmt =
-	;
+	Position ;
 
 ast.LabeledStmt =
 	Label ":\t" Stmt;
@@ -186,19 +217,19 @@ ast.IncDecStmt =
 	X Tok;
 
 ast.AssignStmt =
-	{Lhs / ", "} " " Tok " " {Rhs / ", "};
+	{Lhs / ", "} " " TokPos Tok " " {Rhs / ", "};
 
 ast.GoStmt =
-	"go " Call;
+	Position "go " Call;
 
 ast.DeferStmt =
-	"defer " Call;
+	Position "defer " Call;
 
 ast.ReturnStmt =
-	"return" {" " Results / ","};
+	Position "return" {" " Results / ","};
 
 ast.BranchStmt =
-	Tok [" " Label];
+	Position Tok [" " Label];
 
 stmtList =
 	{@ / @:optSemi "\n"};
@@ -206,7 +237,7 @@ stmtList =
 blockStmt =  // like ast.BlockStmt but w/o indentation
 	"{"
 	[List:exists
-	"\n"
+	"\f"
 		List:stmtList
 	"\n"
 	]
@@ -216,22 +247,26 @@ blockStmtPtr =
 	*:blockStmt;
 
 ast.BlockStmt =
-	"{"
+	Position "{"
 	[List:exists
-	( "\t" >> "\n"
+	( "\t" >> "\f"
 		List:stmtList
 	) "\n"
 	]
-	"}" @:setOptSemi;
+	Rbrace "}" @:setOptSemi;
 
 ast.IfStmt =
-	"if " [Init "; "] [Cond " "] Body [" else " Else];
+	Position "if " [Init "; "] [Cond " "] Body [" else " Else];
 
 ast.CaseClause =
-	(	Values:exists "case " {Values / ", "}
+	// TODO the code below should work with () instead of []
+	//      but doesn't (after first case, always default is
+	//      selected).
+	Position
+	[	Values:exists "case " {Values / ", "}
 	|	"default"
-	)
-	":"
+	]
+	Colon ":"
 	[Body:exists
 	( "\t" >> "\n"
 		Body:stmtList
@@ -239,14 +274,15 @@ ast.CaseClause =
 	];
 
 ast.SwitchStmt =
-	"switch " [Init "; "] [Tag " "]
+	Position "switch " [Init "; "] [Tag " "]
 	Body:blockStmtPtr;
 
 ast.TypeCaseClause =
+	Position
 	(	Type:exists "case " Type
 	|	"default"
 	)
-	":"
+	Colon ":"
 	[Body:exists
 	( "\t" >> "\n"
 		Body:stmtList
@@ -254,14 +290,15 @@ ast.TypeCaseClause =
 	];
 
 ast.TypeSwitchStmt =
-	"switch " Assign " "
+	Position "switch " Assign " "
 	Body:blockStmtPtr;
 
 ast.CommClause =
+	Position
 	(	"case " [Lhs " " Tok " "] Rhs
 	|	"default"
 	)
-	":"
+	Colon ":"
 	[Body:exists
 	( "\t" >> "\n"
 		Body:stmtList
@@ -269,7 +306,7 @@ ast.CommClause =
 	];
 
 ast.SelectStmt =
-	"select "
+	Position "select "
 	Body:blockStmtPtr;
 
 ast.ForStmt =
@@ -281,7 +318,7 @@ ast.ForStmt =
 	Body;
 
 ast.RangeStmt =
-	"for " Key [", " Value] " " Tok " range " X
+	Position "for " Key [", " Value] " " TokPos Tok " range " X
 	" "
 	Body;
 
@@ -293,35 +330,44 @@ ast.Spec =
 	*;
 
 ast.ImportSpec =
-	Doc
+	[@:allCode Doc]
 	[Name] "\t" {Path};
 
 ast.ValueSpec =
-	{Names / ", "} [" " Type] [Values:exists " = " {Values / ", "}];
+	{Names / ", "} ["\t" Type] [Values:exists "\t= " {Values / ", "}];
 
 ast.TypeSpec =
-	Name " "  // TODO using "\t" instead of " " screws up struct field alignment
-	Type;
+	Name "\t" Type;
+
+ast.Decl =
+	*;
 
 ast.BadDecl =
-	"BAD DECL";
+	Position "BAD DECL";
 
 ast.GenDecl =
-	Doc
-	Tok " "
-	(	Lparen:isValidPos "("
+	[@:allCode Doc]
+	Position Tok " "
+	(	Lparen:isValidPos Lparen "("
 		[Specs:exists
-		( "\t" >> "\n"
+		( "\t" >> "\f"
 			{Specs / ";\n"}
 		) "\n"
 		]
-		")" @:setOptSemi
+		Rparen ")" @:setOptSemi
 	|	{Specs / ";\n"}
 	);
 
+funcKeyword =
+	Position "func ";
+
+funcTypePtr =
+	*:funcKeyword;
+
 ast.FuncDecl =
-	"func " ["(" Recv ") "] Name Type:funcSignature
-	[" " Body]
+	[@:allCode Doc]
+	Type:funcTypePtr ["(" Recv ") "] Name Type:funcSignature
+	[@:allCode " " Body]
 	"\n";
 
 
@@ -329,6 +375,9 @@ ast.FuncDecl =
 // Program
 
 ast.Program =
-	Doc
-	"package " Name "\n\n"
-	{Decls / "\n\n"};
+	Comments:setComments
+	""
+	[@:allCode Doc]
+	Position "package " Name "\n\n"
+	{Decls / "\n\n"}
+	"\n";  // TODO necessary because tabwriter.Flush doesn't format last line correctly - fix this
