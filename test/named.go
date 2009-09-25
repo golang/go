@@ -68,34 +68,10 @@ func main() {
 	asBool(!b);
 	isBool(!b);
 	asBool(true);
-	asBool(1!=2);
 	asBool(*&b);
 	isBool(*&b);
 	asBool(Bool(true));
 	isBool(Bool(true));
-	asBool(i < Int(f));
-
-	_, b = m[2];
-	m[2] = 1, b;
-
-	b = c<-1;
-	_ = b;
-	asBool(c<-1);
-
-	_, b = <-c;
-	_ = b;
-
-	var inter interface{};
-	_, b = inter.(Map);
-	_ = b;
-
-	var minter interface{M()};
-	_, b = minter.(Map);
-	_ = b;
-
-	asBool(closed(c));
-	b = closed(c);
-	_ = b;
 
 	asChan(c);
 	isChan(c);
