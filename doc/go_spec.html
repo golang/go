@@ -1266,7 +1266,7 @@ can be represented accurately as a value of type <code>T</code>.
 <p>
 The predeclared identifier <code>nil</code> is assignment compatible with any
 pointer, function, slice, map, channel, or interface type and
-represents the <a href="#The_zero_value">zero value<a> for that type.
+represents the <a href="#The_zero_value">zero value</a> for that type.
 </p>
 
 <p>
@@ -1417,7 +1417,7 @@ the entity declared by the inner declaration.
 <p>
 The <a href="#Package_clause">package clause</a> is not a declaration; the package name
 does not appear in any scope. Its purpose is to identify the files belonging
-to the same <a href="#Packages">package</a> and to specify the default name for import
+to the same <a href="#Packages">package</a> and to specify the default package name for import
 declarations.
 </p>
 
@@ -1694,14 +1694,18 @@ var s = "OMDB"  // s has type string
 
 <h3 id="Short_variable_declarations">Short variable declarations</h3>
 
+<p>
 A <i>short variable declaration</i> uses the syntax:
+</p>
 
 <pre class="ebnf">
 ShortVarDecl = IdentifierList ":=" ExpressionList .
 </pre>
 
+<p>
 It is a shorthand for a regular variable declaration with
 initializer expressions but no types:
+</p>
 
 <pre class="grammar">
 "var" IdentifierList = ExpressionList .
@@ -1836,7 +1840,9 @@ operators and functions to operands.
 
 <h3 id="Operands">Operands</h3>
 
+<p>
 Operands denote the elementary values in an expression.
+</p>
 
 <pre class="ebnf">
 Operand    = Literal | QualifiedIdent | MethodExpr | "(" Expression ")" .
@@ -3009,9 +3015,9 @@ respectively. Except for shift operations, if the operands of a binary operation
 are an untyped integer constant and an untyped floating-point constant,
 the integer constant is converted to an untyped floating-point constant
 (relevant for <code>/</code> and <code>%</code>).
-<p>
-
 </p>
+
+<p>
 Applying an operator to untyped constants results in an untyped
 constant of the same kind (that is, a boolean, integer, floating-point, or
 string constant), except for
@@ -4170,34 +4176,42 @@ An implementation may require that all source files for a package inhabit the sa
 <h3 id="Import_declarations">Import declarations</h3>
 
 <p>
-A source file gains access to <a href="#Exported_identifiers">exported identifiers</a>
-from another package through an import declaration.
-In the general form, an import declaration provides an identifier
-that code in the source file may use to access the imported package's
-contents and a file name referring to the (compiled) implementation of
-the package.  The file name may be relative to a repository of
-installed packages.
+An import declaration states that the current package depends on the
+<i>imported</i> package and provides acccess to its
+<a href="#Exported_identifiers">exported identifiers</a>.
+</p>
+
+<p>
+The import declaration binds a package name to the imported package (except in
+the case of <code>.</code> or <code>_</code> imports; see below). The package name
+denotes the imported package within the current source file. If no explicit
+package name is present, the package name defined within the source
+files of the imported package is used.
+</p>
+
+<p>
+The imported package is specified by an import path; the meaning of the path
+is implementation-dependent. It may be a file name relative to a repository
+of installed packages and the file a (compiled) implementation of the package.
 </p>
 
 <pre class="ebnf">
 ImportDecl       = "import" ( ImportSpec | "(" [ ImportSpecList ] ")" ) .
 ImportSpecList   = ImportSpec { ";" ImportSpec } [ ";" ] .
-ImportSpec       = [ "." | PackageName ] PackageFileName .
-PackageFileName  = StringLit .
+ImportSpec       = [ "." | PackageName ] ImportPath .
+ImportPath       = StringLit .
 </pre>
 
 <p>
-After an import, in the usual case an exported name <i>N</i> from the imported
-package <i>P</i> may be accessed by the qualified identifier
-<i>P</i><code>.</code><i>N</i> (§<a href="#Qualified_identifiers">Qualified identifiers</a>).  The actual
-name <i>P</i> depends on the form of the import declaration.  If
-an explicit package name <code>p1</code> is provided, the qualified
-identifer will have the form <code>p1.</code><i>N</i>.  If no name
-is provided in the import declaration, <i>P</i> will be the package
-name declared within the source files of the imported package.
+If a package <code>A</code> is imported by a package <code>P</code> and
+<code>A</code> exports an identifier <code>X</code>, then <code>X</code>
+may be referred to by the <a href="#Qualified_identifiers">qualified identifier</a>
+<code>A.X</code> within <code>P</code>. If an explicit package name
+<code>B</code> is present, <code>X</code> must be referred to as <code>B.X</code>.
 Finally, if the import declaration uses an explicit period
-(<code>.</code>) for the package name, <i>N</i> will be declared
-in the current file's file block and can be accessed without a qualifier.
+(<code>.</code>) for the package name, <code>X</code> will be declared
+in the current file's <a href="#Blocks">file block</a> and can be accessed
+without a qualifier.
 </p>
 
 <p>
@@ -4208,12 +4222,24 @@ installed the compiled package in file
 </p>
 
 <pre class="grammar">
-Import syntax               Local name of Sin
+Import declaration          Local name of Sin
 
-import M "lib/math"         M.Sin
 import   "lib/math"         math.Sin
+import M "lib/math"         M.Sin
 import . "lib/math"         Sin
 </pre>
+
+<p>
+It is illegal for a package to import itself or to import a package without
+referring to any of its exported identifiers. To import a package solely for
+its side-effects (initialization), use the <a href="#Blank_identifier">blank</a>
+identifier as explicit package name:
+</p>
+
+<pre>
+import _ "lib/math"
+</pre>
+
 
 <h3 id="Multiple-file_packages">Multiple-file packages</h3>
 
@@ -4500,7 +4526,9 @@ provides a safe, more convenient way to inspect interface values.
 
 <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>
 
+<p>
 For the numeric types (§<a href="#Numeric_types">Numeric types</a>), the following sizes are guaranteed:
+</p>
 
 <pre class="grammar">
 type                      size in bytes
