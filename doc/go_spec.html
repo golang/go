@@ -416,7 +416,7 @@ the (possibly multi-byte) UTF-8 encoding of individual <i>characters</i>.
 Thus inside a string literal <code>\377</code> and <code>\xFF</code> represent
 a single byte of value <code>0xFF</code>=255, while <code>ÿ</code>,
 <code>\u00FF</code>, <code>\U000000FF</code> and <code>\xc3\xbf</code> represent
-the two bytes <code>0xc3 0xbf</code> of the UTF-8 encoding of character
+the two bytes <code>0xc3</code> <code>0xbf</code> of the UTF-8 encoding of character
 U+00FF.
 </p>
 
@@ -1095,8 +1095,8 @@ to receive. This constraint is called a channel's <i>direction</i>; either
 </p>
 
 <pre>
-chan T         // can be used to send and receive values of type T
-chan &lt;- float  // can only be used to send floats
+chan T            // can be used to send and receive values of type T
+chan&lt;- float   // can only be used to send floats
 &lt;-chan int     // can only be used to receive ints
 </pre>
 
@@ -2796,7 +2796,7 @@ a channel and a value (expression):
 </p>
 
 <pre>
-ch <- 3
+ch &lt;- 3
 </pre>
 
 <p>
@@ -2817,10 +2817,10 @@ These two examples are equivalent:
 </p>
 
 <pre>
-ok := ch <- 3;
+ok := ch &lt;- 3;
 if ok { print("sent") } else { print("not sent") }
 
-if ch <- 3 { print("sent") } else { print("not sent") }
+if ch &lt;- 3 { print("sent") } else { print("not sent") }
 </pre>
 
 <p>
@@ -2836,7 +2836,7 @@ is the element type of the channel.
 </p>
 
 <pre>
-<-ch
+&lt;-ch
 </pre>
 
 <p>
@@ -2847,10 +2847,10 @@ discarded.
 </p>
 
 <pre>
-v1 := <-ch
-v2 = <-ch
-f(<-ch)
-<-strobe  // wait until clock pulse
+v1 := &lt;-ch
+v2 = &lt;-ch
+f(&lt;-ch)
+&lt;-strobe  // wait until clock pulse
 </pre>
 
 <p>
@@ -2858,9 +2858,9 @@ If a receive expression is used in an assignment or initialization of the form
 </p>
 
 <pre>
-x, ok = <-ch
-x, ok := <-ch
-var x, ok = <-ch
+x, ok = &lt;-ch
+x, ok := &lt;-ch
+var x, ok = &lt;-ch
 </pre>
 
 <p>
@@ -3079,12 +3079,12 @@ order.  Otherwise, the order of evaluation is unspecified.
 For example, in the assignment
 </p>
 <pre>
-y[f()], ok = g(h(), i() + x[j()], <-c), k()
+y[f()], ok = g(h(), i() + x[j()], &lt;-c), k()
 </pre>
 <p>
 the function calls and communication happen in the order
 <code>f()</code>, <code>h()</code>, <code>i()</code>, <code>j()</code>,
-<code><-c</code>, <code>g()</code>, and <code>k()</code>.
+<code>&lt;-c</code>, <code>g()</code>, and <code>k()</code>.
 However, the order of those events compared to the evaluation
 and indexing of <code>x</code> and the evaluation
 of <code>y</code> is not specified.
@@ -3166,7 +3166,7 @@ ExpressionStmt = Expression .
 
 <pre>
 f(x+y)
-<-ch
+&lt;-ch
 </pre>
 
 
@@ -3212,7 +3212,7 @@ or the <a href="#Blank_identifier">blank identifier</a>.
 x = 1
 *p = f()
 a[i] = 23
-k = <-ch
+k = &lt;-ch
 </pre>
 
 <p>
@@ -3648,7 +3648,7 @@ for the invoked function to complete.
 
 <pre>
 go Server()
-go func(ch chan <- bool) { for { sleep(10); ch <- true; }} (c)
+go func(ch chan&lt;- bool) { for { sleep(10); ch &lt;- true; }} (c)
 </pre>
 
 
@@ -4252,37 +4252,37 @@ package main
 import "fmt"
 
 // Send the sequence 2, 3, 4, ... to channel 'ch'.
-func generate(ch chan <- int) {
+func generate(ch chan&lt;- int) {
 	for i := 2; ; i++ {
-		ch <- i  // Send 'i' to channel 'ch'.
+		ch &lt;- i;	// Send 'i' to channel 'ch'.
 	}
 }
 
 // Copy the values from channel 'in' to channel 'out',
 // removing those divisible by 'prime'.
-func filter(src chan <- int, dst <-chan int, prime int) {
-	for i := range src {  // Loop over values received from 'src'.
-		if i % prime != 0 {
-			dst <- i  // Send 'i' to channel 'dst'.
+func filter(src &lt;-chan int, dst chan&lt;- int, prime int) {
+	for i := range src {	// Loop over values received from 'src'.
+		if i%prime != 0 {
+			dst &lt;- i;	// Send 'i' to channel 'dst'.
 		}
 	}
 }
 
 // The prime sieve: Daisy-chain filter processes together.
 func sieve() {
-	ch := make(chan int);  // Create a new channel.
-	go generate(ch);  // Start generate() as a subprocess.
+	ch := make(chan int);	// Create a new channel.
+	go generate(ch);	// Start generate() as a subprocess.
 	for {
-		prime := <-ch;
+		prime := &lt;-ch;
 		fmt.Print(prime, "\n");
 		ch1 := make(chan int);
 		go filter(ch, ch1, prime);
-		ch = ch1
+		ch = ch1;
 	}
 }
 
 func main() {
-	sieve()
+	sieve();
 }
 </pre>
 
