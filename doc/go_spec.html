@@ -4176,23 +4176,12 @@ An implementation may require that all source files for a package inhabit the sa
 <h3 id="Import_declarations">Import declarations</h3>
 
 <p>
-An import declaration states that the current package depends on the
-<i>imported</i> package and provides acccess to its
-<a href="#Exported_identifiers">exported identifiers</a>.
-</p>
-
-<p>
-The import declaration binds a package name to the imported package (except in
-the case of <code>.</code> or <code>_</code> imports; see below). The package name
-denotes the imported package within the current source file. If no explicit
-package name is present, the package name defined within the source
-files of the imported package is used.
-</p>
-
-<p>
-The imported package is specified by an import path; the meaning of the path
-is implementation-dependent. It may be a file name relative to a repository
-of installed packages and the file a (compiled) implementation of the package.
+An import declaration states that the source file containing the
+declaration uses identifiers
+<a href="#Exported_identifiers">exported</a> by the <i>imported</i>
+package and enables access to them.  The import names an
+identifier (PackageName) to be used for access and an ImportPath
+that specifies the package to be imported.
 </p>
 
 <pre class="ebnf">
@@ -4203,22 +4192,30 @@ ImportPath       = StringLit .
 </pre>
 
 <p>
-If a package <code>A</code> is imported by a package <code>P</code> and
-<code>A</code> exports an identifier <code>X</code>, then <code>X</code>
-may be referred to by the <a href="#Qualified_identifiers">qualified identifier</a>
-<code>A.X</code> within <code>P</code>. If an explicit package name
-<code>B</code> is present, <code>X</code> must be referred to as <code>B.X</code>.
-Finally, if the import declaration uses an explicit period
-(<code>.</code>) for the package name, <code>X</code> will be declared
-in the current file's <a href="#Blocks">file block</a> and can be accessed
-without a qualifier.
+The PackageName is used in <a href="#Qualified_identifiers">qualified identifiers</a>
+to access the exported identifiers of the package within the importing source file.
+It is declared in the <a href="#Blocks">file block</a>.
+If the PackageName is omitted, it defaults to the identifier specified in the
+<a href="#Package_clauses">package clause</a> of the imported package.
+If an explicit period (<code>.</code>) appears instead of a name, all the
+package's exported identifiers will be declared in the current file's
+file block and can be accessed without a qualifier.
 </p>
 
 <p>
-In this table, assume we have compiled a package named
-<code>math</code>, which exports function <code>Sin</code>, and
-installed the compiled package in file
+The interpretation of the ImportPath is implementation-dependent but
+it is typically a substring of the full file name of the compiled
+package and may be relative to a repository of installed packages.
+</p>
+
+<p>
+Assume we have compiled a package containing the package clause
+<code>package math</code>, which exports function <code>Sin</code>, and
+installed the compiled package in the file identified by
 <code>"lib/math"</code>.
+This table illustrates how <code>Sin</code> may be accessed in files
+that import the package after the
+various types of import declaration.
 </p>
 
 <pre class="grammar">
@@ -4230,6 +4227,8 @@ import . "lib/math"         Sin
 </pre>
 
 <p>
+An import declaration declares a dependency relation between
+the importing and imported package.
 It is illegal for a package to import itself or to import a package without
 referring to any of its exported identifiers. To import a package solely for
 its side-effects (initialization), use the <a href="#Blank_identifier">blank</a>
