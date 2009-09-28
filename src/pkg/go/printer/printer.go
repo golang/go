@@ -610,12 +610,9 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 	} else { // interface
 		for i, f := range list {
 			p.leadComment(f.Doc);
-			p.identList(f.Names);
-			if len(f.Names) > 1 {
-				p.print(blank);
-			}
 			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
-				// method(s)
+				// method
+				p.expr(f.Names[0]);  // exactly one name
 				p.signature(ftyp.Params, ftyp.Results);
 			} else {
 				// embedded interface

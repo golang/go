@@ -215,18 +215,18 @@ type _ interface {
 
 type _ interface {
 	f();
-	fffff, g ();
+	fffff();
 }
 
 type _ interface {
 	EI;
 	f();
-	fffff, g ();
+	fffffg();
 }
 
 type _ interface {  // this comment must not change indentation
 	EI;  // here's a comment
-	f();  // no blank between f and ()
-	fffff, g ();  // blank between identifiers and ()
-	gggggggggggg, hhhhhhhhhhhhhh (x, y, z int) ();  // hurray
+	f();  // no blank between identifier and ()
+	fffff();  // no blank between identifier and ()
+	gggggggggggg(x, y, z int) ();  // hurray
 }

@@ -42,20 +42,21 @@ type SZ interface{}
 
 // The I0 interface; no method is exported.
 type I0 interface {
-	f, g (x int) int;	// 2 unexported methods
+	f(x int) int;	// unexported method
 }
 
 // The I1 interface; some methods are not exported.
 type I1 interface {
 	I0;
-	F, G (x float) float;	// 2 exported methods
-	H, g (x int) int;		// 1 unexported method
+	F(x float) float;	// exported methods
+	g(x int) int;		// unexported method
 }
 
 // The I2 interface; all methods are exported.
 type I1 interface {
 	I0;
-	F, G (x float) float;	// 2 exported methods
+	F(x float) float;	// exported method
+	G(x float) float;	// exported method
 }
 
 // This comment group should be separated
