@@ -1,0 +1,213 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+   "http://www.w3.org/TR/html4/transitional.dtd">
+<html>
+<head>
+
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>The Go Programming Language Design FAQ</title>
+
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <script type="text/javascript" src="godocs.js"></script>
+
+</head>
+
+<body>
+
+<div id="topnav">
+<table summary=""><tr>
+<td id="headerImage">
+<a href="./"><img src="./logo_blue.png" height="44" width="120" alt="Go Home Page" style="border:0" /></a>
+</td>
+<td id="headerDocSetTitle">The Go Programming Language</td>
+</tr>
+</table>
+</div>
+
+<div id="linkList">
+
+  <ul>
+    <li class="navhead">Related Guides</li>
+    <li><a href="go_tutorial.html">Tutorial</a></li>
+    <li><a href="go_spec.html">Language Specification</a></li>
+    <li><a href="go_lang_faq.html">FAQ</a></li>
+    <li class="blank">&nbsp;</li>
+    <li class="navhead">Other Resources</li>
+    <li><a href="./">Go Docs</a></li>
+    <li><a href="/pkg">Library documentation</a></li>
+  </ul>
+</div>
+
+<div id="content">
+
+<h1 id="The_Go_Programming_Language_Design_FAQ">The Go Programming Language Design FAQ</h1> 
+
+
+  <!-- The Table of Contents is automatically inserted in this <div>.
+       Do not delete this <div>. -->
+  <div id="nav"></div>
+
+
+<h2 id="creating_a_new_language">
+Why are you creating a new language?</h2>
+<p>
+TODO
+</p>
+
+<h2 id="history">
+What is the history of the project?</h2>
+<p>
+TODO
+</p>
+
+<h2 id="ancestors">
+What are Go's ancestors?</h2>
+<p>
+Go is in the C family, but also borrows some ideas from CSP-inspired
+languages such as Newsqueak and Limbo.  The interface idea may be
+related to other languages but was designed in isolation; ditto
+packages.  In every respect the language was designed by thinking
+about what programmers do and how to make programming, at least the
+kind of programming we do, more effective, which means more fun.
+</p>
+
+<h2 id="protagonists">
+Who are the protagonists?</h2>
+<p>
+Robert Griesemer, Rob Pike and Ken Thompson laid out the goals and
+original specification of the language.  Ian Taylor read the draft
+specification and decided to write <code>gccgo</code>.  Russ
+Cox joined later and helped move the language and libraries from
+prototype to reality.
+</p>
+
+<h2 id="different_syntax">
+Why is the syntax so different from C?</h2>
+<p>
+Other than declaration syntax, the differences are not major and stem
+from two desires.  First, the syntax should feel light, without too
+many mandatory keywords, repetition, or arcana.  Second, the language
+has been designed to be easy to parse.  The grammar is conflict-free
+and can be parsed without a symbol table.  This makes it much easier
+to build tools such as debuggers, dependency analyzers, automated
+documentation extractors, IDE plug-ins, and so on.  C and its
+descendants are notoriously difficult in this regard but it's not hard
+to fix things up.
+</p>
+
+<h2 id="declarations_backwards">
+Why are declarations backwards?</h2>
+<p>
+They're only backwards if you're used to C. In C, the notion is that a
+variable is declared like an expression denoting its type, which is a
+nice idea, but the type and expression grammars don't mix very well and
+the results can be confusing; consider function pointers.  Go mostly
+separates expression and type syntax and that simplifies things (using
+prefix <code>*</code> for pointers is an exception that proves the rule).  In C,
+the declaration
+</p>
+<pre>
+	int* a, b;
+</pre>
+<p>
+declares a to be a pointer but not b; in Go
+</p>
+<pre>
+	var a, b *int;
+</pre>
+<p>
+declares both to be pointers.  This is clearer and more regular.
+Also, the <code>:=</code> short declaration form argues that a full variable
+declaration should present the same order as <code>:=</code> so
+</p>
+<pre>
+	var a uint64 = 1;
+</pre>
+has the same effect as
+<pre>
+	a := uint64(1);
+</pre>
+<p>
+Parsing is also simplified by having a distinct grammar for types that
+is not just the expression grammar; keywords such as <code>func</code>
+and <code>chan</code> keep things clear.
+</p>
+
+<h2 id="no_pointer_arithmetic">
+Why is there no pointer arithmetic?</h2>
+<p>
+Safety.  Without pointer arithmetic it's possible to create a
+language that can never derive an illegal address that succeeds
+incorrectly.  Compiler and hardware technology has advanced to the
+point where a loop using array indices can be as efficient as a loop
+using pointer arithmetic.  Also, the lack of pointer arithmetic can
+simplify the implementation of the garbage collector.
+</p>
+
+<h2 id="inc_dec">
+Why are <code>++</code> and <code>--</code> statements and not expressions?  And why postfix, not prefix?</h2>
+<p>
+Without pointer arithmetic, the convenience value of pre- and postfix
+increment operators drops.  By removing them from the expression
+hierarchy altogether, expression syntax is simplified and the messy
+issues around order of evaluation of <code>++</code> and <code>--</code>
+(consider <code>f(i++)</code> and <code>p[i] = q[i++]</code>)
+are eliminated as well.  The simplification is
+significant.  As for postfix vs. prefix, either would work fine but
+the postfix version is more traditional; insistence on prefix arose
+with the STL, part of a language whose name contains, ironically, a
+postfix increment.
+</p>
+
+
+<h2 id="TODO">
+TODO</h2>
+<p>TODO:</p>
+
+<pre>
+Why does Go not have:
+- assertions
+- exceptions
+- generic types
+
+What do you have planned?
+- variant types?
+
+explain:
+package designa
+slices
+oo separate from storage (abstraction vs. implementation)
+goroutines
+why garbage collection?
+
+
+
+no data in interfaces
+
+concurrency questions:
+	why aren't maps atomic
+	why csp
+
+inheritance?
+embedding?
+dependency declarations in the language
+
+oo questions
+	dynamic dispatch
+	clean separation of interface and implementation
+
+why no automatic numeric conversions?
+
+make vs new
+</pre>
+
+
+</div>
+
+<div id="footer">
+<p>Except as noted, this content is
+   licensed under <a href="http://creativecommons.org/licenses/by/3.0/">
+   Creative Commons Attribution 3.0</a>.
+</div>
+
+</body>
+</html>
