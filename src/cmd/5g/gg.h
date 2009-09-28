@@ -88,6 +88,7 @@ void	ginscall(Node*, int);
  */
 void	agen(Node*, Node*);
 void	igen(Node*, Node*, Node*);
+void agenr(Node *n, Node *a, Node *res);
 vlong	fieldoffset(Type*, Node*);
 void	bgen(Node*, int, Prog*);
 void	sgen(Node*, Node*, int32);
@@ -95,6 +96,7 @@ void	gmove(Node*, Node*);
 Prog*	gins(int, Node*, Node*);
 int	samaddr(Node*, Node*);
 void	raddr(Node *n, Prog *p);
+Prog*	gcmp(int, Node*, Node*);
 void	naddr(Node*, Addr*);
 void	cgen_aret(Node*, Node*);
 
