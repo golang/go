@@ -29,7 +29,7 @@
     <li class="navhead">Related Guides</li>
     <li><a href="go_tutorial.html">Tutorial</a></li>
     <li><a href="go_spec.html">Language Specification</a></li>
-    <li><a href="go_lang_faq.html">FAQ</a></li>
+    <li><a href="go_faq.html">FAQ</a></li>
     <li class="blank">&nbsp;</li>
     <li class="navhead">Other Resources</li>
     <li><a href="./">Go Docs</a></li>
@@ -46,32 +46,37 @@
        Do not delete this <div>. -->
   <div id="nav"></div>
 
+<h2 id="origins">Origins</h2>
 
-<h2 id="creating_a_new_language">
-Why are you creating a new language?</h2>
+<h3 id="creating_a_new_language">
+Why are you creating a new language?</h3>
 <p>
 TODO
 </p>
 
-<h2 id="history">
-What is the history of the project?</h2>
+<h3 id="history">
+What is the history of the project?</h3>
 <p>
 TODO
 </p>
 
-<h2 id="ancestors">
-What are Go's ancestors?</h2>
+<h3 id="ancestors">
+What are Go's ancestors?</h3>
 <p>
-Go is in the C family, but also borrows some ideas from CSP-inspired
-languages such as Newsqueak and Limbo.  The interface idea may be
-related to other languages but was designed in isolation; ditto
-packages.  In every respect the language was designed by thinking
+Go is mostly in the C family (basic syntax),
+with significant input from the Pascal/Modula/Oberon
+family (declarations, packages),
+plus it borrows some ideas from languages
+inspired by Tony Hoare's CSP,
+such as Newsqueak and Limbo (concurrency).
+However, it is a new language across the board.
+In every respect the language was designed by thinking
 about what programmers do and how to make programming, at least the
 kind of programming we do, more effective, which means more fun.
 </p>
 
-<h2 id="protagonists">
-Who are the protagonists?</h2>
+<h3 id="protagonists">
+Who are the protagonists?</h3>
 <p>
 Robert Griesemer, Rob Pike and Ken Thompson laid out the goals and
 original specification of the language.  Ian Taylor read the draft
@@ -80,8 +85,10 @@ Cox joined later and helped move the language and libraries from
 prototype to reality.
 </p>
 
-<h2 id="different_syntax">
-Why is the syntax so different from C?</h2>
+<h2 id="change_from_c">Changes from C</h2>
+
+<h3 id="different_syntax">
+Why is the syntax so different from C?</h3>
 <p>
 Other than declaration syntax, the differences are not major and stem
 from two desires.  First, the syntax should feel light, without too
@@ -94,8 +101,8 @@ descendants are notoriously difficult in this regard but it's not hard
 to fix things up.
 </p>
 
-<h2 id="declarations_backwards">
-Why are declarations backwards?</h2>
+<h3 id="declarations_backwards">
+Why are declarations backwards?</h3>
 <p>
 They're only backwards if you're used to C. In C, the notion is that a
 variable is declared like an expression denoting its type, which is a
@@ -109,7 +116,7 @@ the declaration
 	int* a, b;
 </pre>
 <p>
-declares a to be a pointer but not b; in Go
+declares <code>a</code> to be a pointer but not <code>b</code>; in Go
 </p>
 <pre>
 	var a, b *int;
@@ -132,19 +139,19 @@ is not just the expression grammar; keywords such as <code>func</code>
 and <code>chan</code> keep things clear.
 </p>
 
-<h2 id="no_pointer_arithmetic">
-Why is there no pointer arithmetic?</h2>
+<h3 id="no_pointer_arithmetic">
+Why is there no pointer arithmetic?</h3>
 <p>
 Safety.  Without pointer arithmetic it's possible to create a
 language that can never derive an illegal address that succeeds
-incorrectly.  Compiler and hardware technology has advanced to the
+incorrectly.  Compiler and hardware technology have advanced to the
 point where a loop using array indices can be as efficient as a loop
 using pointer arithmetic.  Also, the lack of pointer arithmetic can
 simplify the implementation of the garbage collector.
 </p>
 
-<h2 id="inc_dec">
-Why are <code>++</code> and <code>--</code> statements and not expressions?  And why postfix, not prefix?</h2>
+<h3 id="inc_dec">
+Why are <code>++</code> and <code>--</code> statements and not expressions?  And why postfix, not prefix?</h3>
 <p>
 Without pointer arithmetic, the convenience value of pre- and postfix
 increment operators drops.  By removing them from the expression
@@ -158,25 +165,68 @@ with the STL, part of a language whose name contains, ironically, a
 postfix increment.
 </p>
 
+<h2 id="absent_features">Absent features</h2>
 
-<h2 id="TODO">
-TODO</h2>
+<h3 id="generics">
+Why does Go not have generic types?</h3>
+<p>
+Generics may well come at some point.  We don't feel an urgency for
+them, although we understand some programmers do.
+</p>
+<p>
+Generics are convenient but they come at a cost in
+complexity in the type system and run-time.  We haven't yet found a
+design that gives value proportionate to the complexity, although we
+continue to think about it.  Meanwhile, Go's built-in maps and slices,
+plus the ability to use the empty interface to construct containers
+(with explicit unboxing) mean in many cases it is possible to write
+code that does what generics would enable, if less smoothly.
+</p>
+<p>
+This remains an open issue.
+</p>
+
+<h3 id="exceptions">
+Why does Go not have exceptions?</h3>
+<p>
+Exceptions are a similar story.  A number of designs for exceptions
+have been proposed but each adds significant complexity to the
+language and run-time.  By their very nature, they span functions and
+perhaps even goroutines; they have wide-ranging implications.  There
+is also concern about the effect exceptions would have on the
+libraries.  They are, by definition, exceptional yet experience with
+other languages that support them show they have profound effect on
+library and interface definition.  It would be nice to find a design
+that allows them to be truly exceptional without encouraging common
+errors to turn into special control flow requiring every programmer to
+compensate.
+</p>
+<p>
+Like generics, exceptions remain an open issue.
+</p>
+
+<h3 id="assertions">
+Why does Go not have assertions?</h3>
+<p>
+This is answered in the general <a href="go_faq.html#Where_is_assert">FAQ</a>.
+</p>
+
+<h3 id="TODO">
+TODO</h3>
 <p>TODO:</p>
 
 <pre>
 Why does Go not have:
-- assertions
-- exceptions
-- generic types
+- macros?
+- conditional compilation?
 
 What do you have planned?
 - variant types?
 
 explain:
-package designa
+package design
 slices
 oo separate from storage (abstraction vs. implementation)
-goroutines
 why garbage collection?
 
 
@@ -184,6 +234,7 @@ why garbage collection?
 no data in interfaces
 
 concurrency questions:
+	goroutine design
 	why aren't maps atomic
 	why csp
 
@@ -198,6 +249,7 @@ oo questions
 why no automatic numeric conversions?
 
 make vs new
+Why do maps only work on builtin types?
 </pre>
 
 
