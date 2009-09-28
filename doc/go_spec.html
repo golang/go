@@ -57,13 +57,6 @@ and convert §Foo into §<a href="#Foo">Foo</a>:
   <div id="nav"></div>
 
 <!--
-Open issues:
-[ ] Semantics of type declaration:
-	- creating a new type (status quo), or only a new type name?
-	- declaration "type T S" strips methods of S. why/why not?
-	- no mechanism to declare a local type name: type T P.T
-
-
 Todo
 [ ] clarify: two equal lowercase identifiers from different packages denote different objects
 [ ] need language about function/method calls and parameter passing rules
@@ -539,8 +532,11 @@ TypeLit   = ArrayType | StructType | PointerType | FunctionType | InterfaceType 
 </pre>
 
 <p>
-Named instances of the boolean, numeric, and string types are <a href="#Predeclared_identifiers">predeclared</a>.
-Array, struct, pointer, function, interface, slice, map, and channel types may be constructed using type literals.
+Named instances of the boolean, numeric, and string types are
+<a href="#Predeclared_identifiers">predeclared</a>.
+<i>Composite types</i>&mdash;array, struct, pointer, function,
+interface, slice, map, and channel types&mdash;may be constructed using
+type literals.
 </p>
 
 <p>
@@ -548,8 +544,7 @@ A type may have a <i>method set</i> associated with it
 (§<a href="#Interface_types">Interface types</a>, §<a href="#Method_declarations">Method declarations</a>).
 The method set of an <a href="#Interface_types">interface type</a> is its interface.
 The method set of any other named type <code>T</code>
-consists of all methods with receiver
-type <code>T</code>.
+consists of all methods with receiver type <code>T</code>.
 The method set of the corresponding pointer type <code>*T</code>
 is the set of all methods with receiver <code>*T</code> or <code>T</code>
 (that is, it also contains the method set of <code>T</code>).
@@ -634,7 +629,7 @@ The predeclared string type is <code>string</code>.
 
 <p>
 The elements of strings have type <code>byte</code> and may be
-accessed using the usual indexing operations (§<a href="#Indexes">Indexes</a>).  It is
+accessed using the usual <a href="#Indexes">indexing operations</a>.  It is
 illegal to take the address of such an element; if
 <code>s[i]</code> is the <i>i</i>th byte of a
 string, <code>&amp;s[i]</code> is invalid.  The length of string
@@ -1130,8 +1125,9 @@ received, <code>closed(c)</code> returns true.
 <h2 id="Properties_of_types_and_values">Properties of types and values</h2>
 
 <p>
-Two types may be <i>identical</i>, <i>compatible</i>, or <i>incompatible</i>.
-Two identical types are always compatible, but two compatible types may not be identical.
+Two types are either <i>identical</i> or <i>different</i>, and they are
+either <i>compatible</i> or <i>incompatible</i>.
+Identical types are always compatible, but compatible types need not be identical.
 </p>
 
 <h3 id="Type_identity_and_compatibility">Type identity and compatibility</h3>
@@ -1609,8 +1605,11 @@ last non-empty expression list.
 <h3 id="Type_declarations">Type declarations</h3>
 
 <p>
-A type declaration binds an identifier, the <i>type name</i>,
-to a new type.  <font color=red>TODO: what exactly is a "new type"?</font>
+A type declaration binds an identifier, the <i>type name</i>, to a new type
+that has the same definition (element, fields, channel direction, etc.) as
+an existing type.  The new type is
+<a href="#Properties_of_types_and_values">compatible</a> with, but
+<a href="#Properties_of_types_and_values">different</a> from, the existing type.
 </p>
 
 <pre class="ebnf">
@@ -1638,6 +1637,49 @@ type Cipher interface {
 	Decrypt(src, dst []byte);
 }
 </pre>
+
+<p>
+The declared type does not inherit any <a href="#Method_declarations">methods</a>
+bound to the existing type, but the <a href="#Types">method set</a>
+of elements of a composite type is not changed:
+</p>
+
+<pre>
+// A Mutex is a data type with two methods Lock and Unlock.
+type Mutex struct         { /* Mutex fields */ }
+func (m *Mutex) Lock()    { /* Lock implementation */ }
+func (m *Mutex) Unlock()  { /* Unlock implementation */ }
+
+// NewMutex has the same composition as Mutex but its method set is empty.
+type NewMutex Mutex
+
+// PrintableMutex has no methods bound to it, but the method set contains
+// the methods Lock and Unlock bound to its anonymous field Mutex.
+type PrintableMutex struct {
+	Mutex;
+}
+</pre>
+
+<p>
+A type declaration may be used to define a different boolean, numeric, or string
+type and attach methods to it:
+</p>
+
+<pre>
+type TimeZone int
+
+const (
+	EST TimeZone = -(5 + iota);
+	CST;
+	MST;
+	PST;
+)
+
+func (tz TimeZone) String() string {
+	return fmt.Sprintf("GMT+%dh", tz);
+}
+</pre>
+
 
 <h3 id="Variable_declarations">Variable declarations</h3>
 
@@ -1775,8 +1817,9 @@ which is a function with a <i>receiver</i>.
 </p>
 <pre class="ebnf">
 MethodDecl = "func" Receiver MethodName Signature [ Body ] .
-Receiver = "(" [ identifier ] [ "*" ] TypeName ")" .
+Receiver = "(" [ identifier ] [ "*" ] BaseTypeName ")" .
 MethodName = identifier .
+BaseTypeName = identifier .
 </pre>
 
 <p>
