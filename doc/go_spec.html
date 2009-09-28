@@ -49,7 +49,7 @@ and convert §Foo into §<a href="#Foo">Foo</a>:
 
 <div id="content">
 
-<h1 id="The_Go_Programming_Language_Specification">The Go Programming Language Specification</h1> 
+<h1 id="The_Go_Programming_Language_Specification">The Go Programming Language Specification</h1>
 
 
   <!-- The Table of Contents is automatically inserted in this <div>.
@@ -923,15 +923,16 @@ that is any superset of the interface. Such a type is said to
 <pre class="ebnf">
 InterfaceType      = "interface" "{" [ MethodSpecList ] "}" .
 MethodSpecList     = MethodSpec { ";" MethodSpec } [ ";" ] .
-MethodSpec         = IdentifierList Signature | InterfaceTypeName .
+MethodSpec         = identifier Signature | InterfaceTypeName .
 InterfaceTypeName  = TypeName .
 </pre>
 
 <pre>
 // A simple File interface
 interface {
-	Read, Write	(b Buffer) bool;
-	Close		();
+	Read(b Buffer) bool;
+	Write(b Buffer) bool;
+	Close();
 }
 </pre>
 
@@ -972,7 +973,8 @@ to define an interface called <code>Lock</code>:
 
 <pre>
 type Lock interface {
-	Lock, Unlock	();
+	Lock();
+	Unlock();
 }
 </pre>
 
@@ -999,7 +1001,8 @@ in the interface.
 
 <pre>
 type ReadWrite interface {
-	Read, Write	(b Buffer) bool;
+	Read(b Buffer) bool;
+	Write(b Buffer) bool;
 }
 
 type File interface {
@@ -4550,7 +4553,7 @@ Calls to <code>Alignof</code>, <code>Offsetof</code>, and
 <p>
 The functions <code>unsafe.Typeof</code>,
 <code>unsafe.Reflect</code>,
-and <code>unsafe.Unreflect</code> allow access at run time to the dynamic 
+and <code>unsafe.Unreflect</code> allow access at run time to the dynamic
 types and values stored in interfaces.
 <code>Typeof</code> returns a representation of
 <code>val</code>'s
