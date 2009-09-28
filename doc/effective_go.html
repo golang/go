@@ -306,6 +306,11 @@ which is a clear, concise name.
 Moreover,
 because imported entities are always addressed with their package name, <code>bufio.Reader</code>
 does not conflict with <code>io.Reader</code>.
+Similarly, the constructor for <code>vector.Vector</code>
+could be called <code>NewVector</code> but since
+<code>Vector</code> is the only type exported by the package, and since the
+package is called <code>vector</code>, it's called just <code>New</code>,
+which clients of the package see as <code>vector.New</code>.
 Use the package structure to help you choose good names.
 </p>
 
@@ -367,7 +372,7 @@ func CopyInBackground(dst, src chan Item) {
 </pre>
 
 <p>
-In fact, semicolons can omitted at the end of any "StatementList" in the
+In fact, semicolons can be omitted at the end of any "StatementList" in the
 grammar, which includes things like cases in <code>switch</code>
 statements:
 </p>
@@ -711,7 +716,7 @@ of <code>io.ReadFull</code> that uses them well:
 
 <pre>
 func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
-	for len(buf) > 0 && err != nil {
+	for len(buf) > 0 &amp;&amp; err != nil {
 		var nr int;
 		nr, err = r.Read(buf);
 		n += nr;
@@ -721,38 +726,271 @@ func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
 }
 </pre>
 
+<h2 id="data">Data</h2>
+
+<h3 id="allocation_new">Allocation with <code>new()</code></h3>
+
+<p>
+Go has two allocation primitives, <code>new()</code> and <code>make()</code>.
+They do different things and apply to different types, which can be confusing,
+but the rules are simple.
+Let's talk about <code>new()</code> first.
+It's a built-in function essentially the same as its namesakes
+in other languages: it allocates zeroed storage for a new item of type
+<code>T</code> and returns its address, a value of type <code>*T</code>.
+In Go terminology, it returns a pointer to a newly allocated zero value of type
+<code>T</code>.
+</p>
+
+<p>
+Since the memory returned by <code>new()</code> is zeroed, it's helpful to arrange that the
+zeroed object can be used without further initialization.  This means a user of
+the data structure can create one with <code>new()</code> and get right to
+work.
+For example, the documentation for <code>bytes.Buffer</code> states that
+"the zero value for <code>Buffer</code> is an empty buffer ready to use."
+Similarly, <code>sync.Mutex</code> does not
+have an explicit constructor or <code>Init</code> method.
+Instead, the zero value for a <code>sync.Mutex</code>
+is defined to be an unlocked mutex.
+</p>
+
+<p>
+The zero-value-is-useful property works transitively. Consider this type declaration:
+</p>
+
+<pre>
+type SyncedBuffer struct {
+	lock	sync.Mutex;
+	buffer	bytes.Buffer;
+}
+</pre>
+
+<p>
+Values of type <code>SyncedBuffer</code> are also ready to use immediately upon allocation
+or just declaration.  In this snippet, both <code>p</code> and <code>v</code> will work
+correctly without further arrangement:
+</p>
+
+<pre>
+p := new(SyncedBuffer);  // type *SyncedBuffer
+var v SyncedBuffer;      // type  SyncedBuffer
+</pre>
+
+<h3 id="composite_literals">Constructors and composite literals</h3>
+
+<p>
+Sometimes the zero value isn't good enough and an initializing
+constructor is necessary, as in this example derived from
+package <code>os</code>:
+</p>
+
+<pre>
+func NewFile(fd int, name string) *File {
+	if fd &lt; 0 {
+		return nil
+	}
+	f := new(File);
+	f.fd = fd;
+	f.name = name;
+	f.error = nil;
+	f.dirinfo = nil;
+	f.nepipe = 0;
+	return f;
+}
+</pre>
+
+<p>
+There's a lot of boilerplate in there.  We can simplify it
+using a <i>composite literal</i>, which is
+an expression that creates a
+new instance each time it is evaluated.
+</p>
+
+
+<pre>
+func NewFile(fd int, name string) *File {
+	if file &lt; 0 {
+		return nil
+	}
+	f := File{fd, name, nil, 0};
+	return &amp;f;
+}
+</pre>
+
+<p>
+Note that it's perfectly OK to return the address of a local variable;
+the storage associated with the variable survives after the function
+returns.
+In fact, as a special case, the <i>address</i> of a composite literal
+allocates a fresh instance each time, we can combine these last two lines:
+</p>
+
+<pre>
+	return &amp;File{fd, name, nil, 0};
+</pre>
+
+<p>
+The fields of a composite literal are laid out in order and must all be present.
+However, by labeling the elements explicitly as <i>field</i><code>:</code><i>value</i>
+pairs, the initializers can appear in any
+order, with the missing ones left as their respective zero values.  Thus we could say
+</p>
+
+<pre>
+	return &amp;File{fd: fd, name: name}
+</pre>
+
+<p>
+As a limiting case, if a composite literal contains no fields at all, it creates
+a zero value for the type.  These two expressions are equivalent:
+</p>
+
+<pre>
+new(File)
+&amp;File{}
+</pre>
+
+<p>
+Composite literals can also be created for arrays, slices, and maps,
+with the field labels being indices or map keys as appropriate.
+In these examples, the initializations work regardless of the values of <code>EnoError</code>,
+<code>Eio</code>, and <code>Einval</code>, as long as they are distinct:
+</p>
+
+<pre>
+a := [...]string   {Enone: "no error", Eio: "Eio", Einval: "invalid argument"};
+s := []string      {Enone: "no error", Eio: "Eio", Einval: "invalid argument"};
+m := map[int]string{Enone: "no error", Eio: "Eio", Einval: "invalid argument"};
+</pre>
+
+<h3 id="allocation_make">Allocation with <code>make()</code></h3>
+
+<p>
+Back to allocation.
+The built-in function <code>make(T, </code><i>args</i><code>)</code> serves
+a purpose different from <code>new(T)</code>.
+It creates slices, maps, and channels only, and it returns an initialized (not zero)
+value of type <code>T</code>, not <code>*T</code>.
+The reason for the distinction
+is that these three types are, under the covers, references to data structures that
+must be initialized before use.
+A slice, for example, is a three-item descriptor
+containing a pointer to the data (inside an array), the length, and the
+capacity; until those items are initialized, the slice is <code>nil</code>.
+For slices, maps, and channels, 
+<code>make</code> initializes the internal data structure and prepares
+the value for use.
+For instance,
+</p>
+
+<pre>
+make([]int, 10, 100)
+</pre>
+
+<p>
+allocates an array of 100 ints and then creates a slice
+structure with length 10 and a capacity of 100 pointing at the first
+10 elements of the array.
+(When making a slice, the capacity can be omitted; see the section on slices
+for more information.)
+In contrast, <code>new([]int)</code> returns a pointer to a newly allocated, zeroed slice
+structure, that is, a pointer to a <code>nil</code> slice value.
+
+<p>
+These examples illustrate the difference between <code>new()</code> and
+<code>make()</code>:
+</p>
+
+<pre>
+var p *[]int = new([]int);       // allocates slice structure; *p == nil; rarely useful
+var v  []int = make([]int, 100); // v now refers to a new array of 100 ints
+
+// Unnecessarily complex:
+var p *[]int = new([]int);
+*p = make([]int, 100, 100);
+
+// Idiomatic:
+v := make([]int, 100);
+</pre>
+
+<p>
+Remember that <code>make()</code> applies only to maps, slices and channels.
+To obtain an explicit pointer allocate with <code>new()</code>.
+</p>
+
+<h3 id="arrays">Arrays</h3>
+
+<p>
+Arrays are useful when planning the detailed layout of memory and sometimes
+can help avoid allocation but primarily
+they are a building block for slices, the subject of the next section.
+To lay the foundation for that topic, here are a few words about arrays.
+</p>
+
+<p>
+There are major differences between the ways arrays work in Go and C.
+In Go:
+</p>
+<ul>
+<li>
+Arrays are values. Assigning one array to another copies all the elements.
+</li>
+<li>
+In particular, if you pass an array to a function, it
+will receive a <i>copy</i> of the array, not a pointer to it.
+<li>
+The size of an array is part of its type.  The types <code>[10]int</code>
+and <code>[20]int</code> are distinct.
+</li>
+</ul>
+
+<p>
+The value property can be useful but also expensive; if you want C-like behavior and efficiency,
+you can pass a pointer to the array:
+</p>
+
+<pre>
+func Sum(a *[]float) (sum float) {
+	for _, v := range a {
+		sum += v
+	}
+	return
+}
+
+array := [...]float{7.0, 8.5, 9.1};
+x := sum(&amp;array);  // Note the explicit address-of operator
+</pre>
+
+<p>
+But even this style isn't idiomatic Go.  Slices are.
+</p>
+
+<h3 id="slices">Slices</h3>
+
+<p>
+Slices wrap arrays to give a more general, powerful, and convenient interface to sequences
+of data.
+Except for items with explicit dimension such as rotation matrices, most
+array programming in Go is done with slices rather than simple arrays.
+</p>
+
+
+<h3 id="maps">Maps</h3>
+<h3 id="printing">Printing</h3>
+
+<h2>Methods</h2>
+<h3 id="method_basics">Basics</h3>
+<h3 id="pointers_vs_values">Pointers vs. Values</h3>
+<h3 id="any_type">Methods on arbitrary types</h3>
+
+
 <h2>More to come</h2>
 
 <!---
 
 <h2 id="idioms">Idioms</h2>
 
-<h3 id="struct-allocation">Allocate using literals</h3>
-
-<p>
-A struct literal is an expression that creates a
-new instance each time it is evaluated.  The address of such
-an expression points to a fresh instance each time.
-Use such expressions to avoid the repetition of filling
-out a data structure.
-</p>
-
-<pre>
-length := Point{x, y}.Abs();
-</pre>
-
-<pre>
-// Prepare RPCMessage to send to server
-rpc := &amp;RPCMessage {
-	Version: 1,
-	Header: &amp;RPCHeader {
-		Id: nextId(),
-		Signature: sign(body),
-		Method: method,
-	},
-	Body: body,
-};
-</pre>
 
 <h3 id="buffer-slice">Use parallel assignment to slice a buffer</h3>
 
@@ -818,25 +1056,6 @@ for instance.
 
 <h2 id="types">Programmer-defined types</h2>
 
-<h3 id="constructors">Use <code>NewTypeName</code> for constructors</h3>
-
-<p>
-The constructor for the type <code>pkg.MyType</code> should
-be named <code>pkg.NewMyType</code> and should return <code>*pkg.MyType</code>.
-The implementation of <code>NewTypeName</code> often uses the
-<a href="#struct-allocation">struct allocation idiom</a>.
-</p>
-
-<a href="xxx">go/src/pkg/os/file.go</a>:
-<pre>
-func NewFile(fd int, name string) *File {
-	if file &lt; 0 {
-		return nil
-	}
-	return &amp;File{fd, name, nil, 0}
-}
-</pre>
-
 <p>Packages that export only a single type can
 shorten <code>NewTypeName</code> to <code>New</code>;
 the vector constructor is
@@ -858,22 +1077,6 @@ func New(len int) *Vector {
 }
 </pre>
 
-<h3 id="zero-value">Make the zero value meaningful</h3>
-
-<p>
-In Go, newly allocated memory and newly declared variables are zeroed.
-If a type is intended to be allocated without using a constructor
-(for example, as part of a larger struct or declared as a local variable),
-define the meaning of the zero value and arrange for that meaning
-to be useful.
-</p>
-
-<p>
-For example, <code>sync.Mutex</code> does not
-have an explicit constructor or <code>Init</code> method.
-Instead, the zero value for a <code>sync.Mutex</code>
-is defined to be an unlocked mutex.
-</p>
 
 <h2 id="interfaces">Interfaces</h2>
 
@@ -913,7 +1116,7 @@ tables
 </p>
 
 <p>
-XXX struct tags for marshalling.
+XXX struct tags for marshaling.
 template
 eventually datafmt
 </p>
@@ -1003,7 +1206,7 @@ exactly as expected.
 <p>
 Programmers often want their style to be distinctive,
 writing loops backwards or using custom spacing and
-naming conventions. Such idiosyncracies come at a
+naming conventions. Such idiosyncrasies come at a
 price, however: by making the code look different,
 they make it harder to understand.
 Consistency trumps personal
