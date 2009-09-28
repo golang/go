@@ -903,6 +903,22 @@ raddr(Node *n, Prog *p)
 		p->reg = a.reg;
 }
 
+/* generate a comparison
+ */
+Prog*
+gcmp(int as, Node *lhs, Node *rhs)
+{
+	Prog *p;
+
+	if(lhs->op != OREGISTER || rhs->op != OREGISTER)
+		fatal("bad operands to gcmp: %O %O", lhs->op, rhs->op);
+
+	p = gins(as, rhs, N);
+	raddr(lhs, p);
+	return p;
+}
+
+
 /*
  * generate code to compute n;
  * make a refer to result.
@@ -1087,6 +1103,7 @@ optoas(int op, Type *t)
 		a = ALEAQ;
 		break;
 */
+	// TODO(kaib): make sure the conditional branches work on all edge cases
 	case CASE(OEQ, TBOOL):
 	case CASE(OEQ, TINT8):
 	case CASE(OEQ, TUINT8):
@@ -1123,64 +1140,52 @@ optoas(int op, Type *t)
 	case CASE(OLT, TINT16):
 	case CASE(OLT, TINT32):
 	case CASE(OLT, TINT64):
-		a = ABLT;
-		break;
-
 	case CASE(OLT, TUINT8):
 	case CASE(OLT, TUINT16):
 	case CASE(OLT, TUINT32):
 	case CASE(OLT, TUINT64):
 	case CASE(OGT, TFLOAT32):
 	case CASE(OGT, TFLOAT64):
-		a = ABCS;
+		a = ABLT;
 		break;
 
 	case CASE(OLE, TINT8):
 	case CASE(OLE, TINT16):
 	case CASE(OLE, TINT32):
 	case CASE(OLE, TINT64):
-		a = ABLE;
-		break;
-
 	case CASE(OLE, TUINT8):
 	case CASE(OLE, TUINT16):
 	case CASE(OLE, TUINT32):
 	case CASE(OLE, TUINT64):
 	case CASE(OGE, TFLOAT32):
 	case CASE(OGE, TFLOAT64):
-		a = ABLS;
+		a = ABLE;
 		break;
 
 	case CASE(OGT, TINT8):
 	case CASE(OGT, TINT16):
 	case CASE(OGT, TINT32):
 	case CASE(OGT, TINT64):
-		a = ABGT;
-		break;
-
 	case CASE(OGT, TUINT8):
 	case CASE(OGT, TUINT16):
 	case CASE(OGT, TUINT32):
 	case CASE(OGT, TUINT64):
 	case CASE(OLT, TFLOAT32):
 	case CASE(OLT, TFLOAT64):
-		a = ABHI;
+		a = ABGT;
 		break;
 
 	case CASE(OGE, TINT8):
 	case CASE(OGE, TINT16):
 	case CASE(OGE, TINT32):
 	case CASE(OGE, TINT64):
-		a = ABGE;
-		break;
-
 	case CASE(OGE, TUINT8):
 	case CASE(OGE, TUINT16):
 	case CASE(OGE, TUINT32):
 	case CASE(OGE, TUINT64):
 	case CASE(OLE, TFLOAT32):
 	case CASE(OLE, TFLOAT64):
-		a = ABCC;
+		a = ABGE;
 		break;
 
 	case CASE(OCMP, TBOOL):
@@ -1610,8 +1615,7 @@ oindex:
 		}
 		regalloc(&n3, n2.type, N);
 		cgen(&n2, &n3);
-		p1 = gins(optoas(OCMP, types[TUINT32]), reg1, N);
-		raddr(&n3, p1);
+		gcmp(optoas(OCMP, types[TUINT32]), reg1, &n3);
 		regfree(&n3);
 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
 		ginscall(throwindex, 0);
@@ -1658,8 +1662,7 @@ oindex_const:
 			cgen(&n2, &n3);
 			regalloc(&n4, n1.type, N);
 			cgen(&n1, &n4);
-			p1 = gins(optoas(OCMP, types[TUINT32]), &n4, N);
-			raddr(&n3, p1);
+			gcmp(optoas(OCMP, types[TUINT32]), &n4, &n3);
 			regfree(&n4);
 			regfree(&n3);
 			p1 = gbranch(optoas(OGT, types[TUINT32]), T);

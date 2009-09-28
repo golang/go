@@ -276,15 +276,15 @@ cgen(Node *n, Node *res)
 
 	case OLEN:
 		if(istype(nl->type, TMAP)) {
-			// map hsd len in the first 32-bit word.
+			// map has len in the first 32-bit word.
 			// a zero pointer means zero length
 			regalloc(&n1, types[tptr], res);
 			cgen(nl, &n1);
 
 			nodconst(&n2, types[tptr], 0);
 			regalloc(&n3, n2.type, N);
-			p1 = gins(optoas(OCMP, types[tptr]), &n1, N);
-			raddr(&n3, p1);
+			gmove(&n2, &n3);
+			gcmp(optoas(OCMP, types[tptr]), &n1, &n3);
 			regfree(&n3);
 			p1 = gbranch(optoas(OEQ, types[tptr]), T);
 
@@ -300,15 +300,17 @@ cgen(Node *n, Node *res)
 			break;
 		}
 		if(istype(nl->type, TSTRING) || isslice(nl->type)) {
-			// both slice and string have len in the first 32-bit word.
-			// a zero pointer means zero length
-			regalloc(&n1, types[tptr], res);
-			agen(nl, &n1);
+			// both slice and string have len one pointer into the struct.
+			igen(nl, &n1, res);
+			n1.op = OREGISTER;	// was OINDREG
+			regalloc(&n2, types[TUINT32], &n1);
 			n1.op = OINDREG;
 			n1.type = types[TUINT32];
 			n1.xoffset = Array_nel;
-			gmove(&n1, res);
+			gmove(&n1, &n2);
+			gmove(&n2, res);
 			regfree(&n1);
+			regfree(&n2);
 			break;
 		}
 		fatal("cgen: OLEN: unknown type %lT", nl->type);
@@ -450,34 +452,38 @@ agen(Node *n, Node *res)
 		cgen_aret(n, res);
 		break;
 
-// TODO(kaib): Use the OINDEX case from 8g instead of this one.
 	case OINDEX:
+		// TODO(rsc): uint64 indices
 		w = n->type->width;
-		if(nr->addable)
-			goto irad;
-		if(nl->addable) {
+		if(nr->addable) {
+			agenr(nl, &n3, res);
 			if(!isconst(nr, CTINT)) {
-				regalloc(&n1, nr->type, N);
-				cgen(nr, &n1);
+				tempalloc(&tmp, types[TINT32]);
+				cgen(nr, &tmp);
+				regalloc(&n1, tmp.type, N);
+				gmove(&tmp, &n1);
+				tempfree(&tmp);
+			}
+		} else if(nl->addable) {
+			if(!isconst(nr, CTINT)) {
+				tempalloc(&tmp, types[TINT32]);
+				cgen(nr, &tmp);
+				regalloc(&n1, tmp.type, N);
+				gmove(&tmp, &n1);
+				tempfree(&tmp);
 			}
 			regalloc(&n3, types[tptr], res);
 			agen(nl, &n3);
-			goto index;
+		} else {
+			tempalloc(&tmp, types[TINT32]);
+			cgen(nr, &tmp);
+			nr = &tmp;
+			agenr(nl, &n3, res);
+			regalloc(&n1, tmp.type, N);
+			gins(optoas(OAS, tmp.type), &tmp, &n1);
+			tempfree(&tmp);
 		}
-		cgen(nr, res);
-		tempname(&tmp, nr->type);
-		gmove(res, &tmp);
 
-	irad:
-		regalloc(&n3, types[tptr], res);
-		agen(nl, &n3);
-		if(!isconst(nr, CTINT)) {
-			regalloc(&n1, nr->type, N);
-			cgen(nr, &n1);
-		}
-		goto index;
-
-	index:
 		// &a is in &n3 (allocated in res)
 		// i is in &n1 (if not constant)
 		// w is width
@@ -497,9 +503,8 @@ agen(Node *n, Node *res)
 					n1.xoffset = Array_nel;
 					nodconst(&n2, types[TUINT32], v);
 					regalloc(&n4, n2.type, N);
-					cgen(&n2, &n4);
-					p1 = gins(optoas(OCMP, types[TUINT32]), &n1, N);
-					raddr(&n4, p1);
+					gmove(&n2, &n4);
+					gcmp(optoas(OCMP, types[TUINT32]), &n1, &n4);
 					regfree(&n4);
 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
 					ginscall(throwindex, 0);
@@ -521,7 +526,10 @@ agen(Node *n, Node *res)
 			}
 
 			nodconst(&n2, types[tptr], v*w);
-			gins(optoas(OADD, types[tptr]), &n2, &n3);
+			regalloc(&n4, n2.type, N);
+			gmove(&n2, &n4);
+			gcmp(optoas(OADD, types[tptr]), &n2, &n4);
+			regfree(&n4);
 
 			gmove(&n3, res);
 			regfree(&n3);
@@ -539,18 +547,18 @@ agen(Node *n, Node *res)
 
 		if(!debug['B']) {
 			// check bounds
+			regalloc(&n4, types[TUINT32], N);
 			if(isslice(nl->type)) {
 				n1 = n3;
 				n1.op = OINDREG;
 				n1.type = types[tptr];
 				n1.xoffset = Array_nel;
+				cgen(&n1, &n4);
 			} else {
 				nodconst(&n1, types[TUINT32], nl->type->bound);
+				gmove(&n1, &n4);
 			}
-			regalloc(&n4, n1.type, N);
-			cgen(&n1, &n4);
-			p1 = gins(optoas(OCMP, types[TUINT32]), &n2, N);
-			raddr(&n4, p1);
+			gcmp(optoas(OCMP, types[TUINT32]), &n2, &n4);
 			regfree(&n4);
 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
 			ginscall(throwindex, 0);
@@ -566,14 +574,17 @@ agen(Node *n, Node *res)
 		}
 
 		if(w == 1 || w == 2 || w == 4 || w == 8) {
-			memset(&tmp, 0, sizeof tmp);
-			tmp.op = OADDR;
-			tmp.left = &n2;
-			p1 = gins(AMOVW, &tmp, &n3);
+			memset(&n4, 0, sizeof n4);
+			n4.op = OADDR;
+			n4.left = &n2;
+			cgen(&n4, &n3);
 		} else {
+			regalloc(&n4, t, N);
 			nodconst(&n1, t, w);
-			gins(optoas(OMUL, t), &n1, &n2);
+			gmove(&n1, &n4);
+			gins(optoas(OMUL, t), &n4, &n2);
 			gins(optoas(OADD, types[tptr]), &n2, &n3);
+			regfree(&n4);
 			gmove(&n3, res);
 		}
 
@@ -646,6 +657,24 @@ igen(Node *n, Node *a, Node *res)
 
 /*
  * generate:
+ *	newreg = &n;
+ *
+ * caller must regfree(a).
+ */
+void
+agenr(Node *n, Node *a, Node *res)
+{
+	Node n1;
+
+	tempalloc(&n1, types[tptr]);
+	agen(n, &n1);
+	regalloc(a, types[tptr], res);
+	gmove(&n1, a);
+	tempfree(&n1);
+}
+
+/*
+ * generate:
  *	if(n == true) goto to;
  */
 void
@@ -688,9 +717,8 @@ bgen(Node *n, int true, Prog *to)
 		cgen(n, &n1);
 		nodconst(&n2, n->type, 0);
 		regalloc(&n3, n->type, N);
-		cgen(&n2, &n3);
-		p1 = gins(optoas(OCMP, n->type), &n1, N);
-		raddr(&n3, p1);
+		gmove(&n2, &n3);
+		gcmp(optoas(OCMP, n->type), &n1, &n3);
 		a = ABNE;
 		if(!true)
 			a = ABEQ;
@@ -711,10 +739,9 @@ bgen(Node *n, int true, Prog *to)
 		nodconst(&n1, n->type, 0);
 		regalloc(&n2, n->type, N);
 		regalloc(&n3, n->type, N);
-		cgen(&n1, &n2);
+		gmove(&n1, &n2);
 		cgen(n, &n3);
-		p1 = gins(optoas(OCMP, n->type), &n2, N);
-		raddr(&n3, p1);
+		gcmp(optoas(OCMP, n->type), &n2, &n3);
 		a = ABNE;
 		if(!true)
 			a = ABEQ;
@@ -801,9 +828,8 @@ bgen(Node *n, int true, Prog *to)
 			n2.op = OINDREG;
 			n2.xoffset = Array_array;
 			nodconst(&tmp, types[tptr], 0);
-			cgen(&tmp, &n3);
-			p1 = gins(optoas(OCMP, types[tptr]), &n2, N);
-			raddr(&n3, p1);
+			gmove(&tmp, &n3);
+			gcmp(optoas(OCMP, types[tptr]), &n2, &n3);
 			patch(gbranch(a, types[tptr]), to);
 			regfree(&n3);
 			regfree(&n1);
@@ -824,9 +850,8 @@ bgen(Node *n, int true, Prog *to)
 			n2.op = OINDREG;
 			n2.xoffset = 0;
 			nodconst(&tmp, types[tptr], 0);
-			cgen(&tmp, &n3);
-			p1 = gins(optoas(OCMP, types[tptr]), &n2, N);
-			raddr(&n3, p1);
+			gmove(&tmp, &n3);
+			gcmp(optoas(OCMP, types[tptr]), &n2, &n3);
 			patch(gbranch(a, types[tptr]), to);
 			regfree(&n1);
 			regfree(&n3);
@@ -849,8 +874,7 @@ bgen(Node *n, int true, Prog *to)
 			regalloc(&n2, nr->type, N);
 			cgen(&tmp, &n2);
 
-			p1 = gins(optoas(OCMP, nr->type), &n1, N);
-			raddr(&n2, p1);
+			gcmp(optoas(OCMP, nr->type), &n1, &n2);
 			patch(gbranch(a, nr->type), to);
 
 			regfree(&n1);
@@ -864,8 +888,7 @@ bgen(Node *n, int true, Prog *to)
 		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
 
-		p1 = gins(optoas(OCMP, nr->type), &n1, N);
-		raddr(&n2, p1);
+		gcmp(optoas(OCMP, nr->type), &n1, &n2);
 		patch(gbranch(a, nr->type), to);
 
 		regfree(&n1);
