@@ -18,7 +18,8 @@ type I1 interface
 
 type I2 interface
 {
-	g,f	()int;
+	g() int;
+	f() int;
 }
 
 func

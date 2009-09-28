@@ -54,7 +54,7 @@
 %type	<node>	expr_or_type
 %type	<node>	fndcl fnliteral
 %type	<node>	for_body for_header for_stmt if_header if_stmt
-%type	<node>	keyval labelname name
+%type	<node>	interfacedcl keyval labelname name
 %type	<node>	name_or_type non_expr_type
 %type	<node>	new_name dcl_name oexpr typedclname
 %type	<node>	onew_name
@@ -67,7 +67,7 @@
 %type	<list>	xdcl fnbody fnres switch_body loop_body dcl_name_list
 %type	<list>	new_name_list expr_list keyval_list braced_keyval_list expr_or_type_list xdcl_list
 %type	<list>	oexpr_list oexpr_or_type_list caseblock_list stmt_list oarg_type_list arg_type_list
-%type	<list>	interfacedcl_list interfacedcl vardcl vardcl_list structdcl structdcl_list
+%type	<list>	interfacedcl_list vardcl vardcl_list structdcl structdcl_list
 %type	<list>	common_dcl constdcl constdcl1 constdcl_list typedcl_list
 
 %type	<node>	convtype dotdotdot
@@ -1226,9 +1226,12 @@ structdcl_list:
 
 interfacedcl_list:
 	interfacedcl
+	{
+		$$ = list1($1);
+	}
 |	interfacedcl_list ';' interfacedcl
 	{
-		$$ = concat($1, $3);
+		$$ = list($1, $3);
 	}
 
 structdcl:
@@ -1284,17 +1287,13 @@ embed:
 	}
 
 interfacedcl:
-	new_name_list indcl
+	new_name indcl
 	{
-		NodeList *l;
-
-		for(l=$1; l; l=l->next)
-			l->n = nod(ODCLFIELD, l->n, $2);
-		$$ = $1;
+		$$ = nod(ODCLFIELD, $1, $2);
 	}
 |	packname
 	{
-		$$ = list1(nod(ODCLFIELD, N, oldname($1)));
+		$$ = nod(ODCLFIELD, N, oldname($1));
 	}
 
 indcl:

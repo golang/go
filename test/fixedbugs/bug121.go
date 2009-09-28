@@ -9,7 +9,10 @@ package main
 type T func()
 
 type I interface {
-	f, g ();
+	f, g ();	// ERROR "syntax|signature"
+}
+
+type J interface {
 	h T;  // ERROR "syntax|signature"
 }
 
