@@ -305,16 +305,13 @@ func (p *parser) parseIdent() *ast.Ident {
 }
 
 
-func (p *parser) parseIdentList(x ast.Expr) []*ast.Ident {
+func (p *parser) parseIdentList() []*ast.Ident {
 	if p.trace {
 		defer un(trace(p, "IdentList"));
 	}
 
 	list := vector.New(0);
-	if x == nil {
-		x = p.parseIdent();
-	}
-	list.Push(x);
+	list.Push(p.parseIdent());
 	for p.tok == token.COMMA {
 		p.next();
 		list.Push(p.parseIdent());
@@ -587,7 +584,7 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
 
 		for p.tok == token.COMMA {
 			p.next();
-			idents := p.parseIdentList(nil);
+			idents := p.parseIdentList();
 			typ := p.parseParameterType(ellipsisOk);
 			list.Push(&ast.Field{nil, idents, typ, nil, nil});
 		}
@@ -679,9 +676,9 @@ func (p *parser) parseMethodSpec() *ast.Field {
 	var idents []*ast.Ident;
 	var typ ast.Expr;
 	x := p.parseQualifiedIdent();
-	if _, isIdent := x.(*ast.Ident); isIdent && (p.tok == token.COMMA || p.tok == token.LPAREN) {
-		// methods
-		idents = p.parseIdentList(x);
+	if ident, isIdent := x.(*ast.Ident); isIdent && p.tok == token.LPAREN {
+		// method
+		idents = []*ast.Ident{ident};
 		params, results := p.parseSignature();
 		typ = &ast.FuncType{noPos, params, results};
 	} else {
@@ -1748,7 +1745,7 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Sp
 		defer un(trace(p, "ConstSpec"));
 	}
 
-	idents := p.parseIdentList(nil);
+	idents := p.parseIdentList();
 	typ := p.tryType();
 	var values []ast.Expr;
 	if typ != nil || p.tok == token.ASSIGN {
@@ -1779,7 +1776,7 @@ func parseVarSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec
 		defer un(trace(p, "VarSpec"));
 	}
 
-	idents := p.parseIdentList(nil);
+	idents := p.parseIdentList();
 	typ := p.tryType();
 	var values []ast.Expr;
 	if typ == nil || p.tok == token.ASSIGN {
