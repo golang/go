@@ -57,6 +57,7 @@ fixedbugs/bug048.go
 fixedbugs/bug049.go
 fixedbugs/bug050.go
 fixedbugs/bug051.go
+fixedbugs/bug052.go
 fixedbugs/bug053.go
 fixedbugs/bug057.go
 fixedbugs/bug058.go
@@ -140,6 +141,7 @@ fixedbugs/bug148.go
 fixedbugs/bug149.go
 fixedbugs/bug150.go
 fixedbugs/bug151.go
+fixedbugs/bug152.go
 fixedbugs/bug153.go
 fixedbugs/bug154.go
 fixedbugs/bug155.go
@@ -181,6 +183,7 @@ fixedbugs/bug200.go
 fixedbugs/bug201.go
 fixedbugs/bug202.go
 fixedbugs/bug203.go
+fixedbugs/bug204.go
 fixedbugs/bug205.go
 fixedbugs/bug206.go
 for.go
@@ -210,6 +213,7 @@ ken/complit.go
 ken/for.go
 ken/label.go
 ken/mfunc.go
+ken/rob2.go
 ken/robfor.go
 ken/robif.go
 ken/simpbool.go

@@ -1633,7 +1633,6 @@ oindex:
 
 	naddr(reg1, a);
 	a->offset = 0;
-	a->name = a->type;
 	a->type = D_OREG;
 	a->reg = reg->val.u.reg;
 
