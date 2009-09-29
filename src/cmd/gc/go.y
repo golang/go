@@ -70,7 +70,7 @@
 %type	<list>	interfacedcl_list vardcl vardcl_list structdcl structdcl_list
 %type	<list>	common_dcl constdcl constdcl1 constdcl_list typedcl_list
 
-%type	<node>	convtype dotdotdot
+%type	<node>	convtype dotdotdot littype
 %type	<node>	indcl interfacetype structtype ptrtype
 %type	<node>	chantype non_chan_type othertype non_fn_type fntype
 
@@ -862,13 +862,27 @@ pexpr:
 		if($2 == LBODY)
 			loophack = 1;
 	}
-|	pexpr '{' braced_keyval_list '}'
+|	littype '{' braced_keyval_list '}'
 	{
 		// composite expression
 		$$ = nod(OCOMPLIT, N, $1);
 		$$->list = $3;
 	}
 |	fnliteral
+
+littype:
+	name
+|	pexpr '.' sym
+	{
+		if($1->op == OPACK) {
+			Sym *s;
+			s = restrictlookup($3->name, $1->sym->name);
+			$1->used = 1;
+			$$ = oldname(s);
+			break;
+		}
+		$$ = nod(OXDOT, $1, newname($3));
+	}
 
 expr_or_type:
 	expr
@@ -941,6 +955,7 @@ convtype:
 		$$ = nod(OTMAP, $3, $5);
 	}
 |	structtype
+
 
 /*
  * to avoid parsing conflicts, type is split into
