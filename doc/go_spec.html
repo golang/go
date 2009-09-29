@@ -1257,6 +1257,14 @@ with compatible element type and at least one of <code>V</code> or <code>T</code
 </ul>
 
 <p>
+If <code>T</code> is a struct type, either all fields of <code>T</code>
+must be <a href="#Exported_identifiers">exported</a>, or the assignment must be in
+the same package in which <code>T</code> is declared.
+In other words, a struct value can be assigned to a struct variable only if
+every field of the struct may be legally assigned individually by the program.
+</p>
+
+<p>
 An untyped <a href="#Constants">constant</a> <code>v</code>
 is assignment compatible with type <code>T</code> if <code>v</code>
 can be represented accurately as a value of type <code>T</code>.
@@ -1946,7 +1954,7 @@ Value         = Expression .
 The LiteralType must be a struct, array, slice, or map type
 (the grammar enforces this constraint except when the type is given
 as a TypeName).
-The types of the expressions must be <a href="#Assignment_compatibility">assignment compatible</a> to
+The types of the expressions must be <a href="#Assignment_compatibility">assignment compatible</a> with
 the respective field, element, and key types of the LiteralType;
 there is no additional conversion.
 The key is interpreted as a field name for struct literals,
@@ -2466,7 +2474,7 @@ f(a1, a2, ... an)
 <p>
 calls <code>f</code> with arguments <code>a1, a2, ... an</code>.
 The arguments must be single-valued expressions
-<a href="#Assignment_compatibility">assignment compatible</a> with the parameters of
+<a href="#Assignment_compatibility">assignment compatible</a> with the parameter types of
 <code>F</code> and are evaluated before the function is called.
 The type of the expression is the result type
 of <code>F</code>.
@@ -3628,7 +3636,8 @@ map key, and the second variable, if present, is set to the corresponding
 string or array element or map value.
 The types of the array or slice index (always <code>int</code>)
 and element, or of the map key and value respectively,
-must be <a href="#Assignment_compatibility">assignment compatible</a> to the iteration variables.
+must be <a href="#Assignment_compatibility">assignment compatible</a> with
+the type of the iteration variables.
 </p>
 <p>
 For strings, the "range" clause iterates over the Unicode code points
@@ -3798,8 +3807,9 @@ type:
 <ol>
 	<li>The return value or values may be explicitly listed
 		in the "return" statement. Each expression must be single-valued
-		and <a href="#Assignment_compatibility">assignment compatible</a> to the corresponding element of
-		the result type of the function.
+		and <a href="#Assignment_compatibility">assignment compatible</a>
+		with the type of the corresponding element of the function's
+		result type.
 <pre>
 func simple_f() int {
 	return 2
@@ -4174,10 +4184,11 @@ m := make(map[string] int, 100);  # map with initial space for 100 elements
 
 <p>
 Go programs are constructed by linking together <i>packages</i>.
-A package is in turn constructed from one or more source files that
-together provide access to a set of types, constants, functions,
-and variables.  Those elements may be <i>exported</i> and used in
-another package.
+A package in turn is constructed from one or more source files
+that together declare constants, types, variables and functions
+belonging to the package and which are accessible in all files
+of the same package. Those elements may be
+<a href="#Exported_identifiers">exported</a> and used in another package.
 </p>
 
 <h3 id="Source_file_organization">Source file organization</h3>
@@ -4285,31 +4296,6 @@ identifier as explicit package name:
 import _ "lib/math"
 </pre>
 
-
-<h3 id="Multiple-file_packages">Multiple-file packages</h3>
-
-<p>
-If a package is constructed from multiple source files,
-all names declared in the package block, not just uppercase ones,
-are in scope in all the files in the package.
-</p>
-
-<p>
-If source file <code>math1.go</code> contains
-</p>
-<pre>
-package math
-
-const twoPi = 6.283185307179586
-
-function Sin(x float) float { return ... }
-</pre>
-
-<p>
-then a second file <code>math2.go</code> also in
-<code>package math</code>
-may refer directly to <code>Sin</code> and <code>twoPi</code>.
-</p>
 
 <h3 id="An_example_package">An example package</h3>
 
