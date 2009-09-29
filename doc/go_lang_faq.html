@@ -24,16 +24,20 @@
 </div>
 
 <div id="linkList">
-
   <ul>
     <li class="navhead">Related Guides</li>
-    <li><a href="go_tutorial.html">Tutorial</a></li>
     <li><a href="go_spec.html">Language Specification</a></li>
-    <li><a href="go_faq.html">FAQ</a></li>
+    <li><a href="go_mem.html">Memory Model</a></li>
+    <li><a href="go_tutorial.html">Tutorial</a></li>
+    <li><a href="effective_go.html">Effective Go</a></li>
     <li class="blank">&nbsp;</li>
     <li class="navhead">Other Resources</li>
-    <li><a href="./">Go Docs</a></li>
-    <li><a href="/pkg">Library documentation</a></li>
+    <li><a href="go_faq.html">FAQ</a></li>
+    <li><a href="go_lang_faq.html">Language Design FAQ</a></li>
+    <li><a href="go_for_cpp_programmers.html">Go for C++ Programmers</a></li>
+    <li class="blank">&nbsp;</li>
+    <li class="navhead">Home</li>
+    <li><a href="/">Go documentation home</a></li>
   </ul>
 </div>
 
@@ -48,17 +52,52 @@
 
 <h2 id="origins">Origins</h2>
 
-<h3 id="creating_a_new_language">
-Why are you creating a new language?</h3>
-<p>
-TODO
-</p>
-
 <h3 id="history">
 What is the history of the project?</h3>
 <p>
-TODO
+Robert Griesemer, Rob Pike and Ken Thompson started sketching the
+goals for a new language on the white board on September 21, 2007.
+Within a few days the goals had settled into a plan to do something
+and a fair idea of what it would be.  Design continued part-time in
+parallel with unrelated activities.  By January 2008, Ken started work
+on a compiler with which to explore ideas; it generated C code as its
+output.  By mid-year the language had become a full-time project and
+had settled enough to attempt a production compiler.  Meanwhile, Ian
+Taylor had read the draft specification and written an independent GCC
+front end.
 </p>
+
+<p>
+In the last few months of 2008, Russ Cox joined the team and Go had
+reached the point where it was usable as the main programming language
+for the team's own work.
+</p>
+
+<h3 id="creating_a_new_language">
+Why are you creating a new language?</h3>
+<p>
+Go was born out of frustration with existing languages and
+environments for systems programming.  Programming had become too
+difficult and the choice of languages was partly to blame.  One had to
+choose either efficient compilation, efficient execution, or ease of
+programming; all three were not available in the same commonly
+available language.  Programmers who could were choosing ease over
+safety and efficiency by moving to dynamic languages such as
+Python and JavaScript rather than C++ or, to a lesser extent, Java.
+</p>
+<p>
+Go is an attempt to combine the ease of programming of the dynamic
+languages with the efficiency and type safety of a compiled language.
+It also aims to be modern, with support for networked and multicore
+computing.  Finally, it is intended to be <i>fast</i>: it should take
+at most a few seconds to build a large executable on a single computer.
+To meet these goals required addressing a number of
+linguistic issues: an expressive but lightweight type system;
+concurrency and garbage collection; rigid dependency specification;
+and so on.  These cannot be addressed well by libraries or tools; a new
+language was called for.
+</p>
+
 
 <h3 id="ancestors">
 What are Go's ancestors?</h3>
@@ -157,7 +196,7 @@ Without pointer arithmetic, the convenience value of pre- and postfix
 increment operators drops.  By removing them from the expression
 hierarchy altogether, expression syntax is simplified and the messy
 issues around order of evaluation of <code>++</code> and <code>--</code>
-(consider <code>f(i++)</code> and <code>p[i] = q[i++]</code>)
+(consider <code>f(i++)</code> and <code>p[i] = q[++i]</code>)
 are eliminated as well.  The simplification is
 significant.  As for postfix vs. prefix, either would work fine but
 the postfix version is more traditional; insistence on prefix arose
@@ -191,12 +230,12 @@ Why does Go not have exceptions?</h3>
 <p>
 Exceptions are a similar story.  A number of designs for exceptions
 have been proposed but each adds significant complexity to the
-language and run-time.  By their very nature, they span functions and
+language and run-time.  By their very nature, exceptions span functions and
 perhaps even goroutines; they have wide-ranging implications.  There
-is also concern about the effect exceptions would have on the
+is also concern about the effect they would have on the
 libraries.  They are, by definition, exceptional yet experience with
 other languages that support them show they have profound effect on
-library and interface definition.  It would be nice to find a design
+library and interface specification.  It would be nice to find a design
 that allows them to be truly exceptional without encouraging common
 errors to turn into special control flow requiring every programmer to
 compensate.
@@ -209,6 +248,26 @@ Like generics, exceptions remain an open issue.
 Why does Go not have assertions?</h3>
 <p>
 This is answered in the general <a href="go_faq.html#Where_is_assert">FAQ</a>.
+</p>
+
+<h2 id="concurrency">Concurrency</h2>
+
+<h3 id="atomic_maps">
+Why are map operations not defined to be atomic?</h3>
+
+<p>
+After long discussion it was decided that the typical use of maps did not require
+safe access from multiple threads, and in those cases where it did, the map was
+probably part of some larger data structure or computation that was already
+synchronized.  Therefore making all map operations grab a mutex would slow
+down most programs and add safety to few.  This was not an easy decision,
+however, since it means uncontrolled map access can crash the program.
+</p>
+
+<p>
+The language does not preclude atomic map updates.  When required, such
+as when hosting an untrusted program, the implementation could interlock
+map access.
 </p>
 
 <h3 id="TODO">
@@ -235,7 +294,6 @@ no data in interfaces
 
 concurrency questions:
 	goroutine design
-	why aren't maps atomic
 	why csp
 
 inheritance?
