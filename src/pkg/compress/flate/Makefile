@@ -6,6 +6,12 @@ include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=compress/flate
 GOFILES=\
+	deflate.go\
+	huffman_bit_writer.go\
+	huffman_code.go\
 	inflate.go\
+	reverse_bits.go\
+	token.go\
+	util.go\
 
 include $(GOROOT)/src/Make.pkg

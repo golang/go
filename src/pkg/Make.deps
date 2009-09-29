@@ -4,7 +4,7 @@ big.install:
 bignum.install: fmt.install
 bufio.install: io.install os.install strconv.install utf8.install
 bytes.install: os.install unicode.install utf8.install
-compress/flate.install: bufio.install io.install os.install strconv.install
+compress/flate.install: bufio.install bytes.install io.install math.install os.install sort.install strconv.install
 compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
 compress/zlib.install: bufio.install compress/flate.install hash.install hash/adler32.install io.install os.install
 container/heap.install: sort.install
