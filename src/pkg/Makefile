@@ -29,6 +29,7 @@ DIRS=\
 	crypto/block\
 	crypto/hmac\
 	crypto/md5\
+	crypto/rc4\
 	crypto/sha1\
 	datafmt\
 	debug/binary\
