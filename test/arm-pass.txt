@@ -8,6 +8,7 @@ bugs/bug193.go
 bugs/bug196.go
 bugs/bug198.go
 chan/perm.go
+cmp1.go
 cmp2.go
 cmp3.go
 cmp4.go
@@ -41,6 +42,7 @@ fixedbugs/bug022.go
 fixedbugs/bug023.go
 fixedbugs/bug024.go
 fixedbugs/bug026.go
+fixedbugs/bug028.go
 fixedbugs/bug030.go
 fixedbugs/bug031.go
 fixedbugs/bug035.go
@@ -161,6 +163,7 @@ fixedbugs/bug175.go
 fixedbugs/bug176.go
 fixedbugs/bug178.go
 fixedbugs/bug179.go
+fixedbugs/bug180.go
 fixedbugs/bug181.go
 fixedbugs/bug182.go
 fixedbugs/bug183.go
@@ -173,6 +176,7 @@ fixedbugs/bug192.go
 fixedbugs/bug194.go
 fixedbugs/bug195.go
 fixedbugs/bug197.go
+fixedbugs/bug199.go
 fixedbugs/bug200.go
 fixedbugs/bug201.go
 fixedbugs/bug202.go
@@ -209,6 +213,7 @@ ken/mfunc.go
 ken/robfor.go
 ken/robif.go
 ken/simpbool.go
+ken/simpfun.go
 ken/simpprint.go
 ken/simpswitch.go
 ken/simpvar.go
@@ -220,6 +225,7 @@ parentype.go
 printbig.go
 rename1.go
 sieve.go
+simassign.go
 switch.go
 test0.go
 varinit.go
