@@ -1,4 +1,4 @@
-// $G $D/$F.go
+// $G $D/$F.go && $L $F.$A && ./$A.out
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -6,10 +6,7 @@
 
 package main
 
-func f(interface{})
-func g() {}
-func main() {
-	f(map[string]string{"a":"b","c":"d"});
-	f(make(chan(<-chan int)));
-	f(make(chan<-(chan int)));
-}
+var _ = []int{}
+var _ = ([]int){}	// ERROR "syntax"
+var _ = [...]int{}
+var _ = ([...]int){}	// ERROR "syntax"
