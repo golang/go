@@ -22,11 +22,24 @@ func usage() {
 	flag.PrintDefaults();
 }
 
-const ptrSize = 8	// TODO
+var ptrSizeMap = map[string]int64 {
+	"386": 4,
+	"amd64": 8,
+	"arm": 4
+}
 
 func main() {
 	flag.Usage = usage;
 	flag.Parse();
+
+	arch := os.Getenv("GOARCH");
+	if arch == "" {
+		fatal("$GOARCH is not set");
+	}
+	ptrSize, ok := ptrSizeMap[arch];
+	if !ok {
+		fatal("unknown architecture %s", arch);
+	}
 
 	args := flag.Args();
 	if len(args) != 1 {
@@ -34,8 +47,9 @@ func main() {
 		os.Exit(2);
 	}
 	p := openProg(args[0]);
+	p.PtrSize = ptrSize;
 	p.Preamble = p.Preamble + "\n" + builtinProlog;
-	p.loadDebugInfo(ptrSize);
+	p.loadDebugInfo();
 	p.Vardef = make(map[string]*Type);
 	p.Funcdef = make(map[string]*FuncType);
 

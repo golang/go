@@ -333,7 +333,7 @@ doelf(void)
 		s = lookup(".dynsym", 0);
 		s->type = SDATA;
 		s->reachable = 1;
-		s->value += ELF64SYMSIZE;
+		s->value += ELF32SYMSIZE;
 
 		/* dynamic string table */
 		s = lookup(".dynstr", 0);
@@ -368,21 +368,20 @@ doelf(void)
 				if(!s->reachable || (s->type != SDATA && s->type != SBSS) || s->dynldname == nil)
 					continue;
 
-				d = lookup(".rela", 0);
+				d = lookup(".rel", 0);
 				addaddr(d, s);
-				adduint64(d, ELF64_R_INFO(nsym, R_X86_64_64));
-				adduint64(d, 0);
+				adduint32(d, ELF32_R_INFO(nsym, R_386_32));
 				nsym++;
 
 				d = lookup(".dynsym", 0);
 				adduint32(d, addstring(lookup(".dynstr", 0), s->dynldname));
+				adduint32(d, 0);	/* value */
+				adduint32(d, 0);	/* size of object */
 				t = STB_GLOBAL << 4;
 				t |= STT_OBJECT;	// works for func too, empirically
 				adduint8(d, t);
 				adduint8(d, 0);	/* reserved */
 				adduint16(d, SHN_UNDEF);	/* section where symbol is defined */
-				adduint64(d, 0);	/* value */
-				adduint64(d, 0);	/* size of object */
 
 				if(needlib(s->dynldlib))
 					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynldlib));

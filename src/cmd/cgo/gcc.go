@@ -20,7 +20,7 @@ import (
 	"strings";
 )
 
-func (p *Prog) loadDebugInfo(ptrSize int64) {
+func (p *Prog) loadDebugInfo() {
 	// Construct a slice of unique names from p.Crefs.
 	m := make(map[string]int);
 	for _, c := range p.Crefs {
@@ -57,7 +57,7 @@ func (p *Prog) loadDebugInfo(ptrSize int64) {
 	b.WriteString("}\n");
 
 	kind := make(map[string]string);
-	_, stderr := gccDebug(b.Bytes());
+	_, stderr := p.gccDebug(b.Bytes());
 	if stderr == "" {
 		fatal("gcc produced no output");
 	}
@@ -109,7 +109,7 @@ func (p *Prog) loadDebugInfo(ptrSize int64) {
 	for i, n := range names {
 		fmt.Fprintf(&b, "typeof(%s) *__cgo__%d;\n", n, i);
 	}
-	d, stderr := gccDebug(b.Bytes());
+	d, stderr := p.gccDebug(b.Bytes());
 	if d == nil {
 		fatal("gcc failed:\n%s\non input:\n%s", stderr, b.Bytes());
 	}
@@ -158,7 +158,7 @@ func (p *Prog) loadDebugInfo(ptrSize int64) {
 
 	// Record types and typedef information in Crefs.
 	var conv typeConv;
-	conv.Init(ptrSize);
+	conv.Init(p.PtrSize);
 	for _, c := range p.Crefs {
 		i := m[c.Name];
 		c.TypeName = kind[c.Name] == "type";
@@ -175,9 +175,9 @@ func (p *Prog) loadDebugInfo(ptrSize int64) {
 // gccDebug runs gcc -gdwarf-2 over the C program stdin and
 // returns the corresponding DWARF data and any messages
 // printed to standard error.
-func gccDebug(stdin []byte) (*dwarf.Data, string) {
+func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
 	machine := "-m32";
-	if os.Getenv("GOARCH") == "amd64" {
+	if p.PtrSize == 8 {
 		machine = "-m64";
 	}
 

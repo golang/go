@@ -10,6 +10,12 @@ CGOFILES=\
 
 CGO_LDFLAGS=-lgmp
 
+# To add flags necessary for locating the library or its include files,
+# set CGO_CFLAGS or CGO_LDFLAGS.  For example, to use an
+# alternate installation of the library:
+#	CGO_CFLAGS=-I/home/rsc/gmp32/include
+#	CGO_LDFLAGS+=-L/home/rsc/gmp32/lib
+
 # Can have plain GOFILES too, but this example doesn't.
 
 include $(GOROOT)/src/Make.pkg

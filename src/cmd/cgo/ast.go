@@ -35,6 +35,7 @@ type Prog struct {
 	Typedef map[string]ast.Expr;
 	Vardef map[string]*Type;
 	Funcdef map[string]*FuncType;
+	PtrSize int64;
 }
 
 // A Type collects information about a type in both the C and Go worlds.
