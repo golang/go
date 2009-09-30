@@ -9,49 +9,62 @@ import (
 	"go/ast";
 	"go/printer";
 	"os";
+	"strings";
 )
+
+func creat(name string) *os.File {
+	f, err := os.Open(name, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666);
+	if err != nil {
+		fatal("%s", err);
+	}
+	return f;
+}
 
 // writeOutput creates output files to be compiled by 6g, 6c, and gcc.
 // (The comments here say 6g and 6c but the code applies to the 8 and 5 tools too.)
-func (p *Prog) writeOutput(srcfile, go_, c, gcc string) {
-	fgo, err := os.Open(go_, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666);
-	if err != nil {
-		fatal("%s", err);
-	}
-	fc, err := os.Open(c, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666);
-	if err != nil {
-		fatal("%s", err);
-	}
-	fgcc, err := os.Open(gcc, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666);
-	if err != nil {
-		fatal("%s", err);
-	}
+func (p *Prog) writeOutput(srcfile string) {
+	pkgroot := os.Getenv("GOROOT") + "/pkg/" + os.Getenv("GOOS") + "_" + os.Getenv("GOARCH");
 
-	// Write Go output: Go input with rewrites of C.xxx to _C_xxx,
-	// then append the definitions of the _C_xxx types and vars and funcs.
-	fmt.Fprintf(fgo, "//line %s:1\n", srcfile);
-	printer.Fprint(fgo, p.AST, 0, 8);
-	fmt.Fprintf(fgo, "\n\n// Added by cgo\n");
+	base := srcfile;
+	if strings.HasSuffix(base, ".go") {
+		base = base[0:len(base)-3];
+	}
+	fgo1 := creat(base + ".cgo1.go");
+	fgo2 := creat(base + ".cgo2.go");
+	fc := creat(base + ".cgo3.c");
+	fgcc := creat(base + ".cgo4.c");
+
+	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
+	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n");
+	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile);
+	printer.Fprint(fgo1, p.AST, 0, 8);
+
+	// Write second Go output: definitions of _C_xxx.
+	// In a separate file so that the import of "unsafe" does not
+	// pollute the original file.
+	fmt.Fprintf(fgo2, "// Created by cgo - DO NOT EDIT\n");
+	fmt.Fprintf(fgo2, "package %s\n\n", p.Package);
+	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n");
 
 	for name, def := range p.Typedef {
-		fmt.Fprintf(fgo, "type %s ", name);
-		printer.Fprint(fgo, def, 0, 8);
-		fmt.Fprintf(fgo, "\n");
+		fmt.Fprintf(fgo2, "type %s ", name);
+		printer.Fprint(fgo2, def, 0, 8);
+		fmt.Fprintf(fgo2, "\n");
 	}
-	fmt.Fprintf(fgo, "type _C_void [0]byte\n");
+	fmt.Fprintf(fgo2, "type _C_void [0]byte\n");
 
 	// While we process the vars and funcs, also write 6c and gcc output.
 	// Gcc output starts with the preamble.
 	fmt.Fprintf(fgcc, "%s\n", p.Preamble);
 	fmt.Fprintf(fgcc, "%s\n", gccProlog);
 
-	fmt.Fprintf(fc, cProlog, p.Package, p.Package);
+	fmt.Fprintf(fc, cProlog, pkgroot, pkgroot, pkgroot, pkgroot, p.Package, p.Package);
 
 	for name, def := range p.Vardef {
-		fmt.Fprintf(fc, "#pragma dynld %s·_C_%s %s \"%s.so\"\n", p.Package, name, name, p.PackagePath);
-		fmt.Fprintf(fgo, "var _C_%s ", name);
-		printer.Fprint(fgo, &ast.StarExpr{X: def.Go}, 0, 8);
-		fmt.Fprintf(fgo, "\n");
+		fmt.Fprintf(fc, "#pragma dynld %s·_C_%s %s \"%s/%s_%s.so\"\n", p.Package, name, name, pkgroot, p.PackagePath, base);
+		fmt.Fprintf(fgo2, "var _C_%s ", name);
+		printer.Fprint(fgo2, &ast.StarExpr{X: def.Go}, 0, 8);
+		fmt.Fprintf(fgo2, "\n");
 	}
 	fmt.Fprintf(fc, "\n");
 
@@ -61,8 +74,8 @@ func (p *Prog) writeOutput(srcfile, go_, c, gcc string) {
 			Name: &ast.Ident{Value: "_C_" + name},
 			Type: def.Go,
 		};
-		printer.Fprint(fgo, d, 0, 8);
-		fmt.Fprintf(fgo, "\n");
+		printer.Fprint(fgo2, d, 0, 8);
+		fmt.Fprintf(fgo2, "\n");
 
 		if name == "CString" || name == "GoString" {
 			// The builtins are already defined in the C prolog.
@@ -118,7 +131,7 @@ func (p *Prog) writeOutput(srcfile, go_, c, gcc string) {
 
 		// C wrapper calls into gcc, passing a pointer to the argument frame.
 		// Also emit #pragma to get a pointer to the gcc wrapper.
-		fmt.Fprintf(fc, "#pragma dynld _cgo_%s _cgo_%s \"%s.so\"\n", name, name, p.PackagePath);
+		fmt.Fprintf(fc, "#pragma dynld _cgo_%s _cgo_%s \"%s/%s_%s.so\"\n", name, name, pkgroot, p.PackagePath, base);
 		fmt.Fprintf(fc, "void (*_cgo_%s)(void*);\n", name);
 		fmt.Fprintf(fc, "\n");
 		fmt.Fprintf(fc, "void\n");
@@ -149,6 +162,11 @@ func (p *Prog) writeOutput(srcfile, go_, c, gcc string) {
 		fmt.Fprintf(fgcc, "}\n");
 		fmt.Fprintf(fgcc, "\n");
 	}
+
+	fgo1.Close();
+	fgo2.Close();
+	fc.Close();
+	fgcc.Close();
 }
 
 const gccProlog = `
@@ -179,10 +197,10 @@ const cProlog = `
 #include "runtime.h"
 #include "cgocall.h"
 
-#pragma dynld initcgo initcgo "libcgo.so"
-#pragma dynld cgo cgo "libcgo.so"
-#pragma dynld _cgo_malloc _cgo_malloc "libcgo.so"
-#pragma dynld _cgo_free free "libcgo.so"
+#pragma dynld initcgo initcgo "%s/libcgo.so"
+#pragma dynld cgo cgo "%s/libcgo.so"
+#pragma dynld _cgo_malloc _cgo_malloc "%s/libcgo.so"
+#pragma dynld _cgo_free free "%s/libcgo.so"
 
 void
 %s·_C_GoString(int8 *p, String s)

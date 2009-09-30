@@ -13,7 +13,6 @@ import (
 	"go/parser";
 	"go/scanner";
 	"os";
-	"strings";
 )
 
 // A Cref refers to an expression of the form C.xxx in the AST.
@@ -73,11 +72,8 @@ func openProg(name string) *Prog {
 	p.Package = p.AST.Name.Value;
 
 	// Find the import "C" line and get any extra C preamble.
-	// Delete the import "C" line along the way or convert it
-	// to an import of "unsafe" (needed for the translation of void*).
+	// Delete the import "C" line along the way.
 	sawC := false;
-	sawUnsafe := false;
-	rewroteUnsafe := false;
 	w := 0;
 	for _, decl := range p.AST.Decls {
 		d, ok := decl.(*ast.GenDecl);
@@ -90,14 +86,6 @@ func openProg(name string) *Prog {
 		for _, spec := range d.Specs {
 			s, ok := spec.(*ast.ImportSpec);
 			if !ok || len(s.Path) != 1 || string(s.Path[0].Value) != `"C"` {
-				if s != nil && len(s.Path) == 1 && string(s.Path[0].Value) == `"unsafe"` {
-					if rewroteUnsafe {
-						// we rewrote the import "C" into import "unsafe",
-						// so drop this one.
-						continue;
-					}
-					sawUnsafe = true;
-				}
 				d.Specs[ws] = spec;
 				ws++;
 				continue;
@@ -110,12 +98,6 @@ func openProg(name string) *Prog {
 				p.Preamble += doc.CommentText(s.Doc) + "\n";
 			} else if len(d.Specs) == 1 && d.Doc != nil {
 				p.Preamble += doc.CommentText(d.Doc) + "\n";
-			}
-			if !sawUnsafe {
-				rewroteUnsafe = true;
-				s.Path[0].Value = strings.Bytes(`"unsafe"`);
-				d.Specs[ws] = spec;
-				ws++;
 			}
 		}
 		if ws == 0 {
