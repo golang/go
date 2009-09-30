@@ -11,6 +11,9 @@ const (
 	sizeofInt = 0x4;
 	sizeofLong = 0x4;
 	sizeofLongLong = 0x8;
+	PROT_READ = 0x1;
+	PROT_WRITE = 0x2;
+	MAP_SHARED = 0x1;
 	SYS_FORK = 0;
 	SYS_PTRACE = 0;
 	SYS_CHDIR = 0;

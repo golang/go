@@ -47,24 +47,24 @@ ok:
 	RET
 
 // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
-// Actually Syscall5 but the rest of the code expects it to be named Syscall6.
-TEXT	syscall·Syscall6(SB),7,$20
+TEXT	syscall·Syscall6(SB),7,$24
 	CALL	sys·entersyscall(SB)
-	MOVL	trap+0(FP), AX	// syscall entry
 	MOVL	a1+4(FP), BX
 	MOVL	a2+8(FP), CX
 	MOVL	a3+12(FP), DX
 	MOVL	a4+16(FP), SI
 	MOVL	a5+20(FP), DI
-	// a6+24(FP) is ignored
+	MOVL	a6+24(FP), AX
 
 	MOVL	BX, 0(SP)
 	MOVL	CX, 4(SP)
 	MOVL	DX, 8(SP)
 	MOVL	SI, 12(SP)
 	MOVL	DI, 16(SP)
+	MOVL	AX, 20(SP)
 
-	// Call $(0x10000+32*AX)
+	// Call $(0x10000+32*trap)
+	MOVL	trap+0(FP), AX	// syscall entry
 	SHLL	$5, AX
 	ADDL	$0x10000, AX
 	CALL	AX

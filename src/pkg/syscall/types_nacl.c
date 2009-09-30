@@ -23,6 +23,7 @@ Input to godefs.  See PORT.sh
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/unistd.h>
+#include <sys/mman.h>
 
 // Machine characteristics; for internal use.
 
@@ -35,6 +36,12 @@ enum
 	$sizeofLongLong = sizeof(long long),
 };
 
+// Mmap constants
+enum {
+	$PROT_READ = PROT_READ,
+	$PROT_WRITE = PROT_WRITE,
+	$MAP_SHARED = MAP_SHARED,
+};
 
 // Unimplemented system calls
 enum {
