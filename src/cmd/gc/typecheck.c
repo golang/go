@@ -1010,6 +1010,11 @@ ret:
 		case TNIL:
 		case TBLANK:
 			break;
+		case TARRAY:
+			if(t->bound == -100) {
+				yyerror("use of [...] array outside of array literal");
+				t->bound = 1;
+			}
 		default:
 			checkwidth(t);
 		}

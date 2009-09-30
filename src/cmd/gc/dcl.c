@@ -323,7 +323,7 @@ variter(NodeList *vl, Node *t, NodeList *el)
 		declare(v, dclcontext);
 		v->ntype = t;
 
-		if(e != N || funcdepth > 0) {
+		if(e != N || funcdepth > 0 || isblank(v)) {
 			if(funcdepth > 0)
 				init = list(init, nod(ODCL, v, N));
 			e = nod(OAS, v, e);
