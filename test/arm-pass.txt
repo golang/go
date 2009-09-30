@@ -213,6 +213,7 @@ ken/complit.go
 ken/for.go
 ken/label.go
 ken/mfunc.go
+ken/ptrvar.go
 ken/rob2.go
 ken/robfor.go
 ken/robif.go
@@ -221,6 +222,7 @@ ken/simpfun.go
 ken/simpprint.go
 ken/simpswitch.go
 ken/simpvar.go
+ken/strvar.go
 method1.go
 method2.go
 method3.go

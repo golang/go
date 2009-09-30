@@ -364,18 +364,10 @@ sbop:	// symmetric binary
 	}
 
 abop:	// asymmetric binary
+	// TODO(kaib): use fewer registers here.
 	if(nl->ullman >= nr->ullman) {
 		regalloc(&n1, nl->type, res);
 		cgen(nl, &n1);
-
-		if(sudoaddable(a, nr, &addr, &w)) {
-			p1 = gins(a, N, &n1);
-			p1->from = addr;
-			gmove(&n1, res);
-			sudoclean();
-			regfree(&n1);
-			goto ret;
-		}
 		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
 	} else {
