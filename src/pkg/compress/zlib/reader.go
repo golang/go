@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The zlib package implements reading (and eventually writing) of
-// zlib format compressed files, as specified in RFC 1950.
+// The zlib package implements reading and writing of zlib
+// format compressed files, as specified in RFC 1950.
 package zlib
 
 import (
@@ -87,6 +87,10 @@ func (z *reader) Read(p []byte) (n int, err os.Error) {
 
 // Calling Close does not close the wrapped io.Reader originally passed to NewInflater.
 func (z *reader) Close() os.Error {
-	return z.inflater.Close();
+	if z.err != nil {
+		return z.err;
+	}
+	z.err = z.inflater.Close();
+	return z.err;
 }
 
