@@ -93,5 +93,134 @@ func Write(fd int, p []byte) (n int, errno int) {
 	return;
 }
 
+func MultimediaInit(subsys int) (errno int) {
+	_, _, e1 := Syscall(SYS_MULTIMEDIA_INIT, uintptr(subsys), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func MultimediaShutdown() (errno int) {
+	_, _, e1 := Syscall(SYS_MULTIMEDIA_SHUTDOWN, 0, 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func CondCreate() (cv int, errno int) {
+	r0, _, e1 := Syscall(SYS_COND_CREATE, 0, 0, 0);
+	cv = int(r0);
+	errno = int(e1);
+	return;
+}
+
+func CondWait(cv int, mutex int) (errno int) {
+	_, _, e1 := Syscall(SYS_COND_WAIT, uintptr(cv), uintptr(mutex), 0);
+	errno = int(e1);
+	return;
+}
+
+func CondSignal(cv int) (errno int) {
+	_, _, e1 := Syscall(SYS_COND_SIGNAL, uintptr(cv), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func CondBroadcast(cv int) (errno int) {
+	_, _, e1 := Syscall(SYS_COND_BROADCAST, uintptr(cv), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func CondTimedWaitAbs(cv int, mutex int, abstime *Timespec) (errno int) {
+	_, _, e1 := Syscall(SYS_COND_TIMED_WAIT_ABS, uintptr(cv), uintptr(mutex), uintptr(unsafe.Pointer(abstime)));
+	errno = int(e1);
+	return;
+}
+
+func MutexCreate() (mutex int, errno int) {
+	r0, _, e1 := Syscall(SYS_MUTEX_CREATE, 0, 0, 0);
+	mutex = int(r0);
+	errno = int(e1);
+	return;
+}
+
+func MutexLock(mutex int) (errno int) {
+	_, _, e1 := Syscall(SYS_MUTEX_LOCK, uintptr(mutex), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func MutexUnlock(mutex int) (errno int) {
+	_, _, e1 := Syscall(SYS_MUTEX_UNLOCK, uintptr(mutex), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func MutexTryLock(mutex int) (errno int) {
+	_, _, e1 := Syscall(SYS_MUTEX_TRYLOCK, uintptr(mutex), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func SemCreate() (sema int, errno int) {
+	r0, _, e1 := Syscall(SYS_SEM_CREATE, 0, 0, 0);
+	sema = int(r0);
+	errno = int(e1);
+	return;
+}
+
+func SemWait(sema int) (errno int) {
+	_, _, e1 := Syscall(SYS_SEM_WAIT, uintptr(sema), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func SemPost(sema int) (errno int) {
+	_, _, e1 := Syscall(SYS_SEM_POST, uintptr(sema), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func VideoInit(dx int, dy int) (errno int) {
+	_, _, e1 := Syscall(SYS_VIDEO_INIT, uintptr(dx), uintptr(dy), 0);
+	errno = int(e1);
+	return;
+}
+
+func VideoUpdate(data *uint32) (errno int) {
+	_, _, e1 := Syscall(SYS_VIDEO_UPDATE, uintptr(unsafe.Pointer(data)), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func VideoPollEvent(ev *byte) (errno int) {
+	_, _, e1 := Syscall(SYS_VIDEO_POLL_EVENT, uintptr(unsafe.Pointer(ev)), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func VideoShutdown() (errno int) {
+	_, _, e1 := Syscall(SYS_VIDEO_SHUTDOWN, 0, 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func AudioInit(fmt int, nreq int, data *int) (errno int) {
+	_, _, e1 := Syscall(SYS_AUDIO_INIT, uintptr(fmt), uintptr(nreq), uintptr(unsafe.Pointer(data)));
+	errno = int(e1);
+	return;
+}
+
+func AudioShutdown() (errno int) {
+	_, _, e1 := Syscall(SYS_AUDIO_SHUTDOWN, 0, 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func AudioStream(data *uint16, size *uintptr) (errno int) {
+	_, _, e1 := Syscall(SYS_AUDIO_STREAM, uintptr(unsafe.Pointer(data)), uintptr(unsafe.Pointer(size)), 0);
+	errno = int(e1);
+	return;
+}
+
 
 

@@ -24,6 +24,29 @@ const OS = "nacl"
 //sys	Stat(path string, stat *Stat_t) (errno int)
 //sys	Write(fd int, p []byte) (n int, errno int)
 
+//sys	MultimediaInit(subsys int) (errno int)
+//sys	MultimediaShutdown() (errno int)
+
+//sys	CondCreate() (cv int, errno int)
+//sys	CondWait(cv int, mutex int) (errno int)
+//sys	CondSignal(cv int) (errno int)
+//sys	CondBroadcast(cv int) (errno int)
+//sys	CondTimedWaitAbs(cv int, mutex int, abstime *Timespec) (errno int)
+//sys	MutexCreate() (mutex int, errno int)
+//sys	MutexLock(mutex int) (errno int)
+//sys	MutexUnlock(mutex int) (errno int)
+//sys	MutexTryLock(mutex int) (errno int) = SYS_MUTEX_TRYLOCK
+//sys	SemCreate() (sema int, errno int)
+//sys	SemWait(sema int) (errno int)
+//sys	SemPost(sema int) (errno int)
+//sys	VideoInit(dx int, dy int) (errno int)
+//sys	VideoUpdate(data *uint32) (errno int)
+//sys	VideoPollEvent(ev *byte) (errno int)
+//sys	VideoShutdown() (errno int)
+//sys	AudioInit(fmt int, nreq int, data *int) (errno int)
+//sys	AudioShutdown() (errno int)
+//sys	AudioStream(data *uint16, size *uintptr) (errno int)
+
 // Hand-written
 
 func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
@@ -35,23 +58,55 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
 	return int64(o), int(e);
 }
 
-// Implemented in NaCl but not here:
+// Sleep by waiting on a condition variable that will never be signaled.
+// TODO(rsc): Replace when NaCl adds a proper sleep system call.
+var tcv, tmu int
+
+func init() {
+	tmu, _ = MutexCreate();
+	tcv, _ = CondCreate();
+}
+
+func Sleep(ns int64) (errno int) {
+	ts := NsecToTimespec(ns);
+	var tv Timeval;
+	if errno = Gettimeofday(&tv); errno != 0 {
+		return;
+	}
+	ts.Sec += tv.Sec;
+	ts.Nsec += tv.Usec*1000;
+	switch {
+	case ts.Nsec >= 1e9:
+		ts.Nsec -= 1e9;
+		ts.Sec++;
+	case ts.Nsec <= -1e9:
+		ts.Nsec += 1e9;
+		ts.Sec--;
+	}
+	if errno = MutexLock(tmu); errno != 0 {
+		return;
+	}
+	errno = CondTimedWaitAbs(tcv, tmu, &ts);
+	if e := MutexUnlock(tmu); e != 0 && errno == 0 {
+		errno = e;
+	}
+	return;
+}
+
+// Implemented in NaCl but not here; maybe later:
 //	SYS_IOCTL
+//	SYS_IMC_*
+//	SYS_MMAP ???
+//	SYS_SRPC_*
+//	SYS_SYSCONF
+
+// Implemented in NaCl but not here; used by runtime instead:
 //	SYS_SYSBRK
 //	SYS_MMAP
 //	SYS_MUNMAP
-//	SYS_MULTIMEDIA_*
-//	SYS_VIDEO_*
-//	SYS_AUDIO_*
-//	SYS_IMC_*
-//	SYS_MUTEX_*
-//	SYS_COND_*
 //	SYS_THREAD_*
 //	SYS_TLS_*
-//	SYS_SRPC_*
-//	SYS_SEM_*
 //	SYS_SCHED_YIELD
-//	SYS_SYSCONF
 
 // Not implemented in NaCl but needed to compile other packages.
 
@@ -132,13 +187,6 @@ func Truncate(name string, size int64) (errno int) {
 }
 
 func Ftruncate(fd int, length int64) (errno int) {
-	return ENACL;
-}
-
-// TODO(rsc): There must be a way to sleep, perhaps
-// via the multimedia system calls.
-
-func Sleep(ns int64) (errno int) {
 	return ENACL;
 }
 
