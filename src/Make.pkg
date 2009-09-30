@@ -8,15 +8,23 @@ testpackage: _test/$(TARG).a
 
 elem=$(lastword $(subst /, ,$(TARG)))
 dir=$(patsubst %/$(elem),%,./$(TARG))
-
 pkgdir=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)
+
+INSTALLFILES=$(pkgdir)/$(TARG).a
+
+# The rest of the cgo rules are below, but these variable updates
+# must be done here so they apply to the main rules.
+GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES))
+GOFILES+=$(patsubst %.go,%.cgo2.go,$(CGOFILES))
+OFILES+=$(patsubst %.go,%.cgo3.$O,$(CGOFILES))
+INSTALLFILES+=$(patsubst %.go,$(pkgdir)/$(dir)/$(elem)_%.so,$(CGOFILES))
 
 coverage:
 	gotest
 	6cov -g $(shell pwd) | grep -v '_test\.go:'
 
 clean:
-	rm -rf *.[$(OS)] *.a [$(OS)].out _obj _test _testmain.go
+	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo[12].go *.cgo[34].c *.so _obj _test _testmain.go
 
 test:
 	gotest
@@ -27,11 +35,11 @@ nuke: clean
 testpackage-clean:
 	rm -f _test/$(TARG).a _gotest_.$O
 
-install: $(pkgdir)/$(TARG).a
+install: $(INSTALLFILES)
 
 $(pkgdir)/$(TARG).a: package
-	test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
-	cp _obj/$(TARG).a $(pkgdir)/$(TARG).a
+	@test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+	cp _obj/$(TARG).a $@
 
 _go_.$O: $(GOFILES)
 	$(GC) -o $@ $(GOFILES)
@@ -39,21 +47,13 @@ _go_.$O: $(GOFILES)
 _gotest_.$O: $(GOFILES) $(GOTESTFILES)
 	$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
 
-%.$O: %.c
-	$(CC) $(CFLAGS) $*.c
-
-%.$O: %.s
-	$(AS) $*.s
-
-%.$O: $(HFILES)
-
 _obj/$(TARG).a: _go_.$O $(OFILES)
-	mkdir -p _obj/$(dir)
+	@mkdir -p _obj/$(dir)
 	rm -f _obj/$(TARG).a
 	gopack grc $@ _go_.$O $(OFILES)
 
 _test/$(TARG).a: _gotest_.$O $(OFILES)
-	mkdir -p _test/$(dir)
+	@mkdir -p _test/$(dir)
 	rm -f _test/$(TARG).a
 	gopack grc $@ _gotest_.$O $(OFILES)
 
@@ -62,4 +62,57 @@ importpath:
 
 dir:
 	@echo $(dir)
+
+
+# To use cgo in a Go package, add a line
+#
+#	CGOFILES=x.go
+#
+# to the main Makefile.  This signals that cgo should process x.go.
+# There are two optional variables to set, CGO_CFLAGS and CGO_LDFLAGS,
+# which specify compiler and linker flags to use when compiling
+# (using gcc) the C support for x.go.
+
+# Cgo translates each x.go file listed in $(CGOFILES) into
+#
+#	x.cgo1.go - basic translation of x.go
+#	x.cgo2.go - declarations needed for x.cgo1.go; imports "unsafe"
+#	x.cgo3.c - C trampoline code to be compiled with 6c and linked into the package
+#	x.cgo4.c - C implementations compiled with gcc to create dynamic library
+#
+%.cgo1.go %.cgo2.go %.cgo3.c %.cgo4.c: %.go
+	cgo $*.go
+
+# The rules above added x.cgo1.go and x.cgo2.go to $(GOFILES),
+# added x.cgo3.$O to $OFILES, and added the installed copy of
+# package_x.so (built from x.cgo4.c) to $(INSTALLFILES).
+
+# Compile x.cgo3.c with 6c; needs access to the runtime headers.
+RUNTIME_CFLAGS_amd64=-D_64BIT
+RUNTIME_CFLAGS=-I$(GOROOT)/src/pkg/runtime $(RUNTIME_CFLAGS_$(GOARCH))
+%.cgo3.$O: %.cgo3.c
+	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) $*.cgo3.c
+
+# Compile x.cgo4.c with gcc to make package_x.so.
+%.cgo4.o: %.cgo4.c
+	gcc -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo4.c
+
+$(elem)_%.so: %.cgo4.o
+	gcc -shared -o $@ $*.cgo4.o $(CGO_LDFLAGS)
+
+$(pkgdir)/$(dir)/$(elem)_%.so: $(elem)_%.so
+	@test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+	cp $(elem)_$*.so $@
+
+
+# Generic build rules.
+# These come last so that the rules above can override them
+# for more specific file names.
+%.$O: %.c
+	$(CC) $(CFLAGS) $*.c
+
+%.$O: %.s
+	$(AS) $*.s
+
+%.$O: $(HFILES)
 

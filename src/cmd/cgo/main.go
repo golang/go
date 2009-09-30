@@ -69,5 +69,5 @@ func main() {
 	}
 
 	p.PackagePath = p.Package;
-	p.writeOutput(args[0], "_cgo_go.go", "_cgo_c.c", "_cgo_gcc.c");
+	p.writeOutput(args[0]);
 }

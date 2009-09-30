@@ -32,8 +32,8 @@ arithmetic types.  A C struct translates to a Go struct, field by
 field; unrepresentable fields are replaced with opaque byte arrays.  A
 C union translates into a struct containing the first union member and
 perhaps additional padding.  C arrays become Go arrays.  C pointers
-become Go pointers.  C function pointers and void pointers become Go's
-*byte.
+become Go pointers.  C function pointers become Go's uintptr.
+C void pointer's become Go's unsafe.Pointer.
 
 For example, mpz_t is defined in <gmp.h> as:
 
@@ -81,17 +81,8 @@ calls the C xxx in a standard pthread.  The new function translates
 its arguments, calls xxx, and translates the return value.
 
 Translation of parameters and the return value follows the type
-translation above with one extension: a function expecting a char*
-will change to expect a string, and a function returning a char* will
-change to return a string.  The wrapper that cgo generates for the
-first case allocates a new C string, passes that pointer to the C
-function, and then frees the string when the function returns.  The
-wrapper for the second case assumes the char* being returned is
-pointer that must be freed.  It makes a Go string with a copy of the
-contents and then frees the pointer.  The char* conventions are a
-useful heuristic; there should be some way to override them but isn't
-yet.  One can also imagine wrapping Go functions being passed into C
-functions so that C can call them.
+translation above except that arrays passed as parameters translate
+explicitly in Go to pointers to arrays, as they do (implicitly) in C.
 
 Garbage collection is the big problem.  It is fine for the Go world to
 have pointers into the C world and to free those pointers when they
@@ -101,86 +92,11 @@ wrapped by Go objects with appropriate destroy methods.
 
 It is much more difficult for the C world to have pointers into the Go
 world, because the Go garbage collector is unaware of the memory
-allocated by C. I think the most important consideration is not to
-constrain future implementations, so the rule is basically that Go
-code can hand a Go pointer to C code but must separately arrange for
+allocated by C.  The most important consideration is not to
+constrain future implementations, so the rule is that Go code can
+hand a Go pointer to C code but must separately arrange for
 Go to hang on to a reference to the pointer until C is done with it.
-
-Note: the sketches assume that the char* <-> string conversions described
-above have been thrown away.  Otherwise one can't pass nil as the first
-argument to mpz_get_str.
-
-Sketch of 6c.c:
-
-	// NOTE: Maybe cgo is smart enough to figure out that
-	// mpz_init's real C name is __gmpz_init and use that instead.
-
-	// Tell dynamic linker to initialize _cgo_mpz_init in this file
-	// to point at the function of the same name in gcc.c.
-	#pragma dynld _cgo_mpz_init _cgo_mpz_init "gmp.so"
-	#pragma dynld _cgo_mpz_get_str _cgo_mpz_get_str "gmp.so"
-
-	void (*_cgo_mpz_init)(void*);
-	void (*_cgo_mpz_get_str)(void*);
-
-	// implementation of Go function called as C.mpz_init below.
-	void
-	gmp·_C_mpz_init(struct { char x[8]; } p)	// dummy struct, same size as 6g parameter frame
-	{
-		cgocall(_cgo_mpz_init, &p);
-	}
-
-	void
-	gmp·_C_mpz_get_str(struct { char x[32]; } p)
-	{
-		cgocall(_cgo_mpz_get_str, &p);
-	}
-
-Sketch of 6g.go:
-
-	// Type declarations from above, omitted.
-
-	// Extern declarations for 6c.c functions
-	func _C_mpz_init(*_C_mpz_t)
-	func _C_mpz_get_str(*_C_char, int32, *_C_mpz_t) *_C_char
-
-	// Original Go source with C.xxx replaced by _C_xxx
-	// as described above.
-
-Sketch of gcc.c:
-
-	void
-	_cgo_mpz_init(void *v)
-	{
-		struct {
-			__mpz_struct *p1;	// not mpz_t because of C array passing rule
-		} *a = v;
-		mpz_init(a->p1);
-	}
-
-	void
-	_cgo_mpz_get_str(void *v)
-	{
-		struct {
-			char *p1;
-			int32 p2;
-			in32 _pad1;
-			__mpz_struct *p3;
-			char *p4;
-		} *a = v;
-		a->p4 = mpz_get_str(a->p1, a->p2, a->p3);
-	}
-
-Gmp defines mpz_t as __mpz_struct[1], meaning that if you
-declare one it takes up a struct worth of space, but when you
-pass one to a function, it passes a pointer to the space instead
-of copying it.  This can't be modeled directly in Go or in C structs
-so some rewriting happens in the generated files.  In Go,
-the functions take *_C_mpz_t instead of _C_mpz_t, and in the
-GCC structs, the parameters are __mpz_struct* instead of mpz_t.
-
 */
-
 package gmp
 
 // #include <gmp.h>
