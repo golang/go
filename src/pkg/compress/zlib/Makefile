@@ -7,5 +7,6 @@ include $(GOROOT)/src/Make.$(GOARCH)
 TARG=compress/zlib
 GOFILES=\
 	reader.go\
+	writer.go\
 
 include $(GOROOT)/src/Make.pkg
