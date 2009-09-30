@@ -7,7 +7,7 @@ package main
 import (
 	"bytes";
 	"bufio";
-	"exvar";
+	"expvar";
 	"flag";
 	"fmt";
 	"io";
@@ -19,7 +19,7 @@ import (
 
 
 // hello world, the web server
-var helloRequests = exvar.NewInt("hello-requests");
+var helloRequests = expvar.NewInt("hello-requests");
 func HelloServer(c *http.Conn, req *http.Request) {
 	helloRequests.Add(1);
 	io.WriteString(c, "hello, world!\n");
@@ -30,7 +30,7 @@ type Counter struct {
 	n int;
 }
 
-// This makes Counter satisfy the exvar.Var interface, so we can export
+// This makes Counter satisfy the expvar.Var interface, so we can export
 // it directly.
 func (ctr *Counter) String() string {
 	return fmt.Sprintf("%d", ctr.n)
@@ -56,7 +56,7 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
 
 // simple file server
 var webroot = flag.String("root", "/home/rsc", "web root directory")
-var pathVar = exvar.NewMap("file-requests");
+var pathVar = expvar.NewMap("file-requests");
 func FileServer(c *http.Conn, req *http.Request) {
 	c.SetHeader("content-type", "text/plain; charset=utf-8");
 	pathVar.Add(req.Url.Path, 1);
@@ -143,7 +143,7 @@ func main() {
 	// The counter is published as a variable directly.
 	ctr := new(Counter);
 	http.Handle("/counter", ctr);
-	exvar.Publish("counter", ctr);
+	expvar.Publish("counter", ctr);
 
 	http.Handle("/go/", http.HandlerFunc(FileServer));
 	http.Handle("/flags", http.HandlerFunc(FlagServer));

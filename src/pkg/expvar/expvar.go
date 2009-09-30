@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The exvar package provides a standardized interface to public variables,
+// The expvar package provides a standardized interface to public variables,
 // such as operation counters in servers. It exposes these variables via
 // HTTP at /debug/vars in JSON format.
-package exvar
+package expvar
 
 import (
 	"bytes";
@@ -203,7 +203,7 @@ func Iter() <-chan KeyValue {
 	return c
 }
 
-func exvarHandler(c *http.Conn, req *http.Request) {
+func expvarHandler(c *http.Conn, req *http.Request) {
 	c.SetHeader("content-type", "application/json; charset=utf-8");
 	fmt.Fprintf(c, "{\n");
 	first := true;
@@ -218,5 +218,5 @@ func exvarHandler(c *http.Conn, req *http.Request) {
 }
 
 func init() {
-	http.Handle("/debug/vars", http.HandlerFunc(exvarHandler));
+	http.Handle("/debug/vars", http.HandlerFunc(expvarHandler));
 }
