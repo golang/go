@@ -6,6 +6,7 @@ package flate
 
 import (
 	"bytes";
+	"fmt";
 	"io";
 	"os";
 	"testing";
@@ -88,43 +89,40 @@ func TestDeflate(t *testing.T) {
 	}
 }
 
-func testToFromWithLevel(t *testing.T, level int, input []byte) os.Error {
+func testToFromWithLevel(t *testing.T, level int, input []byte, name string) os.Error {
 	buffer := bytes.NewBuffer([]byte{});
 	w := NewDeflater(buffer, level);
 	w.Write(input);
 	w.Close();
-	arr := buffer.Bytes();
-	t.Logf("compressed: %v, %v", len(arr), arr);
 	inflater := NewInflater(buffer);
 	decompressed, err := io.ReadAll(inflater);
-	if err != nil && err != os.EOF {
-		t.Errorf("The error reading the buffer, %v", err);
+	if err != nil {
+		t.Errorf("reading inflater: %s", err);
 		return err;
 	}
 	inflater.Close();
 	if bytes.Compare(input, decompressed) != 0 {
-		t.Errorf("the data was changed after deflate/inflate. Level: %v, input: %v, decompressed: %v",
-			level, input, decompressed);
+		t.Errorf("decompress(compress(data)) != data: level=%d input=%s", level, name);
 	}
 	return nil;
 }
 
-func testToFrom(t * testing.T, input[] byte) {
+func testToFrom(t *testing.T, input[] byte, name string) {
 	for i := 0; i < 10; i++ {
-		testToFromWithLevel(t, i, input);
+		testToFromWithLevel(t, i, input, name);
 	}
 }
 
 func TestDeflateInflate(t *testing.T) {
-	for _, h := range deflateInflateTests {
-		testToFrom(t, h.in);
+	for i, h := range deflateInflateTests {
+		testToFrom(t, h.in, fmt.Sprintf("#%d", i));
 	}
 }
 
 func TestReverseBits(t *testing.T) {
 	for _, h := range reverseBitsTests {
 		if v := reverseBits(h.in, h.bitCount); v != h.out {
-			t.Errorf("reverseBits(%v,%v) returned %v, %v expected",
+			t.Errorf("reverseBits(%v,%v) = %v, want %v",
 				h.in, h.bitCount, v, h.out);
 		}
 	}
@@ -132,7 +130,7 @@ func TestReverseBits(t *testing.T) {
 
 func TestDeflateInflateString(t *testing.T) {
 	gold := bytes.NewBufferString(getEdata()).Bytes();
-	testToFromWithLevel(t, 1, gold);
+	testToFromWithLevel(t, 1, gold, "2.718281828...");
 }
 
 func getEdata() string {
