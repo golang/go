@@ -40,7 +40,7 @@ DIRS=\
 	debug/proc\
 	ebnf\
 	exec\
-	exvar\
+	expvar\
 	flag\
 	fmt\
 	go/ast\

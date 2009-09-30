@@ -4,8 +4,8 @@
 
 include $(GOROOT)/src/Make.$(GOARCH)
 
-TARG=exvar
+TARG=expvar
 GOFILES=\
-	exvar.go\
+	expvar.go\
 
 include $(GOROOT)/src/Make.pkg
