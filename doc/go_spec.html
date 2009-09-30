@@ -69,9 +69,6 @@ Todo
     (struct{T} vs struct {T T} vs struct {t T})
 [ ] need explicit language about the result type of operations
 [ ] may want to have some examples for the types of shift operations
-[ ] document illegality of package-external tuple assignments to structs
-	w/ private fields: P.T(1, 2) illegal since same as P.T(a: 1, b: 2) for
-	a T struct { a b int }.
 [ ] should probably write something about evaluation order of statements even
 	though obvious
 [ ] specify iteration direction for range clause
@@ -1097,7 +1094,7 @@ to receive. This constraint is called a channel's <i>direction</i>; either
 </p>
 
 <pre>
-chan T            // can be used to send and receive values of type T
+chan T         // can be used to send and receive values of type T
 chan&lt;- float   // can only be used to send floats
 &lt;-chan int     // can only be used to receive ints
 </pre>
@@ -1121,12 +1118,8 @@ or absent, the communication succeeds only when both a sender and receiver are r
 </p>
 
 <p>
-For a channel <code>c</code>, the predefined function <code>close(c)</code>
-marks the channel as unable to accept more
-values through a send operation.  After any previously
-sent values have been received, receives will return
-the zero value for the channel's type.  After at least one such zero value has been
-received, <code>closed(c)</code> returns true.
+A channel may be closed and tested for closure with the built-in functions
+<a href="#Close_and_closed"><code>close</code> and <code>closed</code></a>.
 </p>
 
 <h2 id="Properties_of_types_and_values">Properties of types and values</h2>
@@ -1946,7 +1939,7 @@ a single expression or a key-value pair.
 <pre class="ebnf">
 CompositeLit  = LiteralType "{" [ ElementList ] "}" .
 LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
-                SliceType | MapType | TypeName .
+                SliceType | MapType | TypeName | "(" LiteralType ")" .
 ElementList   = Element { "," Element } [ "," ] .
 Element       = [ Key ":" ] Value .
 Key           = FieldName | Index .
@@ -2134,10 +2127,15 @@ as they are accessible.
 
 <h3 id="Primary_expressions">Primary expressions</h3>
 
+<p>
+Primary expressions are the operands for unary and binary expressions.
+</p>
+
 <pre class="ebnf">
 PrimaryExpr =
 	Operand |
 	Conversion |
+	BuiltinCall |
 	PrimaryExpr Selector |
 	PrimaryExpr Index |
 	PrimaryExpr Slice |
@@ -3059,6 +3057,84 @@ It is legal to derive a function value from a method of an interface type.
 The resulting function takes an explicit receiver of that interface type.
 </p>
 
+<h3 id="Conversions">Conversions</h3>
+
+<p>
+Conversions are expressions of the form <code>T(x)</code>
+where <code>T</code> is a type and <code>x</code> is an expression
+that can be converted to type <code>T</code>.
+</p>
+
+<pre class="ebnf">
+Conversion = LiteralType "(" Expression ")" .
+</pre>
+
+<p>
+The following conversion rules apply:
+</p>
+<ul>
+<li>
+1) The conversion succeeds if the value is <a href="#Assignment_compatibility">assignment compatible</a>
+with type <code>T</code>.
+</li>
+<li>
+2) The conversion succeeds if the value would be assignment compatible
+with type <code>T</code> if the value's type, or <code>T</code>, or any of their component
+types were unnamed.
+</li>
+<li>
+3) Between integer types: If the value is a signed quantity, it is
+sign extended to implicit infinite precision; otherwise it is zero
+extended.  It is then truncated to fit in the result type's size.
+For example, if <code>x := uint16(0x10F0)</code>, then <code>uint32(int8(x)) == 0xFFFFFFF0</code>.
+The conversion always yields a valid value; there is no indication of overflow.
+</li>
+<li>
+4) Between integer and floating-point types, or between floating-point types:
+When converting a floating-point number to an integer, the fraction is discarded
+(truncation towards zero).
+In all conversions involving floating-point values, if the result type cannot represent the
+value the conversion succeeds but the result value is unspecified.
+<font color=red>This behavior may change.</font>
+</li>
+<li>
+5) Strings permit three special conversions:
+</li>
+<li>
+5a) Converting an integer value yields a string containing the UTF-8
+representation of the integer.
+
+<pre>
+string(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
+</pre>
+
+</li>
+<li>
+5b) Converting a slice of integers yields a string that is the
+concatenation of the individual integers converted to strings.
+If the slice value is <code>nil</code>, the result is the empty string.
+<pre>
+string([]int{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"</pre>
+</li>
+
+<li>
+5c) Converting a slice of bytes yields a string whose successive
+bytes are those of the slice. If the slice value is <code>nil</code>,
+the result is the empty string.
+
+<pre>
+string([]byte{'h', 'e', 'l', 'l', 'o'})  // "hello"
+</pre>
+</li>
+</ul>
+
+<p>
+There is no linguistic mechanism to convert between pointers and integers.
+The package <a href="#Package_unsafe"><code>unsafe</code></a>
+implements this functionality under
+restricted circumstances.
+</p>
+
 <h3 id="Constant_expressions">Constant expressions</h3>
 
 <p>
@@ -3978,30 +4054,47 @@ for i := 0; i &lt;= 3; i++ {
 }
 </pre>
 
-<h2 id="Predeclared_functions">Predeclared functions</h2>
-<ul>
-	<li>cap
-	<li>close
-	<li>closed
-	<li>len
-	<li>make
-	<li>new
-	<li>panic
-	<li>panicln
-	<li>print
-	<li>println
-</ul>
+<h2 id="Built-in_functions">Built-in functions</h2>
+
+<p>
+A small number of built-in functions are
+<a href="#Predeclared_identifiers">predeclared</a>.
+They are called like any other function but some of them
+accept a type instead of an expression as the first argument.
+</p>
+
+<pre class="ebnf">
+BuiltinCall = identifier "(" [ BuiltinArgs ] ")" .
+BuiltinArgs = Type [ "," ExpressionList ] | ExpressionList .
+</pre>
+
+<h3 id="Close_and_closed">Close and closed</h3>
+
+<p>
+For a channel <code>c</code>, the predefined function <code>close(c)</code>
+marks the channel as unable to accept more
+values through a send operation.  After any previously
+sent values have been received, receive operations will return
+the zero value for the channel's type.  After at least one such zero value has been
+received, <code>closed(c)</code> returns true.
+</p>
 
 <h3 id="Length_and_capacity">Length and capacity</h3>
+
+<p>
+The built-in functions <code>len</code> and <code>cap</code> take arguments
+of various types and return a result of type <code>int</code>.
+The implementation guarantees that the result always fits into an <code>int</code>.
+</p>
 
 <pre class="grammar">
 Call      Argument type        Result
 
-len(s)    string               string length (in bytes)
+len(s)    string type          string length in bytes
           [n]T, *[n]T          array length (== n)
           []T                  slice length
           map[K]T              map length (number of defined keys)
-          chan T               number of elements sent queued in channel buffer
+          chan T               number of elements queued in channel buffer
 
 cap(s)    [n]T, *[n]T          array length (== n)
           []T                  slice capacity
@@ -4009,105 +4102,14 @@ cap(s)    [n]T, *[n]T          array length (== n)
 </pre>
 
 <p>
-The type of the result is always <code>int</code> and the
-implementation guarantees that
-the result always fits into an <code>int</code>.
-<p>
-The capacity of a slice or map is the number of elements for which there is
-space allocated in the underlying array (for a slice) or map. For a slice
-<code>s</code>, at any time the following relationship holds:
+The capacity of a slice is the number of elements for which there is
+space allocated in the underlying array.
+At any time the following relationship holds:
+</p>
 
 <pre>
 0 <= len(s) <= cap(s)
 </pre>
-
-
-<h3 id="Conversions">Conversions</h3>
-
-<p>
-Conversions look like function calls of the form
-</p>
-
-<pre>
-T(value)
-</pre>
-
-<p>
-where <code>T</code> is a type
-and <code>value</code> is an expression
-that can be converted to a value
-of result type <code>T</code>.
-</p>
-
-<pre class="ebnf">
-Conversion = ( TypeName | "(" Type ")" ) Expression .
-</pre>
-
-<p>
-The following conversion rules apply:
-</p>
-<ul>
-<li>
-1) The conversion succeeds if the value is <a href="#Assignment_compatibility">assignment compatible</a>
-with type <code>T</code>.
-</li>
-<li>
-2) The conversion succeeds if the value would be assignment compatible
-with type <code>T</code> if the value's type, or <code>T</code>, or any of their component
-types were unnamed (§<a href="#Type_identity_and_compatibility">Type identity and compatibility</a>).
-</li>
-<li>
-3) Between integer types.  If the value is a signed quantity, it is
-sign extended to implicit infinite precision; otherwise it is zero
-extended.  It is then truncated to fit in the result type's size.
-For example, if <code>x := uint16(0x10F0)</code>, then <code>uint32(int8(x)) == 0xFFFFFFF0</code>.
-The conversion always yields a valid value; there is no indication of overflow.
-</li>
-<li>
-4) Between integer and floating-point types, or between floating-point types.
-When converting a floating-point number to an integer, the fraction is discarded
-(truncation towards zero).
-In all conversions involving floating-point values, if the result type cannot represent the
-value the conversion succeeds but the result value is unspecified.
-<font color=red>This behavior may change.</font>
-</li>
-<li>
-5) Strings permit three special conversions:
-</li>
-<li>
-5a) Converting an integer value yields a string containing the UTF-8
-representation of the integer.
-
-<pre>
-string(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
-</pre>
-
-</li>
-<li>
-5b) Converting a slice of integers yields a string that is the
-concatenation of the individual integers converted to strings.
-If the slice value is <code>nil</code>, the result is the empty string.
-<pre>
-string([]int{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"</pre>
-</li>
-
-<li>
-5c) Converting a slice of bytes yields a string whose successive
-bytes are those of the slice. If the slice value is <code>nil</code>,
-the result is the empty string.
-
-<pre>
-string([]byte{'h', 'e', 'l', 'l', 'o'})  // "hello"
-</pre>
-</li>
-</ul>
-
-<p>
-There is no linguistic mechanism to convert between pointers and integers.
-The package <a href="#Package_unsafe"><code>unsafe</code></a>
-implements this functionality under
-restricted circumstances.
-</p>
 
 
 <h3 id="Allocation">Allocation</h3>
@@ -4180,9 +4182,24 @@ c := make(chan int, 10);          # channel with a buffer size of 10
 m := make(map[string] int, 100);  # map with initial space for 100 elements
 </pre>
 
+
+<h3 id="Bootstrapping">Bootstrapping</h3>
+
 <p>
-<font color=red>TODO: Need syntax that permits a type as first argument for built-ins.</font>
+Current implementations provide several built-in functions useful during
+bootstrapping. These functions are documented for completeness but are not
+guaranteed to stay in the language. They do not return a result.
 </p>
+
+<pre class="grammar">
+Call       Behavior
+
+print      prints all arguments; formatting of arguments is implementation-specific
+println    like print but prints spaces between arguments and a newline at the end
+panic      like print, aborts execution after printing
+panicln    like println, aborts execution after printing
+</pre>
+
 
 <h2 id="Packages">Packages</h2>
 
