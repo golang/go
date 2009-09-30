@@ -84,15 +84,15 @@ var valueTests = []pair {
 	pair { (bool)(false), "true" },
 	pair { (*int8)(nil), "*int8(0)" },
 	pair { (**int8)(nil), "**int8(0)" },
-	pair { [5]int32{}, "[5]int32{0, 0, 0, 0, 0}" },
+	pair { ([5]int32){}, "[5]int32{0, 0, 0, 0, 0}" },
 	pair { (**integer)(nil), "**reflect_test.integer(0)" },
 	pair { (map[string]int32)(nil), "map[string] int32{<can't iterate on maps>}" },
 	pair { (chan<-string)(nil), "chan<- string" },
-	pair { struct {c chan *int32; d float32}{}, "struct { c chan *int32; d float32 }{chan *int32, 0}" },
+	pair { (struct {c chan *int32; d float32}){}, "struct { c chan *int32; d float32 }{chan *int32, 0}" },
 	pair { (func(a int8, b int32))(nil), "func(int8, int32)(0)" },
-	pair { struct {c func(chan *integer, *int8)}{}, "struct { c func(chan *reflect_test.integer, *int8) }{func(chan *reflect_test.integer, *int8)(0)}" },
-	pair { struct {a int8; b int32}{}, "struct { a int8; b int32 }{0, 0}" },
-	pair { struct {a int8; b int8; c int32}{}, "struct { a int8; b int8; c int32 }{0, 0, 0}" },
+	pair { (struct {c func(chan *integer, *int8)}){}, "struct { c func(chan *reflect_test.integer, *int8) }{func(chan *reflect_test.integer, *int8)(0)}" },
+	pair { (struct {a int8; b int32}){}, "struct { a int8; b int32 }{0, 0}" },
+	pair { (struct {a int8; b int8; c int32}){}, "struct { a int8; b int8; c int32 }{0, 0, 0}" },
 }
 
 func testType(t *testing.T, i int, typ Type, want string) {
