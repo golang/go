@@ -47,7 +47,7 @@ mfree(Node *n)
 void
 cgen(Node *n, Node *res)
 {
-	Node *nl, *nr, *r, n1, n2, f0, f1;
+	Node *nl, *nr, *r, n1, n2, nt, f0, f1;
 	Prog *p1, *p2, *p3;
 	int a;
 
@@ -136,7 +136,7 @@ cgen(Node *n, Node *res)
 		tempfree(&n1);
 		return;
 	}
-	
+
 	// 64-bit ops are hard on 32-bit machine.
 	if(is64(n->type) || is64(res->type) || n->left != N && is64(n->left->type)) {
 		switch(n->op) {
@@ -350,13 +350,16 @@ sbop:	// symmetric binary
 
 abop:	// asymmetric binary
 	if(nl->ullman >= nr->ullman) {
-		regalloc(&n1, nl->type, res);
-		cgen(nl, &n1);
+		tempalloc(&nt, nl->type);
+		cgen(nl, &nt);
 		mgen(nr, &n2, N);
+		regalloc(&n1, nl->type, res);
+		gmove(&nt, &n1);
 		gins(a, &n2, &n1);
 		gmove(&n1, res);
-		mfree(&n2);
 		regfree(&n1);
+		mfree(&n2);
+		tempfree(&nt);
 	} else {
 		regalloc(&n2, nr->type, res);
 		cgen(nr, &n2);
@@ -529,7 +532,8 @@ agen(Node *n, Node *res)
 					nodconst(&n2, types[TUINT32], v);
 					gins(optoas(OCMP, types[TUINT32]), &n1, &n2);
 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
-					ginscall(throwindex, 0);
+					//ginscall(throwindex, 0);
+					gins(AINT, nodintconst(3), N);
 					patch(p1, pc);
 				}
 
@@ -575,7 +579,8 @@ agen(Node *n, Node *res)
 				nodconst(&n1, types[TUINT32], nl->type->bound);
 			gins(optoas(OCMP, types[TUINT32]), &n2, &n1);
 			p1 = gbranch(optoas(OLT, types[TUINT32]), T);
-			ginscall(throwindex, 0);
+			//ginscall(throwindex, 0);
+			gins(AINT, nodintconst(3), N);
 			patch(p1, pc);
 		}
 
@@ -661,8 +666,13 @@ agen(Node *n, Node *res)
 void
 igen(Node *n, Node *a, Node *res)
 {
+	Node n1;
+
+	tempalloc(&n1, types[tptr]);
+	agen(n, &n1);
 	regalloc(a, types[tptr], res);
-	agen(n, a);
+	gmove(&n1, a);
+	tempfree(&n1);
 	a->op = OINDREG;
 	a->type = n->type;
 }
@@ -834,7 +844,7 @@ bgen(Node *n, int true, Prog *to)
 			regfree(&n1);
 			break;
 		}
-		
+
 		if(isinter(nl->type)) {
 			// front end shold only leave cmp to literal nil
 			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {

@@ -650,8 +650,8 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 
 	memset(&oldcx, 0, sizeof oldcx);
 	nodreg(&cx, types[TUINT32], D_CX);
-	if(reg[D_CX] > 0 && !samereg(&cx, res)) {
-		regalloc(&oldcx, types[TUINT32], N);
+	if(reg[D_CX] > 1 && !samereg(&cx, res)) {
+		tempalloc(&oldcx, types[TUINT32]);
 		gmove(&cx, &oldcx);
 	}
 
@@ -671,7 +671,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	}
 
 	// test and fix up large shifts
-	gins(optoas(OCMP, types[TUINT32]), &n1, ncon(w));
+	gins(optoas(OCMP, nr->type), &n1, ncon(w));
 	p1 = gbranch(optoas(OLT, types[TUINT32]), T);
 	if(op == ORSH && issigned[nl->type->etype]) {
 		gins(a, ncon(w-1), &n2);
@@ -683,7 +683,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 
 	if(oldcx.op != 0) {
 		gmove(&oldcx, &cx);
-		regfree(&oldcx);
+		tempfree(&oldcx);
 	}
 
 	gmove(&n2, res);
