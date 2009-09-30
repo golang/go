@@ -4,15 +4,17 @@
 
 # not linked into build for now
 
+CFLAGS_386=-m32
+
 TARG=libcgo.so
 
 all: libcgo.so
 
 cgocall.o: cgocall.c
-	gcc -O2 -fPIC -o cgocall.o -c cgocall.c
+	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o cgocall.o -c cgocall.c
 
 libcgo.so: cgocall.o
-	gcc -shared -o libcgo.so cgocall.o -lpthread -lm
+	gcc $(CFLAGS_$(GOARCH)) -shared -o libcgo.so cgocall.o -lpthread -lm
 
 install: $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so
 

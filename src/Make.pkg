@@ -93,17 +93,20 @@ RUNTIME_CFLAGS=-I$(GOROOT)/src/pkg/runtime $(RUNTIME_CFLAGS_$(GOARCH))
 %.cgo3.$O: %.cgo3.c
 	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) $*.cgo3.c
 
+# Have to run gcc with the right size argument on hybrid 32/64 machines.
+_CGO_CFLAGS_386=-m32
+_CGO_CFLAGS_amd64=-m64
+
 # Compile x.cgo4.c with gcc to make package_x.so.
 %.cgo4.o: %.cgo4.c
-	gcc -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo4.c
+	gcc $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo4.c
 
 $(elem)_%.so: %.cgo4.o
-	gcc -shared -o $@ $*.cgo4.o $(CGO_LDFLAGS)
+	gcc $(_CGO_CFLAGS_$(GOARCH)) -shared -o $@ $*.cgo4.o $(CGO_LDFLAGS)
 
 $(pkgdir)/$(dir)/$(elem)_%.so: $(elem)_%.so
 	@test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
 	cp $(elem)_$*.so $@
-
 
 # Generic build rules.
 # These come last so that the rules above can override them

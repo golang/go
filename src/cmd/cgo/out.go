@@ -100,8 +100,8 @@ func (p *Prog) writeOutput(srcfile string) {
 			structType += fmt.Sprintf("\t\t%s p%d;\n", t.C, i);
 			off += t.Size;
 		}
-		if off%ptrSize != 0 {
-			pad := ptrSize - off%ptrSize;
+		if off%p.PtrSize != 0 {
+			pad := p.PtrSize - off%p.PtrSize;
 			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
 			off += pad;
 			npad++;
@@ -116,8 +116,8 @@ func (p *Prog) writeOutput(srcfile string) {
 			structType += fmt.Sprintf("\t\t%s r;\n", t.C);
 			off += t.Size;
 		}
-		if off%ptrSize != 0 {
-			pad := ptrSize - off%ptrSize;
+		if off%p.PtrSize != 0 {
+			pad := p.PtrSize - off%p.PtrSize;
 			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
 			off += pad;
 			npad++;

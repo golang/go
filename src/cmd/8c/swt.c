@@ -231,6 +231,17 @@ outcode(void)
 	Binit(&b, f, OWRITE);
 
 	Bprint(&b, "%s\n", thestring);
+	if(ndynld > 0) {
+		int i;
+
+		Bprint(&b, "\n");
+		Bprint(&b, "$$  // exports\n\n");
+		Bprint(&b, "$$  // local types\n\n");
+		Bprint(&b, "$$  // dynld\n", thestring);
+		for(i=0; i<ndynld; i++)
+			Bprint(&b, "dynld %s %s %s\n", dynld[i].local, dynld[i].remote, dynld[i].path);
+		Bprint(&b, "$$\n\n");
+	}
 	Bprint(&b, "!\n");
 
 	outhist(&b);

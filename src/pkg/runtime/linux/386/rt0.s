@@ -5,4 +5,11 @@
 // Darwin and Linux use the same linkage to main
 
 TEXT	_rt0_386_linux(SB),7,$0
+	MOVL	initcgo(SB), AX
+	TESTL	AX, AX
+	JZ	2(PC)
+	CALL	AX
+
 	JMP	_rt0_386(SB)
+
+GLOBL initcgo(SB), $4
