@@ -31,6 +31,7 @@
 #define	EXTERN
 #include	"l.h"
 #include	"../ld/elf.h"
+#include	"../ld/macho.h"
 #include	<ar.h>
 
 #ifndef	DEFAULT
@@ -212,7 +213,8 @@ main(int argc, char *argv[])
 			Bprint(&bso, "HEADR = 0x%ld\n", HEADR);
 		break;
 	case 6:	/* apple MACH */
-		HEADR = machheadr();
+		machoinit();
+		HEADR = MACHORESERVE;
 		if(INITTEXT == -1)
 			INITTEXT = 4096+HEADR;
 		if(INITDAT == -1)

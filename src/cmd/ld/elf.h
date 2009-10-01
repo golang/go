@@ -963,7 +963,7 @@ extern	int	numelfphdr;
 extern	int	numelfshdr;
 
 /*
- * Total amount of ELF space to reserve at the start of the file
+ * Total amount of space to reserve at the start of the file
  * for Header, PHeaders, and SHeaders.
  * May waste some.
  */

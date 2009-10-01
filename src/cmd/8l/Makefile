@@ -13,6 +13,7 @@ OFILES=\
 	elf.$O\
 	enam.$O\
 	list.$O\
+	macho.$O\
 	obj.$O\
 	optab.$O\
 	pass.$O\
@@ -23,6 +24,7 @@ HFILES=\
 	l.h\
 	../8l/8.out.h\
 	../ld/elf.h\
+	../ld/macho.h\
 
 
 $(TARG): $(OFILES)
@@ -41,3 +43,4 @@ install: $(TARG)
 
 go.o: ../ld/go.c
 elf.o: ../ld/elf.c
+macho.o: ../ld/macho.c
