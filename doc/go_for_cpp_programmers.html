@@ -257,21 +257,22 @@ You cannot write <code>c = *p++</code>.  <code>*p++</code> is parsed as
 <h2 id="Constants">Constants </h2>
 
 <p>
-In Go integer and floating-point constants have so-called ideal types.
-This applies even to constants named with a <code>const</code> declaration,
-if no
-type is given in the declaration.  An ideal type becomes concrete when
-it is actually used.  This permits constants to be used relatively
+In Go constants may be <i>untyped</i>. This applies even to constants
+named with a <code>const</code> declaration if no
+type is given in the declaration and the initializer expression uses only
+untyped constants.
+An untyped constant becomes typed when it is used within a context that
+requires a typed value. This permits constants to be used relatively
 freely without requiring general implicit type conversion.
 
 <pre>
-var a uint; f(a + 1)  // Ideal type of "1" becomes "uint".
+var a uint; f(a + 1)  // untyped numeric constant "1" becomes typed as uint
 </pre>
 
 <p>
-The language does not impose any limits on the size of an abstract
-integer constant or constant expression.  A limit is only applied when
-a constant expression is used where a type is required.
+The language does not impose any limits on the size of an untyped
+numeric constant or constant expression. A limit is only applied when
+a constant is used where a type is required.
 
 <pre>
 const huge = 1 &lt;&lt; 100; f(huge &gt;&gt; 98)
