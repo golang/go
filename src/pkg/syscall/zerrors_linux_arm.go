@@ -30,6 +30,7 @@ const (
 	ETXTBSY = 0x1a;
 	ENOMEM = 0xc;
 	EINPROGRESS = 0x73;
+	ENOTEMPTY = 0x27;
 	ENOTBLK = 0xf;
 	EPROTOTYPE = 0x5b;
 	ERESTART = 0x55;
@@ -58,9 +59,7 @@ const (
 	EXFULL = 0x36;
 	EBADSLT = 0x39;
 	ENOTNAM = 0x76;
-	ELIBEXEC = 0x53;
 	ENOCSI = 0x32;
-	ENOTEMPTY = 0x27;
 	EADDRINUSE = 0x62;
 	ENETRESET = 0x66;
 	EISDIR = 0x15;
@@ -74,7 +73,6 @@ const (
 	EKEYREJECTED = 0x81;
 	ELIBSCN = 0x51;
 	ENAVAIL = 0x77;
-	ENOSTR = 0x3c;
 	EOVERFLOW = 0x4b;
 	EUCLEAN = 0x75;
 	ENOMEDIUM = 0x7b;
@@ -86,11 +84,13 @@ const (
 	ELIBACC = 0x4f;
 	E2BIG = 0x7;
 	EDEADLK = 0x23;
+	ENOTDIR = 0x14;
 	ECONNRESET = 0x68;
 	ENXIO = 0x6;
 	EBADRQC = 0x38;
 	ENAMETOOLONG = 0x24;
 	ESOCKTNOSUPPORT = 0x5e;
+	ELIBEXEC = 0x53;
 	EDOTDOT = 0x49;
 	EADDRNOTAVAIL = 0x63;
 	ETIME = 0x3e;
@@ -105,6 +105,7 @@ const (
 	ENOEXEC = 0x8;
 	EMSGSIZE = 0x5a;
 	EDOM = 0x21;
+	ENOSTR = 0x3c;
 	EFBIG = 0x1b;
 	ESRCH = 0x3;
 	ECHRNG = 0x2c;
@@ -139,7 +140,6 @@ const (
 	EHOSTUNREACH = 0x71;
 	ENOTUNIQ = 0x4c;
 	EOPNOTSUPP = 0x5f;
-	ENOTDIR = 0x14;
 	EMEDIUMTYPE = 0x7c;
 	SIGBUS = 0x7;
 	SIGTTIN = 0x15;
@@ -150,11 +150,10 @@ const (
 	SIGSTKFLT = 0x10;
 	SIGUSR1 = 0xa;
 	SIGURG = 0x17;
+	SIGIO = 0x1d;
 	SIGQUIT = 0x3;
 	SIGCLD = 0x11;
-	SIGIO = 0x1d;
 	SIGABRT = 0x6;
-	SIGUSR2 = 0xc;
 	SIGTRAP = 0x5;
 	SIGVTALRM = 0x1a;
 	SIGPOLL = 0x1d;
@@ -167,6 +166,7 @@ const (
 	SIGSYS = 0x1f;
 	SIGSTOP = 0x13;
 	SIGALRM = 0xe;
+	SIGUSR2 = 0xc;
 	SIGTSTP = 0x14;
 	SIGKILL = 0x9;
 	SIGXCPU = 0x18;
@@ -204,6 +204,7 @@ var errors = [...]string {
 	26: "text file busy",
 	12: "cannot allocate memory",
 	115: "operation now in progress",
+	39: "directory not empty",
 	15: "block device required",
 	91: "protocol wrong type for socket",
 	85: "interrupted system call should be restarted",
@@ -232,9 +233,7 @@ var errors = [...]string {
 	54: "exchange full",
 	57: "invalid slot",
 	118: "not a XENIX named type file",
-	83: "cannot exec a shared library directly",
 	50: "no CSI structure available",
-	39: "directory not empty",
 	98: "address already in use",
 	102: "network dropped connection on reset",
 	21: "is a directory",
@@ -248,7 +247,6 @@ var errors = [...]string {
 	129: "key was rejected by service",
 	81: ".lib section in a.out corrupted",
 	119: "no XENIX semaphores available",
-	60: "device not a stream",
 	75: "value too large for defined data type",
 	117: "structure needs cleaning",
 	123: "no medium found",
@@ -260,11 +258,13 @@ var errors = [...]string {
 	79: "can not access a needed shared library",
 	7: "argument list too long",
 	35: "resource deadlock avoided",
+	20: "not a directory",
 	104: "connection reset by peer",
 	6: "no such device or address",
 	56: "invalid request code",
 	36: "file name too long",
 	94: "socket type not supported",
+	83: "cannot exec a shared library directly",
 	73: "RFS specific error",
 	99: "cannot assign requested address",
 	62: "timer expired",
@@ -279,6 +279,7 @@ var errors = [...]string {
 	8: "exec format error",
 	90: "message too long",
 	33: "numerical argument out of domain",
+	60: "device not a stream",
 	27: "file too large",
 	3: "no such process",
 	44: "channel number out of range",
@@ -310,7 +311,6 @@ var errors = [...]string {
 	128: "key has been revoked",
 	113: "no route to host",
 	76: "name not unique on network",
-	20: "not a directory",
 	124: "wrong medium type",
 }
 

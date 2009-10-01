@@ -112,6 +112,14 @@ nacl_386)
 	mktypes="godefs -gsyscall -f-m32 -f-I$NACLSDK/include -f-I$NACL"
 	mkerrors="mkerrors_nacl.sh $NACLRUN/include/sys/errno.h"
 	;;
+linux_arm)
+	ARM="/home/kaib/public/linux-2.6.28"
+	mksyscall="mksyscall.sh -l32"
+	mksysnum="mksysnum_linux.sh $ARM/arch/arm/include/asm/unistd.h"
+//	mktypes="godefs -gsyscall -carm-gcc -f-I$ARM/arch/arm/include -f-I$ARM/include -f-D__deprecated='' -f-I$ARM/arch/arm/mach-at91/include -f-DCONFIG_ARCH_AT91SAM9260 "
+	mktypes="godefs -gsyscall -carm-gcc"
+	mkerrors="mkerrors.sh"
+	;;
 *)
 	echo 'unrecognized $GOOS_$GOARCH: ' "$GOOSARCH" 1>&2
 	exit 1

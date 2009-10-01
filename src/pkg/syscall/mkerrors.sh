@@ -7,18 +7,27 @@
 # and signal values (SIGALRM etc).  They're unrelated except
 # that we use the same method for finding them.
 
+case "$GOARCH" in
+arm)
+	GCC=arm-gcc
+	;;
+*)
+	GCC=gcc
+	;;
+esac
+
 errors=$(
 	echo '#include <errno.h>' |
 	# The gcc command line prints all the #defines
 	# it encounters while processing the input
-	gcc -x c - -E -dM |
+	$GCC -x c - -E -dM |
 	egrep -h '#define E[A-Z0-9_]+ ' $files |
 	sed 's/#define //; s/ .*//'
 )
 
 signals=$(
 	echo '#include <sys/signal.h>' |
-	gcc -x c - -E -dM |
+	$GCC -x c - -E -dM |
 	egrep -h '#define SIG[^_]' |
 	egrep -v '#define (SIGEV_|SIGSTKSZ|SIGRT(MIN|MAX))' |
 	sed 's/#define //; s/ .*//'
