@@ -227,6 +227,7 @@ method1.go
 method2.go
 method3.go
 named1.go
+nil.go
 parentype.go
 printbig.go
 rename1.go
