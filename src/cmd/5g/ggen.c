@@ -111,7 +111,7 @@ void
 ginscall(Node *f, int proc)
 {
 	Prog *p;
-//	Node reg, con;
+	Node n1, r, con;
 
 	switch(proc) {
 	default:
@@ -125,17 +125,53 @@ ginscall(Node *f, int proc)
 
 	case 1:	// call in new proc (go)
 	case 2:	// defered call (defer)
-		fatal("ginscall new proc/defered not implemented");
-//		nodreg(&reg, types[TINT64], D_AX);
-//		gins(APUSHQ, f, N);
-//		nodconst(&con, types[TINT32], argsize(f->type));
-//		gins(APUSHQ, &con, N);
-//		if(proc == 1)
-//			ginscall(newproc, 0);
-//		else
-//			ginscall(deferproc, 0);
-//		gins(APOPQ, N, &reg);
-//		gins(APOPQ, N, &reg);
+		regalloc(&r, types[tptr], N);
+		p = gins(AMOVW, N, &r);
+		p->from.type = D_OREG;
+		p->from.reg = REGSP;
+		
+		p = gins(AMOVW, &r, N);
+		p->to.type = D_OREG;
+		p->to.reg = REGSP;
+		p->to.offset = -8;
+		p->scond |= C_WBIT;
+
+		memset(&n1, 0, sizeof n1);
+		n1.op = OADDR;
+		n1.left = f;
+		gins(AMOVW, &n1, &r);
+
+		p = gins(AMOVW, &r, N);
+		p->to.type = D_OREG;
+		p->to.reg = REGSP;
+		p->to.offset = 8;
+
+		nodconst(&con, types[TINT32], argsize(f->type));
+		gins(AMOVW, &con, &r);
+		p = gins(AMOVW, &r, N);
+		p->to.type = D_OREG;
+		p->to.reg = REGSP;
+		p->to.offset = 4;
+		regfree(&r);
+
+		if(proc == 1)
+			ginscall(newproc, 0);
+		else
+			ginscall(deferproc, 0);
+
+		regalloc(&r, types[tptr], N);
+		p = gins(AMOVW, N, &r);
+		p->from.type = D_OREG;
+		p->from.reg = REGSP;
+		p->from.offset = 0;
+
+		p = gins(AMOVW, &r, N);
+		p->to.type = D_OREG;
+		p->to.reg = REGSP;
+		p->to.offset = 8;
+		p->scond |= C_WBIT;
+		regfree(&r);
+
 		break;
 	}
 }
@@ -338,7 +374,7 @@ cgen_asop(Node *n)
 {
 	Node n1, n2, n3, n4;
 	Node *nl, *nr;
-//	Prog *p1;
+	Prog *p1;
 	Addr addr;
 	int a, w;
 
@@ -379,15 +415,18 @@ cgen_asop(Node *n)
 		}
 		if(nr->ullman < UINF)
 		if(sudoaddable(a, nl, &addr, &w)) {
-			fatal("cgen_asop sudoaddable not implemented");
-//			regalloc(&n2, nr->type, N);
-//			cgen(nr, &n2);
-//			p1 = gins(a, &n2, N);
-//			p1->to = addr;
-//			p1->reg = w;
-//			regfree(&n2);
-//			sudoclean();
-//			goto ret;
+			regalloc(&n2, nl->type, N);
+			regalloc(&n3, nr->type, N);
+			p1 = gins(AMOVW, N, &n2);
+			p1->from = addr;
+			cgen(nr, &n3);
+			gins(a, &n3, &n2);
+			p1 = gins(AMOVW, &n2, N);
+			p1->to = addr;
+			regfree(&n2);
+			regfree(&n3);
+			sudoclean();
+			goto ret;
 		}
 	}
 
