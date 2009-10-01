@@ -4,14 +4,8 @@
 	license that can be found in the LICENSE file.
 -->
 
-{.section Dirs}
-	<h2>Subdirectories</h2>
-	{.repeated section @}
-		<a href="{Name|html}">{Name|html}</a><br />
-	{.end}
-{.end}
 {.section PDoc}
-	<h1>package {PackageName|html}</h1>
+	<!-- PackageName is printed as title by the top-level template -->
 	<p><code>import "{ImportPath|html}"</code></p>
 	{Doc|html-comment}
 	{.section Filenames}
@@ -75,5 +69,11 @@
 		{.repeated section @}
 		{@|html-comment}
 		{.end}
+	{.end}
+{.end}
+{.section Dirs}
+	<h2>Subdirectories</h2>
+	{.repeated section @}
+		<a href="{Name|html}">{Name|html}</a><br />
 	{.end}
 {.end}

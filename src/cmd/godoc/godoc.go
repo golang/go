@@ -50,10 +50,7 @@ import (
 )
 
 
-const (
-	Pkg = "/pkg/";	// name for auto-generated package documentation tree
-	Spec = "/doc/go_spec.html";
-)
+const Pkg = "/pkg/";	// name for auto-generated package documentation tree
 
 
 type delayTime struct {
@@ -186,7 +183,7 @@ type parseErrors struct {
 func parse(path string, mode uint) (*ast.File, *parseErrors) {
 	src, err := io.ReadFile(path);
 	if err != nil {
-		log.Stderrf("ReadFile %s: %v", path, err);
+		log.Stderrf("%v", err);
 		errs := []parseError{parseError{nil, 0, err.String()}};
 		return nil, &parseErrors{path, errs, nil};
 	}
@@ -349,16 +346,16 @@ func readTemplates() {
 func servePage(c *http.Conn, title, content interface{}) {
 	type Data struct {
 		title interface{};
-		header interface{};
 		timestamp string;
 		content interface{};
 	}
 
-	var d Data;
-	d.title = title;
-	d.header = title;
-	d.timestamp = time.SecondsToLocalTime(syncTime.get()).String();
-	d.content = content;
+	d := Data{
+		title: title,
+		timestamp: time.SecondsToLocalTime(syncTime.get()).String(),
+		content: content,
+	};
+
 	if err := godocHtml.Execute(&d, c); err != nil {
 		log.Stderrf("godocHtml.Execute: %s", err);
 	}
@@ -374,18 +371,57 @@ func serveText(c *http.Conn, text []byte) {
 // ----------------------------------------------------------------------------
 // Files
 
+var (
+	tagBegin = strings.Bytes("<!--");
+	tagEnd = strings.Bytes("-->");
+)
+
+// commentText returns the text of the first HTML comment in src.
+func commentText(src []byte) (text string) {
+	i := bytes.Index(src, tagBegin);
+	j := bytes.Index(src, tagEnd);
+	if i >= 0 && j >= i+len(tagBegin) {
+		text = string(bytes.TrimSpace(src[i+len(tagBegin) : j]));
+	}
+	return;
+}
+
+
+func serveHtmlDoc(c *http.Conn, r *http.Request, filename string) {
+	// get HTML body contents
+	path := pathutil.Join(goroot, filename);
+	src, err := io.ReadFile(path);
+	if err != nil {
+		log.Stderrf("%v", err);
+		http.NotFound(c, r);
+		return;
+	}
+
+	// if it's the language spec, add tags to EBNF productions
+	if strings.HasSuffix(path, "go_spec.html") {
+		var buf bytes.Buffer;
+		linkify(&buf, src);
+		src = buf.Bytes();
+	}
+
+	title := commentText(src);
+	servePage(c, title, src);
+}
+
+
 func serveParseErrors(c *http.Conn, errors *parseErrors) {
 	// format errors
 	var buf bytes.Buffer;
 	if err := parseerrorHtml.Execute(errors, &buf); err != nil {
 		log.Stderrf("parseerrorHtml.Execute: %s", err);
 	}
-	servePage(c, errors.filename + " - Parse Errors", buf.Bytes());
+	servePage(c, "Parse errors in source file " + errors.filename, buf.Bytes());
 }
 
 
-func serveGoSource(c *http.Conn, name string) {
-	prog, errors := parse(name, parser.ParseComments);
+func serveGoSource(c *http.Conn, filename string) {
+	path := pathutil.Join(goroot, filename);
+	prog, errors := parse(path, parser.ParseComments);
 	if errors != nil {
 		serveParseErrors(c, errors);
 		return;
@@ -396,43 +432,35 @@ func serveGoSource(c *http.Conn, name string) {
 	writeNode(&buf, prog, true);
 	fmt.Fprintln(&buf, "</pre>");
 
-	servePage(c, name + " - Go source", buf.Bytes());
-}
-
-
-func serveGoSpec(c *http.Conn, r *http.Request) {
-	src, err := io.ReadFile(pathutil.Join(goroot, Spec));
-	if err != nil {
-		http.NotFound(c, r);
-		return;
-	}
-	linkify(c, src);
+	servePage(c, "Source file " + filename, buf.Bytes());
 }
 
 
 var fileServer = http.FileServer(".", "");
 
-func serveFile(c *http.Conn, req *http.Request) {
+func serveFile(c *http.Conn, r *http.Request) {
+	path := r.Url.Path;
+
 	// pick off special cases and hand the rest to the standard file server
-	switch {
-	case req.Url.Path == "/":
-		// serve landing page.
-		// TODO: hide page from ordinary file serving.
-		// writing doc/index.html will take care of that.
-		http.ServeFile(c, req, "doc/root.html");
+	switch ext := pathutil.Ext(path); {
+	case path == "/":
+		serveHtmlDoc(c, r, "doc/root.html");
 
-	case req.Url.Path == "/doc/root.html":
+	case r.Url.Path == "/doc/root.html":
 		// hide landing page from its real name
-		// TODO why - there is no reason for this (remove eventually)
-		http.NotFound(c, req);
+		http.NotFound(c, r);
 
-	case pathutil.Ext(req.Url.Path) == ".go":
-		serveGoSource(c, req.Url.Path[1 : len(req.Url.Path)]);  // strip leading '/' from name
+	case ext == ".html":
+		serveHtmlDoc(c, r, path);
+
+	case ext == ".go":
+		serveGoSource(c, path);
 
 	default:
-		// TODO not good enough - don't want to download files
-		// want to see them
-		fileServer.ServeHTTP(c, req);
+		// TODO:
+		// - need to decide what to serve and what not to serve
+		// - don't want to download files, want to see them
+		fileServer.ServeHTTP(c, r);
 	}
 }
 
@@ -496,6 +524,7 @@ func getPageInfo(path string) PageInfo {
 	// get package AST
 	pkg, err := parser.ParsePackage(dirname, filter, parser.ParseComments);
 	if err != nil {
+		// TODO: parse errors should be shown instead of an empty directory
 		log.Stderr(err);
 	}
 
@@ -548,7 +577,12 @@ func servePkg(c *http.Conn, r *http.Request) {
 	if path == "" {
 		path = ".";  // don't display an empty path
 	}
-	servePage(c, path + " - Go package documentation", buf.Bytes());
+	title := "Directory " + path;
+	if info.PDoc != nil {
+		title = "Package " + info.PDoc.PackageName;
+	}
+
+	servePage(c, title, buf.Bytes());
 }
 
 
@@ -665,7 +699,6 @@ func main() {
 			handler = loggingHandler(handler);
 		}
 
-		http.Handle(Spec, http.HandlerFunc(serveGoSpec));
 		http.Handle(Pkg, http.HandlerFunc(servePkg));
 		if *syncCmd != "" {
 			http.Handle("/debug/sync", http.HandlerFunc(dosync));

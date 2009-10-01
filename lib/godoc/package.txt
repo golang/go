@@ -1,10 +1,3 @@
-{.section Dirs}
-SUBDIRECTORIES
-{.repeated section @}
-	{Name}
-{.end}
-
-{.end}
 {.section PDoc}
 PACKAGE
 
@@ -73,5 +66,13 @@ BUGS
 {.repeated section @}
 {@}
 {.end}
+{.end}
+{.end}
+{.section Dirs}
+
+SUBDIRECTORIES
+
+{.repeated section @}
+	{Name}
 {.end}
 {.end}
