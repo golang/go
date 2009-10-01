@@ -281,7 +281,7 @@ An Interlude about Constants
 
 Although integers come in lots of sizes in Go, integer constants do not.
 There are no constants like "0ll" or "0x0UL".   Instead, integer
-constants are evaluated as ideal, large-precision values that
+constants are evaluated as large-precision values that
 can overflow only when they are assigned to an integer variable with
 too little precision to represent the value.
 
@@ -416,7 +416,7 @@ Finally we can run the program:
 	% helloworld3
 	hello, world
 	can't open file; err=No such file or directory
-	% 
+	%
 
 Rotting cats
 ----
@@ -490,7 +490,7 @@ Here it is in action:
 	abcdefghijklmnopqrstuvwxyz
 	% echo abcdefghijklmnopqrstuvwxyz | ./cat --rot13
 	nopqrstuvwxyzabcdefghijklm
-	% 
+	%
 </pre>
 
 Fans of dependency injection may take cheer from how easily interfaces
