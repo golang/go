@@ -192,6 +192,7 @@ func2.go
 func3.go
 func4.go
 gc1.go
+hashmap.go
 helloworld.go
 if.go
 import1.go
