@@ -1,63 +1,6 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-   "http://www.w3.org/TR/html4/transitional.dtd">
-<html>
-<head>
+<!-- Effective Go -->
 
 <!-- interfaces; slices; embedding; value vs. pointer receivers; methods on anything; errors; testing -->
-
-  <meta http-equiv="content-type" content="text/html; charset=utf-8">
-  <title>Effective Go</title>
-
-  <link rel="stylesheet" type="text/css" href="style.css">
-  <script type="text/javascript" src="godocs.js"></script>
-
-<style type="text/css">
-pre.bad {
-  background-color: #ffeeee;
-}
-</style>
-
-</head>
-
-
-<body>  <!-- onload="prettyPrint()" will color the programs -->
-
-<div id="topnav">
-<table summary=""><tr>
-<td id="headerImage">
-<a href="./"><img src="./logo_blue.png" height="44" width="120" alt="Go Home Page" style="border:0" /></a>
-</td>
-<td id="headerDocSetTitle">The Go Programming Language</td>
-</tr>
-</table>
-</div>
-
-<div id="linkList" style="clear:both">
-  <ul>
-    <li class="navhead">Related Guides</li>
-    <li><a href="go_spec.html">Language Specification</a></li>
-    <li><a href="go_mem.html">Memory Model</a></li>
-    <li><a href="go_tutorial.html">Tutorial</a></li>
-    <li><a href="effective_go.html">Effective Go</a></li>
-    <li class="blank">&nbsp;</li>
-    <li class="navhead">Other Resources</li>
-    <li><a href="go_faq.html">FAQ</a></li>
-    <li><a href="go_lang_faq.html">Language Design FAQ</a></li>
-    <li><a href="go_for_cpp_programmers.html">Go for C++ Programmers</a></li>
-    <li class="blank">&nbsp;</li>
-    <li class="navhead">Home</li>
-    <li><a href="/">Go documentation home</a></li>
-  </ul>
-</div>
-
-<div id="content">
-
-<h1 id="effective_go">Effective Go</h1>
-
-
-  <!-- The Table of Contents is automatically inserted in this <div>.
-       Do not delete this <div>. -->
-  <div id="nav"></div>
 
 <h2 id="introduction">Introduction</h2>
 
@@ -187,7 +130,7 @@ x&lt;&lt;8 + y&lt;&lt;16
 <h2>Commentary</h2>
 
 <p>
-Go provides C-style <code>/* */</code> block comments 
+Go provides C-style <code>/* */</code> block comments
 and C++-style <code>//</code> line comments.
 Line comments are the norm;
 block comments appear mostly as package comments and
@@ -752,7 +695,7 @@ The return or result "parameters" of a Go function can be given names and
 used as regular variables, just like the incoming parameters.
 When named, they are initialized to the zero for their type when
 the function begins; if the function executes a <code>return</code> statement
-with no arguments, the current values of the result parameters are 
+with no arguments, the current values of the result parameters are
 used as the returned values.
 </p>
 
@@ -938,7 +881,7 @@ must be initialized before use.
 A slice, for example, is a three-item descriptor
 containing a pointer to the data (inside an array), the length, and the
 capacity; until those items are initialized, the slice is <code>nil</code>.
-For slices, maps, and channels, 
+For slices, maps, and channels,
 <code>make</code> initializes the internal data structure and prepares
 the value for use.
 For instance,
@@ -1066,7 +1009,7 @@ header, body, checksum := buf[0:20], buf[20:n-4], buf[n-4:n];
 Especially in libraries, functions tend to have multiple error modes.
 Instead of returning a boolean to signal success,
 return an <code>os.Error</code> that describes the failure.
-Even if there is only one failure mode now, 
+Even if there is only one failure mode now,
 there may be more later.
 </p>
 
@@ -1255,9 +1198,9 @@ This data-driven style dominates in the Go package tests.
 <p>
 The <code>reflect.DeepEqual</code> function tests
 whether two complex data structures have equal values.
-If a function returns a complex data structure, 
+If a function returns a complex data structure,
 <code>reflect.DeepEqual</code> combined with table-driven testing
-makes it easy to check that the return value is 
+makes it easy to check that the return value is
 exactly as expected.
 </p>
 
@@ -1337,7 +1280,3 @@ lets readers concentrate on big ones.
 </p>
 
 -->
-
-</div>
-</body>
-</html>
