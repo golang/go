@@ -394,7 +394,7 @@ void
 agen(Node *n, Node *res)
 {
 	Node *nl, *nr;
-	Node n1, n2, n3, n4, tmp;
+	Node n1, n2, n3, n4, n5, tmp;
 	Prog *p1;
 	uint32 w;
 	uint64 v;
@@ -493,11 +493,14 @@ agen(Node *n, Node *res)
 					n1.op = OINDREG;
 					n1.type = types[tptr];
 					n1.xoffset = Array_nel;
+					regalloc(&n4, n1.type, N);
+					cgen(&n1, &n4);
 					nodconst(&n2, types[TUINT32], v);
-					regalloc(&n4, n2.type, N);
-					gmove(&n2, &n4);
-					gcmp(optoas(OCMP, types[TUINT32]), &n1, &n4);
+					regalloc(&n5, n2.type, N);
+					gmove(&n2, &n5);
+					gcmp(optoas(OCMP, types[TUINT32]), &n4, &n5);
 					regfree(&n4);
+					regfree(&n5);
 					p1 = gbranch(optoas(OGT, types[TUINT32]), T);
 					ginscall(throwindex, 0);
 					patch(p1, pc);
@@ -520,7 +523,7 @@ agen(Node *n, Node *res)
 			nodconst(&n2, types[tptr], v*w);
 			regalloc(&n4, n2.type, N);
 			gmove(&n2, &n4);
-			gcmp(optoas(OADD, types[tptr]), &n2, &n4);
+			gins(optoas(OADD, types[tptr]), &n4, &n3);
 			regfree(&n4);
 
 			gmove(&n3, res);
@@ -674,7 +677,7 @@ bgen(Node *n, int true, Prog *to)
 {
 	int et, a;
 	Node *nl, *nr, *r;
-	Node n1, n2, n3, tmp;
+	Node n1, n2, n3, n4, tmp;
 	Prog *p1, *p2;
 
 	if(debug['g']) {
@@ -815,14 +818,17 @@ bgen(Node *n, int true, Prog *to)
 			a = optoas(a, types[tptr]);
 			regalloc(&n1, types[tptr], N);
 			regalloc(&n3, types[tptr], N);
+			regalloc(&n4, types[tptr], N);
 			agen(nl, &n1);
 			n2 = n1;
 			n2.op = OINDREG;
 			n2.xoffset = Array_array;
+			gmove(&n2, &n4);
 			nodconst(&tmp, types[tptr], 0);
 			gmove(&tmp, &n3);
-			gcmp(optoas(OCMP, types[tptr]), &n2, &n3);
+			gcmp(optoas(OCMP, types[tptr]), &n4, &n3);
 			patch(gbranch(a, types[tptr]), to);
+			regfree(&n4);
 			regfree(&n3);
 			regfree(&n1);
 			break;
@@ -837,16 +843,19 @@ bgen(Node *n, int true, Prog *to)
 			a = optoas(a, types[tptr]);
 			regalloc(&n1, types[tptr], N);
 			regalloc(&n3, types[tptr], N);
+			regalloc(&n4, types[tptr], N);
 			agen(nl, &n1);
 			n2 = n1;
 			n2.op = OINDREG;
 			n2.xoffset = 0;
+			gmove(&n2, &n4);
 			nodconst(&tmp, types[tptr], 0);
 			gmove(&tmp, &n3);
-			gcmp(optoas(OCMP, types[tptr]), &n2, &n3);
+			gcmp(optoas(OCMP, types[tptr]), &n4, &n3);
 			patch(gbranch(a, types[tptr]), to);
 			regfree(&n1);
 			regfree(&n3);
+			regfree(&n4);
 			break;
 		}
 
