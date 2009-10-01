@@ -14,11 +14,13 @@ cmp3.go
 cmp4.go
 cmp5.go
 compos.go
+const.go
 const1.go
 const2.go
 convert3.go
 convlit.go
 convlit1.go
+decl.go
 declbad.go
 empty.go
 escape1.go
@@ -59,6 +61,7 @@ fixedbugs/bug050.go
 fixedbugs/bug051.go
 fixedbugs/bug052.go
 fixedbugs/bug053.go
+fixedbugs/bug056.go
 fixedbugs/bug057.go
 fixedbugs/bug058.go
 fixedbugs/bug061.go

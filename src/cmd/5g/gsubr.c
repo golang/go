@@ -242,7 +242,7 @@ regalloc(Node *n, Type *t, Node *o)
 		for(i=REGALLOC_F0; i<=REGALLOC_FMAX; i++)
 			if(reg[i] == 0)
 				goto out;
-		yyerror("out of floating registers");
+		yyerror("out of floating point registers");
 		goto err;
 	}
 	yyerror("regalloc: unknown type %T", t);
@@ -939,11 +939,13 @@ naddr(Node *n, Addr *a)
 		break;
 
 	case OREGISTER:
-		a->type = D_REG;
-		if (n->val.u.reg <= REGALLOC_RMAX)
+		if (n->val.u.reg <= REGALLOC_RMAX) {
+			a->type = D_REG;
 			a->reg = n->val.u.reg;
-		else
+		} else {
+			a->type = D_FREG;
 			a->reg = n->val.u.reg - REGALLOC_F0;
+		}
 		a->sym = S;
 		break;
 
