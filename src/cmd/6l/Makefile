@@ -14,6 +14,7 @@ OFILES=\
 	enam.$O\
 	go.$O\
 	list.$O\
+	macho.$O\
 	obj.$O\
 	optab.$O\
 	pass.$O\
@@ -23,6 +24,7 @@ HFILES=\
 	l.h\
 	../6l/6.out.h\
 	../ld/elf.h\
+	../ld/macho.h\
 	../6l/compat.h\
 
 
@@ -41,5 +43,5 @@ install: $(TARG)
 	cp $(TARG) $(GOBIN)/$(TARG)
 
 go.o: ../ld/go.c
-
 elf.o: ../ld/elf.c
+macho.o: ../ld/macho.c

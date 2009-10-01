@@ -371,6 +371,7 @@ Sym*	lookup(char*, int);
 void	lput(int32);
 void	lputl(int32);
 void	vputl(uvlong);
+void	strnput(char*, int);
 void	main(int, char*[]);
 void	mkfwd(void);
 void*	mal(uint32);

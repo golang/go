@@ -30,26 +30,12 @@
 
 #include	"l.h"
 #include	"../ld/elf.h"
+#include	"../ld/macho.h"
 
 #define	Dbufslop	100
 
 char linuxdynld[] = "/lib/ld-linux.so.2";
-
 uint32 symdatva = 0x99<<24;
-uint32 stroffset;
-uint32 strtabsize;
-
-uint32 machheadr(void);
-uint32		elfheadr(void);
-void		elfphdr(int type, int flags, uint32 foff, uint32 vaddr, uint32 paddr, uint32 filesize, uint32 memsize, uint32 align);
-void		elfshdr(char *name, uint32 type, uint32 flags, uint32 addr, uint32 off, uint32 size, uint32 link, uint32 info, uint32 align, uint32 entsize);
-int		elfstrtable(void);
-void		machdylink(void);
-uint32		machheadr(void);
-void		machsect(char *name, char *seg, vlong addr, vlong size, uint32 off, uint32 align, uint32 reloc, uint32 nreloc, uint32 flag);
-void		machseg(char *name, uint32 vaddr, uint32 vsize, uint32 foff, uint32 fsize, uint32 prot1, uint32 prot2, uint32 nsect, uint32 flag);
-void		machstack(vlong e);
-void		machsymseg(uint32 foffset, uint32 fsize);
 
 int32
 entryvalue(void)
@@ -428,13 +414,18 @@ asmb(void)
 {
 	Prog *p;
 	int32 v, magic;
-	int a, nl, dynsym;
+	int a, dynsym;
 	uint32 va, fo, w, symo, startva;
 	uchar *op1;
 	ulong expectpc;
-	Elf64_Ehdr *eh;
-	Elf64_Phdr *ph, *pph;
-	Elf64_Shdr *sh;
+	ElfEhdr *eh;
+	ElfPhdr *ph, *pph;
+	ElfShdr *sh;
+	MachoHdr *mh;
+	MachoSect *msect;
+	MachoSeg *ms;
+	MachoDebug *md;
+	MachoLoad *ml;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -585,7 +576,7 @@ asmb(void)
 			break;
 		case 7:
 		case 8:
-			symo = rnd(HEADR+textsize, INITRND)+datsize+strtabsize;
+			symo = rnd(HEADR+textsize, INITRND)+datsize;
 			symo = rnd(symo, INITRND);
 			break;
 		}
@@ -750,69 +741,88 @@ asmb(void)
 
 	case 6:
 		/* apple MACH */
-		va = 4096;
+		va = HEADR;
+		mh = getMachoHdr();
+		mh->cpu = MACHO_CPU_386;
+		mh->subcpu = MACHO_SUBCPU_X86;
 
-		lputl(0xfeedface);		/* 32-bit */
-		lputl(7);		/* cputype - x86 */
-		lputl(3);			/* subtype - x86 */
-		lputl(2);			/* file type - mach executable */
-		nl = 4;
-		if (!debug['s'])
-			nl += 3;
-		if (!debug['d'])	// -d = turn off "dynamic loader"
-			nl += 3;
-		lputl(nl);			/* number of loads */
-		lputl(machheadr()-28);		/* size of loads */
-		lputl(1);			/* flags - no undefines */
+		/* segment for zero page */
+		ms = newMachoSeg("__PAGEZERO", 0);
+		ms->vsize = va;
 
-		machseg("__PAGEZERO",
-			0,va,			/* vaddr vsize */
-			0,0,			/* fileoffset filesize */
-			0,0,			/* protects */
-			0,0);			/* sections flags */
-
+		/* text */
 		v = rnd(HEADR+textsize, INITRND);
-		machseg("__TEXT",
-			va,			/* vaddr */
-			v,			/* vsize */
-			0,v,			/* fileoffset filesize */
-			7,5,			/* protects */
-			1,0);			/* sections flags */
-		machsect("__text", "__TEXT",
-			va+HEADR,v-HEADR,	/* addr size */
-			HEADR,0,0,0,		/* offset align reloc nreloc */
-			0|0x400);		/* flag - some instructions */
+		ms = newMachoSeg("__TEXT", 1);
+		ms->vaddr = va;
+		ms->vsize = v;
+		ms->filesize = v;
+		ms->prot1 = 7;
+		ms->prot2 = 5;
 
+		msect = newMachoSect(ms, "__text");
+		msect->addr = va+HEADR;
+		msect->size = v - HEADR;
+		msect->off = HEADR;
+		msect->flag = 0x400;	/* flag - some instructions */
+
+		/* data */
 		w = datsize+bsssize;
-		machseg("__DATA",
-			va+v,			/* vaddr */
-			w,			/* vsize */
-			v,datsize,		/* fileoffset filesize */
-			7,3,			/* protects */
-			2,0);			/* sections flags */
-		machsect("__data", "__DATA",
-			va+v,datsize,		/* addr size */
-			v,0,0,0,		/* offset align reloc nreloc */
-			0);			/* flag */
-		machsect("__bss", "__DATA",
-			va+v+datsize,bsssize,	/* addr size */
-			0,0,0,0,		/* offset align reloc nreloc */
-			1);			/* flag - zero fill */
+		ms = newMachoSeg("__DATA", 2);
+		ms->vaddr = va+v;
+		ms->vsize = w;
+		ms->fileoffset = v;
+		ms->filesize = datsize;
+		ms->prot1 = 7;
+		ms->prot2 = 3;
 
-		machdylink();
-		machstack(entryvalue());
+		msect = newMachoSect(ms, "__data");
+		msect->addr = va+v;
+		msect->size = datsize;
+		msect->off = v;
 
-		if (!debug['s']) {
-			machseg("__SYMDAT",
-				symdatva,		/* vaddr */
-				8+symsize+lcsize,		/* vsize */
-				symo, 8+symsize+lcsize,	/* fileoffset filesize */
-				7, 5,			/* protects */
-				0, 0);			/* sections flags */
+		msect = newMachoSect(ms, "__bss");
+		msect->addr = va+v+datsize;
+		msect->size = bsssize;
+		msect->flag = 1;	/* flag - zero fill */
 
-			machsymseg(symo+8,symsize);	/* fileoffset,filesize */
-			machsymseg(symo+8+symsize,lcsize);	/* fileoffset,filesize */
+		ml = newMachoLoad(5, 16+2);	/* unix thread */
+		ml->data[0] = 1;	/* thread type */
+		ml->data[1] = 16;	/* word count */
+		ml->data[2+10] = entryvalue();	/* start pc */
+
+		if(!debug['d']) {
+			ml = newMachoLoad(2, 4);	/* LC_SYMTAB */
+			USED(ml);
+
+			ml = newMachoLoad(11, 18);	/* LC_DYSYMTAB */
+			USED(ml);
+
+			ml = newMachoLoad(14, 6);	/* LC_LOAD_DYLINKER */
+			ml->data[0] = 12;	/* offset to string */
+			strcpy((char*)&ml->data[1], "/usr/lib/dyld");
 		}
+
+		if(!debug['s']) {
+			ms = newMachoSeg("__SYMDAT", 1);
+			ms->vaddr = symdatva;
+			ms->vsize = 8+symsize+lcsize;
+			ms->fileoffset = symo;
+			ms->filesize = 8+symsize+lcsize;
+			ms->prot1 = 7;
+			ms->prot2 = 5;
+
+			md = newMachoDebug();
+			md->fileoffset = symo+8;
+			md->filesize = symsize;
+
+			md = newMachoDebug();
+			md->fileoffset = symo+8+symsize;
+			md->filesize = lcsize;
+		}
+
+		a = machowrite();
+		if(a > MACHORESERVE)
+			diag("MACHORESERVE too small: %d > %d", a, MACHORESERVE);
 		break;
 
 	case 7:
@@ -1241,130 +1251,4 @@ rnd(int32 v, int32 r)
 		c += r;
 	v -= c;
 	return v;
-}
-
-void
-machseg(char *name, uint32 vaddr, uint32 vsize, uint32 foff, uint32 fsize,
-	uint32 prot1, uint32 prot2, uint32 nsect, uint32 flag)
-{
-	lputl(1);	/* segment 32 */
-	lputl(56 + 68*nsect);
-	strnput(name, 16);
-	lputl(vaddr);
-	lputl(vsize);
-	lputl(foff);
-	lputl(fsize);
-	lputl(prot1);
-	lputl(prot2);
-	lputl(nsect);
-	lputl(flag);
-}
-
-void
-machsymseg(uint32 foffset, uint32 fsize)
-{
-	lputl(3);	/* obsolete gdb debug info */
-	lputl(16);	/* size of symseg command */
-	lputl(foffset);
-	lputl(fsize);
-}
-
-void
-machsect(char *name, char *seg, vlong addr, vlong size, uint32 off,
-	uint32 align, uint32 reloc, uint32 nreloc, uint32 flag)
-{
-	strnput(name, 16);
-	strnput(seg, 16);
-	lputl(addr);
-	lputl(size);
-	lputl(off);
-	lputl(align);
-	lputl(reloc);
-	lputl(nreloc);
-	lputl(flag);
-	lputl(0);	/* reserved */
-	lputl(0);	/* reserved */
-}
-
-// Emit a section requesting the dynamic loader
-// but giving it no work to do (an empty dynamic symbol table).
-// This is enough to make the Apple tracing programs (like dtrace)
-// accept the binary, so that one can run dtruss on an 8.out.
-void
-machdylink(void)
-{
-	int i;
-
-	if(debug['d'])
-		return;
-
-	lputl(2);	/* LC_SYMTAB */
-	lputl(24);	/* byte count - 6 words*/
-	for(i=0; i<4; i++)
-		lputl(0);
-
-	lputl(11);	/* LC_DYSYMTAB */
-	lputl(80);	/* byte count - 20 words */
-	for(i=0; i<18; i++)
-		lputl(0);
-
-	lputl(14);	/* LC_LOAD_DYLINKER */
-	lputl(32);	/* byte count */
-	lputl(12);	/* offset to string */
-	strnput("/usr/lib/dyld", 32-12);
-}
-
-void
-machstack(vlong e)
-{
-	int i;
-
-	lputl(5);			/* unix thread */
-	lputl((16+4)*4);		/* total byte count */
-
-	lputl(1);			/* thread type - x86_THREAD_STATE32 */
-	lputl(16);			/* word count */
-
-	for(i=0; i<16; i++)	/* initial register set */
-		if(i == 10)
-			lputl(e);
-		else
-			lputl(0);
-}
-
-uint32
-machheadr(void)
-{
-	uint32 a;
-	enum {
-		Header = 28,
-		Seg = 56,
-		Sect = 68,
-		Symtab = 24,
-		Dysymtab = 80,
-		LoadDylinker = 32,
-		Stack = 80,
-		Symseg = 16,
-	};
-
-	a = Header;		/* a.out header */
-	a += Seg;	/* page zero seg */
-	a += Seg;	/* text seg */
-	a += Sect;	/* text sect */
-	a += Seg;	/* data seg */
-	a += Sect;	/* data sect */
-	a += Sect;	/* bss sect */
-	if (!debug['d']) {
-		a += Symtab;	/* symtab */
-		a += Dysymtab;	/* dysymtab */
-		a += LoadDylinker;	/* load dylinker */
-	}
-	a += Stack;	/* stack sect */
-	if (!debug['s']) {
-		a += Seg;	/* symdat seg */
-		a += Symseg;	/* symtab seg */
-		a += Symseg;	/* lctab seg */
-	}
-
-	return a;
 }

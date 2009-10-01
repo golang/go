@@ -31,6 +31,7 @@
 #define	EXTERN
 #include	"l.h"
 #include	"../ld/elf.h"
+#include	"../ld/macho.h"
 #include	<ar.h>
 
 char	*noname		= "<none>";
@@ -188,7 +189,8 @@ main(int argc, char *argv[])
 			INITRND = 4096;
 		break;
 	case 6:	/* apple MACH */
-		HEADR = machheadr();
+		machoinit();
+		HEADR = MACHORESERVE;
 		if(INITTEXT == -1)
 			INITTEXT = 4096+HEADR;
 		if(INITDAT == -1)
