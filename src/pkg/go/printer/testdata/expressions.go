@@ -13,9 +13,11 @@ var (
 	longIdentifier1, longIdentifier2, longIdentifier3 int;
 	t0, t1, t2 T;
 	s string;
+	p *int;
 )
 
-func main() {
+
+func _() {
 	// no spaces around simple or parenthesized expressions
 	_ = a+b;
 	_ = a+b+c;
@@ -36,7 +38,7 @@ func main() {
 	// spaces around expressions of different precedence or expressions containing spaces
 	_ = a + -b;
 	_ = a - ^b;
-	_ = a / *b;
+	_ = a / *p;
 	_ = a + b*c;
 	_ = 1 + b*c;
 	_ = a + 2*c;
@@ -71,4 +73,21 @@ func main() {
 	_ = a + b + c + 2*3 + d + e;
 	_ = (a+b+c)*2;
 	_ = a - b + c - d + (a+b+c) + d&e;
+}
+
+
+func _() {
+	_ = T{};
+	_ = struct{}{};
+	_ = [10]T{};
+	_ = [...]T{};
+	_ = []T{};
+	_ = map[int]T{};
+
+	_ = (T){};
+	_ = (struct{}){};
+	_ = ([10]T){};
+	_ = ([...]T){};
+	_ = ([]T){};
+	_ = (map[int]T){};
 }

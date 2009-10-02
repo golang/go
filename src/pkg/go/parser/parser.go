@@ -439,7 +439,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
 	// a list of identifiers looks like a list of type names
 	list := vector.New(0);
 	for {
-		// TODO do not allow ()'s here
+		// TODO(gri): do not allow ()'s here
 		list.Push(p.parseType());
 		if p.tok == token.COMMA {
 			p.next();
@@ -465,7 +465,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
 	} else {
 		// Type (anonymous field)
 		if list.Len() == 1 {
-			// TODO check that this looks like a type
+			// TODO(gri): check that this looks like a type
 			typ = list.At(0).(ast.Expr);
 		} else {
 			p.errorExpected(p.pos, "anonymous field");
@@ -554,7 +554,7 @@ func (p *parser) parseParameterDecl(ellipsisOk bool) (*vector.Vector, ast.Expr) 
 	// a list of identifiers looks like a list of type names
 	list := vector.New(0);
 	for {
-		// TODO do not allow ()'s here
+		// TODO(gri): do not allow ()'s here
 		list.Push(p.parseParameterType(ellipsisOk));
 		if p.tok == token.COMMA {
 			p.next();
@@ -1050,14 +1050,14 @@ func (p *parser) parseCompositeLit(typ ast.Expr) ast.Expr {
 }
 
 
-// TODO Consider different approach to checking syntax after parsing:
-//      Provide a arguments (set of flags) to parsing functions
-//      restricting what they are supposed to accept depending
-//      on context.
+// TODO(gri): Consider different approach to checking syntax after parsing:
+//            Provide a arguments (set of flags) to parsing functions
+//            restricting what they are supposed to accept depending
+//            on context.
 
 // checkExpr checks that x is an expression (and not a type).
 func (p *parser) checkExpr(x ast.Expr) ast.Expr {
-	// TODO should provide predicate in AST nodes
+	// TODO(gri): should provide predicate in AST nodes
 	switch t := x.(type) {
 	case *ast.BadExpr:
 	case *ast.Ident:
@@ -1094,11 +1094,11 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 
 // isTypeName returns true iff x is type name.
 func isTypeName(x ast.Expr) bool {
-	// TODO should provide predicate in AST nodes
+	// TODO(gri): should provide predicate in AST nodes
 	switch t := x.(type) {
 	case *ast.BadExpr:
 	case *ast.Ident:
-	case *ast.ParenExpr: return isTypeName(t.X);  // TODO should (TypeName) be illegal?
+	case *ast.ParenExpr: return isTypeName(t.X);  // TODO(gri): should (TypeName) be illegal?
 	case *ast.SelectorExpr: return isTypeName(t.X);
 	default: return false;  // all other nodes are not type names
 	}
@@ -1108,7 +1108,7 @@ func isTypeName(x ast.Expr) bool {
 
 // isCompositeLitType returns true iff x is a legal composite literal type.
 func isCompositeLitType(x ast.Expr) bool {
-	// TODO should provide predicate in AST nodes
+	// TODO(gri): should provide predicate in AST nodes
 	switch t := x.(type) {
 	case *ast.BadExpr:
 	case *ast.Ident:
@@ -1127,7 +1127,7 @@ func isCompositeLitType(x ast.Expr) bool {
 // (and not a raw type such as [...]T).
 //
 func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
-	// TODO should provide predicate in AST nodes
+	// TODO(gri): should provide predicate in AST nodes
 	switch t := x.(type) {
 	case *ast.UnaryExpr:
 		if t.Op == token.RANGE {
@@ -1169,7 +1169,7 @@ L:	for {
 		}
 	}
 
-	return p.checkExprOrType(x);
+	return x;
 }
 
 
@@ -1216,6 +1216,8 @@ func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
 }
 
 
+// TODO(gri): parseExpr may return a type or even a raw type ([..]int) -
+//            should reject when a type/raw type is obviously not allowed
 func (p *parser) parseExpr() ast.Expr {
 	if p.trace {
 		defer un(trace(p, "Expression"));
@@ -1523,7 +1525,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	}
 
 	// type switch
-	// TODO do all the checks!
+	// TODO(gri): do all the checks!
 	lbrace := p.expect(token.LBRACE);
 	cases := vector.New(0);
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
