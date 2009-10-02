@@ -19,10 +19,10 @@ import (
 // The explicit interface is a way to attach state.
 
 // A Handler is a handler for an SRPC method.
-// It reads arguments from m.Arg, checks m.Size for array limits,
-// writes return values to m.Ret, and returns an Errno status code.
+// It reads arguments from arg, checks size for array limits,
+// writes return values to ret, and returns an Errno status code.
 type Handler interface {
-	Run(m *msg) Errno
+	Run(arg, ret []interface{}, size []int) Errno
 }
 
 type method struct {
@@ -149,7 +149,7 @@ func serveMsg(m *msg, c chan<- *msg) {
 		return;
 	}
 
-	m.status = meth.handler.Run(m);
+	m.status = meth.handler.Run(m.Arg, m.Ret, m.Size);
 	c <- m;
 }
 
@@ -183,7 +183,7 @@ func Enabled() bool {
 // and their argument formats.
 type serviceDiscovery struct{}
 
-func (serviceDiscovery) Run(m *msg) Errno {
+func (serviceDiscovery) Run(arg, ret []interface{}, size []int) Errno {
 	var b bytes.Buffer;
 	for _, m := range rpcMethod {
 		b.WriteString(m.name);
@@ -191,10 +191,10 @@ func (serviceDiscovery) Run(m *msg) Errno {
 		b.WriteString(m.fmt);
 		b.WriteByte('\n');
 	}
-	if b.Len() > m.Size[0] {
+	if b.Len() > size[0] {
 		return ErrNoMemory;
 	}
-	m.Ret[0] = b.Bytes();
+	ret[0] = b.Bytes();
 	return OK;
 }
 
