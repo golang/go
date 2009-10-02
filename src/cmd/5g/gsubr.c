@@ -712,7 +712,10 @@ gmove(Node *f, Node *t)
 	case CASE(TUINT32, TUINT64):
 		split64(t, &tlo, &thi);
 		gmove(f, &tlo);
-		gins(AMOVW, ncon(0), &thi);
+		regalloc(&r1, thi.type, N);
+		gins(AMOVW, ncon(0), &r1);
+		gins(AMOVW, &r1, &thi);
+		regfree(&r1);
 		splitclean();
 		return;
 
