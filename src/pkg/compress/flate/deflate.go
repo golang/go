@@ -411,7 +411,7 @@ func (d *deflater) deflater(r io.Reader, w io.Writer, level int, logWindowSize u
 	case level == NoCompression:
 		err = d.storedDeflate();
 	case level == DefaultCompression:
-		d.level = 4;
+		d.level = 6;
 		fallthrough;
 	case 1 <= level && level <= 9:
 		err = d.doDeflate();
