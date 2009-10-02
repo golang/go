@@ -604,7 +604,14 @@ agen(Node *n, Node *res)
 		cgen(n->heapaddr, res);
 		if(n->xoffset != 0) {
 			nodconst(&n1, types[TINT32], n->xoffset);
-			gins(optoas(OADD, types[tptr]), &n1, res);
+			regalloc(&n2, n1.type, N);
+			regalloc(&n3, types[TINT32], N);
+			gmove(&n1, &n2);
+			gmove(res, &n3);
+			gins(optoas(OADD, types[tptr]), &n2, &n3);
+			gmove(&n3, res);
+			regfree(&n2);
+			regfree(&n3);
 		}
 		break;
 
@@ -616,7 +623,14 @@ agen(Node *n, Node *res)
 		agen(nl, res);
 		if(n->xoffset != 0) {
 			nodconst(&n1, types[TINT32], n->xoffset);
-			gins(optoas(OADD, types[tptr]), &n1, res);
+			regalloc(&n2, n1.type, N);
+			regalloc(&n3, types[TINT32], N);
+			gmove(&n1, &n2);
+			gmove(res, &n3);
+			gins(optoas(OADD, types[tptr]), &n2, &n3);
+			gmove(&n3, res);
+			regfree(&n2);
+			regfree(&n3);
 		}
 		break;
 
@@ -624,7 +638,14 @@ agen(Node *n, Node *res)
 		cgen(nl, res);
 		if(n->xoffset != 0) {
 			nodconst(&n1, types[TINT32], n->xoffset);
-			gins(optoas(OADD, types[tptr]), &n1, res);
+			regalloc(&n2, n1.type, N);
+			regalloc(&n3, types[tptr], N);
+			gmove(&n1, &n2);
+			gmove(res, &n3);
+			gins(optoas(OADD, types[tptr]), &n2, &n3);
+			gmove(&n3, res);
+			regfree(&n2);
+			regfree(&n3);
 		}
 		break;
 	}
