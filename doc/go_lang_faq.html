@@ -32,11 +32,12 @@ difficult and the choice of languages was partly to blame.  One had to
 choose either efficient compilation, efficient execution, or ease of
 programming; all three were not available in the same commonly
 available language.  Programmers who could were choosing ease over
-safety and efficiency by moving to dynamic languages such as
+safety and efficiency by moving to dynamically typed languages such as
 Python and JavaScript rather than C++ or, to a lesser extent, Java.
 </p>
 <p>
-Go is an attempt to combine the ease of programming of a dynamic
+Go is an attempt to combine the ease of programming of an interpreted,
+dynamically typed
 language with the efficiency and type safety of a compiled language.
 It also aims to be modern, with support for networked and multicore
 computing.  Finally, it is intended to be <i>fast</i>: it should take
@@ -55,7 +56,7 @@ What are Go's ancestors?</h3>
 Go is mostly in the C family (basic syntax),
 with significant input from the Pascal/Modula/Oberon
 family (declarations, packages),
-plus it borrows some ideas from languages
+plus some ideas from languages
 inspired by Tony Hoare's CSP,
 such as Newsqueak and Limbo (concurrency).
 However, it is a new language across the board.
@@ -87,7 +88,7 @@ the old languages&mdash;but can it be more quietly achieved?
 </p>
 <p>
 Go attempts to reduce the amount of typing in both senses of the word.
-Throughout its design, we have tried to reduce the clutter and
+Throughout its design, we have tried to reduce clutter and
 complexity.  There are no forward declarations and no header files;
 everything is declared exactly once.  Initialization is expressive,
 automatic, and easy to use.  Syntax is clean and light on keywords.
@@ -107,7 +108,7 @@ Why is the syntax so different from C?</h3>
 Other than declaration syntax, the differences are not major and stem
 from two desires.  First, the syntax should feel light, without too
 many mandatory keywords, repetition, or arcana.  Second, the language
-has been designed to be easy to parse.  The grammar is conflict-free
+has been designed to be easy to analyze
 and can be parsed without a symbol table.  This makes it much easier
 to build tools such as debuggers, dependency analyzers, automated
 documentation extractors, IDE plug-ins, and so on.  C and its
@@ -179,12 +180,38 @@ with the STL, part of a language whose name contains, ironically, a
 postfix increment.
 </p>
 
+<h3 id="garbage_collection">
+Why do garbage collection?  Won't it be too expensive?</h3>
+<p>
+One of the biggest sources of bookkeeping in systems programs is
+memory management.  We feel it's critical to eliminate that
+programmer overhead, and advances in garbage collection
+technology in the last few years give us confidence that we can
+implement it with low enough overhead and no significant
+latency.  (The current implementation is a plain mark-and-sweep
+collector but a replacement is in the works.)
+</p>
+<p>
+Another point is that a large part of the difficulty of concurrent
+and multi-threaded programming is memory management;
+as objects get passed among threads it becomes cumbersome
+to guarantee they become freed safely.
+Automatic garbage collection makes concurrent code far easier to write.
+Of course, implementing garbage collection in a concurrent environment is
+itself a challenge but meeting it once rather than in every
+program helps everyone.
+</p>
+<p>
+Finally, concurrency aside, garbage collection makes interfaces
+simpler because they don't need to specify how memory is managed across them.
+</p>
+
 <h2 id="absent_features">Absent features</h2>
 
 <h3 id="generics">
 Why does Go not have generic types?</h3>
 <p>
-Generics may well come at some point.  We don't feel an urgency for
+Generics may well be added at some point.  We don't feel an urgency for
 them, although we understand some programmers do.
 </p>
 <p>
@@ -243,10 +270,10 @@ that specifies a subset of its methods.  Besides reducing the
 bookkeeping, this approach has real advantages.  Types can satisfy
 many interfaces at once, without the complexities of traditional
 multiple inheritance.
-Interfaces can be very lightweight&mdash;one or even zero methods
+Interfaces can be very lightweight&mdash;having one or even zero methods
 in an interface can express useful concepts.
 Interfaces can be added after the fact if a new idea comes along
-or for testing&mdash;without annotating the original type.
+or for testing&mdash;without annotating the original types.
 Because there are no explicit relationships between types
 and interfaces, there is no type hierarchy to manage.
 </p>
@@ -258,7 +285,7 @@ enables formatted printing to any output, not just a file, or how the
 or how the <code>crypto</code> packages stitch together block and
 stream ciphers.  All these ideas stem from a single interface
 (<code>io.Writer</code>) representing a single method
-(<code>Write</code>).  We've only scratched the surface.
+(<code>Write</code>).  And that's only scratching the surface.
 </p>
 <p>
 It takes some getting used to but this implicit style of type
@@ -289,6 +316,30 @@ Regarding operator overloading, it seems more a convenience than an absolute
 requirement.  Again, things are simpler without it.
 </p>
 
+<h2 id="values">Values</h2>
+
+<h3 id="conversions">
+Why does Go not provide implicit numeric conversions?</h3>
+<p>
+The convenience of automatic conversion between numeric types in C is
+outweighed by the confusion it causes.  When is an expression unsigned?
+How big is the value?  Does it overflow?  Is the result portable, independent
+of the machine on which it executes?
+It also complicates the compiler; &ldquo;the usual arithmetic conversions&rdquo;
+are not easy to implement and inconsistent across architectures.
+For reasons of portability, we decided to make things clear and straightforward
+at the cost of some explicit conversions in the code.
+The definition of constants in Go&mdash;arbitrary precision values free
+of signedness and size annotations&mdash;ameliorates matters considerably,
+though.
+</p>
+<p>
+A related detail is that, unlike in C, <code>int</code> and <code>int64</code>
+are distinct types even if <code>int</code> is a 64-bit type.  The <code>int</code>
+type is generic; if you care about how many bits an integer holds, Go
+encourages you to be explicit.
+</p>
+
 <h3 id="builtin_maps">
 Why are maps built in?</h3>
 <p>
@@ -317,9 +368,45 @@ equality of structs and arrays should mean, it was simpler to leave it out for n
 
 <h3 id="csp">
 Why build concurrency on the ideas of CSP?</h3>
+<p>
+Concurrency and multi-threaded programming have a reputation
+for difficulty.  We believe the problem is partly due to complex
+designs such as pthreads and partly to overemphasis on low-level details
+such as mutexes, condition variables, and eve memory barriers.
+Higher-level interfaces enable much simpler code, even if there are still
+mutexes and such under the covers.
+</p>
+<p>
+One of the most successful models for providing high-level linguistic support
+for concurrency comes from Hoare's Communicating Sequential Processes, or CSP.
+Occam and Erlang are two commercial languages that stem from CSP.
+Go's concurrency primitives derive from a different part of the family tree
+whose main contribution is the powerful notion of channels as first class objects.
+</p>
 
 <h3 id="goroutines">
-What's the idea behind goroutines?</h3>
+Why goroutines instead of threads?</h3>
+<p>
+Goroutines are part of making concurrency easy to use.  The idea, which has
+been around for a while, is to multiplex independently executing
+functions&mdash;coroutines, really&mdash;onto a set of threads.
+When a coroutine blocks, such as by calling a blocking system call,
+the run-time automatically moves other coroutines on the same operating
+system thread to a different, runnable thread so they won't be blocked.
+The programmer sees none of this, which is the point.
+The result, which we call goroutines, can be very cheap: unless they spend a lot of time
+in long-running system calls, they cost little more than the memory
+for the stack.
+</p>
+<p>
+To make the stacks small, Go's run-time uses segmented stacks.  A newly
+minted goroutine is given a few kilobytes, which is almost always enough.
+When it isn't, the run-time allocates (and frees) extension segments automatically.
+The overhead averages about three cheap instructions per function call.
+It is practical to create hundreds of thousands of goroutines in the same
+address space.  If goroutines were just threads, system resources would
+run out at a much smaller number.
+</p>
 
 <h3 id="atomic_maps">
 Why are map operations not defined to be atomic?</h3>
@@ -348,21 +435,13 @@ explain:
 package design
 slices
 oo separate from storage (abstraction vs. implementation)
-why garbage collection?
 
-
-
-
-inheritance?
 embedding?
 dependency declarations in the language
 
 oo questions
 	no data in interfaces
 	dynamic dispatch
-	clean separation of interface and implementation
-
-why no automatic numeric conversions?
 
 make vs new
 </pre>
