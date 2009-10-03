@@ -83,8 +83,8 @@ clean: clean-local
 clean-local:
 	rm -f runtime.acid cgo2c */asm.h
 
-$(GOARCH)/asm.h: runtime.acid mkasmh
-	./mkasmh >$@.x
+$(GOARCH)/asm.h: runtime.acid mkasmh.sh
+	./mkasmh.sh >$@.x
 	mv -f $@.x $@
 
 cgo2c: cgo2c.c

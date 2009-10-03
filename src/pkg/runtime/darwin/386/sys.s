@@ -137,9 +137,6 @@ TEXT bsdthread_start(SB),7,$0
 	POPL	AX
 	POPL	AX
 	POPAL
-	SHLL	$3, DI	// segment# is ldt*8 + 7.
-	ADDL	$7, DI
-	MOVW	DI, GS
 
 	// Now segment is established.  Initialize m, g.
 	MOVL	AX, g
@@ -243,36 +240,51 @@ int i386_set_ldt(int, const union ldt_entry *, int);
 
 // setldt(int entry, int address, int limit)
 TEXT setldt(SB),7,$32
+	MOVL	address+4(FP), BX	// aka base
+	MOVL	limit+8(FP), CX
+
+	/*
+	 * When linking against the system libraries,
+	 * we use its pthread_create and let it set up %gs
+	 * for us.  When we do that, the private storage
+	 * we get is not at 0(GS) but at 0x468(GS).
+	 * To insulate the rest of the tool chain from this ugliness,
+	 * 8l rewrites 0(GS) into 0x468(GS) for us.
+	 * To accommodate that rewrite, we translate the
+	 * address and limit here so that 0x468(GS) maps to 0(address).
+	 *
+	 * See ../../../../libcgo/darwin_386.c for the derivation
+	 * of the constant.
+	 */
+	SUBL	$0x468, BX
+	ADDL	$0x468, CX
+
 	// set up data_desc
 	LEAL	16(SP), AX	// struct data_desc
 	MOVL	$0, 0(AX)
 	MOVL	$0, 4(AX)
 
-	MOVL	address+4(FP), BX	// aka base
 	MOVW	BX, 2(AX)
 	SHRL	$16, BX
 	MOVB	BX, 4(AX)
 	SHRL	$8, BX
 	MOVB	BX, 7(AX)
 
-	MOVL	limit+8(FP), BX
-	MOVW	BX, 0(AX)
-	SHRL	$16, BX
-	ANDL	$0x0F, BX
-	ORL	$0x40, BX		// 32-bit operand size
-	MOVB	BX, 6(AX)
+	MOVW	CX, 0(AX)
+	SHRL	$16, CX
+	ANDL	$0x0F, CX
+	ORL	$0x40, CX		// 32-bit operand size
+	MOVB	CX, 6(AX)
 
 	MOVL	$0xF2, 5(AX)	// r/w data descriptor, dpl=3, present
 
 	// call i386_set_ldt(entry, desc, 1)
-	MOVL	entry+0(FP), BX
-	MOVL	BX, 0(SP)
+	MOVL	$0xffffffff, 0(SP)	// auto-allocate entry and return in AX
 	MOVL	AX, 4(SP)
 	MOVL	$1, 8(SP)
 	CALL	i386_set_ldt(SB)
 
 	// compute segment selector - (entry*8+7)
-	MOVL	entry+0(FP), AX
 	SHLL	$3, AX
 	ADDL	$7, AX
 	MOVW	AX, GS
@@ -285,3 +297,4 @@ TEXT i386_set_ldt(SB),7,$0
 	CALL	notok(SB)
 	RET
 
+GLOBL tlsoffset(SB),$4

@@ -198,15 +198,28 @@ TEXT sigaltstack(SB),7,$-8
 
 // setldt(int entry, int address, int limit)
 TEXT setldt(SB),7,$32
+	MOVL	entry+0(FP), BX	// entry
+	MOVL	address+4(FP), CX	// base address
+
+	/*
+	 * When linking against the system libraries,
+	 * we use its pthread_create and let it set up %gs
+	 * for us.  When we do that, the private storage
+	 * we get is not at 0(GS), 4(GS), but -8(GS), -4(GS).
+	 * To insulate the rest of the tool chain from this
+	 * ugliness, 8l rewrites 0(GS) into -8(GS) for us.
+	 * To accommodate that rewrite, we translate
+	 * the address here and bump the limit to 0xffffffff (no limit)
+	 * so that -8(GS) maps to 0(address).
+	 */
+	ADDL	$0x8, CX	// address
+
 	// set up user_desc
 	LEAL	16(SP), AX	// struct user_desc
-	MOVL	entry+0(FP), BX	// entry
 	MOVL	BX, 0(AX)
-	MOVL	address+4(FP), BX	// base address
-	MOVL	BX, 4(AX)
-	MOVL	limit+8(FP), BX	// limit
-	MOVL	BX, 8(AX)
-	MOVL	$(SEG_32BIT|USEABLE|CONTENTS_DATA), 12(AX)	// flag bits
+	MOVL	CX, 4(AX)
+	MOVL	$0xfffff, 8(AX)
+	MOVL	$(SEG_32BIT|LIMIT_IN_PAGES|USEABLE|CONTENTS_DATA), 12(AX)	// flag bits
 
 	// call modify_ldt
 	MOVL	$1, BX	// func = 1 (write)

@@ -61,10 +61,17 @@ void	machoinit(void);
  * for Header, PHeaders, and SHeaders.
  * May waste some.
  */
-#define	MACHORESERVE	4096
+#define	MACHORESERVE	3*1024
 
 enum {
 	MACHO_CPU_AMD64 = (1<<24)|7,
 	MACHO_CPU_386 = 7,
 	MACHO_SUBCPU_X86 = 3,
+
+	MACHO32SYMSIZE = 12,
+	MACHO64SYMSIZE = 16,
 };
+
+void	domacho(void);
+vlong	domacholink(void);
+void	asmbmacho(vlong, vlong);

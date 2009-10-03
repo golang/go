@@ -425,16 +425,11 @@ asmb(void)
 	int32 v, magic;
 	int a, dynsym;
 	uchar *op1;
-	vlong vl, va, startva, fo, w, symo;
+	vlong vl, va, startva, fo, w, symo, machlink;
 	vlong symdatva = 0x99LL<<32;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
-	MachoHdr *mh;
-	MachoSect *msect;
-	MachoSeg *ms;
-	MachoDebug *md;
-	MachoLoad *ml;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());
@@ -523,6 +518,10 @@ asmb(void)
 			datblk(v, datsize-v);
 	}
 
+	machlink = 0;
+	if(HEADTYPE == 6)
+		machlink = domacholink();
+
 	symsize = 0;
 	spsize = 0;
 	lcsize = 0;
@@ -539,7 +538,7 @@ asmb(void)
 			symo = HEADR+textsize+datsize;
 			break;
 		case 6:
-			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND);
+			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND)+machlink;
 			break;
 		case 7:
 			symo = rnd(HEADR+textsize, INITRND)+datsize;
@@ -607,92 +606,8 @@ asmb(void)
 		lputb(lcsize);			/* line offsets */
 		break;
 	case 6:
-		/* apple MACH */
-		va = HEADR;
-		mh = getMachoHdr();
-		mh->cpu = MACHO_CPU_AMD64;
-		mh->subcpu = MACHO_SUBCPU_X86;
-
-		/* segment for zero page */
-		ms = newMachoSeg("__PAGEZERO", 0);
-		ms->vsize = va;
-
-		/* text */
-		v = rnd(HEADR+textsize, INITRND);
-		ms = newMachoSeg("__TEXT", 1);
-		ms->vaddr = va;
-		ms->vsize = v;
-		ms->filesize = v;
-		ms->prot1 = 7;
-		ms->prot2 = 5;
-
-		msect = newMachoSect(ms, "__text");
-		msect->addr = va+HEADR;
-		msect->size = v - HEADR;
-		msect->off = HEADR;
-		msect->flag = 0x400;	/* flag - some instructions */
-
-		/* data */
-		w = datsize+bsssize;
-		ms = newMachoSeg("__DATA", 2);
-		ms->vaddr = va+v;
-		ms->vsize = w;
-		ms->fileoffset = v;
-		ms->filesize = datsize;
-		ms->prot1 = 7;
-		ms->prot2 = 3;
-
-		msect = newMachoSect(ms, "__data");
-		msect->addr = va+v;
-		msect->size = datsize;
-		msect->off = v;
-
-		msect = newMachoSect(ms, "__bss");
-		msect->addr = va+v+datsize;
-		msect->size = bsssize;
-		msect->flag = 1;	/* flag - zero fill */
-
-		ml = newMachoLoad(5, 42+2);	/* unix thread */
-		ml->data[0] = 4;	/* thread type */
-		ml->data[1] = 42;	/* word count */
-		ml->data[2+32] = entryvalue();	/* start pc */
-		ml->data[2+32+1] = entryvalue()>>32;
-
-		if(!debug['d']) {
-			ml = newMachoLoad(2, 4);	/* LC_SYMTAB */
-			USED(ml);
-
-			ml = newMachoLoad(11, 18);	/* LC_DYSYMTAB */
-			USED(ml);
-
-			ml = newMachoLoad(14, 6);	/* LC_LOAD_DYLINKER */
-			ml->data[0] = 12;	/* offset to string */
-			strcpy((char*)&ml->data[1], "/usr/lib/dyld");
-		}
-
-		if(!debug['s']) {
-			ms = newMachoSeg("__SYMDAT", 1);
-			ms->vaddr = symdatva;
-			ms->vsize = 8+symsize+lcsize;
-			ms->fileoffset = symo;
-			ms->filesize = 8+symsize+lcsize;
-			ms->prot1 = 7;
-			ms->prot2 = 5;
-
-			md = newMachoDebug();
-			md->fileoffset = symo+8;
-			md->filesize = symsize;
-
-			md = newMachoDebug();
-			md->fileoffset = symo+8+symsize;
-			md->filesize = lcsize;
-		}
-
-		a = machowrite();
-		if(a > MACHORESERVE)
-			diag("MACHORESERVE too small: %d > %d", a, MACHORESERVE);
+		asmbmacho(symdatva, symo);
 		break;
-
 	case 7:
 		/* elf amd-64 */
 
@@ -965,6 +880,8 @@ datblk(int32 s, int32 n)
 		curp = p;
 		if(!p->from.sym->reachable)
 			diag("unreachable symbol in datblk - %s", p->from.sym->name);
+		if(p->from.sym->type == SMACHO)
+			continue;
 		l = p->from.sym->value + p->from.offset - s;
 		c = p->from.scale;
 		i = 0;

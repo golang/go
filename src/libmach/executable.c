@@ -1,11 +1,11 @@
 // Inferno libmach/executable.c
 // http://code.google.com/p/inferno-os/source/browse/utils/libmach/executable.c
 //
-// 	Copyright © 1994-1999 Lucent Technologies Inc.
-// 	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
-// 	Portions Copyright © 1997-1999 Vita Nuova Limited.
-// 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
-// 	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
+//	Copyright © 1994-1999 Lucent Technologies Inc.
+//	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
+//	Portions Copyright © 1997-1999 Vita Nuova Limited.
+//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
+//	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
 //	Portions Copyright © 2009 The Go Authors.  All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1126,6 +1126,8 @@ machdotout(int fd, Fhdr *fp, ExecHdr *hp)
 					goto bad;
 				}
 				sect32++;
+				if (strcmp(sect32->sectname, "__nl_symbol_ptr") == 0)
+					sect32++;
 				if (strcmp(sect32->sectname, "__bss") == 0) {
 					bsssize = swal(sect32->size);
 				} else {

@@ -389,7 +389,20 @@ mstart(void)
 	scheduler();
 }
 
-// Kick of new ms as needed (up to mcpumax).
+// When running with cgo, we call libcgo_thread_start
+// to start threads for us so that we can play nicely with
+// foreign code.
+void (*libcgo_thread_start)(void*);
+
+typedef struct CgoThreadStart CgoThreadStart;
+struct CgoThreadStart
+{
+	M *m;
+	G *g;
+	void (*fn)(void);
+};
+
+// Kick off new ms as needed (up to mcpumax).
 // There are already `other' other cpus that will
 // start looking for goroutines shortly.
 // Sched is locked.
@@ -405,7 +418,21 @@ matchmg(void)
 			m = malloc(sizeof(M));
 			m->g0 = malg(8192);
 			m->id = sched.mcount++;
-			newosproc(m, m->g0, m->g0->stackbase, mstart);
+
+			if(libcgo_thread_start != nil) {
+				CgoThreadStart ts;
+				// pthread_create will make us a stack,
+				// so free the one malg made.
+				stackfree(m->g0->stack0);
+				m->g0->stack0 = nil;
+				m->g0->stackguard = nil;
+				m->g0->stackbase = nil;
+				ts.m = m;
+				ts.g = m->g0;
+				ts.fn = mstart;
+				runcgo(libcgo_thread_start, &ts);
+			} else
+				newosproc(m, m->g0, m->g0->stackbase, mstart);
 		}
 		mnextg(m, g);
 	}
@@ -419,6 +446,17 @@ scheduler(void)
 
 	lock(&sched);
 	if(gosave(&m->sched) != 0){
+		gp = m->curg;
+		if(gp->status == Gcgocall){
+			// Runtime call into external code (FFI).
+			// When running with FFI, the scheduler stack is a
+			// native pthread stack, so it suffices to switch to the
+			// scheduler stack and make the call.
+			runcgo(gp->cgofn, gp->cgoarg);
+			gp->status = Grunning;
+			gogo(&gp->sched, 1);
+		}
+
 		// Jumped here via gosave/gogo, so didn't
 		// execute lock(&sched) above.
 		lock(&sched);
@@ -426,8 +464,7 @@ scheduler(void)
 		if(sched.predawn)
 			throw("init sleeping");
 
-		// Just finished running m->curg.
-		gp = m->curg;
+		// Just finished running gp.
 		gp->m = nil;
 		sched.mcpu--;
 

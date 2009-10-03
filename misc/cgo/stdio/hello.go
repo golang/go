@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-/*
- * Cgo interface.
- */
+package main
 
-void cgocall(void (*fn)(void*), void*);
-void *cmalloc(uintptr);
-void cfree(void*);
+import "stdio"
+
+func main() {
+//	stdio.Stdout.WriteString("hello, world\n");
+	stdio.Puts("hello, world");
+}

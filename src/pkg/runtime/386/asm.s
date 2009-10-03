@@ -9,9 +9,18 @@ TEXT _rt0_386(SB),7,$0
 	MOVL	0(SP), AX		// argc
 	LEAL	4(SP), BX		// argv
 	SUBL	$128, SP		// plenty of scratch
-	ANDL	$~7, SP
+	ANDL	$~15, SP
 	MOVL	AX, 120(SP)		// save argc, argv away
 	MOVL	BX, 124(SP)
+
+	// if there is an initcgo, call it to let it
+	// initialize and to set up GS.  if not,
+	// we set up GS ourselves.
+	MOVL	initcgo(SB), AX
+	TESTL	AX, AX
+	JZ	3(PC)
+	CALL	AX
+	JMP	ok
 
 	// set up %gs
 	CALL	ldt0setup(SB)
@@ -21,9 +30,8 @@ TEXT _rt0_386(SB),7,$0
 	MOVL	tls0(SB), AX
 	CMPL	AX, $0x123
 	JEQ	ok
-	MOVL	AX, 0
+	MOVL	AX, 0	// abort
 ok:
-
 	// set up m and g "registers"
 	LEAL	g0(SB), CX
 	MOVL	CX, g
@@ -285,13 +293,29 @@ TEXT ldt0setup(SB),7,$16
 	CALL	setldt(SB)
 	RET
 
-GLOBL m0+0(SB), $1024
-GLOBL g0+0(SB), $1024
-
-GLOBL tls0+0(SB), $32
-
 TEXT emptyfunc(SB),0,$0
 	RET
 
 TEXT	abort(SB),7,$0
 	INT $0x3
+
+// runcgo(void(*fn)(void*), void *arg)
+// Just call fn(arg), but first align the stack
+// appropriately for the gcc ABI.
+TEXT	runcgo(SB),7,$16
+	MOVL	fn+0(FP), AX
+	MOVL	arg+4(FP), BX
+	MOVL	SP, CX
+	ANDL	$~15, SP	// alignment for gcc ABI
+	MOVL	CX, 4(SP)
+	MOVL	BX, 0(SP)
+	CALL	AX
+	MOVL	4(SP), SP
+	RET
+
+
+GLOBL m0(SB), $1024
+GLOBL g0(SB), $1024
+GLOBL tls0(SB), $32
+GLOBL initcgo(SB), $4
+

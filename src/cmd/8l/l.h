@@ -151,6 +151,8 @@ enum
 	SIMPORT,
 	SEXPORT,
 
+	SMACHO,	/* pointer to mach-o imported symbol */
+
 	NHASH		= 10007,
 	NHUNK		= 100000,
 	MINSIZ		= 4,
@@ -272,6 +274,7 @@ EXTERN	Prog*	curtext;
 EXTERN	Prog*	datap;
 EXTERN	Prog*	edatap;
 EXTERN	int32	datsize;
+EXTERN	int32	dynptrsize;
 EXTERN	char	debug[128];
 EXTERN	char	literal[32];
 EXTERN	Prog*	etextp;
@@ -311,6 +314,7 @@ EXTERN	int	version;
 EXTERN	Prog	zprg;
 EXTERN	int	dtype;
 EXTERN	char	thechar;
+EXTERN	int	tlsoffset;
 
 EXTERN	Adr*	reloca;
 EXTERN	int	doexp, dlm;
