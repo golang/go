@@ -50,6 +50,11 @@ time make
 time make test
 ) || exit $?
 
+(xcd ../misc/cgo/stdio
+make clean
+test.bash
+) || exit $?
+
 (xcd ../usr/austin/ogle
 make clean
 time make ogle
