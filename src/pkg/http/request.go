@@ -627,7 +627,7 @@ func (r *Request) ParseForm() (err os.Error) {
 			return os.ErrorString("missing form body")
 		}
 		ct, _ := r.Header["Content-Type"];
-		switch ct {
+		switch strings.Split(ct, ";", 2)[0] {
 		case "text/plain", "application/x-www-form-urlencoded", "":
 			var b []byte;
 			if b, err = io.ReadAll(r.Body); err != nil {

@@ -4,7 +4,10 @@
 
 package http
 
-import "testing"
+import (
+	"bytes";
+	"testing";
+)
 
 type stringMultimap map[string] []string
 
@@ -62,5 +65,44 @@ func TestQuery(t *testing.T) {
 	req.Url, _ = ParseURL("http://www.google.com/search?q=foo&q=bar");
 	if q := req.FormValue("q"); q != "foo" {
 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q);
+	}
+}
+
+type stringMap map[string]string
+type parseContentTypeTest struct {
+	contentType stringMap;
+	error bool;
+}
+
+var parseContentTypeTests = []parseContentTypeTest{
+	parseContentTypeTest{
+		contentType: stringMap{ "Content-Type": "text/plain" },
+	},
+	parseContentTypeTest{
+		contentType: stringMap{ "Content-Type": "" },
+	},
+	parseContentTypeTest{
+		contentType: stringMap{ "Content-Type": "text/plain; boundary=" },
+	},
+	parseContentTypeTest{
+		contentType: stringMap{ "Content-Type": "application/unknown" },
+		error: true,
+	},
+}
+
+func TestPostContentTypeParsing(t *testing.T) {
+	for i, test := range parseContentTypeTests {
+		req := &Request{
+				Method: "POST",
+				Header: test.contentType,
+				Body: bytes.NewBufferString("body")
+		};
+		err := req.ParseForm();
+		if !test.error && err != nil {
+			t.Errorf("test %d: Unexpected error: %v", i, err);
+		}
+		if test.error && err == nil {
+			t.Errorf("test %d should have returned error", i);
+		}
 	}
 }
