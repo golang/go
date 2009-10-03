@@ -36,7 +36,7 @@ enam.c: 8.out.h
 	sh mkenam
 
 clean:
-	rm -f $(OFILES) $(TARG) *.8 enam.c 8.out a.out
+	rm -f *.$O $(TARG) *.8 enam.c 8.out a.out
 
 install: $(TARG)
 	cp $(TARG) $(GOBIN)/$(TARG)

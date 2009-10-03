@@ -64,6 +64,6 @@ opnames.h:	mkopnames go.h
 	./mkopnames go.h >opnames.h
 
 clean:
-	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB) mkbuiltin1 builtin.c _builtin.c
+	rm -f *.[568o] enam.c [568].out a.out y.tab.h y.tab.c $(LIB) mkbuiltin1 builtin.c _builtin.c
 
 install: $(LIB)

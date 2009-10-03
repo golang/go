@@ -37,7 +37,7 @@ $(TARG): $(OFILES) $(LIB)
 $(OFILES): $(HFILES)
 
 clean:
-	rm -f $(OFILES) $(TARG) *.8 8.out a.out
+	rm -f *.$O $(TARG) *.8 8.out a.out
 
 install: $(TARG)
 	cp $(TARG) $(GOBIN)/$(TARG)

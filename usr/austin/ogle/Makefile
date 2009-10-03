@@ -18,6 +18,8 @@ GOFILES=\
 	process.go\
 	vars.go\
 
+CLEANFILES+=ogle
+
 include $(GOROOT)/src/Make.pkg
 
 main.$O: main.go package
