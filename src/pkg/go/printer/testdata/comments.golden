@@ -90,6 +90,7 @@ func f1() {
 	f0();
 }
 
+
 func abs(x int) int {
 	if x < 0 {	// the tab printed before this comment's // must not affect the remaining lines
 		return -x;	// this statement should be properly indented
@@ -97,14 +98,18 @@ func abs(x int) int {
 	return x;
 }
 
+
 func typeswitch(x interface{}) {
 	switch v := x.(type) {
 	case bool, int, float:
 	case string:
 	default:
 	}
+
 	switch x.(type) {}
+
 	switch v0, ok := x.(int); v := x.(type) {}
+
 	switch v0, ok := x.(int); x.(type) {
 	case bool, int, float:
 	case string:

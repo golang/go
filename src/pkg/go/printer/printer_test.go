@@ -98,6 +98,7 @@ type entry struct {
 
 // Use gotest -update to create/update the respective golden files.
 var data = []entry{
+	entry{ "empty.go", "empty.golden", false },
 	entry{ "comments.go", "comments.golden", false },
 	entry{ "comments.go", "comments.x", true },
 	entry{ "linebreaks.go", "linebreaks.golden", false },

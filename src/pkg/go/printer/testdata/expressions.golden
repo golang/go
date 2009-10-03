@@ -16,6 +16,7 @@ var (
 	p													*int;
 )
 
+
 func _() {
 	// no spaces around simple or parenthesized expressions
 	_ = a+b;
@@ -74,6 +75,7 @@ func _() {
 	_ = a - b + c - d + (a+b+c) + d&e;
 }
 
+
 func _() {
 	_ = T{};
 	_ = struct{}{};
@@ -81,6 +83,7 @@ func _() {
 	_ = [...]T{};
 	_ = []T{};
 	_ = map[int]T{};
+
 	_ = (T){};
 	_ = (struct{}){};
 	_ = ([10]T){};
