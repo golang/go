@@ -20,7 +20,7 @@ $(TARG): $(OFILES)
 	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lregexp9 -lbio -l9
 
 clean:
-	rm -f $(OFILES) $(TARG)
+	rm -f *.$O $(TARG)
 
 install: install-$(shell uname | tr A-Z a-z)
 install-linux: install-default

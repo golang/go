@@ -32,7 +32,7 @@ $(TARG): $(OFILES) $(LIB)
 $(OFILES): $(HFILES)
 
 clean:
-	rm -f $(OFILES) $(TARG) *.5 enam.c 5.out a.out
+	rm -f *.o $(TARG) *.5 enam.c 5.out a.out
 
 install: $(TARG)
 	cp $(TARG) $(GOBIN)/$(TARG)

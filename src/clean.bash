@@ -5,15 +5,15 @@
 
 rm -rf $GOROOT/pkg/[0-9a-zA-Z_]*
 rm -f $GOROOT/lib/*.[6a]
-for i in lib9 libbio libmach libregexp cmd pkg
-do
+for i in lib9 libbio libcgo libmach libregexp cmd pkg \
+	../misc/cgo/gmp ../misc/cgo/stdio \
+	../usr/r/rpc ../usr/dsymonds/iterable \
+	../usr/austin/eval ../usr/austin/ogle ../test/bench
+do(
 	cd $i
-	case $i in
-	cmd)
+	if test -f clean.bash; then
 		bash clean.bash
-		;;
-	*)
+	else
 		make clean
-	esac
-	cd ..
-done
+	fi
+)done

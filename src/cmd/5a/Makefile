@@ -34,7 +34,7 @@ y.tab.c: y.tab.h
 	test -f y.tab.c && touch y.tab.c
 
 clean:
-	rm -f $(OFILES) $(TARG) *.5 enam.c 5.out a.out y.tab.h y.tab.c
+	rm -f *.$O $(TARG) *.5 enam.c 5.out a.out y.tab.h y.tab.c
 
 install: $(TARG)
 	cp $(TARG) $(GOBIN)/$(TARG)

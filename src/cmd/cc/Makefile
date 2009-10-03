@@ -42,6 +42,6 @@ y.tab.c: y.tab.h
 	test -f y.tab.c && touch y.tab.c
 
 clean:
-	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
+	rm -f *.$O *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
 
 install: $(LIB)
