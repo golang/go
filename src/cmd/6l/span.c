@@ -237,6 +237,12 @@ asmsym(void)
 				putsymb(s->name, 'D', s->value+INITDAT, s->version, s->gotype);
 				continue;
 
+			case SMACHO:
+				if(!s->reachable)
+					continue;
+				putsymb(s->name, 'D', s->value+INITDAT+datsize+bsssize, s->version, s->gotype);
+				continue;
+
 			case SBSS:
 				if(!s->reachable)
 					continue;
@@ -714,6 +720,11 @@ vaddr(Adr *a)
 				if((uvlong)s->value < (uvlong)INITTEXT)
 					v += INITTEXT;	/* TO DO */
 				v += s->value;
+				break;
+			case SMACHO:
+				if(!s->reachable)
+					sysfatal("unreachable symbol in vaddr - %s", s->name);
+				v += INITDAT + datsize + s->value;
 				break;
 			default:
 				if(!s->reachable)

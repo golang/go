@@ -94,6 +94,7 @@ enum
 	Gwaiting,
 	Gmoribund,
 	Gdead,
+	Gcgocall,
 };
 enum
 {
@@ -156,11 +157,11 @@ struct	Gobuf
 };
 struct	G
 {
-	byte*	stackguard;	// cannot move - also known to linker, libmach
-	byte*	stackbase;	// cannot move - also known to libmach
+	byte*	stackguard;	// cannot move - also known to linker, libmach, libcgo
+	byte*	stackbase;	// cannot move - also known to libmach, libcgo
 	Defer*	defer;
 	Gobuf	sched;		// cannot move - also known to libmach
-	byte*	stack0;		// first stack segment
+	byte*	stack0;
 	byte*	entry;		// initial function
 	G*	alllink;	// on allg
 	void*	param;		// passed parameter on wakeup
@@ -171,6 +172,8 @@ struct	G
 	bool	readyonstop;
 	M*	m;		// for debuggers, but offset not hard-coded
 	M*	lockedm;
+	void	(*cgofn)(void*);	// for cgo/ffi
+	void	*cgoarg;
 };
 struct	Mem
 {
@@ -375,6 +378,7 @@ void	exit(int32);
 void	breakpoint(void);
 void	gosched(void);
 void	goexit(void);
+void	runcgo(void (*fn)(void*), void*);
 
 #pragma	varargck	argpos	printf	1
 

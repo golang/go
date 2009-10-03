@@ -13,11 +13,17 @@ EOF
 
 case "$GOARCH" in
 386)
-	# The offsets 0 and 4 are known to nacl/thread.c:/^newosproc too.
+	# The offsets 0 and 4 are also known to:
+	#	nacl/thread.c:/^newosproc
+	#	../../cmd/8l/pass.c:/D_GS
+	#	../../libcgo/linux_386.c:/^start
+	#	../../libcgo/darwin_386.c:/^start
 	echo '#define	g	0(GS)'
 	echo '#define	m	4(GS)'
 	;;
 amd64)
+	# These registers are also known to:
+	#	../../libcgo/linux_amd64.c:/^start
 	echo '#define	g	R15'
 	echo '#define	m	R14'
 	;;

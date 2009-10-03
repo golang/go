@@ -172,6 +172,17 @@ func (p *Prog) loadDebugInfo() {
 	p.Typedef = conv.typedef;
 }
 
+func concat(a, b []string) []string {
+	c := make([]string, len(a)+len(b));
+	for i, s := range a {
+		c[i] = s;
+	}
+	for i, s := range b {
+		c[i+len(a)] = s;
+	}
+	return c;
+}
+
 // gccDebug runs gcc -gdwarf-2 over the C program stdin and
 // returns the corresponding DWARF data and any messages
 // printed to standard error.
@@ -182,7 +193,7 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
 	}
 
 	tmp := "_cgo_.o";
-	_, stderr, ok := run(stdin, []string{
+	base := []string{
 		"gcc",
 		machine,
 		"-Wall",	// many warnings
@@ -192,7 +203,8 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
 		"-c",	// do not link
 		"-xc", 	// input language is C
 		"-",	// read input from standard input
-	});
+	};
+	_, stderr, ok := run(stdin, concat(base, p.GccOptions));
 	if !ok {
 		return nil, string(stderr);
 	}

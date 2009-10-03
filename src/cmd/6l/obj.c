@@ -191,12 +191,12 @@ main(int argc, char *argv[])
 	case 6:	/* apple MACH */
 		machoinit();
 		HEADR = MACHORESERVE;
+		if(INITRND == -1)
+			INITRND = 4096;
 		if(INITTEXT == -1)
 			INITTEXT = 4096+HEADR;
 		if(INITDAT == -1)
 			INITDAT = 0;
-		if(INITRND == -1)
-			INITRND = 4096;
 		break;
 	case 7:	/* elf64 executable */
 		elfinit();
@@ -393,6 +393,8 @@ main(int argc, char *argv[])
 	patch();
 	follow();
 	doelf();
+	if(HEADTYPE == 6)
+		domacho();
 	dodata();
 	dobss();
 	dostkoff();

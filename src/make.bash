@@ -19,7 +19,7 @@ rm -f $GOBIN/quietgcc
 cp quietgcc.bash $GOBIN/quietgcc
 chmod +x $GOBIN/quietgcc
 
-for i in lib9 libbio libmach libregexp cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
+for i in lib9 libbio libmach libregexp cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
 do
 	# The ( ) here are to preserve the current directory
 	# for the next round despite the cd $i below.

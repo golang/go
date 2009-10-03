@@ -5,6 +5,9 @@
 include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=gmp
+
+# Can have plain GOFILES too, but this example doesn't.
+
 CGOFILES=\
 	gmp.go
 
@@ -15,15 +18,21 @@ CGO_LDFLAGS=-lgmp
 # alternate installation of the library:
 #	CGO_CFLAGS=-I/home/rsc/gmp32/include
 #	CGO_LDFLAGS+=-L/home/rsc/gmp32/lib
+# Note the += on the second line.
 
-# Can have plain GOFILES too, but this example doesn't.
+CLEANFILES+=pi fib
 
 include $(GOROOT)/src/Make.pkg
 
-# Simple test program
+# Simple test programs
 
-pidigits.$O: install pidigits.go
-	$(GC) pidigits.go
+# Computes 1000 digits of pi; single-threaded.
+pi: install pi.go
+	$(GC) pi.go
+	$(LD) -o $@ pi.$O
 
-pidigits: pidigits.$O
-	$(LD) -o $@ pidigits.$O
+# Computes 200 Fibonacci numbers; multi-threaded.
+fib: install fib.go
+	$(GC) fib.go
+	$(LD) -o $@ fib.$O
+

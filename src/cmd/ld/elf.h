@@ -243,7 +243,7 @@ typedef struct {
 #define PT_NOTE		4	/* Auxiliary information. */
 #define PT_SHLIB	5	/* Reserved (not used). */
 #define PT_PHDR		6	/* Location of program header itself. */
-#define	PT_TLS		7	/* Thread local storage segment */
+#define PT_TLS		7	/* Thread local storage segment */
 #define PT_LOOS		0x60000000	/* First OS-specific. */
 #define PT_HIOS		0x6fffffff	/* Last OS-specific. */
 #define PT_LOPROC	0x70000000	/* First processor-specific type. */

@@ -142,6 +142,11 @@ dobss(void)
 	Sym *s;
 	int32 t;
 
+	if(dynptrsize > 0) {
+		/* dynamic pointer section between data and bss */
+		datsize = rnd(datsize, 8);
+	}
+
 	/* now the bss */
 	bsssize = 0;
 	for(i=0; i<NHASH; i++)
@@ -154,12 +159,13 @@ dobss(void)
 		s->size = t;
 		if(t >= 8)
 			bsssize = rnd(bsssize, 8);
-		s->value = bsssize + datsize;
+		s->value = bsssize + dynptrsize + datsize;
 		bsssize += t;
 	}
+
 	xdefine("data", SBSS, 0);
 	xdefine("edata", SBSS, datsize);
-	xdefine("end", SBSS, bsssize + datsize);
+	xdefine("end", SBSS, dynptrsize + bsssize + datsize);
 }
 
 Prog*

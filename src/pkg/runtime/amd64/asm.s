@@ -270,3 +270,23 @@ TEXT jmpdefer(SB), 7, $0
 	LEAQ	-8(BX), SP	// caller sp after CALL
 	SUBQ	$5, (SP)	// return to CALL again
 	JMP	AX	// but first run the deferred function
+
+// runcgo(void(*fn)(void*), void *arg)
+// Call fn(arg), but align the stack
+// appropriately for the gcc ABI
+// and also save g and m across the call,
+// since the foreign code might reuse them.
+TEXT runcgo(SB),7,$32
+	MOVQ	fn+0(FP),AX
+	MOVQ	arg+8(FP),DI	// DI = first argument in AMD64 ABI
+	MOVQ	SP, CX
+	ANDQ	$~15, SP	// alignment for gcc ABI
+	MOVQ	g, 24(SP)	// save old g, m, SP
+	MOVQ	m, 16(SP)
+	MOVQ	CX, 8(SP)
+	CALL	AX
+	MOVQ	16(SP), m	// restore
+	MOVQ	24(SP), g
+	MOVQ	8(SP), SP
+	RET
+

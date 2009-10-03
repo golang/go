@@ -125,6 +125,11 @@ dodata(void)
 		datsize += u;
 	}
 
+	if(dynptrsize > 0) {
+		/* dynamic pointer section between data and bss */
+		datsize = rnd(datsize, 4);
+	}
+
 	/* now the bss */
 	bsssize = 0;
 	for(i=0; i<NHASH; i++)
@@ -135,12 +140,13 @@ dodata(void)
 			continue;
 		t = s->value;
 		s->size = t;
-		s->value = bsssize + datsize;
+		s->value = bsssize + dynptrsize + datsize;
 		bsssize += t;
 	}
+
 	xdefine("data", SBSS, 0);
 	xdefine("edata", SBSS, datsize);
-	xdefine("end", SBSS, bsssize + datsize);
+	xdefine("end", SBSS, dynptrsize + bsssize + datsize);
 }
 
 Prog*
@@ -570,7 +576,7 @@ dostkoff(void)
 				p = appendp(p);	// load g into CX
 				p->as = AMOVL;
 				p->from.type = D_INDIR+D_GS;
-				p->from.offset = 0;
+				p->from.offset = tlsoffset + 0;
 				p->to.type = D_CX;
 
 				if(debug['K']) {

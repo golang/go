@@ -160,6 +160,8 @@ enum
 	SIMPORT,
 	SEXPORT,
 
+	SMACHO,
+
 	NHASH		= 10007,
 	NHUNK		= 100000,
 	MINSIZ		= 8,
@@ -362,6 +364,7 @@ EXTERN	Prog	undefp;
 EXTERN	vlong	textstksiz;
 EXTERN	vlong	textarg;
 extern	char	thechar;
+EXTERN	int	dynptrsize;
 
 #define	UP	(&undefp)
 
@@ -403,6 +406,7 @@ void	dobss(void);
 void	dodata(void);
 void	doelf(void);
 void	doinit(void);
+void	domacho(void);
 void	doprof1(void);
 void	doprof2(void);
 void	dostkoff(void);

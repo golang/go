@@ -144,15 +144,18 @@ notewakeup(Note *n)
 void
 osinit(void)
 {
-	// Register our thread-creation callback (see {amd64,386}/sys.s).
-	bsdthread_register();
+	// Register our thread-creation callback (see {amd64,386}/sys.s)
+	// but only if we're not using cgo.  If we are using cgo we need
+	// to let the C pthread libary install its own thread-creation callback.
+	extern void (*libcgo_thread_start)(void*);
+	if(libcgo_thread_start == nil)
+		bsdthread_register();
 }
 
 void
 newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
 	m->tls[0] = m->id;	// so 386 asm can find it
-
 	if(0){
 		printf("newosproc stk=%p m=%p g=%p fn=%p id=%d/%d ostk=%p\n",
 			stk, m, g, fn, m->id, m->tls[0], &m);

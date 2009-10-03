@@ -92,7 +92,7 @@ futexwakeup(uint32 *addr)
 //
 // A reminder: compare-and-swap cas(addr, old, new) does
 //	if(*addr == old) { *addr = new; return 1; }
-// 	else return 0;
+//	else return 0;
 // but atomically.
 
 static void

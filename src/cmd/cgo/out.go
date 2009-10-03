@@ -198,7 +198,7 @@ const cProlog = `
 #include "cgocall.h"
 
 #pragma dynld initcgo initcgo "%s/libcgo.so"
-#pragma dynld cgo cgo "%s/libcgo.so"
+#pragma dynld libcgo_thread_start libcgo_thread_start "%s/libcgo.so"
 #pragma dynld _cgo_malloc _cgo_malloc "%s/libcgo.so"
 #pragma dynld _cgo_free free "%s/libcgo.so"
 

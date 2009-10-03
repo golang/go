@@ -213,6 +213,11 @@ main(int argc, char *argv[])
 			Bprint(&bso, "HEADR = 0x%ld\n", HEADR);
 		break;
 	case 6:	/* apple MACH */
+		/*
+		 * OS X system constant - offset from %gs to our TLS.
+		 * Explained in ../../libcgo/darwin_386.c.
+		 */
+		tlsoffset = 0x468;
 		machoinit();
 		HEADR = MACHORESERVE;
 		if(INITTEXT == -1)
@@ -223,6 +228,13 @@ main(int argc, char *argv[])
 			INITRND = 4096;
 		break;
 	case 7:	/* elf32 executable */
+		/*
+		 * Linux ELF uses TLS offsets negative from %gs.
+		 * Translate 0(GS) and 4(GS) into -8(GS) and -4(GS).
+		 * Also known to ../../pkg/runtime/linux/386/sys.s
+		 * and ../../libcgo/linux_386.c.
+		 */
+		tlsoffset = -8;
 		elfinit();
 		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)
@@ -373,6 +385,8 @@ main(int argc, char *argv[])
 	patch();
 	follow();
 	doelf();
+	if(HEADTYPE == 6)
+		domacho();
 	dodata();
 	dostkoff();
 	if(debug['p'])
@@ -592,11 +606,14 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 		a->type = Bgetc(f);
 	if(t & T_GOTYPE)
 		a->gotype = h[Bgetc(f)];
+
+	t = a->type;
+	if(t == D_INDIR+D_GS)
+		a->offset += tlsoffset;
+
 	s = a->sym;
 	if(s == S)
 		return;
-
-	t = a->type;
 	if(t != D_AUTO && t != D_PARAM) {
 		if(a->gotype)
 			s->gotype = a->gotype;

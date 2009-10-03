@@ -11,15 +11,13 @@
 package main
 
 import (
-	"flag";
 	"fmt";
 	"go/ast";
 	"os";
 )
 
 func usage() {
-	fmt.Fprint(os.Stderr, "usage: cgo file.cgo\n");
-	flag.PrintDefaults();
+	fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go\n");
 }
 
 var ptrSizeMap = map[string]int64 {
@@ -28,9 +26,24 @@ var ptrSizeMap = map[string]int64 {
 	"arm": 4
 }
 
+var expandName = map[string]string {
+	"schar": "signed char",
+	"uchar": "unsigned char",
+	"ushort": "unsigned short",
+	"uint": "unsigned int",
+	"ulong": "unsigned long",
+	"longlong": "long long",
+	"ulonglong": "unsigned long long",
+}
+
 func main() {
-	flag.Usage = usage;
-	flag.Parse();
+	args := os.Args;
+	if len(args) < 2 {
+		usage();
+		os.Exit(2);
+	}
+	gccOptions := args[1:len(args)-1];
+	input := args[len(args)-1];
 
 	arch := os.Getenv("GOARCH");
 	if arch == "" {
@@ -41,14 +54,17 @@ func main() {
 		fatal("unknown architecture %s", arch);
 	}
 
-	args := flag.Args();
-	if len(args) != 1 {
-		usage();
-		os.Exit(2);
+	p := openProg(input);
+	for _, cref := range p.Crefs {
+		// Convert C.ulong to C.unsigned long, etc.
+		if expand, ok := expandName[cref.Name]; ok {
+			cref.Name = expand;
+		}
 	}
-	p := openProg(args[0]);
+
 	p.PtrSize = ptrSize;
 	p.Preamble = p.Preamble + "\n" + builtinProlog;
+	p.GccOptions = gccOptions;
 	p.loadDebugInfo();
 	p.Vardef = make(map[string]*Type);
 	p.Funcdef = make(map[string]*FuncType);
@@ -83,5 +99,5 @@ func main() {
 	}
 
 	p.PackagePath = p.Package;
-	p.writeOutput(args[0]);
+	p.writeOutput(input);
 }
