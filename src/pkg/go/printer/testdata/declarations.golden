@@ -25,6 +25,27 @@ import (
 	c			"i" "o";
 )
 
+// no newlines between consecutive single imports, but
+// respect extra line breaks in the source (at most one empty line)
+import _ "io"
+import _ "io"
+import _ "io"
+
+import _ "os"
+import _ "os"
+import _ "os"
+
+
+import _ "fmt"
+import _ "fmt"
+import _ "fmt"
+
+
+// at least one empty line between declarations of different kind
+import _ "io"
+var _ int
+
+
 func _() {
 	// the following decls need a semicolon at the end
 	type _ int;
@@ -33,6 +54,7 @@ func _() {
 	type _ map[string]int;
 	type _ chan int;
 	type _ func() int;
+
 	var _ int;
 	var _ *int;
 	var _ []int;
@@ -47,18 +69,21 @@ func _() {
 	type _ map[string]struct{}
 	type _ chan struct{}
 	type _ func() struct{}
+
 	type _ interface{}
 	type _ *interface{}
 	type _ []interface{}
 	type _ map[string]interface{}
 	type _ chan interface{}
 	type _ func() interface{}
+
 	var _ struct{}
 	var _ *struct{}
 	var _ []struct{}
 	var _ map[string]struct{}
 	var _ chan struct{}
 	var _ func() struct{}
+
 	var _ interface{}
 	var _ *interface{}
 	var _ []interface{}
@@ -75,6 +100,7 @@ func _() {
 	var xxx int;
 	var yyyy float = 3.14;
 	var zzzzz = "bar";
+
 	const (
 		xxxxxx = 0;
 	)

@@ -25,6 +25,26 @@ import (
 	c "i" "o";
 )
 
+// no newlines between consecutive single imports, but
+// respect extra line breaks in the source (at most one empty line)
+import _ "io"
+import _ "io"
+import _ "io"
+
+import _ "os"
+import _ "os"
+import _ "os"
+
+
+import _ "fmt"
+import _ "fmt"
+import _ "fmt"
+
+
+// at least one empty line between declarations of different kind
+import _ "io"
+var _ int;
+
 
 func _() {
 	// the following decls need a semicolon at the end
@@ -71,6 +91,8 @@ func _() {
 	var _ chan interface{}
 	var _ func() interface{}
 }
+
+
 
 
 // no tabs for single or ungrouped decls

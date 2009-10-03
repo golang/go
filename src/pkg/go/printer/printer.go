@@ -112,8 +112,7 @@ func (p *printer) write0(data []byte) {
 
 
 // write interprets data and writes it to p.output. It inserts indentation
-// after newline or formfeed, converts formfeed characters into newlines if
-// RawFormat is set, and HTML-escapes data if GenHTML is set.
+// after newline or formfeed and HTML-escapes characters if GenHTML is set.
 //
 func (p *printer) write(data []byte) {
 	i0 := 0;
@@ -217,7 +216,7 @@ func (p *printer) writeItem(pos token.Position, data []byte, setLineTag bool) {
 }
 
 
-// TODO(gri) decide if this is needed - keep around for now
+// TODO(gri): decide if this is needed - keep around for now
 /*
 // Reduce contiguous sequences of '\t' in a []byte to a single '\t'.
 func untabify(src []byte) []byte {
@@ -347,7 +346,7 @@ func (p *printer) print(args ...) {
 			// indentation delta
 			p.indent += x;
 			if p.indent < 0 {
-				panic("print: negative indentation");
+				panicln("print: negative indentation", p.indent);
 			}
 		case whiteSpace:
 			if p.buflen >= len(p.buffer) {
@@ -410,9 +409,32 @@ func (p *printer) flush(next token.Position) {
 // ----------------------------------------------------------------------------
 // Printing of common AST nodes.
 
-// TODO(gri) The code for printing lead and line comments
-//           should be eliminated in favor of reusing the
-//           comment intersperse mechanism above somehow.
+
+// Print as many newlines as necessary (at least one and and at most
+// max newlines) to get to the current line. If newSection is set, the
+// first newline is printed as a formfeed.
+//
+// TODO(gri): Reconsider signature (provide position instead of line)
+//
+func (p *printer) linebreak(line, max int, newSection bool) {
+	n := line - p.last.Line;
+	switch {
+	case n < 1: n = 1;
+	case n > max: n = max;
+	}
+	if newSection {
+		p.print(formfeed);
+		n--;
+	}
+	for ; n > 0; n-- {
+		p.print(newline);
+	}
+}
+
+
+// TODO(gri): The code for printing lead and line comments
+//            should be eliminated in favor of reusing the
+//            comment intersperse mechanism above somehow.
 
 // Print a list of individual comments.
 func (p *printer) commentList(list []*ast.Comment) {
@@ -538,7 +560,7 @@ func (p *printer) parameters(list []*ast.Field) {
 			if len(par.Names) > 0 {
 				// at least one identifier
 				p.print(blank);
-			};
+			}
 			p.expr(par.Type);
 		}
 	}
@@ -655,7 +677,7 @@ func needsBlanks(expr ast.Expr) bool {
 }
 
 
-// TODO(gri) Write this recursively; get rid of vector use.
+// TODO(gri): Write this recursively; get rid of vector use.
 func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int) {
 	prec := x.Op.Precedence();
 	if prec < prec1 {
@@ -863,47 +885,28 @@ func (p *printer) expr(x ast.Expr) (optSemi bool) {
 // ----------------------------------------------------------------------------
 // Statements
 
+const maxStmtNewlines = 2  // maximum number of newlines between statements
+
 // Print the statement list indented, but without a newline after the last statement.
-func (p *printer) stmtList(list []ast.Stmt) {
-	if len(list) > 0 {
-		p.print(+1, formfeed);  // the next lines have different structure
-		optSemi := false;
-		for i, s := range list {
-			if i > 0 {
-				if !optSemi {
-					p.print(token.SEMICOLON);
-				}
-				p.print(newline);
-			}
-			optSemi = p.stmt(s);
-		}
-		if !optSemi {
+// Extra line breaks between statements in the source are respected but at most one
+// empty line is printed between statements.
+func (p *printer) stmtList(list []ast.Stmt, indent int) {
+	p.print(+indent);
+	for i, s := range list {
+		p.linebreak(s.Pos().Line, maxStmtNewlines, i == 0);
+		if !p.stmt(s) {
 			p.print(token.SEMICOLON);
 		}
-		p.print(-1);
 	}
+	p.print(-indent);
 }
 
 
-func (p *printer) block(s *ast.BlockStmt) {
+func (p *printer) block(s *ast.BlockStmt, indent int) {
 	p.print(s.Pos(), token.LBRACE);
 	if len(s.List) > 0 {
-		p.stmtList(s.List);
-		p.print(formfeed);
-	}
-	p.print(s.Rbrace, token.RBRACE);
-}
-
-
-func (p *printer) switchBlock(s *ast.BlockStmt) {
-	p.print(s.Pos(), token.LBRACE);
-	if len(s.List) > 0 {
-		for _, s := range s.List {
-			// s is one of *ast.CaseClause, *ast.TypeCaseClause, *ast.CommClause;
-			p.print(formfeed);
-			p.stmt(s);
-		}
-		p.print(formfeed);
+		p.stmtList(s.List, indent);
+		p.linebreak(s.Rbrace.Line, maxStmtNewlines, true);
 	}
 	p.print(s.Rbrace, token.RBRACE);
 }
@@ -953,16 +956,7 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		p.print("BadStmt");
 
 	case *ast.DeclStmt:
-		var comment *ast.CommentGroup;
-		comment, optSemi = p.decl(s.Decl);
-		if comment != nil {
-			// Line comments of declarations in statement lists
-			// are not associated with the declaration in the parser;
-			// this case should never happen. Print anyway to continue
-			// gracefully.
-			p.lineComment(comment);
-			p.print(newline);
-		}
+		optSemi = p.decl(s.Decl);
 
 	case *ast.EmptyStmt:
 		// nothing to do
@@ -1007,13 +1001,13 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		}
 
 	case *ast.BlockStmt:
-		p.block(s);
+		p.block(s, 1);
 		optSemi = true;
 
 	case *ast.IfStmt:
 		p.print(token.IF);
 		p.controlClause(false, s.Init, s.Cond, nil);
-		p.block(s.Body);
+		p.block(s.Body, 1);
 		optSemi = true;
 		if s.Else != nil {
 			p.print(blank, token.ELSE, blank);
@@ -1028,12 +1022,13 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 			p.print(token.DEFAULT);
 		}
 		p.print(s.Colon, token.COLON);
-		p.stmtList(s.Body);
+		p.stmtList(s.Body, 1);
+		optSemi = true;  // "block" without {}'s
 
 	case *ast.SwitchStmt:
 		p.print(token.SWITCH);
 		p.controlClause(false, s.Init, s.Tag, nil);
-		p.switchBlock(s.Body);
+		p.block(s.Body, 0);
 		optSemi = true;
 
 	case *ast.TypeCaseClause:
@@ -1044,7 +1039,8 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 			p.print(token.DEFAULT);
 		}
 		p.print(s.Colon, token.COLON);
-		p.stmtList(s.Body);
+		p.stmtList(s.Body, 1);
+		optSemi = true;  // "block" without {}'s
 
 	case *ast.TypeSwitchStmt:
 		p.print(token.SWITCH);
@@ -1056,7 +1052,7 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		p.print(blank);
 		p.stmt(s.Assign);
 		p.print(blank);
-		p.switchBlock(s.Body);
+		p.block(s.Body, 0);
 		optSemi = true;
 
 	case *ast.CommClause:
@@ -1071,17 +1067,18 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 			p.print(token.DEFAULT);
 		}
 		p.print(s.Colon, token.COLON);
-		p.stmtList(s.Body);
+		p.stmtList(s.Body, 1);
+		optSemi = true;  // "block" without {}'s
 
 	case *ast.SelectStmt:
 		p.print(token.SELECT, blank);
-		p.switchBlock(s.Body);
+		p.block(s.Body, 0);
 		optSemi = true;
 
 	case *ast.ForStmt:
 		p.print(token.FOR);
 		p.controlClause(true, s.Init, s.Cond, s.Post);
-		p.block(s.Body);
+		p.block(s.Body, 1);
 		optSemi = true;
 
 	case *ast.RangeStmt:
@@ -1094,7 +1091,7 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank);
 		p.expr(s.X);
 		p.print(blank);
-		p.block(s.Body);
+		p.block(s.Body, 1);
 		optSemi = true;
 
 	default:
@@ -1189,7 +1186,7 @@ func countValueTypes(list []ast.Spec) (n int) {
 
 
 // Returns true if a separating semicolon is optional.
-func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) {
+func (p *printer) decl(decl ast.Decl) (optSemi bool) {
 	switch d := decl.(type) {
 	case *ast.BadDecl:
 		p.print(d.Pos(), "BadDecl");
@@ -1214,23 +1211,27 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 				p.print(+1, formfeed);
 				for i, s := range d.Specs {
 					if i > 0 {
-						p.print(token.SEMICOLON);
-						p.lineComment(comment);
 						p.print(newline);
 					}
-					comment, _ = p.spec(s, m, len(d.Specs));
+					comment, _ := p.spec(s, m, len(d.Specs));
+					p.print(token.SEMICOLON);
+					p.lineComment(comment);
 				}
-				p.print(token.SEMICOLON);
-				p.lineComment(comment);
 				p.print(-1, formfeed);
 			}
 			p.print(d.Rparen, token.RPAREN);
-			comment = nil;  // comment was already printed
 			optSemi = true;
 
 		} else {
 			// single declaration
+			var comment *ast.CommentGroup;
 			comment, optSemi = p.spec(d.Specs[0], m, 1);
+			// If this declaration is inside a statement list, the parser
+			// does not associate a line comment with the declaration but
+			// handles it as ordinary unassociated comment. Thus, in that
+			// case, comment == nil and any trailing semicolon is not part
+			// of a comment.
+			p.lineComment(comment);
 		}
 
 	case *ast.FuncDecl:
@@ -1257,22 +1258,25 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool) 
 		panic("unreachable");
 	}
 
-	return comment, optSemi;
+	return;
 }
 
 
 // ----------------------------------------------------------------------------
 // Files
 
+const maxDeclNewlines = 3  // maximum number of newlines between declarations
+
 func (p *printer) file(src *ast.File) {
 	p.leadComment(src.Doc);
 	p.print(src.Pos(), token.PACKAGE, blank);
 	p.expr(src.Name);
 
-	for _, d := range src.Decls {
-		p.print(newline, newline);
-		comment, _ := p.decl(d);
-		p.lineComment(comment);
+	if len(src.Decls) > 0 {
+		for _, d := range src.Decls {
+			p.linebreak(d.Pos().Line, maxDeclNewlines, false);
+			p.decl(d);
+		}
 	}
 
 	p.print(newline);
@@ -1395,8 +1399,7 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, o
 		case ast.Stmt:
 			p.stmt(n);
 		case ast.Decl:
-			comment, _ := p.decl(n);
-			p.lineComment(comment);  // no newline at end
+			p.decl(n);
 		case *ast.File:
 			p.comment = n.Comments;
 			p.file(n);
