@@ -8,7 +8,7 @@ TARG=stdio
 CGOFILES=\
 	file.go
 
-CLEANFILES+=hello fib chain
+CLEANFILES+=hello fib chain run.out
 
 include $(GOROOT)/src/Make.pkg
 
