@@ -6,6 +6,9 @@
 
 // Package av implements audio and video access for Native Client
 // binaries running standalone or embedded in a web browser window.
+//
+// The C version of the API is documented at
+// http://nativeclient.googlecode.com/svn/data/docs_tarball/nacl/googleclient/native_client/scons-out/doc/html/group__audio__video.html
 package av
 
 import (
