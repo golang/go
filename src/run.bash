@@ -52,7 +52,7 @@ time make test
 
 (xcd ../misc/cgo/stdio
 make clean
-test.bash
+./test.bash
 ) || exit $?
 
 (xcd ../usr/austin/ogle
