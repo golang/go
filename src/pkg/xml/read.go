@@ -218,7 +218,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		}
 
 		// Assign attributes.
-		// Also, do we need to save character data?
+		// Also, determine whether we need to save character data.
 		for i, n := 0, typ.NumField(); i < n; i++ {
 			f := typ.Field(i);
 			switch f.Tag {
