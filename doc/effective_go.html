@@ -5,11 +5,12 @@
 <h2 id="introduction">Introduction</h2>
 
 <p>
-Go is a new language.  Although it's in the C family
-it has some unusual properties that make effective Go programs
-different in character from programs in existing languages.
+Go is a new language.  Although it borrows ideas from
+existing languages,
+it has unusual properties that make effective Go programs
+different in character from programs in its relatives.
 A straightforward translation of a C++ or Java program into Go
-is unlikely to produce a satisfactory result—Java programs
+is unlikely to produce a satisfactory result&mdash;Java programs
 are written in Java, not Go.
 On the other hand, thinking about the problem from a Go
 perspective could produce a successful but quite different
@@ -257,8 +258,7 @@ var (
 Names are as important in Go as in any other language.
 In some cases they even have semantic effect: for instance,
 the visibility of a name outside a package is determined by whether its
-first character is an upper case letter,
-while methods are looked up by name alone (although the type must match too).
+first character is an upper case letter.
 It's therefore worth spending a little time talking about naming conventions
 in Go programs.
 </p>
@@ -288,6 +288,8 @@ And don't worry about collisions <i>a priori</i>.
 The package name is only the default name for imports; it need not be unique
 across all source code, and in the rare case of a collision the
 importing package can choose a different name to use locally.
+In any case, confusion is rare because the file name in the import
+defines which version is being used.
 </p>
 
 <p>
@@ -310,7 +312,7 @@ Moreover,
 because imported entities are always addressed with their package name, <code>bufio.Reader</code>
 does not conflict with <code>io.Reader</code>.
 Similarly, the constructor for <code>vector.Vector</code>
-could be called <code>NewVector</code> but since
+would normally be called <code>NewVector</code> but since
 <code>Vector</code> is the only type exported by the package, and since the
 package is called <code>vector</code>, it's called just <code>New</code>,
 which clients of the package see as <code>vector.New</code>.
@@ -352,7 +354,7 @@ call your string-converter method <code>String</code> not <code>ToString</code>.
 <h3 id="mixed-caps">MixedCaps</h3>
 
 <p>
-Finally, the convention in Go is to used <code>MixedCaps</code>
+Finally, the convention in Go is to use <code>MixedCaps</code>
 or <code>mixedCaps</code> rather than underscores to write
 multiword names.
 </p>
@@ -418,7 +420,8 @@ slightly generalized
 initialization statement like that of <code>for</code>;
 and there are new control structures including a type switch and a
 multiway communications multiplexer, <code>select</code>.
-The syntax is also slightly different: parentheses are not part of the syntax
+The syntax is also slightly different:
+parentheses are not required
 and the bodies must always be brace-delimited.
 </p>
 
@@ -524,7 +527,7 @@ it all up for you:
 <pre>
 var m map[string] int;
 sum := 0;
-for key, value := range m {  // key is unused; could call it '_'
+for _, value := range m {  // key is unused
     sum += value
 }
 </pre>
@@ -633,7 +636,7 @@ func Compare(a, b []byte) int {
 <p>
 One of Go's unusual properties is that functions and methods
 can return multiple values.  This feature can be used to
-improve on a couple of clumsy idioms in C program: in-band
+improve on a couple of clumsy idioms in C programs: in-band
 error returns (<code>-1</code> for <code>EOF</code> for example)
 and modifying an argument.
 </p>
@@ -660,7 +663,8 @@ This is a common style; see the section on error handling for more examples.
 
 <p>
 A similar approach obviates the need to pass a pointer to a return
-value to overwrite an argument.  Here's a simple-minded function to
+value to simulate a reference parameter.
+Here's a simple-minded function to
 grab a number from a position in a byte array, returning the number
 and the next position.
 </p>
@@ -693,7 +697,7 @@ You could use it to scan the numbers in an input array <code>a</code> like this:
 <p>
 The return or result "parameters" of a Go function can be given names and
 used as regular variables, just like the incoming parameters.
-When named, they are initialized to the zero for their type when
+When named, they are initialized to the zero values for their types when
 the function begins; if the function executes a <code>return</code> statement
 with no arguments, the current values of the result parameters are
 used as the returned values.
@@ -825,8 +829,9 @@ func NewFile(fd int, name string) *File {
 Note that it's perfectly OK to return the address of a local variable;
 the storage associated with the variable survives after the function
 returns.
-In fact, as a special case, the <i>address</i> of a composite literal
-allocates a fresh instance each time, we can combine these last two lines:
+In fact, taking the address of a composite literal
+allocates a fresh instance each time it is evaluated,
+so we can combine these last two lines:
 </p>
 
 <pre>
@@ -972,10 +977,84 @@ But even this style isn't idiomatic Go.  Slices are.
 <h3 id="slices">Slices</h3>
 
 <p>
-Slices wrap arrays to give a more general, powerful, and convenient interface to sequences
-of data.
-Except for items with explicit dimension such as rotation matrices, most
-array programming in Go is done with slices rather than simple arrays.
+Slices wrap arrays to give a more general, powerful, and convenient
+interface to sequences of data.  Except for items with explicit
+dimension such as transformation matrices, most array programming in
+Go is done with slices rather than simple arrays.
+</p>
+<p>
+Slices are <i>reference types</i>, which means that if you assign one
+slice to another, both refer to the same underlying array.  For
+instance, if a function takes a slice argument, changes it makes to
+the elements of the slice will be visible to the caller, analogous to
+passing a pointer to the underlying array.  A <code>Read</code>
+function can therefore accept a slice argument rather than a (pointer
+to an) array and a count; the length within the slice sets an upper
+limit of how much data to read.  Here is the signature of the
+<code>Read</code> method of the <code>File</code> type in package
+<code>os</code>:
+</p>
+<pre>
+func (file *File) Read(buf []byte) (n int, err os.Error)
+</pre>
+<p>
+The method returns the number of bytes read and an error value, if
+any.  To read into the first 32 bytes of a larger buffer
+<code>b</code>, <i>slice</i> (here used as a verb) the buffer:
+</p>
+<pre>
+	n, err := f.Read(buf[0:32]);
+</pre>
+<p>
+Such slicing is common and efficient.  In fact, leaving efficiency aside for
+the moment, this snippet would also read the first 32 bytes of the buffer:
+</p>
+<pre>
+	var n int;
+	var err os.Error;
+	for i := 0; i < 32; i++ {
+		nbytes, e := f.Read(buf[i:i+1]);
+		if nbytes == 0 || e != nil {
+			err = e;
+			break;
+		}
+		n += nbytes;
+	}
+</pre>
+<p>
+The length of a slice may be changed as long as it still fits within
+the limits of the underyling array; just assign it to a slice of
+itself.  The <i>capacity</i> of a slice, accessible by the built-in
+function <code>cap</code>, reports the maximum length the slice may
+assume.  Here is a function to append data to a slice.  If the data
+exceeds the capacity, the slice is reallocated.  The
+resulting slice is returned.  The function uses the fact that
+<code>len</code> and <code>cap</code> are legal when applied to the
+<code>nil</code> slice, and return 0.
+</p>
+<pre>
+func Append(slice, data[]byte) []byte {
+	l := len(slice);
+	if l + len(data) > cap(slice) {	// reallocate
+		// Allocate double what's needed, for future growth.
+		newSlice := make([]byte, (l+len(data))*2);
+		// Copy data (could use bytes.Copy()).
+		for i, c := range slice {
+			newSlice[i] = c
+		}
+		slice = newSlice;
+	}
+	slice = slice[0:l+len(data)];
+	for i, c := range data {
+		slice[l+i] = c
+	}
+	return slice;
+}
+</pre>
+<p>
+We must return the slice afterwards because, although <code>Append</code>
+can modify the elements of <code>slice</code>, the slice itself (the run-time data
+structure holding the pointer, length, and capacity) is passed by value.
 </p>
 
 
@@ -983,10 +1062,71 @@ array programming in Go is done with slices rather than simple arrays.
 <h3 id="printing">Printing</h3>
 
 <h2>Methods</h2>
-<h3 id="method_basics">Basics</h3>
-<h3 id="pointers_vs_values">Pointers vs. Values</h3>
-<h3 id="any_type">Methods on arbitrary types</h3>
 
+<h3 id="pointers_vs_values">Pointers vs. Values</h3>
+<p>
+Methods can be defined for any named type except pointers and interfaces;
+the receiver does not have to be a struct.
+<p>
+In the discussion of slices above, we wrote an <code>Append</code>
+function.  We can define it as a method on slices instead.  To do
+this, we first declare a named type to which we can bind the method, and
+then make the receiver for the method a value of that type.
+</p>
+<pre>
+type ByteSlice []byte
+
+func (slice ByteSlice) Append(data []byte) []slice {
+	// Body exactly the same as above
+}
+</pre>
+<p>
+This still requires the method to return the updated slice.  We can
+eliminate that clumsiness by redefining the method to take a
+<i>pointer</i> to a <code>ByteSlice</code> as its receiver, so the
+method can overwrite the caller's slice.
+</p>
+<pre>
+func (p *ByteSlice) Append(data []byte) {
+	slice := *p;
+	// Body as above, without the return.
+	*p = slice;
+}
+</pre>
+<p>
+In fact, we can do even better.  If we modify our function so it looks
+like a standard <code>Write</code> method, like this,
+</p>
+<pre>
+func (p *ByteSlice) Write(data []byte) (n int, err os.Error) {
+	slice := *p;
+	// Again as above.
+	*p = slice;
+	return len(data), nil)
+}
+</pre>
+<p>
+then the type <code>*ByteSlice</code> satisfies the standard interface
+<code>io.Writer</code>, which is handy.  For instance, we can
+print into one:
+</p>
+<pre>
+	var b ByteSlice;
+	fmt.Fprintf(&amp;b, "This minute has %d seconds\n", 61);
+</pre>
+<p>
+Notice that we must pass the address of a <code>ByteSlice</code>
+because only <code>*ByteSlice</code> satisfies <code>io.Writer</code>.
+The rule about pointers vs. values for receivers is that value methods
+can be invoked on pointers and values, but pointer methods can only be
+invoked on pointers.  This is because pointer methods can modify the
+receiver; invoking them on a copy of the value would cause those
+modifications to be discarded.
+</p>
+<p>
+By the way, the idea of using <code>Write</code> on a slice of bytes
+is implemented by <code>bytes.Buffer</code>.
+</p>
 
 <h2>More to come</h2>
 
@@ -1269,7 +1409,7 @@ is initialized using individual assignments?
 These questions distract from the important one:
 what does the code do?
 Moreover, internal consistency is important not only within a single file,
-but also within the the surrounding source files.
+but also within the surrounding source files.
 When editing code, read the surrounding context
 and try to mimic it as much as possible, even if it
 disagrees with the rules here.
@@ -1279,4 +1419,13 @@ Consistency about little things
 lets readers concentrate on big ones.
 </p>
 
+<pre>
+TODO
+verifying implementation
+type Color uint32
+
+// Check that Color implements image.Color and image.Image
+var _ image.Color = Black
+var _ image.Image = Black
+</pre>
 -->
