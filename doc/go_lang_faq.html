@@ -370,16 +370,16 @@ equality of structs and arrays should mean, it was simpler to leave it out for n
 Why build concurrency on the ideas of CSP?</h3>
 <p>
 Concurrency and multi-threaded programming have a reputation
-for difficulty.  We believe the problem is partly due to complex
+for difficulty.  We believe the problem is due partly to complex
 designs such as pthreads and partly to overemphasis on low-level details
-such as mutexes, condition variables, and eve memory barriers.
+such as mutexes, condition variables, and even memory barriers.
 Higher-level interfaces enable much simpler code, even if there are still
 mutexes and such under the covers.
 </p>
 <p>
 One of the most successful models for providing high-level linguistic support
 for concurrency comes from Hoare's Communicating Sequential Processes, or CSP.
-Occam and Erlang are two commercial languages that stem from CSP.
+Occam and Erlang are two well known languages that stem from CSP.
 Go's concurrency primitives derive from a different part of the family tree
 whose main contribution is the powerful notion of channels as first class objects.
 </p>
@@ -425,23 +425,3 @@ The language does not preclude atomic map updates.  When required, such
 as when hosting an untrusted program, the implementation could interlock
 map access.
 </p>
-
-<h3 id="TODO">
-TODO</h3>
-<p>TODO:</p>
-
-<pre>
-explain:
-package design
-slices
-oo separate from storage (abstraction vs. implementation)
-
-embedding?
-dependency declarations in the language
-
-oo questions
-	no data in interfaces
-	dynamic dispatch
-
-make vs new
-</pre>
