@@ -9,6 +9,7 @@ import (
 	"fmt";
 	"io";
 	"testing";
+	"testing/iotest";
 )
 
 type writerTestEntry struct {
@@ -37,7 +38,7 @@ var writerTests = []*writerTest{
 					Uname: "dsymonds",
 					Gname: "eng",
 				},
-				contents: `Kilts`,
+				contents: "Kilts",
 			},
 			&writerTestEntry{
 				header: &Header{
@@ -54,6 +55,28 @@ var writerTests = []*writerTest{
 				contents: "Google.com\n",
 			},
 		}
+	},
+	// The truncated test file was produced using these commands:
+	//   dd if=/dev/zero bs=1048576 count=16384 > /tmp/16gig.txt
+	//   tar -b 1 -c -f- /tmp/16gig.txt | dd bs=512 count=8 > writer-big.tar
+	&writerTest{
+		file: "testdata/writer-big.tar",
+		entries: []*writerTestEntry{
+			&writerTestEntry{
+				header: &Header{
+					Name: "tmp/16gig.txt",
+					Mode: 0640,
+					Uid: 73025,
+					Gid: 5000,
+					Size: 16 << 30,
+					Mtime: 1254699560,
+					Typeflag: '0',
+					Uname: "dsymonds",
+					Gname: "eng",
+				},
+				// no contents
+			},
+		},
 	},
 }
 
@@ -105,7 +128,7 @@ testLoop:
 		}
 
 		buf := new(bytes.Buffer);
-		tw := NewWriter(buf);
+		tw := NewWriter(iotest.TruncateWriter(buf, 4 << 10));  // only catch the first 4 KB
 		for j, entry := range test.entries {
 			if err := tw.WriteHeader(entry.header); err != nil {
 				t.Errorf("test %d, entry %d: Failed writing header: %v", i, j, err);
@@ -116,7 +139,10 @@ testLoop:
 				continue testLoop
 			}
 		}
-		tw.Close();
+		if err := tw.Close(); err != nil {
+			t.Errorf("test %d: Failed closing archive: %v", err);
+			continue testLoop
+		}
 
 		actual := buf.Bytes();
 		if !bytes.Equal(expected, actual) {
