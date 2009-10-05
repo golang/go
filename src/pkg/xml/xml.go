@@ -2,367 +2,765 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// NOTE(rsc): Actually, this package is just a description
-// of an implementation that hasn't been written yet.
-
-// This package implements an XML parser but relies on
-// clients to implement the parsing actions.
-
-// An XML document is a single XML element.
-//
-// An XML element is either a start tag and an end tag,
-// like <tag>...</tag>, or a combined start/end tag <tag/>.
-// The latter is identical in semantics to <tag></tag>,
-// and this parser does not distinguish them.
-//
-// The start (or combined start/end) tag can have
-// name="value" attributes inside the angle brackets after
-// the tag name, as in <img src="http://google.com/icon.png" alt="Google">.
-// Names are drawn from a fixed set of alphabetic letters;
-// Values are strings quoted with single or double quotes.
-//
-// An element made up of distinct start and end tags can
-// contain free-form text and other elements inside it,
-// as in <a href="http://www.google.com">Google</a>
-// or <b><a href="http://www.google.com">Google</a></b>.
-// The former is an <a> element with the text "Google" inside it.
-// The latter is a <b> element with that <a> element inside it.
-// In general, an element can contain a sequence of elements
-// and text inside it.  In XML, white space inside an element is
-// always counted as text--it is never discarded by the parser.
-// XML parsers do translate \r and \r\n into \n in text.
-//
-// This parser reads an XML document and calls methods on a
-// Builder interface object in response to the text.
-// It calls the builder's StartElement, Text, and EndElement
-// methods, mimicking the structure of the text.
-// For example, the simple XML document:
-//
-//	<a href="http://www.google.com">
-//		<img src="http://www.google.com/icon.png" alt="Google" />
-//	<br/></a>
-//
-// results in the following sequence of builder calls:
-//
-//	StartElement("a", []Attr(Attr("href", "http://www.google.com")));
-//	Text("\n\t");
-//	StartElement("img", []Attr(Attr("src", "http://www.google.com/icon.png"),
-//	                           Attr("alt", "Google")));
-//	EndElement("img");
-//	Text("\n");
-//	StartElement("br", []Attr());
-//	EndElement("br");
-//	EndElement("a");
-//
-// There are, of course, a few more details, but the story so far
-// should be enough for the majority of uses.  The details are:
-//
-// * XML documents typically begin with an XML declaration line like
-// <?xml version="1.0" encoding="UTF-8"?>.
-// This line is strongly recommended, but not strictly required.
-// It introduces the XML version and text encoding for the rest
-// of the file.  XML parsers are required to recognize UTF-8 and
-// UTF-16.  This parser only recognizes UTF-8 (for now?).
-//
-// * After the XML declaration comes an optional doctype declaration like
-// <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-//   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-// The parser should pass this information on to the client in some
-// form, but does not.  It discards such lines.
-//
-// * The XML declaration line is an instance of a more general tag
-// called a processing instruction, XML's #pragma.  The general form is
-// <?target text?>, where target is a name (like "xml") specifying
-// the intended recipient of the instruction, and text is the
-// instruction itself.  This XML parser keeps the <?xml ...?> declaration
-// to itself but passes along other processing instructions using
-// the ProcInst method.  Processing instructions can appear anywhere
-// in an XML document.  Most clients will simply ignore them.
-//
-// * An XML comment can appear anywhere in an XML document.
-// Comments have the form <!--text-->.  The XML parser passes
-// them along by calling the Comment method.  Again, most clients
-// will simply ignore them.
-//
-// * Text inside an XML element must be escaped to avoid looking like
-// a start/end tag.  Specifically, the characters < and & must be
-// written as &lt; and &amp;.  An alternate quoting mechanism is to
-// use the construct <![CDATA[...]]>.  The quoted text ... can contain
-// < characters, but not the sequence ]]>.  Ampersands must still be
-// escaped.  For some reason, the existence of the CDATA quoting mechanism
-// infects the processing of ordinary unquoted text, which is not allowed
-// to contain the literal sequence ]]>.  Instead, it would be written
-// escaped, as in ]]&gt;.  The parser hides all these considerations
-// from the library client -- it reports all text, regardless of original
-// form and already unescaped, using the Text method.
-//
-// * A revision to XML 1.0 introduced the concept of name spaces
-// for attribute and tag names.  A start tag with an attribute
-// xmlns:prefix="URL" introduces `prefix' as a shorthand
-// for the name space whose identifier is URL.  Inside the element
-// with that start tag, an element name or attribute prefix:foo
-// (as in <prefix:foo prefix:bar="baz">) is understood to refer
-// to name `foo' in the name space denoted by `URL'.  Although
-// this is a shorthand, there is no canonical expansion.  Thus:
-//
-//	<tag xmlns:foo="http://google.com/foo" xmlns:bar="http://google.com/bar">
-//		<foo:red bar:attr="value">text1</foo:red>
-//		<bar:red>text2</bar:red>
-//	</tag>
-//
-// and
-//
-//	<tag xmlns:bar="http://google.com/foo" xmlns:foo="http://google.com/bar">
-//		<bar:red foo:attr="value">text1</bar:red>
-//		<foo:red>text2</foo:red>
-//	</tag>
-//
-// are equivalent XML documents, and there is no canonical form.
-//
-// The special attribute xmlns="URL" sets the default name space
-// for unprefixed tags (but not attribute names) to URL.
-// Thus:
-//
-//	<tag xmlns="http://google.com/foo" xmlns:bar="http://google.com/bar">
-//		<red bar:attr="value">text1</red>
-//		<bar:red>text2</bar:red>
-//	</tag>
-//
-// is another XML document equivalent to the first two, and
-//
-//	<tag xmlns:bar="http://google.com/foo" xmlns="http://google.com/bar">
-//		<bar:red attr="value">text1</bar:red>
-//		<red>text2</red>
-//	</tag>
-//
-// would be equivalent, except that `attr' in attr="value" has no
-// associated name space, in contrast to the previous three where it
-// is in the http://google.com/bar name space.
-//
-// The XML parser hides these details from the client by passing
-// a Name struct (ns + name pair) for tag and attribute names.
-// Tags and attributes without a name space have ns == "".
-//
-// References:
-//	Annotated XML spec: http://www.xml.com/axml/testaxml.htm
-//	XML name spaces: http://www.w3.org/TR/REC-xml-names/
-
+// Package xml implements a simple XML 1.0 parser that
+// understands XML name spaces.
 package xml
 
+// TODO(rsc):
+//	Test error handling.
+//	Expose parser line number in errors.
+
 import (
+	"bufio";
+	"bytes";
 	"io";
 	"os";
+	"strconv";
+	"strings";
+	"unicode";
+	"utf8";
 )
 
-// XML name, annotated with name space URL
+// A SyntaxError represents a syntax error in the XML input stream.
+type SyntaxError string
+func (e SyntaxError) String() string {
+	return "XML syntax error: " + string(e);
+}
+
+// A Name represents an XML name (Local) annotated
+// with a name space identifier (Space).
+// In tokens returned by Parser.Token, the Space identifier
+// is given as a canonical URL, not the short prefix used
+// in the document being parsed.
 type Name struct {
-	ns, name string;
+	Space, Local string;
 }
 
-// XML attribute (name=value).
+// An Attr represents an attribute in an XML element (Name=Value).
 type Attr struct {
+	Name Name;
+	Value string;
+}
+
+// A Token is an interface holding one of the token types:
+// StartElement, EndElement, CharData, Comment, ProcInst, or Directive.
+type Token interface{}
+
+// A StartElement represents an XML start element.
+type StartElement struct {
+	Name Name;
+	Attr []Attr;
+}
+
+// An EndElement represents an XML end element.
+type EndElement  struct {
+	Name Name;
+}
+
+// A CharData represents XML character data (raw text),
+// in which XML escape sequences have been replaced by
+// the characters they represent.
+type CharData []byte
+
+func copy(b []byte) []byte {
+	b1 := make([]byte, len(b));
+	bytes.Copy(b1, b);
+	return b1;
+}
+
+func (c CharData) Copy() CharData {
+	return CharData(copy(c));
+}
+
+// A Comment represents an XML comment of the form <!--comment-->.
+// The bytes do not include the <!-- and --> comment markers.
+type Comment []byte
+
+func (c Comment) Copy() Comment {
+	return Comment(copy(c));
+}
+
+// A ProcInst represents an XML processing instruction of the form <?target inst?>
+type ProcInst struct {
+	Target string;
+	Inst []byte;
+}
+
+func (p ProcInst) Copy() ProcInst {
+	p.Inst = copy(p.Inst);
+	return p;
+}
+
+// A Directive represents an XML directive of the form <!text>.
+// The bytes do not include the <! and > markers.
+type Directive []byte
+
+func (d Directive) Copy() Directive {
+	return Directive(copy(d));
+}
+
+type readByter interface {
+	ReadByte() (b byte, err os.Error)
+}
+
+// A Parser represents an XML parser reading a particular input stream.
+// The parser assumes that its input is encoded in UTF-8.
+type Parser struct {
+	r readByter;
+	buf bytes.Buffer;
+	stk *stack;
+	free *stack;
+	needClose bool;
+	toClose Name;
+	nextByte int;
+	ns map[string]string;
+	err os.Error;
+	line int;
+	tmp [32]byte;
+}
+
+// NewParser creates a new XML parser reading from r.
+func NewParser(r io.Reader) *Parser {
+	p := &Parser{
+		ns: make(map[string]string),
+		nextByte: -1,
+		line: 1,
+	};
+
+	// Get efficient byte at a time reader.
+	// Assume that if reader has its own
+	// ReadByte, it's efficient enough.
+	// Otherwise, use bufio.
+	if rb, ok := r.(readByter); ok {
+		p.r = rb;
+	} else {
+		p.r = bufio.NewReader(r);
+	}
+
+	return p;
+}
+
+// Token returns the next XML token in the input stream.
+// At the end of the input stream, Token returns nil, os.EOF.
+//
+// Slices of bytes in the returned token data refer to the
+// parser's internal buffer and remain valid only until the next
+// call to Token.  To acquire a copy of the bytes, call the token's
+// Copy method.
+//
+// Token expands self-closing elements such as <br/>
+// into separate start and end elements returned by successive calls.
+//
+// Token guarantees that the StartElement and EndElement
+// tokens it returns are properly nested and matched:
+// if Token encounters an unexpected end element,
+// it will return an error.
+//
+// Token implements XML name spaces as described by
+// http://www.w3.org/TR/REC-xml-names/.  Each of the
+// Name structures contained in the Token has the Space
+// set to the URL identifying its name space when known.
+// If Token encounters an unrecognized name space prefix,
+// it uses the prefix as the Space rather than report an error.
+//
+func (p *Parser) Token() (t Token, err os.Error) {
+	if t, err = p.RawToken(); err != nil {
+		return;
+	}
+	switch t1 := t.(type) {
+	case StartElement:
+		// In XML name spaces, the translations listed in the
+		// attributes apply to the element name and
+		// to the other attribute names, so process
+		// the translations first.
+		for _, a := range t1.Attr {
+			if a.Name.Space == "xmlns" {
+				v, ok := p.ns[a.Name.Local];
+				p.pushNs(a.Name.Local, v, ok);
+				p.ns[a.Name.Local] = a.Value;
+			}
+			if a.Name.Space == "" && a.Name.Local == "xmlns" {
+				// Default space for untagged names
+				v, ok := p.ns[""];
+				p.pushNs("", v, ok);
+				p.ns[""] = a.Value;
+			}
+		}
+
+		p.translate(&t1.Name, true);
+		for i := range t1.Attr {
+			p.translate(&t1.Attr[i].Name, false);
+		}
+		p.pushElement(t1.Name);
+		t = t1;
+
+	case EndElement:
+		p.translate(&t1.Name, true);
+		if !p.popElement(t1.Name) {
+			return nil, p.err;
+		}
+		t = t1;
+	}
+	return;
+}
+
+// Apply name space translation to name n.
+// The default name space (for Space=="")
+// applies only to element names, not to attribute names.
+func (p *Parser) translate(n *Name, isElementName bool) {
+	switch {
+	case n.Space == "xmlns":
+		return;
+	case n.Space == "" && !isElementName:
+		return;
+	case n.Space == "" && n.Local == "xmlns":
+		return;
+	}
+	if v, ok := p.ns[n.Space]; ok {
+		n.Space = v;
+	}
+}
+
+// Parsing state - stack holds old name space translations
+// and the current set of open elements.  The translations to pop when
+// ending a given tag are *below* it on the stack, which is
+// more work but forced on us by XML.
+type stack struct {
+	next *stack;
+	kind int;
 	name Name;
-	value string;
+	ok bool;
 }
 
-// XML Builder - methods client provides to Parser.
-// Parser calls methods on builder as it reads and parses XML.
-// If a builder method returns an error, the parse stops.
-type Builder interface {
-	// Called when an element starts.
-	// Attr is list of attributes given in the tag.
-	//	<name attr.name=attr.value attr1.name=attr1.value ...>
-	//	<name attr.name=attr.value attr1.name=attr1.value ... />
-	// xmlns and xmlns:foo attributes are handled internally
-	// and not passed through to StartElement.
-	StartElement(name Name, attr []Attr) os.Error;
-
-	// Called when an element ends.
-	//	</name>
-	//	<name ... />
-	EndElement(name Name) os.Error;
-
-	// Called for non-empty character data string inside element.
-	// Can be called multiple times between elements.
-	//	text
-	//	<![CDATA[text]]>
-	Text(text []byte) os.Error;
-
-	// Called when a comment is found in the XML.
-	//	<!-- text -->
-	Comment(text []byte) os.Error;
-
-	// Called for a processing instruction
-	// <?target text?>
-	ProcInst(target string, text []byte) os.Error;
-}
-
-// Default builder.  Implements no-op Builder methods.
-// Embed this in your own Builders to handle the calls
-// you don't care about (e.g., Comment, ProcInst).
-type BaseBuilder struct {
-}
-
-func (b *BaseBuilder) StartElement(name Name, attr []Attr) os.Error {
-	return nil;
-}
-
-func (b *BaseBuilder) EndElement(name Name) os.Error {
-	return nil;
-}
-
-func (b *BaseBuilder) Text(text []byte) os.Error {
-	return nil;
-}
-
-func (b *BaseBuilder) Comment(text []byte) os.Error {
-	return nil;
-}
-
-func (b *BaseBuilder) ProcInst(target string, text []byte) os.Error {
-	return nil;
-}
-
-// XML Parser.  Calls Builder methods as it parses.
-func Parse(r io.Read, b Builder) os.Error {
-	return os.NewError("unimplemented");
-}
-
-// Channel interface to XML parser: create a new channel,
-// go ParseTokens(r, c), and then read from the channel
-// until TokenEnd.  This variant has the benefit that
-// the process reading the channel can be a recursive
-// function instead of a set of callbacks, but it has the
-// drawback that the channel interface cannot signal an
-// error to cause the parser to stop early.
-
-// An XML parsing token.
 const (
-	TokenStartElement = 1 + iota;
-	TokenEndElement;
-	TokenText;
-	TokenComment;
-	TokenProcInst;
-	TokenEnd;
+	stkStart = iota;
+	stkNs;
 )
 
-type Token struct {
-	Kind int;		// TokenStartElement, TokenEndElement, etc.
-	Name Name;		// name (TokenStartElement, TokenEndElement)
-	Attr []Attr;		// attributes (TokenStartElement)
-	Target string;		// target (TokenProcessingInstruction)
-	Text []byte;		// text (TokenCharData, TokenComment, etc.)
-	Err os.Error;		// error (TokenEnd)
+func (p *Parser) push(kind int) *stack {
+	s := p.free;
+	if s != nil {
+		p.free = s.next;
+	} else {
+		s = new(stack);
+	}
+	s.next = p.stk;
+	s.kind = kind;
+	p.stk = s;
+	return s;
 }
 
-type ChanBuilder chan Token;
-
-func (c ChanBuilder) StartElement(name Name, attr []Attr) os.Error {
-	var t Token;
-	t.Kind = TokenStartElement;
-	t.Name = name;
-	t.Attr = attr;
-	c <- t;
-	return nil;
+func (p *Parser) pop() *stack {
+	s := p.stk;
+	if s != nil {
+		p.stk = s.next;
+		s.next = p.free;
+		p.free = s;
+	}
+	return s;
 }
 
-func (c ChanBuilder) EndElement(name Name) os.Error {
-	var t Token;
-	t.Kind = TokenEndElement;
-	t.Name = name;
-	c <- t;
-	return nil;
+// Record that we are starting an element with the given name.
+func (p *Parser) pushElement(name Name) {
+	s := p.push(stkStart);
+	s.name = name;
 }
 
-func (c ChanBuilder) Text(text []byte) os.Error {
-	var t Token;
-	t.Kind = TokenText;
-	t.Text = text;
-	c <- t;
-	return nil;
+// Record that we are changing the value of ns[local].
+// The old value is url, ok.
+func (p *Parser) pushNs(local string, url string, ok bool) {
+	s := p.push(stkNs);
+	s.name.Local = local;
+	s.name.Space = url;
+	s.ok = ok;
 }
 
-func (c ChanBuilder) Comment(text []byte) os.Error {
-	var t Token;
-	t.Kind = TokenComment;
-	t.Text = text;
-	c <- t;
-	return nil;
+// Record that we are ending an element with the given name.
+// The name must match the record at the top of the stack,
+// which must be a pushElement record.
+// After popping the element, apply any undo records from
+// the stack to restore the name translations that existed
+// before we saw this element.
+func (p *Parser) popElement(name Name) bool {
+	s := p.pop();
+	switch {
+	case s == nil || s.kind != stkStart:
+		p.err = SyntaxError("unexpected end element </" + name.Local + ">");
+		return false;
+	case s.name.Local != name.Local:
+		p.err = SyntaxError("element <" + s.name.Local + "> closed by </" + name.Local + ">");
+		return false;
+	case s.name.Space != name.Space:
+		p.err = SyntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
+			"closed by </" + name.Local + "> in space " + name.Space);
+		return false;
+	}
+
+	// Pop stack until a Start is on the top, undoing the
+	// translations that were associated with the element we just closed.
+	for p.stk != nil && p.stk.kind != stkStart {
+		s := p.pop();
+		p.ns[s.name.Local] = s.name.Space, s.ok;
+	}
+
+	return true;
 }
 
-func (c ChanBuilder) ProcInst(target string, text []byte) os.Error {
-	var t Token;
-	t.Kind = TokenProcInst;
-	t.Target = target;
-	t.Text = text;
-	c <- t;
-	return nil;
+// RawToken is like Token but does not verify that
+// start and end elements match and does not translate
+// name space prefixes to their corresponding URLs.
+func (p *Parser) RawToken() (Token, os.Error) {
+	if p.err != nil {
+		return nil, p.err;
+	}
+	if p.needClose {
+		// The last element we read was self-closing and
+		// we returned just the StartElement half.
+		// Return the EndElement half now.
+		p.needClose = false;
+		return EndElement{p.toClose}, nil;
+	}
+
+	b, ok := p.getc();
+	if !ok {
+		return nil, p.err;
+	}
+
+	if b != '<' {
+		// Text section.
+		p.ungetc(b);
+		data := p.text(-1, false);
+		if data == nil {
+			return nil, p.err;
+		}
+		return CharData(data), nil;
+	}
+
+	if b, ok = p.getc(); !ok {
+		return nil, p.err;
+	}
+	switch b {
+	case '/':
+		// </: End element
+		var name Name;
+		if name, ok = p.nsname(); !ok {
+			if p.err == nil {
+				p.err = SyntaxError("expected element name after </");
+			}
+			return nil, p.err;
+		}
+		p.space();
+		if b, ok = p.getc(); !ok {
+			return nil, p.err;
+		}
+		if b != '>' {
+			p.err = SyntaxError("invalid characters between </" + name.Local + " and >");
+			return nil, p.err;
+		}
+		return EndElement{name}, nil;
+
+	case '?':
+		// <?: Processing instruction.
+		// TODO(rsc): Should parse the <?xml declaration to make sure
+		// the version is 1.0 and the encoding is UTF-8.
+		var target string;
+		if target, ok = p.name(); !ok {
+			return nil, p.err;
+		}
+		p.space();
+		p.buf.Reset();
+		var b0 byte;
+		for {
+			if b, ok = p.getc(); !ok {
+				if p.err == os.EOF {
+					p.err = SyntaxError("unterminated <? directive");
+				}
+				return nil, p.err;
+			}
+			p.buf.WriteByte(b);
+			if b0 == '?' && b == '>' {
+				break;
+			}
+			b0 = b;
+		}
+		data := p.buf.Bytes();
+		data = data[0:len(data)-2];	// chop ?>
+		return ProcInst{target, data}, nil;
+
+	case '!':
+		// <!: Maybe comment, maybe CDATA.
+		if b, ok = p.getc(); !ok {
+			return nil, p.err;
+		}
+		switch b {
+		case '-':  // <!-
+			// Probably <!-- for a comment.
+			if b, ok = p.getc(); !ok {
+				return nil, p.err;
+			}
+			if b != '-' {
+				p.err = SyntaxError("invalid sequence <!- not part of <!--");
+				return nil, p.err;
+			}
+			// Look for terminator.
+			p.buf.Reset();
+			var b0, b1 byte;
+			for {
+				if b, ok = p.getc(); !ok {
+					if p.err == os.EOF {
+						p.err = SyntaxError("unterminated <!-- comment");
+					}
+					return nil, p.err;
+				}
+				p.buf.WriteByte(b);
+				if b0 == '-' && b1 == '-' && b == '>' {
+					break;
+				}
+				b0, b1 = b1, b;
+			}
+			data := p.buf.Bytes();
+			data = data[0:len(data)-3];	// chop -->
+			return Comment(data), nil;
+
+		case '[':  // <![
+			// Probably <![CDATA[.
+			for i := 0; i < 7; i++ {
+				if b, ok = p.getc(); !ok {
+					return nil, p.err;
+				}
+				if b != "[CDATA["[i] {
+					p.err = SyntaxError("invalid <![ sequence");
+					return nil, p.err;
+				}
+			}
+			// Have <![CDATA[.  Read text until ]]>.
+			data := p.text(-1, true);
+			if data == nil {
+				return nil, p.err;
+			}
+			return CharData(data), nil;
+		}
+
+		// Probably a directive: <!DOCTYPE ...>, <!ENTITY ...>, etc.
+		// We don't care, but accumulate for caller.
+		p.buf.Reset();
+		p.buf.WriteByte(b);
+		for {
+			if b, ok = p.getc(); !ok {
+				return nil, p.err;
+			}
+			if b == '>' {
+				break;
+			}
+			p.buf.WriteByte(b);
+		}
+		return Directive(p.buf.Bytes()), nil;
+	}
+
+	// Must be an open element like <a href="foo">
+	p.ungetc(b);
+
+	var (
+		name Name;
+		empty bool;
+		attr []Attr;
+	)
+	if name, ok = p.nsname(); !ok {
+		if p.err == nil {
+			p.err = SyntaxError("expected element name after <");
+		}
+		return nil, p.err;
+	}
+
+	attr = make([]Attr, 0, 4);
+	for {
+		p.space();
+		if b, ok = p.getc(); !ok {
+			return nil, p.err;
+		}
+		if b == '/' {
+			empty = true;
+			if b, ok = p.getc(); !ok {
+				return nil, p.err;
+			}
+			if b != '>' {
+				p.err = SyntaxError("expected /> in element");
+				return nil, p.err;
+			}
+			break;
+		}
+		if b == '>' {
+			break;
+		}
+		p.ungetc(b);
+
+		n := len(attr);
+		if n >= cap(attr) {
+			nattr := make([]Attr, n, 2*cap(attr));
+			for i, a := range attr {
+				nattr[i] = a;
+			}
+			attr = nattr;
+		}
+		attr = attr[0:n+1];
+		a := &attr[n];
+		if a.Name, ok = p.nsname(); !ok {
+			if p.err == nil {
+				p.err = SyntaxError("expected attribute name in element");
+			}
+			return nil, p.err;
+		}
+		p.space();
+		if b, ok = p.getc(); !ok {
+			return nil, p.err;
+		}
+		if b != '=' {
+			p.err = SyntaxError("attribute name without = in element");
+			return nil, p.err;
+		}
+		p.space();
+		if b, ok = p.getc(); !ok {
+			return nil, p.err;
+		}
+		if b != '"' && b != '\'' {
+			p.err = SyntaxError("unquoted or missing attribute value in element");
+			return nil, p.err;
+		}
+		data := p.text(int(b), false);
+		if data == nil {
+			return nil, p.err;
+		}
+		a.Value = string(data);
+	}
+
+	if empty {
+		p.needClose = true;
+		p.toClose = name;
+	}
+	return StartElement{name, attr}, nil;
 }
 
-func ParseToChan(r io.Read, c chan Token) {
-	var t Token;
-	t.Kind = TokenEnd;
-	t.Err = Parse(r, ChanBuilder(c));
-	c <- t;
+// Skip spaces if any
+func (p *Parser) space() {
+	for {
+		b, ok := p.getc();
+		if !ok {
+			return;
+		}
+		switch b {
+		case ' ', '\r', '\n', '\t':
+		default:
+			p.ungetc(b);
+			return;
+		}
+	}
 }
 
+// Read a single byte.
+// If there is no byte to read, return ok==false
+// and leave the error in p.err.
+// Maintain line number.
+func (p *Parser) getc() (b byte, ok bool) {
+	if p.err != nil {
+		return 0, false;
+	}
+	if p.nextByte >= 0 {
+		b = byte(p.nextByte);
+		p.nextByte = -1;
+	} else {
+		b, p.err = p.r.ReadByte();
+		if p.err != nil {
+			return 0, false;
+		}
+	}
+	if b == '\n' {
+		p.line++;
+	}
+	return b, true;
+}
 
-// scribbled notes based on XML spec.
+// Unread a single byte.
+func (p *Parser) ungetc(b byte) {
+	if b == '\n' {
+		p.line--;
+	}
+	p.nextByte = int(b);
+}
 
-// document is
-//	xml decl?
-// 	doctype decl?
-//	element
-//
-// if xml decl is present, must be first.  after that,
-// can have comments and procinsts scattered throughout,
-// even after the element is done.
-//
-// xml decl is:
-//
-// <\?xml version='[a-zA-Z0-9_.:\-]+'( encoding='[A-Za-z][A-Za-z0-9._\-]*')?
-//	( standalone='(yes|no)')? ?\?>
-//
-// spaces denote [ \r\t\n]+.
-// written with '' above but can use "" too.
-//
-// doctype decl might as well be <!DOCTYPE[^>]*>
-//
-// procinst is <\?name( .*?)\?>.  name cannot be [Xx][Mm][Ll].
-//
-// comment is <!--(.*?)-->.
-//
-// tags are:
-//	<name( attrib)* ?>	start tag
-//	<name( attrib)* ?/>	combined start/end tag
-//	</name ?>		end tag
-// (the " ?" is an optional space, not a literal question mark.)
-//
-// plain text is [^<&]* except cannot contain "]]>".
-// can also have escaped characters:
-//	&#[0-9]+;
-//	&#x[0-9A-Fa-f]+;
-//	&name;
-//
-// can use <![CDATA[.*?]]> to avoid escaping < characters.
-//
-// must rewrite \r and \r\n into \n in text.
-//
-// names are Unicode.  valid chars listed below.
-//
-// attrib is name="value" or name='value'.
-// can have spaces around =.
-// attribute value text is [^<&"]* for appropriate ".
-// can also use the &...; escape sequences above.
-// cannot use <![CDATA[...]]>.
-//
-// xmlns attributes are name=value where name has form xmlns:name
-// (i.e., xmlns:123 is not okay, because 123 is not a name; xmlns:a123 is ok).
-// sub-name must not start with : either.
-//
-// name is first(second)*.
-//
-// first is
+var entity = map[string]int {
+	"lt": '<',
+	"gt": '>',
+	"amp": '&',
+	"apos": '\'',
+	"quot": '"',
+}
+
+// Read plain text section (XML calls it character data).
+// If quote >= 0, we are in a quoted string and need to find the matching quote.
+// If cdata == true, we are in a <![CDATA[ section and need to find ]]>.
+// On failure return nil and leave the error in p.err.
+func (p *Parser) text(quote int, cdata bool) []byte {
+	var b0, b1 byte;
+	var trunc int;
+	p.buf.Reset();
+Input:
+	for {
+		b, ok := p.getc();
+		if !ok {
+			return nil;
+		}
+
+		// <![CDATA[ section ends with ]]>.
+		// It is an error for ]]> to appear in ordinary text.
+		if b0 == ']' && b1 == ']' && b == '>' {
+			if cdata {
+				trunc = 2;
+				break Input;
+			}
+			p.err = SyntaxError("unescaped ]]> not in CDATA section");
+			return nil;
+		}
+
+		// Stop reading text if we see a <.
+		if b == '<' && !cdata {
+			if quote >= 0 {
+				p.err = SyntaxError("unescaped < inside quoted string");
+				return nil;
+			}
+			p.ungetc('<');
+			break Input;
+		}
+		if quote >= 0 && b == byte(quote) {
+			break Input;
+		}
+		if b == '&' {
+			// Read escaped character expression up to semicolon.
+			// XML in all its glory allows a document to define and use
+			// its own character names with <!ENTITY ...> directives.
+			// Parsers are required to recognize lt, gt, amp, apos, and quot
+			// even if they have not been declared.  That's all we allow.
+			var i int;
+			for i = 0; i < len(p.tmp); i++ {
+				p.tmp[i], p.err = p.r.ReadByte();
+				if p.err != nil {
+					return nil;
+				}
+				if p.tmp[i] == ';' {
+					break;
+				}
+			}
+			s := string(p.tmp[0:i]);
+			if i >= len(p.tmp) {
+				p.err = SyntaxError("character entity expression &" + s + "... too long");
+				return nil;
+			}
+			rune := -1;
+			if i >= 2 && s[0] == '#' {
+				var n uint64;
+				var err os.Error;
+				if i >= 3 && s[1] == 'x' {
+					n, err = strconv.Btoui64(s[2:len(s)], 16);
+				} else {
+					n, err = strconv.Btoui64(s[1:len(s)], 10);
+				}
+				if err == nil && n <= unicode.MaxRune {
+					rune = int(n);
+				}
+			} else {
+				if r, ok := entity[s]; ok {
+					rune = r;
+				}
+			}
+			if rune < 0 {
+				p.err = SyntaxError("invalid character entity &" + s + ";");
+				return nil;
+			}
+			i = utf8.EncodeRune(rune, &p.tmp);
+			p.buf.Write(p.tmp[0:i]);
+			b0, b1 = 0, 0;
+			continue Input;
+		}
+		p.buf.WriteByte(b);
+		b0, b1 = b1, b;
+	}
+	data := p.buf.Bytes();
+	data = data[0:len(data)-trunc];
+
+	// Must rewrite \r and \r\n into \n.
+	w := 0;
+	for r := 0; r < len(data); r++ {
+		b := data[r];
+		if b == '\r' {
+			if r+1 < len(data) && data[r+1] == '\n' {
+				continue;
+			}
+			b = '\n';
+		}
+		data[w] = b;
+		w++;
+	}
+	return data[0:w];
+}
+
+// Get name space name: name with a : stuck in the middle.
+// The part before the : is the name space identifier.
+func (p *Parser) nsname() (name Name, ok bool) {
+	s, ok := p.name();
+	if !ok {
+		return;
+	}
+	i := strings.Index(s, ":");
+	if i < 0 {
+		name.Local = s;
+	} else {
+		name.Space = s[0:i];
+		name.Local = s[i+1:len(s)];
+	}
+	return name, true;
+}
+
+// Get name: /first(first|second)*/
+// Unlike most routines, do not set p.err if the name is
+// merely malformed.  Let the caller provide better context.
+func (p *Parser) name() (s string, ok bool) {
+	var b byte;
+	if b, ok = p.getc(); !ok {
+		return;
+	}
+	if b < utf8.RuneSelf && !isFirst(b) {
+		p.ungetc(b);
+		return;
+	}
+	p.buf.Reset();
+	p.buf.WriteByte(b);
+	for {
+		if b, ok = p.getc(); !ok {
+			return;
+		}
+		if b < utf8.RuneSelf && !isFirst(b) && !isSecond(b) {
+			p.ungetc(b);
+			break;
+		}
+		p.buf.WriteByte(b);
+	}
+	return p.buf.String(), true;
+}
+
+// We allow any Unicode char >= 0x80, but the XML spec is pickier:
+// the exact character sets are listed in the comment at the end of the file.
+func isFirst(c byte) bool {
+	return 'A' <= c && c <= 'Z' ||
+		'a' <= c && c <= 'z' ||
+		c == '_' ||
+		c == ':';
+}
+
+func isSecond(c byte) bool {
+	return c == '.' || c == '-';
+}
+
+// The precise form of an XML name is /first(first|second)*/, where
+// first is one of these characters:
 //
 // 003A        04D0-04EB   0A59-0A5C   0C35-0C39   0F49-0F69   1E00-1E9B
 // 0041-005A   04EE-04F5   0A5E        0C60-0C61   10A0-10C5   1EA0-1EF9
@@ -400,7 +798,7 @@ func ParseToChan(r io.Read, c chan Token) {
 // 04C7-04C8   0A35-0A36   0C12-0C28   0EC0-0EC4   11F0
 // 04CB-04CC   0A38-0A39   0C2A-0C33   0F40-0F47   11F9
 //
-// second is first plus
+// and a second is one of these:
 //
 // 002D        06DD-06DF   09E6-09EF   0B56-0B57   0D3E-0D43   0F3E
 // 002E        06E0-06E4   0A02        0B66-0B6F   0D46-0D48   0F3F
