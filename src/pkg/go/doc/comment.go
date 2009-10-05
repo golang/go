@@ -76,24 +76,12 @@ func CommentText(comment *ast.CommentGroup) string {
 				l = l[m[1] : len(l)];
 			}
 
-			// throw away leading blank lines
-			if w == 0 && l == "" {
-				continue;
-			}
-
 			cl[w] = l;
 			w++;
 		}
+		cl = cl[0:w];
 
-		// throw away trailing blank lines
-		for w > 0 && cl[w-1] == "" {
-			w--;
-		}
-		cl = cl[0 : w];
-
-		// add this comment to total list
-		// TODO: maybe separate with a single blank line
-		// if there is already a comment and len(cl) > 0?
+		// Add this comment to total list.
 		for _, l := range cl {
 			n := len(lines);
 			if n+1 >= cap(lines) {
@@ -108,10 +96,23 @@ func CommentText(comment *ast.CommentGroup) string {
 		}
 	}
 
-	// add final "" entry to get trailing newline.
-	// loop always leaves room for one more.
-	n := len(lines);
-	lines = lines[0 : n+1];
+	// Remove leading blank lines; convert runs of
+	// interior blank lines to a single blank line.
+	n := 0;
+	for _, line := range lines {
+		if line != "" || n > 0 && lines[n-1] != "" {
+			lines[n] = line;
+			n++;
+		}
+	}
+	lines = lines[0 : n];
+
+	// Add final "" entry to get trailing newline from Join.
+	// The original loop always leaves room for one more.
+	if n > 0 && lines[n-1] != "" {
+		lines = lines[0 : n+1];
+		lines[n] = "";
+	}
 
 	return strings.Join(lines, "\n");
 }
