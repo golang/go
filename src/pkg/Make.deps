@@ -30,7 +30,7 @@ expvar.install: bytes.install fmt.install http.install log.install strconv.insta
 flag.install: fmt.install os.install strconv.install
 fmt.install: io.install os.install reflect.install strconv.install utf8.install
 go/ast.install: go/token.install unicode.install utf8.install
-go/doc.install: container/vector.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
+go/doc.install: container/vector.install go/ast.install go/token.install io.install regexp.install sort.install strings.install template.install
 go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install path.install strings.install
 go/printer.install: bytes.install container/vector.install fmt.install go/ast.install go/token.install io.install os.install reflect.install runtime.install strings.install tabwriter.install
 go/scanner.install: bytes.install container/vector.install fmt.install go/token.install io.install os.install sort.install strconv.install unicode.install utf8.install
@@ -68,3 +68,4 @@ testing/iotest.install: bytes.install io.install log.install os.install
 time.install: io.install once.install os.install syscall.install
 unicode.install:
 utf8.install: unicode.install
+xml.install: bufio.install bytes.install io.install os.install reflect.install strconv.install strings.install unicode.install utf8.install

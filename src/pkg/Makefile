@@ -82,6 +82,7 @@ DIRS=\
 	time\
 	unicode\
 	utf8\
+	xml\
 
 NOTEST=\
 	debug/proc\
