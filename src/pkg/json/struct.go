@@ -179,10 +179,8 @@ func (b *_StructBuilder) Key(k string) Builder {
 	}
 	if v, ok := reflect.Indirect(b.val).(*reflect.StructValue); ok {
 		t := v.Type().(*reflect.StructType);
-		if field, ok := t.FieldByName(k); ok {
-			return &_StructBuilder{ v.FieldByIndex(field.Index) }
-		}
-		// Again, case-insensitive.
+		// Case-insensitive field lookup.
+		k = strings.ToLower(k);
 		for i := 0; i < t.NumField(); i++ {
 			if strings.ToLower(t.Field(i).Name) == k {
 				return &_StructBuilder{ v.Field(i) }
@@ -194,21 +192,21 @@ func (b *_StructBuilder) Key(k string) Builder {
 
 // Unmarshal parses the JSON syntax string s and fills in
 // an arbitrary struct or array pointed at by val.
-// It uses the reflection library to assign to fields
+// It uses the reflect package to assign to fields
 // and arrays embedded in val.  Well-formed data that does not fit
 // into the struct is discarded.
 //
-// For example, given the following definitions:
+// For example, given these definitions:
 //
 //	type Email struct {
-//		where string;
-//		addr string;
+//		Where string;
+//		Addr string;
 //	}
 //
 //	type Result struct {
-//		name string;
-//		phone string;
-//		emails []Email
+//		Name string;
+//		Phone string;
+//		Email []Email
 //	}
 //
 //	var r = Result{ "name", "phone", nil }
@@ -241,8 +239,12 @@ func (b *_StructBuilder) Key(k string) Builder {
 //		}
 //	}
 //
-// Note that the field r.phone has not been modified and
+// Note that the field r.Phone has not been modified and
 // that the JSON field "address" was discarded.
+//
+// Because Unmarshal uses the reflect package, it can only
+// assign to upper case fields.  Unmarshal uses a case-insensitive
+// comparison to match JSON field names to struct field names.
 //
 // On success, Unmarshal returns with ok set to true.
 // On a syntax error, it returns with ok set to false and errtok
