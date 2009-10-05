@@ -16,9 +16,8 @@ import (
 )
 
 var (
-	ErrWriteTooLong os.Error = os.ErrorString("write too long");
-	// TODO(dsymonds): remove ErrIntFieldTooBig after we implement binary extension.
-	ErrIntFieldTooBig os.Error = os.ErrorString("an integer header field was too big");
+	ErrWriteTooLong = os.NewError("write too long");
+	ErrFieldTooLong = os.NewError("header field too long");
 )
 
 // A Writer provides sequential writing of a tar archive in POSIX.1 format.
@@ -42,6 +41,7 @@ type Writer struct {
 	nb int64;	// number of unwritten bytes for current file entry
 	pad int64;	// amount of padding to write after current file entry
 	closed bool;
+	usedBinary bool;	// whether the binary numeric field extension was used
 }
 
 // NewWriter creates a new Writer writing to w.
@@ -70,7 +70,7 @@ func (tw *Writer) Flush() os.Error {
 func (tw *Writer) cString(b []byte, s string) {
 	if len(s) > len(b) {
 		if tw.err == nil {
-			tw.err = ErrIntFieldTooBig;
+			tw.err = ErrFieldTooLong;
 		}
 		return
 	}
@@ -90,6 +90,23 @@ func (tw *Writer) octal(b []byte, x int64) {
 		s = "0" + s;
 	}
 	tw.cString(b, s);
+}
+
+// Write x into b, either as octal or as binary (GNUtar/star extension).
+func (tw *Writer) numeric(b []byte, x int64) {
+	// Try octal first.
+	s := strconv.Itob64(x, 8);
+	if len(s) < len(b) {
+		tw.octal(b, x);
+		return
+	}
+	// Too big: use binary (big-endian).
+	tw.usedBinary = true;
+	for i := len(b)-1; x > 0 && i >= 0; i-- {
+		b[i] = byte(x);
+		x >>= 8;
+	}
+	b[0] |= 0x80;  // highest bit indicates binary format
 }
 
 // WriteHeader writes hdr and prepares to accept the file's contents.
@@ -112,18 +129,23 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 	bytes.Copy(s.next(100), strings.Bytes(hdr.Name));
 
 	tw.octal(s.next(8), hdr.Mode);	// 100:108
-	tw.octal(s.next(8), hdr.Uid);	// 108:116
-	tw.octal(s.next(8), hdr.Gid);	// 116:124
-	tw.octal(s.next(12), hdr.Size);	// 124:136
-	tw.octal(s.next(12), hdr.Mtime);	// 136:148
+	tw.numeric(s.next(8), hdr.Uid);	// 108:116
+	tw.numeric(s.next(8), hdr.Gid);	// 116:124
+	tw.numeric(s.next(12), hdr.Size);	// 124:136
+	tw.numeric(s.next(12), hdr.Mtime);	// 136:148
 	s.next(8);  // chksum (148:156)
 	s.next(1)[0] = hdr.Typeflag;	// 156:157
 	s.next(100);  // linkname (157:257)
 	bytes.Copy(s.next(8), strings.Bytes("ustar\x0000"));	// 257:265
 	tw.cString(s.next(32), hdr.Uname);	// 265:297
 	tw.cString(s.next(32), hdr.Gname);	// 297:329
-	tw.octal(s.next(8), hdr.Devmajor);	// 329:337
-	tw.octal(s.next(8), hdr.Devminor);	// 337:345
+	tw.numeric(s.next(8), hdr.Devmajor);	// 329:337
+	tw.numeric(s.next(8), hdr.Devminor);	// 337:345
+
+	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
+	if tw.usedBinary {
+		bytes.Copy(header[257:265], strings.Bytes("ustar  \x00"));
+	}
 
 	// The chksum field is terminated by a NUL and a space.
 	// This is different from the other octal fields.

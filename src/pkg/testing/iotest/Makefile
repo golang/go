@@ -8,5 +8,6 @@ TARG=testing/iotest
 GOFILES=\
 	logger.go\
 	reader.go\
+	writer.go\
 
 include $(GOROOT)/src/Make.pkg
