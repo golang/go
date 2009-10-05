@@ -14,13 +14,8 @@ on a compiler with which to explore ideas; it generated C code as its
 output.  By mid-year the language had become a full-time project and
 had settled enough to attempt a production compiler.  Meanwhile, Ian
 Taylor had read the draft specification and written an independent GCC
-front end.
-</p>
-
-<p>
-In the last few months of 2008, Russ Cox joined the team and Go had
-reached the point where it was usable as the main programming language
-for the team's own work.
+front end.  Russ Cox joined in late 2008 and helped move the language
+and libraries from prototype to reality.
 </p>
 
 <h3 id="creating_a_new_language">
@@ -65,16 +60,6 @@ about what programmers do and how to make programming, at least the
 kind of programming we do, more effective, which means more fun.
 </p>
 
-<h3 id="protagonists">
-Who are the protagonists?</h3>
-<p>
-Robert Griesemer, Rob Pike and Ken Thompson laid out the goals and
-original specification of the language.  Ian Taylor read the draft
-specification and decided to write <code>gccgo</code>.  Russ
-Cox joined later and helped move the language and libraries from
-prototype to reality.
-</p>
-
 <h3 id="principles">
 What are the guiding principles in the design?</h3>
 <p>
@@ -99,6 +84,13 @@ is no type hierarchy: types just <i>are</i>, they don't have to
 announce their relationships.  These simplifications allow Go to be
 expressive yet comprehensible without sacrificing, well, sophistication.
 </p>
+<p>
+Another important principle is to keep the concepts orthogonal.
+Methods can be implemented for any type; structures represent data;
+interfaces represent abstraction; and so on.  Orthogonality makes it
+easier to understand what happens when things combine.
+</p>
+
 
 <h2 id="change_from_c">Changes from C</h2>
 
@@ -112,8 +104,7 @@ has been designed to be easy to analyze
 and can be parsed without a symbol table.  This makes it much easier
 to build tools such as debuggers, dependency analyzers, automated
 documentation extractors, IDE plug-ins, and so on.  C and its
-descendants are notoriously difficult in this regard but it's not hard
-to fix things up.
+descendants are notoriously difficult in this regard.
 </p>
 
 <h3 id="declarations_backwards">
@@ -257,11 +248,10 @@ This is answered in the general <a href="go_faq.html#Where_is_assert">FAQ</a>.
 <h3 id="inheritance">
 Why is there no type inheritance?</h3>
 <p>
-Object-oriented programming, at least in the languages we've used,
+Object-oriented programming, at least in the best-known languages,
 involves too much discussion of the relationships between types,
 relationships that often could be derived automatically.  Go takes a
-different approach that we're still learning about but that feels
-useful and powerful.
+different approach.
 </p>
 <p>
 Rather than requiring the programmer to declare ahead of time that two
@@ -295,10 +285,10 @@ dependency is one of the most exciting things about Go.
 <h3 id="methods_on_basics">
 Why is <code>len</code> a function and not a method?</h3>
 <p>
-To be blunt, Go isn't that kind of language.  We debated this issue but decided
+We debated this issue but decided
 implementing <code>len</code> and friends as functions was fine in practice and
 didn't complicate questions about the interface (in the Go type sense)
-of basic types.  The issue didn't seem important enough to resolve that way.
+of basic types.
 </p>
 
 <h3 id="overloading">
