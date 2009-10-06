@@ -14,6 +14,8 @@ func _() {
 	if;{}  // no semicolon printed
 	if expr{}
 	if;expr{}  // no semicolon printed
+	if (expr){}  // no parens printed
+	if;((expr)){}  // no semicolon and parens printed
 	if x:=expr;{
 	use(x)}
 	if x:=expr; expr {use(x)}
@@ -26,6 +28,8 @@ func _() {
 	switch;{}  // no semicolon printed
 	switch expr {}
 	switch;expr{}  // no semicolon printed
+	switch (expr) {}  // no parens printed
+	switch;((expr)){}  // no semicolon and parens printed
 	switch x := expr; { default:use(
 x)
 	}
@@ -51,6 +55,13 @@ func _() {
 		use(x);
 		use(x);
 	}
+
+	switch x {
+	case 0:
+		use(x);
+	case 1:  // this comment should have no effect on the previous or next line
+		use(x);
+	}
 }
 
 
@@ -58,9 +69,11 @@ func _() {
 func _() {
 	for{}
 	for expr {}
-	for;;{}  // no semicolon printed
+	for (expr) {}  // no parens printed
+	for;;{}  // no semicolons printed
 	for x :=expr;; {use( x)}
-	for; expr;{}  // no semicolon printed
+	for; expr;{}  // no semicolons printed
+	for; ((expr));{}  // no semicolons and parens printed
 	for; ; expr = false {}
 	for x :=expr; expr; {use(x)}
 	for x := expr;; expr=false {use(x)}
@@ -99,5 +112,25 @@ func _() {
 
 		use(x);
 
+	}
+}
+
+
+// Formatting around labels.
+func _() {
+	L:
+}
+
+
+func _() {
+	L: _ = 0;
+}
+
+
+func _() {
+	for {
+	L1: _ = 0;
+	L2:
+		_ = 0;
 	}
 }

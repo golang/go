@@ -410,25 +410,29 @@ func (p *printer) flush(next token.Position) {
 // Printing of common AST nodes.
 
 
-// Print as many newlines as necessary (at least one and and at most
+// Print as many newlines as necessary (but at least min and and at most
 // max newlines) to get to the current line. If newSection is set, the
-// first newline is printed as a formfeed.
+// first newline is printed as a formfeed. Returns true if any linebreak
+// was printed; returns false otherwise.
 //
 // TODO(gri): Reconsider signature (provide position instead of line)
 //
-func (p *printer) linebreak(line, max int, newSection bool) {
-	n := line - p.last.Line;
+func (p *printer) linebreak(line, min, max int, newSection bool) (printedBreak bool) {
+	n := line - p.pos.Line;
 	switch {
-	case n < 1: n = 1;
+	case n < min: n = min;
 	case n > max: n = max;
 	}
-	if newSection {
+	if n > 0 && newSection {
 		p.print(formfeed);
 		n--;
+		printedBreak = true;
 	}
 	for ; n > 0; n-- {
 		p.print(newline);
+		printedBreak = true;
 	}
+	return;
 }
 
 
@@ -506,11 +510,12 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
 		return;
 	}
 
+	if mode & blankStart != 0 {
+		p.print(blank);
+	}
+
 	if list[0].Pos().Line == list[len(list)-1].Pos().Line {
 		// all list entries on a single line
-		if mode & blankStart != 0 {
-			p.print(blank);
-		}
 		for i, x := range list {
 			if i > 0 {
 				if mode & commaSep != 0 {
@@ -525,8 +530,14 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
 
 	// list entries span multiple lines;
 	// use source code positions to guide line breaks
-	p.print(+1, formfeed);
 	line := list[0].Pos().Line;
+	indented := false;
+	// there may or may not be a linebreak before the first list
+	// element; in any case indent once after the first linebreak
+	if p.linebreak(line, 0, 2, true) {
+		p.print(+1);
+		indented = true;
+	}
 	for i, x := range list {
 		prev := line;
 		line = x.Pos().Line;
@@ -535,7 +546,12 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
 				p.print(token.COMMA);
 			}
 			if prev < line {
-				p.print(newline);
+				// at least one linebreak, but respect an extra empty line
+				// in the source
+				if p.linebreak(x.Pos().Line, 1, 2, true) && !indented {
+					p.print(+1);
+					indented = true;
+				}
 			} else {
 				p.print(blank);
 			}
@@ -544,8 +560,15 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
 	}
 	if mode & commaTerm != 0 {
 		p.print(token.COMMA);
+		if indented {
+			// should always be indented here since we have a multi-line
+			// expression list - be conservative and check anyway
+			p.print(-1);
+		}
+		p.print(formfeed);  // terminating comma needs a line break to look good
+	} else if indented {
+		p.print(-1);
 	}
-	p.print(-1, formfeed);
 }
 
 
@@ -668,6 +691,9 @@ func needsBlanks(expr ast.Expr) bool {
 	case *ast.ParenExpr:
 		// parenthesized expressions don't need blanks around them
 		return false;
+	case *ast.IndexExpr:
+		// index expressions don't need blanks if the indexed expressions are simple
+		return needsBlanks(x.X)
 	case *ast.CallExpr:
 		// call expressions need blanks if they have more than one
 		// argument or if the function or the argument need blanks
@@ -893,7 +919,9 @@ const maxStmtNewlines = 2  // maximum number of newlines between statements
 func (p *printer) stmtList(list []ast.Stmt, indent int) {
 	p.print(+indent);
 	for i, s := range list {
-		p.linebreak(s.Pos().Line, maxStmtNewlines, i == 0);
+		// indent == 0 only for lists of switch/select case clauses;
+		// in those cases each clause is a new section
+		p.linebreak(s.Pos().Line, 1, maxStmtNewlines, i == 0 || indent == 0);
 		if !p.stmt(s) {
 			p.print(token.SEMICOLON);
 		}
@@ -906,9 +934,20 @@ func (p *printer) block(s *ast.BlockStmt, indent int) {
 	p.print(s.Pos(), token.LBRACE);
 	if len(s.List) > 0 {
 		p.stmtList(s.List, indent);
-		p.linebreak(s.Rbrace.Line, maxStmtNewlines, true);
+		p.linebreak(s.Rbrace.Line, 1, maxStmtNewlines, true);
 	}
 	p.print(s.Rbrace, token.RBRACE);
+}
+
+
+// TODO(gri): Decide if this should be used more broadly. The printing code
+//            knows when to insert parentheses for precedence reasons, but
+//            need to be careful to keep them around type expressions.
+func stripParens(x ast.Expr) ast.Expr {
+	if px, hasParens := x.(*ast.ParenExpr); hasParens {
+		return stripParens(px.X);
+	}
+	return x;
 }
 
 
@@ -918,7 +957,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 	if init == nil && post == nil {
 		// no semicolons required
 		if expr != nil {
-			p.expr(expr);
+			p.expr(stripParens(expr));
 			needsBlank = true;
 		}
 	} else {
@@ -929,7 +968,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 		}
 		p.print(token.SEMICOLON, blank);
 		if expr != nil {
-			p.expr(expr);
+			p.expr(stripParens(expr));
 			needsBlank = true;
 		}
 		if isForStmt {
@@ -962,9 +1001,12 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		// nothing to do
 
 	case *ast.LabeledStmt:
-		p.print(-1, formfeed);
+		// whitespace printing is delayed, thus indentation adjustments
+		// take place before the previous newline/formfeed is printed
+		p.print(-1);
 		p.expr(s.Label);
-		p.print(token.COLON, tab, +1, formfeed);
+		p.print(token.COLON, tab, +1);
+		p.linebreak(s.Stmt.Pos().Line, 0, 1, true);
 		optSemi = p.stmt(s.Stmt);
 
 	case *ast.ExprStmt:
@@ -1011,7 +1053,14 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		optSemi = true;
 		if s.Else != nil {
 			p.print(blank, token.ELSE, blank);
-			optSemi = p.stmt(s.Else);
+			switch s.Else.(type) {
+			case *ast.BlockStmt, *ast.IfStmt:
+				optSemi = p.stmt(s.Else);
+			default:
+				p.print(token.LBRACE, +1, formfeed);
+				p.stmt(s.Else);
+				p.print(-1, formfeed, token.RBRACE);
+			}
 		}
 
 	case *ast.CaseClause:
@@ -1267,14 +1316,35 @@ func (p *printer) decl(decl ast.Decl) (optSemi bool) {
 
 const maxDeclNewlines = 3  // maximum number of newlines between declarations
 
+func declToken(decl ast.Decl) (tok token.Token) {
+	tok = token.ILLEGAL;
+	switch d := decl.(type) {
+	case *ast.GenDecl:
+		tok = d.Tok;
+	case *ast.FuncDecl:
+		tok = token.FUNC;
+	}
+	return;
+}
+
+
 func (p *printer) file(src *ast.File) {
 	p.leadComment(src.Doc);
 	p.print(src.Pos(), token.PACKAGE, blank);
 	p.expr(src.Name);
 
 	if len(src.Decls) > 0 {
+		tok := token.ILLEGAL;
 		for _, d := range src.Decls {
-			p.linebreak(d.Pos().Line, maxDeclNewlines, false);
+			prev := tok;
+			tok = declToken(d);
+			// if the declaration token changed (e.g., from CONST to TYPE)
+			// print an empty line between top-level declarations
+			min := 1;
+			if prev != tok {
+				min = 2;
+			}
+			p.linebreak(d.Pos().Line, min, maxDeclNewlines, false);
 			p.decl(d);
 		}
 	}
