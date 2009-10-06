@@ -45,18 +45,18 @@ package flag
 import (
 	"fmt";
 	"os";
-	"strconv"
+	"strconv";
 )
 
 // TODO(r): BUG: atob belongs elsewhere
 func atob(str string) (value bool, ok bool) {
 	switch str {
-		case "1", "t", "T", "true", "TRUE", "True":
-			return true, true;
-		case "0", "f", "F", "false", "FALSE", "False":
-			return false, true
+	case "1", "t", "T", "true", "TRUE", "True":
+		return true, true;
+	case "0", "f", "F", "false", "FALSE", "False":
+		return false, true;
 	}
-	return false, false
+	return false, false;
 }
 
 // -- Bool Value
@@ -66,87 +66,87 @@ type boolValue struct {
 
 func newBoolValue(val bool, p *bool) *boolValue {
 	*p = val;
-	return &boolValue{p}
+	return &boolValue{p};
 }
 
 func (b *boolValue) set(s string) bool {
-	v, ok  := atob(s);
+	v, ok := atob(s);
 	*b.p = v;
-	return ok
+	return ok;
 }
 
 func (b *boolValue) String() string {
-	return fmt.Sprintf("%v", *b.p)
+	return fmt.Sprintf("%v", *b.p);
 }
 
 // -- Int Value
 type intValue struct {
-	p	*int;
+	p *int;
 }
 
 func newIntValue(val int, p *int) *intValue {
 	*p = val;
-	return &intValue{p}
+	return &intValue{p};
 }
 
 func (i *intValue) set(s string) bool {
-	v, err  := strconv.Atoi(s);
+	v, err := strconv.Atoi(s);
 	*i.p = int(v);
-	return err == nil
+	return err == nil;
 }
 
 func (i *intValue) String() string {
-	return fmt.Sprintf("%v", *i.p)
+	return fmt.Sprintf("%v", *i.p);
 }
 
 // -- Int64 Value
 type int64Value struct {
-	p	*int64;
+	p *int64;
 }
 
 func newInt64Value(val int64, p *int64) *int64Value {
 	*p = val;
-	return &int64Value{p}
+	return &int64Value{p};
 }
 
 func (i *int64Value) set(s string) bool {
-	v, err  := strconv.Atoi64(s);
+	v, err := strconv.Atoi64(s);
 	*i.p = v;
 	return err == nil;
 }
 
 func (i *int64Value) String() string {
-	return fmt.Sprintf("%v", *i.p)
+	return fmt.Sprintf("%v", *i.p);
 }
 
 // -- Uint Value
 type uintValue struct {
-	p	*uint;
+	p *uint;
 }
 
 func newUintValue(val uint, p *uint) *uintValue {
 	*p = val;
-	return &uintValue{p}
+	return &uintValue{p};
 }
 
 func (i *uintValue) set(s string) bool {
-	v, err  := strconv.Atoui(s);
+	v, err := strconv.Atoui(s);
 	*i.p = uint(v);
 	return err == nil;
 }
 
 func (i *uintValue) String() string {
-	return fmt.Sprintf("%v", *i.p)
+	return fmt.Sprintf("%v", *i.p);
 }
 
 // -- uint64 Value
 type uint64Value struct {
-	p	*uint64;
+	p *uint64;
 }
 
 func newUint64Value(val uint64, p *uint64) *uint64Value {
 	*p = val;
-	return &uint64Value{p}
+	return &uint64Value{p};
 }
 
 func (i *uint64Value) set(s string) bool {
@@ -156,17 +156,17 @@ func (i *uint64Value) set(s string) bool {
 }
 
 func (i *uint64Value) String() string {
-	return fmt.Sprintf("%v", *i.p)
+	return fmt.Sprintf("%v", *i.p);
 }
 
 // -- string Value
 type stringValue struct {
-	p	*string;
+	p *string;
 }
 
 func newStringValue(val string, p *string) *stringValue {
 	*p = val;
-	return &stringValue{p}
+	return &stringValue{p};
 }
 
 func (s *stringValue) set(val string) bool {
@@ -175,7 +175,7 @@ func (s *stringValue) set(val string) bool {
 }
 
 func (s *stringValue) String() string {
-	return fmt.Sprintf("%s", *s.p)
+	return fmt.Sprintf("%s", *s.p);
 }
 
 // FlagValue is the interface to the dynamic value stored in a flag.
@@ -187,31 +187,31 @@ type FlagValue interface {
 
 // A Flag represents the state of a flag.
 type Flag struct {
-	Name	string;	// name as it appears on command line
-	Usage	string;	// help message
-	Value	FlagValue;	// value as set
-	DefValue	string;	// default value (as text); for usage message
+	Name		string;		// name as it appears on command line
+	Usage		string;		// help message
+	Value		FlagValue;	// value as set
+	DefValue	string;		// default value (as text); for usage message
 }
 
 type allFlags struct {
-	actual map[string] *Flag;
-	formal map[string] *Flag;
+	actual		map[string]*Flag;
+	formal		map[string]*Flag;
 	first_arg	int;	// 0 is the program name, 1 is first arg
 }
 
-var flags *allFlags = &allFlags{make(map[string] *Flag), make(map[string] *Flag), 1}
+var flags *allFlags = &allFlags{make(map[string]*Flag), make(map[string]*Flag), 1}
 
 // VisitAll visits the flags, calling fn for each. It visits all flags, even those not set.
 func VisitAll(fn func(*Flag)) {
 	for _, f := range flags.formal {
-		fn(f)
+		fn(f);
 	}
 }
 
 // Visit visits the flags, calling fn for each. It visits only those flags that have been set.
 func Visit(fn func(*Flag)) {
 	for _, f := range flags.actual {
-		fn(f)
+		fn(f);
 	}
 }
 
@@ -219,9 +219,9 @@ func Visit(fn func(*Flag)) {
 func Lookup(name string) *Flag {
 	f, ok := flags.formal[name];
 	if !ok {
-		return nil
+		return nil;
 	}
-	return f
+	return f;
 }
 
 // Set sets the value of the named flag.  It returns true if the set succeeded; false if
@@ -229,11 +229,11 @@ func Lookup(name string) *Flag {
 func Set(name, value string) bool {
 	f, ok := flags.formal[name];
 	if !ok {
-		return false
+		return false;
 	}
 	ok = f.Value.set(value);
 	if !ok {
-		return false
+		return false;
 	}
 	flags.actual[name] = f;
 	return true;
@@ -248,7 +248,7 @@ func PrintDefaults() {
 			format = "  -%s=%q: %s\n";
 		}
 		fmt.Fprintf(os.Stderr, format, f.Name, f.DefValue, f.Usage);
-	})
+	});
 }
 
 // Usage prints to standard error a default usage message documenting all defined flags.
@@ -259,7 +259,7 @@ var Usage = func() {
 }
 
 func NFlag() int {
-	return len(flags.actual)
+	return len(flags.actual);
 }
 
 // Arg returns the i'th command-line argument.  Arg(0) is the first remaining argument
@@ -269,17 +269,17 @@ func Arg(i int) string {
 	if i < 0 || i >= len(os.Args) {
 		return "";
 	}
-	return os.Args[i]
+	return os.Args[i];
 }
 
 // NArg is the number of arguments remaining after flags have been processed.
 func NArg() int {
-	return len(os.Args) - flags.first_arg
+	return len(os.Args) - flags.first_arg;
 }
 
 // Args returns the non-flag command-line arguments.
 func Args() []string {
-	return os.Args[flags.first_arg:len(os.Args)];
+	return os.Args[flags.first_arg : len(os.Args)];
 }
 
 func add(name string, value FlagValue, usage string) {
@@ -377,27 +377,26 @@ func String(name, value string, usage string) *string {
 	return p;
 }
 
-func (f *allFlags) parseOne(index int) (ok bool, next int)
-{
+func (f *allFlags) parseOne(index int) (ok bool, next int) {
 	s := os.Args[index];
-	f.first_arg = index;  // until proven otherwise
+	f.first_arg = index;	// until proven otherwise
 	if len(s) == 0 {
-		return false, -1
+		return false, -1;
 	}
 	if s[0] != '-' {
-		return false, -1
+		return false, -1;
 	}
 	num_minuses := 1;
 	if len(s) == 1 {
-		return false, index
+		return false, index;
 	}
 	if s[1] == '-' {
 		num_minuses++;
 		if len(s) == 2 {	// "--" terminates the flags
-			return false, index + 1
+			return false, index+1;
 		}
 	}
-	name := s[num_minuses : len(s)];
+	name := s[num_minuses:len(s)];
 	if len(name) == 0 || name[0] == '-' || name[0] == '=' {
 		fmt.Fprintln(os.Stderr, "bad flag syntax:", s);
 		Usage();
@@ -407,11 +406,11 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
 	// it's a flag. does it have an argument?
 	has_value := false;
 	value := "";
-	for i := 1; i < len(name); i++ {  // equals cannot be first
+	for i := 1; i < len(name); i++ {	// equals cannot be first
 		if name[i] == '=' {
 			value = name[i+1 : len(name)];
 			has_value = true;
-			name = name[0 : i];
+			name = name[0:i];
 			break;
 		}
 	}
@@ -422,7 +421,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
 		os.Exit(2);
 	}
 	m := flags.formal;
-	flag, alreadythere = m[name]; // BUG
+	flag, alreadythere = m[name];	// BUG
 	if !alreadythere {
 		fmt.Fprintf(os.Stderr, "flag provided but not defined: -%s\n", name);
 		Usage();
@@ -436,11 +435,11 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
 				os.Exit(2);
 			}
 		} else {
-			f.set("true")
+			f.set("true");
 		}
 	} else {
 		// It must have a value, which might be the next argument.
-		if !has_value && index < len(os.Args)-1 {
+		if !has_value && index < len(os.Args) - 1 {
 			// value is the next arg
 			has_value = true;
 			index++;
@@ -459,7 +458,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int)
 		}
 	}
 	flags.actual[name] = flag;
-	return true, index + 1
+	return true, index+1;
 }
 
 // Parse parses the command-line flags.  Must be called after all flags are defined
@@ -472,7 +471,7 @@ func Parse() {
 			i = next;
 		}
 		if !ok {
-			break
+			break;
 		}
 	}
 }

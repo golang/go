@@ -12,7 +12,7 @@ import (
 
 // Arguments to Run.
 const (
-	DevNull = iota;
+	DevNull	= iota;
 	PassThrough;
 	Pipe;
 	MergeWithStdout;
@@ -24,10 +24,10 @@ const (
 // or else nil, depending on the arguments to Run.
 // Pid is the running command's operating system process ID.
 type Cmd struct {
-	Stdin *os.File;
-	Stdout *os.File;
-	Stderr *os.File;
-	Pid int;
+	Stdin	*os.File;
+	Stdout	*os.File;
+	Stderr	*os.File;
+	Pid	int;
 }
 
 // Given mode (DevNull, etc), return file for child
@@ -78,8 +78,7 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
 // If a parameter is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
 // of the returned Cmd is the other end of the pipe.
 // Otherwise the field in Cmd is nil.
-func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err os.Error)
-{
+func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
 	p = new(Cmd);
 	var fd [3]*os.File;
 
@@ -184,7 +183,7 @@ func (p *Cmd) Close() os.Error {
 	return err;
 }
 
-func canExec(file string) bool{
+func canExec(file string) bool {
 	d, err := os.Stat(file);
 	if err != nil {
 		return false;
@@ -220,4 +219,3 @@ func LookPath(file string) (string, os.Error) {
 	}
 	return "", os.ENOENT;
 }
-

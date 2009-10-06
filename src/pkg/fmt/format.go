@@ -9,10 +9,10 @@ import (
 )
 
 
-const nByte = 64;
-const nPows10 = 160;
+const nByte = 64
+const nPows10 = 160
 
-var ldigits string = "0123456789abcdef"  // var not const because we take its address
+var ldigits string = "0123456789abcdef"	// var not const because we take its address
 var udigits string = "0123456789ABCDEF"
 
 /*
@@ -29,17 +29,17 @@ var udigits string = "0123456789ABCDEF"
 		f.Fmt_ud(1<<63).Putnl();  // print string with automatic newline
 */
 type Fmt struct {
-	buf string;
-	wid int;
-	wid_present bool;
-	prec int;
-	prec_present bool;
+	buf		string;
+	wid		int;
+	wid_present	bool;
+	prec		int;
+	prec_present	bool;
 	// flags
-	minus bool;
-	plus bool;
-	sharp bool;
-	space bool;
-	zero bool;
+	minus	bool;
+	plus	bool;
+	sharp	bool;
+	space	bool;
+	zero	bool;
 }
 
 func (f *Fmt) clearflags() {
@@ -140,9 +140,9 @@ func (f *Fmt) pad(s string) {
 				buf[i] = padchar;
 			}
 			if left {
-				s = string(buf) + s;
+				s = string(buf)+s;
 			} else {
-				s = s + string(buf);
+				s = s+string(buf);
 			}
 		}
 	}
@@ -155,7 +155,7 @@ func (f *Fmt) pad(s string) {
 // marginally faster by splitting the 32-bit case out into a separate function
 // but it's not worth the duplication, so val has 64 bits.
 func putint(buf []byte, base, val uint64, digits string) int {
-	i := len(buf) - 1;
+	i := len(buf)-1;
 	for val >= base {
 		buf[i] = digits[val%base];
 		i--;
@@ -190,10 +190,10 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits string) string 
 	if f.prec_present {
 		prec = f.prec;
 		f.zero = false;
-	} else if f.zero && f.wid_present && !f.minus && f.wid > 0{
+	} else if f.zero && f.wid_present && !f.minus && f.wid > 0 {
 		prec = f.wid;
 		if negative || f.plus || f.space {
-			prec--;  // leave room for sign
+			prec--;	// leave room for sign
 		}
 	}
 
@@ -211,7 +211,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits string) string 
 				i--;
 			}
 		case 16:
-			buf[i] = 'x' + digits[10]-'a';
+			buf[i] = 'x'+digits[10]-'a';
 			i--;
 			buf[i] = '0';
 			i--;
@@ -228,7 +228,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits string) string 
 		buf[i] = ' ';
 		i--;
 	}
-	return string(buf[i+1:nByte]);
+	return string(buf[i+1 : nByte]);
 }
 
 // Fmt_d64 formats an int64 in decimal.
@@ -395,7 +395,7 @@ func (f *Fmt) Fmt_c(v int) *Fmt {
 func (f *Fmt) Fmt_s(s string) *Fmt {
 	if f.prec_present {
 		if f.prec < len(s) {
-			s = s[0:f.prec];
+			s = s[0 : f.prec];
 		}
 	}
 	f.pad(s);
@@ -527,28 +527,28 @@ func (f *Fmt) Fmt_fb32(v float32) *Fmt {
 // float
 func (x *Fmt) f(a float) *Fmt {
 	if strconv.FloatSize == 32 {
-		return x.Fmt_f32(float32(a))
+		return x.Fmt_f32(float32(a));
 	}
-	return x.Fmt_f64(float64(a))
+	return x.Fmt_f64(float64(a));
 }
 
 func (x *Fmt) e(a float) *Fmt {
 	if strconv.FloatSize == 32 {
-		return x.Fmt_e32(float32(a))
+		return x.Fmt_e32(float32(a));
 	}
-	return x.Fmt_e64(float64(a))
+	return x.Fmt_e64(float64(a));
 }
 
 func (x *Fmt) g(a float) *Fmt {
 	if strconv.FloatSize == 32 {
-		return x.Fmt_g32(float32(a))
+		return x.Fmt_g32(float32(a));
 	}
-	return x.Fmt_g64(float64(a))
+	return x.Fmt_g64(float64(a));
 }
 
 func (x *Fmt) fb(a float) *Fmt {
 	if strconv.FloatSize == 32 {
-		return x.Fmt_fb32(float32(a))
+		return x.Fmt_fb32(float32(a));
 	}
-	return x.Fmt_fb64(float64(a))
+	return x.Fmt_fb64(float64(a));
 }

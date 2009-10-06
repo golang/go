@@ -18,13 +18,13 @@ import (
 
 type parser struct {
 	scanner.ErrorVector;
-	scanner scanner.Scanner;
-	pos token.Position;  // token position
-	tok token.Token;  // one token look-ahead
-	lit []byte;  // token literal
+	scanner	scanner.Scanner;
+	pos	token.Position;	// token position
+	tok	token.Token;	// one token look-ahead
+	lit	[]byte;		// token literal
 
-	packs map [string] string;  // PackageName -> ImportPath
-	rules map [string] expr;  // RuleName -> Expression
+	packs	map[string]string;	// PackageName -> ImportPath
+	rules	map[string]expr;	// RuleName -> Expression
 }
 
 
@@ -34,17 +34,17 @@ func (p *parser) next() {
 	case token.CHAN, token.FUNC, token.INTERFACE, token.MAP, token.STRUCT:
 		// Go keywords for composite types are type names
 		// returned by reflect. Accept them as identifiers.
-		p.tok = token.IDENT;  // p.lit is already set correctly
+		p.tok = token.IDENT;	// p.lit is already set correctly
 	}
 }
 
 
 func (p *parser) init(filename string, src []byte) {
 	p.ErrorVector.Init();
-	p.scanner.Init(filename, src, p, scanner.AllowIllegalChars);  // return '@' as token.ILLEGAL w/o error message
-	p.next();  // initializes pos, tok, lit
-	p.packs = make(map [string] string);
-	p.rules = make(map [string] expr);
+	p.scanner.Init(filename, src, p, scanner.AllowIllegalChars);	// return '@' as token.ILLEGAL w/o error message
+	p.next();							// initializes pos, tok, lit
+	p.packs = make(map[string]string);
+	p.rules = make(map[string]expr);
 }
 
 
@@ -67,7 +67,7 @@ func (p *parser) expect(tok token.Token) token.Position {
 	if p.tok != tok {
 		p.errorExpected(pos, "'" + tok.String() + "'");
 	}
-	p.next();  // make progress in any case
+	p.next();	// make progress in any case
 	return pos;
 }
 
@@ -114,7 +114,7 @@ func (p *parser) parseRuleName() (string, bool) {
 		p.next();
 	default:
 		p.errorExpected(p.pos, "rule name");
-		p.next();  // make progress in any case
+		p.next();	// make progress in any case
 	}
 	return name, isIdent;
 }
@@ -151,15 +151,15 @@ func (p *parser) parseLiteral() literal {
 			// the next segment starts with a % format
 			if i0 < i {
 				// the current segment is not empty, split it off
-				list.Push(s[i0 : i]);
+				list.Push(s[i0:i]);
 				i0 = i;
 			}
-			i++;  // skip %; let loop skip over char after %
+			i++;	// skip %; let loop skip over char after %
 		}
 	}
 	// the final segment may start with any character
 	// (it is empty iff the string is empty)
-	list.Push(s[i0 : len(s)]);
+	list.Push(s[i0:len(s)]);
 
 	// convert list into a literal
 	lit := make(literal, list.Len());
@@ -231,7 +231,7 @@ func (p *parser) parseOperand() (x expr) {
 		p.expect(token.RBRACE);
 
 	default:
-		x = p.parseField();  // may be nil
+		x = p.parseField();	// may be nil
 	}
 
 	return x;
@@ -248,8 +248,10 @@ func (p *parser) parseSequence() expr {
 
 	// no need for a sequence if list.Len() < 2
 	switch list.Len() {
-	case 0: return nil;
-	case 1: return list.At(0).(expr);
+	case 0:
+		return nil;
+	case 1:
+		return list.At(0).(expr);
 	}
 
 	// convert list into a sequence
@@ -278,8 +280,10 @@ func (p *parser) parseExpression() expr {
 
 	// no need for an alternatives if list.Len() < 2
 	switch list.Len() {
-	case 0: return nil;
-	case 1: return list.At(0).(expr);
+	case 0:
+		return nil;
+	case 1:
+		return list.At(0).(expr);
 	}
 
 	// convert list into a alternatives
@@ -324,7 +328,7 @@ func (p *parser) parseFormat() {
 
 		default:
 			p.errorExpected(p.pos, "package declaration or format rule");
-			p.next();  // make progress in any case
+			p.next();	// make progress in any case
 		}
 
 		if p.tok == token.SEMICOLON {
@@ -340,10 +344,10 @@ func (p *parser) parseFormat() {
 func remap(p *parser, name string) string {
 	i := strings.Index(name, ".");
 	if i >= 0 {
-		packageName, suffix := name[0 : i], name[i : len(name)];
+		packageName, suffix := name[0:i], name[i:len(name)];
 		// lookup package
 		if importPath, found := p.packs[packageName]; found {
-			name = importPath + suffix;
+			name = importPath+suffix;
 		} else {
 			var invalidPos token.Position;
 			p.Error(invalidPos, "package not declared: " + packageName);
