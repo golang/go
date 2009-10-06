@@ -10,6 +10,7 @@ type T struct {
 
 var (
 	a, b, c, d, e						int;
+	under_bar						int;
 	longIdentifier1, longIdentifier2, longIdentifier3	int;
 	t0, t1, t2						T;
 	s							string;
@@ -29,14 +30,15 @@ func _() {
 	_ = 1+a;
 	_ = a+1;
 	_ = a+b+1;
-	_ = "foo"+s;
-	_ = s+"foo";
 	_ = s[1:2];
 	_ = s[a:b];
 	_ = s[0:len(s)];
 	_ = s[0]<<1;
 	_ = (s[0]<<1)&0xf;
 	_ = s[0]<<2 | s[1]>>4;
+	_ = "foo"+s;
+	_ = s+"foo";
+	_ = 'a'+'b';
 
 	// spaces around expressions of different precedence or expressions containing spaces
 	_ = a + -b;
@@ -77,6 +79,7 @@ func _() {
 	_ = a + b + c + 2*3 + d + e;
 	_ = (a+b+c)*2;
 	_ = a - b + c - d + (a+b+c) + d&e;
+	_ = under_bar - 1;
 }
 
 
