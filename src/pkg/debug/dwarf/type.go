@@ -25,8 +25,8 @@ type Type interface {
 // If a field is not known or not applicable for a given type,
 // the zero value is used.
 type CommonType struct {
-	ByteSize int64;		// size of value of this type, in bytes
-	Name string;		// name that can be used to refer to type
+	ByteSize	int64;	// size of value of this type, in bytes
+	Name		string;	// name that can be used to refer to type
 }
 
 func (c *CommonType) Common() *CommonType {
@@ -42,8 +42,8 @@ func (c *CommonType) Size() int64 {
 // A BasicType holds fields common to all basic types.
 type BasicType struct {
 	CommonType;
-	BitSize int64;
-	BitOffset int64;
+	BitSize		int64;
+	BitOffset	int64;
 }
 
 func (b *BasicType) Basic() *BasicType {
@@ -54,7 +54,7 @@ func (t *BasicType) String() string {
 	if t.Name != "" {
 		return t.Name;
 	}
-	return "?"
+	return "?";
 }
 
 // A CharType represents a signed character type.
@@ -102,8 +102,8 @@ type AddrType struct {
 // A QualType represents a type that has the C/C++ "const", "restrict", or "volatile" qualifier.
 type QualType struct {
 	CommonType;
-	Qual string;
-	Type Type;
+	Qual	string;
+	Type	Type;
 }
 
 func (t *QualType) String() string {
@@ -117,9 +117,9 @@ func (t *QualType) Size() int64 {
 // An ArrayType represents a fixed size array type.
 type ArrayType struct {
 	CommonType;
-	Type Type;
-	StrideBitSize int64;	// if > 0, number of bits to hold each element
-	Count int64;	// if == -1, an incomplete array, like char x[].
+	Type		Type;
+	StrideBitSize	int64;	// if > 0, number of bits to hold each element
+	Count		int64;	// if == -1, an incomplete array, like char x[].
 }
 
 func (t *ArrayType) String() string {
@@ -142,7 +142,7 @@ func (t *VoidType) String() string {
 // A PtrType represents a pointer type.
 type PtrType struct {
 	CommonType;
-	Type Type;
+	Type	Type;
 }
 
 func (t *PtrType) String() string {
@@ -152,20 +152,20 @@ func (t *PtrType) String() string {
 // A StructType represents a struct, union, or C++ class type.
 type StructType struct {
 	CommonType;
-	StructName string;
-	Kind string;	// "struct", "union", or "class".
-	Field []*StructField;
-	Incomplete bool;	// if true, struct, union, class is declared but not defined
+	StructName	string;
+	Kind		string;	// "struct", "union", or "class".
+	Field		[]*StructField;
+	Incomplete	bool;	// if true, struct, union, class is declared but not defined
 }
 
 // A StructField represents a field in a struct, union, or C++ class type.
 type StructField struct {
-	Name string;
-	Type Type;
-	ByteOffset int64;
-	ByteSize int64;
-	BitOffset int64;	// within the ByteSize bytes at ByteOffset
-	BitSize int64;	// zero if not a bit field
+	Name		string;
+	Type		Type;
+	ByteOffset	int64;
+	ByteSize	int64;
+	BitOffset	int64;	// within the ByteSize bytes at ByteOffset
+	BitSize		int64;	// zero if not a bit field
 }
 
 func (t *StructType) String() string {
@@ -205,14 +205,14 @@ func (t *StructType) Defn() string {
 // (inside CommonType).
 type EnumType struct {
 	CommonType;
-	EnumName string;
-	Val []*EnumValue;
+	EnumName	string;
+	Val		[]*EnumValue;
 }
 
 // An EnumValue represents a single enumeration value.
 type EnumValue struct {
-	Name string;
-	Val int64;
+	Name	string;
+	Val	int64;
 }
 
 func (t *EnumType) String() string {
@@ -234,8 +234,8 @@ func (t *EnumType) String() string {
 // A FuncType represents a function type.
 type FuncType struct {
 	CommonType;
-	ReturnType Type;
-	ParamType []Type;
+	ReturnType	Type;
+	ParamType	[]Type;
 }
 
 func (t *FuncType) String() string {
@@ -265,7 +265,7 @@ func (t *DotDotDotType) String() string {
 // A TypedefType represents a named type.
 type TypedefType struct {
 	CommonType;
-	Type Type;
+	Type	Type;
 }
 
 func (t *TypedefType) String() string {
@@ -358,7 +358,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 			case TagSubrangeType:
 				max, ok := kid.Val(AttrUpperBound).(int64);
 				if !ok {
-					max = -2;	 // Count == -1, as in x[].
+					max = -2;	// Count == -1, as in x[].
 				}
 				if ndim == 0 {
 					t.Count = max+1;
@@ -415,7 +415,9 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 			typ = new(UcharType);
 		}
 		d.typeCache[off] = typ;
-		t := typ.(interface{Basic() *BasicType}).Basic();
+		t := typ.(interface {
+			Basic() *BasicType;
+		}).Basic();
 		t.Name = name;
 		t.BitSize, _ = e.Val(AttrBitSize).(int64);
 		t.BitOffset, _ = e.Val(AttrBitOffset).(int64);
@@ -479,7 +481,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 					}
 					t.Field = fld;
 				}
-				t.Field = t.Field[0:n+1];
+				t.Field = t.Field[0 : n+1];
 				t.Field[n] = f;
 			}
 		}
@@ -530,7 +532,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 					}
 					t.Val = val;
 				}
-				t.Val = t.Val[0:n+1];
+				t.Val = t.Val[0 : n+1];
 				t.Val[n] = f;
 			}
 		}
@@ -586,7 +588,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 				}
 				t.ParamType = param;
 			}
-			t.ParamType = t.ParamType[0:n+1];
+			t.ParamType = t.ParamType[0 : n+1];
 			t.ParamType[n] = tkid;
 		}
 

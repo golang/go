@@ -10,13 +10,13 @@ import (
 )
 
 type fileTest struct {
-	file string;
-	hdr FileHeader;
-	segments []*SegmentHeader;
-	sections []*SectionHeader;
+	file		string;
+	hdr		FileHeader;
+	segments	[]*SegmentHeader;
+	sections	[]*SectionHeader;
 }
 
-var fileTests = []fileTest {
+var fileTests = []fileTest{
 	fileTest{
 		"testdata/gcc-386-darwin-exec",
 		FileHeader{0xfeedface, Cpu386, 0x3, 0x2, 0xc, 0x3c0, 0x85},

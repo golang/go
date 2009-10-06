@@ -17,9 +17,9 @@ import (
 )
 
 type ctrStream struct {
-	c Cipher;
-	ctr []byte;
-	out []byte;
+	c	Cipher;
+	ctr	[]byte;
+	out	[]byte;
 }
 
 func newCTRStream(c Cipher, ctr []byte) *ctrStream {
@@ -65,4 +65,3 @@ func NewCTRReader(c Cipher, iv []byte, r io.Reader) io.Reader {
 func NewCTRWriter(c Cipher, iv []byte, w io.Writer) io.Writer {
 	return newXorWriter(newCTRStream(c, iv), w);
 }
-

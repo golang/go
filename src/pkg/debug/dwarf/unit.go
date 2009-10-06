@@ -13,11 +13,11 @@ import (
 // Each unit has its own abbreviation table and address size.
 
 type unit struct {
-	base Offset;	// byte offset of header within the aggregate info
-	off Offset;	// byte offset of data within the aggregate info
-	data []byte;
-	atable abbrevTable;
-	addrsize int;
+	base		Offset;	// byte offset of header within the aggregate info
+	off		Offset;	// byte offset of data within the aggregate info
+	data		[]byte;
+	atable		abbrevTable;
+	addrsize	int;
 }
 
 func (d *Data) parseUnits() ([]unit, os.Error) {
@@ -53,11 +53,10 @@ func (d *Data) parseUnits() ([]unit, os.Error) {
 		u.atable = atable;
 		u.addrsize = int(b.uint8());
 		u.off = b.off;
-		u.data = b.bytes(int(n - (2+4+1)));
+		u.data = b.bytes(int(n-(2+4+1)));
 	}
 	if b.err != nil {
 		return nil, b.err;
 	}
 	return units, nil;
 }
-

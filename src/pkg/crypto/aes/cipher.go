@@ -10,15 +10,16 @@ import (
 )
 
 // The AES block size in bytes.
-const BlockSize = 16;
+const BlockSize = 16
 
 // A Cipher is an instance of AES encryption using a particular key.
 type Cipher struct {
-	enc []uint32;
-	dec []uint32;
+	enc	[]uint32;
+	dec	[]uint32;
 }
 
 type KeySizeError int
+
 func (k KeySizeError) String() string {
 	return "crypto/aes: invalid key size " + strconv.Itoa(int(k));
 }
@@ -36,7 +37,7 @@ func NewCipher(key []byte) (*Cipher, os.Error) {
 		break;
 	}
 
-	n := k + 28;
+	n := k+28;
 	c := &Cipher{make([]uint32, n), make([]uint32, n)};
 	expandKey(key, c.enc, c.dec);
 	return c, nil;
@@ -74,4 +75,3 @@ func (c *Cipher) Reset() {
 		c.dec[i] = 0;
 	}
 }
-

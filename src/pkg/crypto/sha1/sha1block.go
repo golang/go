@@ -9,10 +9,10 @@
 package sha1
 
 const (
-	_K0 = 0x5A827999;
-	_K1 = 0x6ED9EBA1;
-	_K2 = 0x8F1BBCDC;
-	_K3 = 0xCA62C1D6;
+	_K0	= 0x5A827999;
+	_K1	= 0x6ED9EBA1;
+	_K2	= 0x8F1BBCDC;
+	_K3	= 0xCA62C1D6;
 )
 
 func _Block(dig *digest, p []byte) int {
@@ -25,13 +25,10 @@ func _Block(dig *digest, p []byte) int {
 		// rounds below if needed for speed.
 		for i := 0; i < 16; i++ {
 			j := i*4;
-			w[i] = uint32(p[j])<<24 |
-				uint32(p[j+1])<<16 |
-				uint32(p[j+2])<<8 |
-				uint32(p[j+3]);
+			w[i] = uint32(p[j])<<24 | uint32(p[j+1])<<16 | uint32(p[j+2])<<8 | uint32(p[j+3]);
 		}
 		for i := 16; i < 80; i++ {
-			tmp := w[i-3] ^ w[i-8] ^ w[i-14] ^ w[i-16];
+			tmp := w[i-3]^w[i-8]^w[i-14]^w[i-16];
 			w[i] = tmp<<1 | tmp>>(32-1);
 		}
 
@@ -44,28 +41,28 @@ func _Block(dig *digest, p []byte) int {
 			f := b&c | (^b)&d;
 			a5 := a<<5 | a>>(32-5);
 			b30 := b<<30 | b>>(32-30);
-			t := a5 + f + e + w[i] + _K0;
+			t := a5+f+e+w[i]+_K0;
 			a, b, c, d, e = t, a, b30, c, d;
 		}
 		for i := 20; i < 40; i++ {
-			f := b ^ c ^ d;
+			f := b^c^d;
 			a5 := a<<5 | a>>(32-5);
 			b30 := b<<30 | b>>(32-30);
-			t := a5 + f + e + w[i] + _K1;
+			t := a5+f+e+w[i]+_K1;
 			a, b, c, d, e = t, a, b30, c, d;
 		}
 		for i := 40; i < 60; i++ {
 			f := b&c | b&d | c&d;
 			a5 := a<<5 | a>>(32-5);
 			b30 := b<<30 | b>>(32-30);
-			t := a5 + f + e + w[i] + _K2;
+			t := a5+f+e+w[i]+_K2;
 			a, b, c, d, e = t, a, b30, c, d;
 		}
 		for i := 60; i < 80; i++ {
-			f := b ^ c ^ d;
+			f := b^c^d;
 			a5 := a<<5 | a>>(32-5);
 			b30 := b<<30 | b>>(32-30);
-			t := a5 + f + e + w[i] + _K3;
+			t := a5+f+e+w[i]+_K3;
 			a, b, c, d, e = t, a, b30, c, d;
 		}
 

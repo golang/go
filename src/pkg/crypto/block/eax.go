@@ -24,8 +24,8 @@ import (
 // because the tag at the end of the message stream (Read) does not match
 // the tag computed from the message itself (Computed).
 type EAXTagError struct {
-	Read []byte;
-	Computed []byte;
+	Read		[]byte;
+	Computed	[]byte;
 }
 
 func (e *EAXTagError) String() string {
@@ -57,7 +57,7 @@ func setupEAX(c Cipher, iv, hdr []byte, tagBytes int) (ctrIV, tag []byte, cmac D
 	}
 
 	cmac.Reset();
-	buf[n-1] = 2;		// 2
+	buf[n-1] = 2;	// 2
 	cmac.Write(buf);
 
 	return;
@@ -74,8 +74,8 @@ func finishEAX(tag []byte, cmac Digest) {
 // Writer adapter.  Tees writes into both w and cmac.
 // Knows that cmac never returns write errors.
 type cmacWriter struct {
-	w io.Writer;
-	cmac Digest;
+	w	io.Writer;
+	cmac	Digest;
 }
 
 func (cw *cmacWriter) Write(p []byte) (n int, err os.Error) {
@@ -86,9 +86,9 @@ func (cw *cmacWriter) Write(p []byte) (n int, err os.Error) {
 
 // An eaxEncrypter implements the EAX encryption mode.
 type eaxEncrypter struct {
-	ctr io.Writer;	// CTR encrypter
-	cw cmacWriter;	// CTR's output stream
-	tag []byte;
+	ctr	io.Writer;	// CTR encrypter
+	cw	cmacWriter;	// CTR's output stream
+	tag	[]byte;
 }
 
 // NewEAXEncrypter creates and returns a new EAX encrypter
@@ -132,10 +132,10 @@ func (x *eaxEncrypter) Close() os.Error {
 // and the "tee into digest" functionality could be separated,
 // but the latter half is trivial.
 type cmacReader struct {
-	r io.Reader;
-	cmac Digest;
-	tag []byte;
-	tmp []byte;
+	r	io.Reader;
+	cmac	Digest;
+	tag	[]byte;
+	tmp	[]byte;
 }
 
 func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
@@ -150,7 +150,7 @@ func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
 	if len(tag) < cap(tag) {
 		nt := len(tag);
 		nn, err1 := io.ReadFull(cr.r, tag[nt:cap(tag)]);
-		tag = tag[0:nt+nn];
+		tag = tag[0 : nt+nn];
 		cr.tag = tag;
 		if err1 != nil {
 			return 0, err1;
@@ -183,12 +183,12 @@ func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
 
 	// copy tag+p into p+tmp and then swap tmp, tag
 	tmp := cr.tmp;
-	for i := n + tagBytes - 1; i >= 0; i-- {
+	for i := n+tagBytes-1; i >= 0; i-- {
 		var c byte;
 		if i < tagBytes {
 			c = tag[i];
 		} else {
-			c = p[i - tagBytes];
+			c = p[i-tagBytes];
 		}
 		if i < n {
 			p[i] = c;
@@ -204,9 +204,9 @@ out:
 }
 
 type eaxDecrypter struct {
-	ctr io.Reader;
-	cr cmacReader;
-	tag []byte;
+	ctr	io.Reader;
+	cr	cmacReader;
+	tag	[]byte;
 }
 
 // NewEAXDecrypter creates and returns a new EAX decrypter
@@ -250,4 +250,3 @@ func (x *eaxDecrypter) Read(p []byte) (n int, err os.Error) {
 	}
 	return n, err;
 }
-

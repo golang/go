@@ -16,10 +16,10 @@ import (
 )
 
 type cbcCipher struct {
-	c Cipher;
-	blockSize int;
-	iv []byte;
-	tmp []byte;
+	c		Cipher;
+	blockSize	int;
+	iv		[]byte;
+	tmp		[]byte;
 }
 
 func newCBC(c Cipher, iv []byte) *cbcCipher {
@@ -71,4 +71,3 @@ func NewCBCDecrypter(c Cipher, iv []byte, r io.Reader) io.Reader {
 func NewCBCEncrypter(c Cipher, iv []byte, w io.Writer) io.Writer {
 	return NewECBEncrypter(newCBC(c, iv), w);
 }
-

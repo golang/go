@@ -9,7 +9,7 @@
 package md5
 
 // table[i] = int((1<<32) * abs(sin(i+1 radians))).
-var table = []uint32 {
+var table = []uint32{
 	// round 1
 	0xd76aa478,
 	0xe8c7b756,
@@ -83,10 +83,10 @@ var table = []uint32 {
 	0xeb86d391,
 }
 
-var shift1 = []uint { 7, 12, 17, 22 };
-var shift2 = []uint { 5, 9, 14, 20 };
-var shift3 = []uint { 4, 11, 16, 23 };
-var shift4 = []uint { 6, 10, 15, 21 };
+var shift1 = []uint{7, 12, 17, 22}
+var shift2 = []uint{5, 9, 14, 20}
+var shift3 = []uint{4, 11, 16, 23}
+var shift4 = []uint{6, 10, 15, 21}
 
 func _Block(dig *digest, p []byte) int {
 	a := dig.s[0];
@@ -116,8 +116,8 @@ func _Block(dig *digest, p []byte) int {
 			x := i;
 			t := i;
 			s := shift1[i%4];
-			f := ((c ^ d) & b) ^ d;
-			a += f + X[x] + table[t];
+			f := ((c^d)&b)^d;
+			a += f+X[x]+table[t];
 			a = a<<s | a>>(32-s);
 			a += b;
 			a, b, c, d = d, a, b, c;
@@ -125,11 +125,11 @@ func _Block(dig *digest, p []byte) int {
 
 		// Round 2.
 		for i := 0; i < 16; i++ {
-			x := (1+5*i)%16;
+			x := (1 + 5*i)%16;
 			t := 16+i;
 			s := shift2[i%4];
-			g := ((b ^ c) & d) ^ c;
-			a += g + X[x] + table[t];
+			g := ((b^c)&d)^c;
+			a += g+X[x]+table[t];
 			a = a<<s | a>>(32-s);
 			a += b;
 			a, b, c, d = d, a, b, c;
@@ -137,11 +137,11 @@ func _Block(dig *digest, p []byte) int {
 
 		// Round 3.
 		for i := 0; i < 16; i++ {
-			x := (5+3*i)%16;
+			x := (5 + 3*i)%16;
 			t := 32+i;
 			s := shift3[i%4];
-			h := b ^ c ^ d;
-			a += h + X[x] + table[t];
+			h := b^c^d;
+			a += h+X[x]+table[t];
 			a = a<<s | a>>(32-s);
 			a += b;
 			a, b, c, d = d, a, b, c;
@@ -152,8 +152,8 @@ func _Block(dig *digest, p []byte) int {
 			x := (7*i)%16;
 			s := shift4[i%4];
 			t := 48+i;
-			ii := c ^ (b | ^d);
-			a += ii + X[x] + table[t];
+			ii := c^(b | ^d);
+			a += ii+X[x]+table[t];
 			a = a<<s | a>>(32-s);
 			a += b;
 			a, b, c, d = d, a, b, c;

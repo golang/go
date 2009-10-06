@@ -34,15 +34,15 @@ const (
 )
 
 type hmac struct {
-	size int;
-	key []byte;
-	tmp []byte;
-	inner hash.Hash;
+	size	int;
+	key	[]byte;
+	tmp	[]byte;
+	inner	hash.Hash;
 }
 
 func (h *hmac) tmpPad(xor byte) {
 	for i, k := range h.key {
-		h.tmp[i] = xor ^ k;
+		h.tmp[i] = xor^k;
 	}
 	for i := len(h.key); i < padSize; i++ {
 		h.tmp[i] = xor;
@@ -53,7 +53,7 @@ func (h *hmac) Sum() []byte {
 	h.tmpPad(0x5c);
 	sum := h.inner.Sum();
 	for i, b := range sum {
-		h.tmp[padSize + i] = b;
+		h.tmp[padSize+i] = b;
 	}
 	h.inner.Reset();
 	h.inner.Write(h.tmp);

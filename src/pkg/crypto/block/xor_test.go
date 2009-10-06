@@ -14,8 +14,8 @@ import (
 
 // Simple "pseudo-random" stream for testing.
 type incStream struct {
-	buf []byte;
-	n byte;
+	buf	[]byte;
+	n	byte;
 }
 
 func newIncStream(blockSize int) *incStream {
@@ -43,10 +43,10 @@ func testXorWriter(t *testing.T, maxio int) {
 		// compute encrypted version
 		n := byte(0);
 		for i := 0; i < len(crypt); i++ {
-			if i % block == 0 {
+			if i%block == 0 {
 				n++;
 			}
-			crypt[i] = plain[i] ^ n;
+			crypt[i] = plain[i]^n;
 			n++;
 		}
 
@@ -74,7 +74,7 @@ func testXorWriter(t *testing.T, maxio int) {
 			}
 
 			// check output
-			crypt := crypt[0:len(crypt) - frag];
+			crypt := crypt[0 : len(crypt)-frag];
 			data := b.Bytes();
 			if len(data) != len(crypt) {
 				t.Errorf("%s: want %d bytes, got %d", test, len(crypt), len(data));
@@ -97,24 +97,26 @@ func TestXorWriter(t *testing.T) {
 }
 
 func testXorReader(t *testing.T, maxio int) {
-	var readers = []func(io.Reader) io.Reader {
-		func (r io.Reader) io.Reader { return r },
+	var readers = []func(io.Reader) io.Reader{
+		func(r io.Reader) io.Reader {
+			return r;
+		},
 		iotest.OneByteReader,
 		iotest.HalfReader,
 	};
 	var plain, crypt [256]byte;
 	for i := 0; i < len(plain); i++ {
-		plain[i] = byte(255 - i);
+		plain[i] = byte(255-i);
 	}
 	b := new(bytes.Buffer);
 	for block := 1; block <= 64 && block <= maxio; block *= 2 {
 		// compute encrypted version
 		n := byte(0);
 		for i := 0; i < len(crypt); i++ {
-			if i % block == 0 {
+			if i%block == 0 {
 				n++;
 			}
-			crypt[i] = plain[i] ^ n;
+			crypt[i] = plain[i]^n;
 			n++;
 		}
 
@@ -143,8 +145,8 @@ func testXorReader(t *testing.T, maxio int) {
 
 				// check output
 				data := b.Bytes();
-				crypt := crypt[0:maxio - frag];
-				plain := plain[0:maxio - frag];
+				crypt := crypt[0 : maxio-frag];
+				plain := plain[0 : maxio-frag];
 				if len(data) != len(plain) {
 					t.Errorf("%s: want %d bytes, got %d", test, len(plain), len(data));
 					continue;
@@ -166,4 +168,3 @@ func TestXorReader(t *testing.T) {
 }
 
 // TODO(rsc): Test handling of writes after write errors.
-

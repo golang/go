@@ -35,9 +35,9 @@ import (
 // as well as experimentation and examination of gdb's behavior.
 
 const (
-	trace = false;
-	traceIP = false;
-	traceMem = false;
+	trace		= false;
+	traceIP		= false;
+	traceMem	= false;
 )
 
 /*
@@ -60,20 +60,20 @@ const (
 //
 // Terminal threads no longer exist in the OS and thus you can't do
 // anything with them.
-type threadState string;
+type threadState string
 
 const (
-	running             threadState = "Running";
-	singleStepping      threadState = "SingleStepping";	// Transient
-	stopping            threadState = "Stopping";	// Transient
-	stopped             threadState = "Stopped";
-	stoppedBreakpoint   threadState = "StoppedBreakpoint";
-	stoppedSignal       threadState = "StoppedSignal";
-	stoppedThreadCreate threadState = "StoppedThreadCreate";
-	stoppedExiting      threadState = "StoppedExiting";
-	exiting             threadState = "Exiting";	// Transient (except main thread)
-	exited              threadState = "Exited";
-	detached            threadState = "Detached";
+	running			threadState	= "Running";
+	singleStepping		threadState	= "SingleStepping";	// Transient
+	stopping		threadState	= "Stopping";		// Transient
+	stopped			threadState	= "Stopped";
+	stoppedBreakpoint	threadState	= "StoppedBreakpoint";
+	stoppedSignal		threadState	= "StoppedSignal";
+	stoppedThreadCreate	threadState	= "StoppedThreadCreate";
+	stoppedExiting		threadState	= "StoppedExiting";
+	exiting			threadState	= "Exiting";	// Transient (except main thread)
+	exited			threadState	= "Exited";
+	detached		threadState	= "Detached";
 )
 
 func (ts threadState) isRunning() bool {
@@ -104,8 +104,8 @@ func (ts threadState) String() string {
 // including its program counter, the overwritten text if the
 // breakpoint is installed.
 type breakpoint struct {
-	pc uintptr;
-	olddata []byte;
+	pc	uintptr;
+	olddata	[]byte;
 }
 
 func (bp *breakpoint) String() string {
@@ -116,19 +116,19 @@ func (bp *breakpoint) String() string {
 }
 
 // bpinst386 is the breakpoint instruction used on 386 and amd64.
-var bpinst386 = []byte{0xcc};
+var bpinst386 = []byte{0xcc}
 
 // A debugEvent represents a reason a thread stopped or a wait error.
 type debugEvent struct {
 	*os.Waitmsg;
-	t *thread;
-	err os.Error;
+	t	*thread;
+	err	os.Error;
 }
 
 // A debugReq is a request to execute a closure in the monitor thread.
 type debugReq struct {
-	f func () os.Error;
-	res chan os.Error;
+	f	func() os.Error;
+	res	chan os.Error;
 }
 
 // A transitionHandler specifies a function to be called when a thread
@@ -137,8 +137,8 @@ type debugReq struct {
 // invokes a handler, it removes the handler from the handler queue.
 // The handler should re-add itself if needed.
 type transitionHandler struct {
-	handle func (*thread, threadState, threadState);
-	onErr func (os.Error);
+	handle	func(*thread, threadState, threadState);
+	onErr	func(os.Error);
 }
 
 // A process is a Linux process, which consists of a set of threads.
@@ -146,34 +146,34 @@ type transitionHandler struct {
 // messages from the debugEvents, debugReqs, and stopReq channels and
 // calls transition handlers.
 type process struct {
-	pid int;
-	threads map[int] *thread;
-	breakpoints map[uintptr] *breakpoint;
-	debugEvents chan *debugEvent;
-	debugReqs chan *debugReq;
-	stopReq chan os.Error;
-	transitionHandlers *vector.Vector;
+	pid			int;
+	threads			map[int]*thread;
+	breakpoints		map[uintptr]*breakpoint;
+	debugEvents		chan *debugEvent;
+	debugReqs		chan *debugReq;
+	stopReq			chan os.Error;
+	transitionHandlers	*vector.Vector;
 }
 
 // A thread represents a Linux thread in another process that is being
 // debugged.  Each running thread has an associated goroutine that
 // waits for thread updates and sends them to the process monitor.
 type thread struct {
-	tid int;
-	proc *process;
+	tid	int;
+	proc	*process;
 	// Whether to ignore the next SIGSTOP received by wait.
-	ignoreNextSigstop bool;
+	ignoreNextSigstop	bool;
 
 	// Thread state.  Only modified via setState.
-	state threadState;
+	state	threadState;
 	// If state == StoppedBreakpoint
-	breakpoint *breakpoint;
+	breakpoint	*breakpoint;
 	// If state == StoppedSignal or state == Exited
-	signal int;
+	signal	int;
 	// If state == StoppedThreadCreate
-	newThread *thread;
+	newThread	*thread;
 	// If state == Exited
-	exitStatus int;
+	exitStatus	int;
 }
 
 /*
@@ -181,9 +181,9 @@ type thread struct {
  */
 
 type badState struct {
-	thread *thread;
-	message string;
-	state threadState;
+	thread	*thread;
+	message	string;
+	state	threadState;
 }
 
 func (e *badState) String() string {
@@ -204,8 +204,8 @@ func (e noBreakpointError) String() string {
 
 type newThreadError struct {
 	*os.Waitmsg;
-	wantPid int;
-	wantSig int;
+	wantPid	int;
+	wantSig	int;
 }
 
 func (e *newThreadError) String() string {
@@ -435,9 +435,9 @@ func (t *thread) wait() {
 			if err == nil {
 				continue;
 			}
-			// If we failed to continue, just let
-			// the stop go through so we can
-			// update the thread's state.
+		// If we failed to continue, just let
+		// the stop go through so we can
+		// update the thread's state.
 		}
 		t.proc.debugEvents <- &ev;
 		break;
@@ -515,7 +515,7 @@ func (ev *debugEvent) doTrap() (threadState, os.Error) {
 		return stopped, err;
 	}
 
-	b, ok := t.proc.breakpoints[uintptr(regs.PC())-uintptr(len(bpinst386))];
+	b, ok := t.proc.breakpoints[uintptr(regs.PC()) - uintptr(len(bpinst386))];
 	if !ok {
 		// We must have hit a breakpoint that was actually in
 		// the program.  Leave the IP where it is so we don't
@@ -673,13 +673,13 @@ func (ev *debugEvent) process() os.Error {
 // thread.
 //
 // Must be called from the monitor thread.
-func (t *thread) onStop(handle func (), onErr func (os.Error)) {
+func (t *thread) onStop(handle func(), onErr func(os.Error)) {
 	// TODO(austin) This is rather inefficient for things like
 	// stepping all threads during a continue.  Maybe move
 	// transitionHandlers to the thread, or have both per-thread
 	// and per-process transition handlers.
 	h := &transitionHandler{nil, onErr};
-	h.handle = func (st *thread, old, new threadState) {
+	h.handle = func(st *thread, old, new threadState) {
 		if t == st && old.isRunning() && !new.isRunning() {
 			handle();
 		} else {
@@ -753,7 +753,7 @@ func (p *process) monitor() {
 // respect to thread state changes).  f must not block.
 //
 // Must NOT be called from the monitor thread.
-func (p *process) do(f func () os.Error) os.Error {
+func (p *process) do(f func() os.Error) os.Error {
 	// TODO(austin) If monitor is stopped, return error.
 	req := &debugReq{f, make(chan os.Error)};
 	p.debugReqs <- req;
@@ -764,7 +764,7 @@ func (p *process) do(f func () os.Error) os.Error {
 // is already stopped, does nothing.
 func (p *process) stopMonitor(err os.Error) {
 	_ = p.stopReq <- err;	// do not block
-	// TODO(austin) Wait until monitor has exited?
+// TODO(austin) Wait until monitor has exited?
 }
 
 /*
@@ -774,7 +774,7 @@ func (p *process) stopMonitor(err os.Error) {
 func (t *thread) Regs() (Regs, os.Error) {
 	var regs syscall.PtraceRegs;
 
-	err := t.proc.do(func () os.Error {
+	err := t.proc.do(func() os.Error {
 		if !t.state.isStopped() {
 			return &badState{t, "cannot get registers", t.state};
 		}
@@ -784,8 +784,8 @@ func (t *thread) Regs() (Regs, os.Error) {
 		return nil, err;
 	}
 
-	setter := func (r *syscall.PtraceRegs) os.Error {
-		return t.proc.do(func () os.Error {
+	setter := func(r *syscall.PtraceRegs) os.Error {
+		return t.proc.do(func() os.Error {
 			if !t.state.isStopped() {
 				return &badState{t, "cannot get registers", t.state};
 			}
@@ -798,7 +798,7 @@ func (t *thread) Regs() (Regs, os.Error) {
 func (t *thread) Peek(addr Word, out []byte) (int, os.Error) {
 	var c int;
 
-	err := t.proc.do(func () os.Error {
+	err := t.proc.do(func() os.Error {
 		if !t.state.isStopped() {
 			return &badState{t, "cannot peek text", t.state};
 		}
@@ -814,7 +814,7 @@ func (t *thread) Peek(addr Word, out []byte) (int, os.Error) {
 func (t *thread) Poke(addr Word, out []byte) (int, os.Error) {
 	var c int;
 
-	err := t.proc.do(func () os.Error {
+	err := t.proc.do(func() os.Error {
 		if !t.state.isStopped() {
 			return &badState{t, "cannot poke text", t.state};
 		}
@@ -837,10 +837,10 @@ func (t *thread) stepAsync(ready chan os.Error) os.Error {
 		return err;
 	}
 	t.setState(singleStepping);
-	t.onStop(func () {
-			ready <- nil;
-		},
-		func (err os.Error) {
+	t.onStop(func() {
+		ready <- nil;
+	},
+		func(err os.Error) {
 			ready <- err;
 		});
 	return nil;
@@ -852,7 +852,7 @@ func (t *thread) Step() os.Error {
 
 	ready := make(chan os.Error);
 
-	err := t.proc.do(func () os.Error {
+	err := t.proc.do(func() os.Error {
 		if !t.state.isStopped() {
 			return &badState{t, "cannot single step", t.state};
 		}
@@ -867,14 +867,14 @@ func (t *thread) Step() os.Error {
 }
 
 // TODO(austin) We should probably get this via C's strsignal.
-var sigNames = [...]string {
+var sigNames = [...]string{
 	"SIGEXIT", "SIGHUP", "SIGINT", "SIGQUIT", "SIGILL",
 	"SIGTRAP", "SIGABRT", "SIGBUS", "SIGFPE", "SIGKILL",
 	"SIGUSR1", "SIGSEGV", "SIGUSR2", "SIGPIPE", "SIGALRM",
 	"SIGTERM", "SIGSTKFLT", "SIGCHLD", "SIGCONT", "SIGSTOP",
 	"SIGTSTP", "SIGTTIN", "SIGTTOU", "SIGURG", "SIGXCPU",
 	"SIGXFSZ", "SIGVTALRM", "SIGPROF", "SIGWINCH", "SIGPOLL",
-	"SIGPWR", "SIGSYS"
+	"SIGPWR", "SIGSYS",
 }
 
 // sigName returns the symbolic name for the given signal number.  If
@@ -924,7 +924,7 @@ func (t *thread) Stopped() (Cause, os.Error) {
 func (p *process) Threads() []Thread {
 	var res []Thread;
 
-	p.do(func () os.Error {
+	p.do(func() os.Error {
 		res = make([]Thread, len(p.threads));
 		i := 0;
 		for _, t := range p.threads {
@@ -944,7 +944,7 @@ func (p *process) Threads() []Thread {
 }
 
 func (p *process) AddBreakpoint(pc Word) os.Error {
-	return p.do(func () os.Error {
+	return p.do(func() os.Error {
 		if t := p.someRunningThread(); t != nil {
 			return &badState{t, "cannot add breakpoint", t.state};
 		}
@@ -957,7 +957,7 @@ func (p *process) AddBreakpoint(pc Word) os.Error {
 }
 
 func (p *process) RemoveBreakpoint(pc Word) os.Error {
-	return p.do(func () os.Error {
+	return p.do(func() os.Error {
 		if t := p.someRunningThread(); t != nil {
 			return &badState{t, "cannot remove breakpoint", t.state};
 		}
@@ -975,7 +975,7 @@ func (p *process) Continue() os.Error {
 	var ready chan os.Error;
 	count := 0;
 
-	err := p.do(func () os.Error {
+	err := p.do(func() os.Error {
 		// We make the ready channel big enough to hold all
 		// ready message so we don't jam up the monitor if we
 		// stop listening (e.g., if there's an error).
@@ -1022,7 +1022,7 @@ func (p *process) Continue() os.Error {
 	}
 
 	// Continue all threads
-	err = p.do(func () os.Error {
+	err = p.do(func() os.Error {
 		if err := p.installBreakpoints(); err != nil {
 			return err;
 		}
@@ -1067,7 +1067,7 @@ func (p *process) WaitStop() os.Error {
 	// threads are already stopped.
 	ready := make(chan os.Error, 1);
 
-	err := p.do(func () os.Error {
+	err := p.do(func() os.Error {
 		// Are all of the threads already stopped?
 		if p.someRunningThread() == nil {
 			ready <- nil;
@@ -1076,7 +1076,7 @@ func (p *process) WaitStop() os.Error {
 
 		// Monitor state transitions
 		h := &transitionHandler{};
-		h.handle = func (st *thread, old, new threadState) {
+		h.handle = func(st *thread, old, new threadState) {
 			if !new.isRunning() {
 				if p.someRunningThread() == nil {
 					ready <- nil;
@@ -1085,7 +1085,7 @@ func (p *process) WaitStop() os.Error {
 			}
 			p.transitionHandlers.Push(h);
 		};
-		h.onErr = func (err os.Error) {
+		h.onErr = func(err os.Error) {
 			ready <- err;
 		};
 		p.transitionHandlers.Push(h);
@@ -1099,7 +1099,7 @@ func (p *process) WaitStop() os.Error {
 }
 
 func (p *process) Stop() os.Error {
-	err := p.do(func () os.Error {
+	err := p.do(func() os.Error {
 		return p.stopAsync();
 	});
 	if err != nil {
@@ -1114,7 +1114,7 @@ func (p *process) Detach() os.Error {
 		return err;
 	}
 
-	err := p.do(func () os.Error {
+	err := p.do(func() os.Error {
 		if err := p.uninstallBreakpoints(); err != nil {
 			return err;
 		}
@@ -1171,7 +1171,7 @@ func (p *process) newThread(tid int, signal int, cloned bool) (*thread, os.Error
 func (p *process) attachThread(tid int) (*thread, os.Error) {
 	p.logTrace("attaching to thread %d", tid);
 	var thr *thread;
-	err := p.do(func () os.Error {
+	err := p.do(func() os.Error {
 		errno := syscall.PtraceAttach(tid);
 		if errno != 0 {
 			return os.NewSyscallError("ptrace(ATTACH)", errno);
@@ -1253,12 +1253,12 @@ func (p *process) attachAllThreads() os.Error {
 func newProcess(pid int) *process {
 	p := &process{
 		pid: pid,
-		threads: make(map[int] *thread),
-		breakpoints: make(map[uintptr] *breakpoint),
+		threads: make(map[int]*thread),
+		breakpoints: make(map[uintptr]*breakpoint),
 		debugEvents: make(chan *debugEvent),
 		debugReqs: make(chan *debugReq),
 		stopReq: make(chan os.Error),
-		transitionHandlers: vector.New(0)
+		transitionHandlers: vector.New(0),
 	};
 
 	go p.monitor();
@@ -1285,8 +1285,7 @@ func Attach(pid int) (Process, os.Error) {
 // ForkExec forks the current process and execs argv0, stopping the
 // new process after the exec syscall.  See os.ForkExec for additional
 // details.
-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error)
-{
+func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error) {
 	p := newProcess(-1);
 
 	// Create array of integer (system) fds.
@@ -1300,7 +1299,7 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.F
 	}
 
 	// Fork from the monitor thread so we get the right tracer pid.
-	err := p.do(func () os.Error {
+	err := p.do(func() os.Error {
 		pid, errno := syscall.PtraceForkExec(argv0, argv, envv, dir, intfd);
 		if errno != 0 {
 			return &os.PathError{"fork/exec", argv0, os.Errno(errno)};

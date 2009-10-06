@@ -21,37 +21,36 @@ import (
 
 // A FileHeader represents an ELF file header.
 type FileHeader struct {
-	Class Class;
-	Data Data;
-	Version Version;
-	OSABI OSABI;
-	ABIVersion uint8;
-	ByteOrder binary.ByteOrder;
-	Type Type;
-	Machine Machine;
+	Class		Class;
+	Data		Data;
+	Version		Version;
+	OSABI		OSABI;
+	ABIVersion	uint8;
+	ByteOrder	binary.ByteOrder;
+	Type		Type;
+	Machine		Machine;
 }
 
 // A File represents an open ELF file.
 type File struct {
 	FileHeader;
-	Sections []*Section;
-	Progs []*Prog;
-
-	closer io.Closer;
+	Sections	[]*Section;
+	Progs		[]*Prog;
+	closer		io.Closer;
 }
 
 // A SectionHeader represents a single ELF section header.
 type SectionHeader struct {
-	Name string;
-	Type SectionType;
-	Flags SectionFlag;
-	Addr uint64;
-	Offset uint64;
-	Size uint64;
-	Link uint32;
-	Info uint32;
-	Addralign uint64;
-	Entsize uint64;
+	Name		string;
+	Type		SectionType;
+	Flags		SectionFlag;
+	Addr		uint64;
+	Offset		uint64;
+	Size		uint64;
+	Link		uint32;
+	Info		uint32;
+	Addralign	uint64;
+	Entsize		uint64;
 }
 
 // A Section represents a single section in an ELF file.
@@ -65,7 +64,7 @@ type Section struct {
 	// Open() to avoid fighting over the seek offset
 	// with other clients.
 	io.ReaderAt;
-	sr *io.SectionReader;
+	sr	*io.SectionReader;
 }
 
 // Data reads and returns the contents of the ELF section.
@@ -82,13 +81,13 @@ func (s *Section) Open() io.ReadSeeker {
 
 // A ProgHeader represents a single ELF program header.
 type ProgHeader struct {
-	Type ProgType;
-	Flags ProgFlag;
-	Vaddr uint64;
-	Paddr uint64;
-	Filesz uint64;
-	Memsz uint64;
-	Align uint64;
+	Type	ProgType;
+	Flags	ProgFlag;
+	Vaddr	uint64;
+	Paddr	uint64;
+	Filesz	uint64;
+	Memsz	uint64;
+	Align	uint64;
 }
 
 // A Prog represents a single ELF program header in an ELF binary.
@@ -102,7 +101,7 @@ type Prog struct {
 	// Open() to avoid fighting over the seek offset
 	// with other clients.
 	io.ReaderAt;
-	sr *io.SectionReader;
+	sr	*io.SectionReader;
 }
 
 // Open returns a new ReadSeeker reading the ELF program body.
@@ -116,9 +115,9 @@ func (p *Prog) Open() io.ReadSeeker {
  */
 
 type FormatError struct {
-	off int64;
-	msg string;
-	val interface{};
+	off	int64;
+	msg	string;
+	val	interface{};
 }
 
 func (e *FormatError) String() string {
@@ -175,7 +174,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	switch f.Class {
 	case ELFCLASS32:
 	case ELFCLASS64:
-		// ok
+	// ok
 	default:
 		return nil, &FormatError{0, "unknown ELF class", f.Class};
 	}
@@ -282,7 +281,6 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 				Info: uint32(sh.Info),
 				Addralign: uint64(sh.Addralign),
 				Entsize: uint64(sh.Entsize),
-
 			};
 		}
 		s.sr = io.NewSectionReader(r, int64(s.Offset), int64(s.Size));
