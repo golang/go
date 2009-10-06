@@ -1,5 +1,6 @@
 64bit.go
 assign.go
+bigalg.go
 blank1.go
 bugs/bug136.go
 bugs/bug162.go
@@ -34,6 +35,7 @@ fixedbugs/bug005.go
 fixedbugs/bug007.go
 fixedbugs/bug008.go
 fixedbugs/bug009.go
+fixedbugs/bug012.go
 fixedbugs/bug013.go
 fixedbugs/bug014.go
 fixedbugs/bug015.go
@@ -86,6 +88,7 @@ fixedbugs/bug080.go
 fixedbugs/bug081.go
 fixedbugs/bug082.go
 fixedbugs/bug083.go
+fixedbugs/bug084.go
 fixedbugs/bug085.go
 fixedbugs/bug086.go
 fixedbugs/bug087.go
@@ -204,6 +207,7 @@ indirect.go
 indirect1.go
 initcomma.go
 initializerr.go
+intcvt.go
 interface/convert.go
 interface/convert1.go
 interface/convert2.go
@@ -219,6 +223,7 @@ iota.go
 ken/complit.go
 ken/embed.go
 ken/for.go
+ken/interbasic.go
 ken/interfun.go
 ken/intervar.go
 ken/label.go
