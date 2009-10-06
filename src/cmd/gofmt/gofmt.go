@@ -5,35 +5,35 @@
 package main
 
 import (
-	"flag";
-	"fmt";
-	"go/ast";
-	"go/parser";
-	"go/printer";
-	"go/scanner";
-	"os";
-	pathutil "path";
-	"strings";
+			"flag";
+			"fmt";
+			"go/ast";
+			"go/parser";
+			"go/printer";
+			"go/scanner";
+			"os";
+	pathutil	"path";
+			"strings";
 )
 
 
-const pkgDir = "src/pkg";  // relative to $GOROOT
+const pkgDir = "src/pkg"	// relative to $GOROOT
 
 
 var (
-	goroot = flag.String("goroot", os.Getenv("GOROOT"), "Go root directory");
+	goroot	= flag.String("goroot", os.Getenv("GOROOT"), "Go root directory");
 
 	// operation modes
-	allgo = flag.Bool("a", false, "include all .go files for package");
-	comments = flag.Bool("c", false, "omit comments");
-	silent = flag.Bool("s", false, "silent mode: parsing only");
-	verbose = flag.Bool("v", false, "verbose mode: trace parsing");
-	exports = flag.Bool("x", false, "show exports only");
+	allgo		= flag.Bool("a", false, "include all .go files for package");
+	comments	= flag.Bool("c", false, "omit comments");
+	silent		= flag.Bool("s", false, "silent mode: parsing only");
+	verbose		= flag.Bool("v", false, "verbose mode: trace parsing");
+	exports		= flag.Bool("x", false, "show exports only");
 
 	// layout control
-	tabwidth = flag.Int("tabwidth", 8, "tab width");
-	rawformat = flag.Bool("rawformat", false, "do not use a tabwriter");
-	usespaces = flag.Bool("spaces", false, "align with blanks instead of tabs");
+	tabwidth	= flag.Int("tabwidth", 8, "tab width");
+	rawformat	= flag.Bool("rawformat", false, "do not use a tabwriter");
+	usespaces	= flag.Bool("spaces", false, "align with blanks instead of tabs");
 )
 
 

@@ -17,41 +17,41 @@ import (
 
 // A Cref refers to an expression of the form C.xxx in the AST.
 type Cref struct {
-	Name string;
-	Expr *ast.Expr;
-	Context string;	// "type", "expr", or "call"
-	TypeName bool;	// whether xxx is a C type name
-	Type *Type;	// the type of xxx
-	FuncType *FuncType;
+	Name		string;
+	Expr		*ast.Expr;
+	Context		string;	// "type", "expr", or "call"
+	TypeName	bool;	// whether xxx is a C type name
+	Type		*Type;	// the type of xxx
+	FuncType	*FuncType;
 }
 
 // A Prog collects information about a cgo program.
 type Prog struct {
-	AST *ast.File;	// parsed AST
-	Preamble string;	// C preamble (doc comment on import "C")
-	PackagePath string;
-	Package string;
-	Crefs []*Cref;
-	Typedef map[string]ast.Expr;
-	Vardef map[string]*Type;
-	Funcdef map[string]*FuncType;
-	PtrSize int64;
-	GccOptions []string;
+	AST		*ast.File;	// parsed AST
+	Preamble	string;		// C preamble (doc comment on import "C")
+	PackagePath	string;
+	Package		string;
+	Crefs		[]*Cref;
+	Typedef		map[string]ast.Expr;
+	Vardef		map[string]*Type;
+	Funcdef		map[string]*FuncType;
+	PtrSize		int64;
+	GccOptions	[]string;
 }
 
 // A Type collects information about a type in both the C and Go worlds.
 type Type struct {
-	Size int64;
-	Align int64;
-	C string;
-	Go ast.Expr;
+	Size	int64;
+	Align	int64;
+	C	string;
+	Go	ast.Expr;
 }
 
 // A FuncType collects information about a function type in both the C and Go worlds.
 type FuncType struct {
-	Params []*Type;
-	Result *Type;
-	Go *ast.FuncType;
+	Params	[]*Type;
+	Result	*Type;
+	Go	*ast.FuncType;
 }
 
 func openProg(name string) *Prog {
@@ -139,11 +139,11 @@ func walk(x interface{}, p *Prog, context string) {
 					}
 					p.Crefs = new;
 				}
-				p.Crefs = p.Crefs[0:i+1];
+				p.Crefs = p.Crefs[0 : i+1];
 				p.Crefs[i] = &Cref{
 					Name: sel.Sel.Value,
 					Expr: n,
-					Context: context
+					Context: context,
 				};
 				break;
 			}
@@ -321,4 +321,3 @@ func walk(x interface{}, p *Prog, context string) {
 		}
 	}
 }
-

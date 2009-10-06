@@ -17,7 +17,7 @@ type testpair struct {
 	decoded, encoded string;
 }
 
-var pairs = []testpair {
+var pairs = []testpair{
 	// RFC 3548 examples
 	testpair{"\x14\xfb\x9c\x03\xd9\x7e", "FPucA9l+"},
 	testpair{"\x14\xfb\x9c\x03\xd9", "FPucA9k="},
@@ -43,9 +43,9 @@ var pairs = []testpair {
 	testpair{"sure.", "c3VyZS4="},
 }
 
-var bigtest = testpair {
+var bigtest = testpair{
 	"Twas brillig, and the slithy toves",
-	"VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw=="
+	"VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw==",
 }
 
 func testEqual(t *testing.T, msg string, args ...) bool {
@@ -104,7 +104,7 @@ func TestDecode(t *testing.T) {
 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
 		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded));
 		if len(p.encoded) > 0 {
-			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded)-1] == '='));
+			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded) - 1] == '='));
 		}
 		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded);
 	}
@@ -133,7 +133,7 @@ func TestDecoderBuffering(t *testing.T) {
 		buf := make([]byte, len(bigtest.decoded) + 12);
 		var total int;
 		for total = 0; total < len(bigtest.decoded); {
-			n, err := decoder.Read(buf[total:total+bs]);
+			n, err := decoder.Read(buf[total : total+bs]);
 			testEqual(t, "Read from %q at pos %d = %d, %v, want _, %v", bigtest.encoded, total, n, err, os.Error(nil));
 			total += n;
 		}
@@ -143,10 +143,10 @@ func TestDecoderBuffering(t *testing.T) {
 
 func TestDecodeCorrupt(t *testing.T) {
 	type corrupt struct {
-		e string;
-		p int;
-	};
-	examples := []corrupt {
+		e	string;
+		p	int;
+	}
+	examples := []corrupt{
 		corrupt{"!!!!", 0},
 		corrupt{"x===", 1},
 		corrupt{"AA=A", 2},
@@ -168,7 +168,7 @@ func TestDecodeCorrupt(t *testing.T) {
 }
 
 func TestBig(t *testing.T) {
-	n := 3*1000+1;
+	n := 3*1000 + 1;
 	raw := make([]byte, n);
 	const alpha = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	for i := 0; i < n; i++ {

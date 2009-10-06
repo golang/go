@@ -17,7 +17,7 @@ import (
 )
 
 
-var start = flag.String("start", "Start", "name of start production");
+var start = flag.String("start", "Start", "name of start production")
 
 
 func usage() {
@@ -29,8 +29,8 @@ func usage() {
 
 // Markers around EBNF sections in .html files
 var (
-	open = strings.Bytes(`<pre class="ebnf">`);
-	close = strings.Bytes(`</pre>`);
+	open	= strings.Bytes(`<pre class="ebnf">`);
+	close	= strings.Bytes(`</pre>`);
 )
 
 
@@ -41,30 +41,30 @@ func extractEBNF(src []byte) []byte {
 		// i = beginning of EBNF text
 		i := bytes.Index(src, open);
 		if i < 0 {
-			break;  // no EBNF found - we are done
+			break;	// no EBNF found - we are done
 		}
 		i += len(open);
 
 		// write as many newlines as found in the excluded text
 		// to maintain correct line numbers in error messages
-		for _, ch := range src[0 : i] {
+		for _, ch := range src[0:i] {
 			if ch == '\n' {
 				buf.WriteByte('\n');
 			}
 		}
 
 		// j = end of EBNF text (or end of source)
-		j := bytes.Index(src[i : len(src)], close);  // close marker
+		j := bytes.Index(src[i:len(src)], close);	// close marker
 		if j < 0 {
 			j = len(src)-i;
 		}
 		j += i;
 
 		// copy EBNF text
-		buf.Write(src[i : j]);
+		buf.Write(src[i:j]);
 
 		// advance
-		src = src[j : len(src)];
+		src = src[j:len(src)];
 	}
 
 	return buf.Bytes();
