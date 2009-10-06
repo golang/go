@@ -9,35 +9,11 @@ package doc
 import (
 	"go/ast";
 	"io";
-	"once";
-	"regexp";
 	"strings";
 	"template";	// for htmlEscape
 )
 
 // Comment extraction
-
-var (
-	comment_markers *regexp.Regexp;
-	trailing_whitespace *regexp.Regexp;
-	comment_junk *regexp.Regexp;
-)
-
-func makeRex(s string) *regexp.Regexp {
-	re, err := regexp.Compile(s);
-	if err != nil {
-		panic("MakeRegexp ", s, " ", err.String());
-	}
-	return re;
-}
-
-// TODO(rsc): Cannot use var initialization for regexps,
-// because Regexp constructor needs threads.
-func setupRegexps() {
-	comment_markers = makeRex("^/[/*] ?");
-	trailing_whitespace = makeRex("[ \t\r]+$");
-	comment_junk = makeRex("^[ \t]*(/\\*|\\*/)[ \t]*$");
-}
 
 // CommentText returns the text of comment,
 // with the comment markers - //, /*, and */ - removed.
@@ -50,39 +26,34 @@ func CommentText(comment *ast.CommentGroup) string {
 		comments[i] = string(c.Text);
 	}
 
-	once.Do(setupRegexps);
 	lines := make([]string, 0, 20);
 	for _, c := range comments {
-		// split on newlines
+		// Remove comment markers.
+		// The parser has given us exactly the comment text.
+		switch n := len(c); {
+		case n >= 4 && c[0:2] == "/*" && c[n-2:n] == "*/":
+			c = c[2:n-2];
+		case n >= 2 && c[0:2] == "//":
+			c = c[2:n];
+			// Remove leading space after //, if there is one.
+			if len(c) > 0 && c[0] == ' ' {
+				c = c[1:len(c)];
+			}
+		}
+
+		// Split on newlines.
 		cl := strings.Split(c, "\n", 0);
 
-		// walk lines, stripping comment markers
-		w := 0;
+		// Walk lines, stripping trailing white space and adding to list.
 		for _, l := range cl {
-			// remove /* and */ lines
-			if comment_junk.MatchString(l) {
-				continue;
+			// Strip trailing white space
+			m := len(l);
+			for m > 0 && (l[m-1] == ' ' || l[m-1] == '\n' || l[m-1] == '\t' || l[m-1] == '\r') {
+				m--;
 			}
+			l = l[0 : m];
 
-			// strip trailing white space
-			m := trailing_whitespace.ExecuteString(l);
-			if len(m) > 0 {
-				l = l[0 : m[1]];
-			}
-
-			// strip leading comment markers
-			m = comment_markers.ExecuteString(l);
-			if len(m) > 0 {
-				l = l[m[1] : len(l)];
-			}
-
-			cl[w] = l;
-			w++;
-		}
-		cl = cl[0:w];
-
-		// Add this comment to total list.
-		for _, l := range cl {
+			// Add to list.
 			n := len(lines);
 			if n+1 >= cap(lines) {
 				newlines := make([]string, n, 2*cap(lines));
