@@ -30,6 +30,7 @@ OFILES_386=\
 
 # arm-specific object files
 OFILES_arm=\
+	cas.$O\
 	memset.$O\
 	vlop.$O\
 	vlrt.$O\

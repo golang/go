@@ -213,47 +213,19 @@ TEXT sys·morestackx(SB), 7, $-4
 	MOVW	$0, R1		// set frame size
 	B	sys·morestack(SB)
 
-// bool cas(int32 *val, int32 old, int32 new)
-// Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	}else
-//		return 0;
-#define	LDREX(a,r)	WORD	$(0xe<<28|0x01900f9f | (a)<<16 | (r)<<12)
-#define	STREX(a,v,r)	WORD	$(0xe<<28|0x01800f90 | (a)<<16 | (r)<<12 | (v)<<0)
-
-TEXT	cas+0(SB),0,$12		/* r0 holds p */
-	MOVW	0(FP), R0
-	MOVW	ov+4(FP), R1
-	MOVW	nv+8(FP), R2
-spin:
-/*	LDREX	0(R0),R3	*/
-	LDREX(0,3)
-	CMP.S	R3, R1
-	BNE	fail
-/*	STREX	0(R0),R2,R4	*/
-	STREX(0,2,4)
-	CMP.S	$0, R4
-	BNE	spin
-	MOVW	$1, R0
-	RET
-fail:
-	MOVW	$0, R0
-	RET
 
 // void jmpdefer(fn, sp);
 // called from deferreturn.
-// 1. pop the caller
-// 2. sub 5 bytes from the callers return
-// 3. jmp to the argument
+// 1. grab stored LR for caller
+// 2. sub 4 bytes to get back to BL deferreturn
+// 3. B to fn
 TEXT jmpdefer(SB), 7, $0
-	BL	abort(SB)
-//	MOVL	4(SP), AX	// fn
-//	MOVL	8(SP), BX	// caller sp
-//	LEAL	-4(BX), SP	// caller sp after CALL
-//	SUBL	$5, (SP)	// return to CALL again
-//	JMP	AX	// but first run the deferred function
+	MOVW	0(SP), LR
+	MOVW	$-4(LR), LR	// BL deferreturn
+	MOVW	4(SP), R0		// fn
+	MOVW	8(SP), R1
+	MOVW	$-4(R1), SP	// correct for sp pointing to arg0, past stored lr
+	B		(R0)
 
 TEXT	sys·memclr(SB),7,$20
 	MOVW	0(FP), R0
@@ -279,6 +251,22 @@ TEXT	sys·setcallerpc+0(SB),7,$0
 //	MOVL	x+0(FP),AX		// addr of first arg
 //	MOVL	x+4(FP), BX
 //	MOVL	BX, -4(AX)		// set calling pc
+//	RET
+
+// runcgo(void(*fn)(void*), void *arg)
+// Just call fn(arg), but first align the stack
+// appropriately for the gcc ABI.
+// TODO(kaib): figure out the arm-gcc ABI
+TEXT	runcgo(SB),7,$16
+	BL	abort(SB)
+//	MOVL	fn+0(FP), AX
+//	MOVL	arg+4(FP), BX
+//	MOVL	SP, CX
+//	ANDL	$~15, SP	// alignment for gcc ABI
+//	MOVL	CX, 4(SP)
+//	MOVL	BX, 0(SP)
+//	CALL	AX
+//	MOVL	4(SP), SP
 //	RET
 
 TEXT emptyfunc(SB),0,$0
