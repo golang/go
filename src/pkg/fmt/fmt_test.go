@@ -5,15 +5,15 @@
 package fmt_test
 
 import (
-	. "fmt";
-	"io";
-	"math";
-	"strings";
-	"testing";
+	.	"fmt";
+		"io";
+		"math";
+		"strings";
+		"testing";
 )
 
 func TestFmtInterface(t *testing.T) {
-	var i1 interface{};
+	var i1 interface{}
 	i1 = "abc";
 	s := Sprintf("%s", i1);
 	if s != "abc" {
@@ -22,174 +22,175 @@ func TestFmtInterface(t *testing.T) {
 }
 
 type fmtTest struct {
-	fmt string;
-	val interface { };
-	out string;
+	fmt	string;
+	val	interface{};
+	out	string;
 }
 
 const b32 uint32 = 1<<32 - 1
 const b64 uint64 = 1<<64 - 1
+
 var array = []int{1, 2, 3, 4, 5}
 var iarray = []interface{}{1, "hello", 2.5, nil}
 
 type A struct {
-	i int;
-	j uint;
-	s string;
-	x []int;
+	i	int;
+	j	uint;
+	s	string;
+	x	[]int;
 }
 
-var b byte;
+var b byte
 
 var fmttests = []fmtTest{
 	// basic string
-	fmtTest{ "%s",	"abc",	"abc" },
-	fmtTest{ "%x",	"abc",	"616263" },
-	fmtTest{ "%x",	"xyz",	"78797a" },
-	fmtTest{ "%X",	"xyz",	"78797A" },
-	fmtTest{ "%q",	"abc",	`"abc"` },
+	fmtTest{"%s", "abc", "abc"},
+	fmtTest{"%x", "abc", "616263"},
+	fmtTest{"%x", "xyz", "78797a"},
+	fmtTest{"%X", "xyz", "78797A"},
+	fmtTest{"%q", "abc", `"abc"`},
 
 	// basic bytes
-	fmtTest{ "%s",	strings.Bytes("abc"),	"abc" },
-	fmtTest{ "%x",	strings.Bytes("abc"),	"616263" },
-	fmtTest{ "% x",	strings.Bytes("abc"),	"61 62 63" },
-	fmtTest{ "%x",	strings.Bytes("xyz"),	"78797a" },
-	fmtTest{ "%X",	strings.Bytes("xyz"),	"78797A" },
-	fmtTest{ "%q",	strings.Bytes("abc"),	`"abc"` },
+	fmtTest{"%s", strings.Bytes("abc"), "abc"},
+	fmtTest{"%x", strings.Bytes("abc"), "616263"},
+	fmtTest{"% x", strings.Bytes("abc"), "61 62 63"},
+	fmtTest{"%x", strings.Bytes("xyz"), "78797a"},
+	fmtTest{"%X", strings.Bytes("xyz"), "78797A"},
+	fmtTest{"%q", strings.Bytes("abc"), `"abc"`},
 
 	// escaped strings
-	fmtTest{ "%#q",	`abc`,		"`abc`" },
-	fmtTest{ "%#q",	`"`,		"`\"`" },
-	fmtTest{ "1 %#q", `\n`,		"1 `\\n`" },
-	fmtTest{ "2 %#q", "\n",		`2 "\n"` },
-	fmtTest{ "%q",	`"`,		`"\""` },
-	fmtTest{ "%q",	"\a\b\f\r\n\t\v",	`"\a\b\f\r\n\t\v"` },
-	fmtTest{ "%q",	"abc\xffdef",		`"abc\xffdef"` },
-	fmtTest{ "%q",	"\u263a",	`"\u263a"` },
-	fmtTest{ "%q",	"\U0010ffff",	`"\U0010ffff"` },
+	fmtTest{"%#q", `abc`, "`abc`"},
+	fmtTest{"%#q", `"`, "`\"`"},
+	fmtTest{"1 %#q", `\n`, "1 `\\n`"},
+	fmtTest{"2 %#q", "\n", `2 "\n"`},
+	fmtTest{"%q", `"`, `"\""`},
+	fmtTest{"%q", "\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"`},
+	fmtTest{"%q", "abc\xffdef", `"abc\xffdef"`},
+	fmtTest{"%q", "\u263a", `"\u263a"`},
+	fmtTest{"%q", "\U0010ffff", `"\U0010ffff"`},
 
 	// width
-	fmtTest{ "%5s",		"abc",	"  abc" },
-	fmtTest{ "%-5s",	"abc",	"abc  " },
-	fmtTest{ "%05s",	"abc",	"00abc" },
+	fmtTest{"%5s", "abc", "  abc"},
+	fmtTest{"%-5s", "abc", "abc  "},
+	fmtTest{"%05s", "abc", "00abc"},
 
 	// integers
-	fmtTest{ "%d",		12345,	"12345" },
-	fmtTest{ "%d",		-12345,	"-12345" },
-	fmtTest{ "%10d",	12345,	"     12345" },
-	fmtTest{ "%10d",	-12345,	"    -12345" },
-	fmtTest{ "%+10d",	12345,	"    +12345" },
-	fmtTest{ "%010d",	12345,	"0000012345" },
-	fmtTest{ "%010d",	-12345,	"-000012345" },
-	fmtTest{ "%-10d",	12345,	"12345     " },
-	fmtTest{ "%010.3d",	1,	"       001" },
-	fmtTest{ "%010.3d",	-1,	"      -001" },
-	fmtTest{ "%+d",		12345,	"+12345" },
-	fmtTest{ "%+d",		-12345,	"-12345" },
-	fmtTest{ "% d",		12345,	" 12345" },
+	fmtTest{"%d", 12345, "12345"},
+	fmtTest{"%d", -12345, "-12345"},
+	fmtTest{"%10d", 12345, "     12345"},
+	fmtTest{"%10d", -12345, "    -12345"},
+	fmtTest{"%+10d", 12345, "    +12345"},
+	fmtTest{"%010d", 12345, "0000012345"},
+	fmtTest{"%010d", -12345, "-000012345"},
+	fmtTest{"%-10d", 12345, "12345     "},
+	fmtTest{"%010.3d", 1, "       001"},
+	fmtTest{"%010.3d", -1, "      -001"},
+	fmtTest{"%+d", 12345, "+12345"},
+	fmtTest{"%+d", -12345, "-12345"},
+	fmtTest{"% d", 12345, " 12345"},
 
 	// erroneous formats
-	fmtTest{ "",		2,			"?(extra int=2)" },
-	fmtTest{ "%d",		"hello",		"%d(string=hello)" },
+	fmtTest{"", 2, "?(extra int=2)"},
+	fmtTest{"%d", "hello", "%d(string=hello)"},
 
 	// old test/fmt_test.go
-	fmtTest{ "%d",		1234,			"1234" },
-	fmtTest{ "%d",		-1234,			"-1234" },
-	fmtTest{ "%d",		uint(1234),		"1234" },
-	fmtTest{ "%d",		uint32(b32),		"4294967295" },
-	fmtTest{ "%d",		uint64(b64),		"18446744073709551615" },
-	fmtTest{ "%o",		01234,			"1234" },
-	fmtTest{ "%#o",		01234,			"01234" },
-	fmtTest{ "%o",		uint32(b32),		"37777777777" },
-	fmtTest{ "%o",		uint64(b64),		"1777777777777777777777" },
-	fmtTest{ "%x",		0x1234abcd,		"1234abcd" },
-	fmtTest{ "%#x",		0x1234abcd,		"0x1234abcd" },
-	fmtTest{ "%x",		b32-0x1234567,		"fedcba98" },
-	fmtTest{ "%X",		0x1234abcd,		"1234ABCD" },
-	fmtTest{ "%X",		b32-0x1234567,		"FEDCBA98" },
-	fmtTest{ "%#X",		0,		"0X0" },
-	fmtTest{ "%x",		b64,			"ffffffffffffffff" },
-	fmtTest{ "%b",		7,			"111" },
-	fmtTest{ "%b",		b64,			"1111111111111111111111111111111111111111111111111111111111111111" },
-	fmtTest{ "%e",		float64(1),		"1.000000e+00" },
-	fmtTest{ "%e",		float64(1234.5678e3),	"1.234568e+06" },
-	fmtTest{ "%e",		float64(1234.5678e-8),	"1.234568e-05" },
-	fmtTest{ "%e",		float64(-7),		"-7.000000e+00" },
-	fmtTest{ "%e",		float64(-1e-9),		"-1.000000e-09" },
-	fmtTest{ "%f",		float64(1234.5678e3),	"1234567.800000" },
-	fmtTest{ "%f",		float64(1234.5678e-8),	"0.000012" },
-	fmtTest{ "%f",		float64(-7),		"-7.000000" },
-	fmtTest{ "%f",		float64(-1e-9),		"-0.000000" },
-	fmtTest{ "%g",		float64(1234.5678e3),	"1.2345678e+06" },
-	fmtTest{ "%g",		float32(1234.5678e3),	"1.2345678e+06" },
-	fmtTest{ "%g",		float64(1234.5678e-8),	"1.2345678e-05" },
-	fmtTest{ "%g",		float64(-7),		"-7" },
-	fmtTest{ "%g",		float64(-1e-9),		"-1e-09",	 },
-	fmtTest{ "%g",		float32(-1e-9),		"-1e-09" },
-	fmtTest{ "%E",		float64(1),		"1.000000E+00" },
-	fmtTest{ "%E",		float64(1234.5678e3),	"1.234568E+06" },
-	fmtTest{ "%E",		float64(1234.5678e-8),	"1.234568E-05" },
-	fmtTest{ "%E",		float64(-7),		"-7.000000E+00" },
-	fmtTest{ "%E",		float64(-1e-9),		"-1.000000E-09" },
-	fmtTest{ "%G",		float64(1234.5678e3),	"1.2345678E+06" },
-	fmtTest{ "%G",		float32(1234.5678e3),	"1.2345678E+06" },
-	fmtTest{ "%G",		float64(1234.5678e-8),	"1.2345678E-05" },
-	fmtTest{ "%G",		float64(-7),		"-7" },
-	fmtTest{ "%G",		float64(-1e-9),		"-1E-09",	 },
-	fmtTest{ "%G",		float32(-1e-9),		"-1E-09" },
-	fmtTest{ "%c",		'x',			"x" },
-	fmtTest{ "%c",		0xe4,			"ä" },
-	fmtTest{ "%c",		0x672c,			"本" },
-	fmtTest{ "%c",		'日',			"日" },
-	fmtTest{ "%20.8d",	1234,			"            00001234" },
-	fmtTest{ "%20.8d",	-1234,			"           -00001234" },
-	fmtTest{ "%20d",	1234,			"                1234" },
-	fmtTest{ "%-20.8d",	1234,			"00001234            " },
-	fmtTest{ "%-20.8d",	-1234,			"-00001234           " },
-	fmtTest{ "%-#20.8x",		0x1234abc,		"0x01234abc          " },
-	fmtTest{ "%-#20.8X",		0x1234abc,		"0X01234ABC          " },
-	fmtTest{ "%-#20.8o",		01234,		"00001234            " },
-	fmtTest{ "%.20b",	7,			"00000000000000000111" },
-	fmtTest{ "%20.5s",	"qwertyuiop",		"               qwert" },
-	fmtTest{ "%.5s",	"qwertyuiop",		"qwert" },
-	fmtTest{ "%-20.5s",	"qwertyuiop",		"qwert               " },
-	fmtTest{ "%20c",	'x',			"                   x" },
-	fmtTest{ "%-20c",	'x',			"x                   " },
-	fmtTest{ "%20.6e",	1.2345e3,		"        1.234500e+03" },
-	fmtTest{ "%20.6e",	1.2345e-3,		"        1.234500e-03" },
-	fmtTest{ "%20e",	1.2345e3,		"        1.234500e+03" },
-	fmtTest{ "%20e",	1.2345e-3,		"        1.234500e-03" },
-	fmtTest{ "%20.8e",	1.2345e3,		"      1.23450000e+03" },
-	fmtTest{ "%20f",	float64(1.23456789e3),	"         1234.567890" },
-	fmtTest{ "%20f",	float64(1.23456789e-3),	"            0.001235" },
-	fmtTest{ "%20f",	float64(12345678901.23456789),	"  12345678901.234568" },
-	fmtTest{ "%-20f",	float64(1.23456789e3),	"1234.567890         " },
-	fmtTest{ "%20.8f",	float64(1.23456789e3),	"       1234.56789000" },
-	fmtTest{ "%20.8f",	float64(1.23456789e-3),	"          0.00123457" },
-	fmtTest{ "%g",		float64(1.23456789e3),	"1234.56789" },
-	fmtTest{ "%g",		float64(1.23456789e-3),	"0.00123456789" },
-	fmtTest{ "%g",		float64(1.23456789e20),	"1.23456789e+20" },
-	fmtTest{ "%20e",	math.Inf(1),		"                +Inf" },
-	fmtTest{ "%-20f",	math.Inf(-1),		"-Inf                " },
-	fmtTest{ "%20g",	math.NaN(),		"                 NaN" },
+	fmtTest{"%d", 1234, "1234"},
+	fmtTest{"%d", -1234, "-1234"},
+	fmtTest{"%d", uint(1234), "1234"},
+	fmtTest{"%d", uint32(b32), "4294967295"},
+	fmtTest{"%d", uint64(b64), "18446744073709551615"},
+	fmtTest{"%o", 01234, "1234"},
+	fmtTest{"%#o", 01234, "01234"},
+	fmtTest{"%o", uint32(b32), "37777777777"},
+	fmtTest{"%o", uint64(b64), "1777777777777777777777"},
+	fmtTest{"%x", 0x1234abcd, "1234abcd"},
+	fmtTest{"%#x", 0x1234abcd, "0x1234abcd"},
+	fmtTest{"%x", b32 - 0x1234567, "fedcba98"},
+	fmtTest{"%X", 0x1234abcd, "1234ABCD"},
+	fmtTest{"%X", b32 - 0x1234567, "FEDCBA98"},
+	fmtTest{"%#X", 0, "0X0"},
+	fmtTest{"%x", b64, "ffffffffffffffff"},
+	fmtTest{"%b", 7, "111"},
+	fmtTest{"%b", b64, "1111111111111111111111111111111111111111111111111111111111111111"},
+	fmtTest{"%e", float64(1), "1.000000e+00"},
+	fmtTest{"%e", float64(1234.5678e3), "1.234568e+06"},
+	fmtTest{"%e", float64(1234.5678e-8), "1.234568e-05"},
+	fmtTest{"%e", float64(-7), "-7.000000e+00"},
+	fmtTest{"%e", float64(-1e-9), "-1.000000e-09"},
+	fmtTest{"%f", float64(1234.5678e3), "1234567.800000"},
+	fmtTest{"%f", float64(1234.5678e-8), "0.000012"},
+	fmtTest{"%f", float64(-7), "-7.000000"},
+	fmtTest{"%f", float64(-1e-9), "-0.000000"},
+	fmtTest{"%g", float64(1234.5678e3), "1.2345678e+06"},
+	fmtTest{"%g", float32(1234.5678e3), "1.2345678e+06"},
+	fmtTest{"%g", float64(1234.5678e-8), "1.2345678e-05"},
+	fmtTest{"%g", float64(-7), "-7"},
+	fmtTest{"%g", float64(-1e-9), "-1e-09"},
+	fmtTest{"%g", float32(-1e-9), "-1e-09"},
+	fmtTest{"%E", float64(1), "1.000000E+00"},
+	fmtTest{"%E", float64(1234.5678e3), "1.234568E+06"},
+	fmtTest{"%E", float64(1234.5678e-8), "1.234568E-05"},
+	fmtTest{"%E", float64(-7), "-7.000000E+00"},
+	fmtTest{"%E", float64(-1e-9), "-1.000000E-09"},
+	fmtTest{"%G", float64(1234.5678e3), "1.2345678E+06"},
+	fmtTest{"%G", float32(1234.5678e3), "1.2345678E+06"},
+	fmtTest{"%G", float64(1234.5678e-8), "1.2345678E-05"},
+	fmtTest{"%G", float64(-7), "-7"},
+	fmtTest{"%G", float64(-1e-9), "-1E-09"},
+	fmtTest{"%G", float32(-1e-9), "-1E-09"},
+	fmtTest{"%c", 'x', "x"},
+	fmtTest{"%c", 0xe4, "ä"},
+	fmtTest{"%c", 0x672c, "本"},
+	fmtTest{"%c", '日', "日"},
+	fmtTest{"%20.8d", 1234, "            00001234"},
+	fmtTest{"%20.8d", -1234, "           -00001234"},
+	fmtTest{"%20d", 1234, "                1234"},
+	fmtTest{"%-20.8d", 1234, "00001234            "},
+	fmtTest{"%-20.8d", -1234, "-00001234           "},
+	fmtTest{"%-#20.8x", 0x1234abc, "0x01234abc          "},
+	fmtTest{"%-#20.8X", 0x1234abc, "0X01234ABC          "},
+	fmtTest{"%-#20.8o", 01234, "00001234            "},
+	fmtTest{"%.20b", 7, "00000000000000000111"},
+	fmtTest{"%20.5s", "qwertyuiop", "               qwert"},
+	fmtTest{"%.5s", "qwertyuiop", "qwert"},
+	fmtTest{"%-20.5s", "qwertyuiop", "qwert               "},
+	fmtTest{"%20c", 'x', "                   x"},
+	fmtTest{"%-20c", 'x', "x                   "},
+	fmtTest{"%20.6e", 1.2345e3, "        1.234500e+03"},
+	fmtTest{"%20.6e", 1.2345e-3, "        1.234500e-03"},
+	fmtTest{"%20e", 1.2345e3, "        1.234500e+03"},
+	fmtTest{"%20e", 1.2345e-3, "        1.234500e-03"},
+	fmtTest{"%20.8e", 1.2345e3, "      1.23450000e+03"},
+	fmtTest{"%20f", float64(1.23456789e3), "         1234.567890"},
+	fmtTest{"%20f", float64(1.23456789e-3), "            0.001235"},
+	fmtTest{"%20f", float64(12345678901.23456789), "  12345678901.234568"},
+	fmtTest{"%-20f", float64(1.23456789e3), "1234.567890         "},
+	fmtTest{"%20.8f", float64(1.23456789e3), "       1234.56789000"},
+	fmtTest{"%20.8f", float64(1.23456789e-3), "          0.00123457"},
+	fmtTest{"%g", float64(1.23456789e3), "1234.56789"},
+	fmtTest{"%g", float64(1.23456789e-3), "0.00123456789"},
+	fmtTest{"%g", float64(1.23456789e20), "1.23456789e+20"},
+	fmtTest{"%20e", math.Inf(1), "                +Inf"},
+	fmtTest{"%-20f", math.Inf(-1), "-Inf                "},
+	fmtTest{"%20g", math.NaN(), "                 NaN"},
 
 	// arrays
-	fmtTest{ "%v",		array,			"[1 2 3 4 5]" },
-	fmtTest{ "%v",		iarray,			"[1 hello 2.5 <nil>]" },
-	fmtTest{ "%v",		&array,			"&[1 2 3 4 5]" },
-	fmtTest{ "%v",		&iarray,			"&[1 hello 2.5 <nil>]" },
+	fmtTest{"%v", array, "[1 2 3 4 5]"},
+	fmtTest{"%v", iarray, "[1 hello 2.5 <nil>]"},
+	fmtTest{"%v", &array, "&[1 2 3 4 5]"},
+	fmtTest{"%v", &iarray, "&[1 hello 2.5 <nil>]"},
 
 	// structs
-	fmtTest{ "%v",		A{1,2,"a",[]int{1,2}},	`{1 2 a [1 2]}` },
-	fmtTest{ "%+v",		A{1,2,"a",[]int{1,2}},	`{i:1 j:2 s:a x:[1 2]}` },
+	fmtTest{"%v", A{1, 2, "a", []int{1, 2}}, `{1 2 a [1 2]}`},
+	fmtTest{"%+v", A{1, 2, "a", []int{1, 2}}, `{i:1 j:2 s:a x:[1 2]}`},
 
 	// go syntax
-	fmtTest{ "%#v",		A{1,2,"a",[]int{1,2}},	`fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}` },
-	fmtTest{ "%#v",		&b,			"(*uint8)(PTR)" },
-	fmtTest{ "%#v",		TestFmtInterface,	"(func(*testing.T))(PTR)" },
-	fmtTest{ "%#v",		make(chan int),		"(chan int)(PTR)" },
-	fmtTest{ "%#v",		uint64(1<<64-1),	"0xffffffffffffffff" },
-	fmtTest{ "%#v",		1000000000,		"1000000000" },
+	fmtTest{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
+	fmtTest{"%#v", &b, "(*uint8)(PTR)"},
+	fmtTest{"%#v", TestFmtInterface, "(func(*testing.T))(PTR)"},
+	fmtTest{"%#v", make(chan int), "(chan int)(PTR)"},
+	fmtTest{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
+	fmtTest{"%#v", 1000000000, "1000000000"},
 }
 
 func TestSprintf(t *testing.T) {
@@ -203,7 +204,7 @@ func TestSprintf(t *testing.T) {
 					break;
 				}
 			}
-			s = s[0:i] + "PTR" + s[j:len(s)];
+			s = s[0:i]+"PTR"+s[j:len(s)];
 		}
 		if s != tt.out {
 			if _, ok := tt.val.(string); ok {
@@ -217,7 +218,8 @@ func TestSprintf(t *testing.T) {
 	}
 }
 
-type flagPrinter struct { }
+type flagPrinter struct{}
+
 func (*flagPrinter) Format(f State, c int) {
 	s := "%";
 	for i := 0; i < 128; i++ {
@@ -236,23 +238,23 @@ func (*flagPrinter) Format(f State, c int) {
 }
 
 type flagTest struct {
-	in string;
-	out string;
+	in	string;
+	out	string;
 }
 
-var flagtests = []flagTest {
-	flagTest{ "%a", "[%a]" },
-	flagTest{ "%-a", "[%-a]" },
-	flagTest{ "%+a", "[%+a]" },
-	flagTest{ "%#a", "[%#a]" },
-	flagTest{ "% a", "[% a]" },
-	flagTest{ "%0a", "[%0a]" },
-	flagTest{ "%1.2a", "[%1.2a]" },
-	flagTest{ "%-1.2a", "[%-1.2a]" },
-	flagTest{ "%+1.2a", "[%+1.2a]" },
-	flagTest{ "%-+1.2a", "[%+-1.2a]" },
-	flagTest{ "%-+1.2abc", "[%+-1.2a]bc" },
-	flagTest{ "%-1.2abc", "[%-1.2a]bc" },
+var flagtests = []flagTest{
+	flagTest{"%a", "[%a]"},
+	flagTest{"%-a", "[%-a]"},
+	flagTest{"%+a", "[%+a]"},
+	flagTest{"%#a", "[%#a]"},
+	flagTest{"% a", "[% a]"},
+	flagTest{"%0a", "[%0a]"},
+	flagTest{"%1.2a", "[%1.2a]"},
+	flagTest{"%-1.2a", "[%-1.2a]"},
+	flagTest{"%+1.2a", "[%+1.2a]"},
+	flagTest{"%-+1.2a", "[%+-1.2a]"},
+	flagTest{"%-+1.2abc", "[%+-1.2a]bc"},
+	flagTest{"%-1.2abc", "[%-1.2a]bc"},
 }
 
 func TestFlagParser(t *testing.T) {
@@ -267,20 +269,20 @@ func TestFlagParser(t *testing.T) {
 
 func TestStructPrinter(t *testing.T) {
 	var s struct {
-		a string;
-		b string;
-		c int;
-	};
+		a	string;
+		b	string;
+		c	int;
+	}
 	s.a = "abc";
 	s.b = "def";
 	s.c = 123;
 	type Test struct {
-		fmt string;
-		out string;
+		fmt	string;
+		out	string;
 	}
-	var tests = []Test {
-		Test{ "%v", "{abc def 123}" },
-		Test{ "%+v", "{a:abc b:def c:123}" },
+	var tests = []Test{
+		Test{"%v", "{abc def 123}"},
+		Test{"%+v", "{a:abc b:def c:123}"},
 	};
 	for _, tt := range tests {
 		out := Sprintf(tt.fmt, s);
@@ -306,12 +308,12 @@ func presentInMap(s string, a []string, t *testing.T) {
 }
 
 func TestMapPrinter(t *testing.T) {
-	m0 := make(map[int] string);
+	m0 := make(map[int]string);
 	s := Sprint(m0);
 	if s != "map[]" {
 		t.Errorf("empty map printed as %q not %q", s, "map[]");
 	}
-	m1 := map[int]string{1:"one", 2:"two", 3:"three"};
+	m1 := map[int]string{1: "one", 2: "two", 3: "three"};
 	a := []string{"1:one", "2:two", "3:three"};
 	presentInMap(Sprintf("%v", m1), a, t);
 	presentInMap(Sprint(m1), a, t);

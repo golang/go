@@ -23,12 +23,12 @@ type Var interface {
 
 // Int is a 64-bit integer variable, and satisfies the Var interface.
 type Int struct {
-	i int64;
-	mu sync.Mutex;
+	i	int64;
+	mu	sync.Mutex;
 }
 
 func (v *Int) String() string {
-	return strconv.Itoa64(v.i)
+	return strconv.Itoa64(v.i);
 }
 
 func (v *Int) Add(delta int64) {
@@ -39,14 +39,14 @@ func (v *Int) Add(delta int64) {
 
 // Map is a string-to-Var map variable, and satisfies the Var interface.
 type Map struct {
-	m map[string] Var;
-	mu sync.Mutex;
+	m	map[string]Var;
+	mu	sync.Mutex;
 }
 
 // KeyValue represents a single entry in a Map.
 type KeyValue struct {
-	Key string;
-	Value Var;
+	Key	string;
+	Value	Var;
 }
 
 func (v *Map) String() string {
@@ -63,21 +63,21 @@ func (v *Map) String() string {
 		first = false;
 	}
 	fmt.Fprintf(b, "}");
-	return b.String()
+	return b.String();
 }
 
 func (v *Map) Init() *Map {
-	v.m = make(map[string] Var);
-	return v
+	v.m = make(map[string]Var);
+	return v;
 }
 
 func (v *Map) Get(key string) Var {
 	v.mu.Lock();
 	defer v.mu.Unlock();
 	if av, ok := v.m[key]; ok {
-		return av
+		return av;
 	}
-	return nil
+	return nil;
 }
 
 func (v *Map) Set(key string, av Var) {
@@ -104,7 +104,7 @@ func (v *Map) Add(key string, delta int64) {
 // TODO(rsc): Make sure map access in separate thread is safe.
 func (v *Map) iterate(c chan<- KeyValue) {
 	for k, v := range v.m {
-		c <- KeyValue{ k, v };
+		c <- KeyValue{k, v};
 	}
 	close(c);
 }
@@ -112,7 +112,7 @@ func (v *Map) iterate(c chan<- KeyValue) {
 func (v *Map) Iter() <-chan KeyValue {
 	c := make(chan KeyValue);
 	go v.iterate(c);
-	return c
+	return c;
 }
 
 // String is a string variable, and satisfies the Var interface.
@@ -121,7 +121,7 @@ type String struct {
 }
 
 func (v *String) String() string {
-	return strconv.Quote(v.s)
+	return strconv.Quote(v.s);
 }
 
 func (v *String) Set(value string) {
@@ -130,16 +130,16 @@ func (v *String) Set(value string) {
 
 // IntFunc wraps a func() int64 to create a value that satisfies the Var interface.
 // The function will be called each time the Var is evaluated.
-type IntFunc func() int64;
+type IntFunc func() int64
 
 func (v IntFunc) String() string {
-	return strconv.Itoa64(v())
+	return strconv.Itoa64(v());
 }
 
 
 // All published variables.
-var vars map[string] Var = make(map[string] Var);
-var mutex sync.Mutex;
+var vars map[string]Var = make(map[string]Var)
+var mutex sync.Mutex
 
 // Publish declares an named exported variable. This should be called from a
 // package's init function when it creates its Vars. If the name is already
@@ -156,9 +156,9 @@ func Publish(name string, v Var) {
 // Get retrieves a named exported variable.
 func Get(name string) Var {
 	if v, ok := vars[name]; ok {
-		return v
+		return v;
 	}
-	return nil
+	return nil;
 }
 
 // RemoveAll removes all exported variables.
@@ -166,7 +166,7 @@ func Get(name string) Var {
 func RemoveAll() {
 	mutex.Lock();
 	defer mutex.Unlock();
-	vars = make(map[string] Var);
+	vars = make(map[string]Var);
 }
 
 // Convenience functions for creating new exported variables.
@@ -174,25 +174,25 @@ func RemoveAll() {
 func NewInt(name string) *Int {
 	v := new(Int);
 	Publish(name, v);
-	return v
+	return v;
 }
 
 func NewMap(name string) *Map {
 	v := new(Map).Init();
 	Publish(name, v);
-	return v
+	return v;
 }
 
 func NewString(name string) *String {
 	v := new(String);
 	Publish(name, v);
-	return v
+	return v;
 }
 
 // TODO(rsc): Make sure map access in separate thread is safe.
 func iterate(c chan<- KeyValue) {
 	for k, v := range vars {
-		c <- KeyValue{ k, v };
+		c <- KeyValue{k, v};
 	}
 	close(c);
 }
@@ -200,7 +200,7 @@ func iterate(c chan<- KeyValue) {
 func Iter() <-chan KeyValue {
 	c := make(chan KeyValue);
 	go iterate(c);
-	return c
+	return c;
 }
 
 func expvarHandler(c *http.Conn, req *http.Request) {
