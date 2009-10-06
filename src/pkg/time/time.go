@@ -47,7 +47,7 @@ type Time struct {
 	Month, Day int;	// Sep-17 is 9, 17
 	Hour, Minute, Second int;	// 10:43:12 is 10, 43, 12
 	Weekday int;		// Sunday, Monday, ...
-	ZoneOffset int;	// seconds west of UTC
+	ZoneOffset int;	// seconds east of UTC
 	Zone string;
 }
 
