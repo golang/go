@@ -17,7 +17,7 @@ import (
 
 const (
 	dataDir = "testdata";
-	tabwidth = 4;
+	tabwidth = 8;
 )
 
 

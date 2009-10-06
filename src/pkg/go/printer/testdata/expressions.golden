@@ -9,11 +9,11 @@ type T struct {
 }
 
 var (
-	a, b, c, d, e										int;
+	a, b, c, d, e						int;
 	longIdentifier1, longIdentifier2, longIdentifier3	int;
-	t0, t1, t2											T;
-	s													string;
-	p													*int;
+	t0, t1, t2						T;
+	s							string;
+	p							*int;
 )
 
 
