@@ -458,86 +458,84 @@ cgen64(Node *n, Node *res)
 void
 cmp64(Node *nl, Node *nr, int op, Prog *to)
 {
-	fatal("cmp64 not implemented");
-//	Node lo1, hi1, lo2, hi2, rr;
-//	Prog *br;
-//	Type *t;
+	Node lo1, hi1, lo2, hi2, r1, r2;
+	Prog *br;
+	Type *t;
 
-//	split64(nl, &lo1, &hi1);
-//	split64(nr, &lo2, &hi2);
+	split64(nl, &lo1, &hi1);
+	split64(nr, &lo2, &hi2);
 
-//	// compare most significant word;
-//	// if they differ, we're done.
-//	t = hi1.type;
-//	if(nl->op == OLITERAL || nr->op == OLITERAL)
-//		gins(ACMPL, &hi1, &hi2);
-//	else {
-//		regalloc(&rr, types[TINT32], N);
-//		gins(AMOVL, &hi1, &rr);
-//		gins(ACMPL, &rr, &hi2);
-//		regfree(&rr);
-//	}
-//	br = P;
-//	switch(op) {
-//	default:
-//		fatal("cmp64 %O %T", op, t);
-//	case OEQ:
-//		// cmp hi
-//		// jne L
-//		// cmp lo
-//		// jeq to
-//		// L:
-//		br = gbranch(AJNE, T);
-//		break;
-//	case ONE:
-//		// cmp hi
-//		// jne to
-//		// cmp lo
-//		// jne to
-//		patch(gbranch(AJNE, T), to);
-//		break;
-//	case OGE:
-//	case OGT:
-//		// cmp hi
-//		// jgt to
-//		// jlt L
-//		// cmp lo
-//		// jge to (or jgt to)
-//		// L:
-//		patch(gbranch(optoas(OGT, t), T), to);
-//		br = gbranch(optoas(OLT, t), T);
-//		break;
-//	case OLE:
-//	case OLT:
-//		// cmp hi
-//		// jlt to
-//		// jgt L
-//		// cmp lo
-//		// jle to (or jlt to)
-//		// L:
-//		patch(gbranch(optoas(OLT, t), T), to);
-//		br = gbranch(optoas(OGT, t), T);
-//		break;
-//	}
+	// compare most significant word;
+	// if they differ, we're done.
+	t = hi1.type;
+	regalloc(&r1, types[TINT32], N);
+	regalloc(&r2, types[TINT32], N);
+	gins(AMOVW, &hi1, &r1);
+	gins(AMOVW, &hi2, &r2);
+	gcmp(ACMP, &r1, &r2);
+	regfree(&r1);
+	regfree(&r2);
 
-//	// compare least significant word
-//	t = lo1.type;
-//	if(nl->op == OLITERAL || nr->op == OLITERAL)
-//		gins(ACMPL, &lo1, &lo2);
-//	else {
-//		regalloc(&rr, types[TINT32], N);
-//		gins(AMOVL, &lo1, &rr);
-//		gins(ACMPL, &rr, &lo2);
-//		regfree(&rr);
-//	}
+	br = P;
+	switch(op) {
+	default:
+		fatal("cmp64 %O %T", op, t);
+	case OEQ:
+		// cmp hi
+		// bne L
+		// cmp lo
+		// beq to
+		// L:
+		br = gbranch(ABNE, T);
+		break;
+	case ONE:
+		// cmp hi
+		// bne to
+		// cmp lo
+		// bne to
+		patch(gbranch(ABNE, T), to);
+		break;
+	case OGE:
+	case OGT:
+		// cmp hi
+		// bgt to
+		// blt L
+		// cmp lo
+		// bge to (or bgt to)
+		// L:
+		patch(gbranch(optoas(OGT, t), T), to);
+		br = gbranch(optoas(OLT, t), T);
+		break;
+	case OLE:
+	case OLT:
+		// cmp hi
+		// blt to
+		// bgt L
+		// cmp lo
+		// ble to (or jlt to)
+		// L:
+		patch(gbranch(optoas(OLT, t), T), to);
+		br = gbranch(optoas(OGT, t), T);
+		break;
+	}
 
-//	// jump again
-//	patch(gbranch(optoas(op, t), T), to);
+	// compare least significant word
+	t = lo1.type;
+	regalloc(&r1, types[TINT32], N);
+	regalloc(&r2, types[TINT32], N);
+	gins(AMOVW, &lo1, &r1);
+	gins(AMOVW, &lo2, &r2);
+	gcmp(ACMP, &r1, &r2);
+	regfree(&r1);
+	regfree(&r2);
 
-//	// point first branch down here if appropriate
-//	if(br != P)
-//		patch(br, pc);
+	// jump again
+	patch(gbranch(optoas(op, t), T), to);
 
-//	splitclean();
-//	splitclean();
+	// point first branch down here if appropriate
+	if(br != P)
+		patch(br, pc);
+
+	splitclean();
+	splitclean();
 }

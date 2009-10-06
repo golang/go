@@ -880,6 +880,25 @@ bgen(Node *n, int true, Prog *to)
 			break;
 		}
 
+		if(is64(nr->type)) {
+			if(!nl->addable) {
+				tempalloc(&n1, nl->type);
+				cgen(nl, &n1);
+				nl = &n1;
+			}
+			if(!nr->addable) {
+				tempalloc(&n2, nr->type);
+				cgen(nr, &n2);
+				nr = &n2;
+			}
+			cmp64(nl, nr, a, to);
+			if(nr == &n2)
+				tempfree(&n2);
+			if(nl == &n1)
+				tempfree(&n1);
+			break;
+		}
+
 		a = optoas(a, nr->type);
 
 		if(nr->ullman >= UINF) {
@@ -988,17 +1007,20 @@ sgen(Node *n, Node *res, int32 w)
 	if(osrc % 4 != 0 || odst %4 != 0)
 		fatal("sgen: non word(4) aligned offset src %d or dst %d", osrc, odst);
 
-	regalloc(&dst, types[tptr], N);
-	regalloc(&src, types[tptr], N);
-	regalloc(&tmp, types[TUINT32], N);
+	regalloc(&dst, types[tptr], res);
 
 	if(n->ullman >= res->ullman) {
-		agen(n, &src);
+		agen(n, &dst);
+		regalloc(&src, types[tptr], N);
+		gins(AMOVW, &dst, &src);
 		agen(res, &dst);
 	} else {
 		agen(res, &dst);
+		regalloc(&src, types[tptr], N);
 		agen(n, &src);
 	}
+
+	regalloc(&tmp, types[TUINT32], N);
 
 	c = w % 4;	// bytes
 	q = w / 4;	// quads

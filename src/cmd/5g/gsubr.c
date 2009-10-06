@@ -202,7 +202,19 @@ afunclit(Addr *a)
 void
 regalloc(Node *n, Type *t, Node *o)
 {
-	int i, et;
+	int i, et, fixfree, floatfree;
+
+	if(debug['r']) {
+		fixfree = 0;
+		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
+			if(reg[i] == 0)
+				fixfree++;
+		floatfree = 0;
+		for(i=REGALLOC_F0; i<=REGALLOC_FMAX; i++)
+			if(reg[i] == 0)
+				floatfree++;
+		print("regalloc fix %d float %d\n", fixfree, floatfree);
+	}
 
 	if(t == T)
 		fatal("regalloc: t nil");
@@ -259,7 +271,19 @@ out:
 void
 regfree(Node *n)
 {
-	int i;
+	int i, fixfree, floatfree;
+
+	if(debug['r']) {
+		fixfree = 0;
+		for(i=REGALLOC_R0; i<=REGALLOC_RMAX; i++)
+			if(reg[i] == 0)
+				fixfree++;
+		floatfree = 0;
+		for(i=REGALLOC_F0; i<=REGALLOC_FMAX; i++)
+			if(reg[i] == 0)
+				floatfree++;
+		print("regalloc fix %d float %d\n", fixfree, floatfree);
+	}
 
 	if(n->op != OREGISTER && n->op != OINDREG)
 		fatal("regfree: not a register");
@@ -1098,7 +1122,7 @@ optoas(int op, Type *t)
 	a = AGOK;
 	switch(CASE(op, simtype[t->etype])) {
 	default:
-		fatal("optoas: no entry %O-%T", op, t);
+		fatal("optoas: no entry %O-%T etype %T simtype %T", op, t, types[t->etype], types[simtype[t->etype]]);
 		break;
 
 /*	case CASE(OADDR, TPTR32):
