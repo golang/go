@@ -573,8 +573,6 @@ func PtraceDetach(pid int) (errno int) {
 //sys	Getrusage(who int, rusage *Rusage) (errno int)
 //sys	Gettid() (tid int)
 //sys	Gettimeofday(tv *Timeval) (errno int)
-//sys	Ioperm(from int, num int, on int) (errno int)
-//sys	Iopl(level int) (errno int)
 //sys	Kill(pid int, sig int) (errno int)
 //sys	Klogctl(typ int, buf []byte) (n int, errno int) = SYS_SYSLOG
 //sys	Link(oldpath string, newpath string) (errno int)
@@ -604,7 +602,6 @@ func PtraceDetach(pid int) (errno int) {
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, errno int)
 //sys	Symlink(oldpath string, newpath string) (errno int)
 //sys	Sync()
-//sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
 //sys	Sysinfo(info *Sysinfo_t) (errno int)
 //sys	Tee(rfd int, wfd int, len int, flags int) (n int64, errno int)
 //sys	Tgkill(tgid int, tid int, sig int) (errno int)
