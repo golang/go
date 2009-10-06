@@ -684,10 +684,10 @@ func needsBlanks(expr ast.Expr) bool {
 	switch x := expr.(type) {
 	case *ast.Ident:
 		// "long" identifiers look better with blanks around them
-		return len(x.Value) > 12;  // adjust as looks best
+		return len(x.Value) > 8;
 	case *ast.BasicLit:
 		// "long" literals look better with blanks around them
-		return len(x.Value) > 6;  // adjust as looks best
+		return len(x.Value) > 8;
 	case *ast.ParenExpr:
 		// parenthesized expressions don't need blanks around them
 		return false;
