@@ -93,4 +93,3 @@ func error(pos token.Position, msg string, args ...) {
 	fmt.Fprintf(os.Stderr, msg, args);
 	fmt.Fprintf(os.Stderr, "\n");
 }
-

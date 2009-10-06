@@ -13,13 +13,13 @@ import "unsafe"
 type Word uintptr
 
 const (
-	_S = uintptr(unsafe.Sizeof(Word(0)));  // TODO(gri) should Sizeof return a uintptr?
-	_W = _S*8;
-	_B = 1<<_W;
-	_M = _B-1;
-	_W2 = _W/2;
-	_B2 = 1<<_W2;
-	_M2 = _B2-1;
+	_S	= uintptr(unsafe.Sizeof(Word(0)));	// TODO(gri) should Sizeof return a uintptr?
+	_W	= _S*8;
+	_B	= 1<<_W;
+	_M	= _B-1;
+	_W2	= _W/2;
+	_B2	= 1<<_W2;
+	_M2	= _B2-1;
 )
 
 
@@ -61,7 +61,7 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
 	// and return the product as 2 Words.
 
 	if x < y {
-		x, y = y, x
+		x, y = y, x;
 	}
 
 	if x < _B2 {
@@ -85,7 +85,7 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
 		// compute result digits but avoid overflow
 		// z = z[1]*_B + z[0] = x*y
 		z0 = t1<<_W2 + t0;
-		z1 = (t1 + t0>>_W2) >> _W2;
+		z1 = (t1 + t0>>_W2)>>_W2;
 		return;
 	}
 
@@ -104,7 +104,7 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
 	// compute result digits but avoid overflow
 	// z = z[1]*_B + z[0] = x*y
 	z0 = t1<<_W2 + t0;
-	z1 = t2 + (t1 + t0>>_W2) >> _W2;
+	z1 = t2 + (t1 + t0>>_W2)>>_W2;
 	return;
 }
 
@@ -133,7 +133,7 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
 	// compute result digits but avoid overflow
 	// z = z[1]*_B + z[0] = x*y
 	z0 = t1<<_W2 + t0;
-	z1 = t2 + (t1 + t0>>_W2) >> _W2;
+	z1 = t2 + (t1 + t0>>_W2)>>_W2;
 	return;
 }
 
@@ -180,7 +180,7 @@ func leadingZeros(x Word) (n uint) {
 	if x == 0 {
 		return uint(_W);
 	}
-	for x & (1<<(_W-1)) == 0 {
+	for x&(1<<(_W-1)) == 0 {
 		n++;
 		x <<= 1;
 	}
@@ -200,7 +200,7 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
 	if y > x1 {
 		if z != 0 {
 			y <<= z;
-			x1 = (x1 << z) | (x0 >> (uint(_W) - z));
+			x1 = (x1<<z)|(x0>>(uint(_W)-z));
 			x0 <<= z;
 		}
 		q0, x0 = divStep(x1, x0, y);
@@ -210,10 +210,10 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
 			x1 -= y;
 			q1 = 1;
 		} else {
-			z1 := uint(_W) - z;
+			z1 := uint(_W)-z;
 			y <<= z;
-			x2 := x1 >> z1;
-			x1 = (x1 << z) | (x0 >> z1);
+			x2 := x1>>z1;
+			x1 = (x1<<z)|(x0>>z1);
 			x0 <<= z;
 			q1, x1 = divStep(x2, x1, y);
 		}
@@ -221,7 +221,7 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
 		q0, x0 = divStep(x1, x0, y);
 	}
 
-	r = x0 >> z;
+	r = x0>>z;
 
 	if q1 != 0 {
 		panic("div out of range");
@@ -240,25 +240,25 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
 // f_s should be installed if they exist.
 var (
 	// addVV sets z and returns c such that z+c = x+y.
-	addVV func(z, x, y *Word, n int) (c Word)	= addVV_g;
+	addVV	func(z, x, y *Word, n int) (c Word)	= addVV_g;
 
 	// subVV sets z and returns c such that z-c = x-y.
-	subVV func(z, x, y *Word, n int) (c Word)	= subVV_g;
+	subVV	func(z, x, y *Word, n int) (c Word)	= subVV_g;
 
 	// addVW sets z and returns c such that z+c = x-y.
-	addVW func(z, x *Word, y Word, n int) (c Word)	= addVW_g;
+	addVW	func(z, x *Word, y Word, n int) (c Word)	= addVW_g;
 
 	// subVW sets z and returns c such that z-c = x-y.
-	subVW func(z, x *Word, y Word, n int) (c Word)	= subVW_g;
+	subVW	func(z, x *Word, y Word, n int) (c Word)	= subVW_g;
 
 	// mulAddVWW sets z and returns c such that z+c = x*y + r.
-	mulAddVWW func(z, x *Word, y, r Word, n int) (c Word)	= mulAddVWW_g;
+	mulAddVWW	func(z, x *Word, y, r Word, n int) (c Word)	= mulAddVWW_g;
 
 	// addMulVVW sets z and returns c such that z+c = z + x*y.
-	addMulVVW func(z, x *Word, y Word, n int) (c Word)	= addMulVVW_g;
+	addMulVVW	func(z, x *Word, y Word, n int) (c Word)	= addMulVVW_g;
 
 	// divWVW sets z and returns r such that z-r = (xn<<(n*_W) + x) / y.
-	divWVW func(z* Word, xn Word, x *Word, y Word, n int) (r Word)	= divWVW_g;
+	divWVW	func(z *Word, xn Word, x *Word, y Word, n int) (r Word)	= divWVW_g;
 )
 
 
@@ -289,7 +289,7 @@ func addVV_g(z, x, y *Word, n int) (c Word) {
 	for i := 0; i < n; i++ {
 		c, *z.at(i) = addWW_g(*x.at(i), *y.at(i), c);
 	}
-	return
+	return;
 }
 
 
@@ -298,7 +298,7 @@ func subVV_g(z, x, y *Word, n int) (c Word) {
 	for i := 0; i < n; i++ {
 		c, *z.at(i) = subWW_g(*x.at(i), *y.at(i), c);
 	}
-	return
+	return;
 }
 
 
@@ -308,7 +308,7 @@ func addVW_g(z, x *Word, y Word, n int) (c Word) {
 	for i := 0; i < n; i++ {
 		c, *z.at(i) = addWW_g(*x.at(i), c, 0);
 	}
-	return
+	return;
 }
 
 
@@ -318,7 +318,7 @@ func subVW_g(z, x *Word, y Word, n int) (c Word) {
 	for i := 0; i < n; i++ {
 		c, *z.at(i) = subWW_g(*x.at(i), c, 0);
 	}
-	return
+	return;
 }
 
 
@@ -328,7 +328,7 @@ func mulAddVWW_g(z, x *Word, y, r Word, n int) (c Word) {
 	for i := 0; i < n; i++ {
 		c, *z.at(i) = mulAddWWW_g(*x.at(i), y, c);
 	}
-	return
+	return;
 }
 
 
@@ -343,8 +343,8 @@ func addMulVVW_g(z, x *Word, y Word, n int) (c Word) {
 }
 
 
-func divWVW_s(z* Word, xn Word, x *Word, y Word, n int) (r Word)
-func divWVW_g(z* Word, xn Word, x *Word, y Word, n int) (r Word) {
+func divWVW_s(z *Word, xn Word, x *Word, y Word, n int) (r Word)
+func divWVW_g(z *Word, xn Word, x *Word, y Word, n int) (r Word) {
 	r = xn;
 	for i := n-1; i >= 0; i-- {
 		*z.at(i), r = divWW_g(r, *x.at(i), y);

@@ -7,12 +7,14 @@ package big
 import "testing"
 
 func TestCmpNN(t *testing.T) {
-	// TODO(gri) write this test - all other tests depends on it
+// TODO(gri) write this test - all other tests depends on it
 }
 
 
 type funNN func(z, x, y []Word) []Word
-type argNN struct { z, x, y []Word }
+type argNN struct {
+	z, x, y []Word;
+}
 
 var sumNN = []argNN{
 	argNN{},
@@ -23,7 +25,7 @@ var sumNN = []argNN{
 	argNN{[]Word{0, 0, 0, 1}, []Word{0, 0, _M}, []Word{0, 0, 1}},
 }
 
-var prodNN = []argNN {
+var prodNN = []argNN{
 	argNN{},
 	argNN{nil, nil, nil},
 	argNN{nil, []Word{991}, nil},
@@ -78,9 +80,13 @@ func TestFunNN(t *testing.T) {
 }
 
 
-type strN struct { x []Word; b int; s string }
+type strN struct {
+	x	[]Word;
+	b	int;
+	s	string;
+}
 var tabN = []strN{
-	strN{nil, 10,  "0"},
+	strN{nil, 10, "0"},
 	strN{[]Word{1}, 10, "1"},
 	strN{[]Word{10}, 10, "10"},
 	strN{[]Word{1234567890}, 10, "1234567890"},

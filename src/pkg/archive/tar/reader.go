@@ -37,15 +37,15 @@ var (
 //		io.Copy(tr, data);
 //	}
 type Reader struct {
-	r io.Reader;
-	err os.Error;
-	nb int64;	// number of unread bytes for current file entry
-	pad int64;	// amount of padding (ignored) after current file entry
+	r	io.Reader;
+	err	os.Error;
+	nb	int64;	// number of unread bytes for current file entry
+	pad	int64;	// amount of padding (ignored) after current file entry
 }
 
 // NewReader creates a new Reader reading from r.
 func NewReader(r io.Reader) *Reader {
-	return &Reader{ r: r }
+	return &Reader{r: r};
 }
 
 // Next advances to the next entry in the tar archive.
@@ -57,7 +57,7 @@ func (tr *Reader) Next() (*Header, os.Error) {
 	if tr.err == nil {
 		hdr = tr.readHeader();
 	}
-	return hdr, tr.err
+	return hdr, tr.err;
 }
 
 // Parse bytes as a NUL-terminated C-style string.
@@ -67,7 +67,7 @@ func cString(b []byte) string {
 	for n < len(b) && b[n] != 0 {
 		n++;
 	}
-	return string(b[0:n])
+	return string(b[0:n]);
 }
 
 func (tr *Reader) octal(b []byte) int64 {
@@ -77,18 +77,18 @@ func (tr *Reader) octal(b []byte) int64 {
 	}
 	// Removing trailing NULs and spaces.
 	for len(b) > 0 && (b[len(b)-1] == ' ' || b[len(b)-1] == '\x00') {
-		b = b[0:len(b)-1];
+		b = b[0 : len(b)-1];
 	}
 	x, err := strconv.Btoui64(cString(b), 8);
 	if err != nil {
 		tr.err = err;
 	}
-	return int64(x)
+	return int64(x);
 }
 
-type ignoreWriter struct {}
+type ignoreWriter struct{}
 func (ignoreWriter) Write(b []byte) (n int, err os.Error) {
-	return len(b), nil
+	return len(b), nil;
 }
 
 // Skip any unread bytes in the existing file entry, as well as any alignment padding.
@@ -105,34 +105,34 @@ func (tr *Reader) skipUnread() {
 
 func (tr *Reader) verifyChecksum(header []byte) bool {
 	if tr.err != nil {
-		return false
+		return false;
 	}
 
 	given := tr.octal(header[148:156]);
 	unsigned, signed := checksum(header);
-	return given == unsigned || given == signed
+	return given == unsigned || given == signed;
 }
 
 func (tr *Reader) readHeader() *Header {
 	header := make([]byte, blockSize);
 	if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
-		return nil
+		return nil;
 	}
 
 	// Two blocks of zero bytes marks the end of the archive.
 	if bytes.Equal(header, zeroBlock[0:blockSize]) {
 		if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
-			return nil
+			return nil;
 		}
 		if !bytes.Equal(header, zeroBlock[0:blockSize]) {
 			tr.err = HeaderError;
 		}
-		return nil
+		return nil;
 	}
 
 	if !tr.verifyChecksum(header) {
 		tr.err = HeaderError;
-		return nil
+		return nil;
 	}
 
 	// Unpack
@@ -145,23 +145,23 @@ func (tr *Reader) readHeader() *Header {
 	hdr.Gid = tr.octal(s.next(8));
 	hdr.Size = tr.octal(s.next(12));
 	hdr.Mtime = tr.octal(s.next(12));
-	s.next(8);  // chksum
+	s.next(8);	// chksum
 	hdr.Typeflag = s.next(1)[0];
 	hdr.Linkname = cString(s.next(100));
 
 	// The remainder of the header depends on the value of magic.
 	// The original (v7) version of tar had no explicit magic field,
 	// so its magic bytes, like the rest of the block, are NULs.
-	magic := string(s.next(8));  // contains version field as well.
+	magic := string(s.next(8));	// contains version field as well.
 	var format string;
 	switch magic {
-	case "ustar\x0000":  // POSIX tar (1003.1-1988)
+	case "ustar\x0000":	// POSIX tar (1003.1-1988)
 		if string(header[508:512]) == "tar\x00" {
 			format = "star";
 		} else {
 			format = "posix";
-		}
-	case "ustar  \x00":  // old GNU tar
+				}
+	case "ustar  \x00":	// old GNU tar
 		format = "gnu";
 	}
 
@@ -191,15 +191,15 @@ func (tr *Reader) readHeader() *Header {
 
 	if tr.err != nil {
 		tr.err = HeaderError;
-		return nil
+		return nil;
 	}
 
 	// Maximum value of hdr.Size is 64 GB (12 octal digits),
 	// so there's no risk of int64 overflowing.
 	tr.nb = int64(hdr.Size);
-	tr.pad = -tr.nb & (blockSize - 1);  // blockSize is a power of two
+	tr.pad = -tr.nb & (blockSize-1);	// blockSize is a power of two
 
-	return hdr
+	return hdr;
 }
 
 // Read reads from the current entry in the tar archive.
@@ -207,10 +207,10 @@ func (tr *Reader) readHeader() *Header {
 // until Next is called to advance to the next entry.
 func (tr *Reader) Read(b []uint8) (n int, err os.Error) {
 	if int64(len(b)) > tr.nb {
-		b = b[0:tr.nb];
+		b = b[0 : tr.nb];
 	}
 	n, err = tr.r.Read(b);
 	tr.nb -= int64(n);
 	tr.err = err;
-	return
+	return;
 }

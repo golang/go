@@ -4,10 +4,10 @@
 
 package PACKAGE
 
-type	Pointer	*any;
-func	Offsetof(any) int;
-func	Sizeof(any) int;
-func	Alignof(any) int;
-func	Typeof(i interface { }) (typ interface{});
-func	Reflect(i interface { }) (typ interface{}, addr Pointer);
-func	Unreflect(typ interface{}, addr Pointer) (ret interface { });
+type Pointer *any
+func Offsetof(any) int
+func Sizeof(any) int
+func Alignof(any) int
+func Typeof(i interface{}) (typ interface{})
+func Reflect(i interface{}) (typ interface{}, addr Pointer)
+func Unreflect(typ interface{}, addr Pointer) (ret interface{})

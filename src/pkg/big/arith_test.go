@@ -8,7 +8,9 @@ import "testing"
 
 
 type funWW func(x, y, c Word) (z1, z0 Word)
-type argWW struct { x, y, c, z1, z0 Word }
+type argWW struct {
+	x, y, c, z1, z0 Word;
+}
 
 var sumWW = []argWW{
 	argWW{0, 0, 0, 0, 0},
@@ -59,7 +61,10 @@ func addr(x []Word) *Word {
 
 
 type funVV func(z, x, y *Word, n int) (c Word)
-type argVV struct { z, x, y []Word; c Word }
+type argVV struct {
+	z, x, y	[]Word;
+	c	Word;
+}
 
 var sumVV = []argVV{
 	argVV{},
@@ -112,7 +117,11 @@ func TestFunVV(t *testing.T) {
 
 
 type funVW func(z, x *Word, y Word, n int) (c Word)
-type argVW struct { z, x []Word; y Word; c Word }
+type argVW struct {
+	z, x	[]Word;
+	y	Word;
+	c	Word;
+}
 
 var sumVW = []argVW{
 	argVW{},
@@ -133,9 +142,9 @@ var prodVW = []argVW{
 	argVW{[]Word{0, 0, 0, 22793}, []Word{0, 0, 0, 991}, 23, 0},
 	argVW{[]Word{0, 0, 0, 0}, []Word{7893475, 7395495, 798547395, 68943}, 0, 0},
 	argVW{[]Word{0, 0, 0, 0}, []Word{0, 0, 0, 0}, 894375984, 0},
-	argVW{[]Word{_M<<1 & _M}, []Word{_M}, 1<<1, _M>>(_W-1)},
-	argVW{[]Word{_M<<7 & _M}, []Word{_M}, 1<<7, _M>>(_W-7)},
-	argVW{[]Word{_M<<7 & _M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1<<7, _M>>(_W-7)},
+	argVW{[]Word{_M<<1&_M}, []Word{_M}, 1<<1, _M>>(_W-1)},
+	argVW{[]Word{_M<<7&_M}, []Word{_M}, 1<<7, _M>>(_W-7)},
+	argVW{[]Word{_M<<7&_M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1<<7, _M>>(_W-7)},
 }
 
 
@@ -169,7 +178,11 @@ func TestFunVW(t *testing.T) {
 
 
 type funVWW func(z, x *Word, y, r Word, n int) (c Word)
-type argVWW struct { z, x []Word; y, r Word; c Word }
+type argVWW struct {
+	z, x	[]Word;
+	y, r	Word;
+	c	Word;
+}
 
 var prodVWW = []argVWW{
 	argVWW{},
@@ -217,8 +230,14 @@ func testFunVWW(t *testing.T, msg string, f funVWW, a argVWW) {
 // TODO(gri) mulAddVWW and divWVW are symmetric operations but
 //           their signature is not symmetric. Try to unify.
 
-type funWVW func(z* Word, xn Word, x *Word, y Word, n int) (r Word)
-type argWVW struct { z []Word; xn Word; x []Word; y Word; r Word }
+type funWVW func(z *Word, xn Word, x *Word, y Word, n int) (r Word)
+type argWVW struct {
+	z	[]Word;
+	xn	Word;
+	x	[]Word;
+	y	Word;
+	r	Word;
+}
 
 func testFunWVW(t *testing.T, msg string, f funWVW, a argWVW) {
 	n := len(a.z);

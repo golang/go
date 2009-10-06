@@ -9,8 +9,8 @@ package big
 // An Int represents a signed multi-precision integer.
 // The zero value for an Int represents the value 0.
 type Int struct {
-	neg bool;  // sign
-	abs []Word;  // absolute value of the integer
+	neg	bool;	// sign
+	abs	[]Word;	// absolute value of the integer
 }
 
 
@@ -53,9 +53,9 @@ func (z *Int) Add(x, y *Int) *Int {
 		}
 	}
 	if len(z.abs) == 0 {
-		z.neg = false;  // 0 has no sign
+		z.neg = false;	// 0 has no sign
 	}
-	return z
+	return z;
 }
 
 
@@ -78,9 +78,9 @@ func (z *Int) Sub(x, y *Int) *Int {
 		}
 	}
 	if len(z.abs) == 0 {
-		z.neg = false;  // 0 has no sign
+		z.neg = false;	// 0 has no sign
 	}
-	return z
+	return z;
 }
 
 
@@ -91,15 +91,15 @@ func (z *Int) Mul(x, y *Int) *Int {
 	// (-x) * y == -(x * y)
 	// (-x) * (-y) == x * y
 	z.abs = mulNN(z.abs, x.abs, y.abs);
-	z.neg = len(z.abs) > 0 && x.neg != y.neg;  // 0 has no sign
-	return z
+	z.neg = len(z.abs) > 0 && x.neg != y.neg;	// 0 has no sign
+	return z;
 }
 
 
 // Neg computes z = -x.
 func (z *Int) Neg(x *Int) *Int {
 	z.abs = setN(z.abs, x.abs);
-	z.neg = len(z.abs) > 0 && !x.neg;  // 0 has no sign
+	z.neg = len(z.abs) > 0 && !x.neg;	// 0 has no sign
 	return z;
 }
 

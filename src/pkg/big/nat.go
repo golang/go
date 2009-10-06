@@ -39,14 +39,14 @@ func normN(z []Word) []Word {
 	for i > 0 && z[i-1] == 0 {
 		i--;
 	}
-	z = z[0 : i];
+	z = z[0:i];
 	return z;
 }
 
 
 func makeN(z []Word, m int, clear bool) []Word {
 	if len(z) > m {
-		z = z[0 : m];  // reuse z - has at least one extra word for a carry, if any
+		z = z[0:m];	// reuse z - has at least one extra word for a carry, if any
 		if clear {
 			for i := range z {
 				z[i] = 0;
@@ -55,11 +55,11 @@ func makeN(z []Word, m int, clear bool) []Word {
 		return z;
 	}
 
-	c := 4;  // minimum capacity
+	c := 4;	// minimum capacity
 	if m > c {
 		c = m;
 	}
-	return make([]Word, m, c+1);  // +1: extra word for a carry, if any
+	return make([]Word, m, c+1);	// +1: extra word for a carry, if any
 }
 
 
@@ -84,7 +84,7 @@ func newN(z []Word, x uint64) []Word {
 	// split x into n words
 	z = makeN(z, n, false);
 	for i := 0; i < n; i++ {
-		z[i] = Word(x & _M);
+		z[i] = Word(x&_M);
 		x >>= _W;
 	}
 
@@ -166,8 +166,10 @@ func cmpNN(x, y []Word) (r int) {
 	n := len(y);
 	if m != n || m == 0 {
 		switch {
-		case m < n: r = -1;
-		case m > n: r = 1;
+		case m < n:
+			r = -1;
+		case m > n:
+			r = 1;
 		}
 		return;
 	}
@@ -178,8 +180,10 @@ func cmpNN(x, y []Word) (r int) {
 	}
 
 	switch {
-	case x[i] < y[i]: r = -1;
-	case x[i] > y[i]: r = 1;
+	case x[i] < y[i]:
+		r = -1;
+	case x[i] > y[i]:
+		r = 1;
 	}
 	return;
 }
@@ -219,7 +223,7 @@ func mulNN(z, x, y []Word) []Word {
 
 	z = makeN(z, m+n, true);
 	if &z[0] == &x[0] || &z[0] == &y[0] {
-		z = makeN(nil, m+n, true);  // z is an alias for x or y - cannot reuse
+		z = makeN(nil, m+n, true);	// z is an alias for x or y - cannot reuse
 	}
 	for i := 0; i < n; i++ {
 		if f := y[i]; f != 0 {
@@ -228,7 +232,7 @@ func mulNN(z, x, y []Word) []Word {
 	}
 	z = normN(z);
 
-	return z
+	return z;
 }
 
 
@@ -239,10 +243,10 @@ func divNW(z, x []Word, y Word) (q []Word, r Word) {
 	case y == 0:
 		panic("division by zero");
 	case y == 1:
-		q = setN(z, x);  // result is x
+		q = setN(z, x);	// result is x
 		return;
 	case m == 0:
-		q = setN(z, nil);  // result is 0
+		q = setN(z, nil);	// result is 0
 		return;
 	}
 	// m > 0
@@ -280,10 +284,14 @@ func log2N(x []Word) int {
 func hexValue(ch byte) int {
 	var d byte;
 	switch {
-	case '0' <= ch && ch <= '9': d = ch - '0';
-	case 'a' <= ch && ch <= 'f': d = ch - 'a' + 10;
-	case 'A' <= ch && ch <= 'F': d = ch - 'A' + 10;
-	default: return -1;
+	case '0' <= ch && ch <= '9':
+		d = ch-'0';
+	case 'a' <= ch && ch <= 'f':
+		d = ch-'a'+10;
+	case 'A' <= ch && ch <= 'F':
+		d = ch-'A'+10;
+	default:
+		return -1;
 	}
 	return int(d);
 }
@@ -344,7 +352,7 @@ func stringN(x []Word, base int) string {
 	}
 
 	// allocate buffer for conversion
-	i := (log2N(x) + 1) / log2(Word(base)) + 1;  // +1: round up
+	i := (log2N(x)+1)/log2(Word(base)) + 1;	// +1: round up
 	s := make([]byte, i);
 
 	// don't destroy x
@@ -356,7 +364,7 @@ func stringN(x []Word, base int) string {
 		var r Word;
 		q, r = divNW(q, q, 10);
 		s[i] = "0123456789abcdef"[r];
-	};
+	}
 
-	return string(s[i : len(s)]);
+	return string(s[i:len(s)]);
 }

@@ -20,13 +20,13 @@ func usage() {
 	fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go\n");
 }
 
-var ptrSizeMap = map[string]int64 {
+var ptrSizeMap = map[string]int64{
 	"386": 4,
 	"amd64": 8,
-	"arm": 4
+	"arm": 4,
 }
 
-var expandName = map[string]string {
+var expandName = map[string]string{
 	"schar": "signed char",
 	"uchar": "unsigned char",
 	"ushort": "unsigned short",
@@ -42,7 +42,7 @@ func main() {
 		usage();
 		os.Exit(2);
 	}
-	gccOptions := args[1:len(args)-1];
+	gccOptions := args[1 : len(args)-1];
 	input := args[len(args)-1];
 
 	arch := os.Getenv("GOARCH");
