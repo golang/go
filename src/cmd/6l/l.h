@@ -296,7 +296,6 @@ EXTERN	vlong	INITDAT;
 EXTERN	int32	INITRND;
 EXTERN	vlong	INITTEXT;
 EXTERN	char*	INITENTRY;		/* entry point */
-EXTERN	char*	LIBDIR;
 EXTERN	Biobuf	bso;
 EXTERN	int32	bsssize;
 EXTERN	int	cbc;

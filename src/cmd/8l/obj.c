@@ -42,6 +42,8 @@ char	*noname		= "<none>";
 char	symname[]	= SYMDEF;
 char	thechar		= '8';
 char	*thestring 	= "386";
+char*	libdir[16];	// contains "." first, goroot last
+int	nlibdir		= 0;
 
 /*
  *	-H0 -T0x40004C -D0x10000000	is garbage unix
@@ -113,7 +115,11 @@ main(int argc, char *argv[])
 		HEADTYPE = atolwhex(EARGF(usage()));
 		break;
 	case 'L':
-		LIBDIR = EARGF(usage());
+		if(nlibdir >= nelem(libdir)-1) {
+			print("too many -L's: %d\n", nlibdir);
+			usage();
+		}
+		libdir[nlibdir++] = EARGF(usage());
 		break;
 	case 'T':
 		INITTEXT = atolwhex(EARGF(usage()));
@@ -693,11 +699,11 @@ addlib(char *src, char *obj)
 
 	if(search) {
 		// try dot, -L "libdir", and then goroot.
-		snprint(pname, sizeof pname, "./%s", name);
-		if(access(pname, AEXIST) < 0 && LIBDIR != nil)
-			snprint(pname, sizeof pname, "%s/%s", LIBDIR, name);
-		if(access(pname, AEXIST) < 0)
-			snprint(pname, sizeof pname, "%s/pkg/%s_%s/%s", goroot, goos, goarch, name);
+		for(i=0; i<nlibdir; i++) {
+			snprint(pname, sizeof pname, "%s/%s", libdir[i], name);
+			if(access(pname, AEXIST) >= 0)
+				break;
+		}
 		strcpy(name, pname);
 	}
 	cleanname(name);
