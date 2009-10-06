@@ -24,13 +24,12 @@ export G=${A}g
 export L=${A}l
 export GOTRACEBACK=0
 
-failed=0
-
 PATH=/bin:/usr/bin:/usr/local/bin:${GOBIN:-$HOME/bin}:`pwd`
 
 RUNFILE=/tmp/gorun-$$-$USER
 TMP1FILE=/tmp/gotest1-$$-$USER
 TMP2FILE=/tmp/gotest2-$$-$USER
+FAILEDFILE=/tmp/gotest3-$$-$USER
 
 # don't run the machine out of memory: limit individual processes to 4GB.
 # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
@@ -50,6 +49,7 @@ do
 		cat $TMP1FILE
 		cat $TMP2FILE
 		echo >&2 fail: $i
+		touch $FAILEDFILE
 	elif test -s $TMP1FILE || test -s $TMP2FILE
 	then
 		echo
@@ -72,10 +72,12 @@ done | # clean up some stack noise
 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
 
-case $failed in
-1)
-	echo FAIL
-esac
+failed=0
+if test -f $FAILEDFILE; then
+	failed=1
+	rm -f $FAILEDFILE
+fi
+
 rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
 
 exit $failed
