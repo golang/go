@@ -29,14 +29,31 @@ cgen64(Node *n, Node *res)
 	default:
 		fatal("cgen64 %O", n->op);
 
-//	case OMINUS:
-//		cgen(n->left, res);
-//		split64(res, &lo1, &hi1);
-//		gins(ANEGL, N, &lo1);
-//		gins(AADCL, ncon(0), &hi1);
-//		gins(ANEGL, N, &hi1);
-//		splitclean();
-//		return;
+	case OMINUS:
+		split64(n->left, &lo1, &hi1);
+		split64(res, &lo2, &hi2);
+
+		regalloc(&t1, lo1.type, N);
+		regalloc(&al, lo1.type, N);
+		regalloc(&ah, hi1.type, N);
+
+		gins(AMOVW, &lo1, &al);
+		gins(AMOVW, &hi1, &ah);
+
+		gmove(ncon(0), &t1);
+
+		gins(ASUB, &t1, &al);
+		gins(ASBC, &t1, &ah);
+
+		gins(AMOVW, &al, &lo2);
+		gins(AMOVW, &ah, &hi2);
+
+		regfree(&t1);
+		regfree(&al);
+		regfree(&ah);
+		splitclean();
+		splitclean();
+		return;
 
 //	case OCOM:
 //		cgen(n->left, res);

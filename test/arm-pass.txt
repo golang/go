@@ -202,6 +202,7 @@ gc1.go
 hashmap.go
 helloworld.go
 if.go
+import.go
 import1.go
 indirect.go
 indirect1.go

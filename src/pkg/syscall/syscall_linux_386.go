@@ -41,6 +41,8 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sys	Geteuid() (euid int) = SYS_GETEUID32
 //sys	Getgid() (gid int) = SYS_GETGID32
 //sys	Getuid() (uid int) = SYS_GETUID32
+//sys	Ioperm(from int, num int, on int) (errno int)
+//sys	Iopl(level int) (errno int)
 //sys	Lchown(path string, uid int, gid int) (errno int) = SYS_LCHOWN32
 //sys	Lstat(path string, stat *Stat_t) (errno int) = SYS_LSTAT64
 //sys	Setfsgid(gid int) (errno int) = SYS_SETFSGID32
@@ -52,6 +54,7 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sys	Setreuid(ruid int, euid int) (errno int) = SYS_SETREUID32
 //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
 //sys	Statfs(path string, buf *Statfs_t) (errno int) = SYS_STATFS64
+//sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
 //sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
 //sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
 

@@ -615,9 +615,141 @@ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
 	return;
 }
 
+func Chown(path string, uid int, gid int) (errno int) {
+	_, _, e1 := Syscall(SYS_CHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
+	errno = int(e1);
+	return;
+}
+
+func Fchown(fd int, uid int, gid int) (errno int) {
+	_, _, e1 := Syscall(SYS_FCHOWN, uintptr(fd), uintptr(uid), uintptr(gid));
+	errno = int(e1);
+	return;
+}
+
+func Fstat(fd int, stat *Stat_t) (errno int) {
+	_, _, e1 := Syscall(SYS_FSTAT, uintptr(fd), uintptr(unsafe.Pointer(stat)), 0);
+	errno = int(e1);
+	return;
+}
+
+func Fstatfs(fd int, buf *Statfs_t) (errno int) {
+	_, _, e1 := Syscall(SYS_FSTATFS, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0);
+	errno = int(e1);
+	return;
+}
+
+func Getegid() (egid int) {
+	r0, _, _ := Syscall(SYS_GETEGID, 0, 0, 0);
+	egid = int(r0);
+	return;
+}
+
+func Geteuid() (euid int) {
+	r0, _, _ := Syscall(SYS_GETEUID, 0, 0, 0);
+	euid = int(r0);
+	return;
+}
+
+func Getgid() (gid int) {
+	r0, _, _ := Syscall(SYS_GETGID, 0, 0, 0);
+	gid = int(r0);
+	return;
+}
+
+func Getuid() (uid int) {
+	r0, _, _ := Syscall(SYS_GETUID, 0, 0, 0);
+	uid = int(r0);
+	return;
+}
+
+func Lchown(path string, uid int, gid int) (errno int) {
+	_, _, e1 := Syscall(SYS_LCHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
+	errno = int(e1);
+	return;
+}
+
+func Listen(s int, n int) (errno int) {
+	_, _, e1 := Syscall(SYS_LISTEN, uintptr(s), uintptr(n), 0);
+	errno = int(e1);
+	return;
+}
+
+func Lstat(path string, stat *Stat_t) (errno int) {
+	_, _, e1 := Syscall(SYS_LSTAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
+	errno = int(e1);
+	return;
+}
+
+func Seek(fd int, offset int64, whence int) (off int64, errno int) {
+	r0, r1, _ := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset >> 32), uintptr(whence), 0, 0);
+	off = int64(int64(r1)<<32 | int64(r0));
+	return;
+}
+
 func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) {
 	r0, _, e1 := Syscall6(SYS__NEWSELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0);
 	n = int(r0);
+	errno = int(e1);
+	return;
+}
+
+func Setfsgid(gid int) (errno int) {
+	_, _, e1 := Syscall(SYS_SETFSGID, uintptr(gid), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func Setfsuid(uid int) (errno int) {
+	_, _, e1 := Syscall(SYS_SETFSUID, uintptr(uid), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func Setgid(gid int) (errno int) {
+	_, _, e1 := Syscall(SYS_SETGID, uintptr(gid), 0, 0);
+	errno = int(e1);
+	return;
+}
+
+func Setregid(rgid int, egid int) (errno int) {
+	_, _, e1 := Syscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0);
+	errno = int(e1);
+	return;
+}
+
+func Setresgid(rgid int, egid int, sgid int) (errno int) {
+	_, _, e1 := Syscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid));
+	errno = int(e1);
+	return;
+}
+
+func Setresuid(ruid int, euid int, suid int) (errno int) {
+	_, _, e1 := Syscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid));
+	errno = int(e1);
+	return;
+}
+
+func Setreuid(ruid int, euid int) (errno int) {
+	_, _, e1 := Syscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0);
+	errno = int(e1);
+	return;
+}
+
+func Shutdown(fd int, how int) (errno int) {
+	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0);
+	errno = int(e1);
+	return;
+}
+
+func Stat(path string, stat *Stat_t) (errno int) {
+	_, _, e1 := Syscall(SYS_STAT, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
+	errno = int(e1);
+	return;
+}
+
+func Statfs(path string, buf *Statfs_t) (errno int) {
+	_, _, e1 := Syscall(SYS_STATFS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0);
 	errno = int(e1);
 	return;
 }
