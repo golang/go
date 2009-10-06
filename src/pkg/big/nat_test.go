@@ -85,6 +85,7 @@ type strN struct {
 	b	int;
 	s	string;
 }
+
 var tabN = []strN{
 	strN{nil, 10, "0"},
 	strN{[]Word{1}, 10, "1"},

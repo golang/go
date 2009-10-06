@@ -10,7 +10,7 @@ import (
 	"testing";
 )
 
-var filenames = []string {
+var filenames = []string{
 	"testdata/e.txt",
 	"testdata/pi.txt",
 }

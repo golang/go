@@ -56,25 +56,25 @@ import (
 //    in bits must be even.
 
 type (
-	digit  uint64;
-	digit2 uint32;  // half-digits for division
+	digit	uint64;
+	digit2	uint32;	// half-digits for division
 )
 
 
 const (
-	logW = 64;  // word width
-	logH = 4;  // bits for a hex digit (= small number)
-	logB = logW - logH;  // largest bit-width available
+	logW	= 64;		// word width
+	logH	= 4;		// bits for a hex digit (= small number)
+	logB	= logW-logH;	// largest bit-width available
 
 	// half-digits
-	_W2 = logB / 2;   // width
-	_B2 = 1 << _W2;   // base
-	_M2 = _B2 - 1;    // mask
+	_W2	= logB/2;	// width
+	_B2	= 1<<_W2;	// base
+	_M2	= _B2-1;	// mask
 
 	// full digits
-	_W = _W2 * 2;     // width
-	_B = 1 << _W;     // base
-	_M = _B - 1;      // mask
+	_W	= _W2*2;	// width
+	_B	= 1<<_W;	// base
+	_M	= _B-1;		// mask
 )
 
 
@@ -110,14 +110,14 @@ func dump(x Natural) {
 
 // Natural represents an unsigned integer value of arbitrary precision.
 //
-type Natural []digit;
+type Natural []digit
 
 
 // Nat creates a small natural number with value x.
 //
 func Nat(x uint64) Natural {
 	if x == 0 {
-		return nil;  // len == 0
+		return nil;	// len == 0
 	}
 
 	// single-digit values
@@ -138,7 +138,7 @@ func Nat(x uint64) Natural {
 	// split x into digits
 	z := make(Natural, n);
 	for i := 0; i < n; i++ {
-		z[i] = digit(x & _M);
+		z[i] = digit(x&_M);
 		x >>= _W;
 	}
 
@@ -152,8 +152,10 @@ func (x Natural) Value() uint64 {
 	// single-digit values
 	n := len(x);
 	switch n {
-	case 0: return 0;
-	case 1: return uint64(x[0]);
+	case 0:
+		return 0;
+	case 1:
+		return uint64(x[0]);
 	}
 
 	// multi-digit values
@@ -162,7 +164,7 @@ func (x Natural) Value() uint64 {
 	z := uint64(0);
 	s := uint(0);
 	for i := 0; i < n && s < 64; i++ {
-		z += uint64(x[i]) << s;
+		z += uint64(x[i])<<s;
 		s += _W;
 	}
 
@@ -204,8 +206,10 @@ func (x Natural) IsZero() bool {
 
 func normalize(x Natural) Natural {
 	n := len(x);
-	for n > 0 && x[n-1] == 0 { n-- }
-	return x[0 : n];
+	for n > 0 && x[n-1] == 0 {
+		n--;
+	}
+	return x[0:n];
 }
 
 
@@ -219,7 +223,7 @@ func nalloc(z Natural, n int) Natural {
 		size = 4;
 	}
 	if size <= cap(z) {
-		return z[0 : n];
+		return z[0:n];
 	}
 	return make(Natural, n, size);
 }
@@ -240,12 +244,12 @@ func Nadd(zp *Natural, x, y Natural) {
 	c := digit(0);
 	i := 0;
 	for i < m {
-		t := c + x[i] + y[i];
+		t := c+x[i]+y[i];
 		c, z[i] = t>>_W, t&_M;
 		i++;
 	}
 	for i < n {
-		t := c + x[i];
+		t := c+x[i];
 		c, z[i] = t>>_W, t&_M;
 		i++;
 	}
@@ -253,7 +257,7 @@ func Nadd(zp *Natural, x, y Natural) {
 		z[i] = c;
 		i++;
 	}
-	*zp = z[0 : i]
+	*zp = z[0:i];
 }
 
 
@@ -274,20 +278,20 @@ func Nsub(zp *Natural, x, y Natural) {
 	n := len(x);
 	m := len(y);
 	if n < m {
-		panic("underflow")
+		panic("underflow");
 	}
 
 	z := nalloc(*zp, n);
 	c := digit(0);
 	i := 0;
 	for i < m {
-		t := c + x[i] - y[i];
-		c, z[i] = digit(int64(t)>>_W), t&_M;  // requires arithmetic shift!
+		t := c+x[i]-y[i];
+		c, z[i] = digit(int64(t)>>_W), t&_M;	// requires arithmetic shift!
 		i++;
 	}
 	for i < n {
-		t := c + x[i];
-		c, z[i] = digit(int64(t)>>_W), t&_M;  // requires arithmetic shift!
+		t := c+x[i];
+		c, z[i] = digit(int64(t)>>_W), t&_M;	// requires arithmetic shift!
 		i++;
 	}
 	if int64(c) < 0 {
@@ -311,7 +315,7 @@ func (x Natural) Sub(y Natural) Natural {
 //
 func muladd11(x, y, c digit) (digit, digit) {
 	z1, z0 := MulAdd128(uint64(x), uint64(y), uint64(c));
-	return digit(z1<<(64 - logB) | z0>>logB), digit(z0&_M);
+	return digit(z1<<(64-logB) | z0>>logB), digit(z0&_M);
 }
 
 
@@ -329,7 +333,7 @@ func Nscale(z *Natural, d uint64) {
 	switch {
 	case d == 0:
 		*z = Nat(0);
-		return
+		return;
 	case d == 1:
 		return;
 	case d >= _B:
@@ -346,7 +350,7 @@ func Nscale(z *Natural, d uint64) {
 			for i, d := range *z {
 				zz[i] = d;
 			}
-			*z = zz
+			*z = zz;
 		} else {
 			*z = (*z)[0 : n+1];
 		}
@@ -360,7 +364,7 @@ func Nscale(z *Natural, d uint64) {
 func muladd1(x Natural, d, c digit) Natural {
 	assert(isSmall(d-1) && isSmall(c));
 	n := len(x);
-	z := make(Natural, n + 1);
+	z := make(Natural, n+1);
 
 	for i := 0; i < n; i++ {
 		t := c + x[i]*d;
@@ -376,13 +380,17 @@ func muladd1(x Natural, d, c digit) Natural {
 //
 func (x Natural) Mul1(d uint64) Natural {
 	switch {
-	case d == 0: return Nat(0);
-	case d == 1: return x;
-	case isSmall(digit(d)): muladd1(x, digit(d), 0);
-	case d >= _B: return x.Mul(Nat(d));
+	case d == 0:
+		return Nat(0);
+	case d == 1:
+		return x;
+	case isSmall(digit(d)):
+		muladd1(x, digit(d), 0);
+	case d >= _B:
+		return x.Mul(Nat(d));
 	}
 
-	z := make(Natural, len(x) + 1);
+	z := make(Natural, len(x)+1);
 	c := mul1(z, x, digit(d));
 	z[len(x)] = c;
 	return normalize(z);
@@ -406,13 +414,13 @@ func (x Natural) Mul(y Natural) Natural {
 		return x.Mul1(uint64(y[0]));
 	}
 
-	z := make(Natural, n + m);
+	z := make(Natural, n+m);
 	for j := 0; j < m; j++ {
 		d := y[j];
 		if d != 0 {
 			c := digit(0);
 			for i := 0; i < n; i++ {
-				c, z[i+j] = muladd11(x[i], d, z[i+j] + c);
+				c, z[i+j] = muladd11(x[i], d, z[i+j]+c);
 			}
 			z[n+j] = c;
 		}
@@ -429,30 +437,32 @@ func (x Natural) Mul(y Natural) Natural {
 
 func unpack(x Natural) []digit2 {
 	n := len(x);
-	z := make([]digit2, n*2 + 1);  // add space for extra digit (used by DivMod)
+	z := make([]digit2, n*2 + 1);	// add space for extra digit (used by DivMod)
 	for i := 0; i < n; i++ {
 		t := x[i];
-		z[i*2] = digit2(t & _M2);
-		z[i*2 + 1] = digit2(t >> _W2 & _M2);
+		z[i*2] = digit2(t&_M2);
+		z[i*2 + 1] = digit2(t>>_W2&_M2);
 	}
 
 	// normalize result
 	k := 2*n;
-	for k > 0 && z[k - 1] == 0 { k-- }
-	return z[0 : k];  // trim leading 0's
+	for k > 0 && z[k-1] == 0 {
+		k--;
+	}
+	return z[0:k];	// trim leading 0's
 }
 
 
 func pack(x []digit2) Natural {
-	n := (len(x) + 1) / 2;
+	n := (len(x)+1)/2;
 	z := make(Natural, n);
-	if len(x) & 1 == 1 {
+	if len(x)&1 == 1 {
 		// handle odd len(x)
 		n--;
 		z[n] = digit(x[n*2]);
 	}
 	for i := 0; i < n; i++ {
-		z[i] = digit(x[i*2 + 1]) << _W2 | digit(x[i*2]);
+		z[i] = digit(x[i*2 + 1])<<_W2 | digit(x[i*2]);
 	}
 	return normalize(z);
 }
@@ -506,14 +516,14 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
 	if m == 0 {
 		panic("division by zero");
 	}
-	assert(n+1 <= cap(x));  // space for one extra digit
+	assert(n+1 <= cap(x));	// space for one extra digit
 	x = x[0 : n+1];
 	assert(x[n] == 0);
 
 	if m == 1 {
 		// division by single digit
 		// result is shifted left by 1 in place!
-		x[0] = div21(x[1 : n+1], x[0 : n], y[0]);
+		x[0] = div21(x[1 : n+1], x[0:n], y[0]);
 
 	} else if m > n {
 		// y > x => quotient = 0, remainder = x
@@ -528,12 +538,12 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
 		// TODO Instead of multiplying, it would be sufficient to
 		//      shift y such that the normalization condition is
 		//      satisfied (as done in Hacker's Delight).
-		f := _B2 / (digit(y[m-1]) + 1);
+		f := _B2/(digit(y[m-1])+1);
 		if f != 1 {
 			mul21(x, x, digit2(f));
 			mul21(y, y, digit2(f));
 		}
-		assert(_B2/2 <= y[m-1] && y[m-1] < _B2);  // incorrect scaling
+		assert(_B2/2 <= y[m-1] && y[m-1] < _B2);	// incorrect scaling
 
 		y1, y2 := digit(y[m-1]), digit(y[m-2]);
 		for i := n-m; i >= 0; i-- {
@@ -541,14 +551,15 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
 
 			// compute trial digit (Knuth)
 			var q digit;
-			{	x0, x1, x2 := digit(x[k]), digit(x[k-1]), digit(x[k-2]);
+			{
+				x0, x1, x2 := digit(x[k]), digit(x[k-1]), digit(x[k-2]);
 				if x0 != y1 {
 					q = (x0<<_W2 + x1)/y1;
 				} else {
 					q = _B2-1;
 				}
 				for y2*q > (x0<<_W2 + x1 - y1*q)<<_W2 + x2 {
-					q--
+					q--;
 				}
 			}
 
@@ -556,18 +567,18 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
 			c := digit(0);
 			for j := 0; j < m; j++ {
 				t := c + digit(x[i+j]) - digit(y[j])*q;
-				c, x[i+j] = digit(int64(t) >> _W2), digit2(t & _M2);  // requires arithmetic shift!
+				c, x[i+j] = digit(int64(t)>>_W2), digit2(t&_M2);	// requires arithmetic shift!
 			}
 
 			// correct if trial digit was too large
-			if c + digit(x[k]) != 0 {
+			if c+digit(x[k]) != 0 {
 				// add y
 				c := digit(0);
 				for j := 0; j < m; j++ {
-					t := c + digit(x[i+j]) + digit(y[j]);
-					c, x[i+j] = t >> _W2, digit2(t & _M2)
+					t := c+digit(x[i+j])+digit(y[j]);
+					c, x[i+j] = t>>_W2, digit2(t&_M2);
 				}
-				assert(c + digit(x[k]) == 0);
+				assert(c+digit(x[k]) == 0);
 				// correct trial digit
 				q--;
 			}
@@ -577,12 +588,12 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
 
 		// undo normalization for remainder
 		if f != 1 {
-			c := div21(x[0 : m], x[0 : m], digit2(f));
+			c := div21(x[0:m], x[0:m], digit2(f));
 			assert(c == 0);
 		}
 	}
 
-	return x[m : n+1], x[0 : m];
+	return x[m : n+1], x[0:m];
 }
 
 
@@ -620,7 +631,7 @@ func shl(z, x Natural, s uint) digit {
 	n := len(x);
 	c := digit(0);
 	for i := 0; i < n; i++ {
-		c, z[i] = x[i] >> (_W-s), x[i] << s & _M | c;
+		c, z[i] = x[i]>>(_W-s), x[i]<<s&_M | c;
 	}
 	return c;
 }
@@ -643,8 +654,8 @@ func shr(z, x Natural, s uint) digit {
 	assert(s <= _W);
 	n := len(x);
 	c := digit(0);
-	for i := n - 1; i >= 0; i-- {
-		c, z[i] = x[i] << (_W-s) & _M, x[i] >> s | c;
+	for i := n-1; i >= 0; i-- {
+		c, z[i] = x[i]<<(_W-s)&_M, x[i]>>s | c;
 	}
 	return c;
 }
@@ -655,7 +666,7 @@ func shr(z, x Natural, s uint) digit {
 func (x Natural) Shr(s uint) Natural {
 	n := uint(len(x));
 	m := n - s/_W;
-	if m > n {  // check for underflow
+	if m > n {	// check for underflow
 		m = 0;
 	}
 	z := make(Natural, m);
@@ -677,7 +688,7 @@ func (x Natural) And(y Natural) Natural {
 
 	z := make(Natural, m);
 	for i := 0; i < m; i++ {
-		z[i] = x[i] & y[i];
+		z[i] = x[i]&y[i];
 	}
 	// upper bits are 0
 
@@ -687,7 +698,7 @@ func (x Natural) And(y Natural) Natural {
 
 func copy(z, x Natural) {
 	for i, e := range x {
-		z[i] = e
+		z[i] = e;
 	}
 }
 
@@ -703,9 +714,9 @@ func (x Natural) AndNot(y Natural) Natural {
 
 	z := make(Natural, n);
 	for i := 0; i < m; i++ {
-		z[i] = x[i] &^ y[i];
+		z[i] = x[i]&^y[i];
 	}
-	copy(z[m : n], x[m : n]);
+	copy(z[m:n], x[m:n]);
 
 	return normalize(z);
 }
@@ -722,9 +733,9 @@ func (x Natural) Or(y Natural) Natural {
 
 	z := make(Natural, n);
 	for i := 0; i < m; i++ {
-		z[i] = x[i] | y[i];
+		z[i] = x[i]|y[i];
 	}
-	copy(z[m : n], x[m : n]);
+	copy(z[m:n], x[m:n]);
 
 	return z;
 }
@@ -741,9 +752,9 @@ func (x Natural) Xor(y Natural) Natural {
 
 	z := make(Natural, n);
 	for i := 0; i < m; i++ {
-		z[i] = x[i] ^ y[i];
+		z[i] = x[i]^y[i];
 	}
-	copy(z[m : n], x[m : n]);
+	copy(z[m:n], x[m:n]);
 
 	return normalize(z);
 }
@@ -760,16 +771,20 @@ func (x Natural) Cmp(y Natural) int {
 	m := len(y);
 
 	if n != m || n == 0 {
-		return n - m;
+		return n-m;
 	}
 
-	i := n - 1;
-	for i > 0 && x[i] == y[i] { i--; }
+	i := n-1;
+	for i > 0 && x[i] == y[i] {
+		i--;
+	}
 
 	d := 0;
 	switch {
-	case x[i] < y[i]: d = -1;
-	case x[i] > y[i]: d = 1;
+	case x[i] < y[i]:
+		d = -1;
+	case x[i] > y[i]:
+		d = 1;
 	}
 
 	return d;
@@ -787,7 +802,7 @@ func log2(x uint64) uint {
 		x >>= 1;
 		n++;
 	}
-	return n - 1;
+	return n-1;
 }
 
 
@@ -798,7 +813,7 @@ func log2(x uint64) uint {
 func (x Natural) Log2() uint {
 	n := len(x);
 	if n > 0 {
-		return (uint(n) - 1)*_W + log2(uint64(x[n - 1]));
+		return (uint(n)-1)*_W + log2(uint64(x[n-1]));
 	}
 	panic("Log2(0)");
 }
@@ -808,10 +823,10 @@ func (x Natural) Log2() uint {
 // Returns updated x and x mod d.
 //
 func divmod1(x Natural, d digit) (Natural, digit) {
-	assert(0 < d && isSmall(d - 1));
+	assert(0 < d && isSmall(d-1));
 
 	c := digit(0);
-	for i := len(x) - 1; i >= 0; i-- {
+	for i := len(x)-1; i >= 0; i-- {
 		t := c<<_W + x[i];
 		c, x[i] = t%d, t/d;
 	}
@@ -829,7 +844,7 @@ func (x Natural) ToString(base uint) string {
 
 	// allocate buffer for conversion
 	assert(2 <= base && base <= 16);
-	n := (x.Log2() + 1) / log2(uint64(base)) + 1;  // +1: round up
+	n := (x.Log2() + 1)/log2(uint64(base)) + 1;	// +1: round up
 	s := make([]byte, n);
 
 	// don't destroy x
@@ -843,9 +858,9 @@ func (x Natural) ToString(base uint) string {
 		var d digit;
 		t, d = divmod1(t, digit(base));
 		s[i] = "0123456789abcdef"[d];
-	};
+	}
 
-	return string(s[i : n]);
+	return string(s[i:n]);
 }
 
 
@@ -859,9 +874,12 @@ func (x Natural) String() string {
 
 func fmtbase(c int) uint {
 	switch c {
-	case 'b': return 2;
-	case 'o': return 8;
-	case 'x': return 16;
+	case 'b':
+		return 2;
+	case 'o':
+		return 8;
+	case 'x':
+		return 16;
 	}
 	return 10;
 }
@@ -876,11 +894,14 @@ func (x Natural) Format(h fmt.State, c int) {
 
 
 func hexvalue(ch byte) uint {
-	d := uint(1 << logH);
+	d := uint(1<<logH);
 	switch {
-	case '0' <= ch && ch <= '9': d = uint(ch - '0');
-	case 'a' <= ch && ch <= 'f': d = uint(ch - 'a') + 10;
-	case 'A' <= ch && ch <= 'F': d = uint(ch - 'A') + 10;
+	case '0' <= ch && ch <= '9':
+		d = uint(ch-'0');
+	case 'a' <= ch && ch <= 'f':
+		d = uint(ch-'a') + 10;
+	case 'A' <= ch && ch <= 'F':
+		d = uint(ch-'A') + 10;
 	}
 	return d;
 }
@@ -942,7 +963,7 @@ func pop1(x digit) uint {
 //
 func (x Natural) Pop() uint {
 	n := uint(0);
-	for i := len(x) - 1; i >= 0; i-- {
+	for i := len(x)-1; i >= 0; i-- {
 		n += pop1(x[i]);
 	}
 	return n;
@@ -970,13 +991,16 @@ func (xp Natural) Pow(n uint) Natural {
 //
 func MulRange(a, b uint) Natural {
 	switch {
-	case a > b: return Nat(1);
-	case a == b: return Nat(uint64(a));
-	case a + 1 == b: return Nat(uint64(a)).Mul(Nat(uint64(b)));
+	case a > b:
+		return Nat(1);
+	case a == b:
+		return Nat(uint64(a));
+	case a+1 == b:
+		return Nat(uint64(a)).Mul(Nat(uint64(b)));
 	}
-	m := (a + b)>>1;
+	m := (a+b)>>1;
 	assert(a <= m && m < b);
-	return MulRange(a, m).Mul(MulRange(m + 1, b));
+	return MulRange(a, m).Mul(MulRange(m+1, b));
 }
 
 

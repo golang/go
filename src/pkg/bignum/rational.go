@@ -12,15 +12,15 @@ import "fmt"
 // Rational represents a quotient a/b of arbitrary precision.
 //
 type Rational struct {
-	a *Integer;  // numerator
-	b Natural;  // denominator
+	a	*Integer;	// numerator
+	b	Natural;	// denominator
 }
 
 
 // MakeRat makes a rational number given a numerator a and a denominator b.
 //
 func MakeRat(a *Integer, b Natural) *Rational {
-	f := a.mant.Gcd(b);  // f > 0
+	f := a.mant.Gcd(b);	// f > 0
 	if f.Cmp(Nat(1)) != 0 {
 		a = MakeInt(a.sign, a.mant.Div(f));
 		b = b.Div(f);
@@ -191,10 +191,10 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
 		ch := s[alen];
 		if ch == '/' {
 			alen++;
-			b, base, blen = NatFromString(s[alen : len(s)], base);
+			b, base, blen = NatFromString(s[alen:len(s)], base);
 		} else if ch == '.' {
 			alen++;
-			b, base, blen = NatFromString(s[alen : len(s)], abase);
+			b, base, blen = NatFromString(s[alen:len(s)], abase);
 			assert(base == abase);
 			f := Nat(uint64(base)).Pow(uint(blen));
 			a = MakeInt(a.sign, a.mant.Mul(f).Add(b));
@@ -203,12 +203,12 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
 	}
 
 	// read exponent, if any
-	rlen := alen + blen;
+	rlen := alen+blen;
 	if rlen < len(s) {
 		ch := s[rlen];
 		if ch == 'e' || ch == 'E' {
 			rlen++;
-			e, _, elen := IntFromString(s[rlen : len(s)], 10);
+			e, _, elen := IntFromString(s[rlen:len(s)], 10);
 			rlen += elen;
 			m := Nat(10).Pow(uint(e.mant.Value()));
 			if e.sign {

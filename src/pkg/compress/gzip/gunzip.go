@@ -16,16 +16,14 @@ import (
 )
 
 const (
-	gzipID1 = 0x1f;
-	gzipID2 = 0x8b;
-
-	gzipDeflate = 8;
-
-	flagText = 1<<0;
-	flagHdrCrc = 1<<1;
-	flagExtra = 1<<2;
-	flagName = 1<<3;
-	flagComment = 1<<4;
+	gzipID1		= 0x1f;
+	gzipID2		= 0x8b;
+	gzipDeflate	= 8;
+	flagText	= 1<<0;
+	flagHdrCrc	= 1<<1;
+	flagExtra	= 1<<2;
+	flagName	= 1<<3;
+	flagComment	= 1<<4;
 )
 
 func makeReader(r io.Reader) flate.Reader {
@@ -55,20 +53,20 @@ var ChecksumError os.Error = os.ErrorString("gzip checksum error")
 // returned by Read as tentative until they receive the successful
 // (zero length, nil error) Read marking the end of the data.
 type Inflater struct {
-	Comment string;	// comment
-	Extra []byte;		// "extra data"
-	Mtime uint32;		// modification time (seconds since January 1, 1970)
-	Name string;		// file name
-	OS byte;			// operating system type
+	Comment	string;	// comment
+	Extra	[]byte;	// "extra data"
+	Mtime	uint32;	// modification time (seconds since January 1, 1970)
+	Name	string;	// file name
+	OS	byte;	// operating system type
 
-	r flate.Reader;
-	inflater io.ReadCloser;
-	digest hash.Hash32;
-	size uint32;
-	flg byte;
-	buf [512]byte;
-	err os.Error;
-	eof bool;
+	r		flate.Reader;
+	inflater	io.ReadCloser;
+	digest		hash.Hash32;
+	size		uint32;
+	flg		byte;
+	buf		[512]byte;
+	err		os.Error;
+	eof		bool;
 }
 
 // NewInflater creates a new Inflater reading the given reader.
@@ -92,7 +90,7 @@ func get4(p []byte) uint32 {
 
 func (z *Inflater) readString() (string, os.Error) {
 	var err os.Error;
-	for i := 0;; i++ {
+	for i := 0; ; i++ {
 		if i >= len(z.buf) {
 			return "", HeaderError;
 		}
@@ -112,7 +110,7 @@ func (z *Inflater) read2() (uint32, os.Error) {
 	if err != nil {
 		return 0, err;
 	}
-	return uint32(z.buf[0]) | uint32(z.buf[1])<<8, nil;
+	return uint32(z.buf[0]) | uint32(z.buf[1]) << 8, nil;
 }
 
 func (z *Inflater) readHeader(save bool) os.Error {
@@ -132,7 +130,7 @@ func (z *Inflater) readHeader(save bool) os.Error {
 	z.digest.Reset();
 	z.digest.Write(z.buf[0:10]);
 
-	if z.flg & flagExtra != 0{
+	if z.flg & flagExtra != 0 {
 		n, err := z.read2();
 		if err != nil {
 			return err;
@@ -225,4 +223,3 @@ func (z *Inflater) Read(p []byte) (n int, err os.Error) {
 func (z *Inflater) Close() os.Error {
 	return z.inflater.Close();
 }
-

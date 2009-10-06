@@ -10,12 +10,12 @@ import (
 )
 
 const (
-	sa = "991";
-	sb = "2432902008176640000";  // 20!
-	sc = "933262154439441526816992388562667004907159682643816214685929"
-	     "638952175999932299156089414639761565182862536979208272237582"
-		 "51185210916864000000000000000000000000";  // 100!
-	sp = "170141183460469231731687303715884105727";  // prime
+	sa	= "991";
+	sb	= "2432902008176640000";	// 20!
+	sc	= "933262154439441526816992388562667004907159682643816214685929"
+		"638952175999932299156089414639761565182862536979208272237582"
+		"51185210916864000000000000000000000000";	// 100!
+	sp	= "170141183460469231731687303715884105727";	// prime
 )
 
 func natFromString(s string, base uint, slen *int) Natural {
@@ -46,30 +46,26 @@ func ratFromString(s string, base uint, slen *int) *Rational {
 
 
 var (
-	nat_zero = Nat(0);
-	nat_one = Nat(1);
-	nat_two = Nat(2);
-
-	a = natFromString(sa, 10, nil);
-	b = natFromString(sb, 10, nil);
-	c = natFromString(sc, 10, nil);
-	p = natFromString(sp, 10, nil);
-
-	int_zero = Int(0);
-	int_one = Int(1);
-	int_two = Int(2);
-
-	ip = intFromString(sp, 10, nil);
-
-	rat_zero = Rat(0, 1);
-	rat_half = Rat(1, 2);
-	rat_one = Rat(1, 1);
-	rat_two = Rat(2, 1);
+	nat_zero	= Nat(0);
+	nat_one		= Nat(1);
+	nat_two		= Nat(2);
+	a		= natFromString(sa, 10, nil);
+	b		= natFromString(sb, 10, nil);
+	c		= natFromString(sc, 10, nil);
+	p		= natFromString(sp, 10, nil);
+	int_zero	= Int(0);
+	int_one		= Int(1);
+	int_two		= Int(2);
+	ip		= intFromString(sp, 10, nil);
+	rat_zero	= Rat(0, 1);
+	rat_half	= Rat(1, 2);
+	rat_one		= Rat(1, 1);
+	rat_two		= Rat(2, 1);
 )
 
 
-var test_msg string;
-var tester *testing.T;
+var test_msg string
+var tester *testing.T
 
 func test(n uint, b bool) {
 	if !b {
@@ -102,7 +98,10 @@ func rat_eq(n uint, x, y *Rational) {
 func TestNatConv(t *testing.T) {
 	tester = t;
 	test_msg = "NatConvA";
-	type entry1 struct { x uint64; s string };
+	type entry1 struct {
+		x	uint64;
+		s	string;
+	}
 	tab := []entry1{
 		entry1{0, "0"},
 		entry1{255, "255"},
@@ -111,8 +110,8 @@ func TestNatConv(t *testing.T) {
 		entry1{18446744073709551615, "18446744073709551615"},
 	};
 	for i, e := range tab {
-		test(100 + uint(i), Nat(e.x).String() == e.s);
-		test(200 + uint(i), natFromString(e.s, 0, nil).Value() == e.x);
+		test(100+uint(i), Nat(e.x).String() == e.s);
+		test(200+uint(i), natFromString(e.s, 0, nil).Value() == e.x);
 	}
 
 	test_msg = "NatConvB";
@@ -168,7 +167,10 @@ func abs(x int64) uint64 {
 func TestIntConv(t *testing.T) {
 	tester = t;
 	test_msg = "IntConvA";
-	type entry2 struct { x int64; s string };
+	type entry2 struct {
+		x	int64;
+		s	string;
+	}
 	tab := []entry2{
 		entry2{0, "0"},
 		entry2{-128, "-128"},
@@ -181,9 +183,9 @@ func TestIntConv(t *testing.T) {
 		entry2{9223372036854775807, "9223372036854775807"},
 	};
 	for i, e := range tab {
-		test(100 + uint(i), Int(e.x).String() == e.s);
-		test(200 + uint(i), intFromString(e.s, 0, nil).Value() == e.x);
-		test(300 + uint(i), Int(e.x).Abs().Value() == abs(e.x));
+		test(100+uint(i), Int(e.x).String() == e.s);
+		test(200+uint(i), intFromString(e.s, 0, nil).Value() == e.x);
+		test(300+uint(i), Int(e.x).Abs().Value() == abs(e.x));
 	}
 
 	test_msg = "IntConvB";
@@ -335,26 +337,28 @@ func TestNatDiv(t *testing.T) {
 func TestIntQuoRem(t *testing.T) {
 	tester = t;
 	test_msg = "IntQuoRem";
-	type T struct { x, y, q, r int64 };
+	type T struct {
+		x, y, q, r int64;
+	}
 	a := []T{
 		T{+8, +3, +2, +2},
 		T{+8, -3, -2, +2},
 		T{-8, +3, -2, -2},
 		T{-8, -3, +2, -2},
-		T{+1, +2,  0, +1},
-		T{+1, -2,  0, +1},
-		T{-1, +2,  0, -1},
-		T{-1, -2,  0, -1},
+		T{+1, +2, 0, +1},
+		T{+1, -2, 0, +1},
+		T{-1, +2, 0, -1},
+		T{-1, -2, 0, -1},
 	};
 	for i := uint(0); i < uint(len(a)); i++ {
 		e := &a[i];
 		x, y := Int(e.x).Mul(ip), Int(e.y).Mul(ip);
 		q, r := Int(e.q), Int(e.r).Mul(ip);
 		qq, rr := x.QuoRem(y);
-		int_eq(4*i+0, x.Quo(y), q);
-		int_eq(4*i+1, x.Rem(y), r);
-		int_eq(4*i+2, qq, q);
-		int_eq(4*i+3, rr, r);
+		int_eq(4*i + 0, x.Quo(y), q);
+		int_eq(4*i + 1, x.Rem(y), r);
+		int_eq(4*i + 2, qq, q);
+		int_eq(4*i + 3, rr, r);
 	}
 }
 
@@ -362,14 +366,16 @@ func TestIntQuoRem(t *testing.T) {
 func TestIntDivMod(t *testing.T) {
 	tester = t;
 	test_msg = "IntDivMod";
-	type T struct { x, y, q, r int64 };
+	type T struct {
+		x, y, q, r int64;
+	}
 	a := []T{
 		T{+8, +3, +2, +2},
 		T{+8, -3, -2, +2},
 		T{-8, +3, -3, +1},
 		T{-8, -3, +3, +1},
-		T{+1, +2,  0, +1},
-		T{+1, -2,  0, +1},
+		T{+1, +2, 0, +1},
+		T{+1, -2, 0, +1},
 		T{-1, +2, -1, +1},
 		T{-1, -2, +1, +1},
 	};
@@ -378,10 +384,10 @@ func TestIntDivMod(t *testing.T) {
 		x, y := Int(e.x).Mul(ip), Int(e.y).Mul(ip);
 		q, r := Int(e.q), Int(e.r).Mul(ip);
 		qq, rr := x.DivMod(y);
-		int_eq(4*i+0, x.Div(y), q);
-		int_eq(4*i+1, x.Mod(y), r);
-		int_eq(4*i+2, qq, q);
-		int_eq(4*i+3, rr, r);
+		int_eq(4*i + 0, x.Div(y), q);
+		int_eq(4*i + 1, x.Mod(y), r);
+		int_eq(4*i + 2, qq, q);
+		int_eq(4*i + 3, rr, r);
 	}
 }
 
@@ -418,7 +424,8 @@ func TestNatShift(t *testing.T) {
 	}
 
 	test_msg = "NatShift3L";
-	{	const m = 3;
+	{
+		const m = 3;
 		p := b;
 		f := Nat(1<<m);
 		for i := uint(0); i < 100; i++ {
@@ -428,7 +435,8 @@ func TestNatShift(t *testing.T) {
 	}
 
 	test_msg = "NatShift3R";
-	{	p := c;
+	{
+		p := c;
 		for i := uint(0); !p.IsZero(); i++ {
 			nat_eq(i, c.Shr(i), p);
 			p = p.Shr(1);
@@ -453,7 +461,8 @@ func TestIntShift(t *testing.T) {
 	}
 
 	test_msg = "IntShift3L";
-	{	const m = 3;
+	{
+		const m = 3;
 		p := ip;
 		f := Int(1<<m);
 		for i := uint(0); i < 100; i++ {
@@ -463,7 +472,8 @@ func TestIntShift(t *testing.T) {
 	}
 
 	test_msg = "IntShift3R";
-	{	p := ip;
+	{
+		p := ip;
 		for i := uint(0); p.IsPos(); i++ {
 			int_eq(i, ip.Shr(i), p);
 			p = p.Shr(1);
@@ -487,25 +497,25 @@ func TestNatBitOps(t *testing.T) {
 	by := Nat(y);
 
 	test_msg = "NatAnd";
-	bz := Nat(x & y);
+	bz := Nat(x&y);
 	for i := uint(0); i < 100; i++ {
 		nat_eq(i, bx.Shl(i).And(by.Shl(i)), bz.Shl(i));
 	}
 
 	test_msg = "NatAndNot";
-	bz = Nat(x &^ y);
+	bz = Nat(x&^y);
 	for i := uint(0); i < 100; i++ {
 		nat_eq(i, bx.Shl(i).AndNot(by.Shl(i)), bz.Shl(i));
 	}
 
 	test_msg = "NatOr";
-	bz = Nat(x | y);
+	bz = Nat(x|y);
 	for i := uint(0); i < 100; i++ {
 		nat_eq(i, bx.Shl(i).Or(by.Shl(i)), bz.Shl(i));
 	}
 
 	test_msg = "NatXor";
-	bz = Nat(x ^ y);
+	bz = Nat(x^y);
 	for i := uint(0); i < 100; i++ {
 		nat_eq(i, bx.Shl(i).Xor(by.Shl(i)), bz.Shl(i));
 	}
@@ -515,19 +525,21 @@ func TestNatBitOps(t *testing.T) {
 func TestIntBitOps1(t *testing.T) {
 	tester = t;
 	test_msg = "IntBitOps1";
-	type T struct { x, y int64 };
-	a := []T {
-		T{ +7, +3 },
-		T{ +7, -3 },
-		T{ -7, +3 },
-		T{ -7, -3 },
+	type T struct {
+		x, y int64;
+	}
+	a := []T{
+		T{+7, +3},
+		T{+7, -3},
+		T{-7, +3},
+		T{-7, -3},
 	};
 	for i := uint(0); i < uint(len(a)); i++ {
 		e := &a[i];
-		int_eq(4*i+0, Int(e.x).And(Int(e.y)), Int(e.x & e.y));
-		int_eq(4*i+1, Int(e.x).AndNot(Int(e.y)), Int(e.x &^ e.y));
-		int_eq(4*i+2, Int(e.x).Or(Int(e.y)), Int(e.x | e.y));
-		int_eq(4*i+3, Int(e.x).Xor(Int(e.y)), Int(e.x ^ e.y));
+		int_eq(4*i + 0, Int(e.x).And(Int(e.y)), Int(e.x & e.y));
+		int_eq(4*i + 1, Int(e.x).AndNot(Int(e.y)), Int(e.x &^ e.y));
+		int_eq(4*i + 2, Int(e.x).Or(Int(e.y)), Int(e.x | e.y));
+		int_eq(4*i + 3, Int(e.x).Xor(Int(e.y)), Int(e.x ^ e.y));
 	}
 }
 
@@ -536,19 +548,19 @@ func TestIntBitOps2(t *testing.T) {
 	tester = t;
 
 	test_msg = "IntNot";
-	int_eq(0, Int(-2).Not(), Int( 1));
-	int_eq(0, Int(-1).Not(), Int( 0));
-	int_eq(0, Int( 0).Not(), Int(-1));
-	int_eq(0, Int( 1).Not(), Int(-2));
-	int_eq(0, Int( 2).Not(), Int(-3));
+	int_eq(0, Int(-2).Not(), Int(1));
+	int_eq(0, Int(-1).Not(), Int(0));
+	int_eq(0, Int(0).Not(), Int(-1));
+	int_eq(0, Int(1).Not(), Int(-2));
+	int_eq(0, Int(2).Not(), Int(-3));
 
 	test_msg = "IntAnd";
 	for x := int64(-15); x < 5; x++ {
 		bx := Int(x);
 		for y := int64(-5); y < 15; y++ {
 			by := Int(y);
-			for i := uint(50); i < 70; i++ {  // shift across 64bit boundary
-				int_eq(i, bx.Shl(i).And(by.Shl(i)), Int(x & y).Shl(i));
+			for i := uint(50); i < 70; i++ {	// shift across 64bit boundary
+				int_eq(i, bx.Shl(i).And(by.Shl(i)), Int(x&y).Shl(i));
 			}
 		}
 	}
@@ -558,9 +570,9 @@ func TestIntBitOps2(t *testing.T) {
 		bx := Int(x);
 		for y := int64(-5); y < 15; y++ {
 			by := Int(y);
-			for i := uint(50); i < 70; i++ {  // shift across 64bit boundary
-				int_eq(2*i+0, bx.Shl(i).AndNot(by.Shl(i)), Int(x &^ y).Shl(i));
-				int_eq(2*i+1, bx.Shl(i).And(by.Shl(i).Not()), Int(x &^ y).Shl(i));
+			for i := uint(50); i < 70; i++ {	// shift across 64bit boundary
+				int_eq(2*i + 0, bx.Shl(i).AndNot(by.Shl(i)), Int(x&^y).Shl(i));
+				int_eq(2*i + 1, bx.Shl(i).And(by.Shl(i).Not()), Int(x&^y).Shl(i));
 			}
 		}
 	}
@@ -570,8 +582,8 @@ func TestIntBitOps2(t *testing.T) {
 		bx := Int(x);
 		for y := int64(-5); y < 15; y++ {
 			by := Int(y);
-			for i := uint(50); i < 70; i++ {  // shift across 64bit boundary
-				int_eq(i, bx.Shl(i).Or(by.Shl(i)), Int(x | y).Shl(i));
+			for i := uint(50); i < 70; i++ {	// shift across 64bit boundary
+				int_eq(i, bx.Shl(i).Or(by.Shl(i)), Int(x|y).Shl(i));
 			}
 		}
 	}
@@ -581,8 +593,8 @@ func TestIntBitOps2(t *testing.T) {
 		bx := Int(x);
 		for y := int64(-5); y < 15; y++ {
 			by := Int(y);
-			for i := uint(50); i < 70; i++ {  // shift across 64bit boundary
-				int_eq(i, bx.Shl(i).Xor(by.Shl(i)), Int(x ^ y).Shl(i));
+			for i := uint(50); i < 70; i++ {	// shift across 64bit boundary
+				int_eq(i, bx.Shl(i).Xor(by.Shl(i)), Int(x^y).Shl(i));
 			}
 		}
 	}
@@ -651,4 +663,3 @@ func TestNatPop(t *testing.T) {
 		test(i, nat_one.Shl(i).Sub(nat_one).Pop() == i);
 	}
 }
-

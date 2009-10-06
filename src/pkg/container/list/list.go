@@ -9,30 +9,30 @@ package list
 type Element struct {
 	// Next and previous pointers in the doubly-linked list of elements.
 	// The front of the list has prev = nil, and the back has next = nil.
-	next, prev *Element;
+	next, prev	*Element;
 
 	// A unique ID for the list to which this element belongs.
-	id *byte;
+	id	*byte;
 
 	// The contents of this list element.
-	Value interface {};
+	Value	interface{};
 }
 
 // Next returns the next list element or nil.
 func (e *Element) Next() *Element {
-	return e.next
+	return e.next;
 }
 
 // Prev returns the previous list element or nil.
 func (e *Element) Prev() *Element {
-	return e.prev
+	return e.prev;
 }
 
 // List represents a doubly linked list.
 type List struct {
-	front, back *Element;
-	len int;
-	id *byte;
+	front, back	*Element;
+	len		int;
+	id		*byte;
 }
 
 // Init initializes or clears a List.
@@ -41,28 +41,28 @@ func (l *List) Init() *List {
 	l.back = nil;
 	l.len = 0;
 	l.id = new(byte);
-	return l
+	return l;
 }
 
 // New returns an initialized list.
 func New() *List {
-	return new(List).Init()
+	return new(List).Init();
 }
 
 // Front returns the first element in the list.
 func (l *List) Front() *Element {
-	return l.front
+	return l.front;
 }
 
 // Back returns the last element in the list.
 func (l *List) Back() *Element {
-	return l.back
+	return l.back;
 }
 
 // Remove removes the element from the list.
 func (l *List) Remove(e *Element) {
 	if e.id != l.id {
-		return
+		return;
 	}
 	if e.prev == nil {
 		l.front = e.next;
@@ -112,7 +112,7 @@ func (l *List) insertFront(e *Element) {
 		l.front, l.back = e, e;
 		e.prev, e.next = nil, nil;
 		l.len = 1;
-		return
+		return;
 	}
 	l.insertBefore(e, l.front);
 }
@@ -123,55 +123,55 @@ func (l *List) insertBack(e *Element) {
 		l.front, l.back = e, e;
 		e.prev, e.next = nil, nil;
 		l.len = 1;
-		return
+		return;
 	}
 	l.insertAfter(e, l.back);
 }
 
 // PushFront inserts the value at the front of the list and returns a new Element containing the value.
-func (l *List) PushFront(value interface {}) *Element {
+func (l *List) PushFront(value interface{}) *Element {
 	if l.id == nil {
 		l.Init();
 	}
-	e := &Element{ nil, nil, l.id, value };
+	e := &Element{nil, nil, l.id, value};
 	l.insertFront(e);
-	return e
+	return e;
 }
 
 // PushBack inserts the value at the back of the list and returns a new Element containing the value.
-func (l *List) PushBack(value interface {}) *Element {
+func (l *List) PushBack(value interface{}) *Element {
 	if l.id == nil {
 		l.Init();
 	}
-	e := &Element{ nil, nil, l.id, value };
+	e := &Element{nil, nil, l.id, value};
 	l.insertBack(e);
-	return e
+	return e;
 }
 
 // InsertBefore inserts the value immediately before mark and returns a new Element containing the value.
-func (l *List) InsertBefore(value interface {}, mark *Element) *Element {
+func (l *List) InsertBefore(value interface{}, mark *Element) *Element {
 	if mark.id != l.id {
-		return nil
+		return nil;
 	}
-	e := &Element{ nil, nil, l.id, value };
+	e := &Element{nil, nil, l.id, value};
 	l.insertBefore(e, mark);
-	return e
+	return e;
 }
 
 // InsertAfter inserts the value immediately after mark and returns a new Element containing the value.
-func (l *List) InsertAfter(value interface {}, mark *Element) *Element {
+func (l *List) InsertAfter(value interface{}, mark *Element) *Element {
 	if mark.id != l.id {
-		return nil
+		return nil;
 	}
-	e := &Element{ nil, nil, l.id, value };
+	e := &Element{nil, nil, l.id, value};
 	l.insertAfter(e, mark);
-	return e
+	return e;
 }
 
 // MoveToFront moves the element to the front of the list.
 func (l *List) MoveToFront(e *Element) {
 	if e.id != l.id || l.front == e {
-		return
+		return;
 	}
 	l.Remove(e);
 	l.insertFront(e);
@@ -180,7 +180,7 @@ func (l *List) MoveToFront(e *Element) {
 // MoveToBack moves the element to the back of the list.
 func (l *List) MoveToBack(e *Element) {
 	if e.id != l.id || l.back == e {
-		return
+		return;
 	}
 	l.Remove(e);
 	l.insertBack(e);
@@ -188,18 +188,18 @@ func (l *List) MoveToBack(e *Element) {
 
 // Len returns the number of elements in the list.
 func (l *List) Len() int {
-	return l.len
+	return l.len;
 }
 
-func (l *List) iterate(c chan<- interface {}) {
+func (l *List) iterate(c chan<- interface{}) {
 	for e := l.front; e != nil; e = e.next {
 		c <- e.Value;
 	}
 	close(c);
 }
 
-func (l *List) Iter() <-chan interface {} {
-	c := make(chan interface {});
+func (l *List) Iter() <-chan interface{} {
+	c := make(chan interface{});
 	go l.iterate(c);
-	return c
+	return c;
 }

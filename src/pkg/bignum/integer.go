@@ -18,8 +18,8 @@ import (
 // Integer represents a signed integer value of arbitrary precision.
 //
 type Integer struct {
-	sign bool;
-	mant Natural;
+	sign	bool;
+	mant	Natural;
 }
 
 
@@ -29,7 +29,7 @@ type Integer struct {
 //
 func MakeInt(sign bool, mant Natural) *Integer {
 	if mant.IsZero() {
-		sign = false;  // normalize
+		sign = false;	// normalize
 	}
 	return &Integer{sign, mant};
 }
@@ -95,14 +95,14 @@ func (x *Integer) IsZero() bool {
 // IsNeg returns true iff x < 0.
 //
 func (x *Integer) IsNeg() bool {
-	return x.sign && !x.mant.IsZero()
+	return x.sign && !x.mant.IsZero();
 }
 
 
 // IsPos returns true iff x >= 0.
 //
 func (x *Integer) IsPos() bool {
-	return !x.sign && !x.mant.IsZero()
+	return !x.sign && !x.mant.IsZero();
 }
 
 
@@ -383,7 +383,7 @@ func (x *Integer) And(y *Integer) *Integer {
 
 	// x.sign != y.sign
 	if x.sign {
-		x, y = y, x;  // & is symmetric
+		x, y = y, x;	// & is symmetric
 	}
 
 	// x & (-y) == x & ^(y-1) == x &^ (y-1)
@@ -429,7 +429,7 @@ func (x *Integer) Or(y *Integer) *Integer {
 
 	// x.sign != y.sign
 	if x.sign {
-		x, y = y, x;  // | or symmetric
+		x, y = y, x;	// | or symmetric
 	}
 
 	// x | (-y) == x | ^(y-1) == ^((y-1) &^ x) == -(^((y-1) &^ x) + 1)
@@ -452,7 +452,7 @@ func (x *Integer) Xor(y *Integer) *Integer {
 
 	// x.sign != y.sign
 	if x.sign {
-		x, y = y, x;  // ^ is symmetric
+		x, y = y, x;	// ^ is symmetric
 	}
 
 	// x ^ (-y) == x ^ ^(y-1) == ^(x ^ (y-1)) == -((x ^ (y-1)) + 1)
@@ -478,8 +478,10 @@ func (x *Integer) Cmp(y *Integer) int {
 		if x.sign {
 			r = -r;
 		}
-	case x.sign: r = -1;
-	case y.sign: r = 1;
+	case x.sign:
+		r = -1;
+	case y.sign:
+		r = 1;
 	}
 	return r;
 }
@@ -532,7 +534,7 @@ func IntFromString(s string, base uint) (*Integer, uint, int) {
 		i0 = 1;
 	}
 
-	mant, base, slen := NatFromString(s[i0 : len(s)], base);
+	mant, base, slen := NatFromString(s[i0:len(s)], base);
 
-	return MakeInt(i0 > 0 && s[0] == '-', mant), base, i0 + slen;
+	return MakeInt(i0 > 0 && s[0] == '-', mant), base, i0+slen;
 }

@@ -15,18 +15,18 @@ import (
 // These constants are copied from the flate package, so that code that imports
 // "compress/zlib" does not also have to import "compress/flate".
 const (
-	NoCompression = flate.NoCompression;
-	BestSpeed = flate.BestSpeed;
-	BestCompression = flate.BestCompression;
-	DefaultCompression = flate.DefaultCompression;
+	NoCompression		= flate.NoCompression;
+	BestSpeed		= flate.BestSpeed;
+	BestCompression		= flate.BestCompression;
+	DefaultCompression	= flate.DefaultCompression;
 )
 
 type writer struct {
-	w io.Writer;
-	deflater io.WriteCloser;
-	digest hash.Hash32;
-	err os.Error;
-	scratch [4]byte;
+	w		io.Writer;
+	deflater	io.WriteCloser;
+	digest		hash.Hash32;
+	err		os.Error;
+	scratch		[4]byte;
 }
 
 // NewDeflater calls NewDeflaterLevel with the default compression level.
@@ -104,4 +104,3 @@ func (z *writer) Close() os.Error {
 	_, z.err = z.w.Write(z.scratch[0:4]);
 	return z.err;
 }
-

@@ -67,6 +67,7 @@ func checksum(header []byte) (unsigned int64, signed int64) {
 }
 
 type slicer []byte
+
 func (sp *slicer) next(n int) (b []byte) {
 	s := *sp;
 	b, *sp = s[0:n], s[n:len(s)];

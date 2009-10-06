@@ -14,8 +14,8 @@ import (
 )
 
 type untarTest struct {
-	file string;
-	headers []*Header;
+	file	string;
+	headers	[]*Header;
 }
 
 var untarTests = []*untarTest{
@@ -108,7 +108,7 @@ testLoop:
 		f, err := os.Open(test.file, os.O_RDONLY, 0444);
 		if err != nil {
 			t.Errorf("test %d: Unexpected error: %v", i, err);
-			continue
+			continue;
 		}
 		tr := NewReader(f);
 		for j, header := range test.headers {
@@ -116,11 +116,11 @@ testLoop:
 			if err != nil || hdr == nil {
 				t.Errorf("test %d, entry %d: Didn't get entry: %v", i, j, err);
 				f.Close();
-				continue testLoop
+				continue testLoop;
 			}
 			if !reflect.DeepEqual(hdr, header) {
 				t.Errorf("test %d, entry %d: Incorrect header:\nhave %+v\nwant %+v",
-					 i, j, *hdr, *header);
+					i, j, *hdr, *header);
 			}
 		}
 		hdr, err := tr.Next();

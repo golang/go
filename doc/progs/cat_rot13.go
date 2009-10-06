@@ -15,12 +15,12 @@ var rot13_flag = flag.Bool("rot13", false, "rot13 the input")
 
 func rot13(b byte) byte {
 	if 'a' <= b && b <= 'z' {
-	   b = 'a' + ((b - 'a') + 13) % 26;
+		b = 'a' + ((b-'a')+13)%26;
 	}
 	if 'A' <= b && b <= 'Z' {
-	   b = 'A' + ((b - 'A') + 13) % 26
+		b = 'A' + ((b-'A')+13)%26;
 	}
-	return b
+	return b;
 }
 
 type reader interface {
@@ -29,23 +29,23 @@ type reader interface {
 }
 
 type rotate13 struct {
-	source	reader;
+	source reader;
 }
 
 func newRotate13(source reader) *rotate13 {
-	return &rotate13{source}
+	return &rotate13{source};
 }
 
 func (r13 *rotate13) Read(b []byte) (ret int, err os.Error) {
 	r, e := r13.source.Read(b);
 	for i := 0; i < r; i++ {
-		b[i] = rot13(b[i])
+		b[i] = rot13(b[i]);
 	}
-	return r, e
+	return r, e;
 }
 
 func (r13 *rotate13) String() string {
-	return r13.source.String()
+	return r13.source.String();
 }
 // end of rotate13 implementation
 
@@ -54,14 +54,14 @@ func cat(r reader) {
 	var buf [NBUF]byte;
 
 	if *rot13_flag {
-		r = newRotate13(r)
+		r = newRotate13(r);
 	}
 	for {
 		switch nr, er := r.Read(&buf); {
 		case nr < 0:
 			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", r.String(), er.String());
 			os.Exit(1);
-		case nr == 0:  // EOF
+		case nr == 0:	// EOF
 			return;
 		case nr > 0:
 			nw, ew := file.Stdout.Write(buf[0:nr]);
@@ -73,7 +73,7 @@ func cat(r reader) {
 }
 
 func main() {
-	flag.Parse();   // Scans the arg list and sets up flags
+	flag.Parse();	// Scans the arg list and sets up flags
 	if flag.NArg() == 0 {
 		cat(file.Stdin);
 	}

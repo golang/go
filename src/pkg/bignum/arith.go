@@ -18,14 +18,14 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
 	// and return the product as 2 words.
 
 	const (
-		W = uint(unsafe.Sizeof(x))*8;
-		W2 = W/2;
-		B2 = 1<<W2;
-		M2 = B2-1;
+		W	= uint(unsafe.Sizeof(x)) * 8;
+		W2	= W/2;
+		B2	= 1<<W2;
+		M2	= B2-1;
 	)
 
 	if x < y {
-		x, y = y, x
+		x, y = y, x;
 	}
 
 	if x < B2 {
@@ -41,7 +41,7 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
 		// x = (x1*B2 + x0)
 		// y = (y1*B2 + y0)
 		x1, x0 := x>>W2, x&M2;
-	
+
 		// x*y = t2*B2*B2 + t1*B2 + t0
 		t0 := x0*y;
 		t1 := x1*y;
@@ -49,7 +49,7 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
 		// compute result digits but avoid overflow
 		// z = z[1]*B + z[0] = x*y
 		z0 = t1<<W2 + t0;
-		z1 = (t1 + t0>>W2) >> W2;
+		z1 = (t1 + t0>>W2)>>W2;
 		return;
 	}
 
@@ -68,7 +68,7 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
 	// compute result digits but avoid overflow
 	// z = z[1]*B + z[0] = x*y
 	z0 = t1<<W2 + t0;
-	z1 = t2 + (t1 + t0>>W2) >> W2;
+	z1 = t2 + (t1 + t0>>W2)>>W2;
 	return;
 }
 
@@ -80,10 +80,10 @@ func MulAdd128(x, y, c uint64) (z1, z0 uint64) {
 	// and return the product as 2 words.
 
 	const (
-		W = uint(unsafe.Sizeof(x))*8;
-		W2 = W/2;
-		B2 = 1<<W2;
-		M2 = B2-1;
+		W	= uint(unsafe.Sizeof(x)) * 8;
+		W2	= W/2;
+		B2	= 1<<W2;
+		M2	= B2-1;
 	)
 
 	// TODO(gri) Should implement special cases for faster execution.
@@ -104,7 +104,7 @@ func MulAdd128(x, y, c uint64) (z1, z0 uint64) {
 	// compute result digits but avoid overflow
 	// z = z[1]*B + z[0] = x*y
 	z0 = t1<<W2 + t0;
-	z1 = t2 + (t1 + t0>>W2) >> W2;
+	z1 = t2 + (t1 + t0>>W2)>>W2;
 	return;
 }
 

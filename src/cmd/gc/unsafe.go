@@ -5,6 +5,7 @@
 package PACKAGE
 
 type Pointer *any
+
 func Offsetof(any) int
 func Sizeof(any) int
 func Alignof(any) int

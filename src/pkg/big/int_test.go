@@ -14,7 +14,9 @@ func newZ(x int64) *Int {
 
 
 type funZZ func(z, x, y *Int) *Int
-type argZZ struct { z, x, y *Int }
+type argZZ struct {
+	z, x, y *Int;
+}
 
 var sumZZ = []argZZ{
 	argZZ{newZ(0), newZ(0), newZ(0)},
@@ -29,8 +31,8 @@ var prodZZ = []argZZ{
 	argZZ{newZ(0), newZ(0), newZ(0)},
 	argZZ{newZ(0), newZ(1), newZ(0)},
 	argZZ{newZ(1), newZ(1), newZ(1)},
-	argZZ{newZ(-991*991), newZ(991), newZ(-991)},
-	// TODO(gri) add larger products
+	argZZ{newZ(-991 * 991), newZ(991), newZ(-991)},
+// TODO(gri) add larger products
 }
 
 
@@ -55,8 +57,12 @@ func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
 
 
 func TestSumZZ(t *testing.T) {
-	AddZZ := func(z, x, y *Int) *Int { return z.Add(x, y) };
-	SubZZ := func(z, x, y *Int) *Int { return z.Sub(x, y) };
+	AddZZ := func(z, x, y *Int) *Int {
+		return z.Add(x, y);
+	};
+	SubZZ := func(z, x, y *Int) *Int {
+		return z.Sub(x, y);
+	};
 	for _, a := range sumZZ {
 		arg := a;
 		testFunZZ(t, "AddZZ", AddZZ, arg);
@@ -74,7 +80,9 @@ func TestSumZZ(t *testing.T) {
 
 
 func TestProdZZ(t *testing.T) {
-	MulZZ := func(z, x, y *Int) *Int { return z.Mul(x, y) };
+	MulZZ := func(z, x, y *Int) *Int {
+		return z.Mul(x, y);
+	};
 	for _, a := range prodZZ {
 		arg := a;
 		testFunZZ(t, "MulZZ", MulZZ, arg);
@@ -85,7 +93,7 @@ func TestProdZZ(t *testing.T) {
 }
 
 
-var facts = map[int] string {
+var facts = map[int]string{
 	0: "1",
 	1: "1",
 	2: "2",
