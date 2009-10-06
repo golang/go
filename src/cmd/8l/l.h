@@ -259,7 +259,6 @@ EXTERN	int32	INITDAT;
 EXTERN	int32	INITRND;
 EXTERN	int32	INITTEXT;
 EXTERN	char*	INITENTRY;		/* entry point */
-EXTERN	char*	LIBDIR;
 EXTERN	Biobuf	bso;
 EXTERN	int32	bsssize;
 EXTERN	int32	casepc;

@@ -39,6 +39,8 @@ char	symname[]	= SYMDEF;
 char	thechar		= '6';
 char*	thestring 	= "amd64";
 char*	paramspace	= "FP";
+char*	libdir[16];	// contains "." first, goroot last
+int	nlibdir		= 0;
 
 /*
  *	-H2 -T4136 -R4096		is plan9 64-bit format
@@ -96,7 +98,7 @@ main(int argc, char *argv[])
 	INITDAT = -1;
 	INITRND = -1;
 	INITENTRY = 0;
-	LIBDIR = nil;
+	libdir[nlibdir++] = ".";	// look in dot first
 
 	ARGBEGIN {
 	default:
@@ -114,7 +116,11 @@ main(int argc, char *argv[])
 		HEADTYPE = atolwhex(EARGF(usage()));
 		break;
 	case 'L':
-		LIBDIR = EARGF(usage());
+		if(nlibdir >= nelem(libdir)-1) {
+			print("too many -L's: %d\n", nlibdir);
+			usage();
+		}
+		libdir[nlibdir++] = EARGF(usage());
 		break;
 	case 'T':
 		INITTEXT = atolwhex(EARGF(usage()));
@@ -124,7 +130,6 @@ main(int argc, char *argv[])
 		break;
 	case 'R':
 		INITRND = atolwhex(EARGF(usage()));
-		break;
 		break;
 	case 'x':	/* produce export table */
 		doexp = 1;
@@ -145,6 +150,9 @@ main(int argc, char *argv[])
 	mywhatsys();	// get goroot, goarch, goos
 	if(strcmp(goarch, thestring) != 0)
 		print("goarch is not known: %s\n", goarch);
+
+	// put goroot in the libdir list.
+	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
 
 	if(HEADTYPE == -1) {
 		HEADTYPE = 2;
@@ -699,11 +707,11 @@ addlib(char *src, char *obj)
 
 	if(search) {
 		// try dot, -L "libdir", and then goroot.
-		snprint(pname, sizeof pname, "./%s", name);
-		if(access(pname, AEXIST) < 0 && LIBDIR != nil)
-			snprint(pname, sizeof pname, "%s/%s", LIBDIR, name);
-		if(access(pname, AEXIST) < 0)
-			snprint(pname, sizeof pname, "%s/pkg/%s_%s/%s", goroot, goos, goarch, name);
+		for(i=0; i<nlibdir; i++) {
+			snprint(pname, sizeof pname, "%s/%s", libdir[i], name);
+			if(access(pname, AEXIST) >= 0)
+				break;
+		}
 		strcpy(name, pname);
 	}
 	cleanname(name);
