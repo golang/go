@@ -99,6 +99,8 @@ main(int argc, char *argv[])
 	INITDAT = -1;
 	INITRND = -1;
 	INITENTRY = 0;
+	libdir[nlibdir++] = ".";	// look in dot first
+
 	ARGBEGIN {
 	default:
 		c = ARGC();
@@ -150,6 +152,9 @@ main(int argc, char *argv[])
 	whatsys();	// get goroot, goarch, goos
 	if(strcmp(goarch, thestring) != 0)
 		print("goarch is not known: %s\n", goarch);
+
+	// put goroot in the libdir list.
+	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
 
 	if(HEADTYPE == -1) {
 		HEADTYPE = 2;
