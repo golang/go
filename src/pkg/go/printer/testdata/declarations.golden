@@ -19,10 +19,10 @@ import (
 )
 
 import (
-				"io";
+			"io";
 	aLongRename	"io";
-	b			"io";
-	c			"i" "o";
+	b		"io";
+	c		"i" "o";
 )
 
 // no newlines between consecutive single imports, but
@@ -124,16 +124,16 @@ func _() {
 	// no entry has a type
 	const (
 		zzzzzz	= 1;
-		z		= 2;
-		zzz		= 3;
+		z	= 2;
+		zzz	= 3;
 	)
 	// some entries have a type
 	const (
-		xxxxxx				= 1;
-		x					= 2;
-		xxx					= 3;
+		xxxxxx			= 1;
+		x			= 2;
+		xxx			= 3;
 		yyyyyyyy	float	= iota;
-		yyyy				= "bar";
+		yyyy			= "bar";
 		yyy;
 		yy		= 2;
 	)
@@ -143,31 +143,31 @@ func _() {
 	// no entry has a type
 	var (
 		zzzzzz	= 1;
-		z		= 2;
-		zzz		= 3;
+		z	= 2;
+		zzz	= 3;
 	)
 	// some entries have a type
 	var (
 		xxxxxx		int;
-		x			float;
-		xxx			string;
-		yyyyyyyy	int		= 1234;
-		y			float	= 3.14;
-		yyyy				= "bar";
-		yyy			string	= "foo";
+		x		float;
+		xxx		string;
+		yyyyyyyy	int	= 1234;
+		y		float	= 3.14;
+		yyyy			= "bar";
+		yyy		string	= "foo";
 	)
 }
 
 func _() {
 	type (
 		xxxxxx	int;
-		x		float;
-		xxx		string;
+		x	float;
+		xxx	string;
 		xxxxx	[]x;
-		xx		struct{};
+		xx	struct{};
 		xxxxxxx	struct {
 			_, _	int;
-			_		float;
+			_	float;
 		};
 		xxxx	chan<- string;
 	)
@@ -178,7 +178,7 @@ func _() {
 type ES struct{}
 
 type _ struct {	// this comment must not change indentation
-	f					int;
+	f			int;
 	f, ff, fff, ffff	int;
 }
 
@@ -216,14 +216,14 @@ type _ struct {
 
 type _ struct {
 	bool;
-	a, b, c				int;
-	int					"tag";
-	ES;					// comment
-	float				"tag";	// comment
-	f					int;	// comment
+	a, b, c			int;
+	int			"tag";
+	ES;			// comment
+	float			"tag";	// comment
+	f			int;	// comment
 	f, ff, fff, ffff	int;	// comment
-	g					float	"tag";
-	h					float	"tag";	// comment
+	g			float	"tag";
+	h			float	"tag";	// comment
 }
 
 
@@ -246,16 +246,16 @@ type _ interface {
 }
 
 type _ interface {	// this comment must not change indentation
-	EI;							// here's a comment
-	f();						// no blank between identifier and ()
-	fffff();					// no blank between identifier and ()
+	EI;				// here's a comment
+	f();				// no blank between identifier and ()
+	fffff();			// no blank between identifier and ()
 	gggggggggggg(x, y, z int);	// hurray
 }
 
 // formatting of variable declarations
 func _() {
 	type day struct {
-		n			int;
+		n		int;
 		short, long	string;
 	}
 	var (

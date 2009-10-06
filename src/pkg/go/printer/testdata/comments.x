@@ -17,7 +17,7 @@ type S0 struct {
 type S1 struct {
 	S0;
 	A, B, C	float;	// 3 exported fields
-	D		int;	// 2 unexported fields
+	D	int;	// 2 unexported fields
 	// contains unexported fields
 }
 
