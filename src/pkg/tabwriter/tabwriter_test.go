@@ -35,7 +35,7 @@ func (b *buffer) Write(buf []byte) (written int, err os.Error) {
 			b.a[n+i] = buf[i];
 		}
 	} else {
-		panicln("buffer too small", n, m, cap(b.a));
+		panicln("buffer.Write: buffer too small", n, m, cap(b.a));
 	}
 	return len(buf), nil;
 }
@@ -406,6 +406,59 @@ var tests = []entry {
 		"    .0         0.0  332.0  8908.0\n"
 		"    .0         -.3  456.4    22.1\n"
 		"    .0         1.2   44.4   -13.3"
+	},
+
+	entry{
+		"15a",
+		4, 0, '.', 0,
+		"a\t\tb",
+		"a.......b"
+	},
+
+	entry{
+		"15b",
+		4, 0, '.', DiscardEmptyColumns,
+		"a\t\tb",
+		"a...b"
+	},
+
+	entry{
+		"15c",
+		4, 0, '.', AlignRight | DiscardEmptyColumns,
+		"a\t\tb",
+		"...ab"
+	},
+
+	entry{
+		"16a",
+		100, 0, '\t', 0,
+		"a\tb\t\td\n"
+		"a\tb\t\td\te\n"
+		"a\n"
+		"a\tb\tc\td\n"
+		"a\tb\tc\td\te\n",
+
+		"a\tb\t\td\n"
+		"a\tb\t\td\te\n"
+		"a\n"
+		"a\tb\tc\td\n"
+		"a\tb\tc\td\te\n"
+	},
+
+	entry{
+		"16b",
+		100, 0, '\t', DiscardEmptyColumns,
+		"a\tb\t\td\n"
+		"a\tb\t\td\te\n"
+		"a\n"
+		"a\tb\tc\td\n"
+		"a\tb\tc\td\te\n",
+
+		"a\tb\td\n"
+		"a\tb\td\te\n"
+		"a\n"
+		"a\tb\tc\td\n"
+		"a\tb\tc\td\te\n"
 	},
 }
 
