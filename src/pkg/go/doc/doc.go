@@ -232,6 +232,13 @@ var (
 	bug_content *regexp.Regexp;
 )
 
+func makeRex(s string) *regexp.Regexp {
+	re, err := regexp.Compile(s);
+	if err != nil {
+		panic("MakeRegexp ", s, " ", err.String());
+	}
+	return re;
+}
 
 // addFile adds the AST for a source file to the docReader.
 // Adding the same AST multiple times is a no-op.
