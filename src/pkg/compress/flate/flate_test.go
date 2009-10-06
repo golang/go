@@ -15,7 +15,7 @@ import (
 )
 
 // The Huffman code lengths used by the fixed-format Huffman blocks.
-var fixedHuffmanBits = [...]int {
+var fixedHuffmanBits = [...]int{
 	// 0-143 length 8
 	8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
 	8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
@@ -45,48 +45,48 @@ var fixedHuffmanBits = [...]int {
 }
 
 type InitDecoderTest struct {
-	in []int;
-	out huffmanDecoder;
-	ok bool;
+	in	[]int;
+	out	huffmanDecoder;
+	ok	bool;
 }
 
 var initDecoderTests = []*InitDecoderTest{
 	// Example from Connell 1973,
 	&InitDecoderTest{
-		[]int{ 3, 5, 2, 4, 3, 5, 5, 4, 4, 3, 4, 5 },
-		huffmanDecoder {
+		[]int{3, 5, 2, 4, 3, 5, 5, 4, 4, 3, 4, 5},
+		huffmanDecoder{
 			2, 5,
-			[maxCodeLen+1]int{ 2: 0, 4, 13, 31 },
-			[maxCodeLen+1]int{ 2: 0, 1, 6, 20 },
+			[maxCodeLen+1]int{2: 0, 4, 13, 31},
+			[maxCodeLen+1]int{2: 0, 1, 6, 20},
 			// Paper used different code assignment:
 			// 2, 9, 4, 0, 10, 8, 3, 7, 1, 5, 11, 6
 			// Reordered here so that codes of same length
 			// are assigned to increasing numbers.
-			[]int{ 2, 0, 4, 9, 3, 7, 8, 10, 1, 5, 6, 11 },
+			[]int{2, 0, 4, 9, 3, 7, 8, 10, 1, 5, 6, 11},
 		},
 		true,
 	},
 
 	// Example from RFC 1951 section 3.2.2
 	&InitDecoderTest{
-		[]int{ 2, 1, 3, 3 },
-		huffmanDecoder {
+		[]int{2, 1, 3, 3},
+		huffmanDecoder{
 			1, 3,
-			[maxCodeLen+1]int{ 1: 0, 2, 7, },
-			[maxCodeLen+1]int{ 1: 0, 1, 4, },
-			[]int{ 1, 0, 2, 3 },
+			[maxCodeLen+1]int{1: 0, 2, 7},
+			[maxCodeLen+1]int{1: 0, 1, 4},
+			[]int{1, 0, 2, 3},
 		},
 		true,
 	},
 
 	// Second example from RFC 1951 section 3.2.2
 	&InitDecoderTest{
-		[]int{ 3, 3, 3, 3, 3, 2, 4, 4 },
+		[]int{3, 3, 3, 3, 3, 2, 4, 4},
 		huffmanDecoder{
 			2, 4,
-			[maxCodeLen+1]int{ 2: 0, 6, 15, },
-			[maxCodeLen+1]int{ 2: 0, 1, 8, },
-			[]int{ 5, 0, 1, 2, 3, 4, 6, 7 },
+			[maxCodeLen+1]int{2: 0, 6, 15},
+			[maxCodeLen+1]int{2: 0, 1, 8},
+			[]int{5, 0, 1, 2, 3, 4, 6, 7},
 		},
 		true,
 	},
@@ -100,15 +100,15 @@ var initDecoderTests = []*InitDecoderTest{
 
 	// Illegal input.
 	&InitDecoderTest{
-		[]int{ },
-		huffmanDecoder{ },
+		[]int{},
+		huffmanDecoder{},
 		false,
 	},
 
 	// Illegal input.
 	&InitDecoderTest{
-		[]int{ 0, 0, 0, 0, 0, 0, 0, },
-		huffmanDecoder{ },
+		[]int{0, 0, 0, 0, 0, 0, 0},
+		huffmanDecoder{},
 		false,
 	},
 }
@@ -127,8 +127,7 @@ func TestInitDecoder(t *testing.T) {
 }
 
 func TestUncompressedSource(t *testing.T) {
-	decoder := NewInflater(bytes.NewBuffer(
-		[]byte{ 0x01, 0x01, 0x00, 0xfe, 0xff, 0x11 }));
+	decoder := NewInflater(bytes.NewBuffer([]byte{0x01, 0x01, 0x00, 0xfe, 0xff, 0x11}));
 	output := make([]byte, 1);
 	n, error := decoder.Read(output);
 	if n != 1 || error != nil {

@@ -70,4 +70,3 @@ func copyUint8s(dst []uint8, src []uint8) int {
 	}
 	return cnt;
 }
-

@@ -21,8 +21,8 @@ import "testing"
 // value of an fpNat x is x.m * 2^x.e .
 //
 type fpNat struct {
-	m Natural;
-	e int;
+	m	Natural;
+	e	int;
 }
 
 
@@ -40,7 +40,7 @@ func (x fpNat) sub(y fpNat) fpNat {
 
 // mul2 computes x*2.
 func (x fpNat) mul2() fpNat {
-	return fpNat{x.m, x.e+1};
+	return fpNat{x.m, x.e + 1};
 }
 
 
@@ -55,8 +55,10 @@ func (x fpNat) mul(y fpNat) fpNat {
 //
 func (x fpNat) mant() Natural {
 	switch {
-	case x.e > 0: return x.m.Shl(uint(x.e));
-	case x.e < 0: return x.m.Shr(uint(-x.e));
+	case x.e > 0:
+		return x.m.Shl(uint(x.e));
+	case x.e < 0:
+		return x.m.Shr(uint(-x.e));
 	}
 	return x.m;
 }
@@ -131,9 +133,9 @@ func nrDivEst(x0, y0 Natural) Natural {
 		// reduce mantissa size
 		// TODO: Find smaller bound as it will reduce
 		//       computation time massively.
-		d := int(r.m.Log2()+1) - maxLen;
+		d := int(r.m.Log2() + 1) - maxLen;
 		if d > 0 {
-			r = fpNat{r.m.Shr(uint(d)), r.e+d};
+			r = fpNat{r.m.Shr(uint(d)), r.e + d};
 		}
 	}
 
@@ -188,5 +190,5 @@ func TestNRDiv(t *testing.T) {
 	idiv(t, 7484890589595, 7484890589594);
 	div(t, Fact(100), Fact(91));
 	div(t, Fact(1000), Fact(991));
-	//div(t, Fact(10000), Fact(9991));  // takes too long - disabled for now
+//div(t, Fact(10000), Fact(9991));  // takes too long - disabled for now
 }

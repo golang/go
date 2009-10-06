@@ -12,8 +12,8 @@ package ring
 // ring with a nil Value.
 //
 type Ring struct {
-	next, prev *Ring;
-	Value interface{};  // for use by client; untouched by this library
+	next, prev	*Ring;
+	Value		interface{};	// for use by client; untouched by this library
 }
 
 
@@ -119,7 +119,7 @@ func (r *Ring) Unlink(n int) *Ring {
 	if n <= 0 {
 		return nil;
 	}
-	return r.Link(r.Move(n + 1));
+	return r.Link(r.Move(n+1));
 }
 
 
@@ -138,8 +138,8 @@ func (r *Ring) Len() int {
 }
 
 
-func (r *Ring) Iter() <-chan interface {} {
-	c := make(chan interface {});
+func (r *Ring) Iter() <-chan interface{} {
+	c := make(chan interface{});
 	go func() {
 		if r != nil {
 			c <- r.Value;
@@ -149,5 +149,5 @@ func (r *Ring) Iter() <-chan interface {} {
 		}
 		close(c);
 	}();
-	return c
+	return c;
 }

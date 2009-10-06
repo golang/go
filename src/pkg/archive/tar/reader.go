@@ -87,6 +87,7 @@ func (tr *Reader) octal(b []byte) int64 {
 }
 
 type ignoreWriter struct{}
+
 func (ignoreWriter) Write(b []byte) (n int, err os.Error) {
 	return len(b), nil;
 }
@@ -160,7 +161,7 @@ func (tr *Reader) readHeader() *Header {
 			format = "star";
 		} else {
 			format = "posix";
-				}
+		}
 	case "ustar  \x00":	// old GNU tar
 		format = "gnu";
 	}

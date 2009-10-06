@@ -54,7 +54,7 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 
 	// connections
 	if r.next != nil {
-		var p *Ring;  // previous element
+		var p *Ring;	// previous element
 		for q := r; p == nil || q != r; q = q.next {
 			if p != nil && p != q.prev {
 				t.Errorf("prev = %p, expected q.prev = %p\n", p, q.prev);
@@ -85,8 +85,8 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 		t.Errorf("r.Move(%d) != r", -N);
 	}
 	for i := 0; i < 10; i++ {
-		ni := N + i;
-		mi := ni % N;
+		ni := N+i;
+		mi := ni%N;
 		if r.Move(ni) != r.Move(mi) {
 			t.Errorf("r.Move(%d) != r.Move(%d)", ni, mi);
 		}
@@ -99,8 +99,8 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 
 func TestCornerCases(t *testing.T) {
 	var (
-		r0 *Ring;
-		r1 Ring;
+		r0	*Ring;
+		r1	Ring;
 	)
 	// Basics
 	verify(t, r0, 0, 0);
@@ -186,13 +186,13 @@ func TestLink2(t *testing.T) {
 	verify(t, r1a, 1, 42);
 
 	r1a.Link(r1b);
-	verify(t, r1a, 2, 42 + 77);
+	verify(t, r1a, 2, 42+77);
 
 	r10.Link(r0);
 	verify(t, r10, 10, sumN(10));
 
 	r10.Link(r1a);
-	verify(t, r10, 12, sumN(10) + 42 + 77);
+	verify(t, r10, 12, sumN(10)+42+77);
 }
 
 
@@ -220,11 +220,11 @@ func TestUnlink(t *testing.T) {
 
 	r1 := r10.Unlink(1);
 	verify(t, r1, 1, 2);
-	verify(t, r10, 9, sum10 - 2);
+	verify(t, r10, 9, sum10-2);
 
 	r9 := r10.Unlink(9);
-	verify(t, r9, 9, sum10 - 2);
-	verify(t, r10, 9, sum10 - 2);
+	verify(t, r9, 9, sum10-2);
+	verify(t, r10, 9, sum10-2);
 }
 
 

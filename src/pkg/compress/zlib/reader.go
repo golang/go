@@ -22,11 +22,11 @@ var HeaderError os.Error = os.ErrorString("invalid zlib header")
 var UnsupportedError os.Error = os.ErrorString("unsupported zlib format")
 
 type reader struct {
-	r flate.Reader;
-	inflater io.ReadCloser;
-	digest hash.Hash32;
-	err os.Error;
-	scratch [4]byte;
+	r		flate.Reader;
+	inflater	io.ReadCloser;
+	digest		hash.Hash32;
+	err		os.Error;
+	scratch		[4]byte;
 }
 
 // NewInflater creates a new io.ReadCloser that satisfies reads by decompressing data read from r.
@@ -43,8 +43,8 @@ func NewInflater(r io.Reader) (io.ReadCloser, os.Error) {
 	if err != nil {
 		return nil, err;
 	}
-	h := uint(z.scratch[0])<<8 | uint(z.scratch[1]);
-	if (z.scratch[0] & 0x0f != zlibDeflate) || (h % 31 != 0) {
+	h := uint(z.scratch[0]) << 8 | uint(z.scratch[1]);
+	if (z.scratch[0] & 0x0f != zlibDeflate) || (h%31 != 0) {
 		return nil, HeaderError;
 	}
 	if z.scratch[1] & 0x20 != 0 {
@@ -77,7 +77,7 @@ func (z *reader) Read(p []byte) (n int, err os.Error) {
 		return 0, err;
 	}
 	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
-	checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3]);
+	checksum := uint32(z.scratch[0]) << 24 | uint32(z.scratch[1]) << 16 | uint32(z.scratch[2]) << 8 | uint32(z.scratch[3]);
 	if checksum != z.digest.Sum32() {
 		z.err = ChecksumError;
 		return 0, z.err;
@@ -93,4 +93,3 @@ func (z *reader) Close() os.Error {
 	z.err = z.inflater.Close();
 	return z.err;
 }
-

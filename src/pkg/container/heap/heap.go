@@ -37,7 +37,7 @@ func Init(h HeapInterface) {
 //
 func Push(h HeapInterface, x interface{}) {
 	h.Push(x);
-	up(h, h.Len()-1);
+	up(h, h.Len() - 1);
 }
 
 
@@ -45,7 +45,7 @@ func Push(h HeapInterface, x interface{}) {
 // and returns it. The complexity is O(log(n)) where n = h.Len().
 //
 func Pop(h HeapInterface) interface{} {
-	n := h.Len()-1;
+	n := h.Len() - 1;
 	h.Swap(0, n);
 	down(h, 0, n);
 	return h.Pop();
@@ -56,7 +56,7 @@ func Pop(h HeapInterface) interface{} {
 // The complexity is O(log(n)) where n = h.Len().
 //
 func Remove(h HeapInterface, i int) interface{} {
-	n := h.Len()-1;
+	n := h.Len() - 1;
 	if n != i {
 		h.Swap(n, i);
 		down(h, i, n);
@@ -85,7 +85,7 @@ func down(h HeapInterface, i, n int) {
 			break;
 		}
 		if j1 := j+1; j1 < n && !h.Less(j, j1) {
-			j = j1;  // = 2*i + 2
+			j = j1;	// = 2*i + 2
 		}
 		if h.Less(i, j) {
 			break;

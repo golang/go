@@ -5,21 +5,21 @@
 package bytes_test
 
 import (
-	. "bytes";
-	"rand";
-	"testing";
+	.	"bytes";
+		"rand";
+		"testing";
 )
 
 
-const N = 10000  // make this bigger for a larger (and slower) test
-var data string  // test data for write tests
+const N = 10000		// make this bigger for a larger (and slower) test
+var data string		// test data for write tests
 var bytes []byte	// test data; same as data but as a slice.
 
 
 func init() {
 	bytes = make([]byte, N);
 	for i := 0; i < N; i++ {
-		bytes[i] = 'a' + byte(i % 26)
+		bytes[i] = 'a' + byte(i%26);
 	}
 	data = string(bytes);
 }
@@ -29,19 +29,19 @@ func check(t *testing.T, testname string, buf *Buffer, s string) {
 	bytes := buf.Bytes();
 	str := buf.String();
 	if buf.Len() != len(bytes) {
-		t.Errorf("%s: buf.Len() == %d, len(buf.Bytes()) == %d\n", testname, buf.Len(), len(bytes))
+		t.Errorf("%s: buf.Len() == %d, len(buf.Bytes()) == %d\n", testname, buf.Len(), len(bytes));
 	}
 
 	if buf.Len() != len(str) {
-		t.Errorf("%s: buf.Len() == %d, len(buf.String()) == %d\n", testname, buf.Len(), len(str))
+		t.Errorf("%s: buf.Len() == %d, len(buf.String()) == %d\n", testname, buf.Len(), len(str));
 	}
 
 	if buf.Len() != len(s) {
-		t.Errorf("%s: buf.Len() == %d, len(s) == %d\n", testname, buf.Len(), len(s))
+		t.Errorf("%s: buf.Len() == %d, len(s) == %d\n", testname, buf.Len(), len(s));
 	}
 
 	if string(bytes) != s {
-		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q\n", testname, string(bytes), s)
+		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q\n", testname, string(bytes), s);
 	}
 }
 
@@ -111,7 +111,7 @@ func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
 		if err != nil {
 			t.Errorf(testname + " (empty 2): err should always be nil, found err == %s\n", err);
 		}
-		s = s[n : len(s)];
+		s = s[n:len(s)];
 		check(t, testname + " (empty 3)", buf, s);
 	}
 
@@ -131,7 +131,7 @@ func TestBasicOperations(t *testing.T) {
 		buf.Truncate(0);
 		check(t, "TestBasicOperations (3)", &buf, "");
 
-		n, err := buf.Write(Bytes(data[0 : 1]));
+		n, err := buf.Write(Bytes(data[0:1]));
 		if n != 1 {
 			t.Errorf("wrote 1 byte, but n == %d\n", n);
 		}
@@ -143,19 +143,19 @@ func TestBasicOperations(t *testing.T) {
 		buf.WriteByte(data[1]);
 		check(t, "TestBasicOperations (5)", &buf, "ab");
 
-		n, err = buf.Write(Bytes(data[2 : 26]));
+		n, err = buf.Write(Bytes(data[2:26]));
 		if n != 24 {
 			t.Errorf("wrote 25 bytes, but n == %d\n", n);
 		}
-		check(t, "TestBasicOperations (6)", &buf, string(data[0 : 26]));
+		check(t, "TestBasicOperations (6)", &buf, string(data[0:26]));
 
 		buf.Truncate(26);
-		check(t, "TestBasicOperations (7)", &buf, string(data[0 : 26]));
+		check(t, "TestBasicOperations (7)", &buf, string(data[0:26]));
 
 		buf.Truncate(20);
-		check(t, "TestBasicOperations (8)", &buf, string(data[0 : 20]));
+		check(t, "TestBasicOperations (8)", &buf, string(data[0:20]));
 
-		empty(t, "TestBasicOperations (9)", &buf, string(data[0 : 20]), make([]byte, 5));
+		empty(t, "TestBasicOperations (9)", &buf, string(data[0:20]), make([]byte, 5));
 		empty(t, "TestBasicOperations (10)", &buf, "", make([]byte, 100));
 
 		buf.WriteByte(data[1]);
@@ -219,16 +219,16 @@ func TestMixedReadsAndWrites(t *testing.T) {
 	s := "";
 	for i := 0; i < 50; i++ {
 		wlen := rand.Intn(len(data));
-		if i % 2 == 0 {
-			s = fillString(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, data[0 : wlen]);
+		if i%2 == 0 {
+			s = fillString(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, data[0:wlen]);
 		} else {
-			s = fillBytes(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, bytes[0 : wlen]);
+			s = fillBytes(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, bytes[0:wlen]);
 		}
 
 		rlen := rand.Intn(len(data));
 		fub := make([]byte, rlen);
 		n, _ := buf.Read(fub);
-		s = s[n : len(s)];
+		s = s[n:len(s)];
 	}
 	empty(t, "TestMixedReadsAndWrites (2)", &buf, s, make([]byte, buf.Len()));
 }

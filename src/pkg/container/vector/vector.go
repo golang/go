@@ -8,19 +8,19 @@ package vector
 
 // Element is an empty-interface object representing the contents of
 // a cell in the vector.
-type Element interface {}
+type Element interface{}
 
 
 // Vector is the container itself.
 // The zero value for Vector is an empty vector ready to use.
 type Vector struct {
-	a []Element
+	a []Element;
 }
 
 
 func copy(dst, src []Element) {
 	for i := 0; i < len(src); i++ {
-		dst[i] = src[i]
+		dst[i] = src[i];
 	}
 }
 
@@ -29,28 +29,28 @@ func copy(dst, src []Element) {
 func expand(a []Element, i, n int) []Element {
 	// make sure we have enough space
 	len0 := len(a);
-	len1 := len0 + n;
+	len1 := len0+n;
 	if len1 < cap(a) {
 		// enough space - just expand
-		a = a[0 : len1]
+		a = a[0:len1];
 	} else {
 		// not enough space - double capacity
 		capb := cap(a)*2;
 		if capb < len1 {
 			// still not enough - use required length
-			capb = len1
+			capb = len1;
 		}
 		// capb >= len1
 		b := make([]Element, len1, capb);
 		copy(b, a);
-		a = b
+		a = b;
 	}
 
 	// make a hole
-	for j := len0-1; j >= i ; j-- {
-		a[j+n] = a[j]
+	for j := len0-1; j >= i; j-- {
+		a[j+n] = a[j];
 	}
-	return a
+	return a;
 }
 
 
@@ -61,26 +61,26 @@ func (p *Vector) Init(initial_len int) *Vector {
 	a := p.a;
 
 	if cap(a) == 0 || cap(a) < initial_len {
-		n := 8;  // initial capacity
+		n := 8;	// initial capacity
 		if initial_len > n {
-			n = initial_len
+			n = initial_len;
 		}
 		a = make([]Element, n);
 	} else {
 		// nil out entries
-		for j := len(a) - 1; j >= 0; j-- {
-			a[j] = nil
+		for j := len(a)-1; j >= 0; j-- {
+			a[j] = nil;
 		}
 	}
 
-	p.a = a[0 : initial_len];
-	return p
+	p.a = a[0:initial_len];
+	return p;
 }
 
 
 // New returns an initialized new Vector with length at least len.
 func New(len int) *Vector {
-	return new(Vector).Init(len)
+	return new(Vector).Init(len);
 }
 
 
@@ -90,25 +90,25 @@ func (p *Vector) Len() int {
 	if p == nil {
 		return 0;
 	}
-	return len(p.a)
+	return len(p.a);
 }
 
 
 // At returns the i'th element of the vector.
 func (p *Vector) At(i int) Element {
-	return p.a[i]
+	return p.a[i];
 }
 
 
 // Set sets the i'th element of the vector to value x.
 func (p *Vector) Set(i int, x Element) {
-	p.a[i] = x
+	p.a[i] = x;
 }
 
 
 // Last returns the element in the vector of highest index.
 func (p *Vector) Last() Element {
-	return p.a[len(p.a) - 1]
+	return p.a[len(p.a) - 1];
 }
 
 
@@ -116,9 +116,9 @@ func (p *Vector) Last() Element {
 func (p *Vector) Data() []Element {
 	arr := make([]Element, p.Len());
 	for i, v := range p.a {
-		arr[i] = v
+		arr[i] = v;
 	}
-	return arr
+	return arr;
 }
 
 
@@ -137,7 +137,7 @@ func (p *Vector) Delete(i int) {
 	n := len(a);
 
 	copy(a[i : n-1], a[i+1 : n]);
-	a[n-1] = nil;  // support GC, nil out entry
+	a[n-1] = nil;	// support GC, nil out entry
 	p.a = a[0 : n-1];
 }
 
@@ -154,22 +154,22 @@ func (p *Vector) InsertVector(i int, x *Vector) {
 func (p *Vector) Cut(i, j int) {
 	a := p.a;
 	n := len(a);
-	m := n - (j - i);
+	m := n-(j-i);
 
-	copy(a[i : m], a[j : n]);
+	copy(a[i:m], a[j:n]);
 	for k := m; k < n; k++ {
-		a[k] = nil  // support GC, nil out entries
+		a[k] = nil;	// support GC, nil out entries
 	}
 
-	p.a = a[0 : m];
+	p.a = a[0:m];
 }
 
 
 // Slice returns a new Vector by slicing the old one to extract slice [i:j].
 // The elements are copied. The original vector is unchanged.
 func (p *Vector) Slice(i, j int) *Vector {
-	s := New(j - i);  // will fail in Init() if j < j
-	copy(s.a, p.a[i : j]);
+	s := New(j-i);	// will fail in Init() if j < j
+	copy(s.a, p.a[i:j]);
 	return s;
 }
 
@@ -178,7 +178,7 @@ func (p *Vector) Slice(i, j int) *Vector {
 // The function should not change the indexing of the vector underfoot.
 func (p *Vector) Do(f func(elem Element)) {
 	for i := 0; i < len(p.a); i++ {
-		f(p.a[i])	// not too safe if f changes the Vector
+		f(p.a[i]);	// not too safe if f changes the Vector
 	}
 }
 
@@ -187,7 +187,7 @@ func (p *Vector) Do(f func(elem Element)) {
 
 // Push appends x to the end of the vector.
 func (p *Vector) Push(x Element) {
-	p.Insert(len(p.a), x)
+	p.Insert(len(p.a), x);
 }
 
 
@@ -195,8 +195,8 @@ func (p *Vector) Push(x Element) {
 func (p *Vector) Pop() Element {
 	i := len(p.a) - 1;
 	x := p.a[i];
-	p.a[i] = nil;  // support GC, nil out entry
-	p.a = p.a[0 : i];
+	p.a[i] = nil;	// support GC, nil out entry
+	p.a = p.a[0:i];
 	return x;
 }
 
@@ -211,27 +211,27 @@ func (p *Vector) AppendVector(x *Vector) {
 
 // LessInterface provides partial support of the SortInterface.
 type LessInterface interface {
-	Less(y Element) bool
+	Less(y Element) bool;
 }
 
 
 // Less returns a boolean denoting whether the i'th element is less than the j'th element.
 func (p *Vector) Less(i, j int) bool {
-	return p.a[i].(LessInterface).Less(p.a[j])
+	return p.a[i].(LessInterface).Less(p.a[j]);
 }
 
 
 // Swap exchanges the elements at indexes i and j.
 func (p *Vector) Swap(i, j int) {
 	a := p.a;
-	a[i], a[j] = a[j], a[i]
+	a[i], a[j] = a[j], a[i];
 }
 
 
 // Iterate over all elements; driver for range
 func (p *Vector) iterate(c chan<- Element) {
 	for _, v := range p.a {
-		c <- v
+		c <- v;
 	}
 	close(c);
 }
