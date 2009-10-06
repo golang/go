@@ -106,13 +106,13 @@ func (b *Writer) reset() {
 // - all text written is appended to buf; form feed chars, tabs and newlines are stripped away
 // - at any given time there is a (possibly empty) incomplete cell at the end
 //   (the cell starts after a tab, form feed, or newline)
-// - size is the number of bytes belonging to the cell so far
-// - width is text width in runes of that cell from the start of the cell to
+// - cell.size is the number of bytes belonging to the cell so far
+// - cell.width is text width in runes of that cell from the start of the cell to
 //   position pos; html tags and entities are excluded from this width if html
 //   filtering is enabled
-// - the sizes and widths of processed text are kept in the lines_size and
-//   lines_width arrays, which contain an array of sizes or widths for each line
-// - the widths array is a temporary array with current widths used during
+// - the sizes and widths of processed text are kept in the lines vector
+//   which contains a vector of cells for each line
+// - the widths vector is a temporary vector with current widths used during
 //   formatting; it is kept in Writer because it's re-used
 //
 //                    |<---------- size ---------->|
@@ -134,6 +134,10 @@ const (
 	// Force right-alignment of cell content.
 	// Default is left-alignment.
 	AlignRight;
+
+	// Handle empty columns as if they were not present in
+	// the input in the first place.
+	DiscardEmptyColumns;
 )
 
 
@@ -283,33 +287,43 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (int, os.Error) {
 }
 
 
+// Format the text between line0 and line1 (excluding line1); pos
+// is the buffer position corresponding to the beginning of line0.
+// Returns the buffer position corresponding to the beginning of
+// line1 and an error, if any.
+//
 func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 	pos = pos0;
 	column := b.widths.Len();
-	last := line0;
 	for this := line0; this < line1; this++ {
 		line := b.line(this);
 
 		if column < line.Len() - 1 {
-			// cell exists in this column
-			// (note that the last cell per line is ignored)
+			// cell exists in this column => this line
+			// has more cells than the previous line
+			// (the last cell per line is ignored because cells are
+			// tab-terminated; the last cell per line describes the
+			// text before the newline/formfeed and does not belong
+			// to a column)
 
 			// print unprinted lines until beginning of block
-			pos, err = b.writeLines(pos, last, this);
-			if err != nil {
-				return pos, err;
+			if pos, err = b.writeLines(pos, line0, this); err != nil {
+				return;
 			}
-			last = this;
+			line0 = this;
 
 			// column block begin
-			width := b.cellwidth;  // minimal width
+			width := b.cellwidth;  // minimal column width
+			wsum := 0;  // the sum of all unpadded cell widths in this column
 			for ; this < line1; this++ {
 				line = b.line(this);
 				if column < line.Len() - 1 {
-					// cell exists in this column => update width
-					w := line.At(column).(cell).width + b.padding;
-					if w > width {
-						width = w;
+					// cell exists in this column
+					w := line.At(column).(cell).width;
+					wsum += w;
+					// update width
+					if t := w + b.padding; t > width {
+						width = t;
 					}
 				} else {
 					break
@@ -317,17 +331,22 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 			}
 			// column block end
 
+			// discard empty columns if necessary
+			if wsum == 0 && b.flags & DiscardEmptyColumns != 0 {
+				width = 0;
+			}
+
 			// format and print all columns to the right of this column
 			// (we know the widths of this column and all columns to the left)
 			b.widths.Push(width);
-			pos, err = b.format(pos, last, this);
+			pos, err = b.format(pos, line0, this);
 			b.widths.Pop();
-			last = this;
+			line0 = this;
 		}
 	}
 
 	// print unprinted lines until end
-	return b.writeLines(pos, last, line1);
+	return b.writeLines(pos, line0, line1);
 }
 
 
