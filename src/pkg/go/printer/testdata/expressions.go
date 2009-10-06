@@ -34,6 +34,9 @@ func _() {
 	_ = s[1:2];
 	_ = s[a:b];
 	_ = s[0:len(s)];
+	_ = s[0]<<1;
+	_ = (s[0]<<1)&0xf;
+	_ = s[0] << 2 | s[1] >> 4;
 
 	// spaces around expressions of different precedence or expressions containing spaces
 	_ = a + -b;
@@ -49,6 +52,7 @@ func _() {
 	_ = s[a+b : len(s)];
 	_ = s[len(s) : -a];
 	_ = s[a : len(s)+1];
+	_ = s[a : len(s)+1]+s;
 
 	// spaces around operators with equal or lower precedence than comparisons
 	_ = a == b;
@@ -90,4 +94,13 @@ func _() {
 	_ = ([...]T){};
 	_ = ([]T){};
 	_ = (map[int]T){};
+}
+
+
+func _() {
+	// TODO respect source line breaks in multi-line expressions
+	_ = a < b ||
+		b < a;
+	// TODO(gri): add more test cases
+	// TODO(gri): these comments should be indented
 }

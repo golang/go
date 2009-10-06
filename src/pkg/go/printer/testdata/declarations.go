@@ -252,3 +252,27 @@ type _ interface {  // this comment must not change indentation
 	fffff();  // no blank between identifier and ()
 	gggggggggggg(x, y, z int) ();  // hurray
 }
+
+// formatting of variable declarations
+func _() {
+	type day struct { n int; short, long string };
+	var (
+		Sunday = day{ 0, "SUN", "Sunday" };
+		Monday = day{ 1, "MON", "Monday" };
+		Tuesday = day{ 2, "TUE", "Tuesday" };
+		Wednesday = day{ 3, "WED", "Wednesday" };
+		Thursday = day{ 4, "THU", "Thursday" };
+		Friday = day{ 5, "FRI", "Friday" };
+		Saturday = day{ 6, "SAT", "Saturday" };
+	)
+}
+
+
+// formatting of consecutive single-line functions
+func _() {}
+func _() {}
+func _() {}
+
+func _() {}  // an empty line before this function
+func _() {}
+func _() {}

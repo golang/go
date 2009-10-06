@@ -14,6 +14,74 @@ import (
 	"testing";
 )
 
+type writerTestEntry struct {
+	header *Header;
+	contents string;
+}
+
+type writerTest struct {
+	file string;  // filename of expected output
+	entries []*writerTestEntry;
+}
+
+var writerTests = []*writerTest{
+	&writerTest{
+		file: "testdata/writer.tar",
+		entries: []*writerTestEntry{
+			&writerTestEntry{
+				header: &Header{
+					Name: "small.txt",
+					Mode: 0640,
+					Uid: 73025,
+					Gid: 5000,
+					Size: 5,
+					Mtime: 1246508266,
+					Typeflag: '0',
+					Uname: "dsymonds",
+					Gname: "eng",
+				},
+				contents: "Kilts",
+			},
+			&writerTestEntry{
+				header: &Header{
+					Name: "small2.txt",
+					Mode: 0640,
+					Uid: 73025,
+					Gid: 5000,
+					Size: 11,
+					Mtime: 1245217492,
+					Typeflag: '0',
+					Uname: "dsymonds",
+					Gname: "eng",
+				},
+				contents: "Google.com\n",
+			},
+		}
+	},
+	// The truncated test file was produced using these commands:
+	//   dd if=/dev/zero bs=1048576 count=16384 > /tmp/16gig.txt
+	//   tar -b 1 -c -f- /tmp/16gig.txt | dd bs=512 count=8 > writer-big.tar
+	&writerTest{
+		file: "testdata/writer-big.tar",
+		entries: []*writerTestEntry{
+			&writerTestEntry{
+				header: &Header{
+					Name: "tmp/16gig.txt",
+					Mode: 0640,
+					Uid: 73025,
+					Gid: 5000,
+					Size: 16 << 30,
+					Mtime: 1254699560,
+					Typeflag: '0',
+					Uname: "dsymonds",
+					Gname: "eng",
+				},
+				// no contents
+			},
+		},
+	},
+}
+
 type untarTest struct {
 	file string;
 	headers []*Header;
@@ -112,6 +180,16 @@ var facts = map[int] string {
 	100: "933262154439441526816992388562667004907159682643816214685929"
 		"638952175999932299156089414639761565182862536979208272237582"
 		"51185210916864000000000000000000000000",
+}
+
+func usage() {
+	fmt.Fprintf(os.Stderr,
+		// TODO(gri): the 2nd string of this string list should not be indented
+		"usage: godoc package [name ...]\n"
+		"	godoc -http=:6060\n"
+	);
+	flag.PrintDefaults();
+	os.Exit(2);
 }
 
 func TestReader(t *testing.T) {
