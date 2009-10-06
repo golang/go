@@ -129,7 +129,7 @@ func (b *Writer) reset() {
 const (
 	// Ignore html tags and treat entities (starting with '&'
 	// and ending in ';') as single characters (width = 1).
-	FilterHTML = 1 << iota;
+	FilterHTML uint = 1 << iota;
 
 	// Force right-alignment of cell content.
 	// Default is left-alignment.
@@ -235,8 +235,8 @@ func (b *Writer) writePadding(textw, cellw int) os.Error {
 }
 
 
-func (b *Writer) writeLines(pos0 int, line0, line1 int) (int, os.Error) {
-	pos := pos0;
+func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) {
+	pos = pos0;
 	for i := line0; i < line1; i++ {
 		line := b.line(i);
 		for j := 0; j < line.Len(); j++ {
@@ -245,25 +245,25 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (int, os.Error) {
 			switch {
 			default: // align left
 
-				if err := b.write0(b.buf.Bytes()[pos : pos + c.size]); err != nil {
-					return pos, err;
+				if err = b.write0(b.buf.Bytes()[pos : pos + c.size]); err != nil {
+					return;
 				}
 				pos += c.size;
 				if j < b.widths.Len() {
-					if err := b.writePadding(c.width, b.widths.At(j)); err != nil {
-						return pos, err;
+					if err = b.writePadding(c.width, b.widths.At(j)); err != nil {
+						return;
 					}
 				}
 
 			case b.flags & AlignRight != 0:  // align right
 
 				if j < b.widths.Len() {
-					if err := b.writePadding(c.width, b.widths.At(j)); err != nil {
-						return pos, err;
+					if err = b.writePadding(c.width, b.widths.At(j)); err != nil {
+						return;
 					}
 				}
-				if err := b.write0(b.buf.Bytes()[pos : pos + c.size]); err != nil {
-					return pos, err;
+				if err = b.write0(b.buf.Bytes()[pos : pos + c.size]); err != nil {
+					return;
 				}
 				pos += c.size;
 			}
@@ -272,18 +272,18 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (int, os.Error) {
 		if i+1 == b.lines.Len() {
 			// last buffered line - we don't have a newline, so just write
 			// any outstanding buffered data
-			if err := b.write0(b.buf.Bytes()[pos : pos + b.cell.size]); err != nil {
-				return pos, err;
+			if err = b.write0(b.buf.Bytes()[pos : pos + b.cell.size]); err != nil {
+				return;
 			}
 			pos += b.cell.size;
 		} else {
 			// not the last line - write newline
-			if err := b.write0(newline); err != nil {
-				return pos, err;
+			if err = b.write0(newline); err != nil {
+				return;
 			}
 		}
 	}
-	return pos, nil;
+	return;
 }
 
 
