@@ -76,46 +76,6 @@ cgen(Node *n, Node *res)
 		goto ret;
 	}
 
-	if(!res->addable) {
-		if(n->ullman > res->ullman) {
-			regalloc(&n1, n->type, res);
-			cgen(n, &n1);
-			if(n1.ullman > res->ullman) {
-				dump("n1", &n1);
-				dump("res", res);
-				fatal("loop in cgen");
-			}
-			cgen(&n1, res);
-			regfree(&n1);
-			goto ret;
-		}
-
-		if(res->ullman >= UINF)
-			goto gen;
-
-		a = optoas(OAS, res->type);
-		if(sudoaddable(a, res, &addr, &w)) {
-			if(n->op != OREGISTER) {
-				regalloc(&n2, res->type, N);
-				cgen(n, &n2);
-				p1 = gins(a, &n2, N);
-				regfree(&n2);
-			} else
-				p1 = gins(a, n, N);
-			p1->to = addr;
-			if(debug['g'])
-				print("%P [ignore previous line]\n", p1);
-			sudoclean();
-			goto ret;
-		}
-
-	gen:
-		igen(res, &n1, N);
-		cgen(n, &n1);
-		regfree(&n1);
-		goto ret;
-	}
-
 	// update addressability for string, slice
 	// can't do in walk because n->left->addable
 	// changes if n->left is an escaping local variable.
@@ -130,8 +90,9 @@ cgen(Node *n, Node *res)
 		break;
 	}
 
-	if(n->addable) {
-		if (n->op == OREGISTER || is64(n->type) || is64(res->type)) {
+	// if both are addressable, move
+	if(n->addable && res->addable) {
+		if (is64(n->type) || is64(res->type) || n->op == OREGISTER || res->op == OREGISTER) {
 			gmove(n, res);
 		} else {
 			regalloc(&n1, n->type, N);
@@ -141,6 +102,51 @@ cgen(Node *n, Node *res)
 		}
 		goto ret;
 	}
+
+	// if both are not addressable, use a temporary.
+	if(!n->addable && !res->addable) {
+		// could use regalloc here sometimes,
+		// but have to check for ullman >= UINF.
+		tempname(&n1, n->type);
+		cgen(n, &n1);
+		cgen(&n1, res);
+		return;
+	}
+
+	// if result is not addressable directly but n is,
+	// compute its address and then store via the address.
+	if(!res->addable) {
+		igen(res, &n1, N);
+		cgen(n, &n1);
+		regfree(&n1);
+		return;
+	}
+
+	// if n is sudoaddable generate addr and move
+	if (!is64(n->type) && !is64(res->type)) {
+		a = optoas(OAS, n->type);
+		if(sudoaddable(a, n, &addr, &w)) {
+			if (res->op != OREGISTER) {
+				regalloc(&n2, res->type, N);
+				p1 = gins(a, N, &n2);
+				p1->from = addr;
+				if(debug['g'])
+					print("%P [ignore previous line]\n", p1);
+				gmove(&n2, res);
+				regfree(&n2);
+			} else {
+				p1 = gins(a, N, res);
+				p1->from = addr;
+				if(debug['g'])
+					print("%P [ignore previous line]\n", p1);
+			}
+			sudoclean();
+			goto ret;
+		}
+	}
+
+	// otherwise, the result is addressable but n is not.
+	// let's do some computation.
 
 	nl = n->left;
 	nr = n->right;
@@ -171,22 +177,6 @@ cgen(Node *n, Node *res)
 		case OXOR:
 			cgen64(n, res);
 			return;
-		}
-	} else {
-		a = optoas(OAS, n->type);
-		if(sudoaddable(a, n, &addr, &w)) {
-			if(res->op == OREGISTER) {
-				p1 = gins(a, N, res);
-				p1->from = addr;
-			} else {
-				regalloc(&n2, n->type, N);
-				p1 = gins(a, N, &n2);
-				p1->from = addr;
-				gins(a, &n2, res);
-				regfree(&n2);
-			}
-			sudoclean();
-			goto ret;
 		}
 	}
 
