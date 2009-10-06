@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The png package implements a PNG image decoder (and eventually, an encoder).
+// The png package implements a PNG image decoder and encoder.
 //
 // The PNG specification is at http://www.libpng.org/pub/png/spec/1.2/PNG-Contents.html
 package png
 
-// TODO(nigeltao): Add tests.
 import (
 	"compress/zlib";
 	"hash";
@@ -48,6 +47,8 @@ const (
 	dsSeenIEND;
 )
 
+const pngHeader = "\x89PNG\r\n\x1a\n";
+
 type decoder struct {
 	width, height int;
 	image image.Image;
@@ -55,7 +56,7 @@ type decoder struct {
 	stage int;
 	idatWriter io.WriteCloser;
 	idatDone chan os.Error;
-	scratch [3 * 256]byte;
+	tmp [3*256]byte;
 }
 
 // A FormatError reports that the input is not a valid PNG.
@@ -106,19 +107,19 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 	if length != 13 {
 		return FormatError("bad IHDR length");
 	}
-	_, err := io.ReadFull(r, d.scratch[0:13]);
+	_, err := io.ReadFull(r, d.tmp[0:13]);
 	if err != nil {
 		return err;
 	}
-	crc.Write(d.scratch[0:13]);
-	if d.scratch[8] != 8 {
+	crc.Write(d.tmp[0:13]);
+	if d.tmp[8] != 8 {
 		return UnsupportedError("bit depth");
 	}
-	if d.scratch[10] != 0 || d.scratch[11] != 0 || d.scratch[12] != 0 {
+	if d.tmp[10] != 0 || d.tmp[11] != 0 || d.tmp[12] != 0 {
 		return UnsupportedError("compression, filter or interlace method");
 	}
-	w := int32(parseUint32(d.scratch[0:4]));
-	h := int32(parseUint32(d.scratch[4:8]));
+	w := int32(parseUint32(d.tmp[0:4]));
+	h := int32(parseUint32(d.tmp[4:8]));
 	if w < 0 || h < 0 {
 		return FormatError("negative dimension");
 	}
@@ -126,7 +127,7 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 	if nPixels != int64(int(nPixels)) {
 		return UnsupportedError("dimension overflow");
 	}
-	d.colorType = d.scratch[9];
+	d.colorType = d.tmp[9];
 	switch d.colorType {
 	case ctTrueColor:
 		d.image = image.NewRGBA(int(w), int(h));
@@ -146,16 +147,16 @@ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 	if length % 3 != 0 || np <= 0 || np > 256 {
 		return FormatError("bad PLTE length");
 	}
-	n, err := io.ReadFull(r, d.scratch[0:3 * np]);
+	n, err := io.ReadFull(r, d.tmp[0:3 * np]);
 	if err != nil {
 		return err;
 	}
-	crc.Write(d.scratch[0:n]);
+	crc.Write(d.tmp[0:n]);
 	switch d.colorType {
 	case ctPaletted:
 		palette := make([]image.Color, np);
 		for i := 0; i < np; i++ {
-			palette[i] = image.RGBAColor{ d.scratch[3*i+0], d.scratch[3*i+1], d.scratch[3*i+2], 0xff };
+			palette[i] = image.RGBAColor{ d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff };
 		}
 		d.image.(*image.Paletted).Palette = image.PalettedColorModel(palette);
 	case ctTrueColor, ctTrueColorAlpha:
@@ -325,17 +326,17 @@ func (d *decoder) parseIEND(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 
 func (d *decoder) parseChunk(r io.Reader) os.Error {
 	// Read the length.
-	n, err := io.ReadFull(r, d.scratch[0:4]);
+	n, err := io.ReadFull(r, d.tmp[0:4]);
 	if err == os.EOF {
 		return io.ErrUnexpectedEOF;
 	}
 	if err != nil {
 		return err;
 	}
-	length := parseUint32(d.scratch[0:4]);
+	length := parseUint32(d.tmp[0:4]);
 
 	// Read the chunk type.
-	n, err = io.ReadFull(r, d.scratch[0:4]);
+	n, err = io.ReadFull(r, d.tmp[0:4]);
 	if err == os.EOF {
 		return io.ErrUnexpectedEOF;
 	}
@@ -343,10 +344,10 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
 		return err;
 	}
 	crc := crc32.NewIEEE();
-	crc.Write(d.scratch[0:4]);
+	crc.Write(d.tmp[0:4]);
 
 	// Read the chunk data.
-	switch string(d.scratch[0:4]) {
+	switch string(d.tmp[0:4]) {
 	case "IHDR":
 		if d.stage != dsStart {
 			return chunkOrderError;
@@ -388,25 +389,25 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
 	}
 
 	// Read the checksum.
-	n, err = io.ReadFull(r, d.scratch[0:4]);
+	n, err = io.ReadFull(r, d.tmp[0:4]);
 	if err == os.EOF {
 		return io.ErrUnexpectedEOF;
 	}
 	if err != nil {
 		return err;
 	}
-	if parseUint32(d.scratch[0:4]) != crc.Sum32() {
+	if parseUint32(d.tmp[0:4]) != crc.Sum32() {
 		return FormatError("invalid checksum");
 	}
 	return nil;
 }
 
 func (d *decoder) checkHeader(r io.Reader) os.Error {
-	_, err := io.ReadFull(r, d.scratch[0:8]);
+	_, err := io.ReadFull(r, d.tmp[0:8]);
 	if err != nil {
 		return err;
 	}
-	if string(d.scratch[0:8]) != "\x89PNG\r\n\x1a\n" {
+	if string(d.tmp[0:8]) != pngHeader {
 		return FormatError("not a PNG file");
 	}
 	return nil;
