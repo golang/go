@@ -7,5 +7,6 @@ include $(GOROOT)/src/Make.$(GOARCH)
 TARG=image/png
 GOFILES=\
 	reader.go\
+	writer.go\
 
 include $(GOROOT)/src/Make.pkg
