@@ -13,15 +13,15 @@ package proc
 // and proc_darwin.go do, because deps.bash only looks at
 // this file.
 import (
-	_ "container/vector";
-	_ "fmt";
-	_ "io";
-	"os";
-	_ "runtime";
-	"strconv";
-	_ "strings";
-	_ "sync";
-	_ "syscall";
+	_	"container/vector";
+	_	"fmt";
+	_	"io";
+		"os";
+	_	"runtime";
+		"strconv";
+	_	"strings";
+	_	"sync";
+	_	"syscall";
 )
 
 type Word uint64
@@ -149,7 +149,7 @@ type Process interface {
 // user request (e.g., from the Stop method or after single stepping),
 // or that are stopped because some other thread caused the program to
 // stop.
-type Stopped struct {}
+type Stopped struct{}
 
 func (c Stopped) String() string {
 	return "stopped";
@@ -157,7 +157,7 @@ func (c Stopped) String() string {
 
 // Breakpoint is a stop cause resulting from a thread reaching a set
 // breakpoint.
-type Breakpoint	Word
+type Breakpoint Word
 
 // PC returns the program counter that the program is stopped at.
 func (c Breakpoint) PC() Word {
@@ -202,8 +202,8 @@ func (c *ThreadCreate) String() string {
 // process threads and its registers and memory will still be
 // accessible.
 type ThreadExit struct {
-	exitStatus int;
-	signal string;
+	exitStatus	int;
+	signal		string;
 }
 
 // Exited returns true if the thread exited normally.

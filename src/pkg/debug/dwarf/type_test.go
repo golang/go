@@ -5,13 +5,13 @@
 package dwarf_test
 
 import (
-	. "debug/dwarf";
-	"debug/elf";
-	"debug/macho";
-	"testing";
+	.	"debug/dwarf";
+		"debug/elf";
+		"debug/macho";
+		"testing";
 )
 
-var typedefTests = map[string]string {
+var typedefTests = map[string]string{
 	"t_ptr_volatile_int": "*volatile int",
 	"t_ptr_const_char": "*const char",
 	"t_long": "long int",
@@ -26,8 +26,8 @@ var typedefTests = map[string]string {
 	"t_my_union": "union my_union {vi volatile int@0; x char@0 : 1@7; y int@0 : 4@28; array [40]long long int@0}",
 	"t_my_enum": "enum my_enum {e1=1; e2=2; e3=-5; e4=1000000000000000}",
 	"t_my_list": "struct list {val short int@0; next *t_my_list@8}",
-	"t_my_tree": "struct tree {left *struct tree@0; right *struct tree@8; val long long unsigned int@16}"
-};
+	"t_my_tree": "struct tree {left *struct tree@0; right *struct tree@8; val long long unsigned int@16}",
+}
 
 func elfData(t *testing.T, name string) *Data {
 	f, err := elf.Open(name);

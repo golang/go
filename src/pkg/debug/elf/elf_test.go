@@ -10,11 +10,11 @@ import (
 )
 
 type nameTest struct {
-	val interface{};
-	str string
+	val	interface{};
+	str	string;
 }
 
-var nameTests = []nameTest {
+var nameTests = []nameTest{
 	nameTest{ELFOSABI_LINUX, "ELFOSABI_LINUX"},
 	nameTest{ET_EXEC, "ET_EXEC"},
 	nameTest{EM_860, "EM_860"},

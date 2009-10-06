@@ -11,24 +11,23 @@ import (
 )
 
 // The size of a SHA1 checksum in bytes.
-const Size = 20;
+const Size = 20
 
 const (
-	_Chunk = 64;
-
-	_Init0 = 0x67452301;
-	_Init1 = 0xEFCDAB89;
-	_Init2 = 0x98BADCFE;
-	_Init3 = 0x10325476;
-	_Init4 = 0xC3D2E1F0;
+	_Chunk	= 64;
+	_Init0	= 0x67452301;
+	_Init1	= 0xEFCDAB89;
+	_Init2	= 0x98BADCFE;
+	_Init3	= 0x10325476;
+	_Init4	= 0xC3D2E1F0;
 )
 
 // digest represents the partial evaluation of a checksum.
 type digest struct {
-	h [5]uint32;
-	x [_Chunk]byte;
-	nx int;
-	len uint64;
+	h	[5]uint32;
+	x	[_Chunk]byte;
+	nx	int;
+	len	uint64;
 }
 
 func (d *digest) Reset() {
@@ -57,11 +56,11 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
 	d.len += uint64(nn);
 	if d.nx > 0 {
 		n := len(p);
-		if n > _Chunk-d.nx {
-			n = _Chunk-d.nx;
+		if n > _Chunk - d.nx {
+			n = _Chunk - d.nx;
 		}
 		for i := 0; i < n; i++ {
-			d.x[d.nx+i] = p[i];
+			d.x[d.nx + i] = p[i];
 		}
 		d.nx += n;
 		if d.nx == _Chunk {
@@ -87,15 +86,15 @@ func (d *digest) Sum() []byte {
 	var tmp [64]byte;
 	tmp[0] = 0x80;
 	if len%64 < 56 {
-		d.Write(tmp[0:56-len%64]);
+		d.Write(tmp[0 : 56 - len%64]);
 	} else {
-		d.Write(tmp[0:64+56-len%64]);
+		d.Write(tmp[0 : 64 + 56 - len%64]);
 	}
 
 	// Length in bits.
 	len <<= 3;
 	for i := uint(0); i < 8; i++ {
-		tmp[i] = byte(len>>(56-8*i));
+		tmp[i] = byte(len>>(56 - 8*i));
 	}
 	d.Write(tmp[0:8]);
 
@@ -107,11 +106,14 @@ func (d *digest) Sum() []byte {
 	j := 0;
 	for i := 0; i < 5; i++ {
 		s := d.h[i];
-		p[j] = byte(s>>24); j++;
-		p[j] = byte(s>>16); j++;
-		p[j] = byte(s>>8); j++;
-		p[j] = byte(s); j++;
+		p[j] = byte(s>>24);
+		j++;
+		p[j] = byte(s>>16);
+		j++;
+		p[j] = byte(s>>8);
+		j++;
+		p[j] = byte(s);
+		j++;
 	}
 	return p;
 }
-

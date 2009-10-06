@@ -11,14 +11,14 @@ import "os"
 
 const (
 	// minimal irreducible polynomial of degree b
-	r64 = 0x1b;
-	r128 = 0x87;
+	r64	= 0x1b;
+	r128	= 0x87;
 )
 
 type cmac struct {
-	k1, k2, ci, digest []byte;
-	p int;	// position in ci
-	c Cipher;
+	k1, k2, ci, digest	[]byte;
+	p			int;	// position in ci
+	c			Cipher;
 }
 
 // TODO(rsc): Should this return an error instead of panic?
@@ -98,4 +98,3 @@ func (d *cmac) Sum() []byte {
 	d.c.Encrypt(d.digest, d.digest);
 	return d.digest;
 }
-

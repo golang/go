@@ -8,7 +8,7 @@
 // and NIST Special Publication 800-38A.
 package block
 
-import "io";
+import "io"
 
 // A Cipher represents an implementation of block cipher
 // using a given key.  It provides the capability to encrypt
@@ -38,7 +38,6 @@ type Digest interface {
 	Sum() []byte;
 	Reset();
 }
-
 
 
 // Utility routines

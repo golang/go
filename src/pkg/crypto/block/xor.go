@@ -16,13 +16,13 @@ import (
 // Calls to Next() return sequential blocks of data from the stream.
 // Each call must return at least one byte: there is no EOF.
 type dataStream interface {
-	Next() []byte
+	Next() []byte;
 }
 
 type xorReader struct {
-	r io.Reader;
-	rand dataStream;	// pseudo-random
-	buf []byte;		// data available from last call to rand
+	r	io.Reader;
+	rand	dataStream;	// pseudo-random
+	buf	[]byte;		// data available from last call to rand
 }
 
 func newXorReader(rand dataStream, r io.Reader) io.Reader {
@@ -51,11 +51,11 @@ func (x *xorReader) Read(p []byte) (n int, err os.Error) {
 }
 
 type xorWriter struct {
-	w io.Writer;
-	rand dataStream;	// pseudo-random
-	buf []byte;	// last buffer returned by rand
-	extra []byte;	// extra random data (use before buf)
-	work []byte;	// work space
+	w	io.Writer;
+	rand	dataStream;	// pseudo-random
+	buf	[]byte;		// last buffer returned by rand
+	extra	[]byte;		// extra random data (use before buf)
+	work	[]byte;		// work space
 }
 
 func newXorWriter(rand dataStream, w io.Writer) io.Writer {
@@ -93,7 +93,7 @@ func (x *xorWriter) Write(p []byte) (n int, err os.Error) {
 					buf = x.rand.Next();
 					bp = 0;
 				}
-				x.work[i] = buf[bp] ^ p[i];
+				x.work[i] = buf[bp]^p[i];
 				bp++;
 			}
 			x.buf = buf[bp:len(buf)];
@@ -122,4 +122,3 @@ func (x *xorWriter) Write(p []byte) (n int, err os.Error) {
 	}
 	return;
 }
-

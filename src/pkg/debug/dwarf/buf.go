@@ -14,17 +14,17 @@ import (
 
 // Data buffer being decoded.
 type buf struct {
-	dwarf *Data;
-	order binary.ByteOrder;
-	name string;
-	off Offset;
-	data []byte;
-	addrsize int;
-	err os.Error;
+	dwarf		*Data;
+	order		binary.ByteOrder;
+	name		string;
+	off		Offset;
+	data		[]byte;
+	addrsize	int;
+	err		os.Error;
 }
 
 func makeBuf(d *Data, name string, off Offset, data []byte, addrsize int) buf {
-	return buf{d, d.order, name, off, data, addrsize, nil}
+	return buf{d, d.order, name, off, data, addrsize, nil};
 }
 
 func (b *buf) uint8() uint8 {
@@ -33,7 +33,7 @@ func (b *buf) uint8() uint8 {
 		return 0;
 	}
 	val := b.data[0];
-	b.data = b.data[1:len(b.data)];
+	b.data = b.data[1 : len(b.data)];
 	b.off++;
 	return val;
 }
@@ -44,7 +44,7 @@ func (b *buf) bytes(n int) []byte {
 		return nil;
 	}
 	data := b.data[0:n];
-	b.data = b.data[n:len(b.data)];
+	b.data = b.data[n : len(b.data)];
 	b.off += Offset(n);
 	return data;
 }
@@ -57,7 +57,7 @@ func (b *buf) string() string {
 	for i := 0; i < len(b.data); i++ {
 		if b.data[i] == 0 {
 			s := string(b.data[0:i]);
-			b.data = b.data[i+1:len(b.data)];
+			b.data = b.data[i+1 : len(b.data)];
 			b.off += Offset(i+1);
 			return s;
 		}
@@ -66,7 +66,7 @@ func (b *buf) string() string {
 	return "";
 }
 
-func (b *buf) uint16() uint16{
+func (b *buf) uint16() uint16 {
 	a := b.bytes(2);
 	if a == nil {
 		return 0;
@@ -99,7 +99,7 @@ func (b *buf) varint() (c uint64, bits uint) {
 		bits += 7;
 		if byte&0x80 == 0 {
 			b.off += Offset(i+1);
-			b.data = b.data[i+1:len(b.data)];
+			b.data = b.data[i+1 : len(b.data)];
 			return c, bits;
 		}
 	}
@@ -116,8 +116,8 @@ func (b *buf) uint() uint64 {
 func (b *buf) int() int64 {
 	ux, bits := b.varint();
 	x := int64(ux);
-	if x & (1<<(bits-1)) != 0 {
-		x |= -1<<bits;
+	if x&(1<<(bits-1)) != 0 {
+		x |= -1 << bits;
 	}
 	return x;
 }
@@ -141,17 +141,16 @@ func (b *buf) addr() uint64 {
 func (b *buf) error(s string) {
 	if b.err == nil {
 		b.data = nil;
-		b.err = DecodeError{b.name, b.off, s}
+		b.err = DecodeError{b.name, b.off, s};
 	}
 }
 
 type DecodeError struct {
-	Name string;
-	Offset Offset;
-	Error string;
+	Name	string;
+	Offset	Offset;
+	Error	string;
 }
 
 func (e DecodeError) String() string {
 	return "decoding dwarf section " + e.Name + " at offset 0x" + strconv.Itob64(int64(e.Offset), 16) + ": " + e.Error;
 }
-

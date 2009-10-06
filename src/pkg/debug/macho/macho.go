@@ -19,60 +19,67 @@ type FileHeader struct {
 	Cmdsz	uint32;
 	Flags	uint32;
 }
+
 const (
-	fileHeaderSize32 = 7*4;
-	fileHeaderSize64 = 8*4;
+	fileHeaderSize32	= 7*4;
+	fileHeaderSize64	= 8*4;
 )
 
 const (
-	Magic32 uint32 = 0xfeedface;
-	Magic64 uint32 = 0xfeedfacf;
+	Magic32	uint32	= 0xfeedface;
+	Magic64	uint32	= 0xfeedfacf;
 )
 
 // A Type is a Mach-O file type, either an object or an executable.
 type Type uint32
+
 const (
-	TypeObj Type = 1;
-	TypeExec Type = 2;
+	TypeObj		Type	= 1;
+	TypeExec	Type	= 2;
 )
 
 // A Cpu is a Mach-O cpu type.
 type Cpu uint32
+
 const (
-	Cpu386 Cpu = 7;
-	CpuAmd64 Cpu = Cpu386 + 1<<24;
+	Cpu386		Cpu	= 7;
+	CpuAmd64	Cpu	= Cpu386 + 1<<24;
 )
 
-var cpuStrings = []intName {
-	intName{ uint32(Cpu386), "Cpu386" },
-	intName{ uint32(CpuAmd64), "CpuAmd64" },
+var cpuStrings = []intName{
+	intName{uint32(Cpu386), "Cpu386"},
+	intName{uint32(CpuAmd64), "CpuAmd64"},
 }
+
 func (i Cpu) String() string {
-	return stringName(uint32(i), cpuStrings, false)
+	return stringName(uint32(i), cpuStrings, false);
 }
 func (i Cpu) GoString() string {
-	return stringName(uint32(i), cpuStrings, true)
+	return stringName(uint32(i), cpuStrings, true);
 }
 
 // A LoadCmd is a Mach-O load command.
-type LoadCmd uint32;
+type LoadCmd uint32
+
 const (
-	LoadCmdSegment LoadCmd = 1;
-	LoadCmdSegment64 LoadCmd = 25;
-	LoadCmdThread LoadCmd = 4;
-	LoadCmdUnixThread LoadCmd = 5;	// thread+stack
+	LoadCmdSegment		LoadCmd	= 1;
+	LoadCmdSegment64	LoadCmd	= 25;
+	LoadCmdThread		LoadCmd	= 4;
+	LoadCmdUnixThread	LoadCmd	= 5;	// thread+stack
 )
-var cmdStrings = []intName {
-	intName{ uint32(LoadCmdSegment), "LoadCmdSegment" },
-	intName{ uint32(LoadCmdSegment64), "LoadCmdSegment64" },
-	intName{ uint32(LoadCmdThread), "LoadCmdThread" },
-	intName{ uint32(LoadCmdUnixThread), "LoadCmdUnixThread" },
+
+var cmdStrings = []intName{
+	intName{uint32(LoadCmdSegment), "LoadCmdSegment"},
+	intName{uint32(LoadCmdSegment64), "LoadCmdSegment64"},
+	intName{uint32(LoadCmdThread), "LoadCmdThread"},
+	intName{uint32(LoadCmdUnixThread), "LoadCmdUnixThread"},
 }
+
 func (i LoadCmd) String() string {
-	return stringName(uint32(i), cmdStrings, false)
+	return stringName(uint32(i), cmdStrings, false);
 }
 func (i LoadCmd) GoString() string {
-	return stringName(uint32(i), cmdStrings, true)
+	return stringName(uint32(i), cmdStrings, true);
 }
 
 // A Segment64 is a 64-bit Mach-O segment load command.
@@ -107,30 +114,30 @@ type Segment32 struct {
 
 // A Section32 is a 32-bit Mach-O section header.
 type Section32 struct {
-	Name	[16]byte;
+	Name		[16]byte;
 	Seg		[16]byte;
-	Addr	uint32;
-	Size	uint32;
-	Offset	uint32;
-	Align	uint32;
-	Reloff	uint32;
-	Nreloc	uint32;
-	Flags	uint32;
+	Addr		uint32;
+	Size		uint32;
+	Offset		uint32;
+	Align		uint32;
+	Reloff		uint32;
+	Nreloc		uint32;
+	Flags		uint32;
 	Reserve1	uint32;
 	Reserve2	uint32;
 }
 
 // A Section32 is a 64-bit Mach-O section header.
 type Section64 struct {
-	Name	[16]byte;
+	Name		[16]byte;
 	Seg		[16]byte;
-	Addr	uint64;
-	Size	uint64;
-	Offset	uint32;
-	Align	uint32;
-	Reloff	uint32;
-	Nreloc	uint32;
-	Flags	uint32;
+	Addr		uint64;
+	Size		uint64;
+	Offset		uint32;
+	Align		uint32;
+	Reloff		uint32;
+	Nreloc		uint32;
+	Flags		uint32;
 	Reserve1	uint32;
 	Reserve2	uint32;
 	Reserve3	uint32;
@@ -190,20 +197,20 @@ type RegsAMD64 struct {
 }
 
 type intName struct {
-	i uint32;
-	s string;
+	i	uint32;
+	s	string;
 }
 
 func stringName(i uint32, names []intName, goSyntax bool) string {
 	for _, n := range names {
 		if n.i == i {
 			if goSyntax {
-				return "macho." + n.s
+				return "macho." + n.s;
 			}
-			return n.s
+			return n.s;
 		}
 	}
-	return strconv.Uitoa64(uint64(i))
+	return strconv.Uitoa64(uint64(i));
 }
 
 func flagName(i uint32, names []intName, goSyntax bool) string {
@@ -221,10 +228,10 @@ func flagName(i uint32, names []intName, goSyntax bool) string {
 		}
 	}
 	if len(s) == 0 {
-		return "0x" + strconv.Uitob64(uint64(i), 16)
+		return "0x" + strconv.Uitob64(uint64(i), 16);
 	}
 	if i != 0 {
-		s += "+0x" + strconv.Uitob64(uint64(i), 16)
+		s += "+0x" + strconv.Uitob64(uint64(i), 16);
 	}
-	return s
+	return s;
 }

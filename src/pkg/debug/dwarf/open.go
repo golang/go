@@ -16,21 +16,21 @@ import (
 // loaded from an executable file (for example, an ELF or Mach-O executable).
 type Data struct {
 	// raw data
-	abbrev []byte;
-	aranges []byte;
-	frame []byte;
-	info []byte;
-	line []byte;
-	pubnames []byte;
-	ranges []byte;
-	str []byte;
+	abbrev		[]byte;
+	aranges		[]byte;
+	frame		[]byte;
+	info		[]byte;
+	line		[]byte;
+	pubnames	[]byte;
+	ranges		[]byte;
+	str		[]byte;
 
 	// parsed data
-	abbrevCache map[uint32] abbrevTable;
-	addrsize int;
-	order binary.ByteOrder;
-	typeCache map[Offset] Type;
-	unit []unit;
+	abbrevCache	map[uint32]abbrevTable;
+	addrsize	int;
+	order		binary.ByteOrder;
+	typeCache	map[Offset]Type;
+	unit		[]unit;
 }
 
 // New returns a new Data object initialized from the given parameters.

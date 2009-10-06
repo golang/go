@@ -12,19 +12,19 @@ import (
 )
 
 type Struct struct {
-	Int8 int8;
-	Int16 int16;
-	Int32 int32;
-	Int64 int64;
-	Uint8 uint8;
-	Uint16 uint16;
-	Uint32 uint32;
-	Uint64 uint64;
-	Float64 float64;
-	Array [4]uint8;
+	Int8	int8;
+	Int16	int16;
+	Int32	int32;
+	Int64	int64;
+	Uint8	uint8;
+	Uint16	uint16;
+	Uint32	uint32;
+	Uint64	uint64;
+	Float64	float64;
+	Array	[4]uint8;
 }
 
-var s = Struct {
+var s = Struct{
 	0x01,
 	0x0203,
 	0x04050607,
@@ -34,7 +34,7 @@ var s = Struct {
 	0x13141516,
 	0x1718191a1b1c1d1e,
 	math.Float64frombits(0x1f20212223242526),
-	[4]uint8 { 0x27, 0x28, 0x29, 0x2a },
+	[4]uint8{0x27, 0x28, 0x29, 0x2a},
 }
 
 var big = []byte{
@@ -84,4 +84,3 @@ little:
 		t.Errorf("Read big-endian:\n\thave %+v\n\twant %+v", sl, s);
 	}
 }
-

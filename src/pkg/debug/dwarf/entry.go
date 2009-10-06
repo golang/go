@@ -14,14 +14,14 @@ import "os"
 
 // a single entry's description: a sequence of attributes
 type abbrev struct {
-	tag Tag;
-	children bool;
-	field []afield;
+	tag		Tag;
+	children	bool;
+	field		[]afield;
 }
 
 type afield struct {
-	attr Attr;
-	fmt format;
+	attr	Attr;
+	fmt	format;
 }
 
 // a map from entry format ids to their descriptions
@@ -92,16 +92,16 @@ func (d *Data) parseAbbrev(off uint32) (abbrevTable, os.Error) {
 
 // An entry is a sequence of attribute/value pairs.
 type Entry struct {
-	Offset Offset;	// offset of Entry in DWARF info
-	Tag Tag;	// tag (kind of Entry)
-	Children bool;	// whether Entry is followed by children
-	Field []Field;
+	Offset		Offset;	// offset of Entry in DWARF info
+	Tag		Tag;	// tag (kind of Entry)
+	Children	bool;	// whether Entry is followed by children
+	Field		[]Field;
 }
 
 // A Field is a single attribute/value pair in an Entry.
 type Field struct {
-	Attr Attr;
-	Val interface{};
+	Attr	Attr;
+	Val	interface{};
 }
 
 // Val returns the value associated with attribute Attr in Entry,
@@ -141,7 +141,7 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 		Offset: off,
 		Tag: a.tag,
 		Children: a.children,
-		Field: make([]Field, len(a.field))
+		Field: make([]Field, len(a.field)),
 	};
 	for i := range e.Field {
 		e.Field[i].Attr = a.field[i].attr;
@@ -149,7 +149,7 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 		if fmt == formIndirect {
 			fmt = format(b.uint());
 		}
-		var val interface{};
+		var val interface{}
 		switch fmt {
 		default:
 			b.error("unknown entry attr format");
@@ -230,12 +230,12 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 // If an entry has children, its Children field will be true, and the children
 // follow, terminated by an Entry with Tag 0.
 type Reader struct {
-	b buf;
-	d *Data;
-	err os.Error;
-	unit int;
-	lastChildren bool;	// .Children of last entry returned by Next
-	lastSibling Offset;	// .Val(AttrSibling) of last entry returned by Next
+	b		buf;
+	d		*Data;
+	err		os.Error;
+	unit		int;
+	lastChildren	bool;	// .Children of last entry returned by Next
+	lastSibling	Offset;	// .Val(AttrSibling) of last entry returned by Next
 }
 
 // Reader returns a new Reader for Data.
@@ -267,9 +267,9 @@ func (r *Reader) Seek(off Offset) {
 	var u *unit;
 	for i = range d.unit {
 		u = &d.unit[i];
-		if u.off <= off && off < u.off+Offset(len(u.data)) {
+		if u.off <= off && off < u.off + Offset(len(u.data)) {
 			r.unit = i;
-			r.b = makeBuf(r.d, "info", off, u.data[off-u.off:len(u.data)], u.addrsize);
+			r.b = makeBuf(r.d, "info", off, u.data[off - u.off : len(u.data)], u.addrsize);
 			return;
 		}
 	}
@@ -278,7 +278,7 @@ func (r *Reader) Seek(off Offset) {
 
 // maybeNextUnit advances to the next unit if this one is finished.
 func (r *Reader) maybeNextUnit() {
-	for len(r.b.data) == 0 && r.unit+1 < len(r.d.unit) {
+	for len(r.b.data) == 0 && r.unit + 1 < len(r.d.unit) {
 		r.unit++;
 		u := &r.d.unit[r.unit];
 		r.b = makeBuf(r.d, "info", u.off, u.data, u.addrsize);
@@ -318,7 +318,7 @@ func (r *Reader) Next() (*Entry, os.Error) {
 // the last Entry returned by Next.  If that Entry did not have
 // children or Next has not been called, SkipChildren is a no-op.
 func (r *Reader) SkipChildren() {
-	if r.err != nil || !r.lastChildren{
+	if r.err != nil || !r.lastChildren {
 		return;
 	}
 
@@ -341,4 +341,3 @@ func (r *Reader) SkipChildren() {
 		}
 	}
 }
-

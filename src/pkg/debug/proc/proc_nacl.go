@@ -12,9 +12,9 @@ import (
 // Process tracing is not supported on Native Client.
 
 func Attach(pid int) (Process, os.Error) {
-	return nil, os.NewSyscallError("ptrace", syscall.ENACL)
+	return nil, os.NewSyscallError("ptrace", syscall.ENACL);
 }
 
 func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error) {
-	return nil, os.NewSyscallError("fork/exec", syscall.ENACL)
+	return nil, os.NewSyscallError("fork/exec", syscall.ENACL);
 }

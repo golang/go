@@ -17,8 +17,8 @@ import (
 )
 
 type ofbStream struct {
-	c Cipher;
-	iv []byte;
+	c	Cipher;
+	iv	[]byte;
 }
 
 func newOFBStream(c Cipher, iv []byte) *ofbStream {
@@ -57,4 +57,3 @@ func NewOFBReader(c Cipher, iv []byte, r io.Reader) io.Reader {
 func NewOFBWriter(c Cipher, iv []byte, w io.Writer) io.Writer {
 	return newXorWriter(newOFBStream(c, iv), w);
 }
-

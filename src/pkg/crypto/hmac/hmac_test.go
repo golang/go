@@ -14,18 +14,18 @@ import (
 )
 
 type hmacTest struct {
-	hash func([]byte) hash.Hash;
-	key []byte;
-	in []byte;
-	out string;
+	hash	func([]byte) hash.Hash;
+	key	[]byte;
+	in	[]byte;
+	out	string;
 }
 
 // Tests from US FIPS 198
 // http://csrc.nist.gov/publications/fips/fips198/fips-198a.pdf
-var hmacTests = []hmacTest {
-	hmacTest {
+var hmacTests = []hmacTest{
+	hmacTest{
 		NewSHA1,
-		[]byte {
+		[]byte{
 			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
 			0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
 			0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
@@ -38,9 +38,9 @@ var hmacTests = []hmacTest {
 		strings.Bytes("Sample #1"),
 		"4f4ca3d5d68ba7cc0a1208c9c61e9c5da0403c0a",
 	},
-	hmacTest {
+	hmacTest{
 		NewSHA1,
-		[]byte {
+		[]byte{
 			0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
 			0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
 			0x40, 0x41, 0x42, 0x43,
@@ -48,9 +48,9 @@ var hmacTests = []hmacTest {
 		strings.Bytes("Sample #2"),
 		"0922d3405faa3d194f82a45830737d5cc6c75d24",
 	},
-	hmacTest {
+	hmacTest{
 		NewSHA1,
-		[]byte {
+		[]byte{
 			0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
 			0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f,
 			0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
@@ -70,12 +70,12 @@ var hmacTests = []hmacTest {
 	},
 
 	// Test from Plan 9.
-	hmacTest {
+	hmacTest{
 		NewMD5,
 		strings.Bytes("Jefe"),
 		strings.Bytes("what do ya want for nothing?"),
 		"750c783e6ab0b503eaa86e310a5db738",
-	}
+	},
 }
 
 func TestHMAC(t *testing.T) {

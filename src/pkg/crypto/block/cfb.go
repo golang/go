@@ -17,15 +17,15 @@ import (
 )
 
 type cfbCipher struct {
-	c Cipher;
-	blockSize int;	// our block size (s/8)
-	cipherSize int;	// underlying cipher block size
-	iv []byte;
-	tmp []byte;
+	c		Cipher;
+	blockSize	int;	// our block size (s/8)
+	cipherSize	int;	// underlying cipher block size
+	iv		[]byte;
+	tmp		[]byte;
 }
 
 func newCFB(c Cipher, s int, iv []byte) *cfbCipher {
-	if s == 0 || s % 8 != 0 {
+	if s == 0 || s%8 != 0 {
 		panicln("crypto/block: invalid CFB mode", s);
 	}
 	b := c.BlockSize();
@@ -55,7 +55,7 @@ func (x *cfbCipher) Encrypt(src, dst []byte) {
 	}
 	off := x.cipherSize - x.blockSize;
 	for i := off; i < x.cipherSize; i++ {
-		x.iv[i] = dst[i - off];
+		x.iv[i] = dst[i-off];
 	}
 }
 
@@ -74,7 +74,7 @@ func (x *cfbCipher) Decrypt(src, dst []byte) {
 	for i := off; i < x.cipherSize; i++ {
 		// Reconstruct src = dst ^ x.tmp
 		// in case we overwrote src (src == dst).
-		x.iv[i] = dst[i - off] ^ x.tmp[i - off];
+		x.iv[i] = dst[i-off] ^ x.tmp[i-off];
 	}
 }
 
@@ -96,4 +96,3 @@ func NewCFBDecrypter(c Cipher, s int, iv []byte, r io.Reader) io.Reader {
 func NewCFBEncrypter(c Cipher, s int, iv []byte, w io.Writer) io.Writer {
 	return NewECBEncrypter(newCFB(c, s, iv), w);
 }
-

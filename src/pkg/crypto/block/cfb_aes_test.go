@@ -18,16 +18,16 @@ import (
 )
 
 type cfbTest struct {
-	name string;
-	s int;
-	key []byte;
-	iv []byte;
-	in []byte;
-	out []byte;
+	name	string;
+	s	int;
+	key	[]byte;
+	iv	[]byte;
+	in	[]byte;
+	out	[]byte;
 }
 
-var cfbAESTests = []cfbTest {
-	cfbTest {
+var cfbAESTests = []cfbTest{
+	cfbTest{
 		"CFB1-AES128",
 		1,
 		commonKey128,
@@ -41,7 +41,7 @@ var cfbAESTests = []cfbTest {
 			1<<7 | 0<<6 | 1<<5 | 1<<4 | 0<<3 | 0<<2 | 1<<1,
 		},
 	},
-	cfbTest {
+	cfbTest{
 		"CFB1-AES192",
 		1,
 		commonKey192,
@@ -55,7 +55,7 @@ var cfbAESTests = []cfbTest {
 			0<<7 | 1<<6 | 0<<5 | 1<<4 | 1<<3 | 0<<2 | 0<<1,
 		},
 	},
-	cfbTest {
+	cfbTest{
 		"CFB1-AES256",
 		1,
 		commonKey256,
@@ -70,7 +70,7 @@ var cfbAESTests = []cfbTest {
 		},
 	},
 
-	cfbTest {
+	cfbTest{
 		"CFB8-AES128",
 		8,
 		commonKey128,
@@ -117,7 +117,7 @@ var cfbAESTests = []cfbTest {
 		},
 	},
 
-	cfbTest {
+	cfbTest{
 		"CFB8-AES192",
 		8,
 		commonKey192,
@@ -164,7 +164,7 @@ var cfbAESTests = []cfbTest {
 		},
 	},
 
-	cfbTest {
+	cfbTest{
 		"CFB8-AES256",
 		8,
 		commonKey256,
@@ -211,7 +211,7 @@ var cfbAESTests = []cfbTest {
 		},
 	},
 
-	cfbTest {
+	cfbTest{
 		"CFB128-AES128",
 		128,
 		commonKey128,
@@ -230,7 +230,7 @@ var cfbAESTests = []cfbTest {
 		},
 	},
 
-	cfbTest {
+	cfbTest{
 		"CFB128-AES192",
 		128,
 		commonKey192,
@@ -249,7 +249,7 @@ var cfbAESTests = []cfbTest {
 		},
 	},
 
-	cfbTest {
+	cfbTest{
 		"CFB128-AES256",
 		128,
 		commonKey256,
