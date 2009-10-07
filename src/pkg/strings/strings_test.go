@@ -5,10 +5,10 @@
 package strings_test
 
 import (
-	. "strings";
-	"testing";
-	"unicode";
-	"utf8";
+	.	"strings";
+		"testing";
+		"unicode";
+		"utf8";
 )
 
 func eq(a, b []string) bool {
@@ -23,18 +23,18 @@ func eq(a, b []string) bool {
 	return true;
 }
 
-var abcd = "abcd";
-var faces = "☺☻☹";
-var commas = "1,2,3,4";
-var dots = "1....2....3....4";
+var abcd = "abcd"
+var faces = "☺☻☹"
+var commas = "1,2,3,4"
+var dots = "1....2....3....4"
 
 type IndexTest struct {
-	s string;
-	sep string;
-	out int;
+	s	string;
+	sep	string;
+	out	int;
 }
 
-var indexTests = []IndexTest {
+var indexTests = []IndexTest{
 	IndexTest{"", "", 0},
 	IndexTest{"", "a", -1},
 	IndexTest{"", "foo", -1},
@@ -48,7 +48,7 @@ var indexTests = []IndexTest {
 	IndexTest{"abcABCabc", "A", 3},
 }
 
-var lastIndexTests = []IndexTest {
+var lastIndexTests = []IndexTest{
 	IndexTest{"", "", 0},
 	IndexTest{"", "a", -1},
 	IndexTest{"", "foo", -1},
@@ -84,15 +84,17 @@ func TestLastIndex(t *testing.T) {
 
 
 type ExplodeTest struct {
-	s string;
-	n int;
-	a []string;
+	s	string;
+	n	int;
+	a	[]string;
 }
-var explodetests = []ExplodeTest {
-	ExplodeTest{ abcd,	4, []string{"a", "b", "c", "d"} },
-	ExplodeTest{ faces,	3, []string{"☺", "☻", "☹"} },
-	ExplodeTest{ abcd,	2, []string{"a", "bcd"} },
+
+var explodetests = []ExplodeTest{
+	ExplodeTest{abcd, 4, []string{"a", "b", "c", "d"}},
+	ExplodeTest{faces, 3, []string{"☺", "☻", "☹"}},
+	ExplodeTest{abcd, 2, []string{"a", "bcd"}},
 }
+
 func TestExplode(t *testing.T) {
 	for _, tt := range explodetests {
 		a := Split(tt.s, "", tt.n);
@@ -108,25 +110,27 @@ func TestExplode(t *testing.T) {
 }
 
 type SplitTest struct {
-	s string;
-	sep string;
-	n int;
-	a []string;
+	s	string;
+	sep	string;
+	n	int;
+	a	[]string;
 }
-var splittests = []SplitTest {
-	SplitTest{ abcd,	"a",	0, []string{"", "bcd"} },
-	SplitTest{ abcd,	"z",	0, []string{"abcd"} },
-	SplitTest{ abcd,	"",	0, []string{"a", "b", "c", "d"} },
-	SplitTest{ commas,	",",	0, []string{"1", "2", "3", "4"} },
-	SplitTest{ dots,	"...",	0, []string{"1", ".2", ".3", ".4"} },
-	SplitTest{ faces,	"☹",	0, []string{"☺☻", ""} },
-	SplitTest{ faces,	"~",	0, []string{faces} },
-	SplitTest{ faces,	"",	0, []string{"☺", "☻", "☹"} },
-	SplitTest{ "1 2 3 4",	" ",	3, []string{"1", "2", "3 4"} },
-	SplitTest{ "1 2",	" ",	3, []string{"1", "2"} },
-	SplitTest{ "123",	"",	2, []string{"1", "23"} },
-	SplitTest{ "123",	"",	17, []string{"1", "2", "3"} },
+
+var splittests = []SplitTest{
+	SplitTest{abcd, "a", 0, []string{"", "bcd"}},
+	SplitTest{abcd, "z", 0, []string{"abcd"}},
+	SplitTest{abcd, "", 0, []string{"a", "b", "c", "d"}},
+	SplitTest{commas, ",", 0, []string{"1", "2", "3", "4"}},
+	SplitTest{dots, "...", 0, []string{"1", ".2", ".3", ".4"}},
+	SplitTest{faces, "☹", 0, []string{"☺☻", ""}},
+	SplitTest{faces, "~", 0, []string{faces}},
+	SplitTest{faces, "", 0, []string{"☺", "☻", "☹"}},
+	SplitTest{"1 2 3 4", " ", 3, []string{"1", "2", "3 4"}},
+	SplitTest{"1 2", " ", 3, []string{"1", "2"}},
+	SplitTest{"123", "", 2, []string{"1", "23"}},
+	SplitTest{"123", "", 17, []string{"1", "2", "3"}},
 }
+
 func TestSplit(t *testing.T) {
 	for _, tt := range splittests {
 		a := Split(tt.s, tt.sep, tt.n);
@@ -157,7 +161,7 @@ func runStringTests(t *testing.T, f func(string) string, funcName string, testCa
 	}
 }
 
-var upperTests = []StringTest {
+var upperTests = []StringTest{
 	StringTest{"", ""},
 	StringTest{"abc", "ABC"},
 	StringTest{"AbC123", "ABC123"},
@@ -165,7 +169,7 @@ var upperTests = []StringTest {
 	StringTest{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"},	// grows one byte per char
 }
 
-var lowerTests = []StringTest {
+var lowerTests = []StringTest{
 	StringTest{"", ""},
 	StringTest{"abc", "abc"},
 	StringTest{"AbC123", "abc123"},
@@ -175,10 +179,10 @@ var lowerTests = []StringTest {
 
 const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
 
-var trimSpaceTests = []StringTest {
+var trimSpaceTests = []StringTest{
 	StringTest{"", ""},
 	StringTest{"abc", "abc"},
-	StringTest{space + "abc" + space, "abc"},
+	StringTest{space+"abc"+space, "abc"},
 	StringTest{" ", ""},
 	StringTest{" \t\r\n \t\t\r\r\n\n ", ""},
 	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
@@ -191,23 +195,27 @@ var trimSpaceTests = []StringTest {
 func tenRunes(rune int) string {
 	r := make([]int, 10);
 	for i := range r {
-		r[i] = rune
+		r[i] = rune;
 	}
-	return string(r)
+	return string(r);
 }
 
 func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a');
 	// 1.  Grow.  This triggers two reallocations in Map.
-	maxRune := func(rune int) int { return unicode.MaxRune };
+	maxRune := func(rune int) int {
+		return unicode.MaxRune;
+	};
 	m := Map(maxRune, a);
 	expect := tenRunes(unicode.MaxRune);
 	if m != expect {
 		t.Errorf("growing: expected %q got %q", expect, m);
 	}
 	// 2. Shrink
-	minRune := func(rune int) int { return 'a' };
+	minRune := func(rune int) int {
+		return 'a';
+	};
 	m = Map(minRune, tenRunes(unicode.MaxRune));
 	expect = a;
 	if m != expect {
@@ -229,18 +237,18 @@ func TestTrimSpace(t *testing.T) {
 
 func equal(m string, s1, s2 string, t *testing.T) bool {
 	if s1 == s2 {
-		return true
+		return true;
 	}
 	e1 := Split(s1, "", 0);
 	e2 := Split(s2, "", 0);
 	for i, c1 := range e1 {
 		if i > len(e2) {
-			break
+			break;
 		}
 		r1, _ := utf8.DecodeRuneInString(c1);
 		r2, _ := utf8.DecodeRuneInString(e2[i]);
 		if r1 != r2 {
-			t.Errorf("%s diff at %d: U+%04X U+%04X", m, i, r1, r2)
+			t.Errorf("%s diff at %d: U+%04X U+%04X", m, i, r1, r2);
 		}
 	}
 	return false;
@@ -248,9 +256,9 @@ func equal(m string, s1, s2 string, t *testing.T) bool {
 
 func TestCaseConsistency(t *testing.T) {
 	// Make a string of all the runes.
-	a := make([]int, unicode.MaxRune+1);
+	a := make([]int, unicode.MaxRune + 1);
 	for i := range a {
-		a[i] = i
+		a[i] = i;
 	}
 	s := string(a);
 	// convert the cases.
@@ -258,10 +266,10 @@ func TestCaseConsistency(t *testing.T) {
 	lower := ToLower(s);
 
 	// Consistency checks
-	if n := utf8.RuneCountInString(upper); n != unicode.MaxRune+1 {
+	if n := utf8.RuneCountInString(upper); n != unicode.MaxRune + 1 {
 		t.Error("rune count wrong in upper:", n);
 	}
-	if n := utf8.RuneCountInString(lower); n != unicode.MaxRune+1 {
+	if n := utf8.RuneCountInString(lower); n != unicode.MaxRune + 1 {
 		t.Error("rune count wrong in lower:", n);
 	}
 	if !equal("ToUpper(upper)", ToUpper(upper), upper, t) {
@@ -270,7 +278,7 @@ func TestCaseConsistency(t *testing.T) {
 	if !equal("ToLower(lower)", ToLower(lower), lower, t) {
 		t.Error("ToLower(lower) consistency fail");
 	}
-	/*
+/*
 	  These fail because of non-one-to-oneness of the data, such as multiple
 	  upper case 'I' mapping to 'i'.  We comment them out but keep them for
 	  interest.

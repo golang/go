@@ -30,12 +30,12 @@ func tabify(s string) string {
 		s += "\n";
 		n++;
 	}
-	for i := 0; i < n - 1; i++ {	// -1 to avoid final newline
+	for i := 0; i < n-1; i++ {	// -1 to avoid final newline
 		if s[i] == '\n' {
-			return s[0:i+1] + "\t" + tabify(s[i+1:n]);
+			return s[0 : i+1]+"\t"+tabify(s[i+1 : n]);
 		}
 	}
-	return s
+	return s;
 }
 
 // T is a type passed to Test functions to manage test state and support formatted test logs.
@@ -48,12 +48,12 @@ type T struct {
 
 // Fail marks the Test function as having failed but continues execution.
 func (t *T) Fail() {
-	t.failed = true
+	t.failed = true;
 }
 
 // Failed returns whether the Test function has failed.
 func (t *T) Failed() bool {
-	return t.failed
+	return t.failed;
 }
 
 // FailNow marks the Test function as having failed and stops its execution.
@@ -103,8 +103,8 @@ func (t *T) Fatalf(format string, args ...) {
 // An internal type but exported because it is cross-package; part of the implementation
 // of gotest.
 type Test struct {
-	Name string;
-	F func(*T);
+	Name	string;
+	F	func(*T);
 }
 
 func tRunner(t *T, test *Test) {

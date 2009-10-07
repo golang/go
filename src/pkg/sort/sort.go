@@ -46,10 +46,16 @@ func medianOfThree(data SortInterface, a, b, c int) {
 	m1 := a;
 	m2 := c;
 	// bubble sort on 3 elements
-	if data.Less(m1, m0) { data.Swap(m1, m0); }
-	if data.Less(m2, m1) { data.Swap(m2, m1); }
-	if data.Less(m1, m0) { data.Swap(m1, m0); }
-	// now data[m0] <= data[m1] <= data[m2]
+	if data.Less(m1, m0) {
+		data.Swap(m1, m0);
+	}
+	if data.Less(m2, m1) {
+		data.Swap(m2, m1);
+	}
+	if data.Less(m1, m0) {
+		data.Swap(m1, m0);
+	}
+// now data[m0] <= data[m1] <= data[m2]
 }
 
 func swapRange(data SortInterface, a, b, n int) {
@@ -60,12 +66,12 @@ func swapRange(data SortInterface, a, b, n int) {
 
 func doPivot(data SortInterface, lo, hi int) (midlo, midhi int) {
 	m := (lo+hi)/2;
-	if hi - lo > 40 {
+	if hi-lo > 40 {
 		// Tukey's ``Ninther,'' median of three medians of three.
-		s := (hi - lo) / 8;
-		medianOfThree(data, lo, lo+s, lo+2*s);
+		s := (hi-lo)/8;
+		medianOfThree(data, lo, lo+s, lo + 2*s);
 		medianOfThree(data, m, m-s, m+s);
-		medianOfThree(data, hi-1, hi-1-s, hi-1-2*s);
+		medianOfThree(data, hi-1, hi-1-s, hi - 1 - 2*s);
 	}
 	medianOfThree(data, lo, m, hi-1);
 
@@ -118,11 +124,11 @@ func doPivot(data SortInterface, lo, hi int) (midlo, midhi int) {
 }
 
 func quickSort(data SortInterface, a, b int) {
-	if b - a > 7 {
+	if b-a > 7 {
 		mlo, mhi := doPivot(data, a, b);
 		quickSort(data, a, mlo);
 		quickSort(data, mhi, b);
-	} else if b - a > 1 {
+	} else if b-a > 1 {
 		insertionSort(data, a, b);
 	}
 }
@@ -134,8 +140,8 @@ func Sort(data SortInterface) {
 
 func IsSorted(data SortInterface) bool {
 	n := data.Len();
-	for i := n - 1; i > 0; i-- {
-		if data.Less(i, i - 1) {
+	for i := n-1; i > 0; i-- {
+		if data.Less(i, i-1) {
 			return false;
 		}
 	}
@@ -148,49 +154,85 @@ func IsSorted(data SortInterface) bool {
 // IntArray attaches the methods of SortInterface to []int, sorting in increasing order.
 type IntArray []int
 
-func (p IntArray) Len() int            { return len(p); }
-func (p IntArray) Less(i, j int) bool  { return p[i] < p[j]; }
-func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+func (p IntArray) Len() int {
+	return len(p);
+}
+func (p IntArray) Less(i, j int) bool {
+	return p[i] < p[j];
+}
+func (p IntArray) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i];
+}
 
 // Sort is a convenience method.
-func (p IntArray) Sort()       { Sort(p); }
+func (p IntArray) Sort() {
+	Sort(p);
+}
 
 
 // FloatArray attaches the methods of SortInterface to []float, sorting in increasing order.
-type FloatArray  []float
+type FloatArray []float
 
-func (p FloatArray) Len() int            { return len(p); }
-func (p FloatArray) Less(i, j int) bool  { return p[i] < p[j]; }
-func (p FloatArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+func (p FloatArray) Len() int {
+	return len(p);
+}
+func (p FloatArray) Less(i, j int) bool {
+	return p[i] < p[j];
+}
+func (p FloatArray) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i];
+}
 
 // Sort is a convenience method.
-func (p FloatArray) Sort()       { Sort(p); }
+func (p FloatArray) Sort() {
+	Sort(p);
+}
 
 
 // StringArray attaches the methods of SortInterface to []string, sorting in increasing order.
 type StringArray []string
 
-func (p StringArray) Len() int            { return len(p); }
-func (p StringArray) Less(i, j int) bool  { return p[i] < p[j]; }
-func (p StringArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+func (p StringArray) Len() int {
+	return len(p);
+}
+func (p StringArray) Less(i, j int) bool {
+	return p[i] < p[j];
+}
+func (p StringArray) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i];
+}
 
 // Sort is a convenience method.
-func (p StringArray) Sort()       { Sort(p); }
+func (p StringArray) Sort() {
+	Sort(p);
+}
 
 
 // Convenience wrappers for common cases
 
 // SortInts sorts an array of ints in increasing order.
-func SortInts(a []int)        { Sort(IntArray(a)); }
+func SortInts(a []int) {
+	Sort(IntArray(a));
+}
 // SortFloats sorts an array of floats in increasing order.
-func SortFloats(a []float)    { Sort(FloatArray(a)); }
+func SortFloats(a []float) {
+	Sort(FloatArray(a));
+}
 // SortStrings sorts an array of strings in increasing order.
-func SortStrings(a []string)  { Sort(StringArray(a)); }
+func SortStrings(a []string) {
+	Sort(StringArray(a));
+}
 
 
 // IntsAreSorted tests whether an array of ints is sorted in increasing order.
-func IntsAreSorted(a []int) bool       { return IsSorted(IntArray(a)); }
+func IntsAreSorted(a []int) bool {
+	return IsSorted(IntArray(a));
+}
 // FloatsAreSorted tests whether an array of floats is sorted in increasing order.
-func FloatsAreSorted(a []float) bool   { return IsSorted(FloatArray(a)); }
+func FloatsAreSorted(a []float) bool {
+	return IsSorted(FloatArray(a));
+}
 // StringsAreSorted tests whether an array of strings is sorted in increasing order.
-func StringsAreSorted(a []string) bool { return IsSorted(StringArray(a)); }
+func StringsAreSorted(a []string) bool {
+	return IsSorted(StringArray(a));
+}

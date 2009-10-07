@@ -40,7 +40,7 @@ type halfReader struct {
 }
 
 func (r *halfReader) Read(p []byte) (int, os.Error) {
-	return r.r.Read(p[0:(len(p)+1)/2]);
+	return r.r.Read(p[0 : (len(p)+1)/2]);
 }
 
 
@@ -52,9 +52,9 @@ func DataErrReader(r io.Reader) io.Reader {
 }
 
 type dataErrReader struct {
-	r io.Reader;
-	unread []byte;
-	data []byte;
+	r	io.Reader;
+	unread	[]byte;
+	data	[]byte;
 }
 
 func (r *dataErrReader) Read(p []byte) (n int, err os.Error) {
@@ -70,8 +70,7 @@ func (r *dataErrReader) Read(p []byte) (n int, err os.Error) {
 			break;
 		}
 		n = bytes.Copy(p, r.unread);
-		r.unread = r.unread[n:len(r.unread)];
+		r.unread = r.unread[n : len(r.unread)];
 	}
 	return;
 }
-

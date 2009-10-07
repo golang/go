@@ -9,8 +9,8 @@
 package reflect_test
 
 import (
-	. "reflect";
-	"strconv";
+	.	"reflect";
+		"strconv";
 )
 
 // valueToString returns a textual representation of the reflection value val.
@@ -56,9 +56,9 @@ func valueToString(val Value) string {
 		return val.Get();
 	case *BoolValue:
 		if val.Get() {
-			return "true"
+			return "true";
 		} else {
-			return "false"
+			return "false";
 		}
 	case *PtrValue:
 		v := val;
@@ -76,7 +76,7 @@ func valueToString(val Value) string {
 		str += "{";
 		for i := 0; i < v.Len(); i++ {
 			if i > 0 {
-				str += ", "
+				str += ", ";
 			}
 			str += valueToString(v.Elem(i));
 		}
@@ -99,7 +99,7 @@ func valueToString(val Value) string {
 		str += "{";
 		for i, n := 0, v.NumField(); i < n; i++ {
 			if i > 0 {
-				str += ", "
+				str += ", ";
 			}
 			str += valueToString(v.Field(i));
 		}

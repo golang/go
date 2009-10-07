@@ -12,19 +12,18 @@ package time
 import (
 	"io";
 	"once";
-	"os"
+	"os";
 )
 
 const (
-	headerSize = 4+16+4*7;
-
-	zoneDir = "/usr/share/zoneinfo/";
+	headerSize	= 4 + 16 + 4*7;
+	zoneDir		= "/usr/share/zoneinfo/";
 )
 
 // Simple I/O interface to binary blob of data.
 type data struct {
-	p []byte;
-	error bool;
+	p	[]byte;
+	error	bool;
 }
 
 
@@ -35,26 +34,26 @@ func (d *data) read(n int) []byte {
 		return nil;
 	}
 	p := d.p[0:n];
-	d.p = d.p[n:len(d.p)];
-	return p
+	d.p = d.p[n : len(d.p)];
+	return p;
 }
 
 func (d *data) big4() (n uint32, ok bool) {
 	p := d.read(4);
 	if len(p) < 4 {
 		d.error = true;
-		return 0, false
+		return 0, false;
 	}
-	return uint32(p[0]) << 24 | uint32(p[1]) << 16 | uint32(p[2]) << 8 | uint32(p[3]), true
+	return uint32(p[0])<<24 | uint32(p[1])<<16 | uint32(p[2])<<8 | uint32(p[3]), true;
 }
 
 func (d *data) byte() (n byte, ok bool) {
 	p := d.read(1);
 	if len(p) < 1 {
 		d.error = true;
-		return 0, false
+		return 0, false;
 	}
-	return p[0], true
+	return p[0], true;
 }
 
 
@@ -62,23 +61,23 @@ func (d *data) byte() (n byte, ok bool) {
 func byteString(p []byte) string {
 	for i := 0; i < len(p); i++ {
 		if p[i] == 0 {
-			return string(p[0:i])
+			return string(p[0:i]);
 		}
 	}
-	return string(p)
+	return string(p);
 }
 
 // Parsed representation
 type zone struct {
-	utcoff int;
-	isdst bool;
-	name string;
+	utcoff	int;
+	isdst	bool;
+	name	string;
 }
 
 type zonetime struct {
-	time int32;		// transition time, in seconds since 1970 GMT
-	zone *zone;		// the zone that goes into effect at that time
-	isstd, isutc bool;	// ignored - no idea what these mean
+	time		int32;	// transition time, in seconds since 1970 GMT
+	zone		*zone;	// the zone that goes into effect at that time
+	isstd, isutc	bool;	// ignored - no idea what these mean
 }
 
 func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
@@ -86,13 +85,13 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 
 	// 4-byte magic "TZif"
 	if magic := d.read(4); string(magic) != "TZif" {
-		return nil, false
+		return nil, false;
 	}
 
 	// 1-byte version, then 15 bytes of padding
 	var p []byte;
 	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
-		return nil, false
+		return nil, false;
 	}
 
 	// six big-endian 32-bit integers:
@@ -103,18 +102,18 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 	//	number of local time zones
 	//	number of characters of time zone abbrev strings
 	const (
-		NUTCLocal = iota;
+		NUTCLocal	= iota;
 		NStdWall;
 		NLeap;
 		NTime;
 		NZone;
-		NChar
+		NChar;
 	)
 	var n [6]int;
 	for i := 0; i < 6; i++ {
 		nn, ok := d.big4();
 		if !ok {
-			return nil, false
+			return nil, false;
 		}
 		n[i] = int(nn);
 	}
@@ -143,7 +142,7 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 	isutc := d.read(n[NUTCLocal]);
 
 	if d.error {	// ran out of data
-		return nil, false
+		return nil, false;
 	}
 
 	// If version == 2, the entire file repeats, this time using
@@ -158,18 +157,18 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 		var ok bool;
 		var n uint32;
 		if n, ok = zonedata.big4(); !ok {
-			return nil, false
+			return nil, false;
 		}
 		z[i].utcoff = int(n);
 		var b byte;
 		if b, ok = zonedata.byte(); !ok {
-			return nil, false
+			return nil, false;
 		}
 		z[i].isdst = b != 0;
 		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
-			return nil, false
+			return nil, false;
 		}
-		z[i].name = byteString(abbrev[b:len(abbrev)])
+		z[i].name = byteString(abbrev[b:len(abbrev)]);
 	}
 
 	// Now the transition time info.
@@ -178,27 +177,27 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 		var ok bool;
 		var n uint32;
 		if n, ok = txtimes.big4(); !ok {
-			return nil, false
+			return nil, false;
 		}
 		zt[i].time = int32(n);
 		if int(txzones[i]) >= len(z) {
-			return nil, false
+			return nil, false;
 		}
 		zt[i].zone = &z[txzones[i]];
 		if i < len(isstd) {
-			zt[i].isstd = isstd[i] != 0
+			zt[i].isstd = isstd[i] != 0;
 		}
 		if i < len(isutc) {
-			zt[i].isutc = isutc[i] != 0
+			zt[i].isutc = isutc[i] != 0;
 		}
 	}
-	return zt, true
+	return zt, true;
 }
 
 func readinfofile(name string) ([]zonetime, bool) {
 	buf, err := io.ReadFile(name);
 	if err != nil {
-		return nil, false
+		return nil, false;
 	}
 	return parseinfo(buf);
 }
@@ -216,16 +215,16 @@ func setupZone() {
 	case err == os.ENOENV:
 		zones, _ = readinfofile("/etc/localtime");
 	case len(tz) > 0:
-		zones, _ = readinfofile(zoneDir + tz);
+		zones, _ = readinfofile(zoneDir+tz);
 	case len(tz) == 0:
-		// do nothing: use UTC
+	// do nothing: use UTC
 	}
 }
 
 func lookupTimezone(sec int64) (zone string, offset int) {
 	once.Do(setupZone);
 	if len(zones) == 0 {
-		return "UTC", 0
+		return "UTC", 0;
 	}
 
 	// Binary search for entry with largest time <= sec
@@ -233,11 +232,11 @@ func lookupTimezone(sec int64) (zone string, offset int) {
 	for len(tz) > 1 {
 		m := len(tz)/2;
 		if sec < int64(tz[m].time) {
-			tz = tz[0:m]
+			tz = tz[0:m];
 		} else {
-			tz = tz[m:len(tz)]
+			tz = tz[m:len(tz)];
 		}
 	}
 	z := tz[0].zone;
-	return z.name, z.utcoff
+	return z.name, z.utcoff;
 }

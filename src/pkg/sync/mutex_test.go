@@ -7,8 +7,8 @@
 package sync_test
 
 import (
-	. "sync";
-	"testing"
+	.	"sync";
+		"testing";
 )
 
 func HammerSemaphore(s *int32, cdone chan bool) {
@@ -50,4 +50,3 @@ func TestMutex(t *testing.T) {
 		<-c;
 	}
 }
-

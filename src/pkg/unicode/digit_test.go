@@ -5,11 +5,11 @@
 package unicode_test
 
 import (
-	"testing";
-	. "unicode";
+		"testing";
+	.	"unicode";
 )
 
-var testDigit = []int {
+var testDigit = []int{
 	0x0030,
 	0x0039,
 	0x0661,
@@ -68,7 +68,7 @@ var testDigit = []int {
 	0x1D7CE,
 }
 
-var testLetter = []int {
+var testLetter = []int{
 	0x0041,
 	0x0061,
 	0x00AA,
@@ -120,7 +120,7 @@ func TestDigit(t *testing.T) {
 func TestDigitOptimization(t *testing.T) {
 	for i := 0; i < 0x100; i++ {
 		if Is(Digit, i) != IsDigit(i) {
-			t.Errorf("IsDigit(U+%04X) disagrees with Is(Digit)", i)
+			t.Errorf("IsDigit(U+%04X) disagrees with Is(Digit)", i);
 		}
 	}
 }

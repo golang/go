@@ -107,9 +107,7 @@ func stringToDecimal(s string) (neg bool, d *decimal, trunc bool, ok bool) {
 }
 
 // decimal power of ten to binary power of two.
-var powtab = []int{
-	1, 3, 6, 9, 13, 16, 19, 23, 26
-}
+var powtab = []int{1, 3, 6, 9, 13, 16, 19, 23, 26}
 
 func decimalToFloatBits(neg bool, d *decimal, trunc bool, flt *floatInfo) (b uint64, overflow bool) {
 	var exp int;
@@ -164,30 +162,30 @@ func decimalToFloatBits(neg bool, d *decimal, trunc bool, flt *floatInfo) (b uin
 	// Minimum representable exponent is flt.bias+1.
 	// If the exponent is smaller, move it up and
 	// adjust d accordingly.
-	if exp < flt.bias+1 {
-		n := flt.bias+1 - exp;
+	if exp < flt.bias + 1 {
+		n := flt.bias + 1 - exp;
 		d.Shift(-n);
 		exp += n;
 	}
 
-	if exp-flt.bias >= 1<<flt.expbits - 1 {
+	if exp - flt.bias >= 1 << flt.expbits - 1 {
 		goto overflow;
 	}
 
 	// Extract 1+flt.mantbits bits.
-	mant = d.Shift(int(1+flt.mantbits)).RoundedInteger();
+	mant = d.Shift(int(1 + flt.mantbits)).RoundedInteger();
 
 	// Rounding might have added a bit; shift down.
-	if mant == 2<<flt.mantbits {
+	if mant == 2 << flt.mantbits {
 		mant >>= 1;
 		exp++;
-		if exp-flt.bias >= 1<<flt.expbits - 1 {
+		if exp - flt.bias >= 1 << flt.expbits - 1 {
 			goto overflow;
 		}
 	}
 
 	// Denormalized?
-	if mant&(1<<flt.mantbits) == 0 {
+	if mant&(1 << flt.mantbits) == 0 {
 		exp = flt.bias;
 	}
 	goto out;
@@ -195,15 +193,15 @@ func decimalToFloatBits(neg bool, d *decimal, trunc bool, flt *floatInfo) (b uin
 overflow:
 	// ±Inf
 	mant = 0;
-	exp = 1<<flt.expbits - 1 + flt.bias;
+	exp = 1 << flt.expbits - 1 + flt.bias;
 	overflow = true;
 
 out:
 	// Assemble bits.
-	bits := mant & (uint64(1)<<flt.mantbits - 1);
-	bits |= uint64((exp-flt.bias)&(1<<flt.expbits - 1)) << flt.mantbits;
+	bits := mant&(uint64(1) << flt.mantbits - 1);
+	bits |= uint64((exp - flt.bias)&(1 << flt.expbits - 1)) << flt.mantbits;
 	if neg {
-		bits |= 1<<flt.mantbits<<flt.expbits;
+		bits |= 1 << flt.mantbits << flt.expbits;
 	}
 	return bits, overflow;
 }
@@ -233,14 +231,12 @@ func decimalAtof32Int(neg bool, d *decimal) float32 {
 }
 
 // Exact powers of 10.
-var float64pow10 = []float64 {
+var float64pow10 = []float64{
 	1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
 	1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
-	1e20, 1e21, 1e22
+	1e20, 1e21, 1e22,
 }
-var float32pow10 = []float32 {
-	1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10
-}
+var float32pow10 = []float32{1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10}
 
 // If possible to convert decimal d to 64-bit float f exactly,
 // entirely in floating-point math, do so, avoiding the expense of decimalToFloatBits.
@@ -338,7 +334,7 @@ func Atof32(s string) (f float32, err os.Error) {
 	if ovf {
 		err = &NumError{s, os.ERANGE};
 	}
-	return f, err
+	return f, err;
 }
 
 // Atof64 converts the string s to a 64-bit floating-point number.
@@ -359,7 +355,7 @@ func Atof64(s string) (f float64, err os.Error) {
 	if ovf {
 		err = &NumError{s, os.ERANGE};
 	}
-	return f, err
+	return f, err;
 }
 
 // Atof is like Atof32 or Atof64, depending on the size of float.
@@ -371,4 +367,3 @@ func Atof(s string) (f float, err os.Error) {
 	f1, err1 := Atof64(s);
 	return float(f1), err1;
 }
-

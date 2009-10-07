@@ -5,8 +5,8 @@
 package unicode_test
 
 import (
-	"testing";
-	. "unicode";
+		"testing";
+	.	"unicode";
 )
 
 var upperTest = []int{
@@ -107,110 +107,110 @@ var spaceTest = []int{
 }
 
 type caseT struct {
-	cas, in, out int
+	cas, in, out int;
 }
 
-var caseTest = []caseT {
+var caseTest = []caseT{
 	// errors
-	caseT{-1,	'\n',	0xFFFD},
-	caseT{UpperCase,	-1,	-1},
-	caseT{UpperCase,	1<<30,	1<<30},
+	caseT{-1, '\n', 0xFFFD},
+	caseT{UpperCase, -1, -1},
+	caseT{UpperCase, 1<<30, 1<<30},
 
 	// ASCII (special-cased so test carefully)
-	caseT{UpperCase,	'\n',	'\n'},
-	caseT{UpperCase,	'a',	'A'},
-	caseT{UpperCase,	'A',	'A'},
-	caseT{UpperCase,	'7',	'7'},
-	caseT{LowerCase,	'\n',	'\n'},
-	caseT{LowerCase,	'a',	'a'},
-	caseT{LowerCase,	'A',	'a'},
-	caseT{LowerCase,	'7',	'7'},
-	caseT{TitleCase,	'\n',	'\n'},
-	caseT{TitleCase,	'a',	'A'},
-	caseT{TitleCase,	'A',	'A'},
-	caseT{TitleCase,	'7',	'7'},
+	caseT{UpperCase, '\n', '\n'},
+	caseT{UpperCase, 'a', 'A'},
+	caseT{UpperCase, 'A', 'A'},
+	caseT{UpperCase, '7', '7'},
+	caseT{LowerCase, '\n', '\n'},
+	caseT{LowerCase, 'a', 'a'},
+	caseT{LowerCase, 'A', 'a'},
+	caseT{LowerCase, '7', '7'},
+	caseT{TitleCase, '\n', '\n'},
+	caseT{TitleCase, 'a', 'A'},
+	caseT{TitleCase, 'A', 'A'},
+	caseT{TitleCase, '7', '7'},
 
 	// Latin-1: easy to read the tests!
-	caseT{UpperCase,	0x80,	0x80},
-	caseT{UpperCase,	'Å',	'Å'},
-	caseT{UpperCase,	'å',	'Å'},
-	caseT{LowerCase,	0x80,	0x80},
-	caseT{LowerCase,	'Å',	'å'},
-	caseT{LowerCase,	'å',	'å'},
-	caseT{TitleCase,	0x80,	0x80},
-	caseT{TitleCase,	'Å',	'Å'},
-	caseT{TitleCase,	'å',	'Å'},
+	caseT{UpperCase, 0x80, 0x80},
+	caseT{UpperCase, 'Å', 'Å'},
+	caseT{UpperCase, 'å', 'Å'},
+	caseT{LowerCase, 0x80, 0x80},
+	caseT{LowerCase, 'Å', 'å'},
+	caseT{LowerCase, 'å', 'å'},
+	caseT{TitleCase, 0x80, 0x80},
+	caseT{TitleCase, 'Å', 'Å'},
+	caseT{TitleCase, 'å', 'Å'},
 
 	// 0131;LATIN SMALL LETTER DOTLESS I;Ll;0;L;;;;;N;;;0049;;0049
-	caseT{UpperCase,	0x0131,	'I'},
-	caseT{LowerCase,	0x0131,	0x0131},
-	caseT{TitleCase,	0x0131,	'I'},
+	caseT{UpperCase, 0x0131, 'I'},
+	caseT{LowerCase, 0x0131, 0x0131},
+	caseT{TitleCase, 0x0131, 'I'},
 
 	// 0133;LATIN SMALL LIGATURE IJ;Ll;0;L;<compat> 0069 006A;;;;N;LATIN SMALL LETTER I J;;0132;;0132
-	caseT{UpperCase,	0x0133,	0x0132},
-	caseT{LowerCase,	0x0133,	0x0133},
-	caseT{TitleCase,	0x0133,	0x0132},
+	caseT{UpperCase, 0x0133, 0x0132},
+	caseT{LowerCase, 0x0133, 0x0133},
+	caseT{TitleCase, 0x0133, 0x0132},
 
 	// 212A;KELVIN SIGN;Lu;0;L;004B;;;;N;DEGREES KELVIN;;;006B;
-	caseT{UpperCase,	0x212A,	0x212A},
-	caseT{LowerCase,	0x212A,	'k'},
-	caseT{TitleCase,	0x212A,	0x212A},
+	caseT{UpperCase, 0x212A, 0x212A},
+	caseT{LowerCase, 0x212A, 'k'},
+	caseT{TitleCase, 0x212A, 0x212A},
 
 	// From an UpperLower sequence
 	// A640;CYRILLIC CAPITAL LETTER ZEMLYA;Lu;0;L;;;;;N;;;;A641;
-	caseT{UpperCase,	0xA640,	0xA640},
-	caseT{LowerCase,	0xA640,	0xA641},
-	caseT{TitleCase,	0xA640,	0xA640},
+	caseT{UpperCase, 0xA640, 0xA640},
+	caseT{LowerCase, 0xA640, 0xA641},
+	caseT{TitleCase, 0xA640, 0xA640},
 	// A641;CYRILLIC SMALL LETTER ZEMLYA;Ll;0;L;;;;;N;;;A640;;A640
-	caseT{UpperCase,	0xA641,	0xA640},
-	caseT{LowerCase,	0xA641,	0xA641},
-	caseT{TitleCase,	0xA641,	0xA640},
+	caseT{UpperCase, 0xA641, 0xA640},
+	caseT{LowerCase, 0xA641, 0xA641},
+	caseT{TitleCase, 0xA641, 0xA640},
 	// A64E;CYRILLIC CAPITAL LETTER NEUTRAL YER;Lu;0;L;;;;;N;;;;A64F;
-	caseT{UpperCase,	0xA64E,	0xA64E},
-	caseT{LowerCase,	0xA64E,	0xA64F},
-	caseT{TitleCase,	0xA64E,	0xA64E},
+	caseT{UpperCase, 0xA64E, 0xA64E},
+	caseT{LowerCase, 0xA64E, 0xA64F},
+	caseT{TitleCase, 0xA64E, 0xA64E},
 	// A65F;CYRILLIC SMALL LETTER YN;Ll;0;L;;;;;N;;;A65E;;A65E
-	caseT{UpperCase,	0xA65F,	0xA65E},
-	caseT{LowerCase,	0xA65F,	0xA65F},
-	caseT{TitleCase,	0xA65F,	0xA65E},
+	caseT{UpperCase, 0xA65F, 0xA65E},
+	caseT{LowerCase, 0xA65F, 0xA65F},
+	caseT{TitleCase, 0xA65F, 0xA65E},
 
 	// From another UpperLower sequence
 	// 0139;LATIN CAPITAL LETTER L WITH ACUTE;Lu;0;L;004C 0301;;;;N;LATIN CAPITAL LETTER L ACUTE;;;013A;
-	caseT{UpperCase,	0x0139,	0x0139},
-	caseT{LowerCase,	0x0139,	0x013A},
-	caseT{TitleCase,	0x0139,	0x0139},
+	caseT{UpperCase, 0x0139, 0x0139},
+	caseT{LowerCase, 0x0139, 0x013A},
+	caseT{TitleCase, 0x0139, 0x0139},
 	// 013F;LATIN CAPITAL LETTER L WITH MIDDLE DOT;Lu;0;L;<compat> 004C 00B7;;;;N;;;;0140;
-	caseT{UpperCase,	0x013f,	0x013f},
-	caseT{LowerCase,	0x013f,	0x0140},
-	caseT{TitleCase,	0x013f,	0x013f},
+	caseT{UpperCase, 0x013f, 0x013f},
+	caseT{LowerCase, 0x013f, 0x0140},
+	caseT{TitleCase, 0x013f, 0x013f},
 	// 0148;LATIN SMALL LETTER N WITH CARON;Ll;0;L;006E 030C;;;;N;LATIN SMALL LETTER N HACEK;;0147;;0147
-	caseT{UpperCase,	0x0148,	0x0147},
-	caseT{LowerCase,	0x0148,	0x0148},
-	caseT{TitleCase,	0x0148,	0x0147},
+	caseT{UpperCase, 0x0148, 0x0147},
+	caseT{LowerCase, 0x0148, 0x0148},
+	caseT{TitleCase, 0x0148, 0x0147},
 
 	// Last block in the 5.1.0 table
 	// 10400;DESERET CAPITAL LETTER LONG I;Lu;0;L;;;;;N;;;;10428;
-	caseT{UpperCase,	0x10400,	0x10400},
-	caseT{LowerCase,	0x10400,	0x10428},
-	caseT{TitleCase,	0x10400,	0x10400},
+	caseT{UpperCase, 0x10400, 0x10400},
+	caseT{LowerCase, 0x10400, 0x10428},
+	caseT{TitleCase, 0x10400, 0x10400},
 	// 10427;DESERET CAPITAL LETTER EW;Lu;0;L;;;;;N;;;;1044F;
-	caseT{UpperCase,	0x10427,	0x10427},
-	caseT{LowerCase,	0x10427,	0x1044F},
-	caseT{TitleCase,	0x10427,	0x10427},
+	caseT{UpperCase, 0x10427, 0x10427},
+	caseT{LowerCase, 0x10427, 0x1044F},
+	caseT{TitleCase, 0x10427, 0x10427},
 	// 10428;DESERET SMALL LETTER LONG I;Ll;0;L;;;;;N;;;10400;;10400
-	caseT{UpperCase,	0x10428,	0x10400},
-	caseT{LowerCase,	0x10428,	0x10428},
-	caseT{TitleCase,	0x10428,	0x10400},
+	caseT{UpperCase, 0x10428, 0x10400},
+	caseT{LowerCase, 0x10428, 0x10428},
+	caseT{TitleCase, 0x10428, 0x10400},
 	// 1044F;DESERET SMALL LETTER EW;Ll;0;L;;;;;N;;;10427;;10427
-	caseT{UpperCase,	0x1044F,	0x10427},
-	caseT{LowerCase,	0x1044F,	0x1044F},
-	caseT{TitleCase,	0x1044F,	0x10427},
+	caseT{UpperCase, 0x1044F, 0x10427},
+	caseT{LowerCase, 0x1044F, 0x1044F},
+	caseT{TitleCase, 0x1044F, 0x10427},
 
 	// First one not in the 5.1.0 table
 	// 10450;SHAVIAN LETTER PEEP;Lo;0;L;;;;;N;;;;;
-	caseT{UpperCase,	0x10450,	0x10450},
-	caseT{LowerCase,	0x10450,	0x10450},
-	caseT{TitleCase,	0x10450,	0x10450},
+	caseT{UpperCase, 0x10450, 0x10450},
+	caseT{LowerCase, 0x10450, 0x10450},
+	caseT{TitleCase, 0x10450, 0x10450},
 }
 
 func TestIsLetter(t *testing.T) {
@@ -252,13 +252,13 @@ func TestIsUpper(t *testing.T) {
 func caseString(c int) string {
 	switch c {
 	case UpperCase:
-		return "UpperCase"
+		return "UpperCase";
 	case LowerCase:
-		return "LowerCase"
+		return "LowerCase";
 	case TitleCase:
-		return "TitleCase"
+		return "TitleCase";
 	}
-	return "ErrorCase"
+	return "ErrorCase";
 }
 
 func TestTo(t *testing.T) {
@@ -273,7 +273,7 @@ func TestTo(t *testing.T) {
 func TestToUpperCase(t *testing.T) {
 	for _, c := range caseTest {
 		if c.cas != UpperCase {
-			continue
+			continue;
 		}
 		r := ToUpper(c.in);
 		if c.out != r {
@@ -285,7 +285,7 @@ func TestToUpperCase(t *testing.T) {
 func TestToLowerCase(t *testing.T) {
 	for _, c := range caseTest {
 		if c.cas != LowerCase {
-			continue
+			continue;
 		}
 		r := ToLower(c.in);
 		if c.out != r {
@@ -297,7 +297,7 @@ func TestToLowerCase(t *testing.T) {
 func TestToTitleCase(t *testing.T) {
 	for _, c := range caseTest {
 		if c.cas != TitleCase {
-			continue
+			continue;
 		}
 		r := ToTitle(c.in);
 		if c.out != r {
@@ -324,28 +324,28 @@ func TestIsSpace(t *testing.T) {
 func TestLetterOptimizations(t *testing.T) {
 	for i := 0; i < 0x100; i++ {
 		if Is(Letter, i) != IsLetter(i) {
-			t.Errorf("IsLetter(U+%04X) disagrees with Is(Letter)", i)
+			t.Errorf("IsLetter(U+%04X) disagrees with Is(Letter)", i);
 		}
 		if Is(Upper, i) != IsUpper(i) {
-			t.Errorf("IsUpper(U+%04X) disagrees with Is(Upper)", i)
+			t.Errorf("IsUpper(U+%04X) disagrees with Is(Upper)", i);
 		}
 		if Is(Lower, i) != IsLower(i) {
-			t.Errorf("IsLower(U+%04X) disagrees with Is(Lower)", i)
+			t.Errorf("IsLower(U+%04X) disagrees with Is(Lower)", i);
 		}
 		if Is(Title, i) != IsTitle(i) {
-			t.Errorf("IsTitle(U+%04X) disagrees with Is(Title)", i)
+			t.Errorf("IsTitle(U+%04X) disagrees with Is(Title)", i);
 		}
 		if Is(White_Space, i) != IsSpace(i) {
-			t.Errorf("IsSpace(U+%04X) disagrees with Is(White_Space)", i)
+			t.Errorf("IsSpace(U+%04X) disagrees with Is(White_Space)", i);
 		}
 		if To(UpperCase, i) != ToUpper(i) {
-			t.Errorf("ToUpper(U+%04X) disagrees with To(Upper)", i)
+			t.Errorf("ToUpper(U+%04X) disagrees with To(Upper)", i);
 		}
 		if To(LowerCase, i) != ToLower(i) {
-			t.Errorf("ToLower(U+%04X) disagrees with To(Lower)", i)
+			t.Errorf("ToLower(U+%04X) disagrees with To(Lower)", i);
 		}
 		if To(TitleCase, i) != ToTitle(i) {
-			t.Errorf("ToTitle(U+%04X) disagrees with To(Title)", i)
+			t.Errorf("ToTitle(U+%04X) disagrees with To(Title)", i);
 		}
 	}
 }

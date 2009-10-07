@@ -21,23 +21,23 @@ const second = 1e9
 
 
 type Args struct {
-	A, B int
+	A, B int;
 }
 
 type Reply struct {
-	C int
+	C int;
 }
 
 type Arith int
 
 func (t *Arith) Add(args *Args, reply *Reply) os.Error {
 	reply.C = args.A + args.B;
-	return nil
+	return nil;
 }
 
 func (t *Arith) Mul(args *Args, reply *Reply) os.Error {
 	reply.C = args.A * args.B;
-	return nil
+	return nil;
 }
 
 func (t *Arith) Div(args *Args, reply *Reply) os.Error {
@@ -45,7 +45,7 @@ func (t *Arith) Div(args *Args, reply *Reply) os.Error {
 		return os.ErrorString("divide by zero");
 	}
 	reply.C = args.A / args.B;
-	return nil
+	return nil;
 }
 
 func (t *Arith) Error(args *Args, reply *Reply) os.Error {
@@ -83,14 +83,14 @@ func TestRPC(t *testing.T) {
 	}
 
 	// Synchronous calls
-	args := &Args{7,8};
+	args := &Args{7, 8};
 	reply := new(Reply);
 	err = client.Call("Arith.Add", args, reply);
 	if reply.C != args.A + args.B {
 		t.Errorf("Add: expected %d got %d", reply.C, args.A + args.B);
 	}
 
-	args = &Args{7,8};
+	args = &Args{7, 8};
 	reply = new(Reply);
 	err = client.Call("Arith.Mul", args, reply);
 	if reply.C != args.A * args.B {
@@ -98,7 +98,7 @@ func TestRPC(t *testing.T) {
 	}
 
 	// Out of order.
-	args = &Args{7,8};
+	args = &Args{7, 8};
 	mulReply := new(Reply);
 	mulCall := client.Go("Arith.Mul", args, mulReply, nil);
 	addReply := new(Reply);
@@ -115,7 +115,7 @@ func TestRPC(t *testing.T) {
 	}
 
 	// Error test
-	args = &Args{7,0};
+	args = &Args{7, 0};
 	reply = new(Reply);
 	err = client.Call("Arith.Div", args, reply);
 	// expect an error: zero divide
@@ -135,7 +135,7 @@ func TestHTTPRPC(t *testing.T) {
 	}
 
 	// Synchronous calls
-	args := &Args{7,8};
+	args := &Args{7, 8};
 	reply := new(Reply);
 	err = client.Call("Arith.Add", args, reply);
 	if reply.C != args.A + args.B {
@@ -148,12 +148,12 @@ func TestCheckUnknownService(t *testing.T) {
 
 	conn, err := net.Dial("tcp", "", serverAddr);
 	if err != nil {
-		t.Fatal("dialing:", err)
+		t.Fatal("dialing:", err);
 	}
 
 	client := NewClient(conn);
 
-	args := &Args{7,8};
+	args := &Args{7, 8};
 	reply := new(Reply);
 	err = client.Call("Unknown.Add", args, reply);
 	if err == nil {
@@ -168,12 +168,12 @@ func TestCheckUnknownMethod(t *testing.T) {
 
 	conn, err := net.Dial("tcp", "", serverAddr);
 	if err != nil {
-		t.Fatal("dialing:", err)
+		t.Fatal("dialing:", err);
 	}
 
 	client := NewClient(conn);
 
-	args := &Args{7,8};
+	args := &Args{7, 8};
 	reply := new(Reply);
 	err = client.Call("Arith.Unknown", args, reply);
 	if err == nil {
@@ -188,7 +188,7 @@ func TestCheckBadType(t *testing.T) {
 
 	conn, err := net.Dial("tcp", "", serverAddr);
 	if err != nil {
-		t.Fatal("dialing:", err)
+		t.Fatal("dialing:", err);
 	}
 
 	client := NewClient(conn);

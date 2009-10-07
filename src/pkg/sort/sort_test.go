@@ -87,7 +87,7 @@ func TestSortLarge_Random(t *testing.T) {
 }
 
 const (
-	_Sawtooth = iota;
+	_Sawtooth	= iota;
 	_Rand;
 	_Stagger;
 	_Plateau;
@@ -96,7 +96,7 @@ const (
 )
 
 const (
-	_Copy = iota;
+	_Copy	= iota;
 	_Reverse;
 	_ReverseFirstHalf;
 	_ReverseSecondHalf;
@@ -106,15 +106,19 @@ const (
 )
 
 type testingData struct {
-	desc string;
-	t *testing.T;
-	data []int;
-	maxswap int;	// number of swaps allowed
-	nswap int;
+	desc	string;
+	t	*testing.T;
+	data	[]int;
+	maxswap	int;	// number of swaps allowed
+	nswap	int;
 }
 
-func (d *testingData) Len() int { return len(d.data); }
-func (d *testingData) Less(i, j int) bool { return d.data[i] < d.data[j]; }
+func (d *testingData) Len() int {
+	return len(d.data);
+}
+func (d *testingData) Less(i, j int) bool {
+	return d.data[i] < d.data[j];
+}
 func (d *testingData) Swap(i, j int) {
 	if d.nswap >= d.maxswap {
 		d.t.Errorf("%s: used %d swaps sorting array of %d", d.desc, d.nswap, len(d.data));
@@ -147,11 +151,11 @@ func TestBentleyMcIlroy(t *testing.T) {
 				for i := 0; i < n; i++ {
 					switch dist {
 					case _Sawtooth:
-						data[i] = i % m;
+						data[i] = i%m;
 					case _Rand:
 						data[i] = rand.Intn(m);
 					case _Stagger:
-						data[i] = (i*m + i) % n;
+						data[i] = (i*m + i)%n;
 					case _Plateau:
 						data[i] = min(i, m);
 					case _Shuffle:
@@ -178,7 +182,7 @@ func TestBentleyMcIlroy(t *testing.T) {
 						}
 					case _ReverseFirstHalf:
 						for i := 0; i < n/2; i++ {
-							mdata[i] = data[n/2-i-1];
+							mdata[i] = data[n/2 - i - 1];
 						}
 						for i := n/2; i < n; i++ {
 							mdata[i] = data[i];
@@ -188,7 +192,7 @@ func TestBentleyMcIlroy(t *testing.T) {
 							mdata[i] = data[i];
 						}
 						for i := n/2; i < n; i++ {
-							mdata[i] = data[n-(i-n/2)-1];
+							mdata[i] = data[n-(i - n/2)-1];
 						}
 					case _Sorted:
 						for i := 0; i < n; i++ {
@@ -225,4 +229,3 @@ func TestBentleyMcIlroy(t *testing.T) {
 		}
 	}
 }
-

@@ -7,8 +7,8 @@ package strconv
 import "os"
 
 type NumError struct {
-	Num string;
-	Error os.Error;
+	Num	string;
+	Error	os.Error;
 }
 
 func (e *NumError) String() string {
@@ -19,18 +19,19 @@ func (e *NumError) String() string {
 func computeIntsize() uint {
 	siz := uint(8);
 	for 1<<siz != 0 {
-		siz *= 2
+		siz *= 2;
 	}
-	return siz
+	return siz;
 }
-var IntSize = computeIntsize();
+
+var IntSize = computeIntsize()
 
 // Return the first number n such that n*base >= 1<<64.
 func cutoff64(base int) uint64 {
 	if base < 2 {
 		return 0;
 	}
-	return (1<<64 - 1) / uint64(base) + 1;
+	return (1<<64 - 1)/uint64(base) + 1;
 }
 
 // Btoui64 interprets a string s in an arbitrary base b (2 to 36)
@@ -57,11 +58,11 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 		var v byte;
 		switch {
 		case '0' <= s[i] && s[i] <= '9':
-			v = s[i] - '0';
+			v = s[i]-'0';
 		case 'a' <= s[i] && s[i] <= 'z':
-			v = s[i] - 'a' + 10;
+			v = s[i]-'a'+10;
 		case 'A' <= s[i] && s[i] <= 'Z':
-			v = s[i] - 'A' + 10;
+			v = s[i]-'A'+10;
 		default:
 			n = 0;
 			err = os.EINVAL;
@@ -75,7 +76,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 
 		if n >= cutoff {
 			// n*b overflows
-			n = 1<<64-1;
+			n = 1<<64 - 1;
 			err = os.ERANGE;
 			goto Error;
 		}
@@ -84,7 +85,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 		n1 := n+uint64(v);
 		if n1 < n {
 			// n+v overflows
-			n = 1<<64-1;
+			n = 1<<64 - 1;
 			err = os.ERANGE;
 			goto Error;
 		}
@@ -107,7 +108,7 @@ Error:
 func Atoui64(s string) (n uint64, err os.Error) {
 	// Empty string bad.
 	if len(s) == 0 {
-		return 0, &NumError{s, os.EINVAL}
+		return 0, &NumError{s, os.EINVAL};
 	}
 
 	// Look for octal, hex prefix.
@@ -132,17 +133,17 @@ func Atoui64(s string) (n uint64, err os.Error) {
 func Atoi64(s string) (i int64, err os.Error) {
 	// Empty string bad.
 	if len(s) == 0 {
-		return 0, &NumError{s, os.EINVAL}
+		return 0, &NumError{s, os.EINVAL};
 	}
 
 	// Pick off leading sign.
 	s0 := s;
 	neg := false;
 	if s[0] == '+' {
-		s = s[1:len(s)]
+		s = s[1:len(s)];
 	} else if s[0] == '-' {
 		neg = true;
-		s = s[1:len(s)]
+		s = s[1:len(s)];
 	}
 
 	// Convert unsigned and check range.
@@ -150,47 +151,46 @@ func Atoi64(s string) (i int64, err os.Error) {
 	un, err = Atoui64(s);
 	if err != nil && err.(*NumError).Error != os.ERANGE {
 		err.(*NumError).Num = s0;
-		return 0, err
+		return 0, err;
 	}
 	if !neg && un >= 1<<63 {
-		return 1<<63-1, &NumError{s0, os.ERANGE}
+		return 1<<63 - 1, &NumError{s0, os.ERANGE};
 	}
 	if neg && un > 1<<63 {
-		return -1<<63, &NumError{s0, os.ERANGE}
+		return -1 << 63, &NumError{s0, os.ERANGE};
 	}
 	n := int64(un);
 	if neg {
-		n = -n
+		n = -n;
 	}
-	return n, nil
+	return n, nil;
 }
 
 // Atoui is like Atoui64 but returns its result as a uint.
 func Atoui(s string) (i uint, err os.Error) {
 	i1, e1 := Atoui64(s);
 	if e1 != nil && e1.(*NumError).Error != os.ERANGE {
-		return 0, e1
+		return 0, e1;
 	}
 	i = uint(i1);
 	if uint64(i) != i1 {
-		return ^uint(0), &NumError{s, os.ERANGE}
+		return ^uint(0), &NumError{s, os.ERANGE};
 	}
-	return i, nil
+	return i, nil;
 }
 
 // Atoi is like Atoi64 but returns its result as an int.
 func Atoi(s string) (i int, err os.Error) {
 	i1, e1 := Atoi64(s);
 	if e1 != nil && e1.(*NumError).Error != os.ERANGE {
-		return 0, e1
+		return 0, e1;
 	}
 	i = int(i1);
 	if int64(i) != i1 {
 		if i1 < 0 {
-			return -1<<(IntSize-1), &NumError{s, os.ERANGE}
+			return -1 << (IntSize-1), &NumError{s, os.ERANGE};
 		}
-		return 1<<(IntSize-1) - 1, &NumError{s, os.ERANGE}
+		return 1<<(IntSize-1) - 1, &NumError{s, os.ERANGE};
 	}
-	return i, nil
+	return i, nil;
 }
-

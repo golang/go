@@ -7,7 +7,7 @@ package strconv
 // Uitob64 returns the string representation of i in the given base.
 func Uitob64(u uint64, base uint) string {
 	if u == 0 {
-		return "0"
+		return "0";
 	}
 
 	// Assemble decimal in reverse order.
@@ -20,13 +20,13 @@ func Uitob64(u uint64, base uint) string {
 		u /= b;
 	}
 
-	return string(buf[j:len(buf)])
+	return string(buf[j:len(buf)]);
 }
 
 // Itob64 returns the string representation of i in the given base.
 func Itob64(i int64, base uint) string {
 	if i == 0 {
-		return "0"
+		return "0";
 	}
 
 	if i < 0 {
