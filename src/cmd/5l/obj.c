@@ -41,6 +41,8 @@ char	*noname		= "<none>";
 char	symname[]	= SYMDEF;
 char	thechar		= '5';
 char	*thestring 	= "arm";
+char*	libdir[16];	// contains "." first, goroot last
+int	nlibdir		= 0;
 
 /*
  *	-H1 -T0x10005000 -R4		is aif for risc os
@@ -89,6 +91,7 @@ main(int argc, char *argv[])
 	INITDAT = -1;
 	INITRND = -1;
 	INITENTRY = 0;
+	libdir[nlibdir++] = ".";	// look in dot first
 
 	ARGBEGIN {
 	default:
@@ -103,6 +106,12 @@ main(int argc, char *argv[])
 		a = ARGF();
 		if(a)
 			INITENTRY = a;
+		break;
+	case 'L':
+		if(nlibdir >= nelem(libdir)-1) {
+			print("too many -L's: %d\n", nlibdir);
+		}
+		libdir[nlibdir++] = ARGF();
 		break;
 	case 'T':
 		a = ARGF();
@@ -147,6 +156,9 @@ main(int argc, char *argv[])
 	mywhatsys();	// get goroot, goarch, goos
 	if(strcmp(goarch, thestring) != 0)
 		print("goarch is not known: %s\n", goarch);
+
+	// put goroot in the libdir list.
+	libdir[nlibdir++] = smprint("%s/pkg/%s_%s", goroot, goos, goarch);
 
 	if(!debug['9'] && !debug['U'] && !debug['B'])
 		debug[DEFAULT] = 1;
@@ -593,12 +605,13 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 void
 addlib(char *obj)
 {
-	char name[1024], comp[256], *p;
-	int i;
+	char name[1024], pname[1024], comp[256], *p;
+	int i, search;
 
 	if(histfrogp <= 0)
 		return;
 
+	search = 0;
 	if(histfrog[0]->name[1] == '/') {
 		sprint(name, "");
 		i = 1;
@@ -607,11 +620,9 @@ addlib(char *obj)
 		sprint(name, ".");
 		i = 0;
 	} else {
-		if(debug['9'])
-			sprint(name, "/%s/lib", thestring);
-		else
-			sprint(name, "/usr/%clib", thechar);
+		sprint(name, "");
 		i = 0;
+		search = 1;
 	}
 
 	for(; i<histfrogp; i++) {
@@ -641,6 +652,20 @@ addlib(char *obj)
 		strcat(name, "/");
 		strcat(name, comp);
 	}
+
+	if(search) {
+		// try dot, -L "libdir", and then goroot.
+		for(i=0; i<nlibdir; i++) {
+			snprint(pname, sizeof pname, "%s/%s", libdir[i], name);
+			if(access(pname, AEXIST) >= 0)
+				break;
+		}
+		strcpy(name, pname);
+	}
+	cleanname(name);
+	if(debug['v'])
+		Bprint(&bso, "%5.2f addlib: %s pulls in %s\n", cputime(), obj, name);
+
 	for(i=0; i<libraryp; i++)
 		if(strcmp(name, library[i]) == 0)
 			return;
