@@ -418,14 +418,21 @@ var tests = []entry {
 	entry{
 		"15b",
 		4, 0, '.', DiscardEmptyColumns,
-		"a\t\tb",
-		"a...b"
+		"a\t\tb",  // htabs - do not discard column
+		"a.......b"
 	},
 
 	entry{
 		"15c",
+		4, 0, '.', DiscardEmptyColumns,
+		"a\v\vb",
+		"a...b"
+	},
+
+	entry{
+		"15d",
 		4, 0, '.', AlignRight | DiscardEmptyColumns,
-		"a\t\tb",
+		"a\v\vb",
 		"...ab"
 	},
 
@@ -448,14 +455,30 @@ var tests = []entry {
 	entry{
 		"16b",
 		100, 0, '\t', DiscardEmptyColumns,
-		"a\tb\t\td\n"
+		"a\vb\v\vd\n"
+		"a\vb\v\vd\ve\n"
+		"a\n"
+		"a\vb\vc\vd\n"
+		"a\vb\vc\vd\ve\n",
+
+		"a\tb\td\n"
+		"a\tb\td\te\n"
+		"a\n"
+		"a\tb\tc\td\n"
+		"a\tb\tc\td\te\n"
+	},
+
+	entry{
+		"16c",
+		100, 0, '\t', DiscardEmptyColumns,
+		"a\tb\t\td\n"  // hard tabs - do not discard column
 		"a\tb\t\td\te\n"
 		"a\n"
 		"a\tb\tc\td\n"
 		"a\tb\tc\td\te\n",
 
-		"a\tb\td\n"
-		"a\tb\td\te\n"
+		"a\tb\t\td\n"
+		"a\tb\t\td\te\n"
 		"a\n"
 		"a\tb\tc\td\n"
 		"a\tb\tc\td\te\n"
