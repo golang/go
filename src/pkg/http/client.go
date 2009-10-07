@@ -18,8 +18,8 @@ import (
 
 // Response represents the response from an HTTP request.
 type Response struct {
-	Status string; // e.g. "200 OK"
-	StatusCode int; // e.g. 200
+	Status		string;	// e.g. "200 OK"
+	StatusCode	int;	// e.g. 200
 
 	// Header maps header keys to values.  If the response had multiple
 	// headers with the same key, they will be concatenated, with comma
@@ -27,10 +27,10 @@ type Response struct {
 	// be semantically equivalent to a comma-delimited sequence.)
 	//
 	// Keys in the map are canonicalized (see CanonicalHeaderKey).
-	Header map [string] string;
+	Header	map[string]string;
 
 	// Stream from which the response body can be read.
-	Body io.ReadCloser;
+	Body	io.ReadCloser;
 }
 
 // GetHeader returns the value of the response header with the given
@@ -49,7 +49,7 @@ func (r *Response) AddHeader(key, value string) {
 
 	oldValues, oldValuesPresent := r.Header[key];
 	if oldValuesPresent {
-		r.Header[key] = oldValues + "," + value;
+		r.Header[key] = oldValues+","+value;
 	} else {
 		r.Header[key] = value;
 	}
@@ -74,7 +74,7 @@ func ReadResponse(r *bufio.Reader) (*Response, os.Error) {
 	resp := new(Response);
 
 	// Parse the first line of the response.
-	resp.Header = make(map[string] string);
+	resp.Header = make(map[string]string);
 
 	line, err := readLine(r);
 	if err != nil {
@@ -84,7 +84,7 @@ func ReadResponse(r *bufio.Reader) (*Response, os.Error) {
 	if len(f) < 3 {
 		return nil, &badStringError{"malformed HTTP response", line};
 	}
-	resp.Status = f[1] + " " + f[2];
+	resp.Status = f[1]+" "+f[2];
 	resp.StatusCode, err = strconv.Atoi(f[1]);
 	if err != nil {
 		return nil, &badStringError{"malformed HTTP status code", f[1]};
@@ -97,7 +97,7 @@ func ReadResponse(r *bufio.Reader) (*Response, os.Error) {
 			return nil, err;
 		}
 		if key == "" {
-			break; // end of response header
+			break;	// end of response header
 		}
 		resp.AddHeader(key, value);
 	}
@@ -148,7 +148,7 @@ func send(req *Request) (resp *Response, err os.Error) {
 		}
 		r = io.LimitReader(r, n);
 	}
-	resp.Body = readClose{ r, conn };
+	resp.Body = readClose{r, conn};
 
 	return;
 }
@@ -179,7 +179,7 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 	// TODO: if/when we add cookie support, the redirected request shouldn't
 	// necessarily supply the same cookies as the original.
 	// TODO: set referrer header on redirects.
-	for redirect := 0;; redirect++ {
+	for redirect := 0; ; redirect++ {
 		if redirect >= 10 {
 			err = os.ErrorString("stopped after 10 redirects");
 			break;
@@ -215,7 +215,7 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
 	var req Request;
 	req.Method = "POST";
 	req.Body = body;
-	req.Header = map[string] string{
+	req.Header = map[string]string{
 		"Content-Type": bodyType,
 		"Transfer-Encoding": "chunked",
 	};

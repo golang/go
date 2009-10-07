@@ -14,20 +14,20 @@ import (
 // A Decoder manages the receipt of type and data information read from the
 // remote side of a connection.
 type Decoder struct {
-	mutex	sync.Mutex;	// each item must be received atomically
-	r	io.Reader;	// source of the data
-	seen	map[typeId] *wireType;	// which types we've already seen described
-	state	*decodeState;	// reads data from in-memory buffer
-	countState	*decodeState;	// reads counts from wire
-	buf	[]byte;
-	oneByte	[]byte;
+	mutex		sync.Mutex;		// each item must be received atomically
+	r		io.Reader;		// source of the data
+	seen		map[typeId]*wireType;	// which types we've already seen described
+	state		*decodeState;		// reads data from in-memory buffer
+	countState	*decodeState;		// reads counts from wire
+	buf		[]byte;
+	oneByte		[]byte;
 }
 
 // NewDecoder returns a new decoder that reads from the io.Reader.
 func NewDecoder(r io.Reader) *Decoder {
 	dec := new(Decoder);
 	dec.r = r;
-	dec.seen = make(map[typeId] *wireType);
+	dec.seen = make(map[typeId]*wireType);
 	dec.state = newDecodeState(nil);	// buffer set in Decode(); rest is unimportant
 	dec.oneByte = make([]byte, 1);
 
@@ -38,7 +38,7 @@ func (dec *Decoder) recvType(id typeId) {
 	// Have we already seen this type?  That's an error
 	if _, alreadySeen := dec.seen[id]; alreadySeen {
 		dec.state.err = os.ErrorString("gob: duplicate type received");
-		return
+		return;
 	}
 
 	// Type:
@@ -67,14 +67,14 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 		}
 		// Allocate the buffer.
 		if nbytes > uint64(len(dec.buf)) {
-			dec.buf = make([]byte, nbytes + 1000);
+			dec.buf = make([]byte, nbytes+1000);
 		}
 		dec.state.b = bytes.NewBuffer(dec.buf[0:nbytes]);
 
 		// Read the data
 		_, dec.state.err = io.ReadFull(dec.r, dec.buf[0:nbytes]);
 		if dec.state.err != nil {
-			if dec.state.err ==  os.EOF {
+			if dec.state.err == os.EOF {
 				dec.state.err = io.ErrUnexpectedEOF;
 			}
 			break;
@@ -88,7 +88,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 
 		// Is it a new type?
 		if id < 0 {	// 0 is the error state, handled above
-			// If the id is negative, we have a type.
+				// If the id is negative, we have a type.
 			dec.recvType(-id);
 			if dec.state.err != nil {
 				break;
@@ -100,5 +100,5 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 		dec.state.err = decode(dec.state.b, id, e);
 		break;
 	}
-	return dec.state.err
+	return dec.state.err;
 }

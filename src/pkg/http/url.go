@@ -15,9 +15,9 @@ import (
 
 // URLError reports an error and the operation and URL that caused it.
 type URLError struct {
-	Op string;
-	URL string;
-	Error os.Error;
+	Op	string;
+	URL	string;
+	Error	os.Error;
 }
 
 func (e *URLError) String() string {
@@ -33,22 +33,23 @@ func ishex(c byte) bool {
 	case 'A' <= c && c <= 'F':
 		return true;
 	}
-	return false
+	return false;
 }
 
 func unhex(c byte) byte {
 	switch {
 	case '0' <= c && c <= '9':
-		return c - '0';
+		return c-'0';
 	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10;
+		return c-'a'+10;
 	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10;
+		return c-'A'+10;
 	}
-	return 0
+	return 0;
 }
 
 type URLEscapeError string
+
 func (e URLEscapeError) String() string {
 	return "invalid URL escape " + strconv.Quote(string(e));
 }
@@ -90,20 +91,20 @@ func URLUnescape(s string) (string, os.Error) {
 			hasPlus = true;
 			i++;
 		default:
-			i++
+			i++;
 		}
 	}
 
 	if n == 0 && !hasPlus {
-		return s, nil
+		return s, nil;
 	}
 
-	t := make([]byte, len(s)-2*n);
+	t := make([]byte, len(s) - 2*n);
 	j := 0;
 	for i := 0; i < len(s); {
 		switch s[i] {
 		case '%':
-			t[j] = unhex(s[i+1]) << 4 | unhex(s[i+2]);
+			t[j] = unhex(s[i+1])<<4 | unhex(s[i+2]);
 			j++;
 			i += 3;
 		case '+':
@@ -137,7 +138,7 @@ func URLEscape(s string) string {
 		return s;
 	}
 
-	t := make([]byte, len(s)+2*hexCount);
+	t := make([]byte, len(s) + 2*hexCount);
 	j := 0;
 	for i := 0; i < len(s); i++ {
 		switch c := s[i]; {
@@ -167,15 +168,15 @@ func URLEscape(s string) string {
 // Note, the reason for using wire format for the query is that it needs
 // to be split into key/value pairs before decoding.
 type URL struct {
-	Raw string;		// the original string
-	Scheme string;		// scheme
-	RawPath string;		// //[userinfo@]host/path[?query][#fragment]
-	Authority string;	// [userinfo@]host
-	Userinfo string;	// userinfo
-	Host string;		// host
-	Path string;		// /path
-	RawQuery string;	// query
-	Fragment string;	// fragment
+	Raw		string;	// the original string
+	Scheme		string;	// scheme
+	RawPath		string;	// //[userinfo@]host/path[?query][#fragment]
+	Authority	string;	// [userinfo@]host
+	Userinfo	string;	// userinfo
+	Host		string;	// host
+	Path		string;	// /path
+	RawQuery	string;	// query
+	Fragment	string;	// fragment
 }
 
 // Maybe rawurl is of the form scheme:path.
@@ -185,24 +186,24 @@ func getscheme(rawurl string) (scheme, path string, err os.Error) {
 	for i := 0; i < len(rawurl); i++ {
 		c := rawurl[i];
 		switch {
-		case 'a' <= c && c <= 'z' ||'A' <= c && c <= 'Z':
-			// do nothing
+		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z':
+		// do nothing
 		case '0' <= c && c <= '9' || c == '+' || c == '-' || c == '.':
 			if i == 0 {
-				return "", rawurl, nil
+				return "", rawurl, nil;
 			}
 		case c == ':':
 			if i == 0 {
-				return "", "", os.ErrorString("missing protocol scheme")
+				return "", "", os.ErrorString("missing protocol scheme");
 			}
-			return rawurl[0:i], rawurl[i+1:len(rawurl)], nil
+			return rawurl[0:i], rawurl[i+1 : len(rawurl)], nil;
 		default:
 			// we have encountered an invalid character,
 			// so there is no valid scheme
-			return "", rawurl, nil
+			return "", rawurl, nil;
 		}
 	}
-	return "", rawurl, nil
+	return "", rawurl, nil;
 }
 
 // Maybe s is of the form t c u.
@@ -212,12 +213,12 @@ func split(s string, c byte, cutc bool) (string, string) {
 	for i := 0; i < len(s); i++ {
 		if s[i] == c {
 			if cutc {
-				return s[0:i], s[i+1:len(s)]
+				return s[0:i], s[i+1 : len(s)];
 			}
-			return s[0:i], s[i:len(s)]
+			return s[0:i], s[i:len(s)];
 		}
 	}
-	return s, ""
+	return s, "";
 }
 
 // TODO(rsc): The BUG comment is supposed to appear in the godoc output
@@ -225,7 +226,6 @@ func split(s string, c byte, cutc bool) (string, string) {
 
 // BUG(rsc): ParseURL should canonicalize the path,
 // removing unnecessary . and .. elements.
-
 
 
 // ParseURL parses rawurl into a URL structure.
@@ -290,7 +290,7 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 	return url, nil;
 
 Error:
-	return nil, &URLError{"parse", rawurl, err}
+	return nil, &URLError{"parse", rawurl, err};
 
 }
 
@@ -299,12 +299,12 @@ func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
 	// Cut off #frag.
 	rawurl, frag := split(rawurlref, '#', true);
 	if url, err = ParseURL(rawurl); err != nil {
-		return nil, err
+		return nil, err;
 	}
 	if url.Fragment, err = URLUnescape(frag); err != nil {
-		return nil, &URLError{"parse", rawurl, err}
+		return nil, &URLError{"parse", rawurl, err};
 	}
-	return url, nil
+	return url, nil;
 }
 
 // String reassembles url into a valid URL string.

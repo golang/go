@@ -24,17 +24,17 @@ import (
 //
 type Scanner struct {
 	// immutable state
-	src []byte;  // source
-	err ErrorHandler;  // error reporting; or nil
-	mode uint;  // scanning mode
+	src	[]byte;		// source
+	err	ErrorHandler;	// error reporting; or nil
+	mode	uint;		// scanning mode
 
 	// scanning state
-	pos token.Position;  // previous reading position (position before ch)
-	offset int;  // current reading offset (position after ch)
-	ch int;  // one char look-ahead
+	pos	token.Position;	// previous reading position (position before ch)
+	offset	int;		// current reading offset (position after ch)
+	ch	int;		// one char look-ahead
 
 	// public state - ok to modify
-	ErrorCount int;  // number of errors encountered
+	ErrorCount	int;	// number of errors encountered
 }
 
 
@@ -58,7 +58,7 @@ func (S *Scanner) next() {
 		S.ch = r;
 	} else {
 		S.pos.Offset = len(S.src);
-		S.ch = -1;  // eof
+		S.ch = -1;	// eof
 	}
 }
 
@@ -67,8 +67,8 @@ func (S *Scanner) next() {
 // They control scanner behavior.
 //
 const (
-	ScanComments = 1 << iota;  // return comments as COMMENT tokens
-	AllowIllegalChars;  // do not report an error for illegal chars
+	ScanComments		= 1<<iota;	// return comments as COMMENT tokens
+	AllowIllegalChars;	// do not report an error for illegal chars
 )
 
 
@@ -95,17 +95,28 @@ func (S *Scanner) Init(filename string, src []byte, err ErrorHandler, mode uint)
 func charString(ch int) string {
 	var s string;
 	switch ch {
-	case -1: return `EOF`;
-	case '\a': s = `\a`;
-	case '\b': s = `\b`;
-	case '\f': s = `\f`;
-	case '\n': s = `\n`;
-	case '\r': s = `\r`;
-	case '\t': s = `\t`;
-	case '\v': s = `\v`;
-	case '\\': s = `\\`;
-	case '\'': s = `\'`;
-	default  : s = string(ch);
+	case -1:
+		return `EOF`;
+	case '\a':
+		s = `\a`;
+	case '\b':
+		s = `\b`;
+	case '\f':
+		s = `\f`;
+	case '\n':
+		s = `\n`;
+	case '\r':
+		s = `\r`;
+	case '\t':
+		s = `\t`;
+	case '\v':
+		s = `\v`;
+	case '\\':
+		s = `\\`;
+	case '\'':
+		s = `\'`;
+	default:
+		s = string(ch);
 	}
 	return "'" + s + "' (U+" + strconv.Itob(ch, 16) + ")";
 }
@@ -123,11 +134,11 @@ func (S *Scanner) expect(ch int) {
 	if S.ch != ch {
 		S.error(S.pos, "expected " + charString(ch) + ", found " + charString(S.ch));
 	}
-	S.next();  // always make progress
+	S.next();	// always make progress
 }
 
 
-var prefix = []byte{'l', 'i', 'n', 'e', ' '};  // "line "
+var prefix = []byte{'l', 'i', 'n', 'e', ' '}	// "line "
 
 func (S *Scanner) scanComment(pos token.Position) {
 	// first '/' already consumed
@@ -140,7 +151,7 @@ func (S *Scanner) scanComment(pos token.Position) {
 				// '\n' is not part of the comment
 				// (the comment ends on the same line where it started)
 				if pos.Column == 1 {
-					text := S.src[pos.Offset+2 : S.pos.Offset];
+					text := S.src[pos.Offset + 2 : S.pos.Offset];
 					if bytes.HasPrefix(text, prefix) {
 						// comment starts at beginning of line with "//line ";
 						// get filename and line number, if any
@@ -149,7 +160,7 @@ func (S *Scanner) scanComment(pos token.Position) {
 							if line, err := strconv.Atoi(string(text[i+1 : len(text)])); err == nil && line > 0 {
 								// valid //line filename:line comment;
 								// update scanner position
-								S.pos.Filename = string(text[len(prefix) : i]);
+								S.pos.Filename = string(text[len(prefix):i]);
 								S.pos.Line = line;
 							}
 						}
@@ -177,18 +188,12 @@ func (S *Scanner) scanComment(pos token.Position) {
 
 
 func isLetter(ch int) bool {
-	return
-		'a' <= ch && ch <= 'z' ||
-		'A' <= ch && ch <= 'Z' ||
-		ch == '_' ||
-		ch >= 0x80 && unicode.IsLetter(ch);
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= 0x80 && unicode.IsLetter(ch);
 }
 
 
 func isDigit(ch int) bool {
-	return
-		'0' <= ch && ch <= '9' ||
-		ch >= 0x80 && unicode.IsDigit(ch);
+	return '0' <= ch && ch <= '9' || ch >= 0x80 && unicode.IsDigit(ch);
 }
 
 
@@ -203,11 +208,14 @@ func (S *Scanner) scanIdentifier() token.Token {
 
 func digitVal(ch int) int {
 	switch {
-	case '0' <= ch && ch <= '9': return ch - '0';
-	case 'a' <= ch && ch <= 'f': return ch - 'a' + 10;
-	case 'A' <= ch && ch <= 'F': return ch - 'A' + 10;
+	case '0' <= ch && ch <= '9':
+		return ch-'0';
+	case 'a' <= ch && ch <= 'f':
+		return ch-'a'+10;
+	case 'A' <= ch && ch <= 'F':
+		return ch-'A'+10;
 	}
-	return 16;  // larger than any legal digit val
+	return 16;	// larger than any legal digit val
 }
 
 
@@ -242,7 +250,7 @@ func (S *Scanner) scanNumber(seen_decimal_point bool) token.Token {
 				tok = token.FLOAT;
 				goto mantissa;
 			}
-			// octal int
+		// octal int
 		}
 		goto exit;
 	}
@@ -255,7 +263,7 @@ mantissa:
 		// float
 		tok = token.FLOAT;
 		S.next();
-		S.scanMantissa(10)
+		S.scanMantissa(10);
 	}
 
 exponent:
@@ -291,9 +299,9 @@ func (S *Scanner) scanEscape(quote int) {
 	S.next();
 	switch ch {
 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
-		// nothing to do
+	// nothing to do
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		S.scanDigits(8, 3 - 1);  // 1 char read already
+		S.scanDigits(8, 3-1);	// 1 char read already
 	case 'x':
 		S.scanDigits(16, 2);
 	case 'u':
@@ -440,14 +448,22 @@ scan_again:
 	case digitVal(ch) < 10:
 		tok = S.scanNumber(false);
 	default:
-		S.next();  // always make progress
+		S.next();	// always make progress
 		switch ch {
-		case -1  : tok = token.EOF;
-		case '"' : tok = token.STRING; S.scanString(pos);
-		case '\'': tok = token.CHAR; S.scanChar(pos);
-		case '`' : tok = token.STRING; S.scanRawString(pos);
-		case ':' : tok = S.switch2(token.COLON, token.DEFINE);
-		case '.' :
+		case -1:
+			tok = token.EOF;
+		case '"':
+			tok = token.STRING;
+			S.scanString(pos);
+		case '\'':
+			tok = token.CHAR;
+			S.scanChar(pos);
+		case '`':
+			tok = token.STRING;
+			S.scanRawString(pos);
+		case ':':
+			tok = S.switch2(token.COLON, token.DEFINE);
+		case '.':
 			if digitVal(S.ch) < 10 {
 				tok = S.scanNumber(true);
 			} else if S.ch == '.' {
@@ -459,17 +475,28 @@ scan_again:
 			} else {
 				tok = token.PERIOD;
 			}
-		case ',': tok = token.COMMA;
-		case ';': tok = token.SEMICOLON;
-		case '(': tok = token.LPAREN;
-		case ')': tok = token.RPAREN;
-		case '[': tok = token.LBRACK;
-		case ']': tok = token.RBRACK;
-		case '{': tok = token.LBRACE;
-		case '}': tok = token.RBRACE;
-		case '+': tok = S.switch3(token.ADD, token.ADD_ASSIGN, '+', token.INC);
-		case '-': tok = S.switch3(token.SUB, token.SUB_ASSIGN, '-', token.DEC);
-		case '*': tok = S.switch2(token.MUL, token.MUL_ASSIGN);
+		case ',':
+			tok = token.COMMA;
+		case ';':
+			tok = token.SEMICOLON;
+		case '(':
+			tok = token.LPAREN;
+		case ')':
+			tok = token.RPAREN;
+		case '[':
+			tok = token.LBRACK;
+		case ']':
+			tok = token.RBRACK;
+		case '{':
+			tok = token.LBRACE;
+		case '}':
+			tok = token.RBRACE;
+		case '+':
+			tok = S.switch3(token.ADD, token.ADD_ASSIGN, '+', token.INC);
+		case '-':
+			tok = S.switch3(token.SUB, token.SUB_ASSIGN, '-', token.DEC);
+		case '*':
+			tok = S.switch2(token.MUL, token.MUL_ASSIGN);
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
 				S.scanComment(pos);
@@ -480,8 +507,10 @@ scan_again:
 			} else {
 				tok = S.switch2(token.QUO, token.QUO_ASSIGN);
 			}
-		case '%': tok = S.switch2(token.REM, token.REM_ASSIGN);
-		case '^': tok = S.switch2(token.XOR, token.XOR_ASSIGN);
+		case '%':
+			tok = S.switch2(token.REM, token.REM_ASSIGN);
+		case '^':
+			tok = S.switch2(token.XOR, token.XOR_ASSIGN);
 		case '<':
 			if S.ch == '-' {
 				S.next();
@@ -489,9 +518,12 @@ scan_again:
 			} else {
 				tok = S.switch4(token.LSS, token.LEQ, '<', token.SHL, token.SHL_ASSIGN);
 			}
-		case '>': tok = S.switch4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN);
-		case '=': tok = S.switch2(token.ASSIGN, token.EQL);
-		case '!': tok = S.switch2(token.NOT, token.NEQ);
+		case '>':
+			tok = S.switch4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN);
+		case '=':
+			tok = S.switch2(token.ASSIGN, token.EQL);
+		case '!':
+			tok = S.switch2(token.NOT, token.NEQ);
 		case '&':
 			if S.ch == '^' {
 				S.next();
@@ -499,7 +531,8 @@ scan_again:
 			} else {
 				tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND);
 			}
-		case '|': tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR);
+		case '|':
+			tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR);
 		default:
 			if S.mode & AllowIllegalChars == 0 {
 				S.error(pos, "illegal character " + charString(ch));
@@ -517,11 +550,11 @@ scan_again:
 // false (usually when the token value is token.EOF). The result is the number
 // of errors encountered.
 //
-func Tokenize(filename string, src []byte, err ErrorHandler, mode uint, f func (pos token.Position, tok token.Token, lit []byte) bool) int {
+func Tokenize(filename string, src []byte, err ErrorHandler, mode uint, f func(pos token.Position, tok token.Token, lit []byte) bool) int {
 	var s Scanner;
 	s.Init(filename, src, err, mode);
 	for f(s.Scan()) {
-		// action happens in f
+	// action happens in f
 	}
 	return s.ErrorCount;
 }

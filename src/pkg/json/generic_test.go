@@ -8,7 +8,7 @@ import (
 	"testing";
 )
 
-var jsontests = []string {
+var jsontests = []string{
 	`null`,
 	`true`,
 	`false`,
@@ -65,9 +65,9 @@ func TestJsonMap(t *testing.T) {
 	}
 	if cnt := mapv.Len(); cnt != len(jsontests) {
 		t.Errorf("StringToJson(%#q).Len() => %v, want %v", mapstr, cnt,
-		         len(jsontests));
+			len(jsontests));
 	}
-	for k,v := range values {
+	for k, v := range values {
 		if v1 := mapv.Get(k); !Equal(v1, v) {
 			t.Errorf("MapTest: Walk(%#q) => %v, want %v", k, v1, v);
 		}

@@ -10,7 +10,7 @@ import (
 )
 
 
-var illegalInputs = []interface{} {
+var illegalInputs = []interface{}{
 	nil,
 	3.14,
 	[]byte(nil),
@@ -28,7 +28,7 @@ func TestParseIllegalInputs(t *testing.T) {
 }
 
 
-var validPrograms = []interface{} {
+var validPrograms = []interface{}{
 	`package main`,
 	`package main import "fmt" func main() { fmt.Println("Hello, World!") }`,
 }
@@ -44,7 +44,7 @@ func TestParseValidPrograms(t *testing.T) {
 }
 
 
-var validFiles = []string {
+var validFiles = []string{
 	"parser.go",
 	"parser_test.go",
 }

@@ -16,9 +16,9 @@ import (
 
 // Integers identifying the data type in the Json interface.
 const (
-	StringKind = iota;
+	StringKind	= iota;
 	NumberKind;
-	MapKind;		// JSON term is "Object", but in Go, it's a map
+	MapKind;	// JSON term is "Object", but in Go, it's a map
 	ArrayKind;
 	BoolKind;
 	NullKind;
@@ -43,34 +43,64 @@ type Json interface {
 // j.String() == `abc`, but JsonToString(j) == `"abc"`.
 func JsonToString(j Json) string {
 	if j == nil {
-		return "null"
+		return "null";
 	}
 	if j.Kind() == StringKind {
-		return Quote(j.String())
+		return Quote(j.String());
 	}
-	return j.String()
+	return j.String();
 }
 
-type _Null struct { }
+type _Null struct{}
 
 // Null is the JSON object representing the null data object.
 var Null Json = &_Null{}
 
-func (*_Null) Kind() int { return NullKind }
-func (*_Null) String() string { return "null" }
-func (*_Null) Number() float64 { return 0 }
-func (*_Null) Bool() bool { return false }
-func (*_Null) Get(s string) Json { return Null }
-func (*_Null) Elem(int) Json { return Null }
-func (*_Null) Len() int { return 0 }
+func (*_Null) Kind() int {
+	return NullKind;
+}
+func (*_Null) String() string {
+	return "null";
+}
+func (*_Null) Number() float64 {
+	return 0;
+}
+func (*_Null) Bool() bool {
+	return false;
+}
+func (*_Null) Get(s string) Json {
+	return Null;
+}
+func (*_Null) Elem(int) Json {
+	return Null;
+}
+func (*_Null) Len() int {
+	return 0;
+}
 
-type _String struct { s string; _Null }
-func (j *_String) Kind() int { return StringKind }
-func (j *_String) String() string { return j.s }
+type _String struct {
+	s	string;
+	_Null;
+}
 
-type _Number struct { f float64; _Null }
-func (j *_Number) Kind() int { return NumberKind }
-func (j *_Number) Number() float64 { return j.f }
+func (j *_String) Kind() int {
+	return StringKind;
+}
+func (j *_String) String() string {
+	return j.s;
+}
+
+type _Number struct {
+	f	float64;
+	_Null;
+}
+
+func (j *_Number) Kind() int {
+	return NumberKind;
+}
+func (j *_Number) Number() float64 {
+	return j.f;
+}
 func (j *_Number) String() string {
 	if math.Floor(j.f) == j.f {
 		return fmt.Sprintf("%.0f", j.f);
@@ -78,14 +108,22 @@ func (j *_Number) String() string {
 	return fmt.Sprintf("%g", j.f);
 }
 
-type _Array struct { a *vector.Vector; _Null }
-func (j *_Array) Kind() int { return ArrayKind }
-func (j *_Array) Len() int { return j.a.Len() }
+type _Array struct {
+	a	*vector.Vector;
+	_Null;
+}
+
+func (j *_Array) Kind() int {
+	return ArrayKind;
+}
+func (j *_Array) Len() int {
+	return j.a.Len();
+}
 func (j *_Array) Elem(i int) Json {
 	if i < 0 || i >= j.a.Len() {
-		return Null
+		return Null;
 	}
-	return j.a.At(i).(Json)
+	return j.a.At(i).(Json);
 }
 func (j *_Array) String() string {
 	s := "[";
@@ -99,33 +137,49 @@ func (j *_Array) String() string {
 	return s;
 }
 
-type _Bool struct { b bool; _Null }
-func (j *_Bool) Kind() int { return BoolKind }
-func (j *_Bool) Bool() bool { return j.b }
-func (j *_Bool) String() string {
-	if j.b {
-		return "true"
-	}
-	return "false"
+type _Bool struct {
+	b	bool;
+	_Null;
 }
 
-type _Map struct { m map[string]Json; _Null }
-func (j *_Map) Kind() int { return MapKind }
-func (j *_Map) Len() int { return len(j.m) }
+func (j *_Bool) Kind() int {
+	return BoolKind;
+}
+func (j *_Bool) Bool() bool {
+	return j.b;
+}
+func (j *_Bool) String() string {
+	if j.b {
+		return "true";
+	}
+	return "false";
+}
+
+type _Map struct {
+	m	map[string]Json;
+	_Null;
+}
+
+func (j *_Map) Kind() int {
+	return MapKind;
+}
+func (j *_Map) Len() int {
+	return len(j.m);
+}
 func (j *_Map) Get(s string) Json {
 	if j.m == nil {
-		return Null
+		return Null;
 	}
 	v, ok := j.m[s];
 	if !ok {
-		return Null
+		return Null;
 	}
 	return v;
 }
 func (j *_Map) String() string {
 	s := "{";
 	first := true;
-	for k,v := range j.m {
+	for k, v := range j.m {
 		if first {
 			first = false;
 		} else {
@@ -152,7 +206,7 @@ func Walk(j Json, path string) Json {
 		var elem string;
 		if i := strings.Index(path, "/"); i >= 0 {
 			elem = path[0:i];
-			path = path[i+1:len(path)];
+			path = path[i+1 : len(path)];
 		} else {
 			elem = path;
 			path = "";
@@ -161,16 +215,16 @@ func Walk(j Json, path string) Json {
 		case ArrayKind:
 			indx, err := strconv.Atoi(elem);
 			if err != nil {
-				return Null
+				return Null;
 			}
 			j = j.Elem(indx);
 		case MapKind:
 			j = j.Get(elem);
 		default:
-			return Null
+			return Null;
 		}
 	}
-	return j
+	return j;
 }
 
 // Equal returns whether a and b are indistinguishable JSON objects.
@@ -208,7 +262,7 @@ func Equal(a, b Json) bool {
 		if len(m) != len(b.(*_Map).m) {
 			return false;
 		}
-		for k,v := range m {
+		for k, v := range m {
 			if !Equal(v, b.Get(k)) {
 				return false;
 			}
@@ -225,15 +279,15 @@ func Equal(a, b Json) bool {
 
 type _JsonBuilder struct {
 	// either writing to *ptr
-	ptr *Json;
+	ptr	*Json;
 
 	// or to a[i] (can't set ptr = &a[i])
-	a *vector.Vector;
-	i int;
+	a	*vector.Vector;
+	i	int;
 
 	// or to m[k] (can't set ptr = &m[k])
-	m map[string] Json;
-	k string;
+	m	map[string]Json;
+	k	string;
 }
 
 func (b *_JsonBuilder) Put(j Json) {
@@ -256,40 +310,40 @@ func (b *_JsonBuilder) Get() Json {
 	case b.m != nil:
 		return b.m[b.k];
 	}
-	return nil
+	return nil;
 }
 
 func (b *_JsonBuilder) Float64(f float64) {
-	b.Put(&_Number{f, _Null{}})
+	b.Put(&_Number{f, _Null{}});
 }
 
 func (b *_JsonBuilder) Int64(i int64) {
-	b.Float64(float64(i))
+	b.Float64(float64(i));
 }
 
 func (b *_JsonBuilder) Uint64(i uint64) {
-	b.Float64(float64(i))
+	b.Float64(float64(i));
 }
 
 func (b *_JsonBuilder) Bool(tf bool) {
-	b.Put(&_Bool{tf, _Null{}})
+	b.Put(&_Bool{tf, _Null{}});
 }
 
 func (b *_JsonBuilder) Null() {
-	b.Put(Null)
+	b.Put(Null);
 }
 
 func (b *_JsonBuilder) String(s string) {
-	b.Put(&_String{s, _Null{}})
+	b.Put(&_String{s, _Null{}});
 }
 
 
 func (b *_JsonBuilder) Array() {
-	b.Put(&_Array{vector.New(0), _Null{}})
+	b.Put(&_Array{vector.New(0), _Null{}});
 }
 
 func (b *_JsonBuilder) Map() {
-	b.Put(&_Map{make(map[string]Json), _Null{}})
+	b.Put(&_Map{make(map[string]Json), _Null{}});
 }
 
 func (b *_JsonBuilder) Elem(i int) Builder {
@@ -297,9 +351,9 @@ func (b *_JsonBuilder) Elem(i int) Builder {
 	bb.a = b.Get().(*_Array).a;
 	bb.i = i;
 	for i >= bb.a.Len() {
-		bb.a.Push(Null)
+		bb.a.Push(Null);
 	}
-	return bb
+	return bb;
 }
 
 func (b *_JsonBuilder) Key(k string) Builder {
@@ -307,7 +361,7 @@ func (b *_JsonBuilder) Key(k string) Builder {
 	bb.m = b.Get().(*_Map).m;
 	bb.k = k;
 	bb.m[k] = Null;
-	return bb
+	return bb;
 }
 
 // StringToJson parses the string s as a JSON-syntax string
@@ -321,9 +375,9 @@ func StringToJson(s string) (json Json, ok bool, errtok string) {
 	b.ptr = &j;
 	ok, _, errtok = Parse(s, b);
 	if !ok {
-		return nil, false, errtok
+		return nil, false, errtok;
 	}
-	return j, true, ""
+	return j, true, "";
 }
 
 // BUG(rsc): StringToJson should return an os.Error instead of a bool.

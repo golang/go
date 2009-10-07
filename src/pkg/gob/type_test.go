@@ -13,13 +13,14 @@ type typeT struct {
 	id	typeId;
 	str	string;
 }
-var basicTypes = []typeT {
-	typeT { tBool, "bool" },
-	typeT { tInt, "int" },
-	typeT { tUint, "uint" },
-	typeT { tFloat, "float" },
-	typeT { tBytes, "bytes" },
-	typeT { tString, "string" },
+
+var basicTypes = []typeT{
+	typeT{tBool, "bool"},
+	typeT{tInt, "int"},
+	typeT{tUint, "uint"},
+	typeT{tFloat, "float"},
+	typeT{tBytes, "bytes"},
+	typeT{tString, "string"},
 }
 
 func getTypeUnlocked(name string, rt reflect.Type) gobType {
@@ -27,7 +28,7 @@ func getTypeUnlocked(name string, rt reflect.Type) gobType {
 	defer typeLock.Unlock();
 	t, err := getType(name, rt);
 	if err != nil {
-		panicln("getTypeUnlocked:", err.String())
+		panicln("getTypeUnlocked:", err.String());
 	}
 	return t;
 }
@@ -36,10 +37,10 @@ func getTypeUnlocked(name string, rt reflect.Type) gobType {
 func TestBasic(t *testing.T) {
 	for _, tt := range basicTypes {
 		if tt.id.String() != tt.str {
-			t.Errorf("checkType: expected %q got %s", tt.str, tt.id.String())
+			t.Errorf("checkType: expected %q got %s", tt.str, tt.id.String());
 		}
 		if tt.id == 0 {
-			t.Errorf("id for %q is zero", tt.str)
+			t.Errorf("id for %q is zero", tt.str);
 		}
 	}
 }
@@ -48,15 +49,15 @@ func TestBasic(t *testing.T) {
 func TestReregistration(t *testing.T) {
 	newtyp := getTypeUnlocked("int", reflect.Typeof(int(0)));
 	if newtyp != tInt.gobType() {
-		t.Errorf("reregistration of %s got new type", newtyp.String())
+		t.Errorf("reregistration of %s got new type", newtyp.String());
 	}
 	newtyp = getTypeUnlocked("uint", reflect.Typeof(uint(0)));
 	if newtyp != tUint.gobType() {
-		t.Errorf("reregistration of %s got new type", newtyp.String())
+		t.Errorf("reregistration of %s got new type", newtyp.String());
 	}
 	newtyp = getTypeUnlocked("string", reflect.Typeof("hello"));
 	if newtyp != tString.gobType() {
-		t.Errorf("reregistration of %s got new type", newtyp.String())
+		t.Errorf("reregistration of %s got new type", newtyp.String());
 	}
 }
 
@@ -105,20 +106,20 @@ func TestSliceType(t *testing.T) {
 }
 
 type Bar struct {
-	x string
+	x string;
 }
 
 // This structure has pointers and refers to itself, making it a good test case.
 type Foo struct {
-	a int;
-	b int32;	// will become int
-	c string;
-	d []byte;
-	e *float;	// will become float
-	f ****float64;	// will become float
-	g *Bar;
-	h *Bar;	// should not interpolate the definition of Bar again
-	i *Foo;	// will not explode
+	a	int;
+	b	int32;	// will become int
+	c	string;
+	d	[]byte;
+	e	*float;		// will become float
+	f	****float64;	// will become float
+	g	*Bar;
+	h	*Bar;	// should not interpolate the definition of Bar again
+	i	*Foo;	// will not explode
 }
 
 func TestStructType(t *testing.T) {

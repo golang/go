@@ -51,8 +51,8 @@
 
 		struct { a int; b uint }	// change of signedness for b
 		struct { a int; b float }	// change of type for b
-		struct { }	// no field names in common
-		struct { c, d int }	// no field names in common
+		struct { }			// no field names in common
+		struct { c, d int }		// no field names in common
 
 	Integers are transmitted two ways: arbitrary precision signed integers or
 	arbitrary precision unsigned integers.  There is no int8, int16 etc.
@@ -161,12 +161,12 @@
 	For simplicity in setup, the connection is defined to understand these types a
 	priori, as well as the basic gob types int, uint, etc.  Their ids are:
 
-		bool	1
-		int	2
-		uint	3
-		float	4
-		[]byte	5
-		string	6
+		bool		1
+		int		2
+		uint		3
+		float		4
+		[]byte		5
+		string		6
 		wireType	7
 		structType	8
 		commonType	9
@@ -192,19 +192,19 @@ import (
 // An Encoder manages the transmission of type and data information to the
 // other side of a connection.
 type Encoder struct {
-	mutex	sync.Mutex;	// each item must be sent atomically
-	w	io.Writer;	// where to send the data
-	sent	map[reflect.Type] typeId;	// which types we've already sent
-	state	*encoderState;	// so we can encode integers, strings directly
-	countState	*encoderState;	// stage for writing counts
-	buf	[]byte;	// for collecting the output.
+	mutex		sync.Mutex;			// each item must be sent atomically
+	w		io.Writer;			// where to send the data
+	sent		map[reflect.Type]typeId;	// which types we've already sent
+	state		*encoderState;			// so we can encode integers, strings directly
+	countState	*encoderState;			// stage for writing counts
+	buf		[]byte;				// for collecting the output.
 }
 
 // NewEncoder returns a new encoder that will transmit on the io.Writer.
 func NewEncoder(w io.Writer) *Encoder {
 	enc := new(Encoder);
 	enc.w = w;
-	enc.sent = make(map[reflect.Type] typeId);
+	enc.sent = make(map[reflect.Type]typeId);
 	enc.state = new(encoderState);
 	enc.state.b = new(bytes.Buffer);	// the rest isn't important; all we need is buffer and writer
 	enc.countState = new(encoderState);
@@ -260,7 +260,7 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 
 	// Have we already sent this type?  This time we ask about the base type.
 	if _, alreadySent := enc.sent[rt]; alreadySent {
-		return
+		return;
 	}
 
 	// Need to send it.
@@ -287,14 +287,14 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 	for i := 0; i < st.NumField(); i++ {
 		enc.sendType(st.Field(i).Type);
 	}
-	return
+	return;
 }
 
 // Encode transmits the data item represented by the empty interface value,
 // guaranteeing that all necessary type information has been transmitted first.
 func (enc *Encoder) Encode(e interface{}) os.Error {
 	if enc.state.b.Len() > 0 || enc.countState.b.Len() > 0 {
-		panicln("Encoder: buffer not empty")
+		panicln("Encoder: buffer not empty");
 	}
 	rt, _ := indirect(reflect.Typeof(e));
 
@@ -310,7 +310,7 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 		if enc.state.err != nil {
 			enc.state.b.Reset();
 			enc.countState.b.Reset();
-			return enc.state.err
+			return enc.state.err;
 		}
 	}
 
@@ -321,5 +321,5 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 	encode(enc.state.b, e);
 	enc.send();
 
-	return enc.state.err
+	return enc.state.err;
 }

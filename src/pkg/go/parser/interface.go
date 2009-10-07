@@ -7,14 +7,14 @@
 package parser
 
 import (
-	"bytes";
-	"fmt";
-	"go/ast";
-	"go/scanner";
-	"io";
-	"os";
-	pathutil "path";
-	"strings";
+			"bytes";
+			"fmt";
+			"go/ast";
+			"go/scanner";
+			"io";
+			"os";
+	pathutil	"path";
+			"strings";
 )
 
 
@@ -63,7 +63,7 @@ func ParseExpr(filename string, src interface{}) (ast.Expr, os.Error) {
 
 	var p parser;
 	p.init(filename, data, 0);
-	x := p.parseExpr();  // TODO 6g bug - function call order in expr lists
+	x := p.parseExpr();	// TODO 6g bug - function call order in expr lists
 	return x, p.GetError(scanner.Sorted);
 }
 
@@ -81,7 +81,7 @@ func ParseStmtList(filename string, src interface{}) ([]ast.Stmt, os.Error) {
 
 	var p parser;
 	p.init(filename, data, 0);
-	list := p.parseStmtList();  // TODO 6g bug - function call order in expr lists
+	list := p.parseStmtList();	// TODO 6g bug - function call order in expr lists
 	return list, p.GetError(scanner.Sorted);
 }
 
@@ -99,7 +99,7 @@ func ParseDeclList(filename string, src interface{}) ([]ast.Decl, os.Error) {
 
 	var p parser;
 	p.init(filename, data, 0);
-	list := p.parseDeclList();  // TODO 6g bug - function call order in expr lists
+	list := p.parseDeclList();	// TODO 6g bug - function call order in expr lists
 	return list, p.GetError(scanner.Sorted);
 }
 
@@ -130,7 +130,7 @@ func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error
 
 	var p parser;
 	p.init(filename, data, mode);
-	prog := p.parseFile();  // TODO 6g bug - function call order in expr lists
+	prog := p.parseFile();	// TODO 6g bug - function call order in expr lists
 	return prog, p.GetError(scanner.NoMultiples);
 }
 
@@ -158,7 +158,7 @@ func ParsePkgFile(pkgname, filename string, mode uint) (*ast.File, os.Error) {
 	}
 
 	// ignore flags that control partial parsing
-	return ParseFile(filename, src, mode &^ (PackageClauseOnly | ImportsOnly));
+	return ParseFile(filename, src, mode&^(PackageClauseOnly | ImportsOnly));
 }
 
 

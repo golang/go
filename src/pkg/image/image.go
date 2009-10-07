@@ -50,7 +50,7 @@ func NewRGBA(w, h int) *RGBA {
 	for y := 0; y < int(h); y++ {
 		pixel[y] = make([]RGBAColor, w);
 	}
-	return &RGBA{ pixel };
+	return &RGBA{pixel};
 }
 
 // An RGBA64 is an in-memory image backed by a 2-D slice of RGBA64Color values.
@@ -88,7 +88,7 @@ func NewRGBA64(w, h int) *RGBA64 {
 	for y := 0; y < int(h); y++ {
 		pixel[y] = make([]RGBA64Color, w);
 	}
-	return &RGBA64{ pixel };
+	return &RGBA64{pixel};
 }
 
 // A NRGBA is an in-memory image backed by a 2-D slice of NRGBAColor values.
@@ -126,7 +126,7 @@ func NewNRGBA(w, h int) *NRGBA {
 	for y := 0; y < int(h); y++ {
 		pixel[y] = make([]NRGBAColor, w);
 	}
-	return &NRGBA{ pixel };
+	return &NRGBA{pixel};
 }
 
 // A NRGBA64 is an in-memory image backed by a 2-D slice of NRGBA64Color values.
@@ -164,17 +164,17 @@ func NewNRGBA64(w, h int) *NRGBA64 {
 	for y := 0; y < int(h); y++ {
 		pixel[y] = make([]NRGBA64Color, w);
 	}
-	return &NRGBA64{ pixel };
+	return &NRGBA64{pixel};
 }
 
 // A PalettedColorModel represents a fixed palette of colors.
-type PalettedColorModel []Color;
+type PalettedColorModel []Color
 
 func diff(a, b uint32) uint32 {
 	if a > b {
-		return a - b;
+		return a-b;
 	}
-	return b - a;
+	return b-a;
 }
 
 // Convert returns the palette color closest to c in Euclidean R,G,B space.
@@ -198,7 +198,7 @@ func (p PalettedColorModel) Convert(c Color) Color {
 		vg >>= 17;
 		vb >>= 17;
 		dr, dg, db := diff(cr, vr), diff(cg, vg), diff(cb, vb);
-		ssd := (dr * dr) + (dg * dg) + (db * db);
+		ssd := (dr*dr)+(dg*dg)+(db*db);
 		if ssd < bestSSD {
 			bestSSD = ssd;
 			result = v;
@@ -210,8 +210,8 @@ func (p PalettedColorModel) Convert(c Color) Color {
 // A Paletted is an in-memory image backed by a 2-D slice of uint8 values and a PalettedColorModel.
 type Paletted struct {
 	// The Pixel field's indices are y first, then x, so that At(x, y) == Palette[Pixel[y][x]].
-	Pixel [][]uint8;
-	Palette PalettedColorModel;
+	Pixel	[][]uint8;
+	Palette	PalettedColorModel;
 }
 
 func (p *Paletted) ColorModel() ColorModel {
@@ -247,6 +247,5 @@ func NewPaletted(w, h int, m PalettedColorModel) *Paletted {
 	for y := 0; y < int(h); y++ {
 		pixel[y] = make([]uint8, w);
 	}
-	return &Paletted{ pixel, m };
+	return &Paletted{pixel, m};
 }
-

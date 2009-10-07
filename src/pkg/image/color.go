@@ -121,7 +121,7 @@ func toRGBAColor(c Color) Color {
 		return c;
 	}
 	r, g, b, a := c.RGBA();
-	return RGBAColor{ uint8(r>>24), uint8(g>>24), uint8(b>>24), uint8(a>>24) };
+	return RGBAColor{uint8(r>>24), uint8(g>>24), uint8(b>>24), uint8(a>>24)};
 }
 
 func toRGBA64Color(c Color) Color {
@@ -129,7 +129,7 @@ func toRGBA64Color(c Color) Color {
 		return c;
 	}
 	r, g, b, a := c.RGBA();
-	return RGBA64Color{ uint16(r>>16), uint16(g>>16), uint16(b>>16), uint16(a>>16) };
+	return RGBA64Color{uint16(r>>16), uint16(g>>16), uint16(b>>16), uint16(a>>16)};
 }
 
 func toNRGBAColor(c Color) Color {
@@ -139,19 +139,19 @@ func toNRGBAColor(c Color) Color {
 	r, g, b, a := c.RGBA();
 	a >>= 16;
 	if a == 0xffff {
-		return NRGBAColor{ uint8(r>>24), uint8(g>>24), uint8(b>>24), 0xff };
+		return NRGBAColor{uint8(r>>24), uint8(g>>24), uint8(b>>24), 0xff};
 	}
 	if a == 0 {
-		return NRGBAColor{ 0, 0, 0, 0 };
+		return NRGBAColor{0, 0, 0, 0};
 	}
 	r >>= 16;
 	g >>= 16;
 	b >>= 16;
 	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
-	r = (r * 0xffff) / a;
-	g = (g * 0xffff) / a;
-	b = (b * 0xffff) / a;
-	return NRGBAColor{ uint8(r>>8), uint8(g>>8), uint8(b>>8), uint8(a>>8) };
+	r = (r*0xffff)/a;
+	g = (g*0xffff)/a;
+	b = (b*0xffff)/a;
+	return NRGBAColor{uint8(r>>8), uint8(g>>8), uint8(b>>8), uint8(a>>8)};
 }
 
 func toNRGBA64Color(c Color) Color {
@@ -164,27 +164,26 @@ func toNRGBA64Color(c Color) Color {
 	g >>= 16;
 	b >>= 16;
 	if a == 0xffff {
-		return NRGBA64Color{ uint16(r), uint16(g), uint16(b), 0xffff };
+		return NRGBA64Color{uint16(r), uint16(g), uint16(b), 0xffff};
 	}
 	if a == 0 {
-		return NRGBA64Color{ 0, 0, 0, 0 };
+		return NRGBA64Color{0, 0, 0, 0};
 	}
 	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
-	r = (r * 0xffff) / a;
-	g = (g * 0xffff) / a;
-	b = (b * 0xffff) / a;
-	return NRGBA64Color{ uint16(r), uint16(g), uint16(b), uint16(a) };
+	r = (r*0xffff)/a;
+	g = (g*0xffff)/a;
+	b = (b*0xffff)/a;
+	return NRGBA64Color{uint16(r), uint16(g), uint16(b), uint16(a)};
 }
 
 // The ColorModel associated with RGBAColor.
-var RGBAColorModel ColorModel = ColorModelFunc(toRGBAColor);
+var RGBAColorModel ColorModel = ColorModelFunc(toRGBAColor)
 
 // The ColorModel associated with RGBA64Color.
-var RGBA64ColorModel ColorModel = ColorModelFunc(toRGBA64Color);
+var RGBA64ColorModel ColorModel = ColorModelFunc(toRGBA64Color)
 
 // The ColorModel associated with NRGBAColor.
-var NRGBAColorModel ColorModel = ColorModelFunc(toNRGBAColor);
+var NRGBAColorModel ColorModel = ColorModelFunc(toNRGBAColor)
 
 // The ColorModel associated with NRGBA64Color.
-var NRGBA64ColorModel ColorModel = ColorModelFunc(toNRGBA64Color);
-
+var NRGBA64ColorModel ColorModel = ColorModelFunc(toNRGBA64Color)

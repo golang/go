@@ -17,18 +17,18 @@ import (
 )
 
 var (
-	errBadUint = os.ErrorString("gob: encoded unsigned integer out of range");
-	errBadType = os.ErrorString("gob: unknown type id or corrupted data");
-	errRange = os.ErrorString("gob: internal error: field numbers out of bounds");
-	errNotStruct = os.ErrorString("gob: TODO: can only handle structs")
+	errBadUint	= os.ErrorString("gob: encoded unsigned integer out of range");
+	errBadType	= os.ErrorString("gob: unknown type id or corrupted data");
+	errRange	= os.ErrorString("gob: internal error: field numbers out of bounds");
+	errNotStruct	= os.ErrorString("gob: TODO: can only handle structs");
 )
 
 // The global execution state of an instance of the decoder.
 type decodeState struct {
-	b	*bytes.Buffer;
-	err	os.Error;
+	b		*bytes.Buffer;
+	err		os.Error;
 	fieldnum	int;	// the last field number read.
-	buf	[]byte;
+	buf		[]byte;
 }
 
 func newDecodeState(b *bytes.Buffer) *decodeState {
@@ -47,11 +47,11 @@ func overflow(name string) os.ErrorString {
 func decodeUintReader(r io.Reader, buf []byte) (x uint64, err os.Error) {
 	_, err = r.Read(buf[0:1]);
 	if err != nil {
-		return
+		return;
 	}
 	b := buf[0];
 	if b <= 0x7f {
-		return uint64(b), nil
+		return uint64(b), nil;
 	}
 	nb := -int(int8(b));
 	if nb > uint64Size {
@@ -62,16 +62,16 @@ func decodeUintReader(r io.Reader, buf []byte) (x uint64, err os.Error) {
 	n, err = io.ReadFull(r, buf[0:nb]);
 	if err != nil {
 		if err == os.EOF {
-			err = io.ErrUnexpectedEOF
+			err = io.ErrUnexpectedEOF;
 		}
-		return
+		return;
 	}
 	// Could check that the high byte is zero but it's not worth it.
 	for i := 0; i < n; i++ {
 		x <<= 8;
 		x |= uint64(buf[i]);
 	}
-	return
+	return;
 }
 
 // decodeUint reads an encoded unsigned integer from state.r.
@@ -79,12 +79,12 @@ func decodeUintReader(r io.Reader, buf []byte) (x uint64, err os.Error) {
 // Does not check for overflow.
 func decodeUint(state *decodeState) (x uint64) {
 	if state.err != nil {
-		return
+		return;
 	}
 	var b uint8;
 	b, state.err = state.b.ReadByte();
 	if b <= 0x7f {	// includes state.err != nil
-		return uint64(b)
+		return uint64(b);
 	}
 	nb := -int(int8(b));
 	if nb > uint64Size {
@@ -108,21 +108,21 @@ func decodeUint(state *decodeState) (x uint64) {
 func decodeInt(state *decodeState) int64 {
 	x := decodeUint(state);
 	if state.err != nil {
-		return 0
+		return 0;
 	}
-	if x & 1 != 0 {
-		return ^int64(x>>1)
+	if x&1 != 0 {
+		return ^int64(x>>1);
 	}
-	return int64(x >> 1)
+	return int64(x>>1);
 }
 
-type decOp func(i *decInstr, state *decodeState, p unsafe.Pointer);
+type decOp func(i *decInstr, state *decodeState, p unsafe.Pointer)
 
 // The 'instructions' of the decoding machine
 type decInstr struct {
 	op	decOp;
-	field		int;	// field number of the wire type
-	indir	int;	// how many pointer indirections to reach the value in the struct
+	field	int;		// field number of the wire type
+	indir	int;		// how many pointer indirections to reach the value in the struct
 	offset	uintptr;	// offset in the structure of the field to encode
 	ovfl	os.ErrorString;	// error message for overflow/underflow (for arrays, of the elements)
 }
@@ -143,7 +143,7 @@ func decIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
 		}
 		p = *(*unsafe.Pointer)(p);
 	}
-	return p
+	return p;
 }
 
 func ignoreUint(i *decInstr, state *decodeState, p unsafe.Pointer) {
@@ -169,9 +169,9 @@ func decInt8(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	}
 	v := decodeInt(state);
 	if v < math.MinInt8 || math.MaxInt8 < v {
-		state.err = i.ovfl
+		state.err = i.ovfl;
 	} else {
-		*(*int8)(p) = int8(v)
+		*(*int8)(p) = int8(v);
 	}
 }
 
@@ -184,9 +184,9 @@ func decUint8(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	}
 	v := decodeUint(state);
 	if math.MaxUint8 < v {
-		state.err = i.ovfl
+		state.err = i.ovfl;
 	} else {
-		*(*uint8)(p) = uint8(v)
+		*(*uint8)(p) = uint8(v);
 	}
 }
 
@@ -199,9 +199,9 @@ func decInt16(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	}
 	v := decodeInt(state);
 	if v < math.MinInt16 || math.MaxInt16 < v {
-		state.err = i.ovfl
+		state.err = i.ovfl;
 	} else {
-		*(*int16)(p) = int16(v)
+		*(*int16)(p) = int16(v);
 	}
 }
 
@@ -214,9 +214,9 @@ func decUint16(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	}
 	v := decodeUint(state);
 	if math.MaxUint16 < v {
-		state.err = i.ovfl
+		state.err = i.ovfl;
 	} else {
-		*(*uint16)(p) = uint16(v)
+		*(*uint16)(p) = uint16(v);
 	}
 }
 
@@ -229,9 +229,9 @@ func decInt32(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	}
 	v := decodeInt(state);
 	if v < math.MinInt32 || math.MaxInt32 < v {
-		state.err = i.ovfl
+		state.err = i.ovfl;
 	} else {
-		*(*int32)(p) = int32(v)
+		*(*int32)(p) = int32(v);
 	}
 }
 
@@ -244,9 +244,9 @@ func decUint32(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	}
 	v := decodeUint(state);
 	if math.MaxUint32 < v {
-		state.err = i.ovfl
+		state.err = i.ovfl;
 	} else {
-		*(*uint32)(p) = uint32(v)
+		*(*uint32)(p) = uint32(v);
 	}
 }
 
@@ -279,7 +279,7 @@ func floatFromBits(u uint64) float64 {
 	var v uint64;
 	for i := 0; i < 8; i++ {
 		v <<= 8;
-		v |= u & 0xFF;
+		v |= u&0xFF;
 		u >>= 8;
 	}
 	return math.Float64frombits(v);
@@ -295,12 +295,12 @@ func decFloat32(i *decInstr, state *decodeState, p unsafe.Pointer) {
 	v := floatFromBits(decodeUint(state));
 	av := v;
 	if av < 0 {
-		av = -av
+		av = -av;
 	}
 	if math.MaxFloat32 < av {	// underflow is OK
-		state.err = i.ovfl
+		state.err = i.ovfl;
 	} else {
-		*(*float32)(p) = float32(v)
+		*(*float32)(p) = float32(v);
 	}
 }
 
@@ -350,7 +350,7 @@ func ignoreUint8Array(i *decInstr, state *decodeState, p unsafe.Pointer) {
 // The encoder engine is an array of instructions indexed by field number of the incoming
 // data.  It is executed with random access according to field number.
 type decEngine struct {
-	instr	[]decInstr;
+	instr		[]decInstr;
 	numInstr	int;	// the number of active instructions
 }
 
@@ -372,10 +372,10 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer, 
 		delta := int(decodeUint(state));
 		if delta < 0 {
 			state.err = os.ErrorString("gob decode: corrupted data: negative delta");
-			break
+			break;
 		}
 		if state.err != nil || delta == 0 {	// struct terminator is zero delta fieldnum
-			break
+			break;
 		}
 		fieldnum := state.fieldnum + delta;
 		if fieldnum >= len(engine.instr) {
@@ -383,14 +383,14 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer, 
 			break;
 		}
 		instr := &engine.instr[fieldnum];
-		p := unsafe.Pointer(basep+instr.offset);
+		p := unsafe.Pointer(basep + instr.offset);
 		if instr.indir > 1 {
 			p = decIndirect(p, instr.indir);
 		}
 		instr.op(instr, state, p);
 		state.fieldnum = fieldnum;
 	}
-	return state.err
+	return state.err;
 }
 
 func ignoreStruct(engine *decEngine, b *bytes.Buffer) os.Error {
@@ -400,10 +400,10 @@ func ignoreStruct(engine *decEngine, b *bytes.Buffer) os.Error {
 		delta := int(decodeUint(state));
 		if delta < 0 {
 			state.err = os.ErrorString("gob ignore decode: corrupted data: negative delta");
-			break
+			break;
 		}
 		if state.err != nil || delta == 0 {	// struct terminator is zero delta fieldnum
-			break
+			break;
 		}
 		fieldnum := state.fieldnum + delta;
 		if fieldnum >= len(engine.instr) {
@@ -414,7 +414,7 @@ func ignoreStruct(engine *decEngine, b *bytes.Buffer) os.Error {
 		instr.op(instr, state, unsafe.Pointer(nil));
 		state.fieldnum = fieldnum;
 	}
-	return state.err
+	return state.err;
 }
 
 func decodeArrayHelper(state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, elemIndir int, ovfl os.ErrorString) os.Error {
@@ -427,7 +427,7 @@ func decodeArrayHelper(state *decodeState, p uintptr, elemOp decOp, elemWid uint
 		elemOp(instr, state, up);
 		p += uintptr(elemWid);
 	}
-	return state.err
+	return state.err;
 }
 
 func decodeArray(atyp *reflect.ArrayType, state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl os.ErrorString) os.Error {
@@ -452,7 +452,7 @@ func ignoreArrayHelper(state *decodeState, elemOp decOp, length int) os.Error {
 	for i := 0; i < length && state.err == nil; i++ {
 		elemOp(instr, state, nil);
 	}
-	return state.err
+	return state.err;
 }
 
 func ignoreArray(state *decodeState, elemOp decOp, length int) os.Error {
@@ -473,7 +473,7 @@ func decodeSlice(atyp *reflect.SliceType, state *decodeState, p uintptr, elemOp 
 		p = *(*uintptr)(up);
 	}
 	// Allocate storage for the slice elements, that is, the underlying array.
-	data := make([]byte, length*atyp.Elem().Size());
+	data := make([]byte, length * atyp.Elem().Size());
 	// Always write a header at p.
 	hdrp := (*reflect.SliceHeader)(unsafe.Pointer(p));
 	hdrp.Data = uintptr(unsafe.Pointer(&data[0]));
@@ -486,7 +486,7 @@ func ignoreSlice(state *decodeState, elemOp decOp) os.Error {
 	return ignoreArrayHelper(state, elemOp, int(decodeUint(state)));
 }
 
-var decOpMap = map[reflect.Type] decOp {
+var decOpMap = map[reflect.Type]decOp{
 	valueKind(false): decBool,
 	valueKind(int8(0)): decInt8,
 	valueKind(int16(0)): decInt16,
@@ -501,7 +501,7 @@ var decOpMap = map[reflect.Type] decOp {
 	valueKind("x"): decString,
 }
 
-var decIgnoreOpMap = map[typeId] decOp {
+var decIgnoreOpMap = map[typeId]decOp{
 	tBool: ignoreUint,
 	tInt: ignoreUint,
 	tUint: ignoreUint,
@@ -527,7 +527,7 @@ func decOpFor(wireId typeId, rt reflect.Type, name string) (decOp, int, os.Error
 			elemId := wireId.gobType().(*sliceType).Elem;
 			elemOp, elemIndir, err := decOpFor(elemId, t.Elem(), name);
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, err;
 			}
 			ovfl := overflow(name);
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
@@ -539,7 +539,7 @@ func decOpFor(wireId typeId, rt reflect.Type, name string) (decOp, int, os.Error
 			elemId := wireId.gobType().(*arrayType).Elem;
 			elemOp, elemIndir, err := decOpFor(elemId, t.Elem(), name);
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, err;
 			}
 			ovfl := overflow(name);
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
@@ -550,18 +550,18 @@ func decOpFor(wireId typeId, rt reflect.Type, name string) (decOp, int, os.Error
 			// Generate a closure that calls out to the engine for the nested type.
 			enginePtr, err := getDecEnginePtr(wireId, typ);
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, err;
 			}
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				// indirect through enginePtr to delay evaluation for recursive structs
-				state.err = decodeStruct(*enginePtr, t, state.b, uintptr(p), i.indir)
+				state.err = decodeStruct(*enginePtr, t, state.b, uintptr(p), i.indir);
 			};
 		}
 	}
 	if op == nil {
 		return nil, 0, os.ErrorString("gob: decode can't handle type " + rt.String());
 	}
-	return op, indir, nil
+	return op, indir, nil;
 }
 
 // Return the decoding op for a field that has no destination.
@@ -574,7 +574,7 @@ func decIgnoreOpFor(wireId typeId) (decOp, os.Error) {
 			elemId := wireId.gobType().(*sliceType).Elem;
 			elemOp, err := decIgnoreOpFor(elemId);
 			if err != nil {
-				return nil, err
+				return nil, err;
 			}
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				state.err = ignoreSlice(state, elemOp);
@@ -584,7 +584,7 @@ func decIgnoreOpFor(wireId typeId) (decOp, os.Error) {
 			elemId := wireId.gobType().(*arrayType).Elem;
 			elemOp, err := decIgnoreOpFor(elemId);
 			if err != nil {
-				return nil, err
+				return nil, err;
 			}
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				state.err = ignoreArray(state, elemOp, t.Len);
@@ -594,11 +594,11 @@ func decIgnoreOpFor(wireId typeId) (decOp, os.Error) {
 			// Generate a closure that calls out to the engine for the nested type.
 			enginePtr, err := getIgnoreEnginePtr(wireId);
 			if err != nil {
-				return nil, err
+				return nil, err;
 			}
 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
 				// indirect through enginePtr to delay evaluation for recursive structs
-				state.err = ignoreStruct(*enginePtr, state.b)
+				state.err = ignoreStruct(*enginePtr, state.b);
 			};
 		}
 	}
@@ -662,7 +662,7 @@ func compatibleType(fr reflect.Type, fw typeId) bool {
 		// Is it an array of bytes?
 		et := t.Elem();
 		if _, ok := et.(*reflect.Uint8Type); ok {
-			return fw == tBytes
+			return fw == tBytes;
 		}
 		sw, ok := fw.gobType().(*sliceType);
 		elem, _ := indirect(t.Elem());
@@ -677,7 +677,7 @@ func compileDec(wireId typeId, rt reflect.Type) (engine *decEngine, err os.Error
 	srt, ok1 := rt.(*reflect.StructType);
 	wireStruct, ok2 := wireId.gobType().(*structType);
 	if !ok1 || !ok2 {
-		return nil, errNotStruct
+		return nil, errNotStruct;
 	}
 	engine = new(decEngine);
 	engine.instr = make([]decInstr, len(wireStruct.field));
@@ -691,7 +691,7 @@ func compileDec(wireId typeId, rt reflect.Type) (engine *decEngine, err os.Error
 		if !present {
 			op, err := decIgnoreOpFor(wireField.id);
 			if err != nil {
-				return nil, err
+				return nil, err;
 			}
 			engine.instr[fieldnum] = decInstr{op, fieldnum, 0, 0, ovfl};
 			continue;
@@ -702,7 +702,7 @@ func compileDec(wireId typeId, rt reflect.Type) (engine *decEngine, err os.Error
 		}
 		op, indir, err := decOpFor(wireField.id, localField.Type, localField.Name);
 		if err != nil {
-			return nil, err
+			return nil, err;
 		}
 		engine.instr[fieldnum] = decInstr{op, fieldnum, indir, uintptr(localField.Offset), ovfl};
 		engine.numInstr++;
@@ -710,14 +710,14 @@ func compileDec(wireId typeId, rt reflect.Type) (engine *decEngine, err os.Error
 	return;
 }
 
-var decoderCache = make(map[reflect.Type] map[typeId] **decEngine)
-var ignorerCache = make(map[typeId] **decEngine)
+var decoderCache = make(map[reflect.Type]map[typeId]**decEngine)
+var ignorerCache = make(map[typeId]**decEngine)
 
 // typeLock must be held.
 func getDecEnginePtr(wireId typeId, rt reflect.Type) (enginePtr **decEngine, err os.Error) {
 	decoderMap, ok := decoderCache[rt];
 	if !ok {
-		decoderMap = make(map[typeId] **decEngine);
+		decoderMap = make(map[typeId]**decEngine);
 		decoderCache[rt] = decoderMap;
 	}
 	if enginePtr, ok = decoderMap[wireId]; !ok {
@@ -729,11 +729,12 @@ func getDecEnginePtr(wireId typeId, rt reflect.Type) (enginePtr **decEngine, err
 			decoderMap[wireId] = nil, false;
 		}
 	}
-	return
+	return;
 }
 
 // When ignoring data, in effect we compile it into this type
-type emptyStruct struct {}
+type emptyStruct struct{}
+
 var emptyStructType = reflect.Typeof(emptyStruct{})
 
 // typeLock must be held.
@@ -748,7 +749,7 @@ func getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err os.Error) {
 			ignorerCache[wireId] = nil, false;
 		}
 	}
-	return
+	return;
 }
 
 func decode(b *bytes.Buffer, wireId typeId, e interface{}) os.Error {
@@ -761,7 +762,7 @@ func decode(b *bytes.Buffer, wireId typeId, e interface{}) os.Error {
 	var st *reflect.StructValue;
 	var ok bool;
 	if st, ok = v.(*reflect.StructValue); !ok {
-		return os.ErrorString("gob: decode can't handle " + rt.String())
+		return os.ErrorString("gob: decode can't handle " + rt.String());
 	}
 	typeLock.Lock();
 	if _, ok := idToType[wireId]; !ok {
@@ -771,12 +772,12 @@ func decode(b *bytes.Buffer, wireId typeId, e interface{}) os.Error {
 	enginePtr, err := getDecEnginePtr(wireId, rt);
 	typeLock.Unlock();
 	if err != nil {
-		return err
+		return err;
 	}
 	engine := *enginePtr;
 	if engine.numInstr == 0 && st.NumField() > 0 && len(wireId.gobType().(*structType).field) > 0 {
 		name := rt.Name();
-		return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
+		return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name);
 	}
 	return decodeStruct(engine, rt.(*reflect.StructType), b, uintptr(v.Addr()), 0);
 }

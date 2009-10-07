@@ -5,12 +5,12 @@
 package io_test
 
 import (
-	"fmt";
-	. "io";
-	"os";
-	"strings";
-	"testing";
-	"time";
+		"fmt";
+	.	"io";
+		"os";
+		"strings";
+		"testing";
+		"time";
 )
 
 func checkWrite(t *testing.T, w Writer, data []byte, c chan int) {
@@ -33,8 +33,7 @@ func TestPipe1(t *testing.T) {
 	n, err := r.Read(buf);
 	if err != nil {
 		t.Errorf("read: %v", err);
-	}
-	else if n != 12 || string(buf[0:12]) != "hello, world" {
+	} else if n != 12 || string(buf[0:12]) != "hello, world" {
 		t.Errorf("bad read: got %q", buf[0:n]);
 	}
 	<-c;
@@ -64,7 +63,7 @@ func TestPipe2(t *testing.T) {
 	go reader(t, r, c);
 	var buf = make([]byte, 64);
 	for i := 0; i < 5; i++ {
-		p := buf[0:5+i*10];
+		p := buf[0 : 5 + i*10];
 		n, err := w.Write(p);
 		if n != len(p) {
 			t.Errorf("wrote %d, got %d", len(p), n);
@@ -85,8 +84,8 @@ func TestPipe2(t *testing.T) {
 }
 
 type pipeReturn struct {
-	n int;
-	err os.Error;
+	n	int;
+	err	os.Error;
 }
 
 // Test a large write that requires multiple reads to satisfy.
@@ -107,7 +106,7 @@ func TestPipe3(t *testing.T) {
 	var rdat = make([]byte, 1024);
 	tot := 0;
 	for n := 1; n <= 256; n *= 2 {
-		nn, err := r.Read(rdat[tot:tot+n]);
+		nn, err := r.Read(rdat[tot : tot+n]);
 		if err != nil && err != os.EOF {
 			t.Fatalf("read: %v", err);
 		}
@@ -149,22 +148,22 @@ type closer interface {
 }
 
 type pipeTest struct {
-	async bool;
-	err os.Error;
-	closeWithError bool;
+	async		bool;
+	err		os.Error;
+	closeWithError	bool;
 }
 
 func (p pipeTest) String() string {
 	return fmt.Sprintf("async=%v err=%v closeWithError=%v", p.async, p.err, p.closeWithError);
 }
 
-var pipeTests = []pipeTest {
-	pipeTest{ true, nil, false },
-	pipeTest{ true, nil, true },
-	pipeTest{ true, ErrShortWrite, true },
-	pipeTest{ false, nil, false },
-	pipeTest{ false, nil, true },
-	pipeTest{ false, ErrShortWrite, true },
+var pipeTests = []pipeTest{
+	pipeTest{true, nil, false},
+	pipeTest{true, nil, true},
+	pipeTest{true, ErrShortWrite, true},
+	pipeTest{false, nil, false},
+	pipeTest{false, nil, true},
+	pipeTest{false, ErrShortWrite, true},
 }
 
 func delayClose(t *testing.T, cl closer, ch chan int, tt pipeTest) {

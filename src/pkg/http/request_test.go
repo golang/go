@@ -9,25 +9,25 @@ import (
 	"testing";
 )
 
-type stringMultimap map[string] []string
+type stringMultimap map[string][]string
 
 type parseTest struct {
-	query string;
-	out stringMultimap;
+	query	string;
+	out	stringMultimap;
 }
 
 var parseTests = []parseTest{
 	parseTest{
 		query: "a=1&b=2",
-		out: stringMultimap{ "a": []string{ "1" }, "b": []string{ "2" } },
+		out: stringMultimap{"a": []string{"1"}, "b": []string{"2"}},
 	},
 	parseTest{
 		query: "a=1&a=2&a=banana",
-		out: stringMultimap{ "a": []string{ "1", "2", "banana" } },
+		out: stringMultimap{"a": []string{"1", "2", "banana"}},
 	},
 	parseTest{
 		query: "ascii=%3Ckey%3A+0x90%3E",
-		out: stringMultimap{ "ascii": []string{ "<key: 0x90>" } },
+		out: stringMultimap{"ascii": []string{"<key: 0x90>"}},
 	},
 }
 
@@ -36,7 +36,7 @@ func TestParseForm(t *testing.T) {
 		form, err := parseForm(test.query);
 		if err != nil {
 			t.Errorf("test %d: Unexpected error: %v", i, err);
-			continue
+			continue;
 		}
 		if len(form) != len(test.out) {
 			t.Errorf("test %d: len(form) = %d, want %d", i, len(form), len(test.out));
@@ -45,11 +45,11 @@ func TestParseForm(t *testing.T) {
 			vs, ok := form[k];
 			if !ok {
 				t.Errorf("test %d: Missing key %q", i, k);
-				continue
+				continue;
 			}
 			if len(vs) != len(evs) {
 				t.Errorf("test %d: len(form[%q]) = %d, want %d", i, k, len(vs), len(evs));
-				continue
+				continue;
 			}
 			for j, ev := range evs {
 				if v := vs[j]; v != ev {
@@ -61,7 +61,7 @@ func TestParseForm(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
-	req := &Request{ Method: "GET" };
+	req := &Request{Method: "GET"};
 	req.Url, _ = ParseURL("http://www.google.com/search?q=foo&q=bar");
 	if q := req.FormValue("q"); q != "foo" {
 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q);
@@ -70,22 +70,16 @@ func TestQuery(t *testing.T) {
 
 type stringMap map[string]string
 type parseContentTypeTest struct {
-	contentType stringMap;
-	error bool;
+	contentType	stringMap;
+	error		bool;
 }
 
 var parseContentTypeTests = []parseContentTypeTest{
+	parseContentTypeTest{contentType: stringMap{"Content-Type": "text/plain"}},
+	parseContentTypeTest{contentType: stringMap{"Content-Type": ""}},
+	parseContentTypeTest{contentType: stringMap{"Content-Type": "text/plain; boundary="}},
 	parseContentTypeTest{
-		contentType: stringMap{ "Content-Type": "text/plain" },
-	},
-	parseContentTypeTest{
-		contentType: stringMap{ "Content-Type": "" },
-	},
-	parseContentTypeTest{
-		contentType: stringMap{ "Content-Type": "text/plain; boundary=" },
-	},
-	parseContentTypeTest{
-		contentType: stringMap{ "Content-Type": "application/unknown" },
+		contentType: stringMap{"Content-Type": "application/unknown"},
 		error: true,
 	},
 }
@@ -93,9 +87,9 @@ var parseContentTypeTests = []parseContentTypeTest{
 func TestPostContentTypeParsing(t *testing.T) {
 	for i, test := range parseContentTypeTests {
 		req := &Request{
-				Method: "POST",
-				Header: test.contentType,
-				Body: bytes.NewBufferString("body")
+			Method: "POST",
+			Header: test.contentType,
+			Body: bytes.NewBufferString("body"),
 		};
 		err := req.ParseForm();
 		if !test.error && err != nil {
