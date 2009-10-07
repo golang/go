@@ -9,8 +9,8 @@ TARG=\
 
 OFILES=\
 	asm.$O\
-	compat.$O\
 	enam.$O\
+	lib.$O\
 	list.$O\
 	noop.$O\
 	obj.$O\
@@ -23,7 +23,6 @@ OFILES=\
 HFILES=\
 	l.h\
 	../5l/5.out.h\
-
 
 $(TARG): $(OFILES)
 	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
@@ -38,3 +37,6 @@ clean:
 
 install: $(TARG)
 	cp $(TARG) $(GOBIN)/$(TARG)
+
+%.$O: ../ld/%.c
+	$(CC) $(CFLAGS) -c -I. ../ld/$*.c

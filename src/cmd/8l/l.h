@@ -37,6 +37,11 @@
 #define	EXTERN	extern
 #endif
 
+enum
+{
+	PtrSize = 4
+};
+
 #define	P		((Prog*)0)
 #define	S		((Sym*)0)
 #define	TNAME		(curtext?curtext->from.sym->name:noname)
@@ -116,7 +121,6 @@ struct	Sym
 	uchar	subtype;
 	uchar	dupok;
 	uchar	reachable;
-	ushort	file;
 	int32	value;
 	int32	size;
 	int32	sig;
@@ -124,6 +128,7 @@ struct	Sym
 	Prog*	text;
 	Prog*	data;
 	Sym*	gotype;
+	char*	file;
 	char*	dynldname;
 	char*	dynldlib;
 };
@@ -265,7 +270,6 @@ EXTERN	int32	casepc;
 EXTERN	int	cbc;
 EXTERN	char*	cbp;
 EXTERN	char*	pcstr;
-EXTERN	int	cout;
 EXTERN	Auto*	curauto;
 EXTERN	Auto*	curhist;
 EXTERN	Prog*	curp;
@@ -278,19 +282,7 @@ EXTERN	char	debug[128];
 EXTERN	char	literal[32];
 EXTERN	Prog*	etextp;
 EXTERN	Prog*	firstp;
-EXTERN	uchar	fnuxi8[8];
-EXTERN	uchar	fnuxi4[4];
-EXTERN	Sym*	hash[NHASH];
-EXTERN	Sym*	histfrog[MAXHIST];
-EXTERN	int	histfrogp;
-EXTERN	int	histgen;
-EXTERN	char*	library[50];
-EXTERN	char*	libraryobj[50];
-EXTERN	int	libraryp;
 EXTERN	int	xrefresolv;
-EXTERN	uchar	inuxi1[1];
-EXTERN	uchar	inuxi2[2];
-EXTERN	uchar	inuxi4[4];
 EXTERN	uchar	ycover[Ymax*Ymax];
 EXTERN	uchar*	andptr;
 EXTERN	uchar	and[100];
@@ -299,20 +291,16 @@ EXTERN	Prog*	lastp;
 EXTERN	int32	lcsize;
 EXTERN	int	maxop;
 EXTERN	int	nerrors;
-EXTERN	int32	nsymbol;
 EXTERN	char*	noname;
-EXTERN	char*	outfile;
 EXTERN	int32	pc;
 EXTERN	int32	spsize;
 EXTERN	Sym*	symlist;
 EXTERN	int32	symsize;
 EXTERN	Prog*	textp;
 EXTERN	int32	textsize;
-EXTERN	int32	thunk;
 EXTERN	int	version;
 EXTERN	Prog	zprg;
 EXTERN	int	dtype;
-EXTERN	char	thechar;
 EXTERN	int	tlsoffset;
 
 EXTERN	Adr*	reloca;
@@ -357,18 +345,9 @@ void	doprof2(void);
 void	dostkoff(void);
 void	dynreloc(Sym*, uint32, int);
 int32	entryvalue(void);
-void	errorexit(void);
 void	export(void);
-int	find1(int32, int);
-int	find2(int32, int);
 void	follow(void);
-void	gethunk(void);
-void	histtoauto(void);
-double	ieeedtod(Ieee*);
-int32	ieeedtof(Ieee*);
 void	import(void);
-void	ldobj(Biobuf*, int32, char*);
-void	loadlib(void);
 void	listinit(void);
 Sym*	lookup(char*, int);
 void	lput(int32);
@@ -380,19 +359,15 @@ void	mkfwd(void);
 void*	mal(uint32);
 Prog*	newdata(Sym*, int, int, int);
 Prog*	newtext(Prog*, Sym*);
-void	nuxiinit(void);
-void	objfile(char*);
 int	opsize(Prog*);
 void	patch(void);
 Prog*	prg(void);
-void	readundefs(char*, int);
 int	relinv(int);
 int32	reuse(Prog*, Sym*);
 int32	rnd(int32, int32);
 void	s8put(char*);
 void	span(void);
 void	undef(void);
-void	undefsym(Sym*);
 int32	vaddr(Adr*);
 int32	symaddr(Sym*);
 void	wput(ushort);
@@ -400,9 +375,7 @@ void	wputl(ushort);
 void	xdefine(char*, int, int32);
 void	xfol(Prog*);
 void	zaddr(Biobuf*, Adr*, Sym*[]);
-void	zerosig(char*);
 uint32	machheadr(void);
-void	whatsys(void);
 vlong		addaddr(Sym *s, Sym *t);
 vlong		addsize(Sym *s, Sym *t);
 vlong		addstring(Sym *s, char *str);
@@ -416,13 +389,6 @@ vlong		adduintxx(Sym *s, uint64 v, int wid);
  *	go.c
  */
 void	deadcode(void);
-void	ldpkg(Biobuf *f, int64 len, char *filename);
-
-
-/* set by call to whatsys() */
-extern	char*	goroot;
-extern	char*	goarch;
-extern	char*	goos;
 
 /* Native is little-endian */
 #define	LPUT(a)	lputl(a)

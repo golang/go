@@ -4,6 +4,9 @@
 
 // go-specific code shared across loaders (5l, 6l, 8l).
 
+#include	"l.h"
+#include	"../ld/lib.h"
+
 // accumulate all type information from .6 files.
 // check for inconsistencies.
 

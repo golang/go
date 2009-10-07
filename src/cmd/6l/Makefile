@@ -9,10 +9,10 @@ TARG=\
 
 OFILES=\
 	asm.$O\
-	compat.$O\
 	elf.$O\
 	enam.$O\
 	go.$O\
+	lib.$O\
 	list.$O\
 	macho.$O\
 	obj.$O\
@@ -23,10 +23,9 @@ OFILES=\
 HFILES=\
 	l.h\
 	../6l/6.out.h\
+	../ld/lib.h\
 	../ld/elf.h\
 	../ld/macho.h\
-	../6l/compat.h\
-
 
 $(TARG): $(OFILES)
 	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
@@ -42,6 +41,5 @@ clean:
 install: $(TARG)
 	cp $(TARG) $(GOBIN)/$(TARG)
 
-go.o: ../ld/go.c
-elf.o: ../ld/elf.c
-macho.o: ../ld/macho.c
+%.$O: ../ld/%.c
+	$(CC) $(CFLAGS) -c -I. ../ld/$*.c

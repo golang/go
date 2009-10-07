@@ -29,6 +29,7 @@
 // THE SOFTWARE.
 
 #include	"l.h"
+#include	"../ld/lib.h"
 #include	"../ld/elf.h"
 #include	"../ld/macho.h"
 

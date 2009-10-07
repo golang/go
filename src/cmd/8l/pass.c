@@ -29,6 +29,7 @@
 // THE SOFTWARE.
 
 #include	"l.h"
+#include	"../ld/lib.h"
 
 // see ../../pkg/runtime/proc.c:/StackGuard
 enum
