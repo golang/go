@@ -178,7 +178,6 @@ import_stmt:
 		pack = nod(OPACK, N, N);
 		pack->sym = import;
 		pack->lineno = $1;
-		pack->pline = importline;
 
 		if(my == S)
 			my = import;
@@ -189,15 +188,10 @@ import_stmt:
 		if(my->name[0] == '_' && my->name[1] == '\0')
 			break;
 
-		// TODO(rsc): this line is needed for a package
-		// which does bytes := in a function, which creates
-		// an ONONAME for bytes, but then a different file
-		// imports "bytes".  more generally we need to figure out
-		// what it means if one file imports "bytes" and another
-		// declares a top-level name.
-		if(my->def && my->def->op == ONONAME)
-			my->def = N;
-
+		if(my->def) {
+			lineno = $1;
+			redeclare(my, "as imported package name");
+		}
 		my->def = pack;
 		my->lastlineno = $1;
 		import->block = 1;	// at top level
@@ -223,8 +217,6 @@ import_here:
 		$$ = parserline();
 		pkgimportname = S;
 		pkgmyname = $1;
-		if($1->def && ($1->name[0] != '_' || $1->name[1] != '\0'))
-			redeclare($1, "as imported package name");
 		importfile(&$2, $$);
 	}
 |	'.' LLITERAL

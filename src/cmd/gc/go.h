@@ -202,6 +202,7 @@ struct	Node
 	uchar	initorder;
 	uchar	dodata;		// compile literal assignment as data statement
 	uchar	used;
+	uchar	oldref;
 
 	// most nodes
 	Node*	left;
@@ -247,7 +248,6 @@ struct	Node
 	Node*	outer;	// outer PPARAMREF in nested closure
 	Node*	closure;	// ONAME/PHEAP <-> ONAME/PPARAMREF
 
-	char*	pline;
 	Sym*	sym;		// various
 	int32	vargen;		// unique name for OTYPE/ONAME
 	int32	lineno;
@@ -695,8 +695,6 @@ EXTERN	int	noargnames;
 
 EXTERN	int	funcdepth;
 EXTERN	int	typecheckok;
-
-EXTERN	char*	importline;
 
 /*
  *	y.tab.c

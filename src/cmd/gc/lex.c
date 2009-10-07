@@ -267,13 +267,7 @@ importfile(Val *f, int line)
 	int32 c;
 	int len;
 
-	// Once we push the new file, we will not be able
-	// to print the current lineno correctly with %L.
-	// In case that line is the line of the import (likely),
-	// save the text for use in error messages.
-	importline = smprint("%L", line);
-
-// TODO: don't bother reloading imports more than once
+	// TODO(rsc): don't bother reloading imports more than once
 
 	if(f->ctype != CTSTR) {
 		yyerror("import statement not a string");
@@ -300,12 +294,10 @@ importfile(Val *f, int line)
 		// assume .a files move (get installed)
 		// so don't record the full path.
 		p = file + len - f->u.sval->len - 2;
-		linehist(p, 0, 0);
 		linehist(p, -1, 1);	// acts as #pragma lib
 	} else {
 		// assume .6 files don't move around
 		// so do record the full path
-		linehist(file, 0, 0);
 		linehist(file, -1, 0);
 	}
 
@@ -339,8 +331,6 @@ importfile(Val *f, int line)
 void
 unimportfile(void)
 {
-	linehist(nil, 0, 0);
-
 	if(curio.bin != nil) {
 		Bterm(curio.bin);
 		curio.bin = nil;
@@ -357,7 +347,6 @@ void
 cannedimports(char *file, char *cp)
 {
 	lexlineno++;		// if sys.6 is included on line 1,
-	linehist(file, 0, 0);	// the debugger gets confused
 
 	pushedio = curio;
 	curio.bin = nil;
@@ -1018,7 +1007,7 @@ getc(void)
 	if(c != 0) {
 		curio.peekc = curio.peekc1;
 		curio.peekc1 = 0;
-		if(c == '\n')
+		if(c == '\n' && pushedio.bin == nil)
 			lexlineno++;
 		return c;
 	}
@@ -1038,7 +1027,8 @@ getc(void)
 		return EOF;
 
 	case '\n':
-		lexlineno++;
+		if(pushedio.bin == nil)
+			lexlineno++;
 		break;
 	}
 	return c;
@@ -1049,7 +1039,7 @@ ungetc(int c)
 {
 	curio.peekc1 = curio.peekc;
 	curio.peekc = c;
-	if(c == '\n')
+	if(c == '\n' && pushedio.bin == nil)
 		lexlineno--;
 }
 
@@ -1487,7 +1477,7 @@ mkpackage(char* pkg)
 					// name, so that the name cannot be redeclared
 					// as a non-package in other files.
 					if(!s->def->used) {
-						print("%s: imported and not used: %s\n", s->def->pline, s->def->sym->name);
+						print("%L: imported and not used: %s\n", s->def->lineno, s->def->sym->name);
 						nerrors++;
 					}
 					s->def = N;
@@ -1497,7 +1487,7 @@ mkpackage(char* pkg)
 					// throw away top-level name left over
 					// from previous import . "x"
 					if(s->def->pack != N && !s->def->pack->used) {
-						print("%s: imported and not used: %s\n", s->def->pack->pline, s->def->pack->sym->name);
+						print("%L: imported and not used: %s\n", s->def->pack->lineno, s->def->pack->sym->name);
 						nerrors++;
 						s->def->pack->used = 1;
 					}
