@@ -463,9 +463,15 @@ oldname(Sym *s)
 		n->op = ONONAME;
 		s->def = n;
 	}
+	if(n->oldref < 100)
+		n->oldref++;
 	if(n->funcdepth > 0 && n->funcdepth != funcdepth && n->op == ONAME) {
-		// inner func is referring to var
-		// in outer func.
+		// inner func is referring to var in outer func.
+		//
+		// TODO(rsc): If there is an outer variable x and we
+		// are parsing x := 5 inside the closure, until we get to
+		// the := it looks like a reference to the outer x so we'll
+		// make x a closure variable unnecessarily.
 		if(n->closure == N || n->closure->funcdepth != funcdepth) {
 			// create new closure var.
 			c = nod(ONAME, N, N);
@@ -554,6 +560,12 @@ colasdefn(NodeList *left, Node *defn)
 		}
 		if(n->sym->block == block)
 			continue;
+
+		// If we created an ONONAME just for this :=,
+		// delete it, to avoid confusion with top-level imports.
+		if(n->op == ONONAME && n->oldref < 100 && --n->oldref == 0)
+			n->sym->def = N;
+
 		nnew++;
 		n = newname(n->sym);
 		declare(n, dclcontext);

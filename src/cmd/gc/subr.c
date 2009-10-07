@@ -269,7 +269,7 @@ importdot(Sym *opkg, Node *pack)
 	}
 	if(n == 0) {
 		// can't possibly be used - there were no symbols
-		print("%L: imported and not used: %s\n", pack->pline, pack->sym->name);
+		print("%L: imported and not used: %s\n", pack->lineno, pack->sym->name);
 		nerrors++;
 	}
 }
