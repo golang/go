@@ -94,12 +94,22 @@ import (
 //   * If the XML element contains a sub-element whose name
 //      matches a struct field whose tag is neither "attr" nor "chardata",
 //      Unmarshal maps the sub-element to that struct field.
+//      Otherwise, if the struct has a field named Any, unmarshal
+//      maps the sub-element to that struct field.
 //
 // Unmarshal maps an XML element to a string or []byte by saving the
 // concatenation of that elements character data in the string or []byte.
 //
 // Unmarshal maps an XML element to a slice by extending the length
 // of the slice and mapping the element to the newly created value.
+//
+// Unmarshal maps an XML element to a bool by setting the bool to true.
+//
+// Unmarshal maps an XML element to an xml.Name by recording the
+// element name.
+//
+// Unmarshal maps an XML element to a pointer by setting the pointer
+// to a freshly allocated value and then mapping the element to that value.
 //
 func Unmarshal(r io.Reader, val interface{}) os.Error {
 	v, ok := reflect.NewValue(val).(*reflect.PtrValue);
@@ -108,14 +118,9 @@ func Unmarshal(r io.Reader, val interface{}) os.Error {
 	}
 	p := NewParser(r);
 	elem := v.Elem();
-	for {
-		err := p.unmarshal(elem, nil);
-		if err != nil {
-			if err == os.EOF {
-				break;
-			}
-			return err;
-		}
+	err := p.unmarshal(elem, nil);
+	if err != nil {
+		return err;
 	}
 	return nil;
 }
@@ -124,6 +129,20 @@ func Unmarshal(r io.Reader, val interface{}) os.Error {
 type UnmarshalError string
 func (e UnmarshalError) String() string {
 	return string(e);
+}
+
+// The Parser's Unmarshal method is like xml.Unmarshal
+// except that it can be passed a pointer to the initial start element,
+// useful when a client reads some raw XML tokens itself
+// but also defers to Unmarshal for some elements.
+// Passing a nil start element indicates that Unmarshal should
+// read the token stream to find the start element.
+func (p *Parser) Unmarshal(val interface{}, start *StartElement) os.Error {
+	v, ok := reflect.NewValue(val).(*reflect.PtrValue);
+	if !ok {
+		return os.NewError("non-pointer passed to Unmarshal");
+	}
+	return p.unmarshal(v.Elem(), start);
 }
 
 // Unmarshal a single XML element into val.
@@ -142,6 +161,12 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		}
 	}
 
+	if pv, ok := val.(*reflect.PtrValue); ok {
+		zv := reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem());
+		pv.PointTo(zv);
+		val = zv;
+	}
+
 	var (
 		data []byte;
 		saveData reflect.Value;
@@ -149,6 +174,9 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		styp *reflect.StructType;
 	)
 	switch v := val.(type) {
+	case *reflect.BoolValue:
+		v.Set(true);
+
 	case *reflect.SliceValue:
 		typ := v.Type().(*reflect.SliceType);
 		if _, ok := typ.Elem().(*reflect.Uint8Type); ok {
@@ -182,6 +210,11 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		saveData = v;
 
 	case *reflect.StructValue:
+		if _, ok := v.Interface().(Name); ok {
+			v.Set(reflect.NewValue(start.Name).(*reflect.StructValue));
+			break;
+		}
+
 		sv = v;
 		typ := sv.Type().(*reflect.StructType);
 		styp = typ;
@@ -257,8 +290,11 @@ Loop:
 		switch t := tok.(type) {
 		case StartElement:
 			// Sub-element.
+			// Look up by tag name.
+			// If that fails, fall back to mop-up field named "Any".
 			if sv != nil {
 				k := strings.ToLower(t.Name.Local);
+				any := -1;
 				for i, n := 0, styp.NumField(); i < n; i++ {
 					f := styp.Field(i);
 					if strings.ToLower(f.Name) == k {
@@ -267,10 +303,19 @@ Loop:
 						}
 						continue Loop;
 					}
+					if any < 0 && f.Name == "Any" {
+						any = i;
+					}
+				}
+				if any >= 0 {
+					if err := p.unmarshal(sv.FieldByIndex(styp.Field(any).Index), &t); err != nil {
+						return err;
+					}
+					continue Loop;
 				}
 			}
 			// Not saving sub-element but still have to skip over it.
-			if err := p.skip(); err != nil {
+			if err := p.Skip(); err != nil {
 				return err;
 			}
 
@@ -301,7 +346,7 @@ Loop:
 // Read tokens until we find the end element.
 // Token is taking care of making sure the
 // end element matches the start element we saw.
-func (p *Parser) skip() os.Error {
+func (p *Parser) Skip() os.Error {
 	for {
 		tok, err := p.Token();
 		if err != nil {
@@ -309,7 +354,7 @@ func (p *Parser) skip() os.Error {
 		}
 		switch t := tok.(type) {
 		case StartElement:
-			if err := p.skip(); err != nil {
+			if err := p.Skip(); err != nil {
 				return err;
 			}
 		case EndElement:
