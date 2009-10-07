@@ -23,11 +23,13 @@ import (
 
 // A cell represents a segment of text delineated by tabs, form-feed,
 // or newline chars. The text itself is stored in a separate buffer;
-// cell only describes the segment's size in bytes and width in runes.
+// cell only describes the segment's size in bytes, its width in runes,
+// and whether it's an htab ('\t') or vtab ('\v') terminated call.
 //
 type cell struct {
 	size int;  // cell size in bytes
 	width int;  // cell width in runes
+	htab bool;  // true if the cell is terminated by an htab ('\t')
 }
 
 
@@ -42,6 +44,12 @@ type cell struct {
 // aligning the columns. Note that cells are tab-terminated,
 // not tab-separated: trailing non-tab text at the end of a line
 // is not part of any cell.
+//
+// Horizontal and vertical tabs may be used to terminate a cell.
+// If DiscardEmptyColumns is set, empty columns that are terminated
+// entirely by vertical (or "soft") tabs are discarded. Columns
+// terminated by horizontal (or "hard") tabs are not affected by
+// this flag.
 //
 // The Writer assumes that all characters have the same width;
 // this may not be true in some fonts, especially with certain
@@ -314,16 +322,19 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 
 			// column block begin
 			width := b.cellwidth;  // minimal column width
-			wsum := 0;  // the sum of all unpadded cell widths in this column
+			discardable := true;  // true if all cells in this column are empty and "soft"
 			for ; this < line1; this++ {
 				line = b.line(this);
 				if column < line.Len() - 1 {
 					// cell exists in this column
-					w := line.At(column).(cell).width;
-					wsum += w;
+					c := line.At(column).(cell);
 					// update width
-					if t := w + b.padding; t > width {
-						width = t;
+					if w := c.width + b.padding; w > width {
+						width = w;
+					}
+					// update discardable
+					if c.width > 0 || c.htab {
+						discardable = false;
 					}
 				} else {
 					break
@@ -332,7 +343,7 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 			// column block end
 
 			// discard empty columns if necessary
-			if wsum == 0 && b.flags & DiscardEmptyColumns != 0 {
+			if discardable && b.flags & DiscardEmptyColumns != 0 {
 				width = 0;
 			}
 
@@ -391,7 +402,8 @@ func (b *Writer) terminateHTML() {
 // Terminate the current cell by adding it to the list of cells of the
 // current line. Returns the number of cells in that line.
 //
-func (b *Writer) terminateCell() int {
+func (b *Writer) terminateCell(htab bool) int {
+	b.cell.htab = htab;
 	line := b.line(b.lines.Len() - 1);
 	line.Push(b.cell);
 	b.cell = cell{};
@@ -411,7 +423,7 @@ func (b *Writer) Flush() os.Error {
 			// inside html tag/entity - terminate it even if incomplete
 			b.terminateHTML();
 		}
-		b.terminateCell();
+		b.terminateCell(false);
 	}
 
 	// format contents of buffer
@@ -435,12 +447,12 @@ func (b *Writer) Write(buf []byte) (written int, err os.Error) {
 		if b.html_char == 0 {
 			// outside html tag/entity
 			switch ch {
-			case '\t', '\n', '\f':
+			case '\t', '\v', '\n', '\f':
 				// end of cell
 				b.append(buf[i0 : i], true);
 				i0 = i+1;  // exclude ch from (next) cell
-				ncells := b.terminateCell();
-				if ch != '\t' {
+				ncells := b.terminateCell(ch == '\t');
+				if ch == '\n' || ch == '\f' {
 					// terminate line
 					b.addLine();
 					if ch == '\f' || ncells == 1 {
