@@ -86,7 +86,9 @@ func kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, time
 
 func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (errno int) {
 	var _p0 *_C_int;
-	if len(mib) > 0 { _p0 = &mib[0]; }
+	if len(mib) > 0 {
+		_p0 = &mib[0];
+	}
 	_, _, e1 := Syscall6(SYS___SYSCTL, uintptr(unsafe.Pointer(_p0)), uintptr(len(mib)), uintptr(unsafe.Pointer(old)), uintptr(unsafe.Pointer(oldlen)), uintptr(unsafe.Pointer(new)), uintptr(newlen));
 	errno = int(e1);
 	return;
@@ -166,7 +168,7 @@ func Exchangedata(path1 string, path2 string, options int) (errno int) {
 	return;
 }
 
-func Exit(code int) () {
+func Exit(code int) {
 	Syscall(SYS_EXIT, uintptr(code), 0, 0);
 	return;
 }
@@ -227,14 +229,16 @@ func Fsync(fd int) (errno int) {
 }
 
 func Ftruncate(fd int, length int64) (errno int) {
-	_, _, e1 := Syscall(SYS_FTRUNCATE, uintptr(fd), uintptr(length), uintptr(length >> 32));
+	_, _, e1 := Syscall(SYS_FTRUNCATE, uintptr(fd), uintptr(length), uintptr(length>>32));
 	errno = int(e1);
 	return;
 }
 
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, errno int) {
 	var _p0 *byte;
-	if len(buf) > 0 { _p0 = &buf[0]; }
+	if len(buf) > 0 {
+		_p0 = &buf[0];
+	}
 	r0, _, e1 := Syscall6(SYS_GETDIRENTRIES64, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(unsafe.Pointer(basep)), 0, 0);
 	n = int(r0);
 	errno = int(e1);
@@ -261,7 +265,9 @@ func Geteuid() (uid int) {
 
 func Getfsstat(buf []Statfs_t, flags int) (n int, errno int) {
 	var _p0 *Statfs_t;
-	if len(buf) > 0 { _p0 = &buf[0]; }
+	if len(buf) > 0 {
+		_p0 = &buf[0];
+	}
 	r0, _, e1 := Syscall(SYS_GETFSSTAT64, uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags));
 	n = int(r0);
 	errno = int(e1);
@@ -408,8 +414,10 @@ func Pathconf(path string, name int) (val int, errno int) {
 
 func Pread(fd int, p []byte, offset int64) (n int, errno int) {
 	var _p0 *byte;
-	if len(p) > 0 { _p0 = &p[0]; }
-	r0, _, e1 := Syscall6(SYS_PREAD, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset >> 32), 0);
+	if len(p) > 0 {
+		_p0 = &p[0];
+	}
+	r0, _, e1 := Syscall6(SYS_PREAD, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0);
 	n = int(r0);
 	errno = int(e1);
 	return;
@@ -417,8 +425,10 @@ func Pread(fd int, p []byte, offset int64) (n int, errno int) {
 
 func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
 	var _p0 *byte;
-	if len(p) > 0 { _p0 = &p[0]; }
-	r0, _, e1 := Syscall6(SYS_PWRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset >> 32), 0);
+	if len(p) > 0 {
+		_p0 = &p[0];
+	}
+	r0, _, e1 := Syscall6(SYS_PWRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), uintptr(offset>>32), 0);
 	n = int(r0);
 	errno = int(e1);
 	return;
@@ -426,7 +436,9 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
 
 func Read(fd int, p []byte) (n int, errno int) {
 	var _p0 *byte;
-	if len(p) > 0 { _p0 = &p[0]; }
+	if len(p) > 0 {
+		_p0 = &p[0];
+	}
 	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)));
 	n = int(r0);
 	errno = int(e1);
@@ -435,7 +447,9 @@ func Read(fd int, p []byte) (n int, errno int) {
 
 func Readlink(path string, buf []byte) (n int, errno int) {
 	var _p0 *byte;
-	if len(buf) > 0 { _p0 = &buf[0]; }
+	if len(buf) > 0 {
+		_p0 = &buf[0];
+	}
 	r0, _, e1 := Syscall(SYS_READLINK, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)));
 	n = int(r0);
 	errno = int(e1);
@@ -461,7 +475,7 @@ func Rmdir(path string) (errno int) {
 }
 
 func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
-	r0, r1, _ := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset >> 32), uintptr(whence), 0, 0);
+	r0, r1, _ := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset>>32), uintptr(whence), 0, 0);
 	newoffset = int64(int64(r1)<<32 | int64(r0));
 	return;
 }
@@ -576,7 +590,7 @@ func Sync() (errno int) {
 }
 
 func Truncate(path string, length int64) (errno int) {
-	_, _, e1 := Syscall(SYS_TRUNCATE, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(length), uintptr(length >> 32));
+	_, _, e1 := Syscall(SYS_TRUNCATE, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(length), uintptr(length>>32));
 	errno = int(e1);
 	return;
 }
@@ -607,7 +621,9 @@ func Unmount(path string, flags int) (errno int) {
 
 func Write(fd int, p []byte) (n int, errno int) {
 	var _p0 *byte;
-	if len(p) > 0 { _p0 = &p[0]; }
+	if len(p) > 0 {
+		_p0 = &p[0];
+	}
 	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)));
 	n = int(r0);
 	errno = int(e1);
@@ -635,6 +651,3 @@ func gettimeofday(tp *Timeval) (sec int32, usec int32, errno int) {
 	errno = int(e1);
 	return;
 }
-
-
-

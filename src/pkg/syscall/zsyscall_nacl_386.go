@@ -23,7 +23,7 @@ func Close(fd int) (errno int) {
 	return;
 }
 
-func Exit(code int) () {
+func Exit(code int) {
 	Syscall(SYS_EXIT, uintptr(code), 0, 0);
 	return;
 }
@@ -36,7 +36,9 @@ func Fstat(fd int, stat *Stat_t) (errno int) {
 
 func Getdents(fd int, buf []byte) (n int, errno int) {
 	var _p0 *byte;
-	if len(buf) > 0 { _p0 = &buf[0]; }
+	if len(buf) > 0 {
+		_p0 = &buf[0];
+	}
 	r0, _, e1 := Syscall(SYS_GETDENTS, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)));
 	n = int(r0);
 	errno = int(e1);
@@ -64,7 +66,9 @@ func Open(path string, mode int, perm int) (fd int, errno int) {
 
 func Read(fd int, p []byte) (n int, errno int) {
 	var _p0 *byte;
-	if len(p) > 0 { _p0 = &p[0]; }
+	if len(p) > 0 {
+		_p0 = &p[0];
+	}
 	r0, _, e1 := Syscall(SYS_READ, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)));
 	n = int(r0);
 	errno = int(e1);
@@ -86,7 +90,9 @@ func Stat(path string, stat *Stat_t) (errno int) {
 
 func Write(fd int, p []byte) (n int, errno int) {
 	var _p0 *byte;
-	if len(p) > 0 { _p0 = &p[0]; }
+	if len(p) > 0 {
+		_p0 = &p[0];
+	}
 	r0, _, e1 := Syscall(SYS_WRITE, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)));
 	n = int(r0);
 	errno = int(e1);
@@ -221,6 +227,3 @@ func AudioStream(data *uint16, size *uintptr) (errno int) {
 	errno = int(e1);
 	return;
 }
-
-
-
