@@ -107,7 +107,9 @@ importpath=$(make -s importpath)
 	echo
 	# imports
 	if echo "$tests" | egrep -v '_test\.' >/dev/null; then
-		echo 'import "'$importpath'"'
+		if [ "$importpath" != "testing" ]; then
+			echo 'import "'$importpath'"'
+		fi
 	fi
 	if $havex; then
 		echo 'import "./_xtest_"'
