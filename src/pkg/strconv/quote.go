@@ -43,23 +43,23 @@ func Quote(s string) string {
 			t += `\v`;
 
 		case c < utf8.RuneSelf:
-			t += `\x` + string(lowerhex[c>>4]) + string(lowerhex[c&0xF]);
+			t += `\x`+string(lowerhex[c>>4])+string(lowerhex[c&0xF]);
 
 		case utf8.FullRuneInString(s):
 			r, size := utf8.DecodeRuneInString(s);
 			if r == utf8.RuneError && size == 1 {
 				goto EscX;
 			}
-			s = s[size-1:len(s)];	// next iteration will slice off 1 more
+			s = s[size-1 : len(s)];	// next iteration will slice off 1 more
 			if r < 0x10000 {
 				t += `\u`;
-				for j:=uint(0); j<4; j++ {
-					t += string(lowerhex[(r>>(12-4*j))&0xF]);
+				for j := uint(0); j < 4; j++ {
+					t += string(lowerhex[(r>>(12 - 4*j))&0xF]);
 				}
 			} else {
 				t += `\U`;
-				for j:=uint(0); j<8; j++ {
-					t += string(lowerhex[(r>>(28-4*j))&0xF]);
+				for j := uint(0); j < 8; j++ {
+					t += string(lowerhex[(r>>(28 - 4*j))&0xF]);
 				}
 			}
 
@@ -89,18 +89,18 @@ func unhex(b byte) (v int, ok bool) {
 	c := int(b);
 	switch {
 	case '0' <= c && c <= '9':
-		return c - '0', true;
+		return c-'0', true;
 	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10, true;
+		return c-'a'+10, true;
 	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10, true;
+		return c-'A'+10, true;
 	}
 	return;
 }
 
 // UnquoteChar decodes the first character or byte in the escaped string
 // or character literal represented by the string s.
-// It returns four values: 
+// It returns four values:
 // 1) value, the decoded Unicode code point or byte value;
 // 2) multibyte, a boolean indicating whether the decoded character
 //    requires a multibyte UTF-8 representation;
@@ -183,17 +183,17 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 		value = v;
 		multibyte = true;
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		v := int(c) - '0';
+		v := int(c)-'0';
 		if len(s) < 2 {
 			err = os.EINVAL;
 			return;
 		}
 		for j := 0; j < 2; j++ {	// one digit already; two more
-			x := int(s[j]) - '0';
+			x := int(s[j])-'0';
 			if x < 0 || x > 7 {
 				return;
 			}
-			v = (v<<3) | x;
+			v = (v<<3)|x;
 		}
 		s = s[2:len(s)];
 		if v > 255 {
@@ -223,7 +223,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 // character literal; Unquote returns the corresponding
 // one-character string.)
 func Unquote(s string) (t string, err os.Error) {
-	err = os.EINVAL;  // assume error for easy return
+	err = os.EINVAL;	// assume error for easy return
 	n := len(s);
 	if n < 2 {
 		return;
@@ -232,7 +232,7 @@ func Unquote(s string) (t string, err os.Error) {
 	if quote != s[n-1] {
 		return;
 	}
-	s = s[1:n-1];
+	s = s[1 : n-1];
 
 	if quote == '`' {
 		return s, nil;
@@ -260,5 +260,5 @@ func Unquote(s string) (t string, err os.Error) {
 			return;
 		}
 	}
-	return tt, nil
+	return tt, nil;
 }

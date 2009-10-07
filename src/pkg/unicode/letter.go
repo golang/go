@@ -6,7 +6,7 @@
 package unicode
 
 const (
-	MaxRune	= 0x10FFFF;	// Maximum valid Unicode code point.
+	MaxRune		= 0x10FFFF;	// Maximum valid Unicode code point.
 	ReplacementChar	= 0xFFFD;	// Represents invalid code points.
 )
 
@@ -36,18 +36,19 @@ type CaseRange struct {
 
 // Indices into the Delta arrays inside CaseRanges for case mapping.
 const (
-	UpperCase = iota;
+	UpperCase	= iota;
 	LowerCase;
 	TitleCase;
 	MaxCase;
 )
+
 type d [MaxCase]int32	// to make the CaseRanges text shorter
 
 // If the Delta field of a CaseRange is UpperLower or LowerUpper, it means
 // this CaseRange represents a sequence of the form (say)
 // Upper Lower Upper Lower.
 const (
-	UpperLower      = MaxRune + 1;	// (Cannot be a valid delta.)
+	UpperLower = MaxRune+1;	// (Cannot be a valid delta.)
 )
 
 // Is tests whether rune is in the specified table of ranges.
@@ -70,7 +71,7 @@ func Is(ranges []Range, rune int) bool {
 	lo := 0;
 	hi := len(ranges);
 	for lo < hi {
-		m := lo + (hi - lo)/2;
+		m := lo + (hi-lo)/2;
 		r := ranges[m];
 		if r.Lo <= rune && rune <= r.Hi {
 			return (rune - r.Lo) % r.Stride == 0;
@@ -132,13 +133,13 @@ func IsSpace(rune int) bool {
 // To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase
 func To(_case int, rune int) int {
 	if _case < 0 || MaxCase <= _case {
-		return ReplacementChar	// as reasonable an error as any
+		return ReplacementChar;	// as reasonable an error as any
 	}
 	// binary search over ranges
 	lo := 0;
 	hi := len(CaseRanges);
 	for lo < hi {
-		m := lo + (hi - lo)/2;
+		m := lo + (hi-lo)/2;
 		r := CaseRanges[m];
 		if r.Lo <= rune && rune <= r.Hi {
 			delta := int(r.Delta[_case]);
@@ -155,7 +156,7 @@ func To(_case int, rune int) int {
 				// is odd so we take the low bit from _case.
 				return r.Lo + ((rune - r.Lo)&^1 | _case&1);
 			}
-			return rune + delta;
+			return rune+delta;
 		}
 		if rune < r.Lo {
 			hi = m;
@@ -170,9 +171,9 @@ func To(_case int, rune int) int {
 func ToUpper(rune int) int {
 	if rune < 0x80 {	// quick ASCII check
 		if 'a' <= rune && rune <= 'z' {
-			rune -= 'a'-'A'
+			rune -= 'a'-'A';
 		}
-		return rune
+		return rune;
 	}
 	return To(UpperCase, rune);
 }
@@ -181,9 +182,9 @@ func ToUpper(rune int) int {
 func ToLower(rune int) int {
 	if rune < 0x80 {	// quick ASCII check
 		if 'A' <= rune && rune <= 'Z' {
-			rune += 'a'-'A'
+			rune += 'a'-'A';
 		}
-		return rune
+		return rune;
 	}
 	return To(LowerCase, rune);
 }
@@ -192,9 +193,9 @@ func ToLower(rune int) int {
 func ToTitle(rune int) int {
 	if rune < 0x80 {	// quick ASCII check
 		if 'a' <= rune && rune <= 'z' {	// title case is upper case for ASCII
-			rune -= 'a'-'A'
+			rune -= 'a'-'A';
 		}
-		return rune
+		return rune;
 	}
 	return To(TitleCase, rune);
 }

@@ -123,22 +123,22 @@ import (
 
 // Precompute the reflect type for os.Error.  Can't use os.Error directly
 // because Typeof takes an empty interface value.  This is annoying.
-var unusedError *os.Error;
+var unusedError *os.Error
 var typeOfOsError = reflect.Typeof(unusedError).(*reflect.PtrType).Elem()
 
 type methodType struct {
 	sync.Mutex;	// protects counters
-	method	reflect.Method;
-	argType	*reflect.PtrType;
+	method		reflect.Method;
+	argType		*reflect.PtrType;
 	replyType	*reflect.PtrType;
 	numCalls	uint;
 }
 
 type service struct {
-	name	string;	// name of service
-	rcvr	reflect.Value;	// receiver of methods for the service
-	typ	reflect.Type;	// type of the receiver
-	method	map[string] *methodType;	// registered methods
+	name	string;			// name of service
+	rcvr	reflect.Value;		// receiver of methods for the service
+	typ	reflect.Type;		// type of the receiver
+	method	map[string]*methodType;	// registered methods
 }
 
 // Request is a header written before every RPC call.  It is used internally
@@ -146,7 +146,7 @@ type service struct {
 // network traffic.
 type Request struct {
 	ServiceMethod	string;	// format: "Service.Method"
-	Seq	uint64;	// sequence number chosen by client
+	Seq		uint64;	// sequence number chosen by client
 }
 
 // Response is a header written before every RPC return.  It is used internally
@@ -154,38 +154,38 @@ type Request struct {
 // network traffic.
 type Response struct {
 	ServiceMethod	string;	// echoes that of the Request
-	Seq	uint64;	// echoes that of the request
-	Error	string;	// error, if any.
+	Seq		uint64;	// echoes that of the request
+	Error		string;	// error, if any.
 }
 
 type serverType struct {
 	sync.Mutex;	// protects the serviceMap
-	serviceMap	map[string] *service;
+	serviceMap	map[string]*service;
 }
 
 // This variable is a global whose "public" methods are really private methods
 // called from the global functions of this package: rpc.Register, rpc.ServeConn, etc.
 // For example, rpc.Register() calls server.add().
-var server = &serverType{ serviceMap: make(map[string] *service) }
+var server = &serverType{serviceMap: make(map[string]*service)}
 
 // Is this a publicly vislble - upper case - name?
 func isPublic(name string) bool {
 	rune, _ := utf8.DecodeRuneInString(name);
-	return unicode.IsUpper(rune)
+	return unicode.IsUpper(rune);
 }
 
 func (server *serverType) register(rcvr interface{}) os.Error {
 	server.Lock();
 	defer server.Unlock();
 	if server.serviceMap == nil {
-		server.serviceMap = make(map[string] *service);
+		server.serviceMap = make(map[string]*service);
 	}
 	s := new(service);
 	s.typ = reflect.Typeof(rcvr);
 	s.rcvr = reflect.NewValue(rcvr);
 	sname := reflect.Indirect(s.rcvr).Type().Name();
 	if sname == "" {
-		log.Exit("rpc: no service name for type", s.typ.String())
+		log.Exit("rpc: no service name for type", s.typ.String());
 	}
 	if !isPublic(sname) {
 		s := "rpc Register: type " + sname + " is not public";
@@ -196,7 +196,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
 		return os.ErrorString("rpc: service already defined: " + sname);
 	}
 	s.name = sname;
-	s.method = make(map[string] *methodType);
+	s.method = make(map[string]*methodType);
 
 	// Install the methods
 	for m := 0; m < s.typ.NumMethod(); m++ {
@@ -204,7 +204,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
 		mtype := method.Type;
 		mname := method.Name;
 		if !isPublic(mname) {
-			continue
+			continue;
 		}
 		// Method needs three ins: receiver, *args, *reply.
 		// The args and reply must be structs until gobs are more general.
@@ -261,8 +261,9 @@ func (server *serverType) register(rcvr interface{}) os.Error {
 
 // A value sent as a placeholder for the response when the server receives an invalid request.
 type InvalidRequest struct {
-	marker int
+	marker int;
 }
+
 var invalidRequest = InvalidRequest{1}
 
 func _new(t *reflect.PtrType) *reflect.PtrValue {
@@ -370,21 +371,21 @@ func (server *serverType) accept(lis net.Listener) {
 // It returns an error if the receiver is not public or has no
 // suitable methods.
 func Register(rcvr interface{}) os.Error {
-	return server.register(rcvr)
+	return server.register(rcvr);
 }
 
 // ServeConn runs the server on a single connection.  When the connection
 // completes, service terminates.  ServeConn blocks; the caller typically
 // invokes it in a go statement.
 func ServeConn(conn io.ReadWriteCloser) {
-	go server.input(conn)
+	go server.input(conn);
 }
 
 // Accept accepts connections on the listener and serves requests
 // for each incoming connection.  Accept blocks; the caller typically
 // invokes it in a go statement.
 func Accept(lis net.Listener) {
-	server.accept(lis)
+	server.accept(lis);
 }
 
 // Can connect to RPC service using HTTP CONNECT to rpcPath.

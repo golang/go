@@ -16,8 +16,8 @@ func semrelease(*int32)
 // Mutexes can be created as part of other structures;
 // the zero value for a Mutex is an unlocked mutex.
 type Mutex struct {
-	key int32;
-	sema int32;
+	key	int32;
+	sema	int32;
 }
 
 func xadd(val *int32, delta int32) (new int32) {
@@ -27,7 +27,7 @@ func xadd(val *int32, delta int32) (new int32) {
 			return v+delta;
 		}
 	}
-	panic("unreached")
+	panic("unreached");
 }
 
 // Lock locks m.
@@ -111,4 +111,3 @@ func (rw *RWMutex) Lock() {
 func (rw *RWMutex) Unlock() {
 	rw.m.Unlock();
 }
-

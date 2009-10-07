@@ -23,14 +23,14 @@ package time
 // A Ticker holds a synchronous channel that delivers `ticks' of a clock
 // at intervals.
 type Ticker struct {
-	C	<-chan int64;	// The channel on which the ticks are delivered.
-	ns	int64;
+	C		<-chan int64;	// The channel on which the ticks are delivered.
+	ns		int64;
 	shutdown	bool;
 }
 
 // Stop turns off a ticker.  After Stop, no more ticks will be delivered.
 func (t *Ticker) Stop() {
-	t.shutdown = true
+	t.shutdown = true;
 }
 
 func (t *Ticker) ticker(c chan<- int64) {
@@ -42,14 +42,14 @@ func (t *Ticker) ticker(c chan<- int64) {
 		// if c <- now took too long, skip ahead
 		if when < now {
 			// one big step
-			when += (now-when)/t.ns * t.ns;
+			when += (now-when) / t.ns * t.ns;
 		}
 		for when <= now {
 			// little steps until when > now
-			when += t.ns
+			when += t.ns;
 		}
 
-		Sleep(when - now);
+		Sleep(when-now);
 		now = Nanoseconds();
 		if t.shutdown {
 			return;
@@ -62,7 +62,7 @@ func (t *Ticker) ticker(c chan<- int64) {
 // channel only.  Useful for clients that have no need to shut down the ticker.
 func Tick(ns int64) <-chan int64 {
 	if ns <= 0 {
-		return nil
+		return nil;
 	}
 	return NewTicker(ns).C;
 }
@@ -72,7 +72,7 @@ func Tick(ns int64) <-chan int64 {
 // intervals to make up for pauses in delivery of the ticks.
 func NewTicker(ns int64) *Ticker {
 	if ns <= 0 {
-		return nil
+		return nil;
 	}
 	c := make(chan int64);
 	t := &Ticker{c, ns, false};

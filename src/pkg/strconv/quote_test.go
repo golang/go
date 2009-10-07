@@ -5,23 +5,23 @@
 package strconv_test
 
 import (
-	"os";
-	. "strconv";
-	"testing";
+		"os";
+	.	"strconv";
+		"testing";
 )
 
 type quoteTest struct {
-	in string;
-	out string;
+	in	string;
+	out	string;
 }
 
-var quotetests = []quoteTest {
-	quoteTest{ "\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"` },
-	quoteTest{ "\\", `"\\"` },
-	quoteTest{ "abc\xffdef", `"abc\xffdef"` },
-	quoteTest{ "\u263a", `"\u263a"` },
-	quoteTest{ "\U0010ffff", `"\U0010ffff"` },
-	quoteTest{ "\x04", `"\x04"` },
+var quotetests = []quoteTest{
+	quoteTest{"\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"`},
+	quoteTest{"\\", `"\\"`},
+	quoteTest{"abc\xffdef", `"abc\xffdef"`},
+	quoteTest{"\u263a", `"\u263a"`},
+	quoteTest{"\U0010ffff", `"\U0010ffff"`},
+	quoteTest{"\x04", `"\x04"`},
 }
 
 func TestQuote(t *testing.T) {
@@ -34,49 +34,49 @@ func TestQuote(t *testing.T) {
 }
 
 type canBackquoteTest struct {
-	in string;
-	out bool;
+	in	string;
+	out	bool;
 }
 
-var canbackquotetests = []canBackquoteTest {
-	canBackquoteTest{ "`", false },
-	canBackquoteTest{ string(0), false },
-	canBackquoteTest{ string(1), false },
-	canBackquoteTest{ string(2), false },
-	canBackquoteTest{ string(3), false },
-	canBackquoteTest{ string(4), false },
-	canBackquoteTest{ string(5), false },
-	canBackquoteTest{ string(6), false },
-	canBackquoteTest{ string(7), false },
-	canBackquoteTest{ string(8), false },
-	canBackquoteTest{ string(9), true },	// \t
-	canBackquoteTest{ string(10), false },
-	canBackquoteTest{ string(11), false },
-	canBackquoteTest{ string(12), false },
-	canBackquoteTest{ string(13), false },
-	canBackquoteTest{ string(14), false },
-	canBackquoteTest{ string(15), false },
-	canBackquoteTest{ string(16), false },
-	canBackquoteTest{ string(17), false },
-	canBackquoteTest{ string(18), false },
-	canBackquoteTest{ string(19), false },
-	canBackquoteTest{ string(20), false },
-	canBackquoteTest{ string(21), false },
-	canBackquoteTest{ string(22), false },
-	canBackquoteTest{ string(23), false },
-	canBackquoteTest{ string(24), false },
-	canBackquoteTest{ string(25), false },
-	canBackquoteTest{ string(26), false },
-	canBackquoteTest{ string(27), false },
-	canBackquoteTest{ string(28), false },
-	canBackquoteTest{ string(29), false },
-	canBackquoteTest{ string(30), false },
-	canBackquoteTest{ string(31), false },
-	canBackquoteTest{ `' !"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, true },
-	canBackquoteTest{ `0123456789`, true },
-	canBackquoteTest{ `ABCDEFGHIJKLMNOPQRSTUVWXYZ`, true },
-	canBackquoteTest{ `abcdefghijklmnopqrstuvwxyz`, true },
-	canBackquoteTest{ `☺`, true },
+var canbackquotetests = []canBackquoteTest{
+	canBackquoteTest{"`", false},
+	canBackquoteTest{string(0), false},
+	canBackquoteTest{string(1), false},
+	canBackquoteTest{string(2), false},
+	canBackquoteTest{string(3), false},
+	canBackquoteTest{string(4), false},
+	canBackquoteTest{string(5), false},
+	canBackquoteTest{string(6), false},
+	canBackquoteTest{string(7), false},
+	canBackquoteTest{string(8), false},
+	canBackquoteTest{string(9), true},	// \t
+	canBackquoteTest{string(10), false},
+	canBackquoteTest{string(11), false},
+	canBackquoteTest{string(12), false},
+	canBackquoteTest{string(13), false},
+	canBackquoteTest{string(14), false},
+	canBackquoteTest{string(15), false},
+	canBackquoteTest{string(16), false},
+	canBackquoteTest{string(17), false},
+	canBackquoteTest{string(18), false},
+	canBackquoteTest{string(19), false},
+	canBackquoteTest{string(20), false},
+	canBackquoteTest{string(21), false},
+	canBackquoteTest{string(22), false},
+	canBackquoteTest{string(23), false},
+	canBackquoteTest{string(24), false},
+	canBackquoteTest{string(25), false},
+	canBackquoteTest{string(26), false},
+	canBackquoteTest{string(27), false},
+	canBackquoteTest{string(28), false},
+	canBackquoteTest{string(29), false},
+	canBackquoteTest{string(30), false},
+	canBackquoteTest{string(31), false},
+	canBackquoteTest{`' !"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, true},
+	canBackquoteTest{`0123456789`, true},
+	canBackquoteTest{`ABCDEFGHIJKLMNOPQRSTUVWXYZ`, true},
+	canBackquoteTest{`abcdefghijklmnopqrstuvwxyz`, true},
+	canBackquoteTest{`☺`, true},
 }
 
 func TestCanBackquote(t *testing.T) {
@@ -88,45 +88,45 @@ func TestCanBackquote(t *testing.T) {
 	}
 }
 
-var unquotetests = []quoteTest {
-	quoteTest{ `""`, "" },
-	quoteTest{ `"a"`, "a" },
-	quoteTest{ `"abc"`, "abc" },
-	quoteTest{ `"☺"`, "☺" },
-	quoteTest{ `"hello world"`, "hello world" },
-	quoteTest{ `"\xFF"`, "\xFF" },
-	quoteTest{ `"\377"`, "\377" },
-	quoteTest{ `"\u1234"`, "\u1234" },
-	quoteTest{ `"\U00010111"`, "\U00010111" },
-	quoteTest{ `"\U0001011111"`, "\U0001011111" },
-	quoteTest{ `"\a\b\f\n\r\t\v\\\""`, "\a\b\f\n\r\t\v\\\"" },
-	quoteTest{ `"'"`, "'" },
+var unquotetests = []quoteTest{
+	quoteTest{`""`, ""},
+	quoteTest{`"a"`, "a"},
+	quoteTest{`"abc"`, "abc"},
+	quoteTest{`"☺"`, "☺"},
+	quoteTest{`"hello world"`, "hello world"},
+	quoteTest{`"\xFF"`, "\xFF"},
+	quoteTest{`"\377"`, "\377"},
+	quoteTest{`"\u1234"`, "\u1234"},
+	quoteTest{`"\U00010111"`, "\U00010111"},
+	quoteTest{`"\U0001011111"`, "\U0001011111"},
+	quoteTest{`"\a\b\f\n\r\t\v\\\""`, "\a\b\f\n\r\t\v\\\""},
+	quoteTest{`"'"`, "'"},
 
-	quoteTest{ `'a'`, "a" },
-	quoteTest{ `'☹'`, "☹" },
-	quoteTest{ `'\a'`, "\a" },
-	quoteTest{ `'\x10'`, "\x10" },
-	quoteTest{ `'\377'`, "\377" },
-	quoteTest{ `'\u1234'`, "\u1234" },
-	quoteTest{ `'\U00010111'`, "\U00010111" },
-	quoteTest{ `'\t'`, "\t" },
-	quoteTest{ `' '`, " " },
-	quoteTest{ `'\''`, "'" },
-	quoteTest{ `'"'`, "\"" },
+	quoteTest{`'a'`, "a"},
+	quoteTest{`'☹'`, "☹"},
+	quoteTest{`'\a'`, "\a"},
+	quoteTest{`'\x10'`, "\x10"},
+	quoteTest{`'\377'`, "\377"},
+	quoteTest{`'\u1234'`, "\u1234"},
+	quoteTest{`'\U00010111'`, "\U00010111"},
+	quoteTest{`'\t'`, "\t"},
+	quoteTest{`' '`, " "},
+	quoteTest{`'\''`, "'"},
+	quoteTest{`'"'`, "\""},
 
-	quoteTest{ "``", `` },
-	quoteTest{ "`a`", `a` },
-	quoteTest{ "`abc`", `abc` },
-	quoteTest{ "`☺`", `☺` },
-	quoteTest{ "`hello world`", `hello world` },
-	quoteTest{ "`\\xFF`", `\xFF` },
-	quoteTest{ "`\\377`", `\377` },
-	quoteTest{ "`\\`", `\` },
-	quoteTest{ "`	`", `	` },
-	quoteTest{ "` `", ` ` },
+	quoteTest{"``", ``},
+	quoteTest{"`a`", `a`},
+	quoteTest{"`abc`", `abc`},
+	quoteTest{"`☺`", `☺`},
+	quoteTest{"`hello world`", `hello world`},
+	quoteTest{"`\\xFF`", `\xFF`},
+	quoteTest{"`\\377`", `\377`},
+	quoteTest{"`\\`", `\`},
+	quoteTest{"`	`", `	`},
+	quoteTest{"` `", ` `},
 }
 
-var misquoted = []string {
+var misquoted = []string{
 	``,
 	`"`,
 	`"a`,

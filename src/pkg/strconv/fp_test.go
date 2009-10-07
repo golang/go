@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 package strconv_test
+
 import (
 	"bufio";
 	"fmt";
@@ -21,7 +22,7 @@ func pow2(i int) float64 {
 	case i == 1:
 		return 2;
 	}
-	return pow2(i/2) * pow2(i-i/2);
+	return pow2(i/2) * pow2(i - i/2);
 }
 
 // Wrapper around strconv.Atof64.  Handles dddddp+ddd (binary exponent)
@@ -110,10 +111,10 @@ func TestFp(t *testing.T) {
 		if err2 != nil {
 			panicln("testfp: read testfp.txt:", err2.String());
 		}
-		line = line[0:len(line)-1];
+		line = line[0 : len(line)-1];
 		lineno++;
 		if len(line) == 0 || line[0] == '#' {
-			continue
+			continue;
 		}
 		a := strings.Split(line, " ", 0);
 		if len(a) != 4 {

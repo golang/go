@@ -15,4 +15,3 @@ func SetOptimize(b bool) bool {
 	optimize = b;
 	return old;
 }
-

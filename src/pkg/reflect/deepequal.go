@@ -12,10 +12,10 @@ package reflect
 // checks in progress are true when it reencounters them.
 // Visited are stored in a map indexed by 17 * a1 + a2;
 type visit struct {
-	a1 uintptr;
-	a2 uintptr;
-	typ Type;
-	next *visit;
+	a1	uintptr;
+	a2	uintptr;
+	typ	Type;
+	next	*visit;
 }
 
 // Tests for deep equality using reflected types. The map argument tracks
@@ -23,7 +23,7 @@ type visit struct {
 // recursive types.
 func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 	if v1 == nil || v2 == nil {
-		return v1 == v2
+		return v1 == v2;
 	}
 	if v1.Type() != v2.Type() {
 		return false;
@@ -44,7 +44,7 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 	}
 
 	// ... or already seen
-	h := 17 * addr1 + addr2;
+	h := 17*addr1 + addr2;
 	seen, _ := visited[h];
 	typ := v1.Type();
 	for p := seen; p != nil; p = p.next {
@@ -93,7 +93,7 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) bool {
 	case *StructValue:
 		struct1 := v;
 		struct2 := v2.(*StructValue);
-		for i, n:= 0, v.NumField(); i < n; i++ {
+		for i, n := 0, v.NumField(); i < n; i++ {
 			if !deepValueEqual(struct1.Field(i), struct2.Field(i), visited, depth+1) {
 				return false;
 			}

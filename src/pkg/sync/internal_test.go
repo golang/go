@@ -7,9 +7,9 @@
 package sync
 
 func Semacquire(s *int32) {
-	semacquire(s)
+	semacquire(s);
 }
 
 func Semrelease(s *int32) {
-	semrelease(s)
+	semrelease(s);
 }

@@ -7,7 +7,7 @@ package unicode
 // IsDigit reports whether the rune is a decimal digit.
 func IsDigit(rune int) bool {
 	if rune < 0x100 {	// quick ASCII (Latin-1, really) check
-		return '0' <= rune && rune <= '9'
+		return '0' <= rune && rune <= '9';
 	}
 	return Is(Digit, rune);
 }

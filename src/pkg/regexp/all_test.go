@@ -35,22 +35,23 @@ type stringError struct {
 	re	string;
 	err	os.Error;
 }
+
 var bad_re = []stringError{
-	stringError{ `*`,	 	ErrBareClosure },
-	stringError{ `(abc`,	ErrUnmatchedLpar },
-	stringError{ `abc)`,	ErrUnmatchedRpar },
-	stringError{ `x[a-z`,	ErrUnmatchedLbkt },
-	stringError{ `abc]`,	ErrUnmatchedRbkt },
-	stringError{ `[z-a]`,	ErrBadRange },
-	stringError{ `abc\`,	ErrExtraneousBackslash },
-	stringError{ `a**`,	ErrBadClosure },
-	stringError{ `a*+`,	ErrBadClosure },
-	stringError{ `a??`,	ErrBadClosure },
-	stringError{ `*`,	 	ErrBareClosure },
-	stringError{ `\x`,	ErrBadBackslash },
+	stringError{`*`, ErrBareClosure},
+	stringError{`(abc`, ErrUnmatchedLpar},
+	stringError{`abc)`, ErrUnmatchedRpar},
+	stringError{`x[a-z`, ErrUnmatchedLbkt},
+	stringError{`abc]`, ErrUnmatchedRbkt},
+	stringError{`[z-a]`, ErrBadRange},
+	stringError{`abc\`, ErrExtraneousBackslash},
+	stringError{`a**`, ErrBadClosure},
+	stringError{`a*+`, ErrBadClosure},
+	stringError{`a??`, ErrBadClosure},
+	stringError{`*`, ErrBareClosure},
+	stringError{`\x`, ErrBadBackslash},
 }
 
-type vec []int;
+type vec []int
 
 type tester struct {
 	re	string;
@@ -58,33 +59,33 @@ type tester struct {
 	match	vec;
 }
 
-var matches = []tester {
-	tester{ ``,	"",	vec{0,0} },
-	tester{ `a`,	"a",	vec{0,1} },
-	tester{ `x`,	"y",	vec{} },
-	tester{ `b`,	"abc",	vec{1,2} },
-	tester{ `.`,	"a",	vec{0,1} },
-	tester{ `.*`,	"abcdef",	vec{0,6} },
-	tester{ `^abcd$`,	"abcd",	vec{0,4} },
-	tester{ `^bcd'`,	"abcdef",	vec{} },
-	tester{ `^abcd$`,	"abcde",	vec{} },
-	tester{ `a+`,	"baaab",	vec{1,4} },
-	tester{ `a*`,	"baaab",	vec{0,0} },
-	tester{ `[a-z]+`,	"abcd",	vec{0,4} },
-	tester{ `[^a-z]+`,	"ab1234cd",	vec{2,6} },
-	tester{ `[a\-\]z]+`,	"az]-bcz",	vec{0,4} },
-	tester{ `[^\n]+`,	"abcd\n",	vec{0,4} },
-	tester{ `[日本語]+`,	"日本語日本語",	vec{0,18} },
-	tester{ `()`,	"",	vec{0,0, 0,0} },
-	tester{ `(a)`,	"a",	vec{0,1, 0,1} },
-	tester{ `(.)(.)`,	"日a",	vec{0,4, 0,3, 3,4} },
-	tester{ `(.*)`,	"",	vec{0,0, 0,0} },
-	tester{ `(.*)`,	"abcd",	vec{0,4, 0,4} },
-	tester{ `(..)(..)`,	"abcd",	vec{0,4, 0,2, 2,4} },
-	tester{ `(([^xyz]*)(d))`,	"abcd",	vec{0,4, 0,4, 0,3, 3,4} },
-	tester{ `((a|b|c)*(d))`,	"abcd",	vec{0,4, 0,4, 2,3, 3,4} },
-	tester{ `(((a|b|c)*)(d))`,	"abcd",	vec{0,4, 0,4, 0,3, 2,3, 3,4} },
-	tester{ `a*(|(b))c*`,	"aacc",	vec{0,4, 2,2, -1,-1} },
+var matches = []tester{
+	tester{``, "", vec{0, 0}},
+	tester{`a`, "a", vec{0, 1}},
+	tester{`x`, "y", vec{}},
+	tester{`b`, "abc", vec{1, 2}},
+	tester{`.`, "a", vec{0, 1}},
+	tester{`.*`, "abcdef", vec{0, 6}},
+	tester{`^abcd$`, "abcd", vec{0, 4}},
+	tester{`^bcd'`, "abcdef", vec{}},
+	tester{`^abcd$`, "abcde", vec{}},
+	tester{`a+`, "baaab", vec{1, 4}},
+	tester{`a*`, "baaab", vec{0, 0}},
+	tester{`[a-z]+`, "abcd", vec{0, 4}},
+	tester{`[^a-z]+`, "ab1234cd", vec{2, 6}},
+	tester{`[a\-\]z]+`, "az]-bcz", vec{0, 4}},
+	tester{`[^\n]+`, "abcd\n", vec{0, 4}},
+	tester{`[日本語]+`, "日本語日本語", vec{0, 18}},
+	tester{`()`, "", vec{0, 0, 0, 0}},
+	tester{`(a)`, "a", vec{0, 1, 0, 1}},
+	tester{`(.)(.)`, "日a", vec{0, 4, 0, 3, 3, 4}},
+	tester{`(.*)`, "", vec{0, 0, 0, 0}},
+	tester{`(.*)`, "abcd", vec{0, 4, 0, 4}},
+	tester{`(..)(..)`, "abcd", vec{0, 4, 0, 2, 2, 4}},
+	tester{`(([^xyz]*)(d))`, "abcd", vec{0, 4, 0, 4, 0, 3, 3, 4}},
+	tester{`((a|b|c)*(d))`, "abcd", vec{0, 4, 0, 4, 2, 3, 3, 4}},
+	tester{`(((a|b|c)*)(d))`, "abcd", vec{0, 4, 0, 4, 0, 3, 2, 3, 3, 4}},
+	tester{`a*(|(b))c*`, "aacc", vec{0, 4, 2, 2, -1, -1}},
 }
 
 func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
@@ -92,7 +93,7 @@ func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
 	if err != error {
 		t.Error("compiling `", expr, "`; unexpected error: ", err.String());
 	}
-	return re
+	return re;
 }
 
 func printVec(t *testing.T, m []int) {
@@ -101,7 +102,7 @@ func printVec(t *testing.T, m []int) {
 		t.Log("\t<no match>");
 	} else {
 		for i := 0; i < l; i = i+2 {
-			t.Log("\t", m[i], ",", m[i+1])
+			t.Log("\t", m[i], ",", m[i+1]);
 		}
 	}
 }
@@ -112,7 +113,7 @@ func printStrings(t *testing.T, m []string) {
 		t.Log("\t<no match>");
 	} else {
 		for i := 0; i < l; i = i+2 {
-			t.Logf("\t%q", m[i])
+			t.Logf("\t%q", m[i]);
 		}
 	}
 }
@@ -123,7 +124,7 @@ func printBytes(t *testing.T, b [][]byte) {
 		t.Log("\t<no match>");
 	} else {
 		for i := 0; i < l; i = i+2 {
-			t.Logf("\t%q", b[i])
+			t.Logf("\t%q", b[i]);
 		}
 	}
 }
@@ -131,46 +132,46 @@ func printBytes(t *testing.T, b [][]byte) {
 func equal(m1, m2 []int) bool {
 	l := len(m1);
 	if l != len(m2) {
-		return false
+		return false;
 	}
 	for i := 0; i < l; i++ {
 		if m1[i] != m2[i] {
-			return false
+			return false;
 		}
 	}
-	return true
+	return true;
 }
 
 func equalStrings(m1, m2 []string) bool {
 	l := len(m1);
 	if l != len(m2) {
-		return false
+		return false;
 	}
 	for i := 0; i < l; i++ {
 		if m1[i] != m2[i] {
-			return false
+			return false;
 		}
 	}
-	return true
+	return true;
 }
 
 func equalBytes(m1 [][]byte, m2 []string) bool {
 	l := len(m1);
 	if l != len(m2) {
-		return false
+		return false;
 	}
 	for i := 0; i < l; i++ {
 		if string(m1[i]) != m2[i] {
-			return false
+			return false;
 		}
 	}
-	return true
+	return true;
 }
 
 func executeTest(t *testing.T, expr string, str string, match []int) {
 	re := compileTest(t, expr, nil);
 	if re == nil {
-		return
+		return;
 	}
 	m := re.ExecuteString(str);
 	if !equal(m, match) {
@@ -197,21 +198,21 @@ func TestGoodCompile(t *testing.T) {
 
 func TestBadCompile(t *testing.T) {
 	for i := 0; i < len(bad_re); i++ {
-		compileTest(t, bad_re[i].re, bad_re[i].err)
+		compileTest(t, bad_re[i].re, bad_re[i].err);
 	}
 }
 
 func TestExecute(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
 		test := &matches[i];
-		executeTest(t, test.re, test.text, test.match)
+		executeTest(t, test.re, test.text, test.match);
 	}
 }
 
 func matchTest(t *testing.T, expr string, str string, match []int) {
 	re := compileTest(t, expr, nil);
 	if re == nil {
-		return
+		return;
 	}
 	m := re.MatchString(str);
 	if m != (len(match) > 0) {
@@ -227,18 +228,18 @@ func matchTest(t *testing.T, expr string, str string, match []int) {
 func TestMatch(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
 		test := &matches[i];
-		matchTest(t, test.re, test.text, test.match)
+		matchTest(t, test.re, test.text, test.match);
 	}
 }
 
 func matchStringsTest(t *testing.T, expr string, str string, match []int) {
 	re := compileTest(t, expr, nil);
 	if re == nil {
-		return
+		return;
 	}
 	strs := make([]string, len(match)/2);
 	for i := 0; i < len(match); i++ {
-		strs[i/2] = str[match[i] : match[i+1]]
+		strs[i/2] = str[match[i]:match[i+1]];
 	}
 	m := re.MatchStrings(str);
 	if !equalStrings(m, strs) {
@@ -260,14 +261,14 @@ func matchStringsTest(t *testing.T, expr string, str string, match []int) {
 func TestMatchStrings(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
 		test := &matches[i];
-		matchTest(t, test.re, test.text, test.match)
+		matchTest(t, test.re, test.text, test.match);
 	}
 }
 
 func matchFunctionTest(t *testing.T, expr string, str string, match []int) {
 	m, err := MatchString(expr, str);
 	if err == nil {
-		return
+		return;
 	}
 	if m != (len(match) > 0) {
 		t.Error("function Match failure on `", expr, "` matching `", str, "`:", m, "should be", len(match) > 0);
@@ -277,7 +278,7 @@ func matchFunctionTest(t *testing.T, expr string, str string, match []int) {
 func TestMatchFunction(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
 		test := &matches[i];
-		matchFunctionTest(t, test.re, test.text, test.match)
+		matchFunctionTest(t, test.re, test.text, test.match);
 	}
 }
 
@@ -285,7 +286,7 @@ type ReplaceTest struct {
 	pattern, replacement, input, output string;
 }
 
-var replaceTests = []ReplaceTest {
+var replaceTests = []ReplaceTest{
 	// Test empty input and/or replacement, with pattern that matches the empty string.
 	ReplaceTest{"", "", "", ""},
 	ReplaceTest{"", "x", "", "x"},
@@ -372,7 +373,7 @@ type QuoteMetaTest struct {
 	pattern, output string;
 }
 
-var quoteMetaTests = []QuoteMetaTest {
+var quoteMetaTests = []QuoteMetaTest{
 	QuoteMetaTest{``, ``},
 	QuoteMetaTest{`foo`, `foo`},
 	QuoteMetaTest{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[{\]}\\\|,<\.>/\?~`},
@@ -409,30 +410,30 @@ func TestQuoteMeta(t *testing.T) {
 }
 
 type matchCase struct {
-	matchfunc string;
-	input string;
-	n int;
-	regexp string;
-	expected []string;
+	matchfunc	string;
+	input		string;
+	n		int;
+	regexp		string;
+	expected	[]string;
 }
 
-var matchCases = []matchCase {
-	matchCase{"match", " aa b", 0,   "[^ ]+", []string { "aa", "b" }},
-	matchCase{"match", " aa b", 0,   "[^ ]*", []string { "", "aa", "b" }},
-	matchCase{"match", "a b c", 0,   "[^ ]*", []string { "a", "b", "c" }},
-	matchCase{"match", "a:a: a:", 0, "^.:",   []string { "a:" }},
-	matchCase{"match", "", 0,        "[^ ]*", []string { "" }},
-	matchCase{"match", "", 0,        "",      []string { "" }},
-	matchCase{"match", "a", 0,       "",      []string { "", "" }},
-	matchCase{"match", "ab", 0,      "^",     []string { "", }},
-	matchCase{"match", "ab", 0,      "$",     []string { "", }},
-	matchCase{"match", "ab", 0,      "X*",    []string { "", "", "" }},
-	matchCase{"match", "aX", 0,      "X*",    []string { "", "X" }},
-	matchCase{"match", "XabX", 0,    "X*",    []string { "X", "", "X" }},
+var matchCases = []matchCase{
+	matchCase{"match", " aa b", 0, "[^ ]+", []string{"aa", "b"}},
+	matchCase{"match", " aa b", 0, "[^ ]*", []string{"", "aa", "b"}},
+	matchCase{"match", "a b c", 0, "[^ ]*", []string{"a", "b", "c"}},
+	matchCase{"match", "a:a: a:", 0, "^.:", []string{"a:"}},
+	matchCase{"match", "", 0, "[^ ]*", []string{""}},
+	matchCase{"match", "", 0, "", []string{""}},
+	matchCase{"match", "a", 0, "", []string{"", ""}},
+	matchCase{"match", "ab", 0, "^", []string{""}},
+	matchCase{"match", "ab", 0, "$", []string{""}},
+	matchCase{"match", "ab", 0, "X*", []string{"", "", ""}},
+	matchCase{"match", "aX", 0, "X*", []string{"", "X"}},
+	matchCase{"match", "XabX", 0, "X*", []string{"X", "", "X"}},
 
-	matchCase{"matchit", "", 0,      ".",     []string {}},
-	matchCase{"matchit", "abc", 2,   ".",     []string { "a", "b" }},
-	matchCase{"matchit", "abc", 0,   ".",     []string { "a", "b", "c" }},
+	matchCase{"matchit", "", 0, ".", []string{}},
+	matchCase{"matchit", "abc", 2, ".", []string{"a", "b"}},
+	matchCase{"matchit", "abc", 0, ".", []string{"a", "b", "c"}},
 }
 
 func printStringSlice(t *testing.T, s []string) {
@@ -441,7 +442,7 @@ func printStringSlice(t *testing.T, s []string) {
 		t.Log("\t<empty>");
 	} else {
 		for i := 0; i < l; i++ {
-			t.Logf("\t%q", s[i])
+			t.Logf("\t%q", s[i]);
 		}
 	}
 }
@@ -456,7 +457,8 @@ func TestAllMatches(t *testing.T) {
 				c.input,
 				c.n,
 				c.regexp,
-				c.expected };
+				c.expected,
+			};
 			ch <- stringCase;
 		}
 		close(ch);
