@@ -5,10 +5,10 @@
 package io_test
 
 import (
-	. "io";
-	"os";
-	"strings";
-	"testing";
+	.	"io";
+		"os";
+		"strings";
+		"testing";
 )
 
 func checkSize(t *testing.T, path string, size uint64) {
@@ -39,8 +39,7 @@ func TestReadFile(t *testing.T) {
 
 func TestWriteFile(t *testing.T) {
 	filename := "_obj/rumpelstilzchen";
-	data :=
-		"Programming today is a race between software engineers striving to "
+	data := "Programming today is a race between software engineers striving to "
 		"build bigger and better idiot-proof programs, and the Universe trying "
 		"to produce bigger and better idiots. So far, the Universe is winning.";
 
@@ -58,5 +57,5 @@ func TestWriteFile(t *testing.T) {
 	}
 
 	// cleanup
-	os.Remove(filename);  // ignore error
+	os.Remove(filename);	// ignore error
 }

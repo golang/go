@@ -13,20 +13,20 @@ import (
 )
 
 type pipeReturn struct {
-	n int;
-	err os.Error;
+	n	int;
+	err	os.Error;
 }
 
 // Shared pipe structure.
 type pipe struct {
-	rclosed bool;		// Read end closed?
-	rerr os.Error;		// Error supplied to CloseReader
-	wclosed bool;		// Write end closed?
-	werr os.Error;		// Error supplied to CloseWriter
-	wpend []byte;		// Written data waiting to be read.
-	wtot int;		// Bytes consumed so far in current write.
-	cr chan []byte;		// Write sends data here...
-	cw chan pipeReturn;	// ... and reads the n, err back from here.
+	rclosed	bool;			// Read end closed?
+	rerr	os.Error;		// Error supplied to CloseReader
+	wclosed	bool;			// Write end closed?
+	werr	os.Error;		// Error supplied to CloseWriter
+	wpend	[]byte;			// Written data waiting to be read.
+	wtot	int;			// Bytes consumed so far in current write.
+	cr	chan []byte;		// Write sends data here...
+	cw	chan pipeReturn;	// ... and reads the n, err back from here.
 }
 
 func (p *pipe) Read(data []byte) (n int, err os.Error) {
@@ -54,7 +54,7 @@ func (p *pipe) Read(data []byte) (n int, err os.Error) {
 		data[i] = p.wpend[i];
 	}
 	p.wtot += n;
-	p.wpend = p.wpend[n:len(p.wpend)];
+	p.wpend = p.wpend[n : len(p.wpend)];
 
 	// If write block is done, finish the write.
 	if len(p.wpend) == 0 {
@@ -132,8 +132,8 @@ func (p *pipe) CloseWriter(werr os.Error) os.Error {
 
 // A PipeReader is the read half of a pipe.
 type PipeReader struct {
-	lock sync.Mutex;
-	p *pipe;
+	lock	sync.Mutex;
+	p	*pipe;
 }
 
 // Read implements the standard Read interface:
@@ -172,8 +172,8 @@ func (r *PipeReader) finish() {
 
 // Write half of pipe.
 type PipeWriter struct {
-	lock sync.Mutex;
-	p *pipe;
+	lock	sync.Mutex;
+	p	*pipe;
 }
 
 // Write implements the standard Write interface:
@@ -225,4 +225,3 @@ func Pipe() (*PipeReader, *PipeWriter) {
 	w.p = p;
 	return r, w;
 }
-

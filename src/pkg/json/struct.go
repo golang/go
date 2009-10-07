@@ -13,7 +13,7 @@ import (
 )
 
 type _StructBuilder struct {
-	val reflect.Value
+	val reflect.Value;
 }
 
 var nobuilder *_StructBuilder
@@ -64,7 +64,7 @@ func setint(v reflect.Value, i int64) {
 
 func (b *_StructBuilder) Int64(i int64) {
 	if b == nil {
-		return
+		return;
 	}
 	v := b.val;
 	if isfloat(v) {
@@ -76,7 +76,7 @@ func (b *_StructBuilder) Int64(i int64) {
 
 func (b *_StructBuilder) Uint64(i uint64) {
 	if b == nil {
-		return
+		return;
 	}
 	v := b.val;
 	if isfloat(v) {
@@ -88,7 +88,7 @@ func (b *_StructBuilder) Uint64(i uint64) {
 
 func (b *_StructBuilder) Float64(f float64) {
 	if b == nil {
-		return
+		return;
 	}
 	v := b.val;
 	if isfloat(v) {
@@ -98,12 +98,11 @@ func (b *_StructBuilder) Float64(f float64) {
 	}
 }
 
-func (b *_StructBuilder) Null() {
-}
+func (b *_StructBuilder) Null() {}
 
 func (b *_StructBuilder) String(s string) {
 	if b == nil {
-		return
+		return;
 	}
 	if v, ok := b.val.(*reflect.StringValue); ok {
 		v.Set(s);
@@ -112,7 +111,7 @@ func (b *_StructBuilder) String(s string) {
 
 func (b *_StructBuilder) Bool(tf bool) {
 	if b == nil {
-		return
+		return;
 	}
 	if v, ok := b.val.(*reflect.BoolValue); ok {
 		v.Set(tf);
@@ -121,7 +120,7 @@ func (b *_StructBuilder) Bool(tf bool) {
 
 func (b *_StructBuilder) Array() {
 	if b == nil {
-		return
+		return;
 	}
 	if v, ok := b.val.(*reflect.SliceValue); ok {
 		if v.IsNil() {
@@ -132,21 +131,21 @@ func (b *_StructBuilder) Array() {
 
 func (b *_StructBuilder) Elem(i int) Builder {
 	if b == nil || i < 0 {
-		return nobuilder
+		return nobuilder;
 	}
 	switch v := b.val.(type) {
 	case *reflect.ArrayValue:
 		if i < v.Len() {
-			return &_StructBuilder{ v.Elem(i) }
+			return &_StructBuilder{v.Elem(i)};
 		}
 	case *reflect.SliceValue:
 		if i > v.Cap() {
 			n := v.Cap();
 			if n < 8 {
-				n = 8
+				n = 8;
 			}
 			for n <= i {
-				n *= 2
+				n *= 2;
 			}
 			nv := reflect.MakeSlice(v.Type().(*reflect.SliceType), v.Len(), n);
 			reflect.ArrayCopy(nv, v);
@@ -156,7 +155,7 @@ func (b *_StructBuilder) Elem(i int) Builder {
 			v.SetLen(i+1);
 		}
 		if i < v.Len() {
-			return &_StructBuilder{ v.Elem(i) }
+			return &_StructBuilder{v.Elem(i)};
 		}
 	}
 	return nobuilder;
@@ -164,18 +163,18 @@ func (b *_StructBuilder) Elem(i int) Builder {
 
 func (b *_StructBuilder) Map() {
 	if b == nil {
-		return
+		return;
 	}
 	if v, ok := b.val.(*reflect.PtrValue); ok {
 		if v.IsNil() {
-			v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()))
+			v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()));
 		}
 	}
 }
 
 func (b *_StructBuilder) Key(k string) Builder {
 	if b == nil {
-		return nobuilder
+		return nobuilder;
 	}
 	if v, ok := reflect.Indirect(b.val).(*reflect.StructValue); ok {
 		t := v.Type().(*reflect.StructType);
@@ -183,11 +182,11 @@ func (b *_StructBuilder) Key(k string) Builder {
 		k = strings.ToLower(k);
 		for i := 0; i < t.NumField(); i++ {
 			if strings.ToLower(t.Field(i).Name) == k {
-				return &_StructBuilder{ v.Field(i) }
+				return &_StructBuilder{v.Field(i)};
 			}
 		}
 	}
-	return nobuilder
+	return nobuilder;
 }
 
 // Unmarshal parses the JSON syntax string s and fills in
@@ -232,7 +231,7 @@ func (b *_StructBuilder) Key(k string) Builder {
 //
 //	r = Result{
 //		"Grace R. Emlin",	// name
-//		"phone",	// no phone given
+//		"phone",		// no phone given
 //		[]Email{
 //			Email{ "home", "gre@example.com" },
 //			Email{ "work", "gre@work.com" }
@@ -250,10 +249,10 @@ func (b *_StructBuilder) Key(k string) Builder {
 // On a syntax error, it returns with ok set to false and errtok
 // set to the offending token.
 func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
-	b := &_StructBuilder{ reflect.NewValue(val) };
+	b := &_StructBuilder{reflect.NewValue(val)};
 	ok, _, errtok = Parse(s, b);
 	if !ok {
-		return false, errtok
+		return false, errtok;
 	}
-	return true, ""
+	return true, "";
 }

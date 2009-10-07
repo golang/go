@@ -20,10 +20,10 @@ const uint64Size = unsafe.Sizeof(uint64(0))
 // number is initialized to -1 so 0 comes out as delta(1). A delta of
 // 0 terminates the structure.
 type encoderState struct {
-	b	*bytes.Buffer;
-	err	os.Error;	// error encountered during encoding;
-	fieldnum	int;	// the last field number written.
-	buf [1+uint64Size]byte;	// buffer used by the encoder; here to avoid allocation.
+	b		*bytes.Buffer;
+	err		os.Error;		// error encountered during encoding;
+	fieldnum	int;			// the last field number written.
+	buf		[1+uint64Size]byte;	// buffer used by the encoder; here to avoid allocation.
 }
 
 // Unsigned integers have a two-state encoding.  If the number is less
@@ -35,7 +35,7 @@ type encoderState struct {
 // If state.err is already non-nil, it does nothing.
 func encodeUint(state *encoderState, x uint64) {
 	if state.err != nil {
-		return
+		return;
 	}
 	if x <= 0x7F {
 		state.err = state.b.WriteByte(uint8(x));
@@ -44,25 +44,25 @@ func encodeUint(state *encoderState, x uint64) {
 	var n, m int;
 	m = uint64Size;
 	for n = 1; x > 0; n++ {
-		state.buf[m] = uint8(x & 0xFF);
+		state.buf[m] = uint8(x&0xFF);
 		x >>= 8;
 		m--;
 	}
 	state.buf[m] = uint8(-(n-1));
-	n, state.err = state.b.Write(state.buf[m:uint64Size+1]);
+	n, state.err = state.b.Write(state.buf[m : uint64Size+1]);
 }
 
 // encodeInt writes an encoded signed integer to state.w.
 // The low bit of the encoding says whether to bit complement the (other bits of the) uint to recover the int.
 // Sets state.err. If state.err is already non-nil, it does nothing.
-func encodeInt(state *encoderState, i int64){
+func encodeInt(state *encoderState, i int64) {
 	var x uint64;
 	if i < 0 {
-		x = uint64(^i << 1) | 1
+		x = uint64(^i << 1) | 1;
 	} else {
-		x = uint64(i << 1)
+		x = uint64(i<<1);
 	}
-	encodeUint(state, uint64(x))
+	encodeUint(state, uint64(x));
 }
 
 type encOp func(i *encInstr, state *encoderState, p unsafe.Pointer)
@@ -70,8 +70,8 @@ type encOp func(i *encInstr, state *encoderState, p unsafe.Pointer)
 // The 'instructions' of the encoding machine
 type encInstr struct {
 	op	encOp;
-	field		int;	// field number
-	indir	int;	// how many pointer indirections to reach the value in the struct
+	field	int;		// field number
+	indir	int;		// how many pointer indirections to reach the value in the struct
 	offset	uintptr;	// offset in the structure of the field to encode
 }
 
@@ -94,10 +94,10 @@ func encIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
 	for ; indir > 0; indir-- {
 		p = *(*unsafe.Pointer)(p);
 		if p == nil {
-			return unsafe.Pointer(nil)
+			return unsafe.Pointer(nil);
 		}
 	}
-	return p
+	return p;
 }
 
 func encBool(i *encInstr, state *encoderState, p unsafe.Pointer) {
@@ -206,7 +206,7 @@ func floatBits(f float64) uint64 {
 	var v uint64;
 	for i := 0; i < 8; i++ {
 		v <<= 8;
-		v |= u & 0xFF;
+		v |= u&0xFF;
 		u >>= 8;
 	}
 	return v;
@@ -269,7 +269,7 @@ func encStructTerminator(i *encInstr, state *encoderState, p unsafe.Pointer) {
 // The encoder engine is an array of instructions indexed by field number of the encoding
 // data, typically a struct.  It is executed top to bottom, walking the struct.
 type encEngine struct {
-	instr	[]encInstr
+	instr []encInstr;
 }
 
 func encodeStruct(engine *encEngine, b *bytes.Buffer, basep uintptr) os.Error {
@@ -278,18 +278,18 @@ func encodeStruct(engine *encEngine, b *bytes.Buffer, basep uintptr) os.Error {
 	state.fieldnum = -1;
 	for i := 0; i < len(engine.instr); i++ {
 		instr := &engine.instr[i];
-		p := unsafe.Pointer(basep+instr.offset);
+		p := unsafe.Pointer(basep + instr.offset);
 		if instr.indir > 0 {
 			if p = encIndirect(p, instr.indir); p == nil {
-				continue
+				continue;
 			}
 		}
 		instr.op(instr, state, p);
 		if state.err != nil {
-			break
+			break;
 		}
 	}
-	return state.err
+	return state.err;
 }
 
 func encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, length int, elemIndir int) os.Error {
@@ -303,17 +303,17 @@ func encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid uintptr, length i
 		if elemIndir > 0 {
 			if up = encIndirect(up, elemIndir); up == nil {
 				state.err = os.ErrorString("gob: encodeArray: nil element");
-				break
+				break;
 			}
 			elemp = uintptr(up);
 		}
 		op(nil, state, unsafe.Pointer(elemp));
 		p += uintptr(elemWid);
 	}
-	return state.err
+	return state.err;
 }
 
-var encOpMap = map[reflect.Type] encOp {
+var encOpMap = map[reflect.Type]encOp{
 	valueKind(false): encBool,
 	valueKind(int(0)): encInt,
 	valueKind(int8(0)): encInt8,
@@ -349,12 +349,12 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 			// Slices have a header; we decode it to find the underlying array.
 			elemOp, indir, err := encOpFor(t.Elem());
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, err;
 			}
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				slice := (*reflect.SliceHeader)(p);
 				if slice.Len == 0 {
-					return
+					return;
 				}
 				state.update(i);
 				state.err = encodeArray(state.b, slice.Data, elemOp, t.Elem().Size(), int(slice.Len), indir);
@@ -363,7 +363,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 			// True arrays have size in the type.
 			elemOp, indir, err := encOpFor(t.Elem());
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, err;
 			}
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				state.update(i);
@@ -373,7 +373,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 			// Generate a closure that calls out to the engine for the nested type.
 			_, err := getEncEngine(typ);
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, err;
 			}
 			info := getTypeInfoNoError(typ);
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
@@ -386,7 +386,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 	if op == nil {
 		return op, indir, os.ErrorString("gob enc: can't happen: encode type" + rt.String());
 	}
-	return op, indir, nil
+	return op, indir, nil;
 }
 
 // The local Type was compiled from the actual value, so we know it's compatible.
@@ -396,12 +396,12 @@ func compileEnc(rt reflect.Type) (*encEngine, os.Error) {
 		panicln("can't happen: non-struct");
 	}
 	engine := new(encEngine);
-	engine.instr = make([]encInstr, srt.NumField()+1);	// +1 for terminator
+	engine.instr = make([]encInstr, srt.NumField() + 1);	// +1 for terminator
 	for fieldnum := 0; fieldnum < srt.NumField(); fieldnum++ {
 		f := srt.Field(fieldnum);
 		op, indir, err := encOpFor(f.Type);
 		if err != nil {
-			return nil, err
+			return nil, err;
 		}
 		engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(f.Offset)};
 	}
@@ -414,7 +414,7 @@ func compileEnc(rt reflect.Type) (*encEngine, os.Error) {
 func getEncEngine(rt reflect.Type) (*encEngine, os.Error) {
 	info, err := getTypeInfo(rt);
 	if err != nil {
-		return nil, err
+		return nil, err;
 	}
 	if info.encoder == nil {
 		// mark this engine as underway before compiling to handle recursive types.
@@ -432,13 +432,13 @@ func encode(b *bytes.Buffer, e interface{}) os.Error {
 		v = reflect.Indirect(v);
 	}
 	if _, ok := v.(*reflect.StructValue); !ok {
-		return os.ErrorString("gob: encode can't handle " + v.Type().String())
+		return os.ErrorString("gob: encode can't handle " + v.Type().String());
 	}
 	typeLock.Lock();
 	engine, err := getEncEngine(rt);
 	typeLock.Unlock();
 	if err != nil {
-		return err
+		return err;
 	}
 	return encodeStruct(engine, b, v.Addr());
 }

@@ -63,8 +63,8 @@ func (h *ErrorVector) ErrorCount() int {
 // token, and the error condition is described by Msg.
 //
 type Error struct {
-	Pos token.Position;
-	Msg string;
+	Pos	token.Position;
+	Msg	string;
 }
 
 
@@ -83,11 +83,15 @@ type ErrorList []*Error
 
 
 // ErrorList implements the SortInterface.
-func (p ErrorList) Len() int  { return len(p); }
-func (p ErrorList) Swap(i, j int)  { p[i], p[j] = p[j], p[i]; }
+func (p ErrorList) Len() int {
+	return len(p);
+}
+func (p ErrorList) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i];
+}
 
 
-func (p ErrorList) Less(i, j int) bool  {
+func (p ErrorList) Less(i, j int) bool {
 	e := &p[i].Pos;
 	f := &p[j].Pos;
 	// Note that it is not sufficient to simply compare file offsets because
@@ -115,7 +119,7 @@ func (p ErrorList) String() string {
 	case 1:
 		return p[0].String();
 	}
-	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p) - 1);
+	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p)-1);
 }
 
 
@@ -123,9 +127,9 @@ func (p ErrorList) String() string {
 // returned by GetErrors.
 //
 const (
-	Raw = iota;  // leave error list unchanged
-	Sorted;  // sort error list by file, line, and column number
-	NoMultiples;  // sort error list and leave only the first error per line
+	Raw		= iota;	// leave error list unchanged
+	Sorted;		// sort error list by file, line, and column number
+	NoMultiples;	// sort error list and leave only the first error per line
 )
 
 
@@ -148,7 +152,7 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
 	}
 
 	if mode >= NoMultiples {
-		var last token.Position;  // initial last.Line is != any legal error line
+		var last token.Position;	// initial last.Line is != any legal error line
 		i := 0;
 		for _, e := range list {
 			if e.Pos.Filename != last.Filename || e.Pos.Line != last.Line {
@@ -157,7 +161,7 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
 				i++;
 			}
 		}
-		list = list[0 : i];
+		list = list[0:i];
 	}
 
 	return list;

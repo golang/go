@@ -26,16 +26,16 @@ func _UnHex(p string, r, l int) (v int, ok bool) {
 	v = 0;
 	for i := r; i < l; i++ {
 		if i >= len(p) {
-			return 0, false
+			return 0, false;
 		}
 		v *= 16;
 		switch {
 		case '0' <= p[i] && p[i] <= '9':
-			v += int(p[i] - '0');
+			v += int(p[i]-'0');
 		case 'a' <= p[i] && p[i] <= 'f':
-			v += int(p[i] - 'a' + 10);
+			v += int(p[i]-'a'+10);
 		case 'A' <= p[i] && p[i] <= 'F':
-			v += int(p[i] - 'A' + 10);
+			v += int(p[i]-'A'+10);
 		default:
 			return 0, false;
 		}
@@ -48,7 +48,7 @@ func _UnHex(p string, r, l int) (v int, ok bool) {
 // JSON-quoted string, Unquote returns with ok set to false.
 func Unquote(s string) (t string, ok bool) {
 	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
-		return
+		return;
 	}
 	b := make([]byte, len(s));
 	w := 0;
@@ -57,7 +57,7 @@ func Unquote(s string) (t string, ok bool) {
 		case s[r] == '\\':
 			r++;
 			if r >= len(s)-1 {
-				return
+				return;
 			}
 			switch s[r] {
 			default:
@@ -90,7 +90,7 @@ func Unquote(s string) (t string, ok bool) {
 				r++;
 				rune, ok := _UnHex(s, r, 4);
 				if !ok {
-					return
+					return;
 				}
 				r += 4;
 				w += utf8.EncodeRune(rune, b[w:len(b)]);
@@ -116,7 +116,7 @@ func Unquote(s string) (t string, ok bool) {
 			w += utf8.EncodeRune(rune, b[w:len(b)]);
 		}
 	}
-	return string(b[0:w]), true
+	return string(b[0:w]), true;
 }
 
 // Quote quotes the raw string s using JSON syntax,
@@ -129,7 +129,7 @@ func Quote(s string) string {
 	b.Write(chr0);
 	for i := 0; i < len(s); i++ {
 		switch {
-		case s[i]=='"' || s[i]=='\\':
+		case s[i] == '"' || s[i] == '\\':
 			chr[0] = '\\';
 			chr[1] = s[i];
 			b.Write(chr[0:2]);
@@ -173,44 +173,44 @@ func Quote(s string) string {
 // _Lexer
 
 type _Lexer struct {
-	s string;
-	i int;
-	kind int;
-	token string;
+	s	string;
+	i	int;
+	kind	int;
+	token	string;
 }
 
 func punct(c byte) bool {
-	return c=='"' || c=='[' || c==']' || c==':' || c=='{' || c=='}' || c==','
+	return c == '"' || c == '[' || c == ']' || c == ':' || c == '{' || c == '}' || c == ',';
 }
 
 func white(c byte) bool {
-	return c==' ' || c=='\t' || c=='\n' || c=='\v'
+	return c == ' ' || c == '\t' || c == '\n' || c == '\v';
 }
 
 func skipwhite(p string, i int) int {
 	for i < len(p) && white(p[i]) {
-		i++
+		i++;
 	}
-	return i
+	return i;
 }
 
 func skiptoken(p string, i int) int {
 	for i < len(p) && !punct(p[i]) && !white(p[i]) {
-		i++
+		i++;
 	}
-	return i
+	return i;
 }
 
 func skipstring(p string, i int) int {
 	for i++; i < len(p) && p[i] != '"'; i++ {
 		if p[i] == '\\' {
-			i++
+			i++;
 		}
 	}
 	if i >= len(p) {
-		return i
+		return i;
 	}
-	return i+1
+	return i+1;
 }
 
 func (t *_Lexer) Next() {
@@ -245,12 +245,12 @@ func (t *_Lexer) Next() {
 
 	case c == '[', c == ']', c == ':', c == '{', c == '}', c == ',':
 		t.kind = int(c);
-		t.token = s[i:i+1];
+		t.token = s[i : i+1];
 		i++;
 
 	default:
 		t.kind = '?';
-		t.token = s[i:i+1];
+		t.token = s[i : i+1];
 	}
 
 	t.i = i;
@@ -274,7 +274,7 @@ func (t *_Lexer) Next() {
 // nested data structure, using the "map keys"
 // as struct field names.
 
-type _Value interface {}
+type _Value interface{}
 
 // BUG(rsc): The json Builder interface needs to be
 // reconciled with the xml Builder interface.
@@ -309,13 +309,12 @@ Switch:
 		if i, err := strconv.Atoi64(lex.token); err == nil {
 			build.Int64(i);
 			ok = true;
-		}
-		else if i, err := strconv.Atoui64(lex.token); err == nil {
+		} else if i, err := strconv.Atoui64(lex.token); err == nil {
 			build.Uint64(i);
 			ok = true;
-		}
+		} else
 		// Fall back to floating point.
-		else if f, err := strconv.Atof64(lex.token); err == nil {
+		if f, err := strconv.Atof64(lex.token); err == nil {
 			build.Float64(f);
 			ok = true;
 		}
@@ -408,9 +407,8 @@ func Parse(s string, builder Builder) (ok bool, errindx int, errtok string) {
 	lex.Next();
 	if parse(lex, builder) {
 		if lex.kind == 0 {	// EOF
-			return true, 0, ""
+			return true, 0, "";
 		}
 	}
-	return false, lex.i, lex.token
+	return false, lex.i, lex.token;
 }
-

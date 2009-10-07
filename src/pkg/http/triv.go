@@ -19,7 +19,8 @@ import (
 
 
 // hello world, the web server
-var helloRequests = expvar.NewInt("hello-requests");
+var helloRequests = expvar.NewInt("hello-requests")
+
 func HelloServer(c *http.Conn, req *http.Request) {
 	helloRequests.Add(1);
 	io.WriteString(c, "hello, world!\n");
@@ -33,7 +34,7 @@ type Counter struct {
 // This makes Counter satisfy the expvar.Var interface, so we can export
 // it directly.
 func (ctr *Counter) String() string {
-	return fmt.Sprintf("%d", ctr.n)
+	return fmt.Sprintf("%d", ctr.n);
 }
 
 func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
@@ -56,7 +57,8 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
 
 // simple file server
 var webroot = flag.String("root", "/home/rsc", "web root directory")
-var pathVar = expvar.NewMap("file-requests");
+var pathVar = expvar.NewMap("file-requests")
+
 func FileServer(c *http.Conn, req *http.Request) {
 	c.SetHeader("content-type", "text/plain; charset=utf-8");
 	pathVar.Add(req.Url.Path, 1);
@@ -74,10 +76,11 @@ func FileServer(c *http.Conn, req *http.Request) {
 
 // simple flag server
 var booleanflag = flag.Bool("boolean", true, "another flag for testing")
+
 func FlagServer(c *http.Conn, req *http.Request) {
 	c.SetHeader("content-type", "text/plain; charset=utf-8");
 	fmt.Fprint(c, "Flags:\n");
-	flag.VisitAll(func (f *flag.Flag) {
+	flag.VisitAll(func(f *flag.Flag) {
 		if f.Value.String() != f.DefValue {
 			fmt.Fprintf(c, "%s = %s [default = %s]\n", f.Name, f.Value.String(), f.DefValue);
 		} else {
@@ -99,8 +102,8 @@ type Chan chan int
 func ChanCreate() Chan {
 	c := make(Chan);
 	go func(c Chan) {
-		for x := 0;; x++ {
-			c <- x
+		for x := 0; ; x++ {
+			c <- x;
 		}
 	}(c);
 	return c;
@@ -153,7 +156,6 @@ func main() {
 	http.Handle("/date", http.HandlerFunc(DateServer));
 	err := http.ListenAndServe(":12345", nil);
 	if err != nil {
-		log.Crash("ListenAndServe: ", err)
+		log.Crash("ListenAndServe: ", err);
 	}
 }
-

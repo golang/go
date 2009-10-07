@@ -4,7 +4,7 @@
 
 package hash
 
-import "io";
+import "io"
 
 // Hash is the common interface implemented by all hash functions.
 // The Write method never returns an error.
@@ -21,4 +21,3 @@ type Hash32 interface {
 	Hash;
 	Sum32() uint32;
 }
-

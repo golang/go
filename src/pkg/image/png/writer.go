@@ -15,21 +15,21 @@ import (
 )
 
 type encoder struct {
-	w io.Writer;
-	m image.Image;
-	colorType uint8;
-	err os.Error;
-	header [8]byte;
-	footer [4]byte;
-	tmp [3*256]byte;
+	w		io.Writer;
+	m		image.Image;
+	colorType	uint8;
+	err		os.Error;
+	header		[8]byte;
+	footer		[4]byte;
+	tmp		[3*256]byte;
 }
 
 // Big-endian.
 func writeUint32(b []uint8, u uint32) {
-	b[0] = uint8(u >> 24);
-	b[1] = uint8(u >> 16);
-	b[2] = uint8(u >> 8);
-	b[3] = uint8(u >> 0);
+	b[0] = uint8(u>>24);
+	b[1] = uint8(u>>16);
+	b[2] = uint8(u>>8);
+	b[3] = uint8(u>>0);
 }
 
 // Returns whether or not the image is fully opaque.
@@ -97,11 +97,11 @@ func (e *encoder) writePLTE(p image.PalettedColorModel) {
 			e.err = UnsupportedError("non-opaque palette color");
 			return;
 		}
-		e.tmp[3*i + 0] = uint8(r >> 24);
-		e.tmp[3*i + 1] = uint8(g >> 24);
-		e.tmp[3*i + 2] = uint8(b >> 24);
+		e.tmp[3*i + 0] = uint8(r>>24);
+		e.tmp[3*i + 1] = uint8(g>>24);
+		e.tmp[3*i + 2] = uint8(b>>24);
 	}
-	e.writeChunk(e.tmp[0:3*len(p)], "PLTE");
+	e.writeChunk(e.tmp[0 : 3*len(p)], "PLTE");
 }
 
 // An encoder is an io.Writer that satisfies writes by writing PNG IDAT chunks,
@@ -160,13 +160,13 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 			for x := 0; x < m.Width(); x++ {
 				// We have previously verified that the alpha value is fully opaque.
 				r, g, b, _ := m.At(x, y).RGBA();
-				cr[3*x + 1] = uint8(r >> 24);
-				cr[3*x + 2] = uint8(g >> 24);
-				cr[3*x + 3] = uint8(b >> 24);
+				cr[3*x + 1] = uint8(r>>24);
+				cr[3*x + 2] = uint8(g>>24);
+				cr[3*x + 3] = uint8(b>>24);
 			}
 		case ctPaletted:
 			for x := 0; x < m.Width(); x++ {
-				cr[x + 1] = paletted.ColorIndexAt(x, y);
+				cr[x+1] = paletted.ColorIndexAt(x, y);
 			}
 		case ctTrueColorAlpha:
 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
@@ -200,7 +200,7 @@ func (e *encoder) writeIDATs() {
 		return;
 	}
 	var bw *bufio.Writer;
-	bw, e.err = bufio.NewWriterSize(e, 1 << 15);
+	bw, e.err = bufio.NewWriterSize(e, 1<<15);
 	if e.err != nil {
 		return;
 	}
@@ -243,4 +243,3 @@ func Encode(w io.Writer, m image.Image) os.Error {
 	e.writeIEND();
 	return e.err;
 }
-

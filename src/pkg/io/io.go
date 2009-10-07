@@ -16,7 +16,7 @@ import (
 
 // Error represents an unexpected I/O behavior.
 type Error struct {
-	os.ErrorString
+	os.ErrorString;
 }
 
 // ErrShortWrite means that a write accepted fewer bytes than requested
@@ -143,7 +143,7 @@ type WriterAt interface {
 
 // WriteString writes the contents of the string s to w, which accepts an array of bytes.
 func WriteString(w Writer, s string) (n int, err os.Error) {
-	return w.Write(strings.Bytes(s))
+	return w.Write(strings.Bytes(s));
 }
 
 // ReadAtLeast reads from r into buf until it has read at least min bytes.
@@ -156,16 +156,16 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
 	for n < min {
 		nn, e := r.Read(buf[n:len(buf)]);
 		if nn > 0 {
-			n += nn
+			n += nn;
 		}
 		if e != nil {
 			if e == os.EOF && n > 0 {
 				e = ErrUnexpectedEOF;
 			}
-			return n, e
+			return n, e;
 		}
 	}
-	return n, nil
+	return n, nil;
 }
 
 // ReadFull reads exactly len(buf) bytes from r into buf.
@@ -183,12 +183,12 @@ func Copyn(src Reader, dst Writer, n int64) (written int64, err os.Error) {
 	buf := make([]byte, 32*1024);
 	for written < n {
 		l := len(buf);
-		if d := n - written; d < int64(l) {
+		if d := n-written; d < int64(l) {
 			l = int(d);
 		}
-		nr, er := src.Read(buf[0 : l]);
+		nr, er := src.Read(buf[0:l]);
 		if nr > 0 {
-			nw, ew := dst.Write(buf[0 : nr]);
+			nw, ew := dst.Write(buf[0:nr]);
 			if nw > 0 {
 				written += int64(nw);
 			}
@@ -206,7 +206,7 @@ func Copyn(src Reader, dst Writer, n int64) (written int64, err os.Error) {
 			break;
 		}
 	}
-	return written, err
+	return written, err;
 }
 
 // Copy copies from src to dst until either EOF is reached
@@ -238,7 +238,7 @@ func Copy(src Reader, dst Writer) (written int64, err os.Error) {
 			break;
 		}
 	}
-	return written, err
+	return written, err;
 }
 
 // LimitReader returns a Reader that reads from r
@@ -248,8 +248,8 @@ func LimitReader(r Reader, n int64) Reader {
 }
 
 type limitedReader struct {
-	r Reader;
-	n int64;
+	r	Reader;
+	n	int64;
 }
 
 func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
@@ -257,7 +257,7 @@ func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
 		return 0, os.EOF;
 	}
 	if int64(len(p)) > l.n {
-		p = p[0:l.n];
+		p = p[0 : l.n];
 	}
 	n, err = l.r.Read(p);
 	l.n -= int64(n);
@@ -273,10 +273,10 @@ func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
 // SectionReader implements Read, Seek, and ReadAt on a section
 // of an underlying ReaderAt.
 type SectionReader struct {
-	r ReaderAt;
-	base int64;
-	off int64;
-	limit int64;
+	r	ReaderAt;
+	base	int64;
+	off	int64;
+	limit	int64;
 }
 
 func (s *SectionReader) Read(p []byte) (n int, err os.Error) {
@@ -294,19 +294,19 @@ func (s *SectionReader) Read(p []byte) (n int, err os.Error) {
 func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err os.Error) {
 	switch whence {
 	default:
-		return 0, os.EINVAL
+		return 0, os.EINVAL;
 	case 0:
-		offset += s.base
+		offset += s.base;
 	case 1:
-		offset += s.off
+		offset += s.off;
 	case 2:
-		offset += s.limit
+		offset += s.limit;
 	}
 	if offset < s.off || offset > s.limit {
-		return 0, os.EINVAL
+		return 0, os.EINVAL;
 	}
 	s.off = offset;
-	return offset - s.base, nil
+	return offset - s.base, nil;
 }
 
 func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
@@ -322,5 +322,5 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
 
 // Size returns the size of the section in bytes.
 func (s *SectionReader) Size() int64 {
-	return s.limit - s.base
+	return s.limit - s.base;
 }

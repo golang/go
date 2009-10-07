@@ -4,7 +4,7 @@
 
 package ast
 
-import "go/token";
+import "go/token"
 
 
 func filterIdentList(list []*Ident) []*Ident {
@@ -15,7 +15,7 @@ func filterIdentList(list []*Ident) []*Ident {
 			j++;
 		}
 	}
-	return list[0 : j];
+	return list[0:j];
 }
 
 
@@ -65,7 +65,7 @@ func filterFieldList(list []*Field, incomplete *bool) []*Field {
 	if j < len(list) {
 		*incomplete = true;
 	}
-	return list[0 : j];
+	return list[0:j];
 }
 
 
@@ -76,7 +76,7 @@ func filterParamList(list []*Field) {
 }
 
 
-var noPos token.Position;
+var noPos token.Position
 
 func filterType(typ Expr) {
 	switch t := typ.(type) {
@@ -126,7 +126,7 @@ func filterSpecList(list []Spec) []Spec {
 			j++;
 		}
 	}
-	return list[0 : j];
+	return list[0:j];
 }
 
 
@@ -139,7 +139,7 @@ func filterDecl(decl Decl) bool {
 		// TODO consider removing function declaration altogether if
 		//      forward declaration (i.e., if d.Body == nil) because
 		//      in that case the actual declaration will come later.
-		d.Body = nil;  // strip body
+		d.Body = nil;	// strip body
 		return d.Name.IsExported();
 	}
 	return false;
@@ -164,7 +164,7 @@ func FileExports(src *File) bool {
 			j++;
 		}
 	}
-	src.Decls = src.Decls[0 : j];
+	src.Decls = src.Decls[0:j];
 	return j > 0;
 }
 
@@ -190,7 +190,7 @@ func PackageExports(pkg *Package) bool {
 // separator is an empty //-style comment that is interspersed between
 // different comment groups when they are concatenated into a single group
 //
-var separator = &Comment{noPos, []byte{'/', '/'}};
+var separator = &Comment{noPos, []byte{'/', '/'}}
 
 
 // MergePackageFiles creates a file AST by merging the ASTs of the
@@ -203,7 +203,7 @@ func MergePackageFiles(pkg *Package) *File {
 	ndecls := 0;
 	for _, f := range pkg.Files {
 		if f.Doc != nil {
-			ncomments += len(f.Doc.List) + 1;  // +1 for separator
+			ncomments += len(f.Doc.List) + 1;	// +1 for separator
 		}
 		ndecls += len(f.Decls);
 	}
@@ -215,7 +215,7 @@ func MergePackageFiles(pkg *Package) *File {
 	// than drop them on the floor.
 	var doc *CommentGroup;
 	if ncomments > 0 {
-		list := make([]*Comment, ncomments - 1);  // -1: no separator before first group
+		list := make([]*Comment, ncomments-1);	// -1: no separator before first group
 		i := 0;
 		for _, f := range pkg.Files {
 			if f.Doc != nil {
@@ -226,7 +226,7 @@ func MergePackageFiles(pkg *Package) *File {
 				}
 				for _, c := range f.Doc.List {
 					list[i] = c;
-					i++
+					i++;
 				}
 			}
 		}

@@ -12,23 +12,23 @@ import (
 )
 
 // The size of a CRC-32 checksum in bytes.
-const Size = 4;
+const Size = 4
 
 // Predefined polynomials.
 const (
 	// Far and away the most common CRC-32 polynomial.
 	// Used by ethernet (IEEE 802.3), v.42, fddi, gzip, zip, png, mpeg-2, ...
-	IEEE = 0xedb88320;
+	IEEE	= 0xedb88320;
 
 	// Castagnoli's polynomial, used in iSCSI.
 	// Has better error detection characteristics than IEEE.
 	// http://dx.doi.org/10.1109/26.231911
-	Castagnoli = 0x82f63b78;
+	Castagnoli	= 0x82f63b78;
 
 	// Koopman's polynomial.
 	// Also has better error detection characteristics than IEEE.
 	// http://dx.doi.org/10.1109/DSN.2002.1028931
-	Koopman = 0xeb31d82e;
+	Koopman	= 0xeb31d82e;
 )
 
 // Table is a 256-word table representing the polynomial for efficient processing.
@@ -41,7 +41,7 @@ func MakeTable(poly uint32) *Table {
 		crc := uint32(i);
 		for j := 0; j < 8; j++ {
 			if crc&1 == 1 {
-				crc = (crc>>1) ^ poly;
+				crc = (crc>>1)^poly;
 			} else {
 				crc >>= 1;
 			}
@@ -52,12 +52,12 @@ func MakeTable(poly uint32) *Table {
 }
 
 // IEEETable is the table for the IEEE polynomial.
-var IEEETable = MakeTable(IEEE);
+var IEEETable = MakeTable(IEEE)
 
 // digest represents the partial evaluation of a checksum.
 type digest struct {
-	crc uint32;
-	tab *Table;
+	crc	uint32;
+	tab	*Table;
 }
 
 // New creates a new Hash computing the CRC-32 checksum
@@ -83,7 +83,7 @@ func (d *digest) Reset() {
 func update(crc uint32, tab *Table, p []byte) uint32 {
 	crc = ^crc;
 	for i := 0; i < len(p); i++ {
-		crc = tab[byte(crc) ^ p[i]] ^ (crc >> 8);
+		crc = tab[byte(crc)^p[i]]^(crc>>8);
 	}
 	return ^crc;
 }
@@ -94,7 +94,7 @@ func (d *digest) Write(p []byte) (n int, err os.Error) {
 }
 
 func (d *digest) Sum32() uint32 {
-	return d.crc
+	return d.crc;
 }
 
 func (d *digest) Sum() []byte {
