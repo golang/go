@@ -9,12 +9,12 @@ package once
 import "sync"
 
 type job struct {
-	done bool;
+	done		bool;
 	sync.Mutex;	// should probably be sync.Notification or some such
 }
 
 var jobs = make(map[func()]*job)
-var joblock sync.Mutex;
+var joblock sync.Mutex
 
 // Do is the the only exported piece of the package.
 // For one-time initialization that is not done during init,
@@ -27,7 +27,7 @@ var joblock sync.Mutex;
 // Since a func() expression typically evaluates to a differerent
 // function value each time it is evaluated, it is incorrect to
 // pass such values to Do.  For example,
-// 	func f(x int) {
+//	func f(x int) {
 //		Do(func() { fmt.Println(x) })
 //	}
 // behaves the same as

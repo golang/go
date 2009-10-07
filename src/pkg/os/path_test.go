@@ -5,8 +5,8 @@
 package os_test
 
 import (
-	. "os";
-	"testing";
+	.	"os";
+		"testing";
 )
 
 func TestMkdirAll(t *testing.T) {
@@ -26,7 +26,7 @@ func TestMkdirAll(t *testing.T) {
 
 	// Make file.
 	fpath := path + "/file";
-	_, err = Open(fpath, O_WRONLY | O_CREAT, 0666);
+	_, err = Open(fpath, O_WRONLY|O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err);
 	}
@@ -65,13 +65,13 @@ func TestRemoveAll(t *testing.T) {
 	// Work directory.
 	path := "_obj/_TestRemoveAll_";
 	fpath := path + "/file";
-	dpath := path + "/dir";
+	dpath := path+"/dir";
 
 	// Make directory with 1 file and remove.
 	if err := MkdirAll(path, 0777); err != nil {
 		t.Fatalf("MkdirAll %q: %s", path, err);
 	}
-	fd, err := Open(fpath, O_WRONLY | O_CREAT, 0666);
+	fd, err := Open(fpath, O_WRONLY|O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err);
 	}
@@ -87,12 +87,12 @@ func TestRemoveAll(t *testing.T) {
 	if err = MkdirAll(dpath, 0777); err != nil {
 		t.Fatalf("MkdirAll %q: %s", dpath, err);
 	}
-	fd, err = Open(fpath, O_WRONLY | O_CREAT, 0666);
+	fd, err = Open(fpath, O_WRONLY|O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err);
 	}
 	fd.Close();
-	fd, err = Open(dpath+"/file", O_WRONLY | O_CREAT, 0666);
+	fd, err = Open(dpath + "/file", O_WRONLY|O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %q: %s", fpath, err);
 	}
@@ -109,8 +109,8 @@ func TestRemoveAll(t *testing.T) {
 		t.Fatalf("MkdirAll %q: %s", dpath, err);
 	}
 
-	for _, s := range []string{fpath, dpath+"/file1", path+"/zzz"} {
-		fd, err = Open(s, O_WRONLY | O_CREAT, 0666);
+	for _, s := range []string{fpath, dpath + "/file1", path+"/zzz"} {
+		fd, err = Open(s, O_WRONLY|O_CREAT, 0666);
 		if err != nil {
 			t.Fatalf("create %q: %s", s, err);
 		}

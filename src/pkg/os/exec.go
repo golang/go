@@ -15,9 +15,7 @@ import (
 // descriptor 0 (standard input), fd[1] descriptor 1, and so on.  A nil entry
 // will cause the child to have no open file descriptor with that index.
 // If dir is not empty, the child chdirs into the directory before execing the program.
-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File)
-	(pid int, err Error)
-{
+func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File) (pid int, err Error) {
 	// Create array of integer (system) fds.
 	intfd := make([]int, len(fd));
 	for i, f := range fd {
@@ -59,17 +57,17 @@ func Exec(argv0 string, argv []string, envv []string) Error {
 
 // Waitmsg stores the information about an exited process as reported by Wait.
 type Waitmsg struct {
-	Pid int;	// The process's id.
+	Pid			int;	// The process's id.
 	syscall.WaitStatus;	// System-dependent status info.
-	Rusage *syscall.Rusage;	// System-dependent resource usage info.
+	Rusage			*syscall.Rusage;	// System-dependent resource usage info.
 }
 
 // Options for Wait.
 const (
-	WNOHANG = syscall.WNOHANG;	// Don't wait if no process has exited.
-	WSTOPPED = syscall.WSTOPPED;	// If set, status of stopped subprocesses is also reported.
-	WUNTRACED = WSTOPPED;
-	WRUSAGE = 1<<20;	// Record resource usage.
+	WNOHANG		= syscall.WNOHANG;	// Don't wait if no process has exited.
+	WSTOPPED	= syscall.WSTOPPED;	// If set, status of stopped subprocesses is also reported.
+	WUNTRACED	= WSTOPPED;
+	WRUSAGE		= 1<<20;	// Record resource usage.
 )
 
 // WRUSAGE must not be too high a bit, to avoid clashing with Linux's
@@ -82,7 +80,7 @@ const (
 func Wait(pid int, options int) (w *Waitmsg, err Error) {
 	var status syscall.WaitStatus;
 	var rusage *syscall.Rusage;
-	if options & WRUSAGE != 0 {
+	if options&WRUSAGE != 0 {
 		rusage = new(syscall.Rusage);
 		options ^= WRUSAGE;
 	}
@@ -100,7 +98,7 @@ func Wait(pid int, options int) (w *Waitmsg, err Error) {
 // Convert i to decimal string.
 func itod(i int) string {
 	if i == 0 {
-		return "0"
+		return "0";
 	}
 
 	u := uint64(i);
@@ -113,15 +111,15 @@ func itod(i int) string {
 	bp := len(b);
 	for ; u > 0; u /= 10 {
 		bp--;
-		b[bp] = byte(u%10) + '0'
+		b[bp] = byte(u%10) + '0';
 	}
 
 	if i < 0 {
 		bp--;
-		b[bp] = '-'
+		b[bp] = '-';
 	}
 
-	return string(b[bp:len(b)])
+	return string(b[bp:len(b)]);
 }
 
 func (w Waitmsg) String() string {
@@ -141,7 +139,7 @@ func (w Waitmsg) String() string {
 		res = "continued";
 	}
 	if w.CoreDump() {
-		res += " (core dumped)"
+		res += " (core dumped)";
 	}
 	return res;
 }

@@ -40,25 +40,25 @@ func Sqrt(x float64) float64 {
 		y = y*2;
 		exp = exp-1;
 	}
-	temp := 0.5 * (1+y);
+	temp := 0.5*(1+y);
 
 	for exp > 60 {
 		temp = temp * float64(1<<30);
-		exp = exp - 60;
+		exp = exp-60;
 	}
 	for exp < -60 {
 		temp = temp / float64(1<<30);
-		exp = exp + 60;
+		exp = exp+60;
 	}
 	if exp >= 0 {
 		exp = 1 << uint(exp/2);
-		temp = temp * float64(exp);
+		temp = temp*float64(exp);
 	} else {
-		exp = 1 << uint(-exp/2);
-		temp = temp / float64(exp);
+		exp = 1 << uint(-exp / 2);
+		temp = temp/float64(exp);
 	}
 
-	for i:=0; i<=4; i++ {
+	for i := 0; i <= 4; i++ {
 		temp = 0.5*(temp + x/temp);
 	}
 	return temp;

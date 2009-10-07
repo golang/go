@@ -8,8 +8,8 @@ package os
 
 import "syscall"
 
-var Args []string;	// provided by runtime
-var Envs []string;	// provided by runtime
+var Args []string	// provided by runtime
+var Envs []string	// provided by runtime
 
 
 // Getuid returns the numeric user id of the caller.
@@ -43,4 +43,3 @@ func Getgroups() ([]int, Error) {
 func Exit(code int) {
 	syscall.Exit(code);
 }
-

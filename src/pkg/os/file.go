@@ -19,52 +19,52 @@ type dirInfo struct {
 
 // File represents an open file descriptor.
 type File struct {
-	fd int;
+	fd	int;
 	name	string;
 	dirinfo	*dirInfo;	// nil unless directory being read
-	nepipe	int;	// number of consecutive EPIPE in Write
+	nepipe	int;		// number of consecutive EPIPE in Write
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
 func (file *File) Fd() int {
-	return file.fd
+	return file.fd;
 }
 
 // Name returns the name of the file as presented to Open.
 func (file *File) Name() string {
-	return file.name
+	return file.name;
 }
 
 // NewFile returns a new File with the given file descriptor and name.
 func NewFile(fd int, name string) *File {
 	if fd < 0 {
-		return nil
+		return nil;
 	}
-	return &File{fd, name, nil, 0}
+	return &File{fd, name, nil, 0};
 }
 
 // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
 // standard output, and standard error file descriptors.
 var (
-	Stdin  = NewFile(0, "/dev/stdin");
-	Stdout = NewFile(1, "/dev/stdout");
-	Stderr = NewFile(2, "/dev/stderr");
+	Stdin	= NewFile(0, "/dev/stdin");
+	Stdout	= NewFile(1, "/dev/stdout");
+	Stderr	= NewFile(2, "/dev/stderr");
 )
 
 // Flags to Open wrapping those of the underlying system. Not all flags
 // may be implemented on a given system.
 const (
-	O_RDONLY = syscall.O_RDONLY;	// open the file read-only.
-	O_WRONLY = syscall.O_WRONLY;	// open the file write-only.
-	O_RDWR = syscall.O_RDWR;	// open the file read-write.
-	O_APPEND = syscall.O_APPEND;	// open the file append-only.
-	O_ASYNC = syscall.O_ASYNC;	// generate a signal when I/O is available.
-	O_CREAT = syscall.O_CREAT;	// create a new file if none exists.
-	O_NOCTTY = syscall.O_NOCTTY;	// do not make file the controlling tty.
-	O_NONBLOCK = syscall.O_NONBLOCK;	// open in non-blocking mode.
-	O_NDELAY = O_NONBLOCK;		// synonym for O_NONBLOCK
-	O_SYNC = syscall.O_SYNC;	// open for synchronous I/O.
-	O_TRUNC = syscall.O_TRUNC;	// if possible, truncate file when opened.
+	O_RDONLY	= syscall.O_RDONLY;	// open the file read-only.
+	O_WRONLY	= syscall.O_WRONLY;	// open the file write-only.
+	O_RDWR		= syscall.O_RDWR;	// open the file read-write.
+	O_APPEND	= syscall.O_APPEND;	// open the file append-only.
+	O_ASYNC		= syscall.O_ASYNC;	// generate a signal when I/O is available.
+	O_CREAT		= syscall.O_CREAT;	// create a new file if none exists.
+	O_NOCTTY	= syscall.O_NOCTTY;	// do not make file the controlling tty.
+	O_NONBLOCK	= syscall.O_NONBLOCK;	// open in non-blocking mode.
+	O_NDELAY	= O_NONBLOCK;		// synonym for O_NONBLOCK
+	O_SYNC		= syscall.O_SYNC;	// open for synchronous I/O.
+	O_TRUNC		= syscall.O_TRUNC;	// if possible, truncate file when opened.
 )
 
 // Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
@@ -89,19 +89,20 @@ func Open(name string, flag int, perm int) (file *File, err Error) {
 // It returns an Error, if any.
 func (file *File) Close() Error {
 	if file == nil {
-		return EINVAL
+		return EINVAL;
 	}
 	var err Error;
 	if e := syscall.Close(file.fd); e != 0 {
 		err = &PathError{"close", file.name, Errno(e)};
 	}
-	file.fd = -1;  // so it can't be closed again
+	file.fd = -1;	// so it can't be closed again
 	return err;
 }
 
 type eofError int
+
 func (eofError) String() string {
-	return "EOF"
+	return "EOF";
 }
 
 // EOF is the Error returned by Read when no more input is available.
@@ -117,19 +118,19 @@ var EOF Error = eofError(0)
 // TODO(r): Add Pread, Pwrite (maybe ReadAt, WriteAt).
 func (file *File) Read(b []byte) (n int, err Error) {
 	if file == nil {
-		return 0, EINVAL
+		return 0, EINVAL;
 	}
 	n, e := syscall.Read(file.fd, b);
 	if n < 0 {
 		n = 0;
 	}
 	if n == 0 && e == 0 {
-		return 0, EOF
+		return 0, EOF;
 	}
 	if e != 0 {
 		err = &PathError{"read", file.name, Errno(e)};
 	}
-	return n, err
+	return n, err;
 }
 
 // ReadAt reads len(b) bytes from the File starting at byte offset off.
@@ -158,11 +159,11 @@ func (file *File) ReadAt(b []byte, off int64) (n int, err Error) {
 // Write returns a non-nil Error when n != len(b).
 func (file *File) Write(b []byte) (n int, err Error) {
 	if file == nil {
-		return 0, EINVAL
+		return 0, EINVAL;
 	}
 	n, e := syscall.Write(file.fd, b);
 	if n < 0 {
-		n = 0
+		n = 0;
 	}
 	if e == syscall.EPIPE {
 		file.nepipe++;
@@ -175,7 +176,7 @@ func (file *File) Write(b []byte) (n int, err Error) {
 	if e != 0 {
 		err = &PathError{"write", file.name, Errno(e)};
 	}
-	return n, err
+	return n, err;
 }
 
 // WriteAt writes len(b) bytes to the File starting at byte offset off.
@@ -210,17 +211,17 @@ func (file *File) Seek(offset int64, whence int) (ret int64, err Error) {
 	if e != 0 {
 		return 0, &PathError{"seek", file.name, Errno(e)};
 	}
-	return r, nil
+	return r, nil;
 }
 
 // WriteString is like Write, but writes the contents of string s rather than
 // an array of bytes.
 func (file *File) WriteString(s string) (ret int, err Error) {
 	if file == nil {
-		return 0, EINVAL
+		return 0, EINVAL;
 	}
 	b := syscall.StringByteSlice(s);
-	b = b[0:len(b)-1];
+	b = b[0 : len(b)-1];
 	return file.Write(b);
 }
 
@@ -240,7 +241,7 @@ func Pipe() (r *File, w *File, err Error) {
 	syscall.CloseOnExec(p[1]);
 	syscall.ForkLock.RUnlock();
 
-	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
+	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil;
 }
 
 // Mkdir creates a new directory with the specified name and permission bits.
@@ -271,7 +272,7 @@ func Stat(name string) (dir *Dir, err Error) {
 			statp = &stat;
 		}
 	}
-	return dirFromStat(name, new(Dir), &lstat, statp), nil
+	return dirFromStat(name, new(Dir), &lstat, statp), nil;
 }
 
 // Stat returns the Dir structure describing file.
@@ -282,7 +283,7 @@ func (file *File) Stat() (dir *Dir, err Error) {
 	if e != 0 {
 		return nil, &PathError{"stat", file.name, Errno(e)};
 	}
-	return dirFromStat(file.name, new(Dir), &stat, &stat), nil
+	return dirFromStat(file.name, new(Dir), &stat, &stat), nil;
 }
 
 // Lstat returns the Dir structure describing the named file and an error, if any.
@@ -294,7 +295,7 @@ func Lstat(name string) (dir *Dir, err Error) {
 	if e != 0 {
 		return nil, &PathError{"lstat", name, Errno(e)};
 	}
-	return dirFromStat(name, new(Dir), &stat, &stat), nil
+	return dirFromStat(name, new(Dir), &stat, &stat), nil;
 }
 
 // Readdir reads the contents of the directory associated with file and
@@ -310,18 +311,18 @@ func (file *File) Readdir(count int) (dirs []Dir, err Error) {
 	dirname += "/";
 	names, err1 := file.Readdirnames(count);
 	if err1 != nil {
-		return nil, err1
+		return nil, err1;
 	}
 	dirs = make([]Dir, len(names));
 	for i, filename := range names {
-		dirp, err := Stat(dirname + filename);
-		if dirp ==  nil || err != nil {
-			dirs[i].Name = filename	// rest is already zeroed out
+		dirp, err := Stat(dirname+filename);
+		if dirp == nil || err != nil {
+			dirs[i].Name = filename;	// rest is already zeroed out
 		} else {
-			dirs[i] = *dirp
+			dirs[i] = *dirp;
 		}
 	}
-	return
+	return;
 }
 
 // Chdir changes the current working directory to the named directory.
@@ -374,10 +375,10 @@ func Remove(name string) Error {
 // LinkError records an error during a link or symlink
 // system call and the paths that caused it.
 type LinkError struct {
-	Op string;
-	Old string;
-	New string;
-	Error Error;
+	Op	string;
+	Old	string;
+	New	string;
+	Error	Error;
 }
 
 func (e *LinkError) String() string {
@@ -479,4 +480,3 @@ func (f *File) Truncate(size int64) Error {
 	}
 	return nil;
 }
-
