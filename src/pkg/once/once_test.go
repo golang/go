@@ -9,9 +9,10 @@ import (
 	"testing";
 )
 
-var ncall int;
+var ncall int
+
 func call() {
-	ncall++
+	ncall++;
 }
 
 func TestDo(t *testing.T) {

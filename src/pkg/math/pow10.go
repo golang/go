@@ -13,12 +13,12 @@ package math
  * than multipication of lower powers of 10.
  */
 
-var	pow10tab	[70]float64;
+var pow10tab [70]float64
 
 // Pow10 returns 10**x, the base-10 exponential of x.
 func Pow10(e int) float64 {
 	if e < 0 {
-		return 1/Pow10(-e);
+		return 1 / Pow10(-e);
 	}
 	if e < len(pow10tab) {
 		return pow10tab[e];
@@ -30,8 +30,8 @@ func Pow10(e int) float64 {
 func init() {
 	pow10tab[0] = 1.0e0;
 	pow10tab[1] = 1.0e1;
-	for i:=2; i<len(pow10tab); i++ {
+	for i := 2; i < len(pow10tab); i++ {
 		m := i/2;
-		pow10tab[i] = pow10tab[m] * pow10tab[i-m];
+		pow10tab[i] = pow10tab[m]*pow10tab[i-m];
 	}
 }

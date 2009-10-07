@@ -45,5 +45,5 @@ func Hypot(p, q float64) float64 {
 		q = q*r;
 		r = q/p;
 	}
-	panic("unreachable")
+	panic("unreachable");
 }

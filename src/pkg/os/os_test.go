@@ -5,12 +5,12 @@
 package os_test
 
 import (
-	"bytes";
-	"fmt";
-	"io";
-	. "os";
-	"strings";
-	"testing";
+		"bytes";
+		"fmt";
+		"io";
+	.	"os";
+		"strings";
+		"testing";
 )
 
 var dot = []string{
@@ -23,7 +23,7 @@ var dot = []string{
 	"time.go",
 	"types.go",
 	"stat_darwin_amd64.go",
-	"stat_linux_amd64.go"
+	"stat_linux_amd64.go",
 }
 
 var etc = []string{
@@ -44,13 +44,13 @@ func size(name string, t *testing.T) uint64 {
 		n, e := file.Read(&buf);
 		len += n;
 		if e == EOF {
-			break
+			break;
 		}
 		if e != nil {
 			t.Fatal("read failed:", err);
 		}
 	}
-	return uint64(len)
+	return uint64(len);
 }
 
 func TestStat(t *testing.T) {
@@ -120,7 +120,7 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
 				if found {
 					t.Error("present twice:", m);
 				}
-				found = true
+				found = true;
 			}
 		}
 		if !found {
@@ -146,7 +146,7 @@ func testReaddir(dir string, contents []string, t *testing.T) {
 				if found {
 					t.Error("present twice:", m);
 				}
-				found = true
+				found = true;
 			}
 		}
 		if !found {
@@ -175,12 +175,12 @@ func smallReaddirnames(file *File, length int, t *testing.T) []string {
 			t.Fatalf("readdir %q failed: %v", file.Name(), err);
 		}
 		if len(d) == 0 {
-			break
+			break;
 		}
 		names[count] = d[0];
 		count++;
 	}
-	return names[0:count]
+	return names[0:count];
 }
 
 // Check that reading a directory one entry at a time gives the same result
@@ -210,8 +210,8 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 
 func TestHardLink(t *testing.T) {
 	from, to := "hardlinktestfrom", "hardlinktestto";
-	Remove(from); // Just in case.
-	file, err := Open(to, O_CREAT | O_WRONLY, 0666);
+	Remove(from);	// Just in case.
+	file, err := Open(to, O_CREAT|O_WRONLY, 0666);
 	if err != nil {
 		t.Fatalf("open %q failed: %v", to, err);
 	}
@@ -239,8 +239,8 @@ func TestHardLink(t *testing.T) {
 
 func TestSymLink(t *testing.T) {
 	from, to := "symlinktestfrom", "symlinktestto";
-	Remove(from); // Just in case.
-	file, err := Open(to, O_CREAT | O_WRONLY, 0666);
+	Remove(from);	// Just in case.
+	file, err := Open(to, O_CREAT|O_WRONLY, 0666);
 	if err != nil {
 		t.Fatalf("open %q failed: %v", to, err);
 	}
@@ -297,7 +297,7 @@ func TestSymLink(t *testing.T) {
 
 func TestLongSymlink(t *testing.T) {
 	s := "0123456789abcdef";
-	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s;
+	s = s+s+s+s+s+s+s+s+s+s+s+s+s+s+s+s+s;
 	from := "longsymlinktestfrom";
 	err := Symlink(s, from);
 	if err != nil {
@@ -347,7 +347,7 @@ func checkMode(t *testing.T, path string, mode uint32) {
 func TestChmod(t *testing.T) {
 	MkdirAll("_obj", 0777);
 	const Path = "_obj/_TestChmod_";
-	fd, err := Open(Path, O_WRONLY | O_CREAT, 0666);
+	fd, err := Open(Path, O_WRONLY|O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %s: %s", Path, err);
 	}
@@ -386,7 +386,7 @@ func TestChown(t *testing.T) {
 	// basically useless.
 
 	const Path = "/tmp/_TestChown_";
-	fd, err := Open(Path, O_WRONLY | O_CREAT, 0666);
+	fd, err := Open(Path, O_WRONLY|O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %s: %s", Path, err);
 	}
@@ -439,7 +439,7 @@ func checkSize(t *testing.T, path string, size uint64) {
 func TestTruncate(t *testing.T) {
 	MkdirAll("_obj", 0777);
 	const Path = "_obj/_TestTruncate_";
-	fd, err := Open(Path, O_WRONLY | O_CREAT, 0666);
+	fd, err := Open(Path, O_WRONLY|O_CREAT, 0666);
 	if err != nil {
 		t.Fatalf("create %s: %s", Path, err);
 	}
@@ -454,7 +454,7 @@ func TestTruncate(t *testing.T) {
 	fd.Truncate(0);
 	checkSize(t, Path, 0);
 	fd.Write(strings.Bytes("surprise!"));
-	checkSize(t, Path, 13 + 9);	// wrote at offset past where hello, world was.
+	checkSize(t, Path, 13+9);	// wrote at offset past where hello, world was.
 	fd.Close();
 	Remove(Path);
 }
@@ -466,7 +466,7 @@ func TestChdirAndGetwd(t *testing.T) {
 	}
 	// These are chosen carefully not to be symlinks on a Mac
 	// (unlike, say, /var, /etc, and /tmp).
-	dirs := []string{ "/bin", "/", "/usr/bin" };
+	dirs := []string{"/bin", "/", "/usr/bin"};
 	for mode := 0; mode < 2; mode++ {
 		for _, d := range dirs {
 			if mode == 0 {
@@ -529,19 +529,19 @@ func TestSeek(t *testing.T) {
 	io.WriteString(f, data);
 
 	type test struct {
-		in int64;
-		whence int;
-		out int64;
+		in	int64;
+		whence	int;
+		out	int64;
 	}
-	var tests = []test {
-		test{ 0, 1, int64(len(data)) },
-		test{ 0, 0, 0 },
-		test{ 5, 0, 5 },
-		test{ 0, 2, int64(len(data)) },
-		test{ 0, 0, 0 },
-		test{ -1, 2, int64(len(data)) - 1 },
-		test{ 1<<40, 0, 1<<40 },
-		test{ 1<<40, 2, 1<<40 + int64(len(data)) }
+	var tests = []test{
+		test{0, 1, int64(len(data))},
+		test{0, 0, 0},
+		test{5, 0, 5},
+		test{0, 2, int64(len(data))},
+		test{0, 0, 0},
+		test{-1, 2, int64(len(data))-1},
+		test{1<<40, 0, 1<<40},
+		test{1<<40, 2, 1<<40 + int64(len(data))},
 	};
 	for i, tt := range tests {
 		off, err := f.Seek(tt.in, tt.whence);
@@ -553,23 +553,23 @@ func TestSeek(t *testing.T) {
 }
 
 type openErrorTest struct {
-	path string;
-	mode int;
-	error string;
+	path	string;
+	mode	int;
+	error	string;
 }
 
-var openErrorTests = []openErrorTest {
-	openErrorTest {
+var openErrorTests = []openErrorTest{
+	openErrorTest{
 		"/etc/no-such-file",
 		O_RDONLY,
 		"open /etc/no-such-file: no such file or directory",
 	},
-	openErrorTest {
+	openErrorTest{
 		"/etc",
 		O_WRONLY,
 		"open /etc: is a directory",
 	},
-	openErrorTest {
+	openErrorTest{
 		"/etc/passwd/group",
 		O_WRONLY,
 		"open /etc/passwd/group: not a directory",
@@ -607,7 +607,7 @@ func run(t *testing.T, cmd []string) string {
 	Wait(pid, 0);
 	output := b.String();
 	if n := len(output); n > 0 && output[n-1] == '\n' {
-		output = output[0:n-1];
+		output = output[0 : n-1];
 	}
 	if output == "" {
 		t.Fatalf("%v produced no output", cmd);

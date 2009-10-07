@@ -5,7 +5,7 @@
 package os
 
 import (
-	"syscall"
+	"syscall";
 )
 
 // Getwd returns a rooted path name corresponding to the
@@ -27,11 +27,11 @@ func Getwd() (string, Error) {
 
 	// Clumsy but widespread kludge:
 	// if $PWD is set and matches ".", use it.
-	pwd:= Getenv("PWD");
+	pwd := Getenv("PWD");
 	if len(pwd) > 0 && pwd[0] == '/' {
 		d, err := Stat(pwd);
 		if err == nil && d.Dev == dot.Dev && d.Ino == dot.Ino {
-			return pwd, nil
+			return pwd, nil;
 		}
 	}
 
@@ -43,14 +43,14 @@ func Getwd() (string, Error) {
 		return "", err;
 	}
 	if root.Dev == dot.Dev && root.Ino == dot.Ino {
-		return "/", nil
+		return "/", nil;
 	}
 
 	// General algorithm: find name in parent
 	// and then find name of parent.  Each iteration
 	// adds /name to the beginning of pwd.
 	pwd = "";
-	for parent := "..";; parent = "../" + parent {
+	for parent := ".."; ; parent = "../"+parent {
 		if len(parent) >= 1024 {	// Sanity check
 			return "", ENAMETOOLONG;
 		}
@@ -66,9 +66,9 @@ func Getwd() (string, Error) {
 				return "", err;
 			}
 			for _, name := range names {
-				d, _ := Lstat(parent + "/" + name);
+				d, _ := Lstat(parent+"/"+name);
 				if d.Dev == dot.Dev && d.Ino == dot.Ino {
-					pwd = "/" + name + pwd;
+					pwd = "/"+name+pwd;
 					goto Found;
 				}
 			}
@@ -88,5 +88,5 @@ func Getwd() (string, Error) {
 		// Set up for next round.
 		dot = pd;
 	}
-	return pwd, nil
+	return pwd, nil;
 }

@@ -19,8 +19,7 @@ package math
  *	range [-0.414...,+0.414...]. (tan(pi/8))
  */
 func xatan(arg float64) float64 {
-	const
-	(
+	const (
 		P4	= .161536412982230228262e2;
 		P3	= .26842548195503973794141e3;
 		P2	= .11530293515404850115428136e4;
@@ -34,7 +33,7 @@ func xatan(arg float64) float64 {
 	)
 	sq := arg*arg;
 	value := ((((P4*sq + P3)*sq + P2)*sq + P1)*sq + P0);
-	value = value/(((((sq + Q4)*sq + Q3)*sq + Q2)*sq + Q1)*sq + Q0);
+	value = value/(((((sq+Q4)*sq + Q3)*sq + Q2)*sq + Q1)*sq + Q0);
 	return value*arg;
 }
 
@@ -43,10 +42,10 @@ func xatan(arg float64) float64 {
  *	to the range [0,0.414...] and calls xatan.
  */
 func satan(arg float64) float64 {
-	if arg < Sqrt2 - 1 {
+	if arg < Sqrt2-1 {
 		return xatan(arg);
 	}
-	if arg > Sqrt2 + 1 {
+	if arg > Sqrt2+1 {
 		return Pi/2 - xatan(1/arg);
 	}
 	return Pi/4 + xatan((arg-1)/(arg+1));

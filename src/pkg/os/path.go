@@ -35,7 +35,7 @@ func MkdirAll(path string, perm int) Error {
 
 	if j > 0 {
 		// Create parent
-		err = MkdirAll(path[0:j-1], perm);
+		err = MkdirAll(path[0 : j-1], perm);
 		if err != nil {
 			return err;
 		}
@@ -91,7 +91,7 @@ func RemoveAll(path string) Error {
 	for {
 		names, err1 := fd.Readdirnames(100);
 		for _, name := range names {
-			err1 := RemoveAll(path + "/" + name);
+			err1 := RemoveAll(path+"/"+name);
 			if err == nil {
 				err = err1;
 			}
