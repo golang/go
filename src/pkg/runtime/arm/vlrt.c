@@ -237,6 +237,12 @@ _divvu(Vlong *q, Vlong n, Vlong d)
 }
 
 void
+sys·uint64div(Vlong n, Vlong d, Vlong q)
+{
+	_divvu(&q, n, d);
+}
+
+void
 _modvu(Vlong *r, Vlong n, Vlong d)
 {
 
@@ -246,6 +252,12 @@ _modvu(Vlong *r, Vlong n, Vlong d)
                 return;
         }
         dodiv(n, d, 0, r);
+}
+
+void
+sys·uint64mod(Vlong n, Vlong d, Vlong q)
+{
+	_modvu(&q, n, d);
 }
 
 static void
@@ -282,6 +294,12 @@ _divv(Vlong *q, Vlong n, Vlong d)
 }
 
 void
+sys·int64div(Vlong n, Vlong d, Vlong q)
+{
+	_divv(&q, n, d);
+}
+
+void
 _modv(Vlong *r, Vlong n, Vlong d)
 {
         long nneg, dneg;
@@ -300,6 +318,12 @@ _modv(Vlong *r, Vlong n, Vlong d)
         dodiv(n, d, 0, r);
         if(nneg)
                 vneg(r);
+}
+
+void
+sys·int64mod(Vlong n, Vlong d, Vlong q)
+{
+	_modv(&q, n, d);
 }
 
 void
