@@ -32,11 +32,15 @@
 #include	<libc.h>
 #include	<bio.h>
 #include	"../6l/6.out.h"
-#include	"compat.h"
 
 #ifndef	EXTERN
 #define	EXTERN	extern
 #endif
+
+enum
+{
+	PtrSize = 8
+};
 
 #define	P		((Prog*)0)
 #define	S		((Sym*)0)
@@ -115,7 +119,6 @@ struct	Sym
 	short	version;
 	short	become;
 	short	frame;
-	ushort	file;
 	uchar	subtype;
 	uchar	dupok;
 	uchar	reachable;
@@ -126,6 +129,7 @@ struct	Sym
 	Prog*	text;
 	Prog*	data;
 	Sym*	gotype;
+	char*	file;
 	char*	dynldname;
 	char*	dynldlib;
 };
@@ -301,7 +305,6 @@ EXTERN	int32	bsssize;
 EXTERN	int	cbc;
 EXTERN	char*	cbp;
 EXTERN	char*	pcstr;
-EXTERN	int	cout;
 EXTERN	Auto*	curauto;
 EXTERN	Auto*	curhist;
 EXTERN	Prog*	curp;
@@ -313,21 +316,7 @@ EXTERN	char	debug[128];
 EXTERN	char	literal[32];
 EXTERN	Prog*	etextp;
 EXTERN	Prog*	firstp;
-EXTERN	uchar	fnuxi8[8];
-EXTERN	uchar	fnuxi4[4];
-EXTERN	Sym*	hash[NHASH];
-EXTERN	Sym*	histfrog[MAXHIST];
-EXTERN	int	histfrogp;
-EXTERN	int	histgen;
-EXTERN	char*	library[50];
-EXTERN	char*	libraryobj[50];
-EXTERN	int	libraryp;
 EXTERN	int	xrefresolv;
-EXTERN	char*	hunk;
-EXTERN	uchar	inuxi1[1];
-EXTERN	uchar	inuxi2[2];
-EXTERN	uchar	inuxi4[4];
-EXTERN	uchar	inuxi8[8];
 EXTERN	char	ycover[Ymax*Ymax];
 EXTERN	uchar*	andptr;
 EXTERN	uchar*	rexptr;
@@ -337,8 +326,6 @@ EXTERN	int	regrex[D_NONE+1];
 EXTERN	Prog*	lastp;
 EXTERN	int32	lcsize;
 EXTERN	int	nerrors;
-EXTERN	int32	nhunk;
-EXTERN	int32	nsymbol;
 EXTERN	char*	noname;
 EXTERN	char*	outfile;
 EXTERN	vlong	pc;
@@ -347,7 +334,6 @@ EXTERN	Sym*	symlist;
 EXTERN	int32	symsize;
 EXTERN	Prog*	textp;
 EXTERN	vlong	textsize;
-EXTERN	int32	thunk;
 EXTERN	int	version;
 EXTERN	Prog	zprg;
 EXTERN	int	dtype;
@@ -411,21 +397,11 @@ void	doprof2(void);
 void	dostkoff(void);
 void	dynreloc(Sym*, uint32, int);
 vlong	entryvalue(void);
-void	errorexit(void);
 void	export(void);
-int	find1(int32, int);
-int	find2(int32, int);
 void	follow(void);
-void	addstachmark(void);
 void	gethunk(void);
 void	gotypestrings(void);
-void	histtoauto(void);
-double	ieeedtod(Ieee*);
-int32	ieeedtof(Ieee*);
 void	import(void);
-void	ldobj(Biobuf*, int64, char*);
-void	ldpkg(Biobuf*, int64, char*);
-void	loadlib(void);
 void	listinit(void);
 Sym*	lookup(char*, int);
 void	lputb(int32);
@@ -436,20 +412,16 @@ void*	mysbrk(uint32);
 Prog*	newdata(Sym*, int, int, int);
 Prog*	newtext(Prog*, Sym*);
 void	nopout(Prog*);
-void	nuxiinit(void);
-void	objfile(char*);
 int	opsize(Prog*);
 void	patch(void);
 Prog*	prg(void);
 void	parsetextconst(vlong);
-void	readundefs(char*, int);
 int	relinv(int);
 int32	reuse(Prog*, Sym*);
 vlong	rnd(vlong, vlong);
 void	span(void);
 void	strnput(char*, int);
 void	undef(void);
-void	undefsym(Sym*);
 vlong	vaddr(Adr*);
 vlong	symaddr(Sym*);
 void	vputl(uint64);
@@ -458,7 +430,6 @@ void	wputl(uint16);
 void	xdefine(char*, int, vlong);
 void	xfol(Prog*);
 void	zaddr(Biobuf*, Adr*, Sym*[]);
-void	zerosig(char*);
 
 void	machseg(char*, vlong, vlong, vlong, vlong, uint32, uint32, uint32, uint32);
 void	machsymseg(uint32, uint32);

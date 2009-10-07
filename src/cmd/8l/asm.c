@@ -29,6 +29,7 @@
 // THE SOFTWARE.
 
 #include	"l.h"
+#include	"../ld/lib.h"
 #include	"../ld/elf.h"
 #include	"../ld/macho.h"
 
@@ -414,18 +415,13 @@ asmb(void)
 {
 	Prog *p;
 	int32 v, magic;
-	int a, i, dynsym;
+	int a, dynsym;
 	uint32 va, fo, w, symo, startva, machlink;
 	uchar *op1;
 	ulong expectpc;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
 	ElfShdr *sh;
-	MachoHdr *mh;
-	MachoSect *msect;
-	MachoSeg *ms;
-	MachoDebug *md;
-	MachoLoad *ml;
 
 	if(debug['v'])
 		Bprint(&bso, "%5.2f asmb\n", cputime());

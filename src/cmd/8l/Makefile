@@ -9,9 +9,9 @@ TARG=\
 
 OFILES=\
 	asm.$O\
-	compat.$O\
 	elf.$O\
 	enam.$O\
+	lib.$O\
 	list.$O\
 	macho.$O\
 	obj.$O\
@@ -41,6 +41,5 @@ clean:
 install: $(TARG)
 	cp $(TARG) $(GOBIN)/$(TARG)
 
-go.o: ../ld/go.c
-elf.o: ../ld/elf.c
-macho.o: ../ld/macho.c
+%.$O: ../ld/%.c
+	$(CC) $(CFLAGS) -c -I. ../ld/$*.c

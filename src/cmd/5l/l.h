@@ -33,6 +33,11 @@
 #include	<bio.h>
 #include	"../5l/5.out.h"
 
+enum
+{
+	PtrSize = 4
+};
+
 #ifndef	EXTERN
 #define	EXTERN	extern
 #endif
@@ -119,7 +124,6 @@ struct	Sym
 	short	frame;
 	uchar	subtype;
 	uchar	reachable;
-	ushort	file;
 	int32	value;
 	int32	sig;
 	uchar	used;
@@ -131,6 +135,7 @@ struct	Sym
 	Prog*	text;
 	Prog*	data;
 	Sym*	gotype;
+	char*	file;
 	char*	dynldname;
 	char*	dynldlib;
 };
@@ -313,20 +318,8 @@ EXTERN	char	debug[128];
 EXTERN	Prog*	edatap;
 EXTERN	Prog*	etextp;
 EXTERN	Prog*	firstp;
-EXTERN	uchar	fnuxi4[4];
-EXTERN	uchar	fnuxi8[8];
 EXTERN	char*	noname;
-EXTERN	Sym*	hash[NHASH];
-EXTERN	Sym*	histfrog[MAXHIST];
-EXTERN	int	histfrogp;
-EXTERN	int	histgen;
-EXTERN	char*	library[50];
-EXTERN	char*	libraryobj[50];
-EXTERN	int	libraryp;
 EXTERN	int	xrefresolv;
-EXTERN	uchar	inuxi1[1];
-EXTERN	uchar	inuxi2[2];
-EXTERN	uchar	inuxi4[4];
 EXTERN	Prog*	lastp;
 EXTERN	int32	lcsize;
 EXTERN	char	literal[32];
@@ -342,7 +335,6 @@ EXTERN	uint32	stroffset;
 EXTERN	int32	symsize;
 EXTERN	Prog*	textp;
 EXTERN	int32	textsize;
-EXTERN	int32	thunk;
 EXTERN	int	version;
 EXTERN	char	xcmp[C_GOK+1][C_GOK+1];
 EXTERN	Prog	zprg;
@@ -418,19 +410,12 @@ void	doprof1(void);
 void	doprof2(void);
 void	dynreloc(Sym*, int32, int);
 int32	entryvalue(void);
-void	errorexit(void);
 void	exchange(Prog*);
 void	export(void);
-int	find1(int32, int);
 void	follow(void);
-void	histtoauto(void);
 void	hputl(int);
-double	ieeedtod(Ieee*);
-int32	ieeedtof(Ieee*);
 void	import(void);
 int	isnop(Prog*);
-void	ldobj(Biobuf*, int32, char*);
-void	loadlib(void);
 void	listinit(void);
 Sym*	lookup(char*, int);
 void	cput(int);
@@ -442,8 +427,6 @@ void*	mysbrk(uint32);
 void	names(void);
 Prog*	newdata(Sym *s, int o, int w, int t);
 void	nocache(Prog*);
-void	nuxiinit(void);
-void	objfile(char*);
 int	ocmp(const void*, const void*);
 int32	opirr(int);
 Optab*	oplook(Prog*);
@@ -464,19 +447,16 @@ void	prepend(Prog*, Prog*);
 Prog*	prg(void);
 int	pseudo(Prog*);
 void	putsymb(char*, int, int32, int);
-void	readundefs(char*, int);
 int32	regoff(Adr*);
 int	relinv(int);
 int32	rnd(int32, int32);
 void	span(void);
 void	strnput(char*, int);
 void	undef(void);
-void	undefsym(Sym*);
 void	wput(int32);
 void    wputl(ushort w);
 void	xdefine(char*, int, int32);
 void	xfol(Prog*);
-void	zerosig(char*);
 void	noops(void);
 int32	immrot(uint32);
 int32	immaddr(int32);

@@ -29,6 +29,7 @@
 // THE SOFTWARE.
 
 #include	"l.h"
+#include	"../ld/lib.h"
 
 static int	rexflag;
 static int	asmode;

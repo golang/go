@@ -5,6 +5,8 @@
 // Mach-O file writing
 // http://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
 
+#include "l.h"
+#include "../ld/lib.h"
 #include "../ld/macho.h"
 
 static	int	macho64;

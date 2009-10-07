@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include "../ld/elf.h"
+#include	"l.h"
+#include	"lib.h"
+#include	"../ld/elf.h"
 
 /*
  * We use the 64-bit data structures on both 32- and 64-bit machines
