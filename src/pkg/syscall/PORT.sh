@@ -126,7 +126,7 @@ linux_arm)
 	;;
 esac
 
-echo "$mkerrors >zerrors_$GOOSARCH.go"
-echo "$mksyscall syscall_$GOOS.go syscall_$GOOSARCH.go >zsyscall_$GOOSARCH.go"
-echo "$mksysnum >zsysnum_$GOOSARCH.go"
-echo "$mktypes types_$GOOS.c >ztypes_$GOOSARCH.go"
+echo "$mkerrors |gofmt >zerrors_$GOOSARCH.go"
+echo "$mksyscall syscall_$GOOS.go syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"
+echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"
+echo "$mktypes types_$GOOS.c |gofmt >ztypes_$GOOSARCH.go"
