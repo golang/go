@@ -356,7 +356,7 @@ walkstmt(Node **np)
 		walkstmtlist(n->ninit);
 		if(n->ntest != N) {
 			walkstmtlist(n->ntest->ninit);
-			walkexpr(&n->ntest, &n->ntest->ninit);
+			walkexpr(&n->ntest, &n->ninit);
 		}
 		walkstmt(&n->nincr);
 		walkstmtlist(n->nbody);
@@ -364,7 +364,7 @@ walkstmt(Node **np)
 
 	case OIF:
 		walkstmtlist(n->ninit);
-		walkexpr(&n->ntest, &n->ntest->ninit);
+		walkexpr(&n->ntest, &n->ninit);
 		walkstmtlist(n->nbody);
 		walkstmtlist(n->nelse);
 		break;
@@ -454,6 +454,13 @@ walkexpr(Node **np, NodeList **init)
 
 	if(n == N)
 		return;
+
+	if(init == &n->ninit) {
+		// not okay to use n->ninit when walking n,
+		// because we might replace n with some other node
+		// and would lose the init list.
+		fatal("walkexpr init == &n->ninit");
+	}
 
 	// annoying case - not typechecked
 	if(n->op == OKEY) {
