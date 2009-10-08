@@ -73,7 +73,7 @@ func (p *Vector) Init(initial_len int) *Vector {
 		}
 	}
 
-	p.a = a[0:initial_len];
+	p.a = a[0 : initial_len];
 	return p;
 }
 
@@ -108,7 +108,7 @@ func (p *Vector) Set(i int, x Element) {
 
 // Last returns the element in the vector of highest index.
 func (p *Vector) Last() Element {
-	return p.a[len(p.a) - 1];
+	return p.a[len(p.a)-1];
 }
 
 
@@ -146,7 +146,7 @@ func (p *Vector) Delete(i int) {
 // x such that the 0th element of x appears at index i after insertion.
 func (p *Vector) InsertVector(i int, x *Vector) {
 	p.a = expand(p.a, i, len(x.a));
-	copy(p.a[i : i + len(x.a)], x.a);
+	copy(p.a[i : i+len(x.a)], x.a);
 }
 
 
@@ -193,7 +193,7 @@ func (p *Vector) Push(x Element) {
 
 // Pop deletes the last element of the vector.
 func (p *Vector) Pop() Element {
-	i := len(p.a) - 1;
+	i := len(p.a)-1;
 	x := p.a[i];
 	p.a[i] = nil;	// support GC, nil out entry
 	p.a = p.a[0:i];

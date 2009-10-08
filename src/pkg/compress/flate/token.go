@@ -9,7 +9,7 @@ const (
 	// 8 bits:   xlength = length - MIN_MATCH_LENGTH
 	// 22 bits   xoffset = offset - MIN_OFFSET_SIZE, or literal
 	lengthShift	= 22;
-	offsetMask	= 1<<lengthShift - 1;
+	offsetMask	= 1 << lengthShift - 1;
 	typeMask	= 3<<30;
 	literalType	= 0<<30;
 	matchType	= 1<<30;
@@ -69,12 +69,12 @@ type token uint32
 
 // Convert a literal into a literal token.
 func literalToken(literal uint32) token {
-	return token(literalType+literal);
+	return token(literalType + literal);
 }
 
 // Convert a < xlength, xoffset > pair into a match token.
 func matchToken(xlength uint32, xoffset uint32) token {
-	return token(matchType + xlength<<lengthShift + xoffset);
+	return token(matchType + xlength << lengthShift + xoffset);
 }
 
 // Returns the type of a token
@@ -84,16 +84,16 @@ func (t token) typ() uint32 {
 
 // Returns the literal of a literal token
 func (t token) literal() uint32 {
-	return uint32(t-literalType);
+	return uint32(t - literalType);
 }
 
 // Returns the extra offset of a match token
 func (t token) offset() uint32 {
-	return uint32(t)&offsetMask;
+	return uint32(t) & offsetMask;
 }
 
 func (t token) length() uint32 {
-	return uint32((t-matchType)>>lengthShift);
+	return uint32((t - matchType) >> lengthShift);
 }
 
 func lengthCode(len uint32) uint32 {
@@ -107,9 +107,9 @@ func offsetCode(off uint32) uint32 {
 	case off < n:
 		return offsetCodes[off];
 	case off>>7 < n:
-		return offsetCodes[off>>7]+14;
+		return offsetCodes[off>>7] + 14;
 	default:
-		return offsetCodes[off>>14]+28;
+		return offsetCodes[off>>14] + 28;
 	}
 	panic("unreachable");
 }

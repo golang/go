@@ -43,7 +43,7 @@ func NewInflater(r io.Reader) (io.ReadCloser, os.Error) {
 	if err != nil {
 		return nil, err;
 	}
-	h := uint(z.scratch[0]) << 8 | uint(z.scratch[1]);
+	h := uint(z.scratch[0])<<8 | uint(z.scratch[1]);
 	if (z.scratch[0] & 0x0f != zlibDeflate) || (h%31 != 0) {
 		return nil, HeaderError;
 	}
@@ -77,7 +77,7 @@ func (z *reader) Read(p []byte) (n int, err os.Error) {
 		return 0, err;
 	}
 	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
-	checksum := uint32(z.scratch[0]) << 24 | uint32(z.scratch[1]) << 16 | uint32(z.scratch[2]) << 8 | uint32(z.scratch[3]);
+	checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3]);
 	if checksum != z.digest.Sum32() {
 		z.err = ChecksumError;
 		return 0, z.err;

@@ -66,10 +66,10 @@ type huffmanDecoder struct {
 	// limit[i] = largest code word of length i
 	// Given code v of length n,
 	// need more bits if v > limit[n].
-	limit	[maxCodeLen+1]int;
+	limit	[maxCodeLen + 1]int;
 
 	// base[i] = smallest code word of length i - seq number
-	base	[maxCodeLen+1]int;
+	base	[maxCodeLen + 1]int;
 
 	// codes[seq number] = output code.
 	// Given code v of length n, value is
@@ -83,7 +83,7 @@ func (h *huffmanDecoder) init(bits []int) bool {
 
 	// Count number of codes of each length,
 	// compute min and max length.
-	var count [maxCodeLen+1]int;
+	var count [maxCodeLen + 1]int;
 	var min, max int;
 	for _, n := range bits {
 		if n == 0 {
@@ -142,8 +142,8 @@ func (h *huffmanDecoder) init(bits []int) bool {
 // See RFC 1951, section 3.2.6.
 var fixedHuffmanDecoder = huffmanDecoder{
 	7, 9,
-	[maxCodeLen+1]int{7: 23, 199, 511},
-	[maxCodeLen+1]int{7: 0, 24, 224},
+	[maxCodeLen + 1]int{7: 23, 199, 511},
+	[maxCodeLen + 1]int{7: 0, 24, 224},
 	[]int{
 		// length 7: 256-279
 		256, 257, 258, 259, 260, 261, 262,
@@ -271,11 +271,11 @@ func (f *inflater) readHuffman() os.Error {
 			return err;
 		}
 	}
-	nlit := int(f.b & 0x1F) + 257;
+	nlit := int(f.b & 0x1F)+257;
 	f.b >>= 5;
-	ndist := int(f.b & 0x1F) + 1;
+	ndist := int(f.b & 0x1F)+1;
 	f.b >>= 5;
-	nclen := int(f.b & 0xF) + 4;
+	nclen := int(f.b & 0xF)+4;
 	f.b >>= 4;
 	f.nb -= 5+5+4;
 
@@ -437,7 +437,7 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
 		case dist >= 30:
 			return CorruptInputError(f.roffset);
 		default:
-			nb := uint(dist-2) >> 1;
+			nb := uint(dist-2)>>1;
 			// have 1 bit in bottom of dist, need nb more.
 			extra := (dist&1)<<nb;
 			for f.nb < nb {
@@ -495,8 +495,8 @@ func (f *inflater) dataBlock() os.Error {
 	if err != nil {
 		return &ReadError{f.roffset, err};
 	}
-	n := int(f.buf[0]) | int(f.buf[1]) << 8;
-	nn := int(f.buf[2]) | int(f.buf[3]) << 8;
+	n := int(f.buf[0]) | int(f.buf[1])<<8;
+	nn := int(f.buf[2]) | int(f.buf[3])<<8;
 	if uint16(nn) != uint16(^n) {
 		return CorruptInputError(f.roffset);
 	}

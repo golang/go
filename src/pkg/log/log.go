@@ -75,7 +75,7 @@ func itoa(i int, wid int) string {
 	for ; u > 0 || wid > 0; u /= 10 {
 		bp--;
 		wid--;
-		b[bp] = byte(u%10) + '0';
+		b[bp] = byte(u%10)+'0';
 	}
 
 	return string(b[bp:len(b)]);
@@ -91,12 +91,12 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
 		if l.flag & (Ltime | Lmicroseconds) != 0 {
 			h += itoa(t.Hour, 2) + ":" + itoa(t.Minute, 2) + ":" + itoa(t.Second, 2);
 			if l.flag & Lmicroseconds != 0 {
-				h += "." + itoa(int(ns%1e9) / 1e3, 6);
+				h += "." + itoa(int(ns%1e9)/1e3, 6);
 			}
 			h += " ";
 		}
 	}
-	if l.flag & (Lshortfile|Llongfile) != 0 {
+	if l.flag & (Lshortfile | Llongfile) != 0 {
 		_, file, line, ok := runtime.Caller(calldepth);
 		if ok {
 			if l.flag & Lshortfile != 0 {
@@ -131,7 +131,7 @@ func (l *Logger) Output(calldepth int, s string) {
 	if len(s) > 0 && s[len(s)-1] == '\n' {
 		newline = "";
 	}
-	s = l.formatHeader(now, calldepth+1) + s + newline;
+	s = l.formatHeader(now, calldepth + 1) + s + newline;
 	io.WriteString(l.out0, s);
 	if l.out1 != nil {
 		io.WriteString(l.out1, s);

@@ -66,7 +66,7 @@ func (x *ecbDecrypter) readPlain(p []byte) int {
 		p[i] = x.plain[i];
 	}
 	if n < len(x.plain) {
-		x.plain = x.plain[n : len(x.plain)];
+		x.plain = x.plain[n:len(x.plain)];
 	} else {
 		x.plain = nil;
 	}
@@ -172,7 +172,7 @@ func (x *ecbEncrypter) flushCrypt() os.Error {
 	}
 	n, err := x.w.Write(x.crypt);
 	if n < len(x.crypt) {
-		x.crypt = x.crypt[n : len(x.crypt)];
+		x.crypt = x.crypt[n:len(x.crypt)];
 		if err == nil {
 			err = io.ErrShortWrite;
 		}
@@ -196,7 +196,7 @@ func (x *ecbEncrypter) slidePlain() {
 		for i := 0; i < len(x.plain); i++ {
 			x.buf[i] = x.plain[i];
 		}
-		x.plain = x.buf[0 : len(x.plain)];
+		x.plain = x.buf[0:len(x.plain)];
 	}
 }
 
@@ -205,7 +205,7 @@ func (x *ecbEncrypter) slidePlain() {
 func (x *ecbEncrypter) fillPlain(p []byte) int {
 	off := len(x.plain);
 	n := len(p);
-	if max := cap(x.plain) - off; n > max {
+	if max := cap(x.plain)-off; n > max {
 		n = max;
 	}
 	x.plain = x.plain[0 : off+n];

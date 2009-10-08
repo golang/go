@@ -298,7 +298,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		var ok bool;
 		s.Name, ok = getString(shstrtab, int(names[i]));
 		if !ok {
-			return nil, &FormatError{shoff + int64(i*shentsize), "bad section name index", names[i]};
+			return nil, &FormatError{shoff+int64(i * shentsize), "bad section name index", names[i]};
 		}
 	}
 

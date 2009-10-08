@@ -265,11 +265,11 @@ func decimalAtof64(neg bool, d *decimal, trunc bool) (f float64, ok bool) {
 			f *= float64pow10[k-22];
 			k = 22;
 		}
-		return f*float64pow10[k], true;
+		return f * float64pow10[k], true;
 
 	case d.dp < d.nd && d.nd - d.dp <= 22:	// int / 10^k
 		f := decimalAtof64Int(neg, d);
-		return f/float64pow10[d.nd - d.dp], true;
+		return f / float64pow10[d.nd - d.dp], true;
 	}
 	return;
 }
@@ -296,11 +296,11 @@ func decimalAtof32(neg bool, d *decimal, trunc bool) (f float32, ok bool) {
 			f *= float32pow10[k-10];
 			k = 10;
 		}
-		return f*float32pow10[k], true;
+		return f * float32pow10[k], true;
 
 	case d.dp < d.nd && d.nd - d.dp <= 10:	// int / 10^k
 		f := decimalAtof32Int(neg, d);
-		return f/float32pow10[d.nd - d.dp], true;
+		return f / float32pow10[d.nd - d.dp], true;
 	}
 	return;
 }

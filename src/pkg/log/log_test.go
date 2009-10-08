@@ -36,9 +36,9 @@ var tests = []tester{
 	tester{Lok|Ltime, "", Rtime+" "},
 	tester{Lok | Ltime | Lmicroseconds, "", Rtime + Rmicroseconds + " "},
 	tester{Lok | Lmicroseconds, "", Rtime + Rmicroseconds + " "},	// microsec implies time
-	tester{Lok|Llongfile, "", Rlongfile+" "},
-	tester{Lok|Lshortfile, "", Rshortfile+" "},
-	tester{Lok|Llongfile|Lshortfile, "", Rshortfile+" "},	// shortfile overrides longfile
+	tester{Lok | Llongfile, "", Rlongfile + " "},
+	tester{Lok | Lshortfile, "", Rshortfile + " "},
+	tester{Lok | Llongfile | Lshortfile, "", Rshortfile + " "},	// shortfile overrides longfile
 	// everything at once:
 	tester{Lok | Ldate | Ltime | Lmicroseconds | Llongfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rlongfile + " "},
 	tester{Lok | Ldate | Ltime | Lmicroseconds | Lshortfile, "XXX", "XXX" + Rdate + " " + Rtime + Rmicroseconds + " " + Rshortfile + " "},

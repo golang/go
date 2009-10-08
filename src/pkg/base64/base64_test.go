@@ -104,7 +104,7 @@ func TestDecode(t *testing.T) {
 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
 		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded));
 		if len(p.encoded) > 0 {
-			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded) - 1] == '='));
+			testEqual(t, "Decode(%q) = end %v, want %v", p.encoded, end, (p.encoded[len(p.encoded)-1] == '='));
 		}
 		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:count]), p.decoded);
 	}
@@ -130,7 +130,7 @@ func TestDecoder(t *testing.T) {
 func TestDecoderBuffering(t *testing.T) {
 	for bs := 1; bs <= 12; bs++ {
 		decoder := NewDecoder(StdEncoding, bytes.NewBufferString(bigtest.encoded));
-		buf := make([]byte, len(bigtest.decoded) + 12);
+		buf := make([]byte, len(bigtest.decoded)+12);
 		var total int;
 		for total = 0; total < len(bigtest.decoded); {
 			n, err := decoder.Read(buf[total : total+bs]);

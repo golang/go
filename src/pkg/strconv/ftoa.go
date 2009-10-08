@@ -14,12 +14,13 @@ import "math"
 
 // TODO: move elsewhere?
 type floatInfo struct {
-	mantbits uint;
-	expbits uint;
-	bias int;
+	mantbits	uint;
+	expbits		uint;
+	bias		int;
 }
-var float32info = floatInfo{ 23, 8, -127 }
-var float64info = floatInfo{ 52, 11, -1023 }
+
+var float32info = floatInfo{23, 8, -127}
+var float64info = floatInfo{52, 11, -1023}
 
 func floatsize() int {
 	// Figure out whether float is float32 or float64.
@@ -72,12 +73,12 @@ func Ftoa(f float, fmt byte, prec int) string {
 }
 
 func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
-	neg := bits>>flt.expbits>>flt.mantbits != 0;
-	exp := int(bits>>flt.mantbits) & (1<<flt.expbits - 1);
-	mant := bits & (uint64(1)<<flt.mantbits - 1);
+	neg := bits >> flt.expbits >> flt.mantbits != 0;
+	exp := int(bits >> flt.mantbits)&(1 << flt.expbits - 1);
+	mant := bits&(uint64(1) << flt.mantbits - 1);
 
 	switch exp {
-	case 1<<flt.expbits - 1:
+	case 1 << flt.expbits - 1:
 		// Inf, NaN
 		if mant != 0 {
 			return "NaN";
@@ -93,7 +94,7 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
 
 	default:
 		// add implicit top bit
-		mant |= uint64(1)<<flt.mantbits;
+		mant |= uint64(1) << flt.mantbits;
 	}
 	exp += flt.bias;
 
@@ -106,7 +107,7 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
 	// The shift is exp - flt.mantbits because mant is a 1-bit integer
 	// followed by a flt.mantbits fraction, and we are treating it as
 	// a 1+flt.mantbits-bit integer.
-	d := newDecimal(mant).Shift(exp - int(flt.mantbits));
+	d := newDecimal(mant).Shift(exp-int(flt.mantbits));
 
 	// Round appropriately.
 	// Negative precision means "only as much as needed to be exact."
@@ -127,7 +128,7 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
 		case 'e', 'E':
 			d.Round(prec+1);
 		case 'f':
-			d.Round(d.dp+prec);
+			d.Round(d.dp + prec);
 		case 'g', 'G':
 			if prec == 0 {
 				prec = 1;
@@ -151,16 +152,16 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
 		// if precision was the shortest possible, use precision 6 for this decision.
 		eprec := prec;
 		if shortest {
-			eprec = 6
+			eprec = 6;
 		}
 		exp := d.dp - 1;
 		if exp < -4 || exp >= eprec {
-			return fmtE(neg, d, prec - 1, fmt + 'e' - 'g');
+			return fmtE(neg, d, prec-1, fmt+'e'-'g');
 		}
 		return fmtF(neg, d, max(prec - d.dp, 0));
 	}
 
-	return "%" + string(fmt);
+	return "%"+string(fmt);
 }
 
 // Round d (= mant * 2^exp) to the shortest number of digits
@@ -185,7 +186,7 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	// d = mant << (exp - mantbits)
 	// Next highest floating point number is mant+1 << exp-mantbits.
 	// Our upper bound is halfway inbetween, mant*2+1 << exp-mantbits-1.
-	upper := newDecimal(mant*2+1).Shift(exp-int(flt.mantbits)-1);
+	upper := newDecimal(mant*2 + 1).Shift(exp-int(flt.mantbits)-1);
 
 	// d = mant << (exp - mantbits)
 	// Next lowest floating point number is mant-1 << exp-mantbits,
@@ -196,14 +197,14 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	minexp := flt.bias + 1;	// minimum possible exponent
 	var mantlo uint64;
 	var explo int;
-	if mant > 1<<flt.mantbits || exp == minexp {
-		mantlo = mant - 1;
+	if mant > 1 << flt.mantbits || exp == minexp {
+		mantlo = mant-1;
 		explo = exp;
 	} else {
-		mantlo = mant*2-1;
+		mantlo = mant*2 - 1;
 		explo = exp-1;
 	}
-	lower := newDecimal(mantlo*2+1).Shift(explo-int(flt.mantbits)-1);
+	lower := newDecimal(mantlo*2 + 1).Shift(explo-int(flt.mantbits)-1);
 
 	// The upper and lower bounds are possible outputs only if
 	// the original mantissa is even, so that IEEE round-to-even
@@ -252,8 +253,8 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 
 // %e: -d.ddddde±dd
 func fmtE(neg bool, d *decimal, prec int, fmt byte) string {
-	buf := make([]byte, 3+max(prec, 0)+30);	// "-0." + prec digits + exp
-	w := 0;	// write index
+	buf := make([]byte, 3 + max(prec, 0) + 30);	// "-0." + prec digits + exp
+	w := 0;						// write index
 
 	// sign
 	if neg {
@@ -322,7 +323,7 @@ func fmtE(neg bool, d *decimal, prec int, fmt byte) string {
 
 // %f: -ddddddd.ddddd
 func fmtF(neg bool, d *decimal, prec int) string {
-	buf := make([]byte, 1+max(d.dp, 1)+1+max(prec, 0));
+	buf := make([]byte, 1 + max(d.dp, 1) + 1 + max(prec, 0));
 	w := 0;
 
 	// sign
@@ -352,10 +353,10 @@ func fmtF(neg bool, d *decimal, prec int) string {
 		buf[w] = '.';
 		w++;
 		for i := 0; i < prec; i++ {
-			if d.dp+i < 0 || d.dp+i >= d.nd {
+			if d.dp + i < 0 || d.dp + i >= d.nd {
 				buf[w] = '0';
 			} else {
-				buf[w] = d.d[d.dp+i];
+				buf[w] = d.d[d.dp + i];
 			}
 			w++;
 		}
@@ -379,7 +380,7 @@ func fmtB(neg bool, mant uint64, exp int, flt *floatInfo) string {
 		n++;
 		w--;
 		buf[w] = byte(exp%10 + '0');
-		exp /= 10
+		exp /= 10;
 	}
 	w--;
 	buf[w] = esign;
@@ -405,4 +406,3 @@ func max(a, b int) int {
 	}
 	return b;
 }
-

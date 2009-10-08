@@ -23,7 +23,7 @@ type encoderState struct {
 	b		*bytes.Buffer;
 	err		os.Error;		// error encountered during encoding;
 	fieldnum	int;			// the last field number written.
-	buf		[1+uint64Size]byte;	// buffer used by the encoder; here to avoid allocation.
+	buf		[1 + uint64Size]byte;	// buffer used by the encoder; here to avoid allocation.
 }
 
 // Unsigned integers have a two-state encoding.  If the number is less
@@ -49,7 +49,7 @@ func encodeUint(state *encoderState, x uint64) {
 		m--;
 	}
 	state.buf[m] = uint8(-(n-1));
-	n, state.err = state.b.Write(state.buf[m : uint64Size+1]);
+	n, state.err = state.b.Write(state.buf[m : uint64Size + 1]);
 }
 
 // encodeInt writes an encoded signed integer to state.w.
@@ -58,7 +58,7 @@ func encodeUint(state *encoderState, x uint64) {
 func encodeInt(state *encoderState, i int64) {
 	var x uint64;
 	if i < 0 {
-		x = uint64(^i << 1) | 1;
+		x = uint64(^i << 1)|1;
 	} else {
 		x = uint64(i<<1);
 	}

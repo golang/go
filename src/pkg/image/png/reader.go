@@ -203,7 +203,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 	case ctPaletted:
 		bpp = 1;
 		paletted = d.image.(*image.Paletted);
-		maxPalette = uint8(len(paletted.Palette) - 1);
+		maxPalette = uint8(len(paletted.Palette)-1);
 	case ctTrueColorAlpha:
 		bpp = 4;
 		nrgba = d.image.(*image.NRGBA);

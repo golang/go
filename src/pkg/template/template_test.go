@@ -13,32 +13,32 @@ import (
 )
 
 type Test struct {
-	in, out, err string
+	in, out, err string;
 }
 
 type T struct {
-	item string;
-	value string;
+	item	string;
+	value	string;
 }
 
 type S struct {
-	header string;
-	integer int;
-	raw string;
-	innerT T;
-	innerPointerT *T;
-	data []T;
-	pdata []*T;
-	empty []*T;
-	emptystring string;
-	null []*T;
-	vec *vector.Vector;
-	true bool;
-	false bool;
+	header		string;
+	integer		int;
+	raw		string;
+	innerT		T;
+	innerPointerT	*T;
+	data		[]T;
+	pdata		[]*T;
+	empty		[]*T;
+	emptystring	string;
+	null		[]*T;
+	vec		*vector.Vector;
+	true		bool;
+	false		bool;
 }
 
-var t1 = T{ "ItemNumber1", "ValueNumber1" }
-var t2 = T{ "ItemNumber2", "ValueNumber2" }
+var t1 = T{"ItemNumber1", "ValueNumber1"}
+var t2 = T{"ItemNumber2", "ValueNumber2"}
 
 func uppercase(v interface{}) string {
 	s := v.(string);
@@ -46,7 +46,7 @@ func uppercase(v interface{}) string {
 	for i := 0; i < len(s); i++ {
 		c := s[i];
 		if 'a' <= c && c <= 'z' {
-			c = c + 'A' - 'a'
+			c = c+'A'-'a';
 		}
 		t += string(c);
 	}
@@ -55,36 +55,36 @@ func uppercase(v interface{}) string {
 
 func plus1(v interface{}) string {
 	i := v.(int);
-	return fmt.Sprint(i + 1);
+	return fmt.Sprint(i+1);
 }
 
 func writer(f func(interface{}) string) (func(io.Writer, interface{}, string)) {
 	return func(w io.Writer, v interface{}, format string) {
 		io.WriteString(w, f(v));
-	}
+	};
 }
 
 
-var formatters = FormatterMap {
-	"uppercase" : writer(uppercase),
-	"+1" : writer(plus1),
+var formatters = FormatterMap{
+	"uppercase": writer(uppercase),
+	"+1": writer(plus1),
 }
 
-var tests = []*Test {
+var tests = []*Test{
 	// Simple
-	&Test{ "", "", "" },
-	&Test{ "abc\ndef\n", "abc\ndef\n", "" },
-	&Test{ " {.meta-left}   \n", "{", "" },
-	&Test{ " {.meta-right}   \n", "}", "" },
-	&Test{ " {.space}   \n", " ", "" },
-	&Test{ " {.tab}   \n", "\t", "" },
-	&Test{ "     {#comment}   \n", "", "" },
+	&Test{"", "", ""},
+	&Test{"abc\ndef\n", "abc\ndef\n", ""},
+	&Test{" {.meta-left}   \n", "{", ""},
+	&Test{" {.meta-right}   \n", "}", ""},
+	&Test{" {.space}   \n", " ", ""},
+	&Test{" {.tab}   \n", "\t", ""},
+	&Test{"     {#comment}   \n", "", ""},
 
 	// Variables at top level
 	&Test{
 		in: "{header}={integer}\n",
 
-		out: "Header=77\n"
+		out: "Header=77\n",
 	},
 
 	// Section
@@ -93,21 +93,21 @@ var tests = []*Test {
 		"some text for the section\n"
 		"{.end}\n",
 
-		out: "some text for the section\n"
+		out: "some text for the section\n",
 	},
 	&Test{
 		in: "{.section data }\n"
 		"{header}={integer}\n"
 		"{.end}\n",
 
-		out: "Header=77\n"
+		out: "Header=77\n",
 	},
 	&Test{
 		in: "{.section pdata }\n"
 		"{header}={integer}\n"
 		"{.end}\n",
 
-		out: "Header=77\n"
+		out: "Header=77\n",
 	},
 	&Test{
 		in: "{.section pdata }\n"
@@ -116,7 +116,7 @@ var tests = []*Test {
 		"data not present\n"
 		"{.end}\n",
 
-		out: "data present\n"
+		out: "data present\n",
 	},
 	&Test{
 		in: "{.section empty }\n"
@@ -125,7 +125,7 @@ var tests = []*Test {
 		"data not present\n"
 		"{.end}\n",
 
-		out: "data not present\n"
+		out: "data not present\n",
 	},
 	&Test{
 		in: "{.section null }\n"
@@ -134,7 +134,7 @@ var tests = []*Test {
 		"data not present\n"
 		"{.end}\n",
 
-		out: "data not present\n"
+		out: "data not present\n",
 	},
 	&Test{
 		in: "{.section pdata }\n"
@@ -145,12 +145,12 @@ var tests = []*Test {
 		"{.end}\n",
 
 		out: "Header=77\n"
-		"Header=77\n"
+		"Header=77\n",
 	},
 	&Test{
 		in: "{.section data}{.end} {header}\n",
 
-		out: " Header\n"
+		out: " Header\n",
 	},
 
 	// Repeated
@@ -162,7 +162,7 @@ var tests = []*Test {
 		"{.end}\n",
 
 		out: "ItemNumber1=ValueNumber1\n"
-		"ItemNumber2=ValueNumber2\n"
+		"ItemNumber2=ValueNumber2\n",
 	},
 	&Test{
 		in: "{.section pdata }\n"
@@ -174,7 +174,7 @@ var tests = []*Test {
 		"{.end}\n",
 
 		out: "ItemNumber1=ValueNumber1\n"
-		"ItemNumber2=ValueNumber2\n"
+		"ItemNumber2=ValueNumber2\n",
 	},
 	&Test{
 		in: "{.section @ }\n"
@@ -185,7 +185,7 @@ var tests = []*Test {
 		"{.end}\n"
 		"{.end}\n",
 
-		out: "this should appear: empty field\n"
+		out: "this should appear: empty field\n",
 	},
 	&Test{
 		in: "{.repeated section pdata }\n"
@@ -196,7 +196,7 @@ var tests = []*Test {
 
 		out: "ItemNumber1\n"
 		"is\nover\nmultiple\nlines\n"
-		"ItemNumber2\n"
+		"ItemNumber2\n",
 	},
 	&Test{
 		in: "{.section pdata }\n"
@@ -210,7 +210,7 @@ var tests = []*Test {
 
 		out: "ItemNumber1=ValueNumber1\n"
 		"DIVIDER\n"
-		"ItemNumber2=ValueNumber2\n"
+		"ItemNumber2=ValueNumber2\n",
 	},
 	&Test{
 		in: "{.repeated section vec }\n"
@@ -218,7 +218,7 @@ var tests = []*Test {
 		"{.end}\n",
 
 		out: "elt1\n"
-		"elt2\n"
+		"elt2\n",
 	},
 	&Test{
 		in: "{.repeated section integer}{.end}",
@@ -232,14 +232,14 @@ var tests = []*Test {
 		"{innerT.item}={innerT.value}\n"
 		"{.end}",
 
-		out: "ItemNumber1=ValueNumber1\n"
+		out: "ItemNumber1=ValueNumber1\n",
 	},
 	&Test{
 		in: "{.section @ }\n"
 		"{innerT.item}={.section innerT}{.section value}{@}{.end}{.end}\n"
 		"{.end}",
 
-		out: "ItemNumber1=ValueNumber1\n"
+		out: "ItemNumber1=ValueNumber1\n",
 	},
 
 
@@ -251,7 +251,7 @@ var tests = []*Test {
 		"{.end}\n",
 
 		out: "HEADER=78\n"
-		"Header=77\n"
+		"Header=77\n",
 	},
 
 	&Test{
@@ -259,21 +259,21 @@ var tests = []*Test {
 		"{raw|html}\n",
 
 		out: "&<>!@ #$%^\n"
-		"&amp;&lt;&gt;!@ #$%^\n"
+		"&amp;&lt;&gt;!@ #$%^\n",
 	},
 
 	&Test{
 		in: "{.section emptystring}emptystring{.end}\n"
 		"{.section header}header{.end}\n",
 
-		out: "\nheader\n"
+		out: "\nheader\n",
 	},
 
-	&Test {
+	&Test{
 		in: "{.section true}1{.or}2{.end}\n"
 		"{.section false}3{.or}4{.end}\n",
 
-		out: "1\n4\n"
+		out: "1\n4\n",
 	},
 }
 
@@ -284,9 +284,9 @@ func TestAll(t *testing.T) {
 	s.integer = 77;
 	s.raw = "&<>!@ #$%^";
 	s.innerT = t1;
-	s.data = []T{ t1, t2 };
-	s.pdata = []*T{ &t1, &t2 };
-	s.empty = []*T{ };
+	s.data = []T{t1, t2};
+	s.pdata = []*T{&t1, &t2};
+	s.empty = []*T{};
 	s.null = nil;
 	s.vec = vector.New(0);
 	s.vec.Push("elt1");
@@ -321,28 +321,28 @@ func TestAll(t *testing.T) {
 func TestStringDriverType(t *testing.T) {
 	tmpl, err := Parse("template: {@}", nil);
 	if err != nil {
-		t.Error("unexpected parse error:", err)
+		t.Error("unexpected parse error:", err);
 	}
 	var b bytes.Buffer;
 	err = tmpl.Execute("hello", &b);
 	if err != nil {
-		t.Error("unexpected execute error:", err)
+		t.Error("unexpected execute error:", err);
 	}
 	s := b.String();
 	if s != "template: hello" {
-		t.Errorf("failed passing string as data: expected %q got %q", "template: hello", s)
+		t.Errorf("failed passing string as data: expected %q got %q", "template: hello", s);
 	}
 }
 
 func TestTwice(t *testing.T) {
 	tmpl, err := Parse("template: {@}", nil);
 	if err != nil {
-		t.Error("unexpected parse error:", err)
+		t.Error("unexpected parse error:", err);
 	}
 	var b bytes.Buffer;
 	err = tmpl.Execute("hello", &b);
 	if err != nil {
-		t.Error("unexpected parse error:", err)
+		t.Error("unexpected parse error:", err);
 	}
 	s := b.String();
 	text := "template: hello";
@@ -351,7 +351,7 @@ func TestTwice(t *testing.T) {
 	}
 	err = tmpl.Execute("hello", &b);
 	if err != nil {
-		t.Error("unexpected parse error:", err)
+		t.Error("unexpected parse error:", err);
 	}
 	s = b.String();
 	text += text;
@@ -377,9 +377,9 @@ func TestCustomDelims(t *testing.T) {
 			err := tmpl.Parse(text);
 			if err != nil {
 				if i == 0 || j == 0 {	// expected
-					continue
+					continue;
 				}
-				t.Error("unexpected parse error:", err)
+				t.Error("unexpected parse error:", err);
 			} else if i == 0 || j == 0 {
 				t.Errorf("expected parse error for empty delimiter: %d %d %q %q", i, j, ldelim, rdelim);
 				continue;
@@ -388,7 +388,7 @@ func TestCustomDelims(t *testing.T) {
 			err = tmpl.Execute("hello", &b);
 			s := b.String();
 			if s != "template: hello" + ldelim + rdelim {
-				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s)
+				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s);
 			}
 		}
 	}
@@ -408,7 +408,7 @@ func TestVarIndirection(t *testing.T) {
 	}
 	err = tmpl.Execute(s, &buf);
 	if err != nil {
-		t.Fatal("unexpected execute error:", err)
+		t.Fatal("unexpected execute error:", err);
 	}
 	expect := fmt.Sprintf("%v", &t1);	// output should be hex address of t1
 	if buf.String() != expect {

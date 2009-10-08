@@ -164,7 +164,7 @@ func (p *pp) ensure(n int) {
 	if len(p.buf) < n {
 		newn := allocSize + len(p.buf);
 		if newn < n {
-			newn = n+allocSize;
+			newn = n + allocSize;
 		}
 		b := make([]byte, newn);
 		for i := 0; i < p.n; i++ {

@@ -38,19 +38,19 @@ type Buffer struct {
 // Bytes returns the contents of the unread portion of the buffer;
 // len(b.Bytes()) == b.Len().
 func (b *Buffer) Bytes() []byte {
-	return b.buf[b.off : len(b.buf)]
+	return b.buf[b.off : len(b.buf)];
 }
 
 // String returns the contents of the unread portion of the buffer
 // as a string.
 func (b *Buffer) String() string {
-	return string(b.buf[b.off : len(b.buf)])
+	return string(b.buf[b.off : len(b.buf)]);
 }
 
 // Len returns the number of bytes of the unread portion of the buffer;
 // b.Len() == len(b.Bytes()).
 func (b *Buffer) Len() int {
-	return len(b.buf) - b.off
+	return len(b.buf) - b.off;
 }
 
 // Truncate discards all but the first n unread bytes from the buffer.
@@ -75,21 +75,21 @@ func (b *Buffer) Write(p []byte) (n int, err os.Error) {
 	m := b.Len();
 	n = len(p);
 
-	if len(b.buf) + n > cap(b.buf) {
+	if len(b.buf)+n > cap(b.buf) {
 		// not enough space at end
 		buf := b.buf;
-		if m + n > cap(b.buf) {
+		if m+n > cap(b.buf) {
 			// not enough space anywhere
-			buf = make([]byte, 2*cap(b.buf) + n)
+			buf = make([]byte, 2*cap(b.buf) + n);
 		}
-		copyBytes(buf, 0, b.buf[b.off:b.off+m]);
+		copyBytes(buf, 0, b.buf[b.off : b.off + m]);
 		b.buf = buf;
-		b.off = 0
+		b.off = 0;
 	}
 
 	b.buf = b.buf[0 : b.off + m + n];
 	copyBytes(b.buf, b.off + m, p);
-	return n, nil
+	return n, nil;
 }
 
 // WriteString appends the contents of s to the buffer.  The return
@@ -98,21 +98,21 @@ func (b *Buffer) WriteString(s string) (n int, err os.Error) {
 	m := b.Len();
 	n = len(s);
 
-	if len(b.buf) + n > cap(b.buf) {
+	if len(b.buf)+n > cap(b.buf) {
 		// not enough space at end
 		buf := b.buf;
-		if m + n > cap(b.buf) {
+		if m+n > cap(b.buf) {
 			// not enough space anywhere
-			buf = make([]byte, 2*cap(b.buf) + n)
+			buf = make([]byte, 2*cap(b.buf) + n);
 		}
-		copyBytes(buf, 0, b.buf[b.off:b.off+m]);
+		copyBytes(buf, 0, b.buf[b.off : b.off + m]);
 		b.buf = buf;
-		b.off = 0
+		b.off = 0;
 	}
 
 	b.buf = b.buf[0 : b.off + m + n];
-	copyString(b.buf, b.off+m, s);
-	return n, nil
+	copyString(b.buf, b.off + m, s);
+	return n, nil;
 }
 
 // WriteByte appends the byte c to the buffer.
@@ -134,19 +134,19 @@ func (b *Buffer) WriteByte(c byte) os.Error {
 // otherwise it is nil.
 func (b *Buffer) Read(p []byte) (n int, err os.Error) {
 	if b.off >= len(b.buf) {
-		return 0, os.EOF
+		return 0, os.EOF;
 	}
 	m := b.Len();
 	n = len(p);
 
 	if n > m {
 		// more bytes requested than available
-		n = m
+		n = m;
 	}
 
-	copyBytes(p, 0, b.buf[b.off:b.off+n]);
+	copyBytes(p, 0, b.buf[b.off : b.off + n]);
 	b.off += n;
-	return n, err
+	return n, err;
 }
 
 // ReadByte reads and returns the next byte from the buffer.

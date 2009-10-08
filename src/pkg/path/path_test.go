@@ -5,14 +5,14 @@
 package path
 
 import (
-	"testing"
+	"testing";
 )
 
 type CleanTest struct {
-	path, clean string
+	path, clean string;
 }
 
-var cleantests = []CleanTest {
+var cleantests = []CleanTest{
 	// Already clean
 	CleanTest{"", "."},
 	CleanTest{"abc", "abc"},
@@ -71,10 +71,10 @@ func TestClean(t *testing.T) {
 }
 
 type SplitTest struct {
-	path, dir, file string
+	path, dir, file string;
 }
 
-var splittests = []SplitTest {
+var splittests = []SplitTest{
 	SplitTest{"a/b", "a/", "b"},
 	SplitTest{"a/b/", "a/b/", ""},
 	SplitTest{"a/", "a/", ""},
@@ -91,10 +91,10 @@ func TestSplit(t *testing.T) {
 }
 
 type JoinTest struct {
-	dir, file, path string
+	dir, file, path string;
 }
 
-var jointests = []JoinTest {
+var jointests = []JoinTest{
 	JoinTest{"a", "b", "a/b"},
 	JoinTest{"a", "", "a"},
 	JoinTest{"", "b", "b"},
@@ -113,10 +113,10 @@ func TestJoin(t *testing.T) {
 }
 
 type ExtTest struct {
-	path, ext string
+	path, ext string;
 }
 
-var exttests = []ExtTest {
+var exttests = []ExtTest{
 	ExtTest{"path.go", ".go"},
 	ExtTest{"path.pb.go", ".go"},
 	ExtTest{"a.dir/b", ""},
@@ -131,4 +131,3 @@ func TestExt(t *testing.T) {
 		}
 	}
 }
-

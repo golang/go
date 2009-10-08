@@ -55,7 +55,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'";
 		if p.tok.IsLiteral() {
-			msg += " " + string(p.lit);
+			msg += " "+string(p.lit);
 		}
 	}
 	p.Error(pos, msg);
@@ -347,7 +347,7 @@ func remap(p *parser, name string) string {
 		packageName, suffix := name[0:i], name[i:len(name)];
 		// lookup package
 		if importPath, found := p.packs[packageName]; found {
-			name = importPath+suffix;
+			name = importPath + suffix;
 		} else {
 			var invalidPos token.Position;
 			p.Error(invalidPos, "package not declared: " + packageName);

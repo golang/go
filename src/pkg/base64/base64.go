@@ -143,7 +143,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 
 	// Large interior chunks.
 	for len(p) > 3 {
-		nn := len(e.out) / 4 * 3;
+		nn := len(e.out)/4*3;
 		if nn > len(p) {
 			nn = len(p);
 		}
@@ -286,7 +286,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	// Use leftover decoded output from last read.
 	if len(d.out) > 0 {
 		n = bytes.Copy(p, d.out);
-		d.out = d.out[n : len(d.out)];
+		d.out = d.out[n:len(d.out)];
 		return n, nil;
 	}
 
@@ -311,7 +311,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		nw, d.end, d.err = d.enc.decode(d.buf[0:nr], &d.outbuf);
 		d.out = d.outbuf[0:nw];
 		n = bytes.Copy(p, d.out);
-		d.out = d.out[n : len(d.out)];
+		d.out = d.out[n:len(d.out)];
 	} else {
 		n, d.end, d.err = d.enc.decode(d.buf[0:nr], p);
 	}

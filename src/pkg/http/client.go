@@ -49,7 +49,7 @@ func (r *Response) AddHeader(key, value string) {
 
 	oldValues, oldValuesPresent := r.Header[key];
 	if oldValuesPresent {
-		r.Header[key] = oldValues+","+value;
+		r.Header[key] = oldValues + "," + value;
 	} else {
 		r.Header[key] = value;
 	}

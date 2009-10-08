@@ -121,11 +121,11 @@ func (tr *Reader) readHeader() *Header {
 	}
 
 	// Two blocks of zero bytes marks the end of the archive.
-	if bytes.Equal(header, zeroBlock[0:blockSize]) {
+	if bytes.Equal(header, zeroBlock[0 : blockSize]) {
 		if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
 			return nil;
 		}
-		if !bytes.Equal(header, zeroBlock[0:blockSize]) {
+		if !bytes.Equal(header, zeroBlock[0 : blockSize]) {
 			tr.err = HeaderError;
 		}
 		return nil;
@@ -198,7 +198,7 @@ func (tr *Reader) readHeader() *Header {
 	// Maximum value of hdr.Size is 64 GB (12 octal digits),
 	// so there's no risk of int64 overflowing.
 	tr.nb = int64(hdr.Size);
-	tr.pad = -tr.nb & (blockSize-1);	// blockSize is a power of two
+	tr.pad = -tr.nb & (blockSize - 1);	// blockSize is a power of two
 
 	return hdr;
 }

@@ -515,7 +515,7 @@ func (ev *debugEvent) doTrap() (threadState, os.Error) {
 		return stopped, err;
 	}
 
-	b, ok := t.proc.breakpoints[uintptr(regs.PC()) - uintptr(len(bpinst386))];
+	b, ok := t.proc.breakpoints[uintptr(regs.PC())-uintptr(len(bpinst386))];
 	if !ok {
 		// We must have hit a breakpoint that was actually in
 		// the program.  Leave the IP where it is so we don't
@@ -1218,7 +1218,7 @@ func (p *process) attachAllThreads() os.Error {
 			if err != nil {
 				// There could have been a race, or
 				// this process could be a zobmie.
-				statFile, err2 := io.ReadFile(taskPath + "/" + tidStr + "/stat");
+				statFile, err2 := io.ReadFile(taskPath+"/"+tidStr+"/stat");
 				if err2 != nil {
 					switch err2 := err2.(type) {
 					case *os.PathError:

@@ -899,9 +899,9 @@ func hexvalue(ch byte) uint {
 	case '0' <= ch && ch <= '9':
 		d = uint(ch-'0');
 	case 'a' <= ch && ch <= 'f':
-		d = uint(ch-'a') + 10;
+		d = uint(ch-'a')+10;
 	case 'A' <= ch && ch <= 'F':
-		d = uint(ch-'A') + 10;
+		d = uint(ch-'A')+10;
 	}
 	return d;
 }

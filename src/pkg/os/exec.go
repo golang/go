@@ -111,7 +111,7 @@ func itod(i int) string {
 	bp := len(b);
 	for ; u > 0; u /= 10 {
 		bp--;
-		b[bp] = byte(u%10) + '0';
+		b[bp] = byte(u%10)+'0';
 	}
 
 	if i < 0 {

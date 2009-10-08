@@ -120,7 +120,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 	}
 
 	tw.nb = int64(hdr.Size);
-	tw.pad = -tw.nb & (blockSize-1);	// blockSize is a power of two
+	tw.pad = -tw.nb & (blockSize - 1);	// blockSize is a power of two
 
 	header := make([]byte, blockSize);
 	s := slicer(header);

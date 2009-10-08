@@ -16,13 +16,13 @@ import (
 func pow2(i int) float64 {
 	switch {
 	case i < 0:
-		return 1 / pow2(-i);
+		return 1/pow2(-i);
 	case i == 0:
 		return 1;
 	case i == 1:
 		return 2;
 	}
-	return pow2(i/2) * pow2(i - i/2);
+	return pow2(i/2)*pow2(i - i/2);
 }
 
 // Wrapper around strconv.Atof64.  Handles dddddp+ddd (binary exponent)

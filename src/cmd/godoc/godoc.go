@@ -6,13 +6,13 @@
 
 // Web server tree:
 //
-//	http://godoc/	main landing page
+//	http://godoc/		main landing page
 //	http://godoc/doc/	serve from $GOROOT/doc - spec, mem, tutorial, etc.
 //	http://godoc/src/	serve files from $GOROOT/src; .go gets pretty-printed
 //	http://godoc/cmd/	serve documentation about commands (TODO)
 //	http://godoc/pkg/	serve documentation about packages
-//		(idea is if you say import "compress/zlib", you go to
-//		http://godoc/pkg/compress/zlib)
+//				(idea is if you say import "compress/zlib", you go to
+//				http://godoc/pkg/compress/zlib)
 //
 // Command-line interface:
 //
@@ -27,35 +27,35 @@
 package main
 
 import (
-	"bytes";
-	"container/vector";
-	"flag";
-	"fmt";
-	"go/ast";
-	"go/doc";
-	"go/parser";
-	"go/printer";
-	"go/scanner";
-	"go/token";
-	"http";
-	"io";
-	"log";
-	"os";
-	pathutil "path";
-	"sort";
-	"strings";
-	"sync";
-	"template";
-	"time";
+			"bytes";
+			"container/vector";
+			"flag";
+			"fmt";
+			"go/ast";
+			"go/doc";
+			"go/parser";
+			"go/printer";
+			"go/scanner";
+			"go/token";
+			"http";
+			"io";
+			"log";
+			"os";
+	pathutil	"path";
+			"sort";
+			"strings";
+			"sync";
+			"template";
+			"time";
 )
 
 
-const Pkg = "/pkg/";	// name for auto-generated package documentation tree
+const Pkg = "/pkg/"	// name for auto-generated package documentation tree
 
 
 type delayTime struct {
-	mutex sync.RWMutex;
-	minutes int;
+	mutex	sync.RWMutex;
+	minutes	int;
 }
 
 
@@ -70,7 +70,7 @@ func (dt *delayTime) backoff(max int) {
 	dt.mutex.Lock();
 	dt.minutes *= 2;
 	if dt.minutes > max {
-		dt.minutes = max
+		dt.minutes = max;
 	}
 	dt.mutex.Unlock();
 }
@@ -84,8 +84,8 @@ func (dt *delayTime) get() int {
 
 
 type timeStamp struct {
-	mutex sync.RWMutex;
-	seconds int64;
+	mutex	sync.RWMutex;
+	seconds	int64;
 }
 
 
@@ -104,25 +104,25 @@ func (ts *timeStamp) get() int64 {
 
 
 var (
-	verbose = flag.Bool("v", false, "verbose mode");
+	verbose	= flag.Bool("v", false, "verbose mode");
 
 	// file system roots
-	goroot string;
-	pkgroot = flag.String("pkgroot", "src/pkg", "root package source directory (if unrooted, relative to goroot)");
-	tmplroot = flag.String("tmplroot", "lib/godoc", "root template directory (if unrooted, relative to goroot)");
+	goroot		string;
+	pkgroot		= flag.String("pkgroot", "src/pkg", "root package source directory (if unrooted, relative to goroot)");
+	tmplroot	= flag.String("tmplroot", "lib/godoc", "root template directory (if unrooted, relative to goroot)");
 
 	// periodic sync
-	syncCmd = flag.String("sync", "", "sync command; disabled if empty");
-	syncMin = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0");
-	syncDelay delayTime;  // actual sync delay in minutes; usually syncDelay == syncMin, but delay may back off exponentially
-	syncTime timeStamp;  // time of last p4 sync
+	syncCmd				= flag.String("sync", "", "sync command; disabled if empty");
+	syncMin				= flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0");
+	syncDelay	delayTime;	// actual sync delay in minutes; usually syncDelay == syncMin, but delay may back off exponentially
+	syncTime	timeStamp;	// time of last p4 sync
 
 	// layout control
-	tabwidth = flag.Int("tabwidth", 4, "tab width");
-	html = flag.Bool("html", false, "print HTML in command-line mode");
+	tabwidth	= flag.Int("tabwidth", 4, "tab width");
+	html		= flag.Bool("html", false, "print HTML in command-line mode");
 
 	// server control
-	httpaddr = flag.String("http", "", "HTTP service address (e.g., ':6060')");
+	httpaddr	= flag.String("http", "", "HTTP service address (e.g., ':6060')");
 )
 
 
@@ -132,7 +132,7 @@ func init() {
 		goroot = "/home/r/go-release/go";
 	}
 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory");
-	syncTime.set();  // have a reasonable initial value
+	syncTime.set();	// have a reasonable initial value
 }
 
 
@@ -140,11 +140,10 @@ func init() {
 // Support
 
 func isGoFile(dir *os.Dir) bool {
-	return
-		dir.IsRegular() &&
-		!strings.HasPrefix(dir.Name, ".")  &&  // ignore .files
+	return dir.IsRegular() &&
+		!strings.HasPrefix(dir.Name, ".") &&	// ignore .files
 		pathutil.Ext(dir.Name) == ".go" &&
-		!strings.HasSuffix(dir.Name, "_test.go");  // ignore test files
+		!strings.HasSuffix(dir.Name, "_test.go");	// ignore test files
 }
 
 
@@ -158,9 +157,9 @@ func isPkgDir(dir *os.Dir) bool {
 
 // A single error in the parsed file.
 type parseError struct {
-	src []byte;	// source before error
-	line int;	// line number of error
-	msg string;	// error message
+	src	[]byte;	// source before error
+	line	int;	// line number of error
+	msg	string;	// error message
 }
 
 
@@ -171,9 +170,9 @@ type parseError struct {
 // This data structure is handed to the templates parseerror.txt and parseerror.html.
 //
 type parseErrors struct {
-	filename string;	// path to file
-	list []parseError;	// the errors
-	src []byte;	// the file's entire source code
+	filename	string;		// path to file
+	list		[]parseError;	// the errors
+	src		[]byte;		// the file's entire source code
 }
 
 
@@ -196,7 +195,7 @@ func parse(path string, mode uint) (*ast.File, *parseErrors) {
 			// TODO(gri) If the file contains //line comments, the errors
 			//           may not be sorted in increasing file offset value
 			//           which will lead to incorrect output.
-			errs = make([]parseError, len(errors) + 1);	// +1 for final fragment of source
+			errs = make([]parseError, len(errors)+1);	// +1 for final fragment of source
 			offs := 0;
 			for i, r := range errors {
 				// Should always be true, but check for robustness.
@@ -207,7 +206,7 @@ func parse(path string, mode uint) (*ast.File, *parseErrors) {
 				errs[i].line = r.Pos.Line;
 				errs[i].msg = r.Msg;
 			}
-			errs[len(errors)].src = src[offs : len(src)];
+			errs[len(errors)].src = src[offs:len(src)];
 		} else {
 			// single error of unspecified type
 			errs = make([]parseError, 2);
@@ -289,7 +288,9 @@ func textFmt(w io.Writer, x interface{}, format string) {
 
 // Template formatter for "link" format.
 func linkFmt(w io.Writer, x interface{}, format string) {
-	type Positioner interface { Pos() token.Position }
+	type Positioner interface {
+		Pos() token.Position;
+	}
 	if node, ok := x.(Positioner); ok {
 		pos := node.Pos();
 		if pos.IsValid() {
@@ -326,8 +327,8 @@ func readTemplate(name string) *template.Template {
 var godocHtml *template.Template
 var packageHtml *template.Template
 var packageText *template.Template
-var parseerrorHtml *template.Template;
-var parseerrorText *template.Template;
+var parseerrorHtml *template.Template
+var parseerrorText *template.Template
 
 func readTemplates() {
 	// have to delay until after flags processing,
@@ -345,9 +346,9 @@ func readTemplates() {
 
 func servePage(c *http.Conn, title, content interface{}) {
 	type Data struct {
-		title interface{};
-		timestamp string;
-		content interface{};
+		title		interface{};
+		timestamp	string;
+		content		interface{};
 	}
 
 	d := Data{
@@ -372,8 +373,8 @@ func serveText(c *http.Conn, text []byte) {
 // Files
 
 var (
-	tagBegin = strings.Bytes("<!--");
-	tagEnd = strings.Bytes("-->");
+	tagBegin	= strings.Bytes("<!--");
+	tagEnd		= strings.Bytes("-->");
 )
 
 // commentText returns the text of the first HTML comment in src.
@@ -436,7 +437,7 @@ func serveGoSource(c *http.Conn, filename string) {
 }
 
 
-var fileServer = http.FileServer(".", "");
+var fileServer = http.FileServer(".", "")
 
 func serveFile(c *http.Conn, r *http.Request) {
 	path := r.Url.Path;
@@ -471,9 +472,15 @@ func serveFile(c *http.Conn, r *http.Request) {
 // TODO if we don't plan to use the directory information, simplify to []string
 type dirList []*os.Dir
 
-func (d dirList) Len() int  { return len(d) }
-func (d dirList) Less(i, j int) bool  { return d[i].Name < d[j].Name }
-func (d dirList) Swap(i, j int)  { d[i], d[j] = d[j], d[i] }
+func (d dirList) Len() int {
+	return len(d);
+}
+func (d dirList) Less(i, j int) bool {
+	return d[i].Name < d[j].Name;
+}
+func (d dirList) Swap(i, j int) {
+	d[i], d[j] = d[j], d[i];
+}
 
 
 func pkgName(filename string) string {
@@ -486,8 +493,8 @@ func pkgName(filename string) string {
 
 
 type PageInfo struct {
-	PDoc *doc.PackageDoc;  // nil if no package found
-	Dirs dirList;  // nil if no subdirectories found
+	PDoc	*doc.PackageDoc;	// nil if no package found
+	Dirs	dirList;		// nil if no subdirectories found
 }
 
 
@@ -542,7 +549,7 @@ func getPageInfo(path string) PageInfo {
 	var pdoc *doc.PackageDoc;
 	if pkg != nil {
 		ast.PackageExports(pkg);
-		pdoc = doc.NewPackageDoc(pkg, pathutil.Clean(path));  // no trailing '/' in importpath
+		pdoc = doc.NewPackageDoc(pkg, pathutil.Clean(path));	// no trailing '/' in importpath
 	}
 
 	return PageInfo{pdoc, subdirs};
@@ -551,10 +558,10 @@ func getPageInfo(path string) PageInfo {
 
 func servePkg(c *http.Conn, r *http.Request) {
 	path := r.Url.Path;
-	path = path[len(Pkg) : len(path)];
+	path = path[len(Pkg):len(path)];
 
 	// canonicalize URL path and redirect if necessary
-	if canonical := pathutil.Clean(Pkg + path) + "/"; r.Url.Path != canonical {
+	if canonical := pathutil.Clean(Pkg+path) + "/"; r.Url.Path != canonical {
 		http.Redirect(c, canonical, http.StatusMovedPermanently);
 		return;
 	}
@@ -575,7 +582,7 @@ func servePkg(c *http.Conn, r *http.Request) {
 	}
 
 	if path == "" {
-		path = ".";  // don't display an empty path
+		path = ".";	// don't display an empty path
 	}
 	title := "Directory " + path;
 	if info.PDoc != nil {
@@ -593,7 +600,7 @@ func loggingHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(c *http.Conn, req *http.Request) {
 		log.Stderrf("%s\t%s", c.RemoteAddr, req.Url);
 		h.ServeHTTP(c, req);
-	})
+	});
 }
 
 
@@ -648,7 +655,7 @@ func dosync(c *http.Conn, r *http.Request) {
 	if exec(c, args) {
 		// sync succeeded
 		syncTime.set();
-		syncDelay.set(*syncMin);  //  revert to regular sync schedule
+		syncDelay.set(*syncMin);	//  revert to regular sync schedule
 	} else {
 		// sync failed - back off exponentially, but try at least once a day
 		syncDelay.backoff(24*60);
@@ -659,8 +666,7 @@ func dosync(c *http.Conn, r *http.Request) {
 func usage() {
 	fmt.Fprintf(os.Stderr,
 		"usage: godoc package [name ...]\n"
-		"	godoc -http=:6060\n"
-	);
+		"	godoc -http=:6060\n");
 	flag.PrintDefaults();
 	os.Exit(2);
 }
@@ -712,20 +718,20 @@ func main() {
 
 		// Start sync goroutine, if enabled.
 		if *syncCmd != "" && *syncMin > 0 {
-			syncDelay.set(*syncMin);  // initial sync delay
+			syncDelay.set(*syncMin);	// initial sync delay
 			go func() {
 				for {
 					dosync(nil, nil);
 					if *verbose {
 						log.Stderrf("next sync in %dmin", syncDelay.get());
 					}
-					time.Sleep(int64(syncDelay.get()) * (60 * 1e9));
+					time.Sleep(int64(syncDelay.get())*(60*1e9));
 				}
 			}();
 		}
 
 		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
-			log.Exitf("ListenAndServe %s: %v", *httpaddr, err)
+			log.Exitf("ListenAndServe %s: %v", *httpaddr, err);
 		}
 		return;
 	}
@@ -739,7 +745,7 @@ func main() {
 
 	if info.PDoc != nil && flag.NArg() > 1 {
 		args := flag.Args();
-		info.PDoc.Filter(args[1 : len(args)]);
+		info.PDoc.Filter(args[1:len(args)]);
 	}
 
 	if err := packageText.Execute(info, os.Stdout); err != nil {

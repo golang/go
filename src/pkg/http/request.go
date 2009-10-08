@@ -21,25 +21,26 @@ import (
 )
 
 const (
-	maxLineLength = 1024;	// assumed < bufio.DefaultBufSize
-	maxValueLength = 1024;
-	maxHeaderLines = 1024;
-	chunkSize = 4 << 10;  // 4 KB chunks
+	maxLineLength	= 1024;	// assumed < bufio.DefaultBufSize
+	maxValueLength	= 1024;
+	maxHeaderLines	= 1024;
+	chunkSize	= 4<<10;	// 4 KB chunks
 )
 
 // HTTP request parsing errors.
 type ProtocolError struct {
-	os.ErrorString
+	os.ErrorString;
 }
+
 var (
-	ErrLineTooLong = &ProtocolError{"header line too long"};
-	ErrHeaderTooLong = &ProtocolError{"header too long"};
-	ErrShortBody = &ProtocolError{"entity body too short"};
+	ErrLineTooLong		= &ProtocolError{"header line too long"};
+	ErrHeaderTooLong	= &ProtocolError{"header too long"};
+	ErrShortBody		= &ProtocolError{"entity body too short"};
 )
 
 type badStringError struct {
-	what string;
-	str string;
+	what	string;
+	str	string;
 }
 
 func (e *badStringError) String() string {
@@ -48,12 +49,12 @@ func (e *badStringError) String() string {
 
 // A Request represents a parsed HTTP request header.
 type Request struct {
-	Method string;		// GET, POST, PUT, etc.
-	RawUrl string;		// The raw URL given in the request.
-	Url *URL;		// Parsed URL.
-	Proto string;	// "HTTP/1.0"
-	ProtoMajor int;	// 1
-	ProtoMinor int;	// 0
+	Method		string;	// GET, POST, PUT, etc.
+	RawUrl		string;	// The raw URL given in the request.
+	Url		*URL;	// Parsed URL.
+	Proto		string;	// "HTTP/1.0"
+	ProtoMajor	int;	// 1
+	ProtoMinor	int;	// 0
 
 	// A header mapping request lines to their values.
 	// If the header says
@@ -74,18 +75,18 @@ type Request struct {
 	// The request parser implements this by canonicalizing the
 	// name, making the first character and any characters
 	// following a hyphen uppercase and the rest lowercase.
-	Header map[string] string;
+	Header	map[string]string;
 
 	// The message body.
-	Body io.Reader;
+	Body	io.Reader;
 
 	// Whether to close the connection after replying to this request.
-	Close bool;
+	Close	bool;
 
 	// The host on which the URL is sought.
 	// Per RFC 2616, this is either the value of the Host: header
 	// or the host name given in the URL itself.
-	Host string;
+	Host	string;
 
 	// The referring URL, if sent in the request.
 	//
@@ -97,21 +98,20 @@ type Request struct {
 	// can diagnose programs that use the alternate
 	// (correct English) spelling req.Referrer but cannot
 	// diagnose programs that use Header["Referrer"].
-	Referer string;
+	Referer	string;
 
 	// The User-Agent: header string, if sent in the request.
-	UserAgent string;
+	UserAgent	string;
 
 	// The parsed form. Only available after ParseForm is called.
-	Form map[string] []string;
-
+	Form	map[string][]string;
 }
 
 // ProtoAtLeast returns whether the HTTP protocol used
 // in the request is at least major.minor.
 func (r *Request) ProtoAtLeast(major, minor int) bool {
 	return r.ProtoMajor > major ||
-		r.ProtoMajor == major && r.ProtoMinor >= minor
+		r.ProtoMajor == major && r.ProtoMinor >= minor;
 }
 
 // Return value if nonempty, def otherwise.
@@ -123,7 +123,7 @@ func valueOrDefault(value, def string) string {
 }
 
 // TODO(rsc): Change default UserAgent before open-source release.
-const defaultUserAgent = "http.Client";
+const defaultUserAgent = "http.Client"
 
 // Write an HTTP/1.1 request -- header and body -- in wire format.
 // This method consults the following fields of req:
@@ -162,7 +162,7 @@ func (req *Request) write(w io.Writer) os.Error {
 	// Response.{GetHeader,AddHeader} and string constants for "Host",
 	// "User-Agent" and "Referer".
 	for k, v := range req.Header {
-		io.WriteString(w, k + ": " + v + "\r\n");
+		io.WriteString(w, k+": "+v+"\r\n");
 	}
 
 	io.WriteString(w, "\r\n");
@@ -183,7 +183,7 @@ func (req *Request) write(w io.Writer) os.Error {
 			switch {
 			case er != nil:
 				if er == os.EOF {
-					break Loop
+					break Loop;
 				}
 				return er;
 			case ew != nil:
@@ -210,29 +210,29 @@ func readLineBytes(b *bufio.Reader) (p []byte, err os.Error) {
 		if err == os.EOF {
 			err = io.ErrUnexpectedEOF;
 		}
-		return nil, err
+		return nil, err;
 	}
 	if len(p) >= maxLineLength {
-		return nil, ErrLineTooLong
+		return nil, ErrLineTooLong;
 	}
 
 	// Chop off trailing white space.
 	var i int;
 	for i = len(p); i > 0; i-- {
 		if c := p[i-1]; c != ' ' && c != '\r' && c != '\t' && c != '\n' {
-			break
+			break;
 		}
 	}
-	return p[0:i], nil
+	return p[0:i], nil;
 }
 
 // readLineBytes, but convert the bytes into a string.
 func readLine(b *bufio.Reader) (s string, err os.Error) {
 	p, e := readLineBytes(b);
 	if e != nil {
-		return "", e
+		return "", e;
 	}
-	return string(p), nil
+	return string(p), nil;
 }
 
 var colon = []byte{':'}
@@ -244,10 +244,10 @@ var colon = []byte{':'}
 func readKeyValue(b *bufio.Reader) (key, value string, err os.Error) {
 	line, e := readLineBytes(b);
 	if e != nil {
-		return "", "", e
+		return "", "", e;
 	}
 	if len(line) == 0 {
-		return "", "", nil
+		return "", "", nil;
 	}
 
 	// Scan first line for colon.
@@ -265,7 +265,7 @@ func readKeyValue(b *bufio.Reader) (key, value string, err os.Error) {
 	// Skip initial space before value.
 	for i++; i < len(line); i++ {
 		if line[i] != ' ' {
-			break
+			break;
 		}
 	}
 	value = string(line[i:len(line)]);
@@ -286,16 +286,16 @@ func readKeyValue(b *bufio.Reader) (key, value string, err os.Error) {
 				if e == os.EOF {
 					e = io.ErrUnexpectedEOF;
 				}
-				return "", "", e
+				return "", "", e;
 			}
 		}
 		b.UnreadByte();
 
 		// Read the rest of the line and add to value.
 		if line, e = readLineBytes(b); e != nil {
-			return "", "", e
+			return "", "", e;
 		}
-		value += " " + string(line);
+		value += " "+string(line);
 
 		if len(value) >= maxValueLength {
 			return "", "", &badStringError{"value too long for key", key};
@@ -313,33 +313,33 @@ Malformed:
 func atoi(s string, i int) (n, i1 int, ok bool) {
 	const Big = 1000000;
 	if i >= len(s) || s[i] < '0' || s[i] > '9' {
-		return 0, 0, false
+		return 0, 0, false;
 	}
 	n = 0;
 	for ; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
 		n = n*10 + int(s[i]-'0');
 		if n > Big {
-			return 0, 0, false
+			return 0, 0, false;
 		}
 	}
-	return n, i, true
+	return n, i, true;
 }
 
 // Parse HTTP version: "HTTP/1.2" -> (1, 2, true).
 func parseHTTPVersion(vers string) (int, int, bool) {
 	if vers[0:5] != "HTTP/" {
-		return 0, 0, false
+		return 0, 0, false;
 	}
 	major, i, ok := atoi(vers, 5);
 	if !ok || i >= len(vers) || vers[i] != '.' {
-		return 0, 0, false
+		return 0, 0, false;
 	}
 	var minor int;
 	minor, i, ok = atoi(vers, i+1);
 	if !ok || i != len(vers) {
-		return 0, 0, false
+		return 0, 0, false;
 	}
-	return major, minor, true
+	return major, minor, true;
 }
 
 var cmap = make(map[string]string)
@@ -360,12 +360,12 @@ func CanonicalHeaderKey(s string) string {
 	// HTTP headers are ASCII only, so no Unicode issues.
 	a := strings.Bytes(s);
 	upper := true;
-	for i,v := range a {
+	for i, v := range a {
 		if upper && 'a' <= v && v <= 'z' {
-			a[i] = v + 'A' - 'a';
+			a[i] = v+'A'-'a';
 		}
 		if !upper && 'A' <= v && v <= 'Z' {
-			a[i] = v + 'a' - 'A';
+			a[i] = v+'a'-'A';
 		}
 		upper = false;
 		if v == '-' {
@@ -378,13 +378,13 @@ func CanonicalHeaderKey(s string) string {
 }
 
 type chunkedReader struct {
-	r *bufio.Reader;
-	n uint64;  // unread bytes in chunk
-	err os.Error;
+	r	*bufio.Reader;
+	n	uint64;	// unread bytes in chunk
+	err	os.Error;
 }
 
 func newChunkedReader(r *bufio.Reader) *chunkedReader {
-	return &chunkedReader{ r: r }
+	return &chunkedReader{r: r};
 }
 
 func (cr *chunkedReader) beginChunk() {
@@ -392,21 +392,21 @@ func (cr *chunkedReader) beginChunk() {
 	var line string;
 	line, cr.err = readLine(cr.r);
 	if cr.err != nil {
-		return
+		return;
 	}
 	cr.n, cr.err = strconv.Btoui64(line, 16);
 	if cr.err != nil {
-		return
+		return;
 	}
 	if cr.n == 0 {
 		// trailer CRLF
 		for {
 			line, cr.err = readLine(cr.r);
 			if cr.err != nil {
-				return
+				return;
 			}
 			if line == "" {
-				break
+				break;
 			}
 		}
 		cr.err = os.EOF;
@@ -415,16 +415,16 @@ func (cr *chunkedReader) beginChunk() {
 
 func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
 	if cr.err != nil {
-		return 0, cr.err
+		return 0, cr.err;
 	}
 	if cr.n == 0 {
 		cr.beginChunk();
 		if cr.err != nil {
-			return 0, cr.err
+			return 0, cr.err;
 		}
 	}
 	if uint64(len(b)) > cr.n {
-		b = b[0:cr.n];
+		b = b[0 : cr.n];
 	}
 	n, cr.err = cr.r.Read(b);
 	cr.n -= uint64(n);
@@ -437,7 +437,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
 			}
 		}
 	}
-	return n, cr.err
+	return n, cr.err;
 }
 
 // ReadRequest reads and parses a request from b.
@@ -447,7 +447,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	// First line: GET /index.html HTTP/1.0
 	var s string;
 	if s, err = readLine(b); err != nil {
-		return nil, err
+		return nil, err;
 	}
 
 	var f []string;
@@ -461,22 +461,22 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	}
 
 	if req.Url, err = ParseURL(req.RawUrl); err != nil {
-		return nil, err
+		return nil, err;
 	}
 
 	// Subsequent lines: Key: value.
 	nheader := 0;
-	req.Header = make(map[string] string);
+	req.Header = make(map[string]string);
 	for {
 		var key, value string;
 		if key, value, err = readKeyValue(b); err != nil {
-			return nil, err
+			return nil, err;
 		}
 		if key == "" {
-			break
+			break;
 		}
 		if nheader++; nheader >= maxHeaderLines {
-			return nil, ErrHeaderTooLong
+			return nil, ErrHeaderTooLong;
 		}
 
 		key = CanonicalHeaderKey(key);
@@ -486,9 +486,9 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 		// to concatenating the values separated by commas.
 		oldvalue, present := req.Header[key];
 		if present {
-			req.Header[key] = oldvalue+","+value
+			req.Header[key] = oldvalue+","+value;
 		} else {
-			req.Header[key] = value
+			req.Header[key] = value;
 		}
 	}
 
@@ -500,7 +500,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	//	Host: doesntmatter
 	// the same.  In the second case, any Host line is ignored.
 	if v, present := req.Header["Host"]; present && req.Url.Host == "" {
-		req.Host = v
+		req.Host = v;
 	}
 
 	// RFC2616: Should treat
@@ -509,27 +509,27 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	//	Cache-Control: no-cache
 	if v, present := req.Header["Pragma"]; present && v == "no-cache" {
 		if _, presentcc := req.Header["Cache-Control"]; !presentcc {
-			req.Header["Cache-Control"] = "no-cache"
+			req.Header["Cache-Control"] = "no-cache";
 		}
 	}
 
 	// Determine whether to hang up after sending the reply.
 	if req.ProtoMajor < 1 || (req.ProtoMajor == 1 && req.ProtoMinor < 1) {
-		req.Close = true
+		req.Close = true;
 	} else if v, present := req.Header["Connection"]; present {
 		// TODO: Should split on commas, toss surrounding white space,
 		// and check each field.
 		if v == "close" {
-			req.Close = true
+			req.Close = true;
 		}
 	}
 
 	// Pull out useful fields as a convenience to clients.
 	if v, present := req.Header["Referer"]; present {
-		req.Referer = v
+		req.Referer = v;
 	}
 	if v, present := req.Header["User-Agent"]; present {
-		req.UserAgent = v
+		req.UserAgent = v;
 	}
 
 	// TODO: Parse specific header values:
@@ -571,16 +571,16 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 		raw := make([]byte, length);
 		n, err := b.Read(raw);
 		if err != nil || uint64(n) < length {
-			return nil, ErrShortBody
+			return nil, ErrShortBody;
 		}
 		req.Body = bytes.NewBuffer(raw);
 	}
 
-	return req, nil
+	return req, nil;
 }
 
-func parseForm(query string) (m map[string] []string, err os.Error) {
-	data := make(map[string] *vector.StringVector);
+func parseForm(query string) (m map[string][]string, err os.Error) {
+	data := make(map[string]*vector.StringVector);
 	for _, kv := range strings.Split(query, "&", 0) {
 		kvPair := strings.Split(kv, "=", 2);
 
@@ -602,19 +602,19 @@ func parseForm(query string) (m map[string] []string, err os.Error) {
 		vec.Push(value);
 	}
 
-	m = make(map[string] []string);
+	m = make(map[string][]string);
 	for k, vec := range data {
 		m[k] = vec.Data();
 	}
 
-	return
+	return;
 }
 
 // ParseForm parses the request body as a form for POST requests, or the raw query for GET requests.
 // It is idempotent.
 func (r *Request) ParseForm() (err os.Error) {
 	if r.Form != nil {
-		return
+		return;
 	}
 
 	var query string;
@@ -624,23 +624,23 @@ func (r *Request) ParseForm() (err os.Error) {
 		query = r.Url.RawQuery;
 	case "POST":
 		if r.Body == nil {
-			return os.ErrorString("missing form body")
+			return os.ErrorString("missing form body");
 		}
 		ct, _ := r.Header["Content-Type"];
 		switch strings.Split(ct, ";", 2)[0] {
 		case "text/plain", "application/x-www-form-urlencoded", "":
 			var b []byte;
 			if b, err = io.ReadAll(r.Body); err != nil {
-				return
+				return;
 			}
 			query = string(b);
 		// TODO(dsymonds): Handle multipart/form-data
 		default:
-			return &badStringError{"unknown Content-Type", ct}
+			return &badStringError{"unknown Content-Type", ct};
 		}
 	}
 	r.Form, err = parseForm(query);
-	return
+	return;
 }
 
 // FormValue returns the first value for the named component of the query.
@@ -650,7 +650,7 @@ func (r *Request) FormValue(key string) string {
 		r.ParseForm();
 	}
 	if vs, ok := r.Form[key]; ok && len(vs) > 0 {
-		return vs[0]
+		return vs[0];
 	}
-	return ""
+	return "";
 }

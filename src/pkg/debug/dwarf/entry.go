@@ -190,15 +190,15 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 		case formRefAddr:
 			val = Offset(b.addr());
 		case formRef1:
-			val = Offset(b.uint8()) + ubase;
+			val = Offset(b.uint8())+ubase;
 		case formRef2:
-			val = Offset(b.uint16()) + ubase;
+			val = Offset(b.uint16())+ubase;
 		case formRef4:
-			val = Offset(b.uint32()) + ubase;
+			val = Offset(b.uint32())+ubase;
 		case formRef8:
-			val = Offset(b.uint64()) + ubase;
+			val = Offset(b.uint64())+ubase;
 		case formRefUdata:
-			val = Offset(b.uint()) + ubase;
+			val = Offset(b.uint())+ubase;
 
 		// string
 		case formString:

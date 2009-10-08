@@ -42,7 +42,7 @@ func Sinh(x float64) float64 {
 		temp = Exp(x)/2;
 
 	case x > 0.5:
-		temp = (Exp(x) - Exp(-x))/2;
+		temp = (Exp(x)-Exp(-x))/2;
 
 	default:
 		sq := x*x;
@@ -64,5 +64,5 @@ func Cosh(x float64) float64 {
 	if x > 21 {
 		return Exp(x)/2;
 	}
-	return (Exp(x) + Exp(-x))/2;
+	return (Exp(x)+Exp(-x))/2;
 }

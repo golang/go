@@ -46,7 +46,7 @@ func (t *LineTable) parse(targetPC uint64, targetLine int) (b []byte, pc uint64,
 		case code <= 128:
 			line -= int(code-64);
 		default:
-			pc += quantum * uint64(code-128);
+			pc += quantum*uint64(code-128);
 			continue;
 		}
 		pc += quantum;

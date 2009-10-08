@@ -470,7 +470,7 @@ func TestAllMatches(t *testing.T) {
 
 		switch c.matchfunc {
 		case "matchit":
-			result = make([]string, len(c.input) + 1);
+			result = make([]string, len(c.input)+1);
 			i := 0;
 			b := strings.Bytes(c.input);
 			for match := range re.AllMatchesIter(b, c.n) {
@@ -479,7 +479,7 @@ func TestAllMatches(t *testing.T) {
 			}
 			result = result[0:i];
 		case "stringmatchit":
-			result = make([]string, len(c.input) + 1);
+			result = make([]string, len(c.input)+1);
 			i := 0;
 			for match := range re.AllMatchesStringIter(c.input, c.n) {
 				result[i] = match;
@@ -487,7 +487,7 @@ func TestAllMatches(t *testing.T) {
 			}
 			result = result[0:i];
 		case "match":
-			result = make([]string, len(c.input) + 1);
+			result = make([]string, len(c.input)+1);
 			b := strings.Bytes(c.input);
 			i := 0;
 			for _, match := range re.AllMatches(b, c.n) {

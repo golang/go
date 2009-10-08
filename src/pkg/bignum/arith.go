@@ -18,7 +18,7 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
 	// and return the product as 2 words.
 
 	const (
-		W	= uint(unsafe.Sizeof(x)) * 8;
+		W	= uint(unsafe.Sizeof(x))*8;
 		W2	= W/2;
 		B2	= 1<<W2;
 		M2	= B2-1;
@@ -80,7 +80,7 @@ func MulAdd128(x, y, c uint64) (z1, z0 uint64) {
 	// and return the product as 2 words.
 
 	const (
-		W	= uint(unsafe.Sizeof(x)) * 8;
+		W	= uint(unsafe.Sizeof(x))*8;
 		W2	= W/2;
 		B2	= 1<<W2;
 		M2	= B2-1;

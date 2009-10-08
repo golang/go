@@ -56,8 +56,8 @@ var initDecoderTests = []*InitDecoderTest{
 		[]int{3, 5, 2, 4, 3, 5, 5, 4, 4, 3, 4, 5},
 		huffmanDecoder{
 			2, 5,
-			[maxCodeLen+1]int{2: 0, 4, 13, 31},
-			[maxCodeLen+1]int{2: 0, 1, 6, 20},
+			[maxCodeLen + 1]int{2: 0, 4, 13, 31},
+			[maxCodeLen + 1]int{2: 0, 1, 6, 20},
 			// Paper used different code assignment:
 			// 2, 9, 4, 0, 10, 8, 3, 7, 1, 5, 11, 6
 			// Reordered here so that codes of same length
@@ -72,8 +72,8 @@ var initDecoderTests = []*InitDecoderTest{
 		[]int{2, 1, 3, 3},
 		huffmanDecoder{
 			1, 3,
-			[maxCodeLen+1]int{1: 0, 2, 7},
-			[maxCodeLen+1]int{1: 0, 1, 4},
+			[maxCodeLen + 1]int{1: 0, 2, 7},
+			[maxCodeLen + 1]int{1: 0, 1, 4},
 			[]int{1, 0, 2, 3},
 		},
 		true,
@@ -84,8 +84,8 @@ var initDecoderTests = []*InitDecoderTest{
 		[]int{3, 3, 3, 3, 3, 2, 4, 4},
 		huffmanDecoder{
 			2, 4,
-			[maxCodeLen+1]int{2: 0, 6, 15},
-			[maxCodeLen+1]int{2: 0, 1, 8},
+			[maxCodeLen + 1]int{2: 0, 6, 15},
+			[maxCodeLen + 1]int{2: 0, 1, 8},
 			[]int{5, 0, 1, 2, 3, 4, 6, 7},
 		},
 		true,
