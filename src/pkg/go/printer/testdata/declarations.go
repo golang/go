@@ -147,6 +147,16 @@ func _() {
 		z = 2;
 		zzz = 3;
 	)
+	// no entry has a value
+	var (
+		_ int;
+		_ float;
+		_ string;
+
+		_ int;  // comment
+		_ float;  // comment
+		_ string;  // comment
+	)
 	// some entries have a type
 	var (
 		xxxxxx int;
@@ -156,6 +166,14 @@ func _() {
 		y float = 3.14;
 		yyyy = "bar";
 		yyy string = "foo";
+	)
+	// mixed entries - all comments should be aligned
+	var (
+		a, b, c int;
+		x = 10;
+		d int;  // comment
+		y = 20;  // comment
+		f, ff, fff, ffff int = 0, 1, 2, 3;  // comment
 	)
 }
 
@@ -226,6 +244,14 @@ type _ struct {
 	g float "tag";
 	h float "tag";  // comment
 }
+
+
+// difficult cases
+type _ struct {
+	bool;  // comment
+	text []byte;  // comment
+}
+
 
 
 // formatting of interfaces
