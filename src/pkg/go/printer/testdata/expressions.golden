@@ -39,6 +39,8 @@ func _() {
 	_ = "foo"+s;
 	_ = s+"foo";
 	_ = 'a'+'b';
+	_ = len(s)/2;
+	_ = len(t0.x)/a;
 
 	// spaces around expressions of different precedence or expressions containing spaces
 	_ = a + -b;
@@ -80,6 +82,8 @@ func _() {
 	_ = (a+b+c)*2;
 	_ = a - b + c - d + (a+b+c) + d&e;
 	_ = under_bar - 1;
+	_ = Open(dpath+"/file", O_WRONLY|O_CREAT, 0666);
+	_ = int(c0&_Mask4)<<18 | int(c1&_Maskx)<<12 | int(c2&_Maskx)<<6 | int(c3&_Maskx);
 }
 
 
@@ -101,8 +105,65 @@ func _() {
 
 
 func _() {
-	// TODO respect source line breaks in multi-line expressions
-	_ = a < b || b < a;
+	// do not modify `` strings
+	_ = ``;
+	_ = `
+`;
+	// TODO(gri): fix line breaks here
+	_ = `foo
+		bar`;
+
+}
+
+
+func _() {
+	// not not add extra indentation to multi-line string lists
+	_ = "foo" "bar";
+	_ = "foo"
+	"bar"
+	"bah";
+	_ = []string{
+		"abc"
+		"def",
+		"foo"
+		"bar",
+	};
+}
+
+
+func _() {
+	// respect source lines in multi-line expressions
+	_ = a +
+		b +
+		c;
+	_ = a < b ||
+		b < a;
+	_ = "1234567890"
+	"1234567890";
 // TODO(gri): add more test cases
 // TODO(gri): these comments should be indented
+}
+
+
+func same(t, u *Time) bool {
+	// respect source lines in multi-line expressions
+	return t.Year == u.Year &&
+		t.Month == u.Month &&
+		t.Day == u.Day &&
+		t.Hour == u.Hour &&
+		t.Minute == u.Minute &&
+		t.Second == u.Second &&
+		t.Weekday == u.Weekday &&
+		t.ZoneOffset == u.ZoneOffset &&
+		t.Zone == u.Zone;
+}
+
+
+func (p *parser) charClass() {
+	// respect source lines in multi-line expressions
+	if cc.negate && len(cc.ranges) == 2 &&
+		cc.ranges[0] == '\n' && cc.ranges[1] == '\n' {
+		nl := new(_NotNl);
+		p.re.add(nl);
+	}
 }
