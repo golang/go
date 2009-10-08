@@ -120,6 +120,13 @@ var tests = []entry {
 	},
 
 	entry{
+		"1 debug",
+		8, 1, '.', Debug,
+		"",
+		""
+	},
+
+	entry{
 		"2",
 		8, 1, '.', 0,
 		"\n\n\n",
@@ -166,6 +173,13 @@ var tests = []entry {
 		8, 1, '.', 0,
 		"*\t*\t",
 		"*.......*"
+	},
+
+	entry{
+		"5c debug",
+		8, 1, '.', Debug,
+		"*\t*\t",
+		"*.......|*"
 	},
 
 	entry{
@@ -232,6 +246,13 @@ var tests = []entry {
 	},
 
 	entry{
+		"7g debug",
+		8, 1, '.', FilterHTML | Debug,
+		"g) f&lt;o\t<b>bar</b>\t non-terminated entity &amp",
+		"g) f&lt;o..|<b>bar</b>.....| non-terminated entity &amp"
+	},
+
+	entry{
 		"8",
 		8, 1, '*', 0,
 		"Hello, world!\n",
@@ -266,6 +287,16 @@ var tests = []entry {
 
 		"1234\n"
 		"11222333344444\n"
+	},
+
+	entry{
+		"9c debug",
+		0, 0, '.', Debug,
+		"1\t2\t3\t4\f"  // \f causes a newline and flush
+		"11\t222\t3333\t44444\n",
+
+		"1|2|3|4\n"
+		"11|222|3333|44444\n"
 	},
 
 	entry{
@@ -409,6 +440,24 @@ var tests = []entry {
 	},
 
 	entry{
+		"14 debug",
+		0, 2, ' ', AlignRight | Debug,
+		".0\t.3\t2.4\t-5.1\t\n"
+		"23.0\t12345678.9\t2.4\t-989.4\t\n"
+		"5.1\t12.0\t2.4\t-7.0\t\n"
+		".0\t0.0\t332.0\t8908.0\t\n"
+		".0\t-.3\t456.4\t22.1\t\n"
+		".0\t1.2\t44.4\t-13.3\t\t",
+
+		"    .0|          .3|    2.4|    -5.1|\n"
+		"  23.0|  12345678.9|    2.4|  -989.4|\n"
+		"   5.1|        12.0|    2.4|    -7.0|\n"
+		"    .0|         0.0|  332.0|  8908.0|\n"
+		"    .0|         -.3|  456.4|    22.1|\n"
+		"    .0|         1.2|   44.4|   -13.3|"
+	},
+
+	entry{
 		"15a",
 		4, 0, '.', 0,
 		"a\t\tb",
@@ -469,6 +518,22 @@ var tests = []entry {
 	},
 
 	entry{
+		"16b debug",
+		100, 0, '\t', DiscardEmptyColumns | Debug,
+		"a\vb\v\vd\n"
+		"a\vb\v\vd\ve\n"
+		"a\n"
+		"a\vb\vc\vd\n"
+		"a\vb\vc\vd\ve\n",
+
+		"a\t|b\t||d\n"
+		"a\t|b\t||d\t|e\n"
+		"a\n"
+		"a\t|b\t|c\t|d\n"
+		"a\t|b\t|c\t|d\t|e\n"
+	},
+
+	entry{
 		"16c",
 		100, 0, '\t', DiscardEmptyColumns,
 		"a\tb\t\td\n"  // hard tabs - do not discard column
@@ -482,6 +547,22 @@ var tests = []entry {
 		"a\n"
 		"a\tb\tc\td\n"
 		"a\tb\tc\td\te\n"
+	},
+
+	entry{
+		"16c debug",
+		100, 0, '\t', DiscardEmptyColumns | Debug,
+		"a\tb\t\td\n"  // hard tabs - do not discard column
+		"a\tb\t\td\te\n"
+		"a\n"
+		"a\tb\tc\td\n"
+		"a\tb\tc\td\te\n",
+
+		"a\t|b\t|\t|d\n"
+		"a\t|b\t|\t|d\t|e\n"
+		"a\n"
+		"a\t|b\t|c\t|d\n"
+		"a\t|b\t|c\t|d\t|e\n"
 	},
 }
 
