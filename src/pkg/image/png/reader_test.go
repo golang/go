@@ -33,6 +33,14 @@ var filenames = []string {
 	//"basn6a16",	// bit depth is not 8
 }
 
+func readPng(filename string) (image.Image, os.Error) {
+	f, err := os.Open(filename, os.O_RDONLY, 0444);
+	if err != nil {
+		return nil, err;
+	}
+	defer f.Close();
+	return Decode(f);
+}
 
 // An approximation of the sng command-line tool.
 func sng(w io.WriteCloser, filename string, png image.Image) {
@@ -103,13 +111,7 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 func TestReader(t *testing.T) {
 	for _, fn := range filenames {
 		// Read the .png file.
-		pf, err := os.Open("testdata/pngsuite/" + fn + ".png", os.O_RDONLY, 0444);
-		if err != nil {
-			t.Error(fn, err);
-			continue
-		}
-		defer pf.Close();
-		image, err := Decode(pf);
+		image, err := readPng("testdata/pngsuite/" + fn + ".png");
 		if err != nil {
 			t.Error(fn, err);
 			continue
