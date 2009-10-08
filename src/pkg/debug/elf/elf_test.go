@@ -20,7 +20,7 @@ var nameTests = []nameTest{
 	nameTest{EM_860, "EM_860"},
 	nameTest{SHN_LOPROC, "SHN_LOPROC"},
 	nameTest{SHT_PROGBITS, "SHT_PROGBITS"},
-	nameTest{SHF_MERGE+SHF_TLS, "SHF_MERGE+SHF_TLS"},
+	nameTest{SHF_MERGE + SHF_TLS, "SHF_MERGE+SHF_TLS"},
 	nameTest{PT_LOAD, "PT_LOAD"},
 	nameTest{PF_W+PF_R+0x50, "PF_W+PF_R+0x50"},
 	nameTest{DT_SYMBOLIC, "DT_SYMBOLIC"},

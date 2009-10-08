@@ -33,7 +33,7 @@ func (b *buf) uint8() uint8 {
 		return 0;
 	}
 	val := b.data[0];
-	b.data = b.data[1 : len(b.data)];
+	b.data = b.data[1:len(b.data)];
 	b.off++;
 	return val;
 }
@@ -44,7 +44,7 @@ func (b *buf) bytes(n int) []byte {
 		return nil;
 	}
 	data := b.data[0:n];
-	b.data = b.data[n : len(b.data)];
+	b.data = b.data[n:len(b.data)];
 	b.off += Offset(n);
 	return data;
 }
@@ -95,7 +95,7 @@ func (b *buf) uint64() uint64 {
 func (b *buf) varint() (c uint64, bits uint) {
 	for i := 0; i < len(b.data); i++ {
 		byte := b.data[i];
-		c |= uint64(byte&0x7F) << bits;
+		c |= uint64(byte&0x7F)<<bits;
 		bits += 7;
 		if byte&0x80 == 0 {
 			b.off += Offset(i+1);

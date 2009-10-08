@@ -34,7 +34,7 @@ func (d *data) read(n int) []byte {
 		return nil;
 	}
 	p := d.p[0:n];
-	d.p = d.p[n : len(d.p)];
+	d.p = d.p[n:len(d.p)];
 	return p;
 }
 

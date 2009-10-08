@@ -70,7 +70,7 @@ func (r *dataErrReader) Read(p []byte) (n int, err os.Error) {
 			break;
 		}
 		n = bytes.Copy(p, r.unread);
-		r.unread = r.unread[n : len(r.unread)];
+		r.unread = r.unread[n:len(r.unread)];
 	}
 	return;
 }

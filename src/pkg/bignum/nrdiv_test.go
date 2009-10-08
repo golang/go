@@ -99,7 +99,7 @@ func nrDivEst(x0, y0 Natural) Natural {
 	// Determine a scale factor f = 2^e such that
 	// 0.5 <= y/f == y*(2^-e) < 1.0
 	// and scale y accordingly.
-	e := int(y.m.Log2()) + 1;
+	e := int(y.m.Log2())+1;
 	y.e -= e;
 
 	// t1
@@ -133,7 +133,7 @@ func nrDivEst(x0, y0 Natural) Natural {
 		// reduce mantissa size
 		// TODO: Find smaller bound as it will reduce
 		//       computation time massively.
-		d := int(r.m.Log2() + 1) - maxLen;
+		d := int(r.m.Log2() + 1)-maxLen;
 		if d > 0 {
 			r = fpNat{r.m.Shr(uint(d)), r.e + d};
 		}

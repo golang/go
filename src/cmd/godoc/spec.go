@@ -21,13 +21,13 @@ import (
 
 
 type ebnfParser struct {
-	out io.Writer;  // parser output
-	src []byte;  // parser source
-	scanner scanner.Scanner;
-	prev int;  // offset of previous token
-	pos token.Position;  // token position
-	tok token.Token;  // one token look-ahead
-	lit []byte;  // token literal
+	out	io.Writer;	// parser output
+	src	[]byte;		// parser source
+	scanner	scanner.Scanner;
+	prev	int;		// offset of previous token
+	pos	token.Position;	// token position
+	tok	token.Token;	// one token look-ahead
+	lit	[]byte;		// token literal
 }
 
 
@@ -48,7 +48,7 @@ func (p *ebnfParser) next() {
 }
 
 
-func (p *ebnfParser) Error (pos token.Position, msg string) {
+func (p *ebnfParser) Error(pos token.Position, msg string) {
 	fmt.Fprintf(p.out, "<font color=red>error: %s</font>", msg);
 }
 
@@ -60,7 +60,7 @@ func (p *ebnfParser) errorExpected(pos token.Position, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'";
 		if p.tok.IsLiteral() {
-			msg += " " + string(p.lit);
+			msg += " "+string(p.lit);
 		}
 	}
 	p.Error(pos, msg);
@@ -72,7 +72,7 @@ func (p *ebnfParser) expect(tok token.Token) token.Position {
 	if p.tok != tok {
 		p.errorExpected(pos, "'" + tok.String() + "'");
 	}
-	p.next();  // make progress in any case
+	p.next();	// make progress in any case
 	return pos;
 }
 
@@ -85,7 +85,7 @@ func (p *ebnfParser) parseIdentifier(def bool) {
 	} else {
 		fmt.Fprintf(p.out, `<a href="#%s" style="text-decoration: none;">%s</a>`, name, name);
 	}
-	p.prev += len(name);  // skip identifier when calling flush
+	p.prev += len(name);	// skip identifier when calling flush
 }
 
 
@@ -125,8 +125,7 @@ func (p *ebnfParser) parseTerm() bool {
 
 
 func (p *ebnfParser) parseSequence() {
-	for p.parseTerm() {
-	}
+	for p.parseTerm() {}
 }
 
 
@@ -154,7 +153,7 @@ func (p *ebnfParser) parse(out io.Writer, src []byte) {
 	p.out = out;
 	p.src = src;
 	p.scanner.Init("", src, p, 0);
-	p.next();  // initializes pos, tok, lit
+	p.next();	// initializes pos, tok, lit
 
 	// process source
 	for p.tok != token.EOF {
@@ -166,8 +165,8 @@ func (p *ebnfParser) parse(out io.Writer, src []byte) {
 
 // Markers around EBNF sections
 var (
-	open = strings.Bytes(`<pre class="ebnf">`);
-	close = strings.Bytes(`</pre>`);
+	open	= strings.Bytes(`<pre class="ebnf">`);
+	close	= strings.Bytes(`</pre>`);
 )
 
 
@@ -183,19 +182,19 @@ func linkify(out io.Writer, src []byte) {
 		i += len(open);
 
 		// j: end of EBNF text (or end of source)
-		j := bytes.Index(src[i : n], close);  // close marker
+		j := bytes.Index(src[i:n], close);	// close marker
 		if j < 0 {
 			j = n-i;
 		}
 		j += i;
 
 		// write text before EBNF
-		out.Write(src[0 : i]);
+		out.Write(src[0:i]);
 		// parse and write EBNF
 		var p ebnfParser;
-		p.parse(out, src[i : j]);
+		p.parse(out, src[i:j]);
 
 		// advance
-		src = src[j : n];
+		src = src[j:n];
 	}
 }

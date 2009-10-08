@@ -27,6 +27,7 @@ import (
 
 // A SyntaxError represents a syntax error in the XML input stream.
 type SyntaxError string
+
 func (e SyntaxError) String() string {
 	return "XML syntax error: " + string(e);
 }
@@ -42,8 +43,8 @@ type Name struct {
 
 // An Attr represents an attribute in an XML element (Name=Value).
 type Attr struct {
-	Name Name;
-	Value string;
+	Name	Name;
+	Value	string;
 }
 
 // A Token is an interface holding one of the token types:
@@ -52,12 +53,12 @@ type Token interface{}
 
 // A StartElement represents an XML start element.
 type StartElement struct {
-	Name Name;
-	Attr []Attr;
+	Name	Name;
+	Attr	[]Attr;
 }
 
 // An EndElement represents an XML end element.
-type EndElement  struct {
+type EndElement struct {
 	Name Name;
 }
 
@@ -86,8 +87,8 @@ func (c Comment) Copy() Comment {
 
 // A ProcInst represents an XML processing instruction of the form <?target inst?>
 type ProcInst struct {
-	Target string;
-	Inst []byte;
+	Target	string;
+	Inst	[]byte;
 }
 
 func (p ProcInst) Copy() ProcInst {
@@ -104,23 +105,23 @@ func (d Directive) Copy() Directive {
 }
 
 type readByter interface {
-	ReadByte() (b byte, err os.Error)
+	ReadByte() (b byte, err os.Error);
 }
 
 // A Parser represents an XML parser reading a particular input stream.
 // The parser assumes that its input is encoded in UTF-8.
 type Parser struct {
-	r readByter;
-	buf bytes.Buffer;
-	stk *stack;
-	free *stack;
-	needClose bool;
-	toClose Name;
-	nextByte int;
-	ns map[string]string;
-	err os.Error;
-	line int;
-	tmp [32]byte;
+	r		readByter;
+	buf		bytes.Buffer;
+	stk		*stack;
+	free		*stack;
+	needClose	bool;
+	toClose		Name;
+	nextByte	int;
+	ns		map[string]string;
+	err		os.Error;
+	line		int;
+	tmp		[32]byte;
 }
 
 // NewParser creates a new XML parser reading from r.
@@ -230,14 +231,14 @@ func (p *Parser) translate(n *Name, isElementName bool) {
 // ending a given tag are *below* it on the stack, which is
 // more work but forced on us by XML.
 type stack struct {
-	next *stack;
-	kind int;
-	name Name;
-	ok bool;
+	next	*stack;
+	kind	int;
+	name	Name;
+	ok	bool;
 }
 
 const (
-	stkStart = iota;
+	stkStart	= iota;
 	stkNs;
 )
 
@@ -388,7 +389,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			b0 = b;
 		}
 		data := p.buf.Bytes();
-		data = data[0:len(data)-2];	// chop ?>
+		data = data[0 : len(data)-2];	// chop ?>
 		return ProcInst{target, data}, nil;
 
 	case '!':
@@ -397,8 +398,8 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			return nil, p.err;
 		}
 		switch b {
-		case '-':  // <!-
-			// Probably <!-- for a comment.
+		case '-':	// <!-
+				// Probably <!-- for a comment.
 			if b, ok = p.getc(); !ok {
 				return nil, p.err;
 			}
@@ -423,11 +424,11 @@ func (p *Parser) RawToken() (Token, os.Error) {
 				b0, b1 = b1, b;
 			}
 			data := p.buf.Bytes();
-			data = data[0:len(data)-3];	// chop -->
+			data = data[0 : len(data)-3];	// chop -->
 			return Comment(data), nil;
 
-		case '[':  // <![
-			// Probably <![CDATA[.
+		case '[':	// <![
+				// Probably <![CDATA[.
 			for i := 0; i < 7; i++ {
 				if b, ok = p.getc(); !ok {
 					return nil, p.err;
@@ -465,9 +466,9 @@ func (p *Parser) RawToken() (Token, os.Error) {
 	p.ungetc(b);
 
 	var (
-		name Name;
-		empty bool;
-		attr []Attr;
+		name	Name;
+		empty	bool;
+		attr	[]Attr;
 	)
 	if name, ok = p.nsname(); !ok {
 		if p.err == nil {
@@ -506,7 +507,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			}
 			attr = nattr;
 		}
-		attr = attr[0:n+1];
+		attr = attr[0 : n+1];
 		a := &attr[n];
 		if a.Name, ok = p.nsname(); !ok {
 			if p.err == nil {
@@ -591,7 +592,7 @@ func (p *Parser) ungetc(b byte) {
 	p.nextByte = int(b);
 }
 
-var entity = map[string]int {
+var entity = map[string]int{
 	"lt": '<',
 	"gt": '>',
 	"amp": '&',
@@ -688,7 +689,7 @@ Input:
 		b0, b1 = b1, b;
 	}
 	data := p.buf.Bytes();
-	data = data[0:len(data)-trunc];
+	data = data[0 : len(data)-trunc];
 
 	// Must rewrite \r and \r\n into \n.
 	w := 0;
@@ -718,7 +719,7 @@ func (p *Parser) nsname() (name Name, ok bool) {
 		name.Local = s;
 	} else {
 		name.Space = s[0:i];
-		name.Local = s[i+1:len(s)];
+		name.Local = s[i+1 : len(s)];
 	}
 	return name, true;
 }

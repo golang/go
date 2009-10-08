@@ -18,11 +18,11 @@ import (
 type typeDoc struct {
 	// len(decl.Specs) == 1, and the element type is *ast.TypeSpec
 	// if the type declaration hasn't been seen yet, decl is nil
-	decl *ast.GenDecl;
+	decl	*ast.GenDecl;
 	// values, factory functions, and methods associated with the type
-	values *vector.Vector;  // list of *ast.GenDecl (consts and vars)
-	factories map[string] *ast.FuncDecl;
-	methods map[string] *ast.FuncDecl;
+	values		*vector.Vector;	// list of *ast.GenDecl (consts and vars)
+	factories	map[string]*ast.FuncDecl;
+	methods		map[string]*ast.FuncDecl;
 }
 
 
@@ -34,18 +34,18 @@ type typeDoc struct {
 // printing the corresponding AST node).
 //
 type docReader struct {
-	doc *ast.CommentGroup;  // package documentation, if any
-	values *vector.Vector;  // list of *ast.GenDecl (consts and vars)
-	types map[string] *typeDoc;
-	funcs map[string] *ast.FuncDecl;
-	bugs *vector.Vector;  // list of *ast.CommentGroup
+	doc	*ast.CommentGroup;	// package documentation, if any
+	values	*vector.Vector;		// list of *ast.GenDecl (consts and vars)
+	types	map[string]*typeDoc;
+	funcs	map[string]*ast.FuncDecl;
+	bugs	*vector.Vector;	// list of *ast.CommentGroup
 }
 
 
 func (doc *docReader) init() {
 	doc.values = vector.New(0);
-	doc.types = make(map[string] *typeDoc);
-	doc.funcs = make(map[string] *ast.FuncDecl);
+	doc.types = make(map[string]*typeDoc);
+	doc.funcs = make(map[string]*ast.FuncDecl);
 	doc.bugs = vector.New(0);
 }
 
@@ -65,13 +65,13 @@ func (doc *docReader) addType(decl *ast.GenDecl) {
 
 func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
 	if name == "" {
-		return nil;  // no type docs for anonymous types
+		return nil;	// no type docs for anonymous types
 	}
 	if tdoc, found := doc.types[name]; found {
 		return tdoc;
 	}
 	// type wasn't found - add one without declaration
-	tdoc := &typeDoc{nil, vector.New(0), make(map[string] *ast.FuncDecl), make(map[string] *ast.FuncDecl)};
+	tdoc := &typeDoc{nil, vector.New(0), make(map[string]*ast.FuncDecl), make(map[string]*ast.FuncDecl)};
 	doc.types[name] = tdoc;
 	return tdoc;
 }
@@ -136,7 +136,7 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
 		// typed entries are sufficiently frequent
 		typ := doc.lookupTypeDoc(domName);
 		if typ != nil {
-			values = typ.values;  // associate with that type
+			values = typ.values;	// associate with that type
 		}
 	}
 
@@ -207,7 +207,7 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 					// would lose GenDecl documentation if the TypeSpec
 					// has documentation as well.
 					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{spec}, noPos});
-					// A new GenDecl node is created, no need to nil out d.Doc.
+				// A new GenDecl node is created, no need to nil out d.Doc.
 				}
 			}
 		}
@@ -228,8 +228,8 @@ func copyCommentList(list []*ast.Comment) []*ast.Comment {
 
 var (
 	// Regexp constructor needs threads - cannot use init expressions
-	bug_markers *regexp.Regexp;
-	bug_content *regexp.Regexp;
+	bug_markers	*regexp.Regexp;
+	bug_content	*regexp.Regexp;
 )
 
 func makeRex(s string) *regexp.Regexp {
@@ -245,8 +245,8 @@ func makeRex(s string) *regexp.Regexp {
 //
 func (doc *docReader) addFile(src *ast.File) {
 	if bug_markers == nil {
-		bug_markers = makeRex("^/[/*][ \t]*BUG\\(.*\\):[ \t]*");  // BUG(uid):
-		bug_content = makeRex("[^ \n\r\t]+");  // at least one non-whitespace char
+		bug_markers = makeRex("^/[/*][ \t]*BUG\\(.*\\):[ \t]*");	// BUG(uid):
+		bug_content = makeRex("[^ \n\r\t]+");				// at least one non-whitespace char
 	}
 
 	// add package documentation
@@ -257,7 +257,7 @@ func (doc *docReader) addFile(src *ast.File) {
 		//           comments correctly (but currently looses BUG(...)
 		//           comments).
 		doc.doc = src.Doc;
-		src.Doc = nil;  // doc consumed - remove from ast.File node
+		src.Doc = nil;	// doc consumed - remove from ast.File node
 	}
 
 	// add all declarations
@@ -271,15 +271,15 @@ func (doc *docReader) addFile(src *ast.File) {
 		cstr := string(text);
 		if m := bug_markers.ExecuteString(cstr); len(m) > 0 {
 			// found a BUG comment; maybe empty
-			if bstr := cstr[m[1] : len(cstr)]; bug_content.MatchString(bstr) {
+			if bstr := cstr[m[1]:len(cstr)]; bug_content.MatchString(bstr) {
 				// non-empty BUG comment; collect comment without BUG prefix
 				list := copyCommentList(c.List);
-				list[0].Text = text[m[1] : len(text)];
+				list[0].Text = text[m[1]:len(text)];
 				doc.bugs.Push(&ast.CommentGroup{list, nil});
 			}
 		}
 	}
-	src.Comments = nil;  // consumed unassociated comments - remove from ast.File node
+	src.Comments = nil;	// consumed unassociated comments - remove from ast.File node
 }
 
 
@@ -312,19 +312,24 @@ func NewPackageDoc(pkg *ast.Package, importpath string) *PackageDoc {
 // values, either vars or consts.
 //
 type ValueDoc struct {
-	Doc string;
-	Decl *ast.GenDecl;
-	order int;
+	Doc	string;
+	Decl	*ast.GenDecl;
+	order	int;
 }
 
 type sortValueDoc []*ValueDoc
-func (p sortValueDoc) Len() int            { return len(p); }
-func (p sortValueDoc) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+
+func (p sortValueDoc) Len() int {
+	return len(p);
+}
+func (p sortValueDoc) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i];
+}
 
 
 func declName(d *ast.GenDecl) string {
 	if len(d.Specs) != 1 {
-		return ""
+		return "";
 	}
 
 	switch v := d.Specs[0].(type) {
@@ -350,17 +355,17 @@ func (p sortValueDoc) Less(i, j int) bool {
 
 
 func makeValueDocs(v *vector.Vector, tok token.Token) []*ValueDoc {
-	d := make([]*ValueDoc, v.Len());  // big enough in any case
+	d := make([]*ValueDoc, v.Len());	// big enough in any case
 	n := 0;
 	for i := range d {
 		decl := v.At(i).(*ast.GenDecl);
 		if decl.Tok == tok {
 			d[n] = &ValueDoc{CommentText(decl.Doc), decl, i};
 			n++;
-			decl.Doc = nil;  // doc consumed - removed from AST
+			decl.Doc = nil;	// doc consumed - removed from AST
 		}
 	}
-	d = d[0 : n];
+	d = d[0:n];
 	sort.Sort(sortValueDoc(d));
 	return d;
 }
@@ -370,25 +375,32 @@ func makeValueDocs(v *vector.Vector, tok token.Token) []*ValueDoc {
 // either a top-level function or a method function.
 //
 type FuncDoc struct {
-	Doc string;
-	Recv ast.Expr;	// TODO(rsc): Would like string here
-	Name string;
-	Decl *ast.FuncDecl;
+	Doc	string;
+	Recv	ast.Expr;	// TODO(rsc): Would like string here
+	Name	string;
+	Decl	*ast.FuncDecl;
 }
 
 type sortFuncDoc []*FuncDoc
-func (p sortFuncDoc) Len() int            { return len(p); }
-func (p sortFuncDoc) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
-func (p sortFuncDoc) Less(i, j int) bool  { return p[i].Name < p[j].Name; }
+
+func (p sortFuncDoc) Len() int {
+	return len(p);
+}
+func (p sortFuncDoc) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i];
+}
+func (p sortFuncDoc) Less(i, j int) bool {
+	return p[i].Name < p[j].Name;
+}
 
 
-func makeFuncDocs(m map[string] *ast.FuncDecl) []*FuncDoc {
+func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
 	d := make([]*FuncDoc, len(m));
 	i := 0;
 	for _, f := range m {
 		doc := new(FuncDoc);
 		doc.Doc = CommentText(f.Doc);
-		f.Doc = nil;  // doc consumed - remove from ast.FuncDecl node
+		f.Doc = nil;	// doc consumed - remove from ast.FuncDecl node
 		if f.Recv != nil {
 			doc.Recv = f.Recv.Type;
 		}
@@ -407,19 +419,24 @@ func makeFuncDocs(m map[string] *ast.FuncDecl) []*FuncDoc {
 // Factories is a sorted list of factory functions that return that type.
 // Methods is a sorted list of method functions on that type.
 type TypeDoc struct {
-	Doc string;
-	Type *ast.TypeSpec;
-	Consts []*ValueDoc;
-	Vars []*ValueDoc;
-	Factories []*FuncDoc;
-	Methods []*FuncDoc;
-	Decl *ast.GenDecl;
-	order int;
+	Doc		string;
+	Type		*ast.TypeSpec;
+	Consts		[]*ValueDoc;
+	Vars		[]*ValueDoc;
+	Factories	[]*FuncDoc;
+	Methods		[]*FuncDoc;
+	Decl		*ast.GenDecl;
+	order		int;
 }
 
 type sortTypeDoc []*TypeDoc
-func (p sortTypeDoc) Len() int            { return len(p); }
-func (p sortTypeDoc) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+
+func (p sortTypeDoc) Len() int {
+	return len(p);
+}
+func (p sortTypeDoc) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i];
+}
 func (p sortTypeDoc) Less(i, j int) bool {
 	// sort by name
 	// pull blocks (name = "") up to top
@@ -434,7 +451,7 @@ func (p sortTypeDoc) Less(i, j int) bool {
 // NOTE(rsc): This would appear not to be correct for type ( )
 // blocks, but the doc extractor above has split them into
 // individual declarations.
-func (doc *docReader) makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
+func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
 	d := make([]*TypeDoc, len(m));
 	i := 0;
 	for _, old := range m {
@@ -445,12 +462,12 @@ func (doc *docReader) makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 			typespec := decl.Specs[0].(*ast.TypeSpec);
 			t := new(TypeDoc);
 			doc := typespec.Doc;
-			typespec.Doc = nil;  // doc consumed - remove from ast.TypeSpec node
+			typespec.Doc = nil;	// doc consumed - remove from ast.TypeSpec node
 			if doc == nil {
 				// no doc associated with the spec, use the declaration doc, if any
 				doc = decl.Doc;
 			}
-			decl.Doc = nil;  // doc consumed - remove from ast.Decl node
+			decl.Doc = nil;	// doc consumed - remove from ast.Decl node
 			t.Doc = CommentText(doc);
 			t.Type = typespec;
 			t.Consts = makeValueDocs(old.values, token.CONST);
@@ -482,7 +499,7 @@ func (doc *docReader) makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
 			}
 		}
 	}
-	d = d[0 : i];  // some types may have been ignored
+	d = d[0:i];	// some types may have been ignored
 	sort.Sort(sortTypeDoc(d));
 	return d;
 }
@@ -500,16 +517,16 @@ func makeBugDocs(v *vector.Vector) []string {
 // PackageDoc is the documentation for an entire package.
 //
 type PackageDoc struct {
-	PackageName string;
-	ImportPath string;
-	FilePath string;
-	Filenames []string;
-	Doc string;
-	Consts []*ValueDoc;
-	Types []*TypeDoc;
-	Vars []*ValueDoc;
-	Funcs []*FuncDoc;
-	Bugs []string;
+	PackageName	string;
+	ImportPath	string;
+	FilePath	string;
+	Filenames	[]string;
+	Doc		string;
+	Consts		[]*ValueDoc;
+	Types		[]*TypeDoc;
+	Vars		[]*ValueDoc;
+	Funcs		[]*FuncDoc;
+	Bugs		[]string;
 }
 
 
@@ -544,11 +561,11 @@ func isRegexp(s string) bool {
 	for _, c := range s {
 		for _, m := range metachars {
 			if c == m {
-				return true
+				return true;
 			}
 		}
 	}
-	return false
+	return false;
 }
 
 
@@ -594,7 +611,7 @@ func filterValueDocs(a []*ValueDoc, names []string) []*ValueDoc {
 			w++;
 		}
 	}
-	return a[0 : w];
+	return a[0:w];
 }
 
 
@@ -606,7 +623,7 @@ func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
 			w++;
 		}
 	}
-	return a[0 : w];
+	return a[0:w];
 }
 
 
@@ -627,7 +644,7 @@ func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
 			w++;
 		}
 	}
-	return a[0 : w];
+	return a[0:w];
 }
 
 
@@ -643,4 +660,3 @@ func (p *PackageDoc) Filter(names []string) {
 	p.Funcs = filterFuncDocs(p.Funcs, names);
 	p.Doc = "";	// don't show top-level package doc
 }
-

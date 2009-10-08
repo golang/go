@@ -110,7 +110,7 @@ func (z *Inflater) read2() (uint32, os.Error) {
 	if err != nil {
 		return 0, err;
 	}
-	return uint32(z.buf[0]) | uint32(z.buf[1]) << 8, nil;
+	return uint32(z.buf[0]) | uint32(z.buf[1])<<8, nil;
 }
 
 func (z *Inflater) readHeader(save bool) os.Error {

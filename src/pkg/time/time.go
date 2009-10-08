@@ -211,8 +211,8 @@ func (t *Time) Seconds() int64 {
 	sec := day * secondsPerDay;
 
 	// Add in time elapsed today.
-	sec += int64(t.Hour) * 3600;
-	sec += int64(t.Minute) * 60;
+	sec += int64(t.Hour)*3600;
+	sec += int64(t.Minute)*60;
 	sec += int64(t.Second);
 
 	// Convert from seconds since 2001 to seconds since 1970.

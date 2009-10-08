@@ -19,7 +19,7 @@ var bytes []byte	// test data; same as data but as a slice.
 func init() {
 	bytes = make([]byte, N);
 	for i := 0; i < N; i++ {
-		bytes[i] = 'a' + byte(i%26);
+		bytes[i] = 'a'+byte(i%26);
 	}
 	data = string(bytes);
 }

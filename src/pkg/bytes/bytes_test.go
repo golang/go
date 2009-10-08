@@ -5,10 +5,10 @@
 package bytes_test
 
 import (
-	. "bytes";
-	"strings";
-	"testing";
-	"unicode";
+	.	"bytes";
+		"strings";
+		"testing";
+		"unicode";
 )
 
 func eq(a, b []string) bool {
@@ -26,9 +26,9 @@ func eq(a, b []string) bool {
 func arrayOfString(a [][]byte) []string {
 	result := make([]string, len(a));
 	for j := 0; j < len(a); j++ {
-		result[j] = string(a[j])
+		result[j] = string(a[j]);
 	}
-	return result
+	return result;
 }
 
 // For ease of reading, the test cases use strings that are converted to byte
@@ -40,21 +40,22 @@ var commas = "1,2,3,4"
 var dots = "1....2....3....4"
 
 type CompareTest struct {
-	a string;
-	b string;
-	cmp int;
+	a	string;
+	b	string;
+	cmp	int;
 }
-var comparetests = []CompareTest {
-	CompareTest{ "", "", 0 },
-	CompareTest{ "a", "", 1 },
-	CompareTest{ "", "a", -1 },
-	CompareTest{ "abc", "abc", 0 },
-	CompareTest{ "ab", "abc", -1 },
-	CompareTest{ "abc", "ab", 1 },
-	CompareTest{ "x", "ab", 1 },
-	CompareTest{ "ab", "x", -1 },
-	CompareTest{ "x", "a", 1 },
-	CompareTest{ "b", "x", -1 },
+
+var comparetests = []CompareTest{
+	CompareTest{"", "", 0},
+	CompareTest{"a", "", 1},
+	CompareTest{"", "a", -1},
+	CompareTest{"abc", "abc", 0},
+	CompareTest{"ab", "abc", -1},
+	CompareTest{"abc", "ab", 1},
+	CompareTest{"x", "ab", 1},
+	CompareTest{"ab", "x", -1},
+	CompareTest{"x", "a", 1},
+	CompareTest{"b", "x", -1},
 }
 
 func TestCompare(t *testing.T) {
@@ -67,7 +68,7 @@ func TestCompare(t *testing.T) {
 		if cmp != tt.cmp {
 			t.Errorf(`Compare(%q, %q) = %v`, tt.a, tt.b, cmp);
 		}
-		if eql != (tt.cmp==0) {
+		if eql != (tt.cmp == 0) {
 			t.Errorf(`Equal(%q, %q) = %v`, tt.a, tt.b, eql);
 		}
 	}
@@ -75,17 +76,19 @@ func TestCompare(t *testing.T) {
 
 
 type ExplodeTest struct {
-	s string;
-	n int;
-	a []string;
+	s	string;
+	n	int;
+	a	[]string;
 }
-var explodetests = []ExplodeTest {
-	ExplodeTest{ abcd,	0, []string{"a", "b", "c", "d"} },
-	ExplodeTest{ faces,	0, []string{"☺", "☻", "☹"} },
-	ExplodeTest{ abcd,	2, []string{"a", "bcd"} },
+
+var explodetests = []ExplodeTest{
+	ExplodeTest{abcd, 0, []string{"a", "b", "c", "d"}},
+	ExplodeTest{faces, 0, []string{"☺", "☻", "☹"}},
+	ExplodeTest{abcd, 2, []string{"a", "bcd"}},
 }
+
 func TestExplode(t *testing.T) {
-	for _, tt := range(explodetests) {
+	for _, tt := range (explodetests) {
 		a := Split(strings.Bytes(tt.s), nil, tt.n);
 		result := arrayOfString(a);
 		if !eq(result, tt.a) {
@@ -101,25 +104,26 @@ func TestExplode(t *testing.T) {
 
 
 type SplitTest struct {
-	s string;
-	sep string;
-	n int;
-	a []string;
+	s	string;
+	sep	string;
+	n	int;
+	a	[]string;
 }
-var splittests = []SplitTest {
-	SplitTest{ abcd,	"a",	0, []string{"", "bcd"} },
-	SplitTest{ abcd,	"z",	0, []string{"abcd"} },
-	SplitTest{ abcd,	"",	0, []string{"a", "b", "c", "d"} },
-	SplitTest{ commas,	",",	0, []string{"1", "2", "3", "4"} },
-	SplitTest{ dots,	"...",	0, []string{"1", ".2", ".3", ".4"} },
-	SplitTest{ faces,	"☹",	0, []string{"☺☻", ""} },
-	SplitTest{ faces,	"~",	0, []string{faces} },
-	SplitTest{ faces,	"",	0, []string{"☺", "☻", "☹"} },
-	SplitTest{ "1 2 3 4",	" ",	3, []string{"1", "2", "3 4"} },
-	SplitTest{ "1 2 3",	" ",	3, []string{"1", "2", "3"} },
-	SplitTest{ "1 2",	" ",	3, []string{"1", "2"} },
-	SplitTest{ "123",	"",	2, []string{"1", "23"} },
-	SplitTest{ "123",	"",	17, []string{"1", "2", "3"} },
+
+var splittests = []SplitTest{
+	SplitTest{abcd, "a", 0, []string{"", "bcd"}},
+	SplitTest{abcd, "z", 0, []string{"abcd"}},
+	SplitTest{abcd, "", 0, []string{"a", "b", "c", "d"}},
+	SplitTest{commas, ",", 0, []string{"1", "2", "3", "4"}},
+	SplitTest{dots, "...", 0, []string{"1", ".2", ".3", ".4"}},
+	SplitTest{faces, "☹", 0, []string{"☺☻", ""}},
+	SplitTest{faces, "~", 0, []string{faces}},
+	SplitTest{faces, "", 0, []string{"☺", "☻", "☹"}},
+	SplitTest{"1 2 3 4", " ", 3, []string{"1", "2", "3 4"}},
+	SplitTest{"1 2 3", " ", 3, []string{"1", "2", "3"}},
+	SplitTest{"1 2", " ", 3, []string{"1", "2"}},
+	SplitTest{"123", "", 2, []string{"1", "23"}},
+	SplitTest{"123", "", 17, []string{"1", "2", "3"}},
 }
 
 func TestSplit(t *testing.T) {
@@ -143,14 +147,15 @@ type CopyTest struct {
 	n	int;
 	res	string;
 }
-var copytests = []CopyTest {
-	CopyTest{ "", "", 0, "" },
-	CopyTest{ "a", "", 0, "a" },
-	CopyTest{ "a", "a", 1, "a" },
-	CopyTest{ "a", "b", 1, "b" },
-	CopyTest{ "xyz", "abc", 3, "abc" },
-	CopyTest{ "wxyz", "abc", 3, "abcz" },
-	CopyTest{ "xyz", "abcd", 3, "abc" },
+
+var copytests = []CopyTest{
+	CopyTest{"", "", 0, ""},
+	CopyTest{"a", "", 0, "a"},
+	CopyTest{"a", "a", 1, "a"},
+	CopyTest{"a", "b", 1, "b"},
+	CopyTest{"xyz", "abc", 3, "abc"},
+	CopyTest{"wxyz", "abc", 3, "abcz"},
+	CopyTest{"xyz", "abcd", 3, "abc"},
 }
 
 func TestCopy(t *testing.T) {
@@ -172,7 +177,7 @@ type StringTest struct {
 	in, out string;
 }
 
-var upperTests = []StringTest {
+var upperTests = []StringTest{
 	StringTest{"", ""},
 	StringTest{"abc", "ABC"},
 	StringTest{"AbC123", "ABC123"},
@@ -180,7 +185,7 @@ var upperTests = []StringTest {
 	StringTest{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"},	// grows one byte per char
 }
 
-var lowerTests = []StringTest {
+var lowerTests = []StringTest{
 	StringTest{"", ""},
 	StringTest{"abc", "abc"},
 	StringTest{"AbC123", "abc123"},
@@ -190,10 +195,10 @@ var lowerTests = []StringTest {
 
 const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
 
-var trimSpaceTests = []StringTest {
+var trimSpaceTests = []StringTest{
 	StringTest{"", ""},
 	StringTest{"abc", "abc"},
-	StringTest{space + "abc" + space, "abc"},
+	StringTest{space+"abc"+space, "abc"},
 	StringTest{" ", ""},
 	StringTest{" \t\r\n \t\t\r\r\n\n ", ""},
 	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
@@ -227,23 +232,27 @@ func runStringTests(t *testing.T, f func([]byte) []byte, funcName string, testCa
 func tenRunes(rune int) string {
 	r := make([]int, 10);
 	for i := range r {
-		r[i] = rune
+		r[i] = rune;
 	}
-	return string(r)
+	return string(r);
 }
 
 func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a');
 	// 1.  Grow.  This triggers two reallocations in Map.
-	maxRune := func(rune int) int { return unicode.MaxRune };
+	maxRune := func(rune int) int {
+		return unicode.MaxRune;
+	};
 	m := Map(maxRune, Bytes(a));
 	expect := tenRunes(unicode.MaxRune);
 	if string(m) != expect {
 		t.Errorf("growing: expected %q got %q", expect, m);
 	}
 	// 2. Shrink
-	minRune := func(rune int) int { return 'a' };
+	minRune := func(rune int) int {
+		return 'a';
+	};
 	m = Map(minRune, Bytes(tenRunes(unicode.MaxRune)));
 	expect = a;
 	if string(m) != expect {
@@ -264,24 +273,25 @@ func TestTrimSpace(t *testing.T) {
 }
 
 type AddTest struct {
-	s, t string;
+	s, t	string;
 	cap	int;
 }
-var addtests = []AddTest {
-	AddTest{ "", "", 0 },
-	AddTest{ "a", "", 1 },
-	AddTest{ "a", "b", 1 },
-	AddTest{ "abc", "def", 100 },
+
+var addtests = []AddTest{
+	AddTest{"", "", 0},
+	AddTest{"a", "", 1},
+	AddTest{"a", "b", 1},
+	AddTest{"abc", "def", 100},
 }
 
 func TestAdd(t *testing.T) {
 	for _, test := range addtests {
 		b := make([]byte, len(test.s), test.cap);
 		for i := 0; i < len(test.s); i++ {
-			b[i] = test.s[i]
+			b[i] = test.s[i];
 		}
 		b = Add(b, strings.Bytes(test.t));
-		if string(b) != test.s+test.t {
+		if string(b) != test.s + test.t {
 			t.Errorf("Add(%q,%q) = %q", test.s, test.t, string(b));
 		}
 	}
@@ -291,7 +301,7 @@ func TestAddByte(t *testing.T) {
 	const N = 2e5;
 	b := make([]byte, 0);
 	for i := 0; i < N; i++ {
-		b = AddByte(b, byte(i))
+		b = AddByte(b, byte(i));
 	}
 	if len(b) != N {
 		t.Errorf("AddByte: too small; expected %d got %d", N, len(b));

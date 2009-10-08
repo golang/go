@@ -141,8 +141,8 @@ func sizeof(t reflect.Type) int {
 }
 
 type decoder struct {
-	order ByteOrder;
-	buf []byte;
+	order	ByteOrder;
+	buf	[]byte;
 }
 
 func (d *decoder) uint8() uint8 {

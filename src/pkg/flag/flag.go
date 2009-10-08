@@ -396,7 +396,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 			return false, index+1;
 		}
 	}
-	name := s[num_minuses:len(s)];
+	name := s[num_minuses : len(s)];
 	if len(name) == 0 || name[0] == '-' || name[0] == '=' {
 		fmt.Fprintln(os.Stderr, "bad flag syntax:", s);
 		Usage();
@@ -439,7 +439,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 		}
 	} else {
 		// It must have a value, which might be the next argument.
-		if !has_value && index < len(os.Args) - 1 {
+		if !has_value && index < len(os.Args)-1 {
 			// value is the next arg
 			has_value = true;
 			index++;

@@ -67,13 +67,13 @@ func (t *T) FailNow() {
 // Log formats its arguments using default formatting, analogous to Print(),
 // and records the text in the error log.
 func (t *T) Log(args ...) {
-	t.errors += "\t" + tabify(fmt.Sprintln(args));
+	t.errors += "\t"+tabify(fmt.Sprintln(args));
 }
 
 // Log formats its arguments according to the format, analogous to Printf(),
 // and records the text in the error log.
 func (t *T) Logf(format string, args ...) {
-	t.errors += "\t" + tabify(fmt.Sprintf(format, args));
+	t.errors += "\t"+tabify(fmt.Sprintf(format, args));
 }
 
 // Error is equivalent to Log() followed by Fail().

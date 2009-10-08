@@ -146,7 +146,7 @@ func (c *Conn) WriteHeader(code int) {
 	if !ok {
 		text = "status code " + codestring;
 	}
-	io.WriteString(c.buf, proto+" "+codestring+" "+text+"\r\n");
+	io.WriteString(c.buf, proto + " " + codestring + " " + text + "\r\n");
 	for k, v := range c.header {
 		io.WriteString(c.buf, k+": "+v+"\r\n");
 	}

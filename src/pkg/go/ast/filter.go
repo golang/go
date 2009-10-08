@@ -203,7 +203,7 @@ func MergePackageFiles(pkg *Package) *File {
 	ndecls := 0;
 	for _, f := range pkg.Files {
 		if f.Doc != nil {
-			ncomments += len(f.Doc.List) + 1;	// +1 for separator
+			ncomments += len(f.Doc.List)+1;	// +1 for separator
 		}
 		ndecls += len(f.Decls);
 	}
@@ -215,7 +215,7 @@ func MergePackageFiles(pkg *Package) *File {
 	// than drop them on the floor.
 	var doc *CommentGroup;
 	if ncomments > 0 {
-		list := make([]*Comment, ncomments-1);	// -1: no separator before first group
+		list := make([]*Comment, ncomments - 1);	// -1: no separator before first group
 		i := 0;
 		for _, f := range pkg.Files {
 			if f.Doc != nil {

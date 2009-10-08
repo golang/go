@@ -15,10 +15,10 @@ import (
 
 type parser struct {
 	scanner.ErrorVector;
-	scanner scanner.Scanner;
-	pos token.Position;  // token position
-	tok token.Token;  // one token look-ahead
-	lit []byte;  // token literal
+	scanner	scanner.Scanner;
+	pos	token.Position;	// token position
+	tok	token.Token;	// one token look-ahead
+	lit	[]byte;		// token literal
 }
 
 
@@ -39,7 +39,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'";
 		if p.tok.IsLiteral() {
-			msg += " " + string(p.lit);
+			msg += " "+string(p.lit);
 		}
 	}
 	p.Error(pos, msg);
@@ -51,7 +51,7 @@ func (p *parser) expect(tok token.Token) token.Position {
 	if p.tok != tok {
 		p.errorExpected(pos, "'" + tok.String() + "'");
 	}
-	p.next();  // make progress in any case
+	p.next();	// make progress in any case
 	return pos;
 }
 
@@ -185,7 +185,7 @@ func (p *parser) parse(filename string, src []byte) Grammar {
 	// initialize parser
 	p.ErrorVector.Init();
 	p.scanner.Init(filename, src, p, 0);
-	p.next();  // initializes pos, tok, lit
+	p.next();	// initializes pos, tok, lit
 
 	grammar := make(Grammar);
 	for p.tok != token.EOF {

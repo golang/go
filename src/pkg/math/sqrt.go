@@ -43,18 +43,18 @@ func Sqrt(x float64) float64 {
 	temp := 0.5*(1+y);
 
 	for exp > 60 {
-		temp = temp * float64(1<<30);
+		temp = temp*float64(1<<30);
 		exp = exp-60;
 	}
 	for exp < -60 {
-		temp = temp / float64(1<<30);
+		temp = temp/float64(1<<30);
 		exp = exp+60;
 	}
 	if exp >= 0 {
-		exp = 1 << uint(exp/2);
+		exp = 1<<uint(exp/2);
 		temp = temp*float64(exp);
 	} else {
-		exp = 1 << uint(-exp / 2);
+		exp = 1<<uint(-exp / 2);
 		temp = temp/float64(exp);
 	}
 

@@ -54,7 +54,7 @@ func (p *pipe) Read(data []byte) (n int, err os.Error) {
 		data[i] = p.wpend[i];
 	}
 	p.wtot += n;
-	p.wpend = p.wpend[n : len(p.wpend)];
+	p.wpend = p.wpend[n:len(p.wpend)];
 
 	// If write block is done, finish the write.
 	if len(p.wpend) == 0 {
