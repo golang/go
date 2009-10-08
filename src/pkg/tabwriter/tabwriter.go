@@ -21,7 +21,7 @@ import (
 // ----------------------------------------------------------------------------
 // Filter implementation
 
-// A cell represents a segment of text delineated by tabs, form-feed,
+// A cell represents a segment of text delineated by tabs, formfeed,
 // or newline chars. The text itself is stored in a separate buffer;
 // cell only describes the segment's size in bytes, its width in runes,
 // and whether it's an htab ('\t') or vtab ('\v') terminated call.
@@ -59,10 +59,10 @@ type cell struct {
 // are simply passed through. The widths of tags and entities are
 // assumed to be zero (tags) and one (entities) for formatting purposes.
 //
-// The form feed character ('\f') acts like a newline but it also
+// The formfeed character ('\f') acts like a newline but it also
 // terminates all columns in the current line (effectively calling
 // Flush). Cells in the next line start new columns. Unless found
-// inside an HTML tag, form feed characters appear as newlines in
+// inside an HTML tag, formfeed characters appear as newlines in
 // the output.
 //
 // The Writer must buffer input internally, because proper spacing
@@ -78,7 +78,7 @@ type Writer struct {
 	flags uint;
 
 	// current state
-	buf bytes.Buffer;  // collected text w/o tabs, newlines, or form feed chars
+	buf bytes.Buffer;  // collected text w/o tabs, newlines, or formfeed chars
 	pos int;  // buffer position up to which width of incomplete cell has been computed
 	cell cell;  // current incomplete cell; cell.width is up to buf[pos] w/o ignored sections
 	html_char byte;  // terminating char of html tag/entity, or 0 ('>', ';', or 0)
@@ -111,9 +111,9 @@ func (b *Writer) reset() {
 
 // Internal representation (current state):
 //
-// - all text written is appended to buf; form feed chars, tabs and newlines are stripped away
+// - all text written is appended to buf; formfeed chars, tabs and newlines are stripped away
 // - at any given time there is a (possibly empty) incomplete cell at the end
-//   (the cell starts after a tab, form feed, or newline)
+//   (the cell starts after a tab, formfeed, or newline)
 // - cell.size is the number of bytes belonging to the cell so far
 // - cell.width is text width in runes of that cell from the start of the cell to
 //   position pos; html tags and entities are excluded from this width if html
@@ -146,6 +146,10 @@ const (
 	// Handle empty columns as if they were not present in
 	// the input in the first place.
 	DiscardEmptyColumns;
+
+	// Print a vertical bar ('|') between columns (after formatting).
+	// Discarded colums appear as zero-width columns ("||").
+	Debug;
 )
 
 
@@ -153,14 +157,20 @@ const (
 // specifies the filter output. The remaining parameters control the formatting:
 //
 //	cellwidth	minimal cell width
-//	padding		additional cell padding
+//	padding		cell padding added to cell before computing its width
 //	padchar		ASCII char used for padding
-//				if padchar == '\t', the Writer will assume that the
-//				width of a '\t' in the formatted output is cellwidth,
-//				and cells are left-aligned independent of align_left
-//				(for correct-looking results, cellwidth must correspond
-//				to the tab width in the viewer displaying the result)
+//			if padchar == '\t', the Writer will assume that the
+//			width of a '\t' in the formatted output is cellwidth,
+//			and cells are left-aligned independent of align_left
+//			(for correct-looking results, cellwidth must correspond
+//			to the tab width in the viewer displaying the result)
 //	flags		formatting control
+//
+// To format in tab-separated columns with a tab stop of 8:
+//	b.Init(w, 8, 1, '\t', 0);
+//
+// To format in space-separated columns with at least 4 spaces between columns:
+//	b.Init(w, 1, 4, ' ', 0);
 //
 func (b *Writer) Init(output io.Writer, cellwidth, padding int, padchar byte, flags uint) *Writer {
 	if cellwidth < 0 {
@@ -243,6 +253,8 @@ func (b *Writer) writePadding(textw, cellw int) os.Error {
 }
 
 
+var vbar = []byte{'|'};
+
 func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) {
 	pos = pos0;
 	for i := line0; i < line1; i++ {
@@ -250,6 +262,11 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) 
 		for j := 0; j < line.Len(); j++ {
 			c := line.At(j).(cell);
 
+			if j > 0 && b.flags&Debug != 0 {
+				if err = b.write0(vbar); err != nil {
+					return;
+				}
+			}
 			switch {
 			default: // align left
 
