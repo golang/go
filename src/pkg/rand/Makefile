@@ -6,6 +6,6 @@ include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=rand
 GOFILES=\
-	rand.go\
+	rng.go\
 
 include $(GOROOT)/src/Make.pkg
