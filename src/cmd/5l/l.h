@@ -123,6 +123,7 @@ struct	Sym
 	short	become;
 	short	frame;
 	uchar	subtype;
+	uchar	dupok;
 	uchar	reachable;
 	int32	value;
 	int32	sig;

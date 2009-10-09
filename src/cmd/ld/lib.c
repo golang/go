@@ -561,10 +561,15 @@ find1(int32 l, int c)
 int
 find2(int32 l, int c)
 {
+	union {
+		int32 l;
+		short p[2];
+	} u;
 	short *p;
 	int i;
 
-	p = (short*)&l;
+	u.l = l;
+	p = u.p;
 	for(i=0; i<4; i+=2) {
 		if(((*p >> 8) & 0xff) == c)
 			return i;

@@ -564,6 +564,8 @@ loop:
 		}
 		if(p->to.offset > s->value)
 			s->value = p->to.offset;
+		if(p->reg & DUPOK)
+			s->dupok = 1;
 		break;
 
 	case ADYNT:
@@ -627,10 +629,15 @@ loop:
 		break;
 
 	case ADATA:
+		// Assume that AGLOBL comes after ADATA.
+		// If we've seen an AGLOBL that said this sym was DUPOK,
+		// ignore any more ADATA we see, which must be
+		// redefinitions.
 		s = p->from.sym;
-		if(s == S) {
-			diag("DATA without a sym\n%P", p);
-			break;
+		if(s != S && s->dupok) {
+			if(debug['v'])
+				Bprint(&bso, "skipping %s in %s: dupok\n", s->name, pn);
+			goto loop;
 		}
 		if(s != S) {
 			p->dlink = s->data;

@@ -22,7 +22,8 @@ TEXT	syscall·Syscall(SB),7,$0
 	SWI		$SYS_syscall
 	MOVW	R0, 20(SP)	// r1
 	MOVW	R1, 24(SP)	// r2
-	MOVW	$0, 28(SP)	// errno
+	MOVW	$0, R0
+	MOVW	R0, 28(SP)	// errno
 	BL		sys·exitsyscall(SB)
 	RET
 
@@ -40,7 +41,8 @@ TEXT	syscall·Syscall6(SB),7,$0
 	SWI		$SYS_syscall
 	MOVW	R0, 32(SP)	// r1
 	MOVW	R1, 36(SP)	// r2
-	MOVW	$0, 40(SP)	// errno
+	MOVW	$0, R0
+	MOVW	R0, 40(SP)	// errno
 	BL		sys·exitsyscall(SB)
 	RET
 
@@ -53,5 +55,6 @@ TEXT syscall·RawSyscall(SB),7,$0
 	SWI		$SYS_syscall
 	MOVW	R0, 20(SP)	// r1
 	MOVW	R1, 24(SP)	// r2
-	MOVW	$0, 28(SP)	// errno
+	MOVW	$0, R0
+	MOVW	R0, 28(SP)	// errno
 	RET
