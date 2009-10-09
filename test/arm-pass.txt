@@ -1,4 +1,5 @@
 64bit.go
+args.go
 assign.go
 bigalg.go
 blank1.go
@@ -10,6 +11,7 @@ bugs/bug193.go
 bugs/bug196.go
 bugs/bug198.go
 chan/perm.go
+char_lit.go
 cmp1.go
 cmp2.go
 cmp3.go
@@ -32,6 +34,7 @@ fixedbugs/bug002.go
 fixedbugs/bug003.go
 fixedbugs/bug004.go
 fixedbugs/bug005.go
+fixedbugs/bug006.go
 fixedbugs/bug007.go
 fixedbugs/bug008.go
 fixedbugs/bug009.go
@@ -47,6 +50,7 @@ fixedbugs/bug022.go
 fixedbugs/bug023.go
 fixedbugs/bug024.go
 fixedbugs/bug026.go
+fixedbugs/bug027.go
 fixedbugs/bug028.go
 fixedbugs/bug030.go
 fixedbugs/bug031.go
@@ -64,9 +68,11 @@ fixedbugs/bug050.go
 fixedbugs/bug051.go
 fixedbugs/bug052.go
 fixedbugs/bug053.go
+fixedbugs/bug054.go
 fixedbugs/bug056.go
 fixedbugs/bug057.go
 fixedbugs/bug058.go
+fixedbugs/bug060.go
 fixedbugs/bug061.go
 fixedbugs/bug062.go
 fixedbugs/bug063.go
@@ -156,6 +162,7 @@ fixedbugs/bug156.go
 fixedbugs/bug157.go
 fixedbugs/bug158.go
 fixedbugs/bug159.go
+fixedbugs/bug160.go
 fixedbugs/bug161.go
 fixedbugs/bug163.go
 fixedbugs/bug164.go
@@ -178,6 +185,7 @@ fixedbugs/bug182.go
 fixedbugs/bug183.go
 fixedbugs/bug185.go
 fixedbugs/bug186.go
+fixedbugs/bug187.go
 fixedbugs/bug188.go
 fixedbugs/bug189.go
 fixedbugs/bug191.go
@@ -198,20 +206,26 @@ func1.go
 func2.go
 func3.go
 func4.go
+gc.go
 gc1.go
 hashmap.go
 helloworld.go
 if.go
+if1.go
 import.go
 import1.go
 indirect.go
 indirect1.go
 initcomma.go
 initializerr.go
+initsyscall.go
+int_lit.go
 intcvt.go
+interface/bigdata.go
 interface/convert.go
 interface/convert1.go
 interface/convert2.go
+interface/embed.go
 interface/explicit.go
 interface/fail.go
 interface/pointer.go
@@ -251,7 +265,10 @@ parentype.go
 printbig.go
 rename1.go
 sieve.go
+sigchld.go
 simassign.go
+string_lit.go
 switch.go
+switch1.go
 test0.go
 varinit.go

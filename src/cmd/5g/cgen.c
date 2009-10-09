@@ -42,7 +42,7 @@ void
 cgen(Node *n, Node *res)
 {
 	Node *nl, *nr, *r;
-	Node n1, n2, n3;
+	Node n1, n2, n3, f0, f1;
 	int a, w;
 	Prog *p1, *p2, *p3;
 	Addr addr;
@@ -179,6 +179,9 @@ cgen(Node *n, Node *res)
 			return;
 		}
 	}
+
+	if(nl != N && isfloat[n->type->etype] && isfloat[nl->type->etype])
+		goto flt;
 
 	switch(n->op) {
 	default:
@@ -370,6 +373,45 @@ abop:	// asymmetric binary
 	gmove(&n1, res);
 	regfree(&n1);
 	regfree(&n2);
+	goto ret;
+
+flt:	// floating-point.
+	regalloc(&f0, nl->type, res);
+	if(nr != N)
+		goto flt2;
+
+	if(n->op == OMINUS) {
+		nr = nodintconst(-1);
+		convlit(&nr, n->type);
+		n->op = OMUL;
+		goto flt2;
+	}
+
+	// unary
+	cgen(nl, &f0);
+	if(n->op != OCONV && n->op != OPLUS)
+		gins(optoas(n->op, n->type), &f0, &f0);
+	gmove(&f0, res);
+	regfree(&f0);
+	goto ret;
+
+flt2:	// binary
+	if(nl->ullman >= nr->ullman) {
+		cgen(nl, &f0);
+		regalloc(&f1, n->type, N);
+		gmove(&f0, &f1);
+		cgen(nr, &f0);
+		gins(optoas(n->op, n->type), &f1, &f0);
+	} else {
+		cgen(nr, &f0);
+		regalloc(&f1, n->type, N);
+		gmove(&f0, &f1);
+		cgen(nl, &f0);
+		gins(optoas(n->op, n->type), &f1, &f0);
+	}
+	gmove(&f1, res);
+	regfree(&f0);
+	regfree(&f1);
 	goto ret;
 
 ret:
