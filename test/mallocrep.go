@@ -31,7 +31,7 @@ func bigger() {
 func main() {
 	flag.Parse();
 	malloc.GetStats().Alloc = 0;	// ignore stacks
-	for i := 0; i < 1<<8; i++ {
+	for i := 0; i < 1<<7; i++ {
 		for j := 1; j <= 1<<22; j<<=1 {
 			if i == 0 && *chatty {
 				println("First alloc:", j);

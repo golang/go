@@ -56,7 +56,7 @@ func main() {
 	flag.Parse();
 //	prime();
 	var blocks [1] struct { base *byte; siz uintptr; };
-	for i := 0; i < 1<<12; i++ {
+	for i := 0; i < 1<<10; i++ {
 		if i%(1<<10) == 0 && *chatty {
 			println(i);
 		}

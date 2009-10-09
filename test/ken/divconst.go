@@ -8,7 +8,7 @@ package main
 
 import	"rand"
 
-const	Count	= 1e6
+const	Count	= 1e5
 
 func
 i64rand() int64
