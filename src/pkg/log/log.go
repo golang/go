@@ -86,7 +86,7 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
 	if l.flag & (Ldate | Ltime | Lmicroseconds) != 0 {
 		t := time.SecondsToLocalTime(ns/1e9);
 		if l.flag & (Ldate) != 0 {
-			h += itoa(int(t.Year), 4) + "/" + itoa(t.Month, 2) + itoa(t.Day, 2) + " ";
+			h += itoa(int(t.Year), 4) + "/" + itoa(t.Month, 2) + "/" + itoa(t.Day, 2) + " ";
 		}
 		if l.flag & (Ltime | Lmicroseconds) != 0 {
 			h += itoa(t.Hour, 2) + ":" + itoa(t.Minute, 2) + ":" + itoa(t.Second, 2);
