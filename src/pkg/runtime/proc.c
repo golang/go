@@ -11,7 +11,6 @@ M	m0;
 G	g0;	// idle goroutine for m0
 
 static	int32	debug	= 0;
-static	Lock	debuglock;
 
 // Go scheduler
 //
@@ -96,6 +95,8 @@ schedinit(void)
 {
 	int32 n;
 	byte *p;
+	
+	allm = m;
 
 	mallocinit();
 	goargs();
@@ -416,6 +417,10 @@ matchmg(void)
 		// Find the m that will run g.
 		if((m = mget(g)) == nil){
 			m = malloc(sizeof(M));
+			// Add to allm so garbage collector doesn't free m
+			// when it is just in a register (R14 on amd64).
+			m->alllink = allm;
+			allm = m;
 			m->g0 = malg(8192);
 			m->id = sched.mcount++;
 

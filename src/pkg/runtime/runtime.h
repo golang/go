@@ -206,6 +206,7 @@ struct	M
 	int32	waitnextg;
 	Note	havenextg;
 	G*	nextg;
+	M*	alllink;	// on allm
 	M*	schedlink;
 	Mem	mem;
 	uint32	machport;	// Return address for Mach IPC (OS X)
@@ -307,6 +308,7 @@ struct Defer
 extern	Alg	algarray[Amax];
 extern	String	emptystring;
 G*	allg;
+M*	allm;
 int32	goidgen;
 extern	int32	gomaxprocs;
 extern	int32	panicking;
