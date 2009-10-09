@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/perl
 # Copyright 2009 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -13,78 +13,76 @@
 # If the compiler generates an error for a line which has no such
 # commnt, this script will report an error.  Likewise if the compiler
 # does not generate an error for a line which has a comment, or if the
-# error message does not match the <regexp>.  The <regexp> is
-# interpreted by egrep.
+# error message does not match the <regexp>.  The <regexp> syntax
+# is Perl but its best to stick to egrep.
 
-if test $# -lt 2; then
-  echo 1>&2 "Usage: errchk COMPILER [OPTS] SOURCEFILE"
-  exit 1
-fi
+use POSIX;
 
-ARGCOUNT=$#
-SOURCEFILE=${!ARGCOUNT}
-
-TMPOUT=/tmp/errchk-out-$$
-TMPERR=/tmp/errchk-err-$$
-TMPALL=/tmp/errchk-all-$$
-TMPTMP=/tmp/errchk-tmp-$$
-TMPBUG=/tmp/errchk-bug-$$
-
-rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPBUG
-
-trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPBUG" 0 1 2 3 14 15
-
-(if $* >$TMPOUT 2>$TMPERR; then
-   echo 1>&4 "BUG: errchk: command succeeded unexpectedly"
-   cat 1>&3 $TMPOUT
-   cat 1>&4 $TMPERR
-   rm -f $TMPOUT $TMPERR
- fi) 3>&1 4>&2 >$TMPTMP 2>&1
-
-if ! test -f $TMPOUT; then
-  exit 0
-fi
-
-if test -s $TMPTMP; then
-  echo 1>&2 BUG: errchk: compiler crashed
-  cat $TMPOUT
-  cat 1>&2 $TMPERR
-  exit 0
-fi
-
-cat $TMPOUT $TMPERR | grep -v '^	' > $TMPALL
-
-bug() {
-  if ! test -f $TMPBUG
-  then
-    echo 1>&2 -n BUG: ''
-    echo >$TMPBUG
-  fi
+if(@ARGV < 1) {
+	print STDERR "Usage: errchk COMPILER [OPTS] SOURCEFILE\n";
+	exit 1;
 }
 
-header=0
-pr -n -t $SOURCEFILE | grep '// ERROR' | while read line; do
-  lineno=`echo $line | sed -e 's/^[ ]*\([0-9]*\).*$/\1/'`
-  regexp=`echo $line | sed -e 's|.*// ERROR "\([^"]*\)".*$|\1|'`
-  errmsg=`grep "$SOURCEFILE:$lineno" <$TMPALL`
-  grep -v "$SOURCEFILE:$lineno" < $TMPALL > $TMPTMP
-  mv -f $TMPTMP $TMPALL
-  if test -z "$errmsg"; then
-    bug
-    echo 1>&2 "errchk: $SOURCEFILE:$lineno: missing expected error: '$regexp'"
-  elif ! echo "$errmsg" | egrep -q "$regexp"; then
-    bug
-    echo 1>&2 "errchk: $SOURCEFILE:$lineno: error message does not match '$regexp'"
-    echo 1>&2 $errmsg
-  fi
-done
+$file = $ARGV[@ARGV-1];
+open(SRC, $file) || die "BUG: errchk: open $file: $!";
+@src = <SRC>;
+close(SRC);
 
-if test -s $TMPALL; then
-  bug
-  echo 1>&2 "errchk: $SOURCEFILE: unmatched error messages:"
-  echo 1>&2 "=================================================="
-  cat 1>&2 $TMPALL
-  echo 1>&2 "=================================================="
-fi
+# Run command
+$cmd = join(' ', @ARGV);
+open(CMD, "$cmd </dev/null 2>&1 |") || die "BUG: errchk: run $cmd: $!";
+@out = grep { !/^	/ } <CMD>;
+close CMD;
 
-exit 0
+if($? == 0) {
+	print STDERR "BUG: errchk: command succeeded unexpectedly\n";
+	print STDERR @out;
+	exit 0;
+}
+
+if(!WIFEXITED($?)) {
+	print STDERR "BUG: errchk: compiler crashed\n";
+	exit 0;
+}
+
+sub bug() {
+	if(!$bug++) {
+		print STDERR "BUG: ";
+	}
+}
+
+$line = 0;
+foreach $src (@src) {
+	$line++;
+	next unless $src =~ m|// ERROR (.*)|;
+	$regexp = $1;
+	if($regexp !~ /^"([^"]*)"/) {
+		print STDERR "$file:$line: malformed regexp\n";
+		next;
+	}
+	$regexp = $1;
+
+	@errmsg = grep { /$file:$line:/ } @out;
+	@out = grep { !/$file:$line:/ } @out;
+	if(@errmsg == 0) {
+		bug();
+		print STDERR "errchk: $file:$line: missing expected error: '$regexp'\n";
+		next;
+	}
+	@match = grep { /$regexp/ } @errmsg;
+	if(@match == 0) {
+		bug();
+		print STDERR "errchk: $file:$line: error message does not match '$regexp'\n";
+		next;
+	}
+}
+
+if(@out != 0) {
+	bug();
+	print STDERR "errchk: $file: unmatched error messages:\n";
+	print STDERR "==================================================\n";
+	print STDERR @out;
+	print STDERR "==================================================\n";
+}
+
+exit 0;
