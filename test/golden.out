@@ -167,10 +167,3 @@ BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
 too many calls: 5
 panic PC=xxx
 BUG: bug196
-
-=========== bugs/bug198.go
-bugs/bug198.go:8: undefined: T
-bugs/bug198.go:8: T is not a type
-bugs/bug198.go:8: too many arguments to return
-bugs/bug198.go:10: too many arguments to CALL
-BUG: errchk: compiler crashed

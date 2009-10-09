@@ -145,6 +145,7 @@ struct	Type
 	uchar	copyany;
 	uchar	local;		// created in this file
 	uchar	deferwidth;
+	uchar	broke;
 
 	Node*	nod;		// canonical OTYPE node
 	int		lineno;

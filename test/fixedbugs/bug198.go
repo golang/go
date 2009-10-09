@@ -5,7 +5,8 @@
 // license that can be found in the LICENSE file.
 
 package main
-func f(a T) T {	return a }	// ERROR "T"
+func f(a T) T { return a }	// ERROR "undefined"
 func main() {
 	x := f(0);
+	_ = x;
 }
