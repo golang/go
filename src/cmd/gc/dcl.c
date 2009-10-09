@@ -781,6 +781,10 @@ stotype(NodeList *l, int et, Type **t)
 		if(n->right != N) {
 			typecheck(&n->right, Etype);
 			n->type = n->right->type;
+			if(n->type == T) {
+				*t0 = T;
+				return t0;
+			}
 			if(n->left != N)
 				n->left->type = n->type;
 			n->right = N;
@@ -886,6 +890,10 @@ dostruct(NodeList *l, int et)
 	t = typ(et);
 	t->funarg = funarg;
 	stotype(l, et, &t->type);
+	if(t->type == T && l != nil) {
+		t->broke = 1;
+		return t;
+	}
 	if(!funarg)
 		checkwidth(t);
 	return t;

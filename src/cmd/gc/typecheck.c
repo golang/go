@@ -81,10 +81,12 @@ typecheck(Node **np, int top)
 	n->typecheck = 2;
 
 redo:
-	if(n->sym)
-		walkdef(n);
-
 	lno = setlineno(n);
+	if(n->sym) {
+		walkdef(n);
+		if(n->op == ONONAME)
+			goto error;
+	}
 
 reswitch:
 	ok = 0;
@@ -683,6 +685,8 @@ reswitch:
 		ok |= Erv;
 		if(t->outtuple == 1) {
 			t = getoutargx(l->type)->type;
+			if(t == T)
+				goto error;
 			if(t->etype == TFIELD)
 				t = t->type;
 			n->type = t;
@@ -1384,6 +1388,9 @@ typecheckaste(int op, Type *tstruct, NodeList *nl)
 
 	lno = lineno;
 
+	if(tstruct->broke)
+		goto out;
+
 	if(nl != nil && nl->next == nil && (n = nl->n)->type != T)
 	if(n->type->etype == TSTRUCT && n->type->funarg) {
 		setlineno(n);
@@ -1592,7 +1599,6 @@ typecheckcomplit(Node **np)
 
 	memset(hash, 0, sizeof hash);
 
-	// TODO: dup detection
 	l = typecheck(&n->right /* sic */, Etype /* TODO | Edotarray */);
 	if((t = l->type) == T)
 		goto error;
@@ -1699,6 +1705,7 @@ typecheckcomplit(Node **np)
 					typecheck(&l->right, Erv);
 					continue;
 				}
+				l->left = newname(l->left->sym);
 				l->left->typecheck = 1;
 				f = lookdot1(l->left->sym, t, t->type);
 				typecheck(&l->right, Erv);
