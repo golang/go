@@ -98,11 +98,15 @@ func main() {
 		AllocAndFree(atoi(flag.Arg(0)), atoi(flag.Arg(1)));
 		return;
 	}
-	for j := 1; j <= 1<<22; j<<=1 {
+	maxb := 1<<22;
+	if !*longtest {
+		maxb = 1<<19;
+	}
+	for j := 1; j <= maxb; j<<=1 {
 		n := len(b);
 		max := uintptr(1<<28);
 		if !*longtest {
-			max = 1<<22;
+			max = uintptr(maxb);
 		}
 		if uintptr(j)*uintptr(n) > max {
 			n = int(max / uintptr(j));

@@ -36,12 +36,13 @@ PATH=/bin:/usr/bin:/usr/local/bin:${GOBIN:-$HOME/bin}:`pwd`
 RUNFILE=/tmp/gorun-$$-$USER
 TMP1FILE=/tmp/gotest1-$$-$USER
 TMP2FILE=/tmp/gotest2-$$-$USER
+TMP3FILE=/tmp/gotest3-$$-$USER
 
 # don't run the machine out of memory: limit individual processes to 4GB.
 # on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
 ulimit -v 4000000
 
-true >pass.out
+true >pass.out >times.out
 
 for dir in . ken chan interface fixedbugs bugs
 do
@@ -52,7 +53,7 @@ do
 		export F=$(basename $i .go)
 		export D=$dir
 		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|' >$RUNFILE
-		if ! sh $RUNFILE >$TMP1FILE 2>$TMP2FILE
+		if ! /usr/bin/time -p sh -c "sh $RUNFILE >$TMP1FILE 2>$TMP2FILE" 2>$TMP3FILE
 		then
 			echo
 			echo "===========" $i
@@ -71,6 +72,7 @@ do
 		else
 			echo $i >>pass.out
 		fi
+		echo $(awk 'NR==1{print $2}' $TMP3FILE) $D/$F >>times.out
 	done
 done | # clean up some stack noise
 	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
@@ -88,7 +90,7 @@ case $failed in
 1)
 	echo FAIL
 esac
-rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
+rm  -f $RUNFILE $TMP1FILE $TMP2FILE $TMP3FILE *.$A $A.out
 diffmsg=""
 if ! diff run.out golden.out
 then

@@ -11,7 +11,7 @@ import (
 	"strconv";
 )
 
-const arraylen = 2; // BUG: shouldn't need this
+const count = 100;
 
 func P(a []string) string {
 	s := "{";
@@ -57,7 +57,6 @@ func main() {
 	type M map[int] int;
 	mipM := make(map[int] M);
 
-	const count = 1000;
 	var apT [2*count]*T;
 
 	for i := 0; i < count; i++ {
@@ -80,7 +79,7 @@ func main() {
 		msi[s] = i;
 		mss[s] = s10;
 		mss[s] = s10;
-		as := make([]string, arraylen);
+		as := make([]string, 2);
 			as[0] = s10;
 			as[1] = s10;
 		mspa[s] = as;
@@ -162,7 +161,7 @@ func main() {
 		if mss[s] != s10 {
 			fmt.Printf("mss[%s] = %g\n", s, mss[s]);
 		}
-		for j := 0; j < arraylen; j++ {
+		for j := 0; j < len(mspa[s]); j++ {
 			if mspa[s][j] != s10 {
 				fmt.Printf("mspa[%s][%d] = %s\n", s, j, mspa[s][j]);
 			}
