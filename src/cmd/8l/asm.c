@@ -970,7 +970,7 @@ asmb(void)
 		eh->ident[EI_VERSION] = EV_CURRENT;
 		if(HEADTYPE == 8) {
 			eh->ident[EI_OSABI] = ELFOSABI_NACL;
-			eh->ident[EI_ABIVERSION] = 5;
+			eh->ident[EI_ABIVERSION] = 6;
 			eh->flags = 0x200000;	// aligned mod 32
 		}
 

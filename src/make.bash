@@ -21,21 +21,26 @@ chmod +x $GOBIN/quietgcc
 
 for i in lib9 libbio libmach libregexp cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
 do
-	# The ( ) here are to preserve the current directory
-	# for the next round despite the cd $i below.
-	# set -e does not apply to ( ) so we must explicitly
-	# test the exit status.
-	(
-		echo; echo; echo %%%% making $i %%%%; echo
-		cd $i
-		case $i in
-		cmd)
-			bash make.bash
-			;;
-		*)
-			make install
-		esac
-	)  || exit 1
+	case "$i-$GOOS" in
+	libcgo-nacl)
+		;;
+	*)
+		# The ( ) here are to preserve the current directory
+		# for the next round despite the cd $i below.
+		# set -e does not apply to ( ) so we must explicitly
+		# test the exit status.
+		(
+			echo; echo; echo %%%% making $i %%%%; echo
+			cd $i
+			case $i in
+			cmd)
+				bash make.bash
+				;;
+			*)
+				make install
+			esac
+		)  || exit 1
+	esac
 done
 
 case "`uname`" in

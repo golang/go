@@ -19,7 +19,7 @@ export GOTRACEBACK=0
 
 failed=0
 
-PATH=/bin:/usr/bin:/usr/local/bin:${GOBIN:-$HOME/bin}:`pwd`
+export PATH=/bin:/usr/bin:/usr/local/bin:${GOBIN:-$HOME/bin}:$HOME/bin:$(pwd)
 
 RUNFILE=/tmp/gorun-$$-$USER
 TMP1FILE=/tmp/gotest1-$$-$USER
@@ -60,7 +60,7 @@ done | # clean up some stack noise
 		s/^pc: 0x[0-9a-f]*/pc: xxx/
 		/^Trace\/breakpoint trap/d
 		/^Trace\/BPT trap/d
-		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
+		/RUNFILE/ s/line 1: *[0-9][0-9]* /line 1: PID /
 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
 
