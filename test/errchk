@@ -30,7 +30,7 @@ close(SRC);
 
 # Run command
 $cmd = join(' ', @ARGV);
-open(CMD, "$cmd </dev/null 2>&1 |") || die "BUG: errchk: run $cmd: $!";
+open(CMD, "exec $cmd </dev/null 2>&1 |") || die "BUG: errchk: run $cmd: $!";
 @out = grep { !/^	/ } <CMD>;
 close CMD;
 
@@ -42,6 +42,7 @@ if($? == 0) {
 
 if(!WIFEXITED($?)) {
 	print STDERR "BUG: errchk: compiler crashed\n";
+	print STDERR @out, "\n";
 	exit 0;
 }
 
