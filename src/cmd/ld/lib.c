@@ -153,9 +153,10 @@ addlib(char *src, char *obj)
 	for(i=0; i<libraryp; i++)
 		if(strcmp(name, library[i]) == 0)
 			return;
-	if(libraryp == nelem(library)){
-		diag("too many autolibs; skipping %s", name);
-		return;
+	if(libraryp == nlibrary){
+		nlibrary = 50 + 2*libraryp;
+		library = realloc(library, sizeof library[0] * nlibrary);
+		libraryobj = realloc(libraryobj, sizeof libraryobj[0] * nlibrary);
 	}
 
 	p = mal(strlen(name) + 1);
