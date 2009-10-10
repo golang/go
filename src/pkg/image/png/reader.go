@@ -209,46 +209,44 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 		nrgba = d.image.(*image.NRGBA);
 	}
 	// cr and pr are the bytes for the current and previous row.
-	cr := make([]uint8, bpp * d.width);
-	pr := make([]uint8, bpp * d.width);
+	// The +1 is for the per-row filter type, which is at cr[0].
+	cr := make([]uint8, 1 + bpp * d.width);
+	pr := make([]uint8, 1 + bpp * d.width);
 
-	var filter [1]uint8;
 	for y := 0; y < d.height; y++ {
 		// Read the decompressed bytes.
-		n, err := io.ReadFull(r, filter[0:1]);
-		if err != nil {
-			return err;
-		}
-		n, err = io.ReadFull(r, cr);
+		_, err := io.ReadFull(r, cr);
 		if err != nil {
 			return err;
 		}
 
 		// Apply the filter.
-		switch filter[0] {
+		cdat := cr[1:len(cr)];
+		pdat := pr[1:len(pr)];
+		switch cr[0] {
 		case ftNone:
 		// No-op.
 		case ftSub:
-			for i := bpp; i < n; i++ {
-				cr[i] += cr[i-bpp];
+			for i := bpp; i < len(cdat); i++ {
+				cdat[i] += cdat[i-bpp];
 			}
 		case ftUp:
-			for i := 0; i < n; i++ {
-				cr[i] += pr[i];
+			for i := 0; i < len(cdat); i++ {
+				cdat[i] += pdat[i];
 			}
 		case ftAverage:
 			for i := 0; i < bpp; i++ {
-				cr[i] += pr[i]/2;
+				cdat[i] += pdat[i]/2;
 			}
-			for i := bpp; i < n; i++ {
-				cr[i] += uint8((int(cr[i-bpp])+int(pr[i]))/2);
+			for i := bpp; i < len(cdat); i++ {
+				cdat[i] += uint8((int(cdat[i-bpp])+int(pdat[i]))/2);
 			}
 		case ftPaeth:
 			for i := 0; i < bpp; i++ {
-				cr[i] += paeth(0, pr[i], 0);
+				cdat[i] += paeth(0, pdat[i], 0);
 			}
-			for i := bpp; i < n; i++ {
-				cr[i] += paeth(cr[i-bpp], pr[i], pr[i-bpp]);
+			for i := bpp; i < len(cdat); i++ {
+				cdat[i] += paeth(cdat[i-bpp], pdat[i], pdat[i-bpp]);
 			}
 		default:
 			return FormatError("bad filter type");
@@ -258,18 +256,18 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 		switch d.colorType {
 		case ctTrueColor:
 			for x := 0; x < d.width; x++ {
-				rgba.Set(x, y, image.RGBAColor{cr[3*x + 0], cr[3*x + 1], cr[3*x + 2], 0xff});
+				rgba.Set(x, y, image.RGBAColor{cdat[3*x + 0], cdat[3*x + 1], cdat[3*x + 2], 0xff});
 			}
 		case ctPaletted:
 			for x := 0; x < d.width; x++ {
-				if cr[x] > maxPalette {
+				if cdat[x] > maxPalette {
 					return FormatError("palette index out of range");
 				}
-				paletted.SetColorIndex(x, y, cr[x]);
+				paletted.SetColorIndex(x, y, cdat[x]);
 			}
 		case ctTrueColorAlpha:
 			for x := 0; x < d.width; x++ {
-				nrgba.Set(x, y, image.NRGBAColor{cr[4*x + 0], cr[4*x + 1], cr[4*x + 2], cr[4*x + 3]});
+				nrgba.Set(x, y, image.NRGBAColor{cdat[4*x + 0], cdat[4*x + 1], cdat[4*x + 2], cdat[4*x + 3]});
 			}
 		}
 

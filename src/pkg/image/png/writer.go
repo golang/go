@@ -148,7 +148,7 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 	case ctTrueColorAlpha:
 		bpp = 4;
 	}
-	// The bytes for the current and previous row.
+	// cr and pr are the bytes for the current and previous row.
 	// The +1 is for the per-row filter type, which is at cr[0].
 	cr := make([]uint8, 1 + bpp * m.Width());
 	pr := make([]uint8, 1 + bpp * m.Width());
