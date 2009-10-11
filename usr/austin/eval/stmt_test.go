@@ -331,9 +331,11 @@ var stmtTests = []test {
 	CErr("x := make(map[int] int); (func(a,b int){})(x[0])", "not enough"),
 	CErr("x := make(map[int] int); x[1] = oneTwo()", "too many"),
 	RErr("x := make(map[int] int); i = x[1]", "key '1' not found"),
-	
+
 	// Functions
 	Val2("func fib(n int) int { if n <= 2 { return n } return fib(n-1) + fib(n-2) }", "fib(4)", 5, "fib(10)", 89),
+	Run("func f1(){}"),
+	Run2("func f1(){}", "f1()"),
 }
 
 func TestStmt(t *testing.T) {
