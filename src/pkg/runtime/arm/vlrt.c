@@ -142,6 +142,12 @@ _f2v(Vlong *y, float f)
         _d2v(y, f);
 }
 
+void
+sys·float64toint64(double d, Vlong y)
+{
+	_d2v(&y, d);
+}
+
 double
 _v2d(Vlong x)
 {
@@ -161,6 +167,13 @@ _v2f(Vlong x)
 {
         return _v2d(x);
 }
+
+void
+sys·int64tofloat64(Vlong y, double d)
+{
+	d = _v2d(y);
+}
+
 
 static void
 dodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
