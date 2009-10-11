@@ -188,7 +188,7 @@ func ToLower(s string) string {
 }
 
 // ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.
-func Title(s string) string {
+func ToTitle(s string) string {
 	return Map(unicode.ToTitle, s)
 }
 
