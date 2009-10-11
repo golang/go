@@ -65,7 +65,7 @@ func (a test) run(t *testing.T, name string) {
 			t.Errorf("%s: Compile %s succeeded; want %s", name, src, j.cerr);
 			break;
 		}
-		
+
 		val, err := code.Run();
 		if err != nil {
 			if j.rterr == "" {
@@ -82,7 +82,7 @@ func (a test) run(t *testing.T, name string) {
 			t.Errorf("%s: Run %s succeeded; want %s", name, src, j.rterr);
 			break;
 		}
-	
+
 		if !j.noval && !reflect.DeepEqual(val, j.val) {
 			t.Errorf("%s: Run %s = %T(%v) want %T(%v)", name, src, val, val, j.val, j.val);
 		}
@@ -120,6 +120,13 @@ func Val(expr string, val interface{}) test {
 // Statement runs without error
 func Run(stmts string) test {
 	return test([]job{job{code: stmts, noval: true}})
+}
+
+// Two statements without error.
+// TODO(rsc): Should be possible with Run but the parser
+// won't let us do both top-level and non-top-level statements.
+func Run2(stmt1, stmt2 string) test {
+	return test([]job{job{code: stmt1, noval: true}, job{code: stmt2, noval: true}})
 }
 
 // Statement runs and test one expression's value

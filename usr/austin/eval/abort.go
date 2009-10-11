@@ -58,6 +58,14 @@ func (e IndexError) String() string {
 	return fmt.Sprintf("index %d exceeds length %d", e.Idx, e.Len);
 }
 
+type SliceError struct {
+	Lo, Hi, Cap int64;
+}
+
+func (e SliceError) String() string {
+	return fmt.Sprintf("slice [%d:%d]; cap %d", e.Lo, e.Hi, e.Cap);
+}
+
 type KeyError struct {
 	Key interface {};
 }

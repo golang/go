@@ -12,9 +12,6 @@ import (
 	"os";
 )
 
-// TODO: Make CompileExpr and CompileStmts
-// methods on World.
-
 type World struct {
 	scope *Scope;
 	frame *Frame;
@@ -41,10 +38,10 @@ type stmtCode struct {
 	code code;
 }
 
-func (w *World) compileStmts(stmts []ast.Stmt) (Code, os.Error) {
+func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
 	if len(stmts) == 1 {
 		if s, ok := stmts[0].(*ast.ExprStmt); ok {
-			return w.compileExpr(s.X);
+			return w.CompileExpr(s.X);
 		}
 	}
 	errors := scanner.NewErrorVector();
@@ -73,12 +70,12 @@ func (w *World) compileStmts(stmts []ast.Stmt) (Code, os.Error) {
 	return &stmtCode{w, fc.get()}, nil;
 }
 
-func (w *World) compileDecls(decls []ast.Decl) (Code, os.Error) {	
+func (w *World) CompileDeclList(decls []ast.Decl) (Code, os.Error) {
 	stmts := make([]ast.Stmt, len(decls));
 	for i, d := range decls {
 		stmts[i] = &ast.DeclStmt{d};
 	}
-	return w.compileStmts(stmts);
+	return w.CompileStmtList(stmts);
 }
 
 func (s *stmtCode) Type() Type {
@@ -97,7 +94,7 @@ type exprCode struct {
 	eval func(Value, *Thread);
 }
 
-func (w *World) compileExpr(e ast.Expr) (Code, os.Error) {
+func (w *World) CompileExpr(e ast.Expr) (Code, os.Error) {
 	errors := scanner.NewErrorVector();
 	cc := &compiler{errors, 0, 0};
 
@@ -144,13 +141,13 @@ func (e *exprCode) Run() (Value, os.Error) {
 func (w *World) Compile(text string) (Code, os.Error) {
 	stmts, err := parser.ParseStmtList("input", text);
 	if err == nil {
-		return w.compileStmts(stmts);
+		return w.CompileStmtList(stmts);
 	}
 
 	// Otherwise try as DeclList.
 	decls, err1 := parser.ParseDeclList("input", text);
 	if err1 == nil {
-		return w.compileDecls(decls);
+		return w.CompileDeclList(decls);
 	}
 
 	// Have to pick an error.

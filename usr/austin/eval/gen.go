@@ -22,6 +22,11 @@ type Op struct {
 	Types []*Type;
 }
 
+type Size struct {
+	Bits int;
+	Sized string;
+}
+
 type Type struct {
 	Repr string;
 	Value string;
@@ -29,14 +34,21 @@ type Type struct {
 	As string;
 	IsIdeal bool;
 	HasAssign bool;
+	Sizes []Size;
 }
 
 var (
 	boolType = &Type{ Repr: "*boolType", Value: "BoolValue", Native: "bool", As: "asBool" };
-	uintType = &Type{ Repr: "*uintType", Value: "UintValue", Native: "uint64", As: "asUint" };
-	intType = &Type{ Repr: "*intType", Value: "IntValue", Native: "int64", As: "asInt" };
+	uintType = &Type{ Repr: "*uintType", Value: "UintValue", Native: "uint64", As: "asUint",
+		Sizes: []Size{ Size{8, "uint8"}, Size{16, "uint16"}, Size{32, "uint32"}, Size{64, "uint64"}, Size{0, "uint"}}
+	};
+	intType = &Type{ Repr: "*intType", Value: "IntValue", Native: "int64", As: "asInt",
+		Sizes: []Size{Size{8, "int8"}, Size{16, "int16"}, Size{32, "int32"}, Size{64, "int64"}, Size{0, "int"}}
+	};
 	idealIntType = &Type{ Repr: "*idealIntType", Value: "IdealIntValue", Native: "*bignum.Integer", As: "asIdealInt", IsIdeal: true };
-	floatType = &Type{ Repr: "*floatType", Value: "FloatValue", Native: "float64", As: "asFloat" };
+	floatType = &Type{ Repr: "*floatType", Value: "FloatValue", Native: "float64", As: "asFloat",
+		Sizes: []Size{Size{32, "float32"}, Size{64, "float64"}, Size{0, "float"}}
+	};
 	idealFloatType = &Type{ Repr: "*idealFloatType", Value: "IdealFloatValue", Native: "*bignum.Rational", As: "asIdealFloat", IsIdeal: true };
 	stringType = &Type{ Repr: "*stringType", Value: "StringValue", Native: "string", As: "asString" };
 	arrayType = &Type{ Repr: "*ArrayType", Value: "ArrayValue", Native: "ArrayValue", As: "asArray", HasAssign: true };
@@ -91,12 +103,12 @@ var binOps = []Op{
 	Op{ Name: "Sub", Expr: "l - r", ConstExpr: "l.Sub(r)", Types: numbers },
 	Op{ Name: "Mul", Expr: "l * r", ConstExpr: "l.Mul(r)", Types: numbers },
 	Op{ Name: "Quo",
-		Body: "if r == 0 { t.Abort(DivByZeroError{}) } return l / r",
+		Body: "if r == 0 { t.Abort(DivByZeroError{}) } ret =  l / r",
 		ConstExpr: "l.Quo(r)",
 		Types: numbers,
 	},
 	Op{ Name: "Rem",
-		Body: "if r == 0 { t.Abort(DivByZeroError{}) } return l % r",
+		Body: "if r == 0 { t.Abort(DivByZeroError{}) } ret = l % r",
 		ConstExpr: "l.Rem(r)",
 		Types: integers,
 	},
@@ -163,10 +175,11 @@ func (a *expr) asMulti() (func(*Thread) []Value) {
 func (a *expr) asInterface() (func(*Thread) interface{}) {
 	switch sf := a.eval.(type) {
 «.repeated section Types»
-	case func(*Thread)«Native»:
 «.section IsIdeal»
-		return func(t *Thread) interface{} { return sf(t) }
+	case func()«Native»:
+		return func(*Thread) interface{} { return sf() }
 «.or»
+	case func(t *Thread)«Native»:
 		return func(t *Thread) interface{} { return sf(t) }
 «.end»
 «.end»
@@ -263,26 +276,68 @@ func (a *expr) genUnaryOp«Name»(v *expr) {
 }
 
 «.end»
+func (a *expr) genBinOpLogAnd(l, r *expr) {
+	lf := l.asBool();
+	rf := r.asBool();
+	a.eval = func(t *Thread) bool { return lf(t) && rf(t) }
+}
+
+func (a *expr) genBinOpLogOr(l, r *expr) {
+	lf := l.asBool();
+	rf := r.asBool();
+	a.eval = func(t *Thread) bool { return lf(t) || rf(t) }
+}
+
 «.repeated section BinaryOps»
 func (a *expr) genBinOp«Name»(l, r *expr) {
-	switch l.t.lit().(type) {
+	switch t := l.t.lit().(type) {
 «.repeated section Types»
 	case «Repr»:
-«.section IsIdeal»
+	«.section IsIdeal»
 		l := l.«As»()();
 		r := r.«As»()();
 		val := «ConstExpr»;
-«.section ReturnType»
+		«.section ReturnType»
 		a.eval = func(t *Thread) «ReturnType» { return val }
-«.or»
+		«.or»
 		a.eval = func() «Native» { return val }
-«.end»
-«.or»
+		«.end»
+	«.or»
 		lf := l.«As»();
 		rf := r.«.section AsRightName»«@»«.or»«As»«.end»();
-		a.eval = func(t *Thread) «.section ReturnType»«@»«.or»«Native»«.end» { l, r := lf(t), rf(t); «.section Body»«Body»«.or»return «Expr»«.end» }
-«.end»
-«.end»
+		«.section ReturnType»
+		a.eval = func(t *Thread) «@» {
+			l, r := lf(t), rf(t);
+			return «Expr»
+		}
+		«.or»
+		«.section Sizes»
+		switch t.Bits {
+		«.repeated section @»
+		case «Bits»:
+			a.eval = func(t *Thread) «Native» {
+				l, r := lf(t), rf(t);
+				var ret «Native»;
+				«.section Body»
+				«Body»;
+				«.or»
+				ret = «Expr»;
+				«.end»
+				return «Native»(«Sized»(ret))
+			}
+		«.end»
+		default:
+			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos);
+		}
+		«.or»
+		a.eval = func(t *Thread) «Native» {
+			l, r := lf(t), rf(t);
+			return «Expr»
+		}
+		«.end»
+		«.end»
+	«.end»
+	«.end»
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos);
 	}

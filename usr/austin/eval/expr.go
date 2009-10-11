@@ -11,6 +11,7 @@ import (
 	"log";
 	"strconv";
 	"strings";
+	"os";
 )
 
 // An expr is the result of compiling an expression.  It stores the
@@ -160,7 +161,11 @@ func (a *expr) convertToInt(max int64, negErr string, errOp string) *expr {
 			a.diag("negative %s: %s", negErr, val);
 			return nil;
 		}
-		if max != -1 && val.Cmp(bignum.Int(max)) >= 0 {
+		bound := max;
+		if negErr == "slice" {
+			bound++;
+		}
+		if max != -1 && val.Cmp(bignum.Int(bound)) >= 0 {
 			a.diag("index %s exceeds length %d", val, max);
 			return nil;
 		}
@@ -289,7 +294,7 @@ func (a *assignCompiler) allowMapForms(nls int) {
 	a.allowMap = true;
 
 	// Update unpacking info if this is r, ok = a[x]
-	if nls == 2 && len(a.rs) == 1 && a.rs[0].evalMapValue != nil {
+	if nls == 2 && len(a.rs) == 1 && a.rs[0] != nil && a.rs[0].evalMapValue != nil {
 		a.isUnpack = true;
 		a.rmt = NewMultiType([]Type {a.rs[0].t, BoolType});
 		a.isMapUnpack = true;
@@ -551,7 +556,7 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 		args := make([]*expr, len(x.Args));
 		bad := false;
 		for i, arg := range x.Args {
-			if i == 0 && l.t == Type(makeType) {
+			if i == 0 && l != nil && (l.t == Type(makeType) || l.t == Type(newType)) {
 				argei := &exprInfo{a.compiler, arg.Pos()};
 				args[i] = argei.exprFromType(a.compileType(a.block, arg));
 			} else {
@@ -561,7 +566,7 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 				bad = true;
 			}
 		}
-		if l == nil || bad {
+		if bad || l == nil {
 			return nil;
 		}
 		if a.constant {
@@ -583,8 +588,13 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
 
 	case *ast.IndexExpr:
 		if x.End != nil {
-			a.diagAt(x, "slice expression not implemented");
-			return nil;
+			arr := a.compile(x.X, false);
+			lo := a.compile(x.Index, false);
+			hi := a.compile(x.End, false);
+			if arr == nil || lo == nil || hi == nil {
+				return nil;
+			}
+			return ei.compileSliceExpr(arr, lo, hi);
 		}
 		l, r := a.compile(x.X, false), a.compile(x.Index, false);
 		if l == nil || r == nil {
@@ -924,6 +934,86 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 	}
 
 	return builder(v);
+}
+
+func (a *exprInfo) compileSliceExpr(arr, lo, hi *expr) *expr {
+	// Type check object
+	arr = arr.derefArray();
+
+	var at Type;
+	var maxIndex int64 = -1;
+
+	switch lt := arr.t.lit().(type) {
+	case *ArrayType:
+		at = NewSliceType(lt.Elem);
+		maxIndex = lt.Len;
+
+	case *SliceType:
+		at = lt;
+
+	case *stringType:
+		at = lt;
+
+	default:
+		a.diag("cannot slice %v", arr.t);
+		return nil;
+	}
+
+	// Type check index and convert to int
+	// XXX(Spec) It's unclear if ideal floats with no
+	// fractional part are allowed here.  6g allows it.  I
+	// believe that's wrong.
+	lo = lo.convertToInt(maxIndex, "slice", "slice");
+	hi = hi.convertToInt(maxIndex, "slice", "slice");
+	if lo == nil || hi == nil {
+		return nil;
+	}
+
+	expr := a.newExpr(at, "slice expression");
+
+	// Compile
+	lof := lo.asInt();
+	hif := hi.asInt();
+	switch lt := arr.t.lit().(type) {
+	case *ArrayType:
+		arrf := arr.asArray();
+		bound := lt.Len;
+		expr.eval = func(t *Thread) Slice {
+			arr, lo, hi := arrf(t), lof(t), hif(t);
+			if lo > hi || hi > bound || lo < 0 {
+				t.Abort(SliceError{lo, hi, bound});
+			}
+			return Slice{arr.Sub(lo, bound - lo), hi - lo, bound - lo}
+		};
+
+	case *SliceType:
+		arrf := arr.asSlice();
+		expr.eval = func(t *Thread) Slice {
+			arr, lo, hi := arrf(t), lof(t), hif(t);
+			if lo > hi || hi > arr.Cap || lo < 0 {
+				t.Abort(SliceError{lo, hi, arr.Cap});
+			}
+			return Slice{arr.Base.Sub(lo, arr.Cap - lo), hi - lo, arr.Cap - lo}
+		};
+
+	case *stringType:
+		arrf := arr.asString();
+		// TODO(austin) This pulls over the whole string in a
+		// remote setting, instead of creating a substring backed
+		// by remote memory.
+		expr.eval = func(t *Thread) string {
+			arr, lo, hi := arrf(t), lof(t), hif(t);
+			if lo > hi || hi > int64(len(arr)) || lo < 0 {
+				t.Abort(SliceError{lo, hi, int64(len(arr))});
+			}
+			return arr[lo:hi];
+		}
+
+	default:
+		log.Crashf("unexpected left operand type %T", arr.t.lit());
+	}
+
+	return expr;
 }
 
 func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
@@ -1297,9 +1387,66 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 			return nil;
 		}
 
-	case closeType, closedType, newType, panicType, paniclnType, printType, printlnType:
+	case closeType, closedType:
 		a.diag("built-in function %s not implemented", ft.builtin);
 		return nil;
+
+	case newType:
+		if !checkCount(1, 1) {
+			return nil;
+		}
+
+		t := as[0].valType;
+		expr := a.newExpr(NewPtrType(t), "new");
+		expr.eval = func(*Thread) Value {
+			return t.Zero();
+		};
+		return expr;
+
+	case panicType, paniclnType, printType, printlnType:
+		evals := make([]func(*Thread)interface{}, len(as));
+		for i, x := range as {
+			evals[i] = x.asInterface();
+		}
+		spaces := ft == paniclnType || ft == printlnType;
+		newline := ft != printType;
+		printer := func(t *Thread) {
+			for i, eval := range evals {
+				if i > 0 && spaces {
+					print(" ");
+				}
+				v := eval(t);
+				type stringer interface { String() string }
+				switch v1 := v.(type) {
+				case bool:
+					print(v1);
+				case uint64:
+					print(v1);
+				case int64:
+					print(v1);
+				case float64:
+					print(v1);
+				case string:
+					print(v1);
+				case stringer:
+					print(v1.String());
+				default:
+					print("???");
+				}
+			}
+			if newline {
+				print("\n");
+			}
+		};
+		expr := a.newExpr(EmptyType, "print");
+		expr.exec = printer;
+		if ft == panicType || ft == paniclnType {
+			expr.exec = func(t *Thread) {
+				printer(t);
+				t.Abort(os.NewError("panic"));
+			}
+		}
+		return expr;
 	}
 
 	log.Crashf("unexpected built-in function '%s'", ft.builtin);
@@ -1680,13 +1827,9 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 		expr.genBinOpMul(l, r);
 
 	case token.QUO:
-		// TODO(austin) Clear higher bits that may have
-		// accumulated in our temporary.
 		expr.genBinOpQuo(l, r);
 
 	case token.REM:
-		// TODO(austin) Clear higher bits that may have
-		// accumulated in our temporary.
 		expr.genBinOpRem(l, r);
 
 	case token.AND:
@@ -1744,6 +1887,12 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 
 	case token.NEQ:
 		expr.genBinOpNeq(l, r);
+
+	case token.LAND:
+		expr.genBinOpLogAnd(l, r);
+
+	case token.LOR:
+		expr.genBinOpLogOr(l, r);
 
 	default:
 		log.Crashf("Compilation of binary op %v not implemented", op);
