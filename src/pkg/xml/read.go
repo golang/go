@@ -162,14 +162,20 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 	}
 
 	if pv, ok := val.(*reflect.PtrValue); ok {
-		zv := reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem());
-		pv.PointTo(zv);
-		val = zv;
+		if pv.Get() == 0 {
+			zv := reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem());
+			pv.PointTo(zv);
+			val = zv;
+		} else {
+			val = pv.Elem();
+		}
 	}
 
 	var (
 		data []byte;
 		saveData reflect.Value;
+		comment []byte;
+		saveComment reflect.Value;
 		sv *reflect.StructValue;
 		styp *reflect.StructType;
 	)
@@ -251,7 +257,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		}
 
 		// Assign attributes.
-		// Also, determine whether we need to save character data.
+		// Also, determine whether we need to save character data or comments.
 		for i, n := 0, typ.NumField(); i < n; i++ {
 			f := typ.Field(i);
 			switch f.Tag {
@@ -270,6 +276,11 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 					}
 				}
 				strv.Set(val);
+
+			case "comment":
+				if saveComment == nil {
+					saveComment = sv.FieldByIndex(f.Index);
+				}
 
 			case "chardata":
 				if saveData == nil {
@@ -326,17 +337,27 @@ Loop:
 			if saveData != nil {
 				data = bytes.Add(data, t);
 			}
+
+		case Comment:
+			if saveComment != nil {
+				comment = bytes.Add(comment, t);
+			}
 		}
 	}
 
-	// Save accumulated character data
-	if saveData != nil {
-		switch t := saveData.(type) {
-		case *reflect.StringValue:
-			t.Set(string(data));
-		case *reflect.SliceValue:
-			t.Set(reflect.NewValue(data).(*reflect.SliceValue));
-		}
+	// Save accumulated character data and comments
+	switch t := saveData.(type) {
+	case *reflect.StringValue:
+		t.Set(string(data));
+	case *reflect.SliceValue:
+		t.Set(reflect.NewValue(data).(*reflect.SliceValue));
+	}
+
+	switch t := saveComment.(type) {
+	case *reflect.StringValue:
+		t.Set(string(comment));
+	case *reflect.SliceValue:
+		t.Set(reflect.NewValue(comment).(*reflect.SliceValue));
 	}
 
 	return nil;
