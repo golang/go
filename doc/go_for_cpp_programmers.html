@@ -34,23 +34,25 @@ There is more <a href="./">documentation about go</a>.
     use a pointer variable to walk through the bytes of a string.
 
 <li>Arrays in Go are first class values. When an array is used as a
-    function parameter, the function receives a copy of the array,
-    not a pointer to it. However, in practice functions often use
-    slices for parameters, rather than arrays. This is discussed further
-    below.
+    function parameter, the function receives a copy of the array, not
+    a pointer to it. However, in practice functions often use slices
+    for parameters; slices hold pointers to underlying arrays.  Slices
+    are <a href="#Slices">discussed further below</a>.
 
-<li>Strings are provided by the language. They may not change once they
+<li>Strings are provided by the language. They may not be changed once they
     have been created.
 
 <li>Hash tables are provided by the language. They are called maps.
 
-<li>Processes, and communication channels between them, are provided by
-    the language. This is discussed further below.
+<li>Separate threads of execution, and communication channels between
+    them, are provided by the language. This
+    is <a href="#Goroutines">discussed further below</a>.
 
-<li>Certain types (maps, channels, and slices, all described further below)
+<li>Certain types (maps and channels, described further below)
     are passed by reference, not by value. That is, passing a map to a
     function does not copy the map, and if the function changes the map
-    the change will be seen by the caller.
+    the change will be seen by the caller.  In C++ terms, one can
+    think of these as being reference types.
 
 <li>Go does not use header files. Instead, each source file is part of a
     defined <em>package</em>. When a package defines an object
@@ -86,7 +88,7 @@ var v3 [10]int;           // int v3[10];
 var v4 []int;             // approximately int* v4;
 var v5 struct { f int };  // struct { int f; } v5;
 var v6 *int;              // int* v6;  // but no pointer arithmetic
-var v7 map[string]int;       // approximately unordered_map&lt;string, int&gt;* v7;
+var v7 map[string]int;    // approximately unordered_map&lt;string, int&gt;* v7;
 var v8 func(a int) int;   // int (*v8)(int a);
 </pre>
 
@@ -97,7 +99,7 @@ of the object being declared.  The keyword is one of <code>var</code>,
 <code>const</code>, or <code>type</code>.  Method declarations are a minor
 exception in that
 the receiver appears before the name of the object begin declared; see
-the discussion of interfaces.
+the <a href="#Interfaces">discussion of interfaces</a>.
 
 <p>
 You can also use a keyword followed by a series of declarations in
@@ -108,7 +110,7 @@ var (i int; m float)
 </pre>
 
 <p>
-When declaring a function, you must provide a name for each parameter
+When declaring a function, you must either provide a name for each parameter
 or not provide a name for any parameter; you can't omit some names
 and provide others.  You may group several names with the same type:
 
@@ -174,24 +176,15 @@ always <em>permitted</em> at
 the end of a statement, so you can continue using them as in C++.
 
 <p>
-Go treats semicolons as separators, not terminators.  Moreover,
-a semicolon
-is not required after a curly brace ending a type declaration (e.g.,
-<code>var s struct {}</code>) or a block.  Semicolons are never required at the
-top level of a file (between global declarations). However, they are
-always <em>permitted</em> at
-the end of a statement, so you can continue using them as in C++.
-
-<p>
-When using a pointer, you use <code>.</code> instead of <code>-&gt;</code>.
-Thus syntactically
-speaking there is no difference between a structure and a pointer to a
-structure.
+When using a pointer to a struct, you use <code>.</code> instead
+of <code>-&gt;</code>.
+Thus syntactically speaking a structure and a pointer to a structure
+are used in the same way.
 
 <pre>
-type my_struct struct { i int }
-var v9 my_struct;             // v9 has structure type
-var p9 *my_struct;            // p9 is a pointer to a structure
+type myStruct struct { i int }
+var v9 myStruct;             // v9 has structure type
+var p9 *myStruct;            // p9 is a pointer to a structure
 f(v9.i, p9.i)
 </pre>
 
@@ -238,10 +231,10 @@ switch i { case 0, 1: f() } // f is called if i == 0 || i == 1.
 </pre>
 
 <p>
-The values in a <code>case</code> need not be constants - or even integers;
+The values in a <code>case</code> need not be constants&mdash;or even integers;
 any type
 that supports the equality comparison operator, such as strings or
-pointers, can be used - and if the <code>switch</code>
+pointers, can be used&mdash;and if the <code>switch</code>
 value is omitted it defaults to <code>true</code>.
 
 <pre>
@@ -253,6 +246,15 @@ The <code>++</code> and <code>--</code> operators may only be used in
 statements, not in expressions.
 You cannot write <code>c = *p++</code>.  <code>*p++</code> is parsed as
 <code>(*p)++</code>.
+
+<p>
+The <code>defer</code> statement may be used to call a function after
+the function containing the <code>defer</code> statement returns.
+
+<pre>
+fd := open("filename");
+defer close(fd);        // fd will be closed when this function returns.
+</pre>
 
 <h2 id="Constants">Constants </h2>
 
@@ -292,8 +294,11 @@ const ( red = iota; blue; green ) // red == 0, blue == 1, green == 2
 <h2 id="Slices">Slices</h2>
 
 <p>
-A slice is a pointer to an array, a length, and a capacity.  Slices support
-the <code>[]</code> operator to access elements.  The builtin
+A slice is conceptually a struct with three fields: a
+pointer to an array, a length, and a capacity.
+Slices support
+the <code>[]</code> operator to access elements of the underlying array.
+The builtin
 <code>len</code> function returns the
 length of the slice.  The builtin <code>cap</code> function returns the
 capacity.
@@ -383,82 +388,100 @@ entirely separate from the interface itself.
 
 <p>
 A method looks like an ordinary function definition, except that it
-has a receiver.  The receiver is similar to the <code>this</code> pointer in a
-C++ class method.
+has a <em>receiver</em>.  The receiver is similar to
+the <code>this</code> pointer in a C++ class method.
 
 <pre>
-type my_type struct { i int }
-func (p *my_type) get() int { return p.i }
+type myType struct { i int }
+func (p *myType) get() int { return p.i }
 </pre>
 
 <p>
-This declares a method <code>get</code> associated with <code>my_type</code>.
+This declares a method <code>get</code> associated with <code>myType</code>.
 The receiver is named <code>p</code> in the body of the function.
+
+<p>
+Methods are defined on named types.  If you convert the value
+to a different type, the new value will have the methods of the new type,
+not the old type.
+
+<p>
+You may define methods on a builtin type by declaring a new named type
+derived from it.  The new type is distinct from the builtin type.
+
+<pre>
+type myInteger int
+func (p myInteger) get() int { return int(p) } // Conversion required.
+func f(i int) { }
+var v myInteger
+// f(v) is invalid.
+// f(int(v)) is valid; int(v) has no defined methods.
+</pre>
 
 <p>
 Given this interface:
 
 <pre>
-type my_interface interface {
-  get() int;
-  set(i int);
+type myInterface interface {
+	get() int;
+	set(i int);
 }
 </pre>
 
 <p>
-we can make <code>my_type</code> satisfy the interface by additionally writing
+we can make <code>myType</code> satisfy the interface by additionally writing
 
 <pre>
-func (p *my_type) set(i int) { p.i = i }
+func (p *myType) set(i int) { p.i = i }
 </pre>
 
 <p>
-Now any function which takes <code>my_interface</code> as a parameter
+Now any function which takes <code>myInterface</code> as a parameter
 will accept a
-variable of type <code>*my_type</code>.
+variable of type <code>*myType</code>.
 
 <pre>
-func get_and_set(x my_interface);
+func getAndSet(x myInterface);
 func f1() {
-  var p my_type;
-  get_and_set(&amp;p);
+	var p myType;
+	getAndSet(&amp;p);
 }
 </pre>
 
 <p>
-In other words, if we view <code>my_interface</code> as a C++ pure abstract
+In other words, if we view <code>myInterface</code> as a C++ pure abstract
 base
 class, defining <code>set</code> and <code>get</code> for
-<code>*my_type</code> made <code>*my_type</code> automatically
-inherit from <code>my_interface</code>.  A type may satisfy multiple interfaces.
+<code>*myType</code> made <code>*myType</code> automatically
+inherit from <code>myInterface</code>.  A type may satisfy multiple interfaces.
 
 <p>
 An anonymous field may be used to implement something much like a C++ child
 class.
 
 <pre>
-type my_child_type struct { my_type; j int }
-func (p *my_child_type) get() int { p.j++; return (&amp;p.my_type).get() }
+type myChildType struct { myType; j int }
+func (p *myChildType) get() int { p.j++; return (&amp;p.myType).get() }
 </pre>
 
 <p>
-This effectively implements <code>my_child_type</code> as a child of
-<code>my_type</code>.
+This effectively implements <code>myChildType</code> as a child of
+<code>myType</code>.
 
 <pre>
 func f2() {
-   var p my_child_type;
-   get_and_set(&amp;p)
+	var p myChildType;
+	getAndSet(&amp;p)
 }
 </pre>
 
 <p>
 The <code>set</code> method is effectively inherited from
-<code>my_child_type</code>, because
+<code>myChildType</code>, because
 methods associated with the anonymous type are promoted to become methods
-of the enclosing type.  In this case, because <code>my_child_type</code> has an
-anonymous field of type <code>my_type</code>, the methods of
-<code>my_type</code> also become methods of <code>my_child_type</code>.
+of the enclosing type.  In this case, because <code>myChildType</code> has an
+anonymous field of type <code>myType</code>, the methods of
+<code>myType</code> also become methods of <code>myChildType</code>.
 In this example, the <code>get</code> method was
 overridden, and the <code>set</code> method was inherited.
 
@@ -478,23 +501,23 @@ at runtime, like C++ <code>dynamic_cast</code>.  Unlike
 not need to be any declared relationship between the two interfaces.
 
 <pre>
-type my_compare_interface interface {
+type myCompareInterface interface {
   print();
 }
-func f3(x my_interface) {
-  x.(my_compare_interface).print()
+func f3(x myInterface) {
+	x.(myCompareInterface).print()
 }
 </pre>
 
 <p>
-The conversion to <code>my_compare_interface</code> is entirely dynamic.
+The conversion to <code>myCompareInterface</code> is entirely dynamic.
 It will
-work as long as the underlying type of x (the "dynamic type") defines
+work as long as the underlying type of x (the <em>dynamic type</em>) defines
 a <code>print</code> method.
 
 <p>
 Because the conversion is dynamic, it may be used to implement generic
-programming similar to templates in C++.  This is done by, e.g.,
+programming similar to templates in C++.  This is done by
 manipulating values of the minimal interface.
 
 <pre>
@@ -510,19 +533,26 @@ at runtime, but all operations will involve a function call.
 
 <pre>
 type iterator interface {
-  get() Any;
-  set(v Any);
-  increment();
-  equal(arg *iterator) bool;
+	get() Any;
+	set(v Any);
+	increment();
+	equal(arg *iterator) bool;
 }
 </pre>
 
-<h2 id="Processes">Processes</h2>
+<h2 id="Goroutines">Goroutines</h2>
 
 <p>
-Go permits starting a new process (a "goroutine") using the <code>go</code>
-statement.  The go statement runs a function in a different process.
-All processes in a single program share the same address space.
+Go permits starting a new thread of execution (a <em>goroutine</em>)
+using the <code>go</code>
+statement.  The <code>go</code> statement runs a function in a
+different, newly created, goroutine.
+All goroutines in a single program share the same address space.
+
+<p>
+Internally, goroutines act like coroutines that are multiplexed among
+multiple operating system threads.  You do not have to worry
+about these details.
 
 <pre>
 func server(i int) { for { print(i); sys.sleep(10) } }
@@ -534,7 +564,7 @@ go server(1); go server(2);
 function is equivalent to a C++ <code>while (true)</code> loop).
 
 <p>
-Processes are (intended to be) cheap.
+Goroutines are (intended to be) cheap.
 
 <p>
 Function literals can be useful with the <code>go</code> statement.
@@ -542,16 +572,16 @@ Function literals can be useful with the <code>go</code> statement.
 <pre>
 var g int // global variable
 go func(i int) {
-  s := 0
-  for j := 0; j &lt; i; j++ { s += j }
-  g = s
+	s := 0
+	for j := 0; j &lt; i; j++ { s += j }
+	g = s
 } (1000) // Passes argument 1000 to the function literal.
 </pre>
 
 <h2 id="Channels">Channels</h2>
 
 <p>
-Channels are used to communicate between processes.  Any value may be
+Channels are used to communicate between goroutines.  Any value may be
 sent over a channel.  Channels are (intended to be) efficient and
 cheap.  To send a value on a channel, use <code>&lt;-</code> as a binary
 operator.  To
@@ -561,38 +591,38 @@ functions, channels are passed by reference.
 
 <p>
 The Go library provides mutexes, but you can also use
-a single process with a shared channel.
+a single goroutine with a shared channel.
 Here is an example of using a manager function to control access to a
 single value.
 
 <pre>
 type cmd struct { get bool; val int }
 func manager(ch chan cmd) {
-  var val int = 0;
-  for {
-    c := &lt;- ch
-    if c.get { c.val = val; ch &lt;- c }
-    else { val = c.val }
-  }
+	var val int = 0;
+	for {
+		c := &lt;- ch
+		if c.get { c.val = val; ch &lt;- c }
+		else { val = c.val }
+	}
 }
 </pre>
 
 <p>
 In that example the same channel is used for input and output.  This
-means that if two processes try to retrieve the value at the same
-time, the first process may read the response which was triggered by
-the second process's request. In simple cases that is fine.  For more
+means that if two goroutines try to retrieve the value at the same
+time, the first goroutine may read the response which was triggered by
+the second goroutine's request. In simple cases that is fine.  For more
 complex cases, pass in a channel.
 
 <pre>
 type cmd2 struct { get bool; val int; ch &lt;- chan int; }
 func manager2(ch chan cmd2) {
-  var val int = 0;
-  for {
-    c := &lt;- ch
-    if c.get { c.ch &lt;- val }
-    else { val = c.val }
-  }
+	var val int = 0;
+	for {
+		c := &lt;- ch
+		if c.get { c.ch &lt;- val }
+		else { val = c.val }
+	}
 }
 </pre>
 
@@ -601,9 +631,9 @@ To use manager2, given a channel to it:
 
 <pre>
 func f4(ch &lt;- chan cmd2) int {
-  my_ch := make(chan int);
-  c := cmd2 { true, 0, my_ch };  // Composite literal syntax.
-  ch &lt;- c;
-  return &lt;- my_ch;
+	myCh := make(chan int);
+	c := cmd2{ true, 0, myCh };  // Composite literal syntax.
+	ch &lt;- c;
+	return &lt;- myCh;
 }
 </pre>
