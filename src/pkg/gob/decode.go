@@ -355,13 +355,18 @@ type decEngine struct {
 }
 
 func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer, p uintptr, indir int) os.Error {
-	if indir > 0 {
+	for ; indir > 0; indir-- {
 		up := unsafe.Pointer(p);
 		if *(*unsafe.Pointer)(up) == nil {
-			// Allocate the structure by making a slice of bytes and recording the
+			// Allocate object by making a slice of bytes and recording the
 			// address of the beginning of the array. TODO(rsc).
-			b := make([]byte, rtyp.Size());
-			*(*unsafe.Pointer)(up) = unsafe.Pointer(&b[0]);
+			if indir > 1 {	// allocate a pointer
+				b := make([]byte, unsafe.Sizeof((*int)(nil)));
+				*(*unsafe.Pointer)(up) = unsafe.Pointer(&b[0]);
+			} else {	// allocate a struct
+				b := make([]byte, rtyp.Size());
+				*(*unsafe.Pointer)(up) = unsafe.Pointer(&b[0]);
+			}
 		}
 		p = *(*uintptr)(up);
 	}
@@ -753,15 +758,10 @@ func getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err os.Error) {
 }
 
 func decode(b *bytes.Buffer, wireId typeId, e interface{}) os.Error {
-	// Dereference down to the underlying object.
+	// Dereference down to the underlying struct type.
 	rt, indir := indirect(reflect.Typeof(e));
-	v := reflect.NewValue(e);
-	for i := 0; i < indir; i++ {
-		v = reflect.Indirect(v);
-	}
-	var st *reflect.StructValue;
-	var ok bool;
-	if st, ok = v.(*reflect.StructValue); !ok {
+	st, ok := rt.(*reflect.StructType);
+	if !ok {
 		return os.ErrorString("gob: decode can't handle " + rt.String());
 	}
 	typeLock.Lock();
@@ -779,7 +779,7 @@ func decode(b *bytes.Buffer, wireId typeId, e interface{}) os.Error {
 		name := rt.Name();
 		return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name);
 	}
-	return decodeStruct(engine, rt.(*reflect.StructType), b, uintptr(v.Addr()), 0);
+	return decodeStruct(engine, st, b, uintptr(reflect.NewValue(e).Addr()), indir);
 }
 
 func init() {

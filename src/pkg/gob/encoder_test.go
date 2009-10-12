@@ -245,6 +245,9 @@ func TestBadData(t *testing.T) {
 // Types not supported by the Encoder (only structs work at the top level).
 // Basic types work implicitly.
 var unsupportedValues = []interface{} {
+	3,
+	"hi",
+	7.2,
 	[]int{ 1, 2, 3 },
 	[3]int{ 1, 2, 3 },
 	make(chan int),
@@ -261,5 +264,58 @@ func TestUnsupported(t *testing.T) {
 		if err == nil {
 			t.Errorf("expected error for %T; got none", v)
 		}
+	}
+}
+
+func encAndDec(in, out interface{}) os.Error {
+	b := new(bytes.Buffer);
+	enc := NewEncoder(b);
+	enc.Encode(in);
+	if enc.state.err != nil {
+		return enc.state.err
+	}
+	dec := NewDecoder(b);
+	dec.Decode(out);
+	if dec.state.err != nil {
+		return dec.state.err
+	}
+	return nil;
+}
+
+func TestTypeToPtrType(t *testing.T) {
+	// Encode a T, decode a *T
+	type Type0 struct { a int }
+	t0 := Type0{7};
+	t0p := (*Type0)(nil);
+	if err := encAndDec(t0, t0p); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPtrTypeToType(t *testing.T) {
+	// Encode a *T, decode a T
+	type Type1 struct { a uint }
+	t1p := &Type1{17};
+	var t1 Type1;
+	if err := encAndDec(t1, t1p); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestTypeToPtrPtrPtrPtrType(t *testing.T) {
+	// Encode a *T, decode a T
+	type Type2 struct { a ****float }
+	t2 := Type2{};
+	t2.a = new(***float);
+	*t2.a = new(**float);
+	**t2.a = new(*float);
+	***t2.a = new(float);
+	****t2.a = 27.4;
+	t2pppp := new(***Type2);
+	if err := encAndDec(t2, t2pppp); err != nil {
+		t.Error(err)
+	}
+	if ****(****t2pppp).a != ****t2.a {
+		t.Errorf("wrong value after decode: %g not %g", ****(****t2pppp).a, ****t2.a);
 	}
 }
