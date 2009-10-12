@@ -45,6 +45,14 @@ func opaque(m image.Image) bool {
 	return true;
 }
 
+// The absolute value of a byte interpreted as a signed int8.
+func abs8(d uint8) int {
+	if d < 128 {
+		return int(d);
+	}
+	return 256-int(d);
+}
+
 func (e *encoder) writeChunk(b []byte, name string) {
 	if e.err != nil {
 		return;
@@ -123,11 +131,97 @@ func (e *encoder) Write(b []byte) (int, os.Error) {
 }
 
 // Chooses the filter to use for encoding the current row, and applies it.
-func filter(cr, pr []byte) {
-	// TODO(nigeltao): For simplicity of implementation, this always picks the no-op filter.
-	// To do this properly, we should use the same "minimize sum of absolute differences"
-	// filter-choosing heuristic that libpng does.
-	cr[0] = ftNone;
+// The return value is the index of the filter and also of the row in cr that has had it applied.
+func filter(cr [][]byte, pr []byte, bpp int) int {
+	// We try all five filter types, and pick the one that minimizes the sum of absolute differences.
+	// This is the same heuristic that libpng uses, although the filters are attempted in order of
+	// estimated most likely to be minimal (ftUp, ftPaeth, ftNone, ftSub, ftAverage), rather than
+	// in their enumeration order (ftNone, ftSub, ftUp, ftAverage, ftPaeth).
+	cdat0 := cr[0][1 : len(cr[0])];
+	cdat1 := cr[1][1 : len(cr[1])];
+	cdat2 := cr[2][1 : len(cr[2])];
+	cdat3 := cr[3][1 : len(cr[3])];
+	cdat4 := cr[4][1 : len(cr[4])];
+	pdat := pr[1 : len(pr)];
+	n := len(cdat0);
+
+	// The up filter.
+	sum := 0;
+	for i := 0; i < n; i++ {
+		cdat2[i] = cdat0[i] - pdat[i];
+		sum += abs8(cdat2[i]);
+	}
+	best := sum;
+	filter := ftUp;
+
+	// The Paeth filter.
+	sum = 0;
+	for i := 0; i < bpp; i++ {
+		cdat4[i] = cdat0[i] - paeth(0, pdat[i], 0);
+		sum += abs8(cdat4[i]);
+	}
+	for i := bpp; i < n; i++ {
+		cdat4[i] = cdat0[i] - paeth(cdat0[i-bpp], pdat[i], pdat[i-bpp]);
+		sum += abs8(cdat4[i]);
+		if sum >= best {
+			break;
+		}
+	}
+	if sum < best {
+		best = sum;
+		filter = ftPaeth;
+	}
+
+	// The none filter.
+	sum = 0;
+	for i := 0; i < n; i++ {
+		sum += abs8(cdat0[i]);
+		if sum >= best {
+			break;
+		}
+	}
+	if sum < best {
+		best = sum;
+		filter = ftNone;
+	}
+
+	// The sub filter.
+	sum = 0;
+	for i := 0; i < bpp; i++ {
+		cdat1[i] = cdat0[i];
+		sum += abs8(cdat1[i]);
+	}
+	for i := bpp; i < n; i++ {
+		cdat1[i] = cdat0[i] - cdat0[i-bpp];
+		sum += abs8(cdat1[i]);
+		if sum >= best {
+			break;
+		}
+	}
+	if sum < best {
+		best = sum;
+		filter = ftSub;
+	}
+
+	// The average filter.
+	sum = 0;
+	for i := 0; i < bpp; i++ {
+		cdat3[i] = cdat0[i] - pdat[i] / 2;
+		sum += abs8(cdat3[i]);
+	}
+	for i := bpp; i < n; i++ {
+		cdat3[i] = cdat0[i] - uint8((int(cdat0[i-bpp]) + int(pdat[i]))/2);
+		sum += abs8(cdat3[i]);
+		if sum >= best {
+			break;
+		}
+	}
+	if sum < best {
+		best = sum;
+		filter = ftAverage;
+	}
+
+	return filter;
 }
 
 func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
@@ -148,10 +242,17 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 	case ctTrueColorAlpha:
 		bpp = 4;
 	}
-	// cr and pr are the bytes for the current and previous row.
-	// The +1 is for the per-row filter type, which is at cr[0].
-	cr := make([]uint8, 1 + bpp * m.Width());
-	pr := make([]uint8, 1 + bpp * m.Width());
+	// cr[*] and pr are the bytes for the current and previous row.
+	// cr[0] is unfiltered (or equivalently, filtered with the ftNone filter).
+	// cr[ft], for non-zero filter types ft, are buffers for transforming cr[0] under the
+	// other PNG filter types. These buffers are allocated once and re-used for each row.
+	// The +1 is for the per-row filter type, which is at cr[*][0].
+	var cr [nFilter][]uint8;
+	for i := 0; i < len(cr); i++ {
+		cr[i] = make([]uint8, 1 + bpp*m.Width());
+		cr[i][0] = uint8(i);
+	}
+	pr := make([]uint8, 1 + bpp*m.Width());
 
 	for y := 0; y < m.Height(); y++ {
 		// Convert from colors to bytes.
@@ -160,36 +261,36 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 			for x := 0; x < m.Width(); x++ {
 				// We have previously verified that the alpha value is fully opaque.
 				r, g, b, _ := m.At(x, y).RGBA();
-				cr[3*x + 1] = uint8(r>>24);
-				cr[3*x + 2] = uint8(g>>24);
-				cr[3*x + 3] = uint8(b>>24);
+				cr[0][3*x + 1] = uint8(r>>24);
+				cr[0][3*x + 2] = uint8(g>>24);
+				cr[0][3*x + 3] = uint8(b>>24);
 			}
 		case ctPaletted:
 			for x := 0; x < m.Width(); x++ {
-				cr[x+1] = paletted.ColorIndexAt(x, y);
+				cr[0][x+1] = paletted.ColorIndexAt(x, y);
 			}
 		case ctTrueColorAlpha:
 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
 			for x := 0; x < m.Width(); x++ {
 				c := image.NRGBAColorModel.Convert(m.At(x, y)).(image.NRGBAColor);
-				cr[4*x + 1] = c.R;
-				cr[4*x + 2] = c.G;
-				cr[4*x + 3] = c.B;
-				cr[4*x + 4] = c.A;
+				cr[0][4*x + 1] = c.R;
+				cr[0][4*x + 2] = c.G;
+				cr[0][4*x + 3] = c.B;
+				cr[0][4*x + 4] = c.A;
 			}
 		}
 
 		// Apply the filter.
-		filter(cr, pr);
+		f := filter(cr[0:nFilter], pr, bpp);
 
 		// Write the compressed bytes.
-		_, err = zw.Write(cr);
+		_, err = zw.Write(cr[f]);
 		if err != nil {
 			return err;
 		}
 
 		// The current row for y is the previous row for y+1.
-		pr, cr = cr, pr;
+		pr, cr[0] = cr[0], pr;
 	}
 	return nil;
 }
