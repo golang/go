@@ -64,7 +64,7 @@ func Index(s, sep string) int {
 	return -1
 }
 
-// Index returns the index of the last instance of sep in s, or -1 if sep is not present in s.
+// LastIndex returns the index of the last instance of sep in s, or -1 if sep is not present in s.
 func LastIndex(s, sep string) int {
 	n := len(sep);
 	if n == 0 {
