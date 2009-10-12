@@ -638,6 +638,9 @@ dostkoff(void)
 
 			q = P;
 			q1 = P;
+			if((p->from.scale & NOSPLIT) && autoffset >= StackSmall)
+				diag("nosplit func likely to overflow stack");
+
 			if(!(p->from.scale & NOSPLIT)) {
 				if(debug['K']) {
 					// 6l -K means check not only for stack
@@ -792,8 +795,44 @@ dostkoff(void)
 				if(q != P)
 					q->pcond = p;
 			}
-
 			deltasp = autoffset;
+
+			if(debug['K'] > 1 && autoffset) {
+				// 6l -KK means double-check for stack overflow
+				// even after calling morestack and even if the
+				// function is marked as nosplit.
+				p = appendp(p);
+				p->as = AMOVQ;
+				p->from.type = D_INDIR+D_R15;
+				p->from.offset = 0;
+				p->to.type = D_BX;
+
+				p = appendp(p);
+				p->as = ASUBQ;
+				p->from.type = D_CONST;
+				p->from.offset = StackSmall+32;
+				p->to.type = D_BX;
+
+				p = appendp(p);
+				p->as = ACMPQ;
+				p->from.type = D_SP;
+				p->to.type = D_BX;
+
+				p = appendp(p);
+				p->as = AJHI;
+				p->to.type = D_BRANCH;
+				q1 = p;
+
+				p = appendp(p);
+				p->as = AINT;
+				p->from.type = D_CONST;
+				p->from.offset = 3;
+
+				p = appendp(p);
+				p->as = ANOP;
+				q1->pcond = p;
+				q1 = P;
+			}
 		}
 		pcsize = p->mode/8;
 		a = p->from.type;
@@ -844,13 +883,12 @@ dostkoff(void)
 			goto become;
 
 		if(autoffset) {
-			q = p;
+			p->as = AADJSP;
+			p->from.type = D_CONST;
+			p->from.offset = -autoffset;
+
 			p = appendp(p);
 			p->as = ARET;
-
-			q->as = AADJSP;
-			q->from.type = D_CONST;
-			q->from.offset = -autoffset;
 		}
 		continue;
 

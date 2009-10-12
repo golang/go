@@ -25,10 +25,7 @@ cgocall(void (*fn)(void*), void *arg)
 	 * foreign code.
 	 */
 	sys·entersyscall();
-	g->cgofn = fn;
-	g->cgoarg = arg;
-	g->status = Gcgocall;
-	gosched();
+	runcgo(fn, arg);
 	sys·exitsyscall();
 	return;
 }

@@ -4,7 +4,7 @@
 
 #include "runtime.h"
 
-static Lock debuglock;
+//static Lock debuglock;
 
 void
 dump(byte *p, int32 n)
@@ -37,7 +37,7 @@ printf(int8 *s, ...)
 	int8 *p, *lp;
 	byte *arg, *narg;
 
-	lock(&debuglock);
+//	lock(&debuglock);
 
 	lp = p = s;
 	arg = (byte*)(&s+1);
@@ -100,7 +100,7 @@ printf(int8 *s, ...)
 	if(p > lp)
 		write(1, lp, p-lp);
 
-	unlock(&debuglock);
+//	unlock(&debuglock);
 }
 
 
