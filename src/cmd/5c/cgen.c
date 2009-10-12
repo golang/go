@@ -916,12 +916,12 @@ sugen(Node *n, Node *nn, int32 w)
 			reglcgen(&nod1, nn, Z);
 			nn->type = t;
 
-			if(1 || align(0, types[TCHAR], Aarg1))	/* isbigendian */
+			if(isbigendian)
 				gopcode(OAS, nod32const(n->vconst>>32), Z, &nod1);
 			else
 				gopcode(OAS, nod32const(n->vconst), Z, &nod1);
 			nod1.xoffset += SZ_LONG;
-			if(1 || align(0, types[TCHAR], Aarg1))	/* isbigendian */
+			if(isbigendian)
 				gopcode(OAS, nod32const(n->vconst), Z, &nod1);
 			else
 				gopcode(OAS, nod32const(n->vconst>>32), Z, &nod1);

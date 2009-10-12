@@ -175,6 +175,7 @@ EXTERN	int32	continpc;
 EXTERN	int32	curarg;
 EXTERN	int32	cursafe;
 EXTERN	Prog*	firstp;
+EXTERN	int32	isbigendian;
 EXTERN	Prog*	lastp;
 EXTERN	int32	maxargsafe;
 EXTERN	int	mnstring;

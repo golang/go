@@ -34,19 +34,19 @@ typedef signed char     schar;
 typedef struct  Vlong   Vlong;
 struct  Vlong
 {
-        union
-        {
-                struct
-                {
-                        ulong   hi;
-                        ulong   lo;
-                };
-                struct
-                {
-                        ushort  hims;
-                        ushort  hils;
-                        ushort  loms;
-                        ushort  lols;
+	union
+	{
+		struct
+		{
+			ulong   lo;
+			ulong   hi;
+		};
+		struct
+		{
+			ushort lols;
+			ushort loms;
+			ushort hils;
+			ushort hims;
                 };
         };
 };

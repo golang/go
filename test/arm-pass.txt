@@ -243,6 +243,7 @@ interface/returntype.go
 interface/struct.go
 iota.go
 ken/complit.go
+ken/divmod.go
 ken/embed.go
 ken/for.go
 ken/interbasic.go
@@ -262,6 +263,7 @@ ken/simpfun.go
 ken/simpprint.go
 ken/simpswitch.go
 ken/simpvar.go
+ken/string.go
 ken/strvar.go
 method.go
 method1.go
