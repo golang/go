@@ -71,6 +71,8 @@ char *sysimport =
 	"func sys.uint64div (? uint64, ? uint64) (? uint64)\n"
 	"func sys.int64mod (? int64, ? int64) (? int64)\n"
 	"func sys.uint64mod (? uint64, ? uint64) (? uint64)\n"
+	"func sys.float64toint64 (? float64) (? int64)\n"
+	"func sys.int64tofloat64 (? int64) (? float64)\n"
 	"\n"
 	"$$\n";
 char *unsafeimport =
