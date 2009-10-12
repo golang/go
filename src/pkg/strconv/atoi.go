@@ -35,19 +35,42 @@ func cutoff64(base int) uint64 {
 }
 
 // Btoui64 interprets a string s in an arbitrary base b (2 to 36)
-// and returns the corresponding value n.
+// and returns the corresponding value n.  If b == 0, the base
+// is taken from the string prefix: base 16 for "0x", base 8 for "0",
+// and base 10 otherwise.
 //
 // The errors that Btoui64 returns have concrete type *NumError
 // and include err.Num = s.  If s is empty or contains invalid
 // digits, err.Error = os.EINVAL; if the value corresponding
 // to s cannot be represented by a uint64, err.Error = os.ERANGE.
 func Btoui64(s string, b int) (n uint64, err os.Error) {
-	if b < 2 || b > 36 {
-		err = os.ErrorString("invalid base " + Itoa(b));
-		goto Error;
-	}
-	if len(s) < 1 {
+	s0 := s;
+	switch {
+	case len(s) < 1:
 		err = os.EINVAL;
+		goto Error;
+
+	case 2 <= b && b <= 36:
+		// valid base; nothing to do
+
+	case b == 0:
+		// Look for octal, hex prefix.
+		switch {
+		case s[0] == '0' && len(s) > 1 && (s[1] == 'x' || s[1] == 'X'):
+			b = 16;
+			s = s[2:len(s)];
+			if len(s) < 1 {
+				err = os.EINVAL;
+				goto Error;
+			}
+		case s[0] == '0':
+			b = 8;
+		default:
+			b = 10;
+		}
+
+	default:
+		err = os.ErrorString("invalid base " + Itoa(b));
 		goto Error;
 	}
 
@@ -95,42 +118,21 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 	return n, nil;
 
 Error:
-	return n, &NumError{s, err};
+	return n, &NumError{s0, err};
 }
 
-// Atoui64 interprets a string s as an unsigned decimal, octal, or
-// hexadecimal number and returns the corresponding value n.
-// The default base is decimal.  Strings beginning with 0x are
-// hexadecimal; strings beginning with 0 are octal.
+// Atoui64 interprets a string s as a decimal number and
+// returns the corresponding value n.
 //
 // Atoui64 returns err == os.EINVAL if s is empty or contains invalid digits.
 // It returns err == os.ERANGE if s cannot be represented by a uint64.
 func Atoui64(s string) (n uint64, err os.Error) {
-	// Empty string bad.
-	if len(s) == 0 {
-		return 0, &NumError{s, os.EINVAL};
-	}
-
-	// Look for octal, hex prefix.
-	switch {
-	case s[0] == '0' && len(s) > 1 && (s[1] == 'x' || s[1] == 'X'):
-		n, err = Btoui64(s[2:len(s)], 16);
-	case s[0] == '0':
-		n, err = Btoui64(s, 8);
-	default:
-		n, err = Btoui64(s, 10);
-	}
-
-	if err != nil {
-		err.(*NumError).Num = s;
-	}
-	return;
+	return Btoui64(s, 10);
 }
 
-
-// Atoi64 is like Atoui64 but allows signed numbers and
+// Btoi64 is like Btoui64 but allows signed numbers and
 // returns its result in an int64.
-func Atoi64(s string) (i int64, err os.Error) {
+func Btoi64(s string, base int) (i int64, err os.Error) {
 	// Empty string bad.
 	if len(s) == 0 {
 		return 0, &NumError{s, os.EINVAL};
@@ -148,7 +150,7 @@ func Atoi64(s string) (i int64, err os.Error) {
 
 	// Convert unsigned and check range.
 	var un uint64;
-	un, err = Atoui64(s);
+	un, err = Btoui64(s, base);
 	if err != nil && err.(*NumError).Error != os.ERANGE {
 		err.(*NumError).Num = s0;
 		return 0, err;
@@ -165,6 +167,13 @@ func Atoi64(s string) (i int64, err os.Error) {
 	}
 	return n, nil;
 }
+
+// Atoi64 is like Atoui64 but allows signed numbers and
+// returns its result in an int64.
+func Atoi64(s string) (i int64, err os.Error) {
+	return Btoi64(s, 10);
+}
+
 
 // Atoui is like Atoui64 but returns its result as a uint.
 func Atoui(s string) (i uint, err os.Error) {
