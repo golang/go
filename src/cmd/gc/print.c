@@ -36,6 +36,35 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case ONONAME:
 	case OPACK:
 	case OLITERAL:
+	case ODOT:
+	case ODOTPTR:
+	case ODOTINTER:
+	case ODOTMETH:
+	case OARRAYBYTESTR:
+	case OCAP:
+	case OCLOSE:
+	case OCLOSED:
+	case OLEN:
+	case OMAKE:
+	case ONEW:
+	case OPANIC:
+	case OPANICN:
+	case OPRINT:
+	case OPRINTN:
+	case OCALL:
+	case OCONV:
+	case OCONVNOP:
+	case OCONVSLICE:
+	case OCONVIFACE:
+	case OMAKESLICE:
+	case ORUNESTR:
+	case OADDR:
+	case OCOM:
+	case OIND:
+	case OMINUS:
+	case ONOT:
+	case OPLUS:
+	case ORECV:
 		nprec = 7;
 		break;
 
@@ -232,6 +261,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 
 	case OINDEX:
 	case OINDEXMAP:
+	case OINDEXSTR:
 		exprfmt(f, n->left, 7);
 		fmtprint(f, "[");
 		exprfmt(f, n->right, 0);
@@ -261,7 +291,12 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OCONVNOP:
 	case OCONVSLICE:
 	case OCONVIFACE:
-		fmtprint(f, "%T(", n->type);
+	case OARRAYBYTESTR:
+	case ORUNESTR:
+		if(n->type->sym == S)
+			fmtprint(f, "(%T)(", n->type);
+		else
+			fmtprint(f, "%T(", n->type);
 		exprfmt(f, n->left, 0);
 		fmtprint(f, ")");
 		break;
@@ -281,6 +316,16 @@ exprfmt(Fmt *f, Node *n, int prec)
 			exprfmt(f, n->left, 0);
 		else
 			exprlistfmt(f, n->list);
+		fmtprint(f, ")");
+		break;
+
+	case OMAKESLICE:
+		fmtprint(f, "make(%#T, ", n->type);
+		exprfmt(f, n->left, 0);
+		if(count(n->list) > 2) {
+			fmtprint(f, ", ");
+			exprfmt(f, n->right, 0);
+		}
 		fmtprint(f, ")");
 		break;
 	}

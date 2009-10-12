@@ -188,7 +188,11 @@ import_stmt:
 		if(my->name[0] == '_' && my->name[1] == '\0')
 			break;
 
-		if(my->def) {
+		// Can end up with my->def->op set to ONONAME
+		// if one package refers to p without importing it.
+		// Don't want to give an error on a good import
+		// in another file.
+		if(my->def && my->def->op != ONONAME) {
 			lineno = $1;
 			redeclare(my, "as imported package name");
 		}
