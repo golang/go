@@ -1,6 +1,6 @@
 <!-- Effective Go -->
 
-<!-- interfaces; slices; embedding; value vs. pointer receivers; methods on anything; errors; testing -->
+<!-- interfaces; cast,conversion, type assertion; embedding; errors; testing; initialization -->
 
 <h2 id="introduction">Introduction</h2>
 
@@ -34,7 +34,7 @@ should read first.
 <h3 id="read">Examples</h3>
 
 <p>
-The <a href="/src/pkg/">Go package sources</a>
+The <a href="http://s2/?dir=//depot2/go/src/pkg">Go package sources</a>
 are intended to serve not
 only as the core library but also as examples of how to
 use the language.
@@ -97,7 +97,6 @@ type T struct {
 
 <p>
 All code in the libraries has been formatted with <code>gofmt</code>.
-<font color=red>TODO</font>
 </p>
 
 
@@ -108,7 +107,7 @@ Some formatting details remain.  Very briefly:
 <dl>
 	<dt>Indentation</dt>
 	<dd>We use tabs for indentation and <code>gofmt</code> emits them by default.
-	Use spaces if you must.
+	Use spaces only if you must.
 	</dd>
 	<dt>Line length</dt>
 	<dd>
@@ -118,7 +117,7 @@ Some formatting details remain.  Very briefly:
 	<dt>Parentheses</dt>
 	<dd>
 	Go needs fewer parentheses: control structures (<code>if</code>,
-	<code>for</code>, <code>switch</code>) do not have parentheses in
+	<code>for</code>, <code>switch</code>) do not require parentheses in
 	their syntax.
 	Also, the operator precedence hierarchy is shorter and clearer, so
 <pre>
@@ -1059,7 +1058,230 @@ structure holding the pointer, length, and capacity) is passed by value.
 
 
 <h3 id="maps">Maps</h3>
+
+<p>
+Maps are a convenient and powerful built-in data structure to associate
+values of different types.
+The key can be of type that implements equality, such as integers,
+floats, strings, pointers, and interfaces  (as long as the dynamic type
+supports equality), but not structs, arrays or slices
+because those types do not have equality defined upon them.
+Like slices, maps are a reference type. If you pass a map to a function
+that changes the contents of the map, the changes will be visible
+in the caller.
+</p>
+<p>
+Maps can be constructed using the usual composite literal syntax
+with colon-separated key-value pairs,
+so it's easy to build them during initialization.
+</p>
+<pre>
+var timeZone = map[string] int {
+	"UTC":  0*60*60,
+	"EST": -5*60*60,
+	"CST": -6*60*60,
+	"MST": -7*60*60,
+	"PST": -8*60*60,
+}
+</pre>
+<p>
+Assigning and fetching map values looks syntactically just like
+doing the same for arrays except that the index doesn't need to
+be an integer.  An attempt to fetch a map value with a key that
+is not present in the map will cause the program to crash, but
+there is a way to do so safely using a multiple assignment.
+</p>
+<pre>
+var seconds int;
+var ok bool;
+seconds, ok = timeZone[tz]
+</pre>
+<p>
+For obvious reasons this is called the &ldquo;comma ok&rdquo; idiom.
+In this example, if <code>tz</code> is present, <code>seconds</code>
+will be set appropriately and <code>ok</code> will be true; if not,
+<code>seconds</code> will be set to zero and <code>ok</code> will
+be false.
+Here's a function that puts it together:
+</p>
+<pre>
+func offset(tz string) int {
+	if seconds, ok := timeZone[tz]; ok {
+		return seconds
+	}
+	log.Stderr("unknown time zone", tz);
+	return 0;
+}
+</pre>
+<p>
+To test for presence in the map without worrying about the actual value,
+you can use the <em>blank identifier</em>, a simple underscore (<code>_</code>).
+The blank identifier can be assigned or declared with any value of any type, with the
+value discarded harmlessly.  For testing presence in a map, use the blank
+identifier in place of the usual variable for the value.
+</p>
+<pre>
+_, present := timeZone[tz];
+</pre>
+<p>
+To delete a map entry, turn the multiple assignment around by placing
+an extra boolean on the right; if the boolean is false, the entry
+is deleted. It's safe to do this even if the key is already absent
+from the map.
+</p>
+<pre>
+timeZone["PDT"] = 0, false;  // Now on Standard Time
+</pre>
 <h3 id="printing">Printing</h3>
+
+<p>
+Formatted printing in Go uses a style similar to C's <code>printf</code>
+family but is richer and more general. The functions live in the <code>fmt</code>
+package and have capitalized names: <code>fmt.Printf</code>, <code>fmt.Fprintf</code>,
+<code>fmt.Sprintf</code> and so on.  The string functions (<code>Sprintf</code> etc.)
+return a string rather than filling in a provided buffer.
+</p>
+<p>
+You don't need to provide a format string.  For each of <code>Printf</code>,
+<code>fmt.Fprintf</code> and <code>fmt.Sprintf</code> there is another pair
+of functions, for instance <code>Print</code> and <code>Println</code>.
+These functions do not take a format string but instead generate a default
+format for each argument. The <code>ln</code> version also inserts a blank
+between arguments if neither is a string and appends a newline to the output.
+In this example each line produces the same output.
+</p>
+<pre>
+fmt.Printf("Hello %d\n", 23);
+fmt.Fprint(os.Stdout, "Hello ", 23, "\n");
+fmt.Println(fmt.Sprint("Hello ", 23));
+</pre>
+<p>
+Recall that <code>fmt.Fprint</code> and friends take as a first argument any object
+that implements the <code>io.Writer</code> interface; the variables <code>os.Stdout</code>
+and <code>os.Stderr</code> are familiar instances.
+</p>
+<p>
+Here things start to diverge from C.  First, the numeric formats such as <code>%d</code>
+do not take flags for signedness or size; instead, the printing routines use the
+type of the argument to decide these properties.
+</p>
+<pre>
+var x uint64 = 1<<64 - 1;
+fmt.Printf("%d %x; %d %x\n", x, x, int64(x), int64(x));
+</pre>
+<p>
+prints
+</p>
+<pre>
+18446744073709551615 ffffffffffffffff; -1 -1
+</pre>
+<p>
+If you just want the default conversion, such as decimal for integers, you can use
+the catchall format <code>%v</code> (for &ldquo;value&rdquo;); the result is exactly
+what <code>Print</code> and <code>Println</code> would produce.
+Moreover, that format can print <em>any</em> value, even arrays, structs, and
+maps.  Here is a print statement for the time zone map defined in the previous section.
+</p>
+<pre>
+fmt.Printf("%v\n", timeZone);  // or just fmt.Println(timeZone);
+</pre>
+<p>
+which gives output
+</p>
+<pre>
+map[CST:-21600 PST:-28800 EST:-18000 UTC:0 MST:-25200]
+</pre>
+<p>
+For maps the keys may be output in any order, of course.
+When printing a struct, the modified format <code>%+v</code> annotates the
+fields of the structure with their names, and for any value the alternate
+format <code>%#v</code> prints the value in full Go syntax.
+</p>
+<pre>
+type T struct {
+	a int;
+	b float;
+	c string;
+}
+t := &amp;T{ 7, -2.35, "abc\tdef" };
+fmt.Printf("%v\n", t);
+fmt.Printf("%+v\n", t);
+fmt.Printf("%#v\n", t);
+fmt.Printf("%#v\n", timeZone);
+</pre>
+<p>
+prints
+</p>
+<pre>
+&amp;{7 -2.35 abc   def}
+&amp;{a:7 b:-2.35 c:abc     def}
+&amp;main.T{a:7, b:-2.35, c:"abc\tdef"}
+map[string] int{"CST":-21600, "PST":-28800, "EST":-18000, "UTC":0, "MST":-25200}
+</pre>
+<p>
+(Note the ampersands.)
+That quoted string format is also available through <code>%q</code> when
+applied to a value of type <code>string</code> or <code>[]byte</code>;
+the alternate format <code>%#q</code> will use backquotes instead if possible.
+Also, <code>%x</code> works on strings and arrays of bytes as well as on integers,
+generating a long hexadecimal string, and with
+a space in the format (<code>%&nbsp;x</code>) it puts spaces between the bytes.
+</p>
+<p>
+Another handy format is <code>%T</code>, which prints the <em>type</em> of a value.
+<pre>
+fmt.Printf(&quot;%T\n&quot;, timeZone);
+</pre>
+<p>
+prints
+</p>
+<pre>
+map[string] int
+</pre>
+<p>
+If you want to control the default format for a custom type, all that's required is to define
+a method <code>String() string</code> on the type.  (Methods are the subject of the next
+section.) For our simple type <code>T</code>, that might look like this.
+</p>
+<pre>
+func (t *T) String() string {
+	return fmt.Sprintf("%d/%g/%q", t.a, t.b, t.c);
+}
+fmt.Printf("%v\n", t);
+</pre>
+<p>
+to print in the format
+</p>
+<pre>
+7/-2.35/"abc\tdef"
+</pre>
+<p>
+Our <code>String()</code> method is able to call <code>Sprintf</code> because the
+print routines are fully reentrant and can be used recursively.
+We can even go one step further and pass a print routine's arguments directly to another such routine.
+The signature of <code>Printf</code> uses the <code>...</code>
+type for its final argument to specify that an arbitrary number of parameters can appear
+after the format.
+</p>
+<pre>
+func Printf(format string, v ...) (n int, errno os.Error) {
+</pre>
+<p>
+Within the function <code>Printf</code>, <code>v</code> is a variable that can be passed,
+for instance, to another print routine.  Here is the implementation of the
+function <code>log.Stderr</code> we used above. It passes its arguments directly to
+<code>fmt.Sprintln</code> for the actual formatting.
+</p>
+<pre>
+// Stderr is a helper function for easy logging to stderr. It is analogous to Fprint(os.Stderr).
+func Stderr(v ...) {
+	stderr.Output(2, fmt.Sprintln(v));  // Output takes parameters (int, string)
+}
+</pre>
+<p>
+There's even more to printing than we've covered here.  See the <code>godoc</code> documentation
+for package <code>fmt</code> for the details.
+</p>
 
 <h2>Methods</h2>
 
@@ -1112,7 +1334,7 @@ print into one:
 </p>
 <pre>
 	var b ByteSlice;
-	fmt.Fprintf(&amp;b, "This minute has %d seconds\n", 61);
+	fmt.Fprintf(&amp;b, "This hour has %d days\n", 7);
 </pre>
 <p>
 Notice that we must pass the address of a <code>ByteSlice</code>
@@ -1159,7 +1381,7 @@ Implementations of <code>os.Error</code> should
 describe the error and provide context.
 For example, <code>os.Open</code> returns an <code>os.PathError</code>:
 
-<a href="/src/pkg/os/file.go">/src/pkg/os/file.go</a>:
+<a href="http://go/godoc/src/pkg/os/file.go">http://go/godoc/src/pkg/os/file.go</a>:
 <pre>
 // PathError records an error and the operation and
 // file path that caused it.
