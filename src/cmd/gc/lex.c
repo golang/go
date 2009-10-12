@@ -1476,19 +1476,16 @@ mkpackage(char* pkg)
 					// TODO(rsc): remember that there was a package
 					// name, so that the name cannot be redeclared
 					// as a non-package in other files.
-					if(!s->def->used) {
-						print("%L: imported and not used: %s\n", s->def->lineno, s->def->sym->name);
-						nerrors++;
-					}
+					if(!s->def->used && !nsyntaxerrors)
+						yyerrorl(s->def->lineno, "imported and not used: %s", s->def->sym->name);
 					s->def = N;
 					continue;
 				}
 				if(s->def->sym != s) {
 					// throw away top-level name left over
 					// from previous import . "x"
-					if(s->def->pack != N && !s->def->pack->used) {
-						print("%L: imported and not used: %s\n", s->def->pack->lineno, s->def->pack->sym->name);
-						nerrors++;
+					if(s->def->pack != N && !s->def->pack->used && !nsyntaxerrors) {
+						yyerrorl(s->def->pack->lineno, "imported and not used: %s", s->def->pack->sym->name);
 						s->def->pack->used = 1;
 					}
 					s->def = N;

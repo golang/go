@@ -1191,7 +1191,8 @@ xdcl_list:
 |	xdcl_list xdcl
 	{
 		$$ = concat($1, $2);
-		testdclstack();
+		if(nsyntaxerrors == 0)
+			testdclstack();
 	}
 
 vardcl_list:
