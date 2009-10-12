@@ -112,6 +112,21 @@ func Index(s, sep []byte) int {
 	return -1;
 }
 
+// LastIndex returns the index of the last instance of sep in s, or -1 if sep is not present in s.
+func LastIndex(s, sep []byte) int {
+	n := len(sep);
+	if n == 0 {
+		return len(s);
+	}
+	c := sep[0];
+	for i := len(s)-n; i >= 0; i-- {
+		if s[i] == c && (n == 1 || Equal(s[i : i+n], sep)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 // Split splits the array s around each instance of sep, returning an array of subarrays of s.
 // If sep is empty, Split splits s after each UTF-8 sequence.
 // If n > 0, split Splits s into at most n subarrays; the last subarray will contain an unsplit remainder.

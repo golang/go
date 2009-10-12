@@ -41,7 +41,7 @@ hash/adler32.install: hash.install os.install
 hash/crc32.install: hash.install os.install
 http.install: bufio.install bytes.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
 image.install:
-image/png.install: compress/zlib.install hash.install hash/crc32.install image.install io.install os.install
+image/png.install: bufio.install compress/zlib.install hash.install hash/crc32.install image.install io.install os.install strconv.install
 io.install: bytes.install os.install strings.install sync.install
 json.install: bytes.install container/vector.install fmt.install math.install reflect.install strconv.install strings.install utf8.install
 log.install: fmt.install io.install os.install runtime.install time.install
@@ -58,7 +58,7 @@ rpc.install: bufio.install fmt.install gob.install http.install io.install log.i
 runtime.install:
 sort.install:
 strconv.install: bytes.install math.install os.install unicode.install utf8.install
-strings.install: unicode.install utf8.install
+strings.install: os.install unicode.install utf8.install
 sync.install:
 syscall.install: sync.install
 tabwriter.install: bytes.install container/vector.install io.install os.install utf8.install
