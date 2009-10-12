@@ -355,18 +355,16 @@ type decEngine struct {
 }
 
 func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer, p uintptr, indir int) os.Error {
-	for ; indir > 0; indir-- {
+	if indir > 0 {
 		up := unsafe.Pointer(p);
+		if indir > 1 {
+			up = decIndirect(up, indir)
+		}
 		if *(*unsafe.Pointer)(up) == nil {
 			// Allocate object by making a slice of bytes and recording the
 			// address of the beginning of the array. TODO(rsc).
-			if indir > 1 {	// allocate a pointer
-				b := make([]byte, unsafe.Sizeof((*int)(nil)));
-				*(*unsafe.Pointer)(up) = unsafe.Pointer(&b[0]);
-			} else {	// allocate a struct
-				b := make([]byte, rtyp.Size());
-				*(*unsafe.Pointer)(up) = unsafe.Pointer(&b[0]);
-			}
+			b := make([]byte, rtyp.Size());
+			*(*unsafe.Pointer)(up) = unsafe.Pointer(&b[0]);
 		}
 		p = *(*uintptr)(up);
 	}
