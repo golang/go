@@ -7,9 +7,21 @@
 #include	"y.tab.h"
 #include	"opnames.h"
 
+typedef struct Error Error;
+struct Error
+{
+	int lineno;
+	int seq;
+	char *msg;
+};
+static Error *err;
+static int nerr;
+static int merr;
+
 void
 errorexit(void)
 {
+	flusherrors();
 	if(outfile)
 		remove(outfile);
 	exit(1);
@@ -24,26 +36,106 @@ parserline(void)
 	return lineno;
 }
 
+static void
+adderr(int line, char *fmt, va_list arg)
+{
+	Fmt f;
+	Error *p;
+	
+	fmtstrinit(&f);
+	fmtprint(&f, "%L: ", line);
+	fmtvprint(&f, fmt, arg);
+	fmtprint(&f, "\n");
+	
+	if(nerr >= merr) {
+		if(merr == 0)
+			merr = 16;
+		else
+			merr *= 2;
+		p = realloc(err, merr*sizeof err[0]);
+		if(p == nil) {
+			merr = nerr;
+			flusherrors();
+			print("out of memory\n");
+			errorexit();
+		}
+		err = p;
+	}
+	err[nerr].seq = nerr;
+	err[nerr].lineno = line;
+	err[nerr].msg = fmtstrflush(&f);
+	nerr++;
+}
+
+static int
+errcmp(const void *va, const void *vb)
+{
+	Error *a, *b;
+	
+	a = (Error*)va;
+	b = (Error*)vb;
+	if(a->lineno != b->lineno)
+		return a->lineno - b->lineno;
+	if(a->seq != b->seq)
+		return a->seq - b->seq;
+	return 0;
+}
+
+void
+flusherrors(void)
+{
+	int i;
+
+	if(nerr == 0)
+		return;
+	qsort(err, nerr, sizeof err[0], errcmp);
+	for(i=0; i<nerr; i++)
+		print("%s", err[i].msg);
+	nerr = 0;
+}
+
+static void
+hcrash(void)
+{
+	if(debug['h']) {
+		flusherrors();
+		if(outfile)
+			unlink(outfile);
+		*(int*)0 = 0;
+	}
+}
+
+void
+yyerrorl(int line, char *fmt, ...)
+{
+	va_list arg;
+	
+	va_start(arg, fmt);
+	adderr(line, fmt, arg);
+	va_end(arg);
+	
+	hcrash();
+	nerrors++;
+	if(nerrors >= 10 && !debug['e'])
+		fatal("too many errors");
+}
+
 void
 yyerror(char *fmt, ...)
 {
 	va_list arg;
 
 	if(strcmp(fmt, "syntax error") == 0) {
-		print("%L: syntax error near %s\n", lexlineno, lexbuf);
+		yyerrorl(lexlineno, "syntax error near %s", lexbuf);
 		nsyntaxerrors++;
-		goto out;
+		return;
 	}
 
-	print("%L: ", parserline());
 	va_start(arg, fmt);
-	vfprint(1, fmt, arg);
+	adderr(parserline(), fmt, arg);
 	va_end(arg);
-	print("\n");
 
-out:
-	if(debug['h'])
-		*(int*)0 = 0;
+	hcrash();
 	nerrors++;
 	if(nerrors >= 10 && !debug['e'])
 		fatal("too many errors");
@@ -54,13 +146,11 @@ warn(char *fmt, ...)
 {
 	va_list arg;
 
-	print("%L: ", lineno);
 	va_start(arg, fmt);
-	vfprint(1, fmt, arg);
+	adderr(parserline(), fmt, arg);
 	va_end(arg);
-	print("\n");
-	if(debug['h'])
-		*(int*)0 = 0;
+
+	hcrash();
 }
 
 void
@@ -68,16 +158,15 @@ fatal(char *fmt, ...)
 {
 	va_list arg;
 
+	flusherrors();
+
 	print("%L: fatal error: ", lineno);
 	va_start(arg, fmt);
 	vfprint(1, fmt, arg);
 	va_end(arg);
 	print("\n");
-	if(debug['h']) {
-		if(outfile)
-			unlink(outfile);
-		*(int*)0 = 0;
-	}
+
+	hcrash();
 	errorexit();
 }
 
@@ -269,8 +358,7 @@ importdot(Sym *opkg, Node *pack)
 	}
 	if(n == 0) {
 		// can't possibly be used - there were no symbols
-		print("%L: imported and not used: %s\n", pack->lineno, pack->sym->name);
-		nerrors++;
+		yyerrorl(pack->lineno, "imported and not used: %s", pack->sym->name);
 	}
 }
 
@@ -285,6 +373,7 @@ gethunk(void)
 		nh = 10L*NHUNK;
 	h = (char*)malloc(nh);
 	if(h == (char*)-1) {
+		flusherrors();
 		yyerror("out of memory");
 		errorexit();
 	}
@@ -2846,19 +2935,21 @@ runifacechecks(void)
 			needexplicit = 1;
 		}
 		if(wrong) {
-			yyerror("%T is not %T\n\tmissing %S%hhT",
-				t, iface, m->sym, m->type);
 			if(samename)
-				print("\tdo have %S%hhT\n", samename->sym, samename->type);
+				yyerror("%T is not %T\n\tmissing %S%hhT\n\tdo have %S%hhT",
+					t, iface, m->sym, m->type, samename->sym, samename->type);
+			else
+				yyerror("%T is not %T\n\tmissing %S%hhT", t, iface, m->sym, m->type);
 		}
 		else if(!p->explicit && needexplicit) {
 			if(m) {
-				yyerror("need type assertion to use %T as %T\n\tmissing %S%hhT",
-					p->src, p->dst, m->sym, m->type);
 				if(samename)
-					print("\tdo have %S%hhT\n", samename->sym, samename->type);
-			}
-			else
+					yyerror("need type assertion to use %T as %T\n\tmissing %S %hhT\n\tdo have %S%hhT",
+						p->src, p->dst, m->sym, m->type, samename->sym, samename->type);
+				else
+					yyerror("need type assertion to use %T as %T\n\tmissing %S%hhT",
+						p->src, p->dst, m->sym, m->type);
+			} else
 				yyerror("need type assertion to use %T as %T",
 					p->src, p->dst);
 		}

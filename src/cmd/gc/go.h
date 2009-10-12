@@ -792,6 +792,8 @@ Sym*	pkglookup(char*, char*);
 Sym*	restrictlookup(char*, char*);
 void	importdot(Sym*, Node*);
 void	yyerror(char*, ...);
+void	yyerrorl(int, char*, ...);
+void	flusherrors(void);
 int	parserline(void);
 void	warn(char*, ...);
 void	fatal(char*, ...);

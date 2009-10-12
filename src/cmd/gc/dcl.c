@@ -1193,10 +1193,8 @@ addmethod(Sym *sf, Type *t, int local)
 			fatal("addmethod: not TFIELD: %N", f);
 		if(strcmp(sf->name, f->sym->name) != 0)
 			continue;
-		if(!eqtype(t, f->type)) {
-			yyerror("method redeclared: %T.%S", pa, sf);
-			print("\t%T\n\t%T\n", f->type, t);
-		}
+		if(!eqtype(t, f->type))
+			yyerror("method redeclared: %T.%S\n\t%T\n\t%T", pa, sf, f->type, t);
 		return;
 	}
 

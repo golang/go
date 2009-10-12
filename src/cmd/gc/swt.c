@@ -395,9 +395,7 @@ mkcaselist(Node *sw, int arg)
 			if(typecmp(c1, c1->link) != 0)
 				continue;
 			setlineno(c1->link->node);
-			yyerror("duplicate case in switch");
-			print("\tprevious case at %L\n",
-				c1->node->lineno);
+			yyerror("duplicate case in switch\n\tprevious case at %L", c1->node->lineno);
 		}
 		break;
 	case Snorm:
@@ -408,9 +406,7 @@ mkcaselist(Node *sw, int arg)
 			if(exprcmp(c1, c1->link) != 0)
 				continue;
 			setlineno(c1->link->node);
-			yyerror("duplicate case in switch");
-			print("\tprevious case at %L\n",
-				c1->node->lineno);
+			yyerror("duplicate case in switch\n\tprevious case at %L", c1->node->lineno);
 		}
 		break;
 	}
