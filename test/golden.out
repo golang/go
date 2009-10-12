@@ -166,7 +166,3 @@ BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
 too many calls: 5
 panic PC=xxx
 BUG: bug196
-
-=========== bugs/bug209.go
-bugs/bug209.go:11: BUG: should compile
-Bus error               $G $D/$F.go
