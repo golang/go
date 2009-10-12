@@ -49,7 +49,8 @@ cgen64(Node *n, Node *res)
 
 		gmove(ncon(0), &t1);
 
-		gins(ASUB, &t1, &al);
+		p1 = gins(ASUB, &t1, &al);
+		p1->scond |= C_SBIT;
 		gins(ASBC, &t1, &ah);
 
 		gins(AMOVW, &al, &lo2);
@@ -104,6 +105,7 @@ cgen64(Node *n, Node *res)
 
 	regalloc(&al, lo1.type, N);
 	regalloc(&ah, hi1.type, N);
+
 	// Do op.  Leave result in ah:al.
 	switch(n->op) {
 	default:
@@ -117,7 +119,8 @@ cgen64(Node *n, Node *res)
 		gins(AMOVW, &lo1, &al);
 		gins(AMOVW, &hi2, &bh);
 		gins(AMOVW, &lo2, &bl);
-		gins(AADD, &bl, &al);
+		p1 = gins(AADD, &bl, &al);
+		p1->scond |= C_SBIT;
 		gins(AADC, &bh, &ah);
 		regfree(&bl);
 		regfree(&bh);
@@ -131,7 +134,8 @@ cgen64(Node *n, Node *res)
 		gins(AMOVW, &hi1, &ah);
 		gins(AMOVW, &lo2, &bl);
 		gins(AMOVW, &hi2, &bh);
-		gins(ASUB, &bl, &al);
+		p1 = gins(ASUB, &bl, &al);
+		p1->scond |= C_SBIT;
 		gins(ASBC, &bh, &ah);
 		regfree(&bl);
 		regfree(&bh);
@@ -139,10 +143,10 @@ cgen64(Node *n, Node *res)
 
 	case OMUL:
 		// TODO(kaib): this can be done with 4 regs and does not need 6
-		regalloc(&bh, types[TPTR32], N);
 		regalloc(&bl, types[TPTR32], N);
-		regalloc(&ch, types[TPTR32], N);
+		regalloc(&bh, types[TPTR32], N);
 		regalloc(&cl, types[TPTR32], N);
+		regalloc(&ch, types[TPTR32], N);
 
 		// load args into bh:bl and bh:bl.
 		gins(AMOVW, &hi1, &bh);
@@ -156,27 +160,27 @@ cgen64(Node *n, Node *res)
 		p1->from.reg = bl.val.u.reg;
 		p1->reg = cl.val.u.reg;
 		p1->to.type = D_REGREG;
-		p1->to.reg = al.val.u.reg;
-		p1->to.offset = ah.val.u.reg;
+		p1->to.reg = ah.val.u.reg;
+		p1->to.offset = al.val.u.reg;
 //print("%P\n", p1);
 
 		// bl * ch
-		p1 = gins(AMULALU, N, N);
+		p1 = gins(AMULA, N, N);
 		p1->from.type = D_REG;
-		p1->from.reg = ah.val.u.reg;
-		p1->reg = bl.val.u.reg;
+		p1->from.reg = bl.val.u.reg;
+		p1->reg = ch.val.u.reg;
 		p1->to.type = D_REGREG;
-		p1->to.reg = ch.val.u.reg;
+		p1->to.reg = ah.val.u.reg;
 		p1->to.offset = ah.val.u.reg;
 //print("%P\n", p1);
 
 		// bh * cl
-		p1 = gins(AMULALU, N, N);
+		p1 = gins(AMULA, N, N);
 		p1->from.type = D_REG;
-		p1->from.reg = ah.val.u.reg;
-		p1->reg = bh.val.u.reg;
+		p1->from.reg = bh.val.u.reg;
+		p1->reg = cl.val.u.reg;
 		p1->to.type = D_REGREG;
-		p1->to.reg = cl.val.u.reg;
+		p1->to.reg = ah.val.u.reg;
 		p1->to.offset = ah.val.u.reg;
 //print("%P\n", p1);
 
@@ -188,8 +192,8 @@ cgen64(Node *n, Node *res)
 		break;
 
 	case OLSH:
-		regalloc(&bh, hi1.type, N);
 		regalloc(&bl, lo1.type, N);
+		regalloc(&bh, hi1.type, N);
 		gins(AMOVW, &hi1, &bh);
 		gins(AMOVW, &lo1, &bl);
 
@@ -205,32 +209,21 @@ cgen64(Node *n, Node *res)
 			if(v >= 32) {
 				gins(AEOR, &al, &al);
 				//	MOVW	bl<<(v-32), ah
-				p1 = gins(AMOVW, &bl, &ah);
-				p1->from.type = D_SHIFT;
-				p1->from.offset = SHIFT_LL | (v-32)<<7 | bl.val.u.reg;
-				p1->from.reg = NREG;
+				gshift(AMOVW, &bl, SHIFT_LL, v-32, &ah);
 				goto olsh_break;
 			}
 
 			// general literal left shift
 
 			//	MOVW	bl<<v, al
-			p1 = gins(AMOVW, &bl, &al);
-			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_LL | v<<7 | bl.val.u.reg;
-			p1->from.reg = NREG;
+			gshift(AMOVW, &bl, SHIFT_LL, v, &al);
 
 			//	MOVW	bh<<v, ah
-			p1 = gins(AMOVW, &bh, &ah);
-			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_LL | v<<7 | bh.val.u.reg;
-			p1->from.reg = NREG;
+			gshift(AMOVW, &bh, SHIFT_LL, v, &ah);
 
 			//	OR		bl>>(32-v), ah
-			p1 = gins(AORR, &bl, &ah);
-			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_LR | (32-v)<<7 | bl.val.u.reg;
-			p1->from.reg = NREG;
+			gshift(AORR, &bl, SHIFT_LR, 32-v, &ah);
+
 			goto olsh_break;
 		}
 
@@ -244,25 +237,19 @@ cgen64(Node *n, Node *res)
 		gcmp(ACMP, &s, &creg);
 
 		//	MOVW.LT		bl<<s, al
-		p1 = gins(AMOVW, N, &al);
-		p1->from.type = D_SHIFT;
-		p1->from.offset = SHIFT_LL | s.val.u.reg << 8 | 1<<4 | bl.val.u.reg;
+		p1 = gregshift(AMOVW, &bl, SHIFT_LL, &s, &al);
 		p1->scond = C_SCOND_LT;
 
-		//	MOVW.LT		bh<<s, al
-		p1 = gins(AMOVW, N, &al);
-		p1->from.type = D_SHIFT;
-		p1->from.offset = SHIFT_LL | s.val.u.reg << 8 | 1<<4 | bh.val.u.reg;
+		//	MOVW.LT		bh<<s, ah
+		p1 = gregshift(AMOVW, &bh, SHIFT_LL, &s, &ah);
 		p1->scond = C_SCOND_LT;
 
 		//	SUB.LT		creg, s
 		p1 = gins(ASUB, &creg, &s);
 		p1->scond = C_SCOND_LT;
 
-		//	OR.LT		bl>>(32-s), ah
-		p1 = gins(AMOVW, N, &ah);
-		p1->from.type = D_SHIFT;
-		p1->from.offset = SHIFT_LR | t1.val.u.reg<<8| 1<<4 | bl.val.u.reg;
+		//	OR.LT		bl>>creg, ah
+		p1 = gregshift(AORR, &bl, SHIFT_LR, &creg, &ah);
 		p1->scond = C_SCOND_LT;
 
 		//	BLT	end
@@ -278,19 +265,15 @@ cgen64(Node *n, Node *res)
 		p1->scond = C_SCOND_LT;
 
 		//	MOVW.LT		creg>>1, creg
-		p1 = gins(AMOVW, N, &creg);
-		p1->from.type = D_SHIFT;
-		p1->from.offset = SHIFT_LR | 1<<7 | creg.val.u.reg;
+		p1 = gshift(AMOVW, &creg, SHIFT_LR, 1, &creg);
 		p1->scond = C_SCOND_LT;
 
 		//	SUB.LT		creg, s
 		p1 = gins(ASUB, &s, &creg);
 		p1->scond = C_SCOND_LT;
 
-		//	MOVW	bl<<(s-32), ah
-		p1 = gins(AMOVW, N, &ah);
-		p1->from.type = D_SHIFT;
-		p1->from.offset = SHIFT_LL | s.val.u.reg<<8 | 1<<4 | bl.val.u.reg;
+		//	MOVW	bl<<s, ah
+		p1 = gregshift(AMOVW, &bl, SHIFT_LL, &s, &ah);
 		p1->scond = C_SCOND_LT;
 
 		p3 = gbranch(ABLT, T);
@@ -310,8 +293,8 @@ olsh_break:
 
 
 	case ORSH:
-		regalloc(&bh, hi1.type, N);
 		regalloc(&bl, lo1.type, N);
+		regalloc(&bh, hi1.type, N);
 		gins(AMOVW, &hi1, &bh);
 		gins(AMOVW, &lo1, &bl);
 
@@ -320,14 +303,10 @@ olsh_break:
 			if(v >= 64) {
 				if(bh.type->etype == TINT32) {
 					//	MOVW	bh->31, al
-					p1 = gins(AMOVW, N, &al);
-					p1->from.type = D_SHIFT;
-					p1->from.offset = SHIFT_AR | 31 << 7 | bh.val.u.reg;
+					gshift(AMOVW, &bh, SHIFT_AR, 31, &al);
 
 					//	MOVW	bh->31, ah
-					p1 = gins(AMOVW, N, &ah);
-					p1->from.type = D_SHIFT;
-					p1->from.offset = SHIFT_AR | 31 << 7 | bh.val.u.reg;
+					gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
 				} else {
 					gins(AEOR, &al, &al);
 					gins(AEOR, &ah, &ah);
@@ -337,19 +316,13 @@ olsh_break:
 			if(v >= 32) {
 				if(bh.type->etype == TINT32) {
 					//	MOVW	bh->(v-32), al
-					p1 = gins(AMOVW, N, &al);
-					p1->from.type = D_SHIFT;
-					p1->from.offset = SHIFT_AR | (v-32)<<7 | bh.val.u.reg;
+					gshift(AMOVW, &bh, SHIFT_AR, v-32, &al);
 
 					//	MOVW	bh->31, ah
-					p1 = gins(AMOVW, N, &ah);
-					p1->from.type = D_SHIFT;
-					p1->from.offset = SHIFT_AR | 31<<7 | bh.val.u.reg;
+					gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
 				} else {
 					//	MOVW	bh>>(v-32), al
-					p1 = gins(AMOVW, N, &al);
-					p1->from.type = D_SHIFT;
-					p1->from.offset = SHIFT_LR | (v-32)<<7 | bh.val.u.reg;
+					gshift(AMOVW, &bh, SHIFT_LR, v-32, &al);
 					gins(AEOR, &ah, &ah);
 				}
 				goto orsh_break;
@@ -358,26 +331,17 @@ olsh_break:
 			// general literal right shift
 
 			//	MOVW	bl>>v, al
-			p1 = gins(AMOVW, N, &al);
-			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_LR | v<<7 | bl.val.u.reg;
+			gshift(AMOVW, &bl, SHIFT_LR, v, &al);
 
-			//	OR		bh<<(32-v), al, al
-			p1 = gins(AORR, N, &al);
-			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_LL | (32-v)<<7 | bh.val.u.reg;
-			p1->reg = al.val.u.reg;
+			//	OR		bh<<(32-v), al
+			gshift(AORR, &bh, SHIFT_LL, 32-v, &al);
 
 			if(bh.type->etype == TINT32) {
 				//	MOVW	bh->v, ah
-				p1 = gins(AMOVW, N, &ah);
-				p1->from.type = D_SHIFT;
-				p1->from.offset = SHIFT_AR | v<<7 | bh.val.u.reg;
+				gshift(AMOVW, &bh, SHIFT_AR, v, &ah);
 			} else {
 				//	MOVW	bh>>v, ah
-				p1 = gins(AMOVW, N, &ah);
-				p1->from.type = D_SHIFT;
-				p1->from.offset = SHIFT_LR | v<<7 | bh.val.u.reg;
+				gshift(AMOVW, &bh, SHIFT_LR, v, &ah);
 			}
 			goto orsh_break;
 		}

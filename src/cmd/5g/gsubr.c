@@ -964,6 +964,34 @@ gcmp(int as, Node *lhs, Node *rhs)
 	return p;
 }
 
+/* generate a constant shift
+*/
+Prog*
+gshift(int as, Node *lhs, int32 stype, int32 sval, Node *rhs)
+{
+	Prog *p;
+
+	if (sval < 0 || sval > 31)
+		fatal("bad shift value: %d", sval);
+
+	p = gins(as, N, rhs);
+	p->from.type = D_SHIFT;
+	p->from.offset = stype | sval<<7 | lhs->val.u.reg;
+	return p;
+}
+
+/* generate a register shift
+*/
+Prog *
+gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs)
+{
+	Prog *p;
+	p = gins(as, N, rhs);
+	p->from.type = D_SHIFT;
+	p->from.offset = stype | reg->val.u.reg << 8 | 1<<4 | lhs->val.u.reg;
+	return p;
+}
+
 
 /*
  * generate code to compute n;

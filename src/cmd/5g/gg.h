@@ -97,6 +97,8 @@ Prog*	gins(int, Node*, Node*);
 int	samaddr(Node*, Node*);
 void	raddr(Node *n, Prog *p);
 Prog*	gcmp(int, Node*, Node*);
+Prog*	gshift(int as, Node *lhs, int32 stype, int32 sval, Node *rhs);
+Prog *	gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs);
 void	naddr(Node*, Addr*);
 void	cgen_aret(Node*, Node*);
 
