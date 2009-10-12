@@ -235,14 +235,18 @@ func (enc *Encoder) send() {
 	enc.w.Write(enc.buf[0:total]);
 }
 
-func (enc *Encoder) sendType(origt reflect.Type) {
+func (enc *Encoder) sendType(origt reflect.Type, topLevel bool) {
 	// Drill down to the base type.
 	rt, _ := indirect(origt);
 
 	// We only send structs - everything else is basic or an error
 	switch rt.(type) {
 	default:
-		// Basic types do not need to be described.
+		// Basic types do not need to be described, but if this is a top-level
+		// type, it's a user error, at least for now.
+		if topLevel {
+			enc.badType(rt);
+		}
 		return;
 	case *reflect.StructType:
 		// Structs do need to be described.
@@ -285,7 +289,7 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 	// Now send the inner types
 	st := rt.(*reflect.StructType);
 	for i := 0; i < st.NumField(); i++ {
-		enc.sendType(st.Field(i).Type);
+		enc.sendType(st.Field(i).Type, false);
 	}
 	return;
 }
@@ -306,7 +310,7 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 	// First, have we already sent this type?
 	if _, alreadySent := enc.sent[rt]; !alreadySent {
 		// No, so send it.
-		enc.sendType(rt);
+		enc.sendType(rt, true);
 		if enc.state.err != nil {
 			enc.state.b.Reset();
 			enc.countState.b.Reset();
