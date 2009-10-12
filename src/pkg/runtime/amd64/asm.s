@@ -272,20 +272,32 @@ TEXT jmpdefer(SB), 7, $0
 	JMP	AX	// but first run the deferred function
 
 // runcgo(void(*fn)(void*), void *arg)
-// Call fn(arg), but align the stack
-// appropriately for the gcc ABI
-// and also save g and m across the call,
+// Call fn(arg) on the scheduler stack,
+// aligned appropriately for the gcc ABI.
+// Save g and m across the call,
 // since the foreign code might reuse them.
 TEXT runcgo(SB),7,$32
+	// Save old registers.
 	MOVQ	fn+0(FP),AX
 	MOVQ	arg+8(FP),DI	// DI = first argument in AMD64 ABI
 	MOVQ	SP, CX
+
+	// Figure out if we need to switch to m->g0 stack.
+	MOVQ	m_g0(m), R8
+	CMPQ	R8, g
+	JEQ	2(PC)
+	MOVQ	(m_sched+gobuf_sp)(m), SP
+
+	// Now on a scheduling stack (a pthread-created stack).
+	SUBQ	$32, SP
 	ANDQ	$~15, SP	// alignment for gcc ABI
 	MOVQ	g, 24(SP)	// save old g, m, SP
 	MOVQ	m, 16(SP)
 	MOVQ	CX, 8(SP)
 	CALL	AX
-	MOVQ	16(SP), m	// restore
+
+	// Restore registers, stack pointer.
+	MOVQ	16(SP), m
 	MOVQ	24(SP), g
 	MOVQ	8(SP), SP
 	RET

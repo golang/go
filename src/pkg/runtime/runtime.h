@@ -94,7 +94,6 @@ enum
 	Gwaiting,
 	Gmoribund,
 	Gdead,
-	Gcgocall,
 };
 enum
 {

@@ -300,12 +300,22 @@ TEXT	abort(SB),7,$0
 	INT $0x3
 
 // runcgo(void(*fn)(void*), void *arg)
-// Just call fn(arg), but first align the stack
-// appropriately for the gcc ABI.
+// Call fn(arg) on the scheduler stack,
+// aligned appropriately for the gcc ABI.
 TEXT	runcgo(SB),7,$16
 	MOVL	fn+0(FP), AX
 	MOVL	arg+4(FP), BX
 	MOVL	SP, CX
+
+	// Figure out if we need to switch to m->g0 stack.
+	MOVL	m, DX
+	MOVL	m_g0(DX), SI
+	CMPL	g, SI
+	JEQ	2(PC)
+	MOVL	(m_sched+gobuf_sp)(DX), SP
+
+	// Now on a scheduling stack (a pthread-created stack).
+	SUBL	$16, SP
 	ANDL	$~15, SP	// alignment for gcc ABI
 	MOVL	CX, 4(SP)
 	MOVL	BX, 0(SP)

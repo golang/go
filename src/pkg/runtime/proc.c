@@ -95,7 +95,7 @@ schedinit(void)
 {
 	int32 n;
 	byte *p;
-	
+
 	allm = m;
 
 	mallocinit();
@@ -452,15 +452,6 @@ scheduler(void)
 	lock(&sched);
 	if(gosave(&m->sched) != 0){
 		gp = m->curg;
-		if(gp->status == Gcgocall){
-			// Runtime call into external code (FFI).
-			// When running with FFI, the scheduler stack is a
-			// native pthread stack, so it suffices to switch to the
-			// scheduler stack and make the call.
-			runcgo(gp->cgofn, gp->cgoarg);
-			gp->status = Grunning;
-			gogo(&gp->sched, 1);
-		}
 
 		// Jumped here via gosave/gogo, so didn't
 		// execute lock(&sched) above.
