@@ -32,6 +32,7 @@ const (
 	ftUp		= 2;
 	ftAverage	= 3;
 	ftPaeth		= 4;
+	nFilter		= 5;
 )
 
 // Decoding stage.
