@@ -14,23 +14,30 @@ cgen64(Node *n, Node *res)
 {
 	Node t1, t2, *l, *r;
 	Node lo1, lo2, hi1, hi2;
-	Node al, ah, bl, bh, cl, ch; //, s1, s2;
-	Prog *p1;
- //, *p2;
+	Node al, ah, bl, bh, cl, ch, s, n1, creg;
+	Prog *p1, *p2, *p3;
+
 	uint64 v;
-//	uint32 lv, hv;
 
 	if(res->op != OINDREG && res->op != ONAME) {
 		dump("n", n);
 		dump("res", res);
 		fatal("cgen64 %O of %O", n->op, res->op);
 	}
+
+	l = n->left;
+	if(!l->addable) {
+		tempalloc(&t1, l->type);
+		cgen(l, &t1);
+		l = &t1;
+	}
+
+	split64(l, &lo1, &hi1);
 	switch(n->op) {
 	default:
 		fatal("cgen64 %O", n->op);
 
 	case OMINUS:
-		split64(n->left, &lo1, &hi1);
 		split64(res, &lo2, &hi2);
 
 		regalloc(&t1, lo1.type, N);
@@ -55,13 +62,22 @@ cgen64(Node *n, Node *res)
 		splitclean();
 		return;
 
-//	case OCOM:
-//		cgen(n->left, res);
-//		split64(res, &lo1, &hi1);
-//		gins(ANOTL, N, &lo1);
-//		gins(ANOTL, N, &hi1);
-//		splitclean();
-//		return;
+	case OCOM:
+		split64(res, &lo2, &hi2);
+		regalloc(&n1, lo1.type, N);
+
+		gins(AMOVW, &lo1, &n1);
+		gins(AMVN, &n1, &n1);
+		gins(AMOVW, &n1, &lo2);
+
+		gins(AMOVW, &hi1, &n1);
+		gins(AMVN, &n1, &n1);
+		gins(AMOVW, &n1, &hi2);
+
+		regfree(&n1);
+		splitclean();
+		splitclean();
+		return;
 
 	case OADD:
 	case OSUB:
@@ -76,21 +92,13 @@ cgen64(Node *n, Node *res)
 		break;
 	}
 
-	l = n->left;
+	// setup for binary operators
 	r = n->right;
-	if(!l->addable) {
-		tempalloc(&t1, l->type);
-		cgen(l, &t1);
-		l = &t1;
-	}
 	if(r != N && !r->addable) {
 		tempalloc(&t2, r->type);
 		cgen(r, &t2);
 		r = &t2;
 	}
-
-	// Setup for binary operation.
-	split64(l, &lo1, &hi1);
 	if(is64(r->type))
 		split64(r, &lo2, &hi2);
 
@@ -117,10 +125,16 @@ cgen64(Node *n, Node *res)
 
 	case OSUB:
 		// TODO: Constants.
+		regalloc(&bl, types[TPTR32], N);
+		regalloc(&bh, types[TPTR32], N);
 		gins(AMOVW, &lo1, &al);
 		gins(AMOVW, &hi1, &ah);
-		gins(ASUB, &lo2, &al);
-		gins(ASBC, &hi2, &ah);
+		gins(AMOVW, &lo2, &bl);
+		gins(AMOVW, &hi2, &bh);
+		gins(ASUB, &bl, &al);
+		gins(ASBC, &bh, &ah);
+		regfree(&bl);
+		regfree(&bh);
 		break;
 
 	case OMUL:
@@ -174,6 +188,11 @@ cgen64(Node *n, Node *res)
 		break;
 
 	case OLSH:
+		regalloc(&bh, hi1.type, N);
+		regalloc(&bl, lo1.type, N);
+		gins(AMOVW, &hi1, &bh);
+		gins(AMOVW, &lo1, &bl);
+
 		if(r->op == OLITERAL) {
 			v = mpgetfix(r->val.u.xval);
 			if(v >= 64) {
@@ -181,173 +200,297 @@ cgen64(Node *n, Node *res)
 				// here and below (verify it optimizes to EOR)
 				gins(AEOR, &al, &al);
 				gins(AEOR, &ah, &ah);
-				break;
+				goto olsh_break;
 			}
 			if(v >= 32) {
 				gins(AEOR, &al, &al);
-				//	MOVW	lo1<<(v-32), ah
-				p1 = gins(AMOVW, &lo1, &ah);
+				//	MOVW	bl<<(v-32), ah
+				p1 = gins(AMOVW, &bl, &ah);
 				p1->from.type = D_SHIFT;
-				p1->from.offset = SHIFT_LL | (v-32)<<7 | lo1.val.u.reg;
+				p1->from.offset = SHIFT_LL | (v-32)<<7 | bl.val.u.reg;
 				p1->from.reg = NREG;
-				break;
+				goto olsh_break;
 			}
 
 			// general literal left shift
 
-			//	MOVW	lo1<<v, al
-			p1 = gins(AMOVW, &lo1, &al);
+			//	MOVW	bl<<v, al
+			p1 = gins(AMOVW, &bl, &al);
 			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_LL | v<<7 | lo1.val.u.reg;
+			p1->from.offset = SHIFT_LL | v<<7 | bl.val.u.reg;
 			p1->from.reg = NREG;
-			break;
 
-			//	MOVW	hi1<<v, ah
-			p1 = gins(AMOVW, &hi1, &ah);
+			//	MOVW	bh<<v, ah
+			p1 = gins(AMOVW, &bh, &ah);
 			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_LL | v<<7 | hi1.val.u.reg;
+			p1->from.offset = SHIFT_LL | v<<7 | bh.val.u.reg;
 			p1->from.reg = NREG;
-			break;
 
-			//	OR		lo1>>(32-v), ah
-			p1 = gins(AORR, &lo1, &ah);
+			//	OR		bl>>(32-v), ah
+			p1 = gins(AORR, &bl, &ah);
 			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_LR | (32-v)<<7 | lo1.val.u.reg;
+			p1->from.offset = SHIFT_LR | (32-v)<<7 | bl.val.u.reg;
 			p1->from.reg = NREG;
-			break;
+			goto olsh_break;
 		}
 
-		fatal("cgen64 OLSH, !OLITERAL not implemented");
+		regalloc(&s, types[TUINT32], N);
+		regalloc(&creg, types[TUINT32], N);
+		gmove(r, &s);
+
+		// check if shift is < 32
+		nodconst(&n1, types[TUINT32], 32);
+		gmove(&n1, &creg);
+		gcmp(ACMP, &s, &creg);
+
+		//	MOVW.LT		bl<<s, al
+		p1 = gins(AMOVW, N, &al);
+		p1->from.type = D_SHIFT;
+		p1->from.offset = SHIFT_LL | s.val.u.reg << 8 | 1<<4 | bl.val.u.reg;
+		p1->scond = C_SCOND_LT;
+
+		//	MOVW.LT		bh<<s, al
+		p1 = gins(AMOVW, N, &al);
+		p1->from.type = D_SHIFT;
+		p1->from.offset = SHIFT_LL | s.val.u.reg << 8 | 1<<4 | bh.val.u.reg;
+		p1->scond = C_SCOND_LT;
+
+		//	SUB.LT		creg, s
+		p1 = gins(ASUB, &creg, &s);
+		p1->scond = C_SCOND_LT;
+
+		//	OR.LT		bl>>(32-s), ah
+		p1 = gins(AMOVW, N, &ah);
+		p1->from.type = D_SHIFT;
+		p1->from.offset = SHIFT_LR | t1.val.u.reg<<8| 1<<4 | bl.val.u.reg;
+		p1->scond = C_SCOND_LT;
+
+		//	BLT	end
+		p2 = gbranch(ABLT, T);
+
+		// check if shift is < 64
+		nodconst(&n1, types[TUINT32], 64);
+		gmove(&n1, &creg);
+		gcmp(ACMP, &s, &creg);
+
+		//	EOR.LT	al, al
+		p1 = gins(AEOR, &al, &al);
+		p1->scond = C_SCOND_LT;
+
+		//	MOVW.LT		creg>>1, creg
+		p1 = gins(AMOVW, N, &creg);
+		p1->from.type = D_SHIFT;
+		p1->from.offset = SHIFT_LR | 1<<7 | creg.val.u.reg;
+		p1->scond = C_SCOND_LT;
+
+		//	SUB.LT		creg, s
+		p1 = gins(ASUB, &s, &creg);
+		p1->scond = C_SCOND_LT;
+
+		//	MOVW	bl<<(s-32), ah
+		p1 = gins(AMOVW, N, &ah);
+		p1->from.type = D_SHIFT;
+		p1->from.offset = SHIFT_LL | s.val.u.reg<<8 | 1<<4 | bl.val.u.reg;
+		p1->scond = C_SCOND_LT;
+
+		p3 = gbranch(ABLT, T);
+
+		gins(AEOR, &al, &al);
+		gins(AEOR, &ah, &ah);
+
+		patch(p2, pc);
+		patch(p3, pc);
+		regfree(&s);
+		regfree(&creg);
+
+olsh_break:
+		regfree(&bl);
+		regfree(&bh);
 		break;
 
 
 	case ORSH:
+		regalloc(&bh, hi1.type, N);
+		regalloc(&bl, lo1.type, N);
+		gins(AMOVW, &hi1, &bh);
+		gins(AMOVW, &lo1, &bl);
+
 		if(r->op == OLITERAL) {
 			v = mpgetfix(r->val.u.xval);
 			if(v >= 64) {
-				if(hi1.type->etype == TINT32) {
-					//	MOVW	hi1->31, al
-					p1 = gins(AMOVW, &hi1, &al);
+				if(bh.type->etype == TINT32) {
+					//	MOVW	bh->31, al
+					p1 = gins(AMOVW, N, &al);
 					p1->from.type = D_SHIFT;
-					p1->from.offset = SHIFT_AR | 31 << 7 | hi1.val.u.reg;
-					p1->from.reg = NREG;
+					p1->from.offset = SHIFT_AR | 31 << 7 | bh.val.u.reg;
 
-					//	MOVW	hi1->31, ah
-					p1 = gins(AMOVW, &hi1, &ah);
+					//	MOVW	bh->31, ah
+					p1 = gins(AMOVW, N, &ah);
 					p1->from.type = D_SHIFT;
-					p1->from.offset = SHIFT_AR | 31 << 7 | hi1.val.u.reg;
-					p1->from.reg = NREG;
+					p1->from.offset = SHIFT_AR | 31 << 7 | bh.val.u.reg;
 				} else {
 					gins(AEOR, &al, &al);
 					gins(AEOR, &ah, &ah);
 				}
-				break;
+				goto orsh_break;
 			}
 			if(v >= 32) {
-				if(hi1.type->etype == TINT32) {
-					//	MOVW	hi1->(v-32), al
-					p1 = gins(AMOVW, &hi1, &al);
+				if(bh.type->etype == TINT32) {
+					//	MOVW	bh->(v-32), al
+					p1 = gins(AMOVW, N, &al);
 					p1->from.type = D_SHIFT;
-					p1->from.offset = SHIFT_AR | (v-32)<<7 | hi1.val.u.reg;
-					p1->from.reg = NREG;
+					p1->from.offset = SHIFT_AR | (v-32)<<7 | bh.val.u.reg;
 
-					//	MOVW	hi1->31, ah
-					p1 = gins(AMOVW, &hi1, &ah);
+					//	MOVW	bh->31, ah
+					p1 = gins(AMOVW, N, &ah);
 					p1->from.type = D_SHIFT;
-					p1->from.offset = SHIFT_AR | 31<<7 | hi1.val.u.reg;
-					p1->from.reg = NREG;
+					p1->from.offset = SHIFT_AR | 31<<7 | bh.val.u.reg;
 				} else {
-					//	MOVW	hi1>>(v-32), al
-					p1 = gins(AMOVW, &hi1, &al);
+					//	MOVW	bh>>(v-32), al
+					p1 = gins(AMOVW, N, &al);
 					p1->from.type = D_SHIFT;
-					p1->from.offset = SHIFT_LR | (v-32)<<7 | hi1.val.u.reg;
-					p1->from.reg = NREG;
+					p1->from.offset = SHIFT_LR | (v-32)<<7 | bh.val.u.reg;
 					gins(AEOR, &ah, &ah);
 				}
-				break;
+				goto orsh_break;
 			}
 
 			// general literal right shift
 
-			//	MOVW	lo1>>v, al
-			p1 = gins(AMOVW, &lo1, &al);
+			//	MOVW	bl>>v, al
+			p1 = gins(AMOVW, N, &al);
 			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_LR | v<<7 | lo1.val.u.reg;
-			p1->from.reg = NREG;
+			p1->from.offset = SHIFT_LR | v<<7 | bl.val.u.reg;
 
-			//	OR		hi1<<(32-v), al, al
-			p1 = gins(AORR, &hi1, &al);
+			//	OR		bh<<(32-v), al, al
+			p1 = gins(AORR, N, &al);
 			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_LL | (32-v)<<7 | hi1.val.u.reg;
-			p1->from.reg = NREG;
+			p1->from.offset = SHIFT_LL | (32-v)<<7 | bh.val.u.reg;
 			p1->reg = al.val.u.reg;
 
-			if(hi1.type->etype == TINT32) {
-				//	MOVW	hi1->v, ah
-				p1 = gins(AMOVW, &hi1, &ah);
+			if(bh.type->etype == TINT32) {
+				//	MOVW	bh->v, ah
+				p1 = gins(AMOVW, N, &ah);
 				p1->from.type = D_SHIFT;
-				p1->from.offset = SHIFT_AR | v<<7 | hi1.val.u.reg;
-				p1->from.reg = NREG;
+				p1->from.offset = SHIFT_AR | v<<7 | bh.val.u.reg;
 			} else {
-				//	MOVW	hi1>>v, ah
-				p1 = gins(AMOVW, &hi1, &ah);
+				//	MOVW	bh>>v, ah
+				p1 = gins(AMOVW, N, &ah);
 				p1->from.type = D_SHIFT;
-				p1->from.offset = SHIFT_LR | v<<7 | hi1.val.u.reg;
-				p1->from.reg = NREG;
+				p1->from.offset = SHIFT_LR | v<<7 | bh.val.u.reg;
 			}
-			break;
+			goto orsh_break;
 		}
-		fatal("cgen64 ORSH, !OLITERAL not implemented");
 
-//		// load value into DX:AX.
-//		gins(AMOVL, &lo1, &ax);
-//		gins(AMOVL, &hi1, &dx);
+		regalloc(&s, types[TUINT32], N);
+		regalloc(&creg, types[TUINT32], N);
+		gmove(r, &s);
 
-//		// load shift value into register.
-//		// if high bits are set, zero value.
-//		p1 = P;
-//		if(is64(r->type)) {
-//			gins(ACMPL, &hi2, ncon(0));
-//			p1 = gbranch(AJNE, T);
-//			gins(AMOVL, &lo2, &cx);
-//		} else
-//			gins(AMOVL, r, &cx);
+		// check if shift is < 32
+		nodconst(&n1, types[TUINT32], 32);
+		gmove(&n1, &creg);
+		gcmp(ACMP, &s, &creg);
 
-//		// if shift count is >=64, zero or sign-extend value
-//		gins(ACMPL, &cx, ncon(64));
-//		p2 = gbranch(optoas(OLT, types[TUINT32]), T);
-//		if(p1 != P)
-//			patch(p1, pc);
-//		if(hi1.type->etype == TINT32) {
-//			gins(ASARL, ncon(31), &dx);
-//			gins(AMOVL, &dx, &ax);
-//		} else {
-//			gins(AXORL, &dx, &dx);
-//			gins(AXORL, &ax, &ax);
-//		}
-//		patch(p2, pc);
+		//	MOVW.LT		bl>>s, al
+		p1 = gins(AMOVW, N, &al);
+		p1->from.type = D_SHIFT;
+		p1->from.offset = SHIFT_LR | s.val.u.reg << 8 | 1<<4 | bl.val.u.reg;
+		p1->scond = C_SCOND_LT;
 
-//		// if shift count is >= 32, sign-extend hi.
-//		gins(ACMPL, &cx, ncon(32));
-//		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
-//		gins(AMOVL, &dx, &ax);
-//		if(hi1.type->etype == TINT32) {
-//			gins(ASARL, &cx, &ax);	// SARL only uses bottom 5 bits of count
-//			gins(ASARL, ncon(31), &dx);
-//		} else {
-//			gins(ASHRL, &cx, &ax);
-//			gins(AXORL, &dx, &dx);
-//		}
-//		p2 = gbranch(AJMP, T);
-//		patch(p1, pc);
+		//	SUB.LT		creg, s
+		p1 = gins(ASUB, &creg, &s);
+		p1->scond = C_SCOND_LT;
 
-//		// general shift
-//		p1 = gins(ASHRL, &cx, &ax);
-//		p1->from.index = D_DX;	// double-width shift
-//		p1->from.scale = 0;
-//		gins(optoas(ORSH, hi1.type), &cx, &dx);
-//		patch(p2, pc);
-//		break;
+		//	OR.LT		bh<<(32-s), al, al
+		p1 = gins(AORR, N, &al);
+		p1->from.type = D_SHIFT;
+		p1->from.offset = SHIFT_LL | creg.val.u.reg << 8 | 1<<4 | bh.val.u.reg;
+		p1->reg = al.val.u.reg;
+		p1->scond = C_SCOND_LT;
+
+		if(bh.type->etype == TINT32) {
+			//	MOVW	bh->s, ah
+			p1 = gins(AMOVW, N, &ah);
+			p1->from.type = D_SHIFT;
+			p1->from.offset = SHIFT_AR | s.val.u.reg << 8 | 1<<4 | bh.val.u.reg;
+		} else {
+			//	MOVW	bh>>s, ah
+			p1 = gins(AMOVW, N, &ah);
+			p1->from.type = D_SHIFT;
+			p1->from.offset = SHIFT_LR | s.val.u.reg << 8 | 1<<4 | bh.val.u.reg;
+		}
+		p1->scond = C_SCOND_LT;
+
+		//	BLT	end
+		p2 = gbranch(ABLT, T);
+
+		// check if shift is < 64
+		nodconst(&n1, types[TUINT32], 64);
+		gmove(&n1, &creg);
+		gcmp(ACMP, &s, &creg);
+
+		//	MOVW.LT		creg>>1, creg
+		p1 = gins(AMOVW, N, &creg);
+		p1->from.type = D_SHIFT;
+		p1->from.offset = SHIFT_LR | 1<<7 | creg.val.u.reg;
+		p1->scond = C_SCOND_LT;
+
+		//	SUB.LT		s, creg
+		p1 = gins(ASUB, &s, &creg);
+		p1->scond = C_SCOND_LT;
+
+		if(bh.type->etype == TINT32) {
+			//	MOVW	bh->(s-32), al
+			p1 = gins(AMOVW, N, &al);
+			p1->from.type = D_SHIFT;
+			p1->from.offset = SHIFT_AR | s.val.u.reg <<8 | 1<<4 | bh.val.u.reg;
+			p1->scond = C_SCOND_LT;
+
+			//	MOVW	bh->31, ah
+			p1 = gins(AMOVW, N, &ah);
+			p1->from.type = D_SHIFT;
+			p1->from.offset = SHIFT_AR | 31<<7 | bh.val.u.reg;
+			p1->scond = C_SCOND_LT;
+		} else {
+			//	MOVW	bh>>(v-32), al
+			p1 = gins(AMOVW, N, &al);
+			p1->from.type = D_SHIFT;
+			p1->from.offset = SHIFT_LR | s.val.u.reg<<8 | 1<<4 | bh.val.u.reg;
+			p1->scond = C_SCOND_LT;
+
+			p1 = gins(AEOR, &ah, &ah);
+			p1->scond = C_SCOND_LT;
+		}
+
+		//	BLT	end
+		p3 = gbranch(ABLT, T);
+
+		// s >= 64
+		if(bh.type->etype == TINT32) {
+			//	MOVW	bh->31, al
+			p1 = gins(AMOVW, N, &al);
+			p1->from.type = D_SHIFT;
+			p1->from.offset = SHIFT_AR | 31 << 7 | bh.val.u.reg;
+
+			//	MOVW	bh->31, ah
+			p1 = gins(AMOVW, N, &ah);
+			p1->from.type = D_SHIFT;
+			p1->from.offset = SHIFT_AR | 31 << 7 | bh.val.u.reg;
+		} else {
+			gins(AEOR, &al, &al);
+			gins(AEOR, &ah, &ah);
+		}
+
+		patch(p2, pc);
+		patch(p3, pc);
+		regfree(&s);
+		regfree(&creg);
+
+
+orsh_break:
+		regfree(&bl);
+		regfree(&bh);
+		break;
 
 	case OXOR:
 	case OAND:
@@ -444,10 +587,14 @@ cgen64(Node *n, Node *res)
 //			splitclean();
 //			goto out;
 //		}
+		regalloc(&n1, lo1.type, N);
 		gins(AMOVW, &lo1, &al);
 		gins(AMOVW, &hi1, &ah);
-		gins(optoas(n->op, lo1.type), &lo2, &al);
-		gins(optoas(n->op, lo1.type), &hi2, &ah);
+		gins(AMOVW, &lo2, &n1);
+		gins(optoas(n->op, lo1.type), &n1, &al);
+		gins(AMOVW, &hi2, &n1);
+		gins(optoas(n->op, lo1.type), &n1, &ah);
+		regfree(&n1);
 		break;
 	}
 	if(is64(r->type))

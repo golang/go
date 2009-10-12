@@ -514,7 +514,7 @@ splitclean(void)
 void
 gmove(Node *f, Node *t)
 {
-	int a, ft, tt;
+	int a, ft, tt, fa, ta;
 	Type *cvt;
 	Node r1, r2, flo, fhi, tlo, thi, con;
 	Prog *p1;
@@ -526,9 +526,9 @@ gmove(Node *f, Node *t)
 	tt = simsimtype(t->type);
 	cvt = t->type;
 
-	// cannot have two integer memory operands;
+	// cannot have two memory operands;
 	// except 64-bit, which always copies via registers anyway.
-	if(isint[ft] && isint[tt] && !is64(f->type) && !is64(t->type) && ismem(f) && ismem(t))
+	if(!is64(f->type) && !is64(t->type) && ismem(f) && ismem(t))
 		goto hard;
 
 	// convert constant to desired type
@@ -536,10 +536,6 @@ gmove(Node *f, Node *t)
 		switch(tt) {
 		default:
 			convconst(&con, t->type, &f->val);
-			break;
-
-		case TFLOAT32:
-			convconst(&con, types[TFLOAT64], &f->val);
 			break;
 
 		case TINT16:
@@ -752,8 +748,10 @@ gmove(Node *f, Node *t)
 	case CASE(TFLOAT32, TUINT8):
 	case CASE(TFLOAT32, TUINT16):
 	case CASE(TFLOAT32, TUINT32):
+		fa = AMOVF;
 		a = AMOVFW;
-		break;
+		ta = AMOVW;
+		goto fltconv;
 
 	case CASE(TFLOAT64, TINT8):
 	case CASE(TFLOAT64, TINT16):
@@ -761,14 +759,14 @@ gmove(Node *f, Node *t)
 	case CASE(TFLOAT64, TUINT8):
 	case CASE(TFLOAT64, TUINT16):
 	case CASE(TFLOAT64, TUINT32):
+		fa = AMOVD;
 		a = AMOVDW;
-		break;
+		ta = AMOVW;
+		goto fltconv;
 
-	case CASE(TFLOAT32, TINT64):
 	case CASE(TFLOAT32, TUINT64):
-	case CASE(TFLOAT64, TINT64):
 	case CASE(TFLOAT64, TUINT64):
-		fatal("gmove TFLOAT, INT64 not implemented");
+		fatal("gmove TFLOAT, UINT64 not implemented");
 		return;
 
 	/*
@@ -780,8 +778,10 @@ gmove(Node *f, Node *t)
 	case CASE(TUINT8, TFLOAT32):
 	case CASE(TUINT16, TFLOAT32):
 	case CASE(TUINT32, TFLOAT32):
+		fa = AMOVW;
 		a = AMOVWF;
-		break;
+		ta = AMOVF;
+		goto fltconv;
 
 	case CASE(TINT8, TFLOAT64):
 	case CASE(TINT16, TFLOAT64):
@@ -789,14 +789,14 @@ gmove(Node *f, Node *t)
 	case CASE(TUINT8, TFLOAT64):
 	case CASE(TUINT16, TFLOAT64):
 	case CASE(TUINT32, TFLOAT64):
+		fa = AMOVW;
 		a = AMOVWD;
-		break;
+		ta = AMOVW;
+		goto fltconv;;
 
-	case CASE(TINT64, TFLOAT32):
-	case CASE(TINT64, TFLOAT64):
 	case CASE(TUINT64, TFLOAT32):
 	case CASE(TUINT64, TFLOAT64):
-		fatal("gmove INT64, TFLOAT not implemented");
+		fatal("gmove UINT64, TFLOAT not implemented");
 		return;
 
 
@@ -812,12 +812,20 @@ gmove(Node *f, Node *t)
 		break;
 
 	case CASE(TFLOAT32, TFLOAT64):
-		a = AMOVFD;
-		break;
+		regalloc(&r1, types[TFLOAT64], t);
+		gins(AMOVF, f, &r1);
+		gins(AMOVFD, &r1, &r1);
+		gins(AMOVD, &r1, t);
+		regfree(&r1);
+		return;
 
 	case CASE(TFLOAT64, TFLOAT32):
-		a = AMOVDF;
-		break;
+		regalloc(&r1, types[TFLOAT64], t);
+		gins(AMOVD, f, &r1);
+		gins(AMOVDF, &r1, &r1);
+		gins(AMOVF, &r1, t);
+		regfree(&r1);
+		return;
 	}
 
 	gins(a, f, t);
@@ -835,7 +843,7 @@ rdst:
 
 hard:
 	// requires register intermediate
-	regalloc(&r1, cvt, N);
+	regalloc(&r1, cvt, t);
 	gmove(f, &r1);
 	gmove(&r1, t);
 	regfree(&r1);
@@ -849,6 +857,16 @@ trunc64:
 	gins(a, &r1, t);
 	regfree(&r1);
 	splitclean();
+	return;
+
+fltconv:
+	regalloc(&r1, types[ft], f);
+	regalloc(&r2, types[tt], t);
+	gins(fa, f, &r1);
+	gins(a, &r1, &r2);
+	gins(ta, &r2, t);
+	regfree(&r1);
+	regfree(&r2);
 	return;
 
 fatal:

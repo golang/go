@@ -9,7 +9,6 @@ bugs/bug169.go
 bugs/bug190.go
 bugs/bug193.go
 bugs/bug196.go
-bugs/bug198.go
 chan/perm.go
 char_lit.go
 cmp1.go
@@ -38,6 +37,8 @@ fixedbugs/bug006.go
 fixedbugs/bug007.go
 fixedbugs/bug008.go
 fixedbugs/bug009.go
+fixedbugs/bug010.go
+fixedbugs/bug011.go
 fixedbugs/bug012.go
 fixedbugs/bug013.go
 fixedbugs/bug014.go
@@ -62,6 +63,7 @@ fixedbugs/bug039.go
 fixedbugs/bug040.go
 fixedbugs/bug045.go
 fixedbugs/bug046.go
+fixedbugs/bug047.go
 fixedbugs/bug048.go
 fixedbugs/bug049.go
 fixedbugs/bug050.go
@@ -193,6 +195,7 @@ fixedbugs/bug192.go
 fixedbugs/bug194.go
 fixedbugs/bug195.go
 fixedbugs/bug197.go
+fixedbugs/bug198.go
 fixedbugs/bug199.go
 fixedbugs/bug200.go
 fixedbugs/bug201.go
@@ -201,7 +204,11 @@ fixedbugs/bug203.go
 fixedbugs/bug204.go
 fixedbugs/bug205.go
 fixedbugs/bug206.go
+fixedbugs/bug208.go
+fixedbugs/bug209.go
+float_lit.go
 for.go
+func.go
 func1.go
 func2.go
 func3.go
@@ -247,6 +254,7 @@ ken/ptrvar.go
 ken/rob1.go
 ken/rob2.go
 ken/robfor.go
+ken/robfunc.go
 ken/robif.go
 ken/shift.go
 ken/simpbool.go
@@ -259,10 +267,12 @@ method.go
 method1.go
 method2.go
 method3.go
+named.go
 named1.go
 nil.go
 parentype.go
 printbig.go
+rename.go
 rename1.go
 sieve.go
 sigchld.go
@@ -271,4 +281,5 @@ string_lit.go
 switch.go
 switch1.go
 test0.go
+typeswitch.go
 varinit.go

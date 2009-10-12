@@ -182,7 +182,6 @@ cgen(Node *n, Node *res)
 
 	if(nl != N && isfloat[n->type->etype] && isfloat[nl->type->etype])
 		goto flt;
-
 	switch(n->op) {
 	default:
 		dump("cgen", n);
@@ -252,6 +251,7 @@ cgen(Node *n, Node *res)
 			cgen(nl, res);
 			break;
 		}
+
 		mgen(nl, &n1, res);
 		gmove(&n1, res);
 		mfree(&n1);
@@ -886,7 +886,7 @@ bgen(Node *n, int true, Prog *to)
 			regfree(&n1);
 			break;
 		}
-		
+
 		if(isinter(nl->type)) {
 			// front end shold only leave cmp to literal nil
 			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
@@ -1010,6 +1010,7 @@ stkof(Node *n)
 /*
  * block copy:
  *	memmove(&res, &n, w);
+ * NB: character copy assumed little endian architecture
  */
 void
 sgen(Node *n, Node *res, int32 w)
@@ -1136,8 +1137,42 @@ sgen(Node *n, Node *res, int32 w)
 			q--;
 		}
 
-		if (c != 0)
-			fatal("sgen: character copy not implemented");
+		if (c != 0) {
+			//	MOVW	(src), tmp
+			p = gins(AMOVW, &src, &tmp);
+			p->from.type = D_OREG;
+
+			//	MOVW	tmp>>((4-c)*8),src
+			p = gins(AMOVW, N, &src);
+			p->from.type = D_SHIFT;
+			p->from.offset = SHIFT_LR | ((4-c)*8)<<7 | tmp.val.u.reg;
+
+			//	MOVW	src<<((4-c)*8),src
+			p = gins(AMOVW, N, &src);
+			p->from.type = D_SHIFT;
+			p->from.offset = SHIFT_LL | ((4-c)*8)<<7 | tmp.val.u.reg;
+
+			//	MOVW	(dst), tmp
+			p = gins(AMOVW, &dst, &tmp);
+			p->from.type = D_OREG;
+
+			//	MOVW	tmp<<(c*8),tmp
+			p = gins(AMOVW, N, &tmp);
+			p->from.type = D_SHIFT;
+			p->from.offset = SHIFT_LL | (c*8)<<7 | tmp.val.u.reg;
+
+			//	MOVW	tmp>>(c*8),tmp
+			p = gins(AMOVW, N, &tmp);
+			p->from.type = D_SHIFT;
+			p->from.offset = SHIFT_LR | (c*8)<<7 | tmp.val.u.reg;
+
+			//	ORR		src, tmp
+			gins(AORR, &src, &tmp);
+
+			//	MOVW	tmp, (dst)
+			p = gins(AMOVW, &tmp, &dst);
+			p->to.type = D_OREG;
+		}
 	}
  	regfree(&dst);
 	regfree(&src);
