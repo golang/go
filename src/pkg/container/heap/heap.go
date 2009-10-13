@@ -3,20 +3,20 @@
 // license that can be found in the LICENSE file.
 
 // This package provides heap operations for any type that implements
-// HeapInterface.
+// heap.Interface.
 //
 package heap
 
 import "sort"
 
-// Any type that implements HeapInterface may be used as a
+// Any type that implements heap.Interface may be used as a
 // heap with the following invariants (established after Init
 // has been called):
 //
 //	h.Less(i, j) for 0 <= i < h.Len() and j = 2*i+1 or 2*i+2 and j < h.Len()
 //
-type HeapInterface interface {
-	sort.SortInterface;
+type Interface interface {
+	sort.Interface;
 	Push(x interface{});
 	Pop() interface{};
 }
@@ -27,7 +27,7 @@ type HeapInterface interface {
 // and may be called whenever the heap invariants may have been invalidated.
 // Its complexity is O(n*log(n)) where n = h.Len().
 //
-func Init(h HeapInterface) {
+func Init(h Interface) {
 	sort.Sort(h);
 }
 
@@ -35,7 +35,7 @@ func Init(h HeapInterface) {
 // Push pushes the element x onto the heap. The complexity is
 // O(log(n)) where n = h.Len().
 //
-func Push(h HeapInterface, x interface{}) {
+func Push(h Interface, x interface{}) {
 	h.Push(x);
 	up(h, h.Len() - 1);
 }
@@ -44,7 +44,7 @@ func Push(h HeapInterface, x interface{}) {
 // Pop removes the minimum element (according to Less) from the heap
 // and returns it. The complexity is O(log(n)) where n = h.Len().
 //
-func Pop(h HeapInterface) interface{} {
+func Pop(h Interface) interface{} {
 	n := h.Len() - 1;
 	h.Swap(0, n);
 	down(h, 0, n);
@@ -55,7 +55,7 @@ func Pop(h HeapInterface) interface{} {
 // Remove removes the element at index i from the heap.
 // The complexity is O(log(n)) where n = h.Len().
 //
-func Remove(h HeapInterface, i int) interface{} {
+func Remove(h Interface, i int) interface{} {
 	n := h.Len() - 1;
 	if n != i {
 		h.Swap(n, i);
@@ -66,7 +66,7 @@ func Remove(h HeapInterface, i int) interface{} {
 }
 
 
-func up(h HeapInterface, j int) {
+func up(h Interface, j int) {
 	for {
 		i := (j-1)/2;
 		if i == j || h.Less(i, j) {
@@ -78,7 +78,7 @@ func up(h HeapInterface, j int) {
 }
 
 
-func down(h HeapInterface, i, n int) {
+func down(h Interface, i, n int) {
 	for {
 		j := 2*i + 1;
 		if j >= n {

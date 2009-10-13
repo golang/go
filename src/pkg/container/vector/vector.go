@@ -207,9 +207,9 @@ func (p *Vector) AppendVector(x *Vector) {
 }
 
 
-// Partial SortInterface support
+// Partial sort.Interface support
 
-// LessInterface provides partial support of the SortInterface.
+// LessInterface provides partial support of the sort.Interface.
 type LessInterface interface {
 	Less(y Element) bool;
 }

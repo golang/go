@@ -82,7 +82,7 @@ func (e *Error) String() string {
 type ErrorList []*Error
 
 
-// ErrorList implements the SortInterface.
+// ErrorList implements the sort Interface.
 func (p ErrorList) Len() int {
 	return len(p);
 }
