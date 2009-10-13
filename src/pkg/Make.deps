@@ -1,4 +1,5 @@
 archive/tar.install: bytes.install io.install os.install strconv.install strings.install
+asn1.install: fmt.install os.install reflect.install strconv.install strings.install time.install
 base64.install: bytes.install io.install os.install strconv.install
 big.install:
 bignum.install: fmt.install

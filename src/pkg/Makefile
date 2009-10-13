@@ -13,6 +13,7 @@ all: install
 
 DIRS=\
 	archive/tar\
+	asn1\
 	base64\
 	big\
 	bignum\
