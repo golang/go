@@ -16,7 +16,7 @@ The presentation proceeds through a series of modest programs to illustrate
 key features of the language.  All the programs work (at time of writing) and are
 checked in at
 
-	/doc/progs
+	//depot2/go/doc/progs
 
 Program snippets are annotated with the line number in the original file; for
 cleanliness, blank lines remain blank.
@@ -110,7 +110,7 @@ or we could go even shorter and write the idiom
 	s := "";
 
 The ":=" operator is used a lot in Go to represent an initializing declaration.
-(For those who know Limbo, its ":=" construct is the same, but notice
+(For those who know Sawzall, its ":=" construct is the same, but notice
 that Go has no colon after the name in a full "var" declaration.
 Also, for simplicity of parsing, ":=" only works inside functions, not at
 the top level.)
@@ -524,7 +524,7 @@ As an example, consider this simple sort algorithm taken from "progs/sort.go":
 
 --PROG progs/sort.go /func.Sort/ /^}/
 
-The code needs only three methods, which we wrap into "SortInterface":
+The code needs only three methods, which we wrap into sort's "Interface":
 
 --PROG progs/sort.go /interface/ /^}/
 

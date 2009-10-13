@@ -22,7 +22,7 @@ key features of the language.  All the programs work (at time of writing) and ar
 checked in at
 <p>
 <pre>
-    /doc/progs
+    //depot2/go/doc/progs
 
 </pre>
 Program snippets are annotated with the line number in the original file; for
@@ -162,7 +162,7 @@ or we could go even shorter and write the idiom
 
 </pre>
 The <code>:=</code> operator is used a lot in Go to represent an initializing declaration.
-(For those who know Limbo, its <code>:=</code> construct is the same, but notice
+(For those who know Sawzall, its <code>:=</code> construct is the same, but notice
 that Go has no colon after the name in a full <code>var</code> declaration.
 Also, for simplicity of parsing, <code>:=</code> only works inside functions, not at
 the top level.)
@@ -368,7 +368,7 @@ declaring an uninitialized variable and taking its address.
 <p>
 Although integers come in lots of sizes in Go, integer constants do not.
 There are no constants like <code>0ll</code> or <code>0x0UL</code>.   Instead, integer
-constants are evaluated as ideal, large-precision values that
+constants are evaluated as large-precision values that
 can overflow only when they are assigned to an integer variable with
 too little precision to represent the value.
 <p>
@@ -798,7 +798,7 @@ same interface variable.
 As an example, consider this simple sort algorithm taken from <code>progs/sort.go</code>:
 <p>
 <pre> <!-- progs/sort.go /func.Sort/ /^}/ -->
-09    func Sort(data SortInterface) {
+09    func Sort(data Interface) {
 10        for i := 1; i &lt; data.Len(); i++ {
 11            for j := i; j &gt; 0 &amp;&amp; data.Less(j, j-1); j-- {
 12                data.Swap(j, j-1);
@@ -807,10 +807,10 @@ As an example, consider this simple sort algorithm taken from <code>progs/sort.g
 15    }
 </pre>
 <p>
-The code needs only three methods, which we wrap into <code>SortInterface</code>:
+The code needs only three methods, which we wrap into sort's <code>Interface</code>:
 <p>
 <pre> <!-- progs/sort.go /interface/ /^}/ -->
-03    type SortInterface interface {
+03    type Interface interface {
 04        Len() int;
 05        Less(i, j int) bool;
 06        Swap(i, j int);
@@ -1350,3 +1350,5 @@ at the end of main:
 There's a lot more to Go programming and concurrent programming in general but this
 quick tour should give you some of the basics.
 </table>
+</body>
+</html>

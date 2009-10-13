@@ -4,13 +4,13 @@
 
 package sort
 
-type SortInterface interface {
+type Interface interface {
 	Len() int;
 	Less(i, j int) bool;
 	Swap(i, j int);
 }
 
-func Sort(data SortInterface) {
+func Sort(data Interface) {
 	for i := 1; i < data.Len(); i++ {
 		for j := i; j > 0 && data.Less(j, j-1); j-- {
 			data.Swap(j, j-1);
@@ -18,7 +18,7 @@ func Sort(data SortInterface) {
 	}
 }
 
-func IsSorted(data SortInterface) bool {
+func IsSorted(data Interface) bool {
 	n := data.Len();
 	for i := n - 1; i > 0; i-- {
 		if data.Less(i, i - 1) {
