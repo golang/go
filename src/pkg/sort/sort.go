@@ -6,11 +6,10 @@
 // and user-defined collections.
 package sort
 
-// SortInterface is the interface that a type, typically a collection,
-// must implement for its contents to be sorted in increasing order.
-// Its methods require that the elements of the collection be enumerated
-// by an integer index.
-type SortInterface interface {
+// A type, typically a collection, that satisfies sort.Interface can be
+// sorted by the routines in this package.  The methods require that the
+// elements of the collection be enumerated by an integer index.
+type Interface interface {
 	// Len is the number of elements in the collection.
 	Len() int;
 	// Less returns whether the element with index i is should sort
@@ -29,7 +28,7 @@ func min(a, b int) int {
 }
 
 // Insertion sort
-func insertionSort(data SortInterface, a, b int) {
+func insertionSort(data Interface, a, b int) {
 	for i := a+1; i < b; i++ {
 		for j := i; j > a && data.Less(j, j-1); j-- {
 			data.Swap(j, j-1);
@@ -41,7 +40,7 @@ func insertionSort(data SortInterface, a, b int) {
 // ``Engineering a Sort Function,'' SP&E November 1993.
 
 // Move the median of the three values data[a], data[b], data[c] into data[a].
-func medianOfThree(data SortInterface, a, b, c int) {
+func medianOfThree(data Interface, a, b, c int) {
 	m0 := b;
 	m1 := a;
 	m2 := c;
@@ -58,13 +57,13 @@ func medianOfThree(data SortInterface, a, b, c int) {
 // now data[m0] <= data[m1] <= data[m2]
 }
 
-func swapRange(data SortInterface, a, b, n int) {
+func swapRange(data Interface, a, b, n int) {
 	for i := 0; i < n; i++ {
 		data.Swap(a+i, b+i);
 	}
 }
 
-func doPivot(data SortInterface, lo, hi int) (midlo, midhi int) {
+func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
 	m := (lo+hi)/2;
 	if hi-lo > 40 {
 		// Tukey's ``Ninther,'' median of three medians of three.
@@ -123,7 +122,7 @@ func doPivot(data SortInterface, lo, hi int) (midlo, midhi int) {
 	return lo+b-a, hi-(d-c);
 }
 
-func quickSort(data SortInterface, a, b int) {
+func quickSort(data Interface, a, b int) {
 	if b-a > 7 {
 		mlo, mhi := doPivot(data, a, b);
 		quickSort(data, a, mlo);
@@ -133,12 +132,12 @@ func quickSort(data SortInterface, a, b int) {
 	}
 }
 
-func Sort(data SortInterface) {
+func Sort(data Interface) {
 	quickSort(data, 0, data.Len());
 }
 
 
-func IsSorted(data SortInterface) bool {
+func IsSorted(data Interface) bool {
 	n := data.Len();
 	for i := n-1; i > 0; i-- {
 		if data.Less(i, i-1) {
@@ -151,7 +150,7 @@ func IsSorted(data SortInterface) bool {
 
 // Convenience types for common cases
 
-// IntArray attaches the methods of SortInterface to []int, sorting in increasing order.
+// IntArray attaches the methods of Interface to []int, sorting in increasing order.
 type IntArray []int
 
 func (p IntArray) Len() int {
@@ -170,7 +169,7 @@ func (p IntArray) Sort() {
 }
 
 
-// FloatArray attaches the methods of SortInterface to []float, sorting in increasing order.
+// FloatArray attaches the methods of Interface to []float, sorting in increasing order.
 type FloatArray []float
 
 func (p FloatArray) Len() int {
@@ -189,7 +188,7 @@ func (p FloatArray) Sort() {
 }
 
 
-// StringArray attaches the methods of SortInterface to []string, sorting in increasing order.
+// StringArray attaches the methods of Interface to []string, sorting in increasing order.
 type StringArray []string
 
 func (p StringArray) Len() int {

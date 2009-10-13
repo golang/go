@@ -92,7 +92,7 @@ func (p *StringVector) AppendVector(x *StringVector) {
 }
 
 
-// SortInterface support
+// sort.Interface support
 // Less returns a boolean denoting whether the i'th element is less than the j'th element.
 func (p *StringVector) Less(i, j int) bool {
 	return p.At(i) < p.At(j);
