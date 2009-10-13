@@ -123,11 +123,33 @@ func _() {
 
 
 func _() {
+	// this comment should be indented
+	L:
+}
+
+
+func _() {
 	L: _ = 0;
 }
 
 
 func _() {
+	// this comment should be indented
+	L: _ = 0;
+}
+
+
+func _() {
+	for {
+	L1: _ = 0;
+	L2:
+		_ = 0;
+	}
+}
+
+
+func _() {
+		// this comment should be indented
 	for {
 	L1: _ = 0;
 	L2:
