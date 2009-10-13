@@ -356,7 +356,6 @@ func (p *printer) writeComment(comment *ast.Comment) {
 }
 
 
-
 // writeCommentSuffix writes a line break after a comment if indicated
 // and processes any leftover indentation information. If a line break
 // is needed, the kind of break (newline vs formfeed) depends on the
@@ -386,7 +385,6 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) {
 		p.write([]byte{'\n'}, 0);
 	}
 }
-
 
 
 // intersperseComments consumes all comments that appear before the next token
@@ -978,6 +976,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 		}
 
 	case *ast.BasicLit:
+		// TODO(gri): string contents must remain unchanged through tabwriter!
 		p.print(x.Value);
 
 	case *ast.StringList:
@@ -1535,13 +1534,20 @@ func (p *printer) file(src *ast.File) {
 // Trimmer
 
 // A trimmer is an io.Writer filter for stripping trailing blanks
-// and tabs, and for converting formfeed characters into newlines.
+// and tabs, and for converting formfeed and vtab characters into
+// newlines and htabs (in case no tabwriter is used).
 //
 type trimmer struct {
 	output io.Writer;
 	buf bytes.Buffer;
 }
 
+
+// Design note: It is tempting to eliminate extra blanks occuring in
+//              whitespace in this function as it could simplify some
+//              of the blanks logic in the node printing functions.
+//              However, this would mess up any formatting done by
+//              the tabwriter.
 
 func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 	// m < 0: no unwritten data except for whitespace
@@ -1563,6 +1569,10 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 				p.buf.Reset();
 				m = n;
 			}
+
+		case '\v':
+			b = '\t';  // convert to htab
+			fallthrough;
 
 		case '\t', ' ':
 			// write any pending (non-whitespace) data
