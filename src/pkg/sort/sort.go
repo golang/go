@@ -14,7 +14,6 @@ type Interface interface {
 	Len() int;
 	// Less returns whether the element with index i is should sort
 	// before the element with index j.
-	// TODO(r): should this method be renamed Before?
 	Less(i, j int) bool;
 	// Swap swaps the elements with indexes i and j.
 	Swap(i, j int);
