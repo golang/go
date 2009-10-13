@@ -19,7 +19,7 @@ func cat(f *file.File) {
 		case nr < 0:
 			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", f.String(), er.String());
 			os.Exit(1);
-		case nr == 0:	// EOF
+		case nr == 0:  // EOF
 			return;
 		case nr > 0:
 			if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
@@ -30,7 +30,7 @@ func cat(f *file.File) {
 }
 
 func main() {
-	flag.Parse();	// Scans the arg list and sets up flags
+	flag.Parse();   // Scans the arg list and sets up flags
 	if flag.NArg() == 0 {
 		cat(file.Stdin);
 	}
