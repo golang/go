@@ -4,10 +4,6 @@
 
 include ../../Make.conf
 
-# The directory is ar because the source is portable and general.
-# We call the binary 6ar to avoid confusion and because this binary
-# is linked only with amd64 and x86 support.
-
 TARG=gopack
 OFILES=\
 	ar.$O\
