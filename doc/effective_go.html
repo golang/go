@@ -85,7 +85,7 @@ type T struct {
 </pre>
 
 <p>
-<code>gofmt</code> will make the columns line up:
+<code>gofmt</code> will make the columns line up.
 </p>
 
 <pre>
@@ -101,7 +101,7 @@ All code in the libraries has been formatted with <code>gofmt</code>.
 
 
 <p>
-Some formatting details remain.  Very briefly:
+Some formatting details remain.  Very briefly,
 </p>
 
 <dl>
@@ -212,7 +212,7 @@ have a doc comment.
 Doc comments work best as complete English sentences, which allow
 a wide variety of automated presentations.
 The first sentence should be a one-sentence summary that
-starts with the name being declared:
+starts with the name being declared.
 </p>
 
 <pre>
@@ -366,7 +366,7 @@ Semicolons are never required at the top level.
 Also they are separators, not terminators, so they
 can be left off the last element of a statement or declaration list,
 a convenience
-for one-line <code>funcs</code> and the like:
+for one-line <code>funcs</code> and the like.
 </p>
 
 <pre>
@@ -378,7 +378,7 @@ func CopyInBackground(dst, src chan Item) {
 <p>
 In fact, semicolons can be omitted at the end of any "StatementList" in the
 grammar, which includes things like cases in <code>switch</code>
-statements:
+statements.
 </p>
 
 <pre>
@@ -444,7 +444,7 @@ especially when the body contains a control statement such as a
 
 <p>
 Since <code>if</code> and <code>switch</code> accept an initialization
-statement, it's common to see one used to set up a local variable:
+statement, it's common to see one used to set up a local variable.
 </p>
 
 <pre>
@@ -474,7 +474,7 @@ This is a example of a common situation where code must analyze a
 sequence of error possibilities.  The code reads well if the
 successful flow of control runs down the page, eliminating error cases
 as they arise.  Since error cases tend to end in <code>return</code>
-statements, the resulting code needs no <code>else</code> statements:
+statements, the resulting code needs no <code>else</code> statements.
 </p>
 
 <pre>
@@ -493,10 +493,10 @@ codeUsing(f, d);
 <h3 id="for">For</h3>
 
 <p>
-The Go <code>for</code> loop is similar to—but not the same as—C's.
+The Go <code>for</code> loop is similar to&mdash;but not the same as&mdash;C's.
 It unifies <code>for</code>
 and <code>while</code> and there is no <code>do-while</code>.
-There are three forms, only one of which has semicolons:
+There are three forms, only one of which has semicolons.
 </p>
 <pre>
 // Like a C for
@@ -510,7 +510,7 @@ for { }
 </pre>
 
 <p>
-Short declarations make it easy to declare the index variable right in the loop:
+Short declarations make it easy to declare the index variable right in the loop.
 </p>
 <pre>
 sum := 0;
@@ -521,7 +521,7 @@ for i := 0; i < 10; i++ {
 
 <p>
 If you're looping over an array, slice, string, or map a <code>range</code> clause can set
-it all up for you:
+it all up for you.
 </p>
 <pre>
 var m map[string] int;
@@ -553,7 +553,7 @@ character 語 starts at byte position 6
 <p>
 Finally, since Go has no comma operator and <code>++</code> and <code>--</code>
 are statements not expressions, if you want to run multiple variables in a <code>for</code>
-you should use parallel assignment:
+you should use parallel assignment.
 </p>
 <pre>
 // Reverse a
@@ -570,9 +570,9 @@ The expressions need not be constants or even integers,
 the cases are evaluated top to bottom until a match is found,
 and if the <code>switch</code> has no expression it switches on
 <code>true</code>.
-It's therefore possible—and idiomatic—to write an
+It's therefore possible&mdash;and idiomatic&mdash;to write an
 <code>if</code>-<code>else</code>-<code>if</code>-<code>else</code>
-chain as a <code>switch</code>:
+chain as a <code>switch</code>.
 </p>
 
 <pre>
@@ -591,7 +591,7 @@ func unhex(c byte) byte {
 
 <p>
 There is no automatic fall through, but cases can be presented
-in comma-separated lists:
+in comma-separated lists.
 <pre>
 func shouldEscape(c byte) bool {
     switch c {
@@ -784,7 +784,7 @@ is defined to be an unlocked mutex.
 </p>
 
 <p>
-The zero-value-is-useful property works transitively. Consider this type declaration:
+The zero-value-is-useful property works transitively. Consider this type declaration.
 </p>
 
 <pre>
@@ -797,7 +797,7 @@ type SyncedBuffer struct {
 <p>
 Values of type <code>SyncedBuffer</code> are also ready to use immediately upon allocation
 or just declaration.  In this snippet, both <code>p</code> and <code>v</code> will work
-correctly without further arrangement:
+correctly without further arrangement.
 </p>
 
 <pre>
@@ -810,7 +810,7 @@ var v SyncedBuffer;      // type  SyncedBuffer
 <p>
 Sometimes the zero value isn't good enough and an initializing
 constructor is necessary, as in this example derived from
-package <code>os</code>:
+package <code>os</code>.
 </p>
 
 <pre>
@@ -852,7 +852,7 @@ the storage associated with the variable survives after the function
 returns.
 In fact, taking the address of a composite literal
 allocates a fresh instance each time it is evaluated,
-so we can combine these last two lines:
+so we can combine these last two lines.
 </p>
 
 <pre>
@@ -872,7 +872,7 @@ order, with the missing ones left as their respective zero values.  Thus we coul
 
 <p>
 As a limiting case, if a composite literal contains no fields at all, it creates
-a zero value for the type.  These two expressions are equivalent:
+a zero value for the type.  These two expressions are equivalent.
 </p>
 
 <pre>
@@ -884,7 +884,7 @@ new(File)
 Composite literals can also be created for arrays, slices, and maps,
 with the field labels being indices or map keys as appropriate.
 In these examples, the initializations work regardless of the values of <code>EnoError</code>,
-<code>Eio</code>, and <code>Einval</code>, as long as they are distinct:
+<code>Eio</code>, and <code>Einval</code>, as long as they are distinct.
 </p>
 
 <pre>
@@ -928,7 +928,7 @@ structure, that is, a pointer to a <code>nil</code> slice value.
 
 <p>
 These examples illustrate the difference between <code>new()</code> and
-<code>make()</code>:
+<code>make()</code>.
 </p>
 
 <pre>
@@ -959,7 +959,7 @@ To lay the foundation for that topic, here are a few words about arrays.
 
 <p>
 There are major differences between the ways arrays work in Go and C.
-In Go:
+In Go,
 </p>
 <ul>
 <li>
@@ -976,7 +976,7 @@ and <code>[20]int</code> are distinct.
 
 <p>
 The value property can be useful but also expensive; if you want C-like behavior and efficiency,
-you can pass a pointer to the array:
+you can pass a pointer to the array.
 </p>
 
 <pre>
@@ -1021,14 +1021,14 @@ func (file *File) Read(buf []byte) (n int, err os.Error)
 <p>
 The method returns the number of bytes read and an error value, if
 any.  To read into the first 32 bytes of a larger buffer
-<code>b</code>, <i>slice</i> (here used as a verb) the buffer:
+<code>b</code>, <i>slice</i> (here used as a verb) the buffer.
 </p>
 <pre>
 	n, err := f.Read(buf[0:32]);
 </pre>
 <p>
 Such slicing is common and efficient.  In fact, leaving efficiency aside for
-the moment, this snippet would also read the first 32 bytes of the buffer:
+the moment, this snippet would also read the first 32 bytes of the buffer.
 </p>
 <pre>
 	var n int;
@@ -1044,7 +1044,7 @@ the moment, this snippet would also read the first 32 bytes of the buffer:
 </pre>
 <p>
 The length of a slice may be changed as long as it still fits within
-the limits of the underyling array; just assign it to a slice of
+the limits of the underlying array; just assign it to a slice of
 itself.  The <i>capacity</i> of a slice, accessible by the built-in
 function <code>cap</code>, reports the maximum length the slice may
 assume.  Here is a function to append data to a slice.  If the data
@@ -1262,8 +1262,8 @@ map[string] int
 </pre>
 <p>
 If you want to control the default format for a custom type, all that's required is to define
-a method <code>String() string</code> on the type.  (Methods are the subject of the next
-section.) For our simple type <code>T</code>, that might look like this.
+a method <code>String() string</code> on the type.
+For our simple type <code>T</code>, that might look like this.
 </p>
 <pre>
 func (t *T) String() string {
@@ -1352,14 +1352,14 @@ func (p *ByteSlice) Write(data []byte) (n int, err os.Error) {
 <p>
 then the type <code>*ByteSlice</code> satisfies the standard interface
 <code>io.Writer</code>, which is handy.  For instance, we can
-print into one:
+print into one.
 </p>
 <pre>
 	var b ByteSlice;
 	fmt.Fprintf(&amp;b, "This hour has %d days\n", 7);
 </pre>
 <p>
-Notice that we must pass the address of a <code>ByteSlice</code>
+We pass the address of a <code>ByteSlice</code>
 because only <code>*ByteSlice</code> satisfies <code>io.Writer</code>.
 The rule about pointers vs. values for receivers is that value methods
 can be invoked on pointers and values, but pointer methods can only be
@@ -1372,38 +1372,167 @@ By the way, the idea of using <code>Write</code> on a slice of bytes
 is implemented by <code>bytes.Buffer</code>.
 </p>
 
-<h2>Interfaces</h2>
+<h2 id="interfaces_and_types">Interfaces and the interplay of types</h2>
 
-<!---
-<h3 id="accept-interface-values">Accept interface values</h3>
+<h3 id="interfaces">Interfaces</h3>
+<p>
+Interfaces in Go provide a way to specify the behavior of an
+object: if something can do <em>this</em>, then it can be used
+<em>here</em>.  We've seen a couple of simple examples already;
+custom printers can be implemented by a <code>String</code> method
+while <code>Fprintf</code> can generate output to anything
+with a <code>Write</code> method.
+Interfaces with only one or two methods are common in Go, and are
+usually given a name derived from the method, such as <code>io.Writer</code>
+for something that implements <code>Write</code>.
+</p>
+<p>
+A type can implement multiple interfaces.
+For instance, a collection can be sorted
+by the routines in package <code>sort</code> if it implements
+<code>sort.Interface</code>, which contains <code>Len()</code>,
+<code>Less(i, j int)</code>, and <code>Swap(i, j int)</code>,
+and it could also have a custom formatter.
+In this contrived example <code>Sequence</code> satisfies both.
+</p>
+<pre>
+type Sequence []int
 
-buffered i/o takes a Reader, not an os.File.  XXX
+// Methods required by sort.Interface.
+func (s Sequence) Len() int {
+	return len(s)
+}
+func (s Sequence) Less(i, j int) bool {
+	return s[i] < s[j]
+}
+func (s Sequence) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
 
-<h3 id="return-interface-values">Return interface values</h3>
+// Method for printing - sorts the elements before printing.
+func (s Sequence) String() string {
+	sort.Sort(s);
+	str := "[";
+	for i, elem := range s {
+		if i > 0 {
+			str += " "
+		}
+		str += fmt.Sprint(elem);
+	}
+	return str + "]";
+}
+</pre>
 
+<h3 id="conversions">Conversions</h3>
+
+<p>
+The <code>String</code> method of <code>Sequence</code> is recreating the
+work that <code>Sprint</code> already does for slices.  We can share the
+effort if we convert the <code>Sequence</code> to a plain
+<code>[]int</code> before calling <code>Sprint</code>.
+</p>
+<pre>
+func (s Sequence) String() string {
+	sort.Sort(s);
+	return fmt.Sprint([]int(s));
+}
+</pre>
+<p>
+The conversion causes <code>s</code> to be treated as an ordinary slice
+and therefore receive the default formatting.
+Without the conversion, <code>Sprint</code> would find the
+<code>String</code> method of <code>Sequence</code> and recur indefinitely.
+Because the two types (<code>Sequence</code> and <code>[]int</code>)
+are the same if we ignore the type name, it's legal to convert between them.
+The conversion doesn't create a new value, it just temporarily acts
+as though the existing value has a new type.
+(There are other legal conversions, such as from integer to float, that
+do create a new value.)
+</p>
+<p>
+It's an idiom of Go code to convert the
+type of an expression to access a different
+set of methods. As an example, we could use the existing
+type <code>sort.IntArray</code> to reduce the entire example
+to this:
+</p>
+<pre>
+type Sequence []int
+
+// Method for printing - sorts the elements before printing
+func (s Sequence) String() string {
+	sort.IntArray(s).Sort();
+	return fmt.Sprint([]int(s))
+}
+</pre>
+<p>
+Now, instead of having <code>Sequence</code> implement multiple
+interfaces (sorting and printing), we're using the ability of a data item to be
+converted to multiple types (<code>Sequence</code>, <code>sort.IntArray</code>
+and <code>[]int</code>), each of which does some part of the job.
+That's more unusual in practice but can be effective.
+</p>
+
+<h3 id="generality">Generality</h3>
 <p>
 If a type exists only to implement an interface
 and has no exported methods beyond that interface,
 there is no need to publish the type itself.
-Instead, write a constructor that returns an interface value.
+Publishing just the interface makes it easy for
+other implementations with different properties
+to mirror the job of the original type.
+It also avoids the need to repeat the documentation
+on every instance of a common method.
 </p>
-
 <p>
-For example, both <code>crc32.NewIEEE()</code> and <code>adler32.New()</code>
-return type <code>hash.Hash32</code>.
+In such cases, the constructor should return an interface value
+rather than the implementing type.
+As an example, in the hash libraries
+both <code>crc32.NewIEEE()</code> and <code>adler32.New()</code>
+return the interface type <code>hash.Hash32</code>.
 Substituting the CRC-32 algorithm for Adler-32 in a Go program
-requires only changing the constructor call:
+requires only changing the constructor call;
 the rest of the code is unaffected by the change of algorithm.
 </p>
+<p>
+A similar approach allows the streaming cipher algorithms
+in the <code>crypto/block</code> package to be
+separated from the block ciphers they chain together.
+By analogy to the <code>bufio</code> package,
+they wrap a <code>Cipher</code> interface
+and they return <code>hash.Hash</code>,
+<code>io.Reader</code>, or <code>io.Writer</code>
+interface values, not direct implementations.
+</p>
+<p>
+The interface to <code>crypto/block</code> includes:
+</p>
+<pre>
+type Cipher interface {
+	BlockSize() int;
+	Encrypt(src, dst []byte);
+	Decrypt(src, dst []byte);
+}
 
-<h3 id="asdf">Use interface adapters to expand an implementation</h3>
+// NewECBDecrypter returns a reader that reads data
+// from r and decrypts it using c in electronic codebook (ECB) mode.
+func NewECBDecrypter(c Cipher, r io.Reader) io.Reader
 
-XXX
-
-<h3 id="fdsa">Use anonymous fields to incorporate an implementation</h3>
-
-XXX
---->
+// NewCBCDecrypter returns a reader that reads data
+// from r and decrypts it using c in cipher block chaining (CBC) mode
+// with the initialization vector iv.
+func NewCBCDecrypter(c Cipher, iv []byte, r io.Reader) io.Reader
+</pre>
+<p>
+<code>NewECBDecrypter</code> and <code>NewCBCReader</code> apply not
+just to one specific encryption algorithm and data source but to any
+implementation of the <code>Cipher</code> interface and any
+<code>io.Reader</code>.  Because they return <code>io.Reader</code>
+interface values, replacing ECB
+encryption with CBC encryption is a localized change.  The constructor
+calls must be edited, but because the code must treat the result only
+as an <code>io.Reader</code>, it won't notice the difference.
+</p>
 
 <h2 id="errors">Errors</h2>
 
@@ -1489,30 +1618,6 @@ for try := 0; try < 2; try++ {
 <pre>
 header, body, checksum := buf[0:20], buf[20:n-4], buf[n-4:n];
 </pre>
-
-<h2 id="types">Programmer-defined types</h2>
-
-<p>Packages that export only a single type can
-shorten <code>NewTypeName</code> to <code>New</code>;
-the vector constructor is
-<code>vector.New</code>, not <code>vector.NewVector</code>.
-</p>
-
-<p>
-A type that is intended to be allocated
-as part of a larger struct may have an <code>Init</code> method
-that must be called explicitly.
-Conventionally, the <code>Init</code> method returns
-the object being initialized, to make the constructor trivial:
-</p>
-
-<a href="xxx">go/src/pkg/container/vector/vector.go</a>:
-<pre>
-func New(len int) *Vector {
-	return new(Vector).Init(len)
-}
-</pre>
-
 
 <h2>Data-Driven Programming</h2>
 
