@@ -181,7 +181,9 @@ var facts = map[int]string{
 
 func usage() {
 	fmt.Fprintf(os.Stderr,
-		// TODO(gri): the 2nd string of this string list should not be indented
+
+
+	// TODO(gri): the 2nd string of this string list should not be indented
 		"usage: godoc package [name ...]\n"
 		"	godoc -http=:6060\n");
 	flag.PrintDefaults();

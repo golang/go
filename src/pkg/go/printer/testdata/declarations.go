@@ -175,6 +175,14 @@ func _() {
 		y = 20;  // comment
 		f, ff, fff, ffff int = 0, 1, 2, 3;  // comment
 	)
+	// respect original line breaks
+	var _ = []T {
+		T{0x20,	"Telugu"}
+	};
+	var _ = []T {
+		// respect original line breaks
+		T{0x20,	"Telugu"}
+	};
 }
 
 func _() {
@@ -194,7 +202,13 @@ func _() {
 
 
 // formatting of structs
-type ES struct{}
+type _ struct{}
+
+type _ struct{ /* this comment should be visible */ }
+
+type _ struct{
+	// this comment should be visible and properly indented
+}
 
 type _ struct {  // this comment must not change indentation
 	f int;

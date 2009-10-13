@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This is a package for testing purposes.
+// This is a package for testing comment placement by go/printer.
 //
 package main
 
@@ -53,7 +53,7 @@ type I1 interface {
 }
 
 // The I2 interface; all methods are exported.
-type I1 interface {
+type I2 interface {
 	I0;
 	F(x float) float;  // exported method
 	G(x float) float;  // exported method
@@ -91,6 +91,11 @@ func f1() {
 }
 
 
+func _() {
+	// this comment should be properly indented
+}
+
+
 func abs(x int) int {
 	if x < 0 {  // the tab printed before this comment's // must not affect the remaining lines
 		return -x;  // this statement should be properly indented
@@ -114,9 +119,26 @@ func typeswitch(x interface{}) {
 
 	switch v0, ok := x.(int); x.(type) {
 	case bool, int, float:
+		// this comment should be indented
 	case string:
 	default:
+		// this comment should be indented
 	}
+	// this comment should be indented
 }
+
+
+// Line comments with tabs
+func _() {
+var	finput		*bufio.Reader;			// input file
+var	stderr		*bufio.Writer;
+var	ftable		*bufio.Writer;			// y.go file
+var	foutput		*bufio.Writer;			// y.output file
+
+var	oflag		string;				// -o [y.go]		- y.go file
+var	vflag		string;				// -v [y.output]	- y.output file
+var	lflag		bool;				// -l			- disable line directives
+}
+
 
 // This comment is the last entry in this file. It must be printed.

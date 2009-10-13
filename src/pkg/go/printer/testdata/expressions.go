@@ -165,3 +165,14 @@ func (p *parser) charClass() {
 		p.re.add(nl);
 	}
 }
+
+
+func addState(s []state, inst instr, match []int) {
+	// handle comments correctly in multi-line expressions
+	for i := 0; i < l; i++ {
+		if s[i].inst.index() == index && // same instruction
+		   s[i].match[0] < pos {	// earlier match already going; leftmost wins
+		   	return s
+		 }
+	}
+}

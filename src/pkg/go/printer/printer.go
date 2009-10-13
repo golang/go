@@ -39,14 +39,18 @@ const (
 type whiteSpace int
 
 const (
+	ignore = whiteSpace(0);
 	blank = whiteSpace(' ');
 	vtab = whiteSpace('\v');
 	newline = whiteSpace('\n');
 	formfeed = whiteSpace('\f');
+	indent = whiteSpace('>');
+	unindent = whiteSpace('<');
 )
 
 
 var (
+	htab = []byte{'\t'};
 	htabs = [...]byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'};
 	newlines = [...]byte{'\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'};  // more than maxNewlines
 	ampersand = strings.Bytes("&amp;");
@@ -69,25 +73,34 @@ type htmlTag struct {
 
 
 type printer struct {
-	// configuration (does not change after initialization)
+	// Configuration (does not change after initialization)
 	output io.Writer;
 	mode uint;
 	errors chan os.Error;
 
-	// current state (changes during printing)
+	// Current state
 	written int;  // number of bytes written
 	indent int;  // current indentation
-	last token.Position;  // (possibly estimated) position immediately after the last item; in AST space
-	pos token.Position;  // (possibly estimated) position; in AST space
+
+	// Buffered whitespace
+	buffer []whiteSpace;
+
+	// The (possibly estimated) position in the generated output;
+	// in AST space (i.e., pos is set whenever a token position is
+	// known accurately, and updated dependending on what has been
+	// written)
+	pos token.Position;
+
+	// The value of pos immediately after the last item has been
+	// written using writeItem.
+	last token.Position;
+
+	// HTML support
 	tag htmlTag;  // tag to be used around next item
 	lastTaggedLine int;  // last line for which a line tag was written
 
-	// buffered whitespace
-	buffer [8]whiteSpace;  // whitespace sequences are short (1 or 2); 8 entries is plenty
-	buflen int;
-
-	// comments
-	comment *ast.CommentGroup;  // list of comments; or nil
+	// The list of comments; or nil.
+	comment *ast.CommentGroup;
 }
 
 
@@ -95,6 +108,7 @@ func (p *printer) init(output io.Writer, mode uint) {
 	p.output = output;
 	p.mode = mode;
 	p.errors = make(chan os.Error);
+	p.buffer = make([]whiteSpace, 0, 16);  // whitespace sequences are short
 }
 
 
@@ -118,34 +132,39 @@ const (
 )
 
 // write interprets data and writes it to p.output. It inserts indentation
-// after newline or formfeed and HTML-escapes characters if GenHTML is set.
+// after newline or formfeed if not in writeRaw mode and HTML-escapes characters
+// if GenHTML is set. It updates p.pos as a side-effect.
 //
 func (p *printer) write(data []byte, mode writeMode) {
 	i0 := 0;
 	for i, b := range data {
 		switch b {
 		case '\n', '\f':
-			if mode & writeRaw == 0 {
-				// write segment ending in b followed by indentation
-				p.write0(data[i0 : i+1]);
+			// write segment ending in b
+			p.write0(data[i0 : i+1]);
 
+			// update p.pos
+			p.pos.Offset += i+1 - i0;
+			p.pos.Line++;
+			p.pos.Column = 1;
+
+			if mode & writeRaw == 0 {
 				// write indentation
-				// use horizontal ("hard") tabs - indentation columns
+				// use "hard" htabs - indentation columns
 				// must not be discarded by the tabwriter
 				j := p.indent;
 				for ; j > len(htabs); j -= len(htabs) {
 					p.write0(&htabs);
 				}
-				p.write0(htabs[0 : j]);
+				p.write0(htabs[0:j]);
 
 				// update p.pos
-				p.pos.Offset += i+1 - i0 + p.indent;
-				p.pos.Line++;
-				p.pos.Column = p.indent + 1;
-
-				// next segment start
-				i0 = i+1;
+				p.pos.Offset += p.indent;
+				p.pos.Column += p.indent;
 			}
+
+			// next segment start
+			i0 = i+1;
 
 		case '&', '<', '>':
 			if p.mode & GenHTML != 0 {
@@ -162,8 +181,9 @@ func (p *printer) write(data []byte, mode writeMode) {
 				p.write0(esc);
 
 				// update p.pos
-				p.pos.Offset += i+1 - i0;
-				p.pos.Column += i+1 - i0;
+				d := i+1 - i0;
+				p.pos.Offset += d;
+				p.pos.Column += d;
 
 				// next segment start
 				i0 = i+1;
@@ -175,9 +195,9 @@ func (p *printer) write(data []byte, mode writeMode) {
 	p.write0(data[i0 : len(data)]);
 
 	// update p.pos
-	n := len(data) - i0;
-	p.pos.Offset += n;
-	p.pos.Column += n;
+	d := len(data) - i0;
+	p.pos.Offset += d;
+	p.pos.Column += d;
 }
 
 
@@ -191,6 +211,13 @@ func (p *printer) writeNewlines(n int) {
 }
 
 
+// writeItem writes data at position pos. data is the text corresponding to
+// a single lexical token, but may also be comment text. pos is the actual
+// (or at least very accurately estimated) position of the data in the original
+// source text. The data may be tagged, depending on p.mode and the mode
+// parameter. writeItem updates p.last to the position immediately following
+// the data.
+//
 func (p *printer) writeItem(pos token.Position, data []byte, mode writeMode) {
 	p.pos = pos;
 	if debug {
@@ -226,10 +253,81 @@ func (p *printer) writeItem(pos token.Position, data []byte, mode writeMode) {
 }
 
 
-// TODO(gri): decide if this is needed - keep around for now
-/*
-// Reduce contiguous sequences of '\t' in a []byte to a single '\t'.
-func untabify(src []byte) []byte {
+// writeCommentPrefix writes the whitespace before a comment.
+// If there is any pending whitespace, it consumes as much of
+// it as is likely to help the comment position properly.
+// line is the comment line, isFirst indicates if this is the
+// first comment in a group of comments.
+//
+func (p *printer) writeCommentPrefix(line int, isFirst bool) {
+	if !p.last.IsValid() {
+		// there was no preceeding item and the comment is the
+		// first item to be printed - don't write any whitespace
+		return;
+	}
+
+	n := line - p.last.Line;
+	if n == 0 {
+		// comment on the same line as last item:
+		// separate with at least one tab
+		hasTab := false;
+		if isFirst {
+			j := 0;
+			for i, ch := range p.buffer {
+				switch ch {
+				case blank:
+					// ignore any blanks before a comment
+					p.buffer[i] = ignore;
+					continue;
+				case vtab:
+					// respect existing tabs - important
+					// for proper formatting of commented structs
+					hasTab = true;
+					continue;
+				case indent:
+					// apply pending indentation
+					continue;
+				}
+				j = i;
+				break;
+			}
+			p.writeWhitespace(j);
+		}
+		// make sure there is at least one tab
+		if !hasTab {
+			p.write(htab, 0);
+		}
+
+	} else {
+		// comment on a different line:
+		// separate with at least one line break
+		if isFirst {
+			j := 0;
+			for i, ch := range p.buffer {
+				switch ch {
+				case blank, vtab:
+					// ignore any horizontal whitespace before line breaks
+					p.buffer[i] = ignore;
+					continue;
+				case indent:
+					// apply pending indentation
+					continue;
+				case newline, formfeed:
+					// TODO(gri): may want to keep formfeed info in some cases
+					p.buffer[i] = ignore;
+				}
+				j = i;
+				break;
+			}
+			p.writeWhitespace(j);
+		}
+		p.writeNewlines(n);
+	}
+}
+
+
+// Collapse contiguous sequences of '\t' in a []byte to a single '\t'.
+func collapseTabs(src []byte) []byte {
 	dst := make([]byte, len(src));
 	j := 0;
 	for i, c := range src {
@@ -240,97 +338,127 @@ func untabify(src []byte) []byte {
 	}
 	return dst[0 : j];
 }
-*/
 
 
 func (p *printer) writeComment(comment *ast.Comment) {
-	// separation from last item
-	if p.last.IsValid() {
-		// there was a preceding item (otherwise, the comment is the
-		// first item to be printed - in that case do not apply extra
-		// spacing)
-		n := comment.Pos().Line - p.last.Line;
-		if n == 0 {
-			// comment on the same line as last item; separate with tab
-			p.write(htabs[0 : 1], 0);
-		} else {
-			// comment on a different line; separate with newlines
-			p.writeNewlines(n);
-		}
+	// If there are tabs in the comment text, they were probably introduced
+	// to align the comment contents. If the same tab settings were used as
+	// by the printer, reducing tab sequences to single tabs will yield the
+	// original comment again after reformatting via the tabwriter.
+	text := comment.Text;
+	if p.mode & RawFormat == 0 {
+		// tabwriter is used
+		text = collapseTabs(comment.Text);
 	}
 
 	// write comment
-	p.writeItem(comment.Pos(), comment.Text, 0);
+	p.writeItem(comment.Pos(), text, 0);
 }
 
 
-func (p *printer) intersperseComments(next token.Position) {
-	firstLine := 0;
-	needsNewline := false;
-	for ; p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset; p.comment = p.comment.Next {
-		for _, c := range p.comment.List {
-			if firstLine == 0 {
-				firstLine = c.Pos().Line;
+
+// writeCommentSuffix writes a line break after a comment if indicated
+// and processes any leftover indentation information. If a line break
+// is needed, the kind of break (newline vs formfeed) depends on the
+// pending whitespace.
+//
+func (p *printer) writeCommentSuffix(needsLinebreak bool) {
+	for i, ch := range p.buffer {
+		switch ch {
+		case blank, vtab:
+			// ignore trailing whitespace
+			p.buffer[i] = ignore;
+		case indent, unindent:
+			// don't loose indentation information
+		case newline, formfeed:
+			// if we need a line break, keep exactly one
+			if needsLinebreak {
+				needsLinebreak = false;
+			} else {
+				p.buffer[i] = ignore;
 			}
+		}
+	}
+	p.writeWhitespace(len(p.buffer));
+
+	// make sure we have a line break
+	if needsLinebreak {
+		p.write([]byte{'\n'}, 0);
+	}
+}
+
+
+
+// intersperseComments consumes all comments that appear before the next token
+// and prints it together with the buffered whitespace (i.e., the whitespace
+// that needs to be written before the next token). A heuristic is used to mix
+// the comments and whitespace.
+//
+func (p *printer) intersperseComments(next token.Position) {
+	isFirst := true;
+	needsLinebreak := false;
+	for ; p.commentBefore(next); p.comment = p.comment.Next {
+		for _, c := range p.comment.List {
+			p.writeCommentPrefix(c.Pos().Line, isFirst);
+			isFirst = false;
 			p.writeComment(c);
-			needsNewline = c.Text[1] == '/';
+			needsLinebreak = c.Text[1] == '/';
 		}
 	}
-
-	// Eliminate non-newline whitespace from whitespace buffer.
-	j := 0;
-	for i := 0; i < p.buflen; i++ {
-		ch := p.buffer[i];
-		if ch == '\n' || ch == '\f' {
-			p.buffer[j] = ch;
-			j++;
-		}
-	}
-	p.buflen = j;
-
-	// Eliminate extra newlines from whitespace buffer if they
-	// are not present in the original source. This makes sure
-	// that comments that need to be adjacent to a declaration
-	// remain adjacent.
-	if p.last.IsValid() {
-		n := next.Line - p.last.Line;
-		if n < p.buflen {
-			p.buflen = n;
-		}
-	}
-
-	// If the whitespace buffer is not empty, it contains only
-	// newline or formfeed chars. Force a formfeed char if the
-	// comments span more than one line - in this case the
-	// structure of the next line is likely to change. Otherwise
-	// use the existing char, if any.
-	if needsNewline {
-		ch := p.buffer[0];  // existing char takes precedence
-		if p.buflen == 0 {
-			p.buflen = 1;
-			ch = newline;  // original ch was a lie
-		}
-		if p.last.Line > firstLine {
-			ch = formfeed;  // comments span at least 2 lines
-		}
-		p.buffer[0] = ch;
-	}
+	p.writeCommentSuffix(needsLinebreak);
 }
 
 
-func (p *printer) writeWhitespace() {
-	var a [len(p.buffer)]byte;
-	for i := 0; i < p.buflen; i++ {
-		a[i] = byte(p.buffer[i]);
+// whiteWhitespace writes the first n whitespace entries.
+func (p *printer) writeWhitespace(n int) {
+	// write entries
+	var data [1]byte;
+	for i := 0; i < n; i++ {
+		switch ch := p.buffer[i]; ch {
+		case ignore:
+			// ignore!
+		case indent:
+			p.indent++;
+		case unindent:
+			p.indent--;
+			if p.indent < 0 {
+				// handle gracefully unless in debug mode
+				if debug {
+					panicln("negative indentation:", p.indent);
+				}
+				p.indent = 0;
+			}
+		case newline, formfeed:
+			// A line break immediately followed by a "correcting"
+			// unindent is swapped with the unindent - this permits
+			// proper label positioning. If a comment is between
+			// the line break and the label, the unindent is not
+			// part of the comment whitespace prefix and the comment
+			// will be positioned correctly indented.
+			if i+1 < n && p.buffer[i+1] == unindent {
+				p.buffer[i], p.buffer[i+1] = unindent, ch;
+				i--;  // do it again
+				continue;
+			}
+			fallthrough;
+		default:
+			data[0] = byte(ch);
+			p.write(&data, 0);
+		}
 	}
 
-	var b []byte = &a;
-	b = b[0 : p.buflen];
-	p.buflen = 0;
-
-	p.write(b, 0);
+	// shift remaining entries down
+	i := 0;
+	for ; n < len(p.buffer); n++ {
+		p.buffer[i] = p.buffer[n];
+		i++;
+	}
+	p.buffer = p.buffer[0:i];
 }
 
+
+// ----------------------------------------------------------------------------
+// Printing interface
 
 // print prints a list of "items" (roughly corresponding to syntactic
 // tokens, but also including whitespace and formatting information).
@@ -352,21 +480,17 @@ func (p *printer) print(args ...) {
 		next := p.pos;  // estimated position of next item
 		var data []byte;
 		switch x := f.Interface().(type) {
-		case int:
-			// indentation delta
-			p.indent += x;
-			if p.indent < 0 {
-				panicln("print: negative indentation", p.indent);
-			}
 		case whiteSpace:
-			if p.buflen >= len(p.buffer) {
+			i := len(p.buffer);
+			if i == cap(p.buffer) {
 				// Whitespace sequences are very short so this should
 				// never happen. Handle gracefully (but possibly with
 				// bad comment placement) if it does happen.
-				p.writeWhitespace();
+				p.writeWhitespace(i);
+				i = 0;
 			}
-			p.buffer[p.buflen] = x;
-			p.buflen++;
+			p.buffer = p.buffer[0 : i+1];
+			p.buffer[i] = x;
 		case []byte:
 			data = x;
 			// do not modify multi-line `` strings!
@@ -398,6 +522,8 @@ func (p *printer) print(args ...) {
 			p.flush(next);
 
 			// intersperse extra newlines if present in the source
+			// (don't do this in flush as it will cause extra newlines
+			// at the end of a file)
 			p.writeNewlines(next.Line - p.pos.Line);
 
 			p.writeItem(next, data, mode);
@@ -407,16 +533,24 @@ func (p *printer) print(args ...) {
 }
 
 
+// commentBefore returns true iff the current comment occurs
+// before the next position in the source code.
+//
+func (p *printer) commentBefore(next token.Position) bool {
+	return p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset;
+}
+
+
 // Flush prints any pending comments and whitespace occuring
 // textually before the position of the next item.
 //
 func (p *printer) flush(next token.Position) {
 	// if there are comments before the next item, intersperse them
-	if p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset {
+	if p.commentBefore(next) {
 		p.intersperseComments(next);
 	}
-
-	p.writeWhitespace();
+	// write any leftover whitespace
+	p.writeWhitespace(len(p.buffer));
 }
 
 
@@ -426,7 +560,7 @@ func (p *printer) flush(next token.Position) {
 
 // Print as many newlines as necessary (but at least min and and at most
 // max newlines) to get to the current line. If newSection is set, the
-// first newline is printed as a formfeed. Returns true if any linebreak
+// first newline is printed as a formfeed. Returns true if any line break
 // was printed; returns false otherwise.
 //
 // TODO(gri): Reconsider signature (provide position instead of line)
@@ -477,15 +611,13 @@ func (p *printer) leadComment(d *ast.CommentGroup) {
 }
 
 
-// Print n tabs followed by a line comment.
+// Print a tab followed by a line comment.
 // A newline must be printed afterwards since
 // the comment may be a //-style comment.
-func (p *printer) lineComment(n int, d *ast.CommentGroup) {
+func (p *printer) lineComment(d *ast.CommentGroup) {
 	// Ignore the comment if we have comments interspersed (p.comment != nil).
 	if p.comment == nil && d != nil {
-		for ; n > 0; n-- {
-			p.print(vtab);
-		}
+		p.print(vtab);
 		p.commentList(d.List);
 	}
 }
@@ -551,10 +683,10 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
 	// don't add extra indentation if noIndent is set;
 	// i.e., pretend that the first line is already indented
 	indented := mode&noIndent != 0;
-	// there may or may not be a linebreak before the first list
-	// element; in any case indent once after the first linebreak
+	// there may or may not be a line break before the first list
+	// element; in any case indent once after the first line break
 	if p.linebreak(line, 0, 2, true) && !indented {
-		p.print(+1);
+		p.print(htab, indent);  // indent applies to next line
 		indented = true;
 	}
 	for i, x := range list {
@@ -565,10 +697,10 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
 				p.print(token.COMMA);
 			}
 			if prev < line {
-				// at least one linebreak, but respect an extra empty line
+				// at least one line break, but respect an extra empty line
 				// in the source
 				if p.linebreak(x.Pos().Line, 1, 2, true) && !indented {
-					p.print(+1);
+					p.print(htab, indent);  // indent applies to next line
 					indented = true;
 				}
 			} else {
@@ -582,11 +714,11 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
 		if indented && mode&noIndent == 0 {
 			// should always be indented here since we have a multi-line
 			// expression list - be conservative and check anyway
-			p.print(-1);
+			p.print(unindent);
 		}
 		p.print(formfeed);  // terminating comma needs a line break to look good
 	} else if indented && mode&noIndent == 0 {
-		p.print(-1);
+		p.print(unindent);
 	}
 }
 
@@ -598,9 +730,8 @@ func (p *printer) parameters(list []*ast.Field) {
 			if i > 0 {
 				p.print(token.COMMA, blank);
 			}
-			p.identList(par.Names);
 			if len(par.Names) > 0 {
-				// at least one identifier
+				p.identList(par.Names);
 				p.print(blank);
 			}
 			p.expr(par.Type);
@@ -632,33 +763,47 @@ func (p *printer) signature(params, result []*ast.Field) (optSemi bool) {
 
 
 func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete, isStruct bool) {
-	if len(list) == 0 && !isIncomplete {
+	if len(list) == 0 && !isIncomplete && !p.commentBefore(rbrace) {
 		// no blank between keyword and {} in this case
-		// TODO(gri): This will not look nice if there are comments inside the {}'s.
 		p.print(lbrace, token.LBRACE, rbrace, token.RBRACE);
 		return;
 	}
 
 	// at least one entry or incomplete
-	p.print(blank, lbrace, token.LBRACE, +1, formfeed);
+	p.print(blank, lbrace, token.LBRACE, indent, formfeed);
 	if isStruct {
-		sep := blank;
-		if len(list) > 1 {
-			sep = vtab;
+
+		sep := vtab;
+		if len(list) == 1 {
+			sep = blank;
 		}
 		for i, f := range list {
+			extraTabs := 0;
 			p.leadComment(f.Doc);
 			if len(f.Names) > 0 {
 				p.identList(f.Names);
 				p.print(sep);
+				p.expr(f.Type);
+				extraTabs = 1;
+			} else {
+				p.expr(f.Type);
+				extraTabs = 2;
 			}
-			p.expr(f.Type);
 			if f.Tag != nil {
+				if len(f.Names) > 0 && sep == vtab {
+					p.print(sep);
+				}
 				p.print(sep);
 				p.expr(&ast.StringList{f.Tag});
+				extraTabs = 0;
 			}
 			p.print(token.SEMICOLON);
-			p.lineComment(1, f.Comment);
+			if f.Comment != nil {
+				for ; extraTabs > 0; extraTabs-- {
+					p.print(vtab);
+				}
+				p.lineComment(f.Comment);
+			}
 			if i+1 < len(list) || isIncomplete {
 				p.print(newline);
 			}
@@ -666,7 +811,9 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 		if isIncomplete {
 			p.print("// contains unexported fields");
 		}
+
 	} else { // interface
+
 		for i, f := range list {
 			p.leadComment(f.Doc);
 			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
@@ -678,7 +825,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 				p.expr(f.Type);
 			}
 			p.print(token.SEMICOLON);
-			p.lineComment(1, f.Comment);
+			p.lineComment(f.Comment);
 			if i+1 < len(list) || isIncomplete {
 				p.print(newline);
 			}
@@ -686,8 +833,9 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 		if isIncomplete {
 			p.print("// contains unexported methods");
 		}
+
 	}
-	p.print(-1, formfeed, rbrace, token.RBRACE);
+	p.print(unindent, formfeed, rbrace, token.RBRACE);
 }
 
 
@@ -767,10 +915,10 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int) {
 		if printBlanks {
 			if prev != line {
 				p.print(blank, x.OpPos, x.Op);
-				// at least one linebreak, but respect an extra empty line
+				// at least one line break, but respect an extra empty line
 				// in the source
 				if p.linebreak(line, 1, 2, false) && !indented {
-					p.print(+1);
+					p.print(htab, indent);  // indent applies to next line
 					indented = true;
 				}
 			} else {
@@ -785,7 +933,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int) {
 		p.expr1(x.Y, prec);
 	}
 	if indented {
-		p.print(-1);
+		p.print(unindent);
 	}
 }
 
@@ -838,7 +986,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 	case *ast.FuncLit:
 		p.expr(x.Type);
 		p.print(blank);
-		p.stmt(x.Body);
+		p.block(x.Body, 1);
 
 	case *ast.ParenExpr:
 		p.print(token.LPAREN);
@@ -953,23 +1101,28 @@ const maxStmtNewlines = 2  // maximum number of newlines between statements
 // Print the statement list indented, but without a newline after the last statement.
 // Extra line breaks between statements in the source are respected but at most one
 // empty line is printed between statements.
-func (p *printer) stmtList(list []ast.Stmt, indent int) {
-	p.print(+indent);
+func (p *printer) stmtList(list []ast.Stmt, _indent int) {
+	// TODO(gri): fix _indent code
+	if _indent > 0 {
+		p.print(indent);
+	}
 	for i, s := range list {
-		// indent == 0 only for lists of switch/select case clauses;
+		// _indent == 0 only for lists of switch/select case clauses;
 		// in those cases each clause is a new section
-		p.linebreak(s.Pos().Line, 1, maxStmtNewlines, i == 0 || indent == 0);
+		p.linebreak(s.Pos().Line, 1, maxStmtNewlines, i == 0 || _indent == 0);
 		if !p.stmt(s) {
 			p.print(token.SEMICOLON);
 		}
 	}
-	p.print(-indent);
+	if _indent > 0 {
+		p.print(unindent);
+	}
 }
 
 
 func (p *printer) block(s *ast.BlockStmt, indent int) {
 	p.print(s.Pos(), token.LBRACE);
-	if len(s.List) > 0 {
+	if len(s.List) > 0 || p.commentBefore(s.Rbrace) {
 		p.stmtList(s.List, indent);
 		p.linebreak(s.Rbrace.Line, 1, maxStmtNewlines, true);
 	}
@@ -1039,11 +1192,12 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		// nothing to do
 
 	case *ast.LabeledStmt:
-		// whitespace printing is delayed, thus indentation adjustments
-		// take place before the previous newline/formfeed is printed
-		p.print(-1);
+		// a "correcting" unindent immediately following a line break
+		// is applied before the line break  if there is no comment
+		// between (see writeWhitespace)
+		p.print(unindent);
 		p.expr(s.Label);
-		p.print(token.COLON, vtab, +1);
+		p.print(token.COLON, vtab, indent);
 		p.linebreak(s.Stmt.Pos().Line, 0, 1, true);
 		optSemi = p.stmt(s.Stmt);
 
@@ -1095,9 +1249,9 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 			case *ast.BlockStmt, *ast.IfStmt:
 				optSemi = p.stmt(s.Else);
 			default:
-				p.print(token.LBRACE, +1, formfeed);
+				p.print(token.LBRACE, indent, formfeed);
 				p.stmt(s.Else);
-				p.print(-1, formfeed, token.RBRACE);
+				p.print(unindent, formfeed, token.RBRACE);
 			}
 		}
 
@@ -1207,29 +1361,22 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext) {
 	var (
 		optSemi bool;  // true if a semicolon is optional
 		comment *ast.CommentGroup;  // a line comment, if any
-		columns int;  // number of (discardable) columns missing before comment, if any
+		extraTabs int;  // number of extra tabs before comment, if any
 	)
 
 	switch s := spec.(type) {
 	case *ast.ImportSpec:
 		p.leadComment(s.Doc);
-		if n == 1 {
-			if s.Name != nil {
-				p.expr(s.Name);
-				p.print(blank);
-			}
-		} else {
-			if s.Name != nil {
-				p.expr(s.Name);
-			}
-			p.print(vtab);  // column discarded if empty
+		if s.Name != nil {
+			p.expr(s.Name);
+			p.print(blank);
 		}
 		p.expr(&ast.StringList{s.Path});
 		comment = s.Comment;
 
 	case *ast.ValueSpec:
 		p.leadComment(s.Doc);
-		p.identList(s.Names);  // never empty
+		p.identList(s.Names);  // always present
 		if n == 1 {
 			if s.Type != nil {
 				p.print(blank);
@@ -1241,20 +1388,20 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext) {
 				optSemi = false;
 			}
 		} else {
-			columns = 2;
+			extraTabs = 2;
 			if s.Type != nil || s.Values != nil {
 				p.print(vtab);
 			}
 			if s.Type != nil {
 				optSemi = p.expr(s.Type);
-				columns = 1;
+				extraTabs = 1;
 			}
 			if s.Values != nil {
 				p.print(vtab);
 				p.print(token.ASSIGN);
 				p.exprList(s.Values, blankStart | commaSep);
 				optSemi = false;
-				columns = 0;
+				extraTabs = 0;
 			}
 		}
 		comment = s.Comment;
@@ -1278,7 +1425,12 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext) {
 		p.print(token.SEMICOLON);
 	}
 
-	p.lineComment(1+columns, comment);
+	if comment != nil {
+		for ; extraTabs > 0; extraTabs-- {
+			p.print(vtab);
+		}
+		p.lineComment(comment);
+	}
 }
 
 
@@ -1295,14 +1447,14 @@ func (p *printer) decl(decl ast.Decl, context declContext) {
 			// group of parenthesized declarations
 			p.print(d.Lparen, token.LPAREN);
 			if len(d.Specs) > 0 {
-				p.print(+1, formfeed);
+				p.print(indent, formfeed);
 				for i, s := range d.Specs {
 					if i > 0 {
 						p.print(newline);
 					}
 					p.spec(s, len(d.Specs), inGroup);
 				}
-				p.print(-1, formfeed);
+				p.print(unindent, formfeed);
 			}
 			p.print(d.Rparen, token.RPAREN);
 
@@ -1328,7 +1480,7 @@ func (p *printer) decl(decl ast.Decl, context declContext) {
 		p.signature(d.Type.Params, d.Type.Results);
 		if d.Body != nil {
 			p.print(blank);
-			p.stmt(d.Body);
+			p.block(d.Body, 1);
 		}
 
 	default:

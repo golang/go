@@ -1,4 +1,4 @@
-// This is a package for testing purposes.
+// This is a package for testing comment placement by go/printer.
 //
 package main
 
@@ -48,7 +48,7 @@ type I1 interface {
 
 
 // The I2 interface; all methods are exported.
-type I1 interface {
+type I2 interface {
 	I0;
 	F(x float) float;
 	G(x float) float;
