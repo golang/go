@@ -1,0 +1,308 @@
+<!-- Setting up and using gccgo -->
+
+<p>
+This document explains how to use <code>gccgo</code>, a compiler for
+the Go language.  The <code>gccgo</code> compiler is a new frontend
+for <code>gcc</code>, the widely used GNU compiler.
+Like <code>gcc</code> itself, <code>gccgo</code> is free software
+distributed under
+the <a href="http://www.gnu.org/licenses/gpl.html">GNU General Public
+License</a>.
+
+Note that <code>gccgo</code> is not the <code>6g</code> compiler; see
+the <a href="go_setup.html"><code>6g</code> set up</a> instructions
+for that compiler.
+
+<h2 id="Source_code">Source code</h2>
+
+<p>
+The <code>gccgo</code> source code is accessible via Subversion.  The
+<code>gcc</code> web site
+has <a href="http://gcc.gnu.org/svn.html">instructions for getting the
+<code>gcc</code> source code</a>.  The <code>gccgo</code> source code
+is a branch of the main <code>gcc</code> code
+repository: <code>svn://gcc.gnu.org/svn/gcc/branches/gccgo</code>.
+
+<h2 id="Building">Building</h2>
+
+<p>
+Building <code>gccgo</code> is just like building <code>gcc</code>
+with one additional option.  See
+the <a href="http://gcc.gnu.org/install/">instructions on the gcc web
+site</a>.  When you run <code>configure</code>, add the
+option <code>--enable-languages=go</code> (along with other languages you
+may want to build).
+
+<h2 id="Using_gccgo">Using gccgo</h2>
+
+<p>
+The <code>gccgo</code> compiler works like other gcc frontends.
+
+<p>
+To compile a file:
+
+<pre>
+gccgo -c file.go
+</pre>
+
+<p>
+That produces <code>file.o</code>. To link files together to form an
+executable:
+
+<pre>
+gccgo -o file file.o
+</pre>
+
+<p>
+To run the resulting file, you will need to tell the program where to
+find the Go runtime library. This can be done either by setting
+<code>LD_LIBRARY_PATH</code> in your environment:
+
+<pre>
+LD_LIBRARY_PATH=/usr/lib/gcc/MACHINE/VERSION
+</pre>
+
+<p>
+or by passing a <code>-Wl,-R</code> option when you link:
+
+<pre>
+gccgo -o file file.o -Wl,-R,/usr/lib/gcc/MACHINE/VERSION
+</pre>
+
+<p>
+or you can use the <code>-static-libgo</code> link-time option to link
+statically against libgo, or you can do a fully static link (static
+linking is the default for the <code>6l</code> Go linker).  On most
+systems, a static link will look something like:
+
+<pre>
+gccgo -o file file.o -static -L /usr/lib/nptl -lgobegin -lgo -lpthread
+</pre>
+
+<p>
+You may get a warning about not creating an <code>.eh_frame_hdr</code>
+section; this has nothing to do with Go, and may be ignored. In the
+future the requirement of explicitly specifying
+<code>-L /usr/lib/nptl -lgobegin -lgo -lpthread</code>
+may be removed.
+
+
+<h2 id="Imports">Imports</h2>
+
+<p>
+When you compile a file which exports something, the export
+information will be stored directly in the object file. When
+you import a package, you must tell <code>gccgo</code> how to
+find the file.
+
+<p>
+When you import the package <var>FILE</var> with <code>gccgo</code>,
+it will look for the import data in the following files, and use the
+first one that it finds.
+
+<ul>
+<li><code><var>FILE</var>.gox</code>
+<li><code><var>FILE</var>.o</code>
+<li><code>lib<var>FILE</var>.so</code>
+<li><code>lib<var>FILE</var>.a</code>
+</ul>
+
+<p>
+<code><var>FILE</var>.gox</code>, when used, will typically contain
+nothing but export data. This can be generated from
+<code><var>FILE</var>.o</code> via
+
+<pre>
+objcopy -j .go_export FILE.o FILE.gox
+</pre>
+
+<p>
+The <code>gccgo</code> compiler will look in the current
+directory for import files. In more complex scenarios you
+may pass the <code>-I</code> or <code>-L</code> option to
+<code>gccgo</code>. Both options take directories to search. The
+<code>-L</code> option is also passed to the linker.
+
+The <code>gccgo</code> compiler does not currently (2009-10-14) record
+the file name of imported packages in the object file. You must
+arrange for the imported data to be linked into the program.
+
+<pre>
+gccgo -c mypackage.go              # Exports mypackage
+gccgo -c main.go                   # Imports mypackage
+gccgo -o main main.o mypackage.o   # Explicitly links with mypackage.o
+</pre>
+
+<h2 id="Unimplemented">Unimplemented</h2>
+
+<p>
+Some Go features are not yet implemented in <code>gccgo</code>.  As of
+2009-10-14, the following are not implemented:
+
+<ul>
+<li>Garbage collection is not implemented. There is no way to free memory.
+    Thus long running programs are not supported.
+
+<li>goroutines are implemented as NPTL threads with a fixed stack size.
+    The number of goroutines that may be created at one time is limited.
+</ul>
+
+<h2 id="Debugging">Debugging</h2>
+
+<p>
+If you use the <code>-g</code> option when you compile, you can run
+<code>gdb</code> on your executable.  The debugger doesn't (yet)
+know anything about Go. However, you can set breakpoints, single-step,
+etc.  You can print variables, but they will be printed as though they
+had C/C++ types. For numeric types this doesn't matter. Go strings
+will show up as pointers to structures; to see the value
+<code>print *stringvar</code>. In general Go strings, maps, channels
+and interfaces are always represented as C pointers.
+
+<h2 id="C_Interoperability">C Interoperability</h2>
+
+<p>
+When using <code>gccgo</code> there is limited interoperability with C,
+or with C++ code compiled using <code>extern "C"</code>.
+
+<h3 id="Types">Types</h3>
+
+<p>
+Basic types map directly: an <code>int</code> in Go is an <code>int</code>
+in C, etc. Go <code>byte</code> is equivalent to C <code>unsigned char</code>.
+Pointers in Go are pointers in C. A Go <code>struct</code> is the same as C
+<code>struct</code> with the same fields and types.
+
+<p>
+The Go <code>string</code> type is a pointer to a structure.
+The current definition is
+(this is <b style="color: red;">expected to change</b>):
+
+<pre>
+struct __go_string {
+  size_t __length;
+  unsigned char __data[];
+};
+</pre>
+
+<p>
+You can't pass arrays between C and Go. However, a pointer to an
+array in Go is equivalent to a C pointer to the
+equivalent of the element type.
+For example, Go <code>*[10]int</code> is equivalent to C <code>int*</code>,
+assuming that the C pointer does point to 10 elements.
+
+<p>
+A slice in Go is a structure.  The current definition is
+(this is <b style="color: red;">subject to change</b>):
+
+<pre>
+struct __go_slice {
+  void *__values;
+  int __count;
+  int __capacity;
+};
+</pre>
+
+<p>
+The type of a Go function with no receiver is equivalent to a C function
+whose parameter types are equivalent. When a Go function returns more
+than one value, the C function returns a struct. For example, these
+functions have equivalent types:
+
+<pre>
+func GoFunction(int) (int, float)
+struct { int i; float f; } CFunction(int)
+</pre>
+
+<p>
+A pointer to a Go function is equivalent to a pointer to a C function
+when the functions have equivalent types.
+
+<p>
+Go <code>interface</code>, <code>channel</code>, and <code>map</code>
+types have no corresponding C type (they roughly correspond to pointers
+to structs in C, but the structs are deliberately undocumented). C
+<code>enum</code> types correspond to some Go type, but precisely
+which one is difficult to predict in general; use a cast. C <code>union</code>
+types have no corresponding Go type. C <code>struct</code> types containing
+bitfields have no corresponding Go type. C++ <code>class</code> types have
+no corresponding Go type.
+
+<p>
+Memory allocation is completely different between C and Go, as Go uses
+garbage collection. The exact guidelines in this area are undetermined,
+but it is likely that it will be permitted to pass a pointer to allocated
+memory from C to Go. The responsibility of eventually freeing the pointer
+will remain with C side, and of course if the C side frees the pointer
+while the Go side still has a copy the program will fail. When passing a
+pointer from Go to C, the Go function must retain a visible copy of it in
+some Go variable. Otherwise the Go garbage collector may delete the
+pointer while the C function is still using it.
+
+<h3 id="Function_names">Function names</h3>
+
+<p>
+Go code can call C functions directly using a Go extension implemented
+in <code>gccgo</code>: a function declaration may be followed by
+<code>__asm__("NAME")</code>. For example, here is how the C function
+<code>open</code> can be declared in Go:
+
+<pre>
+func c_open(name *byte, mode int, perm int) int __asm__ ("open");
+</pre>
+
+<p>
+The C function naturally expects a nul terminated string, which in
+Go is equivalent to a pointer to an array (not a slice!) of
+<code>byte</code> with a terminating zero byte. So a sample call
+from Go would look like (after importing the <code>os</code> package):
+
+<pre>
+var name = [4]byte{'f', 'o', 'o', 0};
+i := c_open(&amp;name[0], os.O_RDONLY, 0);
+</pre>
+
+<p>
+(this serves as an example only, to open a file in Go please use Go's
+<code>os.Open</code> function instead).
+
+<p>
+The name of Go functions accessed from C is subject to change. At present
+the name of a Go function that does not have a receiver is
+<code>package.Functionname</code>. To call it from C you must set the
+name using a <code>gcc</code> extension similar to the <code>gccgo</code>
+extension.
+
+<pre>
+extern int go_function(int) __asm__ ("mypackage.Function");
+</pre>
+
+<h3 id="Automatic_generation_of_Go_declarations_from_C_source_code">
+Automatic generation of Go declarations from C source code</h3>
+
+<p>
+The Go version of <code>gcc</code> supports automatically generating
+Go declarations from C code. The facility is rather awkward at present,
+and a better mechanism is under development.
+
+<p>
+Compile your C code as usual, but replace <code>-c</code> with
+<code>-S&nbsp;-ggo</code>. The result will be an assembler file
+with a <code>.s</code> extension. This assembler file will contain
+comments beginning with #GO. Those comments are declarations in the Go
+language for the C types, variables and functions declared in the C code.
+C types which can not be represented in Go will contain the string INVALID.
+Unsupported macro definitions will be recorded as <code>unknowndefine</code>,
+and uses of <code>#undef</code> will be recorded as <code>undef</code>.
+So it is very approximately possible to get Go code by running
+
+<pre>
+gcc -S -ggo foo.c
+grep '#GO' foo.s | grep -v INVALID | grep -v unknowndefine | grep -v undef > foo.go
+</pre>
+
+<p>
+This procedure is full of unstated caveats and restrictions and we make no
+guarantee that it will not change in the future. It is more useful as a
+starting point for real Go code than as a regular procedure.
