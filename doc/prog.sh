@@ -10,7 +10,7 @@
 #
 # missing third arg means print one line
 # third arg "END" means proces rest of file
-# missing second arg means process whole file 
+# missing second arg means process whole file
 #
 # examples:
 #
