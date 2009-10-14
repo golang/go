@@ -26,7 +26,7 @@ Hello, World
 
 Let's start in the usual way:
 
---PROG progs/helloworld.go
+--PROG progs/helloworld.go /package/ END
 
 Every Go source file declares, using a "package" statement, which package it's part of.
 The "main" package's "main" function is where the program starts running (after
@@ -52,13 +52,13 @@ Echo
 
 Next up, here's a version of the Unix utility "echo(1)":
 
---PROG progs/echo.go
+--PROG progs/echo.go /package/ END
 
 This program is small but it's doing a number of new things.  In the last example,
 we saw "func" introducing a function.  The keywords "var", "const", and "type"
 (not used yet) also introduce declarations, as does "import".
 Notice that we can group declarations of the same sort into
-parenthesized, semicolon-separated lists if we want, as on lines 3-6 and 10-13.
+parenthesized, semicolon-separated lists if we want, as on lines 4-10 and 14-17.
 But it's not necessary to do so; we could have said
 
 	const Space = " "
@@ -85,11 +85,11 @@ a naming conflict.
 
 Given "os.Stdout" we can use its "WriteString" method to print the string.
 
-Having imported the "flag" package, line 8 creates a global variable to hold
+Having imported the "flag" package, line 12 creates a global variable to hold
 the value of echo's "-n" flag. The variable "n_flag" has type "*bool", pointer
 to "bool".
 
-In "main.main", we parse the arguments (line 16) and then create a local
+In "main.main", we parse the arguments (line 20) and then create a local
 string variable we will use to build the output.
 
 The declaration statement has the form
@@ -352,7 +352,7 @@ object.  We could write
 	return n
 
 but for simple structures like "File" it's easier to return the address of a nonce
-composite literal, as is done here on line 17.
+composite literal, as is done here on line 21.
 
 We can use the factory to construct some familiar, exported variables of type "*File":
 
@@ -370,9 +370,9 @@ multi-value return as a parenthesized list of declarations; syntactically
 they look just like a second parameter list.  The function
 "syscall.Open"
 also has a multi-value return, which we can grab with the multi-variable
-declaration on line 27; it declares "r" and "e" to hold the two values,
+declaration on line 31; it declares "r" and "e" to hold the two values,
 both of type "int64" (although you'd have to look at the "syscall" package
-to see that).  Finally, line 28 returns two values: a pointer to the new "File"
+to see that).  Finally, line 35 returns two values: a pointer to the new "File"
 and the error.  If "syscall.Open" fails, the file descriptor "r" will
 be negative and "NewFile" will return "nil".
 
@@ -406,7 +406,7 @@ set of such error values.
 
 We can now use our new package:
 
---PROG progs/helloworld3.go
+--PROG progs/helloworld3.go /package/ END
 
 The import of ''"./file"'' tells the compiler to use our own package rather than
 something from the directory of installed packages.
@@ -424,12 +424,12 @@ Rotting cats
 Building on the "file" package, here's a simple version of the Unix utility "cat(1)",
 "progs/cat.go":
 
---PROG progs/cat.go
+--PROG progs/cat.go /package/ END
 
 By now this should be easy to follow, but the "switch" statement introduces some
 new features.  Like a "for" loop, an "if" or "switch" can include an
-initialization statement.  The "switch" on line 14 uses one to create variables
-"nr" and "er" to hold the return values from "f.Read()".  (The "if" on line 21
+initialization statement.  The "switch" on line 18 uses one to create variables
+"nr" and "er" to hold the return values from "f.Read()".  (The "if" on line 25
 has the same idea.)  The "switch" statement is general: it evaluates the cases
 from  top to bottom looking for the first case that matches the value; the
 case expressions don't need to be constants or even integers, as long as
@@ -441,7 +441,7 @@ in a "for" statement, a missing value means "true".  In fact, such a "switch"
 is a form of "if-else" chain. While we're here, it should be mentioned that in
 "switch" statements each "case" has an implicit "break".
 
-Line 21 calls "Write()" by slicing the incoming buffer, which is itself a slice.
+Line 25 calls "Write()" by slicing the incoming buffer, which is itself a slice.
 Slices provide the standard Go way to handle I/O buffers.
 
 Now let's make a variant of "cat" that optionally does "rot13" on its input.
@@ -466,7 +466,7 @@ we have a second implementation of the "reader" interface.
 
 --PROG progs/cat_rot13.go /type.rotate13/ /end.of.rotate13/
 
-(The "rot13" function called on line 38 is trivial and not worth reproducing.)
+(The "rot13" function called on line 42 is trivial and not worth reproducing.)
 
 To use the new feature, we define a flag:
 
@@ -478,7 +478,7 @@ and use it from within a mostly unchanged "cat()" function:
 
 (We could also do the wrapping in "main" and leave "cat()" mostly alone, except
 for changing the type of the argument; consider that an exercise.)
-Lines 52 through 55 set it all up: If the "rot13" flag is true, wrap the "reader"
+Lines 56 through 59 set it all up: If the "rot13" flag is true, wrap the "reader"
 we received into a "rotate13" and proceed.  Note that the interface variables
 are values, not pointers: the argument is of type "reader", not "*reader",
 even though under the covers it holds a pointer to a "struct".
@@ -532,7 +532,7 @@ We can apply "Sort" to any type that implements "Len", "Less", and "Swap".
 The "sort" package includes the necessary methods to allow sorting of
 arrays of integers, strings, etc.; here's the code for arrays of "int"
 
---PROG progs/sort.go /type.*IntArray/ /swap/
+--PROG progs/sort.go /type.*IntArray/ /Swap/
 
 Here we see methods defined for non-"struct" types.  You can define methods
 for any type you define and name in your package.
@@ -711,7 +711,7 @@ channel, and a prime number.  It copies values from the input to the
 output, discarding anything divisible by the prime.  The unary communications
 operator "&lt;-" (receive) retrieves the next value on the channel.
 
---PROG progs/sieve.go /Copy/ /^}/
+--PROG progs/sieve.go /Copy.the/ /^}/
 
 The generator and filters execute concurrently.  Go has
 its own model of process/threads/light-weight processes/coroutines,
@@ -736,7 +736,7 @@ together:
 
 --PROG progs/sieve.go /func.main/ /^}/
 
-Line 25 creates the initial channel to pass to "generate", which it
+Line 29 creates the initial channel to pass to "generate", which it
 then starts up.  As each prime pops out of the channel, a new "filter"
 is added to the pipeline and <i>its</i> output becomes the new value
 of "ch".
@@ -752,7 +752,7 @@ channel, launches a goroutine internally using a function literal, and
 returns the channel to the caller.  It is a factory for concurrent
 execution, starting the goroutine and returning its connection.
 
-The function literal notation (lines 8-12) allows us to construct an
+The function literal notation (lines 12-16) allows us to construct an
 anonymous function and invoke it on the spot. Notice that the local
 variable "ch" is available to the function literal and lives on even
 after "generate" returns.
@@ -787,7 +787,7 @@ code that invokes the operation and responds to the request:
 
 --PROG progs/server.go /type.binOp/ /^}/
 
-Line 10 defines the name "binOp" to be a function taking two integers and
+Line 18 defines the name "binOp" to be a function taking two integers and
 returning a third.
 
 The "server" routine loops forever, receiving requests and, to avoid blocking due to
