@@ -413,8 +413,7 @@ void	lock(Lock*);
 void	unlock(Lock*);
 
 /*
- * sleep and wakeup on one-time events, like
- * Notification (but shorter to type).
+ * sleep and wakeup on one-time events.
  * before any calls to notesleep or notewakeup,
  * must call noteclear to initialize the Note.
  * then, any number of threads can call notesleep

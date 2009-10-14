@@ -6,7 +6,7 @@ package main
 
 import (
 	"os";
-	"flag";
+	"flag";  // command line option parser
 )
 
 var n_flag = flag.Bool("n", false, "don't print final newline")

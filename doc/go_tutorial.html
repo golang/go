@@ -57,7 +57,7 @@ Next up, here's a version of the Unix utility <code>echo(1)</code>:
 <p>
 07    import (
 08        &quot;os&quot;;
-09        &quot;flag&quot;;
+09        &quot;flag&quot;;  // command line option parser
 10    )
 <p>
 12    var n_flag = flag.Bool(&quot;n&quot;, false, &quot;don't print final newline&quot;)
