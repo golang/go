@@ -1,0 +1,31 @@
+#!/bin/sh
+# Copyright 2009 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+set -e
+
+TXT=${1:-go_tutorial.txt}		# input file
+HTML=$(basename $TXT .txt).html		# output file (basename)
+TMP=TEMP.txt				# input to htmlgen
+
+if ! test -w $HTML
+then
+	echo 1>&2 makehtml: cannot open $HTML for write
+	exit 1
+fi
+
+if grep -q '^--PROG' $TXT
+then
+	echo >&2 makehtml: processing PROG sections
+	<$TXT >$TMP awk '
+		/^--PROG/ { system("sh ./prog.sh "$2" "$3" "$4" "); getline }
+		/^/ {print}
+	'
+else
+	cp $TXT $TMP
+fi
+
+make htmlgen && ./htmlgen < $TMP > $HTML
+
+rm -f $TMP

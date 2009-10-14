@@ -1,15 +1,14 @@
 <!-- Let's Go -->
-
 <h2>Introduction</h2>
 <p>
 This document is a tutorial introduction to the basics of the Go systems programming
 language, intended for programmers familiar with C or C++. It is not a comprehensive
 guide to the language; at the moment the document closest to that is the
-<a href=/doc/go_spec.html>language specification.</a>
+<a href='/doc/go_spec.html'>language specification.</a>
 <p>
 The presentation proceeds through a series of modest programs to illustrate
 key features of the language.  All the programs work (at time of writing) and are
-checked into the repository in the directory <a href=/doc/progs><code>/doc/progs</code></a>.
+checked into the repository in the directory <a href='/doc/progs'><code>/doc/progs/</code></a>.
 <p>
 Program snippets are annotated with the line number in the original file; for
 cleanliness, blank lines remain blank.
@@ -45,8 +44,8 @@ The comment convention is the same as in C++:
 <pre>
     /* ... */
     // ...
-
 </pre>
+<p>
 Later we'll have much more to say about printing.
 <p>
 <h2>Echo</h2>
@@ -94,8 +93,8 @@ But it's not necessary to do so; we could have said
 <pre>
     const Space = " "
     const Newline = "\n"
-
 </pre>
+<p>
 Semicolons aren't needed here; in fact, semicolons are unnecessary after any
 top-level declaration, even though they are needed as separators <i>within</i>
 a parenthesized list of declarations.
@@ -128,8 +127,8 @@ The declaration statement has the form
 <p>
 <pre>
     var s string = "";
-
 </pre>
+<p>
 This is the <code>var</code> keyword, followed by the name of the variable, followed by
 its type, followed by an equals sign and an initial value for the variable.
 <p>
@@ -139,14 +138,14 @@ We could write
 <p>
 <pre>
     var s = "";
-
 </pre>
+<p>
 or we could go even shorter and write the idiom
 <p>
 <pre>
     s := "";
-
 </pre>
+<p>
 The <code>:=</code> operator is used a lot in Go to represent an initializing declaration.
 (For those who know Sawzall, its <code>:=</code> construct is the same, but notice
 that Go has no colon after the name in a full <code>var</code> declaration.
@@ -177,8 +176,8 @@ It's defined that way.  Falling off the end of <code>main.main</code> means
 <p>
 <pre>
     os.Exit(1)
-
 </pre>
+<p>
 The <code>os</code> package contains other essentials for getting
 started; for instance, <code>os.Args</code> is an array used by the
 <code>flag</code> package to access the command-line arguments.
@@ -213,8 +212,8 @@ a <code>string</code> value:
 <pre>
     s[0] = 'x';
     (*p)[1] = 'y';
-
 </pre>
+<p>
 In C++ terms, Go strings are a bit like <code>const strings</code>, while pointers
 to strings are analogous to <code>const string</code> references.
 <p>
@@ -225,8 +224,8 @@ Arrays are declared like this:
 <p>
 <pre>
     var array_of_int [10]int;
-
 </pre>
+<p>
 Arrays, like strings, are values, but they are mutable. This differs
 from C, in which <code>array_of_int</code> would be usable as a pointer to <code>int</code>.
 In Go, since arrays are values, it's meaningful (and useful) to talk
@@ -286,21 +285,21 @@ elements for you, use <code>...</code> as the array size:
 <p>
 <pre>
     s := sum(&amp;[...]int{1,2,3});
-
 </pre>
+<p>
 In practice, though, unless you're meticulous about storage layout within a
 data structure, a slice itself - using empty brackets and no <code>&</code> - is all you need:
 <p>
 <pre>
     s := sum([]int{1,2,3});
-
 </pre>
+<p>
 There are also maps, which you can initialize like this:
 <p>
 <pre>
     m := map[string] int {"one":1 , "two":2}
-
 </pre>
+<p>
 The built-in function <code>len()</code>, which returns number of elements,
 makes its first appearance in <code>sum</code>.  It works on strings, arrays,
 slices, and maps.
@@ -317,14 +316,14 @@ returns a pointer to the allocated storage.
 <pre>
     type T struct { a, b int }
     var t *T = new(T);
-
 </pre>
+<p>
 or the more idiomatic
 <p>
 <pre>
     t := new(T);
-
 </pre>
+<p>
 Some types - maps, slices, and channels (see below) - have reference semantics.
 If you're holding a slice or a map and you modify its contents, other variables
 referencing the same underlying data will see the modification.  For these three
@@ -332,15 +331,15 @@ types you want to use the built-in function <code>make()</code>:
 <p>
 <pre>
     m := make(map[string] int);
-
 </pre>
+<p>
 This statement initializes a new map ready to store entries.
 If you just declare the map, as in
 <p>
 <pre>
     var m map[string] int;
-
 </pre>
+<p>
 it creates a <code>nil</code> reference that cannot hold anything. To use the map,
 you must first initialize the reference using <code>make()</code> or by assignment to an
 existing map.
@@ -360,8 +359,8 @@ too little precision to represent the value.
 <p>
 <pre>
     const hard_eight = (1 &lt;&lt; 100) &gt;&gt; 97  // legal
-
 </pre>
+<p>
 There are nuances that deserve redirection to the legalese of the
 language specification but here are some illustrative examples:
 <p>
@@ -373,8 +372,8 @@ language specification but here are some illustrative examples:
     x := 1.5          // a float
     i3div2 := 3/2     // integer division - result is 1
     f3div2 := 3./2.   // floating point division - result is 1.5
-
 </pre>
+<p>
 Conversions only work for simple cases such as converting <code>ints</code> of one
 sign or size to another, and between <code>ints</code> and <code>floats</code>, plus a few other
 simple cases.  There are no automatic numeric conversions of any kind in Go,
@@ -446,8 +445,8 @@ object.  We could write
     n.fd = fd;
     n.name = name;
     return n
-
 </pre>
+<p>
 but for simple structures like <code>File</code> it's easier to return the address of a nonce
 composite literal, as is done here on line 21.
 <p>
@@ -585,8 +584,8 @@ Finally we can run the program:
     hello, world
     can't open file; err=No such file or directory
     %
-
 </pre>
+<p>
 <h2>Rotting cats</h2>
 <p>
 Building on the <code>file</code> package, here's a simple version of the Unix utility <code>cat(1)</code>,
@@ -864,8 +863,8 @@ Within the <code>fmt</code> package, <code>Printf</code> is declared with this s
 <p>
 <pre>
     Printf(format string, v ...) (n int, errno os.Error)
-
 </pre>
+<p>
 That <code>...</code> represents the variadic argument list that in C would
 be handled using the <code>stdarg.h</code> macros, but in Go is passed using
 an empty interface variable (<code>interface {}</code>) that is then unpacked
@@ -888,8 +887,8 @@ prints
 <p>
 <pre>
     18446744073709551615 -1
-
 </pre>
+<p>
 In fact, if you're lazy the format <code>%v</code> will print, in a simple
 appropriate style, any value, even an array or structure.  The output of
 <p>
@@ -904,8 +903,8 @@ is
 <p>
 <pre>
     18446744073709551615 {77 Sunset Strip} [1 2 3 4]
-
 </pre>
+<p>
 You can drop the formatting altogether if you use <code>Print</code> or <code>Println</code>
 instead of <code>Printf</code>.  Those routines do fully automatic formatting.
 The <code>Print</code> function just prints its elements out using the equivalent
@@ -946,8 +945,8 @@ default formatter for that type will use it and produce the output
 <p>
 <pre>
     77 Sunset Strip
-
 </pre>
+<p>
 Observe that the <code>String()</code> method calls <code>Sprint</code> (the obvious Go
 variant that returns a string) to do its formatting; special formatters
 can use the <code>fmt</code> library recursively.
@@ -970,15 +969,17 @@ Schematically, given a value <code>v</code>, it does this:
     type Stringer interface {
         String() string
     }
-
+</pre>
+<p>
+<pre>
     s, ok := v.(Stringer);  // Test whether v implements "String()"
     if ok {
         result = s.String()
     } else {
         result = default_output(v)
     }
-
 </pre>
+<p>
 The code uses a ``type assertion'' (<code>v.(Stringer)</code>) to test if the value stored in
 <code>v</code> satisfies the <code>Stringer</code> interface; if it does, <code>s</code>
 will become an interface variable implementing the method and <code>ok</code> will
@@ -1000,8 +1001,8 @@ interface type defined in the <code>io</code> library:
     type Writer interface {
         Write(p []byte) (n int, err os.Error);
     }
-
 </pre>
+<p>
 (This interface is another conventional name, this time for <code>Write</code>; there are also
 <code>io.Reader</code>, <code>io.ReadWriter</code>, and so on.)
 Thus you can call <code>Fprintf</code> on any type that implements a standard <code>Write()</code>
@@ -1081,8 +1082,8 @@ computation but in the same address space:
 <p>
 <pre>
     go sum(huge_array); // calculate sum in the background
-
 </pre>
+<p>
 If you want to know when the calculation is done, pass a channel
 on which it can report back:
 <p>
@@ -1091,8 +1092,8 @@ on which it can report back:
     go sum(huge_array, ch);
     // ... do something else for a while
     result := &lt;-ch;  // wait for, and retrieve, result
-
 </pre>
+<p>
 Back to our prime sieve.  Here's how the sieve pipeline is stitched
 together:
 <p>
