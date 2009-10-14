@@ -13,7 +13,7 @@ container/list.install:
 container/ring.install:
 container/vector.install:
 crypto/aes.install: os.install strconv.install
-crypto/block.install: fmt.install io.install os.install strconv.install
+crypto/block.install: fmt.install hash.install io.install os.install strconv.install
 crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.install
 crypto/md5.install: hash.install os.install
 crypto/rc4.install: os.install strconv.install

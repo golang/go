@@ -7,7 +7,10 @@
 
 package block
 
-import "os"
+import (
+	"hash";
+	"os";
+)
 
 const (
 	// minimal irreducible polynomial of degree b
@@ -25,7 +28,7 @@ type cmac struct {
 
 // NewCMAC returns a new instance of a CMAC message authentication code
 // digest using the given Cipher.
-func NewCMAC(c Cipher) Digest {
+func NewCMAC(c Cipher) hash.Hash {
 	var r byte;
 	n := c.BlockSize();
 	switch n {
@@ -97,4 +100,8 @@ func (d *cmac) Sum() []byte {
 	}
 	d.c.Encrypt(d.digest, d.digest);
 	return d.digest;
+}
+
+func (d *cmac) Size() int {
+	return len(d.digest);
 }
