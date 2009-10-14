@@ -32,7 +32,6 @@ DIRS=\
 	crypto/md5\
 	crypto/rc4\
 	crypto/sha1\
-	datafmt\
 	debug/binary\
 	debug/dwarf\
 	debug/macho\
@@ -41,6 +40,7 @@ DIRS=\
 	debug/proc\
 	ebnf\
 	exec\
+	exp/datafmt\
 	expvar\
 	flag\
 	fmt\

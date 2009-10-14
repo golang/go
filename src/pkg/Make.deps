@@ -18,7 +18,6 @@ crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.inst
 crypto/md5.install: hash.install os.install
 crypto/rc4.install: os.install strconv.install
 crypto/sha1.install: hash.install os.install
-datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
 debug/binary.install: io.install math.install os.install reflect.install
 debug/dwarf.install: debug/binary.install os.install strconv.install
 debug/macho.install: bytes.install debug/binary.install debug/dwarf.install fmt.install io.install os.install strconv.install
@@ -27,6 +26,7 @@ debug/gosym.install: debug/binary.install fmt.install os.install strconv.install
 debug/proc.install: container/vector.install fmt.install io.install os.install runtime.install strconv.install strings.install sync.install syscall.install
 ebnf.install: container/vector.install go/scanner.install go/token.install os.install strconv.install unicode.install utf8.install
 exec.install: os.install strings.install
+exp/datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
 expvar.install: bytes.install fmt.install http.install log.install strconv.install sync.install
 flag.install: fmt.install os.install strconv.install
 fmt.install: io.install os.install reflect.install strconv.install utf8.install
