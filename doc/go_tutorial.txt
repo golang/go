@@ -1,14 +1,15 @@
-Let's Go
+<!-- Let's Go -->
+Introduction
 ----
 
 This document is a tutorial introduction to the basics of the Go systems programming
 language, intended for programmers familiar with C or C++. It is not a comprehensive
 guide to the language; at the moment the document closest to that is the
-<a href=/doc/go_spec.html>language specification.</a>
+<a href='/doc/go_spec.html'>language specification.</a>
 
 The presentation proceeds through a series of modest programs to illustrate
 key features of the language.  All the programs work (at time of writing) and are
-checked into the repository in the directory <a href=/doc/progs>"/doc/progs"</a>.
+checked into the repository in the directory <a href='/doc/progs'>"/doc/progs/"</a>.
 
 Program snippets are annotated with the line number in the original file; for
 cleanliness, blank lines remain blank.
@@ -215,7 +216,7 @@ pointer to "sum()" by (automatically) promoting it to a slice.
 If you are creating a regular array but want the compiler to count the
 elements for you, use "..." as the array size:
 
-	s := sum(&[...]int{1,2,3});
+	s := sum(&amp;[...]int{1,2,3});
 
 In practice, though, unless you're meticulous about storage layout within a
 data structure, a slice itself - using empty brackets and no "&" - is all you need:
@@ -277,7 +278,7 @@ constants are evaluated as large-precision values that
 can overflow only when they are assigned to an integer variable with
 too little precision to represent the value.
 
-	const hard_eight = (1 << 100) >> 97  // legal
+	const hard_eight = (1 &lt;&lt; 100) &gt;&gt; 97  // legal
 
 There are nuances that deserve redirection to the legalese of the
 language specification but here are some illustrative examples:
@@ -542,7 +543,7 @@ to implement the three methods for that type, like this:
 
 
 Printing
----
+----
 
 The examples of formatted printing so far have been modest.  In this section
 we'll talk about how formatted I/O can be done well in Go.
@@ -721,7 +722,7 @@ on which it can report back:
 	ch := make(chan int);
 	go sum(huge_array, ch);
 	// ... do something else for a while
-	result := <-ch;  // wait for, and retrieve, result
+	result := &lt;-ch;  // wait for, and retrieve, result
 
 Back to our prime sieve.  Here's how the sieve pipeline is stitched
 together:
@@ -824,3 +825,6 @@ at the end of main:
 
 There's a lot more to Go programming and concurrent programming in general but this
 quick tour should give you some of the basics.
+</table>
+</body>
+</html>
