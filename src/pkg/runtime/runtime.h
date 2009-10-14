@@ -312,6 +312,7 @@ int32	goidgen;
 extern	int32	gomaxprocs;
 extern	int32	panicking;
 extern	int32	maxround;
+extern	int32	fd;	// usually 1; set to 2 when panicking
 int8*	goos;
 
 /*
@@ -412,7 +413,8 @@ void	lock(Lock*);
 void	unlock(Lock*);
 
 /*
- * sleep and wakeup on one-time events.
+ * sleep and wakeup on one-time events, like
+ * Notification (but shorter to type).
  * before any calls to notesleep or notewakeup,
  * must call noteclear to initialize the Note.
  * then, any number of threads can call notesleep

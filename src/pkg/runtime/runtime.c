@@ -6,6 +6,7 @@
 
 int32	panicking	= 0;
 int32	maxround	= sizeof(uintptr);
+int32	fd		= 1;
 
 int32
 gotraceback(void)
@@ -23,6 +24,7 @@ sys·panicl(int32 lno)
 {
 	uint8 *sp;
 
+	fd = 2;
 	if(panicking) {
 		printf("double panic\n");
 		exit(3);
@@ -66,6 +68,7 @@ sys·throwinit(void)
 void
 throw(int8 *s)
 {
+	fd = 2;
 	printf("throw: %s\n", s);
 	sys·panicl(-1);
 	*(int32*)0 = 0;	// not reached
