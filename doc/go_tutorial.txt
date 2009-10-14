@@ -3,20 +3,12 @@ Let's Go
 
 This document is a tutorial introduction to the basics of the Go systems programming
 language, intended for programmers familiar with C or C++. It is not a comprehensive
-guide to the language; at the moment the document closest to that is the draft
-specification:
-
-	http://go/go/doc/go_spec.html
-
-To check out the compiler and tools and be ready to run Go programs, see
-
-	http://go/go/doc/go_setup.html
+guide to the language; at the moment the document closest to that is the
+<a href=/doc/go_spec.html>language specification.</a>
 
 The presentation proceeds through a series of modest programs to illustrate
 key features of the language.  All the programs work (at time of writing) and are
-checked in at
-
-	//depot2/go/doc/progs
+checked into the repository in the directory <a href=/doc/progs>"/doc/progs"</a>.
 
 Program snippets are annotated with the line number in the original file; for
 cleanliness, blank lines remain blank.
