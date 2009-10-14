@@ -197,6 +197,9 @@ func (z *Int) SetString(s string, base int) os.Error {
 
 // String returns the decimal representation of z.
 func (z *Int) String() string {
+	if z == nil {
+		return "nil";
+	}
 	z.doinit();
 	p := C.mpz_get_str(nil, 10, &z.i[0]);
 	s := C.GoString(p);
@@ -253,7 +256,7 @@ func (z *Int) Div(x, y *Int) *Int {
 }
 
 // Mod sets z = x % y and returns z.
-// XXX Unlike in Go, the result is always positive.
+// Like the result of the Go % operator, z has the same sign as x.
 func (z *Int) Mod(x, y *Int) *Int {
 	x.doinit();
 	y.doinit();
@@ -360,4 +363,12 @@ func GcdInt(d, x, y, a, b *Int) {
 	a.doinit();
 	b.doinit();
 	C.mpz_gcdext(&d.i[0], &x.i[0], &y.i[0], &a.i[0], &b.i[0]);
+}
+
+// ProbablyPrime performs n Miller-Rabin tests to check whether z is prime.
+// If it returns true, z is prime with probability 1 - 1/4^n.
+// If it returns false, z is not prime.
+func (z *Int) ProbablyPrime(n int) bool {
+	z.doinit();
+	return int(C.mpz_probab_prime_p(&z.i[0], C.int(n))) > 0;
 }
