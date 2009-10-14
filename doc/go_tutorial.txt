@@ -103,7 +103,7 @@ or we could go even shorter and write the idiom
 	s := "";
 
 The ":=" operator is used a lot in Go to represent an initializing declaration.
-(For those who know Sawzall, its ":=" construct is the same, but notice
+(For those who know Limbo, its ":=" construct is the same, but notice
 that Go has no colon after the name in a full "var" declaration.
 Also, for simplicity of parsing, ":=" only works inside functions, not at
 the top level.)
@@ -567,7 +567,7 @@ argument.  It's easier in many cases in Go.  Instead of "%llud" you
 can just say "%d"; "Printf" knows the size and signedness of the
 integer and can do the right thing for you.  The snippet
 
---PROG progs/print.go 'NR==6' 'NR==7'
+--PROG progs/print.go 'NR==10' 'NR==11'
 
 prints
 
@@ -576,7 +576,7 @@ prints
 In fact, if you're lazy the format "%v" will print, in a simple
 appropriate style, any value, even an array or structure.  The output of
 
---PROG progs/print.go 'NR==10' 'NR==13'
+--PROG progs/print.go 'NR==14' 'NR==17'
 
 is
 
@@ -589,7 +589,7 @@ of "%v" while "Println" automatically inserts spaces between arguments
 and adds a newline.  The output of each of these two lines is identical
 to that of the "Printf" call above.
 
---PROG progs/print.go 'NR==14' 'NR==15'
+--PROG progs/print.go 'NR==18' 'NR==19'
 
 If you have your own type you'd like "Printf" or "Print" to format,
 just give it a "String()" method that returns a string.  The print
@@ -597,7 +597,7 @@ routines will examine the value to inquire whether it implements
 the method and if so, use it rather than some other formatting.
 Here's a simple example.
 
---PROG progs/print_string.go 'NR==5' END
+--PROG progs/print_string.go 'NR==9' END
 
 Since "*T" has a "String()" method, the
 default formatter for that type will use it and produce the output
