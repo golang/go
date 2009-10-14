@@ -412,6 +412,8 @@ func (d *decoder) checkHeader(r io.Reader) os.Error {
 	return nil;
 }
 
+// Decode reads a PNG formatted image from r and returns it as an image.Image.
+// The type of Image returned depends on the PNG contents.
 func Decode(r io.Reader) (image.Image, os.Error) {
 	var d decoder;
 	err := d.checkHeader(r);

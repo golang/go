@@ -316,9 +316,12 @@ func (e *encoder) writeIEND() {
 	e.writeChunk(e.tmp[0:0], "IEND");
 }
 
+// Encode writes the Image m to w in PNG format. Any Image may be encoded, but
+// images that are not image.NRGBA might be encoded lossily.
 func Encode(w io.Writer, m image.Image) os.Error {
-	// Obviously, negative widths and heights are invalid. Furthermore,
-	// the PNG spec section 11.2.2 says that zero is an invalid dimension.
+	// Obviously, negative widths and heights are invalid. Furthermore, the PNG
+	// spec section 11.2.2 says that zero is invalid. Excessively large images are
+	// also rejected.
 	mw, mh := int64(m.Width()), int64(m.Height());
 	if mw <= 0 || mh <= 0 || mw >= 1<<32 || mh >= 1<<32 {
 		return FormatError("invalid image size: " + strconv.Itoa64(mw) + "x" + strconv.Itoa64(mw));
