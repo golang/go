@@ -354,6 +354,20 @@ will not invalidate any existing programs&mdash;but without a clear idea of what
 equality of structs and arrays should mean, it was simpler to leave it out for now.
 </p>
 
+<h3 id="references">
+Why are maps, slices, and channels references while arrays are values?</h3>
+<p>
+There's a lot of history on that topic.  Early on, maps and channels
+were syntactically pointers and it was impossible to declare or use a
+non-pointer instance.  Also, we struggled with how arrays should work.
+Eventually we decided that the strict separation of pointers and
+values made the language harder to use.  Introducing reference types,
+including slices to handle the reference form of arrays, resolved
+these issues.  Reference types add some regrettable complexity to the
+language but they have a large effect on usability: Go became a more
+productive, comfortable language when they were introduced.
+</p>
+
 <h2 id="concurrency">Concurrency</h2>
 
 <h3 id="csp">
