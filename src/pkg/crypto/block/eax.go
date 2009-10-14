@@ -16,6 +16,7 @@ package block
 
 import (
 	"fmt";
+	"hash";
 	"io";
 	"os";
 )
@@ -32,7 +33,7 @@ func (e *EAXTagError) String() string {
 	return fmt.Sprintf("crypto/block: EAX tag mismatch: read %x but computed %x", e.Read, e.Computed);
 }
 
-func setupEAX(c Cipher, iv, hdr []byte, tagBytes int) (ctrIV, tag []byte, cmac Digest) {
+func setupEAX(c Cipher, iv, hdr []byte, tagBytes int) (ctrIV, tag []byte, cmac hash.Hash) {
 	n := len(iv);
 	if n != c.BlockSize() {
 		panicln("crypto/block: EAX: iv length", n, "!=", c.BlockSize());
@@ -63,7 +64,7 @@ func setupEAX(c Cipher, iv, hdr []byte, tagBytes int) (ctrIV, tag []byte, cmac D
 	return;
 }
 
-func finishEAX(tag []byte, cmac Digest) {
+func finishEAX(tag []byte, cmac hash.Hash) {
 	// Finish CMAC #2 and xor into tag.
 	sum := cmac.Sum();
 	for i := range tag {
@@ -75,7 +76,7 @@ func finishEAX(tag []byte, cmac Digest) {
 // Knows that cmac never returns write errors.
 type cmacWriter struct {
 	w	io.Writer;
-	cmac	Digest;
+	cmac	hash.Hash;
 }
 
 func (cw *cmacWriter) Write(p []byte) (n int, err os.Error) {
@@ -133,7 +134,7 @@ func (x *eaxEncrypter) Close() os.Error {
 // but the latter half is trivial.
 type cmacReader struct {
 	r	io.Reader;
-	cmac	Digest;
+	cmac	hash.Hash;
 	tag	[]byte;
 	tmp	[]byte;
 }

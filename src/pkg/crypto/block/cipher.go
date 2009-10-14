@@ -8,8 +8,6 @@
 // and NIST Special Publication 800-38A.
 package block
 
-import "io"
-
 // A Cipher represents an implementation of block cipher
 // using a given key.  It provides the capability to encrypt
 // or decrypt individual blocks.  The mode implementations
@@ -26,19 +24,6 @@ type Cipher interface {
 	// Src and dst may point at the same memory.
 	Decrypt(src, dst []byte);
 }
-
-// TODO(rsc): Digest belongs elsewhere.
-
-// A Digest is an implementation of a message digest algorithm.
-// Write data to it and then call Sum to retreive the digest.
-// Calling Reset resets the internal state, as though no data has
-// been written.
-type Digest interface {
-	io.Writer;
-	Sum() []byte;
-	Reset();
-}
-
 
 // Utility routines
 
