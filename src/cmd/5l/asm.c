@@ -1706,6 +1706,25 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym
 		// o1 = olr(instoffset, p->to.reg, REGTMP, p->scond);	// mov O(R), Rtmp
 		o1 = ((p->scond&C_SCOND)<<28) | (0x12fff<<8) | (1<<4) | p->to.reg;		// BX R
 		break;
+	case 77:	/* ldrex oreg,reg */
+		aclass(&p->from);
+		if(instoffset != 0)
+			diag("offset must be zero in LDREX");
+		o1 = (0x19<<20) | (0xf9f);
+		o1 |= p->from.reg << 16;
+		o1 |= p->to.reg << 12;
+		o1 |= (p->scond & C_SCOND) << 28;
+		break;
+	case 78:	/* strex reg,oreg,reg */
+		aclass(&p->from);
+		if(instoffset != 0)
+			diag("offset must be zero in STREX");
+		o1 = (0x3<<23) | (0xf9<<4);
+		o1 |= p->from.reg << 16;
+		o1 |= p->reg << 0;
+		o1 |= p->to.reg << 12;
+		o1 |= (p->scond & C_SCOND) << 28;
+		break;
 	}
 
 	v = p->pc;

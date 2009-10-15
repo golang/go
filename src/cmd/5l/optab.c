@@ -281,6 +281,8 @@ Optab	optab[] =
 	{ AMOVHU,	C_LEXT,	C_NONE,	C_REG,		73, 8, REGSB,	LFROM|V4 },
 	{ AMOVHU,	C_LAUTO,C_NONE, C_REG,		73, 8, REGSP,	LFROM|V4 },
 	{ AMOVHU,	C_LOREG,C_NONE,	C_REG,		73, 8, 0,	LFROM|V4 },
+	{ ALDREX,	C_SOREG,C_NONE,	C_REG,		77, 4, 0 },
+	{ ASTREX,	C_SOREG,C_REG,	C_REG,		78, 4, 0 },
 
 	{ AXXX,		C_NONE,	C_NONE,	C_NONE,		 0, 4, 0 },
 };
