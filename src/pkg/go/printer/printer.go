@@ -50,6 +50,7 @@ const (
 
 
 var (
+	esc = []byte{tabwriter.Escape};
 	htab = []byte{'\t'};
 	htabs = [...]byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'};
 	newlines = [...]byte{'\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'};  // more than maxNewlines
@@ -81,6 +82,7 @@ type printer struct {
 	// Current state
 	written int;  // number of bytes written
 	indent int;  // current indentation
+	escape bool;  // true if in escape sequence
 
 	// Buffered whitespace
 	buffer []whiteSpace;
@@ -125,17 +127,11 @@ func (p *printer) write0(data []byte) {
 }
 
 
-type writeMode uint;
-const (
-	writeRaw writeMode = 1<<iota;  // do not interpret newline/formfeed characters
-	setLineTag;  // wrap item with a line tag
-)
-
 // write interprets data and writes it to p.output. It inserts indentation
-// after newline or formfeed if not in writeRaw mode and HTML-escapes characters
-// if GenHTML is set. It updates p.pos as a side-effect.
+// after a line break unless in a tabwriter escape sequence, and it HTML-
+// escapes characters if GenHTML is set. It updates p.pos as a side-effect.
 //
-func (p *printer) write(data []byte, mode writeMode) {
+func (p *printer) write(data []byte) {
 	i0 := 0;
 	for i, b := range data {
 		switch b {
@@ -148,7 +144,7 @@ func (p *printer) write(data []byte, mode writeMode) {
 			p.pos.Line++;
 			p.pos.Column = 1;
 
-			if mode & writeRaw == 0 {
+			if !p.escape {
 				// write indentation
 				// use "hard" htabs - indentation columns
 				// must not be discarded by the tabwriter
@@ -188,6 +184,9 @@ func (p *printer) write(data []byte, mode writeMode) {
 				// next segment start
 				i0 = i+1;
 			}
+
+		case tabwriter.Escape:
+			p.escape = !p.escape;
 		}
 	}
 
@@ -206,7 +205,7 @@ func (p *printer) writeNewlines(n int) {
 		if n > maxNewlines {
 			n = maxNewlines;
 		}
-		p.write(newlines[0 : n], 0);
+		p.write(newlines[0 : n]);
 	}
 }
 
@@ -214,11 +213,11 @@ func (p *printer) writeNewlines(n int) {
 // writeItem writes data at position pos. data is the text corresponding to
 // a single lexical token, but may also be comment text. pos is the actual
 // (or at least very accurately estimated) position of the data in the original
-// source text. The data may be tagged, depending on p.mode and the mode
+// source text. The data may be tagged, depending on p.mode and the setLineTag
 // parameter. writeItem updates p.last to the position immediately following
 // the data.
 //
-func (p *printer) writeItem(pos token.Position, data []byte, mode writeMode) {
+func (p *printer) writeItem(pos token.Position, data []byte, setLineTag bool) {
 	p.pos = pos;
 	if debug {
 		// do not update p.pos - use write0
@@ -226,7 +225,7 @@ func (p *printer) writeItem(pos token.Position, data []byte, mode writeMode) {
 	}
 	if p.mode & GenHTML != 0 {
 		// no html-escaping and no p.pos update for tags - use write0
-		if mode & setLineTag != 0 && pos.Line > p.lastTaggedLine {
+		if setLineTag && pos.Line > p.lastTaggedLine {
 			// id's must be unique within a document: set
 			// line tag only if line number has increased
 			// (note: for now write complete start and end
@@ -240,14 +239,14 @@ func (p *printer) writeItem(pos token.Position, data []byte, mode writeMode) {
 			p.write0(strings.Bytes(p.tag.start));
 			p.tag.start = "";  // tag consumed
 		}
-		p.write(data, mode);
+		p.write(data);
 		// write end tag, if any
 		if p.tag.end != "" {
 			p.write0(strings.Bytes(p.tag.end));
 			p.tag.end = "";  // tag consumed
 		}
 	} else {
-		p.write(data, mode);
+		p.write(data);
 	}
 	p.last = p.pos;
 }
@@ -295,7 +294,7 @@ func (p *printer) writeCommentPrefix(line int, isFirst bool) {
 		}
 		// make sure there is at least one tab
 		if !hasTab {
-			p.write(htab, 0);
+			p.write(htab);
 		}
 
 	} else {
@@ -352,7 +351,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
 	}
 
 	// write comment
-	p.writeItem(comment.Pos(), text, 0);
+	p.writeItem(comment.Pos(), text, false);
 }
 
 
@@ -382,7 +381,7 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) {
 
 	// make sure we have a line break
 	if needsLinebreak {
-		p.write([]byte{'\n'}, 0);
+		p.write([]byte{'\n'});
 	}
 }
 
@@ -441,7 +440,7 @@ func (p *printer) writeWhitespace(n int) {
 			fallthrough;
 		default:
 			data[0] = byte(ch);
-			p.write(&data, 0);
+			p.write(&data);
 		}
 	}
 
@@ -470,7 +469,7 @@ func (p *printer) writeWhitespace(n int) {
 // printed, followed by the actual token.
 //
 func (p *printer) print(args ...) {
-	var mode writeMode;
+	setLineTag := false;
 	v := reflect.NewValue(args).(*reflect.StructValue);
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i);
@@ -491,10 +490,6 @@ func (p *printer) print(args ...) {
 			p.buffer[i] = x;
 		case []byte:
 			data = x;
-			// do not modify multi-line `` strings!
-			if len(x) > 0 && x[0] == '`' && x[len(x)-1] == '`' {
-				mode |= writeRaw;
-			}
 		case string:
 			data = strings.Bytes(x);
 		case token.Token:
@@ -507,7 +502,7 @@ func (p *printer) print(args ...) {
 			pos := token.Position(x);
 			if pos.IsValid() {
 				next = pos;  // accurate position of next item
-				mode |= setLineTag;
+				setLineTag = true;
 			}
 		case htmlTag:
 			p.tag = x;  // tag surrounding next item
@@ -524,8 +519,8 @@ func (p *printer) print(args ...) {
 			// at the end of a file)
 			p.writeNewlines(next.Line - p.pos.Line);
 
-			p.writeItem(next, data, mode);
-			mode = 0;
+			p.writeItem(next, data, setLineTag);
+			setLineTag = false;
 		}
 	}
 }
@@ -976,8 +971,16 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 		}
 
 	case *ast.BasicLit:
-		// TODO(gri): string contents must remain unchanged through tabwriter!
-		p.print(x.Value);
+		if p.mode & RawFormat == 0 {
+			// tabwriter is used: escape all literals
+			// so they pass through unchanged
+			// (note that a legal Go program cannot contain an '\xff' byte in
+			// literal source text since '\xff' is not a legal byte in correct
+			// UTF-8 encoded text)
+			p.print(esc, x.Value, esc);
+		} else {
+			p.print(x.Value);
+		}
 
 	case *ast.StringList:
 		p.stringList(x.Strings);
