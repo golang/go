@@ -1584,8 +1584,8 @@ But why make <code>Counter</code> a struct?  An integer is all that's needed.
 type Counter int
 
 func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
-	ctr++;
-	fmt.Fprintf(c, "counter = %d\n", ctr);
+	*ctr++;
+	fmt.Fprintf(c, "counter = %d\n", *ctr);
 }
 </pre>
 <p>
