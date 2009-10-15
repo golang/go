@@ -310,11 +310,12 @@ which is a clear, concise name.
 Moreover,
 because imported entities are always addressed with their package name, <code>bufio.Reader</code>
 does not conflict with <code>io.Reader</code>.
-Similarly, the constructor for <code>vector.Vector</code>
-would normally be called <code>NewVector</code> but since
+Similarly, the function to make new instances of <code>vector.Vector</code>
+&mdash;which is the definition of a <em>constructor</em> in Go&mdash;would
+normally be called <code>NewVector</code> but since
 <code>Vector</code> is the only type exported by the package, and since the
-package is called <code>vector</code>, it's called just <code>New</code>,
-which clients of the package see as <code>vector.New</code>.
+package is called <code>vector</code>, it's called just <code>New</code>.
+Clients of the package see that as <code>vector.New</code>.
 Use the package structure to help you choose good names.
 </p>
 
@@ -1372,7 +1373,7 @@ By the way, the idea of using <code>Write</code> on a slice of bytes
 is implemented by <code>bytes.Buffer</code>.
 </p>
 
-<h2 id="interfaces_and_types">Interfaces and the interplay of types</h2>
+<h2 id="interfaces_and_types">Interfaces and other types</h2>
 
 <h3 id="interfaces">Interfaces</h3>
 <p>
@@ -1382,7 +1383,7 @@ object: if something can do <em>this</em>, then it can be used
 custom printers can be implemented by a <code>String</code> method
 while <code>Fprintf</code> can generate output to anything
 with a <code>Write</code> method.
-Interfaces with only one or two methods are common in Go, and are
+Interfaces with only one or two methods are common in Go code, and are
 usually given a name derived from the method, such as <code>io.Writer</code>
 for something that implements <code>Write</code>.
 </p>
@@ -1477,10 +1478,11 @@ That's more unusual in practice but can be effective.
 <p>
 If a type exists only to implement an interface
 and has no exported methods beyond that interface,
-there is no need to publish the type itself.
-Publishing just the interface makes it easy for
-other implementations with different properties
-to mirror the job of the original type.
+there is no need to export the type itself.
+Exporting just the interface makes it clear that
+it's the behavior that matters, not the implementation,
+and that other implementations with different properties
+can mirror the behavior of the original type.
 It also avoids the need to repeat the documentation
 on every instance of a common method.
 </p>
@@ -1502,7 +1504,7 @@ By analogy to the <code>bufio</code> package,
 they wrap a <code>Cipher</code> interface
 and they return <code>hash.Hash</code>,
 <code>io.Reader</code>, or <code>io.Writer</code>
-interface values, not direct implementations.
+interface values, not specific implementations.
 </p>
 <p>
 The interface to <code>crypto/block</code> includes:
@@ -1532,6 +1534,147 @@ interface values, replacing ECB
 encryption with CBC encryption is a localized change.  The constructor
 calls must be edited, but because the code must treat the result only
 as an <code>io.Reader</code>, it won't notice the difference.
+</p>
+
+<h3 id="interface_methods">Interfaces and methods</h3>
+<p>
+Since almost anything can have methods attached, almost anything can
+satisfy an interface.  One illustrative example is in the <code>http</code>
+package, which defines the <code>Handler</code> interface.  Any object
+that implements <code>Handler</code> can serve HTTP requests.
+</p>
+<pre>
+type Handler interface {
+	ServeHTTP(*Conn, *Request);
+}
+</pre>
+<p>
+For brevity, let's ignore POSTs and assume HTTP requests are always
+GETs; that simplification does not affect the way the handlers are
+made.  Here's a trivial but complete implementation of a handler to
+count the number of times the
+page is visited.
+</p>
+<pre>
+// Simple counter server.
+type Counter struct {
+	n int;
+}
+
+func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+	ctr.n++;
+	fmt.Fprintf(c, "counter = %d\n", ctr.n);
+}
+</pre>
+<p>
+(Keeping with our theme, note how <code>Fprintf</code> can print to an HTTP connection.)
+For reference, here's how to set up such a server.
+<pre>
+import "http"
+...
+ctr := new(Counter);
+http.Handle("/counter", ctr);
+</pre>
+<p>
+But why make <code>Counter</code> a struct?  An integer is all that's needed.
+(The receiver needs to be a pointer so the increment is visible to the caller.)
+</p>
+<pre>
+// Simpler counter server.
+type Counter int
+
+func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
+	ctr++;
+	fmt.Fprintf(c, "counter = %d\n", ctr);
+}
+</pre>
+<p>
+What if your program has some internal state that needs to be notified that a page
+has been visited?  Tie a channel to the web page.
+</p>
+<pre>
+// A channel that sends a notification on each visit.
+// (Probably want the channel to be buffered.)
+type Chan chan int
+
+func (ch Chan) ServeHTTP(c *http.Conn, req *http.Request) {
+	ch <- 1;
+	fmt.Fprint(c, "notification sent");
+}
+</pre>
+<p>
+Finally, let's say we wanted to present on <code>/args</code> the arguments
+used when invoking the server binary.
+It's easy to write a function to print the arguments:
+</p>
+<pre>
+func ArgServer() {
+	for i, s := range os.Args {
+		fmt.Println(s);
+	}
+}
+</pre>
+<p>
+How do we turn that into an HTTP server?  We could make <code>ArgServer</code>
+a method of some type whose value we ignore, but there's a cleaner way.
+Since we can write a method for (almost) any type, we can write a method
+for a function.
+The <code>http</code> package contains this code:
+</p>
+<pre>
+// The HandlerFunc type is an adapter to allow the use of
+// ordinary functions as HTTP handlers.  If f is a function
+// with the appropriate signature, HandlerFunc(f) is a
+// Handler object that calls f.
+type HandlerFunc func(*Conn, *Request)
+
+// ServeHTTP calls f(c, req).
+func (f HandlerFunc) ServeHTTP(c *Conn, req *Request) {
+	f(c, req);
+}
+</pre>
+<p>
+<code>HandlerFunc</code> is a type with a method, <code>ServeHTTP</code>,
+so values of that type can serve HTTP requests.  Look at the implementation
+of the method: the receiver is a function, <code>f</code>, and the method
+calls <code>f</code>.  That may seem odd but it's no different from, say,
+the receiver being a channel and the method sending on the channel.
+</p>
+<p>
+To make <code>ArgServer</code> into an HTTP server, we first give it the right
+signature.
+</p>
+<pre>
+// Argument server.
+func ArgServer(c *http.Conn, req *http.Request) {
+	for i, s := range os.Args {
+		fmt.Fprintln(c, s);
+	}
+}
+</pre>
+<p>
+<code>ArgServer</code> has same signature as <code>HandlerFunc</code>,
+so the function can be converted to that type to access its methods,
+just as we converted <code>Sequence</code> to <code>[]int</code> earlier.
+The code to set it up is short:
+</p>
+<pre>
+http.Handle("/args", http.HandlerFunc(ArgServer));
+</pre>
+<p>
+When someone visits the page <code>/args</code>,
+the handler installed at that page has type
+<code>HandlerFunc</code> and value <code>ArgServer</code>.
+The HTTP server will invoke the method <code>ServeHTTP</code>
+of that type, with that receiver, which will in turn call
+<code>ArgServer</code> (via the invocation <code>f(c, req)</code>
+inside <code>HandlerFunc.ServeHTTP</code>) and the arguments
+will be displayed.
+</p>
+<p>
+In summary, we have made an HTTP server from a struct, an integer,
+a channel, and a function, all because interfaces are just sets of
+methods, which can be defined for (almost) any type.
 </p>
 
 <h2 id="errors">Errors</h2>
@@ -1603,8 +1746,6 @@ for try := 0; try < 2; try++ {
 	return
 }
 </pre>
-
-<h2>Testing</h2>
 
 <h2>More to come</h2>
 
@@ -1696,10 +1837,7 @@ used by both <code>TestEncoder</code> and <code>TestDecoder</code>.
 
 <p>
 This data-driven style dominates in the Go package tests.
-<!--
-<br>
-link to go code search for 'for.*range' here
--->
+<font color="red">((link to go code search for 'for.*range' here))</font>
 </p>
 
 <h3 id="reflect.DeepEqual">Use reflect.DeepEqual to compare complex values</h3>
