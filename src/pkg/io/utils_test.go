@@ -59,3 +59,35 @@ func TestWriteFile(t *testing.T) {
 	// cleanup
 	os.Remove(filename);	// ignore error
 }
+
+
+func TestReadDir(t *testing.T) {
+	dirname := "rumpelstilzchen";
+	_, err := ReadDir(dirname);
+	if err == nil {
+		t.Fatalf("ReadDir %s: error expected, none found", dirname);
+	}
+
+	dirname = ".";
+	list, err := ReadDir(dirname);
+	if err != nil {
+		t.Fatalf("ReadDir %s: %v", dirname, err);
+	}
+
+	foundTest := false;
+	foundObj := false;
+	for _, dir := range list {
+		switch {
+		case dir.IsRegular() && dir.Name == "utils_test.go":
+			foundTest = true;
+		case dir.IsDirectory() && dir.Name == "_obj":
+			foundObj = true;
+		}
+	}
+	if !foundTest {
+		t.Fatalf("ReadDir %s: test file not found", dirname);
+	}
+	if !foundObj {
+		t.Fatalf("ReadDir %s: _obj directory not found", dirname);
+	}
+}
