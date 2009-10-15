@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Uniformly distributed pseudo-random numbers.
 package rand
 
 /*
- *	algorithm by
- *	DP Mitchell and JA Reeds
+ * Uniform distribution
+ *
+ * algorithm by
+ * DP Mitchell and JA Reeds
  */
 
 const (
@@ -22,14 +23,10 @@ const (
 )
 
 var (
-	rng_tap		int;		// index into vector
-	rng_feed	int;		// index into vector
-	rng_vec		[_LEN]int64;	// current feedback register
-
 	// cooked random numbers
 	// the state of the rng
 	// after 780e10 iterations
-	rng_cooked	[_LEN]int64	= [...]int64{
+	rng_cooked [_LEN]int64 = [...]int64{
 		5041579894721019882, 4646389086726545243, 1395769623340756751, 5333664234075297259,
 		2875692520355975054, 9033628115061424579, 7143218595135194537, 4812947590706362721,
 		7937252194349799378, 5307299880338848416, 8209348851763925077, 2115741599318814044,
@@ -185,6 +182,12 @@ var (
 	};
 )
 
+type rngSource struct {
+	tap	int;		// index into vec
+	feed	int;		// index into vec
+	vec	[_LEN]int64;	// current feedback register
+}
+
 // seed rng x[n+1] = 48271 * x[n] mod (2**31 - 1)
 func seedrand(x int32) int32 {
 	hi := x/_Q;
@@ -197,9 +200,9 @@ func seedrand(x int32) int32 {
 }
 
 // Seed uses the provided seed value to initialize the generator to a deterministic state.
-func Seed(seed int32) {
-	rng_tap = 0;
-	rng_feed = _LEN-_TAP;
+func (rng *rngSource) Seed(seed int64) {
+	rng.tap = 0;
+	rng.feed = _LEN-_TAP;
 
 	seed = seed%_M;
 	if seed < 0 {
@@ -209,7 +212,7 @@ func Seed(seed int32) {
 		seed = 89482311;
 	}
 
-	x := seed;
+	x := int32(seed);
 	for i := -20; i < _LEN; i++ {
 		x = seedrand(x);
 		if i >= 0 {
@@ -220,99 +223,24 @@ func Seed(seed int32) {
 			x = seedrand(x);
 			u ^= int64(x);
 			u ^= rng_cooked[i];
-			rng_vec[i] = u&_MASK;
+			rng.vec[i] = u&_MASK;
 		}
 	}
 }
 
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
-func Int63() int64 {
-	rng_tap--;
-	if rng_tap < 0 {
-		rng_tap += _LEN;
+func (rng *rngSource) Int63() int64 {
+	rng.tap--;
+	if rng.tap < 0 {
+		rng.tap += _LEN;
 	}
 
-	rng_feed--;
-	if rng_feed < 0 {
-		rng_feed += _LEN;
+	rng.feed--;
+	if rng.feed < 0 {
+		rng.feed += _LEN;
 	}
 
-	x := (rng_vec[rng_feed]+rng_vec[rng_tap])&_MASK;
-	rng_vec[rng_feed] = x;
+	x := (rng.vec[rng.feed] + rng.vec[rng.tap])&_MASK;
+	rng.vec[rng.feed] = x;
 	return x;
-}
-
-// Uint32 returns a pseudo-random 32-bit value as a uint32.
-func Uint32() uint32 {
-	return uint32(Int63()>>31);
-}
-
-// Int31 returns a non-negative pseudo-random 31-bit integer as an int32.
-func Int31() int32 {
-	return int32(Int63()>>32);
-}
-
-// Int returns a non-negative pseudo-random int.  All bits but the top bit are random.
-func Int() int {
-	u := uint(Int63());
-	return int(u<<1>>1);	// clear sign bit if int == int32
-}
-
-// Int63n returns, as an int64, a non-negative pseudo-random number in [0,n).
-func Int63n(n int64) int64 {
-	if n <= 0 {
-		return 0;
-	}
-	max := int64((1<<63) - 1 - (1<<63)%uint64(n));
-	v := Int63();
-	for v > max {
-		v = Int63();
-	}
-	return v%n;
-}
-
-// Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
-func Int31n(n int32) int32 {
-	return int32(Int63n(int64(n)));
-}
-
-// Intn returns, as an int, a non-negative pseudo-random number in [0,n).
-func Intn(n int) int {
-	return int(Int63n(int64(n)));
-}
-
-// Float64 returns, as a float64, a pseudo-random number in [0.0,1.0).
-func Float64() float64 {
-	x := float64(Int63())/float64(_MAX);
-	for x >= 1 {
-		x = float64(Int63())/float64(_MAX);
-	}
-	return x;
-}
-
-// Float32 returns, as a float32, a pseudo-random number in [0.0,1.0).
-func Float32() float32 {
-	return float32(Float64());
-}
-
-// Float returns, as a float, a pseudo-random number in [0.0,1.0).
-func Float() float {
-	return float(Float64());
-}
-
-// Perm returns, as a slice of n ints, a pseudo-random permutation of the integers [0,n).
-func Perm(n int) []int {
-	m := make([]int, n);
-	for i := 0; i < n; i++ {
-		m[i] = i;
-	}
-	for i := 0; i < n; i++ {
-		j := Intn(n);
-		m[i], m[j] = m[j], m[i];
-	}
-	return m;
-}
-
-func init() {
-	Seed(1);
 }
