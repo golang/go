@@ -13,9 +13,9 @@ package av
 
 import (
 	"bytes";
-	"draw";
+	"exp/draw";
+	"exp/nacl/srpc";
 	"log";
-	"nacl/srpc";
 	"os";
 	"syscall";
 	"unsafe";

@@ -4,7 +4,7 @@
 
 include $(GOROOT)/src/Make.$(GOARCH)
 
-TARG=nacl/av
+TARG=exp/nacl/av
 GOFILES=\
 	av.go\
 	event.go\

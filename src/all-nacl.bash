@@ -14,6 +14,14 @@ xcd() {
 	builtin cd $1
 }
 
+(xcd pkg/exp/nacl/srpc
+make install
+) || exit $?
+
+(xcd pkg/exp/nacl/av
+make install
+) || exit $?
+
 (xcd ../test
 ./run-nacl
 ) || exit $?
