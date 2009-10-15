@@ -4,7 +4,7 @@
 
 package main
 
-import "ogle"
+import "exp/ogle"
 
 func main() {
 	ogle.Main();

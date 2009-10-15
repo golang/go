@@ -6,7 +6,7 @@ package ogle
 
 import (
 	"debug/proc";
-	"eval";
+	"exp/eval";
 	"fmt";
 	"os";
 )

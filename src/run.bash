@@ -26,11 +26,9 @@ maketest() {
 
 maketest \
 	pkg \
-	../usr/austin/eval \
 
 # all of these are subtly different
 # from what maketest does.
-
 
 (xcd pkg/sync;
 make clean;
@@ -55,7 +53,18 @@ make clean
 ./test.bash
 ) || exit $?
 
-(xcd ../usr/austin/ogle
+(xcd ../usr/r/rpc
+make clean
+time make
+./chanrun
+) || exit $?
+
+(xcd ../usr/dsymonds/iterable
+make clean
+time make test
+) || exit $?
+
+(xcd pkg/exp/ogle
 make clean
 time make ogle
 ) || exit $?
