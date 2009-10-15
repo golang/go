@@ -1,0 +1,44 @@
+# This is the official list of people who can contribute
+# (and typically have contributed) code to the Go repository.
+# The AUTHORS file lists the copyright holders; this file
+# lists people.  For example, Google employees are listed here
+# but not in AUTHORS, because Google holds the copyright.
+#
+# The submission process automatically checks to make sure
+# that people submitting code are listed in this file (by email address).
+#
+# Names should be added to this file only after verifying that
+# the individual or the individual's organization has agreed to
+# the appropriate Contributor License Agreement, found here:
+#
+#     http://code.google.com/legal/individual-cla-v1.0.html
+#     http://code.google.com/legal/corporate-cla-v1.0.html
+#
+# The individual agreement can be filled out online.
+
+# Names should be added to this file like so:
+# Name <email address>
+
+Adam Langley <agl@golang.org>
+Austin Clements <aclements@csail.mit.edu>
+Ben Eitzen <eitzenb@golang.org>
+Bill Neubauer <wcn@golang.org>
+Brendan O'Dea <bod@golang.org>
+Cary Hull <chull@google.com>
+Daniel Nadasi <dnadasi@google.com>
+David Symonds <dsymonds@golang.org>
+Ian Lance Taylor <iant@golang.org>
+Ivan Krasin <krasin@golang.org>
+Jacob Baskin <jbaskin@google.com>
+Kai Backman <kaib@golang.org>
+Ken Thompson <ken@golang.org>
+Larry Hosken <lahosken@golang.org>
+Nigel Tao <nigeltao@golang.org>
+Peter McKenzie <petermck@google.com>
+Phil Pennock <pdp@golang.org>
+Rob Pike <r@golang.org>
+Robert Griesemer <gri@golang.org>
+Russ Cox <rsc@golang.org>
+Scott Schwartz <scotts@golang.org>
+Stephen Ma <stephenm@golang.org>
+Tom Szymanski <tgs@google.com>
