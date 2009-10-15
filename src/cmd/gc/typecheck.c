@@ -51,7 +51,7 @@ typecheck(Node **np, int top)
 	int et, op;
 	Node *n, *l, *r;
 	NodeList *args;
-	int lno, ok;
+	int lno, ok, ntop;
 	Type *t;
 
 	// cannot type check until all the source has been parsed
@@ -250,7 +250,10 @@ reswitch:
 	 * type or expr
 	 */
 	case OIND:
-		l = typecheck(&n->left, Erv | Etype);
+		ntop = Erv | Etype;
+		if(!(top & Eaddr))
+			ntop |= Eindir;
+		l = typecheck(&n->left, ntop);
 		if((t = l->type) == T)
 			goto error;
 		if(l->op == OTYPE) {
@@ -409,7 +412,7 @@ reswitch:
 	 */
 	case OADDR:
 		ok |= Erv;
-		typecheck(&n->left, Erv);
+		typecheck(&n->left, Erv | Eaddr);
 		if(n->left->type == T)
 			goto error;
 		switch(n->left->op) {
@@ -424,7 +427,8 @@ reswitch:
 		l = n->left;
 		if((t = l->type) == T)
 			goto error;
-		addrescapes(n->left);
+		if(!(top & Eindir))
+			addrescapes(n->left);
 		n->type = ptrto(t);
 		goto ret;
 
@@ -642,6 +646,18 @@ reswitch:
 		typecheck(&n->left, Erv | Etype | Ecall);
 		defaultlit(&n->left, T);
 		l = n->left;
+		if(l->op == OTYPE) {
+			// pick off before type-checking arguments
+			ok |= Erv;
+			// turn CALL(type, arg) into CONV(arg) w/ type
+			n->left = N;
+			if(onearg(n) < 0)
+				goto error;
+			n->op = OCONV;
+			n->type = l->type;
+			goto doconv;
+		}
+
 		if(count(n->list) == 1)
 			typecheck(&n->list->n, Erv | Efnstruct);
 		else
@@ -651,16 +667,6 @@ reswitch:
 		checkwidth(t);
 
 		switch(l->op) {
-		case OTYPE:
-			ok |= Erv;
-			// turn CALL(type, arg) into CONV(arg) w/ type
-			n->left = N;
-			if(onearg(n) < 0)
-				goto error;
-			n->op = OCONV;
-			n->type = l->type;
-			goto doconv;
-
 		case ODOTINTER:
 			n->op = OCALLINTER;
 			break;
@@ -758,7 +764,7 @@ reswitch:
 	case OCONV:
 	doconv:
 		ok |= Erv;
-		typecheck(&n->left, Erv);
+		typecheck(&n->left, Erv | (top & Eindir));
 		defaultlit(&n->left, n->type);
 		if((t = n->left->type) == T || n->type == T)
 			goto error;
