@@ -242,7 +242,6 @@ interface/recursive.go
 interface/returntype.go
 interface/struct.go
 iota.go
-ken/complit.go
 ken/divmod.go
 ken/embed.go
 ken/for.go
