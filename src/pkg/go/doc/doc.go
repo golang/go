@@ -35,6 +35,7 @@ type typeDoc struct {
 //
 type docReader struct {
 	doc	*ast.CommentGroup;	// package documentation, if any
+	pkgName string;
 	values	*vector.Vector;		// list of *ast.GenDecl (consts and vars)
 	types	map[string]*typeDoc;
 	funcs	map[string]*ast.FuncDecl;
@@ -42,7 +43,8 @@ type docReader struct {
 }
 
 
-func (doc *docReader) init() {
+func (doc *docReader) init(pkgName string) {
+	doc.pkgName = pkgName;
 	doc.values = vector.New(0);
 	doc.types = make(map[string]*typeDoc);
 	doc.funcs = make(map[string]*ast.FuncDecl);
@@ -168,10 +170,26 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 	if len(fun.Type.Results) >= 1 {
 		res := fun.Type.Results[0];
 		if len(res.Names) <= 1 {
-			// exactly one (named or anonymous) result type
-			typ := doc.lookupTypeDoc(baseTypeName(res.Type));
+			// exactly one (named or anonymous) result associated
+			// with the first type in result signature (there may
+			// be more than one result)
+			tname := baseTypeName(res.Type);
+			typ := doc.lookupTypeDoc(tname);
 			if typ != nil {
 				// named and exported result type
+
+				// Work-around for failure of heuristic: In package os
+				// too many functions are considered factory functions
+				// for the Error type. Eliminate manually for now as
+				// this appears to be the only important case in the
+				// current library where the heuristic fails.
+				if doc.pkgName == "os" && tname == "Error" &&
+					name != "NewError" && name != "NewSyscallError" {
+					// not a factory function for os.Error
+					doc.funcs[name] = fun;  // treat as ordinary function
+					return;
+				}
+
 				typ.factories[name] = fun;
 				return;
 			}
@@ -285,15 +303,15 @@ func (doc *docReader) addFile(src *ast.File) {
 
 func NewFileDoc(file *ast.File) *PackageDoc {
 	var r docReader;
-	r.init();
+	r.init(file.Name.Value);
 	r.addFile(file);
-	return r.newDoc(file.Name.Value, "", "", nil);
+	return r.newDoc("", "", nil);
 }
 
 
 func NewPackageDoc(pkg *ast.Package, importpath string) *PackageDoc {
 	var r docReader;
-	r.init();
+	r.init(pkg.Name);
 	filenames := make([]string, len(pkg.Files));
 	i := 0;
 	for filename, f := range pkg.Files {
@@ -301,7 +319,7 @@ func NewPackageDoc(pkg *ast.Package, importpath string) *PackageDoc {
 		filenames[i] = filename;
 		i++;
 	}
-	return r.newDoc(pkg.Name, importpath, pkg.Path, filenames);
+	return r.newDoc(importpath, pkg.Path, filenames);
 }
 
 
@@ -532,9 +550,9 @@ type PackageDoc struct {
 
 // newDoc returns the accumulated documentation for the package.
 //
-func (doc *docReader) newDoc(pkgname, importpath, filepath string, filenames []string) *PackageDoc {
+func (doc *docReader) newDoc(importpath, filepath string, filenames []string) *PackageDoc {
 	p := new(PackageDoc);
-	p.PackageName = pkgname;
+	p.PackageName = doc.pkgName;
 	p.ImportPath = importpath;
 	p.FilePath = filepath;
 	sort.SortStrings(filenames);

@@ -19,6 +19,10 @@ func (e ErrorString) String() string {
 	return string(e);
 }
 
+// Note: If the name of the function NewError changes,
+// pkg/go/doc/doc.go should be adjusted since it hardwires
+// this name in a heuristic.
+
 // NewError converts s to an ErrorString, which satisfies the Error interface.
 func NewError(s string) Error {
 	return ErrorString(s);
@@ -92,6 +96,10 @@ type SyscallError struct {
 func (e *SyscallError) String() string {
 	return e.Syscall + ": " + e.Errno.String();
 }
+
+// Note: If the name of the function NewSyscallError changes,
+// pkg/go/doc/doc.go should be adjusted since it hardwires
+// this name in a heuristic.
 
 // NewSyscallError returns, as an Error, a new SyscallError
 // with the given system call name and error number.
