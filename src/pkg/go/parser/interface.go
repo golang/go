@@ -174,6 +174,7 @@ func ParsePackage(path string, filter func(*os.Dir) bool, mode uint) (*ast.Packa
 	if err != nil {
 		return nil, err;
 	}
+	defer fd.Close();
 
 	list, err := fd.Readdir(-1);
 	if err != nil {
