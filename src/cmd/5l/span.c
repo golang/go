@@ -1095,6 +1095,9 @@ buildop(void)
 			oprange[AMULLU] = oprange[r];
 			oprange[AMULALU] = oprange[r];
 			break;
+		case ALDREX:
+		case ASTREX:
+			break;
 		}
 	}
 }
