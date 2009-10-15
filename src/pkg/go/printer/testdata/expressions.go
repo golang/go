@@ -105,10 +105,13 @@ func _() {
 
 
 func _() {
-	// do not modify `` strings
+	// do not modify literals
+	_ = "tab1	tab2	tab3	end";  // string contains 3 tabs
+	_ = "tab1 tab2 tab3 end";  // same string with 3 blanks - may be unaligned because editors see tabs in strings
+	_ = "";  // this comment should be aligned with the one on the previous line
 	_ = ``;
 	_ = `
-`;  // TODO(gri): fix line breaks here
+`;
 _ = `foo
 		bar`;
 }
@@ -138,8 +141,7 @@ func _() {
 		b < a;
 	_ = "1234567890"
 		"1234567890";
-	// TODO(gri): add more test cases
-	// TODO(gri): these comments should be indented
+	// this comment should be indented
 }
 
 
