@@ -145,14 +145,22 @@ type transitionHandler struct {
 // Each running process has one monitor thread, which processes
 // messages from the debugEvents, debugReqs, and stopReq channels and
 // calls transition handlers.
+//
+// To send a message to the monitor thread, first receive from the
+// ready channel.  If the ready channel returns true, the monitor is
+// still running and will accept a message.  If the ready channel
+// returns false, the monitor is not running (the ready channel has
+// been closed), and the reason it is not running will be stored in err.
 type process struct {
 	pid			int;
 	threads			map[int]*thread;
 	breakpoints		map[uintptr]*breakpoint;
+	ready			chan bool;
 	debugEvents		chan *debugEvent;
 	debugReqs		chan *debugReq;
 	stopReq			chan os.Error;
 	transitionHandlers	*vector.Vector;
+	err			os.Error;
 }
 
 // A thread represents a Linux thread in another process that is being
@@ -210,6 +218,12 @@ type newThreadError struct {
 
 func (e *newThreadError) String() string {
 	return fmt.Sprintf("newThread wait wanted pid %v and signal %v, got %v and %v", e.Pid, e.StopSignal(), e.wantPid, e.wantSig);
+}
+
+type ProcessExited struct {}
+
+func (p ProcessExited) String() string {
+	return "process exited";
 }
 
 /*
@@ -438,6 +452,10 @@ func (t *thread) wait() {
 		// If we failed to continue, just let
 		// the stop go through so we can
 		// update the thread's state.
+		}
+		if !<-t.proc.ready {
+			// The monitor exited
+			break;
 		}
 		t.proc.debugEvents <- &ev;
 		break;
@@ -695,10 +713,6 @@ func (t *thread) onStop(handle func(), onErr func(os.Error)) {
 
 // monitor handles debug events and debug requests for p, exiting when
 // there are no threads left in p.
-//
-// TODO(austin) When an unrecoverable error occurs, abort the monitor
-// and record this error so all future calls to do will return it
-// immediately.
 func (p *process) monitor() {
 	var err os.Error;
 
@@ -709,13 +723,11 @@ func (p *process) monitor() {
 	defer runtime.UnlockOSThread();
 
 	hadThreads := false;
-	for {
+	for err == nil {
+		p.ready <- true;
 		select {
 		case event := <-p.debugEvents:
 			err = event.process();
-			if err != nil {
-				break;
-			}
 
 		case req := <-p.debugReqs:
 			req.res <- req.f();
@@ -725,12 +737,9 @@ func (p *process) monitor() {
 		}
 
 		if len(p.threads) == 0 {
-			if hadThreads {
+			if err == nil && hadThreads {
 				p.logTrace("no more threads; monitor exiting");
-				// TODO(austin) Use a real error do
-				// future operations will fail
-				err = nil;
-				break;
+				err = ProcessExited{};
 			}
 		} else {
 			hadThreads = true;
@@ -738,15 +747,15 @@ func (p *process) monitor() {
 	}
 
 	// Abort waiting handlers
+	// TODO(austin) How do I stop the wait threads?
 	for _, h := range p.transitionHandlers.Data() {
 		h := h.(*transitionHandler);
 		h.onErr(err);
 	}
 
-	// TODO(austin) How do I stop the wait threads?
-	if err != nil {
-		panic(err.String());
-	}
+	// Indicate that the monitor cannot receive any more messages
+	p.err = err;
+	close(p.ready);
 }
 
 // do executes f in the monitor thread (and, thus, atomically with
@@ -754,7 +763,9 @@ func (p *process) monitor() {
 //
 // Must NOT be called from the monitor thread.
 func (p *process) do(f func() os.Error) os.Error {
-	// TODO(austin) If monitor is stopped, return error.
+	if !<-p.ready {
+		return p.err;
+	}
 	req := &debugReq{f, make(chan os.Error)};
 	p.debugReqs <- req;
 	return <-req.res;
@@ -763,8 +774,12 @@ func (p *process) do(f func() os.Error) os.Error {
 // stopMonitor stops the monitor with the given error.  If the monitor
 // is already stopped, does nothing.
 func (p *process) stopMonitor(err os.Error) {
-	_ = p.stopReq <- err;	// do not block
-// TODO(austin) Wait until monitor has exited?
+	if err == nil {
+		panic("cannot stop the monitor with no error");
+	}
+	if <-p.ready {
+		p.stopReq <- err;
+	}
 }
 
 /*
@@ -1255,6 +1270,7 @@ func newProcess(pid int) *process {
 		pid: pid,
 		threads: make(map[int]*thread),
 		breakpoints: make(map[uintptr]*breakpoint),
+		ready: make(chan bool, 1),
 		debugEvents: make(chan *debugEvent),
 		debugReqs: make(chan *debugReq),
 		stopReq: make(chan os.Error),
