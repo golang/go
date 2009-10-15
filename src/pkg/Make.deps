@@ -27,6 +27,7 @@ debug/proc.install: container/vector.install fmt.install io.install os.install r
 ebnf.install: container/vector.install go/scanner.install go/token.install os.install strconv.install unicode.install utf8.install
 exec.install: os.install strings.install
 exp/datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
+exp/eval.install: bignum.install fmt.install go/ast.install go/parser.install go/scanner.install go/token.install log.install os.install reflect.install runtime.install strconv.install strings.install
 expvar.install: bytes.install fmt.install http.install log.install strconv.install sync.install
 flag.install: fmt.install os.install strconv.install
 fmt.install: io.install os.install reflect.install strconv.install utf8.install
