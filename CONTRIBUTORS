@@ -14,7 +14,12 @@
 #     http://code.google.com/legal/individual-cla-v1.0.html
 #     http://code.google.com/legal/corporate-cla-v1.0.html
 #
-# The individual agreement can be filled out online.
+# The agreement for individuals can be filled out on the web.
+#
+# When adding J Random Contributor's name to this file,
+# either J's name or J's organization's name should be
+# added to the AUTHORS file, depending on whether the
+# individual or corporate CLA was used.
 
 # Names should be added to this file like so:
 # Name <email address>
