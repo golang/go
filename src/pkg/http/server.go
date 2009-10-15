@@ -29,7 +29,7 @@ var (
 	ErrHijacked		= os.NewError("Conn has been hijacked");
 )
 
-// Objects implemeting the Handler interface can be
+// Objects implementing the Handler interface can be
 // registered to serve a particular path or subtree
 // in the HTTP server.
 type Handler interface {
