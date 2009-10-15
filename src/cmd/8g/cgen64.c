@@ -178,8 +178,10 @@ cgen64(Node *n, Node *res)
 			gins(ACMPL, &hi2, ncon(0));
 			p1 = gbranch(AJNE, T);
 			gins(AMOVL, &lo2, &cx);
-		} else
-			gins(AMOVL, r, &cx);
+		} else {
+			cx.type = types[TUINT32];
+			gmove(r, &cx);
+		}
 
 		// if shift count is >=64, zero value
 		gins(ACMPL, &cx, ncon(64));
@@ -265,8 +267,10 @@ cgen64(Node *n, Node *res)
 			gins(ACMPL, &hi2, ncon(0));
 			p1 = gbranch(AJNE, T);
 			gins(AMOVL, &lo2, &cx);
-		} else
-			gins(AMOVL, r, &cx);
+		} else {
+			cx.type = types[TUINT32];
+			gmove(r, &cx);
+		}
 
 		// if shift count is >=64, zero or sign-extend value
 		gins(ACMPL, &cx, ncon(64));
