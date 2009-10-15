@@ -51,6 +51,11 @@ type cell struct {
 // terminated by horizontal (or "hard") tabs are not affected by
 // this flag.
 //
+// A segment of text may be escaped by bracketing it with Escape
+// characters. The tabwriter strips the Escape characters but otherwise
+// passes escaped text segments through unchanged. In particular, it
+// does not interpret any tabs or line breaks within the segment.
+//
 // The Writer assumes that all characters have the same width;
 // this may not be true in some fonts, especially with certain
 // UTF-8 characters.
@@ -62,8 +67,8 @@ type cell struct {
 // The formfeed character ('\f') acts like a newline but it also
 // terminates all columns in the current line (effectively calling
 // Flush). Cells in the next line start new columns. Unless found
-// inside an HTML tag, formfeed characters appear as newlines in
-// the output.
+// inside an HTML tag or inside an escaped text segment, formfeed
+// characters appear as newlines in the output.
 //
 // The Writer must buffer input internally, because proper spacing
 // of one line may depend on the cells in future lines. Clients must
@@ -81,7 +86,7 @@ type Writer struct {
 	buf bytes.Buffer;  // collected text w/o tabs, newlines, or formfeed chars
 	pos int;  // buffer position up to which width of incomplete cell has been computed
 	cell cell;  // current incomplete cell; cell.width is up to buf[pos] w/o ignored sections
-	html_char byte;  // terminating char of html tag/entity, or 0 ('>', ';', or 0)
+	endChar byte;  // terminating char of escaped sequence (Escape for escapes, '>', ';' for HTML tags/entities, or 0)
 	lines vector.Vector;  // list if lines; each line is a list of cells
 	widths vector.IntVector;  // list of column widths in runes - re-used during formatting
 }
@@ -102,7 +107,7 @@ func (b *Writer) reset() {
 	b.buf.Reset();
 	b.pos = 0;
 	b.cell = cell{};
-	b.html_char = 0;
+	b.endChar = 0;
 	b.lines.Init(0);
 	b.widths.Init(0);
 	b.addLine();
@@ -378,41 +383,53 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 }
 
 
-// Append text to current cell. Only update the cell width if updateWidth
-// is set (the cell width can only be updated if we know that we cannot be
-// in the middle of a UTF-8 encoded Unicode character).
-//
-func (b *Writer) append(text []byte, updateWidth bool) {
+// Append text to current cell.
+func (b *Writer) append(text []byte) {
 	b.buf.Write(text);
 	b.cell.size += len(text);
-	if updateWidth {
-		b.cell.width += utf8.RuneCount(b.buf.Bytes()[b.pos : b.buf.Len()]);
-		b.pos = b.buf.Len();
-	}
 }
 
 
-// Start HTML-escape mode.
-func (b *Writer) startHTML(ch byte) {
-	if ch == '<' {
-		b.html_char = '>';
-	} else {
-		b.html_char = ';';
-	}
+// Update the cell width.
+func (b *Writer) updateWidth() {
+	b.cell.width += utf8.RuneCount(b.buf.Bytes()[b.pos : b.buf.Len()]);
+	b.pos = b.buf.Len();
 }
 
 
-// Terminate HTML-escape mode. If the HTML text was an entity, its width
-// is assumed to be one for formatting purposes; otherwise it assumed to
-// be zero.
+// To escape a text segment, bracket it with Escape characters.
+// For instance, the tab in this string "Ignore this tab: \xff\t\xff"
+// does not terminate a cell and constitutes a single character of
+// width one for formatting purposes.
 //
-func (b *Writer) terminateHTML() {
-	if b.html_char == ';' {
-		// was entity, count as one rune
-		b.cell.width++;
+// The value 0xff was chosen because it cannot appear in a valid UTF-8 sequence.
+//
+const Escape ='\xff'
+
+
+// Start escaped mode.
+func (b *Writer) startEscape(ch byte) {
+	switch ch {
+	case Escape: b.endChar = Escape;
+	case '<': b.endChar = '>';
+	case '&': b.endChar = ';';
+	}
+}
+
+
+// Terminate escaped mode. If the escaped text was an HTML tag, its width
+// is assumed to be zero for formatting purposes; if it was an HTML entity,
+// its width is assumed to be one. In all other cases, the width is the
+// unicode width of the text.
+//
+func (b *Writer) endEscape() {
+	switch b.endChar {
+	case Escape: b.updateWidth();
+	case '>': // tag of zero width
+	case ';': b.cell.width++;  // entity, count as one rune
 	}
 	b.pos = b.buf.Len();
-	b.html_char = 0;
+	b.endChar = 0;
 }
 
 
@@ -430,15 +447,15 @@ func (b *Writer) terminateCell(htab bool) int {
 
 // Flush should be called after the last call to Write to ensure
 // that any data buffered in the Writer is written to output. Any
-// incomplete HTML tag or entity at the end is simply considered
+// incomplete escape sequence at the end is simply considered
 // complete for formatting purposes.
 //
 func (b *Writer) Flush() os.Error {
 	// add current cell if not empty
 	if b.cell.size > 0 {
-		if b.html_char != 0 {
-			// inside html tag/entity - terminate it even if incomplete
-			b.terminateHTML();
+		if b.endChar != 0 {
+			// inside escape - terminate it even if incomplete
+			b.endEscape();
 		}
 		b.terminateCell(false);
 	}
@@ -457,17 +474,18 @@ func (b *Writer) Flush() os.Error {
 // The only errors returned are ones encountered
 // while writing to the underlying output stream.
 //
-func (b *Writer) Write(buf []byte) (written int, err os.Error) {
+func (b *Writer) Write(buf []byte) (n int, err os.Error) {
 	// split text into cells
-	i0 := 0;
+	n = 0;
 	for i, ch := range buf {
-		if b.html_char == 0 {
-			// outside html tag/entity
+		if b.endChar == 0 {
+			// outside escape
 			switch ch {
 			case '\t', '\v', '\n', '\f':
 				// end of cell
-				b.append(buf[i0 : i], true);
-				i0 = i+1;  // exclude ch from (next) cell
+				b.append(buf[n : i]);
+				b.updateWidth();
+				n = i+1;  // ch consumed
 				ncells := b.terminateCell(ch == '\t');
 				if ch == '\n' || ch == '\f' {
 					// terminate line
@@ -479,35 +497,48 @@ func (b *Writer) Write(buf []byte) (written int, err os.Error) {
 						// line is ignored by format()), thus we can flush the
 						// Writer contents.
 						if err = b.Flush(); err != nil {
-							return i0, err;
+							return;
 						}
 					}
 				}
+
+			case Escape:
+				// start of escaped sequence
+				b.append(buf[n : i]);
+				b.updateWidth();
+				n = i+1;  // exclude Escape
+				b.startEscape(Escape);
 
 			case '<', '&':
 				// possibly an html tag/entity
 				if b.flags & FilterHTML != 0 {
 					// begin of tag/entity
-					b.append(buf[i0 : i], true);
-					i0 = i;
-					b.startHTML(ch);
+					b.append(buf[n : i]);
+					b.updateWidth();
+					n = i;
+					b.startEscape(ch);
 				}
 			}
 
 		} else {
-			// inside html tag/entity
-			if ch == b.html_char {
+			// inside escape
+			if ch == b.endChar {
 				// end of tag/entity
-				b.append(buf[i0 : i+1], false);
-				i0 = i+1;  // exclude ch from (next) cell
-				b.terminateHTML();
+				j := i+1;
+				if ch == Escape {
+					j = i;  // exclude Escape
+				}
+				b.append(buf[n : j]);
+				n = i+1;  // ch consumed
+				b.endEscape();
 			}
 		}
 	}
 
 	// append leftover text
-	b.append(buf[i0 : len(buf)], false);
-	return len(buf), nil;
+	b.append(buf[n : len(buf)]);
+	n = len(buf);
+	return;
 }
 
 

@@ -113,17 +113,45 @@ type entry struct {
 
 var tests = []entry {
 	entry{
-		"1",
+		"1a",
 		8, 1, '.', 0,
 		"",
 		""
 	},
 
 	entry{
-		"1 debug",
+		"1a debug",
 		8, 1, '.', Debug,
 		"",
 		""
+	},
+
+	entry{
+		"1b esc",
+		8, 1, '.', 0,
+		"\xff\xff",
+		""
+	},
+
+	entry{
+		"1c esc",
+		8, 1, '.', 0,
+		"\xff\t\xff",
+		"\t"
+	},
+
+	entry{
+		"1d esc",
+		8, 1, '.', 0,
+		"\xff\"foo\t\n\tbar\"\xff",
+		"\"foo\t\n\tbar\"",
+	},
+
+	entry{
+		"1e esc",
+		8, 1, '.', 0,
+		"abc\xff\tdef",  // unterminated escape
+		"abc\tdef",
 	},
 
 	entry{
