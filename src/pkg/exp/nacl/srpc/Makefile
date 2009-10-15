@@ -4,7 +4,7 @@
 
 include $(GOROOT)/src/Make.$(GOARCH)
 
-TARG=nacl/srpc
+TARG=exp/nacl/srpc
 GOFILES=\
 	client.go\
 	msg.go\
