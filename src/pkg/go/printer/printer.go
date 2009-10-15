@@ -971,16 +971,10 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 		}
 
 	case *ast.BasicLit:
-		if p.mode & RawFormat == 0 {
-			// tabwriter is used: escape all literals
-			// so they pass through unchanged
-			// (note that a legal Go program cannot contain an '\xff' byte in
-			// literal source text since '\xff' is not a legal byte in correct
-			// UTF-8 encoded text)
-			p.print(esc, x.Value, esc);
-		} else {
-			p.print(x.Value);
-		}
+		// escape all literals so they pass through unchanged
+		// (note that valid Go programs cannot contain esc ('\xff')
+		// bytes since they do not appear in legal UTF-8 sequences)
+		p.print(esc, x.Value, esc);
 
 	case *ast.StringList:
 		p.stringList(x.Strings);
@@ -1536,9 +1530,10 @@ func (p *printer) file(src *ast.File) {
 // ----------------------------------------------------------------------------
 // Trimmer
 
-// A trimmer is an io.Writer filter for stripping trailing blanks
-// and tabs, and for converting formfeed and vtab characters into
-// newlines and htabs (in case no tabwriter is used).
+// A trimmer is an io.Writer filter for stripping tabwriter.Escape
+// characters, trailing blanks and tabs, and for converting formfeed
+// and vtab characters into newlines and htabs (in case no tabwriter
+// is used).
 //
 type trimmer struct {
 	output io.Writer;
@@ -1577,7 +1572,7 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 			b = '\t';  // convert to htab
 			fallthrough;
 
-		case '\t', ' ':
+		case '\t', ' ', tabwriter.Escape:
 			// write any pending (non-whitespace) data
 			if m >= 0 {
 				if _, err = p.output.Write(data[m:n]); err != nil {
@@ -1585,8 +1580,10 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 				}
 				m = -1;
 			}
-			// collect whitespace
-			p.buf.WriteByte(b);  // WriteByte returns no errors
+			// collect whitespace but discard tabrwiter.Escapes.
+			if b != tabwriter.Escape {
+				p.buf.WriteByte(b);  // WriteByte returns no errors
+			}
 
 		case '\f', '\n':
 			// discard whitespace

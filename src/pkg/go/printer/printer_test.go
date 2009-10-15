@@ -33,7 +33,14 @@ func lineString(text []byte, i int) string {
 }
 
 
-func check(t *testing.T, source, golden string, exports bool) {
+type checkMode uint;
+const (
+	export checkMode = 1<<iota;
+	rawFormat;
+)
+
+
+func check(t *testing.T, source, golden string, mode checkMode) {
 	// parse source
 	prog, err := parser.ParseFile(source, nil, parser.ParseComments);
 	if err != nil {
@@ -42,14 +49,20 @@ func check(t *testing.T, source, golden string, exports bool) {
 	}
 
 	// filter exports if necessary
-	if exports {
+	if mode&export != 0 {
 		ast.FileExports(prog);  // ignore result
 		prog.Comments = nil;  // don't print comments that are not in AST
 	}
 
+	// determine printer mode
+	var pmode uint;
+	if mode&rawFormat != 0 {
+		pmode |= RawFormat;
+	}
+
 	// format source
 	var buf bytes.Buffer;
-	if _, err := Fprint(&buf, prog, 0, tabwidth); err != nil {
+	if _, err := Fprint(&buf, prog, pmode, tabwidth); err != nil {
 		t.Error(err);
 	}
 	res := buf.Bytes();
@@ -93,18 +106,19 @@ func check(t *testing.T, source, golden string, exports bool) {
 
 type entry struct {
 	source, golden string;
-	exports bool;
+	mode checkMode;
 }
 
 // Use gotest -update to create/update the respective golden files.
 var data = []entry{
-	entry{ "empty.go", "empty.golden", false },
-	entry{ "comments.go", "comments.golden", false },
-	entry{ "comments.go", "comments.x", true },
-	entry{ "linebreaks.go", "linebreaks.golden", false },
-	entry{ "expressions.go", "expressions.golden", false },
-	entry{ "declarations.go", "declarations.golden", false },
-	entry{ "statements.go", "statements.golden", false },
+	entry{ "empty.go", "empty.golden", 0 },
+	entry{ "comments.go", "comments.golden", 0 },
+	entry{ "comments.go", "comments.x", export },
+	entry{ "linebreaks.go", "linebreaks.golden", 0 },
+	entry{ "expressions.go", "expressions.golden", 0 },
+	entry{ "expressions.go", "expressions.raw", rawFormat },
+	entry{ "declarations.go", "declarations.golden", 0 },
+	entry{ "statements.go", "statements.golden", 0 },
 }
 
 
@@ -112,8 +126,8 @@ func Test(t *testing.T) {
 	for _, e := range data {
 		source := path.Join(dataDir, e.source);
 		golden := path.Join(dataDir, e.golden);
-		check(t, source, golden, e.exports);
+		check(t, source, golden, e.mode);
 		// TODO(gri) check that golden is idempotent
-		//check(t, golden, golden, e.exports);
+		//check(t, golden, golden, e.mode);
 	}
 }
