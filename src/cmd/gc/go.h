@@ -477,6 +477,8 @@ enum
 	Efnstruct = 1<<5,	// multivalue function returns are ok
 	Eiota = 1<<6,		// iota is ok
 	Easgn = 1<<7,		// assigning to expression
+	Eindir = 1<<8,		// indirecting through expression
+	Eaddr = 1<<9,		// taking address of expression
 };
 
 #define	BITS	5
