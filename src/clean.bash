@@ -8,9 +8,9 @@ rm -f $GOROOT/lib/*.a
 for i in lib9 libbio libcgo libmach libregexp cmd pkg \
 	../misc/cgo/gmp ../misc/cgo/stdio \
 	../usr/r/rpc ../usr/dsymonds/iterable \
-	../usr/austin/eval ../usr/austin/ogle ../test/bench
+	../test/bench
 do(
-	cd $i
+	cd $i || exit 1
 	if test -f clean.bash; then
 		bash clean.bash
 	else
