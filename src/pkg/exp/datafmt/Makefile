@@ -4,7 +4,7 @@
 
 include $(GOROOT)/src/Make.$(GOARCH)
 
-TARG=datafmt
+TARG=exp/datafmt
 GOFILES=\
 	datafmt.go\
 	parser.go\
