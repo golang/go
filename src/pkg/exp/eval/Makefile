@@ -4,26 +4,20 @@
 
 include $(GOROOT)/src/Make.$(GOARCH)
 
-TARG=ogle
+TARG=exp/eval
 GOFILES=\
 	abort.go\
-	arch.go\
-	cmd.go\
-	event.go\
-	frame.go\
-	goroutine.go\
-	rruntime.go\
-	rtype.go\
-	rvalue.go\
-	process.go\
-	vars.go\
-
-CLEANFILES+=ogle
+	bridge.go\
+	compiler.go\
+	expr.go\
+	expr1.go\
+	func.go\
+	scope.go\
+	stmt.go\
+	type.go\
+	typec.go\
+	util.go\
+	value.go\
+	world.go\
 
 include $(GOROOT)/src/Make.pkg
-
-main.$O: main.go package
-	$(GC) -I_obj $<
-
-ogle: main.$O
-	$(LD) -L_obj -o $@ $<

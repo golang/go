@@ -8,7 +8,7 @@ import (
 	"debug/elf";
 	"debug/gosym";
 	"debug/proc";
-	"eval";
+	"exp/eval";
 	"fmt";
 	"log";
 	"os";

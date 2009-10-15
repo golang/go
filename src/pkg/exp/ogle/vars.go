@@ -7,7 +7,7 @@ package ogle
 import (
 	"debug/gosym";
 	"debug/proc";
-	"eval";
+	"exp/eval";
 	"log";
 	"os";
 )
