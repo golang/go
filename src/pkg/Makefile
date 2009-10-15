@@ -41,6 +41,7 @@ DIRS=\
 	ebnf\
 	exec\
 	exp/datafmt\
+	exp/eval\
 	expvar\
 	flag\
 	fmt\
