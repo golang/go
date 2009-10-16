@@ -35,7 +35,8 @@ func _() {
 	switch expr {}	// no semicolon and parens printed
 	switch x := expr; {
 	default:
-		use(x);
+		use(
+			x);
 	}
 	switch x := expr; expr {
 	default:
