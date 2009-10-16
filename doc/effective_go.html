@@ -1771,8 +1771,8 @@ it also satisfies all three interfaces:
 </p>
 <p>
 There's one important way in which embedding differs from subclassing.  When we embed a type,
-the methods of that type become methods of the out type
-<but when they are invoked the receiver of the method is the inner type, not the outer one.
+the methods of that type become methods of the outer type,
+but when they are invoked the receiver of the method is the inner type, not the outer one.
 In our example, when the <code>Read</code> method of a <code>bufio.ReadWriter</code> is
 invoked, it has the exactly the same effect as the forwarding method written out above;
 the receiver is the <code>reader</code> field of the <code>ReadWriter</code>, not the
