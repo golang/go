@@ -44,7 +44,7 @@ hash/crc32.install: hash.install os.install
 http.install: bufio.install bytes.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
 image.install:
 image/png.install: bufio.install compress/zlib.install hash.install hash/crc32.install image.install io.install os.install strconv.install
-io.install: bytes.install os.install strings.install sync.install
+io.install: bytes.install os.install sort.install strings.install sync.install
 json.install: bytes.install container/vector.install fmt.install math.install reflect.install strconv.install strings.install utf8.install
 log.install: fmt.install io.install os.install runtime.install time.install
 malloc.install:
@@ -53,7 +53,7 @@ net.install: fmt.install io.install once.install os.install reflect.install strc
 once.install: sync.install
 os.install: once.install syscall.install
 path.install: strings.install
-rand.install:
+rand.install: math.install
 reflect.install: runtime.install strconv.install
 regexp.install: bytes.install container/vector.install io.install os.install runtime.install utf8.install
 rpc.install: bufio.install fmt.install gob.install http.install io.install log.install net.install os.install reflect.install sort.install strings.install sync.install template.install unicode.install utf8.install
