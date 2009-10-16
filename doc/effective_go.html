@@ -1,6 +1,6 @@
 <!-- Effective Go -->
 
-<!-- interfaces; cast,conversion, type assertion; embedding; errors; testing; initialization -->
+<!-- testing?; concurrency; initialization-->
 
 <h2 id="introduction">Introduction</h2>
 
@@ -34,7 +34,7 @@ should read first.
 <h3 id="read">Examples</h3>
 
 <p>
-The <a href="http://s2/?dir=//depot2/go/src/pkg">Go package sources</a>
+The <a href="/src/pkg/">Go package sources</a>
 are intended to serve not
 only as the core library but also as examples of how to
 use the language.
@@ -1551,7 +1551,7 @@ type Handler interface {
 <p>
 For brevity, let's ignore POSTs and assume HTTP requests are always
 GETs; that simplification does not affect the way the handlers are
-made.  Here's a trivial but complete implementation of a handler to
+set up.  Here's a trivial but complete implementation of a handler to
 count the number of times the
 page is visited.
 </p>
@@ -1568,7 +1568,7 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
 </pre>
 <p>
 (Keeping with our theme, note how <code>Fprintf</code> can print to an HTTP connection.)
-For reference, here's how to set up such a server.
+For reference, here's how to attach such a server to a node on the URL tree.
 <pre>
 import "http"
 ...
@@ -1595,17 +1595,17 @@ has been visited?  Tie a channel to the web page.
 <pre>
 // A channel that sends a notification on each visit.
 // (Probably want the channel to be buffered.)
-type Chan chan int
+type Chan chan *http.Request
 
 func (ch Chan) ServeHTTP(c *http.Conn, req *http.Request) {
-	ch <- 1;
+	ch <- req;
 	fmt.Fprint(c, "notification sent");
 }
 </pre>
 <p>
 Finally, let's say we wanted to present on <code>/args</code> the arguments
 used when invoking the server binary.
-It's easy to write a function to print the arguments:
+It's easy to write a function to print the arguments.
 </p>
 <pre>
 func ArgServer() {
@@ -1617,8 +1617,8 @@ func ArgServer() {
 <p>
 How do we turn that into an HTTP server?  We could make <code>ArgServer</code>
 a method of some type whose value we ignore, but there's a cleaner way.
-Since we can write a method for (almost) any type, we can write a method
-for a function.
+Since we can define a method for any type except pointers and interfaces,
+we can write a method for a function.
 The <code>http</code> package contains this code:
 </p>
 <pre>
@@ -1641,8 +1641,8 @@ calls <code>f</code>.  That may seem odd but it's no different from, say,
 the receiver being a channel and the method sending on the channel.
 </p>
 <p>
-To make <code>ArgServer</code> into an HTTP server, we first give it the right
-signature.
+To make <code>ArgServer</code> into an HTTP server, we first modify it
+to have the right signature.
 </p>
 <pre>
 // Argument server.
@@ -1653,29 +1653,133 @@ func ArgServer(c *http.Conn, req *http.Request) {
 }
 </pre>
 <p>
-<code>ArgServer</code> has same signature as <code>HandlerFunc</code>,
-so the function can be converted to that type to access its methods,
-just as we converted <code>Sequence</code> to <code>[]int</code> earlier.
-The code to set it up is short:
+<code>ArgServer</code> now has same signature as <code>HandlerFunc</code>,
+so it can be converted to that type to access its methods,
+just as we converted <code>Sequence</code> to <code>IntArray</code>
+to access <code>IntArray.Sort</code>.
+The code to set it up is concise:
 </p>
 <pre>
 http.Handle("/args", http.HandlerFunc(ArgServer));
 </pre>
 <p>
 When someone visits the page <code>/args</code>,
-the handler installed at that page has type
-<code>HandlerFunc</code> and value <code>ArgServer</code>.
+the handler installed at that page has value <code>ArgServer</code>
+and type <code>HandlerFunc</code>.
 The HTTP server will invoke the method <code>ServeHTTP</code>
-of that type, with that receiver, which will in turn call
+of that type, with <code>ArgServer</code> as the receiver, which will in turn call
 <code>ArgServer</code> (via the invocation <code>f(c, req)</code>
-inside <code>HandlerFunc.ServeHTTP</code>) and the arguments
-will be displayed.
+inside <code>HandlerFunc.ServeHTTP</code>).
+The arguments will then be displayed.
 </p>
 <p>
-In summary, we have made an HTTP server from a struct, an integer,
+In this section we have made an HTTP server from a struct, an integer,
 a channel, and a function, all because interfaces are just sets of
 methods, which can be defined for (almost) any type.
 </p>
+
+<h2 id="embedding">Embedding</h2>
+
+<p>
+Go does not provide the typical, type-driven notion of subclassing,
+but it does have the ability to &ldquo;borrow&rdquo; pieces of an
+implementation by <em>embedding</em> types within a struct or
+interface.
+</p>
+<p>
+Interface embedding is very simple.
+We've mentioned the <code>io.Reader</code> and <code>io.Writer</code> interfaces before;
+here are their definitions.
+</p>
+<pre>
+type Reader interface {
+	Read(p []byte) (n int, err os.Error);
+}
+
+type Writer interface {
+	Write(p []byte) (n int, err os.Error);
+}
+</pre>
+<p>
+The <code>io</code> package also exports several other interfaces
+that specify objects that can implement several such methods.
+For instance, there is <code>io.ReadWriter</code>, an interface
+containing both <code>Read</code> and <code>Write</code>.
+We could specify <code>io.ReadWriter</code> by listing the
+two methods explicitly, but it's easier and more evocative
+to embed the two interfaces to form the new one, like this:
+</p>
+<pre>
+// ReadWrite is the interface that groups the basic Read and Write methods.
+type ReadWriter interface {
+	Reader;
+	Writer;
+}
+</pre>
+<p>
+This says just what it looks like: A <code>ReadWriter</code> can do
+what a <code>Reader</code> does <em>and</em> what a <code>Writer</code>
+does; it is a union of the embedded interfaces (which must be disjoint
+sets of methods).
+Only interfaces can be embedded within interfaces.
+<p>
+The same basic idea applies to structs, but with more far-reaching
+implications.  The <code>bufio</code> package has two struct types,
+<code>bufio.Reader</code> and <code>bufio.Writer</code>, each of
+which of course implements the analogous interfaces from package
+<code>io</code>.
+And <code>bufio</code> also implements a buffered reader/writer,
+which it does by combining a reader and a writer into one struct
+using embedding: it lists the types within the struct
+but does not give them field names.
+</p>
+<pre>
+// ReadWriter stores pointers to a Reader and a Writer.
+// It implements io.ReadWriter.
+type ReadWriter struct {
+	*Reader;
+	*Writer;
+}
+</pre>
+<p>
+This struct could be written as
+</p>
+<pre>
+type ReadWriter struct {
+	reader *Reader;
+	writer *Writer;
+}
+</pre>
+<p>
+but then to promote the methods of the fields and to
+satisfy the <code>io</code> interfaces, we would also need
+to provide forwarding methods, like this:
+</p>
+<pre>
+func (rw *ReadWriter) Read(p []byte) (n int, err os.Error) {
+	return rw.reader.Read(p)
+}
+</pre>
+<p>
+By embedding the structs directly, we avoid this bookkeeping.
+The methods of embedded types come along for free, which means that <code>bufio.ReadWriter</code>
+not only has the methods of <code>bufio.Reader</code> and <code>bufio.Writer</code>,
+it also satisfies all three interfaces:
+<code>io.Reader</code>,
+<code>io.Writer</code>, and
+<code>io.ReadWriter</code>.
+</p>
+<p>
+There's one important way in which embedding differs from subclassing.  When we embed a type,
+the methods of that type become methods of the out type
+<but when they are invoked the receiver of the method is the inner type, not the outer one.
+In our example, when the <code>Read</code> method of a <code>bufio.ReadWriter</code> is
+invoked, it has the exactly the same effect as the forwarding method written out above;
+the receiver is the <code>reader</code> field of the <code>ReadWriter</code>, not the
+<code>ReadWriter</code> itself.
+</p>
+
+
 
 <h2 id="errors">Errors</h2>
 
@@ -1735,7 +1839,7 @@ field for recoverable failures.
 
 <pre>
 for try := 0; try < 2; try++ {
-	file, err := os.Open(filename, os.O_RDONLY, 0);
+	file, err = os.Open(filename, os.O_RDONLY, 0);
 	if err == nil {
 		return
 	}
