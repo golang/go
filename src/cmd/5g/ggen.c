@@ -395,6 +395,8 @@ cgen_asop(Node *n)
 		goto hard;
 	if(!isint[nr->type->etype])
 		goto hard;
+	if(is64(nl->type) || is64(nr->type))
+		goto hard64;
 
 	switch(n->etype) {
 	case OADD:
@@ -454,6 +456,25 @@ hard:
 	regfree(&n1);
 	regfree(&n2);
 	regfree(&n4);
+	goto ret;
+
+hard64:
+	if(nr->ullman > nl->ullman) {
+		tempname(&n2, nr->type);
+		cgen(nr, &n2);
+		igen(nl, &n1, N);
+	} else {
+		igen(nl, &n1, N);
+		tempname(&n2, nr->type);
+		cgen(nr, &n2);
+	}
+
+	n3 = *n;
+	n3.left = &n1;
+	n3.right = &n2;
+	n3.op = n->etype;
+
+	cgen(&n3, &n1);
 
 ret:
 	;
