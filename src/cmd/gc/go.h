@@ -627,7 +627,7 @@ EXTERN	Sym*	hash[NHASH];
 EXTERN	Sym*	pkgmyname;	// my name for package
 EXTERN	Sym*	pkgimportname;	// package name from imported package
 EXTERN	int	tptr;		// either TPTR32 or TPTR64
-extern	char*	sysimport;
+extern	char*	runtimeimport;
 extern	char*	unsafeimport;
 EXTERN	Idir*	idirs;
 
@@ -665,7 +665,7 @@ EXTERN	NodeList*	closures;
 EXTERN	NodeList*	exportlist;
 EXTERN	NodeList*	typelist;
 EXTERN	int	dclcontext;		// PEXTERN/PAUTO
-EXTERN	int	inimportsys;
+EXTERN	int	incannedimport;
 EXTERN	int	statuniqgen;		// name generator for static temps
 EXTERN	int	loophack;
 

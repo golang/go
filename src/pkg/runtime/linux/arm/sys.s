@@ -22,7 +22,7 @@ TEXT exit(SB),7,$0
 	// Exit value already in R0
 	SWI	$SYS_exit
 
-TEXT sys·mmap(SB),7,$0
+TEXT runtime·mmap(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
 	MOVW	8(FP), R2

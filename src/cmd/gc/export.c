@@ -294,10 +294,10 @@ pkgtype(Sym *s)
 static int
 mypackage(Sym *s)
 {
-	// we import all definitions for sys.
+	// we import all definitions for runtime.
 	// lowercase ones can only be used by the compiler.
 	return strcmp(s->package, package) == 0
-		|| strcmp(s->package, "sys") == 0;
+		|| strcmp(s->package, "runtime") == 0;
 }
 
 void

@@ -522,7 +522,7 @@ gosched(void)
 // from the low-level system calls used by the runtime.
 // The "arguments" are syscall.Syscall's stack frame
 void
-sys·entersyscall(uint64 callerpc, int64 trap)
+runtime·entersyscall(uint64 callerpc, int64 trap)
 {
 	USED(callerpc, trap);
 
@@ -552,7 +552,7 @@ sys·entersyscall(uint64 callerpc, int64 trap)
 // This is called only from the go syscall library, not
 // from the low-level system calls used by the runtime.
 void
-sys·exitsyscall(void)
+runtime·exitsyscall(void)
 {
 	lock(&sched);
 	if(sched.predawn) {
@@ -715,7 +715,7 @@ newstack(void)
 	// Continue as if lessstack had just called m->morepc
 	// (the PC that decided to grow the stack).
 	label.sp = sp;
-	label.pc = (byte*)sys·lessstack;
+	label.pc = (byte*)runtime·lessstack;
 	label.g = m->curg;
 	gogocall(&label, m->morepc);
 
@@ -747,7 +747,7 @@ malg(int32 stacksize)
  */
 #pragma textflag 7
 void
-sys·newproc(int32 siz, byte* fn, byte* arg0)
+runtime·newproc(int32 siz, byte* fn, byte* arg0)
 {
 	byte *stk, *sp;
 	G *newg;
@@ -756,7 +756,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 
 	siz = (siz+7) & ~7;
 	if(siz > 1024)
-		throw("sys·newproc: too many args");
+		throw("runtime·newproc: too many args");
 
 	lock(&sched);
 
@@ -795,7 +795,7 @@ sys·newproc(int32 siz, byte* fn, byte* arg0)
 
 #pragma textflag 7
 void
-sys·deferproc(int32 siz, byte* fn, byte* arg0)
+runtime·deferproc(int32 siz, byte* fn, byte* arg0)
 {
 	Defer *d;
 
@@ -811,7 +811,7 @@ sys·deferproc(int32 siz, byte* fn, byte* arg0)
 
 #pragma textflag 7
 void
-sys·deferreturn(uintptr arg0)
+runtime·deferreturn(uintptr arg0)
 {
 	Defer *d;
 	byte *sp, *fn;

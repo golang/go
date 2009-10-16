@@ -27,7 +27,7 @@ traceback(byte *pc0, byte *sp, G *g)
 
 	stk = (Stktop*)g->stackbase;
 	for(n=0; n<100; n++) {
-		if(pc == (uint64)sys·lessstack) {
+		if(pc == (uint64)runtime·lessstack) {
 			// printf("--\n");
 			// pop to earlier stack block
 			pc = (uintptr)stk->gobuf.pc;
@@ -68,7 +68,7 @@ traceback(byte *pc0, byte *sp, G *g)
 		for(i = 0; i < f->args; i++) {
 			if(i != 0)
 				prints(", ");
-			sys·printhex(((uint32*)sp)[i]);
+			runtime·printhex(((uint32*)sp)[i]);
 			if(i >= 4) {
 				prints(", ...");
 				break;
@@ -112,7 +112,7 @@ runtime·Caller(int32 n, uintptr retpc, String retfile, int32 retline, bool retb
 	// now unwind n levels
 	stk = (Stktop*)g->stackbase;
 	while(n-- > 0) {
-		while(pc == (uintptr)sys·lessstack) {
+		while(pc == (uintptr)runtime·lessstack) {
 			pc = (uintptr)stk->gobuf.pc;
 			sp = stk->gobuf.sp;
 			stk = (Stktop*)stk->stackbase;

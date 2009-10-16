@@ -113,7 +113,7 @@ free(void *v)
 		if(sizeclass == 0) {
 			// Large object.
 			mstats.alloc -= s->npages<<PageShift;
-			sys_memclr(v, s->npages<<PageShift);
+			runtime_memclr(v, s->npages<<PageShift);
 			MHeap_Free(&mheap, s);
 			goto out;
 		}
@@ -123,7 +123,7 @@ free(void *v)
 	// Small object.
 	c = m->mcache;
 	size = class_to_size[sizeclass];
-	sys_memclr(v, size);
+	runtime_memclr(v, size);
 	mstats.alloc -= size;
 	MCache_Free(c, v, sizeclass, size);
 
@@ -209,7 +209,7 @@ void*
 SysAlloc(uintptr n)
 {
 	mstats.sys += n;
-	return sys_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
+	return runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
 }
 
 void

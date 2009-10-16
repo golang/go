@@ -38,7 +38,7 @@ TEXT	_rt0_amd64(SB),7,$-8
 	// create a new goroutine to start program
 	PUSHQ	$mainstart(SB)		// entry
 	PUSHQ	$0			// arg size
-	CALL	sys·newproc(SB)
+	CALL	runtime·newproc(SB)
 	POPQ	AX
 	POPQ	AX
 
@@ -108,7 +108,7 @@ TEXT gogocall(SB), 7, $0
  */
 
 // Called during function prolog when more stack is needed.
-TEXT sys·morestack(SB),7,$0
+TEXT runtime·morestack(SB),7,$0
 	// Called from f.
 	// Set m->morebuf to f's caller.
 	MOVQ	8(SP), AX	// f's caller's PC
@@ -166,7 +166,7 @@ TEXT reflect·call(SB), 7, $0
 	RET
 
 // Return point when leaving stack.
-TEXT sys·lessstack(SB), 7, $0
+TEXT runtime·lessstack(SB), 7, $0
 	// Save return value in m->cret
 	MOVQ	AX, m_cret(m)
 
@@ -178,66 +178,66 @@ TEXT sys·lessstack(SB), 7, $0
 	RET
 
 // morestack trampolines
-TEXT	sys·morestack00+0(SB),7,$0
+TEXT	runtime·morestack00+0(SB),7,$0
 	MOVQ	$0, AX
 	MOVQ	AX, m_moreframe(m)
-	MOVQ	$sys·morestack+0(SB), AX
+	MOVQ	$runtime·morestack+0(SB), AX
 	JMP	AX
 
-TEXT	sys·morestack01+0(SB),7,$0
+TEXT	runtime·morestack01+0(SB),7,$0
 	SHLQ	$32, AX
 	MOVQ	AX, m_moreframe(m)
-	MOVQ	$sys·morestack+0(SB), AX
+	MOVQ	$runtime·morestack+0(SB), AX
 	JMP	AX
 
-TEXT	sys·morestack10+0(SB),7,$0
+TEXT	runtime·morestack10+0(SB),7,$0
 	MOVLQZX	AX, AX
 	MOVQ	AX, m_moreframe(m)
-	MOVQ	$sys·morestack+0(SB), AX
+	MOVQ	$runtime·morestack+0(SB), AX
 	JMP	AX
 
-TEXT	sys·morestack11+0(SB),7,$0
+TEXT	runtime·morestack11+0(SB),7,$0
 	MOVQ	AX, m_moreframe(m)
-	MOVQ	$sys·morestack+0(SB), AX
+	MOVQ	$runtime·morestack+0(SB), AX
 	JMP	AX
 
 // subcases of morestack01
 // with const of 8,16,...48
-TEXT	sys·morestack8(SB),7,$0
+TEXT	runtime·morestack8(SB),7,$0
 	PUSHQ	$1
-	MOVQ	$sys·morestackx(SB), AX
+	MOVQ	$runtime·morestackx(SB), AX
 	JMP	AX
 
-TEXT	sys·morestack16(SB),7,$0
+TEXT	runtime·morestack16(SB),7,$0
 	PUSHQ	$2
-	MOVQ	$sys·morestackx(SB), AX
+	MOVQ	$runtime·morestackx(SB), AX
 	JMP	AX
 
-TEXT	sys·morestack24(SB),7,$0
+TEXT	runtime·morestack24(SB),7,$0
 	PUSHQ	$3
-	MOVQ	$sys·morestackx(SB), AX
+	MOVQ	$runtime·morestackx(SB), AX
 	JMP	AX
 
-TEXT	sys·morestack32(SB),7,$0
+TEXT	runtime·morestack32(SB),7,$0
 	PUSHQ	$4
-	MOVQ	$sys·morestackx(SB), AX
+	MOVQ	$runtime·morestackx(SB), AX
 	JMP	AX
 
-TEXT	sys·morestack40(SB),7,$0
+TEXT	runtime·morestack40(SB),7,$0
 	PUSHQ	$5
-	MOVQ	$sys·morestackx(SB), AX
+	MOVQ	$runtime·morestackx(SB), AX
 	JMP	AX
 
-TEXT	sys·morestack48(SB),7,$0
+TEXT	runtime·morestack48(SB),7,$0
 	PUSHQ	$6
-	MOVQ	$sys·morestackx(SB), AX
+	MOVQ	$runtime·morestackx(SB), AX
 	JMP	AX
 
-TEXT	sys·morestackx(SB),7,$0
+TEXT	runtime·morestackx(SB),7,$0
 	POPQ	AX
 	SHLQ	$35, AX
 	MOVQ	AX, m_moreframe(m)
-	MOVQ	$sys·morestack(SB), AX
+	MOVQ	$runtime·morestack(SB), AX
 	JMP	AX
 
 // bool cas(int32 *val, int32 old, int32 new)

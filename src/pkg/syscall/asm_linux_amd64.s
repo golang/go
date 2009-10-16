@@ -12,7 +12,7 @@
 // would pass 4th arg in CX, not R10.
 
 TEXT	syscall·Syscall(SB),7,$0
-	CALL	sys·entersyscall(SB)
+	CALL	runtime·entersyscall(SB)
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX
@@ -27,17 +27,17 @@ TEXT	syscall·Syscall(SB),7,$0
 	MOVQ	$0, 48(SP)	// r2
 	NEGQ	AX
 	MOVQ	AX, 56(SP)  // errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 ok:
 	MOVQ	AX, 40(SP)	// r1
 	MOVQ	DX, 48(SP)	// r2
 	MOVQ	$0, 56(SP)	// errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 
 TEXT syscall·Syscall6(SB),7,$0
-	CALL	sys·entersyscall(SB)
+	CALL	runtime·entersyscall(SB)
 	MOVQ	16(SP), DI
 	MOVQ	24(SP), SI
 	MOVQ	32(SP), DX
@@ -52,13 +52,13 @@ TEXT syscall·Syscall6(SB),7,$0
 	MOVQ	$0, 72(SP)	// r2
 	NEGQ	AX
 	MOVQ	AX, 80(SP)  // errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 ok6:
 	MOVQ	AX, 64(SP)	// r1
 	MOVQ	DX, 72(SP)	// r2
 	MOVQ	$0, 80(SP)	// errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 
 TEXT syscall·RawSyscall(SB),7,$0

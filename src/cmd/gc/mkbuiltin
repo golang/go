@@ -13,7 +13,7 @@ fi
 
 gcc -o mkbuiltin1 mkbuiltin1.c
 rm -f _builtin.c
-for i in sys unsafe
+for i in runtime unsafe
 do
 	$GC -A $i.go
 	O=$O ./mkbuiltin1 $i >>_builtin.c

@@ -270,7 +270,7 @@ _divvu(Vlong *q, Vlong n, Vlong d)
 }
 
 void
-sys·uint64div(Vlong n, Vlong d, Vlong q)
+runtime·uint64div(Vlong n, Vlong d, Vlong q)
 {
 	_divvu(&q, n, d);
 }
@@ -288,7 +288,7 @@ _modvu(Vlong *r, Vlong n, Vlong d)
 }
 
 void
-sys·uint64mod(Vlong n, Vlong d, Vlong q)
+runtime·uint64mod(Vlong n, Vlong d, Vlong q)
 {
 	_modvu(&q, n, d);
 }
@@ -334,7 +334,7 @@ _divv(Vlong *q, Vlong n, Vlong d)
 }
 
 void
-sys·int64div(Vlong n, Vlong d, Vlong q)
+runtime·int64div(Vlong n, Vlong d, Vlong q)
 {
 	_divv(&q, n, d);
 }
@@ -368,7 +368,7 @@ _modv(Vlong *r, Vlong n, Vlong d)
 }
 
 void
-sys·int64mod(Vlong n, Vlong d, Vlong q)
+runtime·int64mod(Vlong n, Vlong d, Vlong q)
 {
 	_modv(&q, n, d);
 }

@@ -339,7 +339,7 @@ unimportfile(void)
 
 	curio = pushedio;
 	pushedio.bin = nil;
-	inimportsys = 0;
+	incannedimport = 0;
 	typecheckok = 0;
 }
 
@@ -357,7 +357,7 @@ cannedimports(char *file, char *cp)
 
 	pkgmyname = S;
 	typecheckok = 1;
-	inimportsys = 1;
+	incannedimport = 1;
 }
 
 int

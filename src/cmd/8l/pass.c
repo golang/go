@@ -477,7 +477,7 @@ dostkoff(void)
 	Sym *symmorestack;
 
 	pmorestack = P;
-	symmorestack = lookup("sys·morestack", 0);
+	symmorestack = lookup("runtime·morestack", 0);
 
 	if(symmorestack->type == STEXT)
 	for(p = firstp; p != P; p = p->link) {
@@ -490,7 +490,7 @@ dostkoff(void)
 		}
 	}
 	if(pmorestack == P)
-		diag("sys·morestack not defined");
+		diag("runtime·morestack not defined");
 
 	curframe = 0;
 	curbecome = 0;

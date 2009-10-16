@@ -9,7 +9,7 @@
 //	fn func(arg0, arg1, arg2 *ptr, callerpc uintptr, xxx) yyy,
 //	arg0, arg1, arg2 *ptr) (func(xxx) yyy)
 void
-sys·closure(int32 siz, byte *fn, byte *arg0)
+runtime·closure(int32 siz, byte *fn, byte *arg0)
 {
 	byte *p, *q, **ret;
 	int32 i, n;

@@ -8,7 +8,7 @@ static	int32	debug	= 0;
 
 // makeslice(nel int, cap int, width int) (ary []any);
 void
-sys·makeslice(uint32 nel, uint32 cap, uint32 width, Slice ret)
+runtime·makeslice(uint32 nel, uint32 cap, uint32 width, Slice ret)
 {
 	uint64 size;
 
@@ -24,13 +24,13 @@ sys·makeslice(uint32 nel, uint32 cap, uint32 width, Slice ret)
 
 	if(debug) {
 		prints("makeslice: nel=");
-		sys·printint(nel);
+		runtime·printint(nel);
 		prints("; cap=");
-		sys·printint(cap);
+		runtime·printint(cap);
 		prints("; width=");
-		sys·printint(width);
+		runtime·printint(width);
 		prints("; ret=");
-		sys·printslice(ret);
+		runtime·printslice(ret);
 		prints("\n");
 	}
 }
@@ -39,36 +39,36 @@ static void
 throwslice(uint32 lb, uint32 hb, uint32 n)
 {
 	prints("slice[");
-	sys·printint(lb);
+	runtime·printint(lb);
 	prints(":");
-	sys·printint(hb);
+	runtime·printint(hb);
 	prints("] of [");
-	sys·printint(n);
+	runtime·printint(n);
 	prints("] array\n");
 	throw("array slice");
 }
 
 // sliceslice(old []any, lb int, hb int, width int) (ary []any);
 void
-sys·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
+runtime·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
 {
 
 	if(hb > old.cap || lb > hb) {
 		if(debug) {
-			prints("sys·sliceslice: old=");
-			sys·printslice(old);
+			prints("runtime·sliceslice: old=");
+			runtime·printslice(old);
 			prints("; lb=");
-			sys·printint(lb);
+			runtime·printint(lb);
 			prints("; hb=");
-			sys·printint(hb);
+			runtime·printint(hb);
 			prints("; width=");
-			sys·printint(width);
+			runtime·printint(width);
 			prints("\n");
 
 			prints("oldarray: nel=");
-			sys·printint(old.len);
+			runtime·printint(old.len);
 			prints("; cap=");
-			sys·printint(old.cap);
+			runtime·printint(old.cap);
 			prints("\n");
 		}
 		throwslice(lb, hb, old.cap);
@@ -82,37 +82,37 @@ sys·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
 	FLUSH(&ret);
 
 	if(debug) {
-		prints("sys·sliceslice: old=");
-		sys·printslice(old);
+		prints("runtime·sliceslice: old=");
+		runtime·printslice(old);
 		prints("; lb=");
-		sys·printint(lb);
+		runtime·printint(lb);
 		prints("; hb=");
-		sys·printint(hb);
+		runtime·printint(hb);
 		prints("; width=");
-		sys·printint(width);
+		runtime·printint(width);
 		prints("; ret=");
-		sys·printslice(ret);
+		runtime·printslice(ret);
 		prints("\n");
 	}
 }
 
 // slicearray(old *any, nel int, lb int, hb int, width int) (ary []any);
 void
-sys·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Slice ret)
+runtime·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Slice ret)
 {
 
 	if(hb > nel || lb > hb) {
 		if(debug) {
-			prints("sys·slicearray: old=");
-			sys·printpointer(old);
+			prints("runtime·slicearray: old=");
+			runtime·printpointer(old);
 			prints("; nel=");
-			sys·printint(nel);
+			runtime·printint(nel);
 			prints("; lb=");
-			sys·printint(lb);
+			runtime·printint(lb);
 			prints("; hb=");
-			sys·printint(hb);
+			runtime·printint(hb);
 			prints("; width=");
-			sys·printint(width);
+			runtime·printint(width);
 			prints("\n");
 		}
 		throwslice(lb, hb, nel);
@@ -126,25 +126,25 @@ sys·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Slice
 	FLUSH(&ret);
 
 	if(debug) {
-		prints("sys·slicearray: old=");
-		sys·printpointer(old);
+		prints("runtime·slicearray: old=");
+		runtime·printpointer(old);
 		prints("; nel=");
-		sys·printint(nel);
+		runtime·printint(nel);
 		prints("; lb=");
-		sys·printint(lb);
+		runtime·printint(lb);
 		prints("; hb=");
-		sys·printint(hb);
+		runtime·printint(hb);
 		prints("; width=");
-		sys·printint(width);
+		runtime·printint(width);
 		prints("; ret=");
-		sys·printslice(ret);
+		runtime·printslice(ret);
 		prints("\n");
 	}
 }
 
 // arraytoslice(old *any, nel int) (ary []any)
 void
-sys·arraytoslice(byte* old, uint32 nel, Slice ret)
+runtime·arraytoslice(byte* old, uint32 nel, Slice ret)
 {
 
 	// new dope to old array
@@ -155,21 +155,21 @@ sys·arraytoslice(byte* old, uint32 nel, Slice ret)
 	FLUSH(&ret);
 
 	if(debug) {
-		prints("sys·slicearrayp: old=");
-		sys·printpointer(old);
+		prints("runtime·slicearrayp: old=");
+		runtime·printpointer(old);
 		prints("; ret=");
-		sys·printslice(ret);
+		runtime·printslice(ret);
 		prints("\n");
 	}
 }
 
 void
-sys·printslice(Slice a)
+runtime·printslice(Slice a)
 {
 	prints("[");
-	sys·printint(a.len);
+	runtime·printint(a.len);
 	prints("/");
-	sys·printint(a.cap);
+	runtime·printint(a.cap);
 	prints("]");
-	sys·printpointer(a.array);
+	runtime·printpointer(a.array);
 }

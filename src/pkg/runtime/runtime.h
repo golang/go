@@ -330,7 +330,7 @@ int32	charntorune(int32*, uint8*, int32);
 void	gogo(Gobuf*, uintptr);
 void	gogocall(Gobuf*, void(*)(void));
 uintptr	gosave(Gobuf*);
-void	sys·lessstack(void);
+void	runtime·lessstack(void);
 void	goargs(void);
 void	FLUSH(void*);
 void*	getu(void);
@@ -430,45 +430,45 @@ void	notewakeup(Note*);
  * UTF-8 characters in identifiers.
  */
 #ifndef __GNUC__
-#define sys_memclr sys·memclr
-#define sys_getcallerpc sys·getcallerpc
-#define sys_mmap sys·mmap
-#define sys_printslice sys·printslice
-#define sys_printbool sys·printbool
-#define sys_printfloat sys·printfloat
-#define sys_printhex sys·printhex
-#define sys_printint sys·printint
-#define sys_printiface sys·printiface
-#define sys_printeface sys·printeface
-#define sys_printpc sys·printpc
-#define sys_printpointer sys·printpointer
-#define sys_printstring sys·printstring
-#define sys_printuint sys·printuint
-#define sys_setcallerpc sys·setcallerpc
+#define runtime_memclr runtime·memclr
+#define runtime_getcallerpc runtime·getcallerpc
+#define runtime_mmap runtime·mmap
+#define runtime_printslice runtime·printslice
+#define runtime_printbool runtime·printbool
+#define runtime_printfloat runtime·printfloat
+#define runtime_printhex runtime·printhex
+#define runtime_printint runtime·printint
+#define runtime_printiface runtime·printiface
+#define runtime_printeface runtime·printeface
+#define runtime_printpc runtime·printpc
+#define runtime_printpointer runtime·printpointer
+#define runtime_printstring runtime·printstring
+#define runtime_printuint runtime·printuint
+#define runtime_setcallerpc runtime·setcallerpc
 #endif
 
 /*
  * low level go-called
  */
-uint8*	sys_mmap(byte*, uint32, int32, int32, int32, uint32);
-void	sys_memclr(byte*, uint32);
-void	sys_setcallerpc(void*, void*);
-void*	sys_getcallerpc(void*);
+uint8*	runtime_mmap(byte*, uint32, int32, int32, int32, uint32);
+void	runtime_memclr(byte*, uint32);
+void	runtime_setcallerpc(void*, void*);
+void*	runtime_getcallerpc(void*);
 
 /*
  * runtime go-called
  */
-void	sys_printbool(bool);
-void	sys_printfloat(float64);
-void	sys_printint(int64);
-void	sys_printiface(Iface);
-void	sys_printeface(Eface);
-void	sys_printstring(String);
-void	sys_printpc(void*);
-void	sys_printpointer(void*);
-void	sys_printuint(uint64);
-void	sys_printhex(uint64);
-void	sys_printslice(Slice);
+void	runtime_printbool(bool);
+void	runtime_printfloat(float64);
+void	runtime_printint(int64);
+void	runtime_printiface(Iface);
+void	runtime_printeface(Eface);
+void	runtime_printstring(String);
+void	runtime_printpc(void*);
+void	runtime_printpointer(void*);
+void	runtime_printuint(uint64);
+void	runtime_printhex(uint64);
+void	runtime_printslice(Slice);
 
 /*
  * wrapped for go users
