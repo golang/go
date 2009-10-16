@@ -63,19 +63,22 @@ var writerTests = []*writerTest{
 	//   tar -b 1 -c -f- /tmp/16gig.txt | dd bs=512 count=8 > writer-big.tar
 	&writerTest{
 		file: "testdata/writer-big.tar",
-		entries: []*writerTestEntry{&writerTestEntry{header: &Header{
-			Name: "tmp/16gig.txt",
-			Mode: 0640,
-			Uid: 73025,
-			Gid: 5000,
-			Size: 16<<30,
-			Mtime: 1254699560,
-			Typeflag: '0',
-			Uname: "dsymonds",
-			Gname: "eng",
-		}
-		// no contents
-		}},
+		entries: []*writerTestEntry{
+			&writerTestEntry{
+				header: &Header{
+					Name: "tmp/16gig.txt",
+					Mode: 0640,
+					Uid: 73025,
+					Gid: 5000,
+					Size: 16<<30,
+					Mtime: 1254699560,
+					Typeflag: '0',
+					Uname: "dsymonds",
+					Gname: "eng",
+				},
+				// no contents
+			},
+		},
 	},
 }
 
@@ -181,9 +184,7 @@ var facts = map[int]string{
 
 func usage() {
 	fmt.Fprintf(os.Stderr,
-
-
-	// TODO(gri): the 2nd string of this string list should not be indented
+		// TODO(gri): the 2nd string of this string list should not be indented
 		"usage: godoc package [name ...]\n"
 		"	godoc -http=:6060\n");
 	flag.PrintDefaults();

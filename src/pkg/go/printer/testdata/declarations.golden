@@ -174,10 +174,13 @@ func _() {
 		f, ff, fff, ffff	int	= 0, 1, 2, 3;	// comment
 	)
 	// respect original line breaks
-	var _ = []T{T{0x20, "Telugu"}};
 	var _ = []T{
-	// respect original line breaks
-	T{0x20, "Telugu"}};
+		T{0x20, "Telugu"},
+	};
+	var _ = []T{
+		// respect original line breaks
+		T{0x20, "Telugu"},
+	};
 }
 
 func _() {
@@ -302,6 +305,50 @@ func _() {
 		Friday		= day{5, "FRI", "Friday"};
 		Saturday	= day{6, "SAT", "Saturday"};
 	)
+}
+
+
+func _() {
+	var Universe = Scope{
+		Names: map[string]*Ident{
+			// basic types
+			"bool": nil,
+			"byte": nil,
+			"int8": nil,
+			"int16": nil,
+			"int32": nil,
+			"int64": nil,
+			"uint8": nil,
+			"uint16": nil,
+			"uint32": nil,
+			"uint64": nil,
+			"float32": nil,
+			"float64": nil,
+			"string": nil,
+
+			// convenience types
+			"int": nil,
+			"uint": nil,
+			"uintptr": nil,
+			"float": nil,
+
+			// constants
+			"false": nil,
+			"true": nil,
+			"iota": nil,
+			"nil": nil,
+
+			// functions
+			"cap": nil,
+			"len": nil,
+			"new": nil,
+			"make": nil,
+			"panic": nil,
+			"panicln": nil,
+			"print": nil,
+			"println": nil,
+		},
+	};
 }
 
 

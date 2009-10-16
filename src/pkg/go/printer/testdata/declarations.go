@@ -308,6 +308,50 @@ func _() {
 }
 
 
+func _() {
+	var Universe = Scope {
+		Names: map[string]*Ident {
+			// basic types
+			"bool": nil,
+			"byte": nil,
+			"int8": nil,
+			"int16": nil,
+			"int32": nil,
+			"int64": nil,
+			"uint8": nil,
+			"uint16": nil,
+			"uint32": nil,
+			"uint64": nil,
+			"float32": nil,
+			"float64": nil,
+			"string": nil,
+
+			// convenience types
+			"int": nil,
+			"uint": nil,
+			"uintptr": nil,
+			"float": nil,
+
+			// constants
+			"false": nil,
+			"true": nil,
+			"iota": nil,
+			"nil": nil,
+
+			// functions
+			"cap": nil,
+			"len": nil,
+			"new": nil,
+			"make": nil,
+			"panic": nil,
+			"panicln": nil,
+			"print": nil,
+			"println": nil,
+		}
+	}
+}
+
+
 // formatting of consecutive single-line functions
 func _() {}
 func _() {}

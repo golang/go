@@ -60,6 +60,10 @@ var (
 )
 
 
+// Use noPos when a position is needed but not known.
+var noPos token.Position
+
+
 // A lineTag is a token.Position that is used to print
 // line tag id's of the form "L%d" where %d stands for
 // the line indicated by position.
@@ -478,6 +482,12 @@ func (p *printer) print(args ...) {
 		var data []byte;
 		switch x := f.Interface().(type) {
 		case whiteSpace:
+			if x == ignore {
+				// don't add ignore's to the buffer; they
+				// may screw up "correcting" unindents (see
+				// LabeledStmt)
+				break;
+			}
 			i := len(p.buffer);
 			if i == cap(p.buffer) {
 				// Whitespace sequences are very short so this should
@@ -552,22 +562,25 @@ func (p *printer) flush(next token.Position) {
 
 
 // Print as many newlines as necessary (but at least min and and at most
-// max newlines) to get to the current line. If newSection is set, the
-// first newline is printed as a formfeed. Returns true if any line break
-// was printed; returns false otherwise.
+// max newlines) to get to the current line. ws is printed before the first
+// line break. If newSection is set, the first line break is printed as
+// formfeed. Returns true if any line break was printed; returns false otherwise.
 //
 // TODO(gri): Reconsider signature (provide position instead of line)
 //
-func (p *printer) linebreak(line, min, max int, newSection bool) (printedBreak bool) {
+func (p *printer) linebreak(line, min, max int, ws whiteSpace, newSection bool) (printedBreak bool) {
 	n := line - p.pos.Line;
 	switch {
 	case n < min: n = min;
 	case n > max: n = max;
 	}
-	if n > 0 && newSection {
-		p.print(formfeed);
-		n--;
-		printedBreak = true;
+	if n > 0 {
+		p.print(ws);
+		if newSection {
+			p.print(formfeed);
+			n--;
+			printedBreak = true;
+		}
 	}
 	for ; n > 0; n-- {
 		p.print(newline);
@@ -622,7 +635,7 @@ func (p *printer) identList(list []*ast.Ident) {
 	for i, x := range list {
 		xlist[i] = x;
 	}
-	p.exprList(xlist, commaSep);
+	p.exprList(noPos, xlist, commaSep);
 }
 
 
@@ -632,7 +645,7 @@ func (p *printer) stringList(list []*ast.BasicLit) {
 	for i, x := range list {
 		xlist[i] = x;
 	}
-	p.exprList(xlist, noIndent);
+	p.exprList(noPos, xlist, noIndent);
 }
 
 
@@ -646,8 +659,9 @@ const (
 
 
 // Print a list of expressions. If the list spans multiple
-// source lines, the original line breaks are respected.
-func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
+// source lines, the original line breaks are respected between
+// expressions.
+func (p *printer) exprList(prev token.Position, list []ast.Expr, mode exprListMode) {
 	if len(list) == 0 {
 		return;
 	}
@@ -656,7 +670,13 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
 		p.print(blank);
 	}
 
-	if list[0].Pos().Line == list[len(list)-1].Pos().Line {
+	// TODO(gri): endLine may be incorrect as it is really the beginning
+	//            of the last list entry. There may be only one, very long
+	//            entry in which case line == endLine.
+	line := list[0].Pos().Line;
+	endLine := list[len(list)-1].Pos().Line;
+
+	if prev.IsValid() && prev.Line == line && line == endLine {
 		// all list entries on a single line
 		for i, x := range list {
 			if i > 0 {
@@ -672,16 +692,18 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
 
 	// list entries span multiple lines;
 	// use source code positions to guide line breaks
-	line := list[0].Pos().Line;
+
 	// don't add extra indentation if noIndent is set;
 	// i.e., pretend that the first line is already indented
-	indented := mode&noIndent != 0;
-	// there may or may not be a line break before the first list
-	// element; in any case indent once after the first line break
-	if p.linebreak(line, 0, 2, true) && !indented {
-		p.print(htab, indent);  // indent applies to next line
-		indented = true;
+	ws := ignore;
+	if mode&noIndent == 0 {
+		ws = indent;
 	}
+
+	if prev.IsValid() && prev.Line < line && p.linebreak(line, 1, 2, ws, true) {
+		ws = ignore;
+	}
+
 	for i, x := range list {
 		prev := line;
 		line = x.Pos().Line;
@@ -690,11 +712,8 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
 				p.print(token.COMMA);
 			}
 			if prev < line {
-				// at least one line break, but respect an extra empty line
-				// in the source
-				if p.linebreak(x.Pos().Line, 1, 2, true) && !indented {
-					p.print(htab, indent);  // indent applies to next line
-					indented = true;
+				if p.linebreak(line, 1, 2, ws, true) {
+					ws = ignore;
 				}
 			} else {
 				p.print(blank);
@@ -704,13 +723,13 @@ func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
 	}
 	if mode & commaTerm != 0 {
 		p.print(token.COMMA);
-		if indented && mode&noIndent == 0 {
+		if ws == ignore && mode&noIndent == 0 {
 			// should always be indented here since we have a multi-line
 			// expression list - be conservative and check anyway
 			p.print(unindent);
 		}
 		p.print(formfeed);  // terminating comma needs a line break to look good
-	} else if indented && mode&noIndent == 0 {
+	} else if ws == ignore && mode&noIndent == 0 {
 		p.print(unindent);
 	}
 }
@@ -899,7 +918,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int) {
 	}
 
 	// Print collected operations left-to-right, with blanks if necessary.
-	indented := false;
+	ws := indent;
 	p.expr1(x.X, prec);
 	for list.Len() > 0 {
 		x = list.Pop().(*ast.BinaryExpr);
@@ -910,9 +929,8 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int) {
 				p.print(blank, x.OpPos, x.Op);
 				// at least one line break, but respect an extra empty line
 				// in the source
-				if p.linebreak(line, 1, 2, false) && !indented {
-					p.print(htab, indent);  // indent applies to next line
-					indented = true;
+				if p.linebreak(line, 1, 2, ws, true) {
+					ws = ignore;
 				}
 			} else {
 				p.print(blank, x.OpPos, x.Op, blank);
@@ -925,7 +943,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int) {
 		}
 		p.expr1(x.Y, prec);
 	}
-	if indented {
+	if ws == ignore {
 		p.print(unindent);
 	}
 }
@@ -1023,13 +1041,13 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 	case *ast.CallExpr:
 		p.expr1(x.Fun, token.HighestPrec);
 		p.print(x.Lparen, token.LPAREN);
-		p.exprList(x.Args, commaSep);
+		p.exprList(x.Lparen, x.Args, commaSep);
 		p.print(x.Rparen, token.RPAREN);
 
 	case *ast.CompositeLit:
 		p.expr1(x.Type, token.HighestPrec);
 		p.print(x.Lbrace, token.LBRACE);
-		p.exprList(x.Elts, commaSep | commaTerm);
+		p.exprList(x.Lbrace, x.Elts, commaSep|commaTerm);
 		p.print(x.Rbrace, token.RBRACE);
 
 	case *ast.Ellipsis:
@@ -1105,7 +1123,7 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int) {
 	for i, s := range list {
 		// _indent == 0 only for lists of switch/select case clauses;
 		// in those cases each clause is a new section
-		p.linebreak(s.Pos().Line, 1, maxStmtNewlines, i == 0 || _indent == 0);
+		p.linebreak(s.Pos().Line, 1, maxStmtNewlines, ignore, i == 0 || _indent == 0);
 		if !p.stmt(s) {
 			p.print(token.SEMICOLON);
 		}
@@ -1120,7 +1138,7 @@ func (p *printer) block(s *ast.BlockStmt, indent int) {
 	p.print(s.Pos(), token.LBRACE);
 	if len(s.List) > 0 || p.commentBefore(s.Rbrace) {
 		p.stmtList(s.List, indent);
-		p.linebreak(s.Rbrace.Line, 1, maxStmtNewlines, true);
+		p.linebreak(s.Rbrace.Line, 1, maxStmtNewlines, ignore, true);
 	}
 	p.print(s.Rbrace, token.RBRACE);
 }
@@ -1194,7 +1212,7 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		p.print(unindent);
 		p.expr(s.Label);
 		p.print(token.COLON, vtab, indent);
-		p.linebreak(s.Stmt.Pos().Line, 0, 1, true);
+		p.linebreak(s.Stmt.Pos().Line, 0, 1, ignore, true);
 		optSemi = p.stmt(s.Stmt);
 
 	case *ast.ExprStmt:
@@ -1205,9 +1223,9 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 		p.print(s.Tok);
 
 	case *ast.AssignStmt:
-		p.exprList(s.Lhs, commaSep);
+		p.exprList(s.Pos(), s.Lhs, commaSep);
 		p.print(blank, s.TokPos, s.Tok);
-		p.exprList(s.Rhs, blankStart | commaSep);
+		p.exprList(s.TokPos, s.Rhs, blankStart | commaSep);
 
 	case *ast.GoStmt:
 		p.print(token.GO, blank);
@@ -1220,7 +1238,7 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 	case *ast.ReturnStmt:
 		p.print(token.RETURN);
 		if s.Results != nil {
-			p.exprList(s.Results, blankStart | commaSep);
+			p.exprList(s.Pos(), s.Results, blankStart | commaSep);
 		}
 
 	case *ast.BranchStmt:
@@ -1254,7 +1272,7 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 	case *ast.CaseClause:
 		if s.Values != nil {
 			p.print(token.CASE);
-			p.exprList(s.Values, blankStart | commaSep);
+			p.exprList(s.Pos(), s.Values, blankStart | commaSep);
 		} else {
 			p.print(token.DEFAULT);
 		}
@@ -1271,7 +1289,7 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
 	case *ast.TypeCaseClause:
 		if s.Types != nil {
 			p.print(token.CASE);
-			p.exprList(s.Types, blankStart | commaSep);
+			p.exprList(s.Pos(), s.Types, blankStart | commaSep);
 		} else {
 			p.print(token.DEFAULT);
 		}
@@ -1380,7 +1398,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext) {
 			}
 			if s.Values != nil {
 				p.print(blank, token.ASSIGN);
-				p.exprList(s.Values, blankStart | commaSep);
+				p.exprList(noPos, s.Values, blankStart | commaSep);
 				optSemi = false;
 			}
 		} else {
@@ -1395,7 +1413,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext) {
 			if s.Values != nil {
 				p.print(vtab);
 				p.print(token.ASSIGN);
-				p.exprList(s.Values, blankStart | commaSep);
+				p.exprList(noPos, s.Values, blankStart | commaSep);
 				optSemi = false;
 				extraTabs = 0;
 			}
@@ -1518,7 +1536,7 @@ func (p *printer) file(src *ast.File) {
 			if prev != tok {
 				min = 2;
 			}
-			p.linebreak(d.Pos().Line, min, maxDeclNewlines, false);
+			p.linebreak(d.Pos().Line, min, maxDeclNewlines, ignore, false);
 			p.decl(d, atTop);
 		}
 	}
@@ -1662,7 +1680,7 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, o
 			p.comment = n.Comments;
 			p.file(n);
 		default:
-			p.errors <- os.NewError(fmt.Sprintf("unsupported node type %T", n));
+			p.errors <- os.NewError(fmt.Sprintf("printer.Fprint: unsupported node type %T", n));
 			runtime.Goexit();
 		}
 		p.flush(inf);
