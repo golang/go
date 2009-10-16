@@ -1770,15 +1770,63 @@ it also satisfies all three interfaces:
 <code>io.ReadWriter</code>.
 </p>
 <p>
-There's one important way in which embedding differs from subclassing.  When we embed a type,
+There's an important way in which embedding differs from subclassing.  When we embed a type,
 the methods of that type become methods of the outer type,
 but when they are invoked the receiver of the method is the inner type, not the outer one.
 In our example, when the <code>Read</code> method of a <code>bufio.ReadWriter</code> is
-invoked, it has the exactly the same effect as the forwarding method written out above;
+invoked, it has exactly the same effect as the forwarding method written out above;
 the receiver is the <code>reader</code> field of the <code>ReadWriter</code>, not the
 <code>ReadWriter</code> itself.
 </p>
-
+<p>
+Embedding can also be a simple convenience.
+This example shows an embedded field alongside a regular, named field.
+</p>
+<pre>
+type Job struct {
+	Command	string;
+	*log.Logger;
+}
+</pre>
+<p>
+The <code>Job</code> type now has the <code>Log</code>, <code>Logf</code>
+and other
+methods of <code>log.Logger</code>.  We could have given the <code>Logger</code>
+a field name, of course, but it's not necessary to do so.  And now we can
+log to a <code>Job</code>:
+</p>
+<pre>
+job.Log("starting now...");
+</pre>
+<p>
+If we need to refer to an embedded field directly, the type name of the field,
+ignoring the package qualifier, serves as a field name.  If we needed to access the
+<code>*log.Logger</code> of a <code>Job</code> variable <code>job</code>,
+we would write <code>job.Logger</code>.
+This would be useful if we wanted to refine the methods of <code>Logger</code>.
+</p>
+<pre>
+func (job *Job) Logf(format string, v ...) {
+	job.Logger.Logf(fmt.Sprintf("%q: %s", job.command, format), v);
+}
+</pre>
+<p>
+Embedding types introduces the problem of name conflicts but the rules to resolve
+them are simple.
+First, a field or method <code>X</code> hides any other item <code>X</code> in a more deeply
+nested part of the type.
+If <code>log.Logger</code> contained a field or method called <code>Command</code>, the <code>Command</code> field
+of <code>Job</code> would dominate it.
+</p>
+<p>
+Second, if the same name appears at the same nesting level, it is usually an error;
+it would be erroneous to embed <code>log.Logger</code> if <code>Job</code> struct
+contained another field or method called <code>Logger</code>.
+However, if the duplicate name is never mentioned in the program outside the type definition, it is OK.
+This qualification provides some protection against changes made to types embedded from outside; there
+is no problem if a field is added that conflicts with another field in another subtype if that field
+is never used.
+</p>
 
 
 <h2 id="errors">Errors</h2>
