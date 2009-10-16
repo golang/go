@@ -311,6 +311,7 @@ pkglookup(char *name, char *pkg)
 
 	s->link = hash[h];
 	hash[h] = s;
+	s->lexical = LNAME;
 
 	return s;
 }
@@ -1543,13 +1544,13 @@ isselect(Node *n)
 	if(n == N)
 		return 0;
 	n = n->left;
-	s = pkglookup("selectsend", "sys");
+	s = pkglookup("selectsend", "runtime");
 	if(s == n->sym)
 		return 1;
-	s = pkglookup("selectrecv", "sys");
+	s = pkglookup("selectrecv", "runtime");
 	if(s == n->sym)
 		return 1;
-	s = pkglookup("selectdefault", "sys");
+	s = pkglookup("selectdefault", "runtime");
 	if(s == n->sym)
 		return 1;
 	return 0;
@@ -1960,9 +1961,9 @@ syslook(char *name, int copy)
 	Sym *s;
 	Node *n;
 
-	s = pkglookup(name, "sys");
+	s = pkglookup(name, "runtime");
 	if(s == S || s->def == N)
-		fatal("looksys: cant find sys.%s", name);
+		fatal("looksys: cant find runtime.%s", name);
 
 	if(!copy)
 		return s->def;

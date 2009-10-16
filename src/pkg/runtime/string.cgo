@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package sys
+package runtime
 #include "runtime.h"
 
 String	emptystring;
@@ -68,11 +68,11 @@ prbounds(int8* s, int32 a, int32 b, int32 c)
 {
 	prints(s);
 	prints(" ");
-	sys·printint(a);
+	runtime·printint(a);
 	prints("<");
-	sys·printint(b);
+	runtime·printint(b);
 	prints(">");
-	sys·printint(c);
+	runtime·printint(c);
 	prints("\n");
 	throw("string bounds");
 }
@@ -128,7 +128,7 @@ func slicestring(si String, lindex int32, hindex int32) (so String) {
 
 	if(lindex < 0 || lindex > si.len ||
 	   hindex < lindex || hindex > si.len) {
-		sys·printpc(&si);
+		runtime·printpc(&si);
 		prints(" ");
 		prbounds("slice", lindex, si.len, hindex);
 	}
@@ -144,7 +144,7 @@ func slicestring(si String, lindex int32, hindex int32) (so String) {
 
 func indexstring(s String, i int32) (b byte) {
 	if(i < 0 || i >= s.len) {
-		sys·printpc(&s);
+		runtime·printpc(&s);
 		prints(" ");
 		prbounds("index", 0, i, s.len);
 	}

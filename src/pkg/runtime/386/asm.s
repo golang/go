@@ -64,7 +64,7 @@ ok:
 	// create a new goroutine to start program
 	PUSHL	$mainstart(SB)	// entry
 	PUSHL	$0	// arg size
-	CALL	sys·newproc(SB)
+	CALL	runtime·newproc(SB)
 	POPL	AX
 	POPL	AX
 
@@ -137,7 +137,7 @@ TEXT gogocall(SB), 7, $0
  */
 
 // Called during function prolog when more stack is needed.
-TEXT sys·morestack(SB),7,$0
+TEXT runtime·morestack(SB),7,$0
 	// Cannot grow scheduler stack (m->g0).
 	MOVL	m, BX
 	MOVL	m_g0(BX), SI
@@ -215,7 +215,7 @@ TEXT reflect·call(SB), 7, $0
 
 
 // Return point when leaving stack.
-TEXT sys·lessstack(SB), 7, $0
+TEXT runtime·lessstack(SB), 7, $0
 	// Save return value in m->cret
 	MOVL	m, BX
 	MOVL	AX, m_cret(BX)
@@ -260,7 +260,7 @@ TEXT jmpdefer(SB), 7, $0
 	SUBL	$5, (SP)	// return to CALL again
 	JMP	AX	// but first run the deferred function
 
-TEXT	sys·memclr(SB),7,$0
+TEXT	runtime·memclr(SB),7,$0
 	MOVL	4(SP), DI		// arg 1 addr
 	MOVL	8(SP), CX		// arg 2 count
 	ADDL	$3, CX
@@ -271,12 +271,12 @@ TEXT	sys·memclr(SB),7,$0
 	STOSL
 	RET
 
-TEXT	sys·getcallerpc+0(SB),7,$0
+TEXT	runtime·getcallerpc+0(SB),7,$0
 	MOVL	x+0(FP),AX		// addr of first arg
 	MOVL	-4(AX),AX		// get calling pc
 	RET
 
-TEXT	sys·setcallerpc+0(SB),7,$0
+TEXT	runtime·setcallerpc+0(SB),7,$0
 	MOVL	x+0(FP),AX		// addr of first arg
 	MOVL	x+4(FP), BX
 	MOVL	BX, -4(AX)		// set calling pc

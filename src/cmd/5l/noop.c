@@ -128,7 +128,7 @@ noops(void)
 	Bflush(&bso);
 
 	pmorestack = P;
-	symmorestack = lookup("sys·morestackx", 0);
+	symmorestack = lookup("runtime·morestackx", 0);
 
 	if(symmorestack->type == STEXT)
 	for(p = firstp; p != P; p = p->link) {
@@ -142,7 +142,7 @@ noops(void)
 	}
 	// TODO(kaib): make lack of morestack an error
 //	if(pmorestack == P)
-//		diag("sys·morestack not defined");
+//		diag("runtime·morestack not defined");
 
 	curframe = 0;
 	curbecome = 0;
@@ -360,7 +360,7 @@ noops(void)
 				// CMP			R1, $-autosize(SP)
 				// MOVW.LT		$args, R2
 				// MOVW.W.LT	R14, R3
-				// BL.LT		sys·morestackx(SB) // modifies LR
+				// BL.LT		runtime·morestackx(SB) // modifies LR
 				// MOVW.W		R14,$-autosize(SP)
 
 				// TODO(kaib): add more trampolines
@@ -401,7 +401,7 @@ noops(void)
 				p->to.type = D_REG;
 				p->to.reg = 3;
 
-				// BL.LT		sys·morestackx(SB) // modifies LR
+				// BL.LT		runtime·morestackx(SB) // modifies LR
 				p = appendp(p);
 				p->as = ABL;
 				p->scond = C_SCOND_LT;

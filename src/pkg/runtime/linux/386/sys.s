@@ -58,7 +58,7 @@ TEXT sigreturn(SB),7,$0
 	INT $3	// not reached
 	RET
 
-TEXT sys·mmap(SB),7,$0
+TEXT runtime·mmap(SB),7,$0
 	MOVL	$192, AX	// mmap2
 	MOVL	4(SP), BX
 	MOVL	8(SP), CX

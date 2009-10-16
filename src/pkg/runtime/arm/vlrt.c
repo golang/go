@@ -143,7 +143,7 @@ _f2v(Vlong *y, float f)
 }
 
 void
-sys·float64toint64(double d, Vlong y)
+runtime·float64toint64(double d, Vlong y)
 {
 	_d2v(&y, d);
 }
@@ -169,7 +169,7 @@ _v2f(Vlong x)
 }
 
 void
-sys·int64tofloat64(Vlong y, double d)
+runtime·int64tofloat64(Vlong y, double d)
 {
 	d = _v2d(y);
 }
@@ -250,7 +250,7 @@ _divvu(Vlong *q, Vlong n, Vlong d)
 }
 
 void
-sys·uint64div(Vlong n, Vlong d, Vlong q)
+runtime·uint64div(Vlong n, Vlong d, Vlong q)
 {
 	_divvu(&q, n, d);
 }
@@ -268,7 +268,7 @@ _modvu(Vlong *r, Vlong n, Vlong d)
 }
 
 void
-sys·uint64mod(Vlong n, Vlong d, Vlong q)
+runtime·uint64mod(Vlong n, Vlong d, Vlong q)
 {
 	_modvu(&q, n, d);
 }
@@ -313,7 +313,7 @@ _divv(Vlong *q, Vlong n, Vlong d)
 }
 
 void
-sys·int64div(Vlong n, Vlong d, Vlong q)
+runtime·int64div(Vlong n, Vlong d, Vlong q)
 {
 	_divv(&q, n, d);
 }
@@ -340,7 +340,7 @@ _modv(Vlong *r, Vlong n, Vlong d)
 }
 
 void
-sys·int64mod(Vlong n, Vlong d, Vlong q)
+runtime·int64mod(Vlong n, Vlong d, Vlong q)
 {
 	_modv(&q, n, d);
 }

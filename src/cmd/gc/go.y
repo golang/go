@@ -139,13 +139,13 @@ package:
 	}
 
 /*
- * this loads the definitions for the sys functions,
+ * this loads the definitions for the low-level runtime functions,
  * so that the compiler can generate calls to them,
- * but does not make the name "sys" visible as a package.
+ * but does not make the name "runtime" visible as a package.
  */
 loadsys:
 	{
-		cannedimports("sys.6", sysimport);
+		cannedimports("runtime.builtin", runtimeimport);
 	}
 	import_package
 	import_there
@@ -245,7 +245,7 @@ import_package:
 		// statements have to go away in programs building
 		// against the release.  Once the programs have converted
 		// it should probably just go away.
-		if(strcmp($2->name, package) == 0)
+		if(strcmp($2->name, package) == 0 && strcmp(package, "runtime") != 0)
 			yyerror("package cannot import itself (anymore)");
 	}
 

@@ -27,7 +27,7 @@
 
 // Return a pointer to a byte array containing the symbol table segment.
 void
-sys·symdat(Slice *symtab, Slice *pclntab)
+runtime·symdat(Slice *symtab, Slice *pclntab)
 {
 	Slice *a;
 	int32 *v;

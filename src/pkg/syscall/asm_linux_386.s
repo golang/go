@@ -10,7 +10,7 @@
 // Trap # in AX, args in BX CX DX SI DI, return in AX
 
 TEXT	syscall·Syscall(SB),7,$0
-	CALL	sys·entersyscall(SB)
+	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
 	MOVL	12(SP), CX
@@ -24,19 +24,19 @@ TEXT	syscall·Syscall(SB),7,$0
 	MOVL	$0, 24(SP)	// r2
 	NEGL	AX
 	MOVL	AX, 28(SP)  // errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 ok:
 	MOVL	AX, 20(SP)	// r1
 	MOVL	DX, 24(SP)	// r2
 	MOVL	$0, 28(SP)	// errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 
 // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
 // Actually Syscall5 but the rest of the code expects it to be named Syscall6.
 TEXT	syscall·Syscall6(SB),7,$0
-	CALL	sys·entersyscall(SB)
+	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	MOVL	8(SP), BX
 	MOVL	12(SP), CX
@@ -51,13 +51,13 @@ TEXT	syscall·Syscall6(SB),7,$0
 	MOVL	$0, 36(SP)	// r2
 	NEGL	AX
 	MOVL	AX, 40(SP)  // errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 ok6:
 	MOVL	AX, 32(SP)	// r1
 	MOVL	DX, 36(SP)	// r2
 	MOVL	$0, 40(SP)	// errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 
 // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
@@ -75,7 +75,7 @@ TEXT syscall·RawSyscall(SB),7,$0
 	MOVL	$0, 24(SP)	// r2
 	NEGL	AX
 	MOVL	AX, 28(SP)  // errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 ok1:
 	MOVL	AX, 20(SP)	// r1
@@ -88,7 +88,7 @@ ok1:
 // func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
 // Kernel interface gets call sub-number and pointer to a0.
 TEXT syscall·socketcall(SB),7,$0
-	CALL	sys·entersyscall(SB)
+	CALL	runtime·entersyscall(SB)
 	MOVL	$SYS_SOCKETCALL, AX	// syscall entry
 	MOVL	4(SP), BX	// socket call number
 	LEAL		8(SP), CX	// pointer to call arguments
@@ -101,12 +101,12 @@ TEXT syscall·socketcall(SB),7,$0
 	MOVL	$-1, 32(SP)	// n
 	NEGL	AX
 	MOVL	AX, 36(SP)  // errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 oksock:
 	MOVL	AX, 32(SP)	// n
 	MOVL	$0, 36(SP)	// errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 
 #define SYS__LLSEEK 140	/* from zsysnum_linux_386.go */
@@ -116,7 +116,7 @@ oksock:
 // Underlying system call is
 //	llseek(int fd, int offhi, int offlo, int64 *result, int whence)
 TEXT syscall·Seek(SB),7,$0
-	CALL	sys·entersyscall(SB)
+	CALL	runtime·entersyscall(SB)
 	MOVL	$SYS__LLSEEK, AX	// syscall entry
 	MOVL	4(SP), BX	// fd
 	MOVL	12(SP), CX	// offset-high
@@ -130,10 +130,10 @@ TEXT syscall·Seek(SB),7,$0
 	MOVL	$-1, 24(SP)	// newoffset high
 	NEGL	AX
 	MOVL	AX, 28(SP)  // errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 okseek:
 	// system call filled in newoffset already
 	MOVL	$0, 28(SP)	// errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET

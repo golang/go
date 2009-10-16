@@ -11,7 +11,7 @@
 // Trap # in AX, args on stack above caller pc.
 
 TEXT	syscall·Syscall(SB),7,$0
-	CALL	sys·entersyscall(SB)
+	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL		8(SP), SI
@@ -25,17 +25,17 @@ TEXT	syscall·Syscall(SB),7,$0
 	MOVL	$-1, 20(SP)	// r1
 	MOVL	$-1, 24(SP)	// r2
 	MOVL	AX, 28(SP)		// errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 ok:
 	MOVL	AX, 20(SP)	// r1
 	MOVL	DX, 24(SP)	// r2
 	MOVL	$0, 28(SP)	// errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 
 TEXT	syscall·Syscall6(SB),7,$0
-	CALL	sys·entersyscall(SB)
+	CALL	runtime·entersyscall(SB)
 	MOVL	4(SP), AX	// syscall entry
 	// slide args down on top of system call number
 	LEAL		8(SP), SI
@@ -52,13 +52,13 @@ TEXT	syscall·Syscall6(SB),7,$0
 	MOVL	$-1, 32(SP)	// r1
 	MOVL	$-1, 36(SP)	// r2
 	MOVL	AX, 40(SP)		// errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 ok6:
 	MOVL	AX, 32(SP)	// r1
 	MOVL	DX, 36(SP)	// r2
 	MOVL	$0, 40(SP)	// errno
-	CALL	sys·exitsyscall(SB)
+	CALL	runtime·exitsyscall(SB)
 	RET
 
 TEXT syscall·RawSyscall(SB),7,$0

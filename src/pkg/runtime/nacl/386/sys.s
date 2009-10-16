@@ -54,7 +54,7 @@ TEXT	mutex_unlock(SB),7,$0
 TEXT thread_create(SB),7,$0
 	JMP	SYSCALL(thread_create)
 
-TEXT sys·mmap(SB),7,$24
+TEXT runtime·mmap(SB),7,$24
 	MOVL	a1+0(FP), BX
 	MOVL	a2+4(FP), CX	// round up to 64 kB boundary; silences nacl warning
 	ADDL	$(64*1024-1), CX

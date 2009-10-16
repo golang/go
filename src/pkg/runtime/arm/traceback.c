@@ -65,7 +65,7 @@ traceback(byte *pc0, byte *sp, G *g)
 // 		for(i = 0; i < f->args; i++) {
 // 			if(i != 0)
 // 				prints(", ");
-// 			sys·printhex(((uint32*)sp)[i]);
+// 			runtime·printhex(((uint32*)sp)[i]);
 // 			if(i >= 4) {
 // 				prints(", ...");
 // 				break;

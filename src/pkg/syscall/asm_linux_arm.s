@@ -14,7 +14,7 @@
 // func Syscall(syscall uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 
 TEXT	syscall·Syscall(SB),7,$0
-	BL		sys·entersyscall(SB)
+	BL		runtime·entersyscall(SB)
 	MOVW	4(SP), R7
 	MOVW	8(SP), R0
 	MOVW	12(SP), R1
@@ -24,13 +24,13 @@ TEXT	syscall·Syscall(SB),7,$0
 	MOVW	R1, 24(SP)	// r2
 	MOVW	$0, R0
 	MOVW	R0, 28(SP)	// errno
-	BL		sys·exitsyscall(SB)
+	BL		runtime·exitsyscall(SB)
 	RET
 
 // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
 // Actually Syscall5 but the rest of the code expects it to be named Syscall6.
 TEXT	syscall·Syscall6(SB),7,$0
-	BL		sys·entersyscall(SB)
+	BL		runtime·entersyscall(SB)
 	MOVW	4(SP), R7	// syscall entry
 	MOVW	8(SP), R0
 	MOVW	12(SP), R1
@@ -43,7 +43,7 @@ TEXT	syscall·Syscall6(SB),7,$0
 	MOVW	R1, 36(SP)	// r2
 	MOVW	$0, R0
 	MOVW	R0, 40(SP)	// errno
-	BL		sys·exitsyscall(SB)
+	BL		runtime·exitsyscall(SB)
 	RET
 
 // func RawSyscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);

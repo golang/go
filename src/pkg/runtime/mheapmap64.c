@@ -96,7 +96,7 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
 			p2 = m->allocator(sizeof *p2);
 			if(p2 == nil)
 				return false;
-			sys_memclr((byte*)p2, sizeof *p2);
+			runtime_memclr((byte*)p2, sizeof *p2);
 			m->p[i1] = p2;
 		}
 
@@ -105,7 +105,7 @@ MHeapMap_Preallocate(MHeapMap *m, PageID k, uintptr len)
 			p3 = m->allocator(sizeof *p3);
 			if(p3 == nil)
 				return false;
-			sys_memclr((byte*)p3, sizeof *p3);
+			runtime_memclr((byte*)p3, sizeof *p3);
 			p2->p[i2] = p3;
 		}
 

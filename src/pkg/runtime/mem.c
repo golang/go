@@ -19,7 +19,7 @@ brk(uint32 n)
 {
 	byte *v;
 
-	v = sys_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, 0, 0);
+	v = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, 0, 0);
 	m->mem.nmmap += n;
 	return v;
 }
@@ -51,10 +51,10 @@ oldmal(uint32 n)
 			// hunk, and then once brk returned we'd immediately
 			// overwrite that hunk with our own.
 			// (the net result would be a memory leak, not a crash.)
-			// so we have to call sys_mmap directly - it is written
+			// so we have to call runtime_mmap directly - it is written
 			// in assembly and tagged not to grow the stack.
 			m->mem.hunk =
-				sys_mmap(nil, NHUNK, PROT_READ|PROT_WRITE|PROT_EXEC,
+				runtime_mmap(nil, NHUNK, PROT_READ|PROT_WRITE|PROT_EXEC,
 					MAP_ANON|MAP_PRIVATE, 0, 0);
 			m->mem.nhunk = NHUNK;
 			m->mem.nmmap += NHUNK;
@@ -68,7 +68,7 @@ oldmal(uint32 n)
 }
 
 void
-sys·mal(uint32 n, uint8 *ret)
+runtime·mal(uint32 n, uint8 *ret)
 {
 	ret = mal(n);
 	FLUSH(&ret);

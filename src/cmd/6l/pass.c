@@ -513,17 +513,17 @@ brloop(Prog *p)
 static char*
 morename[] =
 {
-	"sys·morestack00",
-	"sys·morestack10",
-	"sys·morestack01",
-	"sys·morestack11",
+	"runtime·morestack00",
+	"runtime·morestack10",
+	"runtime·morestack01",
+	"runtime·morestack11",
 
-	"sys·morestack8",
-	"sys·morestack16",
-	"sys·morestack24",
-	"sys·morestack32",
-	"sys·morestack40",
-	"sys·morestack48",
+	"runtime·morestack8",
+	"runtime·morestack16",
+	"runtime·morestack24",
+	"runtime·morestack32",
+	"runtime·morestack40",
+	"runtime·morestack48",
 };
 Prog*	pmorestack[nelem(morename)];
 Sym*	symmorestack[nelem(morename)];

@@ -171,7 +171,7 @@ copyout(Type *t, void **src, void *dst)
 // ifaceT2I(sigi *byte, sigt *byte, elem any) (ret Iface);
 #pragma textflag 7
 void
-sys·ifaceT2I(InterfaceType *inter, Type *t, ...)
+runtime·ifaceT2I(InterfaceType *inter, Type *t, ...)
 {
 	byte *elem;
 	Iface *ret;
@@ -187,7 +187,7 @@ sys·ifaceT2I(InterfaceType *inter, Type *t, ...)
 // ifaceT2E(sigt *byte, elem any) (ret Eface);
 #pragma textflag 7
 void
-sys·ifaceT2E(Type *t, ...)
+runtime·ifaceT2E(Type *t, ...)
 {
 	byte *elem;
 	Eface *ret;
@@ -204,7 +204,7 @@ sys·ifaceT2E(Type *t, ...)
 // ifaceI2T(sigt *byte, iface any) (ret any);
 #pragma textflag 7
 void
-sys·ifaceI2T(Type *t, Iface i, ...)
+runtime·ifaceI2T(Type *t, Iface i, ...)
 {
 	Itab *tab;
 	byte *ret;
@@ -225,7 +225,7 @@ sys·ifaceI2T(Type *t, Iface i, ...)
 // ifaceI2T2(sigt *byte, i Iface) (ret any, ok bool);
 #pragma textflag 7
 void
-sys·ifaceI2T2(Type *t, Iface i, ...)
+runtime·ifaceI2T2(Type *t, Iface i, ...)
 {
 	byte *ret;
 	bool *ok;
@@ -237,7 +237,7 @@ sys·ifaceI2T2(Type *t, Iface i, ...)
 
 	if(i.tab == nil || i.tab->type != t) {
 		*ok = false;
-		sys·memclr(ret, wid);
+		runtime·memclr(ret, wid);
 		return;
 	}
 
@@ -248,7 +248,7 @@ sys·ifaceI2T2(Type *t, Iface i, ...)
 // ifaceE2T(sigt *byte, e Eface) (ret any);
 #pragma textflag 7
 void
-sys·ifaceE2T(Type *t, Eface e, ...)
+runtime·ifaceE2T(Type *t, Eface e, ...)
 {
 	byte *ret;
 
@@ -267,7 +267,7 @@ sys·ifaceE2T(Type *t, Eface e, ...)
 // ifaceE2T2(sigt *byte, iface any) (ret any, ok bool);
 #pragma textflag 7
 void
-sys·ifaceE2T2(Type *t, Eface e, ...)
+runtime·ifaceE2T2(Type *t, Eface e, ...)
 {
 	byte *ret;
 	bool *ok;
@@ -279,7 +279,7 @@ sys·ifaceE2T2(Type *t, Eface e, ...)
 
 	if(t != e.type) {
 		*ok = false;
-		sys·memclr(ret, wid);
+		runtime·memclr(ret, wid);
 		return;
 	}
 
@@ -290,7 +290,7 @@ sys·ifaceE2T2(Type *t, Eface e, ...)
 // ifaceI2E(sigi *byte, iface any) (ret any);
 // TODO(rsc): Move to back end, throw away function.
 void
-sys·ifaceI2E(Iface i, Eface ret)
+runtime·ifaceI2E(Iface i, Eface ret)
 {
 	Itab *tab;
 
@@ -307,7 +307,7 @@ sys·ifaceI2E(Iface i, Eface ret)
 // called only for implicit (no type assertion) conversions.
 // converting nil is okay.
 void
-sys·ifaceI2I(InterfaceType *inter, Iface i, Iface ret)
+runtime·ifaceI2I(InterfaceType *inter, Iface i, Iface ret)
 {
 	Itab *tab;
 
@@ -330,7 +330,7 @@ sys·ifaceI2I(InterfaceType *inter, Iface i, Iface ret)
 // called only for explicit conversions (with type assertion).
 // converting nil is not okay.
 void
-sys·ifaceI2Ix(InterfaceType *inter, Iface i, Iface ret)
+runtime·ifaceI2Ix(InterfaceType *inter, Iface i, Iface ret)
 {
 	Itab *tab;
 
@@ -350,7 +350,7 @@ sys·ifaceI2Ix(InterfaceType *inter, Iface i, Iface ret)
 
 // ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
 void
-sys·ifaceI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
+runtime·ifaceI2I2(InterfaceType *inter, Iface i, Iface ret, bool ok)
 {
 	Itab *tab;
 
@@ -397,14 +397,14 @@ ifaceE2I(InterfaceType *inter, Eface e, Iface *ret)
 // ifaceE2I(sigi *byte, iface any) (ret any);
 // Called only for explicit conversions (with type assertion).
 void
-sys·ifaceE2I(InterfaceType *inter, Eface e, Iface ret)
+runtime·ifaceE2I(InterfaceType *inter, Eface e, Iface ret)
 {
 	ifaceE2I(inter, e, &ret);
 }
 
 // ifaceE2I2(sigi *byte, iface any) (ret any, ok bool);
 void
-sys·ifaceE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
+runtime·ifaceE2I2(InterfaceType *inter, Eface e, Iface ret, bool ok)
 {
 	Type *t;
 
@@ -508,7 +508,7 @@ efaceeq(Eface e1, Eface e2)
 
 // ifaceeq(i1 any, i2 any) (ret bool);
 void
-sys·ifaceeq(Iface i1, Iface i2, bool ret)
+runtime·ifaceeq(Iface i1, Iface i2, bool ret)
 {
 	ret = ifaceeq(i1, i2);
 	FLUSH(&ret);
@@ -516,7 +516,7 @@ sys·ifaceeq(Iface i1, Iface i2, bool ret)
 
 // efaceeq(i1 any, i2 any) (ret bool)
 void
-sys·efaceeq(Eface e1, Eface e2, bool ret)
+runtime·efaceeq(Eface e1, Eface e2, bool ret)
 {
 	ret = efaceeq(e1, e2);
 	FLUSH(&ret);
@@ -524,7 +524,7 @@ sys·efaceeq(Eface e1, Eface e2, bool ret)
 
 // ifacethash(i1 any) (ret uint32);
 void
-sys·ifacethash(Iface i1, uint32 ret)
+runtime·ifacethash(Iface i1, uint32 ret)
 {
 	Itab *tab;
 
@@ -537,7 +537,7 @@ sys·ifacethash(Iface i1, uint32 ret)
 
 // efacethash(e1 any) (ret uint32)
 void
-sys·efacethash(Eface e1, uint32 ret)
+runtime·efacethash(Eface e1, uint32 ret)
 {
 	Type *t;
 
@@ -549,13 +549,13 @@ sys·efacethash(Eface e1, uint32 ret)
 }
 
 void
-sys·printiface(Iface i)
+runtime·printiface(Iface i)
 {
 	printiface(i);
 }
 
 void
-sys·printeface(Eface e)
+runtime·printeface(Eface e)
 {
 	printeface(e);
 }

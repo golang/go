@@ -35,7 +35,7 @@ TEXT write(SB),7,$0
 	CALL	notok(SB)
 	RET
 
-TEXT sys·mmap(SB),7,$0
+TEXT runtime·mmap(SB),7,$0
 	MOVL	$197, AX
 	INT	$0x80
 	JAE	2(PC)

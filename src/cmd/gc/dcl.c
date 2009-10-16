@@ -14,7 +14,7 @@ dflag(void)
 		return 0;
 	if(debug['y'])
 		return 1;
-	if(inimportsys)
+	if(incannedimport)
 		return 0;
 	return 1;
 }
