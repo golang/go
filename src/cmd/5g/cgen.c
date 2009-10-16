@@ -605,6 +605,14 @@ agen(Node *n, Node *res)
 			n4.op = OADDR;
 			n4.left = &n2;
 			cgen(&n4, &n3);
+			if (w == 1)
+				gins(AADD, &n2, &n3);
+			else if(w == 2)
+				gshift(AADD, &n2, SHIFT_LL, 1, &n3);
+			else if(w == 4)
+				gshift(AADD, &n2, SHIFT_LL, 2, &n3);
+			else if(w == 8)
+				gshift(AADD, &n2, SHIFT_LL, 3, &n3);	
 		} else {
 			regalloc(&n4, t, N);
 			nodconst(&n1, t, w);

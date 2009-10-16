@@ -2,6 +2,7 @@
 args.go
 assign.go
 bigalg.go
+blank.go
 blank1.go
 bugs/bug136.go
 bugs/bug162.go
@@ -242,6 +243,8 @@ interface/recursive.go
 interface/returntype.go
 interface/struct.go
 iota.go
+ken/array.go
+ken/complit.go
 ken/divmod.go
 ken/embed.go
 ken/for.go
@@ -251,6 +254,7 @@ ken/intervar.go
 ken/label.go
 ken/mfunc.go
 ken/ptrvar.go
+ken/range.go
 ken/rob1.go
 ken/rob2.go
 ken/robfor.go
@@ -262,6 +266,8 @@ ken/simpfun.go
 ken/simpprint.go
 ken/simpswitch.go
 ken/simpvar.go
+ken/slicearray.go
+ken/sliceslice.go
 ken/string.go
 ken/strvar.go
 method.go
@@ -279,8 +285,10 @@ sieve.go
 sigchld.go
 simassign.go
 string_lit.go
+stringrange.go
 switch.go
 switch1.go
 test0.go
 typeswitch.go
+utf.go
 varinit.go
