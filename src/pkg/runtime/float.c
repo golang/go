@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package math
 #include "runtime.h"
 
 static	uint64	uvnan		= 0x7FF0000000000001ULL;
@@ -170,49 +169,5 @@ modf(float64 d, float64 *ip)
 	dd = float64frombits(x);
 	*ip = dd;
 	return d - dd;
-}
-
-func Frexp(f float64) (frac float64, exp int32) {
-	frac = frexp(f, &exp);
-}
-
-func Ldexp(frac float64, exp int32) (f float64) {
-	f = ldexp(frac, exp);
-}
-
-func Modf(f float64) (integer float64, frac float64) {
-	frac = modf(f, &integer);
-}
-
-func IsInf(f float64, sign int32) (is bool) {
-	is = isInf(f, sign);
-}
-
-func IsNaN(f float64) (is bool) {
-	is = isNaN(f);
-}
-
-func Inf(sign int32) (f float64) {
-	f = Inf(sign);
-}
-
-func NaN() (f float64) {
-	f = NaN();
-}
-
-func Float32bits(f float32) (b uint32) {
-	b = float32tobits(f);
-}
-
-func Float64bits(f float64) (b uint64) {
-	b = float64tobits(f);
-}
-
-func Float32frombits(b uint32) (f float32) {
-	f = float32frombits(b);
-}
-
-func Float64frombits(b uint64) (f float64) {
-	f = float64frombits(b);
 }
 
