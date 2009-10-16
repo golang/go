@@ -51,39 +51,39 @@ TEXT main(SB),7,$0
 	CALL pcfromline(SB)
 
 // Keep the linker happy
-TEXT sys·morestack(SB),7,$0
+TEXT runtime·morestack(SB),7,$0
 	RET
 
-TEXT sys·morestack00(SB),7,$0
+TEXT runtime·morestack00(SB),7,$0
 	RET
 
-TEXT sys·morestack10(SB),7,$0
+TEXT runtime·morestack10(SB),7,$0
 	RET
 
-TEXT sys·morestack01(SB),7,$0
+TEXT runtime·morestack01(SB),7,$0
 	RET
 
-TEXT sys·morestack11(SB),7,$0
+TEXT runtime·morestack11(SB),7,$0
 	RET
 
-TEXT sys·morestack8(SB),7,$0
+TEXT runtime·morestack8(SB),7,$0
 	RET
 
-TEXT sys·morestack16(SB),7,$0
+TEXT runtime·morestack16(SB),7,$0
 	RET
 
-TEXT sys·morestack24(SB),7,$0
+TEXT runtime·morestack24(SB),7,$0
 	RET
 
-TEXT sys·morestack32(SB),7,$0
+TEXT runtime·morestack32(SB),7,$0
 	RET
 
-TEXT sys·morestack40(SB),7,$0
+TEXT runtime·morestack40(SB),7,$0
 	RET
 
-TEXT sys·morestack48(SB),7,$0
+TEXT runtime·morestack48(SB),7,$0
 	RET
 
-TEXT sys·morestack8(SB),7,$0
+TEXT runtime·morestack8(SB),7,$0
 	RET
 
