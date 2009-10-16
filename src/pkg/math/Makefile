@@ -16,6 +16,7 @@ ALLGOFILES=\
 	asin.go\
 	atan.go\
 	atan2.go\
+	bits.go\
 	const.go\
 	exp.go\
 	fabs.go\
@@ -25,12 +26,12 @@ ALLGOFILES=\
 	log.go\
 	pow.go\
 	pow10.go\
-	runtime.go\
 	sin.go\
 	sinh.go\
 	sqrt.go\
 	tan.go\
 	tanh.go\
+	unsafe.go\
 
 NOGOFILES=\
 	$(subst _$(GOARCH).$O,.go,$(OFILES_$(GOARCH)))
