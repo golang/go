@@ -791,8 +791,8 @@ gmove(Node *f, Node *t)
 	case CASE(TUINT32, TFLOAT64):
 		fa = AMOVW;
 		a = AMOVWD;
-		ta = AMOVW;
-		goto fltconv;;
+		ta = AMOVD;
+		goto fltconv;
 
 	case CASE(TUINT64, TFLOAT32):
 	case CASE(TUINT64, TFLOAT64):
