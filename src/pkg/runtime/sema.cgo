@@ -17,7 +17,7 @@
 // See Mullender and Cox, ``Semaphores in Plan 9,''
 // http://swtch.com/semaphore.pdf
 
-package sync
+package runtime
 #include "runtime.h"
 
 typedef struct Sema Sema;
@@ -176,10 +176,10 @@ semrelease(uint32 *addr)
 	semwakeup(addr);
 }
 
-func semacquire(addr *uint32) {
+func Semacquire(addr *uint32) {
 	semacquire(addr);
 }
 
-func semrelease(addr *uint32) {
+func Semrelease(addr *uint32) {
 	semrelease(addr);
 }
