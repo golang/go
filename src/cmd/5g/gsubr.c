@@ -1709,10 +1709,19 @@ oindex:
 		gmove(&n2, reg);
 	}
 
+	if (*w == 1)
+		gins(AADD, reg1, reg);
+	else if(*w == 2)
+		gshift(AADD, reg1, SHIFT_LL, 1, reg);
+	else if(*w == 4)
+		gshift(AADD, reg1, SHIFT_LL, 2, reg);
+	else if(*w == 8)
+		gshift(AADD, reg1, SHIFT_LL, 3, reg);
+
 	naddr(reg1, a);
-	a->offset = 0;
 	a->type = D_OREG;
 	a->reg = reg->val.u.reg;
+	a->offset = 0;
 
 	goto yes;
 
