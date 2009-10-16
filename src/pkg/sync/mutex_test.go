@@ -7,20 +7,21 @@
 package sync_test
 
 import (
+		"runtime";
 	.	"sync";
 		"testing";
 )
 
-func HammerSemaphore(s *int32, cdone chan bool) {
+func HammerSemaphore(s *uint32, cdone chan bool) {
 	for i := 0; i < 1000; i++ {
-		Semacquire(s);
-		Semrelease(s);
+		runtime.Semacquire(s);
+		runtime.Semrelease(s);
 	}
 	cdone <- true;
 }
 
 func TestSemaphore(t *testing.T) {
-	s := new(int32);
+	s := new(uint32);
 	*s = 1;
 	c := make(chan bool);
 	for i := 0; i < 10; i++ {
