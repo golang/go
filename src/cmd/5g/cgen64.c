@@ -15,7 +15,7 @@ cgen64(Node *n, Node *res)
 	Node t1, t2, *l, *r;
 	Node lo1, lo2, hi1, hi2;
 	Node al, ah, bl, bh, cl, ch, s, n1, creg;
-	Prog *p1, *p2, *p3;
+	Prog *p1, *p2, *p3, *p4, *p5, *p6;
 
 	uint64 v;
 
@@ -48,13 +48,13 @@ cgen64(Node *n, Node *res)
 		gins(AMOVW, &hi1, &ah);
 
 		gmove(ncon(0), &t1);
-
-		p1 = gins(ASUB, &t1, &al);
+		p1 = gins(ASUB, &al, &t1);
 		p1->scond |= C_SBIT;
-		gins(ASBC, &t1, &ah);
+		gins(AMOVW, &t1, &lo2);
 
-		gins(AMOVW, &al, &lo2);
-		gins(AMOVW, &ah, &hi2);
+		gmove(ncon(0), &t1);
+		gins(ASBC, &ah, &t1);
+		gins(AMOVW, &t1, &hi2);
 
 		regfree(&t1);
 		regfree(&al);
@@ -204,85 +204,117 @@ cgen64(Node *n, Node *res)
 				// here and below (verify it optimizes to EOR)
 				gins(AEOR, &al, &al);
 				gins(AEOR, &ah, &ah);
-				goto olsh_break;
-			}
-			if(v >= 32) {
+			} else if(v > 32) {
 				gins(AEOR, &al, &al);
 				//	MOVW	bl<<(v-32), ah
-				gshift(AMOVW, &bl, SHIFT_LL, v-32, &ah);
-				goto olsh_break;
+				gshift(AMOVW, &bl, SHIFT_LL, (v-32), &ah);
+			} else if(v == 32) {
+				gins(AEOR, &al, &al);
+				gins(AMOVW, &bl, &ah);
+			} else if(v > 0) {
+				//	MOVW	bl<<v, al
+				gshift(AMOVW, &bl, SHIFT_LL, v, &al);
+
+				//	MOVW	bh<<v, ah
+				gshift(AMOVW, &bh, SHIFT_LL, v, &ah);
+
+				//	OR		bl>>(32-v), ah
+				gshift(AORR, &bl, SHIFT_LR, 32-v, &ah);
+			} else {
+				gins(AMOVW, &bl, &al);
+				gins(AMOVW, &bh, &ah);
 			}
-
-			// general literal left shift
-
-			//	MOVW	bl<<v, al
-			gshift(AMOVW, &bl, SHIFT_LL, v, &al);
-
-			//	MOVW	bh<<v, ah
-			gshift(AMOVW, &bh, SHIFT_LL, v, &ah);
-
-			//	OR		bl>>(32-v), ah
-			gshift(AORR, &bl, SHIFT_LR, 32-v, &ah);
-
 			goto olsh_break;
 		}
 
 		regalloc(&s, types[TUINT32], N);
 		regalloc(&creg, types[TUINT32], N);
-		gmove(r, &s);
+		if (is64(r->type)) {
+			// shift is >= 1<<32
+			split64(r, &cl, &ch);
+			gmove(&ch, &s);
+			p1 = gins(AMOVW, &s, &s);
+			p1->scond |= C_SBIT;
+			p6 = gbranch(ABNE, T);
+			gmove(&cl, &s);
+			splitclean();
+		} else {
+			gmove(r, &s);
+			p6 = P;
+		}
+		p1 = gins(AMOVW, &s, &s);
+		p1->scond |= C_SBIT;
 
-		// check if shift is < 32
+		// shift == 0
+		p1 = gins(AMOVW, &bl, &al);
+		p1->scond = C_SCOND_EQ;
+		p1 = gins(AMOVW, &bh, &ah);
+		p1->scond = C_SCOND_EQ;
+		p2 = gbranch(ABEQ, T);
+
+		// shift is < 32
 		nodconst(&n1, types[TUINT32], 32);
 		gmove(&n1, &creg);
 		gcmp(ACMP, &s, &creg);
 
-		//	MOVW.LT		bl<<s, al
+		//	MOVW.LO		bl<<s, al
 		p1 = gregshift(AMOVW, &bl, SHIFT_LL, &s, &al);
-		p1->scond = C_SCOND_LT;
+		p1->scond = C_SCOND_LO;
 
-		//	MOVW.LT		bh<<s, ah
+		//	MOVW.LO		bh<<s, ah
 		p1 = gregshift(AMOVW, &bh, SHIFT_LL, &s, &ah);
-		p1->scond = C_SCOND_LT;
+		p1->scond = C_SCOND_LO;
 
-		//	SUB.LT		creg, s
-		p1 = gins(ASUB, &creg, &s);
-		p1->scond = C_SCOND_LT;
+		//	SUB.LO		s, creg
+		p1 = gins(ASUB, &s, &creg);
+		p1->scond = C_SCOND_LO;
 
-		//	OR.LT		bl>>creg, ah
+		//	OR.LO		bl>>creg, ah
 		p1 = gregshift(AORR, &bl, SHIFT_LR, &creg, &ah);
-		p1->scond = C_SCOND_LT;
+		p1->scond = C_SCOND_LO;
 
-		//	BLT	end
-		p2 = gbranch(ABLT, T);
+		//	BLO	end
+		p3 = gbranch(ABLO, T);
 
-		// check if shift is < 64
+		// shift == 32
+		p1 = gins(AEOR, &al, &al);
+		p1->scond = C_SCOND_EQ;
+		p1 = gins(AMOVW, &bl, &ah);
+		p1->scond = C_SCOND_EQ;
+		p4 = gbranch(ABEQ, T);
+
+		// shift is < 64
 		nodconst(&n1, types[TUINT32], 64);
 		gmove(&n1, &creg);
 		gcmp(ACMP, &s, &creg);
 
-		//	EOR.LT	al, al
+		//	EOR.LO	al, al
 		p1 = gins(AEOR, &al, &al);
-		p1->scond = C_SCOND_LT;
+		p1->scond = C_SCOND_LO;
 
-		//	MOVW.LT		creg>>1, creg
+		//	MOVW.LO		creg>>1, creg
 		p1 = gshift(AMOVW, &creg, SHIFT_LR, 1, &creg);
-		p1->scond = C_SCOND_LT;
+		p1->scond = C_SCOND_LO;
 
-		//	SUB.LT		creg, s
-		p1 = gins(ASUB, &s, &creg);
-		p1->scond = C_SCOND_LT;
+		//	SUB.LO		creg, s
+		p1 = gins(ASUB, &creg, &s);
+		p1->scond = C_SCOND_LO;
 
 		//	MOVW	bl<<s, ah
 		p1 = gregshift(AMOVW, &bl, SHIFT_LL, &s, &ah);
-		p1->scond = C_SCOND_LT;
+		p1->scond = C_SCOND_LO;
 
-		p3 = gbranch(ABLT, T);
+		p5 = gbranch(ABLO, T);
 
+		// shift >= 64
+		if (p6 != P) patch(p6, pc);
 		gins(AEOR, &al, &al);
 		gins(AEOR, &ah, &ah);
 
 		patch(p2, pc);
 		patch(p3, pc);
+		patch(p4, pc);
+		patch(p5, pc);
 		regfree(&s);
 		regfree(&creg);
 
@@ -311,9 +343,7 @@ olsh_break:
 					gins(AEOR, &al, &al);
 					gins(AEOR, &ah, &ah);
 				}
-				goto orsh_break;
-			}
-			if(v >= 32) {
+			} else if(v > 32) {
 				if(bh.type->etype == TINT32) {
 					//	MOVW	bh->(v-32), al
 					gshift(AMOVW, &bh, SHIFT_AR, v-32, &al);
@@ -325,121 +355,140 @@ olsh_break:
 					gshift(AMOVW, &bh, SHIFT_LR, v-32, &al);
 					gins(AEOR, &ah, &ah);
 				}
-				goto orsh_break;
-			}
+			} else if(v == 32) {
+				gins(AMOVW, &bh, &al);
+				if(bh.type->etype == TINT32) {
+					//	MOVW	bh->31, ah
+					gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
+				} else {
+					gins(AEOR, &ah, &ah);
+				}
+			} else if( v > 0) {
+				//	MOVW	bl>>v, al
+				gshift(AMOVW, &bl, SHIFT_LR, v, &al);
+	
+				//	OR		bh<<(32-v), al
+				gshift(AORR, &bh, SHIFT_LL, 32-v, &al);
 
-			// general literal right shift
-
-			//	MOVW	bl>>v, al
-			gshift(AMOVW, &bl, SHIFT_LR, v, &al);
-
-			//	OR		bh<<(32-v), al
-			gshift(AORR, &bh, SHIFT_LL, 32-v, &al);
-
-			if(bh.type->etype == TINT32) {
-				//	MOVW	bh->v, ah
-				gshift(AMOVW, &bh, SHIFT_AR, v, &ah);
+				if(bh.type->etype == TINT32) {
+					//	MOVW	bh->v, ah
+					gshift(AMOVW, &bh, SHIFT_AR, v, &ah);
+				} else {
+					//	MOVW	bh>>v, ah
+					gshift(AMOVW, &bh, SHIFT_LR, v, &ah);
+				}
 			} else {
-				//	MOVW	bh>>v, ah
-				gshift(AMOVW, &bh, SHIFT_LR, v, &ah);
+				gins(AMOVW, &bl, &al);
+				gins(AMOVW, &bh, &ah);
 			}
 			goto orsh_break;
 		}
 
 		regalloc(&s, types[TUINT32], N);
 		regalloc(&creg, types[TUINT32], N);
-		gmove(r, &s);
+		if (is64(r->type)) {
+			// shift is >= 1<<32
+			split64(r, &cl, &ch);
+			gmove(&ch, &s);
+			p1 = gins(AMOVW, &s, &s);
+			p1->scond |= C_SBIT;
+			p6 = gbranch(ABNE, T);
+			gmove(&cl, &s);
+			splitclean();
+		} else {
+			gmove(r, &s);
+			p6 = P;
+		}
+		p1 = gins(AMOVW, &s, &s);
+		p1->scond |= C_SBIT;
+
+		// shift == 0
+		p1 = gins(AMOVW, &bl, &al);
+		p1->scond = C_SCOND_EQ;
+		p1 = gins(AMOVW, &bh, &ah);
+		p1->scond = C_SCOND_EQ;
+		p2 = gbranch(ABEQ, T);
 
 		// check if shift is < 32
 		nodconst(&n1, types[TUINT32], 32);
 		gmove(&n1, &creg);
 		gcmp(ACMP, &s, &creg);
 
-		//	MOVW.LT		bl>>s, al
-		p1 = gins(AMOVW, N, &al);
-		p1->from.type = D_SHIFT;
-		p1->from.offset = SHIFT_LR | s.val.u.reg << 8 | 1<<4 | bl.val.u.reg;
-		p1->scond = C_SCOND_LT;
+		//	MOVW.LO		bl>>s, al
+		p1 = gregshift(AMOVW, &bl, SHIFT_LR, &s, &al);
+		p1->scond = C_SCOND_LO;
 
-		//	SUB.LT		creg, s
-		p1 = gins(ASUB, &creg, &s);
-		p1->scond = C_SCOND_LT;
+		//	SUB.LO		s,creg
+		p1 = gins(ASUB, &s, &creg);
+		p1->scond = C_SCOND_LO;
 
-		//	OR.LT		bh<<(32-s), al, al
-		p1 = gins(AORR, N, &al);
-		p1->from.type = D_SHIFT;
-		p1->from.offset = SHIFT_LL | creg.val.u.reg << 8 | 1<<4 | bh.val.u.reg;
-		p1->reg = al.val.u.reg;
-		p1->scond = C_SCOND_LT;
+		//	OR.LO		bh<<(32-s), al
+		p1 = gregshift(AORR, &bh, SHIFT_LL, &creg, &al);
+		p1->scond = C_SCOND_LO;
 
 		if(bh.type->etype == TINT32) {
 			//	MOVW	bh->s, ah
-			p1 = gins(AMOVW, N, &ah);
-			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_AR | s.val.u.reg << 8 | 1<<4 | bh.val.u.reg;
+			p1 = gregshift(AMOVW, &bh, SHIFT_AR, &s, &ah);
 		} else {
 			//	MOVW	bh>>s, ah
-			p1 = gins(AMOVW, N, &ah);
-			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_LR | s.val.u.reg << 8 | 1<<4 | bh.val.u.reg;
+			p1 = gregshift(AMOVW, &bh, SHIFT_LR, &s, &ah);
 		}
-		p1->scond = C_SCOND_LT;
+		p1->scond = C_SCOND_LO;
 
-		//	BLT	end
-		p2 = gbranch(ABLT, T);
+		//	BLO	end
+		p3 = gbranch(ABLO, T);
+
+		// shift == 32
+		if(bh.type->etype == TINT32)
+			p1 = gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
+		else
+			p1 = gins(AEOR, &al, &al);
+		p1->scond = C_SCOND_EQ;
+		p1 = gins(AMOVW, &bh, &al);
+		p1->scond = C_SCOND_EQ;
+		p4 = gbranch(ABEQ, T);
 
 		// check if shift is < 64
 		nodconst(&n1, types[TUINT32], 64);
 		gmove(&n1, &creg);
 		gcmp(ACMP, &s, &creg);
 
-		//	MOVW.LT		creg>>1, creg
-		p1 = gins(AMOVW, N, &creg);
-		p1->from.type = D_SHIFT;
-		p1->from.offset = SHIFT_LR | 1<<7 | creg.val.u.reg;
-		p1->scond = C_SCOND_LT;
+		//	MOVW.LO		creg>>1, creg
+		p1 = gshift(AMOVW, &creg, SHIFT_LR, 1, &creg);
+		p1->scond = C_SCOND_LO;
 
-		//	SUB.LT		s, creg
-		p1 = gins(ASUB, &s, &creg);
-		p1->scond = C_SCOND_LT;
+		//	SUB.LO		creg, s
+		p1 = gins(ASUB, &creg, &s);
+		p1->scond = C_SCOND_LO;
 
 		if(bh.type->etype == TINT32) {
 			//	MOVW	bh->(s-32), al
-			p1 = gins(AMOVW, N, &al);
-			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_AR | s.val.u.reg <<8 | 1<<4 | bh.val.u.reg;
-			p1->scond = C_SCOND_LT;
+			p1 = gregshift(AMOVW, &bh, SHIFT_AR, &s, &al);
+			p1->scond = C_SCOND_LO;
 
 			//	MOVW	bh->31, ah
-			p1 = gins(AMOVW, N, &ah);
-			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_AR | 31<<7 | bh.val.u.reg;
-			p1->scond = C_SCOND_LT;
+			p1 = gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
+			p1->scond = C_SCOND_LO;
 		} else {
 			//	MOVW	bh>>(v-32), al
-			p1 = gins(AMOVW, N, &al);
-			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_LR | s.val.u.reg<<8 | 1<<4 | bh.val.u.reg;
-			p1->scond = C_SCOND_LT;
+			p1 = gregshift(AMOVW, &bh, SHIFT_LR, &s, &al);
+			p1->scond = C_SCOND_LO;
 
 			p1 = gins(AEOR, &ah, &ah);
-			p1->scond = C_SCOND_LT;
+			p1->scond = C_SCOND_LO;
 		}
 
-		//	BLT	end
-		p3 = gbranch(ABLT, T);
+		//	BLO	end
+		p5 = gbranch(ABLO, T);
 
 		// s >= 64
+		if (p6 != P) patch(p6, pc);
 		if(bh.type->etype == TINT32) {
 			//	MOVW	bh->31, al
-			p1 = gins(AMOVW, N, &al);
-			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_AR | 31 << 7 | bh.val.u.reg;
+			gshift(AMOVW, &bh, SHIFT_AR, 31, &al);
 
 			//	MOVW	bh->31, ah
-			p1 = gins(AMOVW, N, &ah);
-			p1->from.type = D_SHIFT;
-			p1->from.offset = SHIFT_AR | 31 << 7 | bh.val.u.reg;
+			gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
 		} else {
 			gins(AEOR, &al, &al);
 			gins(AEOR, &ah, &ah);
@@ -447,6 +496,8 @@ olsh_break:
 
 		patch(p2, pc);
 		patch(p3, pc);
+		patch(p4, pc);
+		patch(p5, pc);
 		regfree(&s);
 		regfree(&creg);
 

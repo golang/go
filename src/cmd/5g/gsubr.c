@@ -965,14 +965,17 @@ gcmp(int as, Node *lhs, Node *rhs)
 }
 
 /* generate a constant shift
+ * arm encodes a shift by 32 as 0, thus asking for 0 shift is illegal.
 */
 Prog*
 gshift(int as, Node *lhs, int32 stype, int32 sval, Node *rhs)
 {
 	Prog *p;
 
-	if (sval < 0 || sval > 31)
+	if (sval <= 0 || sval > 32)
 		fatal("bad shift value: %d", sval);
+
+	sval = sval&0x1f;
 
 	p = gins(as, N, rhs);
 	p->from.type = D_SHIFT;
