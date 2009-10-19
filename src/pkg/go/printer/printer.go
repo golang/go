@@ -81,6 +81,7 @@ type printer struct {
 	// Configuration (does not change after initialization)
 	output io.Writer;
 	mode uint;
+	tabwidth int;
 	errors chan os.Error;
 
 	// Current state
@@ -110,9 +111,10 @@ type printer struct {
 }
 
 
-func (p *printer) init(output io.Writer, mode uint) {
+func (p *printer) init(output io.Writer, mode uint, tabwidth int) {
 	p.output = output;
 	p.mode = mode;
+	p.tabwidth = tabwidth;
 	p.errors = make(chan os.Error);
 	p.buffer = make([]whiteSpace, 0, 16);  // whitespace sequences are short
 }
@@ -999,8 +1001,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 
 	case *ast.FuncLit:
 		p.expr(x.Type);
-		p.print(blank);
-		p.block(x.Body, 1);
+		p.funcBody(x.Body, true);
 
 	case *ast.ParenExpr:
 		p.print(token.LPAREN);
@@ -1448,55 +1449,108 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext) {
 }
 
 
+func (p *printer) genDecl(d *ast.GenDecl, context declContext) {
+	p.leadComment(d.Doc);
+	p.print(lineTag(d.Pos()), d.Tok, blank);
+
+	if d.Lparen.IsValid() {
+		// group of parenthesized declarations
+		p.print(d.Lparen, token.LPAREN);
+		if len(d.Specs) > 0 {
+			p.print(indent, formfeed);
+			for i, s := range d.Specs {
+				if i > 0 {
+					p.print(newline);
+				}
+				p.spec(s, len(d.Specs), inGroup);
+			}
+			p.print(unindent, formfeed);
+		}
+		p.print(d.Rparen, token.RPAREN);
+
+	} else {
+		// single declaration
+		p.spec(d.Specs[0], 1, context);
+	}
+}
+
+
+func (p *printer) isOneLiner(b *ast.BlockStmt) bool {
+	if len(b.List) != 1 || p.commentBefore(b.Rbrace) {
+		// too many statements or there is a comment - all bets are off
+		return false;
+	}
+
+	// test-print the statement and see if it would fit
+	var buf bytes.Buffer;
+	_, err := Fprint(&buf, b.List[0], p.mode, p.tabwidth);
+	if err != nil {
+		return false;  // don't try
+	}
+
+	if buf.Len() > 40 {
+		return false;  // too long
+	}
+
+	for _, ch := range buf.Bytes() {
+		if ch < ' ' {
+			return false;  // contains control chars (tabs, newlines)
+		}
+	}
+
+	return true;
+}
+
+
+func (p *printer) funcBody(b *ast.BlockStmt, isLit bool) {
+	if b == nil {
+		return;
+	}
+
+	// TODO(gri): enable for function declarations, eventually.
+	if isLit && p.isOneLiner(b) {
+		sep := vtab;
+		if isLit {
+			sep = blank;
+		}
+		p.print(sep, b.Pos(), token.LBRACE, blank);
+		p.stmt(b.List[0]);
+		p.print(blank, b.Rbrace, token.RBRACE);
+		return;
+	}
+
+	p.print(blank);
+	p.block(b, 1);
+}
+
+
+func (p *printer) funcDecl(d *ast.FuncDecl) {
+	p.leadComment(d.Doc);
+	p.print(lineTag(d.Pos()), token.FUNC, blank);
+	if recv := d.Recv; recv != nil {
+		// method: print receiver
+		p.print(token.LPAREN);
+		if len(recv.Names) > 0 {
+			p.expr(recv.Names[0]);
+			p.print(blank);
+		}
+		p.expr(recv.Type);
+		p.print(token.RPAREN, blank);
+	}
+	p.expr(d.Name);
+	p.signature(d.Type.Params, d.Type.Results);
+	p.funcBody(d.Body, false);
+}
+
+
 func (p *printer) decl(decl ast.Decl, context declContext) {
 	switch d := decl.(type) {
 	case *ast.BadDecl:
 		p.print(d.Pos(), "BadDecl");
-
 	case *ast.GenDecl:
-		p.leadComment(d.Doc);
-		p.print(lineTag(d.Pos()), d.Tok, blank);
-
-		if d.Lparen.IsValid() {
-			// group of parenthesized declarations
-			p.print(d.Lparen, token.LPAREN);
-			if len(d.Specs) > 0 {
-				p.print(indent, formfeed);
-				for i, s := range d.Specs {
-					if i > 0 {
-						p.print(newline);
-					}
-					p.spec(s, len(d.Specs), inGroup);
-				}
-				p.print(unindent, formfeed);
-			}
-			p.print(d.Rparen, token.RPAREN);
-
-		} else {
-			// single declaration
-			p.spec(d.Specs[0], 1, context);
-		}
-
+		p.genDecl(d, context);
 	case *ast.FuncDecl:
-		p.leadComment(d.Doc);
-		p.print(lineTag(d.Pos()), token.FUNC, blank);
-		if recv := d.Recv; recv != nil {
-			// method: print receiver
-			p.print(token.LPAREN);
-			if len(recv.Names) > 0 {
-				p.expr(recv.Names[0]);
-				p.print(blank);
-			}
-			p.expr(recv.Type);
-			p.print(token.RPAREN, blank);
-		}
-		p.expr(d.Name);
-		p.signature(d.Type.Params, d.Type.Results);
-		if d.Body != nil {
-			p.print(blank);
-			p.block(d.Body, 1);
-		}
-
+		p.funcDecl(d);
 	default:
 		panic("unreachable");
 	}
@@ -1667,7 +1721,7 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, o
 
 	// setup printer and print node
 	var p printer;
-	p.init(output, mode);
+	p.init(output, mode, tabwidth);
 	go func() {
 		switch n := node.(type) {
 		case ast.Expr:

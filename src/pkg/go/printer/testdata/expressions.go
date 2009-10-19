@@ -118,6 +118,26 @@ _ = `foo
 
 
 func _() {
+	// one-line function literals
+	_ = func() {};
+	_ = func() int {
+		return 0;
+	};
+	_ = func(x, y int) bool {
+		return x < y
+	};
+
+	f(func() {});
+	f(func() int {
+		return 0;
+	});
+	f(func(x, y int) bool {
+		return x < y
+	});
+}
+
+
+func _() {
 	// not not add extra indentation to multi-line string lists
 	_ = "foo" "bar";
 	_ = "foo"
