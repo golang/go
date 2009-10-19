@@ -189,7 +189,7 @@ isfat(Type *t)
 void
 afunclit(Addr *a)
 {
-	if(a->type == D_ADDR && a->name == D_EXTERN || a->type == D_REG) {
+	if(a->type == D_CONST && a->name == D_EXTERN || a->type == D_REG) {
 		a->type = D_OREG;
 	}
 }
@@ -1099,6 +1099,7 @@ naddr(Node *n, Addr *a)
 			break;
 		case PFUNC:
 			a->name = D_EXTERN;
+			a->type = D_CONST;
 			break;
 		}
 		break;
@@ -1147,13 +1148,18 @@ naddr(Node *n, Addr *a)
 
 	case OADDR:
 		naddr(n->left, a);
-		if(a->type == D_OREG) {
+		switch(a->type) {
+		case D_OREG:
 			a->type = D_CONST;
 			break;
-		} else if (a->type == D_REG) {
+
+		case D_REG:
+		case D_CONST:
 			break;
+		
+		default:
+			fatal("naddr: OADDR %d\n", a->type);
 		}
-		fatal("naddr: OADDR %d\n", a->type);
 	}
 }
 

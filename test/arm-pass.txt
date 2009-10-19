@@ -72,6 +72,7 @@ fixedbugs/bug051.go
 fixedbugs/bug052.go
 fixedbugs/bug053.go
 fixedbugs/bug054.go
+fixedbugs/bug055.go
 fixedbugs/bug056.go
 fixedbugs/bug057.go
 fixedbugs/bug058.go
@@ -253,6 +254,7 @@ ken/interfun.go
 ken/intervar.go
 ken/label.go
 ken/mfunc.go
+ken/ptrfun.go
 ken/ptrvar.go
 ken/range.go
 ken/rob1.go
@@ -281,6 +283,7 @@ parentype.go
 printbig.go
 rename.go
 rename1.go
+runtime.go
 sieve.go
 sigchld.go
 simassign.go
