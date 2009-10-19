@@ -170,3 +170,6 @@ BUG: bug196
 =========== bugs/bug210.go
 bugs/bug210.go:10: invalid recursive type []T
 BUG: should compile
+
+=========== bugs/bug211.go
+BUG: errchk: command succeeded unexpectedly
