@@ -360,3 +360,13 @@ func _() {}
 func _() {}  // an empty line before this function
 func _() {}
 func _() {}
+
+func _() {
+	f(1, 2, 3);
+}
+func _(x int) int {
+	return x+1
+}
+func _() int {
+	type T struct{}
+}
