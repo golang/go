@@ -52,7 +52,7 @@ math.install:
 net.install: fmt.install io.install once.install os.install reflect.install strconv.install strings.install sync.install syscall.install
 once.install: sync.install
 os.install: once.install syscall.install
-path.install: strings.install
+path.install: io.install os.install strings.install
 rand.install: math.install
 reflect.install: runtime.install strconv.install
 regexp.install: bytes.install container/vector.install io.install os.install runtime.install utf8.install
