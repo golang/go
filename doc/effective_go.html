@@ -1799,6 +1799,15 @@ log to a <code>Job</code>:
 job.Log("starting now...");
 </pre>
 <p>
+The <code>Logger</code> is a regular field of the struct and we can initialize
+it in the usual way.
+</p>
+<pre>
+func NewJob(command string, logger *log.Logger) *Job {
+	return &amp;Job{command, logger}
+}
+</pre>
+<p>
 If we need to refer to an embedded field directly, the type name of the field,
 ignoring the package qualifier, serves as a field name.  If we needed to access the
 <code>*log.Logger</code> of a <code>Job</code> variable <code>job</code>,
@@ -1806,8 +1815,8 @@ we would write <code>job.Logger</code>.
 This would be useful if we wanted to refine the methods of <code>Logger</code>.
 </p>
 <pre>
-func (job *Job) Logf(format string, v ...) {
-	job.Logger.Logf(fmt.Sprintf("%q: %s", job.command, format), v);
+func (job *Job) Logf(format string, args ...) {
+	job.Logger.Logf("%q: %s", job.Command, fmt.Sprintf(format, args));
 }
 </pre>
 <p>
