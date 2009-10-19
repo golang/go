@@ -362,7 +362,7 @@ A sequence of string literals is concatenated to form a single string.
 StringLit              = string_lit { string_lit } .
 string_lit             = raw_string_lit | interpreted_string_lit .
 raw_string_lit         = "`" { unicode_char } "`" .
-interpreted_string_lit = """ { unicode_value | byte_value } """ .
+interpreted_string_lit = `"` { unicode_value | byte_value } `"` .
 </pre>
 
 <pre>
@@ -490,6 +490,7 @@ The method set of the corresponding pointer type <code>*T</code>
 is the set of all methods with receiver <code>*T</code> or <code>T</code>
 (that is, it also contains the method set of <code>T</code>).
 Any other type has an empty method set.
+In a method set, each method must have a unique name.
 </p>
 <p>
 The <i>static type</i> (or just <i>type</i>) of a variable is the
@@ -855,7 +856,7 @@ func (n int) (func (p* T))
 <h3 id="Interface_types">Interface types</h3>
 
 <p>
-An interface type specifies a method set called its <i>interface</i>.
+An interface type specifies a <a href="#Types">method set</a> called its <i>interface</i>.
 A variable of interface type can store a value of any type with a method set
 that is any superset of the interface. Such a type is said to
 <i>implement the interface</i>. An interface value may be <code>nil</code>.
@@ -864,9 +865,14 @@ that is any superset of the interface. Such a type is said to
 <pre class="ebnf">
 InterfaceType      = "interface" "{" [ MethodSpecList ] "}" .
 MethodSpecList     = MethodSpec { ";" MethodSpec } [ ";" ] .
-MethodSpec         = identifier Signature | InterfaceTypeName .
+MethodSpec         = MethodName Signature | InterfaceTypeName .
+MethodName         = identifier .
 InterfaceTypeName  = TypeName .
 </pre>
+
+<p>
+As with all method sets, in an interface type, each method must have a unique name.
+</p>
 
 <pre>
 // A simple File interface
@@ -935,8 +941,7 @@ as the <code>File</code> interface.
 <p>
 An interface may contain an interface type name <code>T</code>
 in place of a method specification.
-In this notation, <code>T</code> must denote a different interface type
-and the effect is equivalent to enumerating the methods of <code>T</code> explicitly
+The effect is equivalent to enumerating the methods of <code>T</code> explicitly
 in the interface.
 </p>
 
@@ -1766,7 +1771,6 @@ which is a function with a <i>receiver</i>.
 <pre class="ebnf">
 MethodDecl = "func" Receiver MethodName Signature [ Body ] .
 Receiver = "(" [ identifier ] [ "*" ] BaseTypeName ")" .
-MethodName = identifier .
 BaseTypeName = identifier .
 </pre>
 
@@ -3010,55 +3014,73 @@ Conversion = LiteralType "(" Expression ")" .
 </pre>
 
 <p>
-The following conversion rules apply:
+In general, a conversion succeeds if the value of <code>x</code> is
+<a href="#Assignment_compatibility">assignment compatible</a> with type <code>T</code>,
+or if the value would be assignment compatible with type <code>T</code> if the
+value's type, or <code>T</code>, or any of their component types were unnamed.
+Usually, such a conversion changes the type but not the representation of the value
+of <code>x</code> and thus has no run-time cost.
 </p>
-<ul>
-<li>
-1) The conversion succeeds if the value is <a href="#Assignment_compatibility">assignment compatible</a>
-with type <code>T</code>.
-</li>
-<li>
-2) The conversion succeeds if the value would be assignment compatible
-with type <code>T</code> if the value's type, or <code>T</code>, or any of their component
-types were unnamed.
-</li>
-<li>
-3) Between integer types: If the value is a signed quantity, it is
+
+<p>
+Specific rules apply to conversions where <code>T</code> is a numeric or string type.
+These conversions may change the representation of a value and incur a run-time cost.
+</p>
+
+<h4>Conversions between integer types</h4>
+<p>
+If the value is a signed quantity, it is
 sign extended to implicit infinite precision; otherwise it is zero
 extended.  It is then truncated to fit in the result type's size.
 For example, if <code>x := uint16(0x10F0)</code>, then <code>uint32(int8(x)) == 0xFFFFFFF0</code>.
 The conversion always yields a valid value; there is no indication of overflow.
-</li>
+</p>
+
+<h4>Conversions involving floating point types</h4>
+<ol>
 <li>
-4) Between integer and floating-point types, or between floating-point types:
 When converting a floating-point number to an integer, the fraction is discarded
 (truncation towards zero).
-In all conversions involving floating-point values, if the result type cannot represent the
-value the conversion succeeds but the result value is unspecified.
-<font color=red>This behavior may change.</font>
 </li>
 <li>
-5) Strings permit three special conversions:
+When converting a number to a floating-point type, the result value is rounded
+to the precision specified by the floating point type.
+For instance, the value of a variable <code>x</code> of type <code>float32</code>
+may be stored using additional precision beyond that of an IEEE-754 32-bit number,
+but float32(x) represents the result of rounding <code>x</code>'s value to
+32-bit precision. Similarly, <code>x + 0.1</code> may use more than 32 bits
+of precision, <code>but float32(x + 0.1)</code> does not.
 </li>
+</ol>
+
+<p>
+In all conversions involving floating-point values, if the result type cannot
+represent the value the conversion succeeds but the result value is
+implementation-dependent.
+</p>
+
+<h4>Conversions to a string type</h4>
+<ol>
 <li>
-5a) Converting an integer value yields a string containing the UTF-8
+Converting an integer value yields a string containing the UTF-8
 representation of the integer.
 
 <pre>
 string(0x65e5)  // "\u65e5" == "日" == "\xe6\x97\xa5"
 </pre>
-
 </li>
+
 <li>
-5b) Converting a slice of integers yields a string that is the
+Converting a slice of integers yields a string that is the
 concatenation of the individual integers converted to strings.
 If the slice value is <code>nil</code>, the result is the empty string.
 <pre>
-string([]int{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"</pre>
+string([]int{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"
+</pre>
 </li>
 
 <li>
-5c) Converting a slice of bytes yields a string whose successive
+Converting a slice of bytes yields a string whose successive
 bytes are those of the slice. If the slice value is <code>nil</code>,
 the result is the empty string.
 
@@ -3066,7 +3088,7 @@ the result is the empty string.
 string([]byte{'h', 'e', 'l', 'l', 'o'})  // "hello"
 </pre>
 </li>
-</ul>
+</ol>
 
 <p>
 There is no linguistic mechanism to convert between pointers and integers.
@@ -3152,7 +3174,15 @@ overflow etc. errors being caught.
 When evaluating the elements of an assignment or expression,
 all function calls, method calls and
 communication operations are evaluated in lexical left-to-right
-order.  Otherwise, the order of evaluation is unspecified.
+order.
+</p>
+
+<p>
+Floating-point operations within a single expression are evaluated according to
+the associativity of the operators.  Explicit parentheses affect the evaluation
+by overriding the default associativity.
+In the expression <code>x + (y + z)</code> the addition <code>y + z</code>
+is performed before adding <code>x</code>.
 </p>
 
 <p>
@@ -4132,7 +4162,7 @@ guaranteed to stay in the language. They do not return a result.
 </p>
 
 <pre class="grammar">
-Call       Behavior
+Function   Behavior
 
 print      prints all arguments; formatting of arguments is implementation-specific
 println    like print but prints spaces between arguments and a newline at the end
