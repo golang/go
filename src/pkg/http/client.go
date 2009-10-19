@@ -198,6 +198,7 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 				err = os.ErrorString(fmt.Sprintf("%d response missing Location header", r.StatusCode));
 				break;
 			}
+			continue;
 		}
 		finalURL = url;
 		return;

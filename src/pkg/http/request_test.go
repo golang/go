@@ -100,3 +100,18 @@ func TestPostContentTypeParsing(t *testing.T) {
 		}
 	}
 }
+
+func TestRedirect(t *testing.T) {
+	const (
+		start = "http://codesearch.google.com/";
+		end = "http://www.google.com/codesearch";
+	)
+	r, url, err := Get(start);
+	if err != nil {
+		t.Fatal(err);
+	}
+	r.Body.Close();
+	if r.StatusCode != 200 || url != end {
+		t.Fatalf("Get(%s) got status %d at %s, want 200 at %s", start, r.StatusCode, url, end)
+	}
+}
