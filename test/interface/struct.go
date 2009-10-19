@@ -53,6 +53,7 @@ type S2 struct { i int }
 func (p *S2) Get() int { return p.i }
 func (p *S2) Put(i int) { p.i = i }
 
+// Disallowed by restriction of values going to pointer receivers
 // func f4() {
 //	 s := S2{1};
 //	 var i I1 = s;
@@ -111,6 +112,7 @@ type S4 struct { i, j, k, l int64 }
 func (p *S4) Get() int64 { return p.l }
 func (p *S4) Put(i int64) { p.l = i }
 
+// Disallowed by restriction of values going to pointer receivers
 // func f10() {
 //	 s := S4{1, 2, 3, 4};
 //	 var i I2 = s;
