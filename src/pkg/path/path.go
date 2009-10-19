@@ -6,7 +6,11 @@
 // slash-separated filename paths.
 package path
 
-import "strings"
+import (
+	"io";
+	"os";
+	"strings";
+)
 
 // Clean returns the shortest path name equivalent to path
 // by purely lexical processing.  It applies the following rules
@@ -131,4 +135,52 @@ func Ext(path string) string {
 		}
 	}
 	return "";
+}
+
+// Visitor methods are invoked for corresponding file tree entries
+// visited by Walk. The parameter path is the full path of d relative
+// to root.
+type Visitor interface {
+	VisitDir(path string, d *os.Dir) bool;
+	VisitFile(path string, d *os.Dir);
+}
+
+func walk(path string, d *os.Dir, v Visitor, errors chan<- os.Error) {
+	if !d.IsDirectory() {
+		v.VisitFile(path, d);
+		return;
+	}
+
+	if !v.VisitDir(path, d) {
+		return;  // skip directory entries
+	}
+
+	list, err := io.ReadDir(path);
+	if err != nil {
+		if errors != nil {
+			errors <- err;
+		}
+	}
+
+	for _, e := range list {
+		walk(Join(path, e.Name), e, v, errors);
+	}
+}
+
+// Walk walks the file tree rooted at root, calling v.VisitDir or
+// v.VisitFile for each directory or file in the tree, including root.
+// If v.VisitDir returns false, Walk skips the directory's entries;
+// otherwise it invokes itself for each directory entry in sorted order.
+// An error reading a directory does not abort the Walk.
+// If errors != nil, Walk sends each directory read error
+// to the channel.  Otherwise Walk discards the error.
+func Walk(root string, v Visitor, errors chan<- os.Error) {
+	d, err := os.Lstat(root);
+	if err != nil {
+		if errors != nil {
+			errors <- err;
+		}
+		return;  // can't progress
+	}
+	walk(root, d, v, errors);
 }
