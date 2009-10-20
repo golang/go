@@ -27,6 +27,8 @@ init1(Node *n, NodeList **out)
 	case PFUNC:
 		break;
 	default:
+		if(isblank(n))
+			*out = list(*out, n->defn);
 		return;
 	}
 

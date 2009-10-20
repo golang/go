@@ -762,15 +762,20 @@ ok:
 Type**
 stotype(NodeList *l, int et, Type **t)
 {
-	Type *f, *t1, **t0;
+	Type *f, *t1, *t2, **t0;
 	Strlit *note;
 	int lno;
 	NodeList *init;
 	Node *n;
+	char *what;
 
 	t0 = t;
 	init = nil;
 	lno = lineno;
+	what = "field";
+	if(et == TINTER)
+		what = "method";
+
 	for(; l; l=l->next) {
 		n = l->n;
 		lineno = n->lineno;
@@ -827,14 +832,17 @@ stotype(NodeList *l, int et, Type **t)
 				continue;
 			}
 			for(t1=n->type->type; t1!=T; t1=t1->down) {
-				// TODO(rsc): Is this really an error?
-				if(strcmp(t1->sym->package, package) != 0)
-					yyerror("embedded interface contains unexported method %S", t1->sym);
 				f = typ(TFIELD);
 				f->type = t1->type;
 				f->width = BADWIDTH;
 				f->nname = newname(t1->sym);
 				f->sym = t1->sym;
+				for(t2=*t0; t2!=T; t2=t2->down) {
+					if(t2->sym == f->sym) {
+						yyerror("duplicate method %s", t2->sym->name);
+						break;
+					}
+				}
 				*t = f;
 				t = &f->down;
 			}
@@ -855,7 +863,7 @@ stotype(NodeList *l, int et, Type **t)
 			if(f->sym && !isblank(f->nname)) {
 				for(t1=*t0; t1!=T; t1=t1->down) {
 					if(t1->sym == f->sym) {
-						yyerror("duplicate field %s", t1->sym->name);
+						yyerror("duplicate %s %s", what, t1->sym->name);
 						break;
 					}
 				}
