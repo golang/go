@@ -27,6 +27,7 @@ convlit1.go
 decl.go
 declbad.go
 empty.go
+env.go
 escape1.go
 fixedbugs/bug000.go
 fixedbugs/bug001.go
@@ -83,6 +84,7 @@ fixedbugs/bug063.go
 fixedbugs/bug064.go
 fixedbugs/bug065.go
 fixedbugs/bug066.go
+fixedbugs/bug067.go
 fixedbugs/bug068.go
 fixedbugs/bug069.go
 fixedbugs/bug070.go
@@ -253,6 +255,7 @@ ken/interbasic.go
 ken/interfun.go
 ken/intervar.go
 ken/label.go
+ken/litfun.go
 ken/mfunc.go
 ken/ptrfun.go
 ken/ptrvar.go
