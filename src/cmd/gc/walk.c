@@ -1592,7 +1592,6 @@ Node*
 mapop(Node *n, NodeList **init)
 {
 	Node *r, *a;
-	Type *t;
 
 	r = n;
 	switch(n->op) {
@@ -1601,16 +1600,10 @@ mapop(Node *n, NodeList **init)
 	case OASOP:
 		// rewrite map[index] op= right
 		// into tmpi := index; map[tmpi] = map[tmpi] op right
-		// TODO(rsc): does this double-evaluate map?
 
-		t = n->left->left->type;
-		a = nod(OXXX, N, N);
-		tempname(a, t->down);			// tmpi
-		r = nod(OAS, a, n->left->right);	// tmpi := index
-		n->left->right = a;			// m[tmpi]
-		typecheck(&r, Etop);
-		walkexpr(&r, init);
-		*init = list(*init, r);
+		// make it ok to double-evaluate map[tmpi]
+		n->left->left = safeval(n->left->left, init);
+		n->left->right = safeval(n->left->right, init);
 
 		a = nod(OXXX, N, N);
 		*a = *n->left;		// copy of map[tmpi]

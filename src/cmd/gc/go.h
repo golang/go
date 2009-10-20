@@ -847,6 +847,7 @@ Node*	staticname(Type*);
 int	iscomposite(Type*);
 Node*	callnew(Type*);
 Node*	saferef(Node*, NodeList**);
+Node*	safeval(Node*, NodeList**);
 int	is64(Type*);
 int	noconv(Type*, Type*);
 NodeList*	list1(Node*);

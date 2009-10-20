@@ -2346,7 +2346,7 @@ staticname(Type *t)
 }
 
 /*
- * return side effect-free n, appending side effects to init.
+ * return side effect-free, assignable n, appending side effects to init.
  */
 Node*
 saferef(Node *n, NodeList **init)
@@ -2385,6 +2385,33 @@ saferef(Node *n, NodeList **init)
 	}
 	fatal("saferef %N", n);
 	return N;
+}
+
+/*
+ * return side effect-free n, appending side effects to init.
+ */
+Node*
+safeval(Node *n, NodeList **init)
+{
+	Node *l;
+	Node *r;
+	Node *a;
+
+	// is this a local variable or a dot of a local variable?
+	for(l=n; l->op == ODOT; l=l->left)
+		if(l->left->type != T && isptr[l->left->type->etype])
+			goto copy;
+	if(l->op == ONAME && (l->class == PAUTO || l->class == PPARAM))
+		return n;
+
+copy:
+	l = nod(OXXX, N, N);
+	tempname(l, n->type);
+	a = nod(OAS, l, n);
+	typecheck(&a, Etop);
+	walkexpr(&a, init);
+	*init = list(*init, a);
+	return l;
 }
 
 void
