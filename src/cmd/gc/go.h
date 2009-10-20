@@ -406,7 +406,6 @@ enum
 
 	TFLOAT32,		// 12
 	TFLOAT64,
-	TFLOAT80,
 	TFLOAT,
 
 	TBOOL,			// 16
@@ -430,6 +429,9 @@ enum
 	TIDEAL,
 	TNIL,
 	TBLANK,
+	
+	// pseudo-type for frame layout
+	TFUNCARGS,
 
 	NTYPE,
 };

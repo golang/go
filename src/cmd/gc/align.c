@@ -11,6 +11,8 @@
  * (see ../6g/align.c).
  */
 
+static int defercalc;
+
 uint32
 rnd(uint32 o, uint32 r)
 {
@@ -98,6 +100,7 @@ dowidth(Type *t)
 	int32 et;
 	uint32 w;
 	int lno;
+	Type *t1;
 
 	if(maxround == 0 || widthptr == 0)
 		fatal("dowidth without betypeinit");
@@ -116,6 +119,9 @@ dowidth(Type *t)
 		lineno = lno;
 		return;
 	}
+
+	// defer checkwidth calls until after we're done
+	defercalc++;
 
 	lno = lineno;
 	lineno = t->lineno;
@@ -155,33 +161,36 @@ dowidth(Type *t)
 	case TINT32:
 	case TUINT32:
 	case TFLOAT32:
-	case TPTR32:		// note lack of recursion
 		w = 4;
 		break;
 	case TINT64:
 	case TUINT64:
 	case TFLOAT64:
-	case TPTR64:		// note lack of recursion
 		w = 8;
 		break;
-	case TFLOAT80:
-		w = 10;
+	case TPTR32:
+		w = 4;
+		checkwidth(t->type);
+		break;
+	case TPTR64:
+		w = 8;
+		checkwidth(t->type);
 		break;
 	case TDDD:
 		w = 2*widthptr;
 		break;
 	case TINTER:		// implemented as 2 pointers
-		offmod(t);
 		w = 2*widthptr;
+		offmod(t);
 		break;
 	case TCHAN:		// implemented as pointer
-		dowidth(t->type);
-		dowidth(t->down);
 		w = widthptr;
+		checkwidth(t->type);
 		break;
 	case TMAP:		// implemented as pointer
-		dowidth(t->type);
 		w = widthptr;
+		checkwidth(t->type);
+		checkwidth(t->down);
 		break;
 	case TFORW:		// should have been filled in
 	case TANY:
@@ -198,15 +207,18 @@ dowidth(Type *t)
 	case TARRAY:
 		if(t->type == T)
 			break;
-		dowidth(t->type);
-		if(t->bound >= 0)
+		if(t->bound >= 0) {
+			dowidth(t->type);
 			w = t->bound * t->type->width;
-		else if(t->bound == -1)
+			if(w == 0)
+				w = maxround;
+		}
+		else if(t->bound == -1) {
 			w = sizeof_Array;
+			checkwidth(t->type);
+		}
 		else
 			fatal("dowidth %T", t);	// probably [...]T
-		if(w == 0)
-			w = maxround;
 		break;
 
 	case TSTRUCT:
@@ -218,20 +230,118 @@ dowidth(Type *t)
 		break;
 
 	case TFUNC:
+		// make fake type to check later to
+		// trigger function argument computation.
+		t1 = typ(TFUNCARGS);
+		t1->type = t;
+		checkwidth(t1);
+
+		// width of func type is pointer
+		w = widthptr;
+		break;
+	
+	case TFUNCARGS:
 		// function is 3 cated structures;
 		// compute their widths as side-effect.
-		w = widstruct(*getthis(t), 0, 0);
-		w = widstruct(*getinarg(t), w, 1);
-		w = widstruct(*getoutarg(t), w, 1);
-		t->argwid = w;
-
-		// but width of func type is pointer
-		w = widthptr;
+		t1 = t->type;
+		w = widstruct(*getthis(t1), 0, 0);
+		w = widstruct(*getinarg(t1), w, 1);
+		w = widstruct(*getoutarg(t1), w, 1);
+		t1->argwid = w;
 		break;
 	}
 
 	t->width = w;
 	lineno = lno;
+
+	if(defercalc == 1)
+		resumecheckwidth();
+	else
+		--defercalc;
+}
+
+/*
+ * when a type's width should be known, we call checkwidth
+ * to compute it.  during a declaration like
+ *
+ *	type T *struct { next T }
+ *
+ * it is necessary to defer the calculation of the struct width
+ * until after T has been initialized to be a pointer to that struct.
+ * similarly, during import processing structs may be used
+ * before their definition.  in those situations, calling
+ * defercheckwidth() stops width calculations until
+ * resumecheckwidth() is called, at which point all the
+ * checkwidths that were deferred are executed.
+ * dowidth should only be called when the type's size
+ * is needed immediately.  checkwidth makes sure the
+ * size is evaluated eventually.
+ */
+typedef struct TypeList TypeList;
+struct TypeList {
+	Type *t;
+	TypeList *next;
+};
+
+static TypeList *tlfree;
+static TypeList *tlq;
+
+void
+checkwidth(Type *t)
+{
+	TypeList *l;
+
+	if(t == T)
+		return;
+
+	// function arg structs should not be checked
+	// outside of the enclosing function.
+	if(t->funarg)
+		fatal("checkwidth %T", t);
+
+	if(!defercalc) {
+		dowidth(t);
+		return;
+	}
+	if(t->deferwidth)
+		return;
+	t->deferwidth = 1;
+
+	l = tlfree;
+	if(l != nil)
+		tlfree = l->next;
+	else
+		l = mal(sizeof *l);
+
+	l->t = t;
+	l->next = tlq;
+	tlq = l;
+}
+
+void
+defercheckwidth(void)
+{
+	// we get out of sync on syntax errors, so don't be pedantic.
+	// if(defercalc)
+	//	fatal("defercheckwidth");
+	defercalc = 1;
+}
+
+void
+resumecheckwidth(void)
+{
+	TypeList *l;
+
+	if(!defercalc)
+		fatal("resumecheckwidth");
+	for(l = tlq; l != nil; l = tlq) {
+		l->t->deferwidth = 0;
+		tlq = l->next;
+		dowidth(l->t);
+		l->next = tlfree;
+		tlfree = l;
+	}
+	defercalc = 0;
 }
 
 void
@@ -263,7 +373,7 @@ typeinit(void)
 	isint[TUINT] = 1;
 	isint[TUINTPTR] = 1;
 
-	for(i=TFLOAT32; i<=TFLOAT80; i++)
+	for(i=TFLOAT32; i<=TFLOAT64; i++)
 		isfloat[i] = 1;
 	isfloat[TFLOAT] = 1;
 

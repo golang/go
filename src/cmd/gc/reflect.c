@@ -687,8 +687,7 @@ dumptypestructs(void)
 	// but using runtime means fewer copies in .6 files.
 	if(strcmp(package, "runtime") == 0) {
 		for(i=1; i<=TBOOL; i++)
-			if(i != TFLOAT80)
-				dtypesym(ptrto(types[i]));
+			dtypesym(ptrto(types[i]));
 		dtypesym(ptrto(types[TSTRING]));
 		dtypesym(typ(TDDD));
 		dtypesym(ptrto(pkglookup("Pointer", "unsafe")->def->type));

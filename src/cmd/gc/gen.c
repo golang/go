@@ -553,7 +553,6 @@ cgen_as(Node *nl, Node *nr)
 
 		case TFLOAT32:
 		case TFLOAT64:
-		case TFLOAT80:
 			nr->val.u.fval = mal(sizeof(*nr->val.u.fval));
 			mpmovecflt(nr->val.u.fval, 0.0);
 			nr->val.ctype = CTFLT;

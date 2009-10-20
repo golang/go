@@ -1207,7 +1207,6 @@ static	struct
 
 	"float32",	LNAME,		TFLOAT32,	OXXX,
 	"float64",	LNAME,		TFLOAT64,	OXXX,
-	"float80",	LNAME,		TFLOAT80,	OXXX,
 
 	"bool",		LNAME,		TBOOL,		OXXX,
 	"byte",		LNAME,		TUINT8,		OXXX,
