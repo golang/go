@@ -4,9 +4,8 @@
 
 include $(GOROOT)/src/Make.$(GOARCH)
 
-TARG=base85
+TARG=encoding/git85
 GOFILES=\
-	base85.go\
 	git.go\
 
 include $(GOROOT)/src/Make.pkg

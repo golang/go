@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package base85 implements radix 85 encoding/decoding.
-package base85
+// Package ascii85 implements the ascii85 data encoding
+// as used in the btoa tool and Adobe's PostScript and PDF document formats.
+package ascii85
 
 import (
 	"bytes";
@@ -18,12 +19,13 @@ import (
 
 // Encode encodes src into at most MaxEncodedLen(len(src))
 // bytes of dst, returning the actual number of bytes written.
-// Encode implements the ascii85 encoding as used in the btoa
-// tool and Adobe's PostScript and PDF document formats.
 //
 // The encoding handles 4-byte chunks, using a special encoding
 // for the last fragment, so Encode is not appropriate for use on
 // individual blocks of a large data stream.  Use NewEncoder() instead.
+//
+// Often, ascii85-encoded data is wrapped in <~ and ~> symbols.
+// Encode does not add these.
 func Encode(src, dst []byte) int {
 	if len(src) == 0 {
 		return 0;
@@ -183,6 +185,8 @@ func (e CorruptInputError) String() string {
 // If src contains invalid ascii85 data, Decode will return the
 // number of bytes successfully written and a CorruptInputError.
 // Decode ignores space and control characters in src.
+// Often, ascii85-encoded data is wrapped in <~ and ~> symbols.
+// Decode expects these to have been stripped by the caller.
 //
 // If flush is true, Decode assumes that src represents the
 // end of the input stream and processes it completely rather

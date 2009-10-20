@@ -5,7 +5,7 @@
 package elf
 
 import (
-	"debug/binary";
+	"encoding/binary";
 	"reflect";
 	"testing";
 )

@@ -13,7 +13,7 @@ package gosym
 // and the Go format is the runtime source, specifically ../../runtime/symtab.c.
 
 import (
-	"debug/binary";
+	"encoding/binary";
 	"fmt";
 	"os";
 	"strconv";

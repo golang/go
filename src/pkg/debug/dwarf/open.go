@@ -8,7 +8,7 @@
 package dwarf
 
 import (
-	"debug/binary";
+	"encoding/binary";
 	"os";
 )
 

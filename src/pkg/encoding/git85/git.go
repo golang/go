@@ -2,19 +2,28 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package base85
+// Package git85 implements the radix 85 data encoding
+// used in the GIT version control system.
+package git85
 
 import (
 	"bytes";
 	"io";
 	"os";
+	"strconv";
 )
 
-const gitEncode = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~"
+type CorruptInputError int64
+
+func (e CorruptInputError) String() string {
+	return "illegal git85 data at input byte" + strconv.Itoa64(int64(e));
+}
+
+const encode = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~"
 
 // The decodings are 1+ the actual value, so that the
 // default zero value can be used to mean "not valid".
-var gitDecode = [256]uint8{
+var decode = [256]uint8{
 	'0':	1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
 	'A':	11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
 		24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
@@ -31,15 +40,15 @@ var gitDecode = [256]uint8{
 	'{':	82, 83, 84, 85
 }
 
-// GitEncode encodes src into GitEncodedLen(len(src))
+// Encode encodes src into EncodedLen(len(src))
 // bytes of dst.  As a convenience, it returns the number
-// of bytes written to dst, but this value is always GitEncodedLen(len(src)).
-// GitEncode implements the radix 85 encoding used in the
+// of bytes written to dst, but this value is always EncodedLen(len(src)).
+// Encode implements the radix 85 encoding used in the
 // Git version control tool.
 //
 // The encoding splits src into chunks of at most 52 bytes
 // and encodes each chunk on its own line.
-func GitEncode(src, dst []byte) int {
+func Encode(src, dst []byte) int {
 	ndst := 0;
 	for len(src) > 0 {
 		n := len(src);
@@ -58,7 +67,7 @@ func GitEncode(src, dst []byte) int {
 				v |= uint32(src[i+j]) << uint(24 - j*8);
 			}
 			for j := 4; j >= 0; j-- {
-				dst[ndst+j] = gitEncode[v%85];
+				dst[ndst+j] = encode[v%85];
 				v /= 85;
 			}
 			ndst += 5;
@@ -70,8 +79,8 @@ func GitEncode(src, dst []byte) int {
 	return ndst;
 }
 
-// GitEncodedLen returns the length of an encoding of n source bytes.
-func GitEncodedLen(n int) int {
+// EncodedLen returns the length of an encoding of n source bytes.
+func EncodedLen(n int) int {
 	if n == 0 {
 		return 0;
 	}
@@ -82,12 +91,12 @@ func GitEncodedLen(n int) int {
 
 var newline = []byte{'\n'}
 
-// GitDecode decodes src into at most MaxGitDecodedLen(len(src))
+// Decode decodes src into at most MaxDecodedLen(len(src))
 // bytes, returning the actual number of bytes written to dst.
 //
-// If GitDecode encounters invalid input, it returns a CorruptInputError.
+// If Decode encounters invalid input, it returns a CorruptInputError.
 //
-func GitDecode(src, dst []byte) (n int, err os.Error) {
+func Decode(src, dst []byte) (n int, err os.Error) {
 	ndst := 0;
 	nsrc := 0;
 	for nsrc < len(src) {
@@ -111,7 +120,7 @@ func GitDecode(src, dst []byte) (n int, err os.Error) {
 		for i := 0; i < el; i += 5 {
 			var v uint32;
 			for j := 0; j < 5; j++ {
-				ch := gitDecode[line[i+j]];
+				ch := decode[line[i+j]];
 				if ch == 0 {
 					return ndst, CorruptInputError(nsrc+1+i+j);
 				}
@@ -133,7 +142,7 @@ func GitDecode(src, dst []byte) (n int, err os.Error) {
 	return ndst, nil;
 }
 
-func MaxGitDecodedLen(n int) int {
+func MaxDecodedLen(n int) int {
 	return n/5*4;
 }
 
@@ -142,11 +151,11 @@ func MaxGitDecodedLen(n int) int {
 // The Git encoding operates on 52-byte blocks; when finished
 // writing, the caller must Close the returned encoder to flush any
 // partially written blocks.
-func NewGitEncoder(w io.Writer) io.WriteCloser {
-	return &gitEncoder{w: w};
+func NewEncoder(w io.Writer) io.WriteCloser {
+	return &encoder{w: w};
 }
 
-type gitEncoder struct {
+type encoder struct {
 	w io.Writer;
 	err os.Error;
 	buf [52]byte;
@@ -155,7 +164,7 @@ type gitEncoder struct {
 	nout int;
 }
 
-func (e *gitEncoder) Write(p []byte) (n int, err os.Error) {
+func (e *encoder) Write(p []byte) (n int, err os.Error) {
 	if e.err != nil {
 		return 0, e.err;
 	}
@@ -172,7 +181,7 @@ func (e *gitEncoder) Write(p []byte) (n int, err os.Error) {
 		if e.nbuf < 52 {
 			return;
 		}
-		nout := GitEncode(&e.buf, &e.out);
+		nout := Encode(&e.buf, &e.out);
 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 			return n, e.err;
 		}
@@ -186,7 +195,7 @@ func (e *gitEncoder) Write(p []byte) (n int, err os.Error) {
 			nn = len(p)/52 * 52;
 		}
 		if nn > 0 {
-			nout := GitEncode(p[0:nn], &e.out);
+			nout := Encode(p[0:nn], &e.out);
 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 				return n, e.err;
 			}
@@ -204,22 +213,22 @@ func (e *gitEncoder) Write(p []byte) (n int, err os.Error) {
 	return;
 }
 
-func (e *gitEncoder) Close() os.Error {
+func (e *encoder) Close() os.Error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
-		nout := GitEncode(e.buf[0:e.nbuf], &e.out);
+		nout := Encode(e.buf[0:e.nbuf], &e.out);
 		e.nbuf = 0;
 		_, e.err = e.w.Write(e.out[0:nout]);
 	}
 	return e.err;
 }
 
-// NewGitDecoder returns a new Git base85 stream decoder.
-func NewGitDecoder(r io.Reader) io.Reader {
-	return &gitDecoder{r: r};
+// NewDecoder returns a new Git base85 stream decoder.
+func NewDecoder(r io.Reader) io.Reader {
+	return &decoder{r: r};
 }
 
-type gitDecoder struct {
+type decoder struct {
 	r io.Reader;
 	err os.Error;
 	readErr os.Error;
@@ -230,7 +239,7 @@ type gitDecoder struct {
 	off int64;
 }
 
-func (d *gitDecoder) Read(p []byte) (n int, err os.Error) {
+func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	if len(p) == 0 {
 		return 0, nil;
 	}
@@ -257,12 +266,12 @@ func (d *gitDecoder) Read(p []byte) (n int, err os.Error) {
 		nn, d.readErr = d.r.Read(d.buf[d.nbuf:len(d.buf)]);
 		d.nbuf += nn;
 
-		// Send complete lines to GitDecode.
+		// Send complete lines to Decode.
 		nl := bytes.LastIndex(d.buf[0:d.nbuf], newline);
 		if nl < 0 {
 			continue;
 		}
-		nn, d.err = GitDecode(d.buf[0:nl+1], &d.outbuf);
+		nn, d.err = Decode(d.buf[0:nl+1], &d.outbuf);
 		if e, ok := d.err.(CorruptInputError); ok {
 			d.err = CorruptInputError(int64(e)+d.off);
 		}
