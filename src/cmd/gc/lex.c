@@ -537,8 +537,10 @@ l0:
 
 	case '\'':
 		/* '.' */
-		if(escchar('\'', &escflag, &v))
-			v = '\'';	// allow '''
+		if(escchar('\'', &escflag, &v)) {
+			yyerror("empty character literal or unescaped ' in character literal");
+			v = '\'';
+		}
 		if(!escchar('\'', &escflag, &v)) {
 			yyerror("missing '");
 			ungetc(v);
