@@ -27,7 +27,7 @@ cgen64(Node *n, Node *res)
 
 	l = n->left;
 	if(!l->addable) {
-		tempalloc(&t1, l->type);
+		tempname(&t1, l->type);
 		cgen(l, &t1);
 		l = &t1;
 	}
@@ -96,7 +96,7 @@ cgen64(Node *n, Node *res)
 	// setup for binary operators
 	r = n->right;
 	if(r != N && !r->addable) {
-		tempalloc(&t2, r->type);
+		tempname(&t2, r->type);
 		cgen(r, &t2);
 		r = &t2;
 	}
@@ -622,10 +622,6 @@ orsh_break:
 	splitclean();
 
 //out:
-	if(r == &t2)
-		tempfree(&t2);
-	if(l == &t1)
-		tempfree(&t1);
 	regfree(&al);
 	regfree(&ah);
 }
