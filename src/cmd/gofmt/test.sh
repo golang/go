@@ -70,7 +70,7 @@ cleanup() {
 
 silent() {
 	cleanup
-	$CMD -s $1 > $TMP1
+	$CMD $1 > /dev/null 2> $TMP1
 	if [ $? != 0 ]; then
 		cat $TMP1
 		echo "Error (silent mode test): test.sh $1"

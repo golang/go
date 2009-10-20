@@ -5,40 +5,45 @@
 package main
 
 import (
-			"flag";
-			"fmt";
-			"go/ast";
-			"go/parser";
-			"go/printer";
-			"go/scanner";
-			"os";
-	pathutil	"path";
-			"strings";
+	"bytes";
+	"flag";
+	"fmt";
+	"go/parser";
+	"go/printer";
+	"go/scanner";
+	"io";
+	"os";
+	pathutil "path";
+	"strings";
 )
-
-
-const pkgDir = "src/pkg"	// relative to $GOROOT
 
 
 var (
-	goroot	= flag.String("goroot", os.Getenv("GOROOT"), "Go root directory");
+	// main operation modes
+	list	= flag.Bool("l", false, "list files whose formatting differs from gofmt's");
+	write	= flag.Bool("w", false, "write result to (source) file instead of stdout");
 
-	// operation modes
-	allgo		= flag.Bool("a", false, "include all .go files for package");
-	comments	= flag.Bool("c", false, "omit comments");
-	silent		= flag.Bool("s", false, "silent mode: parsing only");
-	verbose		= flag.Bool("v", false, "verbose mode: trace parsing");
-	exports		= flag.Bool("x", false, "show exports only");
+	// debugging support
+	comments	= flag.Bool("comments", true, "print comments");
+	trace		= flag.Bool("trace", false, "print names of processed files to stderr and parse traces to stdout");
 
 	// layout control
+	align		= flag.Bool("align", true, "align columns");
 	tabwidth	= flag.Int("tabwidth", 8, "tab width");
-	rawformat	= flag.Bool("rawformat", false, "do not use a tabwriter");
-	usespaces	= flag.Bool("spaces", false, "align with blanks instead of tabs");
+	usespaces	= flag.Bool("spaces", false, "align with spaces instead of tabs");
 )
 
 
+var exitCode = 0
+
+func report(err os.Error) {
+	scanner.PrintError(os.Stderr, err);
+	exitCode = 2;
+}
+
+
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: gofmt [flags] [file.go | pkgpath]\n");
+	fmt.Fprintf(os.Stderr, "usage: gofmt [flags] [path ...]\n");
 	flag.PrintDefaults();
 	os.Exit(2);
 }
@@ -46,61 +51,19 @@ func usage() {
 
 func parserMode() uint {
 	mode := uint(0);
-	if !*comments {
+	if *comments {
 		mode |= parser.ParseComments;
 	}
-	if *verbose {
+	if *trace {
 		mode |= parser.Trace;
 	}
 	return mode;
 }
 
 
-func isPkgFile(d *os.Dir) bool {
-	// ignore non-Go files
-	if !d.IsRegular() || strings.HasPrefix(d.Name, ".") || !strings.HasSuffix(d.Name, ".go") {
-		return false;
-	}
-
-	// ignore test files unless explicitly included
-	return *allgo || !strings.HasSuffix(d.Name, "_test.go");
-}
-
-
-func getPackage(path string) (*ast.Package, os.Error) {
-	if len(path) == 0 {
-		return nil, os.NewError("no path specified");
-	}
-
-	if strings.HasSuffix(path, ".go") || path == "/dev/stdin" {
-		// single go file
-		src, err := parser.ParseFile(path, nil, parserMode());
-		if err != nil {
-			return nil, err;
-		}
-		dirname, filename := pathutil.Split(path);
-		return &ast.Package{src.Name.Value, dirname, map[string]*ast.File{filename: src}}, nil;
-	}
-
-	// len(path) > 0
-	switch ch := path[0]; {
-	case ch == '.':
-		// cwd-relative path
-		if cwd, err := os.Getwd(); err == nil {
-			path = pathutil.Join(cwd, path);
-		}
-	case ch != '/':
-		// goroot/pkgDir-relative path
-		path = pathutil.Join(pathutil.Join(*goroot, pkgDir), path);
-	}
-
-	return parser.ParsePackage(path, isPkgFile, parserMode());
-}
-
-
 func printerMode() uint {
 	mode := uint(0);
-	if *rawformat {
+	if !*align {
 		mode |= printer.RawFormat;
 	}
 	if *usespaces {
@@ -110,42 +73,110 @@ func printerMode() uint {
 }
 
 
+func isGoFile(d *os.Dir) bool {
+	// ignore non-Go files
+	return d.IsRegular() && !strings.HasPrefix(d.Name, ".") && strings.HasSuffix(d.Name, ".go");
+}
+
+
+func processFile(filename string) os.Error {
+	if *trace {
+		fmt.Fprintln(os.Stderr, filename);
+	}
+
+	src, err := io.ReadFile(filename);
+	if err != nil {
+		return err;
+	}
+
+	file, err := parser.ParseFile(filename, src, parserMode());
+	if err != nil {
+		return err;
+	}
+
+	var res bytes.Buffer;
+	_, err = printer.Fprint(&res, file, printerMode(), *tabwidth);
+	if err != nil {
+		return err;
+	}
+
+	if bytes.Compare(src, res.Bytes()) != 0 {
+		// formatting has changed
+		if *list {
+			fmt.Fprintln(os.Stdout, filename);
+		}
+		if *write {
+			err = io.WriteFile(filename, res.Bytes(), 0);
+			if err != nil {
+				return err;
+			}
+		}
+	}
+
+	if !*list && !*write {
+		_, err = os.Stdout.Write(res.Bytes());
+	}
+
+	return err;
+}
+
+
+type fileVisitor chan os.Error
+
+func (v fileVisitor) VisitDir(path string, d *os.Dir) bool {
+	return true;
+}
+
+
+func (v fileVisitor) VisitFile(path string, d *os.Dir) {
+	if isGoFile(d) {
+		v <- nil;	// synchronize error handler
+		if err := processFile(path); err != nil {
+			v <- err;
+		}
+	}
+}
+
+
+func walkDir(path string) {
+	// start an error handler
+	v := make(fileVisitor);
+	go func() {
+		for err := range v {
+			if err != nil {
+				report(err);
+			}
+		}
+	}();
+	// walk the tree
+	pathutil.Walk(path, v, v);
+	close(v);
+}
+
+
 func main() {
 	flag.Usage = usage;
 	flag.Parse();
 
-	path := "";
-	switch flag.NArg() {
-	case 0:
-		path = "/dev/stdin";
-	case 1:
-		path = flag.Arg(0);
-	default:
-		usage();
-	}
-
-	pkg, err := getPackage(path);
-	if err != nil {
-		scanner.PrintError(os.Stderr, err);
-		os.Exit(1);
-	}
-
-	if !*silent {
-		if *exports {
-			ast.PackageExports(pkg);
-			_, err := printer.Fprint(os.Stdout, ast.MergePackageFiles(pkg), printerMode(), *tabwidth);
-			if err != nil {
-				fmt.Fprint(os.Stderr, err);
-				os.Exit(2);
-			}
-		} else {
-			for _, src := range pkg.Files {
-				_, err := printer.Fprint(os.Stdout, src, printerMode(), *tabwidth);
-				if err != nil {
-					fmt.Fprint(os.Stderr, err);
-					os.Exit(2);
-				}
-			}
+	if flag.NArg() == 0 {
+		if err := processFile("/dev/stdin"); err != nil {
+			report(err);
 		}
 	}
+
+	for i := 0; i < flag.NArg(); i++ {
+		path := flag.Arg(i);
+		switch dir, err := os.Stat(path); {
+		case err != nil:
+			report(err);
+		case dir.IsRegular():
+			if err := processFile(path); err != nil {
+				report(err);
+			}
+		case dir.IsDirectory():
+			walkDir(path);
+		}
+	}
+
+	os.Exit(exitCode);
 }
