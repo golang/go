@@ -147,9 +147,6 @@ BUG: errchk: command succeeded unexpectedly
 123
 BUG: should fail
 
-=========== bugs/bug169.go
-BUG: errchk: command succeeded unexpectedly
-
 =========== bugs/bug193.go
 BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
 
