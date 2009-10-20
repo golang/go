@@ -294,42 +294,6 @@ regfree(Node *n)
 	reg[i]--;
 }
 
-void
-tempalloc(Node *n, Type *t)
-{
-	int w;
-
-	dowidth(t);
-
-	memset(n, 0, sizeof(*n));
-	n->op = ONAME;
-	n->sym = S;
-	n->type = t;
-	n->etype = t->etype;
-	n->class = PAUTO;
-	n->addable = 1;
-	n->ullman = 1;
-	n->noescape = 1;
-	n->ostk = stksize;
-
-	w = t->width;
-	stksize += w;
-	stksize = rnd(stksize, w);
-	n->xoffset = -stksize;
-//print("tempalloc %d -> %d from %p\n", n->ostk, n->xoffset, __builtin_return_address(0));
-	if(stksize > maxstksize)
-		maxstksize = stksize;
-}
-
-void
-tempfree(Node *n)
-{
-//print("tempfree %d\n", n->xoffset);
-	if(n->xoffset != -stksize)
-		fatal("tempfree %lld %d", -n->xoffset, stksize);
-	stksize = n->ostk;
-}
-
 /*
  * initialize n to be register r of type t.
  */

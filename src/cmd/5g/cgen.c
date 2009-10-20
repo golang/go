@@ -18,7 +18,7 @@ mgen(Node *n, Node *n1, Node *rg)
 		return;
 	}
 	if(n->type->width > widthptr)
-		tempalloc(n1, n->type);
+		tempname(n1, n->type);
 	else
 		regalloc(n1, n->type, rg);
 	cgen(n, n1);
@@ -27,9 +27,7 @@ mgen(Node *n, Node *n1, Node *rg)
 void
 mfree(Node *n)
 {
-	if(n->ostk)
-		tempfree(n);
-	else if(n->op == OREGISTER)
+	if(n->op == OREGISTER)
 		regfree(n);
 }
 
@@ -482,30 +480,27 @@ agen(Node *n, Node *res)
 		if(nr->addable) {
 			agenr(nl, &n3, res);
 			if(!isconst(nr, CTINT)) {
-				tempalloc(&tmp, types[TINT32]);
+				tempname(&tmp, types[TINT32]);
 				cgen(nr, &tmp);
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
-				tempfree(&tmp);
 			}
 		} else if(nl->addable) {
 			if(!isconst(nr, CTINT)) {
-				tempalloc(&tmp, types[TINT32]);
+				tempname(&tmp, types[TINT32]);
 				cgen(nr, &tmp);
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
-				tempfree(&tmp);
 			}
 			regalloc(&n3, types[tptr], res);
 			agen(nl, &n3);
 		} else {
-			tempalloc(&tmp, types[TINT32]);
+			tempname(&tmp, types[TINT32]);
 			cgen(nr, &tmp);
 			nr = &tmp;
 			agenr(nl, &n3, res);
 			regalloc(&n1, tmp.type, N);
 			gins(optoas(OAS, tmp.type), &tmp, &n1);
-			tempfree(&tmp);
 		}
 
 		// &a is in &n3 (allocated in res)
@@ -722,11 +717,10 @@ agenr(Node *n, Node *a, Node *res)
 {
 	Node n1;
 
-	tempalloc(&n1, types[tptr]);
+	tempname(&n1, types[tptr]);
 	agen(n, &n1);
 	regalloc(a, types[tptr], res);
 	gmove(&n1, a);
-	tempfree(&n1);
 }
 
 /*
@@ -922,20 +916,16 @@ bgen(Node *n, int true, Prog *to)
 
 		if(is64(nr->type)) {
 			if(!nl->addable) {
-				tempalloc(&n1, nl->type);
+				tempname(&n1, nl->type);
 				cgen(nl, &n1);
 				nl = &n1;
 			}
 			if(!nr->addable) {
-				tempalloc(&n2, nr->type);
+				tempname(&n2, nr->type);
 				cgen(nr, &n2);
 				nr = &n2;
 			}
 			cmp64(nl, nr, a, to);
-			if(nr == &n2)
-				tempfree(&n2);
-			if(nl == &n1)
-				tempfree(&n1);
 			break;
 		}
 

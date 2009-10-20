@@ -4,10 +4,8 @@ assign.go
 bigalg.go
 blank.go
 blank1.go
-bugs/bug136.go
 bugs/bug162.go
 bugs/bug193.go
-bugs/bug196.go
 chan/perm.go
 chan/select.go
 char_lit.go
@@ -146,6 +144,7 @@ fixedbugs/bug131.go
 fixedbugs/bug132.go
 fixedbugs/bug133.go
 fixedbugs/bug135.go
+fixedbugs/bug136.go
 fixedbugs/bug137.go
 fixedbugs/bug139.go
 fixedbugs/bug140.go
@@ -200,6 +199,7 @@ fixedbugs/bug191.go
 fixedbugs/bug192.go
 fixedbugs/bug194.go
 fixedbugs/bug195.go
+fixedbugs/bug196.go
 fixedbugs/bug197.go
 fixedbugs/bug198.go
 fixedbugs/bug199.go
@@ -278,6 +278,7 @@ ken/slicearray.go
 ken/sliceslice.go
 ken/string.go
 ken/strvar.go
+literal.go
 method.go
 method1.go
 method2.go
