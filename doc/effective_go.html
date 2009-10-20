@@ -1,7 +1,5 @@
 <!-- Effective Go -->
 
-<!-- testing?; concurrency; initialization-->
-
 <h2 id="introduction">Introduction</h2>
 
 <p>
@@ -194,7 +192,7 @@ If the package is simple, the package comment can be brief.
 <p>
 Comments do not need extra formatting such as banners of stars.
 The generated output may not even be presented in a fixed-width font, so don't depend
-on spacing for alignment—<code>godoc</code>, like <code>gofmt</code>,
+on spacing for alignment&mdash;<code>godoc</code>, like <code>gofmt</code>,
 takes care of that.
 Finally, the comments are uninterpreted plain text, so HTML and other
 annotations such as <code>_this_</code> will reproduce <i>verbatim</i> and should
@@ -830,7 +828,7 @@ func NewFile(fd int, name string) *File {
 </pre>
 
 <p>
-There's a lot of boilerplate in there.  We can simplify it
+There's a lot of boiler plate in there.  We can simplify it
 using a <i>composite literal</i>, which is
 an expression that creates a
 new instance each time it is evaluated.
@@ -1838,6 +1836,100 @@ is never used.
 </p>
 
 
+<h2 id="concurrency">Concurrency</h2>
+
+<h3 id="sharing">Share by communicating</h3>
+
+<p>
+Concurrent programming in many environments is made difficult by the
+subtleties required to implement correct access to shared variables.  Go encourages
+a different approach in which shared values are passed around on channels
+and, in fact, never actively shared by separate threads of execution.
+Only one goroutine has access to the value at any given time.
+Data races cannot occur, by design.
+To encourage this way of thinking we have reduced it to a slogan:
+</p>
+<blockquote>
+Do not communicate by sharing memory;
+instead, share memory by communicating.
+</blockquote>
+<p>
+This approach can be taken too far.  Reference counts may be best done
+by putting a mutex around an integer variable, for instance.  But as a
+high-level approach, using channels to control access makes it easier
+to write clear, correct programs.
+</p>
+<p>
+Another way to think about this model is to consider a typical single-threaded
+program running on one CPU. It has no need for synchronization primitives.
+Now run another such instance; it too needs no synchronization.  Now let those
+two communicate; if the communication is the synchronizer, there's still no need
+for other synchronization.  Consider Unix pipelines: they fit this model just
+fine.  Although Go's approach to concurrency originates in Hoare's
+Communicating Sequential Processes (CSP),
+it can also be seen as a type-safe generalization of Unix pipes.
+</p>
+
+<h3 id="goroutines">Goroutines</h3>
+
+<h3 id="channels">Channels</h3>
+
+<h3 id="leaky_buffer">A leaky buffer</h3>
+
+<p>
+The tools of concurrent programming can often make non-concurrent
+ideas easier to express.  Here's an example abstracted from an RPC
+package.  The client goroutine loops receiving data from some source,
+perhaps a network.  To avoid allocating and freeing buffers, it keeps
+a free list, and uses a buffered channel to represent it.  If the
+channel is empty, a new buffer gets allocated.
+Once the message buffer is ready, it's sent to the server on
+<code>serverChan</code>.
+</p>
+<pre>
+var freelist = make(chan *Buffer, 100)
+var server_chan = make(chan *Buffer)
+
+func client() {
+	for {
+		b, ok := <-freeList;  // grab one if available
+		if !ok {              // free list empty; allocate a new buffer
+			b = new(Buffer)
+		}
+		load(b);              // grab the next message, perhaps from the net
+		serverChan <- b;      // send to server
+	}
+}
+</pre>
+<p>
+The server loop receives messages from the client, processes them,
+and returns the buffer to the free list.
+</p>
+<pre>
+func server() {
+	for {
+		b := <-serverChan;    // wait for work
+		process(b);
+		_ = freeList <- b;    // reuse buffer if room
+	}
+}
+</pre>
+<p>
+The client's non-blocking receive from <code>freeList</code> obtains a
+buffer if one is available; otherwise the client allocates
+a fresh one.
+The server's non-blocking send on freeList puts <code>b</code> back
+on the free list unless the list is full, in which case the
+buffer is dropped on the floor to be reclaimed by
+the garbage collector.
+(The assignment of the send operation to the blank identifier
+makes it non-blocking but ignores whether
+the operation succeeded.)
+This implementation builds a leaky bucket free list
+in just a few lines, relying on the buffered channel and
+the garbage collector for bookkeeping.
+</p>
+
 <h2 id="errors">Errors</h2>
 
 <p>
@@ -1932,20 +2024,6 @@ XXX struct tags for marshaling.
 template
 eventually datafmt
 </p>
-
-<h2>Concurrency</h2>
-
-<h3 id="share-memory">Share memory by communicating</h3>
-
-<p>
-Do not communicate by sharing memory;
-instead, share memory by communicating.
-</p>
-
-<p>
-XXX, more here.
-</p>
-
 
 <h2>Testing</h2>
 
