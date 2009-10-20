@@ -8,7 +8,7 @@
 
 package gosym
 
-import "debug/binary"
+import "encoding/binary"
 
 type LineTable struct {
 	Data	[]byte;

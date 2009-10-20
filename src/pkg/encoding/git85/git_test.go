@@ -2,27 +2,43 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package base85
+package git85
 
 import (
 	"bytes";
 	"io";
 	"os";
+	"reflect";
 	"strings";
 	"testing";
 )
 
+type testpair struct {
+	decoded, encoded string;
+}
+
+func testEqual(t *testing.T, msg string, args ...) bool {
+	v := reflect.NewValue(args).(*reflect.StructValue);
+	v1 := v.Field(v.NumField() - 2);
+	v2 := v.Field(v.NumField() - 1);
+	if v1.Interface() != v2.Interface() {
+		t.Errorf(msg, args);
+		return false;
+	}
+	return true;
+}
+
 func TestGitTable(t *testing.T) {
 	var saw [256]bool;
-	for i, c := range gitEncode {
-		if gitDecode[c] != uint8(i+1) {
-			t.Errorf("gitDecode['%c'] = %d, want %d", c, gitDecode[c], i+1);
+	for i, c := range encode {
+		if decode[c] != uint8(i+1) {
+			t.Errorf("decode['%c'] = %d, want %d", c, decode[c], i+1);
 		}
 		saw[c] = true;
 	}
 	for i, b := range saw {
-		if !b && gitDecode[i] != 0 {
-			t.Errorf("gitDecode[%d] = %d, want 0", i, gitDecode[i]);
+		if !b && decode[i] != 0 {
+			t.Errorf("decode[%d] = %d, want 0", i, decode[i]);
 		}
 	}
 }
@@ -46,33 +62,33 @@ var gitPairs = []testpair{
 
 var gitBigtest = gitPairs[len(gitPairs)-1];
 
-func TestGitEncode(t *testing.T) {
+func TestEncode(t *testing.T) {
 	for _, p := range gitPairs {
-		buf := make([]byte, GitEncodedLen(len(p.decoded)));
-		n := GitEncode(strings.Bytes(p.decoded), buf);
+		buf := make([]byte, EncodedLen(len(p.decoded)));
+		n := Encode(strings.Bytes(p.decoded), buf);
 		if n != len(buf) {
-			t.Errorf("GitEncodedLen does not agree with GitEncode");
+			t.Errorf("EncodedLen does not agree with Encode");
 		}
 		buf = buf[0:n];
-		testEqual(t, "GitEncode(%q) = %q, want %q", p.decoded, string(buf), p.encoded);
+		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(buf), p.encoded);
 	}
 }
 
-func TestGitEncoder(t *testing.T) {
+func TestEncoder(t *testing.T) {
 	for _, p := range gitPairs {
 		bb := &bytes.Buffer{};
-		encoder := NewGitEncoder(bb);
+		encoder := NewEncoder(bb);
 		encoder.Write(strings.Bytes(p.decoded));
 		encoder.Close();
-		testEqual(t, "GitEncode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded);
+		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded);
 	}
 }
 
-func TestGitEncoderBuffering(t *testing.T) {
+func TestEncoderBuffering(t *testing.T) {
 	input := strings.Bytes(gitBigtest.decoded);
 	for bs := 1; bs <= 12; bs++ {
 		bb := &bytes.Buffer{};
-		encoder := NewGitEncoder(bb);
+		encoder := NewEncoder(bb);
 		for pos := 0; pos < len(input); pos += bs {
 			end := pos+bs;
 			if end > len(input) {
@@ -88,19 +104,19 @@ func TestGitEncoderBuffering(t *testing.T) {
 	}
 }
 
-func TestGitDecode(t *testing.T) {
+func TestDecode(t *testing.T) {
 	for _, p := range gitPairs {
 		dbuf := make([]byte, 4*len(p.encoded));
-		ndst, err := GitDecode(strings.Bytes(p.encoded), dbuf);
-		testEqual(t, "GitDecode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
-		testEqual(t, "GitDecode(%q) = ndst %v, want %v", p.encoded, ndst, len(p.decoded));
-		testEqual(t, "GitDecode(%q) = %q, want %q", p.encoded, string(dbuf[0:ndst]), p.decoded);
+		ndst, err := Decode(strings.Bytes(p.encoded), dbuf);
+		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
+		testEqual(t, "Decode(%q) = ndst %v, want %v", p.encoded, ndst, len(p.decoded));
+		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:ndst]), p.decoded);
 	}
 }
 
-func TestGitDecoder(t *testing.T) {
+func TestDecoder(t *testing.T) {
 	for _, p := range gitPairs {
-		decoder := NewGitDecoder(bytes.NewBufferString(p.encoded));
+		decoder := NewDecoder(bytes.NewBufferString(p.encoded));
 		dbuf, err := io.ReadAll(decoder);
 		if err != nil {
 			t.Fatal("Read failed", err);
@@ -113,9 +129,9 @@ func TestGitDecoder(t *testing.T) {
 	}
 }
 
-func TestGitDecoderBuffering(t *testing.T) {
+func TestDecoderBuffering(t *testing.T) {
 	for bs := 1; bs <= 12; bs++ {
-		decoder := NewGitDecoder(bytes.NewBufferString(gitBigtest.encoded));
+		decoder := NewDecoder(bytes.NewBufferString(gitBigtest.encoded));
 		buf := make([]byte, len(gitBigtest.decoded)+12);
 		var total int;
 		for total = 0; total < len(gitBigtest.decoded); {
@@ -127,7 +143,7 @@ func TestGitDecoderBuffering(t *testing.T) {
 	}
 }
 
-func TestGitDecodeCorrupt(t *testing.T) {
+func TestDecodeCorrupt(t *testing.T) {
 	type corrupt struct {
 		e	string;
 		p	int;
@@ -139,12 +155,12 @@ func TestGitDecodeCorrupt(t *testing.T) {
 
 	for _, e := range examples {
 		dbuf := make([]byte, 2*len(e.e));
-		_, err := GitDecode(strings.Bytes(e.e), dbuf);
+		_, err := Decode(strings.Bytes(e.e), dbuf);
 		switch err := err.(type) {
 		case CorruptInputError:
 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);
 		default:
-			t.Error("GitDecoder failed to detect corruption in", e);
+			t.Error("Decoder failed to detect corruption in", e);
 		}
 	}
 }
@@ -157,18 +173,18 @@ func TestGitBig(t *testing.T) {
 		raw[i] = alpha[i%len(alpha)];
 	}
 	encoded := new(bytes.Buffer);
-	w := NewGitEncoder(encoded);
+	w := NewEncoder(encoded);
 	nn, err := w.Write(raw);
 	if nn != n || err != nil {
-		t.Fatalf("GitEncoder.Write(raw) = %d, %v want %d, nil", nn, err, n);
+		t.Fatalf("Encoder.Write(raw) = %d, %v want %d, nil", nn, err, n);
 	}
 	err = w.Close();
 	if err != nil {
-		t.Fatalf("GitEncoder.Close() = %v want nil", err);
+		t.Fatalf("Encoder.Close() = %v want nil", err);
 	}
-	decoded, err := io.ReadAll(NewGitDecoder(encoded));
+	decoded, err := io.ReadAll(NewDecoder(encoded));
 	if err != nil {
-		t.Fatalf("io.ReadAll(NewGitDecoder(...)): %v", err);
+		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err);
 	}
 
 	if !bytes.Equal(raw, decoded) {
@@ -178,6 +194,6 @@ func TestGitBig(t *testing.T) {
 				break;
 			}
 		}
-		t.Errorf("GitDecode(GitEncode(%d-byte string)) failed at offset %d", n, i);
+		t.Errorf("Decode(Encode(%d-byte string)) failed at offset %d", n, i);
 	}
 }

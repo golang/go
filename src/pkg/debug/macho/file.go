@@ -10,8 +10,8 @@ package macho
 
 import (
 	"bytes";
-	"debug/binary";
 	"debug/dwarf";
+	"encoding/binary";
 	"fmt";
 	"io";
 	"os";

@@ -6,8 +6,8 @@
 package elf
 
 import (
-	"debug/binary";
 	"debug/dwarf";
+	"encoding/binary";
 	"fmt";
 	"io";
 	"os";

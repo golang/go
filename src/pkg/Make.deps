@@ -1,7 +1,5 @@
 archive/tar.install: bytes.install io.install os.install strconv.install strings.install
 asn1.install: fmt.install os.install reflect.install strconv.install strings.install time.install
-base64.install: bytes.install io.install os.install strconv.install
-base85.install: bytes.install io.install os.install strconv.install
 big.install:
 bignum.install: fmt.install
 bufio.install: io.install os.install strconv.install utf8.install
@@ -19,13 +17,16 @@ crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.inst
 crypto/md5.install: hash.install os.install
 crypto/rc4.install: os.install strconv.install
 crypto/sha1.install: hash.install os.install
-debug/binary.install: io.install math.install os.install reflect.install
-debug/dwarf.install: debug/binary.install os.install strconv.install
-debug/macho.install: bytes.install debug/binary.install debug/dwarf.install fmt.install io.install os.install strconv.install
-debug/elf.install: debug/binary.install debug/dwarf.install fmt.install io.install os.install strconv.install
-debug/gosym.install: debug/binary.install fmt.install os.install strconv.install strings.install
+debug/dwarf.install: encoding/binary.install os.install strconv.install
+debug/macho.install: bytes.install debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
+debug/elf.install: debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
+debug/gosym.install: encoding/binary.install fmt.install os.install strconv.install strings.install
 debug/proc.install: container/vector.install fmt.install io.install os.install runtime.install strconv.install strings.install sync.install syscall.install
 ebnf.install: container/vector.install go/scanner.install go/token.install os.install strconv.install unicode.install utf8.install
+encoding/ascii85.install: bytes.install io.install os.install strconv.install
+encoding/base64.install: bytes.install io.install os.install strconv.install
+encoding/binary.install: io.install math.install os.install reflect.install
+encoding/git85.install: bytes.install io.install os.install strconv.install
 exec.install: os.install strings.install
 exp/datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
 exp/eval.install: bignum.install fmt.install go/ast.install go/parser.install go/scanner.install go/token.install log.install os.install reflect.install runtime.install strconv.install strings.install

@@ -14,8 +14,6 @@ all: install
 DIRS=\
 	archive/tar\
 	asn1\
-	base64\
-	base85\
 	big\
 	bignum\
 	bufio\
@@ -33,13 +31,16 @@ DIRS=\
 	crypto/md5\
 	crypto/rc4\
 	crypto/sha1\
-	debug/binary\
 	debug/dwarf\
 	debug/macho\
 	debug/elf\
 	debug/gosym\
 	debug/proc\
 	ebnf\
+	encoding/ascii85\
+	encoding/base64\
+	encoding/binary\
+	encoding/git85\
 	exec\
 	exp/datafmt\
 	exp/eval\
