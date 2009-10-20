@@ -57,6 +57,7 @@ EXTERN	Node*	deferreturn;
 EXTERN	Node*	throwindex;
 EXTERN	Node*	throwslice;
 EXTERN	Node*	throwreturn;
+EXTERN	vlong	unmappedzero;
 
 /*
  * gen.c
@@ -92,7 +93,7 @@ void	sgen(Node*, Node*, int32);
 void	gmove(Node*, Node*);
 Prog*	gins(int, Node*, Node*);
 int	samaddr(Node*, Node*);
-void	naddr(Node*, Addr*);
+void	naddr(Node*, Addr*, int);
 void	cgen_aret(Node*, Node*);
 int	cgen_inline(Node*, Node*);
 void	restx(Node*, Node*);

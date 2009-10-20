@@ -100,6 +100,13 @@ runtime·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
 void
 runtime·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, Slice ret)
 {
+	if(nel > 0 && old == nil) {
+		// crash if old == nil.
+		// could give a better message
+		// but this is consistent with all the in-line checks
+		// that the compiler inserts for other uses.
+		*old = 0;
+	}
 
 	if(hb > nel || lb > hb) {
 		if(debug) {
@@ -146,6 +153,13 @@ runtime·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, S
 void
 runtime·arraytoslice(byte* old, uint32 nel, Slice ret)
 {
+	if(nel > 0 && old == nil) {
+		// crash if old == nil.
+		// could give a better message
+		// but this is consistent with all the in-line checks
+		// that the compiler inserts for other uses.
+		*old = 0;
+	}
 
 	// new dope to old array
 	ret.len = nel;

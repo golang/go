@@ -63,7 +63,7 @@ widstruct(Type *t, uint32 o, int flag)
 		if(f->etype != TFIELD)
 			fatal("widstruct: not TFIELD: %lT", f);
 		dowidth(f->type);
-		if(f->type->width < 0 || f->type->width > 100000000)
+		if(f->type->width < 0)
 			fatal("invalid width %lld", f->type->width);
 		w = f->type->width;
 		m = arrayelemwidth(f->type);
@@ -239,7 +239,7 @@ dowidth(Type *t)
 		// width of func type is pointer
 		w = widthptr;
 		break;
-	
+
 	case TFUNCARGS:
 		// function is 3 cated structures;
 		// compute their widths as side-effect.

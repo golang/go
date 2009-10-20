@@ -21,5 +21,5 @@ func main() {
 	// Pointer offsets and array indices, if they are
 	// very large, need to dereference the base pointer
 	// to trigger a trap.
-	println(p[uintptr(unsafe.Pointer(&x))]);
+	println(p[uintptr(unsafe.Pointer(&x))]);	// should crash
 }
