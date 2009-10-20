@@ -41,12 +41,12 @@ adderr(int line, char *fmt, va_list arg)
 {
 	Fmt f;
 	Error *p;
-	
+
 	fmtstrinit(&f);
 	fmtprint(&f, "%L: ", line);
 	fmtvprint(&f, fmt, arg);
 	fmtprint(&f, "\n");
-	
+
 	if(nerr >= merr) {
 		if(merr == 0)
 			merr = 16;
@@ -71,7 +71,7 @@ static int
 errcmp(const void *va, const void *vb)
 {
 	Error *a, *b;
-	
+
 	a = (Error*)va;
 	b = (Error*)vb;
 	if(a->lineno != b->lineno)
@@ -109,11 +109,11 @@ void
 yyerrorl(int line, char *fmt, ...)
 {
 	va_list arg;
-	
+
 	va_start(arg, fmt);
 	adderr(line, fmt, arg);
 	va_end(arg);
-	
+
 	hcrash();
 	nerrors++;
 	if(nerrors >= 10 && !debug['e'])
@@ -2394,7 +2394,6 @@ Node*
 safeval(Node *n, NodeList **init)
 {
 	Node *l;
-	Node *r;
 	Node *a;
 
 	// is this a local variable or a dot of a local variable?

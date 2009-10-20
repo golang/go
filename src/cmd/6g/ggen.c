@@ -1137,7 +1137,7 @@ cgen_inline(Node *n, Node *res)
 		goto no;
 	if(!n->left->addable)
 		goto no;
-	if(strcmp(n->left->sym->package, "sys") != 0)
+	if(strcmp(n->left->sym->package, "runtime") != 0)
 		goto no;
 	if(strcmp(n->left->sym->name, "slicearray") == 0)
 		goto slicearray;
@@ -1215,6 +1215,16 @@ slicearray:
 	}
 	gins(optoas(OAS, types[tptr]), &nodes[0], &n2);
 
+	// if slice could be too big, dereference to
+	// catch nil array pointer.
+	if(nodes[0].op == OREGISTER && nodes[0].type->type->width >= unmappedzero) {
+		n2 = nodes[0];
+		n2.xoffset = 0;
+		n2.op = OINDREG;
+		n2.type = types[TUINT8];
+		gins(ATESTB, nodintconst(0), &n2);
+	}
+
 	for(i=0; i<5; i++) {
 		if(nodes[i].op == OREGISTER)
 			regfree(&nodes[i]);
@@ -1240,6 +1250,16 @@ arraytoslice:
 	n2 = *res;
 	n2.xoffset += Array_array;
 	gins(optoas(OAS, types[tptr]), &nodes[0], &n2);
+
+	// if slice could be too big, dereference to
+	// catch nil array pointer.
+	if(nodes[0].op == OREGISTER && nodes[0].type->type->width >= unmappedzero) {
+		n2 = nodes[0];
+		n2.xoffset = 0;
+		n2.op = OINDREG;
+		n2.type = types[TUINT8];
+		gins(ATESTB, nodintconst(0), &n2);
+	}
 
 	for(i=0; i<2; i++) {
 		if(nodes[i].op == OREGISTER)

@@ -30,6 +30,10 @@
 
 #include "gg.h"
 
+// TODO(rsc): Can make this bigger if we move
+// the text segment up higher in 6l for all GOOS.
+vlong unmappedzero = 4096;
+
 void
 clearp(Prog *p)
 {
@@ -832,6 +836,7 @@ gins(int as, Node *f, Node *t)
 //	Node nod;
 //	int32 v;
 	Prog *p;
+	Addr af, at;
 
 //	if(f != N && f->op == OINDEX) {
 //		regalloc(&nod, &regnode, Z);
@@ -861,14 +866,38 @@ gins(int as, Node *f, Node *t)
 			return nil;
 	}
 
+	memset(&af, 0, sizeof af);
+	memset(&at, 0, sizeof at);
+	if(f != N)
+		naddr(f, &af, 1);
+	if(t != N)
+		naddr(t, &at, 1);
 	p = prog(as);
 	if(f != N)
-		naddr(f, &p->from);
+		p->from = af;
 	if(t != N)
-		naddr(t, &p->to);
+		p->to = at;
 	if(debug['g'])
 		print("%P\n", p);
 	return p;
+}
+
+static void
+checkoffset(Addr *a, int canemitcode)
+{
+	Prog *p;
+
+	if(a->offset < unmappedzero)
+		return;
+	if(!canemitcode)
+		fatal("checkoffset %#llx, cannot emit code", a->offset);
+
+	// cannot rely on unmapped nil page at 0 to catch
+	// reference with large offset.  instead, emit explicit
+	// test of 0(reg).
+	p = gins(ATESTB, nodintconst(0), N);
+	p->to = *a;
+	p->to.offset = 0;
 }
 
 /*
@@ -876,7 +905,7 @@ gins(int as, Node *f, Node *t)
  * make a refer to result.
  */
 void
-naddr(Node *n, Addr *a)
+naddr(Node *n, Addr *a, int canemitcode)
 {
 	a->scale = 0;
 	a->index = D_NONE;
@@ -920,6 +949,7 @@ naddr(Node *n, Addr *a)
 		a->type = n->val.u.reg+D_INDIR;
 		a->sym = n->sym;
 		a->offset = n->xoffset;
+		checkoffset(a, canemitcode);
 		break;
 
 	case OPARAM:
@@ -1002,7 +1032,7 @@ naddr(Node *n, Addr *a)
 		break;
 
 	case OADDR:
-		naddr(n->left, a);
+		naddr(n->left, a, canemitcode);
 		if(a->type >= D_INDIR) {
 			a->type -= D_INDIR;
 			break;
@@ -1018,24 +1048,28 @@ naddr(Node *n, Addr *a)
 
 	case OLEN:
 		// len of string or slice
-		naddr(n->left, a);
+		naddr(n->left, a, canemitcode);
 		a->offset += Array_nel;
+		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+			checkoffset(a, canemitcode);
 		break;
 
 	case OCAP:
 		// cap of string or slice
-		naddr(n->left, a);
+		naddr(n->left, a, canemitcode);
 		a->offset += Array_cap;
+		if(a->offset >= unmappedzero && a->offset-Array_cap < unmappedzero)
+			checkoffset(a, canemitcode);
 		break;
 
 //	case OADD:
 //		if(n->right->op == OLITERAL) {
 //			v = n->right->vconst;
-//			naddr(n->left, a);
+//			naddr(n->left, a, canemitcode);
 //		} else
 //		if(n->left->op == OLITERAL) {
 //			v = n->left->vconst;
-//			naddr(n->right, a);
+//			naddr(n->right, a, canemitcode);
 //		} else
 //			goto bad;
 //		a->offset += v;
@@ -1618,7 +1652,6 @@ optoas(int op, Type *t)
 enum
 {
 	ODynam	= 1<<0,
-	OPtrto	= 1<<1,
 };
 
 static	Node	clean[20];
@@ -1707,7 +1740,7 @@ lit:
 	reg1 = &clean[cleani-2];
 	reg->op = OEMPTY;
 	reg1->op = OEMPTY;
-	naddr(n, a);
+	naddr(n, a, 1);
 	goto yes;
 
 odot:
@@ -1720,7 +1753,7 @@ odot:
 		n1 = *nn;
 		n1.type = n->type;
 		n1.xoffset += oary[0];
-		naddr(&n1, a);
+		naddr(&n1, a, 1);
 		goto yes;
 	}
 
@@ -1744,7 +1777,7 @@ odot:
 
 	a->type = D_NONE;
 	a->index = D_NONE;
-	naddr(&n1, a);
+	naddr(&n1, a, 1);
 	goto yes;
 
 oindex:
@@ -1755,18 +1788,12 @@ oindex:
 
 	// set o to type of array
 	o = 0;
-	if(isptr[l->type->etype]) {
-		o += OPtrto;
-		if(l->type->type->etype != TARRAY)
-			fatal("not ptr ary");
-		if(l->type->type->bound < 0)
-			o += ODynam;
-	} else {
-		if(l->type->etype != TARRAY)
-			fatal("not ary");
-		if(l->type->bound < 0)
-			o += ODynam;
-	}
+	if(isptr[l->type->etype])
+		fatal("ptr ary");
+	if(l->type->etype != TARRAY)
+		fatal("not ary");
+	if(l->type->bound < 0)
+		o += ODynam;
 
 	w = n->type->width;
 	if(isconst(r, CTINT))
@@ -1785,10 +1812,7 @@ oindex:
 	// load the array (reg)
 	if(l->ullman > r->ullman) {
 		regalloc(reg, types[tptr], N);
-		if(o & OPtrto)
-			cgen(l, reg);
-		else
-			agen(l, reg);
+		agen(l, reg);
 	}
 
 	// load the index (reg1)
@@ -1804,10 +1828,7 @@ oindex:
 	// load the array (reg)
 	if(l->ullman <= r->ullman) {
 		regalloc(reg, types[tptr], N);
-		if(o & OPtrto)
-			cgen(l, reg);
-		else
-			agen(l, reg);
+		agen(l, reg);
 	}
 
 	// check bounds
@@ -1818,9 +1839,16 @@ oindex:
 			n2.type = types[tptr];
 			n2.xoffset = Array_nel;
 		} else {
+			if(l->type->width >= unmappedzero && l->op == OIND) {
+				// cannot rely on page protections to
+				// catch array ptr == 0, so dereference.
+				n2 = *reg;
+				n2.op = OINDREG;
+				n2.type = types[TUINT8];
+				n2.xoffset = 0;
+				gins(ATESTB, nodintconst(0), &n2);
+			}
 			nodconst(&n2, types[TUINT64], l->type->bound);
-			if(o & OPtrto)
-				nodconst(&n2, types[TUINT64], l->type->type->bound);
 		}
 		gins(optoas(OCMP, types[TUINT32]), reg1, &n2);
 		p1 = gbranch(optoas(OLT, types[TUINT32]), T);
@@ -1836,7 +1864,7 @@ oindex:
 		gmove(&n2, reg);
 	}
 
-	naddr(reg1, a);
+	naddr(reg1, a, 1);
 	a->offset = 0;
 	a->scale = w;
 	a->index = a->type;
@@ -1850,10 +1878,7 @@ oindex_const:
 	// can multiply by width statically
 
 	regalloc(reg, types[tptr], N);
-	if(o & OPtrto)
-		cgen(l, reg);
-	else
-		agen(l, reg);
+	agen(l, reg);
 
 	v = mpgetfix(r->val.u.xval);
 	if(o & ODynam) {
@@ -1881,10 +1906,6 @@ oindex_const:
 		if(v < 0) {
 			yyerror("out of bounds on array");
 		} else
-		if(o & OPtrto) {
-			if(v >= l->type->type->bound)
-				yyerror("out of bounds on array");
-		} else
 		if(v >= l->type->bound) {
 			yyerror("out of bounds on array");
 		}
@@ -1895,7 +1916,7 @@ oindex_const:
 	n2.xoffset = v*w;
 	a->type = D_NONE;
 	a->index = D_NONE;
-	naddr(&n2, a);
+	naddr(&n2, a, 1);
 	goto yes;
 
 yes:

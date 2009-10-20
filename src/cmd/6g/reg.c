@@ -81,7 +81,7 @@ setoutvar(void)
 	while(t != T) {
 		n = nodarg(t, 1);
 		a = zprog.from;
-		naddr(n, &a);
+		naddr(n, &a, 0);
 		bit = mkvar(R, &a);
 		for(z=0; z<BITS; z++)
 			ovar.b[z] |= bit.b[z];

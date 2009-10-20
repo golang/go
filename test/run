@@ -43,7 +43,7 @@ ulimit -v 4000000
 
 true >pass.out >times.out
 
-for dir in . ken chan interface fixedbugs bugs
+for dir in . ken chan interface nilptr fixedbugs bugs
 do
 	echo
 	echo '==' $dir'/'
