@@ -34,7 +34,7 @@ var pi = &i
 
 var ok = true
 
-func check(v int64, s string) {
+func check(s string, v int64) {
 	if v != Value {
 		println(s, v);
 		ok = false;
@@ -42,38 +42,38 @@ func check(v int64, s string) {
 }
 
 func main() {
-	check(t.M(), "t.M");
-	check(pt.M(), "pt.M");
-	check(ti.M(), "ti.M");
-	check(pti.M(), "pti.M");
-	check(s.M(), "s.M");
-	check(ps.M(), "ps.M");
-	check(sp.M(), "sp.M");
-	check(psp.M(), "psp.M");
+	check("t.M()", t.M());
+	check("pt.M()", pt.M());
+	check("ti.M()", ti.M());
+	check("pti.M()", pti.M());
+	check("s.M()", s.M());
+	check("ps.M()", ps.M());
+	check("sp.M()", sp.M());
+	check("psp.M()", psp.M());
 
 	i = t;
-	check(i.M(), "i.M - i = t");
-	check(pi.M(), "pi.M - i = t");
+	check("i = t; i.M()", i.M());
+	check("i = t; pi.M()", pi.M());
 
 	i = pt;
-	check(i.M(), "i.M - i = pt");
-	check(pi.M(), "pi.M - i = pt");
+	check("i = pt; i.M()", i.M());
+	check("i = pt; pi.M()", pi.M());
 
 	i = s;
-	check(i.M(), "i.M - i = s");
-	check(pi.M(), "pi.M - i = s");
+	check("i = s; i.M()", i.M());
+	check("i = s; pi.M()", pi.M());
 
 	i = ps;
-	check(i.M(), "i.M - i = ps");
-	check(pi.M(), "pi.M - i = ps");
+	check("i = ps; i.M()", i.M());
+	check("i = ps; pi.M()", pi.M());
 
 	i = sp;
-	check(i.M(), "i.M - i = sp");
-	check(pi.M(), "pi.M - i = sp");
+	check("i = sp; i.M()", i.M());
+	check("i = sp; pi.M()", pi.M());
 
 	i = psp;
-	check(i.M(), "i.M - i = psp");
-	check(pi.M(), "pi.M - i = psp");
+	check("i = psp; i.M()", i.M());
+	check("i = psp; pi.M()", pi.M());
 
 	if !ok {
 		println("BUG: interface10");

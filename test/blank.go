@@ -52,7 +52,11 @@ func i() int {
 	return 23;
 }
 
+var _ = i();
+
 func main() {
+	if call != "i" {panic("init did not run")}
+	call = "";
 	_, _ = f();
 	a, _ := f();
 	if a != 1 {panic(a)}
