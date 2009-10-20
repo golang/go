@@ -25,7 +25,7 @@ var (
 
 	// debugging support
 	comments	= flag.Bool("comments", true, "print comments");
-	trace		= flag.Bool("trace", false, "print names of processed files to stderr and parse traces to stdout");
+	trace		= flag.Bool("trace", false, "print parse trace");
 
 	// layout control
 	align		= flag.Bool("align", true, "align columns");
@@ -80,10 +80,6 @@ func isGoFile(d *os.Dir) bool {
 
 
 func processFile(filename string) os.Error {
-	if *trace {
-		fmt.Fprintln(os.Stderr, filename);
-	}
-
 	src, err := io.ReadFile(filename);
 	if err != nil {
 		return err;
