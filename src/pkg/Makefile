@@ -44,6 +44,7 @@ DIRS=\
 	exec\
 	exp/datafmt\
 	exp/eval\
+	exp/iterable\
 	expvar\
 	flag\
 	fmt\

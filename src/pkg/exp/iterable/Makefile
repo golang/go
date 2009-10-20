@@ -4,7 +4,7 @@
 
 include $(GOROOT)/src/Make.$(GOARCH)
 
-TARG=iterable
+TARG=exp/iterable
 GOFILES=\
 	iterable.go\
 

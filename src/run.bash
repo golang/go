@@ -59,11 +59,6 @@ time make
 ./chanrun
 ) || exit $?
 
-(xcd ../usr/dsymonds/iterable
-make clean
-time make test
-) || exit $?
-
 (xcd pkg/exp/ogle
 make clean
 time make ogle
