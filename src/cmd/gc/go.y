@@ -1380,7 +1380,7 @@ stmt:
 	{
 		NodeList *l;
 
-		l = list1(nod(OLABEL, $1, N));
+		l = list1(nod(OLABEL, $1, $3));
 		if($3)
 			l = list(l, $3);
 		$$ = liststmt(l);

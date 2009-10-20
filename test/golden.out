@@ -140,9 +140,6 @@ panic PC=xxx
 
 == bugs/
 
-=========== bugs/bug136.go
-BUG: errchk: command succeeded unexpectedly
-
 =========== bugs/bug162.go
 123
 BUG: should fail
