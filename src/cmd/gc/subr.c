@@ -899,7 +899,6 @@ etnames[] =
 	[TFLOAT]	= "FLOAT",
 	[TFLOAT32]	= "FLOAT32",
 	[TFLOAT64]	= "FLOAT64",
-	[TFLOAT80]	= "FLOAT80",
 	[TBOOL]		= "BOOL",
 	[TPTR32]	= "PTR32",
 	[TPTR64]	= "PTR64",
@@ -1044,7 +1043,6 @@ basicnames[] =
 	[TFLOAT]	= "float",
 	[TFLOAT32]	= "float32",
 	[TFLOAT64]	= "float64",
-	[TFLOAT80]	= "float80",
 	[TBOOL]		= "bool",
 	[TANY]		= "any",
 	[TDDD]		= "...",
@@ -3071,87 +3069,6 @@ structcount(Type *t)
 	for(t = structfirst(&s, &t); t != T; t = structnext(&s))
 		v++;
 	return v;
-}
-
-/*
- * when a type's width should be known, we call checkwidth
- * to compute it.  during a declaration like
- *
- *	type T *struct { next T }
- *
- * it is necessary to defer the calculation of the struct width
- * until after T has been initialized to be a pointer to that struct.
- * similarly, during import processing structs may be used
- * before their definition.  in those situations, calling
- * defercheckwidth() stops width calculations until
- * resumecheckwidth() is called, at which point all the
- * checkwidths that were deferred are executed.
- * sometimes it is okay to
- */
-typedef struct TypeList TypeList;
-struct TypeList {
-	Type *t;
-	TypeList *next;
-};
-
-static TypeList *tlfree;
-static TypeList *tlq;
-static int defercalc;
-
-void
-checkwidth(Type *t)
-{
-	TypeList *l;
-
-	// function arg structs should not be checked
-	// outside of the enclosing function.
-	if(t->funarg)
-		fatal("checkwidth %T", t);
-
-	if(!defercalc) {
-		dowidth(t);
-		return;
-	}
-	if(t->deferwidth)
-		return;
-	t->deferwidth = 1;
-
-	l = tlfree;
-	if(l != nil)
-		tlfree = l->next;
-	else
-		l = mal(sizeof *l);
-
-	l->t = t;
-	l->next = tlq;
-	tlq = l;
-}
-
-void
-defercheckwidth(void)
-{
-	// we get out of sync on syntax errors, so don't be pedantic.
-	// if(defercalc)
-	//	fatal("defercheckwidth");
-	defercalc = 1;
-}
-
-void
-resumecheckwidth(void)
-{
-	TypeList *l;
-
-	if(!defercalc)
-		fatal("restartcheckwidth");
-	defercalc = 0;
-
-	for(l = tlq; l != nil; l = tlq) {
-		l->t->deferwidth = 0;
-		dowidth(l->t);
-		tlq = l->next;
-		l->next = tlfree;
-		tlfree = l;
-	}
 }
 
 /*

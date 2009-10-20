@@ -150,15 +150,6 @@ BUG: should fail
 =========== bugs/bug169.go
 BUG: errchk: command succeeded unexpectedly
 
-=========== bugs/bug190.go
-bugs/bug190.go:11: invalid recursive type []S
-bugs/bug190.go:13: invalid recursive type chan S
-bugs/bug190.go:15: invalid recursive type func(S) (S)
-bugs/bug190.go:16: invalid recursive type S
-bugs/bug190.go:16: invalid recursive type S
-bugs/bug190.go:16: invalid recursive type S
-BUG: should compile
-
 =========== bugs/bug193.go
 BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
 
@@ -166,10 +157,6 @@ BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
 too many calls: 5
 panic PC=xxx
 BUG: bug196
-
-=========== bugs/bug210.go
-bugs/bug210.go:10: invalid recursive type []T
-BUG: should compile
 
 =========== bugs/bug211.go
 BUG: errchk: command succeeded unexpectedly

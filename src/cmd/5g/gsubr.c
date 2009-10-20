@@ -245,7 +245,6 @@ regalloc(Node *n, Type *t, Node *o)
 
 	case TFLOAT32:
 	case TFLOAT64:
-	case TFLOAT80:
 		if(o != N && o->op == OREGISTER) {
 			i = o->val.u.reg;
 			if(i >= REGALLOC_F0 && i <= REGALLOC_FMAX)

@@ -1172,7 +1172,6 @@ allreg(uint32 b, Rgn *r)
 
 	case TFLOAT32:
 	case TFLOAT64:
-	case TFLOAT80:
 	case TFLOAT:
 		i = BtoF(~b);
 		if(i && r->cost > 0) {
