@@ -96,7 +96,7 @@ convlit1(Node **np, Type *t, int explicit)
 		break;
 	case OLSH:
 	case ORSH:
-		convlit(&n->left, t);
+		convlit1(&n->left, t, explicit);
 		t = n->left->type;
 		if(t != T && !isint[t->etype]) {
 			yyerror("invalid operation: %#N (shift of type %T)", n, t);
@@ -292,7 +292,7 @@ tostr(Val v)
 
 	case CTFLT:
 		yyerror("no float -> string");
-	
+
 	case CTNIL:
 		memset(&v, 0, sizeof v);
 		v.ctype = CTSTR;
