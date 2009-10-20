@@ -1,11 +1,11 @@
 // Inferno libmach/setmach.c
 // http://code.google.com/p/inferno-os/source/browse/utils/libmach/setmach.c
 //
-// 	Copyright © 1994-1999 Lucent Technologies Inc.
-// 	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
-// 	Portions Copyright © 1997-1999 Vita Nuova Limited.
-// 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
-// 	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
+//	Copyright © 1994-1999 Lucent Technologies Inc.
+//	Power PC support Copyright © 1995-2004 C H Forsyth (forsyth@terzarima.net).
+//	Portions Copyright © 1997-1999 Vita Nuova Limited.
+//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).
+//	Revisions Copyright © 2000-2004 Lucent Technologies Inc. and others.
 //	Portions Copyright © 2009 The Go Authors.  All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -50,8 +50,8 @@ extern	Mach		mmips, msparc, m68020, mi386, mamd64,
 extern	Machdata	mipsmach, sparcmach, m68020mach, i386mach,
 			armmach, mipsmach2le, powermach, alphamach, sparc64mach;
 */
-extern	Mach		mi386, mamd64;
-extern	Machdata		i386mach;
+extern	Mach		mi386, mamd64, marm;
+extern	Machdata		i386mach, armmach;
 
 /*
  *	machine selection table.  machines with native disassemblers should
@@ -72,6 +72,12 @@ Machtab	machines[] =
 		AAMD64,
 		&mamd64,
 		&i386mach,	},
+	{	"arm",				/*ARM*/
+		FARM,
+		FARMB,
+		AARM,
+		&marm,
+		&armmach,	},
 #ifdef unused
 	{	"68020",			/*68020*/
 		F68020,
@@ -127,12 +133,6 @@ Machtab	machines[] =
 		AI8086,
 		&mi386,
 		&i386mach,	},
-	{	"arm",				/*ARM*/
-		FARM,
-		FARMB,
-		AARM,
-		&marm,
-		&armmach,	},
 	{	"power",			/*PowerPC*/
 		FPOWER,
 		FPOWERB,
