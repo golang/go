@@ -6,12 +6,12 @@ blank.go
 blank1.go
 bugs/bug136.go
 bugs/bug162.go
-bugs/bug169.go
-bugs/bug190.go
 bugs/bug193.go
 bugs/bug196.go
 chan/perm.go
+chan/select.go
 char_lit.go
+closedchan.go
 cmp1.go
 cmp2.go
 cmp3.go
@@ -176,6 +176,7 @@ fixedbugs/bug165.go
 fixedbugs/bug166.go
 fixedbugs/bug167.go
 fixedbugs/bug168.go
+fixedbugs/bug169.go
 fixedbugs/bug170.go
 fixedbugs/bug171.go
 fixedbugs/bug172.go
@@ -194,6 +195,7 @@ fixedbugs/bug186.go
 fixedbugs/bug187.go
 fixedbugs/bug188.go
 fixedbugs/bug189.go
+fixedbugs/bug190.go
 fixedbugs/bug191.go
 fixedbugs/bug192.go
 fixedbugs/bug194.go
@@ -210,6 +212,7 @@ fixedbugs/bug205.go
 fixedbugs/bug206.go
 fixedbugs/bug208.go
 fixedbugs/bug209.go
+fixedbugs/bug211.go
 float_lit.go
 for.go
 func.go
