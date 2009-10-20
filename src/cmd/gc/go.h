@@ -1089,6 +1089,7 @@ struct	Label
 {
 	uchar	op;		// OGOTO/OLABEL
 	Sym*	sym;
+	Node*	stmt;
 	Prog*	label;		// pointer to code
 	Prog*	breakpc;	// pointer to code
 	Prog*	continpc;	// pointer to code
@@ -1097,7 +1098,6 @@ struct	Label
 #define	L	((Label*)0)
 
 EXTERN	Label*	labellist;
-EXTERN	Label*	findlab(Sym*);
 
 typedef	struct	Plist	Plist;
 struct	Plist
@@ -1126,10 +1126,9 @@ void	cgen_callmeth(Node *n, int proc);
 void	cgen_dcl(Node *n);
 void	cgen_proc(Node *n, int proc);
 void	checklabels(void);
-Label*	findlab(Sym *s);
 void	gen(Node *n);
 void	genlist(NodeList *l);
-void	newlab(int op, Sym *s);
+void	newlab(int op, Sym *s, Node*);
 Node*	sysfunc(char *name);
 Plist*	newplist(void);
 

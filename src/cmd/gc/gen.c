@@ -62,7 +62,7 @@ allocparams(void)
 }
 
 void
-newlab(int op, Sym *s)
+newlab(int op, Sym *s, Node *stmt)
 {
 	Label *lab;
 
@@ -73,6 +73,7 @@ newlab(int op, Sym *s)
 	lab->sym = s;
 	lab->op = op;
 	lab->label = pc;
+	lab->stmt = stmt;
 }
 
 void
@@ -88,7 +89,6 @@ checklabels(void)
 
 	for(l=labellist; l!=L; l=l->link) {
 	switch(l->op) {
-		case OFOR:
 		case OLABEL:
 			// these are definitions -
 			s = l->sym;
@@ -96,7 +96,6 @@ checklabels(void)
 				if(m->sym != s)
 					continue;
 				switch(m->op) {
-				case OFOR:
 				case OLABEL:
 					// these are definitions -
 					// look for redefinitions
@@ -118,21 +117,6 @@ checklabels(void)
 	for(l=labellist; l!=L; l=l->link)
 		if(l->op == OGOTO && l->sym != S)
 			yyerror("label %S not defined", l->sym);
-}
-
-Label*
-findlab(Sym *s)
-{
-	Label *l;
-
-	for(l=labellist; l!=L; l=l->link) {
-		if(l->sym != s)
-			continue;
-		if(l->op != OFOR)
-			continue;
-		return l;
-	}
-	return L;
 }
 
 /*
@@ -191,11 +175,11 @@ gen(Node *n)
 		break;
 
 	case OLABEL:
-		newlab(OLABEL, n->left->sym);
+		newlab(OLABEL, n->left->sym, n->right);
 		break;
 
 	case OGOTO:
-		newlab(OGOTO, n->left->sym);
+		newlab(OGOTO, n->left->sym, N);
 		gjmp(P);
 		break;
 
@@ -252,7 +236,7 @@ gen(Node *n)
 		continpc = pc;
 
 		// define break and continue labels
-		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL) {
+		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n) {
 			lab->breakpc = breakpc;
 			lab->continpc = continpc;
 		}
@@ -291,7 +275,7 @@ gen(Node *n)
 		breakpc = gjmp(P);		// break:	goto done
 
 		// define break label
-		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL)
+		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n)
 			lab->breakpc = breakpc;
 
 		patch(p1, pc);				// test:
@@ -306,7 +290,7 @@ gen(Node *n)
 		breakpc = gjmp(P);		// break:	goto done
 
 		// define break label
-		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL)
+		if((lab = labellist) != L && lab->label == p3 && lab->op == OLABEL && lab->stmt == n)
 			lab->breakpc = breakpc;
 
 		patch(p1, pc);				// test:
