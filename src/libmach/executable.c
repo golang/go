@@ -108,7 +108,6 @@ Mach	mmips2be;
 Mach	msparc;
 Mach	msparc64;
 Mach	m68020;
-Mach	marm;
 Mach	mpower;
 Mach	mpower64;
 Mach	malpha;

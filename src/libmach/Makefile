@@ -39,8 +39,10 @@ OFILES=\
 	access.$O\
 	machdata.$O\
 	setmach.$O\
+	5.$O\
 	6.$O\
 	8.$O\
+	5db.$O\
 	8db.$O\
 	5obj.$O\
 	6obj.$O\

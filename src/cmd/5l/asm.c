@@ -671,7 +671,10 @@ putsymb(char *s, int t, int32 v, int ver)
 			cput(s[i]);
 		cput(0);
 	}
-	symsize += 4 + 1 + i + 1;
+	// TODO(rsc): handle go parameter
+	lput(0);
+
+	symsize += 4 + 1 + i + 1 + 4;
 
 	if(debug['n']) {
 		if(t == 'z' || t == 'Z') {
