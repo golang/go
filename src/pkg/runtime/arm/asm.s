@@ -240,18 +240,14 @@ TEXT	runtime·memclr(SB),7,$20
 	MOVW	-4(SP), g
 	RET
 
-TEXT	runtime·getcallerpc+0(SB),7,$0
-	BL	abort(SB)
-//	MOVL	x+0(FP),AX		// addr of first arg
-//	MOVL	-4(AX),AX		// get calling pc
-//	RET
+TEXT	runtime·getcallerpc+0(SB),7,$-4
+	MOVW	0(SP), R0
+	RET
 
-TEXT	runtime·setcallerpc+0(SB),7,$0
-	BL	abort(SB)
-//	MOVL	x+0(FP),AX		// addr of first arg
-//	MOVL	x+4(FP), BX
-//	MOVL	BX, -4(AX)		// set calling pc
-//	RET
+TEXT	runtime·setcallerpc+0(SB),7,$-4
+	MOVW	x+4(FP), R0
+	MOVW	R0, 0(SP)
+	RET
 
 // runcgo(void(*fn)(void*), void *arg)
 // Just call fn(arg), but first align the stack
