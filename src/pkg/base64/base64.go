@@ -16,7 +16,7 @@ import (
  * Encodings
  */
 
-// Encoding is a radix 64 encoding/decoding scheme, defined by a
+// An Encoding is a radix 64 encoding/decoding scheme, defined by a
 // 64-character alphabet.  The most common encoding is the "base64"
 // encoding defined in RFC 4648 and used in MIME (RFC 2045) and PEM
 // (RFC 1421).  RFC 4648 also defines an alternate encoding, which is
@@ -56,7 +56,7 @@ var URLEncoding = NewEncoding(encodeURL)
  */
 
 // Encode encodes src using the encoding enc, writing
-// EncodedLen(len(input)) bytes to dst.
+// EncodedLen(len(src)) bytes to dst.
 //
 // The encoding pads the output to a multiple of 4 bytes,
 // so Encode is not appropriate for use on individual blocks
@@ -134,7 +134,6 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 			return;
 		}
 		e.enc.Encode(&e.buf, &e.out);
-		var _ int;
 		if _, e.err = e.w.Write(e.out[0:4]); e.err != nil {
 			return n, e.err;
 		}
@@ -142,7 +141,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 	}
 
 	// Large interior chunks.
-	for len(p) > 3 {
+	for len(p) >= 3 {
 		nn := len(e.out)/4*3;
 		if nn > len(p) {
 			nn = len(p);
@@ -150,7 +149,6 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		nn -= nn%3;
 		if nn > 0 {
 			e.enc.Encode(p[0:nn], &e.out);
-			var _ int;
 			if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
 				return n, e.err;
 			}
@@ -175,7 +173,6 @@ func (e *encoder) Close() os.Error {
 	if e.err == nil && e.nbuf > 0 {
 		e.enc.Encode(e.buf[0 : e.nbuf], &e.out);
 		e.nbuf = 0;
-		var _ int;
 		_, e.err = e.w.Write(e.out[0:4]);
 	}
 	return e.err;
@@ -206,7 +203,7 @@ func (e CorruptInputError) String() string {
 	return "illegal base64 data at input byte" + strconv.Itoa64(int64(e));
 }
 
-// decode is like Decode, but returns an additional 'end' value, which
+// decode is like Decode but returns an additional 'end' value, which
 // indicates if end-of-message padding was encountered and thus any
 // additional data is an error.  decode also assumes len(src)%4==0,
 // since it is meant for internal use.
@@ -262,7 +259,6 @@ func (enc *Encoding) Decode(src, dst []byte) (n int, err os.Error) {
 		return 0, CorruptInputError(len(src)/4*4);
 	}
 
-	var _ bool;
 	n, _, err = enc.decode(src, dst);
 	return;
 }
