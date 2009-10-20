@@ -15,6 +15,7 @@ DIRS=\
 	archive/tar\
 	asn1\
 	base64\
+	base85\
 	big\
 	bignum\
 	bufio\
