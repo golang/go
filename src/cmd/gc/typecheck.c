@@ -765,7 +765,7 @@ reswitch:
 	doconv:
 		ok |= Erv;
 		typecheck(&n->left, Erv | (top & Eindir));
-		defaultlit(&n->left, n->type);
+		convlit1(&n->left, n->type, 1);
 		if((t = n->left->type) == T || n->type == T)
 			goto error;
 		n = typecheckconv(n, n->left, n->type, 1);

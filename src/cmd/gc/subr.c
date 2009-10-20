@@ -1455,10 +1455,11 @@ Zconv(Fmt *fp)
 		s += chartorune(&r, s);
 		switch(r) {
 		default:
+			if(r < ' ') {
+				fmtprint(fp, "\\x%02x", r);
+				break;
+			}
 			fmtrune(fp, r);
-			break;
-		case '\0':
-			fmtstrcpy(fp, "\\x00");
 			break;
 		case '\t':
 			fmtstrcpy(fp, "\\t");
