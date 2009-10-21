@@ -358,9 +358,9 @@ noops(void)
 				// split stack check for small functions
 				// MOVW			g_stackguard(g), R1
 				// CMP			R1, $-autosize(SP)
-				// MOVW.LT		$args, R2
-				// MOVW.W.LT	R14, R3
-				// BL.LT		runtime·morestackx(SB) // modifies LR
+				// MOVW.LO		$args, R2
+				// MOVW.W.LO	R14, R3
+				// BL.LO		runtime·morestackx(SB) // modifies LR
 				// MOVW.W		R14,$-autosize(SP)
 
 				// TODO(kaib): add more trampolines
@@ -383,28 +383,28 @@ noops(void)
 				p->from.offset = -autosize;
 				p->reg = REGSP;
 
-				// MOVW.LT		$args, R2
+				// MOVW.LO		$args, R2
 				p = appendp(p);
 				p->as = AMOVW;
-				p->scond = C_SCOND_LT;
+				p->scond = C_SCOND_LO;
 				p->from.type = D_CONST;
 				p->from.offset = curtext->to.offset2 & ~7;
 				p->to.type = D_REG;
 				p->to.reg = 2;
 
-				// MOVW.W.LT	R14, R3
+				// MOVW.W.LO	R14, R3
 				p = appendp(p);
 				p->as = AMOVW;
-				p->scond = C_SCOND_LT;
+				p->scond = C_SCOND_LO;
 				p->from.type = D_REG;
 				p->from.reg = REGLINK;
 				p->to.type = D_REG;
 				p->to.reg = 3;
 
-				// BL.LT		runtime·morestackx(SB) // modifies LR
+				// BL.LO		runtime·morestackx(SB) // modifies LR
 				p = appendp(p);
 				p->as = ABL;
-				p->scond = C_SCOND_LT;
+				p->scond = C_SCOND_LO;
  				p->to.type = D_BRANCH;
 				p->to.sym = symmorestack;
 				p->cond = pmorestack;
