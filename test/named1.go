@@ -32,22 +32,22 @@ func main() {
 	asBool(1!=2);	// ERROR "cannot use.*type bool.*as type Bool"
 	asBool(i < j);	// ERROR "cannot use.*type bool.*as type Bool"
 
-	_, b = m[2];	// ERROR "cannot assign bool.*type Bool"
+	_, b = m[2];	// ERROR "cannot .* bool.*type Bool"
 	m[2] = 1, b;	// ERROR "cannot use.*type Bool.*as type bool"
 
 	b = c<-1;	// ERROR "cannot use.*type bool.*type Bool"
 	_ = b;
 	asBool(c<-1);	// ERROR "cannot use.*type bool.*as type Bool"
 
-	_, b = <-c;	// ERROR "cannot assign bool.*type Bool"
+	_, b = <-c;	// ERROR "cannot .* bool.*type Bool"
 	_ = b;
 
 	var inter interface{};
-	_, b = inter.(Map);	// ERROR "cannot assign bool.*type Bool"
+	_, b = inter.(Map);	// ERROR "cannot .* bool.*type Bool"
 	_ = b;
 
 	var minter interface{M()};
-	_, b = minter.(Map);	// ERROR "cannot assign bool.*type Bool"
+	_, b = minter.(Map);	// ERROR "cannot .* bool.*type Bool"
 	_ = b;
 
 	asBool(closed(c));	// ERROR "cannot use.*type bool.*as type Bool"
