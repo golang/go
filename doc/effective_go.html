@@ -125,7 +125,7 @@ x&lt;&lt;8 + y&lt;&lt;16
 	</dd>
 </dl>
 
-<h2>Commentary</h2>
+<h2 id="commentary">Commentary</h2>
 
 <p>
 Go provides C-style <code>/* */</code> block comments
@@ -1304,7 +1304,129 @@ There's even more to printing than we've covered here.  See the <code>godoc</cod
 for package <code>fmt</code> for the details.
 </p>
 
-<h2>Methods</h2>
+<h2 id="initialization">Initialization</h2>
+
+<p>
+Although it doesn't look superficially very different from
+initialization in C or C++, initialization in Go is more powerful.
+Complex structures can be built during initialization and the ordering
+issues between initialized objects in different packages are handled
+correctly.
+</p>
+
+<h3 id="constants">Constants</h3>
+
+<p>
+Constants in Go are just that&mdash;constant.
+They are created at compile time, even when defined as
+locals in functions,
+and can only be numbers, strings or booleans.
+Because of the compile-time restriction, the expressions
+that define them must be constant expressions,
+evaluatable by the compiler.  For instance,
+<code>1&lt;&lt;3</code> is a constant expression, while
+<code>math.Sin(math.Pi/4)</code> is not because
+the function call to <code>math.Sin</code> needs
+to happen at run time.
+</p>
+
+<p>
+In Go, enumerated constants are created using the <code>iota</code>
+enumerator.  Since <code>iota</code> can be part of an expression and
+expressions can be implicitly repeated, it is easy to build intricate
+sets of values.
+<p>
+<pre>
+type ByteSize float64
+const (
+	_ = iota;	// ignore first value by assigning to blank identifier
+	KB ByteSize = 1<<(10*iota);
+	MB;
+	GB;
+	TB;
+	PB;
+	YB;
+)
+</pre>
+<p>
+The ability to attach a method such as <code>String</code> to a
+type makes it possible for such values to format themselves
+automatically for printing, even as part of a general type.
+</p>
+<pre>
+func (b ByteSize) String() string {
+	switch {
+	case s >= YB:
+		return fmt.Sprintf("%.2fYB", b/YB)
+	case s >= PB:
+		return fmt.Sprintf("%.2fPB", b/PB)
+	case s >= TB:
+		return fmt.Sprintf("%.2fTB", b/TB)
+	case s >= GB:
+		return fmt.Sprintf("%.2fGB", b/GB)
+	case s >= MB:
+		return fmt.Sprintf("%.2fMB", b/MB)
+	case s >= KB:
+		return fmt.Sprintf("%.2fKB", b/KB)
+	}
+	return fmt.Sprintf("%.2fB", b);
+}
+</pre>
+<p>
+The expression <code>YB</code> prints as <code>1.00YB</code>,
+while <code>ByteSize(1e13)</code> prints as <code>9.09TB</code>,
+</p>
+
+<h3 id="variables">Variables</h3>
+
+<p>
+Variables can be initialized just like constants but the
+initializer can be a general expression computed at run time.
+</p>
+<pre>
+var (
+	HOME = os.Getenv("HOME");
+	USER = os.Getenv("USER");
+	GOROOT = os.Getenv("GOROOT");
+)
+</pre>
+
+<h3 id="init">The init function</h3>
+
+<p>
+Finally, each source file can define its own <code>init()</code> function to
+set up whatever state is required.  The only restriction is that, although
+goroutines can be launched during initialization, they will not begin
+execution until it completes; initialization always runs as a single thread
+of execution.
+And finally means finally: <code>init()</code> is called after all the
+variable declarations in the package have evaluated their initializers,
+and those are evaluated only after all the imported packages have been
+initialized.
+</p>
+<p>
+Besides initializations that cannot be expressed as declarations,
+a common use of <code>init()</code> functions is to verify or repair
+correctness of the program state before real execution begins.
+</p>
+
+<pre>
+func init() {
+	if USER == "" {
+		log.Exit("$USER not set")
+	}
+	if HOME == "" {
+		HOME = "/usr/" + USER
+	}
+	if GOROOT == "" {
+		GOROOT = HOME + "/go"
+	}
+	// GOROOT may be overridden by --goroot flag on command line.
+	flag.StringVar(&amp;GOROOT, "goroot", GOROOT, "Go root directory");
+}
+</pre>
+
+<h2 id="methods">Methods</h2>
 
 <h3 id="pointers_vs_values">Pointers vs. Values</h3>
 <p>
@@ -2000,178 +2122,15 @@ for try := 0; try < 2; try++ {
 }
 </pre>
 
-<h2>More to come</h2>
-
-<!---
-
-<h2 id="idioms">Idioms</h2>
-
-
-<h3 id="buffer-slice">Use parallel assignment to slice a buffer</h3>
-
-<pre>
-header, body, checksum := buf[0:20], buf[20:n-4], buf[n-4:n];
-</pre>
-
-<h2>Data-Driven Programming</h2>
-
-<p>
-tables
-</p>
-
-<p>
-XXX struct tags for marshaling.
-template
-eventually datafmt
-</p>
-
-<h2>Testing</h2>
-
-<h3 id="no-abort">Run tests to completion</h3>
-
-<p>
-Tests should not stop early just because one case has misbehaved.
-If at all possible, let tests continue, in order to characterize the
-problem in more detail.
-For example, it is more useful for a test to report that <code>isPrime</code>
-gives the wrong answer for 4, 8, 16 and 32 than to report
-that <code>isPrime</code> gives the wrong answer for 4 and therefore
-no more tests were run.
-XXX
-test bottom up
-test runs top to bottom
-how to use gotest
-XXX
-</p>
-
-<h3 id="good-errors">Print useful errors when tests fail</h3>
-
-<p>
-If a test fails, print a concise message explaining the context,
-what happened, and what was expected.
-Many testing environments encourage causing the
-program to crash, but stack traces and core dumps
-have low signal to noise ratios and require reconstructing
-the situation from scratch.
-The programmer who triggers the test failure may be someone
-editing the code months later or even someone editing a different
-package on which the code depends.
-Time invested writing a good error message now pays off when
-the test breaks later.
-</p>
-
-<h3 id="data-driven-tests">Use data-driven tests</h3>
-
-<p>
-Many tests reduce to running the same code multiple times,
-with different input and expected output.
-Instead of using cut and paste to write this code,
-create a table of test cases and write a single test that
-iterates over the table.
-Once the table is written, you might find that it
-serves well as input to multiple tests.  For example,
-a single table of encoded/decoded pairs can be
-used by both <code>TestEncoder</code> and <code>TestDecoder</code>.
-</p>
-
-<p>
-This data-driven style dominates in the Go package tests.
-<font color="red">((link to go code search for 'for.*range' here))</font>
-</p>
-
-<h3 id="reflect.DeepEqual">Use reflect.DeepEqual to compare complex values</h3>
-
-<p>
-The <code>reflect.DeepEqual</code> function tests
-whether two complex data structures have equal values.
-If a function returns a complex data structure,
-<code>reflect.DeepEqual</code> combined with table-driven testing
-makes it easy to check that the return value is
-exactly as expected.
-</p>
-
-<h2 id="be-consistent">Be consistent</h2>
-
-<p>
-Programmers often want their style to be distinctive,
-writing loops backwards or using custom spacing and
-naming conventions. Such idiosyncrasies come at a
-price, however: by making the code look different,
-they make it harder to understand.
-Consistency trumps personal
-expression in programming.
-</p>
-
-<p>
-If a program does the same thing twice,
-it should do it the same way both times.
-Conversely, if two different sections of a
-program look different, the reader will
-expect them to do different things.
-</p>
-
-<p>
-Consider <code>for</code> loops.
-Traditionally, a loop over <code>n</code>
-elements begins:
-</p>
-
-<pre>
-for i := 0; i &lt; n; i++ {
-</pre>
-
-<p>
-Much of the time, the loop could run in the opposite order
-and still be correct:
-</p>
-
-<pre>
-for i := n-1; i &gt;= 0; i-- {
-</pre>
-
-<p>
-The convention
-is to count up unless to do so would be incorrect.
-A loop that counts down implicitly says &ldquo;something
-special is happening here.&rdquo;
-A reader who finds a program in which some
-loops count up and the rest count down
-will spend time trying to understand why.
-</p>
-
-<p>
-Loop direction is just one
-programming decision that must be made
-consistently; others include
-formatting, naming variables and methods,
-whether a type
-has a constructor, what tests look like, and so on.
-Why is this variable called <code>n</code> here and <code>cnt</code> there?
-Why is the <code>Log</code> constructor <code>CreateLog</code> when
-the <code>List</code> constructor is <code>NewList</code>?
-Why is this data structure initialized using
-a structure literal when that one
-is initialized using individual assignments?
-These questions distract from the important one:
-what does the code do?
-Moreover, internal consistency is important not only within a single file,
-but also within the surrounding source files.
-When editing code, read the surrounding context
-and try to mimic it as much as possible, even if it
-disagrees with the rules here.
-It should not be possible to tell which lines
-you wrote or edited based on style alone.
-Consistency about little things
-lets readers concentrate on big ones.
-</p>
-
-<pre>
+<!--
 TODO
-verifying implementation
-type Color uint32
-
-// Check that Color implements image.Color and image.Image
-var _ image.Color = Black
-var _ image.Image = Black
-</pre>
+<pre>	
+verifying implementation	
+type Color uint32	
+	
+// Check that Color implements image.Color and image.Image	
+var _ image.Color = Black	
+var _ image.Image = Black	
+</pre>	
 -->
+
