@@ -5,7 +5,7 @@
 
 rm -rf $GOROOT/pkg/${GOOS}_$GOARCH
 rm -f $GOROOT/lib/*.a
-for i in lib9 libbio libcgo libmach libregexp cmd pkg \
+for i in lib9 libbio libcgo libmach cmd pkg \
 	../misc/cgo/gmp ../misc/cgo/stdio \
 	../usr/r/rpc \
 	../test/bench

@@ -17,19 +17,10 @@
  */
 
 /* Copyright (c) 2002-2006 Lucent Technologies; see LICENSE */
-#include <stdio.h>
-#include <math.h>
-#include <float.h>
-#include <string.h>
-#include <stdlib.h>
+#include <u.h>
 #include <errno.h>
-#include <stdarg.h>
-#include <fmt.h>
-#include <assert.h>
-#include "plan9.h"
-#include "fmt.h"
+#include <libc.h>
 #include "fmtdef.h"
-#include "nan.h"
 
 enum
 {
@@ -61,6 +52,8 @@ static double pows10[] =
 	1e140, 1e141, 1e142, 1e143, 1e144, 1e145, 1e146, 1e147, 1e148, 1e149,
 	1e150, 1e151, 1e152, 1e153, 1e154, 1e155, 1e156, 1e157, 1e158, 1e159,
 };
+
+#undef	pow10
 #define	npows10 ((int)(sizeof(pows10)/sizeof(pows10[0])))
 #define	pow10(x)  fmtpow10(x)
 

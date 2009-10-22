@@ -82,9 +82,9 @@ include $(GOROOT)/src/Make.pkg
 clean: clean-local
 
 clean-local:
-	rm -f runtime.acid cgo2c */asm.h
+	rm -f cgo2c */asm.h
 
-$(GOARCH)/asm.h: runtime.acid mkasmh.sh
+$(GOARCH)/asm.h: mkasmh.sh
 	./mkasmh.sh >$@.x
 	mv -f $@.x $@
 
@@ -110,19 +110,4 @@ cgo2c: cgo2c.c
 %.$O:	$(GOOS)/$(GOARCH)/%.s $(GOARCH)/asm.h
 	$(AS) $<
 
-
-# acid support files
-
-all: runtime.acid
-
-install: $(GOROOT)/acid/runtime.acid
-
-$(GOROOT)/acid/runtime.acid: runtime.acid
-	cp runtime.acid $@
-
-runtime.acid: runtime.h proc.c
-	$(CC) -a proc.c >runtime.acid
-
-chan.acid: runtime.h chan.c
-	$(CC) -a chan.c >chan.acid
 
