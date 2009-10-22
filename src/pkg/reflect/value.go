@@ -56,6 +56,9 @@ type Value interface {
 	// will cause a crash.
 	CanSet()	bool;
 
+	// SetValue assigns v to the value; v must have the same type as the value.
+	SetValue(v Value);
+
 	// Addr returns a pointer to the underlying data.
 	// It is for advanced clients that also
 	// import the "unsafe" package.
@@ -130,6 +133,11 @@ func (v *BoolValue) Set(x bool) {
 	*(*bool)(v.addr) = x;
 }
 
+// Set sets v to the value x.
+func (v *BoolValue) SetValue(x Value) {
+	v.Set(x.(*BoolValue).Get());
+}
+
 // FloatValue represents a float value.
 type FloatValue struct {
 	value;
@@ -146,6 +154,11 @@ func (v *FloatValue) Set(x float) {
 		panic(cannotSet);
 	}
 	*(*float)(v.addr) = x;
+}
+
+// Set sets v to the value x.
+func (v *FloatValue) SetValue(x Value) {
+	v.Set(x.(*FloatValue).Get());
 }
 
 // Float32Value represents a float32 value.
@@ -166,6 +179,11 @@ func (v *Float32Value) Set(x float32) {
 	*(*float32)(v.addr) = x;
 }
 
+// Set sets v to the value x.
+func (v *Float32Value) SetValue(x Value) {
+	v.Set(x.(*Float32Value).Get());
+}
+
 // Float64Value represents a float64 value.
 type Float64Value struct {
 	value;
@@ -182,6 +200,11 @@ func (v *Float64Value) Set(x float64) {
 		panic(cannotSet);
 	}
 	*(*float64)(v.addr) = x;
+}
+
+// Set sets v to the value x.
+func (v *Float64Value) SetValue(x Value) {
+	v.Set(x.(*Float64Value).Get());
 }
 
 // IntValue represents an int value.
@@ -202,6 +225,11 @@ func (v *IntValue) Set(x int) {
 	*(*int)(v.addr) = x;
 }
 
+// Set sets v to the value x.
+func (v *IntValue) SetValue(x Value) {
+	v.Set(x.(*IntValue).Get());
+}
+
 // Int8Value represents an int8 value.
 type Int8Value struct {
 	value;
@@ -218,6 +246,11 @@ func (v *Int8Value) Set(x int8) {
 		panic(cannotSet);
 	}
 	*(*int8)(v.addr) = x;
+}
+
+// Set sets v to the value x.
+func (v *Int8Value) SetValue(x Value) {
+	v.Set(x.(*Int8Value).Get());
 }
 
 // Int16Value represents an int16 value.
@@ -238,6 +271,11 @@ func (v *Int16Value) Set(x int16) {
 	*(*int16)(v.addr) = x;
 }
 
+// Set sets v to the value x.
+func (v *Int16Value) SetValue(x Value) {
+	v.Set(x.(*Int16Value).Get());
+}
+
 // Int32Value represents an int32 value.
 type Int32Value struct {
 	value;
@@ -254,6 +292,11 @@ func (v *Int32Value) Set(x int32) {
 		panic(cannotSet);
 	}
 	*(*int32)(v.addr) = x;
+}
+
+// Set sets v to the value x.
+func (v *Int32Value) SetValue(x Value) {
+	v.Set(x.(*Int32Value).Get());
 }
 
 // Int64Value represents an int64 value.
@@ -274,6 +317,11 @@ func (v *Int64Value) Set(x int64) {
 	*(*int64)(v.addr) = x;
 }
 
+// Set sets v to the value x.
+func (v *Int64Value) SetValue(x Value) {
+	v.Set(x.(*Int64Value).Get());
+}
+
 // StringValue represents a string value.
 type StringValue struct {
 	value;
@@ -290,6 +338,11 @@ func (v *StringValue) Set(x string) {
 		panic(cannotSet);
 	}
 	*(*string)(v.addr) = x;
+}
+
+// Set sets v to the value x.
+func (v *StringValue) SetValue(x Value) {
+	v.Set(x.(*StringValue).Get());
 }
 
 // UintValue represents a uint value.
@@ -310,6 +363,11 @@ func (v *UintValue) Set(x uint) {
 	*(*uint)(v.addr) = x;
 }
 
+// Set sets v to the value x.
+func (v *UintValue) SetValue(x Value) {
+	v.Set(x.(*UintValue).Get());
+}
+
 // Uint8Value represents a uint8 value.
 type Uint8Value struct {
 	value;
@@ -326,6 +384,11 @@ func (v *Uint8Value) Set(x uint8) {
 		panic(cannotSet);
 	}
 	*(*uint8)(v.addr) = x;
+}
+
+// Set sets v to the value x.
+func (v *Uint8Value) SetValue(x Value) {
+	v.Set(x.(*Uint8Value).Get());
 }
 
 // Uint16Value represents a uint16 value.
@@ -346,6 +409,11 @@ func (v *Uint16Value) Set(x uint16) {
 	*(*uint16)(v.addr) = x;
 }
 
+// Set sets v to the value x.
+func (v *Uint16Value) SetValue(x Value) {
+	v.Set(x.(*Uint16Value).Get());
+}
+
 // Uint32Value represents a uint32 value.
 type Uint32Value struct {
 	value;
@@ -362,6 +430,11 @@ func (v *Uint32Value) Set(x uint32) {
 		panic(cannotSet);
 	}
 	*(*uint32)(v.addr) = x;
+}
+
+// Set sets v to the value x.
+func (v *Uint32Value) SetValue(x Value) {
+	v.Set(x.(*Uint32Value).Get());
 }
 
 // Uint64Value represents a uint64 value.
@@ -382,6 +455,11 @@ func (v *Uint64Value) Set(x uint64) {
 	*(*uint64)(v.addr) = x;
 }
 
+// Set sets v to the value x.
+func (v *Uint64Value) SetValue(x Value) {
+	v.Set(x.(*Uint64Value).Get());
+}
+
 // UintptrValue represents a uintptr value.
 type UintptrValue struct {
 	value;
@@ -398,6 +476,11 @@ func (v *UintptrValue) Set(x uintptr) {
 		panic(cannotSet);
 	}
 	*(*uintptr)(v.addr) = x;
+}
+
+// Set sets v to the value x.
+func (v *UintptrValue) SetValue(x Value) {
+	v.Set(x.(*UintptrValue).Get());
 }
 
 // UnsafePointerValue represents an unsafe.Pointer value.
@@ -419,6 +502,11 @@ func (v *UnsafePointerValue) Set(x unsafe.Pointer) {
 		panic(cannotSet);
 	}
 	*(*unsafe.Pointer)(v.addr) = x;
+}
+
+// Set sets v to the value x.
+func (v *UnsafePointerValue) SetValue(x Value) {
+	v.Set(unsafe.Pointer(x.(*UnsafePointerValue).Get()));
 }
 
 func typesMustMatch(t1, t2 Type) {
@@ -487,6 +575,11 @@ func (v *ArrayValue) Set(x *ArrayValue) {
 	}
 	typesMustMatch(v.typ, x.typ);
 	ArrayCopy(v, x);
+}
+
+// Set sets v to the value x.
+func (v *ArrayValue) SetValue(x Value) {
+	v.Set(x.(*ArrayValue));
 }
 
 // Elem returns the i'th element of v.
@@ -560,6 +653,11 @@ func (v *SliceValue) Set(x *SliceValue) {
 	*v.slice() = *x.slice();
 }
 
+// Set sets v to the value x.
+func (v *SliceValue) SetValue(x Value) {
+	v.Set(x.(*SliceValue));
+}
+
 // Slice returns a sub-slice of the slice v.
 func (v *SliceValue) Slice(beg, end int) *SliceValue {
 	cap := v.Cap();
@@ -622,6 +720,11 @@ func (v *ChanValue) Set(x *ChanValue) {
 	}
 	typesMustMatch(v.typ, x.typ);
 	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
+}
+
+// Set sets v to the value x.
+func (v *ChanValue) SetValue(x Value) {
+	v.Set(x.(*ChanValue));
 }
 
 // Get returns the uintptr value of v.
@@ -733,7 +836,7 @@ func MakeChan(typ *ChanType, buffer int) *ChanValue {
 // A FuncValue represents a function value.
 type FuncValue struct {
 	value;
-	first Value;
+	first *value;
 	isInterface bool;
 }
 
@@ -756,6 +859,11 @@ func (v *FuncValue) Set(x *FuncValue) {
 	}
 	typesMustMatch(v.typ, x.typ);
 	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
+}
+
+// Set sets v to the value x.
+func (v *FuncValue) SetValue(x Value) {
+	v.Set(x.(*FuncValue));
 }
 
 // Method returns a FuncValue corresponding to v's i'th method.
@@ -923,6 +1031,11 @@ func (v *InterfaceValue) Set(x Value) {
 	setiface(t, &i, v.addr);
 }
 
+// Set sets v to the value x.
+func (v *InterfaceValue) SetValue(x Value) {
+	v.Set(x);
+}
+
 // Method returns a FuncValue corresponding to v's i'th method.
 // The arguments to a Call on the returned FuncValue
 // should not include a receiver; the FuncValue will use v
@@ -966,6 +1079,11 @@ func (v *MapValue) Set(x *MapValue) {
 	}
 	typesMustMatch(v.typ, x.typ);
 	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
+}
+
+// Set sets v to the value x.
+func (v *MapValue) SetValue(x Value) {
+	v.Set(x.(*MapValue));
 }
 
 // implemented in ../pkg/runtime/reflect.cgo
@@ -1078,6 +1196,11 @@ func (v *PtrValue) Set(x *PtrValue) {
 	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
 }
 
+// Set sets v to the value x.
+func (v *PtrValue) SetValue(x Value) {
+	v.Set(x.(*PtrValue));
+}
+
 // PointTo changes v to point to x.
 func (v *PtrValue) PointTo(x Value) {
 	if !x.CanSet() {
@@ -1127,6 +1250,11 @@ func (v *StructValue) Set(x *StructValue) {
 	}
 	typesMustMatch(v.typ, x.typ);
 	memmove(v.addr, x.addr, v.typ.Size());
+}
+
+// Set sets v to the value x.
+func (v *StructValue) SetValue(x Value) {
+	v.Set(x.(*StructValue));
 }
 
 // Field returns the i'th field of the struct.

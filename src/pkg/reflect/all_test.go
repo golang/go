@@ -108,7 +108,7 @@ func TestTypes(t *testing.T) {
 	}
 }
 
-func TestValue(t *testing.T) {
+func TestSet(t *testing.T) {
 	for i, tt := range valueTests {
 		v := NewValue(tt.i);
 		switch v := v.(type) {
@@ -142,6 +142,48 @@ func TestValue(t *testing.T) {
 			v.Set("stringy cheese");
 		case *BoolValue:
 			v.Set(true);
+		}
+		s := valueToString(v);
+		if s != tt.s {
+			t.Errorf("#%d: have %#q, want %#q", i, s, tt.s);
+		}
+	}
+}
+
+func TestSetValue(t *testing.T) {
+	for i, tt := range valueTests {
+		v := NewValue(tt.i);
+		switch v := v.(type) {
+		case *IntValue:
+			v.SetValue(NewValue(int(132)));
+		case *Int8Value:
+			v.SetValue(NewValue(int8(8)));
+		case *Int16Value:
+			v.SetValue(NewValue(int16(16)));
+		case *Int32Value:
+			v.SetValue(NewValue(int32(32)));
+		case *Int64Value:
+			v.SetValue(NewValue(int64(64)));
+		case *UintValue:
+			v.SetValue(NewValue(uint(132)));
+		case *Uint8Value:
+			v.SetValue(NewValue(uint8(8)));
+		case *Uint16Value:
+			v.SetValue(NewValue(uint16(16)));
+		case *Uint32Value:
+			v.SetValue(NewValue(uint32(32)));
+		case *Uint64Value:
+			v.SetValue(NewValue(uint64(64)));
+		case *FloatValue:
+			v.SetValue(NewValue(float(3200.0)));
+		case *Float32Value:
+			v.SetValue(NewValue(float32(32.1)));
+		case *Float64Value:
+			v.SetValue(NewValue(float64(64.2)));
+		case *StringValue:
+			v.SetValue(NewValue("stringy cheese"));
+		case *BoolValue:
+			v.SetValue(NewValue(true));
 		}
 		s := valueToString(v);
 		if s != tt.s {
