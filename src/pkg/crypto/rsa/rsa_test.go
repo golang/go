@@ -42,21 +42,6 @@ func TestKeyGeneration(t *testing.T) {
 	}
 }
 
-type SliceReader struct {
-	s	[]byte;
-	offset	int;
-}
-
-func (s SliceReader) Read(out []byte) (n int, err os.Error) {
-	if s.offset == len(s.s) {
-		err = os.EOF;
-		return;
-	}
-	n = bytes.Copy(out, s.s[s.offset : len(s.s)]);
-	s.offset += n;
-	return;
-}
-
 type testEncryptOAEPMessage struct {
 	in	[]byte;
 	seed	[]byte;
@@ -78,7 +63,7 @@ func TestEncryptOAEP(t *testing.T) {
 		public := PublicKey{n, test.e};
 
 		for j, message := range test.msgs {
-			randomSource := SliceReader{message.seed, 0};
+			randomSource := bytes.NewBuffer(message.seed);
 			out, err := EncryptOAEP(sha1, randomSource, &public, message.in, nil);
 			if err != nil {
 				t.Errorf("#%d,%d error: %s", i, j, err);
