@@ -84,7 +84,7 @@ clean: clean-local
 clean-local:
 	rm -f cgo2c */asm.h
 
-$(GOARCH)/asm.h: mkasmh.sh
+$(GOARCH)/asm.h: mkasmh.sh runtime.acid
 	./mkasmh.sh >$@.x
 	mv -f $@.x $@
 
@@ -110,4 +110,6 @@ cgo2c: cgo2c.c
 %.$O:	$(GOOS)/$(GOARCH)/%.s $(GOARCH)/asm.h
 	$(AS) $<
 
-
+# for discovering offsets inside structs when debugging
+runtime.acid: runtime.h proc.c
+	$(CC) -a proc.c >runtime.acid
