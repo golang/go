@@ -233,6 +233,61 @@ func (a *typeCompiler) compileFuncType(x *ast.FuncType, allowRec bool) *FuncDecl
 	return &FuncDecl{NewFuncType(in, false, out), nil, inNames, outNames};
 }
 
+func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool) *InterfaceType {
+	ts, names, poss, bad := a.compileFields(x.Methods, allowRec);
+
+	methods := make([]IMethod, len(ts));
+	nameSet := make(map[string] token.Position, len(ts));
+	embeds := make([]*InterfaceType, len(ts));
+
+	var nm, ne int;
+	for i := range ts {
+		if ts[i] == nil {
+			continue;
+		}
+
+		if names[i] != nil {
+			name := names[i].Value;
+			methods[nm].Name = name;
+			methods[nm].Type = ts[i].(*FuncType);
+			nm++;
+			if prev, ok := nameSet[name]; ok {
+				a.diagAt(&poss[i], "method %s redeclared\n\tprevious declaration at %s", name, &prev);
+				bad = true;
+				continue;
+			}
+			nameSet[name] = poss[i];
+		} else {
+			// Embedded interface
+			it, ok := ts[i].lit().(*InterfaceType);
+			if !ok {
+				a.diagAt(&poss[i], "embedded type must be an interface");
+				bad = true;
+				continue;
+			}
+			embeds[ne] = it;
+			ne++;
+			for _, m := range it.methods {
+				if prev, ok := nameSet[m.Name]; ok {
+					a.diagAt(&poss[i], "method %s redeclared\n\tprevious declaration at %s", m.Name, &prev);
+					bad = true;
+					continue;
+				}
+				nameSet[m.Name] = poss[i];
+			}
+		}
+	}
+
+	if bad {
+		return nil;
+	}
+
+	methods = methods[0:nm];
+	embeds = embeds[0:ne];
+
+	return NewInterfaceType(methods, embeds);
+}
+
 func (a *typeCompiler) compileMapType(x *ast.MapType) Type {
 	key := a.compileType(x.Key, true);
 	val := a.compileType(x.Value, true);
@@ -282,7 +337,7 @@ func (a *typeCompiler) compileType(x ast.Expr, allowRec bool) Type {
 		return fd.Type;
 
 	case *ast.InterfaceType:
-		goto notimpl;
+		return a.compileInterfaceType(x, allowRec);
 
 	case *ast.MapType:
 		return a.compileMapType(x);

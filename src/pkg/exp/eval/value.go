@@ -96,6 +96,17 @@ type FuncValue interface {
 	Set(*Thread, Func);
 }
 
+type Interface struct {
+	Type Type;
+	Value Value;
+}
+
+type InterfaceValue interface {
+	Value;
+	Get(*Thread) Interface;
+	Set(*Thread, Interface);
+}
+
 type Slice struct {
 	Base ArrayValue;
 	Len, Cap int64;
@@ -596,6 +607,33 @@ func (v *funcV) Get(*Thread) Func {
 
 func (v *funcV) Set(t *Thread, x Func) {
 	v.target = x;
+}
+
+/*
+ * Interfaces
+ */
+
+type interfaceV struct {
+	Interface;
+}
+
+func (v *interfaceV) String() string {
+	if v.Type == nil || v.Value == nil {
+		return "<nil>";
+	}
+	return v.Value.String();
+}
+
+func (v *interfaceV) Assign(t *Thread, o Value) {
+	v.Interface = o.(InterfaceValue).Get(t);
+}
+
+func (v *interfaceV) Get(*Thread) Interface {
+	return v.Interface;
+}
+
+func (v *interfaceV) Set(t *Thread, x Interface) {
+	v.Interface = x;
 }
 
 /*

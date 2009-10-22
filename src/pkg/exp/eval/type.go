@@ -10,6 +10,7 @@ import (
 	"go/token";
 	"log";
 	"reflect";
+	"sort";
 	"unsafe";			// For Sizeof
 )
 
@@ -882,29 +883,208 @@ type FuncDecl struct {
 }
 
 func (t *FuncDecl) String() string {
-	args := typeListString(t.Type.In, t.InNames);
-	if t.Type.Variadic {
-		if len(args) > 0 {
-			args += ", ";
-		}
-		args += "...";
-	}
 	s := "func";
 	if t.Name != nil {
 		s += " " + t.Name.Value;
 	}
-	s += "(" + args + ")";
-	if len(t.Type.Out) > 0 {
-		s += " (" + typeListString(t.Type.Out, t.OutNames) + ")";
+	s += funcTypeString(t.Type, t.InNames, t.OutNames);
+	return s;
+}
+
+func funcTypeString(ft *FuncType, ins []*ast.Ident, outs []*ast.Ident) string {
+	s := "(";
+	s += typeListString(ft.In, ins);
+	if ft.Variadic {
+		if len(ft.In) > 0 {
+			s += ", ";
+		}
+		s += "...";
+	}
+	s += ")";
+	if len(ft.Out) > 0 {
+		s += " (" + typeListString(ft.Out, outs) + ")";
 	}
 	return s;
 }
 
 /*
+ * Interface
+ */
+
+// TODO(austin) Interface values, types, and type compilation are
+// implemented, but none of the type checking or semantics of
+// interfaces are.
+
 type InterfaceType struct {
-	// TODO(austin)
+	commonType;
+	// TODO(austin) This should be a map from names to
+	// *FuncType's.  We only need the sorted list for generating
+	// the type map key.  It's detrimental for everything else.
+	methods []IMethod;
 }
-*/
+
+type IMethod struct {
+	Name string;
+	Type *FuncType;
+}
+
+var interfaceTypes = newTypeArrayMap()
+
+func NewInterfaceType(methods []IMethod, embeds []*InterfaceType) *InterfaceType {
+	// Count methods of embedded interfaces
+	nMethods := len(methods);
+	for _, e := range embeds {
+		nMethods += len(e.methods);
+	}
+
+	// Combine methods
+	allMethods := make([]IMethod, nMethods);
+	for i, m := range methods {
+		allMethods[i] = m;
+	}
+	n := len(methods);
+	for _, e := range embeds {
+		for _, m := range e.methods {
+			allMethods[n] = m;
+			n++;
+		}
+	}
+
+	// Sort methods
+	sort.Sort(iMethodSorter(allMethods));
+
+	mts := make([]Type, len(allMethods));
+	for i, m := range methods {
+		mts[i] = m.Type;
+	}
+	tMapI := interfaceTypes.Get(mts);
+	if tMapI == nil {
+		tMapI = interfaceTypes.Put(mts, make(map[string] *InterfaceType));
+	}
+	tMap := tMapI.(map[string] *InterfaceType);
+
+	key := "";
+	for _, m := range allMethods {
+		key += m.Name + " ";
+	}
+
+	t, ok := tMap[key];
+	if !ok {
+		t = &InterfaceType{commonType{}, allMethods};
+		tMap[key] = t;
+	}
+	return t;
+}
+
+type iMethodSorter []IMethod
+
+func (s iMethodSorter) Less(a, b int) bool {
+	return s[a].Name < s[b].Name;
+}
+
+func (s iMethodSorter) Swap(a, b int) {
+	s[a], s[b] = s[b], s[a];
+}
+
+func (s iMethodSorter) Len() int {
+	return len(s);
+}
+
+func (t *InterfaceType) compat(o Type, conv bool) bool {
+	t2, ok := o.lit().(*InterfaceType);
+	if !ok {
+		return false;
+	}
+	if len(t.methods) != len(t2.methods) {
+		return false;
+	}
+	for i, e := range t.methods {
+		e2 := t2.methods[i];
+		if e.Name != e2.Name || !e.Type.compat(e2.Type, conv) {
+			return false;
+		}
+	}
+	return true;
+}
+
+func (t *InterfaceType) lit() Type {
+	return t;
+}
+
+func (t *InterfaceType) String() string {
+	// TODO(austin) Instead of showing embedded interfaces, this
+	// shows their methods.
+	s := "interface {";
+	for i, m := range t.methods {
+		if i > 0 {
+			s += "; ";
+		}
+		s += m.Name + funcTypeString(m.Type, nil, nil);
+	}
+	return s + "}";
+}
+
+// implementedBy tests if o implements t, returning nil, true if it does.
+// Otherwise, it returns a method of t that o is missing and false.
+func (t *InterfaceType) implementedBy(o Type) (*IMethod, bool) {
+	if len(t.methods) == 0 {
+		return nil, true;
+	}
+
+	// The methods of a named interface types are those of the
+	// underlying type.
+	if it, ok := o.lit().(*InterfaceType); ok {
+		o = it;
+	}
+
+	// XXX(Spec) Interface types: "A type implements any interface
+	// comprising any subset of its methods" It's unclear if
+	// methods must have identical or compatible types.  6g
+	// requires identical types.
+
+	switch o := o.(type) {
+	case *NamedType:
+		for _, tm := range t.methods {
+			sm, ok := o.methods[tm.Name];
+			if !ok || sm.decl.Type != tm.Type {
+				return &tm, false;
+			}
+		}
+		return nil, true;
+
+	case *InterfaceType:
+		var ti, oi int;
+		for ti < len(t.methods) && oi < len(o.methods) {
+			tm, om := &t.methods[ti], &o.methods[oi];
+			switch {
+			case tm.Name == om.Name:
+				if tm.Type != om.Type {
+					return tm, false;
+				}
+				ti++;
+				oi++;
+			case tm.Name > om.Name:
+				oi++;
+			default:
+				return tm, false;
+			}
+		}
+		if ti < len(t.methods) {
+			return &t.methods[ti], false;
+		}
+		return nil, true;
+	}
+
+	return &t.methods[0], false;
+}
+
+func (t *InterfaceType) Zero() Value {
+	return &interfaceV{};
+}
+
+/*
+ * Slice
+ */
 
 type SliceType struct {
 	commonType;

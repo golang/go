@@ -123,6 +123,12 @@ var stmtTests = []test {
 	Run("type T func(int, int) (int, int)"),
 	CErr("type T func(x); type U T", "undefined"),
 	CErr("type T func(a T)", "recursive"),
+	// Interface types
+	Run("type T interface {x(a, b int) int}"),
+	Run("type T interface {x(a, b int) int}; type U interface {T; y(c int)}"),
+	CErr("type T interface {x(a int); x()}", "method x redeclared"),
+	CErr("type T interface {x()}; type U interface {T; x()}", "method x redeclared"),
+	CErr("type T int; type U interface {T}", "embedded type"),
 	// Parens
 	Run("type T (int)"),
 
