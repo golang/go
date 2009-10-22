@@ -240,7 +240,7 @@ func ToLower(s []byte) []byte {
 }
 
 // ToTitle returns a copy of the byte array s with all Unicode letters mapped to their title case.
-func Title(s []byte) []byte {
+func ToTitle(s []byte) []byte {
 	return Map(unicode.ToTitle, s);
 }
 
