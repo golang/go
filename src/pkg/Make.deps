@@ -27,6 +27,7 @@ encoding/ascii85.install: bytes.install io.install os.install strconv.install
 encoding/base64.install: bytes.install io.install os.install strconv.install
 encoding/binary.install: io.install math.install os.install reflect.install
 encoding/git85.install: bytes.install io.install os.install strconv.install
+encoding/pem.install: bytes.install encoding/base64.install strings.install
 exec.install: os.install strings.install
 exp/datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
 exp/eval.install: bignum.install fmt.install go/ast.install go/parser.install go/scanner.install go/token.install log.install os.install reflect.install runtime.install strconv.install strings.install
