@@ -1369,7 +1369,7 @@ func (b ByteSize) String() string {
 	case s >= KB:
 		return fmt.Sprintf("%.2fKB", b/KB)
 	}
-	return fmt.Sprintf("%.2fB", b);
+	return fmt.Sprintf("%.2fB", b)
 }
 </pre>
 <p>
@@ -1422,7 +1422,7 @@ func init() {
 		GOROOT = HOME + "/go"
 	}
 	// GOROOT may be overridden by --goroot flag on command line.
-	flag.StringVar(&amp;GOROOT, "goroot", GOROOT, "Go root directory");
+	flag.StringVar(&amp;GOROOT, "goroot", GOROOT, "Go root directory")
 }
 </pre>
 
