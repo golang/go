@@ -22,6 +22,7 @@ var contentByExt = map[string] string {
 	".html":	"text/html; charset=utf-8",
 	".jpg":	"image/jpeg",
 	".js":	"application/x-javascript",
+	".pdf":	"application/pdf",
 	".png":	"image/png",
 }
 
