@@ -69,7 +69,8 @@ var pemEndOfLine = strings.Bytes("-----")
 
 // Decode will find the next PEM formatted block (certificate, private key
 // etc) in the input. It returns that block and the remainder of the input. If
-// no PEM data is found, p is nil and the whole of the input is returned in // rest.
+// no PEM data is found, p is nil and the whole of the input is returned in
+// rest.
 func Decode(data []byte) (p *Block, rest []byte) {
 	// pemStart begins with a newline. However, at the very beginning of
 	// the byte array, we'll accept the start string without it.
