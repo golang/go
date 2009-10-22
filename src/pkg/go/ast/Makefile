@@ -9,5 +9,6 @@ GOFILES=\
 	ast.go\
 	scope.go\
 	filter.go\
+	walk.go\
 
 include $(GOROOT)/src/Make.pkg
