@@ -97,6 +97,43 @@ type PrivateKey struct {
 	P, Q		*big.Int;	// prime factors of N
 }
 
+// Validate performs basic sanity checks on the key.
+// It returns nil if the key is valid, or else an os.Error describing a problem.
+
+func (priv PrivateKey) Validate() os.Error {
+	// Check that p and q are prime.
+	if !priv.P.ProbablyPrime(20) {
+		return os.ErrorString("P is composite");
+	}
+	if !priv.Q.ProbablyPrime(20) {
+		return os.ErrorString("Q is composite");
+	}
+	// Check that p*q == n.
+	modulus := new(big.Int).Mul(priv.P, priv.Q);
+	if big.CmpInt(modulus, priv.N) != 0 {
+		return os.ErrorString("invalid modulus");
+	}
+	// Check that e and totient(p, q) are coprime.
+	pminus1 := new(big.Int).Sub(priv.P, bigOne);
+	qminus1 := new(big.Int).Sub(priv.Q, bigOne);
+	totient := new(big.Int).Mul(pminus1, qminus1);
+	e := big.NewInt(int64(priv.E));
+	gcd := new(big.Int);
+	x := new(big.Int);
+	y := new(big.Int);
+	big.GcdInt(gcd, x, y, totient, e);
+	if big.CmpInt(gcd, bigOne) != 0 {
+		return os.ErrorString("invalid public exponent E");
+	}
+	// Check that de ≡ 1 (mod totient(p, q))
+	de := new(big.Int).Mul(priv.D, e);
+	de.Mod(de, totient);
+	if big.CmpInt(de, bigOne) != 0 {
+		return os.ErrorString("invalid private exponent D");
+	}
+	return nil;
+}
+
 // GenerateKeyPair generates an RSA keypair of the given bit size.
 func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
 	priv = new(PrivateKey);
