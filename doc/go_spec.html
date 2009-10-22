@@ -1868,7 +1868,7 @@ math.Sin
 </pre>
 
 <p>
-<font color=red>TODO: Unify this section with Selectors - it's the same syntax.</font>
+<span class="alert">TODO: Unify this section with Selectors - it's the same syntax.</span>
 </p>
 
 <h3 id="Composite_literals">Composite literals</h3>
@@ -2219,9 +2219,9 @@ p.M0        // ((*p).T0).M0
 </pre>
 
 
-<font color=red>
+<span class="alert">
 TODO: Specify what happens to receivers.
-</font>
+</span>
 
 
 <h3 id="Indexes">Indexes</h3>
@@ -2779,7 +2779,7 @@ that is, either a variable, pointer indirection, array or slice indexing
 operation,
 or a field selector of an addressable struct operand.
 A function result variable is not addressable.
-(<font color=red>TODO: remove this restriction.</font>)
+(<span class="alert">TODO: remove this restriction.</span>)
 Given an operand of pointer type, the pointer indirection
 operator <code>*</code> retrieves the value pointed
 to by the operand.
@@ -2881,8 +2881,8 @@ zero value for its type (§<a href="#The_zero_value">The zero value</a>).
 </p>
 
 <p>
-<font color=red>TODO: Probably in a separate section, communication semantics
-need to be presented regarding send, receive, select, and goroutines.</font>
+<span class="alert">TODO: Probably in a separate section, communication semantics
+need to be presented regarding send, receive, select, and goroutines.</span>
 </p>
 
 <h3 id="Method_expressions">Method expressions</h3>
@@ -3161,11 +3161,11 @@ int8(^1)    // same as int8(-2)
 </pre>
 
 <p>
-<font color=red>
+<span class="alert">
 TODO: perhaps ^ should be disallowed on non-uints instead of assuming twos complement.
 Also it may be possible to make typed constants more like variables, at the cost of fewer
 overflow etc. errors being caught.
-</font>
+</span>
 </p>
 
 
@@ -3900,11 +3900,11 @@ func complex_f3() (re float, im float) {
 </ol>
 
 <p>
-<font color=red>
+<span class="alert">
 TODO: Define when return is required.<br />
 TODO: Language about result parameters needs to go into a section on
       function/method invocation<br />
-</font>
+</span>
 </p>
 
 <h3 id="Break_statements">Break statements</h3>
@@ -3977,7 +3977,7 @@ L:
 <p>
 is erroneous because the jump to label <code>L</code> skips
 the creation of <code>v</code>.
-(<font color=red>TODO: Eliminate in favor of used and not set errors?</font>)
+(<span class="alert">TODO: Eliminate in favor of used and not set errors?</span>)
 </p>
 
 <h3 id="Fallthrough_statements">Fallthrough statements</h3>
@@ -4578,9 +4578,9 @@ The following minimal alignment properties are guaranteed:
    <code>unsafe.Alignof(x[0])</code>, but at least 1.
 </ol>
 
-<h2 id="Implementation_differences"><font color=red>Implementation differences - TODO</font></h2>
+<h2 id="Implementation_differences"><span class="alert">Implementation differences - TODO</span></h2>
 <ul>
-	<li><font color=red>Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</font></li>
-	<li><font color=red>Gccgo does not implement the blank identifier.</font></li>
-	<li><font color=red>Method expressions are not implemented.</font></li>
+	<li><span class="alert">Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</span></li>
+	<li><span class="alert">Gccgo does not implement the blank identifier.</span></li>
+	<li><span class="alert">Method expressions are not implemented.</span></li>
 </ul>

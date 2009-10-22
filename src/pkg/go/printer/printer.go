@@ -64,16 +64,20 @@ var (
 var noPos token.Position
 
 
-// A lineTag is a token.Position that is used to print
-// line tag id's of the form "L%d" where %d stands for
-// the line indicated by position.
-//
-type lineTag token.Position
+// An HtmlTag specifies a start and end tag.
+type HtmlTag struct {
+	Start, End string;  // empty if tags are absent
+}
 
 
-// A htmlTag specifies a start and end tag.
-type htmlTag struct {
-	start, end string;  // empty if tags are absent
+// A Styler specifies the formatting line tags and elementary Go words.
+// A format consists of text and a (possibly empty) surrounding HTML tag.
+type Styler interface {
+	LineTag(line int) ([]byte, HtmlTag);
+	Comment(c *ast.Comment, line []byte)  ([]byte, HtmlTag);
+	BasicLit(x *ast.BasicLit)  ([]byte, HtmlTag);
+	Ident(id *ast.Ident)  ([]byte, HtmlTag);
+	Token(tok token.Token)  ([]byte, HtmlTag);
 }
 
 
@@ -82,6 +86,7 @@ type printer struct {
 	output io.Writer;
 	mode uint;
 	tabwidth int;
+	style Styler;
 	errors chan os.Error;
 
 	// Current state
@@ -103,7 +108,6 @@ type printer struct {
 	last token.Position;
 
 	// HTML support
-	tag htmlTag;  // tag to be used around next item
 	lastTaggedLine int;  // last line for which a line tag was written
 
 	// The list of comments; or nil.
@@ -111,10 +115,11 @@ type printer struct {
 }
 
 
-func (p *printer) init(output io.Writer, mode uint, tabwidth int) {
+func (p *printer) init(output io.Writer, mode uint, tabwidth int, style Styler) {
 	p.output = output;
 	p.mode = mode;
 	p.tabwidth = tabwidth;
+	p.style = style;
 	p.errors = make(chan os.Error);
 	p.buffer = make([]whiteSpace, 0, 16);  // whitespace sequences are short
 }
@@ -216,41 +221,42 @@ func (p *printer) writeNewlines(n int) {
 }
 
 
+func (p *printer) writeTaggedItem(data []byte, tag HtmlTag) {
+	// write start tag, if any
+	// (no html-escaping and no p.pos update for tags - use write0)
+	if tag.Start != "" {
+		p.write0(strings.Bytes(tag.Start));
+	}
+	p.write(data);
+	// write end tag, if any
+	if tag.End != "" {
+		p.write0(strings.Bytes(tag.End));
+	}
+}
+
+
 // writeItem writes data at position pos. data is the text corresponding to
 // a single lexical token, but may also be comment text. pos is the actual
 // (or at least very accurately estimated) position of the data in the original
-// source text. The data may be tagged, depending on p.mode and the setLineTag
-// parameter. writeItem updates p.last to the position immediately following
-// the data.
+// source text. If tags are present and GenHTML is set, the tags are written
+// before and after the data. writeItem updates p.last to the position
+// immediately following the data.
 //
-func (p *printer) writeItem(pos token.Position, data []byte, setLineTag bool) {
+func (p *printer) writeItem(pos token.Position, data []byte, tag HtmlTag) {
 	p.pos = pos;
 	if debug {
 		// do not update p.pos - use write0
 		p.write0(strings.Bytes(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)));
 	}
 	if p.mode & GenHTML != 0 {
-		// no html-escaping and no p.pos update for tags - use write0
-		if setLineTag && pos.Line > p.lastTaggedLine {
-			// id's must be unique within a document: set
-			// line tag only if line number has increased
-			// (note: for now write complete start and end
-			// tag - shorter versions seem to have issues
-			// with Safari)
-			p.tag.start = fmt.Sprintf(`<a id="L%d"></a>`, pos.Line);
+		// write line tag if on a new line
+		// TODO(gri): should write line tags on each line at the start
+		//            will be more useful (e.g. to show line numbers)
+		if p.style != nil && pos.Line > p.lastTaggedLine {
+			p.writeTaggedItem(p.style.LineTag(pos.Line));
 			p.lastTaggedLine = pos.Line;
 		}
-		// write start tag, if any
-		if p.tag.start != "" {
-			p.write0(strings.Bytes(p.tag.start));
-			p.tag.start = "";  // tag consumed
-		}
-		p.write(data);
-		// write end tag, if any
-		if p.tag.end != "" {
-			p.write0(strings.Bytes(p.tag.end));
-			p.tag.end = "";  // tag consumed
-		}
+		p.writeTaggedItem(data, tag);
 	} else {
 		p.write(data);
 	}
@@ -357,7 +363,11 @@ func (p *printer) writeComment(comment *ast.Comment) {
 	}
 
 	// write comment
-	p.writeItem(comment.Pos(), text, false);
+	var tag HtmlTag;
+	if p.style != nil {
+		text, tag = p.style.Comment(comment, text);
+	}
+	p.writeItem(comment.Pos(), text, tag);
 }
 
 
@@ -475,13 +485,13 @@ func (p *printer) writeWhitespace(n int) {
 // printed, followed by the actual token.
 //
 func (p *printer) print(args ...) {
-	setLineTag := false;
 	v := reflect.NewValue(args).(*reflect.StructValue);
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i);
 
 		next := p.pos;  // estimated position of next item
 		var data []byte;
+		var tag HtmlTag;
 		switch x := f.Interface().(type) {
 		case whiteSpace:
 			if x == ignore {
@@ -501,23 +511,40 @@ func (p *printer) print(args ...) {
 			p.buffer = p.buffer[0 : i+1];
 			p.buffer[i] = x;
 		case []byte:
+			// TODO(gri): remove this case once commentList
+			//            handles comments correctly
 			data = x;
 		case string:
+			// TODO(gri): remove this case once fieldList
+			//            handles comments correctly
 			data = strings.Bytes(x);
+		case *ast.Ident:
+			if p.style != nil {
+				data, tag = p.style.Ident(x);
+			} else {
+				data = strings.Bytes(x.Value);
+			}
+		case *ast.BasicLit:
+			if p.style != nil {
+				data, tag = p.style.BasicLit(x);
+			} else {
+				data = x.Value;
+			}
+			// escape all literals so they pass through unchanged
+			// (note that valid Go programs cannot contain esc ('\xff')
+			// bytes since they do not appear in legal UTF-8 sequences)
+			// TODO(gri): this this more efficiently.
+			data = strings.Bytes("\xff" + string(data) + "\xff");
 		case token.Token:
-			data = strings.Bytes(x.String());
+			if p.style != nil {
+				data, tag = p.style.Token(x);
+			} else {
+				data = strings.Bytes(x.String());
+			}
 		case token.Position:
 			if x.IsValid() {
 				next = x;  // accurate position of next item
 			}
-		case lineTag:
-			pos := token.Position(x);
-			if pos.IsValid() {
-				next = pos;  // accurate position of next item
-				setLineTag = true;
-			}
-		case htmlTag:
-			p.tag = x;  // tag surrounding next item
 		default:
 			panicln("print: unsupported argument type", f.Type().String());
 		}
@@ -531,8 +558,7 @@ func (p *printer) print(args ...) {
 			// at the end of a file)
 			p.writeNewlines(next.Line - p.pos.Line);
 
-			p.writeItem(next, data, setLineTag);
-			setLineTag = false;
+			p.writeItem(next, data, tag);
 		}
 	}
 }
@@ -600,6 +626,7 @@ func (p *printer) linebreak(line, min, max int, ws whiteSpace, newSection bool) 
 func (p *printer) commentList(list []*ast.Comment) {
 	for i, c := range list {
 		t := c.Text;
+		// TODO(gri): this needs to be styled like normal comments
 		p.print(c.Pos(), t);
 		if t[1] == '/' && i+1 < len(list) {
 			//-style comment which is not at the end; print a newline
@@ -823,6 +850,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			}
 		}
 		if isIncomplete {
+			// TODO(gri): this needs to be styled like normal comments
 			p.print("// contains unexported fields");
 		}
 
@@ -845,6 +873,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			}
 		}
 		if isIncomplete {
+			// TODO(gri): this needs to be styled like normal comments
 			p.print("// contains unexported methods");
 		}
 
@@ -960,7 +989,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 		p.print("BadExpr");
 
 	case *ast.Ident:
-		p.print(x.Value);
+		p.print(x);
 
 	case *ast.BinaryExpr:
 		p.binaryExpr(x, prec1);
@@ -991,10 +1020,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
 		}
 
 	case *ast.BasicLit:
-		// escape all literals so they pass through unchanged
-		// (note that valid Go programs cannot contain esc ('\xff')
-		// bytes since they do not appear in legal UTF-8 sequences)
-		p.print(esc, x.Value, esc);
+		p.print(x);
 
 	case *ast.StringList:
 		p.stringList(x.Strings);
@@ -1451,7 +1477,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext) {
 
 func (p *printer) genDecl(d *ast.GenDecl, context declContext) {
 	p.leadComment(d.Doc);
-	p.print(lineTag(d.Pos()), d.Tok, blank);
+	p.print(d.Pos(), d.Tok, blank);
 
 	if d.Lparen.IsValid() {
 		// group of parenthesized declarations
@@ -1483,7 +1509,7 @@ func (p *printer) isOneLiner(b *ast.BlockStmt) bool {
 
 	// test-print the statement and see if it would fit
 	var buf bytes.Buffer;
-	_, err := Fprint(&buf, b.List[0], p.mode, p.tabwidth);
+	_, err := Fprint(&buf, b.List[0], p.mode, p.tabwidth, p.style);
 	if err != nil {
 		return false;  // don't try
 	}
@@ -1526,7 +1552,7 @@ func (p *printer) funcBody(b *ast.BlockStmt, isLit bool) {
 
 func (p *printer) funcDecl(d *ast.FuncDecl) {
 	p.leadComment(d.Doc);
-	p.print(lineTag(d.Pos()), token.FUNC, blank);
+	p.print(d.Pos(), token.FUNC, blank);
 	if recv := d.Recv; recv != nil {
 		// method: print receiver
 		p.print(token.LPAREN);
@@ -1697,7 +1723,7 @@ var inf = token.Position{Offset: 1<<30, Line: 1<<30}
 // or assignment-compatible to ast.Expr, ast.Decl, or ast.Stmt. Printing
 // is controlled by the mode and tabwidth parameters.
 //
-func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, os.Error) {
+func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int, style Styler) (int, os.Error) {
 	// redirect output through a trimmer to eliminate trailing whitespace
 	// (Input to a tabwriter must be untrimmed since trailing tabs provide
 	// formatting information. The tabwriter could provide trimming
@@ -1721,7 +1747,7 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, o
 
 	// setup printer and print node
 	var p printer;
-	p.init(output, mode, tabwidth);
+	p.init(output, mode, tabwidth, style);
 	go func() {
 		switch n := node.(type) {
 		case ast.Expr:
