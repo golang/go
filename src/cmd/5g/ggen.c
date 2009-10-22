@@ -133,7 +133,7 @@ ginscall(Node *f, int proc)
 		p = gins(AMOVW, &r, N);
 		p->to.type = D_OREG;
 		p->to.reg = REGSP;
-		p->to.offset = -8;
+		p->to.offset = -12;
 		p->scond |= C_WBIT;
 
 		memset(&n1, 0, sizeof n1);
@@ -168,7 +168,7 @@ ginscall(Node *f, int proc)
 		p = gins(AMOVW, &r, N);
 		p->to.type = D_OREG;
 		p->to.reg = REGSP;
-		p->to.offset = 8;
+		p->to.offset = 12;
 		p->scond |= C_WBIT;
 		regfree(&r);
 
