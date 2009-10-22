@@ -618,7 +618,8 @@ def mail(ui, repo, *pats, **opts):
 	pmsg = "Hello " + JoinComma(cl.reviewer) + ",\n"
 	pmsg += "\n"
 	pmsg += "I'd like you to review the following change.\n"
-	PostMessage(cl.name, pmsg, send_mail="checked", subject="code review: " + line1(cl.desc))
+	subject = "code review %s: %s" % (cl.name, line1(cl.desc))
+	PostMessage(cl.name, pmsg, send_mail="checked", subject=subject)
 	
 def submit(ui, repo, *pats, **opts):
 	"""submit change to remote repository
@@ -835,9 +836,7 @@ class FormParser(HTMLParser):
 			self.curtag = None
 			self.curdata = None
 	def handle_charref(self, name):
-		import unicodedata
-		char = unicodedata.name(unichr(int(name)))
-		self.handle_data(char)
+		self.handle_data(unichr(int(name)))
 	def handle_entityref(self, name):
 		import htmlentitydefs
 		if name in htmlentitydefs.entitydefs:
