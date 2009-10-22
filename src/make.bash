@@ -19,7 +19,7 @@ rm -f $GOBIN/quietgcc
 cp quietgcc.bash $GOBIN/quietgcc
 chmod +x $GOBIN/quietgcc
 
-for i in lib9 libbio libmach libregexp cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
+for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
 do
 	case "$i-$GOOS" in
 	libcgo-nacl)

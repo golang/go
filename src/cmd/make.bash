@@ -18,7 +18,7 @@ bash mkenam
 make enam.o
 cd ..
 
-for i in cc ${O}l ${O}a ${O}c gc ${O}g gopack db nm acid cov godefs prof gotest
+for i in cc ${O}l ${O}a ${O}c gc ${O}g gopack nm cov godefs prof gotest
 do
 	echo; echo; echo %%%% making $i %%%%; echo
 	cd $i

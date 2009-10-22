@@ -1,6 +1,6 @@
 /*
-Plan 9 from User Space src/lib9/nan.c
-http://code.swtch.com/plan9port/src/tip/src/lib9/nan.c
+Plan 9 from User Space src/lib9/time.c
+http://code.swtch.com/plan9port/src/tip/src/lib9/time.c
 
 Copyright 2001-2007 Russ Cox.  All Rights Reserved.
 
@@ -22,31 +22,39 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-
 #include <u.h>
+#include <sys/time.h>
+#include <time.h>
+#include <sys/resource.h>
+#define NOPLAN9DEFINES
 #include <libc.h>
-#include "fmt/fmtdef.h"
 
-double
-NaN(void)
+long
+p9times(long *t)
 {
-	return __NaN();
+	struct rusage ru, cru;
+
+	if(getrusage(0, &ru) < 0 || getrusage(-1, &cru) < 0)
+		return -1;
+
+	t[0] = ru.ru_utime.tv_sec*1000 + ru.ru_utime.tv_usec/1000;
+	t[1] = ru.ru_stime.tv_sec*1000 + ru.ru_stime.tv_usec/1000;
+	t[2] = cru.ru_utime.tv_sec*1000 + cru.ru_utime.tv_usec/1000;
+	t[3] = cru.ru_stime.tv_sec*1000 + cru.ru_stime.tv_usec/1000;
+
+	/* BUG */
+	return t[0]+t[1]+t[2]+t[3];
 }
 
 double
-Inf(int sign)
+p9cputime(void)
 {
-	return __Inf(sign);
-}
+	long t[4];
+	double d;
 
-int
-isNaN(double x)
-{
-	return __isNaN(x);
-}
+	if(p9times(t) < 0)
+		return -1.0;
 
-int
-isInf(double x, int sign)
-{
-	return __isInf(x, sign);
+	d = (double)t[0]+(double)t[1]+(double)t[2]+(double)t[3];
+	return d/1000.0;
 }

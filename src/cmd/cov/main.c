@@ -11,7 +11,6 @@
 #include <libc.h>
 #include <bio.h>
 #include <ctype.h>
-#include <regexp9.h>
 #include "tree.h"
 
 #include <ureg_amd64.h>
@@ -21,7 +20,7 @@ typedef struct Ureg Ureg;
 void
 usage(void)
 {
-	fprint(2, "usage: cov [-lsv] [-g regexp] [-m minlines] [6.out args...]\n");
+	fprint(2, "usage: cov [-lsv] [-g substring] [-m minlines] [6.out args...]\n");
 	fprint(2, "-g specifies pattern of interesting functions or files\n");
 	exits("usage");
 }
@@ -41,7 +40,7 @@ int doshowsrc;
 Map *mem;
 Map *text;
 Fhdr fhdr;
-Reprog *grep;
+char *substring;
 char cwd[1000];
 int ncwd;
 int minlines = -1000;
@@ -329,7 +328,7 @@ cover(void)
 			lastfn = s.name;
 			buf[0] = 0;
 			fileline(buf, sizeof buf, s.value);
-			if(grep == nil || regexec9(grep, buf, nil, 0) > 0 || regexec9(grep, s.name, nil, 0) > 0)
+			if(substring == nil || strstr(buf, substring) || strstr(s.name, substring))
 				lastpc = s.value;
 		}
 	}
@@ -426,13 +425,10 @@ void
 main(int argc, char **argv)
 {
 	int n;
-	char *regexp;
 
 	ARGBEGIN{
 	case 'g':
-		regexp = EARGF(usage());
-		if((grep = regcomp9(regexp)) == nil)
-			sysfatal("bad regexp %s", regexp);
+		substring = EARGF(usage());
 		break;
 	case 'l':
 		longnames++;

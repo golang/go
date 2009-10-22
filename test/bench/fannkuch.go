@@ -78,34 +78,37 @@ func fannkuch(n int) int {
 			for i := 1; i < n; i++ {	// perm = perm1
 				perm[i] = perm1[i];
 			}
-for perm[0] != 0 {
-    for i, j := 0, perm[0]; i < j; i, j = i+1, j-1 {
-        perm[i], perm[j] = perm[j], perm[i];
-    }
-    flips++;
-}			if flipsMax < flips {
+			k := perm1[0];		// cache perm[0] in k
+			for {			// k!=0 ==> k>0
+				for i, j := 1, k-1; i < j; i, j = i+1, j-1 {
+					perm[i], perm[j] = perm[j], perm[i];
+				}
+				flips++;
+				// Now exchange k (caching perm[0]) and perm[k]... with care!
+				j := perm[k]; perm[k] = k; k = j;
+				if k == 0 {
+					break
+				}
+			}
+			if flipsMax < flips {
 				flipsMax = flips;
 			}
 		}
 
-		for {
-			if r == n {
-				return flipsMax;
-			}
+		for ; r < n; r++ {
 			// rotate down perm[0..r] by one
 			perm0 := perm1[0];
-			i := 0;
-			for i < r {
-				k := i+1;
-				perm1[i] = perm1[k];
-				i = k;
+			for i := 0; i < r; i++ {
+				perm1[i] = perm1[i+1];
 			}
 			perm1[r] = perm0;
 			count[r]--;
 			if count[r] > 0 {
 				break;
 			}
-			r++;
+		}
+		if r == n {
+			return flipsMax;
 		}
 	}
 	return 0

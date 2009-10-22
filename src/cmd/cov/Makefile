@@ -17,7 +17,7 @@ HFILES=\
 	tree.h\
 
 $(TARG): $(OFILES)
-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lregexp9 -lbio -l9
+	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lbio -l9
 
 clean:
 	rm -f *.$O $(TARG)

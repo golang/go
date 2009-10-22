@@ -120,6 +120,7 @@ addr(Biobuf *bp)
 	long off;
 
 	off = 0;
+	a.gotype = 0;
 	a.sym = -1;
 	a.flags = Bgetc(bp);			/* flags */
 	if(a.flags & T_INDEX)

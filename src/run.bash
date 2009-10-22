@@ -53,12 +53,6 @@ make clean
 ./test.bash
 ) || exit $?
 
-(xcd ../usr/r/rpc
-make clean
-time make
-./chanrun
-) || exit $?
-
 (xcd pkg/exp/ogle
 make clean
 time make ogle

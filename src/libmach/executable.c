@@ -514,7 +514,12 @@ commonllp64(int unused, Fhdr *fp, ExecHdr *hp)
 	 */
 	if((hp->e.exechdr.magic & ~DYN_MAGIC)>>16)
 		return 0;
-	entry = beswav(*(uvlong*)&hp->e.exechdr);
+	union {
+		char *p;
+		uvlong *v;
+	} u;
+	u.p = (char*)&hp->e.exechdr;
+	entry = beswav(*u.v);
 
 	pgsize = mach->pgsize;
 	settext(fp, entry, pgsize+fp->hdrsz, hp->e.exechdr.text, fp->hdrsz);
