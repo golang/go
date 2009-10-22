@@ -91,7 +91,7 @@ TEXT	breakpoint(SB),7,$0
 
 // uintptr gosave(Gobuf*)
 // save state in Gobuf; setjmp
-TEXT gosave(SB), 7, $0
+TEXT gosave(SB), 7, $-4
 	MOVW	0(FP), R0
 	MOVW	SP, gobuf_sp(R0)
 	MOVW	LR, gobuf_pc(R0)
@@ -101,7 +101,7 @@ TEXT gosave(SB), 7, $0
 
 // void gogo(Gobuf*, uintptr)
 // restore state from Gobuf; longjmp
-TEXT	gogo(SB), 7, $0
+TEXT	gogo(SB), 7, $-4
 	MOVW	0(FP), R1			// gobuf
 	MOVW	4(FP), R0		// return 2nd arg
 	MOVW	gobuf_g(R1), g
