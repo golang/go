@@ -722,6 +722,15 @@ def sync(ui, repo, **opts):
 	modheads = repo.pull(other)
 	return commands.postincoming(ui, repo, modheads, True, "tip")
 
+def dologin(ui, repo, **opts):
+	"""log in to code review server
+	
+	Logs in to the code review server, saving a cookie in
+	a file in your home directory.
+	"""
+	MySend("/")
+
+
 def uisetup(ui):
 	if "^commit|ci" in commands.table:
 		commands.table["^commit|ci"] = (nocommit, [], "")
@@ -789,6 +798,12 @@ cmdtable = {
 	
 	"commit|ci": (
 		nocommit,
+		[],
+		"",
+	),
+	
+	"codereview-login": (
+		dologin,
 		[],
 		"",
 	),
