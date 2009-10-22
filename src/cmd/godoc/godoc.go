@@ -53,53 +53,49 @@ import (
 const Pkg = "/pkg/"	// name for auto-generated package documentation tree
 
 
-type delayTime struct {
+// ----------------------------------------------------------------------------
+// Support types
+
+// An RWValue wraps a value and permits mutually exclusive
+// access to it and records the time the value was last set.
+type RWValue struct {
 	mutex	sync.RWMutex;
-	minutes	int;
+	value	interface{};
+	timestamp	int64;  // time of last set(), in seconds since epoch
 }
 
 
-func (dt *delayTime) set(minutes int) {
-	dt.mutex.Lock();
-	dt.minutes = minutes;
-	dt.mutex.Unlock();
+func (v *RWValue) set(value interface{}) {
+	v.mutex.Lock();
+	v.value = value;
+	v.timestamp = time.Seconds();
+	v.mutex.Unlock();
+}
+
+
+func (v *RWValue) get() (interface{}, int64) {
+	v.mutex.RLock();
+	defer v.mutex.RUnlock();
+	return v.value, v.timestamp;
+}
+
+
+// ----------------------------------------------------------------------------
+// Globals
+
+type delayTime struct {
+	RWValue;
 }
 
 
 func (dt *delayTime) backoff(max int) {
 	dt.mutex.Lock();
-	dt.minutes *= 2;
-	if dt.minutes > max {
-		dt.minutes = max;
+	v := dt.value.(int) * 2;
+	if v > max {
+		v = max;
 	}
+	dt.value = v;
 	dt.mutex.Unlock();
-}
-
-
-func (dt *delayTime) get() int {
-	dt.mutex.RLock();
-	defer dt.mutex.RUnlock();
-	return dt.minutes;
-}
-
-
-type timeStamp struct {
-	mutex	sync.RWMutex;
-	seconds	int64;
-}
-
-
-func (ts *timeStamp) set() {
-	ts.mutex.Lock();
-	ts.seconds = time.Seconds();
-	ts.mutex.Unlock();
-}
-
-
-func (ts *timeStamp) get() int64 {
-	ts.mutex.RLock();
-	defer ts.mutex.RUnlock();
-	return ts.seconds;
 }
 
 
@@ -115,7 +111,7 @@ var (
 	syncCmd				= flag.String("sync", "", "sync command; disabled if empty");
 	syncMin				= flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0");
 	syncDelay	delayTime;	// actual sync delay in minutes; usually syncDelay == syncMin, but delay may back off exponentially
-	syncTime	timeStamp;	// time of last p4 sync
+	syncTime	RWValue;	// time of last p4 sync
 
 	// layout control
 	tabwidth	= flag.Int("tabwidth", 4, "tab width");
@@ -132,7 +128,7 @@ func init() {
 		goroot = "/home/r/go-release/go";
 	}
 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory");
-	syncTime.set();	// have a reasonable initial value
+	syncTime.set(nil);	// have a reasonable initial value (time is shown on web page)
 }
 
 
@@ -221,15 +217,61 @@ func parse(path string, mode uint) (*ast.File, *parseErrors) {
 
 
 // ----------------------------------------------------------------------------
+// HTML formatting support
+
+// Styler implements a printer.Styler.
+type Styler struct {
+	highlight string;
+}
+
+
+func (s *Styler) LineTag(line int) (text []byte, tag printer.HtmlTag) {
+	tag = printer.HtmlTag{fmt.Sprintf(`<a id="L%d">`, line), "</a>"};
+	return;
+}
+
+
+func (s *Styler) Comment(c *ast.Comment, line []byte)  (text []byte, tag printer.HtmlTag) {
+	text = line;
+	// minimal syntax-coloring of comments for now - people will want more
+	// (don't do anything more until there's a button to turn it on/off)
+	tag = printer.HtmlTag{`<span class="comment">`, "</span>"};
+	return;
+}
+
+
+func (s *Styler) BasicLit(x *ast.BasicLit)  (text []byte, tag printer.HtmlTag) {
+	text = x.Value;
+	return;
+}
+
+
+func (s *Styler) Ident(id *ast.Ident)  (text []byte, tag printer.HtmlTag) {
+	text = strings.Bytes(id.Value);
+	if s.highlight == id.Value {
+		tag = printer.HtmlTag{"<span class=highlight>", "</span>"};
+	}
+	return;
+}
+
+
+func (s *Styler) Token(tok token.Token)  (text []byte, tag printer.HtmlTag) {
+	text = strings.Bytes(tok.String());
+	return;
+}
+
+
+
+// ----------------------------------------------------------------------------
 // Templates
 
 // Write an AST-node to w; optionally html-escaped.
-func writeNode(w io.Writer, node interface{}, html bool) {
+func writeNode(w io.Writer, node interface{}, html bool, style printer.Styler) {
 	mode := printer.UseSpaces;
 	if html {
 		mode |= printer.GenHTML;
 	}
-	printer.Fprint(w, node, mode, *tabwidth);
+	printer.Fprint(w, node, mode, *tabwidth, style);
 }
 
 
@@ -251,9 +293,9 @@ func writeAny(w io.Writer, x interface{}, html bool) {
 	case string:
 		writeText(w, strings.Bytes(v), html);
 	case ast.Decl:
-		writeNode(w, v, html);
+		writeNode(w, v, html, nil);
 	case ast.Expr:
-		writeNode(w, v, html);
+		writeNode(w, v, html, nil);
 	default:
 		if html {
 			var buf bytes.Buffer;
@@ -324,11 +366,13 @@ func readTemplate(name string) *template.Template {
 }
 
 
-var godocHtml *template.Template
-var packageHtml *template.Template
-var packageText *template.Template
-var parseerrorHtml *template.Template
-var parseerrorText *template.Template
+var (
+	godocHtml,
+	packageHtml,
+	packageText,
+	parseerrorHtml,
+	parseerrorText *template.Template;
+)
 
 func readTemplates() {
 	// have to delay until after flags processing,
@@ -351,9 +395,10 @@ func servePage(c *http.Conn, title, content interface{}) {
 		content		interface{};
 	}
 
+	_, ts := syncTime.get();
 	d := Data{
 		title: title,
-		timestamp: time.SecondsToLocalTime(syncTime.get()).String(),
+		timestamp: time.SecondsToLocalTime(ts).String(),
 		content: content,
 	};
 
@@ -420,7 +465,7 @@ func serveParseErrors(c *http.Conn, errors *parseErrors) {
 }
 
 
-func serveGoSource(c *http.Conn, filename string) {
+func serveGoSource(c *http.Conn, filename string, style printer.Styler) {
 	path := pathutil.Join(goroot, filename);
 	prog, errors := parse(path, parser.ParseComments);
 	if errors != nil {
@@ -430,7 +475,7 @@ func serveGoSource(c *http.Conn, filename string) {
 
 	var buf bytes.Buffer;
 	fmt.Fprintln(&buf, "<pre>");
-	writeNode(&buf, prog, true);
+	writeNode(&buf, prog, true, style);
 	fmt.Fprintln(&buf, "</pre>");
 
 	servePage(c, "Source file " + filename, buf.Bytes());
@@ -455,7 +500,7 @@ func serveFile(c *http.Conn, r *http.Request) {
 		serveHtmlDoc(c, r, path);
 
 	case ext == ".go":
-		serveGoSource(c, path);
+		serveGoSource(c, path, &Styler{highlight: r.FormValue("h")});
 
 	default:
 		// TODO:
@@ -654,7 +699,7 @@ func dosync(c *http.Conn, r *http.Request) {
 	args := []string{"/bin/sh", "-c", *syncCmd};
 	if exec(c, args) {
 		// sync succeeded
-		syncTime.set();
+		syncTime.set(nil);
 		syncDelay.set(*syncMin);	//  revert to regular sync schedule
 	} else {
 		// sync failed - back off exponentially, but try at least once a day
@@ -722,14 +767,16 @@ func main() {
 			go func() {
 				for {
 					dosync(nil, nil);
+					_, delay := syncDelay.get();
 					if *verbose {
-						log.Stderrf("next sync in %dmin", syncDelay.get());
+						log.Stderrf("next sync in %dmin", delay);
 					}
-					time.Sleep(int64(syncDelay.get())*(60*1e9));
+					time.Sleep(int64(delay)*60e9);
 				}
 			}();
 		}
 
+		// Start http server.
 		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
 			log.Exitf("ListenAndServe %s: %v", *httpaddr, err);
 		}
