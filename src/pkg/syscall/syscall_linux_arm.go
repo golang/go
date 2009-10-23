@@ -59,5 +59,11 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sys	Stat(path string, stat *Stat_t) (errno int)
 //sys	Statfs(path string, buf *Statfs_t) (errno int)
 
+// TODO(kaib): add support for tracing
+func (r *PtraceRegs) PC() uint64 {
+        return 0;
+}
 
+func (r *PtraceRegs) SetPC(pc uint64) {
+}
 

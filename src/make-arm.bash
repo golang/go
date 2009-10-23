@@ -20,11 +20,8 @@ cp quietgcc.bash $GOBIN/quietgcc
 chmod +x $GOBIN/quietgcc
 
 # TODO(kaib): converge with normal build
-#for i in lib9 libbio libmach libregexp cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
-for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/syscall pkg/os pkg/unicode pkg/utf8 pkg/bytes pkg/strings pkg/sort pkg/io pkg/malloc pkg/time pkg/math pkg/strconv pkg/reflect pkg/fmt pkg/bufio
-#for i in lib9 libbio libmach libregexp cmd pkg/runtime pkg/sync pkg/once pkg/malloc pkg/sort pkg/unicode
-# pkg/hash
-# pkg/math
+#for i in lib9 libbio libmach libregexp cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
+for i in lib9 libbio libmach libregexp cmd pkg cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
 do
 	# The ( ) here are to preserve the current directory
 	# for the next round despite the cd $i below.
