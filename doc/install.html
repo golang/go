@@ -1,1 +1,197 @@
-TODO(go-dev): Write this document.
+<!-- Installing Go -->
+
+<h2>Introduction</h2>
+
+<p>
+There are two distinct ways to experiment with Go.
+This document explains how to check out, build, and use the <code>6g</code> Go
+compiler and tools.
+For information on how to use <code>gccgo</code>, a more traditional
+compiler using the gcc back end, see
+<a href="go_gccgo_setup.html">Setting up and using gccgo</a>.
+</p>
+
+<h2>Environment variables</h2>
+
+<p>The Go compilation environment depends on three environment
+variables that you should set in your <code>.bashrc</code> or equivalent,
+plus one optional variable:</p>
+
+<dl>
+<dt><code>$GOROOT</code></dt>
+<dd>The root of the Go tree.  Typically this is <code>$HOME/go</code>
+but it can be any directory.</dd>
+<dt><code>$GOOS</code> and <code>$GOARCH</code></dt>
+<dd>The name of the target operating system and compilation architecture.
+Choices for <code>$GOOS</code> are <code>darwin</code> (OS X), <code>linux</code>,
+and <code>nacl</code> (Native Client, an incomplete port).
+Choices for <code>$GOARCH</code> are <code>amd64</code> (64-bit x86, the most stable port),
+<code>386</code> (32-bit x86, an unoptimized but stable port), and
+<code>arm</code> (32-bit ARM, an incomplete port).
+The valid combinations are 
+<code>linux</code>/<code>amd64</code>,
+<code>linux</code>/<code>arm</code>,
+<code>linux</code>/<code>386</code>,
+<code>darwin</code>/<code>amd64</code>,
+<code>darwin</code>/<code>386</code>,
+and
+<code>nacl</code>/<code>386</code>.
+</dd>
+<dt><code>$GOBIN</code> (optional)</dt>
+<dd>The location where binaries will be installed.
+If you set <code>$GOBIN</code>, you need to ensure that it 
+is in your <code>$PATH</code> so that newly built Go-specific
+command such as the compiler can be found during the build.
+The default, <code>$HOME/bin</code>, may already be in your <code>$PATH</code>.
+</dd>
+</dl>
+
+<p>
+Note that <code>$GOARCH</code> and <code>$GOOS</code> identify the
+<em>target</em> environment, not the environment you are running on.
+In effect, you are always cross-compiling.
+</p>
+
+<p>
+After setting these variables in your <code>.bashrc</code>, double-check them by
+listing your environment.
+</p>
+
+<pre>
+$ env | grep '^GO'
+</pre>
+
+<h2>Fetch the repository</h2>
+
+<p>
+If you do not have Mercurial installed (you do not have an <code>hg</code> command),
+this command:
+</p>
+
+<pre>
+$ sudo easy_install mercurial
+</pre>
+
+<p>works on most systems.
+If that fails, visit the <a href="http://mercurial.selenic.com/wiki/Download">Mercurial Download</a> page.</p>
+
+<p>Make sure the <code>$GOROOT</code> directory does not exist or is empty.
+Then check out the repository:</p>
+
+<!-- TODO(go-dev): Replace with http://go.googlecode.com/ for launch. -->
+<pre>
+$ hg clone http://r45/ $GOROOT
+</pre>
+
+<h2>Install Go</h2>
+
+<p>You need to have the parser generator Bison installed.
+It is installed as part of Xcode on OS X. 
+If you need it on Linux,
+</p>
+
+<pre>
+$ sudo apt-get install bison
+</pre>
+
+<p>
+(or the equivalent on your Linux distribution).
+</p>
+
+<p>
+To build the Go distribution, make sure <code>$GOBIN</code>
+(or <code>$HOME/bin</code> if <code>$GOBIN</code> is not set)
+is in your <code>$PATH</code> and then run
+</p>
+
+<pre>
+$ cd $GOROOT/src
+$ ./all.bash
+</pre>
+
+<p>
+If <code>all.bash</code> goes well, it will finish by printing
+</p>
+
+<pre>
+--- cd ../test
+N known bugs; 0 unexpected bugs
+</pre>
+
+<p>
+where <var>N</var> is a number that varies from release to release.
+</p>
+
+<h2>Writing programs</h2>
+
+<p>
+Given a file <code>file.go</code>, compile it using
+</p>
+
+<pre>
+$ 6g file.go
+</pre>
+
+<p>
+<code>6g</code> is the Go compiler for <code>amd64</code>; it will write the output
+in <code>file.6</code>. The &lsquo;<code>6</code>&rsquo; identifies
+files for the <code>amd64</code> architecture.
+The identifier letters for <code>386</code> and <code>arm</code>
+are &lsquo;<code>8</code>&rsquo; and &lsquo;<code>5</code>&rsquo;.
+That is, if you were compiling for <code>386</code>, you would use
+<code>8g</code> and the output would be named <code>file.8</code>.
+</p>
+
+<p>
+To link the file, use
+</p>
+
+<pre>
+$ 6l file.6
+</pre>
+
+<p>
+and to run it
+</p>
+
+<pre>
+$ ./6.out
+</pre>
+
+<p>A complete example:
+</p>
+
+<pre>
+$ cat &gt;hello.go &lt;&lt;EOF
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Printf("hello, world\n")
+}
+EOF
+$ 6g hello.go
+$ 6l hello.6
+$ ./6.out
+hello, world
+$
+</pre>
+
+<p>
+There is no need to list <code>hello.6</code>'s package dependencies
+(in this case, package <code>fmt</code>) on the <code>6l</code>
+command line.
+The linker learns about them by reading <code>hello.6</code>.
+</p>
+
+<p>
+To build more complicated programs, you will probably
+want to use a 
+<code>Makefile</code>.
+There are examples in <code>$GOROOT/src/cmd/godoc/Makefile</code>
+and <code>$GOROOT/src/pkg/*/Makefile</code>.
+<a href="">XXX other document XXX</a> gives more detail about
+the process of building and testing Go programs.
+</p>
+
