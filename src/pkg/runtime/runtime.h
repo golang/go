@@ -152,7 +152,6 @@ struct	Gobuf
 	byte*	sp;
 	byte*	pc;
 	G*	g;
-	uintptr	r0;		// used on arm
 };
 struct	G
 {
