@@ -767,11 +767,11 @@ func main() {
 			go func() {
 				for {
 					dosync(nil, nil);
-					_, delay := syncDelay.get();
+					delay, _ := syncDelay.get();
 					if *verbose {
-						log.Stderrf("next sync in %dmin", delay);
+						log.Stderrf("next sync in %dmin", delay.(int));
 					}
-					time.Sleep(int64(delay)*60e9);
+					time.Sleep(int64(delay.(int))*60e9);
 				}
 			}();
 		}
