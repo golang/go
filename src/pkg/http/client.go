@@ -125,7 +125,7 @@ func send(req *Request) (resp *Response, err os.Error) {
 		return nil, err;
 	}
 
-	err = req.write(conn);
+	err = req.Write(conn);
 	if err != nil {
 		conn.Close();
 		return nil, err;

@@ -125,7 +125,7 @@ func valueOrDefault(value, def string) string {
 // TODO(rsc): Change default UserAgent before open-source release.
 const defaultUserAgent = "http.Client"
 
-// Write an HTTP/1.1 request -- header and body -- in wire format.
+// Write writes an HTTP/1.1 request -- header and body -- in wire format.
 // This method consults the following fields of req:
 //	Url
 //	Method (defaults to "GET")
@@ -135,7 +135,7 @@ const defaultUserAgent = "http.Client"
 //	Body
 //
 // If Body is present, "Transfer-Encoding: chunked" is forced as a header.
-func (req *Request) write(w io.Writer) os.Error {
+func (req *Request) Write(w io.Writer) os.Error {
 	uri := URLEscape(req.Url.Path);
 	if req.Url.RawQuery != "" {
 		uri += "?" + req.Url.RawQuery;
