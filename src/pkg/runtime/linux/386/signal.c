@@ -52,7 +52,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
 		printf("%s\n", sigtab[sig].name);
 
 	printf("Faulting address: %p\n", *(void**)info->_sifields);
-	printf("pc=%X\n", sc->eip);
+	printf("PC=%X\n", sc->eip);
 	printf("\n");
 
 	if(gotraceback()){
