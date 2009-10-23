@@ -128,7 +128,7 @@ noops(void)
 	Bflush(&bso);
 
 	pmorestack = P;
-	symmorestack = lookup("runtime·morestackx", 0);
+	symmorestack = lookup("runtime·morestack", 0);
 
 	if(symmorestack->type == STEXT)
 	for(p = firstp; p != P; p = p->link) {
@@ -358,9 +358,10 @@ noops(void)
 				// split stack check for small functions
 				// MOVW			g_stackguard(g), R1
 				// CMP			R1, $-autosize(SP)
+				// MOVW.LO		$autosize, R1
 				// MOVW.LO		$args, R2
-				// MOVW.W.LO	R14, R3
-				// BL.LO		runtime·morestackx(SB) // modifies LR
+				// MOVW.W.LO		R14, R3
+				// BL.LO			runtime·morestack(SB) // modifies LR
 				// MOVW.W		R14,$-autosize(SP)
 
 				// TODO(kaib): add more trampolines
@@ -383,12 +384,22 @@ noops(void)
 				p->from.offset = -autosize;
 				p->reg = REGSP;
 
-				// MOVW.LO		$args, R2
+				// MOVW.LO		$autosize, R1
 				p = appendp(p);
 				p->as = AMOVW;
 				p->scond = C_SCOND_LO;
 				p->from.type = D_CONST;
-				p->from.offset = curtext->to.offset2 & ~7;
+				p->from.offset = 0;
+				p->to.type = D_REG;
+				p->to.reg = 1;
+
+				// MOVW.LO		$args +4, R2
+				// also need to store the extra 4 bytes.
+				p = appendp(p);
+				p->as = AMOVW;
+				p->scond = C_SCOND_LO;
+				p->from.type = D_CONST;
+				p->from.offset = (curtext->to.offset2 & ~7) + 4;
 				p->to.type = D_REG;
 				p->to.reg = 2;
 
@@ -401,7 +412,7 @@ noops(void)
 				p->to.type = D_REG;
 				p->to.reg = 3;
 
-				// BL.LO		runtime·morestackx(SB) // modifies LR
+				// BL.LO		runtime·morestack(SB) // modifies LR
 				p = appendp(p);
 				p->as = ABL;
 				p->scond = C_SCOND_LO;

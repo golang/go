@@ -120,7 +120,6 @@ TEXT gogocall(SB), 7, $-4
 	MOVW	0(g), R2		// make sure g != nil
 	MOVW	gobuf_sp(R0), SP	// restore SP
 	MOVW	gobuf_pc(R0), LR
-	MOVW	gobuf_r0(R0), R0
 	MOVW	R1, PC
 
 /*
@@ -131,6 +130,8 @@ TEXT gogocall(SB), 7, $-4
 // R1 frame size
 // R2 arg size
 // R3 prolog's LR
+// NB. we do not save R0 because the we've forced 5c to pass all arguments
+// on the stack.
 // using frame size $-4 means do not save LR on stack.
 TEXT runtime·morestack(SB),7,$-4
 	// Cannot grow scheduler stack (m->g0).
@@ -149,7 +150,6 @@ TEXT runtime·morestack(SB),7,$-4
 	MOVW	SP, (m_morebuf+gobuf_sp)(m) // f's caller's SP
 	MOVW	SP, m_morefp(m) // f's caller's SP
 	MOVW	g, (m_morebuf+gobuf_g)(m)
-	MOVW	R0, (m_morebuf+gobuf_r0)(m)
 
 	// Set m->morepc to f's PC.
 	MOVW	LR, m_morepc(m)
@@ -169,7 +169,6 @@ TEXT reflect·call(SB), 7, $-4
 	// restore when returning from f.
 	MOVW	LR, (m_morebuf+gobuf_pc)(m)	// our caller's PC
 	MOVW	SP, (m_morebuf+gobuf_sp)(m)	// our caller's SP
-	MOVW	R0, (m_morebuf+gobuf_r0)(m)
 	MOVW	g,  (m_morebuf+gobuf_g)(m)
 
 	// Set up morestack arguments to call f on a new stack.
@@ -203,16 +202,6 @@ TEXT runtime·lessstack(SB), 7, $-4
 	MOVW	m_g0(m), g
 	MOVW	(m_sched+gobuf_sp)(m), SP
 	B	oldstack(SB)
-
-// Optimization to make inline stack splitting code smaller
-// R0 is original first argument
-// R2 is argsize
-// R3 is LR for f (f's caller's PC)
-// using frame size $-4 means do not save LR on stack.
-TEXT runtime·morestackx(SB), 7, $-4
-	MOVW	$0, R1		// set frame size
-	B	runtime·morestack(SB)
-
 
 // void jmpdefer(fn, sp);
 // called from deferreturn.
