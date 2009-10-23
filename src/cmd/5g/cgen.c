@@ -222,11 +222,16 @@ cgen(Node *n, Node *res)
 		goto ret;
 
 	case OMINUS:
-		nr = nl;
-		nl = &n1;
-		nodconst(nl, nr->type, 0);
-		a = optoas(OSUB, nr->type);
-		goto abop;
+		nodconst(&n3, nl->type, 0);
+		regalloc(&n2, nl->type, res);
+		regalloc(&n1, nl->type, N);
+		gmove(&n3, &n2);
+		cgen(nl, &n1);
+		gins(optoas(OSUB, nl->type), &n1, &n2);
+		gmove(&n2, res);
+		regfree(&n1);
+		regfree(&n2);
+		goto ret;
 
 	// symmetric binary
 	case OAND:
