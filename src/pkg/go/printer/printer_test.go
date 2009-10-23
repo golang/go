@@ -62,7 +62,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 
 	// format source
 	var buf bytes.Buffer;
-	if _, err := Fprint(&buf, prog, &cfg); err != nil {
+	if _, err := cfg.Fprint(&buf, prog); err != nil {
 		t.Error(err);
 	}
 	res := buf.Bytes();
