@@ -271,7 +271,7 @@ func writeNode(w io.Writer, node interface{}, html bool, style printer.Styler) {
 	if html {
 		mode |= printer.GenHTML;
 	}
-	printer.Fprint(w, node, mode, *tabwidth, style);
+	(&printer.Config{mode, *tabwidth, style}).Fprint(w, node);
 }
 
 

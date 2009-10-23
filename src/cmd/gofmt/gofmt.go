@@ -91,7 +91,7 @@ func processFile(filename string) os.Error {
 	}
 
 	var res bytes.Buffer;
-	_, err = printer.Fprint(&res, file, printerMode(), *tabwidth, nil);
+	_, err = (&printer.Config{printerMode(), *tabwidth, nil}).Fprint(&res, file);
 	if err != nil {
 		return err;
 	}
