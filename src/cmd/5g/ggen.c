@@ -146,7 +146,7 @@ ginscall(Node *f, int proc)
 		p->to.reg = REGSP;
 		p->to.offset = 8;
 
-		nodconst(&con, types[TINT32], argsize(f->type));
+		nodconst(&con, types[TINT32], argsize(f->type) + 4);
 		gins(AMOVW, &con, &r);
 		p = gins(AMOVW, &r, N);
 		p->to.type = D_OREG;
