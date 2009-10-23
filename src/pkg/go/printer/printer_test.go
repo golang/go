@@ -54,15 +54,15 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 		prog.Comments = nil;  // don't print comments that are not in AST
 	}
 
-	// determine printer mode
-	var pmode uint;
+	// determine printer configuration
+	cfg := Config{Tabwidth: tabwidth};
 	if mode&rawFormat != 0 {
-		pmode |= RawFormat;
+		cfg.Mode |= RawFormat;
 	}
 
 	// format source
 	var buf bytes.Buffer;
-	if _, err := Fprint(&buf, prog, pmode, tabwidth, nil); err != nil {
+	if _, err := Fprint(&buf, prog, &cfg); err != nil {
 		t.Error(err);
 	}
 	res := buf.Bytes();

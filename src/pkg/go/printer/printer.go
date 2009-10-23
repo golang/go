@@ -26,16 +26,6 @@ const (
 )
 
 
-// Printing is controlled with these flags supplied
-// to Fprint via the mode parameter.
-//
-const (
-	GenHTML uint = 1 << iota;  // generate HTML
-	RawFormat;  // do not use a tabwriter; if set, UseSpaces is ignored
-	UseSpaces;  // use spaces instead of tabs for indentation and alignment
-)
-
-
 type whiteSpace int
 
 const (
@@ -64,29 +54,10 @@ var (
 var noPos token.Position
 
 
-// An HtmlTag specifies a start and end tag.
-type HtmlTag struct {
-	Start, End string;  // empty if tags are absent
-}
-
-
-// A Styler specifies the formatting line tags and elementary Go words.
-// A format consists of text and a (possibly empty) surrounding HTML tag.
-type Styler interface {
-	LineTag(line int) ([]byte, HtmlTag);
-	Comment(c *ast.Comment, line []byte)  ([]byte, HtmlTag);
-	BasicLit(x *ast.BasicLit)  ([]byte, HtmlTag);
-	Ident(id *ast.Ident)  ([]byte, HtmlTag);
-	Token(tok token.Token)  ([]byte, HtmlTag);
-}
-
-
 type printer struct {
 	// Configuration (does not change after initialization)
 	output io.Writer;
-	mode uint;
-	tabwidth int;
-	style Styler;
+	Config;
 	errors chan os.Error;
 
 	// Current state
@@ -115,11 +86,9 @@ type printer struct {
 }
 
 
-func (p *printer) init(output io.Writer, mode uint, tabwidth int, style Styler) {
+func (p *printer) init(output io.Writer, cfg *Config) {
 	p.output = output;
-	p.mode = mode;
-	p.tabwidth = tabwidth;
-	p.style = style;
+	p.Config = *cfg;
 	p.errors = make(chan os.Error);
 	p.buffer = make([]whiteSpace, 0, 16);  // whitespace sequences are short
 }
@@ -174,7 +143,7 @@ func (p *printer) write(data []byte) {
 			i0 = i+1;
 
 		case '&', '<', '>':
-			if p.mode & GenHTML != 0 {
+			if p.Mode & GenHTML != 0 {
 				// write segment ending in b
 				p.write0(data[i0 : i]);
 
@@ -248,12 +217,12 @@ func (p *printer) writeItem(pos token.Position, data []byte, tag HtmlTag) {
 		// do not update p.pos - use write0
 		p.write0(strings.Bytes(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)));
 	}
-	if p.mode & GenHTML != 0 {
+	if p.Mode & GenHTML != 0 {
 		// write line tag if on a new line
 		// TODO(gri): should write line tags on each line at the start
 		//            will be more useful (e.g. to show line numbers)
-		if p.style != nil && pos.Line > p.lastTaggedLine {
-			p.writeTaggedItem(p.style.LineTag(pos.Line));
+		if p.Styler != nil && pos.Line > p.lastTaggedLine {
+			p.writeTaggedItem(p.Styler.LineTag(pos.Line));
 			p.lastTaggedLine = pos.Line;
 		}
 		p.writeTaggedItem(data, tag);
@@ -357,15 +326,15 @@ func (p *printer) writeComment(comment *ast.Comment) {
 	// by the printer, reducing tab sequences to single tabs will yield the
 	// original comment again after reformatting via the tabwriter.
 	text := comment.Text;
-	if p.mode & RawFormat == 0 {
+	if p.Mode & RawFormat == 0 {
 		// tabwriter is used
 		text = collapseTabs(comment.Text);
 	}
 
 	// write comment
 	var tag HtmlTag;
-	if p.style != nil {
-		text, tag = p.style.Comment(comment, text);
+	if p.Styler != nil {
+		text, tag = p.Styler.Comment(comment, text);
 	}
 	p.writeItem(comment.Pos(), text, tag);
 }
@@ -519,14 +488,14 @@ func (p *printer) print(args ...) {
 			//            handles comments correctly
 			data = strings.Bytes(x);
 		case *ast.Ident:
-			if p.style != nil {
-				data, tag = p.style.Ident(x);
+			if p.Styler != nil {
+				data, tag = p.Styler.Ident(x);
 			} else {
 				data = strings.Bytes(x.Value);
 			}
 		case *ast.BasicLit:
-			if p.style != nil {
-				data, tag = p.style.BasicLit(x);
+			if p.Styler != nil {
+				data, tag = p.Styler.BasicLit(x);
 			} else {
 				data = x.Value;
 			}
@@ -536,8 +505,8 @@ func (p *printer) print(args ...) {
 			// TODO(gri): this this more efficiently.
 			data = strings.Bytes("\xff" + string(data) + "\xff");
 		case token.Token:
-			if p.style != nil {
-				data, tag = p.style.Token(x);
+			if p.Styler != nil {
+				data, tag = p.Styler.Token(x);
 			} else {
 				data = strings.Bytes(x.String());
 			}
@@ -1509,7 +1478,7 @@ func (p *printer) isOneLiner(b *ast.BlockStmt) bool {
 
 	// test-print the statement and see if it would fit
 	var buf bytes.Buffer;
-	_, err := Fprint(&buf, b.List[0], p.mode, p.tabwidth, p.style);
+	_, err := p.Config.Fprint(&buf, b.List[0]);
 	if err != nil {
 		return false;  // don't try
 	}
@@ -1715,15 +1684,46 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 // ----------------------------------------------------------------------------
 // Public interface
 
-var inf = token.Position{Offset: 1<<30, Line: 1<<30}
+// General printing is controlled with these Config.Mode flags.
+const (
+	GenHTML uint = 1 << iota;  // generate HTML
+	RawFormat;  // do not use a tabwriter; if set, UseSpaces is ignored
+	UseSpaces;  // use spaces instead of tabs for indentation and alignment
+)
 
 
-// Fprint "pretty-prints" an AST node to output and returns the number of
-// bytes written, and an error, if any. The node type must be *ast.File,
-// or assignment-compatible to ast.Expr, ast.Decl, or ast.Stmt. Printing
-// is controlled by the mode and tabwidth parameters.
+// An HtmlTag specifies a start and end tag.
+type HtmlTag struct {
+	Start, End string;  // empty if tags are absent
+}
+
+
+// A Styler specifies formatting of line tags and elementary Go words.
+// A format consists of text and a (possibly empty) surrounding HTML tag.
 //
-func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int, style Styler) (int, os.Error) {
+type Styler interface {
+	LineTag(line int) ([]byte, HtmlTag);
+	Comment(c *ast.Comment, line []byte)  ([]byte, HtmlTag);
+	BasicLit(x *ast.BasicLit)  ([]byte, HtmlTag);
+	Ident(id *ast.Ident)  ([]byte, HtmlTag);
+	Token(tok token.Token)  ([]byte, HtmlTag);
+}
+
+
+// A Config node controls the output of Fprint.
+type Config struct {
+	Mode uint;	// default: 0
+	Tabwidth int;	// default: 8
+	Styler Styler;	// default: nil
+}
+
+
+// Fprint "pretty-prints" an AST node to output and returns the number
+// of bytes written and an error (if any) for a given configuration cfg.
+// The node type must be *ast.File, or assignment-compatible to ast.Expr,
+// ast.Decl, or ast.Stmt.
+//
+func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 	// redirect output through a trimmer to eliminate trailing whitespace
 	// (Input to a tabwriter must be untrimmed since trailing tabs provide
 	// formatting information. The tabwriter could provide trimming
@@ -1732,22 +1732,22 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int, style S
 
 	// setup tabwriter if needed and redirect output
 	var tw *tabwriter.Writer;
-	if mode & RawFormat == 0 {
+	if cfg.Mode & RawFormat == 0 {
 		padchar := byte('\t');
-		if mode & UseSpaces != 0 {
+		if cfg.Mode & UseSpaces != 0 {
 			padchar = ' ';
 		}
 		twmode := tabwriter.DiscardEmptyColumns;
-		if mode & GenHTML != 0 {
+		if cfg.Mode & GenHTML != 0 {
 			twmode |= tabwriter.FilterHTML;
 		}
-		tw = tabwriter.NewWriter(output, tabwidth, 1, padchar, twmode);
+		tw = tabwriter.NewWriter(output, cfg.Tabwidth, 1, padchar, twmode);
 		output = tw;
 	}
 
 	// setup printer and print node
 	var p printer;
-	p.init(output, mode, tabwidth, style);
+	p.init(output, cfg);
 	go func() {
 		switch n := node.(type) {
 		case ast.Expr:
@@ -1763,7 +1763,7 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int, style S
 			p.errors <- os.NewError(fmt.Sprintf("printer.Fprint: unsupported node type %T", n));
 			runtime.Goexit();
 		}
-		p.flush(inf);
+		p.flush(token.Position{Offset: 1<<30, Line: 1<<30});  // flush to "infinity"
 		p.errors <- nil;  // no errors
 	}();
 	err := <-p.errors;  // wait for completion of goroutine
@@ -1774,4 +1774,13 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int, style S
 	}
 
 	return p.written, err;
+}
+
+
+// Fprint "pretty-prints" an AST node to output.
+// It calls Config.Fprint with default settings.
+//
+func Fprint(output io.Writer, node interface{}) os.Error {
+	_, err := (&Config{Tabwidth: 8}).Fprint(output, node);  // don't care about number of bytes written
+	return err;
 }
