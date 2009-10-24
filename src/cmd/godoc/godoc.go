@@ -111,7 +111,7 @@ var (
 	syncCmd				= flag.String("sync", "", "sync command; disabled if empty");
 	syncMin				= flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0");
 	syncDelay	delayTime;	// actual sync delay in minutes; usually syncDelay == syncMin, but delay may back off exponentially
-	syncTime	RWValue;	// time of last p4 sync
+	syncTime	RWValue;	// time of last sync
 
 	// layout control
 	tabwidth	= flag.Int("tabwidth", 4, "tab width");
