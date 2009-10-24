@@ -1,3 +1,4 @@
+235.go
 64bit.go
 args.go
 assign.go
@@ -7,8 +8,11 @@ blank1.go
 chan/fifo.go
 chan/goroutines.go
 chan/perm.go
+chan/powser1.go
+chan/powser2.go
 chan/select.go
 chan/sieve.go
+chancap.go
 char_lit.go
 closedchan.go
 closure.go
@@ -256,6 +260,7 @@ interface/returntype.go
 interface/struct.go
 iota.go
 ken/array.go
+ken/chan.go
 ken/chan1.go
 ken/complit.go
 ken/divconst.go
@@ -297,6 +302,7 @@ named.go
 named1.go
 nil.go
 parentype.go
+peano.go
 printbig.go
 range.go
 rename.go

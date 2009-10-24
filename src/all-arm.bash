@@ -17,6 +17,10 @@ xcd() {
 	builtin cd $1
 }
 
+# temporarily turn GC off
+# TODO(kaib): reenable GC once everything else works
+export GOGC=off
+
 (xcd ../test
 ./run-arm
 ) || exit $?
