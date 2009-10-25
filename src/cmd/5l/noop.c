@@ -360,7 +360,7 @@ noops(void)
 				// CMP			R1, $-autosize(SP)
 				// MOVW.LO		$autosize, R1
 				// MOVW.LO		$args, R2
-				// MOVW.W.LO		R14, R3
+				// MOVW.LO		R14, R3
 				// BL.LO			runtime·morestack(SB) // modifies LR
 				// MOVW.W		R14,$-autosize(SP)
 
@@ -403,7 +403,7 @@ noops(void)
 				p->to.type = D_REG;
 				p->to.reg = 2;
 
-				// MOVW.W.LO	R14, R3
+				// MOVW.LO	R14, R3
 				p = appendp(p);
 				p->as = AMOVW;
 				p->scond = C_SCOND_LO;
@@ -430,11 +430,53 @@ noops(void)
 				p->to.offset = -autosize;
 				p->to.reg = REGSP;
 			} else { // > StackBig
-				// MOVW.W		R14,$-4(SP)
-				// MOVW			$(args << 24 | autosize), R1
-				// BL			callmorestack(SB)
-				// TODO(kaib): Fix large stacks, don't use packing
-				diag("StackBig broken");
+				// MOVW		$autosize, R1
+				// MOVW		$args, R2
+				// MOVW		R14, R3
+				// BL			runtime·morestack(SB) // modifies LR
+				// MOVW.W		R14,$-autosize(SP)
+
+				// MOVW		$autosize, R1
+				p = appendp(p);
+				p->as = AMOVW;
+				p->from.type = D_CONST;
+				p->from.offset = autosize;
+				p->to.type = D_REG;
+				p->to.reg = 1;
+
+				// MOVW		$args +4, R2
+				// also need to store the extra 4 bytes.
+				p = appendp(p);
+				p->as = AMOVW;
+				p->from.type = D_CONST;
+				p->from.offset = (curtext->to.offset2 & ~7) + 4;
+				p->to.type = D_REG;
+				p->to.reg = 2;
+
+				// MOVW	R14, R3
+				p = appendp(p);
+				p->as = AMOVW;
+				p->from.type = D_REG;
+				p->from.reg = REGLINK;
+				p->to.type = D_REG;
+				p->to.reg = 3;
+
+				// BL		runtime·morestack(SB) // modifies LR
+				p = appendp(p);
+				p->as = ABL;
+ 				p->to.type = D_BRANCH;
+				p->to.sym = symmorestack;
+				p->cond = pmorestack;
+
+				// MOVW.W		R14,$-autosize(SP)
+				p = appendp(p);
+				p->as = AMOVW;
+ 				p->scond |= C_WBIT;
+				p->from.type = D_REG;
+				p->from.reg = REGLINK;
+				p->to.type = D_OREG;
+				p->to.offset = -autosize;
+				p->to.reg = REGSP;
 			}
 			break;
 
