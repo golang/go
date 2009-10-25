@@ -21,10 +21,13 @@ cmp2.go
 cmp3.go
 cmp4.go
 cmp5.go
+complit.go
 compos.go
 const.go
 const1.go
 const2.go
+const3.go
+convert.go
 convert3.go
 convlit.go
 convlit1.go
@@ -190,12 +193,14 @@ fixedbugs/bug173.go
 fixedbugs/bug174.go
 fixedbugs/bug175.go
 fixedbugs/bug176.go
+fixedbugs/bug177.go
 fixedbugs/bug178.go
 fixedbugs/bug179.go
 fixedbugs/bug180.go
 fixedbugs/bug181.go
 fixedbugs/bug182.go
 fixedbugs/bug183.go
+fixedbugs/bug184.go
 fixedbugs/bug185.go
 fixedbugs/bug186.go
 fixedbugs/bug187.go
@@ -218,6 +223,7 @@ fixedbugs/bug203.go
 fixedbugs/bug204.go
 fixedbugs/bug205.go
 fixedbugs/bug206.go
+fixedbugs/bug207.go
 fixedbugs/bug208.go
 fixedbugs/bug209.go
 fixedbugs/bug211.go
@@ -240,6 +246,7 @@ import1.go
 indirect.go
 indirect1.go
 initcomma.go
+initialize.go
 initializerr.go
 initsyscall.go
 int_lit.go
@@ -252,6 +259,7 @@ interface/embed.go
 interface/embed0.go
 interface/explicit.go
 interface/fail.go
+interface/fake.go
 interface/pointer.go
 interface/receiver.go
 interface/receiver1.go
@@ -293,6 +301,10 @@ ken/sliceslice.go
 ken/string.go
 ken/strvar.go
 literal.go
+malloc1.go
+mallocrand.go
+mallocrep.go
+mallocrep1.go
 map.go
 method.go
 method1.go
@@ -318,6 +330,7 @@ switch.go
 switch1.go
 test0.go
 typeswitch.go
+typeswitch1.go
 utf.go
 varinit.go
 vectors.go

@@ -429,13 +429,13 @@ flt2:	// binary
 		regalloc(&f1, n->type, N);
 		gmove(&f0, &f1);
 		cgen(nr, &f0);
-		gins(optoas(n->op, n->type), &f1, &f0);
+		gins(optoas(n->op, n->type), &f0, &f1);
 	} else {
 		cgen(nr, &f0);
 		regalloc(&f1, n->type, N);
 		gmove(&f0, &f1);
 		cgen(nl, &f0);
-		gins(optoas(n->op, n->type), &f1, &f0);
+		gins(optoas(n->op, n->type), &f0, &f1);
 	}
 	gmove(&f1, res);
 	regfree(&f0);
@@ -1170,29 +1170,21 @@ sgen(Node *n, Node *res, int32 w)
 			p = gins(AMOVW, &src, &tmp);
 			p->from.type = D_OREG;
 
-			//	MOVW	tmp>>((4-c)*8),src
-			p = gins(AMOVW, N, &src);
-			p->from.type = D_SHIFT;
-			p->from.offset = SHIFT_LR | ((4-c)*8)<<7 | tmp.val.u.reg;
+			//	MOVW	tmp<<((4-c)*8),src
+			gshift(AMOVW, &tmp, SHIFT_LL, ((4-c)*8), &src);
 
-			//	MOVW	src<<((4-c)*8),src
-			p = gins(AMOVW, N, &src);
-			p->from.type = D_SHIFT;
-			p->from.offset = SHIFT_LL | ((4-c)*8)<<7 | tmp.val.u.reg;
+			//	MOVW	src>>((4-c)*8),src
+			gshift(AMOVW, &src, SHIFT_LR, ((4-c)*8), &src);
 
 			//	MOVW	(dst), tmp
 			p = gins(AMOVW, &dst, &tmp);
 			p->from.type = D_OREG;
 
-			//	MOVW	tmp<<(c*8),tmp
-			p = gins(AMOVW, N, &tmp);
-			p->from.type = D_SHIFT;
-			p->from.offset = SHIFT_LL | (c*8)<<7 | tmp.val.u.reg;
-
 			//	MOVW	tmp>>(c*8),tmp
-			p = gins(AMOVW, N, &tmp);
-			p->from.type = D_SHIFT;
-			p->from.offset = SHIFT_LR | (c*8)<<7 | tmp.val.u.reg;
+			gshift(AMOVW, &tmp, SHIFT_LR, (c*8), &tmp);
+
+			//	MOVW	tmp<<(c*8),tmp
+			gshift(AMOVW, &tmp, SHIFT_LL, c*8, &tmp);
 
 			//	ORR		src, tmp
 			gins(AORR, &src, &tmp);

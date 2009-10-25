@@ -1188,52 +1188,64 @@ optoas(int op, Type *t)
 	case CASE(OLT, TINT16):
 	case CASE(OLT, TINT32):
 	case CASE(OLT, TINT64):
+	case CASE(OLT, TFLOAT32):
+	case CASE(OLT, TFLOAT64):
+		a = ABLT;
+		break;
+
 	case CASE(OLT, TUINT8):
 	case CASE(OLT, TUINT16):
 	case CASE(OLT, TUINT32):
 	case CASE(OLT, TUINT64):
-	case CASE(OGT, TFLOAT32):
-	case CASE(OGT, TFLOAT64):
-		a = ABLT;
+		a = ABLO;
 		break;
 
 	case CASE(OLE, TINT8):
 	case CASE(OLE, TINT16):
 	case CASE(OLE, TINT32):
 	case CASE(OLE, TINT64):
+	case CASE(OLE, TFLOAT32):
+	case CASE(OLE, TFLOAT64):
+		a = ABLE;
+		break;
+
 	case CASE(OLE, TUINT8):
 	case CASE(OLE, TUINT16):
 	case CASE(OLE, TUINT32):
 	case CASE(OLE, TUINT64):
-	case CASE(OGE, TFLOAT32):
-	case CASE(OGE, TFLOAT64):
-		a = ABLE;
+		a = ABLS;
 		break;
 
 	case CASE(OGT, TINT8):
 	case CASE(OGT, TINT16):
 	case CASE(OGT, TINT32):
 	case CASE(OGT, TINT64):
+	case CASE(OGT, TFLOAT32):
+	case CASE(OGT, TFLOAT64):
+		a = ABGT;
+		break;
+
 	case CASE(OGT, TUINT8):
 	case CASE(OGT, TUINT16):
 	case CASE(OGT, TUINT32):
 	case CASE(OGT, TUINT64):
-	case CASE(OLT, TFLOAT32):
-	case CASE(OLT, TFLOAT64):
-		a = ABGT;
+		a = ABHI;
 		break;
 
 	case CASE(OGE, TINT8):
 	case CASE(OGE, TINT16):
 	case CASE(OGE, TINT32):
 	case CASE(OGE, TINT64):
+	case CASE(OGE, TFLOAT32):
+	case CASE(OGE, TFLOAT64):
+		a = ABGE;
+		break;
+
 	case CASE(OGE, TUINT8):
 	case CASE(OGE, TUINT16):
 	case CASE(OGE, TUINT32):
 	case CASE(OGE, TUINT64):
-	case CASE(OLE, TFLOAT32):
-	case CASE(OLE, TFLOAT64):
-		a = ABGE;
+		a = ABHS;
 		break;
 
 	case CASE(OCMP, TBOOL):
