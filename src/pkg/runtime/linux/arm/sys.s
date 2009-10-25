@@ -18,8 +18,8 @@ TEXT write(SB),7,$0
     	SWI	$SYS_write
 	RET
 
-TEXT exit(SB),7,$0
-	// Exit value already in R0
+TEXT exit(SB),7,$-4
+	MOVW	0(FP), R0
 	SWI	$SYS_exit
 
 TEXT runtime·mmap(SB),7,$0

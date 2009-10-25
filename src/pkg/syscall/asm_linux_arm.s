@@ -6,9 +6,6 @@
 // System calls for arm, Linux
 //
 
-#define SYS_BASE 0x00900000
-#define SYS_syscall (SYS_BASE+113);
-
 // TODO(kaib): handle error returns
 
 // func Syscall(syscall uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
@@ -19,7 +16,7 @@ TEXT	syscall·Syscall(SB),7,$0
 	MOVW	8(SP), R0
 	MOVW	12(SP), R1
 	MOVW	16(SP), R2
-	SWI		$SYS_syscall
+	SWI		$0
 	MOVW	R0, 20(SP)	// r1
 	MOVW	R1, 24(SP)	// r2
 	MOVW	$0, R0
@@ -38,7 +35,7 @@ TEXT	syscall·Syscall6(SB),7,$0
 	MOVW	20(SP), R3
 	MOVW	24(SP), R4
 	MOVW	28(SP), R5
-	SWI		$SYS_syscall
+	SWI		$0
 	MOVW	R0, 32(SP)	// r1
 	MOVW	R1, 36(SP)	// r2
 	MOVW	$0, R0
@@ -52,7 +49,7 @@ TEXT syscall·RawSyscall(SB),7,$0
 	MOVW	8(SP), R0
 	MOVW	12(SP), R1
 	MOVW	16(SP), R2
-	SWI		$SYS_syscall
+	SWI		$0
 	MOVW	R0, 20(SP)	// r1
 	MOVW	R1, 24(SP)	// r2
 	MOVW	$0, R0
