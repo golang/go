@@ -432,9 +432,11 @@ ldobj1(Biobuf *f, int64 len, char *pn)
 	int v, o, r, skip;
 	uint32 sig;
 	char *name;
+	int ntext;
 	int32 eof;
 	char src[1024];
 
+	ntext = 0;
 	eof = Boffset(f) + len;
 	di = S;
 	src[0] = 0;
@@ -657,6 +659,13 @@ loop:
 		break;
 
 	case ATEXT:
+		s = p->from.sym;
+		if(ntext++ == 0 && s->type != 0 && s->type != SXREF) {
+			/* redefinition, so file has probably been seen before */
+			if(debug['v'])
+				Bprint(&bso, "skipping: %s: redefinition: %s", pn, s->name);
+			return;
+		}
 		setarch(p);
 		setthumb(p);
 		p->align = 4;

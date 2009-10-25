@@ -22,6 +22,12 @@ nacl)
 	E="nacl"
 esac
 
+# TODO(kaib): proper emulator strategy
+case x"$GOARCH" in
+xarm)
+	E="qemu-arm -cpu cortex-a8"
+esac
+
 # Allow overrides
 GC=${_GC:-$GC}
 GL=${GL:-$LD}
@@ -131,5 +137,5 @@ importpath=$(make -s importpath)
 }>_testmain.go
 
 $GC _testmain.go
-$GL _testmain.$O _test/$importpath.a $xofile
+$GL _testmain.$O
 $E ./$O.out "$@"
