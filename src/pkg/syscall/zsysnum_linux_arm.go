@@ -3,9 +3,7 @@
 package syscall
 
 const (
-	SYS_SYSCALL_BASE	= 0x900000;
-	// for thumb and eabi
-	//SYS_SYSCALL_BASE = 0;
+	SYS_SYSCALL_BASE = 0;
 
 	SYS_RESTART_SYSCALL		= (SYS_SYSCALL_BASE + 0);
 	SYS_EXIT			= (SYS_SYSCALL_BASE + 1);
