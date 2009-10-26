@@ -41,6 +41,7 @@ DIRS=\
 	encoding/base64\
 	encoding/binary\
 	encoding/git85\
+	encoding/hex\
 	encoding/pem\
 	exec\
 	exp/datafmt\
