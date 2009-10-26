@@ -123,8 +123,8 @@ ginscall(Node *f, int proc)
 		afunclit(&p->to);
 		break;
 
+	// TODO(kaib): unify newproc and defer if you can figure out how not to break things
 	case 1:	// call in new proc (go)
-	case 2:	// defered call (defer)
 		regalloc(&r, types[tptr], N);
 		p = gins(AMOVW, N, &r);
 		p->from.type = D_OREG;
@@ -154,10 +154,7 @@ ginscall(Node *f, int proc)
 		p->to.offset = 4;
 		regfree(&r);
 
-		if(proc == 1)
-			ginscall(newproc, 0);
-		else
-			ginscall(deferproc, 0);
+		ginscall(newproc, 0);
 
 		regalloc(&r, types[tptr], N);
 		p = gins(AMOVW, N, &r);
@@ -169,6 +166,53 @@ ginscall(Node *f, int proc)
 		p->to.type = D_OREG;
 		p->to.reg = REGSP;
 		p->to.offset = 12;
+		p->scond |= C_WBIT;
+		regfree(&r);
+
+		break;
+
+	case 2:	// defered call (defer)
+		regalloc(&r, types[tptr], N);
+		p = gins(AMOVW, N, &r);
+		p->from.type = D_OREG;
+		p->from.reg = REGSP;
+		
+		p = gins(AMOVW, &r, N);
+		p->to.type = D_OREG;
+		p->to.reg = REGSP;
+		p->to.offset = -8;
+		p->scond |= C_WBIT;
+
+		memset(&n1, 0, sizeof n1);
+		n1.op = OADDR;
+		n1.left = f;
+		gins(AMOVW, &n1, &r);
+
+		p = gins(AMOVW, &r, N);
+		p->to.type = D_OREG;
+		p->to.reg = REGSP;
+		p->to.offset = 8;
+
+		nodconst(&con, types[TINT32], argsize(f->type));
+		gins(AMOVW, &con, &r);
+		p = gins(AMOVW, &r, N);
+		p->to.type = D_OREG;
+		p->to.reg = REGSP;
+		p->to.offset = 4;
+		regfree(&r);
+
+		ginscall(deferproc, 0);
+
+		regalloc(&r, types[tptr], N);
+		p = gins(AMOVW, N, &r);
+		p->from.type = D_OREG;
+		p->from.reg = REGSP;
+		p->from.offset = 0;
+
+		p = gins(AMOVW, &r, N);
+		p->to.type = D_OREG;
+		p->to.reg = REGSP;
+		p->to.offset = 8;
 		p->scond |= C_WBIT;
 		regfree(&r);
 
