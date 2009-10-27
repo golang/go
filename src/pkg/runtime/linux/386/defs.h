@@ -1,4 +1,4 @@
-// godefs -f -m32 -f -I/home/rsc/pub/linux-2.6/arch/x86/include -f -I/home/rsc/pub/linux-2.6/include defs2.c
+// godefs -f -m32 -f -D_LOOSE_KERNEL_NAMES -f -D__ARCH_SI_UID_T=__kernel_uid32_t defs2.c
 
 // MACHINE GENERATED - DO NOT EDIT.
 
@@ -54,8 +54,7 @@ struct Fpstate {
 	uint32 reserved;
 	Fpxreg _fxsr_st[8];
 	Xmmreg _xmm[8];
-	uint32 padding1[44];
-	byte _anon_[48];
+	uint32 padding[56];
 };
 
 typedef struct Timespec Timespec;
@@ -72,10 +71,10 @@ struct Timeval {
 
 typedef struct Sigaction Sigaction;
 struct Sigaction {
-	byte _u[4];
-	uint32 sa_mask;
+	void *k_sa_handler;
 	uint32 sa_flags;
 	void *sa_restorer;
+	uint32 sa_mask;
 };
 
 typedef struct Siginfo Siginfo;
