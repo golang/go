@@ -349,6 +349,7 @@ func linkFmt(w io.Writer, x interface{}, format string) {
 
 
 var infoClasses = [nKinds]string{
+	"package",	// PackageClause
 	"import",	// ImportDecl
 	"const",	// ConstDecl
 	"type",	// TypeDecl
