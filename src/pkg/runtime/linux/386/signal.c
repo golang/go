@@ -88,9 +88,9 @@ initsig(void)
 	for(i = 0; i<NSIG; i++) {
 		if(sigtab[i].flags) {
 			if(sigtab[i].flags & SigCatch)
-				*(void**)sa._u = (void*)sigtramp;	// handler
+				sa.k_sa_handler = (void*)sigtramp;
 			else
-				*(void**)sa._u = (void*)sigignore;	// handler
+				sa.k_sa_handler = (void*)sigignore;
 			if(sigtab[i].flags & SigRestart)
 				sa.sa_flags |= SA_RESTART;
 			else

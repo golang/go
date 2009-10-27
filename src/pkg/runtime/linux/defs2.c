@@ -13,14 +13,26 @@
 
 #include <asm/signal.h>
 #include <asm/mman.h>
-#include <asm/sigframe.h>
+#include <asm/sigcontext.h>
 #include <asm/ucontext.h>
+#include <asm/siginfo.h>
 
 /*
 #include <sys/signal.h>
 #include <sys/mman.h>
 #include <ucontext.h>
 */
+
+/* This is the sigaction structure from the Linux 2.1.68 kernel which
+   is used with the rt_sigaction system call.  For 386 this is not
+   defined in any public header file.  */
+
+struct kernel_sigaction {
+	__sighandler_t k_sa_handler;
+	unsigned long sa_flags;
+	void (*sa_restorer) (void);
+	sigset_t sa_mask;
+};
 
 enum {
 	$PROT_NONE = PROT_NONE,
@@ -43,7 +55,7 @@ typedef struct _xmmreg $Xmmreg;
 typedef struct _fpstate $Fpstate;
 typedef struct timespec $Timespec;
 typedef struct timeval $Timeval;
-typedef struct sigaction $Sigaction;
+typedef struct kernel_sigaction $Sigaction;
 typedef siginfo_t $Siginfo;
 typedef struct sigaltstack $Sigaltstack;
 typedef struct sigcontext $Sigcontext;
