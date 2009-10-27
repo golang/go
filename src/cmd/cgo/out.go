@@ -37,7 +37,7 @@ func (p *Prog) writeOutput(srcfile string) {
 	// Write Go output: Go input with rewrites of C.xxx to _C_xxx.
 	fmt.Fprintf(fgo1, "// Created by cgo - DO NOT EDIT\n");
 	fmt.Fprintf(fgo1, "//line %s:1\n", srcfile);
-	printer.Fprint(fgo1, p.AST);
+	printer.Fprint(fgo1, p.AST, 0, 8, nil);
 
 	// Write second Go output: definitions of _C_xxx.
 	// In a separate file so that the import of "unsafe" does not
@@ -45,10 +45,11 @@ func (p *Prog) writeOutput(srcfile string) {
 	fmt.Fprintf(fgo2, "// Created by cgo - DO NOT EDIT\n");
 	fmt.Fprintf(fgo2, "package %s\n\n", p.Package);
 	fmt.Fprintf(fgo2, "import \"unsafe\"\n\n");
+	fmt.Fprintf(fgo2, "type _ unsafe.Pointer\n\n");
 
 	for name, def := range p.Typedef {
 		fmt.Fprintf(fgo2, "type %s ", name);
-		printer.Fprint(fgo2, def);
+		printer.Fprint(fgo2, def, 0, 8, nil);
 		fmt.Fprintf(fgo2, "\n");
 	}
 	fmt.Fprintf(fgo2, "type _C_void [0]byte\n");
@@ -63,7 +64,7 @@ func (p *Prog) writeOutput(srcfile string) {
 	for name, def := range p.Vardef {
 		fmt.Fprintf(fc, "#pragma dynld %s·_C_%s %s \"%s/%s_%s.so\"\n", p.Package, name, name, pkgroot, p.PackagePath, base);
 		fmt.Fprintf(fgo2, "var _C_%s ", name);
-		printer.Fprint(fgo2, &ast.StarExpr{X: def.Go});
+		printer.Fprint(fgo2, &ast.StarExpr{X: def.Go}, 0, 8, nil);
 		fmt.Fprintf(fgo2, "\n");
 	}
 	fmt.Fprintf(fc, "\n");
@@ -74,7 +75,7 @@ func (p *Prog) writeOutput(srcfile string) {
 			Name: &ast.Ident{Value: "_C_"+name},
 			Type: def.Go,
 		};
-		printer.Fprint(fgo2, d);
+		printer.Fprint(fgo2, d, 0, 8, nil);
 		fmt.Fprintf(fgo2, "\n");
 
 		if name == "CString" || name == "GoString" {
