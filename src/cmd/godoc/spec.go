@@ -49,7 +49,7 @@ func (p *ebnfParser) next() {
 
 
 func (p *ebnfParser) Error(pos token.Position, msg string) {
-	fmt.Fprintf(p.out, "<font color=red>error: %s</font>", msg);
+	fmt.Fprintf(p.out, `<span class="alert">error: %s</span>`, msg);
 }
 
 
@@ -83,7 +83,7 @@ func (p *ebnfParser) parseIdentifier(def bool) {
 	if def {
 		fmt.Fprintf(p.out, `<a id="%s">%s</a>`, name, name);
 	} else {
-		fmt.Fprintf(p.out, `<a href="#%s" style="text-decoration: none;">%s</a>`, name, name);
+		fmt.Fprintf(p.out, `<a href="#%s" class="noline">%s</a>`, name, name);
 	}
 	p.prev += len(name);	// skip identifier when calling flush
 }
@@ -165,8 +165,8 @@ func (p *ebnfParser) parse(out io.Writer, src []byte) {
 
 // Markers around EBNF sections
 var (
-	open	= strings.Bytes(`<pre class="ebnf">`);
-	close	= strings.Bytes(`</pre>`);
+	openTag		= strings.Bytes(`<pre class="ebnf">`);
+	closeTag	= strings.Bytes(`</pre>`);
 )
 
 
@@ -175,14 +175,14 @@ func linkify(out io.Writer, src []byte) {
 		n := len(src);
 
 		// i: beginning of EBNF text (or end of source)
-		i := bytes.Index(src, open);
+		i := bytes.Index(src, openTag);
 		if i < 0 {
-			i = n-len(open);
+			i = n-len(openTag);
 		}
-		i += len(open);
+		i += len(openTag);
 
 		// j: end of EBNF text (or end of source)
-		j := bytes.Index(src[i:n], close);	// close marker
+		j := bytes.Index(src[i:n], closeTag);	// close marker
 		if j < 0 {
 			j = n-i;
 		}

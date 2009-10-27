@@ -4,7 +4,7 @@
 <head>
 
   <meta http-equiv="content-type" content="text/html; charset=utf-8">
-  <title>{title}</title>
+  <title>{Title}</title>
 
   <link rel="stylesheet" type="text/css" href="/doc/style.css">
   <script type="text/javascript" src="/doc/godocs.js"></script>
@@ -38,28 +38,34 @@
     <li><a href="/doc/go_for_cpp_programmers.html">Go for C++ Programmers</a></li>
 
     <li class="blank">&nbsp;</li>
-    <li class="navhead">Programming</li>
-    <li><a href="/pkg">Package documentation</a></li>
-
-    <li class="blank">&nbsp;</li>
     <li class="navhead">How To</li>
     <li><a href="/doc/install.html">Install Go</a></li>
     <li><a href="/doc/contribute.html">Contribute code</a></li>
 
     <li class="blank">&nbsp;</li>
+    <li class="navhead">Programming</li>
+    <li><a href="/pkg">Package documentation</a></li>
+
+    <li class="blank">&nbsp;</li>
+    <li class="navhead">Go code search</li>
+    <form method="GET" action="/search" class="search">
+    <input name="q" value="{Query}" size="25" />
+    <input type="submit" value="Go" />
+
+    <li class="blank">&nbsp;</li>
     <li class="navhead">Last update</li>
-	<li>{timestamp}</li>
+	<li>{Timestamp}</li>
   </ul>
 </div>
 
 <div id="content">
-  <h1>{title}</h1>
+  <h1>{Title}</h1>
 
   <!-- The Table of Contents is automatically inserted in this <div>.
        Do not delete this <div>. -->
   <div id="nav"></div>
 
-  {content}
+  {Content}
 </div>
 
 <div id="footer">
