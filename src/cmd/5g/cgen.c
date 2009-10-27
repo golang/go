@@ -702,6 +702,16 @@ agen(Node *n, Node *res)
 	case ODOTPTR:
 		cgen(nl, res);
 		if(n->xoffset != 0) {
+			// explicit check for nil if struct is large enough
+			// that we might derive too big a pointer.
+			if(nl->type->type->width >= unmappedzero) {
+				regalloc(&n1, types[tptr], N);
+				gmove(res, &n1);
+				p1 = gins(AMOVW, &n1, &n1);
+				p1->from.type = D_OREG;
+				p1->from.offset = 0;
+				regfree(&n1);
+			}
 			nodconst(&n1, types[TINT32], n->xoffset);
 			regalloc(&n2, n1.type, N);
 			regalloc(&n3, types[tptr], N);
