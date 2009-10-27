@@ -30,6 +30,10 @@
 
 #include "gg.h"
 
+// TODO(kaib): Can make this bigger if we move
+// the text segment up higher in 5l for all GOOS.
+long unmappedzero = 4096;
+
 void
 clearp(Prog *p)
 {
@@ -863,6 +867,7 @@ gins(int as, Node *f, Node *t)
 //	Node nod;
 //	int32 v;
 	Prog *p;
+	Addr af, at;
 
 	if(f != N && f->op == OINDEX) {
 		fatal("gins OINDEX not implemented");
@@ -883,11 +888,16 @@ gins(int as, Node *f, Node *t)
 //		regfree(&nod);
 	}
 
-	p = prog(as);
+	memset(&af, 0, sizeof af);
+	memset(&at, 0, sizeof at);
 	if(f != N)
-		naddr(f, &p->from);
+		naddr(f, &af, 1);
 	if(t != N)
-		naddr(t, &p->to);
+		naddr(t, &at, 1);	p = prog(as);
+	if(f != N)
+		p->from = af;
+	if(t != N)
+		p->to = at;
 	if(debug['g'])
 		print("%P\n", p);
 	return p;
@@ -901,7 +911,7 @@ raddr(Node *n, Prog *p)
 {
 	Addr a;
 
-	naddr(n, &a);
+	naddr(n, &a, 1);
 	if(a.type != D_REG && a.type != D_FREG) {
 		if(n)
 			fatal("bad in raddr: %O", n->op);
@@ -958,13 +968,33 @@ gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs)
 	return p;
 }
 
+static void
+checkoffset(Addr *a, int canemitcode)
+{
+	Prog *p;
+	Node n1;
+
+	if(a->offset < unmappedzero)
+		return;
+	if(!canemitcode)
+		fatal("checkoffset %#llx, cannot emit code", a->offset);
+
+	// cannot rely on unmapped nil page at 0 to catch
+	// reference with large offset.  instead, emit explicit
+	// test of 0(reg).
+	regalloc(&n1, types[TUINTPTR], N);
+	p = gins(AMOVW, N, &n1);
+	p->from = *a;
+	p->from.offset = 0;
+	regfree(&n1);
+}
 
 /*
  * generate code to compute n;
  * make a refer to result.
  */
 void
-naddr(Node *n, Addr *a)
+naddr(Node *n, Addr *a, int canemitcode)
 {
 	a->type = D_NONE;
 	a->name = D_NONE;
@@ -1014,6 +1044,7 @@ naddr(Node *n, Addr *a)
 		a->reg = n->val.u.reg;
 		a->sym = n->sym;
 		a->offset = n->xoffset;
+		checkoffset(a, canemitcode);
 		break;
 
 	case OPARAM:
@@ -1099,18 +1130,22 @@ naddr(Node *n, Addr *a)
 
 	case OLEN:
 		// len of string or slice
-		naddr(n->left, a);
+		naddr(n->left, a, canemitcode);
 		a->offset += Array_nel;
+		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+			checkoffset(a, canemitcode);
 		break;
 
 	case OCAP:
 		// cap of string or slice
-		naddr(n->left, a);
+		naddr(n->left, a, canemitcode);
 		a->offset += Array_cap;
+		if(a->offset >= unmappedzero && a->offset-Array_cap < unmappedzero)
+			checkoffset(a, canemitcode);
 		break;
 
 	case OADDR:
-		naddr(n->left, a);
+		naddr(n->left, a, canemitcode);
 		switch(a->type) {
 		case D_OREG:
 			a->type = D_CONST;
@@ -1558,7 +1593,7 @@ lit:
 	reg1 = &clean[cleani-2];
 	reg->op = OEMPTY;
 	reg1->op = OEMPTY;
-	naddr(n, a);
+	naddr(n, a, 1);
 	goto yes;
 
 odot:
@@ -1571,7 +1606,7 @@ odot:
 		n1 = *nn;
 		n1.type = n->type;
 		n1.xoffset += oary[0];
-		naddr(&n1, a);
+		naddr(&n1, a, 1);
 		goto yes;
 	}
 
@@ -1595,7 +1630,7 @@ odot:
 
 	a->type = D_NONE;
 	a->name = D_NONE;
-	naddr(&n1, a);
+	naddr(&n1, a, 1);
 	goto yes;
 
 oindex:
@@ -1669,6 +1704,17 @@ oindex:
 			n2.type = types[tptr];
 			n2.xoffset = Array_nel;
 		} else {
+			if(l->type->width >= unmappedzero && l->op == OIND) {
+				// cannot rely on page protections to
+				// catch array ptr == 0, so dereference.
+				n2 = *reg;
+				n2.op = OINDREG;
+				n2.type = types[TUINTPTR];
+				n2.xoffset = 0;
+				regalloc(&n3, n2.type, N);
+				gins(AMOVW, &n2, &n3);
+				regfree(&n3);
+			}
 			nodconst(&n2, types[TUINT32], l->type->bound);
 			if(o & OPtrto)
 				nodconst(&n2, types[TUINT32], l->type->type->bound);
@@ -1699,7 +1745,7 @@ oindex:
 	else if(*w == 8)
 		gshift(AADD, reg1, SHIFT_LL, 3, reg);
 
-	naddr(reg1, a);
+	naddr(reg1, a, 1);
 	a->type = D_OREG;
 	a->reg = reg->val.u.reg;
 	a->offset = 0;
@@ -1763,7 +1809,7 @@ oindex_const:
 	n2.xoffset = v * (*w);
 	a->type = D_NONE;
 	a->name = D_NONE;
-	naddr(&n2, a);
+	naddr(&n2, a, 1);
 	goto yes;
 
 yes:
