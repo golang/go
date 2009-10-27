@@ -7,6 +7,8 @@ include $(GOROOT)/src/Make.$(GOARCH)
 TARG=godoc
 GOFILES=\
 	godoc.go\
+	index.go\
+	snippet.go\
 	spec.go\
 
 include $(GOROOT)/src/Make.cmd

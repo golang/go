@@ -27,26 +27,26 @@
 package main
 
 import (
-			"bytes";
-			"container/vector";
-			"flag";
-			"fmt";
-			"go/ast";
-			"go/doc";
-			"go/parser";
-			"go/printer";
-			"go/scanner";
-			"go/token";
-			"http";
-			"io";
-			"log";
-			"os";
-	pathutil	"path";
-			"sort";
-			"strings";
-			"sync";
-			"template";
-			"time";
+	"bytes";
+	"container/vector";
+	"flag";
+	"fmt";
+	"go/ast";
+	"go/doc";
+	"go/parser";
+	"go/printer";
+	"go/scanner";
+	"go/token";
+	"http";
+	"io";
+	"log";
+	"os";
+	pathutil "path";
+	"sort";
+	"strings";
+	"sync";
+	"template";
+	"time";
 )
 
 
@@ -59,9 +59,9 @@ const Pkg = "/pkg/"	// name for auto-generated package documentation tree
 // An RWValue wraps a value and permits mutually exclusive
 // access to it and records the time the value was last set.
 type RWValue struct {
-	mutex	sync.RWMutex;
-	value	interface{};
-	timestamp	int64;  // time of last set(), in seconds since epoch
+	mutex		sync.RWMutex;
+	value		interface{};
+	timestamp	int64;	// time of last set(), in seconds since epoch
 }
 
 
@@ -138,7 +138,12 @@ func init() {
 func isGoFile(dir *os.Dir) bool {
 	return dir.IsRegular() &&
 		!strings.HasPrefix(dir.Name, ".") &&	// ignore .files
-		pathutil.Ext(dir.Name) == ".go" &&
+		pathutil.Ext(dir.Name) == ".go";
+}
+
+
+func isPkgFile(dir *os.Dir) bool {
+	return isGoFile(dir) &&
 		!strings.HasSuffix(dir.Name, "_test.go");	// ignore test files
 }
 
@@ -231,7 +236,7 @@ func (s *Styler) LineTag(line int) (text []byte, tag printer.HtmlTag) {
 }
 
 
-func (s *Styler) Comment(c *ast.Comment, line []byte)  (text []byte, tag printer.HtmlTag) {
+func (s *Styler) Comment(c *ast.Comment, line []byte) (text []byte, tag printer.HtmlTag) {
 	text = line;
 	// minimal syntax-coloring of comments for now - people will want more
 	// (don't do anything more until there's a button to turn it on/off)
@@ -240,13 +245,13 @@ func (s *Styler) Comment(c *ast.Comment, line []byte)  (text []byte, tag printer
 }
 
 
-func (s *Styler) BasicLit(x *ast.BasicLit)  (text []byte, tag printer.HtmlTag) {
+func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HtmlTag) {
 	text = x.Value;
 	return;
 }
 
 
-func (s *Styler) Ident(id *ast.Ident)  (text []byte, tag printer.HtmlTag) {
+func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HtmlTag) {
 	text = strings.Bytes(id.Value);
 	if s.highlight == id.Value {
 		tag = printer.HtmlTag{"<span class=highlight>", "</span>"};
@@ -255,23 +260,22 @@ func (s *Styler) Ident(id *ast.Ident)  (text []byte, tag printer.HtmlTag) {
 }
 
 
-func (s *Styler) Token(tok token.Token)  (text []byte, tag printer.HtmlTag) {
+func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HtmlTag) {
 	text = strings.Bytes(tok.String());
 	return;
 }
-
 
 
 // ----------------------------------------------------------------------------
 // Templates
 
 // Write an AST-node to w; optionally html-escaped.
-func writeNode(w io.Writer, node interface{}, html bool, style printer.Styler) {
+func writeNode(w io.Writer, node interface{}, html bool, styler printer.Styler) {
 	mode := printer.UseSpaces;
 	if html {
 		mode |= printer.GenHTML;
 	}
-	(&printer.Config{mode, *tabwidth, style}).Fprint(w, node);
+	(&printer.Config{mode, *tabwidth, styler}).Fprint(w, node);
 }
 
 
@@ -344,11 +348,55 @@ func linkFmt(w io.Writer, x interface{}, format string) {
 }
 
 
+var infoClasses = [nKinds]string{
+	"import",	// ImportDecl
+	"const",	// ConstDecl
+	"type",	// TypeDecl
+	"var",	// VarDecl
+	"func",	// FuncDecl
+	"method",	// MethodDecl
+	"use",	// Use
+}
+
+
+// Template formatter for "infoClass" format.
+func infoClassFmt(w io.Writer, x interface{}, format string) {
+	fmt.Fprintf(w, infoClasses[x.(SpotInfo).Kind()]);
+}
+
+
+// Template formatter for "infoLine" format.
+func infoLineFmt(w io.Writer, x interface{}, format string) {
+	info := x.(SpotInfo);
+	line := info.Lori();
+	if info.IsIndex() {
+		index, _ := searchIndex.get();
+		line = index.(*Index).Snippet(line).Line;
+	}
+	fmt.Fprintf(w, "%d", line);
+}
+
+
+// Template formatter for "infoSnippet" format.
+func infoSnippetFmt(w io.Writer, x interface{}, format string) {
+	info := x.(SpotInfo);
+	text := `<span class="alert">no snippet text available</span>`;
+	if info.IsIndex() {
+		index, _ := searchIndex.get();
+		text = index.(*Index).Snippet(info.Lori()).Text;
+	}
+	fmt.Fprintf(w, "%s", text);
+}
+
+
 var fmap = template.FormatterMap{
 	"": textFmt,
 	"html": htmlFmt,
 	"html-comment": htmlCommentFmt,
 	"link": linkFmt,
+	"infoClass": infoClassFmt,
+	"infoLine": infoLineFmt,
+	"infoSnippet": infoSnippetFmt,
 }
 
 
@@ -371,7 +419,8 @@ var (
 	packageHtml,
 	packageText,
 	parseerrorHtml,
-	parseerrorText *template.Template;
+	parseerrorText,
+	searchHtml *template.Template;
 )
 
 func readTemplates() {
@@ -382,24 +431,27 @@ func readTemplates() {
 	packageText = readTemplate("package.txt");
 	parseerrorHtml = readTemplate("parseerror.html");
 	parseerrorText = readTemplate("parseerror.txt");
+	searchHtml = readTemplate("search.html");
 }
 
 
 // ----------------------------------------------------------------------------
 // Generic HTML wrapper
 
-func servePage(c *http.Conn, title, content interface{}) {
+func servePage(c *http.Conn, title, query string, content []byte) {
 	type Data struct {
-		title		interface{};
-		timestamp	string;
-		content		interface{};
+		Title		string;
+		Timestamp	string;
+		Query		string;
+		Content		[]byte;
 	}
 
 	_, ts := syncTime.get();
 	d := Data{
-		title: title,
-		timestamp: time.SecondsToLocalTime(ts).String(),
-		content: content,
+		Title: title,
+		Timestamp: time.SecondsToLocalTime(ts).String(),
+		Query: query,
+		Content: content,
 	};
 
 	if err := godocHtml.Execute(&d, c); err != nil {
@@ -451,7 +503,7 @@ func serveHtmlDoc(c *http.Conn, r *http.Request, filename string) {
 	}
 
 	title := commentText(src);
-	servePage(c, title, src);
+	servePage(c, title, "", src);
 }
 
 
@@ -461,11 +513,11 @@ func serveParseErrors(c *http.Conn, errors *parseErrors) {
 	if err := parseerrorHtml.Execute(errors, &buf); err != nil {
 		log.Stderrf("parseerrorHtml.Execute: %s", err);
 	}
-	servePage(c, "Parse errors in source file " + errors.filename, buf.Bytes());
+	servePage(c, "Parse errors in source file " + errors.filename, "", buf.Bytes());
 }
 
 
-func serveGoSource(c *http.Conn, filename string, style printer.Styler) {
+func serveGoSource(c *http.Conn, filename string, styler printer.Styler) {
 	path := pathutil.Join(goroot, filename);
 	prog, errors := parse(path, parser.ParseComments);
 	if errors != nil {
@@ -475,10 +527,10 @@ func serveGoSource(c *http.Conn, filename string, style printer.Styler) {
 
 	var buf bytes.Buffer;
 	fmt.Fprintln(&buf, "<pre>");
-	writeNode(&buf, prog, true, style);
+	writeNode(&buf, prog, true, styler);
 	fmt.Fprintln(&buf, "</pre>");
 
-	servePage(c, "Source file " + filename, buf.Bytes());
+	servePage(c, "Source file " + filename, "", buf.Bytes());
 }
 
 
@@ -560,7 +612,7 @@ func getPageInfo(path string) PageInfo {
 	var subdirlist vector.Vector;
 	subdirlist.Init(0);
 	filter := func(d *os.Dir) bool {
-		if isGoFile(d) {
+		if isPkgFile(d) {
 			// Some directories contain main packages: Only accept
 			// files that belong to the expected package so that
 			// parser.ParsePackage doesn't return "multiple packages
@@ -634,7 +686,48 @@ func servePkg(c *http.Conn, r *http.Request) {
 		title = "Package " + info.PDoc.PackageName;
 	}
 
-	servePage(c, title, buf.Bytes());
+	servePage(c, title, "", buf.Bytes());
+}
+
+
+// ----------------------------------------------------------------------------
+// Search
+
+var searchIndex RWValue
+
+type SearchResult struct {
+	Query		string;
+	Hit		*LookupResult;
+	Alt		*AltWords;
+	Accurate	bool;
+	Legend		[]string;
+}
+
+func search(c *http.Conn, r *http.Request) {
+	query := r.FormValue("q");
+	var result SearchResult;
+
+	if index, timestamp := searchIndex.get(); index != nil {
+		result.Query = query;
+		result.Hit, result.Alt = index.(*Index).Lookup(query);
+		_, ts := syncTime.get();
+		result.Accurate = timestamp >= ts;
+		result.Legend = &infoClasses;
+	}
+
+	var buf bytes.Buffer;
+	if err := searchHtml.Execute(result, &buf); err != nil {
+		log.Stderrf("searchHtml.Execute: %s", err);
+	}
+
+	var title string;
+	if result.Hit != nil {
+		title = fmt.Sprintf(`Results for query %q`, query);
+	} else {
+		title = fmt.Sprintf(`No results found for query %q`, query);
+	}
+
+	servePage(c, title, query, buf.Bytes());
 }
 
 
@@ -754,6 +847,7 @@ func main() {
 		if *syncCmd != "" {
 			http.Handle("/debug/sync", http.HandlerFunc(dosync));
 		}
+		http.Handle("/search", http.HandlerFunc(search));
 		http.Handle("/", http.HandlerFunc(serveFile));
 
 		// The server may have been restarted; always wait 1sec to
@@ -775,6 +869,29 @@ func main() {
 				}
 			}();
 		}
+
+		// Start indexing goroutine.
+		go func() {
+			for {
+				_, ts := syncTime.get();
+				if _, timestamp := searchIndex.get(); timestamp < ts {
+					// index possibly out of date - make a new one
+					// (could use a channel to send an explicit signal
+					// from the sync goroutine, but this solution is
+					// more decoupled, trivial, and works well enough)
+					start := time.Nanoseconds();
+					index := NewIndex(".");
+					stop := time.Nanoseconds();
+					searchIndex.set(index);
+					if *verbose {
+						secs := float64((stop-start)/1e6)/1e3;
+						nwords, nspots := index.Size();
+						log.Stderrf("index updated (%gs, %d unique words, %d spots)", secs, nwords, nspots);
+					}
+				}
+				time.Sleep(1*60e9);	// try once a minute
+			}
+		}();
 
 		// Start http server.
 		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
