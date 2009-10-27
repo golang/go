@@ -101,7 +101,8 @@ type SpotInfo uint32
 type SpotKind uint32
 
 const (
-	ImportDecl	SpotKind	= iota;
+	PackageClause	SpotKind	= iota;
+	ImportDecl;
 	ConstDecl;
 	TypeDecl;
 	VarDecl;
@@ -110,6 +111,15 @@ const (
 	Use;
 	nKinds;
 )
+
+
+func init() {
+	// sanity check: if nKinds is too large, the SpotInfo
+	// accessor functions may need to be updated
+	if nKinds > 8 {
+		panic();
+	}
+}
 
 
 // makeSpotInfo makes a SpotInfo.
@@ -159,8 +169,9 @@ type Pak struct {
 }
 
 
+// Paks are sorted by name (primary key) and by import path (secondary key).
 func (p *Pak) less(q *Pak) bool {
-	return p.Path < q.Path || p.Name < q.Name;
+	return p.Name < q.Name || p.Name == q.Name && p.Path < q.Path;
 }
 
 
@@ -196,24 +207,46 @@ type FileRun struct {
 }
 
 
+func (f *FileRun) Len() int {
+	return len(f.Infos);
+}
+func (f *FileRun) Less(i, j int) bool {
+	return f.Infos[i].less(f.Infos[j]);
+}
+func (f *FileRun) Swap(i, j int) {
+	f.Infos[i], f.Infos[j] = f.Infos[j], f.Infos[i];
+}
+
+
 // newFileRun allocates a new *FileRun from the Spot run [i, j) in h.
 func newFileRun(h *RunList, i, j int) interface{} {
 	file := h.At(i).(Spot).File;
-	lines := make([]SpotInfo, j-i);
-	prev := 0;
+	infos := make([]SpotInfo, j-i);
 	k := 0;
 	for ; i < j; i++ {
-		info := h.At(i).(Spot).Info;
-		// ignore line duplicates
-		// (if lori is a snippet index it is unique - no need to check IsIndex())
-		lori := info.Lori();
-		if lori != prev {
-			lines[k] = info;
-			prev = lori;
+		infos[k] = h.At(i).(Spot).Info;
+		k++;
+	}
+	run := &FileRun{file, infos};
+	// Spots were sorted by file to create this run.
+	// Within this run, sort them by line number.
+	sort.Sort(run);
+	// Remove duplicates: Both the lori and kind field
+	// must be the same for duplicate, and since the
+	// isIndex field is always the same for all infos
+	// in one list we can simply compare the entire
+	// info.
+	k = 0;
+	var prev SpotInfo;
+	for i, x := range infos {
+		if x != prev || i == 0 {
+			infos[k] = x;
 			k++;
+			prev = x;
 		}
 	}
-	return &FileRun{file, lines[0:k]};
+	run.Infos = infos[0:k];
+	return run;
 }
 
 
@@ -499,6 +532,17 @@ func (x *Indexer) Visit(node interface{}) bool {
 		if n.Body != nil {
 			ast.Walk(x, n.Type);
 		}
+
+	case *ast.File:
+		x.visitComment(n.Doc);
+		x.decl = nil;
+		x.visitIdent(PackageClause, n.Name);
+		for _, d := range n.Decls {
+			ast.Walk(x, d);
+		}
+		// don't visit package level comments for now
+		// to avoid duplicate visiting from individual
+		// nodes
 
 	default:
 		return true;

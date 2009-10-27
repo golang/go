@@ -167,6 +167,11 @@ span.highlight {
 /* ------------------------------------------------------------------------- */
 /* Styles used by infoClassFmt */
 
+a.package {
+  text-decoration: none;
+  background-color: #FFFFFF;
+}
+
 a.import {
   text-decoration: none;
   background-color: #D8D8D8;

@@ -25,7 +25,7 @@
 			<h3>package {Pak.Name|html}</h3>
 			{.repeated section Files}
 				{.repeated section Infos}
-					<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}">{File.Path|html}:{@|infoLine}</a>
+					<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}" class="noline">{File.Path|html}:{@|infoLine}</a>
 					<pre>{@|infoSnippet}</pre>
 				{.end}
 			{.end}
