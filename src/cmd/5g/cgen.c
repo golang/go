@@ -244,10 +244,13 @@ cgen(Node *n, Node *res)
 
 	// asymmetric binary
 	case OSUB:
-	case OLSH:
-	case ORSH:
 		a = optoas(n->op, nl->type);
 		goto abop;
+
+	case OLSH:
+	case ORSH:
+		cgen_shift(n->op, nl, nr, res);
+		break;
 
 	case OCONV:
 		if(eqtype(n->type, nl->type) || noconv(n->type, nl->type)) {

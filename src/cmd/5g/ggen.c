@@ -536,6 +536,95 @@ samereg(Node *a, Node *b)
 	return 1;
 }
 
+/*
+ * generate shift according to op, one of:
+ *	res = nl << nr
+ *	res = nl >> nr
+ */
+void
+cgen_shift(int op, Node *nl, Node *nr, Node *res)
+{
+	Node n1, n2, n3, t;
+	int w;
+	Prog *p1, *p2, *p3;
+	uvlong sc;
+
+	if(nl->type->width > 4)
+		fatal("cgen_shift %T", nl->type);
+
+	w = nl->type->width * 8;
+
+	if(nr->op == OLITERAL) {
+		regalloc(&n1, nl->type, res);
+		cgen(nl, &n1);
+		sc = mpgetfix(nr->val.u.xval);
+		if(sc == 0) {
+			return;
+		} else if(sc >= nl->type->width*8) {
+			if(op == ORSH && issigned[nl->type->etype])
+				gshift(AMOVW, &n1, SHIFT_AR, w, &n1);
+			else
+				gins(AEOR, &n1, &n1);
+		} else {
+			if(op == ORSH && issigned[nl->type->etype])
+				gshift(AMOVW, &n1, SHIFT_AR, sc, &n1);
+			else if(op == ORSH)
+				gshift(AMOVW, &n1, SHIFT_LR, sc, &n1);
+			else // OLSH
+				gshift(AMOVW, &n1, SHIFT_LL, sc, &n1);
+		}
+		gmove(&n1, res);
+		regfree(&n1);
+		return;
+	}
+
+	if(nl->ullman >= nr->ullman) {
+		regalloc(&n2, nl->type, res);
+		cgen(nl, &n2);
+		regalloc(&n1, nr->type, N);
+		cgen(nr, &n1);
+	} else {
+		regalloc(&n1, nr->type, N);
+		cgen(nr, &n1);
+		regalloc(&n2, nl->type, res);
+		cgen(nl, &n2);
+	}
+
+	// test for shift being 0
+	p1 = gins(AMOVW, &n1, &n1);
+	p1->scond |= C_SBIT;
+	p3 = gbranch(ABEQ, T);
+
+	// test and fix up large shifts
+	regalloc(&n3, nr->type, N);
+	nodconst(&t, types[TUINT32], w);
+	gmove(&t, &n3);
+	gcmp(ACMP, &n1, &n3);
+	if(op == ORSH) {
+		if(issigned[nl->type->etype]) {
+			p1 = gshift(AMOVW, &n2, SHIFT_AR, w-1, &n2);
+			p2 = gregshift(AMOVW, &n2, SHIFT_AR, &n1, &n2);
+		} else {
+			p1 = gins(AEOR, &n2, &n2);
+			p2 = gregshift(AMOVW, &n2, SHIFT_LR, &n1, &n2);
+		}
+		p1->scond = C_SCOND_HS;
+		p2->scond = C_SCOND_LO;
+	} else {
+		p1 = gins(AEOR, &n2, &n2);
+		p2 = gregshift(AMOVW, &n2, SHIFT_LL, &n1, &n2);
+		p1->scond = C_SCOND_HS;
+		p2->scond = C_SCOND_LO;
+	}
+	regfree(&n3);
+
+	patch(p3, pc);
+	gmove(&n2, res);
+
+	regfree(&n1);
+	regfree(&n2);
+}
+
 void
 clearfat(Node *nl)
 {

@@ -627,7 +627,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	uvlong sc;
 
 	if(nl->type->width > 4)
-		fatal("cgen_shift %T", nl->type->width);
+		fatal("cgen_shift %T", nl->type);
 
 	w = nl->type->width * 8;
 

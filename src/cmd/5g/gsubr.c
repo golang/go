@@ -923,6 +923,7 @@ raddr(Node *n, Prog *p)
 }
 
 /* generate a comparison
+TODO(kaib): one of the args can actually be a small constant. relax the constraint and fix call sites.
  */
 Prog*
 gcmp(int as, Node *lhs, Node *rhs)
