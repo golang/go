@@ -418,7 +418,12 @@ func (p *printer) writeWhitespace(n int) {
 			// part of the comment whitespace prefix and the comment
 			// will be positioned correctly indented.
 			if i+1 < n && p.buffer[i+1] == unindent {
-				p.buffer[i], p.buffer[i+1] = unindent, ch;
+				// Use a formfeed to terminate the current section.
+				// Otherwise, a long label name on the next line leading
+				// to a wide column may increase the indentation column
+				// of lines before the label; effectively leading to wrong
+				// indentation.
+				p.buffer[i], p.buffer[i+1] = unindent, formfeed;
 				i--;  // do it again
 				continue;
 			}
