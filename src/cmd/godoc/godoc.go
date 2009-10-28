@@ -133,7 +133,7 @@ func init() {
 
 
 // ----------------------------------------------------------------------------
-// Support
+// Predicates and small utility functions
 
 func isGoFile(dir *os.Dir) bool {
 	return dir.IsRegular() &&
@@ -150,6 +150,13 @@ func isPkgFile(dir *os.Dir) bool {
 
 func isPkgDir(dir *os.Dir) bool {
 	return dir.IsDirectory() && len(dir.Name) > 0 && dir.Name[0] != '_';
+}
+
+
+func htmlEscape(s string) string {
+	var buf bytes.Buffer;
+	template.HtmlEscape(&buf, strings.Bytes(s));
+	return buf.String();
 }
 
 
@@ -322,7 +329,7 @@ func htmlFmt(w io.Writer, x interface{}, format string) {
 func htmlCommentFmt(w io.Writer, x interface{}, format string) {
 	var buf bytes.Buffer;
 	writeAny(&buf, x, false);
-	doc.ToHtml(w, buf.Bytes());
+	doc.ToHtml(w, buf.Bytes());  // does html-escaping
 }
 
 
@@ -342,12 +349,13 @@ func linkFmt(w io.Writer, x interface{}, format string) {
 		if pos.IsValid() {
 			// line id's in html-printed source are of the
 			// form "L%d" where %d stands for the line number
-			fmt.Fprintf(w, "/%s#L%d", pos.Filename, pos.Line);
+			fmt.Fprintf(w, "/%s#L%d", htmlEscape(pos.Filename), pos.Line);
 		}
 	}
 }
 
 
+// The strings in infoClasses must be properly html-escaped.
 var infoClasses = [nKinds]string{
 	"package",	// PackageClause
 	"import",	// ImportDecl
@@ -362,7 +370,7 @@ var infoClasses = [nKinds]string{
 
 // Template formatter for "infoClass" format.
 func infoClassFmt(w io.Writer, x interface{}, format string) {
-	fmt.Fprintf(w, infoClasses[x.(SpotInfo).Kind()]);
+	fmt.Fprintf(w, infoClasses[x.(SpotInfo).Kind()]);  // no html escaping needed
 }
 
 
@@ -384,9 +392,11 @@ func infoSnippetFmt(w io.Writer, x interface{}, format string) {
 	text := `<span class="alert">no snippet text available</span>`;
 	if info.IsIndex() {
 		index, _ := searchIndex.get();
+		// no escaping of snippet text needed;
+		// snippet text is escaped when generated
 		text = index.(*Index).Snippet(info.Lori()).Text;
 	}
-	fmt.Fprintf(w, "%s", text);
+	fmt.Fprint(w, text);
 }
 
 
@@ -667,7 +677,7 @@ func servePkg(c *http.Conn, r *http.Request) {
 	info := getPageInfo(path);
 
 	var buf bytes.Buffer;
-	if false {	// TODO req.Params["format"] == "text"
+	if r.FormValue("f") == "text" {
 		if err := packageText.Execute(info, &buf); err != nil {
 			log.Stderrf("packageText.Execute: %s", err);
 		}
