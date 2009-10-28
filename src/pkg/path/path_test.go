@@ -134,9 +134,9 @@ func TestExt(t *testing.T) {
 }
 
 type Node struct {
-	name string;
-	entries []*Node;  // nil if the entry is a file
-	mark int;
+	name	string;
+	entries	[]*Node;	// nil if the entry is a file
+	mark	int;
 }
 
 var tree = &Node{
@@ -156,13 +156,13 @@ var tree = &Node{
 						&Node{"u", nil, 0},
 						&Node{"v", nil, 0},
 					},
-					0
-				}
+					0,
+				},
 			},
-			0
-		}
+			0,
+		},
 	},
-	0
+	0,
 }
 
 func walkTree(n *Node, path string, f func(path string, n *Node)) {
@@ -187,9 +187,7 @@ func makeTree(t *testing.T) {
 }
 
 func markTree(n *Node) {
-	walkTree(n, "", func(path string, n *Node) {
-		n.mark++;
-	});
+	walkTree(n, "", func(path string, n *Node) { n.mark++ });
 }
 
 func checkMarks(t *testing.T) {
@@ -210,7 +208,7 @@ func mark(name string) {
 	});
 }
 
-type TestVisitor struct {}
+type TestVisitor struct{}
 
 func (v *TestVisitor) VisitDir(path string, d *os.Dir) bool {
 	mark(d.Name);

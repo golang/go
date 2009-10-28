@@ -217,7 +217,7 @@ func setupZone() {
 	case len(tz) > 0:
 		zones, _ = readinfofile(zoneDir+tz);
 	case len(tz) == 0:
-	// do nothing: use UTC
+		// do nothing: use UTC
 	}
 }
 

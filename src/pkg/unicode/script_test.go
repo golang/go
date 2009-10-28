@@ -5,8 +5,8 @@
 package unicode_test
 
 import (
-		"testing";
-	.	"unicode";
+	"testing";
+	. "unicode";
 )
 
 type T struct {
@@ -98,7 +98,8 @@ var inTest = []T{
 }
 
 var outTest = []T{	// not really worth being thorough
-T{0x20, "Telugu"}}
+	T{0x20, "Telugu"},
+}
 
 var inCategoryTest = []T{
 	T{0x0081, "Cc"},

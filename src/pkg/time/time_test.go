@@ -5,9 +5,9 @@
 package time_test
 
 import (
-		"os";
-		"testing";
-	.	"time";
+	"os";
+	"testing";
+	. "time";
 )
 
 func init() {

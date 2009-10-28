@@ -5,8 +5,8 @@
 package os_test
 
 import (
-	.	"os";
-		"testing";
+	. "os";
+	"testing";
 )
 
 func TestMkdirAll(t *testing.T) {

@@ -5,8 +5,8 @@
 package strconv_test
 
 import (
-	.	"strconv";
-		"testing";
+	. "strconv";
+	"testing";
 )
 
 type shiftTest struct {
