@@ -55,5 +55,5 @@ aggr != "" && /^	/ {
 	offset=$(NF-1);
 	printf("#define %s_%s %s\n", aggr, name, offset);
 }
-' runtime.acid
+' runtime.acid.$GOARCH
 

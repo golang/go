@@ -82,9 +82,9 @@ include $(GOROOT)/src/Make.pkg
 clean: clean-local
 
 clean-local:
-	rm -f cgo2c */asm.h
+	rm -f cgo2c */asm.h runtime.acid.*
 
-$(GOARCH)/asm.h: mkasmh.sh runtime.acid
+$(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
 	./mkasmh.sh >$@.x
 	mv -f $@.x $@
 
@@ -111,5 +111,5 @@ cgo2c: cgo2c.c
 	$(AS) $<
 
 # for discovering offsets inside structs when debugging
-runtime.acid: runtime.h proc.c
-	$(CC) -a proc.c >runtime.acid
+runtime.acid.$(GOARCH): runtime.h proc.c
+	$(CC) -a proc.c >$@
