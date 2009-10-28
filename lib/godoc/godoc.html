@@ -4,7 +4,7 @@
 <head>
 
   <meta http-equiv="content-type" content="text/html; charset=utf-8">
-  <title>{Title}</title>
+  <title>{Title|html}</title>
 
   <link rel="stylesheet" type="text/css" href="/doc/style.css">
   <script type="text/javascript" src="/doc/godocs.js"></script>
@@ -49,22 +49,23 @@
     <li class="blank">&nbsp;</li>
     <li class="navhead">Go code search</li>
     <form method="GET" action="/search" class="search">
-    <input name="q" value="{Query}" size="25" />
+    <input name="q" value="{Query|html}" size="25" />
     <input type="submit" value="Go" />
 
     <li class="blank">&nbsp;</li>
     <li class="navhead">Last update</li>
-	<li>{Timestamp}</li>
+	<li>{Timestamp|html}</li>
   </ul>
 </div>
 
 <div id="content">
-  <h1>{Title}</h1>
+  <h1>{Title|html}</h1>
 
   <!-- The Table of Contents is automatically inserted in this <div>.
        Do not delete this <div>. -->
   <div id="nav"></div>
 
+  <!-- Content is HTML-escaped elsewhere -->
   {Content}
 </div>
 
