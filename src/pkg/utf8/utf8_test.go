@@ -5,10 +5,10 @@
 package utf8_test
 
 import (
-		"bytes";
-		"strings";
-		"testing";
-	.	"utf8";
+	"bytes";
+	"strings";
+	"testing";
+	. "utf8";
 )
 
 type Utf8Map struct {

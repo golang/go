@@ -226,7 +226,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 		pdat := pr[1:len(pr)];
 		switch cr[0] {
 		case ftNone:
-		// No-op.
+			// No-op.
 		case ftSub:
 			for i := bpp; i < len(cdat); i++ {
 				cdat[i] += cdat[i-bpp];

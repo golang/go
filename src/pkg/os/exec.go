@@ -57,8 +57,8 @@ func Exec(argv0 string, argv []string, envv []string) Error {
 
 // Waitmsg stores the information about an exited process as reported by Wait.
 type Waitmsg struct {
-	Pid			int;	// The process's id.
-	syscall.WaitStatus;	// System-dependent status info.
+	Pid			int;			// The process's id.
+	syscall.WaitStatus;				// System-dependent status info.
 	Rusage			*syscall.Rusage;	// System-dependent resource usage info.
 }
 

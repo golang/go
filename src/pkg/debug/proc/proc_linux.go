@@ -220,7 +220,7 @@ func (e *newThreadError) String() string {
 	return fmt.Sprintf("newThread wait wanted pid %v and signal %v, got %v and %v", e.Pid, e.StopSignal(), e.wantPid, e.wantSig);
 }
 
-type ProcessExited struct {}
+type ProcessExited struct{}
 
 func (p ProcessExited) String() string {
 	return "process exited";
@@ -449,9 +449,9 @@ func (t *thread) wait() {
 			if err == nil {
 				continue;
 			}
-		// If we failed to continue, just let
-		// the stop go through so we can
-		// update the thread's state.
+			// If we failed to continue, just let
+			// the stop go through so we can
+			// update the thread's state.
 		}
 		if !<-t.proc.ready {
 			// The monitor exited
@@ -852,12 +852,8 @@ func (t *thread) stepAsync(ready chan os.Error) os.Error {
 		return err;
 	}
 	t.setState(singleStepping);
-	t.onStop(func() {
-		ready <- nil;
-	},
-		func(err os.Error) {
-			ready <- err;
-		});
+	t.onStop(func() { ready <- nil },
+		func(err os.Error) { ready <- err });
 	return nil;
 }
 
@@ -1100,9 +1096,7 @@ func (p *process) WaitStop() os.Error {
 			}
 			p.transitionHandlers.Push(h);
 		};
-		h.onErr = func(err os.Error) {
-			ready <- err;
-		};
+		h.onErr = func(err os.Error) { ready <- err };
 		p.transitionHandlers.Push(h);
 		return nil;
 	});
@@ -1114,9 +1108,7 @@ func (p *process) WaitStop() os.Error {
 }
 
 func (p *process) Stop() os.Error {
-	err := p.do(func() os.Error {
-		return p.stopAsync();
-	});
+	err := p.do(func() os.Error { return p.stopAsync() });
 	if err != nil {
 		return err;
 	}

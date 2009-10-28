@@ -190,5 +190,5 @@ func TestNRDiv(t *testing.T) {
 	idiv(t, 7484890589595, 7484890589594);
 	div(t, Fact(100), Fact(91));
 	div(t, Fact(1000), Fact(991));
-//div(t, Fact(10000), Fact(9991));  // takes too long - disabled for now
+	//div(t, Fact(10000), Fact(9991));  // takes too long - disabled for now
 }

@@ -5,10 +5,10 @@
 package bytes_test
 
 import (
-	.	"bytes";
-		"strings";
-		"testing";
-		"unicode";
+	. "bytes";
+	"strings";
+	"testing";
+	"unicode";
 )
 
 func eq(a, b []string) bool {
@@ -241,18 +241,14 @@ func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a');
 	// 1.  Grow.  This triggers two reallocations in Map.
-	maxRune := func(rune int) int {
-		return unicode.MaxRune;
-	};
+	maxRune := func(rune int) int { return unicode.MaxRune };
 	m := Map(maxRune, Bytes(a));
 	expect := tenRunes(unicode.MaxRune);
 	if string(m) != expect {
 		t.Errorf("growing: expected %q got %q", expect, m);
 	}
 	// 2. Shrink
-	minRune := func(rune int) int {
-		return 'a';
-	};
+	minRune := func(rune int) int { return 'a' };
 	m = Map(minRune, Bytes(tenRunes(unicode.MaxRune)));
 	expect = a;
 	if string(m) != expect {

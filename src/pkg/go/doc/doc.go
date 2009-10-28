@@ -35,8 +35,8 @@ type typeDoc struct {
 //
 type docReader struct {
 	doc	*ast.CommentGroup;	// package documentation, if any
-	pkgName string;
-	values	*vector.Vector;		// list of *ast.GenDecl (consts and vars)
+	pkgName	string;
+	values	*vector.Vector;	// list of *ast.GenDecl (consts and vars)
 	types	map[string]*typeDoc;
 	funcs	map[string]*ast.FuncDecl;
 	bugs	*vector.Vector;	// list of *ast.CommentGroup
@@ -186,7 +186,7 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 				if doc.pkgName == "os" && tname == "Error" &&
 					name != "NewError" && name != "NewSyscallError" {
 					// not a factory function for os.Error
-					doc.funcs[name] = fun;  // treat as ordinary function
+					doc.funcs[name] = fun;	// treat as ordinary function
 					return;
 				}
 
@@ -225,7 +225,7 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 					// would lose GenDecl documentation if the TypeSpec
 					// has documentation as well.
 					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{spec}, noPos});
-				// A new GenDecl node is created, no need to nil out d.Doc.
+					// A new GenDecl node is created, no need to nil out d.Doc.
 				}
 			}
 		}

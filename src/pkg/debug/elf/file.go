@@ -174,7 +174,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	switch f.Class {
 	case ELFCLASS32:
 	case ELFCLASS64:
-	// ok
+		// ok
 	default:
 		return nil, &FormatError{0, "unknown ELF class", f.Class};
 	}

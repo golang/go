@@ -5,9 +5,9 @@
 package bytes_test
 
 import (
-	.	"bytes";
-		"rand";
-		"testing";
+	. "bytes";
+	"rand";
+	"testing";
 )
 
 
