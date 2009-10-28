@@ -174,3 +174,20 @@ func _() {
 		_ = 0;
 	}
 }
+
+
+func _() {
+	if {
+		_ = 0;
+	}
+	_ = 0;	// the indentation here should not be affected by the long label name
+AnOverlongLabel:
+	_ = 0;
+
+	if {
+		_ = 0;
+	}
+	_ = 0;
+
+L:	_ = 0;
+}
