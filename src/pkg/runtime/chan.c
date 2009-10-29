@@ -79,8 +79,6 @@ struct	Select
 	Scase*	scase[1];		// one per case
 };
 
-static	Select*	selfree[20];
-
 static	SudoG*	dequeue(WaitQ*, Hchan*);
 static	void	enqueue(WaitQ*, SudoG*);
 static	SudoG*	allocsg(Hchan*);
@@ -446,16 +444,7 @@ runtime·newselect(int32 size, ...)
 	if(size > 1)
 		n = size-1;
 
-	lock(&chanlock);
-	sel = nil;
-	if(size >= 1 && size < nelem(selfree)) {
-		sel = selfree[size];
-		if(sel != nil)
-			selfree[size] = sel->link;
-	}
-	unlock(&chanlock);
-	if(sel == nil)
-		sel = mal(sizeof(*sel) + n*sizeof(sel->scase[0]));
+	sel = mal(sizeof(*sel) + n*sizeof(sel->scase[0]));
 
 	sel->tcase = size;
 	sel->ncase = 0;
@@ -485,11 +474,8 @@ runtime·selectsend(Select *sel, Hchan *c, ...)
 	if(i >= sel->tcase)
 		throw("selectsend: too many cases");
 	sel->ncase = i+1;
-	cas = sel->scase[i];
-	if(cas == nil) {
-		cas = mal(sizeof *cas + c->elemsize - sizeof(cas->u.elem));
-		sel->scase[i] = cas;
-	}
+	cas = mal(sizeof *cas + c->elemsize - sizeof(cas->u.elem));
+	sel->scase[i] = cas;
 
 	cas->pc = runtime·getcallerpc(&sel);
 	cas->chan = c;
@@ -509,7 +495,7 @@ runtime·selectsend(Select *sel, Hchan *c, ...)
 		runtime·printpointer(cas->pc);
 		prints(" chan=");
 		runtime·printpointer(cas->chan);
-		prints(" po=");
+		prints(" so=");
 		runtime·printint(cas->so);
 		prints(" send=");
 		runtime·printint(cas->send);
@@ -532,11 +518,8 @@ runtime·selectrecv(Select *sel, Hchan *c, ...)
 	if(i >= sel->tcase)
 		throw("selectrecv: too many cases");
 	sel->ncase = i+1;
-	cas = sel->scase[i];
-	if(cas == nil) {
-		cas = mal(sizeof *cas);
-		sel->scase[i] = cas;
-	}
+	cas = mal(sizeof *cas);
+	sel->scase[i] = cas;
 	cas->pc = runtime·getcallerpc(&sel);
 	cas->chan = c;
 
@@ -573,11 +556,8 @@ runtime·selectdefault(Select *sel, ...)
 	if(i >= sel->tcase)
 		throw("selectdefault: too many cases");
 	sel->ncase = i+1;
-	cas = sel->scase[i];
-	if(cas == nil) {
-		cas = mal(sizeof *cas);
-		sel->scase[i] = cas;
-	}
+	cas = mal(sizeof *cas);
+	sel->scase[i] = cas;
 	cas->pc = runtime·getcallerpc(&sel);
 	cas->chan = nil;
 
@@ -596,6 +576,16 @@ runtime·selectdefault(Select *sel, ...)
 		runtime·printint(cas->send);
 		prints("\n");
 	}
+}
+
+static void
+freesel(Select *sel)
+{
+	uint32 i;
+
+	for(i=0; i<sel->ncase; i++)
+		free(sel->scase[i]);
+	free(sel);
 }
 
 // selectgo(sel *byte);
@@ -863,14 +853,11 @@ sclose:
 	goto retc;
 
 retc:
-	if(sel->ncase >= 1 && sel->ncase < nelem(selfree)) {
-		sel->link = selfree[sel->ncase];
-		selfree[sel->ncase] = sel;
-	}
 	unlock(&chanlock);
 
 	runtime·setcallerpc(&sel, cas->pc);
 	as = (byte*)&sel + cas->so;
+	freesel(sel);
 	*as = true;
 }
 
