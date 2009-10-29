@@ -201,3 +201,6 @@ throw: interface conversion
 panic PC=xxx
 
 == bugs/
+
+=========== bugs/bug212.go
+BUG: errchk: command succeeded unexpectedly
