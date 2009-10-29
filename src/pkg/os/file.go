@@ -315,7 +315,7 @@ func (file *File) Readdir(count int) (dirs []Dir, err Error) {
 	}
 	dirs = make([]Dir, len(names));
 	for i, filename := range names {
-		dirp, err := Stat(dirname+filename);
+		dirp, err := Lstat(dirname+filename);
 		if dirp == nil || err != nil {
 			dirs[i].Name = filename;	// rest is already zeroed out
 		} else {
