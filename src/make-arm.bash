@@ -21,7 +21,7 @@ chmod +x $GOBIN/quietgcc
 
 # TODO(kaib): converge with normal build
 #for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
-for i in lib9 libbio libmach cmd pkg cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
+for i in lib9 libbio libmach cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
 do
 	# The ( ) here are to preserve the current directory
 	# for the next round despite the cd $i below.

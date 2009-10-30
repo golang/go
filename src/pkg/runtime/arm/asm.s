@@ -55,20 +55,22 @@ TEXT _rt0_arm(SB),7,$-4
 	// start this M
 	BL	mstart(SB)
 
-	MOVW	$0, R0
-	SWI	$0x00900001
+	MOVW	$1234, R0
+	MOVW	$1000, R1
+	MOVW	R0, (R1)	// fail hard
 	B	_dep_dummy(SB)	// Never reached
 
 
-TEXT mainstart(SB),7,$0
+TEXT mainstart(SB),7,$4
 	BL	main·init(SB)
 	BL	initdone(SB)
 	BL	main·main(SB)
 	MOVW	$0, R0
-	MOVW.W	R0, -4(SP)
-	MOVW.W	R14, -4(SP)	// Push link as well
+	MOVW	R0, 4(SP)
 	BL	exit(SB)
-	MOVW	$8(SP), SP	// pop args and LR
+	MOVW	$1234, R0
+	MOVW	$1001, R1
+	MOVW	R0, (R1)	// fail hard
 	RET
 
 // TODO(kaib): remove these once linker works properly
