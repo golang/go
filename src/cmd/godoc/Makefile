@@ -8,6 +8,7 @@ TARG=godoc
 GOFILES=\
 	godoc.go\
 	index.go\
+	main.go\
 	snippet.go\
 	spec.go\
 
