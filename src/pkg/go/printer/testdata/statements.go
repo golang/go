@@ -62,6 +62,32 @@ func _() {
 	case 1:  // this comment should have no effect on the previous or next line
 		use(x);
 	}
+
+	switch x := 0; x {
+	case 1:
+		x = 0;
+		// this comment should be indented
+	case 2:
+		x = 0;
+	// this comment should not be indented, it is aligned with the next case
+	case 3:
+		x = 0;
+		/* indented comment
+		   aligned
+		   aligned
+		*/
+		// bla
+		/* and more */
+	case 4:
+		x = 0;
+	/* not indented comment
+	   aligned
+	   aligned
+	*/
+	// bla
+	/* and more */
+	case 5:
+	}
 }
 
 
