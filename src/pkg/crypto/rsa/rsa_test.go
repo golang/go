@@ -10,6 +10,7 @@ import (
 	big	"gmp";
 		"os";
 		"testing";
+		"testing/quick";
 )
 
 func TestKeyGeneration(t *testing.T) {
@@ -140,11 +141,66 @@ var testConstandTimeByteEqData = []TestConstantTimeByteEqStruct{
 	TestConstantTimeByteEqStruct{0xff, 0xfe, 0},
 }
 
+func ByteEq(a, b uint8) int {
+	if a == b {
+		return 1;
+	}
+	return 0;
+}
+
 func TestConstantTimeByteEq(t *testing.T) {
 	for i, test := range testConstandTimeByteEqData {
 		if r := constantTimeByteEq(test.a, test.b); r != test.out {
 			t.Errorf("#%d bad result (got %x, want %x)", i, r, test.out);
 		}
+	}
+	err := quick.CheckEqual(constantTimeByteEq, ByteEq, nil);
+	if err != nil {
+		t.Error(err);
+	}
+}
+
+func Eq(a, b int32) int {
+	if a == b {
+		return 1;
+	}
+	return 0;
+}
+
+func TestConstantTimeEq(t *testing.T) {
+	err := quick.CheckEqual(constantTimeEq, Eq, nil);
+	if err != nil {
+		t.Error(err);
+	}
+}
+
+func Copy(v int, x, y []byte) []byte {
+	if len(x) > len(y) {
+		x = x[0:len(y)];
+	} else {
+		y = y[0:len(x)];
+	}
+	if v == 1 {
+		bytes.Copy(x, y);
+	}
+	return x;
+}
+
+func constantTimeCopyWrapper(v int, x, y []byte) []byte {
+	if len(x) > len(y) {
+		x = x[0:len(y)];
+	} else {
+		y = y[0:len(x)];
+	}
+	v &= 1;
+	constantTimeCopy(v, x, y);
+	return x;
+}
+
+func TestConstantTimeCopy(t *testing.T) {
+	err := quick.CheckEqual(constantTimeCopyWrapper, Copy, nil);
+	if err != nil {
+		t.Error(err);
 	}
 }
 

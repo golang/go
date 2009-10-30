@@ -7,5 +7,6 @@ include $(GOROOT)/src/Make.$(GOARCH)
 TARG=crypto/rsa
 GOFILES=\
 	rsa.go\
+	pkcs1v15.go\
 
 include $(GOROOT)/src/Make.pkg

@@ -313,20 +313,43 @@ func constantTimeCompare(x, y []byte) int {
 	return constantTimeByteEq(v, 0);
 }
 
-// constantTimeSelect returns a if mask is 1 and b if mask is 0.
-// Its behaviour is undefined if mask takes any other value.
-func constantTimeSelect(mask, a, b int) int {
-	return ^(mask-1)&a | (mask-1)&b;
+// constantTimeSelect returns a if v is 1 and b if v is 0.
+// Its behaviour is undefined if v takes any other value.
+func constantTimeSelect(v, a, b int) int {
+	return ^(v-1)&a | (v-1)&b;
 }
 
 // constantTimeByteEq returns 1 if a == b and 0 otherwise.
-func constantTimeByteEq(a, b uint8) (mask int) {
+func constantTimeByteEq(a, b uint8) int {
 	x := ^(a^b);
 	x &= x>>4;
 	x &= x>>2;
 	x &= x>>1;
 
 	return int(x);
+}
+
+// constantTimeEq returns 1 if a == b and 0 otherwise.
+func constantTimeEq(a, b int32) int {
+	x := ^(a^b);
+	x &= x>>16;
+	x &= x>>8;
+	x &= x>>4;
+	x &= x>>2;
+	x &= x>>1;
+
+	return int(x&1);
+}
+
+// constantTimeCopy copies the contents of y into x iff v == 1. If v == 0, x is left unchanged.
+// Its behaviour is undefined if v takes any other value.
+func constantTimeCopy(v int, x, y []byte) {
+	xmask := byte(v - 1);
+	ymask := byte(^(v - 1));
+	for i := 0; i < len(x); i++ {
+		x[i] = x[i] & xmask | y[i] & ymask;
+	}
+	return;
 }
 
 // decrypt performs an RSA decryption, resulting in a plaintext integer. If a
@@ -345,8 +368,9 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
 		// which equals mr mod n. The factor of r can then be removed
 		// by multipling by the multiplicative inverse of r.
 
-		r, err := randomNumber(rand, priv.N);
-		if err != nil {
+		r, err1 := randomNumber(rand, priv.N);
+		if err1 != nil {
+			err = err1;
 			return;
 		}
 		ir = modInverse(r, priv.N);
