@@ -5,8 +5,11 @@ assign.go
 bigalg.go
 blank.go
 blank1.go
+bugs/bug212.go
+bugs/bug213.go
 chan/fifo.go
 chan/goroutines.go
+chan/nonblock.go
 chan/perm.go
 chan/powser1.go
 chan/powser2.go
@@ -33,6 +36,7 @@ convlit.go
 convlit1.go
 decl.go
 declbad.go
+defer.go
 empty.go
 env.go
 escape.go
@@ -116,6 +120,7 @@ fixedbugs/bug088.go
 fixedbugs/bug089.go
 fixedbugs/bug090.go
 fixedbugs/bug091.go
+fixedbugs/bug092.go
 fixedbugs/bug093.go
 fixedbugs/bug094.go
 fixedbugs/bug096.go
@@ -257,6 +262,7 @@ interface/convert1.go
 interface/convert2.go
 interface/embed.go
 interface/embed0.go
+interface/embed1.go
 interface/explicit.go
 interface/fail.go
 interface/fake.go
@@ -292,6 +298,7 @@ ken/robfunc.go
 ken/robif.go
 ken/shift.go
 ken/simpbool.go
+ken/simpconv.go
 ken/simpfun.go
 ken/simpprint.go
 ken/simpswitch.go
@@ -329,6 +336,7 @@ stringrange.go
 switch.go
 switch1.go
 test0.go
+turing.go
 typeswitch.go
 typeswitch1.go
 utf.go
