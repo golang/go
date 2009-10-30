@@ -122,7 +122,94 @@ func typeswitch(x interface{}) {
 	default:
 		// this comment should be indented
 	}
-	// this comment should be indented
+	// this comment should not be indented
+}
+
+func _() {
+	/* freestanding comment
+	   aligned		line
+	   aligned line
+	*/
+}
+
+func _() {
+	/* freestanding comment
+	   aligned		line
+	   aligned line
+	*/
+}
+
+func _() {
+	/* freestanding comment
+	   aligned		line
+	   aligned line */
+}
+
+func _() {
+	/*	freestanding comment
+		aligned		line
+		aligned line
+	*/
+}
+
+func _() {
+	/*	freestanding comment
+		aligned		line
+		aligned line
+	*/
+}
+
+func _() {
+	/*	freestanding comment
+		aligned		line
+		aligned line */
+}
+
+
+/*
+ * line
+ * of
+ * stars
+ */
+
+/* another line
+ * of
+ * stars */
+
+/*	and another line
+ *	of
+ *	stars */
+
+/*
+aligned in middle
+here
+        not here
+*/
+
+/*
+blank line in middle:
+
+with no leading spaces on blank line.
+*/
+
+func _() {
+	/*
+	 * line
+	 * of
+	 * stars
+	 */
+
+	/*
+	aligned in middle
+	here
+		not here
+	*/
+
+	/*
+	blank line in middle:
+
+	with no leading spaces on blank line.
+	*/
 }
 
 
