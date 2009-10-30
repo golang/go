@@ -1084,7 +1084,7 @@ sgen(Node *n, Node *res, int32 w)
 	regalloc(&dst, types[tptr], res);
 
 	if(n->ullman >= res->ullman) {
-		agen(n, &dst);
+		agen(n, &dst);	// temporarily use dst
 		regalloc(&src, types[tptr], N);
 		gins(AMOVW, &dst, &src);
 		agen(res, &dst);
@@ -1137,6 +1137,29 @@ sgen(Node *n, Node *res, int32 w)
 			patch(gbranch(ABNE, T), ploop);
 
  			regfree(&nend);
+		} else {
+			// move src and dest to the end of block
+			p = gins(AMOVW, &src, &src);
+			p->from.type = D_CONST;
+			p->from.offset = (q-1)*4;
+
+			p = gins(AMOVW, &dst, &dst);
+			p->from.type = D_CONST;
+			p->from.offset = (q-1)*4;
+
+			while(q > 0) {
+				p = gins(AMOVW, &src, &tmp);
+				p->from.type = D_OREG;
+				p->from.offset = -4;
+ 				p->scond |= C_PBIT;
+
+				p = gins(AMOVW, &tmp, &dst);
+				p->to.type = D_OREG;
+				p->to.offset = -4;
+ 				p->scond |= C_PBIT;
+
+				q--;
+			}
 		}
 	} else {
 		// normal direction
