@@ -2,28 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// godoc: Go Documentation Server
-
-// Web server tree:
-//
-//	http://godoc/		main landing page
-//	http://godoc/doc/	serve from $GOROOT/doc - spec, mem, tutorial, etc.
-//	http://godoc/src/	serve files from $GOROOT/src; .go gets pretty-printed
-//	http://godoc/cmd/	serve documentation about commands (TODO)
-//	http://godoc/pkg/	serve documentation about packages
-//				(idea is if you say import "compress/zlib", you go to
-//				http://godoc/pkg/compress/zlib)
-//
-// Command-line interface:
-//
-//	godoc packagepath [name ...]
-//
-//	godoc compress/zlib
-//		- prints doc for package compress/zlib
-//	godoc crypto/block Cipher NewCMAC
-//		- prints doc for Cipher and NewCMAC in package crypto/block
-
-
 package main
 
 import (
@@ -108,17 +86,10 @@ var (
 	tmplroot	= flag.String("tmplroot", "lib/godoc", "root template directory (if unrooted, relative to goroot)");
 
 	// periodic sync
-	syncCmd				= flag.String("sync", "", "sync command; disabled if empty");
-	syncMin				= flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0");
-	syncDelay	delayTime;	// actual sync delay in minutes; usually syncDelay == syncMin, but delay may back off exponentially
 	syncTime	RWValue;	// time of last sync
 
 	// layout control
 	tabwidth	= flag.Int("tabwidth", 4, "tab width");
-	html		= flag.Bool("html", false, "print HTML in command-line mode");
-
-	// server control
-	httpaddr	= flag.String("http", "", "HTTP service address (e.g., ':6060')");
 )
 
 
@@ -745,185 +716,33 @@ func search(c *http.Conn, r *http.Request) {
 // ----------------------------------------------------------------------------
 // Server
 
-func loggingHandler(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(c *http.Conn, req *http.Request) {
-		log.Stderrf("%s\t%s", c.RemoteAddr, req.Url);
-		h.ServeHTTP(c, req);
-	});
+func registerPublicHandlers(mux *http.ServeMux) {
+	mux.Handle(Pkg, http.HandlerFunc(servePkg));
+	mux.Handle("/search", http.HandlerFunc(search));
+	mux.Handle("/", http.HandlerFunc(serveFile));
 }
 
 
-func exec(c *http.Conn, args []string) bool {
-	r, w, err := os.Pipe();
-	if err != nil {
-		log.Stderrf("os.Pipe(): %v\n", err);
-		return false;
-	}
-
-	bin := args[0];
-	fds := []*os.File{nil, w, w};
-	if *verbose {
-		log.Stderrf("executing %v", args);
-	}
-	pid, err := os.ForkExec(bin, args, os.Environ(), goroot, fds);
-	defer r.Close();
-	w.Close();
-	if err != nil {
-		log.Stderrf("os.ForkExec(%q): %v\n", bin, err);
-		return false;
-	}
-
-	var buf bytes.Buffer;
-	io.Copy(r, &buf);
-	wait, err := os.Wait(pid, 0);
-	if err != nil {
-		os.Stderr.Write(buf.Bytes());
-		log.Stderrf("os.Wait(%d, 0): %v\n", pid, err);
-		return false;
-	}
-	if !wait.Exited() || wait.ExitStatus() != 0 {
-		os.Stderr.Write(buf.Bytes());
-		log.Stderrf("executing %v failed (exit status = %d)", args, wait.ExitStatus());
-		return false;
-	}
-
-	if *verbose {
-		os.Stderr.Write(buf.Bytes());
-	}
-	if c != nil {
-		c.SetHeader("content-type", "text/plain; charset=utf-8");
-		c.Write(buf.Bytes());
-	}
-
-	return true;
-}
-
-
-func dosync(c *http.Conn, r *http.Request) {
-	args := []string{"/bin/sh", "-c", *syncCmd};
-	if exec(c, args) {
-		// sync succeeded
-		syncTime.set(nil);
-		syncDelay.set(*syncMin);	//  revert to regular sync schedule
-	} else {
-		// sync failed - back off exponentially, but try at least once a day
-		syncDelay.backoff(24*60);
-	}
-}
-
-
-func usage() {
-	fmt.Fprintf(os.Stderr,
-		"usage: godoc package [name ...]\n"
-		"	godoc -http=:6060\n");
-	flag.PrintDefaults();
-	os.Exit(2);
-}
-
-
-func main() {
-	flag.Usage = usage;
-	flag.Parse();
-
-	// Check usage first; get usage message out early.
-	switch {
-	case *httpaddr != "":
-		if flag.NArg() != 0 {
-			usage();
-		}
-	default:
-		if flag.NArg() == 0 {
-			usage();
-		}
-	}
-
-	if err := os.Chdir(goroot); err != nil {
-		log.Exitf("chdir %s: %v", goroot, err);
-	}
-
-	readTemplates();
-
-	if *httpaddr != "" {
-		var handler http.Handler = http.DefaultServeMux;
-		if *verbose {
-			log.Stderrf("Go Documentation Server\n");
-			log.Stderrf("address = %s\n", *httpaddr);
-			log.Stderrf("goroot = %s\n", goroot);
-			log.Stderrf("pkgroot = %s\n", *pkgroot);
-			log.Stderrf("tmplroot = %s\n", *tmplroot);
-			handler = loggingHandler(handler);
-		}
-
-		http.Handle(Pkg, http.HandlerFunc(servePkg));
-		if *syncCmd != "" {
-			http.Handle("/debug/sync", http.HandlerFunc(dosync));
-		}
-		http.Handle("/search", http.HandlerFunc(search));
-		http.Handle("/", http.HandlerFunc(serveFile));
-
-		// The server may have been restarted; always wait 1sec to
-		// give the forking server a chance to shut down and release
-		// the http port.
-		time.Sleep(1e9);
-
-		// Start sync goroutine, if enabled.
-		if *syncCmd != "" && *syncMin > 0 {
-			syncDelay.set(*syncMin);	// initial sync delay
-			go func() {
-				for {
-					dosync(nil, nil);
-					delay, _ := syncDelay.get();
-					if *verbose {
-						log.Stderrf("next sync in %dmin", delay.(int));
-					}
-					time.Sleep(int64(delay.(int))*60e9);
-				}
-			}();
-		}
-
-		// Start indexing goroutine.
-		go func() {
-			for {
-				_, ts := syncTime.get();
-				if _, timestamp := searchIndex.get(); timestamp < ts {
-					// index possibly out of date - make a new one
-					// (could use a channel to send an explicit signal
-					// from the sync goroutine, but this solution is
-					// more decoupled, trivial, and works well enough)
-					start := time.Nanoseconds();
-					index := NewIndex(".");
-					stop := time.Nanoseconds();
-					searchIndex.set(index);
-					if *verbose {
-						secs := float64((stop-start)/1e6)/1e3;
-						nwords, nspots := index.Size();
-						log.Stderrf("index updated (%gs, %d unique words, %d spots)", secs, nwords, nspots);
-					}
-				}
-				time.Sleep(1*60e9);	// try once a minute
+// Indexing goroutine.
+func indexer() {
+	for {
+		_, ts := syncTime.get();
+		if _, timestamp := searchIndex.get(); timestamp < ts {
+			// index possibly out of date - make a new one
+			// (could use a channel to send an explicit signal
+			// from the sync goroutine, but this solution is
+			// more decoupled, trivial, and works well enough)
+			start := time.Nanoseconds();
+			index := NewIndex(".");
+			stop := time.Nanoseconds();
+			searchIndex.set(index);
+			if *verbose {
+				secs := float64((stop-start)/1e6)/1e3;
+				nwords, nspots := index.Size();
+				log.Stderrf("index updated (%gs, %d unique words, %d spots)", secs, nwords, nspots);
 			}
-		}();
-
-		// Start http server.
-		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
-			log.Exitf("ListenAndServe %s: %v", *httpaddr, err);
 		}
-		return;
-	}
-
-	if *html {
-		packageText = packageHtml;
-		parseerrorText = parseerrorHtml;
-	}
-
-	info := getPageInfo(flag.Arg(0));
-
-	if info.PDoc != nil && flag.NArg() > 1 {
-		args := flag.Args();
-		info.PDoc.Filter(args[1:len(args)]);
-	}
-
-	if err := packageText.Execute(info, os.Stdout); err != nil {
-		log.Stderrf("packageText.Execute: %s", err);
+		time.Sleep(1*60e9);	// try once a minute
 	}
 }
+
