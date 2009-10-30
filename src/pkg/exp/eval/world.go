@@ -111,12 +111,10 @@ func (w *World) CompileExpr(e ast.Expr) (Code, os.Error) {
 		// nothing
 	case *idealFloatType:
 		// nothing
-	case *MultiType:
-		if len(t.Elems) == 0 {
+	default:
+		if tm, ok := t.(*MultiType); ok && len(tm.Elems) == 0 {
 			return &stmtCode{w, code{ec.exec}}, nil;
 		}
-		fallthrough;
-	default:
 		eval = genAssign(ec.t, ec);
 	}
 	return &exprCode{w, ec, eval}, nil;
