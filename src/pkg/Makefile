@@ -85,7 +85,7 @@ DIRS=\
 	template\
 	testing\
 	testing/iotest\
-	testing/quickcheck\
+	testing/quick\
 	time\
 	unicode\
 	utf8\
