@@ -42,8 +42,12 @@ func (b *Buffer) Bytes() []byte {
 }
 
 // String returns the contents of the unread portion of the buffer
-// as a string.
+// as a string.  If the Buffer is a nil pointer, it returns "<nil>".
 func (b *Buffer) String() string {
+	if b == nil {
+		// Special case, useful in debugging.
+		return "<nil>"
+	}
 	return string(b.buf[b.off : len(b.buf)]);
 }
 
