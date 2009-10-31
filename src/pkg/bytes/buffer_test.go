@@ -232,3 +232,11 @@ func TestMixedReadsAndWrites(t *testing.T) {
 	}
 	empty(t, "TestMixedReadsAndWrites (2)", &buf, s, make([]byte, buf.Len()));
 }
+
+
+func TestNil(t *testing.T) {
+	var b *Buffer;
+	if b.String() != "<nil>" {
+		t.Error("expcted <nil>; got %q", b.String());
+	}
+}
