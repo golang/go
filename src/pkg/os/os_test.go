@@ -5,25 +5,25 @@
 package os_test
 
 import (
-		"bytes";
-		"fmt";
-		"io";
-	.	"os";
-		"strings";
-		"testing";
+	"bytes";
+	"fmt";
+	"io";
+	. "os";
+	"strings";
+	"testing";
 )
 
 var dot = []string{
-	"dir_darwin_amd64.go",
-	"dir_linux_amd64.go",
+	"dir_darwin.go",
+	"dir_linux.go",
 	"env.go",
 	"error.go",
 	"file.go",
 	"os_test.go",
 	"time.go",
 	"types.go",
-	"stat_darwin_amd64.go",
-	"stat_linux_amd64.go",
+	"stat_darwin.go",
+	"stat_linux.go",
 }
 
 var etc = []string{

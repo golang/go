@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(rsc): Once the porting dust settles, consider
-// whether this file should be dir_linux.go (and similarly
-// dir_darwin.go) instead of having one copy per architecture.
-
 package os
 
 import (
