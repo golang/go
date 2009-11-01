@@ -364,6 +364,9 @@ func (b *_JsonBuilder) Key(k string) Builder {
 	return bb;
 }
 
+func (b *_JsonBuilder) Flush() {
+}
+
 // StringToJson parses the string s as a JSON-syntax string
 // and returns the generic JSON object representation.
 // On success, StringToJson returns with ok set to true and errtok empty.
