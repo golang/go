@@ -174,8 +174,8 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 		return;
 	}
 
-	// TODO: Unless exp == minexp, if the number of digits in d
-	// is less than 17, it seems unlikely that it could not be
+	// TODO(rsc): Unless exp == minexp, if the number of digits in d
+	// is less than 17, it seems likely that it would be
 	// the shortest possible number already.  So maybe we can
 	// bail out without doing the extra multiprecision math here.
 

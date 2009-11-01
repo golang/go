@@ -5,7 +5,9 @@
 package strconv
 
 import (
+	"bytes";
 	"os";
+	"strings";
 	"unicode";
 	"utf8";
 )
@@ -17,61 +19,58 @@ const lowerhex = "0123456789abcdef"
 // sequences (\t, \n, \xFF, \u0100) for control characters
 // and non-ASCII characters.
 func Quote(s string) string {
-	// TODO(rsc): String accumulation could be more efficient.
-	t := `"`;
+	var buf bytes.Buffer;
+	buf.WriteByte('"');
 	for ; len(s) > 0; s = s[1:len(s)] {
 		switch c := s[0]; {
 		case c == '"':
-			t += `\"`;
+			buf.WriteString(`\"`);
 		case c == '\\':
-			t += `\\`;
+			buf.WriteString(`\\`);
 		case ' ' <= c && c <= '~':
-			t += string(c);
+			buf.WriteString(string(c));
 		case c == '\a':
-			t += `\a`;
+			buf.WriteString(`\a`);
 		case c == '\b':
-			t += `\b`;
+			buf.WriteString(`\b`);
 		case c == '\f':
-			t += `\f`;
+			buf.WriteString(`\f`);
 		case c == '\n':
-			t += `\n`;
+			buf.WriteString(`\n`);
 		case c == '\r':
-			t += `\r`;
+			buf.WriteString(`\r`);
 		case c == '\t':
-			t += `\t`;
+			buf.WriteString(`\t`);
 		case c == '\v':
-			t += `\v`;
+			buf.WriteString(`\v`);
 
-		case c < utf8.RuneSelf:
-			t += `\x`+string(lowerhex[c>>4])+string(lowerhex[c&0xF]);
-
-		case utf8.FullRuneInString(s):
+		case c >= utf8.RuneSelf && utf8.FullRuneInString(s):
 			r, size := utf8.DecodeRuneInString(s);
 			if r == utf8.RuneError && size == 1 {
 				goto EscX;
 			}
 			s = s[size-1 : len(s)];	// next iteration will slice off 1 more
 			if r < 0x10000 {
-				t += `\u`;
+				buf.WriteString(`\u`);
 				for j := uint(0); j < 4; j++ {
-					t += string(lowerhex[(r>>(12 - 4*j))&0xF]);
+					buf.WriteByte(lowerhex[(r>>(12 - 4*j))&0xF]);
 				}
 			} else {
-				t += `\U`;
+				buf.WriteString(`\U`);
 				for j := uint(0); j < 8; j++ {
-					t += string(lowerhex[(r>>(28 - 4*j))&0xF]);
+					buf.WriteByte(lowerhex[(r>>(28 - 4*j))&0xF]);
 				}
 			}
 
 		default:
 		EscX:
-			t += `\x`;
-			t += string(lowerhex[c>>4]);
-			t += string(lowerhex[c&0xF]);
+			buf.WriteString(`\x`);
+			buf.WriteByte(lowerhex[c>>4]);
+			buf.WriteByte(lowerhex[c&0xF]);
 		}
 	}
-	t += `"`;
-	return t;
+	buf.WriteByte('"');
+	return buf.String();
 }
 
 // CanBackquote returns whether the string s would be
@@ -223,42 +222,42 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 // character literal; Unquote returns the corresponding
 // one-character string.)
 func Unquote(s string) (t string, err os.Error) {
-	err = os.EINVAL;	// assume error for easy return
 	n := len(s);
 	if n < 2 {
-		return;
+		return "", os.EINVAL;
 	}
 	quote := s[0];
 	if quote != s[n-1] {
-		return;
+		return "", os.EINVAL;
 	}
 	s = s[1 : n-1];
 
 	if quote == '`' {
+		if strings.Index(s, "`") >= 0 {
+			return "", os.EINVAL;
+		}
 		return s, nil;
 	}
 	if quote != '"' && quote != '\'' {
-		return;
+		return "", err;
 	}
 
-	// TODO(rsc): String accumulation could be more efficient.
-	var tt string;
+	var buf bytes.Buffer;
 	for len(s) > 0 {
-		c, multibyte, ss, err1 := UnquoteChar(s, quote);
-		if err1 != nil {
-			err = err1;
-			return;
+		c, multibyte, ss, err := UnquoteChar(s, quote);
+		if err != nil {
+			return "", err;
 		}
 		s = ss;
-		if multibyte || c < utf8.RuneSelf {
-			tt += string(c);
+		if c < utf8.RuneSelf || !multibyte {
+			buf.WriteByte(byte(c));
 		} else {
-			tt += string([]byte{byte(c)});
+			buf.WriteString(string(c));
 		}
 		if quote == '\'' && len(s) != 0 {
 			// single-quoted must be single character
-			return;
+			return "", os.EINVAL;
 		}
 	}
-	return tt, nil;
+	return buf.String(), nil;
 }
