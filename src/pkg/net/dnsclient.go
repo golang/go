@@ -11,14 +11,12 @@
 //	Could have a small cache.
 //	Random UDP source port (net.Dial should do that for us).
 //	Random request IDs.
-//	More substantial error reporting.
 
 package net
 
 import (
 	"once";
 	"os";
-	"strings";
 )
 
 // DNSError represents a DNS lookup error.
@@ -240,7 +238,7 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
 	// If name is rooted (trailing dot) or has enough dots,
 	// try it by itself first.
 	rooted := len(name) > 0 && name[len(name)-1] == '.';
-	if rooted || strings.Count(name, ".") >= cfg.ndots {
+	if rooted || count(name, '.') >= cfg.ndots {
 		rname := name;
 		if !rooted {
 			rname += ".";

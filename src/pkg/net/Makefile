@@ -12,8 +12,11 @@ GOFILES=\
 	fd.go\
 	fd_$(GOOS).go\
 	ip.go\
+	ipsock.go\
 	net.go\
 	parse.go\
 	port.go\
+	sock.go\
+	unixsock.go\
 
 include $(GOROOT)/src/Make.pkg

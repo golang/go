@@ -12,9 +12,6 @@
 
 package net
 
-import (
-)
-
 // IP address lengths (bytes).
 const (
 	IPv4len = 4;
