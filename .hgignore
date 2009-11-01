@@ -2,6 +2,9 @@ syntax:glob
 *.[568ao]
 *.ao
 *.so
+*.pyc
+._*
+.nfs.*
 [568a].out
 _obj
 _test
@@ -13,11 +16,11 @@ src/cmd/gc/mkbuiltin1
 src/cmd/gc/opnames.h
 src/pkg/exp/ogle/ogle
 src/pkg/runtime/cgo2c
-src/pkg/runtime/amd64/asm.h
+src/pkg/runtime/*/asm.h
+src/pkg/runtime/runtime.acid
 test/pass.out
 test/run.out
 test/times.out
-*.pyc
 
 syntax:regexp
 ^pkg/
