@@ -6,7 +6,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=os
 GOFILES=\
-	dir_$(GOOS)_$(GOARCH).go\
+	dir_$(GOOS).go\
 	env.go\
 	error.go\
 	exec.go\
@@ -14,7 +14,7 @@ GOFILES=\
 	getwd.go\
 	path.go\
 	proc.go\
-	stat_$(GOOS)_$(GOARCH).go\
+	stat_$(GOOS).go\
 	sys_$(GOOS).go\
 	time.go\
 	types.go\
