@@ -23,27 +23,32 @@ your repository's .hg/hgrc file.
     codereview = path/to/codereview.py
 
     [codereview]
-    project = project-url        # optional
+	server = codereview.appspot.com
 
-If the project URL is specified, codereview will fetch
-default the reviewer and cc list from that URL each time
-it runs an "upload" command.
+The server should be running Rietveld; see http://code.google.com/p/rietveld/.
 '''
+
+# TODO(rsc):
+#	fix utf-8 upload bug
+#	look for and clear submitted CLs during sync / add "adopt" command?
+#	creating an issue prints the URL twice
+#	better documentation
 
 from mercurial import cmdutil, commands, hg, util, error, match
 from mercurial.node import nullrev, hex, nullid, short
 import os, re
 import stat
+import threading
 from HTMLParser import HTMLParser
 
 try:
 	hgversion = util.version()
-except Exception, e:
+except:
 	from mercurial.version import version as v
 	hgversion = v.get_version()
 
 
-# To experiment with Mercurial in the python interpreter: 
+# To experiment with Mercurial in the python interpreter:
 #    >>> repo = hg.repository(ui.ui(), path = ".")
 
 #######################################################################
@@ -108,7 +113,7 @@ class CL(object):
 			s += "\t" + f + "\n"
 		s += "\n"
 		return s
-	
+
 	def PendingText(self):
 		cl = self
 		s = cl.name + ":" + "\n"
@@ -120,7 +125,7 @@ class CL(object):
 		for f in cl.files:
 			s += "\t\t" + f + "\n"
 		return s
-	
+
 	def Flush(self, ui, repo):
 		if self.name == "new":
 			self.Upload(ui, repo)
@@ -133,7 +138,7 @@ class CL(object):
 		if self.web:
 			EditDesc(self.name, subject=line1(self.desc), desc=self.desc,
 				reviewers=JoinComma(self.reviewer), cc=JoinComma(self.cc))
-	
+
 	def Delete(self, ui, repo):
 		dir = CodeReviewDir(ui, repo)
 		os.unlink(dir + "/cl." + self.name)
@@ -150,7 +155,7 @@ class CL(object):
 		]
 
 		# NOTE(rsc): This duplicates too much of RealMain,
-		# but RealMain doesn't have the nicest interface in the world.
+		# but RealMain doesn't have the most reusable interface.
 		if self.name != "new":
 			form_fields.append(("issue", self.name))
 		vcs = GuessVCS(upload_options)
@@ -170,12 +175,14 @@ class CL(object):
 			msg = lines[0]
 			patchset = lines[1].strip()
 			patches = [x.split(" ", 1) for x in lines[2:]]
-		ui.status("uploaded: " + msg + "\n")
+		ui.status(msg + "\n")
 		if not response_body.startswith("Issue created.") and not response_body.startswith("Issue updated."):
 			print response_body
 			raise "failed to update issue"
 		issue = msg[msg.rfind("/")+1:]
 		self.name = issue
+		if not self.url:
+			self.url = server_url_base + self.name
 		if not uploaded_diff_file:
 			patches = UploadSeparatePatches(issue, rpc, patchset, data, upload_options)
 		vcs.UploadBaseFiles(issue, rpc, patches, patchset, upload_options, files)
@@ -186,7 +193,7 @@ class CL(object):
 		return
 
 def GoodCLName(name):
-	return re.match("^[0-9]+$", name)	
+	return re.match("^[0-9]+$", name)
 
 def ParseCL(text, name):
 	sname = None
@@ -244,27 +251,40 @@ def SplitCommaSpace(s):
 def JoinComma(l):
 	return ", ".join(l)
 
+def ExceptionDetail():
+	s = str(sys.exc_info()[0])
+	if s.startswith("<type '") and s.endswith("'>"):
+		s = s[7:-2]
+	elif s.startswith("<class '") and s.endswith("'>"):
+		s = s[8:-2]
+	arg = str(sys.exc_info()[1])
+	if len(arg) > 0:
+		s += ": " + arg
+	return s
+
 # Load CL from disk and/or the web.
 def LoadCL(ui, repo, name, web=True):
 	if not GoodCLName(name):
 		return None, "invalid CL name"
 	dir = CodeReviewDir(ui, repo)
 	path = dir + "cl." + name
-	try:
+	if os.access(path, 0):
 		ff = open(path)
 		text = ff.read()
 		ff.close()
 		cl, lineno, err = ParseCL(text, name)
 		if err != "":
-			return None, "malformed CL data"
+			return None, "malformed CL data: "+err
 		cl.local = True
-	except Exception, e:
+	else:
 		cl = CL(name)
 	if web:
 		try:
 			f = GetSettings(name)
-		except Exception, e:
-			return None, "cannot load CL data from code review server"
+		except:
+			return None, "cannot load CL data from code review server: "+ExceptionDetail()
+		if 'reviewers' not in f:
+			return None, "malformed response loading CL data from code review server"
 		cl.reviewer = SplitCommaSpace(f['reviewers'])
 		cl.cc = SplitCommaSpace(f['cc'])
 		cl.desc = f['description']
@@ -272,17 +292,40 @@ def LoadCL(ui, repo, name, web=True):
 		cl.web = True
 	return cl, ''
 
+class LoadCLThread(threading.Thread):
+	def __init__(self, ui, repo, dir, f, web):
+		threading.Thread.__init__(self)
+		self.ui = ui
+		self.repo = repo
+		self.f = f
+		self.web = web
+		self.cl = None
+	def run(self):
+		cl, err = LoadCL(self.ui, self.repo, self.f[3:], web=self.web)
+		if err != '':
+			self.ui.warn("loading "+self.dir+self.f+": " + err + "\n")
+			return
+		self.cl = cl
+
 # Load all the CLs from this repository.
 def LoadAllCL(ui, repo, web=True):
 	dir = CodeReviewDir(ui, repo)
 	m = {}
-	for f in os.listdir(dir):
-		if f.startswith('cl.'):
-			cl, err = LoadCL(ui, repo, f[3:], web=web)
-			if err != '':
-				ui.warn("loading "+dir+f+": " + err + "\n")
-				continue
-			m[cl.name] = cl
+	files = [f for f in os.listdir(dir) if f.startswith('cl.')]
+	if not files:
+		return m
+	if web:
+		# Authenticate now, so we can use threads below
+		MySend(None)
+	active = []
+	for f in files:
+		t = LoadCLThread(ui, repo, dir, f, web)
+		t.start()
+		active.append(t)
+	for t in active:
+		t.join()
+		if t.cl:
+			m[t.cl.name] = t.cl
 	return m
 
 # Find repository root.  On error, ui.warn and return None
@@ -305,8 +348,8 @@ def CodeReviewDir(ui, repo):
 	if not os.path.isdir(dir):
 		try:
 			os.mkdir(dir, 0700)
-		except Exception, e:
-			ui.warn('cannot mkdir %s: %s\n' % (dir, e))
+		except:
+			ui.warn('cannot mkdir %s: %s\n' % (dir, ExceptionDetail()))
 			return None
 	return dir
 
@@ -364,21 +407,18 @@ _change_prolog = """# Change list.
 # Return list of changed files in repository that match pats.
 def ChangedFiles(ui, repo, pats, opts):
 	# Find list of files being operated on.
-	# TODO(rsc): The cutoff might not be 1.3.
-	# Definitely after 1.0.2.
-	try:
-		matcher = cmdutil.match(repo, pats, opts)
-		node1, node2 = cmdutil.revpair(repo, None)
-		modified, added, removed = repo.status(node1, node2, matcher)[:3]
-	except AttributeError, e:
-		# Probably in earlier Mercurial, say 1.0.2.
-		_, matcher, _ = cmdutil.matchpats(repo, pats, opts)
-		node1, node2 = cmdutil.revpair(repo, None)
-		modified, added, removed = repo.status(node1, node2, match=matcher)[:3]
-	return modified + added + removed
+	matcher = cmdutil.match(repo, pats, opts)
+	node1, node2 = cmdutil.revpair(repo, None)
+	modified, added, removed = repo.status(node1, node2, matcher)[:3]
+	l = modified + added + removed
+	l.sort()
+	return l
 
 # Return list of files claimed by existing CLs
 def TakenFiles(ui, repo):
+	return Taken(ui, repo).keys()
+
+def Taken(ui, repo):
 	all = LoadAllCL(ui, repo, web=False)
 	taken = {}
 	for _, cl in all.items():
@@ -394,19 +434,17 @@ def Sub(l1, l2):
 	return [l for l in l1 if l not in l2]
 
 def Add(l1, l2):
-	return l1 + Sub(l2, l1)
+	l = l1 + Sub(l2, l1)
+	l.sort()
+	return l
 
 def Intersect(l1, l2):
 	return [l for l in l1 if l in l2]
 
 def Incoming(ui, repo, opts, op):
 	source, _, _ = hg.parseurl(ui.expandpath("default"), None)
-	try:
-		other = hg.repository(cmdutil.remoteui(repo, opts), source)
-		_, incoming, _ = repo.findcommonincoming(other)
-	except AttributeError, e:
-		other = hg.repository(ui, source)
-		incoming = repo.findincoming(other)
+	other = hg.repository(cmdutil.remoteui(repo, opts), source)
+	_, incoming, _ = repo.findcommonincoming(other)
 	return incoming
 
 def EditCL(ui, repo, cl):
@@ -415,7 +453,6 @@ def EditCL(ui, repo, cl):
 		s = ui.edit(s, ui.username())
 		clx, line, err = ParseCL(s, cl.name)
 		if err != '':
-			# TODO(rsc): another 1.3 inconsistency
 			if ui.prompt("error parsing change list: line %d: %s\nre-edit (y/n)?" % (line, err), ["&yes", "&no"], "y") == "n":
 				return "change list not modified"
 			continue
@@ -458,6 +495,26 @@ def CommandLineCL(ui, repo, pats, opts):
 				return None, err
 	return cl, ""
 
+# reposetup replaces cmdutil.match with this wrapper,
+# which expands the syntax @clnumber to mean the files
+# in that CL.
+original_match = None
+def ReplacementForCmdutilMatch(repo, pats=[], opts={}, globbed=False, default='relpath'):
+	taken = []
+	files = []
+	for p in pats:
+		if p.startswith('@'):
+			taken.append(p)
+			clname = p[1:]
+			if not GoodCLName(clname):
+				raise util.Abort("invalid CL name " + clname)
+			cl, err = LoadCL(repo.ui, repo, clname, web=False)
+			if err != '':
+				raise util.Abort("loading CL " + clname + ": " + err)
+			files = Add(files, cl.files)
+	pats = Sub(pats, taken)	+ ['path:'+f for f in files]	
+	return original_match(repo, pats=pats, opts=opts, globbed=globbed, default=default)
+
 #######################################################################
 # Mercurial commands
 
@@ -473,48 +530,52 @@ server_url_base = None
 # Other parameters are taken in order from items on the command line that
 # don't start with a dash.  If no default value is given in the parameter list,
 # they are required.
-# 
+#
 
-# Change command.
 def change(ui, repo, *pats, **opts):
 	"""create or edit a change list
-	
+
 	Create or edit a change list.
 	A change list is a group of files to be reviewed and submitted together,
 	plus a textual description of the change.
 	Change lists are referred to by simple alphanumeric names.
 
 	Changes must be reviewed before they can be submitted.
-	
-	In the absence of options, the change command opens the
-	change list for editing in the default editor.  
-	"""
-	
-	if opts["add"] and opts["delete"]:
-		return "cannot use -a with -d"
 
-	if (opts["add"] or opts["delete"]) and (opts["stdin"] or opts["stdout"]):
-		return "cannot use -a/-d with -i/-o"
+	In the absence of options, the change command opens the
+	change list for editing in the default editor.
+	"""
 
 	dirty = {}
 	if len(pats) > 0 and GoodCLName(pats[0]):
 		name = pats[0]
+		if len(pats) != 1:
+			return "cannot specify CL name and file patterns"
 		pats = pats[1:]
 		cl, err = LoadCL(ui, repo, name, web=True)
 		if err != '':
 			return err
-		if not cl.local and (opts["add"] or opts["delete"] or opts["stdin"] or not opts["stdout"]):
+		if not cl.local and (opts["stdin"] or not opts["stdout"]):
 			return "cannot change non-local CL " + name
 	else:
-		if opts["add"] or opts["delete"]:
-			return "cannot use -a/-d when creating CL"
 		name = "new"
 		cl = CL("new")
 		dirty[cl] = True
+		files = ChangedFiles(ui, repo, pats, opts)
+		taken = TakenFiles(ui, repo)
+		files = Sub(files, taken)
 	
-	files = ChangedFiles(ui, repo, pats, opts)
-	taken = TakenFiles(ui, repo)
-	files = Sub(files, taken)
+	if opts["delete"]:
+		if name == "new":
+			return "cannot use -d with file patterns"
+		if opts["stdin"] or opts["stdout"]:
+			return "cannot use -d with -i or -o"
+		if not cl.local:
+			return "cannot change non-local CL " + name
+		PostMessage(cl.name, "*** Abandoned ***", send_mail="checked")
+		EditDesc(cl.name, closed="checked")
+		cl.Delete(ui, repo)
+		return
 
 	if opts["stdin"]:
 		s = sys.stdin.read()
@@ -534,35 +595,7 @@ def change(ui, repo, *pats, **opts):
 			cl.files = clx.files
 			dirty[cl] = True
 
-	if opts["add"]:
-		newfiles = Sub(files, cl.files)
-		stolen = Intersect(newfiles, taken)
-		if stolen:
-			ui.status("# Taking files from other CLs.  To undo:\n")
-			for f in stolen:
-				ocl = taken[f]
-				ui.status("#	hg change -a %s %s\n" % (ocl.name, f))
-				ocl.files = Sub(ocl.files, [f])
-				dirty[ocl] = True
-		not_stolen = Sub(newfiles, stolen)
-		if not_stolen:
-			ui.status("# Add files to CL.  To undo:\n")
-			for f in not_stolen:
-				ui.status("#	hg change -d %s %s\n" % (cl.name, f))
-		if newfiles:
-			cl.files += newfiles
-			dirty[cl] = True
-
-	if opts["delete"]:
-		oldfiles = Intersect(files, cl.files)
-		if oldfiles:
-			ui.status("# Removing files from CL.  To undo:\n")
-			for f in oldfiles:
-				ui.status("#	hg change -a %s %s\n" % (cl.name, f))
-			cl.files = Sub(cl.files, oldfiles)
-			dirty[cl] = True
-
-	if not opts["add"] and not opts["delete"] and not opts["stdin"] and not opts["stdout"]:
+	if not opts["stdin"] and not opts["stdout"]:
 		if name == "new":
 			cl.files = files
 		err = EditCL(ui, repo, cl)
@@ -572,15 +605,98 @@ def change(ui, repo, *pats, **opts):
 
 	for d, _ in dirty.items():
 		d.Flush(ui, repo)
-	
+
 	if opts["stdout"]:
 		ui.write(cl.EditorText())
 	elif name == "new":
 		if ui.quiet:
 			ui.write(cl.name)
 		else:
-			ui.write("URL: " + cl.url)
+			ui.write("CL created: " + cl.url + "\n")
 	return
+
+def codereview_login(ui, repo, **opts):
+	"""log in to code review server
+
+	Logs in to the code review server, saving a cookie in
+	a file in your home directory.
+	"""
+	MySend(None)
+
+def file(ui, repo, clname, pat, *pats, **opts):
+	"""assign files to or remove files from a change list
+	
+	Assign files to or (with -d) remove files from a change list.
+	
+	The -d option only removes files from the change list.
+	It does not edit them or remove them from the repository.
+	"""
+	pats = tuple([pat] + list(pats))
+	if not GoodCLName(clname):
+		return "invalid CL name " + clname
+	
+	dirty = {}
+	cl, err = LoadCL(ui, repo, clname, web=False)
+	if err != '':
+		return err
+	if not cl.local:
+		return "cannot change non-local CL " + clname
+
+	files = ChangedFiles(ui, repo, pats, opts)
+
+	if opts["delete"]:
+		oldfiles = Intersect(files, cl.files)
+		if oldfiles:
+			if not ui.quiet:
+				ui.status("# Removing files from CL.  To undo:\n")
+				ui.status("#	cd %s\n" % (repo.root))
+				for f in oldfiles:
+					ui.status("#	hg file %s %s\n" % (cl.name, f))
+			cl.files = Sub(cl.files, oldfiles)
+			cl.Flush(ui, repo)
+		else:
+			ui.status("no such files in CL")
+		return
+
+	if not files:
+		return "no such modified files"
+
+	files = Sub(files, cl.files)
+	taken = Taken(ui, repo)
+	warned = False
+	for f in files:
+		if f in taken:
+			if not warned and not ui.quiet:
+				ui.status("# Taking files from other CLs.  To undo:\n")
+				ui.status("#	cd %s\n" % (repo.root))
+				warned = True
+			ocl = taken[f]
+			if not ui.quiet:
+				ui.status("#	hg file %s %s\n" % (ocl.name, f))
+			if ocl not in dirty:
+				ocl.files = Sub(ocl.files, files)
+				dirty[ocl] = True
+	cl.files = Add(cl.files, files)
+	dirty[cl] = True
+	for d, _ in dirty.items():
+		d.Flush(ui, repo)
+	return
+	
+def mail(ui, repo, *pats, **opts):
+	cl, err = CommandLineCL(ui, repo, pats, opts)
+	if err != "":
+		return err
+	if not cl.reviewer:
+		return "no reviewers listed in CL"
+	cl.Upload(ui, repo)
+	pmsg = "Hello " + JoinComma(cl.reviewer) + ",\n"
+	pmsg += "\n"
+	pmsg += "I'd like you to review the following change.\n"
+	subject = "code review %s: %s" % (cl.name, line1(cl.desc))
+	PostMessage(cl.name, pmsg, send_mail="checked", subject=subject)
+
+def nocommit(ui, repo, *pats, **opts):
+	return "The codereview extension is enabled; do not use commit."
 
 def pending(ui, repo, *pats, **opts):
 	m = LoadAllCL(ui, repo, web=True)
@@ -597,33 +713,15 @@ def pending(ui, repo, *pats, **opts):
 			s += "\t" + f + "\n"
 		ui.write(s)
 
-def upload(ui, repo, name, **opts):
-	repo.ui.quiet = True
-	cl, err = LoadCL(ui, repo, name, web=True)
-	if err != "":
-		return err
-	if not cl.local:
-		return "cannot upload non-local change"
-	cl.Upload(ui, repo)
-	print "%s%s\n" % (server_url_base, cl.name)
-	return
+def reposetup(ui, repo):
+	global original_match
+	original_match = cmdutil.match
+	cmdutil.match = ReplacementForCmdutilMatch
+	RietveldSetup(ui, repo)
 
-def mail(ui, repo, *pats, **opts):
-	cl, err = CommandLineCL(ui, repo, pats, opts)
-	if err != "":
-		return err
-	if not cl.reviewer:
-		return "no reviewers listed in CL"
-	cl.Upload(ui, repo)
-	pmsg = "Hello " + JoinComma(cl.reviewer) + ",\n"
-	pmsg += "\n"
-	pmsg += "I'd like you to review the following change.\n"
-	subject = "code review %s: %s" % (cl.name, line1(cl.desc))
-	PostMessage(cl.name, pmsg, send_mail="checked", subject=subject)
-	
 def submit(ui, repo, *pats, **opts):
 	"""submit change to remote repository
-	
+
 	Submits change to remote repository.
 	Bails out if the local repository is not in sync with the remote one.
 	"""
@@ -634,7 +732,7 @@ def submit(ui, repo, *pats, **opts):
 	cl, err = CommandLineCL(ui, repo, pats, opts)
 	if err != "":
 		return err
-	
+
 	about = ""
 	if cl.reviewer:
 		about += "R=" + JoinComma(cl.reviewer) + "\n"
@@ -660,12 +758,8 @@ def submit(ui, repo, *pats, **opts):
 	if date:
 		opts['date'] = util.parsedate(date)
 	opts['message'] = cl.desc.rstrip() + "\n\n" + about
-	try:
-		m = match.exact(repo.root, repo.getcwd(), cl.files)
-		node = repo.commit(opts['message'], opts.get('user'), opts.get('date'), m)
-	except Exception, e:
-		_, m, _ = util._matcher(repo.root, repo.getcwd(), cl.files, None, None, 'path', None)
-		node = repo.commit(text=opts['message'], user=opts.get('user'), date=opts.get('date'), match=m)
+	m = match.exact(repo.root, repo.getcwd(), cl.files)
+	node = repo.commit(opts['message'], opts.get('user'), opts.get('date'), m)
 	if not node:
 		return "nothing changed"
 
@@ -683,10 +777,7 @@ def submit(ui, repo, *pats, **opts):
 	# if it works, we're committed.
 	# if not, roll back
 	dest, _, _ = hg.parseurl(ui.expandpath("default"), None)
-	try:
-		other = hg.repository(cmdutil.remoteui(repo, opts), dest)
-	except AttributeError, e:
-		other = hg.repository(ui, dest)
+	other = hg.repository(cmdutil.remoteui(repo, opts), dest)
 	r = repo.push(other, False, None)
 	if r == 0:
 		repo.rollback()
@@ -707,37 +798,42 @@ def submit(ui, repo, *pats, **opts):
 
 def sync(ui, repo, **opts):
 	"""synchronize with remote repository
-	
+
 	Incorporates recent changes from the remote repository
 	into the local repository.
-	
-	Equivalent to the Mercurial command "hg pull -u".
 	"""
-	repo.ui.quiet = True
+	ui.status = sync_note
+	ui.note = sync_note
 	source, _, _ = hg.parseurl(ui.expandpath("default"), None)
-	try:
-		other = hg.repository(cmdutil.remoteui(repo, opts), source)
-	except AttributeError, e:
-		other = hg.repository(ui, source)
+	other = hg.repository(cmdutil.remoteui(repo, opts), source)
 	modheads = repo.pull(other)
-	return commands.postincoming(ui, repo, modheads, True, "tip")
+	err = commands.postincoming(ui, repo, modheads, True, "tip")
+	if err:
+		return err
+	sync_changes(ui, repo)
 
-def dologin(ui, repo, **opts):
-	"""log in to code review server
-	
-	Logs in to the code review server, saving a cookie in
-	a file in your home directory.
-	"""
-	MySend("/")
+def sync_note(msg):
+	if msg == 'resolving manifests\n' or msg == 'searching for changes\n':
+		return
+	sys.stdout.write(msg)
 
+def sync_changes(ui, repo):
+	pass
 
 def uisetup(ui):
 	if "^commit|ci" in commands.table:
 		commands.table["^commit|ci"] = (nocommit, [], "")
-	RietveldSetup(ui)
 
-def nocommit(ui, repo, *pats, **opts):
-	return "The codereview extension is enabled; do not use commit."
+def upload(ui, repo, name, **opts):
+	repo.ui.quiet = True
+	cl, err = LoadCL(ui, repo, name, web=True)
+	if err != "":
+		return err
+	if not cl.local:
+		return "cannot upload non-local change"
+	cl.Upload(ui, repo)
+	print "%s%s\n" % (server_url_base, cl.name)
+	return
 
 review_opts = [
 	('r', 'reviewer', '', 'add reviewer'),
@@ -749,39 +845,43 @@ review_opts = [
 cmdtable = {
 	# The ^ means to show this command in the help text that
 	# is printed when running hg with no arguments.
-
-	# TODO: Should change upload?
 	"^change": (
 		change,
 		[
-			('a', 'add', None, 'add files to change list'),
-			('d', 'delete', None, 'remove files from change list'),
-			('o', 'stdout', None, 'print change list to standard output'),
+			('d', 'delete', None, 'delete existing change list'),
 			('i', 'stdin', None, 'read change list from standard input'),
+			('o', 'stdout', None, 'print change list to standard output'),
 		],
-		"[-a | -d | [-i] [-o]] [change#] [FILE ...]"
+		"[-i] [-o] change# or FILE ..."
+	),
+	"codereview-login": (
+		codereview_login,
+		[],
+		"",
+	),
+	"commit|ci": (
+		nocommit,
+		[],
+		"",
+	),
+	"^file": (
+		file,
+		[
+			('d', 'delete', None, 'delete files from change list (but not repository)'),
+		],
+		"[-d] change# FILE ..."
 	),
 	"^pending|p": (
 		pending,
 		[],
 		"[FILE ...]"
 	),
-
-	# TODO: cdiff - steal diff options and command line
-
-	"^upload": (
-		upload,
-		[],
-		"change#"
-	),
-	
 	"^mail": (
 		mail,
 		review_opts + [
 		] + commands.walkopts,
 		"[-r reviewer] [--cc cc] [change# | file ...]"
 	),
-
 	"^submit": (
 		submit,
 		review_opts + [
@@ -789,23 +889,15 @@ cmdtable = {
 		] + commands.walkopts + commands.commitopts + commands.commitopts2,
 		"[-r reviewer] [--cc cc] [change# | file ...]"
 	),
-	
 	"^sync": (
 		sync,
 		[],
 		"",
 	),
-	
-	"commit|ci": (
-		nocommit,
+	"^upload": (
+		upload,
 		[],
-		"",
-	),
-	
-	"codereview-login": (
-		dologin,
-		[],
-		"",
+		"change#"
 	),
 }
 
@@ -862,7 +954,7 @@ class FormParser(HTMLParser):
 		if self.curdata is not None:
 			self.curdata += data
 
-# Like upload.py Send but only authenticates when the 
+# Like upload.py Send but only authenticates when the
 # redirect is to www.google.com/accounts.  This keeps
 # unnecessary redirects from happening during testing.
 def MySend(request_path, payload=None,
@@ -890,6 +982,8 @@ def MySend(request_path, payload=None,
     self = rpc
     if not self.authenticated:
       self._Authenticate()
+    if request_path is None:
+      return
 
     old_timeout = socket.getdefaulttimeout()
     socket.setdefaulttimeout(timeout)
@@ -915,7 +1009,7 @@ def MySend(request_path, payload=None,
             self._Authenticate()
           elif e.code == 302:
             loc = e.info()["location"]
-            if not loc.startswith('https://www.google.com/accounts/ServiceLogin'):
+            if not loc.startswith('https://www.google.com/a') or loc.find('/ServiceLogin') < 0:
               return ''
             self._Authenticate()
           else:
@@ -933,8 +1027,7 @@ def GetForm(url):
 
 def GetSettings(issue):
 	f = GetForm("/" + issue + "/edit")
-	if not f:
-		print "PUB"
+	if not f or 'reviewers' not in f:
 		f = GetForm("/" + issue + "/publish")
 	return f
 
@@ -996,8 +1089,8 @@ def PostMessage(issue, message, reviewers=None, cc=None, send_mail=None, subject
 class opt(object):
 	pass
 
-def RietveldSetup(ui):
-	global upload_options, rpc, server, server_url_base
+def RietveldSetup(ui, repo):
+	global upload_options, rpc, server, server_url_base, force_google_account, verbosity
 
 	# TODO(rsc): If the repository config has no codereview section,
 	# do not enable the extension.  This allows users to
@@ -1006,12 +1099,15 @@ def RietveldSetup(ui):
 	# if not ui.has_section("codereview"):
 	# 	cmdtable = {}
 	# 	return
+	
+	if not ui.verbose:
+		verbosity = 0
 
 	# Config options.
 	x = ui.config("codereview", "server")
 	if x is not None:
 		server = x
-	
+
 	# TODO(rsc): Take from ui.username?
 	email = None
 	x = ui.config("codereview", "email")
@@ -1022,7 +1118,7 @@ def RietveldSetup(ui):
 	x = ui.config("codereview", "cc")
 	if x is not None:
 		cc = x
-	
+
 	server_url_base = "http://" + server + "/"
 	x = ui.config("codereview", "server_url_base")
 	if x is not None:
@@ -1031,6 +1127,7 @@ def RietveldSetup(ui):
 		server_url_base += "/"
 
 	testing = ui.config("codereview", "testing")
+	force_google_account = ui.configbool("codereview", "force_google_account", False)
 
 	upload_options = opt()
 	upload_options.email = email
@@ -1048,7 +1145,7 @@ def RietveldSetup(ui):
 	upload_options.vcs = None
 	upload_options.server = server
 	upload_options.save_cookies = True
-	
+
 	if testing:
 		upload_options.save_cookies = False
 		upload_options.email = "test@example.com"
@@ -1272,7 +1369,7 @@ class AbstractRpcServer(object):
       The authentication token returned by ClientLogin.
     """
     account_type = "GOOGLE"
-    if self.host.endswith(".google.com"):
+    if self.host.endswith(".google.com") and not force_google_account:
       # Needed for use inside Google.
       account_type = "HOSTED"
     req = self._CreateRequest(
@@ -1420,9 +1517,6 @@ class AbstractRpcServer(object):
             raise
           elif e.code == 401 or e.code == 302:
             self._Authenticate()
-##           elif e.code >= 500 and e.code < 600:
-##             # Server Error - try again.
-##             continue
           else:
             raise
     finally:
@@ -2561,9 +2655,9 @@ def RealMain(argv, data=None):
       msg = response_body
   else:
     msg = response_body
-  StatusUpdate(msg)
   if not response_body.startswith("Issue created.") and \
   not response_body.startswith("Issue updated."):
+    print >>sys.stderr, msg
     sys.exit(0)
   issue = msg[msg.rfind("/")+1:]
 
