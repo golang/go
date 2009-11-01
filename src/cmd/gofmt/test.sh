@@ -29,19 +29,15 @@ count() {
 apply1() {
 	#echo $1 $2
 	case `basename $F` in
-	# files with errors (skip them)
-	# the following have semantic errors:
-	#   bug039.go | bug040.go
-	# the following are not idempotent at the moment because of comment formatting:
-	# TODO: restructure script so these files are only excluded from idempotency testing
-	comment.go | net.go | powser1.go | powser2.go | bug052.go | simpbool.go | shift.go | range.go | \
-	goyacc.go | godoc.go | rpc.go | struct.go | log.go | decimal.go | tabwriter.go | encoder.go | debug.go | \
-	elf.go | meteor-contest.go | elffmt.go | xml.go | read.go | \
-	\
-	test_errors.go | calc.go | method1.go | selftest1.go | func3.go | const2.go | \
-	bug014.go | bug025.go | bug029.go | bug032.go | bug039.go | bug040.go | bug050.go |  bug068.go | \
-	bug088.go | bug083.go | bug106.go | bug121.go | bug125.go | bug126.go | bug132.go | bug133.go | \
-	bug134.go | bug160.go | bug163.go | bug166.go | bug169.go ) ;;
+	# except for elf.go (which is not yet idempotent due to a few
+	# tricky-to-format comments) the following files are skipped
+	# because they are test cases for syntax errors and thus won't
+	# parse in the first place:
+	elf.go | \
+	func3.go | const2.go | \
+	bug014.go | bug050.go |  bug068.go |  bug083.go | bug088.go | \
+	bug106.go | bug121.go | bug125.go | bug133.go | bug160.go | \
+	bug163.go | bug166.go | bug169.go ) ;;
 	* ) $1 $2; count $F;;
 	esac
 }
@@ -49,7 +45,7 @@ apply1() {
 
 # apply to local files
 applydot() {
-	for F in `find . -name "*.go" | grep -v "OLD" | grep -v "._"`; do
+	for F in `find . -name "*.go" | grep -v "._"`; do
 		apply1 $1 $F
 	done
 }
@@ -57,7 +53,7 @@ applydot() {
 
 # apply to all .go files we can find
 apply() {
-	for F in `find $GOROOT -name "*.go" | grep -v "OLD" | grep -v "._"`; do
+	for F in `find $GOROOT -name "*.go" | grep -v "._"`; do
 		apply1 $1 $F
 	done
 }
