@@ -269,10 +269,6 @@ func leftShift(a *decimal, k uint) {
 		n = quo;
 	}
 
-	if w != 0 {
-		// TODO: Remove - has no business panicking.
-		panicln("strconv: bad leftShift", w);
-	}
 	a.nd += delta;
 	a.dp += delta;
 	trim(a);

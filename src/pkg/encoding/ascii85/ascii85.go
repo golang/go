@@ -123,7 +123,6 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 			return;
 		}
 		nout := Encode(&e.buf, &e.out);
-		var _ int;
 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 			return n, e.err;
 		}
@@ -139,7 +138,6 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		nn -= nn%4;
 		if nn > 0 {
 			nout := Encode(p[0:nn], &e.out);
-			var _ int;
 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 				return n, e.err;
 			}
@@ -164,7 +162,6 @@ func (e *encoder) Close() os.Error {
 	if e.err == nil && e.nbuf > 0 {
 		nout := Encode(e.buf[0:e.nbuf], &e.out);
 		e.nbuf = 0;
-		var _ int;
 		_, e.err = e.w.Write(e.out[0:nout]);
 	}
 	return e.err;

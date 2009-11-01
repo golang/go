@@ -465,7 +465,7 @@ oldname(Sym *s)
 	}
 	if(n->oldref < 100)
 		n->oldref++;
-	if(n->funcdepth > 0 && n->funcdepth != funcdepth && n->op == ONAME) {
+	if(curfn != nil && n->funcdepth > 0 && n->funcdepth != funcdepth && n->op == ONAME) {
 		// inner func is referring to var in outer func.
 		//
 		// TODO(rsc): If there is an outer variable x and we

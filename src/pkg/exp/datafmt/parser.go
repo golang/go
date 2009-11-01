@@ -192,7 +192,6 @@ func (p *parser) parseField() expr {
 	var ruleName string;
 	if p.tok == token.COLON {
 		p.next();
-		var _ bool;
 		ruleName, _ = p.parseRuleName();
 	}
 
