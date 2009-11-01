@@ -18,6 +18,7 @@ GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES))
 GOFILES+=$(patsubst %.go,%.cgo2.go,$(CGOFILES))
 OFILES+=$(patsubst %.go,%.cgo3.$O,$(CGOFILES))
 INSTALLFILES+=$(patsubst %.go,$(pkgdir)/$(dir)/$(elem)_%.so,$(CGOFILES))
+PREREQ+=$(patsubst %,%.make,$(DEPS))
 
 coverage:
 	gotest
@@ -41,10 +42,10 @@ $(pkgdir)/$(TARG).a: package
 	@test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
 	cp _obj/$(TARG).a $@
 
-_go_.$O: $(GOFILES)
+_go_.$O: $(GOFILES) $(PREREQ)
 	$(GC) -o $@ $(GOFILES)
 
-_gotest_.$O: $(GOFILES) $(GOTESTFILES)
+_gotest_.$O: $(GOFILES) $(GOTESTFILES) $(PREREQ)
 	$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
 
 _obj/$(TARG).a: _go_.$O $(OFILES)
@@ -63,6 +64,8 @@ importpath:
 dir:
 	@echo $(dir)
 
+%.make:
+	(cd $* && make)
 
 # To use cgo in a Go package, add a line
 #
