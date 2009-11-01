@@ -261,18 +261,6 @@ func Gettimeofday(tv *Timeval) (errno int) {
 	return;
 }
 
-func Ioperm(from int, num int, on int) (errno int) {
-	_, _, e1 := Syscall(SYS_IOPERM, uintptr(from), uintptr(num), uintptr(on));
-	errno = int(e1);
-	return;
-}
-
-func Iopl(level int) (errno int) {
-	_, _, e1 := Syscall(SYS_IOPL, uintptr(level), 0, 0);
-	errno = int(e1);
-	return;
-}
-
 func Kill(pid int, sig int) (errno int) {
 	_, _, e1 := Syscall(SYS_KILL, uintptr(pid), uintptr(sig), 0);
 	errno = int(e1);
@@ -481,12 +469,6 @@ func Sync() {
 	return;
 }
 
-func SyncFileRange(fd int, off int64, n int64, flags int) (errno int) {
-	_, _, e1 := Syscall6(SYS_SYNC_FILE_RANGE, uintptr(fd), uintptr(off), uintptr(off>>32), uintptr(n), uintptr(n>>32), uintptr(flags));
-	errno = int(e1);
-	return;
-}
-
 func Sysinfo(info *Sysinfo_t) (errno int) {
 	_, _, e1 := Syscall(SYS_SYSINFO, uintptr(unsafe.Pointer(info)), 0, 0);
 	errno = int(e1);
@@ -646,6 +628,18 @@ func Getuid() (uid int) {
 	return;
 }
 
+func Ioperm(from int, num int, on int) (errno int) {
+	_, _, e1 := Syscall(SYS_IOPERM, uintptr(from), uintptr(num), uintptr(on));
+	errno = int(e1);
+	return;
+}
+
+func Iopl(level int) (errno int) {
+	_, _, e1 := Syscall(SYS_IOPL, uintptr(level), 0, 0);
+	errno = int(e1);
+	return;
+}
+
 func Lchown(path string, uid int, gid int) (errno int) {
 	_, _, e1 := Syscall(SYS_LCHOWN32, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
 	errno = int(e1);
@@ -708,6 +702,12 @@ func Stat(path string, stat *Stat_t) (errno int) {
 
 func Statfs(path string, buf *Statfs_t) (errno int) {
 	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0);
+	errno = int(e1);
+	return;
+}
+
+func SyncFileRange(fd int, off int64, n int64, flags int) (errno int) {
+	_, _, e1 := Syscall6(SYS_SYNC_FILE_RANGE, uintptr(fd), uintptr(off), uintptr(off>>32), uintptr(n), uintptr(n>>32), uintptr(flags));
 	errno = int(e1);
 	return;
 }

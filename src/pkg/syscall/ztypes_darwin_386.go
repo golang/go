@@ -11,97 +11,17 @@ const (
 	sizeofInt		= 0x4;
 	sizeofLong		= 0x4;
 	sizeofLongLong		= 0x8;
-	O_RDONLY		= 0;
-	O_WRONLY		= 0x1;
-	O_RDWR			= 0x2;
-	O_APPEND		= 0x8;
-	O_ASYNC			= 0x40;
-	O_CREAT			= 0x200;
-	O_NOCTTY		= 0x20000;
-	O_NONBLOCK		= 0x4;
-	O_SYNC			= 0x80;
-	O_TRUNC			= 0x400;
 	O_CLOEXEC		= 0;
-	F_GETFD			= 0x1;
-	F_SETFD			= 0x2;
-	F_GETFL			= 0x3;
-	F_SETFL			= 0x4;
-	FD_CLOEXEC		= 0x1;
-	NAME_MAX		= 0xff;
-	S_IFMT			= 0xf000;
-	S_IFIFO			= 0x1000;
-	S_IFCHR			= 0x2000;
-	S_IFDIR			= 0x4000;
-	S_IFBLK			= 0x6000;
-	S_IFREG			= 0x8000;
-	S_IFLNK			= 0xa000;
-	S_IFSOCK		= 0xc000;
-	S_IFWHT			= 0xe000;
-	S_ISUID			= 0x800;
-	S_ISGID			= 0x400;
-	S_ISVTX			= 0x200;
-	S_IRUSR			= 0x100;
-	S_IWUSR			= 0x80;
-	S_IXUSR			= 0x40;
-	WNOHANG			= 0x1;
-	WUNTRACED		= 0x2;
-	WEXITED			= 0x4;
-	WSTOPPED		= 0x7f;
-	WCONTINUED		= 0x10;
-	WNOWAIT			= 0x20;
-	AF_UNIX			= 0x1;
-	AF_INET			= 0x2;
-	AF_DATAKIT		= 0x9;
-	AF_INET6		= 0x1e;
-	SOCK_STREAM		= 0x1;
-	SOCK_DGRAM		= 0x2;
-	SOCK_RAW		= 0x3;
-	SOCK_SEQPACKET		= 0x5;
-	SOL_SOCKET		= 0xffff;
-	SO_REUSEADDR		= 0x4;
-	SO_KEEPALIVE		= 0x8;
-	SO_DONTROUTE		= 0x10;
-	SO_BROADCAST		= 0x20;
-	SO_USELOOPBACK		= 0x40;
-	SO_LINGER		= 0x80;
-	SO_REUSEPORT		= 0x200;
-	SO_SNDBUF		= 0x1001;
-	SO_RCVBUF		= 0x1002;
-	SO_SNDTIMEO		= 0x1005;
-	SO_RCVTIMEO		= 0x1006;
-	SO_NOSIGPIPE		= 0x1022;
-	IPPROTO_TCP		= 0x6;
-	IPPROTO_UDP		= 0x11;
-	TCP_NODELAY		= 0x1;
-	SOMAXCONN		= 0x80;
 	SizeofSockaddrInet4	= 0x10;
 	SizeofSockaddrInet6	= 0x1c;
-	SizeofSockaddrAny	= 0x1c;
+	SizeofSockaddrAny	= 0x6c;
 	SizeofSockaddrUnix	= 0x6a;
-	_PTRACE_TRACEME		= 0;
-	_PTRACE_CONT		= 0x7;
-	_PTRACE_KILL		= 0x8;
-	EVFILT_READ		= -0x1;
-	EVFILT_WRITE		= -0x2;
-	EVFILT_AIO		= -0x3;
-	EVFILT_VNODE		= -0x4;
-	EVFILT_PROC		= -0x5;
-	EVFILT_SIGNAL		= -0x6;
-	EVFILT_TIMER		= -0x7;
-	EVFILT_MACHPORT		= -0x8;
-	EVFILT_FS		= -0x9;
-	EVFILT_SYSCOUNT		= 0x9;
-	EV_ADD			= 0x1;
-	EV_DELETE		= 0x2;
-	EV_DISABLE		= 0x8;
-	EV_RECEIPT		= 0x40;
-	EV_ONESHOT		= 0x10;
-	EV_CLEAR		= 0x20;
-	EV_SYSFLAGS		= 0xf000;
-	EV_FLAG0		= 0x1000;
-	EV_FLAG1		= 0x2000;
-	EV_EOF			= 0x8000;
-	EV_ERROR		= 0x4000;
+	SizeofLinger		= 0x8;
+	SizeofMsghdr		= 0x1c;
+	SizeofCmsghdr		= 0xc;
+	PTRACE_TRACEME		= 0;
+	PTRACE_CONT		= 0x7;
+	PTRACE_KILL		= 0x8;
 )
 
 // Types
@@ -190,6 +110,39 @@ type Statfs_t struct {
 	Reserved	[8]uint32;
 }
 
+type Flock_t struct {
+	Start	int64;
+	Len	int64;
+	Pid	int32;
+	Type	int16;
+	Whence	int16;
+}
+
+type Fstore_t struct {
+	Flags		uint32;
+	Posmode		int32;
+	Offset		int64;
+	Length		int64;
+	Bytesalloc	int64;
+}
+
+type Radvisory_t struct {
+	Offset	int64;
+	Count	int32;
+}
+
+type Fbootstraptransfer_t struct {
+	Offset	int64;
+	Length	uint32;
+	Buffer	*byte;
+}
+
+type Log2phys_t struct {
+	Flags		uint32;
+	Contigbytes	int64;
+	Devoffset	int64;
+}
+
 type Dirent struct {
 	Ino	uint64;
 	Seekoff	uint64;
@@ -231,7 +184,7 @@ type RawSockaddr struct {
 
 type RawSockaddrAny struct {
 	Addr	RawSockaddr;
-	Pad	[12]int8;
+	Pad	[92]int8;
 }
 
 type _Socklen uint32
@@ -239,6 +192,27 @@ type _Socklen uint32
 type Linger struct {
 	Onoff	int32;
 	Linger	int32;
+}
+
+type Iovec struct {
+	Base	*byte;
+	Len	uint32;
+}
+
+type Msghdr struct {
+	Name		*byte;
+	Namelen		uint32;
+	Iov		*Iovec;
+	Iovlen		int32;
+	Control		*byte;
+	Controllen	uint32;
+	Flags		int32;
+}
+
+type Cmsghdr struct {
+	Len	uint32;
+	Level	int32;
+	Type	int32;
 }
 
 type Kevent_t struct {

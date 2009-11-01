@@ -10,7 +10,7 @@
 # much of the process.  The auto-generated files have names
 # beginning with z.
 #
-# This script prints suggested commands to generate z files
+# This script runs or (given -n) prints suggested commands to generate z files
 # for the current system.  Running those commands is not automatic.
 # This script is documentation more than anything else.
 #
@@ -78,6 +78,21 @@ GOOSARCH="${GOOS}_${GOARCH}"
 # defaults
 mksyscall="mksyscall.sh"
 mkerrors="mkerrors.sh"
+run="sh"
+
+case "$1" in
+-n)
+	run="cat"
+	shift
+esac
+
+case "$#" in
+0)
+	;;
+*)
+	echo 'usage: mkall.sh [-n]' 1>&2
+	exit 2
+esac
 
 case "$GOOSARCH" in
 _* | *_ | _)
@@ -126,7 +141,9 @@ linux_arm)
 	;;
 esac
 
-echo "$mkerrors |gofmt >zerrors_$GOOSARCH.go"
-echo "$mksyscall syscall_$GOOS.go syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"
-echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"
-echo "$mktypes types_$GOOS.c |gofmt >ztypes_$GOOSARCH.go"
+(
+	echo "$mkerrors |gofmt >zerrors_$GOOSARCH.go"
+	echo "$mksyscall syscall_$GOOS.go syscall_$GOOSARCH.go |gofmt >zsyscall_$GOOSARCH.go"
+	echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"
+	echo "$mktypes types_$GOOS.c |gofmt >ztypes_$GOOSARCH.go"
+) | $run

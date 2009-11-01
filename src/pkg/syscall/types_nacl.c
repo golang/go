@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 /*
-Input to godefs.  See PORT.sh
+Input to godefs.  See also mkerrors.sh and mkall.sh
  */
 
 #define _LARGEFILE_SOURCE
@@ -88,6 +88,7 @@ enum
 	$O_NONBLOCK = O_NONBLOCK,
 	$O_SYNC = O_SYNC,
 	$O_TRUNC = O_TRUNC,
+	$O_EXCL = O_EXCL,
 	$O_CLOEXEC = 0,	// not supported
 
 	$F_GETFD = F_GETFD,
