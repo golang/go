@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Simple file i/o and string manipulation, to avoid
-// depending on strconv and bufio.
+// depending on strconv and bufio and strings.
 
 package net
 
@@ -154,3 +154,46 @@ func xtoi(s string, i0 int) (n int, i int, ok bool) {
 	return n, i, true
 }
 
+// Integer to decimal.
+func itoa(i int) string {
+	var buf [30]byte;
+	n := len(buf);
+	neg := false;
+	if i < 0 {
+		i = -i;
+		neg = true;
+	}
+	ui := uint(i);
+	for ui > 0 || n == len(buf) {
+		n--;
+		buf[n] = byte('0' + ui%10);
+		ui /= 10;
+	}
+	if neg {
+		n--;
+		buf[n] = '-';
+	}
+	return string(buf[n:len(buf)]);
+}
+
+// Number of occurrences of b in s.
+func count(s string, b byte) int {
+	n := 0;
+	for i := 0; i < len(s); i++ {
+		if s[i] == b {
+			n++;
+		}
+	}
+	return n;
+}
+
+// Index of rightmost occurrence of b in s.
+func last(s string, b byte) int {
+	i := len(s);
+	for i--; i >= 0; i-- {
+		if s[i] == b {
+			break;
+		}
+	}
+	return i;
+}
