@@ -296,6 +296,9 @@ type Builder interface {
 	// Create sub-Builders
 	Elem(i int) Builder;
 	Key(s string) Builder;
+
+	// Flush changes to parent Builder if necessary.
+	Flush();
 }
 
 func parse(lex *_Lexer, build Builder) bool {
@@ -392,6 +395,7 @@ Switch:
 	if ok {
 		lex.Next();
 	}
+	build.Flush();
 	return ok;
 }
 

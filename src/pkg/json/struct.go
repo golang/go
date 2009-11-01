@@ -12,11 +12,15 @@ import (
 	"strings";
 )
 
-type _StructBuilder struct {
+type structBuilder struct {
 	val reflect.Value;
+
+	// if map_ != nil, write val to map_[key] on each change
+	map_ *reflect.MapValue;
+	key reflect.Value;
 }
 
-var nobuilder *_StructBuilder
+var nobuilder *structBuilder
 
 func isfloat(v reflect.Value) bool {
 	switch v.(type) {
@@ -62,7 +66,18 @@ func setint(v reflect.Value, i int64) {
 	}
 }
 
-func (b *_StructBuilder) Int64(i int64) {
+// If updating b.val is not enough to update the original,
+// copy a changed b.val out to the original.
+func (b *structBuilder) Flush() {
+	if b == nil {
+		return;
+	}
+	if b.map_ != nil {
+		b.map_.SetElem(b.key, b.val);
+	}
+}
+
+func (b *structBuilder) Int64(i int64) {
 	if b == nil {
 		return;
 	}
@@ -74,7 +89,7 @@ func (b *_StructBuilder) Int64(i int64) {
 	}
 }
 
-func (b *_StructBuilder) Uint64(i uint64) {
+func (b *structBuilder) Uint64(i uint64) {
 	if b == nil {
 		return;
 	}
@@ -86,7 +101,7 @@ func (b *_StructBuilder) Uint64(i uint64) {
 	}
 }
 
-func (b *_StructBuilder) Float64(f float64) {
+func (b *structBuilder) Float64(f float64) {
 	if b == nil {
 		return;
 	}
@@ -98,9 +113,9 @@ func (b *_StructBuilder) Float64(f float64) {
 	}
 }
 
-func (b *_StructBuilder) Null() {}
+func (b *structBuilder) Null() {}
 
-func (b *_StructBuilder) String(s string) {
+func (b *structBuilder) String(s string) {
 	if b == nil {
 		return;
 	}
@@ -109,7 +124,7 @@ func (b *_StructBuilder) String(s string) {
 	}
 }
 
-func (b *_StructBuilder) Bool(tf bool) {
+func (b *structBuilder) Bool(tf bool) {
 	if b == nil {
 		return;
 	}
@@ -118,7 +133,7 @@ func (b *_StructBuilder) Bool(tf bool) {
 	}
 }
 
-func (b *_StructBuilder) Array() {
+func (b *structBuilder) Array() {
 	if b == nil {
 		return;
 	}
@@ -129,14 +144,14 @@ func (b *_StructBuilder) Array() {
 	}
 }
 
-func (b *_StructBuilder) Elem(i int) Builder {
+func (b *structBuilder) Elem(i int) Builder {
 	if b == nil || i < 0 {
 		return nobuilder;
 	}
 	switch v := b.val.(type) {
 	case *reflect.ArrayValue:
 		if i < v.Len() {
-			return &_StructBuilder{v.Elem(i)};
+			return &structBuilder{val: v.Elem(i)};
 		}
 	case *reflect.SliceValue:
 		if i > v.Cap() {
@@ -155,36 +170,55 @@ func (b *_StructBuilder) Elem(i int) Builder {
 			v.SetLen(i+1);
 		}
 		if i < v.Len() {
-			return &_StructBuilder{v.Elem(i)};
+			return &structBuilder{val: v.Elem(i)};
 		}
 	}
 	return nobuilder;
 }
 
-func (b *_StructBuilder) Map() {
+func (b *structBuilder) Map() {
 	if b == nil {
 		return;
 	}
-	if v, ok := b.val.(*reflect.PtrValue); ok {
+	if v, ok := b.val.(*reflect.PtrValue); ok && v.IsNil() {
 		if v.IsNil() {
 			v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()));
+			b.Flush();
 		}
+		b.map_ = nil;
+		b.val = v.Elem();
+	}
+	if v, ok := b.val.(*reflect.MapValue); ok && v.IsNil() {
+		v.Set(reflect.MakeMap(v.Type().(*reflect.MapType)));
 	}
 }
 
-func (b *_StructBuilder) Key(k string) Builder {
+func (b *structBuilder) Key(k string) Builder {
 	if b == nil {
 		return nobuilder;
 	}
-	if v, ok := reflect.Indirect(b.val).(*reflect.StructValue); ok {
+	switch v := reflect.Indirect(b.val).(type) {
+	case *reflect.StructValue:
 		t := v.Type().(*reflect.StructType);
 		// Case-insensitive field lookup.
 		k = strings.ToLower(k);
 		for i := 0; i < t.NumField(); i++ {
 			if strings.ToLower(t.Field(i).Name) == k {
-				return &_StructBuilder{v.Field(i)};
+				return &structBuilder{val: v.Field(i)};
 			}
 		}
+	case *reflect.MapValue:
+		t := v.Type().(*reflect.MapType);
+		if t.Key() != reflect.Typeof(k) {
+			break;
+		}
+		key := reflect.NewValue(k);
+		elem := v.Elem(key);
+		if elem == nil {
+			v.SetElem(key, reflect.MakeZero(t.Elem()));
+			elem = v.Elem(key);
+		}
+		return &structBuilder{val: elem, map_: v, key: key};
 	}
 	return nobuilder;
 }
@@ -249,7 +283,7 @@ func (b *_StructBuilder) Key(k string) Builder {
 // On a syntax error, it returns with ok set to false and errtok
 // set to the offending token.
 func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
-	b := &_StructBuilder{reflect.NewValue(val)};
+	b := &structBuilder{val: reflect.NewValue(val)};
 	ok, _, errtok = Parse(s, b);
 	if !ok {
 		return false, errtok;
