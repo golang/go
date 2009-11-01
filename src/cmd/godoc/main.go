@@ -50,11 +50,11 @@ var (
 )
 
 
-func exec(c *http.Conn, args []string) bool {
+func exec(c *http.Conn, args []string) (status int) {
 	r, w, err := os.Pipe();
 	if err != nil {
 		log.Stderrf("os.Pipe(): %v\n", err);
-		return false;
+		return 2;
 	}
 
 	bin := args[0];
@@ -67,7 +67,7 @@ func exec(c *http.Conn, args []string) bool {
 	w.Close();
 	if err != nil {
 		log.Stderrf("os.ForkExec(%q): %v\n", bin, err);
-		return false;
+		return 2;
 	}
 
 	var buf bytes.Buffer;
@@ -76,12 +76,13 @@ func exec(c *http.Conn, args []string) bool {
 	if err != nil {
 		os.Stderr.Write(buf.Bytes());
 		log.Stderrf("os.Wait(%d, 0): %v\n", pid, err);
-		return false;
+		return 2;
 	}
-	if !wait.Exited() || wait.ExitStatus() != 0 {
+	status = wait.ExitStatus();
+	if !wait.Exited() || status > 1  {
 		os.Stderr.Write(buf.Bytes());
-		log.Stderrf("executing %v failed (exit status = %d)", args, wait.ExitStatus());
-		return false;
+		log.Stderrf("executing %v failed (exit status = %d)", args, status);
+		return;
 	}
 
 	if *verbose {
@@ -92,18 +93,23 @@ func exec(c *http.Conn, args []string) bool {
 		c.Write(buf.Bytes());
 	}
 
-	return true;
+	return;
 }
 
 
 func dosync(c *http.Conn, r *http.Request) {
 	args := []string{"/bin/sh", "-c", *syncCmd};
-	if exec(c, args) {
-		// sync succeeded
+	switch exec(c, args) {
+	case 0:
+		// sync succeeded and some files have changed
 		syncTime.set(nil);
+		fallthrough;
+	case 1:
+		// sync failed because no files changed
+		// don't change the sync time
 		syncDelay.set(*syncMin);	//  revert to regular sync schedule
-	} else {
-		// sync failed - back off exponentially, but try at least once a day
+	default:
+		// sync failed because of an error - back off exponentially, but try at least once a day
 		syncDelay.backoff(24*60);
 	}
 }
