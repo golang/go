@@ -12,115 +12,13 @@ const (
 	sizeofLong		= 0x4;
 	sizeofLongLong		= 0x8;
 	PathMax			= 0x1000;
-	O_RDONLY		= 0;
-	O_WRONLY		= 0x1;
-	O_RDWR			= 0x2;
-	O_APPEND		= 0x400;
-	O_ASYNC			= 0x2000;
-	O_CREAT			= 0x40;
-	O_NOCTTY		= 0x100;
-	O_NONBLOCK		= 0x800;
-	O_SYNC			= 0x1000;
-	O_TRUNC			= 0x200;
-	O_CLOEXEC		= 0;
-	F_GETFD			= 0x1;
-	F_SETFD			= 0x2;
-	F_GETFL			= 0x3;
-	F_SETFL			= 0x4;
-	FD_CLOEXEC		= 0x1;
-	NAME_MAX		= 0xff;
-	S_IFMT			= 0xf000;
-	S_IFIFO			= 0x1000;
-	S_IFCHR			= 0x2000;
-	S_IFDIR			= 0x4000;
-	S_IFBLK			= 0x6000;
-	S_IFREG			= 0x8000;
-	S_IFLNK			= 0xa000;
-	S_IFSOCK		= 0xc000;
-	S_ISUID			= 0x800;
-	S_ISGID			= 0x400;
-	S_ISVTX			= 0x200;
-	S_IRUSR			= 0x100;
-	S_IWUSR			= 0x80;
-	S_IXUSR			= 0x40;
-	WNOHANG			= 0x1;
-	WUNTRACED		= 0x2;
-	WEXITED			= 0x4;
-	WSTOPPED		= 0x2;
-	WCONTINUED		= 0x8;
-	WNOWAIT			= 0x1000000;
-	WCLONE			= 0x80000000;
-	WALL			= 0x40000000;
-	WNOTHREAD		= 0x20000000;
-	AF_UNIX			= 0x1;
-	AF_INET			= 0x2;
-	AF_INET6		= 0xa;
-	SOCK_STREAM		= 0x1;
-	SOCK_DGRAM		= 0x2;
-	SOCK_RAW		= 0x3;
-	SOCK_SEQPACKET		= 0x5;
-	SOL_SOCKET		= 0x1;
-	SO_REUSEADDR		= 0x2;
-	SO_KEEPALIVE		= 0x9;
-	SO_DONTROUTE		= 0x5;
-	SO_BROADCAST		= 0x6;
-	SO_LINGER		= 0xd;
-	SO_SNDBUF		= 0x7;
-	SO_RCVBUF		= 0x8;
-	SO_SNDTIMEO		= 0x15;
-	SO_RCVTIMEO		= 0x14;
-	IPPROTO_TCP		= 0x6;
-	IPPROTO_UDP		= 0x11;
-	TCP_NODELAY		= 0x1;
-	SOMAXCONN		= 0x80;
 	SizeofSockaddrInet4	= 0x10;
 	SizeofSockaddrInet6	= 0x1c;
-	SizeofSockaddrAny	= 0x1c;
+	SizeofSockaddrAny	= 0x70;
 	SizeofSockaddrUnix	= 0x6e;
-	_PTRACE_TRACEME		= 0;
-	_PTRACE_PEEKTEXT	= 0x1;
-	_PTRACE_PEEKDATA	= 0x2;
-	_PTRACE_PEEKUSER	= 0x3;
-	_PTRACE_POKETEXT	= 0x4;
-	_PTRACE_POKEDATA	= 0x5;
-	_PTRACE_POKEUSER	= 0x6;
-	_PTRACE_CONT		= 0x7;
-	_PTRACE_KILL		= 0x8;
-	_PTRACE_SINGLESTEP	= 0x9;
-	_PTRACE_GETREGS		= 0xc;
-	_PTRACE_SETREGS		= 0xd;
-	_PTRACE_GETFPREGS	= 0xe;
-	_PTRACE_SETFPREGS	= 0xf;
-	_PTRACE_ATTACH		= 0x10;
-	_PTRACE_DETACH		= 0x11;
-	_PTRACE_GETFPXREGS	= 0x12;
-	_PTRACE_SETFPXREGS	= 0x13;
-	_PTRACE_SYSCALL		= 0x18;
-	_PTRACE_SETOPTIONS	= 0x4200;
-	_PTRACE_GETEVENTMSG	= 0x4201;
-	_PTRACE_GETSIGINFO	= 0x4202;
-	_PTRACE_SETSIGINFO	= 0x4203;
-	PTRACE_O_TRACESYSGOOD	= 0x1;
-	PTRACE_O_TRACEFORK	= 0x2;
-	PTRACE_O_TRACEVFORK	= 0x4;
-	PTRACE_O_TRACECLONE	= 0x8;
-	PTRACE_O_TRACEEXEC	= 0x10;
-	PTRACE_O_TRACEVFORKDONE	= 0x20;
-	PTRACE_O_TRACEEXIT	= 0x40;
-	PTRACE_O_MASK		= 0x7f;
-	PTRACE_EVENT_FORK	= 0x1;
-	PTRACE_EVENT_VFORK	= 0x2;
-	PTRACE_EVENT_CLONE	= 0x3;
-	PTRACE_EVENT_EXEC	= 0x4;
-	PTRACE_EVENT_VFORK_DONE	= 0x5;
-	PTRACE_EVENT_EXIT	= 0x6;
-	EPOLLIN			= 0x1;
-	EPOLLRDHUP		= 0x2000;
-	EPOLLOUT		= 0x4;
-	EPOLLONESHOT		= 0x40000000;
-	EPOLL_CTL_MOD		= 0x3;
-	EPOLL_CTL_ADD		= 0x1;
-	EPOLL_CTL_DEL		= 0x2;
+	SizeofLinger		= 0x8;
+	SizeofMsghdr		= 0x1c;
+	SizeofCmsghdr		= 0xc;
 )
 
 // Types
@@ -219,15 +117,15 @@ type _Gid_t uint32
 
 type Stat_t struct {
 	Dev		uint64;
-	__pad1		uint16;
+	X__pad1		uint16;
 	Pad0		[2]byte;
-	__st_ino	uint32;
+	X__st_ino	uint32;
 	Mode		uint32;
 	Nlink		uint32;
 	Uid		uint32;
 	Gid		uint32;
 	Rdev		uint64;
-	__pad2		uint16;
+	X__pad2		uint16;
 	Pad1		[2]byte;
 	Size		int64;
 	Blksize		int32;
@@ -288,7 +186,7 @@ type RawSockaddr struct {
 
 type RawSockaddrAny struct {
 	Addr	RawSockaddr;
-	Pad	[12]int8;
+	Pad	[96]int8;
 }
 
 type _Socklen uint32
@@ -296,6 +194,27 @@ type _Socklen uint32
 type Linger struct {
 	Onoff	int32;
 	Linger	int32;
+}
+
+type Iovec struct {
+	Base	*byte;
+	Len	uint32;
+}
+
+type Msghdr struct {
+	Name		*byte;
+	Namelen		uint32;
+	Iov		*Iovec;
+	Iovlen		uint32;
+	Control		*byte;
+	Controllen	uint32;
+	Flags		int32;
+}
+
+type Cmsghdr struct {
+	Len	uint32;
+	Level	int32;
+	Type	int32;
 }
 
 type PtraceRegs struct {
@@ -342,7 +261,7 @@ type Sysinfo_t struct {
 	Totalhigh	uint32;
 	Freehigh	uint32;
 	Unit		uint32;
-	_f		[8]int8;
+	X_f		[8]int8;
 }
 
 type Utsname struct {

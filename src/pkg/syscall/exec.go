@@ -133,7 +133,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
 
 	// Enable tracing if requested.
 	if traceme {
-		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(_PTRACE_TRACEME), 0, 0);
+		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0);
 		if err1 != 0 {
 			goto childerror;
 		}

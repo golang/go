@@ -60,6 +60,7 @@ const (
 	O_APPEND	= syscall.O_APPEND;	// open the file append-only.
 	O_ASYNC		= syscall.O_ASYNC;	// generate a signal when I/O is available.
 	O_CREAT		= syscall.O_CREAT;	// create a new file if none exists.
+	O_EXCL		= syscall.O_EXCL;	// used with O_CREAT, file must not exist
 	O_NOCTTY	= syscall.O_NOCTTY;	// do not make file the controlling tty.
 	O_NONBLOCK	= syscall.O_NONBLOCK;	// open in non-blocking mode.
 	O_NDELAY	= O_NONBLOCK;		// synonym for O_NONBLOCK
@@ -115,7 +116,6 @@ var EOF Error = eofError(0)
 // Read reads up to len(b) bytes from the File.
 // It returns the number of bytes read and an Error, if any.
 // EOF is signaled by a zero count with err set to EOF.
-// TODO(r): Add Pread, Pwrite (maybe ReadAt, WriteAt).
 func (file *File) Read(b []byte) (n int, err Error) {
 	if file == nil {
 		return 0, EINVAL;

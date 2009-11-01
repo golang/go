@@ -375,6 +375,24 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l));
 }
 
+func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) {
+	var rsa RawSockaddrAny;
+	var len _Socklen = SizeofSockaddrAny;
+	if n, errno = recvfrom(fd, p, flags, &rsa, &len); errno != 0 {
+		return;
+	}
+	from, errno = anyToSockaddr(&rsa);
+	return;
+}
+
+func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
+	ptr, n, err := to.sockaddr();
+	if err != 0 {
+		return err;
+	}
+	return sendto(fd, p, flags, ptr, n);
+}
+
 //sys	ptrace(request int, pid int, addr uintptr, data uintptr) (errno int)
 
 // See bytes.Copy.
@@ -429,11 +447,11 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
 }
 
 func PtracePeekText(pid int, addr uintptr, out []byte) (count int, errno int) {
-	return ptracePeek(_PTRACE_PEEKTEXT, pid, addr, out);
+	return ptracePeek(PTRACE_PEEKTEXT, pid, addr, out);
 }
 
 func PtracePeekData(pid int, addr uintptr, out []byte) (count int, errno int) {
-	return ptracePeek(_PTRACE_PEEKDATA, pid, addr, out);
+	return ptracePeek(PTRACE_PEEKDATA, pid, addr, out);
 }
 
 func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (count int, errno int) {
@@ -488,46 +506,46 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
 }
 
 func PtracePokeText(pid int, addr uintptr, data []byte) (count int, errno int) {
-	return ptracePoke(_PTRACE_POKETEXT, _PTRACE_PEEKTEXT, pid, addr, data);
+	return ptracePoke(PTRACE_POKETEXT, PTRACE_PEEKTEXT, pid, addr, data);
 }
 
 func PtracePokeData(pid int, addr uintptr, data []byte) (count int, errno int) {
-	return ptracePoke(_PTRACE_POKEDATA, _PTRACE_PEEKDATA, pid, addr, data);
+	return ptracePoke(PTRACE_POKEDATA, PTRACE_PEEKDATA, pid, addr, data);
 }
 
 func PtraceGetRegs(pid int, regsout *PtraceRegs) (errno int) {
-	return ptrace(_PTRACE_GETREGS, pid, 0, uintptr(unsafe.Pointer(regsout)));
+	return ptrace(PTRACE_GETREGS, pid, 0, uintptr(unsafe.Pointer(regsout)));
 }
 
 func PtraceSetRegs(pid int, regs *PtraceRegs) (errno int) {
-	return ptrace(_PTRACE_SETREGS, pid, 0, uintptr(unsafe.Pointer(regs)));
+	return ptrace(PTRACE_SETREGS, pid, 0, uintptr(unsafe.Pointer(regs)));
 }
 
 func PtraceSetOptions(pid int, options int) (errno int) {
-	return ptrace(_PTRACE_SETOPTIONS, pid, 0, uintptr(options));
+	return ptrace(PTRACE_SETOPTIONS, pid, 0, uintptr(options));
 }
 
 func PtraceGetEventMsg(pid int) (msg uint, errno int) {
 	var data _C_long;
-	errno = ptrace(_PTRACE_GETEVENTMSG, pid, 0, uintptr(unsafe.Pointer(&data)));
+	errno = ptrace(PTRACE_GETEVENTMSG, pid, 0, uintptr(unsafe.Pointer(&data)));
 	msg = uint(data);
 	return;
 }
 
 func PtraceCont(pid int, signal int) (errno int) {
-	return ptrace(_PTRACE_CONT, pid, 0, uintptr(signal));
+	return ptrace(PTRACE_CONT, pid, 0, uintptr(signal));
 }
 
 func PtraceSingleStep(pid int) (errno int) {
-	return ptrace(_PTRACE_SINGLESTEP, pid, 0, 0);
+	return ptrace(PTRACE_SINGLESTEP, pid, 0, 0);
 }
 
 func PtraceAttach(pid int) (errno int) {
-	return ptrace(_PTRACE_ATTACH, pid, 0, 0);
+	return ptrace(PTRACE_ATTACH, pid, 0, 0);
 }
 
 func PtraceDetach(pid int) (errno int) {
-	return ptrace(_PTRACE_DETACH, pid, 0, 0);
+	return ptrace(PTRACE_DETACH, pid, 0, 0);
 }
 
 // Sendto

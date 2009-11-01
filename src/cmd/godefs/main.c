@@ -376,7 +376,7 @@ main(int argc, char **argv)
 					snprint(nambuf, sizeof nambuf, "Pad%d", npad++);
 					name = nambuf;
 				}
-				Bprint(bout, "\t%lT;\n", name, f->type);
+				Bprint(bout, "\t%#lT;\n", name, f->type);
 				if(t->kind == Union && lang == &go)
 					break;
 			}
@@ -488,6 +488,8 @@ gotypefmt(Fmt *f)
 		name = va_arg(f->args, char*);
 		if('a' <= name[0] && name[0] <= 'z')
 			name[0] += 'A' - 'a';
+		if(name[0] == '_' && (f->flags & FmtSharp))
+			fmtprint(f, "X");
 		fmtprint(f, "%s ", name);
 	}
 	t = va_arg(f->args, Type*);

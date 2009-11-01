@@ -138,6 +138,7 @@ func (w WaitStatus) TrapCause() int {
 }
 
 //sys	wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int)
+
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
 	var status _C_int;
 	wpid, errno = wait4(pid, &status, options, rusage);
@@ -148,6 +149,7 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 }
 
 //sys	pipe() (r int, w int, errno int)
+
 func Pipe(p []int) (errno int) {
 	if len(p) != 2 {
 		return EINVAL;
@@ -351,7 +353,31 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l));
 }
 
+
+//sys recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
+
+func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) {
+	var rsa RawSockaddrAny;
+	var len _Socklen = SizeofSockaddrAny;
+	if n, errno = recvfrom(fd, p, flags, &rsa, &len); errno != 0 {
+		return;
+	}
+	from, errno = anyToSockaddr(&rsa);
+	return;
+}
+
+//sys sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
+
+func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
+	ptr, n, err := to.sockaddr();
+	if err != 0 {
+		return err;
+	}
+	return sendto(fd, p, flags, ptr, n);
+}
+
 //sys	kevent(kq int, change uintptr, nchange int, event uintptr, nevent int, timeout *Timespec) (n int, errno int)
+
 func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno int) {
 	var change, event uintptr;
 	if len(changes) > 0 {
@@ -449,10 +475,8 @@ func SysctlUint32(name string) (value uint32, errno int) {
 //	Msync(addr *byte, len int, flags int) (errno int)
 //	Munmap(addr *byte, len int) (errno int)
 //	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, errno int)
-//	Recvfrom(s int, buf *byte, nbuf int, flags int, from *Sockaddr, fromlen *int) (n int, errno int)
 //	Recvmsg(s int, msg *Msghdr, flags int) (n int, errno int)
 //	Sendmsg(s int, msg *Msghdr, flags int) (n int, errno int)
-//	Sendto(s int, buf *byte, nbuf int, flags int, to *Sockaddr, addrlen int) (errno int)
 //	Utimes(path string, timeval *Timeval) (errno int)	// Pointer to 2 timevals!
 //sys	fcntl(fd int, cmd int, arg int) (val int, errno int)
 

@@ -57,7 +57,6 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
 //sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
 //sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
-
 //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, errno int) = SYS__NEWSELECT
 
 // Underlying system call writes to newoffset via pointer.
@@ -100,25 +99,21 @@ func accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, errno int) {
 }
 
 func getsockname(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
-	var _ int;
 	_, errno = socketcall(_GETSOCKNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
 	return;
 }
 
 func getpeername(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
-	var _ int;
 	_, errno = socketcall(_GETPEERNAME, uintptr(s), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)), 0, 0, 0);
 	return;
 }
 
 func bind(s int, addr uintptr, addrlen _Socklen) (errno int) {
-	var _ int;
 	_, errno = socketcall(_BIND, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0);
 	return;
 }
 
 func connect(s int, addr uintptr, addrlen _Socklen) (errno int) {
-	var _ int;
 	_, errno = socketcall(_CONNECT, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0);
 	return;
 }
@@ -129,13 +124,29 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
 }
 
 func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
-	var _ int;
 	_, errno = socketcall(_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0);
 	return;
 }
 
+func recvfrom(s int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
+	var base uintptr;
+	if len(p) > 0 {
+		base = uintptr(unsafe.Pointer(&p));
+	}
+	n, errno = socketcall(_RECVFROM, uintptr(s), base, uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)));
+	return;
+}
+
+func sendto(s int, p []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
+	var base uintptr;
+	if len(p) > 0 {
+		base = uintptr(unsafe.Pointer(&p));
+	}
+	_, errno = socketcall(_SENDTO, uintptr(s), base, uintptr(len(p)), uintptr(flags), to, uintptr(addrlen));
+	return;
+}	
+
 func Listen(s int, n int) (errno int) {
-	var _ int;
 	_, errno = socketcall(_LISTEN, uintptr(s), uintptr(n), 0, 0, 0, 0);
 	return;
 }

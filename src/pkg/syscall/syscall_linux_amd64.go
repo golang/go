@@ -39,6 +39,8 @@ package syscall
 //sys	socket(domain int, typ int, proto int) (fd int, errno int)
 //sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 //sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+//sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
+//sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
 
 func Getpagesize() int {
 	return 4096
