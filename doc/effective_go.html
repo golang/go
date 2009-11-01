@@ -837,7 +837,7 @@ new instance each time it is evaluated.
 
 <pre>
 func NewFile(fd int, name string) *File {
-	if file &lt; 0 {
+	if fd &lt; 0 {
 		return nil
 	}
 	f := File{fd, name, nil, 0};
@@ -1335,7 +1335,7 @@ In Go, enumerated constants are created using the <code>iota</code>
 enumerator.  Since <code>iota</code> can be part of an expression and
 expressions can be implicitly repeated, it is easy to build intricate
 sets of values.
-<p>
+</p>
 <pre>
 type ByteSize float64
 const (
@@ -1963,6 +1963,10 @@ is never used.
 <h3 id="sharing">Share by communicating</h3>
 
 <p>
+Concurrent programming is a large topic and there is space only for some
+Go-specific highlights here.
+</p>
+<p>
 Concurrent programming in many environments is made difficult by the
 subtleties required to implement correct access to shared variables.  Go encourages
 a different approach in which shared values are passed around on channels
@@ -1986,15 +1990,247 @@ Another way to think about this model is to consider a typical single-threaded
 program running on one CPU. It has no need for synchronization primitives.
 Now run another such instance; it too needs no synchronization.  Now let those
 two communicate; if the communication is the synchronizer, there's still no need
-for other synchronization.  Consider Unix pipelines: they fit this model just
-fine.  Although Go's approach to concurrency originates in Hoare's
+for other synchronization.  Consider Unix pipelines: they fit this model
+perfectly.  Although Go's approach to concurrency originates in Hoare's
 Communicating Sequential Processes (CSP),
 it can also be seen as a type-safe generalization of Unix pipes.
 </p>
 
 <h3 id="goroutines">Goroutines</h3>
 
+<p>
+They're called <em>goroutines</em> because the existing
+terms&mdash;threads, coroutines, processes, and so on&mdash;convey
+inaccurate connotations.  A goroutine has a simple model: it is a
+function executing in parallel with other goroutines in the same
+address space.  It is lightweight, costing little more than the
+allocation of stack space.
+And the stacks start small, so they are cheap, and grow
+by allocating (and freeing) heap storage as required.
+</p>
+<p>
+Goroutines are multiplexed onto multiple OS threads so if one should
+block, such as while waiting for I/O, others continue to run.  Their
+design hides many of the complexities of thread creation and
+management.
+</p>
+<p>
+Prefix a function or method call with the <code>go</code>
+keyword to run the call in a new goroutine.
+When the call completes, the goroutine
+exits, silently.  (The effect is similar to the Unix shell's
+<code>&amp;</code> notation for running a command in the
+background.)
+</p>
+<pre>
+go list.Sort();  // run list.Sort in parallel; don't wait for it. 
+</pre>
+<p>
+A function literal can be handy in a goroutine invocation.
+<pre>
+func Announce(message string, delay int64) {
+	go func() {
+		time.Sleep(delay);
+		fmt.Println(message);
+	}()  // Note the parentheses - must call the function.
+}
+</pre>
+<p>
+In Go function literals are closures: the implementation makes
+sure the variables referred to by the function survive as long as they are active.
+<p>
+These examples aren't too practical because the functions have no way of signaling
+completion.  For that, we need channels.
+</p>
+
 <h3 id="channels">Channels</h3>
+
+<p>
+Like maps, channels are a reference type and are allocated with <code>make</code>.
+If an optional integer parameter is provided, it sets the buffer size for the channel.
+The default is zero, for an unbuffered or synchronous channel.
+</p>
+<pre>
+ci := make(chan int);            // unbuffered channel of integers
+cj := make(chan int, 0);         // unbuffered channel of integers
+cs := make(chan *os.File, 100);  // buffered channel of pointers to Files
+</pre>
+<p>
+Channels combine communication&mdash;the exchange of a value&mdash;with
+synchronization&mdash;guaranteeing that two calculations (goroutines) are in
+a known state.
+</p>
+<p>
+There are lots of nice idioms using channels.  Here's one to get us started.
+In the previous section we launched a sort in the background. A channel
+can allow the launching goroutine to wait for the sort to complete.
+</p>
+<pre>
+c := make(chan int);  // Allocate a channel.
+// Start the sort in a goroutine; when it completes, signal on the channel.
+go func() {
+    list.Sort();
+    c &lt;- 1;  // Send a signal; value does not matter. 
+}();
+doSomethingForAWhile();
+&lt;-c;   // Wait for sort to finish; discard sent value.
+</pre>
+<p>
+Receivers always block until there is data to receive.
+If the channel is unbuffered, the sender blocks until the receiver has
+received the value.
+If the channel has a buffer, the sender blocks only until the
+value has been copied to the buffer.
+</p>
+<p>
+A buffered channel can be used like a semaphore, for instance to
+limit throughput.  In this example, incoming requests are passed
+to <code>handle</code>, which sends a value into the channel, processes
+the request, and then receives a value out of the channel.
+The capacity of the channel buffer limits the number of
+simultaneous calls to <code>process</code>.
+</p>
+<pre>
+var sem = make(chan int, MaxOutstanding)
+
+func handle(r *Request) {
+    sem <- 1;    // Wait for active queue to drain.
+    process(r);  // May take a long time.
+    <-sem;       // Done; enable next request to run.
+}
+
+func Serve(queue chan *Request) {
+    for {
+        req := <-queue;
+        go handle(req);  // Don't wait for handle to finish.
+    }
+}
+</pre>
+<p>
+Here's the same idea implemented by starting a fixed
+number of <code>handle</code> goroutines all reading from the request
+channel.
+The number of goroutines limits the number of simultaneous
+calls to <code>process</code>.
+This <code>Serve</code> function also accepts a channel on which
+it will be told to exit; after launching the goroutines it blocks
+receiving from that channel.
+</p>
+<pre>
+func handle(queue chan *Request) {
+	for r := range queue {
+		process(r);
+	}
+}
+
+func Serve(clientRequests chan *clientRequests, quit chan bool) {
+	// Start handlers
+	for i := 0; i < MaxOutstanding; i++ {
+		go handle(clientRequests)
+	}
+	<-quit;	// Wait to be told to exit.
+}
+</pre>
+
+<h3 id="chan_of_chan">Channels of channels</h3>
+<p>
+One of the most important properties of Go is that
+a channel is a first-class value that can be allocated and passed
+around like any other.  A common use of this property is
+to implement safe, parallel demultiplexing.
+<p>
+In the example in the previous section, <code>handle</code> was
+an idealized handler for a request but we didn't define the
+type it was handling.  If that type includes a channel on which
+to reply, each client can provide its own path for the answer.
+Here's a schematic definition of type <code>Request</code>.
+</p>
+<pre>
+type Request struct {
+    args  []int;
+    f    func([]int) int;
+    resultChan	<-chan int;
+}
+</pre>
+<p>
+The client provides a function and its arguments, as well as
+a channel inside the request object on which to receive the answer.
+</p>
+<pre>
+func sum(a []int) (s int) {
+	for _, v := range a {
+		s += v
+	}
+	return
+}
+
+request := &amp;Request{[]int{3, 4, 5}, sum, make(chan int)}
+// Send request
+client Requests <- request;
+// Wait for response.
+fmt.Printf("answer: %d\n", <-request.resultChan);
+</pre>
+<p>
+On the server side, the handler function is the only thing that changes.
+</p>
+<pre>
+func handle(queue chan *Request) {
+	for req := range queue {
+		req.resultChan <- req.f(req.args);
+	}
+}
+</pre>
+<p>
+There's clearly a lot more to do to make it realistic, but this
+code is a framework for a rate-limited, parallel, non-blocking RPC
+system, and there's not a mutex in sight.
+</p>
+
+<h3 id="parallel">Parallelization</h3>
+<p>
+Another application of these ideas is to parallelize a calculation
+across multiple CPU cores.  If the calculation can be broken into
+separate pieces, it can be parallelized, with a channel to signal
+when each piece completes.
+</p>
+<p>
+Let's say we have an expensive operation to perform on an array of items,
+and that the value of the operation on each item is independent,
+as in this idealized example.
+</p>
+<pre>
+type Vec []float64
+
+// Apply the operation to n elements of v starting at i.
+func (v Vec) DoSome(i, n int, u Vec, c chan int) {
+    for ; i < n; i++ {
+        v[i] += u.Op(v[i])
+    }
+    c <- 1;    // signal that this piece is done
+}
+</pre>
+<p>
+We launch the pieces independently in a loop, one per CPU.
+They can complete in any order but it doesn't matter; we just
+count the completion signals by draining the channel after
+launching all the goroutines.
+</p>
+<pre>
+const NCPU = 4	// number of CPU cores
+
+func (v Vec) DoAll(u Vec) {
+    c := make(chan int, NCPU);  // Buffering optional but sensible.
+    for i := 0; i < NCPU; i++ {
+        go v.DoSome(i*len(v)/NCPU, (i+1)*len(v)/NCPU, u, c);
+    }
+    // Drain the channel.
+    for i := 0; i < NCPU; i++ {
+        <-c    // wait for one task to complete
+    }
+    // All done.
+}
+
+</pre>
 
 <h3 id="leaky_buffer">A leaky buffer</h3>
 
