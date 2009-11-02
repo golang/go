@@ -430,7 +430,7 @@ void
 agen(Node *n, Node *res)
 {
 	Node *nl, *nr;
-	Node n1, n2, n3, tmp;
+	Node n1, n2, n3, n4, tmp;
 	Type *t;
 	uint32 w;
 	uint64 v;
@@ -515,6 +515,18 @@ agen(Node *n, Node *res)
 		// &a is in &n3 (allocated in res)
 		// i is in &n1 (if not constant)
 		// w is width
+
+		// explicit check for nil if array is large enough
+		// that we might derive too big a pointer.
+		if(!isslice(nl->type) && nl->type->width >= unmappedzero) {
+			regalloc(&n4, types[tptr], &n3);
+			gmove(&n3, &n4);
+			n4.op = OINDREG;
+			n4.type = types[TUINT8];
+			n4.xoffset = 0;
+			gins(ATESTB, nodintconst(0), &n4);
+			regfree(&n4);
+		}
 
 		if(w == 0)
 			fatal("index is zero width");
@@ -648,6 +660,17 @@ agen(Node *n, Node *res)
 			fatal("agen: not ptr %N", n);
 		cgen(nl, res);
 		if(n->xoffset != 0) {
+			// explicit check for nil if struct is large enough
+			// that we might derive too big a pointer.
+			if(nl->type->type->width >= unmappedzero) {
+				regalloc(&n1, types[tptr], res);
+				gmove(res, &n1);
+				n1.op = OINDREG;
+				n1.type = types[TUINT8];
+				n1.xoffset = 0;
+				gins(ATESTB, nodintconst(0), &n1);
+				regfree(&n1);
+			}
 			nodconst(&n1, types[tptr], n->xoffset);
 			gins(optoas(OADD, types[tptr]), &n1, res);
 		}

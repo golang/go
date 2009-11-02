@@ -1194,6 +1194,16 @@ slicearray:
 		regfree(&n1);
 	}
 
+	// if slice could be too big, dereference to
+	// catch nil array pointer.
+	if(nodes[0].op == OREGISTER && nodes[0].type->type->width >= unmappedzero) {
+		n2 = nodes[0];
+		n2.xoffset = 0;
+		n2.op = OINDREG;
+		n2.type = types[TUINT8];
+		gins(ATESTB, nodintconst(0), &n2);
+	}
+
 	// ary = old[0] + (lb[2] * width[4]) (destroys old)
 	n2 = *res;
 	n2.xoffset += Array_array;
@@ -1214,16 +1224,6 @@ slicearray:
 		regfree(&n1);
 	}
 	gins(optoas(OAS, types[tptr]), &nodes[0], &n2);
-
-	// if slice could be too big, dereference to
-	// catch nil array pointer.
-	if(nodes[0].op == OREGISTER && nodes[0].type->type->width >= unmappedzero) {
-		n2 = nodes[0];
-		n2.xoffset = 0;
-		n2.op = OINDREG;
-		n2.type = types[TUINT8];
-		gins(ATESTB, nodintconst(0), &n2);
-	}
 
 	for(i=0; i<5; i++) {
 		if(nodes[i].op == OREGISTER)

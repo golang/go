@@ -403,7 +403,7 @@ void
 agen(Node *n, Node *res)
 {
 	Node *nl, *nr;
-	Node n1, n2, n3, tmp;
+	Node n1, n2, n3, tmp, n4;
 	Prog *p1;
 	uint32 w;
 	uint64 v;
@@ -483,6 +483,18 @@ agen(Node *n, Node *res)
 		// &a is in &n3 (allocated in res)
 		// i is in &n1 (if not constant)
 		// w is width
+
+		// explicit check for nil if array is large enough
+		// that we might derive too big a pointer.
+		if(!isslice(nl->type) && nl->type->width >= unmappedzero) {
+			regalloc(&n4, types[tptr], &n3);
+			gmove(&n3, &n4);
+			n4.op = OINDREG;
+			n4.type = types[TUINT8];
+			n4.xoffset = 0;
+			gins(ATESTB, nodintconst(0), &n4);
+			regfree(&n4);
+		}
 
 		if(w == 0)
 			fatal("index is zero width");

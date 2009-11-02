@@ -30,6 +30,10 @@
 
 #include "gg.h"
 
+// TODO(rsc): Can make this bigger if we move
+// the text segment up higher in 8l for all GOOS.
+uint32 unmappedzero = 4096;
+
 #define	CASE(a,b)	(((a)<<16)|((b)<<0))
 
 void
@@ -1629,6 +1633,7 @@ Prog*
 gins(int as, Node *f, Node *t)
 {
 	Prog *p;
+	Addr af, at;
 
 	if(as == AFMOVF && f && f->op == OREGISTER && t && t->op == OREGISTER)
 		fatal("gins MOVF reg, reg");
@@ -1641,14 +1646,38 @@ gins(int as, Node *f, Node *t)
 			return nil;
 	}
 
+	memset(&af, 0, sizeof af);
+	memset(&at, 0, sizeof at);
+	if(f != N)
+		naddr(f, &af, 1);
+	if(t != N)
+		naddr(t, &at, 1);
 	p = prog(as);
 	if(f != N)
-		naddr(f, &p->from);
+		p->from = af;
 	if(t != N)
-		naddr(t, &p->to);
+		p->to = at;
 	if(debug['g'])
 		print("%P\n", p);
 	return p;
+}
+
+static void
+checkoffset(Addr *a, int canemitcode)
+{
+	Prog *p;
+
+	if(a->offset < unmappedzero)
+		return;
+	if(!canemitcode)
+		fatal("checkoffset %#llx, cannot emit code", a->offset);
+
+	// cannot rely on unmapped nil page at 0 to catch
+	// reference with large offset.  instead, emit explicit
+	// test of 0(reg).
+	p = gins(ATESTB, nodintconst(0), N);
+	p->to = *a;
+	p->to.offset = 0;
 }
 
 /*
@@ -1656,7 +1685,7 @@ gins(int as, Node *f, Node *t)
  * make a refer to result.
  */
 void
-naddr(Node *n, Addr *a)
+naddr(Node *n, Addr *a, int canemitcode)
 {
 	a->scale = 0;
 	a->index = D_NONE;
@@ -1758,7 +1787,7 @@ naddr(Node *n, Addr *a)
 		break;
 
 	case OADDR:
-		naddr(n->left, a);
+		naddr(n->left, a, canemitcode);
 		if(a->type >= D_INDIR) {
 			a->type -= D_INDIR;
 			break;
@@ -1774,24 +1803,28 @@ naddr(Node *n, Addr *a)
 
 	case OLEN:
 		// len of string or slice
-		naddr(n->left, a);
+		naddr(n->left, a, canemitcode);
 		a->offset += Array_nel;
+		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+			checkoffset(a, canemitcode);
 		break;
 
 	case OCAP:
 		// cap of string or slice
-		naddr(n->left, a);
+		naddr(n->left, a, canemitcode);
 		a->offset += Array_cap;
+		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+			checkoffset(a, canemitcode);
 		break;
 
 //	case OADD:
 //		if(n->right->op == OLITERAL) {
 //			v = n->right->vconst;
-//			naddr(n->left, a);
+//			naddr(n->left, a, canemitcode);
 //		} else
 //		if(n->left->op == OLITERAL) {
 //			v = n->left->vconst;
-//			naddr(n->right, a);
+//			naddr(n->right, a, canemitcode);
 //		} else
 //			goto bad;
 //		a->offset += v;
