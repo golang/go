@@ -43,7 +43,7 @@ func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
 		ctr.n++;
 	case "POST":
 		buf := new(bytes.Buffer);
-		io.Copy(req.Body, buf);
+		io.Copy(buf, req.Body);
 		body := buf.String();
 		if n, err := strconv.Atoi(body); err != nil {
 			fmt.Fprintf(c, "bad POST: %v\nbody: [%v]\n", err, body);
@@ -69,7 +69,7 @@ func FileServer(c *http.Conn, req *http.Request) {
 		fmt.Fprintf(c, "open %s: %v\n", path, err);
 		return;
 	}
-	n, err1 := io.Copy(f, c);
+	n, err1 := io.Copy(c, f);
 	fmt.Fprintf(c, "[%d bytes]\n", n);
 	f.Close();
 }
@@ -128,7 +128,7 @@ func DateServer(c *http.Conn, req *http.Request) {
 		fmt.Fprintf(c, "fork/exec: %s\n", err);
 		return;
 	}
-	io.Copy(r, c);
+	io.Copy(c, r);
 	wait, err := os.Wait(pid, 0);
 	if err != nil {
 		fmt.Fprintf(c, "wait: %s\n", err);

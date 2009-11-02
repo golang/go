@@ -151,7 +151,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 		}
 		c.Write(b);
 	}
-	io.Copy(f, c);
+	io.Copy(c, f);
 }
 
 // ServeFile replies to the request with the contents of the named file or directory.

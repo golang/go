@@ -15,7 +15,7 @@ import (
 // ReadAll reads from r until an error or EOF and returns the data it read.
 func ReadAll(r Reader) ([]byte, os.Error) {
 	var buf bytes.Buffer;
-	_, err := Copy(r, &buf);
+	_, err := Copy(&buf, r);
 	return buf.Bytes(), err;
 }
 

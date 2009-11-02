@@ -293,7 +293,7 @@ func TestInflater(t *testing.T) {
 			t.Errorf("%s: got name %s", tt.name, gzip.Name);
 		}
 		b.Reset();
-		n, err := io.Copy(gzip, b);
+		n, err := io.Copy(b, gzip);
 		if err != tt.err {
 			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err);
 		}

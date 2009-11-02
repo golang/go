@@ -75,20 +75,20 @@ func TestECBEncrypter(t *testing.T) {
 			// copy plain into w in increasingly large chunks: 1, 1, 2, 4, 8, ...
 			// if frag != 0, move the 1 to the end to cause fragmentation.
 			if frag == 0 {
-				_, err := io.Copyn(r, w, 1);
+				_, err := io.Copyn(w, r, 1);
 				if err != nil {
 					t.Errorf("block=%d frag=0: first Copyn: %s", block, err);
 					continue;
 				}
 			}
 			for n := 1; n <= len(plain)/2; n *= 2 {
-				_, err := io.Copyn(r, w, int64(n));
+				_, err := io.Copyn(w, r, int64(n));
 				if err != nil {
 					t.Errorf("block=%d frag=%d: Copyn %d: %s", block, frag, n, err);
 				}
 			}
 			if frag != 0 {
-				_, err := io.Copyn(r, w, 1);
+				_, err := io.Copyn(w, r, 1);
 				if err != nil {
 					t.Errorf("block=%d frag=1: last Copyn: %s", block, err);
 					continue;
@@ -140,20 +140,20 @@ func testECBDecrypter(t *testing.T, maxio int) {
 				// read from crypt in increasingly large chunks: 1, 1, 2, 4, 8, ...
 				// if frag == 1, move the 1 to the end to cause fragmentation.
 				if frag == 0 {
-					_, err := io.Copyn(r, b, 1);
+					_, err := io.Copyn(b, r, 1);
 					if err != nil {
 						t.Errorf("%s: first Copyn: %s", test, err);
 						continue;
 					}
 				}
 				for n := 1; n <= maxio/2; n *= 2 {
-					_, err := io.Copyn(r, b, int64(n));
+					_, err := io.Copyn(b, r, int64(n));
 					if err != nil {
 						t.Errorf("%s: Copyn %d: %s", test, n, err);
 					}
 				}
 				if frag != 0 {
-					_, err := io.Copyn(r, b, 1);
+					_, err := io.Copyn(b, r, 1);
 					if err != nil {
 						t.Errorf("%s: last Copyn: %s", test, err);
 						continue;

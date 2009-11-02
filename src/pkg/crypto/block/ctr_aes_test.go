@@ -82,7 +82,7 @@ func TestCTR_AES(t *testing.T) {
 			in := tt.in[0 : len(tt.in)-j];
 			w := NewCTRWriter(c, tt.iv, &crypt);
 			var r io.Reader = bytes.NewBuffer(in);
-			n, err := io.Copy(r, w);
+			n, err := io.Copy(w, r);
 			if n != int64(len(in)) || err != nil {
 				t.Errorf("%s/%d: CTRWriter io.Copy = %d, %v want %d, nil", test, len(in), n, err, len(in));
 			} else if d, out := crypt.Bytes(), tt.out[0:len(in)]; !same(out, d) {
@@ -95,7 +95,7 @@ func TestCTR_AES(t *testing.T) {
 			out := tt.out[0 : len(tt.out)-j];
 			r := NewCTRReader(c, tt.iv, bytes.NewBuffer(out));
 			w := &plain;
-			n, err := io.Copy(r, w);
+			n, err := io.Copy(w, r);
 			if n != int64(len(out)) || err != nil {
 				t.Errorf("%s/%d: CTRReader io.Copy = %d, %v want %d, nil", test, len(out), n, err, len(out));
 			} else if d, in := plain.Bytes(), tt.in[0:len(out)]; !same(in, d) {

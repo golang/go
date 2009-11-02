@@ -103,7 +103,7 @@ func TestECB_AES(t *testing.T) {
 		var crypt bytes.Buffer;
 		w := NewECBEncrypter(c, &crypt);
 		var r io.Reader = bytes.NewBuffer(tt.in);
-		n, err := io.Copy(r, w);
+		n, err := io.Copy(w, r);
 		if n != int64(len(tt.in)) || err != nil {
 			t.Errorf("%s: ECBReader io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
 		} else if d := crypt.Bytes(); !same(tt.out, d) {
@@ -113,7 +113,7 @@ func TestECB_AES(t *testing.T) {
 		var plain bytes.Buffer;
 		r = NewECBDecrypter(c, bytes.NewBuffer(tt.out));
 		w = &plain;
-		n, err = io.Copy(r, w);
+		n, err = io.Copy(w, r);
 		if n != int64(len(tt.out)) || err != nil {
 			t.Errorf("%s: ECBWriter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
 		} else if d := plain.Bytes(); !same(tt.in, d) {

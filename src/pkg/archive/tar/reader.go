@@ -34,7 +34,7 @@ var (
 //			// end of tar archive
 //			break
 //		}
-//		io.Copy(tr, data);
+//		io.Copy(data, tr);
 //	}
 type Reader struct {
 	r	io.Reader;
@@ -99,7 +99,7 @@ func (tr *Reader) skipUnread() {
 	if sr, ok := tr.r.(io.Seeker); ok {
 		_, tr.err = sr.Seek(nr, 1);
 	} else {
-		_, tr.err = io.Copyn(tr.r, ignoreWriter{}, nr);
+		_, tr.err = io.Copyn(ignoreWriter{}, tr.r, nr);
 	}
 	tr.nb, tr.pad = 0, 0;
 }
