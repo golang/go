@@ -8,14 +8,15 @@ to nothing about the similarities.
 
 <p>
 For a more general introduction to Go, see the
-<a href="go_tutorial.html">Go tutorial</a>.
+<a href="go_tutorial.html">Go tutorial</a> and
+<a href="effective_go.html">Effective Go</a>.
 
 <p>
 For a detailed description of the Go language, see the
 <a href="go_spec.html">Go spec</a>.
 
 <p>
-There is more <a href="./">documentation about go</a>.
+There is more <a href="/">documentation about go</a>.
 
 <h2 id="Conceptual_Differences">Conceptual Differences</h2>
 
@@ -56,8 +57,8 @@ There is more <a href="./">documentation about go</a>.
 
 <li>Go does not use header files. Instead, each source file is part of a
     defined <em>package</em>. When a package defines an object
-    (type, constant, variable, function) with a name which starts with an
-    uppercase letter, than object is visible to any other file which
+    (type, constant, variable, function) with a name starting with an
+    upper case letter, that object is visible to any other file which
     imports that package.
 
 <li>Go does not support implicit type conversion. Operations that mix
@@ -151,15 +152,16 @@ var v1 = v2;
 </pre>
 
 <p>
-Go permits multiple assignments which are done in parallel.
+Go permits multiple assignments, which are done in parallel.
 
 <pre>
 i, j = j, i;   // Swap i and j.
 </pre>
 
 <p>
-Functions may have multiple return values, indicating by a list in
-parentheses.
+Functions may have multiple return values, indicated by a list in
+parentheses.  The returned values can be stored by assignment
+to a list of variables.
 
 <pre>
 func f() (i int, j int);
@@ -195,9 +197,11 @@ statement, or the expressions of a <code>for</code> statement, or the value of a
 around the body of an <code>if</code> or <code>for</code> statement.
 
 <pre>
-if a &lt; b { f() }    // Valid
-if (a &lt; b) { f() }  // Valid
-if (a &lt; b) f();     // INVALID
+if a &lt; b { f() }          // Valid
+if (a &lt; b) { f() }        // Valid (condition is parenthesized expression)
+if (a &lt; b) f();           // INVALID
+for i = 0; i < 10; i++ {}    // Valid
+for (i = 0; i < 10; i++) {}  // INVALID
 </pre>
 
 <p>
@@ -263,7 +267,8 @@ In Go constants may be <i>untyped</i>. This applies even to constants
 named with a <code>const</code> declaration if no
 type is given in the declaration and the initializer expression uses only
 untyped constants.
-An untyped constant becomes typed when it is used within a context that
+A value derived from an untyped constant becomes typed when it
+is used within a context that
 requires a typed value. This permits constants to be used relatively
 freely without requiring general implicit type conversion.
 
@@ -309,7 +314,7 @@ Given an array, or another slice, a new slice is created via
 creates a new slice which refers to <code>a</code>, starts at
 index <code>I</code>, and ends at index
 <code>J - 1</code>.  It has length <code>J - I</code>.
-If <code>a</code> is itself a slice, the new slice refers to the same array
+The new slice refers to the same array
 to which <code>a</code>
 refers.  That is, changes made using the new slice may be seen using
 <code>a</code>.  The
@@ -335,6 +340,8 @@ necessary to pass the length of the buffer; it is efficiently accessible via
 <p>
 The slice syntax may also be used with a string.  It returns a new string,
 whose value is a substring of the original string.
+Because strings are immutable, string slices can be implemented
+without allocating new storage for the slices's contents.
 
 <h2 id="Making_values">Making values</h2>
 
@@ -342,10 +349,10 @@ whose value is a substring of the original string.
 Go has a builtin function <code>new</code> which takes a type and
 allocates space
 on the heap. The allocated space will be zero-initialized for the type.
-For example, <code>new(int)</code> returns a new object of type
-<code>*int</code>,
-allocated on the heap and initialized with the value <code>0</code>.
-Unlike C++, <code>new</code> is a function, not an operator;
+For example, <code>new(int)</code> allocates a new int on the heap,
+initializes it with the value <code>0</code>,
+and returns its address, which has type <code>*int</code>.
+Unlike in C++, <code>new</code> is a function, not an operator;
 <code>new int</code> is a syntax error.
 
 <p>
@@ -361,8 +368,8 @@ the fact that map and channel values are passed by reference.  Calling
 <code>make</code> with
 a map type takes an optional argument which is the expected capacity of the
 map.  Calling <code>make</code> with a channel type takes an optional
-argument which is the
-buffering capacity of the channel.
+argument which sets the
+buffering capacity of the channel; the default is 0 (unbuffered).
 
 <p>
 The <code>make</code> function may also be used to allocate a slice.
@@ -378,7 +385,8 @@ sometime after there are no references to the returned slice.
 <h2 id="Interfaces">Interfaces</h2>
 
 <p>
-Where C++ provides classes and templates, Go provides interfaces.  A
+Where C++ provides classes, subclasses and templates,
+Go provides interfaces.  A
 Go interface is similar to a C++ pure abstract class: a class with no
 data members, with methods which are all pure virtual.  However, in
 Go, any type which provides the methods named in the interface may be
@@ -441,7 +449,7 @@ will accept a
 variable of type <code>*myType</code>.
 
 <pre>
-func getAndSet(x myInterface);
+func getAndSet(x myInterface) {}
 func f1() {
 	var p myType;
 	getAndSet(&amp;p);
@@ -495,22 +503,23 @@ you want the equivalent of a virtual function, use an interface.
 
 <p>
 A variable which has an interface type may be converted to have a
-different interface type.  This conversion is implemented dynamically
+different interface type using a special construct called a type assertion.
+This is implemented dynamically
 at runtime, like C++ <code>dynamic_cast</code>.  Unlike
 <code>dynamic_cast</code>, there does
 not need to be any declared relationship between the two interfaces.
 
 <pre>
-type myCompareInterface interface {
+type myPrintInterface interface {
   print();
 }
 func f3(x myInterface) {
-	x.(myCompareInterface).print()
+	x.(myPrintInterface).print()  // type assertion to myPrintInterface
 }
 </pre>
 
 <p>
-The conversion to <code>myCompareInterface</code> is entirely dynamic.
+The conversion to <code>myPrintInterface</code> is entirely dynamic.
 It will
 work as long as the underlying type of x (the <em>dynamic type</em>) defines
 a <code>print</code> method.
@@ -525,8 +534,9 @@ type Any interface { }
 </pre>
 
 <p>
-Containers may be written in terms of <code>Any</code>, and the caller may cast
-the values back to the desired type.  As the typing is dynamic rather
+Containers may be written in terms of <code>Any</code>, but the caller
+must unbox using a type assertion to recover
+values of the contained type.  As the typing is dynamic rather
 than static, there is no equivalent of the way that a C++ template may
 inline the relevant operations.  The operations are fully type-checked
 at runtime, but all operations will involve a function call.
@@ -561,21 +571,22 @@ go server(1); go server(2);
 
 <p>
 (Note that the <code>for</code> statement in the <code>server</code>
-function is equivalent to a C++ <code>while (true)</code> loop).
+function is equivalent to a C++ <code>while (true)</code> loop.)
 
 <p>
 Goroutines are (intended to be) cheap.
 
 <p>
-Function literals can be useful with the <code>go</code> statement.
+Function literals (which Go implements as closures)
+can be useful with the <code>go</code> statement.
 
 <pre>
-var g int // global variable
+var g int;
 go func(i int) {
 	s := 0
 	for j := 0; j &lt; i; j++ { s += j }
-	g = s
-} (1000) // Passes argument 1000 to the function literal.
+	g = s;
+} (1000); // Passes argument 1000 to the function literal.
 </pre>
 
 <h2 id="Channels">Channels</h2>
@@ -627,7 +638,7 @@ func manager2(ch chan cmd2) {
 </pre>
 
 <p>
-To use manager2, given a channel to it:
+To use <code>manager2</code>, given a channel to it:
 
 <pre>
 func f4(ch &lt;- chan cmd2) int {
