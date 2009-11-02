@@ -29,8 +29,8 @@ func strings() {
 
 type day struct {
 	num        int;
-	short_name string;
-	long_name  string;
+	shortName  string;
+	longName   string;
 }
 
 type dayArray struct {
@@ -56,7 +56,7 @@ func days() {
 		panic()
 	}
 	for _, d := range data {
-		fmt.Printf("%s ", d.long_name)
+		fmt.Printf("%s ", d.longName)
 	}
 	fmt.Printf("\n")
 }
