@@ -485,16 +485,13 @@ func (p *parser) parseStructType() *ast.StructType {
 	pos := p.expect(token.STRUCT);
 	lbrace := p.expect(token.LBRACE);
 	list := vector.New(0);
-	for p.tok != token.RBRACE && p.tok != token.EOF {
+	for p.tok == token.IDENT || p.tok == token.MUL {
 		f := p.parseFieldDecl();
-		list.Push(f);
-		if p.tok == token.SEMICOLON {
-			p.next();
-			f.Comment = p.lineComment;
-		} else {
-			f.Comment = p.lineComment;
-			break;
+		if p.tok != token.RBRACE {
+			p.expect(token.SEMICOLON);
 		}
+		f.Comment = p.lineComment;
+		list.Push(f);
 	}
 	rbrace := p.expect(token.RBRACE);
 	p.optSemi = true;
@@ -699,10 +696,12 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	lbrace := p.expect(token.LBRACE);
 	list := vector.New(0);
 	for p.tok == token.IDENT {
-		list.Push(p.parseMethodSpec());
+		m := p.parseMethodSpec();
 		if p.tok != token.RBRACE {
 			p.expect(token.SEMICOLON);
 		}
+		m.Comment = p.lineComment;
+		list.Push(m);
 	}
 	rbrace := p.expect(token.RBRACE);
 	p.optSemi = true;
