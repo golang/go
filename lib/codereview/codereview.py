@@ -136,12 +136,18 @@ class CL(object):
 		f.close()
 		os.rename(path+'!', path)
 		if self.web:
-			EditDesc(self.name, subject=line1(self.desc), desc=self.desc,
+			EditDesc(self.name, desc=self.desc,
 				reviewers=JoinComma(self.reviewer), cc=JoinComma(self.cc))
 
 	def Delete(self, ui, repo):
 		dir = CodeReviewDir(ui, repo)
 		os.unlink(dir + "/cl." + self.name)
+
+	def Subject(self): 
+		s = line1(self.desc)
+		if self.name != "new":
+			s = "codereview %s: %s" % (self.name, s)
+		return s
 
 	def Upload(self, ui, repo, send_mail=False):
 		os.chdir(repo.root)
@@ -151,7 +157,9 @@ class CL(object):
 			("cc", JoinComma(self.cc)),
 			("description", self.desc),
 			("base_hashes", ""),
-			("subject", line1(self.desc)),
+			# Would prefer not to change the subject
+			# on reupload, but /upload requires it.
+			("subject", self.Subject()),
 		]
 
 		# NOTE(rsc): This duplicates too much of RealMain,
@@ -297,6 +305,7 @@ class LoadCLThread(threading.Thread):
 		threading.Thread.__init__(self)
 		self.ui = ui
 		self.repo = repo
+		self.dir = dir
 		self.f = f
 		self.web = web
 		self.cl = None
@@ -441,10 +450,18 @@ def Add(l1, l2):
 def Intersect(l1, l2):
 	return [l for l in l1 if l in l2]
 
-def Incoming(ui, repo, opts, op):
+def getremote(ui, repo, opts):
+	# save $http_proxy; creating the HTTP repo object will
+	# delete it in an attempt to "help"
+	proxy = os.environ.get('http_proxy')
 	source, _, _ = hg.parseurl(ui.expandpath("default"), None)
 	other = hg.repository(cmdutil.remoteui(repo, opts), source)
-	_, incoming, _ = repo.findcommonincoming(other)
+	if proxy is not None:
+		os.environ['http_proxy'] = proxy
+	return other
+
+def Incoming(ui, repo, opts):
+	_, incoming, _ = repo.findcommonincoming(getremote(ui, repo, opts))
 	return incoming
 
 def EditCL(ui, repo, cl):
@@ -692,8 +709,7 @@ def mail(ui, repo, *pats, **opts):
 	pmsg = "Hello " + JoinComma(cl.reviewer) + ",\n"
 	pmsg += "\n"
 	pmsg += "I'd like you to review the following change.\n"
-	subject = "code review %s: %s" % (cl.name, line1(cl.desc))
-	PostMessage(cl.name, pmsg, send_mail="checked", subject=subject)
+	PostMessage(cl.name, pmsg, send_mail="checked", subject=cl.Subject())
 
 def nocommit(ui, repo, *pats, **opts):
 	return "The codereview extension is enabled; do not use commit."
@@ -726,7 +742,7 @@ def submit(ui, repo, *pats, **opts):
 	Bails out if the local repository is not in sync with the remote one.
 	"""
 	repo.ui.quiet = True
-	if not opts["no_incoming"] and Incoming(ui, repo, opts, "submit"):
+	if not opts["no_incoming"] and Incoming(ui, repo, opts):
 		return "local repository out of date; must sync before submit"
 
 	cl, err = CommandLineCL(ui, repo, pats, opts)
@@ -776,8 +792,7 @@ def submit(ui, repo, *pats, **opts):
 	# push changes to remote.
 	# if it works, we're committed.
 	# if not, roll back
-	dest, _, _ = hg.parseurl(ui.expandpath("default"), None)
-	other = hg.repository(cmdutil.remoteui(repo, opts), dest)
+	other = getremote(ui, repo, opts)
 	r = repo.push(other, False, None)
 	if r == 0:
 		repo.rollback()
@@ -804,8 +819,7 @@ def sync(ui, repo, **opts):
 	"""
 	ui.status = sync_note
 	ui.note = sync_note
-	source, _, _ = hg.parseurl(ui.expandpath("default"), None)
-	other = hg.repository(cmdutil.remoteui(repo, opts), source)
+	other = getremote(ui, repo, opts)
 	modheads = repo.pull(other)
 	err = commands.postincoming(ui, repo, modheads, True, "tip")
 	if err:
