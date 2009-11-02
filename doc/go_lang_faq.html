@@ -9,7 +9,7 @@ Robert Griesemer, Rob Pike and Ken Thompson started sketching the
 goals for a new language on the white board on September 21, 2007.
 Within a few days the goals had settled into a plan to do something
 and a fair idea of what it would be.  Design continued part-time in
-parallel with unrelated activities.  By January 2008, Ken started work
+parallel with unrelated activities.  By January 2008, Ken had started work
 on a compiler with which to explore ideas; it generated C code as its
 output.  By mid-year the language had become a full-time project and
 had settled enough to attempt a production compiler.  Meanwhile, Ian
@@ -25,15 +25,15 @@ Go was born out of frustration with existing languages and
 environments for systems programming.  Programming had become too
 difficult and the choice of languages was partly to blame.  One had to
 choose either efficient compilation, efficient execution, or ease of
-programming; all three were not available in the same commonly
-available language.  Programmers who could were choosing ease over
+programming; all three were not available in the same mainstream
+language.  Programmers who could were choosing ease over
 safety and efficiency by moving to dynamically typed languages such as
 Python and JavaScript rather than C++ or, to a lesser extent, Java.
 </p>
 <p>
 Go is an attempt to combine the ease of programming of an interpreted,
 dynamically typed
-language with the efficiency and type safety of a compiled language.
+language with the efficiency and safety of a statically typed, compiled language.
 It also aims to be modern, with support for networked and multicore
 computing.  Finally, it is intended to be <i>fast</i>: it should take
 at most a few seconds to build a large executable on a single computer.
@@ -86,7 +86,7 @@ expressive yet comprehensible without sacrificing, well, sophistication.
 </p>
 <p>
 Another important principle is to keep the concepts orthogonal.
-Methods can be implemented for any type; structures represent data;
+Methods can be implemented for any type; structures represent data while
 interfaces represent abstraction; and so on.  Orthogonality makes it
 easier to understand what happens when things combine.
 </p>
