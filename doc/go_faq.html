@@ -19,7 +19,7 @@ dependency analysis&mdash;and fast compilation.
 <li>
 There is a growing rebellion against cumbersome type systems like those of
 Java and C++, pushing people towards dynamically typed languages such as
-Python and Javascript.
+Python and JavaScript.
 <li>
 Some fundamental concepts such as garbage collection and parallel computation
 are not well supported by popular systems languages.
@@ -33,15 +33,14 @@ garbage-collected language with fast compilation. Regarding the points above:
 
 <ul>
 <li>
-It should be possible to compile a major binary in a few seconds on a
-single processor.
+It is possible to compile a large Go program in a few seconds on a single computer.
 <li>
 Go provides a model for software construction that makes dependency
 analysis easy and avoids much of the overhead of C-style include files and
 libraries.
 <li>
-The type system is not hierarchical, so less time should be spent
-rearranging the hierarchy. Also, although Go has static types the language
+Go's type system has no hierarchy, so no time is spent defining the
+relationships between types. Also, although Go has static types the language
 attempts to make types feel lighter weight than in typical OO languages.
 <li>
 Go is fully garbage-collected and provides fundamental support for
@@ -57,65 +56,69 @@ What is the origin of the name?</h3>
 <p>
 "Ogle" would be a good name for a Go debugger.
 
-<h3 id="Why_is_the_compiler_called_6g">Why is the compiler called 6g?</h3>
+<h3 id="What_kind_of_a_name_is_6g">
+What kind of a name is 6g?</h3>
 
 <p>
-The <code>6g</code> (and <code>8g</code>) compiler is named in the
+The <code>6g</code> (and <code>8g</code> and <code>5g</code>) compiler is named in the
 tradition of the Plan 9 C compilers, described in
 <a href="http://plan9.bell-labs.com/sys/doc/compiler.html ">
 http://plan9.bell-labs.com/sys/doc/compiler.html</a>
 (see the table in section 2).
 
-6 is the architecture letter for amd64 (or x86-64, if you prefer).
-g stands for go.
+<code>6</code> is the architecture letter for amd64 (or x86-64, if you prefer), while
+<code>g</code> stands for Go.
 
 <h3 id="Why_not_just_write_some_libraries_for_Cpp_to_do_communication">
 Why not just write some libraries for C++ to do communication?</h3>
 
 <p>We considered doing that, but too many of the problems&mdash;lack of
 garbage collection, long dependency chains, nested include files,
-lack of concurrency awareness&mdash;are caused by the C++ language itself.
+lack of concurrency awareness&mdash;are rooted in the design of
+the C and C++ languages themselves.
 We felt a viable solution required a more complete approach.
 
 <h2 id="Usage">Usage</h2>
 
-<h3 id="Who_do_you_expect_to_use_the_language">
-Who do you expect to use the language?</h3>
+<h3 id="Who_should_use_the_language">
+Who should use the language?</h3>
 
 <p>
 Go is an experiment. We hope adventurous users will give it a try and see
-if it provides a viable alternative to the status quo. Not every programmer
-will like it but we hope enough will find satisfaction in the approach it
+if they enjoy it. Not every programmer
+will but we hope enough will find satisfaction in the approach it
 offers to justify further development.
 
 <h3 id="Do_Go_programs_link_with_Cpp_programs">
 Do Go programs link with C/C++ programs?</h3>
 
 <p>
-There are two Go compilers, <code>6g</code> and <code>gccgo</code>.
-<code>6g</code> uses a different calling convention and linker and can
+There are two Go compiler implementations, <code>6g</code> and friends, generically called
+<code>gc</code>, and <code>gccgo</code>.
+<code>Gc</code> uses a different calling convention and linker and can
 therefore only be linked with C programs using the same convention.
 There is such a C compiler but no C++ compiler. <code>Gccgo</code> is a
-<code>gcc</code> front-end that can, with care, be linked with gcc-compiled
+GCC front-end that can, with care, be linked with GCC-compiled
 C or C++ programs. However, because Go is garbage-collected it will be
 unwise to do so, at least naively.
 
 <p>
-Work is underway to provide a 'foreign function interface' to allow safe
-interoperation of languages in a running program.
+There is a 'foreign function interface' to allow safe calling of C-written
+libraries from Go code.  We expect to use SWIG to extend this capability
+to C++ libraries.  There is no safe way to call Go code from C or C++ yet.
 
-<h3 id="Does_Go_support_protocol_buffers">
-Does Go support protocol buffers?</h3>
+<h3 id="Does_Go_support_Google_protocol_buffers">
+Does Go support Google's protocol buffers?</h3>
 
 <p>
-Protocol buffers are supported.  The next release of the
-protocol compiler project will include Go code generators
-and a Go library for them.
-It is still being tweaked but works well.
+Protocol buffers are supported.  We plan to have the next release of the
+protocol buffer source code include Go code generators
+and a Go library for them. The implementation uses data reflection
+at run time so it is slow, but a new implementation is planned.
 
 <h2 id="Design">Design</h2>
 
-<h3 id="Why_doesn_t_Go_have_feature_X">Why doesn't Go have feature X?</h3>
+<h3 id="Why_doesnt_Go_have_feature_X">Why doesn't Go have feature X?</h3>
 
 <p>
 Every language contains novel features and omits someone's favorite
@@ -127,8 +130,8 @@ clarity of design, or because it would make the fundamental system model
 too difficult.
 
 <p>
-Before you get too worried about Go not having feature <var>X</var>,
-please investigate the features that Go does have. You might find that
+If it bothers you that Go is missing feature <var>X</var>,
+please forgive us and investigate the features that Go does have. You might find that
 they compensate in interesting ways for the lack of <var>X</var>.
 
 <h3 id="Why_is_the_syntax_so_different_from_Cpp">
@@ -136,7 +139,7 @@ Why is the syntax so different from C++?</h3>
 
 <p>
 This and other language design questions are answered in
-the separate <a href="go_lang_faq.html">language FAQ</a>.
+the separate <a href="go_lang_faq.html">language design FAQ</a>.
 
 <h2 id="Object_Oriented_Programming">
 Object-Oriented Programming</h2>
@@ -151,9 +154,11 @@ The concept of "interface" in Go provides a different approach that
 we believe is easy to use and in some ways more general. There are
 also ways to embed types in other types to provide something
 analogous&mdash;but not identical&mdash;to subclassing.
+Moreover, methods in Go are more general than in C++ or Java:
+they can be defined for any sort of data, not just structs.
 
 <p>
-The lack of type hierarchy makes "objects" in Go feel much more
+Also, the lack of type hierarchy makes &ldquo;objects&rdquo; in Go feel much more
 lightweight than in languages such as C++ and Java.
 
 <h3 id="How_do_I_get_dynamic_dispatch_of_methods">
@@ -163,26 +168,20 @@ How do I get dynamic dispatch of methods?</h3>
 The only way to have dynamically dispatched methods is through an
 interface. Methods on structs or other types are always resolved statically.
 
-<h2 id="Concurrency">Concurency</h2>
+<h2 id="Concurrent_programming">Concurrent programming</h2>
 
 <h3 id="What_operations_are_atomic_What_about_mutexes">
 What operations are atomic? What about mutexes?</h3>
 
 <p>
-We haven't fully defined it all yet, but some details are available in the
+We haven't fully defined it all yet, but some details about atomicity are available in the
 <a href="go_mem.html">Go Memory Model specification</a>.
+Also, some concurrency questions are answered in more detail in the
+<a href="go_lang_faq.html">language design FAQ</a>.
 
 <p>
-One point that has come up: at least for now, maps do not guarantee atomic
-update from multiple threads of execution. This is not the place for a
-full discussion but in essence it was felt that shared maps are usually
-part of some larger synchronized object and forcing synchronization in the
-map implementation would be too costly considering how rarely it would
-actually help.
-
-<p>
-The <a href="/pkg/sync">sync</a>
-package implements mutexes, but we hope Go programming style will
+Regarding mutexes, the <a href="/pkg/sync">sync</a>
+package implements them, but we hope Go programming style will
 encourage people to try higher-level techniques. In particular, consider
 structuring your program so that only one goroutine at a time is ever
 responsible for a particular piece of data.
@@ -199,48 +198,34 @@ How are libraries documented?</h3>
 There is a program, <code>godoc</code>, written in Go, that extracts
 package documentation from the source code. It can be used on the
 command line or on the web. An instance is running at
-<a href="http://go/go">http://go/go</a>.
-
+<a href="http://golang.org/pkg/">http://golang.org/pkg/</a>.
+In fact, <code>godoc</code> implements the full site at 
+<a href="http://golang.org/">http://golang.org/</a>.
 
 <h3 id="Is_there_a_Go_programming_style_guide">
 Is there a Go programming style guide?</h3>
 
 <p>
-Eventually, there will be a small number of rules that guide things
-like naming, layout, and file organization. We are thinking of
-enforcing layout rules using a pretty-printing program that
-implements the rules, rather than writing a compendium of do's and
-don'ts that allows interpretation.
+Eventually, there may be a small number of rules to guide things
+like naming, layout, and file organization.
+The document <a href="effective_go.html">Effective Go</a>
+contains some style advice.
+More directly, the program <code>gofmt</code> is a pretty-printer
+whose purpose is to enforce layout rules; it replaces the usual
+compendium of do's and don'ts that allows interpretation.
+All the Go code in the repository has been run through <code>gofmt</code>.
 
 <h3 id="How_do_I_submit_patches_to_the_Go_libraries">
 How do I submit patches to the Go libraries?</h3>
 
-<ol>
-<li>If it's a significant change, discuss on the mailing list before embarking.
+<p>
+The library sources are in <code>go/src/pkg</code>.
+If you want to make a significant change, please discuss on the mailing list before embarking.
 
-<li>Check out the Go source code files.  The library sources are in <code>go/src/pkg</code>.
-
-<li>Make changes; add tests as appropriate. Try to follow existing style,
-    including tabs for indentation, and no trailing whitespace. In
-    documentation comments for public declarations, use full sentences
-    and begin with the name of the thing being described, because godoc
-    (or other tools) may someday display these comments out of context.
-
-<li>Write the <code>Makefile</code> by following existing examples.
-
-<li>Run <code>make</code> and <code>make test</code> in the affected
-    directories.
-
-<li>If you have added a new dependency, you may need to <code>cd go/src/lib;
-    ./deps.bash</code> to update the Make.deps file included in the Makefile.
-    For a new component, update the <code>Makefile</code> and then run
-    <code>deps.bash</code>.
-<li><code>cd go/src; ./all.bash</code>
-
-<li>Once <code>all.bash</code> succeeds (output like
-    "N known bugs; 0 unexpected bugs" is OK),
-    <a href="/doc/contribute.html">submit a CL</a>.
-</ol>
+<p>
+See the document
+<a href="contribute.html">Contributing to the Go project</a>
+for more information about how to proceed.
 
 <h3 id="How_do_I_create_a_multifile_package">
 How do I create a multifile package?</h3>
@@ -294,21 +279,20 @@ wrong. It is more useful for a test to report that
 <code>isPrime</code> gives the wrong answer for 2, 3, 5, and 7 (or for
 2, 4, 8, and 16) than to report that <code>isPrime</code> gives the wrong
 answer for 2 and therefore no more tests were run. The programmer who
-triggers the test failure may be someone editing the code months later
-or even someone editing a different package on which the code depends.
+triggers the test failure may not be familiar with the code that fails.
 Time invested writing a good error message now pays off later when the
 test breaks.
 
 <p>
 In testing, if the amount of extra code required to write
 good errors seems repetitive and overwhelming, it might work better as a
-table-driven test instead. Unlike Java (jUnit's home language),
+table-driven test instead.
 Go has excellent support for data structure literals.
 
 <p>
 We understand that this is a point of contention. There are many things in
 the Go language and libraries that differ from modern practices, simply
-because we feel it's worth trying to do better.
+because we feel it's sometimes worth trying a different approach.
 
 <h2 id="Implementation">Implementation</h2>
 
@@ -316,23 +300,24 @@ because we feel it's worth trying to do better.
 What compiler technology is used to build the compilers?</h3>
 
 <p>
-Gccgo has a C++ front-end with a recursive descent parser coupled to the
-standard gcc back end. 6g is written in C using yacc/bison for the parser.
+<code>Gccgo</code> has a C++ front-end with a recursive descent parser coupled to the
+standard GCC back end. <code>Gc</code> is written in C using
+<code>yacc</code>/<code>bison</code> for the parser.
 Although it's a new program, it fits in the Plan 9 C compiler suite
 (<a href="http://plan9.bell-labs.com/sys/doc/compiler.html">http://plan9.bell-labs.com/sys/doc/compiler.html</a>)
 and uses a variant of the Plan 9 loader to generate ELF binaries.
 
 <p>
-We considered writing 6g, the original Go compiler, in Go itself but
+We considered writing <code>6g</code>, the original Go compiler, in Go itself but
 elected not to do so because of the difficulties of bootstrapping and
-especially of open source distribution - you'd need a Go compiler to
-set up a Go environment. Gccgo, which came later, makes it possible to
-consider rewriting 6g in Go, which might well happen. (Go would be a
+especially of open source distribution&mdash;you'd need a Go compiler to
+set up a Go environment. <code>Gccgo</code>, which came later, makes it possible to
+consider writing a compiler in Go, which might well happen. (Go would be a
 fine language in which to implement a compiler; a native lexer and
-parser are already available in pkg/go.)
+parser are already available in <a href="/pkg/go/"><code>/pkg/go</code></a>.)
 
 <p>
-We also considered using LLVM for 6g but we felt it was too large and
+We also considered using LLVM for <code>6g</code> but we felt it was too large and
 slow to meet our performance goals.
 
 <h3 id="How_is_the_runtime_implemented">
@@ -341,8 +326,10 @@ How is the runtime implemented?</h3>
 <p>
 Again due to bootstrapping issues, the runtime is mostly in C (with a
 tiny bit of assembler) although Go is capable of implementing most of
-it now. Gccgo's runtime uses glibc; 6g uses a custom library,
-compiled with 6c (the Plan 9 C compiler) to keep the footprint under
-control. The version of 6c used supports segmented stacks for
-goroutines; work is underway to provide the same stack management in
-gccgo.
+it now. <code>Gccgo</code>'s runtime uses <code>glibc</code>;
+<code>Gc</code> uses a custom library, to keep the footprint under
+control; it is
+compiled with a version of the Plan 9 C compiler that supports
+segmented stacks for goroutines.
+work is underway to provide the same stack management in
+<code>gccgo</code>.
