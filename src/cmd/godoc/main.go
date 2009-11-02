@@ -101,12 +101,13 @@ func dosync(c *http.Conn, r *http.Request) {
 	args := []string{"/bin/sh", "-c", *syncCmd};
 	switch exec(c, args) {
 	case 0:
-		// sync succeeded and some files have changed
-		syncTime.set(nil);
+		// sync succeeded and some files have changed;
+		// update package tree
+		pkgTree.set(newDirTree(*pkgroot));
 		fallthrough;
 	case 1:
-		// sync failed because no files changed
-		// don't change the sync time
+		// sync failed because no files changed;
+		// don't change the package tree
 		syncDelay.set(*syncMin);	//  revert to regular sync schedule
 	default:
 		// sync failed because of an error - back off exponentially, but try at least once a day
@@ -170,10 +171,8 @@ func main() {
 			http.Handle("/debug/sync", http.HandlerFunc(dosync));
 		}
 
-		// The server may have been restarted; always wait 1sec to
-		// give the forking server a chance to shut down and release
-		// the http port.
-		time.Sleep(1e9);
+		// Compute package tree with corresponding timestamp.
+		pkgTree.set(newDirTree(*pkgroot));
 
 		// Start sync goroutine, if enabled.
 		if *syncCmd != "" && *syncMin > 0 {
@@ -193,12 +192,22 @@ func main() {
 		// Start indexing goroutine.
 		go indexer();
 
+		// The server may have been restarted; always wait 1sec to
+		// give the forking server a chance to shut down and release
+		// the http port.
+		// TODO(gri): Do we still need this?
+		time.Sleep(1e9);
+
 		// Start http server.
 		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
 			log.Exitf("ListenAndServe %s: %v", *httpaddr, err);
 		}
 		return;
 	}
+
+	// Command line mode.
+	// No package tree; set it to nil so we have a reasonable time stamp.
+	pkgTree.set(nil);
 
 	if *html {
 		packageText = packageHtml;
