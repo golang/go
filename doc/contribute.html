@@ -1,6 +1,36 @@
 <!-- Contributing to the Go project -->
 
-TODO(go-dev): Write this document.
+<h2 id="TODO">TODO(go-dev): Write this document</h2>
+
+<p>
 Have to work on the tools first.
 
+<p>
+Text previously from the FAQ placed here for safekeeping.
 
+<ol>
+<li>If it's a significant change, discuss on the mailing list before embarking.
+
+<li>Check out the Go source code files.  The library sources are in <code>go/src/pkg</code>.
+
+<li>Make changes; add tests as appropriate. Try to follow existing style,
+    including tabs for indentation, and no trailing whitespace. In
+    documentation comments for public declarations, use full sentences
+    and begin with the name of the thing being described, because godoc
+    (or other tools) may someday display these comments out of context.
+
+<li>Write the <code>Makefile</code> by following existing examples.
+
+<li>Run <code>make</code> and <code>make test</code> in the affected
+    directories.
+
+<li>If you have added a new dependency, you may need to <code>cd go/src/lib;
+    ./deps.bash</code> to update the Make.deps file included in the Makefile.
+    For a new component, update the <code>Makefile</code> and then run
+    <code>deps.bash</code>.
+<li><code>cd go/src; ./all.bash</code>
+
+<li>Once <code>all.bash</code> succeeds (output like
+    "N known bugs; 0 unexpected bugs" is OK),
+    <a href="/doc/contribute.html">submit a CL</a>.
+</ol>
