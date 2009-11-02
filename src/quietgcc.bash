@@ -16,15 +16,11 @@ ignore=$ignore'|: At top level: '
 ignore=$ignore'|In file included from'
 ignore=$ignore'|        from'
 
-# Figure out which cc to run.
-# Can use plain cc on real 64-bit machines
-# and on OS X, but have to use crosstool on
-# mixed64-32 machines like thresher.
-gcc=gcc
-case "`uname -a`" in
-*mixed64-32*)
-	gcc=/usr/crosstool/v10/gcc-4.2.1-glibc-2.3.2/x86_64-unknown-linux-gnu/x86_64-unknown-linux-gnu/bin/gcc
-esac
+# Figure out which cc to run; this is set by make.bash.
+gcc=@CC@
+if test "$gcc" = "@C""C@"; then
+  gcc=gcc
+fi
 
 # If this is a 64-bit machine, compile 64-bit versions of
 # the host tools, to match the native ptrace.

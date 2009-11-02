@@ -16,7 +16,8 @@ fi
 bash clean.bash
 
 rm -f $GOBIN/quietgcc
-cp quietgcc.bash $GOBIN/quietgcc
+CC=${CC:-gcc}
+sed -e "s|@CC@|$CC|" < quietgcc.bash > $GOBIN/quietgcc
 chmod +x $GOBIN/quietgcc
 
 for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
