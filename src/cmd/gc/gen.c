@@ -427,7 +427,7 @@ cgen_discard(Node *nr)
 
 	switch(nr->op) {
 	case ONAME:
-		if(!(nr->class & PHEAP))
+		if(!(nr->class & PHEAP) && nr->class != PEXTERN && nr->class != PFUNC)
 			gused(nr);
 		break;
 
