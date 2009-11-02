@@ -71,7 +71,7 @@ func exec(c *http.Conn, args []string) (status int) {
 	}
 
 	var buf bytes.Buffer;
-	io.Copy(r, &buf);
+	io.Copy(&buf, r);
 	wait, err := os.Wait(pid, 0);
 	if err != nil {
 		os.Stderr.Write(buf.Bytes());

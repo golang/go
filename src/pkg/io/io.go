@@ -179,7 +179,7 @@ func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
 
 // Copyn copies n bytes (or until an error) from src to dst.
 // It returns the number of bytes copied and the error, if any.
-func Copyn(src Reader, dst Writer, n int64) (written int64, err os.Error) {
+func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
 	buf := make([]byte, 32*1024);
 	for written < n {
 		l := len(buf);
@@ -212,7 +212,7 @@ func Copyn(src Reader, dst Writer, n int64) (written int64, err os.Error) {
 // Copy copies from src to dst until either EOF is reached
 // on src or an error occurs.  It returns the number of bytes
 // copied and the error, if any.
-func Copy(src Reader, dst Writer) (written int64, err os.Error) {
+func Copy(dst Writer, src Reader) (written int64, err os.Error) {
 	buf := make([]byte, 32*1024);
 	for {
 		nr, er := src.Read(buf);

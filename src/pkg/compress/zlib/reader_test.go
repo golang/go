@@ -80,7 +80,7 @@ func TestInflater(t *testing.T) {
 		}
 		defer zlib.Close();
 		b.Reset();
-		n, err := io.Copy(zlib, b);
+		n, err := io.Copy(b, zlib);
 		if err != nil {
 			if err != tt.err {
 				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err);

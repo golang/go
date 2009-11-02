@@ -33,7 +33,7 @@ var (
 //	if err := tw.WriteHeader(hdr); err != nil {
 //		// handle error
 //	}
-//	io.Copy(data, tw);
+//	io.Copy(tw, data);
 //	tw.Close();
 type Writer struct {
 	w		io.Writer;

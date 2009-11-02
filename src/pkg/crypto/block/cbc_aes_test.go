@@ -78,7 +78,7 @@ func TestCBC_AES(t *testing.T) {
 		var crypt bytes.Buffer;
 		w := NewCBCEncrypter(c, tt.iv, &crypt);
 		var r io.Reader = bytes.NewBuffer(tt.in);
-		n, err := io.Copy(r, w);
+		n, err := io.Copy(w, r);
 		if n != int64(len(tt.in)) || err != nil {
 			t.Errorf("%s: CBCEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
 		} else if d := crypt.Bytes(); !same(tt.out, d) {
@@ -88,7 +88,7 @@ func TestCBC_AES(t *testing.T) {
 		var plain bytes.Buffer;
 		r = NewCBCDecrypter(c, tt.iv, bytes.NewBuffer(tt.out));
 		w = &plain;
-		n, err = io.Copy(r, w);
+		n, err = io.Copy(w, r);
 		if n != int64(len(tt.out)) || err != nil {
 			t.Errorf("%s: CBCDecrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
 		} else if d := plain.Bytes(); !same(tt.in, d) {

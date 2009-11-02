@@ -325,7 +325,7 @@ func TestForkExec(t *testing.T) {
 	w.Close();
 
 	var b bytes.Buffer;
-	io.Copy(r, &b);
+	io.Copy(&b, r);
 	output := b.String();
 	expect := "/\n";
 	if output != expect {
@@ -603,7 +603,7 @@ func run(t *testing.T, cmd []string) string {
 	w.Close();
 
 	var b bytes.Buffer;
-	io.Copy(r, &b);
+	io.Copy(&b, r);
 	Wait(pid, 0);
 	output := b.String();
 	if n := len(output); n > 0 && output[n-1] == '\n' {
