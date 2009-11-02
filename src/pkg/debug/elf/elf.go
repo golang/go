@@ -1465,6 +1465,8 @@ type Sym32 struct {
 	Shndx	uint16;
 }
 
+const Sym32Size = 16
+
 func ST_BIND(info uint8) SymBind {
 	return SymBind(info>>4);
 }
@@ -1582,6 +1584,7 @@ type Sym64 struct {
 	Size	uint64;	/* Size of associated object. */
 }
 
+const Sym64Size = 24
 
 type intName struct {
 	i	uint32;
