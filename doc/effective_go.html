@@ -228,7 +228,7 @@ Since the whole declaration is presented, such a comment can often be perfunctor
 <pre>
 // Error codes returned by failures to parse an expression.
 var (
-	ErrInternal = os.NewError("internal error");
+	ErrInternal      = os.NewError("internal error");
 	ErrUnmatchedLpar = os.NewError("unmatched '('");
 	ErrUnmatchedRpar = os.NewError("unmatched ')'");
 	...
@@ -255,7 +255,7 @@ var (
 Names are as important in Go as in any other language.
 In some cases they even have semantic effect: for instance,
 the visibility of a name outside a package is determined by whether its
-first character is an upper case letter.
+first character is upper case.
 It's therefore worth spending a little time talking about naming conventions
 in Go programs.
 </p>
@@ -300,7 +300,7 @@ not <code>container_vector</code> and not <code>containerVector</code>.
 <p>
 The importer of a package will use the name to refer to its contents
 (the <code>import .</code> notation is intended mostly for tests and other
-unusual situations), and exported names in the package can use that fact
+unusual situations) and exported names in the package can use that fact
 to avoid stutter.
 For instance, the buffered reader type in the <code>bufio</code> package is called <code>Reader</code>,
 not <code>BufReader</code>, because users see it as <code>bufio.Reader</code>,
@@ -448,7 +448,8 @@ statement, it's common to see one used to set up a local variable.
 
 <pre>
 if err := file.Chmod(0664); err != nil {
-    log.Stderr(err)
+    log.Stderr(err);
+    return err;
 }
 </pre>
 
@@ -519,11 +520,12 @@ for i := 0; i < 10; i++ {
 </pre>
 
 <p>
-If you're looping over an array, slice, string, or map a <code>range</code> clause can set
-it all up for you.
+If you're looping over an array, slice, string, or map,
+or reading from a channel, a <code>range</code> clause can
+manage the loop for you.
 </p>
 <pre>
-var m map[string] int;
+var m map[string]int;
 sum := 0;
 for _, value := range m {  // key is unused
     sum += value
@@ -531,8 +533,8 @@ for _, value := range m {  // key is unused
 </pre>
 
 <p>
-For strings, the <code>range</code> does more of the work for you, breaking out individual
-characters by parsing the UTF-8 (erroneous encodings consume one byte and produce the
+For strings, the <code>range</code> does more work for you, breaking out individual
+Unicode characters by parsing the UTF-8 (erroneous encodings consume one byte and produce the
 replacement rune U+FFFD). The loop
 </p>
 <pre>
@@ -637,7 +639,7 @@ have the corresponding type in each clause.
 <pre>
 switch t := interfaceValue.(type) {
 default:
-	fmt.Printf("unexpected type");
+	fmt.Printf("unexpected type %T", type);  // %T prints type
 case bool:
 	fmt.Printf("boolean %t\n", t);
 case int:
@@ -657,7 +659,7 @@ case *int:
 One of Go's unusual properties is that functions and methods
 can return multiple values.  This feature can be used to
 improve on a couple of clumsy idioms in C programs: in-band
-error returns (<code>-1</code> for <code>EOF</code> for example)
+error returns (such as <code>-1</code> for <code>EOF</code>)
 and modifying an argument.
 </p>
 
@@ -1033,7 +1035,7 @@ the moment, this snippet would also read the first 32 bytes of the buffer.
 	var n int;
 	var err os.Error;
 	for i := 0; i < 32; i++ {
-		nbytes, e := f.Read(buf[i:i+1]);
+		nbytes, e := f.Read(buf[i:i+1]);  // Read one byte.
 		if nbytes == 0 || e != nil {
 			err = e;
 			break;
@@ -1083,10 +1085,10 @@ structure holding the pointer, length, and capacity) is passed by value.
 <p>
 Maps are a convenient and powerful built-in data structure to associate
 values of different types.
-The key can be of type that implements equality, such as integers,
-floats, strings, pointers, and interfaces  (as long as the dynamic type
+The key can be of any type that implements equality, such as integers,
+floats, strings, pointers, and interfaces (as long as the dynamic type
 supports equality), but not structs, arrays or slices
-because those types do not have equality defined upon them.
+because those types do not have equality defined for them.
 Like slices, maps are a reference type. If you pass a map to a function
 that changes the contents of the map, the changes will be visible
 in the caller.
@@ -1571,7 +1573,7 @@ as though the existing value has a new type.
 do create a new value.)
 </p>
 <p>
-It's an idiom of Go code to convert the
+It's an idiom in Go programs to convert the
 type of an expression to access a different
 set of methods. As an example, we could use the existing
 type <code>sort.IntArray</code> to reduce the entire example
@@ -1620,9 +1622,9 @@ the rest of the code is unaffected by the change of algorithm.
 A similar approach allows the streaming cipher algorithms
 in the <code>crypto/block</code> package to be
 separated from the block ciphers they chain together.
-By analogy to the <code>bufio</code> package,
+By analogy with the <code>bufio</code> package,
 they wrap a <code>Cipher</code> interface
-and they return <code>hash.Hash</code>,
+and return <code>hash.Hash</code>,
 <code>io.Reader</code>, or <code>io.Writer</code>
 interface values, not specific implementations.
 </p>
@@ -1757,7 +1759,7 @@ func (f HandlerFunc) ServeHTTP(c *Conn, req *Request) {
 <code>HandlerFunc</code> is a type with a method, <code>ServeHTTP</code>,
 so values of that type can serve HTTP requests.  Look at the implementation
 of the method: the receiver is a function, <code>f</code>, and the method
-calls <code>f</code>.  That may seem odd but it's no different from, say,
+calls <code>f</code>.  That may seem odd but it's not that different from, say,
 the receiver being a channel and the method sending on the channel.
 </p>
 <p>
@@ -1953,8 +1955,8 @@ it would be erroneous to embed <code>log.Logger</code> if <code>Job</code> struc
 contained another field or method called <code>Logger</code>.
 However, if the duplicate name is never mentioned in the program outside the type definition, it is OK.
 This qualification provides some protection against changes made to types embedded from outside; there
-is no problem if a field is added that conflicts with another field in another subtype if that field
-is never used.
+is no problem if a field is added that conflicts with another field in another subtype if neither field
+is ever used.
 </p>
 
 
@@ -1986,11 +1988,11 @@ high-level approach, using channels to control access makes it easier
 to write clear, correct programs.
 </p>
 <p>
-Another way to think about this model is to consider a typical single-threaded
+One way to think about this model is to consider a typical single-threaded
 program running on one CPU. It has no need for synchronization primitives.
 Now run another such instance; it too needs no synchronization.  Now let those
 two communicate; if the communication is the synchronizer, there's still no need
-for other synchronization.  Consider Unix pipelines: they fit this model
+for other synchronization.  Unix pipelines, for example, fit this model
 perfectly.  Although Go's approach to concurrency originates in Hoare's
 Communicating Sequential Processes (CSP),
 it can also be seen as a type-safe generalization of Unix pipes.
@@ -2036,7 +2038,7 @@ func Announce(message string, delay int64) {
 }
 </pre>
 <p>
-In Go function literals are closures: the implementation makes
+In Go, function literals are closures: the implementation makes
 sure the variables referred to by the function survive as long as they are active.
 <p>
 These examples aren't too practical because the functions have no way of signaling
@@ -2086,7 +2088,7 @@ value has been copied to the buffer.
 A buffered channel can be used like a semaphore, for instance to
 limit throughput.  In this example, incoming requests are passed
 to <code>handle</code>, which sends a value into the channel, processes
-the request, and then receives a value out of the channel.
+the request, and then receives a value from the channel.
 The capacity of the channel buffer limits the number of
 simultaneous calls to <code>process</code>.
 </p>
@@ -2166,7 +2168,7 @@ func sum(a []int) (s int) {
 
 request := &amp;Request{[]int{3, 4, 5}, sum, make(chan int)}
 // Send request
-client Requests <- request;
+clientRequests <- request;
 // Wait for response.
 fmt.Printf("answer: %d\n", <-request.resultChan);
 </pre>
@@ -2194,15 +2196,15 @@ separate pieces, it can be parallelized, with a channel to signal
 when each piece completes.
 </p>
 <p>
-Let's say we have an expensive operation to perform on an array of items,
+Let's say we have an expensive operation to perform on a vector of items,
 and that the value of the operation on each item is independent,
 as in this idealized example.
 </p>
 <pre>
-type Vec []float64
+type Vector []float64
 
 // Apply the operation to n elements of v starting at i.
-func (v Vec) DoSome(i, n int, u Vec, c chan int) {
+func (v Vector) DoSome(i, n int, u Vector, c chan int) {
     for ; i < n; i++ {
         v[i] += u.Op(v[i])
     }
@@ -2218,7 +2220,7 @@ launching all the goroutines.
 <pre>
 const NCPU = 4	// number of CPU cores
 
-func (v Vec) DoAll(u Vec) {
+func (v Vector) DoAll(u Vector) {
     c := make(chan int, NCPU);  // Buffering optional but sensible.
     for i := 0; i < NCPU; i++ {
         go v.DoSome(i*len(v)/NCPU, (i+1)*len(v)/NCPU, u, c);
@@ -2235,7 +2237,7 @@ func (v Vec) DoAll(u Vec) {
 <h3 id="leaky_buffer">A leaky buffer</h3>
 
 <p>
-The tools of concurrent programming can often make non-concurrent
+The tools of concurrent programming can even make non-concurrent
 ideas easier to express.  Here's an example abstracted from an RPC
 package.  The client goroutine loops receiving data from some source,
 perhaps a network.  To avoid allocating and freeing buffers, it keeps
