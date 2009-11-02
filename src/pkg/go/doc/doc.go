@@ -245,28 +245,15 @@ func copyCommentList(list []*ast.Comment) []*ast.Comment {
 
 
 var (
-	// Regexp constructor needs threads - cannot use init expressions
-	bug_markers	*regexp.Regexp;
-	bug_content	*regexp.Regexp;
+	bug_markers = regexp.MustCompile("^/[/*][ \t]*BUG\\(.*\\):[ \t]*");	// BUG(uid):
+	bug_content = regexp.MustCompile("[^ \n\r\t]+");	// at least one non-whitespace char
 )
 
-func makeRex(s string) *regexp.Regexp {
-	re, err := regexp.Compile(s);
-	if err != nil {
-		panic("MakeRegexp ", s, " ", err.String());
-	}
-	return re;
-}
 
 // addFile adds the AST for a source file to the docReader.
 // Adding the same AST multiple times is a no-op.
 //
 func (doc *docReader) addFile(src *ast.File) {
-	if bug_markers == nil {
-		bug_markers = makeRex("^/[/*][ \t]*BUG\\(.*\\):[ \t]*");	// BUG(uid):
-		bug_content = makeRex("[^ \n\r\t]+");				// at least one non-whitespace char
-	}
-
 	// add package documentation
 	if src.Doc != nil {
 		// TODO(gri) This won't do the right thing if there is more
