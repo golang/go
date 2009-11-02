@@ -10,7 +10,7 @@ import (
 )
 
 type File struct {
-	fd      int;  // file descriptor number
+	fd      int;    // file descriptor number
 	name    string; // file name at Open time
 }
 

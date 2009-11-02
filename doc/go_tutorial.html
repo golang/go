@@ -1,12 +1,15 @@
 <!-- Let's Go -->
 <h2>Introduction</h2>
 <p>
-This document is a tutorial introduction to the basics of the Go systems programming
+This document is a tutorial introduction to the basics of the Go programming
 language, intended for programmers familiar with C or C++. It is not a comprehensive
 guide to the language; at the moment the document closest to that is the
-<a href='/doc/go_spec.html'>language specification.</a>
+<a href='/doc/go_spec.html'>language specification</a>.
+After you've read this tutorial, you might want to look at
+<a href='/doc/effective_go.html'>Effective Go</a>,
+which digs deeper into how the language is used.
 <p>
-The presentation proceeds through a series of modest programs to illustrate
+The presentation here proceeds through a series of modest programs to illustrate
 key features of the language.  All the programs work (at time of writing) and are
 checked into the repository in the directory <a href='/doc/progs'><code>/doc/progs/</code></a>.
 <p>
@@ -48,6 +51,35 @@ The comment convention is the same as in C++:
 <p>
 Later we'll have much more to say about printing.
 <p>
+<h2>Compiling</h2>
+<p>
+Go is a compiled language.  At the moment there are two compilers.
+<code>Gccgo</code> is a Go compiler that uses the GCC back end.  There is also a
+suite of compilers with different (and odd) names for each architecture:
+<code>6g</code> for the 64-bit x86, <code>8g</code> for the 32-bit x86, and more.  These
+compilers run significantly faster but generate less efficient code
+than <code>gccgo</code>.  At the time of writing (late 2009), they also have
+a more robust run-time system although <code>gccgo</code> is catching up.
+<p>
+Here's how to compile and run our program.  With <code>6g</code>, say,
+<p>
+<pre>
+    $ 6g helloworld.go  # compile; object goes into helloworld.6
+    $ 6l helloworld.6   # link; output goes into 6.out
+    $ 6.out
+    Hello, world; or Καλημέρα κόσμε; or こんにちは 世界
+    $
+</pre>
+<p>
+With <code>gccgo</code> it looks a little more traditional.
+<p>
+<pre>
+    $ gccgo helloworld.go
+    $ a.out
+    Hello, world; or Καλημέρα κόσμε; or こんにちは 世界
+    $
+</pre>
+<p>
 <h2>Echo</h2>
 <p>
 Next up, here's a version of the Unix utility <code>echo(1)</code>:
@@ -63,8 +95,8 @@ Next up, here's a version of the Unix utility <code>echo(1)</code>:
 12    var n_flag = flag.Bool(&quot;n&quot;, false, &quot;don't print final newline&quot;)
 <p>
 14    const (
-15        kSpace = &quot; &quot;;
-16        kNewline = &quot;\n&quot;;
+15        Space = &quot; &quot;;
+16        Newline = &quot;\n&quot;;
 17    )
 <p>
 19    func main() {
@@ -72,22 +104,22 @@ Next up, here's a version of the Unix utility <code>echo(1)</code>:
 21        var s string = &quot;&quot;;
 22        for i := 0; i &lt; flag.NArg(); i++ {
 23            if i &gt; 0 {
-24                s += kSpace
+24                s += Space
 25            }
 26            s += flag.Arg(i)
 27        }
 28        if !*n_flag {
-29            s += kNewline
+29            s += Newline
 30        }
 31        os.Stdout.WriteString(s);
 32    }
 </pre>
 <p>
 This program is small but it's doing a number of new things.  In the last example,
-we saw <code>func</code> introducing a function.  The keywords <code>var</code>, <code>const</code>, and <code>type</code>
+we saw <code>func</code> introduce a function.  The keywords <code>var</code>, <code>const</code>, and <code>type</code>
 (not used yet) also introduce declarations, as does <code>import</code>.
 Notice that we can group declarations of the same sort into
-parenthesized, semicolon-separated lists if we want, as on lines 4-10 and 14-17.
+parenthesized, semicolon-separated lists if we want, as on lines 7-10 and 14-17.
 But it's not necessary to do so; we could have said
 <p>
 <pre>
@@ -168,7 +200,7 @@ Later examples will show some other ways <code>for</code> can be written.
 <p>
 The body of the loop builds up the string <code>s</code> by appending (using <code>+=</code>)
 the flags and separating spaces. After the loop, if the <code>-n</code> flag is not
-set, it appends a newline, and then writes the result.
+set, the program appends a newline. Finally, it writes the result.
 <p>
 Notice that <code>main.main</code> is a niladic function with no return type.
 It's defined that way.  Falling off the end of <code>main.main</code> means
@@ -234,7 +266,7 @@ about pointers to arrays.
 The size of the array is part of its type; however, one can declare
 a <i>slice</i> variable, to which one can assign a pointer to
 any array
-with the same element type or - much more commonly - a <i>slice
+with the same element type or&mdash;much more commonly&mdash;a <i>slice
 expression</i> of the form <code>a[low : high]</code>, representing
 the subarray indexed by <code>low</code> through <code>high-1</code>.
 Slices look a lot like arrays but have
@@ -276,7 +308,7 @@ and invoke it like this:
 Note how the return type (<code>int</code>) is defined for <code>sum()</code> by stating it
 after the parameter list.
 The expression <code>[3]int{1,2,3}</code> -- a type followed by a brace-bounded expression
--- is a constructor for a value, in this case an array of 3 <code>ints</code>.  Putting an <code>&</code>
+-- is a constructor for a value, in this case an array of 3 <code>ints</code>.  Putting an <code>&amp;</code>
 in front gives us the address of a unique instance of the value.  We pass the
 pointer to <code>sum()</code> by (automatically) promoting it to a slice.
 <p>
@@ -288,7 +320,7 @@ elements for you, use <code>...</code> as the array size:
 </pre>
 <p>
 In practice, though, unless you're meticulous about storage layout within a
-data structure, a slice itself - using empty brackets and no <code>&</code> - is all you need:
+data structure, a slice itself - using empty brackets and no <code>&amp;</code> - is all you need:
 <p>
 <pre>
     s := sum([]int{1,2,3});
@@ -297,7 +329,7 @@ data structure, a slice itself - using empty brackets and no <code>&</code> - is
 There are also maps, which you can initialize like this:
 <p>
 <pre>
-    m := map[string] int {"one":1 , "two":2}
+    m := map[string]int{"one":1 , "two":2}
 </pre>
 <p>
 The built-in function <code>len()</code>, which returns number of elements,
@@ -330,14 +362,14 @@ referencing the same underlying data will see the modification.  For these three
 types you want to use the built-in function <code>make()</code>:
 <p>
 <pre>
-    m := make(map[string] int);
+    m := make(map[string]int);
 </pre>
 <p>
 This statement initializes a new map ready to store entries.
 If you just declare the map, as in
 <p>
 <pre>
-    var m map[string] int;
+    var m map[string]int;
 </pre>
 <p>
 it creates a <code>nil</code> reference that cannot hold anything. To use the map,
@@ -352,7 +384,7 @@ declaring an uninitialized variable and taking its address.
 <h2>An Interlude about Constants</h2>
 <p>
 Although integers come in lots of sizes in Go, integer constants do not.
-There are no constants like <code>0ll</code> or <code>0x0UL</code>.   Instead, integer
+There are no constants like <code>0LL</code> or <code>0x0UL</code>.   Instead, integer
 constants are evaluated as large-precision values that
 can overflow only when they are assigned to an integer variable with
 too little precision to represent the value.
@@ -394,7 +426,7 @@ sort of open/close/read/write interface.  Here's the start of <code>file.go</cod
 10    )
 <p>
 12    type File struct {
-13        fd      int;  // file descriptor number
+13        fd      int;    // file descriptor number
 14        name    string; // file name at Open time
 15    }
 </pre>
@@ -415,8 +447,8 @@ that the file descriptor refers to.
 <p>
 Because <code>File</code> starts with a capital letter, the type is available outside the package,
 that is, by users of the package.   In Go the rule about visibility of information is
-simple: if a name (of a top-level type, function, method, constant, variable, or of
-a structure field) is capitalized, users of the package may see it. Otherwise, the
+simple: if a name (of a top-level type, function, method, constant or variable, or of
+a structure field or method) is capitalized, users of the package may see it. Otherwise, the
 name and hence the thing being named is visible only inside the package in which
 it is declared.  This is more than a convention; the rule is enforced by the compiler.
 In Go, the term for publicly visible names is ''exported''.
@@ -545,7 +577,7 @@ the <code>struct</code> declaration itself.  The <code>struct</code> declaration
 In fact, methods can be created for any type you name, such as an integer or
 array, not just for <code>structs</code>.   We'll see an example with arrays later.
 <p>
-The <code>String</code> method is so called because of printing convention we'll
+The <code>String</code> method is so called because of a printing convention we'll
 describe later.
 <p>
 The methods use the public variable <code>os.EINVAL</code> to return the (<code>os.Error</code>
@@ -607,13 +639,13 @@ Building on the <code>file</code> package, here's a simple version of the Unix u
 17        for {
 18            switch nr, er := f.Read(&amp;buf); true {
 19            case nr &lt; 0:
-20                fmt.Fprintf(os.Stderr, &quot;error reading from %s: %s\n&quot;, f.String(), er.String());
+20                fmt.Fprintf(os.Stderr, &quot;cat: error reading from %s: %s\n&quot;, f.String(), er.String());
 21                os.Exit(1);
 22            case nr == 0:  // EOF
 23                return;
 24            case nr &gt; 0:
 25                if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
-26                    fmt.Fprintf(os.Stderr, &quot;error writing from %s: %s\n&quot;, f.String(), ew.String());
+26                    fmt.Fprintf(os.Stderr, &quot;cat: error writing from %s: %s\n&quot;, f.String(), ew.String());
 27                }
 28            }
 29        }
@@ -627,7 +659,7 @@ Building on the <code>file</code> package, here's a simple version of the Unix u
 37        for i := 0; i &lt; flag.NArg(); i++ {
 38            f, err := file.Open(flag.Arg(i), 0, 0);
 39            if f == nil {
-40                fmt.Fprintf(os.Stderr, &quot;can't open %s: error %s\n&quot;, flag.Arg(i), err);
+40                fmt.Fprintf(os.Stderr, &quot;cat: can't open %s: error %s\n&quot;, flag.Arg(i), err);
 41                os.Exit(1);
 42            }
 43            cat(f);
@@ -702,7 +734,7 @@ we have a second implementation of the <code>reader</code> interface.
 50    // end of rotate13 implementation
 </pre>
 <p>
-(The <code>rot13</code> function called on line 42 is trivial and not worth reproducing.)
+(The <code>rot13</code> function called on line 42 is trivial and not worth reproducing here.)
 <p>
 To use the new feature, we define a flag:
 <p>
@@ -723,14 +755,14 @@ and use it from within a mostly unchanged <code>cat()</code> function:
 59        for {
 60            switch nr, er := r.Read(&amp;buf); {
 61            case nr &lt; 0:
-62                fmt.Fprintf(os.Stderr, &quot;error reading from %s: %s\n&quot;, r.String(), er.String());
+62                fmt.Fprintf(os.Stderr, &quot;cat: error reading from %s: %s\n&quot;, r.String(), er.String());
 63                os.Exit(1);
 64            case nr == 0:  // EOF
 65                return;
 66            case nr &gt; 0:
 67                nw, ew := file.Stdout.Write(buf[0:nr]);
 68                if nw != nr {
-69                    fmt.Fprintf(os.Stderr, &quot;error writing from %s: %s\n&quot;, r.String(), ew.String());
+69                    fmt.Fprintf(os.Stderr, &quot;cat: error writing from %s: %s\n&quot;, r.String(), ew.String());
 70                }
 71            }
 72        }
@@ -739,7 +771,7 @@ and use it from within a mostly unchanged <code>cat()</code> function:
 <p>
 (We could also do the wrapping in <code>main</code> and leave <code>cat()</code> mostly alone, except
 for changing the type of the argument; consider that an exercise.)
-Lines 56 through 59 set it all up: If the <code>rot13</code> flag is true, wrap the <code>reader</code>
+Lines 56 through 58 set it all up: If the <code>rot13</code> flag is true, wrap the <code>reader</code>
 we received into a <code>rotate13</code> and proceed.  Note that the interface variables
 are values, not pointers: the argument is of type <code>reader</code>, not <code>*reader</code>,
 even though under the covers it holds a pointer to a <code>struct</code>.
@@ -838,8 +870,8 @@ to implement the three methods for that type, like this:
 <pre> <!-- progs/sortmain.go /type.day/ /Swap/ -->
 30    type day struct {
 31        num        int;
-32        short_name string;
-33        long_name  string;
+32        shortName  string;
+33        longName   string;
 34    }
 <p>
 36    type dayArray struct {
@@ -972,7 +1004,7 @@ Schematically, given a value <code>v</code>, it does this:
     if ok {
         result = s.String()
     } else {
-        result = default_output(v)
+        result = defaultOutput(v)
     }
 </pre>
 <p>
@@ -1002,7 +1034,7 @@ interface type defined in the <code>io</code> library:
 (This interface is another conventional name, this time for <code>Write</code>; there are also
 <code>io.Reader</code>, <code>io.ReadWriter</code>, and so on.)
 Thus you can call <code>Fprintf</code> on any type that implements a standard <code>Write()</code>
-method, not just files but also network channels, buffers, rot13ers, whatever
+method, not just files but also network channels, buffers, whatever
 you want.
 <p>
 <h2>Prime numbers</h2>
@@ -1010,7 +1042,10 @@ you want.
 Now we come to processes and communication -- concurrent programming.
 It's a big subject so to be brief we assume some familiarity with the topic.
 <p>
-A classic program in the style is the prime sieve of Eratosthenes.
+A classic program in the style is a prime sieve.
+(The sieve of Eratosthenes is computationationally more efficient than
+the algorithm presented here, but we are more interested in concurrency than
+algorithmics at the moment.)
 It works by taking a stream of all the natural numbers and introducing
 a sequence of filters, one for each prime, to winnow the multiples of
 that prime.  At each step we have a sequence of filters of the primes
@@ -1310,6 +1345,3 @@ at the end of main:
 <p>
 There's a lot more to Go programming and concurrent programming in general but this
 quick tour should give you some of the basics.
-</table>
-</body>
-</html>

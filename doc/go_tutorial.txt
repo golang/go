@@ -2,12 +2,15 @@
 Introduction
 ----
 
-This document is a tutorial introduction to the basics of the Go systems programming
+This document is a tutorial introduction to the basics of the Go programming
 language, intended for programmers familiar with C or C++. It is not a comprehensive
 guide to the language; at the moment the document closest to that is the
-<a href='/doc/go_spec.html'>language specification.</a>
+<a href='/doc/go_spec.html'>language specification</a>.
+After you've read this tutorial, you might want to look at
+<a href='/doc/effective_go.html'>Effective Go</a>,
+which digs deeper into how the language is used.
 
-The presentation proceeds through a series of modest programs to illustrate
+The presentation here proceeds through a series of modest programs to illustrate
 key features of the language.  All the programs work (at time of writing) and are
 checked into the repository in the directory <a href='/doc/progs'>"/doc/progs/"</a>.
 
@@ -40,6 +43,32 @@ The comment convention is the same as in C++:
 
 Later we'll have much more to say about printing.
 
+Compiling
+----
+
+Go is a compiled language.  At the moment there are two compilers.
+"Gccgo" is a Go compiler that uses the GCC back end.  There is also a
+suite of compilers with different (and odd) names for each architecture:
+"6g" for the 64-bit x86, "8g" for the 32-bit x86, and more.  These
+compilers run significantly faster but generate less efficient code
+than "gccgo".  At the time of writing (late 2009), they also have
+a more robust run-time system although "gccgo" is catching up.
+
+Here's how to compile and run our program.  With "6g", say,
+
+	$ 6g helloworld.go  # compile; object goes into helloworld.6
+	$ 6l helloworld.6   # link; output goes into 6.out
+	$ 6.out
+	Hello, world; or Καλημέρα κόσμε; or こんにちは 世界
+	$
+
+With "gccgo" it looks a little more traditional.
+
+	$ gccgo helloworld.go
+	$ a.out
+	Hello, world; or Καλημέρα κόσμε; or こんにちは 世界
+	$
+
 Echo
 ----
 
@@ -48,10 +77,10 @@ Next up, here's a version of the Unix utility "echo(1)":
 --PROG progs/echo.go /package/ END
 
 This program is small but it's doing a number of new things.  In the last example,
-we saw "func" introducing a function.  The keywords "var", "const", and "type"
+we saw "func" introduce a function.  The keywords "var", "const", and "type"
 (not used yet) also introduce declarations, as does "import".
 Notice that we can group declarations of the same sort into
-parenthesized, semicolon-separated lists if we want, as on lines 4-10 and 14-17.
+parenthesized, semicolon-separated lists if we want, as on lines 7-10 and 14-17.
 But it's not necessary to do so; we could have said
 
 	const Space = " "
@@ -122,7 +151,7 @@ Later examples will show some other ways "for" can be written.
 
 The body of the loop builds up the string "s" by appending (using "+=")
 the flags and separating spaces. After the loop, if the "-n" flag is not
-set, it appends a newline, and then writes the result.
+set, the program appends a newline. Finally, it writes the result.
 
 Notice that "main.main" is a niladic function with no return type.
 It's defined that way.  Falling off the end of "main.main" means
@@ -177,7 +206,7 @@ about pointers to arrays.
 The size of the array is part of its type; however, one can declare
 a <i>slice</i> variable, to which one can assign a pointer to
 any array
-with the same element type or - much more commonly - a <i>slice
+with the same element type or&mdash;much more commonly&mdash;a <i>slice
 expression</i> of the form "a[low : high]", representing
 the subarray indexed by "low" through "high-1".
 Slices look a lot like arrays but have
@@ -209,7 +238,7 @@ and invoke it like this:
 Note how the return type ("int") is defined for "sum()" by stating it
 after the parameter list.
 The expression "[3]int{1,2,3}" -- a type followed by a brace-bounded expression
--- is a constructor for a value, in this case an array of 3 "ints".  Putting an "&"
+-- is a constructor for a value, in this case an array of 3 "ints".  Putting an "&amp;"
 in front gives us the address of a unique instance of the value.  We pass the
 pointer to "sum()" by (automatically) promoting it to a slice.
 
@@ -219,13 +248,13 @@ elements for you, use "..." as the array size:
 	s := sum(&amp;[...]int{1,2,3});
 
 In practice, though, unless you're meticulous about storage layout within a
-data structure, a slice itself - using empty brackets and no "&" - is all you need:
+data structure, a slice itself - using empty brackets and no "&amp;" - is all you need:
 
 	s := sum([]int{1,2,3});
 
 There are also maps, which you can initialize like this:
 
-	m := map[string] int {"one":1 , "two":2}
+	m := map[string]int{"one":1 , "two":2}
 
 The built-in function "len()", which returns number of elements,
 makes its first appearance in "sum".  It works on strings, arrays,
@@ -253,12 +282,12 @@ If you're holding a slice or a map and you modify its contents, other variables
 referencing the same underlying data will see the modification.  For these three
 types you want to use the built-in function "make()":
 
-	m := make(map[string] int);
+	m := make(map[string]int);
 
 This statement initializes a new map ready to store entries.
 If you just declare the map, as in
 
-	var m map[string] int;
+	var m map[string]int;
 
 it creates a "nil" reference that cannot hold anything. To use the map,
 you must first initialize the reference using "make()" or by assignment to an
@@ -273,7 +302,7 @@ An Interlude about Constants
 ----
 
 Although integers come in lots of sizes in Go, integer constants do not.
-There are no constants like "0ll" or "0x0UL".   Instead, integer
+There are no constants like "0LL" or "0x0UL".   Instead, integer
 constants are evaluated as large-precision values that
 can overflow only when they are assigned to an integer variable with
 too little precision to represent the value.
@@ -321,8 +350,8 @@ that the file descriptor refers to.
 
 Because "File" starts with a capital letter, the type is available outside the package,
 that is, by users of the package.   In Go the rule about visibility of information is
-simple: if a name (of a top-level type, function, method, constant, variable, or of
-a structure field) is capitalized, users of the package may see it. Otherwise, the
+simple: if a name (of a top-level type, function, method, constant or variable, or of
+a structure field or method) is capitalized, users of the package may see it. Otherwise, the
 name and hence the thing being named is visible only inside the package in which
 it is declared.  This is more than a convention; the rule is enforced by the compiler.
 In Go, the term for publicly visible names is ''exported''.
@@ -390,7 +419,7 @@ the "struct" declaration itself.  The "struct" declaration defines only data mem
 In fact, methods can be created for any type you name, such as an integer or
 array, not just for "structs".   We'll see an example with arrays later.
 
-The "String" method is so called because of printing convention we'll
+The "String" method is so called because of a printing convention we'll
 describe later.
 
 The methods use the public variable "os.EINVAL" to return the ("os.Error"
@@ -459,7 +488,7 @@ we have a second implementation of the "reader" interface.
 
 --PROG progs/cat_rot13.go /type.rotate13/ /end.of.rotate13/
 
-(The "rot13" function called on line 42 is trivial and not worth reproducing.)
+(The "rot13" function called on line 42 is trivial and not worth reproducing here.)
 
 To use the new feature, we define a flag:
 
@@ -471,7 +500,7 @@ and use it from within a mostly unchanged "cat()" function:
 
 (We could also do the wrapping in "main" and leave "cat()" mostly alone, except
 for changing the type of the argument; consider that an exercise.)
-Lines 56 through 59 set it all up: If the "rot13" flag is true, wrap the "reader"
+Lines 56 through 58 set it all up: If the "rot13" flag is true, wrap the "reader"
 we received into a "rotate13" and proceed.  Note that the interface variables
 are values, not pointers: the argument is of type "reader", not "*reader",
 even though under the covers it holds a pointer to a "struct".
@@ -630,7 +659,7 @@ Schematically, given a value "v", it does this:
 	if ok {
 		result = s.String()
 	} else {
-		result = default_output(v)
+		result = defaultOutput(v)
 	}
 
 The code uses a ``type assertion'' ("v.(Stringer)") to test if the value stored in
@@ -657,7 +686,7 @@ interface type defined in the "io" library:
 (This interface is another conventional name, this time for "Write"; there are also
 "io.Reader", "io.ReadWriter", and so on.)
 Thus you can call "Fprintf" on any type that implements a standard "Write()"
-method, not just files but also network channels, buffers, rot13ers, whatever
+method, not just files but also network channels, buffers, whatever
 you want.
 
 Prime numbers
@@ -666,7 +695,10 @@ Prime numbers
 Now we come to processes and communication -- concurrent programming.
 It's a big subject so to be brief we assume some familiarity with the topic.
 
-A classic program in the style is the prime sieve of Eratosthenes.
+A classic program in the style is a prime sieve.
+(The sieve of Eratosthenes is computationationally more efficient than
+the algorithm presented here, but we are more interested in concurrency than
+algorithmics at the moment.)
 It works by taking a stream of all the natural numbers and introducing
 a sequence of filters, one for each prime, to winnow the multiples of
 that prime.  At each step we have a sequence of filters of the primes
@@ -825,6 +857,3 @@ at the end of main:
 
 There's a lot more to Go programming and concurrent programming in general but this
 quick tour should give you some of the basics.
-</table>
-</body>
-</html>
