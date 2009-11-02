@@ -307,14 +307,21 @@ doelf(void)
 
 		/*
 		 * hash table - empty for now.
-		 * we should have to fill it out with an entry for every
-		 * symbol in .dynsym, but it seems to work not to,
-		 * which is fine with me.
+		 * only entries that other objects need to find when
+		 * linking us need to be in this table.  right now that
+		 * is no entries.
+		 *
+		 * must have at least 1 bucket, though, to avoid
+		 * a divide by zero bug in some copies of the
+		 * glibc dynamic loader.
 		 */
 		s = lookup(".hash", 0);
 		s->type = SDATA;	// TODO: rodata
 		s->reachable = 1;
-		s->value += 8;	// two leading zeros
+		adduint32(s, 1);	// nbucket
+		adduint32(s, 1);	// nchain
+		adduint32(s, 0);	// bucket[0]
+		adduint32(s, 0);	// chain[0]
 
 		/* dynamic symbol table - first entry all zeros */
 		s = lookup(".dynsym", 0);
