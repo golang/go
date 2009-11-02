@@ -12,7 +12,6 @@ package rpc
 import (
 	"fmt";
 	"http";
-	"os";
 	"sort";
 	"template";
 )
@@ -37,7 +36,7 @@ const debugText = `<html>
 	</body>
 	</html>`
 
-var debug *template.Template
+var debug = template.MustParse(debugText, nil)
 
 type debugMethod struct {
 	m	*methodType;
@@ -76,14 +75,6 @@ func (m methodArray) Swap(i, j int) {
 
 // Runs at /debug/rpc
 func debugHTTP(c *http.Conn, req *http.Request) {
-	var err os.Error;
-	if debug == nil {
-		debug, err = template.Parse(debugText, nil);
-		if err != nil {
-			fmt.Fprintln(c, "rpc can't create debug HTML template:", err.String());
-			return;
-		}
-	}
 	// Build a sorted version of the data.
 	var services = make(serviceArray, len(server.serviceMap));
 	i := 0;
@@ -100,7 +91,7 @@ func debugHTTP(c *http.Conn, req *http.Request) {
 	}
 	server.Unlock();
 	sort.Sort(services);
-	err = debug.Execute(services, c);
+	err := debug.Execute(services, c);
 	if err != nil {
 		fmt.Fprintln(c, "rpc: error executing template:", err.String());
 	}
