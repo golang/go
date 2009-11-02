@@ -28,6 +28,7 @@ esac
 export G=${A}g
 export L=${A}l
 export GOTRACEBACK=0
+export LANG=C
 
 failed=0
 
