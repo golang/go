@@ -17,7 +17,7 @@ ignore=$ignore'|In file included from'
 ignore=$ignore'|        from'
 
 # Figure out which cc to run; this is set by make.bash.
-gcc=@CC@
+gcc="@CC@"
 if test "$gcc" = "@C""C@"; then
   gcc=gcc
 fi
