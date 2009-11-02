@@ -375,7 +375,7 @@ func (p *parser) term() (start, end instr) {
 		return nil, nil;
 	case '*', '+':
 		p.error = ErrBareClosure;
-		return;
+		return
 	case ')':
 		if p.nlpar == 0 {
 			p.error = ErrUnmatchedRpar;
@@ -589,7 +589,7 @@ func (re *Regexp) dump() {
 	}
 }
 
-func (re *Regexp) doParse() os.Error{
+func (re *Regexp) doParse() os.Error {
 	p := newParser(re);
 	start := new(_Start);
 	re.add(start);

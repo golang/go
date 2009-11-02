@@ -25,7 +25,6 @@
 package testing
 
 import (
-	"runtime";
 	"utf8";
 )
 
@@ -78,8 +77,6 @@ func (c *common) setIndex(i int) {
 // The public interface is entirely through methods.
 type Regexp struct {
 	expr	string;		// the original expression
-	ch	chan<- *Regexp;	// reply channel when we're done
-	error	string;		// compile- or run-time error; nil if OK
 	inst	[]instr;
 	start	instr;
 	nbra	int;	// number of brackets in expression, for subexpressions
@@ -307,13 +304,6 @@ func (nop *_Nop) print() {
 	print("nop");
 }
 
-// report error and exit compiling/executing goroutine
-func (re *Regexp) setError(err string) {
-	re.error = err;
-	re.ch <- re;
-	runtime.Goexit();
-}
-
 func (re *Regexp) add(i instr) instr {
 	n := len(re.inst);
 	i.setIndex(len(re.inst));
@@ -331,6 +321,7 @@ func (re *Regexp) add(i instr) instr {
 
 type parser struct {
 	re	*Regexp;
+	error	string;
 	nlpar	int;	// number of unclosed lpars
 	pos	int;
 	ch	int;
@@ -359,8 +350,6 @@ func newParser(re *Regexp) *parser {
 	p.nextc();	// load p.ch
 	return p;
 }
-
-var iNULL instr
 
 func special(c int) bool {
 	s := `\.+*?()|[]^$`;
@@ -393,7 +382,8 @@ func (p *parser) charClass() instr {
 		switch c := p.c(); c {
 		case ']', endOfFile:
 			if left >= 0 {
-				p.re.setError(ErrBadRange);
+				p.error = ErrBadRange;
+				return nil;
 			}
 			// Is it [^\n]?
 			if cc.negate && len(cc.ranges) == 2 &&
@@ -405,18 +395,21 @@ func (p *parser) charClass() instr {
 			p.re.add(cc);
 			return cc;
 		case '-':	// do this before backslash processing
-			p.re.setError(ErrBadRange);
+			p.error = ErrBadRange;
+			return nil;
 		case '\\':
 			c = p.nextc();
 			switch {
 			case c == endOfFile:
-				p.re.setError(ErrExtraneousBackslash);
+				p.error = ErrExtraneousBackslash;
+				return nil;
 			case c == 'n':
 				c = '\n';
 			case specialcclass(c):
 			// c is as delivered
 			default:
-				p.re.setError(ErrBadBackslash);
+				p.error = ErrBadBackslash;
+				return nil;
 			}
 			fallthrough;
 		default:
@@ -433,26 +426,37 @@ func (p *parser) charClass() instr {
 				cc.addRange(left, c);
 				left = -1;
 			default:
-				p.re.setError(ErrBadRange);
+				p.error = ErrBadRange;
+				return nil;
 			}
 		}
 	}
-	return iNULL;
+	return nil;
 }
 
 func (p *parser) term() (start, end instr) {
+	// term() is the leaf of the recursion, so it's sufficient to pick off the
+	// error state here for early exit.
+	// The other functions (closure(), concatenation() etc.) assume
+	// it's safe to recur to here.
+	if p.error != "" {
+		return
+	}
 	switch c := p.c(); c {
 	case '|', endOfFile:
-		return iNULL, iNULL;
+		return nil, nil;
 	case '*', '+':
-		p.re.setError(ErrBareClosure);
+		p.error = ErrBareClosure;
+		return;
 	case ')':
 		if p.nlpar == 0 {
-			p.re.setError(ErrUnmatchedRpar);
+			p.error = ErrUnmatchedRpar;
+			return;
 		}
-		return iNULL, iNULL;
+		return nil, nil;
 	case ']':
-		p.re.setError(ErrUnmatchedRbkt);
+		p.error = ErrUnmatchedRbkt;
+		return;
 	case '^':
 		p.nextc();
 		start = p.re.add(new(_Bot));
@@ -468,8 +472,12 @@ func (p *parser) term() (start, end instr) {
 	case '[':
 		p.nextc();
 		start = p.charClass();
+		if p.error != "" {
+			return
+		}
 		if p.c() != ']' {
-			p.re.setError(ErrUnmatchedLbkt);
+			p.error = ErrUnmatchedLbkt;
+			return;
 		}
 		p.nextc();
 		return start, start;
@@ -480,7 +488,8 @@ func (p *parser) term() (start, end instr) {
 		nbra := p.re.nbra;
 		start, end = p.regexp();
 		if p.c() != ')' {
-			p.re.setError(ErrUnmatchedLpar);
+			p.error = ErrUnmatchedLpar;
+			return;
 		}
 		p.nlpar--;
 		p.nextc();
@@ -490,9 +499,10 @@ func (p *parser) term() (start, end instr) {
 		p.re.add(ebra);
 		bra.n = nbra;
 		ebra.n = nbra;
-		if start == iNULL {
-			if end == iNULL {
-				p.re.setError(ErrInternal);
+		if start == nil {
+			if end == nil {
+				p.error = ErrInternal;
+				return;
 			}
 			start = ebra;
 		} else {
@@ -504,13 +514,15 @@ func (p *parser) term() (start, end instr) {
 		c = p.nextc();
 		switch {
 		case c == endOfFile:
-			p.re.setError(ErrExtraneousBackslash);
+			p.error = ErrExtraneousBackslash;
+			return;
 		case c == 'n':
 			c = '\n';
 		case special(c):
 		// c is as delivered
 		default:
-			p.re.setError(ErrBadBackslash);
+			p.error = ErrBadBackslash;
+			return;
 		}
 		fallthrough;
 	default:
@@ -524,7 +536,7 @@ func (p *parser) term() (start, end instr) {
 
 func (p *parser) closure() (start, end instr) {
 	start, end = p.term();
-	if start == iNULL {
+	if start == nil || p.error != "" {
 		return;
 	}
 	switch p.c() {
@@ -559,23 +571,25 @@ func (p *parser) closure() (start, end instr) {
 	}
 	switch p.nextc() {
 	case '*', '+', '?':
-		p.re.setError(ErrBadClosure);
+		p.error = ErrBadClosure;
 	}
 	return;
 }
 
 func (p *parser) concatenation() (start, end instr) {
-	start, end = iNULL, iNULL;
 	for {
 		nstart, nend := p.closure();
+		if p.error != "" {
+			return
+		}
 		switch {
-		case nstart == iNULL:	// end of this concatenation
-			if start == iNULL {	// this is the empty string
+		case nstart == nil:	// end of this concatenation
+			if start == nil {	// this is the empty string
 				nop := p.re.add(new(_Nop));
 				return nop, nop;
 			}
 			return;
-		case start == iNULL:	// this is first element of concatenation
+		case start == nil:	// this is first element of concatenation
 			start, end = nstart, nend;
 		default:
 			end.setNext(nstart);
@@ -587,6 +601,9 @@ func (p *parser) concatenation() (start, end instr) {
 
 func (p *parser) regexp() (start, end instr) {
 	start, end = p.concatenation();
+	if p.error != "" {
+		return
+	}
 	for {
 		switch p.c() {
 		default:
@@ -594,6 +611,9 @@ func (p *parser) regexp() (start, end instr) {
 		case '|':
 			p.nextc();
 			nstart, nend := p.concatenation();
+			if p.error != "" {
+				return
+			}
 			alt := new(_Alt);
 			p.re.add(alt);
 			alt.left = start;
@@ -629,58 +649,40 @@ func (re *Regexp) eliminateNops() {
 	}
 }
 
-func (re *Regexp) dump() {
-	for i := 0; i < len(re.inst); i++ {
-		inst := re.inst[i];
-		print(inst.index(), ": ");
-		inst.print();
-		if inst.kind() != _END {
-			print(" -> ", inst.next().index());
-		}
-		print("\n");
-	}
-}
-
-func (re *Regexp) doParse() {
+func (re *Regexp) doParse() string {
 	p := newParser(re);
 	start := new(_Start);
 	re.add(start);
 	s, e := p.regexp();
+	if p.error != "" {
+		return p.error;
+	}
 	start.setNext(s);
 	re.start = start;
 	e.setNext(re.add(new(_End)));
-
-	if debug {
-		re.dump();
-		println();
-	}
-
 	re.eliminateNops();
-
-	if debug {
-		re.dump();
-		println();
-	}
-}
-
-
-func compiler(str string, ch chan *Regexp) {
-	re := new(Regexp);
-	re.expr = str;
-	re.inst = make([]instr, 0, 20);
-	re.ch = ch;
-	re.doParse();
-	ch <- re;
+	return p.error;
 }
 
 // CompileRegexp parses a regular expression and returns, if successful, a Regexp
 // object that can be used to match against text.
 func CompileRegexp(str string) (regexp *Regexp, error string) {
-	// Compile in a separate goroutine and wait for the result.
-	ch := make(chan *Regexp);
-	go compiler(str, ch);
-	re := <-ch;
-	return re, re.error;
+	regexp = new(Regexp);
+	regexp.expr = str;
+	regexp.inst = make([]instr, 0, 20);
+	error = regexp.doParse();
+	return;
+}
+
+// MustCompileRegexp is like CompileRegexp but panics if the expression cannot be parsed.
+// It simplifies safe initialization of global variables holding compiled regular
+// expressions.
+func MustCompile(str string) *Regexp {
+	regexp, error := CompileRegexp(str);
+	if error != "" {
+		panicln(`regexp: compiling "`, str, `": `, error);
+	}
+	return regexp;
 }
 
 type state struct {
