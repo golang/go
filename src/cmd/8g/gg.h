@@ -66,6 +66,8 @@ EXTERN	Node*	deferreturn;
 EXTERN	Node*	throwindex;
 EXTERN	Node*	throwreturn;
 EXTERN	int	maxstksize;
+extern	uint32	unmappedzero;
+
 
 /*
  * ggen.c
@@ -101,7 +103,7 @@ void	sgen(Node*, Node*, int32);
 void	gmove(Node*, Node*);
 Prog*	gins(int, Node*, Node*);
 int	samaddr(Node*, Node*);
-void	naddr(Node*, Addr*);
+void	naddr(Node*, Addr*, int);
 void	cgen_aret(Node*, Node*);
 Node*	ncon(uint32);
 

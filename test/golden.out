@@ -126,7 +126,7 @@ pc: xxx
 
 =========== nilptr/slicearray.go
 SIGSEGV: segmentation violation
-Faulting address: 0xa
+Faulting address: 0x0
 pc: xxx
 
 
