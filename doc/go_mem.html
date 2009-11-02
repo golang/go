@@ -15,16 +15,17 @@ Within a single goroutine, reads and writes must behave
 as if they executed in the order specified by the program.
 That is, compilers and processors may reorder the reads and writes
 executed within a single goroutine only when the reordering
-does not change the execution behavior within that goroutine.
+does not change the behavior within that goroutine
+as defined by the language specification.
 Because of this reordering, the execution order observed
-by one may differ from the order perceived
+by one goroutine may differ from the order perceived
 by another.  For example, if one goroutine
-executes <code>a = 1; b = 2;</code>, a second goroutine might observe
+executes <code>a = 1; b = 2;</code>, another might observe
 the updated value of <code>b</code> before the updated value of <code>a</code>.
 </p>
 
 <p>
-To specify the requirements on reads and writes, we define
+To specify the requirements of reads and writes, we define
 <i>happens before</i>, a partial order on the execution
 of memory operations in a Go program.  If event <span class="event">e<sub>1</sub></span> happens
 before event <span class="event">e<sub>2</sub></span>, then we say that <span class="event">e<sub>2</sub></span> happens after <span class="event">e<sub>1</sub></span>.
@@ -34,7 +35,7 @@ after <span class="event">e<sub>2</sub></span>, then we say that <span class="ev
 
 <p>
 Within a single goroutine, the happens before order is the
-order specified by the program.
+order expressed by the program.
 </p>
 
 <p>
@@ -93,7 +94,7 @@ unspecified order.
 <h3>Initialization</h3>
 
 <p>
-Program initialization runs in a single goroutine, and
+Program initialization runs in a single goroutine and
 new goroutines created during initialization do not
 start running until initialization ends.
 </p>
@@ -157,12 +158,12 @@ receive from that channel completes.
 </p>
 
 <p>
-For example, this program:
+This program:
 </p>
 
 <pre>
-var c = make(chan int, 10);
-var a string;
+var c = make(chan int, 10)
+var a string
 
 func f() {
 	a = "hello, world";
@@ -189,12 +190,12 @@ the send on that channel completes.
 </p>
 
 <p>
-For example, this program:
+This program:
 </p>
 
 <pre>
-var c = make(chan int);
-var a string;
+var c = make(chan int)
+var a string
 
 func f() {
 	a = "hello, world";
@@ -211,7 +212,7 @@ func main() {
 </pre>
 
 <p>
-is also guaranteed to print "hello, world".  The write to <code>a</code>
+is also guaranteed to print <code>"hello, world"</code>.  The write to <code>a</code>
 happens before the receive on <code>c</code>, which happens before
 the corresponding send on <code>c</code> completes, which happens
 before the <code>print</code>.
@@ -237,12 +238,12 @@ the <i>n</i>'th call to <code>l.Unlock()</code> happens before the <i>m</i>'th c
 </p>
 
 <p>
-For example, this program:
+This program:
 </p>
 
 <pre>
-var l sync.Mutex;
-var a string;
+var l sync.Mutex
+var a string
 
 func f() {
 	a = "hello, world";
@@ -278,16 +279,16 @@ but only one will run <code>f()</code>, and the other calls block
 until <code>f()</code> has returned.
 </p>
 
-<p>
-A single call to <code>f()</code> happens before <code>once.Do(f)</code> returns.
+<p class="rule">
+A single call of <code>f()</code> from <code>once.Do(f)</code> happens (returns) before any call of <code>once.Do(f)</code> returns.
 </p>
 
 <p>
-For example, in this program:
+In this program:
 </p>
 
 <pre>
-var a string;
+var a string
 
 func setup() {
 	a = "hello, world";
@@ -319,11 +320,11 @@ will observe writes that happened before <span class="event">w</span>.
 </p>
 
 <p>
-For example, in this program:
+In this program:
 </p>
 
 <pre>
-var a, b int;
+var a, b int
 
 func f() {
 	a = 1;
@@ -346,18 +347,18 @@ it can happen that <code>g</code> prints <code>2</code> and then <code>0</code>.
 </p>
 
 <p>
-This fact invalidates a few obvious idioms.
+This fact invalidates a few common idioms.
 </p>
 
 <p>
 Double-checked locking is an attempt to avoid the overhead of synchronization.
-For example, the <code>twoprint</code> program above, might be
+For example, the <code>twoprint</code> program might be
 incorrectly written as:
 </p>
 
 <pre>
-var a string;
-var done bool;
+var a string
+var done bool
 
 func setup() {
 	a = "hello, world";
@@ -389,8 +390,8 @@ Another incorrect idiom is busy waiting for a value, as in:
 </p>
 
 <pre>
-var a string;
-var done bool;
+var a string
+var done bool
 
 func setup() {
 	a = "hello, world";
@@ -407,7 +408,7 @@ func main() {
 
 <p>
 As before, there is no guarantee that, in <code>main</code>,
-observing of the write to <code>done</code>
+observing the write to <code>done</code>
 implies observing the write to <code>a</code>, so this program could
 print an empty string too.
 Worse, there is no guarantee that the write to <code>done</code> will ever
@@ -417,7 +418,7 @@ guaranteed to finish.
 </p>
 
 <p>
-There are subtler variants on this theme.  For example, in this program:
+There are subtler variants on this theme, such as this program.
 </p>
 
 <pre>
@@ -425,7 +426,7 @@ type T struct {
 	msg string;
 }
 
-var g *T;
+var g *T
 
 func setup() {
 	t := new(T);
@@ -451,16 +452,3 @@ value for <code>g.msg</code>.
 In all these examples, the solution is the same:
 use explicit synchronization.
 </p>
-
-</div>
-
-<div id="footer">
-<p>Except as noted, this content is
-   licensed under <a href="http://creativecommons.org/licenses/by/3.0/">
-   Creative Commons Attribution 3.0</a>.
-</div>
-
-
-</body>
-</html>
-
