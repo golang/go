@@ -42,7 +42,7 @@ type I0 interface {
 // The I1 interface; some methods are not exported.
 type I1 interface {
 	I0;
-	F(x float) float;
+	F(x float) float;	// exported methods
 	// contains unexported methods
 }
 
@@ -50,6 +50,6 @@ type I1 interface {
 // The I2 interface; all methods are exported.
 type I2 interface {
 	I0;
-	F(x float) float;
-	G(x float) float;
+	F(x float) float;	// exported method
+	G(x float) float;	// exported method
 }
