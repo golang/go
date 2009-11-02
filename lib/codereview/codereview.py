@@ -145,8 +145,10 @@ class CL(object):
 
 	def Subject(self): 
 		s = line1(self.desc)
+		if len(s) > 60:
+			s = s[0:55] + "..."
 		if self.name != "new":
-			s = "codereview %s: %s" % (self.name, s)
+			s = "code review %s: %s" % (self.name, s)
 		return s
 
 	def Upload(self, ui, repo, send_mail=False):
