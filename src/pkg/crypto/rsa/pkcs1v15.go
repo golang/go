@@ -6,6 +6,7 @@ package rsa
 
 import (
 	"bytes";
+	"crypto/subtle";
 	big "gmp";
 	"io";
 	"os";
@@ -27,7 +28,7 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
 	// EM = 0x02 || PS || 0x00 || M
 	em := make([]byte, k-1);
 	em[0] = 2;
-	ps, mm := em[1:len(em)-len(msg)-1], em[len(em)-len(msg):len(em)];
+	ps, mm := em[1 : len(em)-len(msg)-1], em[len(em)-len(msg) : len(em)];
 	err = nonZeroRandomBytes(ps, rand);
 	if err != nil {
 		return;
@@ -77,8 +78,8 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
 		return;
 	}
 
-	valid &= constantTimeEq(int32(len(msg)), int32(len(key)));
-	constantTimeCopy(valid, key, msg);
+	valid &= subtle.ConstantTimeEq(int32(len(msg)), int32(len(key)));
+	subtle.ConstantTimeCopy(valid, key, msg);
 	return;
 }
 
@@ -96,8 +97,8 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
 	}
 
 	em := leftPad(m.Bytes(), k);
-	firstByteIsZero := constantTimeByteEq(em[0], 0);
-	secondByteIsTwo := constantTimeByteEq(em[1], 2);
+	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0);
+	secondByteIsTwo := subtle.ConstantTimeByteEq(em[1], 2);
 
 	// The remainder of the plaintext must be a string of non-zero random
 	// octets, followed by a 0, followed by the message.
@@ -107,9 +108,9 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
 	lookingForIndex = 1;
 
 	for i := 2; i < len(em); i++ {
-		equals0 := constantTimeByteEq(em[i], 0);
-		index = constantTimeSelect(lookingForIndex & equals0, i, index);
-		lookingForIndex = constantTimeSelect(equals0, 0, lookingForIndex);
+		equals0 := subtle.ConstantTimeByteEq(em[i], 0);
+		index = subtle.ConstantTimeSelect(lookingForIndex & equals0, i, index);
+		lookingForIndex = subtle.ConstantTimeSelect(equals0, 0, lookingForIndex);
 	}
 
 	valid = firstByteIsZero & secondByteIsTwo & (^lookingForIndex & 1);
@@ -126,7 +127,7 @@ func nonZeroRandomBytes(s []byte, rand io.Reader) (err os.Error) {
 
 	for i := 0; i < len(s); i++ {
 		for s[i] == 0 {
-			_, err = rand.Read(s[i:i+1]);
+			_, err = rand.Read(s[i : i+1]);
 			if err != nil {
 				return;
 			}

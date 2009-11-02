@@ -17,6 +17,7 @@ crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.inst
 crypto/md5.install: hash.install os.install
 crypto/rc4.install: os.install strconv.install
 crypto/sha1.install: hash.install os.install
+crypto/subtle.install:
 debug/dwarf.install: encoding/binary.install os.install strconv.install
 debug/macho.install: bytes.install debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
 debug/elf.install: debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
