@@ -151,7 +151,7 @@ type Template struct {
 	buf	[]byte;	// input text to process
 	p	int;	// position in buf
 	linenum	int;	// position in input
-	errors	chan os.Error;	// for error reporting during parsing (only)
+	error	os.Error;	// error during parsing (only)
 	// Parsed results:
 	elems	*vector.Vector;
 }
@@ -177,25 +177,20 @@ func New(fmap FormatterMap) *Template {
 	t.fmap = fmap;
 	t.ldelim = lbrace;
 	t.rdelim = rbrace;
-	t.errors = make(chan os.Error);
 	t.elems = vector.New(0);
 	return t;
 }
 
-// Generic error handler, called only from execError or parseError.
-func error(errors chan os.Error, line int, err string, args ...) {
-	errors <- &Error{line, fmt.Sprintf(err, args)};
+// Report error and stop executing.  The line number must be provided explicitly.
+func (t *Template) execError(st *state, line int, err string, args ...) {
+	st.errors <- &Error{line, fmt.Sprintf(err, args)};
 	runtime.Goexit();
 }
 
-// Report error and stop executing.  The line number must  be provided explicitly.
-func (t *Template) execError(st *state, line int, err string, args ...) {
-	error(st.errors, line, err, args);
-}
-
-// Report error and stop parsing.  The line number comes from the template state.
+// Report error, save in Template to terminate parsing.
+// The line number comes from the template state.
 func (t *Template) parseError(err string, args ...) {
-	error(t.errors, t.linenum, err, args)
+	t.error = &Error{t.linenum, fmt.Sprintf(err, args)};
 }
 
 // -- Lexical analysis
@@ -261,7 +256,8 @@ Loop:
 			i = j - 1;
 		case equal(t.buf, i, t.rdelim):
 			if !sawLeft {
-				t.parseError("unmatched closing delimiter")
+				t.parseError("unmatched closing delimiter");
+				return nil;
 			}
 			sawLeft = false;
 			i += len(t.rdelim);
@@ -271,7 +267,8 @@ Loop:
 		}
 	}
 	if sawLeft {
-		t.parseError("unmatched opening delimiter")
+		t.parseError("unmatched opening delimiter");
+		return nil;
 	}
 	item := t.buf[start:i];
 	if special && trim_white {
@@ -322,13 +319,15 @@ func (t *Template) analyze(item []byte) (tok int, w []string) {
 	// item is known to be non-empty
 	if !equal(item, 0, t.ldelim) {	// doesn't start with left delimiter
 		tok = tokText;
-		return
+		return;
 	}
 	if !equal(item, len(item)-len(t.rdelim), t.rdelim) {	// doesn't end with right delimiter
-		t.parseError("internal error: unmatched opening delimiter")	// lexing should prevent this
+		t.parseError("internal error: unmatched opening delimiter");	// lexing should prevent this
+		return;
 	}
 	if len(item) <= len(t.ldelim)+len(t.rdelim) {	// no contents
-		t.parseError("empty directive")
+		t.parseError("empty directive");
+		return;
 	}
 	// Comment
 	if item[len(t.ldelim)] == '#' {
@@ -338,7 +337,8 @@ func (t *Template) analyze(item []byte) (tok int, w []string) {
 	// Split into words
 	w = words(item[len(t.ldelim): len(item)-len(t.rdelim)]);	// drop final delimiter
 	if len(w) == 0 {
-		t.parseError("empty directive")
+		t.parseError("empty directive");
+		return;
 	}
 	if len(w) == 1 && w[0][0] != '.' {
 		tok = tokVariable;
@@ -356,19 +356,22 @@ func (t *Template) analyze(item []byte) (tok int, w []string) {
 		return;
 	case ".section":
 		if len(w) != 2 {
-			t.parseError("incorrect fields for .section: %s", item)
+			t.parseError("incorrect fields for .section: %s", item);
+			return;
 		}
 		tok = tokSection;
 		return;
 	case ".repeated":
 		if len(w) != 3 || w[1] != "section" {
-			t.parseError("incorrect fields for .repeated: %s", item)
+			t.parseError("incorrect fields for .repeated: %s", item);
+			return;
 		}
 		tok = tokRepeated;
 		return;
 	case ".alternates":
 		if len(w) != 2 || w[1] != "with" {
-			t.parseError("incorrect fields for .alternates: %s", item)
+			t.parseError("incorrect fields for .alternates: %s", item);
+			return;
 		}
 		tok = tokAlternates;
 		return;
@@ -413,6 +416,9 @@ func (t *Template) newVariable(name_formatter string) (v *variableElement) {
 // Otherwise return its details.
 func (t *Template) parseSimple(item []byte) (done bool, tok int, w []string) {
 	tok, w = t.analyze(item);
+	if t.error != nil {
+		return
+	}
 	done = true;	// assume for simplicity
 	switch tok {
 	case tokComment:
@@ -432,6 +438,7 @@ func (t *Template) parseSimple(item []byte) (done bool, tok int, w []string) {
 			t.elems.Push(&literalElement{tab});
 		default:
 			t.parseError("internal error: unknown literal: %s", w[0]);
+			return;
 		}
 		return;
 	case tokVariable:
@@ -454,12 +461,19 @@ func (t *Template) parseRepeated(words []string) *repeatedElement {
 	r.altstart = -1;
 	r.altend = -1;
 Loop:
-	for {
+	for t.error == nil {
 		item := t.nextItem();
+		if t.error != nil {
+			break;
+		}
 		if len(item) ==  0 {
-			t.parseError("missing .end for .repeated section")
+			t.parseError("missing .end for .repeated section");
+			break;
 		}
 		done, tok, w := t.parseSimple(item);
+		if t.error != nil {
+			break;
+		}
 		if done {
 			continue
 		}
@@ -469,6 +483,7 @@ Loop:
 		case tokOr:
 			if r.or >= 0 {
 				t.parseError("extra .or in .repeated section");
+				break Loop;
 			}
 			r.altend = t.elems.Len();
 			r.or = t.elems.Len();
@@ -479,14 +494,20 @@ Loop:
 		case tokAlternates:
 			if r.altstart >= 0 {
 				t.parseError("extra .alternates in .repeated section");
+				break Loop;
 			}
 			if r.or >= 0 {
 				t.parseError(".alternates inside .or block in .repeated section");
+				break Loop;
 			}
 			r.altstart = t.elems.Len();
 		default:
 			t.parseError("internal error: unknown repeated section item: %s", item);
+			break Loop;
 		}
+	}
+	if t.error != nil {
+		return nil
 	}
 	if r.altend < 0 {
 		r.altend = t.elems.Len()
@@ -504,12 +525,19 @@ func (t *Template) parseSection(words []string) *sectionElement {
 	s.start = t.elems.Len();
 	s.or = -1;
 Loop:
-	for {
+	for t.error == nil {
 		item := t.nextItem();
+		if t.error != nil {
+			break;
+		}
 		if len(item) ==  0 {
-			t.parseError("missing .end for .section")
+			t.parseError("missing .end for .section");
+			break;
 		}
 		done, tok, w := t.parseSimple(item);
+		if t.error != nil {
+			break;
+		}
 		if done {
 			continue
 		}
@@ -519,6 +547,7 @@ Loop:
 		case tokOr:
 			if s.or >= 0 {
 				t.parseError("extra .or in .section");
+				break Loop;
 			}
 			s.or = t.elems.Len();
 		case tokSection:
@@ -531,13 +560,19 @@ Loop:
 			t.parseError("internal error: unknown section item: %s", item);
 		}
 	}
+	if t.error != nil {
+		return nil
+	}
 	s.end = t.elems.Len();
 	return s;
 }
 
 func (t *Template) parse() {
-	for {
+	for t.error == nil {
 		item := t.nextItem();
+		if t.error != nil {
+			break
+		}
 		if len(item) == 0 {
 			break
 		}
@@ -816,11 +851,8 @@ func (t *Template) Parse(s string) os.Error {
 	t.buf = strings.Bytes(s);
 	t.p = 0;
 	t.linenum = 0;
-	go func() {
-		t.parse();
-		t.errors <- nil;	// clean return;
-	}();
-	return <-t.errors;
+	t.parse();
+	return t.error;
 }
 
 // Execute applies a parsed template to the specified data object,
@@ -855,5 +887,17 @@ func (t *Template) SetDelims(left, right string) {
 func Parse(s string, fmap FormatterMap) (t *Template, err os.Error) {
 	t = New(fmap);
 	err = t.Parse(s);
+	if err != nil {
+		t = nil
+	}
 	return
+}
+
+// MustParse is like Parse but panics if the template cannot be parsed.
+func MustParse(s string, fmap FormatterMap) *Template {
+	t , err := Parse(s, fmap);
+	if err != nil {
+		panic("template parse error: ", err);
+	}
+	return t
 }
