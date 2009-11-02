@@ -85,9 +85,6 @@ var (
 	pkgroot		= flag.String("pkgroot", "src/pkg", "root package source directory (if unrooted, relative to goroot)");
 	tmplroot	= flag.String("tmplroot", "lib/godoc", "root template directory (if unrooted, relative to goroot)");
 
-	// periodic sync
-	syncTime	RWValue;	// time of last sync
-
 	// layout control
 	tabwidth	= flag.Int("tabwidth", 4, "tab width");
 )
@@ -99,7 +96,6 @@ func init() {
 		goroot = "/home/r/go-release/go";
 	}
 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory");
-	syncTime.set(nil);	// have a reasonable initial value (time is shown on web page)
 }
 
 
@@ -128,6 +124,58 @@ func htmlEscape(s string) string {
 	var buf bytes.Buffer;
 	template.HtmlEscape(&buf, strings.Bytes(s));
 	return buf.String();
+}
+
+
+// ----------------------------------------------------------------------------
+// Directory trees
+
+type Directory struct {
+	Path string;  // including Name
+	Name string;
+	Subdirs []*Directory
+}
+
+
+func newDirTree0(path, name string) *Directory {
+	list, _ := io.ReadDir(path);  // ignore errors
+	// determine number of subdirectories n
+	n := 0;
+	for _, d := range list {
+		if isPkgDir(d) {
+			n++;
+		}
+	}
+	// create Directory node
+	var subdirs []*Directory;
+	if n > 0 {
+		subdirs = make([]*Directory, n);
+		i := 0;
+		for _, d := range list {
+			if isPkgDir(d) {
+				subdirs[i] = newDirTree0(pathutil.Join(path, d.Name), d.Name);
+				i++;
+			}
+		}
+	}
+	if strings.HasPrefix(path, "src/") {
+		path = path[len("src/") : len(path)];
+	}
+	return &Directory{path, name, subdirs};
+}
+
+
+func newDirTree(root string) *Directory {
+	d, err := os.Lstat(root);
+	if err != nil {
+		log.Stderrf("%v", err);
+		return nil;
+	}
+	if !isPkgDir(d) {
+		log.Stderrf("not a package directory: %s", d.Name);
+		return nil;
+	}
+	return newDirTree0(root, d.Name);
 }
 
 
@@ -310,6 +358,15 @@ func textFmt(w io.Writer, x interface{}, format string) {
 }
 
 
+// Template formatter for "dir" format.
+func dirFmt(w io.Writer, x interface{}, format string) {
+	_ = x.(*Directory);  // die quickly if x has the wrong type
+	if err := dirsHtml.Execute(x, w); err != nil {
+		log.Stderrf("dirsHtml.Execute: %s", err);
+	}
+}
+
+
 // Template formatter for "link" format.
 func linkFmt(w io.Writer, x interface{}, format string) {
 	type Positioner interface {
@@ -375,6 +432,7 @@ var fmap = template.FormatterMap{
 	"": textFmt,
 	"html": htmlFmt,
 	"html-comment": htmlCommentFmt,
+	"dir": dirFmt,
 	"link": linkFmt,
 	"infoClass": infoClassFmt,
 	"infoLine": infoLineFmt,
@@ -397,6 +455,7 @@ func readTemplate(name string) *template.Template {
 
 
 var (
+	dirsHtml,
 	godocHtml,
 	packageHtml,
 	packageText,
@@ -408,6 +467,7 @@ var (
 func readTemplates() {
 	// have to delay until after flags processing,
 	// so that main has chdir'ed to goroot.
+	dirsHtml = readTemplate("dirs.html");
 	godocHtml = readTemplate("godoc.html");
 	packageHtml = readTemplate("package.html");
 	packageText = readTemplate("package.txt");
@@ -420,6 +480,8 @@ func readTemplates() {
 // ----------------------------------------------------------------------------
 // Generic HTML wrapper
 
+var pkgTree RWValue;  // *Directory tree of packages, updated with each sync
+
 func servePage(c *http.Conn, title, query string, content []byte) {
 	type Data struct {
 		Title		string;
@@ -428,7 +490,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
 		Content		[]byte;
 	}
 
-	_, ts := syncTime.get();
+	_, ts := pkgTree.get();
 	d := Data{
 		Title: title,
 		Timestamp: time.SecondsToLocalTime(ts).String(),
@@ -673,6 +735,21 @@ func servePkg(c *http.Conn, r *http.Request) {
 
 
 // ----------------------------------------------------------------------------
+// Directory tree
+
+// TODO(gri): Temporary - integrate with package serving.
+
+func serveTree(c *http.Conn, r *http.Request) {
+	dir, _ := pkgTree.get();
+
+	var buf bytes.Buffer;
+	dirFmt(&buf, dir, "");
+
+	servePage(c, "Package tree", "", buf.Bytes());
+}
+
+
+// ----------------------------------------------------------------------------
 // Search
 
 var searchIndex RWValue
@@ -692,7 +769,7 @@ func search(c *http.Conn, r *http.Request) {
 	if index, timestamp := searchIndex.get(); index != nil {
 		result.Query = query;
 		result.Hit, result.Alt = index.(*Index).Lookup(query);
-		_, ts := syncTime.get();
+		_, ts := pkgTree.get();
 		result.Accurate = timestamp >= ts;
 		result.Legend = &infoClasses;
 	}
@@ -718,6 +795,7 @@ func search(c *http.Conn, r *http.Request) {
 
 func registerPublicHandlers(mux *http.ServeMux) {
 	mux.Handle(Pkg, http.HandlerFunc(servePkg));
+	mux.Handle("/tree", http.HandlerFunc(serveTree));  // TODO(gri): integrate with package serving
 	mux.Handle("/search", http.HandlerFunc(search));
 	mux.Handle("/", http.HandlerFunc(serveFile));
 }
@@ -726,7 +804,7 @@ func registerPublicHandlers(mux *http.ServeMux) {
 // Indexing goroutine.
 func indexer() {
 	for {
-		_, ts := syncTime.get();
+		_, ts := pkgTree.get();
 		if _, timestamp := searchIndex.get(); timestamp < ts {
 			// index possibly out of date - make a new one
 			// (could use a channel to send an explicit signal
