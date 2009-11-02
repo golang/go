@@ -8,11 +8,12 @@ package rsa
 // TODO(agl): Add support for PSS padding.
 
 import (
-		"bytes";
-	big	"gmp";
-		"hash";
-		"io";
-		"os";
+	"bytes";
+	"crypto/subtle";
+	big "gmp";
+	"hash";
+	"io";
+	"os";
 )
 
 var bigOne = big.NewInt(1)
@@ -92,7 +93,7 @@ type PublicKey struct {
 
 // A PrivateKey represents an RSA key
 type PrivateKey struct {
-	PublicKey;	// public part.
+	PublicKey;			// public part.
 	D		*big.Int;	// private exponent
 	P, Q		*big.Int;	// prime factors of N
 }
@@ -300,58 +301,6 @@ func modInverse(a, n *big.Int) (ia *big.Int) {
 	return x;
 }
 
-// constantTimeCompare returns 1 iff the two equal length slices, x
-// and y, have equal contents. The time taken is a function of the length of
-// the slices and is independent of the contents.
-func constantTimeCompare(x, y []byte) int {
-	var v byte;
-
-	for i := 0; i < len(x); i++ {
-		v |= x[i]^y[i];
-	}
-
-	return constantTimeByteEq(v, 0);
-}
-
-// constantTimeSelect returns a if v is 1 and b if v is 0.
-// Its behaviour is undefined if v takes any other value.
-func constantTimeSelect(v, a, b int) int {
-	return ^(v-1)&a | (v-1)&b;
-}
-
-// constantTimeByteEq returns 1 if a == b and 0 otherwise.
-func constantTimeByteEq(a, b uint8) int {
-	x := ^(a^b);
-	x &= x>>4;
-	x &= x>>2;
-	x &= x>>1;
-
-	return int(x);
-}
-
-// constantTimeEq returns 1 if a == b and 0 otherwise.
-func constantTimeEq(a, b int32) int {
-	x := ^(a^b);
-	x &= x>>16;
-	x &= x>>8;
-	x &= x>>4;
-	x &= x>>2;
-	x &= x>>1;
-
-	return int(x&1);
-}
-
-// constantTimeCopy copies the contents of y into x iff v == 1. If v == 0, x is left unchanged.
-// Its behaviour is undefined if v takes any other value.
-func constantTimeCopy(v int, x, y []byte) {
-	xmask := byte(v - 1);
-	ymask := byte(^(v - 1));
-	for i := 0; i < len(x); i++ {
-		x[i] = x[i] & xmask | y[i] & ymask;
-	}
-	return;
-}
-
 // decrypt performs an RSA decryption, resulting in a plaintext integer. If a
 // random source is given, RSA blinding is used.
 func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.Error) {
@@ -419,7 +368,7 @@ func DecryptOAEP(hash hash.Hash, rand io.Reader, priv *PrivateKey, ciphertext []
 	// anything about this.)
 	em := leftPad(m.Bytes(), k);
 
-	firstByteIsZero := constantTimeByteEq(em[0], 0);
+	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0);
 
 	seed := em[1 : hash.Size() + 1];
 	db := em[hash.Size() + 1 : len(em)];
@@ -433,7 +382,7 @@ func DecryptOAEP(hash hash.Hash, rand io.Reader, priv *PrivateKey, ciphertext []
 	// attacks like: J. Manger. A Chosen Ciphertext Attack on RSA Optimal
 	// Asymmetric Encryption Padding (OAEP) as Standardized in PKCS #1
 	// v2.0. In J. Kilian, editor, Advances in Cryptology.
-	lHash2Good := constantTimeCompare(lHash, lHash2);
+	lHash2Good := subtle.ConstantTimeCompare(lHash, lHash2);
 
 	// The remainder of the plaintext must be zero or more 0x00, followed
 	// by 0x01, followed by the message.
@@ -445,11 +394,11 @@ func DecryptOAEP(hash hash.Hash, rand io.Reader, priv *PrivateKey, ciphertext []
 	rest := db[hash.Size() : len(db)];
 
 	for i := 0; i < len(rest); i++ {
-		equals0 := constantTimeByteEq(rest[i], 0);
-		equals1 := constantTimeByteEq(rest[i], 1);
-		index = constantTimeSelect(lookingForIndex & equals1, i, index);
-		lookingForIndex = constantTimeSelect(equals1, 0, lookingForIndex);
-		invalid = constantTimeSelect(lookingForIndex & ^equals0, 1, invalid);
+		equals0 := subtle.ConstantTimeByteEq(rest[i], 0);
+		equals1 := subtle.ConstantTimeByteEq(rest[i], 1);
+		index = subtle.ConstantTimeSelect(lookingForIndex & equals1, i, index);
+		lookingForIndex = subtle.ConstantTimeSelect(equals1, 0, lookingForIndex);
+		invalid = subtle.ConstantTimeSelect(lookingForIndex & ^equals0, 1, invalid);
 	}
 
 	if firstByteIsZero & lHash2Good & ^invalid & ^lookingForIndex != 1 {
