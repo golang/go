@@ -43,15 +43,6 @@ import (
 	"strings";
 )
 
-func compile(s string) *regexp.Regexp {
-	r, err := regexp.Compile(s);
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "can't compile pattern %q: %s\n", s, err);
-		os.Exit(2);
-	}
-	return r;
-}
-
 var variants = []string {
 	"agggtaaa|tttaccct",
 	"[cgt]gggtaaa|tttaccc[acg]",
@@ -83,7 +74,7 @@ var substs = [] Subst {
 }
 
 func countMatches(pat string, bytes []byte) int {
-	re := compile(pat);
+	re := regexp.MustCompile(pat);
 	n := 0;
 	for {
 		e := re.Execute(bytes);
@@ -104,13 +95,13 @@ func main() {
 	}
 	ilen := len(bytes);
 	// Delete the comment lines and newlines
-	bytes = compile("(>[^\n]+)?\n").ReplaceAll(bytes, []byte{});
+	bytes = regexp.MustCompile("(>[^\n]+)?\n").ReplaceAll(bytes, []byte{});
 	clen := len(bytes);
 	for _, s := range variants {
 		fmt.Printf("%s %d\n", s, countMatches(s, bytes));
 	}
 	for _, sub := range substs {
-		bytes = compile(sub.pat).ReplaceAll(bytes, strings.Bytes(sub.repl));
+		bytes = regexp.MustCompile(sub.pat).ReplaceAll(bytes, strings.Bytes(sub.repl));
 	}
 	fmt.Printf("\n%d\n%d\n%d\n", ilen, clen, len(bytes));
 }

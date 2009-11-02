@@ -36,22 +36,22 @@ var url = flag.String("url",
 	"URL of Unicode database directory")
 var tablelist = flag.String("tables",
 	"all",
-	"comma-separated list of which tables to generate; can be letter");
+	"comma-separated list of which tables to generate; can be letter")
 var scriptlist = flag.String("scripts",
 	"all",
-	"comma-separated list of which script tables to generate");
+	"comma-separated list of which script tables to generate")
 var proplist = flag.String("props",
 	"all",
-	"comma-separated list of which property tables to generate");
+	"comma-separated list of which property tables to generate")
 var cases = flag.Bool("cases",
 	true,
-	"generate case tables");
+	"generate case tables")
 var test = flag.Bool("test",
 	false,
-	"test existing tables; can be used to compare web data with package data");
-var scriptRe *regexp.Regexp
+	"test existing tables; can be used to compare web data with package data")
 
-var die = log.New(os.Stderr, nil, "", log.Lexit|log.Lshortfile);
+var scriptRe = regexp.MustCompile(`([0-9A-F]+)(\.\.[0-9A-F]+)? *; ([A-Za-z_]+)`)
+var die = log.New(os.Stderr, nil, "", log.Lexit|log.Lshortfile)
 
 var category = map[string] bool{ "letter":true }	// Nd Lu etc. letter is a special case
 
@@ -125,8 +125,6 @@ var props = make(map[string] []Script)	// a property looks like a script; can sh
 
 var lastChar uint32 = 0
 
-const scriptParseExpression = `([0-9A-F]+)(\.\.[0-9A-F]+)? *; ([A-Za-z_]+)`
-
 // In UnicodeData.txt, some ranges are marked like this:
 //	3400;<CJK Ideograph Extension A, First>;Lo;0;L;;;;;N;;;;;
 //	4DB5;<CJK Ideograph Extension A, Last>;Lo;0;L;;;;;N;;;;;
@@ -166,7 +164,7 @@ func parseCategory(line string) (state State) {
 	switch char.category {
 	case "Nd":
 		// Decimal digit
-		v, err := strconv.Atoi(field[FNumericValue]);
+		_, err := strconv.Atoi(field[FNumericValue]);
 		if err != nil {
 			die.Log("U+%04x: bad numeric field: %s", point, err);
 		}
@@ -460,7 +458,7 @@ func fullCategoryTest(list []string) {
 }
 
 func verifyRange(name string, inCategory Op, table []unicode.Range) {
-	for i, c := range chars {
+	for i := range chars {
 		web := inCategory(i);
 		pkg := unicode.Is(table, i);
 		if web != pkg {
@@ -499,7 +497,7 @@ func parseScript(line string, scripts map[string] []Script) {
 	}
 	name := matches[3];
 	s, ok := scripts[name];
-	if len(s) == cap(s) {
+	if !ok || len(s) == cap(s) {
 		ns := make([]Script, len(s), len(s)+100);
 		for i, sc := range s {
 			ns[i] = sc
@@ -532,7 +530,7 @@ func fullScriptTest(list []string, installed map[string] []unicode.Range, script
 		if _, ok := scripts[name]; !ok {
 			die.Log("unknown script", name);
 		}
-		r, ok := installed[name];
+		_, ok := installed[name];
 		if !ok {
 			die.Log("unknown table", name);
 		}
@@ -564,10 +562,6 @@ func printScriptOrProperty(doProps bool) {
 		return
 	}
 	var err os.Error;
-	scriptRe, err = regexp.Compile(scriptParseExpression);
-	if err != nil {
-		die.Log("re error:", err)
-	}
 	resp, _, err := http.Get(*url + file);
 	if err != nil {
 		die.Log(err);
@@ -801,7 +795,7 @@ func printCases() {
 
 	var startState *caseState;	// the start of a run; nil for not active
 	var prevState = &caseState{};	// the state of the previous character
-	for i, c := range chars {
+	for i := range chars {
 		state := getCaseState(i);
 		if state.adjacent(prevState) {
 			prevState = state;
