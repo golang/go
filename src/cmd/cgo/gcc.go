@@ -78,9 +78,9 @@ func (p *Prog) loadDebugInfo() {
 		switch {
 		default:
 			continue;
-		case strings.Index(line, "warning: useless type name in empty declaration") >= 0:
+		case strings.Index(line, ": useless type name in empty declaration") >= 0:
 			what = "type";
-		case strings.Index(line, "warning: statement with no effect") >= 0:
+		case strings.Index(line, ": statement with no effect") >= 0:
 			what = "value";
 		case strings.Index(line, "undeclared") >= 0:
 			what = "error";
@@ -114,7 +114,7 @@ func (p *Prog) loadDebugInfo() {
 		fatal("gcc failed:\n%s\non input:\n%s", stderr, b.Bytes());
 	}
 
-	// Scan DWARF info for  top-level TagVariable entries with AttrName __cgo__i.
+	// Scan DWARF info for top-level TagVariable entries with AttrName __cgo__i.
 	types := make([]dwarf.Type, len(names));
 	r := d.Reader();
 	for {
@@ -198,10 +198,10 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
 		machine,
 		"-Wall",	// many warnings
 		"-Werror",	// warnings are errors
-		"-o"+tmp, 	// write object to tmp
-		"-gdwarf-2", 	// generate DWARF v2 debugging symbols
+		"-o"+tmp,	// write object to tmp
+		"-gdwarf-2",	// generate DWARF v2 debugging symbols
 		"-c",	// do not link
-		"-xc", 	// input language is C
+		"-xc",	// input language is C
 		"-",	// read input from standard input
 	};
 	_, stderr, ok := run(stdin, concat(base, p.GccOptions));

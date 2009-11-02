@@ -6,6 +6,7 @@
 package elf
 
 import (
+	"bytes";
 	"debug/dwarf";
 	"encoding/binary";
 	"fmt";
@@ -109,6 +110,13 @@ func (p *Prog) Open() io.ReadSeeker {
 	return io.NewSectionReader(p.sr, 0, 1<<63 - 1);
 }
 
+// A Symbol represents an entry in an ELF symbol table section.
+type Symbol struct {
+	Name		uint32;
+	Info, Other	byte;
+	Section		uint32;
+	Value, Size	uint64;
+}
 
 /*
  * ELF reader
@@ -305,6 +313,60 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	return f, nil;
 }
 
+func (f *File) getSymbols() ([]Symbol, os.Error) {
+	switch f.Class {
+	case ELFCLASS64:
+		return f.getSymbols64();
+	}
+
+	return nil, os.ErrorString("not implemented");
+}
+
+// GetSymbols returns a slice of Symbols from parsing the symbol table.
+func (f *File) getSymbols64() ([]Symbol, os.Error) {
+	var symtabSection *Section;
+	for _, section := range f.Sections {
+		if section.Type == SHT_SYMTAB {
+			symtabSection = section;
+			break;
+		}
+	}
+
+	if symtabSection == nil {
+		return nil, os.ErrorString("no symbol section");
+	}
+
+	data, err := symtabSection.Data();
+	if err != nil {
+		return nil, os.ErrorString("cannot load symbol section");
+	}
+	symtab := bytes.NewBuffer(data);
+	if symtab.Len() % Sym64Size != 0 {
+		return nil, os.ErrorString("length of symbol section is not a multiple of Sym64Size");
+	}
+
+	// The first entry is all zeros.
+	var skip [Sym64Size]byte;
+	symtab.Read(skip[0:len(skip)]);
+
+	symbols := make([]Symbol, symtab.Len() / Sym64Size);
+
+	i := 0;
+	var sym Sym64;
+	for symtab.Len() > 0 {
+		binary.Read(symtab, f.ByteOrder, &sym);
+		symbols[i].Name = sym.Name;
+		symbols[i].Info = sym.Info;
+		symbols[i].Other = sym.Other;
+		symbols[i].Section = uint32(sym.Shndx);
+		symbols[i].Value = sym.Value;
+		symbols[i].Size = sym.Size;
+		i++;
+	}
+
+	return symbols, nil;
+}
+
 // getString extracts a string from an ELF string table.
 func getString(section []byte, start int) (string, bool) {
 	if start < 0 || start >= len(section) {
@@ -330,6 +392,60 @@ func (f *File) Section(name string) *Section {
 	return nil;
 }
 
+// applyRelocations applies relocations to dst. rels is a relocations section
+// in RELA format.
+func (f *File) applyRelocations(dst []byte, rels []byte) os.Error {
+	if f.Class == ELFCLASS64 && f.Machine == EM_X86_64 {
+		return f.applyRelocationsAMD64(dst, rels);
+	}
+
+	return os.ErrorString("not implemented");
+}
+
+func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) os.Error {
+	if len(rels) % Sym64Size != 0 {
+		return os.ErrorString("length of relocation section is not a multiple of Sym64Size");
+	}
+
+	symbols, err := f.getSymbols();
+	if err != nil {
+		return err;
+	}
+
+	b := bytes.NewBuffer(rels);
+	var rela Rela64;
+
+	for b.Len() > 0 {
+		binary.Read(b, f.ByteOrder, &rela);
+		symNo := rela.Info >> 32;
+		t := R_X86_64(rela.Info & 0xffff);
+
+		if symNo >= uint64(len(symbols)) {
+			continue;
+		}
+		sym := &symbols[symNo];
+		if SymType(sym.Info & 0xf) != STT_SECTION {
+			// We don't handle non-section relocations for now.
+			continue;
+		}
+
+		switch t {
+		case R_X86_64_64:
+			if rela.Off + 8 >= uint64(len(dst)) || rela.Addend < 0 {
+				continue;
+			}
+			f.ByteOrder.PutUint64(dst[rela.Off : rela.Off + 8], uint64(rela.Addend));
+		case R_X86_64_32:
+			if rela.Off + 4 >= uint64(len(dst)) || rela.Addend < 0 {
+				continue;
+			}
+			f.ByteOrder.PutUint32(dst[rela.Off : rela.Off + 4], uint32(rela.Addend));
+		}
+	}
+
+	return nil;
+}
+
 func (f *File) DWARF() (*dwarf.Data, os.Error) {
 	// There are many other DWARF sections, but these
 	// are the required ones, and the debug/dwarf package
@@ -347,6 +463,20 @@ func (f *File) DWARF() (*dwarf.Data, os.Error) {
 			return nil, err;
 		}
 		dat[i] = b;
+	}
+
+	// If there's a relocation table for .debug_info, we have to process it
+	// now otherwise the data in .debug_info is invalid for x86-64 objects.
+	rela := f.Section(".rela.debug_info");
+	if rela != nil && rela.Type == SHT_RELA && f.Machine == EM_X86_64 {
+		data, err := rela.Data();
+		if err != nil {
+			return nil, err;
+		}
+		err = f.applyRelocations(dat[1], data);
+		if err != nil {
+			return nil, err;
+		}
 	}
 
 	abbrev, info, str := dat[0], dat[1], dat[2];

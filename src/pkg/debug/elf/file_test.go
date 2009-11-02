@@ -5,6 +5,7 @@
 package elf
 
 import (
+	"debug/dwarf";
 	"encoding/binary";
 	"reflect";
 	"testing";
@@ -124,6 +125,56 @@ func TestOpen(t *testing.T) {
 		fn := len(f.Sections);
 		if tn != fn {
 			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn);
+		}
+	}
+}
+
+type relocationTest struct {
+	file		string;
+	firstEntry	*dwarf.Entry;
+}
+
+var relocationTests = []relocationTest{
+	relocationTest{
+		"testdata/go-relocation-test-gcc441-x86-64.o",
+		&dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{dwarf.Field{Attr: dwarf.AttrProducer, Val: "GNU C 4.4.1"}, dwarf.Field{Attr: dwarf.AttrLanguage, Val: int64(1)}, dwarf.Field{Attr: dwarf.AttrName, Val: "go-relocation-test.c"}, dwarf.Field{Attr: dwarf.AttrCompDir, Val: "/tmp"}, dwarf.Field{Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, dwarf.Field{Attr: dwarf.AttrHighpc, Val: uint64(0x6)}, dwarf.Field{Attr: dwarf.AttrStmtList, Val: int64(0)}}},
+	},
+	relocationTest{
+		"testdata/go-relocation-test-gcc441-x86.o",
+		&dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{dwarf.Field{Attr: dwarf.AttrProducer, Val: "GNU C 4.4.1"}, dwarf.Field{Attr: dwarf.AttrLanguage, Val: int64(1)}, dwarf.Field{Attr: dwarf.AttrName, Val: "t.c"}, dwarf.Field{Attr: dwarf.AttrCompDir, Val: "/tmp"}, dwarf.Field{Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, dwarf.Field{Attr: dwarf.AttrHighpc, Val: uint64(0x5)}, dwarf.Field{Attr: dwarf.AttrStmtList, Val: int64(0)}}},
+	},
+	relocationTest{
+		"testdata/go-relocation-test-gcc424-x86-64.o",
+		&dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{dwarf.Field{Attr: dwarf.AttrProducer, Val: "GNU C 4.2.4 (Ubuntu 4.2.4-1ubuntu4)"}, dwarf.Field{Attr: dwarf.AttrLanguage, Val: int64(1)}, dwarf.Field{Attr: dwarf.AttrName, Val: "go-relocation-test-gcc424.c"}, dwarf.Field{Attr: dwarf.AttrCompDir, Val: "/tmp"}, dwarf.Field{Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, dwarf.Field{Attr: dwarf.AttrHighpc, Val: uint64(0x6)}, dwarf.Field{Attr: dwarf.AttrStmtList, Val: int64(0)}}},
+	},
+}
+
+func TestDWARFRelocations(t *testing.T) {
+	for i, test := range relocationTests {
+		f, err := Open(test.file);
+		if err != nil {
+			t.Error(err);
+			continue;
+		}
+		dwarf, err := f.DWARF();
+		if err != nil {
+			t.Error(err);
+			continue;
+		}
+		reader := dwarf.Reader();
+		// Checking only the first entry is sufficient since it has
+		// many different strings. If the relocation had failed, all
+		// the string offsets would be zero and all the strings would
+		// end up being the same.
+		firstEntry, err := reader.Next();
+		if err != nil {
+			t.Error(err);
+			continue;
+		}
+
+		if !reflect.DeepEqual(test.firstEntry, firstEntry) {
+			t.Errorf("#%d: mismatch: got:%#v want:%#v", i, firstEntry, test.firstEntry);
+			continue;
 		}
 	}
 }
