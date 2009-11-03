@@ -300,6 +300,10 @@ type Styler struct {
 }
 
 
+// Use the defaultStyler when there is no specific styler.
+var defaultStyler Styler
+
+
 func (s *Styler) LineTag(line int) (text []byte, tag printer.HtmlTag) {
 	tag = printer.HtmlTag{fmt.Sprintf(`<a id="L%d">`, line), "</a>"};
 	return;
@@ -367,9 +371,9 @@ func writeAny(w io.Writer, x interface{}, html bool) {
 	case string:
 		writeText(w, strings.Bytes(v), html);
 	case ast.Decl:
-		writeNode(w, v, html, nil);
+		writeNode(w, v, html, &defaultStyler);
 	case ast.Expr:
-		writeNode(w, v, html, nil);
+		writeNode(w, v, html, &defaultStyler);
 	default:
 		if html {
 			var buf bytes.Buffer;
