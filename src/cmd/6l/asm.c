@@ -255,6 +255,8 @@ enum {
 	ElfStrGosymtab,
 	ElfStrGopclntab,
 	ElfStrShstrtab,
+	ElfStrSymtab,
+	ElfStrStrtab,
 	NElfStr
 };
 
@@ -294,6 +296,10 @@ doelf(void)
 	if(!debug['s']) {
 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
+		if(debug['e']) {
+			elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
+			elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
+		}
 	}
 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
 
@@ -426,7 +432,7 @@ asmb(void)
 	int32 v, magic;
 	int a, dynsym;
 	uchar *op1;
-	vlong vl, va, startva, fo, w, symo, machlink;
+	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink;
 	vlong symdatva = 0x99LL<<32;
 	ElfEhdr *eh;
 	ElfPhdr *ph, *pph;
@@ -436,6 +442,10 @@ asmb(void)
 		Bprint(&bso, "%5.2f asmb\n", cputime());
 	Bflush(&bso);
 
+	elftextsh = 0;
+	elfsymsize = 0;
+	elfstro = 0;
+	elfsymo = 0;
 	seek(cout, HEADR, 0);
 	pc = INITTEXT;
 	curp = firstp;
@@ -498,6 +508,12 @@ asmb(void)
 		debug['8'] = 1;	/* 64-bit addresses */
 		v = rnd(HEADR+textsize, INITRND);
 		seek(cout, v, 0);
+		
+		/* index of elf text section; needed by asmelfsym, double-checked below */
+		/* debug['d'] causes 8 extra sections before the .text section */
+		elftextsh = 1;
+		if(!debug['d'])
+			elftextsh += 8;
 		break;
 	}
 
@@ -546,6 +562,13 @@ asmb(void)
 			symo = rnd(symo, INITRND);
 			break;
 		}
+		/*
+		 * the symbol information is stored as
+		 *	32-bit symbol table size
+		 *	32-bit line number table size
+		 *	symbol table
+		 *	line number table
+		 */
 		seek(cout, symo+8, 0);
 		if(!debug['s'])
 			asmsym();
@@ -564,6 +587,15 @@ asmb(void)
 		lputl(symsize);
 		lputl(lcsize);
 		cflush();
+		if(!debug['s'] && debug['e']) {
+			elfsymo = symo+8+symsize+lcsize;
+			seek(cout, elfsymo, 0);
+			asmelfsym();
+			cflush();
+			elfstro = seek(cout, 0, 1);
+			elfsymsize = elfstro - elfsymo;
+			write(cout, elfstrdat, elfstrsize);
+		}		
 	} else
 	if(dlm){
 		seek(cout, HEADR+textsize+datsize, 0);
@@ -752,6 +784,8 @@ asmb(void)
 		va = startva + fo;
 		w = textsize;
 
+		if(elftextsh != eh->shnum)
+			diag("elftextsh = %d, want %d", elftextsh, eh->shnum);
 		sh = newElfShdr(elfstr[ElfStrText]);
 		sh->type = SHT_PROGBITS;
 		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
@@ -802,6 +836,22 @@ asmb(void)
 			sh->off = fo;
 			sh->size = w;
 			sh->addralign = 1;
+			
+			if(debug['e']) {
+				sh = newElfShdr(elfstr[ElfStrSymtab]);
+				sh->type = SHT_SYMTAB;
+				sh->off = elfsymo;
+				sh->size = elfsymsize;
+				sh->addralign = 8;
+				sh->entsize = 24;
+				sh->link = eh->shnum;	// link to strtab
+			
+				sh = newElfShdr(elfstr[ElfStrStrtab]);
+				sh->type = SHT_STRTAB;
+				sh->off = elfstro;
+				sh->size = elfstrsize;
+				sh->addralign = 1;
+			}
 		}
 
 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);

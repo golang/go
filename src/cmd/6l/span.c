@@ -30,6 +30,7 @@
 
 #include	"l.h"
 #include	"../ld/lib.h"
+#include	"../ld/elf.h"
 
 static int	rexflag;
 static int	asmode;
@@ -151,7 +152,7 @@ xdefine(char *p, int t, vlong v)
 }
 
 void
-putsymb(char *s, int t, vlong v, int ver, Sym *go)
+putsymb(char *s, int t, vlong v, vlong size, int ver, Sym *go)
 {
 	int i, f, l;
 	vlong gv;
@@ -212,7 +213,7 @@ putsymb(char *s, int t, vlong v, int ver, Sym *go)
 }
 
 void
-asmsym(void)
+genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
 {
 	Prog *p;
 	Auto *a;
@@ -221,7 +222,7 @@ asmsym(void)
 
 	s = lookup("etext", 0);
 	if(s->type == STEXT)
-		putsymb(s->name, 'T', s->value, s->version, 0);
+		put(s->name, 'T', s->value, s->size, s->version, 0);
 
 	for(h=0; h<NHASH; h++) {
 		for(s=hash[h]; s!=S; s=s->link) {
@@ -229,29 +230,29 @@ asmsym(void)
 			case SCONST:
 				if(!s->reachable)
 					continue;
-				putsymb(s->name, 'D', s->value, s->version, s->gotype);
+				put(s->name, 'D', s->value, s->size, s->version, s->gotype);
 				continue;
 
 			case SDATA:
 				if(!s->reachable)
 					continue;
-				putsymb(s->name, 'D', s->value+INITDAT, s->version, s->gotype);
+				put(s->name, 'D', s->value+INITDAT, s->size, s->version, s->gotype);
 				continue;
 
 			case SMACHO:
 				if(!s->reachable)
 					continue;
-				putsymb(s->name, 'D', s->value+INITDAT+datsize+bsssize, s->version, s->gotype);
+				put(s->name, 'D', s->value+INITDAT+datsize+bsssize, s->size, s->version, s->gotype);
 				continue;
 
 			case SBSS:
 				if(!s->reachable)
 					continue;
-				putsymb(s->name, 'B', s->value+INITDAT, s->version, s->gotype);
+				put(s->name, 'B', s->value+INITDAT, s->size, s->version, s->gotype);
 				continue;
 
 			case SFILE:
-				putsymb(s->name, 'f', s->value, s->version, 0);
+				put(s->name, 'f', s->value, 0, s->version, 0);
 				continue;
 			}
 		}
@@ -265,28 +266,97 @@ asmsym(void)
 		/* filenames first */
 		for(a=p->to.autom; a; a=a->link)
 			if(a->type == D_FILE)
-				putsymb(a->asym->name, 'z', a->aoffset, 0, 0);
+				put(a->asym->name, 'z', a->aoffset, 0, 0, 0);
 			else
 			if(a->type == D_FILE1)
-				putsymb(a->asym->name, 'Z', a->aoffset, 0, 0);
+				put(a->asym->name, 'Z', a->aoffset, 0, 0, 0);
 
 		if(!s->reachable)
 			continue;
-		putsymb(s->name, 'T', s->value, s->version, s->gotype);
+		put(s->name, 'T', s->value, s->size, s->version, s->gotype);
 
 		/* frame, auto and param after */
-		putsymb(".frame", 'm', p->to.offset+8, 0, 0);
+		put(".frame", 'm', p->to.offset+8, 0, 0, 0);
 
 		for(a=p->to.autom; a; a=a->link)
 			if(a->type == D_AUTO)
-				putsymb(a->asym->name, 'a', -a->aoffset, 0, a->gotype);
+				put(a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
 			else
 			if(a->type == D_PARAM)
-				putsymb(a->asym->name, 'p', a->aoffset, 0, a->gotype);
+				put(a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
 	}
 	if(debug['v'] || debug['n'])
 		Bprint(&bso, "symsize = %lud\n", symsize);
 	Bflush(&bso);
+}
+
+void
+asmsym(void)
+{
+	genasmsym(putsymb);
+}
+
+char *elfstrdat;
+int elfstrsize;
+int maxelfstr;
+
+int
+putelfstr(char *s)
+{
+	int off, n;
+
+	if(elfstrsize == 0 && s[0] != 0) {
+		// first entry must be empty string
+		putelfstr("");
+	}
+
+	n = strlen(s)+1;
+	if(elfstrsize+n > maxelfstr) {
+		maxelfstr = 2*(elfstrsize+n+(1<<20));
+		elfstrdat = realloc(elfstrdat, maxelfstr);
+	}
+	off = elfstrsize;
+	elfstrsize += n;
+	memmove(elfstrdat+off, s, n);
+	return off;
+}
+
+void
+putelfsymb(char *s, int t, vlong addr, vlong size, int ver, Sym *go)
+{
+	int bind, type, shndx, stroff;
+	
+	bind = STB_GLOBAL;
+	switch(t) {
+	default:
+		return;
+	case 'T':
+		type = STT_FUNC;
+		shndx = elftextsh + 0;
+		break;
+	case 'D':
+		type = STT_OBJECT;
+		shndx = elftextsh + 1;
+		break;
+	case 'B':
+		type = STT_OBJECT;
+		shndx = elftextsh + 2;
+		break;
+	}
+	
+	stroff = putelfstr(s);
+	lputl(stroff);	// string
+	cput((bind<<4)|(type&0xF));
+	cput(0);
+	wputl(shndx);
+	vputl(addr);
+	vputl(size);
+}
+
+void
+asmelfsym(void)
+{
+	genasmsym(putelfsymb);
 }
 
 void
