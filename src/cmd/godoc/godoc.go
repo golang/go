@@ -446,8 +446,8 @@ func readTemplate(name string) *template.Template {
 	if err != nil {
 		log.Exitf("ReadFile %s: %v", path, err);
 	}
-	t, err1 := template.Parse(string(data), fmap);
-	if err1 != nil {
+	t, err := template.Parse(string(data), fmap);
+	if err != nil {
 		log.Exitf("%s: %v", name, err);
 	}
 	return t;

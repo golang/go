@@ -275,6 +275,7 @@ Loop:
 		// consume trailing white space
 		for ; i < len(t.buf) && white(t.buf[i]); i++ {
 			if t.buf[i] == '\n' {
+				t.linenum++;
 				i++;
 				break	// stop after newline
 			}
@@ -850,7 +851,7 @@ func (t *Template) Parse(s string) os.Error {
 	}
 	t.buf = strings.Bytes(s);
 	t.p = 0;
-	t.linenum = 0;
+	t.linenum = 1;
 	t.parse();
 	return t.error;
 }
