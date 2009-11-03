@@ -7,5 +7,6 @@ include $(GOROOT)/src/Make.$(GOARCH)
 TARG=go/printer
 GOFILES=\
 	printer.go\
+	nodes.go\
 
 include $(GOROOT)/src/Make.pkg
