@@ -10,7 +10,7 @@
 code, .code {
   font-size: 100%;
   font-family: monospace;
-  color:#007000;
+  color: #007000;
 }
 
 kbd {
@@ -149,10 +149,17 @@ div#linkList li.navhead {
 
 
 /* ------------------------------------------------------------------------- */
-/* Styles used by go/printer Styler implementations. */
+/* Styles used by godoc */
 
 a.noline {
   text-decoration: none;
+}
+
+table.layout {
+  border-width: 0px;
+  border-spacing: 0px;
+  border-width: 0px;
+  padding: 0px;
 }
 
 span.comment {
