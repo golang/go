@@ -21,7 +21,7 @@ func boolint(b bool) int {
 }
 
 // Generic socket creation.
-func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd *netFD, err os.Error) {
+func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
 	// See ../syscall/exec.go for description of ForkLock.
 	syscall.ForkLock.RLock();
 	s, e := syscall.Socket(f, p, t);
@@ -51,7 +51,12 @@ func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd 
 		}
 	}
 
-	fd, err = newFD(s, net, laddr, raddr);
+	sa, _ := syscall.Getsockname(s);
+	laddr := toAddr(sa);
+	sa, _ = syscall.Getpeername(s);
+	raddr := toAddr(sa);
+
+	fd, err = newFD(s, f, p, net, laddr, raddr);
 	if err != nil {
 		syscall.Close(s);
 		return nil, err
@@ -59,78 +64,6 @@ func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd 
 
 	return fd, nil
 }
-
-
-// Generic implementation of Conn interface; not exported.
-type connBase struct {
-	fd *netFD;
-	raddr string;
-}
-
-func (c *connBase) LocalAddr() string {
-	if c == nil {
-		return ""
-	}
-	return c.fd.addr();
-}
-
-func (c *connBase) RemoteAddr() string {
-	if c == nil {
-		return ""
-	}
-	return c.fd.remoteAddr();
-}
-
-func (c *connBase) File() *os.File {
-	if c == nil {
-		return nil
-	}
-	return c.fd.file;
-}
-
-func (c *connBase) sysFD() int {
-	if c == nil || c.fd == nil {
-		return -1;
-	}
-	return c.fd.fd;
-}
-
-func (c *connBase) Read(b []byte) (n int, err os.Error) {
-	n, err = c.fd.Read(b);
-	return n, err
-}
-
-func (c *connBase) Write(b []byte) (n int, err os.Error) {
-	n, err = c.fd.Write(b);
-	return n, err
-}
-
-func (c *connBase) ReadFrom(b []byte) (n int, raddr string, err os.Error) {
-	if c == nil {
-		return -1, "", os.EINVAL
-	}
-	n, err = c.Read(b);
-	return n, c.raddr, err
-}
-
-func (c *connBase) WriteTo(raddr string, b []byte) (n int, err os.Error) {
-	if c == nil {
-		return -1, os.EINVAL
-	}
-	if raddr != c.raddr {
-		return -1, os.EINVAL
-	}
-	n, err = c.Write(b);
-	return n, err
-}
-
-func (c *connBase) Close() os.Error {
-	if c == nil {
-		return os.EINVAL
-	}
-	return c.fd.Close()
-}
-
 
 func setsockoptInt(fd, level, opt int, value int) os.Error {
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd, level, opt, value));
@@ -141,49 +74,49 @@ func setsockoptNsec(fd, level, opt int, nsec int64) os.Error {
 	return os.NewSyscallError("setsockopt", syscall.SetsockoptTimeval(fd, level, opt, &tv));
 }
 
-func (c *connBase) SetReadBuffer(bytes int) os.Error {
-	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes);
+func setReadBuffer(fd *netFD, bytes int) os.Error {
+	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes);
 }
 
-func (c *connBase) SetWriteBuffer(bytes int) os.Error {
-	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes);
+func setWriteBuffer(fd *netFD, bytes int) os.Error {
+	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes);
 }
 
-func (c *connBase) SetReadTimeout(nsec int64) os.Error {
-	c.fd.rdeadline_delta = nsec;
+func setReadTimeout(fd *netFD, nsec int64) os.Error {
+	fd.rdeadline_delta = nsec;
 	return nil;
 }
 
-func (c *connBase) SetWriteTimeout(nsec int64) os.Error {
-	c.fd.wdeadline_delta = nsec;
+func setWriteTimeout(fd *netFD, nsec int64) os.Error {
+	fd.wdeadline_delta = nsec;
 	return nil;
 }
 
-func (c *connBase) SetTimeout(nsec int64) os.Error {
-	if e := c.SetReadTimeout(nsec); e != nil {
+func setTimeout(fd *netFD, nsec int64) os.Error {
+	if e := setReadTimeout(fd, nsec); e != nil {
 		return e
 	}
-	return c.SetWriteTimeout(nsec)
+	return setWriteTimeout(fd, nsec)
 }
 
-func (c *connBase) SetReuseAddr(reuse bool) os.Error {
-	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse));
+func setReuseAddr(fd *netFD, reuse bool) os.Error {
+	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse));
 }
 
-func (c *connBase) BindToDevice(dev string) os.Error {
+func bindToDevice(fd *netFD, dev string) os.Error {
 	// TODO(rsc): call setsockopt with null-terminated string pointer
 	return os.EINVAL
 }
 
-func (c *connBase) SetDontRoute(dontroute bool) os.Error {
-	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute));
+func setDontRoute(fd *netFD, dontroute bool) os.Error {
+	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute));
 }
 
-func (c *connBase) SetKeepAlive(keepalive bool) os.Error {
-	return setsockoptInt(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive));
+func setKeepAlive(fd *netFD, keepalive bool) os.Error {
+	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive));
 }
 
-func (c *connBase) SetLinger(sec int) os.Error {
+func setLinger(fd *netFD, sec int) os.Error {
 	var l syscall.Linger;
 	if sec >= 0 {
 		l.Onoff = 1;
@@ -192,10 +125,9 @@ func (c *connBase) SetLinger(sec int) os.Error {
 		l.Onoff = 0;
 		l.Linger = 0;
 	}
-	e := syscall.SetsockoptLinger(c.sysFD(), syscall.SOL_SOCKET, syscall.SO_LINGER, &l);
+	e := syscall.SetsockoptLinger(fd.fd, syscall.SOL_SOCKET, syscall.SO_LINGER, &l);
 	return os.NewSyscallError("setsockopt", e);
 }
-
 
 type UnknownSocketError struct {
 	sa syscall.Sockaddr;

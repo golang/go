@@ -129,7 +129,7 @@ func DialHTTP(network, address string) (*Client, os.Error) {
 		err = os.ErrorString("unexpected HTTP response: " + resp.Status);
 	}
 	conn.Close();
-	return nil, &net.OpError{"dial-http", network, address, err};
+	return nil, &net.OpError{"dial-http", network+" "+address, nil, err};
 }
 
 // Dial connects to an RPC server at the specified network address.

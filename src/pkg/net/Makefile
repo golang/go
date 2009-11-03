@@ -17,6 +17,8 @@ GOFILES=\
 	parse.go\
 	port.go\
 	sock.go\
+	tcpsock.go\
+	udpsock.go\
 	unixsock.go\
 
 include $(GOROOT)/src/Make.pkg

@@ -17,12 +17,14 @@ import (
 type netFD struct {
 	// immutable until Close
 	fd int;
+	family int;
+	proto int;
 	file *os.File;
 	cr chan *netFD;
 	cw chan *netFD;
 	net string;
-	laddr string;
-	raddr string;
+	laddr Addr;
+	raddr Addr;
 
 	// owned by client
 	rdeadline_delta int64;
@@ -289,7 +291,7 @@ func (s *pollServer) WaitWrite(fd *netFD) {
 
 var pollserver *pollServer
 
-func _StartServer() {
+func startServer() {
 	p, err := newPollServer();
 	if err != nil {
 		print("Start pollServer: ", err.String(), "\n")
@@ -297,19 +299,27 @@ func _StartServer() {
 	pollserver = p
 }
 
-func newFD(fd int, net, laddr, raddr string) (f *netFD, err os.Error) {
-	if pollserver == nil {
-		once.Do(_StartServer);
-	}
+func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err os.Error) {
+	once.Do(startServer);
 	if e := syscall.SetNonblock(fd, true); e != 0 {
-		return nil, &os.PathError{"setnonblock", laddr, os.Errno(e)};
+		return nil, &OpError{"setnonblock", net, laddr, os.Errno(e)};
 	}
-	f = new(netFD);
-	f.fd = fd;
-	f.net = net;
-	f.laddr = laddr;
-	f.raddr = raddr;
-	f.file = os.NewFile(fd, net + "!" + laddr + "->" + raddr);
+	f = &netFD{
+		fd: fd,
+		family: family,
+		proto: proto,
+		net: net,
+		laddr: laddr,
+		raddr: raddr,
+	};
+	var ls, rs string;
+	if laddr != nil {
+		ls = laddr.String();
+	}
+	if raddr != nil {
+		rs = raddr.String();
+	}
+	f.file = os.NewFile(fd, net + ":" + ls + "->" + rs);
 	f.cr = make(chan *netFD, 1);
 	f.cw = make(chan *netFD, 1);
 	return f, nil
@@ -320,24 +330,6 @@ func isEAGAIN(e os.Error) bool {
 		return e1.Error == os.EAGAIN;
 	}
 	return e == os.EAGAIN;
-}
-
-func (fd *netFD) addr() string {
-	sa, e := syscall.Getsockname(fd.fd);
-	if e != 0 {
-		return "";
-	}
-	addr, _ := sockaddrToString(sa);
-	return addr;
-}
-
-func (fd *netFD) remoteAddr() string {
-	sa, e := syscall.Getpeername(fd.fd);
-	if e != 0 {
-		return "";
-	}
-	addr, _ := sockaddrToString(sa);
-	return addr;
 }
 
 func (fd *netFD) Close() os.Error {
@@ -413,7 +405,7 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 	return nn, err
 }
 
-func (fd *netFD) accept() (nfd *netFD, err os.Error) {
+func (fd *netFD) accept(toAddr func(syscall.Sockaddr)Addr) (nfd *netFD, err os.Error) {
 	if fd == nil || fd.file == nil {
 		return nil, os.EINVAL
 	}
@@ -435,16 +427,12 @@ func (fd *netFD) accept() (nfd *netFD, err os.Error) {
 	}
 	if e != 0 {
 		syscall.ForkLock.RUnlock();
-		return nil, &os.PathError{"accept", fd.addr(), os.Errno(e)}
+		return nil, &OpError{"accept", fd.net, fd.laddr, os.Errno(e)}
 	}
 	syscall.CloseOnExec(s);
 	syscall.ForkLock.RUnlock();
 
-	raddr, err1 := sockaddrToString(sa);
-	if err1 != nil {
-		raddr = "invalid-address";
-	}
-	if nfd, err = newFD(s, fd.net, fd.laddr, raddr); err != nil {
+	if nfd, err = newFD(s, fd.family, fd.proto, fd.net, fd.laddr, toAddr(sa)); err != nil {
 		syscall.Close(s);
 		return nil, err
 	}

@@ -40,16 +40,6 @@ func doDial(t *testing.T, network, addr string) {
 	fd.Close()
 }
 
-func doDialTCP(t *testing.T, network, addr string) {
-	fd, err := DialTCP(network, "", addr);
-	if err != nil {
-		t.Errorf("DialTCP(%q, %q, %q) = _, %v", network, "", addr, err);
-	} else {
-		fetchGoogle(t, fd, network, addr);
-	}
-	fd.Close()
-}
-
 var googleaddrs = []string {
 	"74.125.19.99:80",
 	"www.google.com:80",
@@ -77,22 +67,18 @@ func TestDialGoogle(t *testing.T) {
 		}
 		t.Logf("-- %s --", addr);
 		doDial(t, "tcp", addr);
-		doDialTCP(t, "tcp", addr);
 		if addr[0] != '[' {
 			doDial(t, "tcp4", addr);
-			doDialTCP(t, "tcp4", addr);
 
 			if !preferIPv4 {
 				// make sure preferIPv4 flag works.
 				preferIPv4 = true;
 				syscall.SocketDisableIPv6 = true;
 				doDial(t, "tcp4", addr);
-				doDialTCP(t, "tcp4", addr);
 				syscall.SocketDisableIPv6 = false;
 				preferIPv4 = false;
 			}
 		}
 		doDial(t, "tcp6", addr);
-		doDialTCP(t, "tcp6", addr)
 	}
 }

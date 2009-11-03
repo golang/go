@@ -34,125 +34,47 @@ func listenBacklog() int {
 	return syscall.SOMAXCONN
 }
 
-// ListenerTCP is a TCP network listener.
-// Clients should typically use variables of type Listener
-// instead of assuming TCP.
-type ListenerTCP struct {
-	fd *netFD;
-}
-
-// ListenTCP announces on the TCP address laddr and returns a TCP listener.
-// Net must be "tcp", "tcp4", or "tcp6".
-// If laddr has a port of 0, it means to listen on some available port.
-// The caller can use l.Addr() to retrieve the chosen address.
-func ListenTCP(net, laddr string) (l *ListenerTCP, err os.Error) {
-	fd, e := internetSocket(net, laddr, "", syscall.SOCK_STREAM, "listen");
-	if e != nil {
-		return nil, e
-	}
-	e1 := syscall.Listen(fd.fd, listenBacklog());
-	if e1 != 0 {
-		syscall.Close(fd.fd);
-		return nil, &OpError{"listen", "tcp", laddr, os.Errno(e1)};
-	}
-	l = new(ListenerTCP);
-	l.fd = fd;
-	return l, nil
-}
-
-// AcceptTCP accepts the next incoming call and returns the new connection
-// and the remote address.
-func (l *ListenerTCP) AcceptTCP() (c *ConnTCP, raddr string, err os.Error) {
-	if l == nil || l.fd == nil || l.fd.fd < 0 {
-		return nil, "", os.EINVAL
-	}
-	fd, e := l.fd.accept();
-	if e != nil {
-		return nil, "", e
-	}
-	return newConnTCP(fd, fd.raddr), fd.raddr, nil
-}
-
-// Accept implements the Accept method in the Listener interface;
-// it waits for the next call and returns a generic Conn.
-func (l *ListenerTCP) Accept() (c Conn, raddr string, err os.Error) {
-	c1, r1, e1 := l.AcceptTCP();
-	if e1 != nil {
-		return nil, "", e1
-	}
-	return c1, r1, nil
-}
-
-// Close stops listening on the TCP address.
-// Already Accepted connections are not closed.
-func (l *ListenerTCP) Close() os.Error {
-	if l == nil || l.fd == nil {
-		return os.EINVAL
-	}
-	return l.fd.Close()
-}
-
-// Addr returns the listener's network address.
-func (l *ListenerTCP) Addr() string {
-	return l.fd.addr();
-}
-
 // Internet sockets (TCP, UDP)
 
-func internetSocket(net, laddr, raddr string, proto int, mode string) (fd *netFD, err os.Error) {
-	// Parse addresses (unless they are empty).
-	var lip, rip IP;
-	var lport, rport int;
+// A sockaddr represents a TCP or UDP network address that can
+// be converted into a syscall.Sockaddr.
+type sockaddr interface {
+	Addr;
+	sockaddr(family int) (syscall.Sockaddr, os.Error);
+	family() int;
+}
 
-	if laddr != "" {
-		if lip, lport, err = hostPortToIP(net, laddr, mode); err != nil {
-			goto Error;
-		}
-	}
-	if raddr != "" {
-		if rip, rport, err = hostPortToIP(net, raddr, mode); err != nil {
-			goto Error;
-		}
-	}
-
+func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err os.Error) {
 	// Figure out IP version.
 	// If network has a suffix like "tcp4", obey it.
-	vers := 0;
+	family := syscall.AF_INET6;
 	switch net[len(net)-1] {
 	case '4':
-		vers = 4;
+		family = syscall.AF_INET
 	case '6':
-		vers = 6;
+		// nothing to do
 	default:
 		// Otherwise, guess.
 		// If the addresses are IPv4 and we prefer IPv4, use 4; else 6.
-		if preferIPv4 && (lip == nil || lip.To4() != nil) && (rip == nil || rip.To4() != nil) {
-			vers = 4
-		} else {
-			vers = 6
+		if preferIPv4 &&
+			(laddr == nil || laddr.family() == syscall.AF_INET) &&
+			(raddr == nil || raddr.family() == syscall.AF_INET) {
+			family = syscall.AF_INET;
 		}
-	}
-
-	var family int;
-	if vers == 4 {
-		family = syscall.AF_INET
-	} else {
-		family = syscall.AF_INET6
 	}
 
 	var la, ra syscall.Sockaddr;
-	if lip != nil {
-		if la, err = ipToSockaddr(family, lip, lport); err != nil {
+	if laddr != nil {
+		if la, err = laddr.sockaddr(family); err != nil {
 			goto Error;
 		}
 	}
-	if rip != nil {
-		if ra, err = ipToSockaddr(family, rip, rport); err != nil {
+	if raddr != nil {
+		if ra, err = raddr.sockaddr(family); err != nil {
 			goto Error;
 		}
 	}
-
-	fd, err = socket(net, laddr, raddr, family, proto, 0, la, ra);
+	fd, err = socket(net, family, proto, 0, la, ra, toAddr);
 	if err != nil {
 		goto Error;
 	}
@@ -166,77 +88,31 @@ Error:
 	return nil, &OpError{mode, net, addr, err};
 }
 
-
-// TCP connections.
-
-// ConnTCP is an implementation of the Conn interface
-// for TCP network connections.
-type ConnTCP struct {
-	connBase
-}
-
-func (c *ConnTCP) SetNoDelay(nodelay bool) os.Error {
-	if c == nil {
-		return os.EINVAL
+func getip(fd int, remote bool) (ip []byte, port int, ok bool) {
+	// No attempt at error reporting because
+	// there are no possible errors, and the
+	// caller won't report them anyway.
+	var sa syscall.Sockaddr;
+	if remote {
+		sa, _ = syscall.Getpeername(fd);
+	} else {
+		sa, _ = syscall.Getsockname(fd);
 	}
-	return setsockoptInt(c.sysFD(), syscall.IPPROTO_TCP, syscall.TCP_NODELAY, boolint(nodelay))
-}
-
-func newConnTCP(fd *netFD, raddr string) *ConnTCP {
-	c := new(ConnTCP);
-	c.fd = fd;
-	c.raddr = raddr;
-	c.SetNoDelay(true);
-	return c
-}
-
-// DialTCP is like Dial but can only connect to TCP networks
-// and returns a ConnTCP structure.
-func DialTCP(net, laddr, raddr string) (c *ConnTCP, err os.Error) {
-	if raddr == "" {
-		return nil, &OpError{"dial", "tcp", "", errMissingAddress}
+	switch sa := sa.(type) {
+	case *syscall.SockaddrInet4:
+		return &sa.Addr, sa.Port, true;
+	case *syscall.SockaddrInet6:
+		return &sa.Addr, sa.Port, true;
 	}
-	fd, e := internetSocket(net, laddr, raddr, syscall.SOCK_STREAM, "dial");
-	if e != nil {
-		return nil, e
-	}
-	return newConnTCP(fd, raddr), nil
-}
-
-
-// UDP connections.
-
-// TODO(rsc): UDP headers mode
-
-// ConnUDP is an implementation of the Conn interface
-// for UDP network connections.
-type ConnUDP struct {
-	connBase
-}
-
-func newConnUDP(fd *netFD, raddr string) *ConnUDP {
-	c := new(ConnUDP);
-	c.fd = fd;
-	c.raddr = raddr;
-	return c
-}
-
-// DialUDP is like Dial but can only connect to UDP networks
-// and returns a ConnUDP structure.
-func DialUDP(net, laddr, raddr string) (c *ConnUDP, err os.Error) {
-	if raddr == "" {
-		return nil, &OpError{"dial", "udp", "", errMissingAddress}
-	}
-	fd, e := internetSocket(net, laddr, raddr, syscall.SOCK_DGRAM, "dial");
-	if e != nil {
-		return nil, e
-	}
-	return newConnUDP(fd, raddr), nil
+	return;
 }
 
 func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
 	switch family {
 	case syscall.AF_INET:
+		if len(ip) == 0 {
+			ip = IPv4zero;
+		}
 		if ip = ip.To4(); ip == nil {
 			return nil, os.EINVAL
 		}
@@ -247,6 +123,9 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
 		s.Port = port;
 		return s, nil;
 	case syscall.AF_INET6:
+		if len(ip) == 0 {
+			ip = IPzero;
+		}
 		// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
 		// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
 		// which it refuses to do.  Rewrite to the IPv6 all zeros.
@@ -302,43 +181,29 @@ func joinHostPort(host, port string) string {
 }
 
 // Convert "host:port" into IP address and port.
-// For now, host and port must be numeric literals.
-// Eventually, we'll have name resolution.
-func hostPortToIP(net, hostport, mode string) (ip IP, iport int, err os.Error) {
+func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
 	host, port, err := splitHostPort(hostport);
 	if err != nil {
 		goto Error;
 	}
 
 	var addr IP;
-	if host == "" {
-		if mode != "listen" {
-			err = &AddrError{"no host in address", hostport};
-			goto Error;
-		}
-		if preferIPv4 {
-			addr = IPv4zero;
-		} else {
-			addr = IPzero;	// wildcard - listen to all
-		}
-	}
-
-	// Try as an IP address.
-	if addr == nil {
+	if host != "" {
+		// Try as an IP address.
 		addr = ParseIP(host);
-	}
-	if addr == nil {
-		// Not an IP address.  Try as a DNS name.
-		_, addrs, err1 := LookupHost(host);
-		if err1 != nil {
-			err = err1;
-			goto Error;
-		}
-		addr = ParseIP(addrs[0]);
 		if addr == nil {
-			// should not happen
-			err = &AddrError{"LookupHost returned invalid address", addrs[0]};
-			goto Error;
+			// Not an IP address.  Try as a DNS name.
+			_, addrs, err1 := LookupHost(host);
+			if err1 != nil {
+				err = err1;
+				goto Error;
+			}
+			addr = ParseIP(addrs[0]);
+			if addr == nil {
+				// should not happen
+				err = &AddrError{"LookupHost returned invalid address", addrs[0]};
+				goto Error;
+			}
 		}
 	}
 

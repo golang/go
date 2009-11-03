@@ -6,6 +6,7 @@ package net
 
 import (
 	"io";
+	"os";
 	"strings";
 	"syscall";
 	"testing";
@@ -29,10 +30,10 @@ func runServe(t *testing.T, network, addr string, listening chan<- string, done 
 	if err != nil {
 		t.Fatalf("net.Listen(%q, %q) = _, %v", network, addr, err);
 	}
-	listening <- l.Addr();
+	listening <- l.Addr().String();
 
 	for {
-		fd, _, err := l.Accept();
+		fd, err := l.Accept();
 		if err != nil {
 			break;
 		}
@@ -45,9 +46,13 @@ func runServe(t *testing.T, network, addr string, listening chan<- string, done 
 }
 
 func connect(t *testing.T, network, addr string) {
-	fd, err := Dial(network, "", addr);
+	var laddr string;
+	if network == "unixgram" {
+		laddr = addr + ".local";
+	}
+	fd, err := Dial(network, laddr, addr);
 	if err != nil {
-		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, "", addr, err);
+		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, laddr, addr, err);
 	}
 
 	b := strings.Bytes("hello, world\n");
@@ -81,7 +86,7 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 	<-done;	// make sure server stopped
 }
 
-func TestTcpServer(t *testing.T) {
+func TestTCPServer(t *testing.T) {
 	doTest(t,  "tcp", "0.0.0.0", "127.0.0.1");
 	doTest(t, "tcp", "[::]", "[::ffff:127.0.0.1]");
 	doTest(t, "tcp", "[::]", "127.0.0.1");
@@ -90,9 +95,75 @@ func TestTcpServer(t *testing.T) {
 }
 
 func TestUnixServer(t *testing.T) {
+	os.Remove("/tmp/gotest.net");
 	doTest(t, "unix", "/tmp/gotest.net", "/tmp/gotest.net");
+	os.Remove("/tmp/gotest.net");
 	if syscall.OS == "linux" {
 		// Test abstract unix domain socket, a Linux-ism
 		doTest(t, "unix", "@gotest/net", "@gotest/net");
+	}
+}
+
+func runPacket(t *testing.T, network, addr string, listening chan<- string, done chan<- int) {
+	c, err := ListenPacket(network, addr);
+	if err != nil {
+		t.Fatalf("net.ListenPacket(%q, %q) = _, %v", network, addr, err);
+	}
+	listening <- c.LocalAddr().String();
+	c.SetReadTimeout(10e6);	// 10ms
+	var buf [1000]byte;
+	for {
+		n, addr, err := c.ReadFrom(&buf);
+		if err == os.EAGAIN {
+			if done <- 1 {
+				break;
+			}
+			continue;
+		}
+		if err != nil {
+			break;
+		}
+		if _, err = c.WriteTo(buf[0:n], addr); err != nil {
+			t.Fatalf("WriteTo %v: %v", addr, err);
+		}
+	}
+	c.Close();
+	done <- 1;
+}
+
+func doTestPacket(t *testing.T, network, listenaddr, dialaddr string) {
+	t.Logf("TestPacket %s %s %s\n", network, listenaddr, dialaddr);
+	listening := make(chan string);
+	done := make(chan int);
+	if network == "udp" {
+		listenaddr += ":0";	// any available port
+	}
+	go runPacket(t, network, listenaddr, listening, done);
+	addr := <-listening;	// wait for server to start
+	if network == "udp" {
+		dialaddr += addr[strings.LastIndex(addr, ":"):len(addr)];
+	}
+	connect(t, network, dialaddr);
+	<-done;	// tell server to stop
+	<-done;	// wait for stop
+}
+
+func TestUDPServer(t *testing.T) {
+	doTestPacket(t,  "udp", "0.0.0.0", "127.0.0.1");
+	doTestPacket(t, "udp", "[::]", "[::ffff:127.0.0.1]");
+	doTestPacket(t, "udp", "[::]", "127.0.0.1");
+	doTestPacket(t, "udp", "", "127.0.0.1");
+	doTestPacket(t, "udp", "0.0.0.0", "[::ffff:127.0.0.1]");
+}
+
+func TestUnixDatagramServer(t *testing.T) {
+	os.Remove("/tmp/gotest1.net");
+	os.Remove("/tmp/gotest1.net.local");
+	doTestPacket(t, "unixgram", "/tmp/gotest1.net", "/tmp/gotest1.net");
+	os.Remove("/tmp/gotest1.net");
+	os.Remove("/tmp/gotest1.net.local");
+	if syscall.OS == "linux" {
+		// Test abstract unix domain socket, a Linux-ism
+		doTestPacket(t, "unixgram", "@gotest1/net", "@gotest1/net");
 	}
 }

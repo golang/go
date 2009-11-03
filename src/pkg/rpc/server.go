@@ -355,7 +355,7 @@ func (server *serverType) input(conn io.ReadWriteCloser) {
 
 func (server *serverType) accept(lis net.Listener) {
 	for {
-		conn, _, err := lis.Accept();
+		conn, err := lis.Accept();
 		if err != nil {
 			log.Exit("rpc.Serve: accept:", err.String());	// TODO(r): exit?
 		}
