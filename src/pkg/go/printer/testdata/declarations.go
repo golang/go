@@ -93,6 +93,53 @@ func _() {
 }
 
 
+// don't lose blank lines in this struct
+type _ struct {
+	String struct {
+		Str, Len int;
+	};
+	Slice struct {
+		Array, Len, Cap int;
+	};
+	Eface struct {
+		Typ, Ptr int;
+	};
+
+	UncommonType struct {
+		Name, PkgPath int;
+	};
+	CommonType struct {
+		Size, Hash, Alg, Align, FieldAlign, String, UncommonType int;
+	};
+	Type struct {
+		Typ, Ptr int;
+	};
+	StructField struct {
+		Name, PkgPath, Typ, Tag, Offset int;
+	};
+	StructType struct {
+		Fields int;
+	};
+	PtrType struct {
+		Elem int;
+	};
+	SliceType struct {
+		Elem int;
+	};
+	ArrayType struct {
+		Elem, Len int;
+	};
+
+	Stktop struct {
+		Stackguard, Stackbase, Gobuf int;
+	};
+	Gobuf struct {
+		Sp, Pc, G int;
+	};
+	G struct {
+		Stackbase, Sched, Status, Alllink int;
+	};
+}
 
 
 // no tabs for single or ungrouped decls
