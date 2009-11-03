@@ -180,6 +180,10 @@ func itox(i uint) string {
 func (ip IP) String() string {
 	p := ip;
 
+	if len(ip) == 0 {
+		return "";
+	}
+
 	// If IPv4, use dotted notation.
 	if p4 := p.To4(); len(p4) == 4 {
 		return itod(uint(p4[0]))+"."

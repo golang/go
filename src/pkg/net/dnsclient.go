@@ -78,7 +78,11 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
 		}
 		return in, nil
 	}
-	return nil, &DNSError{"no answer from server", name, c.RemoteAddr()}
+	var server string;
+	if a := c.RemoteAddr(); a != nil {
+		server = a.String();
+	}
+	return nil, &DNSError{"no answer from server", name, server}
 }
 
 

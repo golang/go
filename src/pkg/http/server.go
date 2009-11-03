@@ -56,9 +56,11 @@ type Conn struct {
 }
 
 // Create new connection from rwc.
-func newConn(rwc io.ReadWriteCloser, raddr string, handler Handler) (c *Conn, err os.Error) {
+func newConn(rwc net.Conn, handler Handler) (c *Conn, err os.Error) {
 	c = new(Conn);
-	c.RemoteAddr = raddr;
+	if a := rwc.RemoteAddr(); a != nil {
+		c.RemoteAddr = a.String();
+	}
 	c.handler = handler;
 	c.rwc = rwc;
 	br := bufio.NewReader(rwc);
@@ -527,11 +529,11 @@ func Serve(l net.Listener, handler Handler) os.Error {
 		handler = DefaultServeMux;
 	}
 	for {
-		rw, raddr, e := l.Accept();
+		rw, e := l.Accept();
 		if e != nil {
 			return e;
 		}
-		c, err := newConn(rw, raddr, handler);
+		c, err := newConn(rw, handler);
 		if err != nil {
 			continue;
 		}
