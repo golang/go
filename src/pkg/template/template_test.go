@@ -221,7 +221,7 @@ var tests = []*Test{
 	&Test{
 		in: "{.repeated section integer}{.end}",
 
-		err: "line 0: .repeated: cannot repeat integer (type int)",
+		err: "line 1: .repeated: cannot repeat integer (type int)",
 	},
 
 	// Nested names
