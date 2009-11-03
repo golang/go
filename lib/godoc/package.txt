@@ -69,10 +69,12 @@ BUGS
 {.end}
 {.end}
 {.section Dirs}
+{.section Dirs}
 
 SUBDIRECTORIES
 
 {.repeated section @}
 	{Name}
+{.end}
 {.end}
 {.end}

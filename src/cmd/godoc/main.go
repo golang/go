@@ -97,13 +97,19 @@ func exec(c *http.Conn, args []string) (status int) {
 }
 
 
+// Maximum package directory depth, adjust as needed.
+const maxPkgDirDepth = 16;
+
 func dosync(c *http.Conn, r *http.Request) {
 	args := []string{"/bin/sh", "-c", *syncCmd};
 	switch exec(c, args) {
 	case 0:
 		// sync succeeded and some files have changed;
-		// update package tree
-		pkgTree.set(newDirTree(*pkgroot));
+		// update package tree.
+		// TODO(gri): The directory tree may be temporarily out-of-sync.
+		//            Consider keeping separate time stamps so the web-
+		//            page can indicate this discrepancy.
+		pkgTree.set(newDirectory(".", maxPkgDirDepth));
 		fallthrough;
 	case 1:
 		// sync failed because no files changed;
@@ -156,6 +162,7 @@ func main() {
 	readTemplates();
 
 	if *httpaddr != "" {
+		// Http server mode.
 		var handler http.Handler = http.DefaultServeMux;
 		if *verbose {
 			log.Stderrf("Go Documentation Server\n");
@@ -171,8 +178,14 @@ func main() {
 			http.Handle("/debug/sync", http.HandlerFunc(dosync));
 		}
 
-		// Compute package tree with corresponding timestamp.
-		pkgTree.set(newDirTree(*pkgroot));
+		// Initialize package tree with corresponding timestamp.
+		// Do it in two steps:
+		// 1) set timestamp right away so that the indexer is kicked on
+		pkgTree.set(nil);
+		// 2) compute initial package tree in a goroutine so that launch is quick
+		go func() {
+			pkgTree.set(newDirectory(".", maxPkgDirDepth));
+		}();
 
 		// Start sync goroutine, if enabled.
 		if *syncCmd != "" && *syncMin > 0 {
@@ -206,9 +219,6 @@ func main() {
 	}
 
 	// Command line mode.
-	// No package tree; set it to nil so we have a reasonable time stamp.
-	pkgTree.set(nil);
-
 	if *html {
 		packageText = packageHtml;
 		parseerrorText = parseerrorHtml;

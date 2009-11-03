@@ -34,14 +34,14 @@
 	{.end}
 	{.section Funcs}
 		{.repeated section @}
-			<h2>func <a href="{Decl|link}">{Name|html}</a></h2>
+			<h2>func <a href="{Decl|link}" class="noline">{Name|html}</a></h2>
 			<p><code>{Decl|html}</code></p>
 			{Doc|html-comment}
 		{.end}
 	{.end}
 	{.section Types}
 		{.repeated section @}
-			<h2>type <a href="{Decl|link}">{Type.Name|html}</a></h2>
+			<h2>type <a href="{Decl|link}" class="noline">{Type.Name|html}</a></h2>
 			{Doc|html-comment}
 			<p><pre>{Decl|html}</pre></p>
 			{.repeated section Consts}
@@ -53,12 +53,12 @@
 				<pre>{Decl|html}</pre>
 			{.end}
 			{.repeated section Factories}
-				<h3>func <a href="{Decl|link}">{Name|html}</a></h3>
+				<h3>func <a href="{Decl|link}" class="noline">{Name|html}</a></h3>
 				<p><code>{Decl|html}</code></p>
 				{Doc|html-comment}
 			{.end}
 			{.repeated section Methods}
-				<h3>func ({Recv|html}) <a href="{Decl|link}">{Name|html}</a></h3>
+				<h3>func ({Recv|html}) <a href="{Decl|link}" class="noline">{Name|html}</a></h3>
 				<p><code>{Decl|html}</code></p>
 				{Doc|html-comment}
 			{.end}
@@ -72,8 +72,10 @@
 	{.end}
 {.end}
 {.section Dirs}
-	<h2>Subdirectories</h2>
-	{.repeated section @}
-		<a href="{Name|html}">{Name|html}</a><br />
+	{.section Dirs}
+		<h2>Subdirectories</h2>
+		{.repeated section @}
+			{@|dir}
+		{.end}
 	{.end}
 {.end}

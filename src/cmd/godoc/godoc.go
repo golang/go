@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes";
-	"container/vector";
 	"flag";
 	"fmt";
 	"go/ast";
@@ -20,7 +19,6 @@ import (
 	"log";
 	"os";
 	pathutil "path";
-	"sort";
 	"strings";
 	"sync";
 	"template";
@@ -128,54 +126,100 @@ func htmlEscape(s string) string {
 
 
 // ----------------------------------------------------------------------------
-// Directory trees
+// Package directories
 
 type Directory struct {
-	Path string;  // including Name
+	Path string;  // relative to *pkgroot, includes Name
 	Name string;
-	Subdirs []*Directory
+	Dirs []*Directory;
 }
 
 
-func newDirTree0(path, name string) *Directory {
-	list, _ := io.ReadDir(path);  // ignore errors
-	// determine number of subdirectories n
-	n := 0;
+func newDirTree(path, name string, depth int) *Directory {
+	if depth <= 0 {
+		// return a dummy directory so that the parent directory
+		// doesn't get discarded just because we reached the max
+		// directory depth
+		return &Directory{path, name, nil};
+	}
+
+	fullpath := pathutil.Join(*pkgroot, path);
+	list, _ := io.ReadDir(fullpath);  // ignore errors
+
+	// determine number of subdirectories and package files
+	ndirs := 0;
+	nfiles := 0;
 	for _, d := range list {
-		if isPkgDir(d) {
-			n++;
+		switch {
+		case isPkgDir(d):
+			ndirs++;
+		case isPkgFile(d):
+			nfiles++;
 		}
 	}
-	// create Directory node
-	var subdirs []*Directory;
-	if n > 0 {
-		subdirs = make([]*Directory, n);
+
+	// create subdirectory tree
+	var dirs []*Directory;
+	if ndirs > 0 {
+		dirs = make([]*Directory, ndirs);
 		i := 0;
 		for _, d := range list {
 			if isPkgDir(d) {
-				subdirs[i] = newDirTree0(pathutil.Join(path, d.Name), d.Name);
-				i++;
+				dd := newDirTree(pathutil.Join(path, d.Name), d.Name, depth-1);
+				if dd != nil {
+					dirs[i] = dd;
+					i++;
+				}
 			}
 		}
+		dirs = dirs[0:i];
 	}
-	if strings.HasPrefix(path, "src/") {
-		path = path[len("src/") : len(path)];
+
+	// if there are no package files and no subdirectories
+	// (with package files), ignore the directory
+	if nfiles == 0 && len(dirs) == 0 {
+		return nil;
 	}
-	return &Directory{path, name, subdirs};
+
+	return &Directory{path, name, dirs};
 }
 
 
-func newDirTree(root string) *Directory {
-	d, err := os.Lstat(root);
-	if err != nil {
-		log.Stderrf("%v", err);
+// newDirectory creates a new package directory tree with at most depth
+// levels, anchored at root which is relative to Pkg. The result tree
+// only contains directories that contain package files or that contain
+// subdirectories containing package files (transitively).
+//
+func newDirectory(root string, depth int) *Directory {
+	fullpath := pathutil.Join(*pkgroot, root);
+	d, err := os.Lstat(fullpath);
+	if err != nil || !isPkgDir(d) {
 		return nil;
 	}
-	if !isPkgDir(d) {
-		log.Stderrf("not a package directory: %s", d.Name);
-		return nil;
+	return newDirTree(root, d.Name, depth);
+}
+
+
+// lookup looks for the *Directory for a given path, relative to dir.
+func (dir *Directory) lookup(path string) *Directory {
+	path = pathutil.Clean(path);  // no trailing '/'
+
+	if dir == nil || path == "" || path == "." {
+		return dir;
 	}
-	return newDirTree0(root, d.Name);
+
+	dpath, dname := pathutil.Split(path);
+	if dpath == "" {
+		// directory-local name
+		for _, d := range dir.Dirs {
+			if dname == d.Name {
+				return d;
+			}
+		}
+		return nil
+	}
+
+	return dir.lookup(dpath).lookup(dname);
 }
 
 
@@ -610,20 +654,6 @@ func serveFile(c *http.Conn, r *http.Request) {
 // ----------------------------------------------------------------------------
 // Packages
 
-// TODO if we don't plan to use the directory information, simplify to []string
-type dirList []*os.Dir
-
-func (d dirList) Len() int {
-	return len(d);
-}
-func (d dirList) Less(i, j int) bool {
-	return d[i].Name < d[j].Name;
-}
-func (d dirList) Swap(i, j int) {
-	d[i], d[j] = d[j], d[i];
-}
-
-
 func pkgName(filename string) string {
 	file, err := parse(filename, parser.PackageClauseOnly);
 	if err != nil || file == nil {
@@ -635,7 +665,7 @@ func pkgName(filename string) string {
 
 type PageInfo struct {
 	PDoc	*doc.PackageDoc;	// nil if no package found
-	Dirs	dirList;		// nil if no subdirectories found
+	Dirs	*Directory;		// nil if no directory information found
 }
 
 
@@ -651,10 +681,7 @@ func getPageInfo(path string) PageInfo {
 	// the package name is the directory name within its parent
 	_, pkgname := pathutil.Split(dirname);
 
-	// filter function to select the desired .go files and
-	// collect subdirectories
-	var subdirlist vector.Vector;
-	subdirlist.Init(0);
+	// filter function to select the desired .go files
 	filter := func(d *os.Dir) bool {
 		if isPkgFile(d) {
 			// Some directories contain main packages: Only accept
@@ -663,9 +690,6 @@ func getPageInfo(path string) PageInfo {
 			// found" errors.
 			return pkgName(dirname + "/" + d.Name) == pkgname;
 		}
-		if isPkgDir(d) {
-			subdirlist.Push(d);
-		}
 		return false;
 	};
 
@@ -673,17 +697,7 @@ func getPageInfo(path string) PageInfo {
 	pkg, err := parser.ParsePackage(dirname, filter, parser.ParseComments);
 	if err != nil {
 		// TODO: parse errors should be shown instead of an empty directory
-		log.Stderr(err);
-	}
-
-	// convert and sort subdirectory list, if any
-	var subdirs dirList;
-	if subdirlist.Len() > 0 {
-		subdirs = make(dirList, subdirlist.Len());
-		for i := 0; i < subdirlist.Len(); i++ {
-			subdirs[i] = subdirlist.At(i).(*os.Dir);
-		}
-		sort.Sort(subdirs);
+		log.Stderrf("parser.parsePackage: %s", err);
 	}
 
 	// compute package documentation
@@ -693,7 +707,20 @@ func getPageInfo(path string) PageInfo {
 		pdoc = doc.NewPackageDoc(pkg, pathutil.Clean(path));	// no trailing '/' in importpath
 	}
 
-	return PageInfo{pdoc, subdirs};
+	// get directory information
+	var dir *Directory;
+	if tree, _ := pkgTree.get(); tree != nil {
+		// directory tree is present; lookup respective directory
+		// (may still fail if the file system was updated and the
+		// new directory tree has not yet beet computed)
+		dir = tree.(*Directory).lookup(pathutil.Clean(path));
+	} else {
+		// no directory tree present (either early after startup
+		// or command-line mode); compute one level for this page
+		dir = newDirectory(path, 1);
+	}
+	
+	return PageInfo{pdoc, dir};
 }
 
 
@@ -731,21 +758,6 @@ func servePkg(c *http.Conn, r *http.Request) {
 	}
 
 	servePage(c, title, "", buf.Bytes());
-}
-
-
-// ----------------------------------------------------------------------------
-// Directory tree
-
-// TODO(gri): Temporary - integrate with package serving.
-
-func serveTree(c *http.Conn, r *http.Request) {
-	dir, _ := pkgTree.get();
-
-	var buf bytes.Buffer;
-	dirFmt(&buf, dir, "");
-
-	servePage(c, "Package tree", "", buf.Bytes());
 }
 
 
@@ -795,7 +807,6 @@ func search(c *http.Conn, r *http.Request) {
 
 func registerPublicHandlers(mux *http.ServeMux) {
 	mux.Handle(Pkg, http.HandlerFunc(servePkg));
-	mux.Handle("/tree", http.HandlerFunc(serveTree));  // TODO(gri): integrate with package serving
 	mux.Handle("/search", http.HandlerFunc(search));
 	mux.Handle("/", http.HandlerFunc(serveFile));
 }
