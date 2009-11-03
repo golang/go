@@ -42,6 +42,7 @@ DIRS=\
 	encoding/base64\
 	encoding/binary\
 	encoding/git85\
+	encoding/hex\
 	encoding/pem\
 	exec\
 	exp/datafmt\
@@ -87,6 +88,7 @@ DIRS=\
 	testing\
 	testing/iotest\
 	testing/quick\
+	testing/script\
 	time\
 	unicode\
 	utf8\

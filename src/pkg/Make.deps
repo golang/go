@@ -5,8 +5,8 @@ bignum.install: fmt.install
 bufio.install: io.install os.install strconv.install utf8.install
 bytes.install: os.install unicode.install utf8.install
 compress/flate.install: bufio.install bytes.install io.install math.install os.install sort.install strconv.install
-compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
-compress/zlib.install: bufio.install compress/flate.install hash.install hash/adler32.install io.install os.install
+compress/gzip.install: bufio.install compress/flate.install hash/crc32.install hash.install io.install os.install
+compress/zlib.install: bufio.install compress/flate.install hash/adler32.install hash.install io.install os.install
 container/heap.install: sort.install
 container/list.install:
 container/ring.install:
@@ -20,7 +20,7 @@ crypto/sha1.install: hash.install os.install
 crypto/subtle.install:
 debug/dwarf.install: encoding/binary.install os.install strconv.install
 debug/macho.install: bytes.install debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
-debug/elf.install: debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
+debug/elf.install: bytes.install debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
 debug/gosym.install: encoding/binary.install fmt.install os.install strconv.install strings.install
 debug/proc.install: container/vector.install fmt.install io.install os.install runtime.install strconv.install strings.install sync.install syscall.install
 ebnf.install: container/vector.install go/scanner.install go/token.install os.install strconv.install unicode.install utf8.install
@@ -28,6 +28,7 @@ encoding/ascii85.install: bytes.install io.install os.install strconv.install
 encoding/base64.install: bytes.install io.install os.install strconv.install
 encoding/binary.install: io.install math.install os.install reflect.install
 encoding/git85.install: bytes.install io.install os.install strconv.install
+encoding/hex.install: os.install strconv.install strings.install
 encoding/pem.install: bytes.install encoding/base64.install strings.install
 exec.install: os.install strings.install
 exp/datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
@@ -48,7 +49,7 @@ hash/adler32.install: hash.install os.install
 hash/crc32.install: hash.install os.install
 http.install: bufio.install bytes.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
 image.install:
-image/png.install: bufio.install compress/zlib.install hash.install hash/crc32.install image.install io.install os.install strconv.install
+image/png.install: bufio.install compress/zlib.install hash/crc32.install hash.install image.install io.install os.install strconv.install
 io.install: bytes.install os.install sort.install strings.install sync.install
 json.install: bytes.install container/vector.install fmt.install math.install reflect.install strconv.install strings.install utf8.install
 log.install: fmt.install io.install os.install runtime.install time.install
@@ -60,7 +61,7 @@ os.install: once.install syscall.install
 path.install: io.install os.install strings.install
 rand.install: math.install
 reflect.install: runtime.install strconv.install
-regexp.install: bytes.install container/vector.install io.install os.install runtime.install utf8.install
+regexp.install: bytes.install container/vector.install io.install os.install utf8.install
 rpc.install: bufio.install fmt.install gob.install http.install io.install log.install net.install os.install reflect.install sort.install strings.install sync.install template.install unicode.install utf8.install
 runtime.install:
 sort.install:
@@ -73,6 +74,7 @@ template.install: bytes.install container/vector.install fmt.install io.install 
 testing.install: flag.install fmt.install os.install runtime.install utf8.install
 testing/iotest.install: bytes.install io.install log.install os.install
 testing/quick.install: flag.install fmt.install math.install os.install rand.install reflect.install strings.install
+testing/script.install: fmt.install os.install rand.install reflect.install strings.install
 time.install: io.install once.install os.install syscall.install
 unicode.install:
 utf8.install: unicode.install
