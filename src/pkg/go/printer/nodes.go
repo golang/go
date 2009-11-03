@@ -256,15 +256,16 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			sep = blank;
 		}
 		for i, f := range list {
+			var ml bool;
 			extraTabs := 0;
 			p.leadComment(f.Doc);
 			if len(f.Names) > 0 {
-				p.identList(f.Names, ignoreMultiLine);
+				p.identList(f.Names, &ml);
 				p.print(sep);
-				p.expr(f.Type, ignoreMultiLine);
+				p.expr(f.Type, &ml);
 				extraTabs = 1;
 			} else {
-				p.expr(f.Type, ignoreMultiLine);
+				p.expr(f.Type, &ml);
 				extraTabs = 2;
 			}
 			if f.Tag != nil {
@@ -272,7 +273,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 					p.print(sep);
 				}
 				p.print(sep);
-				p.expr(&ast.StringList{f.Tag}, ignoreMultiLine);
+				p.expr(&ast.StringList{f.Tag}, &ml);
 				extraTabs = 0;
 			}
 			p.print(token.SEMICOLON);
@@ -282,8 +283,10 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 				}
 				p.lineComment(f.Comment);
 			}
-			if i+1 < len(list) || isIncomplete {
-				p.print(newline);
+			if i+1 < len(list) {
+				p.linebreak(list[i+1].Pos().Line, 1, 2, ignore, ml);
+			} else if isIncomplete {
+				p.print(formfeed);
 			}
 		}
 		if isIncomplete {
@@ -294,19 +297,22 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 	} else { // interface
 
 		for i, f := range list {
+			var ml bool;
 			p.leadComment(f.Doc);
 			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
 				// method
-				p.expr(f.Names[0], ignoreMultiLine);  // exactly one name
-				p.signature(ftyp.Params, ftyp.Results, ignoreMultiLine);
+				p.expr(f.Names[0], &ml);
+				p.signature(ftyp.Params, ftyp.Results, &ml);
 			} else {
 				// embedded interface
-				p.expr(f.Type, ignoreMultiLine);
+				p.expr(f.Type, &ml);
 			}
 			p.print(token.SEMICOLON);
 			p.lineComment(f.Comment);
-			if i+1 < len(list) || isIncomplete {
-				p.print(newline);
+			if i+1 < len(list) {
+				p.linebreak(list[i+1].Pos().Line, 1, 2, ignore, ml);
+			} else if isIncomplete {
+				p.print(formfeed);
 			}
 		}
 		if isIncomplete {

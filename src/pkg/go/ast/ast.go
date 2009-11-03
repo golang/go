@@ -95,6 +95,14 @@ type Field struct {
 }
 
 
+func (f *Field) Pos() token.Position {
+	if len(f.Names) > 0 {
+		return f.Names[0].Pos();
+	}
+	return f.Type.Pos();
+}
+
+
 // An expression is represented by a tree consisting of one
 // or more of the following concrete expression nodes.
 //
