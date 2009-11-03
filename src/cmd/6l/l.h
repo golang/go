@@ -350,6 +350,9 @@ EXTERN	vlong	textstksiz;
 EXTERN	vlong	textarg;
 extern	char	thechar;
 EXTERN	int	dynptrsize;
+EXTERN	int	elfstrsize;
+EXTERN	char*	elfstrdat;
+EXTERN	int	elftextsh;
 
 #define	UP	(&undefp)
 
@@ -376,6 +379,7 @@ void	asmins(Prog*);
 void	asmlc(void);
 void	asmsp(void);
 void	asmsym(void);
+void	asmelfsym(void);
 vlong	atolwhex(char*);
 Prog*	brchain(Prog*);
 Prog*	brloop(Prog*);
