@@ -40,6 +40,7 @@ import os, re
 import stat
 import threading
 from HTMLParser import HTMLParser
+from xml.etree import ElementTree as ET
 
 try:
 	hgversion = util.version()
@@ -276,6 +277,9 @@ def ExceptionDetail():
 	if len(arg) > 0:
 		s += ": " + arg
 	return s
+
+def IsLocalCL(ui, repo, name):
+	return GoodCLName(name) and os.access(CodeReviewDir(ui, repo) + "/cl." + name, 0)
 
 # Load CL from disk and/or the web.
 def LoadCL(ui, repo, name, web=True):
@@ -738,9 +742,10 @@ def pending(ui, repo, *pats, **opts):
 
 def reposetup(ui, repo):
 	global original_match
-	original_match = cmdutil.match
-	cmdutil.match = ReplacementForCmdutilMatch
-	RietveldSetup(ui, repo)
+	if original_match is None:
+		original_match = cmdutil.match
+		cmdutil.match = ReplacementForCmdutilMatch
+		RietveldSetup(ui, repo)
 
 def CheckContributor(ui, repo):
 	user = ui.config("ui", "username")
@@ -838,13 +843,14 @@ def sync(ui, repo, **opts):
 	Incorporates recent changes from the remote repository
 	into the local repository.
 	"""
-	ui.status = sync_note
-	ui.note = sync_note
-	other = getremote(ui, repo, opts)
-	modheads = repo.pull(other)
-	err = commands.postincoming(ui, repo, modheads, True, "tip")
-	if err:
-		return err
+	if not opts["local"]:
+		ui.status = sync_note
+		ui.note = sync_note
+		other = getremote(ui, repo, opts)
+		modheads = repo.pull(other)
+		err = commands.postincoming(ui, repo, modheads, True, "tip")
+		if err:
+			return err
 	sync_changes(ui, repo)
 
 def sync_note(msg):
@@ -853,7 +859,43 @@ def sync_note(msg):
 	sys.stdout.write(msg)
 
 def sync_changes(ui, repo):
-	pass
+	# Look through recent change log descriptions to find
+	# potential references to http://.*/our-CL-number.
+	# Double-check them by looking at the Rietveld log.
+	get = util.cachefunc(lambda r: repo[r].changeset())
+	changeiter, matchfn = cmdutil.walkchangerevs(ui, repo, [], get, {'rev': None})
+	n = 0
+	for st, rev, fns in changeiter:
+		if st != 'iter':
+			continue
+		n += 1
+		if n > 100:
+			break
+		desc = repo[rev].description().strip()
+		for clname in re.findall('(?m)^http://(?:[^\n]+)/([0-9]+)$', desc):
+			if IsLocalCL(ui, repo, clname) and IsRietveldSubmitted(ui, clname, repo[rev].hex()):
+				ui.warn("CL %s submitted as %s; closing\n" % (clname, repo[rev]))
+				cl, err = LoadCL(ui, repo, clname, web=False)
+				if err != "":
+					ui.warn("loading CL %s: %s\n" % (clname, err))
+					continue
+				EditDesc(cl.name, closed="checked")
+				cl.Delete(ui, repo)
+
+	# Remove files that are not modified from the CLs in which they appear.
+	all = LoadAllCL(ui, repo, web=False)
+	changed = ChangedFiles(ui, repo, [], {})
+	for _, cl in all.items():
+		extra = Sub(cl.files, changed)
+		if extra:
+			ui.warn("Removing unmodified files from CL %s:\n" % (cl.name,))
+			for f in extra:
+				ui.warn("\t%s\n" % (f,))
+			cl.files = Sub(cl.files, extra)
+			cl.Flush(ui, repo)
+		if not cl.files:
+			ui.warn("CL %s has no files; suggest hg change -d %s\n" % (cl.name, cl.name))
+	return
 
 def uisetup(ui):
 	if "^commit|ci" in commands.table:
@@ -926,8 +968,10 @@ cmdtable = {
 	),
 	"^sync": (
 		sync,
-		[],
-		"",
+		[
+			('', 'local', None, 'do not pull changes from remote repository')
+		],
+		"[--local]",
 	),
 	"^upload": (
 		upload,
@@ -989,12 +1033,32 @@ class FormParser(HTMLParser):
 		if self.curdata is not None:
 			self.curdata += data
 
+# XML parser
+def XMLGet(ui, path):
+	try:
+		data = MySend(path, force_auth=False);
+	except:
+		ui.warn("XMLGet %s: %s\n" % (path, ExceptionDetail()))
+		return None
+	return ET.XML(data)
+
+def IsRietveldSubmitted(ui, clname, hex):
+	feed = XMLGet(ui, "/rss/issue/" + clname)
+	if feed is None:
+		return False
+	for sum in feed.findall("{http://www.w3.org/2005/Atom}entry/{http://www.w3.org/2005/Atom}summary"):
+		text = sum.findtext("", None).strip()
+		m = re.match('\*\*\* Submitted as [^*]*?([0-9a-f]+) \*\*\*', text)
+		if m is not None and len(m.group(1)) >= 8 and hex.startswith(m.group(1)):
+			return True
+	return False
+
 # Like upload.py Send but only authenticates when the
 # redirect is to www.google.com/accounts.  This keeps
 # unnecessary redirects from happening during testing.
 def MySend(request_path, payload=None,
            content_type="application/octet-stream",
-           timeout=None,
+           timeout=None, force_auth=True,
            **kwargs):
     """Sends an RPC and returns the response.
 
@@ -1015,7 +1079,7 @@ def MySend(request_path, payload=None,
     if rpc == None:
     	rpc = GetRpcServer(upload_options)
     self = rpc
-    if not self.authenticated:
+    if not self.authenticated and force_auth:
       self._Authenticate()
     if request_path is None:
       return
