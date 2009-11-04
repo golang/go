@@ -4,7 +4,7 @@
 
 /*
 
-prof is a rudimentary real-time profiler.
+Prof is a rudimentary real-time profiler.
 
 Given a command to run or the process id (pid) of a command already
 running, it samples the program's state at regular intervals and reports
