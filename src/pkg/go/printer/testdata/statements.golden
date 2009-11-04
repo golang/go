@@ -6,16 +6,23 @@ package statements
 
 var expr bool
 
-func use(x interface{}) {}
+func use(x interface{}) {
+}
 
 // Formatting of if-statement headers.
 func _() {
-	if {}
-	if {}	// no semicolon printed
-	if expr {}
-	if expr {}	// no semicolon printed
-	if expr {}	// no parens printed
-	if expr {}	// no semicolon and parens printed
+	if {
+	}
+	if {
+	}	// no semicolon printed
+	if expr {
+	}
+	if expr {
+	}	// no semicolon printed
+	if expr {
+	}	// no parens printed
+	if expr {
+	}	// no semicolon and parens printed
 	if x := expr; {
 		use(x);
 	}
@@ -27,12 +34,18 @@ func _() {
 
 // Formatting of switch-statement headers.
 func _() {
-	switch {}
-	switch {}	// no semicolon printed
-	switch expr {}
-	switch expr {}	// no semicolon printed
-	switch expr {}	// no parens printed
-	switch expr {}	// no semicolon and parens printed
+	switch {
+	}
+	switch {
+	}	// no semicolon printed
+	switch expr {
+	}
+	switch expr {
+	}	// no semicolon printed
+	switch expr {
+	}	// no parens printed
+	switch expr {
+	}	// no semicolon and parens printed
 	switch x := expr; {
 	default:
 		use(
@@ -47,7 +60,8 @@ func _() {
 
 // Formatting of switch statement bodies.
 func _() {
-	switch {}
+	switch {
+	}
 
 	switch x := 0; x {
 	case 1:
@@ -100,23 +114,31 @@ func _() {
 
 // Formatting of for-statement headers.
 func _() {
-	for {}
-	for expr {}
-	for expr {}	// no parens printed
-	for {}		// no semicolons printed
+	for {
+	}
+	for expr {
+	}
+	for expr {
+	}	// no parens printed
+	for {
+	}	// no semicolons printed
 	for x := expr; ; {
 		use(x);
 	}
-	for expr {}	// no semicolons printed
-	for expr {}	// no semicolons and parens printed
-	for ; ; expr = false {}
+	for expr {
+	}	// no semicolons printed
+	for expr {
+	}	// no semicolons and parens printed
+	for ; ; expr = false {
+	}
 	for x := expr; expr; {
 		use(x);
 	}
 	for x := expr; ; expr = false {
 		use(x);
 	}
-	for ; expr; expr = false {}
+	for ; expr; expr = false {
+	}
 	for x := expr; expr; expr = false {
 		use(x);
 	}
