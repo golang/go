@@ -141,6 +141,37 @@ func TestSplit(t *testing.T) {
 	}
 }
 
+var splitaftertests = []SplitTest{
+	SplitTest{abcd, "a", 0, []string{"a", "bcd"}},
+	SplitTest{abcd, "z", 0, []string{"abcd"}},
+	SplitTest{abcd, "", 0, []string{"a", "b", "c", "d"}},
+	SplitTest{commas, ",", 0, []string{"1,", "2,", "3,", "4"}},
+	SplitTest{dots, "...", 0, []string{"1...", ".2...", ".3...", ".4"}},
+	SplitTest{faces, "☹", 0, []string{"☺☻☹", ""}},
+	SplitTest{faces, "~", 0, []string{faces}},
+	SplitTest{faces, "", 0, []string{"☺", "☻", "☹"}},
+	SplitTest{"1 2 3 4", " ", 3, []string{"1 ", "2 ", "3 4"}},
+	SplitTest{"1 2 3", " ", 3, []string{"1 ", "2 ", "3"}},
+	SplitTest{"1 2", " ", 3, []string{"1 ", "2"}},
+	SplitTest{"123", "", 2, []string{"1", "23"}},
+	SplitTest{"123", "", 17, []string{"1", "2", "3"}},
+}
+
+func TestSplitAfter(t *testing.T) {
+	for _, tt := range splitaftertests {
+		a := SplitAfter(strings.Bytes(tt.s), strings.Bytes(tt.sep), tt.n);
+		result := arrayOfString(a);
+		if !eq(result, tt.a) {
+			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a);
+			continue;
+		}
+		s := Join(a, nil);
+		if string(s) != tt.s {
+			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s);
+		}
+	}
+}
+
 type CopyTest struct {
 	a	string;
 	b	string;

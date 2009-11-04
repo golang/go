@@ -127,10 +127,9 @@ func LastIndex(s, sep []byte) int {
 	return -1;
 }
 
-// Split splits the array s around each instance of sep, returning an array of subarrays of s.
-// If sep is empty, Split splits s after each UTF-8 sequence.
-// If n > 0, split Splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
-func Split(s, sep []byte, n int) [][]byte {
+// Generic split: splits after each instance of sep,
+// including sepSave bytes of sep in the subarrays.
+func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 	if len(sep) == 0 {
 		return explode(s, n);
 	}
@@ -143,7 +142,7 @@ func Split(s, sep []byte, n int) [][]byte {
 	na := 0;
 	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
 		if s[i] == c && (len(sep) == 1 || Equal(s[i : i+len(sep)], sep)) {
-			a[na] = s[start:i];
+			a[na] = s[start:i+sepSave];
 			na++;
 			start = i+len(sep);
 			i += len(sep)-1;
@@ -151,6 +150,21 @@ func Split(s, sep []byte, n int) [][]byte {
 	}
 	a[na] = s[start:len(s)];
 	return a[0 : na+1];
+}
+
+// Split splits the array s around each instance of sep, returning an array of subarrays of s.
+// If sep is empty, Split splits s after each UTF-8 sequence.
+// If n > 0, Split splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
+func Split(s, sep []byte, n int) [][]byte {
+	return genSplit(s, sep, 0, n);
+}
+
+// SplitAfter splits the array s after each instance of sep, returning an array of subarrays of s.
+// If sep is empty, SplitAfter splits s after each UTF-8 sequence.
+// If n > 0, SplitAfter splits s into at most n subarrays; the last subarray will contain an
+// unsplit remainder.
+func SplitAfter(s, sep []byte, n int) [][]byte {
+	return genSplit(s, sep, len(sep), n);
 }
 
 // Join concatenates the elements of a to create a single byte array.   The separator
