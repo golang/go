@@ -596,6 +596,7 @@ func (s *RangeStmt) stmtNode() {}
 type (
 	// The Spec type stands for any of *ImportSpec, *ValueSpec, and *TypeSpec.
 	Spec	interface {
+		Node;
 		specNode();
 	};
 
@@ -625,6 +626,23 @@ type (
 		Comment	*CommentGroup;	// line comments; or nil
 	};
 )
+
+
+// Pos() implementations for spec nodes.
+//
+func (s *ImportSpec) Pos() token.Position {
+	if s.Name != nil {
+		return s.Name.Pos();
+	}
+	return s.Path[0].Pos();
+}
+
+func (s *ValueSpec) Pos() token.Position {
+	return s.Names[0].Pos();
+}
+func (s *TypeSpec) Pos() token.Position {
+	return s.Name.Pos();
+}
 
 
 // specNode() ensures that only spec nodes can be
