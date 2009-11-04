@@ -92,7 +92,7 @@ var fsTree RWValue;  // *Directory tree of packages, updated with each sync
 func init() {
 	goroot = os.Getenv("GOROOT");
 	if goroot == "" {
-		goroot = "/home/r/go-release/go";
+		goroot = pathutil.Join(os.Getenv("HOME"), "go");
 	}
 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory");
 }
