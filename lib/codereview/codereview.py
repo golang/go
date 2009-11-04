@@ -187,8 +187,7 @@ class CL(object):
 			patches = [x.split(" ", 1) for x in lines[2:]]
 		ui.status(msg + "\n")
 		if not response_body.startswith("Issue created.") and not response_body.startswith("Issue updated."):
-			print response_body
-			raise "failed to update issue"
+			raise util.Abort("failed to update issue: " + response_body)
 		issue = msg[msg.rfind("/")+1:]
 		self.name = issue
 		if not self.url:
@@ -257,6 +256,12 @@ def ParseCL(text, name):
 
 def SplitCommaSpace(s):
 	return s.replace(",", " ").split()
+
+def CutDomain(s):
+	i = s.find('@')
+	if i >= 0:
+		s = s[0:i]
+	return s
 
 def JoinComma(l):
 	return ", ".join(l)
@@ -737,12 +742,26 @@ def reposetup(ui, repo):
 	cmdutil.match = ReplacementForCmdutilMatch
 	RietveldSetup(ui, repo)
 
+def CheckContributor(ui, repo):
+	user = ui.config("ui", "username")
+	if not user:
+		raise util.Abort("[ui] username is not configured in .hgrc")
+	try:
+		f = open(repo.root + '/CONTRIBUTORS', 'r')
+	except:
+		raise util.Abort("cannot open %s: %s" % (repo.root+'/CONTRIBUTORS', ExceptionDetail()))
+	for line in f.readlines():
+		if line.rstrip() == user.rstrip():
+			return
+	raise util.Abort("cannot find %s in CONTRIBUTORS" % (user,))
+
 def submit(ui, repo, *pats, **opts):
 	"""submit change to remote repository
 
 	Submits change to remote repository.
 	Bails out if the local repository is not in sync with the remote one.
 	"""
+	CheckContributor(ui, repo)
 	repo.ui.quiet = True
 	if not opts["no_incoming"] and Incoming(ui, repo, opts):
 		return "local repository out of date; must sync before submit"
@@ -753,13 +772,13 @@ def submit(ui, repo, *pats, **opts):
 
 	about = ""
 	if cl.reviewer:
-		about += "R=" + JoinComma(cl.reviewer) + "\n"
+		about += "R=" + JoinComma([CutDomain(s) for s in cl.reviewer]) + "\n"
 	if opts.get('tbr'):
 		tbr = SplitCommaSpace(opts.get('tbr'))
 		cl.reviewer = Add(cl.reviewer, tbr)
-		about += "TBR=" + JoinComma(tbr) + "\n"
+		about += "TBR=" + JoinComma([CutDomain(s) for s in tbr]) + "\n"
 	if cl.cc:
-		about += "CC=" + JoinComma(cl.cc) + "\n"
+		about += "CC=" + JoinComma([CutDomain(s) for s in cl.cc]) + "\n"
 
 	if not cl.reviewer:
 		return "no reviewers listed in CL"
@@ -1136,11 +1155,9 @@ def RietveldSetup(ui, repo):
 		cc = x
 
 	server_url_base = "http://" + server + "/"
-	x = ui.config("codereview", "server_url_base")
-	if x is not None:
-		server_url_base = x
-	if not server_url_base.endswith("/"):
-		server_url_base += "/"
+
+	# TODO(rsc): Remove after release
+	server_url_base = "http://go/go-review/"
 
 	testing = ui.config("codereview", "testing")
 	force_google_account = ui.configbool("codereview", "force_google_account", False)
