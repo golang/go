@@ -43,9 +43,12 @@ var (
 	htab = []byte{'\t'};
 	htabs = [...]byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'};
 	newlines = [...]byte{'\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'};  // more than maxNewlines
-	ampersand = strings.Bytes("&amp;");
-	lessthan = strings.Bytes("&lt;");
-	greaterthan = strings.Bytes("&gt;");
+
+	esc_quot = strings.Bytes("&#34;");  // shorter than "&quot;"
+	esc_apos = strings.Bytes("&#39;");  // shorter than "&apos;"
+	esc_amp = strings.Bytes("&amp;");
+	esc_lt = strings.Bytes("&lt;");
+	esc_gt = strings.Bytes("&gt;");
 )
 
 
@@ -145,7 +148,7 @@ func (p *printer) write(data []byte) {
 			// next segment start
 			i0 = i+1;
 
-		case '&', '<', '>':
+		case '"', '\'', '&', '<', '>':
 			if p.Mode & GenHTML != 0 {
 				// write segment ending in b
 				p.write0(data[i0 : i]);
@@ -153,9 +156,11 @@ func (p *printer) write(data []byte) {
 				// write HTML-escaped b
 				var esc []byte;
 				switch b {
-				case '&': esc = ampersand;
-				case '<': esc = lessthan;
-				case '>': esc = greaterthan;
+				case '"': esc = esc_quot;
+				case '\'': esc = esc_apos;
+				case '&': esc = esc_amp;
+				case '<': esc = esc_lt;
+				case '>': esc = esc_gt;
 				}
 				p.write0(esc);
 
