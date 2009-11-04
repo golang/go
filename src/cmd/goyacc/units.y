@@ -26,7 +26,6 @@ package main
 import
 (
 	"flag";
-	"io";
 	"fmt";
 	"bufio";
 	"os";

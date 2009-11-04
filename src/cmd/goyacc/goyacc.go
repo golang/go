@@ -47,7 +47,6 @@ package main
 import
 (
 	"flag";
-	"io";
 	"fmt";
 	"bufio";
 	"os";
@@ -1472,8 +1471,6 @@ cpyact(curprod []int, max int)
 func
 openup()
 {
-	var buf string;
-
 	infile = flag.Arg(0);
 	finput = open(infile);
 	if(finput == nil) {
