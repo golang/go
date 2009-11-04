@@ -445,13 +445,19 @@ func _() {
 
 
 // formatting of consecutive single-line functions
-func _() {}
-func _() {}
-func _() {}
+func _() {
+}
+func _() {
+}
+func _() {
+}
 
-func _() {}	// an empty line before this function
-func _() {}
-func _() {}
+func _() {
+}	// an empty line before this function
+func _() {
+}
+func _() {
+}
 
 func _() {
 	f(1, 2, 3);

@@ -614,13 +614,11 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int) {
 }
 
 
-// Sets multiLine to true if the block spans multiple lines.
-func (p *printer) block(s *ast.BlockStmt, indent int, multiLine *bool) {
+// block prints an *ast.BlockStmt; it always spans at least two lines.
+func (p *printer) block(s *ast.BlockStmt, indent int) {
 	p.print(s.Pos(), token.LBRACE);
-	if len(s.List) > 0 || p.commentBefore(s.Rbrace) {
-		p.stmtList(s.List, indent);
-		p.linebreak(s.Rbrace.Line, 1, maxStmtNewlines, ignore, true);
-	}
+	p.stmtList(s.List, indent);
+	p.linebreak(s.Rbrace.Line, 1, maxStmtNewlines, ignore, true);
 	p.print(s.Rbrace, token.RBRACE);
 }
 
@@ -731,24 +729,25 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		}
 
 	case *ast.BlockStmt:
-		p.block(s, 1, multiLine);
+		p.block(s, 1);
+		*multiLine = true;
 		optSemi = true;
 
 	case *ast.IfStmt:
 		p.print(token.IF);
 		p.controlClause(false, s.Init, s.Cond, nil);
-		p.block(s.Body, 1, multiLine);
+		p.block(s.Body, 1);
+		*multiLine = true;
 		optSemi = true;
 		if s.Else != nil {
 			p.print(blank, token.ELSE, blank);
 			switch s.Else.(type) {
 			case *ast.BlockStmt, *ast.IfStmt:
-				optSemi = p.stmt(s.Else, multiLine);
+				optSemi = p.stmt(s.Else, ignoreMultiLine);
 			default:
 				p.print(token.LBRACE, indent, formfeed);
 				p.stmt(s.Else, ignoreMultiLine);
 				p.print(unindent, formfeed, token.RBRACE);
-				*multiLine = true;
 			}
 		}
 
@@ -766,7 +765,8 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 	case *ast.SwitchStmt:
 		p.print(token.SWITCH);
 		p.controlClause(false, s.Init, s.Tag, nil);
-		p.block(s.Body, 0, multiLine);
+		p.block(s.Body, 0);
+		*multiLine = true;
 		optSemi = true;
 
 	case *ast.TypeCaseClause:
@@ -784,13 +784,14 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		p.print(token.SWITCH);
 		if s.Init != nil {
 			p.print(blank);
-			p.stmt(s.Init, multiLine);
+			p.stmt(s.Init, ignoreMultiLine);
 			p.print(token.SEMICOLON);
 		}
 		p.print(blank);
-		p.stmt(s.Assign, multiLine);
+		p.stmt(s.Assign, ignoreMultiLine);
 		p.print(blank);
-		p.block(s.Body, 0, multiLine);
+		p.block(s.Body, 0);
+		*multiLine = true;
 		optSemi = true;
 
 	case *ast.CommClause:
@@ -810,13 +811,15 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 
 	case *ast.SelectStmt:
 		p.print(token.SELECT, blank);
-		p.block(s.Body, 0, multiLine);
+		p.block(s.Body, 0);
+		*multiLine = true;
 		optSemi = true;
 
 	case *ast.ForStmt:
 		p.print(token.FOR);
 		p.controlClause(true, s.Init, s.Cond, s.Post);
-		p.block(s.Body, 1, multiLine);
+		p.block(s.Body, 1);
+		*multiLine = true;
 		optSemi = true;
 
 	case *ast.RangeStmt:
@@ -829,7 +832,8 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank);
 		p.expr(s.X, multiLine);
 		p.print(blank);
-		p.block(s.Body, 1, multiLine);
+		p.block(s.Body, 1);
+		*multiLine = true;
 		optSemi = true;
 
 	default:
@@ -963,9 +967,11 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool) 
 
 
 func (p *printer) isOneLiner(b *ast.BlockStmt) bool {
-	if len(b.List) != 1 || p.commentBefore(b.Rbrace) {
-		// too many statements or there is a comment - all bets are off
-		return false;
+	switch {
+	case len(b.List) > 1 || p.commentBefore(b.Rbrace):
+		return false;  // too many statements or there is a comment - all bets are off
+	case len(b.List) == 0:
+		return true;  // empty block and no comments
 	}
 
 	// test-print the statement and see if it would fit
@@ -1001,14 +1007,19 @@ func (p *printer) funcBody(b *ast.BlockStmt, isLit bool, multiLine *bool) {
 		if isLit {
 			sep = blank;
 		}
-		p.print(sep, b.Pos(), token.LBRACE, blank);
-		p.stmt(b.List[0], ignoreMultiLine);
-		p.print(blank, b.Rbrace, token.RBRACE);
+		if len(b.List) > 0 {
+			p.print(sep, b.Pos(), token.LBRACE, blank);
+			p.stmt(b.List[0], ignoreMultiLine);
+			p.print(blank, b.Rbrace, token.RBRACE);
+		} else {
+			p.print(sep, b.Pos(), token.LBRACE, b.Rbrace, token.RBRACE);
+		}
 		return;
 	}
 
 	p.print(blank);
-	p.block(b, 1, multiLine);
+	p.block(b, 1);
+	*multiLine = true;
 }
 
 
