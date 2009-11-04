@@ -16,6 +16,7 @@ import (
 	"os";
 )
 
+var bigZero = big.NewInt(0)
 var bigOne = big.NewInt(1)
 
 // randomSafePrime returns a number, p, of the given size, such that p and
@@ -321,6 +322,9 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
 		if err1 != nil {
 			err = err1;
 			return;
+		}
+		if big.CmpInt(r, bigZero) == 0 {
+			r = bigOne;
 		}
 		ir = modInverse(r, priv.N);
 		bigE := big.NewInt(int64(priv.E));
