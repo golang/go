@@ -294,7 +294,7 @@ func _() {
 // formatting of structs
 type _ struct{}
 
-type _ struct {	/* this comment should be visible */}
+type _ struct { /* this comment should be visible */ }
 
 type _ struct {
 	// this comment should be visible and properly indented

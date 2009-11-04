@@ -215,6 +215,11 @@ func _() {
 }
 
 
+// Some interesting interspersed comments
+func _(/* this */x/* is *//* an */ int) {
+}
+
+
 // Line comments with tabs
 func _() {
 var	finput		*bufio.Reader;			// input file
