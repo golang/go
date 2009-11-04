@@ -43,7 +43,13 @@ body {
   font: 13px Helvetica, Arial, sans-serif;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1 {
+  margin-top: 0;
+  padding-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+h2, h3, h4, h5, h6 {
   font-family: Helvetica, Arial, sans-serif;
   margin-bottom: 0.25em;
 }
@@ -52,6 +58,7 @@ h2 {
   background-color: #e5ecf9;
   margin-top: 2em;
   border-top:1px solid #36C;
+  padding-left: 0.2em;
 }
 
 pre {
@@ -80,12 +87,16 @@ div#content {
   margin-left: 20%;
   padding: 0 1em 2em 1em;
   margin-top: -2px;
-  border: 2px solid #e5ecf9;
+  border-left: 2px solid #e5ecf9;
 }
 
 #topnav {
+}
+
+#headerDocSetTitle {
   margin: 0px;
-  padding: .1em 0px;
+  padding-left: 0.2em;
+  padding-top: 0.2em;
   width: 100%;
   white-space: nowrap;
   background-color: #e5ecf9;
@@ -213,4 +224,35 @@ a.use {
   text-decoration: none;
   color: #FFFFFF;
   background-color: #5858FA;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Styles for the frontpage */
+
+#gettingStarted {
+  margin-top: 1.5em;
+  float: right;
+  background-color: #e5ecf9;
+  width: 25%;
+  padding-left: 1em;
+  -moz-border-radius: 7px;
+  -webkit-border-radius: 7px;
+}
+
+#gettingStarted h1 {
+  padding-top: 0.3em;
+  font-size: 1.5em;
+}
+
+#gettingStarted ol {
+}
+
+#frontpage {
+  width: 70%;
+}
+
+#frontpage h3 {
+  margin-left: 3em;
+  font-size: 1.5em;
+  font-weight: normal;
 }

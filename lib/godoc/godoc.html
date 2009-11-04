@@ -13,15 +13,64 @@
 
 <body>
 
+  <script>
+    // Catch 'enter' key down events and trigger the search form submission.
+    function codesearchKeyDown(event) {.meta-left}
+      if (event.which == 13) {.meta-left}
+        var form = document.getElementById('codesearch');
+        var query = document.getElementById('codesearchQuery');
+        form.q.value = "lang:go package:go.googlecode.com " + query.value;
+        document.getElementById('codesearch').submit();
+      {.meta-right}
+      return true;
+    {.meta-right}
+
+    // Capture the submission event and construct the query parameter.
+    function codeSearchSubmit() {.meta-left}
+      var query = document.getElementById('codesearchQuery');
+      var form = document.getElementById('codesearch');
+      form.q.value = "lang:go package:go.googlecode.com " + query.value;
+      return true;
+    {.meta-right}
+  </script>
+
 <div id="topnav">
-<table summary=""><tr>
-<td id="headerImage">
-<a href="./"><img src="/doc/logo-153x55.png" height="55" width="153" alt="Go Home Page" style="border:0" /></a>
-</td>
-<td id="headerDocSetTitle">The Go Programming Language</td>
-</tr>
-</table>
+  <table summary="">
+    <tr>
+      <td id="headerImage">
+        <a href="/"><img src="/doc/logo-153x55.png" height="55" width="153" alt="Go Home Page" style="border:0" /></a>
+      </td>
+      <td>
+        <!-- <table>
+          <tr>
+            <td>
+              <!-- The input box is outside of the form because we want to add
+              a couple of restricts to the query before submitting. If we just
+              add the restricts to the text box before submitting, then they
+              appear in the box when the user presses 'back'. Thus we use a
+              hidden field in the form. However, there's no way to stop the
+              non-hidden text box from also submitting a value unless we move
+              it outside of the form
+              <input type="search" id="codesearchQuery" value="" size="30" onkeydown="return codesearchKeyDown(event);"/>
+              <form method="GET" action="http://www.google.com/codesearch" id="codesearch" class="search" onsubmit="return codeSearchSubmit();" style="display:inline;">
+                <input type="hidden" name="q" value=""/>
+                <input type="submit" value="Code search" />
+                <span style="color: red">(TODO: remove for now?)</span>
+              </form>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span style="color: gray;">(e.g. &ldquo;pem&rdquo; or &ldquo;xml&rdquo;)</span>
+            </td>
+          </tr>
+        </table> -->
+      </td>
+    </tr>
+  </table>
 </div>
+
+<div id="headerDocSetTitle">The Go Programming Language</div>
 
 <div id="linkList">
   <ul>
@@ -47,10 +96,10 @@
     <li><a href="/cmd" class="noline">Command documentation</a></li>
     <li><a href="/pkg" class="noline">Package documentation</a></li>
 
-    <li class="blank">&nbsp;</li>
-    <li class="navhead">Go code search</li>
-    <form method="GET" action="/search" class="search">
-    <input name="q" value="{Query|html}" size="25" />
+    <li class="blank">&nbsp;</li>	
+    <li class="navhead">Go code search</li>	
+    <form method="GET" action="/search" class="search">	
+    <input name="q" value="{Query|html}" size="25" />	
     <input type="submit" value="Go" />
 
     <li class="blank">&nbsp;</li>
@@ -60,7 +109,7 @@
 </div>
 
 <div id="content">
-  <h1>{Title|html}</h1>
+  <h1 id="generatedHeader">{Title|html}</h1>
 
   <!-- The Table of Contents is automatically inserted in this <div>.
        Do not delete this <div>. -->
