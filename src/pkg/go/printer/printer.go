@@ -256,11 +256,10 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 		return;
 	}
 
-	n := pos.Line - p.last.Line;
-	if n == 0 {
+	if pos.Line == p.last.Line {
 		// comment on the same line as last item:
-		// separate with at least one tab
-		hasTab := false;
+		// separate with at least one separator
+		hasSep := false;
 		if isFirst {
 			j := 0;
 			for i, ch := range p.buffer {
@@ -272,7 +271,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 				case vtab:
 					// respect existing tabs - important
 					// for proper formatting of commented structs
-					hasTab = true;
+					hasSep = true;
 					continue;
 				case indent:
 					// apply pending indentation
@@ -283,9 +282,16 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 			}
 			p.writeWhitespace(j);
 		}
-		// make sure there is at least one tab
-		if !hasTab {
-			p.write(htab);
+		// make sure there is at least one separator
+		if !hasSep {
+			if pos.Line == next.Line {
+				// next item is on the same line as the comment
+				// (which must be a /*-style comment): separate
+				// with a blank instead of a tab
+				p.write([]byte{' '});
+			} else {
+				p.write(htab);
+			}
 		}
 
 	} else {
@@ -321,7 +327,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 			}
 			p.writeWhitespace(j);
 		}
-		p.writeNewlines(n);
+		p.writeNewlines(pos.Line - p.last.Line);
 	}
 }
 
@@ -560,13 +566,20 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) {
 func (p *printer) intersperseComments(next token.Position, isKeyword bool) {
 	isFirst := true;
 	needsLinebreak := false;
+	var last *ast.Comment;
 	for ; p.commentBefore(next); p.comment = p.comment.Next {
 		for _, c := range p.comment.List {
 			p.writeCommentPrefix(c.Pos(), next, isFirst, isKeyword);
 			isFirst = false;
 			p.writeComment(c);
 			needsLinebreak = c.Text[1] == '/';
+			last = c;
 		}
+	}
+	if last != nil && !needsLinebreak && last.Pos().Line == next.Line {
+		// the last comment is a /*-style comment and the next item
+		// follows on the same line: separate with an extra blank
+		p.write([]byte{' '});
 	}
 	p.writeCommentSuffix(needsLinebreak);
 }
