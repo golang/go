@@ -85,7 +85,7 @@
 void
 usage(void)
 {
-	fprint(2, "usage: godefs [-g package] [-c cc] [-f cc-flag] [defs.c ...]\n");
+	fprint(2, "usage: godefs [-g package] [-c cc] [-f cc-arg] [defs.c ...]\n");
 	exit(1);
 }
 
