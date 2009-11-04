@@ -79,10 +79,9 @@ func LastIndex(s, sep string) int {
 	return -1
 }
 
-// Split splits the string s around each instance of sep, returning an array of substrings of s.
-// If sep is empty, Split splits s after each UTF-8 sequence.
-// If n > 0, split Splits s into at most n substrings; the last subarray will contain an unsplit remainder string.
-func Split(s, sep string, n int) []string {
+// Generic split: splits after each instance of sep,
+// including sepSave bytes of sep in the subarrays.
+func genSplit(s, sep string, sepSave, n int) []string {
 	if sep == "" {
 		return explode(s, n)
 	}
@@ -95,7 +94,7 @@ func Split(s, sep string, n int) []string {
 	na := 0;
 	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
 		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
-			a[na] = s[start:i];
+			a[na] = s[start:i+sepSave];
 			na++;
 			start = i+len(sep);
 			i += len(sep)-1;
@@ -103,6 +102,20 @@ func Split(s, sep string, n int) []string {
 	}
 	a[na] = s[start:len(s)];
 	return a[0:na+1]
+}
+
+// Split splits the string s around each instance of sep, returning an array of substrings of s.
+// If sep is empty, Split splits s after each UTF-8 sequence.
+// If n > 0, split Splits s into at most n substrings; the last substring will be the unsplit remainder.
+func Split(s, sep string, n int) []string {
+	return genSplit(s, sep, 0, n);
+}
+
+// SplitAfter splits the string s after each instance of sep, returning an array of substrings of s.
+// If sep is empty, SplitAfter splits s after each UTF-8 sequence.
+// If n > 0, SplitAfter splits s into at most n substrings; the last substring will be the unsplit remainder.
+func SplitAfter(s, sep string, n int) []string {
+	return genSplit(s, sep, len(sep), n);
 }
 
 // Join concatenates the elements of a to create a single string.   The separator string
