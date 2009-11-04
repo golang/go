@@ -21,6 +21,7 @@ import (
 import (
 	"io";
 	aLongRename "io";
+
 	b "io";
 	c "i" "o";
 )
@@ -91,6 +92,47 @@ func _() {
 	var _ chan interface{}
 	var _ func() interface{}
 }
+
+
+// don't lose blank lines in grouped declarations
+const (
+	_ int = 0;
+	_ float = 1;
+
+	_ string = "foo";
+
+	_ = iota;
+	_;
+	
+	// a comment
+	_;
+
+	_;
+)
+
+
+type (
+	_ int;
+	_ struct {};
+	
+	_ interface{};
+	
+	// a comment
+	_ map[string]int;
+)
+
+
+var (
+	_ int = 0;
+	_ float = 1;
+
+	_ string = "foo";
+
+	_ bool;
+	
+	// a comment
+	_ bool;
+)
 
 
 // don't lose blank lines in this struct

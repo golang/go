@@ -255,8 +255,12 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 		if len(list) == 1 {
 			sep = blank;
 		}
+		var ml bool;
 		for i, f := range list {
-			var ml bool;
+			if i > 0 {
+				p.linebreak(f.Pos().Line, 1, 2, ignore, ml);
+			}
+			ml = false;
 			extraTabs := 0;
 			p.leadComment(f.Doc);
 			if len(f.Names) > 0 {
@@ -283,21 +287,23 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 				}
 				p.lineComment(f.Comment);
 			}
-			if i+1 < len(list) {
-				p.linebreak(list[i+1].Pos().Line, 1, 2, ignore, ml);
-			} else if isIncomplete {
-				p.print(formfeed);
-			}
 		}
 		if isIncomplete {
+			if len(list) > 0 {
+				p.print(formfeed);
+			}
 			// TODO(gri): this needs to be styled like normal comments
 			p.print("// contains unexported fields");
 		}
 
 	} else { // interface
 
+		var ml bool;
 		for i, f := range list {
-			var ml bool;
+			if i > 0 {
+				p.linebreak(f.Pos().Line, 1, 2, ignore, ml);
+			}
+			ml = false;
 			p.leadComment(f.Doc);
 			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
 				// method
@@ -309,13 +315,11 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			}
 			p.print(token.SEMICOLON);
 			p.lineComment(f.Comment);
-			if i+1 < len(list) {
-				p.linebreak(list[i+1].Pos().Line, 1, 2, ignore, ml);
-			} else if isIncomplete {
-				p.print(formfeed);
-			}
 		}
 		if isIncomplete {
+			if len(list) > 0 {
+				p.print(formfeed);
+			}
 			// TODO(gri): this needs to be styled like normal comments
 			p.print("// contains unexported methods");
 		}
@@ -941,11 +945,7 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool) 
 			var ml bool;
 			for i, s := range d.Specs {
 				if i > 0 {
-					if ml {
-						p.print(formfeed);
-					} else {
-						p.print(newline);
-					}
+					p.linebreak(s.Pos().Line, 1, 2, ignore, ml);
 				}
 				ml = false;
 				p.spec(s, len(d.Specs), inGroup, &ml);
