@@ -65,7 +65,7 @@ var gitBigtest = gitPairs[len(gitPairs)-1];
 func TestEncode(t *testing.T) {
 	for _, p := range gitPairs {
 		buf := make([]byte, EncodedLen(len(p.decoded)));
-		n := Encode(strings.Bytes(p.decoded), buf);
+		n := Encode(buf, strings.Bytes(p.decoded));
 		if n != len(buf) {
 			t.Errorf("EncodedLen does not agree with Encode");
 		}
@@ -107,7 +107,7 @@ func TestEncoderBuffering(t *testing.T) {
 func TestDecode(t *testing.T) {
 	for _, p := range gitPairs {
 		dbuf := make([]byte, 4*len(p.encoded));
-		ndst, err := Decode(strings.Bytes(p.encoded), dbuf);
+		ndst, err := Decode(dbuf, strings.Bytes(p.encoded));
 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
 		testEqual(t, "Decode(%q) = ndst %v, want %v", p.encoded, ndst, len(p.decoded));
 		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:ndst]), p.decoded);
@@ -155,7 +155,7 @@ func TestDecodeCorrupt(t *testing.T) {
 
 	for _, e := range examples {
 		dbuf := make([]byte, 2*len(e.e));
-		_, err := Decode(strings.Bytes(e.e), dbuf);
+		_, err := Decode(dbuf, strings.Bytes(e.e));
 		switch err := err.(type) {
 		case CorruptInputError:
 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);

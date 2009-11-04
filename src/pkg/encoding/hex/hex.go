@@ -22,7 +22,7 @@ func EncodedLen(n int) int {
 // bytes of dst.  As a convenience, it returns the number
 // of bytes written to dst, but this value is always EncodedLen(len(src)).
 // Encode implements hexadecimal encoding.
-func Encode(src, dst []byte) int {
+func Encode(dst, src []byte) int {
 	for i, v := range src {
 		dst[i*2] = hextable[v>>4];
 		dst[i*2 + 1] = hextable[v&0x0f];
@@ -55,7 +55,7 @@ func DecodedLen(x int) int {
 //
 // If Decode encounters invalid input, it returns an OddLengthInputError or an
 // InvalidHexCharError.
-func Decode(src, dst []byte) (int, os.Error) {
+func Decode(dst, src []byte) (int, os.Error) {
 	if len(src)%2 == 1 {
 		return 0, OddLengthInputError{};
 	}
@@ -92,7 +92,7 @@ func fromHexChar(c byte) (byte, bool) {
 // EncodeToString returns the hexadecimal encoding of src.
 func EncodeToString(src []byte) string {
 	dst := make([]byte, EncodedLen(len(src)));
-	Encode(src, dst);
+	Encode(dst, src);
 	return string(dst);
 }
 
@@ -100,7 +100,7 @@ func EncodeToString(src []byte) string {
 func DecodeString(s string) ([]byte, os.Error) {
 	src := strings.Bytes(s);
 	dst := make([]byte, DecodedLen(len(src)));
-	_, err := Decode(src, dst);
+	_, err := Decode(dst, src);
 	if err != nil {
 		return nil, err;
 	}

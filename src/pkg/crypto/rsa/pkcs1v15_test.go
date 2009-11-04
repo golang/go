@@ -17,7 +17,7 @@ import (
 
 func decodeBase64(in string) []byte {
 	out := make([]byte, base64.StdEncoding.DecodedLen(len(in)));
-	n, err := base64.StdEncoding.Decode(strings.Bytes(in), out);
+	n, err := base64.StdEncoding.Decode(out, strings.Bytes(in));
 	if err != nil {
 		return nil;
 	}

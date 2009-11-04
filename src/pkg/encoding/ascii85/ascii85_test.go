@@ -61,7 +61,7 @@ func strip85(s string) string {
 func TestEncode(t *testing.T) {
 	for _, p := range pairs {
 		buf := make([]byte, MaxEncodedLen(len(p.decoded)));
-		n := Encode(strings.Bytes(p.decoded), buf);
+		n := Encode(buf, strings.Bytes(p.decoded));
 		buf = buf[0:n];
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, strip85(string(buf)), strip85(p.encoded));
 	}
@@ -100,7 +100,7 @@ func TestEncoderBuffering(t *testing.T) {
 func TestDecode(t *testing.T) {
 	for _, p := range pairs {
 		dbuf := make([]byte, 4*len(p.encoded));
-		nsrc, ndst, err := Decode(strings.Bytes(p.encoded), dbuf, true);
+		ndst, nsrc, err := Decode(dbuf, strings.Bytes(p.encoded), true);
 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
 		testEqual(t, "Decode(%q) = nsrc %v, want %v", p.encoded, nsrc, len(p.encoded));
 		testEqual(t, "Decode(%q) = ndst %v, want %v", p.encoded, ndst, len(p.decoded));
@@ -149,7 +149,7 @@ func TestDecodeCorrupt(t *testing.T) {
 
 	for _, e := range examples {
 		dbuf := make([]byte, 4*len(e.e));
-		_, _, err := Decode(strings.Bytes(e.e), dbuf, true);
+		_, _, err := Decode(dbuf, strings.Bytes(e.e), true);
 		switch err := err.(type) {
 		case CorruptInputError:
 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);

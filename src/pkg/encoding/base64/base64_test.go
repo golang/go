@@ -62,7 +62,7 @@ func testEqual(t *testing.T, msg string, args ...) bool {
 func TestEncode(t *testing.T) {
 	for _, p := range pairs {
 		buf := make([]byte, StdEncoding.EncodedLen(len(p.decoded)));
-		StdEncoding.Encode(strings.Bytes(p.decoded), buf);
+		StdEncoding.Encode(buf, strings.Bytes(p.decoded));
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(buf), p.encoded);
 	}
 }
@@ -100,7 +100,7 @@ func TestEncoderBuffering(t *testing.T) {
 func TestDecode(t *testing.T) {
 	for _, p := range pairs {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
-		count, end, err := StdEncoding.decode(strings.Bytes(p.encoded), dbuf);
+		count, end, err := StdEncoding.decode(dbuf, strings.Bytes(p.encoded));
 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
 		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded));
 		if len(p.encoded) > 0 {
@@ -157,7 +157,7 @@ func TestDecodeCorrupt(t *testing.T) {
 
 	for _, e := range examples {
 		dbuf := make([]byte, StdEncoding.DecodedLen(len(e.e)));
-		_, err := StdEncoding.Decode(strings.Bytes(e.e), dbuf);
+		_, err := StdEncoding.Decode(dbuf, strings.Bytes(e.e));
 		switch err := err.(type) {
 		case CorruptInputError:
 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);

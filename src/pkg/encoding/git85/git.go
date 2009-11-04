@@ -48,7 +48,7 @@ var decode = [256]uint8{
 //
 // The encoding splits src into chunks of at most 52 bytes
 // and encodes each chunk on its own line.
-func Encode(src, dst []byte) int {
+func Encode(dst, src []byte) int {
 	ndst := 0;
 	for len(src) > 0 {
 		n := len(src);
@@ -96,7 +96,7 @@ var newline = []byte{'\n'}
 //
 // If Decode encounters invalid input, it returns a CorruptInputError.
 //
-func Decode(src, dst []byte) (n int, err os.Error) {
+func Decode(dst, src []byte) (n int, err os.Error) {
 	ndst := 0;
 	nsrc := 0;
 	for nsrc < len(src) {
@@ -181,7 +181,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		if e.nbuf < 52 {
 			return;
 		}
-		nout := Encode(&e.buf, &e.out);
+		nout := Encode(&e.out, &e.buf);
 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 			return n, e.err;
 		}
@@ -195,7 +195,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 			nn = len(p)/52 * 52;
 		}
 		if nn > 0 {
-			nout := Encode(p[0:nn], &e.out);
+			nout := Encode(&e.out, p[0:nn]);
 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 				return n, e.err;
 			}
@@ -216,7 +216,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 func (e *encoder) Close() os.Error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
-		nout := Encode(e.buf[0:e.nbuf], &e.out);
+		nout := Encode(&e.out, e.buf[0:e.nbuf]);
 		e.nbuf = 0;
 		_, e.err = e.w.Write(e.out[0:nout]);
 	}
@@ -271,7 +271,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		if nl < 0 {
 			continue;
 		}
-		nn, d.err = Decode(d.buf[0:nl+1], &d.outbuf);
+		nn, d.err = Decode(&d.outbuf, d.buf[0:nl+1]);
 		if e, ok := d.err.(CorruptInputError); ok {
 			d.err = CorruptInputError(int64(e)+d.off);
 		}

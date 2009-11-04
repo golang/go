@@ -61,7 +61,7 @@ var URLEncoding = NewEncoding(encodeURL)
 // The encoding pads the output to a multiple of 4 bytes,
 // so Encode is not appropriate for use on individual blocks
 // of a large data stream.  Use NewEncoder() instead.
-func (enc *Encoding) Encode(src, dst []byte) {
+func (enc *Encoding) Encode(dst, src []byte) {
 	if len(src) == 0 {
 		return;
 	}
@@ -133,7 +133,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		if e.nbuf < 3 {
 			return;
 		}
-		e.enc.Encode(&e.buf, &e.out);
+		e.enc.Encode(&e.out, &e.buf);
 		if _, e.err = e.w.Write(e.out[0:4]); e.err != nil {
 			return n, e.err;
 		}
@@ -148,7 +148,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		}
 		nn -= nn%3;
 		if nn > 0 {
-			e.enc.Encode(p[0:nn], &e.out);
+			e.enc.Encode(&e.out, p[0:nn]);
 			if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
 				return n, e.err;
 			}
@@ -171,7 +171,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 func (e *encoder) Close() os.Error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
-		e.enc.Encode(e.buf[0 : e.nbuf], &e.out);
+		e.enc.Encode(&e.out, e.buf[0 : e.nbuf]);
 		e.nbuf = 0;
 		_, e.err = e.w.Write(e.out[0:4]);
 	}
@@ -207,7 +207,7 @@ func (e CorruptInputError) String() string {
 // indicates if end-of-message padding was encountered and thus any
 // additional data is an error.  decode also assumes len(src)%4==0,
 // since it is meant for internal use.
-func (enc *Encoding) decode(src, dst []byte) (n int, end bool, err os.Error) {
+func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err os.Error) {
 	for i := 0; i < len(src)/4 && !end; i++ {
 		// Decode quantum using the base64 alphabet
 		var dbuf [4]byte;
@@ -254,12 +254,12 @@ func (enc *Encoding) decode(src, dst []byte) (n int, end bool, err os.Error) {
 // DecodedLen(len(src)) bytes to dst and returns the number of bytes
 // written.  If src contains invalid base64 data, it will return the
 // number of bytes successfully written and CorruptInputError.
-func (enc *Encoding) Decode(src, dst []byte) (n int, err os.Error) {
+func (enc *Encoding) Decode(dst, src []byte) (n int, err os.Error) {
 	if len(src)%4 != 0 {
 		return 0, CorruptInputError(len(src)/4*4);
 	}
 
-	n, _, err = enc.decode(src, dst);
+	n, _, err = enc.decode(dst, src);
 	return;
 }
 
@@ -304,12 +304,12 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	nr := d.nbuf / 4 * 4;
 	nw := d.nbuf / 4 * 3;
 	if nw > len(p) {
-		nw, d.end, d.err = d.enc.decode(d.buf[0:nr], &d.outbuf);
+		nw, d.end, d.err = d.enc.decode(&d.outbuf, d.buf[0:nr]);
 		d.out = d.outbuf[0:nw];
 		n = bytes.Copy(p, d.out);
 		d.out = d.out[n:len(d.out)];
 	} else {
-		n, d.end, d.err = d.enc.decode(d.buf[0:nr], p);
+		n, d.end, d.err = d.enc.decode(p, d.buf[0:nr]);
 	}
 	d.nbuf -= nr;
 	for i := 0; i < d.nbuf; i++ {
