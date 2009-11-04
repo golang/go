@@ -4,7 +4,7 @@
 
 /*
 
-6l is a modified version of the Plan 9 loader documented at
+6l is a modified version of the Plan 9 linker documented at
 
 	http://plan9.bell-labs.com/magic/man2html/1/2l
 
