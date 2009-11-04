@@ -27,7 +27,7 @@ var dialErrorTests = []DialErrorTest {
 	},
 	DialErrorTest{
 		"tcp", "", "no-such-name.google.com.:80",
-		"dial tcp no-such-name.google.com.:80: lookup no-such-name.google.com.( on .*)?: no such host",
+		"dial tcp no-such-name.google.com.:80: lookup no-such-name.google.com.( on .*)?: no (.*)",
 	},
 	DialErrorTest{
 		"tcp", "", "no-such-name.no-such-top-level-domain.:80",
@@ -35,7 +35,7 @@ var dialErrorTests = []DialErrorTest {
 	},
 	DialErrorTest{
 		"tcp", "", "no-such-name:80",
-		`dial tcp no-such-name:80: lookup no-such-name\..*\.( on .*)?: no such host`,
+		`dial tcp no-such-name:80: lookup no-such-name\..*\.( on .*)?: no (.*)`,
 	},
 	DialErrorTest{
 		"tcp", "", "mh/astro/r70:http",
