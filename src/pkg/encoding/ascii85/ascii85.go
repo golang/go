@@ -26,7 +26,7 @@ import (
 //
 // Often, ascii85-encoded data is wrapped in <~ and ~> symbols.
 // Encode does not add these.
-func Encode(src, dst []byte) int {
+func Encode(dst, src []byte) int {
 	if len(src) == 0 {
 		return 0;
 	}
@@ -122,7 +122,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		if e.nbuf < 4 {
 			return;
 		}
-		nout := Encode(&e.buf, &e.out);
+		nout := Encode(&e.out, &e.buf);
 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 			return n, e.err;
 		}
@@ -137,7 +137,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		}
 		nn -= nn%4;
 		if nn > 0 {
-			nout := Encode(p[0:nn], &e.out);
+			nout := Encode(&e.out, p[0:nn]);
 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 				return n, e.err;
 			}
@@ -160,7 +160,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 func (e *encoder) Close() os.Error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
-		nout := Encode(e.buf[0:e.nbuf], &e.out);
+		nout := Encode(&e.out, e.buf[0:e.nbuf]);
 		e.nbuf = 0;
 		_, e.err = e.w.Write(e.out[0:nout]);
 	}
@@ -178,7 +178,7 @@ func (e CorruptInputError) String() string {
 }
 
 // Decode decodes src into dst, returning both the number
-// of bytes consumed from src and the number written to dst.
+// of bytes written to dst and the number consumed from src.
 // If src contains invalid ascii85 data, Decode will return the
 // number of bytes successfully written and a CorruptInputError.
 // Decode ignores space and control characters in src.
@@ -191,7 +191,7 @@ func (e CorruptInputError) String() string {
 //
 // NewDecoder wraps an io.Reader interface around Decode.
 //
-func Decode(src, dst []byte, flush bool) (nsrc, ndst int, err os.Error) {
+func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
 	var v uint32;
 	var nb int;
 	for i, b := range src {
@@ -282,7 +282,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		// Decode leftover input from last read.
 		var nn, nsrc, ndst int;
 		if d.nbuf > 0 {
-			nsrc, ndst, d.err = Decode(d.buf[0:d.nbuf], &d.outbuf, d.readErr != nil);
+			ndst, nsrc, d.err = Decode(&d.outbuf, d.buf[0:d.nbuf], d.readErr != nil);
 			if ndst > 0 {
 				d.out = d.outbuf[0:ndst];
 				d.nbuf = bytes.Copy(&d.buf, d.buf[nsrc:d.nbuf]);

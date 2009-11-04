@@ -122,7 +122,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	base64Data := removeWhitespace(rest[0:i]);
 
 	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)));
-	n, err := base64.StdEncoding.Decode(base64Data, p.Bytes);
+	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data);
 	if err != nil {
 		goto Error;
 	}
