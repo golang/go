@@ -21,28 +21,37 @@ func StringFormatter(w io.Writer, value interface{}, format string) {
 	fmt.Fprint(w, value);
 }
 
-
-var esc_amp = strings.Bytes("&amp;")
-var esc_lt = strings.Bytes("&lt;")
-var esc_gt = strings.Bytes("&gt;")
+var (
+	esc_quot = strings.Bytes("&#34;");  // shorter than "&quot;"
+	esc_apos = strings.Bytes("&#39;");  // shorter than "&apos;"
+	esc_amp = strings.Bytes("&amp;");
+	esc_lt = strings.Bytes("&lt;");
+	esc_gt = strings.Bytes("&gt;");
+)
 
 // HtmlEscape writes to w the properly escaped HTML equivalent
 // of the plain text data s.
 func HtmlEscape(w io.Writer, s []byte) {
+	var esc []byte;
 	last := 0;
 	for i, c := range s {
-		if c == '&' || c == '<' || c == '>' {
-			w.Write(s[last:i]);
-			switch c {
-			case '&':
-				w.Write(esc_amp);
-			case '<':
-				w.Write(esc_lt);
-			case '>':
-				w.Write(esc_gt);
-			}
-			last = i+1;
+		switch c {
+		case '"':
+			esc = esc_quot;
+		case '\'':
+			esc = esc_apos;
+		case '&':
+			esc = esc_amp;
+		case '<':
+			esc = esc_lt;
+		case '>':
+			esc = esc_gt;
+		default:
+			continue;
 		}
+		w.Write(s[last:i]);
+		w.Write(esc);
+		last = i+1;
 	}
 	w.Write(s[last:len(s)]);
 }
