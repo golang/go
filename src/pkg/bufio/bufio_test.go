@@ -211,7 +211,7 @@ var segmentList = [][]string {
 	[]string{""},
 	[]string{"日", "本語"},
 	[]string{"\u65e5", "\u672c", "\u8a9e"},
-	[]string{"\U000065e5, "", \U0000672c", "\U00008a9e"},
+	[]string{"\U000065e5", "\U0000672c", "\U00008a9e"},
 	[]string{"\xe6", "\x97\xa5\xe6", "\x9c\xac\xe8\xaa\x9e"},
 	[]string{"Hello", ", ", "World", "!"},
 	[]string{"Hello", ", ", "", "World", "!"},
