@@ -218,12 +218,12 @@ main(int argc, char *argv[])
 		case 'v':	vflag = 1;	break;
 		case 'x':	setcom(xcmd);	break;
 		default:
-			fprint(2, "ar: bad option `%c'\n", *cp);
+			fprint(2, "gopack: bad option `%c'\n", *cp);
 			exits("error");
 		}
 	}
 	if (aflag && bflag) {
-		fprint(2, "ar: only one of 'a' and 'b' can be specified\n");
+		fprint(2, "gopack: only one of 'a' and 'b' can be specified\n");
 		usage();
 	}
 	if(aflag || bflag) {
@@ -235,7 +235,7 @@ main(int argc, char *argv[])
 	}
 	if(comfun == 0) {
 		if(uflag == 0) {
-			fprint(2, "ar: one of [%s] must be specified\n", man);
+			fprint(2, "gopack: one of [%s] must be specified\n", man);
 			usage();
 		}
 		setcom(rcmd);
@@ -247,7 +247,7 @@ main(int argc, char *argv[])
 	cp = 0;
 	while (argc--) {
 		if (*argv) {
-			fprint(2, "ar: %s not found\n", *argv);
+			fprint(2, "gopack: %s not found\n", *argv);
 			cp = "error";
 		}
 		argv++;
@@ -264,7 +264,7 @@ setcom(void (*fun)(char *, int, char**))
 {
 
 	if(comfun != 0) {
-		fprint(2, "ar: only one of [%s] allowed\n", man);
+		fprint(2, "gopack: only one of [%s] allowed\n", man);
 		usage();
 	}
 	comfun = fun;
@@ -316,7 +316,7 @@ rcmd(char *arname, int count, char **files)
 		bfile = Bopen(file, OREAD);
 		if (!bfile) {
 			if (count != 0) {
-				fprint(2, "ar: cannot open %s\n", file);
+				fprint(2, "gopack: cannot open %s\n", file);
 				errors++;
 			}
 			scanobj(&bar, ap, bp->size);
@@ -325,7 +325,7 @@ rcmd(char *arname, int count, char **files)
 		}
 		d = dirfstat(Bfildes(bfile));
 		if(d == nil)
-			fprint(2, "ar: cannot stat %s: %r\n", file);
+			fprint(2, "gopack: cannot stat %s: %r\n", file);
 		if (uflag && (d==nil || d->mtime <= bp->date)) {
 			scanobj(&bar, ap, bp->size);
 			arcopy(&bar, ap, bp);
@@ -350,7 +350,7 @@ rcmd(char *arname, int count, char **files)
 		files[i] = 0;
 		bfile = Bopen(file, OREAD);
 		if (!bfile) {
-			fprint(2, "ar: cannot open %s\n", file);
+			fprint(2, "gopack: cannot open %s\n", file);
 			errors++;
 		} else {
 			mesg('a', file);
@@ -418,7 +418,7 @@ xcmd(char *arname, int count, char **files)
 			mode = strtoul(bp->hdr.mode, 0, 8) & 0777;
 			f = create(file, OWRITE, mode);
 			if(f < 0) {
-				fprint(2, "ar: %s cannot create\n", file);
+				fprint(2, "gopack: %s cannot create\n", file);
 				skip(&bar, bp->size);
 			} else {
 				mesg('x', file);
@@ -512,7 +512,7 @@ mcmd(char *arname, int count, char **files)
 	}
 	close(fd);
 	if (poname[0] && aend == 0)
-		fprint(2, "ar: %s not found - files moved to end.\n", poname);
+		fprint(2, "gopack: %s not found - files moved to end.\n", poname);
 	install(arname, astart, amiddle, aend, 0);
 }
 void
@@ -545,13 +545,13 @@ qcmd(char *arname, int count, char **files)
 	Biobuf *bfile;
 
 	if(aflag || bflag) {
-		fprint(2, "ar: abi not allowed with q\n");
+		fprint(2, "gopack: abi not allowed with q\n");
 		exits("error");
 	}
 	fd = openar(arname, ORDWR, 1);
 	if (fd < 0) {
 		if(!cflag)
-			fprint(2, "ar: creating %s\n", arname);
+			fprint(2, "gopack: creating %s\n", arname);
 		fd = arcreate(arname);
 	}
 	Binit(&bar, fd, OREAD);
@@ -565,7 +565,7 @@ qcmd(char *arname, int count, char **files)
 		files[i] = 0;
 		bfile = Bopen(file, OREAD);
 		if(!bfile) {
-			fprint(2, "ar: cannot open %s\n", file);
+			fprint(2, "gopack: cannot open %s\n", file);
 			errors++;
 		} else {
 			mesg('q', file);
@@ -598,25 +598,25 @@ scanobj(Biobuf *b, Arfile *ap, long size)
 	obj = objtype(b, 0);
 	if (obj < 0) {			/* not an object file */
 		if (!gflag || strcmp(file, pkgdef) != 0) {  /* don't clear allobj if it's pkg defs */
-			fprint(2, "ar: non-object file %s\n", file);
+			fprint(2, "gopack: non-object file %s\n", file);
 			allobj = 0;
 		}
 		d = dirfstat(Bfildes(b));
 		if (d != nil && d->length == 0)
-			fprint(2, "ar: zero length file %s\n", file);
+			fprint(2, "gopack: zero length file %s\n", file);
 		free(d);
 		Bseek(b, offset, 0);
 		return;
 	}
 	if (lastobj >= 0 && obj != lastobj) {
-		fprint(2, "ar: inconsistent object file %s\n", file);
+		fprint(2, "gopack: inconsistent object file %s\n", file);
 		allobj = 0;
 		Bseek(b, offset, 0);
 		return;
 	}
 	lastobj = obj;
 	if (!readar(b, obj, offset+size, 0)) {
-		fprint(2, "ar: invalid symbol reference in file %s\n", file);
+		fprint(2, "gopack: invalid symbol reference in file %s\n", file);
 		allobj = 0;
 		Bseek(b, offset, 0);
 		return;
@@ -675,7 +675,7 @@ scanpkg(Biobuf *b, long size)
 			continue;
 		goto foundstart;
 	}
-	// fprint(2, "ar: warning: no package import section in %s\n", file);
+	// fprint(2, "gopack: warning: no package import section in %s\n", file);
 	return;
 
 foundstart:
@@ -711,7 +711,7 @@ foundstart:
 		end = Boffset(b);  // before closing $$
 	}
 bad:
-	fprint(2, "ar: bad package import section in %s\n", file);
+	fprint(2, "gopack: bad package import section in %s\n", file);
 	return;
 
 foundend:
@@ -724,7 +724,7 @@ foundend:
 		pkgstmt = arstrdup(pkg);
 	} else {
 		if (strcmp(pkg, pkgstmt) != 0) {
-			fprint(2, "ar: inconsistent package name\n");
+			fprint(2, "gopack: inconsistent package name\n");
 			return;
 		}
 	}
@@ -733,7 +733,7 @@ foundend:
 	data = armalloc(pkgsize);
 	Bseek(b, start, 0);
 	if (Bread(b, data, pkgsize) != pkgsize) {
-		fprint(2, "ar: error reading package import section in %s\n", file);
+		fprint(2, "gopack: error reading package import section in %s\n", file);
 		return;
 	}
 	loadpkgdata(data, pkgsize);
@@ -823,11 +823,11 @@ openar(char *arname, int mode, int errok)
 	fd = open(arname, mode);
 	if(fd >= 0){
 		if(read(fd, mbuf, SARMAG) != SARMAG || strncmp(mbuf, ARMAG, SARMAG)) {
-			fprint(2, "ar: %s not in archive format\n", arname);
+			fprint(2, "gopack: %s not in archive format\n", arname);
 			exits("error");
 		}
 	}else if(!errok){
-		fprint(2, "ar: cannot open %s: %r\n", arname);
+		fprint(2, "gopack: cannot open %s: %r\n", arname);
 		exits("error");
 	}
 	return fd;
@@ -843,7 +843,7 @@ arcreate(char *arname)
 
 	fd = create(arname, OWRITE, 0664);
 	if(fd < 0){
-		fprint(2, "ar: cannot create %s: %r\n", arname);
+		fprint(2, "gopack: cannot create %s: %r\n", arname);
 		exits("error");
 	}
 	if(write(fd, ARMAG, SARMAG) != SARMAG)
@@ -857,28 +857,28 @@ arcreate(char *arname)
 void
 wrerr(void)
 {
-	perror("ar: write error");
+	perror("gopack: write error");
 	exits("error");
 }
 
 void
 rderr(void)
 {
-	perror("ar: read error");
+	perror("gopack: read error");
 	exits("error");
 }
 
 void
 phaseerr(int offset)
 {
-	fprint(2, "ar: phase error at offset %d\n", offset);
+	fprint(2, "gopack: phase error at offset %d\n", offset);
 	exits("error");
 }
 
 void
 usage(void)
 {
-	fprint(2, "usage: ar [%s][%s] archive files ...\n", opt, man);
+	fprint(2, "usage: gopack [%s][%s] archive files ...\n", opt, man);
 	exits("error");
 }
 
@@ -921,7 +921,7 @@ armove(Biobuf *b, Arfile *ap, Armember *bp)
 
 	d = dirfstat(Bfildes(b));
 	if (d == nil) {
-		fprint(2, "ar: cannot stat %s\n", file);
+		fprint(2, "gopack: cannot stat %s\n", file);
 		return;
 	}
 	trim(file, bp->hdr.name, sizeof(bp->hdr.name));
@@ -990,7 +990,7 @@ install(char *arname, Arfile *astart, Arfile *amiddle, Arfile *aend, int createf
 	rfork(RFNOTEG);
 
 	if(createflag)
-		fprint(2, "ar: creating %s\n", arname);
+		fprint(2, "gopack: creating %s\n", arname);
 	fd = arcreate(arname);
 
 	if(allobj)
@@ -1371,7 +1371,7 @@ page(Arfile *ap)
 		ap->fname = mktemp(ap->fname);
 		ap->fd = create(ap->fname, ORDWR|ORCLOSE, 0600);
 		if (ap->fd < 0) {
-			fprint(2,"ar: can't create temp file\n");
+			fprint(2,"gopack: can't create temp file\n");
 			return 0;
 		}
 		ap->paged = 1;
@@ -1435,7 +1435,7 @@ armalloc(int n)
 			return cp;
 		}
 	} while (getspace());
-	fprint(2, "ar: out of memory\n");
+	fprint(2, "gopack: out of memory\n");
 	exits("malloc");
 	return 0;
 }
@@ -1527,7 +1527,7 @@ loadpkgdata(char *data, int len)
 			x->def = def;
 			x->file = file;
 		} else if(strcmp(x->prefix, prefix) != 0) {
-			fprint(2, "ar: conflicting definitions for %s\n", name);
+			fprint(2, "gopack: conflicting definitions for %s\n", name);
 			fprint(2, "%s:\t%s %s ...\n", x->file, x->prefix, name);
 			fprint(2, "%s:\t%s %s ...\n", file, prefix, name);
 			errors++;
@@ -1536,7 +1536,7 @@ loadpkgdata(char *data, int len)
 		} else if((ndef = forwardfix(x->def, def)) != nil) {
 			x->def = ndef;
 		} else {
-			fprint(2, "ar: conflicting definitions for %s\n", name);
+			fprint(2, "gopack: conflicting definitions for %s\n", name);
 			fprint(2, "%s:\t%s %s %s\n", x->file, x->prefix, name, x->def);
 			fprint(2, "%s:\t%s %s %s\n", file, prefix, name, def);
 			errors++;
@@ -1572,7 +1572,7 @@ parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
 	else if(strncmp(p, "const ", 6) == 0)
 		p += 6;
 	else {
-		fprint(2, "ar: confused in pkg data near <<%.20s>>\n", p);
+		fprint(2, "gopack: confused in pkg data near <<%.20s>>\n", p);
 		errors++;
 		return -1;
 	}
@@ -1605,7 +1605,7 @@ parsepkgdata(char **pp, char *ep, char **prefixp, char **namep, char **defp)
 			// indented we could do something more complicated,
 			// but for now just diagnose the problem and assume
 			// 6g will keep indenting for us.
-			fprint(2, "ar: %s: expected methods to be indented %p %p %.10s\n", file, edef, meth, meth);
+			fprint(2, "gopack: %s: expected methods to be indented %p %p %.10s\n", file, edef, meth, meth);
 			errors++;
 			return -1;
 		}
@@ -1644,7 +1644,7 @@ parsemethod(char **pp, char *ep, char **methp)
 	while(p < ep && *p != '\n')
 		p++;
 	if(p >= ep) {
-		fprint(2, "ar: lost end of line in method definition\n");
+		fprint(2, "gopack: lost end of line in method definition\n");
 		*pp = ep;
 		return -1;
 	}
@@ -1712,7 +1712,7 @@ getpkgdef(char **datap, int *lenp)
 		}
 	}
 	if(j != nimport) {
-		fprint(2, "ar: import count mismatch (internal error)\n");
+		fprint(2, "gopack: import count mismatch (internal error)\n");
 		exits("oops");
 	}
 	len += 3;	// $$\n
@@ -1742,7 +1742,7 @@ getpkgdef(char **datap, int *lenp)
 	}
 	p = strappend(p, "$$\n");
 	if(p != data+len) {
-		fprint(2, "ar: internal math error\n");
+		fprint(2, "gopack: internal math error\n");
 		exits("oops");
 	}
 
