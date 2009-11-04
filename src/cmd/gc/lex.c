@@ -141,7 +141,7 @@ usage:
 	print("  -h panic on an error\n");
 	print("  -k name specify package name\n");
 	print("  -o file specify output file\n");
-	print("  -p print the assembly language\n");
+	print("  -S print the assembly language\n");
 	print("  -w print the parse tree after typing\n");
 	print("  -x print lex tokens\n");
 	exit(0);
