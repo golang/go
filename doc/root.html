@@ -1,27 +1,90 @@
 <!-- The Go Programming Language -->
 
-<h2>Documentation</h2>
-<ul>
-	<li><a href="/doc/go_spec.html" target="_top">Language specification</a></li>
-	<li><a href="/doc/go_mem.html" target="_top">Memory model</a></li>
-	<li><a href="/doc/go_tutorial.html" target="_top">Tutorial</a></li>
-	<li><a href="/doc/effective_go.html" target="_top">Effective Go</a></li>
-	<li><a href="/doc/go_faq.html">Frequently asked questions</a></li>
-	<li><a href="/doc/go_lang_faq.html">Frequently asked questions about the design of the language</a></li>
-	<li><a href="/doc/go_for_cpp_programmers.html">Go For C++ Programmers</a></li>
-	<br />
-	<li><a href="/pkg">Package documentation</a>
-	<br />
-	<li><a href="/doc/install.html">How to install Go</a></li>
-	<li><a href="/doc/contribute.html">How to contribute to the Go project</a></li>
-</ul>
+<script>
+  // On the frontpage we hide the header and navigation elements that other
+  // pages have.
+  document.getElementById('generatedHeader').style.display = 'none';
+  document.getElementById('nav').style.display = 'none';
+</script>
+
+<div id="gettingStarted">
+  <h1>Getting started</h1>
+
+  <ol>
+    <li>
+      <span><a href="/doc/install.html">Install Go</a>.</span>
+    </li>
+
+    <li>
+      <span>Read the <a href="/doc/go_tutorial.html">tutorial</a>.</span>
+    </li>
+
+    <li>
+      <span>Learn the <a href="/pkg">libraries</a>.</span>
+    </li>
+  </ol>
+
+  <h1>Watch and Learn</h1>
+  <p>(No video yet.)</p>
+</div>
+
+<div id="frontpage">
+
+<table style="padding-top: 1em; padding-bottom: 2em;">
+  <tr>
+    <td>
+      <img style="padding-right: 1em;" src="/doc/go-logo-blue.png">
+    </td>
+    <td>
+      <div><span style="font-size: 2em; font-weight: bold;">an experimental programming language.</span><br><span style="font-size: 1.5em;">Imperative, concurrent, garbage-collected.</span></div>
+    </td>
+  </tr>
+</table>
+
+<p style="font-size: 1.5em; font-weight: bold;">Go is &hellip;</p>
+
+<h3>&hellip; simple</h3>
+<pre class="code">
+package main
+
+import "fmt"
+
+func main() {
+  fmt.Printf("Hello, 世界\n");
+}</pre>
+
+<h3>&hellip; fast</h3>
+
+<p>Go generates fast code and, equally importantly, does it fast. It takes too long to build software.  The tools are slow and are getting slower.  Dependencies are uncontrolled.  Machines have stopped getting faster.  Yet software still grows and grows.  If we stay as we are, before long software construction will be unbearably slow.</p>
+
+<h3>&hellip; safe</h3>
+
+<p>Go is type safe and memory safe. Go has pointers, but you can't perform
+arithmetic on them. If you want that, you use slices, which known their
+limits.</p>
+
+<p>Clumsy type systems drive people to dynamically typed languages. Go is
+object orientated without type hierarchies. Casts are checked at runtime and
+types can be reflected upon.</p>
+
+<h3>&hellip; concurrent</h3>
+
+<p>Go provides a way to write systems and servers as concurrent,
+garbage-collected processes (goroutines) with support from the language and
+run-time. Growing stacks and multiplexing of goroutines onto threads is done
+automatically.</p>
+
+</div>
+
+<!--
+
+Commented out for now. We need to organise these resources.
 
 <h2>Other Resources</h2>
 <ul>
 	<li>Mailing list: <a href="http://groups.google.com/group/NAME_TO_BE_DETERMINED">Go Nuts &lt;nuts@XXX&gt;</a>. Please don't mail group members individually.</li>
 	<li><a href="http://code.google.com/p/go/source/browse/">Source code</a>
 	<li><a href="http://code.google.com/p/go/issues/list">Issue Tracker</a>
-	<li><!-- a href="http://www.google.com/codesearch?q=lang:go+package:go.googlecode.com" -->Code Search<!-- /a --></li>
 	</li>
 	<br />
 	<li>The Google Tech Talk from October 30, 2009:
@@ -38,3 +101,4 @@
 		</ul>
 	</li>
 </ul>
+-->
