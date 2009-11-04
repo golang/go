@@ -1,8 +1,12 @@
 {.section PDoc}
+{.section IsPkg}
 PACKAGE
 
 package {PackageName}
 import "{ImportPath}"
+{.or}
+COMMAND DOCUMENTATION
+{.end}
 {.section Doc}
 
 {@}

@@ -6,17 +6,21 @@
 
 {.section PDoc}
 	<!-- PackageName is printed as title by the top-level template -->
-	<p><code>import "{ImportPath|html}"</code></p>
+	{.section IsPkg}
+		<p><code>import "{ImportPath|html}"</code></p>
+	{.end}
 	{Doc|html-comment}
-	{.section Filenames}
-		<p>
-		<h4>Package files</h4>
-		<span style="font-size:90%">
-		{.repeated section @}
-			<a href="/{FilePath|html}/{@|html}">{@|html}</a>
+	{.section IsPkg}
+		{.section Filenames}
+			<p>
+			<h4>Package files</h4>
+			<span style="font-size:90%">
+			{.repeated section @}
+				<a href="/{FilePath|html}/{@|html}">{@|html}</a>
+			{.end}
+			</span>
+			</p>
 		{.end}
-		</span>
-		</p>
 	{.end}
 	{.section Consts}
 		<h2>Constants</h2>

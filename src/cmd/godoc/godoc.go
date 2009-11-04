@@ -26,9 +26,6 @@ import (
 )
 
 
-const Pkg = "/pkg/"	// name for auto-generated package documentation tree
-
-
 // ----------------------------------------------------------------------------
 // Support types
 
@@ -80,12 +77,16 @@ var (
 
 	// file system roots
 	goroot		string;
+	cmdroot		= flag.String("cmdroot", "src/cmd", "root command source directory (if unrooted, relative to goroot)");
 	pkgroot		= flag.String("pkgroot", "src/pkg", "root package source directory (if unrooted, relative to goroot)");
 	tmplroot	= flag.String("tmplroot", "lib/godoc", "root template directory (if unrooted, relative to goroot)");
 
 	// layout control
 	tabwidth	= flag.Int("tabwidth", 4, "tab width");
 )
+
+
+var fsTree RWValue;  // *Directory tree of packages, updated with each sync
 
 
 func init() {
@@ -118,6 +119,15 @@ func isPkgDir(dir *os.Dir) bool {
 }
 
 
+func pkgName(filename string) string {
+	file, err := parse(filename, parser.PackageClauseOnly);
+	if err != nil || file == nil {
+		return "";
+	}
+	return file.Name.Value;
+}
+
+
 func htmlEscape(s string) string {
 	var buf bytes.Buffer;
 	template.HtmlEscape(&buf, strings.Bytes(s));
@@ -129,7 +139,7 @@ func htmlEscape(s string) string {
 // Package directories
 
 type Directory struct {
-	Path string;  // relative to *pkgroot, includes Name
+	Path string;  // includes Name
 	Name string;
 	Dirs []*Directory;
 }
@@ -143,8 +153,7 @@ func newDirTree(path, name string, depth int) *Directory {
 		return &Directory{path, name, nil};
 	}
 
-	fullpath := pathutil.Join(*pkgroot, path);
-	list, _ := io.ReadDir(fullpath);  // ignore errors
+	list, _ := io.ReadDir(path);  // ignore errors
 
 	// determine number of subdirectories and package files
 	ndirs := 0;
@@ -186,13 +195,12 @@ func newDirTree(path, name string, depth int) *Directory {
 
 
 // newDirectory creates a new package directory tree with at most depth
-// levels, anchored at root which is relative to Pkg. The result tree
+// levels, anchored at root which is relative to goroot. The result tree
 // only contains directories that contain package files or that contain
 // subdirectories containing package files (transitively).
 //
 func newDirectory(root string, depth int) *Directory {
-	fullpath := pathutil.Join(*pkgroot, root);
-	d, err := os.Lstat(fullpath);
+	d, err := os.Lstat(root);
 	if err != nil || !isPkgDir(d) {
 		return nil;
 	}
@@ -415,6 +423,23 @@ func dirFmt(w io.Writer, x interface{}, format string) {
 }
 
 
+func removePrefix(s, prefix string) string {
+	if strings.HasPrefix(s, prefix) {
+		return s[len(prefix) : len(s)];
+	}
+	return s;
+}
+
+
+// Template formatter for "path" format.
+func pathFmt(w io.Writer, x interface{}, format string) {
+	// TODO(gri): Need to find a better solution for this.
+	//            This will not work correctly if *cmdroot
+	//            or *pkgroot change.
+	writeAny(w, removePrefix(x.(string), "src"), true);
+}
+
+
 // Template formatter for "link" format.
 func linkFmt(w io.Writer, x interface{}, format string) {
 	type Positioner interface {
@@ -481,6 +506,7 @@ var fmap = template.FormatterMap{
 	"html": htmlFmt,
 	"html-comment": htmlCommentFmt,
 	"dir": dirFmt,
+	"path": pathFmt,
 	"link": linkFmt,
 	"infoClass": infoClassFmt,
 	"infoLine": infoLineFmt,
@@ -528,8 +554,6 @@ func readTemplates() {
 // ----------------------------------------------------------------------------
 // Generic HTML wrapper
 
-var pkgTree RWValue;  // *Directory tree of packages, updated with each sync
-
 func servePage(c *http.Conn, title, query string, content []byte) {
 	type Data struct {
 		Title		string;
@@ -538,7 +562,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
 		Content		[]byte;
 	}
 
-	_, ts := pkgTree.get();
+	_, ts := fsTree.get();
 	d := Data{
 		Title: title,
 		Timestamp: time.SecondsToLocalTime(ts).String(),
@@ -658,18 +682,21 @@ func serveFile(c *http.Conn, r *http.Request) {
 // ----------------------------------------------------------------------------
 // Packages
 
-func pkgName(filename string) string {
-	file, err := parse(filename, parser.PackageClauseOnly);
-	if err != nil || file == nil {
-		return "";
-	}
-	return file.Name.Value;
-}
+// Package name used for commands that have non-identifier names.
+const fakePkgName = "documentation"
 
 
 type PageInfo struct {
 	PDoc	*doc.PackageDoc;	// nil if no package found
 	Dirs	*Directory;		// nil if no directory information found
+	IsPkg	bool;			// false if this is not documenting a real package
+}
+
+
+type httpHandler struct {
+	pattern string;	// url pattern; e.g. "/pkg/"
+	fsRoot string;	// file system root to which the pattern is mapped
+	isPkg bool;  // true if this handler serves real package documentation (as opposed to command documentation)
 }
 
 
@@ -678,11 +705,12 @@ type PageInfo struct {
 // PageInfo.PDoc is nil. If there are no subdirectories,
 // PageInfo.Dirs is nil.
 //
-func getPageInfo(path string) PageInfo {
-	// the path is relative to *pkgroot
-	dirname := pathutil.Join(*pkgroot, path);
+func (h *httpHandler) getPageInfo(path string) PageInfo {
+	// the path is relative to h.fsroot
+	dirname := pathutil.Join(h.fsRoot, path);
 
 	// the package name is the directory name within its parent
+	// (use dirname instead of path because dirname is clean; i.e. has no trailing '/')
 	_, pkgname := pathutil.Split(dirname);
 
 	// filter function to select the desired .go files
@@ -692,7 +720,10 @@ func getPageInfo(path string) PageInfo {
 			// files that belong to the expected package so that
 			// parser.ParsePackage doesn't return "multiple packages
 			// found" errors.
-			return pkgName(dirname + "/" + d.Name) == pkgname;
+			// Additionally, accept the special package name
+			// fakePkgName if we are looking at cmd documentation.
+			name := pkgName(dirname + "/" + d.Name);
+			return name == pkgname || h.fsRoot == *cmdroot && name == fakePkgName;
 		}
 		return false;
 	};
@@ -713,32 +744,32 @@ func getPageInfo(path string) PageInfo {
 
 	// get directory information
 	var dir *Directory;
-	if tree, _ := pkgTree.get(); tree != nil {
+	if tree, _ := fsTree.get(); tree != nil {
 		// directory tree is present; lookup respective directory
 		// (may still fail if the file system was updated and the
 		// new directory tree has not yet beet computed)
-		dir = tree.(*Directory).lookup(pathutil.Clean(path));
+		dir = tree.(*Directory).lookup(dirname);
 	} else {
 		// no directory tree present (either early after startup
 		// or command-line mode); compute one level for this page
-		dir = newDirectory(path, 1);
+		dir = newDirectory(dirname, 1);
 	}
 	
-	return PageInfo{pdoc, dir};
+	return PageInfo{pdoc, dir, h.isPkg};
 }
 
 
-func servePkg(c *http.Conn, r *http.Request) {
+func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 	path := r.Url.Path;
-	path = path[len(Pkg):len(path)];
+	path = path[len(h.pattern) : len(path)];
 
 	// canonicalize URL path and redirect if necessary
-	if canonical := pathutil.Clean(Pkg+path) + "/"; r.Url.Path != canonical {
+	if canonical := pathutil.Clean(h.pattern + path) + "/"; r.Url.Path != canonical {
 		http.Redirect(c, canonical, http.StatusMovedPermanently);
 		return;
 	}
 
-	info := getPageInfo(path);
+	info := h.getPageInfo(path);
 
 	var buf bytes.Buffer;
 	if r.FormValue("f") == "text" {
@@ -758,7 +789,16 @@ func servePkg(c *http.Conn, r *http.Request) {
 	}
 	title := "Directory " + path;
 	if info.PDoc != nil {
-		title = "Package " + info.PDoc.PackageName;
+		switch {
+		case h.isPkg:
+			title = "Package " + info.PDoc.PackageName;
+		case info.PDoc.PackageName == fakePkgName:
+			// assume that the directory name is the command name
+			_, pkgname := pathutil.Split(pathutil.Clean(path));
+			title = "Command " + pkgname;
+		default:
+			title = "Command " + info.PDoc.PackageName
+		}
 	}
 
 	servePage(c, title, "", buf.Bytes());
@@ -785,7 +825,7 @@ func search(c *http.Conn, r *http.Request) {
 	if index, timestamp := searchIndex.get(); index != nil {
 		result.Query = query;
 		result.Hit, result.Alt = index.(*Index).Lookup(query);
-		_, ts := pkgTree.get();
+		_, ts := fsTree.get();
 		result.Accurate = timestamp >= ts;
 		result.Legend = &infoClasses;
 	}
@@ -809,8 +849,15 @@ func search(c *http.Conn, r *http.Request) {
 // ----------------------------------------------------------------------------
 // Server
 
+var (
+	cmdHandler = httpHandler{"/cmd/", *cmdroot, false};
+	pkgHandler = httpHandler{"/pkg/", *pkgroot, true};
+)
+
+
 func registerPublicHandlers(mux *http.ServeMux) {
-	mux.Handle(Pkg, http.HandlerFunc(servePkg));
+	mux.Handle(cmdHandler.pattern, &cmdHandler);
+	mux.Handle(pkgHandler.pattern, &pkgHandler);
 	mux.Handle("/search", http.HandlerFunc(search));
 	mux.Handle("/", http.HandlerFunc(serveFile));
 }
@@ -819,7 +866,7 @@ func registerPublicHandlers(mux *http.ServeMux) {
 // Indexing goroutine.
 func indexer() {
 	for {
-		_, ts := pkgTree.get();
+		_, ts := fsTree.get();
 		if _, timestamp := searchIndex.get(); timestamp < ts {
 			// index possibly out of date - make a new one
 			// (could use a channel to send an explicit signal
