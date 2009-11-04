@@ -20,7 +20,7 @@ CC=${CC:-gcc}
 sed -e "s|@CC@|$CC|" < quietgcc.bash > $GOBIN/quietgcc
 chmod +x $GOBIN/quietgcc
 
-for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
+for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc
 do
 	case "$i-$GOOS" in
 	libcgo-nacl)
