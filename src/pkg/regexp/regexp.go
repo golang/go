@@ -630,7 +630,7 @@ func Compile(str string) (regexp *Regexp, error os.Error) {
 func MustCompile(str string) *Regexp {
 	regexp, error := Compile(str);
 	if error != nil {
-		panicln(`regexp: compiling "`, str, `": `, error);
+		panicln(`regexp: compiling "`, str, `": `, error.String());
 	}
 	return regexp;
 }
