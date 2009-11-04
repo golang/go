@@ -31,7 +31,7 @@ var dialErrorTests = []DialErrorTest {
 	},
 	DialErrorTest{
 		"tcp", "", "no-such-name.no-such-top-level-domain.:80",
-		"dial tcp no-such-name.no-such-top-level-domain.:80: lookup no-such-name.no-such-top-level-domain.( on .*)?: no such host",
+		"dial tcp no-such-name.no-such-top-level-domain.:80: lookup no-such-name.no-such-top-level-domain.( on .*)?: no (.*)",
 	},
 	DialErrorTest{
 		"tcp", "", "no-such-name:80",
