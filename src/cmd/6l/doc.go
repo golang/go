@@ -19,6 +19,13 @@ Original options are listed in the link above.
 
 Options new in this version:
 
+-d
+	Elide the dynamic linking header.  With this option, the binary
+	is statically linked and does not refer to dynld.  Without this option
+	(the default), the binary's contents are identical but it is loaded with dynld.
+-e
+	Emit an extra ELF-compatible symbol table useful with tools such as
+	nm, gdb, and oprofile. This option makes the binary file considerably larger.
 -H6
 	Write Apple Mach-O binaries (default when $GOOS is darwin)
 -H7
