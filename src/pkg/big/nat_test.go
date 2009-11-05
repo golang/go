@@ -7,7 +7,7 @@ package big
 import "testing"
 
 func TestCmpNN(t *testing.T) {
-// TODO(gri) write this test - all other tests depends on it
+	// TODO(gri) write this test - all other tests depends on it
 }
 
 
@@ -15,6 +15,7 @@ type funNN func(z, x, y []Word) []Word
 type argNN struct {
 	z, x, y []Word;
 }
+
 
 var sumNN = []argNN{
 	argNN{},
@@ -24,6 +25,7 @@ var sumNN = []argNN{
 	argNN{[]Word{0, 0, 0, 1111111110}, []Word{0, 0, 0, 123456789}, []Word{0, 0, 0, 987654321}},
 	argNN{[]Word{0, 0, 0, 1}, []Word{0, 0, _M}, []Word{0, 0, 1}},
 }
+
 
 var prodNN = []argNN{
 	argNN{},
@@ -86,12 +88,14 @@ type strN struct {
 	s	string;
 }
 
+
 var tabN = []strN{
 	strN{nil, 10, "0"},
 	strN{[]Word{1}, 10, "1"},
 	strN{[]Word{10}, 10, "10"},
 	strN{[]Word{1234567890}, 10, "1234567890"},
 }
+
 
 func TestStringN(t *testing.T) {
 	for _, a := range tabN {
@@ -109,6 +113,75 @@ func TestStringN(t *testing.T) {
 		}
 		if n != len(a.s) {
 			t.Errorf("scanN%+v\n\tgot n = %d; want %d", a, n, len(a.s));
+		}
+	}
+}
+
+
+func TestLeadingZeroBits(t *testing.T) {
+	var x Word = 1<<(_W-1);
+	for i := 0; i <= int(_W); i++ {
+		if leadingZeroBits(x) != i {
+			t.Errorf("failed at %x: got %d want %d", x, leadingZeroBits(x), i);
+		}
+		x >>= 1;
+	}
+}
+
+
+type shiftTest struct {
+	in	[]Word;
+	shift	int;
+	out	[]Word;
+}
+
+
+var leftShiftTests = []shiftTest{
+	shiftTest{nil, 0, nil},
+	shiftTest{nil, 1, nil},
+	shiftTest{[]Word{0}, 0, []Word{0}},
+	shiftTest{[]Word{1}, 0, []Word{1}},
+	shiftTest{[]Word{1}, 1, []Word{2}},
+	shiftTest{[]Word{1<<(_W-1)}, 1, []Word{0}},
+	shiftTest{[]Word{1<<(_W-1), 0}, 1, []Word{0, 1}},
+}
+
+
+func TestShiftLeft(t *testing.T) {
+	for i, test := range leftShiftTests {
+		dst := make([]Word, len(test.out));
+		shiftLeft(dst, test.in, test.shift);
+		for j, v := range dst {
+			if test.out[j] != v {
+				t.Errorf("#%d: got: %v want: %v", i, dst, test.out);
+				break;
+			}
+		}
+	}
+}
+
+
+var rightShiftTests = []shiftTest{
+	shiftTest{nil, 0, nil},
+	shiftTest{nil, 1, nil},
+	shiftTest{[]Word{0}, 0, []Word{0}},
+	shiftTest{[]Word{1}, 0, []Word{1}},
+	shiftTest{[]Word{1}, 1, []Word{0}},
+	shiftTest{[]Word{2}, 1, []Word{1}},
+	shiftTest{[]Word{0, 1}, 1, []Word{1<<(_W-1), 0}},
+	shiftTest{[]Word{2, 1, 1}, 1, []Word{1<<(_W-1) + 1, 1<<(_W-1), 0}},
+}
+
+
+func TestShiftRight(t *testing.T) {
+	for i, test := range rightShiftTests {
+		dst := make([]Word, len(test.out));
+		shiftRight(dst, test.in, test.shift);
+		for j, v := range dst {
+			if test.out[j] != v {
+				t.Errorf("#%d: got: %v want: %v", i, dst, test.out);
+				break;
+			}
 		}
 	}
 }

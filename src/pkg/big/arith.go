@@ -50,10 +50,6 @@ func subWW_g(x, y, c Word) (z1, z0 Word) {
 }
 
 
-// TODO(gri) mulWW_g is not needed anymore. Keep around for
-//           now since mulAddWWW_g should use some of the
-//           optimizations from mulWW_g eventually.
-
 // z1<<_W + z0 = x*y
 func mulWW_g(x, y Word) (z1, z0 Word) {
 	// Split x and y into 2 halfWords each, multiply
@@ -86,6 +82,9 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
 		// z = z[1]*_B + z[0] = x*y
 		z0 = t1<<_W2 + t0;
 		z1 = (t1 + t0>>_W2)>>_W2;
+		if z0 < t0 {
+			z1++;
+		}
 		return;
 	}
 
@@ -98,13 +97,31 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
 
 	// x*y = t2*_B2*_B2 + t1*_B2 + t0
 	t0 := x0*y0;
-	t1 := x1*y0 + x0*y1;
-	t2 := x1*y1;
+	// t1 := x1*y0 + x0*y1;
+	var c Word;
+	t1 := x1*y0;
+	t1a := t1;
+	t1 += x0*y1;
+	if t1 < t1a {
+		c++;
+	}
+	t2 := x1*y1 + c*_B2;
 
 	// compute result digits but avoid overflow
 	// z = z[1]*_B + z[0] = x*y
+	// This may overflow, but that's ok because we also sum t1 and t0 above
+	// and we take care of the overflow there.
 	z0 = t1<<_W2 + t0;
-	z1 = t2 + (t1 + t0>>_W2)>>_W2;
+
+	// z1 = t2 + (t1 + t0>>_W2)>>_W2;
+	var c3 Word;
+	z1 = t1 + t0>>_W2;
+	if z1 < t1 {
+		c3++;
+	}
+	z1 >>= _W2;
+	z1 += c3*_B2;
+	z1 += t2;
 	return;
 }
 
@@ -126,14 +143,35 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
 	c1, c0 := c>>_W2, c&_M2;
 
 	// x*y + c = t2*_B2*_B2 + t1*_B2 + t0
+	// (1<<32-1)^2 == 1<<64 - 1<<33 + 1, so there's space to add c0 in here.
 	t0 := x0*y0 + c0;
-	t1 := x1*y0 + x0*y1 + c1;
-	t2 := x1*y1;
+
+	// t1 := x1*y0 + x0*y1 + c1;
+	var c2 Word;	// extra carry
+	t1 := x1*y0 + c1;
+	t1a := t1;
+	t1 += x0*y1;
+	if t1 < t1a {	// If the number got smaller then we overflowed.
+		c2++;
+	}
+
+	t2 := x1*y1 + c2*_B2;
 
 	// compute result digits but avoid overflow
 	// z = z[1]*_B + z[0] = x*y
+	// z0 = t1<<_W2 + t0;
+	// This may overflow, but that's ok because we also sum t1 and t0 below
+	// and we take care of the overflow there.
 	z0 = t1<<_W2 + t0;
-	z1 = t2 + (t1 + t0>>_W2)>>_W2;
+
+	var c3 Word;
+	z1 = t1 + t0>>_W2;
+	if z1 < t1 {
+		c3++;
+	}
+	z1 >>= _W2;
+	z1 += t2 + c3*_B2;
+
 	return;
 }
 

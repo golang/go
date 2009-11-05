@@ -257,6 +257,66 @@ func divNW(z, x []Word, y Word) (q []Word, r Word) {
 }
 
 
+// q = (uIn-r)/v, with 0 <= r < y
+// See Knuth, Volume 2, section 4.3.1, Algorithm D.
+// Preconditions:
+//    len(v) >= 2
+//    len(uIn) >= 1 + len(vIn)
+func divNN(z, z2, uIn, v []Word) (q, r []Word) {
+	n := len(v);
+	m := len(uIn)-len(v);
+
+	u := makeN(z2, len(uIn)+1, false);
+	qhatv := make([]Word, len(v)+1);
+	q = makeN(z, m+1, false);
+
+	// D1.
+	shift := leadingZeroBits(v[n-1]);
+	shiftLeft(v, v, shift);
+	shiftLeft(u, uIn, shift);
+	u[len(uIn)] = uIn[len(uIn)-1]>>(uint(_W)-uint(shift));
+
+	// D2.
+	for j := m; j >= 0; j-- {
+		// D3.
+		qhat, rhat := divWW_g(u[j+n], u[j+n-1], v[n-1]);
+
+		// x1 | x2 = q̂v_{n-2}
+		x1, x2 := mulWW_g(qhat, v[n-2]);
+		// test if q̂v_{n-2} > br̂ + u_{j+n-2}
+		for greaterThan(x1, x2, rhat, u[j+n-2]) {
+			qhat--;
+			prevRhat := rhat;
+			rhat += v[n-1];
+			// v[n-1] >= 0, so this tests for overflow.
+			if rhat < prevRhat {
+				break;
+			}
+			x1, x2 = mulWW_g(qhat, v[n-2]);
+		}
+
+		// D4.
+		qhatv[len(v)] = mulAddVWW(&qhatv[0], &v[0], qhat, 0, len(v));
+
+		c := subVV(&u[j], &u[j], &qhatv[0], len(qhatv));
+		if c != 0 {
+			c := addVV(&u[j], &u[j], &v[0], len(v));
+			u[j+len(v)] += c;
+			qhat--;
+		}
+
+		q[j] = qhat;
+	}
+
+	q = normN(q);
+	shiftRight(u, u, shift);
+	shiftRight(v, v, shift);
+	r = normN(u);
+
+	return q, r;
+}
+
+
 // log2 computes the integer binary logarithm of x.
 // The result is the integer n for which 2^n <= x < 2^(n+1).
 // If x == 0, the result is -1.
@@ -314,6 +374,10 @@ func scanN(z []Word, s string, base int) ([]Word, int, int) {
 		base = 10;
 		if n > 0 && s[0] == '0' {
 			if n > 1 && (s[1] == 'x' || s[1] == 'X') {
+				if n == 2 {
+					// Reject a string which is just '0x' as nonsense.
+					return nil, 0, 0;
+				}
 				base, i = 16, 2;
 			} else {
 				base, i = 8, 1;
@@ -362,9 +426,62 @@ func stringN(x []Word, base int) string {
 	for len(q) > 0 {
 		i--;
 		var r Word;
-		q, r = divNW(q, q, 10);
+		q, r = divNW(q, q, Word(base));
 		s[i] = "0123456789abcdef"[r];
 	}
 
 	return string(s[i:len(s)]);
+}
+
+
+// leadingZeroBits returns the number of leading zero bits in x.
+func leadingZeroBits(x Word) int {
+	c := 0;
+	if x < 1 << (_W/2) {
+		x <<= _W/2;
+		c = int(_W/2);
+	}
+
+	for i := 0; x != 0; i++ {
+		if x&(1<<(_W-1)) != 0 {
+			return i + c;
+		}
+		x <<= 1;
+	}
+
+	return int(_W);
+}
+
+
+func shiftLeft(dst, src []Word, n int) {
+	if len(src) == 0 {
+		return;
+	}
+
+	ñ := uint(_W) - uint(n);
+	for i := len(src)-1; i >= 1; i-- {
+		dst[i] = src[i]<<uint(n);
+		dst[i] |= src[i-1]>>ñ;
+	}
+	dst[0] = src[0]<<uint(n);
+}
+
+
+func shiftRight(dst, src []Word, n int) {
+	if len(src) == 0 {
+		return;
+	}
+
+	ñ := uint(_W) - uint(n);
+	for i := 0; i < len(src)-1; i++ {
+		dst[i] = src[i]>>uint(n);
+		dst[i] |= src[i+1]<<ñ;
+	}
+	dst[len(src)-1] = src[len(src)-1]>>uint(n);
+}
+
+
+// greaterThan returns true iff (x1<<_W + x2) > (y1<<_W + y2)
+func greaterThan(x1, x2, y1, y2 Word) bool {
+	return x1 > y1 || x1 == y1 && x2 > y2;
 }
