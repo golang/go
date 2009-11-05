@@ -16,28 +16,34 @@
 
 '''Mercurial interface to codereview.appspot.com.
 
-To configure it, set the following options in
+To configure, set the following options in
 your repository's .hg/hgrc file.
 
-    [extensions]
-    codereview = path/to/codereview.py
+	[extensions]
+	codereview = path/to/codereview.py
 
-    [codereview]
+	[codereview]
 	server = codereview.appspot.com
 
 The server should be running Rietveld; see http://code.google.com/p/rietveld/.
+
+In addition to the new commands, this extension introduces
+the file pattern syntax @nnnnnn, where nnnnnn is a change list
+number, to mean the files included in that change list, which 
+must be associated with the current client.
+
+For example, if change 123456 contains the files x.go and y.go,
+"hg diff @123456" is equivalent to"hg diff x.go y.go".
 '''
 
 # TODO(rsc):
 #	fix utf-8 upload bug
-#	look for and clear submitted CLs during sync / add "adopt" command?
-#	creating an issue prints the URL twice
-#	better documentation
 
 from mercurial import cmdutil, commands, hg, util, error, match
 from mercurial.node import nullrev, hex, nullid, short
 import os, re
 import stat
+import subprocess
 import threading
 from HTMLParser import HTMLParser
 from xml.etree import ElementTree as ET
@@ -83,10 +89,13 @@ class CL(object):
 		self.url = ''
 		self.local = False
 		self.web = False
+		self.original_author = None	# None means current user
 
 	def DiskText(self):
 		cl = self
 		s = ""
+		if cl.original_author:
+			s += "Author: " + cl.original_author + "\n\n"
 		s += "Description:\n"
 		s += Indent(cl.desc, "\t")
 		s += "Files:\n"
@@ -98,6 +107,8 @@ class CL(object):
 		cl = self
 		s = _change_prolog
 		s += "\n"
+		if cl.original_author:
+			s += "Author: " + cl.original_author + "\n"
 		if cl.url != '':
 			s += 'URL: ' + cl.url + '	# cannot edit\n\n'
 		s += "Reviewer: " + JoinComma(cl.reviewer) + "\n"
@@ -109,10 +120,11 @@ class CL(object):
 		else:
 			s += Indent(cl.desc, "\t")
 		s += "\n"
-		s += "Files:\n"
-		for f in cl.files:
-			s += "\t" + f + "\n"
-		s += "\n"
+		if cl.local or cl.name == "new":
+			s += "Files:\n"
+			for f in cl.files:
+				s += "\t" + f + "\n"
+			s += "\n"
 		return s
 
 	def PendingText(self):
@@ -120,6 +132,8 @@ class CL(object):
 		s = cl.name + ":" + "\n"
 		s += Indent(cl.desc, "\t")
 		s += "\n"
+		if cl.original_author:
+			s += "\tAuthor: " + cl.original_author + "\n"
 		s += "\tReviewer: " + JoinComma(cl.reviewer) + "\n"
 		s += "\tCC: " + JoinComma(cl.cc) + "\n"
 		s += "\tFiles:\n"
@@ -136,7 +150,7 @@ class CL(object):
 		f.write(self.DiskText())
 		f.close()
 		os.rename(path+'!', path)
-		if self.web:
+		if self.web and not self.original_author:
 			EditDesc(self.name, desc=self.desc,
 				reviewers=JoinComma(self.reviewer), cc=JoinComma(self.cc))
 
@@ -211,6 +225,7 @@ def ParseCL(text, name):
 	sname = None
 	lineno = 0
 	sections = {
+		'Author': '',
 		'Description': '',
 		'Files': '',
 		'URL': '',
@@ -242,6 +257,8 @@ def ParseCL(text, name):
 		sections[k] = StripCommon(sections[k]).rstrip()
 
 	cl = CL(name)
+	if sections['Author']:
+		cl.original_author = sections['Author']
 	cl.desc = sections['Description']
 	for line in sections['Files'].split('\n'):
 		i = line.find('#')
@@ -303,7 +320,7 @@ def LoadCL(ui, repo, name, web=True):
 		try:
 			f = GetSettings(name)
 		except:
-			return None, "cannot load CL data from code review server: "+ExceptionDetail()
+			return None, "cannot load CL %s from code review server: %s" % (name, ExceptionDetail())
 		if 'reviewers' not in f:
 			return None, "malformed response loading CL data from code review server"
 		cl.reviewer = SplitCommaSpace(f['reviewers'])
@@ -515,6 +532,8 @@ def CommandLineCL(ui, repo, pats, opts):
 		if opts.get('message'):
 			return None, "cannot use -m with existing CL"
 		cl, err = LoadCL(ui, repo, pats[0], web=True)
+		if err != "":
+			return None, err
 	else:
 		cl = CL("new")
 		cl.local = True
@@ -610,6 +629,14 @@ def change(ui, repo, *pats, **opts):
 
 	In the absence of options, the change command opens the
 	change list for editing in the default editor.
+	
+	Deleting a change with the -d or -D flag does not affect
+	the contents of the files listed in that change.  To revert
+	the files listed in a change, use
+	
+		hg revert @123456
+	
+	before running hg change -d 123456.
 	"""
 
 	dirty = {}
@@ -631,15 +658,23 @@ def change(ui, repo, *pats, **opts):
 		taken = TakenFiles(ui, repo)
 		files = Sub(files, taken)
 
-	if opts["delete"]:
+	if opts["delete"] or opts["deletelocal"]:
+		if opts["delete"] and opts["deletelocal"]:
+			return "cannot use -d and -D together"
+		flag = "-d"
+		if opts["deletelocal"]:
+			flag = "-D"
 		if name == "new":
-			return "cannot use -d with file patterns"
+			return "cannot use "+flag+" with file patterns"
 		if opts["stdin"] or opts["stdout"]:
-			return "cannot use -d with -i or -o"
+			return "cannot use "+flag+" with -i or -o"
 		if not cl.local:
 			return "cannot change non-local CL " + name
-		PostMessage(cl.name, "*** Abandoned ***", send_mail="checked")
-		EditDesc(cl.name, closed="checked")
+		if opts["delete"]:
+			if cl.original_author:
+				return "original author must delete CL; hg change -D will remove locally"
+			PostMessage(cl.name, "*** Abandoned ***", send_mail="checked")
+			EditDesc(cl.name, closed="checked")
 		cl.Delete(ui, repo)
 		return
 
@@ -688,6 +723,55 @@ def code_login(ui, repo, **opts):
 	a file in your home directory.
 	"""
 	MySend(None)
+
+def clpatch(ui, repo, clname, **opts):
+	"""import a patch from the code review server
+	
+	Imports a patch from the code review server into the local client.
+	If the local client has already modified any of the files that the
+	patch modifies, this command will refuse to apply the patch.
+	
+	Submitting an imported patch will keep the original author's
+	name as the Author: line but add your own name to a Committer: line.
+	"""
+	cl, patch, err = DownloadCL(ui, repo, clname)
+	argv = ["hgpatch"]
+	if opts["no_incoming"]:
+		argv += ["--checksync=false"]
+	if err != "":
+		return err
+	try:
+		cmd = subprocess.Popen(argv, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=None, close_fds=True)
+	except:
+		return "hgpatch: " + ExceptionDetail()
+	if os.fork() == 0:
+		cmd.stdin.write(patch)
+		os._exit(0)
+	cmd.stdin.close()
+	out = cmd.stdout.read()
+	if cmd.wait() != 0:
+		return "hgpatch failed"
+	cl.local = True
+	cl.files = out.strip().split()
+	files = ChangedFiles(ui, repo, [], opts)
+	extra = Sub(cl.files, files)
+	if extra:
+		ui.warn("warning: these files were listed in the patch but not changed:\n\t" + "\n\t".join(extra) + "\n")
+	cl.Flush(ui, repo)
+	ui.write(cl.PendingText() + "\n")
+	
+def download(ui, repo, clname, **opts):
+	"""download a change from the code review server
+	
+	Download prints a description of the given change list
+	followed by its diff, downloaded from the code review server.
+	"""
+	cl, patch, err = DownloadCL(ui, repo, clname)
+	if err != "":
+		return err
+	ui.write(cl.EditorText() + "\n")
+	ui.write(patch + "\n")
+	return
 
 def file(ui, repo, clname, pat, *pats, **opts):
 	"""assign files to or remove files from a change list
@@ -784,7 +868,10 @@ def mail(ui, repo, *pats, **opts):
 	if not cl.reviewer:
 		return "no reviewers listed in CL"
 	cl.Upload(ui, repo)
-	pmsg = "Hello " + JoinComma(cl.reviewer) + ",\n"
+	pmsg = "Hello " + JoinComma(cl.reviewer)
+	if cl.cc:
+		pmsg += " (cc: %s)" % (', '.join(cl.cc),)
+	pmsg += ",\n"
 	pmsg += "\n"
 	pmsg += "I'd like you to review the following change.\n"
 	PostMessage(cl.name, pmsg, send_mail="checked", subject=cl.Subject())
@@ -819,18 +906,35 @@ def reposetup(ui, repo):
 		cmdutil.match = ReplacementForCmdutilMatch
 		RietveldSetup(ui, repo)
 
-def CheckContributor(ui, repo):
-	user = ui.config("ui", "username")
+def CheckContributor(ui, repo, user=None):
 	if not user:
-		raise util.Abort("[ui] username is not configured in .hgrc")
+		user = ui.config("ui", "username")
+		if not user:
+			raise util.Abort("[ui] username is not configured in .hgrc")
+	userline = FindContributor(ui, repo, user, warn=False)
+	if not userline:
+		raise util.Abort("cannot find %s in CONTRIBUTORS" % (user,))
+	return userline
+
+def FindContributor(ui, repo, user, warn=True):
 	try:
 		f = open(repo.root + '/CONTRIBUTORS', 'r')
 	except:
 		raise util.Abort("cannot open %s: %s" % (repo.root+'/CONTRIBUTORS', ExceptionDetail()))
 	for line in f.readlines():
-		if line.rstrip() == user.rstrip():
-			return
-	raise util.Abort("cannot find %s in CONTRIBUTORS" % (user,))
+		line = line.rstrip()
+		if line.startswith('#'):
+			continue
+		if line == user:
+			return line
+		match = re.match(r"(.*) <(.*)>", line)
+		if not match:
+			continue
+		if match.group(2) == user:
+			return line
+	if warn:
+		ui.warn("warning: cannot find %s in CONTRIBUTORS\n" % (user,))
+	return None
 
 def submit(ui, repo, *pats, **opts):
 	"""submit change to remote repository
@@ -838,7 +942,6 @@ def submit(ui, repo, *pats, **opts):
 	Submits change to remote repository.
 	Bails out if the local repository is not in sync with the remote one.
 	"""
-	CheckContributor(ui, repo)
 	repo.ui.quiet = True
 	if not opts["no_incoming"] and Incoming(ui, repo, opts):
 		return "local repository out of date; must sync before submit"
@@ -846,6 +949,11 @@ def submit(ui, repo, *pats, **opts):
 	cl, err = CommandLineCL(ui, repo, pats, opts)
 	if err != "":
 		return err
+
+	user = None
+	if cl.original_author:
+		user = cl.original_author
+	userline = CheckContributor(ui, repo, user)
 
 	about = ""
 	if cl.reviewer:
@@ -864,16 +972,30 @@ def submit(ui, repo, *pats, **opts):
 		return "cannot submit non-local CL"
 
 	# upload, to sync current patch and also get change number if CL is new.
-	cl.Upload(ui, repo)
+	if not cl.original_author:
+		cl.Upload(ui, repo)
 	about += "%s%s\n" % (server_url_base, cl.name)
+
+	if cl.original_author:
+		about += "\nCommitter: " + CheckContributor(ui, repo, None) + "\n"
 
 	# submit changes locally
 	date = opts.get('date')
 	if date:
 		opts['date'] = util.parsedate(date)
 	opts['message'] = cl.desc.rstrip() + "\n\n" + about
+
+	if opts['dryrun']:
+		print "NOT SUBMITTING:"
+		print "User: ", userline
+		print "Message:"
+		print Indent(opts['message'], "\t")
+		print "Files:"
+		print Indent('\n'.join(cl.files), "\t")
+		return "dry run; not submitted"
+
 	m = match.exact(repo.root, repo.getcwd(), cl.files)
-	node = repo.commit(opts['message'], opts.get('user'), opts.get('date'), m)
+	node = repo.commit(opts['message'], userline, opts.get('date'), m)
 	if not node:
 		return "nothing changed"
 
@@ -906,7 +1028,8 @@ def submit(ui, repo, *pats, **opts):
 		print >>sys.stderr, "URL: ", url
 	pmsg = "*** Submitted as " + changeURL + " ***\n\n" + opts['message']
 	PostMessage(cl.name, pmsg, send_mail="checked")
-	EditDesc(cl.name, closed="checked")
+	if not cl.original_author:
+		EditDesc(cl.name, closed="checked")
 	cl.Delete(ui, repo)
 
 def sync(ui, repo, **opts):
@@ -1002,10 +1125,18 @@ cmdtable = {
 		change,
 		[
 			('d', 'delete', None, 'delete existing change list'),
+			('D', 'deletelocal', None, 'delete locally, but do not change CL on server'),
 			('i', 'stdin', None, 'read change list from standard input'),
 			('o', 'stdout', None, 'print change list to standard output'),
 		],
-		"[-i] [-o] change# or FILE ..."
+		"[-d | -D] [-i] [-o] change# or FILE ..."
+	),
+	"^clpatch": (
+		clpatch,
+		[
+			('', 'no_incoming', None, 'disable check for incoming changes'),
+		],
+		"change#"
 	),
 	# Would prefer to call this codereview-login, but then
 	# hg help codereview prints the help for this command
@@ -1019,6 +1150,11 @@ cmdtable = {
 		nocommit,
 		[],
 		"",
+	),
+	"^download": (
+		download,
+		[],
+		"change#"
 	),
 	"^file": (
 		file,
@@ -1049,6 +1185,7 @@ cmdtable = {
 		submit,
 		review_opts + [
 			('', 'no_incoming', None, 'disable initial incoming check (for testing)'),
+			('n', 'dryrun', None, 'make change only locally (for testing)'),
 		] + commands.walkopts + commands.commitopts + commands.commitopts2,
 		"[-r reviewer] [--cc cc] [change# | file ...]"
 	),
@@ -1139,6 +1276,57 @@ def IsRietveldSubmitted(ui, clname, hex):
 			return True
 	return False
 
+def DownloadCL(ui, repo, clname):
+	cl, err = LoadCL(ui, repo, clname)
+	if err != "":
+		return None, None, "error loading CL %s: %s" % (clname, ExceptionDetail())
+	
+	# Grab RSS feed to learn about CL
+	feed = XMLGet(ui, "/rss/issue/" + clname)
+	if feed is None:
+		return None, None, "cannot download CL"
+	
+	# Find most recent diff
+	diff = None
+	prefix = 'http://' + server + '/'
+	for link in feed.findall("{http://www.w3.org/2005/Atom}entry/{http://www.w3.org/2005/Atom}link"):
+		if link.get('rel') != 'alternate':
+			continue
+		text = link.get('href')
+		if not text.startswith(prefix) or not text.endswith('.diff'):
+			continue
+		diff = text[len(prefix)-1:]
+	if diff is None:
+		return None, None, "CL has no diff"
+	diffdata = MySend(diff, force_auth=False)
+	
+	# Find author - first entry will be author who created CL.
+	nick = None
+	for author in feed.findall("{http://www.w3.org/2005/Atom}entry/{http://www.w3.org/2005/Atom}author/{http://www.w3.org/2005/Atom}name"):
+		nick = author.findtext("", None).strip()
+		break
+	if not nick:
+		return None, None, "CL has no author"
+
+	# The author is just a nickname: get the real email address.
+	try:
+		data = MySend("/user_popup/" + nick, force_auth=False)
+	except:
+		return None, None, "error looking up %s: %s" % (nick, ExceptionDetail())
+	match = re.match(r"<b>(.*) \((.*)\)</b>", data)
+	if not match or match.group(2) != nick:
+		return None, None, "error looking up %s: cannot parse result" % (nick,)
+	email = match.group(1)
+	
+	# Temporary hack until we move to the public code review server.
+	email = re.sub("@google.com$", "@golang.org", email)
+
+	# Print warning if email is not in CONTRIBUTORS file.
+	FindContributor(ui, repo, email)
+	cl.original_author = email
+
+	return cl, diffdata, ""
+
 # Like upload.py Send but only authenticates when the
 # redirect is to www.google.com/accounts.  This keeps
 # unnecessary redirects from happening during testing.
@@ -1210,10 +1398,22 @@ def GetForm(url):
 		f.map[k] = v.replace("\r\n", "\n");
 	return f.map
 
+# Fetch the settings for the CL, like reviewer and CC list, by
+# scraping the Rietveld editing forms.
 def GetSettings(issue):
-	f = GetForm("/" + issue + "/edit")
+	# The /issue/edit page has everything but only the
+	# CL owner is allowed to fetch it (and submit it).
+	f = None
+	try:
+		f = GetForm("/" + issue + "/edit")
+	except:
+		pass
 	if not f or 'reviewers' not in f:
+		# Maybe we're not the CL owner.  Fall back to the
+		# /publish page, which has the reviewer and CC lists,
+		# and then fetch the description separately.
 		f = GetForm("/" + issue + "/publish")
+		f['description'] = MySend("/"+issue+"/description", force_auth=False)
 	return f
 
 def CreateIssue(subject, desc):
