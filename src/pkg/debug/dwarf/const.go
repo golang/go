@@ -416,7 +416,7 @@ const (
 	opCall2		= 0x98;	/* 2-byte offset of DIE */
 	opCall4		= 0x99;	/* 4-byte offset of DIE */
 	opCallRef	= 0x9A;	/* 4- or 8- byte offset of DIE */
-/* 0xE0-0xFF reserved for user-specific */
+	/* 0xE0-0xFF reserved for user-specific */
 )
 
 // Basic type encodings -- the value for AttrEncoding in a TagBaseType Entry.
