@@ -11,7 +11,7 @@ import (
 )
 
 
-var grammars = []string {
+var grammars = []string{
 	`Program = .
 	`,
 
@@ -58,8 +58,8 @@ func TestGrammars(t *testing.T) {
 }
 
 
-var files = []string {
-	// TODO(gri) add some test files
+var files = []string{
+// TODO(gri) add some test files
 }
 
 
