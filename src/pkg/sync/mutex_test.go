@@ -7,9 +7,9 @@
 package sync_test
 
 import (
-		"runtime";
-	.	"sync";
-		"testing";
+	"runtime";
+	. "sync";
+	"testing";
 )
 
 func HammerSemaphore(s *uint32, cdone chan bool) {

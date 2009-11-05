@@ -53,7 +53,7 @@ func medianOfThree(data Interface, a, b, c int) {
 	if data.Less(m1, m0) {
 		data.Swap(m1, m0);
 	}
-// now data[m0] <= data[m1] <= data[m2]
+	// now data[m0] <= data[m1] <= data[m2]
 }
 
 func swapRange(data Interface, a, b, n int) {
