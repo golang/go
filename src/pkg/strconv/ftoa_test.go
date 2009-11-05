@@ -5,9 +5,9 @@
 package strconv_test
 
 import (
-		"math";
-	.	"strconv";
-		"testing";
+	"math";
+	. "strconv";
+	"testing";
 )
 
 type ftoaTest struct {

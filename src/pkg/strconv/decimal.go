@@ -16,10 +16,10 @@ import "bytes"
 type decimal struct {
 	// TODO(rsc): Can make d[] a bit smaller and add
 	// truncated bool;
-	d [2000] byte;	// digits
-	nd int;	// number of digits used
-	dp int;	// decimal point
-};
+	d	[2000]byte;	// digits
+	nd	int;		// number of digits used
+	dp	int;		// decimal point
+}
 
 func (a *decimal) String() string {
 	n := 10 + a.nd;
@@ -42,20 +42,20 @@ func (a *decimal) String() string {
 		w++;
 		buf[w] = '.';
 		w++;
-		w += digitZero(buf[w:w+-a.dp]);
-		w += bytes.Copy(buf[w:w+a.nd], a.d[0:a.nd]);
+		w += digitZero(buf[w : w + -a.dp]);
+		w += bytes.Copy(buf[w : w + a.nd], a.d[0 : a.nd]);
 
 	case a.dp < a.nd:
 		// decimal point in middle of digits
-		w += bytes.Copy(buf[w:w+a.dp], a.d[0:a.dp]);
+		w += bytes.Copy(buf[w : w + a.dp], a.d[0 : a.dp]);
 		buf[w] = '.';
 		w++;
-		w += bytes.Copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
+		w += bytes.Copy(buf[w : w + a.nd - a.dp], a.d[a.dp : a.nd]);
 
 	default:
 		// zeros fill space between digits and decimal point
-		w += bytes.Copy(buf[w:w+a.nd], a.d[0:a.nd]);
-		w += digitZero(buf[w:w+a.dp-a.nd]);
+		w += bytes.Copy(buf[w : w + a.nd], a.d[0 : a.nd]);
+		w += digitZero(buf[w : w + a.dp - a.nd]);
 	}
 	return string(buf[0:w]);
 }
@@ -78,7 +78,7 @@ func digitZero(dst []byte) int {
 // (They are meaningless; the decimal point is tracked
 // independent of the number of digits.)
 func trim(a *decimal) {
-	for a.nd > 0 && a.d[a.nd-1] == '0' {
+	for a.nd > 0 && a.d[a.nd - 1] == '0' {
 		a.nd--;
 	}
 	if a.nd == 0 {
@@ -95,14 +95,14 @@ func (a *decimal) Assign(v uint64) {
 	for v > 0 {
 		v1 := v/10;
 		v -= 10*v1;
-		buf[n] = byte(v + '0');
+		buf[n] = byte(v+'0');
 		n++;
 		v = v1;
 	}
 
 	// Reverse again to produce forward decimal in a.d.
 	a.nd = 0;
-	for n--; n>=0; n-- {
+	for n--; n >= 0; n-- {
 		a.d[a.nd] = buf[n];
 		a.nd++;
 	}
@@ -141,7 +141,7 @@ func rightShift(a *decimal, k uint) {
 			break;
 		}
 		c := int(a.d[r]);
-		n = n*10 + c-'0';
+		n = n*10 + c - '0';
 	}
 	a.dp -= r-1;
 
@@ -152,7 +152,7 @@ func rightShift(a *decimal, k uint) {
 		n -= dig<<k;
 		a.d[w] = byte(dig+'0');
 		w++;
-		n = n*10 + c-'0';
+		n = n*10 + c - '0';
 	}
 
 	// Put down extra digits.
@@ -179,51 +179,51 @@ func rightShift(a *decimal, k uint) {
 // Credit for this trick goes to Ken.
 
 type leftCheat struct {
-	delta int;	// number of new digits
-	cutoff string;	//   minus one digit if original < a.
+	delta	int;	// number of new digits
+	cutoff	string;	//   minus one digit if original < a.
 }
 
-var leftcheats = []leftCheat {
+var leftcheats = []leftCheat{
 	// Leading digits of 1/2^i = 5^i.
 	// 5^23 is not an exact 64-bit floating point number,
 	// so have to use bc for the math.
 	/*
-	seq 27 | sed 's/^/5^/' | bc |
-	awk 'BEGIN{ print "\tleftCheat{ 0, \"\" }," }
-	{
-		log2 = log(2)/log(10)
-		printf("\tleftCheat{ %d, \"%s\" },\t// * %d\n",
-			int(log2*NR+1), $0, 2**NR)
-	}'
-	 */
-	leftCheat{ 0, "" },
-	leftCheat{ 1, "5" },	// * 2
-	leftCheat{ 1, "25" },	// * 4
-	leftCheat{ 1, "125" },	// * 8
-	leftCheat{ 2, "625" },	// * 16
-	leftCheat{ 2, "3125" },	// * 32
-	leftCheat{ 2, "15625" },	// * 64
-	leftCheat{ 3, "78125" },	// * 128
-	leftCheat{ 3, "390625" },	// * 256
-	leftCheat{ 3, "1953125" },	// * 512
-	leftCheat{ 4, "9765625" },	// * 1024
-	leftCheat{ 4, "48828125" },	// * 2048
-	leftCheat{ 4, "244140625" },	// * 4096
-	leftCheat{ 4, "1220703125" },	// * 8192
-	leftCheat{ 5, "6103515625" },	// * 16384
-	leftCheat{ 5, "30517578125" },	// * 32768
-	leftCheat{ 5, "152587890625" },	// * 65536
-	leftCheat{ 6, "762939453125" },	// * 131072
-	leftCheat{ 6, "3814697265625" },	// * 262144
-	leftCheat{ 6, "19073486328125" },	// * 524288
-	leftCheat{ 7, "95367431640625" },	// * 1048576
-	leftCheat{ 7, "476837158203125" },	// * 2097152
-	leftCheat{ 7, "2384185791015625" },	// * 4194304
-	leftCheat{ 7, "11920928955078125" },	// * 8388608
-	leftCheat{ 8, "59604644775390625" },	// * 16777216
-	leftCheat{ 8, "298023223876953125" },	// * 33554432
-	leftCheat{ 8, "1490116119384765625" },	// * 67108864
-	leftCheat{ 9, "7450580596923828125" },	// * 134217728
+		seq 27 | sed 's/^/5^/' | bc |
+		awk 'BEGIN{ print "\tleftCheat{ 0, \"\" }," }
+		{
+			log2 = log(2)/log(10)
+			printf("\tleftCheat{ %d, \"%s\" },\t// * %d\n",
+				int(log2*NR+1), $0, 2**NR)
+		}'
+	*/
+	leftCheat{0, ""},
+	leftCheat{1, "5"},	// * 2
+	leftCheat{1, "25"},	// * 4
+	leftCheat{1, "125"},	// * 8
+	leftCheat{2, "625"},	// * 16
+	leftCheat{2, "3125"},	// * 32
+	leftCheat{2, "15625"},	// * 64
+	leftCheat{3, "78125"},	// * 128
+	leftCheat{3, "390625"},	// * 256
+	leftCheat{3, "1953125"},	// * 512
+	leftCheat{4, "9765625"},	// * 1024
+	leftCheat{4, "48828125"},	// * 2048
+	leftCheat{4, "244140625"},	// * 4096
+	leftCheat{4, "1220703125"},	// * 8192
+	leftCheat{5, "6103515625"},	// * 16384
+	leftCheat{5, "30517578125"},	// * 32768
+	leftCheat{5, "152587890625"},	// * 65536
+	leftCheat{6, "762939453125"},	// * 131072
+	leftCheat{6, "3814697265625"},	// * 262144
+	leftCheat{6, "19073486328125"},	// * 524288
+	leftCheat{7, "95367431640625"},	// * 1048576
+	leftCheat{7, "476837158203125"},	// * 2097152
+	leftCheat{7, "2384185791015625"},	// * 4194304
+	leftCheat{7, "11920928955078125"},	// * 8388608
+	leftCheat{8, "59604644775390625"},	// * 16777216
+	leftCheat{8, "298023223876953125"},	// * 33554432
+	leftCheat{8, "1490116119384765625"},	// * 67108864
+	leftCheat{9, "7450580596923828125"},	// * 134217728
 }
 
 // Is the leading prefix of b lexicographically less than s?
@@ -242,17 +242,17 @@ func prefixIsLessThan(b []byte, s string) bool {
 // Binary shift left (/ 2) by k bits.  k <= maxShift to avoid overflow.
 func leftShift(a *decimal, k uint) {
 	delta := leftcheats[k].delta;
-	if prefixIsLessThan(a.d[0:a.nd], leftcheats[k].cutoff) {
+	if prefixIsLessThan(a.d[0 : a.nd], leftcheats[k].cutoff) {
 		delta--;
 	}
 
-	r := a.nd;	// read index
+	r := a.nd;		// read index
 	w := a.nd + delta;	// write index
 	n := 0;
 
 	// Pick up a digit, put down a digit.
 	for r--; r >= 0; r-- {
-		n += (int(a.d[r])-'0') << k;
+		n += (int(a.d[r])-'0')<<k;
 		quo := n/10;
 		rem := n - 10*quo;
 		w--;
@@ -302,7 +302,7 @@ func shouldRoundUp(a *decimal, nd int) bool {
 		return false;
 	}
 	if a.d[nd] == '5' && nd+1 == a.nd {	// exactly halfway - round to even
-		return (a.d[nd-1] - '0') % 2 != 0;
+		return (a.d[nd-1] - '0')%2 != 0;
 	}
 	// not halfway - digit tells all
 	return a.d[nd] >= '5';
@@ -341,7 +341,7 @@ func (a *decimal) RoundUp(nd int) *decimal {
 	// round up
 	for i := nd-1; i >= 0; i-- {
 		c := a.d[i];
-		if c < '9' {	 // can stop after this digit
+		if c < '9' {	// can stop after this digit
 			a.d[i]++;
 			a.nd = i+1;
 			return a;
@@ -375,4 +375,3 @@ func (a *decimal) RoundedInteger() uint64 {
 	}
 	return n;
 }
-
