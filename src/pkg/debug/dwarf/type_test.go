@@ -5,10 +5,10 @@
 package dwarf_test
 
 import (
-	.	"debug/dwarf";
-		"debug/elf";
-		"debug/macho";
-		"testing";
+	. "debug/dwarf";
+	"debug/elf";
+	"debug/macho";
+	"testing";
 )
 
 var typedefTests = map[string]string{

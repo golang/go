@@ -20,38 +20,38 @@ import (
 // A File represents an open Mach-O file.
 type File struct {
 	FileHeader;
-	ByteOrder binary.ByteOrder;
-	Loads []Load;
-	Sections []*Section;
+	ByteOrder	binary.ByteOrder;
+	Loads		[]Load;
+	Sections	[]*Section;
 
-	closer io.Closer;
+	closer	io.Closer;
 }
 
 // A Load represents any Mach-O load command.
 type Load interface {
-	Raw() []byte
+	Raw() []byte;
 }
 
 // A LoadBytes is the uninterpreted bytes of a Mach-O load command.
 type LoadBytes []byte
 
 func (b LoadBytes) Raw() []byte {
-	return b
+	return b;
 }
 
 // A SegmentHeader is the header for a Mach-O 32-bit or 64-bit load segment command.
 type SegmentHeader struct {
-	Cmd LoadCmd;
-	Len uint32;
-	Name string;
-	Addr uint64;
-	Memsz uint64;
-	Offset uint64;
-	Filesz uint64;
-	Maxprot uint32;
-	Prot uint32;
-	Nsect uint32;
-	Flag uint32;
+	Cmd	LoadCmd;
+	Len	uint32;
+	Name	string;
+	Addr	uint64;
+	Memsz	uint64;
+	Offset	uint64;
+	Filesz	uint64;
+	Maxprot	uint32;
+	Prot	uint32;
+	Nsect	uint32;
+	Flag	uint32;
 }
 
 // A Segment represents a Mach-O 32-bit or 64-bit load segment command.
@@ -66,7 +66,7 @@ type Segment struct {
 	// Open() to avoid fighting over the seek offset
 	// with other clients.
 	io.ReaderAt;
-	sr *io.SectionReader;
+	sr	*io.SectionReader;
 }
 
 // Data reads and returns the contents of the segment.
@@ -103,7 +103,7 @@ type Section struct {
 	// Open() to avoid fighting over the seek offset
 	// with other clients.
 	io.ReaderAt;
-	sr *io.SectionReader;
+	sr	*io.SectionReader;
 }
 
 // Data reads and returns the contents of the Mach-O section.
@@ -124,9 +124,9 @@ func (s *Section) Open() io.ReadSeeker {
  */
 
 type FormatError struct {
-	off int64;
-	msg string;
-	val interface{};
+	off	int64;
+	msg	string;
+	val	interface{};
 }
 
 func (e *FormatError) String() string {
@@ -315,7 +315,7 @@ func (f *File) pushSection(sh *Section, r io.ReaderAt) {
 		}
 		f.Sections = new;
 	}
-	f.Sections = f.Sections[0:n+1];
+	f.Sections = f.Sections[0 : n+1];
 	f.Sections[n] = sh;
 	sh.sr = io.NewSectionReader(r, int64(sh.Offset), int64(sh.Size));
 	sh.ReaderAt = sh.sr;
@@ -323,7 +323,7 @@ func (f *File) pushSection(sh *Section, r io.ReaderAt) {
 
 func cstring(b []byte) string {
 	var i int;
-	for i=0; i<len(b) && b[i] != 0; i++ {
+	for i = 0; i < len(b) && b[i] != 0; i++ {
 	}
 	return string(b[0:i]);
 }

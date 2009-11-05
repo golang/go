@@ -522,42 +522,42 @@ func (i ProgFlag) GoString() string {
 type DynTag int
 
 const (
-	DT_NULL			DynTag	= 0;		/* Terminating entry. */
-	DT_NEEDED		DynTag	= 1;		/* String table offset of a needed shared library. */
-	DT_PLTRELSZ		DynTag	= 2;		/* Total size in bytes of PLT relocations. */
-	DT_PLTGOT		DynTag	= 3;		/* Processor-dependent address. */
-	DT_HASH			DynTag	= 4;		/* Address of symbol hash table. */
-	DT_STRTAB		DynTag	= 5;		/* Address of string table. */
-	DT_SYMTAB		DynTag	= 6;		/* Address of symbol table. */
-	DT_RELA			DynTag	= 7;		/* Address of ElfNN_Rela relocations. */
-	DT_RELASZ		DynTag	= 8;		/* Total size of ElfNN_Rela relocations. */
-	DT_RELAENT		DynTag	= 9;		/* Size of each ElfNN_Rela relocation entry. */
-	DT_STRSZ		DynTag	= 10;		/* Size of string table. */
-	DT_SYMENT		DynTag	= 11;		/* Size of each symbol table entry. */
-	DT_INIT			DynTag	= 12;		/* Address of initialization function. */
-	DT_FINI			DynTag	= 13;		/* Address of finalization function. */
-	DT_SONAME		DynTag	= 14;		/* String table offset of shared object name. */
-	DT_RPATH		DynTag	= 15;		/* String table offset of library path. [sup] */
-	DT_SYMBOLIC		DynTag	= 16;		/* Indicates "symbolic" linking. [sup] */
-	DT_REL			DynTag	= 17;		/* Address of ElfNN_Rel relocations. */
-	DT_RELSZ		DynTag	= 18;		/* Total size of ElfNN_Rel relocations. */
-	DT_RELENT		DynTag	= 19;		/* Size of each ElfNN_Rel relocation. */
-	DT_PLTREL		DynTag	= 20;		/* Type of relocation used for PLT. */
-	DT_DEBUG		DynTag	= 21;		/* Reserved (not used). */
-	DT_TEXTREL		DynTag	= 22;		/* Indicates there may be relocations in non-writable segments. [sup] */
-	DT_JMPREL		DynTag	= 23;		/* Address of PLT relocations. */
-	DT_BIND_NOW		DynTag	= 24;		/* [sup] */
-	DT_INIT_ARRAY		DynTag	= 25;		/* Address of the array of pointers to initialization functions */
-	DT_FINI_ARRAY		DynTag	= 26;		/* Address of the array of pointers to termination functions */
-	DT_INIT_ARRAYSZ		DynTag	= 27;		/* Size in bytes of the array of initialization functions. */
-	DT_FINI_ARRAYSZ		DynTag	= 28;		/* Size in bytes of the array of terminationfunctions. */
-	DT_RUNPATH		DynTag	= 29;		/* String table offset of a null-terminated library search path string. */
-	DT_FLAGS		DynTag	= 30;		/* Object specific flag values. */
-	DT_ENCODING		DynTag	= 32;		/* Values greater than or equal to DT_ENCODING
-								   and less than DT_LOOS follow the rules for
-								   the interpretation of the d_un union
-								   as follows: even == 'd_ptr', even == 'd_val'
-								   or none */
+	DT_NULL		DynTag	= 0;	/* Terminating entry. */
+	DT_NEEDED	DynTag	= 1;	/* String table offset of a needed shared library. */
+	DT_PLTRELSZ	DynTag	= 2;	/* Total size in bytes of PLT relocations. */
+	DT_PLTGOT	DynTag	= 3;	/* Processor-dependent address. */
+	DT_HASH		DynTag	= 4;	/* Address of symbol hash table. */
+	DT_STRTAB	DynTag	= 5;	/* Address of string table. */
+	DT_SYMTAB	DynTag	= 6;	/* Address of symbol table. */
+	DT_RELA		DynTag	= 7;	/* Address of ElfNN_Rela relocations. */
+	DT_RELASZ	DynTag	= 8;	/* Total size of ElfNN_Rela relocations. */
+	DT_RELAENT	DynTag	= 9;	/* Size of each ElfNN_Rela relocation entry. */
+	DT_STRSZ	DynTag	= 10;	/* Size of string table. */
+	DT_SYMENT	DynTag	= 11;	/* Size of each symbol table entry. */
+	DT_INIT		DynTag	= 12;	/* Address of initialization function. */
+	DT_FINI		DynTag	= 13;	/* Address of finalization function. */
+	DT_SONAME	DynTag	= 14;	/* String table offset of shared object name. */
+	DT_RPATH	DynTag	= 15;	/* String table offset of library path. [sup] */
+	DT_SYMBOLIC	DynTag	= 16;	/* Indicates "symbolic" linking. [sup] */
+	DT_REL		DynTag	= 17;	/* Address of ElfNN_Rel relocations. */
+	DT_RELSZ	DynTag	= 18;	/* Total size of ElfNN_Rel relocations. */
+	DT_RELENT	DynTag	= 19;	/* Size of each ElfNN_Rel relocation. */
+	DT_PLTREL	DynTag	= 20;	/* Type of relocation used for PLT. */
+	DT_DEBUG	DynTag	= 21;	/* Reserved (not used). */
+	DT_TEXTREL	DynTag	= 22;	/* Indicates there may be relocations in non-writable segments. [sup] */
+	DT_JMPREL	DynTag	= 23;	/* Address of PLT relocations. */
+	DT_BIND_NOW	DynTag	= 24;	/* [sup] */
+	DT_INIT_ARRAY	DynTag	= 25;	/* Address of the array of pointers to initialization functions */
+	DT_FINI_ARRAY	DynTag	= 26;	/* Address of the array of pointers to termination functions */
+	DT_INIT_ARRAYSZ	DynTag	= 27;	/* Size in bytes of the array of initialization functions. */
+	DT_FINI_ARRAYSZ	DynTag	= 28;	/* Size in bytes of the array of terminationfunctions. */
+	DT_RUNPATH	DynTag	= 29;	/* String table offset of a null-terminated library search path string. */
+	DT_FLAGS	DynTag	= 30;	/* Object specific flag values. */
+	DT_ENCODING	DynTag	= 32;	/* Values greater than or equal to DT_ENCODING
+	   and less than DT_LOOS follow the rules for
+	   the interpretation of the d_un union
+	   as follows: even == 'd_ptr', even == 'd_val'
+	   or none */
 	DT_PREINIT_ARRAY	DynTag	= 32;		/* Address of the array of pointers to pre-initialization functions. */
 	DT_PREINIT_ARRAYSZ	DynTag	= 33;		/* Size in bytes of the array of pre-initialization functions. */
 	DT_LOOS			DynTag	= 0x6000000d;	/* First OS-specific */
@@ -619,18 +619,18 @@ type DynFlag int
 
 const (
 	DF_ORIGIN	DynFlag	= 0x0001;	/* Indicates that the object being loaded may
-							   make reference to the $ORIGIN substitution
-							   string */
+	   make reference to the $ORIGIN substitution
+	   string */
 	DF_SYMBOLIC	DynFlag	= 0x0002;	/* Indicates "symbolic" linking. */
 	DF_TEXTREL	DynFlag	= 0x0004;	/* Indicates there may be relocations in
-							   non-writable segments. */
+								   non-writable segments. */
 	DF_BIND_NOW	DynFlag	= 0x0008;	/* Indicates that the dynamic linker should
-							   process all relocations for the object
-							   containing this entry before transferring
-							   control to the program. */
+	   process all relocations for the object
+	   containing this entry before transferring
+	   control to the program. */
 	DF_STATIC_TLS	DynFlag	= 0x0010;	/* Indicates that the shared object or
-						   executable contains code using a static
-						   thread-local storage scheme. */
+	   executable contains code using a static
+	   thread-local storage scheme. */
 )
 
 var dflagStrings = []intName{
@@ -1393,8 +1393,8 @@ type Header32 struct {
  * ELF32 Section header.
  */
 type Section32 struct {
-	Name		uint32;	/* Section name (index into the
-							   section header string table). */
+	Name	uint32;	/* Section name (index into the
+								   section header string table). */
 	Type		uint32;	/* Section type. */
 	Flags		uint32;	/* Section flags. */
 	Addr		uint32;	/* Address in memory image. */
@@ -1507,8 +1507,8 @@ type Header64 struct {
  */
 
 type Section64 struct {
-	Name		uint32;	/* Section name (index into the
-							   section header string table). */
+	Name	uint32;	/* Section name (index into the
+								   section header string table). */
 	Type		uint32;	/* Section type. */
 	Flags		uint64;	/* Section flags. */
 	Addr		uint64;	/* Address in memory image. */
