@@ -13,15 +13,20 @@ import (
 )
 
 type integer int
-type T struct { a int; b float64; c string; d *int }
+type T struct {
+	a	int;
+	b	float64;
+	c	string;
+	d	*int;
+}
 
 type pair struct {
-	i interface{};
-	s string;
+	i	interface{};
+	s	string;
 }
 
 func isDigit(c uint8) bool {
-	return '0' <= c && c <= '9'
+	return '0' <= c && c <= '9';
 }
 
 func assert(t *testing.T, s, want string) {
@@ -34,65 +39,180 @@ func typestring(i interface{}) string {
 	return Typeof(i).String();
 }
 
-var typeTests = []pair {
-	pair { struct { x int }{}, "int" },
-	pair { struct { x int8 }{}, "int8" },
-	pair { struct { x int16 }{}, "int16" },
-	pair { struct { x int32 }{}, "int32" },
-	pair { struct { x int64 }{}, "int64" },
-	pair { struct { x uint }{}, "uint" },
-	pair { struct { x uint8 }{}, "uint8" },
-	pair { struct { x uint16 }{}, "uint16" },
-	pair { struct { x uint32 }{}, "uint32" },
-	pair { struct { x uint64 }{}, "uint64" },
-	pair { struct { x float }{}, "float" },
-	pair { struct { x float32 }{}, "float32" },
-	pair { struct { x float64 }{}, "float64" },
-	pair { struct { x int8 }{}, "int8" },
-	pair { struct { x (**int8) }{}, "**int8" },
-	pair { struct { x (**integer) }{}, "**reflect_test.integer" },
-	pair { struct { x ([32]int32) }{}, "[32]int32" },
-	pair { struct { x ([]int8) }{}, "[]int8" },
-	pair { struct { x (map[string]int32) }{}, "map[string] int32" },
-	pair { struct { x (chan<-string) }{}, "chan<- string" },
-	pair { struct { x struct {c chan *int32; d float32} }{}, "struct { c chan *int32; d float32 }" },
-	pair { struct { x (func(a int8, b int32)) }{}, "func(int8, int32)" },
-	pair { struct { x struct {c func(chan *integer, *int8)} }{}, "struct { c func(chan *reflect_test.integer, *int8) }" },
-	pair { struct { x struct {a int8; b int32} }{}, "struct { a int8; b int32 }" },
-	pair { struct { x struct {a int8; b int8; c int32} }{}, "struct { a int8; b int8; c int32 }" },
-	pair { struct { x struct {a int8; b int8; c int8; d int32} }{}, "struct { a int8; b int8; c int8; d int32 }" },
-	pair { struct { x struct {a int8; b int8; c int8; d int8; e int32} }{}, "struct { a int8; b int8; c int8; d int8; e int32 }" },
-	pair { struct { x struct {a int8; b int8; c int8; d int8; e int8; f int32} }{}, "struct { a int8; b int8; c int8; d int8; e int8; f int32 }" },
-	pair { struct { x struct {a int8 "hi there"; } }{}, `struct { a int8 "hi there" }` },
-	pair { struct { x struct {a int8 "hi \x00there\t\n\"\\"; } }{}, `struct { a int8 "hi \x00there\t\n\"\\" }` },
-	pair { struct { x struct {f func(args ...)} }{}, "struct { f func(...) }" },
-	pair { struct { x (interface { a(func(func(int)(int))(func(func(int))(int))); b() }) }{}, "interface { a (func(func(int) (int)) (func(func(int)) (int))); b () }" },
+var typeTests = []pair{
+	pair{struct {
+		x int;
+	}{}, "int"},
+	pair{struct {
+		x int8;
+	}{}, "int8"},
+	pair{struct {
+		x int16;
+	}{}, "int16"},
+	pair{struct {
+		x int32;
+	}{}, "int32"},
+	pair{struct {
+		x int64;
+	}{}, "int64"},
+	pair{struct {
+		x uint;
+	}{}, "uint"},
+	pair{struct {
+		x uint8;
+	}{}, "uint8"},
+	pair{struct {
+		x uint16;
+	}{}, "uint16"},
+	pair{struct {
+		x uint32;
+	}{}, "uint32"},
+	pair{struct {
+		x uint64;
+	}{}, "uint64"},
+	pair{struct {
+		x float;
+	}{}, "float"},
+	pair{struct {
+		x float32;
+	}{}, "float32"},
+	pair{struct {
+		x float64;
+	}{}, "float64"},
+	pair{struct {
+		x int8;
+	}{}, "int8"},
+	pair{struct {
+		x (**int8);
+	}{}, "**int8"},
+	pair{struct {
+		x (**integer);
+	}{}, "**reflect_test.integer"},
+	pair{struct {
+		x ([32]int32);
+	}{}, "[32]int32"},
+	pair{struct {
+		x ([]int8);
+	}{}, "[]int8"},
+	pair{struct {
+		x (map[string]int32);
+	}{}, "map[string] int32"},
+	pair{struct {
+		x (chan<- string);
+	}{}, "chan<- string"},
+	pair{struct {
+		x struct {
+			c	chan *int32;
+			d	float32;
+		};
+	}{}, "struct { c chan *int32; d float32 }"},
+	pair{struct {
+		x (func(a int8, b int32));
+	}{}, "func(int8, int32)"},
+	pair{struct {
+		x struct {
+			c func(chan *integer, *int8);
+		};
+	}{}, "struct { c func(chan *reflect_test.integer, *int8) }"},
+	pair{struct {
+		x struct {
+			a	int8;
+			b	int32;
+		};
+	}{}, "struct { a int8; b int32 }"},
+	pair{struct {
+		x struct {
+			a	int8;
+			b	int8;
+			c	int32;
+		};
+	}{}, "struct { a int8; b int8; c int32 }"},
+	pair{struct {
+		x struct {
+			a	int8;
+			b	int8;
+			c	int8;
+			d	int32;
+		};
+	}{}, "struct { a int8; b int8; c int8; d int32 }"},
+	pair{struct {
+		x struct {
+			a	int8;
+			b	int8;
+			c	int8;
+			d	int8;
+			e	int32;
+		};
+	}{}, "struct { a int8; b int8; c int8; d int8; e int32 }"},
+	pair{struct {
+		x struct {
+			a	int8;
+			b	int8;
+			c	int8;
+			d	int8;
+			e	int8;
+			f	int32;
+		};
+	}{}, "struct { a int8; b int8; c int8; d int8; e int8; f int32 }"},
+	pair{struct {
+		x struct {
+			a int8 "hi there";
+		};
+	}{}, `struct { a int8 "hi there" }`},
+	pair{struct {
+		x struct {
+			a int8 "hi \x00there\t\n\"\\";
+		};
+	}{}, `struct { a int8 "hi \x00there\t\n\"\\" }`},
+	pair{struct {
+		x struct {
+			f func(args ...);
+		};
+	}{}, "struct { f func(...) }"},
+	pair{struct {
+		x (interface {
+			a(func(func(int) int) (func(func(int)) int));
+			b();
+		});
+	}{}, "interface { a (func(func(int) (int)) (func(func(int)) (int))); b () }"},
 }
 
-var valueTests = []pair {
-	pair { (int8)(0), "8" },
-	pair { (int16)(0), "16" },
-	pair { (int32)(0), "32" },
-	pair { (int64)(0), "64" },
-	pair { (uint8)(0), "8" },
-	pair { (uint16)(0), "16" },
-	pair { (uint32)(0), "32" },
-	pair { (uint64)(0), "64" },
-	pair { (float32)(0), "32.1" },
-	pair { (float64)(0), "64.2" },
-	pair { (string)(""), "stringy cheese" },
-	pair { (bool)(false), "true" },
-	pair { (*int8)(nil), "*int8(0)" },
-	pair { (**int8)(nil), "**int8(0)" },
-	pair { ([5]int32){}, "[5]int32{0, 0, 0, 0, 0}" },
-	pair { (**integer)(nil), "**reflect_test.integer(0)" },
-	pair { (map[string]int32)(nil), "map[string] int32{<can't iterate on maps>}" },
-	pair { (chan<-string)(nil), "chan<- string" },
-	pair { (struct {c chan *int32; d float32}){}, "struct { c chan *int32; d float32 }{chan *int32, 0}" },
-	pair { (func(a int8, b int32))(nil), "func(int8, int32)(0)" },
-	pair { (struct {c func(chan *integer, *int8)}){}, "struct { c func(chan *reflect_test.integer, *int8) }{func(chan *reflect_test.integer, *int8)(0)}" },
-	pair { (struct {a int8; b int32}){}, "struct { a int8; b int32 }{0, 0}" },
-	pair { (struct {a int8; b int8; c int32}){}, "struct { a int8; b int8; c int32 }{0, 0, 0}" },
+var valueTests = []pair{
+	pair{(int8)(0), "8"},
+	pair{(int16)(0), "16"},
+	pair{(int32)(0), "32"},
+	pair{(int64)(0), "64"},
+	pair{(uint8)(0), "8"},
+	pair{(uint16)(0), "16"},
+	pair{(uint32)(0), "32"},
+	pair{(uint64)(0), "64"},
+	pair{(float32)(0), "32.1"},
+	pair{(float64)(0), "64.2"},
+	pair{(string)(""), "stringy cheese"},
+	pair{(bool)(false), "true"},
+	pair{(*int8)(nil), "*int8(0)"},
+	pair{(**int8)(nil), "**int8(0)"},
+	pair{([5]int32){}, "[5]int32{0, 0, 0, 0, 0}"},
+	pair{(**integer)(nil), "**reflect_test.integer(0)"},
+	pair{(map[string]int32)(nil), "map[string] int32{<can't iterate on maps>}"},
+	pair{(chan<- string)(nil), "chan<- string"},
+	pair{(struct {
+		c	chan *int32;
+		d	float32;
+	}){}, "struct { c chan *int32; d float32 }{chan *int32, 0}"},
+	pair{(func(a int8, b int32))(nil), "func(int8, int32)(0)"},
+	pair{(struct {
+		c func(chan *integer, *int8);
+	}){}, "struct { c func(chan *reflect_test.integer, *int8) }{func(chan *reflect_test.integer, *int8)(0)}"},
+	pair{(struct {
+		a	int8;
+		b	int32;
+	}){}, "struct { a int8; b int32 }{0, 0}"},
+	pair{(struct {
+		a	int8;
+		b	int8;
+		c	int32;
+	}){}, "struct { a int8; b int8; c int32 }{0, 0, 0}"},
 }
 
 func testType(t *testing.T, i int, typ Type, want string) {
@@ -192,19 +312,19 @@ func TestSetValue(t *testing.T) {
 	}
 }
 
-var _i = 7;
+var _i = 7
 
-var valueToStringTests = []pair {
-	pair { 123, "123" },
-	pair { 123.4, "123.4" },
-	pair { byte(123), "123" },
-	pair { "abc", "abc" },
-	pair { T{123, 456.75, "hello", &_i}, "reflect_test.T{123, 456.75, hello, *int(&7)}" },
-	pair { new(chan *T), "*chan *reflect_test.T(&chan *reflect_test.T)" },
-	pair { [10]int{1,2,3,4,5,6,7,8,9,10}, "[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}" },
-	pair { &[10]int{1,2,3,4,5,6,7,8,9,10}, "*[10]int(&[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})" },
-	pair { []int{1,2,3,4,5,6,7,8,9,10}, "[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}" },
-	pair { &[]int{1,2,3,4,5,6,7,8,9,10}, "*[]int(&[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})" }
+var valueToStringTests = []pair{
+	pair{123, "123"},
+	pair{123.4, "123.4"},
+	pair{byte(123), "123"},
+	pair{"abc", "abc"},
+	pair{T{123, 456.75, "hello", &_i}, "reflect_test.T{123, 456.75, hello, *int(&7)}"},
+	pair{new(chan *T), "*chan *reflect_test.T(&chan *reflect_test.T)"},
+	pair{[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}"},
+	pair{&[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "*[10]int(&[10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})"},
+	pair{[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}"},
+	pair{&[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, "*[]int(&[]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})"},
 }
 
 func TestValueToString(t *testing.T) {
@@ -217,7 +337,7 @@ func TestValueToString(t *testing.T) {
 }
 
 func TestArrayElemSet(t *testing.T) {
-	v := NewValue([10]int{1,2,3,4,5,6,7,8,9,10});
+	v := NewValue([10]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
 	v.(*ArrayValue).Elem(4).(*IntValue).Set(123);
 	s := valueToString(v);
 	const want = "[10]int{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}";
@@ -225,7 +345,7 @@ func TestArrayElemSet(t *testing.T) {
 		t.Errorf("[10]int: have %#q want %#q", s, want);
 	}
 
-	v = NewValue([]int{1,2,3,4,5,6,7,8,9,10});
+	v = NewValue([]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
 	v.(*SliceValue).Elem(4).(*IntValue).Set(123);
 	s = valueToString(v);
 	const want1 = "[]int{1, 2, 3, 4, 123, 6, 7, 8, 9, 10}";
@@ -249,7 +369,10 @@ func TestAll(t *testing.T) {	// TODO(r): wrap up better
 	testType(t, 1, Typeof((int8)(0)), "int8");
 	testType(t, 2, Typeof((*int8)(nil)).(*PtrType).Elem(), "int8");
 
-	typ := Typeof((*struct{c chan *int32; d float32})(nil));
+	typ := Typeof((*struct {
+		c	chan *int32;
+		d	float32;
+	})(nil));
 	testType(t, 3, typ, "*struct { c chan *int32; d float32 }");
 	etyp := typ.(*PtrType).Elem();
 	testType(t, 4, etyp, "struct { c chan *int32; d float32 }");
@@ -278,17 +401,21 @@ func TestAll(t *testing.T) {	// TODO(r): wrap up better
 	testType(t, 10, mtyp.Key(), "string");
 	testType(t, 11, mtyp.Elem(), "*int32");
 
-	typ = Typeof((chan<-string)(nil));
+	typ = Typeof((chan<- string)(nil));
 	testType(t, 12, typ, "chan<- string");
 	testType(t, 13, typ.(*ChanType).Elem(), "string");
 
 	// make sure tag strings are not part of element type
-	typ = Typeof(struct{d []uint32 "TAG"}{}).(*StructType).Field(0).Type;
+	typ = Typeof(struct {
+		d []uint32 "TAG";
+	}{}).(*StructType).Field(0).Type;
 	testType(t, 14, typ, "[]uint32");
 }
 
 func TestInterfaceGet(t *testing.T) {
-	var inter struct { e interface{ } };
+	var inter struct {
+		e interface{};
+	}
 	inter.e = 123.456;
 	v1 := NewValue(&inter);
 	v2 := v1.(*PtrValue).Elem().(*StructValue).Field(0);
@@ -299,7 +426,9 @@ func TestInterfaceGet(t *testing.T) {
 }
 
 func TestInterfaceValue(t *testing.T) {
-	var inter struct { e interface{ } };
+	var inter struct {
+		e interface{};
+	}
 	inter.e = 123.456;
 	v1 := NewValue(&inter);
 	v2 := v1.(*PtrValue).Elem().(*StructValue).Field(0);
@@ -322,9 +451,9 @@ func TestFunctionValue(t *testing.T) {
 }
 
 func TestCopyArray(t *testing.T) {
-	a := []int{ 1, 2, 3, 4, 10, 9, 8, 7 };
-	b := []int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
-	c := []int{ 11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44 };
+	a := []int{1, 2, 3, 4, 10, 9, 8, 7};
+	b := []int{11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44};
+	c := []int{11, 22, 33, 44, 1010, 99, 88, 77, 66, 55, 44};
 	va := NewValue(&a);
 	vb := NewValue(&b);
 	for i := 0; i < len(b); i++ {
@@ -361,17 +490,22 @@ func TestCopyArray(t *testing.T) {
 }
 
 func TestBigUnnamedStruct(t *testing.T) {
-	b := struct{a,b,c,d int64}{1, 2, 3, 4};
+	b := struct {
+		a, b, c, d int64;
+	}{1, 2, 3, 4};
 	v := NewValue(b);
-	b1 := v.Interface().(struct{a,b,c,d int64});
+	b1 := v.Interface().(struct {
+		a, b, c, d int64;
+	});
 	if b1.a != b.a || b1.b != b.b || b1.c != b.c || b1.d != b.d {
 		t.Errorf("NewValue(%v).Interface().(*Big) = %v", b, b1);
 	}
 }
 
 type big struct {
-	a, b, c, d, e int64
+	a, b, c, d, e int64;
 }
+
 func TestBigStruct(t *testing.T) {
 	b := big{1, 2, 3, 4, 5};
 	v := NewValue(b);
@@ -382,55 +516,55 @@ func TestBigStruct(t *testing.T) {
 }
 
 type Basic struct {
-	x int;
-	y float32
+	x	int;
+	y	float32;
 }
 
 type NotBasic Basic
 
 type DeepEqualTest struct {
-	a, b interface{};
-	eq bool;
+	a, b	interface{};
+	eq	bool;
 }
 
-var deepEqualTests = []DeepEqualTest {
+var deepEqualTests = []DeepEqualTest{
 	// Equalities
-	DeepEqualTest{ 1, 1, true },
-	DeepEqualTest{ int32(1), int32(1), true },
-	DeepEqualTest{ 0.5, 0.5, true },
-	DeepEqualTest{ float32(0.5), float32(0.5), true },
-	DeepEqualTest{ "hello", "hello", true },
-	DeepEqualTest{ make([]int, 10), make([]int, 10), true },
-	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 3 }, true },
-	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.5 }, true },
-	DeepEqualTest{ os.Error(nil), os.Error(nil), true },
-	DeepEqualTest{ map[int]string{ 1:"one", 2:"two" }, map[int]string{ 2:"two", 1:"one" }, true },
+	DeepEqualTest{1, 1, true},
+	DeepEqualTest{int32(1), int32(1), true},
+	DeepEqualTest{0.5, 0.5, true},
+	DeepEqualTest{float32(0.5), float32(0.5), true},
+	DeepEqualTest{"hello", "hello", true},
+	DeepEqualTest{make([]int, 10), make([]int, 10), true},
+	DeepEqualTest{&[3]int{1, 2, 3}, &[3]int{1, 2, 3}, true},
+	DeepEqualTest{Basic{1, 0.5}, Basic{1, 0.5}, true},
+	DeepEqualTest{os.Error(nil), os.Error(nil), true},
+	DeepEqualTest{map[int]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, true},
 
 	// Inequalities
-	DeepEqualTest{ 1, 2, false },
-	DeepEqualTest{ int32(1), int32(2), false },
-	DeepEqualTest{ 0.5, 0.6, false },
-	DeepEqualTest{ float32(0.5), float32(0.6), false },
-	DeepEqualTest{ "hello", "hey", false },
-	DeepEqualTest{ make([]int, 10), make([]int, 11), false },
-	DeepEqualTest{ &[3]int{ 1, 2, 3 }, &[3]int{ 1, 2, 4 }, false },
-	DeepEqualTest{ Basic{ 1, 0.5 }, Basic{ 1, 0.6 }, false },
-	DeepEqualTest{ Basic{ 1, 0 }, Basic{ 2, 0 }, false },
-	DeepEqualTest{ map[int]string{ 1:"one", 3:"two" }, map[int]string{ 2:"two", 1:"one" }, false },
-	DeepEqualTest{ map[int]string{ 1:"one", 2:"txo" }, map[int]string{ 2:"two", 1:"one" }, false },
-	DeepEqualTest{ map[int]string{ 1:"one", }, map[int]string{ 2:"two", 1:"one" }, false },
-	DeepEqualTest{ map[int]string{ 2:"two", 1:"one" }, map[int]string{ 1:"one", }, false },
-	DeepEqualTest{ nil, 1, false },
-	DeepEqualTest{ 1, nil, false },
+	DeepEqualTest{1, 2, false},
+	DeepEqualTest{int32(1), int32(2), false},
+	DeepEqualTest{0.5, 0.6, false},
+	DeepEqualTest{float32(0.5), float32(0.6), false},
+	DeepEqualTest{"hello", "hey", false},
+	DeepEqualTest{make([]int, 10), make([]int, 11), false},
+	DeepEqualTest{&[3]int{1, 2, 3}, &[3]int{1, 2, 4}, false},
+	DeepEqualTest{Basic{1, 0.5}, Basic{1, 0.6}, false},
+	DeepEqualTest{Basic{1, 0}, Basic{2, 0}, false},
+	DeepEqualTest{map[int]string{1: "one", 3: "two"}, map[int]string{2: "two", 1: "one"}, false},
+	DeepEqualTest{map[int]string{1: "one", 2: "txo"}, map[int]string{2: "two", 1: "one"}, false},
+	DeepEqualTest{map[int]string{1: "one"}, map[int]string{2: "two", 1: "one"}, false},
+	DeepEqualTest{map[int]string{2: "two", 1: "one"}, map[int]string{1: "one"}, false},
+	DeepEqualTest{nil, 1, false},
+	DeepEqualTest{1, nil, false},
 
 	// Mismatched types
-	DeepEqualTest{ 1, 1.0, false },
-	DeepEqualTest{ int32(1), int64(1), false },
-	DeepEqualTest{ 0.5, "hello", false },
-	DeepEqualTest{ []int{ 1, 2, 3 }, [3]int{ 1, 2, 3 }, false },
-	DeepEqualTest{ &[3]interface{} { 1, 2, 4 }, &[3]interface{} { 1, 2, "s" }, false },
-	DeepEqualTest{ Basic{ 1, 0.5 }, NotBasic{ 1, 0.5 }, false },
-	DeepEqualTest{ map[uint]string{ 1:"one", 2:"two" }, map[int]string{ 2:"two", 1:"one" }, false },
+	DeepEqualTest{1, 1.0, false},
+	DeepEqualTest{int32(1), int64(1), false},
+	DeepEqualTest{0.5, "hello", false},
+	DeepEqualTest{[]int{1, 2, 3}, [3]int{1, 2, 3}, false},
+	DeepEqualTest{&[3]interface{}{1, 2, 4}, &[3]interface{}{1, 2, "s"}, false},
+	DeepEqualTest{Basic{1, 0.5}, NotBasic{1, 0.5}, false},
+	DeepEqualTest{map[uint]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, false},
 }
 
 func TestDeepEqual(t *testing.T) {
@@ -455,24 +589,24 @@ func TestTypeof(t *testing.T) {
 }
 
 type Recursive struct {
-	x int;
-	r *Recursive
+	x	int;
+	r	*Recursive;
 }
 
 func TestDeepEqualRecursiveStruct(t *testing.T) {
 	a, b := new(Recursive), new(Recursive);
-	*a = Recursive{ 12, a };
-	*b = Recursive{ 12, b };
+	*a = Recursive{12, a};
+	*b = Recursive{12, b};
 	if !DeepEqual(a, b) {
 		t.Error("DeepEqual(recursive same) = false, want true");
 	}
 }
 
 type Complex struct {
-	a int;
-	b [3]*Complex;
-	c *string;
-	d map[float]float
+	a	int;
+	b	[3]*Complex;
+	c	*string;
+	d	map[float]float;
 }
 
 func TestDeepEqualComplexStruct(t *testing.T) {
@@ -488,7 +622,7 @@ func TestDeepEqualComplexStruct(t *testing.T) {
 
 func TestDeepEqualComplexStructInequality(t *testing.T) {
 	m := make(map[float]float);
-	stra, strb := "hello", "helloo";  // Difference is here
+	stra, strb := "hello", "helloo";	// Difference is here
 	a, b := new(Complex), new(Complex);
 	*a = Complex{5, [3]*Complex{a, b, a}, &stra, m};
 	*b = Complex{5, [3]*Complex{b, a, a}, &strb, m};
@@ -510,101 +644,127 @@ func check2ndField(x interface{}, offs uintptr, t *testing.T) {
 // from the compiler itself.
 func TestAlignment(t *testing.T) {
 	type T1inner struct {
-		a int
+		a int;
 	}
 	type T1 struct {
 		T1inner;
-		f int;
+		f	int;
 	}
 	type T2inner struct {
-		a, b int
+		a, b int;
 	}
 	type T2 struct {
 		T2inner;
-		f int;
+		f	int;
 	}
 
 	x := T1{T1inner{2}, 17};
-	check2ndField(x, uintptr(unsafe.Pointer(&x.f)) - uintptr(unsafe.Pointer(&x)), t);
+	check2ndField(x, uintptr(unsafe.Pointer(&x.f))-uintptr(unsafe.Pointer(&x)), t);
 
 	x1 := T2{T2inner{2, 3}, 17};
-	check2ndField(x1, uintptr(unsafe.Pointer(&x1.f)) - uintptr(unsafe.Pointer(&x1)), t);
+	check2ndField(x1, uintptr(unsafe.Pointer(&x1.f))-uintptr(unsafe.Pointer(&x1)), t);
 }
 
 type IsNiller interface {
-	IsNil() bool
+	IsNil() bool;
 }
 
 func Nil(a interface{}, t *testing.T) {
 	n := NewValue(a).(*StructValue).Field(0).(IsNiller);
 	if !n.IsNil() {
-		t.Errorf("%v should be nil", a)
+		t.Errorf("%v should be nil", a);
 	}
 }
 
 func NotNil(a interface{}, t *testing.T) {
 	n := NewValue(a).(*StructValue).Field(0).(IsNiller);
 	if n.IsNil() {
-		t.Errorf("value of type %v should not be nil", NewValue(a).Type().String())
+		t.Errorf("value of type %v should not be nil", NewValue(a).Type().String());
 	}
 }
 
 func TestIsNil(t *testing.T) {
 	// These do not implement IsNil
-	doNotNil := []interface{}{ int(0), float32(0), struct{a int}{} };
+	doNotNil := []interface{}{int(0), float32(0), struct {
+		a int;
+	}{}};
 	for _, ts := range doNotNil {
 		ty := Typeof(ts);
 		v := MakeZero(ty);
 		if _, ok := v.(IsNiller); ok {
-			t.Errorf("%s is nilable; should not be", ts)
+			t.Errorf("%s is nilable; should not be", ts);
 		}
 	}
 
 	// These do implement IsNil.
 	// Wrap in extra struct to hide interface type.
 	doNil := []interface{}{
-		struct{x *int}{},
-		struct{x interface{}}{},
-		struct{x map[string]int}{},
-		struct{x func()bool}{},
-		struct{x chan int}{},
-		struct{x []string}{}
+		struct {
+			x *int;
+		}{},
+		struct {
+			x interface{};
+		}{},
+		struct {
+			x map[string]int;
+		}{},
+		struct {
+			x func() bool;
+		}{},
+		struct {
+			x chan int;
+		}{},
+		struct {
+			x []string;
+		}{},
 	};
 	for _, ts := range doNil {
 		ty := Typeof(ts).(*StructType).Field(0).Type;
 		v := MakeZero(ty);
 		if _, ok := v.(IsNiller); !ok {
-			t.Errorf("%s %T is not nilable; should be", ts, v)
+			t.Errorf("%s %T is not nilable; should be", ts, v);
 		}
 	}
 
 	// Check the implementations
-	var pi struct {x *int}
+	var pi struct {
+		x *int;
+	}
 	Nil(pi, t);
 	pi.x = new(int);
 	NotNil(pi, t);
 
-	var si struct {x []int}
+	var si struct {
+		x []int;
+	}
 	Nil(si, t);
 	si.x = make([]int, 10);
 	NotNil(si, t);
 
-	var ci struct {x chan int}
+	var ci struct {
+		x chan int;
+	}
 	Nil(ci, t);
 	ci.x = make(chan int);
 	NotNil(ci, t);
 
-	var mi struct {x map[int]int}
+	var mi struct {
+		x map[int]int;
+	}
 	Nil(mi, t);
 	mi.x = make(map[int]int);
 	NotNil(mi, t);
 
-	var ii struct {x interface {}}
+	var ii struct {
+		x interface{};
+	}
 	Nil(ii, t);
 	ii.x = 2;
 	NotNil(ii, t);
 
-	var fi struct {x func(t *testing.T)}
+	var fi struct {
+		x func(t *testing.T);
+	}
 	Nil(fi, t);
 	fi.x = TestIsNil;
 	NotNil(fi, t);
@@ -658,7 +818,7 @@ func TestNilPtrValueSub(t *testing.T) {
 }
 
 func TestMap(t *testing.T) {
-	m := map[string]int{ "a": 1, "b": 2 };
+	m := map[string]int{"a": 1, "b": 2};
 	mv := NewValue(m).(*MapValue);
 	if n := mv.Len(); n != len(m) {
 		t.Errorf("Len = %d, want %d", n, len(m));
@@ -816,7 +976,7 @@ func TestChan(t *testing.T) {
 
 // Difficult test for function call because of
 // implicit padding between arguments.
-func dummy(b byte, c int, d byte) (i byte, j int, k byte){
+func dummy(b byte, c int, d byte) (i byte, j int, k byte) {
 	return b, c, d;
 }
 
@@ -839,7 +999,7 @@ type Point struct {
 }
 
 func (p Point) Dist(scale int) int {
-	return p.x*p.x*scale + p.y*p.y*scale;
+	return p.x * p.x * scale + p.y * p.y * scale;
 }
 
 func TestMethod(t *testing.T) {
@@ -860,7 +1020,11 @@ func TestMethod(t *testing.T) {
 	// Have to wrap interface value in a struct to get at it.
 	// Passing it to NewValue directly would
 	// access the underlying Point, not the interface.
-	var s = struct{x interface{Dist(int) int}}{p};
+	var s = struct {
+		x interface {
+			Dist(int) int;
+		};
+	}{p};
 	pv := NewValue(s).(*StructValue).Field(0);
 	i = pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get();
 	if i != 250 {
@@ -872,8 +1036,10 @@ func TestInterfaceSet(t *testing.T) {
 	p := &Point{3, 4};
 
 	var s struct {
-		I interface {};
-		P interface { Dist(int)int };
+		I	interface{};
+		P	interface {
+			Dist(int) int;
+		};
 	}
 	sv := NewValue(&s).(*PtrValue).Elem().(*StructValue);
 	sv.Field(0).(*InterfaceValue).Set(NewValue(p));
@@ -893,7 +1059,10 @@ func TestInterfaceSet(t *testing.T) {
 	}
 }
 
-type T1 struct { a string; int; }
+type T1 struct {
+	a	string;
+	int;
+}
 
 func TestAnonymousFields(t *testing.T) {
 	var field StructField;
@@ -909,10 +1078,10 @@ func TestAnonymousFields(t *testing.T) {
 }
 
 type FTest struct {
-	s interface{};
-	name string;
-	index []int;
-	value int;
+	s	interface{};
+	name	string;
+	index	[]int;
+	value	int;
 }
 
 type D1 struct {
@@ -923,18 +1092,18 @@ type D2 struct {
 }
 
 type S0 struct {
-	a, b, c int;
+	a, b, c	int;
 	D1;
 	D2;
 }
 
 type S1 struct {
-	b int;
+	b	int;
 	S0;
 }
 
 type S2 struct {
-	a int;
+	a	int;
 	*S1;
 }
 
@@ -949,36 +1118,36 @@ type S1y struct {
 type S3 struct {
 	S1x;
 	S2;
-	d, e int;
+	d, e	int;
 	*S1y;
 }
 
 type S4 struct {
 	*S4;
-	a int;
+	a	int;
 }
 
-var fieldTests = []FTest {
-	FTest{ struct{ }{}, "", nil, 0 },
-	FTest{ struct{ }{}, "foo", nil, 0 },
-	FTest{ S0{a: 'a'}, "a", []int{0}, 'a' },
-	FTest{ S0{}, "d", nil, 0 },
-	FTest{ S1{S0: S0{a: 'a'}}, "a", []int{1, 0}, 'a' },
-	FTest{ S1{b: 'b'}, "b", []int{0}, 'b' },
-	FTest{ S1{}, "S0", []int{1}, 0 },
-	FTest{ S1{S0: S0{c: 'c'}}, "c", []int{1, 2}, 'c' },
-	FTest{ S2{a: 'a'}, "a", []int{0}, 'a' },
-	FTest{ S2{}, "S1", []int{1}, 0 },
-	FTest{ S2{S1: &S1{b: 'b'}}, "b", []int{1, 0}, 'b' },
-	FTest{ S2{S1: &S1{S0: S0{c: 'c'}}}, "c", []int{1, 1, 2}, 'c' },
-	FTest{ S2{}, "d", nil, 0 },
-	FTest{ S3{}, "S1", nil, 0 },
-	FTest{ S3{S2: S2{a: 'a'}}, "a", []int{1, 0}, 'a' },
-	FTest{ S3{}, "b", nil, 0 },
-	FTest{ S3{d: 'd'}, "d", []int{2}, 0 },
-	FTest{ S3{e: 'e'}, "e", []int{3}, 'e' },
-	FTest{ S4{a: 'a'}, "a", []int{1}, 'a' },
-	FTest{ S4{}, "b", nil, 0 },
+var fieldTests = []FTest{
+	FTest{struct{}{}, "", nil, 0},
+	FTest{struct{}{}, "foo", nil, 0},
+	FTest{S0{a: 'a'}, "a", []int{0}, 'a'},
+	FTest{S0{}, "d", nil, 0},
+	FTest{S1{S0: S0{a: 'a'}}, "a", []int{1, 0}, 'a'},
+	FTest{S1{b: 'b'}, "b", []int{0}, 'b'},
+	FTest{S1{}, "S0", []int{1}, 0},
+	FTest{S1{S0: S0{c: 'c'}}, "c", []int{1, 2}, 'c'},
+	FTest{S2{a: 'a'}, "a", []int{0}, 'a'},
+	FTest{S2{}, "S1", []int{1}, 0},
+	FTest{S2{S1: &S1{b: 'b'}}, "b", []int{1, 0}, 'b'},
+	FTest{S2{S1: &S1{S0: S0{c: 'c'}}}, "c", []int{1, 1, 2}, 'c'},
+	FTest{S2{}, "d", nil, 0},
+	FTest{S3{}, "S1", nil, 0},
+	FTest{S3{S2: S2{a: 'a'}}, "a", []int{1, 0}, 'a'},
+	FTest{S3{}, "b", nil, 0},
+	FTest{S3{d: 'd'}, "d", []int{2}, 0},
+	FTest{S3{e: 'e'}, "e", []int{3}, 'e'},
+	FTest{S4{a: 'a'}, "a", []int{1}, 'a'},
+	FTest{S4{}, "b", nil, 0},
 }
 
 func TestFieldByIndex(t *testing.T) {

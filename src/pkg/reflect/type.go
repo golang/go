@@ -152,7 +152,7 @@ type ChanDir int
 const (
 	RecvDir	ChanDir	= 1<<iota;
 	SendDir;
-	BothDir		= RecvDir|SendDir;
+	BothDir	= RecvDir|SendDir;
 )
 
 // ChanType represents a channel type.
