@@ -17,16 +17,16 @@ const debugParseRemoteType = false
 type remoteType struct {
 	eval.Type;
 	// The size of values of this type in bytes.
-	size int;
+	size	int;
 	// The field alignment of this type.  Only used for
 	// manually-constructed types.
-	fieldAlign int;
+	fieldAlign	int;
 	// The maker function to turn a remote address of a value of
 	// this type into an interpreter Value.
-	mk maker;
+	mk	maker;
 }
 
-var manualTypes = make(map[Arch] map[eval.Type] *remoteType)
+var manualTypes = make(map[Arch]map[eval.Type]*remoteType)
 
 // newManualType constructs a remote type from an interpreter Type
 // using the size and alignment properties of the given architecture.
@@ -40,7 +40,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 	// Get the type map for this architecture
 	typeMap, _ := manualTypes[arch];
 	if typeMap == nil {
-		typeMap = make(map[eval.Type] *remoteType);
+		typeMap = make(map[eval.Type]*remoteType);
 		manualTypes[arch] = typeMap;
 
 		// Construct basic types for this architecture
@@ -51,13 +51,13 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 			}
 			typeMap[t] = &remoteType{t, size, fieldAlign, mk};
 		};
-		basicType(eval.Uint8Type,   mkUint8,   1, 0);
-		basicType(eval.Uint32Type,  mkUint32,  4, 0);
+		basicType(eval.Uint8Type, mkUint8, 1, 0);
+		basicType(eval.Uint32Type, mkUint32, 4, 0);
 		basicType(eval.UintptrType, mkUintptr, arch.PtrSize(), 0);
-		basicType(eval.Int16Type,   mkInt16,   2, 0);
-		basicType(eval.Int32Type,   mkInt32,   4, 0);
-		basicType(eval.IntType,     mkInt,     arch.IntSize(), 0);
-		basicType(eval.StringType,  mkString,  arch.PtrSize() + arch.IntSize(), arch.PtrSize());
+		basicType(eval.Int16Type, mkInt16, 2, 0);
+		basicType(eval.Int32Type, mkInt32, 4, 0);
+		basicType(eval.IntType, mkInt, arch.IntSize(), 0);
+		basicType(eval.StringType, mkString, arch.PtrSize() + arch.IntSize(), arch.PtrSize());
 	}
 
 	if rt, ok := typeMap[t]; ok {
@@ -68,9 +68,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 	switch t := t.(type) {
 	case *eval.PtrType:
 		var elem *remoteType;
-		mk := func(r remote) eval.Value {
-			return remotePtr{r, elem};
-		};
+		mk := func(r remote) eval.Value { return remotePtr{r, elem} };
 		rt = &remoteType{t, arch.PtrSize(), arch.PtrSize(), mk};
 		// Construct the element type after registering the
 		// type to break cycles.
@@ -79,17 +77,13 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 
 	case *eval.ArrayType:
 		elem := newManualType(t.Elem, arch);
-		mk := func(r remote) eval.Value {
-			return remoteArray{r, t.Len, elem};
-		};
-		rt = &remoteType{t, elem.size*int(t.Len), elem.fieldAlign, mk};
+		mk := func(r remote) eval.Value { return remoteArray{r, t.Len, elem} };
+		rt = &remoteType{t, elem.size * int(t.Len), elem.fieldAlign, mk};
 
 	case *eval.SliceType:
 		elem := newManualType(t.Elem, arch);
-		mk := func(r remote) eval.Value {
-			return remoteSlice{r, elem};
-		};
-		rt = &remoteType{t, arch.PtrSize() + 2*arch.IntSize(), arch.PtrSize(), mk};
+		mk := func(r remote) eval.Value { return remoteSlice{r, elem} };
+		rt = &remoteType{t, arch.PtrSize() + 2 * arch.IntSize(), arch.PtrSize(), mk};
 
 	case *eval.StructType:
 		layout := make([]remoteStructField, len(t.Elems));
@@ -105,9 +99,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 			layout[i].fieldType = elem;
 			offset += elem.size;
 		}
-		mk := func(r remote) eval.Value {
-			return remoteStruct{r, layout};
-		};
+		mk := func(r remote) eval.Value { return remoteStruct{r, layout} };
 		rt = &remoteType{t, offset, fieldAlign, mk};
 
 	default:
@@ -118,7 +110,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 	return rt;
 }
 
-var prtIndent = "";
+var prtIndent = ""
 
 // parseRemoteType parses a Type structure in a remote process to
 // construct the corresponding interpreter type and remote type.
@@ -152,7 +144,9 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 		}
 		log.Stderrf("%sParsing type at %#x (%s)", prtIndent, addr, name);
 		prtIndent += " ";
-		defer func() { prtIndent = prtIndent[0:len(prtIndent)-1] }();
+		defer func() {
+			prtIndent = prtIndent[0 : len(prtIndent)-1];
+		}();
 	}
 
 	// Get Type header
@@ -230,9 +224,7 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 		len := int64(typ.field(p.f.ArrayType.Len).(remoteUint).aGet(a));
 		elem := parseRemoteType(a, typ.field(p.f.ArrayType.Elem).(remotePtr).aGet(a).(remoteStruct));
 		t = eval.NewArrayType(len, elem.Type);
-		mk = func(r remote) eval.Value {
-			return remoteArray{r, len, elem};
-		};
+		mk = func(r remote) eval.Value { return remoteArray{r, len, elem} };
 
 	case p.runtime.PStructType:
 		// Cast to a StructType
@@ -257,27 +249,21 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 		}
 
 		t = eval.NewStructType(fields);
-		mk = func(r remote) eval.Value {
-			return remoteStruct{r, layout};
-		};
+		mk = func(r remote) eval.Value { return remoteStruct{r, layout} };
 
 	case p.runtime.PPtrType:
 		// Cast to a PtrType
 		typ := p.runtime.PtrType.mk(typ.addr()).(remoteStruct);
 		elem := parseRemoteType(a, typ.field(p.f.PtrType.Elem).(remotePtr).aGet(a).(remoteStruct));
 		t = eval.NewPtrType(elem.Type);
-		mk = func(r remote) eval.Value {
-			return remotePtr{r, elem};
-		};
+		mk = func(r remote) eval.Value { return remotePtr{r, elem} };
 
 	case p.runtime.PSliceType:
 		// Cast to a SliceType
 		typ := p.runtime.SliceType.mk(typ.addr()).(remoteStruct);
 		elem := parseRemoteType(a, typ.field(p.f.SliceType.Elem).(remotePtr).aGet(a).(remoteStruct));
 		t = eval.NewSliceType(elem.Type);
-		mk = func(r remote) eval.Value {
-			return remoteSlice{r, elem};
-		};
+		mk = func(r remote) eval.Value { return remoteSlice{r, elem} };
 
 	case p.runtime.PMapType, p.runtime.PChanType, p.runtime.PFuncType, p.runtime.PInterfaceType, p.runtime.PUnsafePointerType, p.runtime.PDotDotDotType:
 		// TODO(austin)

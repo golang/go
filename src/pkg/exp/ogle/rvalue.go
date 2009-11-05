@@ -38,8 +38,8 @@ type remoteValue interface {
 
 // remote represents an address in a remote process.
 type remote struct {
-	base proc.Word;
-	p *Process;
+	base	proc.Word;
+	p	*Process;
 }
 
 func (v remote) Get(a aborter, size int) uint64 {
@@ -140,8 +140,8 @@ func mkBool(r remote) eval.Value {
  */
 
 type remoteUint struct {
-	r remote;
-	size int;
+	r	remote;
+	size	int;
 }
 
 func (v remoteUint) String() string {
@@ -201,8 +201,8 @@ func mkUintptr(r remote) eval.Value {
  */
 
 type remoteInt struct {
-	r remote;
-	size int;
+	r	remote;
+	size	int;
 }
 
 func (v remoteInt) String() string {
@@ -258,8 +258,8 @@ func mkInt(r remote) eval.Value {
  */
 
 type remoteFloat struct {
-	r remote;
-	size int;
+	r	remote;
+	size	int;
 }
 
 func (v remoteFloat) String() string {
@@ -291,7 +291,7 @@ func (v remoteFloat) Set(t *eval.Thread, x float64) {
 
 func (v remoteFloat) aSet(a aborter, x float64) {
 	var bits uint64;
-	switch v.size{
+	switch v.size {
 	case 4:
 		bits = uint64(v.r.p.FromFloat32(float32(x)));
 	case 8:
@@ -370,9 +370,9 @@ func mkString(r remote) eval.Value {
  */
 
 type remoteArray struct {
-	r remote;
-	len int64;
-	elemType *remoteType;
+	r		remote;
+	len		int64;
+	elemType	*remoteType;
 }
 
 func (v remoteArray) String() string {
@@ -383,11 +383,11 @@ func (v remoteArray) String() string {
 		}
 		res += v.elem(i).String();
 	}
-	return res + "}";
+	return res+"}";
 }
 
 func (v remoteArray) Assign(t *eval.Thread, o eval.Value) {
- 	// TODO(austin) Could do a bigger memcpy if o is a
+	// TODO(austin) Could do a bigger memcpy if o is a
 	// remoteArray in the same Process.
 	oa := o.(eval.ArrayValue);
 	for i := int64(0); i < v.len; i++ {
@@ -404,11 +404,11 @@ func (v remoteArray) Elem(t *eval.Thread, i int64) eval.Value {
 }
 
 func (v remoteArray) elem(i int64) eval.Value {
-	return v.elemType.mk(v.r.plus(proc.Word(int64(v.elemType.size) * i)));
+	return v.elemType.mk(v.r.plus(proc.Word(int64(v.elemType.size)*i)));
 }
 
 func (v remoteArray) Sub(i int64, len int64) eval.ArrayValue {
-	return remoteArray{v.r.plus(proc.Word(int64(v.elemType.size) * i)), len, v.elemType};
+	return remoteArray{v.r.plus(proc.Word(int64(v.elemType.size)*i)), len, v.elemType};
 }
 
 /*
@@ -416,13 +416,13 @@ func (v remoteArray) Sub(i int64, len int64) eval.ArrayValue {
  */
 
 type remoteStruct struct {
-	r remote;
-	layout []remoteStructField;
+	r	remote;
+	layout	[]remoteStructField;
 }
 
 type remoteStructField struct {
-	offset int;
-	fieldType *remoteType;
+	offset		int;
+	fieldType	*remoteType;
 }
 
 func (v remoteStruct) String() string {
@@ -433,7 +433,7 @@ func (v remoteStruct) String() string {
 		}
 		res += v.field(i).String();
 	}
-	return res + "}";
+	return res+"}";
 }
 
 func (v remoteStruct) Assign(t *eval.Thread, o eval.Value) {
@@ -471,8 +471,8 @@ func (v remoteStruct) addr() remote {
 // remotePtr.Get() will be structs.
 
 type remotePtr struct {
-	r remote;
-	elemType *remoteType;
+	r		remote;
+	elemType	*remoteType;
 }
 
 func (v remotePtr) String() string {
@@ -526,8 +526,8 @@ func (v remotePtr) addr() remote {
  */
 
 type remoteSlice struct {
-	r remote;
-	elemType *remoteType;
+	r		remote;
+	elemType	*remoteType;
 }
 
 func (v remoteSlice) String() string {

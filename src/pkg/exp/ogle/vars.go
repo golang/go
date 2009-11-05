@@ -19,8 +19,8 @@ import (
 // A NotOnStack error occurs when attempting to access a variable in a
 // remote frame where that remote frame is not on the current stack.
 type NotOnStack struct {
-	Fn *gosym.Func;
-	Goroutine *Goroutine;
+	Fn		*gosym.Func;
+	Goroutine	*Goroutine;
 }
 
 func (e NotOnStack) String() string {
@@ -33,9 +33,9 @@ func (e NotOnStack) String() string {
 // stack and returns a structure containing the local variables of
 // that function.
 type remoteFramePtr struct {
-	p *Process;
-	fn *gosym.Func;
-	rt *remoteType;
+	p	*Process;
+	fn	*gosym.Func;
+	rt	*remoteType;
 }
 
 func (v remoteFramePtr) String() string {
@@ -115,10 +115,10 @@ func (v remotePackage) Field(t *eval.Thread, i int) eval.Value {
 // fields for each global and function in that package.
 func (p *Process) populateWorld(w *eval.World) os.Error {
 	type def struct {
-		t eval.Type;
-		v eval.Value;
+		t	eval.Type;
+		v	eval.Value;
 	}
-	packages := make(map[string] map[string] def);
+	packages := make(map[string]map[string]def);
 
 	for _, s := range p.syms.Syms {
 		if s.ReceiverName() != "" {
@@ -135,7 +135,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 		}
 		pkg, ok := packages[pkgName];
 		if !ok {
-			pkg = make(map[string] def);
+			pkg = make(map[string]def);
 			packages[pkgName] = pkg;
 		}
 
@@ -221,7 +221,7 @@ func (p *Process) typeOfSym(s *gosym.Sym) (*remoteType, os.Error) {
 // The offsets in this struct type are such that the struct can be
 // instantiated at this function's frame pointer.
 func (p *Process) makeFrameType(s *gosym.Func) (*remoteType, os.Error) {
-	n := len(s.Params) + len(s.Locals);
+	n := len(s.Params)+len(s.Locals);
 	fields := make([]eval.StructField, n);
 	layout := make([]remoteStructField, n);
 	i := 0;

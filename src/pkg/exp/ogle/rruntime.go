@@ -31,19 +31,19 @@ import (
  */
 
 type rt1String struct {
-	str uintptr;
-	len int;
+	str	uintptr;
+	len	int;
 }
 
 type rt1Slice struct {
-	array uintptr;
-	len int;
-	cap int;
+	array	uintptr;
+	len	int;
+	cap	int;
 }
 
 type rt1Eface struct {
-	typ uintptr;
-	ptr uintptr;
+	typ	uintptr;
+	ptr	uintptr;
 }
 
 /*
@@ -53,17 +53,17 @@ type rt1Eface struct {
  */
 
 type rt1UncommonType struct {
-	name *string;
-	pkgPath *string;
+	name	*string;
+	pkgPath	*string;
 	//methods []method;
 }
 
 type rt1CommonType struct {
-	size uintptr;
-	hash uint32;
-	alg, align, fieldAlign uint8;
-	string *string;
-	uncommonType *rt1UncommonType;
+	size			uintptr;
+	hash			uint32;
+	alg, align, fieldAlign	uint8;
+	string			*string;
+	uncommonType		*rt1UncommonType;
 }
 
 type rt1Type struct {
@@ -71,37 +71,37 @@ type rt1Type struct {
 	// discriminator as an opaque pointer and taking advantage of
 	// the commonType prologue on all Type's makes type parsing
 	// much simpler.
-	typ uintptr;
-	ptr *rt1CommonType;
+	typ	uintptr;
+	ptr	*rt1CommonType;
 }
 
 type rt1StructField struct {
-	name *string;
-	pkgPath *string;
-	typ *rt1Type;
-	tag *string;
-	offset uintptr;
+	name	*string;
+	pkgPath	*string;
+	typ	*rt1Type;
+	tag	*string;
+	offset	uintptr;
 }
 
 type rt1StructType struct {
 	rt1CommonType;
-	fields []rt1StructField;
+	fields	[]rt1StructField;
 }
 
 type rt1PtrType struct {
 	rt1CommonType;
-	elem *rt1Type;
+	elem	*rt1Type;
 }
 
 type rt1SliceType struct {
 	rt1CommonType;
-	elem *rt1Type;
+	elem	*rt1Type;
 }
 
 type rt1ArrayType struct {
 	rt1CommonType;
-	elem *rt1Type;
-	len uintptr;
+	elem	*rt1Type;
+	len	uintptr;
 }
 
 /*
@@ -113,30 +113,30 @@ type rt1ArrayType struct {
 // Fields beginning with _ are only for padding
 
 type rt1Stktop struct {
-	stackguard uintptr;
-	stackbase *rt1Stktop;
-	gobuf rt1Gobuf;
-	_args uint32;
-	_fp uintptr;
+	stackguard	uintptr;
+	stackbase	*rt1Stktop;
+	gobuf		rt1Gobuf;
+	_args		uint32;
+	_fp		uintptr;
 }
 
 type rt1Gobuf struct {
-	sp uintptr;
-	pc uintptr;
-	g *rt1G;
-	r0 uintptr;
+	sp	uintptr;
+	pc	uintptr;
+	g	*rt1G;
+	r0	uintptr;
 }
 
 type rt1G struct {
-	_stackguard uintptr;
-	stackbase *rt1Stktop;
-	_defer uintptr;
-	sched rt1Gobuf;
-	_stack0 uintptr;
-	_entry uintptr;
-	alllink *rt1G;
-	_param uintptr;
-	status int16;
+	_stackguard	uintptr;
+	stackbase	*rt1Stktop;
+	_defer		uintptr;
+	sched		rt1Gobuf;
+	_stack0		uintptr;
+	_entry		uintptr;
+	alllink		*rt1G;
+	_param		uintptr;
+	status		int16;
 	// Incomplete
 }
 
@@ -148,7 +148,7 @@ var rt1GStatus = runtimeGStatus{
 	Gwaiting: 4,
 	Gmoribund: 5,
 	Gdead: 6,
-};
+}
 
 // runtimeIndexes stores the indexes of fields in the runtime
 // structures.  It is filled in using reflection, so the name of the
@@ -156,48 +156,48 @@ var rt1GStatus = runtimeGStatus{
 // exactly and the names of the index fields must be the capitalized
 // version of the names of the fields in the runtime structures above.
 type runtimeIndexes struct {
-	String struct {
+	String	struct {
 		Str, Len int;
 	};
-	Slice struct {
+	Slice	struct {
 		Array, Len, Cap int;
 	};
-	Eface struct {
+	Eface	struct {
 		Typ, Ptr int;
 	};
 
-	UncommonType struct {
+	UncommonType	struct {
 		Name, PkgPath int;
 	};
-	CommonType struct {
+	CommonType	struct {
 		Size, Hash, Alg, Align, FieldAlign, String, UncommonType int;
 	};
-	Type struct {
+	Type	struct {
 		Typ, Ptr int;
 	};
-	StructField struct {
+	StructField	struct {
 		Name, PkgPath, Typ, Tag, Offset int;
 	};
-	StructType struct {
+	StructType	struct {
 		Fields int;
 	};
-	PtrType struct {
+	PtrType	struct {
 		Elem int;
 	};
-	SliceType struct {
+	SliceType	struct {
 		Elem int;
 	};
-	ArrayType struct {
+	ArrayType	struct {
 		Elem, Len int;
 	};
 
-	Stktop struct {
+	Stktop	struct {
 		Stackguard, Stackbase, Gobuf int;
 	};
-	Gobuf struct {
+	Gobuf	struct {
 		Sp, Pc, G int;
 	};
-	G struct {
+	G	struct {
 		Stackbase, Sched, Status, Alllink int;
 	};
 }
@@ -211,23 +211,23 @@ type runtimeGStatus struct {
 // in the remote runtime package.
 type runtimeValues struct {
 	// Runtime data headers
-	String, Slice, Eface *remoteType;
+	String, Slice, Eface	*remoteType;
 	// Runtime type structures
 	Type, CommonType, UncommonType, StructField, StructType, PtrType,
-	ArrayType, SliceType *remoteType;
+		ArrayType, SliceType	*remoteType;
 	// Runtime scheduler structures
-	Stktop, Gobuf, G *remoteType;
+	Stktop, Gobuf, G	*remoteType;
 	// Addresses of *runtime.XType types.  These are the
 	// discriminators on the runtime.Type interface.  We use local
 	// reflection to fill these in from the remote symbol table,
 	// so the names must match the runtime names.
 	PBoolType,
-	PUint8Type, PUint16Type, PUint32Type, PUint64Type, PUintType, PUintptrType,
-	PInt8Type, PInt16Type, PInt32Type, PInt64Type, PIntType,
-	PFloat32Type, PFloat64Type, PFloatType,
-	PArrayType, PStringType, PStructType, PPtrType, PFuncType,
-	PInterfaceType, PSliceType, PMapType, PChanType,
-	PDotDotDotType, PUnsafePointerType proc.Word;
+		PUint8Type, PUint16Type, PUint32Type, PUint64Type, PUintType, PUintptrType,
+		PInt8Type, PInt16Type, PInt32Type, PInt64Type, PIntType,
+		PFloat32Type, PFloat64Type, PFloatType,
+		PArrayType, PStringType, PStructType, PPtrType, PFuncType,
+		PInterfaceType, PSliceType, PMapType, PChanType,
+		PDotDotDotType, PUnsafePointerType	proc.Word;
 	// G status values
 	runtimeGStatus;
 }
@@ -247,14 +247,14 @@ func fillRuntimeIndexes(runtime *runtimeValues, out *runtimeIndexes) {
 		et := runtimev.FieldByName(name).Interface().(*remoteType).Type.(*eval.StructType);
 
 		// Get the field indexes of the interpreter struct type
-		indexes := make(map[string] int, len(et.Elems));
+		indexes := make(map[string]int, len(et.Elems));
 		for j, f := range et.Elems {
 			if f.Anonymous {
 				continue;
 			}
 			name := f.Name;
 			if name[0] >= 'a' && name[0] <= 'z' {
-				name = string(name[0] + 'A' - 'a') + name[1:len(name)];
+				name = string(name[0]+'A'-'a')+name[1:len(name)];
 			}
 			indexes[name] = j;
 		}

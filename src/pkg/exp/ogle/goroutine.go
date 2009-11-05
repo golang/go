@@ -13,9 +13,9 @@ import (
 
 // A Goroutine represents a goroutine in a remote process.
 type Goroutine struct {
-	g remoteStruct;
-	frame *Frame;
-	dead bool;
+	g	remoteStruct;
+	frame	*Frame;
+	dead	bool;
 }
 
 func (t *Goroutine) String() string {
