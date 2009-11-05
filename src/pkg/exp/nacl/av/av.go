@@ -21,13 +21,13 @@ import (
 	"unsafe";
 )
 
-var srpcEnabled = srpc.Enabled();
+var srpcEnabled = srpc.Enabled()
 
 // native_client/src/trusted/service_runtime/include/sys/audio_video.h
 
 // Subsystem values for Init.
 const (
-	SubsystemVideo = 1<<iota;
+	SubsystemVideo	= 1<<iota;
 	SubsystemAudio;
 	SubsystemEmbed;
 )
@@ -35,20 +35,20 @@ const (
 
 // Audio formats.
 const (
-	AudioFormatStereo44K = iota;
+	AudioFormatStereo44K	= iota;
 	AudioFormatStereo48K;
 )
 
 // A Window represents a connection to the Native Client window.
 // It implements draw.Context.
 type Window struct {
-	Embedded bool;	// running as part of a web page?
-	*Image;		// screen image
+	Embedded	bool;	// running as part of a web page?
+	*Image;			// screen image
 
-	mousec chan draw.Mouse;
-	kbdc chan int;
-	quitc chan bool;
-	resizec chan bool;
+	mousec	chan draw.Mouse;
+	kbdc	chan int;
+	quitc	chan bool;
+	resizec	chan bool;
 }
 
 // *Window implements draw.Context
@@ -89,7 +89,7 @@ func Init(subsys int, dx, dy int) (*Window, os.Error) {
 	xsubsys := subsys;
 	if srpcEnabled {
 		waitBridge();
-		xsubsys &^= SubsystemVideo|SubsystemEmbed;
+		xsubsys &^= SubsystemVideo | SubsystemEmbed;
 	}
 
 	if xsubsys & SubsystemEmbed != 0 {
@@ -102,7 +102,7 @@ func Init(subsys int, dx, dy int) (*Window, os.Error) {
 		return nil, err;
 	}
 
-	if subsys&SubsystemVideo != 0 {
+	if subsys & SubsystemVideo != 0 {
 		if dx, dy, err = videoInit(dx, dy); err != nil {
 			return nil, err;
 		}
@@ -113,7 +113,7 @@ func Init(subsys int, dx, dy int) (*Window, os.Error) {
 		w.quitc = make(chan bool);
 	}
 
-	if subsys&SubsystemAudio != 0 {
+	if subsys & SubsystemAudio != 0 {
 		var n int;
 		if n, err = audioInit(AudioFormatStereo44K, 2048); err != nil {
 			return nil, err;
@@ -121,7 +121,7 @@ func Init(subsys int, dx, dy int) (*Window, os.Error) {
 		println("audio", n);
 	}
 
-	if subsys&SubsystemVideo != 0 {
+	if subsys & SubsystemVideo != 0 {
 		go w.readEvents();
 	}
 
@@ -158,7 +158,7 @@ func videoUpdate(data []Color) (err os.Error) {
 	return os.NewSyscallError("video_update", syscall.VideoUpdate((*uint32)(&data[0])));
 }
 
-var noEvents = os.NewError("no events");
+var noEvents = os.NewError("no events")
 
 func videoPollEvent(ev []byte) (err os.Error) {
 	if srpcEnabled {
@@ -167,7 +167,7 @@ func videoPollEvent(ev []byte) (err os.Error) {
 			return noEvents;
 		}
 		bytes.Copy(ev, &bridge.share.eq.event[r]);
-		bridge.share.eq.ri = (r+1) % eqsize;
+		bridge.share.eq.ri = (r+1)%eqsize;
 		return nil;
 	}
 	return os.NewSyscallError("video_poll_event", syscall.VideoPollEvent(&ev[0]));
@@ -209,13 +209,13 @@ func AudioStream(data []uint16) (nextSize int, err os.Error) {
 
 // Synchronization structure to wait for bridge to become ready.
 var bridge struct {
-	c chan bool;
-	displayFd int;
-	rpcFd int;
-	share *videoShare;
-	pixel []Color;
-	client *srpc.Client;
-	flushRPC *srpc.RPC;
+	c		chan bool;
+	displayFd	int;
+	rpcFd		int;
+	share		*videoShare;
+	pixel		[]Color;
+	client		*srpc.Client;
+	flushRPC	*srpc.RPC;
 }
 
 // Wait for bridge to become ready.
@@ -227,27 +227,27 @@ func waitBridge() {
 	bridge.c <- <-bridge.c;
 }
 
-const eqsize = 64;
+const eqsize = 64
 
 // Data structure shared with host via mmap.
 type videoShare struct {
-	revision int32;	// definition below is rev 100 unless noted
-	mapSize int32;
+	revision	int32;	// definition below is rev 100 unless noted
+	mapSize		int32;
 
 	// event queue
-	eq struct {
-		ri uint32;	// read index [0,eqsize)
-		wi uint32;	// write index [0,eqsize)
-		eof int32;
-		event [eqsize][64]byte;
+	eq	struct {
+		ri	uint32;	// read index [0,eqsize)
+		wi	uint32;	// write index [0,eqsize)
+		eof	int32;
+		event	[eqsize][64]byte;
 	};
 
 	// now unused
-	_, _, _, _ int32;
+	_, _, _, _	int32;
 
 	// video backing store information
-	width, height, _, size int32;
-	ready int32;	// rev 0x101
+	width, height, _, size	int32;
+	ready			int32;	// rev 0x101
 }
 
 // The frame buffer data is videoShareSize bytes after
@@ -271,7 +271,7 @@ func (multimediaBridge) Run(arg, ret []interface{}, size []int) srpc.Errno {
 	addr, _, errno := syscall.Syscall6(syscall.SYS_MMAP,
 		0,
 		uintptr(st.Size),
-		syscall.PROT_READ|syscall.PROT_WRITE,
+		syscall.PROT_READ | syscall.PROT_WRITE,
 		syscall.MAP_SHARED,
 		uintptr(bridge.displayFd),
 		0);
@@ -284,8 +284,8 @@ func (multimediaBridge) Run(arg, ret []interface{}, size []int) srpc.Errno {
 	// Overestimate frame buffer size
 	// (must use a compile-time constant)
 	// and then reslice.  256 megapixels (1 GB) should be enough.
-	fb := (*[256*1024*1024]Color)(unsafe.Pointer(addr+videoShareSize));
-	bridge.pixel = fb[0:(st.Size - videoShareSize)/4];
+	fb := (*[256*1024*1024]Color)(unsafe.Pointer(addr + videoShareSize));
+	bridge.pixel = fb[0 : (st.Size - videoShareSize)/4];
 
 	// Configure RPC connection back to client.
 	var err os.Error;
@@ -308,4 +308,3 @@ func init() {
 		srpc.Add("nacl_multimedia_bridge", "hh:", multimediaBridge{});
 	}
 }
-
