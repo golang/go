@@ -179,8 +179,8 @@ brk:
 	}
 conv:
 	fmtstrcpy(fp, str);
-	if(a->gotype)
-		fmtprint(fp, "«%s»", a->gotype->name);
+//	if(a->gotype)
+//		fmtprint(fp, "«%s»", a->gotype->name);
 	return 0;
 }
 

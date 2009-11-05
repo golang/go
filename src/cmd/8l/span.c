@@ -882,21 +882,33 @@ subreg(Prog *p, int from, int to)
 	if(debug['Q'])
 		print("\n%P	s/%R/%R/\n", p, from, to);
 
-	if(p->from.type == from)
+	if(p->from.type == from) {
 		p->from.type = to;
-	if(p->to.type == from)
+		p->ft = 0;
+	}
+	if(p->to.type == from) {
 		p->to.type = to;
+		p->tt = 0;
+	}
 
-	if(p->from.index == from)
+	if(p->from.index == from) {
 		p->from.index = to;
-	if(p->to.index == from)
+		p->ft = 0;
+	}
+	if(p->to.index == from) {
 		p->to.index = to;
+		p->tt = 0;
+	}
 
 	from += D_INDIR;
-	if(p->from.type == from)
+	if(p->from.type == from) {
 		p->from.type = to+D_INDIR;
-	if(p->to.type == from)
+		p->ft = 0;
+	}
+	if(p->to.type == from) {
 		p->to.type = to+D_INDIR;
+		p->tt = 0;
+	}
 
 	if(debug['Q'])
 		print("%P\n", p);
@@ -934,9 +946,30 @@ doasm(Prog *p)
 	if(pre)
 		*andptr++ = pre;
 
+
+if(p->ft != 0) {
+	ft = oclass(&p->from);
+	if(ft != p->ft) {
+		print("***** %d %d %D\n", p->ft, ft, &p->from);
+		p->ft = ft;
+	}
+}
+if(p->tt != 0) {
+	tt = oclass(&p->to);
+	if(tt != p->tt) {
+		print("***** %d %d %D\n", p->tt, tt, &p->to);
+		p->tt = tt;
+	}
+}
+
+//	if(p->ft == 0)
+		p->ft = oclass(&p->from);
+//	if(p->tt == 0)
+		p->tt = oclass(&p->to);
+
+	ft = p->ft * Ymax;
+	tt = p->tt * Ymax;
 	o = &optab[p->as];
-	ft = oclass(&p->from) * Ymax;
-	tt = oclass(&p->to) * Ymax;
 	t = o->ytab;
 	if(t == 0) {
 		diag("asmins: noproto %P", p);
@@ -998,9 +1031,11 @@ found:
 			diag("asmins: Zaut sb type ADDR");
 		p->from.type = p->from.index;
 		p->from.index = D_NONE;
+		p->ft = 0;
 		asmand(&p->from, reg[p->to.type]);
 		p->from.index = p->from.type;
 		p->from.type = D_ADDR;
+		p->ft = 0;
 		break;
 
 	case Zm_o:
