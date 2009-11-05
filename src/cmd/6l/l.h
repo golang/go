@@ -75,7 +75,6 @@ struct	Adr
 	short	type;
 	char	index;
 	char	scale;
-	Sym*	gotype;
 };
 
 #define	offset	u0.u0offset
@@ -97,10 +96,12 @@ struct	Prog
 	Prog*	pcond;	/* work on this */
 	vlong	pc;
 	int32	line;
+	short	as;
+	char	ft;	/* oclass cache */
+	char	tt;
 	uchar	mark;	/* work on these */
 	uchar	back;
 
-	short	as;
 	char	width;		/* fake for DATA */
 	char	mode;	/* 16, 32, or 64 */
 };
@@ -338,6 +339,8 @@ EXTERN	int	version;
 EXTERN	Prog	zprg;
 EXTERN	int	dtype;
 EXTERN	char*	paramspace;
+EXTERN	Sym*	adrgotype;	// type symbol on last Adr read
+EXTERN	Sym*	fromgotype;	// type symbol on last p->from read
 
 EXTERN	Adr*	reloca;
 EXTERN	int	doexp;		// export table

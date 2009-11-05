@@ -952,10 +952,12 @@ asmando(Adr *a, int o)
 }
 
 static void
-bytereg(Adr *a)
+bytereg(Adr *a, char *t)
 {
-	if(a->index == D_NONE && (a->type >= D_AX && a->type <= D_R15))
+	if(a->index == D_NONE && (a->type >= D_AX && a->type <= D_R15)) {
 		a->type = D_AL + (a->type-D_AX);
+		*t = 0;
+	}
 }
 
 #define	E	0xff
@@ -1171,8 +1173,15 @@ doasm(Prog *p)
 		diag("asmins: missing op %P", p);
 		return;
 	}
-	ft = oclass(&p->from) * Ymax;
-	tt = oclass(&p->to) * Ymax;
+
+	if(p->ft == 0)
+		p->ft = oclass(&p->from);
+	if(p->tt == 0)
+		p->tt = oclass(&p->to);
+
+	ft = p->ft * Ymax;
+	tt = p->tt * Ymax;
+
 	t = o->ytab;
 	if(t == 0) {
 		diag("asmins: noproto %P", p);
@@ -1213,8 +1222,8 @@ found:
 		break;
 
 	case Pb:	/* botch */
-		bytereg(&p->from);
-		bytereg(&p->to);
+		bytereg(&p->from, &p->ft);
+		bytereg(&p->to, &p->tt);
 		break;
 
 	case P32:	/* 32 bit but illegal if 64-bit mode */
@@ -1247,7 +1256,7 @@ found:
 		break;
 
 	case Zmb_r:
-		bytereg(&p->from);
+		bytereg(&p->from, &p->ft);
 		/* fall through */
 	case Zm_r:
 		*andptr++ = op;

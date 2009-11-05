@@ -925,16 +925,17 @@ datblk(int32 s, int32 n)
 	int32 l, fl, j;
 	vlong o;
 	int i, c;
+	Adr *a;
 
 	memset(buf.dbuf, 0, n+Dbufslop);
 	for(p = datap; p != P; p = p->link) {
-		curp = p;
-		if(!p->from.sym->reachable)
-			diag("unreachable symbol in datblk - %s", p->from.sym->name);
-		if(p->from.sym->type == SMACHO)
+		a = &p->from;
+
+		l = a->sym->value + a->offset - s;
+		if(l >= n)
 			continue;
-		l = p->from.sym->value + p->from.offset - s;
-		c = p->from.scale;
+
+		c = a->scale;
 		i = 0;
 		if(l < 0) {
 			if(l+c <= 0)
@@ -942,8 +943,13 @@ datblk(int32 s, int32 n)
 			i = -l;
 			l = 0;
 		}
-		if(l >= n)
+
+		curp = p;
+		if(!a->sym->reachable)
+			diag("unreachable symbol in datblk - %s", a->sym->name);
+		if(a->sym->type == SMACHO)
 			continue;
+
 		if(p->as != AINIT && p->as != ADYNT) {
 			for(j=l+(c-i)-1; j>=l; j--)
 				if(buf.dbuf[j]) {
@@ -960,8 +966,6 @@ datblk(int32 s, int32 n)
 			case 4:
 				fl = ieeedtof(&p->to.ieee);
 				cast = (uchar*)&fl;
-				if(debug['a'] && i == 0)
-					outa(c, cast, fnuxi4, l+s+INITDAT);
 				for(; i<c; i++) {
 					buf.dbuf[l] = cast[fnuxi4[i]];
 					l++;
@@ -969,8 +973,6 @@ datblk(int32 s, int32 n)
 				break;
 			case 8:
 				cast = (uchar*)&p->to.ieee;
-				if(debug['a'] && i == 0)
-					outa(c, cast, fnuxi8, l+s+INITDAT);
 				for(; i<c; i++) {
 					buf.dbuf[l] = cast[fnuxi8[i]];
 					l++;
@@ -980,8 +982,6 @@ datblk(int32 s, int32 n)
 			break;
 
 		case D_SCONST:
-			if(debug['a'] && i == 0)
-				outa(c, (uchar*)p->to.scon, nil, l+s+INITDAT);
 			for(; i<c; i++) {
 				buf.dbuf[l] = p->to.scon[i];
 				l++;
@@ -1016,24 +1016,18 @@ datblk(int32 s, int32 n)
 				diag("bad nuxi %d %d\n%P", c, i, curp);
 				break;
 			case 1:
-				if(debug['a'] && i == 0)
-					outa(c, cast, inuxi1, l+s+INITDAT);
 				for(; i<c; i++) {
 					buf.dbuf[l] = cast[inuxi1[i]];
 					l++;
 				}
 				break;
 			case 2:
-				if(debug['a'] && i == 0)
-					outa(c, cast, inuxi2, l+s+INITDAT);
 				for(; i<c; i++) {
 					buf.dbuf[l] = cast[inuxi2[i]];
 					l++;
 				}
 				break;
 			case 4:
-				if(debug['a'] && i == 0)
-					outa(c, cast, inuxi4, l+s+INITDAT);
 				for(; i<c; i++) {
 					buf.dbuf[l] = cast[inuxi4[i]];
 					l++;
@@ -1041,8 +1035,6 @@ datblk(int32 s, int32 n)
 				break;
 			case 8:
 				cast = (uchar*)&o;
-				if(debug['a'] && i == 0)
-					outa(c, cast, inuxi8, l+s+INITDAT);
 				for(; i<c; i++) {
 					buf.dbuf[l] = cast[inuxi8[i]];
 					l++;
@@ -1052,7 +1044,80 @@ datblk(int32 s, int32 n)
 			break;
 		}
 	}
+
 	write(cout, buf.dbuf, n);
+	if(!debug['a'])
+		return;
+
+	/*
+	 * a second pass just to print the asm
+	 */
+	for(p = datap; p != P; p = p->link) {
+		a = &p->from;
+
+		l = a->sym->value + a->offset - s;
+		if(l >= n)
+			continue;
+
+		c = a->scale;
+		i = 0;
+		if(l < 0)
+			continue;
+
+		if(a->sym->type == SMACHO)
+			continue;
+
+		switch(p->to.type) {
+		case D_FCONST:
+			switch(c) {
+			default:
+			case 4:
+				fl = ieeedtof(&p->to.ieee);
+				cast = (uchar*)&fl;
+				outa(c, cast, fnuxi4, l+s+INITDAT);
+				break;
+			case 8:
+				cast = (uchar*)&p->to.ieee;
+				outa(c, cast, fnuxi8, l+s+INITDAT);
+				break;
+			}
+			break;
+
+		case D_SCONST:
+			outa(c, (uchar*)p->to.scon, nil, l+s+INITDAT);
+			break;
+
+		default:
+			o = p->to.offset;
+			if(p->to.type == D_SIZE)
+				o += p->to.sym->size;
+			if(p->to.type == D_ADDR) {
+				if(p->to.sym) {
+					o += p->to.sym->value;
+					if(p->to.sym->type != STEXT && p->to.sym->type != SUNDEF)
+						o += INITDAT;
+				}
+			}
+			fl = o;
+			cast = (uchar*)&fl;
+			switch(c) {
+			case 1:
+				outa(c, cast, inuxi1, l+s+INITDAT);
+				break;
+			case 2:
+				outa(c, cast, inuxi2, l+s+INITDAT);
+				break;
+			case 4:
+				outa(c, cast, inuxi4, l+s+INITDAT);
+				break;
+			case 8:
+				cast = (uchar*)&o;
+				outa(c, cast, inuxi8, l+s+INITDAT);
+				break;
+			}
+			break;
+		}
+	}
 }
 
 vlong
