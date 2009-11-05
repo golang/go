@@ -5,10 +5,10 @@
 package strings_test
 
 import (
-	.	"strings";
-		"testing";
-		"unicode";
-		"utf8";
+	. "strings";
+	"testing";
+	"unicode";
+	"utf8";
 )
 
 func eq(a, b []string) bool {
@@ -234,18 +234,14 @@ func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a');
 	// 1.  Grow.  This triggers two reallocations in Map.
-	maxRune := func(rune int) int {
-		return unicode.MaxRune;
-	};
+	maxRune := func(rune int) int { return unicode.MaxRune };
 	m := Map(maxRune, a);
 	expect := tenRunes(unicode.MaxRune);
 	if m != expect {
 		t.Errorf("growing: expected %q got %q", expect, m);
 	}
 	// 2. Shrink
-	minRune := func(rune int) int {
-		return 'a';
-	};
+	minRune := func(rune int) int { return 'a' };
 	m = Map(minRune, tenRunes(unicode.MaxRune));
 	expect = a;
 	if m != expect {
@@ -308,18 +304,18 @@ func TestCaseConsistency(t *testing.T) {
 	if !equal("ToLower(lower)", ToLower(lower), lower, t) {
 		t.Error("ToLower(lower) consistency fail");
 	}
-/*
-	  These fail because of non-one-to-oneness of the data, such as multiple
-	  upper case 'I' mapping to 'i'.  We comment them out but keep them for
-	  interest.
-	  For instance: CAPITAL LETTER I WITH DOT ABOVE:
-		unicode.ToUpper(unicode.ToLower('\u0130')) != '\u0130'
+	/*
+		  These fail because of non-one-to-oneness of the data, such as multiple
+		  upper case 'I' mapping to 'i'.  We comment them out but keep them for
+		  interest.
+		  For instance: CAPITAL LETTER I WITH DOT ABOVE:
+			unicode.ToUpper(unicode.ToLower('\u0130')) != '\u0130'
 
-	if !equal("ToUpper(lower)", ToUpper(lower), upper, t) {
-		t.Error("ToUpper(lower) consistency fail");
-	}
-	if !equal("ToLower(upper)", ToLower(upper), lower, t) {
-		t.Error("ToLower(upper) consistency fail");
-	}
+		if !equal("ToUpper(lower)", ToUpper(lower), upper, t) {
+			t.Error("ToUpper(lower) consistency fail");
+		}
+		if !equal("ToLower(upper)", ToLower(upper), lower, t) {
+			t.Error("ToLower(upper) consistency fail");
+		}
 	*/
 }

@@ -23,67 +23,67 @@ func explode(s string, n int) []string {
 		if na+1 >= n {
 			a[na] = s;
 			na++;
-			break
+			break;
 		}
 		rune, size = utf8.DecodeRuneInString(s);
 		s = s[size:len(s)];
 		a[na] = string(rune);
 		na++;
 	}
-	return a[0:na]
+	return a[0:na];
 }
 
 // Count counts the number of non-overlapping instances of sep in s.
 func Count(s, sep string) int {
 	if sep == "" {
-		return utf8.RuneCountInString(s)+1
+		return utf8.RuneCountInString(s) + 1;
 	}
 	c := sep[0];
 	n := 0;
 	for i := 0; i+len(sep) <= len(s); i++ {
-		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
+		if s[i] == c && (len(sep) == 1 || s[i : i+len(sep)] == sep) {
 			n++;
-			i += len(sep)-1
+			i += len(sep)-1;
 		}
 	}
-	return n
+	return n;
 }
 
 // Index returns the index of the first instance of sep in s, or -1 if sep is not present in s.
 func Index(s, sep string) int {
 	n := len(sep);
 	if n == 0 {
-		return 0
+		return 0;
 	}
 	c := sep[0];
 	for i := 0; i+n <= len(s); i++ {
-		if s[i] == c && (n == 1 || s[i:i+n] == sep) {
-			return i
+		if s[i] == c && (n == 1 || s[i : i+n] == sep) {
+			return i;
 		}
 	}
-	return -1
+	return -1;
 }
 
 // LastIndex returns the index of the last instance of sep in s, or -1 if sep is not present in s.
 func LastIndex(s, sep string) int {
 	n := len(sep);
 	if n == 0 {
-		return len(s)
+		return len(s);
 	}
 	c := sep[0];
 	for i := len(s)-n; i >= 0; i-- {
-		if s[i] == c && (n == 1 || s[i:i+n] == sep) {
-			return i
+		if s[i] == c && (n == 1 || s[i : i+n] == sep) {
+			return i;
 		}
 	}
-	return -1
+	return -1;
 }
 
 // Generic split: splits after each instance of sep,
 // including sepSave bytes of sep in the subarrays.
 func genSplit(s, sep string, sepSave, n int) []string {
 	if sep == "" {
-		return explode(s, n)
+		return explode(s, n);
 	}
 	if n <= 0 {
 		n = Count(s, sep) + 1;
@@ -93,15 +93,15 @@ func genSplit(s, sep string, sepSave, n int) []string {
 	a := make([]string, n);
 	na := 0;
 	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
-		if s[i] == c && (len(sep) == 1 || s[i:i+len(sep)] == sep) {
-			a[na] = s[start:i+sepSave];
+		if s[i] == c && (len(sep) == 1 || s[i : i+len(sep)] == sep) {
+			a[na] = s[start : i+sepSave];
 			na++;
 			start = i+len(sep);
 			i += len(sep)-1;
 		}
 	}
 	a[na] = s[start:len(s)];
-	return a[0:na+1]
+	return a[0 : na+1];
 }
 
 // Split splits the string s around each instance of sep, returning an array of substrings of s.
@@ -122,14 +122,14 @@ func SplitAfter(s, sep string, n int) []string {
 // sep is placed between elements in the resulting string.
 func Join(a []string, sep string) string {
 	if len(a) == 0 {
-		return ""
+		return "";
 	}
 	if len(a) == 1 {
-		return a[0]
+		return a[0];
 	}
-	n := len(sep) * (len(a)-1);
+	n := len(sep)*(len(a)-1);
 	for i := 0; i < len(a); i++ {
-		n += len(a[i])
+		n += len(a[i]);
 	}
 
 	b := make([]byte, n);
@@ -138,27 +138,27 @@ func Join(a []string, sep string) string {
 		s := a[i];
 		for j := 0; j < len(s); j++ {
 			b[bp] = s[j];
-			bp++
+			bp++;
 		}
-		if i + 1 < len(a) {
+		if i+1 < len(a) {
 			s = sep;
 			for j := 0; j < len(s); j++ {
 				b[bp] = s[j];
-				bp++
+				bp++;
 			}
 		}
 	}
-	return string(b)
+	return string(b);
 }
 
 // HasPrefix tests whether the string s begins with prefix.
 func HasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
+	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix;
 }
 
 // HasSuffix tests whether the string s ends with suffix.
 func HasSuffix(s, suffix string) bool {
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):len(s)] == suffix
+	return len(s) >= len(suffix) && s[len(s)-len(suffix) : len(s)] == suffix;
 }
 
 // Map returns a copy of the string s with all its characters modified
@@ -168,7 +168,7 @@ func Map(mapping func(rune int) int, s string) string {
 	// things unpleasant.  But it's so rare we barge in assuming it's
 	// fine.  It could also shrink but that falls out naturally.
 	maxbytes := len(s);	// length of b
-	nbytes := 0;	// number of bytes encoded in b
+	nbytes := 0;		// number of bytes encoded in b
 	b := make([]byte, maxbytes);
 	for _, c := range s {
 		rune := mapping(c);
@@ -176,12 +176,12 @@ func Map(mapping func(rune int) int, s string) string {
 		if rune >= utf8.RuneSelf {
 			wid = utf8.RuneLen(rune);
 		}
-		if nbytes + wid > maxbytes {
+		if nbytes+wid > maxbytes {
 			// Grow the buffer.
 			maxbytes = maxbytes*2 + utf8.UTFMax;
 			nb := make([]byte, maxbytes);
 			for i, c := range b[0:nbytes] {
-				nb[i] = c
+				nb[i] = c;
 			}
 			b = nb;
 		}
@@ -192,17 +192,17 @@ func Map(mapping func(rune int) int, s string) string {
 
 // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
 func ToUpper(s string) string {
-	return Map(unicode.ToUpper, s)
+	return Map(unicode.ToUpper, s);
 }
 
 // ToUpper returns a copy of the string s with all Unicode letters mapped to their lower case.
 func ToLower(s string) string {
-	return Map(unicode.ToLower, s)
+	return Map(unicode.ToLower, s);
 }
 
 // ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.
 func ToTitle(s string) string {
-	return Map(unicode.ToTitle, s)
+	return Map(unicode.ToTitle, s);
 }
 
 // Trim returns a slice of the string s, with all leading and trailing white space
@@ -213,7 +213,7 @@ func TrimSpace(s string) string {
 		wid := 1;
 		rune := int(s[start]);
 		if rune >= utf8.RuneSelf {
-			rune, wid = utf8.DecodeRuneInString(s[start:end])
+			rune, wid = utf8.DecodeRuneInString(s[start:end]);
 		}
 		if !unicode.IsSpace(rune) {
 			break;
@@ -228,9 +228,9 @@ func TrimSpace(s string) string {
 			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {
 			}
 			if start > end-wid {	// invalid UTF-8 sequence; stop processing
-				return s[start:end]
+				return s[start:end];
 			}
-			rune, wid = utf8.DecodeRuneInString(s[end-wid:end]);
+			rune, wid = utf8.DecodeRuneInString(s[end-wid : end]);
 		}
 		if !unicode.IsSpace(rune) {
 			break;
