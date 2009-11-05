@@ -152,6 +152,44 @@ func _() {
 }
 
 
+const _ = F1 +
+	`string = "%s";`
+	`ptr = *;`
+	`datafmt.T2 = s ["-" p "-"];`
+
+
+const _ =
+	`datafmt "datafmt";`
+	`default = "%v";`
+	`array = *;`
+	`datafmt.T3 = s  {" " a a / ","};`
+
+
+const _ = `datafmt "datafmt";`
+`default = "%v";`
+`array = *;`
+`datafmt.T3 = s  {" " a a / ","};`
+
+
+func _() {
+	_ = F1 +
+		`string = "%s";`
+		`ptr = *;`
+		`datafmt.T2 = s ["-" p "-"];`;
+
+	_ =
+		`datafmt "datafmt";`
+		`default = "%v";`
+		`array = *;`
+		`datafmt.T3 = s  {" " a a / ","};`;
+
+	_ = `datafmt "datafmt";`
+	`default = "%v";`
+	`array = *;`
+	`datafmt.T3 = s  {" " a a / ","};`
+}
+
+
 func _() {
 	// respect source lines in multi-line expressions
 	_ = a+
