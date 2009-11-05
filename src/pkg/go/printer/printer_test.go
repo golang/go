@@ -16,12 +16,12 @@ import (
 
 
 const (
-	dataDir = "testdata";
-	tabwidth = 8;
+	dataDir		= "testdata";
+	tabwidth	= 8;
 )
 
 
-var update = flag.Bool("update", false, "update golden files");
+var update = flag.Bool("update", false, "update golden files")
 
 
 func lineString(text []byte, i int) string {
@@ -29,13 +29,14 @@ func lineString(text []byte, i int) string {
 	for i < len(text) && text[i] != '\n' {
 		i++;
 	}
-	return string(text[i0 : i]);
+	return string(text[i0:i]);
 }
 
 
-type checkMode uint;
+type checkMode uint
+
 const (
-	export checkMode = 1<<iota;
+	export	checkMode	= 1<<iota;
 	rawFormat;
 )
 
@@ -50,13 +51,13 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 
 	// filter exports if necessary
 	if mode&export != 0 {
-		ast.FileExports(prog);  // ignore result
-		prog.Comments = nil;  // don't print comments that are not in AST
+		ast.FileExports(prog);	// ignore result
+		prog.Comments = nil;	// don't print comments that are not in AST
 	}
 
 	// determine printer configuration
 	cfg := Config{Tabwidth: tabwidth};
-	if mode&rawFormat != 0 {
+	if mode & rawFormat != 0 {
 		cfg.Mode |= RawFormat;
 	}
 
@@ -105,20 +106,20 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 
 
 type entry struct {
-	source, golden string;
-	mode checkMode;
+	source, golden	string;
+	mode		checkMode;
 }
 
 // Use gotest -update to create/update the respective golden files.
 var data = []entry{
-	entry{ "empty.input", "empty.golden", 0 },
-	entry{ "comments.input", "comments.golden", 0 },
-	entry{ "comments.input", "comments.x", export },
-	entry{ "linebreaks.input", "linebreaks.golden", 0 },
-	entry{ "expressions.input", "expressions.golden", 0 },
-	entry{ "expressions.input", "expressions.raw", rawFormat },
-	entry{ "declarations.input", "declarations.golden", 0 },
-	entry{ "statements.input", "statements.golden", 0 },
+	entry{"empty.input", "empty.golden", 0},
+	entry{"comments.input", "comments.golden", 0},
+	entry{"comments.input", "comments.x", export},
+	entry{"linebreaks.input", "linebreaks.golden", 0},
+	entry{"expressions.input", "expressions.golden", 0},
+	entry{"expressions.input", "expressions.raw", rawFormat},
+	entry{"declarations.input", "declarations.golden", 0},
+	entry{"statements.input", "statements.golden", 0},
 }
 
 
