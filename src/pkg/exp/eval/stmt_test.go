@@ -6,9 +6,9 @@ package eval
 
 import "testing"
 
-var atLeastOneDecl = "at least one new variable must be declared";
+var atLeastOneDecl = "at least one new variable must be declared"
 
-var stmtTests = []test {
+var stmtTests = []test{
 	// Short declarations
 	Val1("x := i", "x", 1),
 	Val1("x := f", "x", 1.0),
@@ -60,9 +60,9 @@ var stmtTests = []test {
 
 	Val1("x := &i; *x = 2", "i", 2),
 
-	Val1("ai[0] = 42", "ai", varray{ 42, 2 }),
-	Val1("aai[1] = ai; ai[0] = 42", "aai", varray{ varray{1, 2}, varray{1, 2} }),
-	Val1("aai = aai2", "aai", varray{ varray{5, 6}, varray{7, 8} }),
+	Val1("ai[0] = 42", "ai", varray{42, 2}),
+	Val1("aai[1] = ai; ai[0] = 42", "aai", varray{varray{1, 2}, varray{1, 2}}),
+	Val1("aai = aai2", "aai", varray{varray{5, 6}, varray{7, 8}}),
 
 	// Assignment conversions
 	Run("var sl []int; sl = &ai"),

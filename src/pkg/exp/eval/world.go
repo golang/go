@@ -16,11 +16,11 @@ import (
 )
 
 type World struct {
-	scope *Scope;
-	frame *Frame;
+	scope	*Scope;
+	frame	*Frame;
 }
 
-func NewWorld() (*World) {
+func NewWorld() *World {
 	w := new(World);
 	w.scope = universe.ChildScope();
 	w.scope.global = true;	// this block's vars allocate directly
@@ -37,8 +37,8 @@ type Code interface {
 }
 
 type stmtCode struct {
-	w *World;
-	code code;
+	w	*World;
+	code	code;
 }
 
 func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
@@ -56,7 +56,7 @@ func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
 		outVarsNamed: false,
 		codeBuf: cb,
 		flow: newFlowBuf(cb),
-		labels: make(map[string] *label),
+		labels: make(map[string]*label),
 	};
 	bc := &blockCompiler{
 		funcCompiler: fc,
@@ -88,13 +88,13 @@ func (s *stmtCode) Type() Type {
 func (s *stmtCode) Run() (Value, os.Error) {
 	t := new(Thread);
 	t.f = s.w.scope.NewFrame(nil);
-	return nil, t.Try(func(t *Thread){s.code.exec(t)});
+	return nil, t.Try(func(t *Thread) { s.code.exec(t) });
 }
 
 type exprCode struct {
-	w *World;
-	e *expr;
-	eval func(Value, *Thread);
+	w	*World;
+	e	*expr;
+	eval	func(Value, *Thread);
 }
 
 func (w *World) CompileExpr(e ast.Expr) (Code, os.Error) {
@@ -135,7 +135,7 @@ func (e *exprCode) Run() (Value, os.Error) {
 	}
 	v := e.e.t.Zero();
 	eval := e.eval;
-	err := t.Try(func(t *Thread){eval(v, t)});
+	err := t.Try(func(t *Thread) { eval(v, t) });
 	return v, err;
 }
 
@@ -158,8 +158,8 @@ func (w *World) Compile(text string) (Code, os.Error) {
 }
 
 type RedefinitionError struct {
-	Name string;
-	Prev Def;
+	Name	string;
+	Prev	Def;
 }
 
 func (e *RedefinitionError) String() string {
@@ -187,4 +187,3 @@ func (w *World) DefineVar(name string, t Type, val Value) os.Error {
 	v.Init = val;
 	return nil;
 }
-

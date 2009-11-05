@@ -22,9 +22,9 @@ var implLimit = "implementation limit"
 var mustBeUnsigned = "must be unsigned"
 var divByZero = "divide by zero"
 
-var hugeInteger = bignum.Int(1).Shl(64);
+var hugeInteger = bignum.Int(1).Shl(64)
 
-var exprTests = []test {
+var exprTests = []test{
 	Val("i", 1),
 	CErr("zzz", undefined),
 	// TODO(austin) Test variable in constant context
@@ -230,13 +230,13 @@ var exprTests = []test {
 	Val("2<<u", 2<<1),
 	CErr("2<<f", opTypes),
 
-	Val("-2<<2", bignum.Int(-2<<2)),
+	Val("-2<<2", bignum.Int(-2 << 2)),
 	CErr("-2<<(-1)", constantUnderflows),
 	CErr("-2<<0x10000000000000000", constantOverflows),
 	CErr("-2<<2.5", constantTruncated),
-	Val("-2<<2.0", bignum.Int(-2<<2.0)),
+	Val("-2<<2.0", bignum.Int(-2 << 2.0)),
 	CErr("-2<<i", mustBeUnsigned),
-	Val("-2<<u", -2<<1),
+	Val("-2<<u", -2 << 1),
 	CErr("-2<<f", opTypes),
 
 	Val("0x10000000000000000<<2", hugeInteger.Shl(2)),
@@ -274,22 +274,22 @@ var exprTests = []test {
 	CErr("f<<2", opTypes),
 
 	// <, <=, >, >=
-	Val("1<2", 1<2),
-	Val("1<=2", 1<=2),
-	Val("2<=2", 2<=2),
-	Val("1>2", 1>2),
-	Val("1>=2", 1>=2),
-	Val("2>=2", 2>=2),
+	Val("1<2", 1 < 2),
+	Val("1<=2", 1 <= 2),
+	Val("2<=2", 2 <= 2),
+	Val("1>2", 1 > 2),
+	Val("1>=2", 1 >= 2),
+	Val("2>=2", 2 >= 2),
 
-	Val("i<2", 1<2),
-	Val("i<=2", 1<=2),
-	Val("i+1<=2", 2<=2),
-	Val("i>2", 1>2),
-	Val("i>=2", 1>=2),
-	Val("i+1>=2", 2>=2),
+	Val("i<2", 1 < 2),
+	Val("i<=2", 1 <= 2),
+	Val("i+1<=2", 2 <= 2),
+	Val("i>2", 1 > 2),
+	Val("i>=2", 1 >= 2),
+	Val("i+1>=2", 2 >= 2),
 
-	Val("u<2", 1<2),
-	Val("f<2", 1<2),
+	Val("u<2", 1 < 2),
+	Val("f<2", 1 < 2),
 
 	Val("s<\"b\"", true),
 	Val("s<\"a\"", false),

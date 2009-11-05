@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	returnPC = ^uint(0);
-	badPC = ^uint(1);
+	returnPC	= ^uint(0);
+	badPC		= ^uint(1);
 )
 
 /*
@@ -22,9 +22,9 @@ const (
 
 type stmtCompiler struct {
 	*blockCompiler;
-	pos token.Position;
+	pos	token.Position;
 	// This statement's label, or nil if it is not labeled.
-	stmtLabel *label;
+	stmtLabel	*label;
 }
 
 func (a *stmtCompiler) diag(format string, args ...) {
@@ -38,43 +38,43 @@ func (a *stmtCompiler) diag(format string, args ...) {
 type flowEnt struct {
 	// Whether this flow entry is conditional.  If true, flow can
 	// continue to the next PC.
-	cond bool;
+	cond	bool;
 	// True if this will terminate flow (e.g., a return statement).
 	// cond must be false and jumps must be nil if this is true.
-	term bool;
+	term	bool;
 	// PC's that can be reached from this flow entry.
-	jumps []*uint;
+	jumps	[]*uint;
 	// Whether this flow entry has been visited by reachesEnd.
-	visited bool;
+	visited	bool;
 }
 
 type flowBlock struct {
 	// If this is a goto, the target label.
-	target string;
+	target	string;
 	// The inner-most block containing definitions.
-	block *block;
+	block	*block;
 	// The numVars from each block leading to the root of the
 	// scope, starting at block.
-	numVars []int;
+	numVars	[]int;
 }
 
 type flowBuf struct {
-	cb *codeBuf;
+	cb	*codeBuf;
 	// ents is a map from PC's to flow entries.  Any PC missing
 	// from this map is assumed to reach only PC+1.
-	ents map[uint] *flowEnt;
+	ents	map[uint]*flowEnt;
 	// gotos is a map from goto positions to information on the
 	// block at the point of the goto.
-	gotos map[*token.Position] *flowBlock;
+	gotos	map[*token.Position]*flowBlock;
 	// labels is a map from label name to information on the block
 	// at the point of the label.  labels are tracked by name,
 	// since mutliple labels at the same PC can have different
 	// blocks.
-	labels map[string] *flowBlock;
+	labels	map[string]*flowBlock;
 }
 
 func newFlowBuf(cb *codeBuf) *flowBuf {
-	return &flowBuf{cb, make(map[uint] *flowEnt), make(map[*token.Position] *flowBlock), make(map[string] *flowBlock)};
+	return &flowBuf{cb, make(map[uint]*flowEnt), make(map[*token.Position]*flowBlock), make(map[string]*flowBlock)};
 }
 
 // put creates a flow control point for the next PC in the code buffer.
@@ -97,7 +97,7 @@ func (f *flowBuf) putTerm() {
 // PC and, if cond is true, can also continue to the PC following the
 // next PC.
 func (f *flowBuf) put1(cond bool, jumpPC *uint) {
-	f.put(cond, false, []*uint {jumpPC});
+	f.put(cond, false, []*uint{jumpPC});
 }
 
 func newFlowBlock(target string, b *block) *flowBlock {
@@ -228,9 +228,7 @@ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
 	// Initialize the variable
 	index := v.Index;
 	if v.Index >= 0 {
-		a.push(func(v *Thread) {
-			v.f.Vars[index] = t.Zero();
-		});
+		a.push(func(v *Thread) { v.f.Vars[index] = t.Zero() });
 	}
 	return v;
 }
@@ -730,7 +728,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 			temp := lmt.Zero().(multiV);
 			assign(temp, t);
 			// Copy to destination
-			for i := 0; i < n; i ++ {
+			for i := 0; i < n; i++ {
 				// TODO(austin) Need to evaluate LHS
 				// before RHS
 				lfs[i](t).Assign(t, temp[i]);
@@ -739,19 +737,19 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 	}
 }
 
-var assignOpToOp = map[token.Token] token.Token {
-	token.ADD_ASSIGN : token.ADD,
-	token.SUB_ASSIGN : token.SUB,
-	token.MUL_ASSIGN : token.MUL,
-	token.QUO_ASSIGN : token.QUO,
-	token.REM_ASSIGN : token.REM,
+var assignOpToOp = map[token.Token]token.Token{
+	token.ADD_ASSIGN: token.ADD,
+	token.SUB_ASSIGN: token.SUB,
+	token.MUL_ASSIGN: token.MUL,
+	token.QUO_ASSIGN: token.QUO,
+	token.REM_ASSIGN: token.REM,
 
-	token.AND_ASSIGN : token.AND,
-	token.OR_ASSIGN  : token.OR,
-        token.XOR_ASSIGN : token.XOR,
-        token.SHL_ASSIGN : token.SHL,
-        token.SHR_ASSIGN : token.SHR,
-        token.AND_NOT_ASSIGN : token.AND_NOT,
+	token.AND_ASSIGN: token.AND,
+	token.OR_ASSIGN: token.OR,
+	token.XOR_ASSIGN: token.XOR,
+	token.SHL_ASSIGN: token.SHL,
+	token.SHR_ASSIGN: token.SHR,
+	token.AND_NOT_ASSIGN: token.AND_NOT,
 }
 
 func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
@@ -850,7 +848,7 @@ func (a *stmtCompiler) compileReturnStmt(s *ast.ReturnStmt) {
 	nout := len(a.fnType.Out);
 	a.flow.putTerm();
 	a.push(func(t *Thread) {
-		assign(multiV(t.f.Vars[start:start+nout]), t);
+		assign(multiV(t.f.Vars[start : start+nout]), t);
 		t.pc = returnPC;
 	});
 }
@@ -979,9 +977,7 @@ func (a *stmtCompiler) compileIfStmt(s *ast.IfStmt) {
 	if s.Else != nil {
 		// Skip over else if we executed the body
 		a.flow.put1(false, &endPC);
-		a.push(func(v *Thread) {
-			v.pc = endPC;
-		});
+		a.push(func(v *Thread) { v.pc = endPC });
 		elsePC = a.nextPC();
 		bc.compileStmt(s.Else);
 	} else {
@@ -1105,7 +1101,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 				// non-empty statement in a case or
 				// default clause in an expression
 				// "switch" statement.
-				for _, s2 := range clause.Body[j+1:len(clause.Body)] {
+				for _, s2 := range clause.Body[j+1 : len(clause.Body)] {
 					// XXX(Spec) 6g also considers
 					// empty blocks to be empty
 					// statements.
@@ -1234,7 +1230,7 @@ func (a *blockCompiler) exit() {
  * Function compiler
  */
 
-func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (func (*Thread) Func) {
+func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (func(*Thread) Func) {
 	// Create body scope
 	//
 	// The scope of a parameter or result is the body of the
@@ -1264,7 +1260,7 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
 		outVarsNamed: len(decl.OutNames) > 0 && decl.OutNames[0] != nil,
 		codeBuf: cb,
 		flow: newFlowBuf(cb),
-		labels: make(map[string] *label),
+		labels: make(map[string]*label),
 	};
 	bc := &blockCompiler{
 		funcCompiler: fc,

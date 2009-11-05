@@ -21,19 +21,19 @@ type Def interface {
 type Variable struct {
 	token.Position;
 	// Index of this variable in the Frame structure
-	Index int;
+	Index	int;
 	// Static type of this variable
-	Type Type;
+	Type	Type;
 	// Value of this variable.  This is only used by Scope.NewFrame;
 	// therefore, it is useful for global scopes but cannot be used
 	// in function scopes.
-	Init Value;
+	Init	Value;
 }
 
 type Constant struct {
 	token.Position;
-	Type Type;
-	Value Value;
+	Type	Type;
+	Value	Value;
 }
 
 // A block represents a definition block in which a name may not be
@@ -41,24 +41,24 @@ type Constant struct {
 type block struct {
 	// The block enclosing this one, including blocks in other
 	// scopes.
-	outer *block;
+	outer	*block;
 	// The nested block currently being compiled, or nil.
-	inner *block;
+	inner	*block;
 	// The Scope containing this block.
-	scope *Scope;
+	scope	*Scope;
 	// The Variables, Constants, and Types defined in this block.
-	defs map[string] Def;
+	defs	map[string]Def;
 	// The index of the first variable defined in this block.
 	// This must be greater than the index of any variable defined
 	// in any parent of this block within the same Scope at the
 	// time this block is entered.
-	offset int;
+	offset	int;
 	// The number of Variables defined in this block.
-	numVars int;
+	numVars	int;
 	// If global, do not allocate new vars and consts in
 	// the frame; assume that the refs will be compiled in
 	// using defs[name].Init.
-	global bool;
+	global	bool;
 }
 
 // A Scope is the compile-time analogue of a Frame, which captures
@@ -69,7 +69,7 @@ type Scope struct {
 	// The maximum number of variables required at any point in
 	// this Scope.  This determines the number of slots needed in
 	// Frame's created from this Scope at run-time.
-	maxVars int;
+	maxVars	int;
 }
 
 func (b *block) enterChild() *block {
@@ -79,8 +79,8 @@ func (b *block) enterChild() *block {
 	sub := &block{
 		outer: b,
 		scope: b.scope,
-		defs: make(map[string] Def),
-		offset: b.offset+b.numVars,
+		defs: make(map[string]Def),
+		offset: b.offset + b.numVars,
 	};
 	b.inner = sub;
 	return sub;
@@ -122,7 +122,7 @@ func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, D
 }
 
 func (b *block) DefineTemp(t Type) *Variable {
-	return b.defineSlot(t, true)
+	return b.defineSlot(t, true);
 }
 
 func (b *block) defineSlot(t Type, temp bool) *Variable {
@@ -131,7 +131,7 @@ func (b *block) defineSlot(t Type, temp bool) *Variable {
 	}
 	index := -1;
 	if !b.global || temp {
-		index = b.offset+b.numVars;
+		index = b.offset + b.numVars;
 		b.numVars++;
 		if index >= b.scope.maxVars {
 			b.scope.maxVars = index+1;
@@ -154,7 +154,7 @@ func (b *block) DefineType(name string, pos token.Position, t Type) Type {
 	if _, ok := b.defs[name]; ok {
 		return nil;
 	}
-	nt := &NamedType{pos, name, nil, true, make(map[string] Method)};
+	nt := &NamedType{pos, name, nil, true, make(map[string]Method)};
 	if t != nil {
 		nt.Complete(t);
 	}
@@ -184,8 +184,8 @@ func (s *Scope) NewFrame(outer *Frame) *Frame {
  */
 
 type Frame struct {
-	Outer *Frame;
-	Vars []Value;
+	Outer	*Frame;
+	Vars	[]Value;
 }
 
 func (f *Frame) Get(level int, index int) Value {

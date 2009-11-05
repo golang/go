@@ -17,12 +17,12 @@ import (
 
 type typeCompiler struct {
 	*compiler;
-	block *block;
+	block	*block;
 	// Check to be performed after a type declaration is compiled.
 	//
 	// TODO(austin) This will probably have to change after we
 	// eliminate forward declarations.
-	lateCheck func() bool
+	lateCheck	func() bool;
 }
 
 func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
@@ -142,7 +142,7 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type 
 	// uniqueness of field names inherited from anonymous fields
 	// at use time.
 	fields := make([]StructField, len(ts));
-	nameSet := make(map[string] token.Position, len(ts));
+	nameSet := make(map[string]token.Position, len(ts));
 	for i := range fields {
 		// Compute field name and check anonymous fields
 		var name string;
@@ -237,7 +237,7 @@ func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool)
 	ts, names, poss, bad := a.compileFields(x.Methods, allowRec);
 
 	methods := make([]IMethod, len(ts));
-	nameSet := make(map[string] token.Position, len(ts));
+	nameSet := make(map[string]token.Position, len(ts));
 	embeds := make([]*InterfaceType, len(ts));
 
 	var nm, ne int;
