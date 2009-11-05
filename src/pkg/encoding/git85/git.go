@@ -24,20 +24,20 @@ const encode = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#
 // The decodings are 1+ the actual value, so that the
 // default zero value can be used to mean "not valid".
 var decode = [256]uint8{
-	'0':	1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-	'A':	11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-		24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
-	'a':	37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
-		50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62,
-	'!':	63,
-	'#':	64, 65, 66, 67,
-	'(':	68, 69, 70, 71,
-	'-':	72,
-	';':	73,
-	'<':	74, 75, 76, 77,
-	'@':	78,
-	'^':	79, 80, 81,
-	'{':	82, 83, 84, 85
+	'0': 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+	'A': 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+	24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+	'a': 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
+	50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62,
+	'!': 63,
+	'#': 64, 65, 66, 67,
+	'(': 68, 69, 70, 71,
+	'-': 72,
+	';': 73,
+	'<': 74, 75, 76, 77,
+	'@': 78,
+	'^': 79, 80, 81,
+	'{': 82, 83, 84, 85,
 }
 
 // Encode encodes src into EncodedLen(len(src))
@@ -56,15 +56,15 @@ func Encode(dst, src []byte) int {
 			n = 52;
 		}
 		if n <= 27 {
-			dst[ndst] = byte('A' + n - 1);
+			dst[ndst] = byte('A'+n-1);
 		} else {
-			dst[ndst] = byte('a' + n - 26 - 1);
+			dst[ndst] = byte('a'+n-26-1);
 		}
 		ndst++;
 		for i := 0; i < n; i += 4 {
 			var v uint32;
 			for j := 0; j < 4 && i+j < n; j++ {
-				v |= uint32(src[i+j]) << uint(24 - j*8);
+				v |= uint32(src[i+j])<<uint(24 - j*8);
 			}
 			for j := 4; j >= 0; j-- {
 				dst[ndst+j] = encode[v%85];
@@ -103,9 +103,9 @@ func Decode(dst, src []byte) (n int, err os.Error) {
 		var l int;
 		switch ch := int(src[nsrc]); {
 		case 'A' <= ch && ch <= 'Z':
-			l = ch - 'A' + 1;
+			l = ch-'A'+1;
 		case 'a' <= ch && ch <= 'z':
-			l = ch - 'a' + 26 + 1;
+			l = ch-'a'+26+1;
 		default:
 			return ndst, CorruptInputError(nsrc);
 		}
@@ -116,7 +116,7 @@ func Decode(dst, src []byte) (n int, err os.Error) {
 		if nsrc+1+el+1 > len(src) || src[nsrc+1+el] != '\n' {
 			return ndst, CorruptInputError(nsrc);
 		}
-		line := src[nsrc+1:nsrc+1+el];
+		line := src[nsrc+1 : nsrc+1+el];
 		for i := 0; i < el; i += 5 {
 			var v uint32;
 			for j := 0; j < 5; j++ {
@@ -156,12 +156,12 @@ func NewEncoder(w io.Writer) io.WriteCloser {
 }
 
 type encoder struct {
-	w io.Writer;
-	err os.Error;
-	buf [52]byte;
-	nbuf int;
-	out [1024]byte;
-	nout int;
+	w	io.Writer;
+	err	os.Error;
+	buf	[52]byte;
+	nbuf	int;
+	out	[1024]byte;
+	nout	int;
 }
 
 func (e *encoder) Write(p []byte) (n int, err os.Error) {
@@ -190,9 +190,9 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 
 	// Large interior chunks.
 	for len(p) >= 52 {
-		nn := len(e.out)/(1+52/4*5+1) * 52;
+		nn := len(e.out)/(1 + 52/4*5 + 1)*52;
 		if nn > len(p) {
-			nn = len(p)/52 * 52;
+			nn = len(p)/52*52;
 		}
 		if nn > 0 {
 			nout := Encode(&e.out, p[0:nn]);
@@ -216,7 +216,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 func (e *encoder) Close() os.Error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
-		nout := Encode(&e.out, e.buf[0:e.nbuf]);
+		nout := Encode(&e.out, e.buf[0 : e.nbuf]);
 		e.nbuf = 0;
 		_, e.err = e.w.Write(e.out[0:nout]);
 	}
@@ -229,14 +229,14 @@ func NewDecoder(r io.Reader) io.Reader {
 }
 
 type decoder struct {
-	r io.Reader;
-	err os.Error;
-	readErr os.Error;
-	buf [1024]byte;
-	nbuf int;
-	out []byte;
-	outbuf [1024]byte;
-	off int64;
+	r	io.Reader;
+	err	os.Error;
+	readErr	os.Error;
+	buf	[1024]byte;
+	nbuf	int;
+	out	[]byte;
+	outbuf	[1024]byte;
+	off	int64;
 }
 
 func (d *decoder) Read(p []byte) (n int, err os.Error) {
@@ -263,22 +263,21 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 
 		// Read and decode more input.
 		var nn int;
-		nn, d.readErr = d.r.Read(d.buf[d.nbuf:len(d.buf)]);
+		nn, d.readErr = d.r.Read(d.buf[d.nbuf : len(d.buf)]);
 		d.nbuf += nn;
 
 		// Send complete lines to Decode.
-		nl := bytes.LastIndex(d.buf[0:d.nbuf], newline);
+		nl := bytes.LastIndex(d.buf[0 : d.nbuf], newline);
 		if nl < 0 {
 			continue;
 		}
-		nn, d.err = Decode(&d.outbuf, d.buf[0:nl+1]);
+		nn, d.err = Decode(&d.outbuf, d.buf[0 : nl+1]);
 		if e, ok := d.err.(CorruptInputError); ok {
-			d.err = CorruptInputError(int64(e)+d.off);
+			d.err = CorruptInputError(int64(e) + d.off);
 		}
 		d.out = d.outbuf[0:nn];
-		d.nbuf = bytes.Copy(&d.buf, d.buf[nl+1:d.nbuf]);
+		d.nbuf = bytes.Copy(&d.buf, d.buf[nl+1 : d.nbuf]);
 		d.off += int64(nl+1);
 	}
 	panic("unreacahable");
 }
-

@@ -56,11 +56,11 @@ var gitPairs = []testpair{
 		"zVIXXEb95kYW*~HEWgu;7Ze%PVbZB98AYyqSVIXj2a&u*NWpZI|V`U(3W*}r`Y-wj`\n"
 		"zbRcPNAarPDAY*TCbZKsNWn>^>Ze$>7Ze(R<VRUI{VPb4$AZKN6WpZJ3X>V>IZ)PBC\n"
 		"zZf|#NWn^b%EFfigV`XJzb0BnRWgv5CZ*p`Xc4cT~ZDnp_Wgu^6AYpEKAY);2ZeeU7\n"
-		"IaBO8^b9HiME&u=k\n"
-	}
+		"IaBO8^b9HiME&u=k\n",
+	},
 }
 
-var gitBigtest = gitPairs[len(gitPairs)-1];
+var gitBigtest = gitPairs[len(gitPairs)-1]
 
 func TestEncode(t *testing.T) {
 	for _, p := range gitPairs {
