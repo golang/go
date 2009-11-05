@@ -17,8 +17,9 @@ import (
 
 // An Errno is an SRPC status code.
 type Errno uint32
+
 const (
-	OK Errno = 256 + iota;
+	OK	Errno	= 256+iota;
 	ErrBreak;
 	ErrMessageTruncated;
 	ErrNoMemory;
@@ -33,27 +34,27 @@ const (
 	ErrAppError;
 )
 
-var errstr = [...]string {
+var errstr = [...]string{
 	OK-OK: "ok",
 	ErrBreak-OK: "break",
-	ErrMessageTruncated-OK: "message truncated",
-	ErrNoMemory-OK: "out of memory",
-	ErrProtocolMismatch-OK: "protocol mismatch",
-	ErrBadRPCNumber-OK: "invalid RPC method number",
-	ErrBadArgType-OK: "unexpected argument type",
-	ErrTooFewArgs-OK: "too few arguments",
-	ErrTooManyArgs-OK: "too many arguments",
-	ErrInArgTypeMismatch-OK: "input argument type mismatch",
-	ErrOutArgTypeMismatch-OK: "output argument type mismatch",
-	ErrInternalError-OK: "internal error",
-	ErrAppError-OK: "application error",
+	ErrMessageTruncated - OK: "message truncated",
+	ErrNoMemory - OK: "out of memory",
+	ErrProtocolMismatch - OK: "protocol mismatch",
+	ErrBadRPCNumber - OK: "invalid RPC method number",
+	ErrBadArgType - OK: "unexpected argument type",
+	ErrTooFewArgs - OK: "too few arguments",
+	ErrTooManyArgs - OK: "too many arguments",
+	ErrInArgTypeMismatch - OK: "input argument type mismatch",
+	ErrOutArgTypeMismatch - OK: "output argument type mismatch",
+	ErrInternalError - OK: "internal error",
+	ErrAppError - OK: "application error",
 }
 
 func (e Errno) String() string {
 	if e < OK || int(e-OK) >= len(errstr) {
-		return "Errno(" + strconv.Itoa64(int64(e)) + ")"
+		return "Errno(" + strconv.Itoa64(int64(e)) + ")";
 	}
-	return errstr[e - OK];
+	return errstr[e-OK];
 }
 
 // A *msgHdr is the data argument to the imc_recvmsg
@@ -61,45 +62,45 @@ func (e Errno) String() string {
 // counts trusted by the system calls, the data structure is unsafe
 // to expose to package clients.
 type msgHdr struct {
-	iov *iov;
-	niov int32;
-	desc *int32;
-	ndesc int32;
-	flags uint32;
+	iov	*iov;
+	niov	int32;
+	desc	*int32;
+	ndesc	int32;
+	flags	uint32;
 }
 
 // A single region for I/O.  Just as unsafe as msgHdr.
 type iov struct {
-	base *byte;
-	len int32;
+	base	*byte;
+	len	int32;
 }
 
 // A msg is the Go representation of a message.
 type msg struct {
-	rdata []byte;	// data being consumed during message parsing
-	rdesc []int32;	// file descriptors being consumed during message parsing
-	wdata []byte;	// data being generated when replying
+	rdata	[]byte;		// data being consumed during message parsing
+	rdesc	[]int32;	// file descriptors being consumed during message parsing
+	wdata	[]byte;		// data being generated when replying
 
 	// parsed version of message
-	protocol uint32;
-	requestId uint64;
-	isReq bool;
-	rpcNumber uint32;
-	gotHeader bool;
-	status Errno;	// error code sent in response
-	Arg []interface{};	// method arguments
-	Ret []interface{};	// method results
-	Size []int;	// max sizes for arrays in method results
-	fmt string;	// accumulated format string of arg+":"+ret
+	protocol	uint32;
+	requestId	uint64;
+	isReq		bool;
+	rpcNumber	uint32;
+	gotHeader	bool;
+	status		Errno;		// error code sent in response
+	Arg		[]interface{};	// method arguments
+	Ret		[]interface{};	// method results
+	Size		[]int;		// max sizes for arrays in method results
+	fmt		string;		// accumulated format string of arg+":"+ret
 }
 
 // A msgReceiver receives messages from a file descriptor.
 type msgReceiver struct {
-	fd int;
-	data [128*1024]byte;
-	desc [8]int32;
-	hdr msgHdr;
-	iov iov;
+	fd	int;
+	data	[128*1024]byte;
+	desc	[8]int32;
+	hdr	msgHdr;
+	iov	iov;
 }
 
 func (r *msgReceiver) recv() (*msg, os.Error) {
@@ -136,10 +137,9 @@ func (r *msgReceiver) recv() (*msg, os.Error) {
 
 // A msgSender sends messages on a file descriptor.
 type msgSender struct {
-	fd int;
-	hdr msgHdr;
-	iov iov;
-
+	fd	int;
+	hdr	msgHdr;
+	iov	iov;
 }
 
 func (s *msgSender) send(m *msg) os.Error {
@@ -222,8 +222,8 @@ func (m *msg) grow(n int) []byte {
 		bytes.Copy(a, m.wdata);
 		m.wdata = a;
 	}
-	m.wdata = m.wdata[0:i+n];
-	return m.wdata[i:i+n];
+	m.wdata = m.wdata[0 : i+n];
+	return m.wdata[i : i+n];
 }
 
 func (m *msg) wuint8(x uint8) {
@@ -529,4 +529,3 @@ func (m *msg) packResponse() {
 	m.wuint32(uint32(len(m.Ret)));
 	m.packValues(m.Ret);
 }
-

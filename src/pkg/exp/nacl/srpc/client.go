@@ -14,30 +14,30 @@ import (
 
 // A Client represents the client side of an SRPC connection.
 type Client struct {
-	fd int;	// fd to server
-	r msgReceiver;
-	s msgSender;
-	service map[string]srv;	// services by name
-	out chan *msg;	// send to out to write to connection
+	fd	int;	// fd to server
+	r	msgReceiver;
+	s	msgSender;
+	service	map[string]srv;	// services by name
+	out	chan *msg;	// send to out to write to connection
 
-	mu sync.Mutex;	// protects pending, idGen
-	pending map[uint64]*RPC;
-	idGen uint64;	// generator for request IDs
+	mu	sync.Mutex;	// protects pending, idGen
+	pending	map[uint64]*RPC;
+	idGen	uint64;	// generator for request IDs
 }
 
 // A srv is a single method that the server offers.
 type srv struct {
-	num uint32;	// method number
-	fmt string;	// argument format
+	num	uint32;	// method number
+	fmt	string;	// argument format
 }
 
 // An RPC represents a single RPC issued by a client.
 type RPC struct {
-	Ret []interface{};	// Return values
-	Done chan *RPC;	// Channel where notification of done arrives
-	Errno Errno;	// Status code
-	c *Client;
-	id uint64;	// request id
+	Ret	[]interface{};	// Return values
+	Done	chan *RPC;	// Channel where notification of done arrives
+	Errno	Errno;		// Status code
+	c	*Client;
+	id	uint64;	// request id
 }
 
 // NewClient allocates a new client using the file descriptor fd.
@@ -53,8 +53,8 @@ func NewClient(fd int) (c *Client, err os.Error) {
 	m := &msg{
 		protocol: protocol,
 		isReq: true,
-		Ret: []interface{}{ []byte(nil) },
-		Size: []int{ 4000 },
+		Ret: []interface{}{[]byte(nil)},
+		Size: []int{4000},
 	};
 	m.packRequest();
 	c.s.send(m);
@@ -72,7 +72,7 @@ func NewClient(fd int) (c *Client, err os.Error) {
 		if i < 0 {
 			continue;
 		}
-		c.service[string(line[0:i])] = srv{uint32(n), string(line[i+1:len(line)])};
+		c.service[string(line[0:i])] = srv{uint32(n), string(line[i+1 : len(line)])};
 	}
 
 	c.out = make(chan *msg);
@@ -159,11 +159,11 @@ func (r *RPC) Start(name string, arg []interface{}) {
 	for srv.fmt[i] != ':' {
 		i++;
 	}
-	fmt := srv.fmt[i+1:len(srv.fmt)];
+	fmt := srv.fmt[i+1 : len(srv.fmt)];
 
 	// Now the return prototypes.
-	m.Ret = make([]interface{}, len(fmt) - i);
-	m.Size = make([]int, len(fmt) - i);
+	m.Ret = make([]interface{}, len(fmt)-i);
+	m.Size = make([]int, len(fmt)-i);
 	for i := 0; i < len(fmt); i++ {
 		switch fmt[i] {
 		default:

@@ -22,13 +22,13 @@ import (
 // It reads arguments from arg, checks size for array limits,
 // writes return values to ret, and returns an Errno status code.
 type Handler interface {
-	Run(arg, ret []interface{}, size []int) Errno
+	Run(arg, ret []interface{}, size []int) Errno;
 }
 
 type method struct {
-	name string;
-	fmt string;
-	handler Handler;
+	name	string;
+	fmt	string;
+	handler	Handler;
 }
 
 var rpcMethod []method
@@ -61,7 +61,7 @@ func Add(name, fmt string, handler Handler) {
 		}
 		rpcMethod = a;
 	}
-	rpcMethod = rpcMethod[0:n+1];
+	rpcMethod = rpcMethod[0 : n+1];
 	rpcMethod[n] = method{name, fmt, handler};
 }
 
@@ -175,7 +175,7 @@ func getFd() (fd int, err os.Error) {
 
 // Enabled returns true if SRPC is enabled in the Native Client runtime.
 func Enabled() bool {
-	_, err:= getFd();
+	_, err := getFd();
 	return err == nil;
 }
 
@@ -201,4 +201,3 @@ func (serviceDiscovery) Run(arg, ret []interface{}, size []int) Errno {
 func init() {
 	Add("service_discovery", ":C", serviceDiscovery{});
 }
-

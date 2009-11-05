@@ -16,11 +16,11 @@ import (
 // linear slice or as a two-dimensional slice of slices.
 // Image implements image.Image.
 type Image struct {
-	Linear []Color;
-	Pixel [][]Color;
+	Linear	[]Color;
+	Pixel	[][]Color;
 }
 
-var _ image.Image = (*Image)(nil);
+var _ image.Image = (*Image)(nil)
 
 func (m *Image) ColorModel() image.ColorModel {
 	return ColorModel;
@@ -62,18 +62,19 @@ func newImage(dx, dy int, linear []Color) *Image {
 // A Color represents a Native Client color value,
 // a 32-bit R, G, B, A value packed as 0xAARRGGBB.
 type Color uint32
+
 func (p Color) RGBA() (r, g, b, a uint32) {
 	x := uint32(p);
 	a = x>>24;
 	a |= a<<8;
 	a |= a<<16;
-	r = (x>>16) & 0xFF;
+	r = (x>>16)&0xFF;
 	r |= r<<8;
 	r |= r<<16;
-	g = (x>>8) & 0xFF;
+	g = (x>>8)&0xFF;
 	g |= g<<8;
 	g |= g<<16;
-	b = x & 0xFF;
+	b = x&0xFF;
 	b |= b<<8;
 	b |= b<<16;
 	return;
@@ -91,5 +92,4 @@ func toColor(color image.Color) image.Color {
 }
 
 // ColorModel is the color model corresponding to the Native Client Color.
-var ColorModel = image.ColorModelFunc(toColor);
-
+var ColorModel = image.ColorModelFunc(toColor)
