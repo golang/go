@@ -17,23 +17,23 @@ type ET2 struct {
 }
 
 type ET1 struct {
-	a int;
-	et2 *ET2;
-	next *ET1;
+	a	int;
+	et2	*ET2;
+	next	*ET1;
 }
 
 // Like ET1 but with a different name for a field
 type ET3 struct {
-	a int;
-	et2 *ET2;
-	differentNext *ET1;
+	a		int;
+	et2		*ET2;
+	differentNext	*ET1;
 }
 
 // Like ET1 but with a different type for a field
 type ET4 struct {
-	a int;
-	et2 *ET1;
-	next int;
+	a	int;
+	et2	*ET1;
+	next	int;
 }
 
 func TestBasicEncoder(t *testing.T) {
@@ -44,7 +44,7 @@ func TestBasicEncoder(t *testing.T) {
 	et1.et2 = new(ET2);
 	enc.Encode(et1);
 	if enc.state.err != nil {
-		t.Error("encoder fail:", enc.state.err)
+		t.Error("encoder fail:", enc.state.err);
 	}
 
 	// Decode the result by hand to verify;
@@ -114,14 +114,14 @@ func TestBasicEncoder(t *testing.T) {
 	}
 	// 9) EOF
 	if b.Len() != 0 {
-		t.Error("not at eof;", b.Len(), "bytes left")
+		t.Error("not at eof;", b.Len(), "bytes left");
 	}
 
 	// Now do it again. This time we should see only the type id and value.
 	b.Reset();
 	enc.Encode(et1);
 	if enc.state.err != nil {
-		t.Error("2nd round: encoder fail:", enc.state.err)
+		t.Error("2nd round: encoder fail:", enc.state.err);
 	}
 	// The length.
 	length = decodeUint(state);
@@ -144,7 +144,7 @@ func TestBasicEncoder(t *testing.T) {
 	}
 	// 7a) EOF
 	if b.Len() != 0 {
-		t.Error("2nd round: not at eof;", b.Len(), "bytes left")
+		t.Error("2nd round: not at eof;", b.Len(), "bytes left");
 	}
 }
 
@@ -156,7 +156,7 @@ func TestEncoderDecoder(t *testing.T) {
 	et1.et2 = new(ET2);
 	enc.Encode(et1);
 	if enc.state.err != nil {
-		t.Error("encoder fail:", enc.state.err)
+		t.Error("encoder fail:", enc.state.err);
 	}
 	dec := NewDecoder(b);
 	newEt1 := new(ET1);
@@ -169,7 +169,7 @@ func TestEncoderDecoder(t *testing.T) {
 		t.Fatalf("invalid data for et1: expected %+v; got %+v\n", *et1, *newEt1);
 	}
 	if b.Len() != 0 {
-		t.Error("not at eof;", b.Len(), "bytes left")
+		t.Error("not at eof;", b.Len(), "bytes left");
 	}
 
 	enc.Encode(et1);
@@ -182,13 +182,13 @@ func TestEncoderDecoder(t *testing.T) {
 		t.Fatalf("round 2: invalid data for et1: expected %+v; got %+v\n", *et1, *newEt1);
 	}
 	if b.Len() != 0 {
-		t.Error("round 2: not at eof;", b.Len(), "bytes left")
+		t.Error("round 2: not at eof;", b.Len(), "bytes left");
 	}
 
 	// Now test with a running encoder/decoder pair that we recognize a type mismatch.
 	enc.Encode(et1);
 	if enc.state.err != nil {
-		t.Error("round 3: encoder fail:", enc.state.err)
+		t.Error("round 3: encoder fail:", enc.state.err);
 	}
 	newEt2 := new(ET2);
 	dec.Decode(newEt2);
@@ -207,7 +207,7 @@ func badTypeCheck(e interface{}, shouldFail bool, msg string, t *testing.T) {
 	et1.et2 = new(ET2);
 	enc.Encode(et1);
 	if enc.state.err != nil {
-		t.Error("encoder fail:", enc.state.err)
+		t.Error("encoder fail:", enc.state.err);
 	}
 	dec := NewDecoder(b);
 	dec.Decode(e);
@@ -244,15 +244,15 @@ func TestBadData(t *testing.T) {
 
 // Types not supported by the Encoder (only structs work at the top level).
 // Basic types work implicitly.
-var unsupportedValues = []interface{} {
+var unsupportedValues = []interface{}{
 	3,
 	"hi",
 	7.2,
-	[]int{ 1, 2, 3 },
-	[3]int{ 1, 2, 3 },
+	[]int{1, 2, 3},
+	[3]int{1, 2, 3},
 	make(chan int),
 	func(a int) bool { return true },
-	make(map[string] int),
+	make(map[string]int),
 	new(interface{}),
 }
 
@@ -262,7 +262,7 @@ func TestUnsupported(t *testing.T) {
 	for _, v := range unsupportedValues {
 		err := enc.Encode(v);
 		if err == nil {
-			t.Errorf("expected error for %T; got none", v)
+			t.Errorf("expected error for %T; got none", v);
 		}
 	}
 }
@@ -272,39 +272,45 @@ func encAndDec(in, out interface{}) os.Error {
 	enc := NewEncoder(b);
 	enc.Encode(in);
 	if enc.state.err != nil {
-		return enc.state.err
+		return enc.state.err;
 	}
 	dec := NewDecoder(b);
 	dec.Decode(out);
 	if dec.state.err != nil {
-		return dec.state.err
+		return dec.state.err;
 	}
 	return nil;
 }
 
 func TestTypeToPtrType(t *testing.T) {
 	// Encode a T, decode a *T
-	type Type0 struct { a int }
+	type Type0 struct {
+		a int;
+	}
 	t0 := Type0{7};
 	t0p := (*Type0)(nil);
 	if err := encAndDec(t0, t0p); err != nil {
-		t.Error(err)
+		t.Error(err);
 	}
 }
 
 func TestPtrTypeToType(t *testing.T) {
 	// Encode a *T, decode a T
-	type Type1 struct { a uint }
+	type Type1 struct {
+		a uint;
+	}
 	t1p := &Type1{17};
 	var t1 Type1;
 	if err := encAndDec(t1, t1p); err != nil {
-		t.Error(err)
+		t.Error(err);
 	}
 }
 
 func TestTypeToPtrPtrPtrPtrType(t *testing.T) {
 	// Encode a *T, decode a T
-	type Type2 struct { a ****float }
+	type Type2 struct {
+		a ****float;
+	}
 	t2 := Type2{};
 	t2.a = new(***float);
 	*t2.a = new(**float);
@@ -313,7 +319,7 @@ func TestTypeToPtrPtrPtrPtrType(t *testing.T) {
 	****t2.a = 27.4;
 	t2pppp := new(***Type2);
 	if err := encAndDec(t2, t2pppp); err != nil {
-		t.Error(err)
+		t.Error(err);
 	}
 	if ****(****t2pppp).a != ****t2.a {
 		t.Errorf("wrong value after decode: %g not %g", ****(****t2pppp).a, ****t2.a);
