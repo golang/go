@@ -52,7 +52,7 @@ const OS = "nacl"
 func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
 	// Offset passed to system call is 32 bits.  Failure of vision by NaCl.
 	if int64(int32(offset)) != offset {
-		return 0, ERANGE
+		return 0, ERANGE;
 	}
 	o, _, e := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence));
 	return int64(o), int(e);
@@ -74,7 +74,7 @@ func Sleep(ns int64) (errno int) {
 		return;
 	}
 	ts.Sec += tv.Sec;
-	ts.Nsec += tv.Usec*1000;
+	ts.Nsec += tv.Usec * 1000;
 	switch {
 	case ts.Nsec >= 1e9:
 		ts.Nsec -= 1e9;
@@ -194,51 +194,51 @@ func Ftruncate(fd int, length int64) (errno int) {
 // don't implement Chdir, so the fallback algorithm
 // fails worse than calling Getwd does.
 
-const ImplementsGetwd = true;
+const ImplementsGetwd = true
 
 func Getwd() (wd string, errno int) {
 	return "", ENACL;
 }
 
 func Getuid() (uid int) {
-	return -1
+	return -1;
 }
 
 func Geteuid() (euid int) {
-	return -1
+	return -1;
 }
 
 func Getgid() (gid int) {
-	return -1
+	return -1;
 }
 
 func Getegid() (egid int) {
-	return -1
+	return -1;
 }
 
 func Getppid() (ppid int) {
-	return -1
+	return -1;
 }
 
 func Getgroups() (gids []int, errno int) {
-	return nil, ENACL
+	return nil, ENACL;
 }
 
 type Sockaddr interface {
-	sockaddr()
+	sockaddr();
 }
 
 type SockaddrInet4 struct {
-	Port int;
-	Addr [4]byte;
+	Port	int;
+	Addr	[4]byte;
 }
 
 func (*SockaddrInet4) sockaddr() {
 }
 
 type SockaddrInet6 struct {
-	Port int;
-	Addr [16]byte;
+	Port	int;
+	Addr	[16]byte;
 }
 
 func (*SockaddrInet6) sockaddr() {
@@ -252,7 +252,7 @@ func (*SockaddrUnix) sockaddr() {
 }
 
 const (
-	AF_INET = 1+iota;
+	AF_INET	= 1+iota;
 	AF_INET6;
 	AF_UNIX;
 	IPPROTO_TCP;
@@ -305,8 +305,8 @@ func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (errno int) {
 }
 
 type Linger struct {
-	Onoff int32;
-	Linger int32;
+	Onoff	int32;
+	Linger	int32;
 }
 
 func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
@@ -318,22 +318,22 @@ func Listen(s int, n int) (errno int) {
 }
 
 type Rusage struct {
-	Utime Timeval;
-	Stime Timeval;
-	Maxrss int32;
-	Ixrss int32;
-	Idrss int32;
-	Isrss int32;
-	Minflt int32;
-	Majflt int32;
-	Nswap int32;
-	Inblock int32;
-	Oublock int32;
-	Msgsnd int32;
-	Msgrcv int32;
-	Nsignals int32;
-	Nvcsw int32;
-	Nivcsw int32;
+	Utime		Timeval;
+	Stime		Timeval;
+	Maxrss		int32;
+	Ixrss		int32;
+	Idrss		int32;
+	Isrss		int32;
+	Minflt		int32;
+	Majflt		int32;
+	Nswap		int32;
+	Inblock		int32;
+	Oublock		int32;
+	Msgsnd		int32;
+	Msgrcv		int32;
+	Nsignals	int32;
+	Nvcsw		int32;
+	Nivcsw		int32;
 }
 
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
@@ -343,37 +343,37 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 type WaitStatus uint32
 
 func (WaitStatus) Exited() bool {
-	return false
+	return false;
 }
 
 func (WaitStatus) ExitStatus() int {
-	return -1
+	return -1;
 }
 
 func (WaitStatus) Signal() int {
-	return -1
+	return -1;
 }
 
 func (WaitStatus) CoreDump() bool {
-	return false
+	return false;
 }
 
 func (WaitStatus) Stopped() bool {
-	return false
+	return false;
 }
 
 func (WaitStatus) Continued() bool {
-	return false
+	return false;
 }
 
 func (WaitStatus) StopSignal() int {
-	return -1
+	return -1;
 }
 
 func (WaitStatus) Signaled() bool {
-	return false
+	return false;
 }
 
 func (WaitStatus) TrapCause() int {
-	return -1
+	return -1;
 }

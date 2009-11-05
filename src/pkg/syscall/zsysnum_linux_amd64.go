@@ -292,4 +292,5 @@ const (
 	SYS_FALLOCATE			= 285;
 )
 
-func _darwin_system_call_conflict() {}
+func _darwin_system_call_conflict() {
+}

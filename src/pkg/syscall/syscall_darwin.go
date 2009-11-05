@@ -82,12 +82,12 @@ func Setgroups(gids []int) (errno int) {
 type WaitStatus uint32
 
 const (
-	mask = 0x7F;
-	core = 0x80;
-	shift = 8;
+	mask	= 0x7F;
+	core	= 0x80;
+	shift	= 8;
 
-	exited = 0;
-	stopped = 0x7F;
+	exited	= 0;
+	stopped	= 0x7F;
 )
 
 func (w WaitStatus) Exited() bool {
@@ -98,7 +98,7 @@ func (w WaitStatus) ExitStatus() int {
 	if w&mask != exited {
 		return -1;
 	}
-	return int(w >> shift);
+	return int(w>>shift);
 }
 
 func (w WaitStatus) Signaled() bool {
@@ -106,7 +106,7 @@ func (w WaitStatus) Signaled() bool {
 }
 
 func (w WaitStatus) Signal() int {
-	sig := int(w & mask);
+	sig := int(w&mask);
 	if sig == stopped || sig == 0 {
 		return -1;
 	}
@@ -129,7 +129,7 @@ func (w WaitStatus) StopSignal() int {
 	if !w.Stopped() {
 		return -1;
 	}
-	return int(w >> shift) & 0xFF;
+	return int(w>>shift)&0xFF;
 }
 
 func (w WaitStatus) TrapCause() int {
@@ -180,9 +180,9 @@ type Sockaddr interface {
 }
 
 type SockaddrInet4 struct {
-	Port int;
-	Addr [4]byte;
-	raw RawSockaddrInet4;
+	Port	int;
+	Addr	[4]byte;
+	raw	RawSockaddrInet4;
 }
 
 func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
@@ -192,7 +192,7 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
 	sa.raw.Len = SizeofSockaddrInet4;
 	sa.raw.Family = AF_INET;
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port));
-	p[0] = byte(sa.Port>>8);
+	p[0] = byte(sa.Port >> 8);
 	p[1] = byte(sa.Port);
 	for i := 0; i < len(sa.Addr); i++ {
 		sa.raw.Addr[i] = sa.Addr[i];
@@ -201,9 +201,9 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
 }
 
 type SockaddrInet6 struct {
-	Port int;
-	Addr [16]byte;
-	raw RawSockaddrInet6;
+	Port	int;
+	Addr	[16]byte;
+	raw	RawSockaddrInet6;
 }
 
 func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
@@ -213,7 +213,7 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
 	sa.raw.Len = SizeofSockaddrInet6;
 	sa.raw.Family = AF_INET6;
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port));
-	p[0] = byte(sa.Port>>8);
+	p[0] = byte(sa.Port >> 8);
 	p[1] = byte(sa.Port);
 	for i := 0; i < len(sa.Addr); i++ {
 		sa.raw.Addr[i] = sa.Addr[i];
@@ -222,8 +222,8 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
 }
 
 type SockaddrUnix struct {
-	Name string;
-	raw RawSockaddrUnix;
+	Name	string;
+	raw	RawSockaddrUnix;
 }
 
 func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
@@ -232,7 +232,7 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
 	if n >= len(sa.raw.Path) || n == 0 {
 		return 0, 0, EINVAL;
 	}
-	sa.raw.Len = byte(3 + n);	// 2 for Family, Len; 1 for NUL
+	sa.raw.Len = byte(3+n);	// 2 for Family, Len; 1 for NUL
 	sa.raw.Family = AF_UNIX;
 	for i := 0; i < n; i++ {
 		sa.raw.Path[i] = int8(name[i]);
@@ -245,10 +245,10 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
 	case AF_UNIX:
 		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa));
 		if pp.Len < 3 || pp.Len > SizeofSockaddrUnix {
-			return nil, EINVAL
+			return nil, EINVAL;
 		}
 		sa := new(SockaddrUnix);
-		n := int(pp.Len) - 3;	// subtract leading Family, Len, terminating NUL
+		n := int(pp.Len)-3;	// subtract leading Family, Len, terminating NUL
 		for i := 0; i < n; i++ {
 			if pp.Path[i] == 0 {
 				// found early NUL; assume Len is overestimating
@@ -334,7 +334,7 @@ func Connect(fd int, sa Sockaddr) (errno int) {
 
 func Socket(domain, typ, proto int) (fd, errno int) {
 	if domain == AF_INET6 && SocketDisableIPv6 {
-		return -1, EAFNOSUPPORT
+		return -1, EAFNOSUPPORT;
 	}
 	fd, errno = socket(domain, typ, proto);
 	return;
@@ -403,7 +403,7 @@ func nametomib(name string) (mib []_C_int, errno int) {
 	// I am scared that if we don't include the +2 here, the kernel
 	// will silently write 2 words farther than we specify
 	// and we'll get memory corruption.
-	var buf [CTL_MAXNAME+2] _C_int;
+	var buf [CTL_MAXNAME + 2]_C_int;
 	n := uintptr(CTL_MAXNAME)*siz;
 
 	p := (*byte)(unsafe.Pointer(&buf[0]));
@@ -414,7 +414,7 @@ func nametomib(name string) (mib []_C_int, errno int) {
 	if errno = sysctl([]_C_int{0, 3}, p, &n, &bytes[0], uintptr(len(name))); errno != 0 {
 		return nil, errno;
 	}
-	return buf[0:n/siz], 0;
+	return buf[0 : n/siz], 0;
 }
 
 func Sysctl(name string) (value string, errno int) {
@@ -773,4 +773,3 @@ func SysctlUint32(name string) (value uint32, errno int) {
 // __mac_mount
 // __mac_get_mount
 // __mac_getfsstat
-

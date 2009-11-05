@@ -7,7 +7,7 @@ package syscall
 import "unsafe"
 
 func Getpagesize() int {
-	return 4096
+	return 4096;
 }
 
 func TimespecToNsec(ts Timespec) int64 {
@@ -15,8 +15,8 @@ func TimespecToNsec(ts Timespec) int64 {
 }
 
 func NsecToTimespec(nsec int64) (ts Timespec) {
-	ts.Sec = int32(nsec / 1e9);
-	ts.Nsec = int32(nsec % 1e9);
+	ts.Sec = int32(nsec/1e9);
+	ts.Nsec = int32(nsec%1e9);
 	return;
 }
 
@@ -27,7 +27,7 @@ func TimevalToNsec(tv Timeval) int64 {
 func NsecToTimeval(nsec int64) (tv Timeval) {
 	nsec += 999;	// round up to microsecond
 	tv.Sec = int32(nsec/1e9);
-	tv.Usec = int32(nsec%1e9 / 1e3);
+	tv.Usec = int32(nsec%1e9/1e3);
 	return;
 }
 
@@ -72,23 +72,23 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int)
 
 const (
 	// see linux/net.h
-	_SOCKET = 1;
-	_BIND = 2;
-	_CONNECT = 3;
-	_LISTEN = 4;
-	_ACCEPT = 5;
-	_GETSOCKNAME = 6;
-	_GETPEERNAME = 7;
-	_SOCKETPAIR = 8;
-	_SEND = 9;
-	_RECV = 10;
-	_SENDTO = 11;
-	_RECVFROM = 12;
-	_SHUTDOWN = 13;
-	_SETSOCKOPT = 14;
-	_GETSOCKOPT = 15;
-	_SENDMSG = 16;
-	_RECVMSG = 17;
+	_SOCKET		= 1;
+	_BIND		= 2;
+	_CONNECT	= 3;
+	_LISTEN		= 4;
+	_ACCEPT		= 5;
+	_GETSOCKNAME	= 6;
+	_GETPEERNAME	= 7;
+	_SOCKETPAIR	= 8;
+	_SEND		= 9;
+	_RECV		= 10;
+	_SENDTO		= 11;
+	_RECVFROM	= 12;
+	_SHUTDOWN	= 13;
+	_SETSOCKOPT	= 14;
+	_GETSOCKOPT	= 15;
+	_SENDMSG	= 16;
+	_RECVMSG	= 17;
 )
 
 func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, errno int)
@@ -144,7 +144,7 @@ func sendto(s int, p []byte, flags int, to uintptr, addrlen _Socklen) (errno int
 	}
 	_, errno = socketcall(_SENDTO, uintptr(s), base, uintptr(len(p)), uintptr(flags), to, uintptr(addrlen));
 	return;
-}	
+}
 
 func Listen(s int, n int) (errno int) {
 	_, errno = socketcall(_LISTEN, uintptr(s), uintptr(n), 0, 0, 0, 0);
