@@ -37,72 +37,72 @@ import (
 
 type (
 	// An Expression node represents a production expression.
-	Expression interface {
-		// Pos is the position of the first character of the syntactic construct
-		Pos() token.Position;
+	Expression	interface {
+			// Pos is the position of the first character of the syntactic construct
+			Pos() token.Position;
 	};
 
 	// An Alternative node represents a non-empty list of alternative expressions.
-	Alternative []Expression;  // x | y | z
+	Alternative	[]Expression;	// x | y | z
 
 	// A Sequence node represents a non-empty list of sequential expressions.
-	Sequence []Expression;  // x y z
+	Sequence	[]Expression;	// x y z
 
 	// A Name node represents a production name.
-	Name struct {
+	Name	struct {
 		token.Position;
-		String string;
+		String	string;
 	};
 
 	// A Token node represents a literal.
-	Token struct {
+	Token	struct {
 		token.Position;
-		String string;
+		String	string;
 	};
 
 	// A List node represents a range of characters.
-	Range struct {
-		Begin, End *Token;  // begin ... end
+	Range	struct {
+		Begin, End *Token;	// begin ... end
 	};
 
 	// A Group node represents a grouped expression.
-	Group struct {
+	Group	struct {
 		token.Position;
-		Body Expression;  // (body)
+		Body	Expression;	// (body)
 	};
 
 	// An Option node represents an optional expression.
-	Option struct {
+	Option	struct {
 		token.Position;
-		Body Expression;  // [body]
+		Body	Expression;	// [body]
 	};
 
 	// A Repetition node represents a repeated expression.
-	Repetition struct {
+	Repetition	struct {
 		token.Position;
-		Body Expression;  // {body}
+		Body	Expression;	// {body}
 	};
 
 	// A Production node represents an EBNF production.
-	Production struct {
-		Name *Name;
-		Expr Expression;
+	Production	struct {
+		Name	*Name;
+		Expr	Expression;
 	};
 
 	// A Grammar is a set of EBNF productions. The map
 	// is indexed by production name.
 	//
-	Grammar map [string] *Production;
+	Grammar	map[string]*Production;
 )
 
 
 func (x Alternative) Pos() token.Position {
-	return x[0].Pos();  // the parser always generates non-empty Alternative
+	return x[0].Pos();	// the parser always generates non-empty Alternative
 }
 
 
 func (x Sequence) Pos() token.Position {
-	return x[0].Pos();  // the parser always generates non-empty Sequences
+	return x[0].Pos();	// the parser always generates non-empty Sequences
 }
 
 
@@ -127,9 +127,9 @@ func isLexical(name string) bool {
 
 type verifier struct {
 	scanner.ErrorVector;
-	worklist vector.Vector;
-	reached Grammar;  // set of productions reached from (and including) the root production
-	grammar Grammar;
+	worklist	vector.Vector;
+	reached		Grammar;	// set of productions reached from (and including) the root production
+	grammar		Grammar;
 }
 
 
