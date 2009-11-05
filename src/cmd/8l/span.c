@@ -946,25 +946,9 @@ doasm(Prog *p)
 	if(pre)
 		*andptr++ = pre;
 
-
-if(p->ft != 0) {
-	ft = oclass(&p->from);
-	if(ft != p->ft) {
-		print("***** %d %d %D\n", p->ft, ft, &p->from);
-		p->ft = ft;
-	}
-}
-if(p->tt != 0) {
-	tt = oclass(&p->to);
-	if(tt != p->tt) {
-		print("***** %d %d %D\n", p->tt, tt, &p->to);
-		p->tt = tt;
-	}
-}
-
-//	if(p->ft == 0)
+	if(p->ft == 0)
 		p->ft = oclass(&p->from);
-//	if(p->tt == 0)
+	if(p->tt == 0)
 		p->tt = oclass(&p->to);
 
 	ft = p->ft * Ymax;
