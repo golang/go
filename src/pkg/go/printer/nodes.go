@@ -20,6 +20,7 @@ import (
 const (
 	oneLineFuncDecls = false;
 	compositeLitBlank = false;
+	stringListMode = exprListMode(0);  // previously: noIndent
 )
 
 
@@ -113,7 +114,7 @@ func (p *printer) stringList(list []*ast.BasicLit, multiLine *bool) {
 	for i, x := range list {
 		xlist[i] = x;
 	}
-	p.exprList(noPos, xlist, noIndent, multiLine);
+	p.exprList(noPos, xlist, stringListMode, multiLine);
 }
 
 
