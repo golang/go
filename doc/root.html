@@ -24,12 +24,14 @@
     </li>
   </ol>
 
-  <h1>Watch and Learn</h1>
+  <h1>Slow compiles?<br>Watch this.</h1>
   <table>
     <tr>
       <td>
         <a href="http://www.youtube.com/FIXME"><img src="/doc/video-snap.jpg"></a>
       </td>
+    </tr>
+    <tr>
       <td>
         Programming with Go. <a href="http://www.youtube.com/FIXME">Watch now</a>.
       </td>
@@ -45,7 +47,7 @@
       <img style="padding-right: 1em;" src="/doc/go-logo-black.png">
     </td>
     <td>
-      <div><span style="font-size: 2em; font-weight: bold;">an experimental programming language.</span><br><span style="font-size: 1.5em;">Imperative, concurrent, garbage-collected.</span></div>
+      <div><span style="font-size: 2em; font-weight: bold;">a systems programming language</span><br><span style="font-size: 1.5em;">Expressive, concurrent, garbage-collected</span></div>
     </td>
   </tr>
 </table>
@@ -59,29 +61,38 @@ package main
 import "fmt"
 
 func main() {
-  fmt.Printf("Hello, 世界\n");
+  fmt.Printf("Hello, 世界\n")
 }</pre>
 
 <h3>&hellip; fast</h3>
 
-<p>Go generates fast code and, equally importantly, does it fast. It takes too long to build software.  The tools are slow and are getting slower.  Dependencies are uncontrolled.  Machines have stopped getting faster.  Yet software still grows and grows.  If we stay as we are, before long software construction will be unbearably slow.</p>
+<p>
+Go compilers produce fast code fast. Typical builds take a fraction of a second yet the resulting programs run nearly as quickly as comparable C or C++ code.
+</p>
 
 <h3>&hellip; safe</h3>
 
-<p>Go is type safe and memory safe. Go has pointers, but you can't perform
-arithmetic on them. If you want that, you use slices, which known their
-limits.</p>
-
-<p>Clumsy type systems drive people to dynamically typed languages. Go is
-object orientated without type hierarchies. Casts are checked at runtime and
-types can be reflected upon.</p>
+<p>Go is type safe and memory safe. Go has pointers but no pointer arithmetic.
+For random access, use slices, which know their limits.</p>
 
 <h3>&hellip; concurrent</h3>
 
-<p>Go provides a way to write systems and servers as concurrent,
-garbage-collected processes (goroutines) with support from the language and
-run-time. Growing stacks and multiplexing of goroutines onto threads is done
-automatically.</p>
+<p>
+Go promotes writing systems and servers as sets of lightweight
+communicating processes, called goroutines, with strong support from the language.
+Run thousands of goroutines if you want&mdash;and say good-bye to stack overflows.
+</p>
+
+<h3>&hellip; fun</h3>
+
+<p>
+Go has fast builds, clean syntax, garbage collection,
+methods for any type, and run-time reflection.
+It feels like a dynamic language but has the speed and safety of a static language.
+It's a joy to use.
+</p>
+
+</p>
 
 </div>
 
