@@ -4,7 +4,7 @@
 
 /*
 	The unsafe package contains operations that step around the type safety of Go programs.
- */
+*/
 package unsafe
 
 // ArbitraryType is here for the purposes of documentation only and is not actually

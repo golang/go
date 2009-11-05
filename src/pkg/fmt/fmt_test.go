@@ -5,11 +5,11 @@
 package fmt_test
 
 import (
-	.	"fmt";
-		"io";
-		"math";
-		"strings";
-		"testing";
+	. "fmt";
+	"io";
+	"math";
+	"strings";
+	"testing";
 )
 
 func TestFmtInterface(t *testing.T) {

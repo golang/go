@@ -22,11 +22,11 @@ func StringFormatter(w io.Writer, value interface{}, format string) {
 }
 
 var (
-	esc_quot = strings.Bytes("&#34;");  // shorter than "&quot;"
-	esc_apos = strings.Bytes("&#39;");  // shorter than "&apos;"
-	esc_amp = strings.Bytes("&amp;");
-	esc_lt = strings.Bytes("&lt;");
-	esc_gt = strings.Bytes("&gt;");
+	esc_quot	= strings.Bytes("&#34;");	// shorter than "&quot;"
+	esc_apos	= strings.Bytes("&#39;");	// shorter than "&apos;"
+	esc_amp		= strings.Bytes("&amp;");
+	esc_lt		= strings.Bytes("&lt;");
+	esc_gt		= strings.Bytes("&gt;");
 )
 
 // HtmlEscape writes to w the properly escaped HTML equivalent
