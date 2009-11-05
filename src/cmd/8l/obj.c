@@ -401,12 +401,11 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	Auto *u;
 
 	t = Bgetc(f);
+	a->index = D_NONE;
+	a->scale = 0;
 	if(t & T_INDEX) {
 		a->index = Bgetc(f);
 		a->scale = Bgetc(f);
-	} else {
-		a->index = D_NONE;
-		a->scale = 0;
 	}
 	a->type = D_NONE;
 	a->offset = 0;
@@ -431,8 +430,9 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	}
 	if(t & T_TYPE)
 		a->type = Bgetc(f);
+	adrgotype = S;
 	if(t & T_GOTYPE)
-		a->gotype = h[Bgetc(f)];
+		adrgotype = h[Bgetc(f)];
 
 	t = a->type;
 	if(t == D_INDIR+D_GS)
@@ -442,8 +442,8 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	if(s == S)
 		return;
 	if(t != D_AUTO && t != D_PARAM) {
-		if(a->gotype)
-			s->gotype = a->gotype;
+		if(adrgotype)
+			s->gotype = adrgotype;
 		return;
 	}
 	l = a->offset;
@@ -452,8 +452,8 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 		if(u->type == t) {
 			if(u->aoffset > l)
 				u->aoffset = l;
-			if(a->gotype)
-				u->gotype = a->gotype;
+			if(adrgotype)
+				u->gotype = adrgotype;
 			return;
 		}
 	}
@@ -464,7 +464,7 @@ zaddr(Biobuf *f, Adr *a, Sym *h[])
 	u->asym = s;
 	u->aoffset = l;
 	u->type = t;
-	u->gotype = a->gotype;
+	u->gotype = adrgotype;
 }
 
 void
@@ -570,7 +570,10 @@ loop:
 	p->as = o;
 	p->line = Bget4(f);
 	p->back = 2;
+	p->ft = 0;
+	p->tt = 0;
 	zaddr(f, &p->from, h);
+	fromgotype = adrgotype;
 	zaddr(f, &p->to, h);
 
 	if(debug['W'])
@@ -668,8 +671,8 @@ loop:
 		// redefinitions.
 		s = p->from.sym;
 		if(s != S && s->dupok) {
-			if(debug['v'])
-				Bprint(&bso, "skipping %s in %s: dupok\n", s->name, pn);
+//			if(debug['v'])
+//				Bprint(&bso, "skipping %s in %s: dupok\n", s->name, pn);
 			goto loop;
 		}
 		if(s != S) {
