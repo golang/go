@@ -358,7 +358,7 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer, 
 	if indir > 0 {
 		up := unsafe.Pointer(p);
 		if indir > 1 {
-			up = decIndirect(up, indir)
+			up = decIndirect(up, indir);
 		}
 		if *(*unsafe.Pointer)(up) == nil {
 			// Allocate object by making a slice of bytes and recording the
@@ -579,9 +579,7 @@ func decIgnoreOpFor(wireId typeId) (decOp, os.Error) {
 			if err != nil {
 				return nil, err;
 			}
-			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
-				state.err = ignoreSlice(state, elemOp);
-			};
+			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) { state.err = ignoreSlice(state, elemOp) };
 
 		case *arrayType:
 			elemId := wireId.gobType().(*arrayType).Elem;
