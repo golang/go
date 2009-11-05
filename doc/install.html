@@ -4,10 +4,10 @@
 
 <p>
 There are two distinct ways to experiment with Go.
-This document explains how to check out, build, and use the <code>6g</code> Go
-compiler and tools.
+This document explains how to check out, build, and use the <code>gc</code> Go
+compiler and tools (<code>6g</code>, <code>8g</code> etc.).
 For information on how to use <code>gccgo</code>, a more traditional
-compiler using the gcc back end, see
+compiler using the GCC back end, see
 <a href="go_gccgo_setup.html">Setting up and using gccgo</a>.
 </p>
 
@@ -18,31 +18,43 @@ variables that you should set in your <code>.bashrc</code> or equivalent,
 plus one optional variable:</p>
 
 <dl>
-<dt><code>$GOROOT</code></dt>
+<dt>
+	<code>$GOROOT</code>
+</dt>
 <dd>The root of the Go tree.  Typically this is <code>$HOME/go</code>
-but it can be any directory.</dd>
-<dt><code>$GOOS</code> and <code>$GOARCH</code></dt>
-<dd>The name of the target operating system and compilation architecture.
-Choices for <code>$GOOS</code> are <code>darwin</code> (OS X), <code>linux</code>,
-and <code>nacl</code> (Native Client, an incomplete port).
-Choices for <code>$GOARCH</code> are <code>amd64</code> (64-bit x86, the most stable port),
-<code>386</code> (32-bit x86, an unoptimized but stable port), and
-<code>arm</code> (32-bit ARM, an incomplete port).
-The valid combinations are 
-<code>linux</code>/<code>amd64</code>,
-<code>linux</code>/<code>arm</code>,
-<code>linux</code>/<code>386</code>,
-<code>darwin</code>/<code>amd64</code>,
-<code>darwin</code>/<code>386</code>,
-and
-<code>nacl</code>/<code>386</code>.
+	but it can be any directory.
 </dd>
-<dt><code>$GOBIN</code> (optional)</dt>
-<dd>The location where binaries will be installed.
-If you set <code>$GOBIN</code>, you need to ensure that it 
-is in your <code>$PATH</code> so that newly built Go-specific
-command such as the compiler can be found during the build.
-The default, <code>$HOME/bin</code>, may already be in your <code>$PATH</code>.
+
+<dt>
+<code>$GOOS</code> and <code>$GOARCH</code>
+</dt>
+<dd>
+	The name of the target operating system and compilation architecture.
+	Choices for <code>$GOOS</code> are <code>linux</code>,
+	<code>darwin</code> (Mac OS X 10.5 or 10.6), 
+	and <code>nacl</code> (Native Client, an incomplete port).
+	Choices for <code>$GOARCH</code> are <code>amd64</code> (64-bit x86, the most stable port),
+	<code>386</code> (32-bit x86, an unoptimized but stable port), and
+	<code>arm</code> (32-bit ARM, an incomplete port).
+	The valid combinations are 
+	<code>linux</code>/<code>amd64</code>,
+	<code>linux</code>/<code>arm</code>,
+	<code>linux</code>/<code>386</code>,
+	<code>darwin</code>/<code>amd64</code>,
+	<code>darwin</code>/<code>386</code>,
+	and
+	<code>nacl</code>/<code>386</code>.
+</dd>
+
+<dt>
+<code>$GOBIN</code> (optional)
+</dt>
+<dd>
+	The location where binaries will be installed.
+	If you set <code>$GOBIN</code>, you need to ensure that it 
+	is in your <code>$PATH</code> so that newly built Go-specific
+	command such as the compiler can be found during the build.
+	The default, <code>$HOME/bin</code>, may already be in your <code>$PATH</code>.
 </dd>
 </dl>
 
@@ -60,6 +72,57 @@ listing your environment.
 <pre>
 $ env | grep '^GO'
 </pre>
+
+<h2>Ports</h2>
+
+<p>
+Go compilers support two operating systems (Linux, Mac OS X) and
+three instruction sets.
+The versions for Linux and Mac are equally capable except that the ARM port
+does not run on OS X (yet).
+</p>
+<p>
+There are important differences in the quality of the compilers for the different
+architectures.
+</p>
+
+<dl>
+<dt>
+	<code>amd64</code> (a.k.a. <code>x86-64</code>); <code>6g,6l,6c,6a</code>
+</dt>
+<dd>
+	The strongest implementation.  The compiler has an effective optimizer
+	(registerizer) and generates good code (although <code>gccgo</code>
+	can do noticeably better sometimes).
+</dd>
+<dt>
+	<code>386</code> (a.k.a. <code>x86</code> or <code>x86-32</code>); <code>8g,8l,8c,8a</code>
+</dt>
+<dd>	
+	Comparable to the <code>amd64</code> port, but there is no
+	optimizer.  Work is underway.
+</dd>
+<dt>
+	<code>arm</code> (a.k.a. <code>ARM</code>); <code>5g,5l,5c,5a</code>
+</dt>
+<dd>
+	Developed under the QEMU emulation environment, this is the
+	newest implementation.  It's got a couple of outstanding bugs
+	but is improving.
+</dd>
+</dl>
+
+<p>
+Except for things like low-level operating system interface code, the runtime
+support is the same in all ports and includes a mark-and-sweep garbage collector
+(a fancier one is in the works), efficient array and string slicing,
+support for segmented stacks, and a strong goroutine implementation.
+</p>
+
+<p>
+See the separate <a href="go_gccgo_setup.html"><code>gccgo</code> document</a>
+for details about that compiler and environment.
+</p>
 
 <h2>Fetch the repository</h2>
 
@@ -189,9 +252,12 @@ The linker learns about them by reading <code>hello.6</code>.
 To build more complicated programs, you will probably
 want to use a 
 <code>Makefile</code>.
-There are examples in <code>$GOROOT/src/cmd/godoc/Makefile</code>
+There are examples in places like
+<code>$GOROOT/src/cmd/godoc/Makefile</code>
 and <code>$GOROOT/src/pkg/*/Makefile</code>.
-<a href="">XXX other document XXX</a> gives more detail about
+The
+<a href="contribute.html">document</a>
+about contributing to the Go project
+gives more detail about
 the process of building and testing Go programs.
 </p>
-
