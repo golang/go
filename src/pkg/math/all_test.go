@@ -5,8 +5,8 @@
 package math_test
 
 import (
-	.	"math";
-		"testing";
+	. "math";
+	"testing";
 )
 
 var vf = []float64{

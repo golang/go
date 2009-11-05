@@ -5,12 +5,12 @@
 package math
 
 const (
-	uvnan = 0x7FF0000000000001;
-	uvinf = 0x7FF0000000000000;
-	uvneginf = 0xFFF0000000000000;
-	mask = 0x7FF;
-	shift = 64 - 11 - 1;
-	bias = 1022;
+	uvnan		= 0x7FF0000000000001;
+	uvinf		= 0x7FF0000000000000;
+	uvneginf	= 0xFFF0000000000000;
+	mask		= 0x7FF;
+	shift		= 64-11-1;
+	bias		= 1022;
 )
 
 // Inf returns positive infinity if sign >= 0, negative infinity if sign < 0.
@@ -32,7 +32,7 @@ func NaN() float64 {
 // IsNaN returns whether f is an IEEE 754 ``not-a-number'' value.
 func IsNaN(f float64) (is bool) {
 	x := Float64bits(f);
-	return uint32(x>>shift) & mask == mask && x != uvinf && x != uvneginf;
+	return uint32(x>>shift)&mask == mask && x != uvinf && x != uvneginf;
 }
 
 // IsInf returns whether f is an infinity, according to sign.
@@ -53,7 +53,7 @@ func Frexp(f float64) (frac float64, exp int) {
 		return;
 	}
 	x := Float64bits(f);
-	exp = int((x>>shift)&mask) - bias;
+	exp = int((x>>shift)&mask)-bias;
 	x &^= mask<<shift;
 	x |= bias<<shift;
 	frac = Float64frombits(x);
@@ -64,7 +64,7 @@ func Frexp(f float64) (frac float64, exp int) {
 // It returns frac × 2<sup>exp</sup>.
 func Ldexp(frac float64, exp int) float64 {
 	x := Float64bits(frac);
-	exp += int(x>>shift) & mask;
+	exp += int(x>>shift)&mask;
 	if exp <= 0 {
 		return 0;	// underflow
 	}
@@ -99,7 +99,6 @@ func Modf(f float64) (int float64, frac float64) {
 		x &^= 1<<(64-11-e) - 1;
 	}
 	int = Float64frombits(x);
-	frac = f - int;
+	frac = f-int;
 	return;
 }
-

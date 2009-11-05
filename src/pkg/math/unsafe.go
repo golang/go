@@ -27,4 +27,3 @@ func Float64bits(f float64) uint64 {
 func Float64frombits(b uint64) float64 {
 	return *(*float64)(unsafe.Pointer(&b));
 }
-

@@ -64,11 +64,11 @@ import (
 
 type Word uint32
 
-const mask = 0777777;
-const sign = 0400000;
+const mask = 0777777
+const sign = 0400000
 
 const (
-	_ = iota;	// 00
+	_	= iota;	// 00
 	opAND;
 	opIOR;
 	opXOR;
@@ -109,17 +109,17 @@ const (
 // The machine calls the Trap method to implement the
 // PDP-1 IOT instruction.
 type Trapper interface {
-	Trap(y Word)
+	Trap(y Word);
 }
 
 // An M represents the machine state of a PDP-1.
 // Clients can set Display to install an output device.
 type M struct {
-	AC, IO, PC, OV Word;
-	Mem [010000]Word;
-	Flag [7]bool;
-	Sense [7]bool;
-	Halt bool;
+	AC, IO, PC, OV	Word;
+	Mem		[010000]Word;
+	Flag		[7]bool;
+	Sense		[7]bool;
+	Halt		bool;
 }
 
 
@@ -142,8 +142,8 @@ func norm(i Word) Word {
 }
 
 type UnknownInstrError struct {
-	Inst Word;
-	PC Word;
+	Inst	Word;
+	PC	Word;
 }
 
 func (e UnknownInstrError) String() string {
@@ -168,9 +168,9 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 	if op < opSKP && op != opCALJDA {
 		for n := 0; ib != 0; n++ {
 			if n > 07777 {
-				return LoopError(m.PC-1);
+				return LoopError(m.PC - 1);
 			}
-			ib = (m.Mem[y]>>12) & 1;
+			ib = (m.Mem[y] >> 12)&1;
 			y = m.Mem[y] & 07777;
 		}
 	}
@@ -190,8 +190,8 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 			a = 64;
 		}
 		m.Mem[a] = m.AC;
-		m.AC = (m.OV<<17) + m.PC;
-		m.PC = a + 1;
+		m.AC = (m.OV << 17) + m.PC;
+		m.PC = a+1;
 	case opLAC:
 		m.AC = m.Mem[y];
 	case opLIO:
@@ -199,29 +199,29 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 	case opDAC:
 		m.Mem[y] = m.AC;
 	case opDAP:
-		m.Mem[y] = m.Mem[y]&0770000 | m.AC&07777;
+		m.Mem[y] = m.Mem[y] & 0770000 | m.AC & 07777;
 	case opDIO:
 		m.Mem[y] = m.IO;
 	case opDZM:
 		m.Mem[y] = 0;
 	case opADD:
 		m.AC += m.Mem[y];
-		m.OV = m.AC>>18;
+		m.OV = m.AC >> 18;
 		m.AC = norm(m.AC);
 	case opSUB:
 		diffSigns := (m.AC ^ m.Mem[y])>>17 == 1;
-		m.AC += m.Mem[y]^mask;
+		m.AC += m.Mem[y] ^ mask;
 		m.AC = norm(m.AC);
-		if diffSigns && m.Mem[y]>>17 == m.AC>>17 {
+		if diffSigns && m.Mem[y] >> 17 == m.AC >> 17 {
 			m.OV = 1;
 		}
 	case opIDX:
-		m.AC = norm(m.Mem[y]+1);
+		m.AC = norm(m.Mem[y] + 1);
 		m.Mem[y] = m.AC;
 	case opISP:
-		m.AC = norm(m.Mem[y]+1);
+		m.AC = norm(m.Mem[y] + 1);
 		m.Mem[y] = m.AC;
-		if m.AC&sign == 0 {
+		if m.AC & sign == 0 {
 			m.PC++;
 		}
 	case opSAD:
@@ -233,17 +233,17 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 			m.PC++;
 		}
 	case opMUS:
-		if m.IO&1 == 1 {
+		if m.IO & 1 == 1 {
 			m.AC += m.Mem[y];
-			m.AC = norm(m.AC)
+			m.AC = norm(m.AC);
 		}
-		m.IO = (m.IO>>1 | m.AC<<17) & mask;
+		m.IO = (m.IO >> 1 | m.AC << 17)&mask;
 		m.AC >>= 1;
 	case opDIS:
-		m.AC, m.IO = (m.AC<<1 | m.IO>>17) & mask,
-			((m.IO<<1 | m.AC>>17) & mask) ^ 1;
-		if m.IO&1 == 1 {
-			m.AC = m.AC + (m.Mem[y]^mask);
+		m.AC, m.IO = (m.AC << 1 | m.IO >> 17)&mask,
+			((m.IO << 1 | m.AC >> 17)&mask)^1;
+		if m.IO & 1 == 1 {
+			m.AC = m.AC + (m.Mem[y] ^ mask);
 		} else {
 			m.AC = m.AC + 1 + m.Mem[y];
 		}
@@ -251,18 +251,18 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 	case opJMP:
 		m.PC = y;
 	case opJSP:
-		m.AC = (m.OV<<17) + m.PC;
+		m.AC = (m.OV << 17) + m.PC;
 		m.PC = y;
 	case opSKP:
-		cond := y&0100 == 0100 && m.AC == 0
-			|| y&0200 == 0200 && m.AC>>17 == 0
-			|| y&0400 == 0400 && m.AC>>17 == 1
-			|| y&01000 == 01000 && m.OV == 0
-			|| y&02000 == 02000 && m.IO>>17 == 0
-			|| y&7 != 0 && !m.Flag[y&7]
-			|| y&070 != 0 && !m.Sense[(y&070)>>3]
-			|| y&070 == 010;
-		if (ib==0) == cond {
+		cond := y&0100 == 0100 && m.AC == 0 ||
+			y&0200 == 0200 && m.AC >> 17 == 0 ||
+			y&0400 == 0400 && m.AC >> 17 == 1 ||
+			y&01000 == 01000 && m.OV == 0 ||
+			y&02000 == 02000 && m.IO >> 17 == 0 ||
+			y&7 != 0 && !m.Flag[y&7] ||
+			y&070 != 0 && !m.Sense[(y&070)>>3] ||
+			y&070 == 010;
+		if (ib == 0) == cond {
 			m.PC++;
 		}
 		if y&01000 == 01000 {
@@ -275,41 +275,41 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 			}
 			switch (inst>>9)&017 {
 			case 001:	// rotate AC left
-				m.AC = (m.AC<<1 | m.AC>>17) & mask;
+				m.AC = (m.AC << 1 | m.AC >> 17)&mask;
 			case 002:	// rotate IO left
-				m.IO = (m.IO<<1 | m.IO>>17) & mask;
+				m.IO = (m.IO << 1 | m.IO >> 17)&mask;
 			case 003:	// rotate AC and IO left.
 				w := uint64(m.AC)<<18 | uint64(m.IO);
 				w = w<<1 | w>>35;
-				m.AC = Word(w>>18) & mask;
-				m.IO = Word(w) & mask;
+				m.AC = Word(w>>18)&mask;
+				m.IO = Word(w)&mask;
 			case 005:	// shift AC left (excluding sign bit)
-				m.AC = (m.AC<<1 | m.AC>>17)&mask&^sign | m.AC&sign;
+				m.AC = (m.AC << 1 | m.AC >> 17)&mask&^sign | m.AC & sign;
 			case 006:	// shift IO left (excluding sign bit)
-				m.IO = (m.IO<<1 | m.IO>>17)&mask&^sign | m.IO&sign;
+				m.IO = (m.IO << 1 | m.IO >> 17)&mask&^sign | m.IO & sign;
 			case 007:	// shift AC and IO left (excluding AC's sign bit)
 				w := uint64(m.AC)<<18 | uint64(m.IO);
 				w = w<<1 | w>>35;
-				m.AC = Word(w>>18)&mask&^sign | m.AC&sign;
-				m.IO = Word(w)&mask&^sign | m.AC&sign;
+				m.AC = Word(w>>18)&mask&^sign | m.AC & sign;
+				m.IO = Word(w)&mask&^sign | m.AC & sign;
 			case 011:	// rotate AC right
-				m.AC = (m.AC>>1 | m.AC<<17) & mask;
+				m.AC = (m.AC >> 1 | m.AC << 17)&mask;
 			case 012:	// rotate IO right
-				m.IO = (m.IO>>1 | m.IO<<17) & mask;
+				m.IO = (m.IO >> 1 | m.IO << 17)&mask;
 			case 013:	// rotate AC and IO right
 				w := uint64(m.AC)<<18 | uint64(m.IO);
 				w = w>>1 | w<<35;
-				m.AC = Word(w>>18) & mask;
-				m.IO = Word(w) & mask;
+				m.AC = Word(w>>18)&mask;
+				m.IO = Word(w)&mask;
 			case 015:	// shift AC right (excluding sign bit)
-				m.AC = m.AC>>1 | m.AC&sign;
+				m.AC = m.AC >> 1 | m.AC & sign;
 			case 016:	// shift IO right (excluding sign bit)
-				m.IO = m.IO>>1 | m.IO&sign;
+				m.IO = m.IO >> 1 | m.IO & sign;
 			case 017:	// shift AC and IO right (excluding AC's sign bit)
 				w := uint64(m.AC)<<18 | uint64(m.IO);
 				w = w>>1;
-				m.AC = Word(w>>18) | m.AC&sign;
-				m.IO = Word(w) & mask;
+				m.AC = Word(w>>18) | m.AC & sign;
+				m.IO = Word(w)&mask;
 			default:
 				goto Unknown;
 			}
@@ -336,7 +336,7 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 			m.PC--;
 			return HaltError(m.PC);
 		}
-		switch i, f := y&7, y&010==010; {
+		switch i, f := y&7, y&010 == 010; {
 		case i == 7:
 			for i := 2; i < 7; i++ {
 				m.Flag[i] = f;
@@ -346,7 +346,7 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 		}
 	default:
 	Unknown:
-		return UnknownInstrError{inst, m.PC-1};
+		return UnknownInstrError{inst, m.PC - 1};
 	}
 	return nil;
 }
@@ -371,15 +371,15 @@ func (m *M) Load(r io.Reader) os.Error {
 		i := 1;
 		a := Word(0);
 		for ; i < len(line) && '0' <= line[i] && line[i] <= '7'; i++ {
-			a = a*8 + Word(line[i] - '0');
+			a = a*8 + Word(line[i]-'0');
 		}
-		if i >= len(line) || line[i] != '\t' || i == 1{
+		if i >= len(line) || line[i] != '\t' || i == 1 {
 			continue;
 		}
 		v := Word(0);
 		j := i;
 		for i++; i < len(line) && '0' <= line[i] && line[i] <= '7'; i++ {
-			v = v*8 + Word(line[i] - '0');
+			v = v*8 + Word(line[i]-'0');
 		}
 		if i == j {
 			continue;
@@ -388,4 +388,3 @@ func (m *M) Load(r io.Reader) os.Error {
 	}
 	return nil;
 }
-
