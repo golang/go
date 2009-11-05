@@ -9,8 +9,8 @@
 package reflect_test
 
 import (
-	.	"reflect";
-		"strconv";
+	. "reflect";
+	"strconv";
 )
 
 // valueToString returns a textual representation of the reflection value val.
