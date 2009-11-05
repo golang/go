@@ -5,8 +5,8 @@
 package unicode_test
 
 import (
-		"testing";
-	.	"unicode";
+	"testing";
+	. "unicode";
 )
 
 var testDigit = []int{
