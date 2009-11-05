@@ -51,7 +51,7 @@ type Arch interface {
 	ParseClosure(data []byte) (frame int, ok bool);
 }
 
-type ArchLSB struct {}
+type ArchLSB struct{}
 
 func (ArchLSB) ToWord(data []byte) proc.Word {
 	var v proc.Word;
@@ -86,16 +86,16 @@ func (ArchLSB) FromFloat64(f float64) uint64 {
 	return math.Float64bits(f);
 }
 
-type ArchAlignedMultiple struct {}
+type ArchAlignedMultiple struct{}
 
 func (ArchAlignedMultiple) Align(offset, width int) int {
-	return ((offset - 1) | (width - 1)) + 1;
+	return ((offset-1)|(width-1))+1;
 }
 
 type amd64 struct {
 	ArchLSB;
 	ArchAlignedMultiple;
-	gReg int;
+	gReg	int;
 }
 
 func (a *amd64) IntSize() int {
@@ -136,4 +136,4 @@ func (a *amd64) ParseClosure(data []byte) (int, bool) {
 	return 0, false;
 }
 
-var Amd64 = &amd64{gReg: -1};
+var Amd64 = &amd64{gReg: -1}

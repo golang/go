@@ -32,8 +32,8 @@ type EventHandler func(e Event) (EventAction, os.Error)
 type EventAction int
 
 const (
-	EARemoveSelf EventAction = 0x100;
-	EADefault    EventAction = iota;
+	EARemoveSelf	EventAction	= 0x100;
+	EADefault	EventAction	= iota;
 	EAStop;
 	EAContinue;
 )
@@ -60,19 +60,19 @@ type Event interface {
 
 type commonHook struct {
 	// Head of handler chain
-	head *handler;
+	head	*handler;
 	// Number of non-internal handlers
-	len int;
+	len	int;
 }
 
 type handler struct {
-	eh EventHandler;
+	eh	EventHandler;
 	// True if this handler must be run before user-defined
 	// handlers in order to ensure correctness.
-	internal bool;
+	internal	bool;
 	// True if this handler has been removed from the chain.
-	removed bool;
-	next *handler;
+	removed	bool;
+	next	*handler;
 }
 
 func (h *commonHook) AddHandler(eh EventHandler) {
@@ -146,9 +146,9 @@ func (h *commonHook) handle(e Event) (EventAction, os.Error) {
 
 type commonEvent struct {
 	// The process of this event
-	p *Process;
+	p	*Process;
 	// The goroutine of this event.
-	t *Goroutine;
+	t	*Goroutine;
 }
 
 func (e *commonEvent) Process() *Process {
@@ -182,8 +182,8 @@ func EventStop(ev Event) (EventAction, os.Error) {
 
 type breakpointHook struct {
 	commonHook;
-	p *Process;
-	pc proc.Word;
+	p	*Process;
+	pc	proc.Word;
 }
 
 // A Breakpoint event occurs when a process reaches a particular
@@ -191,8 +191,8 @@ type breakpointHook struct {
 // will be the goroutine that reached the program counter.
 type Breakpoint struct {
 	commonEvent;
-	osThread proc.Thread;
-	pc proc.Word;
+	osThread	proc.Thread;
+	pc		proc.Word;
 }
 
 func (h *breakpointHook) AddHandler(eh EventHandler) {
@@ -256,7 +256,7 @@ func (h *goroutineCreateHook) String() string {
 // be the newly created goroutine.
 type GoroutineCreate struct {
 	commonEvent;
-	parent *Goroutine;
+	parent	*Goroutine;
 }
 
 // Parent returns the goroutine that created this goroutine.  May be

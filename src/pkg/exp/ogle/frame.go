@@ -16,18 +16,18 @@ type Frame struct {
 	// pc is the PC of the next instruction that will execute in
 	// this frame.  For lower frames, this is the instruction
 	// following the CALL instruction.
-	pc, sp, fp proc.Word;
+	pc, sp, fp	proc.Word;
 	// The runtime.Stktop of the active stack segment
-	stk remoteStruct;
+	stk	remoteStruct;
 	// The function this stack frame is in
-	fn *gosym.Func;
+	fn	*gosym.Func;
 	// The path and line of the CALL or current instruction.  Note
 	// that this differs slightly from the meaning of Frame.pc.
-	path string;
-	line int;
+	path	string;
+	line	int;
 	// The inner and outer frames of this frame.  outer is filled
 	// in lazily.
-	inner, outer *Frame;
+	inner, outer	*Frame;
 }
 
 // newFrame returns the top-most Frame of the given g's thread.

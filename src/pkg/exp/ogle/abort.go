@@ -15,7 +15,7 @@ type aborter interface {
 	Abort(err os.Error);
 }
 
-type ogleAborter chan os.Error;
+type ogleAborter chan os.Error
 
 func (a ogleAborter) Abort(err os.Error) {
 	a <- err;

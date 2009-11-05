@@ -34,7 +34,7 @@ func (e UnknownArchitecture) String() string {
 
 // A ProcessNotStopped error occurs when attempting to read or write
 // memory or registers of a process that is not stopped.
-type ProcessNotStopped struct {}
+type ProcessNotStopped struct{}
 
 func (e ProcessNotStopped) String() string {
 	return "process not stopped";
@@ -43,8 +43,8 @@ func (e ProcessNotStopped) String() string {
 // An UnknownGoroutine error is an internal error representing an
 // unrecognized G structure pointer.
 type UnknownGoroutine struct {
-	OSThread proc.Thread;
-	Goroutine proc.Word;
+	OSThread	proc.Thread;
+	Goroutine	proc.Word;
 }
 
 func (e UnknownGoroutine) String() string {
@@ -54,7 +54,7 @@ func (e UnknownGoroutine) String() string {
 // A NoCurrentGoroutine error occurs when no goroutine is currently
 // selected in a process (or when there are no goroutines in a
 // process).
-type NoCurrentGoroutine struct {}
+type NoCurrentGoroutine struct{}
 
 func (e NoCurrentGoroutine) String() string {
 	return "no current goroutine";
@@ -63,45 +63,45 @@ func (e NoCurrentGoroutine) String() string {
 // A Process represents a remote attached process.
 type Process struct {
 	Arch;
-	proc proc.Process;
+	proc	proc.Process;
 
 	// The symbol table of this process
-	syms *gosym.Table;
+	syms	*gosym.Table;
 
 	// A possibly-stopped OS thread, or nil
-	threadCache proc.Thread;
+	threadCache	proc.Thread;
 
 	// Types parsed from the remote process
-	types map[proc.Word] *remoteType;
+	types	map[proc.Word]*remoteType;
 
 	// Types and values from the remote runtime package
-	runtime runtimeValues;
+	runtime	runtimeValues;
 
 	// Runtime field indexes
-	f runtimeIndexes;
+	f	runtimeIndexes;
 
 	// Globals from the sys package (or from no package)
-	sys struct {
-		lessstack, goexit, newproc, deferproc, newprocreadylocked *gosym.Func;
-		allg remotePtr;
-		g0 remoteStruct;
+	sys	struct {
+		lessstack, goexit, newproc, deferproc, newprocreadylocked	*gosym.Func;
+		allg								remotePtr;
+		g0								remoteStruct;
 	};
 
 	// Event queue
-	posted []Event;
-	pending []Event;
-	event Event;
+	posted	[]Event;
+	pending	[]Event;
+	event	Event;
 
 	// Event hooks
-	breakpointHooks map[proc.Word] *breakpointHook;
-	goroutineCreateHook *goroutineCreateHook;
-	goroutineExitHook *goroutineExitHook;
+	breakpointHooks		map[proc.Word]*breakpointHook;
+	goroutineCreateHook	*goroutineCreateHook;
+	goroutineExitHook	*goroutineExitHook;
 
 	// Current goroutine, or nil if there are no goroutines
-	curGoroutine *Goroutine;
+	curGoroutine	*Goroutine;
 
 	// Goroutines by the address of their G structure
-	goroutines map[proc.Word] *Goroutine;
+	goroutines	map[proc.Word]*Goroutine;
 }
 
 /*
@@ -115,11 +115,11 @@ func NewProcess(tproc proc.Process, arch Arch, syms *gosym.Table) (*Process, os.
 		Arch: arch,
 		proc: tproc,
 		syms: syms,
-		types: make(map[proc.Word] *remoteType),
-		breakpointHooks: make(map[proc.Word] *breakpointHook),
+		types: make(map[proc.Word]*remoteType),
+		breakpointHooks: make(map[proc.Word]*breakpointHook),
 		goroutineCreateHook: new(goroutineCreateHook),
 		goroutineExitHook: new(goroutineExitHook),
-		goroutines: make(map[proc.Word] *Goroutine),
+		goroutines: make(map[proc.Word]*Goroutine),
 	};
 
 	// Fill in remote runtime
