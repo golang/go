@@ -6,7 +6,7 @@
 
 Godefs is a bootstrapping tool for porting the Go runtime to new systems.
 It translates C type declarations into C or Go type declarations
-with the same memory layout. 
+with the same memory layout.
 
 Usage: godefs [-g package] [-c cc] [-f cc-arg]... [defs.c ...]
 
@@ -18,13 +18,13 @@ definitions.
 The input to godefs is a C input file that can be compiled by
 the host system's standard C compiler (typically gcc).
 This file is expected to define new types and enumerated constants
-whose names begin with $ (a legal identifier character in gcc). 
+whose names begin with $ (a legal identifier character in gcc).
 Godefs compile the given input file with the host compiler and
 then parses the debug info embedded in the assembly output.
 This is far easier than reading system headers on most machines.
 
 The output from godefs is either C output intended for the
-Plan 9 C compiler tool chain (6c, 8c, or 5c) or Go output.	
+Plan 9 C compiler tool chain (6c, 8c, or 5c) or Go output.
 
 The options are:
 
@@ -35,7 +35,7 @@ The options are:
 
 	-c cc
 		set the name of the host system's C compiler (default "gcc")
-	
+
 	-f cc-arg
 		add cc-arg to the command line when invoking the system C compiler
 		(for example, -f -m64 to invoke gcc -m64).
@@ -56,17 +56,17 @@ then "godefs x.c" generates:
 
 	// godefs x.c
 	// MACHINE GENERATED - DO NOT EDIT.
-	
+
 	// Constants
 	enum {
 		S_IFMT = 0xf000,
 		S_IFIFO = 0x1000,
 		S_IFCHR = 0x2000,
 	};
-	
+
 	// Types
 	#pragma pack on
-	
+
 	typedef struct Timespec Timespec;
 	struct Timespec {
 		int64 tv_sec;
@@ -78,18 +78,18 @@ and "godefs -g MyPackage x.c" generates:
 
 	// godefs -g MyPackage x.c
 	// MACHINE GENERATED - DO NOT EDIT.
-	
+
 	package MyPackage
-	
+
 	// Constants
 	const (
 		S_IFMT = 0xf000;
 		S_IFIFO = 0x1000;
 		S_IFCHR = 0x2000;
 	)
-	
+
 	// Types
-	
+
 	type Timespec struct {
 		Sec int64;
 		Nsec int64;
