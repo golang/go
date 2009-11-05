@@ -11,11 +11,11 @@ import "os"
  */
 
 type Thread struct {
-	abort chan os.Error;
-	pc uint;
+	abort	chan os.Error;
+	pc	uint;
 	// The execution frame of this function.  This remains the
 	// same throughout a function invocation.
-	f *Frame;
+	f	*Frame;
 }
 
 type code []func(*Thread)
@@ -53,7 +53,7 @@ func (b *codeBuf) push(instr func(*Thread)) {
 		}
 		b.instrs = a;
 	}
-	b.instrs = b.instrs[0:n+1];
+	b.instrs = b.instrs[0 : n+1];
 	b.instrs[n] = instr;
 }
 
@@ -75,9 +75,9 @@ func (b *codeBuf) get() code {
  */
 
 type evalFunc struct {
-	outer *Frame;
-	frameSize int;
-	code code;
+	outer		*Frame;
+	frameSize	int;
+	code		code;
 }
 
 func (f *evalFunc) NewFrame() *Frame {

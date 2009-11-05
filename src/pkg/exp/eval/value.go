@@ -97,8 +97,8 @@ type FuncValue interface {
 }
 
 type Interface struct {
-	Type Type;
-	Value Value;
+	Type	Type;
+	Value	Value;
 }
 
 type InterfaceValue interface {
@@ -108,8 +108,8 @@ type InterfaceValue interface {
 }
 
 type Slice struct {
-	Base ArrayValue;
-	Len, Cap int64;
+	Base		ArrayValue;
+	Len, Cap	int64;
 }
 
 type SliceValue interface {
@@ -497,7 +497,7 @@ func (v *arrayV) String() string {
 		}
 		res += e.String();
 	}
-	return res + "}";
+	return res+"}";
 }
 
 func (v *arrayV) Assign(t *Thread, o Value) {
@@ -517,7 +517,7 @@ func (v *arrayV) Elem(t *Thread, i int64) Value {
 }
 
 func (v *arrayV) Sub(i int64, len int64) ArrayValue {
-	res := (*v)[i:i+len];
+	res := (*v)[i : i+len];
 	return &res;
 }
 
@@ -537,7 +537,7 @@ func (v *structV) String() string {
 		}
 		res += v.String();
 	}
-	return res + "}";
+	return res+"}";
 }
 
 func (v *structV) Assign(t *Thread, o Value) {
@@ -685,7 +685,7 @@ func (v *mapV) String() string {
 		res += fmt.Sprint(key) + ":" + val.String();
 		return true;
 	});
-	return res + "]";
+	return res+"]";
 }
 
 func (v *mapV) Assign(t *Thread, o Value) {
@@ -700,7 +700,7 @@ func (v *mapV) Set(t *Thread, x Map) {
 	v.target = x;
 }
 
-type evalMap map[interface{}] Value
+type evalMap map[interface{}]Value
 
 func (m evalMap) Len(t *Thread) int64 {
 	return int64(len(m));
@@ -743,7 +743,7 @@ func (v multiV) String() string {
 		}
 		res += v.String();
 	}
-	return res + ")";
+	return res+")";
 }
 
 func (v multiV) Assign(t *Thread, o Value) {

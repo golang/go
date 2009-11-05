@@ -14,7 +14,7 @@ import (
 	"os";
 )
 
-var filename = flag.String("f", "", "file to run");
+var filename = flag.String("f", "", "file to run")
 
 func main() {
 	flag.Parse();
@@ -89,4 +89,3 @@ func main() {
 		}
 	}
 }
-

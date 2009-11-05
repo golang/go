@@ -18,32 +18,32 @@ import (
 // type of the expression and its evaluator function.
 type expr struct {
 	*exprInfo;
-	t Type;
+	t	Type;
 
 	// Evaluate this node as the given type.
-	eval interface{};
+	eval	interface{};
 
 	// Map index expressions permit special forms of assignment,
 	// for which we need to know the Map and key.
-	evalMapValue func(t *Thread) (Map, interface{});
+	evalMapValue	func(t *Thread) (Map, interface{});
 
 	// Evaluate to the "address of" this value; that is, the
 	// settable Value object.  nil for expressions whose address
 	// cannot be taken.
-	evalAddr func(t *Thread) Value;
+	evalAddr	func(t *Thread) Value;
 
 	// Execute this expression as a statement.  Only expressions
 	// that are valid expression statements should set this.
-	exec func(t *Thread);
+	exec	func(t *Thread);
 
 	// If this expression is a type, this is its compiled type.
 	// This is only permitted in the function position of a call
 	// expression.  In this case, t should be nil.
-	valType Type;
+	valType	Type;
 
 	// A short string describing this expression for error
 	// messages.
-	desc string;
+	desc	string;
 }
 
 // exprInfo stores information needed to compile any expression node.
@@ -51,7 +51,7 @@ type expr struct {
 // compiled from it.
 type exprInfo struct {
 	*compiler;
-	pos token.Position;
+	pos	token.Position;
 }
 
 func (a *exprInfo) newExpr(t Type, desc string) *expr {
@@ -175,9 +175,7 @@ func (a *expr) convertToInt(max int64, negErr string, errOp string) *expr {
 		// Convert to int
 		na := a.newExpr(IntType, a.desc);
 		af := a.asUint();
-		na.eval = func(t *Thread) int64 {
-			return int64(af(t));
-		};
+		na.eval = func(t *Thread) int64 { return int64(af(t)) };
 		return na;
 
 	case *intType:
@@ -224,24 +222,24 @@ func (a *expr) derefArray() *expr {
 //    multi-valued type.
 type assignCompiler struct {
 	*compiler;
-	pos token.Position;
+	pos	token.Position;
 	// The RHS expressions.  This may include nil's for
 	// expressions that failed to compile.
-	rs []*expr;
+	rs	[]*expr;
 	// The (possibly unary) MultiType of the RHS.
-	rmt *MultiType;
+	rmt	*MultiType;
 	// Whether this is an unpack assignment (case 3).
-	isUnpack bool;
+	isUnpack	bool;
 	// Whether map special assignment forms are allowed.
-	allowMap bool;
+	allowMap	bool;
 	// Whether this is a "r, ok = a[x]" assignment.
-	isMapUnpack bool;
+	isMapUnpack	bool;
 	// The operation name to use in error messages, such as
 	// "assignment" or "function call".
-	errOp string;
+	errOp	string;
 	// The name to use for positions in error messages, such as
 	// "argument".
-	errPosName string;
+	errPosName	string;
 }
 
 // Type check the RHS of an assignment, returning a new assignCompiler
@@ -296,7 +294,7 @@ func (a *assignCompiler) allowMapForms(nls int) {
 	// Update unpacking info if this is r, ok = a[x]
 	if nls == 2 && len(a.rs) == 1 && a.rs[0] != nil && a.rs[0].evalMapValue != nil {
 		a.isUnpack = true;
-		a.rmt = NewMultiType([]Type {a.rs[0].t, BoolType});
+		a.rmt = NewMultiType([]Type{a.rs[0].t, BoolType});
 		a.isMapUnpack = true;
 	}
 }
@@ -355,13 +353,11 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(Value, *Thread)) {
 					found = boolV(false);
 					v = vt.Zero();
 				}
-				t.f.Vars[tempIdx] = multiV([]Value {v, &found});
+				t.f.Vars[tempIdx] = multiV([]Value{v, &found});
 			};
 		} else {
 			rf := a.rs[0].asMulti();
-			effect = func(t *Thread) {
-				t.f.Vars[tempIdx] = multiV(rf(t));
-			};
+			effect = func(t *Thread) { t.f.Vars[tempIdx] = multiV(rf(t)) };
 		}
 		orig := a.rs[0];
 		a.rs = make([]*expr, len(a.rmt.Elems));
@@ -470,9 +466,9 @@ func (a *compiler) compileAssign(pos token.Position, b *block, lt Type, rs []*ex
 type exprCompiler struct {
 	*compiler;
 	// The block this expression is being compiled in.
-	block *block;
+	block	*block;
 	// Whether this expression is used in a constant context.
-	constant bool;
+	constant	bool;
 }
 
 // compile compiles an expression AST.  callCtx should be true if this
@@ -836,10 +832,10 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 		default:
 			log.Crashf("Marked field at depth %d, but already found one at depth %d", depth, bestDepth);
 		}
-		amberr += "\n\t" + pathName[1:len(pathName)];
+		amberr += "\n\t"+pathName[1:len(pathName)];
 	};
 
-	visited := make(map[Type] bool);
+	visited := make(map[Type]bool);
 
 	// find recursively searches for the named field, starting at
 	// type t.  If it finds the named field, it returns a function
@@ -851,8 +847,8 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 	// TODO(austin) Now that the expression compiler works on
 	// semantic values instead of AST's, there should be a much
 	// better way of doing this.
-	var find func(Type, int, string) (func (*expr) *expr);
-	find = func(t Type, depth int, pathName string) (func (*expr) *expr) {
+	var find func(Type, int, string) (func(*expr) *expr);
+	find = func(t Type, depth int, pathName string) (func(*expr) *expr) {
 		// Don't bother looking if we've found something shallower
 		if bestDepth != -1 && bestDepth < depth {
 			return nil;
@@ -875,7 +871,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 		if ti, ok := t.(*NamedType); ok {
 			_, ok := ti.methods[name];
 			if ok {
-				mark(depth, pathName + "." + name);
+				mark(depth, pathName+"."+name);
 				log.Crash("Methods not implemented");
 			}
 			t = ti.Def;
@@ -888,7 +884,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 				var sub func(*expr) *expr;
 				switch {
 				case f.Name == name:
-					mark(depth, pathName + "." + name);
+					mark(depth, pathName+"."+name);
 					sub = func(e *expr) *expr { return e };
 
 				case f.Anonymous:
@@ -911,9 +907,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 					}
 					expr := a.newExpr(ft, "selector expression");
 					pf := parent.asStruct();
-					evalAddr := func(t *Thread) Value {
-						return pf(t).Field(t, index);
-					};
+					evalAddr := func(t *Thread) Value { return pf(t).Field(t, index) };
 					expr.genValue(evalAddr);
 					return sub(expr);
 				};
@@ -983,7 +977,7 @@ func (a *exprInfo) compileSliceExpr(arr, lo, hi *expr) *expr {
 			if lo > hi || hi > bound || lo < 0 {
 				t.Abort(SliceError{lo, hi, bound});
 			}
-			return Slice{arr.Sub(lo, bound - lo), hi - lo, bound - lo}
+			return Slice{arr.Sub(lo, bound-lo), hi-lo, bound-lo};
 		};
 
 	case *SliceType:
@@ -993,7 +987,7 @@ func (a *exprInfo) compileSliceExpr(arr, lo, hi *expr) *expr {
 			if lo > hi || hi > arr.Cap || lo < 0 {
 				t.Abort(SliceError{lo, hi, arr.Cap});
 			}
-			return Slice{arr.Base.Sub(lo, arr.Cap - lo), hi - lo, arr.Cap - lo}
+			return Slice{arr.Base.Sub(lo, arr.Cap - lo), hi-lo, arr.Cap - lo};
 		};
 
 	case *stringType:
@@ -1007,7 +1001,7 @@ func (a *exprInfo) compileSliceExpr(arr, lo, hi *expr) *expr {
 				t.Abort(SliceError{lo, hi, int64(len(arr))});
 			}
 			return arr[lo:hi];
-		}
+		};
 
 	default:
 		log.Crashf("unexpected left operand type %T", arr.t.lit());
@@ -1108,7 +1102,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
 				t.Abort(IndexError{r, int64(len(l))});
 			}
 			return uint64(l[r]);
-		}
+		};
 
 	case *MapType:
 		lf := l.asMap();
@@ -1181,7 +1175,7 @@ func (a *exprInfo) compileCallExpr(b *block, l *expr, as []*expr) *expr {
 	expr := a.newExpr(t, "function call");
 
 	// Gather argument and out types to initialize frame variables
-	vts := make([]Type, nin + nout);
+	vts := make([]Type, nin+nout);
 	for i, t := range lt.In {
 		vts[i] = t;
 	}
@@ -1202,7 +1196,7 @@ func (a *exprInfo) compileCallExpr(b *block, l *expr, as []*expr) *expr {
 		t.f = fr;
 		fun.Call(t);
 		t.f = oldf;
-		return fr.Vars[nin:nin+nout];
+		return fr.Vars[nin : nin+nout];
 	};
 	expr.genFuncCall(call);
 
@@ -1233,15 +1227,11 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 			// TODO(austin) It would be nice if this could
 			// be a constant int.
 			v := t.Len;
-			expr.eval = func(t *Thread) int64 {
-				return v;
-			};
+			expr.eval = func(t *Thread) int64 { return v };
 
 		case *SliceType:
 			vf := arg.asSlice();
-			expr.eval = func(t *Thread) int64 {
-				return vf(t).Cap;
-			};
+			expr.eval = func(t *Thread) int64 { return vf(t).Cap };
 
 		//case *ChanType:
 
@@ -1260,23 +1250,17 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 		switch t := arg.t.lit().(type) {
 		case *stringType:
 			vf := arg.asString();
-			expr.eval = func(t *Thread) int64 {
-				return int64(len(vf(t)));
-			};
+			expr.eval = func(t *Thread) int64 { return int64(len(vf(t))) };
 
 		case *ArrayType:
 			// TODO(austin) It would be nice if this could
 			// be a constant int.
 			v := t.Len;
-			expr.eval = func(t *Thread) int64 {
-				return v;
-			};
+			expr.eval = func(t *Thread) int64 { return v };
 
 		case *SliceType:
 			vf := arg.asSlice();
-			expr.eval = func(t *Thread) int64 {
-				return vf(t).Len;
-			};
+			expr.eval = func(t *Thread) int64 { return vf(t).Len };
 
 		case *MapType:
 			vf := arg.asMap();
@@ -1398,13 +1382,11 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 
 		t := as[0].valType;
 		expr := a.newExpr(NewPtrType(t), "new");
-		expr.eval = func(*Thread) Value {
-			return t.Zero();
-		};
+		expr.eval = func(*Thread) Value { return t.Zero() };
 		return expr;
 
 	case panicType, paniclnType, printType, printlnType:
-		evals := make([]func(*Thread)interface{}, len(as));
+		evals := make([]func(*Thread) interface{}, len(as));
 		for i, x := range as {
 			evals[i] = x.asInterface();
 		}
@@ -1416,7 +1398,9 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 					print(" ");
 				}
 				v := eval(t);
-				type stringer interface { String() string }
+				type stringer interface {
+					String() string;
+				}
 				switch v1 := v.(type) {
 				case bool:
 					print(v1);
@@ -1444,7 +1428,7 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
 			expr.exec = func(t *Thread) {
 				printer(t);
 				t.Abort(os.NewError("panic"));
-			}
+			};
 		}
 		return expr;
 	}
@@ -1472,7 +1456,7 @@ func (a *exprInfo) compileStarExpr(v *expr) *expr {
 	return nil;
 }
 
-var unaryOpDescs = make(map[token.Token] string)
+var unaryOpDescs = make(map[token.Token]string)
 
 func (a *exprInfo) compileUnaryExpr(op token.Token, v *expr) *expr {
 	// Type check
@@ -1523,7 +1507,7 @@ func (a *exprInfo) compileUnaryExpr(op token.Token, v *expr) *expr {
 	}
 
 	desc, ok := unaryOpDescs[op];
- 	if !ok {
+	if !ok {
 		desc = "unary " + op.String() + " expression";
 		unaryOpDescs[op] = desc;
 	}
@@ -1556,7 +1540,7 @@ func (a *exprInfo) compileUnaryExpr(op token.Token, v *expr) *expr {
 	return expr;
 }
 
-var binOpDescs = make(map[token.Token] string)
+var binOpDescs = make(map[token.Token]string)
 
 func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 	// Save the original types of l.t and r.t for error messages.
@@ -1607,15 +1591,11 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 
 	// Useful type predicates
 	// TODO(austin) CL 33668 mandates identical types except for comparisons.
-	compat := func() bool {
-		return l.t.compat(r.t, false);
-	};
+	compat := func() bool { return l.t.compat(r.t, false) };
 	integers := func() bool {
 		return l.t.isInteger() && r.t.isInteger();
 	};
-	floats := func() bool {
-		return l.t.isFloat() && r.t.isFloat();
-	};
+	floats := func() bool { return l.t.isFloat() && r.t.isFloat() };
 	strings := func() bool {
 		// TODO(austin) Deal with named types
 		return l.t == StringType && r.t == StringType;

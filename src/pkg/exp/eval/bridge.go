@@ -15,8 +15,8 @@ import (
  */
 
 var (
-	evalTypes   = make(map[reflect.Type] Type);
-	nativeTypes = make(map[Type] reflect.Type);
+	evalTypes	= make(map[reflect.Type]Type);
+	nativeTypes	= make(map[Type]reflect.Type);
 )
 
 // TypeFromNative converts a regular Go type into a the corresponding
@@ -29,7 +29,7 @@ func TypeFromNative(t reflect.Type) Type {
 	var nt *NamedType;
 	if t.Name() != "" {
 		name := t.PkgPath() + "·" + t.Name();
-		nt = &NamedType{token.Position{}, name, nil, true, make(map[string] Method)};
+		nt = &NamedType{token.Position{}, name, nil, true, make(map[string]Method)};
 		evalTypes[t] = nt;
 	}
 
@@ -77,7 +77,7 @@ func TypeFromNative(t reflect.Type) Type {
 		// Variadic functions have DotDotDotType at the end
 		varidic := false;
 		if nin > 0 {
-			if _, ok := t.In(nin - 1).(*reflect.DotDotDotType); ok {
+			if _, ok := t.In(nin-1).(*reflect.DotDotDotType); ok {
 				varidic = true;
 				nin--;
 			}
@@ -130,7 +130,7 @@ func TypeFromNative(t reflect.Type) Type {
 }
 
 // TypeOfNative returns the interpreter Type of a regular Go value.
-func TypeOfNative(v interface {}) Type {
+func TypeOfNative(v interface{}) Type {
 	return TypeFromNative(reflect.Typeof(v));
 }
 
@@ -139,8 +139,8 @@ func TypeOfNative(v interface {}) Type {
  */
 
 type nativeFunc struct {
-	fn func(*Thread, []Value, []Value);
-	in, out int;
+	fn	func(*Thread, []Value, []Value);
+	in, out	int;
 }
 
 func (f *nativeFunc) NewFrame() *Frame {
@@ -149,7 +149,7 @@ func (f *nativeFunc) NewFrame() *Frame {
 }
 
 func (f *nativeFunc) Call(t *Thread) {
-	f.fn(t, t.f.Vars[0:f.in], t.f.Vars[f.in:f.in+f.out]);
+	f.fn(t, t.f.Vars[0 : f.in], t.f.Vars[f.in : f.in + f.out]);
 }
 
 // FuncFromNative creates an interpreter function from a native

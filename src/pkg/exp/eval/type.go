@@ -11,7 +11,7 @@ import (
 	"log";
 	"reflect";
 	"sort";
-	"unsafe";			// For Sizeof
+	"unsafe";	// For Sizeof
 )
 
 
@@ -65,24 +65,24 @@ type BoundedType interface {
 	maxVal() *bignum.Rational;
 }
 
-var universePos = token.Position{"<universe>", 0, 0, 0};
+var universePos = token.Position{"<universe>", 0, 0, 0}
 
 /*
  * Type array maps.  These are used to memoize composite types.
  */
 
 type typeArrayMapEntry struct {
-	key []Type;
-	v interface {};
-	next *typeArrayMapEntry;
+	key	[]Type;
+	v	interface{};
+	next	*typeArrayMapEntry;
 }
 
-type typeArrayMap map[uintptr] *typeArrayMapEntry
+type typeArrayMap map[uintptr]*typeArrayMapEntry
 
 func hashTypeArray(key []Type) uintptr {
 	hash := uintptr(0);
 	for _, t := range key {
-		hash = hash * 33;
+		hash = hash*33;
 		if t == nil {
 			continue;
 		}
@@ -93,10 +93,10 @@ func hashTypeArray(key []Type) uintptr {
 }
 
 func newTypeArrayMap() typeArrayMap {
-	return make(map[uintptr] *typeArrayMapEntry);
+	return make(map[uintptr]*typeArrayMapEntry);
 }
 
-func (m typeArrayMap) Get(key []Type) (interface{}) {
+func (m typeArrayMap) Get(key []Type) interface{} {
 	ent, ok := m[hashTypeArray(key)];
 	if !ok {
 		return nil;
@@ -132,8 +132,7 @@ func (m typeArrayMap) Put(key []Type, v interface{}) interface{} {
  * Common type
  */
 
-type commonType struct {
-}
+type commonType struct{}
 
 func (commonType) isBoolean() bool {
 	return false;
@@ -198,25 +197,26 @@ type uintType struct {
 	commonType;
 
 	// 0 for architecture-dependent types
-	Bits uint;
+	Bits	uint;
 	// true for uintptr, false for all others
-	Ptr bool;
-	name string;
+	Ptr	bool;
+	name	string;
 }
 
 var (
-	Uint8Type   = universe.DefineType("uint8",   universePos, &uintType{commonType{}, 8,  false, "uint8"});
-	Uint16Type  = universe.DefineType("uint16",  universePos, &uintType{commonType{}, 16, false, "uint16"});
-	Uint32Type  = universe.DefineType("uint32",  universePos, &uintType{commonType{}, 32, false, "uint32"});
-	Uint64Type  = universe.DefineType("uint64",  universePos, &uintType{commonType{}, 64, false, "uint64"});
+	Uint8Type	= universe.DefineType("uint8", universePos, &uintType{commonType{}, 8, false, "uint8"});
+	Uint16Type	= universe.DefineType("uint16", universePos, &uintType{commonType{}, 16, false, "uint16"});
+	Uint32Type	= universe.DefineType("uint32", universePos, &uintType{commonType{}, 32, false, "uint32"});
+	Uint64Type	= universe.DefineType("uint64", universePos, &uintType{commonType{}, 64, false, "uint64"});
 
-	UintType    = universe.DefineType("uint",    universePos, &uintType{commonType{}, 0,  false, "uint"});
-	UintptrType = universe.DefineType("uintptr", universePos, &uintType{commonType{}, 0,  true,  "uintptr"});
+	UintType	= universe.DefineType("uint", universePos, &uintType{commonType{}, 0, false, "uint"});
+	UintptrType	= universe.DefineType("uintptr", universePos, &uintType{commonType{}, 0, true, "uintptr"});
 )
 
 func (t *uintType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*uintType);
-	return ok && t == t2;;
+	return ok && t == t2;
+	;
 }
 
 func (t *uintType) lit() Type {
@@ -286,17 +286,17 @@ type intType struct {
 	// architecture-dependent?
 
 	// 0 for architecture-dependent types
-	Bits uint;
-	name string;
+	Bits	uint;
+	name	string;
 }
 
 var (
-	Int8Type  = universe.DefineType("int8",  universePos, &intType{commonType{}, 8,  "int8"});
-	Int16Type = universe.DefineType("int16", universePos, &intType{commonType{}, 16, "int16"});
-	Int32Type = universe.DefineType("int32", universePos, &intType{commonType{}, 32, "int32"});
-	Int64Type = universe.DefineType("int64", universePos, &intType{commonType{}, 64, "int64"});
+	Int8Type	= universe.DefineType("int8", universePos, &intType{commonType{}, 8, "int8"});
+	Int16Type	= universe.DefineType("int16", universePos, &intType{commonType{}, 16, "int16"});
+	Int32Type	= universe.DefineType("int32", universePos, &intType{commonType{}, 32, "int32"});
+	Int64Type	= universe.DefineType("int64", universePos, &intType{commonType{}, 64, "int64"});
 
-	IntType   = universe.DefineType("int",   universePos, &intType{commonType{}, 0,  "int"});
+	IntType	= universe.DefineType("int", universePos, &intType{commonType{}, 0, "int"});
 )
 
 func (t *intType) compat(o Type, conv bool) bool {
@@ -343,7 +343,7 @@ func (t *intType) minVal() *bignum.Rational {
 	if bits == 0 {
 		bits = uint(8 * unsafe.Sizeof(int(0)));
 	}
-	return bignum.MakeRat(bignum.Int(-1).Shl(bits - 1), bignum.Nat(1));
+	return bignum.MakeRat(bignum.Int(-1).Shl(bits-1), bignum.Nat(1));
 }
 
 func (t *intType) maxVal() *bignum.Rational {
@@ -351,7 +351,7 @@ func (t *intType) maxVal() *bignum.Rational {
 	if bits == 0 {
 		bits = uint(8 * unsafe.Sizeof(int(0)));
 	}
-	return bignum.MakeRat(bignum.Int(1).Shl(bits - 1).Add(bignum.Int(-1)), bignum.Nat(1));
+	return bignum.MakeRat(bignum.Int(1).Shl(bits-1).Add(bignum.Int(-1)), bignum.Nat(1));
 }
 
 /*
@@ -397,15 +397,15 @@ type floatType struct {
 	commonType;
 
 	// 0 for architecture-dependent type
-	Bits uint;
+	Bits	uint;
 
-	name string;
+	name	string;
 }
 
 var (
-	Float32Type = universe.DefineType("float32", universePos, &floatType{commonType{}, 32, "float32"});
-	Float64Type = universe.DefineType("float64", universePos, &floatType{commonType{}, 64, "float64"});
-	FloatType   = universe.DefineType("float",   universePos, &floatType{commonType{}, 0,  "float"});
+	Float32Type	= universe.DefineType("float32", universePos, &floatType{commonType{}, 32, "float32"});
+	Float64Type	= universe.DefineType("float64", universePos, &floatType{commonType{}, 64, "float64"});
+	FloatType	= universe.DefineType("float", universePos, &floatType{commonType{}, 0, "float"});
 )
 
 func (t *floatType) compat(o Type, conv bool) bool {
@@ -483,7 +483,7 @@ type idealFloatType struct {
 	commonType;
 }
 
-var IdealFloatType Type = &idealFloatType{};
+var IdealFloatType Type = &idealFloatType{}
 
 func (t *idealFloatType) compat(o Type, conv bool) bool {
 	_, ok := o.lit().(*idealFloatType);
@@ -544,11 +544,11 @@ func (t *stringType) Zero() Value {
 
 type ArrayType struct {
 	commonType;
-	Len int64;
-	Elem Type;
+	Len	int64;
+	Elem	Type;
 }
 
-var arrayTypes = make(map[int64] map[Type] *ArrayType)
+var arrayTypes = make(map[int64]map[Type]*ArrayType)
 
 // Two array types are identical if they have identical element types
 // and the same array length.
@@ -556,7 +556,7 @@ var arrayTypes = make(map[int64] map[Type] *ArrayType)
 func NewArrayType(len int64, elem Type) *ArrayType {
 	ts, ok := arrayTypes[len];
 	if !ok {
-		ts = make(map[Type] *ArrayType);
+		ts = make(map[Type]*ArrayType);
 		arrayTypes[len] = ts;
 	}
 	t, ok := ts[elem];
@@ -601,14 +601,14 @@ func (t *ArrayType) Zero() Value {
  */
 
 type StructField struct {
-	Name string;
-	Type Type;
-	Anonymous bool;
+	Name		string;
+	Type		Type;
+	Anonymous	bool;
 }
 
 type StructType struct {
 	commonType;
-	Elems []StructField;
+	Elems	[]StructField;
 }
 
 var structTypes = newTypeArrayMap()
@@ -626,9 +626,9 @@ func NewStructType(fields []StructField) *StructType {
 	}
 	tMapI := structTypes.Get(fts);
 	if tMapI == nil {
-		tMapI = structTypes.Put(fts, make(map[string] *StructType));
+		tMapI = structTypes.Put(fts, make(map[string]*StructType));
 	}
-	tMap := tMapI.(map[string] *StructType);
+	tMap := tMapI.(map[string]*StructType);
 
 	// Construct key for field names
 	key := "";
@@ -673,9 +673,9 @@ func (t *StructType) compat(o Type, conv bool) bool {
 		e2 := t2.Elems[i];
 		// XXX(Spec) An anonymous and a non-anonymous field
 		// are neither identical nor compatible.
-		if (e.Anonymous != e2.Anonymous ||
-		    (!e.Anonymous && e.Name != e2.Name) ||
-		    !e.Type.compat(e2.Type, conv)) {
+		if e.Anonymous != e2.Anonymous ||
+			(!e.Anonymous && e.Name != e2.Name) ||
+			!e.Type.compat(e2.Type, conv) {
 			return false;
 		}
 	}
@@ -697,7 +697,7 @@ func (t *StructType) String() string {
 		}
 		s += f.Type.String();
 	}
-	return s + "}";
+	return s+"}";
 }
 
 func (t *StructType) Zero() Value {
@@ -714,10 +714,10 @@ func (t *StructType) Zero() Value {
 
 type PtrType struct {
 	commonType;
-	Elem Type;
+	Elem	Type;
 }
 
-var ptrTypes = make(map[Type] *PtrType)
+var ptrTypes = make(map[Type]*PtrType)
 
 // Two pointer types are identical if they have identical base types.
 
@@ -757,10 +757,10 @@ func (t *PtrType) Zero() Value {
 type FuncType struct {
 	commonType;
 	// TODO(austin) Separate receiver Type for methods?
-	In []Type;
-	Variadic bool;
-	Out []Type;
-	builtin string;
+	In		[]Type;
+	Variadic	bool;
+	Out		[]Type;
+	builtin		string;
 }
 
 var funcTypes = newTypeArrayMap()
@@ -768,16 +768,16 @@ var variadicFuncTypes = newTypeArrayMap()
 
 // Create singleton function types for magic built-in functions
 var (
-	capType     = &FuncType{builtin: "cap"};
-	closeType   = &FuncType{builtin: "close"};
-	closedType  = &FuncType{builtin: "closed"};
-	lenType     = &FuncType{builtin: "len"};
-	makeType    = &FuncType{builtin: "make"};
-	newType     = &FuncType{builtin: "new"};
-	panicType   = &FuncType{builtin: "panic"};
-	paniclnType = &FuncType{builtin: "panicln"};
-	printType   = &FuncType{builtin: "print"};
-	printlnType = &FuncType{builtin: "println"};
+	capType		= &FuncType{builtin: "cap"};
+	closeType	= &FuncType{builtin: "close"};
+	closedType	= &FuncType{builtin: "closed"};
+	lenType		= &FuncType{builtin: "len"};
+	makeType	= &FuncType{builtin: "make"};
+	newType		= &FuncType{builtin: "new"};
+	panicType	= &FuncType{builtin: "panic"};
+	paniclnType	= &FuncType{builtin: "panicln"};
+	printType	= &FuncType{builtin: "print"};
+	printlnType	= &FuncType{builtin: "println"};
 )
 
 // Two function types are identical if they have the same number of
@@ -862,7 +862,7 @@ func (t *FuncType) String() string {
 		}
 		args += "...";
 	}
-	s := "func(" + args + ")";
+	s := "func("+args+")";
 	if len(t.Out) > 0 {
 		s += " (" + typeListString(t.Out, nil) + ")";
 	}
@@ -874,12 +874,12 @@ func (t *FuncType) Zero() Value {
 }
 
 type FuncDecl struct {
-	Type *FuncType;
-	Name *ast.Ident;		// nil for function literals
+	Type	*FuncType;
+	Name	*ast.Ident;	// nil for function literals
 	// InNames will be one longer than Type.In if this function is
 	// variadic.
-	InNames []*ast.Ident;
-	OutNames []*ast.Ident;
+	InNames		[]*ast.Ident;
+	OutNames	[]*ast.Ident;
 }
 
 func (t *FuncDecl) String() string {
@@ -920,12 +920,12 @@ type InterfaceType struct {
 	// TODO(austin) This should be a map from names to
 	// *FuncType's.  We only need the sorted list for generating
 	// the type map key.  It's detrimental for everything else.
-	methods []IMethod;
+	methods	[]IMethod;
 }
 
 type IMethod struct {
-	Name string;
-	Type *FuncType;
+	Name	string;
+	Type	*FuncType;
 }
 
 var interfaceTypes = newTypeArrayMap()
@@ -959,9 +959,9 @@ func NewInterfaceType(methods []IMethod, embeds []*InterfaceType) *InterfaceType
 	}
 	tMapI := interfaceTypes.Get(mts);
 	if tMapI == nil {
-		tMapI = interfaceTypes.Put(mts, make(map[string] *InterfaceType));
+		tMapI = interfaceTypes.Put(mts, make(map[string]*InterfaceType));
 	}
-	tMap := tMapI.(map[string] *InterfaceType);
+	tMap := tMapI.(map[string]*InterfaceType);
 
 	key := "";
 	for _, m := range allMethods {
@@ -1021,7 +1021,7 @@ func (t *InterfaceType) String() string {
 		}
 		s += m.Name + funcTypeString(m.Type, nil, nil);
 	}
-	return s + "}";
+	return s+"}";
 }
 
 // implementedBy tests if o implements t, returning nil, true if it does.
@@ -1088,10 +1088,10 @@ func (t *InterfaceType) Zero() Value {
 
 type SliceType struct {
 	commonType;
-	Elem Type;
+	Elem	Type;
 }
 
-var sliceTypes = make(map[Type] *SliceType)
+var sliceTypes = make(map[Type]*SliceType)
 
 // Two slice types are identical if they have identical element types.
 
@@ -1132,16 +1132,16 @@ func (t *SliceType) Zero() Value {
 
 type MapType struct {
 	commonType;
-	Key Type;
-	Elem Type;
+	Key	Type;
+	Elem	Type;
 }
 
-var mapTypes = make(map[Type] map[Type] *MapType)
+var mapTypes = make(map[Type]map[Type]*MapType)
 
 func NewMapType(key Type, elem Type) *MapType {
 	ts, ok := mapTypes[key];
 	if !ok {
-		ts = make(map[Type] *MapType);
+		ts = make(map[Type]*MapType);
 		mapTypes[key] = ts;
 	}
 	t, ok := ts[elem];
@@ -1184,26 +1184,26 @@ type ChanType struct {
  */
 
 type Method struct {
-	decl *FuncDecl;
-	fn Func;
+	decl	*FuncDecl;
+	fn	Func;
 }
 
 type NamedType struct {
 	token.Position;
-	Name string;
+	Name	string;
 	// Underlying type.  If incomplete is true, this will be nil.
 	// If incomplete is false and this is still nil, then this is
 	// a placeholder type representing an error.
-	Def Type;
+	Def	Type;
 	// True while this type is being defined.
-	incomplete bool;
-	methods map[string] Method;
+	incomplete	bool;
+	methods		map[string]Method;
 }
 
 // TODO(austin) This is temporarily needed by the debugger's remote
 // type parser.  This should only be possible with block.DefineType.
 func NewNamedType(name string) *NamedType {
-	return &NamedType{token.Position{}, name, nil, true, make(map[string] Method)};
+	return &NamedType{token.Position{}, name, nil, true, make(map[string]Method)};
 }
 
 func (t *NamedType) Complete(def Type) {
@@ -1276,7 +1276,7 @@ func (t *NamedType) Zero() Value {
 // language.
 type MultiType struct {
 	commonType;
-	Elems []Type;
+	Elems	[]Type;
 }
 
 var multiTypes = newTypeArrayMap()

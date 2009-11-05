@@ -35,13 +35,13 @@ func (t *Thread) Try(f func(t *Thread)) os.Error {
 	return err;
 }
 
-type DivByZeroError struct {}
+type DivByZeroError struct{}
 
 func (DivByZeroError) String() string {
 	return "divide by zero";
 }
 
-type NilPointerError struct {}
+type NilPointerError struct{}
 
 func (NilPointerError) String() string {
 	return "nil pointer dereference";
@@ -67,7 +67,7 @@ func (e SliceError) String() string {
 }
 
 type KeyError struct {
-	Key interface {};
+	Key interface{};
 }
 
 func (e KeyError) String() string {
