@@ -23,8 +23,8 @@ func testTimeout(t *testing.T, network, addr string) {
 	if n != 0 || !isEAGAIN(err1) {
 		t.Errorf("fd.Read on %s %s did not return 0, EAGAIN: %v, %v", network, addr, n, err1);
 	}
-	if t1 - t0 < 0.5e8 || t1 - t0 > 1.5e8 {
-		t.Errorf("fd.Read on %s %s took %f seconds, expected 0.1", network, addr, float64(t1 - t0) / 1e9);
+	if t1-t0 < 0.5e8 || t1-t0 > 1.5e8 {
+		t.Errorf("fd.Read on %s %s took %f seconds, expected 0.1", network, addr, float64(t1-t0)/1e9);
 	}
 }
 

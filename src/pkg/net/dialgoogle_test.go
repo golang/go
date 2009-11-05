@@ -26,7 +26,7 @@ func fetchGoogle(t *testing.T, fd Conn, network, addr string) {
 
 	if n < 1000 {
 		t.Errorf("fetchGoogle: short HTTP read from %s %s - %v", network, addr, err);
-		return
+		return;
 	}
 }
 
@@ -34,13 +34,13 @@ func doDial(t *testing.T, network, addr string) {
 	fd, err := Dial(network, "", addr);
 	if err != nil {
 		t.Errorf("Dial(%q, %q, %q) = _, %v", network, "", addr, err);
-		return
+		return;
 	}
 	fetchGoogle(t, fd, network, addr);
-	fd.Close()
+	fd.Close();
 }
 
-var googleaddrs = []string {
+var googleaddrs = []string{
 	"74.125.19.99:80",
 	"www.google.com:80",
 	"74.125.19.99:http",
@@ -51,19 +51,20 @@ var googleaddrs = []string {
 	"[0:0:0:0:0000:ffff:74.125.19.99]:80",
 	"[0:0:0:0:000000:ffff:74.125.19.99]:80",
 	"[0:0:0:0:0:ffff::74.125.19.99]:80",
-	"[2001:4860:0:2001::68]:80"	// ipv6.google.com; removed if ipv6 flag not set
+	"[2001:4860:0:2001::68]:80" // ipv6.google.com; removed if ipv6 flag not set
+	,
 }
 
 func TestDialGoogle(t *testing.T) {
 	// If no ipv6 tunnel, don't try the last address.
 	if !*ipv6 {
-		googleaddrs[len(googleaddrs)-1] = ""
+		googleaddrs[len(googleaddrs)-1] = "";
 	}
 
 	for i := 0; i < len(googleaddrs); i++ {
 		addr := googleaddrs[i];
 		if addr == "" {
-			continue
+			continue;
 		}
 		t.Logf("-- %s --", addr);
 		doDial(t, "tcp", addr);

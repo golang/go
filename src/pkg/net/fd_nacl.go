@@ -9,11 +9,10 @@ import (
 	"syscall";
 )
 
-type pollster struct {
-}
+type pollster struct{}
 
 func newpollster() (p *pollster, err os.Error) {
-	return nil, os.NewSyscallError("networking", syscall.ENACL)
+	return nil, os.NewSyscallError("networking", syscall.ENACL);
 }
 
 func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {

@@ -34,16 +34,16 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string) (fd *netFD, err
 		if raddr != nil {
 			ra = &syscall.SockaddrUnix{Name: raddr.Name};
 		} else if proto != syscall.SOCK_DGRAM || laddr == nil {
-			return nil, &OpError{mode, net, nil, errMissingAddress}
+			return nil, &OpError{mode, net, nil, errMissingAddress};
 		}
 
 	case "listen":
 		if laddr == nil {
-			return nil, &OpError{mode, net, nil, errMissingAddress}
+			return nil, &OpError{mode, net, nil, errMissingAddress};
 		}
 		la = &syscall.SockaddrUnix{Name: laddr.Name};
 		if raddr != nil {
-			return nil, &OpError{mode, net, raddr, &AddrError{"unexpected remote address", raddr.String()}}
+			return nil, &OpError{mode, net, raddr, &AddrError{"unexpected remote address", raddr.String()}};
 		}
 	}
 
@@ -67,8 +67,8 @@ Error:
 
 // UnixAddr represents the address of a Unix domain socket end point.
 type UnixAddr struct {
-	Name string;
-	Datagram bool;
+	Name		string;
+	Datagram	bool;
 }
 
 func sockaddrToUnix(sa syscall.Sockaddr) Addr {
@@ -95,7 +95,7 @@ func (a *UnixAddr) Network() string {
 
 func (a *UnixAddr) String() string {
 	if a == nil {
-		return "<nil>"
+		return "<nil>";
 	}
 	return a.Name;
 }
@@ -128,7 +128,7 @@ type UnixConn struct {
 }
 
 func newUnixConn(fd *netFD) *UnixConn {
-	return &UnixConn{fd}
+	return &UnixConn{fd};
 }
 
 func (c *UnixConn) ok() bool {
@@ -143,7 +143,7 @@ func (c *UnixConn) ok() bool {
 // after a fixed time limit; see SetTimeout and SetReadTimeout.
 func (c *UnixConn) Read(b []byte) (n int, err os.Error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, os.EINVAL;
 	}
 	return c.fd.Read(b);
 }
@@ -154,7 +154,7 @@ func (c *UnixConn) Read(b []byte) (n int, err os.Error) {
 // after a fixed time limit; see SetTimeout and SetReadTimeout.
 func (c *UnixConn) Write(b []byte) (n int, err os.Error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, os.EINVAL;
 	}
 	return c.fd.Write(b);
 }
@@ -162,7 +162,7 @@ func (c *UnixConn) Write(b []byte) (n int, err os.Error) {
 // Close closes the Unix domain connection.
 func (c *UnixConn) Close() os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	err := c.fd.Close();
 	c.fd = nil;
@@ -192,7 +192,7 @@ func (c *UnixConn) RemoteAddr() Addr {
 // with the connection.
 func (c *UnixConn) SetTimeout(nsec int64) os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	return setTimeout(c.fd, nsec);
 }
@@ -202,7 +202,7 @@ func (c *UnixConn) SetTimeout(nsec int64) os.Error {
 // Setting nsec == 0 (the default) disables the deadline.
 func (c *UnixConn) SetReadTimeout(nsec int64) os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	return setReadTimeout(c.fd, nsec);
 }
@@ -214,7 +214,7 @@ func (c *UnixConn) SetReadTimeout(nsec int64) os.Error {
 // some of the data was successfully written.
 func (c *UnixConn) SetWriteTimeout(nsec int64) os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	return setWriteTimeout(c.fd, nsec);
 }
@@ -223,7 +223,7 @@ func (c *UnixConn) SetWriteTimeout(nsec int64) os.Error {
 // receive buffer associated with the connection.
 func (c *UnixConn) SetReadBuffer(bytes int) os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	return setReadBuffer(c.fd, bytes);
 }
@@ -232,7 +232,7 @@ func (c *UnixConn) SetReadBuffer(bytes int) os.Error {
 // transmit buffer associated with the connection.
 func (c *UnixConn) SetWriteBuffer(bytes int) os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	return setWriteBuffer(c.fd, bytes);
 }
@@ -245,7 +245,7 @@ func (c *UnixConn) SetWriteBuffer(bytes int) os.Error {
 // after a fixed time limit; see SetTimeout and SetReadTimeout.
 func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error) {
 	if !c.ok() {
-		return 0, nil, os.EINVAL
+		return 0, nil, os.EINVAL;
 	}
 	n, sa, errno := syscall.Recvfrom(c.fd.fd, b, 0);
 	if errno != 0 {
@@ -266,7 +266,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error) 
 // after a fixed time limit; see SetTimeout and SetReadTimeout.
 func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
 	if !c.ok() {
-		return 0, nil, os.EINVAL
+		return 0, nil, os.EINVAL;
 	}
 	n, uaddr, err := c.ReadFromUnix(b);
 	return n, uaddr.toAddr(), err;
@@ -279,7 +279,7 @@ func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
 // On packet-oriented connections such as UDP, write timeouts are rare.
 func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, os.EINVAL;
 	}
 	if addr.Datagram != (c.fd.proto == syscall.SOCK_DGRAM) {
 		return 0, os.EAFNOSUPPORT;
@@ -298,7 +298,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
 // On packet-oriented connections such as UDP, write timeouts are rare.
 func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, os.EINVAL;
 	}
 	a, ok := addr.(*UnixAddr);
 	if !ok {
@@ -313,7 +313,7 @@ func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
 func DialUnix(net string, laddr, raddr *UnixAddr) (c *UnixConn, err os.Error) {
 	fd, e := unixSocket(net, laddr, raddr, "dial");
 	if e != nil {
-		return nil, e
+		return nil, e;
 	}
 	return newUnixConn(fd), nil;
 }
@@ -322,8 +322,8 @@ func DialUnix(net string, laddr, raddr *UnixAddr) (c *UnixConn, err os.Error) {
 // Clients should typically use variables of type Listener
 // instead of assuming Unix domain sockets.
 type UnixListener struct {
-	fd *netFD;
-	path string;
+	fd	*netFD;
+	path	string;
 }
 
 // ListenUnix announces on the Unix domain socket laddr and returns a Unix listener.
@@ -342,7 +342,7 @@ func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
 		}
 		return nil, e;
 	}
-	e1 := syscall.Listen(fd.fd, 8); // listenBacklog());
+	e1 := syscall.Listen(fd.fd, 8);	// listenBacklog());
 	if e1 != 0 {
 		syscall.Close(fd.fd);
 		return nil, &OpError{"listen", "unix", laddr, os.Errno(e1)};
@@ -354,14 +354,14 @@ func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
 // and the remote address.
 func (l *UnixListener) AcceptUnix() (c *UnixConn, err os.Error) {
 	if l == nil || l.fd == nil || l.fd.fd < 0 {
-		return nil, os.EINVAL
+		return nil, os.EINVAL;
 	}
 	fd, e := l.fd.accept(sockaddrToUnix);
 	if e != nil {
-		return nil, e
+		return nil, e;
 	}
 	c = newUnixConn(fd);
-	return c, nil
+	return c, nil;
 }
 
 // Accept implements the Accept method in the Listener interface;
@@ -378,7 +378,7 @@ func (l *UnixListener) Accept() (c Conn, err os.Error) {
 // Already accepted connections are not closed.
 func (l *UnixListener) Close() os.Error {
 	if l == nil || l.fd == nil {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 
 	// The operating system doesn't clean up
@@ -412,14 +412,14 @@ func ListenUnixgram(net string, laddr *UnixAddr) (c *UDPConn, err os.Error) {
 	switch net {
 	case "unixgram":
 	default:
-		return nil, UnknownNetworkError(net)
+		return nil, UnknownNetworkError(net);
 	}
 	if laddr == nil {
-		return nil, &OpError{"listen", "unixgram", nil, errMissingAddress}
+		return nil, &OpError{"listen", "unixgram", nil, errMissingAddress};
 	}
 	fd, e := unixSocket(net, laddr, nil, "listen");
 	if e != nil {
-		return nil, e
+		return nil, e;
 	}
-	return newUDPConn(fd), nil
+	return newUDPConn(fd), nil;
 }

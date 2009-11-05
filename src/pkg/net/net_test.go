@@ -10,13 +10,13 @@ import (
 )
 
 type DialErrorTest struct {
-	Net string;
-	Laddr string;
-	Raddr string;
-	Pattern string;
+	Net	string;
+	Laddr	string;
+	Raddr	string;
+	Pattern	string;
 }
 
-var dialErrorTests = []DialErrorTest {
+var dialErrorTests = []DialErrorTest{
 	DialErrorTest{
 		"datakit", "", "mh/astro/r70",
 		"dial datakit mh/astro/r70: unknown network datakit",

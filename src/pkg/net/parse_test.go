@@ -30,7 +30,7 @@ func TestReadLine(t *testing.T) {
 	for {
 		bline, berr := br.ReadString('\n');
 		if n := len(bline); n > 0 {
-			bline = bline[0:n-1];
+			bline = bline[0 : n-1];
 		}
 		line, ok := file.readLine();
 		if (berr != nil) != !ok || bline != line {
@@ -38,9 +38,9 @@ func TestReadLine(t *testing.T) {
 				filename, lineno, byteno, bline, berr, line, ok);
 		}
 		if !ok {
-			break
+			break;
 		}
 		lineno++;
-		byteno += len(line) + 1;
+		byteno += len(line)+1;
 	}
 }

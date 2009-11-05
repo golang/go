@@ -13,12 +13,12 @@ import (
 )
 
 type file struct {
-	file *os.File;
-	data []byte;
+	file	*os.File;
+	data	[]byte;
 }
 
 func (f *file) close() {
-	f.file.Close()
+	f.file.Close();
 }
 
 func (f *file) getLineFromData() (s string, ok bool) {
@@ -29,30 +29,30 @@ func (f *file) getLineFromData() (s string, ok bool) {
 			ok = true;
 			// move data
 			i++;
-			n := len(data) - i;
+			n := len(data)-i;
 			for j := 0; j < n; j++ {
 				data[j] = data[i+j];
 			}
 			f.data = data[0:n];
-			return
+			return;
 		}
 	}
-	return
+	return;
 }
 
 func (f *file) readLine() (s string, ok bool) {
 	if s, ok = f.getLineFromData(); ok {
-		return
+		return;
 	}
 	if len(f.data) < cap(f.data) {
 		ln := len(f.data);
 		n, _ := io.ReadFull(f.file, f.data[ln:cap(f.data)]);
 		if n >= 0 {
-			f.data = f.data[0:ln+n];
+			f.data = f.data[0 : ln+n];
 		}
 	}
 	s, ok = f.getLineFromData();
-	return
+	return;
 }
 
 func open(name string) (*file, os.Error) {
@@ -66,10 +66,10 @@ func open(name string) (*file, os.Error) {
 func byteIndex(s string, c byte) int {
 	for i := 0; i < len(s); i++ {
 		if s[i] == c {
-			return i
+			return i;
 		}
 	}
-	return -1
+	return -1;
 }
 
 // Count occurrences in s of any bytes in t.
@@ -80,12 +80,12 @@ func countAnyByte(s string, t string) int {
 			n++;
 		}
 	}
-	return n
+	return n;
 }
 
 // Split s at any bytes in t.
 func splitAtBytes(s string, t string) []string {
-	a := make([]string, 1+countAnyByte(s, t));
+	a := make([]string, 1 + countAnyByte(s, t));
 	n := 0;
 	last := 0;
 	for i := 0; i < len(s); i++ {
@@ -116,15 +116,15 @@ const big = 0xFFFFFF
 func dtoi(s string, i0 int) (n int, i int, ok bool) {
 	n = 0;
 	for i = i0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
-		n = n*10 + int(s[i] - '0');
+		n = n*10 + int(s[i]-'0');
 		if n >= big {
-			return 0, i, false
+			return 0, i, false;
 		}
 	}
 	if i == i0 {
-		return 0, i, false
+		return 0, i, false;
 	}
-	return n, i, true
+	return n, i, true;
 }
 
 // Hexadecimal to integer starting at &s[i0].
@@ -134,24 +134,24 @@ func xtoi(s string, i0 int) (n int, i int, ok bool) {
 	for i = i0; i < len(s); i++ {
 		if '0' <= s[i] && s[i] <= '9' {
 			n *= 16;
-			n += int(s[i] - '0')
+			n += int(s[i]-'0');
 		} else if 'a' <= s[i] && s[i] <= 'f' {
 			n *= 16;
-			n += int(s[i] - 'a') + 10
+			n += int(s[i]-'a')+10;
 		} else if 'A' <= s[i] && s[i] <= 'F' {
 			n *= 16;
-			n += int(s[i] -'A') + 10
+			n += int(s[i]-'A')+10;
 		} else {
-			break
+			break;
 		}
 		if n >= big {
-			return 0, i, false
+			return 0, i, false;
 		}
 	}
 	if i == i0 {
-		return 0, i, false
+		return 0, i, false;
 	}
-	return n, i, true
+	return n, i, true;
 }
 
 // Integer to decimal.
