@@ -98,9 +98,7 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
 // no rescheduling, no malloc calls, and no new stack segments.
 // The calls to RawSyscall are okay because they are assembly
 // functions that do not grow the stack.
-func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, dir *byte, fd []int, pipe int)
-	(pid int, err int)
-{
+func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, dir *byte, fd []int, pipe int) (pid int, err int) {
 	// Declare all variables at top in case any
 	// declarations require heap allocation (e.g., err1).
 	var r1, r2, err1 uintptr;
@@ -113,7 +111,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
 	// No more allocation or calls of non-assembly functions.
 	r1, r2, err1 = RawSyscall(SYS_FORK, 0, 0, 0);
 	if err1 != 0 {
-		return 0, int(err1)
+		return 0, int(err1);
 	}
 
 	// On Darwin:
@@ -126,7 +124,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, traceme bool, d
 
 	if r1 != 0 {
 		// parent; return PID
-		return int(r1), 0
+		return int(r1), 0;
 	}
 
 	// Fork succeeded, now in child.
@@ -224,9 +222,7 @@ childerror:
 	panic("unreached");
 }
 
-func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir string, fd []int)
-	(pid int, err int)
-{
+func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir string, fd []int) (pid int, err int) {
 	var p [2]int;
 	var n int;
 	var err1 uintptr;
@@ -269,7 +265,7 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
 			Close(p[1]);
 		}
 		ForkLock.Unlock();
-		return 0, err
+		return 0, err;
 	}
 	ForkLock.Unlock();
 
@@ -291,24 +287,20 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
 		for err1 == EINTR {
 			_, err1 = Wait4(pid, &wstatus, 0, nil);
 		}
-		return 0, err
+		return 0, err;
 	}
 
 	// Read got EOF, so pipe closed on exec, so exec succeeded.
-	return pid, 0
+	return pid, 0;
 }
 
 // Combination of fork and exec, careful to be thread safe.
-func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []int)
-	(pid int, err int)
-{
+func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []int) (pid int, err int) {
 	return forkExec(argv0, argv, envv, false, dir, fd);
 }
 
 // PtraceForkExec is like ForkExec, but starts the child in a traced state.
-func PtraceForkExec(argv0 string, argv []string, envv []string, dir string, fd []int)
-	(pid int, err int)
-{
+func PtraceForkExec(argv0 string, argv []string, envv []string, dir string, fd []int) (pid int, err int) {
 	return forkExec(argv0, argv, envv, true, dir, fd);
 }
 
@@ -320,4 +312,3 @@ func Exec(argv0 string, argv []string, envv []string) (err int) {
 		uintptr(unsafe.Pointer(&StringArrayPtr(envv)[0])));
 	return int(err1);
 }
-

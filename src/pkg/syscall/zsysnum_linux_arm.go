@@ -3,7 +3,7 @@
 package syscall
 
 const (
-	SYS_SYSCALL_BASE = 0;
+	SYS_SYSCALL_BASE	= 0;
 
 	SYS_RESTART_SYSCALL		= (SYS_SYSCALL_BASE + 0);
 	SYS_EXIT			= (SYS_SYSCALL_BASE + 1);
@@ -333,4 +333,5 @@ const (
 	SYS_INOTIFY_INIT1		= (SYS_SYSCALL_BASE + 360);
 )
 
-func _darwin_system_call_conflict() {}
+func _darwin_system_call_conflict() {
+}

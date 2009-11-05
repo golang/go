@@ -47,7 +47,7 @@ func Futimesat(dirfd int, path string, tv []Timeval) (errno int) {
 	return futimesat(dirfd, path, (*[2]Timeval)(unsafe.Pointer(&tv[0])));
 }
 
-const ImplementsGetwd = true;
+const ImplementsGetwd = true
 
 //sys	Getcwd(buf []byte) (n int, errno int)
 func Getwd() (wd string, errno int) {
@@ -57,10 +57,10 @@ func Getwd() (wd string, errno int) {
 		return "", err;
 	}
 	// Getcwd returns the number of bytes written to buf, including the NUL.
-	if n < 1|| n > len(buf) || buf[n-1] != 0 {
+	if n < 1 || n > len(buf) || buf[n-1] != 0 {
 		return "", EINVAL;
 	}
-	return string(buf[0:n-1]), 0
+	return string(buf[0 : n-1]), 0;
 }
 
 func Getgroups() (gids []int, errno int) {
@@ -113,11 +113,11 @@ type WaitStatus uint32
 // from stopped via the core dump bit.
 
 const (
-	mask = 0x7F;
-	core = 0x80;
-	exited = 0x00;
-	stopped = 0x7F;
-	shift = 8;
+	mask	= 0x7F;
+	core	= 0x80;
+	exited	= 0x00;
+	stopped	= 0x7F;
+	shift	= 8;
 )
 
 func (w WaitStatus) Exited() bool {
@@ -144,28 +144,28 @@ func (w WaitStatus) ExitStatus() int {
 	if !w.Exited() {
 		return -1;
 	}
-	return int(w >> shift) & 0xFF;
+	return int(w>>shift)&0xFF;
 }
 
 func (w WaitStatus) Signal() int {
 	if !w.Signaled() {
 		return -1;
 	}
-	return int(w & mask);
+	return int(w&mask);
 }
 
 func (w WaitStatus) StopSignal() int {
 	if !w.Stopped() {
 		return -1;
 	}
-	return int(w >> shift) & 0xFF;
+	return int(w>>shift)&0xFF;
 }
 
 func (w WaitStatus) TrapCause() int {
 	if w.StopSignal() != SIGTRAP {
 		return -1;
 	}
-	return int(w >> shift) >> 8;
+	return int(w>>shift)>>8;
 }
 
 //sys	wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int)
@@ -193,9 +193,9 @@ type Sockaddr interface {
 }
 
 type SockaddrInet4 struct {
-	Port int;
-	Addr [4]byte;
-	raw RawSockaddrInet4;
+	Port	int;
+	Addr	[4]byte;
+	raw	RawSockaddrInet4;
 }
 
 func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
@@ -204,7 +204,7 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
 	}
 	sa.raw.Family = AF_INET;
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port));
-	p[0] = byte(sa.Port>>8);
+	p[0] = byte(sa.Port >> 8);
 	p[1] = byte(sa.Port);
 	for i := 0; i < len(sa.Addr); i++ {
 		sa.raw.Addr[i] = sa.Addr[i];
@@ -213,9 +213,9 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
 }
 
 type SockaddrInet6 struct {
-	Port int;
-	Addr [16]byte;
-	raw RawSockaddrInet6;
+	Port	int;
+	Addr	[16]byte;
+	raw	RawSockaddrInet6;
 }
 
 func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
@@ -224,7 +224,7 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
 	}
 	sa.raw.Family = AF_INET6;
 	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port));
-	p[0] = byte(sa.Port>>8);
+	p[0] = byte(sa.Port >> 8);
 	p[1] = byte(sa.Port);
 	for i := 0; i < len(sa.Addr); i++ {
 		sa.raw.Addr[i] = sa.Addr[i];
@@ -233,8 +233,8 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
 }
 
 type SockaddrUnix struct {
-	Name string;
-	raw RawSockaddrUnix;
+	Name	string;
+	raw	RawSockaddrUnix;
 }
 
 func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
@@ -252,7 +252,7 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
 	}
 
 	// length is family, name, NUL.
-	return uintptr(unsafe.Pointer(&sa.raw)), 1 + _Socklen(n) + 1, 0;
+	return uintptr(unsafe.Pointer(&sa.raw)), 1+_Socklen(n)+1, 0;
 }
 
 func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
@@ -356,7 +356,7 @@ func Connect(fd int, sa Sockaddr) (errno int) {
 
 func Socket(domain, typ, proto int) (fd, errno int) {
 	if domain == AF_INET6 && SocketDisableIPv6 {
-		return -1, EAFNOSUPPORT
+		return -1, EAFNOSUPPORT;
 	}
 	fd, errno = socket(domain, typ, proto);
 	return;
@@ -401,9 +401,9 @@ func bytesCopy(dst, src []byte) int {
 		src = src[0:len(dst)];
 	}
 	for i, x := range src {
-		dst[i] = x
+		dst[i] = x;
 	}
-	return len(src)
+	return len(src);
 }
 
 func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno int) {
@@ -422,11 +422,11 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
 	// boundary.
 	n := 0;
 	if addr % sizeofPtr != 0 {
-		errno = ptrace(req, pid, addr - addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
+		errno = ptrace(req, pid, addr - addr % sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
 		if errno != 0 {
 			return 0, errno;
 		}
-		n += bytesCopy(out, buf[addr%sizeofPtr:len(buf)]);
+		n += bytesCopy(out, buf[addr % sizeofPtr : len(buf)]);
 		out = out[n:len(out)];
 	}
 
@@ -462,13 +462,13 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
 	n := 0;
 	if addr % sizeofPtr != 0 {
 		var buf [sizeofPtr]byte;
-		errno = ptrace(peekReq, pid, addr - addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
+		errno = ptrace(peekReq, pid, addr - addr % sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
 		if errno != 0 {
 			return 0, errno;
 		}
-		n += bytesCopy(buf[addr%sizeofPtr:len(buf)], data);
+		n += bytesCopy(buf[addr % sizeofPtr : len(buf)], data);
 		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
-		errno = ptrace(pokeReq, pid, addr - addr%sizeofPtr, word);
+		errno = ptrace(pokeReq, pid, addr - addr % sizeofPtr, word);
 		if errno != 0 {
 			return 0, errno;
 		}
@@ -483,7 +483,7 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
 			return n, errno;
 		}
 		n += sizeofPtr;
-		data = data[sizeofPtr:len(data)];
+		data = data[sizeofPtr : len(data)];
 	}
 
 	// Trailing edge.
@@ -793,4 +793,3 @@ func PtraceDetach(pid int) (errno int) {
 // Waitid
 // Writev
 // _Sysctl
-

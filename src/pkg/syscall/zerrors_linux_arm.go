@@ -176,7 +176,7 @@ const (
 	SIGINT		= 0x2;
 	SIGIOT		= 0x6;
 	SIGTERM		= 0xf;
-	O_EXCL					= 0x80;
+	O_EXCL		= 0x80;
 )
 
 // Types
