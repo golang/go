@@ -20,9 +20,9 @@ import (
 func kernelSupportsIPv6() bool {
 	fd, e := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP);
 	if fd >= 0 {
-		syscall.Close(fd)
+		syscall.Close(fd);
 	}
-	return e == 0
+	return e == 0;
 }
 
 var preferIPv4 = !kernelSupportsIPv6()
@@ -31,7 +31,7 @@ var preferIPv4 = !kernelSupportsIPv6()
 // /proc/sys/net/core/somaxconn,
 // to take advantage of kernels that have raised the limit.
 func listenBacklog() int {
-	return syscall.SOMAXCONN
+	return syscall.SOMAXCONN;
 }
 
 // Internet sockets (TCP, UDP)
@@ -50,7 +50,7 @@ func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, t
 	family := syscall.AF_INET6;
 	switch net[len(net)-1] {
 	case '4':
-		family = syscall.AF_INET
+		family = syscall.AF_INET;
 	case '6':
 		// nothing to do
 	default:
@@ -114,7 +114,7 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
 			ip = IPv4zero;
 		}
 		if ip = ip.To4(); ip == nil {
-			return nil, os.EINVAL
+			return nil, os.EINVAL;
 		}
 		s := new(syscall.SockaddrInet4);
 		for i := 0; i < IPv4len; i++ {
@@ -133,7 +133,7 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
 			ip = IPzero;
 		}
 		if ip = ip.To16(); ip == nil {
-			return nil, os.EINVAL
+			return nil, os.EINVAL;
 		}
 		s := new(syscall.SockaddrInet6);
 		for i := 0; i < IPv6len; i++ {
@@ -155,11 +155,11 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
 		return;
 	}
 
-	host, port = hostport[0:i], hostport[i+1:len(hostport)];
+	host, port = hostport[0:i], hostport[i+1 : len(hostport)];
 
 	// Can put brackets around host ...
 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
-		host = host[1:len(host)-1]
+		host = host[1 : len(host)-1];
 	} else {
 		// ... but if there are no brackets, no colons.
 		if byteIndex(host, ':') >= 0 {
@@ -175,9 +175,9 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
 func joinHostPort(host, port string) string {
 	// If host has colons, have to bracket it.
 	if byteIndex(host, ':') >= 0 {
-		return "[" + host + "]:" + port
+		return "["+host+"]:"+port;
 	}
-	return host + ":" + port
+	return host+":"+port;
 }
 
 // Convert "host:port" into IP address and port.
@@ -224,4 +224,3 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
 Error:
 	return nil, 0, err;
 }
-

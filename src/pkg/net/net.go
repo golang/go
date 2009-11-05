@@ -13,7 +13,7 @@ import "os"
 // Addr represents a network end point address.
 type Addr interface {
 	Network() string;	// name of the network
-	String() string;		// string form of address
+	String() string;	// string form of address
 }
 
 // Conn is a generic stream-oriented network connection.
@@ -233,10 +233,10 @@ func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
 var errMissingAddress = os.ErrorString("missing address")
 
 type OpError struct {
-	Op string;
-	Net string;
-	Addr Addr;
-	Error os.Error;
+	Op	string;
+	Net	string;
+	Addr	Addr;
+	Error	os.Error;
 }
 
 func (e *OpError) String() string {
@@ -252,8 +252,8 @@ func (e *OpError) String() string {
 }
 
 type AddrError struct {
-	Error string;
-	Addr string;
+	Error	string;
+	Addr	string;
 }
 
 func (e *AddrError) String() string {
@@ -265,7 +265,7 @@ func (e *AddrError) String() string {
 }
 
 type UnknownNetworkError string
+
 func (e UnknownNetworkError) String() string {
 	return "unknown network " + string(e);
 }
-

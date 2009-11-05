@@ -11,11 +11,11 @@ import (
 	"os";
 )
 
-var services map[string] map[string] int
+var services map[string]map[string]int
 var servicesError os.Error
 
 func readServices() {
-	services = make(map[string] map[string] int);
+	services = make(map[string]map[string]int);
 	var file *file;
 	file, servicesError = open("/etc/services");
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
@@ -30,12 +30,12 @@ func readServices() {
 		portnet := f[1];	// "tcp/80"
 		port, j, ok := dtoi(portnet, 0);
 		if !ok || port <= 0 || j >= len(portnet) || portnet[j] != '/' {
-			continue
+			continue;
 		}
-		netw := portnet[j+1:len(portnet)];	// "tcp"
+		netw := portnet[j+1 : len(portnet)];	// "tcp"
 		m, ok1 := services[netw];
 		if !ok1 {
-			m = make(map[string] int);
+			m = make(map[string]int);
 			services[netw] = m;
 		}
 		for i := 0; i < len(f); i++ {
@@ -63,5 +63,5 @@ func LookupPort(network, service string) (port int, err os.Error) {
 			return;
 		}
 	}
-	return 0, &AddrError{"unknown port", network + "/" + service};
+	return 0, &AddrError{"unknown port", network+"/"+service};
 }

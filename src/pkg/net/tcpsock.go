@@ -23,8 +23,8 @@ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
 
 // TCPAddr represents the address of a TCP end point.
 type TCPAddr struct {
-	IP IP;
-	Port int;
+	IP	IP;
+	Port	int;
 }
 
 // Network returns the address's network name, "tcp".
@@ -78,11 +78,10 @@ type TCPConn struct {
 func newTCPConn(fd *netFD) *TCPConn {
 	c := &TCPConn{fd};
 	setsockoptInt(fd.fd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, 1);
-	return c
+	return c;
 }
 
 func (c *TCPConn) ok() bool {
-if c == nil || c.fd == nil { panic() }
 	return c != nil && c.fd != nil;
 }
 
@@ -94,7 +93,7 @@ if c == nil || c.fd == nil { panic() }
 // after a fixed time limit; see SetTimeout and SetReadTimeout.
 func (c *TCPConn) Read(b []byte) (n int, err os.Error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, os.EINVAL;
 	}
 	return c.fd.Read(b);
 }
@@ -105,7 +104,7 @@ func (c *TCPConn) Read(b []byte) (n int, err os.Error) {
 // after a fixed time limit; see SetTimeout and SetReadTimeout.
 func (c *TCPConn) Write(b []byte) (n int, err os.Error) {
 	if !c.ok() {
-		return 0, os.EINVAL
+		return 0, os.EINVAL;
 	}
 	return c.fd.Write(b);
 }
@@ -113,7 +112,7 @@ func (c *TCPConn) Write(b []byte) (n int, err os.Error) {
 // Close closes the TCP connection.
 func (c *TCPConn) Close() os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	err := c.fd.Close();
 	c.fd = nil;
@@ -140,7 +139,7 @@ func (c *TCPConn) RemoteAddr() Addr {
 // with the connection.
 func (c *TCPConn) SetTimeout(nsec int64) os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	return setTimeout(c.fd, nsec);
 }
@@ -150,7 +149,7 @@ func (c *TCPConn) SetTimeout(nsec int64) os.Error {
 // Setting nsec == 0 (the default) disables the deadline.
 func (c *TCPConn) SetReadTimeout(nsec int64) os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	return setReadTimeout(c.fd, nsec);
 }
@@ -162,7 +161,7 @@ func (c *TCPConn) SetReadTimeout(nsec int64) os.Error {
 // some of the data was successfully written.
 func (c *TCPConn) SetWriteTimeout(nsec int64) os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	return setWriteTimeout(c.fd, nsec);
 }
@@ -171,7 +170,7 @@ func (c *TCPConn) SetWriteTimeout(nsec int64) os.Error {
 // receive buffer associated with the connection.
 func (c *TCPConn) SetReadBuffer(bytes int) os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	return setReadBuffer(c.fd, bytes);
 }
@@ -180,7 +179,7 @@ func (c *TCPConn) SetReadBuffer(bytes int) os.Error {
 // transmit buffer associated with the connection.
 func (c *TCPConn) SetWriteBuffer(bytes int) os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	return setWriteBuffer(c.fd, bytes);
 }
@@ -198,7 +197,7 @@ func (c *TCPConn) SetWriteBuffer(bytes int) os.Error {
 // data to be sent and acknowledged.
 func (c *TCPConn) SetLinger(sec int) os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	return setLinger(c.fd, sec);
 }
@@ -207,7 +206,7 @@ func (c *TCPConn) SetLinger(sec int) os.Error {
 // keepalive messages on the connection.
 func (c *TCPConn) SetKeepAlive(keepalive bool) os.Error {
 	if !c.ok() {
-		return os.EINVAL
+		return os.EINVAL;
 	}
 	return setKeepAlive(c.fd, keepalive);
 }
@@ -216,13 +215,13 @@ func (c *TCPConn) SetKeepAlive(keepalive bool) os.Error {
 // and returns a TCPConn structure.
 func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err os.Error) {
 	if raddr == nil {
-		return nil, &OpError{"dial", "tcp", nil, errMissingAddress}
+		return nil, &OpError{"dial", "tcp", nil, errMissingAddress};
 	}
 	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_STREAM, "dial", sockaddrToTCP);
 	if e != nil {
-		return nil, e
+		return nil, e;
 	}
-	return newTCPConn(fd), nil
+	return newTCPConn(fd), nil;
 }
 
 // TCPListener is a TCP network listener.
@@ -239,7 +238,7 @@ type TCPListener struct {
 func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err os.Error) {
 	fd, err := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_STREAM, "listen", sockaddrToTCP);
 	if err != nil {
-		return nil, err
+		return nil, err;
 	}
 	errno := syscall.Listen(fd.fd, listenBacklog());
 	if errno != 0 {
@@ -248,20 +247,20 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err os.Error) {
 	}
 	l = new(TCPListener);
 	l.fd = fd;
-	return l, nil
+	return l, nil;
 }
 
 // AcceptTCP accepts the next incoming call and returns the new connection
 // and the remote address.
 func (l *TCPListener) AcceptTCP() (c *TCPConn, err os.Error) {
 	if l == nil || l.fd == nil || l.fd.fd < 0 {
-		return nil, os.EINVAL
+		return nil, os.EINVAL;
 	}
 	fd, err := l.fd.accept(sockaddrToTCP);
 	if err != nil {
-		return nil, err
+		return nil, err;
 	}
-	return newTCPConn(fd), nil
+	return newTCPConn(fd), nil;
 }
 
 // Accept implements the Accept method in the Listener interface;
@@ -269,7 +268,7 @@ func (l *TCPListener) AcceptTCP() (c *TCPConn, err os.Error) {
 func (l *TCPListener) Accept() (c Conn, err os.Error) {
 	c1, err := l.AcceptTCP();
 	if err != nil {
-		return nil, err
+		return nil, err;
 	}
 	return c1, nil;
 }
@@ -278,9 +277,9 @@ func (l *TCPListener) Accept() (c Conn, err os.Error) {
 // Already Accepted connections are not closed.
 func (l *TCPListener) Close() os.Error {
 	if l == nil || l.fd == nil {
-		return os.EINVAL
+		return os.EINVAL;
 	}
-	return l.fd.Close()
+	return l.fd.Close();
 }
 
 // Addr returns the listener's network address, a *TCPAddr.

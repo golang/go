@@ -15,9 +15,9 @@ import (
 // Boolean to int.
 func boolint(b bool) int {
 	if b {
-		return 1
+		return 1;
 	}
-	return 0
+	return 0;
 }
 
 // Generic socket creation.
@@ -27,7 +27,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 	s, e := syscall.Socket(f, p, t);
 	if e != 0 {
 		syscall.ForkLock.RUnlock();
-		return nil, os.Errno(e)
+		return nil, os.Errno(e);
 	}
 	syscall.CloseOnExec(s);
 	syscall.ForkLock.RUnlock();
@@ -39,7 +39,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 		e = syscall.Bind(s, la);
 		if e != 0 {
 			syscall.Close(s);
-			return nil, os.Errno(e)
+			return nil, os.Errno(e);
 		}
 	}
 
@@ -47,7 +47,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 		e = syscall.Connect(s, ra);
 		if e != 0 {
 			syscall.Close(s);
-			return nil, os.Errno(e)
+			return nil, os.Errno(e);
 		}
 	}
 
@@ -59,10 +59,10 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 	fd, err = newFD(s, f, p, net, laddr, raddr);
 	if err != nil {
 		syscall.Close(s);
-		return nil, err
+		return nil, err;
 	}
 
-	return fd, nil
+	return fd, nil;
 }
 
 func setsockoptInt(fd, level, opt int, value int) os.Error {
@@ -94,9 +94,9 @@ func setWriteTimeout(fd *netFD, nsec int64) os.Error {
 
 func setTimeout(fd *netFD, nsec int64) os.Error {
 	if e := setReadTimeout(fd, nsec); e != nil {
-		return e
+		return e;
 	}
-	return setWriteTimeout(fd, nsec)
+	return setWriteTimeout(fd, nsec);
 }
 
 func setReuseAddr(fd *netFD, reuse bool) os.Error {
@@ -105,7 +105,7 @@ func setReuseAddr(fd *netFD, reuse bool) os.Error {
 
 func bindToDevice(fd *netFD, dev string) os.Error {
 	// TODO(rsc): call setsockopt with null-terminated string pointer
-	return os.EINVAL
+	return os.EINVAL;
 }
 
 func setDontRoute(fd *netFD, dontroute bool) os.Error {
@@ -132,8 +132,9 @@ func setLinger(fd *netFD, sec int) os.Error {
 type UnknownSocketError struct {
 	sa syscall.Sockaddr;
 }
+
 func (e *UnknownSocketError) String() string {
-	return "unknown socket address type " + reflect.Typeof(e.sa).String()
+	return "unknown socket address type " + reflect.Typeof(e.sa).String();
 }
 
 func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
@@ -148,4 +149,3 @@ func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
 
 	return "", &UnknownSocketError{sa};
 }
-

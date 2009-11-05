@@ -5,28 +5,29 @@
 package net
 
 import (
-	"testing"
+	"testing";
 )
 
 func isEqual(a, b IP) bool {
 	if a == nil && b == nil {
-		return true
+		return true;
 	}
 	if a == nil || b == nil || len(a) != len(b) {
-		return false
+		return false;
 	}
 	for i := 0; i < len(a); i++ {
 		if a[i] != b[i] {
-			return false
+			return false;
 		}
 	}
-	return true
+	return true;
 }
 
 type parseIPTest struct {
-	in string;
-	out IP;
+	in	string;
+	out	IP;
 }
+
 var parseiptests = []parseIPTest{
 	parseIPTest{"127.0.1.2", IPv4(127, 0, 1, 2)},
 	parseIPTest{"127.0.0.1", IPv4(127, 0, 0, 1)},
@@ -34,8 +35,10 @@ var parseiptests = []parseIPTest{
 	parseIPTest{"abc", nil},
 	parseIPTest{"::ffff:127.0.0.1", IPv4(127, 0, 0, 1)},
 	parseIPTest{"2001:4860:0:2001::68",
-		IP{0x20,0x01, 0x48,0x60, 0,0, 0x20,0x01,
-			0,0, 0,0, 0,0, 0x00,0x68}},
+		IP{0x20, 0x01, 0x48, 0x60, 0, 0, 0x20, 0x01,
+			0, 0, 0, 0, 0, 0, 0x00, 0x68,
+		},
+	},
 	parseIPTest{"::ffff:4a7d:1363", IPv4(74, 125, 19, 99)},
 }
 
