@@ -17,12 +17,12 @@ import (
 //	test ParseURL
 
 type URLTest struct {
-	in string;
-	out *URL;
-	roundtrip string; // expected result of reserializing the URL; empty means same as "in".
+	in		string;
+	out		*URL;
+	roundtrip	string;	// expected result of reserializing the URL; empty means same as "in".
 }
 
-var urltests = []URLTest {
+var urltests = []URLTest{
 	// no path
 	URLTest{
 		"http://www.google.com",
@@ -30,9 +30,9 @@ var urltests = []URLTest {
 			"http://www.google.com",
 			"http", "//www.google.com",
 			"www.google.com", "", "www.google.com",
-			"", "", ""
+			"", "", "",
 		},
-		""
+		"",
 	},
 	// path
 	URLTest{
@@ -41,9 +41,9 @@ var urltests = []URLTest {
 			"http://www.google.com/",
 			"http", "//www.google.com/",
 			"www.google.com", "", "www.google.com",
-			"/", "", ""
+			"/", "", "",
 		},
-		""
+		"",
 	},
 	// path with hex escaping... note that space roundtrips to +
 	URLTest{
@@ -52,9 +52,9 @@ var urltests = []URLTest {
 			"http://www.google.com/file%20one%26two",
 			"http", "//www.google.com/file%20one%26two",
 			"www.google.com", "", "www.google.com",
-			"/file one&two", "", ""
+			"/file one&two", "", "",
 		},
-		"http://www.google.com/file+one%26two"
+		"http://www.google.com/file+one%26two",
 	},
 	// user
 	URLTest{
@@ -63,9 +63,9 @@ var urltests = []URLTest {
 			"ftp://webmaster@www.google.com/",
 			"ftp", "//webmaster@www.google.com/",
 			"webmaster@www.google.com", "webmaster", "www.google.com",
-			"/", "", ""
+			"/", "", "",
 		},
-		""
+		"",
 	},
 	// escape sequence in username
 	URLTest{
@@ -74,9 +74,9 @@ var urltests = []URLTest {
 			"ftp://john%20doe@www.google.com/",
 			"ftp", "//john%20doe@www.google.com/",
 			"john doe@www.google.com", "john doe", "www.google.com",
-			"/", "", ""
+			"/", "", "",
 		},
-		"ftp://john+doe@www.google.com/"
+		"ftp://john+doe@www.google.com/",
 	},
 	// query
 	URLTest{
@@ -85,9 +85,9 @@ var urltests = []URLTest {
 			"http://www.google.com/?q=go+language",
 			"http", "//www.google.com/?q=go+language",
 			"www.google.com", "", "www.google.com",
-			"/", "q=go+language", ""
+			"/", "q=go+language", "",
 		},
-		""
+		"",
 	},
 	// query with hex escaping: NOT parsed
 	URLTest{
@@ -96,9 +96,9 @@ var urltests = []URLTest {
 			"http://www.google.com/?q=go%20language",
 			"http", "//www.google.com/?q=go%20language",
 			"www.google.com", "", "www.google.com",
-			"/", "q=go%20language", ""
+			"/", "q=go%20language", "",
 		},
-		""
+		"",
 	},
 	// path without /, so no query parsing
 	URLTest{
@@ -107,9 +107,9 @@ var urltests = []URLTest {
 			"http:www.google.com/?q=go+language",
 			"http", "www.google.com/?q=go+language",
 			"", "", "",
-			"www.google.com/?q=go language", "", ""
+			"www.google.com/?q=go language", "", "",
 		},
-		"http:www.google.com/%3fq%3dgo+language"
+		"http:www.google.com/%3fq%3dgo+language",
 	},
 	// non-authority
 	URLTest{
@@ -118,9 +118,9 @@ var urltests = []URLTest {
 			"mailto:/webmaster@golang.org",
 			"mailto", "/webmaster@golang.org",
 			"", "", "",
-			"/webmaster@golang.org", "", ""
+			"/webmaster@golang.org", "", "",
 		},
-		""
+		"",
 	},
 	// non-authority
 	URLTest{
@@ -129,9 +129,9 @@ var urltests = []URLTest {
 			"mailto:webmaster@golang.org",
 			"mailto", "webmaster@golang.org",
 			"", "", "",
-			"webmaster@golang.org", "", ""
+			"webmaster@golang.org", "", "",
 		},
-		""
+		"",
 	},
 	// unescaped :// in query should not create a scheme
 	URLTest{
@@ -140,35 +140,35 @@ var urltests = []URLTest {
 			"/foo?query=http://bad",
 			"", "/foo?query=http://bad",
 			"", "", "",
-			"/foo", "query=http://bad", ""
+			"/foo", "query=http://bad", "",
 		},
-		""
+		"",
 	},
 }
 
-var urlnofragtests = []URLTest {
+var urlnofragtests = []URLTest{
 	URLTest{
 		"http://www.google.com/?q=go+language#foo",
 		&URL{
 			"http://www.google.com/?q=go+language#foo",
 			"http", "//www.google.com/?q=go+language#foo",
 			"www.google.com", "", "www.google.com",
-			"/", "q=go+language#foo", ""
+			"/", "q=go+language#foo", "",
 		},
-		""
+		"",
 	},
 }
 
-var urlfragtests = []URLTest {
+var urlfragtests = []URLTest{
 	URLTest{
 		"http://www.google.com/?q=go+language#foo",
 		&URL{
 			"http://www.google.com/?q=go+language",
 			"http", "//www.google.com/?q=go+language",
 			"www.google.com", "", "www.google.com",
-			"/", "q=go+language", "foo"
+			"/", "q=go+language", "foo",
 		},
-		""
+		"",
 	},
 	URLTest{
 		"http://www.google.com/?q=go+language#foo%26bar",
@@ -176,9 +176,9 @@ var urlfragtests = []URLTest {
 			"http://www.google.com/?q=go+language",
 			"http", "//www.google.com/?q=go+language",
 			"www.google.com", "", "www.google.com",
-			"/", "q=go+language", "foo&bar"
+			"/", "q=go+language", "foo&bar",
 		},
-		""
+		"",
 	},
 }
 
@@ -241,64 +241,64 @@ func TestURLString(t *testing.T) {
 }
 
 type URLEscapeTest struct {
-	in string;
-	out string;
-	err os.Error;
+	in	string;
+	out	string;
+	err	os.Error;
 }
 
-var unescapeTests = []URLEscapeTest {
+var unescapeTests = []URLEscapeTest{
 	URLEscapeTest{
 		"",
 		"",
-		nil
+		nil,
 	},
 	URLEscapeTest{
 		"abc",
 		"abc",
-		nil
+		nil,
 	},
 	URLEscapeTest{
 		"1%41",
 		"1A",
-		nil
+		nil,
 	},
 	URLEscapeTest{
 		"1%41%42%43",
 		"1ABC",
-		nil
+		nil,
 	},
 	URLEscapeTest{
 		"%4a",
 		"J",
-		nil
+		nil,
 	},
 	URLEscapeTest{
 		"%6F",
 		"o",
-		nil
+		nil,
 	},
 	URLEscapeTest{
-		"%", // not enough characters after %
+		"%",	// not enough characters after %
 		"",
 		URLEscapeError("%"),
 	},
 	URLEscapeTest{
-		"%a", // not enough characters after %
+		"%a",	// not enough characters after %
 		"",
 		URLEscapeError("%a"),
 	},
 	URLEscapeTest{
-		"%1", // not enough characters after %
+		"%1",	// not enough characters after %
 		"",
 		URLEscapeError("%1"),
 	},
 	URLEscapeTest{
-		"123%45%6", // not enough characters after %
+		"123%45%6",	// not enough characters after %
 		"",
 		URLEscapeError("%6"),
 	},
 	URLEscapeTest{
-		"%zzzzz", // invalid hex digits
+		"%zzzzz",	// invalid hex digits
 		"",
 		URLEscapeError("%zz"),
 	},
@@ -313,31 +313,31 @@ func TestURLUnescape(t *testing.T) {
 	}
 }
 
-var escapeTests = []URLEscapeTest {
+var escapeTests = []URLEscapeTest{
 	URLEscapeTest{
 		"",
 		"",
-		nil
+		nil,
 	},
 	URLEscapeTest{
 		"abc",
 		"abc",
-		nil
+		nil,
 	},
 	URLEscapeTest{
 		"one two",
 		"one+two",
-		nil
+		nil,
 	},
 	URLEscapeTest{
 		"10%",
 		"10%25",
-		nil
+		nil,
 	},
 	URLEscapeTest{
 		" ?&=#+%!",
 		"+%3f%26%3d%23%2b%25!",
-		nil
+		nil,
 	},
 }
 
@@ -355,4 +355,3 @@ func TestURLEscape(t *testing.T) {
 		}
 	}
 }
-

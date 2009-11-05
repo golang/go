@@ -21,7 +21,7 @@ const (
 )
 
 // The size of an Adler-32 checksum in bytes.
-const Size = 4;
+const Size = 4
 
 // digest represents the partial evaluation of a checksum.
 type digest struct {
@@ -51,7 +51,7 @@ func update(a, b uint32, p []byte) (aa, bb uint32) {
 		a += uint32(p[i]);
 		b += a;
 		// invariant: a <= b
-		if b > (0xffffffff - 255) / 2 {
+		if b > (0xffffffff - 255)/2 {
 			a %= mod;
 			b %= mod;
 			// invariant: a < mod && b < mod

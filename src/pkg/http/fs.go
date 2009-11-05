@@ -16,14 +16,14 @@ import (
 )
 
 // TODO this should be in a mime package somewhere
-var contentByExt = map[string] string {
-	".css":	"text/css",
-	".gif":	"image/gif",
-	".html":	"text/html; charset=utf-8",
-	".jpg":	"image/jpeg",
-	".js":	"application/x-javascript",
-	".pdf":	"application/pdf",
-	".png":	"image/png",
+var contentByExt = map[string]string{
+	".css": "text/css",
+	".gif": "image/gif",
+	".html": "text/html; charset=utf-8",
+	".jpg": "image/jpeg",
+	".js": "application/x-javascript",
+	".pdf": "application/pdf",
+	".png": "image/png",
 }
 
 // Heuristic: b is text if it is valid UTF-8 and doesn't
@@ -57,12 +57,12 @@ func dirList(c *Conn, f *os.File) {
 	for {
 		dirs, err := f.Readdir(100);
 		if err != nil || len(dirs) == 0 {
-			break
+			break;
 		}
 		for _, d := range dirs {
 			name := d.Name;
 			if d.IsDirectory() {
-				name += "/"
+				name += "/";
 			}
 			// TODO htmlescape
 			fmt.Fprintf(c, "<a href=\"%s\">%s</a>\n", name, name);
@@ -76,9 +76,9 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 	const indexPage = "/index.html";
 
 	// redirect to strip off any index.html
-	n := len(name) - len(indexPage);
+	n := len(name)-len(indexPage);
 	if n >= 0 && name[n:len(name)] == indexPage {
-		Redirect(c, name[0:n+1], StatusMovedPermanently);
+		Redirect(c, name[0 : n+1], StatusMovedPermanently);
 		return;
 	}
 
@@ -103,12 +103,12 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 		url := r.Url.Path;
 		if d.IsDirectory() {
 			if url[len(url)-1] != '/' {
-				Redirect(c, url + "/", StatusMovedPermanently);
+				Redirect(c, url+"/", StatusMovedPermanently);
 				return;
 			}
 		} else {
 			if url[len(url)-1] == '/' {
-				Redirect(c, url[0:len(url)-1], StatusMovedPermanently);
+				Redirect(c, url[0 : len(url)-1], StatusMovedPermanently);
 				return;
 			}
 		}
@@ -160,8 +160,8 @@ func ServeFile(c *Conn, r *Request, name string) {
 }
 
 type fileHandler struct {
-	root string;
-	prefix string;
+	root	string;
+	prefix	string;
 }
 
 // FileServer returns a handler that serves HTTP requests
@@ -181,4 +181,3 @@ func (f *fileHandler) ServeHTTP(c *Conn, r *Request) {
 	path = path[len(f.prefix):len(path)];
 	serveFileInternal(c, r, f.root + "/" + path, true);
 }
-
