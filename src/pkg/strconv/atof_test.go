@@ -5,10 +5,10 @@
 package strconv_test
 
 import (
-		"os";
-		"reflect";
-	.	"strconv";
-		"testing";
+	"os";
+	"reflect";
+	. "strconv";
+	"testing";
 )
 
 type atofTest struct {

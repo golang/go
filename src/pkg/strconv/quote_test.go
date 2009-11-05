@@ -5,9 +5,9 @@
 package strconv_test
 
 import (
-		"os";
-	.	"strconv";
-		"testing";
+	"os";
+	. "strconv";
+	"testing";
 )
 
 type quoteTest struct {
