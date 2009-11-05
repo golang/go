@@ -29,7 +29,7 @@ func (p *Prog) loadDebugInfo() {
 	names := make([]string, 0, len(m));
 	for name, _ := range m {
 		i := len(names);
-		names = names[0:i+1];
+		names = names[0 : i+1];
 		names[i] = name;
 		m[name] = i;
 	}
@@ -210,7 +210,9 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
 	}
 
 	// Try to parse f as ELF and Mach-O and hope one works.
-	var f interface{DWARF() (*dwarf.Data, os.Error)};
+	var f interface {
+		DWARF() (*dwarf.Data, os.Error);
+	}
 	var err os.Error;
 	if f, err = elf.Open(tmp); err != nil {
 		if f, err = macho.Open(tmp); err != nil {
@@ -229,21 +231,21 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
 // with equivalent memory layout.
 type typeConv struct {
 	// Cache of already-translated or in-progress types.
-	m map[dwarf.Type]*Type;
-	typedef map[string]ast.Expr;
+	m	map[dwarf.Type]*Type;
+	typedef	map[string]ast.Expr;
 
 	// Predeclared types.
-	byte ast.Expr;	// denotes padding
-	int8, int16, int32, int64 ast.Expr;
-	uint8, uint16, uint32, uint64, uintptr ast.Expr;
-	float32, float64 ast.Expr;
-	void ast.Expr;
-	unsafePointer ast.Expr;
-	string ast.Expr;
+	byte					ast.Expr;	// denotes padding
+	int8, int16, int32, int64		ast.Expr;
+	uint8, uint16, uint32, uint64, uintptr	ast.Expr;
+	float32, float64			ast.Expr;
+	void					ast.Expr;
+	unsafePointer				ast.Expr;
+	string					ast.Expr;
 
-	ptrSize int64;
+	ptrSize	int64;
 
-	tagGen int;
+	tagGen	int;
 }
 
 func (c *typeConv) Init(ptrSize int64) {
@@ -284,7 +286,7 @@ func base(dt dwarf.Type) dwarf.Type {
 }
 
 // Map from dwarf text names to aliases we use in package "C".
-var cnameMap = map[string] string {
+var cnameMap = map[string]string{
 	"long int": "long",
 	"long unsigned int": "ulong",
 	"unsigned int": "uint",
@@ -293,7 +295,7 @@ var cnameMap = map[string] string {
 	"long long int": "longlong",
 	"long long unsigned int": "ulonglong",
 	"signed char": "schar",
-};
+}
 
 // Type returns a *Type with the same memory layout as
 // dtype when used as the type of a variable or a struct field.
@@ -513,7 +515,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 				s = ss;
 			}
 			s = strings.Join(strings.Split(s, " ", 0), "");	// strip spaces
-			name := c.Ident("_C_" + s);
+			name := c.Ident("_C_"+s);
 			c.typedef[name.Value] = t.Go;
 			t.Go = name;
 		}
@@ -538,7 +540,7 @@ func (c *typeConv) FuncArg(dtype dwarf.Type) *Type {
 			Size: c.ptrSize,
 			Align: c.ptrSize,
 			Go: &ast.StarExpr{X: t.Go},
-			C: t.C + "*"
+			C: t.C + "*",
 		};
 	case *dwarf.TypedefType:
 		// C has much more relaxed rules than Go for
@@ -572,8 +574,8 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType) *FuncType {
 		Result: r,
 		Go: &ast.FuncType{
 			Params: gp,
-			Results: gr
-		}
+			Results: gr,
+		},
 	};
 }
 
@@ -586,7 +588,7 @@ func (c *typeConv) Ident(s string) *ast.Ident {
 func (c *typeConv) Opaque(n int64) ast.Expr {
 	return &ast.ArrayType{
 		Len: c.intExpr(n),
-		Elt: c.byte
+		Elt: c.byte,
 	};
 }
 
@@ -595,21 +597,21 @@ func (c *typeConv) intExpr(n int64) ast.Expr {
 	return &ast.BasicLit{
 		Kind: token.INT,
 		Value: strings.Bytes(strconv.Itoa64(n)),
-	}
+	};
 }
 
 // Add padding of given size to fld.
 func (c *typeConv) pad(fld []*ast.Field, size int64) []*ast.Field {
 	n := len(fld);
-	fld = fld[0:n+1];
+	fld = fld[0 : n+1];
 	fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident("_")}, Type: c.Opaque(size)};
 	return fld;
 }
 
 // Struct conversion
-func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax string, align int64)  {
+func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax string, align int64) {
 	csyntax = "struct { ";
-	fld := make([]*ast.Field, 0, 2*len(dt.Field)+1);	// enough for padding around every field
+	fld := make([]*ast.Field, 0, 2*len(dt.Field) + 1);	// enough for padding around every field
 	off := int64(0);
 	for _, f := range dt.Field {
 		if f.ByteOffset > off {
@@ -618,7 +620,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
 		}
 		t := c.Type(f.Type);
 		n := len(fld);
-		fld = fld[0:n+1];
+		fld = fld[0 : n+1];
 		fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident(f.Name)}, Type: t.Go};
 		off += t.Size;
 		csyntax += t.C + " " + f.Name + "; ";
