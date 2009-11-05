@@ -127,6 +127,7 @@ func Unmarshal(r io.Reader, val interface{}) os.Error {
 
 // An UnmarshalError represents an error in the unmarshalling process.
 type UnmarshalError string
+
 func (e UnmarshalError) String() string {
 	return string(e);
 }
@@ -172,12 +173,12 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 	}
 
 	var (
-		data []byte;
-		saveData reflect.Value;
-		comment []byte;
-		saveComment reflect.Value;
-		sv *reflect.StructValue;
-		styp *reflect.StructType;
+		data		[]byte;
+		saveData	reflect.Value;
+		comment		[]byte;
+		saveComment	reflect.Value;
+		sv		*reflect.StructValue;
+		styp		*reflect.StructType;
 	)
 	switch v := val.(type) {
 	case *reflect.BoolValue:
@@ -232,7 +233,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 				ns := "";
 				i := strings.LastIndex(tag, " ");
 				if i >= 0 {
-					ns, tag = tag[0:i], tag[i+1:len(tag)];
+					ns, tag = tag[0:i], tag[i+1 : len(tag)];
 				}
 				if tag != start.Name.Local {
 					return UnmarshalError("expected element type <" + tag + "> but have <" + start.Name.Local + ">");

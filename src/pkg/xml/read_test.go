@@ -78,38 +78,38 @@ not being used from outside intra_region_diff.py.
 </summary></entry></feed>`
 
 type Feed struct {
-	XMLName Name "http://www.w3.org/2005/Atom feed";
-	Title string;
-	Id string;
-	Link []Link;
-	Updated Time;
-	Author Person;
-	Entry []Entry;
+	XMLName	Name	"http://www.w3.org/2005/Atom feed";
+	Title	string;
+	Id	string;
+	Link	[]Link;
+	Updated	Time;
+	Author	Person;
+	Entry	[]Entry;
 }
 
 type Entry struct {
-	Title string;
-	Id string;
-	Link []Link;
-	Updated Time;
-	Author Person;
-	Summary Text;
+	Title	string;
+	Id	string;
+	Link	[]Link;
+	Updated	Time;
+	Author	Person;
+	Summary	Text;
 }
 
 type Link struct {
-	Rel string "attr";
-	Href string "attr";
+	Rel	string	"attr";
+	Href	string	"attr";
 }
 
 type Person struct {
-	Name string;
-	URI string;
-	Email string;
+	Name	string;
+	URI	string;
+	Email	string;
 }
 
 type Text struct {
-	Type string "attr";
-	Body string "chardata";
+	Type	string	"attr";
+	Body	string	"chardata";
 }
 
 type Time string
@@ -124,7 +124,7 @@ var rssFeed = Feed{
 	Id: "http://codereview.appspot.com/",
 	Updated: "2009-10-04T01:35:58+00:00",
 	Author: Person{
-		Name: "rietveld"
+		Name: "rietveld",
 	},
 	Entry: []Entry{
 		Entry{
@@ -134,7 +134,7 @@ var rssFeed = Feed{
 			},
 			Updated: "2009-10-04T01:35:58+00:00",
 			Author: Person{
-				Name: "email-address-removed"
+				Name: "email-address-removed",
 			},
 			Id: "urn:md5:134d9179c41f806be79b3a5f7877d19a",
 			Summary: Text{
@@ -170,7 +170,7 @@ feedback on the right way to get the two values at
 the top of feeds.py marked NOTE(rsc).
 
 
-`
+`,
 			},
 		},
 		Entry{
@@ -180,7 +180,7 @@ the top of feeds.py marked NOTE(rsc).
 			},
 			Updated: "2009-10-03T23:02:17+00:00",
 			Author: Person{
-				Name: "email-address-removed"
+				Name: "email-address-removed",
 			},
 			Id: "urn:md5:0a2a4f19bb815101f0ba2904aed7c35a",
 			Summary: Text{
@@ -203,8 +203,8 @@ call sites.  I also wanted to verify that ExpandTabs was
 not being used from outside intra_region_diff.py.
 
 
-`
-			}
+`,
+			},
 		},
-	}
+	},
 }
