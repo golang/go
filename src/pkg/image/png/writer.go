@@ -137,18 +137,18 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
 	// This is the same heuristic that libpng uses, although the filters are attempted in order of
 	// estimated most likely to be minimal (ftUp, ftPaeth, ftNone, ftSub, ftAverage), rather than
 	// in their enumeration order (ftNone, ftSub, ftUp, ftAverage, ftPaeth).
-	cdat0 := cr[0][1 : len(cr[0])];
-	cdat1 := cr[1][1 : len(cr[1])];
-	cdat2 := cr[2][1 : len(cr[2])];
-	cdat3 := cr[3][1 : len(cr[3])];
-	cdat4 := cr[4][1 : len(cr[4])];
-	pdat := pr[1 : len(pr)];
+	cdat0 := cr[0][1:len(cr[0])];
+	cdat1 := cr[1][1:len(cr[1])];
+	cdat2 := cr[2][1:len(cr[2])];
+	cdat3 := cr[3][1:len(cr[3])];
+	cdat4 := cr[4][1:len(cr[4])];
+	pdat := pr[1:len(pr)];
 	n := len(cdat0);
 
 	// The up filter.
 	sum := 0;
 	for i := 0; i < n; i++ {
-		cdat2[i] = cdat0[i] - pdat[i];
+		cdat2[i] = cdat0[i]-pdat[i];
 		sum += abs8(cdat2[i]);
 	}
 	best := sum;
@@ -192,7 +192,7 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
 		sum += abs8(cdat1[i]);
 	}
 	for i := bpp; i < n; i++ {
-		cdat1[i] = cdat0[i] - cdat0[i-bpp];
+		cdat1[i] = cdat0[i]-cdat0[i-bpp];
 		sum += abs8(cdat1[i]);
 		if sum >= best {
 			break;
@@ -206,11 +206,11 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
 	// The average filter.
 	sum = 0;
 	for i := 0; i < bpp; i++ {
-		cdat3[i] = cdat0[i] - pdat[i] / 2;
+		cdat3[i] = cdat0[i] - pdat[i]/2;
 		sum += abs8(cdat3[i]);
 	}
 	for i := bpp; i < n; i++ {
-		cdat3[i] = cdat0[i] - uint8((int(cdat0[i-bpp]) + int(pdat[i]))/2);
+		cdat3[i] = cdat0[i]-uint8((int(cdat0[i-bpp])+int(pdat[i]))/2);
 		sum += abs8(cdat3[i]);
 		if sum >= best {
 			break;
@@ -249,10 +249,10 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 	// The +1 is for the per-row filter type, which is at cr[*][0].
 	var cr [nFilter][]uint8;
 	for i := 0; i < len(cr); i++ {
-		cr[i] = make([]uint8, 1 + bpp*m.Width());
+		cr[i] = make([]uint8, 1 + bpp * m.Width());
 		cr[i][0] = uint8(i);
 	}
-	pr := make([]uint8, 1 + bpp*m.Width());
+	pr := make([]uint8, 1 + bpp * m.Width());
 
 	for y := 0; y < m.Height(); y++ {
 		// Convert from colors to bytes.
