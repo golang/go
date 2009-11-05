@@ -5,12 +5,12 @@
 package io_test
 
 import (
-		"fmt";
-	.	"io";
-		"os";
-		"strings";
-		"testing";
-		"time";
+	"fmt";
+	. "io";
+	"os";
+	"strings";
+	"testing";
+	"time";
 )
 
 func checkWrite(t *testing.T, w Writer, data []byte, c chan int) {
