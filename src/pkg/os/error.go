@@ -74,7 +74,7 @@ var (
 	EADDRINUSE	Error	= Errno(syscall.EADDRINUSE);
 	ECONNREFUSED	Error	= Errno(syscall.ECONNREFUSED);
 	ENAMETOOLONG	Error	= Errno(syscall.ENAMETOOLONG);
-	EAFNOSUPPORT	Error = Errno(syscall.EAFNOSUPPORT);
+	EAFNOSUPPORT	Error	= Errno(syscall.EAFNOSUPPORT);
 )
 
 // PathError records an error and the operation and file path that caused it.
