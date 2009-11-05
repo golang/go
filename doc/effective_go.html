@@ -2360,6 +2360,137 @@ for try := 0; try < 2; try++ {
 }
 </pre>
 
+<h2 id="web_server">A web server</h2>
+
+<p>
+Let's finish with a complete Go program, a web server.
+This one is actually a kind of web re-server.
+Google provides a service at
+<a href="http://chart.apis.google.com">http://chart.apis.google.com</a>
+that does automatic formatting of data into charts and graphs.
+It's hard to use interactively, though,
+because you need to put the data into the URL as a query.
+The program here provides a nicer interface to one form of data: given a short piece of text,
+it calls on the chart server to produce a QR code, a matrix of boxes that encode the
+text.
+That image can be grabbed with your cell phone's camera and interpreted as,
+for instance, a URL, saving you typing the URL into the phone's tiny keyboard.
+</p>
+<p>
+Here's the complete program.
+An explanation follows.
+</p>
+
+<pre>
+package main
+
+import (
+	"flag";
+	"http";
+	"io";
+	"log";
+	"strings";
+	"template";
+)
+
+var addr = flag.String("addr", ":1718", "http service address") // Q = 17, R = 18
+var fmap = template.FormatterMap{
+	"html": template.HtmlFormatter,
+	"url+html": UrlHtmlFormatter,
+}
+var templ = template.MustParse(templateStr, fmap)
+
+func main() {
+	flag.Parse();
+	http.Handle("/", http.HandlerFunc(QR));
+	err := http.ListenAndServe(*addr, nil);
+	if err != nil {
+		log.Exit("ListenAndServe:", err);
+	}
+}
+
+func QR(c *http.Conn, req *http.Request) {
+	templ.Execute(req.FormValue("s"), c);
+}
+
+func UrlHtmlFormatter(w io.Writer, v interface{}, fmt string) {
+	template.HtmlEscape(w, strings.Bytes(http.URLEscape(v.(string))));
+}
+
+
+const templateStr = `
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;QR Link Generator&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+{.section @}
+&lt;img src="http://chart.apis.google.com/chart?chs=300x300&amp;cht=qr&amp;choe=UTF-8&amp;chl={@|url+html}"
+/&gt;
+&lt;br&gt;
+{@|html}
+&lt;br&gt;
+&lt;br&gt;
+{.end}
+&lt;form action="/" name=f method="GET"&gt;&lt;input maxLength=1024 size=70
+name=s value="" title="Text to QR Encode"&gt;&lt;input type=submit
+value="Show QR" name=qr&gt;
+&lt;/form&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+`
+</pre>
+
+<p>
+The pieces up to <code>main</code> should be easy to follow.
+The one flag sets a default HTTP port for our server.  The template
+variable <code>templ</code> is where the fun happens. It builds an HTML template
+that will be executed by the server to display the page; more about
+that in a moment.
+</p>
+<p>
+The <code>main</code> function parses the flags and, using the mechanism
+we talked about above, binds the function <code>QR</code> to the root path
+for the server.  Then <code>http.ListenAndServe</code> is called to start the
+server; it blocks while the server runs.
+</p>
+<p>
+<code>QR</code> just receives the request, which contains form data, and
+executes the template on the data in the field named <code>s</code>.
+</p>
+<p>
+The template package, inspired by <a
+href="http://code.google.com/p/json-template">json-template</a>, is
+powerful;
+this program just touches on its capabilities.
+In essence, it rewrites a piece of text on the fly by substituting elements derived
+from data items passed to <code>templ.Execute</code>, in this case the
+string in the form data.  
+Within the template text (<code>templateStr</code>),
+brace-delimited pieces denote template actions.
+The piece from the <code>{.section @}</code>
+to <code>{.end}</code> executes with the value of the data item <code>@</code>,
+which is a shorthand for &ldquo;the current item&rdquo;, in this case the form data.
+(When the string is empty, this piece of the template is suppressed.)
+</p>
+<p>
+The snippet <code>{@|url+html}</code> says to run the data through the formatter
+installed in the formatter map (<code>fmap</code>)
+under the name <code>"url+html"</code>.
+That is the function <code>UrlHtmlFormatter</code>, which sanitizes the string
+for safe display on the web page.
+</p>
+<p>
+The rest of the template string is just the HTML to show when the page loads.
+If this is too quick an explanation, see the <a href="/pkg/template/">documentation</a>
+for the template package for a more thorough discussion.
+</p>
+<p>
+And there you have it: a useful webserver in a few lines of code plus some
+data-driven HTML text.
+Go is powerful enough to make a lot happen in a few lines.
+</p>
+
 <!--
 TODO
 <pre>	
