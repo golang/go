@@ -34,6 +34,8 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sys	socket(domain int, typ int, proto int) (fd int, errno int)
 //sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 //sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+//sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
+//sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
 
 //sys	Chown(path string, uid int, gid int) (errno int)
 //sys	Fchown(fd int, uid int, gid int) (errno int)
