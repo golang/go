@@ -15,7 +15,7 @@ import (
 
 // The go PNG library currently supports only a subset of the full PNG specification.
 // In particular, bit depths other than 8 are not supported, and neither are grayscale images.
-var filenames = []string {
+var filenames = []string{
 	//"basn0g01",	// bit depth is not 8
 	//"basn0g02",	// bit depth is not 8
 	//"basn0g04",	// bit depth is not 8
@@ -114,7 +114,7 @@ func TestReader(t *testing.T) {
 		image, err := readPng("testdata/pngsuite/" + fn + ".png");
 		if err != nil {
 			t.Error(fn, err);
-			continue
+			continue;
 		}
 		piper, pipew := io.Pipe();
 		pb := bufio.NewReader(piper);
@@ -125,13 +125,13 @@ func TestReader(t *testing.T) {
 		sf, err := os.Open("testdata/pngsuite/" + fn + ".sng", os.O_RDONLY, 0444);
 		if err != nil {
 			t.Error(fn, err);
-			continue
+			continue;
 		}
 		defer sf.Close();
 		sb := bufio.NewReader(sf);
 		if err != nil {
 			t.Error(fn, err);
-			continue
+			continue;
 		}
 
 		// Compare the two, in SNG format, line by line.
