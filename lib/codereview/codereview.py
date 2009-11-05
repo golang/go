@@ -144,7 +144,7 @@ class CL(object):
 		dir = CodeReviewDir(ui, repo)
 		os.unlink(dir + "/cl." + self.name)
 
-	def Subject(self): 
+	def Subject(self):
 		s = line1(self.desc)
 		if len(s) > 60:
 			s = s[0:55] + "..."
@@ -152,7 +152,9 @@ class CL(object):
 			s = "code review %s: %s" % (self.name, s)
 		return s
 
-	def Upload(self, ui, repo, send_mail=False):
+	def Upload(self, ui, repo, send_mail=False, gofmt=True):
+		if ui.configbool("codereview", "force_gofmt", False) and gofmt:
+			CheckGofmt(ui, repo, self.files)
 		os.chdir(repo.root)
 		form_fields = [
 			("content_upload", "1"),
@@ -434,6 +436,15 @@ def ChangedFiles(ui, repo, pats, opts):
 	l.sort()
 	return l
 
+# Return list of changed files in repository that match pats and still exist.
+def ChangedExistingFiles(ui, repo, pats, opts):
+	matcher = cmdutil.match(repo, pats, opts)
+	node1, node2 = cmdutil.revpair(repo, None)
+	modified, added, _ = repo.status(node1, node2, matcher)[:3]
+	l = modified + added
+	l.sort()
+	return l
+
 # Return list of files claimed by existing CLs
 def TakenFiles(ui, repo):
 	return Taken(ui, repo).keys()
@@ -540,8 +551,35 @@ def ReplacementForCmdutilMatch(repo, pats=[], opts={}, globbed=False, default='r
 			if err != '':
 				raise util.Abort("loading CL " + clname + ": " + err)
 			files = Add(files, cl.files)
-	pats = Sub(pats, taken)	+ ['path:'+f for f in files]	
+	pats = Sub(pats, taken)	+ ['path:'+f for f in files]
 	return original_match(repo, pats=pats, opts=opts, globbed=globbed, default=default)
+
+def RelativePath(path, cwd):
+	n = len(cwd)
+	if path.startswith(cwd) and path[n] == '/':
+		return path[n+1:]
+	return path
+
+# Check that gofmt run on the list of files does not change them
+def CheckGofmt(ui, repo, files):
+	f = [f for f in files if f.endswith('.go')]
+	if not f:
+		return
+	cwd = os.getcwd()
+	files = [RelativePath(repo.root + '/' + f, cwd) for f in files]
+	try:
+		stdin, stdout, stderr = os.popen3(["gofmt", "-l"] + files)
+		stdin.close()
+	except:
+		raise util.Abort("gofmt: " + ExceptionDetail())
+	data = stdout.read()
+	errors = stderr.read()
+	if len(errors) > 0:
+		ui.warn("gofmt errors:\n" + errors.rstrip() + "\n")
+		return
+	if len(data) > 0:
+		raise util.Abort("gofmt needs to format these files (run hg gofmt):\n" + data)
+	return
 
 #######################################################################
 # Mercurial commands
@@ -592,7 +630,7 @@ def change(ui, repo, *pats, **opts):
 		files = ChangedFiles(ui, repo, pats, opts)
 		taken = TakenFiles(ui, repo)
 		files = Sub(files, taken)
-	
+
 	if opts["delete"]:
 		if name == "new":
 			return "cannot use -d with file patterns"
@@ -643,7 +681,7 @@ def change(ui, repo, *pats, **opts):
 			ui.write("CL created: " + cl.url + "\n")
 	return
 
-def codereview_login(ui, repo, **opts):
+def code_login(ui, repo, **opts):
 	"""log in to code review server
 
 	Logs in to the code review server, saving a cookie in
@@ -653,16 +691,16 @@ def codereview_login(ui, repo, **opts):
 
 def file(ui, repo, clname, pat, *pats, **opts):
 	"""assign files to or remove files from a change list
-	
+
 	Assign files to or (with -d) remove files from a change list.
-	
+
 	The -d option only removes files from the change list.
 	It does not edit them or remove them from the repository.
 	"""
 	pats = tuple([pat] + list(pats))
 	if not GoodCLName(clname):
 		return "invalid CL name " + clname
-	
+
 	dirty = {}
 	cl, err = LoadCL(ui, repo, clname, web=False)
 	if err != '':
@@ -709,8 +747,34 @@ def file(ui, repo, clname, pat, *pats, **opts):
 	for d, _ in dirty.items():
 		d.Flush(ui, repo)
 	return
-	
+
+def gofmt(ui, repo, *pats, **opts):
+	"""apply gofmt to modified files
+
+	Applies gofmt to the modified files in the repository that match
+	the given patterns.
+	"""
+	files = ChangedExistingFiles(ui, repo, pats, opts)
+	files = [f for f in files if f.endswith(".go")]
+	if not files:
+		return "no modified go files"
+	cwd = os.getcwd()
+	files = [RelativePath(repo.root + '/' + f, cwd) for f in files]
+	try:
+		if os.spawnvp(os.P_WAIT, "gofmt", ["gofmt", "-l", "-w"] + files) != 0:
+			raise util.Abort("gofmt did not exit cleanly")
+	except error.Abort, e:
+		raise
+	except:
+		raise util.Abort("gofmt: " + ExceptionDetail())
+	return
+
 def mail(ui, repo, *pats, **opts):
+	"""mail a change for review
+
+	Uploads a patch to the code review server and then sends mail
+	to the reviewer and CC list asking for a review.
+	"""
 	cl, err = CommandLineCL(ui, repo, pats, opts)
 	if err != "":
 		return err
@@ -723,9 +787,14 @@ def mail(ui, repo, *pats, **opts):
 	PostMessage(cl.name, pmsg, send_mail="checked", subject=cl.Subject())
 
 def nocommit(ui, repo, *pats, **opts):
+	"""(disabled when using this extension)"""
 	return "The codereview extension is enabled; do not use commit."
 
 def pending(ui, repo, *pats, **opts):
+	"""show pending changes
+
+	Lists pending changes followed by a list of unassigned but modified files.
+	"""
 	m = LoadAllCL(ui, repo, web=True)
 	names = m.keys()
 	names.sort()
@@ -902,6 +971,10 @@ def uisetup(ui):
 		commands.table["^commit|ci"] = (nocommit, [], "")
 
 def upload(ui, repo, name, **opts):
+	"""upload diffs to the code review server
+
+	Uploads the current modifications for a given change to the server.
+	"""
 	repo.ui.quiet = True
 	cl, err = LoadCL(ui, repo, name, web=True)
 	if err != "":
@@ -931,8 +1004,11 @@ cmdtable = {
 		],
 		"[-i] [-o] change# or FILE ..."
 	),
-	"codereview-login": (
-		codereview_login,
+	# Would prefer to call this codereview-login, but then
+	# hg help codereview prints the help for this command
+	# instead of the help for the extension.
+	"code-login": (
+		code_login,
 		[],
 		"",
 	),
@@ -947,6 +1023,11 @@ cmdtable = {
 			('d', 'delete', None, 'delete files from change list (but not repository)'),
 		],
 		"[-d] change# FILE ..."
+	),
+	"^gofmt": (
+		gofmt,
+		[],
+		"FILE ..."
 	),
 	"^pending|p": (
 		pending,
@@ -1198,7 +1279,7 @@ def RietveldSetup(ui, repo):
 	# if not ui.has_section("codereview"):
 	# 	cmdtable = {}
 	# 	return
-	
+
 	if not ui.verbose:
 		verbosity = 0
 
