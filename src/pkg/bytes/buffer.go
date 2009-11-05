@@ -46,7 +46,7 @@ func (b *Buffer) Bytes() []byte {
 func (b *Buffer) String() string {
 	if b == nil {
 		// Special case, useful in debugging.
-		return "<nil>"
+		return "<nil>";
 	}
 	return string(b.buf[b.off : len(b.buf)]);
 }
