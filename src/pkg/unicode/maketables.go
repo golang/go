@@ -30,7 +30,7 @@ func main() {
 	printCases();
 }
 
-var dataUrl = flag.String("data", "", "full URL for UnicodeData.txt; defaults to --url/UnicodeData.txt");
+var dataUrl = flag.String("data", "", "full URL for UnicodeData.txt; defaults to --url/UnicodeData.txt")
 var url = flag.String("url",
 	"http://www.unicode.org/Public/5.1.0/ucd/",
 	"URL of Unicode database directory")
@@ -51,9 +51,9 @@ var test = flag.Bool("test",
 	"test existing tables; can be used to compare web data with package data")
 
 var scriptRe = regexp.MustCompile(`([0-9A-F]+)(\.\.[0-9A-F]+)? *; ([A-Za-z_]+)`)
-var die = log.New(os.Stderr, nil, "", log.Lexit|log.Lshortfile)
+var die = log.New(os.Stderr, nil, "", log.Lexit | log.Lshortfile)
 
-var category = map[string] bool{ "letter":true }	// Nd Lu etc. letter is a special case
+var category = map[string]bool{"letter": true}	// Nd Lu etc. letter is a special case
 
 // UnicodeData.txt has form:
 //	0037;DIGIT SEVEN;Nd;0;EN;;7;7;7;N;;;;;
@@ -61,7 +61,7 @@ var category = map[string] bool{ "letter":true }	// Nd Lu etc. letter is a speci
 // See http://www.unicode.org/Public/5.1.0/ucd/UCD.html for full explanation
 // The fields:
 const (
-	FCodePoint = iota;
+	FCodePoint	= iota;
 	FName;
 	FGeneralCategory;
 	FCanonicalCombiningClass;
@@ -78,7 +78,7 @@ const (
 	FSimpleTitlecaseMapping;
 	NumField;
 
-	MaxChar = 0x10FFFF;	// anything above this shouldn't exist
+	MaxChar	= 0x10FFFF;	// anything above this shouldn't exist
 )
 
 var fieldName = []string{
@@ -96,13 +96,13 @@ var fieldName = []string{
 	"ISOComment",
 	"SimpleUppercaseMapping",
 	"SimpleLowercaseMapping",
-	"SimpleTitlecaseMapping"
+	"SimpleTitlecaseMapping",
 }
 
 // This contains only the properties we're interested in.
 type Char struct {
-	field	[]string; 	// debugging only; could be deleted if we take out char.dump()
-	codePoint	uint32;	// if zero, this index is not a valid code point.
+	field		[]string;	// debugging only; could be deleted if we take out char.dump()
+	codePoint	uint32;		// if zero, this index is not a valid code point.
 	category	string;
 	upperCase	int;
 	lowerCase	int;
@@ -120,8 +120,8 @@ type Script struct {
 }
 
 var chars = make([]Char, MaxChar+1)
-var scripts = make(map[string] []Script)
-var props = make(map[string] []Script)	// a property looks like a script; can share the format
+var scripts = make(map[string][]Script)
+var props = make(map[string][]Script)	// a property looks like a script; can share the format
 
 var lastChar uint32 = 0
 
@@ -130,8 +130,9 @@ var lastChar uint32 = 0
 //	4DB5;<CJK Ideograph Extension A, Last>;Lo;0;L;;;;;N;;;;;
 // parseCategory returns a state variable indicating the weirdness.
 type State int
+
 const (
-	SNormal State = iota;	// known to be zero for the type
+	SNormal	State	= iota;	// known to be zero for the type
 	SFirst;
 	SLast;
 	SMissing;
@@ -144,17 +145,17 @@ func parseCategory(line string) (state State) {
 	}
 	point, err := strconv.Btoui64(field[FCodePoint], 16);
 	if err != nil {
-		die.Log("%.5s...:", err)
+		die.Log("%.5s...:", err);
 	}
 	lastChar = uint32(point);
 	if point == 0 {
-		return	// not interesting and we use 0 as unset
+		return;	// not interesting and we use 0 as unset
 	}
 	if point > MaxChar {
 		return;
 	}
 	char := &chars[point];
-	char.field=field;
+	char.field = field;
 	if char.codePoint != 0 {
 		die.Logf("point U+%04x reused\n");
 	}
@@ -179,16 +180,16 @@ func parseCategory(line string) (state State) {
 	}
 	switch {
 	case strings.Index(field[FName], ", First>") > 0:
-		state = SFirst
+		state = SFirst;
 	case strings.Index(field[FName], ", Last>") > 0:
-		state = SLast
+		state = SLast;
 	}
-	return
+	return;
 }
 
 func (char *Char) dump(s string) {
 	fmt.Print(s, " ");
-	for i:=0;i<len(char.field);i++ {
+	for i := 0; i < len(char.field); i++ {
 		fmt.Printf("%s:%q ", fieldName[i], char.field[i]);
 	}
 	fmt.Print("\n");
@@ -202,14 +203,14 @@ func (char *Char) letter(u, l, t string) {
 
 func (char *Char) letterValue(s string, cas string) int {
 	if s == "" {
-		return 0
+		return 0;
 	}
 	v, err := strconv.Btoui64(s, 16);
 	if err != nil {
 		char.dump(cas);
-		die.Logf("U+%04x: bad letter(%s): %s", char.codePoint, s, err)
+		die.Logf("U+%04x: bad letter(%s): %s", char.codePoint, s, err);
 	}
-	return int(v)
+	return int(v);
 }
 
 func allCategories() []string {
@@ -222,7 +223,7 @@ func allCategories() []string {
 	return a;
 }
 
-func all(scripts map[string] []Script) []string {
+func all(scripts map[string][]Script) []string {
 	a := make([]string, len(scripts));
 	i := 0;
 	for k := range scripts {
@@ -238,7 +239,7 @@ func version() string {
 	fields := strings.Split(*url, "/", 0);
 	for _, f := range fields {
 		if len(f) > 0 && '0' <= f[0] && f[0] <= '9' {
-			return f
+			return f;
 		}
 	}
 	die.Log("unknown version");
@@ -248,9 +249,9 @@ func version() string {
 func letterOp(code int) bool {
 	switch chars[code].category {
 	case "Lu", "Ll", "Lt", "Lm", "Lo":
-		return true
+		return true;
 	}
-	return false
+	return false;
 }
 
 func loadChars() {
@@ -274,25 +275,25 @@ func loadChars() {
 			}
 			die.Log(err);
 		}
-		switch parseCategory(line[0:len(line)-1]) {
+		switch parseCategory(line[0 : len(line)-1]) {
 		case SNormal:
 			if first != 0 {
-				die.Logf("bad state normal at U+%04X", lastChar)
+				die.Logf("bad state normal at U+%04X", lastChar);
 			}
 		case SFirst:
 			if first != 0 {
-				die.Logf("bad state first at U+%04X", lastChar)
+				die.Logf("bad state first at U+%04X", lastChar);
 			}
-			first = lastChar
+			first = lastChar;
 		case SLast:
 			if first == 0 {
-				die.Logf("bad state last at U+%04X", lastChar)
+				die.Logf("bad state last at U+%04X", lastChar);
 			}
 			for i := first+1; i <= lastChar; i++ {
 				chars[i] = chars[first];
 				chars[i].codePoint = i;
 			}
-			first = 0
+			first = 0;
 		}
 	}
 	resp.Body.Close();
@@ -300,16 +301,16 @@ func loadChars() {
 
 func printCategories() {
 	if *tablelist == "" {
-		return
+		return;
 	}
 	// Find out which categories to dump
 	list := strings.Split(*tablelist, ",", 0);
 	if *tablelist == "all" {
-		list = allCategories()
+		list = allCategories();
 	}
 	if *test {
 		fullCategoryTest(list);
-		return
+		return;
 	}
 	fmt.Printf(
 		"// Generated by running\n"
@@ -317,15 +318,14 @@ func printCategories() {
 		"// DO NOT EDIT\n\n"
 		"package unicode\n\n",
 		*tablelist,
-		*dataUrl
-	);
+		*dataUrl);
 
 	fmt.Println("// Version is the Unicode edition from which the tables are derived.");
 	fmt.Printf("const Version = %q\n\n", version());
 
 	if *tablelist == "all" {
 		fmt.Println("// Categories is the set of Unicode data tables.");
-			fmt.Println("var Categories = map[string] []Range {");
+		fmt.Println("var Categories = map[string] []Range {");
 		for k, _ := range category {
 			fmt.Printf("\t%q: %s,\n", k, k);
 		}
@@ -358,22 +358,19 @@ func printCategories() {
 		if name != "letter" {
 			varDecl += fmt.Sprintf(
 				"\t%s = _%s;	// %s is the set of Unicode characters in category %s.\n",
-				name, name, name, name
-			);
+				name, name, name, name);
 		}
 		decl[ndecl] = varDecl;
 		ndecl++;
 		if name == "letter" {	// special case
 			dumpRange(
 				"var letter = []Range {\n",
-				letterOp
-			);
+				letterOp);
 			continue;
 		}
 		dumpRange(
 			fmt.Sprintf("var _%s = []Range {\n", name),
-			func(code int) bool { return chars[code].category == name }
-		);
+			func(code int) bool { return chars[code].category == name });
 	}
 	decl.Sort();
 	fmt.Println("var (");
@@ -384,7 +381,8 @@ func printCategories() {
 }
 
 type Op func(code int) bool
-const format = "\tRange{0x%04x, 0x%04x, %d},\n";
+
+const format = "\tRange{0x%04x, 0x%04x, %d},\n"
 
 func dumpRange(header string, inCategory Op) {
 	fmt.Print(header);
@@ -393,11 +391,11 @@ func dumpRange(header string, inCategory Op) {
 	for {
 		// look for start of range
 		for next < len(chars) && !inCategory(next) {
-			next++
+			next++;
 		}
 		if next >= len(chars) {
 			// no characters remain
-			break
+			break;
 		}
 
 		// start of range
@@ -408,7 +406,7 @@ func dumpRange(header string, inCategory Op) {
 		next++;
 		// look for another character to set the stride
 		for next < len(chars) && !inCategory(next) {
-			next++
+			next++;
 		}
 		if next >= len(chars) {
 			// no more characters
@@ -416,22 +414,22 @@ func dumpRange(header string, inCategory Op) {
 			break;
 		}
 		// set stride
-		stride = next - lo;
+		stride = next-lo;
 		// check for length of run. next points to first jump in stride
 		for i := next; i < len(chars); i++ {
 			if inCategory(i) == (((i-lo)%stride) == 0) {
 				// accept
 				if inCategory(i) {
-					hi = i
+					hi = i;
 				}
 			} else {
 				// no more characters in this run
-				break
+				break;
 			}
 		}
 		fmt.Printf(format, lo, hi, stride);
 		// next range: start looking where this range ends
-		next = hi + 1;
+		next = hi+1;
 	}
 	fmt.Print("}\n\n");
 }
@@ -451,8 +449,7 @@ func fullCategoryTest(list []string) {
 			verifyRange(
 				name,
 				func(code int) bool { return chars[code].category == name },
-				r
-			);
+				r);
 		}
 	}
 }
@@ -467,14 +464,14 @@ func verifyRange(name string, inCategory Op, table []unicode.Range) {
 	}
 }
 
-func parseScript(line string, scripts map[string] []Script) {
+func parseScript(line string, scripts map[string][]Script) {
 	comment := strings.Index(line, "#");
 	if comment >= 0 {
-		line = line[0:comment]
+		line = line[0:comment];
 	}
 	line = strings.TrimSpace(line);
 	if len(line) == 0 {
-		return
+		return;
 	}
 	field := strings.Split(line, ";", -1);
 	if len(field) != 2 {
@@ -486,13 +483,13 @@ func parseScript(line string, scripts map[string] []Script) {
 	}
 	lo, err := strconv.Btoui64(matches[1], 16);
 	if err != nil {
-		die.Log("%.5s...:", err)
+		die.Log("%.5s...:", err);
 	}
 	hi := lo;
 	if len(matches[2]) > 2 {	// ignore leading ..
 		hi, err = strconv.Btoui64(matches[2][2:len(matches[2])], 16);
 		if err != nil {
-			die.Log("%.5s...:", err)
+			die.Log("%.5s...:", err);
 		}
 	}
 	name := matches[3];
@@ -500,12 +497,12 @@ func parseScript(line string, scripts map[string] []Script) {
 	if !ok || len(s) == cap(s) {
 		ns := make([]Script, len(s), len(s)+100);
 		for i, sc := range s {
-			ns[i] = sc
+			ns[i] = sc;
 		}
 		s = ns;
 	}
-	s = s[0:len(s)+1];
-	s[len(s)-1] = Script{ uint32(lo), uint32(hi), name };
+	s = s[0 : len(s)+1];
+	s[len(s)-1] = Script{uint32(lo), uint32(hi), name};
 	scripts[name] = s;
 }
 
@@ -514,10 +511,10 @@ func foldAdjacent(r []Script) []unicode.Range {
 	s := make([]unicode.Range, 0, len(r));
 	j := 0;
 	for i := 0; i < len(r); i++ {
-		if j>0 && int(r[i].lo) == s[j-1].Hi+1 {
+		if j > 0 && int(r[i].lo) == s[j-1].Hi + 1 {
 			s[j-1].Hi = int(r[i].hi);
 		} else {
-			s = s[0:j+1];
+			s = s[0 : j+1];
 			s[j] = unicode.Range{int(r[i].lo), int(r[i].hi), 1};
 			j++;
 		}
@@ -525,7 +522,7 @@ func foldAdjacent(r []Script) []unicode.Range {
 	return s;
 }
 
-func fullScriptTest(list []string, installed map[string] []unicode.Range, scripts map[string] []Script) {
+func fullScriptTest(list []string, installed map[string][]unicode.Range, scripts map[string][]Script) {
 	for _, name := range list {
 		if _, ok := scripts[name]; !ok {
 			die.Log("unknown script", name);
@@ -559,7 +556,7 @@ func printScriptOrProperty(doProps bool) {
 		installed = unicode.Properties;
 	}
 	if flaglist == "" {
-		return
+		return;
 	}
 	var err os.Error;
 	resp, _, err := http.Get(*url + file);
@@ -578,7 +575,7 @@ func printScriptOrProperty(doProps bool) {
 			}
 			die.Log(err);
 		}
-		parseScript(line[0:len(line)-1], table);
+		parseScript(line[0 : len(line)-1], table);
 	}
 	resp.Body.Close();
 
@@ -598,8 +595,7 @@ func printScriptOrProperty(doProps bool) {
 		"// DO NOT EDIT\n\n",
 		flag,
 		flaglist,
-		*url
-	);
+		*url);
 	if flaglist == "all" {
 		if doProps {
 			fmt.Println("// Properties is the set of Unicode property tables.");
@@ -620,13 +616,11 @@ func printScriptOrProperty(doProps bool) {
 		if doProps {
 			decl[ndecl] = fmt.Sprintf(
 				"\t%s = _%s;\t// %s is the set of Unicode characters with property %s.\n",
-				name, name, name, name
-			);
+				name, name, name, name);
 		} else {
 			decl[ndecl] = fmt.Sprintf(
 				"\t%s = _%s;\t// %s is the set of Unicode characters in script %s.\n",
-				name, name, name, name
-			);
+				name, name, name, name);
 		}
 		ndecl++;
 		fmt.Printf("var _%s = []Range {\n", name);
@@ -645,16 +639,16 @@ func printScriptOrProperty(doProps bool) {
 }
 
 const (
-	CaseUpper = 1 << iota;
+	CaseUpper	= 1<<iota;
 	CaseLower;
 	CaseTitle;
-	CaseNone = 0;	// must be zero
-	CaseMissing = -1;	// character not present; not a valid case state
+	CaseNone	= 0;	// must be zero
+	CaseMissing	= -1;	// character not present; not a valid case state
 )
 
 type caseState struct {
-	point	int;
-	_case	int;
+	point		int;
+	_case		int;
 	deltaToUpper	int;
 	deltaToLower	int;
 	deltaToTitle	int;
@@ -663,25 +657,25 @@ type caseState struct {
 // Is d a continuation of the state of c?
 func (c *caseState) adjacent(d *caseState) bool {
 	if d.point < c.point {
-		c, d = d, c
+		c, d = d, c;
 	}
 	switch {
-	case d.point != c.point+1:	// code points not adjacent (shouldn't happen)
-		return false
+	case d.point != c.point + 1:	// code points not adjacent (shouldn't happen)
+		return false;
 	case d._case != c._case:	// different cases
 		return c.upperLowerAdjacent(d);
 	case c._case == CaseNone:
-		return false
+		return false;
 	case c._case == CaseMissing:
-		return false
+		return false;
 	case d.deltaToUpper != c.deltaToUpper:
-		return false
+		return false;
 	case d.deltaToLower != c.deltaToLower:
-		return false
+		return false;
 	case d.deltaToTitle != c.deltaToTitle:
-		return false
+		return false;
 	}
-	return true; 
+	return true;
 }
 
 // Is d the same as c, but opposite in upper/lower case? this would make it
@@ -690,32 +684,32 @@ func (c *caseState) upperLowerAdjacent(d *caseState) bool {
 	// check they're a matched case pair.  we know they have adjacent values
 	switch {
 	case c._case == CaseUpper && d._case != CaseLower:
-		return false
+		return false;
 	case c._case == CaseLower && d._case != CaseUpper:
-		return false
+		return false;
 	}
 	// matched pair (at least in upper/lower).  make the order Upper Lower
 	if c._case == CaseLower {
-		c, d = d, c
+		c, d = d, c;
 	}
 	// for an Upper Lower sequence the deltas have to be in order
 	//	c: 0 1 0
 	//	d: -1 0 -1
 	switch {
 	case c.deltaToUpper != 0:
-		return false
+		return false;
 	case c.deltaToLower != 1:
-		return false
+		return false;
 	case c.deltaToTitle != 0:
-		return false
+		return false;
 	case d.deltaToUpper != -1:
-		return false
+		return false;
 	case d.deltaToLower != 0:
-		return false
+		return false;
 	case d.deltaToTitle != -1:
-		return false
+		return false;
 	}
-	return true
+	return true;
 }
 
 // Does this character start an UpperLower sequence?
@@ -724,13 +718,13 @@ func (c *caseState) isUpperLower() bool {
 	//	c: 0 1 0
 	switch {
 	case c.deltaToUpper != 0:
-		return false
+		return false;
 	case c.deltaToLower != 1:
-		return false
+		return false;
 	case c.deltaToTitle != 0:
-		return false
+		return false;
 	}
-	return true
+	return true;
 }
 
 // Does this character start a LowerUpper sequence?
@@ -739,17 +733,17 @@ func (c *caseState) isLowerUpper() bool {
 	//	c: -1 0 -1
 	switch {
 	case c.deltaToUpper != -1:
-		return false
+		return false;
 	case c.deltaToLower != 0:
-		return false
+		return false;
 	case c.deltaToTitle != -1:
-		return false
+		return false;
 	}
-	return true
+	return true;
 }
 
 func getCaseState(i int) (c *caseState) {
-	c = &caseState{ point: i, _case: CaseNone };
+	c = &caseState{point: i, _case: CaseNone};
 	ch := &chars[i];
 	switch int(ch.codePoint) {
 	case 0:
@@ -763,24 +757,24 @@ func getCaseState(i int) (c *caseState) {
 		c._case = CaseTitle;
 	}
 	if ch.upperCase != 0 {
-		c.deltaToUpper = ch.upperCase - i
+		c.deltaToUpper = ch.upperCase - i;
 	}
 	if ch.lowerCase != 0 {
-		c.deltaToLower = ch.lowerCase - i
+		c.deltaToLower = ch.lowerCase - i;
 	}
 	if ch.titleCase != 0 {
-		c.deltaToTitle = ch.titleCase - i
+		c.deltaToTitle = ch.titleCase - i;
 	}
 	return;
 }
 
 func printCases() {
 	if !*cases {
-		return
+		return;
 	}
 	if *test {
 		fullCaseTest();
-		return
+		return;
 	}
 	fmt.Printf(
 		"// Generated by running\n"
@@ -790,8 +784,7 @@ func printCases() {
 		"// non-self mappings.\n"
 		"var CaseRanges = _CaseRanges\n"
 		"var _CaseRanges = []CaseRange {\n",
-		*dataUrl
-	);
+		*dataUrl);
 
 	var startState *caseState;	// the start of a run; nil for not active
 	var prevState = &caseState{};	// the state of the previous character
@@ -814,33 +807,33 @@ func printCases() {
 
 func printCaseRange(lo, hi *caseState) {
 	if lo == nil {
-		return
+		return;
 	}
 	if lo.deltaToUpper == 0 && lo.deltaToLower == 0 && lo.deltaToTitle == 0 {
 		// character represents itself in all cases - no need to mention it
-		return
+		return;
 	}
 	switch {
 	case hi.point > lo.point && lo.isUpperLower():
 		fmt.Printf("\tCaseRange{0x%04X, 0x%04X, d{UpperLower, UpperLower, UpperLower}},\n",
-			lo.point, hi.point)
+			lo.point, hi.point);
 	case hi.point > lo.point && lo.isLowerUpper():
 		die.Log("LowerUpper sequence: should not happen: U+%04X.  If it's real, need to fix To()", lo.point);
 		fmt.Printf("\tCaseRange{0x%04X, 0x%04X, d{LowerUpper, LowerUpper, LowerUpper}},\n",
-			lo.point, hi.point)
+			lo.point, hi.point);
 	default:
 		fmt.Printf("\tCaseRange{0x%04X, 0x%04X, d{%d, %d, %d}},\n",
 			lo.point, hi.point,
-			lo.deltaToUpper, lo.deltaToLower, lo.deltaToTitle)
+			lo.deltaToUpper, lo.deltaToLower, lo.deltaToTitle);
 	}
 }
 
 // If the cased value in the Char is 0, it means use the rune itself.
 func caseIt(rune, cased int) int {
 	if cased == 0 {
-		return rune
+		return rune;
 	}
-	return cased
+	return cased;
 }
 
 func fullCaseTest() {

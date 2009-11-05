@@ -8,7 +8,7 @@ package unicode
 const Version = "5.1.0"
 
 // Categories is the set of Unicode data tables.
-var Categories = map[string] []Range {
+var Categories = map[string][]Range{
 	"Lm": Lm,
 	"Ll": Ll,
 	"Me": Me,
@@ -41,7 +41,7 @@ var Categories = map[string] []Range {
 	"Lo": Lo,
 }
 
-var _Lm = []Range {
+var _Lm = []Range{
 	Range{0x02b0, 0x02c1, 1},
 	Range{0x02c6, 0x02d1, 1},
 	Range{0x02e0, 0x02e4, 1},
@@ -73,7 +73,7 @@ var _Lm = []Range {
 	Range{0xff9f, 0xff9f, 1},
 }
 
-var _Ll = []Range {
+var _Ll = []Range{
 	Range{0x0061, 0x007a, 1},
 	Range{0x00aa, 0x00b5, 11},
 	Range{0x00ba, 0x00df, 37},
@@ -213,7 +213,7 @@ var _Ll = []Range {
 	Range{0x1d7cb, 0x1d7cb, 1},
 }
 
-var _Me = []Range {
+var _Me = []Range{
 	Range{0x0488, 0x0489, 1},
 	Range{0x06de, 0x20dd, 6655},
 	Range{0x20de, 0x20e0, 1},
@@ -221,7 +221,7 @@ var _Me = []Range {
 	Range{0xa670, 0xa672, 1},
 }
 
-var _Mc = []Range {
+var _Mc = []Range{
 	Range{0x0903, 0x093e, 59},
 	Range{0x093f, 0x0940, 1},
 	Range{0x0949, 0x094c, 1},
@@ -302,7 +302,7 @@ var _Mc = []Range {
 	Range{0x1d16e, 0x1d172, 1},
 }
 
-var _Mn = []Range {
+var _Mn = []Range{
 	Range{0x0300, 0x036f, 1},
 	Range{0x0483, 0x0487, 1},
 	Range{0x0591, 0x05bd, 1},
@@ -447,11 +447,11 @@ var _Mn = []Range {
 	Range{0xe0100, 0xe01ef, 1},
 }
 
-var _Zl = []Range {
+var _Zl = []Range{
 	Range{0x2028, 0x2028, 1},
 }
 
-var letter = []Range {
+var letter = []Range{
 	Range{0x0041, 0x005a, 1},
 	Range{0x0061, 0x007a, 1},
 	Range{0x00aa, 0x00b5, 11},
@@ -825,11 +825,11 @@ var letter = []Range {
 	Range{0x2f800, 0x2fa1d, 1},
 }
 
-var _Zp = []Range {
+var _Zp = []Range{
 	Range{0x2029, 0x2029, 1},
 }
 
-var _Zs = []Range {
+var _Zs = []Range{
 	Range{0x0020, 0x00a0, 128},
 	Range{0x1680, 0x180e, 398},
 	Range{0x2000, 0x200a, 1},
@@ -837,17 +837,17 @@ var _Zs = []Range {
 	Range{0x3000, 0x3000, 1},
 }
 
-var _Cs = []Range {
+var _Cs = []Range{
 	Range{0xd800, 0xdfff, 1},
 }
 
-var _Co = []Range {
+var _Co = []Range{
 	Range{0xe000, 0xf8ff, 1},
 	Range{0xf0000, 0xffffd, 1},
 	Range{0x100000, 0x10fffd, 1},
 }
 
-var _Cf = []Range {
+var _Cf = []Range{
 	Range{0x00ad, 0x0600, 1363},
 	Range{0x0601, 0x0603, 1},
 	Range{0x06dd, 0x070f, 50},
@@ -863,12 +863,12 @@ var _Cf = []Range {
 	Range{0xe0021, 0xe007f, 1},
 }
 
-var _Cc = []Range {
+var _Cc = []Range{
 	Range{0x0001, 0x001f, 1},
 	Range{0x007f, 0x009f, 1},
 }
 
-var _Po = []Range {
+var _Po = []Range{
 	Range{0x0021, 0x0023, 1},
 	Range{0x0025, 0x0027, 1},
 	Range{0x002a, 0x002e, 2},
@@ -965,7 +965,7 @@ var _Po = []Range {
 	Range{0x12470, 0x12473, 1},
 }
 
-var _Pi = []Range {
+var _Pi = []Range{
 	Range{0x00ab, 0x2018, 8045},
 	Range{0x201b, 0x201c, 1},
 	Range{0x201f, 0x2039, 26},
@@ -974,7 +974,7 @@ var _Pi = []Range {
 	Range{0x2e1c, 0x2e20, 4},
 }
 
-var _Pf = []Range {
+var _Pf = []Range{
 	Range{0x00bb, 0x2019, 8030},
 	Range{0x201d, 0x203a, 29},
 	Range{0x2e03, 0x2e05, 2},
@@ -982,7 +982,7 @@ var _Pf = []Range {
 	Range{0x2e1d, 0x2e21, 4},
 }
 
-var _Pe = []Range {
+var _Pe = []Range{
 	Range{0x0029, 0x005d, 52},
 	Range{0x007d, 0x0f3b, 3774},
 	Range{0x0f3d, 0x169c, 1887},
@@ -1006,7 +1006,7 @@ var _Pe = []Range {
 	Range{0xff5d, 0xff63, 3},
 }
 
-var _Pd = []Range {
+var _Pd = []Range{
 	Range{0x002d, 0x058a, 1373},
 	Range{0x05be, 0x1806, 4680},
 	Range{0x2010, 0x2015, 1},
@@ -1017,7 +1017,7 @@ var _Pd = []Range {
 	Range{0xfe63, 0xff0d, 170},
 }
 
-var _Pc = []Range {
+var _Pc = []Range{
 	Range{0x005f, 0x203f, 8160},
 	Range{0x2040, 0x2054, 20},
 	Range{0xfe33, 0xfe34, 1},
@@ -1025,7 +1025,7 @@ var _Pc = []Range {
 	Range{0xff3f, 0xff3f, 1},
 }
 
-var _Ps = []Range {
+var _Ps = []Range{
 	Range{0x0028, 0x005b, 51},
 	Range{0x007b, 0x0f3a, 3775},
 	Range{0x0f3c, 0x169b, 1887},
@@ -1051,7 +1051,7 @@ var _Ps = []Range {
 	Range{0xff62, 0xff62, 1},
 }
 
-var _Nd = []Range {
+var _Nd = []Range{
 	Range{0x0030, 0x0039, 1},
 	Range{0x0660, 0x0669, 1},
 	Range{0x06f0, 0x06f9, 1},
@@ -1087,7 +1087,7 @@ var _Nd = []Range {
 	Range{0x1d7ce, 0x1d7ff, 1},
 }
 
-var _Nl = []Range {
+var _Nl = []Range{
 	Range{0x16ee, 0x16f0, 1},
 	Range{0x2160, 0x2182, 1},
 	Range{0x2185, 0x2188, 1},
@@ -1100,7 +1100,7 @@ var _Nl = []Range {
 	Range{0x12400, 0x12462, 1},
 }
 
-var _No = []Range {
+var _No = []Range{
 	Range{0x00b2, 0x00b3, 1},
 	Range{0x00b9, 0x00bc, 3},
 	Range{0x00bd, 0x00be, 1},
@@ -1133,7 +1133,7 @@ var _No = []Range {
 	Range{0x1d360, 0x1d371, 1},
 }
 
-var _So = []Range {
+var _So = []Range{
 	Range{0x00a6, 0x00a7, 1},
 	Range{0x00a9, 0x00ae, 5},
 	Range{0x00b0, 0x00b6, 6},
@@ -1257,7 +1257,7 @@ var _So = []Range {
 	Range{0x1f030, 0x1f093, 1},
 }
 
-var _Sm = []Range {
+var _Sm = []Range{
 	Range{0x002b, 0x003c, 17},
 	Range{0x003d, 0x003e, 1},
 	Range{0x007c, 0x007e, 2},
@@ -1310,7 +1310,7 @@ var _Sm = []Range {
 	Range{0x1d7a9, 0x1d7c3, 26},
 }
 
-var _Sk = []Range {
+var _Sk = []Range{
 	Range{0x005e, 0x0060, 2},
 	Range{0x00a8, 0x00af, 7},
 	Range{0x00b4, 0x00b8, 4},
@@ -1334,7 +1334,7 @@ var _Sk = []Range {
 	Range{0xffe3, 0xffe3, 1},
 }
 
-var _Sc = []Range {
+var _Sc = []Range{
 	Range{0x0024, 0x00a2, 126},
 	Range{0x00a3, 0x00a5, 1},
 	Range{0x060b, 0x09f2, 999},
@@ -1348,7 +1348,7 @@ var _Sc = []Range {
 	Range{0xffe6, 0xffe6, 1},
 }
 
-var _Lu = []Range {
+var _Lu = []Range{
 	Range{0x0041, 0x005a, 1},
 	Range{0x00c0, 0x00d6, 1},
 	Range{0x00d8, 0x00de, 1},
@@ -1475,7 +1475,7 @@ var _Lu = []Range {
 	Range{0x1d7ca, 0x1d7ca, 1},
 }
 
-var _Lt = []Range {
+var _Lt = []Range{
 	Range{0x01c5, 0x01cb, 3},
 	Range{0x01f2, 0x1f88, 7574},
 	Range{0x1f89, 0x1f8f, 1},
@@ -1485,7 +1485,7 @@ var _Lt = []Range {
 	Range{0x1ffc, 0x1ffc, 1},
 }
 
-var _Lo = []Range {
+var _Lo = []Range{
 	Range{0x01bb, 0x01c0, 5},
 	Range{0x01c1, 0x01c3, 1},
 	Range{0x0294, 0x05d0, 828},
@@ -1761,40 +1761,40 @@ var _Lo = []Range {
 }
 
 var (
-	Cc = _Cc;	// Cc is the set of Unicode characters in category Cc.
-	Cf = _Cf;	// Cf is the set of Unicode characters in category Cf.
-	Co = _Co;	// Co is the set of Unicode characters in category Co.
-	Cs = _Cs;	// Cs is the set of Unicode characters in category Cs.
-	Digit = _Nd;	// Digit is the set of Unicode characters with the "decimal digit" property.
-	Nd = _Nd;	// Nd is the set of Unicode characters in category Nd.
-	Letter = letter;	// Letter is the set of Unicode letters.
-	Lm = _Lm;	// Lm is the set of Unicode characters in category Lm.
-	Lo = _Lo;	// Lo is the set of Unicode characters in category Lo.
-	Lower = _Ll;	// Lower is the set of Unicode lower case letters.
-	Ll = _Ll;	// Ll is the set of Unicode characters in category Ll.
-	Mc = _Mc;	// Mc is the set of Unicode characters in category Mc.
-	Me = _Me;	// Me is the set of Unicode characters in category Me.
-	Mn = _Mn;	// Mn is the set of Unicode characters in category Mn.
-	Nl = _Nl;	// Nl is the set of Unicode characters in category Nl.
-	No = _No;	// No is the set of Unicode characters in category No.
-	Pc = _Pc;	// Pc is the set of Unicode characters in category Pc.
-	Pd = _Pd;	// Pd is the set of Unicode characters in category Pd.
-	Pe = _Pe;	// Pe is the set of Unicode characters in category Pe.
-	Pf = _Pf;	// Pf is the set of Unicode characters in category Pf.
-	Pi = _Pi;	// Pi is the set of Unicode characters in category Pi.
-	Po = _Po;	// Po is the set of Unicode characters in category Po.
-	Ps = _Ps;	// Ps is the set of Unicode characters in category Ps.
-	Sc = _Sc;	// Sc is the set of Unicode characters in category Sc.
-	Sk = _Sk;	// Sk is the set of Unicode characters in category Sk.
-	Sm = _Sm;	// Sm is the set of Unicode characters in category Sm.
-	So = _So;	// So is the set of Unicode characters in category So.
-	Title = _Lt;	// Title is the set of Unicode title case letters.
-	Lt = _Lt;	// Lt is the set of Unicode characters in category Lt.
-	Upper = _Lu;	// Upper is the set of Unicode upper case letters.
-	Lu = _Lu;	// Lu is the set of Unicode characters in category Lu.
-	Zl = _Zl;	// Zl is the set of Unicode characters in category Zl.
-	Zp = _Zp;	// Zp is the set of Unicode characters in category Zp.
-	Zs = _Zs;	// Zs is the set of Unicode characters in category Zs.
+	Cc	= _Cc;		// Cc is the set of Unicode characters in category Cc.
+	Cf	= _Cf;		// Cf is the set of Unicode characters in category Cf.
+	Co	= _Co;		// Co is the set of Unicode characters in category Co.
+	Cs	= _Cs;		// Cs is the set of Unicode characters in category Cs.
+	Digit	= _Nd;		// Digit is the set of Unicode characters with the "decimal digit" property.
+	Nd	= _Nd;		// Nd is the set of Unicode characters in category Nd.
+	Letter	= letter;	// Letter is the set of Unicode letters.
+	Lm	= _Lm;		// Lm is the set of Unicode characters in category Lm.
+	Lo	= _Lo;		// Lo is the set of Unicode characters in category Lo.
+	Lower	= _Ll;		// Lower is the set of Unicode lower case letters.
+	Ll	= _Ll;		// Ll is the set of Unicode characters in category Ll.
+	Mc	= _Mc;		// Mc is the set of Unicode characters in category Mc.
+	Me	= _Me;		// Me is the set of Unicode characters in category Me.
+	Mn	= _Mn;		// Mn is the set of Unicode characters in category Mn.
+	Nl	= _Nl;		// Nl is the set of Unicode characters in category Nl.
+	No	= _No;		// No is the set of Unicode characters in category No.
+	Pc	= _Pc;		// Pc is the set of Unicode characters in category Pc.
+	Pd	= _Pd;		// Pd is the set of Unicode characters in category Pd.
+	Pe	= _Pe;		// Pe is the set of Unicode characters in category Pe.
+	Pf	= _Pf;		// Pf is the set of Unicode characters in category Pf.
+	Pi	= _Pi;		// Pi is the set of Unicode characters in category Pi.
+	Po	= _Po;		// Po is the set of Unicode characters in category Po.
+	Ps	= _Ps;		// Ps is the set of Unicode characters in category Ps.
+	Sc	= _Sc;		// Sc is the set of Unicode characters in category Sc.
+	Sk	= _Sk;		// Sk is the set of Unicode characters in category Sk.
+	Sm	= _Sm;		// Sm is the set of Unicode characters in category Sm.
+	So	= _So;		// So is the set of Unicode characters in category So.
+	Title	= _Lt;		// Title is the set of Unicode title case letters.
+	Lt	= _Lt;		// Lt is the set of Unicode characters in category Lt.
+	Upper	= _Lu;		// Upper is the set of Unicode upper case letters.
+	Lu	= _Lu;		// Lu is the set of Unicode characters in category Lu.
+	Zl	= _Zl;		// Zl is the set of Unicode characters in category Zl.
+	Zp	= _Zp;		// Zp is the set of Unicode characters in category Zp.
+	Zs	= _Zs;		// Zs is the set of Unicode characters in category Zs.
 )
 
 // Generated by running
@@ -1802,7 +1802,7 @@ var (
 // DO NOT EDIT
 
 // Scripts is the set of Unicode script tables.
-var Scripts = map[string] []Range {
+var Scripts = map[string][]Range{
 	"Katakana": Katakana,
 	"Malayalam": Malayalam,
 	"Phags_Pa": Phags_Pa,
@@ -1882,7 +1882,7 @@ var Scripts = map[string] []Range {
 	"Gothic": Gothic,
 }
 
-var _Katakana = []Range {
+var _Katakana = []Range{
 	Range{0x30a1, 0x30fa, 1},
 	Range{0x30fd, 0x30ff, 1},
 	Range{0x31f0, 0x31ff, 1},
@@ -1892,7 +1892,7 @@ var _Katakana = []Range {
 	Range{0xff71, 0xff9d, 1},
 }
 
-var _Malayalam = []Range {
+var _Malayalam = []Range{
 	Range{0x0d02, 0x0d03, 1},
 	Range{0x0d05, 0x0d0c, 1},
 	Range{0x0d0e, 0x0d10, 1},
@@ -1907,11 +1907,11 @@ var _Malayalam = []Range {
 	Range{0x0d79, 0x0d7f, 1},
 }
 
-var _Phags_Pa = []Range {
+var _Phags_Pa = []Range{
 	Range{0xa840, 0xa877, 1},
 }
 
-var _Latin = []Range {
+var _Latin = []Range{
 	Range{0x0041, 0x005a, 1},
 	Range{0x0061, 0x007a, 1},
 	Range{0x00aa, 0x00aa, 1},
@@ -1943,19 +1943,19 @@ var _Latin = []Range {
 	Range{0xff41, 0xff5a, 1},
 }
 
-var _Osmanya = []Range {
+var _Osmanya = []Range{
 	Range{0x10480, 0x1049d, 1},
 	Range{0x104a0, 0x104a9, 1},
 }
 
-var _Khmer = []Range {
+var _Khmer = []Range{
 	Range{0x1780, 0x17dd, 1},
 	Range{0x17e0, 0x17e9, 1},
 	Range{0x17f0, 0x17f9, 1},
 	Range{0x19e0, 0x19ff, 1},
 }
 
-var _Inherited = []Range {
+var _Inherited = []Range{
 	Range{0x0300, 0x036f, 1},
 	Range{0x064b, 0x0655, 1},
 	Range{0x0670, 0x0670, 1},
@@ -1976,7 +1976,7 @@ var _Inherited = []Range {
 	Range{0xe0100, 0xe01ef, 1},
 }
 
-var _Telugu = []Range {
+var _Telugu = []Range{
 	Range{0x0c01, 0x0c03, 1},
 	Range{0x0c05, 0x0c0c, 1},
 	Range{0x0c0e, 0x0c10, 1},
@@ -1993,28 +1993,28 @@ var _Telugu = []Range {
 	Range{0x0c78, 0x0c7f, 1},
 }
 
-var _Bopomofo = []Range {
+var _Bopomofo = []Range{
 	Range{0x3105, 0x312d, 1},
 	Range{0x31a0, 0x31b7, 1},
 }
 
-var _Kayah_Li = []Range {
+var _Kayah_Li = []Range{
 	Range{0xa900, 0xa92f, 1},
 }
 
-var _New_Tai_Lue = []Range {
+var _New_Tai_Lue = []Range{
 	Range{0x1980, 0x19a9, 1},
 	Range{0x19b0, 0x19c9, 1},
 	Range{0x19d0, 0x19d9, 1},
 	Range{0x19de, 0x19df, 1},
 }
 
-var _Tai_Le = []Range {
+var _Tai_Le = []Range{
 	Range{0x1950, 0x196d, 1},
 	Range{0x1970, 0x1974, 1},
 }
 
-var _Kharoshthi = []Range {
+var _Kharoshthi = []Range{
 	Range{0x10a00, 0x10a03, 1},
 	Range{0x10a05, 0x10a06, 1},
 	Range{0x10a0c, 0x10a13, 1},
@@ -2025,7 +2025,7 @@ var _Kharoshthi = []Range {
 	Range{0x10a50, 0x10a58, 1},
 }
 
-var _Common = []Range {
+var _Common = []Range{
 	Range{0x0000, 0x0040, 1},
 	Range{0x005b, 0x0060, 1},
 	Range{0x007b, 0x00a9, 1},
@@ -2165,7 +2165,7 @@ var _Common = []Range {
 	Range{0xe0020, 0xe007f, 1},
 }
 
-var _Kannada = []Range {
+var _Kannada = []Range{
 	Range{0x0c82, 0x0c83, 1},
 	Range{0x0c85, 0x0c8c, 1},
 	Range{0x0c8e, 0x0c90, 1},
@@ -2181,7 +2181,7 @@ var _Kannada = []Range {
 	Range{0x0ce6, 0x0cef, 1},
 }
 
-var _Tamil = []Range {
+var _Tamil = []Range{
 	Range{0x0b82, 0x0b83, 1},
 	Range{0x0b85, 0x0b8a, 1},
 	Range{0x0b8e, 0x0b90, 1},
@@ -2200,12 +2200,12 @@ var _Tamil = []Range {
 	Range{0x0be6, 0x0bfa, 1},
 }
 
-var _Tagalog = []Range {
+var _Tagalog = []Range{
 	Range{0x1700, 0x170c, 1},
 	Range{0x170e, 0x1714, 1},
 }
 
-var _Arabic = []Range {
+var _Arabic = []Range{
 	Range{0x0606, 0x060b, 1},
 	Range{0x060d, 0x061a, 1},
 	Range{0x061e, 0x061e, 1},
@@ -2225,17 +2225,17 @@ var _Arabic = []Range {
 	Range{0xfe76, 0xfefc, 1},
 }
 
-var _Tagbanwa = []Range {
+var _Tagbanwa = []Range{
 	Range{0x1760, 0x176c, 1},
 	Range{0x176e, 0x1770, 1},
 	Range{0x1772, 0x1773, 1},
 }
 
-var _Canadian_Aboriginal = []Range {
+var _Canadian_Aboriginal = []Range{
 	Range{0x1401, 0x1676, 1},
 }
 
-var _Tibetan = []Range {
+var _Tibetan = []Range{
 	Range{0x0f00, 0x0f47, 1},
 	Range{0x0f49, 0x0f6c, 1},
 	Range{0x0f71, 0x0f8b, 1},
@@ -2245,18 +2245,18 @@ var _Tibetan = []Range {
 	Range{0x0fce, 0x0fd4, 1},
 }
 
-var _Coptic = []Range {
+var _Coptic = []Range{
 	Range{0x03e2, 0x03ef, 1},
 	Range{0x2c80, 0x2cea, 1},
 	Range{0x2cf9, 0x2cff, 1},
 }
 
-var _Hiragana = []Range {
+var _Hiragana = []Range{
 	Range{0x3041, 0x3096, 1},
 	Range{0x309d, 0x309f, 1},
 }
 
-var _Limbu = []Range {
+var _Limbu = []Range{
 	Range{0x1900, 0x191c, 1},
 	Range{0x1920, 0x192b, 1},
 	Range{0x1930, 0x193b, 1},
@@ -2264,12 +2264,12 @@ var _Limbu = []Range {
 	Range{0x1944, 0x194f, 1},
 }
 
-var _Myanmar = []Range {
+var _Myanmar = []Range{
 	Range{0x1000, 0x1099, 1},
 	Range{0x109e, 0x109f, 1},
 }
 
-var _Armenian = []Range {
+var _Armenian = []Range{
 	Range{0x0531, 0x0556, 1},
 	Range{0x0559, 0x055f, 1},
 	Range{0x0561, 0x0587, 1},
@@ -2277,7 +2277,7 @@ var _Armenian = []Range {
 	Range{0xfb13, 0xfb17, 1},
 }
 
-var _Sinhala = []Range {
+var _Sinhala = []Range{
 	Range{0x0d82, 0x0d83, 1},
 	Range{0x0d85, 0x0d96, 1},
 	Range{0x0d9a, 0x0db1, 1},
@@ -2291,7 +2291,7 @@ var _Sinhala = []Range {
 	Range{0x0df2, 0x0df4, 1},
 }
 
-var _Bengali = []Range {
+var _Bengali = []Range{
 	Range{0x0981, 0x0983, 1},
 	Range{0x0985, 0x098c, 1},
 	Range{0x098f, 0x0990, 1},
@@ -2308,7 +2308,7 @@ var _Bengali = []Range {
 	Range{0x09e6, 0x09fa, 1},
 }
 
-var _Greek = []Range {
+var _Greek = []Range{
 	Range{0x0370, 0x0373, 1},
 	Range{0x0375, 0x0377, 1},
 	Range{0x037a, 0x037d, 1},
@@ -2344,14 +2344,14 @@ var _Greek = []Range {
 	Range{0x1d200, 0x1d245, 1},
 }
 
-var _Cham = []Range {
+var _Cham = []Range{
 	Range{0xaa00, 0xaa36, 1},
 	Range{0xaa40, 0xaa4d, 1},
 	Range{0xaa50, 0xaa59, 1},
 	Range{0xaa5c, 0xaa5f, 1},
 }
 
-var _Hebrew = []Range {
+var _Hebrew = []Range{
 	Range{0x0591, 0x05c7, 1},
 	Range{0x05d0, 0x05ea, 1},
 	Range{0x05f0, 0x05f4, 1},
@@ -2363,12 +2363,12 @@ var _Hebrew = []Range {
 	Range{0xfb46, 0xfb4f, 1},
 }
 
-var _Saurashtra = []Range {
+var _Saurashtra = []Range{
 	Range{0xa880, 0xa8c4, 1},
 	Range{0xa8ce, 0xa8d9, 1},
 }
 
-var _Hangul = []Range {
+var _Hangul = []Range{
 	Range{0x1100, 0x1159, 1},
 	Range{0x115f, 0x11a2, 1},
 	Range{0x11a8, 0x11f9, 1},
@@ -2383,26 +2383,26 @@ var _Hangul = []Range {
 	Range{0xffda, 0xffdc, 1},
 }
 
-var _Runic = []Range {
+var _Runic = []Range{
 	Range{0x16a0, 0x16ea, 1},
 	Range{0x16ee, 0x16f0, 1},
 }
 
-var _Deseret = []Range {
+var _Deseret = []Range{
 	Range{0x10400, 0x1044f, 1},
 }
 
-var _Sundanese = []Range {
+var _Sundanese = []Range{
 	Range{0x1b80, 0x1baa, 1},
 	Range{0x1bae, 0x1bb9, 1},
 }
 
-var _Glagolitic = []Range {
+var _Glagolitic = []Range{
 	Range{0x2c00, 0x2c2e, 1},
 	Range{0x2c30, 0x2c5e, 1},
 }
 
-var _Oriya = []Range {
+var _Oriya = []Range{
 	Range{0x0b01, 0x0b03, 1},
 	Range{0x0b05, 0x0b0c, 1},
 	Range{0x0b0f, 0x0b10, 1},
@@ -2419,11 +2419,11 @@ var _Oriya = []Range {
 	Range{0x0b66, 0x0b71, 1},
 }
 
-var _Buhid = []Range {
+var _Buhid = []Range{
 	Range{0x1740, 0x1753, 1},
 }
 
-var _Ethiopic = []Range {
+var _Ethiopic = []Range{
 	Range{0x1200, 0x1248, 1},
 	Range{0x124a, 0x124d, 1},
 	Range{0x1250, 0x1256, 1},
@@ -2453,29 +2453,29 @@ var _Ethiopic = []Range {
 	Range{0x2dd8, 0x2dde, 1},
 }
 
-var _Syloti_Nagri = []Range {
+var _Syloti_Nagri = []Range{
 	Range{0xa800, 0xa82b, 1},
 }
 
-var _Vai = []Range {
+var _Vai = []Range{
 	Range{0xa500, 0xa62b, 1},
 }
 
-var _Cherokee = []Range {
+var _Cherokee = []Range{
 	Range{0x13a0, 0x13f4, 1},
 }
 
-var _Ogham = []Range {
+var _Ogham = []Range{
 	Range{0x1680, 0x169c, 1},
 }
 
-var _Syriac = []Range {
+var _Syriac = []Range{
 	Range{0x0700, 0x070d, 1},
 	Range{0x070f, 0x074a, 1},
 	Range{0x074d, 0x074f, 1},
 }
 
-var _Gurmukhi = []Range {
+var _Gurmukhi = []Range{
 	Range{0x0a01, 0x0a03, 1},
 	Range{0x0a05, 0x0a0a, 1},
 	Range{0x0a0f, 0x0a10, 1},
@@ -2494,11 +2494,11 @@ var _Gurmukhi = []Range {
 	Range{0x0a66, 0x0a75, 1},
 }
 
-var _Ol_Chiki = []Range {
+var _Ol_Chiki = []Range{
 	Range{0x1c50, 0x1c7f, 1},
 }
 
-var _Mongolian = []Range {
+var _Mongolian = []Range{
 	Range{0x1800, 0x1801, 1},
 	Range{0x1804, 0x1804, 1},
 	Range{0x1806, 0x180e, 1},
@@ -2507,11 +2507,11 @@ var _Mongolian = []Range {
 	Range{0x1880, 0x18aa, 1},
 }
 
-var _Hanunoo = []Range {
+var _Hanunoo = []Range{
 	Range{0x1720, 0x1734, 1},
 }
 
-var _Cypriot = []Range {
+var _Cypriot = []Range{
 	Range{0x10800, 0x10805, 1},
 	Range{0x10808, 0x10808, 1},
 	Range{0x1080a, 0x10835, 1},
@@ -2520,62 +2520,62 @@ var _Cypriot = []Range {
 	Range{0x1083f, 0x1083f, 1},
 }
 
-var _Buginese = []Range {
+var _Buginese = []Range{
 	Range{0x1a00, 0x1a1b, 1},
 	Range{0x1a1e, 0x1a1f, 1},
 }
 
-var _Lepcha = []Range {
+var _Lepcha = []Range{
 	Range{0x1c00, 0x1c37, 1},
 	Range{0x1c3b, 0x1c49, 1},
 	Range{0x1c4d, 0x1c4f, 1},
 }
 
-var _Thaana = []Range {
+var _Thaana = []Range{
 	Range{0x0780, 0x07b1, 1},
 }
 
-var _Old_Persian = []Range {
+var _Old_Persian = []Range{
 	Range{0x103a0, 0x103c3, 1},
 	Range{0x103c8, 0x103d5, 1},
 }
 
-var _Cuneiform = []Range {
+var _Cuneiform = []Range{
 	Range{0x12000, 0x1236e, 1},
 	Range{0x12400, 0x12462, 1},
 	Range{0x12470, 0x12473, 1},
 }
 
-var _Rejang = []Range {
+var _Rejang = []Range{
 	Range{0xa930, 0xa953, 1},
 	Range{0xa95f, 0xa95f, 1},
 }
 
-var _Georgian = []Range {
+var _Georgian = []Range{
 	Range{0x10a0, 0x10c5, 1},
 	Range{0x10d0, 0x10fa, 1},
 	Range{0x10fc, 0x10fc, 1},
 	Range{0x2d00, 0x2d25, 1},
 }
 
-var _Shavian = []Range {
+var _Shavian = []Range{
 	Range{0x10450, 0x1047f, 1},
 }
 
-var _Lycian = []Range {
+var _Lycian = []Range{
 	Range{0x10280, 0x1029c, 1},
 }
 
-var _Nko = []Range {
+var _Nko = []Range{
 	Range{0x07c0, 0x07fa, 1},
 }
 
-var _Yi = []Range {
+var _Yi = []Range{
 	Range{0xa000, 0xa48c, 1},
 	Range{0xa490, 0xa4c6, 1},
 }
 
-var _Lao = []Range {
+var _Lao = []Range{
 	Range{0x0e81, 0x0e82, 1},
 	Range{0x0e84, 0x0e84, 1},
 	Range{0x0e87, 0x0e88, 1},
@@ -2596,7 +2596,7 @@ var _Lao = []Range {
 	Range{0x0edc, 0x0edd, 1},
 }
 
-var _Linear_B = []Range {
+var _Linear_B = []Range{
 	Range{0x10000, 0x1000b, 1},
 	Range{0x1000d, 0x10026, 1},
 	Range{0x10028, 0x1003a, 1},
@@ -2606,12 +2606,12 @@ var _Linear_B = []Range {
 	Range{0x10080, 0x100fa, 1},
 }
 
-var _Old_Italic = []Range {
+var _Old_Italic = []Range{
 	Range{0x10300, 0x1031e, 1},
 	Range{0x10320, 0x10323, 1},
 }
 
-var _Devanagari = []Range {
+var _Devanagari = []Range{
 	Range{0x0901, 0x0939, 1},
 	Range{0x093c, 0x094d, 1},
 	Range{0x0950, 0x0950, 1},
@@ -2622,27 +2622,27 @@ var _Devanagari = []Range {
 	Range{0x097b, 0x097f, 1},
 }
 
-var _Lydian = []Range {
+var _Lydian = []Range{
 	Range{0x10920, 0x10939, 1},
 	Range{0x1093f, 0x1093f, 1},
 }
 
-var _Tifinagh = []Range {
+var _Tifinagh = []Range{
 	Range{0x2d30, 0x2d65, 1},
 	Range{0x2d6f, 0x2d6f, 1},
 }
 
-var _Ugaritic = []Range {
+var _Ugaritic = []Range{
 	Range{0x10380, 0x1039d, 1},
 	Range{0x1039f, 0x1039f, 1},
 }
 
-var _Thai = []Range {
+var _Thai = []Range{
 	Range{0x0e01, 0x0e3a, 1},
 	Range{0x0e40, 0x0e5b, 1},
 }
 
-var _Cyrillic = []Range {
+var _Cyrillic = []Range{
 	Range{0x0400, 0x0523, 1},
 	Range{0x1d2b, 0x1d2b, 1},
 	Range{0x1d78, 0x1d78, 1},
@@ -2652,7 +2652,7 @@ var _Cyrillic = []Range {
 	Range{0xa67c, 0xa697, 1},
 }
 
-var _Gujarati = []Range {
+var _Gujarati = []Range{
 	Range{0x0a81, 0x0a83, 1},
 	Range{0x0a85, 0x0a8d, 1},
 	Range{0x0a8f, 0x0a91, 1},
@@ -2669,25 +2669,25 @@ var _Gujarati = []Range {
 	Range{0x0af1, 0x0af1, 1},
 }
 
-var _Carian = []Range {
+var _Carian = []Range{
 	Range{0x102a0, 0x102d0, 1},
 }
 
-var _Phoenician = []Range {
+var _Phoenician = []Range{
 	Range{0x10900, 0x10919, 1},
 	Range{0x1091f, 0x1091f, 1},
 }
 
-var _Balinese = []Range {
+var _Balinese = []Range{
 	Range{0x1b00, 0x1b4b, 1},
 	Range{0x1b50, 0x1b7c, 1},
 }
 
-var _Braille = []Range {
+var _Braille = []Range{
 	Range{0x2800, 0x28ff, 1},
 }
 
-var _Han = []Range {
+var _Han = []Range{
 	Range{0x2e80, 0x2e99, 1},
 	Range{0x2e9b, 0x2ef3, 1},
 	Range{0x2f00, 0x2fd5, 1},
@@ -2704,88 +2704,88 @@ var _Han = []Range {
 	Range{0x2f800, 0x2fa1d, 1},
 }
 
-var _Gothic = []Range {
+var _Gothic = []Range{
 	Range{0x10330, 0x1034a, 1},
 }
 
 var (
-	Arabic = _Arabic;	// Arabic is the set of Unicode characters in script Arabic.
-	Armenian = _Armenian;	// Armenian is the set of Unicode characters in script Armenian.
-	Balinese = _Balinese;	// Balinese is the set of Unicode characters in script Balinese.
-	Bengali = _Bengali;	// Bengali is the set of Unicode characters in script Bengali.
-	Bopomofo = _Bopomofo;	// Bopomofo is the set of Unicode characters in script Bopomofo.
-	Braille = _Braille;	// Braille is the set of Unicode characters in script Braille.
-	Buginese = _Buginese;	// Buginese is the set of Unicode characters in script Buginese.
-	Buhid = _Buhid;	// Buhid is the set of Unicode characters in script Buhid.
-	Canadian_Aboriginal = _Canadian_Aboriginal;	// Canadian_Aboriginal is the set of Unicode characters in script Canadian_Aboriginal.
-	Carian = _Carian;	// Carian is the set of Unicode characters in script Carian.
-	Cham = _Cham;	// Cham is the set of Unicode characters in script Cham.
-	Cherokee = _Cherokee;	// Cherokee is the set of Unicode characters in script Cherokee.
-	Common = _Common;	// Common is the set of Unicode characters in script Common.
-	Coptic = _Coptic;	// Coptic is the set of Unicode characters in script Coptic.
-	Cuneiform = _Cuneiform;	// Cuneiform is the set of Unicode characters in script Cuneiform.
-	Cypriot = _Cypriot;	// Cypriot is the set of Unicode characters in script Cypriot.
-	Cyrillic = _Cyrillic;	// Cyrillic is the set of Unicode characters in script Cyrillic.
-	Deseret = _Deseret;	// Deseret is the set of Unicode characters in script Deseret.
-	Devanagari = _Devanagari;	// Devanagari is the set of Unicode characters in script Devanagari.
-	Ethiopic = _Ethiopic;	// Ethiopic is the set of Unicode characters in script Ethiopic.
-	Georgian = _Georgian;	// Georgian is the set of Unicode characters in script Georgian.
-	Glagolitic = _Glagolitic;	// Glagolitic is the set of Unicode characters in script Glagolitic.
-	Gothic = _Gothic;	// Gothic is the set of Unicode characters in script Gothic.
-	Greek = _Greek;	// Greek is the set of Unicode characters in script Greek.
-	Gujarati = _Gujarati;	// Gujarati is the set of Unicode characters in script Gujarati.
-	Gurmukhi = _Gurmukhi;	// Gurmukhi is the set of Unicode characters in script Gurmukhi.
-	Han = _Han;	// Han is the set of Unicode characters in script Han.
-	Hangul = _Hangul;	// Hangul is the set of Unicode characters in script Hangul.
-	Hanunoo = _Hanunoo;	// Hanunoo is the set of Unicode characters in script Hanunoo.
-	Hebrew = _Hebrew;	// Hebrew is the set of Unicode characters in script Hebrew.
-	Hiragana = _Hiragana;	// Hiragana is the set of Unicode characters in script Hiragana.
-	Inherited = _Inherited;	// Inherited is the set of Unicode characters in script Inherited.
-	Kannada = _Kannada;	// Kannada is the set of Unicode characters in script Kannada.
-	Katakana = _Katakana;	// Katakana is the set of Unicode characters in script Katakana.
-	Kayah_Li = _Kayah_Li;	// Kayah_Li is the set of Unicode characters in script Kayah_Li.
-	Kharoshthi = _Kharoshthi;	// Kharoshthi is the set of Unicode characters in script Kharoshthi.
-	Khmer = _Khmer;	// Khmer is the set of Unicode characters in script Khmer.
-	Lao = _Lao;	// Lao is the set of Unicode characters in script Lao.
-	Latin = _Latin;	// Latin is the set of Unicode characters in script Latin.
-	Lepcha = _Lepcha;	// Lepcha is the set of Unicode characters in script Lepcha.
-	Limbu = _Limbu;	// Limbu is the set of Unicode characters in script Limbu.
-	Linear_B = _Linear_B;	// Linear_B is the set of Unicode characters in script Linear_B.
-	Lycian = _Lycian;	// Lycian is the set of Unicode characters in script Lycian.
-	Lydian = _Lydian;	// Lydian is the set of Unicode characters in script Lydian.
-	Malayalam = _Malayalam;	// Malayalam is the set of Unicode characters in script Malayalam.
-	Mongolian = _Mongolian;	// Mongolian is the set of Unicode characters in script Mongolian.
-	Myanmar = _Myanmar;	// Myanmar is the set of Unicode characters in script Myanmar.
-	New_Tai_Lue = _New_Tai_Lue;	// New_Tai_Lue is the set of Unicode characters in script New_Tai_Lue.
-	Nko = _Nko;	// Nko is the set of Unicode characters in script Nko.
-	Ogham = _Ogham;	// Ogham is the set of Unicode characters in script Ogham.
-	Ol_Chiki = _Ol_Chiki;	// Ol_Chiki is the set of Unicode characters in script Ol_Chiki.
-	Old_Italic = _Old_Italic;	// Old_Italic is the set of Unicode characters in script Old_Italic.
-	Old_Persian = _Old_Persian;	// Old_Persian is the set of Unicode characters in script Old_Persian.
-	Oriya = _Oriya;	// Oriya is the set of Unicode characters in script Oriya.
-	Osmanya = _Osmanya;	// Osmanya is the set of Unicode characters in script Osmanya.
-	Phags_Pa = _Phags_Pa;	// Phags_Pa is the set of Unicode characters in script Phags_Pa.
-	Phoenician = _Phoenician;	// Phoenician is the set of Unicode characters in script Phoenician.
-	Rejang = _Rejang;	// Rejang is the set of Unicode characters in script Rejang.
-	Runic = _Runic;	// Runic is the set of Unicode characters in script Runic.
-	Saurashtra = _Saurashtra;	// Saurashtra is the set of Unicode characters in script Saurashtra.
-	Shavian = _Shavian;	// Shavian is the set of Unicode characters in script Shavian.
-	Sinhala = _Sinhala;	// Sinhala is the set of Unicode characters in script Sinhala.
-	Sundanese = _Sundanese;	// Sundanese is the set of Unicode characters in script Sundanese.
-	Syloti_Nagri = _Syloti_Nagri;	// Syloti_Nagri is the set of Unicode characters in script Syloti_Nagri.
-	Syriac = _Syriac;	// Syriac is the set of Unicode characters in script Syriac.
-	Tagalog = _Tagalog;	// Tagalog is the set of Unicode characters in script Tagalog.
-	Tagbanwa = _Tagbanwa;	// Tagbanwa is the set of Unicode characters in script Tagbanwa.
-	Tai_Le = _Tai_Le;	// Tai_Le is the set of Unicode characters in script Tai_Le.
-	Tamil = _Tamil;	// Tamil is the set of Unicode characters in script Tamil.
-	Telugu = _Telugu;	// Telugu is the set of Unicode characters in script Telugu.
-	Thaana = _Thaana;	// Thaana is the set of Unicode characters in script Thaana.
-	Thai = _Thai;	// Thai is the set of Unicode characters in script Thai.
-	Tibetan = _Tibetan;	// Tibetan is the set of Unicode characters in script Tibetan.
-	Tifinagh = _Tifinagh;	// Tifinagh is the set of Unicode characters in script Tifinagh.
-	Ugaritic = _Ugaritic;	// Ugaritic is the set of Unicode characters in script Ugaritic.
-	Vai = _Vai;	// Vai is the set of Unicode characters in script Vai.
-	Yi = _Yi;	// Yi is the set of Unicode characters in script Yi.
+	Arabic			= _Arabic;		// Arabic is the set of Unicode characters in script Arabic.
+	Armenian		= _Armenian;		// Armenian is the set of Unicode characters in script Armenian.
+	Balinese		= _Balinese;		// Balinese is the set of Unicode characters in script Balinese.
+	Bengali			= _Bengali;		// Bengali is the set of Unicode characters in script Bengali.
+	Bopomofo		= _Bopomofo;		// Bopomofo is the set of Unicode characters in script Bopomofo.
+	Braille			= _Braille;		// Braille is the set of Unicode characters in script Braille.
+	Buginese		= _Buginese;		// Buginese is the set of Unicode characters in script Buginese.
+	Buhid			= _Buhid;		// Buhid is the set of Unicode characters in script Buhid.
+	Canadian_Aboriginal	= _Canadian_Aboriginal;	// Canadian_Aboriginal is the set of Unicode characters in script Canadian_Aboriginal.
+	Carian			= _Carian;		// Carian is the set of Unicode characters in script Carian.
+	Cham			= _Cham;		// Cham is the set of Unicode characters in script Cham.
+	Cherokee		= _Cherokee;		// Cherokee is the set of Unicode characters in script Cherokee.
+	Common			= _Common;		// Common is the set of Unicode characters in script Common.
+	Coptic			= _Coptic;		// Coptic is the set of Unicode characters in script Coptic.
+	Cuneiform		= _Cuneiform;		// Cuneiform is the set of Unicode characters in script Cuneiform.
+	Cypriot			= _Cypriot;		// Cypriot is the set of Unicode characters in script Cypriot.
+	Cyrillic		= _Cyrillic;		// Cyrillic is the set of Unicode characters in script Cyrillic.
+	Deseret			= _Deseret;		// Deseret is the set of Unicode characters in script Deseret.
+	Devanagari		= _Devanagari;		// Devanagari is the set of Unicode characters in script Devanagari.
+	Ethiopic		= _Ethiopic;		// Ethiopic is the set of Unicode characters in script Ethiopic.
+	Georgian		= _Georgian;		// Georgian is the set of Unicode characters in script Georgian.
+	Glagolitic		= _Glagolitic;		// Glagolitic is the set of Unicode characters in script Glagolitic.
+	Gothic			= _Gothic;		// Gothic is the set of Unicode characters in script Gothic.
+	Greek			= _Greek;		// Greek is the set of Unicode characters in script Greek.
+	Gujarati		= _Gujarati;		// Gujarati is the set of Unicode characters in script Gujarati.
+	Gurmukhi		= _Gurmukhi;		// Gurmukhi is the set of Unicode characters in script Gurmukhi.
+	Han			= _Han;			// Han is the set of Unicode characters in script Han.
+	Hangul			= _Hangul;		// Hangul is the set of Unicode characters in script Hangul.
+	Hanunoo			= _Hanunoo;		// Hanunoo is the set of Unicode characters in script Hanunoo.
+	Hebrew			= _Hebrew;		// Hebrew is the set of Unicode characters in script Hebrew.
+	Hiragana		= _Hiragana;		// Hiragana is the set of Unicode characters in script Hiragana.
+	Inherited		= _Inherited;		// Inherited is the set of Unicode characters in script Inherited.
+	Kannada			= _Kannada;		// Kannada is the set of Unicode characters in script Kannada.
+	Katakana		= _Katakana;		// Katakana is the set of Unicode characters in script Katakana.
+	Kayah_Li		= _Kayah_Li;		// Kayah_Li is the set of Unicode characters in script Kayah_Li.
+	Kharoshthi		= _Kharoshthi;		// Kharoshthi is the set of Unicode characters in script Kharoshthi.
+	Khmer			= _Khmer;		// Khmer is the set of Unicode characters in script Khmer.
+	Lao			= _Lao;			// Lao is the set of Unicode characters in script Lao.
+	Latin			= _Latin;		// Latin is the set of Unicode characters in script Latin.
+	Lepcha			= _Lepcha;		// Lepcha is the set of Unicode characters in script Lepcha.
+	Limbu			= _Limbu;		// Limbu is the set of Unicode characters in script Limbu.
+	Linear_B		= _Linear_B;		// Linear_B is the set of Unicode characters in script Linear_B.
+	Lycian			= _Lycian;		// Lycian is the set of Unicode characters in script Lycian.
+	Lydian			= _Lydian;		// Lydian is the set of Unicode characters in script Lydian.
+	Malayalam		= _Malayalam;		// Malayalam is the set of Unicode characters in script Malayalam.
+	Mongolian		= _Mongolian;		// Mongolian is the set of Unicode characters in script Mongolian.
+	Myanmar			= _Myanmar;		// Myanmar is the set of Unicode characters in script Myanmar.
+	New_Tai_Lue		= _New_Tai_Lue;		// New_Tai_Lue is the set of Unicode characters in script New_Tai_Lue.
+	Nko			= _Nko;			// Nko is the set of Unicode characters in script Nko.
+	Ogham			= _Ogham;		// Ogham is the set of Unicode characters in script Ogham.
+	Ol_Chiki		= _Ol_Chiki;		// Ol_Chiki is the set of Unicode characters in script Ol_Chiki.
+	Old_Italic		= _Old_Italic;		// Old_Italic is the set of Unicode characters in script Old_Italic.
+	Old_Persian		= _Old_Persian;		// Old_Persian is the set of Unicode characters in script Old_Persian.
+	Oriya			= _Oriya;		// Oriya is the set of Unicode characters in script Oriya.
+	Osmanya			= _Osmanya;		// Osmanya is the set of Unicode characters in script Osmanya.
+	Phags_Pa		= _Phags_Pa;		// Phags_Pa is the set of Unicode characters in script Phags_Pa.
+	Phoenician		= _Phoenician;		// Phoenician is the set of Unicode characters in script Phoenician.
+	Rejang			= _Rejang;		// Rejang is the set of Unicode characters in script Rejang.
+	Runic			= _Runic;		// Runic is the set of Unicode characters in script Runic.
+	Saurashtra		= _Saurashtra;		// Saurashtra is the set of Unicode characters in script Saurashtra.
+	Shavian			= _Shavian;		// Shavian is the set of Unicode characters in script Shavian.
+	Sinhala			= _Sinhala;		// Sinhala is the set of Unicode characters in script Sinhala.
+	Sundanese		= _Sundanese;		// Sundanese is the set of Unicode characters in script Sundanese.
+	Syloti_Nagri		= _Syloti_Nagri;	// Syloti_Nagri is the set of Unicode characters in script Syloti_Nagri.
+	Syriac			= _Syriac;		// Syriac is the set of Unicode characters in script Syriac.
+	Tagalog			= _Tagalog;		// Tagalog is the set of Unicode characters in script Tagalog.
+	Tagbanwa		= _Tagbanwa;		// Tagbanwa is the set of Unicode characters in script Tagbanwa.
+	Tai_Le			= _Tai_Le;		// Tai_Le is the set of Unicode characters in script Tai_Le.
+	Tamil			= _Tamil;		// Tamil is the set of Unicode characters in script Tamil.
+	Telugu			= _Telugu;		// Telugu is the set of Unicode characters in script Telugu.
+	Thaana			= _Thaana;		// Thaana is the set of Unicode characters in script Thaana.
+	Thai			= _Thai;		// Thai is the set of Unicode characters in script Thai.
+	Tibetan			= _Tibetan;		// Tibetan is the set of Unicode characters in script Tibetan.
+	Tifinagh		= _Tifinagh;		// Tifinagh is the set of Unicode characters in script Tifinagh.
+	Ugaritic		= _Ugaritic;		// Ugaritic is the set of Unicode characters in script Ugaritic.
+	Vai			= _Vai;			// Vai is the set of Unicode characters in script Vai.
+	Yi			= _Yi;			// Yi is the set of Unicode characters in script Yi.
 )
 
 // Generated by running
@@ -2793,7 +2793,7 @@ var (
 // DO NOT EDIT
 
 // Properties is the set of Unicode property tables.
-var Properties = map[string] []Range {
+var Properties = map[string][]Range{
 	"Pattern_Syntax": Pattern_Syntax,
 	"Other_ID_Start": Other_ID_Start,
 	"Pattern_White_Space": Pattern_White_Space,
@@ -2828,7 +2828,7 @@ var Properties = map[string] []Range {
 	"White_Space": White_Space,
 }
 
-var _Pattern_Syntax = []Range {
+var _Pattern_Syntax = []Range{
 	Range{0x0021, 0x002f, 1},
 	Range{0x003a, 0x0040, 1},
 	Range{0x005b, 0x005e, 1},
@@ -2859,13 +2859,13 @@ var _Pattern_Syntax = []Range {
 	Range{0xfe45, 0xfe46, 1},
 }
 
-var _Other_ID_Start = []Range {
+var _Other_ID_Start = []Range{
 	Range{0x2118, 0x2118, 1},
 	Range{0x212e, 0x212e, 1},
 	Range{0x309b, 0x309c, 1},
 }
 
-var _Pattern_White_Space = []Range {
+var _Pattern_White_Space = []Range{
 	Range{0x0009, 0x000d, 1},
 	Range{0x0020, 0x0020, 1},
 	Range{0x0085, 0x0085, 1},
@@ -2873,7 +2873,7 @@ var _Pattern_White_Space = []Range {
 	Range{0x2028, 0x2029, 1},
 }
 
-var _Other_Lowercase = []Range {
+var _Other_Lowercase = []Range{
 	Range{0x02b0, 0x02b8, 1},
 	Range{0x02c0, 0x02c1, 1},
 	Range{0x02e0, 0x02e4, 1},
@@ -2889,7 +2889,7 @@ var _Other_Lowercase = []Range {
 	Range{0xa770, 0xa770, 1},
 }
 
-var _Soft_Dotted = []Range {
+var _Soft_Dotted = []Range{
 	Range{0x0069, 0x006a, 1},
 	Range{0x012f, 0x012f, 1},
 	Range{0x0249, 0x0249, 1},
@@ -2923,7 +2923,7 @@ var _Soft_Dotted = []Range {
 	Range{0x1d692, 0x1d693, 1},
 }
 
-var _Hex_Digit = []Range {
+var _Hex_Digit = []Range{
 	Range{0x0030, 0x0039, 1},
 	Range{0x0041, 0x0046, 1},
 	Range{0x0061, 0x0066, 1},
@@ -2932,13 +2932,13 @@ var _Hex_Digit = []Range {
 	Range{0xff41, 0xff46, 1},
 }
 
-var _ASCII_Hex_Digit = []Range {
+var _ASCII_Hex_Digit = []Range{
 	Range{0x0030, 0x0039, 1},
 	Range{0x0041, 0x0046, 1},
 	Range{0x0061, 0x0066, 1},
 }
 
-var _Deprecated = []Range {
+var _Deprecated = []Range{
 	Range{0x0340, 0x0341, 1},
 	Range{0x17a3, 0x17a3, 1},
 	Range{0x17d3, 0x17d3, 1},
@@ -2947,7 +2947,7 @@ var _Deprecated = []Range {
 	Range{0xe0020, 0xe007f, 1},
 }
 
-var _Terminal_Punctuation = []Range {
+var _Terminal_Punctuation = []Range{
 	Range{0x0021, 0x0021, 1},
 	Range{0x002c, 0x002c, 1},
 	Range{0x002e, 0x002e, 1},
@@ -3005,7 +3005,7 @@ var _Terminal_Punctuation = []Range {
 	Range{0x12470, 0x12473, 1},
 }
 
-var _Quotation_Mark = []Range {
+var _Quotation_Mark = []Range{
 	Range{0x0022, 0x0022, 1},
 	Range{0x0027, 0x0027, 1},
 	Range{0x00ab, 0x00ab, 1},
@@ -3020,24 +3020,24 @@ var _Quotation_Mark = []Range {
 	Range{0xff62, 0xff63, 1},
 }
 
-var _Other_ID_Continue = []Range {
+var _Other_ID_Continue = []Range{
 	Range{0x00b7, 0x00b7, 1},
 	Range{0x0387, 0x0387, 1},
 	Range{0x1369, 0x1371, 1},
 }
 
-var _Bidi_Control = []Range {
+var _Bidi_Control = []Range{
 	Range{0x200e, 0x200f, 1},
 	Range{0x202a, 0x202e, 1},
 }
 
-var _Variation_Selector = []Range {
+var _Variation_Selector = []Range{
 	Range{0x180b, 0x180d, 1},
 	Range{0xfe00, 0xfe0f, 1},
 	Range{0xe0100, 0xe01ef, 1},
 }
 
-var _Noncharacter_Code_Point = []Range {
+var _Noncharacter_Code_Point = []Range{
 	Range{0xfdd0, 0xfdef, 1},
 	Range{0xfffe, 0xffff, 1},
 	Range{0x1fffe, 0x1ffff, 1},
@@ -3058,7 +3058,7 @@ var _Noncharacter_Code_Point = []Range {
 	Range{0x10fffe, 0x10ffff, 1},
 }
 
-var _Other_Math = []Range {
+var _Other_Math = []Range{
 	Range{0x005e, 0x005e, 1},
 	Range{0x03d0, 0x03d2, 1},
 	Range{0x03d5, 0x03d5, 1},
@@ -3160,7 +3160,7 @@ var _Other_Math = []Range {
 	Range{0x1d7ce, 0x1d7ff, 1},
 }
 
-var _Unified_Ideograph = []Range {
+var _Unified_Ideograph = []Range{
 	Range{0x3400, 0x4db5, 1},
 	Range{0x4e00, 0x9fc3, 1},
 	Range{0xfa0e, 0xfa0f, 1},
@@ -3173,7 +3173,7 @@ var _Unified_Ideograph = []Range {
 	Range{0x20000, 0x2a6d6, 1},
 }
 
-var _Hyphen = []Range {
+var _Hyphen = []Range{
 	Range{0x002d, 0x002d, 1},
 	Range{0x00ad, 0x00ad, 1},
 	Range{0x058a, 0x058a, 1},
@@ -3186,28 +3186,28 @@ var _Hyphen = []Range {
 	Range{0xff65, 0xff65, 1},
 }
 
-var _IDS_Binary_Operator = []Range {
+var _IDS_Binary_Operator = []Range{
 	Range{0x2ff0, 0x2ff1, 1},
 	Range{0x2ff4, 0x2ffb, 1},
 }
 
-var _Logical_Order_Exception = []Range {
+var _Logical_Order_Exception = []Range{
 	Range{0x0e40, 0x0e44, 1},
 	Range{0x0ec0, 0x0ec4, 1},
 }
 
-var _Radical = []Range {
+var _Radical = []Range{
 	Range{0x2e80, 0x2e99, 1},
 	Range{0x2e9b, 0x2ef3, 1},
 	Range{0x2f00, 0x2fd5, 1},
 }
 
-var _Other_Uppercase = []Range {
+var _Other_Uppercase = []Range{
 	Range{0x2160, 0x216f, 1},
 	Range{0x24b6, 0x24cf, 1},
 }
 
-var _STerm = []Range {
+var _STerm = []Range{
 	Range{0x0021, 0x0021, 1},
 	Range{0x002e, 0x002e, 1},
 	Range{0x003f, 0x003f, 1},
@@ -3247,7 +3247,7 @@ var _STerm = []Range {
 	Range{0xff61, 0xff61, 1},
 }
 
-var _Other_Alphabetic = []Range {
+var _Other_Alphabetic = []Range{
 	Range{0x0345, 0x0345, 1},
 	Range{0x05b0, 0x05bd, 1},
 	Range{0x05bf, 0x05bf, 1},
@@ -3372,7 +3372,7 @@ var _Other_Alphabetic = []Range {
 	Range{0x10a0c, 0x10a0f, 1},
 }
 
-var _Diacritic = []Range {
+var _Diacritic = []Range{
 	Range{0x005e, 0x005e, 1},
 	Range{0x0060, 0x0060, 1},
 	Range{0x00a8, 0x00a8, 1},
@@ -3477,7 +3477,7 @@ var _Diacritic = []Range {
 	Range{0x1d1aa, 0x1d1ad, 1},
 }
 
-var _Extender = []Range {
+var _Extender = []Range{
 	Range{0x00b7, 0x00b7, 1},
 	Range{0x02d0, 0x02d1, 1},
 	Range{0x0640, 0x0640, 1},
@@ -3496,11 +3496,11 @@ var _Extender = []Range {
 	Range{0xff70, 0xff70, 1},
 }
 
-var _Join_Control = []Range {
+var _Join_Control = []Range{
 	Range{0x200c, 0x200d, 1},
 }
 
-var _Ideographic = []Range {
+var _Ideographic = []Range{
 	Range{0x3006, 0x3007, 1},
 	Range{0x3021, 0x3029, 1},
 	Range{0x3038, 0x303a, 1},
@@ -3513,7 +3513,7 @@ var _Ideographic = []Range {
 	Range{0x2f800, 0x2fa1d, 1},
 }
 
-var _Dash = []Range {
+var _Dash = []Range{
 	Range{0x002d, 0x002d, 1},
 	Range{0x058a, 0x058a, 1},
 	Range{0x05be, 0x05be, 1},
@@ -3534,11 +3534,11 @@ var _Dash = []Range {
 	Range{0xff0d, 0xff0d, 1},
 }
 
-var _IDS_Trinary_Operator = []Range {
+var _IDS_Trinary_Operator = []Range{
 	Range{0x2ff2, 0x2ff3, 1},
 }
 
-var _Other_Grapheme_Extend = []Range {
+var _Other_Grapheme_Extend = []Range{
 	Range{0x09be, 0x09be, 1},
 	Range{0x09d7, 0x09d7, 1},
 	Range{0x0b3e, 0x0b3e, 1},
@@ -3557,7 +3557,7 @@ var _Other_Grapheme_Extend = []Range {
 	Range{0x1d16e, 0x1d172, 1},
 }
 
-var _Other_Default_Ignorable_Code_Point = []Range {
+var _Other_Default_Ignorable_Code_Point = []Range{
 	Range{0x034f, 0x034f, 1},
 	Range{0x115f, 0x1160, 1},
 	Range{0x2065, 0x2069, 1},
@@ -3570,7 +3570,7 @@ var _Other_Default_Ignorable_Code_Point = []Range {
 	Range{0xe01f0, 0xe0fff, 1},
 }
 
-var _White_Space = []Range {
+var _White_Space = []Range{
 	Range{0x0009, 0x000d, 1},
 	Range{0x0020, 0x0020, 1},
 	Range{0x0085, 0x0085, 1},
@@ -3585,38 +3585,38 @@ var _White_Space = []Range {
 }
 
 var (
-	ASCII_Hex_Digit = _ASCII_Hex_Digit;	// ASCII_Hex_Digit is the set of Unicode characters with property ASCII_Hex_Digit.
-	Bidi_Control = _Bidi_Control;	// Bidi_Control is the set of Unicode characters with property Bidi_Control.
-	Dash = _Dash;	// Dash is the set of Unicode characters with property Dash.
-	Deprecated = _Deprecated;	// Deprecated is the set of Unicode characters with property Deprecated.
-	Diacritic = _Diacritic;	// Diacritic is the set of Unicode characters with property Diacritic.
-	Extender = _Extender;	// Extender is the set of Unicode characters with property Extender.
-	Hex_Digit = _Hex_Digit;	// Hex_Digit is the set of Unicode characters with property Hex_Digit.
-	Hyphen = _Hyphen;	// Hyphen is the set of Unicode characters with property Hyphen.
-	IDS_Binary_Operator = _IDS_Binary_Operator;	// IDS_Binary_Operator is the set of Unicode characters with property IDS_Binary_Operator.
-	IDS_Trinary_Operator = _IDS_Trinary_Operator;	// IDS_Trinary_Operator is the set of Unicode characters with property IDS_Trinary_Operator.
-	Ideographic = _Ideographic;	// Ideographic is the set of Unicode characters with property Ideographic.
-	Join_Control = _Join_Control;	// Join_Control is the set of Unicode characters with property Join_Control.
-	Logical_Order_Exception = _Logical_Order_Exception;	// Logical_Order_Exception is the set of Unicode characters with property Logical_Order_Exception.
-	Noncharacter_Code_Point = _Noncharacter_Code_Point;	// Noncharacter_Code_Point is the set of Unicode characters with property Noncharacter_Code_Point.
-	Other_Alphabetic = _Other_Alphabetic;	// Other_Alphabetic is the set of Unicode characters with property Other_Alphabetic.
-	Other_Default_Ignorable_Code_Point = _Other_Default_Ignorable_Code_Point;	// Other_Default_Ignorable_Code_Point is the set of Unicode characters with property Other_Default_Ignorable_Code_Point.
-	Other_Grapheme_Extend = _Other_Grapheme_Extend;	// Other_Grapheme_Extend is the set of Unicode characters with property Other_Grapheme_Extend.
-	Other_ID_Continue = _Other_ID_Continue;	// Other_ID_Continue is the set of Unicode characters with property Other_ID_Continue.
-	Other_ID_Start = _Other_ID_Start;	// Other_ID_Start is the set of Unicode characters with property Other_ID_Start.
-	Other_Lowercase = _Other_Lowercase;	// Other_Lowercase is the set of Unicode characters with property Other_Lowercase.
-	Other_Math = _Other_Math;	// Other_Math is the set of Unicode characters with property Other_Math.
-	Other_Uppercase = _Other_Uppercase;	// Other_Uppercase is the set of Unicode characters with property Other_Uppercase.
-	Pattern_Syntax = _Pattern_Syntax;	// Pattern_Syntax is the set of Unicode characters with property Pattern_Syntax.
-	Pattern_White_Space = _Pattern_White_Space;	// Pattern_White_Space is the set of Unicode characters with property Pattern_White_Space.
-	Quotation_Mark = _Quotation_Mark;	// Quotation_Mark is the set of Unicode characters with property Quotation_Mark.
-	Radical = _Radical;	// Radical is the set of Unicode characters with property Radical.
-	STerm = _STerm;	// STerm is the set of Unicode characters with property STerm.
-	Soft_Dotted = _Soft_Dotted;	// Soft_Dotted is the set of Unicode characters with property Soft_Dotted.
-	Terminal_Punctuation = _Terminal_Punctuation;	// Terminal_Punctuation is the set of Unicode characters with property Terminal_Punctuation.
-	Unified_Ideograph = _Unified_Ideograph;	// Unified_Ideograph is the set of Unicode characters with property Unified_Ideograph.
-	Variation_Selector = _Variation_Selector;	// Variation_Selector is the set of Unicode characters with property Variation_Selector.
-	White_Space = _White_Space;	// White_Space is the set of Unicode characters with property White_Space.
+	ASCII_Hex_Digit				= _ASCII_Hex_Digit;			// ASCII_Hex_Digit is the set of Unicode characters with property ASCII_Hex_Digit.
+	Bidi_Control				= _Bidi_Control;			// Bidi_Control is the set of Unicode characters with property Bidi_Control.
+	Dash					= _Dash;				// Dash is the set of Unicode characters with property Dash.
+	Deprecated				= _Deprecated;				// Deprecated is the set of Unicode characters with property Deprecated.
+	Diacritic				= _Diacritic;				// Diacritic is the set of Unicode characters with property Diacritic.
+	Extender				= _Extender;				// Extender is the set of Unicode characters with property Extender.
+	Hex_Digit				= _Hex_Digit;				// Hex_Digit is the set of Unicode characters with property Hex_Digit.
+	Hyphen					= _Hyphen;				// Hyphen is the set of Unicode characters with property Hyphen.
+	IDS_Binary_Operator			= _IDS_Binary_Operator;			// IDS_Binary_Operator is the set of Unicode characters with property IDS_Binary_Operator.
+	IDS_Trinary_Operator			= _IDS_Trinary_Operator;		// IDS_Trinary_Operator is the set of Unicode characters with property IDS_Trinary_Operator.
+	Ideographic				= _Ideographic;				// Ideographic is the set of Unicode characters with property Ideographic.
+	Join_Control				= _Join_Control;			// Join_Control is the set of Unicode characters with property Join_Control.
+	Logical_Order_Exception			= _Logical_Order_Exception;		// Logical_Order_Exception is the set of Unicode characters with property Logical_Order_Exception.
+	Noncharacter_Code_Point			= _Noncharacter_Code_Point;		// Noncharacter_Code_Point is the set of Unicode characters with property Noncharacter_Code_Point.
+	Other_Alphabetic			= _Other_Alphabetic;			// Other_Alphabetic is the set of Unicode characters with property Other_Alphabetic.
+	Other_Default_Ignorable_Code_Point	= _Other_Default_Ignorable_Code_Point;	// Other_Default_Ignorable_Code_Point is the set of Unicode characters with property Other_Default_Ignorable_Code_Point.
+	Other_Grapheme_Extend			= _Other_Grapheme_Extend;		// Other_Grapheme_Extend is the set of Unicode characters with property Other_Grapheme_Extend.
+	Other_ID_Continue			= _Other_ID_Continue;			// Other_ID_Continue is the set of Unicode characters with property Other_ID_Continue.
+	Other_ID_Start				= _Other_ID_Start;			// Other_ID_Start is the set of Unicode characters with property Other_ID_Start.
+	Other_Lowercase				= _Other_Lowercase;			// Other_Lowercase is the set of Unicode characters with property Other_Lowercase.
+	Other_Math				= _Other_Math;				// Other_Math is the set of Unicode characters with property Other_Math.
+	Other_Uppercase				= _Other_Uppercase;			// Other_Uppercase is the set of Unicode characters with property Other_Uppercase.
+	Pattern_Syntax				= _Pattern_Syntax;			// Pattern_Syntax is the set of Unicode characters with property Pattern_Syntax.
+	Pattern_White_Space			= _Pattern_White_Space;			// Pattern_White_Space is the set of Unicode characters with property Pattern_White_Space.
+	Quotation_Mark				= _Quotation_Mark;			// Quotation_Mark is the set of Unicode characters with property Quotation_Mark.
+	Radical					= _Radical;				// Radical is the set of Unicode characters with property Radical.
+	STerm					= _STerm;				// STerm is the set of Unicode characters with property STerm.
+	Soft_Dotted				= _Soft_Dotted;				// Soft_Dotted is the set of Unicode characters with property Soft_Dotted.
+	Terminal_Punctuation			= _Terminal_Punctuation;		// Terminal_Punctuation is the set of Unicode characters with property Terminal_Punctuation.
+	Unified_Ideograph			= _Unified_Ideograph;			// Unified_Ideograph is the set of Unicode characters with property Unified_Ideograph.
+	Variation_Selector			= _Variation_Selector;			// Variation_Selector is the set of Unicode characters with property Variation_Selector.
+	White_Space				= _White_Space;				// White_Space is the set of Unicode characters with property White_Space.
 )
 
 // Generated by running
@@ -3626,7 +3626,7 @@ var (
 // CaseRanges is the table describing case mappings for all letters with
 // non-self mappings.
 var CaseRanges = _CaseRanges
-var _CaseRanges = []CaseRange {
+var _CaseRanges = []CaseRange{
 	CaseRange{0x0041, 0x005A, d{0, 32, 0}},
 	CaseRange{0x0061, 0x007A, d{-32, 0, -32}},
 	CaseRange{0x00B5, 0x00B5, d{743, 0, 743}},
