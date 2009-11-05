@@ -98,9 +98,7 @@ func TestXorWriter(t *testing.T) {
 
 func testXorReader(t *testing.T, maxio int) {
 	var readers = []func(io.Reader) io.Reader{
-		func(r io.Reader) io.Reader {
-			return r;
-		},
+		func(r io.Reader) io.Reader { return r },
 		iotest.OneByteReader,
 		iotest.HalfReader,
 	};

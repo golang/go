@@ -106,7 +106,8 @@ func mutualVersion(theirMajor, theirMinor uint8) (major, minor uint8, ok bool) {
 // A nop implements the NULL encryption and MAC algorithms.
 type nop struct{}
 
-func (nop) XORKeyStream(buf []byte) {}
+func (nop) XORKeyStream(buf []byte) {
+}
 
 func (nop) Write(buf []byte) (int, os.Error) {
 	return len(buf), nil;
@@ -116,7 +117,8 @@ func (nop) Sum() []byte {
 	return nil;
 }
 
-func (nop) Reset() {}
+func (nop) Reset() {
+}
 
 func (nop) Size() int {
 	return 0;

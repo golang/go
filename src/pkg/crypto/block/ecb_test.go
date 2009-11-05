@@ -15,9 +15,9 @@ import (
 // Simple Cipher for testing: adds an incrementing amount
 // to each byte in each
 type IncCipher struct {
-	blockSize int;
-	delta byte;
-	encrypting bool;
+	blockSize	int;
+	delta		byte;
+	encrypting	bool;
 }
 
 func (c *IncCipher) BlockSize() int {
@@ -60,10 +60,10 @@ func TestECBEncrypter(t *testing.T) {
 		// compute encrypted version
 		delta := byte(0);
 		for i := 0; i < len(crypt); i++ {
-			if i % block == 0 {
+			if i%block == 0 {
 				delta++;
 			}
-			crypt[i] = plain[i] + delta;
+			crypt[i] = plain[i]+delta;
 		}
 
 		for frag := 0; frag < 2; frag++ {
@@ -110,24 +110,24 @@ func TestECBEncrypter(t *testing.T) {
 }
 
 func testECBDecrypter(t *testing.T, maxio int) {
-	var readers = []func(io.Reader) io.Reader {
-		func (r io.Reader) io.Reader { return r },
+	var readers = []func(io.Reader) io.Reader{
+		func(r io.Reader) io.Reader { return r },
 		iotest.OneByteReader,
 		iotest.HalfReader,
 	};
 	var plain, crypt [256]byte;
 	for i := 0; i < len(plain); i++ {
-		plain[i] = byte(255 - i);
+		plain[i] = byte(255-i);
 	}
 	b := new(bytes.Buffer);
 	for block := 1; block <= 64 && block <= maxio; block *= 2 {
 		// compute encrypted version
 		delta := byte(0);
 		for i := 0; i < len(crypt); i++ {
-			if i % block == 0 {
+			if i%block == 0 {
 				delta++;
 			}
-			crypt[i] = plain[i] + delta;
+			crypt[i] = plain[i]+delta;
 		}
 
 		for mode := 0; mode < len(readers); mode++ {

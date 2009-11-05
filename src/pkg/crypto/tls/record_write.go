@@ -74,10 +74,16 @@ func (w *recordWriter) loop(writer io.Writer, appChan <-chan []byte, controlChan
 	}
 
 	if !closed(appChan) {
-		go func() { for _ = range appChan {} }();
+		go func() {
+			for _ = range appChan {
+			}
+		}();
 	}
 	if !closed(controlChan) {
-		go func() { for _ = range controlChan {} }();
+		go func() {
+			for _ = range controlChan {
+			}
+		}();
 	}
 }
 
