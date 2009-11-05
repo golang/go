@@ -18,8 +18,11 @@ import (
 	"strings";
 )
 
+var checkSync = flag.Bool("checksync", true, "check whether repository is out of sync")
+
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: hgpatch [patchfile]\n");
+	fmt.Fprintf(os.Stderr, "usage: hgpatch [options] [patchfile]\n");
+	flag.PrintDefaults();
 	os.Exit(2);
 }
 
@@ -49,11 +52,8 @@ func main() {
 	chk(err);
 	chk(os.Chdir(root));
 
-	op, err := pset.Apply(io.ReadFile);
-	chk(err);
-
 	// Make sure there are no pending changes on the server.
-	if hgIncoming() {
+	if *checkSync && hgIncoming() {
 		fmt.Fprintf(os.Stderr, "incoming changes waiting; run hg sync first\n");
 		os.Exit(2);
 	}
@@ -66,16 +66,15 @@ func main() {
 		dirty[f] = 1;
 	}
 	conflict := make(map[string]int);
-	for i := range op {
-		o := &op[i];
-		if o.Verb == patch.Delete || o.Verb == patch.Rename {
-			if _, ok := dirty[o.Src]; ok {
-				conflict[o.Src] = 1;
+	for _, f := range pset.File {
+		if f.Verb == patch.Delete || f.Verb == patch.Rename {
+			if _, ok := dirty[f.Src]; ok {
+				conflict[f.Src] = 1;
 			}
 		}
-		if o.Verb != patch.Delete {
-			if _, ok := dirty[o.Dst]; ok {
-				conflict[o.Dst] = 1;
+		if f.Verb != patch.Delete {
+			if _, ok := dirty[f.Dst]; ok {
+				conflict[f.Dst] = 1;
 			}
 		}
 	}
@@ -87,7 +86,11 @@ func main() {
 		os.Exit(2);
 	}
 
-	// Apply to local copy: order of commands matters.
+	// Apply changes in memory.
+	op, err := pset.Apply(io.ReadFile);
+	chk(err);
+
+	// Write changes to disk copy: order of commands matters.
 	// Accumulate undo log as we go, in case there is an error.
 	// Also accumulate list of modified files to print at end.
 	changed := make(map[string]int);
@@ -343,7 +346,7 @@ func run(argv []string, input []byte) (out string, err os.Error) {
 		}
 		lookPathCache[argv[0]] = prog;
 	}
-	fmt.Fprintf(os.Stderr, "%v\n", argv);
+	// fmt.Fprintf(os.Stderr, "%v\n", argv);
 	var cmd *exec.Cmd;
 	if len(input) == 0 {
 		cmd, err = exec.Run(prog, argv, os.Environ(), exec.DevNull, exec.Pipe, exec.MergeWithStdout);
