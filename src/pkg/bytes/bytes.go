@@ -142,7 +142,7 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 	na := 0;
 	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
 		if s[i] == c && (len(sep) == 1 || Equal(s[i : i+len(sep)], sep)) {
-			a[na] = s[start:i+sepSave];
+			a[na] = s[start : i+sepSave];
 			na++;
 			start = i+len(sep);
 			i += len(sep)-1;
@@ -278,7 +278,8 @@ func TrimSpace(s []byte) []byte {
 		rune := int(s[end-1]);
 		if rune >= utf8.RuneSelf {
 			// Back up carefully looking for beginning of rune. Mustn't pass start.
-			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {}
+			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {
+			}
 			if start > end-wid {	// invalid UTF-8 sequence; stop processing
 				return s[start:end];
 			}
