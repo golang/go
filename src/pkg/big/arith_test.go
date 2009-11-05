@@ -268,3 +268,49 @@ func TestFunVWW(t *testing.T) {
 		}
 	}
 }
+
+
+type mulWWTest struct {
+	x, y	Word;
+	q, r	Word;
+}
+
+
+var mulWWTests = []mulWWTest{
+	mulWWTest{_M, _M, _M - 1, 1},
+}
+
+
+func TestMulWWW(t *testing.T) {
+	for i, test := range mulWWTests {
+		q, r := mulWW_g(test.x, test.y);
+		if q != test.q || r != test.r {
+			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r);
+		}
+	}
+}
+
+
+type mulAddWWWTest struct {
+	x, y, c	Word;
+	q, r	Word;
+}
+
+
+var mulAddWWWTests = []mulAddWWWTest{
+	// TODO(agl): These will only work on 64-bit platforms.
+	// mulAddWWWTest{15064310297182388543, 0xe7df04d2d35d5d80, 13537600649892366549, 13644450054494335067, 10832252001440893781},
+	// mulAddWWWTest{15064310297182388543, 0xdab2f18048baa68d, 13644450054494335067, 12869334219691522700, 14233854684711418382},
+	mulAddWWWTest{_M, _M, 0, _M - 1, 1},
+	mulAddWWWTest{_M, _M, _M, _M, 0},
+}
+
+
+func TestMulAddWWW(t *testing.T) {
+	for i, test := range mulAddWWWTests {
+		q, r := mulAddWWW_g(test.x, test.y, test.c);
+		if q != test.q || r != test.r {
+			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r);
+		}
+	}
+}
