@@ -39,7 +39,7 @@
 
 	Integer flags accept 1234, 0664, 0x1234 and may be negative.
 	Boolean flags may be 1, 0, t, f, true, false, TRUE, FALSE, True, False.
- */
+*/
 package flag
 
 import (

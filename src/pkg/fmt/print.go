@@ -422,8 +422,8 @@ func (p *pp) printField(field reflect.Value, plus, sharp bool, depth int) (was_s
 				return false;	// this value is not a string
 			}
 		}
-		}
-		s := "";
+	}
+	s := "";
 BigSwitch:
 	switch f := field.(type) {
 	case *reflect.BoolValue:

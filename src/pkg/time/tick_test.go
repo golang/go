@@ -5,8 +5,8 @@
 package time_test
 
 import (
-		"testing";
-	.	"time";
+	"testing";
+	. "time";
 )
 
 func TestTicker(t *testing.T) {

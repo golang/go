@@ -5,8 +5,8 @@
 package flag_test
 
 import (
-	.	"flag";
-		"testing";
+	. "flag";
+	"testing";
 )
 
 var (
