@@ -5,8 +5,8 @@ bignum.install: fmt.install
 bufio.install: io.install os.install strconv.install utf8.install
 bytes.install: os.install unicode.install utf8.install
 compress/flate.install: bufio.install bytes.install io.install math.install os.install sort.install strconv.install
-compress/gzip.install: bufio.install compress/flate.install hash/crc32.install hash.install io.install os.install
-compress/zlib.install: bufio.install compress/flate.install hash/adler32.install hash.install io.install os.install
+compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
+compress/zlib.install: bufio.install compress/flate.install hash.install hash/adler32.install io.install os.install
 container/heap.install: sort.install
 container/list.install:
 container/ring.install:
@@ -49,7 +49,7 @@ hash/adler32.install: hash.install os.install
 hash/crc32.install: hash.install os.install
 http.install: bufio.install bytes.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
 image.install:
-image/png.install: bufio.install compress/zlib.install hash/crc32.install hash.install image.install io.install os.install strconv.install
+image/png.install: bufio.install compress/zlib.install hash.install hash/crc32.install image.install io.install os.install strconv.install
 io.install: bytes.install os.install sort.install strings.install sync.install
 json.install: bytes.install container/vector.install fmt.install math.install reflect.install strconv.install strings.install utf8.install
 log.install: fmt.install io.install os.install runtime.install time.install
@@ -58,6 +58,7 @@ math.install:
 net.install: fmt.install io.install once.install os.install reflect.install sync.install syscall.install
 once.install: sync.install
 os.install: once.install syscall.install
+patch.install: bytes.install compress/zlib.install crypto/sha1.install encoding/git85.install fmt.install io.install os.install path.install strings.install
 path.install: io.install os.install strings.install
 rand.install: math.install
 reflect.install: runtime.install strconv.install
