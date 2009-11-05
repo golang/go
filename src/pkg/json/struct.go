@@ -13,11 +13,11 @@ import (
 )
 
 type structBuilder struct {
-	val reflect.Value;
+	val	reflect.Value;
 
 	// if map_ != nil, write val to map_[key] on each change
-	map_ *reflect.MapValue;
-	key reflect.Value;
+	map_	*reflect.MapValue;
+	key	reflect.Value;
 }
 
 var nobuilder *structBuilder
@@ -113,7 +113,8 @@ func (b *structBuilder) Float64(f float64) {
 	}
 }
 
-func (b *structBuilder) Null() {}
+func (b *structBuilder) Null() {
+}
 
 func (b *structBuilder) String(s string) {
 	if b == nil {

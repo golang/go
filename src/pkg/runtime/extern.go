@@ -5,7 +5,7 @@
 /*
 	The runtime package contains operations that interact with Go's runtime system,
 	such as functions to control goroutines.
- */
+*/
 package runtime
 
 // These functions are implemented in the base runtime library, ../../runtime/.

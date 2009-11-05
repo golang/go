@@ -5,10 +5,10 @@
 package io_test
 
 import (
-	.	"io";
-		"os";
-		"strings";
-		"testing";
+	. "io";
+	"os";
+	"strings";
+	"testing";
 )
 
 func checkSize(t *testing.T, path string, size uint64) {

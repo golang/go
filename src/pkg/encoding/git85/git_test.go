@@ -47,16 +47,16 @@ var gitPairs = []testpair{
 	// Wikipedia example, adapted.
 	testpair{
 		"Man is distinguished, not only by his reason, but by this singular passion from "
-		"other animals, which is a lust of the mind, that by a perseverance of delight in "
-		"the continued and indefatigable generation of knowledge, exceeds the short "
-		"vehemence of any carnal pleasure.",
+			"other animals, which is a lust of the mind, that by a perseverance of delight in "
+			"the continued and indefatigable generation of knowledge, exceeds the short "
+			"vehemence of any carnal pleasure.",
 
 		"zO<`^zX>%ZCX>)XGZfA9Ab7*B`EFf-gbRchTY<VDJc_3(Mb0BhMVRLV8EFfZabRc4R\n"
-		"zAarPHb0BkRZfA9DVR9gFVRLh7Z*CxFa&K)QZ**v7av))DX>DO_b1WctXlY|;AZc?T\n"
-		"zVIXXEb95kYW*~HEWgu;7Ze%PVbZB98AYyqSVIXj2a&u*NWpZI|V`U(3W*}r`Y-wj`\n"
-		"zbRcPNAarPDAY*TCbZKsNWn>^>Ze$>7Ze(R<VRUI{VPb4$AZKN6WpZJ3X>V>IZ)PBC\n"
-		"zZf|#NWn^b%EFfigV`XJzb0BnRWgv5CZ*p`Xc4cT~ZDnp_Wgu^6AYpEKAY);2ZeeU7\n"
-		"IaBO8^b9HiME&u=k\n",
+			"zAarPHb0BkRZfA9DVR9gFVRLh7Z*CxFa&K)QZ**v7av))DX>DO_b1WctXlY|;AZc?T\n"
+			"zVIXXEb95kYW*~HEWgu;7Ze%PVbZB98AYyqSVIXj2a&u*NWpZI|V`U(3W*}r`Y-wj`\n"
+			"zbRcPNAarPDAY*TCbZKsNWn>^>Ze$>7Ze(R<VRUI{VPb4$AZKN6WpZJ3X>V>IZ)PBC\n"
+			"zZf|#NWn^b%EFfigV`XJzb0BnRWgv5CZ*p`Xc4cT~ZDnp_Wgu^6AYpEKAY);2ZeeU7\n"
+			"IaBO8^b9HiME&u=k\n",
 	},
 }
 

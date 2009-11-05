@@ -10,27 +10,27 @@ import (
 )
 
 type myStruct struct {
-	T	bool;
-	F	bool;
-	S	string;
-	I8	int8;
-	I16	int16;
-	I32	int32;
-	I64	int64;
-	U8	uint8;
-	U16	uint16;
-	U32	uint32;
-	U64	uint64;
-	I	int;
-	U	uint;
-	Fl	float;
-	Fl32	float32;
-	Fl64	float64;
-	A	[]string;
-	My	*myStruct;
-	Map	map[string][]int;
-	MapStruct map[string]myStruct;
-	MapPtrStruct map[string]*myStruct;
+	T		bool;
+	F		bool;
+	S		string;
+	I8		int8;
+	I16		int16;
+	I32		int32;
+	I64		int64;
+	U8		uint8;
+	U16		uint16;
+	U32		uint32;
+	U64		uint64;
+	I		int;
+	U		uint;
+	Fl		float;
+	Fl32		float32;
+	Fl64		float64;
+	A		[]string;
+	My		*myStruct;
+	Map		map[string][]int;
+	MapStruct	map[string]myStruct;
+	MapPtrStruct	map[string]*myStruct;
 }
 
 const encoded = `{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,`
@@ -43,9 +43,9 @@ const encoded = `{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,`
 	`"mapptrstruct":{"m1":{"u8":8}}}`
 
 var decodedMap = map[string][]int{
-	"k1": []int{1,2,3},
+	"k1": []int{1, 2, 3},
 	"k2": []int{},
-	"k3": []int{3,4},
+	"k3": []int{3, 4},
 }
 
 var decodedMapStruct = map[string]myStruct{
