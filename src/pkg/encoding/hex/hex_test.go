@@ -50,7 +50,7 @@ func TestEncode(t *testing.T) {
 }
 
 type decodeTest struct {
-	in, out		[]byte;
+	in, out	[]byte;
 	ok	bool;
 }
 
@@ -120,8 +120,8 @@ func TestEncodeToString(t *testing.T) {
 }
 
 type decodeStringTest struct {
-	in		string;
-	out		[]byte;
+	in	string;
+	out	[]byte;
 	ok	bool;
 }
 

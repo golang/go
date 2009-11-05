@@ -65,14 +65,14 @@ func Encode(dst, src []byte) int {
 
 		// Otherwise, 5 base 85 digits starting at !.
 		for i := 4; i >= 0; i-- {
-			dst[i] = '!' + byte(v%85);
+			dst[i] = '!'+byte(v%85);
 			v /= 85;
 		}
 
 		// If src was short, discard the low destination bytes.
 		m := 5;
 		if len(src) < 4 {
-			m -= 4 - len(src);
+			m -= 4-len(src);
 			src = nil;
 		} else {
 			src = src[4:len(src)];
@@ -160,7 +160,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 func (e *encoder) Close() os.Error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
-		nout := Encode(&e.out, e.buf[0:e.nbuf]);
+		nout := Encode(&e.out, e.buf[0 : e.nbuf]);
 		e.nbuf = 0;
 		_, e.err = e.w.Write(e.out[0:nout]);
 	}
@@ -195,7 +195,7 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
 	var v uint32;
 	var nb int;
 	for i, b := range src {
-		if len(dst) - ndst < 4 {
+		if len(dst)-ndst < 4 {
 			return;
 		}
 		switch {
@@ -205,7 +205,7 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
 			nb = 5;
 			v = 0;
 		case '!' <= b && b <= 'u':
-			v = v*85 + uint32(b - '!');
+			v = v*85 + uint32(b-'!');
 			nb++;
 		default:
 			return 0, 0, CorruptInputError(i);
@@ -282,10 +282,10 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		// Decode leftover input from last read.
 		var nn, nsrc, ndst int;
 		if d.nbuf > 0 {
-			ndst, nsrc, d.err = Decode(&d.outbuf, d.buf[0:d.nbuf], d.readErr != nil);
+			ndst, nsrc, d.err = Decode(&d.outbuf, d.buf[0 : d.nbuf], d.readErr != nil);
 			if ndst > 0 {
 				d.out = d.outbuf[0:ndst];
-				d.nbuf = bytes.Copy(&d.buf, d.buf[nsrc:d.nbuf]);
+				d.nbuf = bytes.Copy(&d.buf, d.buf[nsrc : d.nbuf]);
 				continue;	// copy out and return
 			}
 		}
@@ -300,9 +300,8 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		}
 
 		// Read more data.
-		nn, d.readErr = d.r.Read(d.buf[d.nbuf:len(d.buf)]);
+		nn, d.readErr = d.r.Read(d.buf[d.nbuf : len(d.buf)]);
 		d.nbuf += nn;
 	}
 	panic("unreachable");
 }
-
