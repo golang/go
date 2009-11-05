@@ -609,8 +609,6 @@ func (f *inflater) inflater(r io.Reader, w io.Writer) os.Error {
 func NewInflater(r io.Reader) io.ReadCloser {
 	var f inflater;
 	pr, pw := io.Pipe();
-	go func() {
-		pw.CloseWithError(f.inflater(r, pw));
-	}();
+	go func() { pw.CloseWithError(f.inflater(r, pw)) }();
 	return pr;
 }

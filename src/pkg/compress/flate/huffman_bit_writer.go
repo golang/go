@@ -31,10 +31,10 @@ const (
 
 // The number of extra bits needed by length code X - LENGTH_CODES_START.
 var lengthExtraBits = []int8{
-	/* 257 */0, 0, 0,
-	/* 260 */0, 0, 0, 0, 0, 1, 1, 1, 1, 2,
-	/* 270 */2, 2, 2, 3, 3, 3, 3, 4, 4, 4,
-	/* 280 */4, 5, 5, 5, 5, 0,
+	/* 257 */ 0, 0, 0,
+	/* 260 */ 0, 0, 0, 0, 0, 1, 1, 1, 1, 2,
+	/* 270 */ 2, 2, 2, 3, 3, 3, 3, 4, 4, 4,
+	/* 280 */ 4, 5, 5, 5, 5, 0,
 }
 
 // The length indicated by length code X - LENGTH_CODES_START.
