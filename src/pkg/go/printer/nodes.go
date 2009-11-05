@@ -16,6 +16,13 @@ import (
 )
 
 
+// Disabled formatting - enable eventually and remove the flag.
+const (
+	oneLineFuncDecls = false;
+	compositeLitBlank = false;
+)
+
+
 // ----------------------------------------------------------------------------
 // Common AST nodes.
 
@@ -523,6 +530,13 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, multiLine *bool) (optSemi bool
 
 	case *ast.CompositeLit:
 		p.expr1(x.Type, token.HighestPrec, multiLine);
+		if compositeLitBlank && x.Lbrace.Line < x.Rbrace.Line {
+			// add a blank before the opening { for multi-line composites
+			// TODO(gri): for now this decision is made by looking at the
+			//            source code - it may not be correct if the source
+			//            code was badly misformatted in the first place
+			p.print(blank);
+		}
 		p.print(x.Lbrace, token.LBRACE);
 		p.exprList(x.Lbrace, x.Elts, commaSep|commaTerm, multiLine);
 		p.print(x.Rbrace, token.RBRACE);
@@ -1001,8 +1015,7 @@ func (p *printer) funcBody(b *ast.BlockStmt, isLit bool, multiLine *bool) {
 		return;
 	}
 
-	// TODO(gri): enable for function declarations, eventually.
-	if isLit && p.isOneLiner(b) {
+	if (oneLineFuncDecls || isLit) && p.isOneLiner(b) {
 		sep := vtab;
 		if isLit {
 			sep = blank;
