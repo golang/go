@@ -16,29 +16,29 @@ import (
 
 // Reads from a reader and rot13s the result.
 type rot13Reader struct {
-	r io.Reader
+	r io.Reader;
 }
 
 func newRot13Reader(r io.Reader) *rot13Reader {
 	r13 := new(rot13Reader);
 	r13.r = r;
-	return r13
+	return r13;
 }
 
 func (r13 *rot13Reader) Read(p []byte) (int, os.Error) {
 	n, e := r13.r.Read(p);
 	if e != nil {
-		return n, e
+		return n, e;
 	}
 	for i := 0; i < n; i++ {
-		c := p[i] | 0x20;	// lowercase byte
+		c := p[i]|0x20;	// lowercase byte
 		if 'a' <= c && c <= 'm' {
 			p[i] += 13;
 		} else if 'n' <= c && c <= 'z' {
 			p[i] -= 13;
 		}
 	}
-	return n, nil
+	return n, nil;
 }
 
 // Call ReadByte to accumulate the text of a file
@@ -48,15 +48,15 @@ func readBytes(buf *Reader) string {
 	for {
 		c, e := buf.ReadByte();
 		if e == os.EOF {
-			break
+			break;
 		}
 		if e != nil {
-			panic("Data: "+e.String())
+			panic("Data: " + e.String());
 		}
 		b[nb] = c;
 		nb++;
 	}
-	return string(b[0:nb])
+	return string(b[0:nb]);
 }
 
 func TestReaderSimple(t *testing.T) {
@@ -74,14 +74,15 @@ func TestReaderSimple(t *testing.T) {
 
 
 type readMaker struct {
-	name string;
-	fn func(io.Reader) io.Reader;
+	name	string;
+	fn	func(io.Reader) io.Reader;
 }
-var readMakers = []readMaker {
-	readMaker{ "full", func(r io.Reader) io.Reader { return r } },
-	readMaker{ "byte", iotest.OneByteReader },
-	readMaker{ "half", iotest.HalfReader },
-	readMaker{ "data+err", iotest.DataErrReader },
+
+var readMakers = []readMaker{
+	readMaker{"full", func(r io.Reader) io.Reader { return r }},
+	readMaker{"byte", iotest.OneByteReader},
+	readMaker{"half", iotest.HalfReader},
+	readMaker{"data+err", iotest.DataErrReader},
 }
 
 // Call ReadString (which ends up calling everything else)
@@ -91,14 +92,14 @@ func readLines(b *Reader) string {
 	for {
 		s1, e := b.ReadString('\n');
 		if e == os.EOF {
-			break
+			break;
 		}
 		if e != nil {
-			panic("GetLines: "+e.String())
+			panic("GetLines: " + e.String());
 		}
-		s += s1
+		s += s1;
 	}
-	return s
+	return s;
 }
 
 // Call Read to accumulate the text of a file
@@ -106,33 +107,34 @@ func reads(buf *Reader, m int) string {
 	var b [1000]byte;
 	nb := 0;
 	for {
-		n, e := buf.Read(b[nb:nb+m]);
+		n, e := buf.Read(b[nb : nb+m]);
 		nb += n;
 		if e == os.EOF {
-			break
+			break;
 		}
 	}
-	return string(b[0:nb])
+	return string(b[0:nb]);
 }
 
 type bufReader struct {
-	name string;
-	fn func(*Reader) string;
-}
-var bufreaders = []bufReader {
-	bufReader{ "1", func(b *Reader) string { return reads(b, 1) } },
-	bufReader{ "2", func(b *Reader) string { return reads(b, 2) } },
-	bufReader{ "3", func(b *Reader) string { return reads(b, 3) } },
-	bufReader{ "4", func(b *Reader) string { return reads(b, 4) } },
-	bufReader{ "5", func(b *Reader) string { return reads(b, 5) } },
-	bufReader{ "7", func(b *Reader) string { return reads(b, 7) } },
-	bufReader{ "bytes", readBytes },
-	bufReader{ "lines", readLines },
+	name	string;
+	fn	func(*Reader) string;
 }
 
-var bufsizes = []int {
+var bufreaders = []bufReader{
+	bufReader{"1", func(b *Reader) string { return reads(b, 1) }},
+	bufReader{"2", func(b *Reader) string { return reads(b, 2) }},
+	bufReader{"3", func(b *Reader) string { return reads(b, 3) }},
+	bufReader{"4", func(b *Reader) string { return reads(b, 4) }},
+	bufReader{"5", func(b *Reader) string { return reads(b, 5) }},
+	bufReader{"7", func(b *Reader) string { return reads(b, 7) }},
+	bufReader{"bytes", readBytes},
+	bufReader{"lines", readLines},
+}
+
+var bufsizes = []int{
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-	23, 32, 46, 64, 93, 128, 1024, 4096
+	23, 32, 46, 64, 93, 128, 1024, 4096,
 }
 
 func TestReader(t *testing.T) {
@@ -140,9 +142,9 @@ func TestReader(t *testing.T) {
 	str := "";
 	all := "";
 	for i := 0; i < len(texts)-1; i++ {
-		texts[i] = str + "\n";
+		texts[i] = str+"\n";
 		all += texts[i];
-		str += string(i%26+'a')
+		str += string(i%26 + 'a');
 	}
 	texts[len(texts)-1] = all;
 
@@ -169,11 +171,11 @@ func TestReader(t *testing.T) {
 
 // A StringReader delivers its data one string segment at a time via Read.
 type StringReader struct {
-	data []string;
-	step int;
+	data	[]string;
+	step	int;
 }
 
-func (r *StringReader) Read (p []byte) (n int, err os.Error) {
+func (r *StringReader) Read(p []byte) (n int, err os.Error) {
 	if r.step < len(r.data) {
 		s := r.data[r.step];
 		for i := 0; i < len(s); i++ {
@@ -206,7 +208,7 @@ func readRuneSegments(t *testing.T, segments []string) {
 	}
 }
 
-var segmentList = [][]string {
+var segmentList = [][]string{
 	[]string{},
 	[]string{""},
 	[]string{"日", "本語"},
@@ -227,7 +229,7 @@ func TestWriter(t *testing.T) {
 	var data [8192]byte;
 
 	for i := 0; i < len(data); i++ {
-		data[i] = byte(' '+ i%('~'-' '));
+		data[i] = byte(' ' + i%('~'-' '));
 	}
 	w := new(bytes.Buffer);
 	for i := 0; i < len(bufsizes); i++ {
@@ -273,22 +275,22 @@ func TestWriter(t *testing.T) {
 // Check that write errors are returned properly.
 
 type errorWriterTest struct {
-	n, m int;
-	err os.Error;
-	expect os.Error;
+	n, m	int;
+	err	os.Error;
+	expect	os.Error;
 }
 
 func (w errorWriterTest) Write(p []byte) (int, os.Error) {
-	return len(p)*w.n/w.m, w.err;
+	return len(p) * w.n / w.m, w.err;
 }
 
-var errorWriterTests = []errorWriterTest {
-	errorWriterTest{ 0, 1, nil, io.ErrShortWrite },
-	errorWriterTest{ 1, 2, nil, io.ErrShortWrite },
-	errorWriterTest{ 1, 1, nil, nil },
-	errorWriterTest{ 0, 1, os.EPIPE, os.EPIPE },
-	errorWriterTest{ 1, 2, os.EPIPE, os.EPIPE },
-	errorWriterTest{ 1, 1, os.EPIPE, os.EPIPE },
+var errorWriterTests = []errorWriterTest{
+	errorWriterTest{0, 1, nil, io.ErrShortWrite},
+	errorWriterTest{1, 2, nil, io.ErrShortWrite},
+	errorWriterTest{1, 1, nil, nil},
+	errorWriterTest{0, 1, os.EPIPE, os.EPIPE},
+	errorWriterTest{1, 2, os.EPIPE, os.EPIPE},
+	errorWriterTest{1, 1, os.EPIPE, os.EPIPE},
 }
 
 func TestWriteErrors(t *testing.T) {
@@ -361,9 +363,9 @@ func TestWriteString(t *testing.T) {
 	if err != nil {
 		t.Error("NewWriterSize create fail", err);
 	}
-	b.WriteString("0");	// easy
-	b.WriteString("123456");	// still easy
-	b.WriteString("7890");	// easy after flush
+	b.WriteString("0");				// easy
+	b.WriteString("123456");			// still easy
+	b.WriteString("7890");				// easy after flush
 	b.WriteString("abcdefghijklmnopqrstuvwxy");	// hard
 	b.WriteString("z");
 	b.Flush();
@@ -372,6 +374,6 @@ func TestWriteString(t *testing.T) {
 	}
 	s := "01234567890abcdefghijklmnopqrstuvwxyz";
 	if string(buf.Bytes()) != s {
-		t.Errorf("WriteString wants %q gets %q", s, string(buf.Bytes()))
+		t.Errorf("WriteString wants %q gets %q", s, string(buf.Bytes()));
 	}
 }
