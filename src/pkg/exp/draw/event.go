@@ -40,8 +40,7 @@ type Context interface {
 
 // A Mouse represents the state of the mouse.
 type Mouse struct {
-	Buttons int;	// bit mask of buttons: 1<<0 is left, 1<<1 middle, 1<<2 right
-	Point;	// location of cursor
-	Nsec int64;	// time stamp
+	Buttons	int;	// bit mask of buttons: 1<<0 is left, 1<<1 middle, 1<<2 right
+	Point;		// location of cursor
+	Nsec	int64;	// time stamp
 }
-

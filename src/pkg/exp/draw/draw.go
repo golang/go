@@ -56,8 +56,8 @@ func Draw(dst Image, r Rectangle, src, mask image.Image, pt Point) {
 	}
 
 	var out *image.RGBA64Color;
-	for y := y0; y != y1; y+=dy {
-		for x := x0; x != x1; x+=dx {
+	for y := y0; y != y1; y += dy {
+		for x := x0; x != x1; x += dx {
 			sx := pt.X + x - r.Min.X;
 			sy := pt.Y + y - r.Min.Y;
 			if mask == nil {
@@ -84,10 +84,10 @@ func Draw(dst Image, r Rectangle, src, mask image.Image, pt Point) {
 				ma >>= 16;
 				const M = 1<<16 - 1;
 				a := sa*ma/M;
-				dr = (dr*(M-a) + sr*ma) / M;
-				dg = (dg*(M-a) + sg*ma) / M;
-				db = (db*(M-a) + sb*ma) / M;
-				da = (da*(M-a) + sa*ma) / M;
+				dr = (dr*(M-a) + sr*ma)/M;
+				dg = (dg*(M-a) + sg*ma)/M;
+				db = (db*(M-a) + sb*ma)/M;
+				da = (da*(M-a) + sa*ma)/M;
 				if out == nil {
 					out = new(image.RGBA64Color);
 				}
@@ -109,17 +109,17 @@ func Border(dst Image, r Rectangle, w int, src image.Image, sp Point) {
 	i := w;
 	if i > 0 {
 		// inside r
-		Draw(dst, Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+i), src, nil, sp);	// top
-		Draw(dst, Rect(r.Min.X, r.Min.Y+i, r.Min.X+i, r.Max.Y-i), src, nil, sp.Add(Pt(0, i)));	// left
-		Draw(dst, Rect(r.Max.X-i, r.Min.Y+i, r.Max.X, r.Max.Y-i), src, nil, sp.Add(Pt(r.Dx()-i, i)));	// right
-		Draw(dst, Rect(r.Min.X, r.Max.Y-i, r.Max.X, r.Max.Y), src, nil, sp.Add(Pt(0, r.Dy()-i)));	// bottom
+		Draw(dst, Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y + i), src, nil, sp);					// top
+		Draw(dst, Rect(r.Min.X, r.Min.Y + i, r.Min.X + i, r.Max.Y - i), src, nil, sp.Add(Pt(0, i)));		// left
+		Draw(dst, Rect(r.Max.X - i, r.Min.Y + i, r.Max.X, r.Max.Y - i), src, nil, sp.Add(Pt(r.Dx() - i, i)));	// right
+		Draw(dst, Rect(r.Min.X, r.Max.Y - i, r.Max.X, r.Max.Y), src, nil, sp.Add(Pt(0, r.Dy() - i)));		// bottom
 		return;
 	}
 
 	// outside r;
 	i = -i;
-	Draw(dst, Rect(r.Min.X-i, r.Min.Y-i, r.Max.X+i, r.Min.Y), src, nil, sp.Add(Pt(-i, -i)));	// top
-	Draw(dst, Rect(r.Min.X-i, r.Min.Y, r.Min.X, r.Max.Y), src, nil, sp.Add(Pt(-i, 0)));	// left
-	Draw(dst, Rect(r.Max.X, r.Min.Y, r.Max.X+i, r.Max.Y), src, nil, sp.Add(Pt(r.Dx(), 0)));	// right
-	Draw(dst, Rect(r.Min.X-i, r.Max.Y, r.Max.X+i, r.Max.Y+i), src, nil, sp.Add(Pt(-i, 0)));	// bottom
+	Draw(dst, Rect(r.Min.X - i, r.Min.Y - i, r.Max.X + i, r.Min.Y), src, nil, sp.Add(Pt(-i, -i)));	// top
+	Draw(dst, Rect(r.Min.X - i, r.Min.Y, r.Min.X, r.Max.Y), src, nil, sp.Add(Pt(-i, 0)));		// left
+	Draw(dst, Rect(r.Max.X, r.Min.Y, r.Max.X + i, r.Max.Y), src, nil, sp.Add(Pt(r.Dx(), 0)));	// right
+	Draw(dst, Rect(r.Min.X - i, r.Max.Y, r.Max.X + i, r.Max.Y + i), src, nil, sp.Add(Pt(-i, 0)));	// bottom
 }

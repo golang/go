@@ -19,32 +19,32 @@ var _ image.Color = Black
 var _ image.Image = Black
 
 var (
-	Opaque Color = 0xFFFFFFFF;
-	Transparent Color = 0x00000000;
-	Black Color = 0x000000FF;
-	White Color = 0xFFFFFFFF;
-	Red Color = 0xFF0000FF;
-	Green Color = 0x00FF00FF;
-	Blue Color = 0x0000FFFF;
-	Cyan Color = 0x00FFFFFF;
-	Magenta Color = 0xFF00FFFF;
-	Yellow Color = 0xFFFF00FF;
-	PaleYellow Color = 0xFFFFAAFF;
-	DarkYellow Color = 0xEEEE9EFF;
-	DarkGreen Color = 0x448844FF;
-	PaleGreen Color = 0xAAFFAAFF;
-	MedGreen Color = 0x88CC88FF;
-	DarkBlue Color = 0x000055FF;
-	PaleBlueGreen Color = 0xAAFFFFFF;
-	PaleBlue Color = 0x0000BBFF;
-	BlueGreen Color = 0x008888FF;
-	GreyGreen Color = 0x55AAAAFF;
-	PaleGreyGreen Color = 0x9EEEEEFF;
-	YellowGreen Color = 0x99994CFF;
-	MedBlue Color = 0x000099FF;
-	GreyBlue Color = 0x005DBBFF;
-	PaleGreyBlue Color = 0x4993DDFF;
-	PurpleBlue Color = 0x8888CCFF;
+	Opaque		Color	= 0xFFFFFFFF;
+	Transparent	Color	= 0x00000000;
+	Black		Color	= 0x000000FF;
+	White		Color	= 0xFFFFFFFF;
+	Red		Color	= 0xFF0000FF;
+	Green		Color	= 0x00FF00FF;
+	Blue		Color	= 0x0000FFFF;
+	Cyan		Color	= 0x00FFFFFF;
+	Magenta		Color	= 0xFF00FFFF;
+	Yellow		Color	= 0xFFFF00FF;
+	PaleYellow	Color	= 0xFFFFAAFF;
+	DarkYellow	Color	= 0xEEEE9EFF;
+	DarkGreen	Color	= 0x448844FF;
+	PaleGreen	Color	= 0xAAFFAAFF;
+	MedGreen	Color	= 0x88CC88FF;
+	DarkBlue	Color	= 0x000055FF;
+	PaleBlueGreen	Color	= 0xAAFFFFFF;
+	PaleBlue	Color	= 0x0000BBFF;
+	BlueGreen	Color	= 0x008888FF;
+	GreyGreen	Color	= 0x55AAAAFF;
+	PaleGreyGreen	Color	= 0x9EEEEEFF;
+	YellowGreen	Color	= 0x99994CFF;
+	MedBlue		Color	= 0x000099FF;
+	GreyBlue	Color	= 0x005DBBFF;
+	PaleGreyBlue	Color	= 0x4993DDFF;
+	PurpleBlue	Color	= 0x8888CCFF;
 )
 
 func (c Color) RGBA() (r, g, b, a uint32) {
@@ -66,7 +66,7 @@ func (c Color) RGBA() (r, g, b, a uint32) {
 func (c Color) SetAlpha(a uint8) Color {
 	r, g, b, oa := c>>24, (c>>16)&0xFF, (c>>8)&0xFF, c&0xFF;
 	if oa == 0 {
-		return 0
+		return 0;
 	}
 	r = r*Color(a)/oa;
 	if r < 0 {
