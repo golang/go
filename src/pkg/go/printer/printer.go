@@ -20,35 +20,35 @@ import (
 
 
 const (
-	debug = false;  // enable for debugging
-	maxNewlines = 3;  // maximum vertical white space
+	debug		= false;	// enable for debugging
+	maxNewlines	= 3;		// maximum vertical white space
 )
 
 
 type whiteSpace int
 
 const (
-	ignore = whiteSpace(0);
-	blank = whiteSpace(' ');
-	vtab = whiteSpace('\v');
-	newline = whiteSpace('\n');
-	formfeed = whiteSpace('\f');
-	indent = whiteSpace('>');
-	unindent = whiteSpace('<');
+	ignore		= whiteSpace(0);
+	blank		= whiteSpace(' ');
+	vtab		= whiteSpace('\v');
+	newline		= whiteSpace('\n');
+	formfeed	= whiteSpace('\f');
+	indent		= whiteSpace('>');
+	unindent	= whiteSpace('<');
 )
 
 
 var (
-	esc = []byte{tabwriter.Escape};
-	htab = []byte{'\t'};
-	htabs = [...]byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'};
-	newlines = [...]byte{'\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'};  // more than maxNewlines
+	esc		= []byte{tabwriter.Escape};
+	htab		= []byte{'\t'};
+	htabs		= [...]byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'};
+	newlines	= [...]byte{'\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'};	// more than maxNewlines
 
-	esc_quot = strings.Bytes("&#34;");  // shorter than "&quot;"
-	esc_apos = strings.Bytes("&#39;");  // shorter than "&apos;"
-	esc_amp = strings.Bytes("&amp;");
-	esc_lt = strings.Bytes("&lt;");
-	esc_gt = strings.Bytes("&gt;");
+	esc_quot	= strings.Bytes("&#34;");	// shorter than "&quot;"
+	esc_apos	= strings.Bytes("&#39;");	// shorter than "&apos;"
+	esc_amp		= strings.Bytes("&amp;");
+	esc_lt		= strings.Bytes("&lt;");
+	esc_gt		= strings.Bytes("&gt;");
 )
 
 
@@ -57,38 +57,38 @@ var noPos token.Position
 
 
 // Use ignoreMultiLine if the multiLine information is not important.
-var ignoreMultiLine = new(bool);
+var ignoreMultiLine = new(bool)
 
 
 type printer struct {
 	// Configuration (does not change after initialization)
-	output io.Writer;
+	output	io.Writer;
 	Config;
-	errors chan os.Error;
+	errors	chan os.Error;
 
 	// Current state
-	written int;  // number of bytes written
-	indent int;  // current indentation
-	escape bool;  // true if in escape sequence
+	written	int;	// number of bytes written
+	indent	int;	// current indentation
+	escape	bool;	// true if in escape sequence
 
 	// Buffered whitespace
-	buffer []whiteSpace;
+	buffer	[]whiteSpace;
 
 	// The (possibly estimated) position in the generated output;
 	// in AST space (i.e., pos is set whenever a token position is
 	// known accurately, and updated dependending on what has been
 	// written)
-	pos token.Position;
+	pos	token.Position;
 
 	// The value of pos immediately after the last item has been
 	// written using writeItem.
-	last token.Position;
+	last	token.Position;
 
 	// HTML support
-	lastTaggedLine int;  // last line for which a line tag was written
+	lastTaggedLine	int;	// last line for which a line tag was written
 
 	// The list of comments; or nil.
-	comment *ast.CommentGroup;
+	comment	*ast.CommentGroup;
 }
 
 
@@ -96,7 +96,7 @@ func (p *printer) init(output io.Writer, cfg *Config) {
 	p.output = output;
 	p.Config = *cfg;
 	p.errors = make(chan os.Error);
-	p.buffer = make([]whiteSpace, 0, 16);  // whitespace sequences are short
+	p.buffer = make([]whiteSpace, 0, 16);	// whitespace sequences are short
 }
 
 
@@ -126,7 +126,7 @@ func (p *printer) write(data []byte) {
 			p.write0(data[i0 : i+1]);
 
 			// update p.pos
-			p.pos.Offset += i+1 - i0;
+			p.pos.Offset += i+1-i0;
 			p.pos.Line++;
 			p.pos.Column = 1;
 
@@ -151,21 +151,26 @@ func (p *printer) write(data []byte) {
 		case '"', '\'', '&', '<', '>':
 			if p.Mode & GenHTML != 0 {
 				// write segment ending in b
-				p.write0(data[i0 : i]);
+				p.write0(data[i0:i]);
 
 				// write HTML-escaped b
 				var esc []byte;
 				switch b {
-				case '"': esc = esc_quot;
-				case '\'': esc = esc_apos;
-				case '&': esc = esc_amp;
-				case '<': esc = esc_lt;
-				case '>': esc = esc_gt;
+				case '"':
+					esc = esc_quot;
+				case '\'':
+					esc = esc_apos;
+				case '&':
+					esc = esc_amp;
+				case '<':
+					esc = esc_lt;
+				case '>':
+					esc = esc_gt;
 				}
 				p.write0(esc);
 
 				// update p.pos
-				d := i+1 - i0;
+				d := i+1-i0;
 				p.pos.Offset += d;
 				p.pos.Column += d;
 
@@ -179,10 +184,10 @@ func (p *printer) write(data []byte) {
 	}
 
 	// write remaining segment
-	p.write0(data[i0 : len(data)]);
+	p.write0(data[i0:len(data)]);
 
 	// update p.pos
-	d := len(data) - i0;
+	d := len(data)-i0;
 	p.pos.Offset += d;
 	p.pos.Column += d;
 }
@@ -193,7 +198,7 @@ func (p *printer) writeNewlines(n int) {
 		if n > maxNewlines {
 			n = maxNewlines;
 		}
-		p.write(newlines[0 : n]);
+		p.write(newlines[0:n]);
 	}
 }
 
@@ -367,8 +372,8 @@ func split(text []byte) [][]byte {
 	i := 0;
 	for j, c := range text {
 		if c == '\n' {
-			lines[n] = text[i:j];  // exclude newline
-			i = j+1;  // discard newline
+			lines[n] = text[i:j];	// exclude newline
+			i = j+1;		// discard newline
 			n++;
 		}
 	}
@@ -393,15 +398,15 @@ func commonPrefix(a, b []byte) []byte {
 	for i < len(a) && i < len(b) && a[i] == b[i] && (a[i] <= ' ' || a[i] == '*') {
 		i++;
 	}
-	return a[0 : i];
+	return a[0:i];
 }
 
 
 func stripCommonPrefix(lines [][]byte) {
 	if len(lines) < 2 {
-		return;  // at most one line - nothing to do
+		return;	// at most one line - nothing to do
 	}
-	
+
 	// The heuristic in this function tries to handle a few
 	// common patterns of /*-style comments: Comments where
 	// the opening /* and closing */ are aligned and the
@@ -434,7 +439,7 @@ func stripCommonPrefix(lines [][]byte) {
 	if i := bytes.Index(prefix, []byte{'*'}); i >= 0 {
 		// Line of stars present.
 		if i > 0 && prefix[i-1] == ' ' {
-			i--;  // remove trailing blank from prefix so stars remain aligned
+			i--;	// remove trailing blank from prefix so stars remain aligned
 		}
 		prefix = prefix[0:i];
 		lineOfStars = true;
@@ -447,7 +452,7 @@ func stripCommonPrefix(lines [][]byte) {
 		// for the opening /*, assume up to 3 blanks or a tab. This
 		// whitespace may be found as suffix in the common prefix.
 		first := lines[0];
-		if isBlank(first[2 : len(first)]) {
+		if isBlank(first[2:len(first)]) {
 			// no comment text on the first line:
 			// reduce prefix by up to 3 blanks or a tab
 			// if present - this keeps comment text indented
@@ -480,7 +485,7 @@ func stripCommonPrefix(lines [][]byte) {
 			// Shorten the computed common prefix by the length of
 			// suffix, if it is found as suffix of the prefix.
 			if bytes.HasSuffix(prefix, suffix) {
-				prefix = prefix[0 : len(prefix) - len(suffix)];
+				prefix = prefix[0 : len(prefix)-len(suffix)];
 			}
 		}
 	}
@@ -508,7 +513,7 @@ func stripCommonPrefix(lines [][]byte) {
 	// Remove the common prefix from all but the first and empty lines.
 	for i, line := range lines {
 		if i > 0 && len(line) != 0 {
-			lines[i] = line[len(prefix) : len(line)];
+			lines[i] = line[len(prefix):len(line)];
 		}
 	}
 }
@@ -636,7 +641,7 @@ func (p *printer) writeWhitespace(n int) {
 				// of lines before the label; effectively leading to wrong
 				// indentation.
 				p.buffer[i], p.buffer[i+1] = unindent, formfeed;
-				i--;  // do it again
+				i--;	// do it again
 				continue;
 			}
 			fallthrough;
@@ -675,7 +680,7 @@ func (p *printer) print(args ...) {
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i);
 
-		next := p.pos;  // estimated position of next item
+		next := p.pos;	// estimated position of next item
 		var data []byte;
 		var tag HtmlTag;
 		isKeyword := false;
@@ -721,7 +726,7 @@ func (p *printer) print(args ...) {
 			// (note that valid Go programs cannot contain esc ('\xff')
 			// bytes since they do not appear in legal UTF-8 sequences)
 			// TODO(gri): this this more efficiently.
-			data = strings.Bytes("\xff" + string(data) + "\xff");
+			data = strings.Bytes("\xff"+string(data)+"\xff");
 		case token.Token:
 			if p.Styler != nil {
 				data, tag = p.Styler.Token(x);
@@ -731,7 +736,7 @@ func (p *printer) print(args ...) {
 			isKeyword = x.IsKeyword();
 		case token.Position:
 			if x.IsValid() {
-				next = x;  // accurate position of next item
+				next = x;	// accurate position of next item
 			}
 		default:
 			panicln("print: unsupported argument type", f.Type().String());
@@ -782,8 +787,8 @@ func (p *printer) flush(next token.Position, isKeyword bool) {
 // is used).
 //
 type trimmer struct {
-	output io.Writer;
-	buf bytes.Buffer;
+	output	io.Writer;
+	buf	bytes.Buffer;
 }
 
 
@@ -815,7 +820,7 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 			}
 
 		case '\v':
-			b = '\t';  // convert to htab
+			b = '\t';	// convert to htab
 			fallthrough;
 
 		case '\t', ' ', tabwriter.Escape:
@@ -828,7 +833,7 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 			}
 			// collect whitespace but discard tabrwiter.Escapes.
 			if b != tabwriter.Escape {
-				p.buf.WriteByte(b);  // WriteByte returns no errors
+				p.buf.WriteByte(b);	// WriteByte returns no errors
 			}
 
 		case '\f', '\n':
@@ -865,15 +870,15 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 
 // General printing is controlled with these Config.Mode flags.
 const (
-	GenHTML uint = 1 << iota;  // generate HTML
-	RawFormat;  // do not use a tabwriter; if set, UseSpaces is ignored
-	UseSpaces;  // use spaces instead of tabs for indentation and alignment
+	GenHTML		uint	= 1<<iota;	// generate HTML
+	RawFormat;		// do not use a tabwriter; if set, UseSpaces is ignored
+	UseSpaces;		// use spaces instead of tabs for indentation and alignment
 )
 
 
 // An HtmlTag specifies a start and end tag.
 type HtmlTag struct {
-	Start, End string;  // empty if tags are absent
+	Start, End string;	// empty if tags are absent
 }
 
 
@@ -882,18 +887,18 @@ type HtmlTag struct {
 //
 type Styler interface {
 	LineTag(line int) ([]byte, HtmlTag);
-	Comment(c *ast.Comment, line []byte)  ([]byte, HtmlTag);
-	BasicLit(x *ast.BasicLit)  ([]byte, HtmlTag);
-	Ident(id *ast.Ident)  ([]byte, HtmlTag);
-	Token(tok token.Token)  ([]byte, HtmlTag);
+	Comment(c *ast.Comment, line []byte) ([]byte, HtmlTag);
+	BasicLit(x *ast.BasicLit) ([]byte, HtmlTag);
+	Ident(id *ast.Ident) ([]byte, HtmlTag);
+	Token(tok token.Token) ([]byte, HtmlTag);
 }
 
 
 // A Config node controls the output of Fprint.
 type Config struct {
-	Mode uint;	// default: 0
-	Tabwidth int;	// default: 8
-	Styler Styler;	// default: nil
+	Mode		uint;	// default: 0
+	Tabwidth	int;	// default: 8
+	Styler		Styler;	// default: nil
 }
 
 
@@ -942,14 +947,14 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 			p.errors <- os.NewError(fmt.Sprintf("printer.Fprint: unsupported node type %T", n));
 			runtime.Goexit();
 		}
-		p.flush(token.Position{Offset: 1<<30, Line: 1<<30}, false);  // flush to "infinity"
-		p.errors <- nil;  // no errors
+		p.flush(token.Position{Offset: 1<<30, Line: 1<<30}, false);	// flush to "infinity"
+		p.errors <- nil;						// no errors
 	}();
-	err := <-p.errors;  // wait for completion of goroutine
+	err := <-p.errors;	// wait for completion of goroutine
 
 	// flush tabwriter, if any
 	if tw != nil {
-		tw.Flush();  // ignore errors
+		tw.Flush();	// ignore errors
 	}
 
 	return p.written, err;
@@ -960,6 +965,6 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 // It calls Config.Fprint with default settings.
 //
 func Fprint(output io.Writer, node interface{}) os.Error {
-	_, err := (&Config{Tabwidth: 8}).Fprint(output, node);  // don't care about number of bytes written
+	_, err := (&Config{Tabwidth: 8}).Fprint(output, node);	// don't care about number of bytes written
 	return err;
 }

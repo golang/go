@@ -18,9 +18,9 @@ import (
 
 // Disabled formatting - enable eventually and remove the flag.
 const (
-	oneLineFuncDecls = false;
-	compositeLitBlank = false;
-	stringListMode = exprListMode(0);  // previously: noIndent
+	oneLineFuncDecls	= false;
+	compositeLitBlank	= false;
+	stringListMode		= exprListMode(0);	// previously: noIndent
 )
 
 
@@ -37,8 +37,10 @@ const (
 func (p *printer) linebreak(line, min, max int, ws whiteSpace, newSection bool) (printedBreak bool) {
 	n := line - p.pos.Line;
 	switch {
-	case n < min: n = min;
-	case n > max: n = max;
+	case n < min:
+		n = min;
+	case n > max:
+		n = max;
 	}
 	if n > 0 {
 		p.print(ws);
@@ -118,12 +120,13 @@ func (p *printer) stringList(list []*ast.BasicLit, multiLine *bool) {
 }
 
 
-type exprListMode uint;
+type exprListMode uint
+
 const (
-	blankStart exprListMode = 1 << iota;  // print a blank before the list
-	commaSep;  // elements are separated by commas
-	commaTerm;  // elements are terminated by comma
-	noIndent;  // no extra indentation in multi-line lists
+	blankStart	exprListMode	= 1<<iota;	// print a blank before the list
+	commaSep;			// elements are separated by commas
+	commaTerm;			// elements are terminated by comma
+	noIndent;			// no extra indentation in multi-line lists
 )
 
 
@@ -150,7 +153,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, mode exprListMo
 		// all list entries on a single line
 		for i, x := range list {
 			if i > 0 {
-				if mode & commaSep != 0 {
+				if mode&commaSep != 0 {
 					p.print(token.COMMA);
 				}
 				p.print(blank);
@@ -179,7 +182,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, mode exprListMo
 		prev := line;
 		line = x.Pos().Line;
 		if i > 0 {
-			if mode & commaSep != 0 {
+			if mode&commaSep != 0 {
 				p.print(token.COMMA);
 			}
 			if prev < line {
@@ -200,7 +203,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, mode exprListMo
 			// expression list - be conservative and check anyway
 			p.print(unindent);
 		}
-		p.print(formfeed);  // terminating comma needs a line break to look good
+		p.print(formfeed);	// terminating comma needs a line break to look good
 	} else if ws == ignore && mode&noIndent == 0 {
 		p.print(unindent);
 	}
@@ -304,7 +307,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			p.print("// contains unexported fields");
 		}
 
-	} else { // interface
+	} else {	// interface
 
 		var ml bool;
 		for i, f := range list {
@@ -353,7 +356,7 @@ func needsBlanks(expr ast.Expr) bool {
 		return false;
 	case *ast.IndexExpr:
 		// index expressions don't need blanks if the indexed expressions are simple
-		return needsBlanks(x.X)
+		return needsBlanks(x.X);
 	case *ast.CallExpr:
 		// call expressions need blanks if they have more than one
 		// argument or if the function expression needs blanks
@@ -539,7 +542,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, multiLine *bool) (optSemi bool
 			p.print(blank);
 		}
 		p.print(x.Lbrace, token.LBRACE);
-		p.exprList(x.Lbrace, x.Elts, commaSep|commaTerm, multiLine);
+		p.exprList(x.Lbrace, x.Elts, commaSep | commaTerm, multiLine);
 		p.print(x.Rbrace, token.RBRACE);
 
 	case *ast.Ellipsis:
@@ -603,7 +606,7 @@ func (p *printer) expr(x ast.Expr, multiLine *bool) (optSemi bool) {
 // ----------------------------------------------------------------------------
 // Statements
 
-const maxStmtNewlines = 2  // maximum number of newlines between statements
+const maxStmtNewlines = 2	// maximum number of newlines between statements
 
 // Print the statement list indented, but without a newline after the last statement.
 // Extra line breaks between statements in the source are respected but at most one
@@ -695,7 +698,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 
 	case *ast.DeclStmt:
 		p.decl(s.Decl, inStmtList, multiLine);
-		optSemi = true;  // decl prints terminating semicolon if necessary
+		optSemi = true;	// decl prints terminating semicolon if necessary
 
 	case *ast.EmptyStmt:
 		// nothing to do
@@ -775,7 +778,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		}
 		p.print(s.Colon, token.COLON);
 		p.stmtList(s.Body, 1);
-		optSemi = true;  // "block" without {}'s
+		optSemi = true;	// "block" without {}'s
 
 	case *ast.SwitchStmt:
 		p.print(token.SWITCH);
@@ -793,7 +796,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		}
 		p.print(s.Colon, token.COLON);
 		p.stmtList(s.Body, 1);
-		optSemi = true;  // "block" without {}'s
+		optSemi = true;	// "block" without {}'s
 
 	case *ast.TypeSwitchStmt:
 		p.print(token.SWITCH);
@@ -822,7 +825,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		}
 		p.print(s.Colon, token.COLON);
 		p.stmtList(s.Body, 1);
-		optSemi = true;  // "block" without {}'s
+		optSemi = true;	// "block" without {}'s
 
 	case *ast.SelectStmt:
 		p.print(token.SELECT, blank);
@@ -862,9 +865,10 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 // ----------------------------------------------------------------------------
 // Declarations
 
-type declContext uint;
+type declContext uint
+
 const (
-	atTop declContext = iota;
+	atTop	declContext	= iota;
 	inGroup;
 	inStmtList;
 )
@@ -876,9 +880,9 @@ const (
 //
 func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *bool) {
 	var (
-		optSemi bool;  // true if a semicolon is optional
-		comment *ast.CommentGroup;  // a line comment, if any
-		extraTabs int;  // number of extra tabs before comment, if any
+		optSemi		bool;			// true if a semicolon is optional
+		comment		*ast.CommentGroup;	// a line comment, if any
+		extraTabs	int;			// number of extra tabs before comment, if any
 	)
 
 	switch s := spec.(type) {
@@ -893,7 +897,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 
 	case *ast.ValueSpec:
 		p.leadComment(s.Doc);
-		p.identList(s.Names, multiLine);  // always present
+		p.identList(s.Names, multiLine);	// always present
 		if n == 1 {
 			if s.Type != nil {
 				p.print(blank);
@@ -984,25 +988,25 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool) 
 func (p *printer) isOneLiner(b *ast.BlockStmt) bool {
 	switch {
 	case len(b.List) > 1 || p.commentBefore(b.Rbrace):
-		return false;  // too many statements or there is a comment - all bets are off
+		return false;	// too many statements or there is a comment - all bets are off
 	case len(b.List) == 0:
-		return true;  // empty block and no comments
+		return true;	// empty block and no comments
 	}
 
 	// test-print the statement and see if it would fit
 	var buf bytes.Buffer;
 	_, err := p.Config.Fprint(&buf, b.List[0]);
 	if err != nil {
-		return false;  // don't try
+		return false;	// don't try
 	}
 
 	if buf.Len() > 40 {
-		return false;  // too long
+		return false;	// too long
 	}
 
 	for _, ch := range buf.Bytes() {
 		if ch < ' ' {
-			return false;  // contains control chars (tabs, newlines)
+			return false;	// contains control chars (tabs, newlines)
 		}
 	}
 
@@ -1075,7 +1079,7 @@ func (p *printer) decl(decl ast.Decl, context declContext, multiLine *bool) {
 // ----------------------------------------------------------------------------
 // Files
 
-const maxDeclNewlines = 3  // maximum number of newlines between declarations
+const maxDeclNewlines = 3	// maximum number of newlines between declarations
 
 func declToken(decl ast.Decl) (tok token.Token) {
 	tok = token.ILLEGAL;
