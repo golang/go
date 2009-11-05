@@ -7,14 +7,14 @@
 package parser
 
 import (
-			"bytes";
-			"fmt";
-			"go/ast";
-			"go/scanner";
-			"io";
-			"os";
-	pathutil	"path";
-			"strings";
+	"bytes";
+	"fmt";
+	"go/ast";
+	"go/scanner";
+	"io";
+	"os";
+	pathutil "path";
+	"strings";
 )
 
 

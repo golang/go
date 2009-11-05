@@ -65,7 +65,7 @@ type Decl interface {
 
 // A Comment node represents a single //-style or /*-style comment.
 type Comment struct {
-	token.Position;	// beginning position of the comment
+	token.Position;		// beginning position of the comment
 	Text		[]byte;	// comment text (excluding '\n' for //-style comments)
 }
 
@@ -117,7 +117,7 @@ type (
 
 	// An Ident node represents an identifier.
 	Ident	struct {
-		token.Position;	// identifier position
+		token.Position;		// identifier position
 		Value		string;	// identifier string (e.g. foobar)
 	};
 
@@ -130,7 +130,7 @@ type (
 
 	// A BasicLit node represents a literal of basic type.
 	BasicLit	struct {
-		token.Position;	// literal position
+		token.Position;			// literal position
 		Kind		token.Token;	//  token.INT, token.FLOAT, token.CHAR, or token.STRING
 		Value		[]byte;		// literal string; e.g. 42, 0x7f, 3.14, 1e-9, 'a', '\x7f', "foo" or `\m\n\o`
 	};
@@ -161,7 +161,7 @@ type (
 
 	// A ParenExpr node represents a parenthesized expression.
 	ParenExpr	struct {
-		token.Position;	// position of "("
+		token.Position;			// position of "("
 		X		Expr;		// parenthesized expression
 		Rparen		token.Position;	// position of ")"
 	};
@@ -198,7 +198,7 @@ type (
 	// A StarExpr node represents an expression of the form "*" Expression.
 	// Semantically it could be a unary "*" expression, or a pointer type.
 	StarExpr	struct {
-		token.Position;	// position of "*"
+		token.Position;		// position of "*"
 		X		Expr;	// operand
 	};
 
@@ -206,7 +206,7 @@ type (
 	// Unary "*" expressions are represented via StarExpr nodes.
 	//
 	UnaryExpr	struct {
-		token.Position;	// position of Op
+		token.Position;			// position of Op
 		Op		token.Token;	// operator
 		X		Expr;		// operand
 	};
@@ -249,14 +249,14 @@ const (
 type (
 	// An ArrayType node represents an array or slice type.
 	ArrayType	struct {
-		token.Position;	// position of "["
+		token.Position;		// position of "["
 		Len		Expr;	// Ellipsis node for [...]T array types, nil for slice types
 		Elt		Expr;	// element type
 	};
 
 	// A StructType node represents a struct type.
 	StructType	struct {
-		token.Position;	// position of "struct" keyword
+		token.Position;			// position of "struct" keyword
 		Lbrace		token.Position;	// position of "{"
 		Fields		[]*Field;	// list of field declarations
 		Rbrace		token.Position;	// position of "}"
@@ -267,14 +267,14 @@ type (
 
 	// A FuncType node represents a function type.
 	FuncType	struct {
-		token.Position;	// position of "func" keyword
+		token.Position;			// position of "func" keyword
 		Params		[]*Field;	// (incoming) parameters
 		Results		[]*Field;	// (outgoing) results
 	};
 
 	// An InterfaceType node represents an interface type.
 	InterfaceType	struct {
-		token.Position;	// position of "interface" keyword
+		token.Position;			// position of "interface" keyword
 		Lbrace		token.Position;	// position of "{"
 		Methods		[]*Field;	// list of methods
 		Rbrace		token.Position;	// position of "}"
@@ -290,7 +290,7 @@ type (
 
 	// A ChanType node represents a channel type.
 	ChanType	struct {
-		token.Position;	// position of "chan" keyword or "<-" (whichever comes first)
+		token.Position;			// position of "chan" keyword or "<-" (whichever comes first)
 		Dir		ChanDir;	// channel direction
 		Value		Expr;		// value type
 	};
@@ -331,29 +331,51 @@ func (x *KeyValueExpr) Pos() token.Position {
 
 // exprNode() ensures that only expression/type nodes can be
 // assigned to an ExprNode.
-func (x *BadExpr) exprNode() {}
-func (x *Ident) exprNode() {}
-func (x *Ellipsis) exprNode() {}
-func (x *BasicLit) exprNode() {}
-func (x *StringList) exprNode() {}
-func (x *FuncLit) exprNode() {}
-func (x *CompositeLit) exprNode() {}
-func (x *ParenExpr) exprNode() {}
-func (x *SelectorExpr) exprNode() {}
-func (x *IndexExpr) exprNode() {}
-func (x *TypeAssertExpr) exprNode() {}
-func (x *CallExpr) exprNode() {}
-func (x *StarExpr) exprNode() {}
-func (x *UnaryExpr) exprNode() {}
-func (x *BinaryExpr) exprNode() {}
-func (x *KeyValueExpr) exprNode() {}
+func (x *BadExpr) exprNode() {
+}
+func (x *Ident) exprNode() {
+}
+func (x *Ellipsis) exprNode() {
+}
+func (x *BasicLit) exprNode() {
+}
+func (x *StringList) exprNode() {
+}
+func (x *FuncLit) exprNode() {
+}
+func (x *CompositeLit) exprNode() {
+}
+func (x *ParenExpr) exprNode() {
+}
+func (x *SelectorExpr) exprNode() {
+}
+func (x *IndexExpr) exprNode() {
+}
+func (x *TypeAssertExpr) exprNode() {
+}
+func (x *CallExpr) exprNode() {
+}
+func (x *StarExpr) exprNode() {
+}
+func (x *UnaryExpr) exprNode() {
+}
+func (x *BinaryExpr) exprNode() {
+}
+func (x *KeyValueExpr) exprNode() {
+}
 
-func (x *ArrayType) exprNode() {}
-func (x *StructType) exprNode() {}
-func (x *FuncType) exprNode() {}
-func (x *InterfaceType) exprNode() {}
-func (x *MapType) exprNode() {}
-func (x *ChanType) exprNode() {}
+func (x *ArrayType) exprNode() {
+}
+func (x *StructType) exprNode() {
+}
+func (x *FuncType) exprNode() {
+}
+func (x *InterfaceType) exprNode() {
+}
+func (x *MapType) exprNode() {
+}
+func (x *ChanType) exprNode() {
+}
 
 
 // IsExported returns whether name is an exported Go symbol
@@ -452,7 +474,7 @@ type (
 	// or fallthrough statement.
 	//
 	BranchStmt	struct {
-		token.Position;	// position of Tok
+		token.Position;			// position of Tok
 		Tok		token.Token;	// keyword token (BREAK, CONTINUE, GOTO, FALLTHROUGH)
 		Label		*Ident;
 	};
@@ -475,7 +497,7 @@ type (
 
 	// A CaseClause represents a case of an expression switch statement.
 	CaseClause	struct {
-		token.Position;	// position of "case" or "default" keyword
+		token.Position;			// position of "case" or "default" keyword
 		Values		[]Expr;		// nil means default case
 		Colon		token.Position;	// position of ":"
 		Body		[]Stmt;		// statement list; or nil
@@ -491,7 +513,7 @@ type (
 
 	// A TypeCaseClause represents a case of a type switch statement.
 	TypeCaseClause	struct {
-		token.Position;	// position of "case" or "default" keyword
+		token.Position;			// position of "case" or "default" keyword
 		Types		[]Expr;		// nil means default case
 		Colon		token.Position;	// position of ":"
 		Body		[]Stmt;		// statement list; or nil
@@ -507,7 +529,7 @@ type (
 
 	// A CommClause node represents a case of a select statement.
 	CommClause	struct {
-		token.Position;	// position of "case" or "default" keyword
+		token.Position;			// position of "case" or "default" keyword
 		Tok		token.Token;	// ASSIGN or DEFINE (valid only if Lhs != nil)
 		Lhs, Rhs	Expr;		// Rhs == nil means default case
 		Colon		token.Position;	// position of ":"
@@ -516,7 +538,7 @@ type (
 
 	// An SelectStmt node represents a select statement.
 	SelectStmt	struct {
-		token.Position;	// position of "select" keyword
+		token.Position;			// position of "select" keyword
 		Body		*BlockStmt;	// CommClauses only
 	};
 
@@ -531,7 +553,7 @@ type (
 
 	// A RangeStmt represents a for statement with a range clause.
 	RangeStmt	struct {
-		token.Position;	// position of "for" keyword
+		token.Position;			// position of "for" keyword
 		Key, Value	Expr;		// Value may be nil
 		TokPos		token.Position;	// position of Tok
 		Tok		token.Token;	// ASSIGN, DEFINE
@@ -564,27 +586,48 @@ func (s *AssignStmt) Pos() token.Position {
 // stmtNode() ensures that only statement nodes can be
 // assigned to a StmtNode.
 //
-func (s *BadStmt) stmtNode() {}
-func (s *DeclStmt) stmtNode() {}
-func (s *EmptyStmt) stmtNode() {}
-func (s *LabeledStmt) stmtNode() {}
-func (s *ExprStmt) stmtNode() {}
-func (s *IncDecStmt) stmtNode() {}
-func (s *AssignStmt) stmtNode() {}
-func (s *GoStmt) stmtNode() {}
-func (s *DeferStmt) stmtNode() {}
-func (s *ReturnStmt) stmtNode() {}
-func (s *BranchStmt) stmtNode() {}
-func (s *BlockStmt) stmtNode() {}
-func (s *IfStmt) stmtNode() {}
-func (s *CaseClause) stmtNode() {}
-func (s *SwitchStmt) stmtNode() {}
-func (s *TypeCaseClause) stmtNode() {}
-func (s *TypeSwitchStmt) stmtNode() {}
-func (s *CommClause) stmtNode() {}
-func (s *SelectStmt) stmtNode() {}
-func (s *ForStmt) stmtNode() {}
-func (s *RangeStmt) stmtNode() {}
+func (s *BadStmt) stmtNode() {
+}
+func (s *DeclStmt) stmtNode() {
+}
+func (s *EmptyStmt) stmtNode() {
+}
+func (s *LabeledStmt) stmtNode() {
+}
+func (s *ExprStmt) stmtNode() {
+}
+func (s *IncDecStmt) stmtNode() {
+}
+func (s *AssignStmt) stmtNode() {
+}
+func (s *GoStmt) stmtNode() {
+}
+func (s *DeferStmt) stmtNode() {
+}
+func (s *ReturnStmt) stmtNode() {
+}
+func (s *BranchStmt) stmtNode() {
+}
+func (s *BlockStmt) stmtNode() {
+}
+func (s *IfStmt) stmtNode() {
+}
+func (s *CaseClause) stmtNode() {
+}
+func (s *SwitchStmt) stmtNode() {
+}
+func (s *TypeCaseClause) stmtNode() {
+}
+func (s *TypeSwitchStmt) stmtNode() {
+}
+func (s *CommClause) stmtNode() {
+}
+func (s *SelectStmt) stmtNode() {
+}
+func (s *ForStmt) stmtNode() {
+}
+func (s *RangeStmt) stmtNode() {
+}
 
 
 // ----------------------------------------------------------------------------
@@ -648,9 +691,12 @@ func (s *TypeSpec) Pos() token.Position {
 // specNode() ensures that only spec nodes can be
 // assigned to a Spec.
 //
-func (s *ImportSpec) specNode() {}
-func (s *ValueSpec) specNode() {}
-func (s *TypeSpec) specNode() {}
+func (s *ImportSpec) specNode() {
+}
+func (s *ValueSpec) specNode() {
+}
+func (s *TypeSpec) specNode() {
+}
 
 
 // A declaration is represented by one of the following declaration nodes.
@@ -677,7 +723,7 @@ type (
 	//
 	GenDecl	struct {
 		Doc		*CommentGroup;	// associated documentation; or nil
-		token.Position;	// position of Tok
+		token.Position;			// position of Tok
 		Tok		token.Token;	// IMPORT, CONST, TYPE, VAR
 		Lparen		token.Position;	// position of '(', if any
 		Specs		[]Spec;
@@ -704,9 +750,12 @@ func (d *FuncDecl) Pos() token.Position {
 // declNode() ensures that only declaration nodes can be
 // assigned to a DeclNode.
 //
-func (d *BadDecl) declNode() {}
-func (d *GenDecl) declNode() {}
-func (d *FuncDecl) declNode() {}
+func (d *BadDecl) declNode() {
+}
+func (d *GenDecl) declNode() {
+}
+func (d *FuncDecl) declNode() {
+}
 
 
 // ----------------------------------------------------------------------------
@@ -716,7 +765,7 @@ func (d *FuncDecl) declNode() {}
 //
 type File struct {
 	Doc		*CommentGroup;	// associated documentation; or nil
-	token.Position;	// position of "package" keyword
+	token.Position;			// position of "package" keyword
 	Name		*Ident;		// package name
 	Decls		[]Decl;		// top-level declarations
 	Comments	*CommentGroup;	// list of all comments in the source file

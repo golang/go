@@ -245,8 +245,8 @@ func copyCommentList(list []*ast.Comment) []*ast.Comment {
 
 
 var (
-	bug_markers = regexp.MustCompile("^/[/*][ \t]*BUG\\(.*\\):[ \t]*");	// BUG(uid):
-	bug_content = regexp.MustCompile("[^ \n\r\t]+");	// at least one non-whitespace char
+	bug_markers	= regexp.MustCompile("^/[/*][ \t]*BUG\\(.*\\):[ \t]*");	// BUG(uid):
+	bug_content	= regexp.MustCompile("[^ \n\r\t]+");			// at least one non-whitespace char
 )
 
 
