@@ -31,8 +31,8 @@ func CommentText(comment *ast.CommentGroup) string {
 		// Remove comment markers.
 		// The parser has given us exactly the comment text.
 		switch n := len(c); {
-		case n >= 4 && c[0:2] == "/*" && c[n-2:n] == "*/":
-			c = c[2:n-2];
+		case n >= 4 && c[0:2] == "/*" && c[n-2 : n] == "*/":
+			c = c[2 : n-2];
 		case n >= 2 && c[0:2] == "//":
 			c = c[2:n];
 			// Remove leading space after //, if there is one.
@@ -51,7 +51,7 @@ func CommentText(comment *ast.CommentGroup) string {
 			for m > 0 && (l[m-1] == ' ' || l[m-1] == '\n' || l[m-1] == '\t' || l[m-1] == '\r') {
 				m--;
 			}
-			l = l[0 : m];
+			l = l[0:m];
 
 			// Add to list.
 			n := len(lines);
@@ -76,7 +76,7 @@ func CommentText(comment *ast.CommentGroup) string {
 			n++;
 		}
 	}
-	lines = lines[0 : n];
+	lines = lines[0:n];
 
 	// Add final "" entry to get trailing newline from Join.
 	// The original loop always leaves room for one more.
@@ -115,7 +115,7 @@ func split(text []byte) [][]byte {
 		}
 	}
 	if last < len(text) {
-		out[n] = text[last : len(text)];
+		out[n] = text[last:len(text)];
 	}
 
 	return out;
@@ -123,8 +123,8 @@ func split(text []byte) [][]byte {
 
 
 var (
-	ldquo = strings.Bytes("&ldquo;");
-	rdquo = strings.Bytes("&rdquo;");
+	ldquo	= strings.Bytes("&ldquo;");
+	rdquo	= strings.Bytes("&rdquo;");
 )
 
 // Escape comment text for HTML.
@@ -133,7 +133,7 @@ func commentEscape(w io.Writer, s []byte) {
 	last := 0;
 	for i := 0; i < len(s)-1; i++ {
 		if s[i] == s[i+1] && (s[i] == '`' || s[i] == '\'') {
-			template.HtmlEscape(w, s[last : i]);
+			template.HtmlEscape(w, s[last:i]);
 			last = i+2;
 			switch s[i] {
 			case '`':
@@ -144,15 +144,15 @@ func commentEscape(w io.Writer, s []byte) {
 			i++;	// loop will add one more
 		}
 	}
-	template.HtmlEscape(w, s[last : len(s)]);
+	template.HtmlEscape(w, s[last:len(s)]);
 }
 
 
 var (
-	html_p = strings.Bytes("<p>\n");
-	html_endp = strings.Bytes("</p>\n");
-	html_pre = strings.Bytes("<pre>");
-	html_endpre = strings.Bytes("</pre>\n");
+	html_p		= strings.Bytes("<p>\n");
+	html_endp	= strings.Bytes("</p>\n");
+	html_pre	= strings.Bytes("<pre>");
+	html_endpre	= strings.Bytes("</pre>\n");
 )
 
 
@@ -166,7 +166,7 @@ func indentLen(s []byte) int {
 
 
 func isBlank(s []byte) bool {
-	return len(s) == 0 || (len(s) == 1 && s[0] == '\n')
+	return len(s) == 0 || (len(s) == 1 && s[0] == '\n');
 }
 
 
@@ -175,7 +175,7 @@ func commonPrefix(a, b []byte) []byte {
 	for i < len(a) && i < len(b) && a[i] == b[i] {
 		i++;
 	}
-	return a[0 : i];
+	return a[0:i];
 }
 
 
@@ -196,7 +196,7 @@ func unindent(block [][]byte) {
 	// remove
 	for i, line := range block {
 		if !isBlank(line) {
-			block[i] = line[n : len(line)];
+			block[i] = line[n:len(line)];
 		}
 	}
 }
@@ -233,7 +233,7 @@ func ToHtml(w io.Writer, s []byte) {
 
 	lines := split(s);
 	unindent(lines);
-	for i := 0; i < len(lines);  {
+	for i := 0; i < len(lines); {
 		line := lines[i];
 		if isBlank(line) {
 			// close paragraph
@@ -260,7 +260,7 @@ func ToHtml(w io.Writer, s []byte) {
 			for j > i && isBlank(lines[j-1]) {
 				j--;
 			}
-			block := lines[i : j];
+			block := lines[i:j];
 			i = j;
 
 			unindent(block);
@@ -288,4 +288,3 @@ func ToHtml(w io.Writer, s []byte) {
 		inpara = false;
 	}
 }
-

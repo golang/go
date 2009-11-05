@@ -11,8 +11,8 @@ package ast
 //	NOTE: WORK IN PROGRESS
 //
 type Scope struct {
-	Outer *Scope;
-	Names map[string]*Ident
+	Outer	*Scope;
+	Names	map[string]*Ident;
 }
 
 
@@ -38,7 +38,7 @@ func (s *Scope) Declare(ident *Ident) bool {
 // Lookup looks up an identifier in the current scope chain.
 // If the identifier is found, it is returned; otherwise the
 // result is nil.
-// 
+//
 func (s *Scope) Lookup(name string) *Ident {
 	for ; s != nil; s = s.Outer {
 		if ident, found := s.Names[name]; found {

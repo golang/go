@@ -20,27 +20,27 @@ type Token int
 // The list of tokens.
 const (
 	// Special tokens
-	ILLEGAL Token = iota;
+	ILLEGAL	Token	= iota;
 	EOF;
 	COMMENT;
 
 	literal_beg;
 	// Identifiers and basic type literals
 	// (these tokens stand for classes of literals)
-	IDENT;		// main
-	INT;		// 12345
-	FLOAT;		// 123.45
-	CHAR;		// 'a'
-	STRING;		// "abc"
+	IDENT;	// main
+	INT;	// 12345
+	FLOAT;	// 123.45
+	CHAR;	// 'a'
+	STRING;	// "abc"
 	literal_end;
 
 	operator_beg;
 	// Operators and delimiters
-	ADD;		// +
-	SUB;		// -
-	MUL;		// *
-	QUO;		// /
-	REM;		// %
+	ADD;	// +
+	SUB;	// -
+	MUL;	// *
+	QUO;	// /
+	REM;	// %
 
 	AND;		// &
 	OR;		// |
@@ -62,17 +62,17 @@ const (
 	SHR_ASSIGN;	// >>=
 	AND_NOT_ASSIGN;	// &^=
 
-	LAND;		// &&
-	LOR;		// ||
-	ARROW;		// <-
-	INC;		// ++
-	DEC;		// --
+	LAND;	// &&
+	LOR;	// ||
+	ARROW;	// <-
+	INC;	// ++
+	DEC;	// --
 
-	EQL;		// ==
-	LSS;		// <
-	GTR;		// >
-	ASSIGN;		// =
-	NOT;		// !
+	EQL;	// ==
+	LSS;	// <
+	GTR;	// >
+	ASSIGN;	// =
+	NOT;	// !
 
 	NEQ;		// !=
 	LEQ;		// <=
@@ -80,11 +80,11 @@ const (
 	DEFINE;		// :=
 	ELLIPSIS;	// ...
 
-	LPAREN;		// (
-	LBRACK;		// [
-	LBRACE;		// {
-	COMMA;		// ,
-	PERIOD;		// .
+	LPAREN;	// (
+	LBRACK;	// [
+	LBRACE;	// {
+	COMMA;	// ,
+	PERIOD;	// .
 
 	RPAREN;		// )
 	RBRACK;		// ]
@@ -131,103 +131,103 @@ const (
 // At the moment we have no array literal syntax that lets us describe
 // the index for each element - use a map for now to make sure they are
 // in sync.
-var tokens = map [Token] string {
-	ILLEGAL : "ILLEGAL",
+var tokens = map[Token]string{
+	ILLEGAL: "ILLEGAL",
 
-	EOF : "EOF",
-	COMMENT : "COMMENT",
+	EOF: "EOF",
+	COMMENT: "COMMENT",
 
-	IDENT : "IDENT",
-	INT : "INT",
-	FLOAT : "FLOAT",
-	CHAR : "CHAR",
-	STRING : "STRING",
+	IDENT: "IDENT",
+	INT: "INT",
+	FLOAT: "FLOAT",
+	CHAR: "CHAR",
+	STRING: "STRING",
 
-	ADD : "+",
-	SUB : "-",
-	MUL : "*",
-	QUO : "/",
-	REM : "%",
+	ADD: "+",
+	SUB: "-",
+	MUL: "*",
+	QUO: "/",
+	REM: "%",
 
-	AND : "&",
-	OR : "|",
-	XOR : "^",
-	SHL : "<<",
-	SHR : ">>",
-	AND_NOT : "&^",
+	AND: "&",
+	OR: "|",
+	XOR: "^",
+	SHL: "<<",
+	SHR: ">>",
+	AND_NOT: "&^",
 
-	ADD_ASSIGN : "+=",
-	SUB_ASSIGN : "-=",
-	MUL_ASSIGN : "*=",
-	QUO_ASSIGN : "/=",
-	REM_ASSIGN : "%=",
+	ADD_ASSIGN: "+=",
+	SUB_ASSIGN: "-=",
+	MUL_ASSIGN: "*=",
+	QUO_ASSIGN: "/=",
+	REM_ASSIGN: "%=",
 
-	AND_ASSIGN : "&=",
-	OR_ASSIGN : "|=",
-	XOR_ASSIGN : "^=",
-	SHL_ASSIGN : "<<=",
-	SHR_ASSIGN : ">>=",
-	AND_NOT_ASSIGN : "&^=",
+	AND_ASSIGN: "&=",
+	OR_ASSIGN: "|=",
+	XOR_ASSIGN: "^=",
+	SHL_ASSIGN: "<<=",
+	SHR_ASSIGN: ">>=",
+	AND_NOT_ASSIGN: "&^=",
 
-	LAND : "&&",
-	LOR : "||",
-	ARROW : "<-",
-	INC : "++",
-	DEC : "--",
+	LAND: "&&",
+	LOR: "||",
+	ARROW: "<-",
+	INC: "++",
+	DEC: "--",
 
-	EQL : "==",
-	LSS : "<",
-	GTR : ">",
-	ASSIGN : "=",
-	NOT : "!",
+	EQL: "==",
+	LSS: "<",
+	GTR: ">",
+	ASSIGN: "=",
+	NOT: "!",
 
-	NEQ : "!=",
-	LEQ : "<=",
-	GEQ : ">=",
-	DEFINE : ":=",
-	ELLIPSIS : "...",
+	NEQ: "!=",
+	LEQ: "<=",
+	GEQ: ">=",
+	DEFINE: ":=",
+	ELLIPSIS: "...",
 
-	LPAREN : "(",
-	LBRACK : "[",
-	LBRACE : "{",
-	COMMA : ",",
-	PERIOD : ".",
+	LPAREN: "(",
+	LBRACK: "[",
+	LBRACE: "{",
+	COMMA: ",",
+	PERIOD: ".",
 
-	RPAREN : ")",
-	RBRACK : "]",
-	RBRACE : "}",
-	SEMICOLON : ";",
-	COLON : ":",
+	RPAREN: ")",
+	RBRACK: "]",
+	RBRACE: "}",
+	SEMICOLON: ";",
+	COLON: ":",
 
-	BREAK : "break",
-	CASE : "case",
-	CHAN : "chan",
-	CONST : "const",
-	CONTINUE : "continue",
+	BREAK: "break",
+	CASE: "case",
+	CHAN: "chan",
+	CONST: "const",
+	CONTINUE: "continue",
 
-	DEFAULT : "default",
-	DEFER : "defer",
-	ELSE : "else",
-	FALLTHROUGH : "fallthrough",
-	FOR : "for",
+	DEFAULT: "default",
+	DEFER: "defer",
+	ELSE: "else",
+	FALLTHROUGH: "fallthrough",
+	FOR: "for",
 
-	FUNC : "func",
-	GO : "go",
-	GOTO : "goto",
-	IF : "if",
-	IMPORT : "import",
+	FUNC: "func",
+	GO: "go",
+	GOTO: "goto",
+	IF: "if",
+	IMPORT: "import",
 
-	INTERFACE : "interface",
-	MAP : "map",
-	PACKAGE : "package",
-	RANGE : "range",
-	RETURN : "return",
+	INTERFACE: "interface",
+	MAP: "map",
+	PACKAGE: "package",
+	RANGE: "range",
+	RETURN: "return",
 
-	SELECT : "select",
-	STRUCT : "struct",
-	SWITCH : "switch",
-	TYPE : "type",
-	VAR : "var",
+	SELECT: "select",
+	STRUCT: "struct",
+	SWITCH: "switch",
+	TYPE: "type",
+	VAR: "var",
 }
 
 
@@ -252,9 +252,9 @@ func (tok Token) String() string {
 // selector, indexing, and other operator and delimiter tokens.
 //
 const (
-	LowestPrec = 0;  // non-operators
-	UnaryPrec = 7;
-	HighestPrec = 8;
+	LowestPrec	= 0;	// non-operators
+	UnaryPrec	= 7;
+	HighestPrec	= 8;
 )
 
 
@@ -281,10 +281,10 @@ func (op Token) Precedence() int {
 }
 
 
-var keywords map [string] Token;
+var keywords map[string]Token
 
 func init() {
-	keywords = make(map [string] Token);
+	keywords = make(map[string]Token);
 	for i := keyword_beg + 1; i < keyword_end; i++ {
 		keywords[tokens[i]] = i;
 	}
@@ -331,10 +331,10 @@ func (tok Token) IsKeyword() bool {
 // A Position is valid if the line number is > 0.
 //
 type Position struct {
-	Filename string;  // filename, if any
-	Offset int;  // byte offset, starting at 0
-	Line int;  // line number, starting at 1
-	Column int;  // column number, starting at 1 (character count)
+	Filename	string;	// filename, if any
+	Offset		int;	// byte offset, starting at 0
+	Line		int;	// line number, starting at 1
+	Column		int;	// column number, starting at 1 (character count)
 }
 
 
@@ -348,7 +348,7 @@ func (pos *Position) Pos() Position {
 
 // IsValid returns true if the position is valid.
 func (pos *Position) IsValid() bool {
-	return pos.Line > 0
+	return pos.Line > 0;
 }
 
 

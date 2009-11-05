@@ -250,7 +250,7 @@ func (S *Scanner) scanNumber(seen_decimal_point bool) token.Token {
 				tok = token.FLOAT;
 				goto mantissa;
 			}
-		// octal int
+			// octal int
 		}
 		goto exit;
 	}
@@ -554,7 +554,7 @@ func Tokenize(filename string, src []byte, err ErrorHandler, mode uint, f func(p
 	var s Scanner;
 	s.Init(filename, src, err, mode);
 	for f(s.Scan()) {
-	// action happens in f
+		// action happens in f
 	}
 	return s.ErrorCount;
 }
