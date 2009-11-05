@@ -562,8 +562,8 @@ def RelativePath(path, cwd):
 
 # Check that gofmt run on the list of files does not change them
 def CheckGofmt(ui, repo, files):
-	f = [f for f in files if f.endswith('.go')]
-	if not f:
+	files = [f for f in files if f.endswith('.go')]
+	if not files:
 		return
 	cwd = os.getcwd()
 	files = [RelativePath(repo.root + '/' + f, cwd) for f in files]
@@ -761,7 +761,10 @@ def gofmt(ui, repo, *pats, **opts):
 	cwd = os.getcwd()
 	files = [RelativePath(repo.root + '/' + f, cwd) for f in files]
 	try:
-		if os.spawnvp(os.P_WAIT, "gofmt", ["gofmt", "-l", "-w"] + files) != 0:
+		cmd = ["gofmt", "-l"]
+		if not opts["list"]:
+			cmd += ["-w"]
+		if os.spawnvp(os.P_WAIT, "gofmt", cmd + files) != 0:
 			raise util.Abort("gofmt did not exit cleanly")
 	except error.Abort, e:
 		raise
@@ -1026,7 +1029,9 @@ cmdtable = {
 	),
 	"^gofmt": (
 		gofmt,
-		[],
+		[
+			('l', 'list', None, 'list files that would change, but do not edit them'),
+		],
 		"FILE ..."
 	),
 	"^pending|p": (
