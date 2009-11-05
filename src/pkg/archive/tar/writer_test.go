@@ -13,13 +13,13 @@ import (
 )
 
 type writerTestEntry struct {
-	header *Header;
-	contents string;
+	header		*Header;
+	contents	string;
 }
 
 type writerTest struct {
-	file string;  // filename of expected output
-	entries []*writerTestEntry;
+	file	string;	// filename of expected output
+	entries	[]*writerTestEntry;
 }
 
 var writerTests = []*writerTest{
@@ -54,7 +54,7 @@ var writerTests = []*writerTest{
 				},
 				contents: "Google.com\n",
 			},
-		}
+		},
 	},
 	// The truncated test file was produced using these commands:
 	//   dd if=/dev/zero bs=1048576 count=16384 > /tmp/16gig.txt
@@ -68,7 +68,7 @@ var writerTests = []*writerTest{
 					Mode: 0640,
 					Uid: 73025,
 					Gid: 5000,
-					Size: 16 << 30,
+					Size: 16<<30,
 					Mtime: 1254699560,
 					Typeflag: '0',
 					Uname: "dsymonds",
@@ -92,14 +92,14 @@ func bytestr(offset int, b []byte) string {
 			s += fmt.Sprintf(" %02x", ch);
 		}
 	}
-	return s
+	return s;
 }
 
 // Render a pseudo-diff between two blocks of bytes.
 func bytediff(a []byte, b []byte) string {
 	const rowLen = 32;
 	s := fmt.Sprintf("(%d bytes vs. %d bytes)\n", len(a), len(b));
-	for offset := 0; len(a) + len(b) > 0; offset += rowLen {
+	for offset := 0; len(a)+len(b) > 0; offset += rowLen {
 		na, nb := rowLen, rowLen;
 		if na > len(a) {
 			na = len(a);
@@ -115,7 +115,7 @@ func bytediff(a []byte, b []byte) string {
 		a = a[na:len(a)];
 		b = b[nb:len(b)];
 	}
-	return s
+	return s;
 }
 
 func TestWriter(t *testing.T) {
@@ -124,30 +124,30 @@ testLoop:
 		expected, err := io.ReadFile(test.file);
 		if err != nil {
 			t.Errorf("test %d: Unexpected error: %v", i, err);
-			continue
+			continue;
 		}
 
 		buf := new(bytes.Buffer);
-		tw := NewWriter(iotest.TruncateWriter(buf, 4 << 10));  // only catch the first 4 KB
+		tw := NewWriter(iotest.TruncateWriter(buf, 4<<10));	// only catch the first 4 KB
 		for j, entry := range test.entries {
 			if err := tw.WriteHeader(entry.header); err != nil {
 				t.Errorf("test %d, entry %d: Failed writing header: %v", i, j, err);
-				continue testLoop
+				continue testLoop;
 			}
 			if _, err := io.WriteString(tw, entry.contents); err != nil {
 				t.Errorf("test %d, entry %d: Failed writing contents: %v", i, j, err);
-				continue testLoop
+				continue testLoop;
 			}
 		}
 		if err := tw.Close(); err != nil {
 			t.Errorf("test %d: Failed closing archive: %v", err);
-			continue testLoop
+			continue testLoop;
 		}
 
 		actual := buf.Bytes();
 		if !bytes.Equal(expected, actual) {
 			t.Errorf("test %d: Incorrect result: (-=expected, +=actual)\n%v",
-			         i, bytediff(expected, actual));
+				i, bytediff(expected, actual));
 		}
 	}
 }
