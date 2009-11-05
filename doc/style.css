@@ -88,14 +88,12 @@ div#content {
   padding: 0 1em 2em 1em;
   margin-top: -2px;
   border-left: 2px solid #e5ecf9;
+  border-right: 2px solid #e5ecf9;
+  border-bottom: 2px solid #e5ecf9;
 }
 
 #topnav {
-}
-
-#headerDocSetTitle {
   margin: 0px;
-  padding-left: 0.2em;
   padding-top: 0.2em;
   width: 100%;
   white-space: nowrap;
@@ -237,14 +235,20 @@ a.use {
   padding-left: 1em;
   -moz-border-radius: 7px;
   -webkit-border-radius: 7px;
+  padding-bottom: 0.75em;
 }
 
 #gettingStarted h1 {
   padding-top: 0.3em;
+  margin-bottom: 0.2em;
   font-size: 1.5em;
 }
 
 #gettingStarted ol {
+}
+
+#gettingStarted a img {
+  border: 1px solid blue;
 }
 
 #frontpage {
