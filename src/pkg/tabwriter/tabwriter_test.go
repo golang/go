@@ -17,20 +17,20 @@ type buffer struct {
 
 
 func (b *buffer) init(n int) {
-	b.a = make([]byte, n)[0 : 0];
+	b.a = make([]byte, n)[0:0];
 }
 
 
 func (b *buffer) clear() {
-	b.a = b.a[0 : 0];
+	b.a = b.a[0:0];
 }
 
 
 func (b *buffer) Write(buf []byte) (written int, err os.Error) {
 	n := len(b.a);
 	m := len(buf);
-	if n + m <= cap(b.a) {
-		b.a = b.a[0 : n + m];
+	if n+m <= cap(b.a) {
+		b.a = b.a[0 : n+m];
 		for i := 0; i < m; i++ {
 			b.a[n+i] = buf[i];
 		}
@@ -65,7 +65,7 @@ func verify(t *testing.T, testname string, w *Writer, b *buffer, src, expected s
 
 	res := b.String();
 	if res != expected {
-		t.Errorf("--- test: %s\n--- src:\n%s\n--- found:\n%s\n--- expected:\n%s\n", testname, src, res, expected)
+		t.Errorf("--- test: %s\n--- src:\n%s\n--- found:\n%s\n--- expected:\n%s\n", testname, src, res, expected);
 	}
 }
 
@@ -95,7 +95,7 @@ func check(t *testing.T, testname string, tabwidth, padding int, padchar byte, f
 		write(t, testname, &w, src[i : i+d]);
 		i, d = i+d, d+1;
 		if i+d > len(src) {
-			d = len(src) - i;
+			d = len(src)-i;
 		}
 	}
 	verify(t, testname, &w, &b, src, expected);
@@ -103,41 +103,41 @@ func check(t *testing.T, testname string, tabwidth, padding int, padchar byte, f
 
 
 type entry struct {
-	testname string;
-	tabwidth, padding int;
-	padchar byte;
-	flags uint;
-	src, expected string;
+	testname		string;
+	tabwidth, padding	int;
+	padchar			byte;
+	flags			uint;
+	src, expected		string;
 }
 
 
-var tests = []entry {
+var tests = []entry{
 	entry{
 		"1a",
 		8, 1, '.', 0,
 		"",
-		""
+		"",
 	},
 
 	entry{
 		"1a debug",
 		8, 1, '.', Debug,
 		"",
-		""
+		"",
 	},
 
 	entry{
 		"1b esc",
 		8, 1, '.', 0,
 		"\xff\xff",
-		""
+		"",
 	},
 
 	entry{
 		"1c esc",
 		8, 1, '.', 0,
 		"\xff\t\xff",
-		"\t"
+		"\t",
 	},
 
 	entry{
@@ -150,7 +150,7 @@ var tests = []entry {
 	entry{
 		"1e esc",
 		8, 1, '.', 0,
-		"abc\xff\tdef",  // unterminated escape
+		"abc\xff\tdef",	// unterminated escape
 		"abc\tdef",
 	},
 
@@ -158,133 +158,133 @@ var tests = []entry {
 		"2",
 		8, 1, '.', 0,
 		"\n\n\n",
-		"\n\n\n"
+		"\n\n\n",
 	},
 
 	entry{
 		"3",
 		8, 1, '.', 0,
 		"a\nb\nc",
-		"a\nb\nc"
+		"a\nb\nc",
 	},
 
 	entry{
 		"4a",
 		8, 1, '.', 0,
-		"\t",  // '\t' terminates an empty cell on last line - nothing to print
-		""
+		"\t",	// '\t' terminates an empty cell on last line - nothing to print
+		"",
 	},
 
 	entry{
 		"4b",
 		8, 1, '.', AlignRight,
-		"\t",  // '\t' terminates an empty cell on last line - nothing to print
-		""
+		"\t",	// '\t' terminates an empty cell on last line - nothing to print
+		"",
 	},
 
 	entry{
 		"5",
 		8, 1, '.', 0,
 		"*\t*",
-		"*.......*"
+		"*.......*",
 	},
 
 	entry{
 		"5b",
 		8, 1, '.', 0,
 		"*\t*\n",
-		"*.......*\n"
+		"*.......*\n",
 	},
 
 	entry{
 		"5c",
 		8, 1, '.', 0,
 		"*\t*\t",
-		"*.......*"
+		"*.......*",
 	},
 
 	entry{
 		"5c debug",
 		8, 1, '.', Debug,
 		"*\t*\t",
-		"*.......|*"
+		"*.......|*",
 	},
 
 	entry{
 		"5d",
 		8, 1, '.', AlignRight,
 		"*\t*\t",
-		".......**"
+		".......**",
 	},
 
 	entry{
 		"6",
 		8, 1, '.', 0,
 		"\t\n",
-		"........\n"
+		"........\n",
 	},
 
 	entry{
 		"7a",
 		8, 1, '.', 0,
 		"a) foo",
-		"a) foo"
+		"a) foo",
 	},
 
 	entry{
 		"7b",
 		8, 1, ' ', 0,
 		"b) foo\tbar",
-		"b) foo  bar"
+		"b) foo  bar",
 	},
 
 	entry{
 		"7c",
 		8, 1, '.', 0,
 		"c) foo\tbar\t",
-		"c) foo..bar"
+		"c) foo..bar",
 	},
 
 	entry{
 		"7d",
 		8, 1, '.', 0,
 		"d) foo\tbar\n",
-		"d) foo..bar\n"
+		"d) foo..bar\n",
 	},
 
 	entry{
 		"7e",
 		8, 1, '.', 0,
 		"e) foo\tbar\t\n",
-		"e) foo..bar.....\n"
+		"e) foo..bar.....\n",
 	},
 
 	entry{
 		"7f",
 		8, 1, '.', FilterHTML,
 		"f) f&lt;o\t<b>bar</b>\t\n",
-		"f) f&lt;o..<b>bar</b>.....\n"
+		"f) f&lt;o..<b>bar</b>.....\n",
 	},
 
 	entry{
 		"7g",
 		8, 1, '.', FilterHTML,
 		"g) f&lt;o\t<b>bar</b>\t non-terminated entity &amp",
-		"g) f&lt;o..<b>bar</b>..... non-terminated entity &amp"
+		"g) f&lt;o..<b>bar</b>..... non-terminated entity &amp",
 	},
 
 	entry{
 		"7g debug",
 		8, 1, '.', FilterHTML | Debug,
 		"g) f&lt;o\t<b>bar</b>\t non-terminated entity &amp",
-		"g) f&lt;o..|<b>bar</b>.....| non-terminated entity &amp"
+		"g) f&lt;o..|<b>bar</b>.....| non-terminated entity &amp",
 	},
 
 	entry{
 		"8",
 		8, 1, '*', 0,
 		"Hello, world!\n",
-		"Hello, world!\n"
+		"Hello, world!\n",
 	},
 
 	entry{
@@ -294,51 +294,51 @@ var tests = []entry {
 		"11\t222\t3333\t44444\n",
 
 		"1.2..3...4\n"
-		"11222333344444\n"
+		"11222333344444\n",
 	},
 
 	entry{
 		"9b",
 		0, 0, '.', FilterHTML,
-		"1\t2<!---\f--->\t3\t4\n"  // \f inside HTML is ignored
+		"1\t2<!---\f--->\t3\t4\n"	// \f inside HTML is ignored
 		"11\t222\t3333\t44444\n",
 
 		"1.2<!---\f--->..3...4\n"
-		"11222333344444\n"
+		"11222333344444\n",
 	},
 
 	entry{
 		"9c",
 		0, 0, '.', 0,
-		"1\t2\t3\t4\f"  // \f causes a newline and flush
+		"1\t2\t3\t4\f"	// \f causes a newline and flush
 		"11\t222\t3333\t44444\n",
 
 		"1234\n"
-		"11222333344444\n"
+		"11222333344444\n",
 	},
 
 	entry{
 		"9c debug",
 		0, 0, '.', Debug,
-		"1\t2\t3\t4\f"  // \f causes a newline and flush
+		"1\t2\t3\t4\f"	// \f causes a newline and flush
 		"11\t222\t3333\t44444\n",
 
 		"1|2|3|4\n"
-		"11|222|3333|44444\n"
+		"11|222|3333|44444\n",
 	},
 
 	entry{
 		"10a",
 		5, 0, '.', 0,
 		"1\t2\t3\t4\n",
-		"1....2....3....4\n"
+		"1....2....3....4\n",
 	},
 
 	entry{
 		"10b",
 		5, 0, '.', 0,
 		"1\t2\t3\t4\t\n",
-		"1....2....3....4....\n"
+		"1....2....3....4....\n",
 	},
 
 	entry{
@@ -350,7 +350,7 @@ var tests = []entry {
 
 		"本.......b.......c\n"
 		"aa......本本本.....cccc....ddddd\n"
-		"aaa.....bbbb\n"
+		"aaa.....bbbb\n",
 	},
 
 	entry{
@@ -362,7 +362,7 @@ var tests = []entry {
 
 		"       a       è       c\n"
 		"      aa     èèè    cccc   ddddd\n"
-		"     aaa    èèèè\n"
+		"     aaa    èèèè\n",
 	},
 
 	entry{
@@ -374,7 +374,7 @@ var tests = []entry {
 
 		"a  b  c\n"
 		"aa bbbcccc\n"
-		"aaabbbb\n"
+		"aaabbbb\n",
 	},
 
 	entry{
@@ -386,7 +386,7 @@ var tests = []entry {
 
 		"a_______b_______c\n"
 		"aa______bbb_____cccc\n"
-		"aaa_____bbbb\n"
+		"aaa_____bbbb\n",
 	},
 
 	entry{
@@ -406,7 +406,7 @@ var tests = []entry {
 		"------------------88888888\n"
 		"\n"
 		"666666-666666-666666----4444\n"
-		"1------1------999999999-0000000000\n"
+		"1------1------999999999-0000000000\n",
 	},
 
 	entry{
@@ -426,7 +426,7 @@ var tests = []entry {
 		"....................88888888\n"
 		"\n"
 		"666666...666666...666666......4444\n"
-		"1........1........999999999...0000000000\n"
+		"1........1........999999999...0000000000\n",
 	},
 
 	entry{
@@ -446,7 +446,7 @@ var tests = []entry {
 		"\t\t\t\t88888888\n"
 		"\n"
 		"666666\t666666\t666666\t\t4444\n"
-		"1\t1\t<font color=red attr=日本語>999999999</font>\t0000000000\n"
+		"1\t1\t<font color=red attr=日本語>999999999</font>\t0000000000\n",
 	},
 
 	entry{
@@ -464,7 +464,7 @@ var tests = []entry {
 		"   5.1        12.0    2.4    -7.0\n"
 		"    .0         0.0  332.0  8908.0\n"
 		"    .0         -.3  456.4    22.1\n"
-		"    .0         1.2   44.4   -13.3"
+		"    .0         1.2   44.4   -13.3",
 	},
 
 	entry{
@@ -482,35 +482,35 @@ var tests = []entry {
 		"   5.1|        12.0|    2.4|    -7.0|\n"
 		"    .0|         0.0|  332.0|  8908.0|\n"
 		"    .0|         -.3|  456.4|    22.1|\n"
-		"    .0|         1.2|   44.4|   -13.3|"
+		"    .0|         1.2|   44.4|   -13.3|",
 	},
 
 	entry{
 		"15a",
 		4, 0, '.', 0,
 		"a\t\tb",
-		"a.......b"
+		"a.......b",
 	},
 
 	entry{
 		"15b",
 		4, 0, '.', DiscardEmptyColumns,
-		"a\t\tb",  // htabs - do not discard column
-		"a.......b"
+		"a\t\tb",	// htabs - do not discard column
+		"a.......b",
 	},
 
 	entry{
 		"15c",
 		4, 0, '.', DiscardEmptyColumns,
 		"a\v\vb",
-		"a...b"
+		"a...b",
 	},
 
 	entry{
 		"15d",
 		4, 0, '.', AlignRight | DiscardEmptyColumns,
 		"a\v\vb",
-		"...ab"
+		"...ab",
 	},
 
 	entry{
@@ -526,7 +526,7 @@ var tests = []entry {
 		"a\tb\t\td\te\n"
 		"a\n"
 		"a\tb\tc\td\n"
-		"a\tb\tc\td\te\n"
+		"a\tb\tc\td\te\n",
 	},
 
 	entry{
@@ -542,7 +542,7 @@ var tests = []entry {
 		"a\tb\td\te\n"
 		"a\n"
 		"a\tb\tc\td\n"
-		"a\tb\tc\td\te\n"
+		"a\tb\tc\td\te\n",
 	},
 
 	entry{
@@ -558,13 +558,13 @@ var tests = []entry {
 		"a\t|b\t||d\t|e\n"
 		"a\n"
 		"a\t|b\t|c\t|d\n"
-		"a\t|b\t|c\t|d\t|e\n"
+		"a\t|b\t|c\t|d\t|e\n",
 	},
 
 	entry{
 		"16c",
 		100, 0, '\t', DiscardEmptyColumns,
-		"a\tb\t\td\n"  // hard tabs - do not discard column
+		"a\tb\t\td\n"	// hard tabs - do not discard column
 		"a\tb\t\td\te\n"
 		"a\n"
 		"a\tb\tc\td\n"
@@ -574,13 +574,13 @@ var tests = []entry {
 		"a\tb\t\td\te\n"
 		"a\n"
 		"a\tb\tc\td\n"
-		"a\tb\tc\td\te\n"
+		"a\tb\tc\td\te\n",
 	},
 
 	entry{
 		"16c debug",
 		100, 0, '\t', DiscardEmptyColumns | Debug,
-		"a\tb\t\td\n"  // hard tabs - do not discard column
+		"a\tb\t\td\n"	// hard tabs - do not discard column
 		"a\tb\t\td\te\n"
 		"a\n"
 		"a\tb\tc\td\n"
@@ -590,7 +590,7 @@ var tests = []entry {
 		"a\t|b\t|\t|d\t|e\n"
 		"a\n"
 		"a\t|b\t|c\t|d\n"
-		"a\t|b\t|c\t|d\t|e\n"
+		"a\t|b\t|c\t|d\t|e\n",
 	},
 }
 
