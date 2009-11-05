@@ -168,6 +168,53 @@ func _() {
 }
 
 
+func _() {
+	/*
+	   freestanding comment
+	   aligned		line
+	   aligned line
+	*/
+}
+
+func _() {
+	/*
+	   freestanding comment
+	   aligned		line
+	   aligned line
+	*/
+}
+
+func _() {
+	/*
+	   freestanding comment
+	   aligned		line
+	   aligned line */
+}
+
+func _() {
+	/*
+		freestanding comment
+		aligned		line
+		aligned line
+	*/
+}
+
+func _() {
+	/*
+		freestanding comment
+		aligned		line
+		aligned line
+	*/
+}
+
+func _() {
+	/*
+		freestanding comment
+		aligned		line
+		aligned line */
+}
+
+
 /*
  * line
  * of
@@ -194,6 +241,18 @@ blank line in middle:
 with no leading spaces on blank line.
 */
 
+/*
+   aligned in middle
+   here
+           not here
+*/
+
+/*
+	blank line in middle:
+
+	with no leading spaces on blank line.
+*/
+
 func _() {
 	/*
 	 * line
@@ -202,15 +261,15 @@ func _() {
 	 */
 
 	/*
-	aligned in middle
-	here
-		not here
+		aligned in middle
+		here
+			not here
 	*/
 
 	/*
-	blank line in middle:
+		blank line in middle:
 
-	with no leading spaces on blank line.
+		with no leading spaces on blank line.
 	*/
 }
 

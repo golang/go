@@ -443,27 +443,45 @@ func stripCommonPrefix(lines [][]byte) {
 		// Determine the white space on the first line after the /*
 		// and before the beginning of the comment text, assume two
 		// blanks instead of the /* unless the first character after
-		// the /* is a tab. This whitespace may be found as suffix
-		// in the common prefix.
+		// the /* is a tab. If the first comment line is empty but
+		// for the opening /*, assume up to 3 blanks or a tab. This
+		// whitespace may be found as suffix in the common prefix.
 		first := lines[0];
-		suffix := make([]byte, len(first));
-		n := 2;
-		for n < len(first) && first[n] <= ' ' {
-			suffix[n] = first[n];
-			n++;
-		}
-		if n > 2 && suffix[2] == '\t' {
-			// assume the '\t' compensates for the /*
-			suffix = suffix[2:n];
+		if isBlank(first[2 : len(first)]) {
+			// no comment text on the first line:
+			// reduce prefix by up to 3 blanks or a tab
+			// if present - this keeps comment text indented
+			// relative to the /* and */'s if it was indented
+			// in the first place
+			i := len(prefix);
+			for n := 0; n < 3 && i > 0 && prefix[i-1] == ' '; n++ {
+				i--;
+			}
+			if i == len(prefix) && i > 0 && prefix[i-1] == '\t' {
+				i--;
+			}
+			prefix = prefix[0:i];
 		} else {
-			// otherwise assume two blanks
-			suffix[0], suffix[1] = ' ', ' ';
-			suffix = suffix[0:n];
-		}
-		// Shorten the computed common prefix by the length of
-		// suffix, if it is found as suffix of the prefix.
-		if bytes.HasSuffix(prefix, suffix) {
-			prefix = prefix[0 : len(prefix) - len(suffix)];
+			// comment text on the first line
+			suffix := make([]byte, len(first));
+			n := 2;
+			for n < len(first) && first[n] <= ' ' {
+				suffix[n] = first[n];
+				n++;
+			}
+			if n > 2 && suffix[2] == '\t' {
+				// assume the '\t' compensates for the /*
+				suffix = suffix[2:n];
+			} else {
+				// otherwise assume two blanks
+				suffix[0], suffix[1] = ' ', ' ';
+				suffix = suffix[0:n];
+			}
+			// Shorten the computed common prefix by the length of
+			// suffix, if it is found as suffix of the prefix.
+			if bytes.HasSuffix(prefix, suffix) {
+				prefix = prefix[0 : len(prefix) - len(suffix)];
+			}
 		}
 	}
 
