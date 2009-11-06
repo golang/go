@@ -26,12 +26,12 @@ import (
 
 // A Sym represents a single symbol table entry.
 type Sym struct {
-	Value uint64;
-	Type byte;
-	Name string;
-	GoType uint64;
+	Value	uint64;
+	Type	byte;
+	Name	string;
+	GoType	uint64;
 	// If this symbol if a function symbol, the corresponding Func
-	Func *Func;
+	Func	*Func;
 }
 
 // Static returns whether this symbol is static (not visible outside its file).
@@ -56,33 +56,33 @@ func (s *Sym) ReceiverName() string {
 	if l == -1 || r == -1 || l == r {
 		return "";
 	}
-	return s.Name[l+1:r];
+	return s.Name[l+1 : r];
 }
 
 // BaseName returns the symbol name without the package or receiver name.
 func (s *Sym) BaseName() string {
 	if i := strings.LastIndex(s.Name, "."); i != -1 {
-		return s.Name[i+1:len(s.Name)];
+		return s.Name[i+1 : len(s.Name)];
 	}
 	return s.Name;
 }
 
 // A Func collects information about a single function.
 type Func struct {
-	Entry uint64;
+	Entry	uint64;
 	*Sym;
-	End uint64;
-	Params []*Sym;
-	Locals []*Sym;
-	FrameSize int;
-	LineTable *LineTable;
-	Obj *Obj;
+	End		uint64;
+	Params		[]*Sym;
+	Locals		[]*Sym;
+	FrameSize	int;
+	LineTable	*LineTable;
+	Obj		*Obj;
 }
 
 // An Obj represents a single object file.
 type Obj struct {
-	Funcs []Func;
-	Paths []Sym;
+	Funcs	[]Func;
+	Paths	[]Sym;
 }
 
 /*
@@ -93,18 +93,18 @@ type Obj struct {
 // symbols decoded from the program and provides methods to translate
 // between symbols, names, and addresses.
 type Table struct {
-	Syms []Sym;
-	Funcs []Func;
-	Files map[string] *Obj;
-	Objs []Obj;
-//	textEnd uint64;
+	Syms	[]Sym;
+	Funcs	[]Func;
+	Files	map[string]*Obj;
+	Objs	[]Obj;
+	//	textEnd uint64;
 }
 
 type sym struct {
-	value uint32;
-	gotype uint32;
-	typ byte;
-	name []byte;
+	value	uint32;
+	gotype	uint32;
+	typ	byte;
+	name	[]byte;
 }
 
 func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
@@ -114,7 +114,7 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
 		s.value = binary.BigEndian.Uint32(p[0:4]);
 		typ := p[4];
 		if typ&0x80 == 0 {
-			return &DecodingError{len(data) - len(p) + 4, "bad symbol type", typ};
+			return &DecodingError{len(data)-len(p)+4, "bad symbol type", typ};
 		}
 		typ &^= 0x80;
 		s.typ = typ;
@@ -129,7 +129,7 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
 		}
 		switch typ {
 		case 'z', 'Z':
-			p = p[i+nnul:len(p)];
+			p = p[i+nnul : len(p)];
 			for i = 0; i+2 <= len(p); i += 2 {
 				if p[i] == 0 && p[i+1] == 0 {
 					nnul = 2;
@@ -142,8 +142,8 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
 		}
 		s.name = p[0:i];
 		i += nnul;
-		s.gotype = binary.BigEndian.Uint32(p[i:i+4]);
-		p = p[i+4:len(p)];
+		s.gotype = binary.BigEndian.Uint32(p[i : i+4]);
+		p = p[i+4 : len(p)];
 		fn(s);
 	}
 	return nil;
@@ -153,7 +153,10 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
 // returning an in-memory representation.
 func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 	var n int;
-	err := walksymtab(symtab, func(s sym) os.Error { n++; return nil });
+	err := walksymtab(symtab, func(s sym) os.Error {
+		n++;
+		return nil;
+	});
 	if err != nil {
 		return nil, err;
 	}
@@ -166,7 +169,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 	lasttyp := uint8(0);
 	err = walksymtab(symtab, func(s sym) os.Error {
 		n := len(t.Syms);
-		t.Syms = t.Syms[0:n+1];
+		t.Syms = t.Syms[0 : n+1];
 		ts := &t.Syms[n];
 		ts.Type = s.typ;
 		ts.Value = uint64(s.value);
@@ -190,7 +193,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 				nz++;
 			}
 			for i := 0; i < len(s.name); i += 2 {
-				eltIdx := binary.BigEndian.Uint16(s.name[i:i+2]);
+				eltIdx := binary.BigEndian.Uint16(s.name[i : i+2]);
 				elt, ok := fname[eltIdx];
 				if !ok {
 					return &DecodingError{-1, "bad filename code", eltIdx};
@@ -208,7 +211,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 			fname[uint16(s.value)] = ts.Name;
 		}
 		lasttyp = s.typ;
-		return nil
+		return nil;
 	});
 	if err != nil {
 		return nil, err;
@@ -216,7 +219,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 
 	t.Funcs = make([]Func, 0, nf);
 	t.Objs = make([]Obj, 0, nz);
-	t.Files = make(map[string] *Obj);
+	t.Files = make(map[string]*Obj);
 
 	// Count text symbols and attach frame sizes, parameters, and
 	// locals to them.  Also, find object file boundaries.
@@ -234,7 +237,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 
 			// Start new object
 			n := len(t.Objs);
-			t.Objs = t.Objs[0:n+1];
+			t.Objs = t.Objs[0 : n+1];
 			obj = &t.Objs[n];
 
 			// Count & copy path symbols
@@ -286,7 +289,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 
 			// Fill in the function symbol
 			n := len(t.Funcs);
-			t.Funcs = t.Funcs[0:n+1];
+			t.Funcs = t.Funcs[0 : n+1];
 			fn := &t.Funcs[n];
 			sym.Func = fn;
 			fn.Params = make([]*Sym, 0, np);
@@ -305,11 +308,11 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 					fn.FrameSize = int(s.Value);
 				case 'p':
 					n := len(fn.Params);
-					fn.Params = fn.Params[0:n+1];
+					fn.Params = fn.Params[0 : n+1];
 					fn.Params[n] = s;
 				case 'a':
 					n := len(fn.Locals);
-					fn.Locals = fn.Locals[0:n+1];
+					fn.Locals = fn.Locals[0 : n+1];
 					fn.Locals[n] = s;
 				}
 			}
@@ -335,7 +338,7 @@ func (t *Table) PCToFunc(pc uint64) *Func {
 		case fn.Entry <= pc && pc < fn.End:
 			return fn;
 		default:
-			funcs = funcs[m+1:len(funcs)];
+			funcs = funcs[m+1 : len(funcs)];
 		}
 	}
 	return nil;
@@ -345,7 +348,7 @@ func (t *Table) PCToFunc(pc uint64) *Func {
 // If there is no information, it returns fn == nil.
 func (t *Table) PCToLine(pc uint64) (file string, line int, fn *Func) {
 	if fn = t.PCToFunc(pc); fn == nil {
-		return
+		return;
 	}
 	file, line = fn.Obj.lineFromAline(fn.LineTable.PCToLine(pc));
 	return;
@@ -423,11 +426,11 @@ func (t *Table) SymByAddr(addr uint64) *Sym {
 
 func (o *Obj) lineFromAline(aline int) (string, int) {
 	type stackEnt struct {
-		path string;
-		start int;
-		offset int;
-		prev *stackEnt;
-	};
+		path	string;
+		start	int;
+		offset	int;
+		prev	*stackEnt;
+	}
 
 	noPath := &stackEnt{"", 0, 0, nil};
 	tos := noPath;
@@ -485,14 +488,14 @@ func (o *Obj) alineFromLine(path string, line int) (int, os.Error) {
 			val := int(s.Value);
 			switch {
 			case depth == 1 && val >= line:
-				return line - 1, nil;
+				return line-1, nil;
 
 			case s.Name == "":
 				depth--;
 				if depth == 0 {
 					break pathloop;
 				} else if depth == 1 {
-					line += val - incstart;
+					line += val-incstart;
 				}
 
 			default:
@@ -523,8 +526,8 @@ func (e UnknownFileError) String() string {
 // counter, either because the line is beyond the bounds of the file
 // or because there is no code on the given line.
 type UnknownLineError struct {
-	File string;
-	Line int;
+	File	string;
+	Line	int;
 }
 
 func (e *UnknownLineError) String() string {
@@ -534,9 +537,9 @@ func (e *UnknownLineError) String() string {
 // DecodingError represents an error during the decoding of
 // the symbol table.
 type DecodingError struct {
-	off int;
-	msg string;
-	val interface{};
+	off	int;
+	msg	string;
+	val	interface{};
 }
 
 func (e *DecodingError) String() string {
@@ -547,4 +550,3 @@ func (e *DecodingError) String() string {
 	msg += fmt.Sprintf(" at byte %#x", e.off);
 	return msg;
 }
-
