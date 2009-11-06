@@ -46,7 +46,7 @@ var (
 	httpaddr	= flag.String("http", "", "HTTP service address (e.g., ':6060')");
 
 	// layout control
-	html		= flag.Bool("html", false, "print HTML in command-line mode");
+	html	= flag.Bool("html", false, "print HTML in command-line mode");
 )
 
 
@@ -79,7 +79,7 @@ func exec(c *http.Conn, args []string) (status int) {
 		return 2;
 	}
 	status = wait.ExitStatus();
-	if !wait.Exited() || status > 1  {
+	if !wait.Exited() || status > 1 {
 		os.Stderr.Write(buf.Bytes());
 		log.Stderrf("executing %v failed (exit status = %d)", args, status);
 		return;
@@ -98,7 +98,7 @@ func exec(c *http.Conn, args []string) (status int) {
 
 
 // Maximum directory depth, adjust as needed.
-const maxDirDepth = 24;
+const maxDirDepth = 24
 
 func dosync(c *http.Conn, r *http.Request) {
 	args := []string{"/bin/sh", "-c", *syncCmd};
@@ -125,7 +125,7 @@ func dosync(c *http.Conn, r *http.Request) {
 func usage() {
 	fmt.Fprintf(os.Stderr,
 		"usage: godoc package [name ...]\n"
-		"	godoc -http=:6060\n");
+			"	godoc -http=:6060\n");
 	flag.PrintDefaults();
 	os.Exit(2);
 }
