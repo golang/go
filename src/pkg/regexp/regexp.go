@@ -77,8 +77,7 @@ type Regexp struct {
 }
 
 const (
-	_START	// beginning of program
-		= iota;
+	_START = iota;	// beginning of program
 	_END;		// end of program: success
 	_BOT;		// '^' beginning of text
 	_EOT;		// '$' end of text
