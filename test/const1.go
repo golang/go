@@ -74,6 +74,6 @@ func main() {
 	f(ConstFloat);	// ERROR "truncate"
 	f(ConstFloat - 0.5);	// OK
 	f(Big);	// ERROR "convert|wrong type|cannot"
-	f(String);	// ERROR "convert|wrong type|cannot"
-	f(Bool);	// ERROR "convert|wrong type|cannot"
+	f(String);	// ERROR "convert|wrong type|cannot|incompatible"
+	f(Bool);	// ERROR "convert|wrong type|cannot|incompatible"
 }
