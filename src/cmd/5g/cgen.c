@@ -436,8 +436,7 @@ flt2:	// binary
 	} else {
 		cgen(nr, &f0);
 		regalloc(&f1, n->type, N);
-		gmove(&f0, &f1);
-		cgen(nl, &f0);
+		cgen(nl, &f1);
 		gins(optoas(n->op, n->type), &f0, &f1);
 	}
 	gmove(&f1, res);
