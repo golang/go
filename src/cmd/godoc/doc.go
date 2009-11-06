@@ -25,11 +25,13 @@ The flags are:
 		verbose mode
 	-tabwidth=4
 		width of tabs in units of spaces
+	-cmdroot="src/cmd"
+		root command source directory (if unrooted, relative to -goroot)
 	-tmplroot="lib/godoc"
-		root template directory (if unrooted, relative to --goroot)
+		root template directory (if unrooted, relative to -goroot)
 	-pkgroot="src/pkg"
-		root package source directory (if unrooted, relative to --goroot)
-	-html=
+		root package source directory (if unrooted, relative to -goroot)
+	-html
 		print HTML in command-line mode
 	-goroot=$GOROOT
 		Go root directory
@@ -41,6 +43,18 @@ The flags are:
 		repository holding the source files.
 	-sync_minutes=0
 		sync interval in minutes; sync is disabled if <= 0
+
+When godoc runs as a web server, it creates a search index from all .go files
+under $GOROOT (excluding files starting with .). The index is created at startup
+and is automatically updated every time the -sync command terminates with exit
+status 0, indicating that files have changed.
+
+If the sync exit status is 1, godoc assumes that it succeeded without errors
+but that no files changed; the index is not updated in this case.
+
+In all other cases, sync is assumed to have failed and godoc backs off running
+sync exponentially (up to 1 day). As soon as sync succeeds again (exit status 0
+or 1), the normal sync rhythm is re-established.
 
 */
 package documentation
