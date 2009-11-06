@@ -7,6 +7,6 @@ package main
 import "stdio"
 
 func main() {
-//	stdio.Stdout.WriteString("hello, world\n");
+	//	stdio.Stdout.WriteString("hello, world\n");
 	stdio.Puts("hello, world");
 }

@@ -44,12 +44,12 @@ import (
 )
 
 var (
-	tmp1 = big.NewInt(0);
-	tmp2 = big.NewInt(0);
-	numer = big.NewInt(1);
-	accum = big.NewInt(0);
-	denom = big.NewInt(1);
-	ten = big.NewInt(10);
+	tmp1	= big.NewInt(0);
+	tmp2	= big.NewInt(0);
+	numer	= big.NewInt(1);
+	accum	= big.NewInt(0);
+	denom	= big.NewInt(1);
+	ten	= big.NewInt(10);
 )
 
 func extractDigit() int64 {
@@ -90,7 +90,7 @@ func main() {
 			d = extractDigit();
 		}
 		eliminateDigit(d);
-		fmt.Printf("%c", d + '0');
+		fmt.Printf("%c", d+'0');
 
 		if i++; i%50 == 0 {
 			fmt.Printf("\n");

@@ -40,4 +40,3 @@ func Puts(s string) {
 	C.free(unsafe.Pointer(p));
 	C.fflushstdout();
 }
-
