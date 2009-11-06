@@ -42,91 +42,141 @@ func typestring(i interface{}) string {
 var typeTests = []pair{
 	pair{struct {
 		x int;
-	}{}, "int"},
+	}{},
+		"int",
+	},
 	pair{struct {
 		x int8;
-	}{}, "int8"},
+	}{},
+		"int8",
+	},
 	pair{struct {
 		x int16;
-	}{}, "int16"},
+	}{},
+		"int16",
+	},
 	pair{struct {
 		x int32;
-	}{}, "int32"},
+	}{},
+		"int32",
+	},
 	pair{struct {
 		x int64;
-	}{}, "int64"},
+	}{},
+		"int64",
+	},
 	pair{struct {
 		x uint;
-	}{}, "uint"},
+	}{},
+		"uint",
+	},
 	pair{struct {
 		x uint8;
-	}{}, "uint8"},
+	}{},
+		"uint8",
+	},
 	pair{struct {
 		x uint16;
-	}{}, "uint16"},
+	}{},
+		"uint16",
+	},
 	pair{struct {
 		x uint32;
-	}{}, "uint32"},
+	}{},
+		"uint32",
+	},
 	pair{struct {
 		x uint64;
-	}{}, "uint64"},
+	}{},
+		"uint64",
+	},
 	pair{struct {
 		x float;
-	}{}, "float"},
+	}{},
+		"float",
+	},
 	pair{struct {
 		x float32;
-	}{}, "float32"},
+	}{},
+		"float32",
+	},
 	pair{struct {
 		x float64;
-	}{}, "float64"},
+	}{},
+		"float64",
+	},
 	pair{struct {
 		x int8;
-	}{}, "int8"},
+	}{},
+		"int8",
+	},
 	pair{struct {
 		x (**int8);
-	}{}, "**int8"},
+	}{},
+		"**int8",
+	},
 	pair{struct {
 		x (**integer);
-	}{}, "**reflect_test.integer"},
+	}{},
+		"**reflect_test.integer",
+	},
 	pair{struct {
 		x ([32]int32);
-	}{}, "[32]int32"},
+	}{},
+		"[32]int32",
+	},
 	pair{struct {
 		x ([]int8);
-	}{}, "[]int8"},
+	}{},
+		"[]int8",
+	},
 	pair{struct {
 		x (map[string]int32);
-	}{}, "map[string] int32"},
+	}{},
+		"map[string] int32",
+	},
 	pair{struct {
 		x (chan<- string);
-	}{}, "chan<- string"},
+	}{},
+		"chan<- string",
+	},
 	pair{struct {
 		x struct {
 			c	chan *int32;
 			d	float32;
 		};
-	}{}, "struct { c chan *int32; d float32 }"},
+	}{},
+		"struct { c chan *int32; d float32 }",
+	},
 	pair{struct {
 		x (func(a int8, b int32));
-	}{}, "func(int8, int32)"},
+	}{},
+		"func(int8, int32)",
+	},
 	pair{struct {
 		x struct {
 			c func(chan *integer, *int8);
 		};
-	}{}, "struct { c func(chan *reflect_test.integer, *int8) }"},
+	}{},
+		"struct { c func(chan *reflect_test.integer, *int8) }",
+	},
 	pair{struct {
 		x struct {
 			a	int8;
 			b	int32;
 		};
-	}{}, "struct { a int8; b int32 }"},
+	}{},
+		"struct { a int8; b int32 }",
+	},
 	pair{struct {
 		x struct {
 			a	int8;
 			b	int8;
 			c	int32;
 		};
-	}{}, "struct { a int8; b int8; c int32 }"},
+	}{},
+		"struct { a int8; b int8; c int32 }",
+	},
 	pair{struct {
 		x struct {
 			a	int8;
@@ -134,7 +184,9 @@ var typeTests = []pair{
 			c	int8;
 			d	int32;
 		};
-	}{}, "struct { a int8; b int8; c int8; d int32 }"},
+	}{},
+		"struct { a int8; b int8; c int8; d int32 }",
+	},
 	pair{struct {
 		x struct {
 			a	int8;
@@ -143,7 +195,9 @@ var typeTests = []pair{
 			d	int8;
 			e	int32;
 		};
-	}{}, "struct { a int8; b int8; c int8; d int8; e int32 }"},
+	}{},
+		"struct { a int8; b int8; c int8; d int8; e int32 }",
+	},
 	pair{struct {
 		x struct {
 			a	int8;
@@ -153,28 +207,38 @@ var typeTests = []pair{
 			e	int8;
 			f	int32;
 		};
-	}{}, "struct { a int8; b int8; c int8; d int8; e int8; f int32 }"},
+	}{},
+		"struct { a int8; b int8; c int8; d int8; e int8; f int32 }",
+	},
 	pair{struct {
 		x struct {
 			a int8 "hi there";
 		};
-	}{}, `struct { a int8 "hi there" }`},
+	}{},
+		`struct { a int8 "hi there" }`,
+	},
 	pair{struct {
 		x struct {
 			a int8 "hi \x00there\t\n\"\\";
 		};
-	}{}, `struct { a int8 "hi \x00there\t\n\"\\" }`},
+	}{},
+		`struct { a int8 "hi \x00there\t\n\"\\" }`,
+	},
 	pair{struct {
 		x struct {
 			f func(args ...);
 		};
-	}{}, "struct { f func(...) }"},
+	}{},
+		"struct { f func(...) }",
+	},
 	pair{struct {
 		x (interface {
 			a(func(func(int) int) (func(func(int)) int));
 			b();
 		});
-	}{}, "interface { a (func(func(int) (int)) (func(func(int)) (int))); b () }"},
+	}{},
+		"interface { a (func(func(int) (int)) (func(func(int)) (int))); b () }",
+	},
 }
 
 var valueTests = []pair{
@@ -199,20 +263,28 @@ var valueTests = []pair{
 	pair{(struct {
 		c	chan *int32;
 		d	float32;
-	}){}, "struct { c chan *int32; d float32 }{chan *int32, 0}"},
+	}){},
+		"struct { c chan *int32; d float32 }{chan *int32, 0}",
+	},
 	pair{(func(a int8, b int32))(nil), "func(int8, int32)(0)"},
 	pair{(struct {
 		c func(chan *integer, *int8);
-	}){}, "struct { c func(chan *reflect_test.integer, *int8) }{func(chan *reflect_test.integer, *int8)(0)}"},
+	}){},
+		"struct { c func(chan *reflect_test.integer, *int8) }{func(chan *reflect_test.integer, *int8)(0)}",
+	},
 	pair{(struct {
 		a	int8;
 		b	int32;
-	}){}, "struct { a int8; b int32 }{0, 0}"},
+	}){},
+		"struct { a int8; b int32 }{0, 0}",
+	},
 	pair{(struct {
 		a	int8;
 		b	int8;
 		c	int32;
-	}){}, "struct { a int8; b int8; c int32 }{0, 0, 0}"},
+	}){},
+		"struct { a int8; b int8; c int32 }{0, 0, 0}",
+	},
 }
 
 func testType(t *testing.T, i int, typ Type, want string) {
