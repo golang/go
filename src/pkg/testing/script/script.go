@@ -195,8 +195,8 @@ func (s Close) send() {
 // A ReceivedUnexpected error results if no active Events match a value
 // received from a channel.
 type ReceivedUnexpected struct {
-	Value interface{};
-	ready []*Event;
+	Value	interface{};
+	ready	[]*Event;
 }
 
 func (r ReceivedUnexpected) String() string {
