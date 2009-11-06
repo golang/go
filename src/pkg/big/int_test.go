@@ -275,14 +275,17 @@ func TestDivStepD6(t *testing.T) {
 	// See Knuth, Volume 2, section 4.3.1, exercise 21. This code exercises
 	// a code path which only triggers 1 in 10^{-19} cases.
 
-	u := &Int{false, []Word{0, 0, 0x8000000000000001, 0x7fffffffffffffff}};
-	v := &Int{false, []Word{5, 0x8000000000000002, 0x8000000000000000}};
+	u := &Int{false, []Word{0, 0, 1 + 1<<(_W-1), _M^(1<<(_W-1))}};
+	v := &Int{false, []Word{5, 2 + 1<<(_W-1), 1<<(_W-1)}};
 
 	q, r := new(Int).Div(u, v);
-	const expectedQ = "18446744073709551613";
-	const expectedR = "3138550867693340382088035895064302439801311770021610913807";
-	if q.String() != expectedQ || r.String() != expectedR {
-		t.Errorf("got (%s, %s) want (%s, %s)", q, r, expectedQ, expectedR);
+	const expectedQ64 = "18446744073709551613";
+	const expectedR64 = "3138550867693340382088035895064302439801311770021610913807";
+	const expectedQ32 = "4294967293";
+	const expectedR32 = "39614081266355540837921718287";
+	if q.String() != expectedQ64 && q.String() != expectedQ32 ||
+	   r.String() != expectedR64 && r.String() != expectedR32 {
+		t.Errorf("got (%s, %s) want (%s, %s) or (%s, %s)", q, r, expectedQ64, expectedR64, expectedQ32, expectedR32);
 	}
 }
 
@@ -328,13 +331,13 @@ type expTest struct {
 
 
 var expTests = []expTest{
-	/*expTest{"5", "0", "", "1"},
+	expTest{"5", "0", "", "1"},
 	expTest{"-5", "0", "", "-1"},
 	expTest{"5", "1", "", "5"},
 	expTest{"-5", "1", "", "-5"},
-	expTest{"5", "2", "", "25"},*/
+	expTest{"5", "2", "", "25"},
 	expTest{"1", "65537", "2", "1"},
-	/*expTest{"0x8000000000000000", "2", "", "0x40000000000000000000000000000000"},
+	expTest{"0x8000000000000000", "2", "", "0x40000000000000000000000000000000"},
 	expTest{"0x8000000000000000", "2", "6719", "4944"},
 	expTest{"0x8000000000000000", "3", "6719", "5447"},
 	expTest{"0x8000000000000000", "1000", "6719", "1603"},
@@ -344,7 +347,7 @@ var expTests = []expTest{
 		"298472983472983471903246121093472394872319615612417471234712061",
 		"29834729834729834729347290846729561262544958723956495615629569234729836259263598127342374289365912465901365498236492183464",
 		"23537740700184054162508175125554701713153216681790245129157191391322321508055833908509185839069455749219131480588829346291",
-	},*/
+	},
 }
 
 
