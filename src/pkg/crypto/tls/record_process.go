@@ -114,7 +114,10 @@ func (p *recordProcessor) loop(appDataChan chan<- []byte, requestChan <-chan int
 
 	p.wakeWaiters();
 	go drainRequestChannel(p.requestChan, p.connState);
-	go func() { for _ = range controlChan {} }();
+	go func() {
+		for _ = range controlChan {
+		}
+	}();
 
 	close(handshakeChan);
 	if len(p.appData) > 0 {
