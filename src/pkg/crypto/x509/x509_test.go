@@ -4,17 +4,6 @@
 
 package x509
 
-import "testing"
-
-func TestToKeepGoTestHappy(t *testing.T) {
-}
-
-/*
-
-Div is broken for this key in 32-bit mode.
-
-TODO(agl): reenabled when Div is fixed.
-
 import (
 	"big";
 	"crypto/rsa";
@@ -61,5 +50,3 @@ var rsaPrivateKey = &rsa.PrivateKey{
 	P: bigFromString("98920366548084643601728869055592650835572950932266967461790948584315647051443"),
 	Q: bigFromString("94560208308847015747498523884063394671606671904944666360068158221458669711639"),
 }
-
-*/

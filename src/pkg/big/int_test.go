@@ -263,10 +263,39 @@ func checkDiv(x, y []byte) bool {
 }
 
 
+type divTest struct {
+	x, y string;
+	q, r string;
+}
+
+
+var divTests = []divTest{
+	divTest{
+		"476217953993950760840509444250624797097991362735329973741718102894495832294430498335824897858659711275234906400899559094370964723884706254265559534144986498357",
+		"9353930466774385905609975137998169297361893554149986716853295022578535724979483772383667534691121982974895531435241089241440253066816724367338287092081996",
+		"50911",
+		"1",
+	},
+}
+
+
 func TestDiv(t *testing.T) {
 	err := quick.Check(checkDiv, nil);
 	if err != nil {
 		t.Error(err);
+	}
+
+	for i, test := range divTests {
+		x, _ := new(Int).SetString(test.x, 10);
+		y, _ := new(Int).SetString(test.y, 10);
+		expectedQ, _ := new(Int).SetString(test.q, 10);
+		expectedR, _ := new(Int).SetString(test.r, 10);
+
+		q, r := new(Int).Div(x, y);
+
+		if CmpInt(q, expectedQ) != 0 || CmpInt(r, expectedR) != 0 {
+			t.Errorf("#%d got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR);
+		}
 	}
 }
 
