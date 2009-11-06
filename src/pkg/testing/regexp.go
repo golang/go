@@ -76,7 +76,7 @@ func (c *common) setIndex(i int) {
 // The representation of a compiled regular expression.
 // The public interface is entirely through methods.
 type Regexp struct {
-	expr	string;		// the original expression
+	expr	string;	// the original expression
 	inst	[]instr;
 	start	instr;
 	nbra	int;	// number of brackets in expression, for subexpressions
@@ -440,7 +440,7 @@ func (p *parser) term() (start, end instr) {
 	// The other functions (closure(), concatenation() etc.) assume
 	// it's safe to recur to here.
 	if p.error != "" {
-		return
+		return;
 	}
 	switch c := p.c(); c {
 	case '|', endOfFile:
@@ -473,7 +473,7 @@ func (p *parser) term() (start, end instr) {
 		p.nextc();
 		start = p.charClass();
 		if p.error != "" {
-			return
+			return;
 		}
 		if p.c() != ']' {
 			p.error = ErrUnmatchedLbkt;
@@ -580,7 +580,7 @@ func (p *parser) concatenation() (start, end instr) {
 	for {
 		nstart, nend := p.closure();
 		if p.error != "" {
-			return
+			return;
 		}
 		switch {
 		case nstart == nil:	// end of this concatenation
@@ -602,7 +602,7 @@ func (p *parser) concatenation() (start, end instr) {
 func (p *parser) regexp() (start, end instr) {
 	start, end = p.concatenation();
 	if p.error != "" {
-		return
+		return;
 	}
 	for {
 		switch p.c() {
@@ -612,7 +612,7 @@ func (p *parser) regexp() (start, end instr) {
 			p.nextc();
 			nstart, nend := p.concatenation();
 			if p.error != "" {
-				return
+				return;
 			}
 			alt := new(_Alt);
 			p.re.add(alt);
@@ -700,7 +700,7 @@ func addState(s []state, inst instr, match []int) []state {
 	// go in order correctly and this "earlier" test is never necessary,
 	for i := 0; i < l; i++ {
 		if s[i].inst.index() == index &&	// same instruction
-							s[i].match[0] < pos {	// earlier match already going; lefmost wins
+			s[i].match[0] < pos {	// earlier match already going; lefmost wins
 			return s;
 		}
 	}
@@ -801,8 +801,8 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 			case _END:
 				// choose leftmost longest
 				if !found ||	// first
-						st.match[0] < final.match[0] ||					// leftmost
-						(st.match[0] == final.match[0] && pos > final.match[1]) {	// longest
+					st.match[0] < final.match[0] ||	// leftmost
+					(st.match[0] == final.match[0] && pos > final.match[1]) {	// longest
 					final = st;
 					final.match[1] = pos;
 				}

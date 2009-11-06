@@ -475,7 +475,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		}
 		switch b {
 		case '-':	// <!-
-				// Probably <!-- for a comment.
+			// Probably <!-- for a comment.
 			if b, ok = p.getc(); !ok {
 				return nil, p.err;
 			}
@@ -504,7 +504,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			return Comment(data), nil;
 
 		case '[':	// <![
-				// Probably <![CDATA[.
+			// Probably <![CDATA[.
 			for i := 0; i < 7; i++ {
 				if b, ok = p.getc(); !ok {
 					return nil, p.err;
@@ -1187,15 +1187,15 @@ var second = []unicode.Range{
 // standard HTML entity characters.
 var HTMLEntity = htmlEntity
 
-var htmlEntity = map[string]string {
-/*
-	hget http://www.w3.org/TR/html4/sgml/entities.html |
-	ssam '
-		,y /\&gt;/ x/\&lt;(.|\n)+/ s/\n/ /g
-		,x v/^\&lt;!ENTITY/d
-		,s/\&lt;!ENTITY ([^ ]+) .*U\+([0-9A-F][0-9A-F][0-9A-F][0-9A-F]) .+/	"\1": "\\u\2",/g
-	'
-*/
+var htmlEntity = map[string]string{
+	/*
+		hget http://www.w3.org/TR/html4/sgml/entities.html |
+		ssam '
+			,y /\&gt;/ x/\&lt;(.|\n)+/ s/\n/ /g
+			,x v/^\&lt;!ENTITY/d
+			,s/\&lt;!ENTITY ([^ ]+) .*U\+([0-9A-F][0-9A-F][0-9A-F][0-9A-F]) .+/	"\1": "\\u\2",/g
+		'
+	*/
 	"nbsp": "\u00A0",
 	"iexcl": "\u00A1",
 	"cent": "\u00A2",
@@ -1454,11 +1454,11 @@ var htmlEntity = map[string]string {
 // should be considered to close automatically.
 var HTMLAutoClose = htmlAutoClose
 
-var htmlAutoClose = []string {
-/*
-	hget http://www.w3.org/TR/html4/loose.dtd |
-	9 sed -n 's/<!ELEMENT (.*) - O EMPTY.+/	"\1",/p' | tr A-Z a-z
-*/
+var htmlAutoClose = []string{
+	/*
+		hget http://www.w3.org/TR/html4/loose.dtd |
+		9 sed -n 's/<!ELEMENT (.*) - O EMPTY.+/	"\1",/p' | tr A-Z a-z
+	*/
 	"basefont",
 	"br",
 	"area",
