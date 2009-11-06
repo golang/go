@@ -5,12 +5,12 @@
 package x509
 
 import (
+	"big";
 	"crypto/rsa";
 	"encoding/pem";
 	"reflect";
 	"strings";
 	"testing";
-	big "gmp";
 )
 
 func TestParsePKCS1PrivateKey(t *testing.T) {

@@ -5,9 +5,9 @@
 package rsa
 
 import (
+	"big";
 	"bytes";
 	"crypto/subtle";
-	big "gmp";
 	"io";
 	"os";
 )

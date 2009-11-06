@@ -8,9 +8,9 @@ package rsa
 // TODO(agl): Add support for PSS padding.
 
 import (
+	"big";
 	"bytes";
 	"crypto/subtle";
-	big "gmp";
 	"hash";
 	"io";
 	"os";
@@ -18,6 +18,10 @@ import (
 
 var bigZero = big.NewInt(0)
 var bigOne = big.NewInt(1)
+
+/*
+
+TODO(agl): Enable once big implements ProbablyPrime.
 
 // randomSafePrime returns a number, p, of the given size, such that p and
 // (p-1)/2 are both prime with high probability.
@@ -52,6 +56,8 @@ func randomSafePrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
 
 	return;
 }
+
+*/
 
 // randomNumber returns a uniform random value in [0, max).
 func randomNumber(rand io.Reader, max *big.Int) (n *big.Int, err os.Error) {
@@ -103,6 +109,9 @@ type PrivateKey struct {
 // It returns nil if the key is valid, or else an os.Error describing a problem.
 
 func (priv PrivateKey) Validate() os.Error {
+	/*
+	TODO(agl): Enable once big implements ProbablyPrime.
+
 	// Check that p and q are prime.
 	if !priv.P.ProbablyPrime(20) {
 		return os.ErrorString("P is composite");
@@ -110,6 +119,7 @@ func (priv PrivateKey) Validate() os.Error {
 	if !priv.Q.ProbablyPrime(20) {
 		return os.ErrorString("Q is composite");
 	}
+	*/
 	// Check that p*q == n.
 	modulus := new(big.Int).Mul(priv.P, priv.Q);
 	if big.CmpInt(modulus, priv.N) != 0 {
@@ -135,6 +145,8 @@ func (priv PrivateKey) Validate() os.Error {
 	}
 	return nil;
 }
+
+/*
 
 // GenerateKeyPair generates an RSA keypair of the given bit size.
 func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
@@ -191,6 +203,8 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
 
 	return;
 }
+
+*/
 
 // incCounter increments a four byte, big-endian counter.
 func incCounter(c *[4]byte) {
