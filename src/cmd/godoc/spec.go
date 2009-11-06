@@ -125,7 +125,8 @@ func (p *ebnfParser) parseTerm() bool {
 
 
 func (p *ebnfParser) parseSequence() {
-	for p.parseTerm() {}
+	for p.parseTerm() {
+	}
 }
 
 

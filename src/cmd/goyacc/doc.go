@@ -17,7 +17,7 @@ Yacc adepts will have no trouble adapting to this form of the tool.
 
 The file units.y in this directory is a yacc grammar for a version of
 the Unix tool units, also written in Go and largely transliterated
-from the Plan 9 C version.  
+from the Plan 9 C version.
 
 */
 package documentation

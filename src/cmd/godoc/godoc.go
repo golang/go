@@ -86,7 +86,7 @@ var (
 )
 
 
-var fsTree RWValue;  // *Directory tree of packages, updated with each sync
+var fsTree RWValue	// *Directory tree of packages, updated with each sync
 
 
 func init() {
@@ -139,9 +139,9 @@ func htmlEscape(s string) string {
 // Package directories
 
 type Directory struct {
-	Path string;  // includes Name
-	Name string;
-	Dirs []*Directory;
+	Path	string;	// includes Name
+	Name	string;
+	Dirs	[]*Directory;
 }
 
 
@@ -153,7 +153,7 @@ func newDirTree(path, name string, depth int) *Directory {
 		return &Directory{path, name, nil};
 	}
 
-	list, _ := io.ReadDir(path);  // ignore errors
+	list, _ := io.ReadDir(path);	// ignore errors
 
 	// determine number of subdirectories and package files
 	ndirs := 0;
@@ -210,7 +210,7 @@ func newDirectory(root string, depth int) *Directory {
 
 // lookup looks for the *Directory for a given path, relative to dir.
 func (dir *Directory) lookup(path string) *Directory {
-	path = pathutil.Clean(path);  // no trailing '/'
+	path = pathutil.Clean(path);	// no trailing '/'
 
 	if dir == nil || path == "" || path == "." {
 		return dir;
@@ -224,7 +224,7 @@ func (dir *Directory) lookup(path string) *Directory {
 				return d;
 			}
 		}
-		return nil
+		return nil;
 	}
 
 	return dir.lookup(dpath).lookup(dname);
@@ -404,7 +404,7 @@ func htmlFmt(w io.Writer, x interface{}, format string) {
 func htmlCommentFmt(w io.Writer, x interface{}, format string) {
 	var buf bytes.Buffer;
 	writeAny(&buf, x, false);
-	doc.ToHtml(w, buf.Bytes());  // does html-escaping
+	doc.ToHtml(w, buf.Bytes());	// does html-escaping
 }
 
 
@@ -416,7 +416,7 @@ func textFmt(w io.Writer, x interface{}, format string) {
 
 // Template formatter for "dir" format.
 func dirFmt(w io.Writer, x interface{}, format string) {
-	_ = x.(*Directory);  // die quickly if x has the wrong type
+	_ = x.(*Directory);	// die quickly if x has the wrong type
 	if err := dirsHtml.Execute(x, w); err != nil {
 		log.Stderrf("dirsHtml.Execute: %s", err);
 	}
@@ -425,7 +425,7 @@ func dirFmt(w io.Writer, x interface{}, format string) {
 
 func removePrefix(s, prefix string) string {
 	if strings.HasPrefix(s, prefix) {
-		return s[len(prefix) : len(s)];
+		return s[len(prefix):len(s)];
 	}
 	return s;
 }
@@ -471,7 +471,7 @@ var infoClasses = [nKinds]string{
 
 // Template formatter for "infoClass" format.
 func infoClassFmt(w io.Writer, x interface{}, format string) {
-	fmt.Fprintf(w, infoClasses[x.(SpotInfo).Kind()]);  // no html escaping needed
+	fmt.Fprintf(w, infoClasses[x.(SpotInfo).Kind()]);	// no html escaping needed
 }
 
 
@@ -530,12 +530,12 @@ func readTemplate(name string) *template.Template {
 
 var (
 	dirsHtml,
-	godocHtml,
-	packageHtml,
-	packageText,
-	parseerrorHtml,
-	parseerrorText,
-	searchHtml *template.Template;
+		godocHtml,
+		packageHtml,
+		packageText,
+		parseerrorHtml,
+		parseerrorText,
+		searchHtml *template.Template;
 )
 
 func readTemplates() {
@@ -694,9 +694,9 @@ type PageInfo struct {
 
 
 type httpHandler struct {
-	pattern string;	// url pattern; e.g. "/pkg/"
-	fsRoot string;	// file system root to which the pattern is mapped
-	isPkg bool;  // true if this handler serves real package documentation (as opposed to command documentation)
+	pattern	string;	// url pattern; e.g. "/pkg/"
+	fsRoot	string;	// file system root to which the pattern is mapped
+	isPkg	bool;	// true if this handler serves real package documentation (as opposed to command documentation)
 }
 
 
@@ -754,14 +754,14 @@ func (h *httpHandler) getPageInfo(path string) PageInfo {
 		// or command-line mode); compute one level for this page
 		dir = newDirectory(dirname, 1);
 	}
-	
+
 	return PageInfo{pdoc, dir, h.isPkg};
 }
 
 
 func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 	path := r.Url.Path;
-	path = path[len(h.pattern) : len(path)];
+	path = path[len(h.pattern):len(path)];
 
 	// canonicalize URL path and redirect if necessary
 	if canonical := pathutil.Clean(h.pattern + path) + "/"; r.Url.Path != canonical {
@@ -797,7 +797,7 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 			_, pkgname := pathutil.Split(pathutil.Clean(path));
 			title = "Command " + pkgname;
 		default:
-			title = "Command " + info.PDoc.PackageName
+			title = "Command " + info.PDoc.PackageName;
 		}
 	}
 
@@ -850,8 +850,8 @@ func search(c *http.Conn, r *http.Request) {
 // Server
 
 var (
-	cmdHandler = httpHandler{"/cmd/", *cmdroot, false};
-	pkgHandler = httpHandler{"/pkg/", *pkgroot, true};
+	cmdHandler	= httpHandler{"/cmd/", *cmdroot, false};
+	pkgHandler	= httpHandler{"/pkg/", *pkgroot, true};
 )
 
 
@@ -885,4 +885,3 @@ func indexer() {
 		time.Sleep(1*60e9);	// try once a minute
 	}
 }
-
