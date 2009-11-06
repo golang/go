@@ -140,7 +140,7 @@ class CL(object):
 
 	def Flush(self, ui, repo):
 		if self.name == "new":
-			self.Upload(ui, repo)
+			self.Upload(ui, repo, gofmt_just_warn=True)
 		dir = CodeReviewDir(ui, repo)
 		path = dir + '/cl.' + self.name
 		f = open(path+'!', "w")
@@ -163,9 +163,9 @@ class CL(object):
 			s = "code review %s: %s" % (self.name, s)
 		return s
 
-	def Upload(self, ui, repo, send_mail=False, gofmt=True):
-		if ui.configbool("codereview", "force_gofmt", False) and gofmt:
-			CheckGofmt(ui, repo, self.files)
+	def Upload(self, ui, repo, send_mail=False, gofmt=True, gofmt_just_warn=False):
+		if ui.configbool("codereview", "force_gofmt", True) and gofmt:
+			CheckGofmt(ui, repo, self.files, just_warn=gofmt_just_warn)
 		os.chdir(repo.root)
 		form_fields = [
 			("content_upload", "1"),
@@ -577,8 +577,8 @@ def RelativePath(path, cwd):
 	return path
 
 # Check that gofmt run on the list of files does not change them
-def CheckGofmt(ui, repo, files):
-	files = [f for f in files if f.endswith('.go')]
+def CheckGofmt(ui, repo, files, just_warn=False):
+	files = [f for f in files if f.startswith('src/') and f.endswith('.go')]
 	if not files:
 		return
 	cwd = os.getcwd()
@@ -594,7 +594,11 @@ def CheckGofmt(ui, repo, files):
 		ui.warn("gofmt errors:\n" + errors.rstrip() + "\n")
 		return
 	if len(data) > 0:
-		raise util.Abort("gofmt needs to format these files (run hg gofmt):\n" + data)
+		msg = "gofmt needs to format these files (run hg gofmt):\n" + data
+		if just_warn:
+			ui.warn("warning: " + msg)
+		else:
+			raise util.Abort()
 	return
 
 #######################################################################
@@ -1450,7 +1454,7 @@ def EditDesc(issue, subject=None, desc=None, reviewers=None, cc=None, closed=Non
 		print >>sys.stderr, "Error editing description:\n" + "Sent form: \n", form_fields, "\n", response
 		sys.exit(2)
 
-def PostMessage(issue, message, reviewers=None, cc=None, send_mail=None, subject=None):
+def PostMessage1(issue, message, reviewers=None, cc=None, send_mail=None, subject=None):
 	form_fields = GetForm("/" + issue + "/publish")
 	if reviewers is not None:
 		form_fields['reviewers'] = reviewers
@@ -1467,6 +1471,25 @@ def PostMessage(issue, message, reviewers=None, cc=None, send_mail=None, subject
 	if response != "":
 		print response
 		sys.exit(2)
+
+def PostMessage(issue, message, reviewers=None, cc=None, send_mail=None, subject=None):
+	# When Rietveld is busy, it seems to throw off a lot of HTTP Error 500: Internal Server Error.
+	# Rather than abort, sleep and try again.
+	# Even if the second time fails, let the overall hg command keep going.
+	try:
+		PostMessage1(issue, message, reviewers, cc, send_mail, subject)
+		return
+	except:
+		pass
+	ui.warn("error posting to "+server+" log; sleep 2 and try again.")
+	os.sleep(2)
+	try:
+		PostMessage1(issue, message, reviewers, cc, send_mail, subject)
+		return
+	except:
+		pass
+	ui.warn("error posting to "+server+" twice; log not updated.")
+
 
 class opt(object):
 	pass
