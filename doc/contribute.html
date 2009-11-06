@@ -173,24 +173,51 @@ Once your new code is tested and working,
 it's time to get it reviewed and submitted.
 </p>
 
-<h2>Installing the code review extension</h2>
+<h2>Code review</h2>
 
 <p>
 Changes to Go must be reviewed before they are submitted,
 no matter who makes the change.
+(In exceptional cases, such as fixing a build, the review can
+follow shortly after submitting.)
 A Mercurial extension helps manage the code review process.
 The extension is included in the Go source tree but needs
 to be added to your Mercurial configuration.
 </p>
 
+<h3>Caveat for Mercurial aficionados</h3>
+
 <p>
 <i>Using Mercurial with the code review extension is not the same
-as using it normally.</i>
+as using standard Mercurial.</i>
 </p>
 
 <p>
-TODO(rsc): note here about model being different.
-Do not use <code>hg commit</code> if you are using the Mercurial extension.
+The Go repository is maintained as a single line of reviewed changes;
+we prefer to avoid the complexity of Mercurial's arbitrary change graph.
+The code review extension helps here: its <code>hg submit</code> command
+automatically checks for and warns about the local repository
+being out of date compared to the remote one.
+The <code>hg submit</code> command also verifies other
+properties about the Go repository.
+For example, 
+it checks that Go code being checked in is formatted in the standard style,
+as defined by <a href="/cmd/gofmt">gofmt</a>,
+and it checks that the author of the code is properly recorded for
+<a href="#copyright">copyright purposes</a>.
+</p>
+
+<p>
+To help ensure changes are only created by <code>hg submit</code>,
+the code review extension disables the standard <code>hg commit</code>
+command.
+</p>
+
+<p>
+Mercurial power users: To allow Go contributors to take advantage of
+Mercurial's functionality for local revision control, it might be interesting
+to explore how the code review extension can be made to work alongside
+the Mercurial Queues extension.
 </p>
 
 <h3>Configure the extension</h3>
@@ -232,7 +259,7 @@ Saving authentication cookies to /Users/rsc/.codereview_upload_cookies_coderevie
 
 <p>Edit your <a href="http://codereview.prom.corp.google.com/settings">code review settings</a>.
 Grab a nickname.
-Many people refer to set the Context option to 
+Many people prefer to set the Context option to 
 &ldquo;Whole file&rdquo; to see more context when reviewing changes.
 </p>
 
@@ -241,7 +268,7 @@ can use that nickname as a shorthand for naming reviewers and the CC list.
 For example, <code>rsc</code> is an alias for <code>rsc@golang.org</code>.
 </p>
 
-<h2>Changing code</h2>
+<h3>Make a change</h3>
 
 <p>
 The entire checked-out tree is writable.
@@ -254,8 +281,6 @@ by running
 or
 <code>hg mv</code>.
 </p>
-
-<h3>Create a change</h3>
 
 <p>When you are ready to send a change out for review, run</p>
 
