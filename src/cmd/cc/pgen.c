@@ -52,7 +52,11 @@ argsize(void)
 		}
 //print("	%d %T\n", s, t);
 	}
-	return (s+7) & ~7;
+	if(thechar == '6')
+		s = (s+7) & ~7;
+	else
+		s = (s+3) & ~3;
+	return s;
 }
 
 void
