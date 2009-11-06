@@ -619,11 +619,10 @@ type DynFlag int
 
 const (
 	DF_ORIGIN	DynFlag	= 0x0001;	/* Indicates that the object being loaded may
-	   make reference to the $ORIGIN substitution
-	   string */
+	   make reference to the
+	   $ORIGIN substitution string */
 	DF_SYMBOLIC	DynFlag	= 0x0002;	/* Indicates "symbolic" linking. */
-	DF_TEXTREL	DynFlag	= 0x0004;	/* Indicates there may be relocations in
-									   non-writable segments. */
+	DF_TEXTREL	DynFlag	= 0x0004;	/* Indicates there may be relocations in non-writable segments. */
 	DF_BIND_NOW	DynFlag	= 0x0008;	/* Indicates that the dynamic linker should
 	   process all relocations for the object
 	   containing this entry before transferring
@@ -1393,8 +1392,7 @@ type Header32 struct {
  * ELF32 Section header.
  */
 type Section32 struct {
-	Name	uint32;	/* Section name (index into the
-									   section header string table). */
+	Name		uint32;	/* Section name (index into the section header string table). */
 	Type		uint32;	/* Section type. */
 	Flags		uint32;	/* Section flags. */
 	Addr		uint32;	/* Address in memory image. */
@@ -1507,8 +1505,7 @@ type Header64 struct {
  */
 
 type Section64 struct {
-	Name	uint32;	/* Section name (index into the
-									   section header string table). */
+	Name		uint32;	/* Section name (index into the section header string table). */
 	Type		uint32;	/* Section type. */
 	Flags		uint64;	/* Section flags. */
 	Addr		uint64;	/* Address in memory image. */
