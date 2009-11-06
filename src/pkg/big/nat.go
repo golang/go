@@ -437,14 +437,14 @@ func stringN(x []Word, base int) string {
 // leadingZeroBits returns the number of leading zero bits in x.
 func leadingZeroBits(x Word) int {
 	c := 0;
-	if x < 1 << (_W/2) {
+	if x < 1<<(_W/2) {
 		x <<= _W/2;
 		c = int(_W/2);
 	}
 
 	for i := 0; x != 0; i++ {
 		if x&(1<<(_W-1)) != 0 {
-			return i + c;
+			return i+c;
 		}
 		x <<= 1;
 	}
@@ -458,7 +458,7 @@ func shiftLeft(dst, src []Word, n int) {
 		return;
 	}
 
-	ñ := uint(_W) - uint(n);
+	ñ := uint(_W)-uint(n);
 	for i := len(src)-1; i >= 1; i-- {
 		dst[i] = src[i]<<uint(n);
 		dst[i] |= src[i-1]>>ñ;
@@ -472,7 +472,7 @@ func shiftRight(dst, src []Word, n int) {
 		return;
 	}
 
-	ñ := uint(_W) - uint(n);
+	ñ := uint(_W)-uint(n);
 	for i := 0; i < len(src)-1; i++ {
 		dst[i] = src[i]>>uint(n);
 		dst[i] |= src[i+1]<<ñ;

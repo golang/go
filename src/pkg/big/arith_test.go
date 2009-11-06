@@ -277,7 +277,7 @@ type mulWWTest struct {
 
 
 var mulWWTests = []mulWWTest{
-	mulWWTest{_M, _M, _M - 1, 1},
+	mulWWTest{_M, _M, _M-1, 1},
 }
 
 
@@ -301,7 +301,7 @@ var mulAddWWWTests = []mulAddWWWTest{
 	// TODO(agl): These will only work on 64-bit platforms.
 	// mulAddWWWTest{15064310297182388543, 0xe7df04d2d35d5d80, 13537600649892366549, 13644450054494335067, 10832252001440893781},
 	// mulAddWWWTest{15064310297182388543, 0xdab2f18048baa68d, 13644450054494335067, 12869334219691522700, 14233854684711418382},
-	mulAddWWWTest{_M, _M, 0, _M - 1, 1},
+	mulAddWWWTest{_M, _M, 0, _M-1, 1},
 	mulAddWWWTest{_M, _M, _M, _M, 0},
 }
 
