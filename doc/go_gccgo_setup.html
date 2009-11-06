@@ -8,10 +8,13 @@ Like <code>gcc</code> itself, <code>gccgo</code> is free software
 distributed under
 the <a href="http://www.gnu.org/licenses/gpl.html">GNU General Public
 License</a>.
+</p>
 
+<p>
 Note that <code>gccgo</code> is not the <code>6g</code> compiler; see
-the <a href="install.html"><code>6g</code> set up</a> instructions
-for that compiler.
+the <a href="install.html">Installing Go</a> instructions for that
+compiler.
+</p>
 
 <h2 id="Source_code">Source code</h2>
 
@@ -22,6 +25,7 @@ has <a href="http://gcc.gnu.org/svn.html">instructions for getting the
 <code>gcc</code> source code</a>.  The <code>gccgo</code> source code
 is a branch of the main <code>gcc</code> code
 repository: <code>svn://gcc.gnu.org/svn/gcc/branches/gccgo</code>.
+</p>
 
 <h2 id="Building">Building</h2>
 
@@ -32,6 +36,23 @@ the <a href="http://gcc.gnu.org/install/">instructions on the gcc web
 site</a>.  When you run <code>configure</code>, add the
 option <code>--enable-languages=go</code> (along with other languages you
 may want to build).
+</p>
+
+<p>
+A number of prerequisites are required to build <code>gcc</code>, as
+described on the <code>gcc</code> web site.  If those are all
+available, then a typical build and install sequence would look like
+this:
+
+<pre>
+svn checkout svn://gcc.gnu.org/svn/gcc/branches/gccgo gccgo
+mkdir objdir
+cd objdir
+../gccgo/configure --enable-languages=c,c++,go
+make
+make install
+</pre>
+</p>
 
 <h2 id="Using_gccgo">Using gccgo</h2>
 
@@ -123,7 +144,7 @@ may pass the <code>-I</code> or <code>-L</code> option to
 <code>gccgo</code>. Both options take directories to search. The
 <code>-L</code> option is also passed to the linker.
 
-The <code>gccgo</code> compiler does not currently (2009-10-14) record
+The <code>gccgo</code> compiler does not currently (2009-11-06) record
 the file name of imported packages in the object file. You must
 arrange for the imported data to be linked into the program.
 
@@ -137,7 +158,7 @@ gccgo -o main main.o mypackage.o   # Explicitly links with mypackage.o
 
 <p>
 Some Go features are not yet implemented in <code>gccgo</code>.  As of
-2009-10-14, the following are not implemented:
+2009-11-06, the following are not implemented:
 
 <ul>
 <li>Garbage collection is not implemented. There is no way to free memory.
