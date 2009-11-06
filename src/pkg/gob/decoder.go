@@ -88,7 +88,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 
 		// Is it a new type?
 		if id < 0 {	// 0 is the error state, handled above
-				// If the id is negative, we have a type.
+			// If the id is negative, we have a type.
 			dec.recvType(-id);
 			if dec.state.err != nil {
 				break;

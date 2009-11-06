@@ -38,8 +38,8 @@ import (
 type (
 	// An Expression node represents a production expression.
 	Expression	interface {
-			// Pos is the position of the first character of the syntactic construct
-			Pos() token.Position;
+		// Pos is the position of the first character of the syntactic construct
+		Pos() token.Position;
 	};
 
 	// An Alternative node represents a non-empty list of alternative expressions.
