@@ -110,15 +110,15 @@ type PrivateKey struct {
 
 func (priv PrivateKey) Validate() os.Error {
 	/*
-	TODO(agl): Enable once big implements ProbablyPrime.
+		TODO(agl): Enable once big implements ProbablyPrime.
 
-	// Check that p and q are prime.
-	if !priv.P.ProbablyPrime(20) {
-		return os.ErrorString("P is composite");
-	}
-	if !priv.Q.ProbablyPrime(20) {
-		return os.ErrorString("Q is composite");
-	}
+		// Check that p and q are prime.
+		if !priv.P.ProbablyPrime(20) {
+			return os.ErrorString("P is composite");
+		}
+		if !priv.Q.ProbablyPrime(20) {
+			return os.ErrorString("Q is composite");
+		}
 	*/
 	// Check that p*q == n.
 	modulus := new(big.Int).Mul(priv.P, priv.Q);

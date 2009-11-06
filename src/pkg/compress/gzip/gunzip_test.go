@@ -50,7 +50,7 @@ var gzipTests = []gzipTest{
 		"hello.txt",
 		"hello.txt x2",
 		"hello world\n"
-		"hello world\n",
+			"hello world\n",
 		[]byte{
 			0x1f, 0x8b, 0x08, 0x08, 0xc8, 0x58, 0x13, 0x4a,
 			0x00, 0x03, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x2e,
@@ -87,34 +87,34 @@ var gzipTests = []gzipTest{
 		"gettysburg",
 		"gettysburg",
 		"  Four score and seven years ago our fathers brought forth on\n"
-		"this continent, a new nation, conceived in Liberty, and dedicated\n"
-		"to the proposition that all men are created equal.\n"
-		"  Now we are engaged in a great Civil War, testing whether that\n"
-		"nation, or any nation so conceived and so dedicated, can long\n"
-		"endure.\n"
-		"  We are met on a great battle-field of that war.\n"
-		"  We have come to dedicate a portion of that field, as a final\n"
-		"resting place for those who here gave their lives that that\n"
-		"nation might live.  It is altogether fitting and proper that\n"
-		"we should do this.\n"
-		"  But, in a larger sense, we can not dedicate — we can not\n"
-		"consecrate — we can not hallow — this ground.\n"
-		"  The brave men, living and dead, who struggled here, have\n"
-		"consecrated it, far above our poor power to add or detract.\n"
-		"The world will little note, nor long remember what we say here,\n"
-		"but it can never forget what they did here.\n"
-		"  It is for us the living, rather, to be dedicated here to the\n"
-		"unfinished work which they who fought here have thus far so\n"
-		"nobly advanced.  It is rather for us to be here dedicated to\n"
-		"the great task remaining before us — that from these honored\n"
-		"dead we take increased devotion to that cause for which they\n"
-		"gave the last full measure of devotion —\n"
-		"  that we here highly resolve that these dead shall not have\n"
-		"died in vain — that this nation, under God, shall have a new\n"
-		"birth of freedom — and that government of the people, by the\n"
-		"people, for the people, shall not perish from this earth.\n"
-		"\n"
-		"Abraham Lincoln, November 19, 1863, Gettysburg, Pennsylvania\n",
+			"this continent, a new nation, conceived in Liberty, and dedicated\n"
+			"to the proposition that all men are created equal.\n"
+			"  Now we are engaged in a great Civil War, testing whether that\n"
+			"nation, or any nation so conceived and so dedicated, can long\n"
+			"endure.\n"
+			"  We are met on a great battle-field of that war.\n"
+			"  We have come to dedicate a portion of that field, as a final\n"
+			"resting place for those who here gave their lives that that\n"
+			"nation might live.  It is altogether fitting and proper that\n"
+			"we should do this.\n"
+			"  But, in a larger sense, we can not dedicate — we can not\n"
+			"consecrate — we can not hallow — this ground.\n"
+			"  The brave men, living and dead, who struggled here, have\n"
+			"consecrated it, far above our poor power to add or detract.\n"
+			"The world will little note, nor long remember what we say here,\n"
+			"but it can never forget what they did here.\n"
+			"  It is for us the living, rather, to be dedicated here to the\n"
+			"unfinished work which they who fought here have thus far so\n"
+			"nobly advanced.  It is rather for us to be here dedicated to\n"
+			"the great task remaining before us — that from these honored\n"
+			"dead we take increased devotion to that cause for which they\n"
+			"gave the last full measure of devotion —\n"
+			"  that we here highly resolve that these dead shall not have\n"
+			"died in vain — that this nation, under God, shall have a new\n"
+			"birth of freedom — and that government of the people, by the\n"
+			"people, for the people, shall not perish from this earth.\n"
+			"\n"
+			"Abraham Lincoln, November 19, 1863, Gettysburg, Pennsylvania\n",
 		[]byte{
 			0x1f, 0x8b, 0x08, 0x08, 0xd1, 0x12, 0x2b, 0x4a,
 			0x00, 0x03, 0x67, 0x65, 0x74, 0x74, 0x79, 0x73,
