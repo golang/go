@@ -22,8 +22,8 @@ import (
 )
 
 type cipherSuite struct {
-	id uint16;  // The number of this suite on the wire.
-	hashLength, cipherKeyLength int;
+	id				uint16;	// The number of this suite on the wire.
+	hashLength, cipherKeyLength	int;
 	// TODO(agl): need a method to create the cipher and hash interfaces.
 }
 
@@ -226,7 +226,10 @@ func (h *serverHandshake) error(e alertType) {
 		// to tell it about the error.
 		h.controlChan <- ConnectionState{false, "", e};
 		close(h.controlChan);
-		go func() { for _ = range h.msgChan {} }();
+		go func() {
+			for _ = range h.msgChan {
+			}
+		}();
 		h.writeChan <- alert{alertLevelError, e};
 	}
 }
