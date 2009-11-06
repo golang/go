@@ -43,6 +43,7 @@ var (
 	htab		= []byte{'\t'};
 	htabs		= [...]byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'};
 	newlines	= [...]byte{'\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'};	// more than maxNewlines
+	formfeeds	= [...]byte{'\f', '\f', '\f', '\f', '\f', '\f', '\f', '\f'};	// more than maxNewlines
 
 	esc_quot	= strings.Bytes("&#34;");	// shorter than "&quot;"
 	esc_apos	= strings.Bytes("&#39;");	// shorter than "&apos;"
@@ -203,6 +204,16 @@ func (p *printer) writeNewlines(n int) {
 }
 
 
+func (p *printer) writeFormfeeds(n int) {
+	if n > 0 {
+		if n > maxNewlines {
+			n = maxNewlines;
+		}
+		p.write(formfeeds[0:n]);
+	}
+}
+
+
 func (p *printer) writeTaggedItem(data []byte, tag HtmlTag) {
 	// write start tag, if any
 	// (no html-escaping and no p.pos update for tags - use write0)
@@ -332,7 +343,10 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 			}
 			p.writeWhitespace(j);
 		}
-		p.writeNewlines(pos.Line - p.last.Line);
+		// use formfeeds to break columns before a comment;
+		// this is analogous to using formfeeds to separate
+		// individual lines of /*-style comments
+		p.writeFormfeeds(pos.Line - p.last.Line);
 	}
 }
 
@@ -535,7 +549,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
 
 	// write comment lines, separated by formfeed,
 	// without a line break after the last line
-	linebreak := []byte{byte(formfeed)};
+	linebreak := formfeeds[0:1];
 	pos := comment.Pos();
 	for i, line := range lines {
 		if i > 0 {

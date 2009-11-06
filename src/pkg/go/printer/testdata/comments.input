@@ -118,6 +118,9 @@ func typeswitch(x interface{}) {
 	}
 
 	switch v0, ok := x.(int); x.(type) {
+	case byte:  // this comment should be on the same line as the keyword
+		// this comment should be normally indented
+		_ = 0;
 	case bool, int, float:
 		// this comment should be indented
 	case string:
