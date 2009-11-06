@@ -17,26 +17,26 @@ import (
 
 // Call represents an active RPC.
 type Call struct {
-	ServiceMethod	string;	// The name of the service and method to call.
-	Args	interface{};	// The argument to the function (*struct).
-	Reply	interface{};	// The reply from the function (*struct).
-	Error	os.Error;	// After completion, the error status.
-	Done	chan *Call;	// Strobes when call is complete; value is the error status.
-	seq	uint64;
+	ServiceMethod	string;		// The name of the service and method to call.
+	Args		interface{};	// The argument to the function (*struct).
+	Reply		interface{};	// The reply from the function (*struct).
+	Error		os.Error;	// After completion, the error status.
+	Done		chan *Call;	// Strobes when call is complete; value is the error status.
+	seq		uint64;
 }
 
 // Client represents an RPC Client.
 // There may be multiple outstanding Calls associated
 // with a single Client.
 type Client struct {
-	mutex	sync.Mutex;	// protects pending, seq
+	mutex		sync.Mutex;	// protects pending, seq
 	shutdown	os.Error;	// non-nil if the client is shut down
-	sending	sync.Mutex;
-	seq	uint64;
-	conn io.ReadWriteCloser;
-	enc	*gob.Encoder;
-	dec	*gob.Decoder;
-	pending	map[uint64] *Call;
+	sending		sync.Mutex;
+	seq		uint64;
+	conn		io.ReadWriteCloser;
+	enc		*gob.Encoder;
+	dec		*gob.Decoder;
+	pending		map[uint64]*Call;
 }
 
 func (client *Client) send(c *Call) {
@@ -75,7 +75,7 @@ func (client *Client) input() {
 			if err == os.EOF {
 				err = io.ErrUnexpectedEOF;
 			}
-			break
+			break;
 		}
 		seq := response.Seq;
 		client.mutex.Lock();
@@ -106,7 +106,7 @@ func NewClient(conn io.ReadWriteCloser) *Client {
 	client.conn = conn;
 	client.enc = gob.NewEncoder(conn);
 	client.dec = gob.NewDecoder(conn);
-	client.pending = make(map[uint64] *Call);
+	client.pending = make(map[uint64]*Call);
 	go client.input();
 	return client;
 }
@@ -115,7 +115,7 @@ func NewClient(conn io.ReadWriteCloser) *Client {
 func DialHTTP(network, address string) (*Client, os.Error) {
 	conn, err := net.Dial(network, "", address);
 	if err != nil {
-		return nil, err
+		return nil, err;
 	}
 	io.WriteString(conn, "CONNECT " + rpcPath + " HTTP/1.0\n\n");
 
@@ -136,7 +136,7 @@ func DialHTTP(network, address string) (*Client, os.Error) {
 func Dial(network, address string) (*Client, os.Error) {
 	conn, err := net.Dial(network, "", address);
 	if err != nil {
-		return nil, err
+		return nil, err;
 	}
 	return NewClient(conn), nil;
 }
@@ -170,7 +170,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) os.Error {
 	if client.shutdown != nil {
-		return client.shutdown
+		return client.shutdown;
 	}
 	call := <-client.Go(serviceMethod, args, reply, nil).Done;
 	return call.Error;

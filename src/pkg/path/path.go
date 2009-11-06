@@ -152,7 +152,7 @@ func walk(path string, d *os.Dir, v Visitor, errors chan<- os.Error) {
 	}
 
 	if !v.VisitDir(path, d) {
-		return;  // skip directory entries
+		return;	// skip directory entries
 	}
 
 	list, err := io.ReadDir(path);
@@ -180,7 +180,7 @@ func Walk(root string, v Visitor, errors chan<- os.Error) {
 		if errors != nil {
 			errors <- err;
 		}
-		return;  // can't progress
+		return;	// can't progress
 	}
 	walk(root, d, v, errors);
 }
