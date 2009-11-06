@@ -5,8 +5,8 @@ bignum.install: fmt.install
 bufio.install: io.install os.install strconv.install utf8.install
 bytes.install: os.install unicode.install utf8.install
 compress/flate.install: bufio.install bytes.install io.install math.install os.install sort.install strconv.install
-compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
-compress/zlib.install: bufio.install compress/flate.install hash.install hash/adler32.install io.install os.install
+compress/gzip.install: bufio.install compress/flate.install hash/crc32.install hash.install io.install os.install
+compress/zlib.install: bufio.install compress/flate.install hash/adler32.install hash.install io.install os.install
 container/heap.install: sort.install
 container/list.install:
 container/ring.install:
@@ -16,8 +16,11 @@ crypto/block.install: fmt.install hash.install io.install os.install strconv.ins
 crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.install
 crypto/md5.install: hash.install os.install
 crypto/rc4.install: os.install strconv.install
+crypto/rsa.install: big.install bytes.install crypto/subtle.install hash.install io.install os.install
 crypto/sha1.install: hash.install os.install
 crypto/subtle.install:
+crypto/tls.install: bufio.install bytes.install container/list.install crypto/hmac.install crypto/md5.install crypto/rc4.install crypto/rsa.install crypto/sha1.install crypto/subtle.install fmt.install hash.install io.install net.install os.install strings.install time.install
+crypto/x509.install: asn1.install big.install crypto/rsa.install os.install
 debug/dwarf.install: encoding/binary.install os.install strconv.install
 debug/macho.install: bytes.install debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
 debug/elf.install: bytes.install debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
@@ -49,7 +52,7 @@ hash/adler32.install: hash.install os.install
 hash/crc32.install: hash.install os.install
 http.install: bufio.install bytes.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
 image.install:
-image/png.install: bufio.install compress/zlib.install hash.install hash/crc32.install image.install io.install os.install strconv.install
+image/png.install: bufio.install compress/zlib.install hash/crc32.install hash.install image.install io.install os.install strconv.install
 io.install: bytes.install os.install sort.install strings.install sync.install
 json.install: bytes.install container/vector.install fmt.install math.install reflect.install strconv.install strings.install utf8.install
 log.install: fmt.install io.install os.install runtime.install time.install

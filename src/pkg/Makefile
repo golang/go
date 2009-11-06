@@ -30,8 +30,11 @@ DIRS=\
 	crypto/hmac\
 	crypto/md5\
 	crypto/rc4\
+	crypto/rsa\
 	crypto/sha1\
 	crypto/subtle\
+	crypto/tls\
+	crypto/x509\
 	debug/dwarf\
 	debug/macho\
 	debug/elf\

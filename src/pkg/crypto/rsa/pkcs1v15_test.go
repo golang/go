@@ -5,9 +5,9 @@
 package rsa
 
 import (
+	"big";
 	"bytes";
 	"encoding/base64";
-	big "gmp";
 	"os";
 	"io";
 	"strings";
