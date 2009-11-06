@@ -1,0 +1,94 @@
+<!-- Contributing to the gccgo frontend -->
+
+<h2>Introduction</h2>
+
+<p>
+These are some notes on contributing to the <code>gccgo</code>
+frontend for GCC.  For information on contributing to parts of Go other
+than <code>gccgo</code>, see <a href="contribute.html">Contributing to
+the Go project</a>.  For information on building <code>gccgo</code>
+for yourself, see <a href="go_gccgo_setup.html">Setting up and using
+gccgo</a>.
+</p>
+
+<h2>Legal Prerequisites</h2>
+
+<p>
+The <code>gccgo</code> frontend is part of the GCC compiler, and it
+follows the <a href="http://gcc.gnu.org/contribute.html">GCC
+contribution rules</a>.  In particular, for substantial
+patches&mdash;more than 10 lines&mdash;you must have a copyright
+assignment with the Free Software Foundation.
+</p>
+
+<h2>Code</h2>
+
+<p>
+The source code for the <code>gccgo</code> frontend may be found in
+the directory <code>gcc/go</code>.  The frontend is written in C++ and
+as such the GNU coding standards do not entirely apply; in writing
+code for the frontend, follow the formatting of the surrounding code.
+Although the frontend is currently closely tied to the rest of the gcc
+codebase, we plan to make it more independent.  Any new code which
+uses other parts of gcc should be segregated in an appropriate file,
+such as <code>gogo-tree.cc</code>.
+</p>
+
+<p>
+The runtime library for <code>gccgo</code> is mostly the same as the
+library in the main Mercurial repository.  The library code in the
+Mercurial repository is periodically copied into
+the <code>gccgo</code> repository.  Accordingly, most library changes
+should be made in Mercurial.  Changes to the few <code>gccgo</code>
+specific parts of the library should follow the process described
+here.  The <code>gccgo</code> specific parts of the library are
+everything in the <code>libgo</code> directory except for
+the <code>libgo/go</code> subdirectory.
+</p>
+
+<h2>Testing</h2>
+
+<p>
+All patches must be tested.  There are two test suites.  A patch that
+introduces new failures is not acceptable.
+</p>
+
+<p>
+To run the compiler test suite, run <code>make check-go</code> in the
+<code>gcc</code> subdirectory of your build directory.  This will run
+various tests underneath <code>gcc/testsuite/go.*</code>.  This
+includes a copy of the tests in the Mercurial repository, which are
+run using the DejaGNU script found in
+in <code>gcc/testsuite/go.test/go-test.exp</code>.  Many of the
+compiler tests may be run without the Go library, but some do require
+the library to built first.
+</p>
+
+<p>
+To run the library test suite, run <code>make
+check-target-libgo</code> in the top level of your build directory.
+</p>
+
+<p>
+Most new tests should be submitted to the Mercurial repository for
+copying into the <code>gccgo</code> repository.  If there is a need
+for specific tests for <code>gccgo</code>, they should go in
+the <code>gcc/testsuite/go.go-torture</code>
+or <code>gcc/testsuite/go.dg</code> directories.
+</p>
+
+<h2>Submitting Changes</h2>
+
+<p>
+Proposing a patch should follow the standard GCC rules.  That is, the
+patch should be sent to the mailing
+list <code>gcc-patches@gcc.gnu.org</code> as a diff&mdash;the output
+of the <code>diff</code> program with the <code>-c</code>
+or <code>-u</code> option.  In the future we are likely to set up a
+separate gccgo-specific mailing list, which should also be CC'ed; we
+will update this document at that time.  Patch emails should include a
+ChangeLog entry, though the ChangeLog entry should not be in the diff
+itself.  ChangeLog files are a standard part of GNU programs; see
+<a href="http://www.gnu.org/prep/standards/html_node/Change-Logs.html">the
+GNU coding standards</a>.
+</p>
