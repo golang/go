@@ -120,9 +120,7 @@ type Int struct {
 }
 
 // NewInt returns a new Int initialized to x.
-func NewInt(x int64) *Int {
-	return new(Int).SetInt64(x);
-}
+func NewInt(x int64) *Int	{ return new(Int).SetInt64(x) }
 
 // Int promises that the zero value is a 0, but in gmp
 // the zero value is a crash.  To bridge the gap, the
