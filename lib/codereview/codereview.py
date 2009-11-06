@@ -36,9 +36,6 @@ For example, if change 123456 contains the files x.go and y.go,
 "hg diff @123456" is equivalent to"hg diff x.go y.go".
 '''
 
-# TODO(rsc):
-#	fix utf-8 upload bug
-
 from mercurial import cmdutil, commands, hg, util, error, match
 from mercurial.node import nullrev, hex, nullid, short
 import os, re
@@ -2087,8 +2084,14 @@ def EncodeMultipartFormData(fields, files):
     lines.append('--' + BOUNDARY)
     lines.append('Content-Disposition: form-data; name="%s"' % key)
     lines.append('')
+    if type(value) == str:
+      value = value.decode("utf-8")
     lines.append(value)
   for (key, filename, value) in files:
+    if type(filename) == str:
+      filename = filename.decode("utf-8")
+    if type(value) == str:
+      value = value.decode("utf-8")
     lines.append('--' + BOUNDARY)
     lines.append('Content-Disposition: form-data; name="%s"; filename="%s"' %
              (key, filename))
@@ -2099,7 +2102,7 @@ def EncodeMultipartFormData(fields, files):
   lines.append('')
   body = CRLF.join(lines)
   content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
-  return content_type, body
+  return content_type, body.encode("utf-8")
 
 
 def GetContentType(filename):
