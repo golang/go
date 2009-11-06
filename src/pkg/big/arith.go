@@ -82,9 +82,6 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
 		// z = z[1]*_B + z[0] = x*y
 		z0 = t1<<_W2 + t0;
 		z1 = (t1 + t0>>_W2)>>_W2;
-		if z0 < t0 {
-			z1++;
-		}
 		return;
 	}
 

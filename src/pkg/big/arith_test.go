@@ -278,10 +278,11 @@ type mulWWTest struct {
 
 var mulWWTests = []mulWWTest{
 	mulWWTest{_M, _M, _M-1, 1},
+	// 32 bit only: mulWWTest{0xc47dfa8c, 50911, 0x98a4, 0x998587f4},
 }
 
 
-func TestMulWWW(t *testing.T) {
+func TestMulWW(t *testing.T) {
 	for i, test := range mulWWTests {
 		q, r := mulWW_g(test.x, test.y);
 		if q != test.q || r != test.r {
