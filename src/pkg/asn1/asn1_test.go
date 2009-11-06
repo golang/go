@@ -190,21 +190,13 @@ type parseFieldParametersTest struct {
 	out	fieldParameters;
 }
 
-func newInt(n int) *int {
-	return &n;
-}
+func newInt(n int) *int	{ return &n }
 
-func newInt64(n int64) *int64 {
-	return &n;
-}
+func newInt64(n int64) *int64	{ return &n }
 
-func newString(s string) *string {
-	return &s;
-}
+func newString(s string) *string	{ return &s }
 
-func newBool(b bool) *bool {
-	return &b;
-}
+func newBool(b bool) *bool	{ return &b }
 
 var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParametersTest{
 	parseFieldParametersTest{"", fieldParameters{false, false, nil, nil}},

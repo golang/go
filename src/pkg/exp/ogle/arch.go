@@ -74,17 +74,11 @@ func (ArchLSB) ToFloat32(bits uint32) float32 {
 	return math.Float32frombits(bits);
 }
 
-func (ArchLSB) FromFloat32(f float32) uint32 {
-	return math.Float32bits(f);
-}
+func (ArchLSB) FromFloat32(f float32) uint32	{ return math.Float32bits(f) }
 
-func (ArchLSB) ToFloat64(bits uint64) float64 {
-	return math.Float64frombits(bits);
-}
+func (ArchLSB) ToFloat64(bits uint64) float64	{ return math.Float64frombits(bits) }
 
-func (ArchLSB) FromFloat64(f float64) uint64 {
-	return math.Float64bits(f);
-}
+func (ArchLSB) FromFloat64(f float64) uint64	{ return math.Float64bits(f) }
 
 type ArchAlignedMultiple struct{}
 
@@ -98,17 +92,11 @@ type amd64 struct {
 	gReg	int;
 }
 
-func (a *amd64) IntSize() int {
-	return 4;
-}
+func (a *amd64) IntSize() int	{ return 4 }
 
-func (a *amd64) PtrSize() int {
-	return 8;
-}
+func (a *amd64) PtrSize() int	{ return 8 }
 
-func (a *amd64) FloatSize() int {
-	return 4;
-}
+func (a *amd64) FloatSize() int	{ return 4 }
 
 func (a *amd64) G(regs proc.Regs) proc.Word {
 	// See src/pkg/runtime/mkasmh
@@ -125,9 +113,7 @@ func (a *amd64) G(regs proc.Regs) proc.Word {
 	return regs.Get(a.gReg);
 }
 
-func (a *amd64) ClosureSize() int {
-	return 8;
-}
+func (a *amd64) ClosureSize() int	{ return 8 }
 
 func (a *amd64) ParseClosure(data []byte) (int, bool) {
 	if data[0] == 0x48 && data[1] == 0x81 && data[2] == 0xc4 && data[7] == 0xc3 {

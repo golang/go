@@ -89,9 +89,7 @@ func (f *flowBuf) put(cond bool, term bool, jumps []*uint) {
 
 // putTerm creates a flow control point at the next PC that
 // unconditionally terminates execution.
-func (f *flowBuf) putTerm() {
-	f.put(false, true, nil);
-}
+func (f *flowBuf) putTerm()	{ f.put(false, true, nil) }
 
 // put1 creates a flow control point at the next PC that jumps to one
 // PC and, if cond is true, can also continue to the PC following the
@@ -1222,9 +1220,7 @@ func (a *blockCompiler) enterChild() *blockCompiler {
 	};
 }
 
-func (a *blockCompiler) exit() {
-	a.block.exit();
-}
+func (a *blockCompiler) exit()	{ a.block.exit() }
 
 /*
  * Function compiler

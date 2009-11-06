@@ -84,18 +84,14 @@ func Encode(dst, src []byte) int {
 }
 
 // MaxEncodedLen returns the maximum length of an encoding of n source bytes.
-func MaxEncodedLen(n int) int {
-	return (n+3)/4*5;
-}
+func MaxEncodedLen(n int) int	{ return (n+3)/4*5 }
 
 // NewEncoder returns a new ascii85 stream encoder.  Data written to
 // the returned writer will be encoded and then written to w.
 // Ascii85 encodings operate in 32-bit blocks; when finished
 // writing, the caller must Close the returned encoder to flush any
 // trailing partial block.
-func NewEncoder(w io.Writer) io.WriteCloser {
-	return &encoder{w: w};
-}
+func NewEncoder(w io.Writer) io.WriteCloser	{ return &encoder{w: w} }
 
 type encoder struct {
 	err	os.Error;
@@ -248,9 +244,7 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
 }
 
 // NewDecoder constructs a new ascii85 stream decoder.
-func NewDecoder(r io.Reader) io.Reader {
-	return &decoder{r: r};
-}
+func NewDecoder(r io.Reader) io.Reader	{ return &decoder{r: r} }
 
 type decoder struct {
 	err	os.Error;

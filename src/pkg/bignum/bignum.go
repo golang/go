@@ -88,9 +88,7 @@ func assert(p bool) {
 }
 
 
-func isSmall(x digit) bool {
-	return x < 1<<logH;
-}
+func isSmall(x digit) bool	{ return x < 1<<logH }
 
 
 // For debugging. Keep around.
@@ -176,23 +174,17 @@ func (x Natural) Value() uint64 {
 
 // IsEven returns true iff x is divisible by 2.
 //
-func (x Natural) IsEven() bool {
-	return len(x) == 0 || x[0]&1 == 0;
-}
+func (x Natural) IsEven() bool	{ return len(x) == 0 || x[0]&1 == 0 }
 
 
 // IsOdd returns true iff x is not divisible by 2.
 //
-func (x Natural) IsOdd() bool {
-	return len(x) > 0 && x[0]&1 != 0;
-}
+func (x Natural) IsOdd() bool	{ return len(x) > 0 && x[0]&1 != 0 }
 
 
 // IsZero returns true iff x == 0.
 //
-func (x Natural) IsZero() bool {
-	return len(x) == 0;
-}
+func (x Natural) IsZero() bool	{ return len(x) == 0 }
 
 
 // Operations
@@ -867,9 +859,7 @@ func (x Natural) ToString(base uint) string {
 // String converts x to its decimal string representation.
 // x.String() is the same as x.ToString(10).
 //
-func (x Natural) String() string {
-	return x.ToString(10);
-}
+func (x Natural) String() string	{ return x.ToString(10) }
 
 
 func fmtbase(c int) uint {
@@ -888,9 +878,7 @@ func fmtbase(c int) uint {
 // Format is a support routine for fmt.Formatter. It accepts
 // the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
 //
-func (x Natural) Format(h fmt.State, c int) {
-	fmt.Fprintf(h, "%s", x.ToString(fmtbase(c)));
-}
+func (x Natural) Format(h fmt.State, c int)	{ fmt.Fprintf(h, "%s", x.ToString(fmtbase(c))) }
 
 
 func hexvalue(ch byte) uint {
@@ -1015,9 +1003,7 @@ func Fact(n uint) Natural {
 
 // Binomial computes the binomial coefficient of (n, k).
 //
-func Binomial(n, k uint) Natural {
-	return MulRange(n-k+1, n).Div(MulRange(1, k));
-}
+func Binomial(n, k uint) Natural	{ return MulRange(n-k+1, n).Div(MulRange(1, k)) }
 
 
 // Gcd computes the gcd of x and y.

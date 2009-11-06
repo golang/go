@@ -68,9 +68,7 @@ var offsetCodes = [...]uint32{
 type token uint32
 
 // Convert a literal into a literal token.
-func literalToken(literal uint32) token {
-	return token(literalType + literal);
-}
+func literalToken(literal uint32) token	{ return token(literalType + literal) }
 
 // Convert a < xlength, xoffset > pair into a match token.
 func matchToken(xlength uint32, xoffset uint32) token {
@@ -78,27 +76,17 @@ func matchToken(xlength uint32, xoffset uint32) token {
 }
 
 // Returns the type of a token
-func (t token) typ() uint32 {
-	return uint32(t)&typeMask;
-}
+func (t token) typ() uint32	{ return uint32(t)&typeMask }
 
 // Returns the literal of a literal token
-func (t token) literal() uint32 {
-	return uint32(t - literalType);
-}
+func (t token) literal() uint32	{ return uint32(t - literalType) }
 
 // Returns the extra offset of a match token
-func (t token) offset() uint32 {
-	return uint32(t) & offsetMask;
-}
+func (t token) offset() uint32	{ return uint32(t) & offsetMask }
 
-func (t token) length() uint32 {
-	return uint32((t - matchType) >> lengthShift);
-}
+func (t token) length() uint32	{ return uint32((t - matchType) >> lengthShift) }
 
-func lengthCode(len uint32) uint32 {
-	return lengthCodes[len];
-}
+func lengthCode(len uint32) uint32	{ return lengthCodes[len] }
 
 // Returns the offset code corresponding to a specific offset
 func offsetCode(off uint32) uint32 {

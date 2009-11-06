@@ -57,17 +57,11 @@ type Recv struct {
 	Expected	interface{};
 }
 
-func (r Recv) getRecv() recvAction {
-	return r;
-}
+func (r Recv) getRecv() recvAction	{ return r }
 
-func (Recv) getSend() sendAction {
-	return nil;
-}
+func (Recv) getSend() sendAction	{ return nil }
 
-func (r Recv) getChannel() interface{} {
-	return r.Channel;
-}
+func (r Recv) getChannel() interface{}	{ return r.Channel }
 
 func (r Recv) recvMatch(chanEvent interface{}) bool {
 	c, ok := chanEvent.(channelRecv);
@@ -85,17 +79,11 @@ type RecvMatch struct {
 	Match	func(interface{}) bool;
 }
 
-func (r RecvMatch) getRecv() recvAction {
-	return r;
-}
+func (r RecvMatch) getRecv() recvAction	{ return r }
 
-func (RecvMatch) getSend() sendAction {
-	return nil;
-}
+func (RecvMatch) getSend() sendAction	{ return nil }
 
-func (r RecvMatch) getChannel() interface{} {
-	return r.Channel;
-}
+func (r RecvMatch) getChannel() interface{}	{ return r.Channel }
 
 func (r RecvMatch) recvMatch(chanEvent interface{}) bool {
 	c, ok := chanEvent.(channelRecv);
@@ -113,17 +101,11 @@ type Closed struct {
 	Channel interface{};
 }
 
-func (r Closed) getRecv() recvAction {
-	return r;
-}
+func (r Closed) getRecv() recvAction	{ return r }
 
-func (Closed) getSend() sendAction {
-	return nil;
-}
+func (Closed) getSend() sendAction	{ return nil }
 
-func (r Closed) getChannel() interface{} {
-	return r.Channel;
-}
+func (r Closed) getChannel() interface{}	{ return r.Channel }
 
 func (r Closed) recvMatch(chanEvent interface{}) bool {
 	c, ok := chanEvent.(channelClosed);
@@ -141,17 +123,11 @@ type Send struct {
 	Value	interface{};
 }
 
-func (Send) getRecv() recvAction {
-	return nil;
-}
+func (Send) getRecv() recvAction	{ return nil }
 
-func (s Send) getSend() sendAction {
-	return s;
-}
+func (s Send) getSend() sendAction	{ return s }
 
-func (s Send) getChannel() interface{} {
-	return s.Channel;
-}
+func (s Send) getChannel() interface{}	{ return s.Channel }
 
 func newEmptyInterface(args ...) reflect.Value {
 	return reflect.NewValue(args).(*reflect.StructValue).Field(0);
@@ -176,21 +152,13 @@ type Close struct {
 	Channel interface{};
 }
 
-func (Close) getRecv() recvAction {
-	return nil;
-}
+func (Close) getRecv() recvAction	{ return nil }
 
-func (s Close) getSend() sendAction {
-	return s;
-}
+func (s Close) getSend() sendAction	{ return s }
 
-func (s Close) getChannel() interface{} {
-	return s.Channel;
-}
+func (s Close) getChannel() interface{}	{ return s.Channel }
 
-func (s Close) send() {
-	reflect.NewValue(s.Channel).(*reflect.ChanValue).Close();
-}
+func (s Close) send()	{ reflect.NewValue(s.Channel).(*reflect.ChanValue).Close() }
 
 // A ReceivedUnexpected error results if no active Events match a value
 // received from a channel.
@@ -211,9 +179,7 @@ func (r ReceivedUnexpected) String() string {
 // Events.
 type SetupError string
 
-func (s SetupError) String() string {
-	return string(s);
-}
+func (s SetupError) String() string	{ return string(s) }
 
 func NewEvent(name string, predecessors []*Event, action action) *Event {
 	e := &Event{name, false, predecessors, action};

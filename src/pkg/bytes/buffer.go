@@ -37,9 +37,7 @@ type Buffer struct {
 
 // Bytes returns the contents of the unread portion of the buffer;
 // len(b.Bytes()) == b.Len().
-func (b *Buffer) Bytes() []byte {
-	return b.buf[b.off : len(b.buf)];
-}
+func (b *Buffer) Bytes() []byte	{ return b.buf[b.off : len(b.buf)] }
 
 // String returns the contents of the unread portion of the buffer
 // as a string.  If the Buffer is a nil pointer, it returns "<nil>".
@@ -53,9 +51,7 @@ func (b *Buffer) String() string {
 
 // Len returns the number of bytes of the unread portion of the buffer;
 // b.Len() == len(b.Bytes()).
-func (b *Buffer) Len() int {
-	return len(b.buf) - b.off;
-}
+func (b *Buffer) Len() int	{ return len(b.buf) - b.off }
 
 // Truncate discards all but the first n unread bytes from the buffer.
 // It is an error to call b.Truncate(n) with n > b.Len().
@@ -69,9 +65,7 @@ func (b *Buffer) Truncate(n int) {
 
 // Reset resets the buffer so it has no content.
 // b.Reset() is the same as b.Truncate(0).
-func (b *Buffer) Reset() {
-	b.Truncate(0);
-}
+func (b *Buffer) Reset()	{ b.Truncate(0) }
 
 // Write appends the contents of p to the buffer.  The return
 // value n is the length of p; err is always nil.
@@ -166,9 +160,7 @@ func (b *Buffer) ReadByte() (c byte, err os.Error) {
 
 // NewBuffer creates and initializes a new Buffer
 // using buf as its initial contents.
-func NewBuffer(buf []byte) *Buffer {
-	return &Buffer{buf: buf};
-}
+func NewBuffer(buf []byte) *Buffer	{ return &Buffer{buf: buf} }
 
 // NewBufferString creates and initializes a new Buffer
 // using string s as its initial contents.

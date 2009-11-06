@@ -236,9 +236,7 @@ const F1 = `datafmt "datafmt";`
 	`int = "%d";`
 	`datafmt.T1 = "<" a ">";`
 
-func TestStruct1(t *testing.T) {
-	check(t, F1, "<42>", T1{42});
-}
+func TestStruct1(t *testing.T)	{ check(t, F1, "<42>", T1{42}) }
 
 
 // ----------------------------------------------------------------------------
@@ -354,9 +352,7 @@ func TestStructPoint(t *testing.T) {
 const FSlice = `int = "%b";`
 	`array = { * / ", " }`
 
-func TestSlice(t *testing.T) {
-	check(t, FSlice, "10, 11, 101, 111", []int{2, 3, 5, 7});
-}
+func TestSlice(t *testing.T)	{ check(t, FSlice, "10, 11, 101, 111", []int{2, 3, 5, 7}) }
 
 
 // TODO add more tests

@@ -43,14 +43,10 @@ func (h *myHeap) verify(t *testing.T, i int) {
 }
 
 
-func (h *myHeap) Push(x interface{}) {
-	h.IntVector.Push(x.(int));
-}
+func (h *myHeap) Push(x interface{})	{ h.IntVector.Push(x.(int)) }
 
 
-func (h *myHeap) Pop() interface{} {
-	return h.IntVector.Pop();
-}
+func (h *myHeap) Pop() interface{}	{ return h.IntVector.Pop() }
 
 
 func TestInit(t *testing.T) {

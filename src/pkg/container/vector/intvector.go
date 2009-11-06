@@ -21,27 +21,19 @@ func (p *IntVector) Init(len int) *IntVector {
 
 
 // NewIntVector returns an initialized new IntVector with length at least len.
-func NewIntVector(len int) *IntVector {
-	return new(IntVector).Init(len);
-}
+func NewIntVector(len int) *IntVector	{ return new(IntVector).Init(len) }
 
 
 // At returns the i'th element of the vector.
-func (p *IntVector) At(i int) int {
-	return p.Vector.At(i).(int);
-}
+func (p *IntVector) At(i int) int	{ return p.Vector.At(i).(int) }
 
 
 // Set sets the i'th element of the vector to value x.
-func (p *IntVector) Set(i int, x int) {
-	p.a[i] = x;
-}
+func (p *IntVector) Set(i int, x int)	{ p.a[i] = x }
 
 
 // Last returns the element in the vector of highest index.
-func (p *IntVector) Last() int {
-	return p.Vector.Last().(int);
-}
+func (p *IntVector) Last() int	{ return p.Vector.Last().(int) }
 
 
 // Data returns all the elements as a slice.
@@ -56,9 +48,7 @@ func (p *IntVector) Data() []int {
 
 // Insert inserts into the vector an element of value x before
 // the current element at index i.
-func (p *IntVector) Insert(i int, x int) {
-	p.Vector.Insert(i, x);
-}
+func (p *IntVector) Insert(i int, x int)	{ p.Vector.Insert(i, x) }
 
 
 // InsertVector inserts into the vector the contents of the Vector
@@ -76,15 +66,11 @@ func (p *IntVector) Slice(i, j int) *IntVector {
 
 
 // Push appends x to the end of the vector.
-func (p *IntVector) Push(x int) {
-	p.Vector.Push(x);
-}
+func (p *IntVector) Push(x int)	{ p.Vector.Push(x) }
 
 
 // Pop deletes and returns the last element of the vector.
-func (p *IntVector) Pop() int {
-	return p.Vector.Pop().(int);
-}
+func (p *IntVector) Pop() int	{ return p.Vector.Pop().(int) }
 
 
 // AppendVector appends the entire IntVector x to the end of this vector.
@@ -95,9 +81,7 @@ func (p *IntVector) AppendVector(x *IntVector) {
 
 // sort.Interface support
 // Less returns a boolean denoting whether the i'th element is less than the j'th element.
-func (p *IntVector) Less(i, j int) bool {
-	return p.At(i) < p.At(j);
-}
+func (p *IntVector) Less(i, j int) bool	{ return p.At(i) < p.At(j) }
 
 
 // Iterate over all elements; driver for range

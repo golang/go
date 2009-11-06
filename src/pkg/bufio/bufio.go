@@ -211,9 +211,7 @@ func findByte(p []byte, c byte) int {
 }
 
 // Buffered returns the number of bytes that can be read from the current buffer.
-func (b *Reader) Buffered() int {
-	return b.w - b.r;
-}
+func (b *Reader) Buffered() int	{ return b.w - b.r }
 
 // ReadSlice reads until the first occurrence of delim in the input,
 // returning a slice pointing at the bytes in the buffer.
@@ -404,14 +402,10 @@ func (b *Writer) Flush() os.Error {
 }
 
 // Available returns how many bytes are unused in the buffer.
-func (b *Writer) Available() int {
-	return len(b.buf) - b.n;
-}
+func (b *Writer) Available() int	{ return len(b.buf) - b.n }
 
 // Buffered returns the number of bytes that have been written into the current buffer.
-func (b *Writer) Buffered() int {
-	return b.n;
-}
+func (b *Writer) Buffered() int	{ return b.n }
 
 // Write writes the contents of p into the buffer.
 // It returns the number of bytes written.

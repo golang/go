@@ -33,9 +33,7 @@ type Counter struct {
 
 // This makes Counter satisfy the expvar.Var interface, so we can export
 // it directly.
-func (ctr *Counter) String() string {
-	return fmt.Sprintf("%d", ctr.n);
-}
+func (ctr *Counter) String() string	{ return fmt.Sprintf("%d", ctr.n) }
 
 func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
 	switch req.Method {

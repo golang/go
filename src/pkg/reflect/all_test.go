@@ -25,9 +25,7 @@ type pair struct {
 	s	string;
 }
 
-func isDigit(c uint8) bool {
-	return '0' <= c && c <= '9';
-}
+func isDigit(c uint8) bool	{ return '0' <= c && c <= '9' }
 
 func assert(t *testing.T, s, want string) {
 	if s != want {
@@ -35,9 +33,7 @@ func assert(t *testing.T, s, want string) {
 	}
 }
 
-func typestring(i interface{}) string {
-	return Typeof(i).String();
-}
+func typestring(i interface{}) string	{ return Typeof(i).String() }
 
 var typeTests = []pair{
 	pair{struct {
@@ -1070,9 +1066,7 @@ type Point struct {
 	x, y int;
 }
 
-func (p Point) Dist(scale int) int {
-	return p.x * p.x * scale + p.y * p.y * scale;
-}
+func (p Point) Dist(scale int) int	{ return p.x * p.x * scale + p.y * p.y * scale }
 
 func TestMethod(t *testing.T) {
 	// Non-curried method of type.

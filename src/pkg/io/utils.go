@@ -48,15 +48,9 @@ func WriteFile(filename string, data []byte, perm int) os.Error {
 // A dirList implements sort.Interface.
 type dirList []*os.Dir
 
-func (d dirList) Len() int {
-	return len(d);
-}
-func (d dirList) Less(i, j int) bool {
-	return d[i].Name < d[j].Name;
-}
-func (d dirList) Swap(i, j int) {
-	d[i], d[j] = d[j], d[i];
-}
+func (d dirList) Len() int		{ return len(d) }
+func (d dirList) Less(i, j int) bool	{ return d[i].Name < d[j].Name }
+func (d dirList) Swap(i, j int)		{ d[i], d[j] = d[j], d[i] }
 
 // ReadDir reads the directory named by dirname and returns
 // a list of sorted directory entries.

@@ -35,6 +35,4 @@ func (r *Reader) ReadByte() (b byte, err os.Error) {
 
 // NewReader returns a new Reader reading from s.
 // It is similar to bytes.NewBufferString but more efficient and read-only.
-func NewReader(s string) *Reader {
-	return (*Reader)(&s);
-}
+func NewReader(s string) *Reader	{ return (*Reader)(&s) }

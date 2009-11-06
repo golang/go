@@ -48,9 +48,7 @@ func TestNew(t *testing.T) {
 }
 
 
-func val(i int) int {
-	return i*991 - 1234;
-}
+func val(i int) int	{ return i*991 - 1234 }
 
 
 func TestAccess(t *testing.T) {

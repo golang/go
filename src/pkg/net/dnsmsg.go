@@ -231,9 +231,7 @@ type _DNS_RR_A struct {
 	A	uint32	"ipv4";
 }
 
-func (rr *_DNS_RR_A) Header() *_DNS_RR_Header {
-	return &rr.Hdr;
-}
+func (rr *_DNS_RR_A) Header() *_DNS_RR_Header	{ return &rr.Hdr }
 
 
 // Packing and unpacking.
@@ -521,9 +519,7 @@ func printStructValue(val *reflect.StructValue) string {
 	return s;
 }
 
-func printStruct(any interface{}) string {
-	return printStructValue(structValue(any));
-}
+func printStruct(any interface{}) string	{ return printStructValue(structValue(any)) }
 
 // Resource record packer.
 func packRR(rr _DNS_RR, msg []byte, off int) (off2 int, ok bool) {

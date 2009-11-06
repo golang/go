@@ -364,9 +364,7 @@ notimpl:
  * Type compiler interface
  */
 
-func noLateCheck() bool {
-	return true;
-}
+func noLateCheck() bool	{ return true }
 
 func (a *compiler) compileType(b *block, typ ast.Expr) Type {
 	tc := &typeCompiler{a, b, noLateCheck};

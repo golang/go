@@ -63,9 +63,7 @@ type decoder struct {
 // A FormatError reports that the input is not a valid PNG.
 type FormatError string
 
-func (e FormatError) String() string {
-	return "invalid PNG format: " + string(e);
-}
+func (e FormatError) String() string	{ return "invalid PNG format: " + string(e) }
 
 var chunkOrderError = FormatError("chunk out of order")
 
@@ -74,16 +72,12 @@ type IDATDecodingError struct {
 	Err os.Error;
 }
 
-func (e IDATDecodingError) String() string {
-	return "IDAT decoding error: " + e.Err.String();
-}
+func (e IDATDecodingError) String() string	{ return "IDAT decoding error: " + e.Err.String() }
 
 // An UnsupportedError reports that the input uses a valid but unimplemented PNG feature.
 type UnsupportedError string
 
-func (e UnsupportedError) String() string {
-	return "unsupported PNG feature: " + string(e);
-}
+func (e UnsupportedError) String() string	{ return "unsupported PNG feature: " + string(e) }
 
 // Big-endian.
 func parseUint32(b []uint8) uint32 {

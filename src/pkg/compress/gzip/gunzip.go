@@ -220,6 +220,4 @@ func (z *Inflater) Read(p []byte) (n int, err os.Error) {
 }
 
 // Calling Close does not close the wrapped io.Reader originally passed to NewInflater.
-func (z *Inflater) Close() os.Error {
-	return z.inflater.Close();
-}
+func (z *Inflater) Close() os.Error	{ return z.inflater.Close() }

@@ -25,9 +25,7 @@ func Inf(sign int) float64 {
 }
 
 // NaN returns an IEEE 754 ``not-a-number'' value.
-func NaN() float64 {
-	return Float64frombits(uvnan);
-}
+func NaN() float64	{ return Float64frombits(uvnan) }
 
 // IsNaN returns whether f is an IEEE 754 ``not-a-number'' value.
 func IsNaN(f float64) (is bool) {

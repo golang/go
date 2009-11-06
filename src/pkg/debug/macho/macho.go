@@ -51,12 +51,8 @@ var cpuStrings = []intName{
 	intName{uint32(CpuAmd64), "CpuAmd64"},
 }
 
-func (i Cpu) String() string {
-	return stringName(uint32(i), cpuStrings, false);
-}
-func (i Cpu) GoString() string {
-	return stringName(uint32(i), cpuStrings, true);
-}
+func (i Cpu) String() string	{ return stringName(uint32(i), cpuStrings, false) }
+func (i Cpu) GoString() string	{ return stringName(uint32(i), cpuStrings, true) }
 
 // A LoadCmd is a Mach-O load command.
 type LoadCmd uint32
@@ -75,12 +71,8 @@ var cmdStrings = []intName{
 	intName{uint32(LoadCmdUnixThread), "LoadCmdUnixThread"},
 }
 
-func (i LoadCmd) String() string {
-	return stringName(uint32(i), cmdStrings, false);
-}
-func (i LoadCmd) GoString() string {
-	return stringName(uint32(i), cmdStrings, true);
-}
+func (i LoadCmd) String() string	{ return stringName(uint32(i), cmdStrings, false) }
+func (i LoadCmd) GoString() string	{ return stringName(uint32(i), cmdStrings, true) }
 
 // A Segment64 is a 64-bit Mach-O segment load command.
 type Segment64 struct {

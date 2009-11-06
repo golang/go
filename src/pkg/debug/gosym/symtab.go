@@ -35,9 +35,7 @@ type Sym struct {
 }
 
 // Static returns whether this symbol is static (not visible outside its file).
-func (s *Sym) Static() bool {
-	return s.Type >= 'a';
-}
+func (s *Sym) Static() bool	{ return s.Type >= 'a' }
 
 // PackageName returns the package part of the symbol name,
 // or the empty string if there is none.
@@ -518,9 +516,7 @@ func (o *Obj) alineFromLine(path string, line int) (int, os.Error) {
 // the symbol table.
 type UnknownFileError string
 
-func (e UnknownFileError) String() string {
-	return "unknown file: " + string(e);
-}
+func (e UnknownFileError) String() string	{ return "unknown file: " + string(e) }
 
 // UnknownLineError represents a failure to map a line to a program
 // counter, either because the line is beyond the bounds of the file

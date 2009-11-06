@@ -28,9 +28,7 @@ import (
 // A SyntaxError represents a syntax error in the XML input stream.
 type SyntaxError string
 
-func (e SyntaxError) String() string {
-	return "XML syntax error: " + string(e);
-}
+func (e SyntaxError) String() string	{ return "XML syntax error: " + string(e) }
 
 // A Name represents an XML name (Local) annotated
 // with a name space identifier (Space).
@@ -73,17 +71,13 @@ func copy(b []byte) []byte {
 	return b1;
 }
 
-func (c CharData) Copy() CharData {
-	return CharData(copy(c));
-}
+func (c CharData) Copy() CharData	{ return CharData(copy(c)) }
 
 // A Comment represents an XML comment of the form <!--comment-->.
 // The bytes do not include the <!-- and --> comment markers.
 type Comment []byte
 
-func (c Comment) Copy() Comment {
-	return Comment(copy(c));
-}
+func (c Comment) Copy() Comment	{ return Comment(copy(c)) }
 
 // A ProcInst represents an XML processing instruction of the form <?target inst?>
 type ProcInst struct {
@@ -100,9 +94,7 @@ func (p ProcInst) Copy() ProcInst {
 // The bytes do not include the <! and > markers.
 type Directive []byte
 
-func (d Directive) Copy() Directive {
-	return Directive(copy(d));
-}
+func (d Directive) Copy() Directive	{ return Directive(copy(d)) }
 
 type readByter interface {
 	ReadByte() (b byte, err os.Error);

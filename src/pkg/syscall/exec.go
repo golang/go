@@ -71,9 +71,7 @@ func StringArrayPtr(ss []string) []*byte {
 	return bb;
 }
 
-func CloseOnExec(fd int) {
-	fcntl(fd, F_SETFD, FD_CLOEXEC);
-}
+func CloseOnExec(fd int)	{ fcntl(fd, F_SETFD, FD_CLOEXEC) }
 
 func SetNonblock(fd int, nonblocking bool) (errno int) {
 	flag, err := fcntl(fd, F_GETFL, 0);

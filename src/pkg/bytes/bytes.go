@@ -155,9 +155,7 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 // Split splits the array s around each instance of sep, returning an array of subarrays of s.
 // If sep is empty, Split splits s after each UTF-8 sequence.
 // If n > 0, Split splits s into at most n subarrays; the last subarray will contain an unsplit remainder.
-func Split(s, sep []byte, n int) [][]byte {
-	return genSplit(s, sep, 0, n);
-}
+func Split(s, sep []byte, n int) [][]byte	{ return genSplit(s, sep, 0, n) }
 
 // SplitAfter splits the array s after each instance of sep, returning an array of subarrays of s.
 // If sep is empty, SplitAfter splits s after each UTF-8 sequence.
@@ -244,19 +242,13 @@ func Map(mapping func(rune int) int, s []byte) []byte {
 }
 
 // ToUpper returns a copy of the byte array s with all Unicode letters mapped to their upper case.
-func ToUpper(s []byte) []byte {
-	return Map(unicode.ToUpper, s);
-}
+func ToUpper(s []byte) []byte	{ return Map(unicode.ToUpper, s) }
 
 // ToUpper returns a copy of the byte array s with all Unicode letters mapped to their lower case.
-func ToLower(s []byte) []byte {
-	return Map(unicode.ToLower, s);
-}
+func ToLower(s []byte) []byte	{ return Map(unicode.ToLower, s) }
 
 // ToTitle returns a copy of the byte array s with all Unicode letters mapped to their title case.
-func ToTitle(s []byte) []byte {
-	return Map(unicode.ToTitle, s);
-}
+func ToTitle(s []byte) []byte	{ return Map(unicode.ToTitle, s) }
 
 // Trim returns a slice of the string s, with all leading and trailing white space
 // removed, as defined by Unicode.

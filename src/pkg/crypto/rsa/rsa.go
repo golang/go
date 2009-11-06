@@ -296,9 +296,7 @@ func EncryptOAEP(hash hash.Hash, rand io.Reader, pub *PublicKey, msg []byte, lab
 // It is deliberately vague to avoid adaptive attacks.
 type DecryptionError struct{}
 
-func (DecryptionError) String() string {
-	return "RSA decryption error";
-}
+func (DecryptionError) String() string	{ return "RSA decryption error" }
 
 // modInverse returns ia, the inverse of a in the multiplicative group of prime
 // order n. It requires that a be a member of the group (i.e. less than n).

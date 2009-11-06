@@ -4,9 +4,7 @@
 
 package syscall
 
-func Getpagesize() int {
-	return 4096;
-}
+func Getpagesize() int	{ return 4096 }
 
 func NsecToTimeval(nsec int64) (tv Timeval) {
 	tv.Sec = int32(nsec/1e9);

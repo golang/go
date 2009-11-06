@@ -43,9 +43,7 @@ type badStringError struct {
 	str	string;
 }
 
-func (e *badStringError) String() string {
-	return fmt.Sprintf("%s %q", e.what, e.str);
-}
+func (e *badStringError) String() string	{ return fmt.Sprintf("%s %q", e.what, e.str) }
 
 // A Request represents a parsed HTTP request header.
 type Request struct {

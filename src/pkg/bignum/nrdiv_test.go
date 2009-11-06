@@ -39,15 +39,11 @@ func (x fpNat) sub(y fpNat) fpNat {
 
 
 // mul2 computes x*2.
-func (x fpNat) mul2() fpNat {
-	return fpNat{x.m, x.e + 1};
-}
+func (x fpNat) mul2() fpNat	{ return fpNat{x.m, x.e + 1} }
 
 
 // mul computes x*y.
-func (x fpNat) mul(y fpNat) fpNat {
-	return fpNat{x.m.Mul(y.m), x.e + y.e};
-}
+func (x fpNat) mul(y fpNat) fpNat	{ return fpNat{x.m.Mul(y.m), x.e + y.e} }
 
 
 // mant computes the (possibly truncated) Natural representation
@@ -169,9 +165,7 @@ func div(t *testing.T, x, y Natural) {
 }
 
 
-func idiv(t *testing.T, x0, y0 uint64) {
-	div(t, Nat(x0), Nat(y0));
-}
+func idiv(t *testing.T, x0, y0 uint64)	{ div(t, Nat(x0), Nat(y0)) }
 
 
 func TestNRDiv(t *testing.T) {

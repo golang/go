@@ -70,9 +70,7 @@ func audioServer() {
 	}
 }
 
-func PlaySound(b []uint16) {
-	sndc <- b;
-}
+func PlaySound(b []uint16)	{ sndc <- b }
 
 var whoosh = []uint16{
 // Insert your favorite sound samples here.

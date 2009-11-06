@@ -11,90 +11,50 @@ import (
 	"os";
 )
 
-func fBool(a bool) bool {
-	return a;
-}
+func fBool(a bool) bool	{ return a }
 
-func fFloat32(a float32) float32 {
-	return a;
-}
+func fFloat32(a float32) float32	{ return a }
 
-func fFloat64(a float64) float64 {
-	return a;
-}
+func fFloat64(a float64) float64	{ return a }
 
-func fFloat(a float) float {
-	return a;
-}
+func fFloat(a float) float	{ return a }
 
-func fInt16(a int16) int16 {
-	return a;
-}
+func fInt16(a int16) int16	{ return a }
 
-func fInt32(a int32) int32 {
-	return a;
-}
+func fInt32(a int32) int32	{ return a }
 
-func fInt64(a int64) int64 {
-	return a;
-}
+func fInt64(a int64) int64	{ return a }
 
-func fInt8(a int8) int8 {
-	return a;
-}
+func fInt8(a int8) int8	{ return a }
 
-func fInt(a int) int {
-	return a;
-}
+func fInt(a int) int	{ return a }
 
-func fUInt8(a uint8) uint8 {
-	return a;
-}
+func fUInt8(a uint8) uint8	{ return a }
 
-func fMap(a map[int]int) map[int]int {
-	return a;
-}
+func fMap(a map[int]int) map[int]int	{ return a }
 
-func fSlice(a []byte) []byte {
-	return a;
-}
+func fSlice(a []byte) []byte	{ return a }
 
-func fString(a string) string {
-	return a;
-}
+func fString(a string) string	{ return a }
 
 type TestStruct struct {
 	A	int;
 	B	string;
 }
 
-func fStruct(a TestStruct) TestStruct {
-	return a;
-}
+func fStruct(a TestStruct) TestStruct	{ return a }
 
-func fUint16(a uint16) uint16 {
-	return a;
-}
+func fUint16(a uint16) uint16	{ return a }
 
-func fUint32(a uint32) uint32 {
-	return a;
-}
+func fUint32(a uint32) uint32	{ return a }
 
-func fUint64(a uint64) uint64 {
-	return a;
-}
+func fUint64(a uint64) uint64	{ return a }
 
-func fUint8(a uint8) uint8 {
-	return a;
-}
+func fUint8(a uint8) uint8	{ return a }
 
-func fUint(a uint) uint {
-	return a;
-}
+func fUint(a uint) uint	{ return a }
 
-func fUintptr(a uintptr) uintptr {
-	return a;
-}
+func fUintptr(a uintptr) uintptr	{ return a }
 
 func fIntptr(a *int) *int {
 	b := *a;
@@ -142,9 +102,7 @@ func (m myStruct) Generate(r *rand.Rand, _ int) reflect.Value {
 	return reflect.NewValue(myStruct{x: 42});
 }
 
-func myStructProperty(in myStruct) bool {
-	return in.x == 42;
-}
+func myStructProperty(in myStruct) bool	{ return in.x == 42 }
 
 func TestCheckProperty(t *testing.T) {
 	reportError("myStructProperty", Check(myStructProperty, nil), t);

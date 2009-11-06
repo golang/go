@@ -35,9 +35,7 @@ type Load interface {
 // A LoadBytes is the uninterpreted bytes of a Mach-O load command.
 type LoadBytes []byte
 
-func (b LoadBytes) Raw() []byte {
-	return b;
-}
+func (b LoadBytes) Raw() []byte	{ return b }
 
 // A SegmentHeader is the header for a Mach-O 32-bit or 64-bit load segment command.
 type SegmentHeader struct {
@@ -77,9 +75,7 @@ func (s *Segment) Data() ([]byte, os.Error) {
 }
 
 // Open returns a new ReadSeeker reading the segment.
-func (s *Segment) Open() io.ReadSeeker {
-	return io.NewSectionReader(s.sr, 0, 1<<63 - 1);
-}
+func (s *Segment) Open() io.ReadSeeker	{ return io.NewSectionReader(s.sr, 0, 1<<63 - 1) }
 
 type SectionHeader struct {
 	Name	string;
@@ -114,9 +110,7 @@ func (s *Section) Data() ([]byte, os.Error) {
 }
 
 // Open returns a new ReadSeeker reading the Mach-O section.
-func (s *Section) Open() io.ReadSeeker {
-	return io.NewSectionReader(s.sr, 0, 1<<63 - 1);
-}
+func (s *Section) Open() io.ReadSeeker	{ return io.NewSectionReader(s.sr, 0, 1<<63 - 1) }
 
 
 /*

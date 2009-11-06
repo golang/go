@@ -165,9 +165,7 @@ func indentLen(s []byte) int {
 }
 
 
-func isBlank(s []byte) bool {
-	return len(s) == 0 || (len(s) == 1 && s[0] == '\n');
-}
+func isBlank(s []byte) bool	{ return len(s) == 0 || (len(s) == 1 && s[0] == '\n') }
 
 
 func commonPrefix(a, b []byte) []byte {

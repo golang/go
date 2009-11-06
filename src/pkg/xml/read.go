@@ -128,9 +128,7 @@ func Unmarshal(r io.Reader, val interface{}) os.Error {
 // An UnmarshalError represents an error in the unmarshalling process.
 type UnmarshalError string
 
-func (e UnmarshalError) String() string {
-	return string(e);
-}
+func (e UnmarshalError) String() string	{ return string(e) }
 
 // The Parser's Unmarshal method is like xml.Unmarshal
 // except that it can be passed a pointer to the initial start element,

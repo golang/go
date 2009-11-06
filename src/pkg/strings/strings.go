@@ -107,9 +107,7 @@ func genSplit(s, sep string, sepSave, n int) []string {
 // Split splits the string s around each instance of sep, returning an array of substrings of s.
 // If sep is empty, Split splits s after each UTF-8 sequence.
 // If n > 0, split Splits s into at most n substrings; the last substring will be the unsplit remainder.
-func Split(s, sep string, n int) []string {
-	return genSplit(s, sep, 0, n);
-}
+func Split(s, sep string, n int) []string	{ return genSplit(s, sep, 0, n) }
 
 // SplitAfter splits the string s after each instance of sep, returning an array of substrings of s.
 // If sep is empty, SplitAfter splits s after each UTF-8 sequence.
@@ -191,19 +189,13 @@ func Map(mapping func(rune int) int, s string) string {
 }
 
 // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
-func ToUpper(s string) string {
-	return Map(unicode.ToUpper, s);
-}
+func ToUpper(s string) string	{ return Map(unicode.ToUpper, s) }
 
 // ToUpper returns a copy of the string s with all Unicode letters mapped to their lower case.
-func ToLower(s string) string {
-	return Map(unicode.ToLower, s);
-}
+func ToLower(s string) string	{ return Map(unicode.ToLower, s) }
 
 // ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.
-func ToTitle(s string) string {
-	return Map(unicode.ToTitle, s);
-}
+func ToTitle(s string) string	{ return Map(unicode.ToTitle, s) }
 
 // Trim returns a slice of the string s, with all leading and trailing white space
 // removed, as defined by Unicode.

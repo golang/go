@@ -16,14 +16,10 @@ type buffer struct {
 }
 
 
-func (b *buffer) init(n int) {
-	b.a = make([]byte, n)[0:0];
-}
+func (b *buffer) init(n int)	{ b.a = make([]byte, n)[0:0] }
 
 
-func (b *buffer) clear() {
-	b.a = b.a[0:0];
-}
+func (b *buffer) clear()	{ b.a = b.a[0:0] }
 
 
 func (b *buffer) Write(buf []byte) (written int, err os.Error) {
@@ -41,9 +37,7 @@ func (b *buffer) Write(buf []byte) (written int, err os.Error) {
 }
 
 
-func (b *buffer) String() string {
-	return string(b.a);
-}
+func (b *buffer) String() string	{ return string(b.a) }
 
 
 func write(t *testing.T, testname string, w *Writer, src string) {

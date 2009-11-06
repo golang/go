@@ -138,9 +138,7 @@ func sum(r *Ring) int {
 }
 
 
-func sumN(n int) int {
-	return (n*n + n)/2;
-}
+func sumN(n int) int	{ return (n*n + n)/2 }
 
 
 func TestNew(t *testing.T) {

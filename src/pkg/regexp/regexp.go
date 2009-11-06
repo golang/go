@@ -62,18 +62,10 @@ type common struct {
 	_index	int;
 }
 
-func (c *common) next() instr {
-	return c._next;
-}
-func (c *common) setNext(i instr) {
-	c._next = i;
-}
-func (c *common) index() int {
-	return c._index;
-}
-func (c *common) setIndex(i int) {
-	c._index = i;
-}
+func (c *common) next() instr		{ return c._next }
+func (c *common) setNext(i instr)	{ c._next = i }
+func (c *common) index() int		{ return c._index }
+func (c *common) setIndex(i int)	{ c._index = i }
 
 // Regexp is the representation of a compiled regular expression.
 // The public interface is entirely through methods.
@@ -104,48 +96,32 @@ type _Start struct {
 	common;
 }
 
-func (start *_Start) kind() int {
-	return _START;
-}
-func (start *_Start) print() {
-	print("start");
-}
+func (start *_Start) kind() int	{ return _START }
+func (start *_Start) print()	{ print("start") }
 
 // --- END end of program
 type _End struct {
 	common;
 }
 
-func (end *_End) kind() int {
-	return _END;
-}
-func (end *_End) print() {
-	print("end");
-}
+func (end *_End) kind() int	{ return _END }
+func (end *_End) print()	{ print("end") }
 
 // --- BOT beginning of text
 type _Bot struct {
 	common;
 }
 
-func (bot *_Bot) kind() int {
-	return _BOT;
-}
-func (bot *_Bot) print() {
-	print("bot");
-}
+func (bot *_Bot) kind() int	{ return _BOT }
+func (bot *_Bot) print()	{ print("bot") }
 
 // --- EOT end of text
 type _Eot struct {
 	common;
 }
 
-func (eot *_Eot) kind() int {
-	return _EOT;
-}
-func (eot *_Eot) print() {
-	print("eot");
-}
+func (eot *_Eot) kind() int	{ return _EOT }
+func (eot *_Eot) print()	{ print("eot") }
 
 // --- CHAR a regular character
 type _Char struct {
@@ -153,12 +129,8 @@ type _Char struct {
 	char	int;
 }
 
-func (char *_Char) kind() int {
-	return _CHAR;
-}
-func (char *_Char) print() {
-	print("char ", string(char.char));
-}
+func (char *_Char) kind() int	{ return _CHAR }
+func (char *_Char) print()	{ print("char ", string(char.char)) }
 
 func newChar(char int) *_Char {
 	c := new(_Char);
@@ -176,9 +148,7 @@ type _CharClass struct {
 	ranges	*vector.IntVector;
 }
 
-func (cclass *_CharClass) kind() int {
-	return _CHARCLASS;
-}
+func (cclass *_CharClass) kind() int	{ return _CHARCLASS }
 
 func (cclass *_CharClass) print() {
 	print("charclass");
@@ -224,24 +194,16 @@ type _Any struct {
 	common;
 }
 
-func (any *_Any) kind() int {
-	return _ANY;
-}
-func (any *_Any) print() {
-	print("any");
-}
+func (any *_Any) kind() int	{ return _ANY }
+func (any *_Any) print()	{ print("any") }
 
 // --- NOTNL any character but newline
 type _NotNl struct {
 	common;
 }
 
-func (notnl *_NotNl) kind() int {
-	return _NOTNL;
-}
-func (notnl *_NotNl) print() {
-	print("notnl");
-}
+func (notnl *_NotNl) kind() int	{ return _NOTNL }
+func (notnl *_NotNl) print()	{ print("notnl") }
 
 // --- BRA parenthesized expression
 type _Bra struct {
@@ -249,12 +211,8 @@ type _Bra struct {
 	n	int;	// subexpression number
 }
 
-func (bra *_Bra) kind() int {
-	return _BRA;
-}
-func (bra *_Bra) print() {
-	print("bra", bra.n);
-}
+func (bra *_Bra) kind() int	{ return _BRA }
+func (bra *_Bra) print()	{ print("bra", bra.n) }
 
 // --- EBRA end of parenthesized expression
 type _Ebra struct {
@@ -262,12 +220,8 @@ type _Ebra struct {
 	n	int;	// subexpression number
 }
 
-func (ebra *_Ebra) kind() int {
-	return _EBRA;
-}
-func (ebra *_Ebra) print() {
-	print("ebra ", ebra.n);
-}
+func (ebra *_Ebra) kind() int	{ return _EBRA }
+func (ebra *_Ebra) print()	{ print("ebra ", ebra.n) }
 
 // --- ALT alternation
 type _Alt struct {
@@ -275,24 +229,16 @@ type _Alt struct {
 	left	instr;	// other branch
 }
 
-func (alt *_Alt) kind() int {
-	return _ALT;
-}
-func (alt *_Alt) print() {
-	print("alt(", alt.left.index(), ")");
-}
+func (alt *_Alt) kind() int	{ return _ALT }
+func (alt *_Alt) print()	{ print("alt(", alt.left.index(), ")") }
 
 // --- NOP no operation
 type _Nop struct {
 	common;
 }
 
-func (nop *_Nop) kind() int {
-	return _NOP;
-}
-func (nop *_Nop) print() {
-	print("nop");
-}
+func (nop *_Nop) kind() int	{ return _NOP }
+func (nop *_Nop) print()	{ print("nop") }
 
 func (re *Regexp) add(i instr) instr {
 	i.setIndex(re.inst.Len());
@@ -310,9 +256,7 @@ type parser struct {
 
 const endOfFile = -1
 
-func (p *parser) c() int {
-	return p.ch;
-}
+func (p *parser) c() int	{ return p.ch }
 
 func (p *parser) nextc() int {
 	if p.pos >= len(p.re.expr) {
@@ -840,23 +784,17 @@ func (re *Regexp) ExecuteString(s string) (a []int) {
 //    b[a[2*i]:a[2*i+1]] for i > 0 is the subslice matched by the ith parenthesized subexpression.
 // A negative value means the subexpression did not match any element of the slice.
 // An empty array means "no match".
-func (re *Regexp) Execute(b []byte) (a []int) {
-	return re.doExecute("", b, 0);
-}
+func (re *Regexp) Execute(b []byte) (a []int)	{ return re.doExecute("", b, 0) }
 
 
 // MatchString returns whether the Regexp matches the string s.
 // The return value is a boolean: true for match, false for no match.
-func (re *Regexp) MatchString(s string) bool {
-	return len(re.doExecute(s, nil, 0)) > 0;
-}
+func (re *Regexp) MatchString(s string) bool	{ return len(re.doExecute(s, nil, 0)) > 0 }
 
 
 // Match returns whether the Regexp matches the byte slice b.
 // The return value is a boolean: true for match, false for no match.
-func (re *Regexp) Match(b []byte) bool {
-	return len(re.doExecute("", b, 0)) > 0;
-}
+func (re *Regexp) Match(b []byte) bool	{ return len(re.doExecute("", b, 0)) > 0 }
 
 
 // MatchStrings matches the Regexp against the string s.

@@ -64,9 +64,7 @@ func (h *hmac) Write(p []byte) (n int, err os.Error) {
 	return h.inner.Write(p);
 }
 
-func (h *hmac) Size() int {
-	return h.size;
-}
+func (h *hmac) Size() int	{ return h.size }
 
 func (h *hmac) Reset() {
 	h.inner.Reset();
@@ -94,11 +92,7 @@ func New(h hash.Hash, key []byte) hash.Hash {
 }
 
 // NewMD5 returns a new HMAC-MD5 hash using the given key.
-func NewMD5(key []byte) hash.Hash {
-	return New(md5.New(), key);
-}
+func NewMD5(key []byte) hash.Hash	{ return New(md5.New(), key) }
 
 // NewSHA1 returns a new HMAC-SHA1 hash using the given key.
-func NewSHA1(key []byte) hash.Hash {
-	return New(sha1.New(), key);
-}
+func NewSHA1(key []byte) hash.Hash	{ return New(sha1.New(), key) }

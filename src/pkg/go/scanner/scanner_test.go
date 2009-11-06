@@ -357,7 +357,9 @@ func TestStdErrorHander(t *testing.T) {
 
 	v := NewErrorVector();
 	nerrors := Tokenize("File1", strings.Bytes(src), v, 0,
-		func(pos token.Position, tok token.Token, litb []byte) bool { return tok != token.EOF });
+		func(pos token.Position, tok token.Token, litb []byte) bool {
+			return tok != token.EOF;
+		});
 
 	list := v.GetErrorList(Raw);
 	if len(list) != 9 {

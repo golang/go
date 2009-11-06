@@ -136,13 +136,9 @@ func newPrinter() *pp {
 	return p;
 }
 
-func (p *pp) Width() (wid int, ok bool) {
-	return p.fmt.wid, p.fmt.wid_present;
-}
+func (p *pp) Width() (wid int, ok bool)	{ return p.fmt.wid, p.fmt.wid_present }
 
-func (p *pp) Precision() (prec int, ok bool) {
-	return p.fmt.prec, p.fmt.prec_present;
-}
+func (p *pp) Precision() (prec int, ok bool)	{ return p.fmt.prec, p.fmt.prec_present }
 
 func (p *pp) Flag(b int) bool {
 	switch b {

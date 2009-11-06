@@ -36,31 +36,19 @@ func Itob64(i int64, base uint) string {
 }
 
 // Itoa64 returns the decimal string representation of i.
-func Itoa64(i int64) string {
-	return Itob64(i, 10);
-}
+func Itoa64(i int64) string	{ return Itob64(i, 10) }
 
 // Uitoa64 returns the decimal string representation of i.
-func Uitoa64(i uint64) string {
-	return Uitob64(i, 10);
-}
+func Uitoa64(i uint64) string	{ return Uitob64(i, 10) }
 
 // Uitob returns the string representation of i in the given base.
-func Uitob(i uint, base uint) string {
-	return Uitob64(uint64(i), base);
-}
+func Uitob(i uint, base uint) string	{ return Uitob64(uint64(i), base) }
 
 // Itob returns the string representation of i in the given base.
-func Itob(i int, base uint) string {
-	return Itob64(int64(i), base);
-}
+func Itob(i int, base uint) string	{ return Itob64(int64(i), base) }
 
 // Itoa returns the decimal string representation of i.
-func Itoa(i int) string {
-	return Itob64(int64(i), 10);
-}
+func Itoa(i int) string	{ return Itob64(int64(i), 10) }
 
 // Uitoa returns the decimal string representation of i.
-func Uitoa(i uint) string {
-	return Uitob64(uint64(i), 10);
-}
+func Uitoa(i uint) string	{ return Uitob64(uint64(i), 10) }

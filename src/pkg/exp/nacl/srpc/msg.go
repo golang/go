@@ -226,9 +226,7 @@ func (m *msg) grow(n int) []byte {
 	return m.wdata[i : i+n];
 }
 
-func (m *msg) wuint8(x uint8) {
-	m.grow(1)[0] = x;
-}
+func (m *msg) wuint8(x uint8)	{ m.grow(1)[0] = x }
 
 func (m *msg) wuint32(x uint32) {
 	b := m.grow(4);
@@ -252,9 +250,7 @@ func (m *msg) wuint64(x uint64) {
 	b[7] = byte(hi>>24);
 }
 
-func (m *msg) wbytes(p []byte) {
-	bytes.Copy(m.grow(len(p)), p);
-}
+func (m *msg) wbytes(p []byte)	{ bytes.Copy(m.grow(len(p)), p) }
 
 func (m *msg) wstring(s string) {
 	b := m.grow(len(s));

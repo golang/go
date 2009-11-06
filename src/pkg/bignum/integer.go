@@ -64,55 +64,41 @@ func (x *Integer) Value() int64 {
 
 // Abs returns the absolute value of x.
 //
-func (x *Integer) Abs() Natural {
-	return x.mant;
-}
+func (x *Integer) Abs() Natural	{ return x.mant }
 
 
 // Predicates
 
 // IsEven returns true iff x is divisible by 2.
 //
-func (x *Integer) IsEven() bool {
-	return x.mant.IsEven();
-}
+func (x *Integer) IsEven() bool	{ return x.mant.IsEven() }
 
 
 // IsOdd returns true iff x is not divisible by 2.
 //
-func (x *Integer) IsOdd() bool {
-	return x.mant.IsOdd();
-}
+func (x *Integer) IsOdd() bool	{ return x.mant.IsOdd() }
 
 
 // IsZero returns true iff x == 0.
 //
-func (x *Integer) IsZero() bool {
-	return x.mant.IsZero();
-}
+func (x *Integer) IsZero() bool	{ return x.mant.IsZero() }
 
 
 // IsNeg returns true iff x < 0.
 //
-func (x *Integer) IsNeg() bool {
-	return x.sign && !x.mant.IsZero();
-}
+func (x *Integer) IsNeg() bool	{ return x.sign && !x.mant.IsZero() }
 
 
 // IsPos returns true iff x >= 0.
 //
-func (x *Integer) IsPos() bool {
-	return !x.sign && !x.mant.IsZero();
-}
+func (x *Integer) IsPos() bool	{ return !x.sign && !x.mant.IsZero() }
 
 
 // Operations
 
 // Neg returns the negated value of x.
 //
-func (x *Integer) Neg() *Integer {
-	return MakeInt(!x.sign, x.mant);
-}
+func (x *Integer) Neg() *Integer	{ return MakeInt(!x.sign, x.mant) }
 
 
 // Iadd sets z to the sum x + y.
@@ -323,9 +309,7 @@ func (x *Integer) DivMod(y *Integer) (*Integer, *Integer) {
 
 // Shl implements ``shift left'' x << s. It returns x * 2^s.
 //
-func (x *Integer) Shl(s uint) *Integer {
-	return MakeInt(x.sign, x.mant.Shl(s));
-}
+func (x *Integer) Shl(s uint) *Integer	{ return MakeInt(x.sign, x.mant.Shl(s)) }
 
 
 // The bitwise operations on integers are defined on the 2's-complement
@@ -504,17 +488,13 @@ func (x *Integer) ToString(base uint) string {
 // String converts x to its decimal string representation.
 // x.String() is the same as x.ToString(10).
 //
-func (x *Integer) String() string {
-	return x.ToString(10);
-}
+func (x *Integer) String() string	{ return x.ToString(10) }
 
 
 // Format is a support routine for fmt.Formatter. It accepts
 // the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
 //
-func (x *Integer) Format(h fmt.State, c int) {
-	fmt.Fprintf(h, "%s", x.ToString(fmtbase(c)));
-}
+func (x *Integer) Format(h fmt.State, c int)	{ fmt.Fprintf(h, "%s", x.ToString(fmtbase(c))) }
 
 
 // IntFromString returns the integer corresponding to the

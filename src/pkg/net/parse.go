@@ -17,9 +17,7 @@ type file struct {
 	data	[]byte;
 }
 
-func (f *file) close() {
-	f.file.Close();
-}
+func (f *file) close()	{ f.file.Close() }
 
 func (f *file) getLineFromData() (s string, ok bool) {
 	data := f.data;
@@ -104,9 +102,7 @@ func splitAtBytes(s string, t string) []string {
 	return a[0:n];
 }
 
-func getFields(s string) []string {
-	return splitAtBytes(s, " \r\t\n");
-}
+func getFields(s string) []string	{ return splitAtBytes(s, " \r\t\n") }
 
 // Bigger than we need, not too big to worry about overflow
 const big = 0xFFFFFF

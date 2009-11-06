@@ -312,9 +312,7 @@ func (e *encoder) writeIDATs() {
 	e.err = bw.Flush();
 }
 
-func (e *encoder) writeIEND() {
-	e.writeChunk(e.tmp[0:0], "IEND");
-}
+func (e *encoder) writeIEND()	{ e.writeChunk(e.tmp[0:0], "IEND") }
 
 // Encode writes the Image m to w in PNG format. Any Image may be encoded, but
 // images that are not image.NRGBA might be encoded lossily.

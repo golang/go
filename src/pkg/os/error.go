@@ -15,26 +15,20 @@ type Error interface {
 // Error.
 type ErrorString string
 
-func (e ErrorString) String() string {
-	return string(e);
-}
+func (e ErrorString) String() string	{ return string(e) }
 
 // Note: If the name of the function NewError changes,
 // pkg/go/doc/doc.go should be adjusted since it hardwires
 // this name in a heuristic.
 
 // NewError converts s to an ErrorString, which satisfies the Error interface.
-func NewError(s string) Error {
-	return ErrorString(s);
-}
+func NewError(s string) Error	{ return ErrorString(s) }
 
 // Errno is the Unix error number.  Names such as EINVAL are simple
 // wrappers to convert the error number into an Error.
 type Errno int64
 
-func (e Errno) String() string {
-	return syscall.Errstr(int(e));
-}
+func (e Errno) String() string	{ return syscall.Errstr(int(e)) }
 
 // Commonly known Unix errors.
 var (
@@ -84,9 +78,7 @@ type PathError struct {
 	Error	Error;
 }
 
-func (e *PathError) String() string {
-	return e.Op + " " + e.Path + ": " + e.Error.String();
-}
+func (e *PathError) String() string	{ return e.Op + " " + e.Path + ": " + e.Error.String() }
 
 // SyscallError records an error from a specific system call.
 type SyscallError struct {
@@ -94,9 +86,7 @@ type SyscallError struct {
 	Errno	Errno;
 }
 
-func (e *SyscallError) String() string {
-	return e.Syscall + ": " + e.Errno.String();
-}
+func (e *SyscallError) String() string	{ return e.Syscall + ": " + e.Errno.String() }
 
 // Note: If the name of the function NewSyscallError changes,
 // pkg/go/doc/doc.go should be adjusted since it hardwires

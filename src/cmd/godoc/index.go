@@ -50,9 +50,7 @@ type RunList struct {
 	less	func(x, y interface{}) bool;
 }
 
-func (h *RunList) Less(i, j int) bool {
-	return h.less(h.At(i), h.At(j));
-}
+func (h *RunList) Less(i, j int) bool	{ return h.less(h.At(i), h.At(j)) }
 
 
 func (h *RunList) sort(less func(x, y interface{}) bool) {
@@ -142,24 +140,16 @@ func makeSpotInfo(kind SpotKind, lori int, isIndex bool) SpotInfo {
 }
 
 
-func (x SpotInfo) less(y SpotInfo) bool {
-	return x.Lori() < y.Lori();
-}
+func (x SpotInfo) less(y SpotInfo) bool	{ return x.Lori() < y.Lori() }
 
 
-func (x SpotInfo) Kind() SpotKind {
-	return SpotKind(x>>1&7);
-}
+func (x SpotInfo) Kind() SpotKind	{ return SpotKind(x>>1&7) }
 
 
-func (x SpotInfo) Lori() int {
-	return int(x>>4);
-}
+func (x SpotInfo) Lori() int	{ return int(x>>4) }
 
 
-func (x SpotInfo) IsIndex() bool {
-	return x&1 != 0;
-}
+func (x SpotInfo) IsIndex() bool	{ return x&1 != 0 }
 
 
 // A Pak describes a Go package.
@@ -182,9 +172,7 @@ type File struct {
 }
 
 
-func (f *File) less(g *File) bool {
-	return f.Path < g.Path;
-}
+func (f *File) less(g *File) bool	{ return f.Path < g.Path }
 
 
 // A Spot describes a single occurence of a word.
@@ -195,9 +183,7 @@ type Spot struct {
 
 
 // Spots are sorted by filename.
-func lessSpot(x, y interface{}) bool {
-	return x.(Spot).File.less(y.(Spot).File);
-}
+func lessSpot(x, y interface{}) bool	{ return x.(Spot).File.less(y.(Spot).File) }
 
 
 // A FileRun describes a run of Spots of a word in a single file.
@@ -207,15 +193,9 @@ type FileRun struct {
 }
 
 
-func (f *FileRun) Len() int {
-	return len(f.Infos);
-}
-func (f *FileRun) Less(i, j int) bool {
-	return f.Infos[i].less(f.Infos[j]);
-}
-func (f *FileRun) Swap(i, j int) {
-	f.Infos[i], f.Infos[j] = f.Infos[j], f.Infos[i];
-}
+func (f *FileRun) Len() int		{ return len(f.Infos) }
+func (f *FileRun) Less(i, j int) bool	{ return f.Infos[i].less(f.Infos[j]) }
+func (f *FileRun) Swap(i, j int)	{ f.Infos[i], f.Infos[j] = f.Infos[j], f.Infos[i] }
 
 
 // newFileRun allocates a new *FileRun from the Spot run [i, j) in h.
@@ -263,15 +243,9 @@ type PakRun struct {
 }
 
 // Sorting support for files within a PakRun.
-func (p *PakRun) Len() int {
-	return len(p.Files);
-}
-func (p *PakRun) Less(i, j int) bool {
-	return p.Files[i].File.less(p.Files[j].File);
-}
-func (p *PakRun) Swap(i, j int) {
-	p.Files[i], p.Files[j] = p.Files[j], p.Files[i];
-}
+func (p *PakRun) Len() int		{ return len(p.Files) }
+func (p *PakRun) Less(i, j int) bool	{ return p.Files[i].File.less(p.Files[j].File) }
+func (p *PakRun) Swap(i, j int)		{ p.Files[i], p.Files[j] = p.Files[j], p.Files[i] }
 
 
 // newPakRun allocates a new *PakRun from the *FileRun run [i, j) in h.
@@ -290,9 +264,7 @@ func newPakRun(h *RunList, i, j int) interface{} {
 
 
 // PakRuns are sorted by package.
-func lessPakRun(x, y interface{}) bool {
-	return x.(*PakRun).Pak.less(&y.(*PakRun).Pak);
-}
+func lessPakRun(x, y interface{}) bool	{ return x.(*PakRun).Pak.less(&y.(*PakRun).Pak) }
 
 
 // A HitList describes a list of PakRuns.
@@ -350,9 +322,7 @@ type AltWords struct {
 }
 
 
-func lessWordPair(x, y interface{}) bool {
-	return x.(*wordPair).canon < y.(*wordPair).canon;
-}
+func lessWordPair(x, y interface{}) bool	{ return x.(*wordPair).canon < y.(*wordPair).canon }
 
 
 // newAltWords allocates a new *AltWords from the *wordPair run [i, j) in h.
@@ -591,9 +561,7 @@ type Index struct {
 }
 
 
-func canonical(w string) string {
-	return strings.ToLower(w);
-}
+func canonical(w string) string	{ return strings.ToLower(w) }
 
 
 // NewIndex creates a new index for the file tree rooted at root.

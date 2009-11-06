@@ -92,14 +92,10 @@ type Writer struct {
 }
 
 
-func (b *Writer) addLine() {
-	b.lines.Push(vector.New(0));
-}
+func (b *Writer) addLine()	{ b.lines.Push(vector.New(0)) }
 
 
-func (b *Writer) line(i int) *vector.Vector {
-	return b.lines.At(i).(*vector.Vector);
-}
+func (b *Writer) line(i int) *vector.Vector	{ return b.lines.At(i).(*vector.Vector) }
 
 
 // Reset the current state.

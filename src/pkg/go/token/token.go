@@ -308,23 +308,17 @@ func Lookup(ident []byte) Token {
 // IsLiteral returns true for tokens corresponding to identifiers
 // and basic type literals; returns false otherwise.
 //
-func (tok Token) IsLiteral() bool {
-	return literal_beg < tok && tok < literal_end;
-}
+func (tok Token) IsLiteral() bool	{ return literal_beg < tok && tok < literal_end }
 
 // IsOperator returns true for tokens corresponding to operators and
 // delimiters; returns false otherwise.
 //
-func (tok Token) IsOperator() bool {
-	return operator_beg < tok && tok < operator_end;
-}
+func (tok Token) IsOperator() bool	{ return operator_beg < tok && tok < operator_end }
 
 // IsKeyword returns true for tokens corresponding to keywords;
 // returns false otherwise.
 //
-func (tok Token) IsKeyword() bool {
-	return keyword_beg < tok && tok < keyword_end;
-}
+func (tok Token) IsKeyword() bool	{ return keyword_beg < tok && tok < keyword_end }
 
 
 // Token source positions are represented by a Position value.
@@ -341,15 +335,11 @@ type Position struct {
 // Pos is an accessor method for anonymous Position fields.
 // It returns its receiver.
 //
-func (pos *Position) Pos() Position {
-	return *pos;
-}
+func (pos *Position) Pos() Position	{ return *pos }
 
 
 // IsValid returns true if the position is valid.
-func (pos *Position) IsValid() bool {
-	return pos.Line > 0;
-}
+func (pos *Position) IsValid() bool	{ return pos.Line > 0 }
 
 
 func (pos Position) String() string {

@@ -27,6 +27,4 @@ func StringByteSlice(s string) []byte {
 
 // StringBytePtr returns a pointer to a NUL-terminated array of bytes
 // containing the text of s.
-func StringBytePtr(s string) *byte {
-	return &StringByteSlice(s)[0];
-}
+func StringBytePtr(s string) *byte	{ return &StringByteSlice(s)[0] }

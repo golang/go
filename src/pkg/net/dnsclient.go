@@ -178,9 +178,7 @@ func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
 var cfg *_DNS_Config
 var dnserr os.Error
 
-func loadConfig() {
-	cfg, dnserr = _DNS_ReadConfig();
-}
+func loadConfig()	{ cfg, dnserr = _DNS_ReadConfig() }
 
 func isDomainName(s string) bool {
 	// Requirements on DNS name:

@@ -166,9 +166,7 @@ func (r *PipeReader) CloseWithError(rerr os.Error) os.Error {
 	return r.p.CloseReader(rerr);
 }
 
-func (r *PipeReader) finish() {
-	r.Close();
-}
+func (r *PipeReader) finish()	{ r.Close() }
 
 // Write half of pipe.
 type PipeWriter struct {
@@ -206,9 +204,7 @@ func (w *PipeWriter) CloseWithError(werr os.Error) os.Error {
 	return w.p.CloseWriter(werr);
 }
 
-func (w *PipeWriter) finish() {
-	w.Close();
-}
+func (w *PipeWriter) finish()	{ w.Close() }
 
 // Pipe creates a synchronous in-memory pipe.
 // It can be used to connect code expecting an io.Reader

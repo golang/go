@@ -47,14 +47,10 @@ type T struct {
 }
 
 // Fail marks the Test function as having failed but continues execution.
-func (t *T) Fail() {
-	t.failed = true;
-}
+func (t *T) Fail()	{ t.failed = true }
 
 // Failed returns whether the Test function has failed.
-func (t *T) Failed() bool {
-	return t.failed;
-}
+func (t *T) Failed() bool	{ return t.failed }
 
 // FailNow marks the Test function as having failed and stops its execution.
 // Execution will continue at the next Test.
@@ -66,9 +62,7 @@ func (t *T) FailNow() {
 
 // Log formats its arguments using default formatting, analogous to Print(),
 // and records the text in the error log.
-func (t *T) Log(args ...) {
-	t.errors += "\t"+tabify(fmt.Sprintln(args));
-}
+func (t *T) Log(args ...)	{ t.errors += "\t"+tabify(fmt.Sprintln(args)) }
 
 // Log formats its arguments according to the format, analogous to Printf(),
 // and records the text in the error log.

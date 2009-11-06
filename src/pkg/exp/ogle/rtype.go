@@ -144,9 +144,7 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 		}
 		log.Stderrf("%sParsing type at %#x (%s)", prtIndent, addr, name);
 		prtIndent += " ";
-		defer func() {
-			prtIndent = prtIndent[0 : len(prtIndent)-1];
-		}();
+		defer func() { prtIndent = prtIndent[0 : len(prtIndent)-1] }();
 	}
 
 	// Get Type header

@@ -198,6 +198,4 @@ func (serviceDiscovery) Run(arg, ret []interface{}, size []int) Errno {
 	return OK;
 }
 
-func init() {
-	Add("service_discovery", ":C", serviceDiscovery{});
-}
+func init()	{ Add("service_discovery", ":C", serviceDiscovery{}) }

@@ -121,9 +121,7 @@ func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, D
 	return v, nil;
 }
 
-func (b *block) DefineTemp(t Type) *Variable {
-	return b.defineSlot(t, true);
-}
+func (b *block) DefineTemp(t Type) *Variable	{ return b.defineSlot(t, true) }
 
 func (b *block) defineSlot(t Type, temp bool) *Variable {
 	if b.inner != nil && b.inner.scope == b.scope {
@@ -175,9 +173,7 @@ func (b *block) Lookup(name string) (bl *block, level int, def Def) {
 	return nil, 0, nil;
 }
 
-func (s *Scope) NewFrame(outer *Frame) *Frame {
-	return outer.child(s.maxVars);
-}
+func (s *Scope) NewFrame(outer *Frame) *Frame	{ return outer.child(s.maxVars) }
 
 /*
  * Frames

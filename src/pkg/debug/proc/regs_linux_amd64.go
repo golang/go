@@ -48,9 +48,7 @@ var names = [...]string{
 	//"gs_base",
 }
 
-func (r *amd64Regs) PC() Word {
-	return Word(r.Rip);
-}
+func (r *amd64Regs) PC() Word	{ return Word(r.Rip) }
 
 func (r *amd64Regs) SetPC(val Word) os.Error {
 	r.Rip = uint64(val);
@@ -66,18 +64,14 @@ func (r *amd64Regs) SetLink(val Word) os.Error {
 	panic("No link register");
 }
 
-func (r *amd64Regs) SP() Word {
-	return Word(r.Rsp);
-}
+func (r *amd64Regs) SP() Word	{ return Word(r.Rsp) }
 
 func (r *amd64Regs) SetSP(val Word) os.Error {
 	r.Rsp = uint64(val);
 	return r.setter(&r.PtraceRegs);
 }
 
-func (r *amd64Regs) Names() []string {
-	return &names;
-}
+func (r *amd64Regs) Names() []string	{ return &names }
 
 func (r *amd64Regs) Get(i int) Word {
 	switch i {

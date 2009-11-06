@@ -27,9 +27,7 @@ type Int struct {
 	mu	sync.Mutex;
 }
 
-func (v *Int) String() string {
-	return strconv.Itoa64(v.i);
-}
+func (v *Int) String() string	{ return strconv.Itoa64(v.i) }
 
 func (v *Int) Add(delta int64) {
 	v.mu.Lock();
@@ -120,21 +118,15 @@ type String struct {
 	s string;
 }
 
-func (v *String) String() string {
-	return strconv.Quote(v.s);
-}
+func (v *String) String() string	{ return strconv.Quote(v.s) }
 
-func (v *String) Set(value string) {
-	v.s = value;
-}
+func (v *String) Set(value string)	{ v.s = value }
 
 // IntFunc wraps a func() int64 to create a value that satisfies the Var interface.
 // The function will be called each time the Var is evaluated.
 type IntFunc func() int64
 
-func (v IntFunc) String() string {
-	return strconv.Itoa64(v());
-}
+func (v IntFunc) String() string	{ return strconv.Itoa64(v()) }
 
 
 // All published variables.
@@ -217,6 +209,4 @@ func expvarHandler(c *http.Conn, req *http.Request) {
 	fmt.Fprintf(c, "\n}\n");
 }
 
-func init() {
-	http.Handle("/debug/vars", http.HandlerFunc(expvarHandler));
-}
+func init()	{ http.Handle("/debug/vars", http.HandlerFunc(expvarHandler)) }

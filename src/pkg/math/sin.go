@@ -58,6 +58,4 @@ func Cos(x float64) float64 {
 }
 
 // Sin returns the sine of x.
-func Sin(x float64) float64 {
-	return sinus(x, 0);
-}
+func Sin(x float64) float64	{ return sinus(x, 0) }

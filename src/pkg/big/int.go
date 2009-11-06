@@ -27,9 +27,7 @@ func (z *Int) New(x int64) *Int {
 
 
 // NewInt allocates and returns a new Int set to x.
-func NewInt(x int64) *Int {
-	return new(Int).New(x);
-}
+func NewInt(x int64) *Int	{ return new(Int).New(x) }
 
 
 // Set sets z to x.

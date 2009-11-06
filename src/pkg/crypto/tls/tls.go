@@ -155,13 +155,9 @@ func (l Listener) Accept() (c net.Conn, err os.Error) {
 	return;
 }
 
-func (l Listener) Close() os.Error {
-	return l.listener.Close();
-}
+func (l Listener) Close() os.Error	{ return l.listener.Close() }
 
-func (l Listener) Addr() net.Addr {
-	return l.listener.Addr();
-}
+func (l Listener) Addr() net.Addr	{ return l.listener.Addr() }
 
 // NewListener creates a Listener which accepts connections from an inner
 // Listener and wraps each connection with Server.

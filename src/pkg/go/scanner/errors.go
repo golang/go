@@ -39,9 +39,7 @@ type ErrorVector struct {
 
 
 // Init initializes an ErrorVector.
-func (h *ErrorVector) Init() {
-	h.errors.Init(0);
-}
+func (h *ErrorVector) Init()	{ h.errors.Init(0) }
 
 
 // NewErrorVector creates a new ErrorVector.
@@ -53,9 +51,7 @@ func NewErrorVector() *ErrorVector {
 
 
 // ErrorCount returns the number of errors collected.
-func (h *ErrorVector) ErrorCount() int {
-	return h.errors.Len();
-}
+func (h *ErrorVector) ErrorCount() int	{ return h.errors.Len() }
 
 
 // Within ErrorVector, an error is represented by an Error node. The
@@ -83,12 +79,8 @@ type ErrorList []*Error
 
 
 // ErrorList implements the sort Interface.
-func (p ErrorList) Len() int {
-	return len(p);
-}
-func (p ErrorList) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i];
-}
+func (p ErrorList) Len() int		{ return len(p) }
+func (p ErrorList) Swap(i, j int)	{ p[i], p[j] = p[j], p[i] }
 
 
 func (p ErrorList) Less(i, j int) bool {

@@ -34,9 +34,7 @@ var names = [...]string{
 	"gs",
 }
 
-func (r *_386Regs) PC() Word {
-	return Word(r.Eip);
-}
+func (r *_386Regs) PC() Word	{ return Word(r.Eip) }
 
 func (r *_386Regs) SetPC(val Word) os.Error {
 	r.Eip = int32(val);
@@ -48,22 +46,16 @@ func (r *_386Regs) Link() Word {
 	panic("No link register");
 }
 
-func (r *_386Regs) SetLink(val Word) os.Error {
-	panic("No link register");
-}
+func (r *_386Regs) SetLink(val Word) os.Error	{ panic("No link register") }
 
-func (r *_386Regs) SP() Word {
-	return Word(r.Esp);
-}
+func (r *_386Regs) SP() Word	{ return Word(r.Esp) }
 
 func (r *_386Regs) SetSP(val Word) os.Error {
 	r.Esp = int32(val);
 	return r.setter(&r.PtraceRegs);
 }
 
-func (r *_386Regs) Names() []string {
-	return &names;
-}
+func (r *_386Regs) Names() []string	{ return &names }
 
 func (r *_386Regs) Get(i int) Word {
 	switch i {

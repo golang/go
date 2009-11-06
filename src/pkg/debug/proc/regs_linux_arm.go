@@ -13,37 +13,21 @@ import (
 
 type armRegs struct{}
 
-func (r *armRegs) PC() Word {
-	return Word(0);
-}
+func (r *armRegs) PC() Word	{ return Word(0) }
 
-func (r *armRegs) SetPC(val Word) os.Error {
-	return nil;
-}
+func (r *armRegs) SetPC(val Word) os.Error	{ return nil }
 
-func (r *armRegs) Link() Word {
-	return Word(0);
-}
+func (r *armRegs) Link() Word	{ return Word(0) }
 
-func (r *armRegs) SetLink(val Word) os.Error {
-	return nil;
-}
+func (r *armRegs) SetLink(val Word) os.Error	{ return nil }
 
-func (r *armRegs) SP() Word {
-	return Word(0);
-}
+func (r *armRegs) SP() Word	{ return Word(0) }
 
-func (r *armRegs) SetSP(val Word) os.Error {
-	return nil;
-}
+func (r *armRegs) SetSP(val Word) os.Error	{ return nil }
 
-func (r *armRegs) Names() []string {
-	return nil;
-}
+func (r *armRegs) Names() []string	{ return nil }
 
-func (r *armRegs) Get(i int) Word {
-	return Word(0);
-}
+func (r *armRegs) Get(i int) Word	{ return Word(0) }
 
 func (r *armRegs) Set(i int, val Word) os.Error {
 	return nil;

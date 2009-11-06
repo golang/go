@@ -332,17 +332,13 @@ func newState(fmt Format, env Environment, errors chan os.Error) *State {
 
 
 // Env returns the environment passed to Format.Apply.
-func (s *State) Env() interface{} {
-	return s.env;
-}
+func (s *State) Env() interface{}	{ return s.env }
 
 
 // LinePos returns the position of the current line beginning
 // in the state's output buffer. Line numbers start at 1.
 //
-func (s *State) LinePos() token.Position {
-	return s.linePos;
-}
+func (s *State) LinePos() token.Position	{ return s.linePos }
 
 
 // Pos returns the position of the next byte to be written to the

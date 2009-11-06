@@ -6,8 +6,7 @@ package statements
 
 var expr bool
 
-func use(x interface{}) {
-}
+func use(x interface{})	{}
 
 // Formatting of if-statement headers.
 func _() {

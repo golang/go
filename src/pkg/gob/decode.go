@@ -579,7 +579,9 @@ func decIgnoreOpFor(wireId typeId) (decOp, os.Error) {
 			if err != nil {
 				return nil, err;
 			}
-			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) { state.err = ignoreSlice(state, elemOp) };
+			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
+				state.err = ignoreSlice(state, elemOp);
+			};
 
 		case *arrayType:
 			elemId := wireId.gobType().(*arrayType).Elem;

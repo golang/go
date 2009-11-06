@@ -201,9 +201,7 @@ func (f *Frame) aOuter(a aborter) *Frame {
 
 // Inner returns the Frame called by this Frame, or nil if this is the
 // innermost frame.
-func (f *Frame) Inner() *Frame {
-	return f.inner;
-}
+func (f *Frame) Inner() *Frame	{ return f.inner }
 
 func (f *Frame) String() string {
 	res := f.fn.Name;

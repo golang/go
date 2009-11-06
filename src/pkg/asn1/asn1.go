@@ -34,18 +34,14 @@ type StructuralError struct {
 	Msg string;
 }
 
-func (e StructuralError) String() string {
-	return "ASN.1 structure error: " + e.Msg;
-}
+func (e StructuralError) String() string	{ return "ASN.1 structure error: " + e.Msg }
 
 // A SyntaxError suggests that the ASN.1 data is invalid.
 type SyntaxError struct {
 	Msg string;
 }
 
-func (e SyntaxError) String() string {
-	return "ASN.1 syntax error: " + e.Msg;
-}
+func (e SyntaxError) String() string	{ return "ASN.1 syntax error: " + e.Msg }
 
 // We start by dealing with each of the primitive types in turn.
 
@@ -190,9 +186,7 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err os.Erro
 
 // UTCTime
 
-func isDigit(b byte) bool {
-	return '0' <= b && b <= '9';
-}
+func isDigit(b byte) bool	{ return '0' <= b && b <= '9' }
 
 // twoDigits returns the value of two, base 10 digits.
 func twoDigits(bytes []byte, max int) (int, bool) {

@@ -28,13 +28,9 @@ type TCPAddr struct {
 }
 
 // Network returns the address's network name, "tcp".
-func (a *TCPAddr) Network() string {
-	return "tcp";
-}
+func (a *TCPAddr) Network() string	{ return "tcp" }
 
-func (a *TCPAddr) String() string {
-	return joinHostPort(a.IP.String(), itoa(a.Port));
-}
+func (a *TCPAddr) String() string	{ return joinHostPort(a.IP.String(), itoa(a.Port)) }
 
 func (a *TCPAddr) family() int {
 	if a == nil || len(a.IP) <= 4 {
@@ -81,9 +77,7 @@ func newTCPConn(fd *netFD) *TCPConn {
 	return c;
 }
 
-func (c *TCPConn) ok() bool {
-	return c != nil && c.fd != nil;
-}
+func (c *TCPConn) ok() bool	{ return c != nil && c.fd != nil }
 
 // Implementation of the Conn interface - see Conn for documentation.
 
@@ -283,6 +277,4 @@ func (l *TCPListener) Close() os.Error {
 }
 
 // Addr returns the listener's network address, a *TCPAddr.
-func (l *TCPListener) Addr() Addr {
-	return l.fd.laddr;
-}
+func (l *TCPListener) Addr() Addr	{ return l.fd.laddr }

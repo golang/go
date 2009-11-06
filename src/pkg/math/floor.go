@@ -19,6 +19,4 @@ func Floor(x float64) float64 {
 }
 
 // Ceil returns the least integer value greater than or equal to x.
-func Ceil(x float64) float64 {
-	return -Floor(-x);
-}
+func Ceil(x float64) float64	{ return -Floor(-x) }

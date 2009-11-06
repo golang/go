@@ -16,17 +16,13 @@ import (
 // point to something in another process.
 type RemoteMismatchError string
 
-func (e RemoteMismatchError) String() string {
-	return string(e);
-}
+func (e RemoteMismatchError) String() string	{ return string(e) }
 
 // A ReadOnlyError occurs when attempting to set or assign to a
 // read-only value.
 type ReadOnlyError string
 
-func (e ReadOnlyError) String() string {
-	return string(e);
-}
+func (e ReadOnlyError) String() string	{ return string(e) }
 
 // A maker is a function that converts a remote address into an
 // interpreter Value.
@@ -78,9 +74,7 @@ func (v remote) Set(a aborter, size int, x uint64) {
 	}
 }
 
-func (v remote) plus(x proc.Word) remote {
-	return remote{v.base + x, v.p};
-}
+func (v remote) plus(x proc.Word) remote	{ return remote{v.base + x, v.p} }
 
 func tryRVString(f func(a aborter) string) string {
 	var s string;
@@ -107,13 +101,9 @@ func (v remoteBool) Assign(t *eval.Thread, o eval.Value) {
 	v.Set(t, o.(eval.BoolValue).Get(t));
 }
 
-func (v remoteBool) Get(t *eval.Thread) bool {
-	return v.aGet(t);
-}
+func (v remoteBool) Get(t *eval.Thread) bool	{ return v.aGet(t) }
 
-func (v remoteBool) aGet(a aborter) bool {
-	return v.r.Get(a, 1) != 0;
-}
+func (v remoteBool) aGet(a aborter) bool	{ return v.r.Get(a, 1) != 0 }
 
 func (v remoteBool) Set(t *eval.Thread, x bool) {
 	v.aSet(t, x);
@@ -127,13 +117,9 @@ func (v remoteBool) aSet(a aborter, x bool) {
 	}
 }
 
-func (v remoteBool) addr() remote {
-	return v.r;
-}
+func (v remoteBool) addr() remote	{ return v.r }
 
-func mkBool(r remote) eval.Value {
-	return remoteBool{r};
-}
+func mkBool(r remote) eval.Value	{ return remoteBool{r} }
 
 /*
  * Uint
@@ -156,45 +142,27 @@ func (v remoteUint) Get(t *eval.Thread) uint64 {
 	return v.aGet(t);
 }
 
-func (v remoteUint) aGet(a aborter) uint64 {
-	return v.r.Get(a, v.size);
-}
+func (v remoteUint) aGet(a aborter) uint64	{ return v.r.Get(a, v.size) }
 
 func (v remoteUint) Set(t *eval.Thread, x uint64) {
 	v.aSet(t, x);
 }
 
-func (v remoteUint) aSet(a aborter, x uint64) {
-	v.r.Set(a, v.size, x);
-}
+func (v remoteUint) aSet(a aborter, x uint64)	{ v.r.Set(a, v.size, x) }
 
-func (v remoteUint) addr() remote {
-	return v.r;
-}
+func (v remoteUint) addr() remote	{ return v.r }
 
-func mkUint8(r remote) eval.Value {
-	return remoteUint{r, 1};
-}
+func mkUint8(r remote) eval.Value	{ return remoteUint{r, 1} }
 
-func mkUint16(r remote) eval.Value {
-	return remoteUint{r, 2};
-}
+func mkUint16(r remote) eval.Value	{ return remoteUint{r, 2} }
 
-func mkUint32(r remote) eval.Value {
-	return remoteUint{r, 4};
-}
+func mkUint32(r remote) eval.Value	{ return remoteUint{r, 4} }
 
-func mkUint64(r remote) eval.Value {
-	return remoteUint{r, 8};
-}
+func mkUint64(r remote) eval.Value	{ return remoteUint{r, 8} }
 
-func mkUint(r remote) eval.Value {
-	return remoteUint{r, r.p.IntSize()};
-}
+func mkUint(r remote) eval.Value	{ return remoteUint{r, r.p.IntSize()} }
 
-func mkUintptr(r remote) eval.Value {
-	return remoteUint{r, r.p.PtrSize()};
-}
+func mkUintptr(r remote) eval.Value	{ return remoteUint{r, r.p.PtrSize()} }
 
 /*
  * Int
@@ -213,45 +181,27 @@ func (v remoteInt) Assign(t *eval.Thread, o eval.Value) {
 	v.Set(t, o.(eval.IntValue).Get(t));
 }
 
-func (v remoteInt) Get(t *eval.Thread) int64 {
-	return v.aGet(t);
-}
+func (v remoteInt) Get(t *eval.Thread) int64	{ return v.aGet(t) }
 
-func (v remoteInt) aGet(a aborter) int64 {
-	return int64(v.r.Get(a, v.size));
-}
+func (v remoteInt) aGet(a aborter) int64	{ return int64(v.r.Get(a, v.size)) }
 
 func (v remoteInt) Set(t *eval.Thread, x int64) {
 	v.aSet(t, x);
 }
 
-func (v remoteInt) aSet(a aborter, x int64) {
-	v.r.Set(a, v.size, uint64(x));
-}
+func (v remoteInt) aSet(a aborter, x int64)	{ v.r.Set(a, v.size, uint64(x)) }
 
-func (v remoteInt) addr() remote {
-	return v.r;
-}
+func (v remoteInt) addr() remote	{ return v.r }
 
-func mkInt8(r remote) eval.Value {
-	return remoteInt{r, 1};
-}
+func mkInt8(r remote) eval.Value	{ return remoteInt{r, 1} }
 
-func mkInt16(r remote) eval.Value {
-	return remoteInt{r, 2};
-}
+func mkInt16(r remote) eval.Value	{ return remoteInt{r, 2} }
 
-func mkInt32(r remote) eval.Value {
-	return remoteInt{r, 4};
-}
+func mkInt32(r remote) eval.Value	{ return remoteInt{r, 4} }
 
-func mkInt64(r remote) eval.Value {
-	return remoteInt{r, 8};
-}
+func mkInt64(r remote) eval.Value	{ return remoteInt{r, 8} }
 
-func mkInt(r remote) eval.Value {
-	return remoteInt{r, r.p.IntSize()};
-}
+func mkInt(r remote) eval.Value	{ return remoteInt{r, r.p.IntSize()} }
 
 /*
  * Float
@@ -302,21 +252,13 @@ func (v remoteFloat) aSet(a aborter, x float64) {
 	v.r.Set(a, v.size, bits);
 }
 
-func (v remoteFloat) addr() remote {
-	return v.r;
-}
+func (v remoteFloat) addr() remote	{ return v.r }
 
-func mkFloat32(r remote) eval.Value {
-	return remoteFloat{r, 4};
-}
+func mkFloat32(r remote) eval.Value	{ return remoteFloat{r, 4} }
 
-func mkFloat64(r remote) eval.Value {
-	return remoteFloat{r, 8};
-}
+func mkFloat64(r remote) eval.Value	{ return remoteFloat{r, 8} }
 
-func mkFloat(r remote) eval.Value {
-	return remoteFloat{r, r.p.FloatSize()};
-}
+func mkFloat(r remote) eval.Value	{ return remoteFloat{r, r.p.FloatSize()} }
 
 /*
  * String
@@ -361,9 +303,7 @@ func (v remoteString) aSet(a aborter, x string) {
 	a.Abort(ReadOnlyError("remote strings cannot be assigned to"));
 }
 
-func mkString(r remote) eval.Value {
-	return remoteString{r};
-}
+func mkString(r remote) eval.Value	{ return remoteString{r} }
 
 /*
  * Array
@@ -458,9 +398,7 @@ func (v remoteStruct) field(i int) eval.Value {
 	return f.fieldType.mk(v.r.plus(proc.Word(f.offset)));
 }
 
-func (v remoteStruct) addr() remote {
-	return v.r;
-}
+func (v remoteStruct) addr() remote	{ return v.r }
 
 /*
  * Pointer
@@ -517,9 +455,7 @@ func (v remotePtr) aSet(a aborter, x eval.Value) {
 	v.r.Set(a, v.r.p.PtrSize(), uint64(xr.addr().base));
 }
 
-func (v remotePtr) addr() remote {
-	return v.r;
-}
+func (v remotePtr) addr() remote	{ return v.r }
 
 /*
  * Slice

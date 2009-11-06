@@ -14,9 +14,7 @@ import (
 const hextable = "0123456789abcdef"
 
 // EncodedLen returns the length of an encoding of n source bytes.
-func EncodedLen(n int) int {
-	return n*2;
-}
+func EncodedLen(n int) int	{ return n*2 }
 
 // Encode encodes src into EncodedLen(len(src))
 // bytes of dst.  As a convenience, it returns the number
@@ -34,9 +32,7 @@ func Encode(dst, src []byte) int {
 // OddLengthInputError results from decoding an odd length slice.
 type OddLengthInputError struct{}
 
-func (OddLengthInputError) String() string {
-	return "odd length hex string";
-}
+func (OddLengthInputError) String() string	{ return "odd length hex string" }
 
 // InvalidHexCharError results from finding an invalid character in a hex string.
 type InvalidHexCharError byte
@@ -46,9 +42,7 @@ func (e InvalidHexCharError) String() string {
 }
 
 
-func DecodedLen(x int) int {
-	return x/2;
-}
+func DecodedLen(x int) int	{ return x/2 }
 
 // Decode decodes src into DecodedLen(len(src)) bytes, returning the actual
 // number of bytes written to dst.

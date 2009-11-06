@@ -189,9 +189,7 @@ func NewEncoder(enc *Encoding, w io.Writer) io.WriteCloser {
 
 // EncodedLen returns the length in bytes of the base64 encoding
 // of an input buffer of length n.
-func (enc *Encoding) EncodedLen(n int) int {
-	return (n+2)/3*4;
-}
+func (enc *Encoding) EncodedLen(n int) int	{ return (n+2)/3*4 }
 
 /*
  * Decoder
@@ -329,6 +327,4 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
 
 // DecodeLen returns the maximum length in bytes of the decoded data
 // corresponding to n bytes of base64-encoded data.
-func (enc *Encoding) DecodedLen(n int) int {
-	return n/4*3;
-}
+func (enc *Encoding) DecodedLen(n int) int	{ return n/4*3 }

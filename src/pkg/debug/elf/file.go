@@ -76,9 +76,7 @@ func (s *Section) Data() ([]byte, os.Error) {
 }
 
 // Open returns a new ReadSeeker reading the ELF section.
-func (s *Section) Open() io.ReadSeeker {
-	return io.NewSectionReader(s.sr, 0, 1<<63 - 1);
-}
+func (s *Section) Open() io.ReadSeeker	{ return io.NewSectionReader(s.sr, 0, 1<<63 - 1) }
 
 // A ProgHeader represents a single ELF program header.
 type ProgHeader struct {
@@ -106,9 +104,7 @@ type Prog struct {
 }
 
 // Open returns a new ReadSeeker reading the ELF program body.
-func (p *Prog) Open() io.ReadSeeker {
-	return io.NewSectionReader(p.sr, 0, 1<<63 - 1);
-}
+func (p *Prog) Open() io.ReadSeeker	{ return io.NewSectionReader(p.sr, 0, 1<<63 - 1) }
 
 // A Symbol represents an entry in an ELF symbol table section.
 type Symbol struct {

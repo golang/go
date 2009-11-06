@@ -49,9 +49,7 @@ func (b *buf) bytes(n int) []byte {
 	return data;
 }
 
-func (b *buf) skip(n int) {
-	b.bytes(n);
-}
+func (b *buf) skip(n int)	{ b.bytes(n) }
 
 func (b *buf) string() string {
 	for i := 0; i < len(b.data); i++ {

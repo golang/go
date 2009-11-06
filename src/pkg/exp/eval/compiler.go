@@ -32,9 +32,7 @@ func (a *compiler) diagAt(pos positioned, format string, args ...) {
 	a.numErrors++;
 }
 
-func (a *compiler) numError() int {
-	return a.numErrors + a.silentErrors;
-}
+func (a *compiler) numError() int	{ return a.numErrors + a.silentErrors }
 
 // The universal scope
 func newUniverse() *Scope {

@@ -22,9 +22,7 @@ type Image struct {
 
 var _ image.Image = (*Image)(nil)
 
-func (m *Image) ColorModel() image.ColorModel {
-	return ColorModel;
-}
+func (m *Image) ColorModel() image.ColorModel	{ return ColorModel }
 
 func (m *Image) Width() int {
 	if len(m.Pixel) == 0 {
@@ -33,13 +31,9 @@ func (m *Image) Width() int {
 	return len(m.Pixel[0]);
 }
 
-func (m *Image) Height() int {
-	return len(m.Pixel);
-}
+func (m *Image) Height() int	{ return len(m.Pixel) }
 
-func (m *Image) At(x, y int) image.Color {
-	return m.Pixel[y][x];
-}
+func (m *Image) At(x, y int) image.Color	{ return m.Pixel[y][x] }
 
 func (m *Image) Set(x, y int, color image.Color) {
 	if c, ok := color.(Color); ok {

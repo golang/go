@@ -158,9 +158,7 @@ func (e HaltError) String() string {
 
 type LoopError Word
 
-func (e LoopError) String() string {
-	return fmt.Sprintf("indirect load looping at %06o", e);
-}
+func (e LoopError) String() string	{ return fmt.Sprintf("indirect load looping at %06o", e) }
 
 func (m *M) run(inst Word, t Trapper) os.Error {
 	ib, y := (inst>>12)&1, inst&07777;

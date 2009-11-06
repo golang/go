@@ -113,12 +113,8 @@ type testingData struct {
 	nswap	int;
 }
 
-func (d *testingData) Len() int {
-	return len(d.data);
-}
-func (d *testingData) Less(i, j int) bool {
-	return d.data[i] < d.data[j];
-}
+func (d *testingData) Len() int			{ return len(d.data) }
+func (d *testingData) Less(i, j int) bool	{ return d.data[i] < d.data[j] }
 func (d *testingData) Swap(i, j int) {
 	if d.nswap >= d.maxswap {
 		d.t.Errorf("%s: used %d swaps sorting array of %d", d.desc, d.nswap, len(d.data));

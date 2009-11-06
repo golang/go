@@ -131,30 +131,18 @@ const OK = 1
 const NOMORE = -1000
 
 // macros for getting associativity and precedence levels
-func ASSOC(i int) int {
-	return i&3;
-}
+func ASSOC(i int) int	{ return i&3 }
 
-func PLEVEL(i int) int {
-	return (i>>4)&077;
-}
+func PLEVEL(i int) int	{ return (i>>4)&077 }
 
-func TYPE(i int) int {
-	return (i>>10)&077;
-}
+func TYPE(i int) int	{ return (i>>10)&077 }
 
 // macros for setting associativity and precedence levels
-func SETASC(i, j int) int {
-	return i|j;
-}
+func SETASC(i, j int) int	{ return i|j }
 
-func SETPLEV(i, j int) int {
-	return i|(j<<4);
-}
+func SETPLEV(i, j int) int	{ return i|(j<<4) }
 
-func SETTYPE(i, j int) int {
-	return i|(j<<10);
-}
+func SETTYPE(i, j int) int	{ return i|(j<<10) }
 
 // I/O descriptors
 var finput *bufio.Reader	// input file
@@ -3000,17 +2988,11 @@ func usage() {
 	exit(1);
 }
 
-func bitset(set Lkset, bit int) int {
-	return set[bit>>5]&(1<<uint(bit&31));
-}
+func bitset(set Lkset, bit int) int	{ return set[bit>>5]&(1<<uint(bit&31)) }
 
-func setbit(set Lkset, bit int) {
-	set[bit>>5] |= (1<<uint(bit&31));
-}
+func setbit(set Lkset, bit int)	{ set[bit>>5] |= (1<<uint(bit&31)) }
 
-func mkset() Lkset {
-	return make([]int, tbitset);
-}
+func mkset() Lkset	{ return make([]int, tbitset) }
 
 //
 // set a to the union of a and b
@@ -3048,17 +3030,13 @@ func prlook(p Lkset) {
 //
 var peekrune int
 
-func isdigit(c int) bool {
-	return c >= '0' && c <= '9';
-}
+func isdigit(c int) bool	{ return c >= '0' && c <= '9' }
 
 func isword(c int) bool {
 	return c >= 0xa0 || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-func mktemp(t string) string {
-	return t;
-}
+func mktemp(t string) string	{ return t }
 
 //
 // return 1 if 2 arrays are equal

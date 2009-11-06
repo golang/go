@@ -76,9 +76,7 @@ func newScanner(input []byte) (*scanner.Scanner, *scanner.ErrorVector) {
 // A UsageError occurs when a command is called with illegal arguments.
 type UsageError string
 
-func (e UsageError) String() string {
-	return string(e);
-}
+func (e UsageError) String() string	{ return string(e) }
 
 // A cmd represents a single command with a handler.
 type cmd struct {
@@ -325,8 +323,7 @@ func printCurFrame() {
 }
 
 // fnOut moves the current frame to the caller of the current frame.
-func fnOutSig() {
-}
+func fnOutSig()	{}
 func fnOut(t *eval.Thread, args []eval.Value, res []eval.Value) {
 	if curProc == nil {
 		t.Abort(NoCurrentGoroutine{});
@@ -340,8 +337,7 @@ func fnOut(t *eval.Thread, args []eval.Value, res []eval.Value) {
 }
 
 // fnContWait continues the current process and waits for a stopping event.
-func fnContWaitSig() {
-}
+func fnContWaitSig()	{}
 func fnContWait(t *eval.Thread, args []eval.Value, res []eval.Value) {
 	if curProc == nil {
 		t.Abort(NoCurrentGoroutine{});
@@ -359,8 +355,7 @@ func fnContWait(t *eval.Thread, args []eval.Value, res []eval.Value) {
 }
 
 // fnBpSet sets a breakpoint at the entry to the named function.
-func fnBpSetSig(string) {
-}
+func fnBpSetSig(string)	{}
 func fnBpSet(t *eval.Thread, args []eval.Value, res []eval.Value) {
 	// TODO(austin) This probably shouldn't take a symbol name.
 	// Perhaps it should take an interface that provides PC's.

@@ -20,9 +20,7 @@ type URLError struct {
 	Error	os.Error;
 }
 
-func (e *URLError) String() string {
-	return e.Op + " " + e.URL + ": " + e.Error.String();
-}
+func (e *URLError) String() string	{ return e.Op + " " + e.URL + ": " + e.Error.String() }
 
 func ishex(c byte) bool {
 	switch {

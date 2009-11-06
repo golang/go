@@ -11,9 +11,7 @@ import (
 
 var ncall int
 
-func call() {
-	ncall++;
-}
+func call()	{ ncall++ }
 
 func TestDo(t *testing.T) {
 	ncall = 0;

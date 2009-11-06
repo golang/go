@@ -23,9 +23,7 @@ const OS = "darwin"
 // even linking this function into the binary.  See ../os/getwd.go.
 const ImplementsGetwd = false
 
-func Getwd() (string, int) {
-	return "", ENOTSUP;
-}
+func Getwd() (string, int)	{ return "", ENOTSUP }
 
 
 /*
@@ -90,9 +88,7 @@ const (
 	stopped	= 0x7F;
 )
 
-func (w WaitStatus) Exited() bool {
-	return w&mask == exited;
-}
+func (w WaitStatus) Exited() bool	{ return w&mask == exited }
 
 func (w WaitStatus) ExitStatus() int {
 	if w&mask != exited {
@@ -101,9 +97,7 @@ func (w WaitStatus) ExitStatus() int {
 	return int(w>>shift);
 }
 
-func (w WaitStatus) Signaled() bool {
-	return w&mask != stopped && w&mask != 0;
-}
+func (w WaitStatus) Signaled() bool	{ return w&mask != stopped && w&mask != 0 }
 
 func (w WaitStatus) Signal() int {
 	sig := int(w&mask);
@@ -113,17 +107,11 @@ func (w WaitStatus) Signal() int {
 	return sig;
 }
 
-func (w WaitStatus) CoreDump() bool {
-	return w.Signaled() && w&core != 0;
-}
+func (w WaitStatus) CoreDump() bool	{ return w.Signaled() && w&core != 0 }
 
-func (w WaitStatus) Stopped() bool {
-	return w&mask == stopped && w>>shift != SIGSTOP;
-}
+func (w WaitStatus) Stopped() bool	{ return w&mask == stopped && w>>shift != SIGSTOP }
 
-func (w WaitStatus) Continued() bool {
-	return w&mask == stopped && w>>shift == SIGSTOP;
-}
+func (w WaitStatus) Continued() bool	{ return w&mask == stopped && w>>shift == SIGSTOP }
 
 func (w WaitStatus) StopSignal() int {
 	if !w.Stopped() {

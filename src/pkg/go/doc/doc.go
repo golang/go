@@ -324,12 +324,8 @@ type ValueDoc struct {
 
 type sortValueDoc []*ValueDoc
 
-func (p sortValueDoc) Len() int {
-	return len(p);
-}
-func (p sortValueDoc) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i];
-}
+func (p sortValueDoc) Len() int		{ return len(p) }
+func (p sortValueDoc) Swap(i, j int)	{ p[i], p[j] = p[j], p[i] }
 
 
 func declName(d *ast.GenDecl) string {
@@ -388,15 +384,9 @@ type FuncDoc struct {
 
 type sortFuncDoc []*FuncDoc
 
-func (p sortFuncDoc) Len() int {
-	return len(p);
-}
-func (p sortFuncDoc) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i];
-}
-func (p sortFuncDoc) Less(i, j int) bool {
-	return p[i].Name < p[j].Name;
-}
+func (p sortFuncDoc) Len() int			{ return len(p) }
+func (p sortFuncDoc) Swap(i, j int)		{ p[i], p[j] = p[j], p[i] }
+func (p sortFuncDoc) Less(i, j int) bool	{ return p[i].Name < p[j].Name }
 
 
 func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
@@ -436,12 +426,8 @@ type TypeDoc struct {
 
 type sortTypeDoc []*TypeDoc
 
-func (p sortTypeDoc) Len() int {
-	return len(p);
-}
-func (p sortTypeDoc) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i];
-}
+func (p sortTypeDoc) Len() int		{ return len(p) }
+func (p sortTypeDoc) Swap(i, j int)	{ p[i], p[j] = p[j], p[i] }
 func (p sortTypeDoc) Less(i, j int) bool {
 	// sort by name
 	// pull blocks (name = "") up to top

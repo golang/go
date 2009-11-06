@@ -27,9 +27,7 @@ type Interface interface {
 // and may be called whenever the heap invariants may have been invalidated.
 // Its complexity is O(n*log(n)) where n = h.Len().
 //
-func Init(h Interface) {
-	sort.Sort(h);
-}
+func Init(h Interface)	{ sort.Sort(h) }
 
 
 // Push pushes the element x onto the heap. The complexity is
