@@ -232,40 +232,40 @@ type Formatter func(state *State, value interface{}, ruleName string) bool
 // A FormatterMap is a set of custom formatters.
 // It maps a rule name to a formatter function.
 //
-type FormatterMap map [string] Formatter;
+type FormatterMap map[string]Formatter
 
 
 // A parsed format expression is built from the following nodes.
 //
 type (
-	expr interface {};
+	expr	interface{};
 
-	alternatives []expr;  // x | y | z
+	alternatives	[]expr;	// x | y | z
 
-	sequence []expr;  // x y z
+	sequence	[]expr;	// x y z
 
-	literal [][]byte;  // a list of string segments, possibly starting with '%'
+	literal	[][]byte;	// a list of string segments, possibly starting with '%'
 
-	field struct {
-		fieldName string;  // including "@", "*"
-		ruleName string;  // "" if no rule name specified
+	field	struct {
+		fieldName	string;	// including "@", "*"
+		ruleName	string;	// "" if no rule name specified
 	};
 
-	group struct {
-		indent, body expr;  // (indent >> body)
+	group	struct {
+		indent, body expr;	// (indent >> body)
 	};
 
-	option struct {
-		body expr;  // [body]
+	option	struct {
+		body expr;	// [body]
 	};
 
-	repetition struct {
-		body, separator expr;  // {body / separator}
+	repetition	struct {
+		body, separator expr;	// {body / separator}
 	};
 
-	custom struct {
-		ruleName string;
-		fun Formatter
+	custom	struct {
+		ruleName	string;
+		fun		Formatter;
 	};
 )
 
@@ -273,7 +273,7 @@ type (
 // A Format is the result of parsing a format specification.
 // The format may be applied repeatedly to format values.
 //
-type Format map [string] expr;
+type Format map[string]expr
 
 
 // ----------------------------------------------------------------------------
@@ -290,7 +290,7 @@ type Format map [string] expr;
 // the receiver, and thus can be very light-weight.
 //
 type Environment interface {
-	Copy() Environment
+	Copy() Environment;
 }
 
 
@@ -298,15 +298,15 @@ type Environment interface {
 // It is provided as argument to custom formatters.
 //
 type State struct {
-	fmt Format;  // format in use
-	env Environment;  // user-supplied environment
-	errors chan os.Error;  // not chan *Error (errors <- nil would be wrong!)
-	hasOutput bool;  // true after the first literal has been written
-	indent bytes.Buffer;  // current indentation
-	output bytes.Buffer;  // format output
-	linePos token.Position;  // position of line beginning (Column == 0)
-	default_ expr;  // possibly nil
-	separator expr;  // possibly nil
+	fmt		Format;		// format in use
+	env		Environment;	// user-supplied environment
+	errors		chan os.Error;	// not chan *Error (errors <- nil would be wrong!)
+	hasOutput	bool;		// true after the first literal has been written
+	indent		bytes.Buffer;	// current indentation
+	output		bytes.Buffer;	// format output
+	linePos		token.Position;	// position of line beginning (Column == 0)
+	default_	expr;		// possibly nil
+	separator	expr;		// possibly nil
 }
 
 
@@ -365,22 +365,22 @@ func (s *State) Write(data []byte) (int, os.Error) {
 			// write text segment and indentation
 			n1, _ := s.output.Write(data[i0 : i+1]);
 			n2, _ := s.output.Write(s.indent.Bytes());
-			n += n1 + n2;
-			i0 = i + 1;
+			n += n1+n2;
+			i0 = i+1;
 			s.linePos.Offset = s.output.Len();
 			s.linePos.Line++;
 		}
 	}
-	n3, _ := s.output.Write(data[i0 : len(data)]);
-	return n + n3, nil;
+	n3, _ := s.output.Write(data[i0:len(data)]);
+	return n+n3, nil;
 }
 
 
 type checkpoint struct {
-	env Environment;
-	hasOutput bool;
-	outputLen int;
-	linePos token.Position;
+	env		Environment;
+	hasOutput	bool;
+	outputLen	int;
+	linePos		token.Position;
 }
 
 
@@ -489,13 +489,13 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 		if s.hasOutput {
 			// not the first literal
 			if s.separator != nil {
-				sep := s.separator;  // save current separator
-				s.separator = nil;  // and disable it (avoid recursion)
+				sep := s.separator;	// save current separator
+				s.separator = nil;	// and disable it (avoid recursion)
 				mark := s.save();
 				if !s.eval(sep, value, index) {
 					s.restore(mark);
 				}
-				s.separator = sep;  // enable it again
+				s.separator = sep;	// enable it again
 			}
 		}
 		s.hasOutput = true;
@@ -505,7 +505,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 				// segment contains a %-format at the beginning
 				if lit[1] == '%' {
 					// "%%" is printed as a single "%"
-					s.Write(lit[1 : len(lit)]);
+					s.Write(lit[1:len(lit)]);
 				} else {
 					// use s instead of s.output to get indentation right
 					fmt.Fprintf(s, string(lit), value.Interface());
@@ -515,7 +515,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 				s.Write(lit);
 			}
 		}
-		return true;  // a literal never evaluates to nil
+		return true;	// a literal never evaluates to nil
 
 	case *field:
 		// determine field value
@@ -580,7 +580,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 		ruleName := t.ruleName;
 		if ruleName == "" {
 			// no alternate rule name, value type determines rule
-			ruleName = typename(value.Type())
+			ruleName = typename(value.Type());
 		}
 		fexpr = s.getFormat(ruleName);
 
@@ -620,10 +620,10 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 		// evaluate the body and append the result to the state's output
 		// buffer unless the result is nil
 		mark := s.save();
-		if !s.eval(t.body, value, 0) {  // TODO is 0 index correct?
+		if !s.eval(t.body, value, 0) {	// TODO is 0 index correct?
 			s.restore(mark);
 		}
-		return true;  // an option never evaluates to nil
+		return true;	// an option never evaluates to nil
 
 	case *repetition:
 		// evaluate the body and append the result to the state's output
@@ -643,7 +643,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 				break;
 			}
 		}
-		return true;  // a repetition never evaluates to nil
+		return true;	// a repetition never evaluates to nil
 
 	case *custom:
 		// invoke the custom formatter to obtain the result
@@ -680,14 +680,14 @@ func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
 		for i := 0; i < value.NumField(); i++ {
 			fld := value.Field(i);
 			mark := s.save();
-			if !s.eval(s.getFormat(typename(fld.Type())), fld, 0) {  // TODO is 0 index correct?
+			if !s.eval(s.getFormat(typename(fld.Type())), fld, 0) {	// TODO is 0 index correct?
 				s.restore(mark);
 			}
 		}
-		errors <- nil;  // no errors
+		errors <- nil;	// no errors
 	}();
 
-	err := <- errors;
+	err := <-errors;
 	return s.output.Bytes(), err;
 }
 

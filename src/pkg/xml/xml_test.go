@@ -16,7 +16,8 @@ const testInput = `
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<body xmlns:foo="ns1" xmlns="ns2" xmlns:tag="ns3" ` "\r\n\t" `  >
+<body xmlns:foo="ns1" xmlns="ns2" xmlns:tag="ns3" `
+	"\r\n\t" `  >
   <hello lang="en">World &lt;&gt;&apos;&quot; &#x767d;&#40300;翔</hello>
   <goodbye />
   <outer foo:attr="value" xmlns:tag="ns4">
@@ -90,8 +91,8 @@ var cookedTokens = []Token{
 }
 
 type stringReader struct {
-	s string;
-	off int;
+	s	string;
+	off	int;
 }
 
 func (r *stringReader) Read(b []byte) (n int, err os.Error) {
@@ -116,7 +117,7 @@ func (r *stringReader) ReadByte() (b byte, err os.Error) {
 }
 
 func StringReader(s string) io.Reader {
-	return &stringReader{s, 0}
+	return &stringReader{s, 0};
 }
 
 func TestRawToken(t *testing.T) {
@@ -146,4 +147,3 @@ func TestToken(t *testing.T) {
 		}
 	}
 }
-

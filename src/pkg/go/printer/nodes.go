@@ -24,6 +24,15 @@ const (
 )
 
 
+// Other outstanding formatting issues:
+// - replacement of expression spacing algorithm with rsc's algorithm
+// - support for one-line composite types (e.g. structs) as composite literals types
+// - better comment formatting for /*-style comments at the end of a line (e.g. a declaration)
+//   when the comment spans multiple lines
+// - formatting of expression lists; especially for string lists (stringListMode)
+// - blank after { and before } in one-line composite literals probably looks better
+
+
 // ----------------------------------------------------------------------------
 // Common AST nodes.
 

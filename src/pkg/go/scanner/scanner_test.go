@@ -13,7 +13,7 @@ import (
 
 
 const /* class */ (
-	special = iota;
+	special	= iota;
 	literal;
 	operator;
 	keyword;
@@ -22,144 +22,150 @@ const /* class */ (
 
 func tokenclass(tok token.Token) int {
 	switch {
-	case tok.IsLiteral(): return literal;
-	case tok.IsOperator(): return operator;
-	case tok.IsKeyword(): return keyword;
+	case tok.IsLiteral():
+		return literal;
+	case tok.IsOperator():
+		return operator;
+	case tok.IsKeyword():
+		return keyword;
 	}
 	return special;
 }
 
 
 type elt struct {
-	tok token.Token;
-	lit string;
-	class int;
+	tok	token.Token;
+	lit	string;
+	class	int;
 }
 
 
 var tokens = [...]elt{
 	// Special tokens
-	elt{ token.COMMENT, "/* a comment */", special },
-	elt{ token.COMMENT, "// a comment \n", special },
+	elt{token.COMMENT, "/* a comment */", special},
+	elt{token.COMMENT, "// a comment \n", special},
 
 	// Identifiers and basic type literals
-	elt{ token.IDENT, "foobar", literal },
-	elt{ token.IDENT, "a۰۱۸", literal },
-	elt{ token.IDENT, "foo६४", literal },
-	elt{ token.IDENT, "bar９８７６", literal },
-	elt{ token.INT, "0", literal },
-	elt{ token.INT, "01234567", literal },
-	elt{ token.INT, "0xcafebabe", literal },
-	elt{ token.FLOAT, "0.", literal },
-	elt{ token.FLOAT, ".0", literal },
-	elt{ token.FLOAT, "3.14159265", literal },
-	elt{ token.FLOAT, "1e0", literal },
-	elt{ token.FLOAT, "1e+100", literal },
-	elt{ token.FLOAT, "1e-100", literal },
-	elt{ token.FLOAT, "2.71828e-1000", literal },
-	elt{ token.CHAR, "'a'", literal },
-	elt{ token.CHAR, "'\\000'", literal },
-	elt{ token.CHAR, "'\\xFF'", literal },
-	elt{ token.CHAR, "'\\uff16'", literal },
-	elt{ token.CHAR, "'\\U0000ff16'", literal },
-	elt{ token.STRING, "`foobar`", literal },
-	elt{ token.STRING, "`" `foo
-	                        bar` "`", literal },
+	elt{token.IDENT, "foobar", literal},
+	elt{token.IDENT, "a۰۱۸", literal},
+	elt{token.IDENT, "foo६४", literal},
+	elt{token.IDENT, "bar９８７６", literal},
+	elt{token.INT, "0", literal},
+	elt{token.INT, "01234567", literal},
+	elt{token.INT, "0xcafebabe", literal},
+	elt{token.FLOAT, "0.", literal},
+	elt{token.FLOAT, ".0", literal},
+	elt{token.FLOAT, "3.14159265", literal},
+	elt{token.FLOAT, "1e0", literal},
+	elt{token.FLOAT, "1e+100", literal},
+	elt{token.FLOAT, "1e-100", literal},
+	elt{token.FLOAT, "2.71828e-1000", literal},
+	elt{token.CHAR, "'a'", literal},
+	elt{token.CHAR, "'\\000'", literal},
+	elt{token.CHAR, "'\\xFF'", literal},
+	elt{token.CHAR, "'\\uff16'", literal},
+	elt{token.CHAR, "'\\U0000ff16'", literal},
+	elt{token.STRING, "`foobar`", literal},
+	elt{token.STRING, "`" `foo
+	                        bar`
+		"`",
+		literal,
+	},
 
 	// Operators and delimitors
-	elt{ token.ADD, "+", operator },
-	elt{ token.SUB, "-", operator },
-	elt{ token.MUL, "*", operator },
-	elt{ token.QUO, "/", operator },
-	elt{ token.REM, "%", operator },
+	elt{token.ADD, "+", operator},
+	elt{token.SUB, "-", operator},
+	elt{token.MUL, "*", operator},
+	elt{token.QUO, "/", operator},
+	elt{token.REM, "%", operator},
 
-	elt{ token.AND, "&", operator },
-	elt{ token.OR, "|", operator },
-	elt{ token.XOR, "^", operator },
-	elt{ token.SHL, "<<", operator },
-	elt{ token.SHR, ">>", operator },
-	elt{ token.AND_NOT, "&^", operator },
+	elt{token.AND, "&", operator},
+	elt{token.OR, "|", operator},
+	elt{token.XOR, "^", operator},
+	elt{token.SHL, "<<", operator},
+	elt{token.SHR, ">>", operator},
+	elt{token.AND_NOT, "&^", operator},
 
-	elt{ token.ADD_ASSIGN, "+=", operator },
-	elt{ token.SUB_ASSIGN, "-=", operator },
-	elt{ token.MUL_ASSIGN, "*=", operator },
-	elt{ token.QUO_ASSIGN, "/=", operator },
-	elt{ token.REM_ASSIGN, "%=", operator },
+	elt{token.ADD_ASSIGN, "+=", operator},
+	elt{token.SUB_ASSIGN, "-=", operator},
+	elt{token.MUL_ASSIGN, "*=", operator},
+	elt{token.QUO_ASSIGN, "/=", operator},
+	elt{token.REM_ASSIGN, "%=", operator},
 
-	elt{ token.AND_ASSIGN, "&=", operator },
-	elt{ token.OR_ASSIGN, "|=", operator },
-	elt{ token.XOR_ASSIGN, "^=", operator },
-	elt{ token.SHL_ASSIGN, "<<=", operator },
-	elt{ token.SHR_ASSIGN, ">>=", operator },
-	elt{ token.AND_NOT_ASSIGN, "&^=", operator },
+	elt{token.AND_ASSIGN, "&=", operator},
+	elt{token.OR_ASSIGN, "|=", operator},
+	elt{token.XOR_ASSIGN, "^=", operator},
+	elt{token.SHL_ASSIGN, "<<=", operator},
+	elt{token.SHR_ASSIGN, ">>=", operator},
+	elt{token.AND_NOT_ASSIGN, "&^=", operator},
 
-	elt{ token.LAND, "&&", operator },
-	elt{ token.LOR, "||", operator },
-	elt{ token.ARROW, "<-", operator },
-	elt{ token.INC, "++", operator },
-	elt{ token.DEC, "--", operator },
+	elt{token.LAND, "&&", operator},
+	elt{token.LOR, "||", operator},
+	elt{token.ARROW, "<-", operator},
+	elt{token.INC, "++", operator},
+	elt{token.DEC, "--", operator},
 
-	elt{ token.EQL, "==", operator },
-	elt{ token.LSS, "<", operator },
-	elt{ token.GTR, ">", operator },
-	elt{ token.ASSIGN, "=", operator },
-	elt{ token.NOT, "!", operator },
+	elt{token.EQL, "==", operator},
+	elt{token.LSS, "<", operator},
+	elt{token.GTR, ">", operator},
+	elt{token.ASSIGN, "=", operator},
+	elt{token.NOT, "!", operator},
 
-	elt{ token.NEQ, "!=", operator },
-	elt{ token.LEQ, "<=", operator },
-	elt{ token.GEQ, ">=", operator },
-	elt{ token.DEFINE, ":=", operator },
-	elt{ token.ELLIPSIS, "...", operator },
+	elt{token.NEQ, "!=", operator},
+	elt{token.LEQ, "<=", operator},
+	elt{token.GEQ, ">=", operator},
+	elt{token.DEFINE, ":=", operator},
+	elt{token.ELLIPSIS, "...", operator},
 
-	elt{ token.LPAREN, "(", operator },
-	elt{ token.LBRACK, "[", operator },
-	elt{ token.LBRACE, "{", operator },
-	elt{ token.COMMA, ",", operator },
-	elt{ token.PERIOD, ".", operator },
+	elt{token.LPAREN, "(", operator},
+	elt{token.LBRACK, "[", operator},
+	elt{token.LBRACE, "{", operator},
+	elt{token.COMMA, ",", operator},
+	elt{token.PERIOD, ".", operator},
 
-	elt{ token.RPAREN, ")", operator },
-	elt{ token.RBRACK, "]", operator },
-	elt{ token.RBRACE, "}", operator },
-	elt{ token.SEMICOLON, ";", operator },
-	elt{ token.COLON, ":", operator },
+	elt{token.RPAREN, ")", operator},
+	elt{token.RBRACK, "]", operator},
+	elt{token.RBRACE, "}", operator},
+	elt{token.SEMICOLON, ";", operator},
+	elt{token.COLON, ":", operator},
 
 	// Keywords
-	elt{ token.BREAK, "break", keyword },
-	elt{ token.CASE, "case", keyword },
-	elt{ token.CHAN, "chan", keyword },
-	elt{ token.CONST, "const", keyword },
-	elt{ token.CONTINUE, "continue", keyword },
+	elt{token.BREAK, "break", keyword},
+	elt{token.CASE, "case", keyword},
+	elt{token.CHAN, "chan", keyword},
+	elt{token.CONST, "const", keyword},
+	elt{token.CONTINUE, "continue", keyword},
 
-	elt{ token.DEFAULT, "default", keyword },
-	elt{ token.DEFER, "defer", keyword },
-	elt{ token.ELSE, "else", keyword },
-	elt{ token.FALLTHROUGH, "fallthrough", keyword },
-	elt{ token.FOR, "for", keyword },
+	elt{token.DEFAULT, "default", keyword},
+	elt{token.DEFER, "defer", keyword},
+	elt{token.ELSE, "else", keyword},
+	elt{token.FALLTHROUGH, "fallthrough", keyword},
+	elt{token.FOR, "for", keyword},
 
-	elt{ token.FUNC, "func", keyword },
-	elt{ token.GO, "go", keyword },
-	elt{ token.GOTO, "goto", keyword },
-	elt{ token.IF, "if", keyword },
-	elt{ token.IMPORT, "import", keyword },
+	elt{token.FUNC, "func", keyword},
+	elt{token.GO, "go", keyword},
+	elt{token.GOTO, "goto", keyword},
+	elt{token.IF, "if", keyword},
+	elt{token.IMPORT, "import", keyword},
 
-	elt{ token.INTERFACE, "interface", keyword },
-	elt{ token.MAP, "map", keyword },
-	elt{ token.PACKAGE, "package", keyword },
-	elt{ token.RANGE, "range", keyword },
-	elt{ token.RETURN, "return", keyword },
+	elt{token.INTERFACE, "interface", keyword},
+	elt{token.MAP, "map", keyword},
+	elt{token.PACKAGE, "package", keyword},
+	elt{token.RANGE, "range", keyword},
+	elt{token.RETURN, "return", keyword},
 
-	elt{ token.SELECT, "select", keyword },
-	elt{ token.STRUCT, "struct", keyword },
-	elt{ token.SWITCH, "switch", keyword },
-	elt{ token.TYPE, "type", keyword },
-	elt{ token.VAR, "var", keyword },
+	elt{token.SELECT, "select", keyword},
+	elt{token.STRUCT, "struct", keyword},
+	elt{token.SWITCH, "switch", keyword},
+	elt{token.TYPE, "type", keyword},
+	elt{token.VAR, "var", keyword},
 }
 
 
-const whitespace = "  \t  \n\n\n";  // to separate tokens
+const whitespace = "  \t  \n\n\n"	// to separate tokens
 
 type TestErrorHandler struct {
-	t *testing.T
+	t *testing.T;
 }
 
 func (h *TestErrorHandler) Error(pos token.Position, msg string) {
@@ -188,7 +194,7 @@ func checkPos(t *testing.T, lit string, pos, expected token.Position) {
 	if pos.Line != expected.Line {
 		t.Errorf("bad line for %s: got %d, expected %d", lit, pos.Line, expected.Line);
 	}
-	if pos.Column!= expected.Column {
+	if pos.Column != expected.Column {
 		t.Errorf("bad column for %s: got %d, expected %d", lit, pos.Column, expected.Column);
 	}
 }
@@ -207,7 +213,7 @@ func TestScan(t *testing.T) {
 	index := 0;
 	epos := token.Position{"", 0, 1, 1};
 	nerrors := Tokenize("", strings.Bytes(src), &TestErrorHandler{t}, ScanComments,
-		func (pos token.Position, tok token.Token, litb []byte) bool {
+		func(pos token.Position, tok token.Token, litb []byte) bool {
 			e := elt{token.EOF, "", special};
 			if index < len(tokens) {
 				e = tokens[index];
@@ -227,7 +233,7 @@ func TestScan(t *testing.T) {
 			if tokenclass(tok) != e.class {
 				t.Errorf("bad class for %s: got %d, expected %d", lit, tokenclass(tok), e.class);
 			}
-			epos.Offset += len(lit) + len(whitespace);
+			epos.Offset += len(lit)+len(whitespace);
 			epos.Line += NewlineCount(lit) + whitespace_linecount;
 			if tok == token.COMMENT && litb[1] == '/' {
 				// correct for unaccounted '/n' in //-style comment
@@ -236,8 +242,7 @@ func TestScan(t *testing.T) {
 			}
 			index++;
 			return tok != token.EOF;
-		}
-	);
+		});
 	if nerrors != 0 {
 		t.Errorf("found %d errors", nerrors);
 	}
@@ -245,28 +250,28 @@ func TestScan(t *testing.T) {
 
 
 type seg struct {
-	srcline string;  // a line of source text
-	filename string;  // filename for current token
-	line int;  // line number for current token
+	srcline		string;	// a line of source text
+	filename	string;	// filename for current token
+	line		int;	// line number for current token
 }
 
 
 var segments = []seg{
 	// exactly one token per line since the test consumes one token per segment
-	seg{ "  line1", "TestLineComments", 1 },
-	seg{ "\nline2", "TestLineComments", 2 },
-	seg{ "\nline3  //line File1.go:100", "TestLineComments", 3 },  // bad line comment, ignored
-	seg{ "\nline4", "TestLineComments", 4 },
-	seg{ "\n//line File1.go:100\n  line100", "File1.go", 100 },
-	seg{ "\n//line File2.go:200\n  line200", "File2.go", 200 },
-	seg{ "\n//line :1\n  line1", "", 1 },
-	seg{ "\n//line foo:42\n  line42", "foo", 42 },
-	seg{ "\n //line foo:42\n  line44", "foo", 44 },  // bad line comment, ignored
-	seg{ "\n//line foo 42\n  line46", "foo", 46 },  // bad line comment, ignored
-	seg{ "\n//line foo:42 extra text\n  line48", "foo", 48 },  // bad line comment, ignored
-	seg{ "\n//line foo:42\n  line42", "foo", 42 },
-	seg{ "\n//line foo:42\n  line42", "foo", 42 },
-	seg{ "\n//line File1.go:100\n  line100", "File1.go", 100 },
+	seg{"  line1", "TestLineComments", 1},
+	seg{"\nline2", "TestLineComments", 2},
+	seg{"\nline3  //line File1.go:100", "TestLineComments", 3},	// bad line comment, ignored
+	seg{"\nline4", "TestLineComments", 4},
+	seg{"\n//line File1.go:100\n  line100", "File1.go", 100},
+	seg{"\n//line File2.go:200\n  line200", "File2.go", 200},
+	seg{"\n//line :1\n  line1", "", 1},
+	seg{"\n//line foo:42\n  line42", "foo", 42},
+	seg{"\n //line foo:42\n  line44", "foo", 44},	// bad line comment, ignored
+	seg{"\n//line foo 42\n  line46", "foo", 46},	// bad line comment, ignored
+	seg{"\n//line foo:42 extra text\n  line48", "foo", 48},	// bad line comment, ignored
+	seg{"\n//line foo:42\n  line42", "foo", 42},
+	seg{"\n//line foo:42\n  line42", "foo", 42},
+	seg{"\n//line File1.go:100\n  line100", "File1.go", 100},
 }
 
 
@@ -298,16 +303,16 @@ func TestInit(t *testing.T) {
 
 	// 1st init
 	s.Init("", strings.Bytes("if true { }"), nil, 0);
-	s.Scan();  // if
-	s.Scan();  // true
-	_, tok, _ := s.Scan();  // {
+	s.Scan();		// if
+	s.Scan();		// true
+	_, tok, _ := s.Scan();	// {
 	if tok != token.LBRACE {
 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.LBRACE);
 	}
 
 	// 2nd init
 	s.Init("", strings.Bytes("go true { ]"), nil, 0);
-	_, tok, _ = s.Scan();  // go
+	_, tok, _ = s.Scan();	// go
 	if tok != token.GO {
 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.GO);
 	}
@@ -340,23 +345,19 @@ func TestIllegalChars(t *testing.T) {
 
 
 func TestStdErrorHander(t *testing.T) {
-	const src =
-		"@\n"  // illegal character, cause an error
-		"@ @\n"  // two errors on the same line
+	const src = "@\n"	// illegal character, cause an error
+		"@ @\n"	// two errors on the same line
 		"//line File2:20\n"
-		"@\n"  // different file, but same line
+		"@\n"	// different file, but same line
 		"//line File2:1\n"
-		"@ @\n"  // same file, decreasing line number
+		"@ @\n"	// same file, decreasing line number
 		"//line File1:1\n"
-		"@ @ @"  // original file, line 1 again
-	;
+		"@ @ @";	// original file, line 1 again
+
 
 	v := NewErrorVector();
 	nerrors := Tokenize("File1", strings.Bytes(src), v, 0,
-		func (pos token.Position, tok token.Token, litb []byte) bool {
-			return tok != token.EOF;
-		}
-	);
+		func(pos token.Position, tok token.Token, litb []byte) bool { return tok != token.EOF });
 
 	list := v.GetErrorList(Raw);
 	if len(list) != 9 {
