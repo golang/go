@@ -38,9 +38,7 @@ func newCFB(c Cipher, s int, iv []byte) *cfbCipher {
 	return x;
 }
 
-func (x *cfbCipher) BlockSize() int {
-	return x.blockSize;
-}
+func (x *cfbCipher) BlockSize() int	{ return x.blockSize }
 
 func (x *cfbCipher) Encrypt(src, dst []byte) {
 	// Encrypt old IV and xor prefix with src to make dst.

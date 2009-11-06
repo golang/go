@@ -29,9 +29,7 @@ type Ticker struct {
 }
 
 // Stop turns off a ticker.  After Stop, no more ticks will be delivered.
-func (t *Ticker) Stop() {
-	t.shutdown = true;
-}
+func (t *Ticker) Stop()	{ t.shutdown = true }
 
 func (t *Ticker) ticker(c chan<- int64) {
 	now := Nanoseconds();

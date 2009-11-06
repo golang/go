@@ -44,9 +44,7 @@ type Reader struct {
 }
 
 // NewReader creates a new Reader reading from r.
-func NewReader(r io.Reader) *Reader {
-	return &Reader{r: r};
-}
+func NewReader(r io.Reader) *Reader	{ return &Reader{r: r} }
 
 // Next advances to the next entry in the tar archive.
 func (tr *Reader) Next() (*Header, os.Error) {

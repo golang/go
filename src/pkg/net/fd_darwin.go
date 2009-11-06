@@ -107,6 +107,4 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 	return fd, mode, nil;
 }
 
-func (p *pollster) Close() os.Error {
-	return os.NewSyscallError("close", syscall.Close(p.kq));
-}
+func (p *pollster) Close() os.Error	{ return os.NewSyscallError("close", syscall.Close(p.kq)) }

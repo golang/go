@@ -482,6 +482,4 @@ func shiftRight(dst, src []Word, n int) {
 
 
 // greaterThan returns true iff (x1<<_W + x2) > (y1<<_W + y2)
-func greaterThan(x1, x2, y1, y2 Word) bool {
-	return x1 > y1 || x1 == y1 && x2 > y2;
-}
+func greaterThan(x1, x2, y1, y2 Word) bool	{ return x1 > y1 || x1 == y1 && x2 > y2 }

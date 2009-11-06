@@ -84,17 +84,11 @@ func (ts threadState) isStopped() bool {
 	return ts == stopped || ts == stoppedBreakpoint || ts == stoppedSignal || ts == stoppedThreadCreate || ts == stoppedExiting;
 }
 
-func (ts threadState) isZombie() bool {
-	return ts == exiting;
-}
+func (ts threadState) isZombie() bool	{ return ts == exiting }
 
-func (ts threadState) isTerminal() bool {
-	return ts == exited || ts == detached;
-}
+func (ts threadState) isTerminal() bool	{ return ts == exited || ts == detached }
 
-func (ts threadState) String() string {
-	return string(ts);
-}
+func (ts threadState) String() string	{ return string(ts) }
 
 /*
  * Basic types
@@ -206,9 +200,7 @@ func (e breakpointExistsError) String() string {
 
 type noBreakpointError Word
 
-func (e noBreakpointError) String() string {
-	return fmt.Sprintf("no breakpoint at PC %#x", e);
-}
+func (e noBreakpointError) String() string	{ return fmt.Sprintf("no breakpoint at PC %#x", e) }
 
 type newThreadError struct {
 	*os.Waitmsg;
@@ -222,9 +214,7 @@ func (e *newThreadError) String() string {
 
 type ProcessExited struct{}
 
-func (p ProcessExited) String() string {
-	return "process exited";
-}
+func (p ProcessExited) String() string	{ return "process exited" }
 
 /*
  * Ptrace wrappers

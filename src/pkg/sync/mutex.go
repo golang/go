@@ -79,17 +79,13 @@ type RWMutex struct {
 // RLock locks rw for reading.
 // If the lock is already locked for writing or there is a writer already waiting
 // to acquire the lock, RLock blocks until the writer has released the lock.
-func (rw *RWMutex) RLock() {
-	rw.m.Lock();
-}
+func (rw *RWMutex) RLock()	{ rw.m.Lock() }
 
 // RUnlock undoes a single RLock call;
 // it does not affect other simultaneous readers.
 // It is a run-time error if rw is not locked for reading
 // on entry to RUnlock.
-func (rw *RWMutex) RUnlock() {
-	rw.m.Unlock();
-}
+func (rw *RWMutex) RUnlock()	{ rw.m.Unlock() }
 
 // Lock locks rw for writing.
 // If the lock is already locked for reading or writing,
@@ -97,9 +93,7 @@ func (rw *RWMutex) RUnlock() {
 // To ensure that the lock eventually becomes available,
 // a blocked Lock call excludes new readers from acquiring
 // the lock.
-func (rw *RWMutex) Lock() {
-	rw.m.Lock();
-}
+func (rw *RWMutex) Lock()	{ rw.m.Lock() }
 
 // Unlock unlocks rw for writing.
 // It is a run-time error if rw is not locked for writing
@@ -109,6 +103,4 @@ func (rw *RWMutex) Lock() {
 // a locked RWMutex is not associated with a particular goroutine.
 // It is allowed for one goroutine to RLock (Lock) an RWMutex and then
 // arrange for another goroutine to RUnlock (Unlock) it.
-func (rw *RWMutex) Unlock() {
-	rw.m.Unlock();
-}
+func (rw *RWMutex) Unlock()	{ rw.m.Unlock() }

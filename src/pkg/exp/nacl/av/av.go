@@ -54,25 +54,17 @@ type Window struct {
 // *Window implements draw.Context
 var _ draw.Context = (*Window)(nil)
 
-func (w *Window) KeyboardChan() <-chan int {
-	return w.kbdc;
-}
+func (w *Window) KeyboardChan() <-chan int	{ return w.kbdc }
 
 func (w *Window) MouseChan() <-chan draw.Mouse {
 	return w.mousec;
 }
 
-func (w *Window) QuitChan() <-chan bool {
-	return w.quitc;
-}
+func (w *Window) QuitChan() <-chan bool	{ return w.quitc }
 
-func (w *Window) ResizeChan() <-chan bool {
-	return w.resizec;
-}
+func (w *Window) ResizeChan() <-chan bool	{ return w.resizec }
 
-func (w *Window) Screen() draw.Image {
-	return w.Image;
-}
+func (w *Window) Screen() draw.Image	{ return w.Image }
 
 // Init initializes the Native Client subsystems specified by subsys.
 // Init must be called before using any of the other functions
@@ -223,9 +215,7 @@ var bridge struct {
 // so this blocks.  Once the bridge is ready, multimediaBridge.Run
 // will drop a value into the channel.  Then any calls
 // to waitBridge will finish, taking the value out and immediately putting it back.
-func waitBridge() {
-	bridge.c <- <-bridge.c;
-}
+func waitBridge()	{ bridge.c <- <-bridge.c }
 
 const eqsize = 64
 

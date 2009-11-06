@@ -21,9 +21,7 @@ type RGBA struct {
 	Pixel [][]RGBAColor;
 }
 
-func (p *RGBA) ColorModel() ColorModel {
-	return RGBAColorModel;
-}
+func (p *RGBA) ColorModel() ColorModel	{ return RGBAColorModel }
 
 func (p *RGBA) Width() int {
 	if len(p.Pixel) == 0 {
@@ -32,17 +30,11 @@ func (p *RGBA) Width() int {
 	return len(p.Pixel[0]);
 }
 
-func (p *RGBA) Height() int {
-	return len(p.Pixel);
-}
+func (p *RGBA) Height() int	{ return len(p.Pixel) }
 
-func (p *RGBA) At(x, y int) Color {
-	return p.Pixel[y][x];
-}
+func (p *RGBA) At(x, y int) Color	{ return p.Pixel[y][x] }
 
-func (p *RGBA) Set(x, y int, c Color) {
-	p.Pixel[y][x] = toRGBAColor(c).(RGBAColor);
-}
+func (p *RGBA) Set(x, y int, c Color)	{ p.Pixel[y][x] = toRGBAColor(c).(RGBAColor) }
 
 // NewRGBA returns a new RGBA with the given width and height.
 func NewRGBA(w, h int) *RGBA {
@@ -59,9 +51,7 @@ type RGBA64 struct {
 	Pixel [][]RGBA64Color;
 }
 
-func (p *RGBA64) ColorModel() ColorModel {
-	return RGBA64ColorModel;
-}
+func (p *RGBA64) ColorModel() ColorModel	{ return RGBA64ColorModel }
 
 func (p *RGBA64) Width() int {
 	if len(p.Pixel) == 0 {
@@ -70,17 +60,11 @@ func (p *RGBA64) Width() int {
 	return len(p.Pixel[0]);
 }
 
-func (p *RGBA64) Height() int {
-	return len(p.Pixel);
-}
+func (p *RGBA64) Height() int	{ return len(p.Pixel) }
 
-func (p *RGBA64) At(x, y int) Color {
-	return p.Pixel[y][x];
-}
+func (p *RGBA64) At(x, y int) Color	{ return p.Pixel[y][x] }
 
-func (p *RGBA64) Set(x, y int, c Color) {
-	p.Pixel[y][x] = toRGBA64Color(c).(RGBA64Color);
-}
+func (p *RGBA64) Set(x, y int, c Color)	{ p.Pixel[y][x] = toRGBA64Color(c).(RGBA64Color) }
 
 // NewRGBA64 returns a new RGBA64 with the given width and height.
 func NewRGBA64(w, h int) *RGBA64 {
@@ -97,9 +81,7 @@ type NRGBA struct {
 	Pixel [][]NRGBAColor;
 }
 
-func (p *NRGBA) ColorModel() ColorModel {
-	return NRGBAColorModel;
-}
+func (p *NRGBA) ColorModel() ColorModel	{ return NRGBAColorModel }
 
 func (p *NRGBA) Width() int {
 	if len(p.Pixel) == 0 {
@@ -108,17 +90,11 @@ func (p *NRGBA) Width() int {
 	return len(p.Pixel[0]);
 }
 
-func (p *NRGBA) Height() int {
-	return len(p.Pixel);
-}
+func (p *NRGBA) Height() int	{ return len(p.Pixel) }
 
-func (p *NRGBA) At(x, y int) Color {
-	return p.Pixel[y][x];
-}
+func (p *NRGBA) At(x, y int) Color	{ return p.Pixel[y][x] }
 
-func (p *NRGBA) Set(x, y int, c Color) {
-	p.Pixel[y][x] = toNRGBAColor(c).(NRGBAColor);
-}
+func (p *NRGBA) Set(x, y int, c Color)	{ p.Pixel[y][x] = toNRGBAColor(c).(NRGBAColor) }
 
 // NewNRGBA returns a new NRGBA with the given width and height.
 func NewNRGBA(w, h int) *NRGBA {
@@ -135,9 +111,7 @@ type NRGBA64 struct {
 	Pixel [][]NRGBA64Color;
 }
 
-func (p *NRGBA64) ColorModel() ColorModel {
-	return NRGBA64ColorModel;
-}
+func (p *NRGBA64) ColorModel() ColorModel	{ return NRGBA64ColorModel }
 
 func (p *NRGBA64) Width() int {
 	if len(p.Pixel) == 0 {
@@ -146,17 +120,11 @@ func (p *NRGBA64) Width() int {
 	return len(p.Pixel[0]);
 }
 
-func (p *NRGBA64) Height() int {
-	return len(p.Pixel);
-}
+func (p *NRGBA64) Height() int	{ return len(p.Pixel) }
 
-func (p *NRGBA64) At(x, y int) Color {
-	return p.Pixel[y][x];
-}
+func (p *NRGBA64) At(x, y int) Color	{ return p.Pixel[y][x] }
 
-func (p *NRGBA64) Set(x, y int, c Color) {
-	p.Pixel[y][x] = toNRGBA64Color(c).(NRGBA64Color);
-}
+func (p *NRGBA64) Set(x, y int, c Color)	{ p.Pixel[y][x] = toNRGBA64Color(c).(NRGBA64Color) }
 
 // NewNRGBA64 returns a new NRGBA64 with the given width and height.
 func NewNRGBA64(w, h int) *NRGBA64 {
@@ -214,9 +182,7 @@ type Paletted struct {
 	Palette	PalettedColorModel;
 }
 
-func (p *Paletted) ColorModel() ColorModel {
-	return p.Palette;
-}
+func (p *Paletted) ColorModel() ColorModel	{ return p.Palette }
 
 func (p *Paletted) Width() int {
 	if len(p.Pixel) == 0 {
@@ -225,13 +191,9 @@ func (p *Paletted) Width() int {
 	return len(p.Pixel[0]);
 }
 
-func (p *Paletted) Height() int {
-	return len(p.Pixel);
-}
+func (p *Paletted) Height() int	{ return len(p.Pixel) }
 
-func (p *Paletted) At(x, y int) Color {
-	return p.Palette[p.Pixel[y][x]];
-}
+func (p *Paletted) At(x, y int) Color	{ return p.Palette[p.Pixel[y][x]] }
 
 func (p *Paletted) ColorIndexAt(x, y int) uint8 {
 	return p.Pixel[y][x];

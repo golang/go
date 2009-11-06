@@ -75,9 +75,7 @@ func (b *boolValue) set(s string) bool {
 	return ok;
 }
 
-func (b *boolValue) String() string {
-	return fmt.Sprintf("%v", *b.p);
-}
+func (b *boolValue) String() string	{ return fmt.Sprintf("%v", *b.p) }
 
 // -- Int Value
 type intValue struct {
@@ -95,9 +93,7 @@ func (i *intValue) set(s string) bool {
 	return err == nil;
 }
 
-func (i *intValue) String() string {
-	return fmt.Sprintf("%v", *i.p);
-}
+func (i *intValue) String() string	{ return fmt.Sprintf("%v", *i.p) }
 
 // -- Int64 Value
 type int64Value struct {
@@ -115,9 +111,7 @@ func (i *int64Value) set(s string) bool {
 	return err == nil;
 }
 
-func (i *int64Value) String() string {
-	return fmt.Sprintf("%v", *i.p);
-}
+func (i *int64Value) String() string	{ return fmt.Sprintf("%v", *i.p) }
 
 // -- Uint Value
 type uintValue struct {
@@ -135,9 +129,7 @@ func (i *uintValue) set(s string) bool {
 	return err == nil;
 }
 
-func (i *uintValue) String() string {
-	return fmt.Sprintf("%v", *i.p);
-}
+func (i *uintValue) String() string	{ return fmt.Sprintf("%v", *i.p) }
 
 // -- uint64 Value
 type uint64Value struct {
@@ -155,9 +147,7 @@ func (i *uint64Value) set(s string) bool {
 	return err == nil;
 }
 
-func (i *uint64Value) String() string {
-	return fmt.Sprintf("%v", *i.p);
-}
+func (i *uint64Value) String() string	{ return fmt.Sprintf("%v", *i.p) }
 
 // -- string Value
 type stringValue struct {
@@ -174,9 +164,7 @@ func (s *stringValue) set(val string) bool {
 	return true;
 }
 
-func (s *stringValue) String() string {
-	return fmt.Sprintf("%s", *s.p);
-}
+func (s *stringValue) String() string	{ return fmt.Sprintf("%s", *s.p) }
 
 // FlagValue is the interface to the dynamic value stored in a flag.
 // (The default value is represented as a string.)
@@ -258,9 +246,7 @@ var Usage = func() {
 	PrintDefaults();
 }
 
-func NFlag() int {
-	return len(flags.actual);
-}
+func NFlag() int	{ return len(flags.actual) }
 
 // Arg returns the i'th command-line argument.  Arg(0) is the first remaining argument
 // after flags have been processed.
@@ -273,14 +259,10 @@ func Arg(i int) string {
 }
 
 // NArg is the number of arguments remaining after flags have been processed.
-func NArg() int {
-	return len(os.Args) - flags.first_arg;
-}
+func NArg() int	{ return len(os.Args) - flags.first_arg }
 
 // Args returns the non-flag command-line arguments.
-func Args() []string {
-	return os.Args[flags.first_arg : len(os.Args)];
-}
+func Args() []string	{ return os.Args[flags.first_arg : len(os.Args)] }
 
 func add(name string, value FlagValue, usage string) {
 	// Remember the default value as a string; it won't change.

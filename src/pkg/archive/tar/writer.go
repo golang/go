@@ -45,9 +45,7 @@ type Writer struct {
 }
 
 // NewWriter creates a new Writer writing to w.
-func NewWriter(w io.Writer) *Writer {
-	return &Writer{w: w};
-}
+func NewWriter(w io.Writer) *Writer	{ return &Writer{w: w} }
 
 // Flush finishes writing the current file (optional).
 func (tw *Writer) Flush() os.Error {

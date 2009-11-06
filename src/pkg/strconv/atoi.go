@@ -11,9 +11,7 @@ type NumError struct {
 	Error	os.Error;
 }
 
-func (e *NumError) String() string {
-	return "parsing " + e.Num + ": " + e.Error.String();
-}
+func (e *NumError) String() string	{ return "parsing " + e.Num + ": " + e.Error.String() }
 
 
 func computeIntsize() uint {
@@ -170,9 +168,7 @@ func Btoi64(s string, base int) (i int64, err os.Error) {
 
 // Atoi64 is like Atoui64 but allows signed numbers and
 // returns its result in an int64.
-func Atoi64(s string) (i int64, err os.Error) {
-	return Btoi64(s, 10);
-}
+func Atoi64(s string) (i int64, err os.Error)	{ return Btoi64(s, 10) }
 
 
 // Atoui is like Atoui64 but returns its result as a uint.

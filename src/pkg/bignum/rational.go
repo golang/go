@@ -51,40 +51,30 @@ func (x *Rational) Value() (numerator *Integer, denominator Natural) {
 
 // IsZero returns true iff x == 0.
 //
-func (x *Rational) IsZero() bool {
-	return x.a.IsZero();
-}
+func (x *Rational) IsZero() bool	{ return x.a.IsZero() }
 
 
 // IsNeg returns true iff x < 0.
 //
-func (x *Rational) IsNeg() bool {
-	return x.a.IsNeg();
-}
+func (x *Rational) IsNeg() bool	{ return x.a.IsNeg() }
 
 
 // IsPos returns true iff x > 0.
 //
-func (x *Rational) IsPos() bool {
-	return x.a.IsPos();
-}
+func (x *Rational) IsPos() bool	{ return x.a.IsPos() }
 
 
 // IsInt returns true iff x can be written with a denominator 1
 // in the form x == x'/1; i.e., if x is an integer value.
 //
-func (x *Rational) IsInt() bool {
-	return x.b.Cmp(Nat(1)) == 0;
-}
+func (x *Rational) IsInt() bool	{ return x.b.Cmp(Nat(1)) == 0 }
 
 
 // Operations
 
 // Neg returns the negated value of x.
 //
-func (x *Rational) Neg() *Rational {
-	return MakeRat(x.a.Neg(), x.b);
-}
+func (x *Rational) Neg() *Rational	{ return MakeRat(x.a.Neg(), x.b) }
 
 
 // Add returns the sum x + y.
@@ -103,9 +93,7 @@ func (x *Rational) Sub(y *Rational) *Rational {
 
 // Mul returns the product x * y.
 //
-func (x *Rational) Mul(y *Rational) *Rational {
-	return MakeRat(x.a.Mul(y.a), x.b.Mul(y.b));
-}
+func (x *Rational) Mul(y *Rational) *Rational	{ return MakeRat(x.a.Mul(y.a), x.b.Mul(y.b)) }
 
 
 // Quo returns the quotient x / y for y != 0.
@@ -127,9 +115,7 @@ func (x *Rational) Quo(y *Rational) *Rational {
 //   == 0 if x == y
 //   >  0 if x >  y
 //
-func (x *Rational) Cmp(y *Rational) int {
-	return (x.a.MulNat(y.b)).Cmp(y.a.MulNat(x.b));
-}
+func (x *Rational) Cmp(y *Rational) int	{ return (x.a.MulNat(y.b)).Cmp(y.a.MulNat(x.b)) }
 
 
 // ToString converts x to a string for a given base, with 2 <= base <= 16.
@@ -148,17 +134,13 @@ func (x *Rational) ToString(base uint) string {
 // String converts x to its decimal string representation.
 // x.String() is the same as x.ToString(10).
 //
-func (x *Rational) String() string {
-	return x.ToString(10);
-}
+func (x *Rational) String() string	{ return x.ToString(10) }
 
 
 // Format is a support routine for fmt.Formatter. It accepts
 // the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
 //
-func (x *Rational) Format(h fmt.State, c int) {
-	fmt.Fprintf(h, "%s", x.ToString(fmtbase(c)));
-}
+func (x *Rational) Format(h fmt.State, c int)	{ fmt.Fprintf(h, "%s", x.ToString(fmtbase(c))) }
 
 
 // RatFromString returns the rational number corresponding to the

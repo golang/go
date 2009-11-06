@@ -151,18 +151,14 @@ type Process interface {
 // stop.
 type Stopped struct{}
 
-func (c Stopped) String() string {
-	return "stopped";
-}
+func (c Stopped) String() string	{ return "stopped" }
 
 // Breakpoint is a stop cause resulting from a thread reaching a set
 // breakpoint.
 type Breakpoint Word
 
 // PC returns the program counter that the program is stopped at.
-func (c Breakpoint) PC() Word {
-	return Word(c);
-}
+func (c Breakpoint) PC() Word	{ return Word(c) }
 
 func (c Breakpoint) String() string {
 	return "breakpoint at 0x" + strconv.Uitob64(uint64(c.PC()), 16);
@@ -173,13 +169,9 @@ func (c Breakpoint) String() string {
 type Signal string
 
 // Signal returns the signal being delivered to the thread.
-func (c Signal) Name() string {
-	return string(c);
-}
+func (c Signal) Name() string	{ return string(c) }
 
-func (c Signal) String() string {
-	return c.Name();
-}
+func (c Signal) String() string	{ return c.Name() }
 
 // ThreadCreate is a stop cause returned from an existing thread when
 // it creates a new thread.  The new thread exists in a primordial
@@ -189,13 +181,9 @@ type ThreadCreate struct {
 	thread Thread;
 }
 
-func (c *ThreadCreate) NewThread() Thread {
-	return c.thread;
-}
+func (c *ThreadCreate) NewThread() Thread	{ return c.thread }
 
-func (c *ThreadCreate) String() string {
-	return "thread create";
-}
+func (c *ThreadCreate) String() string	{ return "thread create" }
 
 // ThreadExit is a stop cause resulting from a thread exiting.  When
 // this cause first arises, the thread will still be in the list of
@@ -207,26 +195,18 @@ type ThreadExit struct {
 }
 
 // Exited returns true if the thread exited normally.
-func (c *ThreadExit) Exited() bool {
-	return c.exitStatus != -1;
-}
+func (c *ThreadExit) Exited() bool	{ return c.exitStatus != -1 }
 
 // ExitStatus returns the exit status of the thread if it exited
 // normally or -1 otherwise.
-func (c *ThreadExit) ExitStatus() int {
-	return c.exitStatus;
-}
+func (c *ThreadExit) ExitStatus() int	{ return c.exitStatus }
 
 // Signaled returns true if the thread was terminated by a signal.
-func (c *ThreadExit) Signaled() bool {
-	return c.exitStatus == -1;
-}
+func (c *ThreadExit) Signaled() bool	{ return c.exitStatus == -1 }
 
 // StopSignal returns the signal that terminated the thread, or "" if
 // it was not terminated by a signal.
-func (c *ThreadExit) StopSignal() string {
-	return c.signal;
-}
+func (c *ThreadExit) StopSignal() string	{ return c.signal }
 
 func (c *ThreadExit) String() string {
 	res := "thread exited ";

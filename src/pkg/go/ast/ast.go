@@ -300,82 +300,42 @@ type (
 // Pos() implementations for expression/type where the position
 // corresponds to the position of a sub-node.
 //
-func (x *StringList) Pos() token.Position {
-	return x.Strings[0].Pos();
-}
-func (x *FuncLit) Pos() token.Position {
-	return x.Type.Pos();
-}
-func (x *CompositeLit) Pos() token.Position {
-	return x.Type.Pos();
-}
-func (x *SelectorExpr) Pos() token.Position {
-	return x.X.Pos();
-}
-func (x *IndexExpr) Pos() token.Position {
-	return x.X.Pos();
-}
-func (x *TypeAssertExpr) Pos() token.Position {
-	return x.X.Pos();
-}
-func (x *CallExpr) Pos() token.Position {
-	return x.Fun.Pos();
-}
-func (x *BinaryExpr) Pos() token.Position {
-	return x.X.Pos();
-}
-func (x *KeyValueExpr) Pos() token.Position {
-	return x.Key.Pos();
-}
+func (x *StringList) Pos() token.Position	{ return x.Strings[0].Pos() }
+func (x *FuncLit) Pos() token.Position		{ return x.Type.Pos() }
+func (x *CompositeLit) Pos() token.Position	{ return x.Type.Pos() }
+func (x *SelectorExpr) Pos() token.Position	{ return x.X.Pos() }
+func (x *IndexExpr) Pos() token.Position	{ return x.X.Pos() }
+func (x *TypeAssertExpr) Pos() token.Position	{ return x.X.Pos() }
+func (x *CallExpr) Pos() token.Position		{ return x.Fun.Pos() }
+func (x *BinaryExpr) Pos() token.Position	{ return x.X.Pos() }
+func (x *KeyValueExpr) Pos() token.Position	{ return x.Key.Pos() }
 
 
 // exprNode() ensures that only expression/type nodes can be
 // assigned to an ExprNode.
-func (x *BadExpr) exprNode() {
-}
-func (x *Ident) exprNode() {
-}
-func (x *Ellipsis) exprNode() {
-}
-func (x *BasicLit) exprNode() {
-}
-func (x *StringList) exprNode() {
-}
-func (x *FuncLit) exprNode() {
-}
-func (x *CompositeLit) exprNode() {
-}
-func (x *ParenExpr) exprNode() {
-}
-func (x *SelectorExpr) exprNode() {
-}
-func (x *IndexExpr) exprNode() {
-}
-func (x *TypeAssertExpr) exprNode() {
-}
-func (x *CallExpr) exprNode() {
-}
-func (x *StarExpr) exprNode() {
-}
-func (x *UnaryExpr) exprNode() {
-}
-func (x *BinaryExpr) exprNode() {
-}
-func (x *KeyValueExpr) exprNode() {
-}
+func (x *BadExpr) exprNode()		{}
+func (x *Ident) exprNode()		{}
+func (x *Ellipsis) exprNode()		{}
+func (x *BasicLit) exprNode()		{}
+func (x *StringList) exprNode()		{}
+func (x *FuncLit) exprNode()		{}
+func (x *CompositeLit) exprNode()	{}
+func (x *ParenExpr) exprNode()		{}
+func (x *SelectorExpr) exprNode()	{}
+func (x *IndexExpr) exprNode()		{}
+func (x *TypeAssertExpr) exprNode()	{}
+func (x *CallExpr) exprNode()		{}
+func (x *StarExpr) exprNode()		{}
+func (x *UnaryExpr) exprNode()		{}
+func (x *BinaryExpr) exprNode()		{}
+func (x *KeyValueExpr) exprNode()	{}
 
-func (x *ArrayType) exprNode() {
-}
-func (x *StructType) exprNode() {
-}
-func (x *FuncType) exprNode() {
-}
-func (x *InterfaceType) exprNode() {
-}
-func (x *MapType) exprNode() {
-}
-func (x *ChanType) exprNode() {
-}
+func (x *ArrayType) exprNode()		{}
+func (x *StructType) exprNode()		{}
+func (x *FuncType) exprNode()		{}
+func (x *InterfaceType) exprNode()	{}
+func (x *MapType) exprNode()		{}
+func (x *ChanType) exprNode()		{}
 
 
 // IsExported returns whether name is an exported Go symbol
@@ -387,13 +347,9 @@ func IsExported(name string) bool {
 
 // IsExported returns whether name is an exported Go symbol
 // (i.e., whether it begins with an uppercase letter).
-func (name *Ident) IsExported() bool {
-	return IsExported(name.Value);
-}
+func (name *Ident) IsExported() bool	{ return IsExported(name.Value) }
 
-func (name *Ident) String() string {
-	return name.Value;
-}
+func (name *Ident) String() string	{ return name.Value }
 
 
 // ----------------------------------------------------------------------------
@@ -566,68 +522,37 @@ type (
 // Pos() implementations for statement nodes where the position
 // corresponds to the position of a sub-node.
 //
-func (s *DeclStmt) Pos() token.Position {
-	return s.Decl.Pos();
-}
-func (s *LabeledStmt) Pos() token.Position {
-	return s.Label.Pos();
-}
-func (s *ExprStmt) Pos() token.Position {
-	return s.X.Pos();
-}
-func (s *IncDecStmt) Pos() token.Position {
-	return s.X.Pos();
-}
-func (s *AssignStmt) Pos() token.Position {
-	return s.Lhs[0].Pos();
-}
+func (s *DeclStmt) Pos() token.Position		{ return s.Decl.Pos() }
+func (s *LabeledStmt) Pos() token.Position	{ return s.Label.Pos() }
+func (s *ExprStmt) Pos() token.Position		{ return s.X.Pos() }
+func (s *IncDecStmt) Pos() token.Position	{ return s.X.Pos() }
+func (s *AssignStmt) Pos() token.Position	{ return s.Lhs[0].Pos() }
 
 
 // stmtNode() ensures that only statement nodes can be
 // assigned to a StmtNode.
 //
-func (s *BadStmt) stmtNode() {
-}
-func (s *DeclStmt) stmtNode() {
-}
-func (s *EmptyStmt) stmtNode() {
-}
-func (s *LabeledStmt) stmtNode() {
-}
-func (s *ExprStmt) stmtNode() {
-}
-func (s *IncDecStmt) stmtNode() {
-}
-func (s *AssignStmt) stmtNode() {
-}
-func (s *GoStmt) stmtNode() {
-}
-func (s *DeferStmt) stmtNode() {
-}
-func (s *ReturnStmt) stmtNode() {
-}
-func (s *BranchStmt) stmtNode() {
-}
-func (s *BlockStmt) stmtNode() {
-}
-func (s *IfStmt) stmtNode() {
-}
-func (s *CaseClause) stmtNode() {
-}
-func (s *SwitchStmt) stmtNode() {
-}
-func (s *TypeCaseClause) stmtNode() {
-}
-func (s *TypeSwitchStmt) stmtNode() {
-}
-func (s *CommClause) stmtNode() {
-}
-func (s *SelectStmt) stmtNode() {
-}
-func (s *ForStmt) stmtNode() {
-}
-func (s *RangeStmt) stmtNode() {
-}
+func (s *BadStmt) stmtNode()		{}
+func (s *DeclStmt) stmtNode()		{}
+func (s *EmptyStmt) stmtNode()		{}
+func (s *LabeledStmt) stmtNode()	{}
+func (s *ExprStmt) stmtNode()		{}
+func (s *IncDecStmt) stmtNode()		{}
+func (s *AssignStmt) stmtNode()		{}
+func (s *GoStmt) stmtNode()		{}
+func (s *DeferStmt) stmtNode()		{}
+func (s *ReturnStmt) stmtNode()		{}
+func (s *BranchStmt) stmtNode()		{}
+func (s *BlockStmt) stmtNode()		{}
+func (s *IfStmt) stmtNode()		{}
+func (s *CaseClause) stmtNode()		{}
+func (s *SwitchStmt) stmtNode()		{}
+func (s *TypeCaseClause) stmtNode()	{}
+func (s *TypeSwitchStmt) stmtNode()	{}
+func (s *CommClause) stmtNode()		{}
+func (s *SelectStmt) stmtNode()		{}
+func (s *ForStmt) stmtNode()		{}
+func (s *RangeStmt) stmtNode()		{}
 
 
 // ----------------------------------------------------------------------------
@@ -680,23 +605,16 @@ func (s *ImportSpec) Pos() token.Position {
 	return s.Path[0].Pos();
 }
 
-func (s *ValueSpec) Pos() token.Position {
-	return s.Names[0].Pos();
-}
-func (s *TypeSpec) Pos() token.Position {
-	return s.Name.Pos();
-}
+func (s *ValueSpec) Pos() token.Position	{ return s.Names[0].Pos() }
+func (s *TypeSpec) Pos() token.Position		{ return s.Name.Pos() }
 
 
 // specNode() ensures that only spec nodes can be
 // assigned to a Spec.
 //
-func (s *ImportSpec) specNode() {
-}
-func (s *ValueSpec) specNode() {
-}
-func (s *TypeSpec) specNode() {
-}
+func (s *ImportSpec) specNode()	{}
+func (s *ValueSpec) specNode()	{}
+func (s *TypeSpec) specNode()	{}
 
 
 // A declaration is represented by one of the following declaration nodes.
@@ -742,20 +660,15 @@ type (
 
 
 // The position of a FuncDecl node is the position of its function type.
-func (d *FuncDecl) Pos() token.Position {
-	return d.Type.Pos();
-}
+func (d *FuncDecl) Pos() token.Position	{ return d.Type.Pos() }
 
 
 // declNode() ensures that only declaration nodes can be
 // assigned to a DeclNode.
 //
-func (d *BadDecl) declNode() {
-}
-func (d *GenDecl) declNode() {
-}
-func (d *FuncDecl) declNode() {
-}
+func (d *BadDecl) declNode()	{}
+func (d *GenDecl) declNode()	{}
+func (d *FuncDecl) declNode()	{}
 
 
 // ----------------------------------------------------------------------------

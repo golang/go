@@ -142,18 +142,14 @@ func Decode(dst, src []byte) (n int, err os.Error) {
 	return ndst, nil;
 }
 
-func MaxDecodedLen(n int) int {
-	return n/5*4;
-}
+func MaxDecodedLen(n int) int	{ return n/5*4 }
 
 // NewEncoder returns a new GIT base85 stream encoder.  Data written to
 // the returned writer will be encoded and then written to w.
 // The GIT encoding operates on 52-byte blocks; when finished
 // writing, the caller must Close the returned encoder to flush any
 // partially written blocks.
-func NewEncoder(w io.Writer) io.WriteCloser {
-	return &encoder{w: w};
-}
+func NewEncoder(w io.Writer) io.WriteCloser	{ return &encoder{w: w} }
 
 type encoder struct {
 	w	io.Writer;
@@ -224,9 +220,7 @@ func (e *encoder) Close() os.Error {
 }
 
 // NewDecoder returns a new GIT base85 stream decoder.
-func NewDecoder(r io.Reader) io.Reader {
-	return &decoder{r: r};
-}
+func NewDecoder(r io.Reader) io.Reader	{ return &decoder{r: r} }
 
 type decoder struct {
 	r	io.Reader;

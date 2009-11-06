@@ -26,14 +26,10 @@ type File struct {
 }
 
 // Fd returns the integer Unix file descriptor referencing the open file.
-func (file *File) Fd() int {
-	return file.fd;
-}
+func (file *File) Fd() int	{ return file.fd }
 
 // Name returns the name of the file as presented to Open.
-func (file *File) Name() string {
-	return file.name;
-}
+func (file *File) Name() string	{ return file.name }
 
 // NewFile returns a new File with the given file descriptor and name.
 func NewFile(fd int, name string) *File {
@@ -102,9 +98,7 @@ func (file *File) Close() Error {
 
 type eofError int
 
-func (eofError) String() string {
-	return "EOF";
-}
+func (eofError) String() string	{ return "EOF" }
 
 // EOF is the Error returned by Read when no more input is available.
 // Functions should return EOF only to signal a graceful end of input.

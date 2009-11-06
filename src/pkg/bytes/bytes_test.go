@@ -287,17 +287,11 @@ func TestMap(t *testing.T) {
 	}
 }
 
-func TestToUpper(t *testing.T) {
-	runStringTests(t, ToUpper, "ToUpper", upperTests);
-}
+func TestToUpper(t *testing.T)	{ runStringTests(t, ToUpper, "ToUpper", upperTests) }
 
-func TestToLower(t *testing.T) {
-	runStringTests(t, ToLower, "ToLower", lowerTests);
-}
+func TestToLower(t *testing.T)	{ runStringTests(t, ToLower, "ToLower", lowerTests) }
 
-func TestTrimSpace(t *testing.T) {
-	runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests);
-}
+func TestTrimSpace(t *testing.T)	{ runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
 
 type AddTest struct {
 	s, t	string;

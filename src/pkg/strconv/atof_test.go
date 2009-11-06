@@ -135,10 +135,6 @@ func testAtof(t *testing.T, opt bool) {
 	SetOptimize(oldopt);
 }
 
-func TestAtof(t *testing.T) {
-	testAtof(t, true);
-}
+func TestAtof(t *testing.T)	{ testAtof(t, true) }
 
-func TestAtofSlow(t *testing.T) {
-	testAtof(t, false);
-}
+func TestAtofSlow(t *testing.T)	{ testAtof(t, false) }

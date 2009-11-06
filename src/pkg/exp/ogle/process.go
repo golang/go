@@ -20,9 +20,7 @@ import (
 // in the object file or runtime structures.
 type FormatError string
 
-func (e FormatError) String() string {
-	return string(e);
-}
+func (e FormatError) String() string	{ return string(e) }
 
 // An UnknownArchitecture occurs when trying to load an object file
 // that indicates an architecture not supported by the debugger.
@@ -36,9 +34,7 @@ func (e UnknownArchitecture) String() string {
 // memory or registers of a process that is not stopped.
 type ProcessNotStopped struct{}
 
-func (e ProcessNotStopped) String() string {
-	return "process not stopped";
-}
+func (e ProcessNotStopped) String() string	{ return "process not stopped" }
 
 // An UnknownGoroutine error is an internal error representing an
 // unrecognized G structure pointer.
@@ -56,9 +52,7 @@ func (e UnknownGoroutine) String() string {
 // process).
 type NoCurrentGoroutine struct{}
 
-func (e NoCurrentGoroutine) String() string {
-	return "no current goroutine";
-}
+func (e NoCurrentGoroutine) String() string	{ return "no current goroutine" }
 
 // A Process represents a remote attached process.
 type Process struct {
@@ -338,9 +332,7 @@ func (p *Process) OnGoroutineCreate() EventHook {
 }
 
 // OnGoroutineExit returns the hook that is run when a goroutine exits.
-func (p *Process) OnGoroutineExit() EventHook {
-	return p.goroutineExitHook;
-}
+func (p *Process) OnGoroutineExit() EventHook	{ return p.goroutineExitHook }
 
 // osThreadToGoroutine looks up the goroutine running on an OS thread.
 func (p *Process) osThreadToGoroutine(t proc.Thread) (*Goroutine, os.Error) {
@@ -475,9 +467,7 @@ func (p *Process) processEvent(ev Event) (EventAction, os.Error) {
 // may return nil if the process has never been stopped by an event.
 //
 // TODO(austin) Return nil if the user calls p.Stop()?
-func (p *Process) Event() Event {
-	return p.event;
-}
+func (p *Process) Event() Event	{ return p.event }
 
 /*
  * Process control

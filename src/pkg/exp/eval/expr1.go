@@ -12,15 +12,11 @@ import (
  * "As" functions.  These retrieve evaluator functions from an
  * expr, panicking if the requested evaluator has the wrong type.
  */
-func (a *expr) asBool() (func(*Thread) bool) {
-	return a.eval.(func(*Thread) bool);
-}
+func (a *expr) asBool() (func(*Thread) bool)	{ return a.eval.(func(*Thread) bool) }
 func (a *expr) asUint() (func(*Thread) uint64) {
 	return a.eval.(func(*Thread) uint64);
 }
-func (a *expr) asInt() (func(*Thread) int64) {
-	return a.eval.(func(*Thread) int64);
-}
+func (a *expr) asInt() (func(*Thread) int64)	{ return a.eval.(func(*Thread) int64) }
 func (a *expr) asIdealInt() (func() *bignum.Integer) {
 	return a.eval.(func() *bignum.Integer);
 }
@@ -39,18 +35,12 @@ func (a *expr) asArray() (func(*Thread) ArrayValue) {
 func (a *expr) asStruct() (func(*Thread) StructValue) {
 	return a.eval.(func(*Thread) StructValue);
 }
-func (a *expr) asPtr() (func(*Thread) Value) {
-	return a.eval.(func(*Thread) Value);
-}
-func (a *expr) asFunc() (func(*Thread) Func) {
-	return a.eval.(func(*Thread) Func);
-}
+func (a *expr) asPtr() (func(*Thread) Value)	{ return a.eval.(func(*Thread) Value) }
+func (a *expr) asFunc() (func(*Thread) Func)	{ return a.eval.(func(*Thread) Func) }
 func (a *expr) asSlice() (func(*Thread) Slice) {
 	return a.eval.(func(*Thread) Slice);
 }
-func (a *expr) asMap() (func(*Thread) Map) {
-	return a.eval.(func(*Thread) Map);
-}
+func (a *expr) asMap() (func(*Thread) Map)	{ return a.eval.(func(*Thread) Map) }
 func (a *expr) asMulti() (func(*Thread) []Value) {
 	return a.eval.(func(*Thread) []Value);
 }
@@ -132,49 +122,27 @@ func (a *expr) genIdentOp(level, index int) {
 	a.evalAddr = func(t *Thread) Value { return t.f.Get(level, index) };
 	switch a.t.lit().(type) {
 	case *boolType:
-		a.eval = func(t *Thread) bool {
-			return t.f.Get(level, index).(BoolValue).Get(t);
-		};
+		a.eval = func(t *Thread) bool { return t.f.Get(level, index).(BoolValue).Get(t) };
 	case *uintType:
-		a.eval = func(t *Thread) uint64 {
-			return t.f.Get(level, index).(UintValue).Get(t);
-		};
+		a.eval = func(t *Thread) uint64 { return t.f.Get(level, index).(UintValue).Get(t) };
 	case *intType:
-		a.eval = func(t *Thread) int64 {
-			return t.f.Get(level, index).(IntValue).Get(t);
-		};
+		a.eval = func(t *Thread) int64 { return t.f.Get(level, index).(IntValue).Get(t) };
 	case *floatType:
-		a.eval = func(t *Thread) float64 {
-			return t.f.Get(level, index).(FloatValue).Get(t);
-		};
+		a.eval = func(t *Thread) float64 { return t.f.Get(level, index).(FloatValue).Get(t) };
 	case *stringType:
-		a.eval = func(t *Thread) string {
-			return t.f.Get(level, index).(StringValue).Get(t);
-		};
+		a.eval = func(t *Thread) string { return t.f.Get(level, index).(StringValue).Get(t) };
 	case *ArrayType:
-		a.eval = func(t *Thread) ArrayValue {
-			return t.f.Get(level, index).(ArrayValue).Get(t);
-		};
+		a.eval = func(t *Thread) ArrayValue { return t.f.Get(level, index).(ArrayValue).Get(t) };
 	case *StructType:
-		a.eval = func(t *Thread) StructValue {
-			return t.f.Get(level, index).(StructValue).Get(t);
-		};
+		a.eval = func(t *Thread) StructValue { return t.f.Get(level, index).(StructValue).Get(t) };
 	case *PtrType:
-		a.eval = func(t *Thread) Value {
-			return t.f.Get(level, index).(PtrValue).Get(t);
-		};
+		a.eval = func(t *Thread) Value { return t.f.Get(level, index).(PtrValue).Get(t) };
 	case *FuncType:
-		a.eval = func(t *Thread) Func {
-			return t.f.Get(level, index).(FuncValue).Get(t);
-		};
+		a.eval = func(t *Thread) Func { return t.f.Get(level, index).(FuncValue).Get(t) };
 	case *SliceType:
-		a.eval = func(t *Thread) Slice {
-			return t.f.Get(level, index).(SliceValue).Get(t);
-		};
+		a.eval = func(t *Thread) Slice { return t.f.Get(level, index).(SliceValue).Get(t) };
 	case *MapType:
-		a.eval = func(t *Thread) Map {
-			return t.f.Get(level, index).(MapValue).Get(t);
-		};
+		a.eval = func(t *Thread) Map { return t.f.Get(level, index).(MapValue).Get(t) };
 	default:
 		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos);
 	}

@@ -168,9 +168,7 @@ type fileHandler struct {
 // with the contents of the file system rooted at root.
 // It strips prefix from the incoming requests before
 // looking up the file name in the file system.
-func FileServer(root, prefix string) Handler {
-	return &fileHandler{root, prefix};
-}
+func FileServer(root, prefix string) Handler	{ return &fileHandler{root, prefix} }
 
 func (f *fileHandler) ServeHTTP(c *Conn, r *Request) {
 	path := r.Url.Path;

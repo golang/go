@@ -16,9 +16,7 @@ import (
 	"os";
 )
 
-func usage() {
-	fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go\n");
-}
+func usage()	{ fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go\n") }
 
 var ptrSizeMap = map[string]int64{
 	"386": 4,

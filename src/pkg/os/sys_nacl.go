@@ -4,6 +4,4 @@
 
 package os
 
-func Hostname() (name string, err Error) {
-	return "nacl", nil;
-}
+func Hostname() (name string, err Error)	{ return "nacl", nil }

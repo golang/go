@@ -63,9 +63,7 @@ func (noDiffType) Apply(old []byte) ([]byte, os.Error) {
 // A SyntaxError represents a syntax error encountered while parsing a patch.
 type SyntaxError string
 
-func (e SyntaxError) String() string {
-	return string(e);
-}
+func (e SyntaxError) String() string	{ return string(e) }
 
 var newline = []byte{'\n'}
 
@@ -318,6 +316,4 @@ func hasPrefix(s []byte, t string) bool {
 
 // splitLines returns the result of splitting s into lines.
 // The \n on each line is preserved.
-func splitLines(s []byte) [][]byte {
-	return bytes.SplitAfter(s, newline, 0);
-}
+func splitLines(s []byte) [][]byte	{ return bytes.SplitAfter(s, newline, 0) }

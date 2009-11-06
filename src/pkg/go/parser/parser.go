@@ -273,9 +273,7 @@ func openScope(p *parser) *parser {
 
 
 // Usage pattern: defer close(openScope(p));
-func close(p *parser) {
-	p.topScope = p.topScope.Outer;
-}
+func close(p *parser)	{ p.topScope = p.topScope.Outer }
 
 
 func (p *parser) declare(ident *ast.Ident) {
@@ -787,9 +785,7 @@ func (p *parser) tryRawType(ellipsisOk bool) ast.Expr {
 }
 
 
-func (p *parser) tryType() ast.Expr {
-	return p.tryRawType(false);
-}
+func (p *parser) tryType() ast.Expr	{ return p.tryRawType(false) }
 
 
 // ----------------------------------------------------------------------------

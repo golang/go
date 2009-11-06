@@ -115,9 +115,7 @@ func (c *Conn) readRequest() (req *Request, err os.Error) {
 // Content-Type in this library, so users need not make that
 // particular call.  Calls to SetHeader after WriteHeader (or Write)
 // are ignored.
-func (c *Conn) SetHeader(hdr, val string) {
-	c.header[CanonicalHeaderKey(hdr)] = val;
-}
+func (c *Conn) SetHeader(hdr, val string)	{ c.header[CanonicalHeaderKey(hdr)] = val }
 
 // WriteHeader sends an HTTP response header with status code.
 // If WriteHeader is not called explicitly, the first call to Write
@@ -326,9 +324,7 @@ func NotFound(c *Conn, req *Request) {
 
 // NotFoundHandler returns a simple request handler
 // that replies to each request with a ``404 page not found'' reply.
-func NotFoundHandler() Handler {
-	return HandlerFunc(NotFound);
-}
+func NotFoundHandler() Handler	{ return HandlerFunc(NotFound) }
 
 // Redirect replies to the request with a redirect to url,
 // which may be a path relative to the request path.
@@ -433,9 +429,7 @@ type ServeMux struct {
 }
 
 // NewServeMux allocates and returns a new ServeMux.
-func NewServeMux() *ServeMux {
-	return &ServeMux{make(map[string]Handler)};
-}
+func NewServeMux() *ServeMux	{ return &ServeMux{make(map[string]Handler)} }
 
 // DefaultServeMux is the default ServeMux used by Serve.
 var DefaultServeMux = NewServeMux()
@@ -516,9 +510,7 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 
 // Handle registers the handler for the given pattern
 // in the DefaultServeMux.
-func Handle(pattern string, handler Handler) {
-	DefaultServeMux.Handle(pattern, handler);
-}
+func Handle(pattern string, handler Handler)	{ DefaultServeMux.Handle(pattern, handler) }
 
 // Serve accepts incoming HTTP connections on the listener l,
 // creating a new service thread for each.  The service threads

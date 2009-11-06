@@ -29,13 +29,9 @@ type CommonType struct {
 	Name		string;	// name that can be used to refer to type
 }
 
-func (c *CommonType) Common() *CommonType {
-	return c;
-}
+func (c *CommonType) Common() *CommonType	{ return c }
 
-func (c *CommonType) Size() int64 {
-	return c.ByteSize;
-}
+func (c *CommonType) Size() int64	{ return c.ByteSize }
 
 // Basic types
 
@@ -46,9 +42,7 @@ type BasicType struct {
 	BitOffset	int64;
 }
 
-func (b *BasicType) Basic() *BasicType {
-	return b;
-}
+func (b *BasicType) Basic() *BasicType	{ return b }
 
 func (t *BasicType) String() string {
 	if t.Name != "" {
@@ -106,13 +100,9 @@ type QualType struct {
 	Type	Type;
 }
 
-func (t *QualType) String() string {
-	return t.Qual + " " + t.Type.String();
-}
+func (t *QualType) String() string	{ return t.Qual + " " + t.Type.String() }
 
-func (t *QualType) Size() int64 {
-	return t.Type.Size();
-}
+func (t *QualType) Size() int64	{ return t.Type.Size() }
 
 // An ArrayType represents a fixed size array type.
 type ArrayType struct {
@@ -126,18 +116,14 @@ func (t *ArrayType) String() string {
 	return "[" + strconv.Itoa64(t.Count) + "]" + t.Type.String();
 }
 
-func (t *ArrayType) Size() int64 {
-	return t.Count * t.Type.Size();
-}
+func (t *ArrayType) Size() int64	{ return t.Count * t.Type.Size() }
 
 // A VoidType represents the C void type.
 type VoidType struct {
 	CommonType;
 }
 
-func (t *VoidType) String() string {
-	return "void";
-}
+func (t *VoidType) String() string	{ return "void" }
 
 // A PtrType represents a pointer type.
 type PtrType struct {
@@ -145,9 +131,7 @@ type PtrType struct {
 	Type	Type;
 }
 
-func (t *PtrType) String() string {
-	return "*" + t.Type.String();
-}
+func (t *PtrType) String() string	{ return "*" + t.Type.String() }
 
 // A StructType represents a struct, union, or C++ class type.
 type StructType struct {
@@ -258,9 +242,7 @@ type DotDotDotType struct {
 	CommonType;
 }
 
-func (t *DotDotDotType) String() string {
-	return "...";
-}
+func (t *DotDotDotType) String() string	{ return "..." }
 
 // A TypedefType represents a named type.
 type TypedefType struct {
@@ -268,13 +250,9 @@ type TypedefType struct {
 	Type	Type;
 }
 
-func (t *TypedefType) String() string {
-	return t.Name;
-}
+func (t *TypedefType) String() string	{ return t.Name }
 
-func (t *TypedefType) Size() int64 {
-	return t.Type.Size();
-}
+func (t *TypedefType) Size() int64	{ return t.Type.Size() }
 
 func (d *Data) Type(off Offset) (Type, os.Error) {
 	if t, ok := d.typeCache[off]; ok {

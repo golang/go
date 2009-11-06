@@ -92,17 +92,11 @@ func (c Color) SetAlpha(a uint8) Color {
 	return r<<24 | g<<16 | b<<8 | Color(a);
 }
 
-func (c Color) Width() int {
-	return 1e9;
-}
+func (c Color) Width() int	{ return 1e9 }
 
-func (c Color) Height() int {
-	return 1e9;
-}
+func (c Color) Height() int	{ return 1e9 }
 
-func (c Color) At(x, y int) image.Color {
-	return c;
-}
+func (c Color) At(x, y int) image.Color	{ return c }
 
 func toColor(color image.Color) image.Color {
 	if c, ok := color.(Color); ok {
@@ -112,6 +106,4 @@ func toColor(color image.Color) image.Color {
 	return Color(r>>24<<24 | g>>24<<16 | b>>24<<8 | a>>24);
 }
 
-func (c Color) ColorModel() image.ColorModel {
-	return image.ColorModelFunc(toColor);
-}
+func (c Color) ColorModel() image.ColorModel	{ return image.ColorModelFunc(toColor) }

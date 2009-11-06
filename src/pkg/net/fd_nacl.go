@@ -23,14 +23,11 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 func (p *pollster) StopWaiting(fd int, bits uint) {
 }
 
-func (p *pollster) DelFD(fd int, mode int) {
-}
+func (p *pollster) DelFD(fd int, mode int)	{}
 
 func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 	_, err = newpollster();
 	return;
 }
 
-func (p *pollster) Close() os.Error {
-	return nil;
-}
+func (p *pollster) Close() os.Error	{ return nil }

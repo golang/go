@@ -28,9 +28,7 @@ func (t *Goroutine) String() string {
 }
 
 // isG0 returns true if this thread if the internal idle thread
-func (t *Goroutine) isG0() bool {
-	return t.g.addr().base == t.g.r.p.sys.g0.addr().base;
-}
+func (t *Goroutine) isG0() bool	{ return t.g.addr().base == t.g.r.p.sys.g0.addr().base }
 
 func (t *Goroutine) resetFrame() (err os.Error) {
 	// TODO(austin) Reuse any live part of the current frame stack

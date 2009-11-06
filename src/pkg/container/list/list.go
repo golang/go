@@ -19,14 +19,10 @@ type Element struct {
 }
 
 // Next returns the next list element or nil.
-func (e *Element) Next() *Element {
-	return e.next;
-}
+func (e *Element) Next() *Element	{ return e.next }
 
 // Prev returns the previous list element or nil.
-func (e *Element) Prev() *Element {
-	return e.prev;
-}
+func (e *Element) Prev() *Element	{ return e.prev }
 
 // List represents a doubly linked list.
 type List struct {
@@ -45,19 +41,13 @@ func (l *List) Init() *List {
 }
 
 // New returns an initialized list.
-func New() *List {
-	return new(List).Init();
-}
+func New() *List	{ return new(List).Init() }
 
 // Front returns the first element in the list.
-func (l *List) Front() *Element {
-	return l.front;
-}
+func (l *List) Front() *Element	{ return l.front }
 
 // Back returns the last element in the list.
-func (l *List) Back() *Element {
-	return l.back;
-}
+func (l *List) Back() *Element	{ return l.back }
 
 // Remove removes the element from the list.
 func (l *List) Remove(e *Element) {
@@ -187,9 +177,7 @@ func (l *List) MoveToBack(e *Element) {
 }
 
 // Len returns the number of elements in the list.
-func (l *List) Len() int {
-	return l.len;
-}
+func (l *List) Len() int	{ return l.len }
 
 func (l *List) iterate(c chan<- interface{}) {
 	for e := l.front; e != nil; e = e.next {

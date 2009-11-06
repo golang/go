@@ -291,21 +291,13 @@ func (t *uncommonType) Name() string {
 	return *t.name;
 }
 
-func (t *commonType) String() string {
-	return *t.string;
-}
+func (t *commonType) String() string	{ return *t.string }
 
-func (t *commonType) Size() uintptr {
-	return t.size;
-}
+func (t *commonType) Size() uintptr	{ return t.size }
 
-func (t *commonType) Align() int {
-	return int(t.align);
-}
+func (t *commonType) Align() int	{ return int(t.align) }
 
-func (t *commonType) FieldAlign() int {
-	return int(t.fieldAlign);
-}
+func (t *commonType) FieldAlign() int	{ return int(t.fieldAlign) }
 
 func (t *uncommonType) Method(i int) (m Method) {
 	if t == nil || i < 0 || i >= len(t.methods) {
@@ -334,41 +326,25 @@ func (t *uncommonType) NumMethod() int {
 // TODO(rsc): 6g supplies these, but they are not
 // as efficient as they could be: they have commonType
 // as the receiver instead of *commonType.
-func (t *commonType) NumMethod() int {
-	return t.uncommonType.NumMethod();
-}
+func (t *commonType) NumMethod() int	{ return t.uncommonType.NumMethod() }
 
-func (t *commonType) Method(i int) (m Method) {
-	return t.uncommonType.Method(i);
-}
+func (t *commonType) Method(i int) (m Method)	{ return t.uncommonType.Method(i) }
 
-func (t *commonType) PkgPath() string {
-	return t.uncommonType.PkgPath();
-}
+func (t *commonType) PkgPath() string	{ return t.uncommonType.PkgPath() }
 
-func (t *commonType) Name() string {
-	return t.uncommonType.Name();
-}
+func (t *commonType) Name() string	{ return t.uncommonType.Name() }
 
 // Len returns the number of elements in the array.
-func (t *ArrayType) Len() int {
-	return int(t.len);
-}
+func (t *ArrayType) Len() int	{ return int(t.len) }
 
 // Elem returns the type of the array's elements.
-func (t *ArrayType) Elem() Type {
-	return toType(*t.elem);
-}
+func (t *ArrayType) Elem() Type	{ return toType(*t.elem) }
 
 // Dir returns the channel direction.
-func (t *ChanType) Dir() ChanDir {
-	return ChanDir(t.dir);
-}
+func (t *ChanType) Dir() ChanDir	{ return ChanDir(t.dir) }
 
 // Elem returns the channel's element type.
-func (t *ChanType) Elem() Type {
-	return toType(*t.elem);
-}
+func (t *ChanType) Elem() Type	{ return toType(*t.elem) }
 
 func (d ChanDir) String() string {
 	switch d {
@@ -391,9 +367,7 @@ func (t *FuncType) In(i int) Type {
 }
 
 // NumIn returns the number of input parameters.
-func (t *FuncType) NumIn() int {
-	return len(t.in);
-}
+func (t *FuncType) NumIn() int	{ return len(t.in) }
 
 // Out returns the type of the i'th function output parameter.
 func (t *FuncType) Out(i int) Type {
@@ -404,9 +378,7 @@ func (t *FuncType) Out(i int) Type {
 }
 
 // NumOut returns the number of function output parameters.
-func (t *FuncType) NumOut() int {
-	return len(t.out);
-}
+func (t *FuncType) NumOut() int	{ return len(t.out) }
 
 // Method returns the i'th interface method.
 func (t *InterfaceType) Method(i int) (m Method) {
@@ -423,29 +395,19 @@ func (t *InterfaceType) Method(i int) (m Method) {
 }
 
 // NumMethod returns the number of interface methods.
-func (t *InterfaceType) NumMethod() int {
-	return len(t.methods);
-}
+func (t *InterfaceType) NumMethod() int	{ return len(t.methods) }
 
 // Key returns the map key type.
-func (t *MapType) Key() Type {
-	return toType(*t.key);
-}
+func (t *MapType) Key() Type	{ return toType(*t.key) }
 
 // Elem returns the map element type.
-func (t *MapType) Elem() Type {
-	return toType(*t.elem);
-}
+func (t *MapType) Elem() Type	{ return toType(*t.elem) }
 
 // Elem returns the pointer element type.
-func (t *PtrType) Elem() Type {
-	return toType(*t.elem);
-}
+func (t *PtrType) Elem() Type	{ return toType(*t.elem) }
 
 // Elem returns the type of the slice's elements.
-func (t *SliceType) Elem() Type {
-	return toType(*t.elem);
-}
+func (t *SliceType) Elem() Type	{ return toType(*t.elem) }
 
 type StructField struct {
 	PkgPath		string;	// empty for uppercase Name
@@ -588,9 +550,7 @@ func (t *StructType) FieldByName(name string) (f StructField, present bool) {
 }
 
 // NumField returns the number of struct fields.
-func (t *StructType) NumField() int {
-	return len(t.fields);
-}
+func (t *StructType) NumField() int	{ return len(t.fields) }
 
 // Convert runtime type to reflect type.
 // Same memory layouts, different method sets.
@@ -660,6 +620,4 @@ type ArrayOrSliceType interface {
 }
 
 // Typeof returns the reflection Type of the value in the interface{}.
-func Typeof(i interface{}) Type {
-	return toType(unsafe.Typeof(i));
-}
+func Typeof(i interface{}) Type	{ return toType(unsafe.Typeof(i)) }

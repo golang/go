@@ -113,8 +113,7 @@ func (b *structBuilder) Float64(f float64) {
 	}
 }
 
-func (b *structBuilder) Null() {
-}
+func (b *structBuilder) Null()	{}
 
 func (b *structBuilder) String(s string) {
 	if b == nil {

@@ -46,24 +46,18 @@ func NewCipher(key []byte) (*Cipher, os.Error) {
 // BlockSize returns the AES block size, 16 bytes.
 // It is necessary to satisfy the Key interface in the
 // package "crypto/modes".
-func (c *Cipher) BlockSize() int {
-	return BlockSize;
-}
+func (c *Cipher) BlockSize() int	{ return BlockSize }
 
 // Encrypt encrypts the 16-byte buffer src using the key k
 // and stores the result in dst.
 // Note that for amounts of data larger than a block,
 // it is not safe to just call Encrypt on successive blocks;
 // instead, use an encryption mode like AESCBC (see modes.go).
-func (c *Cipher) Encrypt(src, dst []byte) {
-	encryptBlock(c.enc, src, dst);
-}
+func (c *Cipher) Encrypt(src, dst []byte)	{ encryptBlock(c.enc, src, dst) }
 
 // Decrypt decrypts the 16-byte buffer src using the key k
 // and stores the result in dst.
-func (c *Cipher) Decrypt(src, dst []byte) {
-	decryptBlock(c.dec, src, dst);
-}
+func (c *Cipher) Decrypt(src, dst []byte)	{ decryptBlock(c.dec, src, dst) }
 
 // Reset zeros the key data, so that it will no longer
 // appear in the process's memory.

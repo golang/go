@@ -114,9 +114,7 @@ const (
 	SIGTRAP = 5;
 )
 
-func Pipe(p []int) (errno int) {
-	return ENACL;
-}
+func Pipe(p []int) (errno int)	{ return ENACL }
 
 func fcntl(fd, cmd, arg int) (val int, errno int) {
 	return 0, ENACL;
@@ -130,45 +128,31 @@ func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
 	return 0, ENACL;
 }
 
-func Mkdir(path string, mode int) (errno int) {
-	return ENACL;
-}
+func Mkdir(path string, mode int) (errno int)	{ return ENACL }
 
 func Lstat(path string, stat *Stat_t) (errno int) {
 	return ENACL;
 }
 
-func Chdir(path string) (errno int) {
-	return ENACL;
-}
+func Chdir(path string) (errno int)	{ return ENACL }
 
-func Fchdir(fd int) (errno int) {
-	return ENACL;
-}
+func Fchdir(fd int) (errno int)	{ return ENACL }
 
-func Unlink(path string) (errno int) {
-	return ENACL;
-}
+func Unlink(path string) (errno int)	{ return ENACL }
 
-func Rmdir(path string) (errno int) {
-	return ENACL;
-}
+func Rmdir(path string) (errno int)	{ return ENACL }
 
 func Link(oldpath, newpath string) (errno int) {
 	return ENACL;
 }
 
-func Symlink(path, link string) (errno int) {
-	return ENACL;
-}
+func Symlink(path, link string) (errno int)	{ return ENACL }
 
 func Readlink(path string, buf []byte) (n int, errno int) {
 	return 0, ENACL;
 }
 
-func Fchmod(fd int, mode int) (errno int) {
-	return ENACL;
-}
+func Fchmod(fd int, mode int) (errno int)	{ return ENACL }
 
 func Chown(path string, uid int, gid int) (errno int) {
 	return ENACL;
@@ -196,33 +180,19 @@ func Ftruncate(fd int, length int64) (errno int) {
 
 const ImplementsGetwd = true
 
-func Getwd() (wd string, errno int) {
-	return "", ENACL;
-}
+func Getwd() (wd string, errno int)	{ return "", ENACL }
 
-func Getuid() (uid int) {
-	return -1;
-}
+func Getuid() (uid int)	{ return -1 }
 
-func Geteuid() (euid int) {
-	return -1;
-}
+func Geteuid() (euid int)	{ return -1 }
 
-func Getgid() (gid int) {
-	return -1;
-}
+func Getgid() (gid int)	{ return -1 }
 
-func Getegid() (egid int) {
-	return -1;
-}
+func Getegid() (egid int)	{ return -1 }
 
-func Getppid() (ppid int) {
-	return -1;
-}
+func Getppid() (ppid int)	{ return -1 }
 
-func Getgroups() (gids []int, errno int) {
-	return nil, ENACL;
-}
+func Getgroups() (gids []int, errno int)	{ return nil, ENACL }
 
 type Sockaddr interface {
 	sockaddr();
@@ -233,23 +203,20 @@ type SockaddrInet4 struct {
 	Addr	[4]byte;
 }
 
-func (*SockaddrInet4) sockaddr() {
-}
+func (*SockaddrInet4) sockaddr()	{}
 
 type SockaddrInet6 struct {
 	Port	int;
 	Addr	[16]byte;
 }
 
-func (*SockaddrInet6) sockaddr() {
-}
+func (*SockaddrInet6) sockaddr()	{}
 
 type SockaddrUnix struct {
 	Name string;
 }
 
-func (*SockaddrUnix) sockaddr() {
-}
+func (*SockaddrUnix) sockaddr()	{}
 
 const (
 	AF_INET	= 1+iota;
@@ -284,13 +251,9 @@ func Getpeername(fd int) (sa Sockaddr, errno int) {
 	return nil, ENACL;
 }
 
-func Bind(fd int, sa Sockaddr) (errno int) {
-	return ENACL;
-}
+func Bind(fd int, sa Sockaddr) (errno int)	{ return ENACL }
 
-func Connect(fd int, sa Sockaddr) (errno int) {
-	return ENACL;
-}
+func Connect(fd int, sa Sockaddr) (errno int)	{ return ENACL }
 
 func Socket(domain, typ, proto int) (fd, errno int) {
 	return 0, ENACL;
@@ -313,9 +276,7 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
 	return ENACL;
 }
 
-func Listen(s int, n int) (errno int) {
-	return ENACL;
-}
+func Listen(s int, n int) (errno int)	{ return ENACL }
 
 type Rusage struct {
 	Utime		Timeval;
@@ -342,38 +303,20 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 
 type WaitStatus uint32
 
-func (WaitStatus) Exited() bool {
-	return false;
-}
+func (WaitStatus) Exited() bool	{ return false }
 
-func (WaitStatus) ExitStatus() int {
-	return -1;
-}
+func (WaitStatus) ExitStatus() int	{ return -1 }
 
-func (WaitStatus) Signal() int {
-	return -1;
-}
+func (WaitStatus) Signal() int	{ return -1 }
 
-func (WaitStatus) CoreDump() bool {
-	return false;
-}
+func (WaitStatus) CoreDump() bool	{ return false }
 
-func (WaitStatus) Stopped() bool {
-	return false;
-}
+func (WaitStatus) Stopped() bool	{ return false }
 
-func (WaitStatus) Continued() bool {
-	return false;
-}
+func (WaitStatus) Continued() bool	{ return false }
 
-func (WaitStatus) StopSignal() int {
-	return -1;
-}
+func (WaitStatus) StopSignal() int	{ return -1 }
 
-func (WaitStatus) Signaled() bool {
-	return false;
-}
+func (WaitStatus) Signaled() bool	{ return false }
 
-func (WaitStatus) TrapCause() int {
-	return -1;
-}
+func (WaitStatus) TrapCause() int	{ return -1 }

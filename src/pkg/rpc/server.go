@@ -370,23 +370,17 @@ func (server *serverType) accept(lis net.Listener) {
 //	- one return value of type os.Error
 // It returns an error if the receiver is not public or has no
 // suitable methods.
-func Register(rcvr interface{}) os.Error {
-	return server.register(rcvr);
-}
+func Register(rcvr interface{}) os.Error	{ return server.register(rcvr) }
 
 // ServeConn runs the server on a single connection.  When the connection
 // completes, service terminates.  ServeConn blocks; the caller typically
 // invokes it in a go statement.
-func ServeConn(conn io.ReadWriteCloser) {
-	go server.input(conn);
-}
+func ServeConn(conn io.ReadWriteCloser)	{ go server.input(conn) }
 
 // Accept accepts connections on the listener and serves requests
 // for each incoming connection.  Accept blocks; the caller typically
 // invokes it in a go statement.
-func Accept(lis net.Listener) {
-	server.accept(lis);
-}
+func Accept(lis net.Listener)	{ server.accept(lis) }
 
 // Can connect to RPC service using HTTP CONNECT to rpcPath.
 var rpcPath string = "/_goRPC_"

@@ -34,9 +34,7 @@ var BigEndian ByteOrder = bigEndian(0)
 
 type littleEndian unused
 
-func (littleEndian) Uint16(b []byte) uint16 {
-	return uint16(b[0]) | uint16(b[1])<<8;
-}
+func (littleEndian) Uint16(b []byte) uint16	{ return uint16(b[0]) | uint16(b[1])<<8 }
 
 func (littleEndian) PutUint16(b []byte, v uint16) {
 	b[0] = byte(v);
@@ -70,19 +68,13 @@ func (littleEndian) PutUint64(b []byte, v uint64) {
 	b[7] = byte(v>>56);
 }
 
-func (littleEndian) String() string {
-	return "LittleEndian";
-}
+func (littleEndian) String() string	{ return "LittleEndian" }
 
-func (littleEndian) GoString() string {
-	return "binary.LittleEndian";
-}
+func (littleEndian) GoString() string	{ return "binary.LittleEndian" }
 
 type bigEndian unused
 
-func (bigEndian) Uint16(b []byte) uint16 {
-	return uint16(b[1]) | uint16(b[0])<<8;
-}
+func (bigEndian) Uint16(b []byte) uint16	{ return uint16(b[1]) | uint16(b[0])<<8 }
 
 func (bigEndian) PutUint16(b []byte, v uint16) {
 	b[0] = byte(v>>8);
@@ -116,13 +108,9 @@ func (bigEndian) PutUint64(b []byte, v uint64) {
 	b[7] = byte(v);
 }
 
-func (bigEndian) String() string {
-	return "BigEndian";
-}
+func (bigEndian) String() string	{ return "BigEndian" }
 
-func (bigEndian) GoString() string {
-	return "binary.BigEndian";
-}
+func (bigEndian) GoString() string	{ return "binary.BigEndian" }
 
 // Read reads structured binary data from r into data.
 // Data must be a pointer to a fixed-size value.
@@ -218,21 +206,13 @@ func (d *decoder) uint64() uint64 {
 	return x;
 }
 
-func (d *decoder) int8() int8 {
-	return int8(d.uint8());
-}
+func (d *decoder) int8() int8	{ return int8(d.uint8()) }
 
-func (d *decoder) int16() int16 {
-	return int16(d.uint16());
-}
+func (d *decoder) int16() int16	{ return int16(d.uint16()) }
 
-func (d *decoder) int32() int32 {
-	return int32(d.uint32());
-}
+func (d *decoder) int32() int32	{ return int32(d.uint32()) }
 
-func (d *decoder) int64() int64 {
-	return int64(d.uint64());
-}
+func (d *decoder) int64() int64	{ return int64(d.uint64()) }
 
 func (d *decoder) value(v reflect.Value) {
 	switch v := v.(type) {

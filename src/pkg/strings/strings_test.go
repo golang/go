@@ -74,13 +74,9 @@ func runIndexTests(t *testing.T, f func(s, sep string) int, funcName string, tes
 	}
 }
 
-func TestIndex(t *testing.T) {
-	runIndexTests(t, Index, "Index", indexTests);
-}
+func TestIndex(t *testing.T)	{ runIndexTests(t, Index, "Index", indexTests) }
 
-func TestLastIndex(t *testing.T) {
-	runIndexTests(t, LastIndex, "LastIndex", lastIndexTests);
-}
+func TestLastIndex(t *testing.T)	{ runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
 
 
 type ExplodeTest struct {
@@ -249,17 +245,11 @@ func TestMap(t *testing.T) {
 	}
 }
 
-func TestToUpper(t *testing.T) {
-	runStringTests(t, ToUpper, "ToUpper", upperTests);
-}
+func TestToUpper(t *testing.T)	{ runStringTests(t, ToUpper, "ToUpper", upperTests) }
 
-func TestToLower(t *testing.T) {
-	runStringTests(t, ToLower, "ToLower", lowerTests);
-}
+func TestToLower(t *testing.T)	{ runStringTests(t, ToLower, "ToLower", lowerTests) }
 
-func TestTrimSpace(t *testing.T) {
-	runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests);
-}
+func TestTrimSpace(t *testing.T)	{ runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
 
 func equal(m string, s1, s2 string, t *testing.T) bool {
 	if s1 == s2 {

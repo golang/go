@@ -57,9 +57,7 @@ func (r *Response) AddHeader(key, value string) {
 
 // Given a string of the form "host", "host:port", or "[ipv6::address]:port",
 // return true if the string includes a port.
-func hasPort(s string) bool {
-	return strings.LastIndex(s, ":") > strings.LastIndex(s, "]");
-}
+func hasPort(s string) bool	{ return strings.LastIndex(s, ":") > strings.LastIndex(s, "]") }
 
 // Used in Send to implement io.ReadCloser by bundling together the
 // io.BufReader through which we read the response, and the underlying

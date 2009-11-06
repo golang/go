@@ -183,9 +183,7 @@ func main() {
 		// 1) set timestamp right away so that the indexer is kicked on
 		fsTree.set(nil);
 		// 2) compute initial directory tree in a goroutine so that launch is quick
-		go func() {
-			fsTree.set(newDirectory(".", maxDirDepth));
-		}();
+		go func() { fsTree.set(newDirectory(".", maxDirDepth)) }();
 
 		// Start sync goroutine, if enabled.
 		if *syncCmd != "" && *syncMin > 0 {

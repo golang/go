@@ -81,9 +81,7 @@ func (w *World) CompileDeclList(decls []ast.Decl) (Code, os.Error) {
 	return w.CompileStmtList(stmts);
 }
 
-func (s *stmtCode) Type() Type {
-	return nil;
-}
+func (s *stmtCode) Type() Type	{ return nil }
 
 func (s *stmtCode) Run() (Value, os.Error) {
 	t := new(Thread);
@@ -120,9 +118,7 @@ func (w *World) CompileExpr(e ast.Expr) (Code, os.Error) {
 	return &exprCode{w, ec, eval}, nil;
 }
 
-func (e *exprCode) Type() Type {
-	return e.e.t;
-}
+func (e *exprCode) Type() Type	{ return e.e.t }
 
 func (e *exprCode) Run() (Value, os.Error) {
 	t := new(Thread);

@@ -246,13 +246,9 @@ type undo func() os.Error
 
 var undoLog vector.Vector	// vector of undo
 
-func undoRevert(name string) {
-	undoLog.Push(undo(func() os.Error { return hgRevert(name) }));
-}
+func undoRevert(name string)	{ undoLog.Push(undo(func() os.Error { return hgRevert(name) })) }
 
-func undoRm(name string) {
-	undoLog.Push(undo(func() os.Error { return os.Remove(name) }));
-}
+func undoRm(name string)	{ undoLog.Push(undo(func() os.Error { return os.Remove(name) })) }
 
 func runUndo() {
 	for i := undoLog.Len() - 1; i >= 0; i-- {
@@ -392,6 +388,4 @@ type runError struct {
 	err	os.Error;
 }
 
-func (e *runError) String() string {
-	return strings.Join(e.cmd, " ") + ": " + e.err.String();
-}
+func (e *runError) String() string	{ return strings.Join(e.cmd, " ") + ": " + e.err.String() }

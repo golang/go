@@ -73,12 +73,8 @@ var versionStrings = []intName{
 	intName{1, "EV_CURRENT"},
 }
 
-func (i Version) String() string {
-	return stringName(uint32(i), versionStrings, false);
-}
-func (i Version) GoString() string {
-	return stringName(uint32(i), versionStrings, true);
-}
+func (i Version) String() string	{ return stringName(uint32(i), versionStrings, false) }
+func (i Version) GoString() string	{ return stringName(uint32(i), versionStrings, true) }
 
 // Class is found in Header.Ident[EI_CLASS] and Header.Class.
 type Class byte
@@ -95,12 +91,8 @@ var classStrings = []intName{
 	intName{2, "ELFCLASS64"},
 }
 
-func (i Class) String() string {
-	return stringName(uint32(i), classStrings, false);
-}
-func (i Class) GoString() string {
-	return stringName(uint32(i), classStrings, true);
-}
+func (i Class) String() string		{ return stringName(uint32(i), classStrings, false) }
+func (i Class) GoString() string	{ return stringName(uint32(i), classStrings, true) }
 
 // Data is found in Header.Ident[EI_DATA] and Header.Data.
 type Data byte
@@ -117,12 +109,8 @@ var dataStrings = []intName{
 	intName{2, "ELFDATA2MSB"},
 }
 
-func (i Data) String() string {
-	return stringName(uint32(i), dataStrings, false);
-}
-func (i Data) GoString() string {
-	return stringName(uint32(i), dataStrings, true);
-}
+func (i Data) String() string	{ return stringName(uint32(i), dataStrings, false) }
+func (i Data) GoString() string	{ return stringName(uint32(i), dataStrings, true) }
 
 // OSABI is found in Header.Ident[EI_OSABI] and Header.OSABI.
 type OSABI byte
@@ -167,12 +155,8 @@ var osabiStrings = []intName{
 	intName{255, "ELFOSABI_STANDALONE"},
 }
 
-func (i OSABI) String() string {
-	return stringName(uint32(i), osabiStrings, false);
-}
-func (i OSABI) GoString() string {
-	return stringName(uint32(i), osabiStrings, true);
-}
+func (i OSABI) String() string		{ return stringName(uint32(i), osabiStrings, false) }
+func (i OSABI) GoString() string	{ return stringName(uint32(i), osabiStrings, true) }
 
 // Type is found in Header.Type.
 type Type uint16
@@ -201,12 +185,8 @@ var typeStrings = []intName{
 	intName{0xffff, "ET_HIPROC"},
 }
 
-func (i Type) String() string {
-	return stringName(uint32(i), typeStrings, false);
-}
-func (i Type) GoString() string {
-	return stringName(uint32(i), typeStrings, true);
-}
+func (i Type) String() string	{ return stringName(uint32(i), typeStrings, false) }
+func (i Type) GoString() string	{ return stringName(uint32(i), typeStrings, true) }
 
 // Machine is found in Header.Machine.
 type Machine uint16
@@ -315,12 +295,8 @@ var machineStrings = []intName{
 	intName{0x9026, "EM_ALPHA"},
 }
 
-func (i Machine) String() string {
-	return stringName(uint32(i), machineStrings, false);
-}
-func (i Machine) GoString() string {
-	return stringName(uint32(i), machineStrings, true);
-}
+func (i Machine) String() string	{ return stringName(uint32(i), machineStrings, false) }
+func (i Machine) GoString() string	{ return stringName(uint32(i), machineStrings, true) }
 
 // Special section indices.
 type SectionIndex int
@@ -347,12 +323,8 @@ var shnStrings = []intName{
 	intName{0xffff, "SHN_XINDEX"},
 }
 
-func (i SectionIndex) String() string {
-	return stringName(uint32(i), shnStrings, false);
-}
-func (i SectionIndex) GoString() string {
-	return stringName(uint32(i), shnStrings, true);
-}
+func (i SectionIndex) String() string	{ return stringName(uint32(i), shnStrings, false) }
+func (i SectionIndex) GoString() string	{ return stringName(uint32(i), shnStrings, true) }
 
 // Section type.
 type SectionType uint32
@@ -409,12 +381,8 @@ var shtStrings = []intName{
 	intName{0xffffffff, "SHT_HIUSER"},
 }
 
-func (i SectionType) String() string {
-	return stringName(uint32(i), shtStrings, false);
-}
-func (i SectionType) GoString() string {
-	return stringName(uint32(i), shtStrings, true);
-}
+func (i SectionType) String() string	{ return stringName(uint32(i), shtStrings, false) }
+func (i SectionType) GoString() string	{ return stringName(uint32(i), shtStrings, true) }
 
 // Section flags.
 type SectionFlag uint32
@@ -447,12 +415,8 @@ var shfStrings = []intName{
 	intName{0x400, "SHF_TLS"},
 }
 
-func (i SectionFlag) String() string {
-	return flagName(uint32(i), shfStrings, false);
-}
-func (i SectionFlag) GoString() string {
-	return flagName(uint32(i), shfStrings, true);
-}
+func (i SectionFlag) String() string	{ return flagName(uint32(i), shfStrings, false) }
+func (i SectionFlag) GoString() string	{ return flagName(uint32(i), shfStrings, true) }
 
 // Prog.Type
 type ProgType int
@@ -487,12 +451,8 @@ var ptStrings = []intName{
 	intName{0x7fffffff, "PT_HIPROC"},
 }
 
-func (i ProgType) String() string {
-	return stringName(uint32(i), ptStrings, false);
-}
-func (i ProgType) GoString() string {
-	return stringName(uint32(i), ptStrings, true);
-}
+func (i ProgType) String() string	{ return stringName(uint32(i), ptStrings, false) }
+func (i ProgType) GoString() string	{ return stringName(uint32(i), ptStrings, true) }
 
 // Prog.Flag
 type ProgFlag uint32
@@ -511,12 +471,8 @@ var pfStrings = []intName{
 	intName{0x4, "PF_R"},
 }
 
-func (i ProgFlag) String() string {
-	return flagName(uint32(i), pfStrings, false);
-}
-func (i ProgFlag) GoString() string {
-	return flagName(uint32(i), pfStrings, true);
-}
+func (i ProgFlag) String() string	{ return flagName(uint32(i), pfStrings, false) }
+func (i ProgFlag) GoString() string	{ return flagName(uint32(i), pfStrings, true) }
 
 // Dyn.Tag
 type DynTag int
@@ -607,12 +563,8 @@ var dtStrings = []intName{
 	intName{0x7fffffff, "DT_HIPROC"},
 }
 
-func (i DynTag) String() string {
-	return stringName(uint32(i), dtStrings, false);
-}
-func (i DynTag) GoString() string {
-	return stringName(uint32(i), dtStrings, true);
-}
+func (i DynTag) String() string		{ return stringName(uint32(i), dtStrings, false) }
+func (i DynTag) GoString() string	{ return stringName(uint32(i), dtStrings, true) }
 
 // DT_FLAGS values.
 type DynFlag int
@@ -640,12 +592,8 @@ var dflagStrings = []intName{
 	intName{0x0010, "DF_STATIC_TLS"},
 }
 
-func (i DynFlag) String() string {
-	return flagName(uint32(i), dflagStrings, false);
-}
-func (i DynFlag) GoString() string {
-	return flagName(uint32(i), dflagStrings, true);
-}
+func (i DynFlag) String() string	{ return flagName(uint32(i), dflagStrings, false) }
+func (i DynFlag) GoString() string	{ return flagName(uint32(i), dflagStrings, true) }
 
 // NType values; used in core files.
 type NType int
@@ -662,12 +610,8 @@ var ntypeStrings = []intName{
 	intName{3, "NT_PRPSINFO"},
 }
 
-func (i NType) String() string {
-	return stringName(uint32(i), ntypeStrings, false);
-}
-func (i NType) GoString() string {
-	return stringName(uint32(i), ntypeStrings, true);
-}
+func (i NType) String() string		{ return stringName(uint32(i), ntypeStrings, false) }
+func (i NType) GoString() string	{ return stringName(uint32(i), ntypeStrings, true) }
 
 /* Symbol Binding - ELFNN_ST_BIND - st_info */
 type SymBind int
@@ -692,12 +636,8 @@ var stbStrings = []intName{
 	intName{15, "STB_HIPROC"},
 }
 
-func (i SymBind) String() string {
-	return stringName(uint32(i), stbStrings, false);
-}
-func (i SymBind) GoString() string {
-	return stringName(uint32(i), stbStrings, true);
-}
+func (i SymBind) String() string	{ return stringName(uint32(i), stbStrings, false) }
+func (i SymBind) GoString() string	{ return stringName(uint32(i), stbStrings, true) }
 
 /* Symbol type - ELFNN_ST_TYPE - st_info */
 type SymType int
@@ -730,12 +670,8 @@ var sttStrings = []intName{
 	intName{15, "STT_HIPROC"},
 }
 
-func (i SymType) String() string {
-	return stringName(uint32(i), sttStrings, false);
-}
-func (i SymType) GoString() string {
-	return stringName(uint32(i), sttStrings, true);
-}
+func (i SymType) String() string	{ return stringName(uint32(i), sttStrings, false) }
+func (i SymType) GoString() string	{ return stringName(uint32(i), sttStrings, true) }
 
 /* Symbol visibility - ELFNN_ST_VISIBILITY - st_other */
 type SymVis int
@@ -754,12 +690,8 @@ var stvStrings = []intName{
 	intName{0x3, "STV_PROTECTED"},
 }
 
-func (i SymVis) String() string {
-	return stringName(uint32(i), stvStrings, false);
-}
-func (i SymVis) GoString() string {
-	return stringName(uint32(i), stvStrings, true);
-}
+func (i SymVis) String() string		{ return stringName(uint32(i), stvStrings, false) }
+func (i SymVis) GoString() string	{ return stringName(uint32(i), stvStrings, true) }
 
 /*
  * Relocation types.
@@ -822,12 +754,8 @@ var rx86_64Strings = []intName{
 	intName{23, "R_X86_64_TPOFF32"},
 }
 
-func (i R_X86_64) String() string {
-	return stringName(uint32(i), rx86_64Strings, false);
-}
-func (i R_X86_64) GoString() string {
-	return stringName(uint32(i), rx86_64Strings, true);
-}
+func (i R_X86_64) String() string	{ return stringName(uint32(i), rx86_64Strings, false) }
+func (i R_X86_64) GoString() string	{ return stringName(uint32(i), rx86_64Strings, true) }
 
 // Relocation types for Alpha.
 type R_ALPHA int
@@ -894,12 +822,8 @@ var ralphaStrings = []intName{
 	intName{27, "R_ALPHA_RELATIVE"},
 }
 
-func (i R_ALPHA) String() string {
-	return stringName(uint32(i), ralphaStrings, false);
-}
-func (i R_ALPHA) GoString() string {
-	return stringName(uint32(i), ralphaStrings, true);
-}
+func (i R_ALPHA) String() string	{ return stringName(uint32(i), ralphaStrings, false) }
+func (i R_ALPHA) GoString() string	{ return stringName(uint32(i), ralphaStrings, true) }
 
 // Relocation types for ARM.
 type R_ARM int
@@ -976,12 +900,8 @@ var rarmStrings = []intName{
 	intName{255, "R_ARM_RBASE"},
 }
 
-func (i R_ARM) String() string {
-	return stringName(uint32(i), rarmStrings, false);
-}
-func (i R_ARM) GoString() string {
-	return stringName(uint32(i), rarmStrings, true);
-}
+func (i R_ARM) String() string		{ return stringName(uint32(i), rarmStrings, false) }
+func (i R_ARM) GoString() string	{ return stringName(uint32(i), rarmStrings, true) }
 
 // Relocation types for 386.
 type R_386 int
@@ -1054,12 +974,8 @@ var r386Strings = []intName{
 	intName{37, "R_386_TLS_TPOFF32"},
 }
 
-func (i R_386) String() string {
-	return stringName(uint32(i), r386Strings, false);
-}
-func (i R_386) GoString() string {
-	return stringName(uint32(i), r386Strings, true);
-}
+func (i R_386) String() string		{ return stringName(uint32(i), r386Strings, false) }
+func (i R_386) GoString() string	{ return stringName(uint32(i), r386Strings, true) }
 
 // Relocation types for PowerPC.
 type R_PPC int
@@ -1226,12 +1142,8 @@ var rppcStrings = []intName{
 	intName{116, "R_PPC_EMB_RELSDA"},
 }
 
-func (i R_PPC) String() string {
-	return stringName(uint32(i), rppcStrings, false);
-}
-func (i R_PPC) GoString() string {
-	return stringName(uint32(i), rppcStrings, true);
-}
+func (i R_PPC) String() string		{ return stringName(uint32(i), rppcStrings, false) }
+func (i R_PPC) GoString() string	{ return stringName(uint32(i), rppcStrings, true) }
 
 // Relocation types for SPARC.
 type R_SPARC int
@@ -1354,12 +1266,8 @@ var rsparcStrings = []intName{
 	intName{55, "R_SPARC_UA16"},
 }
 
-func (i R_SPARC) String() string {
-	return stringName(uint32(i), rsparcStrings, false);
-}
-func (i R_SPARC) GoString() string {
-	return stringName(uint32(i), rsparcStrings, true);
-}
+func (i R_SPARC) String() string	{ return stringName(uint32(i), rsparcStrings, false) }
+func (i R_SPARC) GoString() string	{ return stringName(uint32(i), rsparcStrings, true) }
 
 /*
  * Magic number for the elf trampoline, chosen wisely to be an immediate
@@ -1443,15 +1351,9 @@ type Rela32 struct {
 	Addend	int32;	/* Addend. */
 }
 
-func R_SYM32(info uint32) uint32 {
-	return uint32(info>>8);
-}
-func R_TYPE32(info uint32) uint32 {
-	return uint32(info&0xff);
-}
-func R_INFO32(sym, typ uint32) uint32 {
-	return sym<<8 | typ;
-}
+func R_SYM32(info uint32) uint32	{ return uint32(info>>8) }
+func R_TYPE32(info uint32) uint32	{ return uint32(info&0xff) }
+func R_INFO32(sym, typ uint32) uint32	{ return sym<<8 | typ }
 
 // ELF32 Symbol.
 type Sym32 struct {
@@ -1465,15 +1367,9 @@ type Sym32 struct {
 
 const Sym32Size = 16
 
-func ST_BIND(info uint8) SymBind {
-	return SymBind(info>>4);
-}
-func ST_TYPE(bind SymBind, typ SymType) uint8 {
-	return uint8(bind)<<4 | uint8(typ)&0xf;
-}
-func ST_VISIBILITY(other uint8) SymVis {
-	return SymVis(other&3);
-}
+func ST_BIND(info uint8) SymBind		{ return SymBind(info>>4) }
+func ST_TYPE(bind SymBind, typ SymType) uint8	{ return uint8(bind)<<4 | uint8(typ)&0xf }
+func ST_VISIBILITY(other uint8) SymVis		{ return SymVis(other&3) }
 
 /*
  * ELF64
@@ -1558,15 +1454,9 @@ type Rela64 struct {
 	Addend	int64;	/* Addend. */
 }
 
-func R_SYM64(info uint64) uint32 {
-	return uint32(info>>32);
-}
-func R_TYPE64(info uint64) uint32 {
-	return uint32(info);
-}
-func R_INFO(sym, typ uint32) uint64 {
-	return uint64(sym)<<32 | uint64(typ);
-}
+func R_SYM64(info uint64) uint32	{ return uint32(info>>32) }
+func R_TYPE64(info uint64) uint32	{ return uint32(info) }
+func R_INFO(sym, typ uint32) uint64	{ return uint64(sym)<<32 | uint64(typ) }
 
 
 /*

@@ -145,9 +145,7 @@ func SecondsToUTC(sec int64) *Time {
 }
 
 // UTC returns the current time as a parsed Time value in the UTC time zone.
-func UTC() *Time {
-	return SecondsToUTC(Seconds());
-}
+func UTC() *Time	{ return SecondsToUTC(Seconds()) }
 
 // SecondsToLocalTime converts sec, in number of seconds since the Unix epoch,
 // into a parsed Time value in the local time zone.
@@ -160,9 +158,7 @@ func SecondsToLocalTime(sec int64) *Time {
 }
 
 // LocalTime returns the current time as a parsed Time value in the local time zone.
-func LocalTime() *Time {
-	return SecondsToLocalTime(Seconds());
-}
+func LocalTime() *Time	{ return SecondsToLocalTime(Seconds()) }
 
 // Seconds returns the number of seconds since January 1, 1970 represented by the
 // parsed Time value.
@@ -340,24 +336,16 @@ func format(t *Time, fmt string) string {
 
 // Asctime formats the parsed time value in the style of
 // ANSI C asctime: Sun Nov  6 08:49:37 1994
-func (t *Time) Asctime() string {
-	return format(t, "%a %b %e %H:%M:%S %Y");
-}
+func (t *Time) Asctime() string	{ return format(t, "%a %b %e %H:%M:%S %Y") }
 
 // RFC850 formats the parsed time value in the style of
 // RFC 850: Sunday, 06-Nov-94 08:49:37 UTC
-func (t *Time) RFC850() string {
-	return format(t, "%A, %d-%b-%y %H:%M:%S %Z");
-}
+func (t *Time) RFC850() string	{ return format(t, "%A, %d-%b-%y %H:%M:%S %Z") }
 
 // RFC1123 formats the parsed time value in the style of
 // RFC 1123: Sun, 06 Nov 1994 08:49:37 UTC
-func (t *Time) RFC1123() string {
-	return format(t, "%a, %d %b %Y %H:%M:%S %Z");
-}
+func (t *Time) RFC1123() string	{ return format(t, "%a, %d %b %Y %H:%M:%S %Z") }
 
 // String formats the parsed time value in the style of
 // date(1) - Sun Nov  6 08:49:37 UTC 1994
-func (t *Time) String() string {
-	return format(t, "%a %b %e %H:%M:%S %Z %Y");
-}
+func (t *Time) String() string	{ return format(t, "%a %b %e %H:%M:%S %Z %Y") }

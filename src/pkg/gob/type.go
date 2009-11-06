@@ -25,15 +25,11 @@ type kind reflect.Type
 //	int8, int16, int, uint, float, func, chan, struct, and so on.
 // That is, all struct types have the same kind, all func types have the same
 // kind, all int8 types have the same kind, and so on.
-func typeKind(typ reflect.Type) kind {
-	return kind(reflect.Typeof(typ));
-}
+func typeKind(typ reflect.Type) kind	{ return kind(reflect.Typeof(typ)) }
 
 // valueKind returns the kind of the value type
 // stored inside the interface v.
-func valueKind(v interface{}) reflect.Type {
-	return typeKind(reflect.Typeof(v));
-}
+func valueKind(v interface{}) reflect.Type	{ return typeKind(reflect.Typeof(v)) }
 
 // A typeId represents a gob Type as an integer that can be passed on the wire.
 // Internally, typeIds are used as keys to a map to recover the underlying type info.
@@ -67,14 +63,10 @@ func (t typeId) gobType() gobType {
 }
 
 // String returns the string representation of the type associated with the typeId.
-func (t typeId) String() string {
-	return t.gobType().String();
-}
+func (t typeId) String() string	{ return t.gobType().String() }
 
 // Name returns the name of the type associated with the typeId.
-func (t typeId) Name() string {
-	return t.gobType().Name();
-}
+func (t typeId) Name() string	{ return t.gobType().Name() }
 
 // Common elements of all types.
 type commonType struct {
@@ -82,25 +74,17 @@ type commonType struct {
 	_id	typeId;
 }
 
-func (t *commonType) id() typeId {
-	return t._id;
-}
+func (t *commonType) id() typeId	{ return t._id }
 
-func (t *commonType) setId(id typeId) {
-	t._id = id;
-}
+func (t *commonType) setId(id typeId)	{ t._id = id }
 
-func (t *commonType) String() string {
-	return t.name;
-}
+func (t *commonType) String() string	{ return t.name }
 
 func (t *commonType) safeString(seen map[typeId]bool) string {
 	return t.name;
 }
 
-func (t *commonType) Name() string {
-	return t.name;
-}
+func (t *commonType) Name() string	{ return t.name }
 
 // Create and check predefined types
 // The string for tBytes is "bytes" not "[]byte" to signify its specialness.
@@ -143,9 +127,7 @@ func (a *arrayType) safeString(seen map[typeId]bool) string {
 	return fmt.Sprintf("[%d]%s", a.Len, a.Elem.gobType().safeString(seen));
 }
 
-func (a *arrayType) String() string {
-	return a.safeString(make(map[typeId]bool));
-}
+func (a *arrayType) String() string	{ return a.safeString(make(map[typeId]bool)) }
 
 // Slice type
 type sliceType struct {
@@ -167,9 +149,7 @@ func (s *sliceType) safeString(seen map[typeId]bool) string {
 	return fmt.Sprintf("[]%s", s.Elem.gobType().safeString(seen));
 }
 
-func (s *sliceType) String() string {
-	return s.safeString(make(map[typeId]bool));
-}
+func (s *sliceType) String() string	{ return s.safeString(make(map[typeId]bool)) }
 
 // Struct type
 type fieldType struct {
@@ -198,9 +178,7 @@ func (s *structType) safeString(seen map[typeId]bool) string {
 	return str;
 }
 
-func (s *structType) String() string {
-	return s.safeString(make(map[typeId]bool));
-}
+func (s *structType) String() string	{ return s.safeString(make(map[typeId]bool)) }
 
 func newStructType(name string) *structType {
 	s := &structType{commonType{name: name}, nil};

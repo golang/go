@@ -56,51 +56,29 @@ type _Null struct{}
 // Null is the JSON object representing the null data object.
 var Null Json = &_Null{}
 
-func (*_Null) Kind() int {
-	return NullKind;
-}
-func (*_Null) String() string {
-	return "null";
-}
-func (*_Null) Number() float64 {
-	return 0;
-}
-func (*_Null) Bool() bool {
-	return false;
-}
-func (*_Null) Get(s string) Json {
-	return Null;
-}
-func (*_Null) Elem(int) Json {
-	return Null;
-}
-func (*_Null) Len() int {
-	return 0;
-}
+func (*_Null) Kind() int		{ return NullKind }
+func (*_Null) String() string		{ return "null" }
+func (*_Null) Number() float64		{ return 0 }
+func (*_Null) Bool() bool		{ return false }
+func (*_Null) Get(s string) Json	{ return Null }
+func (*_Null) Elem(int) Json		{ return Null }
+func (*_Null) Len() int			{ return 0 }
 
 type _String struct {
 	s	string;
 	_Null;
 }
 
-func (j *_String) Kind() int {
-	return StringKind;
-}
-func (j *_String) String() string {
-	return j.s;
-}
+func (j *_String) Kind() int		{ return StringKind }
+func (j *_String) String() string	{ return j.s }
 
 type _Number struct {
 	f	float64;
 	_Null;
 }
 
-func (j *_Number) Kind() int {
-	return NumberKind;
-}
-func (j *_Number) Number() float64 {
-	return j.f;
-}
+func (j *_Number) Kind() int		{ return NumberKind }
+func (j *_Number) Number() float64	{ return j.f }
 func (j *_Number) String() string {
 	if math.Floor(j.f) == j.f {
 		return fmt.Sprintf("%.0f", j.f);
@@ -113,12 +91,8 @@ type _Array struct {
 	_Null;
 }
 
-func (j *_Array) Kind() int {
-	return ArrayKind;
-}
-func (j *_Array) Len() int {
-	return j.a.Len();
-}
+func (j *_Array) Kind() int	{ return ArrayKind }
+func (j *_Array) Len() int	{ return j.a.Len() }
 func (j *_Array) Elem(i int) Json {
 	if i < 0 || i >= j.a.Len() {
 		return Null;
@@ -142,12 +116,8 @@ type _Bool struct {
 	_Null;
 }
 
-func (j *_Bool) Kind() int {
-	return BoolKind;
-}
-func (j *_Bool) Bool() bool {
-	return j.b;
-}
+func (j *_Bool) Kind() int	{ return BoolKind }
+func (j *_Bool) Bool() bool	{ return j.b }
 func (j *_Bool) String() string {
 	if j.b {
 		return "true";
@@ -160,12 +130,8 @@ type _Map struct {
 	_Null;
 }
 
-func (j *_Map) Kind() int {
-	return MapKind;
-}
-func (j *_Map) Len() int {
-	return len(j.m);
-}
+func (j *_Map) Kind() int	{ return MapKind }
+func (j *_Map) Len() int	{ return len(j.m) }
 func (j *_Map) Get(s string) Json {
 	if j.m == nil {
 		return Null;
@@ -313,38 +279,22 @@ func (b *_JsonBuilder) Get() Json {
 	return nil;
 }
 
-func (b *_JsonBuilder) Float64(f float64) {
-	b.Put(&_Number{f, _Null{}});
-}
+func (b *_JsonBuilder) Float64(f float64)	{ b.Put(&_Number{f, _Null{}}) }
 
-func (b *_JsonBuilder) Int64(i int64) {
-	b.Float64(float64(i));
-}
+func (b *_JsonBuilder) Int64(i int64)	{ b.Float64(float64(i)) }
 
-func (b *_JsonBuilder) Uint64(i uint64) {
-	b.Float64(float64(i));
-}
+func (b *_JsonBuilder) Uint64(i uint64)	{ b.Float64(float64(i)) }
 
-func (b *_JsonBuilder) Bool(tf bool) {
-	b.Put(&_Bool{tf, _Null{}});
-}
+func (b *_JsonBuilder) Bool(tf bool)	{ b.Put(&_Bool{tf, _Null{}}) }
 
-func (b *_JsonBuilder) Null() {
-	b.Put(Null);
-}
+func (b *_JsonBuilder) Null()	{ b.Put(Null) }
 
-func (b *_JsonBuilder) String(s string) {
-	b.Put(&_String{s, _Null{}});
-}
+func (b *_JsonBuilder) String(s string)	{ b.Put(&_String{s, _Null{}}) }
 
 
-func (b *_JsonBuilder) Array() {
-	b.Put(&_Array{vector.New(0), _Null{}});
-}
+func (b *_JsonBuilder) Array()	{ b.Put(&_Array{vector.New(0), _Null{}}) }
 
-func (b *_JsonBuilder) Map() {
-	b.Put(&_Map{make(map[string]Json), _Null{}});
-}
+func (b *_JsonBuilder) Map()	{ b.Put(&_Map{make(map[string]Json), _Null{}}) }
 
 func (b *_JsonBuilder) Elem(i int) Builder {
 	bb := new(_JsonBuilder);
@@ -364,8 +314,7 @@ func (b *_JsonBuilder) Key(k string) Builder {
 	return bb;
 }
 
-func (b *_JsonBuilder) Flush() {
-}
+func (b *_JsonBuilder) Flush()	{}
 
 // StringToJson parses the string s as a JSON-syntax string
 // and returns the generic JSON object representation.

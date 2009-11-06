@@ -47,9 +47,7 @@ func New() hash.Hash {
 	return d;
 }
 
-func (d *digest) Size() int {
-	return Size;
-}
+func (d *digest) Size() int	{ return Size }
 
 func (d *digest) Write(p []byte) (nn int, err os.Error) {
 	nn = len(p);

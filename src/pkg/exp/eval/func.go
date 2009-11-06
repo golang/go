@@ -40,9 +40,7 @@ type codeBuf struct {
 	instrs code;
 }
 
-func newCodeBuf() *codeBuf {
-	return &codeBuf{make(code, 0, 16)};
-}
+func newCodeBuf() *codeBuf	{ return &codeBuf{make(code, 0, 16)} }
 
 func (b *codeBuf) push(instr func(*Thread)) {
 	n := len(b.instrs);
@@ -57,9 +55,7 @@ func (b *codeBuf) push(instr func(*Thread)) {
 	b.instrs[n] = instr;
 }
 
-func (b *codeBuf) nextPC() uint {
-	return uint(len(b.instrs));
-}
+func (b *codeBuf) nextPC() uint	{ return uint(len(b.instrs)) }
 
 func (b *codeBuf) get() code {
 	// Freeze this buffer into an array of exactly the right size
@@ -80,10 +76,6 @@ type evalFunc struct {
 	code		code;
 }
 
-func (f *evalFunc) NewFrame() *Frame {
-	return f.outer.child(f.frameSize);
-}
+func (f *evalFunc) NewFrame() *Frame	{ return f.outer.child(f.frameSize) }
 
-func (f *evalFunc) Call(t *Thread) {
-	f.code.exec(t);
-}
+func (f *evalFunc) Call(t *Thread)	{ f.code.exec(t) }

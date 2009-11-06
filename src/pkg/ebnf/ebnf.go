@@ -106,14 +106,10 @@ func (x Sequence) Pos() token.Position {
 }
 
 
-func (x Range) Pos() token.Position {
-	return x.Begin.Pos();
-}
+func (x Range) Pos() token.Position	{ return x.Begin.Pos() }
 
 
-func (p *Production) Pos() token.Position {
-	return p.Name.Pos();
-}
+func (p *Production) Pos() token.Position	{ return p.Name.Pos() }
 
 
 // ----------------------------------------------------------------------------

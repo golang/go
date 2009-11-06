@@ -28,14 +28,9 @@ type UDPAddr struct {
 }
 
 // Network returns the address's network name, "udp".
-func (a *UDPAddr) Network() string {
-	return "udp";
-}
+func (a *UDPAddr) Network() string	{ return "udp" }
 
-func (a *UDPAddr) String() string {
-	return joinHostPort(a.IP.String(), itoa(a.Port));
-
-}
+func (a *UDPAddr) String() string	{ return joinHostPort(a.IP.String(), itoa(a.Port)) }
 
 func (a *UDPAddr) family() int {
 	if a == nil || len(a.IP) <= 4 {
@@ -76,13 +71,9 @@ type UDPConn struct {
 	fd *netFD;
 }
 
-func newUDPConn(fd *netFD) *UDPConn {
-	return &UDPConn{fd};
-}
+func newUDPConn(fd *netFD) *UDPConn	{ return &UDPConn{fd} }
 
-func (c *UDPConn) ok() bool {
-	return c != nil && c.fd != nil;
-}
+func (c *UDPConn) ok() bool	{ return c != nil && c.fd != nil }
 
 // Implementation of the Conn interface - see Conn for documentation.
 

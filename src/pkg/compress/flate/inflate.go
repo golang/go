@@ -32,9 +32,7 @@ func (e CorruptInputError) String() string {
 // An InternalError reports an error in the flate code itself.
 type InternalError string
 
-func (e InternalError) String() string {
-	return "flate: internal error: " + string(e);
-}
+func (e InternalError) String() string	{ return "flate: internal error: " + string(e) }
 
 // A ReadError reports an error encountered while reading input.
 type ReadError struct {

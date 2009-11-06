@@ -90,9 +90,7 @@ type remotePackage struct {
 	defs []eval.Value;
 }
 
-func (v remotePackage) String() string {
-	return "<remote package>";
-}
+func (v remotePackage) String() string	{ return "<remote package>" }
 
 func (v remotePackage) Assign(t *eval.Thread, o eval.Value) {
 	t.Abort(ReadOnlyError("remote packages cannot be assigned to"));
@@ -208,9 +206,7 @@ func (p *Process) typeOfSym(s *gosym.Sym) (*remoteType, os.Error) {
 	}
 	addr := proc.Word(s.GoType);
 	var rt *remoteType;
-	err := try(func(a aborter) {
-		rt = parseRemoteType(a, p.runtime.Type.mk(remote{addr, p}).(remoteStruct));
-	});
+	err := try(func(a aborter) { rt = parseRemoteType(a, p.runtime.Type.mk(remote{addr, p}).(remoteStruct)) });
 	if err != nil {
 		return nil, err;
 	}

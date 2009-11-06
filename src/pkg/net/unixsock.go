@@ -127,13 +127,9 @@ type UnixConn struct {
 	fd *netFD;
 }
 
-func newUnixConn(fd *netFD) *UnixConn {
-	return &UnixConn{fd};
-}
+func newUnixConn(fd *netFD) *UnixConn	{ return &UnixConn{fd} }
 
-func (c *UnixConn) ok() bool {
-	return c != nil && c.fd != nil;
-}
+func (c *UnixConn) ok() bool	{ return c != nil && c.fd != nil }
 
 // Implementation of the Conn interface - see Conn for documentation.
 
@@ -400,9 +396,7 @@ func (l *UnixListener) Close() os.Error {
 }
 
 // Addr returns the listener's network address.
-func (l *UnixListener) Addr() Addr {
-	return l.fd.laddr;
-}
+func (l *UnixListener) Addr() Addr	{ return l.fd.laddr }
 
 // ListenUnixgram listens for incoming Unix datagram packets addressed to the
 // local address laddr.  The returned connection c's ReadFrom

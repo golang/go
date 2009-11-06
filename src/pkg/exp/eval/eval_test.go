@@ -17,9 +17,7 @@ import (
 // Print each statement or expression before parsing it
 var noisy = false
 
-func init() {
-	flag.BoolVar(&noisy, "noisy", false, "chatter during eval tests");
-}
+func init()	{ flag.BoolVar(&noisy, "noisy", false, "chatter during eval tests") }
 
 /*
  * Generic statement/expression test framework
@@ -104,14 +102,10 @@ func match(t *testing.T, err os.Error, pat string) bool {
  */
 
 // Expression compile error
-func CErr(expr string, cerr string) test {
-	return test([]job{job{code: expr, cerr: cerr}});
-}
+func CErr(expr string, cerr string) test	{ return test([]job{job{code: expr, cerr: cerr}}) }
 
 // Expression runtime error
-func RErr(expr string, rterr string) test {
-	return test([]job{job{code: expr, rterr: rterr}});
-}
+func RErr(expr string, rterr string) test	{ return test([]job{job{code: expr, rterr: rterr}}) }
 
 // Expression value
 func Val(expr string, val interface{}) test {
@@ -119,9 +113,7 @@ func Val(expr string, val interface{}) test {
 }
 
 // Statement runs without error
-func Run(stmts string) test {
-	return test([]job{job{code: stmts, noval: true}});
-}
+func Run(stmts string) test	{ return test([]job{job{code: stmts, noval: true}}) }
 
 // Two statements without error.
 // TODO(rsc): Should be possible with Run but the parser
@@ -213,9 +205,7 @@ func toValue(val interface{}) Value {
 
 type testFunc struct{}
 
-func (*testFunc) NewFrame() *Frame {
-	return &Frame{nil, &[2]Value{}};
-}
+func (*testFunc) NewFrame() *Frame	{ return &Frame{nil, &[2]Value{}} }
 
 func (*testFunc) Call(t *Thread) {
 	n := t.f.Vars[0].(IntValue).Get(t);
@@ -227,9 +217,7 @@ func (*testFunc) Call(t *Thread) {
 
 type oneTwoFunc struct{}
 
-func (*oneTwoFunc) NewFrame() *Frame {
-	return &Frame{nil, &[2]Value{}};
-}
+func (*oneTwoFunc) NewFrame() *Frame	{ return &Frame{nil, &[2]Value{}} }
 
 func (*oneTwoFunc) Call(t *Thread) {
 	t.f.Vars[0].(IntValue).Set(t, 1);
@@ -238,12 +226,9 @@ func (*oneTwoFunc) Call(t *Thread) {
 
 type voidFunc struct{}
 
-func (*voidFunc) NewFrame() *Frame {
-	return &Frame{nil, []Value{}};
-}
+func (*voidFunc) NewFrame() *Frame	{ return &Frame{nil, []Value{}} }
 
-func (*voidFunc) Call(t *Thread) {
-}
+func (*voidFunc) Call(t *Thread)	{}
 
 func newTestWorld() *World {
 	w := NewWorld();

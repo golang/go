@@ -43,9 +43,7 @@ func randFloat64(rand *rand.Rand) float64 {
 }
 
 // randInt64 returns a random integer taking half the range of an int64.
-func randInt64(rand *rand.Rand) int64 {
-	return rand.Int63() - 1<<62;
-}
+func randInt64(rand *rand.Rand) int64	{ return rand.Int63() - 1<<62 }
 
 // complexSize is the maximum length of arbitrary values that contain other
 // values.
@@ -195,9 +193,7 @@ func (c *Config) getMaxCount() (maxCount int) {
 // used, independent of the functions being tested.
 type SetupError string
 
-func (s SetupError) String() string {
-	return string(s);
-}
+func (s SetupError) String() string	{ return string(s) }
 
 // A CheckError is the result of Check finding an error.
 type CheckError struct {

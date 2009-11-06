@@ -62,23 +62,15 @@ type digest struct {
 
 // New creates a new Hash computing the CRC-32 checksum
 // using the polynomial represented by the Table.
-func New(tab *Table) hash.Hash32 {
-	return &digest{0, tab};
-}
+func New(tab *Table) hash.Hash32	{ return &digest{0, tab} }
 
 // NewIEEE creates a new Hash computing the CRC-32 checksum
 // using the IEEE polynomial.
-func NewIEEE() hash.Hash32 {
-	return New(IEEETable);
-}
+func NewIEEE() hash.Hash32	{ return New(IEEETable) }
 
-func (d *digest) Size() int {
-	return Size;
-}
+func (d *digest) Size() int	{ return Size }
 
-func (d *digest) Reset() {
-	d.crc = 0;
-}
+func (d *digest) Reset()	{ d.crc = 0 }
 
 func update(crc uint32, tab *Table, p []byte) uint32 {
 	crc = ^crc;
@@ -93,9 +85,7 @@ func (d *digest) Write(p []byte) (n int, err os.Error) {
 	return len(p), nil;
 }
 
-func (d *digest) Sum32() uint32 {
-	return d.crc;
-}
+func (d *digest) Sum32() uint32	{ return d.crc }
 
 func (d *digest) Sum() []byte {
 	p := make([]byte, 4);
@@ -109,12 +99,8 @@ func (d *digest) Sum() []byte {
 
 // Checksum returns the CRC-32 checksum of data
 // using the polynomial represented by the Table.
-func Checksum(data []byte, tab *Table) uint32 {
-	return update(0, tab, data);
-}
+func Checksum(data []byte, tab *Table) uint32	{ return update(0, tab, data) }
 
 // ChecksumIEEE returns the CRC-32 checksum of data
 // using the IEEE polynomial.
-func ChecksumIEEE(data []byte) uint32 {
-	return update(0, IEEETable, data);
-}
+func ChecksumIEEE(data []byte) uint32	{ return update(0, IEEETable, data) }

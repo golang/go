@@ -72,9 +72,7 @@ type Error struct {
 	Msg	string;
 }
 
-func (e *Error) String() string {
-	return fmt.Sprintf("line %d: %s", e.Line, e.Msg);
-}
+func (e *Error) String() string	{ return fmt.Sprintf("line %d: %s", e.Line, e.Msg) }
 
 // Most of the literals are aces.
 var lbrace = []byte{'{'}
@@ -196,9 +194,7 @@ func (t *Template) parseError(err string, args ...) {
 // -- Lexical analysis
 
 // Is c a white space character?
-func white(c uint8) bool {
-	return c == ' ' || c == '\t' || c == '\r' || c == '\n';
-}
+func white(c uint8) bool	{ return c == ' ' || c == '\t' || c == '\r' || c == '\n' }
 
 // Safely, does s[n:n+len(t)] == t?
 func equal(s []byte, n int, t []byte) bool {

@@ -53,25 +53,13 @@ type debugService struct {
 
 type serviceArray []debugService
 
-func (s serviceArray) Len() int {
-	return len(s);
-}
-func (s serviceArray) Less(i, j int) bool {
-	return s[i].name < s[j].name;
-}
-func (s serviceArray) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i];
-}
+func (s serviceArray) Len() int			{ return len(s) }
+func (s serviceArray) Less(i, j int) bool	{ return s[i].name < s[j].name }
+func (s serviceArray) Swap(i, j int)		{ s[i], s[j] = s[j], s[i] }
 
-func (m methodArray) Len() int {
-	return len(m);
-}
-func (m methodArray) Less(i, j int) bool {
-	return m[i].name < m[j].name;
-}
-func (m methodArray) Swap(i, j int) {
-	m[i], m[j] = m[j], m[i];
-}
+func (m methodArray) Len() int			{ return len(m) }
+func (m methodArray) Less(i, j int) bool	{ return m[i].name < m[j].name }
+func (m methodArray) Swap(i, j int)		{ m[i], m[j] = m[j], m[i] }
 
 // Runs at /debug/rpc
 func debugHTTP(c *http.Conn, req *http.Request) {

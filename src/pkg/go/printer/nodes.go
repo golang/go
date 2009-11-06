@@ -18,19 +18,21 @@ import (
 
 // Disabled formatting - enable eventually and remove the flag.
 const (
-	oneLineFuncDecls	= false;
 	compositeLitBlank	= false;
 	stringListMode		= exprListMode(0);	// previously: noIndent
 )
 
 
-// Other outstanding formatting issues:
+// Other formatting issues:
 // - replacement of expression spacing algorithm with rsc's algorithm
 // - support for one-line composite types (e.g. structs) as composite literals types
 // - better comment formatting for /*-style comments at the end of a line (e.g. a declaration)
-//   when the comment spans multiple lines
+//   when the comment spans multiple lines; if such a comment is just two lines, formatting is
+//   not idempotent
 // - formatting of expression lists; especially for string lists (stringListMode)
 // - blank after { and before } in one-line composite literals probably looks better
+// - should use blank instead of tab to separate one-line function bodies from
+//   the function header unless there is a group of consecutive one-liners
 
 
 // ----------------------------------------------------------------------------
@@ -497,7 +499,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, multiLine *bool) (optSemi bool
 
 	case *ast.FuncLit:
 		p.expr(x.Type, multiLine);
-		p.funcBody(x.Body, true, multiLine);
+		p.funcBody(x.Body, distance(x.Type.Pos(), p.pos), true, multiLine);
 
 	case *ast.ParenExpr:
 		p.print(token.LPAREN);
@@ -994,42 +996,50 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool) 
 }
 
 
-func (p *printer) isOneLiner(b *ast.BlockStmt) bool {
+// nodeSize determines the size of n in chars after formatting.
+// The result is <= maxSize if the node fits on one line with at
+// most maxSize chars and the formatted output doesn't contain
+// any control chars. Otherwise, the result is > maxSize.
+//
+func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
+	size = maxSize+1;	// assume n doesn't fit
+	var buf bytes.Buffer;
+	if _, err := p.Config.Fprint(&buf, n); err != nil {
+		return;
+	}
+	if buf.Len() <= maxSize {
+		for _, ch := range buf.Bytes() {
+			if ch < ' ' {
+				return;
+			}
+		}
+		size = buf.Len();	// n fits
+	}
+	return;
+}
+
+
+func (p *printer) isOneLineFunc(b *ast.BlockStmt, headerSize int) bool {
+	const maxSize = 90;	// adjust as appropriate, this is an approximate value
+	bodySize := 0;
 	switch {
 	case len(b.List) > 1 || p.commentBefore(b.Rbrace):
 		return false;	// too many statements or there is a comment - all bets are off
-	case len(b.List) == 0:
-		return true;	// empty block and no comments
+	case len(b.List) == 1:
+		bodySize = p.nodeSize(b.List[0], maxSize);
 	}
-
-	// test-print the statement and see if it would fit
-	var buf bytes.Buffer;
-	_, err := p.Config.Fprint(&buf, b.List[0]);
-	if err != nil {
-		return false;	// don't try
-	}
-
-	if buf.Len() > 40 {
-		return false;	// too long
-	}
-
-	for _, ch := range buf.Bytes() {
-		if ch < ' ' {
-			return false;	// contains control chars (tabs, newlines)
-		}
-	}
-
-	return true;
+	// require both headers and overall size to be not "too large"
+	return headerSize <= maxSize/2 && headerSize + bodySize <= maxSize;
 }
 
 
 // Sets multiLine to true if the function body spans multiple lines.
-func (p *printer) funcBody(b *ast.BlockStmt, isLit bool, multiLine *bool) {
+func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLine *bool) {
 	if b == nil {
 		return;
 	}
 
-	if (oneLineFuncDecls || isLit) && p.isOneLiner(b) {
+	if p.isOneLineFunc(b, headerSize) {
 		sep := vtab;
 		if isLit {
 			sep = blank;
@@ -1050,6 +1060,17 @@ func (p *printer) funcBody(b *ast.BlockStmt, isLit bool, multiLine *bool) {
 }
 
 
+// distance returns the column difference between from and to if both
+// are on the same line; if they are on different lines (or unknown)
+// the result is infinity (1<<30).
+func distance(from, to token.Position) int {
+	if from.IsValid() && to.IsValid() && from.Line == to.Line {
+		return to.Column - from.Column;
+	}
+	return 1<<30;
+}
+
+
 // Sets multiLine to true if the declaration spans multiple lines.
 func (p *printer) funcDecl(d *ast.FuncDecl, multiLine *bool) {
 	p.leadComment(d.Doc);
@@ -1066,7 +1087,7 @@ func (p *printer) funcDecl(d *ast.FuncDecl, multiLine *bool) {
 	}
 	p.expr(d.Name, multiLine);
 	p.signature(d.Type.Params, d.Type.Results, multiLine);
-	p.funcBody(d.Body, false, multiLine);
+	p.funcBody(d.Body, distance(d.Pos(), p.pos), false, multiLine);
 }
 
 

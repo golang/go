@@ -266,6 +266,4 @@ func (e *AddrError) String() string {
 
 type UnknownNetworkError string
 
-func (e UnknownNetworkError) String() string {
-	return "unknown network " + string(e);
-}
+func (e UnknownNetworkError) String() string	{ return "unknown network " + string(e) }

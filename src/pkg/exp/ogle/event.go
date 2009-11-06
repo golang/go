@@ -114,9 +114,7 @@ func (h *commonHook) RemoveHandler(eh EventHandler) {
 	}
 }
 
-func (h *commonHook) NumHandler() int {
-	return h.len;
-}
+func (h *commonHook) NumHandler() int	{ return h.len }
 
 func (h *commonHook) handle(e Event) (EventAction, os.Error) {
 	action := EADefault;
@@ -151,13 +149,9 @@ type commonEvent struct {
 	t	*Goroutine;
 }
 
-func (e *commonEvent) Process() *Process {
-	return e.p;
-}
+func (e *commonEvent) Process() *Process	{ return e.p }
 
-func (e *commonEvent) Goroutine() *Goroutine {
-	return e.t;
-}
+func (e *commonEvent) Goroutine() *Goroutine	{ return e.t }
 
 /*
  * Standard event handlers
@@ -229,9 +223,7 @@ func (h *breakpointHook) String() string {
 	return fmt.Sprintf("breakpoint at %#x", h.pc);
 }
 
-func (b *Breakpoint) PC() proc.Word {
-	return b.pc;
-}
+func (b *Breakpoint) PC() proc.Word	{ return b.pc }
 
 func (b *Breakpoint) String() string {
 	// TODO(austin) Include process name and goroutine
@@ -247,9 +239,7 @@ type goroutineCreateHook struct {
 	commonHook;
 }
 
-func (h *goroutineCreateHook) String() string {
-	return "goroutine create";
-}
+func (h *goroutineCreateHook) String() string	{ return "goroutine create" }
 
 // A GoroutineCreate event occurs when a process creates a new
 // goroutine.  When this event is handled, the current goroutine will
@@ -261,9 +251,7 @@ type GoroutineCreate struct {
 
 // Parent returns the goroutine that created this goroutine.  May be
 // nil if this event is the creation of the first goroutine.
-func (e *GoroutineCreate) Parent() *Goroutine {
-	return e.parent;
-}
+func (e *GoroutineCreate) Parent() *Goroutine	{ return e.parent }
 
 func (e *GoroutineCreate) String() string {
 	// TODO(austin) Include process name
@@ -277,9 +265,7 @@ type goroutineExitHook struct {
 	commonHook;
 }
 
-func (h *goroutineExitHook) String() string {
-	return "goroutine exit";
-}
+func (h *goroutineExitHook) String() string	{ return "goroutine exit" }
 
 // A GoroutineExit event occurs when a Go goroutine exits.
 type GoroutineExit struct {

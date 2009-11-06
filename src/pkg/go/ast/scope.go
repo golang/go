@@ -17,9 +17,7 @@ type Scope struct {
 
 
 // NewScope creates a new scope nested in the outer scope.
-func NewScope(outer *Scope) *Scope {
-	return &Scope{outer, make(map[string]*Ident)};
-}
+func NewScope(outer *Scope) *Scope	{ return &Scope{outer, make(map[string]*Ident)} }
 
 
 // Declare inserts an identifier into the scope s. If the

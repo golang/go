@@ -42,13 +42,9 @@ package syscall
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
 //sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
 
-func Getpagesize() int {
-	return 4096;
-}
+func Getpagesize() int	{ return 4096 }
 
-func TimespecToNsec(ts Timespec) int64 {
-	return int64(ts.Sec)*1e9 + int64(ts.Nsec);
-}
+func TimespecToNsec(ts Timespec) int64	{ return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
 
 func NsecToTimespec(nsec int64) (ts Timespec) {
 	ts.Sec = nsec/1e9;
@@ -56,9 +52,7 @@ func NsecToTimespec(nsec int64) (ts Timespec) {
 	return;
 }
 
-func TimevalToNsec(tv Timeval) int64 {
-	return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3;
-}
+func TimevalToNsec(tv Timeval) int64	{ return int64(tv.Sec)*1e9 + int64(tv.Usec)*1e3 }
 
 func NsecToTimeval(nsec int64) (tv Timeval) {
 	nsec += 999;	// round up to microsecond
@@ -67,10 +61,6 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 	return;
 }
 
-func (r *PtraceRegs) PC() uint64 {
-	return r.Rip;
-}
+func (r *PtraceRegs) PC() uint64	{ return r.Rip }
 
-func (r *PtraceRegs) SetPC(pc uint64) {
-	r.Rip = pc;
-}
+func (r *PtraceRegs) SetPC(pc uint64)	{ r.Rip = pc }

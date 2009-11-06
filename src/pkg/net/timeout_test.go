@@ -28,9 +28,7 @@ func testTimeout(t *testing.T, network, addr string) {
 	}
 }
 
-func TestTimeoutUDP(t *testing.T) {
-	testTimeout(t, "udp", "127.0.0.1:53");
-}
+func TestTimeoutUDP(t *testing.T)	{ testTimeout(t, "udp", "127.0.0.1:53") }
 
 func TestTimeoutTCP(t *testing.T) {
 	// 74.125.19.99 is www.google.com.

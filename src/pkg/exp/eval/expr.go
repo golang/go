@@ -402,9 +402,7 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(Value, *Thread)) {
 						rf := a.rs[i].asPtr();
 						a.rs[i] = a.rs[i].newExpr(lt, a.rs[i].desc);
 						len := at.Len;
-						a.rs[i].eval = func(t *Thread) Slice {
-							return Slice{rf(t).(ArrayValue), len, len};
-						};
+						a.rs[i].eval = func(t *Thread) Slice { return Slice{rf(t).(ArrayValue), len, len} };
 						rt = a.rs[i].t;
 					}
 				}
@@ -1592,17 +1590,13 @@ func (a *exprInfo) compileBinaryExpr(op token.Token, l, r *expr) *expr {
 	// Useful type predicates
 	// TODO(austin) CL 33668 mandates identical types except for comparisons.
 	compat := func() bool { return l.t.compat(r.t, false) };
-	integers := func() bool {
-		return l.t.isInteger() && r.t.isInteger();
-	};
+	integers := func() bool { return l.t.isInteger() && r.t.isInteger() };
 	floats := func() bool { return l.t.isFloat() && r.t.isFloat() };
 	strings := func() bool {
 		// TODO(austin) Deal with named types
 		return l.t == StringType && r.t == StringType;
 	};
-	booleans := func() bool {
-		return l.t.isBoolean() && r.t.isBoolean();
-	};
+	booleans := func() bool { return l.t.isBoolean() && r.t.isBoolean() };
 
 	// Type check
 	var t Type;

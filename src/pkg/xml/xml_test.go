@@ -116,9 +116,7 @@ func (r *stringReader) ReadByte() (b byte, err os.Error) {
 	return;
 }
 
-func StringReader(s string) io.Reader {
-	return &stringReader{s, 0};
-}
+func StringReader(s string) io.Reader	{ return &stringReader{s, 0} }
 
 func TestRawToken(t *testing.T) {
 	p := NewParser(StringReader(testInput));

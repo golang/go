@@ -580,9 +580,7 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType) *FuncType {
 }
 
 // Identifier
-func (c *typeConv) Ident(s string) *ast.Ident {
-	return &ast.Ident{Value: s};
-}
+func (c *typeConv) Ident(s string) *ast.Ident	{ return &ast.Ident{Value: s} }
 
 // Opaque type of n bytes.
 func (c *typeConv) Opaque(n int64) ast.Expr {

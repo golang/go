@@ -30,9 +30,7 @@ var preferIPv4 = !kernelSupportsIPv6()
 // TODO(rsc): if syscall.OS == "linux", we're supposd to read
 // /proc/sys/net/core/somaxconn,
 // to take advantage of kernels that have raised the limit.
-func listenBacklog() int {
-	return syscall.SOMAXCONN;
-}
+func listenBacklog() int	{ return syscall.SOMAXCONN }
 
 // Internet sockets (TCP, UDP)
 

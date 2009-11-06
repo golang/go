@@ -102,6 +102,4 @@ func (d *cmac) Sum() []byte {
 	return d.digest;
 }
 
-func (d *cmac) Size() int {
-	return len(d.digest);
-}
+func (d *cmac) Size() int	{ return len(d.digest) }

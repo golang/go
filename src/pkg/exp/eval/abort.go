@@ -37,15 +37,11 @@ func (t *Thread) Try(f func(t *Thread)) os.Error {
 
 type DivByZeroError struct{}
 
-func (DivByZeroError) String() string {
-	return "divide by zero";
-}
+func (DivByZeroError) String() string	{ return "divide by zero" }
 
 type NilPointerError struct{}
 
-func (NilPointerError) String() string {
-	return "nil pointer dereference";
-}
+func (NilPointerError) String() string	{ return "nil pointer dereference" }
 
 type IndexError struct {
 	Idx, Len int64;
@@ -70,9 +66,7 @@ type KeyError struct {
 	Key interface{};
 }
 
-func (e KeyError) String() string {
-	return fmt.Sprintf("key '%v' not found in map", e.Key);
-}
+func (e KeyError) String() string	{ return fmt.Sprintf("key '%v' not found in map", e.Key) }
 
 type NegativeLengthError struct {
 	Len int64;

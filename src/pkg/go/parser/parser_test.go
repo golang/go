@@ -72,9 +72,7 @@ func nameFilter(filename string) bool {
 }
 
 
-func dirFilter(d *os.Dir) bool {
-	return nameFilter(d.Name);
-}
+func dirFilter(d *os.Dir) bool	{ return nameFilter(d.Name) }
 
 
 func TestParse4(t *testing.T) {

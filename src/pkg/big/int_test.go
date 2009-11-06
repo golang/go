@@ -264,8 +264,8 @@ func checkDiv(x, y []byte) bool {
 
 
 type divTest struct {
-	x, y string;
-	q, r string;
+	x, y	string;
+	q, r	string;
 }
 
 

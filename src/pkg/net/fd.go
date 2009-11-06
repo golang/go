@@ -270,9 +270,7 @@ func (s *pollServer) Run() {
 
 var wakeupbuf [1]byte
 
-func (s *pollServer) Wakeup() {
-	s.pw.Write(&wakeupbuf);
-}
+func (s *pollServer) Wakeup()	{ s.pw.Write(&wakeupbuf) }
 
 func (s *pollServer) WaitRead(fd *netFD) {
 	s.cr <- fd;

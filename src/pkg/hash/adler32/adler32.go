@@ -30,9 +30,7 @@ type digest struct {
 	a, b uint32;
 }
 
-func (d *digest) Reset() {
-	d.a, d.b = 1, 0;
-}
+func (d *digest) Reset()	{ d.a, d.b = 1, 0 }
 
 // New returns a new Hash32 computing the Adler-32 checksum.
 func New() hash.Hash32 {
@@ -41,9 +39,7 @@ func New() hash.Hash32 {
 	return d;
 }
 
-func (d *digest) Size() int {
-	return Size;
-}
+func (d *digest) Size() int	{ return Size }
 
 // Add p to the running checksum a, b.
 func update(a, b uint32, p []byte) (aa, bb uint32) {
@@ -76,9 +72,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
 	return len(p), nil;
 }
 
-func (d *digest) Sum32() uint32 {
-	return finish(d.a, d.b);
-}
+func (d *digest) Sum32() uint32	{ return finish(d.a, d.b) }
 
 func (d *digest) Sum() []byte {
 	p := make([]byte, 4);
@@ -91,6 +85,4 @@ func (d *digest) Sum() []byte {
 }
 
 // Checksum returns the Adler-32 checksum of data.
-func Checksum(data []byte) uint32 {
-	return finish(update(1, 0, data));
-}
+func Checksum(data []byte) uint32	{ return finish(update(1, 0, data)) }

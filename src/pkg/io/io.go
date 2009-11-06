@@ -243,9 +243,7 @@ func Copy(dst Writer, src Reader) (written int64, err os.Error) {
 
 // LimitReader returns a Reader that reads from r
 // but stops with os.EOF after n bytes.
-func LimitReader(r Reader, n int64) Reader {
-	return &limitedReader{r, n};
-}
+func LimitReader(r Reader, n int64) Reader	{ return &limitedReader{r, n} }
 
 type limitedReader struct {
 	r	Reader;
@@ -321,6 +319,4 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
 }
 
 // Size returns the size of the section in bytes.
-func (s *SectionReader) Size() int64 {
-	return s.limit - s.base;
-}
+func (s *SectionReader) Size() int64	{ return s.limit - s.base }

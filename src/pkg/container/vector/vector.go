@@ -79,9 +79,7 @@ func (p *Vector) Init(initial_len int) *Vector {
 
 
 // New returns an initialized new Vector with length at least len.
-func New(len int) *Vector {
-	return new(Vector).Init(len);
-}
+func New(len int) *Vector	{ return new(Vector).Init(len) }
 
 
 // Len returns the number of elements in the vector.
@@ -95,21 +93,15 @@ func (p *Vector) Len() int {
 
 
 // At returns the i'th element of the vector.
-func (p *Vector) At(i int) Element {
-	return p.a[i];
-}
+func (p *Vector) At(i int) Element	{ return p.a[i] }
 
 
 // Set sets the i'th element of the vector to value x.
-func (p *Vector) Set(i int, x Element) {
-	p.a[i] = x;
-}
+func (p *Vector) Set(i int, x Element)	{ p.a[i] = x }
 
 
 // Last returns the element in the vector of highest index.
-func (p *Vector) Last() Element {
-	return p.a[len(p.a)-1];
-}
+func (p *Vector) Last() Element	{ return p.a[len(p.a)-1] }
 
 
 // Data returns all the elements as a slice.
@@ -186,9 +178,7 @@ func (p *Vector) Do(f func(elem Element)) {
 // Convenience wrappers
 
 // Push appends x to the end of the vector.
-func (p *Vector) Push(x Element) {
-	p.Insert(len(p.a), x);
-}
+func (p *Vector) Push(x Element)	{ p.Insert(len(p.a), x) }
 
 
 // Pop deletes the last element of the vector.
@@ -202,9 +192,7 @@ func (p *Vector) Pop() Element {
 
 
 // AppendVector appends the entire Vector x to the end of this vector.
-func (p *Vector) AppendVector(x *Vector) {
-	p.InsertVector(len(p.a), x);
-}
+func (p *Vector) AppendVector(x *Vector)	{ p.InsertVector(len(p.a), x) }
 
 
 // Partial sort.Interface support
@@ -216,9 +204,7 @@ type LessInterface interface {
 
 
 // Less returns a boolean denoting whether the i'th element is less than the j'th element.
-func (p *Vector) Less(i, j int) bool {
-	return p.a[i].(LessInterface).Less(p.a[j]);
-}
+func (p *Vector) Less(i, j int) bool	{ return p.a[i].(LessInterface).Less(p.a[j]) }
 
 
 // Swap exchanges the elements at indexes i and j.

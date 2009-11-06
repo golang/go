@@ -55,9 +55,7 @@ type levelInfo struct {
 	down	*levelInfo;
 }
 
-func maxNode() literalNode {
-	return literalNode{math.MaxUint16, math.MaxInt32};
-}
+func maxNode() literalNode	{ return literalNode{math.MaxUint16, math.MaxInt32} }
 
 func newHuffmanEncoder(size int) *huffmanEncoder {
 	return &huffmanEncoder{make([]uint8, size), make([]uint16, size)};
@@ -357,17 +355,13 @@ type literalNodeSorter struct {
 	less	func(i, j int) bool;
 }
 
-func (s literalNodeSorter) Len() int {
-	return len(s.a);
-}
+func (s literalNodeSorter) Len() int	{ return len(s.a) }
 
 func (s literalNodeSorter) Less(i, j int) bool {
 	return s.less(i, j);
 }
 
-func (s literalNodeSorter) Swap(i, j int) {
-	s.a[i], s.a[j] = s.a[j], s.a[i];
-}
+func (s literalNodeSorter) Swap(i, j int)	{ s.a[i], s.a[j] = s.a[j], s.a[i] }
 
 func sortByFreq(a []literalNode) {
 	s := &literalNodeSorter{a, func(i, j int) bool { return a[i].freq < a[j].freq }};

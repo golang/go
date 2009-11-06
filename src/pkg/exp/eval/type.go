@@ -92,9 +92,7 @@ func hashTypeArray(key []Type) uintptr {
 	return hash;
 }
 
-func newTypeArrayMap() typeArrayMap {
-	return make(map[uintptr]*typeArrayMapEntry);
-}
+func newTypeArrayMap() typeArrayMap	{ return make(map[uintptr]*typeArrayMapEntry) }
 
 func (m typeArrayMap) Get(key []Type) interface{} {
 	ent, ok := m[hashTypeArray(key)];
@@ -134,25 +132,15 @@ func (m typeArrayMap) Put(key []Type, v interface{}) interface{} {
 
 type commonType struct{}
 
-func (commonType) isBoolean() bool {
-	return false;
-}
+func (commonType) isBoolean() bool	{ return false }
 
-func (commonType) isInteger() bool {
-	return false;
-}
+func (commonType) isInteger() bool	{ return false }
 
-func (commonType) isFloat() bool {
-	return false;
-}
+func (commonType) isFloat() bool	{ return false }
 
-func (commonType) isIdeal() bool {
-	return false;
-}
+func (commonType) isIdeal() bool	{ return false }
 
-func (commonType) Pos() token.Position {
-	return token.Position{};
-}
+func (commonType) Pos() token.Position	{ return token.Position{} }
 
 /*
  * Bool
@@ -169,13 +157,9 @@ func (t *boolType) compat(o Type, conv bool) bool {
 	return ok;
 }
 
-func (t *boolType) lit() Type {
-	return t;
-}
+func (t *boolType) lit() Type	{ return t }
 
-func (t *boolType) isBoolean() bool {
-	return true;
-}
+func (t *boolType) isBoolean() bool	{ return true }
 
 func (boolType) String() string {
 	// Use angle brackets as a convention for printing the
@@ -219,17 +203,11 @@ func (t *uintType) compat(o Type, conv bool) bool {
 	;
 }
 
-func (t *uintType) lit() Type {
-	return t;
-}
+func (t *uintType) lit() Type	{ return t }
 
-func (t *uintType) isInteger() bool {
-	return true;
-}
+func (t *uintType) isInteger() bool	{ return true }
 
-func (t *uintType) String() string {
-	return "<" + t.name + ">";
-}
+func (t *uintType) String() string	{ return "<" + t.name + ">" }
 
 func (t *uintType) Zero() Value {
 	switch t.Bits {
@@ -257,9 +235,7 @@ func (t *uintType) Zero() Value {
 	panic("unexpected uint bit count: ", t.Bits);
 }
 
-func (t *uintType) minVal() *bignum.Rational {
-	return bignum.Rat(0, 1);
-}
+func (t *uintType) minVal() *bignum.Rational	{ return bignum.Rat(0, 1) }
 
 func (t *uintType) maxVal() *bignum.Rational {
 	bits := t.Bits;
@@ -304,17 +280,11 @@ func (t *intType) compat(o Type, conv bool) bool {
 	return ok && t == t2;
 }
 
-func (t *intType) lit() Type {
-	return t;
-}
+func (t *intType) lit() Type	{ return t }
 
-func (t *intType) isInteger() bool {
-	return true;
-}
+func (t *intType) isInteger() bool	{ return true }
 
-func (t *intType) String() string {
-	return "<" + t.name + ">";
-}
+func (t *intType) String() string	{ return "<" + t.name + ">" }
 
 func (t *intType) Zero() Value {
 	switch t.Bits {
@@ -369,25 +339,15 @@ func (t *idealIntType) compat(o Type, conv bool) bool {
 	return ok;
 }
 
-func (t *idealIntType) lit() Type {
-	return t;
-}
+func (t *idealIntType) lit() Type	{ return t }
 
-func (t *idealIntType) isInteger() bool {
-	return true;
-}
+func (t *idealIntType) isInteger() bool	{ return true }
 
-func (t *idealIntType) isIdeal() bool {
-	return true;
-}
+func (t *idealIntType) isIdeal() bool	{ return true }
 
-func (t *idealIntType) String() string {
-	return "ideal integer";
-}
+func (t *idealIntType) String() string	{ return "ideal integer" }
 
-func (t *idealIntType) Zero() Value {
-	return &idealIntV{bignum.Int(0)};
-}
+func (t *idealIntType) Zero() Value	{ return &idealIntV{bignum.Int(0)} }
 
 /*
  * Float
@@ -413,17 +373,11 @@ func (t *floatType) compat(o Type, conv bool) bool {
 	return ok && t == t2;
 }
 
-func (t *floatType) lit() Type {
-	return t;
-}
+func (t *floatType) lit() Type	{ return t }
 
-func (t *floatType) isFloat() bool {
-	return true;
-}
+func (t *floatType) isFloat() bool	{ return true }
 
-func (t *floatType) String() string {
-	return "<" + t.name + ">";
-}
+func (t *floatType) String() string	{ return "<" + t.name + ">" }
 
 func (t *floatType) Zero() Value {
 	switch t.Bits {
@@ -490,25 +444,15 @@ func (t *idealFloatType) compat(o Type, conv bool) bool {
 	return ok;
 }
 
-func (t *idealFloatType) lit() Type {
-	return t;
-}
+func (t *idealFloatType) lit() Type	{ return t }
 
-func (t *idealFloatType) isFloat() bool {
-	return true;
-}
+func (t *idealFloatType) isFloat() bool	{ return true }
 
-func (t *idealFloatType) isIdeal() bool {
-	return true;
-}
+func (t *idealFloatType) isIdeal() bool	{ return true }
 
-func (t *idealFloatType) String() string {
-	return "ideal float";
-}
+func (t *idealFloatType) String() string	{ return "ideal float" }
 
-func (t *idealFloatType) Zero() Value {
-	return &idealFloatV{bignum.Rat(1, 0)};
-}
+func (t *idealFloatType) Zero() Value	{ return &idealFloatV{bignum.Rat(1, 0)} }
 
 /*
  * String
@@ -525,13 +469,9 @@ func (t *stringType) compat(o Type, conv bool) bool {
 	return ok;
 }
 
-func (t *stringType) lit() Type {
-	return t;
-}
+func (t *stringType) lit() Type	{ return t }
 
-func (t *stringType) String() string {
-	return "<string>";
-}
+func (t *stringType) String() string	{ return "<string>" }
 
 func (t *stringType) Zero() Value {
 	res := stringV("");
@@ -575,13 +515,9 @@ func (t *ArrayType) compat(o Type, conv bool) bool {
 	return t.Len == t2.Len && t.Elem.compat(t2.Elem, conv);
 }
 
-func (t *ArrayType) lit() Type {
-	return t;
-}
+func (t *ArrayType) lit() Type	{ return t }
 
-func (t *ArrayType) String() string {
-	return "[]" + t.Elem.String();
-}
+func (t *ArrayType) String() string	{ return "[]" + t.Elem.String() }
 
 func (t *ArrayType) Zero() Value {
 	res := arrayV(make([]Value, t.Len));
@@ -682,9 +618,7 @@ func (t *StructType) compat(o Type, conv bool) bool {
 	return true;
 }
 
-func (t *StructType) lit() Type {
-	return t;
-}
+func (t *StructType) lit() Type	{ return t }
 
 func (t *StructType) String() string {
 	s := "struct {";
@@ -738,17 +672,11 @@ func (t *PtrType) compat(o Type, conv bool) bool {
 	return t.Elem.compat(t2.Elem, conv);
 }
 
-func (t *PtrType) lit() Type {
-	return t;
-}
+func (t *PtrType) lit() Type	{ return t }
 
-func (t *PtrType) String() string {
-	return "*" + t.Elem.String();
-}
+func (t *PtrType) String() string	{ return "*" + t.Elem.String() }
 
-func (t *PtrType) Zero() Value {
-	return &ptrV{nil};
-}
+func (t *PtrType) Zero() Value	{ return &ptrV{nil} }
 
 /*
  * Function
@@ -828,9 +756,7 @@ func (t *FuncType) compat(o Type, conv bool) bool {
 	return true;
 }
 
-func (t *FuncType) lit() Type {
-	return t;
-}
+func (t *FuncType) lit() Type	{ return t }
 
 func typeListString(ts []Type, ns []*ast.Ident) string {
 	s := "";
@@ -869,9 +795,7 @@ func (t *FuncType) String() string {
 	return s;
 }
 
-func (t *FuncType) Zero() Value {
-	return &funcV{nil};
-}
+func (t *FuncType) Zero() Value	{ return &funcV{nil} }
 
 type FuncDecl struct {
 	Type	*FuncType;
@@ -978,17 +902,11 @@ func NewInterfaceType(methods []IMethod, embeds []*InterfaceType) *InterfaceType
 
 type iMethodSorter []IMethod
 
-func (s iMethodSorter) Less(a, b int) bool {
-	return s[a].Name < s[b].Name;
-}
+func (s iMethodSorter) Less(a, b int) bool	{ return s[a].Name < s[b].Name }
 
-func (s iMethodSorter) Swap(a, b int) {
-	s[a], s[b] = s[b], s[a];
-}
+func (s iMethodSorter) Swap(a, b int)	{ s[a], s[b] = s[b], s[a] }
 
-func (s iMethodSorter) Len() int {
-	return len(s);
-}
+func (s iMethodSorter) Len() int	{ return len(s) }
 
 func (t *InterfaceType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*InterfaceType);
@@ -1007,9 +925,7 @@ func (t *InterfaceType) compat(o Type, conv bool) bool {
 	return true;
 }
 
-func (t *InterfaceType) lit() Type {
-	return t;
-}
+func (t *InterfaceType) lit() Type	{ return t }
 
 func (t *InterfaceType) String() string {
 	// TODO(austin) Instead of showing embedded interfaces, this
@@ -1078,9 +994,7 @@ func (t *InterfaceType) implementedBy(o Type) (*IMethod, bool) {
 	return &t.methods[0], false;
 }
 
-func (t *InterfaceType) Zero() Value {
-	return &interfaceV{};
-}
+func (t *InterfaceType) Zero() Value	{ return &interfaceV{} }
 
 /*
  * Slice
@@ -1112,13 +1026,9 @@ func (t *SliceType) compat(o Type, conv bool) bool {
 	return t.Elem.compat(t2.Elem, conv);
 }
 
-func (t *SliceType) lit() Type {
-	return t;
-}
+func (t *SliceType) lit() Type	{ return t }
 
-func (t *SliceType) String() string {
-	return "[]" + t.Elem.String();
-}
+func (t *SliceType) String() string	{ return "[]" + t.Elem.String() }
 
 func (t *SliceType) Zero() Value {
 	// The value of an uninitialized slice is nil. The length and
@@ -1160,13 +1070,9 @@ func (t *MapType) compat(o Type, conv bool) bool {
 	return t.Elem.compat(t2.Elem, conv) && t.Key.compat(t2.Key, conv);
 }
 
-func (t *MapType) lit() Type {
-	return t;
-}
+func (t *MapType) lit() Type	{ return t }
 
-func (t *MapType) String() string {
-	return "map[" + t.Key.String() + "] " + t.Elem.String();
-}
+func (t *MapType) String() string	{ return "map[" + t.Key.String() + "] " + t.Elem.String() }
 
 func (t *MapType) Zero() Value {
 	// The value of an uninitialized map is nil.
@@ -1239,33 +1145,19 @@ func (t *NamedType) compat(o Type, conv bool) bool {
 	return o.compat(t.Def, conv);
 }
 
-func (t *NamedType) lit() Type {
-	return t.Def.lit();
-}
+func (t *NamedType) lit() Type	{ return t.Def.lit() }
 
-func (t *NamedType) isBoolean() bool {
-	return t.Def.isBoolean();
-}
+func (t *NamedType) isBoolean() bool	{ return t.Def.isBoolean() }
 
-func (t *NamedType) isInteger() bool {
-	return t.Def.isInteger();
-}
+func (t *NamedType) isInteger() bool	{ return t.Def.isInteger() }
 
-func (t *NamedType) isFloat() bool {
-	return t.Def.isFloat();
-}
+func (t *NamedType) isFloat() bool	{ return t.Def.isFloat() }
 
-func (t *NamedType) isIdeal() bool {
-	return false;
-}
+func (t *NamedType) isIdeal() bool	{ return false }
 
-func (t *NamedType) String() string {
-	return t.Name;
-}
+func (t *NamedType) String() string	{ return t.Name }
 
-func (t *NamedType) Zero() Value {
-	return t.Def.Zero();
-}
+func (t *NamedType) Zero() Value	{ return t.Def.Zero() }
 
 /*
  * Multi-valued type
@@ -1309,9 +1201,7 @@ func (t *MultiType) compat(o Type, conv bool) bool {
 
 var EmptyType Type = NewMultiType([]Type{})
 
-func (t *MultiType) lit() Type {
-	return t;
-}
+func (t *MultiType) lit() Type	{ return t }
 
 func (t *MultiType) String() string {
 	if len(t.Elems) == 0 {

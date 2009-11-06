@@ -186,9 +186,7 @@ func makeTree(t *testing.T) {
 	});
 }
 
-func markTree(n *Node) {
-	walkTree(n, "", func(path string, n *Node) { n.mark++ });
-}
+func markTree(n *Node)	{ walkTree(n, "", func(path string, n *Node) { n.mark++ }) }
 
 func checkMarks(t *testing.T) {
 	walkTree(tree, tree.name, func(path string, n *Node) {
