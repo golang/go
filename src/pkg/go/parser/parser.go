@@ -19,7 +19,7 @@ import (
 
 
 // noPos is used when there is no corresponding source position for a token.
-var noPos token.Position;
+var noPos token.Position
 
 
 // The mode parameter to the Parse* functions is a set of flags (or 0).
@@ -27,43 +27,43 @@ var noPos token.Position;
 // parser functionality.
 //
 const (
-	PackageClauseOnly uint = 1 << iota;  // parsing stops after package clause
-	ImportsOnly;  // parsing stops after import declarations
-	ParseComments;  // parse comments and add them to AST
-	Trace;  // print a trace of parsed productions
+	PackageClauseOnly	uint	= 1<<iota;	// parsing stops after package clause
+	ImportsOnly;			// parsing stops after import declarations
+	ParseComments;			// parse comments and add them to AST
+	Trace;				// print a trace of parsed productions
 )
 
 
 // The parser structure holds the parser's internal state.
 type parser struct {
 	scanner.ErrorVector;
-	scanner scanner.Scanner;
+	scanner	scanner.Scanner;
 
 	// Tracing/debugging
-	mode uint;  // parsing mode
-	trace bool;  // == (mode & Trace != 0)
-	indent uint;  // indentation used for tracing output
+	mode	uint;	// parsing mode
+	trace	bool;	// == (mode & Trace != 0)
+	indent	uint;	// indentation used for tracing output
 
 	// Comments
-	comments *ast.CommentGroup;  // list of collected comments
-	lastComment *ast.CommentGroup;  // last comment in the comments list
-	leadComment *ast.CommentGroup;  // the last lead comment
-	lineComment *ast.CommentGroup;  // the last line comment
+	comments	*ast.CommentGroup;	// list of collected comments
+	lastComment	*ast.CommentGroup;	// last comment in the comments list
+	leadComment	*ast.CommentGroup;	// the last lead comment
+	lineComment	*ast.CommentGroup;	// the last line comment
 
 	// Next token
-	pos token.Position;  // token position
-	tok token.Token;  // one token look-ahead
-	lit []byte;  // token literal
+	pos	token.Position;	// token position
+	tok	token.Token;	// one token look-ahead
+	lit	[]byte;		// token literal
 
 	// Non-syntactic parser control
-	optSemi bool;  // true if semicolon separator is optional in statement list
-	exprLev int;  // < 0: in control clause, >= 0: in expression
+	optSemi	bool;	// true if semicolon separator is optional in statement list
+	exprLev	int;	// < 0: in control clause, >= 0: in expression
 
 	// Scopes
-	pkgScope *ast.Scope;
-	fileScope *ast.Scope;
-	topScope *ast.Scope;
-};
+	pkgScope	*ast.Scope;
+	fileScope	*ast.Scope;
+	topScope	*ast.Scope;
+}
 
 
 // scannerMode returns the scanner mode bits given the parser's mode bits.
@@ -79,7 +79,7 @@ func (p *parser) init(filename string, src []byte, mode uint) {
 	p.ErrorVector.Init();
 	p.scanner.Init(filename, src, p, scannerMode(mode));
 	p.mode = mode;
-	p.trace = mode & Trace != 0;  // for convenience (p.trace is used frequently)
+	p.trace = mode&Trace != 0;	// for convenience (p.trace is used frequently)
 	p.next();
 }
 
@@ -88,16 +88,15 @@ func (p *parser) init(filename string, src []byte, mode uint) {
 // Parsing support
 
 func (p *parser) printTrace(a ...) {
-	const dots =
-		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
+	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
 		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ";
 	const n = uint(len(dots));
 	fmt.Printf("%5d:%3d: ", p.pos.Line, p.pos.Column);
-	i := 2*p.indent;
+	i := 2 * p.indent;
 	for ; i > n; i -= n {
 		fmt.Print(dots);
 	}
-	fmt.Print(dots[0 : i]);
+	fmt.Print(dots[0:i]);
 	fmt.Println(a);
 }
 
@@ -109,7 +108,8 @@ func trace(p *parser, msg string) *parser {
 }
 
 
-func un/*trace*/(p *parser) {
+// Usage pattern: defer un(trace(p, "..."));
+func un(p *parser) {
 	p.indent--;
 	p.printTrace(")");
 }
@@ -127,7 +127,7 @@ func (p *parser) next0() {
 		case p.tok.IsLiteral():
 			p.printTrace(s, string(p.lit));
 		case p.tok.IsOperator(), p.tok.IsKeyword():
-			p.printTrace("\"" + s + "\"");
+			p.printTrace("\""+s+"\"");
 		default:
 			p.printTrace(s);
 		}
@@ -209,7 +209,7 @@ func (p *parser) consumeCommentGroup() int {
 func (p *parser) next() {
 	p.leadComment = nil;
 	p.lineComment = nil;
-	line := p.pos.Line;  // current line
+	line := p.pos.Line;	// current line
 	p.next0();
 
 	if p.tok == token.COMMENT {
@@ -246,7 +246,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'";
 		if p.tok.IsLiteral() {
-			msg += " " + string(p.lit);
+			msg += " "+string(p.lit);
 		}
 	}
 	p.Error(pos, msg);
@@ -258,7 +258,7 @@ func (p *parser) expect(tok token.Token) token.Position {
 	if p.tok != tok {
 		p.errorExpected(pos, "'" + tok.String() + "'");
 	}
-	p.next();  // make progress in any case
+	p.next();	// make progress in any case
 	return pos;
 }
 
@@ -272,7 +272,8 @@ func openScope(p *parser) *parser {
 }
 
 
-func close/*Scope*/(p *parser) {
+// Usage pattern: defer close(openScope(p));
+func close(p *parser) {
 	p.topScope = p.topScope.Outer;
 }
 
@@ -300,7 +301,7 @@ func (p *parser) parseIdent() *ast.Ident {
 		p.next();
 		return x;
 	}
-	p.expect(token.IDENT);  // use expect() error handling
+	p.expect(token.IDENT);	// use expect() error handling
 	return &ast.Ident{p.pos, ""};
 }
 
@@ -361,7 +362,7 @@ func (p *parser) parseType() ast.Expr {
 
 	if typ == nil {
 		p.errorExpected(p.pos, "type");
-		p.next();  // make progress
+		p.next();	// make progress
 		return &ast.BadExpr{p.pos};
 	}
 
@@ -536,7 +537,7 @@ func (p *parser) parseParameterType(ellipsisOk bool) ast.Expr {
 	typ := p.tryParameterType(ellipsisOk);
 	if typ == nil {
 		p.errorExpected(p.pos, "type");
-		p.next();  // make progress
+		p.next();	// make progress
 		typ = &ast.BadExpr{p.pos};
 	}
 	return typ;
@@ -757,14 +758,22 @@ func (p *parser) parseChanType() *ast.ChanType {
 
 func (p *parser) tryRawType(ellipsisOk bool) ast.Expr {
 	switch p.tok {
-	case token.IDENT: return p.parseTypeName();
-	case token.LBRACK: return p.parseArrayType(ellipsisOk);
-	case token.STRUCT: return p.parseStructType();
-	case token.MUL: return p.parsePointerType();
-	case token.FUNC: return p.parseFuncType();
-	case token.INTERFACE: return p.parseInterfaceType();
-	case token.MAP: return p.parseMapType();
-	case token.CHAN, token.ARROW: return p.parseChanType();
+	case token.IDENT:
+		return p.parseTypeName();
+	case token.LBRACK:
+		return p.parseArrayType(ellipsisOk);
+	case token.STRUCT:
+		return p.parseStructType();
+	case token.MUL:
+		return p.parsePointerType();
+	case token.FUNC:
+		return p.parseFuncType();
+	case token.INTERFACE:
+		return p.parseInterfaceType();
+	case token.MAP:
+		return p.parseMapType();
+	case token.CHAN, token.ARROW:
+		return p.parseChanType();
 	case token.LPAREN:
 		lparen := p.pos;
 		p.next();
@@ -811,7 +820,7 @@ func (p *parser) parseStmtList() []ast.Stmt {
 		if p.tok == token.SEMICOLON {
 			p.next();
 		} else if p.optSemi {
-			p.optSemi = false;  // "consume" optional semicolon
+			p.optSemi = false;	// "consume" optional semicolon
 		} else {
 			expectSemi = true;
 		}
@@ -878,7 +887,7 @@ func (p *parser) parseFuncTypeOrLit() ast.Expr {
 
 	p.exprLev++;
 	body := p.parseBlockStmt(nil);
-	p.optSemi = false;  // function body requires separating ";"
+	p.optSemi = false;	// function body requires separating ";"
 	p.exprLev--;
 
 	return &ast.FuncLit{typ, body};
@@ -918,14 +927,14 @@ func (p *parser) parseOperand() ast.Expr {
 		return p.parseFuncTypeOrLit();
 
 	default:
-		t := p.tryRawType(true);  // could be type for composite literal or conversion
+		t := p.tryRawType(true);	// could be type for composite literal or conversion
 		if t != nil {
 			return t;
 		}
 	}
 
 	p.errorExpected(p.pos, "operand");
-	p.next();  // make progress
+	p.next();	// make progress
 	return &ast.BadExpr{p.pos};
 }
 
@@ -1097,9 +1106,12 @@ func isTypeName(x ast.Expr) bool {
 	switch t := x.(type) {
 	case *ast.BadExpr:
 	case *ast.Ident:
-	case *ast.ParenExpr: return isTypeName(t.X);  // TODO(gri): should (TypeName) be illegal?
-	case *ast.SelectorExpr: return isTypeName(t.X);
-	default: return false;  // all other nodes are not type names
+	case *ast.ParenExpr:
+		return isTypeName(t.X);	// TODO(gri): should (TypeName) be illegal?
+	case *ast.SelectorExpr:
+		return isTypeName(t.X);
+	default:
+		return false;	// all other nodes are not type names
 	}
 	return true;
 }
@@ -1111,12 +1123,15 @@ func isCompositeLitType(x ast.Expr) bool {
 	switch t := x.(type) {
 	case *ast.BadExpr:
 	case *ast.Ident:
-	case *ast.ParenExpr: return isCompositeLitType(t.X);
-	case *ast.SelectorExpr: return isTypeName(t.X);
+	case *ast.ParenExpr:
+		return isCompositeLitType(t.X);
+	case *ast.SelectorExpr:
+		return isTypeName(t.X);
 	case *ast.ArrayType:
 	case *ast.StructType:
 	case *ast.MapType:
-	default: return false;  // all other nodes are not legal composite literal types
+	default:
+		return false;	// all other nodes are not legal composite literal types
 	}
 	return true;
 }
@@ -1154,9 +1169,12 @@ func (p *parser) parsePrimaryExpr() ast.Expr {
 	x := p.parseOperand();
 L:	for {
 		switch p.tok {
-		case token.PERIOD: x = p.parseSelectorOrTypeAssertion(p.checkExpr(x));
-		case token.LBRACK: x = p.parseIndex(p.checkExpr(x));
-		case token.LPAREN: x = p.parseCallOrConversion(p.checkExprOrType(x));
+		case token.PERIOD:
+			x = p.parseSelectorOrTypeAssertion(p.checkExpr(x));
+		case token.LBRACK:
+			x = p.parseIndex(p.checkExpr(x));
+		case token.LPAREN:
+			x = p.parseCallOrConversion(p.checkExprOrType(x));
 		case token.LBRACE:
 			if isCompositeLitType(x) && (p.exprLev >= 0 || !isTypeName(x)) {
 				x = p.parseCompositeLit(x);
@@ -1206,7 +1224,7 @@ func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
 		for p.tok.Precedence() == prec {
 			pos, op := p.pos, p.tok;
 			p.next();
-			y := p.parseBinaryExpr(prec + 1);
+			y := p.parseBinaryExpr(prec+1);
 			x = &ast.BinaryExpr{p.checkExpr(x), pos, op, p.checkExpr(y)};
 		}
 	}
@@ -1272,7 +1290,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 	if p.tok == token.INC || p.tok == token.DEC {
 		// increment or decrement
 		s := &ast.IncDecStmt{x[0], p.tok};
-		p.next();  // consume "++" or "--"
+		p.next();	// consume "++" or "--"
 		return s;
 	}
 
@@ -1492,7 +1510,7 @@ func isExprSwitch(s ast.Stmt) bool {
 	}
 	if e, ok := s.(*ast.ExprStmt); ok {
 		if a, ok := e.X.(*ast.TypeAssertExpr); ok {
-			return a.Type != nil;  // regular type assertion
+			return a.Type != nil;	// regular type assertion
 		}
 		return true;
 	}
@@ -1565,7 +1583,7 @@ func (p *parser) parseCommClause() *ast.CommClause {
 				if p.tok == token.ARROW {
 					rhs = p.parseExpr();
 				} else {
-					p.expect(token.ARROW);  // use expect() error handling
+					p.expect(token.ARROW);	// use expect() error handling
 				}
 			}
 			// else SendExpr
@@ -1637,7 +1655,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 		}
 		if rhs, isUnary := as.Rhs[0].(*ast.UnaryExpr); isUnary && rhs.Op == token.RANGE {
 			// rhs is range expression; check lhs
-			return &ast.RangeStmt{pos, key, value, as.TokPos, as.Tok, rhs.X, body}
+			return &ast.RangeStmt{pos, key, value, as.TokPos, as.Tok, rhs.X, body};
 		} else {
 			p.errorExpected(s2.Pos(), "range clause");
 			return &ast.BadStmt{pos};
@@ -1647,7 +1665,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 		return &ast.ForStmt{pos, s1, p.makeExpr(s2), s3, body};
 	}
 
-	panic();  // unreachable
+	panic();	// unreachable
 	return nil;
 }
 
@@ -1659,13 +1677,13 @@ func (p *parser) parseStmt() ast.Stmt {
 
 	switch p.tok {
 	case token.CONST, token.TYPE, token.VAR:
-		decl, _ := p.parseDecl(false);  // do not consume trailing semicolon
+		decl, _ := p.parseDecl(false);	// do not consume trailing semicolon
 		return &ast.DeclStmt{decl};
 	case
 		// tokens that may start a top-level expression
-		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,  // operand
-		token.LBRACK, token.STRUCT,  // composite type
-		token.MUL, token.AND, token.ARROW, token.ADD, token.SUB, token.XOR:  // unary operators
+		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,	// operand
+		token.LBRACK, token.STRUCT,	// composite type
+		token.MUL, token.AND, token.ARROW, token.ADD, token.SUB, token.XOR:	// unary operators
 		return p.parseSimpleStmt(true);
 	case token.GO:
 		return p.parseGoStmt();
@@ -1692,7 +1710,7 @@ func (p *parser) parseStmt() ast.Stmt {
 
 	// no statement found
 	p.errorExpected(p.pos, "statement");
-	p.next();  // make progress
+	p.next();	// make progress
 	return &ast.BadStmt{p.pos};
 }
 
@@ -1732,7 +1750,7 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.S
 	if p.tok == token.STRING {
 		path = p.parseStringList(nil);
 	} else {
-		p.expect(token.STRING);  // use expect() error handling
+		p.expect(token.STRING);	// use expect() error handling
 	}
 
 	comment, gotSemi := p.parseComment(getSemi);
@@ -1804,7 +1822,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi 
 		p.next();
 		for p.tok != token.RPAREN && p.tok != token.EOF {
 			doc := p.leadComment;
-			spec, semi := f(p, doc, true);  // consume semicolon if any
+			spec, semi := f(p, doc, true);	// consume semicolon if any
 			list.Push(spec);
 			if !semi {
 				break;
@@ -1914,7 +1932,7 @@ func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
 		p.errorExpected(pos, "declaration");
 		decl = &ast.BadDecl{pos};
 		gotSemi = getSemi && p.tok == token.SEMICOLON;
-		p.next();  // make progress in any case
+		p.next();	// make progress in any case
 		return decl, gotSemi;
 	}
 
@@ -1967,14 +1985,14 @@ func (p *parser) parseFile() *ast.File {
 		// import decls
 		list := vector.New(0);
 		for p.tok == token.IMPORT {
-			decl, _ := p.parseGenDecl(token.IMPORT, parseImportSpec, true);  // consume optional semicolon
+			decl, _ := p.parseGenDecl(token.IMPORT, parseImportSpec, true);	// consume optional semicolon
 			list.Push(decl);
 		}
 
 		if p.mode & ImportsOnly == 0 {
 			// rest of package body
 			for p.tok != token.EOF {
-				decl, _ := p.parseDecl(true);  // consume optional semicolon
+				decl, _ := p.parseDecl(true);	// consume optional semicolon
 				list.Push(decl);
 			}
 		}

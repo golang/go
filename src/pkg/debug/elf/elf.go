@@ -623,7 +623,7 @@ const (
 	   string */
 	DF_SYMBOLIC	DynFlag	= 0x0002;	/* Indicates "symbolic" linking. */
 	DF_TEXTREL	DynFlag	= 0x0004;	/* Indicates there may be relocations in
-								   non-writable segments. */
+									   non-writable segments. */
 	DF_BIND_NOW	DynFlag	= 0x0008;	/* Indicates that the dynamic linker should
 	   process all relocations for the object
 	   containing this entry before transferring
@@ -1394,7 +1394,7 @@ type Header32 struct {
  */
 type Section32 struct {
 	Name	uint32;	/* Section name (index into the
-								   section header string table). */
+									   section header string table). */
 	Type		uint32;	/* Section type. */
 	Flags		uint32;	/* Section flags. */
 	Addr		uint32;	/* Address in memory image. */
@@ -1508,7 +1508,7 @@ type Header64 struct {
 
 type Section64 struct {
 	Name	uint32;	/* Section name (index into the
-								   section header string table). */
+									   section header string table). */
 	Type		uint32;	/* Section type. */
 	Flags		uint64;	/* Section flags. */
 	Addr		uint64;	/* Address in memory image. */

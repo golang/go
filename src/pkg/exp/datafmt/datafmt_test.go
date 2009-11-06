@@ -23,14 +23,13 @@ func parse(t *testing.T, form string, fmap FormatterMap) Format {
 
 func verify(t *testing.T, f Format, expected string, args ...) {
 	if f == nil {
-		return;  // allow other tests to run
+		return;	// allow other tests to run
 	}
 	result := f.Sprint(args);
 	if result != expected {
 		t.Errorf(
 			"result  : `%s`\nexpected: `%s`\n\n",
-			result, expected
-		)
+			result, expected);
 	}
 }
 
@@ -62,9 +61,9 @@ func formatter(s *State, value interface{}, rule_name string) bool {
 
 
 func TestCustomFormatters(t *testing.T) {
-	fmap0 := FormatterMap{ "/": formatter };
-	fmap1 := FormatterMap{ "int": formatter, "blank": formatter, "nil": formatter };
-	fmap2 := FormatterMap{ "testing.T": formatter };
+	fmap0 := FormatterMap{"/": formatter};
+	fmap1 := FormatterMap{"int": formatter, "blank": formatter, "nil": formatter};
+	fmap2 := FormatterMap{"testing.T": formatter};
 
 	f := parse(t, `int=`, fmap0);
 	verify(t, f, ``, 1, 2, 3);
@@ -97,14 +96,13 @@ func TestCustomFormatters(t *testing.T) {
 func check(t *testing.T, form, expected string, args ...) {
 	f := parse(t, form, nil);
 	if f == nil {
-		return;  // allow other tests to run
+		return;	// allow other tests to run
 	}
 	result := f.Sprint(args);
 	if result != expected {
 		t.Errorf(
 			"format  : %s\nresult  : `%s`\nexpected: `%s`\n\n",
-			form, result, expected
-		)
+			form, result, expected);
 	}
 }
 
@@ -164,7 +162,7 @@ func TestChanTypes(t *testing.T) {
 	check(t, `chan="chan"`, `chan`, c0);
 
 	c1 := make(chan int);
-	go func(){ c1 <- 42 }();
+	go func() { c1 <- 42 }();
 	check(t, `chan="chan"`, `chan`, c1);
 	// check(t, `chan=*`, `42`, c1);  // reflection support for chans incomplete
 }
@@ -174,14 +172,14 @@ func TestFuncTypes(t *testing.T) {
 	var f0 func() int;
 	check(t, `func="func"`, `func`, f0);
 
-	f1 := func() int { return 42; };
+	f1 := func() int { return 42 };
 	check(t, `func="func"`, `func`, f1);
 	// check(t, `func=*`, `42`, f1);  // reflection support for funcs incomplete
 }
 
 
 func TestInterfaceTypes(t *testing.T) {
-	var i0 interface{};
+	var i0 interface{}
 	check(t, `interface="interface"`, `interface`, i0);
 
 	i0 = "foo";
@@ -234,8 +232,7 @@ type T1 struct {
 	a int;
 }
 
-const F1 =
-	`datafmt "datafmt";`
+const F1 = `datafmt "datafmt";`
 	`int = "%d";`
 	`datafmt.T1 = "<" a ">";`
 
@@ -248,21 +245,19 @@ func TestStruct1(t *testing.T) {
 // Formatting of a struct with an optional field (ptr)
 
 type T2 struct {
-	s string;
-	p *T1;
+	s	string;
+	p	*T1;
 }
 
-const F2a =
-	F1 +
+const F2a = F1 +
 	`string = "%s";`
-	`ptr = *;`
-	`datafmt.T2 = s ["-" p "-"];`
+		`ptr = *;`
+		`datafmt.T2 = s ["-" p "-"];`
 
-const F2b =
-	F1 +
+const F2b = F1 +
 	`string = "%s";`
-	`ptr = *;`
-	`datafmt.T2 = s ("-" p "-" | "empty");`;
+		`ptr = *;`
+		`datafmt.T2 = s ("-" p "-" | "empty");`
 
 func TestStruct2(t *testing.T) {
 	check(t, F2a, "foo", T2{"foo", nil});
@@ -275,18 +270,16 @@ func TestStruct2(t *testing.T) {
 // Formatting of a struct with a repetitive field (slice)
 
 type T3 struct {
-	s string;
-	a []int;
+	s	string;
+	a	[]int;
 }
 
-const F3a =
-	`datafmt "datafmt";`
+const F3a = `datafmt "datafmt";`
 	`default = "%v";`
 	`array = *;`
 	`datafmt.T3 = s  {" " a a / ","};`
 
-const F3b =
-	`datafmt "datafmt";`
+const F3b = `datafmt "datafmt";`
 	`int = "%d";`
 	`string = "%s";`
 	`array = *;`
@@ -306,12 +299,11 @@ func TestStruct3(t *testing.T) {
 // Formatting of a struct with alternative field
 
 type T4 struct {
-	x *int;
-	a []int;
+	x	*int;
+	a	[]int;
 }
 
-const F4a =
-	`datafmt "datafmt";`
+const F4a = `datafmt "datafmt";`
 	`int = "%d";`
 	`ptr = *;`
 	`array = *;`
@@ -319,8 +311,7 @@ const F4a =
 	`empty = *:nil;`
 	`datafmt.T4 = "<" (x:empty x | "-") ">" `
 
-const F4b =
-	`datafmt "datafmt";`
+const F4b = `datafmt "datafmt";`
 	`int = "%d";`
 	`ptr = *;`
 	`array = *;`
@@ -341,12 +332,11 @@ func TestStruct4(t *testing.T) {
 // Formatting a struct (documentation example)
 
 type Point struct {
-	name string;
-	x, y int;
+	name	string;
+	x, y	int;
 }
 
-const FPoint =
-	`datafmt "datafmt";`
+const FPoint = `datafmt "datafmt";`
 	`int = "%d";`
 	`hexInt = "0x%x";`
 	`string = "---%s---";`
@@ -361,8 +351,7 @@ func TestStructPoint(t *testing.T) {
 // ----------------------------------------------------------------------------
 // Formatting a slice (documentation example)
 
-const FSlice =
-	`int = "%b";`
+const FSlice = `int = "%b";`
 	`array = { * / ", " }`
 
 func TestSlice(t *testing.T) {
