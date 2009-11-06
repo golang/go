@@ -284,7 +284,7 @@ func TestDivStepD6(t *testing.T) {
 	const expectedQ32 = "4294967293";
 	const expectedR32 = "39614081266355540837921718287";
 	if q.String() != expectedQ64 && q.String() != expectedQ32 ||
-	   r.String() != expectedR64 && r.String() != expectedR32 {
+		r.String() != expectedR64 && r.String() != expectedR32 {
 		t.Errorf("got (%s, %s) want (%s, %s) or (%s, %s)", q, r, expectedQ64, expectedR64, expectedQ32, expectedR32);
 	}
 }
