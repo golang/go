@@ -13,7 +13,7 @@ X386)
 	;;
 Xarm)
 	export A=5
-	export E="qemu-arm -cpu cortex-a8 "
+	export E=${EMU_arm:-qemu-arm -cpu cortex-a8}
 	;;
 *)
 	echo 1>&2 run: unsupported '$GOARCH'

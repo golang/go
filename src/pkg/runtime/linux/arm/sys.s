@@ -8,7 +8,12 @@
 
 #include "arm/asm.h"
 
-#define SYS_BASE 0x00900000
+// OABI
+//#define SYS_BASE 0x00900000
+
+// EABI
+#define SYS_BASE 0x0
+
 #define SYS_exit (SYS_BASE + 1)
 #define SYS_write (SYS_BASE + 4)
 #define SYS_clone (SYS_BASE + 120)
@@ -21,19 +26,22 @@ TEXT write(SB),7,$0
 	MOVW	0(FP), R0
 	MOVW	4(FP), R1
 	MOVW	8(FP), R2
-    	SWI	$SYS_write
+	MOVW	$SYS_write, R7
+	SWI	$0
 	RET
 
 TEXT exit(SB),7,$-4
 	MOVW	0(FP), R0
-	SWI	$SYS_exit_group
+	MOVW	$SYS_exit_group, R7
+	SWI	$0
 	MOVW	$1234, R0
 	MOVW	$1002, R1
 	MOVW	R0, (R1)	// fail hard
 
 TEXT exit1(SB),7,$-4
 	MOVW	0(FP), R0
-	SWI	$SYS_exit
+	MOVW	$SYS_exit, R7
+	SWI	$0
 	MOVW	$1234, R0
 	MOVW	$1003, R1
 	MOVW	R0, (R1)	// fail hard
@@ -45,7 +53,8 @@ TEXT runtime·mmap(SB),7,$0
 	MOVW	12(FP), R3
 	MOVW	16(FP), R4
 	MOVW	20(FP), R5
-	SWI	$SYS_mmap2
+	MOVW	$SYS_mmap2, R7
+	SWI	$0
 	RET
 
 // int32 futex(int32 *uaddr, int32 op, int32 val,
@@ -57,7 +66,8 @@ TEXT futex(SB),7,$0
 	MOVW	16(SP), R3
 	MOVW	20(SP), R4
 	MOVW	24(SP), R5
-	SWI	$SYS_futex
+	MOVW	$SYS_futex, R7
+	SWI	$0
 	RET
 
 
@@ -82,7 +92,8 @@ TEXT clone(SB),7,$0
 	MOVW	$1234, R6
 	MOVW	R6, 12(R1)
 
-	SWI	$SYS_clone
+	MOVW	$SYS_clone, R7
+	SWI	$0
 
 	// In parent, return.
 	CMP	$0, R0
@@ -106,7 +117,8 @@ TEXT clone(SB),7,$0
 	BL	emptyfunc(SB)	// fault if stack check is wrong
 
 	// Initialize m->procid to Linux tid
-	SWI	$SYS_gettid
+	MOVW	$SYS_gettid, R7
+	SWI	$0
 	MOVW	R0, m_procid(m)
 
 	// Call fn
