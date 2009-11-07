@@ -131,9 +131,7 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// bool
 	{
-		data := struct {
-			a bool;
-		}{true};
+		data := struct{ a bool }{true};
 		instr := &encInstr{encBool, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -145,9 +143,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// int
 	{
 		b.Reset();
-		data := struct {
-			a int;
-		}{17};
+		data := struct{ a int }{17};
 		instr := &encInstr{encInt, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -159,9 +155,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// uint
 	{
 		b.Reset();
-		data := struct {
-			a uint;
-		}{17};
+		data := struct{ a uint }{17};
 		instr := &encInstr{encUint, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -173,9 +167,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// int8
 	{
 		b.Reset();
-		data := struct {
-			a int8;
-		}{17};
+		data := struct{ a int8 }{17};
 		instr := &encInstr{encInt8, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -187,9 +179,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// uint8
 	{
 		b.Reset();
-		data := struct {
-			a uint8;
-		}{17};
+		data := struct{ a uint8 }{17};
 		instr := &encInstr{encUint8, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -201,9 +191,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// int16
 	{
 		b.Reset();
-		data := struct {
-			a int16;
-		}{17};
+		data := struct{ a int16 }{17};
 		instr := &encInstr{encInt16, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -215,9 +203,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// uint16
 	{
 		b.Reset();
-		data := struct {
-			a uint16;
-		}{17};
+		data := struct{ a uint16 }{17};
 		instr := &encInstr{encUint16, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -229,9 +215,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// int32
 	{
 		b.Reset();
-		data := struct {
-			a int32;
-		}{17};
+		data := struct{ a int32 }{17};
 		instr := &encInstr{encInt32, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -243,9 +227,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// uint32
 	{
 		b.Reset();
-		data := struct {
-			a uint32;
-		}{17};
+		data := struct{ a uint32 }{17};
 		instr := &encInstr{encUint32, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -257,9 +239,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// int64
 	{
 		b.Reset();
-		data := struct {
-			a int64;
-		}{17};
+		data := struct{ a int64 }{17};
 		instr := &encInstr{encInt64, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -271,9 +251,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// uint64
 	{
 		b.Reset();
-		data := struct {
-			a uint64;
-		}{17};
+		data := struct{ a uint64 }{17};
 		instr := &encInstr{encUint64, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -285,9 +263,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// float
 	{
 		b.Reset();
-		data := struct {
-			a float;
-		}{17};
+		data := struct{ a float }{17};
 		instr := &encInstr{encFloat, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -299,9 +275,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// float32
 	{
 		b.Reset();
-		data := struct {
-			a float32;
-		}{17};
+		data := struct{ a float32 }{17};
 		instr := &encInstr{encFloat32, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -313,9 +287,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// float64
 	{
 		b.Reset();
-		data := struct {
-			a float64;
-		}{17};
+		data := struct{ a float64 }{17};
 		instr := &encInstr{encFloat64, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -327,9 +299,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// bytes == []uint8
 	{
 		b.Reset();
-		data := struct {
-			a []byte;
-		}{strings.Bytes("hello")};
+		data := struct{ a []byte }{strings.Bytes("hello")};
 		instr := &encInstr{encUint8Array, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));
@@ -341,9 +311,7 @@ func TestScalarEncInstructions(t *testing.T) {
 	// string
 	{
 		b.Reset();
-		data := struct {
-			a string;
-		}{"hello"};
+		data := struct{ a string }{"hello"};
 		instr := &encInstr{encString, 6, 0, 0};
 		state := newencoderState(b);
 		instr.op(instr, state, unsafe.Pointer(&data));

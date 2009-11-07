@@ -36,106 +36,26 @@ func assert(t *testing.T, s, want string) {
 func typestring(i interface{}) string	{ return Typeof(i).String() }
 
 var typeTests = []pair{
-	pair{struct {
-		x int;
-	}{},
-		"int",
-	},
-	pair{struct {
-		x int8;
-	}{},
-		"int8",
-	},
-	pair{struct {
-		x int16;
-	}{},
-		"int16",
-	},
-	pair{struct {
-		x int32;
-	}{},
-		"int32",
-	},
-	pair{struct {
-		x int64;
-	}{},
-		"int64",
-	},
-	pair{struct {
-		x uint;
-	}{},
-		"uint",
-	},
-	pair{struct {
-		x uint8;
-	}{},
-		"uint8",
-	},
-	pair{struct {
-		x uint16;
-	}{},
-		"uint16",
-	},
-	pair{struct {
-		x uint32;
-	}{},
-		"uint32",
-	},
-	pair{struct {
-		x uint64;
-	}{},
-		"uint64",
-	},
-	pair{struct {
-		x float;
-	}{},
-		"float",
-	},
-	pair{struct {
-		x float32;
-	}{},
-		"float32",
-	},
-	pair{struct {
-		x float64;
-	}{},
-		"float64",
-	},
-	pair{struct {
-		x int8;
-	}{},
-		"int8",
-	},
-	pair{struct {
-		x (**int8);
-	}{},
-		"**int8",
-	},
-	pair{struct {
-		x (**integer);
-	}{},
-		"**reflect_test.integer",
-	},
-	pair{struct {
-		x ([32]int32);
-	}{},
-		"[32]int32",
-	},
-	pair{struct {
-		x ([]int8);
-	}{},
-		"[]int8",
-	},
-	pair{struct {
-		x (map[string]int32);
-	}{},
-		"map[string] int32",
-	},
-	pair{struct {
-		x (chan<- string);
-	}{},
-		"chan<- string",
-	},
+	pair{struct{ x int }{}, "int"},
+	pair{struct{ x int8 }{}, "int8"},
+	pair{struct{ x int16 }{}, "int16"},
+	pair{struct{ x int32 }{}, "int32"},
+	pair{struct{ x int64 }{}, "int64"},
+	pair{struct{ x uint }{}, "uint"},
+	pair{struct{ x uint8 }{}, "uint8"},
+	pair{struct{ x uint16 }{}, "uint16"},
+	pair{struct{ x uint32 }{}, "uint32"},
+	pair{struct{ x uint64 }{}, "uint64"},
+	pair{struct{ x float }{}, "float"},
+	pair{struct{ x float32 }{}, "float32"},
+	pair{struct{ x float64 }{}, "float64"},
+	pair{struct{ x int8 }{}, "int8"},
+	pair{struct{ x (**int8) }{}, "**int8"},
+	pair{struct{ x (**integer) }{}, "**reflect_test.integer"},
+	pair{struct{ x ([32]int32) }{}, "[32]int32"},
+	pair{struct{ x ([]int8) }{}, "[]int8"},
+	pair{struct{ x (map[string]int32) }{}, "map[string] int32"},
+	pair{struct{ x (chan<- string) }{}, "chan<- string"},
 	pair{struct {
 		x struct {
 			c	chan *int32;
@@ -144,11 +64,7 @@ var typeTests = []pair{
 	}{},
 		"struct { c chan *int32; d float32 }",
 	},
-	pair{struct {
-		x (func(a int8, b int32));
-	}{},
-		"func(int8, int32)",
-	},
+	pair{struct{ x (func(a int8, b int32)) }{}, "func(int8, int32)"},
 	pair{struct {
 		x struct {
 			c func(chan *integer, *int8);
@@ -558,9 +474,7 @@ func TestCopyArray(t *testing.T) {
 }
 
 func TestBigUnnamedStruct(t *testing.T) {
-	b := struct {
-		a, b, c, d int64;
-	}{1, 2, 3, 4};
+	b := struct{ a, b, c, d int64 }{1, 2, 3, 4};
 	v := NewValue(b);
 	b1 := v.Interface().(struct {
 		a, b, c, d int64;
@@ -753,9 +667,7 @@ func NotNil(a interface{}, t *testing.T) {
 
 func TestIsNil(t *testing.T) {
 	// These do not implement IsNil
-	doNotNil := []interface{}{int(0), float32(0), struct {
-		a int;
-	}{}};
+	doNotNil := []interface{}{int(0), float32(0), struct{ a int }{}};
 	for _, ts := range doNotNil {
 		ty := Typeof(ts);
 		v := MakeZero(ty);
@@ -767,24 +679,12 @@ func TestIsNil(t *testing.T) {
 	// These do implement IsNil.
 	// Wrap in extra struct to hide interface type.
 	doNil := []interface{}{
-		struct {
-			x *int;
-		}{},
-		struct {
-			x interface{};
-		}{},
-		struct {
-			x map[string]int;
-		}{},
-		struct {
-			x func() bool;
-		}{},
-		struct {
-			x chan int;
-		}{},
-		struct {
-			x []string;
-		}{},
+		struct{ x *int }{},
+		struct{ x interface{} }{},
+		struct{ x map[string]int }{},
+		struct{ x func() bool }{},
+		struct{ x chan int }{},
+		struct{ x []string }{},
 	};
 	for _, ts := range doNil {
 		ty := Typeof(ts).(*StructType).Field(0).Type;
