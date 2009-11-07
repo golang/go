@@ -594,11 +594,11 @@ def CheckGofmt(ui, repo, files, just_warn=False):
 		ui.warn("gofmt errors:\n" + errors.rstrip() + "\n")
 		return
 	if len(data) > 0:
-		msg = "gofmt needs to format these files (run hg gofmt):\n" + data
+		msg = "gofmt needs to format these files (run hg gofmt):\n" + Indent(data, "\t").rstrip()
 		if just_warn:
-			ui.warn("warning: " + msg)
+			ui.warn("warning: " + msg + "\n")
 		else:
-			raise util.Abort()
+			raise util.Abort(msg)
 	return
 
 #######################################################################
