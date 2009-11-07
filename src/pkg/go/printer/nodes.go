@@ -25,7 +25,6 @@ const (
 
 // Other formatting issues:
 // - replacement of expression spacing algorithm with rsc's algorithm
-// - support for one-line composite types (e.g. structs) as composite literals types
 // - better comment formatting for /*-style comments at the end of a line (e.g. a declaration)
 //   when the comment spans multiple lines; if such a comment is just two lines, formatting is
 //   not idempotent
@@ -262,16 +261,70 @@ func (p *printer) signature(params, result []*ast.Field, multiLine *bool) (optSe
 }
 
 
-func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete, isStruct bool) {
-	if len(list) == 0 && !isIncomplete && !p.commentBefore(rbrace) {
-		// no blank between keyword and {} in this case
-		p.print(lbrace, token.LBRACE, rbrace, token.RBRACE);
-		return;
+func identListSize(list []*ast.Ident, maxSize int) (size int) {
+	for i, x := range list {
+		if i > 0 {
+			size += 2;	// ", "
+		}
+		size += len(x.Value);
+		if size >= maxSize {
+			break;
+		}
+	}
+	return;
+}
+
+
+func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
+	if len(list) != 1 {
+		return false;	// allow only one field
+	}
+	f := list[0];
+	if f.Tag != nil || f.Comment != nil {
+		return false;	// don't allow tags or comments
+	}
+	// only name(s) and type
+	const maxSize = 30;	// adjust as appropriate, this is an approximate value
+	namesSize := identListSize(f.Names, maxSize);
+	if namesSize > 0 {
+		namesSize = 1;	// blank between names and types
+	}
+	typeSize := p.nodeSize(f.Type, maxSize);
+	return namesSize + typeSize <= maxSize;
+}
+
+
+func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete bool, ctxt Context) {
+	if !isIncomplete && !p.commentBefore(rbrace) {
+		// possibly a one-line struct/interface
+		if len(list) == 0 {
+			// no blank between keyword and {} in this case
+			p.print(lbrace, token.LBRACE, rbrace, token.RBRACE);
+			return;
+		} else if ctxt&(compositeLit | structType) == compositeLit | structType &&
+			p.isOneLineFieldList(list) {	// for now ignore interfaces
+			// small enough - print on one line
+			// (don't use identList and ignore source line breaks)
+			p.print(lbrace, token.LBRACE, blank);
+			f := list[0];
+			for i, x := range f.Names {
+				if i > 0 {
+					p.print(token.COMMA, blank);
+				}
+				p.expr(x, ignoreMultiLine);
+			}
+			if len(f.Names) > 0 {
+				p.print(blank);
+			}
+			p.expr(f.Type, ignoreMultiLine);
+			p.print(blank, rbrace, token.RBRACE);
+			return;
+		}
 	}
 
 	// at least one entry or incomplete
 	p.print(blank, lbrace, token.LBRACE, indent, formfeed);
-	if isStruct {
+	if ctxt & structType != 0 {
 
 		sep := vtab;
 		if len(list) == 1 {
@@ -286,11 +339,13 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			extraTabs := 0;
 			p.leadComment(f.Doc);
 			if len(f.Names) > 0 {
+				// named fields
 				p.identList(f.Names, &ml);
 				p.print(sep);
 				p.expr(f.Type, &ml);
 				extraTabs = 1;
 			} else {
+				// anonymous field
 				p.expr(f.Type, &ml);
 				extraTabs = 2;
 			}
@@ -353,6 +408,15 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 
 // ----------------------------------------------------------------------------
 // Expressions
+
+// Context describes the syntactic environment in which an expression node is printed.
+type Context uint
+
+const (
+	compositeLit	= 1<<iota;
+	structType;
+)
+
 
 func needsBlanks(expr ast.Expr) bool {
 	switch x := expr.(type) {
@@ -420,7 +484,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int, multiLine *bool) {
 
 	// Print collected operations left-to-right, with blanks if necessary.
 	ws := indent;
-	p.expr1(x.X, prec, multiLine);
+	p.expr1(x.X, prec, 0, multiLine);
 	for list.Len() > 0 {
 		x = list.Pop().(*ast.BinaryExpr);
 		prev := line;
@@ -443,7 +507,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int, multiLine *bool) {
 			}
 			p.print(x.OpPos, x.Op);
 		}
-		p.expr1(x.Y, prec, multiLine);
+		p.expr1(x.Y, prec, 0, multiLine);
 	}
 	if ws == ignore {
 		p.print(unindent);
@@ -453,7 +517,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int, multiLine *bool) {
 
 // Returns true if a separating semicolon is optional.
 // Sets multiLine to true if the expression spans multiple lines.
-func (p *printer) expr1(expr ast.Expr, prec1 int, multiLine *bool) (optSemi bool) {
+func (p *printer) expr1(expr ast.Expr, prec1 int, ctxt Context, multiLine *bool) (optSemi bool) {
 	p.print(expr.Pos());
 
 	switch x := expr.(type) {
@@ -488,7 +552,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, multiLine *bool) (optSemi bool
 			if x.Op == token.RANGE {
 				p.print(blank);
 			}
-			p.expr1(x.X, prec, multiLine);
+			p.expr1(x.X, prec, 0, multiLine);
 		}
 
 	case *ast.BasicLit:
@@ -507,12 +571,12 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, multiLine *bool) (optSemi bool
 		p.print(x.Rparen, token.RPAREN);
 
 	case *ast.SelectorExpr:
-		p.expr1(x.X, token.HighestPrec, multiLine);
+		p.expr1(x.X, token.HighestPrec, 0, multiLine);
 		p.print(token.PERIOD);
-		p.expr1(x.Sel, token.HighestPrec, multiLine);
+		p.expr1(x.Sel, token.HighestPrec, 0, multiLine);
 
 	case *ast.TypeAssertExpr:
-		p.expr1(x.X, token.HighestPrec, multiLine);
+		p.expr1(x.X, token.HighestPrec, 0, multiLine);
 		p.print(token.PERIOD, token.LPAREN);
 		if x.Type != nil {
 			p.expr(x.Type, multiLine);
@@ -522,9 +586,9 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, multiLine *bool) (optSemi bool
 		p.print(token.RPAREN);
 
 	case *ast.IndexExpr:
-		p.expr1(x.X, token.HighestPrec, multiLine);
+		p.expr1(x.X, token.HighestPrec, 0, multiLine);
 		p.print(token.LBRACK);
-		p.expr1(x.Index, token.LowestPrec, multiLine);
+		p.expr1(x.Index, token.LowestPrec, 0, multiLine);
 		if x.End != nil {
 			if needsBlanks(x.Index) || needsBlanks(x.End) {
 				// blanks around ":"
@@ -538,13 +602,13 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, multiLine *bool) (optSemi bool
 		p.print(token.RBRACK);
 
 	case *ast.CallExpr:
-		p.expr1(x.Fun, token.HighestPrec, multiLine);
+		p.expr1(x.Fun, token.HighestPrec, 0, multiLine);
 		p.print(x.Lparen, token.LPAREN);
 		p.exprList(x.Lparen, x.Args, commaSep, multiLine);
 		p.print(x.Rparen, token.RPAREN);
 
 	case *ast.CompositeLit:
-		p.expr1(x.Type, token.HighestPrec, multiLine);
+		p.expr1(x.Type, token.HighestPrec, compositeLit, multiLine);
 		if compositeLitBlank && x.Lbrace.Line < x.Rbrace.Line {
 			// add a blank before the opening { for multi-line composites
 			// TODO(gri): for now this decision is made by looking at the
@@ -569,7 +633,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, multiLine *bool) (optSemi bool
 
 	case *ast.StructType:
 		p.print(token.STRUCT);
-		p.fieldList(x.Lbrace, x.Fields, x.Rbrace, x.Incomplete, true);
+		p.fieldList(x.Lbrace, x.Fields, x.Rbrace, x.Incomplete, ctxt | structType);
 		optSemi = true;
 
 	case *ast.FuncType:
@@ -578,7 +642,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, multiLine *bool) (optSemi bool
 
 	case *ast.InterfaceType:
 		p.print(token.INTERFACE);
-		p.fieldList(x.Lbrace, x.Methods, x.Rbrace, x.Incomplete, false);
+		p.fieldList(x.Lbrace, x.Methods, x.Rbrace, x.Incomplete, ctxt);
 		optSemi = true;
 
 	case *ast.MapType:
@@ -610,7 +674,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, multiLine *bool) (optSemi bool
 // Returns true if a separating semicolon is optional.
 // Sets multiLine to true if the expression spans multiple lines.
 func (p *printer) expr(x ast.Expr, multiLine *bool) (optSemi bool) {
-	return p.expr1(x, token.LowestPrec, multiLine);
+	return p.expr1(x, token.LowestPrec, 0, multiLine);
 }
 
 

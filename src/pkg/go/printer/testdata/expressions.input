@@ -104,6 +104,16 @@ func _() {
 }
 
 
+// one-line structs/interfaces in composite literals (up to a threshold)
+func _() {
+	_ = struct{}{};
+	_ = struct{ x int }{0};
+	_ = struct{ x, y, z int }{0, 1, 2};
+	_ = struct{ int }{0};
+	_ = struct{ s struct { int } }{struct{ int}{0}};  // compositeLit context not propagated => multiLine result
+}
+
+
 func _() {
 	// do not modify literals
 	_ = "tab1	tab2	tab3	end";  // string contains 3 tabs
