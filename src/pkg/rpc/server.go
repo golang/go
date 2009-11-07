@@ -168,7 +168,7 @@ type serverType struct {
 // For example, rpc.Register() calls server.add().
 var server = &serverType{serviceMap: make(map[string]*service)}
 
-// Is this a publicly vislble - upper case - name?
+// Is this a publicly visible - upper case - name?
 func isPublic(name string) bool {
 	rune, _ := utf8.DecodeRuneInString(name);
 	return unicode.IsUpper(rune);

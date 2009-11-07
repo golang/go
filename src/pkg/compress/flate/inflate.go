@@ -358,7 +358,7 @@ func (f *inflater) readHuffman() os.Error {
 // Decode a single Huffman block from f.
 // hl and hd are the Huffman states for the lit/length values
 // and the distance values, respectively.  If hd == nil, using the
-// fixed distance encoding assocated with fixed Huffman blocks.
+// fixed distance encoding associated with fixed Huffman blocks.
 func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
 	for {
 		v, err := f.huffSym(hl);
