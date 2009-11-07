@@ -912,7 +912,7 @@ def CheckContributor(ui, repo, user=None):
 		user = ui.config("ui", "username")
 		if not user:
 			raise util.Abort("[ui] username is not configured in .hgrc")
-	userline = FindContributor(ui, repo, user, warn=False)
+	_, userline = FindContributor(ui, repo, user, warn=False)
 	if not userline:
 		raise util.Abort("cannot find %s in CONTRIBUTORS" % (user,))
 	return userline
@@ -926,16 +926,14 @@ def FindContributor(ui, repo, user, warn=True):
 		line = line.rstrip()
 		if line.startswith('#'):
 			continue
-		if line == user:
-			return line
 		match = re.match(r"(.*) <(.*)>", line)
 		if not match:
 			continue
-		if match.group(2) == user:
-			return line
+		if line == user or match.group(2) == user:
+			return match.group(2), line
 	if warn:
 		ui.warn("warning: cannot find %s in CONTRIBUTORS\n" % (user,))
-	return None
+	return None, None
 
 def submit(ui, repo, *pats, **opts):
 	"""submit change to remote repository
@@ -1320,8 +1318,10 @@ def DownloadCL(ui, repo, clname):
 	email = match.group(1)
 	
 	# Temporary hack until we move to the public code review server.
-	email = re.sub("@google.com$", "@golang.org", email)
-
+	email1, _ = FindContributor(ui, repo, email, warn=False)
+	if email1 == "":
+		email = re.sub("@google.com$", "@golang.org", email)
+		
 	# Print warning if email is not in CONTRIBUTORS file.
 	FindContributor(ui, repo, email)
 	cl.original_author = email
