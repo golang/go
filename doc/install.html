@@ -33,8 +33,8 @@ plus one optional variable:</p>
 	Choices for <code>$GOOS</code> are <code>linux</code>,
 	<code>darwin</code> (Mac OS X 10.5 or 10.6), 
 	and <code>nacl</code> (Native Client, an incomplete port).
-	Choices for <code>$GOARCH</code> are <code>amd64</code> (64-bit x86, the most stable port),
-	<code>386</code> (32-bit x86, an unoptimized but stable port), and
+	Choices for <code>$GOARCH</code> are <code>amd64</code> (64-bit x86, the most mature port),
+	<code>386</code> (32-bit x86), and
 	<code>arm</code> (32-bit ARM, an incomplete port).
 	The valid combinations are 
 	<code>linux</code>/<code>amd64</code>,
@@ -91,7 +91,7 @@ architectures.
 	<code>amd64</code> (a.k.a. <code>x86-64</code>); <code>6g,6l,6c,6a</code>
 </dt>
 <dd>
-	The strongest implementation.  The compiler has an effective optimizer
+	The most mature implementation.  The compiler has an effective optimizer
 	(registerizer) and generates good code (although <code>gccgo</code>
 	can do noticeably better sometimes).
 </dd>
@@ -99,8 +99,9 @@ architectures.
 	<code>386</code> (a.k.a. <code>x86</code> or <code>x86-32</code>); <code>8g,8l,8c,8a</code>
 </dt>
 <dd>	
-	Comparable to the <code>amd64</code> port, but there is no
-	optimizer.  Work is underway.
+	Comparable to the <code>amd64</code> port. Not as well soaked but
+	should be nearly as solid.
+	
 </dd>
 <dt>
 	<code>arm</code> (a.k.a. <code>ARM</code>); <code>5g,5l,5c,5a</code>
