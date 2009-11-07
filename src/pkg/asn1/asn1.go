@@ -442,7 +442,7 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 //
 // (This is used in order to remove ambiguity with optional elements.)
 //
-// You can layer EXPLICIT and IMPLICIT tags to an arbitary depth, however we
+// You can layer EXPLICIT and IMPLICIT tags to an arbitrary depth, however we
 // don't support that here. We support a single layer of EXPLICIT or IMPLICIT
 // tagging with tag strings on the fields of a structure.
 

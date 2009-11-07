@@ -9,7 +9,7 @@ import (
 	"runtime";
 )
 
-// An aborter aborts the thread's current compututation, usually
+// An aborter aborts the thread's current computation, usually
 // passing the error to a waiting thread.
 type aborter interface {
 	Abort(err os.Error);

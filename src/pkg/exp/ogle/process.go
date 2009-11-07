@@ -482,7 +482,7 @@ func (p *Process) Event() Event	{ return p.event }
 // but it's still weird if an event happens after the Cont and before
 // the WaitStop that the handlers say to continue from.  Or we could
 // handle them on a separate thread.  Then obviously you get weird
-// asynchrony things, like prints while the user it typing a command,
+// asynchronous things, like prints while the user it typing a command,
 // but that's not necessarily a bad thing.
 
 // ContWait resumes process execution and waits for an event to occur

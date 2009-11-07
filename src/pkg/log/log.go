@@ -147,7 +147,7 @@ func (l *Logger) Output(calldepth int, s string) {
 // Logf is analogous to Printf() for a Logger.
 func (l *Logger) Logf(format string, v ...)	{ l.Output(2, fmt.Sprintf(format, v)) }
 
-// Log is analogouts to Print() for a Logger.
+// Log is analogous to Print() for a Logger.
 func (l *Logger) Log(v ...)	{ l.Output(2, fmt.Sprintln(v)) }
 
 // Stdout is a helper function for easy logging to stdout. It is analogous to Print().
