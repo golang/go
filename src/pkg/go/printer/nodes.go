@@ -19,6 +19,7 @@ import (
 // Disabled formatting - enable eventually and remove the flag.
 const (
 	compositeLitBlank	= false;
+	fewerSemis		= false;
 	stringListMode		= exprListMode(0);	// previously: noIndent
 )
 
@@ -133,7 +134,8 @@ func (p *printer) stringList(list []*ast.BasicLit, multiLine *bool) {
 type exprListMode uint
 
 const (
-	blankStart	exprListMode	= 1<<iota;	// print a blank before the list
+	blankStart	exprListMode	= 1<<iota;	// print a blank before a non-empty list
+	blankEnd;			// print a blank after a non-empty list
 	commaSep;			// elements are separated by commas
 	commaTerm;			// elements are terminated by comma
 	noIndent;			// no extra indentation in multi-line lists
@@ -169,6 +171,9 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, mode exprListMo
 				p.print(blank);
 			}
 			p.expr(x, multiLine);
+		}
+		if mode&blankEnd != 0 {
+			p.print(blank);
 		}
 		return;
 	}
@@ -206,15 +211,23 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, mode exprListMo
 		}
 		p.expr(x, multiLine);
 	}
+
 	if mode & commaTerm != 0 {
 		p.print(token.COMMA);
 		if ws == ignore && mode&noIndent == 0 {
-			// should always be indented here since we have a multi-line
-			// expression list - be conservative and check anyway
+			// unindent if we indented
 			p.print(unindent);
 		}
 		p.print(formfeed);	// terminating comma needs a line break to look good
-	} else if ws == ignore && mode&noIndent == 0 {
+		return;
+	}
+
+	if mode&blankEnd != 0 {
+		p.print(blank);
+	}
+
+	if ws == ignore && mode&noIndent == 0 {
+		// unindent if we indented
 		p.print(unindent);
 	}
 }
@@ -264,7 +277,9 @@ func (p *printer) signature(params, result []*ast.Field, multiLine *bool) (optSe
 func identListSize(list []*ast.Ident, maxSize int) (size int) {
 	for i, x := range list {
 		if i > 0 {
-			size += 2;	// ", "
+			size += 2 // ", "
+			;
+
 		}
 		size += len(x.Value);
 		if size >= maxSize {
@@ -287,7 +302,9 @@ func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
 	const maxSize = 30;	// adjust as appropriate, this is an approximate value
 	namesSize := identListSize(f.Names, maxSize);
 	if namesSize > 0 {
-		namesSize = 1;	// blank between names and types
+		namesSize = 1 // blank between names and types
+		;
+
 	}
 	typeSize := p.nodeSize(f.Type, maxSize);
 	return namesSize + typeSize <= maxSize;
@@ -609,15 +626,21 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, ctxt Context, multiLine *bool)
 
 	case *ast.CompositeLit:
 		p.expr1(x.Type, token.HighestPrec, compositeLit, multiLine);
-		if compositeLitBlank && x.Lbrace.Line < x.Rbrace.Line {
-			// add a blank before the opening { for multi-line composites
-			// TODO(gri): for now this decision is made by looking at the
-			//            source code - it may not be correct if the source
-			//            code was badly misformatted in the first place
-			p.print(blank);
+		mode := commaSep | commaTerm;
+		if compositeLitBlank {
+			// add blank padding around composite literal
+			// contents for a less dense look
+			mode |= blankStart | blankEnd;
+			if x.Lbrace.Line < x.Rbrace.Line {
+				// add a blank before the opening { for multi-line composites
+				// TODO(gri): for now this decision is made by looking at the
+				//            source code - it may not be correct if the source
+				//            code was badly misformatted in the first place
+				p.print(blank);
+			}
 		}
 		p.print(x.Lbrace, token.LBRACE);
-		p.exprList(x.Lbrace, x.Elts, commaSep | commaTerm, multiLine);
+		p.exprList(x.Lbrace, x.Elts, mode, multiLine);
 		p.print(x.Rbrace, token.RBRACE);
 
 	case *ast.Ellipsis:
@@ -697,7 +720,7 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int) {
 		// in those cases each clause is a new section
 		p.linebreak(s.Pos().Line, 1, maxStmtNewlines, ignore, i == 0 || _indent == 0 || multiLine);
 		multiLine = false;
-		if !p.stmt(s, &multiLine) {
+		if !p.stmt(s, &multiLine) && (!fewerSemis || len(list) > 1) {
 			p.print(token.SEMICOLON);
 		}
 	}
