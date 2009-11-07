@@ -5,6 +5,7 @@
 #undef	EXTERN
 #define	EXTERN
 #include "gg.h"
+#include "opt.h"
 
 void
 compile(Node *fn)
@@ -78,9 +79,9 @@ compile(Node *fn)
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
-//	if(!debug['N'] || debug['R'] || debug['P'])
-//		regopt(ptxt);
-
+	if(!debug['N'] || debug['R'] || debug['P']) {
+		regopt(ptxt);
+	}
 	// fill in argument size
 	ptxt->to.offset2 = rnd(curfn->type->argwid, maxround);
 

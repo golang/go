@@ -102,7 +102,7 @@ regopt(Prog *firstp)
 
 	if(first) {
 		fmtinstall('Q', Qconv);
-		exregoffset = D_R13;	// R14,R15 are external
+		exregoffset = D_DI;	// no externals
 		first = 0;
 	}
 
@@ -167,7 +167,6 @@ regopt(Prog *firstp)
 			case ARET:
 			case AJMP:
 			case AIRETL:
-			case AIRETQ:
 				r->p1 = R;
 				r1->s1 = R;
 			}
@@ -180,7 +179,6 @@ regopt(Prog *firstp)
 		 * funny
 		 */
 		case ALEAL:
-		case ALEAQ:
 			for(z=0; z<BITS; z++)
 				addrs.b[z] |= bit.b[z];
 			break;
@@ -199,7 +197,6 @@ regopt(Prog *firstp)
 		case AXCHGB:
 		case AXCHGW:
 		case AXCHGL:
-		case AXCHGQ:
 			for(z=0; z<BITS; z++) {
 				r->use1.b[z] |= bit.b[z];
 				r->set.b[z] |= bit.b[z];
@@ -219,12 +216,7 @@ regopt(Prog *firstp)
 		 */
 		case ACMPB:
 		case ACMPL:
-		case ACMPQ:
 		case ACMPW:
-		case ACOMISS:
-		case ACOMISD:
-		case AUCOMISS:
-		case AUCOMISD:
 			for(z=0; z<BITS; z++)
 				r->use2.b[z] |= bit.b[z];
 			break;
@@ -234,36 +226,12 @@ regopt(Prog *firstp)
 		 */
 		case ANOP:
 		case AMOVL:
-		case AMOVQ:
 		case AMOVB:
 		case AMOVW:
 		case AMOVBLSX:
 		case AMOVBLZX:
-		case AMOVBQSX:
-		case AMOVBQZX:
-		case AMOVLQSX:
-		case AMOVLQZX:
 		case AMOVWLSX:
 		case AMOVWLZX:
-		case AMOVWQSX:
-		case AMOVWQZX:
-
-		case AMOVSS:
-		case AMOVSD:
-		case ACVTSD2SL:
-		case ACVTSD2SQ:
-		case ACVTSD2SS:
-		case ACVTSL2SD:
-		case ACVTSL2SS:
-		case ACVTSQ2SD:
-		case ACVTSQ2SS:
-		case ACVTSS2SD:
-		case ACVTSS2SL:
-		case ACVTSS2SQ:
-		case ACVTTSD2SL:
-		case ACVTTSD2SQ:
-		case ACVTTSS2SL:
-		case ACVTTSS2SQ:
 			for(z=0; z<BITS; z++)
 				r->set.b[z] |= bit.b[z];
 			break;
@@ -273,101 +241,60 @@ regopt(Prog *firstp)
 		 */
 		case AINCB:
 		case AINCL:
-		case AINCQ:
 		case AINCW:
 		case ADECB:
 		case ADECL:
-		case ADECQ:
 		case ADECW:
 
 		case AADDB:
 		case AADDL:
-		case AADDQ:
 		case AADDW:
 		case AANDB:
 		case AANDL:
-		case AANDQ:
 		case AANDW:
 		case ASUBB:
 		case ASUBL:
-		case ASUBQ:
 		case ASUBW:
 		case AORB:
 		case AORL:
-		case AORQ:
 		case AORW:
 		case AXORB:
 		case AXORL:
-		case AXORQ:
 		case AXORW:
 		case ASALB:
 		case ASALL:
-		case ASALQ:
 		case ASALW:
 		case ASARB:
 		case ASARL:
-		case ASARQ:
 		case ASARW:
 		case ARCLB:
 		case ARCLL:
-		case ARCLQ:
 		case ARCLW:
 		case ARCRB:
 		case ARCRL:
-		case ARCRQ:
 		case ARCRW:
 		case AROLB:
 		case AROLL:
-		case AROLQ:
 		case AROLW:
 		case ARORB:
 		case ARORL:
-		case ARORQ:
 		case ARORW:
 		case ASHLB:
 		case ASHLL:
-		case ASHLQ:
 		case ASHLW:
 		case ASHRB:
 		case ASHRL:
-		case ASHRQ:
 		case ASHRW:
 		case AIMULL:
-		case AIMULQ:
 		case AIMULW:
 		case ANEGL:
-		case ANEGQ:
 		case ANOTL:
-		case ANOTQ:
 		case AADCL:
-		case AADCQ:
 		case ASBBL:
-		case ASBBQ:
 
 		case AXCHGB:
 		case AXCHGW:
 		case AXCHGL:
-		case AXCHGQ:
-
-		case AADDSD:
-		case AADDSS:
-		case ACMPSD:
-		case ACMPSS:
-		case ADIVSD:
-		case ADIVSS:
-		case AMAXSD:
-		case AMAXSS:
-		case AMINSD:
-		case AMINSS:
-		case AMULSD:
-		case AMULSS:
-		case ARCPSS:
-		case ARSQRTSS:
-		case ASQRTSD:
-		case ASQRTSS:
-		case ASUBSD:
-		case ASUBSS:
-		case AXORPD:
 			for(z=0; z<BITS; z++) {
 				r->set.b[z] |= bit.b[z];
 				r->use2.b[z] |= bit.b[z];
@@ -377,6 +304,10 @@ regopt(Prog *firstp)
 		/*
 		 * funny
 		 */
+		case AFMOVDP:
+		case AFMOVFP:
+		case AFMOVVP:
+		case AFMOVLP:
 		case ACALL:
 			for(z=0; z<BITS; z++)
 				addrs.b[z] |= bit.b[z];
@@ -385,28 +316,23 @@ regopt(Prog *firstp)
 
 		switch(p->as) {
 		case AIMULL:
-		case AIMULQ:
 		case AIMULW:
 			if(p->to.type != D_NONE)
 				break;
 
 		case AIDIVB:
 		case AIDIVL:
-		case AIDIVQ:
 		case AIDIVW:
 		case AIMULB:
 		case ADIVB:
 		case ADIVL:
-		case ADIVQ:
 		case ADIVW:
 		case AMULB:
 		case AMULL:
-		case AMULQ:
 		case AMULW:
 
 		case ACWD:
 		case ACDQ:
-		case ACQO:
 			r->regu |= RtoB(D_AX) | RtoB(D_DX);
 			break;
 
@@ -420,22 +346,18 @@ regopt(Prog *firstp)
 
 		case AMOVSB:
 		case AMOVSL:
-		case AMOVSQ:
 		case AMOVSW:
 		case ACMPSB:
 		case ACMPSL:
-		case ACMPSQ:
 		case ACMPSW:
 			r->regu |= RtoB(D_SI) | RtoB(D_DI);
 			break;
 
 		case ASTOSB:
 		case ASTOSL:
-		case ASTOSQ:
 		case ASTOSW:
 		case ASCASB:
 		case ASCASL:
-		case ASCASQ:
 		case ASCASW:
 			r->regu |= RtoB(D_AX) | RtoB(D_DI);
 			break;
@@ -709,19 +631,6 @@ addmove(Reg *r, int bn, int rn, int f)
 	case TUINT16:
 		p1->as = AMOVW;
 		break;
-	case TINT64:
-	case TUINT64:
-	case TUINTPTR:
-	case TPTR64:
-		p1->as = AMOVQ;
-		break;
-	case TFLOAT:
-	case TFLOAT32:
-		p1->as = AMOVSS;
-		break;
-	case TFLOAT64:
-		p1->as = AMOVSD;
-		break;
 	case TINT:
 	case TUINT:
 	case TINT32:
@@ -753,17 +662,14 @@ doregbits(int r)
 	b = 0;
 	if(r >= D_INDIR)
 		r -= D_INDIR;
-	if(r >= D_AX && r <= D_R15)
+	if(r >= D_AX && r <= D_DI)
 		b |= RtoB(r);
 	else
-	if(r >= D_AL && r <= D_R15B)
+	if(r >= D_AL && r <= D_BL)
 		b |= RtoB(r-D_AL+D_AX);
 	else
 	if(r >= D_AH && r <= D_BH)
 		b |= RtoB(r-D_AH+D_AX);
-	else
-	if(r >= D_X0 && r <= D_X0+15)
-		b |= FtoB(r);
 	return b;
 }
 
@@ -832,6 +738,7 @@ mkvar(Reg *r, Adr *a)
 		n = t;
 		break;
 	}
+
 	s = a->sym;
 	if(s == S)
 		goto none;
@@ -1156,13 +1063,11 @@ allreg(uint32 b, Rgn *r)
 	case TINT32:
 	case TUINT32:
 	case TINT64:
-	case TUINT64:
 	case TINT:
 	case TUINT:
 	case TUINTPTR:
 	case TBOOL:
 	case TPTR32:
-	case TPTR64:
 		i = BtoR(~b);
 		if(i && r->cost > 0) {
 			r->regno = i;
@@ -1173,11 +1078,6 @@ allreg(uint32 b, Rgn *r)
 	case TFLOAT32:
 	case TFLOAT64:
 	case TFLOAT:
-		i = BtoF(~b);
-		if(i && r->cost > 0) {
-			r->regno = i;
-			return FtoB(i);
-		}
 		break;
 	}
 	return 0;
@@ -1217,14 +1117,23 @@ paint1(Reg *r, int bn)
 
 		if(r->use1.b[z] & bb) {
 			change += CREF * r->loop;
+			if(p->as == AFMOVL || p->as == AFMOVW)
+				if(BtoR(bb) != D_F0)
+					change = -CINF;
 		}
 
 		if((r->use2.b[z]|r->set.b[z]) & bb) {
 			change += CREF * r->loop;
+			if(p->as == AFMOVL || p->as == AFMOVW)
+				if(BtoR(bb) != D_F0)
+					change = -CINF;
 		}
 
 		if(STORE(r) & r->regdiff.b[z] & bb) {
 			change -= CLOAD * r->loop;
+			if(p->as == AFMOVL || p->as == AFMOVW)
+				if(BtoR(bb) != D_F0)
+					change = -CINF;
 		}
 
 		if(r->refbehind.b[z] & bb)
@@ -1258,9 +1167,7 @@ regset(Reg *r, uint32 bb)
 	set = 0;
 	v = zprog.from;
 	while(b = bb & ~(bb-1)) {
-		v.type = b & 0xFFFF? BtoR(b): BtoF(b);
-		if(v.type == 0)
-			fatal("zero v.type for %#lux", b);
+		v.type = BtoR(b);
 		c = copyu(r->prog, &v, A);
 		if(c == 3)
 			set |= b;
@@ -1279,7 +1186,7 @@ reguse(Reg *r, uint32 bb)
 	set = 0;
 	v = zprog.from;
 	while(b = bb & ~(bb-1)) {
-		v.type = b & 0xFFFF? BtoR(b): BtoF(b);
+		v.type = BtoR(b);
 		c = copyu(r->prog, &v, A);
 		if(c == 1 || c == 2 || c == 4)
 			set |= b;
@@ -1434,7 +1341,7 @@ int32
 RtoB(int r)
 {
 
-	if(r < D_AX || r > D_R15)
+	if(r < D_AX || r > D_DI)
 		return 0;
 	return 1L << (r-D_AX);
 }
@@ -1442,34 +1349,11 @@ RtoB(int r)
 int
 BtoR(int32 b)
 {
-	b &= 0x3fffL;		// no R14 or R15
+
+	b &= 0xffL;
 	if(b == 0)
 		return 0;
 	return bitno(b) + D_AX;
-}
-
-/*
- *	bit	reg
- *	16	X5 (FREGMIN)
- *	...
- *	26	X15 (FREGEXT)
- */
-int32
-FtoB(int f)
-{
-	if(f < FREGMIN || f > FREGEXT)
-		return 0;
-	return 1L << (f - FREGMIN + 16);
-}
-
-int
-BtoF(int32 b)
-{
-
-	b &= 0xFF0000L;
-	if(b == 0)
-		return 0;
-	return bitno(b) - 16 + FREGMIN;
 }
 
 void

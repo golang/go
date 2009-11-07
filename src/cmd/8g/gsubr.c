@@ -1714,6 +1714,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 		// n->left is PHEAP ONAME for stack parameter.
 		// compute address of actual parameter on stack.
 		a->etype = n->left->type->etype;
+		a->width = n->left->type->width;
 		a->offset = n->xoffset;
 		a->sym = n->left->sym;
 		a->type = D_PARAM;
@@ -1721,8 +1722,10 @@ naddr(Node *n, Addr *a, int canemitcode)
 
 	case ONAME:
 		a->etype = 0;
+		a->width = 0;
 		if(n->type != T) {
 			a->etype = simtype[n->type->etype];
+			a->width = n->type->width;
 			a->gotype = ngotype(n);
 		}
 		a->offset = n->xoffset;

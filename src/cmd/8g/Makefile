@@ -11,7 +11,7 @@ HFILES=\
 	../gc/go.h\
 	../8l/8.out.h\
 	gg.h\
-#	opt.h\
+	opt.h\
 
 OFILES=\
 	../8l/enam.$O\
@@ -22,8 +22,8 @@ OFILES=\
 	gsubr.$O\
 	cgen.$O\
 	cgen64.$O\
-#	peep.$O\
-#	reg.$O\
+	peep.$O\
+	reg.$O\
 
 LIB=\
 	../gc/gc.a$O
