@@ -135,12 +135,25 @@ func htmlEscape(s string) string {
 }
 
 
+func firstSentence(s string) string {
+	i := strings.Index(s, ". ");
+	if i < 0 {
+		i = strings.Index(s, ".");
+		if i < 0 {
+			i = len(s)-1;	// compensate for i+1 below
+		}
+	}
+	return s[0 : i+1];	// include ".", if any
+}
+
+
 // ----------------------------------------------------------------------------
 // Package directories
 
 type Directory struct {
 	Path	string;	// includes Name
 	Name	string;
+	Text	string;	// package documentation, if any
 	Dirs	[]*Directory;
 }
 
@@ -150,7 +163,7 @@ func newDirTree(path, name string, depth int) *Directory {
 		// return a dummy directory so that the parent directory
 		// doesn't get discarded just because we reached the max
 		// directory depth
-		return &Directory{path, name, nil};
+		return &Directory{path, name, "", nil};
 	}
 
 	list, _ := io.ReadDir(path);	// ignore errors
@@ -158,12 +171,22 @@ func newDirTree(path, name string, depth int) *Directory {
 	// determine number of subdirectories and package files
 	ndirs := 0;
 	nfiles := 0;
+	text := "";
 	for _, d := range list {
 		switch {
 		case isPkgDir(d):
 			ndirs++;
 		case isPkgFile(d):
 			nfiles++;
+			if text == "" {
+				// no package documentation yet; take the first found
+				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil,
+					parser.ParseComments | parser.PackageClauseOnly);
+				if err == nil && file.Name.Value == name && file.Doc != nil {
+					// found documentation; extract a synopsys
+					text = firstSentence(doc.CommentText(file.Doc));
+				}
+			}
 		}
 	}
 
@@ -190,7 +213,7 @@ func newDirTree(path, name string, depth int) *Directory {
 		return nil;
 	}
 
-	return &Directory{path, name, dirs};
+	return &Directory{path, name, text, dirs};
 }
 
 
