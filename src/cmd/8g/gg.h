@@ -23,12 +23,13 @@ struct	Addr
 	Prog*	branch;
 	char	sval[NSNAME];
 
+	Sym*	gotype;
 	Sym*	sym;
+	int	width;
 	uchar	type;
 	uchar	index;
 	uchar	etype;
 	uchar	scale;	/* doubles as width in DATA op */
-	Sym*	gotype;
 };
 #define	A	((Addr*)0)
 

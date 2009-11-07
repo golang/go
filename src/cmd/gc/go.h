@@ -408,25 +408,25 @@ enum
 	TFLOAT64,
 	TFLOAT,
 
-	TBOOL,			// 16
+	TBOOL,			// 15
 
-	TPTR32, TPTR64,		// 17
+	TPTR32, TPTR64,		// 16
 
-	TDDD,			// 19
+	TDDD,			// 18
 	TFUNC,
 	TARRAY,
 	T_old_DARRAY,
-	TSTRUCT,		// 23
+	TSTRUCT,		// 22
 	TCHAN,
 	TMAP,
-	TINTER,			// 26
+	TINTER,			// 25
 	TFORW,
 	TFIELD,
 	TANY,
 	TSTRING,
 
 	// pseudo-types for literals
-	TIDEAL,
+	TIDEAL,			// 30
 	TNIL,
 	TBLANK,
 	
