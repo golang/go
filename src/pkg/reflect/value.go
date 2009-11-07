@@ -1204,9 +1204,7 @@ func newValue(typ Type, addr addr, canSet bool) Value {
 
 	// All values have same memory layout;
 	// build once and convert.
-	v := &struct {
-		value;
-	}{value{typ, addr, canSet}};
+	v := &struct{ value }{value{typ, addr, canSet}};
 	switch typ.(type) {
 	case *ArrayType:
 		// TODO(rsc): Something must prevent
