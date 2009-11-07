@@ -16,6 +16,8 @@ var (
 	test_uint	= Uint("test_uint", 0, "uint value");
 	test_uint64	= Uint64("test_uint64", 0, "uint64 value");
 	test_string	= String("test_string", "0", "string value");
+	test_float	= Float("test_float", 0, "float value");
+	test_float64	= Float("test_float64", 0, "float64 value");
 )
 
 func boolString(s string) string {
@@ -44,7 +46,7 @@ func TestEverything(t *testing.T) {
 		}
 	};
 	VisitAll(visitor);
-	if len(m) != 6 {
+	if len(m) != 8 {
 		t.Error("VisitAll misses some flags");
 		for k, v := range m {
 			t.Log(k, *v);
@@ -65,9 +67,11 @@ func TestEverything(t *testing.T) {
 	Set("test_uint", "1");
 	Set("test_uint64", "1");
 	Set("test_string", "1");
+	Set("test_float", "1");
+	Set("test_float64", "1");
 	desired = "1";
 	Visit(visitor);
-	if len(m) != 6 {
+	if len(m) != 8 {
 		t.Error("Visit fails after set");
 		for k, v := range m {
 			t.Log(k, *v);

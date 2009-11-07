@@ -166,6 +166,42 @@ func (s *stringValue) set(val string) bool {
 
 func (s *stringValue) String() string	{ return fmt.Sprintf("%s", *s.p) }
 
+// -- Float Value
+type floatValue struct {
+	p *float;
+}
+
+func newFloatValue(val float, p *float) *floatValue {
+	*p = val;
+	return &floatValue{p};
+}
+
+func (f *floatValue) set(s string) bool {
+	v, err := strconv.Atof(s);
+	*f.p = v;
+	return err == nil;
+}
+
+func (f *floatValue) String() string	{ return fmt.Sprintf("%v", *f.p) }
+
+// -- Float64 Value
+type float64Value struct {
+	p *float64;
+}
+
+func newFloat64Value(val float64, p *float64) *float64Value {
+	*p = val;
+	return &float64Value{p};
+}
+
+func (f *float64Value) set(s string) bool {
+	v, err := strconv.Atof64(s);
+	*f.p = v;
+	return err == nil;
+}
+
+func (f *float64Value) String() string	{ return fmt.Sprintf("%v", *f.p) }
+
 // FlagValue is the interface to the dynamic value stored in a flag.
 // (The default value is represented as a string.)
 type FlagValue interface {
@@ -358,6 +394,35 @@ func String(name, value string, usage string) *string {
 	StringVar(p, name, value, usage);
 	return p;
 }
+
+// FloatVar defines a float flag with specified name, default value, and usage string.
+// The argument p points to a float variable in which to store the value of the flag.
+func FloatVar(p *float, name string, value float, usage string) {
+	add(name, newFloatValue(value, p), usage);
+}
+
+// Float defines a float flag with specified name, default value, and usage string.
+// The return value is the address of a float variable that stores the value of the flag.
+func Float(name string, value float, usage string) *float {
+	p := new(float);
+	FloatVar(p, name, value, usage);
+	return p;
+}
+
+// Float64Var defines a float64 flag with specified name, default value, and usage string.
+// The argument p points to a float64 variable in which to store the value of the flag.
+func Float64Var(p *float64, name string, value float64, usage string) {
+	add(name, newFloat64Value(value, p), usage);
+}
+
+// Float64 defines a float64 flag with specified name, default value, and usage string.
+// The return value is the address of a float64 variable that stores the value of the flag.
+func Float64(name string, value float64, usage string) *float64 {
+	p := new(float64);
+	Float64Var(p, name, value, usage);
+	return p;
+}
+
 
 func (f *allFlags) parseOne(index int) (ok bool, next int) {
 	s := os.Args[index];
