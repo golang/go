@@ -10,7 +10,7 @@
 code, .code {
   font-size: 100%;
   font-family: monospace;
-  color: #007000;
+  color: #0f398d;
 }
 
 kbd {
@@ -20,11 +20,11 @@ kbd {
 }
 
 pre.ebnf {
-  background-color: beige;
+  background-color: #ffffe9;
 }
 
 pre.grammar {
-  background-color: beige;
+  background-color: #ffffe9;
 }
 
 p.rule {
@@ -79,6 +79,17 @@ li pre {
   margin: 0.5em 0px 1em 0px;
 }
 
+a:link {
+  color: #0f398d
+}
+
+a:visited {
+  color: #0000ff
+}
+
+a:hover {
+  color: #0000ff
+}
 
 /* ------------------------------------------------------------------------- */
 /* Styles used in the boilerplate-ish parts of pages. */
@@ -86,10 +97,12 @@ li pre {
 div#content {
   margin-left: 20%;
   padding: 0 1em 2em 1em;
-  margin-top: -2px;
+  margin-top: 0px;
+/*
   border-left: 2px solid #e5ecf9;
   border-right: 2px solid #e5ecf9;
   border-bottom: 2px solid #e5ecf9;
+*/
 }
 
 #topnav {
@@ -97,15 +110,19 @@ div#content {
   padding-top: 0.2em;
   width: 100%;
   white-space: nowrap;
-  background-color: #e5ecf9;
-  border-top:1px solid #36C;
-  font: bold large Helvetica, Arial, sans-serif;
+  background-color: #ffffff;
+  border-bottom: 2px solid #36C;
+  font: bold 150% Helvetica, Arial, sans-serif;
 }
 
 div#linkList {
+  margin-top: 1.5em;
+  padding-left: 0.5em;
   font: 13px Helvetica, Arial, sans-serif;
   float: left;
-  width: 20%;
+  width: 18%;
+  background-color: #fffff0;
+  border: 2px solid #ba9836;
 }
 
 div#linkList ul {
@@ -230,12 +247,14 @@ a.use {
 #gettingStarted {
   margin-top: 1.5em;
   float: right;
-  background-color: #e5ecf9;
+  background-color: #fffff0;
   width: 25%;
   padding-left: 1em;
-  -moz-border-radius: 7px;
-  -webkit-border-radius: 7px;
+  padding-right: 1em;
+  -moz-border-radius: 0px;
+  -webkit-border-radius: 0px;
   padding-bottom: 0.75em;
+  border: 2px solid #ba9836;
 }
 
 #gettingStarted h1 {
