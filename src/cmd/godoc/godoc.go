@@ -23,6 +23,7 @@ import (
 	"sync";
 	"template";
 	"time";
+	"utf8";
 )
 
 
@@ -626,9 +627,8 @@ func commentText(src []byte) (text string) {
 }
 
 
-func serveHtmlDoc(c *http.Conn, r *http.Request, filename string) {
+func serveHtmlDoc(c *http.Conn, r *http.Request, path string) {
 	// get HTML body contents
-	path := pathutil.Join(goroot, filename);
 	src, err := io.ReadFile(path);
 	if err != nil {
 		log.Stderrf("%v", err);
@@ -658,8 +658,7 @@ func serveParseErrors(c *http.Conn, errors *parseErrors) {
 }
 
 
-func serveGoSource(c *http.Conn, filename string, styler printer.Styler) {
-	path := pathutil.Join(goroot, filename);
+func serveGoSource(c *http.Conn, r *http.Request, path string, styler printer.Styler) {
 	prog, errors := parse(path, parser.ParseComments);
 	if errors != nil {
 		serveParseErrors(c, errors);
@@ -671,7 +670,7 @@ func serveGoSource(c *http.Conn, filename string, styler printer.Styler) {
 	writeNode(&buf, prog, true, styler);
 	fmt.Fprintln(&buf, "</pre>");
 
-	servePage(c, "Source file " + filename, "", buf.Bytes());
+	servePage(c, "Source file " + r.Url.Path, "", buf.Bytes());
 }
 
 
@@ -684,12 +683,72 @@ func redirect(c *http.Conn, r *http.Request) (redirected bool) {
 }
 
 
-func serveDirectory(c *http.Conn, r *http.Request) {
+// TODO(gri): Should have a mapping from extension to handler, eventually.
+
+// textExt[x] is true if the extension x indicates a text file, and false otherwise.
+var textExt = map[string]bool{
+	".css": false,	// must be served raw
+	".js": false,	// must be served raw
+}
+
+
+func isTextFile(path string) bool {
+	// if the extension is known, use it for decision making
+	if isText, found := textExt[pathutil.Ext(path)]; found {
+		return isText;
+	}
+
+	// the extension is not known; read an initial chunk of
+	// file and check if it looks like correct UTF-8; if it
+	// does, it's probably a text file
+	f, err := os.Open(path, os.O_RDONLY, 0);
+	if err != nil {
+		return false;
+	}
+
+	var buf [1024]byte;
+	n, err := f.Read(&buf);
+	if err != nil {
+		return false;
+	}
+
+	s := string(buf[0:n]);
+	n -= utf8.UTFMax;	// make sure there's enough bytes for a complete unicode char
+	for i, c := range s {
+		if i > n {
+			break;
+		}
+		if c == 0xFFFD || c < ' ' && c != '\n' && c != '\t' {
+			// decoding error or control character - not a text file
+			return false;
+		}
+	}
+
+	// likely a text file
+	return true;
+}
+
+
+func serveTextFile(c *http.Conn, r *http.Request, path string) {
+	src, err := io.ReadFile(path);
+	if err != nil {
+		log.Stderrf("serveTextFile: %s", err);
+	}
+
+	var buf bytes.Buffer;
+	fmt.Fprintln(&buf, "<pre>");
+	template.HtmlEscape(&buf, src);
+	fmt.Fprintln(&buf, "</pre>");
+
+	servePage(c, "Text file " + path, "", buf.Bytes());
+}
+
+
+func serveDirectory(c *http.Conn, r *http.Request, path string) {
 	if redirect(c, r) {
 		return;
 	}
 
-	path := pathutil.Join(".", r.Url.Path);
 	list, err := io.ReadDir(path);
 	if err != nil {
 		http.NotFound(c, r);
@@ -708,37 +767,45 @@ func serveDirectory(c *http.Conn, r *http.Request) {
 var fileServer = http.FileServer(".", "")
 
 func serveFile(c *http.Conn, r *http.Request) {
-	path := r.Url.Path;
+	path := pathutil.Join(".", r.Url.Path);
 
 	// pick off special cases and hand the rest to the standard file server
 	switch ext := pathutil.Ext(path); {
-	case path == "/":
+	case r.Url.Path == "/":
 		serveHtmlDoc(c, r, "doc/root.html");
+		return;
 
 	case r.Url.Path == "/doc/root.html":
 		// hide landing page from its real name
 		http.NotFound(c, r);
+		return;
 
 	case ext == ".html":
 		serveHtmlDoc(c, r, path);
+		return;
 
 	case ext == ".go":
-		serveGoSource(c, path, &Styler{highlight: r.FormValue("h")});
-
-	default:
-		dir, err := os.Lstat(pathutil.Join(".", path));
-		if err != nil {
-			http.NotFound(c, r);
-			return;
-		}
-
-		if dir != nil && dir.IsDirectory() {
-			serveDirectory(c, r);
-			return;
-		}
-
-		fileServer.ServeHTTP(c, r);
+		serveGoSource(c, r, path, &Styler{highlight: r.FormValue("h")});
+		return;
 	}
+
+	dir, err := os.Lstat(path);
+	if err != nil {
+		http.NotFound(c, r);
+		return;
+	}
+
+	if dir != nil && dir.IsDirectory() {
+		serveDirectory(c, r, path);
+		return;
+	}
+
+	if isTextFile(path) {
+		serveTextFile(c, r, path);
+		return;
+	}
+
+	fileServer.ServeHTTP(c, r);
 }
 
 
