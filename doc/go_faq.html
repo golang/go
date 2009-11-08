@@ -14,7 +14,7 @@ the computing landscape has changed tremendously. There are several trends:
 Computers are enormously quicker but software development is not faster.
 <li>
 Dependency management is a big part of software development today but the
-"header files" of languages in the C tradition are antithetical to clean
+&ldquo;header files&rdquo; of languages in the C tradition are antithetical to clean
 dependency analysis&mdash;and fast compilation.
 <li>
 There is a growing rebellion against cumbersome type systems like those of
@@ -54,7 +54,7 @@ software on multicore machines.
 What is the origin of the name?</h3>
 
 <p>
-"Ogle" would be a good name for a Go debugger.
+&ldquo;Ogle&rdquo; would be a good name for a Go debugger.
 
 <h3 id="What_kind_of_a_name_is_6g">
 What kind of a name is 6g?</h3>
@@ -62,7 +62,7 @@ What kind of a name is 6g?</h3>
 <p>
 The <code>6g</code> (and <code>8g</code> and <code>5g</code>) compiler is named in the
 tradition of the Plan 9 C compilers, described in
-<a href="http://plan9.bell-labs.com/sys/doc/compiler.html ">
+<a href="http://plan9.bell-labs.com/sys/doc/compiler.html">
 http://plan9.bell-labs.com/sys/doc/compiler.html</a>
 (see the table in section 2).
 
@@ -86,7 +86,7 @@ Who should use the language?</h3>
 <p>
 Go is an experiment. We hope adventurous users will give it a try and see
 if they enjoy it. Not every programmer
-will but we hope enough will find satisfaction in the approach it
+will, but we hope enough will find satisfaction in the approach it
 offers to justify further development.
 
 <h3 id="Do_Go_programs_link_with_Cpp_programs">
@@ -103,7 +103,7 @@ C or C++ programs. However, because Go is garbage-collected it will be
 unwise to do so, at least naively.
 
 <p>
-There is a 'foreign function interface' to allow safe calling of C-written
+There is a &ldquo;foreign function interface&rdquo; to allow safe calling of C-written
 libraries from Go code.  We expect to use SWIG to extend this capability
 to C++ libraries.  There is no safe way to call Go code from C or C++ yet.
 
@@ -150,7 +150,7 @@ Is Go an object-oriented language?</h3>
 <p>
 Yes and no. Although Go has types and methods and allows an
 object-oriented style of programming, there is no type hierarchy.
-The concept of "interface" in Go provides a different approach that
+The concept of &ldquo;interface&rdquo; in Go provides a different approach that
 we believe is easy to use and in some ways more general. There are
 also ways to embed types in other types to provide something
 analogous&mdash;but not identical&mdash;to subclassing.
@@ -159,7 +159,7 @@ they can be defined for any sort of data, not just structs.
 
 <p>
 Also, the lack of type hierarchy makes &ldquo;objects&rdquo; in Go feel much more
-lightweight than in languages such as C++ and Java.
+lightweight than in languages such as C++ or Java.
 
 <h3 id="How_do_I_get_dynamic_dispatch_of_methods">
 How do I get dynamic dispatch of methods?</h3>
@@ -199,7 +199,7 @@ There is a program, <code>godoc</code>, written in Go, that extracts
 package documentation from the source code. It can be used on the
 command line or on the web. An instance is running at
 <a href="http://golang.org/pkg/">http://golang.org/pkg/</a>.
-In fact, <code>godoc</code> implements the full site at 
+In fact, <code>godoc</code> implements the full site at
 <a href="http://golang.org/">http://golang.org/</a>.
 
 <h3 id="Is_there_a_Go_programming_style_guide">
@@ -326,10 +326,10 @@ How is the runtime implemented?</h3>
 <p>
 Again due to bootstrapping issues, the runtime is mostly in C (with a
 tiny bit of assembler) although Go is capable of implementing most of
-it now. <code>Gccgo</code>'s runtime uses <code>glibc</code>;
+it now. <code>Gccgo</code>'s runtime uses <code>glibc</code>.
 <code>Gc</code> uses a custom library, to keep the footprint under
 control; it is
 compiled with a version of the Plan 9 C compiler that supports
 segmented stacks for goroutines.
-work is underway to provide the same stack management in
+Work is underway to provide the same stack management in
 <code>gccgo</code>.
