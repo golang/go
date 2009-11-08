@@ -229,6 +229,10 @@ func (b *Writer) write0(buf []byte) os.Error {
 var newline = []byte{'\n'}
 
 func (b *Writer) writePadding(textw, cellw int) os.Error {
+	if b.cellwidth == 0 {
+		return nil;
+	}
+
 	if b.padbytes[0] == '\t' {
 		// make cell width a multiple of cellwidth
 		cellw = ((cellw + b.cellwidth - 1) / b.cellwidth) * b.cellwidth;
