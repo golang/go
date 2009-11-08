@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The net package provides a portable interface to Unix
+// networks sockets, including TCP/IP, UDP, domain name
+// resolution, and Unix domain sockets.
 package net
 
 // TODO(rsc):

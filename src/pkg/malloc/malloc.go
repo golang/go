@@ -6,6 +6,9 @@
 // The actual functions are written in C
 // and part of the runtime library.
 
+// The malloc package exposes statistics and other low-level details about
+// the run-time memory allocator and collector.  It is intended for debugging
+// purposes only; other uses are discouraged.
 package malloc
 
 type Stats struct {
