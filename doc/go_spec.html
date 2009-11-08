@@ -137,7 +137,9 @@ through the character sequence <code>*/</code>.  Comments do not nest.
 Tokens form the vocabulary of the Go language.
 There are four classes: identifiers, keywords, operators
 and delimiters, and literals.  <i>White space</i>, formed from
-blanks, tabs, and newlines, is ignored except as it separates tokens
+spaces (U+0020), horizontal tabs (U+0009),
+carriage returns (U+000D), and newlines (U+000A),
+is ignored except as it separates tokens
 that would otherwise combine into a single token.  Comments
 behave as white space.  While breaking the input into tokens,
 the next token is the longest sequence of characters that form a
@@ -295,7 +297,7 @@ After a backslash, certain single-character escapes represent special values:
 \"   U+0022 double quote  (valid escape only within string literals)
 </pre>
 <p>
-All other sequences are illegal inside character literals.
+All other sequences starting with a backslash are illegal inside character literals.
 </p>
 <pre class="ebnf">
 char_lit         = "'" ( unicode_value | byte_value ) "'" .
@@ -341,7 +343,8 @@ span multiple lines.
 </p>
 <p>
 Interpreted string literals are character sequences between double
-quotes <code>&quot;&quot;</code>. The text between the quotes forms the
+quotes <code>&quot;&quot;</code>. The text between the quotes,
+which may not span multiple lines, forms the
 value of the literal, with backslash escapes interpreted as they
 are in character literals (except that <code>\'</code> is illegal and
 <code>\"</code> is legal).  The three-digit octal (<code>\000</code>)
@@ -445,9 +448,9 @@ operand in an <a href="#Expressions">expression</a>.
 It is an error if the constant value
 cannot be accurately represented as a value of the respective type.
 For instance, <code>3.0</code> can be given any integer type but also any
-floating-point type, while <code>-1e12</code> can be given the types
-<code>float32</code>, <code>float64</code>, or even <code>int64</code> but
-not <code>uint64</code> or <code>string</code>.
+floating-point type, while <code>2147483648.0</code> (equal to <code>1&lt;&lt;31</code>)
+can be given the types <code>float32</code>, <code>float64</code>, or <code>uint32</code> but
+not <code>int32</code> or <code>string</code>.
 </p>
 
 <p>
@@ -832,7 +835,7 @@ must either all be present or all be absent. If present, each name
 stands for one item (parameter or result) of the specified type; if absent, each
 type stands for one item of that type.  Parameter and result
 lists are always parenthesized except that if there is exactly
-one unnamed result that is not a function type it may writen as an unparenthesized type.
+one unnamed result that is not a function type it may written as an unparenthesized type.
 </p>
 <p>
 For the last parameter only, instead of a type one may write
@@ -1176,7 +1179,7 @@ they have different field names.
 
 <p>
 A value <code>v</code> of static type <code>V</code> is <i>assignment compatible</i>
-with a type <code>T</code> if one of the following conditions applies:
+with a type <code>T</code> if one or more of the following conditions applies:
 </p>
 
 <ul>
@@ -1249,7 +1252,7 @@ value <code>nil</code>, if it is uninitialized, or if it has
 been assigned another slice value equal to <code>nil</code>·
 </li>
 <li>
-Similarly, an interface value is equal to <code>nil</code> if it has
+An interface value is equal to <code>nil</code> if it has
 been assigned the explicit value <code>nil</code>, if it is uninitialized,
 or if it has been assigned another interface value equal to <code>nil</code>.
 </li>
@@ -1607,8 +1610,8 @@ func (m *Mutex) Unlock()  { /* Unlock implementation */ }
 // NewMutex has the same composition as Mutex but its method set is empty.
 type NewMutex Mutex
 
-// PrintableMutex has no methods bound to it, but the method set contains
-// the methods Lock and Unlock bound to its anonymous field Mutex.
+// PrintableMutex's method set contains the methods
+// Lock and Unlock bound to its anonymous field Mutex.
 type PrintableMutex struct {
 	Mutex;
 }
@@ -1664,7 +1667,7 @@ var _, found = entries[name];  // map lookup; only interested in "found"
 If a list of expressions is given, the variables are initialized
 by assigning the expressions to the variables (§<a href="#Assignments">Assignments</a>)
 in order; all expressions must be consumed and all variables initialized from them.
-Otherwise, each variable is initialized to its <a href="#The_zero_value"><i>zero value</i></a>.
+Otherwise, each variable is initialized to its <a href="#The_zero_value">zero value</a>.
 </p>
 
 <p>
@@ -1770,8 +1773,8 @@ A method declaration binds an identifier to a method,
 which is a function with a <i>receiver</i>.
 </p>
 <pre class="ebnf">
-MethodDecl = "func" Receiver MethodName Signature [ Body ] .
-Receiver = "(" [ identifier ] [ "*" ] BaseTypeName ")" .
+MethodDecl   = "func" Receiver MethodName Signature [ Body ] .
+Receiver     = "(" [ identifier ] [ "*" ] BaseTypeName ")" .
 BaseTypeName = identifier .
 </pre>
 
@@ -2420,7 +2423,7 @@ f(a1, a2, ... an)
 
 <p>
 calls <code>f</code> with arguments <code>a1, a2, ... an</code>.
-The arguments must be single-valued expressions
+Except for one special case, arguments must be single-valued expressions
 <a href="#Assignment_compatibility">assignment compatible</a> with the parameter types of
 <code>F</code> and are evaluated before the function is called.
 The type of the expression is the result type
@@ -2434,6 +2437,33 @@ the method.
 Atan2(x, y)    // function call
 var pt *Point;
 pt.Scale(3.5)  // method call with receiver pt
+</pre>
+
+<p>
+As a special case, if the return parameters of a function or method
+<code>g</code> are equal in number and individually assignment
+compatible with the parameters of another function or method
+<code>f</code>, then the call <code>f(g(<i>parameters_of_g</i>))</code>
+will invoke <code>f</code> after binding the return values of
+<code>g</code> to the parameters of <code>f</code> in order.  The call
+of <code>f</code> must contain no parameters other than the call of <code>g</code>.
+If <code>f</code> has a final <code>...</code> parameter, it is
+assigned the return values of <code>g</code> that remain after
+assignment of regular parameters.
+</p>
+
+<pre>
+func Split(s string, pos int) (string, string) {
+	return s[0:pos], s[pos:len(s)]
+}
+
+func Join(s, t string) string {
+	return s + t
+}
+
+if Join(Split(value, len(value)/2)) != value {
+	log.Fatal("test fails")
+}
 </pre>
 
 <p>
@@ -3180,14 +3210,6 @@ order.
 </p>
 
 <p>
-Floating-point operations within a single expression are evaluated according to
-the associativity of the operators.  Explicit parentheses affect the evaluation
-by overriding the default associativity.
-In the expression <code>x + (y + z)</code> the addition <code>y + z</code>
-is performed before adding <code>x</code>.
-</p>
-
-<p>
 For example, in the assignment
 </p>
 <pre>
@@ -3200,6 +3222,14 @@ the function calls and communication happen in the order
 However, the order of those events compared to the evaluation
 and indexing of <code>x</code> and the evaluation
 of <code>y</code> is not specified.
+</p>
+
+<p>
+Floating-point operations within a single expression are evaluated according to
+the associativity of the operators.  Explicit parentheses affect the evaluation
+by overriding the default associativity.
+In the expression <code>x + (y + z)</code> the addition <code>y + z</code>
+is performed before adding <code>x</code>.
 </p>
 
 <h2 id="Statements">Statements</h2>
@@ -3316,7 +3346,7 @@ assign_op = [ add_op | mul_op ] "=" .
 
 <p>
 Each left-hand side operand must be <a href="#Address_operators">addressable</a>,
-a map index expresssion,
+a map index expression,
 or the <a href="#Blank_identifier">blank identifier</a>.
 </p>
 
@@ -3331,7 +3361,7 @@ k = &lt;-ch
 An <i>assignment operation</i> <code>x</code> <i>op</i><code>=</code>
 <code>y</code> where <i>op</i> is a binary arithmetic operation is equivalent
 to <code>x</code> <code>=</code> <code>x</code> <i>op</i>
-<code>y</code> but evalutates <code>x</code>
+<code>y</code> but evaluates <code>x</code>
 only once.  The <i>op</i><code>=</code> construct is a single token.
 In assignment operations, both the left- and right-hand expression lists
 must contain exactly one single-valued expression.
@@ -3727,7 +3757,7 @@ for i, s := range a {
 }
 
 var key string;
-var val interface {};  // value type of m is assignment compatible to val
+var val interface {};  // value type of m is assignment compatible with val
 for key, val = range m {
 	h(key, val)
 }
@@ -4397,10 +4427,11 @@ package-level function with the name and signature of
 func init()
 </pre>
 <p>
-defined in its source. Since a package may contain more
-than one source file, there may be more than one
-<code>init()</code> function in a package, but
-only one per source file.
+defined in its source.
+A package may contain multiple
+<code>init()</code> functions, even
+within a single source file; they execute
+in unspecified order.
 </p>
 <p>
 Within a package, package-level variables are initialized,
@@ -4459,7 +4490,8 @@ Program execution begins by initializing the <code>main</code> package and then
 invoking <code>main.main()</code>.
 </p>
 <p>
-When <code>main.main()</code> returns, the program exits.
+When <code>main.main()</code> returns, the program exits.  It does not wait for
+other (non-<code>main</code>) goroutines to complete.
 </p>
 <p>
 Implementation restriction: The compiler assumes package <code>main</code>
@@ -4583,4 +4615,5 @@ The following minimal alignment properties are guaranteed:
 <ul>
 	<li><span class="alert">Implementation does not honor the restriction on goto statements and targets (no intervening declarations).</span></li>
 	<li><span class="alert">Method expressions are not implemented.</span></li>
+	<li><span class="alert">Gccgo allows only one init() function per source file.</span></li>
 </ul>
