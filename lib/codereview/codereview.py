@@ -372,14 +372,21 @@ def LoadAllCL(ui, repo, web=True):
 	files = [f for f in os.listdir(dir) if f.startswith('cl.')]
 	if not files:
 		return m
-	if web:
-		# Authenticate now, so we can use threads below
-		MySend(None)
 	active = []
+	first = True
 	for f in files:
 		t = LoadCLThread(ui, repo, dir, f, web)
 		t.start()
-		active.append(t)
+		if web and first:
+			# first request: wait in case it needs to authenticate
+			# otherwise we get lots of user/password prompts
+			# running in parallel.
+			t.join()
+			if t.cl:
+				m[t.cl.name] = t.cl
+			first = False
+		else:
+			active.append(t)
 	for t in active:
 		t.join()
 		if t.cl:
