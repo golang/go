@@ -6,7 +6,7 @@
 Go is a new language.  Although it borrows ideas from
 existing languages,
 it has unusual properties that make effective Go programs
-different in character from programs in its relatives.
+different in character from programs written in its relatives.
 A straightforward translation of a C++ or Java program into Go
 is unlikely to produce a satisfactory result&mdash;Java programs
 are written in Java, not Go.
@@ -37,7 +37,7 @@ are intended to serve not
 only as the core library but also as examples of how to
 use the language.
 If you have a question about how to approach a problem or how something
-might be implemented they can provide answers, ideas and
+might be implemented, they can provide answers, ideas and
 background.
 </p>
 
@@ -83,7 +83,7 @@ type T struct {
 </pre>
 
 <p>
-<code>gofmt</code> will make the columns line up.
+<code>gofmt</code> will line up the columns:
 </p>
 
 <pre>
@@ -237,7 +237,7 @@ var (
 
 <p>
 Even for private names, grouping can also indicate relationships between items,
-such as the fact that a set of variables is controlled by a mutex.
+such as the fact that a set of variables is protected by a mutex.
 </p>
 
 <pre>
@@ -293,14 +293,14 @@ defines which version is being used.
 Another convention is that the package name is the base name of
 its source directory;
 the package in <code>src/pkg/container/vector</code>
-is installed as <code>"container/vector"</code> but has name <code>vector</code>,
+is imported as <code>"container/vector"</code> but has name <code>vector</code>,
 not <code>container_vector</code> and not <code>containerVector</code>.
 </p>
 
 <p>
 The importer of a package will use the name to refer to its contents
 (the <code>import .</code> notation is intended mostly for tests and other
-unusual situations) and exported names in the package can use that fact
+unusual situations), so exported names in the package can use that fact
 to avoid stutter.
 For instance, the buffered reader type in the <code>bufio</code> package is called <code>Reader</code>,
 not <code>BufReader</code>, because users see it as <code>bufio.Reader</code>,
@@ -308,9 +308,9 @@ which is a clear, concise name.
 Moreover,
 because imported entities are always addressed with their package name, <code>bufio.Reader</code>
 does not conflict with <code>io.Reader</code>.
-Similarly, the function to make new instances of <code>vector.Vector</code>
-&mdash;which is the definition of a <em>constructor</em> in Go&mdash;would
-normally be called <code>NewVector</code> but since
+Similarly, the function to make new instances of <code>vector.Vector</code>&mdash;which
+is the definition of a <em>constructor</em> in Go&mdash;would
+normally be called <code>NewVector</code>, but since
 <code>Vector</code> is the only type exported by the package, and since the
 package is called <code>vector</code>, it's called just <code>New</code>.
 Clients of the package see that as <code>vector.New</code>.
@@ -664,11 +664,11 @@ and modifying an argument.
 </p>
 
 <p>
-In C, a write error is signaled by a negative byte count with the
+In C, a write error is signaled by a negative count with the
 error code secreted away in a volatile location.
 In Go, <code>Write</code>
-can return a byte count <i>and</i> an error: "Yes, you wrote some
-bytes but not all of them because you filled the device".
+can return a count <i>and</i> an error: &ldquo;Yes, you wrote some
+bytes but not all of them because you filled the device&rdquo;.
 The signature of <code>*File.Write</code> in package <code>os</code> is:
 </p>
 
@@ -765,7 +765,7 @@ They do different things and apply to different types, which can be confusing,
 but the rules are simple.
 Let's talk about <code>new()</code> first.
 It's a built-in function essentially the same as its namesakes
-in other languages: it allocates zeroed storage for a new item of type
+in other languages: <code>new(T)</code> allocates zeroed storage for a new item of type
 <code>T</code> and returns its address, a value of type <code>*T</code>.
 In Go terminology, it returns a pointer to a newly allocated zero value of type
 <code>T</code>.
@@ -873,18 +873,13 @@ order, with the missing ones left as their respective zero values.  Thus we coul
 
 <p>
 As a limiting case, if a composite literal contains no fields at all, it creates
-a zero value for the type.  These two expressions are equivalent.
+a zero value for the type.  The expressions <code>new(File)</code> and <code>&amp;File{}</code> are equivalent.
 </p>
-
-<pre>
-new(File)
-&amp;File{}
-</pre>
 
 <p>
 Composite literals can also be created for arrays, slices, and maps,
 with the field labels being indices or map keys as appropriate.
-In these examples, the initializations work regardless of the values of <code>EnoError</code>,
+In these examples, the initializations work regardless of the values of <code>Enone</code>,
 <code>Eio</code>, and <code>Einval</code>, as long as they are distinct.
 </p>
 
@@ -945,7 +940,8 @@ v := make([]int, 100);
 </pre>
 
 <p>
-Remember that <code>make()</code> applies only to maps, slices and channels.
+Remember that <code>make()</code> applies only to maps, slices and channels
+and does not return a pointer.
 To obtain an explicit pointer allocate with <code>new()</code>.
 </p>
 
@@ -953,7 +949,7 @@ To obtain an explicit pointer allocate with <code>new()</code>.
 
 <p>
 Arrays are useful when planning the detailed layout of memory and sometimes
-can help avoid allocation but primarily
+can help avoid allocation, but primarily
 they are a building block for slices, the subject of the next section.
 To lay the foundation for that topic, here are a few words about arrays.
 </p>
@@ -981,7 +977,7 @@ you can pass a pointer to the array.
 </p>
 
 <pre>
-func Sum(a *[]float) (sum float) {
+func Sum(a *[3]float) (sum float) {
 	for _, v := range a {
 		sum += v
 	}
@@ -1010,8 +1006,8 @@ slice to another, both refer to the same underlying array.  For
 instance, if a function takes a slice argument, changes it makes to
 the elements of the slice will be visible to the caller, analogous to
 passing a pointer to the underlying array.  A <code>Read</code>
-function can therefore accept a slice argument rather than a (pointer
-to an) array and a count; the length within the slice sets an upper
+function can therefore accept a slice argument rather than a pointer
+and a count; the length within the slice sets an upper
 limit of how much data to read.  Here is the signature of the
 <code>Read</code> method of the <code>File</code> type in package
 <code>os</code>:
@@ -1085,10 +1081,11 @@ structure holding the pointer, length, and capacity) is passed by value.
 <p>
 Maps are a convenient and powerful built-in data structure to associate
 values of different types.
-The key can be of any type that implements equality, such as integers,
+The key can be of any type for which the equality operator is defined,
+such as integers,
 floats, strings, pointers, and interfaces (as long as the dynamic type
-supports equality), but not structs, arrays or slices
-because those types do not have equality defined for them.
+supports equality).  Structs, arrays and slices cannot be used as map keys,
+because equality is not defined on those types.
 Like slices, maps are a reference type. If you pass a map to a function
 that changes the contents of the map, the changes will be visible
 in the caller.
@@ -1514,7 +1511,7 @@ A type can implement multiple interfaces.
 For instance, a collection can be sorted
 by the routines in package <code>sort</code> if it implements
 <code>sort.Interface</code>, which contains <code>Len()</code>,
-<code>Less(i, j int)</code>, and <code>Swap(i, j int)</code>,
+<code>Less(i, j int) bool</code>, and <code>Swap(i, j int)</code>,
 and it could also have a custom formatter.
 In this contrived example <code>Sequence</code> satisfies both.
 </p>
@@ -1654,7 +1651,7 @@ implementation of the <code>Cipher</code> interface and any
 <code>io.Reader</code>.  Because they return <code>io.Reader</code>
 interface values, replacing ECB
 encryption with CBC encryption is a localized change.  The constructor
-calls must be edited, but because the code must treat the result only
+calls must be edited, but because the surrounding code must treat the result only
 as an <code>io.Reader</code>, it won't notice the difference.
 </p>
 
@@ -2247,16 +2244,16 @@ Once the message buffer is ready, it's sent to the server on
 <code>serverChan</code>.
 </p>
 <pre>
-var freelist = make(chan *Buffer, 100)
-var server_chan = make(chan *Buffer)
+var freeList = make(chan *Buffer, 100)
+var serverChan = make(chan *Buffer)
 
 func client() {
 	for {
-		b, ok := <-freeList;  // grab one if available
-		if !ok {              // free list empty; allocate a new buffer
+		b, ok := <-freeList;  // grab a buffer if available
+		if !ok {              // if not, allocate a new one
 			b = new(Buffer)
 		}
-		load(b);              // grab the next message, perhaps from the net
+		load(b);              // read next message from the net
 		serverChan <- b;      // send to server
 	}
 }
@@ -2393,7 +2390,7 @@ import (
 	"template";
 )
 
-var addr = flag.String("addr", ":1718", "http service address") // Q = 17, R = 18
+var addr = flag.String("addr", ":1718", "http service address") // Q=17, R=18
 var fmap = template.FormatterMap{
 	"html": template.HtmlFormatter,
 	"url+html": UrlHtmlFormatter,
@@ -2456,7 +2453,7 @@ server; it blocks while the server runs.
 </p>
 <p>
 <code>QR</code> just receives the request, which contains form data, and
-executes the template on the data in the field named <code>s</code>.
+executes the template on the data in the form value named <code>s</code>.
 </p>
 <p>
 The template package, inspired by <a
@@ -2465,12 +2462,12 @@ powerful;
 this program just touches on its capabilities.
 In essence, it rewrites a piece of text on the fly by substituting elements derived
 from data items passed to <code>templ.Execute</code>, in this case the
-string in the form data.  
+form value.  
 Within the template text (<code>templateStr</code>),
 brace-delimited pieces denote template actions.
 The piece from the <code>{.section @}</code>
 to <code>{.end}</code> executes with the value of the data item <code>@</code>,
-which is a shorthand for &ldquo;the current item&rdquo;, in this case the form data.
+which is a shorthand for &ldquo;the current item&rdquo;, which is the form value.
 (When the string is empty, this piece of the template is suppressed.)
 </p>
 <p>
