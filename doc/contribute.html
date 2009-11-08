@@ -10,7 +10,7 @@
 <p>
 This document explains how to write a new package,
 how to test code, and how to contribute changes to the Go project.
-It assumes you have installed Go and Mercurial using the
+It assumes you have installed Go using the
 <a href="install.html">installation instructions</a>.  (Note that
 the <code>gccgo</code> frontend lives elsewhere;
 see <a href="gccgo_contribute.html">Contributing to gccgo</a>.)
@@ -38,7 +38,7 @@ directory <code>$GOROOT/src/pkg/x/y</code>.
 
 <p>
 It would be nice to have Go-specific tools that
-inspect the source files to determine what to build and in 
+inspect the source files to determine what to build and in
 what order, but for now, Go uses GNU <code>make</code>.
 Thus, the first file to create in a new package directory is
 usually the <code>Makefile</code>.
@@ -73,13 +73,13 @@ in which the <code>Makefile</code> appears, with the
 <p>
 <code>GOFILES</code> is a list of source files to compile to
 create the package.  The trailing <code>\</code> characters
-allow the list to be split onto multiple lines 
+allow the list to be split onto multiple lines
 for easy sorting.
 </p>
 
 <p>
 After creating a new package directory, add it to the list in
-<code>$GOROOT/src/pkg/Makefile</code> so that it 
+<code>$GOROOT/src/pkg/Makefile</code> so that it
 is included in the standard build.  Then run:
 <pre>
 cd $GOROOT/src/pkg
@@ -131,12 +131,12 @@ You write a test by creating a file with a name ending in <code>_test.go</code>
 that contains functions named <code>TestXXX</code> with signature <code>func (t *testing.T)</code>.
 The test framework runs each such function;
 if the function calls a failure function such as <code>t.Error</code> or <code>t.Fail</code>, the test is considered to have failed.
-The <a href="/cmd/gotest/">gotest command documentation</a> 
+The <a href="/cmd/gotest/">gotest command documentation</a>
 and the <a href="/pkg/testing/">testing package documentation</a> give more detail.
 </p>
 
 <p>
-The <code>*_test.go</code> files should not be listed in the <code>Makefile</code>.  
+The <code>*_test.go</code> files should not be listed in the <code>Makefile</code>.
 </p>
 
 <p>
@@ -202,7 +202,7 @@ automatically checks for and warns about the local repository
 being out of date compared to the remote one.
 The <code>hg submit</code> command also verifies other
 properties about the Go repository.
-For example, 
+For example,
 it checks that Go code being checked in is formatted in the standard style,
 as defined by <a href="/cmd/gofmt">gofmt</a>,
 and it checks that the author of the code is properly recorded for
@@ -261,7 +261,7 @@ Saving authentication cookies to /Users/rsc/.codereview_upload_cookies_coderevie
 
 <p>Edit your <a href="http://codereview.prom.corp.google.com/settings">code review settings</a>.
 Grab a nickname.
-Many people prefer to set the Context option to 
+Many people prefer to set the Context option to
 &ldquo;Whole file&rdquo; to see more context when reviewing changes.
 </p>
 
@@ -276,7 +276,7 @@ For example, <code>rsc</code> is an alias for <code>rsc@golang.org</code>.
 The entire checked-out tree is writable.
 If you need to edit files, just edit them: Mercurial will figure out which ones changed.
 You do need to inform Mercurial of added, removed, copied, or renamed files,
-by running 
+by running
 <code>hg add</code>,
 <code>hg rm</code>,
 <code>hg cp</code>,
@@ -301,8 +301,8 @@ The file will look like:
 # Lines beginning with # are ignored.
 # Multi-line values should be indented.
 
-Reviewer: 
-CC: 
+Reviewer:
+CC:
 
 Description:
 	&lt;enter description here&gt;
@@ -335,7 +335,10 @@ in your client.
 It is best to keep unrelated changes in different change lists.
 In this example, we can include just the changes to package <code>math</code>
 by deleting the line mentioning <code>regexp.go</code>.
-If we did so, the template would now read:
+</p>
+
+<p>
+After editing, the template might now read:
 </p>
 
 <pre>
@@ -348,7 +351,7 @@ CC: math-nuts@swtch.com
 
 Description:
 	Sin, Cos, Tan: improved precision for very large arguments
-	
+
 	See Bimmler and Shaney, ``Extreme sinusoids,'' J. Math 3(14).
 	Fixes issue 159.
 
@@ -400,11 +403,76 @@ but then also synchronizes the local change list state against the new data.)</p
 
 <p>
 If files you were editing have changed, Mercurial does its best to merge the
-remote changes into your local changes.  It may leave some files to merge by hand.</p>
+remote changes into your local changes.  It may leave some files to merge by hand.
+</p>
+
+<p>
+For example, suppose you have edited <code>flag_test.go</code> but
+someone else has committed an independent change.
+When you run <code>hg sync</code>, you will get the (scary-looking) output
+(emphasis added):
 
 <pre>
-TODO(rsc): add example of merge
+$ hg sync
+adding changesets
+adding manifests
+adding file changes
+added 1 changeset with 2 changes to 2 files
+getting src/pkg/flag/flag.go
+couldn't find merge tool hgmerge
+merging src/pkg/flag/flag_test.go
+warning: conflicts during merge.
+<i>merging src/pkg/flag/flag_test.go failed!</i>
+1 file updated, 0 files merged, 0 files removed, 1 file unresolved
+use 'hg resolve' to retry unresolved file merges
+$ 
 </pre>
+
+<p>
+The only important part in that transcript is the italicized line:
+Mercurial failed to merge your changes with the independent change.
+When this happens, Mercurial leaves both edits in the file,
+marked by <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> and
+<code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>.
+it is now your job to edit the file to combine them.
+Continuing the example, searching for those strings in <code>flag_test.go</code>
+might turn up:
+</p>
+
+<pre>
+	VisitAll(visitor);
+&lt;&lt;&lt;&lt;&lt;&lt;&lt; local
+	if len(m) != 7 {
+=======
+	if len(m) != 8 {
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; other
+		t.Error("VisitAll misses some flags");
+</pre>
+
+<p>
+Mercurial doesn't show it, but suppose the original text that both edits
+started with was 6; you added 1 and the other change added 2,
+so the correct answer might now be 9.  If you edit the section
+to remove the markers and leave the correct code:
+</p>
+
+<pre>
+	VisitAll(visitor);
+	if len(m) != 9 {
+		t.Error("VisitAll misses some flags");
+</pre>
+
+<p>
+then that is enough.  There is no need to inform Mercurial
+that you have corrected the file.
+</p>
+
+<p>
+If you had been editing the file, say for debugging, but do not 
+care to preserve your changes, you can run 
+<code>hg revert flag_test.go</code> to abandon your
+changes.
+</p>
 
 <h3>Mail the change for review</h3>
 
@@ -416,8 +484,8 @@ $ hg mail 99999
 </pre>
 
 <p>You can add to the <code>Reviewer:</code> and <code>CC:</code> lines
-using the <code>-r</code >or <code>--cc</code> options.
-The above example could have left the <code>Reviewer</code> and <code>CC</code>
+using the <code>-r</code> or <code>--cc</code> options.
+In the above example, we could have left the <code>Reviewer</code> and <code>CC</code>
 lines blank and then run:
 </p>
 
@@ -511,6 +579,8 @@ can check or test the code more.
 has been uploaded to the code review server.)
 The <code>submit</code> command submits the code.  You will be listed as the
 author, but the change message will also indicate who the committer was.
+Your local client will notice that the change has been submitted
+when you next run <code>hg sync</code>.
 </p>
 
 
@@ -526,11 +596,11 @@ author, but the change message will also indicate who the committer was.
 
 <p>
 Code you contribute should have this header.
-You need to be listed in the 
+You need to be listed in the
 <a href="/CONTRIBUTORS"><code>CONTRIBUTORS</code></a> file,
 which defines who the Go contributors&mdash;the people&mdash;are;
 and the copyright holder for the code you submit (either you or the
-organization you work for) needs to be listed in the 
+organization you work for) needs to be listed in the
 <a href="/AUTHORS"><code>AUTHORS</code></a> file, which defines
 who &ldquo;The Go Authors&rdquo;&mdash;the copyright holders&mdash;are.
 </p>
