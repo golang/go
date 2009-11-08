@@ -552,9 +552,9 @@ func readTemplate(name string) *template.Template {
 
 
 var (
-	dirsHtml,
+	dirListHtml,
+		dirsHtml,
 		godocHtml,
-		listingHtml,
 		packageHtml,
 		packageText,
 		parseerrorHtml,
@@ -565,9 +565,9 @@ var (
 func readTemplates() {
 	// have to delay until after flags processing,
 	// so that main has chdir'ed to goroot.
+	dirListHtml = readTemplate("dirList.html");
 	dirsHtml = readTemplate("dirs.html");
 	godocHtml = readTemplate("godoc.html");
-	listingHtml = readTemplate("listing.html");
 	packageHtml = readTemplate("package.html");
 	packageText = readTemplate("package.txt");
 	parseerrorHtml = readTemplate("parseerror.html");
@@ -697,8 +697,8 @@ func serveDirectory(c *http.Conn, r *http.Request) {
 	}
 
 	var buf bytes.Buffer;
-	if err := listingHtml.Execute(list, &buf); err != nil {
-		log.Stderrf("listingHtml.Execute: %s", err);
+	if err := dirListHtml.Execute(list, &buf); err != nil {
+		log.Stderrf("dirListHtml.Execute: %s", err);
 	}
 
 	servePage(c, "Directory " + path, "", buf.Bytes());
