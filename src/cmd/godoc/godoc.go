@@ -554,6 +554,7 @@ func readTemplate(name string) *template.Template {
 var (
 	dirsHtml,
 		godocHtml,
+		listingHtml,
 		packageHtml,
 		packageText,
 		parseerrorHtml,
@@ -566,6 +567,7 @@ func readTemplates() {
 	// so that main has chdir'ed to goroot.
 	dirsHtml = readTemplate("dirs.html");
 	godocHtml = readTemplate("godoc.html");
+	listingHtml = readTemplate("listing.html");
 	packageHtml = readTemplate("package.html");
 	packageText = readTemplate("package.txt");
 	parseerrorHtml = readTemplate("parseerror.html");
@@ -673,6 +675,36 @@ func serveGoSource(c *http.Conn, filename string, styler printer.Styler) {
 }
 
 
+func redirect(c *http.Conn, r *http.Request) (redirected bool) {
+	if canonical := pathutil.Clean(r.Url.Path) + "/"; r.Url.Path != canonical {
+		http.Redirect(c, canonical, http.StatusMovedPermanently);
+		redirected = true;
+	}
+	return;
+}
+
+
+func serveDirectory(c *http.Conn, r *http.Request) {
+	if redirect(c, r) {
+		return;
+	}
+
+	path := pathutil.Join(".", r.Url.Path);
+	list, err := io.ReadDir(path);
+	if err != nil {
+		http.NotFound(c, r);
+		return;
+	}
+
+	var buf bytes.Buffer;
+	if err := listingHtml.Execute(list, &buf); err != nil {
+		log.Stderrf("listingHtml.Execute: %s", err);
+	}
+
+	servePage(c, "Directory " + path, "", buf.Bytes());
+}
+
+
 var fileServer = http.FileServer(".", "")
 
 func serveFile(c *http.Conn, r *http.Request) {
@@ -694,9 +726,17 @@ func serveFile(c *http.Conn, r *http.Request) {
 		serveGoSource(c, path, &Styler{highlight: r.FormValue("h")});
 
 	default:
-		// TODO:
-		// - need to decide what to serve and what not to serve
-		// - don't want to download files, want to see them
+		dir, err := os.Lstat(pathutil.Join(".", path));
+		if err != nil {
+			http.NotFound(c, r);
+			return;
+		}
+
+		if dir != nil && dir.IsDirectory() {
+			serveDirectory(c, r);
+			return;
+		}
+
 		fileServer.ServeHTTP(c, r);
 	}
 }
@@ -783,15 +823,12 @@ func (h *httpHandler) getPageInfo(path string) PageInfo {
 
 
 func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
-	path := r.Url.Path;
-	path = path[len(h.pattern):len(path)];
-
-	// canonicalize URL path and redirect if necessary
-	if canonical := pathutil.Clean(h.pattern + path) + "/"; r.Url.Path != canonical {
-		http.Redirect(c, canonical, http.StatusMovedPermanently);
+	if redirect(c, r) {
 		return;
 	}
 
+	path := r.Url.Path;
+	path = path[len(h.pattern):len(path)];
 	info := h.getPageInfo(path);
 
 	var buf bytes.Buffer;
