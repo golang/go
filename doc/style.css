@@ -246,13 +246,12 @@ a.use {
 
 #gettingStarted {
   margin-top: 1.5em;
+  margin-left: 1.75em;
+  margin-right: 0em;
   float: right;
   background-color: #fffff0;
-  width: 25%;
   padding-left: 1em;
   padding-right: 1em;
-  -moz-border-radius: 0px;
-  -webkit-border-radius: 0px;
   padding-bottom: 0.75em;
   border: 2px solid #ba9836;
 }
@@ -271,7 +270,7 @@ a.use {
 }
 
 #frontpage {
-  width: 70%;
+  width: 100%;
 }
 
 #frontpage h3 {
