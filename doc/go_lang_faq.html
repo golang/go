@@ -9,13 +9,17 @@ Robert Griesemer, Rob Pike and Ken Thompson started sketching the
 goals for a new language on the white board on September 21, 2007.
 Within a few days the goals had settled into a plan to do something
 and a fair idea of what it would be.  Design continued part-time in
-parallel with unrelated activities.  By January 2008, Ken had started work
+parallel with unrelated work.  By January 2008, Ken had started work
 on a compiler with which to explore ideas; it generated C code as its
 output.  By mid-year the language had become a full-time project and
-had settled enough to attempt a production compiler.  Meanwhile, Ian
-Taylor had read the draft specification and written an independent GCC
-front end.  Russ Cox joined in late 2008 and helped move the language
+had settled enough to attempt a production compiler.  In May 2008,
+Ian Taylor independently started on a GCC front end for Go using the
+draft specification.  Russ Cox joined in late 2008 and helped move the language
 and libraries from prototype to reality.
+</p>
+
+<p>
+Many others have contributed ideas, discussions, and code.
 </p>
 
 <h3 id="creating_a_new_language">
@@ -189,7 +193,7 @@ as objects get passed among threads it becomes cumbersome
 to guarantee they become freed safely.
 Automatic garbage collection makes concurrent code far easier to write.
 Of course, implementing garbage collection in a concurrent environment is
-itself a challenge but meeting it once rather than in every
+itself a challenge, but meeting it once rather than in every
 program helps everyone.
 </p>
 <p>
@@ -230,7 +234,7 @@ libraries.  They are, by definition, exceptional yet experience with
 other languages that support them show they have profound effect on
 library and interface specification.  It would be nice to find a design
 that allows them to be truly exceptional without encouraging common
-errors to turn into special control flow requiring every programmer to
+errors to turn into special control flow that requires every programmer to
 compensate.
 </p>
 <p>
@@ -265,7 +269,7 @@ in an interface can express useful concepts.
 Interfaces can be added after the fact if a new idea comes along
 or for testing&mdash;without annotating the original types.
 Because there are no explicit relationships between types
-and interfaces, there is no type hierarchy to manage.
+and interfaces, there is no type hierarchy to manage or discuss.
 </p>
 <p>
 It's possible to use these ideas to construct something analogous to
@@ -338,7 +342,7 @@ structure that providing one excellent implementation with syntactic support
 makes programming more pleasant.  We believe that Go's implementation of maps
 is strong enough that it will serve for the vast majority of uses.
 If a specific application can benefit from a custom implementation, it's possible
-to write one but it will not be as convenient to use; this seems a reasonable tradeoff.
+to write one but it will not be as convenient syntactically; this seems a reasonable tradeoff.
 </p>
 
 
