@@ -1,7 +1,8 @@
 <!-- Go For C++ Programmers -->
 
 <p>
-Go is a systems programming language intended as an alternative to C++.
+Go is a systems programming language intended to be a general-purpose
+systems language, like C++.
 These are some notes on Go for experienced C++ programmers. This
 document discusses the differences between Go and C++, and says little
 to nothing about the similarities.
@@ -15,9 +16,6 @@ For a more general introduction to Go, see the
 For a detailed description of the Go language, see the
 <a href="go_spec.html">Go spec</a>.
 
-<p>
-There is more <a href="/">documentation about go</a>.
-
 <h2 id="Conceptual_Differences">Conceptual Differences</h2>
 
 <ul>
@@ -27,11 +25,11 @@ There is more <a href="/">documentation about go</a>.
     <a href="#Interfaces">discussed in more detail below</a>.
     Interfaces are also used where C++ uses templates.
 
-<li>Go uses garbage collection. It is not necessary (or currently possible)
-    to explicitly release memory. The garbage collection is (intended to be)
+<li>Go uses garbage collection. It is not necessary (or possible)
+    to release memory explicitly. The garbage collection is (intended to be)
     incremental and highly efficient on modern processors.
 
-<li>Go supports pointers, but does not support pointer arithmetic. You cannot
+<li>Go has pointers but not pointer arithmetic. You cannot
     use a pointer variable to walk through the bytes of a string.
 
 <li>Arrays in Go are first class values. When an array is used as a
@@ -77,19 +75,19 @@ There is more <a href="/">documentation about go</a>.
 
 <p>
 The declaration syntax is reversed compared to C++. You write the name
-followed by the type. Unlike C++, the syntax for a type does not match
+followed by the type. Unlike in C++, the syntax for a type does not match
 the way in which the variable is used. Type declarations may be read
 easily from left to right.
 
 <pre>
 <b>Go                           C++</b>
 var v1 int;               // int v1;
-var v2 string;            // approximately const std::string v2;
+var v2 string;            // const std::string v2;  (approximately)
 var v3 [10]int;           // int v3[10];
-var v4 []int;             // approximately int* v4;
+var v4 []int;             // int* v4;  (approximately)
 var v5 struct { f int };  // struct { int f; } v5;
-var v6 *int;              // int* v6;  // but no pointer arithmetic
-var v7 map[string]int;    // approximately unordered_map&lt;string, int&gt;* v7;
+var v6 *int;              // int* v6;  (but no pointer arithmetic)
+var v7 map[string]int;    // unordered_map&lt;string, int&gt;* v7;  (approximately)
 var v8 func(a int) int;   // int (*v8)(int a);
 </pre>
 
@@ -99,7 +97,7 @@ of the object being declared.  The keyword is one of <code>var</code>,
 <code>func</code>,
 <code>const</code>, or <code>type</code>.  Method declarations are a minor
 exception in that
-the receiver appears before the name of the object begin declared; see
+the receiver appears before the name of the object being declared; see
 the <a href="#Interfaces">discussion of interfaces</a>.
 
 <p>
@@ -107,7 +105,10 @@ You can also use a keyword followed by a series of declarations in
 parentheses.
 
 <pre>
-var (i int; m float)
+var (
+    i int;
+    m float
+)
 </pre>
 
 <p>
@@ -116,7 +117,7 @@ or not provide a name for any parameter; you can't omit some names
 and provide others.  You may group several names with the same type:
 
 <pre>
-func f (i, j, k int);
+func f(i, j, k int, s, t string);
 </pre>
 
 <p>
@@ -131,13 +132,13 @@ var v = *p;
 
 <p>
 See also the <a href="#Constants">discussion of constants, below</a>.
-If a variable is not initialized, the type must be specified.
+If a variable is not initialized explicitly, the type must be specified.
 In that case it will be
-implicitly initialized to 0 (or nil, or whatever).  There are no
+implicitly initialized to the type's zero value (0, nil, etc.).  There are no
 uninitialized variables in Go.
 
 <p>
-Within a function, a simple declaration syntax is available with
+Within a function, a short declaration syntax is available with
 <code>:=</code> .
 
 <pre>
@@ -170,9 +171,10 @@ v1, v2 = f();
 
 <p>
 Go treats semicolons as separators, not terminators.  Moreover,
-a semicolon
-is not required after a curly brace ending a type declaration (e.g.,
-<code>var s struct {}</code>) or a block.  Semicolons are never required at the
+semicolons may be omitted after the closing parenthesis of a declaration
+block or after a closing brace that is not part of an expression
+(e.g., <code>var s struct {}</code> or <code>{ x++ }</code>).
+Semicolons are never required at the
 top level of a file (between global declarations). However, they are
 always <em>permitted</em> at
 the end of a statement, so you can continue using them as in C++.
@@ -198,7 +200,7 @@ around the body of an <code>if</code> or <code>for</code> statement.
 
 <pre>
 if a &lt; b { f() }          // Valid
-if (a &lt; b) { f() }        // Valid (condition is parenthesized expression)
+if (a &lt; b) { f() }        // Valid (condition is a parenthesized expression)
 if (a &lt; b) f();           // INVALID
 for i = 0; i < 10; i++ {}    // Valid
 for (i = 0; i < 10; i++) {}  // INVALID
@@ -224,14 +226,21 @@ make them fall through using the <code>fallthrough</code> keyword.  This applies
 even to adjacent cases.
 
 <pre>
-switch i { case 0: case 1: f() } // f is not called when i == 0!
+switch i {
+case 0:  // empty case body
+case 1:
+    f()  // f is not called when i == 0!
+}
 </pre>
 
 <p>
 But a <code>case</code> can have multiple values.
 
 <pre>
-switch i { case 0, 1: f() } // f is called if i == 0 || i == 1.
+switch i {
+case 0, 1:
+    f()  // f is called if i == 0 || i == 1.
+}
 </pre>
 
 <p>
@@ -242,7 +251,14 @@ pointers, can be used&mdash;and if the <code>switch</code>
 value is omitted it defaults to <code>true</code>.
 
 <pre>
-switch { case i &lt; 0: f1() case i == 0: f2() case i &gt; 0: f3() }
+switch {
+case i &lt; 0:
+    f1()
+case i == 0:
+    f2()
+case i &gt; 0:
+    f3()
+}
 </pre>
 
 <p>
@@ -264,7 +280,7 @@ defer close(fd);        // fd will be closed when this function returns.
 
 <p>
 In Go constants may be <i>untyped</i>. This applies even to constants
-named with a <code>const</code> declaration if no
+named with a <code>const</code> declaration, if no
 type is given in the declaration and the initializer expression uses only
 untyped constants.
 A value derived from an untyped constant becomes typed when it
@@ -273,7 +289,8 @@ requires a typed value. This permits constants to be used relatively
 freely without requiring general implicit type conversion.
 
 <pre>
-var a uint; f(a + 1)  // untyped numeric constant "1" becomes typed as uint
+var a uint;
+f(a + 1)  // untyped numeric constant "1" becomes typed as uint
 </pre>
 
 <p>
@@ -282,7 +299,8 @@ numeric constant or constant expression. A limit is only applied when
 a constant is used where a type is required.
 
 <pre>
-const huge = 1 &lt;&lt; 100; f(huge &gt;&gt; 98)
+const huge = 1 &lt;&lt; 100;
+f(huge &gt;&gt; 98)
 </pre>
 
 <p>
@@ -293,7 +311,11 @@ value.  When an initialization expression is omitted for a <code>const</code>,
 it reuses the preceding expression.
 
 <pre>
-const ( red = iota; blue; green ) // red == 0, blue == 1, green == 2
+const (
+    red = iota;  // red == 0
+    blue;        // blue == 1
+    green        // green == 2
+)
 </pre>
 
 <h2 id="Slices">Slices</h2>
@@ -312,19 +334,18 @@ capacity.
 Given an array, or another slice, a new slice is created via
 <code>a[I:J]</code>.  This
 creates a new slice which refers to <code>a</code>, starts at
-index <code>I</code>, and ends at index
-<code>J - 1</code>.  It has length <code>J - I</code>.
+index <code>I</code>, and ends before index
+<code>J</code>.  It has length <code>J - I</code>.
 The new slice refers to the same array
 to which <code>a</code>
 refers.  That is, changes made using the new slice may be seen using
 <code>a</code>.  The
 capacity of the new slice is simply the capacity of <code>a</code> minus
 <code>I</code>.  The capacity
-of an array is the length of the array.  You may also assign a pointer to an
-array to a
-variable of slice type; given <code>var s []int; var a[10] int</code>,
-<code>s = &amp;a</code> is more or
-less the same as <code>s = a[0:len(a)]</code>.
+of an array is the length of the array.  You may also assign an array pointer
+to a variable of slice type; given <code>var s []int; var a[10] int</code>,
+the assignment <code>s = &amp;a</code> is equivalent to
+<code>s = a[0:len(a)]</code>.
 
 <p>
 What this means is that Go uses slices for some cases where C++ uses pointers.
@@ -333,7 +354,7 @@ perhaps a
 buffer) and you want to pass it to a function without copying it, you should
 declare the function parameter to have type <code>[]byte</code>, and pass the
 address
-of the array.  Unlike C++, it is not
+of the array.  Unlike in C++, it is not
 necessary to pass the length of the buffer; it is efficiently accessible via
 <code>len</code>.
 
@@ -437,7 +458,7 @@ type myInterface interface {
 </pre>
 
 <p>
-we can make <code>myType</code> satisfy the interface by additionally writing
+we can make <code>myType</code> satisfy the interface by adding
 
 <pre>
 func (p *myType) set(i int) { p.i = i }
@@ -469,7 +490,7 @@ class.
 
 <pre>
 type myChildType struct { myType; j int }
-func (p *myChildType) get() int { p.j++; return (&amp;p.myType).get() }
+func (p *myChildType) get() int { p.j++; return p.myType.get() }
 </pre>
 
 <p>
@@ -486,7 +507,7 @@ func f2() {
 <p>
 The <code>set</code> method is effectively inherited from
 <code>myChildType</code>, because
-methods associated with the anonymous type are promoted to become methods
+methods associated with the anonymous field are promoted to become methods
 of the enclosing type.  In this case, because <code>myChildType</code> has an
 anonymous field of type <code>myType</code>, the methods of
 <code>myType</code> also become methods of <code>myChildType</code>.
@@ -494,12 +515,11 @@ In this example, the <code>get</code> method was
 overridden, and the <code>set</code> method was inherited.
 
 <p>
-This is not precisely the same as a child class in C++.  When a parent
-method is called, it receives a pointer to the field in the child class.
-If the parent method calls some other method on its argument, it will call
-the method associated with the parent class, not the method associated with
-the child class.  In other words, methods are not virtual functions.  When
-you want the equivalent of a virtual function, use an interface.
+This is not precisely the same as a child class in C++.
+When a method of an anonymous field is called,
+its receiver is the field, not the surrounding struct.
+In other words, methods on anonymous fields are not virtual functions.
+When you want the equivalent of a virtual function, use an interface.
 
 <p>
 A variable which has an interface type may be converted to have a
@@ -565,8 +585,14 @@ multiple operating system threads.  You do not have to worry
 about these details.
 
 <pre>
-func server(i int) { for { print(i); sys.sleep(10) } }
-go server(1); go server(2);
+func server(i int) {
+    for {
+        print(i);
+        sys.sleep(10)
+    }
+}
+go server(1);
+go server(2);
 </pre>
 
 <p>
@@ -586,7 +612,7 @@ go func(i int) {
 	s := 0
 	for j := 0; j &lt; i; j++ { s += j }
 	g = s;
-} (1000); // Passes argument 1000 to the function literal.
+}(1000); // Passes argument 1000 to the function literal.
 </pre>
 
 <h2 id="Channels">Channels</h2>
@@ -619,11 +645,12 @@ func manager(ch chan cmd) {
 </pre>
 
 <p>
-In that example the same channel is used for input and output.  This
-means that if two goroutines try to retrieve the value at the same
-time, the first goroutine may read the response which was triggered by
-the second goroutine's request. In simple cases that is fine.  For more
-complex cases, pass in a channel.
+In that example the same channel is used for input and output.
+This is incorrect if there are multiple goroutines communicating
+with the manager at once: a goroutine waiting for a response
+from the manager might receive a request from another goroutine
+instead.
+A solution is to pass in a channel.
 
 <pre>
 type cmd2 struct { get bool; val int; ch &lt;- chan int; }
@@ -645,6 +672,6 @@ func f4(ch &lt;- chan cmd2) int {
 	myCh := make(chan int);
 	c := cmd2{ true, 0, myCh };  // Composite literal syntax.
 	ch &lt;- c;
-	return &lt;- myCh;
+	return &lt;-myCh;
 }
 </pre>
