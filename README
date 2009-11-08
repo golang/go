@@ -1,0 +1,11 @@
+This is the source code repository for the Go programming language.  
+
+For documentation about how to install and use Go,
+visit http://golang.org/ or load doc/install.html in your web browser.
+
+After installing Go, you can view a nicely formatted
+doc/install.html by running godoc --http=:6060
+and then visiting http://localhost:6060/doc/install.html.
+
+Unless otherwise noted, the Go source files are distributed
+under the BSD-style license found in the LICENSE file.
