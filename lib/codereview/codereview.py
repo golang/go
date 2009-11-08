@@ -2137,14 +2137,14 @@ def EncodeMultipartFormData(fields, files):
     lines.append('--' + BOUNDARY)
     lines.append('Content-Disposition: form-data; name="%s"' % key)
     lines.append('')
-    if type(value) == str:
-      value = value.decode("utf-8")
+    if type(value) == unicode:
+      value = value.encode("utf-8")
     lines.append(value)
   for (key, filename, value) in files:
-    if type(filename) == str:
-      filename = filename.decode("utf-8")
-    if type(value) == str:
-      value = value.decode("utf-8")
+    if type(filename) == unicode:
+      filename = filename.encode("utf-8")
+    if type(value) == unicode:
+      value = value.encode("utf-8")
     lines.append('--' + BOUNDARY)
     lines.append('Content-Disposition: form-data; name="%s"; filename="%s"' %
              (key, filename))
@@ -2155,7 +2155,7 @@ def EncodeMultipartFormData(fields, files):
   lines.append('')
   body = CRLF.join(lines)
   content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
-  return content_type, body.encode("utf-8")
+  return content_type, body
 
 
 def GetContentType(filename):
