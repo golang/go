@@ -153,6 +153,10 @@ func walkDir(path string) {
 func main() {
 	flag.Usage = usage;
 	flag.Parse();
+	if *tabwidth < 0 {
+		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", *tabwidth);
+		os.Exit(2);
+	}
 
 	if flag.NArg() == 0 {
 		if err := processFile("/dev/stdin"); err != nil {

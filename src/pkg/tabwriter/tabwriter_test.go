@@ -283,7 +283,7 @@ var tests = []entry{
 
 	entry{
 		"9a",
-		0, 0, '.', 0,
+		1, 0, '.', 0,
 		"1\t2\t3\t4\n"
 			"11\t222\t3333\t44444\n",
 
@@ -293,7 +293,7 @@ var tests = []entry{
 
 	entry{
 		"9b",
-		0, 0, '.', FilterHTML,
+		1, 0, '.', FilterHTML,
 		"1\t2<!---\f--->\t3\t4\n"	// \f inside HTML is ignored
 			"11\t222\t3333\t44444\n",
 
@@ -303,7 +303,7 @@ var tests = []entry{
 
 	entry{
 		"9c",
-		0, 0, '.', 0,
+		1, 0, '.', 0,
 		"1\t2\t3\t4\f"	// \f causes a newline and flush
 			"11\t222\t3333\t44444\n",
 
@@ -313,7 +313,7 @@ var tests = []entry{
 
 	entry{
 		"9c debug",
-		0, 0, '.', Debug,
+		1, 0, '.', Debug,
 		"1\t2\t3\t4\f"	// \f causes a newline and flush
 			"11\t222\t3333\t44444\n",
 
@@ -445,7 +445,7 @@ var tests = []entry{
 
 	entry{
 		"14",
-		0, 2, ' ', AlignRight,
+		1, 2, ' ', AlignRight,
 		".0\t.3\t2.4\t-5.1\t\n"
 			"23.0\t12345678.9\t2.4\t-989.4\t\n"
 			"5.1\t12.0\t2.4\t-7.0\t\n"
@@ -463,7 +463,7 @@ var tests = []entry{
 
 	entry{
 		"14 debug",
-		0, 2, ' ', AlignRight | Debug,
+		1, 2, ' ', AlignRight | Debug,
 		".0\t.3\t2.4\t-5.1\t\n"
 			"23.0\t12345678.9\t2.4\t-989.4\t\n"
 			"5.1\t12.0\t2.4\t-7.0\t\n"
