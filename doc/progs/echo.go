@@ -9,7 +9,7 @@ import (
 	"flag";  // command line option parser
 )
 
-var n_flag = flag.Bool("n", false, "don't print final newline")
+var omitNewline = flag.Bool("n", false, "don't print final newline")
 
 const (
 	Space = " ";
@@ -25,7 +25,7 @@ func main() {
 		}
 		s += flag.Arg(i)
 	}
-	if !*n_flag {
+	if !*omitNewline {
 		s += Newline
 	}
 	os.Stdout.WriteString(s);
