@@ -29,7 +29,7 @@ The server should be running Rietveld; see http://code.google.com/p/rietveld/.
 
 In addition to the new commands, this extension introduces
 the file pattern syntax @nnnnnn, where nnnnnn is a change list
-number, to mean the files included in that change list, which 
+number, to mean the files included in that change list, which
 must be associated with the current client.
 
 For example, if change 123456 contains the files x.go and y.go,
@@ -51,6 +51,28 @@ except:
 	from mercurial.version import version as v
 	hgversion = v.get_version()
 
+oldMessage = """
+The code review extension requires Mercurial 1.3 or newer.
+
+To install a new Mercurial,
+
+	sudo easy_install mercurial
+
+works on most systems.
+"""
+
+linuxMessage = """
+You may need to clear your current Mercurial installation by running:
+
+	sudo apt-get remove mercurial mercurial-common
+	sudo rm -rf /etc/mercurial
+"""
+
+if hgversion < '1.3':
+	msg = oldMessage
+	if os.access("/etc/mercurial", 0):
+		msg += linuxMessage
+	raise util.Abort(msg)
 
 # To experiment with Mercurial in the python interpreter:
 #    >>> repo = hg.repository(ui.ui(), path = ".")
@@ -584,12 +606,13 @@ def CheckGofmt(ui, repo, files, just_warn=False):
 	cwd = os.getcwd()
 	files = [RelativePath(repo.root + '/' + f, cwd) for f in files]
 	try:
-		stdin, stdout, stderr = os.popen3(["gofmt", "-l"] + files)
-		stdin.close()
+		cmd = subprocess.Popen(["gofmt", "-l"] + files, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+		cmd.stdin.close()
 	except:
 		raise util.Abort("gofmt: " + ExceptionDetail())
-	data = stdout.read()
-	errors = stderr.read()
+	data = cmd.stdout.read()
+	errors = cmd.stderr.read()
+	cmd.wait()
 	if len(errors) > 0:
 		ui.warn("gofmt errors:\n" + errors.rstrip() + "\n")
 		return
@@ -630,13 +653,13 @@ def change(ui, repo, *pats, **opts):
 
 	In the absence of options, the change command opens the
 	change list for editing in the default editor.
-	
+
 	Deleting a change with the -d or -D flag does not affect
 	the contents of the files listed in that change.  To revert
 	the files listed in a change, use
-	
+
 		hg revert @123456
-	
+
 	before running hg change -d 123456.
 	"""
 
@@ -727,11 +750,11 @@ def code_login(ui, repo, **opts):
 
 def clpatch(ui, repo, clname, **opts):
 	"""import a patch from the code review server
-	
+
 	Imports a patch from the code review server into the local client.
 	If the local client has already modified any of the files that the
 	patch modifies, this command will refuse to apply the patch.
-	
+
 	Submitting an imported patch will keep the original author's
 	name as the Author: line but add your own name to a Committer: line.
 	"""
@@ -760,10 +783,10 @@ def clpatch(ui, repo, clname, **opts):
 		ui.warn("warning: these files were listed in the patch but not changed:\n\t" + "\n\t".join(extra) + "\n")
 	cl.Flush(ui, repo)
 	ui.write(cl.PendingText() + "\n")
-	
+
 def download(ui, repo, clname, **opts):
 	"""download a change from the code review server
-	
+
 	Download prints a description of the given change list
 	followed by its diff, downloaded from the code review server.
 	"""
@@ -1279,12 +1302,12 @@ def DownloadCL(ui, repo, clname):
 	cl, err = LoadCL(ui, repo, clname)
 	if err != "":
 		return None, None, "error loading CL %s: %s" % (clname, ExceptionDetail())
-	
+
 	# Grab RSS feed to learn about CL
 	feed = XMLGet(ui, "/rss/issue/" + clname)
 	if feed is None:
 		return None, None, "cannot download CL"
-	
+
 	# Find most recent diff
 	diff = None
 	prefix = 'http://' + server + '/'
@@ -1298,7 +1321,7 @@ def DownloadCL(ui, repo, clname):
 	if diff is None:
 		return None, None, "CL has no diff"
 	diffdata = MySend(diff, force_auth=False)
-	
+
 	# Find author - first entry will be author who created CL.
 	nick = None
 	for author in feed.findall("{http://www.w3.org/2005/Atom}entry/{http://www.w3.org/2005/Atom}author/{http://www.w3.org/2005/Atom}name"):
@@ -1316,12 +1339,12 @@ def DownloadCL(ui, repo, clname):
 	if not match or match.group(2) != nick:
 		return None, None, "error looking up %s: cannot parse result" % (nick,)
 	email = match.group(1)
-	
+
 	# Temporary hack until we move to the public code review server.
 	email1, _ = FindContributor(ui, repo, email, warn=False)
 	if email1 == "":
 		email = re.sub("@google.com$", "@golang.org", email)
-		
+
 	# Print warning if email is not in CONTRIBUTORS file.
 	FindContributor(ui, repo, email)
 	cl.original_author = email
