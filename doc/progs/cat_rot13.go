@@ -11,7 +11,7 @@ import (
 	"os";
 )
 
-var rot13_flag = flag.Bool("rot13", false, "rot13 the input")
+var rot13Flag = flag.Bool("rot13", false, "rot13 the input")
 
 func rot13(b byte) byte {
 	if 'a' <= b && b <= 'z' {
@@ -53,7 +53,7 @@ func cat(r reader) {
 	const NBUF = 512;
 	var buf [NBUF]byte;
 
-	if *rot13_flag {
+	if *rot13Flag {
 		r = newRotate13(r)
 	}
 	for {

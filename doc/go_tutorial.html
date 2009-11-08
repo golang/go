@@ -38,9 +38,8 @@ our old, now capitalized and package-qualified friend, <code>fmt.Printf</code>.
 <p>
 Function declarations are introduced with the <code>func</code> keyword.
 <p>
-Notice that string constants can contain Unicode characters, encoded in UTF-8.
-Go is defined to accept UTF-8 input.  Strings are arrays of bytes, usually used
-to store Unicode strings represented in UTF-8.
+String constants can contain Unicode characters, encoded in UTF-8.
+(In fact, Go source files are defined to be encoded in UTF-8.)
 <p>
 The comment convention is the same as in C++:
 <p>
@@ -92,7 +91,7 @@ Next up, here's a version of the Unix utility <code>echo(1)</code>:
 09        &quot;flag&quot;;  // command line option parser
 10    )
 <p>
-12    var n_flag = flag.Bool(&quot;n&quot;, false, &quot;don't print final newline&quot;)
+12    var omitNewline = flag.Bool(&quot;n&quot;, false, &quot;don't print final newline&quot;)
 <p>
 14    const (
 15        Space = &quot; &quot;;
@@ -108,7 +107,7 @@ Next up, here's a version of the Unix utility <code>echo(1)</code>:
 25            }
 26            s += flag.Arg(i)
 27        }
-28        if !*n_flag {
+28        if !*omitNewline {
 29            s += Newline
 30        }
 31        os.Stdout.WriteString(s);
@@ -149,7 +148,7 @@ a naming conflict.
 Given <code>os.Stdout</code> we can use its <code>WriteString</code> method to print the string.
 <p>
 Having imported the <code>flag</code> package, line 12 creates a global variable to hold
-the value of echo's <code>-n</code> flag. The variable <code>n_flag</code> has type <code>*bool</code>, pointer
+the value of echo's <code>-n</code> flag. The variable <code>omitNewline</code> has type <code>*bool</code>, pointer
 to <code>bool</code>.
 <p>
 In <code>main.main</code>, we parse the arguments (line 20) and then create a local
@@ -179,10 +178,6 @@ or we could go even shorter and write the idiom
 </pre>
 <p>
 The <code>:=</code> operator is used a lot in Go to represent an initializing declaration.
-(For those who know Limbo, its <code>:=</code> construct is the same, but notice
-that Go has no colon after the name in a full <code>var</code> declaration.
-Also, for simplicity of parsing, <code>:=</code> only works inside functions, not at
-the top level.)
 There's one in the <code>for</code> clause on the next line:
 <p>
 <pre> <!-- progs/echo.go /for/ -->
@@ -211,7 +206,7 @@ It's defined that way.  Falling off the end of <code>main.main</code> means
 </pre>
 <p>
 The <code>os</code> package contains other essentials for getting
-started; for instance, <code>os.Args</code> is an array used by the
+started; for instance, <code>os.Args</code> is a slice used by the
 <code>flag</code> package to access the command-line arguments.
 <p>
 <h2>An Interlude about Types</h2>
@@ -225,7 +220,7 @@ they are not the same type.  There is also a <code>byte</code> synonym for
 <code>uint8</code>, which is the element type for strings.
 <p>
 Speaking of <code>string</code>, that's a built-in type as well.  Strings are
-<i>immutable values</i> -- they are not just arrays of <code>byte</code> values.
+<i>immutable values</i> - they are not just arrays of <code>byte</code> values.
 Once you've built a string <i>value</i>, you can't change it, although
 of course you can change a string <i>variable</i> simply by
 reassigning it.  This snippet from <code>strings.go</code> is legal code:
@@ -255,11 +250,11 @@ read on.
 Arrays are declared like this:
 <p>
 <pre>
-    var array_of_int [10]int;
+    var arrayOfInt [10]int;
 </pre>
 <p>
 Arrays, like strings, are values, but they are mutable. This differs
-from C, in which <code>array_of_int</code> would be usable as a pointer to <code>int</code>.
+from C, in which <code>arrayOfInt</code> would be usable as a pointer to <code>int</code>.
 In Go, since arrays are values, it's meaningful (and useful) to talk
 about pointers to arrays.
 <p>
@@ -275,7 +270,7 @@ an underlying, often anonymous, regular array.  Multiple slices
 can share data if they represent pieces of the same array;
 multiple arrays can never share data.
 <p>
-Slices are actually much more common in Go programs than
+Slices are much more common in Go programs than
 regular arrays; they're more flexible, have reference semantics,
 and are efficient.  What they lack is the precise control of storage
 layout of a regular array; if you want to have a hundred elements
@@ -284,7 +279,7 @@ array.
 <p>
 When passing an array to a function, you almost always want
 to declare the formal parameter to be a slice.  When you call
-the function, take the address of the array and  Go will automatically
+the function, take the address of the array and  Go will
 create (efficiently) a slice reference and pass that.
 <p>
 Using slices one can write this function (from <code>sum.go</code>):
@@ -307,10 +302,10 @@ and invoke it like this:
 <p>
 Note how the return type (<code>int</code>) is defined for <code>sum()</code> by stating it
 after the parameter list.
-The expression <code>[3]int{1,2,3}</code> -- a type followed by a brace-bounded expression
--- is a constructor for a value, in this case an array of 3 <code>ints</code>.  Putting an <code>&amp;</code>
+The expression <code>[3]int{1,2,3}</code> - a type followed by a brace-bounded expression
+- is a constructor for a value, in this case an array of 3 <code>ints</code>.  Putting an <code>&amp;</code>
 in front gives us the address of a unique instance of the value.  We pass the
-pointer to <code>sum()</code> by (automatically) promoting it to a slice.
+pointer to <code>sum()</code> by (implicitly) promoting it to a slice.
 <p>
 If you are creating a regular array but want the compiler to count the
 elements for you, use <code>...</code> as the array size:
@@ -334,15 +329,15 @@ There are also maps, which you can initialize like this:
 <p>
 The built-in function <code>len()</code>, which returns number of elements,
 makes its first appearance in <code>sum</code>.  It works on strings, arrays,
-slices, and maps.
+slices, maps, and channels.
 <p>
 <p>
 <h2>An Interlude about Allocation</h2>
 <p>
 Most types in Go are values. If you have an <code>int</code> or a <code>struct</code>
 or an array, assignment
-copies the contents of the object.  To allocate something on the stack,
-just declare a variable.  To allocate it on the heap, use <code>new()</code>, which
+copies the contents of the object.
+To allocate a new variable, use <code>new()</code>, which
 returns a pointer to the allocated storage.
 <p>
 <pre>
@@ -373,7 +368,7 @@ If you just declare the map, as in
 </pre>
 <p>
 it creates a <code>nil</code> reference that cannot hold anything. To use the map,
-you must first initialize the reference using <code>make()</code> or by assignment to an
+you must first initialize the reference using <code>make()</code> or by assignment of an
 existing map.
 <p>
 Note that <code>new(T)</code> returns type <code>*T</code> while <code>make(T)</code> returns type
@@ -390,7 +385,7 @@ can overflow only when they are assigned to an integer variable with
 too little precision to represent the value.
 <p>
 <pre>
-    const hard_eight = (1 &lt;&lt; 100) &gt;&gt; 97  // legal
+    const hardEight = (1 &lt;&lt; 100) &gt;&gt; 97  // legal
 </pre>
 <p>
 There are nuances that deserve redirection to the legalese of the
@@ -431,10 +426,10 @@ sort of open/close/read/write interface.  Here's the start of <code>file.go</cod
 15    }
 </pre>
 <p>
-The first line declares the name of the package -- <code>file</code> --
-and then we import two packages.  The <code>os</code> package hides the differences
+The first few lines declare the name of the package - <code>file</code> -
+and then import two packages.  The <code>os</code> package hides the differences
 between various operating systems to give a consistent view of files and
-so on; here we're only going to use its error handling utilities
+so on; here we're going to use its error handling utilities
 and reproduce the rudiments of its file I/O.
 <p>
 The other item is the low-level, external <code>syscall</code> package, which provides
@@ -456,7 +451,7 @@ In Go, the term for publicly visible names is ''exported''.
 In the case of <code>File</code>, all its fields are lower case and so invisible to users, but we
 will soon give it some exported, upper-case methods.
 <p>
-First, though, here is a factory to create them:
+First, though, here is a factory to create a <code>File</code>:
 <p>
 <pre> <!-- progs/file.go /newFile/ /^}/ -->
 17    func newFile(fd int, name string) *File {
@@ -513,17 +508,16 @@ they look just like a second parameter list.  The function
 <code>syscall.Open</code>
 also has a multi-value return, which we can grab with the multi-variable
 declaration on line 31; it declares <code>r</code> and <code>e</code> to hold the two values,
-both of type <code>int64</code> (although you'd have to look at the <code>syscall</code> package
+both of type <code>int</code> (although you'd have to look at the <code>syscall</code> package
 to see that).  Finally, line 35 returns two values: a pointer to the new <code>File</code>
 and the error.  If <code>syscall.Open</code> fails, the file descriptor <code>r</code> will
 be negative and <code>NewFile</code> will return <code>nil</code>.
 <p>
-About those errors:  The <code>os</code> library includes a general notion of an error
-string, maintaining a unique set of errors throughout the program. It's a
-good idea to use its facility in your own interfaces, as we do here, for
+About those errors:  The <code>os</code> library includes a general notion of an error.
+It's a good idea to use its facility in your own interfaces, as we do here, for
 consistent error handling throughout Go code.   In <code>Open</code> we use a
-conversion to <code>os.Errno</code> to translate Unix's integer <code>errno</code> value into
-an error value, which will be stored in a unique instance of type <code>os.Error</code>.
+conversion to translate Unix's integer <code>errno</code> value into the integer type
+<code>os.Errno</code>, which implements <code>os.Error</code>.
 <p>
 Now that we can build <code>Files</code>, we can write methods for them. To declare
 a method of a type, we define a function to have an explicit receiver
@@ -574,7 +568,7 @@ each of which declares a receiver variable <code>file</code>.
 There is no implicit <code>this</code> and the receiver variable must be used to access
 members of the structure.  Methods are not declared within
 the <code>struct</code> declaration itself.  The <code>struct</code> declaration defines only data members.
-In fact, methods can be created for any type you name, such as an integer or
+In fact, methods can be created for almost any type you name, such as an integer or
 array, not just for <code>structs</code>.   We'll see an example with arrays later.
 <p>
 The <code>String</code> method is so called because of a printing convention we'll
@@ -606,7 +600,7 @@ We can now use our new package:
 21    }
 </pre>
 <p>
-The import of ''<code>./file</code>'' tells the compiler to use our own package rather than
+The ''<code>./</code>'' in the import of ''<code>./file</code>'' tells the compiler to use our own package rather than
 something from the directory of installed packages.
 <p>
 Finally we can run the program:
@@ -677,7 +671,7 @@ from  top to bottom looking for the first case that matches the value; the
 case expressions don't need to be constants or even integers, as long as
 they all have the same type.
 <p>
-Since the <code>switch</code> value is just <code>true</code>, we could leave it off -- as is also
+Since the <code>switch</code> value is just <code>true</code>, we could leave it off - as is also
 the situation
 in a <code>for</code> statement, a missing value means <code>true</code>.  In fact, such a <code>switch</code>
 is a form of <code>if-else</code> chain. While we're here, it should be mentioned that in
@@ -701,8 +695,8 @@ Here is code from <code>progs/cat_rot13.go</code>:
 29    }
 </pre>
 <p>
-Any type that implements the two methods of <code>reader</code> -- regardless of whatever
-other methods the type may also contain -- is said to <i>implement</i> the
+Any type that has the two methods of <code>reader</code> - regardless of whatever
+other methods the type may also have - is said to <i>implement</i> the
 interface.  Since <code>file.File</code> implements these methods, it implements the
 <code>reader</code> interface.  We could tweak the <code>cat</code> subroutine to accept a <code>reader</code>
 instead of a <code>*file.File</code> and it would work just fine, but let's embellish a little
@@ -738,8 +732,8 @@ we have a second implementation of the <code>reader</code> interface.
 <p>
 To use the new feature, we define a flag:
 <p>
-<pre> <!-- progs/cat_rot13.go /rot13_flag/ -->
-14    var rot13_flag = flag.Bool(&quot;rot13&quot;, false, &quot;rot13 the input&quot;)
+<pre> <!-- progs/cat_rot13.go /rot13Flag/ -->
+14    var rot13Flag = flag.Bool(&quot;rot13&quot;, false, &quot;rot13 the input&quot;)
 </pre>
 <p>
 and use it from within a mostly unchanged <code>cat()</code> function:
@@ -749,7 +743,7 @@ and use it from within a mostly unchanged <code>cat()</code> function:
 53        const NBUF = 512;
 54        var buf [NBUF]byte;
 <p>
-56        if *rot13_flag {
+56        if *rot13Flag {
 57            r = newRotate13(r)
 58        }
 59        for {
@@ -789,7 +783,7 @@ Here it is in action:
 Fans of dependency injection may take cheer from how easily interfaces
 allow us to substitute the implementation of a file descriptor.
 <p>
-Interfaces are a distinct feature of Go.  An interface is implemented by a
+Interfaces are a distinctive feature of Go.  An interface is implemented by a
 type if the type implements all the methods declared in the interface.
 This means
 that a type may implement an arbitrary number of different interfaces.
@@ -807,7 +801,7 @@ useful for things like containers.
 <p>
 <h2>Sorting</h2>
 <p>
-Interfaces provide a simple form of polymorphism since they completely
+Interfaces provide a simple form of polymorphism.  They completely
 separate the definition of what an object does from how it does it, allowing
 distinct implementations to be represented at different times by the
 same interface variable.
@@ -898,8 +892,8 @@ Within the <code>fmt</code> package, <code>Printf</code> is declared with this s
 </pre>
 <p>
 That <code>...</code> represents the variadic argument list that in C would
-be handled using the <code>stdarg.h</code> macros, but in Go is passed using
-an empty interface variable (<code>interface {}</code>) that is then unpacked
+be handled using the <code>stdarg.h</code> macros but in Go is passed using
+an empty interface variable (<code>interface {}</code>) and then unpacked
 using the reflection library.  It's off topic here but the use of
 reflection helps explain some of the nice properties of Go's <code>Printf</code>,
 due to the ability of <code>Printf</code> to discover the type of its arguments
@@ -940,7 +934,7 @@ is
 You can drop the formatting altogether if you use <code>Print</code> or <code>Println</code>
 instead of <code>Printf</code>.  Those routines do fully automatic formatting.
 The <code>Print</code> function just prints its elements out using the equivalent
-of <code>%v</code> while <code>Println</code> automatically inserts spaces between arguments
+of <code>%v</code> while <code>Println</code> inserts spaces between arguments
 and adds a newline.  The output of each of these two lines is identical
 to that of the <code>Printf</code> call above.
 <p>
@@ -968,7 +962,7 @@ Here's a simple example.
 18    }
 </pre>
 <p>
-Since <code>*T</code> has a <code>String()</code> method, the
+Since <code>*testType</code> has a <code>String()</code> method, the
 default formatter for that type will use it and produce the output
 <p>
 <pre>
@@ -1039,7 +1033,7 @@ you want.
 <p>
 <h2>Prime numbers</h2>
 <p>
-Now we come to processes and communication -- concurrent programming.
+Now we come to processes and communication - concurrent programming.
 It's a big subject so to be brief we assume some familiarity with the topic.
 <p>
 A classic program in the style is a prime sieve.
@@ -1112,7 +1106,7 @@ this starts the function running in parallel with the current
 computation but in the same address space:
 <p>
 <pre>
-    go sum(huge_array); // calculate sum in the background
+    go sum(hugeArray); // calculate sum in the background
 </pre>
 <p>
 If you want to know when the calculation is done, pass a channel
@@ -1120,7 +1114,7 @@ on which it can report back:
 <p>
 <pre>
     ch := make(chan int);
-    go sum(huge_array, ch);
+    go sum(hugeArray, ch);
     // ... do something else for a while
     result := &lt;-ch;  // wait for, and retrieve, result
 </pre>
@@ -1164,7 +1158,7 @@ of <code>generate</code>, from <code>progs/sieve1.go</code>:
 </pre>
 <p>
 This version does all the setup internally. It creates the output
-channel, launches a goroutine internally using a function literal, and
+channel, launches a goroutine running a function literal, and
 returns the channel to the caller.  It is a factory for concurrent
 execution, starting the goroutine and returning its connection.
 <p>
@@ -1221,7 +1215,7 @@ Now <code>main</code>'s interface to the prime sieve is a channel of primes:
 <h2>Multiplexing</h2>
 <p>
 With channels, it's possible to serve multiple independent client goroutines without
-writing an actual multiplexer.  The trick is to send the server a channel in the message,
+writing an explicit multiplexer.  The trick is to send the server a channel in the message,
 which it will then use to reply to the original sender.
 A realistic client-server program is a lot of code, so here is a very simple substitute
 to illustrate the idea.  It starts by defining a <code>request</code> type, which embeds a channel
@@ -1261,8 +1255,8 @@ a long-running operation, starting a goroutine to do the actual work.
 26    }
 </pre>
 <p>
-We construct a server in a familiar way, starting it up and returning a channel to
-connect to it:
+We construct a server in a familiar way, starting it and returning a channel
+connected to it:
 <p>
 <pre> <!-- progs/server.go /func.startServer/ /^}/ -->
 28    func startServer(op binOp) chan *request {
@@ -1272,8 +1266,8 @@ connect to it:
 32    }
 </pre>
 <p>
-Here's a simple test.  It starts a server with an addition operator, and sends out
-lots of requests but doesn't wait for the reply.  Only after all the requests are sent
+Here's a simple test.  It starts a server with an addition operator and sends out
+<code>N</code> requests without waiting for the replies.  Only after all the requests are sent
 does it check the results.
 <p>
 <pre> <!-- progs/server.go /func.main/ /^}/ -->
@@ -1297,7 +1291,7 @@ does it check the results.
 51    }
 </pre>
 <p>
-One annoyance with this program is that it doesn't exit cleanly; when <code>main</code> returns
+One annoyance with this program is that it doesn't shut down the server cleanly; when <code>main</code> returns
 there are a number of lingering goroutines blocked on communication.  To solve this,
 we can provide a second, <code>quit</code> channel to the server:
 <p>
@@ -1325,7 +1319,7 @@ It passes the quit channel to the <code>server</code> function, which uses it li
 30    }
 </pre>
 <p>
-Inside <code>server</code>, a <code>select</code> statement chooses which of the multiple communications
+Inside <code>server</code>, the <code>select</code> statement chooses which of the multiple communications
 listed by its cases can proceed.  If all are blocked, it waits until one can proceed; if
 multiple can proceed, it chooses one at random.  In this instance, the <code>select</code> allows
 the server to honor requests until it receives a quit message, at which point it
