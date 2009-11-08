@@ -566,7 +566,7 @@ var (
 func readTemplates() {
 	// have to delay until after flags processing,
 	// so that main has chdir'ed to goroot.
-	dirListHtml = readTemplate("dirList.html");
+	dirListHtml = readTemplate("dirlist.html");
 	dirsHtml = readTemplate("dirs.html");
 	godocHtml = readTemplate("godoc.html");
 	packageHtml = readTemplate("package.html");
