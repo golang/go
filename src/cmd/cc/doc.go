@@ -4,8 +4,8 @@
 
 /*
 
-This directory contains the portable section of the Plan 9 C compilers as
-represented here.  See ../6c, ../8c, and ../5c for more information.
+This directory contains the portable section of the Plan 9 C compilers.
+See ../6c, ../8c, and ../5c for more information.
 
 */
 package documentation

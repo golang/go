@@ -4,8 +4,8 @@
 
 /*
 
-This directory contains the portable section of the Plan 9 C linkers as
-represented here.  See ../6l, ../8l, and ../5l for more information.
+This directory contains the portable section of the Plan 9 C linkers.
+See ../6l, ../8l, and ../5l for more information.
 
 */
 package documentation

@@ -4,7 +4,7 @@
 
 /*
 
-This nm is a version of the Plan 9 nm command documented at
+Nm is a version of the Plan 9 nm command.  The original is documented at
 
 	http://plan9.bell-labs.com/magic/man2html/1/nm
 

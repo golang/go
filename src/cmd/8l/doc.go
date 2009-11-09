@@ -4,7 +4,7 @@
 
 /*
 
-8l is a modified version of the Plan 9 linker documented at
+8l is a modified version of the Plan 9 linker.  The original is documented at
 
 	http://plan9.bell-labs.com/magic/man2html/1/2l
 

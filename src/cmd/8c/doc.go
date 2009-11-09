@@ -4,7 +4,7 @@
 
 /*
 
-8c is a version of the Plan 9 C compiler documented at
+8c is a version of the Plan 9 C compiler.  The original is documented at
 
 	http://plan9.bell-labs.com/magic/man2html/1/2c
 
