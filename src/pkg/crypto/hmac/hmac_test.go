@@ -4,8 +4,6 @@
 
 package hmac
 
-// TODO(rsc): better test
-
 import (
 	"hash";
 	"fmt";
