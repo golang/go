@@ -76,10 +76,22 @@
 	{.end}
 {.end}
 {.section Dirs}
-	{.section Dirs}
-		<h2>Subdirectories</h2>
-		{.repeated section @}
-			{@|dir}
-		{.end}
+	<h2>Subdirectories</h2>
+	<p>
+	<table class="layout">
+	<tr>
+	<th align="left" colspan="{MaxHeight|html}">Name</th>
+	<td width="25">&nbsp;</td>
+	<th align="left">Synopsis</th>
+	</tr>
+	{.repeated section List}
+		<tr>
+		{Depth|padding}
+		<td align="left" colspan="{Height|html}"><a href="{Path|html}" class="noline">{Name|html}<a></td>
+		<td></td>
+		<td align="left">{Synopsis|html}</td>
+		</tr>
 	{.end}
+	</table>
+	</p>
 {.end}

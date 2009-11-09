@@ -77,7 +77,7 @@ BUGS
 
 SUBDIRECTORIES
 
-{.repeated section @}
+{.repeated section List}
 	{Name}
 {.end}
 {.end}

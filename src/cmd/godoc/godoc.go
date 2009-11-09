@@ -152,19 +152,20 @@ func firstSentence(s string) string {
 // Package directories
 
 type Directory struct {
+	Depth	int;
 	Path	string;	// includes Name
 	Name	string;
-	Text	string;	// package documentation, if any
-	Dirs	[]*Directory;
+	Text	string;		// package documentation, if any
+	Dirs	[]*Directory;	// subdirectories
 }
 
 
-func newDirTree(path, name string, depth int) *Directory {
-	if depth <= 0 {
+func newDirTree(path, name string, depth, maxDepth int) *Directory {
+	if depth >= maxDepth {
 		// return a dummy directory so that the parent directory
 		// doesn't get discarded just because we reached the max
 		// directory depth
-		return &Directory{path, name, "", nil};
+		return &Directory{depth, path, name, "", nil};
 	}
 
 	list, _ := io.ReadDir(path);	// ignore errors
@@ -183,7 +184,14 @@ func newDirTree(path, name string, depth int) *Directory {
 				// no package documentation yet; take the first found
 				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil,
 					parser.ParseComments | parser.PackageClauseOnly);
-				if err == nil && file.Name.Value == name && file.Doc != nil {
+				if err == nil &&
+					// Also accept fakePkgName, so we get synopses for commmands.
+					// Note: This may lead to incorrect results if there is a
+					// (left-over) "documentation" package somewhere in a package
+					// directory of different name, but this is very unlikely and
+					// against current conventions.
+					(file.Name.Value == name || file.Name.Value == fakePkgName) &&
+					file.Doc != nil {
 					// found documentation; extract a synopsys
 					text = firstSentence(doc.CommentText(file.Doc));
 				}
@@ -198,7 +206,7 @@ func newDirTree(path, name string, depth int) *Directory {
 		i := 0;
 		for _, d := range list {
 			if isPkgDir(d) {
-				dd := newDirTree(pathutil.Join(path, d.Name), d.Name, depth-1);
+				dd := newDirTree(pathutil.Join(path, d.Name), d.Name, depth+1, maxDepth);
 				if dd != nil {
 					dirs[i] = dd;
 					i++;
@@ -214,21 +222,43 @@ func newDirTree(path, name string, depth int) *Directory {
 		return nil;
 	}
 
-	return &Directory{path, name, text, dirs};
+	return &Directory{depth, path, name, text, dirs};
 }
 
 
-// newDirectory creates a new package directory tree with at most depth
+// newDirectory creates a new package directory tree with at most maxDepth
 // levels, anchored at root which is relative to goroot. The result tree
 // only contains directories that contain package files or that contain
 // subdirectories containing package files (transitively).
 //
-func newDirectory(root string, depth int) *Directory {
+func newDirectory(root string, maxDepth int) *Directory {
 	d, err := os.Lstat(root);
 	if err != nil || !isPkgDir(d) {
 		return nil;
 	}
-	return newDirTree(root, d.Name, depth);
+	return newDirTree(root, d.Name, 0, maxDepth);
+}
+
+
+func (dir *Directory) walk(c chan<- *Directory, skipRoot bool) {
+	if dir != nil {
+		if !skipRoot {
+			c <- dir;
+		}
+		for _, d := range dir.Dirs {
+			d.walk(c, false);
+		}
+	}
+}
+
+
+func (dir *Directory) iter(skipRoot bool) <-chan *Directory {
+	c := make(chan *Directory);
+	go func() {
+		dir.walk(c, skipRoot);
+		close(c);
+	}();
+	return c;
 }
 
 
@@ -252,6 +282,93 @@ func (dir *Directory) lookup(path string) *Directory {
 	}
 
 	return dir.lookup(dpath).lookup(dname);
+}
+
+
+// DirEntry describes a directory entry. The Depth and Height values
+// are useful for presenting an entry in an indented fashion.
+//
+type DirEntry struct {
+	Depth		int;	// >= 0
+	Height		int;	// = DirList.MaxHeight - Depth, > 0
+	Path		string;	// includes Name, relative to DirList root
+	Name		string;
+	Synopsis	string;
+}
+
+
+type DirList struct {
+	MaxHeight	int;	// directory tree height, > 0
+	List		[]DirEntry;
+}
+
+
+// listing creates a (linear) directory listing from a directory tree.
+// If skipRoot is set, the root directory itself is excluded from the list.
+//
+func (root *Directory) listing(skipRoot bool) *DirList {
+	if root == nil {
+		return nil;
+	}
+
+	// determine number of entries n and maximum height
+	n := 0;
+	minDepth := 1<<30;	// infinity
+	maxDepth := 0;
+	for d := range root.iter(skipRoot) {
+		n++;
+		if minDepth > d.Depth {
+			minDepth = d.Depth;
+		}
+		if maxDepth < d.Depth {
+			maxDepth = d.Depth;
+		}
+	}
+	maxHeight := maxDepth-minDepth+1;
+
+	if n == 0 {
+		return nil;
+	}
+
+	// create list
+	list := make([]DirEntry, n);
+	i := 0;
+	for d := range root.iter(skipRoot) {
+		p := &list[i];
+		p.Depth = d.Depth - minDepth;
+		p.Height = maxHeight - p.Depth;
+		// the path is relative to root.Path - remove the root.Path
+		// prefix (the prefix should always be present but avoid
+		// crashes and check)
+		path := d.Path;
+		if strings.HasPrefix(d.Path, root.Path) {
+			path = d.Path[len(root.Path):len(d.Path)];
+		}
+		// remove trailing '/' if any - path must be relative
+		if len(path) > 0 && path[0] == '/' {
+			path = path[1:len(path)];
+		}
+		p.Path = path;
+		p.Name = d.Name;
+		p.Synopsis = d.Text;
+		i++;
+	}
+
+	return &DirList{maxHeight, list};
+}
+
+
+func listing(dirs []*os.Dir) *DirList {
+	list := make([]DirEntry, len(dirs)+1);
+	list[0] = DirEntry{0, 1, "..", "..", ""};
+	for i, d := range dirs {
+		p := &list[i+1];
+		p.Depth = 0;
+		p.Height = 1;
+		p.Path = d.Name;
+		p.Name = d.Name;
+	}
+	return &DirList{1, list};
 }
 
 
@@ -438,15 +555,6 @@ func textFmt(w io.Writer, x interface{}, format string) {
 }
 
 
-// Template formatter for "dir" format.
-func dirFmt(w io.Writer, x interface{}, format string) {
-	_ = x.(*Directory);	// die quickly if x has the wrong type
-	if err := dirsHtml.Execute(x, w); err != nil {
-		log.Stderrf("dirsHtml.Execute: %s", err);
-	}
-}
-
-
 func removePrefix(s, prefix string) string {
 	if strings.HasPrefix(s, prefix) {
 		return s[len(prefix):len(s)];
@@ -525,16 +633,32 @@ func infoSnippetFmt(w io.Writer, x interface{}, format string) {
 }
 
 
+// Template formatter for "padding" format.
+func paddingFmt(w io.Writer, x interface{}, format string) {
+	for i := x.(int); i > 0; i-- {
+		fmt.Fprint(w, `<td width="25"></td>`);
+	}
+}
+
+
+// Template formatter for "time" format.
+func timeFmt(w io.Writer, x interface{}, format string) {
+	// note: os.Dir.Mtime_ns is in uint64 in ns!
+	template.HtmlEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64) / 1e9)).String()));
+}
+
+
 var fmap = template.FormatterMap{
 	"": textFmt,
 	"html": htmlFmt,
 	"html-comment": htmlCommentFmt,
-	"dir": dirFmt,
 	"path": pathFmt,
 	"link": linkFmt,
 	"infoClass": infoClassFmt,
 	"infoLine": infoLineFmt,
 	"infoSnippet": infoSnippetFmt,
+	"padding": paddingFmt,
+	"time": timeFmt,
 }
 
 
@@ -553,8 +677,7 @@ func readTemplate(name string) *template.Template {
 
 
 var (
-	dirListHtml,
-		dirsHtml,
+	dirlistHtml,
 		godocHtml,
 		packageHtml,
 		packageText,
@@ -566,8 +689,7 @@ var (
 func readTemplates() {
 	// have to delay until after flags processing,
 	// so that main has chdir'ed to goroot.
-	dirListHtml = readTemplate("dirlist.html");
-	dirsHtml = readTemplate("dirs.html");
+	dirlistHtml = readTemplate("dirlist.html");
 	godocHtml = readTemplate("godoc.html");
 	packageHtml = readTemplate("package.html");
 	packageText = readTemplate("package.txt");
@@ -583,7 +705,7 @@ func readTemplates() {
 func servePage(c *http.Conn, title, query string, content []byte) {
 	type Data struct {
 		Title		string;
-		Timestamp	string;
+		Timestamp	uint64;	// int64 to be compatible with os.Dir.Mtime_ns
 		Query		string;
 		Content		[]byte;
 	}
@@ -591,7 +713,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
 	_, ts := fsTree.get();
 	d := Data{
 		Title: title,
-		Timestamp: time.SecondsToLocalTime(ts).String(),
+		Timestamp: uint64(ts)*1e9,	// timestamp in ns
 		Query: query,
 		Content: content,
 	};
@@ -756,8 +878,8 @@ func serveDirectory(c *http.Conn, r *http.Request, path string) {
 	}
 
 	var buf bytes.Buffer;
-	if err := dirListHtml.Execute(list, &buf); err != nil {
-		log.Stderrf("dirListHtml.Execute: %s", err);
+	if err := dirlistHtml.Execute(list, &buf); err != nil {
+		log.Stderrf("dirlistHtml.Execute: %s", err);
 	}
 
 	servePage(c, "Directory " + path, "", buf.Bytes());
@@ -818,7 +940,7 @@ const fakePkgName = "documentation"
 
 type PageInfo struct {
 	PDoc	*doc.PackageDoc;	// nil if no package found
-	Dirs	*Directory;		// nil if no directory information found
+	Dirs	*DirList;		// nil if no directory information found
 	IsPkg	bool;			// false if this is not documenting a real package
 }
 
@@ -885,7 +1007,7 @@ func (h *httpHandler) getPageInfo(path string) PageInfo {
 		dir = newDirectory(dirname, 1);
 	}
 
-	return PageInfo{pdoc, dir, h.isPkg};
+	return PageInfo{pdoc, dir.listing(true), h.isPkg};
 }
 
 
