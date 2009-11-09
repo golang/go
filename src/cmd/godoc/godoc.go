@@ -137,14 +137,21 @@ func htmlEscape(s string) string {
 
 
 func firstSentence(s string) string {
-	i := strings.Index(s, ". ");
-	if i < 0 {
-		i = strings.Index(s, ".");
-		if i < 0 {
-			i = len(s)-1;	// compensate for i+1 below
+	// find first period followed by whitespace, or just the first period
+	i := -1;
+	for j, ch := range s {
+		if ch == '.' {
+			i = j+1;	// include period
+			if i < len(s) && s[i] <= ' ' {
+				break;
+			}
 		}
 	}
-	return s[0 : i+1];	// include ".", if any
+	if i < 0 {
+		// no period found, use the enire string
+		i = len(s);
+	}
+	return s[0:i];
 }
 
 
