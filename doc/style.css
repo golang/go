@@ -181,6 +181,11 @@ a.noline {
   text-decoration: none;
 }
 
+a.info {
+  text-decoration: none;
+  background-color: #D8D8D8;
+}
+
 table.layout {
   border-width: 0px;
   border-spacing: 0px;
@@ -195,50 +200,6 @@ span.highlight {
   background-color: #81F781;
 }
 
-
-/* ------------------------------------------------------------------------- */
-/* Styles used by infoClassFmt */
-
-a.package {
-  text-decoration: none;
-  background-color: #FFFFFF;
-}
-
-a.import {
-  text-decoration: none;
-  background-color: #D8D8D8;
-}
-
-a.const {
-  text-decoration: none;
-  background-color: #F5A9A9;
-}
-
-a.type {
-  text-decoration: none;
-  background-color: #F2F5A9;
-}
-
-a.var {
-  text-decoration: none;
-  background-color: #A9F5A9;
-}
-
-a.func {
-  text-decoration: none;
-  background-color: #A9D0F5;
-}
-
-a.method {
-  text-decoration: none;
-  background-color: #D0A9F5;
-}
-
-a.use {
-  text-decoration: none;
-  color: #FFFFFF;
-  background-color: #5858FA;
-}
 
 /* ------------------------------------------------------------------------- */
 /* Styles for the frontpage */
