@@ -143,16 +143,13 @@ func main() {
 	flag.Usage = usage;
 	flag.Parse();
 
-	// Check usage first; get usage message out early.
-	switch {
-	case *httpaddr != "":
-		if flag.NArg() != 0 {
-			usage();
-		}
-	default:
-		if flag.NArg() == 0 {
-			usage();
-		}
+	// Check usage: either server and no args, or command line and args
+	if (*httpaddr != "") != (flag.NArg() == 0) {
+		usage();
+	}
+
+	if *tabwidth < 0 {
+		log.Exitf("negative tabwidth %d", *tabwidth);
 	}
 
 	if err := os.Chdir(goroot); err != nil {
@@ -168,8 +165,10 @@ func main() {
 			log.Stderrf("Go Documentation Server\n");
 			log.Stderrf("address = %s\n", *httpaddr);
 			log.Stderrf("goroot = %s\n", goroot);
+			log.Stderrf("cmdroot = %s\n", *cmdroot);
 			log.Stderrf("pkgroot = %s\n", *pkgroot);
 			log.Stderrf("tmplroot = %s\n", *tmplroot);
+			log.Stderrf("tabwidth = %d\n", *tabwidth);
 			handler = loggingHandler(handler);
 		}
 
