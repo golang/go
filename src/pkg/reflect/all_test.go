@@ -349,7 +349,7 @@ func TestPtrPointTo(t *testing.T) {
 	}
 }
 
-func TestAll(t *testing.T) {	// TODO(r): wrap up better
+func TestAll(t *testing.T) {
 	testType(t, 1, Typeof((int8)(0)), "int8");
 	testType(t, 2, Typeof((*int8)(nil)).(*PtrType).Elem(), "int8");
 
