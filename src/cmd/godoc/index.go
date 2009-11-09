@@ -29,6 +29,7 @@ import (
 	"go/ast";
 	"go/parser";
 	"go/token";
+	"go/scanner";
 	"os";
 	pathutil "path";
 	"sort";
@@ -411,6 +412,11 @@ func (a *AltWords) filter(s string) *AltWords {
 // ----------------------------------------------------------------------------
 // Indexer
 
+// Adjust these flags as seems best.
+const excludeMainPackages = false
+const excludeTestFiles = false
+
+
 type IndexResult struct {
 	Decls	RunList;	// package-level declarations (with snippets)
 	Others	RunList;	// all other occurences
@@ -583,6 +589,14 @@ func (x *Indexer) VisitFile(path string, d *os.Dir) {
 		return;
 	}
 
+	if excludeTestFiles && (!isPkgFile(d) || strings.HasPrefix(path, "test/")) {
+		return;
+	}
+
+	if excludeMainPackages && pkgName(path) == "main" {
+		return;
+	}
+
 	file, err := parser.ParseFile(path, nil, parser.ParseComments);
 	if err != nil {
 		return;	// ignore files with (parse) errors
@@ -681,11 +695,30 @@ func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
 }
 
 
-// For a given string s, which is either a single identifier or a qualified
+func isIdentifier(s string) bool {
+	var S scanner.Scanner;
+	S.Init("", strings.Bytes(s), nil, 0);
+	if _, tok, _ := S.Scan(); tok == token.IDENT {
+		_, tok, _ := S.Scan();
+		return tok == token.EOF;
+	}
+	return false;
+}
+
+
+// For a given query, which is either a single identifier or a qualified
 // identifier, Lookup returns a LookupResult, and a list of alternative
-// spellings, if any.
-func (x *Index) Lookup(s string) (match *LookupResult, alt *AltWords) {
-	ss := strings.Split(s, ".", 0);
+// spellings, if any. If the query syntax is wrong, illegal is set.
+func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, illegal bool) {
+	ss := strings.Split(query, ".", 0);
+
+	// check query syntax
+	for _, s := range ss {
+		if !isIdentifier(s) {
+			illegal = true;
+			return;
+		}
+	}
 
 	switch len(ss) {
 	case 1:
@@ -700,18 +733,9 @@ func (x *Index) Lookup(s string) (match *LookupResult, alt *AltWords) {
 			others := match.Others.filter(pakname);
 			match = &LookupResult{decls, others};
 		}
-		if alt != nil {
-			// alternative spellings found - add package name
-			// TODO(gri): At the moment this is not very smart
-			// and likely will produce suggestions that have
-			// no match. Should filter incorrect alternatives.
-			canon := pakname + "." + alt.Canon;	// for completeness (currently not used)
-			alts := make([]string, len(alt.Alts));
-			for i, a := range alt.Alts {
-				alts[i] = pakname+"."+a;
-			}
-			alt = &AltWords{canon, alts};
-		}
+
+	default:
+		illegal = true;
 	}
 
 	return;

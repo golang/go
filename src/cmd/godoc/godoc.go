@@ -1088,6 +1088,7 @@ type SearchResult struct {
 	Query		string;
 	Hit		*LookupResult;
 	Alt		*AltWords;
+	Illegal		bool;
 	Accurate	bool;
 }
 
@@ -1097,7 +1098,7 @@ func search(c *http.Conn, r *http.Request) {
 
 	if index, timestamp := searchIndex.get(); index != nil {
 		result.Query = query;
-		result.Hit, result.Alt = index.(*Index).Lookup(query);
+		result.Hit, result.Alt, result.Illegal = index.(*Index).Lookup(query);
 		_, ts := fsTree.get();
 		result.Accurate = timestamp >= ts;
 	}
