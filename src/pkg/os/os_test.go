@@ -511,7 +511,7 @@ func TestTime(t *testing.T) {
 	// A common failure mode on Darwin is to get 0, 0,
 	// because it returns the time in registers instead of
 	// filling in the structure passed to the system call.
-	// TODO(rsc): Too bad the compiler doesn't know that
+	// Too bad the compiler doesn't know that
 	// 365.24*86400 is an integer.
 	sec, nsec, err := Time();
 	if sec < (2009-1970)*36524*864 {

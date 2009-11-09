@@ -293,7 +293,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OCONVIFACE:
 	case OARRAYBYTESTR:
 	case ORUNESTR:
-		if(n->type->sym == S)
+		if(n->type == T || n->type->sym == S)
 			fmtprint(f, "(%T)(", n->type);
 		else
 			fmtprint(f, "%T(", n->type);

@@ -1078,7 +1078,15 @@ def sync(ui, repo, **opts):
 	sync_changes(ui, repo)
 
 def sync_note(msg):
-	if msg == 'resolving manifests\n' or msg == 'searching for changes\n':
+	# we run sync (pull -u) in verbose mode to get the
+	# list of files being updated, but that drags along
+	# a bunch of messages we don't care about.
+	# omit them.
+	if msg == 'resolving manifests\n':
+		return
+	if msg == 'searching for changes\n':
+		return
+	if msg == "couldn't find merge tool hgmerge\n":
 		return
 	sys.stdout.write(msg)
 

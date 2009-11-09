@@ -197,7 +197,6 @@ type Reader interface {
 }
 
 // Inflate state.
-// TODO(rsc): Expose this or not?
 type inflater struct {
 	// Input/output sources.
 	r	Reader;

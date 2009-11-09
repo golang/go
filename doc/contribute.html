@@ -1,10 +1,5 @@
 <!-- Contributing to the Go project -->
 
-<!-- TODO(rsc):
-	Mention community resources like IRC, mailing lists,
-	change list email groups, etc.
--->
-
 <h2>Introduction</h2>
 
 <p>
@@ -25,6 +20,29 @@ Doing so helps avoid duplication of effort and
 enables discussions about design before much code
 has been written.
 </p>
+
+<h2>Community resources</h2>
+
+<p>
+For real-time help, there may be users or developers on the
+<code>#go-nuts</code> on the <a href="http://freenode.net/">Freenode</a> IRC server.
+</p>
+
+<p>
+The official mailing list for discussion of the Go language is
+<a href="http://groups.google.com/group/golang-nuts">Go Nuts</a>.
+</p>
+
+<p>
+Bugs can be reported using the <a href="http://code.google.com/p/go/issues/list">Go issue tracker</a>.
+</p>
+
+<p>
+For those who wish to keep up with development,
+there is another mailing list, <a href="http://groups.google.com/group/golang-checkins">golang-checkins</a>,
+that receives a message summarizing each checkin to the Go repository.
+</p>
+
 
 <h2>Creating a new package</h2>
 
@@ -244,7 +262,7 @@ The Mercurial configuration file format does not allow environment variable subs
 <p>
 The code review server uses a Google Account to authenticate.
 (If you can use the account to
-<a href="https://www.google.com/accounts/Login?hl=en&continue=http://www.google.com/">sign in at google.com</a>,
+<a href="https://www.google.com/accounts/Login?hl=en&amp;continue=http://www.google.com/">sign in at google.com</a>,
 you can use it to sign in to the code review server.)
 </p>
 
@@ -425,7 +443,7 @@ warning: conflicts during merge.
 <i>merging src/pkg/flag/flag_test.go failed!</i>
 1 file updated, 0 files merged, 0 files removed, 1 file unresolved
 use 'hg resolve' to retry unresolved file merges
-$ 
+$
 </pre>
 
 <p>
@@ -468,8 +486,8 @@ that you have corrected the file.
 </p>
 
 <p>
-If you had been editing the file, say for debugging, but do not 
-care to preserve your changes, you can run 
+If you had been editing the file, say for debugging, but do not
+care to preserve your changes, you can run
 <code>hg revert flag_test.go</code> to abandon your
 changes.
 </p>

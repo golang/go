@@ -15,12 +15,6 @@ import (
 )
 
 
-// TODO:
-//	- maybe define an interface
-//	- Reader: ReadRune, UnreadRune ?
-//		could make ReadRune generic if we dropped UnreadRune
-//	- buffered output
-
 const (
 	defaultBufSize = 4096;
 )
