@@ -1890,8 +1890,9 @@ LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
                 SliceType | MapType | TypeName | "(" LiteralType ")" .
 ElementList   = Element { "," Element } [ "," ] .
 Element       = [ Key ":" ] Value .
-Key           = FieldName | Index .
+Key           = FieldName | ElementIndex .
 FieldName     = identifier .
+ElementIndex  = Expression .
 Value         = Expression .
 </pre>
 
