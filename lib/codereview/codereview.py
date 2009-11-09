@@ -896,9 +896,9 @@ def mail(ui, repo, *pats, **opts):
 	cl, err = CommandLineCL(ui, repo, pats, opts)
 	if err != "":
 		return err
+	cl.Upload(ui, repo, gofmt_just_warn=True)
 	if not cl.reviewer:
 		return "no reviewers listed in CL"
-	cl.Upload(ui, repo)
 	pmsg = "Hello " + JoinComma(cl.reviewer)
 	if cl.cc:
 		pmsg += " (cc: %s)" % (', '.join(cl.cc),)
@@ -1002,7 +1002,12 @@ def submit(ui, repo, *pats, **opts):
 
 	# upload, to sync current patch and also get change number if CL is new.
 	if not cl.original_author:
-		cl.Upload(ui, repo)
+		cl.Upload(ui, repo, gofmt_just_warn=True)
+
+	# check gofmt for real; allowed upload to warn in order to save CL.
+	cl.Flush(ui, repo)
+	CheckGofmt(ui, repo, cl.files)
+
 	about += "%s%s\n" % (server_url_base, cl.name)
 
 	if cl.original_author:
