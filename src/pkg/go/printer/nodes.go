@@ -1090,8 +1090,12 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool) 
 //
 func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
 	size = maxSize+1;	// assume n doesn't fit
+	// nodeSize computation must be indendent of particular
+	// style so that we always get the same decision; print
+	// in RawFormat
+	cfg := Config{Mode: RawFormat};
 	var buf bytes.Buffer;
-	if _, err := p.Config.Fprint(&buf, n); err != nil {
+	if _, err := cfg.Fprint(&buf, n); err != nil {
 		return;
 	}
 	if buf.Len() <= maxSize {
