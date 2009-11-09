@@ -328,6 +328,13 @@ exprfmt(Fmt *f, Node *n, int prec)
 		}
 		fmtprint(f, ")");
 		break;
+
+	case OMAKEMAP:
+		fmtprint(f, "make(%#T)", n->type);
+		break;
+
+	case OMAPLIT:
+		fmtprint(f, "map literal");
 	}
 
 	if(prec > nprec)

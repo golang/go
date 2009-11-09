@@ -51,7 +51,7 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
 		ranges: ranges,
 		str: str,
 		abbrevCache: make(map[uint32]abbrevTable),
-		typeCache: make(map[uint32]Type),
+		typeCache: make(map[Offset]Type),
 	};
 
 	// Sniff .debug_info to figure out byte order.

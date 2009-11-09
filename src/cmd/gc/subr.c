@@ -1654,7 +1654,7 @@ iscomposite(Type *t)
 int
 eqtype1(Type *t1, Type *t2, int d, int names)
 {
-	if(d >= 10)
+	if(d >= 20)
 		return 1;
 	if(t1 == t2)
 		return 1;
@@ -1720,14 +1720,19 @@ eqtype1(Type *t1, Type *t2, int d, int names)
 		return 1;
 
 	case TARRAY:
-		if(t1->bound == t2->bound)
-			break;
-		return 0;
+		if(t1->bound != t2->bound)
+			return 0;
+		break;
 
 	case TCHAN:
-		if(t1->chan == t2->chan)
-			break;
-		return 0;
+		if(t1->chan != t2->chan)
+			return 0;
+		break;
+
+	case TMAP:
+		if(!eqtype1(t1->down, t2->down, d+1, names))
+			return 0;
+		break;
 	}
 	return eqtype1(t1->type, t2->type, d+1, names);
 }

@@ -5,7 +5,7 @@
 // license that can be found in the LICENSE file.
 
 package main
-type I int 
+type I int
 type S struct { f map[I]int }
 var v1 = S{ make(map[int]int) }		// ERROR "cannot|illegal|incompatible|wrong"
 var v2 map[I]int = map[int]int{}	// ERROR "cannot|illegal|incompatible|wrong"

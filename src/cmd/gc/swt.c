@@ -313,9 +313,13 @@ casebody(Node *sw, Node *typeswvar)
 
 		// botch - shouldnt fall thru declaration
 		last = stat->end->n;
-		if(last->op == OXFALL)
+		if(last->op == OXFALL) {
+			if(typeswvar) {
+				setlineno(last);
+				yyerror("cannot fallthrough in type switch");
+			}
 			last->op = OFALL;
-		else
+		} else
 			stat = list(stat, br);
 	}
 
@@ -771,7 +775,7 @@ walkswitch(Node *sw)
 		sw->ntest = nodbool(1);
 		typecheck(&sw->ntest, Erv);
 	}
-	
+
 	if(sw->ntest->op == OTYPESW) {
 		typeswitch(sw);
 //dump("sw", sw);
