@@ -557,7 +557,7 @@ func (x *Indexer) Visit(node interface{}) bool {
 		x.visitIdent(kind, n.Name);
 		ast.Walk(x, n.Type);
 		if n.Body != nil {
-			ast.Walk(x, n.Type)
+			ast.Walk(x, n.Body)
 		}
 
 	case *ast.File:
