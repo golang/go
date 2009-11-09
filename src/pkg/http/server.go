@@ -357,7 +357,7 @@ func Redirect(c *Conn, url string, code int) {
 	// Because of this problem, no one pays attention
 	// to the RFC; they all send back just a new path.
 	// So do we.
-	oldpath := c.Req.Url.Path;
+	oldpath := c.Req.URL.Path;
 	if oldpath == "" {	// should not happen, but avoid a crash if it does
 		oldpath = "/";
 	}
@@ -468,7 +468,7 @@ func cleanPath(p string) string {
 // pattern most closely matches the request URL.
 func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
 	// Clean path to canonical form and redirect.
-	if p := cleanPath(req.Url.Path); p != req.Url.Path {
+	if p := cleanPath(req.URL.Path); p != req.URL.Path {
 		c.SetHeader("Location", p);
 		c.WriteHeader(StatusMovedPermanently);
 		return;
@@ -478,7 +478,7 @@ func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
 	var h Handler;
 	var n = 0;
 	for k, v := range mux.m {
-		if !pathMatch(k, req.Url.Path) {
+		if !pathMatch(k, req.URL.Path) {
 			continue;
 		}
 		if h == nil || len(k) > n {

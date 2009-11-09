@@ -48,8 +48,8 @@ func (e *badStringError) String() string	{ return fmt.Sprintf("%s %q", e.what, e
 // A Request represents a parsed HTTP request header.
 type Request struct {
 	Method		string;	// GET, POST, PUT, etc.
-	RawUrl		string;	// The raw URL given in the request.
-	Url		*URL;	// Parsed URL.
+	RawURL		string;	// The raw URL given in the request.
+	URL		*URL;	// Parsed URL.
 	Proto		string;	// "HTTP/1.0"
 	ProtoMajor	int;	// 1
 	ProtoMinor	int;	// 0
@@ -125,7 +125,7 @@ const defaultUserAgent = "http.Client"
 
 // Write writes an HTTP/1.1 request -- header and body -- in wire format.
 // This method consults the following fields of req:
-//	Url
+//	URL
 //	Method (defaults to "GET")
 //	UserAgent (defaults to defaultUserAgent)
 //	Referer
@@ -134,13 +134,13 @@ const defaultUserAgent = "http.Client"
 //
 // If Body is present, "Transfer-Encoding: chunked" is forced as a header.
 func (req *Request) Write(w io.Writer) os.Error {
-	uri := URLEscape(req.Url.Path);
-	if req.Url.RawQuery != "" {
-		uri += "?" + req.Url.RawQuery;
+	uri := URLEscape(req.URL.Path);
+	if req.URL.RawQuery != "" {
+		uri += "?" + req.URL.RawQuery;
 	}
 
 	fmt.Fprintf(w, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), uri);
-	fmt.Fprintf(w, "Host: %s\r\n", req.Url.Host);
+	fmt.Fprintf(w, "Host: %s\r\n", req.URL.Host);
 	fmt.Fprintf(w, "User-Agent: %s\r\n", valueOrDefault(req.UserAgent, defaultUserAgent));
 
 	if req.Referer != "" {
@@ -452,13 +452,13 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	if f = strings.Split(s, " ", 3); len(f) < 3 {
 		return nil, &badStringError{"malformed HTTP request", s};
 	}
-	req.Method, req.RawUrl, req.Proto = f[0], f[1], f[2];
+	req.Method, req.RawURL, req.Proto = f[0], f[1], f[2];
 	var ok bool;
 	if req.ProtoMajor, req.ProtoMinor, ok = parseHTTPVersion(req.Proto); !ok {
 		return nil, &badStringError{"malformed HTTP version", req.Proto};
 	}
 
-	if req.Url, err = ParseURL(req.RawUrl); err != nil {
+	if req.URL, err = ParseURL(req.RawURL); err != nil {
 		return nil, err;
 	}
 
@@ -497,7 +497,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	//	GET http://www.google.com/index.html HTTP/1.1
 	//	Host: doesntmatter
 	// the same.  In the second case, any Host line is ignored.
-	if v, present := req.Header["Host"]; present && req.Url.Host == "" {
+	if v, present := req.Header["Host"]; present && req.URL.Host == "" {
 		req.Host = v;
 	}
 
@@ -619,7 +619,7 @@ func (r *Request) ParseForm() (err os.Error) {
 
 	switch r.Method {
 	case "GET":
-		query = r.Url.RawQuery;
+		query = r.URL.RawQuery;
 	case "POST":
 		if r.Body == nil {
 			return os.ErrorString("missing form body");

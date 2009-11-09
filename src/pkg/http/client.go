@@ -110,11 +110,11 @@ func ReadResponse(r *bufio.Reader) (*Response, os.Error) {
 // send() method is nonpublic because, when we refactor the code for persistent
 // connections, it may no longer make sense to have a method with this signature.
 func send(req *Request) (resp *Response, err os.Error) {
-	if req.Url.Scheme != "http" {
-		return nil, &badStringError{"unsupported protocol scheme", req.Url.Scheme};
+	if req.URL.Scheme != "http" {
+		return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme};
 	}
 
-	addr := req.Url.Host;
+	addr := req.URL.Host;
 	if !hasPort(addr) {
 		addr += ":http";
 	}
@@ -169,7 +169,7 @@ func shouldRedirect(statusCode int) bool {
 //    303 (See Other)
 //    307 (Temporary Redirect)
 //
-// finalUrl is the URL from which the response was fetched -- identical to the input
+// finalURL is the URL from which the response was fetched -- identical to the input
 // URL unless redirects were followed.
 //
 // Caller should close r.Body when done reading it.
@@ -184,7 +184,7 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 		}
 
 		var req Request;
-		if req.Url, err = ParseURL(url); err != nil {
+		if req.URL, err = ParseURL(url); err != nil {
 			break;
 		}
 		if r, err = send(&req); err != nil {
@@ -219,7 +219,7 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
 		"Transfer-Encoding": "chunked",
 	};
 
-	req.Url, err = ParseURL(url);
+	req.URL, err = ParseURL(url);
 	if err != nil {
 		return nil, err;
 	}
