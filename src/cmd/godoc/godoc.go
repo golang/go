@@ -595,22 +595,22 @@ func linkFmt(w io.Writer, x interface{}, format string) {
 }
 
 
-// The strings in infoClasses must be properly html-escaped.
-var infoClasses = [nKinds]string{
-	"package",	// PackageClause
-	"import",	// ImportDecl
-	"const",	// ConstDecl
-	"type",	// TypeDecl
-	"var",	// VarDecl
-	"func",	// FuncDecl
-	"method",	// MethodDecl
-	"use",	// Use
+// The strings in infoKinds must be properly html-escaped.
+var infoKinds = [nKinds]string{
+	PackageClause: "package&nbsp;clause",
+	ImportDecl: "import&nbsp;decl",
+	ConstDecl: "const&nbsp;decl",
+	TypeDecl: "type&nbsp;decl",
+	VarDecl: "var&nbsp;decl",
+	FuncDecl: "func&nbsp;decl",
+	MethodDecl: "method&nbsp;decl",
+	Use: "use",
 }
 
 
-// Template formatter for "infoClass" format.
-func infoClassFmt(w io.Writer, x interface{}, format string) {
-	fmt.Fprintf(w, infoClasses[x.(SpotInfo).Kind()]);	// no html escaping needed
+// Template formatter for "infoKind" format.
+func infoKindFmt(w io.Writer, x interface{}, format string) {
+	fmt.Fprintf(w, infoKinds[x.(SpotKind)]);	// infoKind entries are html-escaped
 }
 
 
@@ -661,7 +661,7 @@ var fmap = template.FormatterMap{
 	"html-comment": htmlCommentFmt,
 	"path": pathFmt,
 	"link": linkFmt,
-	"infoClass": infoClassFmt,
+	"infoKind": infoKindFmt,
 	"infoLine": infoLineFmt,
 	"infoSnippet": infoSnippetFmt,
 	"padding": paddingFmt,
@@ -1071,7 +1071,6 @@ type SearchResult struct {
 	Hit		*LookupResult;
 	Alt		*AltWords;
 	Accurate	bool;
-	Legend		[]string;
 }
 
 func search(c *http.Conn, r *http.Request) {
@@ -1083,7 +1082,6 @@ func search(c *http.Conn, r *http.Request) {
 		result.Hit, result.Alt = index.(*Index).Lookup(query);
 		_, ts := fsTree.get();
 		result.Accurate = timestamp >= ts;
-		result.Legend = &infoClasses;
 	}
 
 	var buf bytes.Buffer;
