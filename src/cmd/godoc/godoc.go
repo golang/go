@@ -23,6 +23,7 @@ import (
 	"sync";
 	"template";
 	"time";
+	"unicode";
 	"utf8";
 )
 
@@ -137,21 +138,38 @@ func htmlEscape(s string) string {
 
 
 func firstSentence(s string) string {
-	// find first period followed by whitespace, or just the first period
-	i := -1;
-	for j, ch := range s {
+	i := -1;	// index+1 of first period
+	j := -1;	// index+1 of first period that is followed by white space
+	prev := 'A';
+	for k, ch := range s {
+		k1 := k+1;
 		if ch == '.' {
-			i = j+1;	// include period
-			if i < len(s) && s[i] <= ' ' {
-				break;
+			if i < 0 {
+				i = k1;	// first period
+			}
+			if k1 < len(s) && s[k1] <= ' ' {
+				if j < 0 {
+					j = k1;	// first period followed by white space
+				}
+				if !unicode.IsUpper(prev) {
+					j = k1;
+					break;
+				}
 			}
 		}
+		prev = ch;
 	}
-	if i < 0 {
-		// no period found, use the enire string
-		i = len(s);
+
+	if j < 0 {
+		// use the next best period
+		j = i;
+		if j < 0 {
+			// no period at all, use the entire string
+			j = len(s);
+		}
 	}
-	return s[0:i];
+
+	return s[0:j];
 }
 
 
