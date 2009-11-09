@@ -185,7 +185,6 @@ a.noline {
 
 a.info {
   text-decoration: none;
-  background-color: #D8D8D8;
 }
 
 table.layout {
@@ -199,7 +198,7 @@ span.comment {
 }
 
 span.highlight {
-  background-color: #81F781;
+  background-color: #ffffa0;
 }
 
 
