@@ -5,7 +5,7 @@
 // The reflect package implements run-time reflection, allowing a program to
 // manipulate objects with arbitrary types.  The typical use is to take a
 // value with static type interface{} and extract its dynamic type
-// information by calling Typeof(), which returns an object with interface
+// information by calling Typeof, which returns an object with interface
 // type Type.  That contains a pointer to a struct of type *StructType,
 // *IntType, etc. representing the details of the underlying type.  A type
 // switch or type assertion can reveal which.
