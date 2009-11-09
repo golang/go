@@ -25,12 +25,13 @@ Let's start in the usual way:
 --PROG progs/helloworld.go /package/ END
 
 Every Go source file declares, using a "package" statement, which package it's part of.
-The "main" package's "main" function is where the program starts running (after
-any initialization).  It may also import other packages to use their facilities.
+It may also import other packages to use their facilities.
 This program imports the package "fmt" to gain access to
-our old, now capitalized and package-qualified friend, "fmt.Printf".
+our old, now capitalized and package-qualified, friend, "fmt.Printf".
 
-Function declarations are introduced with the "func" keyword.
+Functions are introduced with the "func" keyword.
+The "main" package's "main" function is where the program starts running (after
+any initialization).
 
 String constants can contain Unicode characters, encoded in UTF-8.
 (In fact, Go source files are defined to be encoded in UTF-8.)
@@ -86,7 +87,7 @@ But it's not necessary to do so; we could have said
 	const Newline = "\n"
 
 Semicolons aren't needed here; in fact, semicolons are unnecessary after any
-top-level declaration, even though they are needed as separators <i>within</i>
+top-level declaration, although they are needed as separators <i>within</i>
 a parenthesized list of declarations.
 
 This program imports the "&quot;os&quot;" package to access its "Stdout" variable, of type
@@ -163,14 +164,14 @@ An Interlude about Types
 
 Go has some familiar types such as "int" and "float", which represent
 values of the ''appropriate'' size for the machine. It also defines
-specifically-sized types such as "int8", "float64", and so on, plus
+explicitly-sized types such as "int8", "float64", and so on, plus
 unsigned integer types such as "uint", "uint32", etc.  These are
 distinct types; even if "int" and "int32" are both 32 bits in size,
 they are not the same type.  There is also a "byte" synonym for
 "uint8", which is the element type for strings.
 
 Speaking of "string", that's a built-in type as well.  Strings are
-<i>immutable values</i> - they are not just arrays of "byte" values.
+<i>immutable values</i>&mdash;they are not just arrays of "byte" values.
 Once you've built a string <i>value</i>, you can't change it, although
 of course you can change a string <i>variable</i> simply by
 reassigning it.  This snippet from "strings.go" is legal code:
@@ -232,8 +233,11 @@ and invoke it like this:
 
 Note how the return type ("int") is defined for "sum()" by stating it
 after the parameter list.
-The expression "[3]int{1,2,3}" - a type followed by a brace-bounded expression
-- is a constructor for a value, in this case an array of 3 "ints".  Putting an "&amp;"
+The expression "[3]int{1,2,3}"&mdash;a type followed by a
+brace-bounded
+expression&mdash;is a constructor for a value, in this case an array
+of 3 "ints".
+Putting an "&amp;"
 in front gives us the address of a unique instance of the value.  We pass the
 pointer to "sum()" by (implicitly) promoting it to a slice.
 
@@ -243,7 +247,8 @@ elements for you, use "..." as the array size:
 	s := sum(&amp;[...]int{1,2,3});
 
 In practice, though, unless you're meticulous about storage layout within a
-data structure, a slice itself - using empty brackets and no "&amp;" - is all you need:
+data structure, a slice itself&mdash;using empty brackets and no
+"&amp;"&mdash;is all you need:
 
 	s := sum([]int{1,2,3});
 
@@ -272,7 +277,7 @@ or the more idiomatic
 
 	t := new(T);
 
-Some types - maps, slices, and channels (see below) - have reference semantics.
+Some types&mdash;maps, slices, and channels (see below)&mdash;have reference semantics.
 If you're holding a slice or a map and you modify its contents, other variables
 referencing the same underlying data will see the modification.  For these three
 types you want to use the built-in function "make()":
@@ -285,12 +290,12 @@ If you just declare the map, as in
 	var m map[string]int;
 
 it creates a "nil" reference that cannot hold anything. To use the map,
-you must first initialize the reference using "make()" or by assignment of an
+you must first initialize the reference using "make()" or by assignment from an
 existing map.
 
 Note that "new(T)" returns type "*T" while "make(T)" returns type
 "T".  If you (mistakenly) allocate a reference object with "new()",
-you receive a pointer to an uninitialized reference, equivalent to
+you receive a pointer to a nil reference, equivalent to
 declaring an uninitialized variable and taking its address.
 
 An Interlude about Constants
@@ -308,7 +313,7 @@ There are nuances that deserve redirection to the legalese of the
 language specification but here are some illustrative examples:
 
 	var a uint64 = 0  // a has type uint64, value 0
-	a := uint64(0)    // equivalent; use a "conversion"
+	a := uint64(0)    // equivalent; uses a "conversion"
 	i := 0x1234       // i gets default type: int
 	var j int = 1e6   // legal - 1000000 is representable in an int
 	x := 1.5          // a float
@@ -329,8 +334,9 @@ sort of open/close/read/write interface.  Here's the start of "file.go":
 
 --PROG progs/file.go /package/ /^}/
 
-The first few lines declare the name of the package - "file" -
-and then import two packages.  The "os" package hides the differences
+The first few lines declare the name of the
+package&mdash;"file"&mdash;and then import two packages.  The "os"
+package hides the differences
 between various operating systems to give a consistent view of files and
 so on; here we're going to use its error handling utilities
 and reproduce the rudiments of its file I/O.
@@ -451,7 +457,7 @@ from  top to bottom looking for the first case that matches the value; the
 case expressions don't need to be constants or even integers, as long as
 they all have the same type.
 
-Since the "switch" value is just "true", we could leave it off - as is also
+Since the "switch" value is just "true", we could leave it off&mdash;as is also
 the situation
 in a "for" statement, a missing value means "true".  In fact, such a "switch"
 is a form of "if-else" chain. While we're here, it should be mentioned that in
@@ -470,8 +476,8 @@ Here is code from "progs/cat_rot13.go":
 
 --PROG progs/cat_rot13.go /type.reader/ /^}/
 
-Any type that has the two methods of "reader" - regardless of whatever
-other methods the type may also have - is said to <i>implement</i> the
+Any type that has the two methods of "reader"&mdash;regardless of whatever
+other methods the type may also have&mdash;is said to <i>implement</i> the
 interface.  Since "file.File" implements these methods, it implements the
 "reader" interface.  We could tweak the "cat" subroutine to accept a "reader"
 instead of a "*file.File" and it would work just fine, but let's embellish a little
@@ -665,7 +671,7 @@ operations such as type conversion, map update, communications, and so on,
 although this is the only appearance in this tutorial.)
 If the value does not satisfy the interface, "ok" will be false.
 
-In this snippet the name "Stringer" follows the convention that we add "[e]r"
+In this snippet the name "Stringer" follows the convention that we add ''[e]r''
 to interfaces describing simple method sets like this.
 
 One last wrinkle.  To complete the suite, besides "Printf" etc. and "Sprintf"
@@ -686,11 +692,11 @@ you want.
 Prime numbers
 ----
 
-Now we come to processes and communication - concurrent programming.
+Now we come to processes and communication&mdash;concurrent programming.
 It's a big subject so to be brief we assume some familiarity with the topic.
 
 A classic program in the style is a prime sieve.
-(The sieve of Eratosthenes is computationationally more efficient than
+(The sieve of Eratosthenes is computationally more efficient than
 the algorithm presented here, but we are more interested in concurrency than
 algorithmics at the moment.)
 It works by taking a stream of all the natural numbers and introducing
@@ -734,7 +740,7 @@ operator "&lt;-" (receive) retrieves the next value on the channel.
 
 The generator and filters execute concurrently.  Go has
 its own model of process/threads/light-weight processes/coroutines,
-so to avoid notational confusion we'll call concurrently executing
+so to avoid notational confusion we call concurrently executing
 computations in Go <i>goroutines</i>.  To start a goroutine,
 invoke the function, prefixing the call with the keyword "go";
 this starts the function running in parallel with the current
