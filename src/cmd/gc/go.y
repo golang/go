@@ -238,15 +238,10 @@ import_package:
 		if(strcmp($2->name, "main") == 0)
 			yyerror("cannot import package main");
 
-		// TODO(rsc): This is not quite precise enough a check
-		// (it excludes google/util/hash from importing hash)
-		// but it is enough to reduce confusion during the
-		// 2009/09/01 release when all the "import myself"
-		// statements have to go away in programs building
-		// against the release.  Once the programs have converted
-		// it should probably just go away.
+		// TODO(rsc): This should go away once we get
+		// rid of the global package name space.
 		if(strcmp($2->name, package) == 0 && strcmp(package, "runtime") != 0)
-			yyerror("package cannot import itself (anymore)");
+			yyerror("package cannot import itself");
 	}
 
 import_there:
