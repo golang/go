@@ -52,7 +52,7 @@ func (h *myHeap) Pop() interface{}	{ return h.IntVector.Pop() }
 func TestInit(t *testing.T) {
 	h := newHeap();
 	for i := 20; i > 0; i-- {
-		h.Push(i);
+		h.Push(i)
 	}
 	Init(h);
 	h.verify(t, 0);
@@ -61,7 +61,7 @@ func TestInit(t *testing.T) {
 		x := Pop(h).(int);
 		h.verify(t, 0);
 		if x != i {
-			t.Errorf("%d.th pop got %d; want %d", i, x, i);
+			t.Errorf("%d.th pop got %d; want %d", i, x, i)
 		}
 	}
 }
@@ -72,7 +72,7 @@ func Test(t *testing.T) {
 	h.verify(t, 0);
 
 	for i := 20; i > 10; i-- {
-		h.Push(i);
+		h.Push(i)
 	}
 	Init(h);
 	h.verify(t, 0);
@@ -85,11 +85,11 @@ func Test(t *testing.T) {
 	for i := 1; h.Len() > 0; i++ {
 		x := Pop(h).(int);
 		if i < 20 {
-			Push(h, 20+i);
+			Push(h, 20+i)
 		}
 		h.verify(t, 0);
 		if x != i {
-			t.Errorf("%d.th pop got %d; want %d", i, x, i);
+			t.Errorf("%d.th pop got %d; want %d", i, x, i)
 		}
 	}
 }

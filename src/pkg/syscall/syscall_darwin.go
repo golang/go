@@ -36,37 +36,37 @@ func Getwd() (string, int)	{ return "", ENOTSUP }
 func Getgroups() (gids []int, errno int) {
 	n, err := getgroups(0, nil);
 	if err != 0 {
-		return nil, errno;
+		return nil, errno
 	}
 	if n == 0 {
-		return nil, 0;
+		return nil, 0
 	}
 
 	// Sanity check group count.  Max is 16 on BSD.
 	if n < 0 || n > 1000 {
-		return nil, EINVAL;
+		return nil, EINVAL
 	}
 
 	a := make([]_Gid_t, n);
 	n, err = getgroups(n, &a[0]);
 	if err != 0 {
-		return nil, errno;
+		return nil, errno
 	}
 	gids = make([]int, n);
 	for i, v := range a[0:n] {
-		gids[i] = int(v);
+		gids[i] = int(v)
 	}
 	return;
 }
 
 func Setgroups(gids []int) (errno int) {
 	if len(gids) == 0 {
-		return setgroups(0, nil);
+		return setgroups(0, nil)
 	}
 
 	a := make([]_Gid_t, len(gids));
 	for i, v := range gids {
-		a[i] = _Gid_t(v);
+		a[i] = _Gid_t(v)
 	}
 	return setgroups(len(a), &a[0]);
 }
@@ -92,7 +92,7 @@ func (w WaitStatus) Exited() bool	{ return w&mask == exited }
 
 func (w WaitStatus) ExitStatus() int {
 	if w&mask != exited {
-		return -1;
+		return -1
 	}
 	return int(w>>shift);
 }
@@ -102,7 +102,7 @@ func (w WaitStatus) Signaled() bool	{ return w&mask != stopped && w&mask != 0 }
 func (w WaitStatus) Signal() int {
 	sig := int(w&mask);
 	if sig == stopped || sig == 0 {
-		return -1;
+		return -1
 	}
 	return sig;
 }
@@ -115,14 +115,14 @@ func (w WaitStatus) Continued() bool	{ return w&mask == stopped && w>>shift == S
 
 func (w WaitStatus) StopSignal() int {
 	if !w.Stopped() {
-		return -1;
+		return -1
 	}
 	return int(w>>shift)&0xFF;
 }
 
 func (w WaitStatus) TrapCause() int {
 	// Darwin doesn't have trap causes
-	return -1;
+	return -1
 }
 
 //sys	wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int)
@@ -131,7 +131,7 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 	var status _C_int;
 	wpid, errno = wait4(pid, &status, options, rusage);
 	if wstatus != nil {
-		*wstatus = WaitStatus(status);
+		*wstatus = WaitStatus(status)
 	}
 	return;
 }
@@ -140,7 +140,7 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 
 func Pipe(p []int) (errno int) {
 	if len(p) != 2 {
-		return EINVAL;
+		return EINVAL
 	}
 	p[0], p[1], errno = pipe();
 	return;
@@ -175,7 +175,7 @@ type SockaddrInet4 struct {
 
 func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
-		return 0, 0, EINVAL;
+		return 0, 0, EINVAL
 	}
 	sa.raw.Len = SizeofSockaddrInet4;
 	sa.raw.Family = AF_INET;
@@ -183,7 +183,7 @@ func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
 	p[0] = byte(sa.Port >> 8);
 	p[1] = byte(sa.Port);
 	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i];
+		sa.raw.Addr[i] = sa.Addr[i]
 	}
 	return uintptr(unsafe.Pointer(&sa.raw)), _Socklen(sa.raw.Len), 0;
 }
@@ -196,7 +196,7 @@ type SockaddrInet6 struct {
 
 func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
-		return 0, 0, EINVAL;
+		return 0, 0, EINVAL
 	}
 	sa.raw.Len = SizeofSockaddrInet6;
 	sa.raw.Family = AF_INET6;
@@ -204,7 +204,7 @@ func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
 	p[0] = byte(sa.Port >> 8);
 	p[1] = byte(sa.Port);
 	for i := 0; i < len(sa.Addr); i++ {
-		sa.raw.Addr[i] = sa.Addr[i];
+		sa.raw.Addr[i] = sa.Addr[i]
 	}
 	return uintptr(unsafe.Pointer(&sa.raw)), _Socklen(sa.raw.Len), 0;
 }
@@ -218,12 +218,12 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
 	name := sa.Name;
 	n := len(name);
 	if n >= len(sa.raw.Path) || n == 0 {
-		return 0, 0, EINVAL;
+		return 0, 0, EINVAL
 	}
 	sa.raw.Len = byte(3+n);	// 2 for Family, Len; 1 for NUL
 	sa.raw.Family = AF_UNIX;
 	for i := 0; i < n; i++ {
-		sa.raw.Path[i] = int8(name[i]);
+		sa.raw.Path[i] = int8(name[i])
 	}
 	return uintptr(unsafe.Pointer(&sa.raw)), _Socklen(sa.raw.Len), 0;
 }
@@ -233,7 +233,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
 	case AF_UNIX:
 		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa));
 		if pp.Len < 3 || pp.Len > SizeofSockaddrUnix {
-			return nil, EINVAL;
+			return nil, EINVAL
 		}
 		sa := new(SockaddrUnix);
 		n := int(pp.Len)-3;	// subtract leading Family, Len, terminating NUL
@@ -254,7 +254,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port));
 		sa.Port = int(p[0])<<8 + int(p[1]);
 		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i];
+			sa.Addr[i] = pp.Addr[i]
 		}
 		return sa, 0;
 
@@ -264,7 +264,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
 		p := (*[2]byte)(unsafe.Pointer(&pp.Port));
 		sa.Port = int(p[0])<<8 + int(p[1]);
 		for i := 0; i < len(sa.Addr); i++ {
-			sa.Addr[i] = pp.Addr[i];
+			sa.Addr[i] = pp.Addr[i]
 		}
 		return sa, 0;
 	}
@@ -276,7 +276,7 @@ func Accept(fd int) (nfd int, sa Sockaddr, errno int) {
 	var len _Socklen = SizeofSockaddrAny;
 	nfd, errno = accept(fd, &rsa, &len);
 	if errno != 0 {
-		return;
+		return
 	}
 	sa, errno = anyToSockaddr(&rsa);
 	if errno != 0 {
@@ -290,7 +290,7 @@ func Getsockname(fd int) (sa Sockaddr, errno int) {
 	var rsa RawSockaddrAny;
 	var len _Socklen = SizeofSockaddrAny;
 	if errno = getsockname(fd, &rsa, &len); errno != 0 {
-		return;
+		return
 	}
 	return anyToSockaddr(&rsa);
 }
@@ -299,7 +299,7 @@ func Getpeername(fd int) (sa Sockaddr, errno int) {
 	var rsa RawSockaddrAny;
 	var len _Socklen = SizeofSockaddrAny;
 	if errno = getpeername(fd, &rsa, &len); errno != 0 {
-		return;
+		return
 	}
 	return anyToSockaddr(&rsa);
 }
@@ -307,7 +307,7 @@ func Getpeername(fd int) (sa Sockaddr, errno int) {
 func Bind(fd int, sa Sockaddr) (errno int) {
 	ptr, n, err := sa.sockaddr();
 	if err != 0 {
-		return err;
+		return err
 	}
 	return bind(fd, ptr, n);
 }
@@ -315,14 +315,14 @@ func Bind(fd int, sa Sockaddr) (errno int) {
 func Connect(fd int, sa Sockaddr) (errno int) {
 	ptr, n, err := sa.sockaddr();
 	if err != 0 {
-		return err;
+		return err
 	}
 	return connect(fd, ptr, n);
 }
 
 func Socket(domain, typ, proto int) (fd, errno int) {
 	if domain == AF_INET6 && SocketDisableIPv6 {
-		return -1, EAFNOSUPPORT;
+		return -1, EAFNOSUPPORT
 	}
 	fd, errno = socket(domain, typ, proto);
 	return;
@@ -334,11 +334,11 @@ func SetsockoptInt(fd, level, opt int, value int) (errno int) {
 }
 
 func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (errno int) {
-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(tv)), unsafe.Sizeof(*tv));
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(tv)), unsafe.Sizeof(*tv))
 }
 
 func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l));
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l))
 }
 
 
@@ -348,7 +348,7 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) {
 	var rsa RawSockaddrAny;
 	var len _Socklen = SizeofSockaddrAny;
 	if n, errno = recvfrom(fd, p, flags, &rsa, &len); errno != 0 {
-		return;
+		return
 	}
 	from, errno = anyToSockaddr(&rsa);
 	return;
@@ -359,7 +359,7 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) {
 func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
 	ptr, n, err := to.sockaddr();
 	if err != 0 {
-		return err;
+		return err
 	}
 	return sendto(fd, p, flags, ptr, n);
 }
@@ -369,10 +369,10 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
 func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, errno int) {
 	var change, event uintptr;
 	if len(changes) > 0 {
-		change = uintptr(unsafe.Pointer(&changes[0]));
+		change = uintptr(unsafe.Pointer(&changes[0]))
 	}
 	if len(events) > 0 {
-		event = uintptr(unsafe.Pointer(&events[0]));
+		event = uintptr(unsafe.Pointer(&events[0]))
 	}
 	return kevent(kq, change, len(changes), event, len(events), timeout);
 }
@@ -400,7 +400,7 @@ func nametomib(name string) (mib []_C_int, errno int) {
 	// Magic sysctl: "setting" 0.3 to a string name
 	// lets you read back the array of integers form.
 	if errno = sysctl([]_C_int{0, 3}, p, &n, &bytes[0], uintptr(len(name))); errno != 0 {
-		return nil, errno;
+		return nil, errno
 	}
 	return buf[0 : n/siz], 0;
 }
@@ -409,27 +409,27 @@ func Sysctl(name string) (value string, errno int) {
 	// Translate name to mib number.
 	mib, errno := nametomib(name);
 	if errno != 0 {
-		return "", errno;
+		return "", errno
 	}
 
 	// Find size.
 	n := uintptr(0);
 	if errno = sysctl(mib, nil, &n, nil, 0); errno != 0 {
-		return "", errno;
+		return "", errno
 	}
 	if n == 0 {
-		return "", 0;
+		return "", 0
 	}
 
 	// Read into buffer of that size.
 	buf := make([]byte, n);
 	if errno = sysctl(mib, &buf[0], &n, nil, 0); errno != 0 {
-		return "", errno;
+		return "", errno
 	}
 
 	// Throw away terminating NUL.
 	if n > 0 && buf[n-1] == '\x00' {
-		n--;
+		n--
 	}
 	return string(buf[0:n]), 0;
 }
@@ -438,17 +438,17 @@ func SysctlUint32(name string) (value uint32, errno int) {
 	// Translate name to mib number.
 	mib, errno := nametomib(name);
 	if errno != 0 {
-		return 0, errno;
+		return 0, errno
 	}
 
 	// Read into buffer of that size.
 	n := uintptr(4);
 	buf := make([]byte, 4);
 	if errno = sysctl(mib, &buf[0], &n, nil, 0); errno != 0 {
-		return 0, errno;
+		return 0, errno
 	}
 	if n != 4 {
-		return 0, EIO;
+		return 0, EIO
 	}
 	return *(*uint32)(unsafe.Pointer(&buf[0])), 0;
 }

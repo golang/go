@@ -49,9 +49,9 @@ func (r *Response) AddHeader(key, value string) {
 
 	oldValues, oldValuesPresent := r.Header[key];
 	if oldValuesPresent {
-		r.Header[key] = oldValues + "," + value;
+		r.Header[key] = oldValues + "," + value
 	} else {
-		r.Header[key] = value;
+		r.Header[key] = value
 	}
 }
 
@@ -76,26 +76,26 @@ func ReadResponse(r *bufio.Reader) (*Response, os.Error) {
 
 	line, err := readLine(r);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	f := strings.Split(line, " ", 3);
 	if len(f) < 3 {
-		return nil, &badStringError{"malformed HTTP response", line};
+		return nil, &badStringError{"malformed HTTP response", line}
 	}
 	resp.Status = f[1]+" "+f[2];
 	resp.StatusCode, err = strconv.Atoi(f[1]);
 	if err != nil {
-		return nil, &badStringError{"malformed HTTP status code", f[1]};
+		return nil, &badStringError{"malformed HTTP status code", f[1]}
 	}
 
 	// Parse the response headers.
 	for {
 		key, value, err := readKeyValue(r);
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 		if key == "" {
-			break;	// end of response header
+			break	// end of response header
 		}
 		resp.AddHeader(key, value);
 	}
@@ -111,16 +111,16 @@ func ReadResponse(r *bufio.Reader) (*Response, os.Error) {
 // connections, it may no longer make sense to have a method with this signature.
 func send(req *Request) (resp *Response, err os.Error) {
 	if req.URL.Scheme != "http" {
-		return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme};
+		return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme}
 	}
 
 	addr := req.URL.Host;
 	if !hasPort(addr) {
-		addr += ":http";
+		addr += ":http"
 	}
 	conn, err := net.Dial("tcp", "", addr);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	err = req.Write(conn);
@@ -138,11 +138,11 @@ func send(req *Request) (resp *Response, err os.Error) {
 
 	r := io.Reader(reader);
 	if v := resp.GetHeader("Transfer-Encoding"); v == "chunked" {
-		r = newChunkedReader(reader);
+		r = newChunkedReader(reader)
 	} else if v := resp.GetHeader("Content-Length"); v != "" {
 		n, err := strconv.Atoi64(v);
 		if err != nil {
-			return nil, &badStringError{"invalid Content-Length", v};
+			return nil, &badStringError{"invalid Content-Length", v}
 		}
 		r = io.LimitReader(r, n);
 	}
@@ -156,7 +156,7 @@ func send(req *Request) (resp *Response, err os.Error) {
 func shouldRedirect(statusCode int) bool {
 	switch statusCode {
 	case StatusMovedPermanently, StatusFound, StatusSeeOther, StatusTemporaryRedirect:
-		return true;
+		return true
 	}
 	return false;
 }
@@ -185,10 +185,10 @@ func Get(url string) (r *Response, finalURL string, err os.Error) {
 
 		var req Request;
 		if req.URL, err = ParseURL(url); err != nil {
-			break;
+			break
 		}
 		if r, err = send(&req); err != nil {
-			break;
+			break
 		}
 		if shouldRedirect(r.StatusCode) {
 			r.Body.Close();
@@ -221,7 +221,7 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
 
 	req.URL, err = ParseURL(url);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	return send(&req);

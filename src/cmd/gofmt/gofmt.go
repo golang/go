@@ -52,10 +52,10 @@ func usage() {
 func parserMode() uint {
 	mode := uint(0);
 	if *comments {
-		mode |= parser.ParseComments;
+		mode |= parser.ParseComments
 	}
 	if *trace {
-		mode |= parser.Trace;
+		mode |= parser.Trace
 	}
 	return mode;
 }
@@ -64,10 +64,10 @@ func parserMode() uint {
 func printerMode() uint {
 	mode := uint(0);
 	if !*align {
-		mode |= printer.RawFormat;
+		mode |= printer.RawFormat
 	}
 	if *usespaces {
-		mode |= printer.UseSpaces;
+		mode |= printer.UseSpaces
 	}
 	return mode;
 }
@@ -75,42 +75,42 @@ func printerMode() uint {
 
 func isGoFile(d *os.Dir) bool {
 	// ignore non-Go files
-	return d.IsRegular() && !strings.HasPrefix(d.Name, ".") && strings.HasSuffix(d.Name, ".go");
+	return d.IsRegular() && !strings.HasPrefix(d.Name, ".") && strings.HasSuffix(d.Name, ".go")
 }
 
 
 func processFile(filename string) os.Error {
 	src, err := io.ReadFile(filename);
 	if err != nil {
-		return err;
+		return err
 	}
 
 	file, err := parser.ParseFile(filename, src, parserMode());
 	if err != nil {
-		return err;
+		return err
 	}
 
 	var res bytes.Buffer;
 	_, err = (&printer.Config{printerMode(), *tabwidth, nil}).Fprint(&res, file);
 	if err != nil {
-		return err;
+		return err
 	}
 
 	if bytes.Compare(src, res.Bytes()) != 0 {
 		// formatting has changed
 		if *list {
-			fmt.Fprintln(os.Stdout, filename);
+			fmt.Fprintln(os.Stdout, filename)
 		}
 		if *write {
 			err = io.WriteFile(filename, res.Bytes(), 0);
 			if err != nil {
-				return err;
+				return err
 			}
 		}
 	}
 
 	if !*list && !*write {
-		_, err = os.Stdout.Write(res.Bytes());
+		_, err = os.Stdout.Write(res.Bytes())
 	}
 
 	return err;
@@ -120,7 +120,7 @@ func processFile(filename string) os.Error {
 type fileVisitor chan os.Error
 
 func (v fileVisitor) VisitDir(path string, d *os.Dir) bool {
-	return true;
+	return true
 }
 
 
@@ -128,7 +128,7 @@ func (v fileVisitor) VisitFile(path string, d *os.Dir) {
 	if isGoFile(d) {
 		v <- nil;	// synchronize error handler
 		if err := processFile(path); err != nil {
-			v <- err;
+			v <- err
 		}
 	}
 }
@@ -140,7 +140,7 @@ func walkDir(path string) {
 	go func() {
 		for err := range v {
 			if err != nil {
-				report(err);
+				report(err)
 			}
 		}
 	}();
@@ -160,7 +160,7 @@ func main() {
 
 	if flag.NArg() == 0 {
 		if err := processFile("/dev/stdin"); err != nil {
-			report(err);
+			report(err)
 		}
 	}
 
@@ -168,13 +168,13 @@ func main() {
 		path := flag.Arg(i);
 		switch dir, err := os.Stat(path); {
 		case err != nil:
-			report(err);
+			report(err)
 		case dir.IsRegular():
 			if err := processFile(path); err != nil {
-				report(err);
+				report(err)
 			}
 		case dir.IsDirectory():
-			walkDir(path);
+			walkDir(path)
 		}
 	}
 

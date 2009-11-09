@@ -46,7 +46,7 @@ func (b *BasicType) Basic() *BasicType	{ return b }
 
 func (t *BasicType) String() string {
 	if t.Name != "" {
-		return t.Name;
+		return t.Name
 	}
 	return "?";
 }
@@ -113,7 +113,7 @@ type ArrayType struct {
 }
 
 func (t *ArrayType) String() string {
-	return "[" + strconv.Itoa64(t.Count) + "]" + t.Type.String();
+	return "[" + strconv.Itoa64(t.Count) + "]" + t.Type.String()
 }
 
 func (t *ArrayType) Size() int64	{ return t.Count * t.Type.Size() }
@@ -154,7 +154,7 @@ type StructField struct {
 
 func (t *StructType) String() string {
 	if t.StructName != "" {
-		return t.Kind + " " + t.StructName;
+		return t.Kind + " " + t.StructName
 	}
 	return t.Defn();
 }
@@ -162,7 +162,7 @@ func (t *StructType) String() string {
 func (t *StructType) Defn() string {
 	s := t.Kind;
 	if t.StructName != "" {
-		s += " " + t.StructName;
+		s += " " + t.StructName
 	}
 	if t.Incomplete {
 		s += " /*incomplete*/";
@@ -171,7 +171,7 @@ func (t *StructType) Defn() string {
 	s += " {";
 	for i, f := range t.Field {
 		if i > 0 {
-			s += "; ";
+			s += "; "
 		}
 		s += f.Name + " " + f.Type.String();
 		s += "@" + strconv.Itoa64(f.ByteOffset);
@@ -202,12 +202,12 @@ type EnumValue struct {
 func (t *EnumType) String() string {
 	s := "enum";
 	if t.EnumName != "" {
-		s += " " + t.EnumName;
+		s += " " + t.EnumName
 	}
 	s += " {";
 	for i, v := range t.Val {
 		if i > 0 {
-			s += "; ";
+			s += "; "
 		}
 		s += v.Name + "=" + strconv.Itoa64(v.Val);
 	}
@@ -226,13 +226,13 @@ func (t *FuncType) String() string {
 	s := "func(";
 	for i, t := range t.ParamType {
 		if i > 0 {
-			s += ", ";
+			s += ", "
 		}
 		s += t.String();
 	}
 	s += ")";
 	if t.ReturnType != nil {
-		s += " " + t.ReturnType.String();
+		s += " " + t.ReturnType.String()
 	}
 	return s;
 }
@@ -256,17 +256,17 @@ func (t *TypedefType) Size() int64	{ return t.Type.Size() }
 
 func (d *Data) Type(off Offset) (Type, os.Error) {
 	if t, ok := d.typeCache[off]; ok {
-		return t, nil;
+		return t, nil
 	}
 
 	r := d.Reader();
 	r.Seek(off);
 	e, err := r.Next();
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	if e == nil || e.Offset != off {
-		return nil, DecodeError{"info", off, "no type at offset"};
+		return nil, DecodeError{"info", off, "no type at offset"}
 	}
 
 	// Parse type from Entry.
@@ -277,7 +277,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 	// Get next child; set err if error happens.
 	next := func() *Entry {
 		if !e.Children {
-			return nil;
+			return nil
 		}
 		kid, err1 := r.Next();
 		if err1 != nil {
@@ -289,7 +289,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 			return nil;
 		}
 		if kid.Tag == 0 {
-			return nil;
+			return nil
 		}
 		return kid;
 	};
@@ -300,11 +300,11 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		toff, ok := e.Val(AttrType).(Offset);
 		if !ok {
 			// It appears that no Type means "void".
-			return new(VoidType);
+			return new(VoidType)
 		}
 		var t Type;
 		if t, err = d.Type(toff); err != nil {
-			return nil;
+			return nil
 		}
 		return t;
 	};
@@ -323,7 +323,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		typ = t;
 		d.typeCache[off] = t;
 		if t.Type = typeOf(e); err != nil {
-			goto Error;
+			goto Error
 		}
 		t.StrideBitSize, _ = e.Val(AttrStrideSize).(int64);
 
@@ -336,14 +336,14 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 			case TagSubrangeType:
 				max, ok := kid.Val(AttrUpperBound).(int64);
 				if !ok {
-					max = -2;	// Count == -1, as in x[].
+					max = -2	// Count == -1, as in x[].
 				}
 				if ndim == 0 {
-					t.Count = max+1;
+					t.Count = max+1
 				} else {
 					// Multidimensional array.
 					// Create new array type underneath this one.
-					t.Type = &ArrayType{Type: t.Type, Count: max+1};
+					t.Type = &ArrayType{Type: t.Type, Count: max+1}
 				}
 				ndim++;
 			case TagEnumerationType:
@@ -376,21 +376,21 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 			goto Error;
 
 		case encAddress:
-			typ = new(AddrType);
+			typ = new(AddrType)
 		case encBoolean:
-			typ = new(BoolType);
+			typ = new(BoolType)
 		case encComplexFloat:
-			typ = new(ComplexType);
+			typ = new(ComplexType)
 		case encFloat:
-			typ = new(FloatType);
+			typ = new(FloatType)
 		case encSigned:
-			typ = new(IntType);
+			typ = new(IntType)
 		case encUnsigned:
-			typ = new(UintType);
+			typ = new(UintType)
 		case encSignedChar:
-			typ = new(CharType);
+			typ = new(CharType)
 		case encUnsignedChar:
-			typ = new(UcharType);
+			typ = new(UcharType)
 		}
 		d.typeCache[off] = typ;
 		t := typ.(interface {
@@ -420,11 +420,11 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		d.typeCache[off] = t;
 		switch e.Tag {
 		case TagClassType:
-			t.Kind = "class";
+			t.Kind = "class"
 		case TagStructType:
-			t.Kind = "struct";
+			t.Kind = "struct"
 		case TagUnionType:
-			t.Kind = "union";
+			t.Kind = "union"
 		}
 		t.StructName, _ = e.Val(AttrName).(string);
 		t.Incomplete = e.Val(AttrDeclaration) != nil;
@@ -433,7 +433,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 			if kid.Tag == TagMember {
 				f := new(StructField);
 				if f.Type = typeOf(kid); err != nil {
-					goto Error;
+					goto Error
 				}
 				if loc, ok := kid.Val(AttrDataMemberLoc).([]byte); ok {
 					b := makeBuf(d, "location", 0, loc, d.addrsize);
@@ -455,7 +455,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 				if n >= cap(t.Field) {
 					fld := make([]*StructField, n, n*2);
 					for i, f := range t.Field {
-						fld[i] = f;
+						fld[i] = f
 					}
 					t.Field = fld;
 				}
@@ -472,15 +472,15 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		typ = t;
 		d.typeCache[off] = t;
 		if t.Type = typeOf(e); err != nil {
-			goto Error;
+			goto Error
 		}
 		switch e.Tag {
 		case TagConstType:
-			t.Qual = "const";
+			t.Qual = "const"
 		case TagRestrictType:
-			t.Qual = "restrict";
+			t.Qual = "restrict"
 		case TagVolatileType:
-			t.Qual = "volatile";
+			t.Qual = "volatile"
 		}
 
 	case TagEnumerationType:
@@ -506,7 +506,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 				if n >= cap(t.Val) {
 					val := make([]*EnumValue, n, n*2);
 					for i, f := range t.Val {
-						val[i] = f;
+						val[i] = f
 					}
 					t.Val = val;
 				}
@@ -543,26 +543,26 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		typ = t;
 		d.typeCache[off] = t;
 		if t.ReturnType = typeOf(e); err != nil {
-			goto Error;
+			goto Error
 		}
 		t.ParamType = make([]Type, 0, 8);
 		for kid := next(); kid != nil; kid = next() {
 			var tkid Type;
 			switch kid.Tag {
 			default:
-				continue;
+				continue
 			case TagFormalParameter:
 				if tkid = typeOf(kid); err != nil {
-					goto Error;
+					goto Error
 				}
 			case TagUnspecifiedParameters:
-				tkid = &DotDotDotType{};
+				tkid = &DotDotDotType{}
 			}
 			n := len(t.ParamType);
 			if n >= cap(t.ParamType) {
 				param := make([]Type, n, n*2);
 				for i, t := range t.ParamType {
-					param[i] = t;
+					param[i] = t
 				}
 				t.ParamType = param;
 			}
@@ -583,12 +583,12 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 	}
 
 	if err != nil {
-		goto Error;
+		goto Error
 	}
 
 	b, ok := e.Val(AttrByteSize).(int64);
 	if !ok {
-		b = -1;
+		b = -1
 	}
 	typ.Common().ByteSize = b;
 

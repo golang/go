@@ -153,37 +153,37 @@ func init() {
 	for i := range atoui64tests {
 		test := &atoui64tests[i];
 		if test.err != nil {
-			test.err = &NumError{test.in, test.err};
+			test.err = &NumError{test.in, test.err}
 		}
 	}
 	for i := range btoui64tests {
 		test := &btoui64tests[i];
 		if test.err != nil {
-			test.err = &NumError{test.in, test.err};
+			test.err = &NumError{test.in, test.err}
 		}
 	}
 	for i := range atoi64tests {
 		test := &atoi64tests[i];
 		if test.err != nil {
-			test.err = &NumError{test.in, test.err};
+			test.err = &NumError{test.in, test.err}
 		}
 	}
 	for i := range btoi64tests {
 		test := &btoi64tests[i];
 		if test.err != nil {
-			test.err = &NumError{test.in, test.err};
+			test.err = &NumError{test.in, test.err}
 		}
 	}
 	for i := range atoui32tests {
 		test := &atoui32tests[i];
 		if test.err != nil {
-			test.err = &NumError{test.in, test.err};
+			test.err = &NumError{test.in, test.err}
 		}
 	}
 	for i := range atoi32tests {
 		test := &atoi32tests[i];
 		if test.err != nil {
-			test.err = &NumError{test.in, test.err};
+			test.err = &NumError{test.in, test.err}
 		}
 	}
 }
@@ -194,7 +194,7 @@ func TestAtoui64(t *testing.T) {
 		out, err := Atoui64(test.in);
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
 			t.Errorf("Atoui64(%q) = %v, %v want %v, %v\n",
-				test.in, out, err, test.out, test.err);
+				test.in, out, err, test.out, test.err)
 		}
 	}
 }
@@ -205,7 +205,7 @@ func TestBtoui64(t *testing.T) {
 		out, err := Btoui64(test.in, 0);
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
 			t.Errorf("Btoui64(%q) = %v, %v want %v, %v\n",
-				test.in, out, err, test.out, test.err);
+				test.in, out, err, test.out, test.err)
 		}
 	}
 }
@@ -216,7 +216,7 @@ func TestAtoi64(t *testing.T) {
 		out, err := Atoi64(test.in);
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
 			t.Errorf("Atoi64(%q) = %v, %v want %v, %v\n",
-				test.in, out, err, test.out, test.err);
+				test.in, out, err, test.out, test.err)
 		}
 	}
 }
@@ -227,7 +227,7 @@ func TestBtoi64(t *testing.T) {
 		out, err := Btoi64(test.in, 0);
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
 			t.Errorf("Btoi64(%q) = %v, %v want %v, %v\n",
-				test.in, out, err, test.out, test.err);
+				test.in, out, err, test.out, test.err)
 		}
 	}
 }
@@ -240,7 +240,7 @@ func TestAtoui(t *testing.T) {
 			out, err := Atoui(test.in);
 			if test.out != uint32(out) || !reflect.DeepEqual(test.err, err) {
 				t.Errorf("Atoui(%q) = %v, %v want %v, %v\n",
-					test.in, out, err, test.out, test.err);
+					test.in, out, err, test.out, test.err)
 			}
 		}
 	case 64:
@@ -249,7 +249,7 @@ func TestAtoui(t *testing.T) {
 			out, err := Atoui(test.in);
 			if test.out != uint64(out) || !reflect.DeepEqual(test.err, err) {
 				t.Errorf("Atoui(%q) = %v, %v want %v, %v\n",
-					test.in, out, err, test.out, test.err);
+					test.in, out, err, test.out, test.err)
 			}
 		}
 	}
@@ -263,7 +263,7 @@ func TestAtoi(t *testing.T) {
 			out, err := Atoi(test.in);
 			if test.out != int32(out) || !reflect.DeepEqual(test.err, err) {
 				t.Errorf("Atoi(%q) = %v, %v want %v, %v\n",
-					test.in, out, err, test.out, test.err);
+					test.in, out, err, test.out, test.err)
 			}
 		}
 	case 64:
@@ -272,7 +272,7 @@ func TestAtoi(t *testing.T) {
 			out, err := Atoi(test.in);
 			if test.out != int64(out) || !reflect.DeepEqual(test.err, err) {
 				t.Errorf("Atoi(%q) = %v, %v want %v, %v\n",
-					test.in, out, err, test.out, test.err);
+					test.in, out, err, test.out, test.err)
 			}
 		}
 	}

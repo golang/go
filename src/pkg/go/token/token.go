@@ -239,7 +239,7 @@ var tokens = map[Token]string{
 //
 func (tok Token) String() string {
 	if str, exists := tokens[tok]; exists {
-		return str;
+		return str
 	}
 	return "token(" + strconv.Itoa(int(tok)) + ")";
 }
@@ -265,17 +265,17 @@ const (
 func (op Token) Precedence() int {
 	switch op {
 	case LOR:
-		return 1;
+		return 1
 	case LAND:
-		return 2;
+		return 2
 	case ARROW:
-		return 3;
+		return 3
 	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
-		return 4;
+		return 4
 	case ADD, SUB, OR, XOR:
-		return 5;
+		return 5
 	case MUL, QUO, REM, SHL, SHR, AND, AND_NOT:
-		return 6;
+		return 6
 	}
 	return LowestPrec;
 }
@@ -286,7 +286,7 @@ var keywords map[string]Token
 func init() {
 	keywords = make(map[string]Token);
 	for i := keyword_beg + 1; i < keyword_end; i++ {
-		keywords[tokens[i]] = i;
+		keywords[tokens[i]] = i
 	}
 }
 
@@ -297,7 +297,7 @@ func Lookup(ident []byte) Token {
 	// TODO Maps with []byte key are illegal because []byte does not
 	//      support == . Should find a more efficient solution eventually.
 	if tok, is_keyword := keywords[string(ident)]; is_keyword {
-		return tok;
+		return tok
 	}
 	return IDENT;
 }
@@ -346,12 +346,12 @@ func (pos Position) String() string {
 	s := pos.Filename;
 	if pos.IsValid() {
 		if s != "" {
-			s += ":";
+			s += ":"
 		}
 		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column);
 	}
 	if s == "" {
-		s = "???";
+		s = "???"
 	}
 	return s;
 }

@@ -32,32 +32,32 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 		s := chunkHeader;
 		if oldLine, s, ok = atoi(s, "@@ -", 10); !ok {
 		ErrChunkHdr:
-			return nil, SyntaxError("unexpected chunk header line: " + string(chunkHeader));
+			return nil, SyntaxError("unexpected chunk header line: " + string(chunkHeader))
 		}
 		if len(s) == 0 || s[0] != ',' {
-			oldCount = 1;
+			oldCount = 1
 		} else if oldCount, s, ok = atoi(s, ",", 10); !ok {
-			goto ErrChunkHdr;
+			goto ErrChunkHdr
 		}
 		if newLine, s, ok = atoi(s, " +", 10); !ok {
-			goto ErrChunkHdr;
+			goto ErrChunkHdr
 		}
 		if len(s) == 0 || s[0] != ',' {
-			newCount = 1;
+			newCount = 1
 		} else if newCount, s, ok = atoi(s, ",", 10); !ok {
-			goto ErrChunkHdr;
+			goto ErrChunkHdr
 		}
 		if !hasPrefix(s, " @@") {
-			goto ErrChunkHdr;
+			goto ErrChunkHdr
 		}
 
 		// Special case: for created or deleted files, the empty half
 		// is given as starting at line 0.  Translate to line 1.
 		if oldCount == 0 && oldLine == 0 {
-			oldLine = 1;
+			oldLine = 1
 		}
 		if newCount == 0 && newLine == 0 {
-			newLine = 1;
+			newLine = 1
 		}
 
 		// Count lines in text
@@ -68,18 +68,18 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 		for _, l := range chunk {
 			if nold == oldCount && nnew == newCount && (len(l) == 0 || l[0] != '\\') {
 				if len(bytes.TrimSpace(l)) != 0 {
-					return nil, SyntaxError("too many chunk lines");
+					return nil, SyntaxError("too many chunk lines")
 				}
 				continue;
 			}
 			if len(l) == 0 {
-				return nil, SyntaxError("empty chunk line");
+				return nil, SyntaxError("empty chunk line")
 			}
 			switch l[0] {
 			case '+':
-				nnew++;
+				nnew++
 			case '-':
-				nold++;
+				nold++
 			case ' ':
 				nnew++;
 				nold++;
@@ -87,30 +87,30 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 				if _, ok := skip(l, "\\ No newline at end of file"); ok {
 					switch lastch {
 					case '-':
-						dropOldNL = true;
+						dropOldNL = true
 					case '+':
-						dropNewNL = true;
+						dropNewNL = true
 					case ' ':
 						dropOldNL = true;
 						dropNewNL = true;
 					default:
-						return nil, SyntaxError("message `\\ No newline at end of file' out of context");
+						return nil, SyntaxError("message `\\ No newline at end of file' out of context")
 					}
 					break;
 				}
 				fallthrough;
 			default:
-				return nil, SyntaxError("unexpected chunk line: " + string(l));
+				return nil, SyntaxError("unexpected chunk line: " + string(l))
 			}
 			lastch = l[0];
 		}
 
 		// Does it match the header?
 		if nold != oldCount || nnew != newCount {
-			return nil, SyntaxError("chunk header does not match line count: " + string(chunkHeader));
+			return nil, SyntaxError("chunk header does not match line count: " + string(chunkHeader))
 		}
 		if oldLine+delta != newLine {
-			return nil, SyntaxError("chunk delta is out of sync with previous chunks");
+			return nil, SyntaxError("chunk delta is out of sync with previous chunks")
 		}
 		delta += nnew-nold;
 		c.Line = oldLine;
@@ -120,11 +120,11 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 		nnew = 0;
 		for _, l := range chunk {
 			if nold == oldCount && nnew == newCount {
-				break;
+				break
 			}
 			ch, l := l[0], l[1:len(l)];
 			if ch == '\\' {
-				continue;
+				continue
 			}
 			if ch != '+' {
 				old.Write(l);
@@ -138,10 +138,10 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 		c.Old = old.Bytes();
 		c.New = new.Bytes();
 		if dropOldNL {
-			c.Old = c.Old[0 : len(c.Old)-1];
+			c.Old = c.Old[0 : len(c.Old)-1]
 		}
 		if dropNewNL {
-			c.New = c.New[0 : len(c.New)-1];
+			c.New = c.New[0 : len(c.New)-1]
 		}
 	}
 	return diff, nil;
@@ -159,7 +159,7 @@ func (d TextDiff) Apply(data []byte) ([]byte, os.Error) {
 		var prefix []byte;
 		prefix, data, ok = getLine(data, c.Line - line);
 		if !ok || !bytes.HasPrefix(data, c.Old) {
-			return nil, ErrPatchFailure;
+			return nil, ErrPatchFailure
 		}
 		buf.Write(prefix);
 		data = data[len(c.Old):len(data)];

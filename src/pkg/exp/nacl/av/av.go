@@ -57,7 +57,7 @@ var _ draw.Context = (*Window)(nil)
 func (w *Window) KeyboardChan() <-chan int	{ return w.kbdc }
 
 func (w *Window) MouseChan() <-chan draw.Mouse {
-	return w.mousec;
+	return w.mousec
 }
 
 func (w *Window) QuitChan() <-chan bool	{ return w.quitc }
@@ -85,18 +85,18 @@ func Init(subsys int, dx, dy int) (*Window, os.Error) {
 	}
 
 	if xsubsys & SubsystemEmbed != 0 {
-		return nil, os.NewError("not embedded");
+		return nil, os.NewError("not embedded")
 	}
 
 	w := new(Window);
 	err := multimediaInit(xsubsys);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	if subsys & SubsystemVideo != 0 {
 		if dx, dy, err = videoInit(dx, dy); err != nil {
-			return nil, err;
+			return nil, err
 		}
 		w.Image = newImage(dx, dy, bridge.pixel);
 		w.resizec = make(chan bool, 64);
@@ -108,13 +108,13 @@ func Init(subsys int, dx, dy int) (*Window, os.Error) {
 	if subsys & SubsystemAudio != 0 {
 		var n int;
 		if n, err = audioInit(AudioFormatStereo44K, 2048); err != nil {
-			return nil, err;
+			return nil, err
 		}
 		println("audio", n);
 	}
 
 	if subsys & SubsystemVideo != 0 {
-		go w.readEvents();
+		go w.readEvents()
 	}
 
 	return w, nil;
@@ -122,13 +122,13 @@ func Init(subsys int, dx, dy int) (*Window, os.Error) {
 
 func (w *Window) FlushImage() {
 	if w.Image == nil {
-		return;
+		return
 	}
 	videoUpdate(w.Image.Linear);
 }
 
 func multimediaInit(subsys int) (err os.Error) {
-	return os.NewSyscallError("multimedia_init", syscall.MultimediaInit(subsys));
+	return os.NewSyscallError("multimedia_init", syscall.MultimediaInit(subsys))
 }
 
 func videoInit(dx, dy int) (ndx, ndy int, err os.Error) {
@@ -137,7 +137,7 @@ func videoInit(dx, dy int) (ndx, ndy int, err os.Error) {
 		return int(bridge.share.width), int(bridge.share.height), nil;
 	}
 	if e := syscall.VideoInit(dx, dy); e != 0 {
-		return 0, 0, os.NewSyscallError("video_init", int(e));
+		return 0, 0, os.NewSyscallError("video_init", int(e))
 	}
 	return dx, dy, nil;
 }
@@ -156,7 +156,7 @@ func videoPollEvent(ev []byte) (err os.Error) {
 	if srpcEnabled {
 		r := bridge.share.eq.ri;
 		if r == bridge.share.eq.wi {
-			return noEvents;
+			return noEvents
 		}
 		bytes.Copy(ev, &bridge.share.eq.event[r]);
 		bridge.share.eq.ri = (r+1)%eqsize;
@@ -169,7 +169,7 @@ func audioInit(fmt int, want int) (got int, err os.Error) {
 	var x int;
 	e := syscall.AudioInit(fmt, want, &x);
 	if e == 0 {
-		return x, nil;
+		return x, nil
 	}
 	return 0, os.NewSyscallError("audio_init", e);
 }
@@ -190,10 +190,10 @@ func AudioStream(data []uint16) (nextSize int, err os.Error) {
 		return int(audioSize), e;
 	}
 	if data == nil {
-		return int(audioSize), nil;
+		return int(audioSize), nil
 	}
 	if uintptr(len(data))*2 != audioSize {
-		log.Stdoutf("invalid audio size want %d got %d", audioSize, len(data));
+		log.Stdoutf("invalid audio size want %d got %d", audioSize, len(data))
 	}
 	e := os.NewSyscallError("audio_stream", syscall.AudioStream(&data[0], &audioSize));
 	return int(audioSize), e;
@@ -255,7 +255,7 @@ func (multimediaBridge) Run(arg, ret []interface{}, size []int) srpc.Errno {
 
 	var st syscall.Stat_t;
 	if errno := syscall.Fstat(bridge.displayFd, &st); errno != 0 {
-		log.Exitf("mmbridge stat display: %s", os.Errno(errno));
+		log.Exitf("mmbridge stat display: %s", os.Errno(errno))
 	}
 
 	addr, _, errno := syscall.Syscall6(syscall.SYS_MMAP,
@@ -266,7 +266,7 @@ func (multimediaBridge) Run(arg, ret []interface{}, size []int) srpc.Errno {
 		uintptr(bridge.displayFd),
 		0);
 	if errno != 0 {
-		log.Exitf("mmap display: %s", os.Errno(errno));
+		log.Exitf("mmap display: %s", os.Errno(errno))
 	}
 
 	bridge.share = (*videoShare)(unsafe.Pointer(addr));
@@ -281,7 +281,7 @@ func (multimediaBridge) Run(arg, ret []interface{}, size []int) srpc.Errno {
 	var err os.Error;
 	bridge.client, err = srpc.NewClient(bridge.rpcFd);
 	if err != nil {
-		log.Exitf("NewClient: %s", err);
+		log.Exitf("NewClient: %s", err)
 	}
 	bridge.flushRPC = bridge.client.NewRPC(nil);
 
@@ -295,6 +295,6 @@ func (multimediaBridge) Run(arg, ret []interface{}, size []int) srpc.Errno {
 func init() {
 	bridge.c = make(chan bool, 1);
 	if srpcEnabled {
-		srpc.Add("nacl_multimedia_bridge", "hh:", multimediaBridge{});
+		srpc.Add("nacl_multimedia_bridge", "hh:", multimediaBridge{})
 	}
 }

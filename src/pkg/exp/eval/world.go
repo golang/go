@@ -44,7 +44,7 @@ type stmtCode struct {
 func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
 	if len(stmts) == 1 {
 		if s, ok := stmts[0].(*ast.ExprStmt); ok {
-			return w.CompileExpr(s.X);
+			return w.CompileExpr(s.X)
 		}
 	}
 	errors := scanner.NewErrorVector();
@@ -64,11 +64,11 @@ func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
 	};
 	nerr := cc.numError();
 	for _, stmt := range stmts {
-		bc.compileStmt(stmt);
+		bc.compileStmt(stmt)
 	}
 	fc.checkLabels();
 	if nerr != cc.numError() {
-		return nil, errors.GetError(scanner.Sorted);
+		return nil, errors.GetError(scanner.Sorted)
 	}
 	return &stmtCode{w, fc.get()}, nil;
 }
@@ -76,7 +76,7 @@ func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
 func (w *World) CompileDeclList(decls []ast.Decl) (Code, os.Error) {
 	stmts := make([]ast.Stmt, len(decls));
 	for i, d := range decls {
-		stmts[i] = &ast.DeclStmt{d};
+		stmts[i] = &ast.DeclStmt{d}
 	}
 	return w.CompileStmtList(stmts);
 }
@@ -101,7 +101,7 @@ func (w *World) CompileExpr(e ast.Expr) (Code, os.Error) {
 
 	ec := cc.compileExpr(w.scope.block, false, e);
 	if ec == nil {
-		return nil, errors.GetError(scanner.Sorted);
+		return nil, errors.GetError(scanner.Sorted)
 	}
 	var eval func(Value, *Thread);
 	switch t := ec.t.(type) {
@@ -111,7 +111,7 @@ func (w *World) CompileExpr(e ast.Expr) (Code, os.Error) {
 		// nothing
 	default:
 		if tm, ok := t.(*MultiType); ok && len(tm.Elems) == 0 {
-			return &stmtCode{w, code{ec.exec}}, nil;
+			return &stmtCode{w, code{ec.exec}}, nil
 		}
 		eval = genAssign(ec.t, ec);
 	}
@@ -125,9 +125,9 @@ func (e *exprCode) Run() (Value, os.Error) {
 	t.f = e.w.scope.NewFrame(nil);
 	switch e.e.t.(type) {
 	case *idealIntType:
-		return &idealIntV{e.e.asIdealInt()()}, nil;
+		return &idealIntV{e.e.asIdealInt()()}, nil
 	case *idealFloatType:
-		return &idealFloatV{e.e.asIdealFloat()()}, nil;
+		return &idealFloatV{e.e.asIdealFloat()()}, nil
 	}
 	v := e.e.t.Zero();
 	eval := e.eval;
@@ -138,13 +138,13 @@ func (e *exprCode) Run() (Value, os.Error) {
 func (w *World) Compile(text string) (Code, os.Error) {
 	stmts, err := parser.ParseStmtList("input", text);
 	if err == nil {
-		return w.CompileStmtList(stmts);
+		return w.CompileStmtList(stmts)
 	}
 
 	// Otherwise try as DeclList.
 	decls, err1 := parser.ParseDeclList("input", text);
 	if err1 == nil {
-		return w.CompileDeclList(decls);
+		return w.CompileDeclList(decls)
 	}
 
 	// Have to pick an error.
@@ -162,7 +162,7 @@ func (e *RedefinitionError) String() string {
 	res := "identifier " + e.Name + " redeclared";
 	pos := e.Prev.Pos();
 	if pos.IsValid() {
-		res += "; previous declaration at " + pos.String();
+		res += "; previous declaration at " + pos.String()
 	}
 	return res;
 }
@@ -170,7 +170,7 @@ func (e *RedefinitionError) String() string {
 func (w *World) DefineConst(name string, t Type, val Value) os.Error {
 	_, prev := w.scope.DefineConst(name, token.Position{}, t, val);
 	if prev != nil {
-		return &RedefinitionError{name, prev};
+		return &RedefinitionError{name, prev}
 	}
 	return nil;
 }
@@ -178,7 +178,7 @@ func (w *World) DefineConst(name string, t Type, val Value) os.Error {
 func (w *World) DefineVar(name string, t Type, val Value) os.Error {
 	v, prev := w.scope.DefineVar(name, token.Position{}, t);
 	if prev != nil {
-		return &RedefinitionError{name, prev};
+		return &RedefinitionError{name, prev}
 	}
 	v.Init = val;
 	return nil;

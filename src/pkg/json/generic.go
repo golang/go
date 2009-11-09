@@ -43,10 +43,10 @@ type Json interface {
 // j.String() == `abc`, but JsonToString(j) == `"abc"`.
 func JsonToString(j Json) string {
 	if j == nil {
-		return "null";
+		return "null"
 	}
 	if j.Kind() == StringKind {
-		return Quote(j.String());
+		return Quote(j.String())
 	}
 	return j.String();
 }
@@ -81,7 +81,7 @@ func (j *_Number) Kind() int		{ return NumberKind }
 func (j *_Number) Number() float64	{ return j.f }
 func (j *_Number) String() string {
 	if math.Floor(j.f) == j.f {
-		return fmt.Sprintf("%.0f", j.f);
+		return fmt.Sprintf("%.0f", j.f)
 	}
 	return fmt.Sprintf("%g", j.f);
 }
@@ -95,7 +95,7 @@ func (j *_Array) Kind() int	{ return ArrayKind }
 func (j *_Array) Len() int	{ return j.a.Len() }
 func (j *_Array) Elem(i int) Json {
 	if i < 0 || i >= j.a.Len() {
-		return Null;
+		return Null
 	}
 	return j.a.At(i).(Json);
 }
@@ -103,7 +103,7 @@ func (j *_Array) String() string {
 	s := "[";
 	for i := 0; i < j.a.Len(); i++ {
 		if i > 0 {
-			s += ",";
+			s += ","
 		}
 		s += JsonToString(j.a.At(i).(Json));
 	}
@@ -120,7 +120,7 @@ func (j *_Bool) Kind() int	{ return BoolKind }
 func (j *_Bool) Bool() bool	{ return j.b }
 func (j *_Bool) String() string {
 	if j.b {
-		return "true";
+		return "true"
 	}
 	return "false";
 }
@@ -134,11 +134,11 @@ func (j *_Map) Kind() int	{ return MapKind }
 func (j *_Map) Len() int	{ return len(j.m) }
 func (j *_Map) Get(s string) Json {
 	if j.m == nil {
-		return Null;
+		return Null
 	}
 	v, ok := j.m[s];
 	if !ok {
-		return Null;
+		return Null
 	}
 	return v;
 }
@@ -147,9 +147,9 @@ func (j *_Map) String() string {
 	first := true;
 	for k, v := range j.m {
 		if first {
-			first = false;
+			first = false
 		} else {
-			s += ",";
+			s += ","
 		}
 		s += Quote(k);
 		s += ":";
@@ -181,13 +181,13 @@ func Walk(j Json, path string) Json {
 		case ArrayKind:
 			indx, err := strconv.Atoi(elem);
 			if err != nil {
-				return Null;
+				return Null
 			}
 			j = j.Elem(indx);
 		case MapKind:
-			j = j.Get(elem);
+			j = j.Get(elem)
 		default:
-			return Null;
+			return Null
 		}
 	}
 	return j;
@@ -197,40 +197,40 @@ func Walk(j Json, path string) Json {
 func Equal(a, b Json) bool {
 	switch {
 	case a == nil && b == nil:
-		return true;
+		return true
 	case a == nil || b == nil:
-		return false;
+		return false
 	case a.Kind() != b.Kind():
-		return false;
+		return false
 	}
 
 	switch a.Kind() {
 	case NullKind:
-		return true;
+		return true
 	case StringKind:
-		return a.String() == b.String();
+		return a.String() == b.String()
 	case NumberKind:
-		return a.Number() == b.Number();
+		return a.Number() == b.Number()
 	case BoolKind:
-		return a.Bool() == b.Bool();
+		return a.Bool() == b.Bool()
 	case ArrayKind:
 		if a.Len() != b.Len() {
-			return false;
+			return false
 		}
 		for i := 0; i < a.Len(); i++ {
 			if !Equal(a.Elem(i), b.Elem(i)) {
-				return false;
+				return false
 			}
 		}
 		return true;
 	case MapKind:
 		m := a.(*_Map).m;
 		if len(m) != len(b.(*_Map).m) {
-			return false;
+			return false
 		}
 		for k, v := range m {
 			if !Equal(v, b.Get(k)) {
-				return false;
+				return false
 			}
 		}
 		return true;
@@ -259,22 +259,22 @@ type _JsonBuilder struct {
 func (b *_JsonBuilder) Put(j Json) {
 	switch {
 	case b.ptr != nil:
-		*b.ptr = j;
+		*b.ptr = j
 	case b.a != nil:
-		b.a.Set(b.i, j);
+		b.a.Set(b.i, j)
 	case b.m != nil:
-		b.m[b.k] = j;
+		b.m[b.k] = j
 	}
 }
 
 func (b *_JsonBuilder) Get() Json {
 	switch {
 	case b.ptr != nil:
-		return *b.ptr;
+		return *b.ptr
 	case b.a != nil:
-		return b.a.At(b.i).(Json);
+		return b.a.At(b.i).(Json)
 	case b.m != nil:
-		return b.m[b.k];
+		return b.m[b.k]
 	}
 	return nil;
 }
@@ -301,7 +301,7 @@ func (b *_JsonBuilder) Elem(i int) Builder {
 	bb.a = b.Get().(*_Array).a;
 	bb.i = i;
 	for i >= bb.a.Len() {
-		bb.a.Push(Null);
+		bb.a.Push(Null)
 	}
 	return bb;
 }
@@ -327,7 +327,7 @@ func StringToJson(s string) (json Json, ok bool, errtok string) {
 	b.ptr = &j;
 	ok, _, errtok = Parse(s, b);
 	if !ok {
-		return nil, false, errtok;
+		return nil, false, errtok
 	}
 	return j, true, "";
 }

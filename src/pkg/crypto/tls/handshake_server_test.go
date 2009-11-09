@@ -17,7 +17,7 @@ type zeroSource struct{}
 
 func (zeroSource) Read(b []byte) (n int, err os.Error) {
 	for i := range b {
-		b[i] = 0;
+		b[i] = 0
 	}
 
 	return len(b), nil;
@@ -56,12 +56,12 @@ func testClientHelloFailure(t *testing.T, clientHello interface{}, expectedAlert
 
 	err := script.Perform(0, []*script.Event{send, recvAlert, close1, recvState, close2});
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }
 
 func TestSimpleError(t *testing.T) {
-	testClientHelloFailure(t, &serverHelloDoneMsg{}, alertUnexpectedMessage);
+	testClientHelloFailure(t, &serverHelloDoneMsg{}, alertUnexpectedMessage)
 }
 
 var badProtocolVersions = []uint8{0, 0, 0, 5, 1, 0, 1, 5, 2, 0, 2, 5, 3, 0}
@@ -91,7 +91,7 @@ func TestNoCompressionOverlap(t *testing.T) {
 func matchServerHello(v interface{}) bool {
 	serverHello, ok := v.(*serverHelloMsg);
 	if !ok {
-		return false;
+		return false
 	}
 	return serverHello.major == 3 &&
 		serverHello.minor == 2 &&
@@ -111,7 +111,7 @@ func TestAlertForwarding(t *testing.T) {
 
 	err := script.Perform(0, []*script.Event{sendAlert, recvAlert, closeWriter, closeControl});
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }
 
@@ -124,14 +124,14 @@ func TestClose(t *testing.T) {
 
 	err := script.Perform(0, []*script.Event{close, closed1, closed2});
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }
 
 func matchCertificate(v interface{}) bool {
 	cert, ok := v.(*certificateMsg);
 	if !ok {
-		return false;
+		return false
 	}
 	return len(cert.certificates) == 1 &&
 		bytes.Compare(cert.certificates[0], testCertificate) == 0;
@@ -150,7 +150,7 @@ func matchDone(v interface{}) bool {
 func matchFinished(v interface{}) bool {
 	finished, ok := v.(*finishedMsg);
 	if !ok {
-		return false;
+		return false
 	}
 	return bytes.Compare(finished.verifyData, fromHex("29122ae11453e631487b02ed")) == 0;
 }
@@ -187,7 +187,7 @@ func TestFullHandshake(t *testing.T) {
 
 	err := script.Perform(0, []*script.Event{sendHello, setVersion, recvHello, recvCert, recvDone, sendCKX, sendCCS, recvNCS, sendFinished, setCipher, recvConnectionState, recvFinished});
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }
 

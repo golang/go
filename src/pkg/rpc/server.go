@@ -178,14 +178,14 @@ func (server *serverType) register(rcvr interface{}) os.Error {
 	server.Lock();
 	defer server.Unlock();
 	if server.serviceMap == nil {
-		server.serviceMap = make(map[string]*service);
+		server.serviceMap = make(map[string]*service)
 	}
 	s := new(service);
 	s.typ = reflect.Typeof(rcvr);
 	s.rcvr = reflect.NewValue(rcvr);
 	sname := reflect.Indirect(s.rcvr).Type().Name();
 	if sname == "" {
-		log.Exit("rpc: no service name for type", s.typ.String());
+		log.Exit("rpc: no service name for type", s.typ.String())
 	}
 	if !isPublic(sname) {
 		s := "rpc Register: type " + sname + " is not public";
@@ -193,7 +193,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
 		return os.ErrorString(s);
 	}
 	if _, present := server.serviceMap[sname]; present {
-		return os.ErrorString("rpc: service already defined: " + sname);
+		return os.ErrorString("rpc: service already defined: " + sname)
 	}
 	s.name = sname;
 	s.method = make(map[string]*methodType);
@@ -204,7 +204,7 @@ func (server *serverType) register(rcvr interface{}) os.Error {
 		mtype := method.Type;
 		mname := method.Name;
 		if !isPublic(mname) {
-			continue;
+			continue
 		}
 		// Method needs three ins: receiver, *args, *reply.
 		// The args and reply must be structs until gobs are more general.
@@ -296,7 +296,7 @@ func (s *service) call(sending *sync.Mutex, mtype *methodType, req *Request, arg
 	errInter := returnValues[0].Interface();
 	errmsg := "";
 	if errInter != nil {
-		errmsg = errInter.(os.Error).String();
+		errmsg = errInter.(os.Error).String()
 	}
 	sendResponse(sending, req, replyv.Interface(), enc, errmsg);
 }
@@ -357,7 +357,7 @@ func (server *serverType) accept(lis net.Listener) {
 	for {
 		conn, err := lis.Accept();
 		if err != nil {
-			log.Exit("rpc.Serve: accept:", err.String());	// TODO(r): exit?
+			log.Exit("rpc.Serve: accept:", err.String())	// TODO(r): exit?
 		}
 		go server.input(conn);
 	}

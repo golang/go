@@ -45,11 +45,11 @@ func (a *typeCompiler) compileIdent(x *ast.Ident, allowRec bool) Type {
 		}
 		if !def.incomplete && def.Def == nil {
 			// Placeholder type from an earlier error
-			return nil;
+			return nil
 		}
 		return def;
 	case Type:
-		return def;
+		return def
 	}
 	log.Crashf("name %s has unknown type %T", x.Value, def);
 	return nil;
@@ -62,7 +62,7 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
 	// Compile length expression
 	if x.Len == nil {
 		if elem == nil {
-			return nil;
+			return nil
 		}
 		return NewSliceType(elem);
 	}
@@ -73,14 +73,14 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
 	}
 	l, ok := a.compileArrayLen(a.block, x.Len);
 	if !ok {
-		return nil;
+		return nil
 	}
 	if l < 0 {
 		a.diagAt(x.Len, "array length must be non-negative");
 		return nil;
 	}
 	if elem == nil {
-		return nil;
+		return nil
 	}
 
 	return NewArrayType(l, elem);
@@ -90,9 +90,9 @@ func countFields(fs []*ast.Field) int {
 	n := 0;
 	for _, f := range fs {
 		if f.Names == nil {
-			n++;
+			n++
 		} else {
-			n += len(f.Names);
+			n += len(f.Names)
 		}
 	}
 	return n;
@@ -109,7 +109,7 @@ func (a *typeCompiler) compileFields(fs []*ast.Field, allowRec bool) ([]Type, []
 	for _, f := range fs {
 		t := a.compileType(f.Type, allowRec);
 		if t == nil {
-			bad = true;
+			bad = true
 		}
 		if f.Names == nil {
 			ns[i] = nil;
@@ -147,10 +147,10 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type 
 		// Compute field name and check anonymous fields
 		var name string;
 		if names[i] != nil {
-			name = names[i].Value;
+			name = names[i].Value
 		} else {
 			if ts[i] == nil {
-				continue;
+				continue
 			}
 
 			var nt *NamedType;
@@ -204,7 +204,7 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type 
 	}
 
 	if bad {
-		return nil;
+		return nil
 	}
 
 	return NewStructType(fields);
@@ -213,7 +213,7 @@ func (a *typeCompiler) compileStructType(x *ast.StructType, allowRec bool) Type 
 func (a *typeCompiler) compilePtrType(x *ast.StarExpr) Type {
 	elem := a.compileType(x.X, true);
 	if elem == nil {
-		return nil;
+		return nil
 	}
 	return NewPtrType(elem);
 }
@@ -228,7 +228,7 @@ func (a *typeCompiler) compileFuncType(x *ast.FuncType, allowRec bool) *FuncDecl
 	out, outNames, _, outBad := a.compileFields(x.Results, allowRec);
 
 	if inBad || outBad {
-		return nil;
+		return nil
 	}
 	return &FuncDecl{NewFuncType(in, false, out), nil, inNames, outNames};
 }
@@ -243,7 +243,7 @@ func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool)
 	var nm, ne int;
 	for i := range ts {
 		if ts[i] == nil {
-			continue;
+			continue
 		}
 
 		if names[i] != nil {
@@ -279,7 +279,7 @@ func (a *typeCompiler) compileInterfaceType(x *ast.InterfaceType, allowRec bool)
 	}
 
 	if bad {
-		return nil;
+		return nil
 	}
 
 	methods = methods[0:nm];
@@ -292,7 +292,7 @@ func (a *typeCompiler) compileMapType(x *ast.MapType) Type {
 	key := a.compileType(x.Key, true);
 	val := a.compileType(x.Value, true);
 	if key == nil || val == nil {
-		return nil;
+		return nil
 	}
 	// XXX(Spec) The Map types section explicitly lists all types
 	// that can be map keys except for function types.
@@ -318,35 +318,35 @@ func (a *typeCompiler) compileType(x ast.Expr, allowRec bool) Type {
 		return nil;
 
 	case *ast.Ident:
-		return a.compileIdent(x, allowRec);
+		return a.compileIdent(x, allowRec)
 
 	case *ast.ArrayType:
-		return a.compileArrayType(x, allowRec);
+		return a.compileArrayType(x, allowRec)
 
 	case *ast.StructType:
-		return a.compileStructType(x, allowRec);
+		return a.compileStructType(x, allowRec)
 
 	case *ast.StarExpr:
-		return a.compilePtrType(x);
+		return a.compilePtrType(x)
 
 	case *ast.FuncType:
 		fd := a.compileFuncType(x, allowRec);
 		if fd == nil {
-			return nil;
+			return nil
 		}
 		return fd.Type;
 
 	case *ast.InterfaceType:
-		return a.compileInterfaceType(x, allowRec);
+		return a.compileInterfaceType(x, allowRec)
 
 	case *ast.MapType:
-		return a.compileMapType(x);
+		return a.compileMapType(x)
 
 	case *ast.ChanType:
-		goto notimpl;
+		goto notimpl
 
 	case *ast.ParenExpr:
-		return a.compileType(x.X, allowRec);
+		return a.compileType(x.X, allowRec)
 
 	case *ast.Ellipsis:
 		a.diagAt(x, "illegal use of ellipsis");
@@ -370,7 +370,7 @@ func (a *compiler) compileType(b *block, typ ast.Expr) Type {
 	tc := &typeCompiler{a, b, noLateCheck};
 	t := tc.compileType(typ, false);
 	if !tc.lateCheck() {
-		t = nil;
+		t = nil
 	}
 	return t;
 }
@@ -382,25 +382,25 @@ func (a *compiler) compileTypeDecl(b *block, decl *ast.GenDecl) bool {
 		// Create incomplete type for this type
 		nt := b.DefineType(spec.Name.Value, spec.Name.Pos(), nil);
 		if nt != nil {
-			nt.(*NamedType).incomplete = true;
+			nt.(*NamedType).incomplete = true
 		}
 		// Compile type
 		tc := &typeCompiler{a, b, noLateCheck};
 		t := tc.compileType(spec.Type, false);
 		if t == nil {
 			// Create a placeholder type
-			ok = false;
+			ok = false
 		}
 		// Fill incomplete type
 		if nt != nil {
-			nt.(*NamedType).Complete(t);
+			nt.(*NamedType).Complete(t)
 		}
 		// Perform late type checking with complete type
 		if !tc.lateCheck() {
 			ok = false;
 			if nt != nil {
 				// Make the type a placeholder
-				nt.(*NamedType).Def = nil;
+				nt.(*NamedType).Def = nil
 			}
 		}
 	}
@@ -412,7 +412,7 @@ func (a *compiler) compileFuncType(b *block, typ *ast.FuncType) *FuncDecl {
 	res := tc.compileFuncType(typ, false);
 	if res != nil {
 		if !tc.lateCheck() {
-			res = nil;
+			res = nil
 		}
 	}
 	return res;

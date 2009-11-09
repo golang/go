@@ -30,9 +30,9 @@ type fpNat struct {
 func (x fpNat) sub(y fpNat) fpNat {
 	switch d := x.e - y.e; {
 	case d < 0:
-		return fpNat{x.m.Sub(y.m.Shl(uint(-d))), x.e};
+		return fpNat{x.m.Sub(y.m.Shl(uint(-d))), x.e}
 	case d > 0:
-		return fpNat{x.m.Shl(uint(d)).Sub(y.m), y.e};
+		return fpNat{x.m.Shl(uint(d)).Sub(y.m), y.e}
 	}
 	return fpNat{x.m.Sub(y.m), x.e};
 }
@@ -52,9 +52,9 @@ func (x fpNat) mul(y fpNat) fpNat	{ return fpNat{x.m.Mul(y.m), x.e + y.e} }
 func (x fpNat) mant() Natural {
 	switch {
 	case x.e > 0:
-		return x.m.Shl(uint(x.e));
+		return x.m.Shl(uint(x.e))
 	case x.e < 0:
-		return x.m.Shr(uint(-x.e));
+		return x.m.Shr(uint(-x.e))
 	}
 	return x.m;
 }
@@ -71,15 +71,15 @@ func nrDivEst(x0, y0 Natural) Natural {
 	// y0 > 0
 
 	if y0.Cmp(Nat(1)) == 0 {
-		return x0;
+		return x0
 	}
 	// y0 > 1
 
 	switch d := x0.Cmp(y0); {
 	case d < 0:
-		return Nat(0);
+		return Nat(0)
 	case d == 0:
-		return Nat(1);
+		return Nat(1)
 	}
 	// x0 > y0 > 1
 
@@ -119,7 +119,7 @@ func nrDivEst(x0, y0 Natural) Natural {
 		q.e -= e;
 		res := q.mant();
 		if res.Cmp(p) == 0 {
-			return res;
+			return res
 		}
 		p = res;
 
@@ -131,7 +131,7 @@ func nrDivEst(x0, y0 Natural) Natural {
 		//       computation time massively.
 		d := int(r.m.Log2() + 1)-maxLen;
 		if d > 0 {
-			r = fpNat{r.m.Shr(uint(d)), r.e + d};
+			r = fpNat{r.m.Shr(uint(d)), r.e + d}
 		}
 	}
 
@@ -157,10 +157,10 @@ func div(t *testing.T, x, y Natural) {
 	q, r := nrdiv(x, y);
 	qx, rx := x.DivMod(y);
 	if q.Cmp(qx) != 0 {
-		t.Errorf("x = %s, y = %s, got q = %s, want q = %s", x, y, q, qx);
+		t.Errorf("x = %s, y = %s, got q = %s, want q = %s", x, y, q, qx)
 	}
 	if r.Cmp(rx) != 0 {
-		t.Errorf("x = %s, y = %s, got r = %s, want r = %s", x, y, r, rx);
+		t.Errorf("x = %s, y = %s, got r = %s, want r = %s", x, y, r, rx)
 	}
 }
 

@@ -12,36 +12,36 @@ import (
 func TestInt(t *testing.T) {
 	reqs := NewInt("requests");
 	if reqs.i != 0 {
-		t.Errorf("reqs.i = %v, want 4", reqs.i);
+		t.Errorf("reqs.i = %v, want 4", reqs.i)
 	}
 	if reqs != Get("requests").(*Int) {
-		t.Errorf("Get() failed.");
+		t.Errorf("Get() failed.")
 	}
 
 	reqs.Add(1);
 	reqs.Add(3);
 	if reqs.i != 4 {
-		t.Errorf("reqs.i = %v, want 4", reqs.i);
+		t.Errorf("reqs.i = %v, want 4", reqs.i)
 	}
 
 	if s := reqs.String(); s != "4" {
-		t.Errorf("reqs.String() = %q, want \"4\"", s);
+		t.Errorf("reqs.String() = %q, want \"4\"", s)
 	}
 }
 
 func TestString(t *testing.T) {
 	name := NewString("my-name");
 	if name.s != "" {
-		t.Errorf("name.s = %q, want \"\"", name.s);
+		t.Errorf("name.s = %q, want \"\"", name.s)
 	}
 
 	name.Set("Mike");
 	if name.s != "Mike" {
-		t.Errorf("name.s = %q, want \"Mike\"", name.s);
+		t.Errorf("name.s = %q, want \"Mike\"", name.s)
 	}
 
 	if s := name.String(); s != "\"Mike\"" {
-		t.Errorf("reqs.String() = %q, want \"\"Mike\"\"", s);
+		t.Errorf("reqs.String() = %q, want \"\"Mike\"\"", s)
 	}
 }
 
@@ -52,10 +52,10 @@ func TestMapCounter(t *testing.T) {
 	colours.Add("red", 2);
 	colours.Add("blue", 4);
 	if x := colours.m["red"].(*Int).i; x != 3 {
-		t.Errorf("colours.m[\"red\"] = %v, want 3", x);
+		t.Errorf("colours.m[\"red\"] = %v, want 3", x)
 	}
 	if x := colours.m["blue"].(*Int).i; x != 4 {
-		t.Errorf("colours.m[\"blue\"] = %v, want 4", x);
+		t.Errorf("colours.m[\"blue\"] = %v, want 4", x)
 	}
 
 	// colours.String() should be '{"red":3, "blue":4}',
@@ -63,17 +63,17 @@ func TestMapCounter(t *testing.T) {
 	s := colours.String();
 	j, ok, errtok := json.StringToJson(s);
 	if !ok {
-		t.Errorf("colours.String() isn't valid JSON: %v", errtok);
+		t.Errorf("colours.String() isn't valid JSON: %v", errtok)
 	}
 	if j.Kind() != json.MapKind {
-		t.Error("colours.String() didn't produce a map.");
+		t.Error("colours.String() didn't produce a map.")
 	}
 	red := j.Get("red");
 	if red.Kind() != json.NumberKind {
-		t.Error("red.Kind() is not a NumberKind.");
+		t.Error("red.Kind() is not a NumberKind.")
 	}
 	if x := red.Number(); x != 3 {
-		t.Error("red = %v, want 3", x);
+		t.Error("red = %v, want 3", x)
 	}
 }
 
@@ -81,11 +81,11 @@ func TestIntFunc(t *testing.T) {
 	x := int(4);
 	ix := IntFunc(func() int64 { return int64(x) });
 	if s := ix.String(); s != "4" {
-		t.Errorf("ix.String() = %v, want 4", s);
+		t.Errorf("ix.String() = %v, want 4", s)
 	}
 
 	x++;
 	if s := ix.String(); s != "5" {
-		t.Errorf("ix.String() = %v, want 5", s);
+		t.Errorf("ix.String() = %v, want 5", s)
 	}
 }

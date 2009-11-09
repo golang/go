@@ -40,7 +40,7 @@ func (p *IntVector) Last() int	{ return p.Vector.Last().(int) }
 func (p *IntVector) Data() []int {
 	arr := make([]int, p.Len());
 	for i, v := range p.a {
-		arr[i] = v.(int);
+		arr[i] = v.(int)
 	}
 	return arr;
 }
@@ -54,14 +54,14 @@ func (p *IntVector) Insert(i int, x int)	{ p.Vector.Insert(i, x) }
 // InsertVector inserts into the vector the contents of the Vector
 // x such that the 0th element of x appears at index i after insertion.
 func (p *IntVector) InsertVector(i int, x *IntVector) {
-	p.Vector.InsertVector(i, &x.Vector);
+	p.Vector.InsertVector(i, &x.Vector)
 }
 
 
 // Slice returns a new IntVector by slicing the old one to extract slice [i:j].
 // The elements are copied. The original vector is unchanged.
 func (p *IntVector) Slice(i, j int) *IntVector {
-	return &IntVector{*p.Vector.Slice(i, j)};
+	return &IntVector{*p.Vector.Slice(i, j)}
 }
 
 
@@ -75,7 +75,7 @@ func (p *IntVector) Pop() int	{ return p.Vector.Pop().(int) }
 
 // AppendVector appends the entire IntVector x to the end of this vector.
 func (p *IntVector) AppendVector(x *IntVector) {
-	p.Vector.InsertVector(len(p.a), &x.Vector);
+	p.Vector.InsertVector(len(p.a), &x.Vector)
 }
 
 
@@ -87,7 +87,7 @@ func (p *IntVector) Less(i, j int) bool	{ return p.At(i) < p.At(j) }
 // Iterate over all elements; driver for range
 func (p *IntVector) iterate(c chan<- int) {
 	for _, v := range p.a {
-		c <- v.(int);
+		c <- v.(int)
 	}
 	close(c);
 }

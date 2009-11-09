@@ -130,7 +130,7 @@ func NewInt(x int64) *Int	{ return new(Int).SetInt64(x) }
 // making zero values useful and gmp's decision not to.
 func (z *Int) doinit() {
 	if z.init {
-		return;
+		return
 	}
 	z.init = true;
 	C.mpz_init(&z.i[0]);
@@ -162,9 +162,9 @@ func (z *Int) Set(x *Int) *Int {
 func (z *Int) SetBytes(b []byte) *Int {
 	z.doinit();
 	if len(b) == 0 {
-		z.SetInt64(0);
+		z.SetInt64(0)
 	} else {
-		C.mpz_import(&z.i[0], C.size_t(len(b)), 1, 1, 1, 0, unsafe.Pointer(&b[0]));
+		C.mpz_import(&z.i[0], C.size_t(len(b)), 1, 1, 1, 0, unsafe.Pointer(&b[0]))
 	}
 	return z;
 }
@@ -183,12 +183,12 @@ func (z *Int) SetInt64(x int64) *Int {
 func (z *Int) SetString(s string, base int) os.Error {
 	z.doinit();
 	if base < 2 || base > 36 {
-		return os.EINVAL;
+		return os.EINVAL
 	}
 	p := C.CString(s);
 	defer C.free(unsafe.Pointer(p));
 	if C.mpz_set_str(&z.i[0], p, C.int(base)) < 0 {
-		return os.EINVAL;
+		return os.EINVAL
 	}
 	return z;
 }
@@ -196,7 +196,7 @@ func (z *Int) SetString(s string, base int) os.Error {
 // String returns the decimal representation of z.
 func (z *Int) String() string {
 	if z == nil {
-		return "nil";
+		return "nil"
 	}
 	z.doinit();
 	p := C.mpz_get_str(nil, 10, &z.i[0]);
@@ -207,7 +207,7 @@ func (z *Int) String() string {
 
 func (z *Int) destroy() {
 	if z.init {
-		C.mpz_clear(&z.i[0]);
+		C.mpz_clear(&z.i[0])
 	}
 	z.init = false;
 }
@@ -287,16 +287,16 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 	y.doinit();
 	z.doinit();
 	if m == nil {
-		C.mpz_pow_ui(&z.i[0], &x.i[0], C.mpz_get_ui(&y.i[0]));
+		C.mpz_pow_ui(&z.i[0], &x.i[0], C.mpz_get_ui(&y.i[0]))
 	} else {
-		C.mpz_powm(&z.i[0], &x.i[0], &y.i[0], &m.i[0]);
+		C.mpz_powm(&z.i[0], &x.i[0], &y.i[0], &m.i[0])
 	}
 	return z;
 }
 
 func (z *Int) Int64() int64 {
 	if !z.init {
-		return 0;
+		return 0
 	}
 	return int64(C.mpz_get_si(&z.i[0]));
 }
@@ -334,9 +334,9 @@ func CmpInt(x, y *Int) int {
 	y.doinit();
 	switch cmp := C.mpz_cmp(&x.i[0], &y.i[0]); {
 	case cmp < 0:
-		return -1;
+		return -1
 	case cmp == 0:
-		return 0;
+		return 0
 	}
 	return +1;
 }

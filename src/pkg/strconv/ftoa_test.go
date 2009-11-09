@@ -101,18 +101,18 @@ var ftoatests = []ftoaTest{
 
 func TestFtoa(t *testing.T) {
 	if FloatSize != 32 {
-		panic("floatsize: ", FloatSize);
+		panic("floatsize: ", FloatSize)
 	}
 	for i := 0; i < len(ftoatests); i++ {
 		test := &ftoatests[i];
 		s := Ftoa64(test.f, test.fmt, test.prec);
 		if s != test.s {
-			t.Error("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
+			t.Error("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
 		}
 		if float64(float32(test.f)) == test.f && test.fmt != 'b' {
 			s := Ftoa32(float32(test.f), test.fmt, test.prec);
 			if s != test.s {
-				t.Error("test32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s);
+				t.Error("test32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
 			}
 		}
 	}

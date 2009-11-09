@@ -61,7 +61,7 @@ func (client *Client) send(c *Call) {
 	client.enc.Encode(request);
 	err := client.enc.Encode(c.Args);
 	if err != nil {
-		panicln("rpc: client encode error:", err);
+		panicln("rpc: client encode error:", err)
 	}
 	client.sending.Unlock();
 }
@@ -73,7 +73,7 @@ func (client *Client) input() {
 		err = client.dec.Decode(response);
 		if err != nil {
 			if err == os.EOF {
-				err = io.ErrUnexpectedEOF;
+				err = io.ErrUnexpectedEOF
 			}
 			break;
 		}
@@ -115,7 +115,7 @@ func NewClient(conn io.ReadWriteCloser) *Client {
 func DialHTTP(network, address string) (*Client, os.Error) {
 	conn, err := net.Dial(network, "", address);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	io.WriteString(conn, "CONNECT " + rpcPath + " HTTP/1.0\n\n");
 
@@ -123,10 +123,10 @@ func DialHTTP(network, address string) (*Client, os.Error) {
 	// before switching to RPC protocol.
 	resp, err := http.ReadResponse(bufio.NewReader(conn));
 	if err == nil && resp.Status == connected {
-		return NewClient(conn), nil;
+		return NewClient(conn), nil
 	}
 	if err == nil {
-		err = os.ErrorString("unexpected HTTP response: " + resp.Status);
+		err = os.ErrorString("unexpected HTTP response: " + resp.Status)
 	}
 	conn.Close();
 	return nil, &net.OpError{"dial-http", network+" "+address, nil, err};
@@ -136,7 +136,7 @@ func DialHTTP(network, address string) (*Client, os.Error) {
 func Dial(network, address string) (*Client, os.Error) {
 	conn, err := net.Dial(network, "", address);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	return NewClient(conn), nil;
 }
@@ -151,14 +151,14 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 	c.Args = args;
 	c.Reply = reply;
 	if done == nil {
-		done = make(chan *Call, 10);	// buffered.
+		done = make(chan *Call, 10)	// buffered.
 	} else {
 		// If caller passes done != nil, it must arrange that
 		// done has enough buffer for the number of simultaneous
 		// RPCs that will be using that channel.  If the channel
 		// is totally unbuffered, it's best not to run at all.
 		if cap(done) == 0 {
-			log.Crash("rpc: done channel is unbuffered");
+			log.Crash("rpc: done channel is unbuffered")
 		}
 	}
 	c.Done = done;
@@ -174,7 +174,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) os.Error {
 	if client.shutdown != nil {
-		return client.shutdown;
+		return client.shutdown
 	}
 	call := <-client.Go(serviceMethod, args, reply, nil).Done;
 	return call.Error;

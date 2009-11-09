@@ -58,13 +58,13 @@ var googleaddrs = []string{
 func TestDialGoogle(t *testing.T) {
 	// If no ipv6 tunnel, don't try the last address.
 	if !*ipv6 {
-		googleaddrs[len(googleaddrs)-1] = "";
+		googleaddrs[len(googleaddrs)-1] = ""
 	}
 
 	for i := 0; i < len(googleaddrs); i++ {
 		addr := googleaddrs[i];
 		if addr == "" {
-			continue;
+			continue
 		}
 		t.Logf("-- %s --", addr);
 		doDial(t, "tcp", addr);

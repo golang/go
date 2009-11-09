@@ -18,7 +18,7 @@ import (
 // You can override the default formatter by storing your default
 // under the name "" in your custom formatter map.
 func StringFormatter(w io.Writer, value interface{}, format string) {
-	fmt.Fprint(w, value);
+	fmt.Fprint(w, value)
 }
 
 var (
@@ -37,17 +37,17 @@ func HTMLEscape(w io.Writer, s []byte) {
 	for i, c := range s {
 		switch c {
 		case '"':
-			esc = esc_quot;
+			esc = esc_quot
 		case '\'':
-			esc = esc_apos;
+			esc = esc_apos
 		case '&':
-			esc = esc_amp;
+			esc = esc_amp
 		case '<':
-			esc = esc_lt;
+			esc = esc_lt
 		case '>':
-			esc = esc_gt;
+			esc = esc_gt
 		default:
-			continue;
+			continue
 		}
 		w.Write(s[last:i]);
 		w.Write(esc);

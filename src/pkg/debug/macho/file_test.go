@@ -113,13 +113,13 @@ func TestOpen(t *testing.T) {
 		}
 		for i, l := range f.Loads {
 			if i >= len(tt.segments) {
-				break;
+				break
 			}
 			sh := tt.segments[i];
 			s, ok := l.(*Segment);
 			if sh == nil {
 				if ok {
-					t.Errorf("open %s, section %d: skipping %#v\n", tt.file, i, &s.SegmentHeader);
+					t.Errorf("open %s, section %d: skipping %#v\n", tt.file, i, &s.SegmentHeader)
 				}
 				continue;
 			}
@@ -130,29 +130,29 @@ func TestOpen(t *testing.T) {
 			have := &s.SegmentHeader;
 			want := sh;
 			if !reflect.DeepEqual(have, want) {
-				t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want);
+				t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
 			}
 		}
 		tn := len(tt.segments);
 		fn := len(f.Loads);
 		if tn != fn {
-			t.Errorf("open %s: len(Loads) = %d, want %d", tt.file, fn, tn);
+			t.Errorf("open %s: len(Loads) = %d, want %d", tt.file, fn, tn)
 		}
 
 		for i, sh := range f.Sections {
 			if i >= len(tt.sections) {
-				break;
+				break
 			}
 			have := &sh.SectionHeader;
 			want := tt.sections[i];
 			if !reflect.DeepEqual(have, want) {
-				t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want);
+				t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
 			}
 		}
 		tn = len(tt.sections);
 		fn = len(f.Sections);
 		if tn != fn {
-			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn);
+			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn)
 		}
 
 	}

@@ -32,7 +32,7 @@ func timeout(c chan<- bool, nsecs int64) {
 func (tls *Conn) Read(p []byte) (int, os.Error) {
 	if len(tls.readBuf) == 0 {
 		if tls.eof {
-			return 0, os.EOF;
+			return 0, os.EOF
 		}
 
 		var timeoutChan chan bool;
@@ -43,15 +43,15 @@ func (tls *Conn) Read(p []byte) (int, os.Error) {
 
 		select {
 		case b := <-tls.readChan:
-			tls.readBuf = b;
+			tls.readBuf = b
 		case <-timeoutChan:
-			return 0, os.EAGAIN;
+			return 0, os.EAGAIN
 		}
 
 		// TLS distinguishes between orderly closes and truncations. An
 		// orderly close is represented by a zero length slice.
 		if closed(tls.readChan) {
-			return 0, io.ErrUnexpectedEOF;
+			return 0, io.ErrUnexpectedEOF
 		}
 		if len(tls.readBuf) == 0 {
 			tls.eof = true;
@@ -66,7 +66,7 @@ func (tls *Conn) Read(p []byte) (int, os.Error) {
 
 func (tls *Conn) Write(p []byte) (int, os.Error) {
 	if tls.eof || closed(tls.readChan) {
-		return 0, os.EOF;
+		return 0, os.EOF
 	}
 
 	var timeoutChan chan bool;
@@ -78,7 +78,7 @@ func (tls *Conn) Write(p []byte) (int, os.Error) {
 	select {
 	case tls.writeChan <- p:
 	case <-timeoutChan:
-		return 0, os.EAGAIN;
+		return 0, os.EAGAIN
 	}
 
 	return len(p), nil;
@@ -148,7 +148,7 @@ type Listener struct {
 func (l Listener) Accept() (c net.Conn, err os.Error) {
 	c, err = l.listener.Accept();
 	if err != nil {
-		return;
+		return
 	}
 
 	c = Server(c, l.config);

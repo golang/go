@@ -319,12 +319,12 @@ func newState(fmt Format, env Environment, errors chan os.Error) *State {
 
 	// if we have a default rule, cache it's expression for fast access
 	if x, found := fmt["default"]; found {
-		s.default_ = x;
+		s.default_ = x
 	}
 
 	// if we have a global separator rule, cache it's expression for fast access
 	if x, found := fmt["/"]; found {
-		s.separator = x;
+		s.separator = x
 	}
 
 	return s;
@@ -383,7 +383,7 @@ type checkpoint struct {
 func (s *State) save() checkpoint {
 	saved := checkpoint{nil, s.hasOutput, s.output.Len(), s.linePos};
 	if s.env != nil {
-		saved.env = s.env.Copy();
+		saved.env = s.env.Copy()
 	}
 	return saved;
 }
@@ -410,32 +410,32 @@ func (s *State) error(msg string) {
 func typename(typ reflect.Type) string {
 	switch typ.(type) {
 	case *reflect.ArrayType:
-		return "array";
+		return "array"
 	case *reflect.SliceType:
-		return "array";
+		return "array"
 	case *reflect.ChanType:
-		return "chan";
+		return "chan"
 	case *reflect.DotDotDotType:
-		return "ellipsis";
+		return "ellipsis"
 	case *reflect.FuncType:
-		return "func";
+		return "func"
 	case *reflect.InterfaceType:
-		return "interface";
+		return "interface"
 	case *reflect.MapType:
-		return "map";
+		return "map"
 	case *reflect.PtrType:
-		return "ptr";
+		return "ptr"
 	}
 	return typ.String();
 }
 
 func (s *State) getFormat(name string) expr {
 	if fexpr, found := s.fmt[name]; found {
-		return fexpr;
+		return fexpr
 	}
 
 	if s.default_ != nil {
-		return s.default_;
+		return s.default_
 	}
 
 	s.error(fmt.Sprintf("no format rule for type: '%s'", name));
@@ -452,7 +452,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 	// an empty format expression always evaluates
 	// to a non-nil (but empty) []byte
 	if fexpr == nil {
-		return true;
+		return true
 	}
 
 	switch t := fexpr.(type) {
@@ -462,7 +462,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 		mark := s.save();
 		for _, x := range t {
 			if s.eval(x, value, index) {
-				return true;
+				return true
 			}
 			s.restore(mark);
 		}
@@ -489,7 +489,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 				s.separator = nil;	// and disable it (avoid recursion)
 				mark := s.save();
 				if !s.eval(sep, value, index) {
-					s.restore(mark);
+					s.restore(mark)
 				}
 				s.separator = sep;	// enable it again
 			}
@@ -501,14 +501,14 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 				// segment contains a %-format at the beginning
 				if lit[1] == '%' {
 					// "%%" is printed as a single "%"
-					s.Write(lit[1:len(lit)]);
+					s.Write(lit[1:len(lit)])
 				} else {
 					// use s instead of s.output to get indentation right
-					fmt.Fprintf(s, string(lit), value.Interface());
+					fmt.Fprintf(s, string(lit), value.Interface())
 				}
 			} else {
 				// segment contains no %-formats
-				s.Write(lit);
+				s.Write(lit)
 			}
 		}
 		return true;	// a literal never evaluates to nil
@@ -524,39 +524,39 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 			switch v := value.(type) {
 			case *reflect.ArrayValue:
 				if v.Len() <= index {
-					return false;
+					return false
 				}
 				value = v.Elem(index);
 
 			case *reflect.SliceValue:
 				if v.IsNil() || v.Len() <= index {
-					return false;
+					return false
 				}
 				value = v.Elem(index);
 
 			case *reflect.MapValue:
-				s.error("reflection support for maps incomplete");
+				s.error("reflection support for maps incomplete")
 
 			case *reflect.PtrValue:
 				if v.IsNil() {
-					return false;
+					return false
 				}
 				value = v.Elem();
 
 			case *reflect.InterfaceValue:
 				if v.IsNil() {
-					return false;
+					return false
 				}
 				value = v.Elem();
 
 			case *reflect.ChanValue:
-				s.error("reflection support for chans incomplete");
+				s.error("reflection support for chans incomplete")
 
 			case *reflect.FuncValue:
-				s.error("reflection support for funcs incomplete");
+				s.error("reflection support for funcs incomplete")
 
 			default:
-				s.error(fmt.Sprintf("error: * does not apply to `%s`", value.Type()));
+				s.error(fmt.Sprintf("error: * does not apply to `%s`", value.Type()))
 			}
 
 		default:
@@ -566,7 +566,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 				field = sval.FieldByName(t.fieldName);
 				if field == nil {
 					// TODO consider just returning false in this case
-					s.error(fmt.Sprintf("error: no field `%s` in `%s`", t.fieldName, value.Type()));
+					s.error(fmt.Sprintf("error: no field `%s` in `%s`", t.fieldName, value.Type()))
 				}
 			}
 			value = field;
@@ -576,7 +576,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 		ruleName := t.ruleName;
 		if ruleName == "" {
 			// no alternate rule name, value type determines rule
-			ruleName = typename(value.Type());
+			ruleName = typename(value.Type())
 		}
 		fexpr = s.getFormat(ruleName);
 
@@ -617,7 +617,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 		// buffer unless the result is nil
 		mark := s.save();
 		if !s.eval(t.body, value, 0) {	// TODO is 0 index correct?
-			s.restore(mark);
+			s.restore(mark)
 		}
 		return true;	// an option never evaluates to nil
 
@@ -631,7 +631,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 				// nil result from separator is ignored
 				mark := s.save();
 				if !s.eval(t.separator, value, i) {
-					s.restore(mark);
+					s.restore(mark)
 				}
 			}
 			if !s.eval(t.body, value, i) {
@@ -665,7 +665,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 //
 func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
 	if f == nil {
-		return nil, os.NewError("format is nil");
+		return nil, os.NewError("format is nil")
 	}
 
 	errors := make(chan os.Error);
@@ -677,7 +677,7 @@ func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
 			fld := value.Field(i);
 			mark := s.save();
 			if !s.eval(s.getFormat(typename(fld.Type())), fld, 0) {	// TODO is 0 index correct?
-				s.restore(mark);
+				s.restore(mark)
 			}
 		}
 		errors <- nil;	// no errors
@@ -699,7 +699,7 @@ func (f Format) Fprint(w io.Writer, env Environment, args ...) (int, os.Error) {
 	data, err := f.Eval(env, args);
 	if err != nil {
 		// TODO should we print partial result in case of error?
-		return 0, err;
+		return 0, err
 	}
 	return w.Write(data);
 }
@@ -710,7 +710,7 @@ func (f Format) Fprint(w io.Writer, env Environment, args ...) (int, os.Error) {
 // number of bytes written and an os.Error, if any.
 //
 func (f Format) Print(args ...) (int, os.Error) {
-	return f.Fprint(os.Stdout, nil, args);
+	return f.Fprint(os.Stdout, nil, args)
 }
 
 
@@ -723,7 +723,7 @@ func (f Format) Sprint(args ...) string {
 	var buf bytes.Buffer;
 	_, err := f.Fprint(&buf, nil, args);
 	if err != nil {
-		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(args), err);
+		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(args), err)
 	}
 	return buf.String();
 }

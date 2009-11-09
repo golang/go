@@ -57,7 +57,7 @@ var NoDiff Diff = noDiffType(0)
 type noDiffType int
 
 func (noDiffType) Apply(old []byte) ([]byte, os.Error) {
-	return old, nil;
+	return old, nil
 }
 
 // A SyntaxError represents a syntax error encountered while parsing a patch.
@@ -84,7 +84,7 @@ func Parse(text []byte) (*Set, os.Error) {
 	// First look for Index: lines.  If none, fall back on diff lines.
 	text, files := sections(text, "Index: ");
 	if len(files) == 0 {
-		text, files = sections(text, "diff ");
+		text, files = sections(text, "diff ")
 	}
 
 	set := &Set{string(text), make([]*File, len(files))};
@@ -114,7 +114,7 @@ func Parse(text []byte) (*Set, os.Error) {
 	HaveName:
 		p.Dst = path.Clean(p.Dst);
 		if strings.HasPrefix(p.Dst, "../") || strings.HasPrefix(p.Dst, "/") {
-			return nil, SyntaxError("invalid path: " + p.Dst);
+			return nil, SyntaxError("invalid path: " + p.Dst)
 		}
 
 		// Parse header lines giving file information:
@@ -180,29 +180,29 @@ func Parse(text []byte) (*Set, os.Error) {
 				// Hg prints
 				//	Binary file foo has changed
 				// when deleting a binary file.
-				continue;
+				continue
 			}
 			if s, ok := skip(l, "RCS file: "); ok && len(s) > 0 {
 				// CVS prints
 				//	RCS file: /cvs/plan9/bin/yesterday,v
 				//	retrieving revision 1.1
 				// for each file.
-				continue;
+				continue
 			}
 			if s, ok := skip(l, "retrieving revision "); ok && len(s) > 0 {
 				// CVS prints
 				//	RCS file: /cvs/plan9/bin/yesterday,v
 				//	retrieving revision 1.1
 				// for each file.
-				continue;
+				continue
 			}
 			if hasPrefix(l, "===") || hasPrefix(l, "---") || hasPrefix(l, "+++") || hasPrefix(l, "diff ") {
-				continue;
+				continue
 			}
 			if hasPrefix(l, "@@ -") {
 				diff, err := ParseTextDiff(oldraw);
 				if err != nil {
-					return nil, err;
+					return nil, err
 				}
 				p.Diff = diff;
 				break;
@@ -210,7 +210,7 @@ func Parse(text []byte) (*Set, os.Error) {
 			if hasPrefix(l, "index ") || hasPrefix(l, "GIT binary patch") {
 				diff, err := ParseGITBinary(oldraw);
 				if err != nil {
-					return nil, err;
+					return nil, err
 				}
 				p.Diff = diff;
 				break;
@@ -218,10 +218,10 @@ func Parse(text []byte) (*Set, os.Error) {
 			return nil, SyntaxError("unexpected patch header line: " + string(l));
 		}
 		if p.Diff == nil {
-			p.Diff = NoDiff;
+			p.Diff = NoDiff
 		}
 		if p.Verb == Edit {
-			p.Src = p.Dst;
+			p.Src = p.Dst
 		}
 	}
 
@@ -254,11 +254,11 @@ func sections(text []byte, prefix string) ([]byte, [][]byte) {
 	n := 0;
 	for b := text; ; {
 		if hasPrefix(b, prefix) {
-			n++;
+			n++
 		}
 		nl := bytes.Index(b, newline);
 		if nl < 0 {
-			break;
+			break
 		}
 		b = b[nl+1 : len(b)];
 	}
@@ -285,7 +285,7 @@ func sections(text []byte, prefix string) ([]byte, [][]byte) {
 // s with that prefix removed and ok == true.
 func skip(s []byte, t string) (ss []byte, ok bool) {
 	if len(s) < len(t) || string(s[0:len(t)]) != t {
-		return nil, false;
+		return nil, false
 	}
 	return s[len(t):len(s)], true;
 }
@@ -296,14 +296,14 @@ func skip(s []byte, t string) (ss []byte, ok bool) {
 // prefix and the digits removed.
 func atoi(s []byte, t string, base int) (n int, ss []byte, ok bool) {
 	if s, ok = skip(s, t); !ok {
-		return;
+		return
 	}
 	var i int;
 	for i = 0; i < len(s) && '0' <= s[i] && s[i] <= byte('0'+base-1); i++ {
-		n = n*base + int(s[i]-'0');
+		n = n*base + int(s[i]-'0')
 	}
 	if i == 0 {
-		return;
+		return
 	}
 	return n, s[i:len(s)], true;
 }

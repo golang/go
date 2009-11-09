@@ -43,7 +43,7 @@ type sendAction interface {
 func (e Event) isReady() bool {
 	for _, predecessor := range e.predecessors {
 		if !predecessor.occurred {
-			return false;
+			return false
 		}
 	}
 
@@ -66,7 +66,7 @@ func (r Recv) getChannel() interface{}	{ return r.Channel }
 func (r Recv) recvMatch(chanEvent interface{}) bool {
 	c, ok := chanEvent.(channelRecv);
 	if !ok || c.channel != r.Channel {
-		return false;
+		return false
 	}
 
 	return reflect.DeepEqual(c.value, r.Expected);
@@ -88,7 +88,7 @@ func (r RecvMatch) getChannel() interface{}	{ return r.Channel }
 func (r RecvMatch) recvMatch(chanEvent interface{}) bool {
 	c, ok := chanEvent.(channelRecv);
 	if !ok || c.channel != r.Channel {
-		return false;
+		return false
 	}
 
 	return r.Match(c.value);
@@ -110,7 +110,7 @@ func (r Closed) getChannel() interface{}	{ return r.Channel }
 func (r Closed) recvMatch(chanEvent interface{}) bool {
 	c, ok := chanEvent.(channelClosed);
 	if !ok || c.channel != r.Channel {
-		return false;
+		return false
 	}
 
 	return true;
@@ -130,7 +130,7 @@ func (s Send) getSend() sendAction	{ return s }
 func (s Send) getChannel() interface{}	{ return s.Channel }
 
 func newEmptyInterface(args ...) reflect.Value {
-	return reflect.NewValue(args).(*reflect.StructValue).Field(0);
+	return reflect.NewValue(args).(*reflect.StructValue).Field(0)
 }
 
 func (s Send) send() {
@@ -140,9 +140,9 @@ func (s Send) send() {
 	c := reflect.NewValue(s.Channel).(*reflect.ChanValue);
 	var v reflect.Value;
 	if iface, ok := c.Type().(*reflect.ChanType).Elem().(*reflect.InterfaceType); ok && iface.NumMethod() == 0 {
-		v = newEmptyInterface(s.Value);
+		v = newEmptyInterface(s.Value)
 	} else {
-		v = reflect.NewValue(s.Value);
+		v = reflect.NewValue(s.Value)
 	}
 	c.Send(v);
 }
@@ -170,7 +170,7 @@ type ReceivedUnexpected struct {
 func (r ReceivedUnexpected) String() string {
 	names := make([]string, len(r.ready));
 	for i, v := range r.ready {
-		names[i] = v.name;
+		names[i] = v.name
 	}
 	return fmt.Sprintf("received unexpected value on one of the channels: %#v. Runnable events: %s", r.Value, strings.Join(names, ", "));
 }
@@ -224,23 +224,23 @@ func Perform(seed int64, events []*Event) (err os.Error) {
 
 	channels, err := getChannels(events);
 	if err != nil {
-		return;
+		return
 	}
 	multiplex := make(chan interface{});
 	for _, channel := range channels {
-		go recvValues(multiplex, channel);
+		go recvValues(multiplex, channel)
 	}
 
 Outer:
 	for {
 		ready, err := readyEvents(events);
 		if err != nil {
-			return err;
+			return err
 		}
 
 		if len(ready) == 0 {
 			// All events occurred.
-			break;
+			break
 		}
 
 		event := ready[r.Intn(len(ready))];
@@ -271,11 +271,11 @@ func getChannels(events []*Event) ([]interface{}, os.Error) {
 	j := 0;
 	for _, event := range events {
 		if recv := event.action.getRecv(); recv == nil {
-			continue;
+			continue
 		}
 		c := event.action.getChannel();
 		if _, ok := reflect.NewValue(c).(*reflect.ChanValue); !ok {
-			return nil, SetupError("one of the channel values is not a channel");
+			return nil, SetupError("one of the channel values is not a channel")
 		}
 
 		duplicate := false;
@@ -329,7 +329,7 @@ func readyEvents(events []*Event) ([]*Event, os.Error) {
 	eventsWaiting := false;
 	for _, event := range events {
 		if event.occurred {
-			continue;
+			continue
 		}
 
 		eventsWaiting = true;
@@ -343,7 +343,7 @@ func readyEvents(events []*Event) ([]*Event, os.Error) {
 		names := make([]string, len(events));
 		for _, event := range events {
 			if event.occurred {
-				continue;
+				continue
 			}
 			names[j] = event.name;
 		}

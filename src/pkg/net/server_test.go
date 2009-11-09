@@ -18,7 +18,7 @@ func runEcho(fd io.ReadWriter, done chan<- int) {
 	for {
 		n, err := fd.Read(&buf);
 		if err != nil || n == 0 {
-			break;
+			break
 		}
 		fd.Write(buf[0:n]);
 	}
@@ -28,14 +28,14 @@ func runEcho(fd io.ReadWriter, done chan<- int) {
 func runServe(t *testing.T, network, addr string, listening chan<- string, done chan<- int) {
 	l, err := Listen(network, addr);
 	if err != nil {
-		t.Fatalf("net.Listen(%q, %q) = _, %v", network, addr, err);
+		t.Fatalf("net.Listen(%q, %q) = _, %v", network, addr, err)
 	}
 	listening <- l.Addr().String();
 
 	for {
 		fd, err := l.Accept();
 		if err != nil {
-			break;
+			break
 		}
 		echodone := make(chan int);
 		go runEcho(fd, echodone);
@@ -48,11 +48,11 @@ func runServe(t *testing.T, network, addr string, listening chan<- string, done 
 func connect(t *testing.T, network, addr string) {
 	var laddr string;
 	if network == "unixgram" {
-		laddr = addr+".local";
+		laddr = addr+".local"
 	}
 	fd, err := Dial(network, laddr, addr);
 	if err != nil {
-		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, laddr, addr, err);
+		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, laddr, addr, err)
 	}
 
 	b := strings.Bytes("hello, world\n");
@@ -60,12 +60,12 @@ func connect(t *testing.T, network, addr string) {
 
 	n, errno := fd.Write(b);
 	if n != len(b) {
-		t.Fatalf("fd.Write(%q) = %d, %v", b, n, errno);
+		t.Fatalf("fd.Write(%q) = %d, %v", b, n, errno)
 	}
 
 	n, errno = fd.Read(&b1);
 	if n != len(b) {
-		t.Fatalf("fd.Read() = %d, %v", n, errno);
+		t.Fatalf("fd.Read() = %d, %v", n, errno)
 	}
 	fd.Close();
 }
@@ -75,12 +75,12 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 	listening := make(chan string);
 	done := make(chan int);
 	if network == "tcp" {
-		listenaddr += ":0";	// any available port
+		listenaddr += ":0"	// any available port
 	}
 	go runServe(t, network, listenaddr, listening, done);
 	addr := <-listening;	// wait for server to start
 	if network == "tcp" {
-		dialaddr += addr[strings.LastIndex(addr, ":") : len(addr)];
+		dialaddr += addr[strings.LastIndex(addr, ":") : len(addr)]
 	}
 	connect(t, network, dialaddr);
 	<-done;	// make sure server stopped
@@ -100,14 +100,14 @@ func TestUnixServer(t *testing.T) {
 	os.Remove("/tmp/gotest.net");
 	if syscall.OS == "linux" {
 		// Test abstract unix domain socket, a Linux-ism
-		doTest(t, "unix", "@gotest/net", "@gotest/net");
+		doTest(t, "unix", "@gotest/net", "@gotest/net")
 	}
 }
 
 func runPacket(t *testing.T, network, addr string, listening chan<- string, done chan<- int) {
 	c, err := ListenPacket(network, addr);
 	if err != nil {
-		t.Fatalf("net.ListenPacket(%q, %q) = _, %v", network, addr, err);
+		t.Fatalf("net.ListenPacket(%q, %q) = _, %v", network, addr, err)
 	}
 	listening <- c.LocalAddr().String();
 	c.SetReadTimeout(10e6);	// 10ms
@@ -116,15 +116,15 @@ func runPacket(t *testing.T, network, addr string, listening chan<- string, done
 		n, addr, err := c.ReadFrom(&buf);
 		if err == os.EAGAIN {
 			if done <- 1 {
-				break;
+				break
 			}
 			continue;
 		}
 		if err != nil {
-			break;
+			break
 		}
 		if _, err = c.WriteTo(buf[0:n], addr); err != nil {
-			t.Fatalf("WriteTo %v: %v", addr, err);
+			t.Fatalf("WriteTo %v: %v", addr, err)
 		}
 	}
 	c.Close();
@@ -136,12 +136,12 @@ func doTestPacket(t *testing.T, network, listenaddr, dialaddr string) {
 	listening := make(chan string);
 	done := make(chan int);
 	if network == "udp" {
-		listenaddr += ":0";	// any available port
+		listenaddr += ":0"	// any available port
 	}
 	go runPacket(t, network, listenaddr, listening, done);
 	addr := <-listening;	// wait for server to start
 	if network == "udp" {
-		dialaddr += addr[strings.LastIndex(addr, ":") : len(addr)];
+		dialaddr += addr[strings.LastIndex(addr, ":") : len(addr)]
 	}
 	connect(t, network, dialaddr);
 	<-done;	// tell server to stop
@@ -164,6 +164,6 @@ func TestUnixDatagramServer(t *testing.T) {
 	os.Remove("/tmp/gotest1.net.local");
 	if syscall.OS == "linux" {
 		// Test abstract unix domain socket, a Linux-ism
-		doTestPacket(t, "unixgram", "@gotest1/net", "@gotest1/net");
+		doTestPacket(t, "unixgram", "@gotest1/net", "@gotest1/net")
 	}
 }

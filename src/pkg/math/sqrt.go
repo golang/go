@@ -20,12 +20,12 @@ package math
 //	Sqrt(x < 0) = NaN
 func Sqrt(x float64) float64 {
 	if IsInf(x, 1) {
-		return x;
+		return x
 	}
 
 	if x <= 0 {
 		if x < 0 {
-			return NaN();
+			return NaN()
 		}
 		return 0;
 	}
@@ -59,7 +59,7 @@ func Sqrt(x float64) float64 {
 	}
 
 	for i := 0; i <= 4; i++ {
-		temp = 0.5*(temp + x/temp);
+		temp = 0.5*(temp + x/temp)
 	}
 	return temp;
 }

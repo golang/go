@@ -52,9 +52,9 @@ import (
 func atob(str string) (value bool, ok bool) {
 	switch str {
 	case "1", "t", "T", "true", "TRUE", "True":
-		return true, true;
+		return true, true
 	case "0", "f", "F", "false", "FALSE", "False":
-		return false, true;
+		return false, true
 	}
 	return false, false;
 }
@@ -228,14 +228,14 @@ var flags *allFlags = &allFlags{make(map[string]*Flag), make(map[string]*Flag), 
 // VisitAll visits the flags, calling fn for each. It visits all flags, even those not set.
 func VisitAll(fn func(*Flag)) {
 	for _, f := range flags.formal {
-		fn(f);
+		fn(f)
 	}
 }
 
 // Visit visits the flags, calling fn for each. It visits only those flags that have been set.
 func Visit(fn func(*Flag)) {
 	for _, f := range flags.actual {
-		fn(f);
+		fn(f)
 	}
 }
 
@@ -243,7 +243,7 @@ func Visit(fn func(*Flag)) {
 func Lookup(name string) *Flag {
 	f, ok := flags.formal[name];
 	if !ok {
-		return nil;
+		return nil
 	}
 	return f;
 }
@@ -253,11 +253,11 @@ func Lookup(name string) *Flag {
 func Set(name, value string) bool {
 	f, ok := flags.formal[name];
 	if !ok {
-		return false;
+		return false
 	}
 	ok = f.Value.set(value);
 	if !ok {
-		return false;
+		return false
 	}
 	flags.actual[name] = f;
 	return true;
@@ -269,10 +269,10 @@ func PrintDefaults() {
 		format := "  -%s=%s: %s\n";
 		if _, ok := f.Value.(*stringValue); ok {
 			// put quotes on the value
-			format = "  -%s=%q: %s\n";
+			format = "  -%s=%q: %s\n"
 		}
 		fmt.Fprintf(os.Stderr, format, f.Name, f.DefValue, f.Usage);
-	});
+	})
 }
 
 // Usage prints to standard error a default usage message documenting all defined flags.
@@ -289,7 +289,7 @@ func NFlag() int	{ return len(flags.actual) }
 func Arg(i int) string {
 	i += flags.first_arg;
 	if i < 0 || i >= len(os.Args) {
-		return "";
+		return ""
 	}
 	return os.Args[i];
 }
@@ -314,7 +314,7 @@ func add(name string, value FlagValue, usage string) {
 // BoolVar defines a bool flag with specified name, default value, and usage string.
 // The argument p points to a bool variable in which to store the value of the flag.
 func BoolVar(p *bool, name string, value bool, usage string) {
-	add(name, newBoolValue(value, p), usage);
+	add(name, newBoolValue(value, p), usage)
 }
 
 // Bool defines a bool flag with specified name, default value, and usage string.
@@ -328,7 +328,7 @@ func Bool(name string, value bool, usage string) *bool {
 // IntVar defines an int flag with specified name, default value, and usage string.
 // The argument p points to an int variable in which to store the value of the flag.
 func IntVar(p *int, name string, value int, usage string) {
-	add(name, newIntValue(value, p), usage);
+	add(name, newIntValue(value, p), usage)
 }
 
 // Int defines an int flag with specified name, default value, and usage string.
@@ -342,7 +342,7 @@ func Int(name string, value int, usage string) *int {
 // Int64Var defines an int64 flag with specified name, default value, and usage string.
 // The argument p points to an int64 variable in which to store the value of the flag.
 func Int64Var(p *int64, name string, value int64, usage string) {
-	add(name, newInt64Value(value, p), usage);
+	add(name, newInt64Value(value, p), usage)
 }
 
 // Int64 defines an int64 flag with specified name, default value, and usage string.
@@ -356,7 +356,7 @@ func Int64(name string, value int64, usage string) *int64 {
 // UintVar defines a uint flag with specified name, default value, and usage string.
 // The argument p points to a uint variable in which to store the value of the flag.
 func UintVar(p *uint, name string, value uint, usage string) {
-	add(name, newUintValue(value, p), usage);
+	add(name, newUintValue(value, p), usage)
 }
 
 // Uint defines a uint flag with specified name, default value, and usage string.
@@ -370,7 +370,7 @@ func Uint(name string, value uint, usage string) *uint {
 // Uint64Var defines a uint64 flag with specified name, default value, and usage string.
 // The argument p points to a uint64 variable in which to store the value of the flag.
 func Uint64Var(p *uint64, name string, value uint64, usage string) {
-	add(name, newUint64Value(value, p), usage);
+	add(name, newUint64Value(value, p), usage)
 }
 
 // Uint64 defines a uint64 flag with specified name, default value, and usage string.
@@ -384,7 +384,7 @@ func Uint64(name string, value uint64, usage string) *uint64 {
 // StringVar defines a string flag with specified name, default value, and usage string.
 // The argument p points to a string variable in which to store the value of the flag.
 func StringVar(p *string, name, value string, usage string) {
-	add(name, newStringValue(value, p), usage);
+	add(name, newStringValue(value, p), usage)
 }
 
 // String defines a string flag with specified name, default value, and usage string.
@@ -398,7 +398,7 @@ func String(name, value string, usage string) *string {
 // FloatVar defines a float flag with specified name, default value, and usage string.
 // The argument p points to a float variable in which to store the value of the flag.
 func FloatVar(p *float, name string, value float, usage string) {
-	add(name, newFloatValue(value, p), usage);
+	add(name, newFloatValue(value, p), usage)
 }
 
 // Float defines a float flag with specified name, default value, and usage string.
@@ -412,7 +412,7 @@ func Float(name string, value float, usage string) *float {
 // Float64Var defines a float64 flag with specified name, default value, and usage string.
 // The argument p points to a float64 variable in which to store the value of the flag.
 func Float64Var(p *float64, name string, value float64, usage string) {
-	add(name, newFloat64Value(value, p), usage);
+	add(name, newFloat64Value(value, p), usage)
 }
 
 // Float64 defines a float64 flag with specified name, default value, and usage string.
@@ -428,19 +428,19 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 	s := os.Args[index];
 	f.first_arg = index;	// until proven otherwise
 	if len(s) == 0 {
-		return false, -1;
+		return false, -1
 	}
 	if s[0] != '-' {
-		return false, -1;
+		return false, -1
 	}
 	num_minuses := 1;
 	if len(s) == 1 {
-		return false, index;
+		return false, index
 	}
 	if s[1] == '-' {
 		num_minuses++;
 		if len(s) == 2 {	// "--" terminates the flags
-			return false, index+1;
+			return false, index+1
 		}
 	}
 	name := s[num_minuses : len(s)];
@@ -482,7 +482,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 				os.Exit(2);
 			}
 		} else {
-			f.set("true");
+			f.set("true")
 		}
 	} else {
 		// It must have a value, which might be the next argument.
@@ -518,7 +518,7 @@ func Parse() {
 			i = next;
 		}
 		if !ok {
-			break;
+			break
 		}
 	}
 }

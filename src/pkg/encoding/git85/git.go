@@ -16,7 +16,7 @@ import (
 type CorruptInputError int64
 
 func (e CorruptInputError) String() string {
-	return "illegal git85 data at input byte" + strconv.Itoa64(int64(e));
+	return "illegal git85 data at input byte" + strconv.Itoa64(int64(e))
 }
 
 const encode = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~"
@@ -53,18 +53,18 @@ func Encode(dst, src []byte) int {
 	for len(src) > 0 {
 		n := len(src);
 		if n > 52 {
-			n = 52;
+			n = 52
 		}
 		if n <= 27 {
-			dst[ndst] = byte('A'+n-1);
+			dst[ndst] = byte('A'+n-1)
 		} else {
-			dst[ndst] = byte('a'+n-26-1);
+			dst[ndst] = byte('a'+n-26-1)
 		}
 		ndst++;
 		for i := 0; i < n; i += 4 {
 			var v uint32;
 			for j := 0; j < 4 && i+j < n; j++ {
-				v |= uint32(src[i+j])<<uint(24 - j*8);
+				v |= uint32(src[i+j])<<uint(24 - j*8)
 			}
 			for j := 4; j >= 0; j-- {
 				dst[ndst+j] = encode[v%85];
@@ -82,7 +82,7 @@ func Encode(dst, src []byte) int {
 // EncodedLen returns the length of an encoding of n source bytes.
 func EncodedLen(n int) int {
 	if n == 0 {
-		return 0;
+		return 0
 	}
 	// 5 bytes per 4 bytes of input, rounded up.
 	// 2 extra bytes for each line of 52 src bytes, rounded up.
@@ -103,18 +103,18 @@ func Decode(dst, src []byte) (n int, err os.Error) {
 		var l int;
 		switch ch := int(src[nsrc]); {
 		case 'A' <= ch && ch <= 'Z':
-			l = ch-'A'+1;
+			l = ch-'A'+1
 		case 'a' <= ch && ch <= 'z':
-			l = ch-'a'+26+1;
+			l = ch-'a'+26+1
 		default:
-			return ndst, CorruptInputError(nsrc);
+			return ndst, CorruptInputError(nsrc)
 		}
 		if nsrc+1+l > len(src) {
-			return ndst, CorruptInputError(nsrc);
+			return ndst, CorruptInputError(nsrc)
 		}
 		el := (l+3)/4*5;	// encoded len
 		if nsrc+1+el+1 > len(src) || src[nsrc+1+el] != '\n' {
-			return ndst, CorruptInputError(nsrc);
+			return ndst, CorruptInputError(nsrc)
 		}
 		line := src[nsrc+1 : nsrc+1+el];
 		for i := 0; i < el; i += 5 {
@@ -122,7 +122,7 @@ func Decode(dst, src []byte) (n int, err os.Error) {
 			for j := 0; j < 5; j++ {
 				ch := decode[line[i+j]];
 				if ch == 0 {
-					return ndst, CorruptInputError(nsrc+1+i+j);
+					return ndst, CorruptInputError(nsrc+1+i+j)
 				}
 				v = v*85 + uint32(ch-1);
 			}
@@ -135,7 +135,7 @@ func Decode(dst, src []byte) (n int, err os.Error) {
 		// Last fragment may have run too far (but there was room in dst).
 		// Back up.
 		if l%4 != 0 {
-			ndst -= 4 - l%4;
+			ndst -= 4 - l%4
 		}
 		nsrc += 1+el+1;
 	}
@@ -162,7 +162,7 @@ type encoder struct {
 
 func (e *encoder) Write(p []byte) (n int, err os.Error) {
 	if e.err != nil {
-		return 0, e.err;
+		return 0, e.err
 	}
 
 	// Leading fringe.
@@ -175,11 +175,11 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		n += i;
 		p = p[i:len(p)];
 		if e.nbuf < 52 {
-			return;
+			return
 		}
 		nout := Encode(&e.out, &e.buf);
 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
-			return n, e.err;
+			return n, e.err
 		}
 		e.nbuf = 0;
 	}
@@ -188,12 +188,12 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 	for len(p) >= 52 {
 		nn := len(e.out)/(1 + 52/4*5 + 1)*52;
 		if nn > len(p) {
-			nn = len(p)/52*52;
+			nn = len(p)/52*52
 		}
 		if nn > 0 {
 			nout := Encode(&e.out, p[0:nn]);
 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
-				return n, e.err;
+				return n, e.err
 			}
 		}
 		n += nn;
@@ -202,7 +202,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 
 	// Trailing fringe.
 	for i := 0; i < len(p); i++ {
-		e.buf[i] = p[i];
+		e.buf[i] = p[i]
 	}
 	e.nbuf = len(p);
 	n += len(p);
@@ -235,7 +235,7 @@ type decoder struct {
 
 func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	if len(p) == 0 {
-		return 0, nil;
+		return 0, nil
 	}
 
 	for {
@@ -248,7 +248,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 
 		// Out of decoded output.  Check errors.
 		if d.err != nil {
-			return 0, d.err;
+			return 0, d.err
 		}
 		if d.readErr != nil {
 			d.err = d.readErr;
@@ -263,11 +263,11 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		// Send complete lines to Decode.
 		nl := bytes.LastIndex(d.buf[0 : d.nbuf], newline);
 		if nl < 0 {
-			continue;
+			continue
 		}
 		nn, d.err = Decode(&d.outbuf, d.buf[0 : nl+1]);
 		if e, ok := d.err.(CorruptInputError); ok {
-			d.err = CorruptInputError(int64(e) + d.off);
+			d.err = CorruptInputError(int64(e) + d.off)
 		}
 		d.out = d.outbuf[0:nn];
 		d.nbuf = bytes.Copy(&d.buf, d.buf[nl+1 : d.nbuf]);

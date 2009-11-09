@@ -72,15 +72,15 @@ func TestRead(t *testing.T) {
 		goto little;
 	}
 	if !reflect.DeepEqual(sb, s) {
-		t.Errorf("Read big-endian:\n\thave %+v\n\twant %+v", sb, s);
+		t.Errorf("Read big-endian:\n\thave %+v\n\twant %+v", sb, s)
 	}
 
 little:
 	err = Read(bytes.NewBuffer(little), LittleEndian, &sl);
 	if err != nil {
-		t.Errorf("Read little-endian: %v", err);
+		t.Errorf("Read little-endian: %v", err)
 	}
 	if !reflect.DeepEqual(sl, s) {
-		t.Errorf("Read big-endian:\n\thave %+v\n\twant %+v", sl, s);
+		t.Errorf("Read big-endian:\n\thave %+v\n\twant %+v", sl, s)
 	}
 }

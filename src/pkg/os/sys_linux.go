@@ -11,18 +11,18 @@ package os
 func Hostname() (name string, err Error) {
 	f, err := Open("/proc/sys/kernel/hostname", O_RDONLY, 0);
 	if err != nil {
-		return "", err;
+		return "", err
 	}
 	defer f.Close();
 
 	var buf [512]byte;	// Enough for a DNS name.
 	n, err := f.Read(&buf);
 	if err != nil {
-		return "", err;
+		return "", err
 	}
 
 	if n > 0 && buf[n-1] == '\n' {
-		n--;
+		n--
 	}
 	return string(buf[0:n]), nil;
 }

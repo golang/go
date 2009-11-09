@@ -35,21 +35,21 @@ type reader struct {
 func NewInflater(r io.Reader) (io.ReadCloser, os.Error) {
 	z := new(reader);
 	if fr, ok := r.(flate.Reader); ok {
-		z.r = fr;
+		z.r = fr
 	} else {
-		z.r = bufio.NewReader(r);
+		z.r = bufio.NewReader(r)
 	}
 	_, err := io.ReadFull(z.r, z.scratch[0:2]);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	h := uint(z.scratch[0])<<8 | uint(z.scratch[1]);
 	if (z.scratch[0] & 0x0f != zlibDeflate) || (h%31 != 0) {
-		return nil, HeaderError;
+		return nil, HeaderError
 	}
 	if z.scratch[1] & 0x20 != 0 {
 		// BUG(nigeltao): The zlib package does not implement the FDICT flag.
-		return nil, UnsupportedError;
+		return nil, UnsupportedError
 	}
 	z.digest = adler32.New();
 	z.inflater = flate.NewInflater(z.r);
@@ -58,10 +58,10 @@ func NewInflater(r io.Reader) (io.ReadCloser, os.Error) {
 
 func (z *reader) Read(p []byte) (n int, err os.Error) {
 	if z.err != nil {
-		return 0, z.err;
+		return 0, z.err
 	}
 	if len(p) == 0 {
-		return 0, nil;
+		return 0, nil
 	}
 
 	n, err = z.inflater.Read(p);
@@ -88,7 +88,7 @@ func (z *reader) Read(p []byte) (n int, err os.Error) {
 // Calling Close does not close the wrapped io.Reader originally passed to NewInflater.
 func (z *reader) Close() os.Error {
 	if z.err != nil {
-		return z.err;
+		return z.err
 	}
 	z.err = z.inflater.Close();
 	return z.err;

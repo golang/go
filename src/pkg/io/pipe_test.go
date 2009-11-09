@@ -16,10 +16,10 @@ import (
 func checkWrite(t *testing.T, w Writer, data []byte, c chan int) {
 	n, err := w.Write(data);
 	if err != nil {
-		t.Errorf("write: %v", err);
+		t.Errorf("write: %v", err)
 	}
 	if n != len(data) {
-		t.Errorf("short write: %d != %d", n, len(data));
+		t.Errorf("short write: %d != %d", n, len(data))
 	}
 	c <- 0;
 }
@@ -32,9 +32,9 @@ func TestPipe1(t *testing.T) {
 	go checkWrite(t, w, strings.Bytes("hello, world"), c);
 	n, err := r.Read(buf);
 	if err != nil {
-		t.Errorf("read: %v", err);
+		t.Errorf("read: %v", err)
 	} else if n != 12 || string(buf[0:12]) != "hello, world" {
-		t.Errorf("bad read: got %q", buf[0:n]);
+		t.Errorf("bad read: got %q", buf[0:n])
 	}
 	<-c;
 	r.Close();
@@ -50,7 +50,7 @@ func reader(t *testing.T, r Reader, c chan int) {
 			break;
 		}
 		if err != nil {
-			t.Errorf("read: %v", err);
+			t.Errorf("read: %v", err)
 		}
 		c <- n;
 	}
@@ -66,20 +66,20 @@ func TestPipe2(t *testing.T) {
 		p := buf[0 : 5 + i*10];
 		n, err := w.Write(p);
 		if n != len(p) {
-			t.Errorf("wrote %d, got %d", len(p), n);
+			t.Errorf("wrote %d, got %d", len(p), n)
 		}
 		if err != nil {
-			t.Errorf("write: %v", err);
+			t.Errorf("write: %v", err)
 		}
 		nn := <-c;
 		if nn != n {
-			t.Errorf("wrote %d, read got %d", n, nn);
+			t.Errorf("wrote %d, read got %d", n, nn)
 		}
 	}
 	w.Close();
 	nn := <-c;
 	if nn != 0 {
-		t.Errorf("final read got %d", nn);
+		t.Errorf("final read got %d", nn)
 	}
 }
 
@@ -100,7 +100,7 @@ func TestPipe3(t *testing.T) {
 	r, w := Pipe();
 	var wdat = make([]byte, 128);
 	for i := 0; i < len(wdat); i++ {
-		wdat[i] = byte(i);
+		wdat[i] = byte(i)
 	}
 	go writer(w, wdat, c);
 	var rdat = make([]byte, 1024);
@@ -108,34 +108,34 @@ func TestPipe3(t *testing.T) {
 	for n := 1; n <= 256; n *= 2 {
 		nn, err := r.Read(rdat[tot : tot+n]);
 		if err != nil && err != os.EOF {
-			t.Fatalf("read: %v", err);
+			t.Fatalf("read: %v", err)
 		}
 
 		// only final two reads should be short - 1 byte, then 0
 		expect := n;
 		if n == 128 {
-			expect = 1;
+			expect = 1
 		} else if n == 256 {
 			expect = 0;
 			if err != os.EOF {
-				t.Fatalf("read at end: %v", err);
+				t.Fatalf("read at end: %v", err)
 			}
 		}
 		if nn != expect {
-			t.Fatalf("read %d, expected %d, got %d", n, expect, nn);
+			t.Fatalf("read %d, expected %d, got %d", n, expect, nn)
 		}
 		tot += nn;
 	}
 	pr := <-c;
 	if pr.n != 128 || pr.err != nil {
-		t.Fatalf("write 128: %d, %v", pr.n, pr.err);
+		t.Fatalf("write 128: %d, %v", pr.n, pr.err)
 	}
 	if tot != 128 {
-		t.Fatalf("total read %d != 128", tot);
+		t.Fatalf("total read %d != 128", tot)
 	}
 	for i := 0; i < 128; i++ {
 		if rdat[i] != byte(i) {
-			t.Fatalf("rdat[%d] = %d", i, rdat[i]);
+			t.Fatalf("rdat[%d] = %d", i, rdat[i])
 		}
 	}
 }
@@ -154,7 +154,7 @@ type pipeTest struct {
 }
 
 func (p pipeTest) String() string {
-	return fmt.Sprintf("async=%v err=%v closeWithError=%v", p.async, p.err, p.closeWithError);
+	return fmt.Sprintf("async=%v err=%v closeWithError=%v", p.async, p.err, p.closeWithError)
 }
 
 var pipeTests = []pipeTest{
@@ -170,12 +170,12 @@ func delayClose(t *testing.T, cl closer, ch chan int, tt pipeTest) {
 	time.Sleep(1e6);	// 1 ms
 	var err os.Error;
 	if tt.closeWithError {
-		err = cl.CloseWithError(tt.err);
+		err = cl.CloseWithError(tt.err)
 	} else {
-		err = cl.Close();
+		err = cl.Close()
 	}
 	if err != nil {
-		t.Errorf("delayClose: %v", err);
+		t.Errorf("delayClose: %v", err)
 	}
 	ch <- 0;
 }
@@ -185,25 +185,25 @@ func TestPipeReadClose(t *testing.T) {
 		c := make(chan int, 1);
 		r, w := Pipe();
 		if tt.async {
-			go delayClose(t, w, c, tt);
+			go delayClose(t, w, c, tt)
 		} else {
-			delayClose(t, w, c, tt);
+			delayClose(t, w, c, tt)
 		}
 		var buf = make([]byte, 64);
 		n, err := r.Read(buf);
 		<-c;
 		want := tt.err;
 		if want == nil {
-			want = os.EOF;
+			want = os.EOF
 		}
 		if err != want {
-			t.Errorf("read from closed pipe: %v want %v", err, want);
+			t.Errorf("read from closed pipe: %v want %v", err, want)
 		}
 		if n != 0 {
-			t.Errorf("read on closed pipe returned %d", n);
+			t.Errorf("read on closed pipe returned %d", n)
 		}
 		if err = r.Close(); err != nil {
-			t.Errorf("r.Close: %v", err);
+			t.Errorf("r.Close: %v", err)
 		}
 	}
 }
@@ -215,24 +215,24 @@ func TestPipeWriteClose(t *testing.T) {
 		c := make(chan int, 1);
 		r, w := Pipe();
 		if tt.async {
-			go delayClose(t, r, c, tt);
+			go delayClose(t, r, c, tt)
 		} else {
-			delayClose(t, r, c, tt);
+			delayClose(t, r, c, tt)
 		}
 		n, err := WriteString(w, "hello, world");
 		<-c;
 		expect := tt.err;
 		if expect == nil {
-			expect = os.EPIPE;
+			expect = os.EPIPE
 		}
 		if err != expect {
-			t.Errorf("write on closed pipe: %v want %v", err, expect);
+			t.Errorf("write on closed pipe: %v want %v", err, expect)
 		}
 		if n != 0 {
-			t.Errorf("write on closed pipe returned %d", n);
+			t.Errorf("write on closed pipe returned %d", n)
 		}
 		if err = w.Close(); err != nil {
-			t.Errorf("w.Close: %v", err);
+			t.Errorf("w.Close: %v", err)
 		}
 	}
 }

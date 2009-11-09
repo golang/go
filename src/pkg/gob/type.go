@@ -57,7 +57,7 @@ func setTypeId(typ gobType) {
 
 func (t typeId) gobType() gobType {
 	if t == 0 {
-		return nil;
+		return nil
 	}
 	return idToType[t];
 }
@@ -81,7 +81,7 @@ func (t *commonType) setId(id typeId)	{ t._id = id }
 func (t *commonType) String() string	{ return t.name }
 
 func (t *commonType) safeString(seen map[typeId]bool) string {
-	return t.name;
+	return t.name
 }
 
 func (t *commonType) Name() string	{ return t.name }
@@ -121,7 +121,7 @@ func newArrayType(name string, elem gobType, length int) *arrayType {
 
 func (a *arrayType) safeString(seen map[typeId]bool) string {
 	if _, ok := seen[a._id]; ok {
-		return a.name;
+		return a.name
 	}
 	seen[a._id] = true;
 	return fmt.Sprintf("[%d]%s", a.Len, a.Elem.gobType().safeString(seen));
@@ -143,7 +143,7 @@ func newSliceType(name string, elem gobType) *sliceType {
 
 func (s *sliceType) safeString(seen map[typeId]bool) string {
 	if _, ok := seen[s._id]; ok {
-		return s.name;
+		return s.name
 	}
 	seen[s._id] = true;
 	return fmt.Sprintf("[]%s", s.Elem.gobType().safeString(seen));
@@ -164,15 +164,15 @@ type structType struct {
 
 func (s *structType) safeString(seen map[typeId]bool) string {
 	if s == nil {
-		return "<nil>";
+		return "<nil>"
 	}
 	if _, ok := seen[s._id]; ok {
-		return s.name;
+		return s.name
 	}
 	seen[s._id] = true;
 	str := s.name + " = struct { ";
 	for _, f := range s.field {
-		str += fmt.Sprintf("%s %s; ", f.name, f.id.gobType().safeString(seen));
+		str += fmt.Sprintf("%s %s; ", f.name, f.id.gobType().safeString(seen))
 	}
 	str += "}";
 	return str;
@@ -193,7 +193,7 @@ func indirect(t reflect.Type) (rt reflect.Type, count int) {
 	for {
 		pt, ok := rt.(*reflect.PtrType);
 		if !ok {
-			break;
+			break
 		}
 		rt = pt.Elem();
 		count++;
@@ -205,57 +205,57 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 	switch t := rt.(type) {
 	// All basic types are easy: they are predefined.
 	case *reflect.BoolType:
-		return tBool.gobType(), nil;
+		return tBool.gobType(), nil
 
 	case *reflect.IntType:
-		return tInt.gobType(), nil;
+		return tInt.gobType(), nil
 	case *reflect.Int8Type:
-		return tInt.gobType(), nil;
+		return tInt.gobType(), nil
 	case *reflect.Int16Type:
-		return tInt.gobType(), nil;
+		return tInt.gobType(), nil
 	case *reflect.Int32Type:
-		return tInt.gobType(), nil;
+		return tInt.gobType(), nil
 	case *reflect.Int64Type:
-		return tInt.gobType(), nil;
+		return tInt.gobType(), nil
 
 	case *reflect.UintType:
-		return tUint.gobType(), nil;
+		return tUint.gobType(), nil
 	case *reflect.Uint8Type:
-		return tUint.gobType(), nil;
+		return tUint.gobType(), nil
 	case *reflect.Uint16Type:
-		return tUint.gobType(), nil;
+		return tUint.gobType(), nil
 	case *reflect.Uint32Type:
-		return tUint.gobType(), nil;
+		return tUint.gobType(), nil
 	case *reflect.Uint64Type:
-		return tUint.gobType(), nil;
+		return tUint.gobType(), nil
 	case *reflect.UintptrType:
-		return tUint.gobType(), nil;
+		return tUint.gobType(), nil
 
 	case *reflect.FloatType:
-		return tFloat.gobType(), nil;
+		return tFloat.gobType(), nil
 	case *reflect.Float32Type:
-		return tFloat.gobType(), nil;
+		return tFloat.gobType(), nil
 	case *reflect.Float64Type:
-		return tFloat.gobType(), nil;
+		return tFloat.gobType(), nil
 
 	case *reflect.StringType:
-		return tString.gobType(), nil;
+		return tString.gobType(), nil
 
 	case *reflect.ArrayType:
 		gt, err := getType("", t.Elem());
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 		return newArrayType(name, gt, t.Len()), nil;
 
 	case *reflect.SliceType:
 		// []byte == []uint8 is a special case
 		if _, ok := t.Elem().(*reflect.Uint8Type); ok {
-			return tBytes.gobType(), nil;
+			return tBytes.gobType(), nil
 		}
 		gt, err := getType(t.Elem().Name(), t.Elem());
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 		return newSliceType(name, gt), nil;
 
@@ -271,11 +271,11 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 			typ, _ := indirect(f.Type);
 			tname := typ.Name();
 			if tname == "" {
-				tname = f.Type.String();
+				tname = f.Type.String()
 			}
 			gt, err := getType(tname, f.Type);
 			if err != nil {
-				return nil, err;
+				return nil, err
 			}
 			field[i] = &fieldType{f.Name, gt.id()};
 		}
@@ -283,7 +283,7 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
 		return strType, nil;
 
 	default:
-		return nil, os.ErrorString("gob NewTypeObject can't handle type: " + rt.String());
+		return nil, os.ErrorString("gob NewTypeObject can't handle type: " + rt.String())
 	}
 	return nil, nil;
 }
@@ -295,24 +295,24 @@ func getType(name string, rt reflect.Type) (gobType, os.Error) {
 	for {
 		pt, ok := rt.(*reflect.PtrType);
 		if !ok {
-			break;
+			break
 		}
 		rt = pt.Elem();
 	}
 	typ, present := types[rt];
 	if present {
-		return typ, nil;
+		return typ, nil
 	}
 	typ, err := newTypeObject(name, rt);
 	if err == nil {
-		types[rt] = typ;
+		types[rt] = typ
 	}
 	return typ, err;
 }
 
 func checkId(want, got typeId) {
 	if want != got {
-		panicln("bootstrap type wrong id:", got.Name(), got, "not", want);
+		panicln("bootstrap type wrong id:", got.Name(), got, "not", want)
 	}
 }
 
@@ -321,7 +321,7 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 	rt := reflect.Typeof(e);
 	_, present := types[rt];
 	if present {
-		panicln("bootstrap type already present:", name);
+		panicln("bootstrap type already present:", name)
 	}
 	typ := &commonType{name: name};
 	types[rt] = typ;
@@ -346,7 +346,7 @@ type wireType struct {
 
 func (w *wireType) name() string {
 	// generalize once we can have non-struct types on the wire.
-	return w.s.name;
+	return w.s.name
 }
 
 type typeInfo struct {
@@ -361,7 +361,7 @@ var typeInfoMap = make(map[reflect.Type]*typeInfo)	// protected by typeLock
 // typeLock must be held.
 func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
 	if _, ok := rt.(*reflect.PtrType); ok {
-		panicln("pointer type in getTypeInfo:", rt.String());
+		panicln("pointer type in getTypeInfo:", rt.String())
 	}
 	info, ok := typeInfoMap[rt];
 	if !ok {
@@ -369,7 +369,7 @@ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
 		name := rt.Name();
 		gt, err := getType(name, rt);
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 		info.id = gt.id();
 		// assume it's a struct type
@@ -383,7 +383,7 @@ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
 func getTypeInfoNoError(rt reflect.Type) *typeInfo {
 	t, err := getTypeInfo(rt);
 	if err != nil {
-		panicln("getTypeInfo:", err.String());
+		panicln("getTypeInfo:", err.String())
 	}
 	return t;
 }

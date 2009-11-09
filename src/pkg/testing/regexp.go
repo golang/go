@@ -152,15 +152,15 @@ func (cclass *_CharClass) kind() int	{ return _CHARCLASS }
 func (cclass *_CharClass) print() {
 	print("charclass");
 	if cclass.negate {
-		print(" (negated)");
+		print(" (negated)")
 	}
 	for i := 0; i < len(cclass.ranges); i += 2 {
 		l := cclass.ranges[i];
 		r := cclass.ranges[i+1];
 		if l == r {
-			print(" [", string(l), "]");
+			print(" [", string(l), "]")
 		} else {
-			print(" [", string(l), "-", string(r), "]");
+			print(" [", string(l), "-", string(r), "]")
 		}
 	}
 }
@@ -171,7 +171,7 @@ func (cclass *_CharClass) addRange(a, b int) {
 	if n >= cap(cclass.ranges) {
 		nr := make([]int, n, 2*n);
 		for i, j := range nr {
-			nr[i] = j;
+			nr[i] = j
 		}
 		cclass.ranges = nr;
 	}
@@ -187,7 +187,7 @@ func (cclass *_CharClass) matches(c int) bool {
 		min := cclass.ranges[i];
 		max := cclass.ranges[i+1];
 		if min <= c && c <= max {
-			return !cclass.negate;
+			return !cclass.negate
 		}
 	}
 	return cclass.negate;
@@ -256,7 +256,7 @@ func (re *Regexp) add(i instr) instr {
 	if n >= cap(re.inst) {
 		ni := make([]instr, n, 2*n);
 		for i, j := range re.inst {
-			ni[i] = j;
+			ni[i] = j
 		}
 		re.inst = ni;
 	}
@@ -279,7 +279,7 @@ func (p *parser) c() int	{ return p.ch }
 
 func (p *parser) nextc() int {
 	if p.pos >= len(p.re.expr) {
-		p.ch = endOfFile;
+		p.ch = endOfFile
 	} else {
 		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos : len(p.re.expr)]);
 		p.ch = c;
@@ -299,7 +299,7 @@ func special(c int) bool {
 	s := `\.+*?()|[]^$`;
 	for i := 0; i < len(s); i++ {
 		if c == int(s[i]) {
-			return true;
+			return true
 		}
 	}
 	return false;
@@ -309,7 +309,7 @@ func specialcclass(c int) bool {
 	s := `\-[]`;
 	for i := 0; i < len(s); i++ {
 		if c == int(s[i]) {
-			return true;
+			return true
 		}
 	}
 	return false;
@@ -348,7 +348,7 @@ func (p *parser) charClass() instr {
 				p.error = ErrExtraneousBackslash;
 				return nil;
 			case c == 'n':
-				c = '\n';
+				c = '\n'
 			case specialcclass(c):
 			// c is as delivered
 			default:
@@ -364,7 +364,7 @@ func (p *parser) charClass() instr {
 					p.nextc();
 					left = c;
 				} else {	// single char
-					cc.addRange(c, c);
+					cc.addRange(c, c)
 				}
 			case left <= c:	// second of pair
 				cc.addRange(left, c);
@@ -384,11 +384,11 @@ func (p *parser) term() (start, end instr) {
 	// The other functions (closure(), concatenation() etc.) assume
 	// it's safe to recur to here.
 	if p.error != "" {
-		return;
+		return
 	}
 	switch c := p.c(); c {
 	case '|', endOfFile:
-		return nil, nil;
+		return nil, nil
 	case '*', '+':
 		p.error = ErrBareClosure;
 		return;
@@ -417,7 +417,7 @@ func (p *parser) term() (start, end instr) {
 		p.nextc();
 		start = p.charClass();
 		if p.error != "" {
-			return;
+			return
 		}
 		if p.c() != ']' {
 			p.error = ErrUnmatchedLbkt;
@@ -450,7 +450,7 @@ func (p *parser) term() (start, end instr) {
 			}
 			start = ebra;
 		} else {
-			end.setNext(ebra);
+			end.setNext(ebra)
 		}
 		bra.setNext(start);
 		return bra, ebra;
@@ -461,7 +461,7 @@ func (p *parser) term() (start, end instr) {
 			p.error = ErrExtraneousBackslash;
 			return;
 		case c == 'n':
-			c = '\n';
+			c = '\n'
 		case special(c):
 		// c is as delivered
 		default:
@@ -481,7 +481,7 @@ func (p *parser) term() (start, end instr) {
 func (p *parser) closure() (start, end instr) {
 	start, end = p.term();
 	if start == nil || p.error != "" {
-		return;
+		return
 	}
 	switch p.c() {
 	case '*':
@@ -511,11 +511,11 @@ func (p *parser) closure() (start, end instr) {
 		start = alt;		// start is now alt
 		end = nop;		// end is nop pointed to by both branches
 	default:
-		return;
+		return
 	}
 	switch p.nextc() {
 	case '*', '+', '?':
-		p.error = ErrBadClosure;
+		p.error = ErrBadClosure
 	}
 	return;
 }
@@ -524,7 +524,7 @@ func (p *parser) concatenation() (start, end instr) {
 	for {
 		nstart, nend := p.closure();
 		if p.error != "" {
-			return;
+			return
 		}
 		switch {
 		case nstart == nil:	// end of this concatenation
@@ -534,7 +534,7 @@ func (p *parser) concatenation() (start, end instr) {
 			}
 			return;
 		case start == nil:	// this is first element of concatenation
-			start, end = nstart, nend;
+			start, end = nstart, nend
 		default:
 			end.setNext(nstart);
 			end = nend;
@@ -546,17 +546,17 @@ func (p *parser) concatenation() (start, end instr) {
 func (p *parser) regexp() (start, end instr) {
 	start, end = p.concatenation();
 	if p.error != "" {
-		return;
+		return
 	}
 	for {
 		switch p.c() {
 		default:
-			return;
+			return
 		case '|':
 			p.nextc();
 			nstart, nend := p.concatenation();
 			if p.error != "" {
-				return;
+				return
 			}
 			alt := new(_Alt);
 			p.re.add(alt);
@@ -574,7 +574,7 @@ func (p *parser) regexp() (start, end instr) {
 
 func unNop(i instr) instr {
 	for i.kind() == _NOP {
-		i = i.next();
+		i = i.next()
 	}
 	return i;
 }
@@ -583,7 +583,7 @@ func (re *Regexp) eliminateNops() {
 	for i := 0; i < len(re.inst); i++ {
 		inst := re.inst[i];
 		if inst.kind() == _END {
-			continue;
+			continue
 		}
 		inst.setNext(unNop(inst.next()));
 		if inst.kind() == _ALT {
@@ -599,7 +599,7 @@ func (re *Regexp) doParse() string {
 	re.add(start);
 	s, e := p.regexp();
 	if p.error != "" {
-		return p.error;
+		return p.error
 	}
 	start.setNext(s);
 	re.start = start;
@@ -624,7 +624,7 @@ func CompileRegexp(str string) (regexp *Regexp, error string) {
 func MustCompile(str string) *Regexp {
 	regexp, error := CompileRegexp(str);
 	if error != "" {
-		panicln(`regexp: compiling "`, str, `": `, error);
+		panicln(`regexp: compiling "`, str, `": `, error)
 	}
 	return regexp;
 }
@@ -645,13 +645,13 @@ func addState(s []state, inst instr, match []int) []state {
 	for i := 0; i < l; i++ {
 		if s[i].inst.index() == index &&	// same instruction
 			s[i].match[0] < pos {	// earlier match already going; lefmost wins
-			return s;
+			return s
 		}
 	}
 	if l == cap(s) {
 		s1 := make([]state, 2*l)[0:l];
 		for i := 0; i < l; i++ {
-			s1[i] = s[i];
+			s1[i] = s[i]
 		}
 		s = s1;
 	}
@@ -672,14 +672,14 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 	found := false;
 	end := len(str);
 	if bytes != nil {
-		end = len(bytes);
+		end = len(bytes)
 	}
 	for pos <= end {
 		if !found {
 			// prime the pump if we haven't seen a match yet
 			match := make([]int, 2*(re.nbra + 1));
 			for i := 0; i < len(match); i++ {
-				match[i] = -1;	// no match seen; catches cases like "a(b)?c" on "ac"
+				match[i] = -1	// no match seen; catches cases like "a(b)?c" on "ac"
 			}
 			match[0] = pos;
 			s[out] = addState(s[out], re.start.next(), match);
@@ -688,15 +688,15 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 		s[out] = s[out][0:0];	// clear out state
 		if len(s[in]) == 0 {
 			// machine has completed
-			break;
+			break
 		}
 		charwidth := 1;
 		c := endOfFile;
 		if pos < end {
 			if bytes == nil {
-				c, charwidth = utf8.DecodeRuneInString(str[pos:end]);
+				c, charwidth = utf8.DecodeRuneInString(str[pos:end])
 			} else {
-				c, charwidth = utf8.DecodeRune(bytes[pos:end]);
+				c, charwidth = utf8.DecodeRune(bytes[pos:end])
 			}
 		}
 		for i := 0; i < len(s[in]); i++ {
@@ -704,27 +704,27 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 			switch s[in][i].inst.kind() {
 			case _BOT:
 				if pos == 0 {
-					s[in] = addState(s[in], st.inst.next(), st.match);
+					s[in] = addState(s[in], st.inst.next(), st.match)
 				}
 			case _EOT:
 				if pos == end {
-					s[in] = addState(s[in], st.inst.next(), st.match);
+					s[in] = addState(s[in], st.inst.next(), st.match)
 				}
 			case _CHAR:
 				if c == st.inst.(*_Char).char {
-					s[out] = addState(s[out], st.inst.next(), st.match);
+					s[out] = addState(s[out], st.inst.next(), st.match)
 				}
 			case _CHARCLASS:
 				if st.inst.(*_CharClass).matches(c) {
-					s[out] = addState(s[out], st.inst.next(), st.match);
+					s[out] = addState(s[out], st.inst.next(), st.match)
 				}
 			case _ANY:
 				if c != endOfFile {
-					s[out] = addState(s[out], st.inst.next(), st.match);
+					s[out] = addState(s[out], st.inst.next(), st.match)
 				}
 			case _NOTNL:
 				if c != endOfFile && c != '\n' {
-					s[out] = addState(s[out], st.inst.next(), st.match);
+					s[out] = addState(s[out], st.inst.next(), st.match)
 				}
 			case _BRA:
 				n := st.inst.(*_Bra).n;
@@ -739,7 +739,7 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 				// give other branch a copy of this match vector
 				s1 := make([]int, 2*(re.nbra + 1));
 				for i := 0; i < len(s1); i++ {
-					s1[i] = st.match[i];
+					s1[i] = st.match[i]
 				}
 				s[in] = addState(s[in], st.inst.next(), s1);
 			case _END:
@@ -770,7 +770,7 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 // A negative value means the subexpression did not match any element of the string.
 // An empty array means "no match".
 func (re *Regexp) ExecuteString(s string) (a []int) {
-	return re.doExecute(s, nil, 0);
+	return re.doExecute(s, nil, 0)
 }
 
 
@@ -802,12 +802,12 @@ func (re *Regexp) Match(b []byte) bool	{ return len(re.doExecute("", b, 0)) > 0 
 func (re *Regexp) MatchStrings(s string) (a []string) {
 	r := re.doExecute(s, nil, 0);
 	if r == nil {
-		return nil;
+		return nil
 	}
 	a = make([]string, len(r)/2);
 	for i := 0; i < len(r); i += 2 {
 		if r[i] != -1 {	// -1 means no match for this subexpression
-			a[i/2] = s[r[i]:r[i+1]];
+			a[i/2] = s[r[i]:r[i+1]]
 		}
 	}
 	return;
@@ -821,12 +821,12 @@ func (re *Regexp) MatchStrings(s string) (a []string) {
 func (re *Regexp) MatchSlices(b []byte) (a [][]byte) {
 	r := re.doExecute("", b, 0);
 	if r == nil {
-		return nil;
+		return nil
 	}
 	a = make([][]byte, len(r)/2);
 	for i := 0; i < len(r); i += 2 {
 		if r[i] != -1 {	// -1 means no match for this subexpression
-			a[i/2] = b[r[i]:r[i+1]];
+			a[i/2] = b[r[i]:r[i+1]]
 		}
 	}
 	return;
@@ -838,7 +838,7 @@ func (re *Regexp) MatchSlices(b []byte) (a [][]byte) {
 func MatchString(pattern string, s string) (matched bool, error string) {
 	re, err := CompileRegexp(pattern);
 	if err != "" {
-		return false, err;
+		return false, err
 	}
 	return re.MatchString(s), "";
 }
@@ -849,7 +849,7 @@ func MatchString(pattern string, s string) (matched bool, error string) {
 func Match(pattern string, b []byte) (matched bool, error string) {
 	re, err := CompileRegexp(pattern);
 	if err != "" {
-		return false, err;
+		return false, err
 	}
 	return re.Match(b), "";
 }

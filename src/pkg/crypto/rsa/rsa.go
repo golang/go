@@ -67,7 +67,7 @@ func randomNumber(rand io.Reader, max *big.Int) (n *big.Int, err os.Error) {
 	// max.
 	r := uint(max.Len() % 8);
 	if r == 0 {
-		r = 8;
+		r = 8
 	}
 
 	bytes := make([]byte, k);
@@ -76,7 +76,7 @@ func randomNumber(rand io.Reader, max *big.Int) (n *big.Int, err os.Error) {
 	for {
 		_, err = io.ReadFull(rand, bytes);
 		if err != nil {
-			return;
+			return
 		}
 
 		// Clear bits in the first byte to increase the probability
@@ -85,7 +85,7 @@ func randomNumber(rand io.Reader, max *big.Int) (n *big.Int, err os.Error) {
 
 		n.SetBytes(bytes);
 		if big.CmpInt(n, max) < 0 {
-			return;
+			return
 		}
 	}
 
@@ -123,7 +123,7 @@ func (priv PrivateKey) Validate() os.Error {
 	// Check that p*q == n.
 	modulus := new(big.Int).Mul(priv.P, priv.Q);
 	if big.CmpInt(modulus, priv.N) != 0 {
-		return os.ErrorString("invalid modulus");
+		return os.ErrorString("invalid modulus")
 	}
 	// Check that e and totient(p, q) are coprime.
 	pminus1 := new(big.Int).Sub(priv.P, bigOne);
@@ -135,13 +135,13 @@ func (priv PrivateKey) Validate() os.Error {
 	y := new(big.Int);
 	big.GcdInt(gcd, x, y, totient, e);
 	if big.CmpInt(gcd, bigOne) != 0 {
-		return os.ErrorString("invalid public exponent E");
+		return os.ErrorString("invalid public exponent E")
 	}
 	// Check that de ≡ 1 (mod totient(p, q))
 	de := new(big.Int).Mul(priv.D, e);
 	de.Mod(de, totient);
 	if big.CmpInt(de, bigOne) != 0 {
-		return os.ErrorString("invalid private exponent D");
+		return os.ErrorString("invalid private exponent D")
 	}
 	return nil;
 }
@@ -209,13 +209,13 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
 // incCounter increments a four byte, big-endian counter.
 func incCounter(c *[4]byte) {
 	if c[3]++; c[3] != 0 {
-		return;
+		return
 	}
 	if c[2]++; c[2] != 0 {
-		return;
+		return
 	}
 	if c[1]++; c[1] != 0 {
-		return;
+		return
 	}
 	c[0]++;
 }
@@ -245,7 +245,7 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
 type MessageTooLongError struct{}
 
 func (MessageTooLongError) String() string {
-	return "message too long for RSA public key size";
+	return "message too long for RSA public key size"
 }
 
 func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
@@ -279,7 +279,7 @@ func EncryptOAEP(hash hash.Hash, rand io.Reader, pub *PublicKey, msg []byte, lab
 
 	_, err = io.ReadFull(rand, seed);
 	if err != nil {
-		return;
+		return
 	}
 
 	mgf1XOR(db, hash, seed);
@@ -308,7 +308,7 @@ func modInverse(a, n *big.Int) (ia *big.Int) {
 	if big.CmpInt(x, bigOne) < 0 {
 		// 0 is not the multiplicative inverse of any element so, if x
 		// < 1, then x is negative.
-		x.Add(x, n);
+		x.Add(x, n)
 	}
 
 	return x;
@@ -336,7 +336,7 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
 			return;
 		}
 		if big.CmpInt(r, bigZero) == 0 {
-			r = bigOne;
+			r = bigOne
 		}
 		ir = modInverse(r, priv.N);
 		bigE := big.NewInt(int64(priv.E));
@@ -370,7 +370,7 @@ func DecryptOAEP(hash hash.Hash, rand io.Reader, priv *PrivateKey, ciphertext []
 
 	m, err := decrypt(rand, priv, c);
 	if err != nil {
-		return;
+		return
 	}
 
 	hash.Write(label);
@@ -431,7 +431,7 @@ func DecryptOAEP(hash hash.Hash, rand io.Reader, priv *PrivateKey, ciphertext []
 func leftPad(input []byte, size int) (out []byte) {
 	n := len(input);
 	if n > size {
-		n = size;
+		n = size
 	}
 	out = make([]byte, size);
 	bytes.Copy(out[len(out)-n : len(out)], input);

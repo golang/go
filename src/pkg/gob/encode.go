@@ -35,7 +35,7 @@ type encoderState struct {
 // If state.err is already non-nil, it does nothing.
 func encodeUint(state *encoderState, x uint64) {
 	if state.err != nil {
-		return;
+		return
 	}
 	if x <= 0x7F {
 		state.err = state.b.WriteByte(uint8(x));
@@ -58,9 +58,9 @@ func encodeUint(state *encoderState, x uint64) {
 func encodeInt(state *encoderState, i int64) {
 	var x uint64;
 	if i < 0 {
-		x = uint64(^i << 1)|1;
+		x = uint64(^i << 1)|1
 	} else {
-		x = uint64(i<<1);
+		x = uint64(i<<1)
 	}
 	encodeUint(state, uint64(x));
 }
@@ -94,7 +94,7 @@ func encIndirect(p unsafe.Pointer, indir int) unsafe.Pointer {
 	for ; indir > 0; indir-- {
 		p = *(*unsafe.Pointer)(p);
 		if p == nil {
-			return unsafe.Pointer(nil);
+			return unsafe.Pointer(nil)
 		}
 	}
 	return p;
@@ -261,7 +261,7 @@ func encString(i *encInstr, state *encoderState, p unsafe.Pointer) {
 
 // The end of a struct is marked by a delta field number of 0.
 func encStructTerminator(i *encInstr, state *encoderState, p unsafe.Pointer) {
-	encodeUint(state, 0);
+	encodeUint(state, 0)
 }
 
 // Execution engine
@@ -281,12 +281,12 @@ func encodeStruct(engine *encEngine, b *bytes.Buffer, basep uintptr) os.Error {
 		p := unsafe.Pointer(basep + instr.offset);
 		if instr.indir > 0 {
 			if p = encIndirect(p, instr.indir); p == nil {
-				continue;
+				continue
 			}
 		}
 		instr.op(instr, state, p);
 		if state.err != nil {
-			break;
+			break
 		}
 	}
 	return state.err;
@@ -349,12 +349,12 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 			// Slices have a header; we decode it to find the underlying array.
 			elemOp, indir, err := encOpFor(t.Elem());
 			if err != nil {
-				return nil, 0, err;
+				return nil, 0, err
 			}
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				slice := (*reflect.SliceHeader)(p);
 				if slice.Len == 0 {
-					return;
+					return
 				}
 				state.update(i);
 				state.err = encodeArray(state.b, slice.Data, elemOp, t.Elem().Size(), int(slice.Len), indir);
@@ -363,7 +363,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 			// True arrays have size in the type.
 			elemOp, indir, err := encOpFor(t.Elem());
 			if err != nil {
-				return nil, 0, err;
+				return nil, 0, err
 			}
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				state.update(i);
@@ -373,7 +373,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 			// Generate a closure that calls out to the engine for the nested type.
 			_, err := getEncEngine(typ);
 			if err != nil {
-				return nil, 0, err;
+				return nil, 0, err
 			}
 			info := getTypeInfoNoError(typ);
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
@@ -384,7 +384,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 		}
 	}
 	if op == nil {
-		return op, indir, os.ErrorString("gob enc: can't happen: encode type" + rt.String());
+		return op, indir, os.ErrorString("gob enc: can't happen: encode type" + rt.String())
 	}
 	return op, indir, nil;
 }
@@ -393,7 +393,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 func compileEnc(rt reflect.Type) (*encEngine, os.Error) {
 	srt, ok := rt.(*reflect.StructType);
 	if !ok {
-		panicln("can't happen: non-struct");
+		panicln("can't happen: non-struct")
 	}
 	engine := new(encEngine);
 	engine.instr = make([]encInstr, srt.NumField() + 1);	// +1 for terminator
@@ -401,7 +401,7 @@ func compileEnc(rt reflect.Type) (*encEngine, os.Error) {
 		f := srt.Field(fieldnum);
 		op, indir, err := encOpFor(f.Type);
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 		engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(f.Offset)};
 	}
@@ -414,7 +414,7 @@ func compileEnc(rt reflect.Type) (*encEngine, os.Error) {
 func getEncEngine(rt reflect.Type) (*encEngine, os.Error) {
 	info, err := getTypeInfo(rt);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	if info.encoder == nil {
 		// mark this engine as underway before compiling to handle recursive types.
@@ -429,16 +429,16 @@ func encode(b *bytes.Buffer, e interface{}) os.Error {
 	rt, indir := indirect(reflect.Typeof(e));
 	v := reflect.NewValue(e);
 	for i := 0; i < indir; i++ {
-		v = reflect.Indirect(v);
+		v = reflect.Indirect(v)
 	}
 	if _, ok := v.(*reflect.StructValue); !ok {
-		return os.ErrorString("gob: encode can't handle " + v.Type().String());
+		return os.ErrorString("gob: encode can't handle " + v.Type().String())
 	}
 	typeLock.Lock();
 	engine, err := getEncEngine(rt);
 	typeLock.Unlock();
 	if err != nil {
-		return err;
+		return err
 	}
 	return encodeStruct(engine, b, v.Addr());
 }

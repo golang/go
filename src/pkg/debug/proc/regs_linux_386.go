@@ -43,7 +43,7 @@ func (r *_386Regs) SetPC(val Word) os.Error {
 
 func (r *_386Regs) Link() Word {
 	// TODO(austin)
-	panic("No link register");
+	panic("No link register")
 }
 
 func (r *_386Regs) SetLink(val Word) os.Error	{ panic("No link register") }
@@ -60,37 +60,37 @@ func (r *_386Regs) Names() []string	{ return &names }
 func (r *_386Regs) Get(i int) Word {
 	switch i {
 	case 0:
-		return Word(uint32(r.Eax));
+		return Word(uint32(r.Eax))
 	case 1:
-		return Word(uint32(r.Ebx));
+		return Word(uint32(r.Ebx))
 	case 2:
-		return Word(uint32(r.Ecx));
+		return Word(uint32(r.Ecx))
 	case 3:
-		return Word(uint32(r.Edx));
+		return Word(uint32(r.Edx))
 	case 4:
-		return Word(uint32(r.Esi));
+		return Word(uint32(r.Esi))
 	case 5:
-		return Word(uint32(r.Edi));
+		return Word(uint32(r.Edi))
 	case 6:
-		return Word(uint32(r.Ebp));
+		return Word(uint32(r.Ebp))
 	case 7:
-		return Word(uint32(r.Esp));
+		return Word(uint32(r.Esp))
 	case 8:
-		return Word(uint32(r.Eip));
+		return Word(uint32(r.Eip))
 	case 9:
-		return Word(uint32(r.Eflags));
+		return Word(uint32(r.Eflags))
 	case 10:
-		return Word(r.Cs);
+		return Word(r.Cs)
 	case 11:
-		return Word(r.Ss);
+		return Word(r.Ss)
 	case 12:
-		return Word(r.Ds);
+		return Word(r.Ds)
 	case 13:
-		return Word(r.Es);
+		return Word(r.Es)
 	case 14:
-		return Word(r.Fs);
+		return Word(r.Fs)
 	case 15:
-		return Word(r.Gs);
+		return Word(r.Gs)
 	}
 	panic("invalid register index ", strconv.Itoa(i));
 }
@@ -98,39 +98,39 @@ func (r *_386Regs) Get(i int) Word {
 func (r *_386Regs) Set(i int, val Word) os.Error {
 	switch i {
 	case 0:
-		r.Eax = int32(val);
+		r.Eax = int32(val)
 	case 1:
-		r.Ebx = int32(val);
+		r.Ebx = int32(val)
 	case 2:
-		r.Ecx = int32(val);
+		r.Ecx = int32(val)
 	case 3:
-		r.Edx = int32(val);
+		r.Edx = int32(val)
 	case 4:
-		r.Esi = int32(val);
+		r.Esi = int32(val)
 	case 5:
-		r.Edi = int32(val);
+		r.Edi = int32(val)
 	case 6:
-		r.Ebp = int32(val);
+		r.Ebp = int32(val)
 	case 7:
-		r.Esp = int32(val);
+		r.Esp = int32(val)
 	case 8:
-		r.Eip = int32(val);
+		r.Eip = int32(val)
 	case 9:
-		r.Eflags = int32(val);
+		r.Eflags = int32(val)
 	case 10:
-		r.Cs = uint16(val);
+		r.Cs = uint16(val)
 	case 11:
-		r.Ss = uint16(val);
+		r.Ss = uint16(val)
 	case 12:
-		r.Ds = uint16(val);
+		r.Ds = uint16(val)
 	case 13:
-		r.Es = uint16(val);
+		r.Es = uint16(val)
 	case 14:
-		r.Fs = uint16(val);
+		r.Fs = uint16(val)
 	case 15:
-		r.Gs = uint16(val);
+		r.Gs = uint16(val)
 	default:
-		panic("invalid register index ", strconv.Itoa(i));
+		panic("invalid register index ", strconv.Itoa(i))
 	}
 	return r.setter(&r.PtraceRegs);
 }

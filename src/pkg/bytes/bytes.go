@@ -17,16 +17,16 @@ func Compare(a, b []byte) int {
 	for i := 0; i < len(a) && i < len(b); i++ {
 		switch {
 		case a[i] > b[i]:
-			return 1;
+			return 1
 		case a[i] < b[i]:
-			return -1;
+			return -1
 		}
 	}
 	switch {
 	case len(a) < len(b):
-		return -1;
+		return -1
 	case len(a) > len(b):
-		return 1;
+		return 1
 	}
 	return 0;
 }
@@ -34,11 +34,11 @@ func Compare(a, b []byte) int {
 // Equal returns a boolean reporting whether a == b.
 func Equal(a, b []byte) bool {
 	if len(a) != len(b) {
-		return false;
+		return false
 	}
 	for i := 0; i < len(a); i++ {
 		if a[i] != b[i] {
-			return false;
+			return false
 		}
 	}
 	return true;
@@ -50,10 +50,10 @@ func Equal(a, b []byte) bool {
 // It returns the number of bytes copied.
 func Copy(dst, src []byte) int {
 	if len(src) > len(dst) {
-		src = src[0:len(dst)];
+		src = src[0:len(dst)]
 	}
 	for i, x := range src {
-		dst[i] = x;
+		dst[i] = x
 	}
 	return len(src);
 }
@@ -62,7 +62,7 @@ func Copy(dst, src []byte) int {
 // up to a maximum of n byte arrays. Invalid UTF-8 sequences are chopped into individual bytes.
 func explode(s []byte, n int) [][]byte {
 	if n <= 0 {
-		n = len(s);
+		n = len(s)
 	}
 	a := make([][]byte, n);
 	var size int;
@@ -84,7 +84,7 @@ func explode(s []byte, n int) [][]byte {
 // Count counts the number of non-overlapping instances of sep in s.
 func Count(s, sep []byte) int {
 	if len(sep) == 0 {
-		return utf8.RuneCount(s) + 1;
+		return utf8.RuneCount(s) + 1
 	}
 	c := sep[0];
 	n := 0;
@@ -101,12 +101,12 @@ func Count(s, sep []byte) int {
 func Index(s, sep []byte) int {
 	n := len(sep);
 	if n == 0 {
-		return 0;
+		return 0
 	}
 	c := sep[0];
 	for i := 0; i+n <= len(s); i++ {
 		if s[i] == c && (n == 1 || Equal(s[i : i+n], sep)) {
-			return i;
+			return i
 		}
 	}
 	return -1;
@@ -116,12 +116,12 @@ func Index(s, sep []byte) int {
 func LastIndex(s, sep []byte) int {
 	n := len(sep);
 	if n == 0 {
-		return len(s);
+		return len(s)
 	}
 	c := sep[0];
 	for i := len(s)-n; i >= 0; i-- {
 		if s[i] == c && (n == 1 || Equal(s[i : i+n], sep)) {
-			return i;
+			return i
 		}
 	}
 	return -1;
@@ -131,10 +131,10 @@ func LastIndex(s, sep []byte) int {
 // including sepSave bytes of sep in the subarrays.
 func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 	if len(sep) == 0 {
-		return explode(s, n);
+		return explode(s, n)
 	}
 	if n <= 0 {
-		n = Count(s, sep) + 1;
+		n = Count(s, sep) + 1
 	}
 	c := sep[0];
 	start := 0;
@@ -162,21 +162,21 @@ func Split(s, sep []byte, n int) [][]byte	{ return genSplit(s, sep, 0, n) }
 // If n > 0, SplitAfter splits s into at most n subarrays; the last subarray will contain an
 // unsplit remainder.
 func SplitAfter(s, sep []byte, n int) [][]byte {
-	return genSplit(s, sep, len(sep), n);
+	return genSplit(s, sep, len(sep), n)
 }
 
 // Join concatenates the elements of a to create a single byte array.   The separator
 // sep is placed between elements in the resulting array.
 func Join(a [][]byte, sep []byte) []byte {
 	if len(a) == 0 {
-		return []byte{};
+		return []byte{}
 	}
 	if len(a) == 1 {
-		return a[0];
+		return a[0]
 	}
 	n := len(sep)*(len(a)-1);
 	for i := 0; i < len(a); i++ {
-		n += len(a[i]);
+		n += len(a[i])
 	}
 
 	b := make([]byte, n);
@@ -200,12 +200,12 @@ func Join(a [][]byte, sep []byte) []byte {
 
 // HasPrefix tests whether the byte array s begins with prefix.
 func HasPrefix(s, prefix []byte) bool {
-	return len(s) >= len(prefix) && Equal(s[0:len(prefix)], prefix);
+	return len(s) >= len(prefix) && Equal(s[0:len(prefix)], prefix)
 }
 
 // HasSuffix tests whether the byte array s ends with suffix.
 func HasSuffix(s, suffix []byte) bool {
-	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix) : len(s)], suffix);
+	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix) : len(s)], suffix)
 }
 
 // Map returns a copy of the byte array s with all its characters modified
@@ -221,9 +221,9 @@ func Map(mapping func(rune int) int, s []byte) []byte {
 		wid := 1;
 		rune := int(s[i]);
 		if rune < utf8.RuneSelf {
-			rune = mapping(rune);
+			rune = mapping(rune)
 		} else {
-			rune, wid = utf8.DecodeRune(s[i:len(s)]);
+			rune, wid = utf8.DecodeRune(s[i:len(s)])
 		}
 		rune = mapping(rune);
 		if nbytes + utf8.RuneLen(rune) > maxbytes {
@@ -231,7 +231,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
 			maxbytes = maxbytes*2 + utf8.UTFMax;
 			nb := make([]byte, maxbytes);
 			for i, c := range b[0:nbytes] {
-				nb[i] = c;
+				nb[i] = c
 			}
 			b = nb;
 		}
@@ -258,10 +258,10 @@ func TrimSpace(s []byte) []byte {
 		wid := 1;
 		rune := int(s[start]);
 		if rune >= utf8.RuneSelf {
-			rune, wid = utf8.DecodeRune(s[start:end]);
+			rune, wid = utf8.DecodeRune(s[start:end])
 		}
 		if !unicode.IsSpace(rune) {
-			break;
+			break
 		}
 		start += wid;
 	}
@@ -273,12 +273,12 @@ func TrimSpace(s []byte) []byte {
 			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {
 			}
 			if start > end-wid {	// invalid UTF-8 sequence; stop processing
-				return s[start:end];
+				return s[start:end]
 			}
 			rune, wid = utf8.DecodeRune(s[end-wid : end]);
 		}
 		if !unicode.IsSpace(rune) {
-			break;
+			break
 		}
 		end -= wid;
 	}
@@ -289,7 +289,7 @@ func TrimSpace(s []byte) []byte {
 // Heuristic: Scale by 50% to give n log n time.
 func resize(n int) int {
 	if n < 16 {
-		n = 16;
+		n = 16
 	}
 	return n + n/2;
 }
@@ -301,7 +301,7 @@ func Add(s, t []byte) []byte {
 	lens := len(s);
 	lent := len(t);
 	if lens+lent <= cap(s) {
-		s = s[0 : lens+lent];
+		s = s[0 : lens+lent]
 	} else {
 		news := make([]byte, lens+lent, resize(lens+lent));
 		Copy(news, s);
@@ -317,7 +317,7 @@ func Add(s, t []byte) []byte {
 func AddByte(s []byte, t byte) []byte {
 	lens := len(s);
 	if lens+1 <= cap(s) {
-		s = s[0 : lens+1];
+		s = s[0 : lens+1]
 	} else {
 		news := make([]byte, lens+1, resize(lens+1));
 		Copy(news, s);

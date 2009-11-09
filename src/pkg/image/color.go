@@ -113,12 +113,12 @@ type ColorModel interface {
 type ColorModelFunc func(Color) Color
 
 func (f ColorModelFunc) Convert(c Color) Color {
-	return f(c);
+	return f(c)
 }
 
 func toRGBAColor(c Color) Color {
 	if _, ok := c.(RGBAColor); ok {	// no-op conversion
-		return c;
+		return c
 	}
 	r, g, b, a := c.RGBA();
 	return RGBAColor{uint8(r>>24), uint8(g>>24), uint8(b>>24), uint8(a>>24)};
@@ -126,7 +126,7 @@ func toRGBAColor(c Color) Color {
 
 func toRGBA64Color(c Color) Color {
 	if _, ok := c.(RGBA64Color); ok {	// no-op conversion
-		return c;
+		return c
 	}
 	r, g, b, a := c.RGBA();
 	return RGBA64Color{uint16(r>>16), uint16(g>>16), uint16(b>>16), uint16(a>>16)};
@@ -134,15 +134,15 @@ func toRGBA64Color(c Color) Color {
 
 func toNRGBAColor(c Color) Color {
 	if _, ok := c.(NRGBAColor); ok {	// no-op conversion
-		return c;
+		return c
 	}
 	r, g, b, a := c.RGBA();
 	a >>= 16;
 	if a == 0xffff {
-		return NRGBAColor{uint8(r>>24), uint8(g>>24), uint8(b>>24), 0xff};
+		return NRGBAColor{uint8(r>>24), uint8(g>>24), uint8(b>>24), 0xff}
 	}
 	if a == 0 {
-		return NRGBAColor{0, 0, 0, 0};
+		return NRGBAColor{0, 0, 0, 0}
 	}
 	r >>= 16;
 	g >>= 16;
@@ -156,7 +156,7 @@ func toNRGBAColor(c Color) Color {
 
 func toNRGBA64Color(c Color) Color {
 	if _, ok := c.(NRGBA64Color); ok {	// no-op conversion
-		return c;
+		return c
 	}
 	r, g, b, a := c.RGBA();
 	a >>= 16;
@@ -164,10 +164,10 @@ func toNRGBA64Color(c Color) Color {
 	g >>= 16;
 	b >>= 16;
 	if a == 0xffff {
-		return NRGBA64Color{uint16(r), uint16(g), uint16(b), 0xffff};
+		return NRGBA64Color{uint16(r), uint16(g), uint16(b), 0xffff}
 	}
 	if a == 0 {
-		return NRGBA64Color{0, 0, 0, 0};
+		return NRGBA64Color{0, 0, 0, 0}
 	}
 	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
 	r = (r*0xffff)/a;

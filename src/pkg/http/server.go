@@ -59,7 +59,7 @@ type Conn struct {
 func newConn(rwc net.Conn, handler Handler) (c *Conn, err os.Error) {
 	c = new(Conn);
 	if a := rwc.RemoteAddr(); a != nil {
-		c.RemoteAddr = a.String();
+		c.RemoteAddr = a.String()
 	}
 	c.handler = handler;
 	c.rwc = rwc;
@@ -72,10 +72,10 @@ func newConn(rwc net.Conn, handler Handler) (c *Conn, err os.Error) {
 // Read next request from connection.
 func (c *Conn) readRequest() (req *Request, err os.Error) {
 	if c.hijacked {
-		return nil, ErrHijacked;
+		return nil, ErrHijacked
 	}
 	if req, err = ReadRequest(c.buf.Reader); err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	// Reset per-request connection state.
@@ -135,20 +135,20 @@ func (c *Conn) WriteHeader(code int) {
 	c.status = code;
 	c.written = 0;
 	if !c.Req.ProtoAtLeast(1, 0) {
-		return;
+		return
 	}
 	proto := "HTTP/1.0";
 	if c.Req.ProtoAtLeast(1, 1) {
-		proto = "HTTP/1.1";
+		proto = "HTTP/1.1"
 	}
 	codestring := strconv.Itoa(code);
 	text, ok := statusText[code];
 	if !ok {
-		text = "status code " + codestring;
+		text = "status code " + codestring
 	}
 	io.WriteString(c.buf, proto + " " + codestring + " " + text + "\r\n");
 	for k, v := range c.header {
-		io.WriteString(c.buf, k+": "+v+"\r\n");
+		io.WriteString(c.buf, k+": "+v+"\r\n")
 	}
 	io.WriteString(c.buf, "\r\n");
 }
@@ -162,10 +162,10 @@ func (c *Conn) Write(data []byte) (n int, err os.Error) {
 		return 0, ErrHijacked;
 	}
 	if !c.wroteHeader {
-		c.WriteHeader(StatusOK);
+		c.WriteHeader(StatusOK)
 	}
 	if len(data) == 0 {
-		return 0, nil;
+		return 0, nil
 	}
 
 	c.written += int64(len(data));	// ignoring errors, for errorKludge
@@ -174,15 +174,15 @@ func (c *Conn) Write(data []byte) (n int, err os.Error) {
 	// then there would be fewer chunk headers.
 	// On the other hand, it would make hijacking more difficult.
 	if c.chunking {
-		fmt.Fprintf(c.buf, "%x\r\n", len(data));	// TODO(rsc): use strconv not fmt
+		fmt.Fprintf(c.buf, "%x\r\n", len(data))	// TODO(rsc): use strconv not fmt
 	}
 	n, err = c.buf.Write(data);
 	if err == nil && c.chunking {
 		if n != len(data) {
-			err = io.ErrShortWrite;
+			err = io.ErrShortWrite
 		}
 		if err == nil {
-			io.WriteString(c.buf, "\r\n");
+			io.WriteString(c.buf, "\r\n")
 		}
 	}
 
@@ -201,23 +201,23 @@ func errorKludge(c *Conn, req *Request) {
 
 	// Is this an error?
 	if kind := c.status / 100; kind != 4 && kind != 5 {
-		return;
+		return
 	}
 
 	// Did the handler supply any info?  Enough?
 	if c.written == 0 || c.written >= min {
-		return;
+		return
 	}
 
 	// Is it a broken browser?
 	var msg string;
 	switch agent := req.UserAgent; {
 	case strings.Index(agent, "MSIE") >= 0:
-		msg = "Internet Explorer";
+		msg = "Internet Explorer"
 	case strings.Index(agent, "Chrome/") >= 0:
-		msg = "Chrome";
+		msg = "Chrome"
 	default:
-		return;
+		return
 	}
 	msg += " would ignore this error page if this text weren't here.\n";
 
@@ -227,20 +227,20 @@ func errorKludge(c *Conn, req *Request) {
 	case "text/html":
 		io.WriteString(c, "<!-- ");
 		for c.written < min {
-			io.WriteString(c, msg);
+			io.WriteString(c, msg)
 		}
 		io.WriteString(c, " -->");
 	case "text/plain":
 		io.WriteString(c, "\n");
 		for c.written < min {
-			io.WriteString(c, msg);
+			io.WriteString(c, msg)
 		}
 	}
 }
 
 func (c *Conn) flush() {
 	if !c.wroteHeader {
-		c.WriteHeader(StatusOK);
+		c.WriteHeader(StatusOK)
 	}
 	errorKludge(c, c.Req);
 	if c.chunking {
@@ -268,18 +268,18 @@ func (c *Conn) serve() {
 	for {
 		req, err := c.readRequest();
 		if err != nil {
-			break;
+			break
 		}
 		// HTTP cannot have multiple simultaneous active requests.
 		// Until the server replies to this request, it can't read another,
 		// so we might as well run the handler in this goroutine.
 		c.handler.ServeHTTP(c, req);
 		if c.hijacked {
-			return;
+			return
 		}
 		c.flush();
 		if c.closeAfterReply {
-			break;
+			break
 		}
 	}
 	c.close();
@@ -292,7 +292,7 @@ func (c *Conn) serve() {
 // and close the connection.
 func (c *Conn) Hijack() (rwc io.ReadWriteCloser, buf *bufio.ReadWriter, err os.Error) {
 	if c.hijacked {
-		return nil, nil, ErrHijacked;
+		return nil, nil, ErrHijacked
 	}
 	c.hijacked = true;
 	rwc = c.rwc;
@@ -310,7 +310,7 @@ type HandlerFunc func(*Conn, *Request)
 
 // ServeHTTP calls f(c, req).
 func (f HandlerFunc) ServeHTTP(c *Conn, req *Request) {
-	f(c, req);
+	f(c, req)
 }
 
 // Helper handlers
@@ -333,12 +333,12 @@ func Redirect(c *Conn, url string, code int) {
 	// response because older user agents may not understand 301/307.
 	note := "<a href=\"%v\">" + statusText[code] + "</a>.\n";
 	if c.Req.Method == "POST" {
-		note = "";
+		note = ""
 	}
 
 	u, err := ParseURL(url);
 	if err != nil {
-		goto finish;
+		goto finish
 	}
 
 	// If url was relative, make absolute by
@@ -359,7 +359,7 @@ func Redirect(c *Conn, url string, code int) {
 	// So do we.
 	oldpath := c.Req.URL.Path;
 	if oldpath == "" {	// should not happen, but avoid a crash if it does
-		oldpath = "/";
+		oldpath = "/"
 	}
 	if u.Scheme == "" {
 		// no leading http://server
@@ -373,7 +373,7 @@ func Redirect(c *Conn, url string, code int) {
 		trailing := url[len(url)-1] == '/';
 		url = path.Clean(url);
 		if trailing && url[len(url)-1] != '/' {
-			url += "/";
+			url += "/"
 		}
 	}
 
@@ -390,14 +390,14 @@ type redirectHandler struct {
 }
 
 func (rh *redirectHandler) ServeHTTP(c *Conn, req *Request) {
-	Redirect(c, rh.url, rh.code);
+	Redirect(c, rh.url, rh.code)
 }
 
 // RedirectHandler returns a request handler that redirects
 // each request it receives to the given url using the given
 // status code.
 func RedirectHandler(url string, code int) Handler {
-	return &redirectHandler{url, code};
+	return &redirectHandler{url, code}
 }
 
 // ServeMux is an HTTP request multiplexer.
@@ -438,11 +438,11 @@ var DefaultServeMux = NewServeMux()
 func pathMatch(pattern, path string) bool {
 	if len(pattern) == 0 {
 		// should not happen
-		return false;
+		return false
 	}
 	n := len(pattern);
 	if pattern[n-1] != '/' {
-		return pattern == path;
+		return pattern == path
 	}
 	return len(path) >= n && path[0:n] == pattern;
 }
@@ -450,16 +450,16 @@ func pathMatch(pattern, path string) bool {
 // Return the canonical path for p, eliminating . and .. elements.
 func cleanPath(p string) string {
 	if p == "" {
-		return "/";
+		return "/"
 	}
 	if p[0] != '/' {
-		p = "/"+p;
+		p = "/"+p
 	}
 	np := path.Clean(p);
 	// path.Clean removes trailing slash except for root;
 	// put the trailing slash back if necessary.
 	if p[len(p)-1] == '/' && np != "/" {
-		np += "/";
+		np += "/"
 	}
 	return np;
 }
@@ -479,7 +479,7 @@ func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
 	var n = 0;
 	for k, v := range mux.m {
 		if !pathMatch(k, req.URL.Path) {
-			continue;
+			continue
 		}
 		if h == nil || len(k) > n {
 			n = len(k);
@@ -487,7 +487,7 @@ func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
 		}
 	}
 	if h == nil {
-		h = NotFoundHandler();
+		h = NotFoundHandler()
 	}
 	h.ServeHTTP(c, req);
 }
@@ -495,7 +495,7 @@ func (mux *ServeMux) ServeHTTP(c *Conn, req *Request) {
 // Handle registers the handler for the given pattern.
 func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	if pattern == "" || pattern[0] != '/' {
-		panicln("http: invalid pattern", pattern);
+		panicln("http: invalid pattern", pattern)
 	}
 
 	mux.m[pattern] = handler;
@@ -504,7 +504,7 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	// If pattern is /tree/, insert permanent redirect for /tree.
 	n := len(pattern);
 	if n > 0 && pattern[n-1] == '/' {
-		mux.m[pattern[0 : n-1]] = RedirectHandler(pattern, StatusMovedPermanently);
+		mux.m[pattern[0 : n-1]] = RedirectHandler(pattern, StatusMovedPermanently)
 	}
 }
 
@@ -518,16 +518,16 @@ func Handle(pattern string, handler Handler)	{ DefaultServeMux.Handle(pattern, h
 // Handler is typically nil, in which case the DefaultServeMux is used.
 func Serve(l net.Listener, handler Handler) os.Error {
 	if handler == nil {
-		handler = DefaultServeMux;
+		handler = DefaultServeMux
 	}
 	for {
 		rw, e := l.Accept();
 		if e != nil {
-			return e;
+			return e
 		}
 		c, err := newConn(rw, handler);
 		if err != nil {
-			continue;
+			continue
 		}
 		go c.serve();
 	}
@@ -563,7 +563,7 @@ func Serve(l net.Listener, handler Handler) os.Error {
 func ListenAndServe(addr string, handler Handler) os.Error {
 	l, e := net.Listen("tcp", addr);
 	if e != nil {
-		return e;
+		return e
 	}
 	e = Serve(l, handler);
 	l.Close();

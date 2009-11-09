@@ -216,17 +216,17 @@ var caseTest = []caseT{
 func TestIsLetter(t *testing.T) {
 	for _, r := range upperTest {
 		if !IsLetter(r) {
-			t.Errorf("IsLetter(U+%04X) = false, want true\n", r);
+			t.Errorf("IsLetter(U+%04X) = false, want true\n", r)
 		}
 	}
 	for _, r := range letterTest {
 		if !IsLetter(r) {
-			t.Errorf("IsLetter(U+%04X) = false, want true\n", r);
+			t.Errorf("IsLetter(U+%04X) = false, want true\n", r)
 		}
 	}
 	for _, r := range notletterTest {
 		if IsLetter(r) {
-			t.Errorf("IsLetter(U+%04X) = true, want false\n", r);
+			t.Errorf("IsLetter(U+%04X) = true, want false\n", r)
 		}
 	}
 }
@@ -234,17 +234,17 @@ func TestIsLetter(t *testing.T) {
 func TestIsUpper(t *testing.T) {
 	for _, r := range upperTest {
 		if !IsUpper(r) {
-			t.Errorf("IsUpper(U+%04X) = false, want true\n", r);
+			t.Errorf("IsUpper(U+%04X) = false, want true\n", r)
 		}
 	}
 	for _, r := range notupperTest {
 		if IsUpper(r) {
-			t.Errorf("IsUpper(U+%04X) = true, want false\n", r);
+			t.Errorf("IsUpper(U+%04X) = true, want false\n", r)
 		}
 	}
 	for _, r := range notletterTest {
 		if IsUpper(r) {
-			t.Errorf("IsUpper(U+%04X) = true, want false\n", r);
+			t.Errorf("IsUpper(U+%04X) = true, want false\n", r)
 		}
 	}
 }
@@ -252,11 +252,11 @@ func TestIsUpper(t *testing.T) {
 func caseString(c int) string {
 	switch c {
 	case UpperCase:
-		return "UpperCase";
+		return "UpperCase"
 	case LowerCase:
-		return "LowerCase";
+		return "LowerCase"
 	case TitleCase:
-		return "TitleCase";
+		return "TitleCase"
 	}
 	return "ErrorCase";
 }
@@ -265,7 +265,7 @@ func TestTo(t *testing.T) {
 	for _, c := range caseTest {
 		r := To(c.cas, c.in);
 		if c.out != r {
-			t.Errorf("To(U+%04X, %s) = U+%04X want U+%04X\n", c.in, caseString(c.cas), r, c.out);
+			t.Errorf("To(U+%04X, %s) = U+%04X want U+%04X\n", c.in, caseString(c.cas), r, c.out)
 		}
 	}
 }
@@ -273,11 +273,11 @@ func TestTo(t *testing.T) {
 func TestToUpperCase(t *testing.T) {
 	for _, c := range caseTest {
 		if c.cas != UpperCase {
-			continue;
+			continue
 		}
 		r := ToUpper(c.in);
 		if c.out != r {
-			t.Errorf("ToUpper(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out);
+			t.Errorf("ToUpper(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out)
 		}
 	}
 }
@@ -285,11 +285,11 @@ func TestToUpperCase(t *testing.T) {
 func TestToLowerCase(t *testing.T) {
 	for _, c := range caseTest {
 		if c.cas != LowerCase {
-			continue;
+			continue
 		}
 		r := ToLower(c.in);
 		if c.out != r {
-			t.Errorf("ToLower(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out);
+			t.Errorf("ToLower(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out)
 		}
 	}
 }
@@ -297,11 +297,11 @@ func TestToLowerCase(t *testing.T) {
 func TestToTitleCase(t *testing.T) {
 	for _, c := range caseTest {
 		if c.cas != TitleCase {
-			continue;
+			continue
 		}
 		r := ToTitle(c.in);
 		if c.out != r {
-			t.Errorf("ToTitle(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out);
+			t.Errorf("ToTitle(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out)
 		}
 	}
 }
@@ -309,12 +309,12 @@ func TestToTitleCase(t *testing.T) {
 func TestIsSpace(t *testing.T) {
 	for _, c := range spaceTest {
 		if !IsSpace(c) {
-			t.Errorf("IsSpace(U+%04X) = false; want true", c);
+			t.Errorf("IsSpace(U+%04X) = false; want true", c)
 		}
 	}
 	for _, c := range letterTest {
 		if IsSpace(c) {
-			t.Errorf("IsSpace(U+%04X) = true; want false", c);
+			t.Errorf("IsSpace(U+%04X) = true; want false", c)
 		}
 	}
 }
@@ -324,28 +324,28 @@ func TestIsSpace(t *testing.T) {
 func TestLetterOptimizations(t *testing.T) {
 	for i := 0; i < 0x100; i++ {
 		if Is(Letter, i) != IsLetter(i) {
-			t.Errorf("IsLetter(U+%04X) disagrees with Is(Letter)", i);
+			t.Errorf("IsLetter(U+%04X) disagrees with Is(Letter)", i)
 		}
 		if Is(Upper, i) != IsUpper(i) {
-			t.Errorf("IsUpper(U+%04X) disagrees with Is(Upper)", i);
+			t.Errorf("IsUpper(U+%04X) disagrees with Is(Upper)", i)
 		}
 		if Is(Lower, i) != IsLower(i) {
-			t.Errorf("IsLower(U+%04X) disagrees with Is(Lower)", i);
+			t.Errorf("IsLower(U+%04X) disagrees with Is(Lower)", i)
 		}
 		if Is(Title, i) != IsTitle(i) {
-			t.Errorf("IsTitle(U+%04X) disagrees with Is(Title)", i);
+			t.Errorf("IsTitle(U+%04X) disagrees with Is(Title)", i)
 		}
 		if Is(White_Space, i) != IsSpace(i) {
-			t.Errorf("IsSpace(U+%04X) disagrees with Is(White_Space)", i);
+			t.Errorf("IsSpace(U+%04X) disagrees with Is(White_Space)", i)
 		}
 		if To(UpperCase, i) != ToUpper(i) {
-			t.Errorf("ToUpper(U+%04X) disagrees with To(Upper)", i);
+			t.Errorf("ToUpper(U+%04X) disagrees with To(Upper)", i)
 		}
 		if To(LowerCase, i) != ToLower(i) {
-			t.Errorf("ToLower(U+%04X) disagrees with To(Lower)", i);
+			t.Errorf("ToLower(U+%04X) disagrees with To(Lower)", i)
 		}
 		if To(TitleCase, i) != ToTitle(i) {
-			t.Errorf("ToTitle(U+%04X) disagrees with To(Title)", i);
+			t.Errorf("ToTitle(U+%04X) disagrees with To(Title)", i)
 		}
 	}
 }

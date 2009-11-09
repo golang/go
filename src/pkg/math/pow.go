@@ -10,17 +10,17 @@ func Pow(x, y float64) float64 {
 	// TODO: x or y NaN, ±Inf, maybe ±0.
 	switch {
 	case y == 0:
-		return 1;
+		return 1
 	case y == 1:
-		return x;
+		return x
 	case x == 0 && y > 0:
-		return 0;
+		return 0
 	case x == 0 && y < 0:
-		return Inf(1);
+		return Inf(1)
 	case y == 0.5:
-		return Sqrt(x);
+		return Sqrt(x)
 	case y == -0.5:
-		return 1/Sqrt(x);
+		return 1/Sqrt(x)
 	}
 
 	absy := y;
@@ -31,10 +31,10 @@ func Pow(x, y float64) float64 {
 	}
 	yi, yf := Modf(absy);
 	if yf != 0 && x < 0 {
-		return NaN();
+		return NaN()
 	}
 	if yi >= 1<<63 {
-		return Exp(y*Log(x));
+		return Exp(y*Log(x))
 	}
 
 	// ans = a1 * 2^ae (= 1 for now).

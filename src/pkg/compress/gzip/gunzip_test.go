@@ -290,16 +290,16 @@ func TestInflater(t *testing.T) {
 		}
 		defer gzip.Close();
 		if tt.name != gzip.Name {
-			t.Errorf("%s: got name %s", tt.name, gzip.Name);
+			t.Errorf("%s: got name %s", tt.name, gzip.Name)
 		}
 		b.Reset();
 		n, err := io.Copy(b, gzip);
 		if err != tt.err {
-			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err);
+			t.Errorf("%s: io.Copy: %v want %v", tt.name, err, tt.err)
 		}
 		s := b.String();
 		if s != tt.raw {
-			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw);
+			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.name, n, s, len(tt.raw), tt.raw)
 		}
 	}
 }

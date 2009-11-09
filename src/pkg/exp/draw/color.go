@@ -66,28 +66,28 @@ func (c Color) RGBA() (r, g, b, a uint32) {
 func (c Color) SetAlpha(a uint8) Color {
 	r, g, b, oa := c>>24, (c>>16)&0xFF, (c>>8)&0xFF, c&0xFF;
 	if oa == 0 {
-		return 0;
+		return 0
 	}
 	r = r*Color(a)/oa;
 	if r < 0 {
-		r = 0;
+		r = 0
 	}
 	if r > 0xFF {
-		r = 0xFF;
+		r = 0xFF
 	}
 	g = g*Color(a)/oa;
 	if g < 0 {
-		g = 0;
+		g = 0
 	}
 	if g > 0xFF {
-		g = 0xFF;
+		g = 0xFF
 	}
 	b = b*Color(a)/oa;
 	if b < 0 {
-		b = 0;
+		b = 0
 	}
 	if b > 0xFF {
-		b = 0xFF;
+		b = 0xFF
 	}
 	return r<<24 | g<<16 | b<<8 | Color(a);
 }
@@ -100,7 +100,7 @@ func (c Color) At(x, y int) image.Color	{ return c }
 
 func toColor(color image.Color) image.Color {
 	if c, ok := color.(Color); ok {
-		return c;
+		return c
 	}
 	r, g, b, a := color.RGBA();
 	return Color(r>>24<<24 | g>>24<<16 | b>>24<<8 | a>>24);

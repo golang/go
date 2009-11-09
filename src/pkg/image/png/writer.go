@@ -38,7 +38,7 @@ func opaque(m image.Image) bool {
 		for x := 0; x < m.Width(); x++ {
 			_, _, _, a := m.At(x, y).RGBA();
 			if a != 0xffffffff {
-				return false;
+				return false
 			}
 		}
 	}
@@ -48,14 +48,14 @@ func opaque(m image.Image) bool {
 // The absolute value of a byte interpreted as a signed int8.
 func abs8(d uint8) int {
 	if d < 128 {
-		return int(d);
+		return int(d)
 	}
 	return 256-int(d);
 }
 
 func (e *encoder) writeChunk(b []byte, name string) {
 	if e.err != nil {
-		return;
+		return
 	}
 	n := uint32(len(b));
 	if int(n) != len(b) {
@@ -74,11 +74,11 @@ func (e *encoder) writeChunk(b []byte, name string) {
 
 	_, e.err = e.w.Write(e.header[0:8]);
 	if e.err != nil {
-		return;
+		return
 	}
 	_, e.err = e.w.Write(b);
 	if e.err != nil {
-		return;
+		return
 	}
 	_, e.err = e.w.Write(e.footer[0:4]);
 }
@@ -125,7 +125,7 @@ func (e *encoder) writePLTE(p image.PalettedColorModel) {
 func (e *encoder) Write(b []byte) (int, os.Error) {
 	e.writeChunk(b, "IDAT");
 	if e.err != nil {
-		return 0, e.err;
+		return 0, e.err
 	}
 	return len(b), nil;
 }
@@ -164,7 +164,7 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
 		cdat4[i] = cdat0[i] - paeth(cdat0[i-bpp], pdat[i], pdat[i-bpp]);
 		sum += abs8(cdat4[i]);
 		if sum >= best {
-			break;
+			break
 		}
 	}
 	if sum < best {
@@ -177,7 +177,7 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
 	for i := 0; i < n; i++ {
 		sum += abs8(cdat0[i]);
 		if sum >= best {
-			break;
+			break
 		}
 	}
 	if sum < best {
@@ -195,7 +195,7 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
 		cdat1[i] = cdat0[i]-cdat0[i-bpp];
 		sum += abs8(cdat1[i]);
 		if sum >= best {
-			break;
+			break
 		}
 	}
 	if sum < best {
@@ -213,7 +213,7 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
 		cdat3[i] = cdat0[i]-uint8((int(cdat0[i-bpp])+int(pdat[i]))/2);
 		sum += abs8(cdat3[i]);
 		if sum >= best {
-			break;
+			break
 		}
 	}
 	if sum < best {
@@ -227,7 +227,7 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
 func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 	zw, err := zlib.NewDeflater(w);
 	if err != nil {
-		return err;
+		return err
 	}
 	defer zw.Close();
 
@@ -235,12 +235,12 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 	var paletted *image.Paletted;
 	switch ct {
 	case ctTrueColor:
-		bpp = 3;
+		bpp = 3
 	case ctPaletted:
 		bpp = 1;
 		paletted = m.(*image.Paletted);
 	case ctTrueColorAlpha:
-		bpp = 4;
+		bpp = 4
 	}
 	// cr[*] and pr are the bytes for the current and previous row.
 	// cr[0] is unfiltered (or equivalently, filtered with the ftNone filter).
@@ -267,7 +267,7 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 			}
 		case ctPaletted:
 			for x := 0; x < m.Width(); x++ {
-				cr[0][x+1] = paletted.ColorIndexAt(x, y);
+				cr[0][x+1] = paletted.ColorIndexAt(x, y)
 			}
 		case ctTrueColorAlpha:
 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
@@ -286,7 +286,7 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 		// Write the compressed bytes.
 		_, err = zw.Write(cr[f]);
 		if err != nil {
-			return err;
+			return err
 		}
 
 		// The current row for y is the previous row for y+1.
@@ -298,16 +298,16 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 // Write the actual image data to one or more IDAT chunks.
 func (e *encoder) writeIDATs() {
 	if e.err != nil {
-		return;
+		return
 	}
 	var bw *bufio.Writer;
 	bw, e.err = bufio.NewWriterSize(e, 1<<15);
 	if e.err != nil {
-		return;
+		return
 	}
 	e.err = writeImage(bw, e.m, e.colorType);
 	if e.err != nil {
-		return;
+		return
 	}
 	e.err = bw.Flush();
 }
@@ -322,7 +322,7 @@ func Encode(w io.Writer, m image.Image) os.Error {
 	// also rejected.
 	mw, mh := int64(m.Width()), int64(m.Height());
 	if mw <= 0 || mh <= 0 || mw >= 1<<32 || mh >= 1<<32 {
-		return FormatError("invalid image size: " + strconv.Itoa64(mw) + "x" + strconv.Itoa64(mw));
+		return FormatError("invalid image size: " + strconv.Itoa64(mw) + "x" + strconv.Itoa64(mw))
 	}
 
 	var e encoder;
@@ -331,15 +331,15 @@ func Encode(w io.Writer, m image.Image) os.Error {
 	e.colorType = uint8(ctTrueColorAlpha);
 	pal, _ := m.(*image.Paletted);
 	if pal != nil {
-		e.colorType = ctPaletted;
+		e.colorType = ctPaletted
 	} else if opaque(m) {
-		e.colorType = ctTrueColor;
+		e.colorType = ctTrueColor
 	}
 
 	_, e.err = io.WriteString(w, pngHeader);
 	e.writeIHDR();
 	if pal != nil {
-		e.writePLTE(pal.Palette);
+		e.writePLTE(pal.Palette)
 	}
 	e.writeIDATs();
 	e.writeIEND();

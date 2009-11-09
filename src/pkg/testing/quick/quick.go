@@ -28,7 +28,7 @@ type Generator interface {
 func randFloat32(rand *rand.Rand) float32 {
 	f := rand.Float64() * math.MaxFloat32;
 	if rand.Int() & 1 == 1 {
-		f = -f;
+		f = -f
 	}
 	return float32(f);
 }
@@ -37,7 +37,7 @@ func randFloat32(rand *rand.Rand) float32 {
 func randFloat64(rand *rand.Rand) float64 {
 	f := rand.Float64();
 	if rand.Int() & 1 == 1 {
-		f = -f;
+		f = -f
 	}
 	return f;
 }
@@ -54,32 +54,32 @@ const complexSize = 50
 // Note: in order to create arbitrary values for structs, all the members must be public.
 func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 	if m, ok := reflect.MakeZero(t).Interface().(Generator); ok {
-		return m.Generate(rand, complexSize), true;
+		return m.Generate(rand, complexSize), true
 	}
 
 	switch concrete := t.(type) {
 	case *reflect.BoolType:
-		return reflect.NewValue(rand.Int() & 1 == 0), true;
+		return reflect.NewValue(rand.Int() & 1 == 0), true
 	case *reflect.Float32Type:
-		return reflect.NewValue(randFloat32(rand)), true;
+		return reflect.NewValue(randFloat32(rand)), true
 	case *reflect.Float64Type:
-		return reflect.NewValue(randFloat64(rand)), true;
+		return reflect.NewValue(randFloat64(rand)), true
 	case *reflect.FloatType:
 		if t.Size() == 4 {
-			return reflect.NewValue(float(randFloat32(rand))), true;
+			return reflect.NewValue(float(randFloat32(rand))), true
 		} else {
-			return reflect.NewValue(float(randFloat64(rand))), true;
+			return reflect.NewValue(float(randFloat64(rand))), true
 		}
 	case *reflect.Int16Type:
-		return reflect.NewValue(int16(randInt64(rand))), true;
+		return reflect.NewValue(int16(randInt64(rand))), true
 	case *reflect.Int32Type:
-		return reflect.NewValue(int32(randInt64(rand))), true;
+		return reflect.NewValue(int32(randInt64(rand))), true
 	case *reflect.Int64Type:
-		return reflect.NewValue(randInt64(rand)), true;
+		return reflect.NewValue(randInt64(rand)), true
 	case *reflect.Int8Type:
-		return reflect.NewValue(int8(randInt64(rand))), true;
+		return reflect.NewValue(int8(randInt64(rand))), true
 	case *reflect.IntType:
-		return reflect.NewValue(int(randInt64(rand))), true;
+		return reflect.NewValue(int(randInt64(rand))), true
 	case *reflect.MapType:
 		numElems := rand.Intn(complexSize);
 		m := reflect.MakeMap(concrete);
@@ -87,7 +87,7 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 			key, ok1 := Value(concrete.Key(), rand);
 			value, ok2 := Value(concrete.Elem(), rand);
 			if !ok1 || !ok2 {
-				return nil, false;
+				return nil, false
 			}
 			m.SetElem(key, value);
 		}
@@ -95,7 +95,7 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 	case *reflect.PtrType:
 		v, ok := Value(concrete.Elem(), rand);
 		if !ok {
-			return nil, false;
+			return nil, false
 		}
 		p := reflect.MakeZero(concrete);
 		p.(*reflect.PtrValue).PointTo(v);
@@ -106,7 +106,7 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 		for i := 0; i < numElems; i++ {
 			v, ok := Value(concrete.Elem(), rand);
 			if !ok {
-				return nil, false;
+				return nil, false
 			}
 			s.Elem(i).SetValue(v);
 		}
@@ -115,7 +115,7 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 		numChars := rand.Intn(complexSize);
 		codePoints := make([]int, numChars);
 		for i := 0; i < numChars; i++ {
-			codePoints[i] = rand.Intn(0x10ffff);
+			codePoints[i] = rand.Intn(0x10ffff)
 		}
 		return reflect.NewValue(string(codePoints)), true;
 	case *reflect.StructType:
@@ -123,25 +123,25 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 		for i := 0; i < s.NumField(); i++ {
 			v, ok := Value(concrete.Field(i).Type, rand);
 			if !ok {
-				return nil, false;
+				return nil, false
 			}
 			s.Field(i).SetValue(v);
 		}
 		return s, true;
 	case *reflect.Uint16Type:
-		return reflect.NewValue(uint16(randInt64(rand))), true;
+		return reflect.NewValue(uint16(randInt64(rand))), true
 	case *reflect.Uint32Type:
-		return reflect.NewValue(uint32(randInt64(rand))), true;
+		return reflect.NewValue(uint32(randInt64(rand))), true
 	case *reflect.Uint64Type:
-		return reflect.NewValue(uint64(randInt64(rand))), true;
+		return reflect.NewValue(uint64(randInt64(rand))), true
 	case *reflect.Uint8Type:
-		return reflect.NewValue(uint8(randInt64(rand))), true;
+		return reflect.NewValue(uint8(randInt64(rand))), true
 	case *reflect.UintType:
-		return reflect.NewValue(uint(randInt64(rand))), true;
+		return reflect.NewValue(uint(randInt64(rand))), true
 	case *reflect.UintptrType:
-		return reflect.NewValue(uintptr(randInt64(rand))), true;
+		return reflect.NewValue(uintptr(randInt64(rand))), true
 	default:
-		return nil, false;
+		return nil, false
 	}
 
 	return;
@@ -169,7 +169,7 @@ var defaultConfig Config
 // getRand returns the *rand.Rand to use for a given Config.
 func (c *Config) getRand() *rand.Rand {
 	if c.Rand == nil {
-		return rand.New(rand.NewSource(0));
+		return rand.New(rand.NewSource(0))
 	}
 	return c.Rand;
 }
@@ -180,9 +180,9 @@ func (c *Config) getMaxCount() (maxCount int) {
 	maxCount = c.MaxCount;
 	if maxCount == 0 {
 		if c.MaxCountScale != 0 {
-			maxCount = int(c.MaxCountScale * float(*defaultMaxCount));
+			maxCount = int(c.MaxCountScale * float(*defaultMaxCount))
 		} else {
-			maxCount = *defaultMaxCount;
+			maxCount = *defaultMaxCount
 		}
 	}
 
@@ -202,7 +202,7 @@ type CheckError struct {
 }
 
 func (s *CheckError) String() string {
-	return fmt.Sprintf("#%d: failed on input %s", s.Count, toString(s.In));
+	return fmt.Sprintf("#%d: failed on input %s", s.Count, toString(s.In))
 }
 
 // A CheckEqualError is the result CheckEqual finding an error.
@@ -213,7 +213,7 @@ type CheckEqualError struct {
 }
 
 func (s *CheckEqualError) String() string {
-	return fmt.Sprintf("#%d: failed on input %s. Output 1: %s. Output 2: %s", s.Count, toString(s.In), toString(s.Out1), toString(s.Out2));
+	return fmt.Sprintf("#%d: failed on input %s. Output 1: %s. Output 2: %s", s.Count, toString(s.In), toString(s.Out1), toString(s.Out2))
 }
 
 // Check looks for an input to f, any function that returns bool,
@@ -233,7 +233,7 @@ func (s *CheckEqualError) String() string {
 // 	}
 func Check(function interface{}, config *Config) (err os.Error) {
 	if config == nil {
-		config = &defaultConfig;
+		config = &defaultConfig
 	}
 
 	f, fType, ok := functionAndType(function);
@@ -258,7 +258,7 @@ func Check(function interface{}, config *Config) (err os.Error) {
 	for i := 0; i < maxCount; i++ {
 		err = arbitraryValues(arguments, fType, config, rand);
 		if err != nil {
-			return;
+			return
 		}
 
 		if !f.Call(arguments)[0].(*reflect.BoolValue).Get() {
@@ -276,7 +276,7 @@ func Check(function interface{}, config *Config) (err os.Error) {
 // describing the input and the outputs.
 func CheckEqual(f, g interface{}, config *Config) (err os.Error) {
 	if config == nil {
-		config = &defaultConfig;
+		config = &defaultConfig
 	}
 
 	x, xType, ok := functionAndType(f);
@@ -302,7 +302,7 @@ func CheckEqual(f, g interface{}, config *Config) (err os.Error) {
 	for i := 0; i < maxCount; i++ {
 		err = arbitraryValues(arguments, xType, config, rand);
 		if err != nil {
-			return;
+			return
 		}
 
 		xOut := toInterfaces(x.Call(arguments));
@@ -340,7 +340,7 @@ func arbitraryValues(args []reflect.Value, f *reflect.FuncType, config *Config, 
 func functionAndType(f interface{}) (v *reflect.FuncValue, t *reflect.FuncType, ok bool) {
 	v, ok = reflect.NewValue(f).(*reflect.FuncValue);
 	if !ok {
-		return;
+		return
 	}
 	t = v.Type().(*reflect.FuncType);
 	return;
@@ -349,7 +349,7 @@ func functionAndType(f interface{}) (v *reflect.FuncValue, t *reflect.FuncType, 
 func toInterfaces(values []reflect.Value) []interface{} {
 	ret := make([]interface{}, len(values));
 	for i, v := range values {
-		ret[i] = v.Interface();
+		ret[i] = v.Interface()
 	}
 	return ret;
 }
@@ -357,7 +357,7 @@ func toInterfaces(values []reflect.Value) []interface{} {
 func toString(interfaces []interface{}) string {
 	s := make([]string, len(interfaces));
 	for i, v := range interfaces {
-		s[i] = fmt.Sprintf("%#v", v);
+		s[i] = fmt.Sprintf("%#v", v)
 	}
 	return strings.Join(s, ", ");
 }

@@ -136,7 +136,7 @@ func norm(i Word) Word {
 	i += i>>18;
 	i &= mask;
 	if i == mask {
-		i = 0;
+		i = 0
 	}
 	return i;
 }
@@ -147,13 +147,13 @@ type UnknownInstrError struct {
 }
 
 func (e UnknownInstrError) String() string {
-	return fmt.Sprintf("unknown instruction %06o at %06o", e.Inst, e.PC);
+	return fmt.Sprintf("unknown instruction %06o at %06o", e.Inst, e.PC)
 }
 
 type HaltError Word
 
 func (e HaltError) String() string {
-	return fmt.Sprintf("executed HLT instruction at %06o", e);
+	return fmt.Sprintf("executed HLT instruction at %06o", e)
 }
 
 type LoopError Word
@@ -166,7 +166,7 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 	if op < opSKP && op != opCALJDA {
 		for n := 0; ib != 0; n++ {
 			if n > 07777 {
-				return LoopError(m.PC - 1);
+				return LoopError(m.PC - 1)
 			}
 			ib = (m.Mem[y] >> 12)&1;
 			y = m.Mem[y] & 07777;
@@ -175,33 +175,33 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 
 	switch op {
 	case opAND:
-		m.AC &= m.Mem[y];
+		m.AC &= m.Mem[y]
 	case opIOR:
-		m.AC |= m.Mem[y];
+		m.AC |= m.Mem[y]
 	case opXOR:
-		m.AC ^= m.Mem[y];
+		m.AC ^= m.Mem[y]
 	case opXCT:
-		m.run(m.Mem[y], t);
+		m.run(m.Mem[y], t)
 	case opCALJDA:
 		a := y;
 		if ib == 0 {
-			a = 64;
+			a = 64
 		}
 		m.Mem[a] = m.AC;
 		m.AC = (m.OV << 17) + m.PC;
 		m.PC = a+1;
 	case opLAC:
-		m.AC = m.Mem[y];
+		m.AC = m.Mem[y]
 	case opLIO:
-		m.IO = m.Mem[y];
+		m.IO = m.Mem[y]
 	case opDAC:
-		m.Mem[y] = m.AC;
+		m.Mem[y] = m.AC
 	case opDAP:
-		m.Mem[y] = m.Mem[y] & 0770000 | m.AC & 07777;
+		m.Mem[y] = m.Mem[y] & 0770000 | m.AC & 07777
 	case opDIO:
-		m.Mem[y] = m.IO;
+		m.Mem[y] = m.IO
 	case opDZM:
-		m.Mem[y] = 0;
+		m.Mem[y] = 0
 	case opADD:
 		m.AC += m.Mem[y];
 		m.OV = m.AC >> 18;
@@ -211,7 +211,7 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 		m.AC += m.Mem[y] ^ mask;
 		m.AC = norm(m.AC);
 		if diffSigns && m.Mem[y] >> 17 == m.AC >> 17 {
-			m.OV = 1;
+			m.OV = 1
 		}
 	case opIDX:
 		m.AC = norm(m.Mem[y] + 1);
@@ -220,15 +220,15 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 		m.AC = norm(m.Mem[y] + 1);
 		m.Mem[y] = m.AC;
 		if m.AC & sign == 0 {
-			m.PC++;
+			m.PC++
 		}
 	case opSAD:
 		if m.AC != m.Mem[y] {
-			m.PC++;
+			m.PC++
 		}
 	case opSAS:
 		if m.AC == m.Mem[y] {
-			m.PC++;
+			m.PC++
 		}
 	case opMUS:
 		if m.IO & 1 == 1 {
@@ -241,13 +241,13 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 		m.AC, m.IO = (m.AC << 1 | m.IO >> 17)&mask,
 			((m.IO << 1 | m.AC >> 17)&mask)^1;
 		if m.IO & 1 == 1 {
-			m.AC = m.AC + (m.Mem[y] ^ mask);
+			m.AC = m.AC + (m.Mem[y] ^ mask)
 		} else {
-			m.AC = m.AC + 1 + m.Mem[y];
+			m.AC = m.AC + 1 + m.Mem[y]
 		}
 		m.AC = norm(m.AC);
 	case opJMP:
-		m.PC = y;
+		m.PC = y
 	case opJSP:
 		m.AC = (m.OV << 17) + m.PC;
 		m.PC = y;
@@ -261,74 +261,74 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 			y&070 != 0 && !m.Sense[(y&070)>>3] ||
 			y&070 == 010;
 		if (ib == 0) == cond {
-			m.PC++;
+			m.PC++
 		}
 		if y&01000 == 01000 {
-			m.OV = 0;
+			m.OV = 0
 		}
 	case opSFT:
 		for count := inst&0777; count != 0; count >>= 1 {
 			if count&1 == 0 {
-				continue;
+				continue
 			}
 			switch (inst>>9)&017 {
 			case 001:	// rotate AC left
-				m.AC = (m.AC << 1 | m.AC >> 17)&mask;
+				m.AC = (m.AC << 1 | m.AC >> 17)&mask
 			case 002:	// rotate IO left
-				m.IO = (m.IO << 1 | m.IO >> 17)&mask;
+				m.IO = (m.IO << 1 | m.IO >> 17)&mask
 			case 003:	// rotate AC and IO left.
 				w := uint64(m.AC)<<18 | uint64(m.IO);
 				w = w<<1 | w>>35;
 				m.AC = Word(w>>18)&mask;
 				m.IO = Word(w)&mask;
 			case 005:	// shift AC left (excluding sign bit)
-				m.AC = (m.AC << 1 | m.AC >> 17)&mask&^sign | m.AC & sign;
+				m.AC = (m.AC << 1 | m.AC >> 17)&mask&^sign | m.AC & sign
 			case 006:	// shift IO left (excluding sign bit)
-				m.IO = (m.IO << 1 | m.IO >> 17)&mask&^sign | m.IO & sign;
+				m.IO = (m.IO << 1 | m.IO >> 17)&mask&^sign | m.IO & sign
 			case 007:	// shift AC and IO left (excluding AC's sign bit)
 				w := uint64(m.AC)<<18 | uint64(m.IO);
 				w = w<<1 | w>>35;
 				m.AC = Word(w>>18)&mask&^sign | m.AC & sign;
 				m.IO = Word(w)&mask&^sign | m.AC & sign;
 			case 011:	// rotate AC right
-				m.AC = (m.AC >> 1 | m.AC << 17)&mask;
+				m.AC = (m.AC >> 1 | m.AC << 17)&mask
 			case 012:	// rotate IO right
-				m.IO = (m.IO >> 1 | m.IO << 17)&mask;
+				m.IO = (m.IO >> 1 | m.IO << 17)&mask
 			case 013:	// rotate AC and IO right
 				w := uint64(m.AC)<<18 | uint64(m.IO);
 				w = w>>1 | w<<35;
 				m.AC = Word(w>>18)&mask;
 				m.IO = Word(w)&mask;
 			case 015:	// shift AC right (excluding sign bit)
-				m.AC = m.AC >> 1 | m.AC & sign;
+				m.AC = m.AC >> 1 | m.AC & sign
 			case 016:	// shift IO right (excluding sign bit)
-				m.IO = m.IO >> 1 | m.IO & sign;
+				m.IO = m.IO >> 1 | m.IO & sign
 			case 017:	// shift AC and IO right (excluding AC's sign bit)
 				w := uint64(m.AC)<<18 | uint64(m.IO);
 				w = w>>1;
 				m.AC = Word(w>>18) | m.AC & sign;
 				m.IO = Word(w)&mask;
 			default:
-				goto Unknown;
+				goto Unknown
 			}
 		}
 	case opLAW:
 		if ib == 0 {
-			m.AC = y;
+			m.AC = y
 		} else {
-			m.AC = y^mask;
+			m.AC = y^mask
 		}
 	case opIOT:
-		t.Trap(y);
+		t.Trap(y)
 	case opOPR:
 		if y&0200 == 0200 {
-			m.AC = 0;
+			m.AC = 0
 		}
 		if y&04000 == 04000 {
-			m.IO = 0;
+			m.IO = 0
 		}
 		if y&01000 == 01000 {
-			m.AC ^= mask;
+			m.AC ^= mask
 		}
 		if y&0400 == 0400 {
 			m.PC--;
@@ -337,14 +337,14 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 		switch i, f := y&7, y&010 == 010; {
 		case i == 7:
 			for i := 2; i < 7; i++ {
-				m.Flag[i] = f;
+				m.Flag[i] = f
 			}
 		case i >= 2:
-			m.Flag[i] = f;
+			m.Flag[i] = f
 		}
 	default:
 	Unknown:
-		return UnknownInstrError{inst, m.PC - 1};
+		return UnknownInstrError{inst, m.PC - 1}
 	}
 	return nil;
 }
@@ -358,29 +358,29 @@ func (m *M) Load(r io.Reader) os.Error {
 		line, err := b.ReadString('\n');
 		if err != nil {
 			if err != os.EOF {
-				return err;
+				return err
 			}
 			break;
 		}
 		// look for ^[ +]([0-9]+)\t([0-9]+)
 		if line[0] != ' ' && line[0] != '+' {
-			continue;
+			continue
 		}
 		i := 1;
 		a := Word(0);
 		for ; i < len(line) && '0' <= line[i] && line[i] <= '7'; i++ {
-			a = a*8 + Word(line[i]-'0');
+			a = a*8 + Word(line[i]-'0')
 		}
 		if i >= len(line) || line[i] != '\t' || i == 1 {
-			continue;
+			continue
 		}
 		v := Word(0);
 		j := i;
 		for i++; i < len(line) && '0' <= line[i] && line[i] <= '7'; i++ {
-			v = v*8 + Word(line[i]-'0');
+			v = v*8 + Word(line[i]-'0')
 		}
 		if i == j {
-			continue;
+			continue
 		}
 		m.Mem[a] = v;
 	}

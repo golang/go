@@ -11,7 +11,7 @@ import (
 func TestNoop(t *testing.T) {
 	err := Perform(0, nil);
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }
 
@@ -24,7 +24,7 @@ func TestSimple(t *testing.T) {
 
 	err := Perform(0, []*Event{a, b});
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }
 
@@ -37,9 +37,9 @@ func TestFail(t *testing.T) {
 
 	err := Perform(0, []*Event{a, b});
 	if err == nil {
-		t.Errorf("Failed to get expected error");
+		t.Errorf("Failed to get expected error")
 	} else if _, ok := err.(ReceivedUnexpected); !ok {
-		t.Errorf("Error returned was of the wrong type: %s", err);
+		t.Errorf("Error returned was of the wrong type: %s", err)
 	}
 }
 
@@ -51,13 +51,13 @@ func TestClose(t *testing.T) {
 
 	err := Perform(0, []*Event{a, b});
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }
 
 func matchOne(v interface{}) bool {
 	if i, ok := v.(int); ok && i == 1 {
-		return true;
+		return true
 	}
 	return false;
 }
@@ -70,6 +70,6 @@ func TestRecvMatch(t *testing.T) {
 
 	err := Perform(0, []*Event{a, b});
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }

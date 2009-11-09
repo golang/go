@@ -250,11 +250,11 @@ func fillRuntimeIndexes(runtime *runtimeValues, out *runtimeIndexes) {
 		indexes := make(map[string]int, len(et.Elems));
 		for j, f := range et.Elems {
 			if f.Anonymous {
-				continue;
+				continue
 			}
 			name := f.Name;
 			if name[0] >= 'a' && name[0] <= 'z' {
-				name = string(name[0]+'A'-'a')+name[1:len(name)];
+				name = string(name[0]+'A'-'a')+name[1:len(name)]
 			}
 			indexes[name] = j;
 		}

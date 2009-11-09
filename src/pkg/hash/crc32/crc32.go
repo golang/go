@@ -41,9 +41,9 @@ func MakeTable(poly uint32) *Table {
 		crc := uint32(i);
 		for j := 0; j < 8; j++ {
 			if crc&1 == 1 {
-				crc = (crc>>1)^poly;
+				crc = (crc>>1)^poly
 			} else {
-				crc >>= 1;
+				crc >>= 1
 			}
 		}
 		t[i] = crc;
@@ -75,7 +75,7 @@ func (d *digest) Reset()	{ d.crc = 0 }
 func update(crc uint32, tab *Table, p []byte) uint32 {
 	crc = ^crc;
 	for i := 0; i < len(p); i++ {
-		crc = tab[byte(crc)^p[i]]^(crc>>8);
+		crc = tab[byte(crc)^p[i]]^(crc>>8)
 	}
 	return ^crc;
 }

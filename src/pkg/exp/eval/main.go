@@ -34,10 +34,10 @@ func main() {
 		if err != nil {
 			if list, ok := err.(scanner.ErrorList); ok {
 				for _, e := range list {
-					println(e.String());
+					println(e.String())
 				}
 			} else {
-				println(err.String());
+				println(err.String())
 			}
 			os.Exit(1);
 		}
@@ -72,7 +72,7 @@ func main() {
 		print("; ");
 		line, err := r.ReadString('\n');
 		if err != nil {
-			break;
+			break
 		}
 		code, err := w.Compile(line);
 		if err != nil {
@@ -85,7 +85,7 @@ func main() {
 			continue;
 		}
 		if v != nil {
-			println(v.String());
+			println(v.String())
 		}
 	}
 }

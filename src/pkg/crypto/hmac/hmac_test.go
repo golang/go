@@ -87,7 +87,7 @@ func TestHMAC(t *testing.T) {
 			}
 			sum := fmt.Sprintf("%x", h.Sum());
 			if sum != tt.out {
-				t.Errorf("test %d.%d: have %s want %s\n", i, j, sum, tt.out);
+				t.Errorf("test %d.%d: have %s want %s\n", i, j, sum, tt.out)
 			}
 
 			// Second iteration: make sure reset works.

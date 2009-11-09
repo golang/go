@@ -15,7 +15,7 @@ import (
 func creat(name string) *os.File {
 	f, err := os.Open(name, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0666);
 	if err != nil {
-		fatal("%s", err);
+		fatal("%s", err)
 	}
 	return f;
 }
@@ -27,7 +27,7 @@ func (p *Prog) writeOutput(srcfile string) {
 
 	base := srcfile;
 	if strings.HasSuffix(base, ".go") {
-		base = base[0 : len(base)-3];
+		base = base[0 : len(base)-3]
 	}
 	fgo1 := creat(base + ".cgo1.go");
 	fgo2 := creat(base + ".cgo2.go");
@@ -80,7 +80,7 @@ func (p *Prog) writeOutput(srcfile string) {
 
 		if name == "CString" || name == "GoString" {
 			// The builtins are already defined in the C prolog.
-			continue;
+			continue
 		}
 
 		// Construct a gcc struct matching the 6c argument frame.
@@ -150,12 +150,12 @@ func (p *Prog) writeOutput(srcfile string) {
 		fmt.Fprintf(fgcc, "\t%s *a = v;\n", structType);
 		fmt.Fprintf(fgcc, "\t");
 		if def.Result != nil {
-			fmt.Fprintf(fgcc, "a->r = ");
+			fmt.Fprintf(fgcc, "a->r = ")
 		}
 		fmt.Fprintf(fgcc, "%s(", name);
 		for i := range def.Params {
 			if i > 0 {
-				fmt.Fprintf(fgcc, ", ");
+				fmt.Fprintf(fgcc, ", ")
 			}
 			fmt.Fprintf(fgcc, "a->p%d", i);
 		}

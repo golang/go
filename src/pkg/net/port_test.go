@@ -52,7 +52,7 @@ func TestLookupPort(t *testing.T) {
 		tt := porttests[i];
 		if port, err := LookupPort(tt.netw, tt.name); port != tt.port || (err == nil) != tt.ok {
 			t.Errorf("LookupPort(%q, %q) = %v, %s; want %v",
-				tt.netw, tt.name, port, err, tt.port);
+				tt.netw, tt.name, port, err, tt.port)
 		}
 	}
 }

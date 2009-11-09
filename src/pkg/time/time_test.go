@@ -14,7 +14,7 @@ func init() {
 	// Force US Pacific time for daylight-savings
 	// tests below (localtests).  Needs to be set
 	// before the first call into the time library.
-	os.Setenv("TZ", "US/Pacific");
+	os.Setenv("TZ", "US/Pacific")
 }
 
 type TimeTest struct {
@@ -46,7 +46,7 @@ func same(t, u *Time) bool {
 		t.Second == u.Second &&
 		t.Weekday == u.Weekday &&
 		t.ZoneOffset == u.ZoneOffset &&
-		t.Zone == u.Zone;
+		t.Zone == u.Zone
 }
 
 func TestSecondsToUTC(t *testing.T) {
@@ -56,7 +56,7 @@ func TestSecondsToUTC(t *testing.T) {
 		tm := SecondsToUTC(sec);
 		newsec := tm.Seconds();
 		if newsec != sec {
-			t.Errorf("SecondsToUTC(%d).Seconds() = %d", sec, newsec);
+			t.Errorf("SecondsToUTC(%d).Seconds() = %d", sec, newsec)
 		}
 		if !same(tm, golden) {
 			t.Errorf("SecondsToUTC(%d):", sec);
@@ -73,7 +73,7 @@ func TestSecondsToLocalTime(t *testing.T) {
 		tm := SecondsToLocalTime(sec);
 		newsec := tm.Seconds();
 		if newsec != sec {
-			t.Errorf("SecondsToLocalTime(%d).Seconds() = %d", sec, newsec);
+			t.Errorf("SecondsToLocalTime(%d).Seconds() = %d", sec, newsec)
 		}
 		if !same(tm, golden) {
 			t.Errorf("SecondsToLocalTime(%d):", sec);

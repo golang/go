@@ -29,7 +29,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
 	d := file.dirinfo;
 	size := count;
 	if size < 0 {
-		size = 100;
+		size = 100
 	}
 	names = make([]string, 0, size);	// Empty with room to grow.
 	for count != 0 {
@@ -44,7 +44,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
 				return names, NewSyscallError("getdirentries", errno);
 			}
 			if d.nbuf <= 0 {
-				break;	// EOF
+				break	// EOF
 			}
 		}
 		// Drain the buffer
@@ -56,18 +56,18 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
 			}
 			d.bufp += int(dirent.Reclen);
 			if dirent.Ino == 0 {	// File absent in directory.
-				continue;
+				continue
 			}
 			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
 			var name = string(bytes[0 : dirent.Namlen]);
 			if name == "." || name == ".." {	// Useless names
-				continue;
+				continue
 			}
 			count--;
 			if len(names) == cap(names) {
 				nnames := make([]string, len(names), 2*len(names));
 				for i := 0; i < len(names); i++ {
-					nnames[i] = names[i];
+					nnames[i] = names[i]
 				}
 				names = nnames;
 			}

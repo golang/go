@@ -160,17 +160,17 @@ var txpix = [NCOL]draw.Color{
 func movemouse() int {
 	//mouse.draw.Point = draw.Pt(rboard.Min.X + rboard.Dx()/2, rboard.Min.Y + rboard.Dy()/2);
 	//moveto(mousectl, mouse.Xy);
-	return mouse.X;
+	return mouse.X
 }
 
 func warp(p draw.Point, x int) int {
 	if !suspended && piece != nil {
 		x = pos.X + piece.sz.X * pcsz / 2;
 		if p.Y < rboard.Min.Y {
-			p.Y = rboard.Min.Y;
+			p.Y = rboard.Min.Y
 		}
 		if p.Y >= rboard.Max.Y {
-			p.Y = rboard.Max.Y - 1;
+			p.Y = rboard.Max.Y - 1
 		}
 		//moveto(mousectl, draw.Pt(x, p.Y));
 	}
@@ -181,14 +181,14 @@ func initPieces() {
 	for i := range pieces {
 		p := &pieces[i];
 		if p.rot == 3 {
-			p.right = &pieces[i-3];
+			p.right = &pieces[i-3]
 		} else {
-			p.right = &pieces[i+1];
+			p.right = &pieces[i+1]
 		}
 		if p.rot == 0 {
-			p.left = &pieces[i+3];
+			p.left = &pieces[i+3]
 		} else {
-			p.left = &pieces[i-1];
+			p.left = &pieces[i-1]
 		}
 	}
 }
@@ -204,7 +204,7 @@ func collide(pt draw.Point, p *Piece) bool {
 			continue;
 		}
 		if board[pt.Y][pt.X] != 0 {
-			return true;
+			return true
 		}
 	}
 	return false;
@@ -218,7 +218,7 @@ func collider(pt, pmax draw.Point) bool {
 	for i := pi; i < pi+n && i < NX; i++ {
 		for j := pj; j < pj+m && j < NY; j++ {
 			if board[j][i] != 0 {
-				return true;
+				return true
 			}
 		}
 	}
@@ -232,7 +232,7 @@ func setpiece(p *Piece) {
 	br2 = br;
 	piece = p;
 	if p == nil {
-		return;
+		return
 	}
 	var op draw.Point;
 	var r draw.Rectangle;
@@ -252,10 +252,10 @@ func setpiece(p *Piece) {
 			draw.Draw(bbmask, r, bbmask, nil, op);
 		}
 		if br.Max.X < r.Max.X {
-			br.Max.X = r.Max.X;
+			br.Max.X = r.Max.X
 		}
 		if br.Max.Y < r.Max.Y {
-			br.Max.Y = r.Max.Y;
+			br.Max.Y = r.Max.Y
 		}
 	}
 	br.Max = br.Max.Sub(bbr.Min);
@@ -273,14 +273,14 @@ func setpiece(p *Piece) {
 func drawpiece() {
 	draw.Draw(screen, br.Add(pos), bb, bbmask, bbr.Min);
 	if suspended {
-		draw.Draw(screen, br.Add(pos), draw.White, whitemask, draw.ZP);
+		draw.Draw(screen, br.Add(pos), draw.White, whitemask, draw.ZP)
 	}
 }
 
 func undrawpiece() {
 	var mask image.Image;
 	if collider(pos, br.Max) {
-		mask = bbmask;
+		mask = bbmask
 	}
 	draw.Draw(screen, br.Add(pos), draw.White, mask, bbr.Min);
 }
@@ -300,7 +300,7 @@ func canfit(p *Piece) bool {
 	if j >= 4 {
 		j = p.sz.X;
 		if j < p.sz.Y {
-			j = p.sz.Y;
+			j = p.sz.Y
 		}
 		j = 2*j - 1;
 	}
@@ -321,7 +321,7 @@ func canfit(p *Piece) bool {
 }
 
 func score(p int) {
-	points += p;
+	points += p
 	//	snprint(buf, sizeof(buf), "%.6ld", points);
 	//	draw.Draw(screen, draw.Rpt(pscore, pscore.Add(scoresz)), draw.White, nil, draw.ZP);
 	//	string(screen, pscore, draw.Black, draw.ZP, font, buf);
@@ -343,13 +343,13 @@ func drawboard() {
 	for i := 0; i < NY; i++ {
 		for j := 0; j < NX; j++ {
 			if board[i][j] != 0 {
-				drawsq(screen, draw.Pt(rboard.Min.X + j*pcsz, rboard.Min.Y + i*pcsz), int(board[i][j]-16));
+				drawsq(screen, draw.Pt(rboard.Min.X + j*pcsz, rboard.Min.Y + i*pcsz), int(board[i][j]-16))
 			}
 		}
 	}
 	score(0);
 	if suspended {
-		draw.Draw(screen, screenr, draw.White, whitemask, draw.ZP);
+		draw.Draw(screen, screenr, draw.White, whitemask, draw.ZP)
 	}
 }
 
@@ -360,7 +360,7 @@ func choosepiece() {
 		pos = rboard.Min;
 		pos.X += rand.Intn(NX) * pcsz;
 		if !collide(draw.Pt(pos.X, pos.Y + pcsz - DY), piece) {
-			break;
+			break
 		}
 	}
 	drawpiece();
@@ -370,10 +370,10 @@ func choosepiece() {
 func movepiece() bool {
 	var mask image.Image;
 	if collide(draw.Pt(pos.X, pos.Y + pcsz), piece) {
-		return false;
+		return false
 	}
 	if collider(pos, br2.Max) {
-		mask = bb2mask;
+		mask = bb2mask
 	}
 	draw.Draw(screen, br2.Add(pos), bb2, mask, bb2r.Min);
 	pos.Y += DY;
@@ -391,7 +391,7 @@ func suspend(s bool) {
 		}
 	*/
 	if !suspended {
-		drawpiece();
+		drawpiece()
 	}
 	drawboard();
 	display.FlushImage();
@@ -403,18 +403,18 @@ func pause(t int) {
 		select {
 		case s := <-suspc:
 			if !suspended && s {
-				suspend(true);
+				suspend(true)
 			} else if suspended && !s {
 				suspend(false);
 				lastmx = warp(mouse.Point, lastmx);
 			}
 		case <-timerc:
 			if suspended {
-				break;
+				break
 			}
 			t -= tsleep;
 			if t < 0 {
-				return;
+				return
 			}
 		case <-resizec:
 			//redraw(true);
@@ -437,7 +437,7 @@ func horiz() bool {
 		}
 	}
 	if h == 0 {
-		return false;
+		return false
 	}
 	r := rboard;
 	newscreen = false;
@@ -471,7 +471,7 @@ func horiz() bool {
 		r.Max.Y = rboard.Min.Y + pcsz;
 		draw.Draw(screen, r, draw.White, nil, draw.ZP);
 		for k := lev[j]-1; k >= 0; k-- {
-			board[k+1] = board[k];
+			board[k+1] = board[k]
 		}
 		board[0] = [NX]byte{};
 	}
@@ -526,7 +526,7 @@ func drop(f bool) bool {
 	fusst = 0;
 	rest();
 	if pos.Y == rboard.Min.Y && !horiz() {
-		return true;
+		return true
 	}
 	horiz();
 	setpiece(nil);
@@ -551,7 +551,7 @@ func play() {
 				break;
 			}
 			if lastmx < 0 {
-				lastmx = mouse.X;
+				lastmx = mouse.X
 			}
 			if mouse.X > lastmx+DMOUSE {
 				mright();
@@ -562,21 +562,21 @@ func play() {
 				lastmx = mouse.X;
 			}
 			if mouse.Buttons &^ om.Buttons & 1 == 1 {
-				rleft();
+				rleft()
 			}
 			if mouse.Buttons &^ om.Buttons & 2 == 2 {
 				if drop(true) {
-					return;
+					return
 				}
 			}
 			if mouse.Buttons &^ om.Buttons & 4 == 4 {
-				rright();
+				rright()
 			}
 			om = mouse;
 
 		case s := <-suspc:
 			if !suspended && s {
-				suspend(true);
+				suspend(true)
 			} else if suspended && !s {
 				suspend(false);
 				lastmx = warp(mouse.Point, lastmx);
@@ -587,26 +587,26 @@ func play() {
 
 		case r := <-kbdc:
 			if suspended {
-				break;
+				break
 			}
 			switch r {
 			case 'f', ';':
-				mright();
+				mright()
 			case 'a', 'j':
-				mleft();
+				mleft()
 			case 'd', 'l':
-				rright();
+				rright()
 			case 's', 'k':
-				rleft();
+				rleft()
 			case ' ':
 				if drop(true) {
-					return;
+					return
 				}
 			}
 
 		case <-timerc:
 			if suspended {
-				break;
+				break
 			}
 			dt -= tsleep;
 			if dt < 0 {
@@ -619,12 +619,12 @@ func play() {
 				dt = 52-dt;
 				for ; i > 0; i-- {
 					if movepiece() {
-						continue;
+						continue
 					}
 					fusst++;
 					if fusst == 40 {
 						if drop(false) {
-							return;
+							return
 						}
 						break;
 					}
@@ -642,11 +642,11 @@ func suspproc() {
 	for {
 		select {
 		case mouse = <-mc:
-			mousec <- mouse;
+			mousec <- mouse
 		case r := <-kc:
 			switch r {
 			case 'q', 'Q', 0x04, 0x7F:
-				os.Exit(0);
+				os.Exit(0)
 			default:
 				if s {
 					s = false;
@@ -658,7 +658,7 @@ func suspproc() {
 					s = true;
 					suspc <- s;
 				default:
-					kbdc <- r;
+					kbdc <- r
 				}
 			}
 		}
@@ -676,16 +676,16 @@ func redraw(new bool) {
 	dy := r.Max.Y - r.Min.Y - 2*32;
 	DY = dx/NX;
 	if DY > dy/NY {
-		DY = dy/NY;
+		DY = dy/NY
 	}
 	DY /= 8;
 	if DY > 4 {
-		DY = 4;
+		DY = 4
 	}
 	pcsz = DY*8;
 	DMOUSE = pcsz/3;
 	if pcsz < 8 {
-		log.Exitf("screen too small: %d", pcsz);
+		log.Exitf("screen too small: %d", pcsz)
 	}
 	rboard = screenr;
 	rboard.Min.X += (dx - pcsz*NX)/2;
@@ -707,7 +707,7 @@ func redraw(new bool) {
 	drawboard();
 	setpiece(piece);
 	if piece != nil {
-		drawpiece();
+		drawpiece()
 	}
 	lastmx = movemouse();
 	newscreen = true;

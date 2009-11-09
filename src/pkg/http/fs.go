@@ -33,10 +33,10 @@ func isText(b []byte) bool {
 		rune, size := utf8.DecodeRune(b);
 		if size == 1 && rune == utf8.RuneError {
 			// decoding error
-			return false;
+			return false
 		}
 		if 0x80 <= rune && rune <= 0x9F {
-			return false;
+			return false
 		}
 		if rune < ' ' {
 			switch rune {
@@ -44,7 +44,7 @@ func isText(b []byte) bool {
 				// okay
 			default:
 				// binary garbage
-				return false;
+				return false
 			}
 		}
 		b = b[size:len(b)];
@@ -57,12 +57,12 @@ func dirList(c *Conn, f *os.File) {
 	for {
 		dirs, err := f.Readdir(100);
 		if err != nil || len(dirs) == 0 {
-			break;
+			break
 		}
 		for _, d := range dirs {
 			name := d.Name;
 			if d.IsDirectory() {
-				name += "/";
+				name += "/"
 			}
 			// TODO htmlescape
 			fmt.Fprintf(c, "<a href=\"%s\">%s</a>\n", name, name);
@@ -138,16 +138,16 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 	// use extension to find content type.
 	ext := path.Ext(name);
 	if ctype, ok := contentByExt[ext]; ok {
-		c.SetHeader("Content-Type", ctype);
+		c.SetHeader("Content-Type", ctype)
 	} else {
 		// read first chunk to decide between utf-8 text and binary
 		var buf [1024]byte;
 		n, _ := io.ReadFull(f, &buf);
 		b := buf[0:n];
 		if isText(b) {
-			c.SetHeader("Content-Type", "text-plain; charset=utf-8");
+			c.SetHeader("Content-Type", "text-plain; charset=utf-8")
 		} else {
-			c.SetHeader("Content-Type", "application/octet-stream");	// generic binary
+			c.SetHeader("Content-Type", "application/octet-stream")	// generic binary
 		}
 		c.Write(b);
 	}
@@ -156,7 +156,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 
 // ServeFile replies to the request with the contents of the named file or directory.
 func ServeFile(c *Conn, r *Request, name string) {
-	serveFileInternal(c, r, name, false);
+	serveFileInternal(c, r, name, false)
 }
 
 type fileHandler struct {

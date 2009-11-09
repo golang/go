@@ -57,7 +57,7 @@ func Add(name, fmt string, handler Handler) {
 	if n >= cap(rpcMethod) {
 		a := make([]method, n, (n+4)*2);
 		for i := range a {
-			a[i] = rpcMethod[i];
+			a[i] = rpcMethod[i]
 		}
 		rpcMethod = a;
 	}
@@ -74,7 +74,7 @@ func Serve(fd int) os.Error {
 	for {
 		cfd, _, e := syscall.Syscall(syscall.SYS_IMC_ACCEPT, uintptr(fd), 0, 0);
 		if e != 0 {
-			return os.NewSyscallError("imc_accept", int(e));
+			return os.NewSyscallError("imc_accept", int(e))
 		}
 		go serveLoop(int(cfd));
 	}
@@ -90,7 +90,7 @@ func serveLoop(fd int) {
 	for {
 		m, err := r.recv();
 		if err != nil {
-			break;
+			break
 		}
 		m.unpackRequest();
 		if !m.gotHeader {
@@ -130,9 +130,9 @@ func serveMsg(m *msg, c chan<- *msg) {
 	if meth.fmt != m.fmt {
 		switch {
 		case len(m.fmt) < len(meth.fmt):
-			m.status = ErrTooFewArgs;
+			m.status = ErrTooFewArgs
 		case len(m.fmt) > len(meth.fmt):
-			m.status = ErrTooManyArgs;
+			m.status = ErrTooManyArgs
 		default:
 			// There's a type mismatch.
 			// It's an in-arg mismatch if the mismatch happens
@@ -158,7 +158,7 @@ func serveMsg(m *msg, c chan<- *msg) {
 func ServeRuntime() os.Error {
 	// Call getFd to check that we are running embedded.
 	if _, err := getFd(); err != nil {
-		return err;
+		return err
 	}
 
 	// We are running embedded.
@@ -192,7 +192,7 @@ func (serviceDiscovery) Run(arg, ret []interface{}, size []int) Errno {
 		b.WriteByte('\n');
 	}
 	if b.Len() > size[0] {
-		return ErrNoMemory;
+		return ErrNoMemory
 	}
 	ret[0] = b.Bytes();
 	return OK;

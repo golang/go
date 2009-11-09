@@ -12,10 +12,10 @@ package math
 // Fmod returns the floating-point remainder of x/y.
 func Fmod(x, y float64) float64 {
 	if y == 0 {
-		return x;
+		return x
 	}
 	if y < 0 {
-		y = -y;
+		y = -y
 	}
 
 	yfr, yexp := Frexp(y);
@@ -29,12 +29,12 @@ func Fmod(x, y float64) float64 {
 	for r >= y {
 		rfr, rexp := Frexp(r);
 		if rfr < yfr {
-			rexp = rexp-1;
+			rexp = rexp-1
 		}
 		r = r - Ldexp(y, rexp-yexp);
 	}
 	if sign {
-		r = -r;
+		r = -r
 	}
 	return r;
 }

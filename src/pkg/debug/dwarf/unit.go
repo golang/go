@@ -29,7 +29,7 @@ func (d *Data) parseUnits() ([]unit, os.Error) {
 		nunit++;
 	}
 	if b.err != nil {
-		return nil, b.err;
+		return nil, b.err
 	}
 
 	// Again, this time writing them down.
@@ -46,7 +46,7 @@ func (d *Data) parseUnits() ([]unit, os.Error) {
 		atable, err := d.parseAbbrev(b.uint32());
 		if err != nil {
 			if b.err == nil {
-				b.err = err;
+				b.err = err
 			}
 			break;
 		}
@@ -56,7 +56,7 @@ func (d *Data) parseUnits() ([]unit, os.Error) {
 		u.data = b.bytes(int(n-(2+4+1)));
 	}
 	if b.err != nil {
-		return nil, b.err;
+		return nil, b.err
 	}
 	return units, nil;
 }

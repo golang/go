@@ -20,7 +20,7 @@ type Goroutine struct {
 
 func (t *Goroutine) String() string {
 	if t.dead {
-		return "<dead thread>";
+		return "<dead thread>"
 	}
 	// TODO(austin) Give threads friendly ID's, possibly including
 	// the name of the entry function.
@@ -41,7 +41,7 @@ func (t *Goroutine) resetFrame() (err os.Error) {
 func (t *Goroutine) Out() os.Error {
 	f, err := t.frame.Outer();
 	if f != nil {
-		t.frame = f;
+		t.frame = f
 	}
 	return err;
 }
@@ -50,7 +50,7 @@ func (t *Goroutine) Out() os.Error {
 func (t *Goroutine) In() os.Error {
 	f := t.frame.Inner();
 	if f != nil {
-		t.frame = f;
+		t.frame = f
 	}
 	return nil;
 }
@@ -63,7 +63,7 @@ func readylockedBP(ev Event) (EventAction, os.Error) {
 	// stack will have the return address, then the G*.
 	regs, err := b.osThread.Regs();
 	if err != nil {
-		return EAStop, err;
+		return EAStop, err
 	}
 	sp := regs.SP();
 	addr := sp + proc.Word(p.PtrSize());
@@ -71,10 +71,10 @@ func readylockedBP(ev Event) (EventAction, os.Error) {
 	var gp eval.Value;
 	err = try(func(a aborter) { gp = arg.aGet(a) });
 	if err != nil {
-		return EAStop, err;
+		return EAStop, err
 	}
 	if gp == nil {
-		return EAStop, UnknownGoroutine{b.osThread, 0};
+		return EAStop, UnknownGoroutine{b.osThread, 0}
 	}
 	gs := gp.(remoteStruct);
 	g := &Goroutine{gs, nil, false};
@@ -83,13 +83,13 @@ func readylockedBP(ev Event) (EventAction, os.Error) {
 	// Enqueue goroutine creation event
 	parent := b.Goroutine();
 	if parent.isG0() {
-		parent = nil;
+		parent = nil
 	}
 	p.postEvent(&GoroutineCreate{commonEvent{p, g}, parent});
 
 	// If we don't have any thread selected, select this one
 	if p.curGoroutine == nil {
-		p.curGoroutine = g;
+		p.curGoroutine = g
 	}
 
 	return EADefault, nil;
@@ -110,7 +110,7 @@ func goexitBP(ev Event) (EventAction, os.Error) {
 
 	// If we just exited our selected goroutine, selected another
 	if p.curGoroutine == g {
-		p.selectSomeGoroutine();
+		p.selectSomeGoroutine()
 	}
 
 	return EADefault, nil;

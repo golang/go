@@ -45,18 +45,18 @@ func main() {
 
 	arch := os.Getenv("GOARCH");
 	if arch == "" {
-		fatal("$GOARCH is not set");
+		fatal("$GOARCH is not set")
 	}
 	ptrSize, ok := ptrSizeMap[arch];
 	if !ok {
-		fatal("unknown architecture %s", arch);
+		fatal("unknown architecture %s", arch)
 	}
 
 	p := openProg(input);
 	for _, cref := range p.Crefs {
 		// Convert C.ulong to C.unsigned long, etc.
 		if expand, ok := expandName[cref.Name]; ok {
-			cref.Name = expand;
+			cref.Name = expand
 		}
 	}
 
@@ -79,7 +79,7 @@ func main() {
 			*cref.Expr = cref.Type.Go;
 		case "expr":
 			if cref.TypeName {
-				error((*cref.Expr).Pos(), "type C.%s used as expression", cref.Name);
+				error((*cref.Expr).Pos(), "type C.%s used as expression", cref.Name)
 			}
 			// Reference to C variable.
 			// We declare a pointer and arrange to have it filled in.
@@ -87,13 +87,13 @@ func main() {
 			p.Vardef[cref.Name] = cref.Type;
 		case "type":
 			if !cref.TypeName {
-				error((*cref.Expr).Pos(), "expression C.%s used as type", cref.Name);
+				error((*cref.Expr).Pos(), "expression C.%s used as type", cref.Name)
 			}
 			*cref.Expr = cref.Type.Go;
 		}
 	}
 	if nerrors > 0 {
-		os.Exit(2);
+		os.Exit(2)
 	}
 
 	p.PackagePath = p.Package;

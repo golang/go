@@ -75,14 +75,14 @@ func TestSortStrings(t *testing.T) {
 func TestSortLarge_Random(t *testing.T) {
 	data := make([]int, 1000000);
 	for i := 0; i < len(data); i++ {
-		data[i] = rand.Intn(100);
+		data[i] = rand.Intn(100)
 	}
 	if IntsAreSorted(data) {
-		t.Fatalf("terrible rand.rand");
+		t.Fatalf("terrible rand.rand")
 	}
 	SortInts(data);
 	if !IntsAreSorted(data) {
-		t.Errorf("sort didn't sort - 1M ints");
+		t.Errorf("sort didn't sort - 1M ints")
 	}
 }
 
@@ -127,7 +127,7 @@ func (d *testingData) Swap(i, j int) {
 func lg(n int) int {
 	i := 0;
 	for 1<<uint(i) < n {
-		i++;
+		i++
 	}
 	return i;
 }
@@ -147,13 +147,13 @@ func TestBentleyMcIlroy(t *testing.T) {
 				for i := 0; i < n; i++ {
 					switch dist {
 					case _Sawtooth:
-						data[i] = i%m;
+						data[i] = i%m
 					case _Rand:
-						data[i] = rand.Intn(m);
+						data[i] = rand.Intn(m)
 					case _Stagger:
-						data[i] = (i*m + i)%n;
+						data[i] = (i*m + i)%n
 					case _Plateau:
-						data[i] = min(i, m);
+						data[i] = min(i, m)
 					case _Shuffle:
 						if rand.Intn(m) != 0 {
 							j += 2;
@@ -170,36 +170,36 @@ func TestBentleyMcIlroy(t *testing.T) {
 					switch mode {
 					case _Copy:
 						for i := 0; i < n; i++ {
-							mdata[i] = data[i];
+							mdata[i] = data[i]
 						}
 					case _Reverse:
 						for i := 0; i < n; i++ {
-							mdata[i] = data[n-i-1];
+							mdata[i] = data[n-i-1]
 						}
 					case _ReverseFirstHalf:
 						for i := 0; i < n/2; i++ {
-							mdata[i] = data[n/2 - i - 1];
+							mdata[i] = data[n/2 - i - 1]
 						}
 						for i := n/2; i < n; i++ {
-							mdata[i] = data[i];
+							mdata[i] = data[i]
 						}
 					case _ReverseSecondHalf:
 						for i := 0; i < n/2; i++ {
-							mdata[i] = data[i];
+							mdata[i] = data[i]
 						}
 						for i := n/2; i < n; i++ {
-							mdata[i] = data[n-(i - n/2)-1];
+							mdata[i] = data[n-(i - n/2)-1]
 						}
 					case _Sorted:
 						for i := 0; i < n; i++ {
-							mdata[i] = data[i];
+							mdata[i] = data[i]
 						}
 						// SortInts is known to be correct
 						// because mode Sort runs after mode _Copy.
 						SortInts(mdata);
 					case _Dither:
 						for i := 0; i < n; i++ {
-							mdata[i] = data[i] + i%5;
+							mdata[i] = data[i] + i%5
 						}
 					}
 

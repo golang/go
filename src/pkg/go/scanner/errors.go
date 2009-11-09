@@ -68,7 +68,7 @@ func (e *Error) String() string {
 	if e.Pos.Filename != "" || e.Pos.IsValid() {
 		// don't print "<unknown position>"
 		// TODO(gri) reconsider the semantics of Position.IsValid
-		return e.Pos.String() + ": " + e.Msg;
+		return e.Pos.String() + ": " + e.Msg
 	}
 	return e.Msg;
 }
@@ -90,14 +90,14 @@ func (p ErrorList) Less(i, j int) bool {
 	// the offsets do not reflect modified line information (through //line
 	// comments).
 	if e.Filename < f.Filename {
-		return true;
+		return true
 	}
 	if e.Filename == f.Filename {
 		if e.Line < f.Line {
-			return true;
+			return true
 		}
 		if e.Line == f.Line {
-			return e.Column < f.Column;
+			return e.Column < f.Column
 		}
 	}
 	return false;
@@ -107,9 +107,9 @@ func (p ErrorList) Less(i, j int) bool {
 func (p ErrorList) String() string {
 	switch len(p) {
 	case 0:
-		return "unspecified error";
+		return "unspecified error"
 	case 1:
-		return p[0].String();
+		return p[0].String()
 	}
 	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p)-1);
 }
@@ -131,16 +131,16 @@ const (
 //
 func (h *ErrorVector) GetErrorList(mode int) ErrorList {
 	if h.errors.Len() == 0 {
-		return nil;
+		return nil
 	}
 
 	list := make(ErrorList, h.errors.Len());
 	for i := 0; i < h.errors.Len(); i++ {
-		list[i] = h.errors.At(i).(*Error);
+		list[i] = h.errors.At(i).(*Error)
 	}
 
 	if mode >= Sorted {
-		sort.Sort(list);
+		sort.Sort(list)
 	}
 
 	if mode >= NoMultiples {
@@ -166,7 +166,7 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
 //
 func (h *ErrorVector) GetError(mode int) os.Error {
 	if h.errors.Len() == 0 {
-		return nil;
+		return nil
 	}
 
 	return h.GetErrorList(mode);
@@ -175,7 +175,7 @@ func (h *ErrorVector) GetError(mode int) os.Error {
 
 // ErrorVector implements the ErrorHandler interface.
 func (h *ErrorVector) Error(pos token.Position, msg string) {
-	h.errors.Push(&Error{pos, msg});
+	h.errors.Push(&Error{pos, msg})
 }
 
 
@@ -186,9 +186,9 @@ func (h *ErrorVector) Error(pos token.Position, msg string) {
 func PrintError(w io.Writer, err os.Error) {
 	if list, ok := err.(ErrorList); ok {
 		for _, e := range list {
-			fmt.Fprintf(w, "%s\n", e);
+			fmt.Fprintf(w, "%s\n", e)
 		}
 	} else {
-		fmt.Fprintf(w, "%s\n", err);
+		fmt.Fprintf(w, "%s\n", err)
 	}
 }

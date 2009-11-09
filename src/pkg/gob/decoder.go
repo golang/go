@@ -63,11 +63,11 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 		var nbytes uint64;
 		nbytes, dec.state.err = decodeUintReader(dec.r, dec.oneByte);
 		if dec.state.err != nil {
-			break;
+			break
 		}
 		// Allocate the buffer.
 		if nbytes > uint64(len(dec.buf)) {
-			dec.buf = make([]byte, nbytes+1000);
+			dec.buf = make([]byte, nbytes+1000)
 		}
 		dec.state.b = bytes.NewBuffer(dec.buf[0:nbytes]);
 
@@ -75,7 +75,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 		_, dec.state.err = io.ReadFull(dec.r, dec.buf[0:nbytes]);
 		if dec.state.err != nil {
 			if dec.state.err == os.EOF {
-				dec.state.err = io.ErrUnexpectedEOF;
+				dec.state.err = io.ErrUnexpectedEOF
 			}
 			break;
 		}
@@ -83,7 +83,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 		// Receive a type id.
 		id := typeId(decodeInt(dec.state));
 		if dec.state.err != nil {
-			break;
+			break
 		}
 
 		// Is it a new type?
@@ -91,7 +91,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 			// If the id is negative, we have a type.
 			dec.recvType(-id);
 			if dec.state.err != nil {
-				break;
+				break
 			}
 			continue;
 		}

@@ -21,7 +21,7 @@ type Interface interface {
 
 func min(a, b int) int {
 	if a < b {
-		return a;
+		return a
 	}
 	return b;
 }
@@ -30,7 +30,7 @@ func min(a, b int) int {
 func insertionSort(data Interface, a, b int) {
 	for i := a+1; i < b; i++ {
 		for j := i; j > a && data.Less(j, j-1); j-- {
-			data.Swap(j, j-1);
+			data.Swap(j, j-1)
 		}
 	}
 }
@@ -45,20 +45,20 @@ func medianOfThree(data Interface, a, b, c int) {
 	m2 := c;
 	// bubble sort on 3 elements
 	if data.Less(m1, m0) {
-		data.Swap(m1, m0);
+		data.Swap(m1, m0)
 	}
 	if data.Less(m2, m1) {
-		data.Swap(m2, m1);
+		data.Swap(m2, m1)
 	}
 	if data.Less(m1, m0) {
-		data.Swap(m1, m0);
+		data.Swap(m1, m0)
 	}
 	// now data[m0] <= data[m1] <= data[m2]
 }
 
 func swapRange(data Interface, a, b, n int) {
 	for i := 0; i < n; i++ {
-		data.Swap(a+i, b+i);
+		data.Swap(a+i, b+i)
 	}
 }
 
@@ -127,7 +127,7 @@ func quickSort(data Interface, a, b int) {
 		quickSort(data, a, mlo);
 		quickSort(data, mhi, b);
 	} else if b-a > 1 {
-		insertionSort(data, a, b);
+		insertionSort(data, a, b)
 	}
 }
 
@@ -138,7 +138,7 @@ func IsSorted(data Interface) bool {
 	n := data.Len();
 	for i := n-1; i > 0; i-- {
 		if data.Less(i, i-1) {
-			return false;
+			return false
 		}
 	}
 	return true;

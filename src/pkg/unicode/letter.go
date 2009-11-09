@@ -57,10 +57,10 @@ func Is(ranges []Range, rune int) bool {
 	if rune < 0x100 {
 		for _, r := range ranges {
 			if rune > r.Hi {
-				continue;
+				continue
 			}
 			if rune < r.Lo {
-				return false;
+				return false
 			}
 			return (rune - r.Lo) % r.Stride == 0;
 		}
@@ -74,12 +74,12 @@ func Is(ranges []Range, rune int) bool {
 		m := lo + (hi-lo)/2;
 		r := ranges[m];
 		if r.Lo <= rune && rune <= r.Hi {
-			return (rune - r.Lo) % r.Stride == 0;
+			return (rune - r.Lo) % r.Stride == 0
 		}
 		if rune < r.Lo {
-			hi = m;
+			hi = m
 		} else {
-			lo = m+1;
+			lo = m+1
 		}
 	}
 	return false;
@@ -88,7 +88,7 @@ func Is(ranges []Range, rune int) bool {
 // IsUpper reports whether the rune is an upper case letter.
 func IsUpper(rune int) bool {
 	if rune < 0x80 {	// quick ASCII check
-		return 'A' <= rune && rune <= 'Z';
+		return 'A' <= rune && rune <= 'Z'
 	}
 	return Is(Upper, rune);
 }
@@ -96,7 +96,7 @@ func IsUpper(rune int) bool {
 // IsLower reports whether the rune is a lower case letter.
 func IsLower(rune int) bool {
 	if rune < 0x80 {	// quick ASCII check
-		return 'a' <= rune && rune <= 'z';
+		return 'a' <= rune && rune <= 'z'
 	}
 	return Is(Lower, rune);
 }
@@ -104,7 +104,7 @@ func IsLower(rune int) bool {
 // IsTitle reports whether the rune is a title case letter.
 func IsTitle(rune int) bool {
 	if rune < 0x80 {	// quick ASCII check
-		return false;
+		return false
 	}
 	return Is(Title, rune);
 }
@@ -123,7 +123,7 @@ func IsSpace(rune int) bool {
 	if rune <= 0xFF {	// quick Latin-1 check
 		switch rune {
 		case '\t', '\n', '\v', '\f', '\r', ' ', 0x85, 0xA0:
-			return true;
+			return true
 		}
 		return false;
 	}
@@ -133,7 +133,7 @@ func IsSpace(rune int) bool {
 // To maps the rune to the specified case: UpperCase, LowerCase, or TitleCase
 func To(_case int, rune int) int {
 	if _case < 0 || MaxCase <= _case {
-		return ReplacementChar;	// as reasonable an error as any
+		return ReplacementChar	// as reasonable an error as any
 	}
 	// binary search over ranges
 	lo := 0;
@@ -154,14 +154,14 @@ func To(_case int, rune int) int {
 				// bit in the sequence offset.
 				// The constants UpperCase and TitleCase are even while LowerCase
 				// is odd so we take the low bit from _case.
-				return r.Lo + ((rune - r.Lo)&^1 | _case&1);
+				return r.Lo + ((rune - r.Lo)&^1 | _case&1)
 			}
 			return rune+delta;
 		}
 		if rune < r.Lo {
-			hi = m;
+			hi = m
 		} else {
-			lo = m+1;
+			lo = m+1
 		}
 	}
 	return rune;
@@ -171,7 +171,7 @@ func To(_case int, rune int) int {
 func ToUpper(rune int) int {
 	if rune < 0x80 {	// quick ASCII check
 		if 'a' <= rune && rune <= 'z' {
-			rune -= 'a'-'A';
+			rune -= 'a'-'A'
 		}
 		return rune;
 	}
@@ -182,7 +182,7 @@ func ToUpper(rune int) int {
 func ToLower(rune int) int {
 	if rune < 0x80 {	// quick ASCII check
 		if 'A' <= rune && rune <= 'Z' {
-			rune += 'a'-'A';
+			rune += 'a'-'A'
 		}
 		return rune;
 	}
@@ -193,7 +193,7 @@ func ToLower(rune int) int {
 func ToTitle(rune int) int {
 	if rune < 0x80 {	// quick ASCII check
 		if 'a' <= rune && rune <= 'z' {	// title case is upper case for ASCII
-			rune -= 'a'-'A';
+			rune -= 'a'-'A'
 		}
 		return rune;
 	}

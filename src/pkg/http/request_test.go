@@ -39,7 +39,7 @@ func TestParseForm(t *testing.T) {
 			continue;
 		}
 		if len(form) != len(test.out) {
-			t.Errorf("test %d: len(form) = %d, want %d", i, len(form), len(test.out));
+			t.Errorf("test %d: len(form) = %d, want %d", i, len(form), len(test.out))
 		}
 		for k, evs := range test.out {
 			vs, ok := form[k];
@@ -53,7 +53,7 @@ func TestParseForm(t *testing.T) {
 			}
 			for j, ev := range evs {
 				if v := vs[j]; v != ev {
-					t.Errorf("test %d: form[%q][%d] = %q, want %q", i, k, j, v, ev);
+					t.Errorf("test %d: form[%q][%d] = %q, want %q", i, k, j, v, ev)
 				}
 			}
 		}
@@ -64,7 +64,7 @@ func TestQuery(t *testing.T) {
 	req := &Request{Method: "GET"};
 	req.URL, _ = ParseURL("http://www.google.com/search?q=foo&q=bar");
 	if q := req.FormValue("q"); q != "foo" {
-		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q);
+		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q)
 	}
 }
 
@@ -93,10 +93,10 @@ func TestPostContentTypeParsing(t *testing.T) {
 		};
 		err := req.ParseForm();
 		if !test.error && err != nil {
-			t.Errorf("test %d: Unexpected error: %v", i, err);
+			t.Errorf("test %d: Unexpected error: %v", i, err)
 		}
 		if test.error && err == nil {
-			t.Errorf("test %d should have returned error", i);
+			t.Errorf("test %d should have returned error", i)
 		}
 	}
 }
@@ -108,10 +108,10 @@ func TestRedirect(t *testing.T) {
 	)
 	r, url, err := Get(start);
 	if err != nil {
-		t.Fatal(err);
+		t.Fatal(err)
 	}
 	r.Body.Close();
 	if r.StatusCode != 200 || url != end {
-		t.Fatalf("Get(%s) got status %d at %s, want 200 at %s", start, r.StatusCode, url, end);
+		t.Fatalf("Get(%s) got status %d at %s, want 200 at %s", start, r.StatusCode, url, end)
 	}
 }

@@ -213,7 +213,7 @@ func NewEncoder(w io.Writer) *Encoder {
 }
 
 func (enc *Encoder) badType(rt reflect.Type) {
-	enc.state.err = os.ErrorString("gob: can't encode type " + rt.String());
+	enc.state.err = os.ErrorString("gob: can't encode type " + rt.String())
 }
 
 // Send the data item preceded by a unsigned count of its length.
@@ -224,7 +224,7 @@ func (enc *Encoder) send() {
 	countLen := enc.countState.b.Len();
 	total := countLen + enc.state.b.Len();
 	if total > len(enc.buf) {
-		enc.buf = make([]byte, total+1000);	// extra for growth
+		enc.buf = make([]byte, total+1000)	// extra for growth
 	}
 	// Place the length before the data.
 	// TODO(r): avoid the extra copy here.
@@ -245,12 +245,12 @@ func (enc *Encoder) sendType(origt reflect.Type, topLevel bool) {
 		// Basic types do not need to be described, but if this is a top-level
 		// type, it's a user error, at least for now.
 		if topLevel {
-			enc.badType(rt);
+			enc.badType(rt)
 		}
 		return;
 	case *reflect.StructType:
 		// Structs do need to be described.
-		break;
+		break
 	case *reflect.ChanType, *reflect.FuncType, *reflect.MapType, *reflect.InterfaceType:
 		// Probably a bad field in a struct.
 		enc.badType(rt);
@@ -264,7 +264,7 @@ func (enc *Encoder) sendType(origt reflect.Type, topLevel bool) {
 
 	// Have we already sent this type?  This time we ask about the base type.
 	if _, alreadySent := enc.sent[rt]; alreadySent {
-		return;
+		return
 	}
 
 	// Need to send it.
@@ -289,7 +289,7 @@ func (enc *Encoder) sendType(origt reflect.Type, topLevel bool) {
 	// Now send the inner types
 	st := rt.(*reflect.StructType);
 	for i := 0; i < st.NumField(); i++ {
-		enc.sendType(st.Field(i).Type, false);
+		enc.sendType(st.Field(i).Type, false)
 	}
 	return;
 }
@@ -298,7 +298,7 @@ func (enc *Encoder) sendType(origt reflect.Type, topLevel bool) {
 // guaranteeing that all necessary type information has been transmitted first.
 func (enc *Encoder) Encode(e interface{}) os.Error {
 	if enc.state.b.Len() > 0 || enc.countState.b.Len() > 0 {
-		panicln("Encoder: buffer not empty");
+		panicln("Encoder: buffer not empty")
 	}
 	rt, _ := indirect(reflect.Typeof(e));
 

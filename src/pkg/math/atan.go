@@ -43,10 +43,10 @@ func xatan(arg float64) float64 {
  */
 func satan(arg float64) float64 {
 	if arg < Sqrt2-1 {
-		return xatan(arg);
+		return xatan(arg)
 	}
 	if arg > Sqrt2+1 {
-		return Pi/2 - xatan(1/arg);
+		return Pi/2 - xatan(1/arg)
 	}
 	return Pi/4 + xatan((arg-1)/(arg+1));
 }
@@ -59,7 +59,7 @@ func satan(arg float64) float64 {
 // Atan returns the arc tangent of x.
 func Atan(x float64) float64 {
 	if x > 0 {
-		return satan(x);
+		return satan(x)
 	}
 	return -satan(-x);
 }

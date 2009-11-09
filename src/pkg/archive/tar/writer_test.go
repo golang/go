@@ -87,9 +87,9 @@ func bytestr(offset int, b []byte) string {
 	for _, ch := range b {
 		switch {
 		case '0' <= ch && ch <= '9', 'A' <= ch && ch <= 'Z', 'a' <= ch && ch <= 'z':
-			s += fmt.Sprintf("  %c", ch);
+			s += fmt.Sprintf("  %c", ch)
 		default:
-			s += fmt.Sprintf(" %02x", ch);
+			s += fmt.Sprintf(" %02x", ch)
 		}
 	}
 	return s;
@@ -102,15 +102,15 @@ func bytediff(a []byte, b []byte) string {
 	for offset := 0; len(a)+len(b) > 0; offset += rowLen {
 		na, nb := rowLen, rowLen;
 		if na > len(a) {
-			na = len(a);
+			na = len(a)
 		}
 		if nb > len(b) {
-			nb = len(b);
+			nb = len(b)
 		}
 		sa := bytestr(offset, a[0:na]);
 		sb := bytestr(offset, b[0:nb]);
 		if sa != sb {
-			s += fmt.Sprintf("-%v\n+%v\n", sa, sb);
+			s += fmt.Sprintf("-%v\n+%v\n", sa, sb)
 		}
 		a = a[na:len(a)];
 		b = b[nb:len(b)];
@@ -147,7 +147,7 @@ testLoop:
 		actual := buf.Bytes();
 		if !bytes.Equal(expected, actual) {
 			t.Errorf("test %d: Incorrect result: (-=expected, +=actual)\n%v",
-				i, bytediff(expected, actual));
+				i, bytediff(expected, actual))
 		}
 	}
 }

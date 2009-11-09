@@ -52,7 +52,7 @@ func (S *Scanner) next() {
 			S.pos.Column = 0;
 		case r >= 0x80:
 			// not ASCII
-			r, w = utf8.DecodeRune(S.src[S.offset : len(S.src)]);
+			r, w = utf8.DecodeRune(S.src[S.offset : len(S.src)])
 		}
 		S.offset += w;
 		S.ch = r;
@@ -96,27 +96,27 @@ func charString(ch int) string {
 	var s string;
 	switch ch {
 	case -1:
-		return `EOF`;
+		return `EOF`
 	case '\a':
-		s = `\a`;
+		s = `\a`
 	case '\b':
-		s = `\b`;
+		s = `\b`
 	case '\f':
-		s = `\f`;
+		s = `\f`
 	case '\n':
-		s = `\n`;
+		s = `\n`
 	case '\r':
-		s = `\r`;
+		s = `\r`
 	case '\t':
-		s = `\t`;
+		s = `\t`
 	case '\v':
-		s = `\v`;
+		s = `\v`
 	case '\\':
-		s = `\\`;
+		s = `\\`
 	case '\'':
-		s = `\'`;
+		s = `\'`
 	default:
-		s = string(ch);
+		s = string(ch)
 	}
 	return "'" + s + "' (U+" + strconv.Itob(ch, 16) + ")";
 }
@@ -124,7 +124,7 @@ func charString(ch int) string {
 
 func (S *Scanner) error(pos token.Position, msg string) {
 	if S.err != nil {
-		S.err.Error(pos, msg);
+		S.err.Error(pos, msg)
 	}
 	S.ErrorCount++;
 }
@@ -132,7 +132,7 @@ func (S *Scanner) error(pos token.Position, msg string) {
 
 func (S *Scanner) expect(ch int) {
 	if S.ch != ch {
-		S.error(S.pos, "expected " + charString(ch) + ", found " + charString(S.ch));
+		S.error(S.pos, "expected " + charString(ch) + ", found " + charString(S.ch))
 	}
 	S.next();	// always make progress
 }
@@ -188,19 +188,19 @@ func (S *Scanner) scanComment(pos token.Position) {
 
 
 func isLetter(ch int) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= 0x80 && unicode.IsLetter(ch);
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= 0x80 && unicode.IsLetter(ch)
 }
 
 
 func isDigit(ch int) bool {
-	return '0' <= ch && ch <= '9' || ch >= 0x80 && unicode.IsDigit(ch);
+	return '0' <= ch && ch <= '9' || ch >= 0x80 && unicode.IsDigit(ch)
 }
 
 
 func (S *Scanner) scanIdentifier() token.Token {
 	pos := S.pos.Offset;
 	for isLetter(S.ch) || isDigit(S.ch) {
-		S.next();
+		S.next()
 	}
 	return token.Lookup(S.src[pos : S.pos.Offset]);
 }
@@ -209,11 +209,11 @@ func (S *Scanner) scanIdentifier() token.Token {
 func digitVal(ch int) int {
 	switch {
 	case '0' <= ch && ch <= '9':
-		return ch-'0';
+		return ch-'0'
 	case 'a' <= ch && ch <= 'f':
-		return ch-'a'+10;
+		return ch-'a'+10
 	case 'A' <= ch && ch <= 'F':
-		return ch-'A'+10;
+		return ch-'A'+10
 	}
 	return 16;	// larger than any legal digit val
 }
@@ -221,7 +221,7 @@ func digitVal(ch int) int {
 
 func (S *Scanner) scanMantissa(base int) {
 	for digitVal(S.ch) < base {
-		S.next();
+		S.next()
 	}
 }
 
@@ -272,7 +272,7 @@ exponent:
 		tok = token.FLOAT;
 		S.next();
 		if S.ch == '-' || S.ch == '+' {
-			S.next();
+			S.next()
 		}
 		S.scanMantissa(10);
 	}
@@ -288,7 +288,7 @@ func (S *Scanner) scanDigits(base, length int) {
 		length--;
 	}
 	if length > 0 {
-		S.error(S.pos, "illegal char escape");
+		S.error(S.pos, "illegal char escape")
 	}
 }
 
@@ -301,15 +301,15 @@ func (S *Scanner) scanEscape(quote int) {
 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
 	// nothing to do
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		S.scanDigits(8, 3-1);	// 1 char read already
+		S.scanDigits(8, 3-1)	// 1 char read already
 	case 'x':
-		S.scanDigits(16, 2);
+		S.scanDigits(16, 2)
 	case 'u':
-		S.scanDigits(16, 4);
+		S.scanDigits(16, 4)
 	case 'U':
-		S.scanDigits(16, 8);
+		S.scanDigits(16, 8)
 	default:
-		S.error(pos, "illegal char escape");
+		S.error(pos, "illegal char escape")
 	}
 }
 
@@ -328,14 +328,14 @@ func (S *Scanner) scanChar(pos token.Position) {
 			break;
 		}
 		if ch == '\\' {
-			S.scanEscape('\'');
+			S.scanEscape('\'')
 		}
 	}
 
 	S.next();
 
 	if n != 1 {
-		S.error(pos, "illegal character literal");
+		S.error(pos, "illegal character literal")
 	}
 }
 
@@ -351,7 +351,7 @@ func (S *Scanner) scanString(pos token.Position) {
 			break;
 		}
 		if ch == '\\' {
-			S.scanEscape('"');
+			S.scanEscape('"')
 		}
 	}
 
@@ -435,7 +435,7 @@ func (S *Scanner) Scan() (pos token.Position, tok token.Token, lit []byte) {
 scan_again:
 	// skip white space
 	for S.ch == ' ' || S.ch == '\t' || S.ch == '\n' || S.ch == '\r' {
-		S.next();
+		S.next()
 	}
 
 	// current token start
@@ -444,14 +444,14 @@ scan_again:
 	// determine token value
 	switch ch := S.ch; {
 	case isLetter(ch):
-		tok = S.scanIdentifier();
+		tok = S.scanIdentifier()
 	case digitVal(ch) < 10:
-		tok = S.scanNumber(false);
+		tok = S.scanNumber(false)
 	default:
 		S.next();	// always make progress
 		switch ch {
 		case -1:
-			tok = token.EOF;
+			tok = token.EOF
 		case '"':
 			tok = token.STRING;
 			S.scanString(pos);
@@ -462,10 +462,10 @@ scan_again:
 			tok = token.STRING;
 			S.scanRawString(pos);
 		case ':':
-			tok = S.switch2(token.COLON, token.DEFINE);
+			tok = S.switch2(token.COLON, token.DEFINE)
 		case '.':
 			if digitVal(S.ch) < 10 {
-				tok = S.scanNumber(true);
+				tok = S.scanNumber(true)
 			} else if S.ch == '.' {
 				S.next();
 				if S.ch == '.' {
@@ -473,69 +473,69 @@ scan_again:
 					tok = token.ELLIPSIS;
 				}
 			} else {
-				tok = token.PERIOD;
+				tok = token.PERIOD
 			}
 		case ',':
-			tok = token.COMMA;
+			tok = token.COMMA
 		case ';':
-			tok = token.SEMICOLON;
+			tok = token.SEMICOLON
 		case '(':
-			tok = token.LPAREN;
+			tok = token.LPAREN
 		case ')':
-			tok = token.RPAREN;
+			tok = token.RPAREN
 		case '[':
-			tok = token.LBRACK;
+			tok = token.LBRACK
 		case ']':
-			tok = token.RBRACK;
+			tok = token.RBRACK
 		case '{':
-			tok = token.LBRACE;
+			tok = token.LBRACE
 		case '}':
-			tok = token.RBRACE;
+			tok = token.RBRACE
 		case '+':
-			tok = S.switch3(token.ADD, token.ADD_ASSIGN, '+', token.INC);
+			tok = S.switch3(token.ADD, token.ADD_ASSIGN, '+', token.INC)
 		case '-':
-			tok = S.switch3(token.SUB, token.SUB_ASSIGN, '-', token.DEC);
+			tok = S.switch3(token.SUB, token.SUB_ASSIGN, '-', token.DEC)
 		case '*':
-			tok = S.switch2(token.MUL, token.MUL_ASSIGN);
+			tok = S.switch2(token.MUL, token.MUL_ASSIGN)
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
 				S.scanComment(pos);
 				tok = token.COMMENT;
 				if S.mode & ScanComments == 0 {
-					goto scan_again;
+					goto scan_again
 				}
 			} else {
-				tok = S.switch2(token.QUO, token.QUO_ASSIGN);
+				tok = S.switch2(token.QUO, token.QUO_ASSIGN)
 			}
 		case '%':
-			tok = S.switch2(token.REM, token.REM_ASSIGN);
+			tok = S.switch2(token.REM, token.REM_ASSIGN)
 		case '^':
-			tok = S.switch2(token.XOR, token.XOR_ASSIGN);
+			tok = S.switch2(token.XOR, token.XOR_ASSIGN)
 		case '<':
 			if S.ch == '-' {
 				S.next();
 				tok = token.ARROW;
 			} else {
-				tok = S.switch4(token.LSS, token.LEQ, '<', token.SHL, token.SHL_ASSIGN);
+				tok = S.switch4(token.LSS, token.LEQ, '<', token.SHL, token.SHL_ASSIGN)
 			}
 		case '>':
-			tok = S.switch4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN);
+			tok = S.switch4(token.GTR, token.GEQ, '>', token.SHR, token.SHR_ASSIGN)
 		case '=':
-			tok = S.switch2(token.ASSIGN, token.EQL);
+			tok = S.switch2(token.ASSIGN, token.EQL)
 		case '!':
-			tok = S.switch2(token.NOT, token.NEQ);
+			tok = S.switch2(token.NOT, token.NEQ)
 		case '&':
 			if S.ch == '^' {
 				S.next();
 				tok = S.switch2(token.AND_NOT, token.AND_NOT_ASSIGN);
 			} else {
-				tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND);
+				tok = S.switch3(token.AND, token.AND_ASSIGN, '&', token.LAND)
 			}
 		case '|':
-			tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR);
+			tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
 		default:
 			if S.mode & AllowIllegalChars == 0 {
-				S.error(pos, "illegal character " + charString(ch));
+				S.error(pos, "illegal character " + charString(ch))
 			}
 		}
 	}

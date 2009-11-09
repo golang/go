@@ -32,12 +32,12 @@ var typedefTests = map[string]string{
 func elfData(t *testing.T, name string) *Data {
 	f, err := elf.Open(name);
 	if err != nil {
-		t.Fatal(err);
+		t.Fatal(err)
 	}
 
 	d, err := f.DWARF();
 	if err != nil {
-		t.Fatal(err);
+		t.Fatal(err)
 	}
 	return d;
 }
@@ -45,12 +45,12 @@ func elfData(t *testing.T, name string) *Data {
 func machoData(t *testing.T, name string) *Data {
 	f, err := macho.Open(name);
 	if err != nil {
-		t.Fatal(err);
+		t.Fatal(err)
 	}
 
 	d, err := f.DWARF();
 	if err != nil {
-		t.Fatal(err);
+		t.Fatal(err)
 	}
 	return d;
 }
@@ -59,7 +59,7 @@ func machoData(t *testing.T, name string) *Data {
 func TestTypedefsELF(t *testing.T)	{ testTypedefs(t, elfData(t, "testdata/typedef.elf")) }
 
 func TestTypedefsMachO(t *testing.T) {
-	testTypedefs(t, machoData(t, "testdata/typedef.macho"));
+	testTypedefs(t, machoData(t, "testdata/typedef.macho"))
 }
 
 func testTypedefs(t *testing.T, d *Data) {
@@ -68,42 +68,42 @@ func testTypedefs(t *testing.T, d *Data) {
 	for {
 		e, err := r.Next();
 		if err != nil {
-			t.Fatal("r.Next:", err);
+			t.Fatal("r.Next:", err)
 		}
 		if e == nil {
-			break;
+			break
 		}
 		if e.Tag == TagTypedef {
 			typ, err := d.Type(e.Offset);
 			if err != nil {
-				t.Fatal("d.Type:", err);
+				t.Fatal("d.Type:", err)
 			}
 			t1 := typ.(*TypedefType);
 			var typstr string;
 			if ts, ok := t1.Type.(*StructType); ok {
-				typstr = ts.Defn();
+				typstr = ts.Defn()
 			} else {
-				typstr = t1.Type.String();
+				typstr = t1.Type.String()
 			}
 
 			if want, ok := typedefTests[t1.Name]; ok {
 				if _, ok := seen[t1.Name]; ok {
-					t.Errorf("multiple definitions for %s", t1.Name);
+					t.Errorf("multiple definitions for %s", t1.Name)
 				}
 				seen[t1.Name] = true;
 				if typstr != want {
-					t.Errorf("%s:\n\thave %s\n\twant %s", t1.Name, typstr, want);
+					t.Errorf("%s:\n\thave %s\n\twant %s", t1.Name, typstr, want)
 				}
 			}
 		}
 		if e.Tag != TagCompileUnit {
-			r.SkipChildren();
+			r.SkipChildren()
 		}
 	}
 
 	for k := range typedefTests {
 		if _, ok := seen[k]; !ok {
-			t.Errorf("missing %s", k);
+			t.Errorf("missing %s", k)
 		}
 	}
 }

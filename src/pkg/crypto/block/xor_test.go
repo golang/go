@@ -36,7 +36,7 @@ func (x *incStream) Next() []byte {
 func testXorWriter(t *testing.T, maxio int) {
 	var plain, crypt [256]byte;
 	for i := 0; i < len(plain); i++ {
-		plain[i] = byte(i);
+		plain[i] = byte(i)
 	}
 	b := new(bytes.Buffer);
 	for block := 1; block <= 64 && block <= maxio; block *= 2 {
@@ -44,7 +44,7 @@ func testXorWriter(t *testing.T, maxio int) {
 		n := byte(0);
 		for i := 0; i < len(crypt); i++ {
 			if i%block == 0 {
-				n++;
+				n++
 			}
 			crypt[i] = plain[i]^n;
 			n++;
@@ -69,7 +69,7 @@ func testXorWriter(t *testing.T, maxio int) {
 			for n := 1; n <= len(plain)/2; n *= 2 {
 				_, err := io.Copyn(w, r, int64(n));
 				if err != nil {
-					t.Errorf("%s: Copyn %d: %s", test, n, err);
+					t.Errorf("%s: Copyn %d: %s", test, n, err)
 				}
 			}
 
@@ -82,7 +82,7 @@ func testXorWriter(t *testing.T, maxio int) {
 			}
 
 			if string(data) != string(crypt) {
-				t.Errorf("%s: want %x got %x", test, data, crypt);
+				t.Errorf("%s: want %x got %x", test, data, crypt)
 			}
 		}
 	}
@@ -92,7 +92,7 @@ func testXorWriter(t *testing.T, maxio int) {
 func TestXorWriter(t *testing.T) {
 	// Do shorter I/O sizes first; they're easier to debug.
 	for n := 1; n <= 256 && !t.Failed(); n *= 2 {
-		testXorWriter(t, n);
+		testXorWriter(t, n)
 	}
 }
 
@@ -104,7 +104,7 @@ func testXorReader(t *testing.T, maxio int) {
 	};
 	var plain, crypt [256]byte;
 	for i := 0; i < len(plain); i++ {
-		plain[i] = byte(255-i);
+		plain[i] = byte(255-i)
 	}
 	b := new(bytes.Buffer);
 	for block := 1; block <= 64 && block <= maxio; block *= 2 {
@@ -112,7 +112,7 @@ func testXorReader(t *testing.T, maxio int) {
 		n := byte(0);
 		for i := 0; i < len(crypt); i++ {
 			if i%block == 0 {
-				n++;
+				n++
 			}
 			crypt[i] = plain[i]^n;
 			n++;
@@ -137,7 +137,7 @@ func testXorReader(t *testing.T, maxio int) {
 				for n := 1; n <= maxio/2; n *= 2 {
 					_, err := io.Copyn(b, r, int64(n));
 					if err != nil {
-						t.Errorf("%s: Copyn %d: %s", test, n, err);
+						t.Errorf("%s: Copyn %d: %s", test, n, err)
 					}
 				}
 
@@ -151,7 +151,7 @@ func testXorReader(t *testing.T, maxio int) {
 				}
 
 				if string(data) != string(plain) {
-					t.Errorf("%s: input=%x want %x got %x", test, crypt, plain, data);
+					t.Errorf("%s: input=%x want %x got %x", test, crypt, plain, data)
 				}
 			}
 		}
@@ -161,7 +161,7 @@ func testXorReader(t *testing.T, maxio int) {
 func TestXorReader(t *testing.T) {
 	// Do shorter I/O sizes first; they're easier to debug.
 	for n := 1; n <= 256 && !t.Failed(); n *= 2 {
-		testXorReader(t, n);
+		testXorReader(t, n)
 	}
 }
 

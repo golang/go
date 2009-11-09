@@ -52,7 +52,7 @@ var errstr = [...]string{
 
 func (e Errno) String() string {
 	if e < OK || int(e-OK) >= len(errstr) {
-		return "Errno(" + strconv.Itoa64(int64(e)) + ")";
+		return "Errno(" + strconv.Itoa64(int64(e)) + ")"
 	}
 	return errstr[e-OK];
 }
@@ -113,7 +113,7 @@ func (r *msgReceiver) recv() (*msg, os.Error) {
 	r.hdr.ndesc = int32(len(r.desc));
 	n, _, e := syscall.Syscall(syscall.SYS_IMC_RECVMSG, uintptr(r.fd), uintptr(unsafe.Pointer(&r.hdr)), 0);
 	if e != 0 {
-		return nil, os.NewSyscallError("imc_recvmsg", int(e));
+		return nil, os.NewSyscallError("imc_recvmsg", int(e))
 	}
 
 	// Make a copy of the data so that the next recvmsg doesn't
@@ -128,7 +128,7 @@ func (r *msgReceiver) recv() (*msg, os.Error) {
 	if r.hdr.ndesc > 0 {
 		m.rdesc = make([]int32, r.hdr.ndesc);
 		for i := range m.rdesc {
-			m.rdesc[i] = r.desc[i];
+			m.rdesc[i] = r.desc[i]
 		}
 	}
 
@@ -144,7 +144,7 @@ type msgSender struct {
 
 func (s *msgSender) send(m *msg) os.Error {
 	if len(m.wdata) > 0 {
-		s.iov.base = &m.wdata[0];
+		s.iov.base = &m.wdata[0]
 	}
 	s.iov.len = int32(len(m.wdata));
 	s.hdr.iov = &s.iov;
@@ -153,7 +153,7 @@ func (s *msgSender) send(m *msg) os.Error {
 	s.hdr.ndesc = 0;
 	_, _, e := syscall.Syscall(syscall.SYS_IMC_SENDMSG, uintptr(s.fd), uintptr(unsafe.Pointer(&s.hdr)), 0);
 	if e != 0 {
-		return os.NewSyscallError("imc_sendmsg", int(e));
+		return os.NewSyscallError("imc_sendmsg", int(e))
 	}
 	return nil;
 }
@@ -161,7 +161,7 @@ func (s *msgSender) send(m *msg) os.Error {
 // Reading from msg.rdata.
 func (m *msg) uint8() uint8 {
 	if m.status != OK {
-		return 0;
+		return 0
 	}
 	if len(m.rdata) < 1 {
 		m.status = ErrMessageTruncated;
@@ -174,7 +174,7 @@ func (m *msg) uint8() uint8 {
 
 func (m *msg) uint32() uint32 {
 	if m.status != OK {
-		return 0;
+		return 0
 	}
 	if len(m.rdata) < 4 {
 		m.status = ErrMessageTruncated;
@@ -188,7 +188,7 @@ func (m *msg) uint32() uint32 {
 
 func (m *msg) uint64() uint64 {
 	if m.status != OK {
-		return 0;
+		return 0
 	}
 	if len(m.rdata) < 8 {
 		m.status = ErrMessageTruncated;
@@ -203,7 +203,7 @@ func (m *msg) uint64() uint64 {
 
 func (m *msg) bytes(n int) []byte {
 	if m.status != OK {
-		return nil;
+		return nil
 	}
 	if len(m.rdata) < n {
 		m.status = ErrMessageTruncated;
@@ -255,7 +255,7 @@ func (m *msg) wbytes(p []byte)	{ bytes.Copy(m.grow(len(p)), p) }
 func (m *msg) wstring(s string) {
 	b := m.grow(len(s));
 	for i := range b {
-		b[i] = s[i];
+		b[i] = s[i]
 	}
 }
 
@@ -308,7 +308,7 @@ func (m *msg) unpackHeader() {
 		status := Errno(m.uint32());
 		m.gotHeader = m.status == OK;	// still ok?
 		if m.gotHeader {
-			m.status = status;
+			m.status = status
 		}
 	}
 }
@@ -317,13 +317,13 @@ func (m *msg) packHeader() {
 	m.wuint32(m.protocol);
 	m.wuint64(m.requestId);
 	if m.isReq {
-		m.wuint8(1);
+		m.wuint8(1)
 	} else {
-		m.wuint8(0);
+		m.wuint8(0)
 	}
 	m.wuint32(m.rpcNumber);
 	if !m.isReq {
-		m.wuint32(uint32(m.status));
+		m.wuint32(uint32(m.status))
 	}
 }
 
@@ -334,40 +334,40 @@ func (m *msg) unpackValues(v []interface{}) {
 		switch t {
 		default:
 			if m.status == OK {
-				m.status = ErrBadArgType;
+				m.status = ErrBadArgType
 			}
 			return;
 		case 'b':	// bool[1]
-			v[i] = m.uint8() > 0;
+			v[i] = m.uint8() > 0
 		case 'C':	// char array
-			v[i] = m.bytes(int(m.uint32()));
+			v[i] = m.bytes(int(m.uint32()))
 		case 'd':	// double
-			v[i] = math.Float64frombits(m.uint64());
+			v[i] = math.Float64frombits(m.uint64())
 		case 'D':	// double array
 			a := make([]float64, int(m.uint32()));
 			for j := range a {
-				a[j] = math.Float64frombits(m.uint64());
+				a[j] = math.Float64frombits(m.uint64())
 			}
 			v[i] = a;
 		case 'h':	// file descriptor (handle)
 			if len(m.rdesc) == 0 {
 				if m.status == OK {
-					m.status = ErrBadArgType;
+					m.status = ErrBadArgType
 				}
 				return;
 			}
 			v[i] = int(m.rdesc[0]);
 			m.rdesc = m.rdesc[1:len(m.rdesc)];
 		case 'i':	// int
-			v[i] = int32(m.uint32());
+			v[i] = int32(m.uint32())
 		case 'I':	// int array
 			a := make([]int32, int(m.uint32()));
 			for j := range a {
-				a[j] = int32(m.uint32());
+				a[j] = int32(m.uint32())
 			}
 			v[i] = a;
 		case 's':	// string
-			v[i] = string(m.bytes(int(m.uint32())));
+			v[i] = string(m.bytes(int(m.uint32())))
 		}
 	}
 }
@@ -377,15 +377,15 @@ func (m *msg) packValues(v []interface{}) {
 		switch x := v[i].(type) {
 		default:
 			if m.status == OK {
-				m.status = ErrInternalError;
+				m.status = ErrInternalError
 			}
 			return;
 		case bool:
 			m.wuint8('b');
 			if x {
-				m.wuint8(1);
+				m.wuint8(1)
 			} else {
-				m.wuint8(0);
+				m.wuint8(0)
 			}
 		case []byte:
 			m.wuint8('C');
@@ -398,7 +398,7 @@ func (m *msg) packValues(v []interface{}) {
 			m.wuint8('D');
 			m.wuint32(uint32(len(x)));
 			for _, f := range x {
-				m.wuint64(math.Float64bits(f));
+				m.wuint64(math.Float64bits(f))
 			}
 		case int32:
 			m.wuint8('i');
@@ -407,7 +407,7 @@ func (m *msg) packValues(v []interface{}) {
 			m.wuint8('I');
 			m.wuint32(uint32(len(x)));
 			for _, i := range x {
-				m.wuint32(uint32(i));
+				m.wuint32(uint32(i))
 			}
 		case string:
 			m.wuint8('s');
@@ -420,7 +420,7 @@ func (m *msg) packValues(v []interface{}) {
 func (m *msg) unpackRequest() {
 	m.status = OK;
 	if m.unpackHeader(); m.status != OK {
-		return;
+		return
 	}
 	if m.protocol != protocol || !m.isReq {
 		m.status = ErrProtocolMismatch;
@@ -431,7 +431,7 @@ func (m *msg) unpackRequest() {
 	m.Arg = make([]interface{}, m.uint32());
 	m.unpackValues(m.Arg);
 	if m.status != OK {
-		return;
+		return
 	}
 
 	// type-tagged expected return sizes.
@@ -446,23 +446,23 @@ func (m *msg) unpackRequest() {
 		switch t {
 		default:
 			if m.status == OK {
-				m.status = ErrBadArgType;
+				m.status = ErrBadArgType
 			}
 			return;
 		case 'b':	// bool[1]
-			m.Ret[i] = false;
+			m.Ret[i] = false
 		case 'C':	// char array
 			m.Size[i] = int(m.uint32());
 			m.Ret[i] = []byte(nil);
 		case 'd':	// double
-			m.Ret[i] = float64(0);
+			m.Ret[i] = float64(0)
 		case 'D':	// double array
 			m.Size[i] = int(m.uint32());
 			m.Ret[i] = []float64(nil);
 		case 'h':	// file descriptor (handle)
-			m.Ret[i] = int(-1);
+			m.Ret[i] = int(-1)
 		case 'i':	// int
-			m.Ret[i] = int32(0);
+			m.Ret[i] = int32(0)
 		case 'I':	// int array
 			m.Size[i] = int(m.uint32());
 			m.Ret[i] = []int32(nil);
@@ -481,19 +481,19 @@ func (m *msg) packRequest() {
 	for i, v := range m.Ret {
 		switch x := v.(type) {
 		case bool:
-			m.wuint8('b');
+			m.wuint8('b')
 		case []byte:
 			m.wuint8('C');
 			m.wuint32(uint32(m.Size[i]));
 		case float64:
-			m.wuint8('d');
+			m.wuint8('d')
 		case []float64:
 			m.wuint8('D');
 			m.wuint32(uint32(m.Size[i]));
 		case int:
-			m.wuint8('h');
+			m.wuint8('h')
 		case int32:
-			m.wuint8('i');
+			m.wuint8('i')
 		case []int32:
 			m.wuint8('I');
 			m.wuint32(uint32(m.Size[i]));
@@ -507,7 +507,7 @@ func (m *msg) packRequest() {
 func (m *msg) unpackResponse() {
 	m.status = OK;
 	if m.unpackHeader(); m.status != OK {
-		return;
+		return
 	}
 	if m.protocol != protocol || m.isReq {
 		m.status = ErrProtocolMismatch;

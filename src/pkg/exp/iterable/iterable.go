@@ -16,14 +16,14 @@ type Iterable interface {
 }
 
 func not(f func(interface{}) bool) (func(interface{}) bool) {
-	return func(e interface{}) bool { return !f(e) };
+	return func(e interface{}) bool { return !f(e) }
 }
 
 // All tests whether f is true for every element of iter.
 func All(iter Iterable, f func(interface{}) bool) bool {
 	for e := range iter.Iter() {
 		if !f(e) {
-			return false;
+			return false
 		}
 	}
 	return true;
@@ -31,14 +31,14 @@ func All(iter Iterable, f func(interface{}) bool) bool {
 
 // Any tests whether f is true for at least one element of iter.
 func Any(iter Iterable, f func(interface{}) bool) bool {
-	return !All(iter, not(f));
+	return !All(iter, not(f))
 }
 
 // Data returns a slice containing the elements of iter.
 func Data(iter Iterable) []interface{} {
 	vec := vector.New(0);
 	for e := range iter.Iter() {
-		vec.Push(e);
+		vec.Push(e)
 	}
 	return vec.Data();
 }
@@ -53,7 +53,7 @@ type filteredIterable struct {
 func (f *filteredIterable) iterate(out chan<- interface{}) {
 	for e := range f.it.Iter() {
 		if f.f(e) {
-			out <- e;
+			out <- e
 		}
 	}
 	close(out);
@@ -67,14 +67,14 @@ func (f *filteredIterable) Iter() <-chan interface{} {
 
 // Filter returns an Iterable that returns the elements of iter that satisfy f.
 func Filter(iter Iterable, f func(interface{}) bool) Iterable {
-	return &filteredIterable{iter, f};
+	return &filteredIterable{iter, f}
 }
 
 // Find returns the first element of iter that satisfies f.
 // Returns nil if no such element is found.
 func Find(iter Iterable, f func(interface{}) bool) interface{} {
 	for e := range Filter(iter, f).Iter() {
-		return e;
+		return e
 	}
 	return nil;
 }
@@ -95,7 +95,7 @@ type Injector func(interface{}, interface{}) interface{}
 func Inject(iter Iterable, initial interface{}, f Injector) interface{} {
 	acc := initial;
 	for e := range iter.Iter() {
-		acc = f(acc, e);
+		acc = f(acc, e)
 	}
 	return acc;
 }
@@ -108,7 +108,7 @@ type mappedIterable struct {
 
 func (m *mappedIterable) iterate(out chan<- interface{}) {
 	for e := range m.it.Iter() {
-		out <- m.f(e);
+		out <- m.f(e)
 	}
 	close(out);
 }
@@ -122,12 +122,12 @@ func (m *mappedIterable) Iter() <-chan interface{} {
 // Map returns an Iterable that returns the result of applying f to each
 // element of iter.
 func Map(iter Iterable, f func(interface{}) interface{}) Iterable {
-	return &mappedIterable{iter, f};
+	return &mappedIterable{iter, f}
 }
 
 // Partition(iter, f) returns Filter(iter, f) and Filter(iter, !f).
 func Partition(iter Iterable, f func(interface{}) bool) (Iterable, Iterable) {
-	return Filter(iter, f), Filter(iter, not(f));
+	return Filter(iter, f), Filter(iter, not(f))
 }
 
 // TODO:

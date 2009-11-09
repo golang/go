@@ -10,14 +10,14 @@ import (
 
 func isEqual(a, b IP) bool {
 	if a == nil && b == nil {
-		return true;
+		return true
 	}
 	if a == nil || b == nil || len(a) != len(b) {
-		return false;
+		return false
 	}
 	for i := 0; i < len(a); i++ {
 		if a[i] != b[i] {
-			return false;
+			return false
 		}
 	}
 	return true;
@@ -46,7 +46,7 @@ func TestParseIP(t *testing.T) {
 	for i := 0; i < len(parseiptests); i++ {
 		tt := parseiptests[i];
 		if out := ParseIP(tt.in); !isEqual(out, tt.out) {
-			t.Errorf("ParseIP(%#q) = %v, want %v", tt.in, out, tt.out);
+			t.Errorf("ParseIP(%#q) = %v, want %v", tt.in, out, tt.out)
 		}
 	}
 }

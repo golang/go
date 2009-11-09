@@ -41,7 +41,7 @@ func (x *ecbDecrypter) fillCrypt() os.Error {
 		m, err = x.r.Read(x.crypt[off : x.blockSize]);
 		x.crypt = x.crypt[0 : off+m];
 		if m == 0 {
-			break;
+			break
 		}
 
 		// If an error happened but we got enough
@@ -50,7 +50,7 @@ func (x *ecbDecrypter) fillCrypt() os.Error {
 		// But if we don't have enough to decrypt,
 		// have to stop now.
 		if err != nil && len(x.crypt) < x.blockSize {
-			break;
+			break
 		}
 	}
 	return err;
@@ -60,15 +60,15 @@ func (x *ecbDecrypter) fillCrypt() os.Error {
 func (x *ecbDecrypter) readPlain(p []byte) int {
 	n := len(x.plain);
 	if n > len(p) {
-		n = len(p);
+		n = len(p)
 	}
 	for i := 0; i < n; i++ {
-		p[i] = x.plain[i];
+		p[i] = x.plain[i]
 	}
 	if n < len(x.plain) {
-		x.plain = x.plain[n:len(x.plain)];
+		x.plain = x.plain[n:len(x.plain)]
 	} else {
-		x.plain = nil;
+		x.plain = nil
 	}
 	return n;
 }
@@ -76,12 +76,12 @@ func (x *ecbDecrypter) readPlain(p []byte) int {
 type ecbFragmentError int
 
 func (n ecbFragmentError) String() string {
-	return "crypto/block: " + strconv.Itoa(int(n)) + "-byte fragment at EOF";
+	return "crypto/block: " + strconv.Itoa(int(n)) + "-byte fragment at EOF"
 }
 
 func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
 	if len(p) == 0 {
-		return;
+		return
 	}
 
 	// If there's no plaintext waiting and p is not big enough
@@ -89,7 +89,7 @@ func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
 	// cipher text buffer.  Set it to non-nil so that the
 	// code below will fill it.
 	if x.plain == nil && len(p) < x.blockSize && x.crypt == nil {
-		x.crypt = x.buf[0:0];
+		x.crypt = x.buf[0:0]
 	}
 
 	// If there is a leftover cipher text buffer,
@@ -97,7 +97,7 @@ func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
 	if x.crypt != nil {
 		err = x.fillCrypt();
 		if err != nil || len(x.crypt) == 0 {
-			return;
+			return
 		}
 		x.c.Decrypt(x.crypt, x.crypt);
 		x.plain = x.crypt;
@@ -128,7 +128,7 @@ func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
 	if i < n {
 		p = p[i:n];
 		for j, v := range p {
-			x.buf[j] = v;
+			x.buf[j] = v
 		}
 		x.crypt = x.buf[0:len(p)];
 		n = i;
@@ -168,17 +168,17 @@ type ecbEncrypter struct {
 // Flush the x.crypt buffer to x.w.
 func (x *ecbEncrypter) flushCrypt() os.Error {
 	if len(x.crypt) == 0 {
-		return nil;
+		return nil
 	}
 	n, err := x.w.Write(x.crypt);
 	if n < len(x.crypt) {
 		x.crypt = x.crypt[n:len(x.crypt)];
 		if err == nil {
-			err = io.ErrShortWrite;
+			err = io.ErrShortWrite
 		}
 	}
 	if err != nil {
-		return err;
+		return err
 	}
 	x.crypt = nil;
 	return nil;
@@ -189,12 +189,12 @@ func (x *ecbEncrypter) flushCrypt() os.Error {
 // so this is cheap enough.
 func (x *ecbEncrypter) slidePlain() {
 	if len(x.plain) == 0 {
-		x.plain = x.buf[0:0];
+		x.plain = x.buf[0:0]
 	} else if cap(x.plain) < cap(x.buf) {
 		// plain and buf share same data,
 		// but buf is before plain, so forward loop is correct
 		for i := 0; i < len(x.plain); i++ {
-			x.buf[i] = x.plain[i];
+			x.buf[i] = x.plain[i]
 		}
 		x.plain = x.buf[0:len(x.plain)];
 	}
@@ -206,11 +206,11 @@ func (x *ecbEncrypter) fillPlain(p []byte) int {
 	off := len(x.plain);
 	n := len(p);
 	if max := cap(x.plain)-off; n > max {
-		n = max;
+		n = max
 	}
 	x.plain = x.plain[0 : off+n];
 	for i := 0; i < n; i++ {
-		x.plain[off+i] = p[i];
+		x.plain[off+i] = p[i]
 	}
 	return n;
 }
@@ -233,7 +233,7 @@ func (x *ecbEncrypter) Write(p []byte) (n int, err os.Error) {
 		// This can happen on the first iteration
 		// if a write failed in an earlier call.
 		if err = x.flushCrypt(); err != nil {
-			return;
+			return
 		}
 
 		// Now that encrypted data is gone (flush ran),
@@ -243,7 +243,7 @@ func (x *ecbEncrypter) Write(p []byte) (n int, err os.Error) {
 		// Fill plaintext buffer from p.
 		m := x.fillPlain(p);
 		if m == 0 {
-			break;
+			break
 		}
 		n += m;
 		p = p[m:len(p)];
@@ -253,7 +253,7 @@ func (x *ecbEncrypter) Write(p []byte) (n int, err os.Error) {
 
 		// Write x.crypt.
 		if err = x.flushCrypt(); err != nil {
-			break;
+			break
 		}
 	}
 	return;

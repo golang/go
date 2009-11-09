@@ -106,12 +106,12 @@ func newHuffmanBitWriter(w io.Writer) *huffmanBitWriter {
 		literalEncoding: newHuffmanEncoder(maxLit),
 		offsetEncoding: newHuffmanEncoder(extendedOffsetCodeCount),
 		codegenEncoding: newHuffmanEncoder(codegenCodeCount),
-	};
+	}
 }
 
 func (err WrongValueError) String() string {
 	return "huffmanBitWriter: " + err.name + " should belong to [" + strconv.Itoa64(int64(err.from)) + ";" +
-		strconv.Itoa64(int64(err.to)) + "] but actual value is " + strconv.Itoa64(int64(err.value));
+		strconv.Itoa64(int64(err.to)) + "] but actual value is " + strconv.Itoa64(int64(err.value))
 }
 
 func (w *huffmanBitWriter) flushBits() {
@@ -157,13 +157,13 @@ func (w *huffmanBitWriter) flush() {
 func (w *huffmanBitWriter) writeBits(b, nb int32) {
 	w.bits |= uint32(b) << w.nbits;
 	if w.nbits += uint32(nb); w.nbits >= 16 {
-		w.flushBits();
+		w.flushBits()
 	}
 }
 
 func (w *huffmanBitWriter) writeBytes(bytes []byte) {
 	if w.err != nil {
-		return;
+		return
 	}
 	n := w.nbytes;
 	if w.nbits == 8 {
@@ -178,7 +178,7 @@ func (w *huffmanBitWriter) writeBytes(bytes []byte) {
 	if n != 0 {
 		_, w.err = w.w.Write(w.bytes[0:n]);
 		if w.err != nil {
-			return;
+			return
 		}
 	}
 	w.nbytes = 0;
@@ -270,7 +270,7 @@ func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int) {
 
 func (w *huffmanBitWriter) writeCode(code *huffmanEncoder, literal uint32) {
 	if w.err != nil {
-		return;
+		return
 	}
 	w.writeBits(int32(code.code[literal]), int32(code.codeBits[literal]));
 }
@@ -282,11 +282,11 @@ func (w *huffmanBitWriter) writeCode(code *huffmanEncoder, literal uint32) {
 //  numCodegens  Tne number of codegens used in codegen
 func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, numCodegens int, isEof bool) {
 	if w.err != nil {
-		return;
+		return
 	}
 	var firstBits int32 = 4;
 	if isEof {
-		firstBits = 5;
+		firstBits = 5
 	}
 	w.writeBits(firstBits, 3);
 	w.writeBits(int32(numLiterals - 257), 5);
@@ -295,7 +295,7 @@ func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, n
 		w.writeBits(int32(offsetCodeCount + ((numOffsets - (1 + offsetCodeCount))>>3)), 5);
 		w.writeBits(int32((numOffsets - (1 + offsetCodeCount))&0x7), 3);
 	} else {
-		w.writeBits(int32(numOffsets - 1), 5);
+		w.writeBits(int32(numOffsets - 1), 5)
 	}
 	w.writeBits(int32(numCodegens - 4), 4);
 
@@ -309,7 +309,7 @@ func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, n
 		var codeWord int = int(w.codegen[i]);
 		i++;
 		if codeWord == badCode {
-			break;
+			break
 		}
 		// The low byte contains the actual code to generate.
 		w.writeCode(w.codegenEncoding, uint32(codeWord));
@@ -333,11 +333,11 @@ func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, n
 
 func (w *huffmanBitWriter) writeStoredHeader(length int, isEof bool) {
 	if w.err != nil {
-		return;
+		return
 	}
 	var flag int32;
 	if isEof {
-		flag = 1;
+		flag = 1
 	}
 	w.writeBits(flag, 3);
 	w.flush();
@@ -347,19 +347,19 @@ func (w *huffmanBitWriter) writeStoredHeader(length int, isEof bool) {
 
 func (w *huffmanBitWriter) writeFixedHeader(isEof bool) {
 	if w.err != nil {
-		return;
+		return
 	}
 	// Indicate that we are a fixed Huffman block
 	var value int32 = 2;
 	if isEof {
-		value = 3;
+		value = 3
 	}
 	w.writeBits(value, 3);
 }
 
 func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
 	if w.err != nil {
-		return;
+		return
 	}
 	fillInt32s(w.literalFreq, 0);
 	fillInt32s(w.offsetFreq, 0);
@@ -390,16 +390,16 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
 	// get the number of literals
 	numLiterals := len(w.literalFreq);
 	for w.literalFreq[numLiterals - 1] == 0 {
-		numLiterals--;
+		numLiterals--
 	}
 	// get the number of offsets
 	numOffsets := len(w.offsetFreq);
 	for numOffsets > 1 && w.offsetFreq[numOffsets - 1] == 0 {
-		numOffsets--;
+		numOffsets--
 	}
 	storedBytes := 0;
 	if input != nil {
-		storedBytes = len(input);
+		storedBytes = len(input)
 	}
 	var extraBits int64;
 	var storedSize int64;
@@ -411,14 +411,14 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
 		// against stored encoding.
 		for lengthCode := lengthCodesStart + 8; lengthCode < numLiterals; lengthCode++ {
 			// First eight length codes have extra size = 0.
-			extraBits += int64(w.literalFreq[lengthCode])*int64(lengthExtraBits[lengthCode - lengthCodesStart]);
+			extraBits += int64(w.literalFreq[lengthCode])*int64(lengthExtraBits[lengthCode - lengthCodesStart])
 		}
 		for offsetCode := 4; offsetCode < numOffsets; offsetCode++ {
 			// First four offset codes have extra size = 0.
-			extraBits += int64(w.offsetFreq[offsetCode])*int64(offsetExtraBits[offsetCode]);
+			extraBits += int64(w.offsetFreq[offsetCode])*int64(offsetExtraBits[offsetCode])
 		}
 	} else {
-		storedSize = math.MaxInt32;
+		storedSize = math.MaxInt32
 	}
 
 	// Figure out which generates smaller code, fixed Huffman, dynamic
@@ -428,7 +428,7 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
 		fixedSize = int64(3) +
 			fixedLiteralEncoding.bitLength(w.literalFreq) +
 			fixedOffsetEncoding.bitLength(w.offsetFreq) +
-			extraBits;
+			extraBits
 	}
 	// Generate codegen and codegenFrequencies, which indicates how to encode
 	// the literalEncoding and the offsetEncoding.
@@ -436,11 +436,11 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
 	w.codegenEncoding.generate(w.codegenFreq, 7);
 	numCodegens := len(w.codegenFreq);
 	for numCodegens > 4 && w.codegenFreq[codegenOrder[numCodegens - 1]] == 0 {
-		numCodegens--;
+		numCodegens--
 	}
 	extensionSummand := 0;
 	if numOffsets > offsetCodeCount {
-		extensionSummand = 3;
+		extensionSummand = 3
 	}
 	dynamicHeader := int64(3+5+5+4+(3 * numCodegens)) +
 		// Following line is an extension.
@@ -500,7 +500,7 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
 			}
 			break;
 		default:
-			panic("unknown token type: " + string(t));
+			panic("unknown token type: " + string(t))
 		}
 	}
 }

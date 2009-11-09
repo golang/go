@@ -23,18 +23,18 @@ func main() {
 	runtime.LockOSThread();
 
 	if srpc.Enabled() {
-		go srpc.ServeRuntime();
+		go srpc.ServeRuntime()
 	}
 
 	args := os.Args;
 	p := pieces4;
 	if len(args) > 1 && args[1] == "-5" {
-		p = pieces5;
+		p = pieces5
 	}
 	dx, dy := 500, 500;
 	w, err := av.Init(av.SubsystemVideo | av.SubsystemAudio, dx, dy);
 	if err != nil {
-		log.Exit(err);
+		log.Exit(err)
 	}
 
 	sndc = make(chan []uint16, 10);
@@ -49,7 +49,7 @@ func audioServer() {
 
 	n, err := av.AudioStream(nil);
 	if err != nil {
-		log.Exit(err);
+		log.Exit(err)
 	}
 	for {
 		b := <-sndc;
@@ -58,13 +58,13 @@ func audioServer() {
 			a, b = b[0 : n/2], b[n/2 : len(b)];
 			n, err = av.AudioStream(a);
 			if err != nil {
-				log.Exit(err);
+				log.Exit(err)
 			}
 			println(n, len(b)*2);
 		}
 		a := make([]uint16, n/2);
 		for i := range b {
-			a[i] = b[i];
+			a[i] = b[i]
 		}
 		n, err = av.AudioStream(a);
 	}

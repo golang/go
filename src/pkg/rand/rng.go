@@ -194,7 +194,7 @@ func seedrand(x int32) int32 {
 	lo := x%_Q;
 	x = _A*lo - _R*hi;
 	if x < 0 {
-		x += _M;
+		x += _M
 	}
 	return x;
 }
@@ -206,10 +206,10 @@ func (rng *rngSource) Seed(seed int64) {
 
 	seed = seed%_M;
 	if seed < 0 {
-		seed += _M;
+		seed += _M
 	}
 	if seed == 0 {
-		seed = 89482311;
+		seed = 89482311
 	}
 
 	x := int32(seed);
@@ -232,12 +232,12 @@ func (rng *rngSource) Seed(seed int64) {
 func (rng *rngSource) Int63() int64 {
 	rng.tap--;
 	if rng.tap < 0 {
-		rng.tap += _LEN;
+		rng.tap += _LEN
 	}
 
 	rng.feed--;
 	if rng.feed < 0 {
-		rng.feed += _LEN;
+		rng.feed += _LEN
 	}
 
 	x := (rng.vec[rng.feed] + rng.vec[rng.tap])&_MASK;

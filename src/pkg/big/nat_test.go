@@ -43,7 +43,7 @@ func TestSetN(t *testing.T) {
 	for _, a := range sumNN {
 		z := setN(nil, a.z);
 		if cmpNN(z, a.z) != 0 {
-			t.Errorf("got z = %v; want %v", z, a.z);
+			t.Errorf("got z = %v; want %v", z, a.z)
 		}
 	}
 }
@@ -52,7 +52,7 @@ func TestSetN(t *testing.T) {
 func testFunNN(t *testing.T, msg string, f funNN, a argNN) {
 	z := f(nil, a.x, a.y);
 	if cmpNN(z, a.z) != 0 {
-		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, z, a.z);
+		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, z, a.z)
 	}
 }
 
@@ -101,18 +101,18 @@ func TestStringN(t *testing.T) {
 	for _, a := range tabN {
 		s := stringN(a.x, a.b);
 		if s != a.s {
-			t.Errorf("stringN%+v\n\tgot s = %s; want %s", a, s, a.s);
+			t.Errorf("stringN%+v\n\tgot s = %s; want %s", a, s, a.s)
 		}
 
 		x, b, n := scanN(nil, a.s, a.b);
 		if cmpNN(x, a.x) != 0 {
-			t.Errorf("scanN%+v\n\tgot z = %v; want %v", a, x, a.x);
+			t.Errorf("scanN%+v\n\tgot z = %v; want %v", a, x, a.x)
 		}
 		if b != a.b {
-			t.Errorf("scanN%+v\n\tgot b = %d; want %d", a, b, a.b);
+			t.Errorf("scanN%+v\n\tgot b = %d; want %d", a, b, a.b)
 		}
 		if n != len(a.s) {
-			t.Errorf("scanN%+v\n\tgot n = %d; want %d", a, n, len(a.s));
+			t.Errorf("scanN%+v\n\tgot n = %d; want %d", a, n, len(a.s))
 		}
 	}
 }
@@ -122,7 +122,7 @@ func TestLeadingZeroBits(t *testing.T) {
 	var x Word = 1<<(_W-1);
 	for i := 0; i <= int(_W); i++ {
 		if leadingZeroBits(x) != i {
-			t.Errorf("failed at %x: got %d want %d", x, leadingZeroBits(x), i);
+			t.Errorf("failed at %x: got %d want %d", x, leadingZeroBits(x), i)
 		}
 		x >>= 1;
 	}

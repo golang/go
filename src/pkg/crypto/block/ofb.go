@@ -26,7 +26,7 @@ func newOFBStream(c Cipher, iv []byte) *ofbStream {
 	x.c = c;
 	n := len(iv);
 	if n != c.BlockSize() {
-		panicln("crypto/block: newOFBStream: invalid iv size", n, "!=", c.BlockSize());
+		panicln("crypto/block: newOFBStream: invalid iv size", n, "!=", c.BlockSize())
 	}
 	x.iv = copy(iv);
 	return x;
@@ -44,7 +44,7 @@ func (x *ofbStream) Next() []byte {
 // an OFB reader applied to an encrypted stream produces a decrypted
 // stream and vice versa.
 func NewOFBReader(c Cipher, iv []byte, r io.Reader) io.Reader {
-	return newXorReader(newOFBStream(c, iv), r);
+	return newXorReader(newOFBStream(c, iv), r)
 }
 
 // NewOFBWriter returns a writer that encrypts (or decrypts) data using c
@@ -55,5 +55,5 @@ func NewOFBReader(c Cipher, iv []byte, r io.Reader) io.Reader {
 // an OFB writer applied to an decrypted stream produces an encrypted
 // stream and vice versa.
 func NewOFBWriter(c Cipher, iv []byte, w io.Writer) io.Writer {
-	return newXorWriter(newOFBStream(c, iv), w);
+	return newXorWriter(newOFBStream(c, iv), w)
 }

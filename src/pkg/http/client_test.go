@@ -23,8 +23,8 @@ func TestClient(t *testing.T) {
 		r.Body.Close();
 	}
 	if err != nil {
-		t.Error(err);
+		t.Error(err)
 	} else if s := string(b); !strings.HasPrefix(s, "User-agent:") {
-		t.Errorf("Incorrect page body (did not begin with User-agent): %q", s);
+		t.Errorf("Incorrect page body (did not begin with User-agent): %q", s)
 	}
 }

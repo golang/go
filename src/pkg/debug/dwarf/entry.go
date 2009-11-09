@@ -31,14 +31,14 @@ type abbrevTable map[uint32]abbrev
 // in the .debug_abbrev section.
 func (d *Data) parseAbbrev(off uint32) (abbrevTable, os.Error) {
 	if m, ok := d.abbrevCache[off]; ok {
-		return m, nil;
+		return m, nil
 	}
 
 	data := d.abbrev;
 	if off > uint32(len(data)) {
-		data = nil;
+		data = nil
 	} else {
-		data = data[off:len(data)];
+		data = data[off:len(data)]
 	}
 	b := makeBuf(d, "abbrev", 0, data, 0);
 
@@ -49,7 +49,7 @@ func (d *Data) parseAbbrev(off uint32) (abbrevTable, os.Error) {
 		// Table ends with id == 0.
 		id := uint32(b.uint());
 		if id == 0 {
-			break;
+			break
 		}
 
 		// Walk over attributes, counting.
@@ -61,12 +61,12 @@ func (d *Data) parseAbbrev(off uint32) (abbrevTable, os.Error) {
 			tag := b1.uint();
 			fmt := b1.uint();
 			if tag == 0 && fmt == 0 {
-				break;
+				break
 			}
 			n++;
 		}
 		if b1.err != nil {
-			return nil, b1.err;
+			return nil, b1.err
 		}
 
 		// Walk over attributes again, this time writing them down.
@@ -84,7 +84,7 @@ func (d *Data) parseAbbrev(off uint32) (abbrevTable, os.Error) {
 		m[id] = a;
 	}
 	if b.err != nil {
-		return nil, b.err;
+		return nil, b.err
 	}
 	d.abbrevCache[off] = m;
 	return m, nil;
@@ -114,7 +114,7 @@ type Field struct {
 func (e *Entry) Val(a Attr) interface{} {
 	for _, f := range e.Field {
 		if f.Attr == a {
-			return f.Val;
+			return f.Val
 		}
 	}
 	return nil;
@@ -130,7 +130,7 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 	off := b.off;
 	id := uint32(b.uint());
 	if id == 0 {
-		return &Entry{};
+		return &Entry{}
 	}
 	a, ok := atab[id];
 	if !ok {
@@ -147,66 +147,66 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 		e.Field[i].Attr = a.field[i].attr;
 		fmt := a.field[i].fmt;
 		if fmt == formIndirect {
-			fmt = format(b.uint());
+			fmt = format(b.uint())
 		}
 		var val interface{}
 		switch fmt {
 		default:
-			b.error("unknown entry attr format");
+			b.error("unknown entry attr format")
 
 		// address
 		case formAddr:
-			val = b.addr();
+			val = b.addr()
 
 		// block
 		case formDwarfBlock1:
-			val = b.bytes(int(b.uint8()));
+			val = b.bytes(int(b.uint8()))
 		case formDwarfBlock2:
-			val = b.bytes(int(b.uint16()));
+			val = b.bytes(int(b.uint16()))
 		case formDwarfBlock4:
-			val = b.bytes(int(b.uint32()));
+			val = b.bytes(int(b.uint32()))
 		case formDwarfBlock:
-			val = b.bytes(int(b.uint()));
+			val = b.bytes(int(b.uint()))
 
 		// constant
 		case formData1:
-			val = int64(b.uint8());
+			val = int64(b.uint8())
 		case formData2:
-			val = int64(b.uint16());
+			val = int64(b.uint16())
 		case formData4:
-			val = int64(b.uint32());
+			val = int64(b.uint32())
 		case formData8:
-			val = int64(b.uint64());
+			val = int64(b.uint64())
 		case formSdata:
-			val = int64(b.int());
+			val = int64(b.int())
 		case formUdata:
-			val = int64(b.uint());
+			val = int64(b.uint())
 
 		// flag
 		case formFlag:
-			val = b.uint8() == 1;
+			val = b.uint8() == 1
 
 		// reference to other entry
 		case formRefAddr:
-			val = Offset(b.addr());
+			val = Offset(b.addr())
 		case formRef1:
-			val = Offset(b.uint8())+ubase;
+			val = Offset(b.uint8())+ubase
 		case formRef2:
-			val = Offset(b.uint16())+ubase;
+			val = Offset(b.uint16())+ubase
 		case formRef4:
-			val = Offset(b.uint32())+ubase;
+			val = Offset(b.uint32())+ubase
 		case formRef8:
-			val = Offset(b.uint64())+ubase;
+			val = Offset(b.uint64())+ubase
 		case formRefUdata:
-			val = Offset(b.uint())+ubase;
+			val = Offset(b.uint())+ubase
 
 		// string
 		case formString:
-			val = b.string();
+			val = b.string()
 		case formStrp:
 			off := b.uint32();	// offset into .debug_str
 			if b.err != nil {
-				return nil;
+				return nil
 			}
 			b1 := makeBuf(b.dwarf, "str", 0, b.dwarf.str, 0);
 			b1.skip(int(off));
@@ -219,7 +219,7 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 		e.Field[i].Val = val;
 	}
 	if b.err != nil {
-		return nil;
+		return nil
 	}
 	return e;
 }
@@ -254,7 +254,7 @@ func (r *Reader) Seek(off Offset) {
 	r.lastChildren = false;
 	if off == 0 {
 		if len(d.unit) == 0 {
-			return;
+			return
 		}
 		u := &d.unit[0];
 		r.unit = 0;
@@ -291,11 +291,11 @@ func (r *Reader) maybeNextUnit() {
 // offset cannot be decoded as a valid Entry.
 func (r *Reader) Next() (*Entry, os.Error) {
 	if r.err != nil {
-		return nil, r.err;
+		return nil, r.err
 	}
 	r.maybeNextUnit();
 	if len(r.b.data) == 0 {
-		return nil, nil;
+		return nil, nil
 	}
 	u := &r.d.unit[r.unit];
 	e := r.b.entry(u.atable, u.base);
@@ -306,10 +306,10 @@ func (r *Reader) Next() (*Entry, os.Error) {
 	if e != nil {
 		r.lastChildren = e.Children;
 		if r.lastChildren {
-			r.lastSibling, _ = e.Val(AttrSibling).(Offset);
+			r.lastSibling, _ = e.Val(AttrSibling).(Offset)
 		}
 	} else {
-		r.lastChildren = false;
+		r.lastChildren = false
 	}
 	return e, nil;
 }
@@ -319,7 +319,7 @@ func (r *Reader) Next() (*Entry, os.Error) {
 // children or Next has not been called, SkipChildren is a no-op.
 func (r *Reader) SkipChildren() {
 	if r.err != nil || !r.lastChildren {
-		return;
+		return
 	}
 
 	// If the last entry had a sibling attribute,
@@ -334,10 +334,10 @@ func (r *Reader) SkipChildren() {
 	for {
 		e, err := r.Next();
 		if err != nil || e == nil || e.Tag == 0 {
-			break;
+			break
 		}
 		if e.Children {
-			r.SkipChildren();
+			r.SkipChildren()
 		}
 	}
 }

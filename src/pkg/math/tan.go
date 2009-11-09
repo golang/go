@@ -54,12 +54,12 @@ func Tan(x float64) float64 {
 
 	if flag {
 		if temp == 0 {
-			panic(NaN());
+			panic(NaN())
 		}
 		temp = 1/temp;
 	}
 	if sign {
-		temp = -temp;
+		temp = -temp
 	}
 	return temp;
 }

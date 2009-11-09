@@ -42,7 +42,7 @@ func (littleEndian) PutUint16(b []byte, v uint16) {
 }
 
 func (littleEndian) Uint32(b []byte) uint32 {
-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24;
+	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
 }
 
 func (littleEndian) PutUint32(b []byte, v uint32) {
@@ -54,7 +54,7 @@ func (littleEndian) PutUint32(b []byte, v uint32) {
 
 func (littleEndian) Uint64(b []byte) uint64 {
 	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
-		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56;
+		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
 }
 
 func (littleEndian) PutUint64(b []byte, v uint64) {
@@ -82,7 +82,7 @@ func (bigEndian) PutUint16(b []byte, v uint16) {
 }
 
 func (bigEndian) Uint32(b []byte) uint32 {
-	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24;
+	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
 }
 
 func (bigEndian) PutUint32(b []byte, v uint32) {
@@ -94,7 +94,7 @@ func (bigEndian) PutUint32(b []byte, v uint32) {
 
 func (bigEndian) Uint64(b []byte) uint64 {
 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56;
+		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
 }
 
 func (bigEndian) PutUint64(b []byte, v uint64) {
@@ -123,11 +123,11 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 	v := reflect.NewValue(data).(*reflect.PtrValue).Elem();
 	size := sizeof(v.Type());
 	if size < 0 {
-		return os.NewError("binary.Read: invalid type " + v.Type().String());
+		return os.NewError("binary.Read: invalid type " + v.Type().String())
 	}
 	d := &decoder{order: order, buf: make([]byte, size)};
 	if _, err := io.ReadFull(r, d.buf); err != nil {
-		return err;
+		return err
 	}
 	d.value(v);
 	return nil;
@@ -138,7 +138,7 @@ func sizeof(t reflect.Type) int {
 	case *reflect.ArrayType:
 		n := sizeof(t.Elem());
 		if n < 0 {
-			return -1;
+			return -1
 		}
 		return t.Len() * n;
 
@@ -147,32 +147,32 @@ func sizeof(t reflect.Type) int {
 		for i, n := 0, t.NumField(); i < n; i++ {
 			s := sizeof(t.Field(i).Type);
 			if s < 0 {
-				return -1;
+				return -1
 			}
 			sum += s;
 		}
 		return sum;
 
 	case *reflect.Uint8Type:
-		return 1;
+		return 1
 	case *reflect.Uint16Type:
-		return 2;
+		return 2
 	case *reflect.Uint32Type:
-		return 4;
+		return 4
 	case *reflect.Uint64Type:
-		return 8;
+		return 8
 	case *reflect.Int8Type:
-		return 1;
+		return 1
 	case *reflect.Int16Type:
-		return 2;
+		return 2
 	case *reflect.Int32Type:
-		return 4;
+		return 4
 	case *reflect.Int64Type:
-		return 8;
+		return 8
 	case *reflect.Float32Type:
-		return 4;
+		return 4
 	case *reflect.Float64Type:
-		return 8;
+		return 8
 	}
 	return -1;
 }
@@ -219,33 +219,33 @@ func (d *decoder) value(v reflect.Value) {
 	case *reflect.ArrayValue:
 		l := v.Len();
 		for i := 0; i < l; i++ {
-			d.value(v.Elem(i));
+			d.value(v.Elem(i))
 		}
 	case *reflect.StructValue:
 		l := v.NumField();
 		for i := 0; i < l; i++ {
-			d.value(v.Field(i));
+			d.value(v.Field(i))
 		}
 
 	case *reflect.Uint8Value:
-		v.Set(d.uint8());
+		v.Set(d.uint8())
 	case *reflect.Uint16Value:
-		v.Set(d.uint16());
+		v.Set(d.uint16())
 	case *reflect.Uint32Value:
-		v.Set(d.uint32());
+		v.Set(d.uint32())
 	case *reflect.Uint64Value:
-		v.Set(d.uint64());
+		v.Set(d.uint64())
 	case *reflect.Int8Value:
-		v.Set(d.int8());
+		v.Set(d.int8())
 	case *reflect.Int16Value:
-		v.Set(d.int16());
+		v.Set(d.int16())
 	case *reflect.Int32Value:
-		v.Set(d.int32());
+		v.Set(d.int32())
 	case *reflect.Int64Value:
-		v.Set(d.int64());
+		v.Set(d.int64())
 	case *reflect.Float32Value:
-		v.Set(math.Float32frombits(d.uint32()));
+		v.Set(math.Float32frombits(d.uint32()))
 	case *reflect.Float64Value:
-		v.Set(math.Float64frombits(d.uint64()));
+		v.Set(math.Float64frombits(d.uint64()))
 	}
 }

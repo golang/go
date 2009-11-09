@@ -53,7 +53,7 @@ func (w *recordWriter) loop(writer io.Writer, appChan <-chan []byte, controlChan
 	for !w.shutdown {
 		msg := <-controlChan;
 		if _, ok := msg.(writerEnableApplicationData); ok {
-			break;
+			break
 		}
 		w.processControlMessage(msg);
 	}
@@ -67,9 +67,9 @@ func (w *recordWriter) loop(writer io.Writer, appChan <-chan []byte, controlChan
 
 		select {
 		case controlMsg := <-controlChan:
-			w.processControlMessage(controlMsg);
+			w.processControlMessage(controlMsg)
 		case appMsg := <-appChan:
-			w.processAppMessage(appMsg);
+			w.processAppMessage(appMsg)
 		}
 	}
 
@@ -77,13 +77,13 @@ func (w *recordWriter) loop(writer io.Writer, appChan <-chan []byte, controlChan
 		go func() {
 			for _ = range appChan {
 			}
-		}();
+		}()
 	}
 	if !closed(controlChan) {
 		go func() {
 			for _ = range controlChan {
 			}
-		}();
+		}()
 	}
 }
 
@@ -142,12 +142,12 @@ func (w *recordWriter) processControlMessage(controlMsg interface{}) {
 		w.major = msg.major;
 		w.minor = msg.minor;
 	case alert:
-		w.writeRecord(&record{recordTypeAlert, w.major, w.minor, []byte{byte(msg.level), byte(msg.error)}});
+		w.writeRecord(&record{recordTypeAlert, w.major, w.minor, []byte{byte(msg.level), byte(msg.error)}})
 	case handshakeMessage:
 		// TODO(agl): marshal may return a slice too large for a single record.
-		w.writeRecord(&record{recordTypeHandshake, w.major, w.minor, msg.marshal()});
+		w.writeRecord(&record{recordTypeHandshake, w.major, w.minor, msg.marshal()})
 	default:
-		fmt.Printf("processControlMessage: unknown %#v\n", msg);
+		fmt.Printf("processControlMessage: unknown %#v\n", msg)
 	}
 }
 
@@ -162,7 +162,7 @@ func (w *recordWriter) processAppMessage(appMsg []byte) {
 	for done < len(appMsg) {
 		todo := len(appMsg);
 		if todo > maxTLSPlaintext {
-			todo = maxTLSPlaintext;
+			todo = maxTLSPlaintext
 		}
 		w.writeRecord(&record{recordTypeApplicationData, w.major, w.minor, appMsg[done : done+todo]});
 		done += todo;

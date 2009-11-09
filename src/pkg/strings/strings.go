@@ -14,7 +14,7 @@ import (
 // Invalid UTF-8 sequences become correct encodings of U+FFF8.
 func explode(s string, n int) []string {
 	if n <= 0 {
-		n = len(s);
+		n = len(s)
 	}
 	a := make([]string, n);
 	var size, rune int;
@@ -36,7 +36,7 @@ func explode(s string, n int) []string {
 // Count counts the number of non-overlapping instances of sep in s.
 func Count(s, sep string) int {
 	if sep == "" {
-		return utf8.RuneCountInString(s) + 1;
+		return utf8.RuneCountInString(s) + 1
 	}
 	c := sep[0];
 	n := 0;
@@ -53,12 +53,12 @@ func Count(s, sep string) int {
 func Index(s, sep string) int {
 	n := len(sep);
 	if n == 0 {
-		return 0;
+		return 0
 	}
 	c := sep[0];
 	for i := 0; i+n <= len(s); i++ {
 		if s[i] == c && (n == 1 || s[i : i+n] == sep) {
-			return i;
+			return i
 		}
 	}
 	return -1;
@@ -68,12 +68,12 @@ func Index(s, sep string) int {
 func LastIndex(s, sep string) int {
 	n := len(sep);
 	if n == 0 {
-		return len(s);
+		return len(s)
 	}
 	c := sep[0];
 	for i := len(s)-n; i >= 0; i-- {
 		if s[i] == c && (n == 1 || s[i : i+n] == sep) {
-			return i;
+			return i
 		}
 	}
 	return -1;
@@ -83,10 +83,10 @@ func LastIndex(s, sep string) int {
 // including sepSave bytes of sep in the subarrays.
 func genSplit(s, sep string, sepSave, n int) []string {
 	if sep == "" {
-		return explode(s, n);
+		return explode(s, n)
 	}
 	if n <= 0 {
-		n = Count(s, sep) + 1;
+		n = Count(s, sep) + 1
 	}
 	c := sep[0];
 	start := 0;
@@ -113,21 +113,21 @@ func Split(s, sep string, n int) []string	{ return genSplit(s, sep, 0, n) }
 // If sep is empty, SplitAfter splits s after each UTF-8 sequence.
 // If n > 0, SplitAfter splits s into at most n substrings; the last substring will be the unsplit remainder.
 func SplitAfter(s, sep string, n int) []string {
-	return genSplit(s, sep, len(sep), n);
+	return genSplit(s, sep, len(sep), n)
 }
 
 // Join concatenates the elements of a to create a single string.   The separator string
 // sep is placed between elements in the resulting string.
 func Join(a []string, sep string) string {
 	if len(a) == 0 {
-		return "";
+		return ""
 	}
 	if len(a) == 1 {
-		return a[0];
+		return a[0]
 	}
 	n := len(sep)*(len(a)-1);
 	for i := 0; i < len(a); i++ {
-		n += len(a[i]);
+		n += len(a[i])
 	}
 
 	b := make([]byte, n);
@@ -151,12 +151,12 @@ func Join(a []string, sep string) string {
 
 // HasPrefix tests whether the string s begins with prefix.
 func HasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix;
+	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
 }
 
 // HasSuffix tests whether the string s ends with suffix.
 func HasSuffix(s, suffix string) bool {
-	return len(s) >= len(suffix) && s[len(s)-len(suffix) : len(s)] == suffix;
+	return len(s) >= len(suffix) && s[len(s)-len(suffix) : len(s)] == suffix
 }
 
 // Map returns a copy of the string s with all its characters modified
@@ -172,14 +172,14 @@ func Map(mapping func(rune int) int, s string) string {
 		rune := mapping(c);
 		wid := 1;
 		if rune >= utf8.RuneSelf {
-			wid = utf8.RuneLen(rune);
+			wid = utf8.RuneLen(rune)
 		}
 		if nbytes+wid > maxbytes {
 			// Grow the buffer.
 			maxbytes = maxbytes*2 + utf8.UTFMax;
 			nb := make([]byte, maxbytes);
 			for i, c := range b[0:nbytes] {
-				nb[i] = c;
+				nb[i] = c
 			}
 			b = nb;
 		}
@@ -205,10 +205,10 @@ func TrimSpace(s string) string {
 		wid := 1;
 		rune := int(s[start]);
 		if rune >= utf8.RuneSelf {
-			rune, wid = utf8.DecodeRuneInString(s[start:end]);
+			rune, wid = utf8.DecodeRuneInString(s[start:end])
 		}
 		if !unicode.IsSpace(rune) {
-			break;
+			break
 		}
 		start += wid;
 	}
@@ -220,12 +220,12 @@ func TrimSpace(s string) string {
 			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {
 			}
 			if start > end-wid {	// invalid UTF-8 sequence; stop processing
-				return s[start:end];
+				return s[start:end]
 			}
 			rune, wid = utf8.DecodeRuneInString(s[end-wid : end]);
 		}
 		if !unicode.IsSpace(rune) {
-			break;
+			break
 		}
 		end -= wid;
 	}
@@ -236,7 +236,7 @@ func TrimSpace(s string) string {
 func Bytes(s string) []byte {
 	b := make([]byte, len(s));
 	for i := 0; i < len(s); i++ {
-		b[i] = s[i];
+		b[i] = s[i]
 	}
 	return b;
 }

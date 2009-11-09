@@ -132,15 +132,15 @@ func (d *deflater) fillWindow(index int) (int, os.Error) {
 		index -= wSize;
 		d.windowEnd -= wSize;
 		if d.blockStart >= wSize {
-			d.blockStart -= wSize;
+			d.blockStart -= wSize
 		} else {
-			d.blockStart = math.MaxInt32;
+			d.blockStart = math.MaxInt32
 		}
 		for i, h := range d.hashHead {
-			d.hashHead[i] = max(h-wSize, -1);
+			d.hashHead[i] = max(h-wSize, -1)
 		}
 		for i, h := range d.hashPrev {
-			d.hashPrev[i] = max(h-wSize, -1);
+			d.hashPrev[i] = max(h-wSize, -1)
 		}
 	}
 	var count int;
@@ -148,7 +148,7 @@ func (d *deflater) fillWindow(index int) (int, os.Error) {
 	count, err = io.ReadAtLeast(d.r, d.window[d.windowEnd : len(d.window)], 1);
 	d.windowEnd += count;
 	if err == os.EOF {
-		return index, nil;
+		return index, nil
 	}
 	return index, err;
 }
@@ -157,7 +157,7 @@ func (d *deflater) writeBlock(tokens []token, index int, eof bool) os.Error {
 	if index > 0 || eof {
 		var window []byte;
 		if d.blockStart <= index {
-			window = d.window[d.blockStart : index];
+			window = d.window[d.blockStart : index]
 		}
 		d.blockStart = index;
 		d.w.writeBlock(tokens, eof, window);
@@ -178,7 +178,7 @@ func (d *deflater) findMatch(pos int, prevHead int, prevLength int, lookahead in
 	tries := d.maxChainLength;
 	length = prevLength;
 	if length >= d.goodMatch {
-		tries >>= 2;
+		tries >>= 2
 	}
 
 	w0 := win[pos];
@@ -192,7 +192,7 @@ func (d *deflater) findMatch(pos int, prevHead int, prevLength int, lookahead in
 
 			n := 3;
 			for pos+n < len(win) && win[i+n] == win[pos+n] {
-				n++;
+				n++
 			}
 			if n > length && (n > 3 || pos-i <= 4096) {
 				length = n;
@@ -200,17 +200,17 @@ func (d *deflater) findMatch(pos int, prevHead int, prevLength int, lookahead in
 				ok = true;
 				if n >= nice {
 					// The match is good enough that we don't try to find a better one.
-					break;
+					break
 				}
 				wEnd = win[pos+n];
 			}
 		}
 		if i == minIndex {
 			// hashPrev[i & windowMask] has already been overwritten, so stop now.
-			break;
+			break
 		}
 		if i = d.hashPrev[i & d.windowMask]; i < minIndex || i < 0 {
-			break;
+			break
 		}
 	}
 	return;
@@ -218,7 +218,7 @@ func (d *deflater) findMatch(pos int, prevHead int, prevLength int, lookahead in
 
 func (d *deflater) writeStoredBlock(buf []byte) os.Error {
 	if d.w.writeStoredHeader(len(buf), false); d.w.err != nil {
-		return d.w.err;
+		return d.w.err
 	}
 	d.w.writeBytes(buf);
 	return d.w.err;
@@ -230,12 +230,12 @@ func (d *deflater) storedDeflate() os.Error {
 		n, err := d.r.Read(buf);
 		if n > 0 {
 			if err := d.writeStoredBlock(buf[0:n]); err != nil {
-				return err;
+				return err
 			}
 		}
 		if err != nil {
 			if err == os.EOF {
-				break;
+				break
 			}
 			return err;
 		}
@@ -263,7 +263,7 @@ func (d *deflater) doDeflate() (err os.Error) {
 	index := 0;
 	// run
 	if index, err = d.fillWindow(index); err != nil {
-		return;
+		return
 	}
 	maxOffset := d.windowMask + 1;	// (1 << logWindowSize);
 	// only need to change when you refill the window
@@ -273,26 +273,26 @@ func (d *deflater) doDeflate() (err os.Error) {
 
 	hash := int(0);
 	if index < maxInsertIndex {
-		hash = int(d.window[index]) << hashShift + int(d.window[index+1]);
+		hash = int(d.window[index]) << hashShift + int(d.window[index+1])
 	}
 	chainHead := -1;
 	for {
 		if index > windowEnd {
-			panic("index > windowEnd");
+			panic("index > windowEnd")
 		}
 		lookahead := windowEnd - index;
 		if lookahead < minMatchLength + maxMatchLength {
 			if index, err = d.fillWindow(index); err != nil {
-				return;
+				return
 			}
 			windowEnd = d.windowEnd;
 			if index > windowEnd {
-				panic("index > windowEnd");
+				panic("index > windowEnd")
 			}
 			maxInsertIndex = windowEnd - (minMatchLength - 1);
 			lookahead = windowEnd - index;
 			if lookahead == 0 {
-				break;
+				break
 			}
 		}
 		if index < maxInsertIndex {
@@ -321,9 +321,9 @@ func (d *deflater) doDeflate() (err os.Error) {
 			// There was a match at the previous step, and the current match is
 			// not better. Output the previous match.
 			if isFastDeflate {
-				tokens[ti] = matchToken(uint32(length - minMatchLength), uint32(offset - minOffsetSize));
+				tokens[ti] = matchToken(uint32(length - minMatchLength), uint32(offset - minOffsetSize))
 			} else {
-				tokens[ti] = matchToken(uint32(prevLength - minMatchLength), uint32(prevOffset - minOffsetSize));
+				tokens[ti] = matchToken(uint32(prevLength - minMatchLength), uint32(prevOffset - minOffsetSize))
 			}
 			ti++;
 			// Insert in the hash table all strings up to the end of the match.
@@ -333,9 +333,9 @@ func (d *deflater) doDeflate() (err os.Error) {
 			if length <= l.fastSkipHashing {
 				var newIndex int;
 				if isFastDeflate {
-					newIndex = index+length;
+					newIndex = index+length
 				} else {
-					newIndex = prevLength - 1;
+					newIndex = prevLength - 1
 				}
 				for index++; index < newIndex; index++ {
 					if index < maxInsertIndex {
@@ -360,7 +360,7 @@ func (d *deflater) doDeflate() (err os.Error) {
 			if ti == maxFlateBlockTokens {
 				// The block includes the current character
 				if err = d.writeBlock(tokens, index, false); err != nil {
-					return;
+					return
 				}
 				ti = 0;
 			}
@@ -368,20 +368,20 @@ func (d *deflater) doDeflate() (err os.Error) {
 			if isFastDeflate || byteAvailable {
 				i := index-1;
 				if isFastDeflate {
-					i = index;
+					i = index
 				}
 				tokens[ti] = literalToken(uint32(d.window[i])&0xFF);
 				ti++;
 				if ti == maxFlateBlockTokens {
 					if err = d.writeBlock(tokens, i+1, false); err != nil {
-						return;
+						return
 					}
 					ti = 0;
 				}
 			}
 			index++;
 			if !isFastDeflate {
-				byteAvailable = true;
+				byteAvailable = true
 			}
 		}
 
@@ -394,7 +394,7 @@ func (d *deflater) doDeflate() (err os.Error) {
 
 	if ti > 0 {
 		if err = d.writeBlock(tokens[0:ti], index, false); err != nil {
-			return;
+			return
 		}
 	}
 	return;
@@ -408,21 +408,21 @@ func (d *deflater) deflater(r io.Reader, w io.Writer, level int, logWindowSize u
 
 	switch {
 	case level == NoCompression:
-		err = d.storedDeflate();
+		err = d.storedDeflate()
 	case level == DefaultCompression:
 		d.level = 6;
 		fallthrough;
 	case 1 <= level && level <= 9:
-		err = d.doDeflate();
+		err = d.doDeflate()
 	default:
-		return WrongValueError{"level", 0, 9, int32(level)};
+		return WrongValueError{"level", 0, 9, int32(level)}
 	}
 
 	if err != nil {
-		return err;
+		return err
 	}
 	if d.w.writeStoredHeader(0, true); d.w.err != nil {
-		return d.w.err;
+		return d.w.err
 	}
 	return d.flush();
 }
@@ -438,5 +438,5 @@ func newDeflater(w io.Writer, level int, logWindowSize uint) io.WriteCloser {
 }
 
 func NewDeflater(w io.Writer, level int) io.WriteCloser {
-	return newDeflater(w, level, logMaxOffsetSize);
+	return newDeflater(w, level, logMaxOffsetSize)
 }

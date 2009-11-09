@@ -38,7 +38,7 @@ func (OddLengthInputError) String() string	{ return "odd length hex string" }
 type InvalidHexCharError byte
 
 func (e InvalidHexCharError) String() string {
-	return "invalid hex char: " + strconv.Itoa(int(e));
+	return "invalid hex char: " + strconv.Itoa(int(e))
 }
 
 
@@ -51,17 +51,17 @@ func DecodedLen(x int) int	{ return x/2 }
 // InvalidHexCharError.
 func Decode(dst, src []byte) (int, os.Error) {
 	if len(src)%2 == 1 {
-		return 0, OddLengthInputError{};
+		return 0, OddLengthInputError{}
 	}
 
 	for i := 0; i < len(src)/2; i++ {
 		a, ok := fromHexChar(src[i*2]);
 		if !ok {
-			return 0, InvalidHexCharError(src[i*2]);
+			return 0, InvalidHexCharError(src[i*2])
 		}
 		b, ok := fromHexChar(src[i*2 + 1]);
 		if !ok {
-			return 0, InvalidHexCharError(src[i*2 + 1]);
+			return 0, InvalidHexCharError(src[i*2 + 1])
 		}
 		dst[i] = (a<<4)|b;
 	}
@@ -73,11 +73,11 @@ func Decode(dst, src []byte) (int, os.Error) {
 func fromHexChar(c byte) (byte, bool) {
 	switch {
 	case 0 <= c && c <= '9':
-		return c-'0', true;
+		return c-'0', true
 	case 'a' <= c && c <= 'f':
-		return c-'a'+10, true;
+		return c-'a'+10, true
 	case 'A' <= c && c <= 'F':
-		return c-'A'+10, true;
+		return c-'A'+10, true
 	}
 
 	return 0, false;
@@ -96,7 +96,7 @@ func DecodeString(s string) ([]byte, os.Error) {
 	dst := make([]byte, DecodedLen(len(src)));
 	_, err := Decode(dst, src);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	return dst, nil;
 }

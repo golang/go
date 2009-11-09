@@ -35,10 +35,10 @@ func TestParseInt64(t *testing.T) {
 	for i, test := range int64TestData {
 		ret, err := parseInt64(test.in);
 		if (err == nil) != test.ok {
-			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok);
+			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
 		if test.ok && ret != test.out {
-			t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out);
+			t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out)
 		}
 	}
 }
@@ -63,11 +63,11 @@ func TestBitString(t *testing.T) {
 	for i, test := range bitStringTestData {
 		ret, err := parseBitString(test.in);
 		if (err == nil) != test.ok {
-			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok);
+			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
 		if err == nil {
 			if test.bitLength != ret.BitLength || bytes.Compare(ret.Bytes, test.out) != 0 {
-				t.Errorf("#%d: Bad result: %v (expected %v %v)", i, ret, test.out, test.bitLength);
+				t.Errorf("#%d: Bad result: %v (expected %v %v)", i, ret, test.out, test.bitLength)
 			}
 		}
 	}
@@ -76,16 +76,16 @@ func TestBitString(t *testing.T) {
 func TestBitStringAt(t *testing.T) {
 	bs := BitString{[]byte{0x82, 0x40}, 16};
 	if bs.At(0) != 1 {
-		t.Error("#1: Failed");
+		t.Error("#1: Failed")
 	}
 	if bs.At(1) != 0 {
-		t.Error("#2: Failed");
+		t.Error("#2: Failed")
 	}
 	if bs.At(6) != 1 {
-		t.Error("#3: Failed");
+		t.Error("#3: Failed")
 	}
 	if bs.At(9) != 1 {
-		t.Error("#4: Failed");
+		t.Error("#4: Failed")
 	}
 }
 
@@ -107,11 +107,11 @@ func TestObjectIdentifier(t *testing.T) {
 	for i, test := range objectIdentifierTestData {
 		ret, err := parseObjectIdentifier(test.in);
 		if (err == nil) != test.ok {
-			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok);
+			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
 		if err == nil {
 			if !reflect.DeepEqual(test.out, ret) {
-				t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out);
+				t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out)
 			}
 		}
 	}
@@ -142,11 +142,11 @@ func TestTime(t *testing.T) {
 	for i, test := range timeTestData {
 		ret, err := parseUTCTime(strings.Bytes(test.in));
 		if (err == nil) != test.ok {
-			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok);
+			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
 		if err == nil {
 			if !reflect.DeepEqual(test.out, ret) {
-				t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out);
+				t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out)
 			}
 		}
 	}
@@ -177,10 +177,10 @@ func TestParseTagAndLength(t *testing.T) {
 	for i, test := range tagAndLengthData {
 		tagAndLength, _, err := parseTagAndLength(test.in, 0);
 		if (err == nil) != test.ok {
-			t.Errorf("#%d: Incorrect error result (did pass? %v, expected: %v)", i, err == nil, test.ok);
+			t.Errorf("#%d: Incorrect error result (did pass? %v, expected: %v)", i, err == nil, test.ok)
 		}
 		if err == nil && !reflect.DeepEqual(test.out, tagAndLength) {
-			t.Errorf("#%d: Bad result: %v (expected %v)", i, tagAndLength, test.out);
+			t.Errorf("#%d: Bad result: %v (expected %v)", i, tagAndLength, test.out)
 		}
 	}
 }
@@ -213,7 +213,7 @@ func TestParseFieldParameters(t *testing.T) {
 	for i, test := range parseFieldParametersTestData {
 		f := parseFieldParameters(test.in);
 		if !reflect.DeepEqual(f, test.out) {
-			t.Errorf("#%d: Bad result: %v (expected %v)", i, f, test.out);
+			t.Errorf("#%d: Bad result: %v (expected %v)", i, f, test.out)
 		}
 	}
 }
@@ -260,10 +260,10 @@ func TestUnmarshal(t *testing.T) {
 		val := pv.Interface();
 		err := Unmarshal(val, test.in);
 		if err != nil {
-			t.Errorf("Unmarshal failed at index %d %v", i, err);
+			t.Errorf("Unmarshal failed at index %d %v", i, err)
 		}
 		if !reflect.DeepEqual(val, test.out) {
-			t.Errorf("#%d:\nhave %#v\nwant %#v", i, val, test.out);
+			t.Errorf("#%d:\nhave %#v\nwant %#v", i, val, test.out)
 		}
 	}
 }
@@ -310,10 +310,10 @@ func TestCertificate(t *testing.T) {
 	// This is a minimal, self-signed certificate that should parse correctly.
 	var cert Certificate;
 	if err := Unmarshal(&cert, derEncodedSelfSignedCertBytes); err != nil {
-		t.Errorf("Unmarshal failed: %v", err);
+		t.Errorf("Unmarshal failed: %v", err)
 	}
 	if !reflect.DeepEqual(cert, derEncodedSelfSignedCert) {
-		t.Errorf("Bad result:\ngot: %+v\nwant: %+v\n", cert, derEncodedSelfSignedCert);
+		t.Errorf("Bad result:\ngot: %+v\nwant: %+v\n", cert, derEncodedSelfSignedCert)
 	}
 }
 
@@ -323,7 +323,7 @@ func TestCertificateWithNUL(t *testing.T) {
 
 	var cert Certificate;
 	if err := Unmarshal(&cert, derEncodedPaypalNULCertBytes); err == nil {
-		t.Error("Unmarshal succeeded, should not have");
+		t.Error("Unmarshal succeeded, should not have")
 	}
 }
 

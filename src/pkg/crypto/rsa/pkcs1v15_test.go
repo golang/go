@@ -19,7 +19,7 @@ func decodeBase64(in string) []byte {
 	out := make([]byte, base64.StdEncoding.DecodedLen(len(in)));
 	n, err := base64.StdEncoding.Decode(out, strings.Bytes(in));
 	if err != nil {
-		return nil;
+		return nil
 	}
 	return out[0:n];
 }
@@ -52,11 +52,11 @@ func TestDecryptPKCS1v15(t *testing.T) {
 	for i, test := range decryptPKCS1v15Tests {
 		out, err := DecryptPKCS1v15(nil, rsaPrivateKey, decodeBase64(test.in));
 		if err != nil {
-			t.Errorf("#%d error decrypting", i);
+			t.Errorf("#%d error decrypting", i)
 		}
 		want := strings.Bytes(test.out);
 		if bytes.Compare(out, want) != 0 {
-			t.Errorf("#%d got:%#v want:%#v", i, out, want);
+			t.Errorf("#%d got:%#v want:%#v", i, out, want)
 		}
 	}
 }
@@ -64,13 +64,13 @@ func TestDecryptPKCS1v15(t *testing.T) {
 func TestEncryptPKCS1v15(t *testing.T) {
 	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0);
 	if err != nil {
-		t.Errorf("Failed to open /dev/urandom");
+		t.Errorf("Failed to open /dev/urandom")
 	}
 	k := (rsaPrivateKey.N.Len() + 7)/8;
 
 	tryEncryptDecrypt := func(in []byte, blind bool) bool {
 		if len(in) > k-11 {
-			in = in[0 : k-11];
+			in = in[0 : k-11]
 		}
 
 		ciphertext, err := EncryptPKCS1v15(urandom, &rsaPrivateKey.PublicKey, in);
@@ -81,9 +81,9 @@ func TestEncryptPKCS1v15(t *testing.T) {
 
 		var rand io.Reader;
 		if !blind {
-			rand = nil;
+			rand = nil
 		} else {
-			rand = urandom;
+			rand = urandom
 		}
 		plaintext, err := DecryptPKCS1v15(rand, rsaPrivateKey, ciphertext);
 		if err != nil {
@@ -126,11 +126,11 @@ func TestEncryptPKCS1v15SessionKey(t *testing.T) {
 		key := strings.Bytes("FAIL");
 		err := DecryptPKCS1v15SessionKey(nil, rsaPrivateKey, decodeBase64(test.in), key);
 		if err != nil {
-			t.Errorf("#%d error decrypting", i);
+			t.Errorf("#%d error decrypting", i)
 		}
 		want := strings.Bytes(test.out);
 		if bytes.Compare(key, want) != 0 {
-			t.Errorf("#%d got:%#v want:%#v", i, key, want);
+			t.Errorf("#%d got:%#v want:%#v", i, key, want)
 		}
 	}
 }
@@ -138,13 +138,13 @@ func TestEncryptPKCS1v15SessionKey(t *testing.T) {
 func TestNonZeroRandomBytes(t *testing.T) {
 	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0);
 	if err != nil {
-		t.Errorf("Failed to open /dev/urandom");
+		t.Errorf("Failed to open /dev/urandom")
 	}
 
 	b := make([]byte, 512);
 	err = nonZeroRandomBytes(b, urandom);
 	if err != nil {
-		t.Errorf("returned error: %s", err);
+		t.Errorf("returned error: %s", err)
 	}
 	for _, b := range b {
 		if b == 0 {

@@ -28,7 +28,7 @@ func floatsize() int {
 	// is too small for a float32.
 	var f float = 1e-35;
 	if f*f == 0 {
-		return 32;
+		return 32
 	}
 	return 64;
 }
@@ -56,18 +56,18 @@ var FloatSize = floatsize()
 // because correct rounding and the number of digits
 // needed to identify f depend on the precision of the representation.
 func Ftoa32(f float32, fmt byte, prec int) string {
-	return genericFtoa(uint64(math.Float32bits(f)), fmt, prec, &float32info);
+	return genericFtoa(uint64(math.Float32bits(f)), fmt, prec, &float32info)
 }
 
 // Ftoa64 is like Ftoa32 but converts a 64-bit floating-point number.
 func Ftoa64(f float64, fmt byte, prec int) string {
-	return genericFtoa(math.Float64bits(f), fmt, prec, &float64info);
+	return genericFtoa(math.Float64bits(f), fmt, prec, &float64info)
 }
 
 // Ftoa behaves as Ftoa32 or Ftoa64, depending on the size of the float type.
 func Ftoa(f float, fmt byte, prec int) string {
 	if FloatSize == 32 {
-		return Ftoa32(float32(f), fmt, prec);
+		return Ftoa32(float32(f), fmt, prec)
 	}
 	return Ftoa64(float64(f), fmt, prec);
 }
@@ -81,26 +81,26 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
 	case 1 << flt.expbits - 1:
 		// Inf, NaN
 		if mant != 0 {
-			return "NaN";
+			return "NaN"
 		}
 		if neg {
-			return "-Inf";
+			return "-Inf"
 		}
 		return "+Inf";
 
 	case 0:
 		// denormalized
-		exp++;
+		exp++
 
 	default:
 		// add implicit top bit
-		mant |= uint64(1) << flt.mantbits;
+		mant |= uint64(1) << flt.mantbits
 	}
 	exp += flt.bias;
 
 	// Pick off easy binary format.
 	if fmt == 'b' {
-		return fmtB(neg, mant, exp, flt);
+		return fmtB(neg, mant, exp, flt)
 	}
 
 	// Create exact decimal representation.
@@ -117,21 +117,21 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
 		roundShortest(d, mant, exp, flt);
 		switch fmt {
 		case 'e', 'E':
-			prec = d.nd - 1;
+			prec = d.nd - 1
 		case 'f':
-			prec = max(d.nd - d.dp, 0);
+			prec = max(d.nd - d.dp, 0)
 		case 'g', 'G':
-			prec = d.nd;
+			prec = d.nd
 		}
 	} else {
 		switch fmt {
 		case 'e', 'E':
-			d.Round(prec+1);
+			d.Round(prec+1)
 		case 'f':
-			d.Round(d.dp + prec);
+			d.Round(d.dp + prec)
 		case 'g', 'G':
 			if prec == 0 {
-				prec = 1;
+				prec = 1
 			}
 			d.Round(prec);
 		}
@@ -139,24 +139,24 @@ func genericFtoa(bits uint64, fmt byte, prec int, flt *floatInfo) string {
 
 	switch fmt {
 	case 'e', 'E':
-		return fmtE(neg, d, prec, fmt);
+		return fmtE(neg, d, prec, fmt)
 	case 'f':
-		return fmtF(neg, d, prec);
+		return fmtF(neg, d, prec)
 	case 'g', 'G':
 		// trailing zeros are removed.
 		if prec > d.nd {
-			prec = d.nd;
+			prec = d.nd
 		}
 		// %e is used if the exponent from the conversion
 		// is less than -4 or greater than or equal to the precision.
 		// if precision was the shortest possible, use precision 6 for this decision.
 		eprec := prec;
 		if shortest {
-			eprec = 6;
+			eprec = 6
 		}
 		exp := d.dp - 1;
 		if exp < -4 || exp >= eprec {
-			return fmtE(neg, d, prec-1, fmt+'e'-'g');
+			return fmtE(neg, d, prec-1, fmt+'e'-'g')
 		}
 		return fmtF(neg, d, max(prec - d.dp, 0));
 	}
@@ -216,15 +216,15 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	for i := 0; i < d.nd; i++ {
 		var l, m, u byte;	// lower, middle, upper digits
 		if i < lower.nd {
-			l = lower.d[i];
+			l = lower.d[i]
 		} else {
-			l = '0';
+			l = '0'
 		}
 		m = d.d[i];
 		if i < upper.nd {
-			u = upper.d[i];
+			u = upper.d[i]
 		} else {
-			u = '0';
+			u = '0'
 		}
 
 		// Okay to round down (truncate) if lower has a different digit
@@ -264,9 +264,9 @@ func fmtE(neg bool, d *decimal, prec int, fmt byte) string {
 
 	// first digit
 	if d.nd == 0 {
-		buf[w] = '0';
+		buf[w] = '0'
 	} else {
-		buf[w] = d.d[0];
+		buf[w] = d.d[0]
 	}
 	w++;
 
@@ -276,9 +276,9 @@ func fmtE(neg bool, d *decimal, prec int, fmt byte) string {
 		w++;
 		for i := 0; i < prec; i++ {
 			if 1+i < d.nd {
-				buf[w] = d.d[1+i];
+				buf[w] = d.d[1+i]
 			} else {
-				buf[w] = '0';
+				buf[w] = '0'
 			}
 			w++;
 		}
@@ -289,13 +289,13 @@ func fmtE(neg bool, d *decimal, prec int, fmt byte) string {
 	w++;
 	exp := d.dp - 1;
 	if d.nd == 0 {	// special case: 0 has exponent 0
-		exp = 0;
+		exp = 0
 	}
 	if exp < 0 {
 		buf[w] = '-';
 		exp = -exp;
 	} else {
-		buf[w] = '+';
+		buf[w] = '+'
 	}
 	w++;
 
@@ -303,7 +303,7 @@ func fmtE(neg bool, d *decimal, prec int, fmt byte) string {
 	// count digits
 	n := 0;
 	for e := exp; e > 0; e /= 10 {
-		n++;
+		n++
 	}
 	// leading zeros
 	for i := n; i < 2; i++ {
@@ -354,9 +354,9 @@ func fmtF(neg bool, d *decimal, prec int) string {
 		w++;
 		for i := 0; i < prec; i++ {
 			if d.dp + i < 0 || d.dp + i >= d.nd {
-				buf[w] = '0';
+				buf[w] = '0'
 			} else {
-				buf[w] = d.d[d.dp + i];
+				buf[w] = d.d[d.dp + i]
 			}
 			w++;
 		}
@@ -402,7 +402,7 @@ func fmtB(neg bool, mant uint64, exp int, flt *floatInfo) string {
 
 func max(a, b int) int {
 	if a > b {
-		return a;
+		return a
 	}
 	return b;
 }

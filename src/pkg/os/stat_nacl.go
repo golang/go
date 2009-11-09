@@ -7,7 +7,7 @@ package os
 import "syscall"
 
 func isSymlink(stat *syscall.Stat_t) bool {
-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK;
+	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
 }
 
 func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
@@ -32,7 +32,7 @@ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
 	}
 	dir.Name = name;
 	if isSymlink(lstat) && !isSymlink(stat) {
-		dir.FollowedSymlink = true;
+		dir.FollowedSymlink = true
 	}
 	return dir;
 }

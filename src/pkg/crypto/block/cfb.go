@@ -26,7 +26,7 @@ type cfbCipher struct {
 
 func newCFB(c Cipher, s int, iv []byte) *cfbCipher {
 	if s == 0 || s%8 != 0 {
-		panicln("crypto/block: invalid CFB mode", s);
+		panicln("crypto/block: invalid CFB mode", s)
 	}
 	b := c.BlockSize();
 	x := new(cfbCipher);
@@ -44,16 +44,16 @@ func (x *cfbCipher) Encrypt(src, dst []byte) {
 	// Encrypt old IV and xor prefix with src to make dst.
 	x.c.Encrypt(x.iv, x.tmp);
 	for i := 0; i < x.blockSize; i++ {
-		dst[i] = src[i] ^ x.tmp[i];
+		dst[i] = src[i] ^ x.tmp[i]
 	}
 
 	// Slide unused IV pieces down and insert dst at end.
 	for i := 0; i < x.cipherSize - x.blockSize; i++ {
-		x.iv[i] = x.iv[i + x.blockSize];
+		x.iv[i] = x.iv[i + x.blockSize]
 	}
 	off := x.cipherSize - x.blockSize;
 	for i := off; i < x.cipherSize; i++ {
-		x.iv[i] = dst[i-off];
+		x.iv[i] = dst[i-off]
 	}
 }
 
@@ -61,18 +61,18 @@ func (x *cfbCipher) Decrypt(src, dst []byte) {
 	// Encrypt [sic] old IV and xor prefix with src to make dst.
 	x.c.Encrypt(x.iv, x.tmp);
 	for i := 0; i < x.blockSize; i++ {
-		dst[i] = src[i] ^ x.tmp[i];
+		dst[i] = src[i] ^ x.tmp[i]
 	}
 
 	// Slide unused IV pieces down and insert src at top.
 	for i := 0; i < x.cipherSize - x.blockSize; i++ {
-		x.iv[i] = x.iv[i + x.blockSize];
+		x.iv[i] = x.iv[i + x.blockSize]
 	}
 	off := x.cipherSize - x.blockSize;
 	for i := off; i < x.cipherSize; i++ {
 		// Reconstruct src = dst ^ x.tmp
 		// in case we overwrote src (src == dst).
-		x.iv[i] = dst[i-off] ^ x.tmp[i-off];
+		x.iv[i] = dst[i-off] ^ x.tmp[i-off]
 	}
 }
 
@@ -82,7 +82,7 @@ func (x *cfbCipher) Decrypt(src, dst []byte) {
 // as required by the cipher's block size.
 // Modes for s not a multiple of 8 are unimplemented.
 func NewCFBDecrypter(c Cipher, s int, iv []byte, r io.Reader) io.Reader {
-	return NewECBDecrypter(newCFB(c, s, iv), r);
+	return NewECBDecrypter(newCFB(c, s, iv), r)
 }
 
 // NewCFBEncrypter returns a writer that encrypts data using c
@@ -92,5 +92,5 @@ func NewCFBDecrypter(c Cipher, s int, iv []byte, r io.Reader) io.Reader {
 // by the cipher's block size, so there is no need for a Flush method.
 // Modes for s not a multiple of 8 are unimplemented.
 func NewCFBEncrypter(c Cipher, s int, iv []byte, w io.Writer) io.Writer {
-	return NewECBEncrypter(newCFB(c, s, iv), w);
+	return NewECBEncrypter(newCFB(c, s, iv), w)
 }

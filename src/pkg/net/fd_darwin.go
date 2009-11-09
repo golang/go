@@ -21,7 +21,7 @@ func newpollster() (p *pollster, err os.Error) {
 	p = new(pollster);
 	var e int;
 	if p.kq, e = syscall.Kqueue(); e != 0 {
-		return nil, os.NewSyscallError("kqueue", e);
+		return nil, os.NewSyscallError("kqueue", e)
 	}
 	p.events = p.eventbuf[0:0];
 	return p, nil;
@@ -30,9 +30,9 @@ func newpollster() (p *pollster, err os.Error) {
 func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 	var kmode int;
 	if mode == 'r' {
-		kmode = syscall.EVFILT_READ;
+		kmode = syscall.EVFILT_READ
 	} else {
-		kmode = syscall.EVFILT_WRITE;
+		kmode = syscall.EVFILT_WRITE
 	}
 	var events [1]syscall.Kevent_t;
 	ev := &events[0];
@@ -42,19 +42,19 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 	// EV_ONESHOT - delete the event the first time it triggers
 	flags := syscall.EV_ADD | syscall.EV_RECEIPT;
 	if !repeat {
-		flags |= syscall.EV_ONESHOT;
+		flags |= syscall.EV_ONESHOT
 	}
 	syscall.SetKevent(ev, fd, kmode, flags);
 
 	n, e := syscall.Kevent(p.kq, &events, &events, nil);
 	if e != 0 {
-		return os.NewSyscallError("kevent", e);
+		return os.NewSyscallError("kevent", e)
 	}
 	if n != 1 || (ev.Flags & syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
-		return os.ErrorString("kqueue phase error");
+		return os.ErrorString("kqueue phase error")
 	}
 	if ev.Data != 0 {
-		return os.Errno(int(ev.Data));
+		return os.Errno(int(ev.Data))
 	}
 	return nil;
 }
@@ -62,9 +62,9 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 func (p *pollster) DelFD(fd int, mode int) {
 	var kmode int;
 	if mode == 'r' {
-		kmode = syscall.EVFILT_READ;
+		kmode = syscall.EVFILT_READ
 	} else {
-		kmode = syscall.EVFILT_WRITE;
+		kmode = syscall.EVFILT_WRITE
 	}
 	var events [1]syscall.Kevent_t;
 	ev := &events[0];
@@ -80,19 +80,19 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 	for len(p.events) == 0 {
 		if nsec > 0 {
 			if t == nil {
-				t = new(syscall.Timespec);
+				t = new(syscall.Timespec)
 			}
 			*t = syscall.NsecToTimespec(nsec);
 		}
 		nn, e := syscall.Kevent(p.kq, nil, &p.eventbuf, t);
 		if e != 0 {
 			if e == syscall.EINTR {
-				continue;
+				continue
 			}
 			return -1, 0, os.NewSyscallError("kevent", e);
 		}
 		if nn == 0 {
-			return -1, 0, nil;
+			return -1, 0, nil
 		}
 		p.events = p.eventbuf[0:nn];
 	}
@@ -100,9 +100,9 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 	p.events = p.events[1:len(p.events)];
 	fd = int(ev.Ident);
 	if ev.Filter == syscall.EVFILT_READ {
-		mode = 'r';
+		mode = 'r'
 	} else {
-		mode = 'w';
+		mode = 'w'
 	}
 	return fd, mode, nil;
 }

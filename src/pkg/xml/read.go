@@ -114,13 +114,13 @@ import (
 func Unmarshal(r io.Reader, val interface{}) os.Error {
 	v, ok := reflect.NewValue(val).(*reflect.PtrValue);
 	if !ok {
-		return os.NewError("non-pointer passed to Unmarshal");
+		return os.NewError("non-pointer passed to Unmarshal")
 	}
 	p := NewParser(r);
 	elem := v.Elem();
 	err := p.unmarshal(elem, nil);
 	if err != nil {
-		return err;
+		return err
 	}
 	return nil;
 }
@@ -139,7 +139,7 @@ func (e UnmarshalError) String() string	{ return string(e) }
 func (p *Parser) Unmarshal(val interface{}, start *StartElement) os.Error {
 	v, ok := reflect.NewValue(val).(*reflect.PtrValue);
 	if !ok {
-		return os.NewError("non-pointer passed to Unmarshal");
+		return os.NewError("non-pointer passed to Unmarshal")
 	}
 	return p.unmarshal(v.Elem(), start);
 }
@@ -151,7 +151,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		for {
 			tok, err := p.Token();
 			if err != nil {
-				return err;
+				return err
 			}
 			if t, ok := tok.(StartElement); ok {
 				start = &t;
@@ -166,7 +166,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 			pv.PointTo(zv);
 			val = zv;
 		} else {
-			val = pv.Elem();
+			val = pv.Elem()
 		}
 	}
 
@@ -180,7 +180,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 	)
 	switch v := val.(type) {
 	case *reflect.BoolValue:
-		v.Set(true);
+		v.Set(true)
 
 	case *reflect.SliceValue:
 		typ := v.Type().(*reflect.SliceType);
@@ -196,7 +196,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		if n >= v.Cap() {
 			ncap := 2*n;
 			if ncap < 4 {
-				ncap = 4;
+				ncap = 4
 			}
 			new := reflect.MakeSlice(typ, n, ncap);
 			reflect.ArrayCopy(new, v);
@@ -212,7 +212,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		return nil;
 
 	case *reflect.StringValue:
-		saveData = v;
+		saveData = v
 
 	case *reflect.StructValue:
 		if _, ok := v.Interface().(Name); ok {
@@ -231,17 +231,17 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 				ns := "";
 				i := strings.LastIndex(tag, " ");
 				if i >= 0 {
-					ns, tag = tag[0:i], tag[i+1 : len(tag)];
+					ns, tag = tag[0:i], tag[i+1 : len(tag)]
 				}
 				if tag != start.Name.Local {
-					return UnmarshalError("expected element type <" + tag + "> but have <" + start.Name.Local + ">");
+					return UnmarshalError("expected element type <" + tag + "> but have <" + start.Name.Local + ">")
 				}
 				if ns != "" && ns != start.Name.Space {
 					e := "expected element <" + tag + "> in name space " + ns + " but have ";
 					if start.Name.Space == "" {
-						e += "no name space";
+						e += "no name space"
 					} else {
-						e += start.Name.Space;
+						e += start.Name.Space
 					}
 					return UnmarshalError(e);
 				}
@@ -250,7 +250,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 			// Save
 			v := sv.FieldByIndex(f.Index);
 			if _, ok := v.Interface().(Name); !ok {
-				return UnmarshalError(sv.Type().String() + " field XMLName does not have type xml.Name");
+				return UnmarshalError(sv.Type().String() + " field XMLName does not have type xml.Name")
 			}
 			v.(*reflect.StructValue).Set(reflect.NewValue(start.Name).(*reflect.StructValue));
 		}
@@ -263,7 +263,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 			case "attr":
 				strv, ok := sv.FieldByIndex(f.Index).(*reflect.StringValue);
 				if !ok {
-					return UnmarshalError(sv.Type().String() + " field " + f.Name + " has attr tag but is not type string");
+					return UnmarshalError(sv.Type().String() + " field " + f.Name + " has attr tag but is not type string")
 				}
 				// Look for attribute.
 				val := "";
@@ -278,12 +278,12 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 
 			case "comment":
 				if saveComment == nil {
-					saveComment = sv.FieldByIndex(f.Index);
+					saveComment = sv.FieldByIndex(f.Index)
 				}
 
 			case "chardata":
 				if saveData == nil {
-					saveData = sv.FieldByIndex(f.Index);
+					saveData = sv.FieldByIndex(f.Index)
 				}
 			}
 		}
@@ -295,7 +295,7 @@ Loop:
 	for {
 		tok, err := p.Token();
 		if err != nil {
-			return err;
+			return err
 		}
 		switch t := tok.(type) {
 		case StartElement:
@@ -309,37 +309,37 @@ Loop:
 					f := styp.Field(i);
 					if strings.ToLower(f.Name) == k {
 						if err := p.unmarshal(sv.FieldByIndex(f.Index), &t); err != nil {
-							return err;
+							return err
 						}
 						continue Loop;
 					}
 					if any < 0 && f.Name == "Any" {
-						any = i;
+						any = i
 					}
 				}
 				if any >= 0 {
 					if err := p.unmarshal(sv.FieldByIndex(styp.Field(any).Index), &t); err != nil {
-						return err;
+						return err
 					}
 					continue Loop;
 				}
 			}
 			// Not saving sub-element but still have to skip over it.
 			if err := p.Skip(); err != nil {
-				return err;
+				return err
 			}
 
 		case EndElement:
-			break Loop;
+			break Loop
 
 		case CharData:
 			if saveData != nil {
-				data = bytes.Add(data, t);
+				data = bytes.Add(data, t)
 			}
 
 		case Comment:
 			if saveComment != nil {
-				comment = bytes.Add(comment, t);
+				comment = bytes.Add(comment, t)
 			}
 		}
 	}
@@ -347,16 +347,16 @@ Loop:
 	// Save accumulated character data and comments
 	switch t := saveData.(type) {
 	case *reflect.StringValue:
-		t.Set(string(data));
+		t.Set(string(data))
 	case *reflect.SliceValue:
-		t.Set(reflect.NewValue(data).(*reflect.SliceValue));
+		t.Set(reflect.NewValue(data).(*reflect.SliceValue))
 	}
 
 	switch t := saveComment.(type) {
 	case *reflect.StringValue:
-		t.Set(string(comment));
+		t.Set(string(comment))
 	case *reflect.SliceValue:
-		t.Set(reflect.NewValue(comment).(*reflect.SliceValue));
+		t.Set(reflect.NewValue(comment).(*reflect.SliceValue))
 	}
 
 	return nil;
@@ -370,15 +370,15 @@ func (p *Parser) Skip() os.Error {
 	for {
 		tok, err := p.Token();
 		if err != nil {
-			return err;
+			return err
 		}
 		switch t := tok.(type) {
 		case StartElement:
 			if err := p.Skip(); err != nil {
-				return err;
+				return err
 			}
 		case EndElement:
-			return nil;
+			return nil
 		}
 	}
 	panic("unreachable");

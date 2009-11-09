@@ -7,7 +7,7 @@ package math
 // Fabs returns the absolute value of x.
 func Fabs(x float64) float64 {
 	if x < 0 {
-		return -x;
+		return -x
 	}
 	return x;
 }

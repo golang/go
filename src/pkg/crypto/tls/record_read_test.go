@@ -12,10 +12,10 @@ import (
 
 func matchRecord(r1, r2 *record) bool {
 	if (r1 == nil) != (r2 == nil) {
-		return false;
+		return false
 	}
 	if r1 == nil {
-		return true;
+		return true
 	}
 	return r1.contentType == r2.contentType &&
 		r1.major == r2.major &&
@@ -63,11 +63,11 @@ func matchRecordReaderOutput(t *testing.T, i int, test recordReaderTest, c <-cha
 			break;
 		}
 		if !matchRecord(r1, r2) {
-			t.Errorf("#%d (%d) got:%#v want:%#v", i, j, r2, r1);
+			t.Errorf("#%d (%d) got:%#v want:%#v", i, j, r2, r1)
 		}
 	}
 	<-c;
 	if !closed(c) {
-		t.Errorf("#%d: channel didn't close", i);
+		t.Errorf("#%d: channel didn't close", i)
 	}
 }

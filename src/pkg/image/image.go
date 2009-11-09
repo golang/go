@@ -25,7 +25,7 @@ func (p *RGBA) ColorModel() ColorModel	{ return RGBAColorModel }
 
 func (p *RGBA) Width() int {
 	if len(p.Pixel) == 0 {
-		return 0;
+		return 0
 	}
 	return len(p.Pixel[0]);
 }
@@ -40,7 +40,7 @@ func (p *RGBA) Set(x, y int, c Color)	{ p.Pixel[y][x] = toRGBAColor(c).(RGBAColo
 func NewRGBA(w, h int) *RGBA {
 	pixel := make([][]RGBAColor, h);
 	for y := 0; y < int(h); y++ {
-		pixel[y] = make([]RGBAColor, w);
+		pixel[y] = make([]RGBAColor, w)
 	}
 	return &RGBA{pixel};
 }
@@ -55,7 +55,7 @@ func (p *RGBA64) ColorModel() ColorModel	{ return RGBA64ColorModel }
 
 func (p *RGBA64) Width() int {
 	if len(p.Pixel) == 0 {
-		return 0;
+		return 0
 	}
 	return len(p.Pixel[0]);
 }
@@ -70,7 +70,7 @@ func (p *RGBA64) Set(x, y int, c Color)	{ p.Pixel[y][x] = toRGBA64Color(c).(RGBA
 func NewRGBA64(w, h int) *RGBA64 {
 	pixel := make([][]RGBA64Color, h);
 	for y := 0; y < int(h); y++ {
-		pixel[y] = make([]RGBA64Color, w);
+		pixel[y] = make([]RGBA64Color, w)
 	}
 	return &RGBA64{pixel};
 }
@@ -85,7 +85,7 @@ func (p *NRGBA) ColorModel() ColorModel	{ return NRGBAColorModel }
 
 func (p *NRGBA) Width() int {
 	if len(p.Pixel) == 0 {
-		return 0;
+		return 0
 	}
 	return len(p.Pixel[0]);
 }
@@ -100,7 +100,7 @@ func (p *NRGBA) Set(x, y int, c Color)	{ p.Pixel[y][x] = toNRGBAColor(c).(NRGBAC
 func NewNRGBA(w, h int) *NRGBA {
 	pixel := make([][]NRGBAColor, h);
 	for y := 0; y < int(h); y++ {
-		pixel[y] = make([]NRGBAColor, w);
+		pixel[y] = make([]NRGBAColor, w)
 	}
 	return &NRGBA{pixel};
 }
@@ -115,7 +115,7 @@ func (p *NRGBA64) ColorModel() ColorModel	{ return NRGBA64ColorModel }
 
 func (p *NRGBA64) Width() int {
 	if len(p.Pixel) == 0 {
-		return 0;
+		return 0
 	}
 	return len(p.Pixel[0]);
 }
@@ -130,7 +130,7 @@ func (p *NRGBA64) Set(x, y int, c Color)	{ p.Pixel[y][x] = toNRGBA64Color(c).(NR
 func NewNRGBA64(w, h int) *NRGBA64 {
 	pixel := make([][]NRGBA64Color, h);
 	for y := 0; y < int(h); y++ {
-		pixel[y] = make([]NRGBA64Color, w);
+		pixel[y] = make([]NRGBA64Color, w)
 	}
 	return &NRGBA64{pixel};
 }
@@ -140,7 +140,7 @@ type PalettedColorModel []Color
 
 func diff(a, b uint32) uint32 {
 	if a > b {
-		return a-b;
+		return a-b
 	}
 	return b-a;
 }
@@ -148,7 +148,7 @@ func diff(a, b uint32) uint32 {
 // Convert returns the palette color closest to c in Euclidean R,G,B space.
 func (p PalettedColorModel) Convert(c Color) Color {
 	if len(p) == 0 {
-		return nil;
+		return nil
 	}
 	// TODO(nigeltao): Revisit the "pick the palette color which minimizes sum-squared-difference"
 	// algorithm when the premultiplied vs unpremultiplied issue is resolved.
@@ -186,7 +186,7 @@ func (p *Paletted) ColorModel() ColorModel	{ return p.Palette }
 
 func (p *Paletted) Width() int {
 	if len(p.Pixel) == 0 {
-		return 0;
+		return 0
 	}
 	return len(p.Pixel[0]);
 }
@@ -196,18 +196,18 @@ func (p *Paletted) Height() int	{ return len(p.Pixel) }
 func (p *Paletted) At(x, y int) Color	{ return p.Palette[p.Pixel[y][x]] }
 
 func (p *Paletted) ColorIndexAt(x, y int) uint8 {
-	return p.Pixel[y][x];
+	return p.Pixel[y][x]
 }
 
 func (p *Paletted) SetColorIndex(x, y int, index uint8) {
-	p.Pixel[y][x] = index;
+	p.Pixel[y][x] = index
 }
 
 // NewPaletted returns a new Paletted with the given width, height and palette.
 func NewPaletted(w, h int, m PalettedColorModel) *Paletted {
 	pixel := make([][]uint8, h);
 	for y := 0; y < int(h); y++ {
-		pixel[y] = make([]uint8, w);
+		pixel[y] = make([]uint8, w)
 	}
 	return &Paletted{pixel, m};
 }

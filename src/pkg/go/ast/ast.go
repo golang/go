@@ -97,7 +97,7 @@ type Field struct {
 
 func (f *Field) Pos() token.Position {
 	if len(f.Names) > 0 {
-		return f.Names[0].Pos();
+		return f.Names[0].Pos()
 	}
 	return f.Type.Pos();
 }
@@ -600,7 +600,7 @@ type (
 //
 func (s *ImportSpec) Pos() token.Position {
 	if s.Name != nil {
-		return s.Name.Pos();
+		return s.Name.Pos()
 	}
 	return s.Path[0].Pos();
 }

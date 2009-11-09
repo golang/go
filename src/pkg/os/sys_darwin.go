@@ -12,7 +12,7 @@ func Hostname() (name string, err Error) {
 	var errno int;
 	name, errno = syscall.Sysctl("kern.hostname");
 	if errno != 0 {
-		return "", NewSyscallError("sysctl kern.hostname", errno);
+		return "", NewSyscallError("sysctl kern.hostname", errno)
 	}
 	return name, nil;
 }

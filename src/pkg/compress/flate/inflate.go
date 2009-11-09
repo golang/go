@@ -26,7 +26,7 @@ const (
 type CorruptInputError int64
 
 func (e CorruptInputError) String() string {
-	return "flate: corrupt input before offset " + strconv.Itoa64(int64(e));
+	return "flate: corrupt input before offset " + strconv.Itoa64(int64(e))
 }
 
 // An InternalError reports an error in the flate code itself.
@@ -41,7 +41,7 @@ type ReadError struct {
 }
 
 func (e *ReadError) String() string {
-	return "flate: read error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Error.String();
+	return "flate: read error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Error.String()
 }
 
 // A WriteError reports an error encountered while writing output.
@@ -51,7 +51,7 @@ type WriteError struct {
 }
 
 func (e *WriteError) String() string {
-	return "flate: write error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Error.String();
+	return "flate: write error at offset " + strconv.Itoa64(e.Offset) + ": " + e.Error.String()
 }
 
 // Huffman decoder is based on
@@ -85,18 +85,18 @@ func (h *huffmanDecoder) init(bits []int) bool {
 	var min, max int;
 	for _, n := range bits {
 		if n == 0 {
-			continue;
+			continue
 		}
 		if min == 0 || n < min {
-			min = n;
+			min = n
 		}
 		if n > max {
-			max = n;
+			max = n
 		}
 		count[n]++;
 	}
 	if max == 0 {
-		return false;
+		return false
 	}
 
 	h.min = min;
@@ -122,11 +122,11 @@ func (h *huffmanDecoder) init(bits []int) bool {
 
 	// Make array mapping sequence numbers to codes.
 	if len(h.codes) < len(bits) {
-		h.codes = make([]int, len(bits));
+		h.codes = make([]int, len(bits))
 	}
 	for i, n := range bits {
 		if n == 0 {
-			continue;
+			continue
 		}
 		code := nextcode[n];
 		nextcode[n]++;
@@ -229,7 +229,7 @@ func (f *inflater) inflate() (err os.Error) {
 	for err == nil && !final {
 		for f.nb < 1+2 {
 			if err = f.moreBits(); err != nil {
-				return;
+				return
 			}
 		}
 		final = f.b & 1 == 1;
@@ -239,18 +239,18 @@ func (f *inflater) inflate() (err os.Error) {
 		f.nb -= 1+2;
 		switch typ {
 		case 0:
-			err = f.dataBlock();
+			err = f.dataBlock()
 		case 1:
 			// compressed, fixed Huffman tables
-			err = f.decodeBlock(&fixedHuffmanDecoder, nil);
+			err = f.decodeBlock(&fixedHuffmanDecoder, nil)
 		case 2:
 			// compressed, dynamic Huffman tables
 			if err = f.readHuffman(); err == nil {
-				err = f.decodeBlock(&f.h1, &f.h2);
+				err = f.decodeBlock(&f.h1, &f.h2)
 			}
 		default:
 			// 3 is reserved.
-			err = CorruptInputError(f.roffset);
+			err = CorruptInputError(f.roffset)
 		}
 	}
 	return;
@@ -265,7 +265,7 @@ func (f *inflater) readHuffman() os.Error {
 	// HLIT[5], HDIST[5], HCLEN[4].
 	for f.nb < 5+5+4 {
 		if err := f.moreBits(); err != nil {
-			return err;
+			return err
 		}
 	}
 	nlit := int(f.b & 0x1F)+257;
@@ -280,7 +280,7 @@ func (f *inflater) readHuffman() os.Error {
 	for i := 0; i < nclen; i++ {
 		for f.nb < 3 {
 			if err := f.moreBits(); err != nil {
-				return err;
+				return err
 			}
 		}
 		f.codebits[codeOrder[i]] = int(f.b & 0x7);
@@ -288,10 +288,10 @@ func (f *inflater) readHuffman() os.Error {
 		f.nb -= 3;
 	}
 	for i := nclen; i < len(codeOrder); i++ {
-		f.codebits[codeOrder[i]] = 0;
+		f.codebits[codeOrder[i]] = 0
 	}
 	if !f.h1.init(&f.codebits) {
-		return CorruptInputError(f.roffset);
+		return CorruptInputError(f.roffset)
 	}
 
 	// HLIT + 257 code lengths, HDIST + 1 code lengths,
@@ -299,7 +299,7 @@ func (f *inflater) readHuffman() os.Error {
 	for i, n := 0, nlit+ndist; i < n; {
 		x, err := f.huffSym(&f.h1);
 		if err != nil {
-			return err;
+			return err
 		}
 		if x < 16 {
 			// Actual length.
@@ -313,12 +313,12 @@ func (f *inflater) readHuffman() os.Error {
 		var b int;
 		switch x {
 		default:
-			return InternalError("unexpected length code");
+			return InternalError("unexpected length code")
 		case 16:
 			rep = 3;
 			nb = 2;
 			if i == 0 {
-				return CorruptInputError(f.roffset);
+				return CorruptInputError(f.roffset)
 			}
 			b = f.bits[i-1];
 		case 17:
@@ -332,14 +332,14 @@ func (f *inflater) readHuffman() os.Error {
 		}
 		for f.nb < nb {
 			if err := f.moreBits(); err != nil {
-				return err;
+				return err
 			}
 		}
 		rep += int(f.b & uint32(1<<nb - 1));
 		f.b >>= nb;
 		f.nb -= nb;
 		if i+rep > n {
-			return CorruptInputError(f.roffset);
+			return CorruptInputError(f.roffset)
 		}
 		for j := 0; j < rep; j++ {
 			f.bits[i] = b;
@@ -348,7 +348,7 @@ func (f *inflater) readHuffman() os.Error {
 	}
 
 	if !f.h1.init(f.bits[0:nlit]) || !f.h2.init(f.bits[nlit : nlit+ndist]) {
-		return CorruptInputError(f.roffset);
+		return CorruptInputError(f.roffset)
 	}
 
 	return nil;
@@ -362,7 +362,7 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
 	for {
 		v, err := f.huffSym(hl);
 		if err != nil {
-			return err;
+			return err
 		}
 		var n uint;	// number of bits extra
 		var length int;
@@ -372,12 +372,12 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
 			f.hp++;
 			if f.hp == len(f.hist) {
 				if err = f.flush(); err != nil {
-					return err;
+					return err
 				}
 			}
 			continue;
 		case v == 256:
-			return nil;
+			return nil
 		// otherwise, reference to older data
 		case v < 265:
 			length = v-(257-3);
@@ -404,7 +404,7 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
 		if n > 0 {
 			for f.nb < n {
 				if err = f.moreBits(); err != nil {
-					return err;
+					return err
 				}
 			}
 			length += int(f.b & uint32(1<<n - 1));
@@ -416,7 +416,7 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
 		if hd == nil {
 			for f.nb < 5 {
 				if err = f.moreBits(); err != nil {
-					return err;
+					return err
 				}
 			}
 			dist = int(reverseByte[(f.b & 0x1F)<<3]);
@@ -424,22 +424,22 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
 			f.nb -= 5;
 		} else {
 			if dist, err = f.huffSym(hd); err != nil {
-				return err;
+				return err
 			}
 		}
 
 		switch {
 		case dist < 4:
-			dist++;
+			dist++
 		case dist >= 30:
-			return CorruptInputError(f.roffset);
+			return CorruptInputError(f.roffset)
 		default:
 			nb := uint(dist-2)>>1;
 			// have 1 bit in bottom of dist, need nb more.
 			extra := (dist&1)<<nb;
 			for f.nb < nb {
 				if err = f.moreBits(); err != nil {
-					return err;
+					return err
 				}
 			}
 			extra |= int(f.b & uint32(1<<nb - 1));
@@ -450,17 +450,17 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
 
 		// Copy history[-dist:-dist+length] into output.
 		if dist > len(f.hist) {
-			return InternalError("bad history distance");
+			return InternalError("bad history distance")
 		}
 
 		// No check on length; encoding can be prescient.
 		if !f.hfull && dist > f.hp {
-			return CorruptInputError(f.roffset);
+			return CorruptInputError(f.roffset)
 		}
 
 		p := f.hp - dist;
 		if p < 0 {
-			p += len(f.hist);
+			p += len(f.hist)
 		}
 		for i := 0; i < length; i++ {
 			f.hist[f.hp] = f.hist[p];
@@ -468,11 +468,11 @@ func (f *inflater) decodeBlock(hl, hd *huffmanDecoder) os.Error {
 			p++;
 			if f.hp == len(f.hist) {
 				if err = f.flush(); err != nil {
-					return err;
+					return err
 				}
 			}
 			if p == len(f.hist) {
-				p = 0;
+				p = 0
 			}
 		}
 	}
@@ -490,12 +490,12 @@ func (f *inflater) dataBlock() os.Error {
 	nr, err := io.ReadFull(f.r, f.buf[0:4]);
 	f.roffset += int64(nr);
 	if err != nil {
-		return &ReadError{f.roffset, err};
+		return &ReadError{f.roffset, err}
 	}
 	n := int(f.buf[0]) | int(f.buf[1])<<8;
 	nn := int(f.buf[2]) | int(f.buf[3])<<8;
 	if uint16(nn) != uint16(^n) {
-		return CorruptInputError(f.roffset);
+		return CorruptInputError(f.roffset)
 	}
 
 	// Read len bytes into history,
@@ -503,18 +503,18 @@ func (f *inflater) dataBlock() os.Error {
 	for n > 0 {
 		m := len(f.hist) - f.hp;
 		if m > n {
-			m = n;
+			m = n
 		}
 		m, err := io.ReadFull(f.r, f.hist[f.hp : f.hp + m]);
 		f.roffset += int64(m);
 		if err != nil {
-			return &ReadError{f.roffset, err};
+			return &ReadError{f.roffset, err}
 		}
 		n -= m;
 		f.hp += m;
 		if f.hp == len(f.hist) {
 			if err = f.flush(); err != nil {
-				return err;
+				return err
 			}
 		}
 	}
@@ -525,7 +525,7 @@ func (f *inflater) moreBits() os.Error {
 	c, err := f.r.ReadByte();
 	if err != nil {
 		if err == os.EOF {
-			err = io.ErrUnexpectedEOF;
+			err = io.ErrUnexpectedEOF
 		}
 		return err;
 	}
@@ -540,11 +540,11 @@ func (f *inflater) huffSym(h *huffmanDecoder) (int, os.Error) {
 	for n := uint(h.min); n <= uint(h.max); n++ {
 		lim := h.limit[n];
 		if lim == -1 {
-			continue;
+			continue
 		}
 		for f.nb < n {
 			if err := f.moreBits(); err != nil {
-				return 0, err;
+				return 0, err
 			}
 		}
 		v := int(f.b & uint32(1<<n - 1));
@@ -562,14 +562,14 @@ func (f *inflater) huffSym(h *huffmanDecoder) (int, os.Error) {
 // Flush any buffered output to the underlying writer.
 func (f *inflater) flush() os.Error {
 	if f.hp == 0 {
-		return nil;
+		return nil
 	}
 	n, err := f.w.Write(f.hist[0 : f.hp]);
 	if n != f.hp && err == nil {
-		err = io.ErrShortWrite;
+		err = io.ErrShortWrite
 	}
 	if err != nil {
-		return &WriteError{f.woffset, err};
+		return &WriteError{f.woffset, err}
 	}
 	f.woffset += int64(f.hp);
 	f.hp = 0;
@@ -579,7 +579,7 @@ func (f *inflater) flush() os.Error {
 
 func makeReader(r io.Reader) Reader {
 	if rr, ok := r.(Reader); ok {
-		return rr;
+		return rr
 	}
 	return bufio.NewReader(r);
 }
@@ -591,10 +591,10 @@ func (f *inflater) inflater(r io.Reader, w io.Writer) os.Error {
 	f.w = w;
 	f.woffset = 0;
 	if err := f.inflate(); err != nil {
-		return err;
+		return err
 	}
 	if err := f.flush(); err != nil {
-		return err;
+		return err
 	}
 	return nil;
 }

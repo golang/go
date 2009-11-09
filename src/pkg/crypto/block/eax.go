@@ -30,13 +30,13 @@ type EAXTagError struct {
 }
 
 func (e *EAXTagError) String() string {
-	return fmt.Sprintf("crypto/block: EAX tag mismatch: read %x but computed %x", e.Read, e.Computed);
+	return fmt.Sprintf("crypto/block: EAX tag mismatch: read %x but computed %x", e.Read, e.Computed)
 }
 
 func setupEAX(c Cipher, iv, hdr []byte, tagBytes int) (ctrIV, tag []byte, cmac hash.Hash) {
 	n := len(iv);
 	if n != c.BlockSize() {
-		panicln("crypto/block: EAX: iv length", n, "!=", c.BlockSize());
+		panicln("crypto/block: EAX: iv length", n, "!=", c.BlockSize())
 	}
 	buf := make([]byte, n);	// zeroed
 
@@ -54,7 +54,7 @@ func setupEAX(c Cipher, iv, hdr []byte, tagBytes int) (ctrIV, tag []byte, cmac h
 	cmac.Write(hdr);
 	sum = cmac.Sum();
 	for i := 0; i < tagBytes; i++ {
-		tag[i] ^= sum[i];
+		tag[i] ^= sum[i]
 	}
 
 	cmac.Reset();
@@ -68,7 +68,7 @@ func finishEAX(tag []byte, cmac hash.Hash) {
 	// Finish CMAC #2 and xor into tag.
 	sum := cmac.Sum();
 	for i := range tag {
-		tag[i] ^= sum[i];
+		tag[i] ^= sum[i]
 	}
 }
 
@@ -110,7 +110,7 @@ func NewEAXEncrypter(c Cipher, iv []byte, hdr []byte, tagBytes int, w io.Writer)
 }
 
 func (x *eaxEncrypter) Write(p []byte) (n int, err os.Error) {
-	return x.ctr.Write(p);
+	return x.ctr.Write(p)
 }
 
 func (x *eaxEncrypter) Close() os.Error {
@@ -120,7 +120,7 @@ func (x *eaxEncrypter) Close() os.Error {
 	finishEAX(x.tag, x.cw.cmac);
 	n, err := x.cw.w.Write(x.tag);
 	if n != len(x.tag) && err == nil {
-		err = io.ErrShortWrite;
+		err = io.ErrShortWrite
 	}
 
 	return err;
@@ -154,7 +154,7 @@ func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
 		tag = tag[0 : nt+nn];
 		cr.tag = tag;
 		if err1 != nil {
-			return 0, err1;
+			return 0, err1
 		}
 	}
 
@@ -163,15 +163,15 @@ func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
 		// If p is big, try to read directly into p to avoid a copy.
 		n, err = cr.r.Read(p[tagBytes:len(p)]);
 		if n == 0 {
-			goto out;
+			goto out
 		}
 		// copy old tag into p
 		for i := 0; i < tagBytes; i++ {
-			p[i] = tag[i];
+			p[i] = tag[i]
 		}
 		// copy new tag out of p
 		for i := 0; i < tagBytes; i++ {
-			tag[i] = p[n+i];
+			tag[i] = p[n+i]
 		}
 		goto out;
 	}
@@ -179,7 +179,7 @@ func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
 	// Otherwise, read into p and then slide data
 	n, err = cr.r.Read(p);
 	if n == 0 {
-		goto out;
+		goto out
 	}
 
 	// copy tag+p into p+tmp and then swap tmp, tag
@@ -187,14 +187,14 @@ func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
 	for i := n+tagBytes-1; i >= 0; i-- {
 		var c byte;
 		if i < tagBytes {
-			c = tag[i];
+			c = tag[i]
 		} else {
-			c = p[i-tagBytes];
+			c = p[i-tagBytes]
 		}
 		if i < n {
-			p[i] = c;
+			p[i] = c
 		} else {
-			tmp[i] = c;
+			tmp[i] = c
 		}
 	}
 	cr.tmp, cr.tag = tag, tmp;
@@ -247,7 +247,7 @@ func (x *eaxDecrypter) checkTag() os.Error {
 func (x *eaxDecrypter) Read(p []byte) (n int, err os.Error) {
 	n, err = x.ctr.Read(p);
 	if n == 0 && err == nil {
-		err = x.checkTag();
+		err = x.checkTag()
 	}
 	return n, err;
 }

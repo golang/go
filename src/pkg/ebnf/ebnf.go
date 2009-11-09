@@ -97,12 +97,12 @@ type (
 
 
 func (x Alternative) Pos() token.Position {
-	return x[0].Pos();	// the parser always generates non-empty Alternative
+	return x[0].Pos()	// the parser always generates non-empty Alternative
 }
 
 
 func (x Sequence) Pos() token.Position {
-	return x[0].Pos();	// the parser always generates non-empty Sequences
+	return x[0].Pos()	// the parser always generates non-empty Sequences
 }
 
 
@@ -155,24 +155,24 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
 		// empty expression
 	case Alternative:
 		for _, e := range x {
-			v.verifyExpr(e, lexical);
+			v.verifyExpr(e, lexical)
 		}
 	case Sequence:
 		for _, e := range x {
-			v.verifyExpr(e, lexical);
+			v.verifyExpr(e, lexical)
 		}
 	case *Name:
 		// a production with this name must exist;
 		// add it to the worklist if not yet processed
 		if prod, found := v.grammar[x.String]; found {
-			v.push(prod);
+			v.push(prod)
 		} else {
-			v.Error(x.Pos(), "missing production " + x.String);
+			v.Error(x.Pos(), "missing production " + x.String)
 		}
 		// within a lexical production references
 		// to non-lexical productions are invalid
 		if lexical && !isLexical(x.String) {
-			v.Error(x.Pos(), "reference to non-lexical production " + x.String);
+			v.Error(x.Pos(), "reference to non-lexical production " + x.String)
 		}
 	case *Token:
 		// nothing to do for now
@@ -180,16 +180,16 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
 		i := v.verifyChar(x.Begin);
 		j := v.verifyChar(x.End);
 		if i >= j {
-			v.Error(x.Pos(), "decreasing character range");
+			v.Error(x.Pos(), "decreasing character range")
 		}
 	case *Group:
-		v.verifyExpr(x.Body, lexical);
+		v.verifyExpr(x.Body, lexical)
 	case *Option:
-		v.verifyExpr(x.Body, lexical);
+		v.verifyExpr(x.Body, lexical)
 	case *Repetition:
-		v.verifyExpr(x.Body, lexical);
+		v.verifyExpr(x.Body, lexical)
 	default:
-		panic("unreachable");
+		panic("unreachable")
 	}
 }
 
@@ -220,7 +220,7 @@ func (v *verifier) verify(grammar Grammar, start string) {
 	if len(v.reached) < len(v.grammar) {
 		for name, prod := range v.grammar {
 			if _, found := v.reached[name]; !found {
-				v.Error(prod.Pos(), name + " is unreachable");
+				v.Error(prod.Pos(), name + " is unreachable")
 			}
 		}
 	}

@@ -68,7 +68,7 @@ func up(h Interface, j int) {
 	for {
 		i := (j-1)/2;
 		if i == j || h.Less(i, j) {
-			break;
+			break
 		}
 		h.Swap(i, j);
 		j = i;
@@ -80,13 +80,13 @@ func down(h Interface, i, n int) {
 	for {
 		j := 2*i + 1;
 		if j >= n {
-			break;
+			break
 		}
 		if j1 := j+1; j1 < n && !h.Less(j, j1) {
-			j = j1;	// = 2*i + 2
+			j = j1	// = 2*i + 2
 		}
 		if h.Less(i, j) {
-			break;
+			break
 		}
 		h.Swap(i, j);
 		i = j;

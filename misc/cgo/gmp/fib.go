@@ -22,7 +22,7 @@ func fibber(c chan *big.Int, out chan string, n int64) {
 
 	i := big.NewInt(n);
 	if n == 0 {
-		c <- i;
+		c <- i
 	}
 	for {
 		j := <-c;
@@ -38,6 +38,6 @@ func main() {
 	go fibber(c, out, 0);
 	go fibber(c, out, 1);
 	for i := 0; i < 200; i++ {
-		println(<-out);
+		println(<-out)
 	}
 }

@@ -38,12 +38,12 @@ import (
 func main() {
 	runtime.LockOSThread();
 	if srpc.Enabled() {
-		go srpc.ServeRuntime();
+		go srpc.ServeRuntime()
 	}
 
 	w, err := av.Init(av.SubsystemVideo, 512, 512);
 	if err != nil {
-		log.Exitf("av.Init: %s", err);
+		log.Exitf("av.Init: %s", err)
 	}
 
 	go quitter(w.QuitChan());
@@ -53,13 +53,13 @@ func main() {
 	m.PC = 4;
 	f := bytes.NewBuffer(strings.Bytes(spacewarCode));
 	if err = m.Load(f); err != nil {
-		log.Exitf("loading %s: %s", "spacewar.lst", err);
+		log.Exitf("loading %s: %s", "spacewar.lst", err)
 	}
 	for err == nil {
 		//fmt.Printf("step PC=%06o ", m.PC);
 		//fmt.Printf("inst=%06o AC=%06o IO=%06o OV=%o\n",
 		//	m.Mem[m.PC], m.AC, m.IO, m.OV);
-		err = m.Step();
+		err = m.Step()
 	}
 	log.Exitf("step: %s", err);
 }
@@ -89,7 +89,7 @@ type SpacewarPDP1 struct {
 
 func min(a, b int) int {
 	if a < b {
-		return a;
+		return a
 	}
 	return b;
 }
@@ -103,7 +103,7 @@ func (m *SpacewarPDP1) Init(ctxt draw.Context) {
 	m.colorModel = m.screen.ColorModel();
 	m.pix = make([][]uint8, m.dy);
 	for i := range m.pix {
-		m.pix[i] = make([]uint8, m.dx);
+		m.pix[i] = make([]uint8, m.dx)
 	}
 	m.cmap = make([]image.Color, 256);
 	for i := range m.cmap {
@@ -138,7 +138,7 @@ func (m *SpacewarPDP1) Step() os.Error {
 			m.flush();
 			t := time.Nanoseconds();
 			if t >= m.frameTime + 3 * frameDelay {
-				m.frameTime = t;
+				m.frameTime = t
 			} else {
 				m.frameTime += frameDelay;
 				for t < m.frameTime {
@@ -163,7 +163,7 @@ func (m *SpacewarPDP1) Trap(y pdp1.Word) {
 			m.pix[y][x] = n;
 		}
 	case 011:
-		m.IO = m.ctl;
+		m.IO = m.ctl
 	}
 }
 
@@ -183,13 +183,13 @@ func (m *SpacewarPDP1) pollInput() {
 		select {
 		case ch := <-m.kc:
 			if 0 <= ch && ch < len(ctlBits) {
-				m.ctl |= ctlBits[ch];
+				m.ctl |= ctlBits[ch]
 			}
 			if 0 <= -ch && -ch < len(ctlBits) {
-				m.ctl &^= ctlBits[-ch];
+				m.ctl &^= ctlBits[-ch]
 			}
 		default:
-			return;
+			return
 		}
 	}
 }

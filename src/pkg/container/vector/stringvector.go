@@ -39,7 +39,7 @@ func (p *StringVector) Last() string	{ return p.Vector.Last().(string) }
 func (p *StringVector) Data() []string {
 	arr := make([]string, p.Len());
 	for i, v := range p.a {
-		arr[i] = v.(string);
+		arr[i] = v.(string)
 	}
 	return arr;
 }
@@ -48,21 +48,21 @@ func (p *StringVector) Data() []string {
 // Insert inserts into the vector an element of value x before
 // the current element at index i.
 func (p *StringVector) Insert(i int, x string) {
-	p.Vector.Insert(i, x);
+	p.Vector.Insert(i, x)
 }
 
 
 // InsertVector inserts into the vector the contents of the Vector
 // x such that the 0th element of x appears at index i after insertion.
 func (p *StringVector) InsertVector(i int, x *StringVector) {
-	p.Vector.InsertVector(i, &x.Vector);
+	p.Vector.InsertVector(i, &x.Vector)
 }
 
 
 // Slice returns a new StringVector by slicing the old one to extract slice [i:j].
 // The elements are copied. The original vector is unchanged.
 func (p *StringVector) Slice(i, j int) *StringVector {
-	return &StringVector{*p.Vector.Slice(i, j)};
+	return &StringVector{*p.Vector.Slice(i, j)}
 }
 
 
@@ -76,7 +76,7 @@ func (p *StringVector) Pop() string	{ return p.Vector.Pop().(string) }
 
 // AppendVector appends the entire StringVector x to the end of this vector.
 func (p *StringVector) AppendVector(x *StringVector) {
-	p.Vector.InsertVector(len(p.a), &x.Vector);
+	p.Vector.InsertVector(len(p.a), &x.Vector)
 }
 
 
@@ -88,7 +88,7 @@ func (p *StringVector) Less(i, j int) bool	{ return p.At(i) < p.At(j) }
 // Iterate over all elements; driver for range
 func (p *StringVector) iterate(c chan<- string) {
 	for _, v := range p.a {
-		c <- v.(string);
+		c <- v.(string)
 	}
 	close(c);
 }

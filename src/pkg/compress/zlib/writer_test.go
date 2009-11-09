@@ -53,14 +53,14 @@ func testFileLevel(t *testing.T, fn string, level int) {
 			_, err1 := zlibw.Write(b[0:n]);
 			if err1 == os.EPIPE {
 				// Fail, but do not report the error, as some other (presumably reportable) error broke the pipe.
-				return;
+				return
 			}
 			if err1 != nil {
 				t.Errorf("%s (level=%d): %v", fn, level, err1);
 				return;
 			}
 			if err0 == os.EOF {
-				break;
+				break
 			}
 		}
 	}();
@@ -99,7 +99,7 @@ func TestWriter(t *testing.T) {
 		testFileLevel(t, fn, DefaultCompression);
 		testFileLevel(t, fn, NoCompression);
 		for level := BestSpeed; level <= BestCompression; level++ {
-			testFileLevel(t, fn, level);
+			testFileLevel(t, fn, level)
 		}
 	}
 }

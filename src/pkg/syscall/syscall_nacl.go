@@ -52,7 +52,7 @@ const OS = "nacl"
 func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
 	// Offset passed to system call is 32 bits.  Failure of vision by NaCl.
 	if int64(int32(offset)) != offset {
-		return 0, ERANGE;
+		return 0, ERANGE
 	}
 	o, _, e := Syscall(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(whence));
 	return int64(o), int(e);
@@ -71,7 +71,7 @@ func Sleep(ns int64) (errno int) {
 	ts := NsecToTimespec(ns);
 	var tv Timeval;
 	if errno = Gettimeofday(&tv); errno != 0 {
-		return;
+		return
 	}
 	ts.Sec += tv.Sec;
 	ts.Nsec += tv.Usec * 1000;
@@ -84,11 +84,11 @@ func Sleep(ns int64) (errno int) {
 		ts.Sec--;
 	}
 	if errno = MutexLock(tmu); errno != 0 {
-		return;
+		return
 	}
 	errno = CondTimedWaitAbs(tcv, tmu, &ts);
 	if e := MutexUnlock(tmu); e != 0 && errno == 0 {
-		errno = e;
+		errno = e
 	}
 	return;
 }
@@ -117,21 +117,21 @@ const (
 func Pipe(p []int) (errno int)	{ return ENACL }
 
 func fcntl(fd, cmd, arg int) (val int, errno int) {
-	return 0, ENACL;
+	return 0, ENACL
 }
 
 func Pread(fd int, p []byte, offset int64) (n int, errno int) {
-	return 0, ENACL;
+	return 0, ENACL
 }
 
 func Pwrite(fd int, p []byte, offset int64) (n int, errno int) {
-	return 0, ENACL;
+	return 0, ENACL
 }
 
 func Mkdir(path string, mode int) (errno int)	{ return ENACL }
 
 func Lstat(path string, stat *Stat_t) (errno int) {
-	return ENACL;
+	return ENACL
 }
 
 func Chdir(path string) (errno int)	{ return ENACL }
@@ -143,35 +143,35 @@ func Unlink(path string) (errno int)	{ return ENACL }
 func Rmdir(path string) (errno int)	{ return ENACL }
 
 func Link(oldpath, newpath string) (errno int) {
-	return ENACL;
+	return ENACL
 }
 
 func Symlink(path, link string) (errno int)	{ return ENACL }
 
 func Readlink(path string, buf []byte) (n int, errno int) {
-	return 0, ENACL;
+	return 0, ENACL
 }
 
 func Fchmod(fd int, mode int) (errno int)	{ return ENACL }
 
 func Chown(path string, uid int, gid int) (errno int) {
-	return ENACL;
+	return ENACL
 }
 
 func Lchown(path string, uid int, gid int) (errno int) {
-	return ENACL;
+	return ENACL
 }
 
 func Fchown(fd int, uid int, gid int) (errno int) {
-	return ENACL;
+	return ENACL
 }
 
 func Truncate(name string, size int64) (errno int) {
-	return ENACL;
+	return ENACL
 }
 
 func Ftruncate(fd int, length int64) (errno int) {
-	return ENACL;
+	return ENACL
 }
 
 // NaCL doesn't actually implement Getwd, but it also
@@ -240,15 +240,15 @@ const (
 )
 
 func Accept(fd int) (nfd int, sa Sockaddr, errno int) {
-	return 0, nil, ENACL;
+	return 0, nil, ENACL
 }
 
 func Getsockname(fd int) (sa Sockaddr, errno int) {
-	return nil, ENACL;
+	return nil, ENACL
 }
 
 func Getpeername(fd int) (sa Sockaddr, errno int) {
-	return nil, ENACL;
+	return nil, ENACL
 }
 
 func Bind(fd int, sa Sockaddr) (errno int)	{ return ENACL }
@@ -256,15 +256,15 @@ func Bind(fd int, sa Sockaddr) (errno int)	{ return ENACL }
 func Connect(fd int, sa Sockaddr) (errno int)	{ return ENACL }
 
 func Socket(domain, typ, proto int) (fd, errno int) {
-	return 0, ENACL;
+	return 0, ENACL
 }
 
 func SetsockoptInt(fd, level, opt int, value int) (errno int) {
-	return ENACL;
+	return ENACL
 }
 
 func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (errno int) {
-	return ENACL;
+	return ENACL
 }
 
 type Linger struct {
@@ -273,7 +273,7 @@ type Linger struct {
 }
 
 func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
-	return ENACL;
+	return ENACL
 }
 
 func Listen(s int, n int) (errno int)	{ return ENACL }
@@ -298,7 +298,7 @@ type Rusage struct {
 }
 
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
-	return 0, ENACL;
+	return 0, ENACL
 }
 
 type WaitStatus uint32

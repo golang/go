@@ -46,7 +46,7 @@ func (p Point) Eq(q Point) bool	{ return p.X == q.X && p.Y == q.Y }
 
 // Inset returns the rectangle r inset by n: Rect(r.Min.X+n, r.Min.Y+n, r.Max.X-n, r.Max.Y-n).
 func (r Rectangle) Inset(n int) Rectangle {
-	return Rectangle{Point{r.Min.X + n, r.Min.Y + n}, Point{r.Max.X - n, r.Max.Y - n}};
+	return Rectangle{Point{r.Min.X + n, r.Min.Y + n}, Point{r.Max.X - n, r.Max.Y - n}}
 }
 
 // Add returns the rectangle r translated by p: Rpt(r.Min.Add(p), r.Max.Add(p)).
@@ -59,10 +59,10 @@ func (r Rectangle) Sub(p Point) Rectangle	{ return Rectangle{r.Min.Sub(p), r.Max
 // has Min.X <= Max.X and Min.Y <= Max.Y.
 func (r Rectangle) Canon() Rectangle {
 	if r.Max.X < r.Min.X {
-		r.Max.X = r.Min.X;
+		r.Max.X = r.Min.X
 	}
 	if r.Max.Y < r.Min.Y {
-		r.Max.Y = r.Min.Y;
+		r.Max.Y = r.Min.Y
 	}
 	return r;
 }
@@ -70,7 +70,7 @@ func (r Rectangle) Canon() Rectangle {
 // Overlaps returns true if r and r1 cross; that is, it returns true if they share any point.
 func (r Rectangle) Overlaps(r1 Rectangle) bool {
 	return r.Min.X < r1.Max.X && r1.Min.X < r.Max.X &&
-		r.Min.Y < r1.Max.Y && r1.Min.Y < r.Max.Y;
+		r.Min.Y < r1.Max.Y && r1.Min.Y < r.Max.Y
 }
 
 // Empty retruns true if r contains no points.
@@ -79,10 +79,10 @@ func (r Rectangle) Empty() bool	{ return r.Max.X <= r.Min.X || r.Max.Y <= r.Min.
 // InRect returns true if all the points in r are also in r1.
 func (r Rectangle) In(r1 Rectangle) bool {
 	if r.Empty() {
-		return true;
+		return true
 	}
 	if r1.Empty() {
-		return false;
+		return false
 	}
 	return r1.Min.X <= r.Min.X && r.Max.X <= r1.Max.X &&
 		r1.Min.Y <= r.Min.Y && r.Max.Y <= r1.Max.Y;
@@ -91,22 +91,22 @@ func (r Rectangle) In(r1 Rectangle) bool {
 // Combine returns the smallest rectangle containing all points from r and from r1.
 func (r Rectangle) Combine(r1 Rectangle) Rectangle {
 	if r.Empty() {
-		return r1;
+		return r1
 	}
 	if r1.Empty() {
-		return r;
+		return r
 	}
 	if r.Min.X > r1.Min.X {
-		r.Min.X = r1.Min.X;
+		r.Min.X = r1.Min.X
 	}
 	if r.Min.Y > r1.Min.Y {
-		r.Min.Y = r1.Min.Y;
+		r.Min.Y = r1.Min.Y
 	}
 	if r.Max.X < r1.Max.X {
-		r.Max.X = r1.Max.X;
+		r.Max.X = r1.Max.X
 	}
 	if r.Max.Y < r1.Max.Y {
-		r.Max.Y = r1.Max.Y;
+		r.Max.Y = r1.Max.Y
 	}
 	return r;
 }
@@ -114,22 +114,22 @@ func (r Rectangle) Combine(r1 Rectangle) Rectangle {
 // Clip returns the largest rectangle containing only points shared by r and r1.
 func (r Rectangle) Clip(r1 Rectangle) Rectangle {
 	if r.Empty() {
-		return r;
+		return r
 	}
 	if r1.Empty() {
-		return r1;
+		return r1
 	}
 	if r.Min.X < r1.Min.X {
-		r.Min.X = r1.Min.X;
+		r.Min.X = r1.Min.X
 	}
 	if r.Min.Y < r1.Min.Y {
-		r.Min.Y = r1.Min.Y;
+		r.Min.Y = r1.Min.Y
 	}
 	if r.Max.X > r1.Max.X {
-		r.Max.X = r1.Max.X;
+		r.Max.X = r1.Max.X
 	}
 	if r.Max.Y > r1.Max.Y {
-		r.Max.Y = r1.Max.Y;
+		r.Max.Y = r1.Max.Y
 	}
 	return r;
 }

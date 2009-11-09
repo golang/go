@@ -165,7 +165,7 @@ func (a Attr) String() string {
 	if int(a) < len(attrNames) {
 		s := attrNames[a];
 		if s != "" {
-			return s;
+			return s
 		}
 	}
 	return strconv.Itoa(int(a));
@@ -175,7 +175,7 @@ func (a Attr) GoString() string {
 	if int(a) < len(attrNames) {
 		s := attrNames[a];
 		if s != "" {
-			return "dwarf.Attr" + s;
+			return "dwarf.Attr" + s
 		}
 	}
 	return "dwarf.Attr(" + strconv.Itoa64(int64(a)) + ")";
@@ -334,7 +334,7 @@ func (t Tag) String() string {
 	if int(t) < len(tagNames) {
 		s := tagNames[t];
 		if s != "" {
-			return s;
+			return s
 		}
 	}
 	return strconv.Itoa(int(t));
@@ -344,7 +344,7 @@ func (t Tag) GoString() string {
 	if int(t) < len(tagNames) {
 		s := tagNames[t];
 		if s != "" {
-			return "dwarf.Tag" + s;
+			return "dwarf.Tag" + s
 		}
 	}
 	return "dwarf.Tag(" + strconv.Itoa64(int64(t)) + ")";

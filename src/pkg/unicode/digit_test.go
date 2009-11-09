@@ -106,12 +106,12 @@ var testLetter = []int{
 func TestDigit(t *testing.T) {
 	for _, r := range testDigit {
 		if !IsDigit(r) {
-			t.Errorf("IsDigit(U+%04X) = false, want true\n", r);
+			t.Errorf("IsDigit(U+%04X) = false, want true\n", r)
 		}
 	}
 	for _, r := range testLetter {
 		if IsDigit(r) {
-			t.Errorf("IsDigit(U+%04X) = true, want false\n", r);
+			t.Errorf("IsDigit(U+%04X) = true, want false\n", r)
 		}
 	}
 }
@@ -120,7 +120,7 @@ func TestDigit(t *testing.T) {
 func TestDigitOptimization(t *testing.T) {
 	for i := 0; i < 0x100; i++ {
 		if Is(Digit, i) != IsDigit(i) {
-			t.Errorf("IsDigit(U+%04X) disagrees with Is(Digit)", i);
+			t.Errorf("IsDigit(U+%04X) disagrees with Is(Digit)", i)
 		}
 	}
 }

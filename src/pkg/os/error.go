@@ -97,7 +97,7 @@ func (e *SyscallError) String() string	{ return e.Syscall + ": " + e.Errno.Strin
 // As a convenience, if errno is 0, NewSyscallError returns nil.
 func NewSyscallError(syscall string, errno int) Error {
 	if errno == 0 {
-		return nil;
+		return nil
 	}
 	return &SyscallError{syscall, Errno(errno)};
 }

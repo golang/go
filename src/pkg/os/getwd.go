@@ -22,7 +22,7 @@ func Getwd() (string, Error) {
 	// Otherwise, we're trying to find our way back to ".".
 	dot, err := Stat(".");
 	if err != nil {
-		return "", err;
+		return "", err
 	}
 
 	// Clumsy but widespread kludge:
@@ -31,7 +31,7 @@ func Getwd() (string, Error) {
 	if len(pwd) > 0 && pwd[0] == '/' {
 		d, err := Stat(pwd);
 		if err == nil && d.Dev == dot.Dev && d.Ino == dot.Ino {
-			return pwd, nil;
+			return pwd, nil
 		}
 	}
 
@@ -40,10 +40,10 @@ func Getwd() (string, Error) {
 	root, err := Stat("/");
 	if err != nil {
 		// Can't stat root - no hope.
-		return "", err;
+		return "", err
 	}
 	if root.Dev == dot.Dev && root.Ino == dot.Ino {
-		return "/", nil;
+		return "/", nil
 	}
 
 	// General algorithm: find name in parent
@@ -52,11 +52,11 @@ func Getwd() (string, Error) {
 	pwd = "";
 	for parent := ".."; ; parent = "../"+parent {
 		if len(parent) >= 1024 {	// Sanity check
-			return "", ENAMETOOLONG;
+			return "", ENAMETOOLONG
 		}
 		fd, err := Open(parent, O_RDONLY, 0);
 		if err != nil {
-			return "", err;
+			return "", err
 		}
 
 		for {
@@ -79,11 +79,11 @@ func Getwd() (string, Error) {
 	Found:
 		pd, err := fd.Stat();
 		if err != nil {
-			return "", err;
+			return "", err
 		}
 		fd.Close();
 		if pd.Dev == root.Dev && pd.Ino == root.Ino {
-			break;
+			break
 		}
 		// Set up for next round.
 		dot = pd;

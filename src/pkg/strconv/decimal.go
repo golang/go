@@ -24,17 +24,17 @@ type decimal struct {
 func (a *decimal) String() string {
 	n := 10 + a.nd;
 	if a.dp > 0 {
-		n += a.dp;
+		n += a.dp
 	}
 	if a.dp < 0 {
-		n += -a.dp;
+		n += -a.dp
 	}
 
 	buf := make([]byte, n);
 	w := 0;
 	switch {
 	case a.nd == 0:
-		return "0";
+		return "0"
 
 	case a.dp <= 0:
 		// zeros fill space between decimal point and digits
@@ -62,14 +62,14 @@ func (a *decimal) String() string {
 
 func copy(dst []byte, src []byte) int {
 	for i := 0; i < len(dst); i++ {
-		dst[i] = src[i];
+		dst[i] = src[i]
 	}
 	return len(dst);
 }
 
 func digitZero(dst []byte) int {
 	for i := 0; i < len(dst); i++ {
-		dst[i] = '0';
+		dst[i] = '0'
 	}
 	return len(dst);
 }
@@ -79,10 +79,10 @@ func digitZero(dst []byte) int {
 // independent of the number of digits.)
 func trim(a *decimal) {
 	for a.nd > 0 && a.d[a.nd - 1] == '0' {
-		a.nd--;
+		a.nd--
 	}
 	if a.nd == 0 {
-		a.dp = 0;
+		a.dp = 0
 	}
 }
 
@@ -230,10 +230,10 @@ var leftcheats = []leftCheat{
 func prefixIsLessThan(b []byte, s string) bool {
 	for i := 0; i < len(s); i++ {
 		if i >= len(b) {
-			return true;
+			return true
 		}
 		if b[i] != s[i] {
-			return b[i] < s[i];
+			return b[i] < s[i]
 		}
 	}
 	return false;
@@ -243,7 +243,7 @@ func prefixIsLessThan(b []byte, s string) bool {
 func leftShift(a *decimal, k uint) {
 	delta := leftcheats[k].delta;
 	if prefixIsLessThan(a.d[0 : a.nd], leftcheats[k].cutoff) {
-		delta--;
+		delta--
 	}
 
 	r := a.nd;		// read index
@@ -299,10 +299,10 @@ func (a *decimal) Shift(k int) *decimal {
 // If we chop a at nd digits, should we round up?
 func shouldRoundUp(a *decimal, nd int) bool {
 	if nd <= 0 || nd >= a.nd {
-		return false;
+		return false
 	}
 	if a.d[nd] == '5' && nd+1 == a.nd {	// exactly halfway - round to even
-		return (a.d[nd-1] - '0')%2 != 0;
+		return (a.d[nd-1] - '0')%2 != 0
 	}
 	// not halfway - digit tells all
 	return a.d[nd] >= '5';
@@ -312,10 +312,10 @@ func shouldRoundUp(a *decimal, nd int) bool {
 // Returns receiver for convenience.
 func (a *decimal) Round(nd int) *decimal {
 	if nd <= 0 || nd >= a.nd {
-		return a;
+		return a
 	}
 	if shouldRoundUp(a, nd) {
-		return a.RoundUp(nd);
+		return a.RoundUp(nd)
 	}
 	return a.RoundDown(nd);
 }
@@ -324,7 +324,7 @@ func (a *decimal) Round(nd int) *decimal {
 // Returns receiver for convenience.
 func (a *decimal) RoundDown(nd int) *decimal {
 	if nd <= 0 || nd >= a.nd {
-		return a;
+		return a
 	}
 	a.nd = nd;
 	trim(a);
@@ -335,7 +335,7 @@ func (a *decimal) RoundDown(nd int) *decimal {
 // Returns receiver for convenience.
 func (a *decimal) RoundUp(nd int) *decimal {
 	if nd <= 0 || nd >= a.nd {
-		return a;
+		return a
 	}
 
 	// round up
@@ -360,18 +360,18 @@ func (a *decimal) RoundUp(nd int) *decimal {
 // No guarantees about overflow.
 func (a *decimal) RoundedInteger() uint64 {
 	if a.dp > 20 {
-		return 0xFFFFFFFFFFFFFFFF;
+		return 0xFFFFFFFFFFFFFFFF
 	}
 	var i int;
 	n := uint64(0);
 	for i = 0; i < a.dp && i < a.nd; i++ {
-		n = n*10 + uint64(a.d[i] - '0');
+		n = n*10 + uint64(a.d[i] - '0')
 	}
 	for ; i < a.dp; i++ {
-		n *= 10;
+		n *= 10
 	}
 	if shouldRoundUp(a, a.dp) {
-		n++;
+		n++
 	}
 	return n;
 }

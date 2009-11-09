@@ -55,7 +55,7 @@ func (v *Map) String() string {
 	first := true;
 	for key, val := range v.m {
 		if !first {
-			fmt.Fprintf(b, ", ");
+			fmt.Fprintf(b, ", ")
 		}
 		fmt.Fprintf(b, "\"%s\": %v", key, val.String());
 		first = false;
@@ -73,7 +73,7 @@ func (v *Map) Get(key string) Var {
 	v.mu.Lock();
 	defer v.mu.Unlock();
 	if av, ok := v.m[key]; ok {
-		return av;
+		return av
 	}
 	return nil;
 }
@@ -95,14 +95,14 @@ func (v *Map) Add(key string, delta int64) {
 
 	// Add to Int; ignore otherwise.
 	if iv, ok := av.(*Int); ok {
-		iv.Add(delta);
+		iv.Add(delta)
 	}
 }
 
 // TODO(rsc): Make sure map access in separate thread is safe.
 func (v *Map) iterate(c chan<- KeyValue) {
 	for k, v := range v.m {
-		c <- KeyValue{k, v};
+		c <- KeyValue{k, v}
 	}
 	close(c);
 }
@@ -140,7 +140,7 @@ func Publish(name string, v Var) {
 	mutex.Lock();
 	defer mutex.Unlock();
 	if _, existing := vars[name]; existing {
-		log.Crash("Reuse of exported var name:", name);
+		log.Crash("Reuse of exported var name:", name)
 	}
 	vars[name] = v;
 }
@@ -148,7 +148,7 @@ func Publish(name string, v Var) {
 // Get retrieves a named exported variable.
 func Get(name string) Var {
 	if v, ok := vars[name]; ok {
-		return v;
+		return v
 	}
 	return nil;
 }
@@ -184,7 +184,7 @@ func NewString(name string) *String {
 // TODO(rsc): Make sure map access in separate thread is safe.
 func iterate(c chan<- KeyValue) {
 	for k, v := range vars {
-		c <- KeyValue{k, v};
+		c <- KeyValue{k, v}
 	}
 	close(c);
 }
@@ -201,7 +201,7 @@ func expvarHandler(c *http.Conn, req *http.Request) {
 	first := true;
 	for name, value := range vars {
 		if !first {
-			fmt.Fprintf(c, ",\n");
+			fmt.Fprintf(c, ",\n")
 		}
 		first = false;
 		fmt.Fprintf(c, "  %q: %s", name, value);

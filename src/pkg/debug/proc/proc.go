@@ -161,7 +161,7 @@ type Breakpoint Word
 func (c Breakpoint) PC() Word	{ return Word(c) }
 
 func (c Breakpoint) String() string {
-	return "breakpoint at 0x" + strconv.Uitob64(uint64(c.PC()), 16);
+	return "breakpoint at 0x" + strconv.Uitob64(uint64(c.PC()), 16)
 }
 
 // Signal is a stop cause resulting from a thread receiving a signal.
@@ -212,11 +212,11 @@ func (c *ThreadExit) String() string {
 	res := "thread exited ";
 	switch {
 	case c.Exited():
-		res += "with status " + strconv.Itoa(c.ExitStatus());
+		res += "with status " + strconv.Itoa(c.ExitStatus())
 	case c.Signaled():
-		res += "from signal " + c.StopSignal();
+		res += "from signal " + c.StopSignal()
 	default:
-		res += "from unknown cause";
+		res += "from unknown cause"
 	}
 	return res;
 }

@@ -35,7 +35,7 @@ func TestDecimalShift(t *testing.T) {
 		s := NewDecimal(test.i).Shift(test.shift).String();
 		if s != test.out {
 			t.Errorf("Decimal %v << %v = %v, want %v\n",
-				test.i, test.shift, s, test.out);
+				test.i, test.shift, s, test.out)
 		}
 	}
 }
@@ -71,17 +71,17 @@ func TestDecimalRound(t *testing.T) {
 		s := NewDecimal(test.i).RoundDown(test.nd).String();
 		if s != test.down {
 			t.Errorf("Decimal %v RoundDown %d = %v, want %v\n",
-				test.i, test.nd, s, test.down);
+				test.i, test.nd, s, test.down)
 		}
 		s = NewDecimal(test.i).Round(test.nd).String();
 		if s != test.round {
 			t.Errorf("Decimal %v Round %d = %v, want %v\n",
-				test.i, test.nd, s, test.down);
+				test.i, test.nd, s, test.down)
 		}
 		s = NewDecimal(test.i).RoundUp(test.nd).String();
 		if s != test.up {
 			t.Errorf("Decimal %v RoundUp %d = %v, want %v\n",
-				test.i, test.nd, s, test.up);
+				test.i, test.nd, s, test.up)
 		}
 	}
 }
@@ -111,7 +111,7 @@ func TestDecimalRoundedInteger(t *testing.T) {
 		int := NewDecimal(test.i).Shift(test.shift).RoundedInteger();
 		if int != test.int {
 			t.Errorf("Decimal %v >> %v RoundedInteger = %v, want %v\n",
-				test.i, test.shift, int, test.int);
+				test.i, test.shift, int, test.int)
 		}
 	}
 }

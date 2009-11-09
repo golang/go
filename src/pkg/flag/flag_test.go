@@ -22,7 +22,7 @@ var (
 
 func boolString(s string) string {
 	if s == "0" {
-		return "false";
+		return "false"
 	}
 	return "true";
 }
@@ -36,12 +36,12 @@ func TestEverything(t *testing.T) {
 			ok := false;
 			switch {
 			case f.Value.String() == desired:
-				ok = true;
+				ok = true
 			case f.Name == "test_bool" && f.Value.String() == boolString(desired):
-				ok = true;
+				ok = true
 			}
 			if !ok {
-				t.Error("Visit: bad value", f.Value.String(), "for", f.Name);
+				t.Error("Visit: bad value", f.Value.String(), "for", f.Name)
 			}
 		}
 	};
@@ -49,7 +49,7 @@ func TestEverything(t *testing.T) {
 	if len(m) != 8 {
 		t.Error("VisitAll misses some flags");
 		for k, v := range m {
-			t.Log(k, *v);
+			t.Log(k, *v)
 		}
 	}
 	m = make(map[string]*Flag);
@@ -57,7 +57,7 @@ func TestEverything(t *testing.T) {
 	if len(m) != 0 {
 		t.Errorf("Visit sees unset flags");
 		for k, v := range m {
-			t.Log(k, *v);
+			t.Log(k, *v)
 		}
 	}
 	// Now set all flags
@@ -74,7 +74,7 @@ func TestEverything(t *testing.T) {
 	if len(m) != 8 {
 		t.Error("Visit fails after set");
 		for k, v := range m {
-			t.Log(k, *v);
+			t.Log(k, *v)
 		}
 	}
 }

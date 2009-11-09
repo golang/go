@@ -13,7 +13,7 @@ type Reader string
 func (r *Reader) Read(b []byte) (n int, err os.Error) {
 	s := *r;
 	if len(s) == 0 {
-		return 0, os.EOF;
+		return 0, os.EOF
 	}
 	for n < len(s) && n < len(b) {
 		b[n] = s[n];
@@ -26,7 +26,7 @@ func (r *Reader) Read(b []byte) (n int, err os.Error) {
 func (r *Reader) ReadByte() (b byte, err os.Error) {
 	s := *r;
 	if len(s) == 0 {
-		return 0, os.EOF;
+		return 0, os.EOF
 	}
 	b = s[0];
 	*r = s[1:len(s)];

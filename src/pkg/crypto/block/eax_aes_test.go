@@ -101,20 +101,20 @@ func TestEAXEncrypt_AES(t *testing.T) {
 		test := fmt.Sprintf("test %d", i);
 		c, err := aes.NewCipher(tt.key);
 		if err != nil {
-			t.Fatalf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err);
+			t.Fatalf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err)
 		}
 		b.Reset();
 		enc := NewEAXEncrypter(c, tt.nonce, tt.header, 16, b);
 		n, err := io.Copy(enc, bytes.NewBuffer(tt.msg));
 		if n != int64(len(tt.msg)) || err != nil {
-			t.Fatalf("%s: io.Copy into encrypter: %d, %s", test, n, err);
+			t.Fatalf("%s: io.Copy into encrypter: %d, %s", test, n, err)
 		}
 		err = enc.Close();
 		if err != nil {
-			t.Fatalf("%s: enc.Close: %s", test, err);
+			t.Fatalf("%s: enc.Close: %s", test, err)
 		}
 		if d := b.Bytes(); !same(d, tt.cipher) {
-			t.Fatalf("%s: got %x want %x", test, d, tt.cipher);
+			t.Fatalf("%s: got %x want %x", test, d, tt.cipher)
 		}
 	}
 }
@@ -125,16 +125,16 @@ func TestEAXDecrypt_AES(t *testing.T) {
 		test := fmt.Sprintf("test %d", i);
 		c, err := aes.NewCipher(tt.key);
 		if err != nil {
-			t.Fatalf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err);
+			t.Fatalf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err)
 		}
 		b.Reset();
 		dec := NewEAXDecrypter(c, tt.nonce, tt.header, 16, bytes.NewBuffer(tt.cipher));
 		n, err := io.Copy(b, dec);
 		if n != int64(len(tt.msg)) || err != nil {
-			t.Fatalf("%s: io.Copy into decrypter: %d, %s", test, n, err);
+			t.Fatalf("%s: io.Copy into decrypter: %d, %s", test, n, err)
 		}
 		if d := b.Bytes(); !same(d, tt.msg) {
-			t.Fatalf("%s: got %x want %x", test, d, tt.msg);
+			t.Fatalf("%s: got %x want %x", test, d, tt.msg)
 		}
 	}
 }

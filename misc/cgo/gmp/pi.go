@@ -54,13 +54,13 @@ var (
 
 func extractDigit() int64 {
 	if big.CmpInt(numer, accum) > 0 {
-		return -1;
+		return -1
 	}
 	tmp1.Lsh(numer, 1).Add(tmp1, numer).Add(tmp1, accum);
 	big.DivModInt(tmp1, tmp2, tmp1, denom);
 	tmp2.Add(tmp2, numer);
 	if big.CmpInt(tmp2, denom) >= 0 {
-		return -1;
+		return -1
 	}
 	return tmp1.Int64();
 }
@@ -95,7 +95,7 @@ func main() {
 		if i++; i%50 == 0 {
 			fmt.Printf("\n");
 			if i >= 1000 {
-				break;
+				break
 			}
 		}
 	}

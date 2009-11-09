@@ -23,14 +23,14 @@ func filterIdentList(list []*Ident) []*Ident {
 func isExportedType(typ Expr) bool {
 	switch t := typ.(type) {
 	case *Ident:
-		return t.IsExported();
+		return t.IsExported()
 	case *ParenExpr:
-		return isExportedType(t.X);
+		return isExportedType(t.X)
 	case *SelectorExpr:
 		// assume t.X is a typename
-		return t.Sel.IsExported();
+		return t.Sel.IsExported()
 	case *StarExpr:
-		return isExportedType(t.X);
+		return isExportedType(t.X)
 	}
 	return false;
 }
@@ -47,12 +47,12 @@ func filterFieldList(list []*Field, incomplete *bool) []*Field {
 			// fields, so this is not absolutely correct.
 			// However, this cannot be done w/o complete
 			// type information.)
-			exported = isExportedType(f.Type);
+			exported = isExportedType(f.Type)
 		} else {
 			n := len(f.Names);
 			f.Names = filterIdentList(f.Names);
 			if len(f.Names) < n {
-				*incomplete = true;
+				*incomplete = true
 			}
 			exported = len(f.Names) > 0;
 		}
@@ -63,7 +63,7 @@ func filterFieldList(list []*Field, incomplete *bool) []*Field {
 		}
 	}
 	if j < len(list) {
-		*incomplete = true;
+		*incomplete = true
 	}
 	return list[0:j];
 }
@@ -71,7 +71,7 @@ func filterFieldList(list []*Field, incomplete *bool) []*Field {
 
 func filterParamList(list []*Field) {
 	for _, f := range list {
-		filterType(f.Type);
+		filterType(f.Type)
 	}
 }
 
@@ -81,19 +81,19 @@ var noPos token.Position
 func filterType(typ Expr) {
 	switch t := typ.(type) {
 	case *ArrayType:
-		filterType(t.Elt);
+		filterType(t.Elt)
 	case *StructType:
-		t.Fields = filterFieldList(t.Fields, &t.Incomplete);
+		t.Fields = filterFieldList(t.Fields, &t.Incomplete)
 	case *FuncType:
 		filterParamList(t.Params);
 		filterParamList(t.Results);
 	case *InterfaceType:
-		t.Methods = filterFieldList(t.Methods, &t.Incomplete);
+		t.Methods = filterFieldList(t.Methods, &t.Incomplete)
 	case *MapType:
 		filterType(t.Key);
 		filterType(t.Value);
 	case *ChanType:
-		filterType(t.Value);
+		filterType(t.Value)
 	}
 }
 
@@ -180,7 +180,7 @@ func PackageExports(pkg *Package) bool {
 	hasExports := false;
 	for _, f := range pkg.Files {
 		if FileExports(f) {
-			hasExports = true;
+			hasExports = true
 		}
 	}
 	return hasExports;
@@ -203,7 +203,7 @@ func MergePackageFiles(pkg *Package) *File {
 	ndecls := 0;
 	for _, f := range pkg.Files {
 		if f.Doc != nil {
-			ncomments += len(f.Doc.List)+1;	// +1 for separator
+			ncomments += len(f.Doc.List)+1	// +1 for separator
 		}
 		ndecls += len(f.Decls);
 	}

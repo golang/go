@@ -9,9 +9,9 @@ import "os"
 // Process tracing is not supported on OS X yet.
 
 func Attach(pid int) (Process, os.Error) {
-	return nil, os.NewError("debug/proc not implemented on OS X");
+	return nil, os.NewError("debug/proc not implemented on OS X")
 }
 
 func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error) {
-	return Attach(0);
+	return Attach(0)
 }

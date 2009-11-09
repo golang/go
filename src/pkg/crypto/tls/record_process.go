@@ -73,13 +73,13 @@ type recordProcessor struct {
 func drainRequestChannel(requestChan <-chan interface{}, c ConnectionState) {
 	for v := range requestChan {
 		if closed(requestChan) {
-			return;
+			return
 		}
 		switch r := v.(type) {
 		case getConnectionState:
-			r.reply <- c;
+			r.reply <- c
 		case waitConnectionState:
-			r.reply <- c;
+			r.reply <- c
 		}
 	}
 }
@@ -104,11 +104,11 @@ func (p *recordProcessor) loop(appDataChan chan<- []byte, requestChan <-chan int
 			p.appDataSend = nil;
 			p.recordRead = p.recordChan;
 		case c := <-controlChan:
-			p.processControlMsg(c);
+			p.processControlMsg(c)
 		case r := <-requestChan:
-			p.processRequestMsg(r);
+			p.processRequestMsg(r)
 		case r := <-p.recordRead:
-			p.processRecord(r);
+			p.processRecord(r)
 		}
 	}
 
@@ -121,7 +121,7 @@ func (p *recordProcessor) loop(appDataChan chan<- []byte, requestChan <-chan int
 
 	close(handshakeChan);
 	if len(p.appData) > 0 {
-		appDataChan <- p.appData;
+		appDataChan <- p.appData
 	}
 	close(appDataChan);
 }
@@ -134,10 +134,10 @@ func (p *recordProcessor) processRequestMsg(requestMsg interface{}) {
 
 	switch r := requestMsg.(type) {
 	case getConnectionState:
-		r.reply <- p.connState;
+		r.reply <- p.connState
 	case waitConnectionState:
 		if p.connState.HandshakeComplete {
-			r.reply <- p.connState;
+			r.reply <- p.connState
 		}
 		p.waitQueue.PushBack(r.reply);
 	}
@@ -156,7 +156,7 @@ func (p *recordProcessor) processControlMsg(msg interface{}) {
 
 func (p *recordProcessor) wakeWaiters() {
 	for i := p.waitQueue.Front(); i != nil; i = i.Next() {
-		i.Value.(chan<- ConnectionState) <- p.connState;
+		i.Value.(chan<- ConnectionState) <- p.connState
 	}
 	p.waitQueue.Init();
 }
@@ -188,7 +188,7 @@ func (p *recordProcessor) processRecord(r *record) {
 
 	switch r.contentType {
 	case recordTypeHandshake:
-		p.processHandshakeRecord(r.payload[0 : len(r.payload) - p.mac.Size()]);
+		p.processHandshakeRecord(r.payload[0 : len(r.payload) - p.mac.Size()])
 	case recordTypeChangeCipherSpec:
 		if len(r.payload) != 1 || r.payload[0] != 1 {
 			p.error(alertUnexpectedMessage);
@@ -221,7 +221,7 @@ func (p *recordProcessor) processRecord(r *record) {
 
 func (p *recordProcessor) processHandshakeRecord(data []byte) {
 	if p.handshakeBuf == nil {
-		p.handshakeBuf = data;
+		p.handshakeBuf = data
 	} else {
 		if len(p.handshakeBuf) > maxHandshakeMsg {
 			p.error(alertInternalError);
@@ -238,7 +238,7 @@ func (p *recordProcessor) processHandshakeRecord(data []byte) {
 			int(p.handshakeBuf[2])<<8 |
 			int(p.handshakeBuf[3]);
 		if handshakeLen + 4 > len(p.handshakeBuf) {
-			break;
+			break
 		}
 
 		bytes := p.handshakeBuf[0 : handshakeLen + 4];
@@ -249,7 +249,7 @@ func (p *recordProcessor) processHandshakeRecord(data []byte) {
 			// forwarding application data.
 			m := new(finishedMsg);
 			if !m.unmarshal(bytes) {
-				p.error(alertUnexpectedMessage);
+				p.error(alertUnexpectedMessage)
 			}
 			p.handshakeChan <- m;
 			var ok bool;
@@ -283,11 +283,11 @@ func parseHandshakeMsg(data []byte) (interface{}, bool) {
 
 	switch data[0] {
 	case typeClientHello:
-		m = new(clientHelloMsg);
+		m = new(clientHelloMsg)
 	case typeClientKeyExchange:
-		m = new(clientKeyExchangeMsg);
+		m = new(clientKeyExchangeMsg)
 	default:
-		return nil, false;
+		return nil, false
 	}
 
 	ok := m.unmarshal(data);

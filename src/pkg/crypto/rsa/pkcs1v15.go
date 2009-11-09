@@ -31,7 +31,7 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
 	ps, mm := em[1 : len(em)-len(msg)-1], em[len(em)-len(msg) : len(em)];
 	err = nonZeroRandomBytes(ps, rand);
 	if err != nil {
-		return;
+		return
 	}
 	em[len(em)-len(msg)-1] = 0;
 	bytes.Copy(mm, msg);
@@ -47,7 +47,7 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
 func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out []byte, err os.Error) {
 	valid, out, err := decryptPKCS1v15(rand, priv, ciphertext);
 	if err == nil && valid == 0 {
-		err = DecryptionError{};
+		err = DecryptionError{}
 	}
 
 	return;
@@ -75,7 +75,7 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
 
 	valid, msg, err := decryptPKCS1v15(rand, priv, ciphertext);
 	if err != nil {
-		return;
+		return
 	}
 
 	valid &= subtle.ConstantTimeEq(int32(len(msg)), int32(len(key)));
@@ -93,7 +93,7 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
 	c := new(big.Int).SetBytes(ciphertext);
 	m, err := decrypt(rand, priv, c);
 	if err != nil {
-		return;
+		return
 	}
 
 	em := leftPad(m.Bytes(), k);
@@ -122,14 +122,14 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
 func nonZeroRandomBytes(s []byte, rand io.Reader) (err os.Error) {
 	_, err = io.ReadFull(rand, s);
 	if err != nil {
-		return;
+		return
 	}
 
 	for i := 0; i < len(s); i++ {
 		for s[i] == 0 {
 			_, err = rand.Read(s[i : i+1]);
 			if err != nil {
-				return;
+				return
 			}
 		}
 	}

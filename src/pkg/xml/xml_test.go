@@ -97,7 +97,7 @@ type stringReader struct {
 
 func (r *stringReader) Read(b []byte) (n int, err os.Error) {
 	if r.off >= len(r.s) {
-		return 0, os.EOF;
+		return 0, os.EOF
 	}
 	for r.off < len(r.s) && n < len(b) {
 		b[n] = r.s[r.off];
@@ -109,7 +109,7 @@ func (r *stringReader) Read(b []byte) (n int, err os.Error) {
 
 func (r *stringReader) ReadByte() (b byte, err os.Error) {
 	if r.off >= len(r.s) {
-		return 0, os.EOF;
+		return 0, os.EOF
 	}
 	b = r.s[r.off];
 	r.off++;
@@ -124,10 +124,10 @@ func TestRawToken(t *testing.T) {
 	for i, want := range rawTokens {
 		have, err := p.RawToken();
 		if err != nil {
-			t.Fatalf("token %d: unexpected error: %s", i, err);
+			t.Fatalf("token %d: unexpected error: %s", i, err)
 		}
 		if !reflect.DeepEqual(have, want) {
-			t.Errorf("token %d = %#v want %#v", i, have, want);
+			t.Errorf("token %d = %#v want %#v", i, have, want)
 		}
 	}
 }
@@ -138,10 +138,10 @@ func TestToken(t *testing.T) {
 	for i, want := range cookedTokens {
 		have, err := p.Token();
 		if err != nil {
-			t.Fatalf("token %d: unexpected error: %s", i, err);
+			t.Fatalf("token %d: unexpected error: %s", i, err)
 		}
 		if !reflect.DeepEqual(have, want) {
-			t.Errorf("token %d = %#v want %#v", i, have, want);
+			t.Errorf("token %d = %#v want %#v", i, have, want)
 		}
 	}
 }

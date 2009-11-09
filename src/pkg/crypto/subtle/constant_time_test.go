@@ -24,7 +24,7 @@ var testConstandTimeCompareData = []TestConstantTimeCompareStruct{
 func TestConstantTimeCompare(t *testing.T) {
 	for i, test := range testConstandTimeCompareData {
 		if r := ConstantTimeCompare(test.a, test.b); r != test.out {
-			t.Errorf("#%d bad result (got %x, want %x)", i, r, test.out);
+			t.Errorf("#%d bad result (got %x, want %x)", i, r, test.out)
 		}
 	}
 }
@@ -44,7 +44,7 @@ var testConstandTimeByteEqData = []TestConstantTimeByteEqStruct{
 
 func byteEq(a, b uint8) int {
 	if a == b {
-		return 1;
+		return 1
 	}
 	return 0;
 }
@@ -52,18 +52,18 @@ func byteEq(a, b uint8) int {
 func TestConstantTimeByteEq(t *testing.T) {
 	for i, test := range testConstandTimeByteEqData {
 		if r := ConstantTimeByteEq(test.a, test.b); r != test.out {
-			t.Errorf("#%d bad result (got %x, want %x)", i, r, test.out);
+			t.Errorf("#%d bad result (got %x, want %x)", i, r, test.out)
 		}
 	}
 	err := quick.CheckEqual(ConstantTimeByteEq, byteEq, nil);
 	if err != nil {
-		t.Error(err);
+		t.Error(err)
 	}
 }
 
 func eq(a, b int32) int {
 	if a == b {
-		return 1;
+		return 1
 	}
 	return 0;
 }
@@ -71,27 +71,27 @@ func eq(a, b int32) int {
 func TestConstantTimeEq(t *testing.T) {
 	err := quick.CheckEqual(ConstantTimeEq, eq, nil);
 	if err != nil {
-		t.Error(err);
+		t.Error(err)
 	}
 }
 
 func copy(v int, x, y []byte) []byte {
 	if len(x) > len(y) {
-		x = x[0:len(y)];
+		x = x[0:len(y)]
 	} else {
-		y = y[0:len(x)];
+		y = y[0:len(x)]
 	}
 	if v == 1 {
-		bytes.Copy(x, y);
+		bytes.Copy(x, y)
 	}
 	return x;
 }
 
 func constantTimeCopyWrapper(v int, x, y []byte) []byte {
 	if len(x) > len(y) {
-		x = x[0:len(y)];
+		x = x[0:len(y)]
 	} else {
-		y = y[0:len(x)];
+		y = y[0:len(x)]
 	}
 	v &= 1;
 	ConstantTimeCopy(v, x, y);
@@ -101,6 +101,6 @@ func constantTimeCopyWrapper(v int, x, y []byte) []byte {
 func TestConstantTimeCopy(t *testing.T) {
 	err := quick.CheckEqual(constantTimeCopyWrapper, copy, nil);
 	if err != nil {
-		t.Error(err);
+		t.Error(err)
 	}
 }

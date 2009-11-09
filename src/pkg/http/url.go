@@ -25,11 +25,11 @@ func (e *URLError) String() string	{ return e.Op + " " + e.URL + ": " + e.Error.
 func ishex(c byte) bool {
 	switch {
 	case '0' <= c && c <= '9':
-		return true;
+		return true
 	case 'a' <= c && c <= 'f':
-		return true;
+		return true
 	case 'A' <= c && c <= 'F':
-		return true;
+		return true
 	}
 	return false;
 }
@@ -37,11 +37,11 @@ func ishex(c byte) bool {
 func unhex(c byte) byte {
 	switch {
 	case '0' <= c && c <= '9':
-		return c-'0';
+		return c-'0'
 	case 'a' <= c && c <= 'f':
-		return c-'a'+10;
+		return c-'a'+10
 	case 'A' <= c && c <= 'F':
-		return c-'A'+10;
+		return c-'A'+10
 	}
 	return 0;
 }
@@ -49,7 +49,7 @@ func unhex(c byte) byte {
 type URLEscapeError string
 
 func (e URLEscapeError) String() string {
-	return "invalid URL escape " + strconv.Quote(string(e));
+	return "invalid URL escape " + strconv.Quote(string(e))
 }
 
 // Return true if the specified character should be escaped when appearing in a
@@ -60,7 +60,7 @@ func (e URLEscapeError) String() string {
 func shouldEscape(c byte) bool {
 	switch c {
 	case ' ', '?', '&', '=', '#', '+', '%':
-		return true;
+		return true
 	}
 	return false;
 }
@@ -80,7 +80,7 @@ func URLUnescape(s string) (string, os.Error) {
 			if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
 				s = s[i:len(s)];
 				if len(s) > 3 {
-					s = s[0:3];
+					s = s[0:3]
 				}
 				return "", URLEscapeError(s);
 			}
@@ -89,12 +89,12 @@ func URLUnescape(s string) (string, os.Error) {
 			hasPlus = true;
 			i++;
 		default:
-			i++;
+			i++
 		}
 	}
 
 	if n == 0 && !hasPlus {
-		return s, nil;
+		return s, nil
 	}
 
 	t := make([]byte, len(s) - 2*n);
@@ -125,15 +125,15 @@ func URLEscape(s string) string {
 		c := s[i];
 		if shouldEscape(c) {
 			if c == ' ' {
-				spaceCount++;
+				spaceCount++
 			} else {
-				hexCount++;
+				hexCount++
 			}
 		}
 	}
 
 	if spaceCount == 0 && hexCount == 0 {
-		return s;
+		return s
 	}
 
 	t := make([]byte, len(s) + 2*hexCount);
@@ -188,17 +188,17 @@ func getscheme(rawurl string) (scheme, path string, err os.Error) {
 		// do nothing
 		case '0' <= c && c <= '9' || c == '+' || c == '-' || c == '.':
 			if i == 0 {
-				return "", rawurl, nil;
+				return "", rawurl, nil
 			}
 		case c == ':':
 			if i == 0 {
-				return "", "", os.ErrorString("missing protocol scheme");
+				return "", "", os.ErrorString("missing protocol scheme")
 			}
 			return rawurl[0:i], rawurl[i+1 : len(rawurl)], nil;
 		default:
 			// we have encountered an invalid character,
 			// so there is no valid scheme
-			return "", rawurl, nil;
+			return "", rawurl, nil
 		}
 	}
 	return "", rawurl, nil;
@@ -211,7 +211,7 @@ func split(s string, c byte, cutc bool) (string, string) {
 	for i := 0; i < len(s); i++ {
 		if s[i] == c {
 			if cutc {
-				return s[0:i], s[i+1 : len(s)];
+				return s[0:i], s[i+1 : len(s)]
 			}
 			return s[0:i], s[i:len(s)];
 		}
@@ -240,41 +240,41 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
 	// split off possible leading "http:", "mailto:", etc.
 	var path string;
 	if url.Scheme, path, err = getscheme(rawurl); err != nil {
-		goto Error;
+		goto Error
 	}
 	url.RawPath = path;
 
 	// RFC 2396: a relative URI (no scheme) has a ?query,
 	// but absolute URIs only have query if path begins with /
 	if url.Scheme == "" || len(path) > 0 && path[0] == '/' {
-		path, url.RawQuery = split(path, '?', true);
+		path, url.RawQuery = split(path, '?', true)
 	}
 
 	// Maybe path is //authority/path
 	if len(path) > 2 && path[0:2] == "//" {
-		url.Authority, path = split(path[2:len(path)], '/', false);
+		url.Authority, path = split(path[2:len(path)], '/', false)
 	}
 
 	// If there's no @, split's default is wrong.  Check explicitly.
 	if strings.Index(url.Authority, "@") < 0 {
-		url.Host = url.Authority;
+		url.Host = url.Authority
 	} else {
-		url.Userinfo, url.Host = split(url.Authority, '@', true);
+		url.Userinfo, url.Host = split(url.Authority, '@', true)
 	}
 
 	// What's left is the path.
 	// TODO: Canonicalize (remove . and ..)?
 	if url.Path, err = URLUnescape(path); err != nil {
-		goto Error;
+		goto Error
 	}
 
 	// Remove escapes from the Authority and Userinfo fields, and verify
 	// that Scheme and Host contain no escapes (that would be illegal).
 	if url.Authority, err = URLUnescape(url.Authority); err != nil {
-		goto Error;
+		goto Error
 	}
 	if url.Userinfo, err = URLUnescape(url.Userinfo); err != nil {
-		goto Error;
+		goto Error
 	}
 	if strings.Index(url.Scheme, "%") >= 0 {
 		err = os.ErrorString("hexadecimal escape in scheme");
@@ -297,10 +297,10 @@ func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
 	// Cut off #frag.
 	rawurl, frag := split(rawurlref, '#', true);
 	if url, err = ParseURL(rawurl); err != nil {
-		return nil, err;
+		return nil, err
 	}
 	if url.Fragment, err = URLUnescape(frag); err != nil {
-		return nil, &URLError{"parse", rawurl, err};
+		return nil, &URLError{"parse", rawurl, err}
 	}
 	return url, nil;
 }
@@ -313,21 +313,21 @@ func ParseURLReference(rawurlref string) (url *URL, err os.Error) {
 func (url *URL) String() string {
 	result := "";
 	if url.Scheme != "" {
-		result += url.Scheme + ":";
+		result += url.Scheme + ":"
 	}
 	if url.Host != "" || url.Userinfo != "" {
 		result += "//";
 		if url.Userinfo != "" {
-			result += URLEscape(url.Userinfo) + "@";
+			result += URLEscape(url.Userinfo) + "@"
 		}
 		result += url.Host;
 	}
 	result += URLEscape(url.Path);
 	if url.RawQuery != "" {
-		result += "?" + url.RawQuery;
+		result += "?" + url.RawQuery
 	}
 	if url.Fragment != "" {
-		result += "#" + URLEscape(url.Fragment);
+		result += "#" + URLEscape(url.Fragment)
 	}
 	return result;
 }

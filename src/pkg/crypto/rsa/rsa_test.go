@@ -72,10 +72,10 @@ func TestEncryptOAEP(t *testing.T) {
 			randomSource := bytes.NewBuffer(message.seed);
 			out, err := EncryptOAEP(sha1, randomSource, &public, message.in, nil);
 			if err != nil {
-				t.Errorf("#%d,%d error: %s", i, j, err);
+				t.Errorf("#%d,%d error: %s", i, j, err)
 			}
 			if bytes.Compare(out, message.out) != 0 {
-				t.Errorf("#%d,%d bad result: %s (want %s)", i, j, out, message.out);
+				t.Errorf("#%d,%d bad result: %s (want %s)", i, j, out, message.out)
 			}
 		}
 	}
@@ -84,7 +84,7 @@ func TestEncryptOAEP(t *testing.T) {
 func TestDecryptOAEP(t *testing.T) {
 	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0);
 	if err != nil {
-		t.Errorf("Failed to open /dev/urandom");
+		t.Errorf("Failed to open /dev/urandom")
 	}
 
 	sha1 := sha1.New();
@@ -98,17 +98,17 @@ func TestDecryptOAEP(t *testing.T) {
 		for j, message := range test.msgs {
 			out, err := DecryptOAEP(sha1, nil, &private, message.out, nil);
 			if err != nil {
-				t.Errorf("#%d,%d error: %s", i, j, err);
+				t.Errorf("#%d,%d error: %s", i, j, err)
 			} else if bytes.Compare(out, message.in) != 0 {
-				t.Errorf("#%d,%d bad result: %#v (want %#v)", i, j, out, message.in);
+				t.Errorf("#%d,%d bad result: %#v (want %#v)", i, j, out, message.in)
 			}
 
 			// Decrypt with blinding.
 			out, err = DecryptOAEP(sha1, urandom, &private, message.out, nil);
 			if err != nil {
-				t.Errorf("#%d,%d (blind) error: %s", i, j, err);
+				t.Errorf("#%d,%d (blind) error: %s", i, j, err)
 			} else if bytes.Compare(out, message.in) != 0 {
-				t.Errorf("#%d,%d (blind) bad result: %#v (want %#v)", i, j, out, message.in);
+				t.Errorf("#%d,%d (blind) bad result: %#v (want %#v)", i, j, out, message.in)
 			}
 		}
 	}

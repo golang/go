@@ -126,7 +126,7 @@ type FormatError struct {
 func (e *FormatError) String() string {
 	msg := e.msg;
 	if e.val != nil {
-		msg += fmt.Sprintf(" '%v' ", e.val);
+		msg += fmt.Sprintf(" '%v' ", e.val)
 	}
 	msg += fmt.Sprintf("in record at byte %#x", e.off);
 	return msg;
@@ -136,7 +136,7 @@ func (e *FormatError) String() string {
 func Open(name string) (*File, os.Error) {
 	f, err := os.Open(name, os.O_RDONLY, 0);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	ff, err := NewFile(f);
 	if err != nil {
@@ -169,7 +169,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	// Magic32 and Magic64 differ only in the bottom bit.
 	var ident [4]uint8;
 	if _, err := r.ReadAt(&ident, 0); err != nil {
-		return nil, err;
+		return nil, err
 	}
 	be := binary.BigEndian.Uint32(&ident);
 	le := binary.LittleEndian.Uint32(&ident);
@@ -184,28 +184,28 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 
 	// Read entire file header.
 	if err := binary.Read(sr, f.ByteOrder, &f.FileHeader); err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	// Then load commands.
 	offset := int64(fileHeaderSize32);
 	if f.Magic == Magic64 {
-		offset = fileHeaderSize64;
+		offset = fileHeaderSize64
 	}
 	dat := make([]byte, f.Cmdsz);
 	if _, err := r.ReadAt(dat, offset); err != nil {
-		return nil, err;
+		return nil, err
 	}
 	f.Loads = make([]Load, f.Ncmd);
 	bo := f.ByteOrder;
 	for i := range f.Loads {
 		// Each load command begins with uint32 command and length.
 		if len(dat) < 8 {
-			return nil, &FormatError{offset, "command block too small", nil};
+			return nil, &FormatError{offset, "command block too small", nil}
 		}
 		cmd, siz := LoadCmd(bo.Uint32(dat[0:4])), bo.Uint32(dat[4:8]);
 		if siz < 8 || siz > uint32(len(dat)) {
-			return nil, &FormatError{offset, "invalid command block size", nil};
+			return nil, &FormatError{offset, "invalid command block size", nil}
 		}
 		var cmddat []byte;
 		cmddat, dat = dat[0:siz], dat[siz:len(dat)];
@@ -213,13 +213,13 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		var s *Segment;
 		switch cmd {
 		default:
-			f.Loads[i] = LoadBytes(cmddat);
+			f.Loads[i] = LoadBytes(cmddat)
 
 		case LoadCmdSegment:
 			var seg32 Segment32;
 			b := bytes.NewBuffer(cmddat);
 			if err := binary.Read(b, bo, &seg32); err != nil {
-				return nil, err;
+				return nil, err
 			}
 			s = new(Segment);
 			s.LoadBytes = cmddat;
@@ -238,7 +238,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 			for i := 0; i < int(s.Nsect); i++ {
 				var sh32 Section32;
 				if err := binary.Read(b, bo, &sh32); err != nil {
-					return nil, err;
+					return nil, err
 				}
 				sh := new(Section);
 				sh.Name = cstring(&sh32.Name);
@@ -257,7 +257,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 			var seg64 Segment64;
 			b := bytes.NewBuffer(cmddat);
 			if err := binary.Read(b, bo, &seg64); err != nil {
-				return nil, err;
+				return nil, err
 			}
 			s = new(Segment);
 			s.LoadBytes = cmddat;
@@ -276,7 +276,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 			for i := 0; i < int(s.Nsect); i++ {
 				var sh64 Section64;
 				if err := binary.Read(b, bo, &sh64); err != nil {
-					return nil, err;
+					return nil, err
 				}
 				sh := new(Section);
 				sh.Name = cstring(&sh64.Name);
@@ -305,7 +305,7 @@ func (f *File) pushSection(sh *Section, r io.ReaderAt) {
 		m := (n+1)*2;
 		new := make([]*Section, n, m);
 		for i, sh := range f.Sections {
-			new[i] = sh;
+			new[i] = sh
 		}
 		f.Sections = new;
 	}
@@ -326,7 +326,7 @@ func cstring(b []byte) string {
 func (f *File) Segment(name string) *Segment {
 	for _, l := range f.Loads {
 		if s, ok := l.(*Segment); ok && s.Name == name {
-			return s;
+			return s
 		}
 	}
 	return nil;
@@ -337,7 +337,7 @@ func (f *File) Segment(name string) *Segment {
 func (f *File) Section(name string) *Section {
 	for _, s := range f.Sections {
 		if s.Name == name {
-			return s;
+			return s
 		}
 	}
 	return nil;
@@ -354,11 +354,11 @@ func (f *File) DWARF() (*dwarf.Data, os.Error) {
 		name = "__debug_" + name;
 		s := f.Section(name);
 		if s == nil {
-			return nil, os.NewError("missing Mach-O section " + name);
+			return nil, os.NewError("missing Mach-O section " + name)
 		}
 		b, err := s.Data();
 		if err != nil && uint64(len(b)) < s.Size {
-			return nil, err;
+			return nil, err
 		}
 		dat[i] = b;
 	}

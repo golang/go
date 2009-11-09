@@ -21,7 +21,7 @@ const (
 func natFromString(s string, base uint, slen *int) Natural {
 	x, _, len := NatFromString(s, base);
 	if slen != nil {
-		*slen = len;
+		*slen = len
 	}
 	return x;
 }
@@ -30,7 +30,7 @@ func natFromString(s string, base uint, slen *int) Natural {
 func intFromString(s string, base uint, slen *int) *Integer {
 	x, _, len := IntFromString(s, base);
 	if slen != nil {
-		*slen = len;
+		*slen = len
 	}
 	return x;
 }
@@ -39,7 +39,7 @@ func intFromString(s string, base uint, slen *int) *Integer {
 func ratFromString(s string, base uint, slen *int) *Rational {
 	x, _, len := RatFromString(s, base);
 	if slen != nil {
-		*slen = len;
+		*slen = len
 	}
 	return x;
 }
@@ -69,28 +69,28 @@ var tester *testing.T
 
 func test(n uint, b bool) {
 	if !b {
-		tester.Fatalf("TEST failed: %s (%d)", test_msg, n);
+		tester.Fatalf("TEST failed: %s (%d)", test_msg, n)
 	}
 }
 
 
 func nat_eq(n uint, x, y Natural) {
 	if x.Cmp(y) != 0 {
-		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, &x, &y);
+		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, &x, &y)
 	}
 }
 
 
 func int_eq(n uint, x, y *Integer) {
 	if x.Cmp(y) != 0 {
-		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, x, y);
+		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, x, y)
 	}
 }
 
 
 func rat_eq(n uint, x, y *Rational) {
 	if x.Cmp(y) != 0 {
-		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, x, y);
+		tester.Fatalf("TEST failed: %s (%d)\nx = %v\ny = %v", test_msg, n, x, y)
 	}
 }
 
@@ -116,7 +116,7 @@ func TestNatConv(t *testing.T) {
 
 	test_msg = "NatConvB";
 	for i := uint(0); i < 100; i++ {
-		test(i, Nat(uint64(i)).String() == fmt.Sprintf("%d", i));
+		test(i, Nat(uint64(i)).String() == fmt.Sprintf("%d", i))
 	}
 
 	test_msg = "NatConvC";
@@ -146,7 +146,7 @@ func TestNatConv(t *testing.T) {
 	test_msg = "NatConvF";
 	tmp := c.Mul(c);
 	for base := uint(2); base <= 16; base++ {
-		nat_eq(base, natFromString(tmp.ToString(base), base, nil), tmp);
+		nat_eq(base, natFromString(tmp.ToString(base), base, nil), tmp)
 	}
 
 	test_msg = "NatConvG";
@@ -158,7 +158,7 @@ func TestNatConv(t *testing.T) {
 
 func abs(x int64) uint64 {
 	if x < 0 {
-		x = -x;
+		x = -x
 	}
 	return uint64(x);
 }
@@ -235,7 +235,7 @@ func add(x, y Natural) Natural {
 	z1 := x.Add(y);
 	z2 := y.Add(x);
 	if z1.Cmp(z2) != 0 {
-		tester.Fatalf("addition not symmetric:\n\tx = %v\n\ty = %t", x, y);
+		tester.Fatalf("addition not symmetric:\n\tx = %v\n\ty = %t", x, y)
 	}
 	return z1;
 }
@@ -244,7 +244,7 @@ func add(x, y Natural) Natural {
 func sum(n uint64, scale Natural) Natural {
 	s := nat_zero;
 	for ; n > 0; n-- {
-		s = add(s, Nat(n).Mul(scale));
+		s = add(s, Nat(n).Mul(scale))
 	}
 	return s;
 }
@@ -268,13 +268,13 @@ func mul(x, y Natural) Natural {
 	z1 := x.Mul(y);
 	z2 := y.Mul(x);
 	if z1.Cmp(z2) != 0 {
-		tester.Fatalf("multiplication not symmetric:\n\tx = %v\n\ty = %t", x, y);
+		tester.Fatalf("multiplication not symmetric:\n\tx = %v\n\ty = %t", x, y)
 	}
 	if !x.IsZero() && z1.Div(x).Cmp(y) != 0 {
-		tester.Fatalf("multiplication/division not inverse (A):\n\tx = %v\n\ty = %t", x, y);
+		tester.Fatalf("multiplication/division not inverse (A):\n\tx = %v\n\ty = %t", x, y)
 	}
 	if !y.IsZero() && z1.Div(y).Cmp(x) != 0 {
-		tester.Fatalf("multiplication/division not inverse (B):\n\tx = %v\n\ty = %t", x, y);
+		tester.Fatalf("multiplication/division not inverse (B):\n\tx = %v\n\ty = %t", x, y)
 	}
 	return z1;
 }
@@ -290,7 +290,7 @@ func TestNatSub(t *testing.T) {
 	for i := uint64(0); i < 100; i++ {
 		t := sum(i, c);
 		for j := uint64(0); j <= i; j++ {
-			t = t.Sub(mul(Nat(j), c));
+			t = t.Sub(mul(Nat(j), c))
 		}
 		nat_eq(uint(i), t, nat_zero);
 	}
@@ -311,7 +311,7 @@ func TestNatMul(t *testing.T) {
 	const n = 100;
 	p := b.Mul(c).Shl(n);
 	for i := uint(0); i < n; i++ {
-		nat_eq(i, mul(b.Shl(i), c.Shl(n-i)), p);
+		nat_eq(i, mul(b.Shl(i), c.Shl(n-i)), p)
 	}
 }
 
@@ -329,7 +329,7 @@ func TestNatDiv(t *testing.T) {
 	const n = 100;
 	p := Fact(n);
 	for i := uint(0); i < n; i++ {
-		nat_eq(100+i, p.Div(MulRange(1, i)), MulRange(i+1, n));
+		nat_eq(100+i, p.Div(MulRange(1, i)), MulRange(i+1, n))
 	}
 }
 
@@ -398,7 +398,7 @@ func TestNatMod(t *testing.T) {
 	for i := uint(0); ; i++ {
 		d := nat_one.Shl(i);
 		if d.Cmp(c) < 0 {
-			nat_eq(i, c.Add(d).Mod(c), d);
+			nat_eq(i, c.Add(d).Mod(c), d)
 		} else {
 			nat_eq(i, c.Add(d).Div(c), nat_two);
 			nat_eq(i, c.Add(d).Mod(c), d.Sub(c));
@@ -420,7 +420,7 @@ func TestNatShift(t *testing.T) {
 
 	test_msg = "NatShift2";
 	for i := uint(0); i < 100; i++ {
-		test(i, c.Shl(i).Shr(i).Cmp(c) == 0);
+		test(i, c.Shl(i).Shr(i).Cmp(c) == 0)
 	}
 
 	test_msg = "NatShift3L";
@@ -457,7 +457,7 @@ func TestIntShift(t *testing.T) {
 
 	test_msg = "IntShift2";
 	for i := uint(0); i < 100; i++ {
-		test(i, ip.Shl(i).Shr(i).Cmp(ip) == 0);
+		test(i, ip.Shl(i).Shr(i).Cmp(ip) == 0)
 	}
 
 	test_msg = "IntShift3L";
@@ -499,25 +499,25 @@ func TestNatBitOps(t *testing.T) {
 	test_msg = "NatAnd";
 	bz := Nat(x&y);
 	for i := uint(0); i < 100; i++ {
-		nat_eq(i, bx.Shl(i).And(by.Shl(i)), bz.Shl(i));
+		nat_eq(i, bx.Shl(i).And(by.Shl(i)), bz.Shl(i))
 	}
 
 	test_msg = "NatAndNot";
 	bz = Nat(x&^y);
 	for i := uint(0); i < 100; i++ {
-		nat_eq(i, bx.Shl(i).AndNot(by.Shl(i)), bz.Shl(i));
+		nat_eq(i, bx.Shl(i).AndNot(by.Shl(i)), bz.Shl(i))
 	}
 
 	test_msg = "NatOr";
 	bz = Nat(x|y);
 	for i := uint(0); i < 100; i++ {
-		nat_eq(i, bx.Shl(i).Or(by.Shl(i)), bz.Shl(i));
+		nat_eq(i, bx.Shl(i).Or(by.Shl(i)), bz.Shl(i))
 	}
 
 	test_msg = "NatXor";
 	bz = Nat(x^y);
 	for i := uint(0); i < 100; i++ {
-		nat_eq(i, bx.Shl(i).Xor(by.Shl(i)), bz.Shl(i));
+		nat_eq(i, bx.Shl(i).Xor(by.Shl(i)), bz.Shl(i))
 	}
 }
 
@@ -560,7 +560,7 @@ func TestIntBitOps2(t *testing.T) {
 		for y := int64(-5); y < 15; y++ {
 			by := Int(y);
 			for i := uint(50); i < 70; i++ {	// shift across 64bit boundary
-				int_eq(i, bx.Shl(i).And(by.Shl(i)), Int(x&y).Shl(i));
+				int_eq(i, bx.Shl(i).And(by.Shl(i)), Int(x&y).Shl(i))
 			}
 		}
 	}
@@ -583,7 +583,7 @@ func TestIntBitOps2(t *testing.T) {
 		for y := int64(-5); y < 15; y++ {
 			by := Int(y);
 			for i := uint(50); i < 70; i++ {	// shift across 64bit boundary
-				int_eq(i, bx.Shl(i).Or(by.Shl(i)), Int(x|y).Shl(i));
+				int_eq(i, bx.Shl(i).Or(by.Shl(i)), Int(x|y).Shl(i))
 			}
 		}
 	}
@@ -594,7 +594,7 @@ func TestIntBitOps2(t *testing.T) {
 		for y := int64(-5); y < 15; y++ {
 			by := Int(y);
 			for i := uint(50); i < 70; i++ {	// shift across 64bit boundary
-				int_eq(i, bx.Shl(i).Xor(by.Shl(i)), Int(x^y).Shl(i));
+				int_eq(i, bx.Shl(i).Xor(by.Shl(i)), Int(x^y).Shl(i))
 			}
 		}
 	}
@@ -624,7 +624,7 @@ func TestNatLog2(t *testing.T) {
 
 	test_msg = "NatLog2B";
 	for i := uint(0); i < 100; i++ {
-		test(i, nat_one.Shl(i).Log2() == i);
+		test(i, nat_one.Shl(i).Log2() == i)
 	}
 }
 
@@ -644,7 +644,7 @@ func TestNatPow(t *testing.T) {
 
 	test_msg = "NatPowB";
 	for i := uint(0); i < 100; i++ {
-		nat_eq(i, nat_two.Pow(i), nat_one.Shl(i));
+		nat_eq(i, nat_two.Pow(i), nat_one.Shl(i))
 	}
 }
 
@@ -660,6 +660,6 @@ func TestNatPop(t *testing.T) {
 
 	test_msg = "NatPopB";
 	for i := uint(0); i < 100; i++ {
-		test(i, nat_one.Shl(i).Sub(nat_one).Pop() == i);
+		test(i, nat_one.Shl(i).Sub(nat_one).Pop() == i)
 	}
 }

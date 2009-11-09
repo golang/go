@@ -285,19 +285,19 @@ type Type interface {
 }
 
 func (t *uncommonType) uncommon() *uncommonType {
-	return t;
+	return t
 }
 
 func (t *uncommonType) PkgPath() string {
 	if t == nil || t.pkgPath == nil {
-		return "";
+		return ""
 	}
 	return *t.pkgPath;
 }
 
 func (t *uncommonType) Name() string {
 	if t == nil || t.name == nil {
-		return "";
+		return ""
 	}
 	return *t.name;
 }
@@ -312,14 +312,14 @@ func (t *commonType) FieldAlign() int	{ return int(t.fieldAlign) }
 
 func (t *uncommonType) Method(i int) (m Method) {
 	if t == nil || i < 0 || i >= len(t.methods) {
-		return;
+		return
 	}
 	p := &t.methods[i];
 	if p.name != nil {
-		m.Name = *p.name;
+		m.Name = *p.name
 	}
 	if p.pkgPath != nil {
-		m.PkgPath = *p.pkgPath;
+		m.PkgPath = *p.pkgPath
 	}
 	m.Type = toType(*p.typ).(*FuncType);
 	fn := p.tfn;
@@ -329,7 +329,7 @@ func (t *uncommonType) Method(i int) (m Method) {
 
 func (t *uncommonType) NumMethod() int {
 	if t == nil {
-		return 0;
+		return 0
 	}
 	return len(t.methods);
 }
@@ -360,11 +360,11 @@ func (t *ChanType) Elem() Type	{ return toType(*t.elem) }
 func (d ChanDir) String() string {
 	switch d {
 	case SendDir:
-		return "chan<-";
+		return "chan<-"
 	case RecvDir:
-		return "<-chan";
+		return "<-chan"
 	case BothDir:
-		return "chan";
+		return "chan"
 	}
 	return "ChanDir" + strconv.Itoa(int(d));
 }
@@ -372,7 +372,7 @@ func (d ChanDir) String() string {
 // In returns the type of the i'th function input parameter.
 func (t *FuncType) In(i int) Type {
 	if i < 0 || i >= len(t.in) {
-		return nil;
+		return nil
 	}
 	return toType(*t.in[i]);
 }
@@ -383,7 +383,7 @@ func (t *FuncType) NumIn() int	{ return len(t.in) }
 // Out returns the type of the i'th function output parameter.
 func (t *FuncType) Out(i int) Type {
 	if i < 0 || i >= len(t.out) {
-		return nil;
+		return nil
 	}
 	return toType(*t.out[i]);
 }
@@ -394,12 +394,12 @@ func (t *FuncType) NumOut() int	{ return len(t.out) }
 // Method returns the i'th interface method.
 func (t *InterfaceType) Method(i int) (m Method) {
 	if i < 0 || i >= len(t.methods) {
-		return;
+		return
 	}
 	p := &t.methods[i];
 	m.Name = *p.name;
 	if p.pkgPath != nil {
-		m.PkgPath = *p.pkgPath;
+		m.PkgPath = *p.pkgPath
 	}
 	m.Type = toType(*p.typ).(*FuncType);
 	return;
@@ -433,25 +433,25 @@ type StructField struct {
 // Field returns the i'th struct field.
 func (t *StructType) Field(i int) (f StructField) {
 	if i < 0 || i >= len(t.fields) {
-		return;
+		return
 	}
 	p := t.fields[i];
 	f.Type = toType(*p.typ);
 	if p.name != nil {
-		f.Name = *p.name;
+		f.Name = *p.name
 	} else {
 		t := f.Type;
 		if pt, ok := t.(*PtrType); ok {
-			t = pt.Elem();
+			t = pt.Elem()
 		}
 		f.Name = t.Name();
 		f.Anonymous = true;
 	}
 	if p.pkgPath != nil {
-		f.PkgPath = *p.pkgPath;
+		f.PkgPath = *p.pkgPath
 	}
 	if p.tag != nil {
-		f.Tag = *p.tag;
+		f.Tag = *p.tag
 	}
 	f.Offset = p.offset;
 	f.Index = []int{i};
@@ -467,10 +467,10 @@ func (t *StructType) FieldByIndex(index []int) (f StructField) {
 		if i > 0 {
 			ft := f.Type;
 			if pt, ok := ft.(*PtrType); ok {
-				ft = pt.Elem();
+				ft = pt.Elem()
 			}
 			if st, ok := ft.(*StructType); ok {
-				t = st;
+				t = st
 			} else {
 				var f0 StructField;
 				f = f0;
@@ -489,7 +489,7 @@ func (t *StructType) fieldByName(name string, mark map[*StructType]bool, depth i
 
 	if _, marked := mark[t]; marked {
 		// Struct already seen.
-		return;
+		return
 	}
 	mark[t] = true;
 
@@ -501,20 +501,20 @@ L:	for i, _ := range t.fields {
 		switch {
 		case f.Name == name:
 			// Matching top-level field.
-			d = depth;
+			d = depth
 		case f.Anonymous:
 			ft := f.Type;
 			if pt, ok := ft.(*PtrType); ok {
-				ft = pt.Elem();
+				ft = pt.Elem()
 			}
 			switch {
 			case ft.Name() == name:
 				// Matching anonymous top-level field.
-				d = depth;
+				d = depth
 			case fd > depth:
 				// No top-level field yet; look inside nested structs.
 				if st, ok := ft.(*StructType); ok {
-					f, d = st.fieldByName(name, mark, depth+1);
+					f, d = st.fieldByName(name, mark, depth+1)
 				}
 			}
 		}
@@ -530,7 +530,7 @@ L:	for i, _ := range t.fields {
 			n++;
 			if d == depth {
 				// Impossible to find a field at lower depth.
-				break L;
+				break L
 			}
 		}
 	}
@@ -538,12 +538,12 @@ L:	for i, _ := range t.fields {
 	if n == 1 {
 		// Found matching field.
 		if len(ff.Index) <= depth {
-			ff.Index = make([]int, depth+1);
+			ff.Index = make([]int, depth+1)
 		}
 		ff.Index[depth] = fi;
 	} else {
 		// None or more than one matching field found.
-		fd = inf;
+		fd = inf
 	}
 
 	mark[t] = false, false;
@@ -568,57 +568,57 @@ func (t *StructType) NumField() int	{ return len(t.fields) }
 func toType(i interface{}) Type {
 	switch v := i.(type) {
 	case *runtime.BoolType:
-		return (*BoolType)(unsafe.Pointer(v));
+		return (*BoolType)(unsafe.Pointer(v))
 	case *runtime.DotDotDotType:
-		return (*DotDotDotType)(unsafe.Pointer(v));
+		return (*DotDotDotType)(unsafe.Pointer(v))
 	case *runtime.FloatType:
-		return (*FloatType)(unsafe.Pointer(v));
+		return (*FloatType)(unsafe.Pointer(v))
 	case *runtime.Float32Type:
-		return (*Float32Type)(unsafe.Pointer(v));
+		return (*Float32Type)(unsafe.Pointer(v))
 	case *runtime.Float64Type:
-		return (*Float64Type)(unsafe.Pointer(v));
+		return (*Float64Type)(unsafe.Pointer(v))
 	case *runtime.IntType:
-		return (*IntType)(unsafe.Pointer(v));
+		return (*IntType)(unsafe.Pointer(v))
 	case *runtime.Int8Type:
-		return (*Int8Type)(unsafe.Pointer(v));
+		return (*Int8Type)(unsafe.Pointer(v))
 	case *runtime.Int16Type:
-		return (*Int16Type)(unsafe.Pointer(v));
+		return (*Int16Type)(unsafe.Pointer(v))
 	case *runtime.Int32Type:
-		return (*Int32Type)(unsafe.Pointer(v));
+		return (*Int32Type)(unsafe.Pointer(v))
 	case *runtime.Int64Type:
-		return (*Int64Type)(unsafe.Pointer(v));
+		return (*Int64Type)(unsafe.Pointer(v))
 	case *runtime.StringType:
-		return (*StringType)(unsafe.Pointer(v));
+		return (*StringType)(unsafe.Pointer(v))
 	case *runtime.UintType:
-		return (*UintType)(unsafe.Pointer(v));
+		return (*UintType)(unsafe.Pointer(v))
 	case *runtime.Uint8Type:
-		return (*Uint8Type)(unsafe.Pointer(v));
+		return (*Uint8Type)(unsafe.Pointer(v))
 	case *runtime.Uint16Type:
-		return (*Uint16Type)(unsafe.Pointer(v));
+		return (*Uint16Type)(unsafe.Pointer(v))
 	case *runtime.Uint32Type:
-		return (*Uint32Type)(unsafe.Pointer(v));
+		return (*Uint32Type)(unsafe.Pointer(v))
 	case *runtime.Uint64Type:
-		return (*Uint64Type)(unsafe.Pointer(v));
+		return (*Uint64Type)(unsafe.Pointer(v))
 	case *runtime.UintptrType:
-		return (*UintptrType)(unsafe.Pointer(v));
+		return (*UintptrType)(unsafe.Pointer(v))
 	case *runtime.UnsafePointerType:
-		return (*UnsafePointerType)(unsafe.Pointer(v));
+		return (*UnsafePointerType)(unsafe.Pointer(v))
 	case *runtime.ArrayType:
-		return (*ArrayType)(unsafe.Pointer(v));
+		return (*ArrayType)(unsafe.Pointer(v))
 	case *runtime.ChanType:
-		return (*ChanType)(unsafe.Pointer(v));
+		return (*ChanType)(unsafe.Pointer(v))
 	case *runtime.FuncType:
-		return (*FuncType)(unsafe.Pointer(v));
+		return (*FuncType)(unsafe.Pointer(v))
 	case *runtime.InterfaceType:
-		return (*InterfaceType)(unsafe.Pointer(v));
+		return (*InterfaceType)(unsafe.Pointer(v))
 	case *runtime.MapType:
-		return (*MapType)(unsafe.Pointer(v));
+		return (*MapType)(unsafe.Pointer(v))
 	case *runtime.PtrType:
-		return (*PtrType)(unsafe.Pointer(v));
+		return (*PtrType)(unsafe.Pointer(v))
 	case *runtime.SliceType:
-		return (*SliceType)(unsafe.Pointer(v));
+		return (*SliceType)(unsafe.Pointer(v))
 	case *runtime.StructType:
-		return (*StructType)(unsafe.Pointer(v));
+		return (*StructType)(unsafe.Pointer(v))
 	}
 	panicln("toType", i);
 }

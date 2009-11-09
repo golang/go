@@ -49,12 +49,12 @@ func (r *Rand) Int() int {
 // Int63n returns, as an int64, a non-negative pseudo-random number in [0,n).
 func (r *Rand) Int63n(n int64) int64 {
 	if n <= 0 {
-		return 0;
+		return 0
 	}
 	max := int64((1<<63) - 1 - (1<<63)%uint64(n));
 	v := r.Int63();
 	for v > max {
-		v = r.Int63();
+		v = r.Int63()
 	}
 	return v%n;
 }
@@ -78,7 +78,7 @@ func (r *Rand) Float() float	{ return float(r.Float64()) }
 func (r *Rand) Perm(n int) []int {
 	m := make([]int, n);
 	for i := 0; i < n; i++ {
-		m[i] = i;
+		m[i] = i
 	}
 	for i := 0; i < n; i++ {
 		j := r.Intn(i+1);

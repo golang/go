@@ -62,7 +62,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 func randomBytes(n int, rand *rand.Rand) []byte {
 	r := make([]byte, n);
 	for i := 0; i < n; i++ {
-		r[i] = byte(rand.Int31());
+		r[i] = byte(rand.Int31())
 	}
 	return r;
 }
@@ -75,7 +75,7 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m.sessionId = randomBytes(rand.Intn(32), rand);
 	m.cipherSuites = make([]uint16, rand.Intn(63) + 1);
 	for i := 0; i < len(m.cipherSuites); i++ {
-		m.cipherSuites[i] = uint16(rand.Int31());
+		m.cipherSuites[i] = uint16(rand.Int31())
 	}
 	m.compressionMethods = randomBytes(rand.Intn(63) + 1, rand);
 

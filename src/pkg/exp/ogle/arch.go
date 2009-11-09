@@ -56,7 +56,7 @@ type ArchLSB struct{}
 func (ArchLSB) ToWord(data []byte) proc.Word {
 	var v proc.Word;
 	for i, b := range data {
-		v |= proc.Word(b) << (uint(i)*8);
+		v |= proc.Word(b) << (uint(i)*8)
 	}
 	return v;
 }
@@ -71,7 +71,7 @@ func (ArchLSB) FromWord(v proc.Word, out []byte) {
 func (ArchLSB) ToFloat32(bits uint32) float32 {
 	// TODO(austin) Do these definitions depend on my current
 	// architecture?
-	return math.Float32frombits(bits);
+	return math.Float32frombits(bits)
 }
 
 func (ArchLSB) FromFloat32(f float32) uint32	{ return math.Float32bits(f) }
@@ -83,7 +83,7 @@ func (ArchLSB) FromFloat64(f float64) uint64	{ return math.Float64bits(f) }
 type ArchAlignedMultiple struct{}
 
 func (ArchAlignedMultiple) Align(offset, width int) int {
-	return ((offset-1)|(width-1))+1;
+	return ((offset-1)|(width-1))+1
 }
 
 type amd64 struct {
@@ -117,7 +117,7 @@ func (a *amd64) ClosureSize() int	{ return 8 }
 
 func (a *amd64) ParseClosure(data []byte) (int, bool) {
 	if data[0] == 0x48 && data[1] == 0x81 && data[2] == 0xc4 && data[7] == 0xc3 {
-		return int(a.ToWord(data[3:7]) + 8), true;
+		return int(a.ToWord(data[3:7]) + 8), true
 	}
 	return 0, false;
 }

@@ -27,7 +27,7 @@ func (e FormatError) String() string	{ return string(e) }
 type UnknownArchitecture elf.Machine
 
 func (e UnknownArchitecture) String() string {
-	return "unknown architecture: " + elf.Machine(e).String();
+	return "unknown architecture: " + elf.Machine(e).String()
 }
 
 // A ProcessNotStopped error occurs when attempting to read or write
@@ -44,7 +44,7 @@ type UnknownGoroutine struct {
 }
 
 func (e UnknownGoroutine) String() string {
-	return fmt.Sprintf("internal error: unknown goroutine (G %#x)", e.Goroutine);
+	return fmt.Sprintf("internal error: unknown goroutine (G %#x)", e.Goroutine)
 }
 
 // A NoCurrentGoroutine error occurs when no goroutine is currently
@@ -121,13 +121,13 @@ func NewProcess(tproc proc.Process, arch Arch, syms *gosym.Table) (*Process, os.
 
 	switch {
 	case p.sys.allg.addr().base == 0:
-		return nil, FormatError("failed to find runtime symbol 'allg'");
+		return nil, FormatError("failed to find runtime symbol 'allg'")
 	case p.sys.g0.addr().base == 0:
-		return nil, FormatError("failed to find runtime symbol 'g0'");
+		return nil, FormatError("failed to find runtime symbol 'g0'")
 	case p.sys.newprocreadylocked == nil:
-		return nil, FormatError("failed to find runtime symbol 'newprocreadylocked'");
+		return nil, FormatError("failed to find runtime symbol 'newprocreadylocked'")
 	case p.sys.goexit == nil:
-		return nil, FormatError("failed to find runtime symbol 'sys.goexit'");
+		return nil, FormatError("failed to find runtime symbol 'sys.goexit'")
 	}
 
 	// Get current goroutines
@@ -142,7 +142,7 @@ func NewProcess(tproc proc.Process, arch Arch, syms *gosym.Table) (*Process, os.
 		}
 	});
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	// Create internal breakpoints to catch new and exited goroutines
@@ -151,7 +151,7 @@ func NewProcess(tproc proc.Process, arch Arch, syms *gosym.Table) (*Process, os.
 
 	// Select current frames
 	for _, g := range p.goroutines {
-		g.resetFrame();
+		g.resetFrame()
 	}
 
 	p.selectSomeGoroutine();
@@ -164,22 +164,22 @@ func elfGoSyms(f *elf.File) (*gosym.Table, os.Error) {
 	symtab := f.Section(".gosymtab");
 	pclntab := f.Section(".gopclntab");
 	if text == nil || symtab == nil || pclntab == nil {
-		return nil, nil;
+		return nil, nil
 	}
 
 	symdat, err := symtab.Data();
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	pclndat, err := pclntab.Data();
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	pcln := gosym.NewLineTable(pclndat, text.Addr);
 	tab, err := gosym.NewTable(symdat, pcln);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	return tab, nil;
@@ -190,17 +190,17 @@ func elfGoSyms(f *elf.File) (*gosym.Table, os.Error) {
 func NewProcessElf(tproc proc.Process, f *elf.File) (*Process, os.Error) {
 	syms, err := elfGoSyms(f);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	if syms == nil {
-		return nil, FormatError("Failed to find symbol table");
+		return nil, FormatError("Failed to find symbol table")
 	}
 	var arch Arch;
 	switch f.Machine {
 	case elf.EM_X86_64:
-		arch = Amd64;
+		arch = Amd64
 	default:
-		return nil, UnknownArchitecture(f.Machine);
+		return nil, UnknownArchitecture(f.Machine)
 	}
 	return NewProcess(tproc, arch, syms);
 }
@@ -231,11 +231,11 @@ func (p *Process) bootstrap() {
 	for i := 0; i < rtv.NumField(); i++ {
 		n := rtvt.Field(i).Name;
 		if n[0] != 'P' || n[1] < 'A' || n[1] > 'Z' {
-			continue;
+			continue
 		}
 		sym := p.syms.LookupSym("type.*runtime." + n[1:len(n)]);
 		if sym == nil {
-			continue;
+			continue
 		}
 		rtv.Field(i).(*reflect.Uint64Value).Set(sym.Value);
 	}
@@ -253,10 +253,10 @@ func (p *Process) bootstrap() {
 	p.sys.deferproc = p.syms.LookupFunc("sys.deferproc");
 	p.sys.newprocreadylocked = p.syms.LookupFunc("newprocreadylocked");
 	if allg := p.syms.LookupSym("allg"); allg != nil {
-		p.sys.allg = remotePtr{remote{proc.Word(allg.Value), p}, p.runtime.G};
+		p.sys.allg = remotePtr{remote{proc.Word(allg.Value), p}, p.runtime.G}
 	}
 	if g0 := p.syms.LookupSym("g0"); g0 != nil {
-		p.sys.g0 = p.runtime.G.mk(remote{proc.Word(g0.Value), p}).(remoteStruct);
+		p.sys.g0 = p.runtime.G.mk(remote{proc.Word(g0.Value), p}).(remoteStruct)
 	}
 }
 
@@ -279,7 +279,7 @@ func (p *Process) selectSomeGoroutine() {
 func (p *Process) someStoppedOSThread() proc.Thread {
 	if p.threadCache != nil {
 		if _, err := p.threadCache.Stopped(); err == nil {
-			return p.threadCache;
+			return p.threadCache
 		}
 	}
 
@@ -295,7 +295,7 @@ func (p *Process) someStoppedOSThread() proc.Thread {
 func (p *Process) Peek(addr proc.Word, out []byte) (int, os.Error) {
 	thr := p.someStoppedOSThread();
 	if thr == nil {
-		return 0, ProcessNotStopped{};
+		return 0, ProcessNotStopped{}
 	}
 	return thr.Peek(addr, out);
 }
@@ -303,13 +303,13 @@ func (p *Process) Peek(addr proc.Word, out []byte) (int, os.Error) {
 func (p *Process) Poke(addr proc.Word, b []byte) (int, os.Error) {
 	thr := p.someStoppedOSThread();
 	if thr == nil {
-		return 0, ProcessNotStopped{};
+		return 0, ProcessNotStopped{}
 	}
 	return thr.Poke(addr, b);
 }
 
 func (p *Process) peekUintptr(a aborter, addr proc.Word) proc.Word {
-	return proc.Word(mkUintptr(remote{addr, p}).(remoteUint).aGet(a));
+	return proc.Word(mkUintptr(remote{addr, p}).(remoteUint).aGet(a))
 }
 
 /*
@@ -320,7 +320,7 @@ func (p *Process) peekUintptr(a aborter, addr proc.Word) proc.Word {
 // the given program counter.
 func (p *Process) OnBreakpoint(pc proc.Word) EventHook {
 	if bp, ok := p.breakpointHooks[pc]; ok {
-		return bp;
+		return bp
 	}
 	// The breakpoint will register itself when a handler is added
 	return &breakpointHook{commonHook{nil, 0}, p, pc};
@@ -328,7 +328,7 @@ func (p *Process) OnBreakpoint(pc proc.Word) EventHook {
 
 // OnGoroutineCreate returns the hook that is run when a goroutine is created.
 func (p *Process) OnGoroutineCreate() EventHook {
-	return p.goroutineCreateHook;
+	return p.goroutineCreateHook
 }
 
 // OnGoroutineExit returns the hook that is run when a goroutine exits.
@@ -338,12 +338,12 @@ func (p *Process) OnGoroutineExit() EventHook	{ return p.goroutineExitHook }
 func (p *Process) osThreadToGoroutine(t proc.Thread) (*Goroutine, os.Error) {
 	regs, err := t.Regs();
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	g := p.G(regs);
 	gt, ok := p.goroutines[g];
 	if !ok {
-		return nil, UnknownGoroutine{t, g};
+		return nil, UnknownGoroutine{t, g}
 	}
 	return gt, nil;
 }
@@ -357,7 +357,7 @@ func (p *Process) causesToEvents() ([]Event, os.Error) {
 		if c, err := t.Stopped(); err == nil {
 			switch c := c.(type) {
 			case proc.Breakpoint:
-				nev++;
+				nev++
 			case proc.Signal:
 				// TODO(austin)
 				//nev++;
@@ -374,7 +374,7 @@ func (p *Process) causesToEvents() ([]Event, os.Error) {
 			case proc.Breakpoint:
 				gt, err := p.osThreadToGoroutine(t);
 				if err != nil {
-					return nil, err;
+					return nil, err
 				}
 				events[i] = &Breakpoint{commonEvent{p, gt}, t, proc.Word(c)};
 				i++;
@@ -393,11 +393,11 @@ func (p *Process) postEvent(ev Event) {
 	n := len(p.posted);
 	m := n*2;
 	if m == 0 {
-		m = 4;
+		m = 4
 	}
 	posted := make([]Event, n+1, m);
 	for i, p := range p.posted {
-		posted[i] = p;
+		posted[i] = p
 	}
 	posted[n] = ev;
 	p.posted = posted;
@@ -412,7 +412,7 @@ func (p *Process) processEvents() (EventAction, os.Error) {
 		ev, p.posted = p.posted[0], p.posted[1:len(p.posted)];
 		action, err := p.processEvent(ev);
 		if action == EAStop {
-			return action, err;
+			return action, err
 		}
 	}
 
@@ -420,7 +420,7 @@ func (p *Process) processEvents() (EventAction, os.Error) {
 		ev, p.pending = p.pending[0], p.pending[1:len(p.pending)];
 		action, err := p.processEvent(ev);
 		if action == EAStop {
-			return action, err;
+			return action, err
 		}
 	}
 
@@ -439,7 +439,7 @@ func (p *Process) processEvent(ev Event) (EventAction, os.Error) {
 	case *Breakpoint:
 		hook, ok := p.breakpointHooks[ev.pc];
 		if !ok {
-			break;
+			break
 		}
 		p.curGoroutine = ev.Goroutine();
 		action, err = hook.handle(ev);
@@ -449,16 +449,16 @@ func (p *Process) processEvent(ev Event) (EventAction, os.Error) {
 		action, err = p.goroutineCreateHook.handle(ev);
 
 	case *GoroutineExit:
-		action, err = p.goroutineExitHook.handle(ev);
+		action, err = p.goroutineExitHook.handle(ev)
 
 	default:
-		log.Crashf("Unknown event type %T in queue", p.event);
+		log.Crashf("Unknown event type %T in queue", p.event)
 	}
 
 	if err != nil {
-		return EAStop, err;
+		return EAStop, err
 	} else if action == EAStop {
-		return EAStop, nil;
+		return EAStop, nil
 	}
 	return EAContinue, nil;
 }
@@ -491,24 +491,24 @@ func (p *Process) ContWait() os.Error {
 	for {
 		a, err := p.processEvents();
 		if err != nil {
-			return err;
+			return err
 		} else if a == EAStop {
-			break;
+			break
 		}
 		err = p.proc.Continue();
 		if err != nil {
-			return err;
+			return err
 		}
 		err = p.proc.WaitStop();
 		if err != nil {
-			return err;
+			return err
 		}
 		for _, g := range p.goroutines {
-			g.resetFrame();
+			g.resetFrame()
 		}
 		p.pending, err = p.causesToEvents();
 		if err != nil {
-			return err;
+			return err
 		}
 	}
 	return nil;
@@ -517,7 +517,7 @@ func (p *Process) ContWait() os.Error {
 // Out selects the caller frame of the current frame.
 func (p *Process) Out() os.Error {
 	if p.curGoroutine == nil {
-		return NoCurrentGoroutine{};
+		return NoCurrentGoroutine{}
 	}
 	return p.curGoroutine.Out();
 }
@@ -525,7 +525,7 @@ func (p *Process) Out() os.Error {
 // In selects the frame called by the current frame.
 func (p *Process) In() os.Error {
 	if p.curGoroutine == nil {
-		return NoCurrentGoroutine{};
+		return NoCurrentGoroutine{}
 	}
 	return p.curGoroutine.In();
 }

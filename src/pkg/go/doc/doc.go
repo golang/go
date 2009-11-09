@@ -61,17 +61,17 @@ func (doc *docReader) addType(decl *ast.GenDecl) {
 	if typ != nil {
 		// a type should be added at most once, so typ.decl
 		// should be nil - if it isn't, simply overwrite it
-		typ.decl = decl;
+		typ.decl = decl
 	}
 }
 
 
 func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
 	if name == "" {
-		return nil;	// no type docs for anonymous types
+		return nil	// no type docs for anonymous types
 	}
 	if tdoc, found := doc.types[name]; found {
-		return tdoc;
+		return tdoc
 	}
 	// type wasn't found - add one without declaration
 	tdoc := &typeDoc{nil, vector.New(0), make(map[string]*ast.FuncDecl), make(map[string]*ast.FuncDecl)};
@@ -86,10 +86,10 @@ func baseTypeName(typ ast.Expr) string {
 		// if the type is not exported, the effect to
 		// a client is as if there were no type name
 		if t.IsExported() {
-			return string(t.Value);
+			return string(t.Value)
 		}
 	case *ast.StarExpr:
-		return baseTypeName(t.X);
+		return baseTypeName(t.X)
 	}
 	return "";
 }
@@ -109,13 +109,13 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
 			switch {
 			case v.Type != nil:
 				// a type is present; determine it's name
-				name = baseTypeName(v.Type);
+				name = baseTypeName(v.Type)
 			case decl.Tok == token.CONST:
 				// no type is present but we have a constant declaration;
 				// use the previous type name (w/o more type information
 				// we cannot handle the case of unnamed variables with
 				// initializer expressions except for some trivial cases)
-				name = prev;
+				name = prev
 			}
 			if name != "" {
 				// entry has a named type
@@ -139,7 +139,7 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
 		// typed entries are sufficiently frequent
 		typ := doc.lookupTypeDoc(domName);
 		if typ != nil {
-			values = typ.values;	// associate with that type
+			values = typ.values	// associate with that type
 		}
 	}
 
@@ -156,7 +156,7 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
 		typ := doc.lookupTypeDoc(baseTypeName(fun.Recv.Type));
 		if typ != nil {
 			// exported receiver type
-			typ.methods[name] = fun;
+			typ.methods[name] = fun
 		}
 		// otherwise don't show the method
 		// TODO(gri): There may be exported methods of non-exported types
@@ -209,7 +209,7 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 			switch d.Tok {
 			case token.CONST, token.VAR:
 				// constants and variables are always handled as a group
-				doc.addValue(d);
+				doc.addValue(d)
 			case token.TYPE:
 				// types are handled individually
 				var noPos token.Position;
@@ -225,13 +225,13 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 					// makeTypeDocs below). Simpler data structures, but
 					// would lose GenDecl documentation if the TypeSpec
 					// has documentation as well.
-					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{spec}, noPos});
+					doc.addType(&ast.GenDecl{d.Doc, d.Pos(), token.TYPE, noPos, []ast.Spec{spec}, noPos})
 					// A new GenDecl node is created, no need to nil out d.Doc.
 				}
 			}
 		}
 	case *ast.FuncDecl:
-		doc.addFunc(d);
+		doc.addFunc(d)
 	}
 }
 
@@ -239,7 +239,7 @@ func (doc *docReader) addDecl(decl ast.Decl) {
 func copyCommentList(list []*ast.Comment) []*ast.Comment {
 	copy := make([]*ast.Comment, len(list));
 	for i, c := range list {
-		copy[i] = c;
+		copy[i] = c
 	}
 	return copy;
 }
@@ -268,7 +268,7 @@ func (doc *docReader) addFile(src *ast.File) {
 
 	// add all declarations
 	for _, decl := range src.Decls {
-		doc.addDecl(decl);
+		doc.addDecl(decl)
 	}
 
 	// collect BUG(...) comments
@@ -331,14 +331,14 @@ func (p sortValueDoc) Swap(i, j int)	{ p[i], p[j] = p[j], p[i] }
 
 func declName(d *ast.GenDecl) string {
 	if len(d.Specs) != 1 {
-		return "";
+		return ""
 	}
 
 	switch v := d.Specs[0].(type) {
 	case *ast.ValueSpec:
-		return v.Names[0].Value;
+		return v.Names[0].Value
 	case *ast.TypeSpec:
-		return v.Name.Value;
+		return v.Name.Value
 	}
 
 	return "";
@@ -350,7 +350,7 @@ func (p sortValueDoc) Less(i, j int) bool {
 	// pull blocks (name = "") up to top
 	// in original order
 	if ni, nj := declName(p[i].Decl), declName(p[j].Decl); ni != nj {
-		return ni < nj;
+		return ni < nj
 	}
 	return p[i].order < p[j].order;
 }
@@ -398,7 +398,7 @@ func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
 		doc.Doc = CommentText(f.Doc);
 		f.Doc = nil;	// doc consumed - remove from ast.FuncDecl node
 		if f.Recv != nil {
-			doc.Recv = f.Recv.Type;
+			doc.Recv = f.Recv.Type
 		}
 		doc.Name = f.Name.Value;
 		doc.Decl = f;
@@ -434,7 +434,7 @@ func (p sortTypeDoc) Less(i, j int) bool {
 	// pull blocks (name = "") up to top
 	// in original order
 	if ni, nj := p[i].Type.Name.Value, p[j].Type.Name.Value; ni != nj {
-		return ni < nj;
+		return ni < nj
 	}
 	return p[i].order < p[j].order;
 }
@@ -457,7 +457,7 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
 			typespec.Doc = nil;	// doc consumed - remove from ast.TypeSpec node
 			if doc == nil {
 				// no doc associated with the spec, use the declaration doc, if any
-				doc = decl.Doc;
+				doc = decl.Doc
 			}
 			decl.Doc = nil;	// doc consumed - remove from ast.Decl node
 			t.Doc = CommentText(doc);
@@ -480,13 +480,13 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
 			doc.values.AppendVector(old.values);
 			// 2) move factory functions
 			for name, f := range old.factories {
-				doc.funcs[name] = f;
+				doc.funcs[name] = f
 			}
 			// 3) move methods
 			for name, f := range old.methods {
 				// don't overwrite functions with the same name
 				if _, found := doc.funcs[name]; !found {
-					doc.funcs[name] = f;
+					doc.funcs[name] = f
 				}
 			}
 		}
@@ -500,7 +500,7 @@ func (doc *docReader) makeTypeDocs(m map[string]*typeDoc) []*TypeDoc {
 func makeBugDocs(v *vector.Vector) []string {
 	d := make([]string, v.Len());
 	for i := 0; i < v.Len(); i++ {
-		d[i] = CommentText(v.At(i).(*ast.CommentGroup));
+		d[i] = CommentText(v.At(i).(*ast.CommentGroup))
 	}
 	return d;
 }
@@ -553,7 +553,7 @@ func isRegexp(s string) bool {
 	for _, c := range s {
 		for _, m := range metachars {
 			if c == m {
-				return true;
+				return true
 			}
 		}
 	}
@@ -565,11 +565,11 @@ func match(s string, a []string) bool {
 	for _, t := range a {
 		if isRegexp(t) {
 			if matched, _ := regexp.MatchString(t, s); matched {
-				return true;
+				return true
 			}
 		}
 		if s == t {
-			return true;
+			return true
 		}
 	}
 	return false;
@@ -582,12 +582,12 @@ func matchDecl(d *ast.GenDecl, names []string) bool {
 		case *ast.ValueSpec:
 			for _, name := range v.Names {
 				if match(name.Value, names) {
-					return true;
+					return true
 				}
 			}
 		case *ast.TypeSpec:
 			if match(v.Name.Value, names) {
-				return true;
+				return true
 			}
 		}
 	}
@@ -624,7 +624,7 @@ func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
 	for _, td := range a {
 		match := false;
 		if matchDecl(td.Decl, names) {
-			match = true;
+			match = true
 		} else {
 			// type name doesn't match, but we may have matching factories or methods
 			td.Factories = filterFuncDocs(td.Factories, names);

@@ -29,7 +29,7 @@ func Main() {
 		print("; ");
 		line, err := r.ReadSlice('\n');
 		if err != nil {
-			break;
+			break
 		}
 
 		// Try line as a command
@@ -37,7 +37,7 @@ func Main() {
 		if cmd != nil {
 			err := cmd.handler(rest);
 			if err != nil {
-				scanner.PrintError(os.Stderr, err);
+				scanner.PrintError(os.Stderr, err)
 			}
 			continue;
 		}
@@ -54,7 +54,7 @@ func Main() {
 			continue;
 		}
 		if v != nil {
-			println(v.String());
+			println(v.String())
 		}
 	}
 }
@@ -96,13 +96,13 @@ func getCmd(line []byte) (*cmd, []byte) {
 	sc, _ := newScanner(line);
 	pos, tok, lit := sc.Scan();
 	if sc.ErrorCount != 0 || tok != token.IDENT {
-		return nil, nil;
+		return nil, nil
 	}
 
 	slit := string(lit);
 	for i := range cmds {
 		if cmds[i].cmd == slit {
-			return &cmds[i], line[pos.Offset + len(lit) : len(line)];
+			return &cmds[i], line[pos.Offset + len(lit) : len(line)]
 		}
 	}
 	return nil, nil;
@@ -127,13 +127,13 @@ func getCmd(line []byte) (*cmd, []byte) {
 func cmdLoad(args []byte) os.Error {
 	ident, path, err := parseLoad(args);
 	if err != nil {
-		return err;
+		return err
 	}
 	if curProc != nil {
-		return UsageError("multiple processes not implemented");
+		return UsageError("multiple processes not implemented")
 	}
 	if ident != "." {
-		return UsageError("process identifiers not implemented");
+		return UsageError("process identifiers not implemented")
 	}
 
 	// Parse argument and start or attach to process
@@ -142,27 +142,27 @@ func cmdLoad(args []byte) os.Error {
 	if len(path) >= 4 && path[0:4] == "pid:" {
 		pid, err := strconv.Atoi(path[4:len(path)]);
 		if err != nil {
-			return err;
+			return err
 		}
 		fname, err = os.Readlink(fmt.Sprintf("/proc/%d/exe", pid));
 		if err != nil {
-			return err;
+			return err
 		}
 		tproc, err = proc.Attach(pid);
 		if err != nil {
-			return err;
+			return err
 		}
 		println("Attached to", pid);
 	} else {
 		parts := strings.Split(path, " ", 0);
 		if len(parts) == 0 {
-			fname = "";
+			fname = ""
 		} else {
-			fname = parts[0];
+			fname = parts[0]
 		}
 		tproc, err = proc.ForkExec(fname, parts, os.Environ(), "", []*os.File{os.Stdin, os.Stdout, os.Stderr});
 		if err != nil {
-			return err;
+			return err
 		}
 		println("Started", path);
 		// TODO(austin) If we fail after this point, kill tproc
@@ -207,7 +207,7 @@ func parseLoad(args []byte) (ident string, path string, err os.Error) {
 	var toks [4]token.Token;
 	var lits [4][]byte;
 	for i := range toks {
-		_, toks[i], lits[i] = sc.Scan();
+		_, toks[i], lits[i] = sc.Scan()
 	}
 	if sc.ErrorCount != 0 {
 		err = ev.GetError(scanner.NoMultiples);
@@ -222,7 +222,7 @@ func parseLoad(args []byte) (ident string, path string, err os.Error) {
 	}
 
 	if toks[i] != token.STRING {
-		return;
+		return
 	}
 	path, uerr := strconv.Unquote(string(lits[i]));
 	if uerr != nil {
@@ -232,10 +232,10 @@ func parseLoad(args []byte) (ident string, path string, err os.Error) {
 	i++;
 
 	if toks[i] == token.SEMICOLON {
-		i++;
+		i++
 	}
 	if toks[i] != token.EOF {
-		return;
+		return
 	}
 
 	return ident, path, nil;
@@ -246,11 +246,11 @@ func parseLoad(args []byte) (ident string, path string, err os.Error) {
 func cmdBt(args []byte) os.Error {
 	err := parseNoArgs(args, "Usage: bt");
 	if err != nil {
-		return err;
+		return err
 	}
 
 	if curProc == nil || curProc.curGoroutine == nil {
-		return NoCurrentGoroutine{};
+		return NoCurrentGoroutine{}
 	}
 
 	f := curProc.curGoroutine.frame;
@@ -260,22 +260,22 @@ func cmdBt(args []byte) os.Error {
 	}
 
 	for f.Inner() != nil {
-		f = f.Inner();
+		f = f.Inner()
 	}
 
 	for i := 0; i < 100; i++ {
 		if f == curProc.curGoroutine.frame {
-			fmt.Printf("=> ");
+			fmt.Printf("=> ")
 		} else {
-			fmt.Printf("   ");
+			fmt.Printf("   ")
 		}
 		fmt.Printf("%8x %v\n", f.pc, f);
 		f, err = f.Outer();
 		if err != nil {
-			return err;
+			return err
 		}
 		if f == nil {
-			return nil;
+			return nil
 		}
 	}
 
@@ -287,10 +287,10 @@ func parseNoArgs(args []byte, usage string) os.Error {
 	sc, ev := newScanner(args);
 	_, tok, _ := sc.Scan();
 	if sc.ErrorCount != 0 {
-		return ev.GetError(scanner.NoMultiples);
+		return ev.GetError(scanner.NoMultiples)
 	}
 	if tok != token.EOF {
-		return UsageError(usage);
+		return UsageError(usage)
 	}
 	return nil;
 }
@@ -313,11 +313,11 @@ func defineFuncs() {
 // a backtrace.
 func printCurFrame() {
 	if curProc == nil || curProc.curGoroutine == nil {
-		return;
+		return
 	}
 	f := curProc.curGoroutine.frame;
 	if f == nil {
-		return;
+		return
 	}
 	fmt.Printf("=> %8x %v\n", f.pc, f);
 }
@@ -326,11 +326,11 @@ func printCurFrame() {
 func fnOutSig()	{}
 func fnOut(t *eval.Thread, args []eval.Value, res []eval.Value) {
 	if curProc == nil {
-		t.Abort(NoCurrentGoroutine{});
+		t.Abort(NoCurrentGoroutine{})
 	}
 	err := curProc.Out();
 	if err != nil {
-		t.Abort(err);
+		t.Abort(err)
 	}
 	// TODO(austin) Only in the command form
 	printCurFrame();
@@ -340,16 +340,16 @@ func fnOut(t *eval.Thread, args []eval.Value, res []eval.Value) {
 func fnContWaitSig()	{}
 func fnContWait(t *eval.Thread, args []eval.Value, res []eval.Value) {
 	if curProc == nil {
-		t.Abort(NoCurrentGoroutine{});
+		t.Abort(NoCurrentGoroutine{})
 	}
 	err := curProc.ContWait();
 	if err != nil {
-		t.Abort(err);
+		t.Abort(err)
 	}
 	// TODO(austin) Only in the command form
 	ev := curProc.Event();
 	if ev != nil {
-		fmt.Printf("%v\n", ev);
+		fmt.Printf("%v\n", ev)
 	}
 	printCurFrame();
 }
@@ -362,12 +362,12 @@ func fnBpSet(t *eval.Thread, args []eval.Value, res []eval.Value) {
 	// Functions and instructions can implement that interface and
 	// we can have something to translate file:line pairs.
 	if curProc == nil {
-		t.Abort(NoCurrentGoroutine{});
+		t.Abort(NoCurrentGoroutine{})
 	}
 	name := args[0].(eval.StringValue).Get(t);
 	fn := curProc.syms.LookupFunc(name);
 	if fn == nil {
-		t.Abort(UsageError("no such function " + name));
+		t.Abort(UsageError("no such function " + name))
 	}
 	curProc.OnBreakpoint(proc.Word(fn.Entry)).AddHandler(EventStop);
 }

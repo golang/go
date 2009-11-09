@@ -65,7 +65,7 @@ func openProg(name string) *Prog {
 			// Instead, turn it into a new Error that will return
 			// details for all the errors.
 			for _, e := range list {
-				fmt.Fprintln(os.Stderr, e);
+				fmt.Fprintln(os.Stderr, e)
 			}
 			os.Exit(2);
 		}
@@ -94,16 +94,16 @@ func openProg(name string) *Prog {
 			}
 			sawC = true;
 			if s.Name != nil {
-				error(s.Path[0].Pos(), `cannot rename import "C"`);
+				error(s.Path[0].Pos(), `cannot rename import "C"`)
 			}
 			if s.Doc != nil {
-				p.Preamble += doc.CommentText(s.Doc) + "\n";
+				p.Preamble += doc.CommentText(s.Doc) + "\n"
 			} else if len(d.Specs) == 1 && d.Doc != nil {
-				p.Preamble += doc.CommentText(d.Doc) + "\n";
+				p.Preamble += doc.CommentText(d.Doc) + "\n"
 			}
 		}
 		if ws == 0 {
-			continue;
+			continue
 		}
 		d.Specs = d.Specs[0:ws];
 		p.AST.Decls[w] = d;
@@ -112,7 +112,7 @@ func openProg(name string) *Prog {
 	p.AST.Decls = p.AST.Decls[0:w];
 
 	if !sawC {
-		error(noPos, `cannot find import "C"`);
+		error(noPos, `cannot find import "C"`)
 	}
 
 	// Accumulate pointers to uses of C.x.
@@ -135,7 +135,7 @@ func walk(x interface{}, p *Prog, context string) {
 				if i >= cap(p.Crefs) {
 					new := make([]*Cref, 2*i);
 					for j, v := range p.Crefs {
-						new[j] = v;
+						new[j] = v
 					}
 					p.Crefs = new;
 				}
@@ -159,7 +159,7 @@ func walk(x interface{}, p *Prog, context string) {
 
 	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
 	case *ast.Field:
-		walk(&n.Type, p, "type");
+		walk(&n.Type, p, "type")
 	case *ast.BadExpr:
 	case *ast.Ident:
 	case *ast.Ellipsis:
@@ -172,14 +172,14 @@ func walk(x interface{}, p *Prog, context string) {
 		walk(&n.Type, p, "type");
 		walk(n.Elts, p, "expr");
 	case *ast.ParenExpr:
-		walk(&n.X, p, context);
+		walk(&n.X, p, context)
 	case *ast.SelectorExpr:
-		walk(&n.X, p, "selector");
+		walk(&n.X, p, "selector")
 	case *ast.IndexExpr:
 		walk(&n.X, p, "expr");
 		walk(&n.Index, p, "expr");
 		if n.End != nil {
-			walk(&n.End, p, "expr");
+			walk(&n.End, p, "expr")
 		}
 	case *ast.TypeAssertExpr:
 		walk(&n.X, p, "expr");
@@ -188,9 +188,9 @@ func walk(x interface{}, p *Prog, context string) {
 		walk(&n.Fun, p, "call");
 		walk(n.Args, p, "expr");
 	case *ast.StarExpr:
-		walk(&n.X, p, context);
+		walk(&n.X, p, context)
 	case *ast.UnaryExpr:
-		walk(&n.X, p, "expr");
+		walk(&n.X, p, "expr")
 	case *ast.BinaryExpr:
 		walk(&n.X, p, "expr");
 		walk(&n.Y, p, "expr");
@@ -202,40 +202,40 @@ func walk(x interface{}, p *Prog, context string) {
 		walk(&n.Len, p, "expr");
 		walk(&n.Elt, p, "type");
 	case *ast.StructType:
-		walk(n.Fields, p, "field");
+		walk(n.Fields, p, "field")
 	case *ast.FuncType:
 		walk(n.Params, p, "field");
 		walk(n.Results, p, "field");
 	case *ast.InterfaceType:
-		walk(n.Methods, p, "field");
+		walk(n.Methods, p, "field")
 	case *ast.MapType:
 		walk(&n.Key, p, "type");
 		walk(&n.Value, p, "type");
 	case *ast.ChanType:
-		walk(&n.Value, p, "type");
+		walk(&n.Value, p, "type")
 
 	case *ast.BadStmt:
 	case *ast.DeclStmt:
-		walk(n.Decl, p, "decl");
+		walk(n.Decl, p, "decl")
 	case *ast.EmptyStmt:
 	case *ast.LabeledStmt:
-		walk(n.Stmt, p, "stmt");
+		walk(n.Stmt, p, "stmt")
 	case *ast.ExprStmt:
-		walk(&n.X, p, "expr");
+		walk(&n.X, p, "expr")
 	case *ast.IncDecStmt:
-		walk(&n.X, p, "expr");
+		walk(&n.X, p, "expr")
 	case *ast.AssignStmt:
 		walk(n.Lhs, p, "expr");
 		walk(n.Rhs, p, "expr");
 	case *ast.GoStmt:
-		walk(n.Call, p, "expr");
+		walk(n.Call, p, "expr")
 	case *ast.DeferStmt:
-		walk(n.Call, p, "expr");
+		walk(n.Call, p, "expr")
 	case *ast.ReturnStmt:
-		walk(n.Results, p, "expr");
+		walk(n.Results, p, "expr")
 	case *ast.BranchStmt:
 	case *ast.BlockStmt:
-		walk(n.List, p, "stmt");
+		walk(n.List, p, "stmt")
 	case *ast.IfStmt:
 		walk(n.Init, p, "stmt");
 		walk(&n.Cond, p, "expr");
@@ -260,7 +260,7 @@ func walk(x interface{}, p *Prog, context string) {
 		walk(n.Rhs, p, "expr");
 		walk(n.Body, p, "stmt");
 	case *ast.SelectStmt:
-		walk(n.Body, p, "stmt");
+		walk(n.Body, p, "stmt")
 	case *ast.ForStmt:
 		walk(n.Init, p, "stmt");
 		walk(&n.Cond, p, "expr");
@@ -277,47 +277,47 @@ func walk(x interface{}, p *Prog, context string) {
 		walk(&n.Type, p, "type");
 		walk(n.Values, p, "expr");
 	case *ast.TypeSpec:
-		walk(&n.Type, p, "type");
+		walk(&n.Type, p, "type")
 
 	case *ast.BadDecl:
 	case *ast.GenDecl:
-		walk(n.Specs, p, "spec");
+		walk(n.Specs, p, "spec")
 	case *ast.FuncDecl:
 		if n.Recv != nil {
-			walk(n.Recv, p, "field");
+			walk(n.Recv, p, "field")
 		}
 		walk(n.Type, p, "type");
 		if n.Body != nil {
-			walk(n.Body, p, "stmt");
+			walk(n.Body, p, "stmt")
 		}
 
 	case *ast.File:
-		walk(n.Decls, p, "decl");
+		walk(n.Decls, p, "decl")
 
 	case *ast.Package:
 		for _, f := range n.Files {
-			walk(f, p, "file");
+			walk(f, p, "file")
 		}
 
 	case []ast.Decl:
 		for _, d := range n {
-			walk(d, p, context);
+			walk(d, p, context)
 		}
 	case []ast.Expr:
 		for i := range n {
-			walk(&n[i], p, context);
+			walk(&n[i], p, context)
 		}
 	case []*ast.Field:
 		for _, f := range n {
-			walk(f, p, context);
+			walk(f, p, context)
 		}
 	case []ast.Stmt:
 		for _, s := range n {
-			walk(s, p, context);
+			walk(s, p, context)
 		}
 	case []ast.Spec:
 		for _, s := range n {
-			walk(s, p, context);
+			walk(s, p, context)
 		}
 	}
 }

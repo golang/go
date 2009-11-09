@@ -57,7 +57,7 @@ func (z *Int) Add(x, y *Int) *Int {
 		}
 	}
 	if len(z.abs) == 0 {
-		z.neg = false;	// 0 has no sign
+		z.neg = false	// 0 has no sign
 	}
 	return z;
 }
@@ -82,7 +82,7 @@ func (z *Int) Sub(x, y *Int) *Int {
 		}
 	}
 	if len(z.abs) == 0 {
-		z.neg = false;	// 0 has no sign
+		z.neg = false	// 0 has no sign
 	}
 	return z;
 }
@@ -120,7 +120,7 @@ func (z *Int) Mod(x, y *Int) (r *Int) {
 
 func div(q, r, x, y *Int) {
 	if len(y.abs) == 0 {
-		panic("Divide by zero undefined");
+		panic("Divide by zero undefined")
 	}
 
 	if cmpNN(x.abs, y.abs) < 0 {
@@ -131,12 +131,12 @@ func div(q, r, x, y *Int) {
 		src := x.abs;
 		dst := x.abs;
 		if r == x {
-			dst = nil;
+			dst = nil
 		}
 
 		r.abs = makeN(dst, len(src), false);
 		for i, v := range src {
-			r.abs[i] = v;
+			r.abs[i] = v
 		}
 		return;
 	}
@@ -185,12 +185,12 @@ func CmpInt(x, y *Int) (r int) {
 	case x.neg == y.neg:
 		r = cmpNN(x.abs, y.abs);
 		if x.neg {
-			r = -r;
+			r = -r
 		}
 	case x.neg:
-		r = -1;
+		r = -1
 	default:
-		r = 1;
+		r = 1
 	}
 	return;
 }
@@ -199,7 +199,7 @@ func CmpInt(x, y *Int) (r int) {
 func (z *Int) String() string {
 	s := "";
 	if z.neg {
-		s = "-";
+		s = "-"
 	}
 	return s + stringN(z.abs, 10);
 }
@@ -212,23 +212,23 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
 	var scanned int;
 
 	if base == 1 || base > 16 {
-		goto Error;
+		goto Error
 	}
 
 	if len(s) == 0 {
-		goto Error;
+		goto Error
 	}
 
 	if s[0] == '-' {
 		z.neg = true;
 		s = s[1:len(s)];
 	} else {
-		z.neg = false;
+		z.neg = false
 	}
 
 	z.abs, _, scanned = scanN(z.abs, s, base);
 	if scanned != len(s) {
-		goto Error;
+		goto Error
 	}
 
 	return z, true;
@@ -293,7 +293,7 @@ func (z *Int) Bytes() []byte {
 
 	i := 0;
 	for i < len(b) && b[i] == 0 {
-		i++;
+		i++
 	}
 
 	return b[i:len(b)];
@@ -304,7 +304,7 @@ func (z *Int) Bytes() []byte {
 // considered to have a length of one.
 func (z *Int) Len() int {
 	if len(z.abs) == 0 {
-		return 0;
+		return 0
 	}
 
 	return len(z.abs)*int(_W) - int(leadingZeros(z.abs[len(z.abs)-1]));
@@ -338,11 +338,11 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 		z.Mul(z, z);
 
 		if v&mask != 0 {
-			z.Mul(z, x);
+			z.Mul(z, x)
 		}
 
 		if m != nil {
-			z.Mod(z, m);
+			z.Mod(z, m)
 		}
 
 		v <<= 1;
@@ -355,11 +355,11 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 			z.Mul(z, z);
 
 			if v&mask != 0 {
-				z.Mul(z, x);
+				z.Mul(z, x)
 			}
 
 			if m != nil {
-				z.Mod(z, m);
+				z.Mod(z, m)
 			}
 
 			v <<= 1;
@@ -379,10 +379,10 @@ func GcdInt(d, x, y, a, b *Int) {
 	if a.neg || b.neg {
 		d.New(0);
 		if x != nil {
-			x.New(0);
+			x.New(0)
 		}
 		if y != nil {
-			y.New(0);
+			y.New(0)
 		}
 		return;
 	}
@@ -418,11 +418,11 @@ func GcdInt(d, x, y, a, b *Int) {
 	}
 
 	if x != nil {
-		*x = *lastX;
+		*x = *lastX
 	}
 
 	if y != nil {
-		*y = *lastY;
+		*y = *lastY
 	}
 
 	*d = *A;

@@ -27,7 +27,7 @@ func (p *parser) next() {
 	if p.tok.IsKeyword() {
 		// TODO Should keyword mapping always happen outside scanner?
 		//      Or should there be a flag to scanner to enable keyword mapping?
-		p.tok = token.IDENT;
+		p.tok = token.IDENT
 	}
 }
 
@@ -39,7 +39,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'";
 		if p.tok.IsLiteral() {
-			msg += " "+string(p.lit);
+			msg += " "+string(p.lit)
 		}
 	}
 	p.Error(pos, msg);
@@ -49,7 +49,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 func (p *parser) expect(tok token.Token) token.Position {
 	pos := p.pos;
 	if p.tok != tok {
-		p.errorExpected(pos, "'" + tok.String() + "'");
+		p.errorExpected(pos, "'" + tok.String() + "'")
 	}
 	p.next();	// make progress in any case
 	return pos;
@@ -74,7 +74,7 @@ func (p *parser) parseToken() *Token {
 		// has already been reported.
 		p.next();
 	} else {
-		p.expect(token.STRING);
+		p.expect(token.STRING)
 	}
 	return &Token{pos, value};
 }
@@ -85,7 +85,7 @@ func (p *parser) parseTerm() (x Expression) {
 
 	switch p.tok {
 	case token.IDENT:
-		x = p.parseIdentifier();
+		x = p.parseIdentifier()
 
 	case token.STRING:
 		tok := p.parseToken();
@@ -120,21 +120,21 @@ func (p *parser) parseSequence() Expression {
 	list.Init(0);
 
 	for x := p.parseTerm(); x != nil; x = p.parseTerm() {
-		list.Push(x);
+		list.Push(x)
 	}
 
 	// no need for a sequence if list.Len() < 2
 	switch list.Len() {
 	case 0:
-		return nil;
+		return nil
 	case 1:
-		return list.At(0).(Expression);
+		return list.At(0).(Expression)
 	}
 
 	// convert list into a sequence
 	seq := make(Sequence, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		seq[i] = list.At(i).(Expression);
+		seq[i] = list.At(i).(Expression)
 	}
 	return seq;
 }
@@ -147,10 +147,10 @@ func (p *parser) parseExpression() Expression {
 	for {
 		x := p.parseSequence();
 		if x != nil {
-			list.Push(x);
+			list.Push(x)
 		}
 		if p.tok != token.OR {
-			break;
+			break
 		}
 		p.next();
 	}
@@ -158,15 +158,15 @@ func (p *parser) parseExpression() Expression {
 	// no need for an Alternative node if list.Len() < 2
 	switch list.Len() {
 	case 0:
-		return nil;
+		return nil
 	case 1:
-		return list.At(0).(Expression);
+		return list.At(0).(Expression)
 	}
 
 	// convert list into an Alternative node
 	alt := make(Alternative, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		alt[i] = list.At(i).(Expression);
+		alt[i] = list.At(i).(Expression)
 	}
 	return alt;
 }
@@ -192,9 +192,9 @@ func (p *parser) parse(filename string, src []byte) Grammar {
 		prod := p.parseProduction();
 		name := prod.Name.String;
 		if _, found := grammar[name]; !found {
-			grammar[name] = prod;
+			grammar[name] = prod
 		} else {
-			p.Error(prod.Pos(), name + " declared already");
+			p.Error(prod.Pos(), name + " declared already")
 		}
 	}
 

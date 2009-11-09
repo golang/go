@@ -26,7 +26,7 @@ var _DNS_configError os.Error
 func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
 	file, err := open("/etc/resolv.conf");
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	conf := new(_DNS_Config);
 	conf.servers = make([]string, 3)[0:0];	// small, but the standard limit
@@ -38,7 +38,7 @@ func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 		f := getFields(line);
 		if len(f) < 1 {
-			continue;
+			continue
 		}
 		switch f[0] {
 		case "nameserver":	// add one name server
@@ -61,13 +61,13 @@ func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
 				conf.search = make([]string, 1);
 				conf.search[0] = f[1];
 			} else {
-				conf.search = make([]string, 0);
+				conf.search = make([]string, 0)
 			}
 
 		case "search":	// set search path to given servers
 			conf.search = make([]string, len(f)-1);
 			for i := 0; i < len(conf.search); i++ {
-				conf.search[i] = f[i+1];
+				conf.search[i] = f[i+1]
 			}
 
 		case "options":	// magic options
@@ -77,23 +77,23 @@ func _DNS_ReadConfig() (*_DNS_Config, os.Error) {
 				case len(s) >= 6 && s[0:6] == "ndots:":
 					n, _, _ := dtoi(s, 6);
 					if n < 1 {
-						n = 1;
+						n = 1
 					}
 					conf.ndots = n;
 				case len(s) >= 8 && s[0:8] == "timeout:":
 					n, _, _ := dtoi(s, 8);
 					if n < 1 {
-						n = 1;
+						n = 1
 					}
 					conf.timeout = n;
 				case len(s) >= 8 && s[0:9] == "attempts:":
 					n, _, _ := dtoi(s, 9);
 					if n < 1 {
-						n = 1;
+						n = 1
 					}
 					conf.attempts = n;
 				case s == "rotate":
-					conf.rotate = true;
+					conf.rotate = true
 				}
 			}
 		}

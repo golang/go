@@ -40,7 +40,7 @@ func TestNullConnectionState(t *testing.T) {
 
 	err := script.Perform(0, []*script.Event{sendReq, getReply});
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }
 
@@ -61,7 +61,7 @@ func TestWaitConnectionState(t *testing.T) {
 
 	err := script.Perform(0, []*script.Event{sendReq, sendReq2, getReply2, sendState, getReply});
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }
 
@@ -79,7 +79,7 @@ func TestHandshakeAssembly(t *testing.T) {
 
 	err := script.Perform(0, []*script.Event{send1, send2, send3, recvMsg});
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }
 
@@ -95,7 +95,7 @@ func TestEarlyApplicationData(t *testing.T) {
 
 	err := script.Perform(0, []*script.Event{send, recv});
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }
 
@@ -114,7 +114,7 @@ func TestApplicationData(t *testing.T) {
 
 	err := script.Perform(0, []*script.Event{send1, recv1, send2, send3, recv2});
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }
 
@@ -132,6 +132,6 @@ func TestInvalidChangeCipherSpec(t *testing.T) {
 
 	err := script.Perform(0, []*script.Event{send1, recv1, send2, close, close2});
 	if err != nil {
-		t.Errorf("Got error: %s", err);
+		t.Errorf("Got error: %s", err)
 	}
 }
