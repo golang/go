@@ -132,11 +132,13 @@ div#linkList ul {
 
 div#linkList li {
   margin-left: 1em;
+  padding-bottom: 0.2em;
 }
 
 div#linkList li.navhead {
   font-weight: bold;
   margin-left: 0px;
+  padding-bottom: 0.25em;
 }
 
 #nav dl {

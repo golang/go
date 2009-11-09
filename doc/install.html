@@ -2,9 +2,15 @@
 
 <h2>Introduction</h2>
 
+<p>Go is an open source project, distributed under a
+<a href="/LICENSE">BSD-style license</a>.
+This document explains how to check out the sources,
+build them on your own machine, and run them.
+</p>
+
 <p>
 There are two distinct ways to experiment with Go.
-This document explains how to check out, build, and use the <code>gc</code> Go
+This document focuses on the <code>gc</code> Go
 compiler and tools (<code>6g</code>, <code>8g</code> etc.).
 For information on how to use <code>gccgo</code>, a more traditional
 compiler using the GCC back end, see
@@ -31,12 +37,12 @@ plus one optional variable:</p>
 <dd>
 	The name of the target operating system and compilation architecture.
 	Choices for <code>$GOOS</code> are <code>linux</code>,
-	<code>darwin</code> (Mac OS X 10.5 or 10.6), 
+	<code>darwin</code> (Mac OS X 10.5 or 10.6),
 	and <code>nacl</code> (Native Client, an incomplete port).
 	Choices for <code>$GOARCH</code> are <code>amd64</code> (64-bit x86, the most mature port),
 	<code>386</code> (32-bit x86), and
 	<code>arm</code> (32-bit ARM, an incomplete port).
-	The valid combinations are 
+	The valid combinations are
 	<code>linux</code>/<code>amd64</code>,
 	<code>linux</code>/<code>arm</code>,
 	<code>linux</code>/<code>386</code>,
@@ -51,7 +57,7 @@ plus one optional variable:</p>
 </dt>
 <dd>
 	The location where binaries will be installed.
-	If you set <code>$GOBIN</code>, you need to ensure that it 
+	If you set <code>$GOBIN</code>, you need to ensure that it
 	is in your <code>$PATH</code> so that newly built Go-specific
 	command such as the compiler can be found during the build.
 	The default, <code>$HOME/bin</code>, may already be in your <code>$PATH</code>.
@@ -98,10 +104,10 @@ architectures.
 <dt>
 	<code>386</code> (a.k.a. <code>x86</code> or <code>x86-32</code>); <code>8g,8l,8c,8a</code>
 </dt>
-<dd>	
+<dd>
 	Comparable to the <code>amd64</code> port. Not as well soaked but
 	should be nearly as solid.
-	
+
 </dd>
 <dt>
 	<code>arm</code> (a.k.a. <code>ARM</code>); <code>5g,5l,5c,5a</code>
@@ -149,7 +155,7 @@ $ hg clone http://r45/ $GOROOT
 <h2>Install Go</h2>
 
 <p>You need to have the parser generator Bison installed.
-It is installed as part of Xcode on OS X. 
+It is installed as part of Xcode on OS X.
 If you need it on Linux,
 </p>
 
@@ -250,7 +256,7 @@ The linker learns about them by reading <code>hello.6</code>.
 
 <p>
 To build more complicated programs, you will probably
-want to use a 
+want to use a
 <code>Makefile</code>.
 There are examples in places like
 <code>$GOROOT/src/cmd/godoc/Makefile</code>
