@@ -96,7 +96,7 @@ func (client *Client) input() {
 		_ = call.Done <- call;	// do not block
 	}
 	client.mutex.Unlock();
-	log.Stderr("client protocol error:", err);
+	log.Stderr("rpc: client protocol error:", err);
 }
 
 // NewClient returns a new Client to handle requests to the
@@ -144,18 +144,22 @@ func Dial(network, address string) (*Client, os.Error) {
 // Go invokes the function asynchronously.  It returns the Call structure representing
 // the invocation.  The done channel will signal when the call is complete by returning
 // the same Call object.  If done is nil, Go will allocate a new channel.
+// If non-nil, done must be buffered or Go will deliberately crash.
 func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
 	c := new(Call);
 	c.ServiceMethod = serviceMethod;
 	c.Args = args;
 	c.Reply = reply;
 	if done == nil {
-		done = make(chan *Call, 1);	// buffered.
+		done = make(chan *Call, 10);	// buffered.
 	} else {
-		// TODO(r): check cap > 0
 		// If caller passes done != nil, it must arrange that
 		// done has enough buffer for the number of simultaneous
-		// RPCs that will be using that channel.
+		// RPCs that will be using that channel.  If the channel
+		// is totally unbuffered, it's best not to run at all.
+		if cap(done) == 0 {
+			log.Crash("rpc: done channel is unbuffered");
+		}
 	}
 	c.Done = done;
 	if client.shutdown != nil {
