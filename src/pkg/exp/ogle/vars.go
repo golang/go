@@ -24,7 +24,7 @@ type NotOnStack struct {
 }
 
 func (e NotOnStack) String() string {
-	return "function " + e.Fn.Name + " not on " + e.Goroutine.String() + "'s stack";
+	return "function " + e.Fn.Name + " not on " + e.Goroutine.String() + "'s stack"
 }
 
 // A remoteFramePtr is an implementation of eval.PtrValue that
@@ -40,22 +40,22 @@ type remoteFramePtr struct {
 
 func (v remoteFramePtr) String() string {
 	// TODO(austin): This could be a really awesome string method
-	return "<remote frame>";
+	return "<remote frame>"
 }
 
 func (v remoteFramePtr) Assign(t *eval.Thread, o eval.Value) {
-	v.Set(t, o.(eval.PtrValue).Get(t));
+	v.Set(t, o.(eval.PtrValue).Get(t))
 }
 
 func (v remoteFramePtr) Get(t *eval.Thread) eval.Value {
 	g := v.p.curGoroutine;
 	if g == nil || g.frame == nil {
-		t.Abort(NoCurrentGoroutine{});
+		t.Abort(NoCurrentGoroutine{})
 	}
 
 	for f := g.frame; f != nil; f = f.aOuter(t) {
 		if f.fn != v.fn {
-			continue;
+			continue
 		}
 
 		// TODO(austin): Register for shootdown with f
@@ -70,7 +70,7 @@ func (v remoteFramePtr) Set(t *eval.Thread, x eval.Value) {
 	// Theoretically this could be a static error.  If remote
 	// packages were packages, remote frames could just be defined
 	// as constants.
-	t.Abort(ReadOnlyError("remote frames cannot be assigned to"));
+	t.Abort(ReadOnlyError("remote frames cannot be assigned to"))
 }
 
 /*
@@ -93,15 +93,15 @@ type remotePackage struct {
 func (v remotePackage) String() string	{ return "<remote package>" }
 
 func (v remotePackage) Assign(t *eval.Thread, o eval.Value) {
-	t.Abort(ReadOnlyError("remote packages cannot be assigned to"));
+	t.Abort(ReadOnlyError("remote packages cannot be assigned to"))
 }
 
 func (v remotePackage) Get(t *eval.Thread) eval.StructValue {
-	return v;
+	return v
 }
 
 func (v remotePackage) Field(t *eval.Thread, i int) eval.Value {
-	return v.defs[i];
+	return v.defs[i]
 }
 
 /*
@@ -121,7 +121,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 	for _, s := range p.syms.Syms {
 		if s.ReceiverName() != "" {
 			// TODO(austin)
-			continue;
+			continue
 		}
 
 		// Package
@@ -129,7 +129,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 		switch pkgName {
 		case "", "type", "extratype", "string", "go":
 			// "go" is really "go.string"
-			continue;
+			continue
 		}
 		pkg, ok := packages[pkgName];
 		if !ok {
@@ -147,7 +147,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 		// Symbol type
 		rt, err := p.typeOfSym(&s);
 		if err != nil {
-			return err;
+			return err
 		}
 
 		// Definition
@@ -155,7 +155,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 		case 'D', 'd', 'B', 'b':
 			// Global variable
 			if rt == nil {
-				continue;
+				continue
 			}
 			pkg[name] = def{rt.Type, rt.mk(remote{proc.Word(s.Value), p})};
 
@@ -167,7 +167,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 			// conversion syntax?
 			rt, err := p.makeFrameType(s);
 			if err != nil {
-				return err;
+				return err
 			}
 			pkg[name] = def{eval.NewPtrType(rt.Type), remoteFramePtr{p, s, rt}};
 		}
@@ -191,7 +191,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 
 		err := w.DefineConst(pkgName, pkgType, pkgVal);
 		if err != nil {
-			log.Stderrf("while defining package %s: %v", pkgName, err);
+			log.Stderrf("while defining package %s: %v", pkgName, err)
 		}
 	}
 
@@ -202,13 +202,13 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 // has no type, returns nil.
 func (p *Process) typeOfSym(s *gosym.Sym) (*remoteType, os.Error) {
 	if s.GoType == 0 {
-		return nil, nil;
+		return nil, nil
 	}
 	addr := proc.Word(s.GoType);
 	var rt *remoteType;
 	err := try(func(a aborter) { rt = parseRemoteType(a, p.runtime.Type.mk(remote{addr, p}).(remoteStruct)) });
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	return rt, nil;
 }
@@ -232,11 +232,11 @@ func (p *Process) makeFrameType(s *gosym.Func) (*remoteType, os.Error) {
 	for _, param := range s.Params {
 		rt, err := p.typeOfSym(param);
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 		if rt == nil {
 			//fmt.Printf(" (no type)\n");
-			continue;
+			continue
 		}
 		// TODO(austin): Why do local variables carry their
 		// package name?
@@ -251,10 +251,10 @@ func (p *Process) makeFrameType(s *gosym.Func) (*remoteType, os.Error) {
 	for _, local := range s.Locals {
 		rt, err := p.typeOfSym(local);
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 		if rt == nil {
-			continue;
+			continue
 		}
 		fields[i].Name = local.BaseName();
 		fields[i].Type = rt.Type;

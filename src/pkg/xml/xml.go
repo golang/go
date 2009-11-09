@@ -167,9 +167,9 @@ func NewParser(r io.Reader) *Parser {
 	// ReadByte, it's efficient enough.
 	// Otherwise, use bufio.
 	if rb, ok := r.(readByter); ok {
-		p.r = rb;
+		p.r = rb
 	} else {
-		p.r = bufio.NewReader(r);
+		p.r = bufio.NewReader(r)
 	}
 
 	return p;
@@ -203,7 +203,7 @@ func (p *Parser) Token() (t Token, err os.Error) {
 		t = p.nextToken;
 		p.nextToken = nil;
 	} else if t, err = p.RawToken(); err != nil {
-		return;
+		return
 	}
 
 	if !p.Strict {
@@ -234,7 +234,7 @@ func (p *Parser) Token() (t Token, err os.Error) {
 
 		p.translate(&t1.Name, true);
 		for i := range t1.Attr {
-			p.translate(&t1.Attr[i].Name, false);
+			p.translate(&t1.Attr[i].Name, false)
 		}
 		p.pushElement(t1.Name);
 		t = t1;
@@ -242,7 +242,7 @@ func (p *Parser) Token() (t Token, err os.Error) {
 	case EndElement:
 		p.translate(&t1.Name, true);
 		if !p.popElement(&t1) {
-			return nil, p.err;
+			return nil, p.err
 		}
 		t = t1;
 	}
@@ -255,14 +255,14 @@ func (p *Parser) Token() (t Token, err os.Error) {
 func (p *Parser) translate(n *Name, isElementName bool) {
 	switch {
 	case n.Space == "xmlns":
-		return;
+		return
 	case n.Space == "" && !isElementName:
-		return;
+		return
 	case n.Space == "" && n.Local == "xmlns":
-		return;
+		return
 	}
 	if v, ok := p.ns[n.Space]; ok {
-		n.Space = v;
+		n.Space = v
 	}
 }
 
@@ -285,9 +285,9 @@ const (
 func (p *Parser) push(kind int) *stack {
 	s := p.free;
 	if s != nil {
-		p.free = s.next;
+		p.free = s.next
 	} else {
-		s = new(stack);
+		s = new(stack)
 	}
 	s.next = p.stk;
 	s.kind = kind;
@@ -362,7 +362,7 @@ func (p *Parser) popElement(t *EndElement) bool {
 // t is not the end tag, invent the end tag.
 func (p *Parser) autoClose(t Token) (Token, bool) {
 	if p.stk == nil || p.stk.kind != stkStart {
-		return nil, false;
+		return nil, false
 	}
 	name := strings.ToLower(p.stk.name.Local);
 	for _, s := range p.AutoClose {
@@ -370,7 +370,7 @@ func (p *Parser) autoClose(t Token) (Token, bool) {
 			// This one should be auto closed if t doesn't close it.
 			et, ok := t.(EndElement);
 			if !ok || et.Name.Local != name {
-				return EndElement{p.stk.name}, true;
+				return EndElement{p.stk.name}, true
 			}
 			break;
 		}
@@ -384,7 +384,7 @@ func (p *Parser) autoClose(t Token) (Token, bool) {
 // name space prefixes to their corresponding URLs.
 func (p *Parser) RawToken() (Token, os.Error) {
 	if p.err != nil {
-		return nil, p.err;
+		return nil, p.err
 	}
 	if p.needClose {
 		// The last element we read was self-closing and
@@ -396,7 +396,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 
 	b, ok := p.getc();
 	if !ok {
-		return nil, p.err;
+		return nil, p.err
 	}
 
 	if b != '<' {
@@ -404,13 +404,13 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		p.ungetc(b);
 		data := p.text(-1, false);
 		if data == nil {
-			return nil, p.err;
+			return nil, p.err
 		}
 		return CharData(data), nil;
 	}
 
 	if b, ok = p.getc(); !ok {
-		return nil, p.err;
+		return nil, p.err
 	}
 	switch b {
 	case '/':
@@ -418,13 +418,13 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		var name Name;
 		if name, ok = p.nsname(); !ok {
 			if p.err == nil {
-				p.err = SyntaxError("expected element name after </");
+				p.err = SyntaxError("expected element name after </")
 			}
 			return nil, p.err;
 		}
 		p.space();
 		if b, ok = p.getc(); !ok {
-			return nil, p.err;
+			return nil, p.err
 		}
 		if b != '>' {
 			p.err = SyntaxError("invalid characters between </" + name.Local + " and >");
@@ -438,7 +438,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		// the version is 1.0 and the encoding is UTF-8.
 		var target string;
 		if target, ok = p.name(); !ok {
-			return nil, p.err;
+			return nil, p.err
 		}
 		p.space();
 		p.buf.Reset();
@@ -446,13 +446,13 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		for {
 			if b, ok = p.getc(); !ok {
 				if p.err == os.EOF {
-					p.err = SyntaxError("unterminated <? directive");
+					p.err = SyntaxError("unterminated <? directive")
 				}
 				return nil, p.err;
 			}
 			p.buf.WriteByte(b);
 			if b0 == '?' && b == '>' {
-				break;
+				break
 			}
 			b0 = b;
 		}
@@ -463,13 +463,13 @@ func (p *Parser) RawToken() (Token, os.Error) {
 	case '!':
 		// <!: Maybe comment, maybe CDATA.
 		if b, ok = p.getc(); !ok {
-			return nil, p.err;
+			return nil, p.err
 		}
 		switch b {
 		case '-':	// <!-
 			// Probably <!-- for a comment.
 			if b, ok = p.getc(); !ok {
-				return nil, p.err;
+				return nil, p.err
 			}
 			if b != '-' {
 				p.err = SyntaxError("invalid sequence <!- not part of <!--");
@@ -481,13 +481,13 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			for {
 				if b, ok = p.getc(); !ok {
 					if p.err == os.EOF {
-						p.err = SyntaxError("unterminated <!-- comment");
+						p.err = SyntaxError("unterminated <!-- comment")
 					}
 					return nil, p.err;
 				}
 				p.buf.WriteByte(b);
 				if b0 == '-' && b1 == '-' && b == '>' {
-					break;
+					break
 				}
 				b0, b1 = b1, b;
 			}
@@ -499,7 +499,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			// Probably <![CDATA[.
 			for i := 0; i < 7; i++ {
 				if b, ok = p.getc(); !ok {
-					return nil, p.err;
+					return nil, p.err
 				}
 				if b != "[CDATA["[i] {
 					p.err = SyntaxError("invalid <![ sequence");
@@ -509,7 +509,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			// Have <![CDATA[.  Read text until ]]>.
 			data := p.text(-1, true);
 			if data == nil {
-				return nil, p.err;
+				return nil, p.err
 			}
 			return CharData(data), nil;
 		}
@@ -520,10 +520,10 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		p.buf.WriteByte(b);
 		for {
 			if b, ok = p.getc(); !ok {
-				return nil, p.err;
+				return nil, p.err
 			}
 			if b == '>' {
-				break;
+				break
 			}
 			p.buf.WriteByte(b);
 		}
@@ -540,7 +540,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 	)
 	if name, ok = p.nsname(); !ok {
 		if p.err == nil {
-			p.err = SyntaxError("expected element name after <");
+			p.err = SyntaxError("expected element name after <")
 		}
 		return nil, p.err;
 	}
@@ -549,12 +549,12 @@ func (p *Parser) RawToken() (Token, os.Error) {
 	for {
 		p.space();
 		if b, ok = p.getc(); !ok {
-			return nil, p.err;
+			return nil, p.err
 		}
 		if b == '/' {
 			empty = true;
 			if b, ok = p.getc(); !ok {
-				return nil, p.err;
+				return nil, p.err
 			}
 			if b != '>' {
 				p.err = SyntaxError("expected /> in element");
@@ -563,7 +563,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			break;
 		}
 		if b == '>' {
-			break;
+			break
 		}
 		p.ungetc(b);
 
@@ -571,7 +571,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		if n >= cap(attr) {
 			nattr := make([]Attr, n, 2*cap(attr));
 			for i, a := range attr {
-				nattr[i] = a;
+				nattr[i] = a
 			}
 			attr = nattr;
 		}
@@ -579,13 +579,13 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		a := &attr[n];
 		if a.Name, ok = p.nsname(); !ok {
 			if p.err == nil {
-				p.err = SyntaxError("expected attribute name in element");
+				p.err = SyntaxError("expected attribute name in element")
 			}
 			return nil, p.err;
 		}
 		p.space();
 		if b, ok = p.getc(); !ok {
-			return nil, p.err;
+			return nil, p.err
 		}
 		if b != '=' {
 			p.err = SyntaxError("attribute name without = in element");
@@ -593,7 +593,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		}
 		p.space();
 		if b, ok = p.getc(); !ok {
-			return nil, p.err;
+			return nil, p.err
 		}
 		if b != '"' && b != '\'' {
 			p.err = SyntaxError("unquoted or missing attribute value in element");
@@ -601,7 +601,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		}
 		data := p.text(int(b), false);
 		if data == nil {
-			return nil, p.err;
+			return nil, p.err
 		}
 		a.Value = string(data);
 	}
@@ -618,7 +618,7 @@ func (p *Parser) space() {
 	for {
 		b, ok := p.getc();
 		if !ok {
-			return;
+			return
 		}
 		switch b {
 		case ' ', '\r', '\n', '\t':
@@ -635,7 +635,7 @@ func (p *Parser) space() {
 // Maintain line number.
 func (p *Parser) getc() (b byte, ok bool) {
 	if p.err != nil {
-		return 0, false;
+		return 0, false
 	}
 	if p.nextByte >= 0 {
 		b = byte(p.nextByte);
@@ -643,11 +643,11 @@ func (p *Parser) getc() (b byte, ok bool) {
 	} else {
 		b, p.err = p.r.ReadByte();
 		if p.err != nil {
-			return 0, false;
+			return 0, false
 		}
 	}
 	if b == '\n' {
-		p.line++;
+		p.line++
 	}
 	return b, true;
 }
@@ -655,7 +655,7 @@ func (p *Parser) getc() (b byte, ok bool) {
 // Unread a single byte.
 func (p *Parser) ungetc(b byte) {
 	if b == '\n' {
-		p.line--;
+		p.line--
 	}
 	p.nextByte = int(b);
 }
@@ -680,7 +680,7 @@ Input:
 	for {
 		b, ok := p.getc();
 		if !ok {
-			return nil;
+			return nil
 		}
 
 		// <![CDATA[ section ends with ]]>.
@@ -704,7 +704,7 @@ Input:
 			break Input;
 		}
 		if quote >= 0 && b == byte(quote) {
-			break Input;
+			break Input
 		}
 		if b == '&' {
 			// Read escaped character expression up to semicolon.
@@ -717,17 +717,17 @@ Input:
 			for i = 0; i < len(p.tmp); i++ {
 				p.tmp[i], p.err = p.r.ReadByte();
 				if p.err != nil {
-					return nil;
+					return nil
 				}
 				c := p.tmp[i];
 				if c == ';' {
-					break;
+					break
 				}
 				if 'a' <= c && c <= 'z' ||
 					'A' <= c && c <= 'Z' ||
 					'0' <= c && c <= '9' ||
 					c == '_' || c == '#' {
-					continue;
+					continue
 				}
 				p.ungetc(c);
 				break;
@@ -749,9 +749,9 @@ Input:
 				var n uint64;
 				var err os.Error;
 				if i >= 3 && s[1] == 'x' {
-					n, err = strconv.Btoui64(s[2:len(s)], 16);
+					n, err = strconv.Btoui64(s[2:len(s)], 16)
 				} else {
-					n, err = strconv.Btoui64(s[1:len(s)], 10);
+					n, err = strconv.Btoui64(s[1:len(s)], 10)
 				}
 				if err == nil && n <= unicode.MaxRune {
 					text = string(n);
@@ -762,7 +762,7 @@ Input:
 					text = string(r);
 					haveText = true;
 				} else {
-					text, haveText = p.Entity[s];
+					text, haveText = p.Entity[s]
 				}
 			}
 			if !haveText {
@@ -791,7 +791,7 @@ Input:
 		b := data[r];
 		if b == '\r' {
 			if r+1 < len(data) && data[r+1] == '\n' {
-				continue;
+				continue
 			}
 			b = '\n';
 		}
@@ -806,11 +806,11 @@ Input:
 func (p *Parser) nsname() (name Name, ok bool) {
 	s, ok := p.name();
 	if !ok {
-		return;
+		return
 	}
 	i := strings.Index(s, ":");
 	if i < 0 {
-		name.Local = s;
+		name.Local = s
 	} else {
 		name.Space = s[0:i];
 		name.Local = s[i+1 : len(s)];
@@ -823,7 +823,7 @@ func (p *Parser) nsname() (name Name, ok bool) {
 func (p *Parser) name() (s string, ok bool) {
 	var b byte;
 	if b, ok = p.getc(); !ok {
-		return;
+		return
 	}
 
 	// As a first approximation, we gather the bytes [A-Za-z_:.-\x80-\xFF]*
@@ -835,7 +835,7 @@ func (p *Parser) name() (s string, ok bool) {
 	p.buf.WriteByte(b);
 	for {
 		if b, ok = p.getc(); !ok {
-			return;
+			return
 		}
 		if b < utf8.RuneSelf && !isNameByte(b) {
 			p.ungetc(b);
@@ -859,7 +859,7 @@ func isNameByte(c byte) bool {
 	return 'A' <= c && c <= 'Z' ||
 		'a' <= c && c <= 'z' ||
 		'0' <= c && c <= '9' ||
-		c == '_' || c == ':' || c == '.' || c == '-';
+		c == '_' || c == ':' || c == '.' || c == '-'
 }
 
 // These tables were generated by cut and paste from Appendix B of

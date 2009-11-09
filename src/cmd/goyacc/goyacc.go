@@ -352,7 +352,7 @@ func setup() {
 
 	flag.Parse();
 	if flag.NArg() != 1 {
-		usage();
+		usage()
 	}
 	if stacksize < 1 {
 		// never set so cannot happen
@@ -374,24 +374,24 @@ outer:
 	for {
 		switch t {
 		default:
-			error("syntax error tok=%v", t-PRIVATE);
+			error("syntax error tok=%v", t-PRIVATE)
 
 		case MARK, ENDFILE:
-			break outer;
+			break outer
 
 		case ';':
 
 		case START:
 			t = gettok();
 			if t != IDENTIFIER {
-				error("bad %%start construction");
+				error("bad %%start construction")
 			}
 			start = chfind(1, tokname);
 
 		case TYPEDEF:
 			t = gettok();
 			if t != TYPENAME {
-				error("bad syntax in %%type");
+				error("bad syntax in %%type")
 			}
 			ty = numbval;
 			for {
@@ -403,36 +403,36 @@ outer:
 						j = TYPE(toklev[t]);
 						if j != 0 && j != ty {
 							error("type redeclaration of token ",
-								tokset[t].name);
+								tokset[t].name)
 						} else {
-							toklev[t] = SETTYPE(toklev[t], ty);
+							toklev[t] = SETTYPE(toklev[t], ty)
 						}
 					} else {
 						j = nontrst[t-NTBASE].value;
 						if j != 0 && j != ty {
 							error("type redeclaration of nonterminal %v",
-								nontrst[t-NTBASE].name);
+								nontrst[t-NTBASE].name)
 						} else {
-							nontrst[t-NTBASE].value = ty;
+							nontrst[t-NTBASE].value = ty
 						}
 					}
 					continue;
 
 				case ',':
-					continue;
+					continue
 				}
 				break;
 			}
 			continue;
 
 		case UNION:
-			cpyunion();
+			cpyunion()
 
 		case LEFT, BINARY, RIGHT, TERM:
 			// nonzero means new prec. and assoc.
 			lev := t-TERM;
 			if lev != 0 {
-				i++;
+				i++
 			}
 			ty = 0;
 
@@ -451,23 +451,23 @@ outer:
 					continue;
 
 				case ';':
-					break;
+					break
 
 				case IDENTIFIER:
 					j = chfind(0, tokname);
 					if j >= NTBASE {
-						error("%v defined earlier as nonterminal", tokname);
+						error("%v defined earlier as nonterminal", tokname)
 					}
 					if lev != 0 {
 						if ASSOC(toklev[j]) != 0 {
-							error("redeclaration of precedence of %v", tokname);
+							error("redeclaration of precedence of %v", tokname)
 						}
 						toklev[j] = SETASC(toklev[j], lev);
 						toklev[j] = SETPLEV(toklev[j], i);
 					}
 					if ty != 0 {
 						if TYPE(toklev[j]) != 0 {
-							error("redeclaration of type of %v", tokname);
+							error("redeclaration of type of %v", tokname)
 						}
 						toklev[j] = SETTYPE(toklev[j], ty);
 					}
@@ -484,13 +484,13 @@ outer:
 			continue;
 
 		case LCURLY:
-			cpycode();
+			cpycode()
 		}
 		t = gettok();
 	}
 
 	if t == ENDFILE {
-		error("unexpected EOF before %%");
+		error("unexpected EOF before %%")
 	}
 
 	// put out non-literal terminals
@@ -498,14 +498,14 @@ outer:
 		// non-literals
 		c := tokset[i].name[0];
 		if c != ' ' && c != '$' {
-			fmt.Fprintf(ftable, "const\t%v\t= %v\n", tokset[i].name, tokset[i].value);
+			fmt.Fprintf(ftable, "const\t%v\t= %v\n", tokset[i].name, tokset[i].value)
 		}
 	}
 
 	// put out names of token names
 	fmt.Fprintf(ftable, "var\tToknames\t =[]string {\n");
 	for i := TOKSTART; i <= ntokens; i++ {
-		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name);
+		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name)
 	}
 	fmt.Fprintf(ftable, "}\n");
 
@@ -527,11 +527,11 @@ outer:
 	curprod := make([]int, RULEINC);
 	t = gettok();
 	if t != IDENTCOLON {
-		error("bad syntax on first rule");
+		error("bad syntax on first rule")
 	}
 
 	if start == 0 {
-		prdptr[0][1] = chfind(1, tokname);
+		prdptr[0][1] = chfind(1, tokname)
 	}
 
 	// read rules
@@ -551,11 +551,11 @@ outer:
 		} else if t == IDENTCOLON {
 			curprod[mem] = chfind(1, tokname);
 			if curprod[mem] < NTBASE {
-				error("token illegal on LHS of grammar rule");
+				error("token illegal on LHS of grammar rule")
 			}
 			mem++;
 		} else {
-			error("illegal rule: missing semicolon or | ?");
+			error("illegal rule: missing semicolon or | ?")
 		}
 
 		// read rule body
@@ -564,13 +564,13 @@ outer:
 			for t == IDENTIFIER {
 				curprod[mem] = chfind(1, tokname);
 				if curprod[mem] < NTBASE {
-					levprd[nprod] = toklev[curprod[mem]];
+					levprd[nprod] = toklev[curprod[mem]]
 				}
 				mem++;
 				if mem >= len(curprod) {
 					ncurprod := make([]int, mem+RULEINC);
 					for ll := 0; ll < mem; ll++ {
-						ncurprod[ll] = curprod[ll];
+						ncurprod[ll] = curprod[ll]
 					}
 					curprod = ncurprod;
 				}
@@ -578,17 +578,17 @@ outer:
 			}
 			if t == PREC {
 				if gettok() != IDENTIFIER {
-					error("illegal %%prec syntax");
+					error("illegal %%prec syntax")
 				}
 				j = chfind(2, tokname);
 				if j >= NTBASE {
-					error("nonterminal " + nontrst[j-NTBASE].name + " illegal after %%prec");
+					error("nonterminal " + nontrst[j-NTBASE].name + " illegal after %%prec")
 				}
 				levprd[nprod] = toklev[j];
 				t = gettok();
 			}
 			if t != '=' {
-				break;
+				break
 			}
 			levprd[nprod] |= ACTFLAG;
 			fmt.Fprintf(ftable, "\ncase %v:", nprod);
@@ -621,7 +621,7 @@ outer:
 				if mem >= len(curprod) {
 					ncurprod := make([]int, mem+RULEINC);
 					for ll := 0; ll < mem; ll++ {
-						ncurprod[ll] = curprod[ll];
+						ncurprod[ll] = curprod[ll]
 					}
 					curprod = ncurprod;
 				}
@@ -629,7 +629,7 @@ outer:
 		}
 
 		for t == ';' {
-			t = gettok();
+			t = gettok()
 		}
 		curprod[mem] = -nprod;
 		mem++;
@@ -640,15 +640,15 @@ outer:
 			// no explicit action, LHS has value
 			tempty := curprod[1];
 			if tempty < 0 {
-				error("must return a value, since LHS has a type");
+				error("must return a value, since LHS has a type")
 			}
 			if tempty >= NTBASE {
-				tempty = nontrst[tempty-NTBASE].value;
+				tempty = nontrst[tempty-NTBASE].value
 			} else {
-				tempty = TYPE(toklev[tempty]);
+				tempty = TYPE(toklev[tempty])
 			}
 			if tempty != nontrst[curprod[0]-NTBASE].value {
-				error("default action causes potential type clash");
+				error("default action causes potential type clash")
 			}
 			fmt.Fprintf(ftable, "\ncase %v:", nprod);
 			fmt.Fprintf(ftable, "\n\tYYVAL.%v = YYS[yypt-0].%v;",
@@ -657,7 +657,7 @@ outer:
 		moreprod();
 		prdptr[nprod] = make([]int, mem);
 		for ll := 0; ll < mem; ll++ {
-			prdptr[nprod][ll] = curprod[ll];
+			prdptr[nprod][ll] = curprod[ll]
 		}
 		nprod++;
 		moreprod();
@@ -681,12 +681,12 @@ outer:
 	//
 	if t == MARK {
 		if !lflag {
-			fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno);
+			fmt.Fprintf(ftable, "\n//line %v:%v\n", infile, lineno)
 		}
 		for {
 			c := getrune(finput);
 			if c == EOF {
-				break;
+				break
 			}
 			putrune(ftable, c);
 		}
@@ -727,7 +727,7 @@ func defin(nt int, s string) int {
 		if nnonter >= len(nontrst) {
 			anontrst := make([]Symb, nnonter+SYMINC);
 			for ll := 0; ll < len(nontrst); ll++ {
-				anontrst[ll] = nontrst[ll];
+				anontrst[ll] = nontrst[ll]
 			}
 			nontrst = anontrst;
 		}
@@ -756,31 +756,31 @@ func defin(nt int, s string) int {
 	// establish value for token
 	// single character literal
 	if s[0] == ' ' && len(s) == 1+1 {
-		val = int(s[1]);
+		val = int(s[1])
 	} else if s[0] == ' ' && s[1] == '\\' {	// escape sequence
 		if len(s) == 2+1 {
 			// single character escape sequence
 			switch s[2] {
 			case '\'':
-				val = '\'';
+				val = '\''
 			case '"':
-				val = '"';
+				val = '"'
 			case '\\':
-				val = '\\';
+				val = '\\'
 			case 'a':
-				val = '\a';
+				val = '\a'
 			case 'b':
-				val = '\b';
+				val = '\b'
 			case 'n':
-				val = '\n';
+				val = '\n'
 			case 'r':
-				val = '\r';
+				val = '\r'
 			case 't':
-				val = '\t';
+				val = '\t'
 			case 'v':
-				val = '\v';
+				val = '\v'
 			default:
-				error("invalid escape %v", s[1:3]);
+				error("invalid escape %v", s[1:3])
 			}
 		} else if s[2] == 'u' && len(s) == 2+1+4 {	// \unnnn sequence
 			val = 0;
@@ -789,22 +789,22 @@ func defin(nt int, s string) int {
 				c := int(s[0]);
 				switch {
 				case c >= '0' && c <= '9':
-					c -= '0';
+					c -= '0'
 				case c >= 'a' && c <= 'f':
-					c -= 'a'-10;
+					c -= 'a'-10
 				case c >= 'A' && c <= 'F':
-					c -= 'A'-10;
+					c -= 'A'-10
 				default:
-					error("illegal \\unnnn construction");
+					error("illegal \\unnnn construction")
 				}
 				val = val*16 + c;
 				s = s[1:len(s)];
 			}
 			if val == 0 {
-				error("'\\u0000' is illegal");
+				error("'\\u0000' is illegal")
 			}
 		} else {
-			error("unknown escape");
+			error("unknown escape")
 		}
 	} else {
 		val = extval;
@@ -827,14 +827,14 @@ func gettok() int {
 		c = getrune(finput);
 		for c == ' ' || c == '\n' || c == '\t' || c == '\v' || c == '\r' {
 			if c == '\n' {
-				lineno++;
+				lineno++
 			}
 			c = getrune(finput);
 		}
 
 		// skip comment -- fix
 		if c != '/' {
-			break;
+			break
 		}
 		lineno += skipcom();
 	}
@@ -842,14 +842,14 @@ func gettok() int {
 	switch c {
 	case EOF:
 		if tokflag {
-			fmt.Printf(">>> ENDFILE %v\n", lineno);
+			fmt.Printf(">>> ENDFILE %v\n", lineno)
 		}
 		return ENDFILE;
 
 	case '{':
 		ungetrune(finput, c);
 		if tokflag {
-			fmt.Printf(">>> ={ %v\n", lineno);
+			fmt.Printf(">>> ={ %v\n", lineno)
 		}
 		return '=';
 
@@ -862,14 +862,14 @@ func gettok() int {
 		}
 
 		if c != '>' {
-			error("unterminated < ... > clause");
+			error("unterminated < ... > clause")
 		}
 
 		for i = 1; i <= ntypes; i++ {
 			if typeset[i] == tokname {
 				numbval = i;
 				if tokflag {
-					fmt.Printf(">>> TYPENAME old <%v> %v\n", tokname, lineno);
+					fmt.Printf(">>> TYPENAME old <%v> %v\n", tokname, lineno)
 				}
 				return TYPENAME;
 			}
@@ -878,7 +878,7 @@ func gettok() int {
 		numbval = ntypes;
 		typeset[numbval] = tokname;
 		if tokflag {
-			fmt.Printf(">>> TYPENAME new <%v> %v\n", tokname, lineno);
+			fmt.Printf(">>> TYPENAME new <%v> %v\n", tokname, lineno)
 		}
 		return TYPENAME;
 
@@ -888,14 +888,14 @@ func gettok() int {
 		for {
 			c = getrune(finput);
 			if c == '\n' || c == EOF {
-				error("illegal or missing ' or \"");
+				error("illegal or missing ' or \"")
 			}
 			if c == '\\' {
 				tokname += string('\\');
 				c = getrune(finput);
 			} else if c == match {
 				if tokflag {
-					fmt.Printf(">>> IDENTIFIER \"%v\" %v\n", tokname, lineno);
+					fmt.Printf(">>> IDENTIFIER \"%v\" %v\n", tokname, lineno)
 				}
 				return IDENTIFIER;
 			}
@@ -907,17 +907,17 @@ func gettok() int {
 		switch c {
 		case '%':
 			if tokflag {
-				fmt.Printf(">>> MARK %%%% %v\n", lineno);
+				fmt.Printf(">>> MARK %%%% %v\n", lineno)
 			}
 			return MARK;
 		case '=':
 			if tokflag {
-				fmt.Printf(">>> PREC %%= %v\n", lineno);
+				fmt.Printf(">>> PREC %%= %v\n", lineno)
 			}
 			return PREC;
 		case '{':
 			if tokflag {
-				fmt.Printf(">>> LCURLY %%{ %v\n", lineno);
+				fmt.Printf(">>> LCURLY %%{ %v\n", lineno)
 			}
 			return LCURLY;
 		}
@@ -928,7 +928,7 @@ func gettok() int {
 			if tokname == resrv[c].name {
 				if tokflag {
 					fmt.Printf(">>> %%%v %v %v\n", tokname,
-						resrv[c].value - PRIVATE, lineno);
+						resrv[c].value - PRIVATE, lineno)
 				}
 				return resrv[c].value;
 			}
@@ -940,13 +940,13 @@ func gettok() int {
 		for {
 			c = getrune(finput);
 			if !isdigit(c) {
-				break;
+				break
 			}
 			numbval = numbval*10 + c - '0';
 		}
 		ungetrune(finput, c);
 		if tokflag {
-			fmt.Printf(">>> NUMBER %v %v\n", numbval, lineno);
+			fmt.Printf(">>> NUMBER %v %v\n", numbval, lineno)
 		}
 		return NUMBER;
 
@@ -956,7 +956,7 @@ func gettok() int {
 			break;
 		}
 		if tokflag {
-			fmt.Printf(">>> OPERATOR %v %v\n", string(c), lineno);
+			fmt.Printf(">>> OPERATOR %v %v\n", string(c), lineno)
 		}
 		return c;
 	}
@@ -965,24 +965,24 @@ func gettok() int {
 	c = getrune(finput);
 	for c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\r' || c == '/' {
 		if c == '\n' {
-			peekline++;
+			peekline++
 		}
 		// look for comments
 		if c == '/' {
-			peekline += skipcom();
+			peekline += skipcom()
 		}
 		c = getrune(finput);
 	}
 	if c == ':' {
 		if tokflag {
-			fmt.Printf(">>> IDENTCOLON %v: %v\n", tokname, lineno);
+			fmt.Printf(">>> IDENTCOLON %v: %v\n", tokname, lineno)
 		}
 		return IDENTCOLON;
 	}
 
 	ungetrune(finput, c);
 	if tokflag {
-		fmt.Printf(">>> IDENTIFIER %v %v\n", tokname, lineno);
+		fmt.Printf(">>> IDENTIFIER %v %v\n", tokname, lineno)
 	}
 	return IDENTIFIER;
 }
@@ -1011,29 +1011,29 @@ func fdtype(t int) int {
 		s = tokset[t].name;
 	}
 	if v <= 0 {
-		error("must specify type for %v", s);
+		error("must specify type for %v", s)
 	}
 	return v;
 }
 
 func chfind(t int, s string) int {
 	if s[0] == ' ' {
-		t = 0;
+		t = 0
 	}
 	for i := 0; i <= ntokens; i++ {
 		if s == tokset[i].name {
-			return i;
+			return i
 		}
 	}
 	for i := 0; i <= nnonter; i++ {
 		if s == nontrst[i].name {
-			return NTBASE+i;
+			return NTBASE+i
 		}
 	}
 
 	// cannot find name
 	if t > 1 {
-		error("%v should have been defined earlier", s);
+		error("%v should have been defined earlier", s)
 	}
 	return defin(t, s);
 }
@@ -1044,7 +1044,7 @@ func chfind(t int, s string) int {
 func cpyunion() {
 
 	if !lflag {
-		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile);
+		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
 	}
 	fmt.Fprintf(ftable, "type\tYYSTYPE\tstruct");
 
@@ -1054,21 +1054,21 @@ out:
 	for {
 		c := getrune(finput);
 		if c == EOF {
-			error("EOF encountered while processing %%union");
+			error("EOF encountered while processing %%union")
 		}
 		putrune(ftable, c);
 		switch c {
 		case '\n':
-			lineno++;
+			lineno++
 		case '{':
 			if level == 0 {
-				fmt.Fprintf(ftable, "\n\tyys\tint;");
+				fmt.Fprintf(ftable, "\n\tyys\tint;")
 			}
 			level++;
 		case '}':
 			level--;
 			if level == 0 {
-				break out;
+				break out
 			}
 		}
 	}
@@ -1090,19 +1090,19 @@ func cpycode() {
 		lineno++;
 	}
 	if !lflag {
-		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile);
+		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
 	}
 	for c != EOF {
 		if c == '%' {
 			c = getrune(finput);
 			if c == '}' {
-				return;
+				return
 			}
 			putrune(ftable, '%');
 		}
 		putrune(ftable, c);
 		if c == '\n' {
-			lineno++;
+			lineno++
 		}
 		c = getrune(finput);
 	}
@@ -1189,7 +1189,7 @@ func skipcom() int {
 	if c == '/' {
 		for c != EOF {
 			if c == '\n' {
-				return 1;
+				return 1
 			}
 			c = getrune(finput);
 		}
@@ -1197,7 +1197,7 @@ func skipcom() int {
 		return 0;
 	}
 	if c != '*' {
-		error("illegal comment");
+		error("illegal comment")
 	}
 
 	nl := 0;	// lines skipped
@@ -1208,7 +1208,7 @@ l1:
 	case '*':
 		c = getrune(finput);
 		if c == '/' {
-			break;
+			break
 		}
 		goto l1;
 
@@ -1228,9 +1228,9 @@ func dumpprod(curprod []int, max int) {
 	for i := 0; i < max; i++ {
 		p := curprod[i];
 		if p < 0 {
-			fmt.Printf("[%v] %v\n", i, p);
+			fmt.Printf("[%v] %v\n", i, p)
 		} else {
-			fmt.Printf("[%v] %v\n", i, symnam(p));
+			fmt.Printf("[%v] %v\n", i, symnam(p))
 		}
 	}
 }
@@ -1241,7 +1241,7 @@ func dumpprod(curprod []int, max int) {
 func cpyact(curprod []int, max int) {
 
 	if !lflag {
-		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile);
+		fmt.Fprintf(ftable, "\n//line %v %v\n", lineno, infile)
 	}
 
 	lno := lineno;
@@ -1274,7 +1274,7 @@ loop:
 			if c == '<' {
 				ungetrune(finput, c);
 				if gettok() != TYPENAME {
-					error("bad syntax on $<ident> clause");
+					error("bad syntax on $<ident> clause")
 				}
 				tok = numbval;
 				c = getrune(finput);
@@ -1285,7 +1285,7 @@ loop:
 				// put out the proper tag...
 				if ntypes != 0 {
 					if tok < 0 {
-						tok = fdtype(curprod[0]);
+						tok = fdtype(curprod[0])
 					}
 					fmt.Fprintf(ftable, ".%v", typeset[tok]);
 				}
@@ -1304,39 +1304,39 @@ loop:
 				ungetrune(finput, c);
 				j = j*s;
 				if j >= max {
-					error("Illegal use of $%v", j);
+					error("Illegal use of $%v", j)
 				}
 			} else if isword(c) || c == '_' || c == '.' {
 				// look for $name
 				ungetrune(finput, c);
 				if gettok() != IDENTIFIER {
-					error("$ must be followed by an identifier");
+					error("$ must be followed by an identifier")
 				}
 				tokn := chfind(2, tokname);
 				fnd := -1;
 				c = getrune(finput);
 				if c != '@' {
-					ungetrune(finput, c);
+					ungetrune(finput, c)
 				} else if gettok() != NUMBER {
-					error("@ must be followed by number");
+					error("@ must be followed by number")
 				} else {
-					fnd = numbval;
+					fnd = numbval
 				}
 				for j = 1; j < max; j++ {
 					if tokn == curprod[j] {
 						fnd--;
 						if fnd <= 0 {
-							break;
+							break
 						}
 					}
 				}
 				if j >= max {
-					error("$name or $name@number not found");
+					error("$name or $name@number not found")
 				}
 			} else {
 				putrune(ftable, '$');
 				if s < 0 {
-					putrune(ftable, '-');
+					putrune(ftable, '-')
 				}
 				ungetrune(finput, c);
 				continue loop;
@@ -1346,10 +1346,10 @@ loop:
 			// put out the proper tag
 			if ntypes != 0 {
 				if j <= 0 && tok < 0 {
-					error("must specify type of $%v", j);
+					error("must specify type of $%v", j)
 				}
 				if tok < 0 {
-					tok = fdtype(curprod[j]);
+					tok = fdtype(curprod[j])
 				}
 				fmt.Fprintf(ftable, ".%v", typeset[tok]);
 			}
@@ -1358,7 +1358,7 @@ loop:
 		case '}':
 			brac--;
 			if brac != 0 {
-				break;
+				break
 			}
 			putrune(ftable, c);
 			return;
@@ -1387,13 +1387,13 @@ loop:
 					putrune(ftable, c);
 					c = getrune(finput);
 					if c == '\n' {
-						lineno++;
+						lineno++
 					}
 				} else if c == match {
-					break swt;
+					break swt
 				}
 				if c == '\n' {
-					error("newline in string or char const");
+					error("newline in string or char const")
 				}
 				putrune(ftable, c);
 				c = getrune(finput);
@@ -1405,7 +1405,7 @@ loop:
 			error("action does not terminate");
 
 		case '\n':
-			lineno++;
+			lineno++
 		}
 
 		putrune(ftable, c);
@@ -1416,24 +1416,24 @@ func openup() {
 	infile = flag.Arg(0);
 	finput = open(infile);
 	if finput == nil {
-		error("cannot open %v", infile);
+		error("cannot open %v", infile)
 	}
 
 	foutput = nil;
 	if vflag != "" {
 		foutput = create(vflag, 0666);
 		if foutput == nil {
-			error("can't create file %v", vflag);
+			error("can't create file %v", vflag)
 		}
 	}
 
 	ftable = nil;
 	if oflag == "" {
-		oflag = "y.go";
+		oflag = "y.go"
 	}
 	ftable = create(oflag, 0666);
 	if ftable == nil {
-		error("can't create file %v", oflag);
+		error("can't create file %v", oflag)
 	}
 
 }
@@ -1445,12 +1445,12 @@ func symnam(i int) string {
 	var s string;
 
 	if i >= NTBASE {
-		s = nontrst[i-NTBASE].name;
+		s = nontrst[i-NTBASE].name
 	} else {
-		s = tokset[i].name;
+		s = tokset[i].name
 	}
 	if s[0] == ' ' {
-		s = s[1:len(s)];
+		s = s[1:len(s)]
 	}
 	return s;
 }
@@ -1460,7 +1460,7 @@ func symnam(i int) string {
 //
 func aryfil(v []int, n, c int) {
 	for i := 0; i < n; i++ {
-		v[i] = c;
+		v[i] = c
 	}
 }
 
@@ -1475,10 +1475,10 @@ func cpres() {
 
 	if false {
 		for j := 0; j <= nnonter; j++ {
-			fmt.Printf("nnonter[%v] = %v\n", j, nontrst[j].name);
+			fmt.Printf("nnonter[%v] = %v\n", j, nontrst[j].name)
 		}
 		for j := 0; j < nprod; j++ {
-			fmt.Printf("prdptr[%v][0] = %v+NTBASE\n", j, prdptr[j][0]-NTBASE);
+			fmt.Printf("prdptr[%v][0] = %v+NTBASE\n", j, prdptr[j][0]-NTBASE)
 		}
 	}
 
@@ -1498,7 +1498,7 @@ func cpres() {
 		}
 		pres[i] = make([][]int, n);
 		for ll := 0; ll < n; ll++ {
-			pres[i][ll] = curres[ll];
+			pres[i][ll] = curres[ll]
 		}
 	}
 	fatfl = 1;
@@ -1516,7 +1516,7 @@ func dumppres() {
 			print("\tproduction %d:", j);
 			prd := curres[j];
 			for k := 0; k < len(prd); k++ {
-				print(" %d", prd[k]);
+				print(" %d", prd[k])
 			}
 			print("\n");
 		}
@@ -1543,12 +1543,12 @@ more:
 		for i = 0; i < nprod; i++ {
 			prd = prdptr[i];
 			if pempty[prd[0]-NTBASE] != 0 {
-				continue;
+				continue
 			}
 			np = len(prd)-1;
 			for p = 1; p < np; p++ {
 				if prd[p] >= NTBASE && pempty[prd[p]-NTBASE] == WHOKNOWS {
-					break;
+					break
 				}
 			}
 			// production can be derived
@@ -1564,7 +1564,7 @@ more:
 	for i = 0; i <= nnonter; i++ {
 		// the added production rises or falls as the start symbol ...
 		if i == 0 {
-			continue;
+			continue
 		}
 		if pempty[i] != OK {
 			fatfl = 0;
@@ -1590,12 +1590,12 @@ again:
 			// not known to be empty
 			prd = prdptr[i];
 			if pempty[prd[0]-NTBASE] != WHOKNOWS {
-				continue;
+				continue
 			}
 			np = len(prd)-1;
 			for p = 1; p < np; p++ {
 				if prd[p] < NTBASE || pempty[prd[p]-NTBASE] != EMPTY {
-					continue next;
+					continue next
 				}
 			}
 
@@ -1612,7 +1612,7 @@ again:
 func dumpempty() {
 	for i := 0; i <= nnonter; i++ {
 		if pempty[i] == EMPTY {
-			print("non-term %d %s matches empty\n", i, symnam(i+NTBASE));
+			print("non-term %d %s matches empty\n", i, symnam(i+NTBASE))
 		}
 	}
 }
@@ -1644,7 +1644,7 @@ func cpfir() {
 					break;
 				}
 				if pempty[ch-NTBASE] == 0 {
-					break;
+					break
 				}
 			}
 		}
@@ -1663,11 +1663,11 @@ func cpfir() {
 				for p = 0; p < np; p++ {
 					ch = prd[p]-NTBASE;
 					if ch < 0 {
-						break;
+						break
 					}
 					changes |= setunion(pfirst[i], pfirst[ch]);
 					if pempty[ch] == 0 {
-						break;
+						break
 					}
 				}
 			}
@@ -1675,12 +1675,12 @@ func cpfir() {
 	}
 
 	if indebug == 0 {
-		return;
+		return
 	}
 	if foutput != nil {
 		for i = 0; i <= nnonter; i++ {
 			fmt.Fprintf(foutput, "\n%v: %v %v\n",
-				nontrst[i].name, pfirst[i], pempty[i]);
+				nontrst[i].name, pfirst[i], pempty[i])
 		}
 	}
 }
@@ -1717,7 +1717,7 @@ func stagen() {
 		more = 0;
 		for i := 0; i < nstate; i++ {
 			if tystate[i] != MUSTDO {
-				continue;
+				continue
 			}
 
 			tystate[i] = DONE;
@@ -1730,13 +1730,13 @@ func stagen() {
 			for p := 0; p < cwp; p++ {
 				pi := wsets[p];
 				if pi.flag != 0 {
-					continue;
+					continue
 				}
 				wsets[p].flag = 1;
 				c := pi.pitem.first;
 				if c <= 1 {
 					if pstate[i+1]-pstate[i] <= p {
-						tystate[i] = MUSTLOOKAHEAD;
+						tystate[i] = MUSTLOOKAHEAD
 					}
 					continue;
 				}
@@ -1752,9 +1752,9 @@ func stagen() {
 				}
 
 				if c < NTBASE {
-					state(c);	// register new state
+					state(c)	// register new state
 				} else {
-					temp1[c-NTBASE] = state(c);
+					temp1[c-NTBASE] = state(c)
 				}
 			}
 
@@ -1762,14 +1762,14 @@ func stagen() {
 				fmt.Fprintf(foutput, "%v: ", i);
 				for j := 0; j <= nnonter; j++ {
 					if temp1[j] != 0 {
-						fmt.Fprintf(foutput, "%v %v,", nontrst[j].name, temp1[j]);
+						fmt.Fprintf(foutput, "%v %v,", nontrst[j].name, temp1[j])
 					}
 				}
 				fmt.Fprintf(foutput, "\n");
 			}
 
 			if first != 0 {
-				indgo[i] = apack(temp1[1:len(temp1)], nnonter-1) - 1;
+				indgo[i] = apack(temp1[1:len(temp1)], nnonter-1) - 1
 			}
 
 			more++;
@@ -1790,7 +1790,7 @@ func closure(i int) {
 		wsets[cwp].pitem = statemem[p].pitem;
 		wsets[cwp].flag = 1;	// this item must get closed
 		for ll := 0; ll < len(wsets[cwp].ws); ll++ {
-			wsets[cwp].ws[ll] = statemem[p].look[ll];
+			wsets[cwp].ws[ll] = statemem[p].look[ll]
 		}
 		cwp++;
 	}
@@ -1801,7 +1801,7 @@ func closure(i int) {
 		work = 0;
 		for u := 0; u < cwp; u++ {
 			if wsets[u].flag == 0 {
-				continue;
+				continue
 			}
 
 			// dot is before c
@@ -1818,14 +1818,14 @@ func closure(i int) {
 			// find items involving c
 			for v := u; v < cwp; v++ {
 				if wsets[v].flag != 1 || wsets[v].pitem.first != c {
-					continue;
+					continue
 				}
 				pi := wsets[v].pitem.prod;
 				ipi := wsets[v].pitem.off + 1;
 
 				wsets[v].flag = 0;
 				if nolook != 0 {
-					continue;
+					continue
 				}
 
 				ch := pi[ipi];
@@ -1840,13 +1840,13 @@ func closure(i int) {
 					// nonterminal symbol
 					setunion(clset, pfirst[ch-NTBASE]);
 					if pempty[ch-NTBASE] == 0 {
-						break;
+						break
 					}
 					ch = pi[ipi];
 					ipi++;
 				}
 				if ch <= 0 {
-					setunion(clset, wsets[v].ws);
+					setunion(clset, wsets[v].ws)
 				}
 			}
 
@@ -1882,7 +1882,7 @@ func closure(i int) {
 				if cwp >= len(wsets) {
 					awsets := make([]Wset, cwp+WSETINC);
 					for ll := 0; ll < len(wsets); ll++ {
-						awsets[ll] = wsets[ll];
+						awsets[ll] = wsets[ll]
 					}
 					wsets = awsets;
 				}
@@ -1892,7 +1892,7 @@ func closure(i int) {
 				if nolook == 0 {
 					work = 1;
 					for ll := 0; ll < len(wsets[cwp].ws); ll++ {
-						wsets[cwp].ws[ll] = clset[ll];
+						wsets[cwp].ws[ll] = clset[ll]
 					}
 				}
 				cwp++;
@@ -1905,7 +1905,7 @@ func closure(i int) {
 		fmt.Fprintf(foutput, "\nState %v, nolook = %v\n", i, nolook);
 		for u := 0; u < cwp; u++ {
 			if wsets[u].flag != 0 {
-				fmt.Fprintf(foutput, "flag set\n");
+				fmt.Fprintf(foutput, "flag set\n")
 			}
 			wsets[u].flag = 0;
 			fmt.Fprintf(foutput, "\t%v", writem(wsets[u].pitem));
@@ -1923,7 +1923,7 @@ func state(c int) int {
 	p1 := pstate[nstate];
 	p2 := pstate[nstate+1];
 	if p1 == p2 {
-		return 0;	// null state
+		return 0	// null state
 	}
 
 	// sort the items
@@ -1937,7 +1937,7 @@ func state(c int) int {
 				statemem[l] = statemem[l-1];
 				statemem[l-1] = s;
 			} else {
-				break;
+				break
 			}
 		}
 	}
@@ -1946,9 +1946,9 @@ func state(c int) int {
 
 	var i int;
 	if c >= NTBASE {
-		i = ntstates[c-NTBASE];
+		i = ntstates[c-NTBASE]
 	} else {
-		i = tstates[c];
+		i = tstates[c]
 	}
 
 look:
@@ -1958,13 +1958,13 @@ look:
 		q2 := pstate[i+1];
 		size2 := q2-q1;
 		if size1 != size2 {
-			continue;
+			continue
 		}
 		k = p1;
 		for l = q1; l < q2; l++ {
 			if aryeq(statemem[l].pitem.prod, statemem[k].pitem.prod) == 0 ||
 				statemem[l].pitem.off != statemem[k].pitem.off {
-				continue look;
+				continue look
 			}
 			k++;
 		}
@@ -1974,12 +1974,12 @@ look:
 
 		// fix up lookaheads
 		if nolook != 0 {
-			return i;
+			return i
 		}
 		k = p1;
 		for l = q1; l < q2; l++ {
 			if setunion(statemem[l].look, statemem[k].look) != 0 {
-				tystate[i] = MUSTDO;
+				tystate[i] = MUSTDO
 			}
 			k++;
 		}
@@ -1989,11 +1989,11 @@ look:
 	// state is new
 	zznewstate++;
 	if nolook != 0 {
-		error("yacc state/nolook error");
+		error("yacc state/nolook error")
 	}
 	pstate[nstate+2] = p2;
 	if nstate+1 >= NSTATES {
-		error("too many states");
+		error("too many states")
 	}
 	if c >= NTBASE {
 		mstates[nstate] = ntstates[c-NTBASE];
@@ -2012,13 +2012,13 @@ func putitem(p Pitem, set Lkset) {
 	p.first = p.prod[p.off];
 
 	if pidebug != 0 && foutput != nil {
-		fmt.Fprintf(foutput, "putitem(%v), state %v\n", writem(p), nstate);
+		fmt.Fprintf(foutput, "putitem(%v), state %v\n", writem(p), nstate)
 	}
 	j := pstate[nstate+1];
 	if j >= len(statemem) {
 		asm := make([]Item, j+STATEINC);
 		for ll := 0; ll < len(statemem); ll++ {
-			asm[ll] = statemem[ll];
+			asm[ll] = statemem[ll]
 		}
 		statemem = asm;
 	}
@@ -2026,7 +2026,7 @@ func putitem(p Pitem, set Lkset) {
 	if nolook == 0 {
 		s := mkset();
 		for ll := 0; ll < len(set); ll++ {
-			s[ll] = set[ll];
+			s[ll] = set[ll]
 		}
 		statemem[j].look = s;
 	}
@@ -2049,14 +2049,14 @@ func writem(pp Pitem) string {
 	for {
 		c := ' ';
 		if pi == npi {
-			c = '.';
+			c = '.'
 		}
 		q += string(c);
 
 		i = p[pi];
 		pi++;
 		if i <= 0 {
-			break;
+			break
 		}
 		q += chcopy(symnam(i));
 	}
@@ -2064,7 +2064,7 @@ func writem(pp Pitem) string {
 	// an item calling for a reduction
 	i = p[npi];
 	if i < 0 {
-		q += fmt.Sprintf("    (%v)", -i);
+		q += fmt.Sprintf("    (%v)", -i)
 	}
 
 	return q;
@@ -2082,12 +2082,12 @@ func apack(p []int, n int) int {
 	off := 0;
 	pp := 0;
 	for ; pp <= n && p[pp] == 0; pp++ {
-		off--;
+		off--
 	}
 
 	// no actions
 	if pp > n {
-		return 0;
+		return 0
 	}
 	for ; n > pp && p[n] == 0; n-- {
 	}
@@ -2102,7 +2102,7 @@ nextk:
 		for pp = 0; pp < len(p); pp++ {
 			if p[pp] != 0 {
 				if p[pp] != amem[qq] && amem[qq] != 0 {
-					continue nextk;
+					continue nextk
 				}
 			}
 			qq++;
@@ -2110,13 +2110,13 @@ nextk:
 
 		// we have found an acceptable k
 		if pkdebug != 0 && foutput != nil {
-			fmt.Fprintf(foutput, "off = %v, k = %v\n", off+rr, rr);
+			fmt.Fprintf(foutput, "off = %v, k = %v\n", off+rr, rr)
 		}
 		qq = rr;
 		for pp = 0; pp < len(p); pp++ {
 			if p[pp] != 0 {
 				if qq > memp {
-					memp = qq;
+					memp = qq
 				}
 				amem[qq] = p[pp];
 			}
@@ -2126,7 +2126,7 @@ nextk:
 			for pp = 0; pp <= memp; pp += 10 {
 				fmt.Fprintf(foutput, "\n");
 				for qq = pp; qq <= pp+9; qq++ {
-					fmt.Fprintf(foutput, "%v ", amem[qq]);
+					fmt.Fprintf(foutput, "%v ", amem[qq])
 				}
 				fmt.Fprintf(foutput, "\n");
 			}
@@ -2151,7 +2151,7 @@ func output() {
 	for i := 0; i < nstate; i++ {
 		nolook = 0;
 		if tystate[i] != MUSTLOOKAHEAD {
-			nolook = 1;
+			nolook = 1
 		}
 		closure(i);
 
@@ -2163,19 +2163,19 @@ func output() {
 			if c > 1 && c < NTBASE && temp1[c] == 0 {
 				for v = u; v < cwp; v++ {
 					if c == wsets[v].pitem.first {
-						putitem(wsets[v].pitem, noset);
+						putitem(wsets[v].pitem, noset)
 					}
 				}
 				temp1[c] = state(c);
 			} else if c > NTBASE {
 				c -= NTBASE;
 				if temp1[c+ntokens] == 0 {
-					temp1[c+ntokens] = amem[indgo[i]+c];
+					temp1[c+ntokens] = amem[indgo[i]+c]
 				}
 			}
 		}
 		if i == 1 {
-			temp1[1] = ACCEPTCODE;
+			temp1[1] = ACCEPTCODE
 		}
 
 		// now, we have the shifts; look at the reductions
@@ -2185,30 +2185,30 @@ func output() {
 
 			// reduction
 			if c > 0 {
-				continue;
+				continue
 			}
 			lastred = -c;
 			us := wsets[u].ws;
 			for k := 0; k <= ntokens; k++ {
 				if bitset(us, k) == 0 {
-					continue;
+					continue
 				}
 				if temp1[k] == 0 {
-					temp1[k] = c;
+					temp1[k] = c
 				} else if temp1[k] < 0 {	// reduce/reduce conflict
 					if foutput != nil {
 						fmt.Fprintf(foutput,
 							"\n %v: reduce/reduce conflict  (red'ns "
 								"%v and %v) on %v",
-							i, -temp1[k], lastred, symnam(k));
+							i, -temp1[k], lastred, symnam(k))
 					}
 					if -temp1[k] > lastred {
-						temp1[k] = -lastred;
+						temp1[k] = -lastred
 					}
 					zzrrconf++;
 				} else {
 					// potential shift/reduce conflict
-					precftn(lastred, k, i);
+					precftn(lastred, k, i)
 				}
 			}
 		}
@@ -2238,23 +2238,23 @@ func precftn(r, t, s int) {
 		if foutput != nil {
 			fmt.Fprintf(foutput,
 				"\n%v: shift/reduce conflict (shift %v(%v), red'n %v(%v)) on %v",
-				s, temp1[t], PLEVEL(lt), r, PLEVEL(lp), symnam(t));
+				s, temp1[t], PLEVEL(lt), r, PLEVEL(lp), symnam(t))
 		}
 		zzsrconf++;
 		return;
 	}
 	if PLEVEL(lt) == PLEVEL(lp) {
-		action = ASSOC(lt);
+		action = ASSOC(lt)
 	} else if PLEVEL(lt) > PLEVEL(lp) {
-		action = RASC;	// shift
+		action = RASC	// shift
 	} else {
-		action = LASC;
+		action = LASC
 	}	// reduce
 	switch action {
 	case BASC:	// error action
-		temp1[t] = ERRCODE;
+		temp1[t] = ERRCODE
 	case LASC:	// reduce
-		temp1[t] = -r;
+		temp1[t] = -r
 	}
 }
 
@@ -2270,10 +2270,10 @@ func wract(i int) {
 	ntimes := 0;
 	for j := 0; j <= ntokens; j++ {
 		if temp1[j] >= 0 {
-			continue;
+			continue
 		}
 		if temp1[j]+lastred == 0 {
-			continue;
+			continue
 		}
 		// count the number of appearances of temp1[j]
 		count := 0;
@@ -2281,7 +2281,7 @@ func wract(i int) {
 		levprd[tred] |= REDFLAG;
 		for p = 0; p <= ntokens; p++ {
 			if temp1[p]+tred == 0 {
-				count++;
+				count++
 			}
 		}
 		if count > ntimes {
@@ -2295,7 +2295,7 @@ func wract(i int) {
 	// error recovery token, `error', that the default be the error action
 	//
 	if temp1[2] > 0 {
-		lastred = 0;
+		lastred = 0
 	}
 
 	// clear out entries in temp1 which equal lastred
@@ -2308,7 +2308,7 @@ func wract(i int) {
 			p1 = 0;
 		}
 		if p1 > 0 && p1 != ACCEPTCODE && p1 != ERRCODE {
-			n++;
+			n++
 		}
 	}
 
@@ -2321,11 +2321,11 @@ func wract(i int) {
 		p1 = temp1[p];
 		if p1 != 0 {
 			if p1 < 0 {
-				p1 = -p1;
+				p1 = -p1
 			} else if p1 == ACCEPTCODE {
-				p1 = -1;
+				p1 = -1
 			} else if p1 == ERRCODE {
-				p1 = 0;
+				p1 = 0
 			} else {
 				os[n] = p;
 				n++;
@@ -2335,7 +2335,7 @@ func wract(i int) {
 				continue;
 			}
 			if flag == 0 {
-				fmt.Fprintf(ftable, "-1, %v,\n", i);
+				fmt.Fprintf(ftable, "-1, %v,\n", i)
 			}
 			flag++;
 			fmt.Fprintf(ftable, "\t%v, %v,\n", p, p1);
@@ -2357,18 +2357,18 @@ func wrstate(i int) {
 	var pp, qq int;
 
 	if foutput == nil {
-		return;
+		return
 	}
 	fmt.Fprintf(foutput, "\nstate %v\n", i);
 	qq = pstate[i+1];
 	for pp = pstate[i]; pp < qq; pp++ {
-		fmt.Fprintf(foutput, "\t%v\n", writem(statemem[pp].pitem));
+		fmt.Fprintf(foutput, "\t%v\n", writem(statemem[pp].pitem))
 	}
 	if tystate[i] == MUSTLOOKAHEAD {
 		// print out empty productions in closure
 		for u = pstate[i+1]-pstate[i]; u < cwp; u++ {
 			if wsets[u].pitem.first < 0 {
-				fmt.Fprintf(foutput, "\t%v\n", writem(wsets[u].pitem));
+				fmt.Fprintf(foutput, "\t%v\n", writem(wsets[u].pitem))
 			}
 		}
 	}
@@ -2382,14 +2382,14 @@ func wrstate(i int) {
 			// shift, error, or accept
 			if j1 > 0 {
 				if j1 == ACCEPTCODE {
-					fmt.Fprintf(foutput, "accept");
+					fmt.Fprintf(foutput, "accept")
 				} else if j1 == ERRCODE {
-					fmt.Fprintf(foutput, "error");
+					fmt.Fprintf(foutput, "error")
 				} else {
-					fmt.Fprintf(foutput, "shift %v", j1);
+					fmt.Fprintf(foutput, "shift %v", j1)
 				}
 			} else {
-				fmt.Fprintf(foutput, "reduce %v (src line %v)", -j1, rlines[-j1]);
+				fmt.Fprintf(foutput, "reduce %v (src line %v)", -j1, rlines[-j1])
 			}
 		}
 	}
@@ -2397,9 +2397,9 @@ func wrstate(i int) {
 	// output the final production
 	if lastred != 0 {
 		fmt.Fprintf(foutput, "\n\t.  reduce %v (src line %v)\n\n",
-			lastred, rlines[lastred]);
+			lastred, rlines[lastred])
 	} else {
-		fmt.Fprintf(foutput, "\n\t.  error\n\n");
+		fmt.Fprintf(foutput, "\n\t.  error\n\n")
 	}
 
 	// now, output nonterminal actions
@@ -2407,7 +2407,7 @@ func wrstate(i int) {
 	for j0 = 1; j0 <= nnonter; j0++ {
 		j1++;
 		if temp1[j1] != 0 {
-			fmt.Fprintf(foutput, "\t%v  goto %v\n", symnam(j0+NTBASE), temp1[j1]);
+			fmt.Fprintf(foutput, "\t%v  goto %v\n", symnam(j0+NTBASE), temp1[j1])
 		}
 	}
 }
@@ -2426,10 +2426,10 @@ func go2out() {
 		// is j the most frequent
 		for j := 0; j < nstate; j++ {
 			if tystate[j] == 0 {
-				continue;
+				continue
 			}
 			if tystate[j] == best {
-				continue;
+				continue
 			}
 
 			// is tystate[j] the most frequent
@@ -2437,7 +2437,7 @@ func go2out() {
 			cbest := tystate[j];
 			for k := j; k < nstate; k++ {
 				if tystate[k] == cbest {
-					count++;
+					count++
 				}
 			}
 			if count > times {
@@ -2451,7 +2451,7 @@ func go2out() {
 		n := 0;
 		for j := 0; j < nstate; j++ {
 			if tystate[j] != 0 && tystate[j] != best {
-				n++;
+				n++
 			}
 		}
 		goent := make([]int, 2*n + 1);
@@ -2468,7 +2468,7 @@ func go2out() {
 
 		// now, the default
 		if best == -1 {
-			best = 0;
+			best = 0
 		}
 
 		zzgoent++;
@@ -2508,7 +2508,7 @@ func go2gen(c int) {
 		fmt.Fprintf(foutput, "%v: gotos on ", nontrst[c].name);
 		for i = 0; i <= nnonter; i++ {
 			if temp1[i] != 0 {
-				fmt.Fprintf(foutput, "%v ", nontrst[i].name);
+				fmt.Fprintf(foutput, "%v ", nontrst[i].name)
 			}
 		}
 		fmt.Fprintf(foutput, "\n");
@@ -2544,7 +2544,7 @@ func hideprod() {
 		if (levprd[i]&REDFLAG) == 0 {
 			if foutput != nil {
 				fmt.Fprintf(foutput, "Rule not reduced: %v\n",
-					writem(Pitem{prdptr[i], 0, 0, i}));
+					writem(Pitem{prdptr[i], 0, 0, i}))
 			}
 			fmt.Printf("rule %v never reduced\n", writem(Pitem{prdptr[i], 0, 0, i}));
 			nred++;
@@ -2552,7 +2552,7 @@ func hideprod() {
 		levprd[i] = prdptr[i][0]-NTBASE;
 	}
 	if nred != 0 {
-		fmt.Printf("%v rules never reduced\n", nred);
+		fmt.Printf("%v rules never reduced\n", nred)
 	}
 }
 
@@ -2571,10 +2571,10 @@ func callopt() {
 		q = len(v);
 		for p = 0; p < q; p += 2 {
 			if v[p] > j {
-				j = v[p];
+				j = v[p]
 			}
 			if v[p] < k {
-				k = v[p];
+				k = v[p]
 			}
 		}
 
@@ -2583,12 +2583,12 @@ func callopt() {
 			// j is now the range
 			//			j -= k;			// call scj
 			if k > maxoff {
-				maxoff = k;
+				maxoff = k
 			}
 		}
 		tystate[i] = q + 2*j;
 		if j > maxspr {
-			maxspr = j;
+			maxspr = j
 		}
 	}
 
@@ -2604,23 +2604,23 @@ func callopt() {
 		for p = 0; p < q; p += 2 {
 			ggreed[i] += 2;
 			if v[p] > j {
-				j = v[p];
+				j = v[p]
 			}
 		}
 		ggreed[i] = ggreed[i] + 2*j;
 		if j > maxoff {
-			maxoff = j;
+			maxoff = j
 		}
 	}
 
 	// now, prepare to put the shift actions into the amem array
 	for i = 0; i < ACTSIZE; i++ {
-		amem[i] = 0;
+		amem[i] = 0
 	}
 	maxa = 0;
 	for i = 0; i < nstate; i++ {
 		if tystate[i] == 0 && adb > 1 {
-			fmt.Fprintf(ftable, "State %v: null\n", i);
+			fmt.Fprintf(ftable, "State %v: null\n", i)
 		}
 		indgo[i] = YYFLAG;
 	}
@@ -2628,9 +2628,9 @@ func callopt() {
 	i = nxti();
 	for i != NOMORE {
 		if i >= 0 {
-			stin(i);
+			stin(i)
 		} else {
-			gin(-i);
+			gin(-i)
 		}
 		i = nxti();
 	}
@@ -2640,7 +2640,7 @@ func callopt() {
 		for p = 0; p <= maxa; p += 10 {
 			fmt.Fprintf(ftable, "%v  ", p);
 			for i = 0; i < 10; i++ {
-				fmt.Fprintf(ftable, "%v  ", amem[p+i]);
+				fmt.Fprintf(ftable, "%v  ", amem[p+i])
 			}
 			putrune(ftable, '\n');
 		}
@@ -2669,7 +2669,7 @@ func nxti() int {
 		}
 	}
 	if max == 0 {
-		return NOMORE;
+		return NOMORE
 	}
 	return maxi;
 }
@@ -2687,25 +2687,25 @@ func gin(i int) {
 nextgp:
 	for p := 0; p < ACTSIZE; p++ {
 		if amem[p] != 0 {
-			continue;
+			continue
 		}
 		for r := 0; r < nq; r += 2 {
 			s = p+q[r]+1;
 			if s > maxa {
 				maxa = s;
 				if maxa >= ACTSIZE {
-					error("a array overflow");
+					error("a array overflow")
 				}
 			}
 			if amem[s] != 0 {
-				continue nextgp;
+				continue nextgp
 			}
 		}
 
 		// we have found amem spot
 		amem[p] = q[nq];
 		if p > maxa {
-			maxa = p;
+			maxa = p
 		}
 		for r := 0; r < nq; r += 2 {
 			s = p+q[r]+1;
@@ -2713,7 +2713,7 @@ nextgp:
 		}
 		pgo[i] = p;
 		if adb > 1 {
-			fmt.Fprintf(ftable, "Nonterminal %v, entry at %v\n", i, pgo[i]);
+			fmt.Fprintf(ftable, "Nonterminal %v, entry at %v\n", i, pgo[i])
 		}
 		return;
 	}
@@ -2736,12 +2736,12 @@ nextn:
 		for r := 0; r < nq; r += 2 {
 			s = q[r]+n;
 			if s < 0 || s > ACTSIZE {
-				continue nextn;
+				continue nextn
 			}
 			if amem[s] == 0 {
-				flag++;
+				flag++
 			} else if amem[s] != q[r+1] {
-				continue nextn;
+				continue nextn
 			}
 		}
 
@@ -2751,7 +2751,7 @@ nextn:
 
 				// we have some disagreement
 				if flag != 0 {
-					continue nextn;
+					continue nextn
 				}
 				if nq == len(optst[j]) {
 
@@ -2760,7 +2760,7 @@ nextn:
 					if adb > 1 {
 						fmt.Fprintf(ftable, "State %v: entry at"
 							"%v equals state %v\n",
-							i, n, j);
+							i, n, j)
 					}
 					return;
 				}
@@ -2773,16 +2773,16 @@ nextn:
 		for r := 0; r < nq; r += 2 {
 			s = q[r]+n;
 			if s > maxa {
-				maxa = s;
+				maxa = s
 			}
 			if amem[s] != 0 && amem[s] != q[r+1] {
-				error("clobber of a array, pos'n %v, by %v", s, q[r+1]);
+				error("clobber of a array, pos'n %v, by %v", s, q[r+1])
 			}
 			amem[s] = q[r+1];
 		}
 		indgo[i] = n;
 		if adb > 1 {
-			fmt.Fprintf(ftable, "State %v: entry at %v\n", i, indgo[i]);
+			fmt.Fprintf(ftable, "State %v: entry at %v\n", i, indgo[i])
 		}
 		return;
 	}
@@ -2813,19 +2813,19 @@ func others() {
 	//yyr2 is the number of rules for each production
 	//
 	for i = 1; i < nprod; i++ {
-		temp1[i] = len(prdptr[i])-2;
+		temp1[i] = len(prdptr[i])-2
 	}
 	arout("YYR2", temp1, nprod);
 
 	aryfil(temp1, nstate, -1000);
 	for i = 0; i <= ntokens; i++ {
 		for j := tstates[i]; j != 0; j = mstates[j] {
-			temp1[j] = i;
+			temp1[j] = i
 		}
 	}
 	for i = 0; i <= nnonter; i++ {
 		for j = ntstates[i]; j != 0; j = mstates[j] {
-			temp1[j] = -i;
+			temp1[j] = -i
 		}
 	}
 	arout("YYCHK", temp1, nstate);
@@ -2845,13 +2845,13 @@ func others() {
 			}
 			temp1[j] = i;
 			if j > c {
-				c = j;
+				c = j
 			}
 		}
 	}
 	for i = 0; i <= c; i++ {
 		if temp1[i] == 0 {
-			temp1[i] = YYLEXUNK;
+			temp1[i] = YYLEXUNK
 		}
 	}
 	arout("YYTOK1", temp1, c+1);
@@ -2869,7 +2869,7 @@ func others() {
 			}
 			temp1[j] = i;
 			if j > c {
-				c = j;
+				c = j
 			}
 		}
 	}
@@ -2881,16 +2881,16 @@ func others() {
 	for i = 1; i <= ntokens; i++ {
 		j = tokset[i].value;
 		if j >= 0 && j < 256 {
-			continue;
+			continue
 		}
 		if j >= PRIVATE && j < 256+PRIVATE {
-			continue;
+			continue
 		}
 
 		fmt.Fprintf(ftable, "%4d,%4d,", j, i);
 		c++;
 		if c%5 == 0 {
-			putrune(ftable, '\n');
+			putrune(ftable, '\n')
 		}
 	}
 	fmt.Fprintf(ftable, "%4d\n };\n", 0);
@@ -2910,7 +2910,7 @@ func arout(s string, v []int, n int) {
 	fmt.Fprintf(ftable, "var\t%v\t= []int {\n", s);
 	for i := 0; i < n; i++ {
 		if i%10 == 0 {
-			putrune(ftable, '\n');
+			putrune(ftable, '\n')
 		}
 		fmt.Fprintf(ftable, "%4d", v[i]);
 		putrune(ftable, ',');
@@ -2936,13 +2936,13 @@ func summary() {
 	if zzsrconf != 0 || zzrrconf != 0 {
 		fmt.Printf("\nconflicts: ");
 		if zzsrconf != 0 {
-			fmt.Printf("%v shift/reduce", zzsrconf);
+			fmt.Printf("%v shift/reduce", zzsrconf)
 		}
 		if zzsrconf != 0 && zzrrconf != 0 {
-			fmt.Printf(", ");
+			fmt.Printf(", ")
 		}
 		if zzrrconf != 0 {
-			fmt.Printf("%v reduce/reduce", zzrrconf);
+			fmt.Printf("%v reduce/reduce", zzrrconf)
 		}
 		fmt.Printf("\n");
 	}
@@ -2953,12 +2953,12 @@ func summary() {
 //
 func osummary() {
 	if foutput == nil {
-		return;
+		return
 	}
 	i := 0;
 	for p := maxa; p >= 0; p-- {
 		if amem[p] == 0 {
-			i++;
+			i++
 		}
 	}
 
@@ -3005,7 +3005,7 @@ func setunion(a, b []int) int {
 		y := x|b[i];
 		a[i] = y;
 		if y != x {
-			sub = 1;
+			sub = 1
 		}
 	}
 	return sub;
@@ -3019,7 +3019,7 @@ func prlook(p Lkset) {
 	fmt.Fprintf(foutput, " { ");
 	for j := 0; j <= ntokens; j++ {
 		if bitset(p, j) != 0 {
-			fmt.Fprintf(foutput, "%v ", symnam(j));
+			fmt.Fprintf(foutput, "%v ", symnam(j))
 		}
 	}
 	fmt.Fprintf(foutput, "}");
@@ -3033,7 +3033,7 @@ var peekrune int
 func isdigit(c int) bool	{ return c >= '0' && c <= '9' }
 
 func isword(c int) bool {
-	return c >= 0xa0 || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+	return c >= 0xa0 || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
 func mktemp(t string) string	{ return t }
@@ -3045,11 +3045,11 @@ func mktemp(t string) string	{ return t }
 func aryeq(a []int, b []int) int {
 	n := len(a);
 	if len(b) != n {
-		return 0;
+		return 0
 	}
 	for ll := 0; ll < n; ll++ {
 		if a[ll] != b[ll] {
-			return 0;
+			return 0
 		}
 	}
 	return 1;
@@ -3058,7 +3058,7 @@ func aryeq(a []int, b []int) int {
 func putrune(f *bufio.Writer, c int) {
 	s := string(c);
 	for i := 0; i < len(s); i++ {
-		f.WriteByte(s[i]);
+		f.WriteByte(s[i])
 	}
 }
 
@@ -3067,7 +3067,7 @@ func getrune(f *bufio.Reader) int {
 
 	if peekrune != 0 {
 		if peekrune == EOF {
-			return EOF;
+			return EOF
 		}
 		r = peekrune;
 		peekrune = 0;
@@ -3076,10 +3076,10 @@ func getrune(f *bufio.Reader) int {
 
 	c, n, err := f.ReadRune();
 	if n == 0 {
-		return EOF;
+		return EOF
 	}
 	if err != nil {
-		error("read error: %v", err);
+		error("read error: %v", err)
 	}
 	//fmt.Printf("rune = %v n=%v\n", string(c), n);
 	return c;
@@ -3087,10 +3087,10 @@ func getrune(f *bufio.Reader) int {
 
 func ungetrune(f *bufio.Reader, c int) {
 	if f != finput {
-		panic("ungetc - not finput");
+		panic("ungetc - not finput")
 	}
 	if peekrune != 0 {
-		panic("ungetc - 2nd unget");
+		panic("ungetc - 2nd unget")
 	}
 	peekrune = c;
 }
@@ -3103,7 +3103,7 @@ func write(f *bufio.Writer, b []byte, n int) int {
 func open(s string) *bufio.Reader {
 	fi, err := os.Open(s, os.O_RDONLY, 0);
 	if err != nil {
-		error("error opening %v: %v", s, err);
+		error("error opening %v: %v", s, err)
 	}
 	//fmt.Printf("open %v\n", s);
 	return bufio.NewReader(fi);
@@ -3112,7 +3112,7 @@ func open(s string) *bufio.Reader {
 func create(s string, m int) *bufio.Writer {
 	fo, err := os.Open(s, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, m);
 	if err != nil {
-		error("error opening %v: %v", s, err);
+		error("error opening %v: %v", s, err)
 	}
 	//fmt.Printf("create %v mode %v\n", s, m);
 	return bufio.NewWriter(fo);

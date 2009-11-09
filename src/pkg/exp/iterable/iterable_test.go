@@ -14,7 +14,7 @@ func (arr IntArray) Iter() <-chan interface{} {
 	ch := make(chan interface{});
 	go func() {
 		for _, x := range arr {
-			ch <- x;
+			ch <- x
 		}
 		close(ch);
 	}();
@@ -30,7 +30,7 @@ func isEven(n interface{}) bool		{ return n.(int) % 2 == 0 }
 func doubler(n interface{}) interface{}	{ return n.(int) * 2 }
 func addOne(n interface{}) interface{}	{ return n.(int) + 1 }
 func adder(acc interface{}, n interface{}) interface{} {
-	return acc.(int) + n.(int);
+	return acc.(int) + n.(int)
 }
 
 // A stream of the natural numbers: 0, 1, 2, 3, ...
@@ -40,7 +40,7 @@ func (i integerStream) Iter() <-chan interface{} {
 	ch := make(chan interface{});
 	go func() {
 		for i := 0; ; i++ {
-			ch <- i;
+			ch <- i
 		}
 	}();
 	return ch;
@@ -48,19 +48,19 @@ func (i integerStream) Iter() <-chan interface{} {
 
 func TestAll(t *testing.T) {
 	if !All(oneToFive, isPositive) {
-		t.Error("All(oneToFive, isPositive) == false");
+		t.Error("All(oneToFive, isPositive) == false")
 	}
 	if All(oneToFive, isAbove3) {
-		t.Error("All(oneToFive, isAbove3) == true");
+		t.Error("All(oneToFive, isAbove3) == true")
 	}
 }
 
 func TestAny(t *testing.T) {
 	if Any(oneToFive, isNegative) {
-		t.Error("Any(oneToFive, isNegative) == true");
+		t.Error("Any(oneToFive, isNegative) == true")
 	}
 	if !Any(oneToFive, isEven) {
-		t.Error("Any(oneToFive, isEven) == false");
+		t.Error("Any(oneToFive, isEven) == false")
 	}
 }
 
@@ -85,7 +85,7 @@ func TestFilter(t *testing.T) {
 	moreInts := Filter(ints, isAbove3).Iter();
 	res := make([]interface{}, 3);
 	for i := 0; i < 3; i++ {
-		res[i] = <-moreInts;
+		res[i] = <-moreInts
 	}
 	assertArraysAreEqual(t, res, []int{4, 5, 6});
 }
@@ -94,14 +94,14 @@ func TestFind(t *testing.T) {
 	ints := integerStream{};
 	first := Find(ints, isAbove3);
 	if first.(int) != 4 {
-		t.Errorf("Find(ints, isAbove3) = %v, want 4", first);
+		t.Errorf("Find(ints, isAbove3) = %v, want 4", first)
 	}
 }
 
 func TestInject(t *testing.T) {
 	res := Inject(oneToFive, 0, adder);
 	if res.(int) != 15 {
-		t.Errorf("Inject(oneToFive, 0, adder) = %v, want 15", res);
+		t.Errorf("Inject(oneToFive, 0, adder) = %v, want 15", res)
 	}
 }
 

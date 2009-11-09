@@ -275,7 +275,7 @@ func TestCFB_AES(t *testing.T) {
 
 		if tt.s == 1 {
 			// 1-bit CFB not implemented
-			continue;
+			continue
 		}
 
 		c, err := aes.NewCipher(tt.key);
@@ -289,9 +289,9 @@ func TestCFB_AES(t *testing.T) {
 		var r io.Reader = bytes.NewBuffer(tt.in);
 		n, err := io.Copy(w, r);
 		if n != int64(len(tt.in)) || err != nil {
-			t.Errorf("%s: CFBEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in));
+			t.Errorf("%s: CFBEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in))
 		} else if d := crypt.Bytes(); !same(tt.out, d) {
-			t.Errorf("%s: CFBEncrypter\nhave %x\nwant %x", test, d, tt.out);
+			t.Errorf("%s: CFBEncrypter\nhave %x\nwant %x", test, d, tt.out)
 		}
 
 		var plain bytes.Buffer;
@@ -299,13 +299,13 @@ func TestCFB_AES(t *testing.T) {
 		w = &plain;
 		n, err = io.Copy(w, r);
 		if n != int64(len(tt.out)) || err != nil {
-			t.Errorf("%s: CFBDecrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out));
+			t.Errorf("%s: CFBDecrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out))
 		} else if d := plain.Bytes(); !same(tt.in, d) {
-			t.Errorf("%s: CFBDecrypter\nhave %x\nwant %x", test, d, tt.in);
+			t.Errorf("%s: CFBDecrypter\nhave %x\nwant %x", test, d, tt.in)
 		}
 
 		if t.Failed() {
-			break;
+			break
 		}
 	}
 }

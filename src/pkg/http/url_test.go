@@ -186,7 +186,7 @@ var urlfragtests = []URLTest{
 func ufmt(u *URL) string {
 	return fmt.Sprintf("%q, %q, %q, %q, %q, %q, %q, %q, %q",
 		u.Raw, u.Scheme, u.RawPath, u.Authority, u.Userinfo,
-		u.Host, u.Path, u.RawQuery, u.Fragment);
+		u.Host, u.Path, u.RawQuery, u.Fragment)
 }
 
 func DoTest(t *testing.T, parse func(string) (*URL, os.Error), name string, tests []URLTest) {
@@ -198,7 +198,7 @@ func DoTest(t *testing.T, parse func(string) (*URL, os.Error), name string, test
 		}
 		if !reflect.DeepEqual(u, tt.out) {
 			t.Errorf("%s(%q):\n\thave %v\n\twant %v\n",
-				name, tt.in, ufmt(u), ufmt(tt.out));
+				name, tt.in, ufmt(u), ufmt(tt.out))
 		}
 	}
 }
@@ -223,10 +223,10 @@ func DoTestString(t *testing.T, parse func(string) (*URL, os.Error), name string
 		s := u.String();
 		expected := tt.in;
 		if len(tt.roundtrip) > 0 {
-			expected = tt.roundtrip;
+			expected = tt.roundtrip
 		}
 		if s != expected {
-			t.Errorf("%s(%q).String() == %q (expected %q)", name, tt.in, s, expected);
+			t.Errorf("%s(%q).String() == %q (expected %q)", name, tt.in, s, expected)
 		}
 	}
 }
@@ -308,7 +308,7 @@ func TestURLUnescape(t *testing.T) {
 	for _, tt := range unescapeTests {
 		actual, err := URLUnescape(tt.in);
 		if actual != tt.out || (err != nil) != (tt.err != nil) {
-			t.Errorf("URLUnescape(%q) = %q, %s; want %q, %s", tt.in, actual, err, tt.out, tt.err);
+			t.Errorf("URLUnescape(%q) = %q, %s; want %q, %s", tt.in, actual, err, tt.out, tt.err)
 		}
 	}
 }
@@ -345,13 +345,13 @@ func TestURLEscape(t *testing.T) {
 	for _, tt := range escapeTests {
 		actual := URLEscape(tt.in);
 		if tt.out != actual {
-			t.Errorf("URLEscape(%q) = %q, want %q", tt.in, actual, tt.out);
+			t.Errorf("URLEscape(%q) = %q, want %q", tt.in, actual, tt.out)
 		}
 
 		// for bonus points, verify that escape:unescape is an identity.
 		roundtrip, err := URLUnescape(actual);
 		if roundtrip != tt.in || err != nil {
-			t.Errorf("URLUnescape(%q) = %q, %s; want %q, %s", actual, roundtrip, err, tt.in, "[no error]");
+			t.Errorf("URLUnescape(%q) = %q, %s; want %q, %s", actual, roundtrip, err, tt.in, "[no error]")
 		}
 	}
 }

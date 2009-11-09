@@ -37,7 +37,7 @@ package big
 func normN(z []Word) []Word {
 	i := len(z);
 	for i > 0 && z[i-1] == 0 {
-		i--;
+		i--
 	}
 	z = z[0:i];
 	return z;
@@ -49,7 +49,7 @@ func makeN(z []Word, m int, clear bool) []Word {
 		z = z[0:m];	// reuse z - has at least one extra word for a carry, if any
 		if clear {
 			for i := range z {
-				z[i] = 0;
+				z[i] = 0
 			}
 		}
 		return z;
@@ -57,7 +57,7 @@ func makeN(z []Word, m int, clear bool) []Word {
 
 	c := 4;	// minimum capacity
 	if m > c {
-		c = m;
+		c = m
 	}
 	return make([]Word, m, c+1);	// +1: extra word for a carry, if any
 }
@@ -65,7 +65,7 @@ func makeN(z []Word, m int, clear bool) []Word {
 
 func newN(z []Word, x uint64) []Word {
 	if x == 0 {
-		return makeN(z, 0, false);
+		return makeN(z, 0, false)
 	}
 
 	// single-digit values
@@ -78,7 +78,7 @@ func newN(z []Word, x uint64) []Word {
 	// compute number of words n required to represent x
 	n := 0;
 	for t := x; t > 0; t >>= _W {
-		n++;
+		n++
 	}
 
 	// split x into n words
@@ -95,7 +95,7 @@ func newN(z []Word, x uint64) []Word {
 func setN(z, x []Word) []Word {
 	z = makeN(z, len(x), false);
 	for i, d := range x {
-		z[i] = d;
+		z[i] = d
 	}
 	return z;
 }
@@ -107,20 +107,20 @@ func addNN(z, x, y []Word) []Word {
 
 	switch {
 	case m < n:
-		return addNN(z, y, x);
+		return addNN(z, y, x)
 	case m == 0:
 		// n == 0 because m >= n; result is 0
-		return makeN(z, 0, false);
+		return makeN(z, 0, false)
 	case n == 0:
 		// result is x
-		return setN(z, x);
+		return setN(z, x)
 	}
 	// m > 0
 
 	z = makeN(z, m, false);
 	c := addVV(&z[0], &x[0], &y[0], n);
 	if m > n {
-		c = addVW(&z[n], &x[n], c, m-n);
+		c = addVW(&z[n], &x[n], c, m-n)
 	}
 	if c > 0 {
 		z = z[0 : m+1];
@@ -137,23 +137,23 @@ func subNN(z, x, y []Word) []Word {
 
 	switch {
 	case m < n:
-		panic("underflow");
+		panic("underflow")
 	case m == 0:
 		// n == 0 because m >= n; result is 0
-		return makeN(z, 0, false);
+		return makeN(z, 0, false)
 	case n == 0:
 		// result is x
-		return setN(z, x);
+		return setN(z, x)
 	}
 	// m > 0
 
 	z = makeN(z, m, false);
 	c := subVV(&z[0], &x[0], &y[0], n);
 	if m > n {
-		c = subVW(&z[n], &x[n], c, m-n);
+		c = subVW(&z[n], &x[n], c, m-n)
 	}
 	if c != 0 {
-		panic("underflow");
+		panic("underflow")
 	}
 	z = normN(z);
 
@@ -167,23 +167,23 @@ func cmpNN(x, y []Word) (r int) {
 	if m != n || m == 0 {
 		switch {
 		case m < n:
-			r = -1;
+			r = -1
 		case m > n:
-			r = 1;
+			r = 1
 		}
 		return;
 	}
 
 	i := m-1;
 	for i > 0 && x[i] == y[i] {
-		i--;
+		i--
 	}
 
 	switch {
 	case x[i] < y[i]:
-		r = -1;
+		r = -1
 	case x[i] > y[i]:
-		r = 1;
+		r = 1
 	}
 	return;
 }
@@ -192,7 +192,7 @@ func cmpNN(x, y []Word) (r int) {
 func mulAddNWW(z, x []Word, y, r Word) []Word {
 	m := len(x);
 	if m == 0 || y == 0 {
-		return newN(z, uint64(r));	// result is r
+		return newN(z, uint64(r))	// result is r
 	}
 	// m > 0
 
@@ -213,21 +213,21 @@ func mulNN(z, x, y []Word) []Word {
 
 	switch {
 	case m < n:
-		return mulNN(z, y, x);
+		return mulNN(z, y, x)
 	case m == 0 || n == 0:
-		return makeN(z, 0, false);
+		return makeN(z, 0, false)
 	case n == 1:
-		return mulAddNWW(z, x, y[0], 0);
+		return mulAddNWW(z, x, y[0], 0)
 	}
 	// m >= n && m > 1 && n > 1
 
 	z = makeN(z, m+n, true);
 	if &z[0] == &x[0] || &z[0] == &y[0] {
-		z = makeN(nil, m+n, true);	// z is an alias for x or y - cannot reuse
+		z = makeN(nil, m+n, true)	// z is an alias for x or y - cannot reuse
 	}
 	for i := 0; i < n; i++ {
 		if f := y[i]; f != 0 {
-			z[m+i] = addMulVVW(&z[i], &x[0], f, m);
+			z[m+i] = addMulVVW(&z[i], &x[0], f, m)
 		}
 	}
 	z = normN(z);
@@ -241,7 +241,7 @@ func divNW(z, x []Word, y Word) (q []Word, r Word) {
 	m := len(x);
 	switch {
 	case y == 0:
-		panic("division by zero");
+		panic("division by zero")
 	case y == 1:
 		q = setN(z, x);	// result is x
 		return;
@@ -290,7 +290,7 @@ func divNN(z, z2, uIn, v []Word) (q, r []Word) {
 			rhat += v[n-1];
 			// v[n-1] >= 0, so this tests for overflow.
 			if rhat < prevRhat {
-				break;
+				break
 			}
 			x1, x2 = mulWW_g(qhat, v[n-2]);
 		}
@@ -323,7 +323,7 @@ func divNN(z, z2, uIn, v []Word) (q, r []Word) {
 func log2(x Word) int {
 	n := 0;
 	for ; x > 0; x >>= 1 {
-		n++;
+		n++
 	}
 	return n-1;
 }
@@ -335,7 +335,7 @@ func log2(x Word) int {
 func log2N(x []Word) int {
 	m := len(x);
 	if m > 0 {
-		return (m-1)*int(_W) + log2(x[m-1]);
+		return (m-1)*int(_W) + log2(x[m-1])
 	}
 	return -1;
 }
@@ -345,13 +345,13 @@ func hexValue(ch byte) int {
 	var d byte;
 	switch {
 	case '0' <= ch && ch <= '9':
-		d = ch-'0';
+		d = ch-'0'
 	case 'a' <= ch && ch <= 'f':
-		d = ch-'a'+10;
+		d = ch-'a'+10
 	case 'A' <= ch && ch <= 'F':
-		d = ch-'A'+10;
+		d = ch-'A'+10
 	default:
-		return -1;
+		return -1
 	}
 	return int(d);
 }
@@ -376,16 +376,16 @@ func scanN(z []Word, s string, base int) ([]Word, int, int) {
 			if n > 1 && (s[1] == 'x' || s[1] == 'X') {
 				if n == 2 {
 					// Reject a string which is just '0x' as nonsense.
-					return nil, 0, 0;
+					return nil, 0, 0
 				}
 				base, i = 16, 2;
 			} else {
-				base, i = 8, 1;
+				base, i = 8, 1
 			}
 		}
 	}
 	if base < 2 || 16 < base {
-		panic("illegal base");
+		panic("illegal base")
 	}
 
 	// convert string
@@ -393,9 +393,9 @@ func scanN(z []Word, s string, base int) ([]Word, int, int) {
 	for ; i < n; i++ {
 		d := hexValue(s[i]);
 		if 0 <= d && d < base {
-			z = mulAddNWW(z, z, Word(base), Word(d));
+			z = mulAddNWW(z, z, Word(base), Word(d))
 		} else {
-			break;
+			break
 		}
 	}
 
@@ -408,11 +408,11 @@ func scanN(z []Word, s string, base int) ([]Word, int, int) {
 //           a []byte buffer and return it
 func stringN(x []Word, base int) string {
 	if base < 2 || 16 < base {
-		panic("illegal base");
+		panic("illegal base")
 	}
 
 	if len(x) == 0 {
-		return "0";
+		return "0"
 	}
 
 	// allocate buffer for conversion
@@ -444,7 +444,7 @@ func leadingZeroBits(x Word) int {
 
 	for i := 0; x != 0; i++ {
 		if x&(1<<(_W-1)) != 0 {
-			return i+c;
+			return i+c
 		}
 		x <<= 1;
 	}
@@ -455,7 +455,7 @@ func leadingZeroBits(x Word) int {
 
 func shiftLeft(dst, src []Word, n int) {
 	if len(src) == 0 {
-		return;
+		return
 	}
 
 	ñ := uint(_W)-uint(n);
@@ -469,7 +469,7 @@ func shiftLeft(dst, src []Word, n int) {
 
 func shiftRight(dst, src []Word, n int) {
 	if len(src) == 0 {
-		return;
+		return
 	}
 
 	ñ := uint(_W)-uint(n);

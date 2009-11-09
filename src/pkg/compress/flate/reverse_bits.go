@@ -40,9 +40,9 @@ var reverseByte = [256]byte{
 }
 
 func reverseUint16(v uint16) uint16 {
-	return uint16(reverseByte[v>>8]) | uint16(reverseByte[v&0xFF])<<8;
+	return uint16(reverseByte[v>>8]) | uint16(reverseByte[v&0xFF])<<8
 }
 
 func reverseBits(number uint16, bitLength byte) uint16 {
-	return reverseUint16(number<<uint8(16 - bitLength));
+	return reverseUint16(number<<uint8(16 - bitLength))
 }

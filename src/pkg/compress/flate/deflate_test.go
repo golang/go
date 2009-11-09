@@ -72,7 +72,7 @@ var reverseBitsTests = []*reverseBitsTest{
 func getLargeDataChunk() []byte {
 	result := make([]byte, 100000);
 	for i := range result {
-		result[i] = byte(int64(i)*int64(i)&0xFF);
+		result[i] = byte(int64(i)*int64(i)&0xFF)
 	}
 	return result;
 }
@@ -85,7 +85,7 @@ func TestDeflate(t *testing.T) {
 		w.Close();
 		if bytes.Compare(buffer.Bytes(), h.out) != 0 {
 			t.Errorf("buffer is wrong; level = %v, buffer.Bytes() = %v, expected output = %v",
-				h.level, buffer.Bytes(), h.out);
+				h.level, buffer.Bytes(), h.out)
 		}
 	}
 }
@@ -103,20 +103,20 @@ func testToFromWithLevel(t *testing.T, level int, input []byte, name string) os.
 	}
 	inflater.Close();
 	if bytes.Compare(input, decompressed) != 0 {
-		t.Errorf("decompress(compress(data)) != data: level=%d input=%s", level, name);
+		t.Errorf("decompress(compress(data)) != data: level=%d input=%s", level, name)
 	}
 	return nil;
 }
 
 func testToFrom(t *testing.T, input []byte, name string) {
 	for i := 0; i < 10; i++ {
-		testToFromWithLevel(t, i, input, name);
+		testToFromWithLevel(t, i, input, name)
 	}
 }
 
 func TestDeflateInflate(t *testing.T) {
 	for i, h := range deflateInflateTests {
-		testToFrom(t, h.in, fmt.Sprintf("#%d", i));
+		testToFrom(t, h.in, fmt.Sprintf("#%d", i))
 	}
 }
 
@@ -124,7 +124,7 @@ func TestReverseBits(t *testing.T) {
 	for _, h := range reverseBitsTests {
 		if v := reverseBits(h.in, h.bitCount); v != h.out {
 			t.Errorf("reverseBits(%v,%v) = %v, want %v",
-				h.in, h.bitCount, v, h.out);
+				h.in, h.bitCount, v, h.out)
 		}
 	}
 }
@@ -260,5 +260,5 @@ func getEdata() string {
 		"30186739439716388611764209004068663398856841681003872389214483176070116684503887" +
 		"21236436704331409115573328018297798873659091665961240202177855885487617616198937" +
 		"07943800566633648843650891448055710397652146960276625835990519870423001794655367" +
-		"9";
+		"9"
 }

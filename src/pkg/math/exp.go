@@ -107,24 +107,24 @@ func Exp(x float64) float64 {
 	// special cases
 	switch {
 	case IsNaN(x) || IsInf(x, 1):
-		return x;
+		return x
 	case IsInf(x, -1):
-		return 0;
+		return 0
 	case x > Overflow:
-		return Inf(1);
+		return Inf(1)
 	case x < Underflow:
-		return 0;
+		return 0
 	case -NearZero < x && x < NearZero:
-		return 1;
+		return 1
 	}
 
 	// reduce; computed as r = hi - lo for extra precision.
 	var k int;
 	switch {
 	case x < 0:
-		k = int(Log2e*x - 0.5);
+		k = int(Log2e*x - 0.5)
 	case x > 0:
-		k = int(Log2e*x + 0.5);
+		k = int(Log2e*x + 0.5)
 	}
 	hi := x - float64(k)*Ln2Hi;
 	lo := float64(k)*Ln2Lo;

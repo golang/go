@@ -17,10 +17,10 @@ func TestParsePKCS1PrivateKey(t *testing.T) {
 	block, _ := pem.Decode(strings.Bytes(pemPrivateKey));
 	priv, err := ParsePKCS1PrivateKey(block.Bytes);
 	if err != nil {
-		t.Errorf("Failed to parse private key: %s", err);
+		t.Errorf("Failed to parse private key: %s", err)
 	}
 	if !reflect.DeepEqual(priv, rsaPrivateKey) {
-		t.Errorf("got:%+v want:%+v", priv, rsaPrivateKey);
+		t.Errorf("got:%+v want:%+v", priv, rsaPrivateKey)
 	}
 }
 

@@ -127,20 +127,20 @@ func (f *Fmt) pad(s string) {
 		w -= len(s);
 		padchar := byte(' ');
 		if left && f.zero {
-			padchar = '0';
+			padchar = '0'
 		}
 		if w > 0 {
 			if w > nByte {
-				w = nByte;
+				w = nByte
 			}
 			buf := make([]byte, w);
 			for i := 0; i < w; i++ {
-				buf[i] = padchar;
+				buf[i] = padchar
 			}
 			if left {
-				s = string(buf)+s;
+				s = string(buf)+s
 			} else {
-				s = s+string(buf);
+				s = s+string(buf)
 			}
 		}
 	}
@@ -166,9 +166,9 @@ func putint(buf []byte, base, val uint64, digits string) int {
 // Fmt_boolean formats a boolean.
 func (f *Fmt) Fmt_boolean(v bool) *Fmt {
 	if v {
-		f.pad("true");
+		f.pad("true")
 	} else {
-		f.pad("false");
+		f.pad("false")
 	}
 	f.clearflags();
 	return f;
@@ -179,7 +179,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits string) string 
 	var buf [nByte]byte;
 	negative := is_signed && a < 0;
 	if negative {
-		a = -a;
+		a = -a
 	}
 
 	// two ways to ask for extra leading zero digits: %.3d or %03d.
@@ -191,7 +191,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits string) string 
 	} else if f.zero && f.wid_present && !f.minus && f.wid > 0 {
 		prec = f.wid;
 		if negative || f.plus || f.space {
-			prec--;	// leave room for sign
+			prec--	// leave room for sign
 		}
 	}
 
@@ -357,7 +357,7 @@ func (f *Fmt) Fmt_c(v int) *Fmt {
 func (f *Fmt) Fmt_s(s string) *Fmt {
 	if f.prec_present {
 		if f.prec < len(s) {
-			s = s[0 : f.prec];
+			s = s[0 : f.prec]
 		}
 	}
 	f.pad(s);
@@ -370,7 +370,7 @@ func (f *Fmt) Fmt_sx(s string) *Fmt {
 	t := "";
 	for i := 0; i < len(s); i++ {
 		if i > 0 && f.space {
-			t += " ";
+			t += " "
 		}
 		v := s[i];
 		t += string(ldigits[v>>4]);
@@ -398,9 +398,9 @@ func (f *Fmt) Fmt_sX(s string) *Fmt {
 func (f *Fmt) Fmt_q(s string) *Fmt {
 	var quoted string;
 	if f.sharp && strconv.CanBackquote(s) {
-		quoted = "`"+s+"`";
+		quoted = "`"+s+"`"
 	} else {
-		quoted = strconv.Quote(s);
+		quoted = strconv.Quote(s)
 	}
 	f.pad(quoted);
 	f.clearflags();
@@ -411,7 +411,7 @@ func (f *Fmt) Fmt_q(s string) *Fmt {
 
 func doPrec(f *Fmt, def int) int {
 	if f.prec_present {
-		return f.prec;
+		return f.prec
 	}
 	return def;
 }
@@ -424,27 +424,27 @@ func fmtString(f *Fmt, s string) *Fmt {
 
 // Fmt_e64 formats a float64 in the form -1.23e+12.
 func (f *Fmt) Fmt_e64(v float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(v, 'e', doPrec(f, 6)));
+	return fmtString(f, strconv.Ftoa64(v, 'e', doPrec(f, 6)))
 }
 
 // Fmt_E64 formats a float64 in the form -1.23E+12.
 func (f *Fmt) Fmt_E64(v float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(v, 'E', doPrec(f, 6)));
+	return fmtString(f, strconv.Ftoa64(v, 'E', doPrec(f, 6)))
 }
 
 // Fmt_f64 formats a float64 in the form -1.23.
 func (f *Fmt) Fmt_f64(v float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(v, 'f', doPrec(f, 6)));
+	return fmtString(f, strconv.Ftoa64(v, 'f', doPrec(f, 6)))
 }
 
 // Fmt_g64 formats a float64 in the 'f' or 'e' form according to size.
 func (f *Fmt) Fmt_g64(v float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(v, 'g', doPrec(f, -1)));
+	return fmtString(f, strconv.Ftoa64(v, 'g', doPrec(f, -1)))
 }
 
 // Fmt_g64 formats a float64 in the 'f' or 'E' form according to size.
 func (f *Fmt) Fmt_G64(v float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(v, 'G', doPrec(f, -1)));
+	return fmtString(f, strconv.Ftoa64(v, 'G', doPrec(f, -1)))
 }
 
 // Fmt_fb64 formats a float64 in the form -123p3 (exponent is power of 2).
@@ -456,27 +456,27 @@ func (f *Fmt) Fmt_fb64(v float64) *Fmt	{ return fmtString(f, strconv.Ftoa64(v, '
 
 // Fmt_e32 formats a float32 in the form -1.23e+12.
 func (f *Fmt) Fmt_e32(v float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(v, 'e', doPrec(f, 6)));
+	return fmtString(f, strconv.Ftoa32(v, 'e', doPrec(f, 6)))
 }
 
 // Fmt_E32 formats a float32 in the form -1.23E+12.
 func (f *Fmt) Fmt_E32(v float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(v, 'e', doPrec(f, 6)));
+	return fmtString(f, strconv.Ftoa32(v, 'e', doPrec(f, 6)))
 }
 
 // Fmt_f32 formats a float32 in the form -1.23.
 func (f *Fmt) Fmt_f32(v float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(v, 'f', doPrec(f, 6)));
+	return fmtString(f, strconv.Ftoa32(v, 'f', doPrec(f, 6)))
 }
 
 // Fmt_g32 formats a float32 in the 'f' or 'e' form according to size.
 func (f *Fmt) Fmt_g32(v float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(v, 'g', doPrec(f, -1)));
+	return fmtString(f, strconv.Ftoa32(v, 'g', doPrec(f, -1)))
 }
 
 // Fmt_G32 formats a float32 in the 'f' or 'E' form according to size.
 func (f *Fmt) Fmt_G32(v float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(v, 'G', doPrec(f, -1)));
+	return fmtString(f, strconv.Ftoa32(v, 'G', doPrec(f, -1)))
 }
 
 // Fmt_fb32 formats a float32 in the form -123p3 (exponent is power of 2).
@@ -485,28 +485,28 @@ func (f *Fmt) Fmt_fb32(v float32) *Fmt	{ return fmtString(f, strconv.Ftoa32(v, '
 // float
 func (x *Fmt) f(a float) *Fmt {
 	if strconv.FloatSize == 32 {
-		return x.Fmt_f32(float32(a));
+		return x.Fmt_f32(float32(a))
 	}
 	return x.Fmt_f64(float64(a));
 }
 
 func (x *Fmt) e(a float) *Fmt {
 	if strconv.FloatSize == 32 {
-		return x.Fmt_e32(float32(a));
+		return x.Fmt_e32(float32(a))
 	}
 	return x.Fmt_e64(float64(a));
 }
 
 func (x *Fmt) g(a float) *Fmt {
 	if strconv.FloatSize == 32 {
-		return x.Fmt_g32(float32(a));
+		return x.Fmt_g32(float32(a))
 	}
 	return x.Fmt_g64(float64(a));
 }
 
 func (x *Fmt) fb(a float) *Fmt {
 	if strconv.FloatSize == 32 {
-		return x.Fmt_fb32(float32(a));
+		return x.Fmt_fb32(float32(a))
 	}
 	return x.Fmt_fb64(float64(a));
 }

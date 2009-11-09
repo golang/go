@@ -28,7 +28,7 @@ const (
 
 func makeReader(r io.Reader) flate.Reader {
 	if rr, ok := r.(flate.Reader); ok {
-		return rr;
+		return rr
 	}
 	return bufio.NewReader(r);
 }
@@ -85,21 +85,21 @@ func NewInflater(r io.Reader) (*Inflater, os.Error) {
 
 // GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
 func get4(p []byte) uint32 {
-	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24;
+	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24
 }
 
 func (z *Inflater) readString() (string, os.Error) {
 	var err os.Error;
 	for i := 0; ; i++ {
 		if i >= len(z.buf) {
-			return "", HeaderError;
+			return "", HeaderError
 		}
 		z.buf[i], err = z.r.ReadByte();
 		if err != nil {
-			return "", err;
+			return "", err
 		}
 		if z.buf[i] == 0 {
-			return string(z.buf[0:i]), nil;
+			return string(z.buf[0:i]), nil
 		}
 	}
 	panic("not reached");
@@ -108,7 +108,7 @@ func (z *Inflater) readString() (string, os.Error) {
 func (z *Inflater) read2() (uint32, os.Error) {
 	_, err := z.r.Read(z.buf[0:2]);
 	if err != nil {
-		return 0, err;
+		return 0, err
 	}
 	return uint32(z.buf[0]) | uint32(z.buf[1])<<8, nil;
 }
@@ -116,10 +116,10 @@ func (z *Inflater) read2() (uint32, os.Error) {
 func (z *Inflater) readHeader(save bool) os.Error {
 	_, err := io.ReadFull(z.r, z.buf[0:10]);
 	if err != nil {
-		return err;
+		return err
 	}
 	if z.buf[0] != gzipID1 || z.buf[1] != gzipID2 || z.buf[2] != gzipDeflate {
-		return HeaderError;
+		return HeaderError
 	}
 	z.flg = z.buf[3];
 	if save {
@@ -133,44 +133,44 @@ func (z *Inflater) readHeader(save bool) os.Error {
 	if z.flg & flagExtra != 0 {
 		n, err := z.read2();
 		if err != nil {
-			return err;
+			return err
 		}
 		data := make([]byte, n);
 		if _, err = io.ReadFull(z.r, data); err != nil {
-			return err;
+			return err
 		}
 		if save {
-			z.Extra = data;
+			z.Extra = data
 		}
 	}
 
 	var s string;
 	if z.flg & flagName != 0 {
 		if s, err = z.readString(); err != nil {
-			return err;
+			return err
 		}
 		if save {
-			z.Name = s;
+			z.Name = s
 		}
 	}
 
 	if z.flg & flagComment != 0 {
 		if s, err = z.readString(); err != nil {
-			return err;
+			return err
 		}
 		if save {
-			z.Comment = s;
+			z.Comment = s
 		}
 	}
 
 	if z.flg & flagHdrCrc != 0 {
 		n, err := z.read2();
 		if err != nil {
-			return err;
+			return err
 		}
 		sum := z.digest.Sum32() & 0xFFFF;
 		if n != sum {
-			return HeaderError;
+			return HeaderError
 		}
 	}
 
@@ -181,10 +181,10 @@ func (z *Inflater) readHeader(save bool) os.Error {
 
 func (z *Inflater) Read(p []byte) (n int, err os.Error) {
 	if z.err != nil {
-		return 0, z.err;
+		return 0, z.err
 	}
 	if z.eof || len(p) == 0 {
-		return 0, nil;
+		return 0, nil
 	}
 
 	n, err = z.inflater.Read(p);

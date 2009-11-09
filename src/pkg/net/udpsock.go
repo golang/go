@@ -14,9 +14,9 @@ import (
 func sockaddrToUDP(sa syscall.Sockaddr) Addr {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		return &UDPAddr{&sa.Addr, sa.Port};
+		return &UDPAddr{&sa.Addr, sa.Port}
 	case *syscall.SockaddrInet6:
-		return &UDPAddr{&sa.Addr, sa.Port};
+		return &UDPAddr{&sa.Addr, sa.Port}
 	}
 	return nil;
 }
@@ -34,21 +34,21 @@ func (a *UDPAddr) String() string	{ return joinHostPort(a.IP.String(), itoa(a.Po
 
 func (a *UDPAddr) family() int {
 	if a == nil || len(a.IP) <= 4 {
-		return syscall.AF_INET;
+		return syscall.AF_INET
 	}
 	if ip := a.IP.To4(); ip != nil {
-		return syscall.AF_INET;
+		return syscall.AF_INET
 	}
 	return syscall.AF_INET6;
 }
 
 func (a *UDPAddr) sockaddr(family int) (syscall.Sockaddr, os.Error) {
-	return ipToSockaddr(family, a.IP, a.Port);
+	return ipToSockaddr(family, a.IP, a.Port)
 }
 
 func (a *UDPAddr) toAddr() sockaddr {
 	if a == nil {	// nil *UDPAddr
-		return nil;	// nil interface
+		return nil	// nil interface
 	}
 	return a;
 }
@@ -60,7 +60,7 @@ func (a *UDPAddr) toAddr() sockaddr {
 func ResolveUDPAddr(addr string) (*UDPAddr, os.Error) {
 	ip, port, err := hostPortToIP("udp", addr);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	return &UDPAddr{ip, port}, nil;
 }
@@ -85,7 +85,7 @@ func (c *UDPConn) ok() bool	{ return c != nil && c.fd != nil }
 // after a fixed time limit; see SetTimeout and SetReadTimeout.
 func (c *UDPConn) Read(b []byte) (n int, err os.Error) {
 	if !c.ok() {
-		return 0, os.EINVAL;
+		return 0, os.EINVAL
 	}
 	return c.fd.Read(b);
 }
@@ -96,7 +96,7 @@ func (c *UDPConn) Read(b []byte) (n int, err os.Error) {
 // after a fixed time limit; see SetTimeout and SetReadTimeout.
 func (c *UDPConn) Write(b []byte) (n int, err os.Error) {
 	if !c.ok() {
-		return 0, os.EINVAL;
+		return 0, os.EINVAL
 	}
 	return c.fd.Write(b);
 }
@@ -104,7 +104,7 @@ func (c *UDPConn) Write(b []byte) (n int, err os.Error) {
 // Close closes the UDP connection.
 func (c *UDPConn) Close() os.Error {
 	if !c.ok() {
-		return os.EINVAL;
+		return os.EINVAL
 	}
 	err := c.fd.Close();
 	c.fd = nil;
@@ -114,7 +114,7 @@ func (c *UDPConn) Close() os.Error {
 // LocalAddr returns the local network address.
 func (c *UDPConn) LocalAddr() Addr {
 	if !c.ok() {
-		return nil;
+		return nil
 	}
 	return c.fd.laddr;
 }
@@ -122,7 +122,7 @@ func (c *UDPConn) LocalAddr() Addr {
 // RemoteAddr returns the remote network address, a *UDPAddr.
 func (c *UDPConn) RemoteAddr() Addr {
 	if !c.ok() {
-		return nil;
+		return nil
 	}
 	return c.fd.raddr;
 }
@@ -131,7 +131,7 @@ func (c *UDPConn) RemoteAddr() Addr {
 // with the connection.
 func (c *UDPConn) SetTimeout(nsec int64) os.Error {
 	if !c.ok() {
-		return os.EINVAL;
+		return os.EINVAL
 	}
 	return setTimeout(c.fd, nsec);
 }
@@ -141,7 +141,7 @@ func (c *UDPConn) SetTimeout(nsec int64) os.Error {
 // Setting nsec == 0 (the default) disables the deadline.
 func (c *UDPConn) SetReadTimeout(nsec int64) os.Error {
 	if !c.ok() {
-		return os.EINVAL;
+		return os.EINVAL
 	}
 	return setReadTimeout(c.fd, nsec);
 }
@@ -153,7 +153,7 @@ func (c *UDPConn) SetReadTimeout(nsec int64) os.Error {
 // some of the data was successfully written.
 func (c *UDPConn) SetWriteTimeout(nsec int64) os.Error {
 	if !c.ok() {
-		return os.EINVAL;
+		return os.EINVAL
 	}
 	return setWriteTimeout(c.fd, nsec);
 }
@@ -162,7 +162,7 @@ func (c *UDPConn) SetWriteTimeout(nsec int64) os.Error {
 // receive buffer associated with the connection.
 func (c *UDPConn) SetReadBuffer(bytes int) os.Error {
 	if !c.ok() {
-		return os.EINVAL;
+		return os.EINVAL
 	}
 	return setReadBuffer(c.fd, bytes);
 }
@@ -171,7 +171,7 @@ func (c *UDPConn) SetReadBuffer(bytes int) os.Error {
 // transmit buffer associated with the connection.
 func (c *UDPConn) SetWriteBuffer(bytes int) os.Error {
 	if !c.ok() {
-		return os.EINVAL;
+		return os.EINVAL
 	}
 	return setWriteBuffer(c.fd, bytes);
 }
@@ -186,17 +186,17 @@ func (c *UDPConn) SetWriteBuffer(bytes int) os.Error {
 // after a fixed time limit; see SetTimeout and SetReadTimeout.
 func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
 	if !c.ok() {
-		return 0, nil, os.EINVAL;
+		return 0, nil, os.EINVAL
 	}
 	n, sa, errno := syscall.Recvfrom(c.fd.fd, b, 0);
 	if errno != 0 {
-		err = os.Errno(errno);
+		err = os.Errno(errno)
 	}
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		addr = &UDPAddr{&sa.Addr, sa.Port};
+		addr = &UDPAddr{&sa.Addr, sa.Port}
 	case *syscall.SockaddrInet6:
-		addr = &UDPAddr{&sa.Addr, sa.Port};
+		addr = &UDPAddr{&sa.Addr, sa.Port}
 	}
 	return;
 }
@@ -209,7 +209,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
 // after a fixed time limit; see SetTimeout and SetReadTimeout.
 func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
 	if !c.ok() {
-		return 0, nil, os.EINVAL;
+		return 0, nil, os.EINVAL
 	}
 	n, uaddr, err := c.ReadFromUDP(b);
 	return n, uaddr.toAddr(), err;
@@ -222,14 +222,14 @@ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err os.Error) {
 // On packet-oriented connections such as UDP, write timeouts are rare.
 func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err os.Error) {
 	if !c.ok() {
-		return 0, os.EINVAL;
+		return 0, os.EINVAL
 	}
 	sa, err := addr.sockaddr(c.fd.family);
 	if err != nil {
-		return 0, err;
+		return 0, err
 	}
 	if errno := syscall.Sendto(c.fd.fd, b, 0, sa); errno != 0 {
-		return 0, os.Errno(errno);
+		return 0, os.Errno(errno)
 	}
 	return len(b), nil;
 }
@@ -241,11 +241,11 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err os.Error) {
 // On packet-oriented connections such as UDP, write timeouts are rare.
 func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err os.Error) {
 	if !c.ok() {
-		return 0, os.EINVAL;
+		return 0, os.EINVAL
 	}
 	a, ok := addr.(*UDPAddr);
 	if !ok {
-		return 0, &OpError{"writeto", "udp", addr, os.EINVAL};
+		return 0, &OpError{"writeto", "udp", addr, os.EINVAL}
 	}
 	return c.WriteToUDP(b, a);
 }
@@ -257,14 +257,14 @@ func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err os.Error) {
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:
-		return nil, UnknownNetworkError(net);
+		return nil, UnknownNetworkError(net)
 	}
 	if raddr == nil {
-		return nil, &OpError{"dial", "udp", nil, errMissingAddress};
+		return nil, &OpError{"dial", "udp", nil, errMissingAddress}
 	}
 	fd, e := internetSocket(net, laddr.toAddr(), raddr.toAddr(), syscall.SOCK_DGRAM, "dial", sockaddrToUDP);
 	if e != nil {
-		return nil, e;
+		return nil, e
 	}
 	return newUDPConn(fd), nil;
 }
@@ -277,14 +277,14 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err os.Error) {
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:
-		return nil, UnknownNetworkError(net);
+		return nil, UnknownNetworkError(net)
 	}
 	if laddr == nil {
-		return nil, &OpError{"listen", "udp", nil, errMissingAddress};
+		return nil, &OpError{"listen", "udp", nil, errMissingAddress}
 	}
 	fd, e := internetSocket(net, laddr.toAddr(), nil, syscall.SOCK_DGRAM, "dial", sockaddrToUDP);
 	if e != nil {
-		return nil, e;
+		return nil, e
 	}
 	return newUDPConn(fd), nil;
 }

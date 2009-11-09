@@ -47,7 +47,7 @@ func (b *codeBuf) push(instr func(*Thread)) {
 	if n >= cap(b.instrs) {
 		a := make(code, n, n*2);
 		for i := range b.instrs {
-			a[i] = b.instrs[i];
+			a[i] = b.instrs[i]
 		}
 		b.instrs = a;
 	}
@@ -61,7 +61,7 @@ func (b *codeBuf) get() code {
 	// Freeze this buffer into an array of exactly the right size
 	a := make(code, len(b.instrs));
 	for i := range b.instrs {
-		a[i] = b.instrs[i];
+		a[i] = b.instrs[i]
 	}
 	return code(a);
 }

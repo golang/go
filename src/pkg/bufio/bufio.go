@@ -34,12 +34,12 @@ var (
 type BufSizeError int
 
 func (b BufSizeError) String() string {
-	return "bufio: bad buffer size " + strconv.Itoa(int(b));
+	return "bufio: bad buffer size " + strconv.Itoa(int(b))
 }
 
 func copySlice(dst []byte, src []byte) {
 	for i := 0; i < len(dst); i++ {
-		dst[i] = src[i];
+		dst[i] = src[i]
 	}
 }
 
@@ -61,12 +61,12 @@ type Reader struct {
 // It returns the Reader and any error.
 func NewReaderSize(rd io.Reader, size int) (*Reader, os.Error) {
 	if size <= 0 {
-		return nil, BufSizeError(size);
+		return nil, BufSizeError(size)
 	}
 	// Is it already a Reader?
 	b, ok := rd.(*Reader);
 	if ok && len(b.buf) >= size {
-		return b, nil;
+		return b, nil
 	}
 	b = new(Reader);
 	b.buf = make([]byte, size);
@@ -80,7 +80,7 @@ func NewReader(rd io.Reader) *Reader {
 	b, err := NewReaderSize(rd, defaultBufSize);
 	if err != nil {
 		// cannot happen - defaultBufSize is a valid size
-		panic("bufio: NewReader: ", err.String());
+		panic("bufio: NewReader: ", err.String())
 	}
 	return b;
 }
@@ -92,7 +92,7 @@ func (b *Reader) fill() {
 		copySlice(b.buf[0 : b.w - b.r], b.buf[b.r : b.w]);
 		b.w -= b.r;
 	} else {
-		b.w = 0;
+		b.w = 0
 	}
 	b.r = 0;
 
@@ -100,7 +100,7 @@ func (b *Reader) fill() {
 	n, e := b.rd.Read(b.buf[b.w : len(b.buf)]);
 	b.w += n;
 	if e != nil {
-		b.err = e;
+		b.err = e
 	}
 }
 
@@ -115,14 +115,14 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 		n := len(p);
 		if b.w == b.r {
 			if b.err != nil {
-				return nn, b.err;
+				return nn, b.err
 			}
 			if len(p) >= len(b.buf) {
 				// Large read, empty buffer.
 				// Read directly into p to avoid copy.
 				n, b.err = b.rd.Read(p);
 				if n > 0 {
-					b.lastbyte = int(p[n-1]);
+					b.lastbyte = int(p[n-1])
 				}
 				p = p[n:len(p)];
 				nn += n;
@@ -132,7 +132,7 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 			continue;
 		}
 		if n > b.w - b.r {
-			n = b.w - b.r;
+			n = b.w - b.r
 		}
 		copySlice(p[0:n], b.buf[b.r : b.r + n]);
 		p = p[n:len(p)];
@@ -148,7 +148,7 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 func (b *Reader) ReadByte() (c byte, err os.Error) {
 	for b.w == b.r {
 		if b.err != nil {
-			return 0, b.err;
+			return 0, b.err
 		}
 		b.fill();
 	}
@@ -168,7 +168,7 @@ func (b *Reader) UnreadByte() os.Error {
 		return nil;
 	}
 	if b.r <= 0 {
-		return ErrInvalidUnreadByte;
+		return ErrInvalidUnreadByte
 	}
 	b.r--;
 	b.lastbyte = -1;
@@ -179,14 +179,14 @@ func (b *Reader) UnreadByte() os.Error {
 // rune and its size in bytes.
 func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
 	for b.r + utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r : b.w]) && b.err == nil {
-		b.fill();
+		b.fill()
 	}
 	if b.r == b.w {
-		return 0, 0, b.err;
+		return 0, 0, b.err
 	}
 	rune, size = int(b.buf[b.r]), 1;
 	if rune >= 0x80 {
-		rune, size = utf8.DecodeRune(b.buf[b.r : b.w]);
+		rune, size = utf8.DecodeRune(b.buf[b.r : b.w])
 	}
 	b.r += size;
 	b.lastbyte = int(b.buf[b.r - 1]);
@@ -198,7 +198,7 @@ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
 func findByte(p []byte, c byte) int {
 	for i := 0; i < len(p); i++ {
 		if p[i] == c {
-			return i;
+			return i
 		}
 	}
 	return -1;
@@ -245,7 +245,7 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
 
 		// Buffer is full?
 		if b.Buffered() >= len(b.buf) {
-			return nil, ErrBufferFull;
+			return nil, ErrBufferFull
 		}
 	}
 	panic("not reached");
@@ -268,7 +268,7 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
 		var e os.Error;
 		frag, e = b.ReadSlice(delim);
 		if e == nil {	// got final fragment
-			break;
+			break
 		}
 		if e != ErrBufferFull {	// unexpected error
 			err = e;
@@ -292,11 +292,11 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
 
 		// Grow list if needed.
 		if full == nil {
-			full = make([][]byte, 16);
+			full = make([][]byte, 16)
 		} else if nfull >= len(full) {
 			newfull := make([][]byte, len(full)*2);
 			for i := 0; i < len(full); i++ {
-				newfull[i] = full[i];
+				newfull[i] = full[i]
 			}
 			full = newfull;
 		}
@@ -309,7 +309,7 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
 	// Allocate new buffer to hold the full pieces and the fragment.
 	n := 0;
 	for i := 0; i < nfull; i++ {
-		n += len(full[i]);
+		n += len(full[i])
 	}
 	n += len(frag);
 
@@ -351,12 +351,12 @@ type Writer struct {
 // It returns the Writer and any error.
 func NewWriterSize(wr io.Writer, size int) (*Writer, os.Error) {
 	if size <= 0 {
-		return nil, BufSizeError(size);
+		return nil, BufSizeError(size)
 	}
 	// Is it already a Writer?
 	b, ok := wr.(*Writer);
 	if ok && len(b.buf) >= size {
-		return b, nil;
+		return b, nil
 	}
 	b = new(Writer);
 	b.buf = make([]byte, size);
@@ -369,7 +369,7 @@ func NewWriter(wr io.Writer) *Writer {
 	b, err := NewWriterSize(wr, defaultBufSize);
 	if err != nil {
 		// cannot happen - defaultBufSize is valid size
-		panic("bufio: NewWriter: ", err.String());
+		panic("bufio: NewWriter: ", err.String())
 	}
 	return b;
 }
@@ -377,15 +377,15 @@ func NewWriter(wr io.Writer) *Writer {
 // Flush writes any buffered data to the underlying io.Writer.
 func (b *Writer) Flush() os.Error {
 	if b.err != nil {
-		return b.err;
+		return b.err
 	}
 	n, e := b.wr.Write(b.buf[0 : b.n]);
 	if n < b.n && e == nil {
-		e = io.ErrShortWrite;
+		e = io.ErrShortWrite
 	}
 	if e != nil {
 		if n > 0 && n < b.n {
-			copySlice(b.buf[0 : b.n - n], b.buf[n : b.n]);
+			copySlice(b.buf[0 : b.n - n], b.buf[n : b.n])
 		}
 		b.n -= n;
 		b.err = e;
@@ -407,14 +407,14 @@ func (b *Writer) Buffered() int	{ return b.n }
 // why the write is short.
 func (b *Writer) Write(p []byte) (nn int, err os.Error) {
 	if b.err != nil {
-		return 0, b.err;
+		return 0, b.err
 	}
 	nn = 0;
 	for len(p) > 0 {
 		n := b.Available();
 		if n <= 0 {
 			if b.Flush(); b.err != nil {
-				break;
+				break
 			}
 			n = b.Available();
 		}
@@ -425,12 +425,12 @@ func (b *Writer) Write(p []byte) (nn int, err os.Error) {
 			nn += n;
 			p = p[n:len(p)];
 			if b.err != nil {
-				break;
+				break
 			}
 			continue;
 		}
 		if n > len(p) {
-			n = len(p);
+			n = len(p)
 		}
 		copySlice(b.buf[b.n : b.n + n], p[0:n]);
 		b.n += n;
@@ -443,10 +443,10 @@ func (b *Writer) Write(p []byte) (nn int, err os.Error) {
 // WriteByte writes a single byte.
 func (b *Writer) WriteByte(c byte) os.Error {
 	if b.err != nil {
-		return b.err;
+		return b.err
 	}
 	if b.Available() <= 0 && b.Flush() != nil {
-		return b.err;
+		return b.err
 	}
 	b.buf[b.n] = c;
 	b.n++;
@@ -456,7 +456,7 @@ func (b *Writer) WriteByte(c byte) os.Error {
 // WriteString writes a string.
 func (b *Writer) WriteString(s string) os.Error {
 	if b.err != nil {
-		return b.err;
+		return b.err
 	}
 	// Common case, worth making fast.
 	if b.Available() >= len(s) || len(b.buf) >= len(s) && b.Flush() == nil {
@@ -467,7 +467,7 @@ func (b *Writer) WriteString(s string) os.Error {
 		return nil;
 	}
 	for i := 0; i < len(s); i++ {	// loop over bytes, not runes.
-		b.WriteByte(s[i]);
+		b.WriteByte(s[i])
 	}
 	return b.err;
 }
@@ -483,5 +483,5 @@ type ReadWriter struct {
 
 // NewReadWriter allocates a new ReadWriter that dispatches to r and w.
 func NewReadWriter(r *Reader, w *Writer) *ReadWriter {
-	return &ReadWriter{r, w};
+	return &ReadWriter{r, w}
 }

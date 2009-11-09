@@ -48,29 +48,29 @@ var tests = []tester{
 func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool) {
 	r, w, err1 := os.Pipe();
 	if err1 != nil {
-		t.Fatal("pipe", err1);
+		t.Fatal("pipe", err1)
 	}
 	defer r.Close();
 	defer w.Close();
 	buf := bufio.NewReader(r);
 	l := New(w, nil, prefix, flag);
 	if useLogf {
-		l.Logf("hello %d world", 23);
+		l.Logf("hello %d world", 23)
 	} else {
-		l.Log("hello", 23, "world");
+		l.Log("hello", 23, "world")
 	}
 	line, err3 := buf.ReadString('\n');
 	if err3 != nil {
-		t.Fatal("log error", err3);
+		t.Fatal("log error", err3)
 	}
 	line = line[0 : len(line)-1];
 	pattern = "^" + pattern + "hello 23 world$";
 	matched, err4 := regexp.MatchString(pattern, line);
 	if err4 != nil {
-		t.Fatal("pattern did not compile:", err4);
+		t.Fatal("pattern did not compile:", err4)
 	}
 	if !matched {
-		t.Errorf("log output should match %q is %q", pattern, line);
+		t.Errorf("log output should match %q is %q", pattern, line)
 	}
 }
 

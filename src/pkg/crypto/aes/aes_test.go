@@ -16,11 +16,11 @@ func TestPowx(t *testing.T) {
 	p := 1;
 	for i := 0; i < len(powx); i++ {
 		if powx[i] != byte(p) {
-			t.Errorf("powx[%d] = %#x, want %#x", i, powx[i], p);
+			t.Errorf("powx[%d] = %#x, want %#x", i, powx[i], p)
 		}
 		p <<= 1;
 		if p&0x100 != 0 {
-			p ^= poly;
+			p ^= poly
 		}
 	}
 }
@@ -42,7 +42,7 @@ func mul(b, c uint32) uint32 {
 		// i *= x in GF(2) modulo the polynomial
 		i <<= 1;
 		if i&0x100 != 0 {
-			i ^= poly;
+			i ^= poly
 		}
 	}
 	return s;
@@ -57,12 +57,12 @@ func TestMul(t *testing.T) {
 			for k := uint(0); k < 8; k++ {
 				for l := uint(0); l < 8; l++ {
 					if i&(1<<k) != 0 && j&(1<<l) != 0 {
-						s ^= powx[k+l];
+						s ^= powx[k+l]
 					}
 				}
 			}
 			if x := mul(i, j); x != uint32(s) {
-				t.Fatalf("mul(%#x, %#x) = %#x, want %#x", i, j, x, s);
+				t.Fatalf("mul(%#x, %#x) = %#x, want %#x", i, j, x, s)
 			}
 		}
 	}
@@ -75,10 +75,10 @@ func TestMul(t *testing.T) {
 func TestSboxes(t *testing.T) {
 	for i := 0; i < 256; i++ {
 		if j := sbox0[sbox1[i]]; j != byte(i) {
-			t.Errorf("sbox0[sbox1[%#x]] = %#x", i, j);
+			t.Errorf("sbox0[sbox1[%#x]] = %#x", i, j)
 		}
 		if j := sbox1[sbox0[i]]; j != byte(i) {
-			t.Errorf("sbox1[sbox0[%#x]] = %#x", i, j);
+			t.Errorf("sbox1[sbox0[%#x]] = %#x", i, j)
 		}
 	}
 }
@@ -93,7 +93,7 @@ func TestTe(t *testing.T) {
 		w := s2<<24 | s<<16 | s<<8 | s3;
 		for j := 0; j < 4; j++ {
 			if x := te[j][i]; x != w {
-				t.Fatalf("te[%d][%d] = %#x, want %#x", j, i, x, w);
+				t.Fatalf("te[%d][%d] = %#x, want %#x", j, i, x, w)
 			}
 			w = w<<24 | w>>8;
 		}
@@ -112,7 +112,7 @@ func TestTd(t *testing.T) {
 		w := se<<24 | s9<<16 | sd<<8 | sb;
 		for j := 0; j < 4; j++ {
 			if x := td[j][i]; x != w {
-				t.Fatalf("td[%d][%d] = %#x, want %#x", j, i, x, w);
+				t.Fatalf("td[%d][%d] = %#x, want %#x", j, i, x, w)
 			}
 			w = w<<24 | w>>8;
 		}
@@ -217,7 +217,7 @@ L:
 		enc := make([]uint32, len(tt.enc));
 		var dec []uint32;
 		if tt.dec != nil {
-			dec = make([]uint32, len(tt.dec));
+			dec = make([]uint32, len(tt.dec))
 		}
 		expandKey(tt.key, enc, dec);
 		for j, v := range enc {

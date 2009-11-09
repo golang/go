@@ -80,7 +80,7 @@ func newPollServer() (s *pollServer, err os.Error) {
 	s.cr = make(chan *netFD, 1);
 	s.cw = make(chan *netFD, 1);
 	if s.pr, s.pw, err = os.Pipe(); err != nil {
-		return nil, err;
+		return nil, err
 	}
 	var e int;
 	if e = syscall.SetNonblock(s.pr.Fd(), true); e != 0 {
@@ -92,10 +92,10 @@ func newPollServer() (s *pollServer, err os.Error) {
 		return nil, err;
 	}
 	if e = syscall.SetNonblock(s.pw.Fd(), true); e != 0 {
-		goto Errno;
+		goto Errno
 	}
 	if s.poll, err = newpollster(); err != nil {
-		goto Error;
+		goto Error
 	}
 	if err = s.poll.AddFD(s.pr.Fd(), 'r', true); err != nil {
 		s.poll.Close();
@@ -122,9 +122,9 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
 	if intfd < 0 {
 		// fd closed underfoot
 		if mode == 'r' {
-			fd.cr <- fd;
+			fd.cr <- fd
 		} else {
-			fd.cw <- fd;
+			fd.cw <- fd
 		}
 		return;
 	}
@@ -145,18 +145,18 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
 	}
 	s.pending[key] = fd;
 	if t > 0 && (s.deadline == 0 || t < s.deadline) {
-		s.deadline = t;
+		s.deadline = t
 	}
 }
 
 func (s *pollServer) LookupFD(fd int, mode int) *netFD {
 	key := fd<<1;
 	if mode == 'w' {
-		key++;
+		key++
 	}
 	netfd, ok := s.pending[key];
 	if !ok {
-		return nil;
+		return nil
 	}
 	s.pending[key] = nil, false;
 	return netfd;
@@ -179,7 +179,7 @@ func (s *pollServer) WakeFD(fd *netFD, mode int) {
 func (s *pollServer) Now() int64 {
 	sec, nsec, err := os.Time();
 	if err != nil {
-		panic("net: os.Time: ", err.String());
+		panic("net: os.Time: ", err.String())
 	}
 	nsec += sec*1e9;
 	return nsec;
@@ -195,14 +195,14 @@ func (s *pollServer) CheckDeadlines() {
 		var t int64;
 		var mode int;
 		if key&1 == 0 {
-			mode = 'r';
+			mode = 'r'
 		} else {
-			mode = 'w';
+			mode = 'w'
 		}
 		if mode == 'r' {
-			t = fd.rdeadline;
+			t = fd.rdeadline
 		} else {
-			t = fd.wdeadline;
+			t = fd.wdeadline
 		}
 		if t > 0 {
 			if t <= now {
@@ -216,7 +216,7 @@ func (s *pollServer) CheckDeadlines() {
 				}
 				s.WakeFD(fd, mode);
 			} else if next_deadline == 0 || t < next_deadline {
-				next_deadline = t;
+				next_deadline = t
 			}
 		}
 	}
@@ -247,15 +247,15 @@ func (s *pollServer) Run() {
 		if fd == s.pr.Fd() {
 			// Drain our wakeup pipe.
 			for nn, _ := s.pr.Read(&scratch); nn > 0; {
-				nn, _ = s.pr.Read(&scratch);
+				nn, _ = s.pr.Read(&scratch)
 			}
 
 			// Read from channels
 			for fd, ok := <-s.cr; ok; fd, ok = <-s.cr {
-				s.AddFD(fd, 'r');
+				s.AddFD(fd, 'r')
 			}
 			for fd, ok := <-s.cw; ok; fd, ok = <-s.cw {
-				s.AddFD(fd, 'w');
+				s.AddFD(fd, 'w')
 			}
 		} else {
 			netfd := s.LookupFD(fd, mode);
@@ -293,7 +293,7 @@ var pollserver *pollServer
 func startServer() {
 	p, err := newPollServer();
 	if err != nil {
-		print("Start pollServer: ", err.String(), "\n");
+		print("Start pollServer: ", err.String(), "\n")
 	}
 	pollserver = p;
 }
@@ -301,7 +301,7 @@ func startServer() {
 func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err os.Error) {
 	once.Do(startServer);
 	if e := syscall.SetNonblock(fd, true); e != 0 {
-		return nil, &OpError{"setnonblock", net, laddr, os.Errno(e)};
+		return nil, &OpError{"setnonblock", net, laddr, os.Errno(e)}
 	}
 	f = &netFD{
 		fd: fd,
@@ -313,10 +313,10 @@ func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err 
 	};
 	var ls, rs string;
 	if laddr != nil {
-		ls = laddr.String();
+		ls = laddr.String()
 	}
 	if raddr != nil {
-		rs = raddr.String();
+		rs = raddr.String()
 	}
 	f.file = os.NewFile(fd, net+":"+ls+"->"+rs);
 	f.cr = make(chan *netFD, 1);
@@ -326,14 +326,14 @@ func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err 
 
 func isEAGAIN(e os.Error) bool {
 	if e1, ok := e.(*os.PathError); ok {
-		return e1.Error == os.EAGAIN;
+		return e1.Error == os.EAGAIN
 	}
 	return e == os.EAGAIN;
 }
 
 func (fd *netFD) Close() os.Error {
 	if fd == nil || fd.file == nil {
-		return os.EINVAL;
+		return os.EINVAL
 	}
 
 	// In case the user has set linger,
@@ -352,14 +352,14 @@ func (fd *netFD) Close() os.Error {
 
 func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 	if fd == nil || fd.file == nil {
-		return 0, os.EINVAL;
+		return 0, os.EINVAL
 	}
 	fd.rio.Lock();
 	defer fd.rio.Unlock();
 	if fd.rdeadline_delta > 0 {
-		fd.rdeadline = pollserver.Now() + fd.rdeadline_delta;
+		fd.rdeadline = pollserver.Now() + fd.rdeadline_delta
 	} else {
-		fd.rdeadline = 0;
+		fd.rdeadline = 0
 	}
 	for {
 		n, err = fd.file.Read(p);
@@ -374,31 +374,31 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 
 func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 	if fd == nil || fd.file == nil {
-		return 0, os.EINVAL;
+		return 0, os.EINVAL
 	}
 	fd.wio.Lock();
 	defer fd.wio.Unlock();
 	if fd.wdeadline_delta > 0 {
-		fd.wdeadline = pollserver.Now() + fd.wdeadline_delta;
+		fd.wdeadline = pollserver.Now() + fd.wdeadline_delta
 	} else {
-		fd.wdeadline = 0;
+		fd.wdeadline = 0
 	}
 	err = nil;
 	nn := 0;
 	for nn < len(p) {
 		n, err = fd.file.Write(p[nn:len(p)]);
 		if n > 0 {
-			nn += n;
+			nn += n
 		}
 		if nn == len(p) {
-			break;
+			break
 		}
 		if isEAGAIN(err) && fd.wdeadline >= 0 {
 			pollserver.WaitWrite(fd);
 			continue;
 		}
 		if n == 0 || err != nil {
-			break;
+			break
 		}
 	}
 	return nn, err;
@@ -406,7 +406,7 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 
 func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.Error) {
 	if fd == nil || fd.file == nil {
-		return nil, os.EINVAL;
+		return nil, os.EINVAL
 	}
 
 	// See ../syscall/exec.go for description of ForkLock.
@@ -418,7 +418,7 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
 	for {
 		s, sa, e = syscall.Accept(fd.fd);
 		if e != syscall.EAGAIN {
-			break;
+			break
 		}
 		syscall.ForkLock.RUnlock();
 		pollserver.WaitRead(fd);

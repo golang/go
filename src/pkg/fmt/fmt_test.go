@@ -17,7 +17,7 @@ func TestFmtInterface(t *testing.T) {
 	i1 = "abc";
 	s := Sprintf("%s", i1);
 	if s != "abc" {
-		t.Errorf(`Sprintf("%%s", empty("abc")) = %q want %q`, s, "abc");
+		t.Errorf(`Sprintf("%%s", empty("abc")) = %q want %q`, s, "abc")
 	}
 }
 
@@ -201,7 +201,7 @@ func TestSprintf(t *testing.T) {
 			for ; j < len(s); j++ {
 				c := s[j];
 				if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
-					break;
+					break
 				}
 			}
 			s = s[0:i]+"PTR"+s[j:len(s)];
@@ -210,9 +210,9 @@ func TestSprintf(t *testing.T) {
 			if _, ok := tt.val.(string); ok {
 				// Don't requote the already-quoted strings.
 				// It's too confusing to read the errors.
-				t.Errorf("Sprintf(%q, %q) = %s want %s", tt.fmt, tt.val, s, tt.out);
+				t.Errorf("Sprintf(%q, %q) = %s want %s", tt.fmt, tt.val, s, tt.out)
 			} else {
-				t.Errorf("Sprintf(%q, %v) = %q want %q", tt.fmt, tt.val, s, tt.out);
+				t.Errorf("Sprintf(%q, %v) = %q want %q", tt.fmt, tt.val, s, tt.out)
 			}
 		}
 	}
@@ -224,14 +224,14 @@ func (*flagPrinter) Format(f State, c int) {
 	s := "%";
 	for i := 0; i < 128; i++ {
 		if f.Flag(i) {
-			s += string(i);
+			s += string(i)
 		}
 	}
 	if w, ok := f.Width(); ok {
-		s += Sprintf("%d", w);
+		s += Sprintf("%d", w)
 	}
 	if p, ok := f.Precision(); ok {
-		s += Sprintf(".%d", p);
+		s += Sprintf(".%d", p)
 	}
 	s += string(c);
 	io.WriteString(f, "["+s+"]");
@@ -262,7 +262,7 @@ func TestFlagParser(t *testing.T) {
 	for _, tt := range flagtests {
 		s := Sprintf(tt.in, &flagprinter);
 		if s != tt.out {
-			t.Errorf("Sprintf(%q, &flagprinter) => %q, want %q", tt.in, s, tt.out);
+			t.Errorf("Sprintf(%q, &flagprinter) => %q, want %q", tt.in, s, tt.out)
 		}
 	}
 }
@@ -287,7 +287,7 @@ func TestStructPrinter(t *testing.T) {
 	for _, tt := range tests {
 		out := Sprintf(tt.fmt, s);
 		if out != tt.out {
-			t.Errorf("Sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out);
+			t.Errorf("Sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out)
 		}
 	}
 }
@@ -297,12 +297,12 @@ func presentInMap(s string, a []string, t *testing.T) {
 	for i := 0; i < len(a); i++ {
 		loc := strings.Index(s, a[i]);
 		if loc < 0 {
-			t.Errorf("map print: expected to find %q in %q", a[i], s);
+			t.Errorf("map print: expected to find %q in %q", a[i], s)
 		}
 		// make sure the match ends here
 		loc += len(a[i]);
 		if loc >= len(s) || (s[loc] != ' ' && s[loc] != ']') {
-			t.Errorf("map print: %q not properly terminated in %q", a[i], s);
+			t.Errorf("map print: %q not properly terminated in %q", a[i], s)
 		}
 	}
 }
@@ -311,7 +311,7 @@ func TestMapPrinter(t *testing.T) {
 	m0 := make(map[int]string);
 	s := Sprint(m0);
 	if s != "map[]" {
-		t.Errorf("empty map printed as %q not %q", s, "map[]");
+		t.Errorf("empty map printed as %q not %q", s, "map[]")
 	}
 	m1 := map[int]string{1: "one", 2: "two", 3: "three"};
 	a := []string{"1:one", "2:two", "3:three"};
@@ -324,11 +324,11 @@ func TestEmptyMap(t *testing.T) {
 	var m map[string]int;
 	s := Sprint(m);
 	if s != emptyMapStr {
-		t.Errorf("nil map printed as %q not %q", s, emptyMapStr);
+		t.Errorf("nil map printed as %q not %q", s, emptyMapStr)
 	}
 	m = make(map[string]int);
 	s = Sprint(m);
 	if s != emptyMapStr {
-		t.Errorf("empty map printed as %q not %q", s, emptyMapStr);
+		t.Errorf("empty map printed as %q not %q", s, emptyMapStr)
 	}
 }

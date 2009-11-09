@@ -14,7 +14,7 @@ import (
 // causing the innermost Try to return err.
 func (t *Thread) Abort(err os.Error) {
 	if t.abort == nil {
-		panicln("abort:", err.String());
+		panicln("abort:", err.String())
 	}
 	t.abort <- err;
 	runtime.Goexit();
@@ -49,7 +49,7 @@ type IndexError struct {
 
 func (e IndexError) String() string {
 	if e.Idx < 0 {
-		return fmt.Sprintf("negative index: %d", e.Idx);
+		return fmt.Sprintf("negative index: %d", e.Idx)
 	}
 	return fmt.Sprintf("index %d exceeds length %d", e.Idx, e.Len);
 }
@@ -59,7 +59,7 @@ type SliceError struct {
 }
 
 func (e SliceError) String() string {
-	return fmt.Sprintf("slice [%d:%d]; cap %d", e.Lo, e.Hi, e.Cap);
+	return fmt.Sprintf("slice [%d:%d]; cap %d", e.Lo, e.Hi, e.Cap)
 }
 
 type KeyError struct {
@@ -73,7 +73,7 @@ type NegativeLengthError struct {
 }
 
 func (e NegativeLengthError) String() string {
-	return fmt.Sprintf("negative length: %d", e.Len);
+	return fmt.Sprintf("negative length: %d", e.Len)
 }
 
 type NegativeCapacityError struct {
@@ -81,5 +81,5 @@ type NegativeCapacityError struct {
 }
 
 func (e NegativeCapacityError) String() string {
-	return fmt.Sprintf("negative capacity: %d", e.Len);
+	return fmt.Sprintf("negative capacity: %d", e.Len)
 }

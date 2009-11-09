@@ -44,7 +44,7 @@ func aNewFrame(a aborter, g remoteStruct) *Frame {
 	// Is this G alive?
 	switch g.field(p.f.G.Status).(remoteInt).aGet(a) {
 	case p.runtime.Gidle, p.runtime.Gmoribund, p.runtime.Gdead:
-		return nil;
+		return nil
 	}
 
 	// Find the OS thread for this G
@@ -57,7 +57,7 @@ func aNewFrame(a aborter, g remoteStruct) *Frame {
 		regs, err := t.Regs();
 		if err != nil {
 			// TODO(austin) What to do?
-			continue;
+			continue
 		}
 		thisg := p.G(regs);
 		if thisg == g.addr().base {
@@ -117,19 +117,19 @@ func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *
 		// Get the PC of the call instruction
 		callpc := pc;
 		if !top && (p.sys.goexit == nil || pc != proc.Word(p.sys.goexit.Value)) {
-			callpc--;
+			callpc--
 		}
 
 		// Look up function
 		path, line, fn = p.syms.PCToLine(uint64(callpc));
 		if fn != nil {
-			break;
+			break
 		}
 
 		// Closure?
 		var buf = make([]byte, p.ClosureSize());
 		if _, err := p.Peek(pc, buf); err != nil {
-			break;
+			break
 		}
 		spdelta, ok := p.ParseClosure(buf);
 		if ok {
@@ -138,15 +138,15 @@ func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *
 		}
 	}
 	if fn == nil {
-		return nil;
+		return nil
 	}
 
 	// Compute frame pointer
 	var fp proc.Word;
 	if fn.FrameSize < p.PtrSize() {
-		fp = sp + proc.Word(p.PtrSize());
+		fp = sp + proc.Word(p.PtrSize())
 	} else {
-		fp = sp + proc.Word(fn.FrameSize);
+		fp = sp + proc.Word(fn.FrameSize)
 	}
 	// TODO(austin) To really figure out if we're in the prologue,
 	// we need to disassemble the function and look for the call
@@ -157,7 +157,7 @@ func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *
 	if top && pc == proc.Word(fn.Entry) {
 		// We're in the function prologue, before SP
 		// has been adjusted for the frame.
-		fp -= proc.Word(fn.FrameSize - p.PtrSize());
+		fp -= proc.Word(fn.FrameSize - p.PtrSize())
 	}
 
 	return &Frame{pc, sp, fp, stk, fn, path, line, inner, nil};
@@ -174,7 +174,7 @@ func (f *Frame) Outer() (*Frame, os.Error) {
 func (f *Frame) aOuter(a aborter) *Frame {
 	// Is there a cached outer frame
 	if f.outer != nil {
-		return f.outer;
+		return f.outer
 	}
 
 	p := f.stk.r.p;
@@ -185,12 +185,12 @@ func (f *Frame) aOuter(a aborter) *Frame {
 		// around calls to go and defer.  Russ says this
 		// should get fixed in the compiler, but we account
 		// for it for now.
-		sp += proc.Word(2 * p.PtrSize());
+		sp += proc.Word(2 * p.PtrSize())
 	}
 
 	pc := p.peekUintptr(a, f.fp - proc.Word(p.PtrSize()));
 	if pc < 0x1000 {
-		return nil;
+		return nil
 	}
 
 	// TODO(austin) Register this frame for shoot-down.
@@ -206,7 +206,7 @@ func (f *Frame) Inner() *Frame	{ return f.inner }
 func (f *Frame) String() string {
 	res := f.fn.Name;
 	if f.pc > proc.Word(f.fn.Value) {
-		res += fmt.Sprintf("+%#x", f.pc - proc.Word(f.fn.Entry));
+		res += fmt.Sprintf("+%#x", f.pc - proc.Word(f.fn.Entry))
 	}
 	return res + fmt.Sprintf(" %s:%d", f.path, f.line);
 }

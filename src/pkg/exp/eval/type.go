@@ -84,7 +84,7 @@ func hashTypeArray(key []Type) uintptr {
 	for _, t := range key {
 		hash = hash*33;
 		if t == nil {
-			continue;
+			continue
 		}
 		addr := reflect.NewValue(t).(*reflect.PtrValue).Get();
 		hash ^= addr;
@@ -97,17 +97,17 @@ func newTypeArrayMap() typeArrayMap	{ return make(map[uintptr]*typeArrayMapEntry
 func (m typeArrayMap) Get(key []Type) interface{} {
 	ent, ok := m[hashTypeArray(key)];
 	if !ok {
-		return nil;
+		return nil
 	}
 
 nextEnt:
 	for ; ent != nil; ent = ent.next {
 		if len(key) != len(ent.key) {
-			continue;
+			continue
 		}
 		for i := 0; i < len(key); i++ {
 			if key[i] != ent.key[i] {
-				continue nextEnt;
+				continue nextEnt
 			}
 		}
 		// Found it
@@ -165,7 +165,7 @@ func (boolType) String() string {
 	// Use angle brackets as a convention for printing the
 	// underlying, unnamed type.  This should only show up in
 	// debug output.
-	return "<bool>";
+	return "<bool>"
 }
 
 func (t *boolType) Zero() Value {
@@ -241,9 +241,9 @@ func (t *uintType) maxVal() *bignum.Rational {
 	bits := t.Bits;
 	if bits == 0 {
 		if t.Ptr {
-			bits = uint(8 * unsafe.Sizeof(uintptr(0)));
+			bits = uint(8 * unsafe.Sizeof(uintptr(0)))
 		} else {
-			bits = uint(8 * unsafe.Sizeof(uint(0)));
+			bits = uint(8 * unsafe.Sizeof(uint(0)))
 		}
 	}
 	return bignum.MakeRat(bignum.Int(1).Shl(bits).Add(bignum.Int(-1)), bignum.Nat(1));
@@ -311,7 +311,7 @@ func (t *intType) Zero() Value {
 func (t *intType) minVal() *bignum.Rational {
 	bits := t.Bits;
 	if bits == 0 {
-		bits = uint(8 * unsafe.Sizeof(int(0)));
+		bits = uint(8 * unsafe.Sizeof(int(0)))
 	}
 	return bignum.MakeRat(bignum.Int(-1).Shl(bits-1), bignum.Nat(1));
 }
@@ -319,7 +319,7 @@ func (t *intType) minVal() *bignum.Rational {
 func (t *intType) maxVal() *bignum.Rational {
 	bits := t.Bits;
 	if bits == 0 {
-		bits = uint(8 * unsafe.Sizeof(int(0)));
+		bits = uint(8 * unsafe.Sizeof(int(0)))
 	}
 	return bignum.MakeRat(bignum.Int(1).Shl(bits-1).Add(bignum.Int(-1)), bignum.Nat(1));
 }
@@ -402,13 +402,13 @@ var minFloat64Val = maxFloat64Val.Neg()
 func (t *floatType) minVal() *bignum.Rational {
 	bits := t.Bits;
 	if bits == 0 {
-		bits = uint(8 * unsafe.Sizeof(float(0)));
+		bits = uint(8 * unsafe.Sizeof(float(0)))
 	}
 	switch bits {
 	case 32:
-		return minFloat32Val;
+		return minFloat32Val
 	case 64:
-		return minFloat64Val;
+		return minFloat64Val
 	}
 	log.Crashf("unexpected floating point bit count: %d", bits);
 	panic();
@@ -417,13 +417,13 @@ func (t *floatType) minVal() *bignum.Rational {
 func (t *floatType) maxVal() *bignum.Rational {
 	bits := t.Bits;
 	if bits == 0 {
-		bits = uint(8 * unsafe.Sizeof(float(0)));
+		bits = uint(8 * unsafe.Sizeof(float(0)))
 	}
 	switch bits {
 	case 32:
-		return maxFloat32Val;
+		return maxFloat32Val
 	case 64:
-		return maxFloat64Val;
+		return maxFloat64Val
 	}
 	log.Crashf("unexpected floating point bit count: %d", bits);
 	panic();
@@ -510,7 +510,7 @@ func NewArrayType(len int64, elem Type) *ArrayType {
 func (t *ArrayType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*ArrayType);
 	if !ok {
-		return false;
+		return false
 	}
 	return t.Len == t2.Len && t.Elem.compat(t2.Elem, conv);
 }
@@ -527,7 +527,7 @@ func (t *ArrayType) Zero() Value {
 	// arrays.  Or we could do something unsafe.  We'll have this
 	// same problem with structs.
 	for i := int64(0); i < t.Len; i++ {
-		res[i] = t.Elem.Zero();
+		res[i] = t.Elem.Zero()
 	}
 	return &res;
 }
@@ -558,11 +558,11 @@ func NewStructType(fields []StructField) *StructType {
 	// Start by looking up just the types
 	fts := make([]Type, len(fields));
 	for i, f := range fields {
-		fts[i] = f.Type;
+		fts[i] = f.Type
 	}
 	tMapI := structTypes.Get(fts);
 	if tMapI == nil {
-		tMapI = structTypes.Put(fts, make(map[string]*StructType));
+		tMapI = structTypes.Put(fts, make(map[string]*StructType))
 	}
 	tMap := tMapI.(map[string]*StructType);
 
@@ -578,7 +578,7 @@ func NewStructType(fields []StructField) *StructType {
 		// else.  We decided that they should be neither
 		// identical or compatible.
 		if f.Anonymous {
-			key += "!";
+			key += "!"
 		}
 		key += f.Name + " ";
 	}
@@ -600,10 +600,10 @@ func NewStructType(fields []StructField) *StructType {
 func (t *StructType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*StructType);
 	if !ok {
-		return false;
+		return false
 	}
 	if len(t.Elems) != len(t2.Elems) {
-		return false;
+		return false
 	}
 	for i, e := range t.Elems {
 		e2 := t2.Elems[i];
@@ -612,7 +612,7 @@ func (t *StructType) compat(o Type, conv bool) bool {
 		if e.Anonymous != e2.Anonymous ||
 			(!e.Anonymous && e.Name != e2.Name) ||
 			!e.Type.compat(e2.Type, conv) {
-			return false;
+			return false
 		}
 	}
 	return true;
@@ -624,10 +624,10 @@ func (t *StructType) String() string {
 	s := "struct {";
 	for i, f := range t.Elems {
 		if i > 0 {
-			s += "; ";
+			s += "; "
 		}
 		if !f.Anonymous {
-			s += f.Name + " ";
+			s += f.Name + " "
 		}
 		s += f.Type.String();
 	}
@@ -637,7 +637,7 @@ func (t *StructType) String() string {
 func (t *StructType) Zero() Value {
 	res := structV(make([]Value, len(t.Elems)));
 	for i, f := range t.Elems {
-		res[i] = f.Type.Zero();
+		res[i] = f.Type.Zero()
 	}
 	return &res;
 }
@@ -667,7 +667,7 @@ func NewPtrType(elem Type) *PtrType {
 func (t *PtrType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*PtrType);
 	if !ok {
-		return false;
+		return false
 	}
 	return t.Elem.compat(t2.Elem, conv);
 }
@@ -716,18 +716,18 @@ var (
 func NewFuncType(in []Type, variadic bool, out []Type) *FuncType {
 	inMap := funcTypes;
 	if variadic {
-		inMap = variadicFuncTypes;
+		inMap = variadicFuncTypes
 	}
 
 	outMapI := inMap.Get(in);
 	if outMapI == nil {
-		outMapI = inMap.Put(in, newTypeArrayMap());
+		outMapI = inMap.Put(in, newTypeArrayMap())
 	}
 	outMap := outMapI.(typeArrayMap);
 
 	tI := outMap.Get(out);
 	if tI != nil {
-		return tI.(*FuncType);
+		return tI.(*FuncType)
 	}
 
 	t := &FuncType{commonType{}, in, variadic, out, ""};
@@ -738,19 +738,19 @@ func NewFuncType(in []Type, variadic bool, out []Type) *FuncType {
 func (t *FuncType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*FuncType);
 	if !ok {
-		return false;
+		return false
 	}
 	if len(t.In) != len(t2.In) || t.Variadic != t2.Variadic || len(t.Out) != len(t2.Out) {
-		return false;
+		return false
 	}
 	for i := range t.In {
 		if !t.In[i].compat(t2.In[i], conv) {
-			return false;
+			return false
 		}
 	}
 	for i := range t.Out {
 		if !t.Out[i].compat(t2.Out[i], conv) {
-			return false;
+			return false
 		}
 	}
 	return true;
@@ -762,16 +762,16 @@ func typeListString(ts []Type, ns []*ast.Ident) string {
 	s := "";
 	for i, t := range ts {
 		if i > 0 {
-			s += ", ";
+			s += ", "
 		}
 		if ns != nil && ns[i] != nil {
-			s += ns[i].Value + " ";
+			s += ns[i].Value + " "
 		}
 		if t == nil {
 			// Some places use nil types to represent errors
-			s += "<none>";
+			s += "<none>"
 		} else {
-			s += t.String();
+			s += t.String()
 		}
 	}
 	return s;
@@ -779,18 +779,18 @@ func typeListString(ts []Type, ns []*ast.Ident) string {
 
 func (t *FuncType) String() string {
 	if t.builtin != "" {
-		return "built-in function " + t.builtin;
+		return "built-in function " + t.builtin
 	}
 	args := typeListString(t.In, nil);
 	if t.Variadic {
 		if len(args) > 0 {
-			args += ", ";
+			args += ", "
 		}
 		args += "...";
 	}
 	s := "func("+args+")";
 	if len(t.Out) > 0 {
-		s += " (" + typeListString(t.Out, nil) + ")";
+		s += " (" + typeListString(t.Out, nil) + ")"
 	}
 	return s;
 }
@@ -809,7 +809,7 @@ type FuncDecl struct {
 func (t *FuncDecl) String() string {
 	s := "func";
 	if t.Name != nil {
-		s += " " + t.Name.Value;
+		s += " " + t.Name.Value
 	}
 	s += funcTypeString(t.Type, t.InNames, t.OutNames);
 	return s;
@@ -820,13 +820,13 @@ func funcTypeString(ft *FuncType, ins []*ast.Ident, outs []*ast.Ident) string {
 	s += typeListString(ft.In, ins);
 	if ft.Variadic {
 		if len(ft.In) > 0 {
-			s += ", ";
+			s += ", "
 		}
 		s += "...";
 	}
 	s += ")";
 	if len(ft.Out) > 0 {
-		s += " (" + typeListString(ft.Out, outs) + ")";
+		s += " (" + typeListString(ft.Out, outs) + ")"
 	}
 	return s;
 }
@@ -858,13 +858,13 @@ func NewInterfaceType(methods []IMethod, embeds []*InterfaceType) *InterfaceType
 	// Count methods of embedded interfaces
 	nMethods := len(methods);
 	for _, e := range embeds {
-		nMethods += len(e.methods);
+		nMethods += len(e.methods)
 	}
 
 	// Combine methods
 	allMethods := make([]IMethod, nMethods);
 	for i, m := range methods {
-		allMethods[i] = m;
+		allMethods[i] = m
 	}
 	n := len(methods);
 	for _, e := range embeds {
@@ -879,17 +879,17 @@ func NewInterfaceType(methods []IMethod, embeds []*InterfaceType) *InterfaceType
 
 	mts := make([]Type, len(allMethods));
 	for i, m := range methods {
-		mts[i] = m.Type;
+		mts[i] = m.Type
 	}
 	tMapI := interfaceTypes.Get(mts);
 	if tMapI == nil {
-		tMapI = interfaceTypes.Put(mts, make(map[string]*InterfaceType));
+		tMapI = interfaceTypes.Put(mts, make(map[string]*InterfaceType))
 	}
 	tMap := tMapI.(map[string]*InterfaceType);
 
 	key := "";
 	for _, m := range allMethods {
-		key += m.Name + " ";
+		key += m.Name + " "
 	}
 
 	t, ok := tMap[key];
@@ -911,15 +911,15 @@ func (s iMethodSorter) Len() int	{ return len(s) }
 func (t *InterfaceType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*InterfaceType);
 	if !ok {
-		return false;
+		return false
 	}
 	if len(t.methods) != len(t2.methods) {
-		return false;
+		return false
 	}
 	for i, e := range t.methods {
 		e2 := t2.methods[i];
 		if e.Name != e2.Name || !e.Type.compat(e2.Type, conv) {
-			return false;
+			return false
 		}
 	}
 	return true;
@@ -933,7 +933,7 @@ func (t *InterfaceType) String() string {
 	s := "interface {";
 	for i, m := range t.methods {
 		if i > 0 {
-			s += "; ";
+			s += "; "
 		}
 		s += m.Name + funcTypeString(m.Type, nil, nil);
 	}
@@ -944,13 +944,13 @@ func (t *InterfaceType) String() string {
 // Otherwise, it returns a method of t that o is missing and false.
 func (t *InterfaceType) implementedBy(o Type) (*IMethod, bool) {
 	if len(t.methods) == 0 {
-		return nil, true;
+		return nil, true
 	}
 
 	// The methods of a named interface types are those of the
 	// underlying type.
 	if it, ok := o.lit().(*InterfaceType); ok {
-		o = it;
+		o = it
 	}
 
 	// XXX(Spec) Interface types: "A type implements any interface
@@ -963,7 +963,7 @@ func (t *InterfaceType) implementedBy(o Type) (*IMethod, bool) {
 		for _, tm := range t.methods {
 			sm, ok := o.methods[tm.Name];
 			if !ok || sm.decl.Type != tm.Type {
-				return &tm, false;
+				return &tm, false
 			}
 		}
 		return nil, true;
@@ -975,18 +975,18 @@ func (t *InterfaceType) implementedBy(o Type) (*IMethod, bool) {
 			switch {
 			case tm.Name == om.Name:
 				if tm.Type != om.Type {
-					return tm, false;
+					return tm, false
 				}
 				ti++;
 				oi++;
 			case tm.Name > om.Name:
-				oi++;
+				oi++
 			default:
-				return tm, false;
+				return tm, false
 			}
 		}
 		if ti < len(t.methods) {
-			return &t.methods[ti], false;
+			return &t.methods[ti], false
 		}
 		return nil, true;
 	}
@@ -1021,7 +1021,7 @@ func NewSliceType(elem Type) *SliceType {
 func (t *SliceType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*SliceType);
 	if !ok {
-		return false;
+		return false
 	}
 	return t.Elem.compat(t2.Elem, conv);
 }
@@ -1033,7 +1033,7 @@ func (t *SliceType) String() string	{ return "[]" + t.Elem.String() }
 func (t *SliceType) Zero() Value {
 	// The value of an uninitialized slice is nil. The length and
 	// capacity of a nil slice are 0.
-	return &sliceV{Slice{nil, 0, 0}};
+	return &sliceV{Slice{nil, 0, 0}}
 }
 
 /*
@@ -1065,7 +1065,7 @@ func NewMapType(key Type, elem Type) *MapType {
 func (t *MapType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*MapType);
 	if !ok {
-		return false;
+		return false
 	}
 	return t.Elem.compat(t2.Elem, conv) && t.Key.compat(t2.Key, conv);
 }
@@ -1076,7 +1076,7 @@ func (t *MapType) String() string	{ return "map[" + t.Key.String() + "] " + t.El
 
 func (t *MapType) Zero() Value {
 	// The value of an uninitialized map is nil.
-	return &mapV{nil};
+	return &mapV{nil}
 }
 
 /*
@@ -1109,17 +1109,17 @@ type NamedType struct {
 // TODO(austin) This is temporarily needed by the debugger's remote
 // type parser.  This should only be possible with block.DefineType.
 func NewNamedType(name string) *NamedType {
-	return &NamedType{token.Position{}, name, nil, true, make(map[string]Method)};
+	return &NamedType{token.Position{}, name, nil, true, make(map[string]Method)}
 }
 
 func (t *NamedType) Complete(def Type) {
 	if !t.incomplete {
-		log.Crashf("cannot complete already completed NamedType %+v", *t);
+		log.Crashf("cannot complete already completed NamedType %+v", *t)
 	}
 	// We strip the name from def because multiple levels of
 	// naming are useless.
 	if ndef, ok := def.(*NamedType); ok {
-		def = ndef.Def;
+		def = ndef.Def
 	}
 	t.Def = def;
 	t.incomplete = false;
@@ -1132,12 +1132,12 @@ func (t *NamedType) compat(o Type, conv bool) bool {
 			// Two named types are conversion compatible
 			// if their literals are conversion
 			// compatible.
-			return t.Def.compat(t2.Def, conv);
+			return t.Def.compat(t2.Def, conv)
 		} else {
 			// Two named types are compatible if their
 			// type names originate in the same type
 			// declaration.
-			return t == t2;
+			return t == t2
 		}
 	}
 	// A named and an unnamed type are compatible if the
@@ -1175,7 +1175,7 @@ var multiTypes = newTypeArrayMap()
 
 func NewMultiType(elems []Type) *MultiType {
 	if t := multiTypes.Get(elems); t != nil {
-		return t.(*MultiType);
+		return t.(*MultiType)
 	}
 
 	t := &MultiType{commonType{}, elems};
@@ -1186,14 +1186,14 @@ func NewMultiType(elems []Type) *MultiType {
 func (t *MultiType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*MultiType);
 	if !ok {
-		return false;
+		return false
 	}
 	if len(t.Elems) != len(t2.Elems) {
-		return false;
+		return false
 	}
 	for i := range t.Elems {
 		if !t.Elems[i].compat(t2.Elems[i], conv) {
-			return false;
+			return false
 		}
 	}
 	return true;
@@ -1205,7 +1205,7 @@ func (t *MultiType) lit() Type	{ return t }
 
 func (t *MultiType) String() string {
 	if len(t.Elems) == 0 {
-		return "<none>";
+		return "<none>"
 	}
 	return typeListString(t.Elems, nil);
 }
@@ -1213,7 +1213,7 @@ func (t *MultiType) String() string {
 func (t *MultiType) Zero() Value {
 	res := make([]Value, len(t.Elems));
 	for i, t := range t.Elems {
-		res[i] = t.Zero();
+		res[i] = t.Zero()
 	}
 	return multiV(res);
 }

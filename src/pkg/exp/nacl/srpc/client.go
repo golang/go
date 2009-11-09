@@ -60,7 +60,7 @@ func NewClient(fd int) (c *Client, err os.Error) {
 	c.s.send(m);
 	m, err = c.r.recv();
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	m.unpackResponse();
 	if m.status != OK {
@@ -70,7 +70,7 @@ func NewClient(fd int) (c *Client, err os.Error) {
 	for n, line := range bytes.Split(m.Ret[0].([]byte), []byte{'\n'}, 0) {
 		i := bytes.Index(line, []byte{':'});
 		if i < 0 {
-			continue;
+			continue
 		}
 		c.service[string(line[0:i])] = srv{uint32(n), string(line[i+1 : len(line)])};
 	}
@@ -85,7 +85,7 @@ func (c *Client) input() {
 	for {
 		m, err := c.r.recv();
 		if err != nil {
-			log.Exitf("client recv: %s", err);
+			log.Exitf("client recv: %s", err)
 		}
 		if m.unpackResponse(); m.status != OK {
 			log.Stderrf("invalid message: %s", m.status);
@@ -94,7 +94,7 @@ func (c *Client) input() {
 		c.mu.Lock();
 		rpc, ok := c.pending[m.requestId];
 		if ok {
-			c.pending[m.requestId] = nil, false;
+			c.pending[m.requestId] = nil, false
 		}
 		c.mu.Unlock();
 		if !ok {
@@ -108,14 +108,14 @@ func (c *Client) input() {
 
 func (c *Client) output() {
 	for m := range c.out {
-		c.s.send(m);
+		c.s.send(m)
 	}
 }
 
 // NewRPC creates a new RPC on the client connection.
 func (c *Client) NewRPC(done chan *RPC) *RPC {
 	if done == nil {
-		done = make(chan *RPC);
+		done = make(chan *RPC)
 	}
 	c.mu.Lock();
 	id := c.idGen;
@@ -157,7 +157,7 @@ func (r *RPC) Start(name string, arg []interface{}) {
 	// will do that anyway.
 	i := 0;
 	for srv.fmt[i] != ':' {
-		i++;
+		i++
 	}
 	fmt := srv.fmt[i+1 : len(srv.fmt)];
 
@@ -167,21 +167,21 @@ func (r *RPC) Start(name string, arg []interface{}) {
 	for i := 0; i < len(fmt); i++ {
 		switch fmt[i] {
 		default:
-			log.Exitf("unexpected service type %c", fmt[i]);
+			log.Exitf("unexpected service type %c", fmt[i])
 		case 'b':
-			m.Ret[i] = false;
+			m.Ret[i] = false
 		case 'C':
 			m.Ret[i] = []byte(nil);
 			m.Size[i] = 1<<30;
 		case 'd':
-			m.Ret[i] = float64(0);
+			m.Ret[i] = float64(0)
 		case 'D':
 			m.Ret[i] = []float64(nil);
 			m.Size[i] = 1<<30;
 		case 'h':
-			m.Ret[i] = int(-1);
+			m.Ret[i] = int(-1)
 		case 'i':
-			m.Ret[i] = int32(0);
+			m.Ret[i] = int32(0)
 		case 'I':
 			m.Ret[i] = []int32(nil);
 			m.Size[i] = 1<<30;

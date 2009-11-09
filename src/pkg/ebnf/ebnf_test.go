@@ -43,17 +43,17 @@ var grammars = []string{
 func check(t *testing.T, filename string, src []byte) {
 	grammar, err := Parse(filename, src);
 	if err != nil {
-		t.Errorf("Parse(%s) failed: %v", src, err);
+		t.Errorf("Parse(%s) failed: %v", src, err)
 	}
 	if err = Verify(grammar, "Program"); err != nil {
-		t.Errorf("Verify(%s) failed: %v", src, err);
+		t.Errorf("Verify(%s) failed: %v", src, err)
 	}
 }
 
 
 func TestGrammars(t *testing.T) {
 	for _, src := range grammars {
-		check(t, "", strings.Bytes(src));
+		check(t, "", strings.Bytes(src))
 	}
 }
 
@@ -67,7 +67,7 @@ func TestFiles(t *testing.T) {
 	for _, filename := range files {
 		src, err := io.ReadFile(filename);
 		if err != nil {
-			t.Fatal(err);
+			t.Fatal(err)
 		}
 		check(t, filename, src);
 	}

@@ -38,7 +38,7 @@ func (x *ctrStream) Next() []byte {
 	for i := len(x.ctr)-1; i >= 0; i-- {
 		x.ctr[i]++;
 		if x.ctr[i] != 0 {
-			break;
+			break
 		}
 	}
 
@@ -52,7 +52,7 @@ func (x *ctrStream) Next() []byte {
 // a CTR reader applied to an encrypted stream produces a decrypted
 // stream and vice versa.
 func NewCTRReader(c Cipher, iv []byte, r io.Reader) io.Reader {
-	return newXorReader(newCTRStream(c, iv), r);
+	return newXorReader(newCTRStream(c, iv), r)
 }
 
 // NewCTRWriter returns a writer that encrypts (or decrypts) data using c
@@ -63,5 +63,5 @@ func NewCTRReader(c Cipher, iv []byte, r io.Reader) io.Reader {
 // a CTR writer applied to an decrypted stream produces an encrypted
 // stream and vice versa.
 func NewCTRWriter(c Cipher, iv []byte, w io.Writer) io.Writer {
-	return newXorWriter(newCTRStream(c, iv), w);
+	return newXorWriter(newCTRStream(c, iv), w)
 }

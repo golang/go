@@ -13,19 +13,19 @@ func TestRunCat(t *testing.T) {
 	cmd, err := Run("/bin/cat", []string{"cat"}, nil,
 		Pipe, Pipe, DevNull);
 	if err != nil {
-		t.Fatalf("opencmd /bin/cat: %v", err);
+		t.Fatalf("opencmd /bin/cat: %v", err)
 	}
 	io.WriteString(cmd.Stdin, "hello, world\n");
 	cmd.Stdin.Close();
 	buf, err := io.ReadAll(cmd.Stdout);
 	if err != nil {
-		t.Fatalf("reading from /bin/cat: %v", err);
+		t.Fatalf("reading from /bin/cat: %v", err)
 	}
 	if string(buf) != "hello, world\n" {
-		t.Fatalf("reading from /bin/cat: got %q", buf);
+		t.Fatalf("reading from /bin/cat: got %q", buf)
 	}
 	if err = cmd.Close(); err != nil {
-		t.Fatalf("closing /bin/cat: %v", err);
+		t.Fatalf("closing /bin/cat: %v", err)
 	}
 }
 
@@ -33,16 +33,16 @@ func TestRunEcho(t *testing.T) {
 	cmd, err := Run("/bin/echo", []string{"echo", "hello", "world"}, nil,
 		DevNull, Pipe, DevNull);
 	if err != nil {
-		t.Fatalf("opencmd /bin/echo: %v", err);
+		t.Fatalf("opencmd /bin/echo: %v", err)
 	}
 	buf, err := io.ReadAll(cmd.Stdout);
 	if err != nil {
-		t.Fatalf("reading from /bin/echo: %v", err);
+		t.Fatalf("reading from /bin/echo: %v", err)
 	}
 	if string(buf) != "hello world\n" {
-		t.Fatalf("reading from /bin/echo: got %q", buf);
+		t.Fatalf("reading from /bin/echo: got %q", buf)
 	}
 	if err = cmd.Close(); err != nil {
-		t.Fatalf("closing /bin/echo: %v", err);
+		t.Fatalf("closing /bin/echo: %v", err)
 	}
 }

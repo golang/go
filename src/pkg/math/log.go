@@ -90,11 +90,11 @@ func Log(x float64) float64 {
 	// special cases
 	switch {
 	case IsNaN(x) || IsInf(x, 1):
-		return x;
+		return x
 	case x < 0:
-		return NaN();
+		return NaN()
 	case x == 0:
-		return Inf(-1);
+		return Inf(-1)
 	}
 
 	// reduce
@@ -121,7 +121,7 @@ func Log(x float64) float64 {
 // The special cases are the same as for Log.
 func Log10(x float64) float64 {
 	if x <= 0 {
-		return NaN();
+		return NaN()
 	}
 	return Log(x)*(1/Ln10);
 }

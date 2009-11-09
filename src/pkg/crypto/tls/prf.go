@@ -35,7 +35,7 @@ func pHash(result, secret, seed []byte, hash hash.Hash) {
 		b := h.Sum();
 		todo := len(b);
 		if j+todo > len(result) {
-			todo = len(result)-j;
+			todo = len(result)-j
 		}
 		bytes.Copy(result[j : j+todo], b);
 		j += todo;
@@ -61,7 +61,7 @@ func pRF11(result, secret, label, seed []byte) {
 	pHash(result2, s2, labelAndSeed, hashSHA1);
 
 	for i, b := range result2 {
-		result[i] ^= b;
+		result[i] ^= b
 	}
 }
 
@@ -109,7 +109,7 @@ type finishedHash struct {
 }
 
 func newFinishedHash() finishedHash {
-	return finishedHash{md5.New(), sha1.New(), md5.New(), sha1.New()};
+	return finishedHash{md5.New(), sha1.New(), md5.New(), sha1.New()}
 }
 
 func (h finishedHash) Write(msg []byte) (n int, err os.Error) {

@@ -52,17 +52,17 @@ func (l *List) Back() *Element	{ return l.back }
 // Remove removes the element from the list.
 func (l *List) Remove(e *Element) {
 	if e.id != l.id {
-		return;
+		return
 	}
 	if e.prev == nil {
-		l.front = e.next;
+		l.front = e.next
 	} else {
-		e.prev.next = e.next;
+		e.prev.next = e.next
 	}
 	if e.next == nil {
-		l.back = e.prev;
+		l.back = e.prev
 	} else {
-		e.next.prev = e.prev;
+		e.next.prev = e.prev
 	}
 
 	e.prev = nil;
@@ -73,9 +73,9 @@ func (l *List) Remove(e *Element) {
 func (l *List) insertBefore(e *Element, mark *Element) {
 	if mark.prev == nil {
 		// new front of the list
-		l.front = e;
+		l.front = e
 	} else {
-		mark.prev.next = e;
+		mark.prev.next = e
 	}
 	e.prev = mark.prev;
 	mark.prev = e;
@@ -86,9 +86,9 @@ func (l *List) insertBefore(e *Element, mark *Element) {
 func (l *List) insertAfter(e *Element, mark *Element) {
 	if mark.next == nil {
 		// new back of the list
-		l.back = e;
+		l.back = e
 	} else {
-		mark.next.prev = e;
+		mark.next.prev = e
 	}
 	e.next = mark.next;
 	mark.next = e;
@@ -121,7 +121,7 @@ func (l *List) insertBack(e *Element) {
 // PushFront inserts the value at the front of the list and returns a new Element containing the value.
 func (l *List) PushFront(value interface{}) *Element {
 	if l.id == nil {
-		l.Init();
+		l.Init()
 	}
 	e := &Element{nil, nil, l.id, value};
 	l.insertFront(e);
@@ -131,7 +131,7 @@ func (l *List) PushFront(value interface{}) *Element {
 // PushBack inserts the value at the back of the list and returns a new Element containing the value.
 func (l *List) PushBack(value interface{}) *Element {
 	if l.id == nil {
-		l.Init();
+		l.Init()
 	}
 	e := &Element{nil, nil, l.id, value};
 	l.insertBack(e);
@@ -141,7 +141,7 @@ func (l *List) PushBack(value interface{}) *Element {
 // InsertBefore inserts the value immediately before mark and returns a new Element containing the value.
 func (l *List) InsertBefore(value interface{}, mark *Element) *Element {
 	if mark.id != l.id {
-		return nil;
+		return nil
 	}
 	e := &Element{nil, nil, l.id, value};
 	l.insertBefore(e, mark);
@@ -151,7 +151,7 @@ func (l *List) InsertBefore(value interface{}, mark *Element) *Element {
 // InsertAfter inserts the value immediately after mark and returns a new Element containing the value.
 func (l *List) InsertAfter(value interface{}, mark *Element) *Element {
 	if mark.id != l.id {
-		return nil;
+		return nil
 	}
 	e := &Element{nil, nil, l.id, value};
 	l.insertAfter(e, mark);
@@ -161,7 +161,7 @@ func (l *List) InsertAfter(value interface{}, mark *Element) *Element {
 // MoveToFront moves the element to the front of the list.
 func (l *List) MoveToFront(e *Element) {
 	if e.id != l.id || l.front == e {
-		return;
+		return
 	}
 	l.Remove(e);
 	l.insertFront(e);
@@ -170,7 +170,7 @@ func (l *List) MoveToFront(e *Element) {
 // MoveToBack moves the element to the back of the list.
 func (l *List) MoveToBack(e *Element) {
 	if e.id != l.id || l.back == e {
-		return;
+		return
 	}
 	l.Remove(e);
 	l.insertBack(e);
@@ -181,7 +181,7 @@ func (l *List) Len() int	{ return l.len }
 
 func (l *List) iterate(c chan<- interface{}) {
 	for e := l.front; e != nil; e = e.next {
-		c <- e.Value;
+		c <- e.Value
 	}
 	close(c);
 }

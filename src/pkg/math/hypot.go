@@ -16,18 +16,18 @@ package math
 // unnecessary overflow and underflow.
 func Hypot(p, q float64) float64 {
 	if p < 0 {
-		p = -p;
+		p = -p
 	}
 	if q < 0 {
-		q = -q;
+		q = -q
 	}
 
 	if p < q {
-		p, q = q, p;
+		p, q = q, p
 	}
 
 	if p == 0 {
-		return 0;
+		return 0
 	}
 
 	pfac := p;
@@ -38,7 +38,7 @@ func Hypot(p, q float64) float64 {
 		r = r*r;
 		s := r+4;
 		if s == 4 {
-			return p*pfac;
+			return p*pfac
 		}
 		r = r/s;
 		p = p + 2*r*p;

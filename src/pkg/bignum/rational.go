@@ -34,7 +34,7 @@ func MakeRat(a *Integer, b Natural) *Rational {
 func Rat(a0 int64, b0 int64) *Rational {
 	a, b := Int(a0), Int(b0);
 	if b.sign {
-		a = a.Neg();
+		a = a.Neg()
 	}
 	return MakeRat(a, b.mant);
 }
@@ -43,7 +43,7 @@ func Rat(a0 int64, b0 int64) *Rational {
 // Value returns the numerator and denominator of x.
 //
 func (x *Rational) Value() (numerator *Integer, denominator Natural) {
-	return x.a, x.b;
+	return x.a, x.b
 }
 
 
@@ -80,14 +80,14 @@ func (x *Rational) Neg() *Rational	{ return MakeRat(x.a.Neg(), x.b) }
 // Add returns the sum x + y.
 //
 func (x *Rational) Add(y *Rational) *Rational {
-	return MakeRat((x.a.MulNat(y.b)).Add(y.a.MulNat(x.b)), x.b.Mul(y.b));
+	return MakeRat((x.a.MulNat(y.b)).Add(y.a.MulNat(x.b)), x.b.Mul(y.b))
 }
 
 
 // Sub returns the difference x - y.
 //
 func (x *Rational) Sub(y *Rational) *Rational {
-	return MakeRat((x.a.MulNat(y.b)).Sub(y.a.MulNat(x.b)), x.b.Mul(y.b));
+	return MakeRat((x.a.MulNat(y.b)).Sub(y.a.MulNat(x.b)), x.b.Mul(y.b))
 }
 
 
@@ -103,7 +103,7 @@ func (x *Rational) Quo(y *Rational) *Rational {
 	a := x.a.MulNat(y.b);
 	b := y.a.MulNat(x.b);
 	if b.IsNeg() {
-		a = a.Neg();
+		a = a.Neg()
 	}
 	return MakeRat(a, b.mant);
 }
@@ -125,7 +125,7 @@ func (x *Rational) Cmp(y *Rational) int	{ return (x.a.MulNat(y.b)).Cmp(y.a.MulNa
 func (x *Rational) ToString(base uint) string {
 	s := x.a.ToString(base);
 	if !x.IsInt() {
-		s += "/" + x.b.ToString(base);
+		s += "/" + x.b.ToString(base)
 	}
 	return s;
 }
@@ -194,9 +194,9 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
 			rlen += elen;
 			m := Nat(10).Pow(uint(e.mant.Value()));
 			if e.sign {
-				b = b.Mul(m);
+				b = b.Mul(m)
 			} else {
-				a = a.MulNat(m);
+				a = a.MulNat(m)
 			}
 		}
 	}

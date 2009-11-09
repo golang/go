@@ -66,7 +66,7 @@ var cleantests = []CleanTest{
 func TestClean(t *testing.T) {
 	for _, test := range cleantests {
 		if s := Clean(test.path); s != test.clean {
-			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.clean);
+			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.clean)
 		}
 	}
 }
@@ -86,7 +86,7 @@ var splittests = []SplitTest{
 func TestSplit(t *testing.T) {
 	for _, test := range splittests {
 		if d, f := Split(test.path); d != test.dir || f != test.file {
-			t.Errorf("Split(%q) = %q, %q, want %q, %q", test.path, d, f, test.dir, test.file);
+			t.Errorf("Split(%q) = %q, %q, want %q, %q", test.path, d, f, test.dir, test.file)
 		}
 	}
 }
@@ -108,7 +108,7 @@ var jointests = []JoinTest{
 func TestJoin(t *testing.T) {
 	for _, test := range jointests {
 		if p := Join(test.dir, test.file); p != test.path {
-			t.Errorf("Join(%q, %q) = %q, want %q", test.dir, test.file, p, test.path);
+			t.Errorf("Join(%q, %q) = %q, want %q", test.dir, test.file, p, test.path)
 		}
 	}
 }
@@ -128,7 +128,7 @@ var exttests = []ExtTest{
 func TestExt(t *testing.T) {
 	for _, test := range exttests {
 		if x := Ext(test.path); x != test.ext {
-			t.Errorf("Ext(%q) = %q, want %q", test.path, x, test.ext);
+			t.Errorf("Ext(%q) = %q, want %q", test.path, x, test.ext)
 		}
 	}
 }
@@ -168,7 +168,7 @@ var tree = &Node{
 func walkTree(n *Node, path string, f func(path string, n *Node)) {
 	f(path, n);
 	for _, e := range n.entries {
-		walkTree(e, Join(path, e.name), f);
+		walkTree(e, Join(path, e.name), f)
 	}
 }
 
@@ -177,13 +177,13 @@ func makeTree(t *testing.T) {
 		if n.entries == nil {
 			fd, err := os.Open(path, os.O_CREAT, 0660);
 			if err != nil {
-				t.Errorf("makeTree: %v", err);
+				t.Errorf("makeTree: %v", err)
 			}
 			fd.Close();
 		} else {
-			os.Mkdir(path, 0770);
+			os.Mkdir(path, 0770)
 		}
-	});
+	})
 }
 
 func markTree(n *Node)	{ walkTree(n, "", func(path string, n *Node) { n.mark++ }) }
@@ -191,19 +191,19 @@ func markTree(n *Node)	{ walkTree(n, "", func(path string, n *Node) { n.mark++ }
 func checkMarks(t *testing.T) {
 	walkTree(tree, tree.name, func(path string, n *Node) {
 		if n.mark != 1 {
-			t.Errorf("node %s mark = %d; expected 1", path, n.mark);
+			t.Errorf("node %s mark = %d; expected 1", path, n.mark)
 		}
 		n.mark = 0;
-	});
+	})
 }
 
 // Assumes that each node name is unique. Good enough for a test.
 func mark(name string) {
 	walkTree(tree, tree.name, func(path string, n *Node) {
 		if n.name == name {
-			n.mark++;
+			n.mark++
 		}
-	});
+	})
 }
 
 type TestVisitor struct{}
@@ -214,7 +214,7 @@ func (v *TestVisitor) VisitDir(path string, d *os.Dir) bool {
 }
 
 func (v *TestVisitor) VisitFile(path string, d *os.Dir) {
-	mark(d.Name);
+	mark(d.Name)
 }
 
 func TestWalk(t *testing.T) {
@@ -229,7 +229,7 @@ func TestWalk(t *testing.T) {
 	errors := make(chan os.Error, 64);
 	Walk(tree.name, v, errors);
 	if err, ok := <-errors; ok {
-		t.Errorf("no error expected, found: s", err);
+		t.Errorf("no error expected, found: s", err)
 	}
 	checkMarks(t);
 
@@ -254,7 +254,7 @@ func TestWalk(t *testing.T) {
 		}
 	}
 	if err, ok := <-errors; ok {
-		t.Errorf("only two errors expected, found 3rd: %v", err);
+		t.Errorf("only two errors expected, found 3rd: %v", err)
 	}
 	// the inaccessible subtrees were marked manually
 	checkMarks(t);
@@ -263,6 +263,6 @@ func TestWalk(t *testing.T) {
 	os.Chmod(Join(tree.name, tree.entries[1].name), 0770);
 	os.Chmod(Join(tree.name, tree.entries[3].name), 0770);
 	if err := os.RemoveAll(tree.name); err != nil {
-		t.Errorf("removeTree: %v", err);
+		t.Errorf("removeTree: %v", err)
 	}
 }

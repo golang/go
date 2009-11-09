@@ -81,57 +81,57 @@ func (e UnsupportedError) String() string	{ return "unsupported PNG feature: " +
 
 // Big-endian.
 func parseUint32(b []uint8) uint32 {
-	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3]);
+	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
 }
 
 func abs(x int) int {
 	if x < 0 {
-		return -x;
+		return -x
 	}
 	return x;
 }
 
 func min(a, b int) int {
 	if a < b {
-		return a;
+		return a
 	}
 	return b;
 }
 
 func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Error {
 	if length != 13 {
-		return FormatError("bad IHDR length");
+		return FormatError("bad IHDR length")
 	}
 	_, err := io.ReadFull(r, d.tmp[0:13]);
 	if err != nil {
-		return err;
+		return err
 	}
 	crc.Write(d.tmp[0:13]);
 	if d.tmp[8] != 8 {
-		return UnsupportedError("bit depth");
+		return UnsupportedError("bit depth")
 	}
 	if d.tmp[10] != 0 || d.tmp[11] != 0 || d.tmp[12] != 0 {
-		return UnsupportedError("compression, filter or interlace method");
+		return UnsupportedError("compression, filter or interlace method")
 	}
 	w := int32(parseUint32(d.tmp[0:4]));
 	h := int32(parseUint32(d.tmp[4:8]));
 	if w < 0 || h < 0 {
-		return FormatError("negative dimension");
+		return FormatError("negative dimension")
 	}
 	nPixels := int64(w)*int64(h);
 	if nPixels != int64(int(nPixels)) {
-		return UnsupportedError("dimension overflow");
+		return UnsupportedError("dimension overflow")
 	}
 	d.colorType = d.tmp[9];
 	switch d.colorType {
 	case ctTrueColor:
-		d.image = image.NewRGBA(int(w), int(h));
+		d.image = image.NewRGBA(int(w), int(h))
 	case ctPaletted:
-		d.image = image.NewPaletted(int(w), int(h), nil);
+		d.image = image.NewPaletted(int(w), int(h), nil)
 	case ctTrueColorAlpha:
-		d.image = image.NewNRGBA(int(w), int(h));
+		d.image = image.NewNRGBA(int(w), int(h))
 	default:
-		return UnsupportedError("color type");
+		return UnsupportedError("color type")
 	}
 	d.width, d.height = int(w), int(h);
 	return nil;
@@ -140,26 +140,26 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Error {
 	np := int(length/3);	// The number of palette entries.
 	if length%3 != 0 || np <= 0 || np > 256 {
-		return FormatError("bad PLTE length");
+		return FormatError("bad PLTE length")
 	}
 	n, err := io.ReadFull(r, d.tmp[0 : 3*np]);
 	if err != nil {
-		return err;
+		return err
 	}
 	crc.Write(d.tmp[0:n]);
 	switch d.colorType {
 	case ctPaletted:
 		palette := make([]image.Color, np);
 		for i := 0; i < np; i++ {
-			palette[i] = image.RGBAColor{d.tmp[3*i + 0], d.tmp[3*i + 1], d.tmp[3*i + 2], 0xff};
+			palette[i] = image.RGBAColor{d.tmp[3*i + 0], d.tmp[3*i + 1], d.tmp[3*i + 2], 0xff}
 		}
 		d.image.(*image.Paletted).Palette = image.PalettedColorModel(palette);
 	case ctTrueColor, ctTrueColorAlpha:
 		// As per the PNG spec, a PLTE chunk is optional (and for practical purposes,
 		// ignorable) for the ctTrueColor and ctTrueColorAlpha color types (section 4.1.2).
-		return nil;
+		return nil
 	default:
-		return FormatError("PLTE, color type mismatch");
+		return FormatError("PLTE, color type mismatch")
 	}
 	return nil;
 }
@@ -171,9 +171,9 @@ func paeth(a, b, c uint8) uint8 {
 	pb := abs(p-int(b));
 	pc := abs(p-int(c));
 	if pa <= pb && pa <= pc {
-		return a;
+		return a
 	} else if pb <= pc {
-		return b;
+		return b
 	}
 	return c;
 }
@@ -181,7 +181,7 @@ func paeth(a, b, c uint8) uint8 {
 func (d *decoder) idatReader(idat io.Reader) os.Error {
 	r, err := zlib.NewInflater(idat);
 	if err != nil {
-		return err;
+		return err
 	}
 	defer r.Close();
 	bpp := 0;	// Bytes per pixel.
@@ -212,7 +212,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 		// Read the decompressed bytes.
 		_, err := io.ReadFull(r, cr);
 		if err != nil {
-			return err;
+			return err
 		}
 
 		// Apply the filter.
@@ -223,46 +223,46 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 			// No-op.
 		case ftSub:
 			for i := bpp; i < len(cdat); i++ {
-				cdat[i] += cdat[i-bpp];
+				cdat[i] += cdat[i-bpp]
 			}
 		case ftUp:
 			for i := 0; i < len(cdat); i++ {
-				cdat[i] += pdat[i];
+				cdat[i] += pdat[i]
 			}
 		case ftAverage:
 			for i := 0; i < bpp; i++ {
-				cdat[i] += pdat[i]/2;
+				cdat[i] += pdat[i]/2
 			}
 			for i := bpp; i < len(cdat); i++ {
-				cdat[i] += uint8((int(cdat[i-bpp])+int(pdat[i]))/2);
+				cdat[i] += uint8((int(cdat[i-bpp])+int(pdat[i]))/2)
 			}
 		case ftPaeth:
 			for i := 0; i < bpp; i++ {
-				cdat[i] += paeth(0, pdat[i], 0);
+				cdat[i] += paeth(0, pdat[i], 0)
 			}
 			for i := bpp; i < len(cdat); i++ {
-				cdat[i] += paeth(cdat[i-bpp], pdat[i], pdat[i-bpp]);
+				cdat[i] += paeth(cdat[i-bpp], pdat[i], pdat[i-bpp])
 			}
 		default:
-			return FormatError("bad filter type");
+			return FormatError("bad filter type")
 		}
 
 		// Convert from bytes to colors.
 		switch d.colorType {
 		case ctTrueColor:
 			for x := 0; x < d.width; x++ {
-				rgba.Set(x, y, image.RGBAColor{cdat[3*x + 0], cdat[3*x + 1], cdat[3*x + 2], 0xff});
+				rgba.Set(x, y, image.RGBAColor{cdat[3*x + 0], cdat[3*x + 1], cdat[3*x + 2], 0xff})
 			}
 		case ctPaletted:
 			for x := 0; x < d.width; x++ {
 				if cdat[x] > maxPalette {
-					return FormatError("palette index out of range");
+					return FormatError("palette index out of range")
 				}
 				paletted.SetColorIndex(x, y, cdat[x]);
 			}
 		case ctTrueColorAlpha:
 			for x := 0; x < d.width; x++ {
-				nrgba.Set(x, y, image.NRGBAColor{cdat[4*x + 0], cdat[4*x + 1], cdat[4*x + 2], cdat[4*x + 3]});
+				nrgba.Set(x, y, image.NRGBAColor{cdat[4*x + 0], cdat[4*x + 1], cdat[4*x + 2], cdat[4*x + 3]})
 			}
 		}
 
@@ -285,7 +285,7 @@ func (d *decoder) parseIDAT(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 		go func() {
 			err := d.idatReader(pr);
 			if err == os.EOF {
-				err = FormatError("too little IDAT");
+				err = FormatError("too little IDAT")
 			}
 			pr.CloseWithError(FormatError("too much IDAT"));
 			d.idatDone <- err;
@@ -299,10 +299,10 @@ func (d *decoder) parseIDAT(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 		// want to report that error, and not the one that made the Read stop.
 		n, err2 := d.idatWriter.Write(buf[0:n]);
 		if err2 != nil {
-			return err2;
+			return err2
 		}
 		if err1 != nil {
-			return err1;
+			return err1
 		}
 		crc.Write(buf[0:n]);
 		length -= uint32(n);
@@ -312,7 +312,7 @@ func (d *decoder) parseIDAT(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 
 func (d *decoder) parseIEND(r io.Reader, crc hash.Hash32, length uint32) os.Error {
 	if length != 0 {
-		return FormatError("bad IEND length");
+		return FormatError("bad IEND length")
 	}
 	return nil;
 }
@@ -321,20 +321,20 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
 	// Read the length.
 	n, err := io.ReadFull(r, d.tmp[0:4]);
 	if err == os.EOF {
-		return io.ErrUnexpectedEOF;
+		return io.ErrUnexpectedEOF
 	}
 	if err != nil {
-		return err;
+		return err
 	}
 	length := parseUint32(d.tmp[0:4]);
 
 	// Read the chunk type.
 	n, err = io.ReadFull(r, d.tmp[0:4]);
 	if err == os.EOF {
-		return io.ErrUnexpectedEOF;
+		return io.ErrUnexpectedEOF
 	}
 	if err != nil {
-		return err;
+		return err
 	}
 	crc := crc32.NewIEEE();
 	crc.Write(d.tmp[0:4]);
@@ -343,25 +343,25 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
 	switch string(d.tmp[0:4]) {
 	case "IHDR":
 		if d.stage != dsStart {
-			return chunkOrderError;
+			return chunkOrderError
 		}
 		d.stage = dsSeenIHDR;
 		err = d.parseIHDR(r, crc, length);
 	case "PLTE":
 		if d.stage != dsSeenIHDR {
-			return chunkOrderError;
+			return chunkOrderError
 		}
 		d.stage = dsSeenPLTE;
 		err = d.parsePLTE(r, crc, length);
 	case "IDAT":
 		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.colorType == ctPaletted && d.stage == dsSeenIHDR) {
-			return chunkOrderError;
+			return chunkOrderError
 		}
 		d.stage = dsSeenIDAT;
 		err = d.parseIDAT(r, crc, length);
 	case "IEND":
 		if d.stage != dsSeenIDAT {
-			return chunkOrderError;
+			return chunkOrderError
 		}
 		d.stage = dsSeenIEND;
 		err = d.parseIEND(r, crc, length);
@@ -371,26 +371,26 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
 		for length > 0 {
 			n, err = io.ReadFull(r, ignored[0 : min(len(ignored), int(length))]);
 			if err != nil {
-				return err;
+				return err
 			}
 			crc.Write(ignored[0:n]);
 			length -= uint32(n);
 		}
 	}
 	if err != nil {
-		return err;
+		return err
 	}
 
 	// Read the checksum.
 	n, err = io.ReadFull(r, d.tmp[0:4]);
 	if err == os.EOF {
-		return io.ErrUnexpectedEOF;
+		return io.ErrUnexpectedEOF
 	}
 	if err != nil {
-		return err;
+		return err
 	}
 	if parseUint32(d.tmp[0:4]) != crc.Sum32() {
-		return FormatError("invalid checksum");
+		return FormatError("invalid checksum")
 	}
 	return nil;
 }
@@ -398,10 +398,10 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
 func (d *decoder) checkHeader(r io.Reader) os.Error {
 	_, err := io.ReadFull(r, d.tmp[0:8]);
 	if err != nil {
-		return err;
+		return err
 	}
 	if string(d.tmp[0:8]) != pngHeader {
-		return FormatError("not a PNG file");
+		return FormatError("not a PNG file")
 	}
 	return nil;
 }
@@ -412,23 +412,23 @@ func Decode(r io.Reader) (image.Image, os.Error) {
 	var d decoder;
 	err := d.checkHeader(r);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	for d.stage = dsStart; d.stage != dsSeenIEND; {
 		err = d.parseChunk(r);
 		if err != nil {
-			break;
+			break
 		}
 	}
 	if d.idatWriter != nil {
 		d.idatWriter.Close();
 		err1 := <-d.idatDone;
 		if err == nil {
-			err = err1;
+			err = err1
 		}
 	}
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	return d.image, nil;
 }

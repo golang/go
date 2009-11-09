@@ -69,7 +69,7 @@ type parser struct {
 // scannerMode returns the scanner mode bits given the parser's mode bits.
 func scannerMode(mode uint) uint {
 	if mode & ParseComments != 0 {
-		return scanner.ScanComments;
+		return scanner.ScanComments
 	}
 	return 0;
 }
@@ -94,7 +94,7 @@ func (p *parser) printTrace(a ...) {
 	fmt.Printf("%5d:%3d: ", p.pos.Line, p.pos.Column);
 	i := 2 * p.indent;
 	for ; i > n; i -= n {
-		fmt.Print(dots);
+		fmt.Print(dots)
 	}
 	fmt.Print(dots[0:i]);
 	fmt.Println(a);
@@ -125,11 +125,11 @@ func (p *parser) next0() {
 		s := p.tok.String();
 		switch {
 		case p.tok.IsLiteral():
-			p.printTrace(s, string(p.lit));
+			p.printTrace(s, string(p.lit))
 		case p.tok.IsOperator(), p.tok.IsKeyword():
-			p.printTrace("\""+s+"\"");
+			p.printTrace("\""+s+"\"")
 		default:
-			p.printTrace(s);
+			p.printTrace(s)
 		}
 	}
 
@@ -146,7 +146,7 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
 	if p.lit[1] == '*' {
 		for _, b := range p.lit {
 			if b == '\n' {
-				endline++;
+				endline++
 			}
 		}
 	}
@@ -175,15 +175,15 @@ func (p *parser) consumeCommentGroup() int {
 	// convert list
 	group := make([]*ast.Comment, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		group[i] = list.At(i).(*ast.Comment);
+		group[i] = list.At(i).(*ast.Comment)
 	}
 
 	// add comment group to the comments list
 	g := &ast.CommentGroup{group, nil};
 	if p.lastComment != nil {
-		p.lastComment.Next = g;
+		p.lastComment.Next = g
 	} else {
-		p.comments = g;
+		p.comments = g
 	}
 	p.lastComment = g;
 
@@ -220,20 +220,20 @@ func (p *parser) next() {
 			if p.pos.Line != endline {
 				// The next token is on a different line, thus
 				// the last comment group is a line comment.
-				p.lineComment = p.lastComment;
+				p.lineComment = p.lastComment
 			}
 		}
 
 		// consume successor comments, if any
 		endline := -1;
 		for p.tok == token.COMMENT {
-			endline = p.consumeCommentGroup();
+			endline = p.consumeCommentGroup()
 		}
 
 		if endline >= 0 && endline+1 == p.pos.Line {
 			// The next token is following on the line immediately after the
 			// comment group, thus the last comment group is a lead comment.
-			p.leadComment = p.lastComment;
+			p.leadComment = p.lastComment
 		}
 	}
 }
@@ -246,7 +246,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'";
 		if p.tok.IsLiteral() {
-			msg += " "+string(p.lit);
+			msg += " "+string(p.lit)
 		}
 	}
 	p.Error(pos, msg);
@@ -256,7 +256,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 func (p *parser) expect(tok token.Token) token.Position {
 	pos := p.pos;
 	if p.tok != tok {
-		p.errorExpected(pos, "'" + tok.String() + "'");
+		p.errorExpected(pos, "'" + tok.String() + "'")
 	}
 	p.next();	// make progress in any case
 	return pos;
@@ -278,14 +278,14 @@ func close(p *parser)	{ p.topScope = p.topScope.Outer }
 
 func (p *parser) declare(ident *ast.Ident) {
 	if !p.topScope.Declare(ident) {
-		p.Error(p.pos, "'" + ident.Value + "' declared already");
+		p.Error(p.pos, "'" + ident.Value + "' declared already")
 	}
 }
 
 
 func (p *parser) declareList(idents []*ast.Ident) {
 	for _, ident := range idents {
-		p.declare(ident);
+		p.declare(ident)
 	}
 }
 
@@ -306,7 +306,7 @@ func (p *parser) parseIdent() *ast.Ident {
 
 func (p *parser) parseIdentList() []*ast.Ident {
 	if p.trace {
-		defer un(trace(p, "IdentList"));
+		defer un(trace(p, "IdentList"))
 	}
 
 	list := vector.New(0);
@@ -319,7 +319,7 @@ func (p *parser) parseIdentList() []*ast.Ident {
 	// convert vector
 	idents := make([]*ast.Ident, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		idents[i] = list.At(i).(*ast.Ident);
+		idents[i] = list.At(i).(*ast.Ident)
 	}
 
 	return idents;
@@ -328,7 +328,7 @@ func (p *parser) parseIdentList() []*ast.Ident {
 
 func (p *parser) parseExprList() []ast.Expr {
 	if p.trace {
-		defer un(trace(p, "ExpressionList"));
+		defer un(trace(p, "ExpressionList"))
 	}
 
 	list := vector.New(0);
@@ -341,7 +341,7 @@ func (p *parser) parseExprList() []ast.Expr {
 	// convert list
 	exprs := make([]ast.Expr, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		exprs[i] = list.At(i).(ast.Expr);
+		exprs[i] = list.At(i).(ast.Expr)
 	}
 
 	return exprs;
@@ -353,7 +353,7 @@ func (p *parser) parseExprList() []ast.Expr {
 
 func (p *parser) parseType() ast.Expr {
 	if p.trace {
-		defer un(trace(p, "Type"));
+		defer un(trace(p, "Type"))
 	}
 
 	typ := p.tryType();
@@ -370,7 +370,7 @@ func (p *parser) parseType() ast.Expr {
 
 func (p *parser) parseQualifiedIdent() ast.Expr {
 	if p.trace {
-		defer un(trace(p, "QualifiedIdent"));
+		defer un(trace(p, "QualifiedIdent"))
 	}
 
 	var x ast.Expr = p.parseIdent();
@@ -386,7 +386,7 @@ func (p *parser) parseQualifiedIdent() ast.Expr {
 
 func (p *parser) parseTypeName() ast.Expr {
 	if p.trace {
-		defer un(trace(p, "TypeName"));
+		defer un(trace(p, "TypeName"))
 	}
 
 	return p.parseQualifiedIdent();
@@ -395,7 +395,7 @@ func (p *parser) parseTypeName() ast.Expr {
 
 func (p *parser) parseArrayType(ellipsisOk bool) ast.Expr {
 	if p.trace {
-		defer un(trace(p, "ArrayType"));
+		defer un(trace(p, "ArrayType"))
 	}
 
 	lbrack := p.expect(token.LBRACK);
@@ -404,7 +404,7 @@ func (p *parser) parseArrayType(ellipsisOk bool) ast.Expr {
 		len = &ast.Ellipsis{p.pos};
 		p.next();
 	} else if p.tok != token.RBRACK {
-		len = p.parseExpr();
+		len = p.parseExpr()
 	}
 	p.expect(token.RBRACK);
 	elt := p.parseType();
@@ -430,7 +430,7 @@ func (p *parser) makeIdentList(list *vector.Vector) []*ast.Ident {
 
 func (p *parser) parseFieldDecl() *ast.Field {
 	if p.trace {
-		defer un(trace(p, "FieldDecl"));
+		defer un(trace(p, "FieldDecl"))
 	}
 
 	doc := p.leadComment;
@@ -441,9 +441,9 @@ func (p *parser) parseFieldDecl() *ast.Field {
 		// TODO(gri): do not allow ()'s here
 		list.Push(p.parseType());
 		if p.tok == token.COMMA {
-			p.next();
+			p.next()
 		} else {
-			break;
+			break
 		}
 	}
 
@@ -453,19 +453,19 @@ func (p *parser) parseFieldDecl() *ast.Field {
 	// optional tag
 	var tag []*ast.BasicLit;
 	if p.tok == token.STRING {
-		tag = p.parseStringList(nil);
+		tag = p.parseStringList(nil)
 	}
 
 	// analyze case
 	var idents []*ast.Ident;
 	if typ != nil {
 		// IdentifierList Type
-		idents = p.makeIdentList(list);
+		idents = p.makeIdentList(list)
 	} else {
 		// Type (anonymous field)
 		if list.Len() == 1 {
 			// TODO(gri): check that this looks like a type
-			typ = list.At(0).(ast.Expr);
+			typ = list.At(0).(ast.Expr)
 		} else {
 			p.errorExpected(p.pos, "anonymous field");
 			typ = &ast.BadExpr{p.pos};
@@ -478,7 +478,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
 
 func (p *parser) parseStructType() *ast.StructType {
 	if p.trace {
-		defer un(trace(p, "StructType"));
+		defer un(trace(p, "StructType"))
 	}
 
 	pos := p.expect(token.STRUCT);
@@ -487,7 +487,7 @@ func (p *parser) parseStructType() *ast.StructType {
 	for p.tok == token.IDENT || p.tok == token.MUL {
 		f := p.parseFieldDecl();
 		if p.tok != token.RBRACE {
-			p.expect(token.SEMICOLON);
+			p.expect(token.SEMICOLON)
 		}
 		f.Comment = p.lineComment;
 		list.Push(f);
@@ -498,7 +498,7 @@ func (p *parser) parseStructType() *ast.StructType {
 	// convert vector
 	fields := make([]*ast.Field, list.Len());
 	for i := list.Len() - 1; i >= 0; i-- {
-		fields[i] = list.At(i).(*ast.Field);
+		fields[i] = list.At(i).(*ast.Field)
 	}
 
 	return &ast.StructType{pos, lbrace, fields, rbrace, false};
@@ -507,7 +507,7 @@ func (p *parser) parseStructType() *ast.StructType {
 
 func (p *parser) parsePointerType() *ast.StarExpr {
 	if p.trace {
-		defer un(trace(p, "PointerType"));
+		defer un(trace(p, "PointerType"))
 	}
 
 	star := p.expect(token.MUL);
@@ -523,7 +523,7 @@ func (p *parser) tryParameterType(ellipsisOk bool) ast.Expr {
 		p.next();
 		if p.tok != token.RPAREN {
 			// "..." always must be at the very end of a parameter list
-			p.Error(pos, "expected type, found '...'");
+			p.Error(pos, "expected type, found '...'")
 		}
 		return &ast.Ellipsis{pos};
 	}
@@ -544,7 +544,7 @@ func (p *parser) parseParameterType(ellipsisOk bool) ast.Expr {
 
 func (p *parser) parseParameterDecl(ellipsisOk bool) (*vector.Vector, ast.Expr) {
 	if p.trace {
-		defer un(trace(p, "ParameterDecl"));
+		defer un(trace(p, "ParameterDecl"))
 	}
 
 	// a list of identifiers looks like a list of type names
@@ -553,9 +553,9 @@ func (p *parser) parseParameterDecl(ellipsisOk bool) (*vector.Vector, ast.Expr) 
 		// TODO(gri): do not allow ()'s here
 		list.Push(p.parseParameterType(ellipsisOk));
 		if p.tok == token.COMMA {
-			p.next();
+			p.next()
 		} else {
-			break;
+			break
 		}
 	}
 
@@ -568,7 +568,7 @@ func (p *parser) parseParameterDecl(ellipsisOk bool) (*vector.Vector, ast.Expr) 
 
 func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
 	if p.trace {
-		defer un(trace(p, "ParameterList"));
+		defer un(trace(p, "ParameterList"))
 	}
 
 	list, typ := p.parseParameterDecl(ellipsisOk);
@@ -589,14 +589,14 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
 		// Type { "," Type } (anonymous parameters)
 		// convert list of types into list of *Param
 		for i := 0; i < list.Len(); i++ {
-			list.Set(i, &ast.Field{Type: list.At(i).(ast.Expr)});
+			list.Set(i, &ast.Field{Type: list.At(i).(ast.Expr)})
 		}
 	}
 
 	// convert list
 	params := make([]*ast.Field, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		params[i] = list.At(i).(*ast.Field);
+		params[i] = list.At(i).(*ast.Field)
 	}
 
 	return params;
@@ -605,13 +605,13 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
 
 func (p *parser) parseParameters(ellipsisOk bool) []*ast.Field {
 	if p.trace {
-		defer un(trace(p, "Parameters"));
+		defer un(trace(p, "Parameters"))
 	}
 
 	var params []*ast.Field;
 	p.expect(token.LPAREN);
 	if p.tok != token.RPAREN {
-		params = p.parseParameterList(ellipsisOk);
+		params = p.parseParameterList(ellipsisOk)
 	}
 	p.expect(token.RPAREN);
 
@@ -621,12 +621,12 @@ func (p *parser) parseParameters(ellipsisOk bool) []*ast.Field {
 
 func (p *parser) parseResult() []*ast.Field {
 	if p.trace {
-		defer un(trace(p, "Result"));
+		defer un(trace(p, "Result"))
 	}
 
 	var results []*ast.Field;
 	if p.tok == token.LPAREN {
-		results = p.parseParameters(false);
+		results = p.parseParameters(false)
 	} else if p.tok != token.FUNC {
 		typ := p.tryType();
 		if typ != nil {
@@ -641,7 +641,7 @@ func (p *parser) parseResult() []*ast.Field {
 
 func (p *parser) parseSignature() (params []*ast.Field, results []*ast.Field) {
 	if p.trace {
-		defer un(trace(p, "Signature"));
+		defer un(trace(p, "Signature"))
 	}
 
 	params = p.parseParameters(true);
@@ -653,7 +653,7 @@ func (p *parser) parseSignature() (params []*ast.Field, results []*ast.Field) {
 
 func (p *parser) parseFuncType() *ast.FuncType {
 	if p.trace {
-		defer un(trace(p, "FuncType"));
+		defer un(trace(p, "FuncType"))
 	}
 
 	pos := p.expect(token.FUNC);
@@ -665,7 +665,7 @@ func (p *parser) parseFuncType() *ast.FuncType {
 
 func (p *parser) parseMethodSpec() *ast.Field {
 	if p.trace {
-		defer un(trace(p, "MethodSpec"));
+		defer un(trace(p, "MethodSpec"))
 	}
 
 	doc := p.leadComment;
@@ -679,7 +679,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 		typ = &ast.FuncType{noPos, params, results};
 	} else {
 		// embedded interface
-		typ = x;
+		typ = x
 	}
 
 	return &ast.Field{doc, idents, typ, nil, nil};
@@ -688,7 +688,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
 
 func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	if p.trace {
-		defer un(trace(p, "InterfaceType"));
+		defer un(trace(p, "InterfaceType"))
 	}
 
 	pos := p.expect(token.INTERFACE);
@@ -697,7 +697,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	for p.tok == token.IDENT {
 		m := p.parseMethodSpec();
 		if p.tok != token.RBRACE {
-			p.expect(token.SEMICOLON);
+			p.expect(token.SEMICOLON)
 		}
 		m.Comment = p.lineComment;
 		list.Push(m);
@@ -708,7 +708,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	// convert vector
 	methods := make([]*ast.Field, list.Len());
 	for i := list.Len() - 1; i >= 0; i-- {
-		methods[i] = list.At(i).(*ast.Field);
+		methods[i] = list.At(i).(*ast.Field)
 	}
 
 	return &ast.InterfaceType{pos, lbrace, methods, rbrace, false};
@@ -717,7 +717,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 
 func (p *parser) parseMapType() *ast.MapType {
 	if p.trace {
-		defer un(trace(p, "MapType"));
+		defer un(trace(p, "MapType"))
 	}
 
 	pos := p.expect(token.MAP);
@@ -732,7 +732,7 @@ func (p *parser) parseMapType() *ast.MapType {
 
 func (p *parser) parseChanType() *ast.ChanType {
 	if p.trace {
-		defer un(trace(p, "ChanType"));
+		defer un(trace(p, "ChanType"))
 	}
 
 	pos := p.pos;
@@ -757,21 +757,21 @@ func (p *parser) parseChanType() *ast.ChanType {
 func (p *parser) tryRawType(ellipsisOk bool) ast.Expr {
 	switch p.tok {
 	case token.IDENT:
-		return p.parseTypeName();
+		return p.parseTypeName()
 	case token.LBRACK:
-		return p.parseArrayType(ellipsisOk);
+		return p.parseArrayType(ellipsisOk)
 	case token.STRUCT:
-		return p.parseStructType();
+		return p.parseStructType()
 	case token.MUL:
-		return p.parsePointerType();
+		return p.parsePointerType()
 	case token.FUNC:
-		return p.parseFuncType();
+		return p.parseFuncType()
 	case token.INTERFACE:
-		return p.parseInterfaceType();
+		return p.parseInterfaceType()
 	case token.MAP:
-		return p.parseMapType();
+		return p.parseMapType()
 	case token.CHAN, token.ARROW:
-		return p.parseChanType();
+		return p.parseChanType()
 	case token.LPAREN:
 		lparen := p.pos;
 		p.next();
@@ -794,7 +794,7 @@ func (p *parser) tryType() ast.Expr	{ return p.tryRawType(false) }
 func makeStmtList(list *vector.Vector) []ast.Stmt {
 	stats := make([]ast.Stmt, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		stats[i] = list.At(i).(ast.Stmt);
+		stats[i] = list.At(i).(ast.Stmt)
 	}
 	return stats;
 }
@@ -802,7 +802,7 @@ func makeStmtList(list *vector.Vector) []ast.Stmt {
 
 func (p *parser) parseStmtList() []ast.Stmt {
 	if p.trace {
-		defer un(trace(p, "StatementList"));
+		defer un(trace(p, "StatementList"))
 	}
 
 	list := vector.New(0);
@@ -814,11 +814,11 @@ func (p *parser) parseStmtList() []ast.Stmt {
 		}
 		list.Push(p.parseStmt());
 		if p.tok == token.SEMICOLON {
-			p.next();
+			p.next()
 		} else if p.optSemi {
-			p.optSemi = false;	// "consume" optional semicolon
+			p.optSemi = false	// "consume" optional semicolon
 		} else {
-			expectSemi = true;
+			expectSemi = true
 		}
 	}
 
@@ -828,7 +828,7 @@ func (p *parser) parseStmtList() []ast.Stmt {
 
 func (p *parser) parseBlockStmt(idents []*ast.Ident) *ast.BlockStmt {
 	if p.trace {
-		defer un(trace(p, "BlockStmt"));
+		defer un(trace(p, "BlockStmt"))
 	}
 
 	defer close(openScope(p));
@@ -847,12 +847,12 @@ func (p *parser) parseBlockStmt(idents []*ast.Ident) *ast.BlockStmt {
 
 func (p *parser) parseStringList(x *ast.BasicLit) []*ast.BasicLit {
 	if p.trace {
-		defer un(trace(p, "StringList"));
+		defer un(trace(p, "StringList"))
 	}
 
 	list := vector.New(0);
 	if x != nil {
-		list.Push(x);
+		list.Push(x)
 	}
 
 	for p.tok == token.STRING {
@@ -863,7 +863,7 @@ func (p *parser) parseStringList(x *ast.BasicLit) []*ast.BasicLit {
 	// convert list
 	strings := make([]*ast.BasicLit, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		strings[i] = list.At(i).(*ast.BasicLit);
+		strings[i] = list.At(i).(*ast.BasicLit)
 	}
 
 	return strings;
@@ -872,13 +872,13 @@ func (p *parser) parseStringList(x *ast.BasicLit) []*ast.BasicLit {
 
 func (p *parser) parseFuncTypeOrLit() ast.Expr {
 	if p.trace {
-		defer un(trace(p, "FuncTypeOrLit"));
+		defer un(trace(p, "FuncTypeOrLit"))
 	}
 
 	typ := p.parseFuncType();
 	if p.tok != token.LBRACE {
 		// function type only
-		return typ;
+		return typ
 	}
 
 	p.exprLev++;
@@ -895,18 +895,18 @@ func (p *parser) parseFuncTypeOrLit() ast.Expr {
 //
 func (p *parser) parseOperand() ast.Expr {
 	if p.trace {
-		defer un(trace(p, "Operand"));
+		defer un(trace(p, "Operand"))
 	}
 
 	switch p.tok {
 	case token.IDENT:
-		return p.parseIdent();
+		return p.parseIdent()
 
 	case token.INT, token.FLOAT, token.CHAR, token.STRING:
 		x := &ast.BasicLit{p.pos, p.tok, p.lit};
 		p.next();
 		if p.tok == token.STRING && p.tok == token.STRING {
-			return &ast.StringList{p.parseStringList(x)};
+			return &ast.StringList{p.parseStringList(x)}
 		}
 		return x;
 
@@ -920,12 +920,12 @@ func (p *parser) parseOperand() ast.Expr {
 		return &ast.ParenExpr{lparen, x, rparen};
 
 	case token.FUNC:
-		return p.parseFuncTypeOrLit();
+		return p.parseFuncTypeOrLit()
 
 	default:
 		t := p.tryRawType(true);	// could be type for composite literal or conversion
 		if t != nil {
-			return t;
+			return t
 		}
 	}
 
@@ -937,7 +937,7 @@ func (p *parser) parseOperand() ast.Expr {
 
 func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
 	if p.trace {
-		defer un(trace(p, "SelectorOrTypeAssertion"));
+		defer un(trace(p, "SelectorOrTypeAssertion"))
 	}
 
 	p.expect(token.PERIOD);
@@ -952,9 +952,9 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
 	var typ ast.Expr;
 	if p.tok == token.TYPE {
 		// type switch: typ == nil
-		p.next();
+		p.next()
 	} else {
-		typ = p.parseType();
+		typ = p.parseType()
 	}
 	p.expect(token.RPAREN);
 
@@ -964,7 +964,7 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
 
 func (p *parser) parseIndex(x ast.Expr) ast.Expr {
 	if p.trace {
-		defer un(trace(p, "Index"));
+		defer un(trace(p, "Index"))
 	}
 
 	p.expect(token.LBRACK);
@@ -984,13 +984,13 @@ func (p *parser) parseIndex(x ast.Expr) ast.Expr {
 
 func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 	if p.trace {
-		defer un(trace(p, "CallOrConversion"));
+		defer un(trace(p, "CallOrConversion"))
 	}
 
 	lparen := p.expect(token.LPAREN);
 	var args []ast.Expr;
 	if p.tok != token.RPAREN {
-		args = p.parseExprList();
+		args = p.parseExprList()
 	}
 	rparen := p.expect(token.RPAREN);
 
@@ -1000,7 +1000,7 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 
 func (p *parser) parseElement() ast.Expr {
 	if p.trace {
-		defer un(trace(p, "Element"));
+		defer un(trace(p, "Element"))
 	}
 
 	x := p.parseExpr();
@@ -1016,23 +1016,23 @@ func (p *parser) parseElement() ast.Expr {
 
 func (p *parser) parseElementList() []ast.Expr {
 	if p.trace {
-		defer un(trace(p, "ElementList"));
+		defer un(trace(p, "ElementList"))
 	}
 
 	list := vector.New(0);
 	for p.tok != token.RBRACE && p.tok != token.EOF {
 		list.Push(p.parseElement());
 		if p.tok == token.COMMA {
-			p.next();
+			p.next()
 		} else {
-			break;
+			break
 		}
 	}
 
 	// convert list
 	elts := make([]ast.Expr, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		elts[i] = list.At(i).(ast.Expr);
+		elts[i] = list.At(i).(ast.Expr)
 	}
 
 	return elts;
@@ -1041,13 +1041,13 @@ func (p *parser) parseElementList() []ast.Expr {
 
 func (p *parser) parseCompositeLit(typ ast.Expr) ast.Expr {
 	if p.trace {
-		defer un(trace(p, "CompositeLit"));
+		defer un(trace(p, "CompositeLit"))
 	}
 
 	lbrace := p.expect(token.LBRACE);
 	var elts []ast.Expr;
 	if p.tok != token.RBRACE {
-		elts = p.parseElementList();
+		elts = p.parseElementList()
 	}
 	rbrace := p.expect(token.RBRACE);
 	return &ast.CompositeLit{typ, lbrace, elts, rbrace};
@@ -1103,11 +1103,11 @@ func isTypeName(x ast.Expr) bool {
 	case *ast.BadExpr:
 	case *ast.Ident:
 	case *ast.ParenExpr:
-		return isTypeName(t.X);	// TODO(gri): should (TypeName) be illegal?
+		return isTypeName(t.X)	// TODO(gri): should (TypeName) be illegal?
 	case *ast.SelectorExpr:
-		return isTypeName(t.X);
+		return isTypeName(t.X)
 	default:
-		return false;	// all other nodes are not type names
+		return false	// all other nodes are not type names
 	}
 	return true;
 }
@@ -1120,14 +1120,14 @@ func isCompositeLitType(x ast.Expr) bool {
 	case *ast.BadExpr:
 	case *ast.Ident:
 	case *ast.ParenExpr:
-		return isCompositeLitType(t.X);
+		return isCompositeLitType(t.X)
 	case *ast.SelectorExpr:
-		return isTypeName(t.X);
+		return isTypeName(t.X)
 	case *ast.ArrayType:
 	case *ast.StructType:
 	case *ast.MapType:
 	default:
-		return false;	// all other nodes are not legal composite literal types
+		return false	// all other nodes are not legal composite literal types
 	}
 	return true;
 }
@@ -1159,26 +1159,26 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
 
 func (p *parser) parsePrimaryExpr() ast.Expr {
 	if p.trace {
-		defer un(trace(p, "PrimaryExpr"));
+		defer un(trace(p, "PrimaryExpr"))
 	}
 
 	x := p.parseOperand();
 L:	for {
 		switch p.tok {
 		case token.PERIOD:
-			x = p.parseSelectorOrTypeAssertion(p.checkExpr(x));
+			x = p.parseSelectorOrTypeAssertion(p.checkExpr(x))
 		case token.LBRACK:
-			x = p.parseIndex(p.checkExpr(x));
+			x = p.parseIndex(p.checkExpr(x))
 		case token.LPAREN:
-			x = p.parseCallOrConversion(p.checkExprOrType(x));
+			x = p.parseCallOrConversion(p.checkExprOrType(x))
 		case token.LBRACE:
 			if isCompositeLitType(x) && (p.exprLev >= 0 || !isTypeName(x)) {
-				x = p.parseCompositeLit(x);
+				x = p.parseCompositeLit(x)
 			} else {
-				break L;
+				break L
 			}
 		default:
-			break L;
+			break L
 		}
 	}
 
@@ -1188,7 +1188,7 @@ L:	for {
 
 func (p *parser) parseUnaryExpr() ast.Expr {
 	if p.trace {
-		defer un(trace(p, "UnaryExpr"));
+		defer un(trace(p, "UnaryExpr"))
 	}
 
 	switch p.tok {
@@ -1212,7 +1212,7 @@ func (p *parser) parseUnaryExpr() ast.Expr {
 
 func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
 	if p.trace {
-		defer un(trace(p, "BinaryExpr"));
+		defer un(trace(p, "BinaryExpr"))
 	}
 
 	x := p.parseUnaryExpr();
@@ -1233,7 +1233,7 @@ func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
 //            should reject when a type/raw type is obviously not allowed
 func (p *parser) parseExpr() ast.Expr {
 	if p.trace {
-		defer un(trace(p, "Expression"));
+		defer un(trace(p, "Expression"))
 	}
 
 	return p.parseBinaryExpr(token.LowestPrec + 1);
@@ -1246,7 +1246,7 @@ func (p *parser) parseExpr() ast.Expr {
 
 func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 	if p.trace {
-		defer un(trace(p, "SimpleStmt"));
+		defer un(trace(p, "SimpleStmt"))
 	}
 
 	x := p.parseExprList();
@@ -1257,7 +1257,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 		p.next();
 		if labelOk && len(x) == 1 {
 			if label, isIdent := x[0].(*ast.Ident); isIdent {
-				return &ast.LabeledStmt{label, p.parseStmt()};
+				return &ast.LabeledStmt{label, p.parseStmt()}
 			}
 		}
 		p.Error(x[0].Pos(), "illegal label declaration");
@@ -1273,13 +1273,13 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 		p.next();
 		y := p.parseExprList();
 		if len(x) > 1 && len(y) > 1 && len(x) != len(y) {
-			p.Error(x[0].Pos(), "arity of lhs doesn't match rhs");
+			p.Error(x[0].Pos(), "arity of lhs doesn't match rhs")
 		}
 		return &ast.AssignStmt{x, pos, tok, y};
 	}
 
 	if len(x) > 1 {
-		p.Error(x[0].Pos(), "only one expression allowed");
+		p.Error(x[0].Pos(), "only one expression allowed")
 		// continue with first expression
 	}
 
@@ -1298,7 +1298,7 @@ func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 func (p *parser) parseCallExpr() *ast.CallExpr {
 	x := p.parseExpr();
 	if call, isCall := x.(*ast.CallExpr); isCall {
-		return call;
+		return call
 	}
 	p.errorExpected(x.Pos(), "function/method call");
 	return nil;
@@ -1307,13 +1307,13 @@ func (p *parser) parseCallExpr() *ast.CallExpr {
 
 func (p *parser) parseGoStmt() ast.Stmt {
 	if p.trace {
-		defer un(trace(p, "GoStmt"));
+		defer un(trace(p, "GoStmt"))
 	}
 
 	pos := p.expect(token.GO);
 	call := p.parseCallExpr();
 	if call != nil {
-		return &ast.GoStmt{pos, call};
+		return &ast.GoStmt{pos, call}
 	}
 	return &ast.BadStmt{pos};
 }
@@ -1321,13 +1321,13 @@ func (p *parser) parseGoStmt() ast.Stmt {
 
 func (p *parser) parseDeferStmt() ast.Stmt {
 	if p.trace {
-		defer un(trace(p, "DeferStmt"));
+		defer un(trace(p, "DeferStmt"))
 	}
 
 	pos := p.expect(token.DEFER);
 	call := p.parseCallExpr();
 	if call != nil {
-		return &ast.DeferStmt{pos, call};
+		return &ast.DeferStmt{pos, call}
 	}
 	return &ast.BadStmt{pos};
 }
@@ -1335,14 +1335,14 @@ func (p *parser) parseDeferStmt() ast.Stmt {
 
 func (p *parser) parseReturnStmt() *ast.ReturnStmt {
 	if p.trace {
-		defer un(trace(p, "ReturnStmt"));
+		defer un(trace(p, "ReturnStmt"))
 	}
 
 	pos := p.pos;
 	p.expect(token.RETURN);
 	var x []ast.Expr;
 	if p.tok != token.SEMICOLON && p.tok != token.CASE && p.tok != token.DEFAULT && p.tok != token.RBRACE {
-		x = p.parseExprList();
+		x = p.parseExprList()
 	}
 
 	return &ast.ReturnStmt{pos, x};
@@ -1351,13 +1351,13 @@ func (p *parser) parseReturnStmt() *ast.ReturnStmt {
 
 func (p *parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
 	if p.trace {
-		defer un(trace(p, "BranchStmt"));
+		defer un(trace(p, "BranchStmt"))
 	}
 
 	s := &ast.BranchStmt{p.pos, tok, nil};
 	p.expect(tok);
 	if tok != token.FALLTHROUGH && p.tok == token.IDENT {
-		s.Label = p.parseIdent();
+		s.Label = p.parseIdent()
 	}
 
 	return s;
@@ -1366,10 +1366,10 @@ func (p *parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
 
 func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
 	if s == nil {
-		return nil;
+		return nil
 	}
 	if es, isExpr := s.(*ast.ExprStmt); isExpr {
-		return p.checkExpr(es.X);
+		return p.checkExpr(es.X)
 	}
 	p.Error(s.Pos(), "expected condition, found simple statement");
 	return &ast.BadExpr{s.Pos()};
@@ -1382,22 +1382,22 @@ func (p *parser) parseControlClause(isForStmt bool) (s1, s2, s3 ast.Stmt) {
 		p.exprLev = -1;
 
 		if p.tok != token.SEMICOLON {
-			s1 = p.parseSimpleStmt(false);
+			s1 = p.parseSimpleStmt(false)
 		}
 		if p.tok == token.SEMICOLON {
 			p.next();
 			if p.tok != token.LBRACE && p.tok != token.SEMICOLON {
-				s2 = p.parseSimpleStmt(false);
+				s2 = p.parseSimpleStmt(false)
 			}
 			if isForStmt {
 				// for statements have a 3rd section
 				p.expect(token.SEMICOLON);
 				if p.tok != token.LBRACE {
-					s3 = p.parseSimpleStmt(false);
+					s3 = p.parseSimpleStmt(false)
 				}
 			}
 		} else {
-			s1, s2 = nil, s1;
+			s1, s2 = nil, s1
 		}
 
 		p.exprLev = prevLev;
@@ -1409,7 +1409,7 @@ func (p *parser) parseControlClause(isForStmt bool) (s1, s2, s3 ast.Stmt) {
 
 func (p *parser) parseIfStmt() *ast.IfStmt {
 	if p.trace {
-		defer un(trace(p, "IfStmt"));
+		defer un(trace(p, "IfStmt"))
 	}
 
 	// IfStmt block
@@ -1430,7 +1430,7 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 
 func (p *parser) parseCaseClause() *ast.CaseClause {
 	if p.trace {
-		defer un(trace(p, "CaseClause"));
+		defer un(trace(p, "CaseClause"))
 	}
 
 	// CaseClause block
@@ -1443,7 +1443,7 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
 		p.next();
 		x = p.parseExprList();
 	} else {
-		p.expect(token.DEFAULT);
+		p.expect(token.DEFAULT)
 	}
 
 	colon := p.expect(token.COLON);
@@ -1455,7 +1455,7 @@ func (p *parser) parseCaseClause() *ast.CaseClause {
 
 func (p *parser) parseTypeList() []ast.Expr {
 	if p.trace {
-		defer un(trace(p, "TypeList"));
+		defer un(trace(p, "TypeList"))
 	}
 
 	list := vector.New(0);
@@ -1468,7 +1468,7 @@ func (p *parser) parseTypeList() []ast.Expr {
 	// convert list
 	exprs := make([]ast.Expr, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		exprs[i] = list.At(i).(ast.Expr);
+		exprs[i] = list.At(i).(ast.Expr)
 	}
 
 	return exprs;
@@ -1477,7 +1477,7 @@ func (p *parser) parseTypeList() []ast.Expr {
 
 func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
 	if p.trace {
-		defer un(trace(p, "TypeCaseClause"));
+		defer un(trace(p, "TypeCaseClause"))
 	}
 
 	// TypeCaseClause block
@@ -1490,7 +1490,7 @@ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
 		p.next();
 		types = p.parseTypeList();
 	} else {
-		p.expect(token.DEFAULT);
+		p.expect(token.DEFAULT)
 	}
 
 	colon := p.expect(token.COLON);
@@ -1502,11 +1502,11 @@ func (p *parser) parseTypeCaseClause() *ast.TypeCaseClause {
 
 func isExprSwitch(s ast.Stmt) bool {
 	if s == nil {
-		return true;
+		return true
 	}
 	if e, ok := s.(*ast.ExprStmt); ok {
 		if a, ok := e.X.(*ast.TypeAssertExpr); ok {
-			return a.Type != nil;	// regular type assertion
+			return a.Type != nil	// regular type assertion
 		}
 		return true;
 	}
@@ -1516,7 +1516,7 @@ func isExprSwitch(s ast.Stmt) bool {
 
 func (p *parser) parseSwitchStmt() ast.Stmt {
 	if p.trace {
-		defer un(trace(p, "SwitchStmt"));
+		defer un(trace(p, "SwitchStmt"))
 	}
 
 	// SwitchStmt block
@@ -1529,7 +1529,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 		lbrace := p.expect(token.LBRACE);
 		cases := vector.New(0);
 		for p.tok == token.CASE || p.tok == token.DEFAULT {
-			cases.Push(p.parseCaseClause());
+			cases.Push(p.parseCaseClause())
 		}
 		rbrace := p.expect(token.RBRACE);
 		p.optSemi = true;
@@ -1542,7 +1542,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	lbrace := p.expect(token.LBRACE);
 	cases := vector.New(0);
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
-		cases.Push(p.parseTypeCaseClause());
+		cases.Push(p.parseTypeCaseClause())
 	}
 	rbrace := p.expect(token.RBRACE);
 	p.optSemi = true;
@@ -1553,7 +1553,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 
 func (p *parser) parseCommClause() *ast.CommClause {
 	if p.trace {
-		defer un(trace(p, "CommClause"));
+		defer un(trace(p, "CommClause"))
 	}
 
 	// CommClause block
@@ -1567,7 +1567,7 @@ func (p *parser) parseCommClause() *ast.CommClause {
 		p.next();
 		if p.tok == token.ARROW {
 			// RecvExpr without assignment
-			rhs = p.parseExpr();
+			rhs = p.parseExpr()
 		} else {
 			// SendExpr or RecvExpr
 			rhs = p.parseExpr();
@@ -1577,15 +1577,15 @@ func (p *parser) parseCommClause() *ast.CommClause {
 				p.next();
 				lhs = rhs;
 				if p.tok == token.ARROW {
-					rhs = p.parseExpr();
+					rhs = p.parseExpr()
 				} else {
-					p.expect(token.ARROW);	// use expect() error handling
+					p.expect(token.ARROW)	// use expect() error handling
 				}
 			}
 			// else SendExpr
 		}
 	} else {
-		p.expect(token.DEFAULT);
+		p.expect(token.DEFAULT)
 	}
 
 	colon := p.expect(token.COLON);
@@ -1597,14 +1597,14 @@ func (p *parser) parseCommClause() *ast.CommClause {
 
 func (p *parser) parseSelectStmt() *ast.SelectStmt {
 	if p.trace {
-		defer un(trace(p, "SelectStmt"));
+		defer un(trace(p, "SelectStmt"))
 	}
 
 	pos := p.expect(token.SELECT);
 	lbrace := p.expect(token.LBRACE);
 	cases := vector.New(0);
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
-		cases.Push(p.parseCommClause());
+		cases.Push(p.parseCommClause())
 	}
 	rbrace := p.expect(token.RBRACE);
 	p.optSemi = true;
@@ -1616,7 +1616,7 @@ func (p *parser) parseSelectStmt() *ast.SelectStmt {
 
 func (p *parser) parseForStmt() ast.Stmt {
 	if p.trace {
-		defer un(trace(p, "ForStmt"));
+		defer un(trace(p, "ForStmt"))
 	}
 
 	// ForStmt block
@@ -1639,7 +1639,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 			value = as.Lhs[1];
 			fallthrough;
 		case 1:
-			key = as.Lhs[0];
+			key = as.Lhs[0]
 		default:
 			p.errorExpected(as.Lhs[0].Pos(), "1 or 2 expressions");
 			return &ast.BadStmt{pos};
@@ -1651,14 +1651,14 @@ func (p *parser) parseForStmt() ast.Stmt {
 		}
 		if rhs, isUnary := as.Rhs[0].(*ast.UnaryExpr); isUnary && rhs.Op == token.RANGE {
 			// rhs is range expression; check lhs
-			return &ast.RangeStmt{pos, key, value, as.TokPos, as.Tok, rhs.X, body};
+			return &ast.RangeStmt{pos, key, value, as.TokPos, as.Tok, rhs.X, body}
 		} else {
 			p.errorExpected(s2.Pos(), "range clause");
 			return &ast.BadStmt{pos};
 		}
 	} else {
 		// regular for statement
-		return &ast.ForStmt{pos, s1, p.makeExpr(s2), s3, body};
+		return &ast.ForStmt{pos, s1, p.makeExpr(s2), s3, body}
 	}
 
 	panic();	// unreachable
@@ -1668,7 +1668,7 @@ func (p *parser) parseForStmt() ast.Stmt {
 
 func (p *parser) parseStmt() ast.Stmt {
 	if p.trace {
-		defer un(trace(p, "Statement"));
+		defer un(trace(p, "Statement"))
 	}
 
 	switch p.tok {
@@ -1680,28 +1680,28 @@ func (p *parser) parseStmt() ast.Stmt {
 		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,	// operand
 		token.LBRACK, token.STRUCT,	// composite type
 		token.MUL, token.AND, token.ARROW, token.ADD, token.SUB, token.XOR:	// unary operators
-		return p.parseSimpleStmt(true);
+		return p.parseSimpleStmt(true)
 	case token.GO:
-		return p.parseGoStmt();
+		return p.parseGoStmt()
 	case token.DEFER:
-		return p.parseDeferStmt();
+		return p.parseDeferStmt()
 	case token.RETURN:
-		return p.parseReturnStmt();
+		return p.parseReturnStmt()
 	case token.BREAK, token.CONTINUE, token.GOTO, token.FALLTHROUGH:
-		return p.parseBranchStmt(p.tok);
+		return p.parseBranchStmt(p.tok)
 	case token.LBRACE:
-		return p.parseBlockStmt(nil);
+		return p.parseBlockStmt(nil)
 	case token.IF:
-		return p.parseIfStmt();
+		return p.parseIfStmt()
 	case token.SWITCH:
-		return p.parseSwitchStmt();
+		return p.parseSwitchStmt()
 	case token.SELECT:
-		return p.parseSelectStmt();
+		return p.parseSelectStmt()
 	case token.FOR:
-		return p.parseForStmt();
+		return p.parseForStmt()
 	case token.SEMICOLON, token.RBRACE:
 		// don't consume the ";", it is the separator following the empty statement
-		return &ast.EmptyStmt{p.pos};
+		return &ast.EmptyStmt{p.pos}
 	}
 
 	// no statement found
@@ -1731,7 +1731,7 @@ func (p *parser) parseComment(getSemi bool) (comment *ast.CommentGroup, gotSemi 
 
 func parseImportSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec, gotSemi bool) {
 	if p.trace {
-		defer un(trace(p, "ImportSpec"));
+		defer un(trace(p, "ImportSpec"))
 	}
 
 	var ident *ast.Ident;
@@ -1739,14 +1739,14 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.S
 		ident = &ast.Ident{p.pos, "."};
 		p.next();
 	} else if p.tok == token.IDENT {
-		ident = p.parseIdent();
+		ident = p.parseIdent()
 	}
 
 	var path []*ast.BasicLit;
 	if p.tok == token.STRING {
-		path = p.parseStringList(nil);
+		path = p.parseStringList(nil)
 	} else {
-		p.expect(token.STRING);	// use expect() error handling
+		p.expect(token.STRING)	// use expect() error handling
 	}
 
 	comment, gotSemi := p.parseComment(getSemi);
@@ -1757,7 +1757,7 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.S
 
 func parseConstSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec, gotSemi bool) {
 	if p.trace {
-		defer un(trace(p, "ConstSpec"));
+		defer un(trace(p, "ConstSpec"))
 	}
 
 	idents := p.parseIdentList();
@@ -1775,7 +1775,7 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Sp
 
 func parseTypeSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec, gotSemi bool) {
 	if p.trace {
-		defer un(trace(p, "TypeSpec"));
+		defer un(trace(p, "TypeSpec"))
 	}
 
 	ident := p.parseIdent();
@@ -1788,7 +1788,7 @@ func parseTypeSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spe
 
 func parseVarSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec, gotSemi bool) {
 	if p.trace {
-		defer un(trace(p, "VarSpec"));
+		defer un(trace(p, "VarSpec"))
 	}
 
 	idents := p.parseIdentList();
@@ -1806,7 +1806,7 @@ func parseVarSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec
 
 func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi bool) (decl *ast.GenDecl, gotSemi bool) {
 	if p.trace {
-		defer un(trace(p, keyword.String() + "Decl"));
+		defer un(trace(p, keyword.String() + "Decl"))
 	}
 
 	doc := p.leadComment;
@@ -1821,7 +1821,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi 
 			spec, semi := f(p, doc, true);	// consume semicolon if any
 			list.Push(spec);
 			if !semi {
-				break;
+				break
 			}
 		}
 		rparen = p.expect(token.RPAREN);
@@ -1830,7 +1830,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi 
 			p.next();
 			gotSemi = true;
 		} else {
-			p.optSemi = true;
+			p.optSemi = true
 		}
 	} else {
 		spec, semi := f(p, nil, getSemi);
@@ -1841,7 +1841,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi 
 	// convert vector
 	specs := make([]ast.Spec, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		specs[i] = list.At(i).(ast.Spec);
+		specs[i] = list.At(i).(ast.Spec)
 	}
 
 	return &ast.GenDecl{doc, pos, keyword, lparen, specs, rparen}, gotSemi;
@@ -1850,7 +1850,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi 
 
 func (p *parser) parseReceiver() *ast.Field {
 	if p.trace {
-		defer un(trace(p, "Receiver"));
+		defer un(trace(p, "Receiver"))
 	}
 
 	pos := p.pos;
@@ -1867,10 +1867,10 @@ func (p *parser) parseReceiver() *ast.Field {
 	// recv type must be TypeName or *TypeName
 	base := recv.Type;
 	if ptr, isPtr := base.(*ast.StarExpr); isPtr {
-		base = ptr.X;
+		base = ptr.X
 	}
 	if !isTypeName(base) {
-		p.errorExpected(base.Pos(), "type name");
+		p.errorExpected(base.Pos(), "type name")
 	}
 
 	return recv;
@@ -1879,7 +1879,7 @@ func (p *parser) parseReceiver() *ast.Field {
 
 func (p *parser) parseFunctionDecl() *ast.FuncDecl {
 	if p.trace {
-		defer un(trace(p, "FunctionDecl"));
+		defer un(trace(p, "FunctionDecl"))
 	}
 
 	doc := p.leadComment;
@@ -1887,7 +1887,7 @@ func (p *parser) parseFunctionDecl() *ast.FuncDecl {
 
 	var recv *ast.Field;
 	if p.tok == token.LPAREN {
-		recv = p.parseReceiver();
+		recv = p.parseReceiver()
 	}
 
 	ident := p.parseIdent();
@@ -1895,7 +1895,7 @@ func (p *parser) parseFunctionDecl() *ast.FuncDecl {
 
 	var body *ast.BlockStmt;
 	if p.tok == token.LBRACE {
-		body = p.parseBlockStmt(nil);
+		body = p.parseBlockStmt(nil)
 	}
 
 	return &ast.FuncDecl{doc, recv, ident, &ast.FuncType{pos, params, results}, body};
@@ -1904,19 +1904,19 @@ func (p *parser) parseFunctionDecl() *ast.FuncDecl {
 
 func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
 	if p.trace {
-		defer un(trace(p, "Declaration"));
+		defer un(trace(p, "Declaration"))
 	}
 
 	var f parseSpecFunction;
 	switch p.tok {
 	case token.CONST:
-		f = parseConstSpec;
+		f = parseConstSpec
 
 	case token.TYPE:
-		f = parseTypeSpec;
+		f = parseTypeSpec
 
 	case token.VAR:
-		f = parseVarSpec;
+		f = parseVarSpec
 
 	case token.FUNC:
 		decl = p.parseFunctionDecl();
@@ -1938,7 +1938,7 @@ func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
 
 func (p *parser) parseDeclList() []ast.Decl {
 	if p.trace {
-		defer un(trace(p, "DeclList"));
+		defer un(trace(p, "DeclList"))
 	}
 
 	list := vector.New(0);
@@ -1950,7 +1950,7 @@ func (p *parser) parseDeclList() []ast.Decl {
 	// convert vector
 	decls := make([]ast.Decl, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		decls[i] = list.At(i).(ast.Decl);
+		decls[i] = list.At(i).(ast.Decl)
 	}
 
 	return decls;
@@ -1962,7 +1962,7 @@ func (p *parser) parseDeclList() []ast.Decl {
 
 func (p *parser) parseFile() *ast.File {
 	if p.trace {
-		defer un(trace(p, "File"));
+		defer un(trace(p, "File"))
 	}
 
 	// file block
@@ -1996,7 +1996,7 @@ func (p *parser) parseFile() *ast.File {
 		// convert declaration list
 		decls = make([]ast.Decl, list.Len());
 		for i := 0; i < list.Len(); i++ {
-			decls[i] = list.At(i).(ast.Decl);
+			decls[i] = list.At(i).(ast.Decl)
 		}
 	}
 

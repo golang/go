@@ -13,11 +13,11 @@ import (
 
 func eq(a, b []string) bool {
 	if len(a) != len(b) {
-		return false;
+		return false
 	}
 	for i := 0; i < len(a); i++ {
 		if a[i] != b[i] {
-			return false;
+			return false
 		}
 	}
 	return true;
@@ -26,7 +26,7 @@ func eq(a, b []string) bool {
 func arrayOfString(a [][]byte) []string {
 	result := make([]string, len(a));
 	for j := 0; j < len(a); j++ {
-		result[j] = string(a[j]);
+		result[j] = string(a[j])
 	}
 	return result;
 }
@@ -66,10 +66,10 @@ func TestCompare(t *testing.T) {
 		cmp := Compare(a, b);
 		eql := Equal(a, b);
 		if cmp != tt.cmp {
-			t.Errorf(`Compare(%q, %q) = %v`, tt.a, tt.b, cmp);
+			t.Errorf(`Compare(%q, %q) = %v`, tt.a, tt.b, cmp)
 		}
 		if eql != (tt.cmp == 0) {
-			t.Errorf(`Equal(%q, %q) = %v`, tt.a, tt.b, eql);
+			t.Errorf(`Equal(%q, %q) = %v`, tt.a, tt.b, eql)
 		}
 	}
 }
@@ -97,7 +97,7 @@ func TestExplode(t *testing.T) {
 		}
 		s := Join(a, []byte{});
 		if string(s) != tt.s {
-			t.Errorf(`Join(Explode("%s", %d), "") = "%s"`, tt.s, tt.n, s);
+			t.Errorf(`Join(Explode("%s", %d), "") = "%s"`, tt.s, tt.n, s)
 		}
 	}
 }
@@ -136,7 +136,7 @@ func TestSplit(t *testing.T) {
 		}
 		s := Join(a, strings.Bytes(tt.sep));
 		if string(s) != tt.s {
-			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s);
+			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
 		}
 	}
 }
@@ -167,7 +167,7 @@ func TestSplitAfter(t *testing.T) {
 		}
 		s := Join(a, nil);
 		if string(s) != tt.s {
-			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s);
+			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
 		}
 	}
 }
@@ -244,7 +244,7 @@ var trimSpaceTests = []StringTest{
 func Bytes(s string) []byte {
 	b := make([]byte, len(s));
 	for i := 0; i < len(s); i++ {
-		b[i] = s[i];
+		b[i] = s[i]
 	}
 	return b;
 }
@@ -255,7 +255,7 @@ func runStringTests(t *testing.T, f func([]byte) []byte, funcName string, testCa
 	for _, tc := range testCases {
 		actual := string(f(Bytes(tc.in)));
 		if actual != tc.out {
-			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out);
+			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out)
 		}
 	}
 }
@@ -263,7 +263,7 @@ func runStringTests(t *testing.T, f func([]byte) []byte, funcName string, testCa
 func tenRunes(rune int) string {
 	r := make([]int, 10);
 	for i := range r {
-		r[i] = rune;
+		r[i] = rune
 	}
 	return string(r);
 }
@@ -276,14 +276,14 @@ func TestMap(t *testing.T) {
 	m := Map(maxRune, Bytes(a));
 	expect := tenRunes(unicode.MaxRune);
 	if string(m) != expect {
-		t.Errorf("growing: expected %q got %q", expect, m);
+		t.Errorf("growing: expected %q got %q", expect, m)
 	}
 	// 2. Shrink
 	minRune := func(rune int) int { return 'a' };
 	m = Map(minRune, Bytes(tenRunes(unicode.MaxRune)));
 	expect = a;
 	if string(m) != expect {
-		t.Errorf("shrinking: expected %q got %q", expect, m);
+		t.Errorf("shrinking: expected %q got %q", expect, m)
 	}
 }
 
@@ -309,11 +309,11 @@ func TestAdd(t *testing.T) {
 	for _, test := range addtests {
 		b := make([]byte, len(test.s), test.cap);
 		for i := 0; i < len(test.s); i++ {
-			b[i] = test.s[i];
+			b[i] = test.s[i]
 		}
 		b = Add(b, strings.Bytes(test.t));
 		if string(b) != test.s + test.t {
-			t.Errorf("Add(%q,%q) = %q", test.s, test.t, string(b));
+			t.Errorf("Add(%q,%q) = %q", test.s, test.t, string(b))
 		}
 	}
 }
@@ -322,14 +322,14 @@ func TestAddByte(t *testing.T) {
 	const N = 2e5;
 	b := make([]byte, 0);
 	for i := 0; i < N; i++ {
-		b = AddByte(b, byte(i));
+		b = AddByte(b, byte(i))
 	}
 	if len(b) != N {
-		t.Errorf("AddByte: too small; expected %d got %d", N, len(b));
+		t.Errorf("AddByte: too small; expected %d got %d", N, len(b))
 	}
 	for i, c := range b {
 		if c != byte(i) {
-			t.Fatalf("AddByte: b[%d] should be %d is %d", i, c, byte(i));
+			t.Fatalf("AddByte: b[%d] should be %d is %d", i, c, byte(i))
 		}
 	}
 }

@@ -63,7 +63,7 @@ func fIntptr(a *int) *int {
 
 func reportError(property string, err os.Error, t *testing.T) {
 	if err != nil {
-		t.Errorf("%s: %s", property, err);
+		t.Errorf("%s: %s", property, err)
 	}
 }
 
@@ -99,46 +99,46 @@ type myStruct struct {
 }
 
 func (m myStruct) Generate(r *rand.Rand, _ int) reflect.Value {
-	return reflect.NewValue(myStruct{x: 42});
+	return reflect.NewValue(myStruct{x: 42})
 }
 
 func myStructProperty(in myStruct) bool	{ return in.x == 42 }
 
 func TestCheckProperty(t *testing.T) {
-	reportError("myStructProperty", Check(myStructProperty, nil), t);
+	reportError("myStructProperty", Check(myStructProperty, nil), t)
 }
 
 func TestFailure(t *testing.T) {
 	f := func(x int) bool { return false };
 	err := Check(f, nil);
 	if err == nil {
-		t.Errorf("Check didn't return an error");
+		t.Errorf("Check didn't return an error")
 	}
 	if _, ok := err.(*CheckError); !ok {
-		t.Errorf("Error was not a CheckError: %s", err);
+		t.Errorf("Error was not a CheckError: %s", err)
 	}
 
 	err = CheckEqual(fUint, fUint32, nil);
 	if err == nil {
-		t.Errorf("#1 CheckEqual didn't return an error");
+		t.Errorf("#1 CheckEqual didn't return an error")
 	}
 	if _, ok := err.(SetupError); !ok {
-		t.Errorf("#1 Error was not a SetupError: %s", err);
+		t.Errorf("#1 Error was not a SetupError: %s", err)
 	}
 
 	err = CheckEqual(func(x, y int) {}, func(x int) {}, nil);
 	if err == nil {
-		t.Errorf("#2 CheckEqual didn't return an error");
+		t.Errorf("#2 CheckEqual didn't return an error")
 	}
 	if _, ok := err.(SetupError); !ok {
-		t.Errorf("#2 Error was not a SetupError: %s", err);
+		t.Errorf("#2 Error was not a SetupError: %s", err)
 	}
 
 	err = CheckEqual(func(x int) int { return 0 }, func(x int) int32 { return 0 }, nil);
 	if err == nil {
-		t.Errorf("#3 CheckEqual didn't return an error");
+		t.Errorf("#3 CheckEqual didn't return an error")
 	}
 	if _, ok := err.(SetupError); !ok {
-		t.Errorf("#3 Error was not a SetupError: %s", err);
+		t.Errorf("#3 Error was not a SetupError: %s", err)
 	}
 }

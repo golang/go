@@ -75,16 +75,16 @@ func (x *xorWriter) Write(p []byte) (n int, err os.Error) {
 		if nn := len(x.extra); nn > 0 {
 			// extra points into work, so edit directly
 			if m > nn {
-				m = nn;
+				m = nn
 			}
 			for i := 0; i < m; i++ {
-				x.extra[i] ^= p[i];
+				x.extra[i] ^= p[i]
 			}
 			chunk = x.extra[0:m];
 		} else {
 			// xor p ^ buf into work, refreshing buf as needed
 			if nn := len(x.work); m > nn {
-				m = nn;
+				m = nn
 			}
 			bp := 0;
 			buf := x.buf;
@@ -104,19 +104,19 @@ func (x *xorWriter) Write(p []byte) (n int, err os.Error) {
 		var nn int;
 		nn, err = x.w.Write(chunk);
 		if nn != len(chunk) && err == nil {
-			err = io.ErrShortWrite;
+			err = io.ErrShortWrite
 		}
 		if nn < len(chunk) {
 			// Reconstruct the random bits from the unwritten
 			// data and save them for next time.
 			for i := nn; i < m; i++ {
-				chunk[i] ^= p[i];
+				chunk[i] ^= p[i]
 			}
 			x.extra = chunk[nn:len(chunk)];
 		}
 		n += nn;
 		if err != nil {
-			return;
+			return
 		}
 		p = p[m:len(p)];
 	}

@@ -17,7 +17,7 @@ func TestTicker(t *testing.T) {
 	ticker := NewTicker(Delta);
 	t0 := Nanoseconds();
 	for i := 0; i < Count; i++ {
-		<-ticker.C;
+		<-ticker.C
 	}
 	ticker.Stop();
 	t1 := Nanoseconds();
@@ -25,12 +25,12 @@ func TestTicker(t *testing.T) {
 	target := int64(Delta*Count);
 	slop := target*2/10;
 	if ns < target-slop || ns > target+slop {
-		t.Fatalf("%d ticks of %g ns took %g ns, expected %g", Count, float64(Delta), float64(ns), float64(target));
+		t.Fatalf("%d ticks of %g ns took %g ns, expected %g", Count, float64(Delta), float64(ns), float64(target))
 	}
 	// Now test that the ticker stopped
 	Sleep(2*Delta);
 	_, received := <-ticker.C;
 	if received {
-		t.Fatalf("Ticker did not shut down");
+		t.Fatalf("Ticker did not shut down")
 	}
 }

@@ -24,41 +24,41 @@ func Quote(s string) string {
 	for ; len(s) > 0; s = s[1:len(s)] {
 		switch c := s[0]; {
 		case c == '"':
-			buf.WriteString(`\"`);
+			buf.WriteString(`\"`)
 		case c == '\\':
-			buf.WriteString(`\\`);
+			buf.WriteString(`\\`)
 		case ' ' <= c && c <= '~':
-			buf.WriteString(string(c));
+			buf.WriteString(string(c))
 		case c == '\a':
-			buf.WriteString(`\a`);
+			buf.WriteString(`\a`)
 		case c == '\b':
-			buf.WriteString(`\b`);
+			buf.WriteString(`\b`)
 		case c == '\f':
-			buf.WriteString(`\f`);
+			buf.WriteString(`\f`)
 		case c == '\n':
-			buf.WriteString(`\n`);
+			buf.WriteString(`\n`)
 		case c == '\r':
-			buf.WriteString(`\r`);
+			buf.WriteString(`\r`)
 		case c == '\t':
-			buf.WriteString(`\t`);
+			buf.WriteString(`\t`)
 		case c == '\v':
-			buf.WriteString(`\v`);
+			buf.WriteString(`\v`)
 
 		case c >= utf8.RuneSelf && utf8.FullRuneInString(s):
 			r, size := utf8.DecodeRuneInString(s);
 			if r == utf8.RuneError && size == 1 {
-				goto EscX;
+				goto EscX
 			}
 			s = s[size-1 : len(s)];	// next iteration will slice off 1 more
 			if r < 0x10000 {
 				buf.WriteString(`\u`);
 				for j := uint(0); j < 4; j++ {
-					buf.WriteByte(lowerhex[(r>>(12 - 4*j))&0xF]);
+					buf.WriteByte(lowerhex[(r>>(12 - 4*j))&0xF])
 				}
 			} else {
 				buf.WriteString(`\U`);
 				for j := uint(0); j < 8; j++ {
-					buf.WriteByte(lowerhex[(r>>(28 - 4*j))&0xF]);
+					buf.WriteByte(lowerhex[(r>>(28 - 4*j))&0xF])
 				}
 			}
 
@@ -78,7 +78,7 @@ func Quote(s string) string {
 func CanBackquote(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if (s[i] < ' ' && s[i] != '\t') || s[i] == '`' {
-			return false;
+			return false
 		}
 	}
 	return true;
@@ -88,11 +88,11 @@ func unhex(b byte) (v int, ok bool) {
 	c := int(b);
 	switch {
 	case '0' <= c && c <= '9':
-		return c-'0', true;
+		return c-'0', true
 	case 'a' <= c && c <= 'f':
-		return c-'a'+10, true;
+		return c-'a'+10, true
 	case 'A' <= c && c <= 'F':
-		return c-'A'+10, true;
+		return c-'A'+10, true
 	}
 	return;
 }
@@ -120,7 +120,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 		r, size := utf8.DecodeRuneInString(s);
 		return r, true, s[size:len(s)], nil;
 	case c != '\\':
-		return int(s[0]), false, s[1:len(s)], nil;
+		return int(s[0]), false, s[1:len(s)], nil
 	}
 
 	// hard case: c is backslash
@@ -133,28 +133,28 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 
 	switch c {
 	case 'a':
-		value = '\a';
+		value = '\a'
 	case 'b':
-		value = '\b';
+		value = '\b'
 	case 'f':
-		value = '\f';
+		value = '\f'
 	case 'n':
-		value = '\n';
+		value = '\n'
 	case 'r':
-		value = '\r';
+		value = '\r'
 	case 't':
-		value = '\t';
+		value = '\t'
 	case 'v':
-		value = '\v';
+		value = '\v'
 	case 'x', 'u', 'U':
 		n := 0;
 		switch c {
 		case 'x':
-			n = 2;
+			n = 2
 		case 'u':
-			n = 4;
+			n = 4
 		case 'U':
-			n = 8;
+			n = 8
 		}
 		v := 0;
 		if len(s) < n {
@@ -190,7 +190,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 		for j := 0; j < 2; j++ {	// one digit already; two more
 			x := int(s[j])-'0';
 			if x < 0 || x > 7 {
-				return;
+				return
 			}
 			v = (v<<3)|x;
 		}
@@ -201,7 +201,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 		}
 		value = v;
 	case '\\':
-		value = '\\';
+		value = '\\'
 	case '\'', '"':
 		if c != quote {
 			err = os.EINVAL;
@@ -224,39 +224,39 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 func Unquote(s string) (t string, err os.Error) {
 	n := len(s);
 	if n < 2 {
-		return "", os.EINVAL;
+		return "", os.EINVAL
 	}
 	quote := s[0];
 	if quote != s[n-1] {
-		return "", os.EINVAL;
+		return "", os.EINVAL
 	}
 	s = s[1 : n-1];
 
 	if quote == '`' {
 		if strings.Index(s, "`") >= 0 {
-			return "", os.EINVAL;
+			return "", os.EINVAL
 		}
 		return s, nil;
 	}
 	if quote != '"' && quote != '\'' {
-		return "", err;
+		return "", err
 	}
 
 	var buf bytes.Buffer;
 	for len(s) > 0 {
 		c, multibyte, ss, err := UnquoteChar(s, quote);
 		if err != nil {
-			return "", err;
+			return "", err
 		}
 		s = ss;
 		if c < utf8.RuneSelf || !multibyte {
-			buf.WriteByte(byte(c));
+			buf.WriteByte(byte(c))
 		} else {
-			buf.WriteString(string(c));
+			buf.WriteString(string(c))
 		}
 		if quote == '\'' && len(s) != 0 {
 			// single-quoted must be single character
-			return "", os.EINVAL;
+			return "", os.EINVAL
 		}
 	}
 	return buf.String(), nil;

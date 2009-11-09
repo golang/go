@@ -34,7 +34,7 @@ var manualTypes = make(map[Arch]map[eval.Type]*remoteType)
 // so we need to layout the structures that describe those types ourselves.
 func newManualType(t eval.Type, arch Arch) *remoteType {
 	if nt, ok := t.(*eval.NamedType); ok {
-		t = nt.Def;
+		t = nt.Def
 	}
 
 	// Get the type map for this architecture
@@ -47,7 +47,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 		basicType := func(t eval.Type, mk maker, size int, fieldAlign int) {
 			t = t.(*eval.NamedType).Def;
 			if fieldAlign == 0 {
-				fieldAlign = size;
+				fieldAlign = size
 			}
 			typeMap[t] = &remoteType{t, size, fieldAlign, mk};
 		};
@@ -61,7 +61,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 	}
 
 	if rt, ok := typeMap[t]; ok {
-		return rt;
+		return rt
 	}
 
 	var rt *remoteType;
@@ -92,7 +92,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 		for i, f := range t.Elems {
 			elem := newManualType(f.Type, arch);
 			if fieldAlign == 0 {
-				fieldAlign = elem.fieldAlign;
+				fieldAlign = elem.fieldAlign
 			}
 			offset = arch.Align(offset, elem.fieldAlign);
 			layout[i].offset = offset;
@@ -103,7 +103,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 		rt = &remoteType{t, offset, fieldAlign, mk};
 
 	default:
-		log.Crashf("cannot manually construct type %T", t);
+		log.Crashf("cannot manually construct type %T", t)
 	}
 
 	typeMap[t] = rt;
@@ -130,7 +130,7 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 
 	rt, ok := p.types[addr];
 	if ok && rt.Type != nil {
-		return rt;
+		return rt
 	} else if !ok {
 		rt = &remoteType{};
 		p.types[addr] = rt;
@@ -140,7 +140,7 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 		sym := p.syms.SymByAddr(uint64(addr));
 		name := "<unknown>";
 		if sym != nil {
-			name = sym.Name;
+			name = sym.Name
 		}
 		log.Stderrf("%sParsing type at %#x (%s)", prtIndent, addr, name);
 		prtIndent += " ";
@@ -238,9 +238,9 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 			fields[i].Type = elem.Type;
 			name := f.field(p.f.StructField.Name).(remotePtr).aGet(a);
 			if name == nil {
-				fields[i].Anonymous = true;
+				fields[i].Anonymous = true
 			} else {
-				fields[i].Name = name.(remoteString).aGet(a);
+				fields[i].Name = name.(remoteString).aGet(a)
 			}
 			layout[i].offset = int(f.field(p.f.StructField.Offset).(remoteUint).aGet(a));
 			layout[i].fieldType = elem;
@@ -272,7 +272,7 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 		sym := p.syms.SymByAddr(uint64(itype));
 		name := "<unknown symbol>";
 		if sym != nil {
-			name = sym.Name;
+			name = sym.Name
 		}
 		err := fmt.Sprintf("runtime type at %#x has unexpected type %#x (%s)", addr, itype, name);
 		a.Abort(FormatError(err));
@@ -280,9 +280,9 @@ func parseRemoteType(a aborter, rs remoteStruct) *remoteType {
 
 	// Fill in the remote type
 	if nt != nil {
-		nt.Complete(t);
+		nt.Complete(t)
 	} else {
-		rt.Type = t;
+		rt.Type = t
 	}
 	rt.size = int(typ.field(p.f.CommonType.Size).(remoteUint).aGet(a));
 	rt.mk = mk;

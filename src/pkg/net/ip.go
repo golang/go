@@ -40,7 +40,7 @@ type IPMask []byte
 func IPv4(a, b, c, d byte) IP {
 	p := make(IP, IPv6len);
 	for i := 0; i < 10; i++ {
-		p[i] = 0;
+		p[i] = 0
 	}
 	p[10] = 0xff;
 	p[11] = 0xff;
@@ -68,7 +68,7 @@ var (
 func isZeros(p IP) bool {
 	for i := 0; i < len(p); i++ {
 		if p[i] != 0 {
-			return false;
+			return false
 		}
 	}
 	return true;
@@ -78,13 +78,13 @@ func isZeros(p IP) bool {
 // If ip is not an IPv4 address, To4 returns nil.
 func (ip IP) To4() IP {
 	if len(ip) == IPv4len {
-		return ip;
+		return ip
 	}
 	if len(ip) == IPv6len &&
 		isZeros(ip[0:10]) &&
 		ip[10] == 0xff &&
 		ip[11] == 0xff {
-		return ip[12:16];
+		return ip[12:16]
 	}
 	return nil;
 }
@@ -93,10 +93,10 @@ func (ip IP) To4() IP {
 // If ip is not an IP address (it is the wrong length), To16 returns nil.
 func (ip IP) To16() IP {
 	if len(ip) == IPv4len {
-		return IPv4(ip[0], ip[1], ip[2], ip[3]);
+		return IPv4(ip[0], ip[1], ip[2], ip[3])
 	}
 	if len(ip) == IPv6len {
-		return ip;
+		return ip
 	}
 	return nil;
 }
@@ -113,15 +113,15 @@ var (
 // nil if ip is not a valid IPv4 address.
 func (ip IP) DefaultMask() IPMask {
 	if ip = ip.To4(); ip == nil {
-		return nil;
+		return nil
 	}
 	switch true {
 	case ip[0] < 0x80:
-		return classAMask;
+		return classAMask
 	case ip[0] < 0xC0:
-		return classBMask;
+		return classBMask
 	default:
-		return classCMask;
+		return classCMask
 	}
 	return nil;	// not reached
 }
@@ -130,11 +130,11 @@ func (ip IP) DefaultMask() IPMask {
 func (ip IP) Mask(mask IPMask) IP {
 	n := len(ip);
 	if n != len(mask) {
-		return nil;
+		return nil
 	}
 	out := make(IP, n);
 	for i := 0; i < n; i++ {
-		out[i] = ip[i]&mask[i];
+		out[i] = ip[i]&mask[i]
 	}
 	return out;
 }
@@ -142,7 +142,7 @@ func (ip IP) Mask(mask IPMask) IP {
 // Convert i to decimal string.
 func itod(i uint) string {
 	if i == 0 {
-		return "0";
+		return "0"
 	}
 
 	// Assemble decimal in reverse order.
@@ -159,7 +159,7 @@ func itod(i uint) string {
 // Convert i to hexadecimal string.
 func itox(i uint) string {
 	if i == 0 {
-		return "0";
+		return "0"
 	}
 
 	// Assemble hexadecimal in reverse order.
@@ -181,7 +181,7 @@ func (ip IP) String() string {
 	p := ip;
 
 	if len(ip) == 0 {
-		return "";
+		return ""
 	}
 
 	// If IPv4, use dotted notation.
@@ -189,10 +189,10 @@ func (ip IP) String() string {
 		return itod(uint(p4[0])) + "." +
 			itod(uint(p4[1])) + "." +
 			itod(uint(p4[2])) + "." +
-			itod(uint(p4[3]));
+			itod(uint(p4[3]))
 	}
 	if len(p) != IPv6len {
-		return "?";
+		return "?"
 	}
 
 	// Find longest run of zeros.
@@ -201,7 +201,7 @@ func (ip IP) String() string {
 	for i := 0; i < 16; i += 2 {
 		j := i;
 		for j < 16 && p[j] == 0 && p[j+1] == 0 {
-			j += 2;
+			j += 2
 		}
 		if j > i && j-i > e1-e0 {
 			e0 = i;
@@ -216,10 +216,10 @@ func (ip IP) String() string {
 			s += "::";
 			i = e1;
 			if i >= 16 {
-				break;
+				break
 			}
 		} else if i > 0 {
-			s += ":";
+			s += ":"
 		}
 		s += itox((uint(p[i])<<8)|uint(p[i+1]));
 	}
@@ -232,7 +232,7 @@ func simpleMaskLength(mask IPMask) int {
 	var i int;
 	for i = 0; i < len(mask); i++ {
 		if mask[i] != 0xFF {
-			break;
+			break
 		}
 	}
 	n := 8*i;
@@ -242,11 +242,11 @@ func simpleMaskLength(mask IPMask) int {
 		v <<= 1;
 	}
 	if v != 0 {
-		return -1;
+		return -1
 	}
 	for i++; i < len(mask); i++ {
 		if mask[i] != 0 {
-			return -1;
+			return -1
 		}
 	}
 	return n;
@@ -262,12 +262,12 @@ func (mask IPMask) String() string {
 	case 4:
 		n := simpleMaskLength(mask);
 		if n >= 0 {
-			return itod(uint(n + (IPv6len-IPv4len)*8));
+			return itod(uint(n + (IPv6len-IPv4len)*8))
 		}
 	case 16:
 		n := simpleMaskLength(mask);
 		if n >= 0 {
-			return itod(uint(n));
+			return itod(uint(n))
 		}
 	}
 	return IP(mask).String();
@@ -280,7 +280,7 @@ func parseIPv4(s string) IP {
 	for j := 0; j < IPv4len; j++ {
 		if j > 0 {
 			if s[i] != '.' {
-				return nil;
+				return nil
 			}
 			i++;
 		}
@@ -290,12 +290,12 @@ func parseIPv4(s string) IP {
 		)
 		n, i, ok = dtoi(s, i);
 		if !ok || n > 0xFF {
-			return nil;
+			return nil
 		}
 		p[j] = byte(n);
 	}
 	if i != len(s) {
-		return nil;
+		return nil
 	}
 	return IPv4(p[0], p[1], p[2], p[3]);
 }
@@ -319,7 +319,7 @@ func parseIPv6(s string) IP {
 		i = 2;
 		// Might be only ellipsis
 		if i == len(s) {
-			return p;
+			return p
 		}
 	}
 
@@ -329,22 +329,22 @@ L:	for j < IPv6len {
 		// Hex number.
 		n, i1, ok := xtoi(s, i);
 		if !ok || n > 0xFFFF {
-			return nil;
+			return nil
 		}
 
 		// If followed by dot, might be in trailing IPv4.
 		if i1 < len(s) && s[i1] == '.' {
 			if ellipsis < 0 && j != IPv6len-IPv4len {
 				// Not the right place.
-				return nil;
+				return nil
 			}
 			if j+IPv4len > IPv6len {
 				// Not enough room.
-				return nil;
+				return nil
 			}
 			p4 := parseIPv4(s[i:len(s)]);
 			if p4 == nil {
-				return nil;
+				return nil
 			}
 			p[j] = p4[12];
 			p[j+1] = p4[13];
@@ -363,43 +363,43 @@ L:	for j < IPv6len {
 		// Stop at end of string.
 		i = i1;
 		if i == len(s) {
-			break;
+			break
 		}
 
 		// Otherwise must be followed by colon and more.
 		if s[i] != ':' && i+1 == len(s) {
-			return nil;
+			return nil
 		}
 		i++;
 
 		// Look for ellipsis.
 		if s[i] == ':' {
 			if ellipsis >= 0 {	// already have one
-				return nil;
+				return nil
 			}
 			ellipsis = j;
 			if i++; i == len(s) {	// can be at end
-				break;
+				break
 			}
 		}
 	}
 
 	// Must have used entire string.
 	if i != len(s) {
-		return nil;
+		return nil
 	}
 
 	// If didn't parse enough, expand ellipsis.
 	if j < IPv6len {
 		if ellipsis < 0 {
-			return nil;
+			return nil
 		}
 		n := IPv6len-j;
 		for k := j-1; k >= ellipsis; k-- {
-			p[k+n] = p[k];
+			p[k+n] = p[k]
 		}
 		for k := ellipsis+n-1; k >= ellipsis; k-- {
-			p[k] = 0;
+			p[k] = 0
 		}
 	}
 	return p;
@@ -413,7 +413,7 @@ L:	for j < IPv6len {
 func ParseIP(s string) IP {
 	p := parseIPv4(s);
 	if p != nil {
-		return p;
+		return p
 	}
 	return parseIPv6(s);
 }

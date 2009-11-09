@@ -35,10 +35,10 @@ func NewEncoding(encoder string) *Encoding {
 	e := new(Encoding);
 	e.encode = encoder;
 	for i := 0; i < len(e.decodeMap); i++ {
-		e.decodeMap[i] = 0xFF;
+		e.decodeMap[i] = 0xFF
 	}
 	for i := 0; i < len(encoder); i++ {
-		e.decodeMap[encoder[i]] = byte(i);
+		e.decodeMap[encoder[i]] = byte(i)
 	}
 	return e;
 }
@@ -63,7 +63,7 @@ var URLEncoding = NewEncoding(encodeURL)
 // of a large data stream.  Use NewEncoder() instead.
 func (enc *Encoding) Encode(dst, src []byte) {
 	if len(src) == 0 {
-		return;
+		return
 	}
 
 	for len(src) > 0 {
@@ -90,14 +90,14 @@ func (enc *Encoding) Encode(dst, src []byte) {
 
 		// Encode 6-bit blocks using the base64 alphabet
 		for j := 0; j < 4; j++ {
-			dst[j] = enc.encode[dst[j]];
+			dst[j] = enc.encode[dst[j]]
 		}
 
 		// Pad the final quantum
 		if len(src) < 3 {
 			dst[3] = '=';
 			if len(src) < 2 {
-				dst[2] = '=';
+				dst[2] = '='
 			}
 			break;
 		}
@@ -118,7 +118,7 @@ type encoder struct {
 
 func (e *encoder) Write(p []byte) (n int, err os.Error) {
 	if e.err != nil {
-		return 0, e.err;
+		return 0, e.err
 	}
 
 	// Leading fringe.
@@ -131,11 +131,11 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		n += i;
 		p = p[i:len(p)];
 		if e.nbuf < 3 {
-			return;
+			return
 		}
 		e.enc.Encode(&e.out, &e.buf);
 		if _, e.err = e.w.Write(e.out[0:4]); e.err != nil {
-			return n, e.err;
+			return n, e.err
 		}
 		e.nbuf = 0;
 	}
@@ -144,13 +144,13 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 	for len(p) >= 3 {
 		nn := len(e.out)/4*3;
 		if nn > len(p) {
-			nn = len(p);
+			nn = len(p)
 		}
 		nn -= nn%3;
 		if nn > 0 {
 			e.enc.Encode(&e.out, p[0:nn]);
 			if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
-				return n, e.err;
+				return n, e.err
 			}
 		}
 		n += nn;
@@ -159,7 +159,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 
 	// Trailing fringe.
 	for i := 0; i < len(p); i++ {
-		e.buf[i] = p[i];
+		e.buf[i] = p[i]
 	}
 	e.nbuf = len(p);
 	n += len(p);
@@ -184,7 +184,7 @@ func (e *encoder) Close() os.Error {
 // writing, the caller must Close the returned encoder to flush any
 // partially written blocks.
 func NewEncoder(enc *Encoding, w io.Writer) io.WriteCloser {
-	return &encoder{enc: enc, w: w};
+	return &encoder{enc: enc, w: w}
 }
 
 // EncodedLen returns the length in bytes of the base64 encoding
@@ -198,7 +198,7 @@ func (enc *Encoding) EncodedLen(n int) int	{ return (n+2)/3*4 }
 type CorruptInputError int64
 
 func (e CorruptInputError) String() string {
-	return "illegal base64 data at input byte" + strconv.Itoa64(int64(e));
+	return "illegal base64 data at input byte" + strconv.Itoa64(int64(e))
 }
 
 // decode is like Decode but returns an additional 'end' value, which
@@ -218,7 +218,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err os.Error) {
 				// We've reached the end and there's
 				// padding
 				if src[i*4 + 3] != '=' {
-					return n, false, CorruptInputError(i*4 + 2);
+					return n, false, CorruptInputError(i*4 + 2)
 				}
 				dlen = j;
 				end = true;
@@ -226,7 +226,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err os.Error) {
 			}
 			dbuf[j] = enc.decodeMap[in];
 			if dbuf[j] == 0xFF {
-				return n, false, CorruptInputError(i*4 + j);
+				return n, false, CorruptInputError(i*4 + j)
 			}
 		}
 
@@ -240,7 +240,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err os.Error) {
 			dst[i*3 + 1] = dbuf[1]<<4 | dbuf[2]>>2;
 			fallthrough;
 		case 2:
-			dst[i*3 + 0] = dbuf[0]<<2 | dbuf[1]>>4;
+			dst[i*3 + 0] = dbuf[0]<<2 | dbuf[1]>>4
 		}
 		n += dlen-1;
 	}
@@ -254,7 +254,7 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err os.Error) {
 // number of bytes successfully written and CorruptInputError.
 func (enc *Encoding) Decode(dst, src []byte) (n int, err os.Error) {
 	if len(src)%4 != 0 {
-		return 0, CorruptInputError(len(src)/4*4);
+		return 0, CorruptInputError(len(src)/4*4)
 	}
 
 	n, _, err = enc.decode(dst, src);
@@ -274,7 +274,7 @@ type decoder struct {
 
 func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	if d.err != nil {
-		return 0, d.err;
+		return 0, d.err
 	}
 
 	// Use leftover decoded output from last read.
@@ -287,15 +287,15 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	// Read a chunk.
 	nn := len(p)/3*4;
 	if nn < 4 {
-		nn = 4;
+		nn = 4
 	}
 	if nn > len(d.buf) {
-		nn = len(d.buf);
+		nn = len(d.buf)
 	}
 	nn, d.err = io.ReadAtLeast(d.r, d.buf[d.nbuf : nn], 4 - d.nbuf);
 	d.nbuf += nn;
 	if d.nbuf < 4 {
-		return 0, d.err;
+		return 0, d.err
 	}
 
 	// Decode chunk into p, or d.out and then p if p is too small.
@@ -307,22 +307,22 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		n = bytes.Copy(p, d.out);
 		d.out = d.out[n:len(d.out)];
 	} else {
-		n, d.end, d.err = d.enc.decode(p, d.buf[0:nr]);
+		n, d.end, d.err = d.enc.decode(p, d.buf[0:nr])
 	}
 	d.nbuf -= nr;
 	for i := 0; i < d.nbuf; i++ {
-		d.buf[i] = d.buf[i+nr];
+		d.buf[i] = d.buf[i+nr]
 	}
 
 	if d.err == nil {
-		d.err = err;
+		d.err = err
 	}
 	return n, d.err;
 }
 
 // NewDecoder constructs a new base64 stream decoder.
 func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
-	return &decoder{enc: enc, r: r};
+	return &decoder{enc: enc, r: r}
 }
 
 // DecodeLen returns the maximum length in bytes of the decoded data

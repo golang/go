@@ -21,7 +21,7 @@ type Cipher struct {
 type KeySizeError int
 
 func (k KeySizeError) String() string {
-	return "crypto/aes: invalid key size " + strconv.Itoa(int(k));
+	return "crypto/aes: invalid key size " + strconv.Itoa(int(k))
 }
 
 // NewCipher creates and returns a new Cipher.
@@ -32,9 +32,9 @@ func NewCipher(key []byte) (*Cipher, os.Error) {
 	k := len(key);
 	switch k {
 	default:
-		return nil, KeySizeError(k);
+		return nil, KeySizeError(k)
 	case 16, 24, 32:
-		break;
+		break
 	}
 
 	n := k+28;
@@ -63,9 +63,9 @@ func (c *Cipher) Decrypt(src, dst []byte)	{ decryptBlock(c.dec, src, dst) }
 // appear in the process's memory.
 func (c *Cipher) Reset() {
 	for i := 0; i < len(c.enc); i++ {
-		c.enc[i] = 0;
+		c.enc[i] = 0
 	}
 	for i := 0; i < len(c.dec); i++ {
-		c.dec[i] = 0;
+		c.dec[i] = 0
 	}
 }

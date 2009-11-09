@@ -38,13 +38,13 @@ func (ctr *Counter) String() string	{ return fmt.Sprintf("%d", ctr.n) }
 func (ctr *Counter) ServeHTTP(c *http.Conn, req *http.Request) {
 	switch req.Method {
 	case "GET":
-		ctr.n++;
+		ctr.n++
 	case "POST":
 		buf := new(bytes.Buffer);
 		io.Copy(buf, req.Body);
 		body := buf.String();
 		if n, err := strconv.Atoi(body); err != nil {
-			fmt.Fprintf(c, "bad POST: %v\nbody: [%v]\n", err, body);
+			fmt.Fprintf(c, "bad POST: %v\nbody: [%v]\n", err, body)
 		} else {
 			ctr.n = n;
 			fmt.Fprint(c, "counter reset\n");
@@ -80,9 +80,9 @@ func FlagServer(c *http.Conn, req *http.Request) {
 	fmt.Fprint(c, "Flags:\n");
 	flag.VisitAll(func(f *flag.Flag) {
 		if f.Value.String() != f.DefValue {
-			fmt.Fprintf(c, "%s = %s [default = %s]\n", f.Name, f.Value.String(), f.DefValue);
+			fmt.Fprintf(c, "%s = %s [default = %s]\n", f.Name, f.Value.String(), f.DefValue)
 		} else {
-			fmt.Fprintf(c, "%s = %s\n", f.Name, f.Value.String());
+			fmt.Fprintf(c, "%s = %s\n", f.Name, f.Value.String())
 		}
 	});
 }
@@ -90,7 +90,7 @@ func FlagServer(c *http.Conn, req *http.Request) {
 // simple argument server
 func ArgServer(c *http.Conn, req *http.Request) {
 	for i, s := range os.Args {
-		fmt.Fprint(c, s, " ");
+		fmt.Fprint(c, s, " ")
 	}
 }
 
@@ -101,14 +101,14 @@ func ChanCreate() Chan {
 	c := make(Chan);
 	go func(c Chan) {
 		for x := 0; ; x++ {
-			c <- x;
+			c <- x
 		}
 	}(c);
 	return c;
 }
 
 func (ch Chan) ServeHTTP(c *http.Conn, req *http.Request) {
-	io.WriteString(c, fmt.Sprintf("channel send #%d\n", <-ch));
+	io.WriteString(c, fmt.Sprintf("channel send #%d\n", <-ch))
 }
 
 // exec a program, redirecting output
@@ -154,6 +154,6 @@ func main() {
 	http.Handle("/date", http.HandlerFunc(DateServer));
 	err := http.ListenAndServe(":12345", nil);
 	if err != nil {
-		log.Crash("ListenAndServe: ", err);
+		log.Crash("ListenAndServe: ", err)
 	}
 }

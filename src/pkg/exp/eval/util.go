@@ -15,7 +15,7 @@ func ratToString(rat *bignum.Rational) string {
 	w, frac := n.QuoRem(d);
 	out := w.String();
 	if frac.IsZero() {
-		return out;
+		return out
 	}
 
 	r := frac.Abs();
@@ -23,14 +23,14 @@ func ratToString(rat *bignum.Rational) string {
 	dec, tail := r.DivMod(dnat);
 	// Round last digit
 	if tail.Cmp(dnat.Div(bignum.Nat(2))) >= 0 {
-		dec = dec.Add(bignum.Nat(1));
+		dec = dec.Add(bignum.Nat(1))
 	}
 	// Strip zeros
 	ten := bignum.Nat(10);
 	for !dec.IsZero() {
 		dec2, r2 := dec.DivMod(ten);
 		if !r2.IsZero() {
-			break;
+			break
 		}
 		dec = dec2;
 	}

@@ -57,23 +57,23 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
 	// Sniff .debug_info to figure out byte order.
 	// bytes 4:6 are the version, a tiny 16-bit number (1, 2, 3).
 	if len(d.info) < 6 {
-		return nil, DecodeError{"info", Offset(len(d.info)), "too short"};
+		return nil, DecodeError{"info", Offset(len(d.info)), "too short"}
 	}
 	x, y := d.info[4], d.info[5];
 	switch {
 	case x == 0 && y == 0:
-		return nil, DecodeError{"info", 4, "unsupported version 0"};
+		return nil, DecodeError{"info", 4, "unsupported version 0"}
 	case x == 0:
-		d.order = binary.BigEndian;
+		d.order = binary.BigEndian
 	case y == 0:
-		d.order = binary.LittleEndian;
+		d.order = binary.LittleEndian
 	default:
-		return nil, DecodeError{"info", 4, "cannot determine byte order"};
+		return nil, DecodeError{"info", 4, "cannot determine byte order"}
 	}
 
 	u, err := d.parseUnits();
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	d.unit = u;
 	return d, nil;

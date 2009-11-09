@@ -39,11 +39,11 @@ func shift1(src, dst []byte) byte {
 
 func same(p, q []byte) bool {
 	if len(p) != len(q) {
-		return false;
+		return false
 	}
 	for i := 0; i < len(p); i++ {
 		if p[i] != q[i] {
-			return false;
+			return false
 		}
 	}
 	return true;
@@ -52,7 +52,7 @@ func same(p, q []byte) bool {
 func copy(p []byte) []byte {
 	q := make([]byte, len(p));
 	for i, b := range p {
-		q[i] = b;
+		q[i] = b
 	}
 	return q;
 }

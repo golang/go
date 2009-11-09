@@ -60,7 +60,7 @@ func exec(c *http.Conn, args []string) (status int) {
 	bin := args[0];
 	fds := []*os.File{nil, w, w};
 	if *verbose {
-		log.Stderrf("executing %v", args);
+		log.Stderrf("executing %v", args)
 	}
 	pid, err := os.ForkExec(bin, args, os.Environ(), goroot, fds);
 	defer r.Close();
@@ -86,7 +86,7 @@ func exec(c *http.Conn, args []string) (status int) {
 	}
 
 	if *verbose {
-		os.Stderr.Write(buf.Bytes());
+		os.Stderr.Write(buf.Bytes())
 	}
 	if c != nil {
 		c.SetHeader("content-type", "text/plain; charset=utf-8");
@@ -114,10 +114,10 @@ func dosync(c *http.Conn, r *http.Request) {
 	case 1:
 		// sync failed because no files changed;
 		// don't change the package tree
-		syncDelay.set(*syncMin);	//  revert to regular sync schedule
+		syncDelay.set(*syncMin)	//  revert to regular sync schedule
 	default:
 		// sync failed because of an error - back off exponentially, but try at least once a day
-		syncDelay.backoff(24*60);
+		syncDelay.backoff(24*60)
 	}
 }
 
@@ -135,7 +135,7 @@ func loggingHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(c *http.Conn, req *http.Request) {
 		log.Stderrf("%s\t%s", c.RemoteAddr, req.URL);
 		h.ServeHTTP(c, req);
-	});
+	})
 }
 
 
@@ -145,15 +145,15 @@ func main() {
 
 	// Check usage: either server and no args, or command line and args
 	if (*httpaddr != "") != (flag.NArg() == 0) {
-		usage();
+		usage()
 	}
 
 	if *tabwidth < 0 {
-		log.Exitf("negative tabwidth %d", *tabwidth);
+		log.Exitf("negative tabwidth %d", *tabwidth)
 	}
 
 	if err := os.Chdir(goroot); err != nil {
-		log.Exitf("chdir %s: %v", goroot, err);
+		log.Exitf("chdir %s: %v", goroot, err)
 	}
 
 	readTemplates();
@@ -174,7 +174,7 @@ func main() {
 
 		registerPublicHandlers(http.DefaultServeMux);
 		if *syncCmd != "" {
-			http.Handle("/debug/sync", http.HandlerFunc(dosync));
+			http.Handle("/debug/sync", http.HandlerFunc(dosync))
 		}
 
 		// Initialize directory tree with corresponding timestamp.
@@ -192,7 +192,7 @@ func main() {
 					dosync(nil, nil);
 					delay, _ := syncDelay.get();
 					if *verbose {
-						log.Stderrf("next sync in %dmin", delay.(int));
+						log.Stderrf("next sync in %dmin", delay.(int))
 					}
 					time.Sleep(int64(delay.(int))*60e9);
 				}
@@ -210,7 +210,7 @@ func main() {
 
 		// Start http server.
 		if err := http.ListenAndServe(*httpaddr, handler); err != nil {
-			log.Exitf("ListenAndServe %s: %v", *httpaddr, err);
+			log.Exitf("ListenAndServe %s: %v", *httpaddr, err)
 		}
 		return;
 	}
@@ -225,7 +225,7 @@ func main() {
 
 	if info.PDoc == nil && info.Dirs == nil {
 		// try again, this time assume it's a command
-		info = cmdHandler.getPageInfo(flag.Arg(0));
+		info = cmdHandler.getPageInfo(flag.Arg(0))
 	}
 
 	if info.PDoc != nil && flag.NArg() > 1 {
@@ -234,6 +234,6 @@ func main() {
 	}
 
 	if err := packageText.Execute(info, os.Stdout); err != nil {
-		log.Stderrf("packageText.Execute: %s", err);
+		log.Stderrf("packageText.Execute: %s", err)
 	}
 }

@@ -22,7 +22,7 @@ func fibber(c, out chan int64, i int64) {
 	runtime.LockOSThread();
 
 	if i == 0 {
-		c <- i;
+		c <- i
 	}
 	for {
 		j := <-c;

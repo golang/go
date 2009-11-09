@@ -12,7 +12,7 @@ import (
 // TruncateWriter returns a Writer that writes to w
 // but stops silently after n bytes.
 func TruncateWriter(w io.Writer, n int64) io.Writer {
-	return &truncateWriter{w, n};
+	return &truncateWriter{w, n}
 }
 
 type truncateWriter struct {
@@ -22,17 +22,17 @@ type truncateWriter struct {
 
 func (t *truncateWriter) Write(p []byte) (n int, err os.Error) {
 	if t.n <= 0 {
-		return len(p), nil;
+		return len(p), nil
 	}
 	// real write
 	n = len(p);
 	if int64(n) > t.n {
-		n = int(t.n);
+		n = int(t.n)
 	}
 	n, err = t.w.Write(p[0:n]);
 	t.n -= int64(n);
 	if err == nil {
-		n = len(p);
+		n = len(p)
 	}
 	return;
 }

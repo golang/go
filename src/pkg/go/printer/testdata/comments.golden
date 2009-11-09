@@ -98,7 +98,7 @@ func _() {
 
 func abs(x int) int {
 	if x < 0 {	// the tab printed before this comment's // must not affect the remaining lines
-		return -x;	// this statement should be properly indented
+		return -x	// this statement should be properly indented
 	}
 	return x;
 }
@@ -120,7 +120,7 @@ func typeswitch(x interface{}) {
 	switch v0, ok := x.(int); x.(type) {
 	case byte:	// this comment should be on the same line as the keyword
 		// this comment should be normally indented
-		_ = 0;
+		_ = 0
 	case bool, int, float:
 		// this comment should be indented
 	case string:

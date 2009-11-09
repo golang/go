@@ -32,13 +32,13 @@ func TestGitTable(t *testing.T) {
 	var saw [256]bool;
 	for i, c := range encode {
 		if decode[c] != uint8(i+1) {
-			t.Errorf("decode['%c'] = %d, want %d", c, decode[c], i+1);
+			t.Errorf("decode['%c'] = %d, want %d", c, decode[c], i+1)
 		}
 		saw[c] = true;
 	}
 	for i, b := range saw {
 		if !b && decode[i] != 0 {
-			t.Errorf("decode[%d] = %d, want 0", i, decode[i]);
+			t.Errorf("decode[%d] = %d, want 0", i, decode[i])
 		}
 	}
 }
@@ -67,7 +67,7 @@ func TestEncode(t *testing.T) {
 		buf := make([]byte, EncodedLen(len(p.decoded)));
 		n := Encode(buf, strings.Bytes(p.decoded));
 		if n != len(buf) {
-			t.Errorf("EncodedLen does not agree with Encode");
+			t.Errorf("EncodedLen does not agree with Encode")
 		}
 		buf = buf[0:n];
 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(buf), p.encoded);
@@ -92,7 +92,7 @@ func TestEncoderBuffering(t *testing.T) {
 		for pos := 0; pos < len(input); pos += bs {
 			end := pos+bs;
 			if end > len(input) {
-				end = len(input);
+				end = len(input)
 			}
 			n, err := encoder.Write(input[pos:end]);
 			testEqual(t, "Write(%q) gave error %v, want %v", input[pos:end], err, os.Error(nil));
@@ -119,12 +119,12 @@ func TestDecoder(t *testing.T) {
 		decoder := NewDecoder(bytes.NewBufferString(p.encoded));
 		dbuf, err := io.ReadAll(decoder);
 		if err != nil {
-			t.Fatal("Read failed", err);
+			t.Fatal("Read failed", err)
 		}
 		testEqual(t, "Read from %q = length %v, want %v", p.encoded, len(dbuf), len(p.decoded));
 		testEqual(t, "Decoding of %q = %q, want %q", p.encoded, string(dbuf), p.decoded);
 		if err != nil {
-			testEqual(t, "Read from %q = %v, want %v", p.encoded, err, os.EOF);
+			testEqual(t, "Read from %q = %v, want %v", p.encoded, err, os.EOF)
 		}
 	}
 }
@@ -158,9 +158,9 @@ func TestDecodeCorrupt(t *testing.T) {
 		_, err := Decode(dbuf, strings.Bytes(e.e));
 		switch err := err.(type) {
 		case CorruptInputError:
-			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);
+			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p)
 		default:
-			t.Error("Decoder failed to detect corruption in", e);
+			t.Error("Decoder failed to detect corruption in", e)
 		}
 	}
 }
@@ -170,28 +170,28 @@ func TestGitBig(t *testing.T) {
 	raw := make([]byte, n);
 	const alpha = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	for i := 0; i < n; i++ {
-		raw[i] = alpha[i%len(alpha)];
+		raw[i] = alpha[i%len(alpha)]
 	}
 	encoded := new(bytes.Buffer);
 	w := NewEncoder(encoded);
 	nn, err := w.Write(raw);
 	if nn != n || err != nil {
-		t.Fatalf("Encoder.Write(raw) = %d, %v want %d, nil", nn, err, n);
+		t.Fatalf("Encoder.Write(raw) = %d, %v want %d, nil", nn, err, n)
 	}
 	err = w.Close();
 	if err != nil {
-		t.Fatalf("Encoder.Close() = %v want nil", err);
+		t.Fatalf("Encoder.Close() = %v want nil", err)
 	}
 	decoded, err := io.ReadAll(NewDecoder(encoded));
 	if err != nil {
-		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err);
+		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err)
 	}
 
 	if !bytes.Equal(raw, decoded) {
 		var i int;
 		for i = 0; i < len(decoded) && i < len(raw); i++ {
 			if decoded[i] != raw[i] {
-				break;
+				break
 			}
 		}
 		t.Errorf("Decode(Encode(%d-byte string)) failed at offset %d", n, i);

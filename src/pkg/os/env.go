@@ -34,11 +34,11 @@ func Getenverror(key string) (value string, err Error) {
 	once.Do(copyenv);
 
 	if len(key) == 0 {
-		return "", EINVAL;
+		return "", EINVAL
 	}
 	v, ok := env[key];
 	if !ok {
-		return "", ENOENV;
+		return "", ENOENV
 	}
 	return v, nil;
 }
@@ -56,7 +56,7 @@ func Setenv(key, value string) Error {
 	once.Do(copyenv);
 
 	if len(key) == 0 {
-		return EINVAL;
+		return EINVAL
 	}
 	env[key] = value;
 	return nil;

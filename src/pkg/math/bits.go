@@ -17,9 +17,9 @@ const (
 func Inf(sign int) float64 {
 	var v uint64;
 	if sign >= 0 {
-		v = uvinf;
+		v = uvinf
 	} else {
-		v = uvneginf;
+		v = uvneginf
 	}
 	return Float64frombits(v);
 }
@@ -48,7 +48,7 @@ func IsInf(f float64, sign int) bool {
 // with the absolute value of frac in the interval [½, 1).
 func Frexp(f float64) (frac float64, exp int) {
 	if f == 0 {
-		return;
+		return
 	}
 	x := Float64bits(f);
 	exp = int((x>>shift)&mask)-bias;
@@ -64,11 +64,11 @@ func Ldexp(frac float64, exp int) float64 {
 	x := Float64bits(frac);
 	exp += int(x>>shift)&mask;
 	if exp <= 0 {
-		return 0;	// underflow
+		return 0	// underflow
 	}
 	if exp >= mask {	// overflow
 		if frac < 0 {
-			return Inf(-1);
+			return Inf(-1)
 		}
 		return Inf(1);
 	}
@@ -94,7 +94,7 @@ func Modf(f float64) (int float64, frac float64) {
 
 	// Keep the top 11+e bits, the integer part; clear the rest.
 	if e < 64-11 {
-		x &^= 1<<(64-11-e) - 1;
+		x &^= 1<<(64-11-e) - 1
 	}
 	int = Float64frombits(x);
 	frac = f-int;

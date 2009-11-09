@@ -23,7 +23,7 @@ func ReadAll(r Reader) ([]byte, os.Error) {
 func ReadFile(filename string) ([]byte, os.Error) {
 	f, err := os.Open(filename, os.O_RDONLY, 0);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	defer f.Close();
 	return ReadAll(f);
@@ -35,12 +35,12 @@ func ReadFile(filename string) ([]byte, os.Error) {
 func WriteFile(filename string, data []byte, perm int) os.Error {
 	f, err := os.Open(filename, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, perm);
 	if err != nil {
-		return err;
+		return err
 	}
 	n, err := f.Write(data);
 	f.Close();
 	if err == nil && n < len(data) {
-		err = ErrShortWrite;
+		err = ErrShortWrite
 	}
 	return err;
 }
@@ -57,16 +57,16 @@ func (d dirList) Swap(i, j int)		{ d[i], d[j] = d[j], d[i] }
 func ReadDir(dirname string) ([]*os.Dir, os.Error) {
 	f, err := os.Open(dirname, os.O_RDONLY, 0);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	list, err := f.Readdir(-1);
 	f.Close();
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	dirs := make(dirList, len(list));
 	for i := range list {
-		dirs[i] = &list[i];
+		dirs[i] = &list[i]
 	}
 	sort.Sort(dirs);
 	return dirs, nil;

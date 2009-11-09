@@ -34,13 +34,13 @@ func (r *Rand) ExpFloat64() float64 {
 		i := j&0xFF;
 		x := float64(j)*float64(we[i]);
 		if j < ke[i] {
-			return x;
+			return x
 		}
 		if i == 0 {
-			return re - math.Log(r.Float64());
+			return re - math.Log(r.Float64())
 		}
 		if fe[i] + float32(r.Float64())*(fe[i-1]-fe[i]) < float32(math.Exp(-x)) {
-			return x;
+			return x
 		}
 	}
 	panic("unreachable");

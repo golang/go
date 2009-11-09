@@ -92,12 +92,12 @@ type encryptor interface {
 func mutualVersion(theirMajor, theirMinor uint8) (major, minor uint8, ok bool) {
 	// We don't deal with peers < TLS 1.0 (aka version 3.1).
 	if theirMajor < 3 || theirMajor == 3 && theirMinor < 1 {
-		return 0, 0, false;
+		return 0, 0, false
 	}
 	major = 3;
 	minor = 2;
 	if theirMinor < minor {
-		minor = theirMinor;
+		minor = theirMinor
 	}
 	ok = true;
 	return;

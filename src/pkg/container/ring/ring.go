@@ -27,7 +27,7 @@ func (r *Ring) init() *Ring {
 // Next returns the next ring element. r must not be empty.
 func (r *Ring) Next() *Ring {
 	if r.next == nil {
-		return r.init();
+		return r.init()
 	}
 	return r.next;
 }
@@ -36,7 +36,7 @@ func (r *Ring) Next() *Ring {
 // Prev returns the previous ring element. r must not be empty.
 func (r *Ring) Prev() *Ring {
 	if r.next == nil {
-		return r.init();
+		return r.init()
 	}
 	return r.prev;
 }
@@ -47,16 +47,16 @@ func (r *Ring) Prev() *Ring {
 //
 func (r *Ring) Move(n int) *Ring {
 	if r.next == nil {
-		return r.init();
+		return r.init()
 	}
 	switch {
 	case n < 0:
 		for ; n < 0; n++ {
-			r = r.prev;
+			r = r.prev
 		}
 	case n > 0:
 		for ; n > 0; n-- {
-			r = r.next;
+			r = r.next
 		}
 	}
 	return r;
@@ -66,7 +66,7 @@ func (r *Ring) Move(n int) *Ring {
 // New creates a ring of n elements.
 func New(n int) *Ring {
 	if n <= 0 {
-		return nil;
+		return nil
 	}
 	r := new(Ring);
 	p := r;
@@ -117,7 +117,7 @@ func (r *Ring) Link(s *Ring) *Ring {
 //
 func (r *Ring) Unlink(n int) *Ring {
 	if n <= 0 {
-		return nil;
+		return nil
 	}
 	return r.Link(r.Move(n+1));
 }
@@ -131,7 +131,7 @@ func (r *Ring) Len() int {
 	if r != nil {
 		n = 1;
 		for p := r.Next(); p != r; p = p.next {
-			n++;
+			n++
 		}
 	}
 	return n;
@@ -144,7 +144,7 @@ func (r *Ring) Iter() <-chan interface{} {
 		if r != nil {
 			c <- r.Value;
 			for p := r.Next(); p != r; p = p.next {
-				c <- p.Value;
+				c <- p.Value
 			}
 		}
 		close(c);

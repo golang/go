@@ -34,7 +34,7 @@ func TestFileApply(t *testing.T) {
 			continue;
 		}
 		if s := string(new); s != test.out {
-			t.Errorf("#%d:\n--- have\n%s--- want\n%s", i, s, test.out);
+			t.Errorf("#%d:\n--- have\n%s--- want\n%s", i, s, test.out)
 		}
 	}
 }

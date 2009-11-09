@@ -108,7 +108,7 @@ type _DNS_RR_Header struct {
 }
 
 func (h *_DNS_RR_Header) Header() *_DNS_RR_Header {
-	return h;
+	return h
 }
 
 type _DNS_RR interface {
@@ -124,7 +124,7 @@ type _DNS_RR_CNAME struct {
 }
 
 func (rr *_DNS_RR_CNAME) Header() *_DNS_RR_Header {
-	return &rr.Hdr;
+	return &rr.Hdr
 }
 
 type _DNS_RR_HINFO struct {
@@ -134,7 +134,7 @@ type _DNS_RR_HINFO struct {
 }
 
 func (rr *_DNS_RR_HINFO) Header() *_DNS_RR_Header {
-	return &rr.Hdr;
+	return &rr.Hdr
 }
 
 type _DNS_RR_MB struct {
@@ -143,7 +143,7 @@ type _DNS_RR_MB struct {
 }
 
 func (rr *_DNS_RR_MB) Header() *_DNS_RR_Header {
-	return &rr.Hdr;
+	return &rr.Hdr
 }
 
 type _DNS_RR_MG struct {
@@ -152,7 +152,7 @@ type _DNS_RR_MG struct {
 }
 
 func (rr *_DNS_RR_MG) Header() *_DNS_RR_Header {
-	return &rr.Hdr;
+	return &rr.Hdr
 }
 
 type _DNS_RR_MINFO struct {
@@ -162,7 +162,7 @@ type _DNS_RR_MINFO struct {
 }
 
 func (rr *_DNS_RR_MINFO) Header() *_DNS_RR_Header {
-	return &rr.Hdr;
+	return &rr.Hdr
 }
 
 type _DNS_RR_MR struct {
@@ -171,7 +171,7 @@ type _DNS_RR_MR struct {
 }
 
 func (rr *_DNS_RR_MR) Header() *_DNS_RR_Header {
-	return &rr.Hdr;
+	return &rr.Hdr
 }
 
 type _DNS_RR_MX struct {
@@ -181,7 +181,7 @@ type _DNS_RR_MX struct {
 }
 
 func (rr *_DNS_RR_MX) Header() *_DNS_RR_Header {
-	return &rr.Hdr;
+	return &rr.Hdr
 }
 
 type _DNS_RR_NS struct {
@@ -190,7 +190,7 @@ type _DNS_RR_NS struct {
 }
 
 func (rr *_DNS_RR_NS) Header() *_DNS_RR_Header {
-	return &rr.Hdr;
+	return &rr.Hdr
 }
 
 type _DNS_RR_PTR struct {
@@ -199,7 +199,7 @@ type _DNS_RR_PTR struct {
 }
 
 func (rr *_DNS_RR_PTR) Header() *_DNS_RR_Header {
-	return &rr.Hdr;
+	return &rr.Hdr
 }
 
 type _DNS_RR_SOA struct {
@@ -214,7 +214,7 @@ type _DNS_RR_SOA struct {
 }
 
 func (rr *_DNS_RR_SOA) Header() *_DNS_RR_Header {
-	return &rr.Hdr;
+	return &rr.Hdr
 }
 
 type _DNS_RR_TXT struct {
@@ -223,7 +223,7 @@ type _DNS_RR_TXT struct {
 }
 
 func (rr *_DNS_RR_TXT) Header() *_DNS_RR_Header {
-	return &rr.Hdr;
+	return &rr.Hdr
 }
 
 type _DNS_RR_A struct {
@@ -264,7 +264,7 @@ var rr_mk = map[int]func() _DNS_RR{
 func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
 	// Add trailing dot to canonicalize name.
 	if n := len(s); n == 0 || s[n-1] != '.' {
-		s += ".";
+		s += "."
 	}
 
 	// Each dot ends a segment of the name.
@@ -273,7 +273,7 @@ func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
 	// Check that we have all the space we need.
 	tot := len(s)+1;
 	if off+tot > len(msg) {
-		return len(msg), false;
+		return len(msg), false
 	}
 
 	// Emit sequence of counted strings, chopping at dots.
@@ -281,7 +281,7 @@ func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
 	for i := 0; i < len(s); i++ {
 		if s[i] == '.' {
 			if i-begin >= 1<<6 {	// top two bits of length must be clear
-				return len(msg), false;
+				return len(msg), false
 			}
 			msg[off] = byte(i-begin);
 			off++;
@@ -316,7 +316,7 @@ func unpackDomainName(msg []byte, off int) (s string, off1 int, ok bool) {
 Loop:
 	for {
 		if off >= len(msg) {
-			return "", len(msg), false;
+			return "", len(msg), false
 		}
 		c := int(msg[off]);
 		off++;
@@ -324,11 +324,11 @@ Loop:
 		case 0x00:
 			if c == 0x00 {
 				// end of name
-				break Loop;
+				break Loop
 			}
 			// literal string
 			if off+c > len(msg) {
-				return "", len(msg), false;
+				return "", len(msg), false
 			}
 			s += string(msg[off : off+c])+".";
 			off += c;
@@ -339,24 +339,24 @@ Loop:
 			// also, don't follow too many pointers --
 			// maybe there's a loop.
 			if off >= len(msg) {
-				return "", len(msg), false;
+				return "", len(msg), false
 			}
 			c1 := msg[off];
 			off++;
 			if ptr == 0 {
-				off1 = off;
+				off1 = off
 			}
 			if ptr++; ptr > 10 {
-				return "", len(msg), false;
+				return "", len(msg), false
 			}
 			off = (c^0xC0)<<8 | int(c1);
 		default:
 			// 0x80 and 0x40 are reserved
-			return "", len(msg), false;
+			return "", len(msg), false
 		}
 	}
 	if ptr == 0 {
-		off1 = off;
+		off1 = off
 	}
 	return s, off1, true;
 }
@@ -372,11 +372,11 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
 			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type);
 			return len(msg), false;
 		case *reflect.StructValue:
-			off, ok = packStructValue(fv, msg, off);
+			off, ok = packStructValue(fv, msg, off)
 		case *reflect.Uint16Value:
 			i := fv.Get();
 			if off+2 > len(msg) {
-				return len(msg), false;
+				return len(msg), false
 			}
 			msg[off] = byte(i>>8);
 			msg[off+1] = byte(i);
@@ -384,7 +384,7 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
 		case *reflect.Uint32Value:
 			i := fv.Get();
 			if off+4 > len(msg) {
-				return len(msg), false;
+				return len(msg), false
 			}
 			msg[off] = byte(i>>24);
 			msg[off+1] = byte(i>>16);
@@ -402,17 +402,17 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
 			case "domain-name":
 				off, ok = packDomainName(s, msg, off);
 				if !ok {
-					return len(msg), false;
+					return len(msg), false
 				}
 			case "":
 				// Counted string: 1 byte length.
 				if len(s) > 255 || off+1+len(s) > len(msg) {
-					return len(msg), false;
+					return len(msg), false
 				}
 				msg[off] = byte(len(s));
 				off++;
 				for i := 0; i < len(s); i++ {
-					msg[off+i] = s[i];
+					msg[off+i] = s[i]
 				}
 				off += len(s);
 			}
@@ -422,7 +422,7 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
 }
 
 func structValue(any interface{}) *reflect.StructValue {
-	return reflect.NewValue(any).(*reflect.PtrValue).Elem().(*reflect.StructValue);
+	return reflect.NewValue(any).(*reflect.PtrValue).Elem().(*reflect.StructValue)
 }
 
 func packStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
@@ -441,17 +441,17 @@ func unpackStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int,
 			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type);
 			return len(msg), false;
 		case *reflect.StructValue:
-			off, ok = unpackStructValue(fv, msg, off);
+			off, ok = unpackStructValue(fv, msg, off)
 		case *reflect.Uint16Value:
 			if off+2 > len(msg) {
-				return len(msg), false;
+				return len(msg), false
 			}
 			i := uint16(msg[off])<<8 | uint16(msg[off+1]);
 			fv.Set(i);
 			off += 2;
 		case *reflect.Uint32Value:
 			if off+4 > len(msg) {
-				return len(msg), false;
+				return len(msg), false
 			}
 			i := uint32(msg[off])<<24 | uint32(msg[off+1])<<16 | uint32(msg[off+2])<<8 | uint32(msg[off+3]);
 			fv.Set(i);
@@ -465,17 +465,17 @@ func unpackStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int,
 			case "domain-name":
 				s, off, ok = unpackDomainName(msg, off);
 				if !ok {
-					return len(msg), false;
+					return len(msg), false
 				}
 			case "":
 				if off >= len(msg) || off+1+int(msg[off]) > len(msg) {
-					return len(msg), false;
+					return len(msg), false
 				}
 				n := int(msg[off]);
 				off++;
 				b := make([]byte, n);
 				for i := 0; i < n; i++ {
-					b[i] = msg[off+i];
+					b[i] = msg[off+i]
 				}
 				off += n;
 				s = string(b);
@@ -499,20 +499,20 @@ func printStructValue(val *reflect.StructValue) string {
 	s := "{";
 	for i := 0; i < val.NumField(); i++ {
 		if i > 0 {
-			s += ", ";
+			s += ", "
 		}
 		f := val.Type().(*reflect.StructType).Field(i);
 		if !f.Anonymous {
-			s += f.Name + "=";
+			s += f.Name + "="
 		}
 		fval := val.Field(i);
 		if fv, ok := fval.(*reflect.StructValue); ok {
-			s += printStructValue(fv);
+			s += printStructValue(fv)
 		} else if fv, ok := fval.(*reflect.Uint32Value); ok && f.Tag == "ipv4" {
 			i := fv.Get();
 			s += IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i)).String();
 		} else {
-			s += fmt.Sprint(fval.Interface());
+			s += fmt.Sprint(fval.Interface())
 		}
 	}
 	s += "}";
@@ -532,7 +532,7 @@ func packRR(rr _DNS_RR, msg []byte, off int) (off2 int, ok bool) {
 	off1, ok = packStruct(rr.Header(), msg, off);
 	off2, ok = packStruct(rr, msg, off);
 	if !ok {
-		return len(msg), false;
+		return len(msg), false
 	}
 	// pack a third time; redo header with correct data length
 	rr.Header().Rdlength = uint16(off2-off1);
@@ -546,7 +546,7 @@ func unpackRR(msg []byte, off int) (rr _DNS_RR, off1 int, ok bool) {
 	var h _DNS_RR_Header;
 	off0 := off;
 	if off, ok = unpackStruct(&h, msg, off); !ok {
-		return nil, len(msg), false;
+		return nil, len(msg), false
 	}
 	end := off+int(h.Rdlength);
 
@@ -554,12 +554,12 @@ func unpackRR(msg []byte, off int) (rr _DNS_RR, off1 int, ok bool) {
 	// again inefficient but doesn't need to be fast.
 	mk, known := rr_mk[int(h.Rrtype)];
 	if !known {
-		return &h, end, true;
+		return &h, end, true
 	}
 	rr = mk();
 	off, ok = unpackStruct(rr, msg, off0);
 	if off != end {
-		return &h, end, true;
+		return &h, end, true
 	}
 	return rr, off, ok;
 }
@@ -595,19 +595,19 @@ func (dns *_DNS_Msg) Pack() (msg []byte, ok bool) {
 	dh.Id = dns.id;
 	dh.Bits = uint16(dns.opcode)<<11 | uint16(dns.rcode);
 	if dns.recursion_available {
-		dh.Bits |= _RA;
+		dh.Bits |= _RA
 	}
 	if dns.recursion_desired {
-		dh.Bits |= _RD;
+		dh.Bits |= _RD
 	}
 	if dns.truncated {
-		dh.Bits |= _TC;
+		dh.Bits |= _TC
 	}
 	if dns.authoritative {
-		dh.Bits |= _AA;
+		dh.Bits |= _AA
 	}
 	if dns.response {
-		dh.Bits |= _QR;
+		dh.Bits |= _QR
 	}
 
 	// Prepare variable sized arrays.
@@ -630,19 +630,19 @@ func (dns *_DNS_Msg) Pack() (msg []byte, ok bool) {
 	off := 0;
 	off, ok = packStruct(&dh, msg, off);
 	for i := 0; i < len(question); i++ {
-		off, ok = packStruct(&question[i], msg, off);
+		off, ok = packStruct(&question[i], msg, off)
 	}
 	for i := 0; i < len(answer); i++ {
-		off, ok = packStruct(answer[i], msg, off);
+		off, ok = packStruct(answer[i], msg, off)
 	}
 	for i := 0; i < len(ns); i++ {
-		off, ok = packStruct(ns[i], msg, off);
+		off, ok = packStruct(ns[i], msg, off)
 	}
 	for i := 0; i < len(extra); i++ {
-		off, ok = packStruct(extra[i], msg, off);
+		off, ok = packStruct(extra[i], msg, off)
 	}
 	if !ok {
-		return nil, false;
+		return nil, false
 	}
 	return msg[0:off], true;
 }
@@ -653,7 +653,7 @@ func (dns *_DNS_Msg) Unpack(msg []byte) bool {
 	off := 0;
 	var ok bool;
 	if off, ok = unpackStruct(&dh, msg, off); !ok {
-		return false;
+		return false
 	}
 	dns.id = dh.Id;
 	dns.response = (dh.Bits & _QR) != 0;
@@ -671,19 +671,19 @@ func (dns *_DNS_Msg) Unpack(msg []byte) bool {
 	dns.extra = make([]_DNS_RR, dh.Arcount);
 
 	for i := 0; i < len(dns.question); i++ {
-		off, ok = unpackStruct(&dns.question[i], msg, off);
+		off, ok = unpackStruct(&dns.question[i], msg, off)
 	}
 	for i := 0; i < len(dns.answer); i++ {
-		dns.answer[i], off, ok = unpackRR(msg, off);
+		dns.answer[i], off, ok = unpackRR(msg, off)
 	}
 	for i := 0; i < len(dns.ns); i++ {
-		dns.ns[i], off, ok = unpackRR(msg, off);
+		dns.ns[i], off, ok = unpackRR(msg, off)
 	}
 	for i := 0; i < len(dns.extra); i++ {
-		dns.extra[i], off, ok = unpackRR(msg, off);
+		dns.extra[i], off, ok = unpackRR(msg, off)
 	}
 	if !ok {
-		return false;
+		return false
 	}
 	//	if off != len(msg) {
 	//		println("extra bytes in dns packet", off, "<", len(msg));
@@ -696,25 +696,25 @@ func (dns *_DNS_Msg) String() string {
 	if len(dns.question) > 0 {
 		s += "-- Questions\n";
 		for i := 0; i < len(dns.question); i++ {
-			s += printStruct(&dns.question[i]) + "\n";
+			s += printStruct(&dns.question[i]) + "\n"
 		}
 	}
 	if len(dns.answer) > 0 {
 		s += "-- Answers\n";
 		for i := 0; i < len(dns.answer); i++ {
-			s += printStruct(dns.answer[i]) + "\n";
+			s += printStruct(dns.answer[i]) + "\n"
 		}
 	}
 	if len(dns.ns) > 0 {
 		s += "-- Name servers\n";
 		for i := 0; i < len(dns.ns); i++ {
-			s += printStruct(dns.ns[i]) + "\n";
+			s += printStruct(dns.ns[i]) + "\n"
 		}
 	}
 	if len(dns.extra) > 0 {
 		s += "-- Extra\n";
 		for i := 0; i < len(dns.extra); i++ {
-			s += printStruct(dns.extra[i]) + "\n";
+			s += printStruct(dns.extra[i]) + "\n"
 		}
 	}
 	return s;

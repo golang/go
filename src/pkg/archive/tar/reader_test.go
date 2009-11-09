@@ -120,12 +120,12 @@ testLoop:
 			}
 			if !reflect.DeepEqual(hdr, header) {
 				t.Errorf("test %d, entry %d: Incorrect header:\nhave %+v\nwant %+v",
-					i, j, *hdr, *header);
+					i, j, *hdr, *header)
 			}
 		}
 		hdr, err := tr.Next();
 		if hdr != nil || err != nil {
-			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err);
+			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err)
 		}
 		f.Close();
 	}
@@ -134,7 +134,7 @@ testLoop:
 func TestPartialRead(t *testing.T) {
 	f, err := os.Open("testdata/gnu.tar", os.O_RDONLY, 0444);
 	if err != nil {
-		t.Fatalf("Unexpected error: %v", err);
+		t.Fatalf("Unexpected error: %v", err)
 	}
 	defer f.Close();
 
@@ -143,26 +143,26 @@ func TestPartialRead(t *testing.T) {
 	// Read the first four bytes; Next() should skip the last byte.
 	hdr, err := tr.Next();
 	if err != nil || hdr == nil {
-		t.Fatalf("Didn't get first file: %v", err);
+		t.Fatalf("Didn't get first file: %v", err)
 	}
 	buf := make([]byte, 4);
 	if _, err := io.ReadFull(tr, buf); err != nil {
-		t.Fatalf("Unexpected error: %v", err);
+		t.Fatalf("Unexpected error: %v", err)
 	}
 	if expected := strings.Bytes("Kilt"); !bytes.Equal(buf, expected) {
-		t.Errorf("Contents = %v, want %v", buf, expected);
+		t.Errorf("Contents = %v, want %v", buf, expected)
 	}
 
 	// Second file
 	hdr, err = tr.Next();
 	if err != nil || hdr == nil {
-		t.Fatalf("Didn't get second file: %v", err);
+		t.Fatalf("Didn't get second file: %v", err)
 	}
 	buf = make([]byte, 6);
 	if _, err := io.ReadFull(tr, buf); err != nil {
-		t.Fatalf("Unexpected error: %v", err);
+		t.Fatalf("Unexpected error: %v", err)
 	}
 	if expected := strings.Bytes("Google"); !bytes.Equal(buf, expected) {
-		t.Errorf("Contents = %v, want %v", buf, expected);
+		t.Errorf("Contents = %v, want %v", buf, expected)
 	}
 }

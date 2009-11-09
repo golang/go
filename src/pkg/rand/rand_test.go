@@ -24,7 +24,7 @@ type statsResults struct {
 
 func max(a, b float64) float64 {
 	if a > b {
-		return a;
+		return a
 	}
 	return b;
 }
@@ -32,7 +32,7 @@ func max(a, b float64) float64 {
 func nearEqual(a, b, closeEnough, maxError float64) bool {
 	absDiff := math.Fabs(a-b);
 	if absDiff < closeEnough {	// Necessary when one value is zero and one value is close to zero.
-		return true;
+		return true
 	}
 	return absDiff / max(math.Fabs(a), math.Fabs(b)) < maxError;
 }
@@ -59,12 +59,12 @@ func getStatsResults(samples []float64) *statsResults {
 	res := new(statsResults);
 	var sum float64;
 	for i := range samples {
-		sum += samples[i];
+		sum += samples[i]
 	}
 	res.mean = sum/float64(len(samples));
 	var devsum float64;
 	for i := range samples {
-		devsum += math.Pow(samples[i] - res.mean, 2);
+		devsum += math.Pow(samples[i] - res.mean, 2)
 	}
 	res.stddev = math.Sqrt(devsum/float64(len(samples)));
 	return res;
@@ -74,7 +74,7 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
 	actual := getStatsResults(samples);
 	err := actual.checkSimilarDistribution(expected);
 	if err != nil {
-		t.Errorf(err.String());
+		t.Errorf(err.String())
 	}
 }
 
@@ -84,9 +84,9 @@ func checkSampleSliceDistributions(t *testing.T, samples []float64, nslices int,
 		low := i*chunk;
 		var high int;
 		if i == nslices-1 {
-			high = len(samples)-1;
+			high = len(samples)-1
 		} else {
-			high = (i+1)*chunk;
+			high = (i+1)*chunk
 		}
 		checkSampleDistribution(t, samples[low:high], expected);
 	}
@@ -100,7 +100,7 @@ func generateNormalSamples(nsamples int, mean, stddev float64, seed int64) []flo
 	r := New(NewSource(seed));
 	samples := make([]float64, nsamples);
 	for i := range samples {
-		samples[i] = r.NormFloat64() * stddev + mean;
+		samples[i] = r.NormFloat64() * stddev + mean
 	}
 	return samples;
 }
@@ -126,7 +126,7 @@ func testNormalDistribution(t *testing.T, nsamples int, mean, stddev float64, se
 
 func TestStandardNormalValues(t *testing.T) {
 	for _, seed := range testSeeds {
-		testNormalDistribution(t, numTestSamples, 0, 1, seed);
+		testNormalDistribution(t, numTestSamples, 0, 1, seed)
 	}
 }
 
@@ -134,7 +134,7 @@ func TestNonStandardNormalValues(t *testing.T) {
 	for sd := float64(0.5); sd < 1000; sd *= 2 {
 		for m := float64(0.5); m < 1000; m *= 2 {
 			for _, seed := range testSeeds {
-				testNormalDistribution(t, numTestSamples, m, sd, seed);
+				testNormalDistribution(t, numTestSamples, m, sd, seed)
 			}
 		}
 	}
@@ -148,7 +148,7 @@ func generateExponentialSamples(nsamples int, rate float64, seed int64) []float6
 	r := New(NewSource(seed));
 	samples := make([]float64, nsamples);
 	for i := range samples {
-		samples[i] = r.ExpFloat64() / rate;
+		samples[i] = r.ExpFloat64() / rate
 	}
 	return samples;
 }
@@ -177,14 +177,14 @@ func testExponentialDistribution(t *testing.T, nsamples int, rate float64, seed 
 
 func TestStandardExponentialValues(t *testing.T) {
 	for _, seed := range testSeeds {
-		testExponentialDistribution(t, numTestSamples, 1, seed);
+		testExponentialDistribution(t, numTestSamples, 1, seed)
 	}
 }
 
 func TestNonStandardExponentialValues(t *testing.T) {
 	for rate := float64(0.05); rate < 10; rate *= 2 {
 		for _, seed := range testSeeds {
-			testExponentialDistribution(t, numTestSamples, rate, seed);
+			testExponentialDistribution(t, numTestSamples, rate, seed)
 		}
 	}
 }
@@ -257,13 +257,13 @@ func initExp() (testKe []uint32, testWe, testFe []float32) {
 func compareUint32Slices(s1, s2 []uint32) int {
 	if len(s1) != len(s2) {
 		if len(s1) > len(s2) {
-			return len(s2)+1;
+			return len(s2)+1
 		}
 		return len(s1)+1;
 	}
 	for i := range s1 {
 		if s1[i] != s2[i] {
-			return i;
+			return i
 		}
 	}
 	return -1;
@@ -275,13 +275,13 @@ func compareUint32Slices(s1, s2 []uint32) int {
 func compareFloat32Slices(s1, s2 []float32) int {
 	if len(s1) != len(s2) {
 		if len(s1) > len(s2) {
-			return len(s2)+1;
+			return len(s2)+1
 		}
 		return len(s1)+1;
 	}
 	for i := range s1 {
 		if !nearEqual(float64(s1[i]), float64(s2[i]), 0, 1e-7) {
-			return i;
+			return i
 		}
 	}
 	return -1;
@@ -290,25 +290,25 @@ func compareFloat32Slices(s1, s2 []float32) int {
 func TestNormTables(t *testing.T) {
 	testKn, testWn, testFn := initNorm();
 	if i := compareUint32Slices(kn[0:len(kn)], testKn); i >= 0 {
-		t.Errorf("kn disagrees at index %v; %v != %v\n", i, kn[i], testKn[i]);
+		t.Errorf("kn disagrees at index %v; %v != %v\n", i, kn[i], testKn[i])
 	}
 	if i := compareFloat32Slices(wn[0:len(wn)], testWn); i >= 0 {
-		t.Errorf("wn disagrees at index %v; %v != %v\n", i, wn[i], testWn[i]);
+		t.Errorf("wn disagrees at index %v; %v != %v\n", i, wn[i], testWn[i])
 	}
 	if i := compareFloat32Slices(fn[0:len(fn)], testFn); i >= 0 {
-		t.Errorf("fn disagrees at index %v; %v != %v\n", i, fn[i], testFn[i]);
+		t.Errorf("fn disagrees at index %v; %v != %v\n", i, fn[i], testFn[i])
 	}
 }
 
 func TestExpTables(t *testing.T) {
 	testKe, testWe, testFe := initExp();
 	if i := compareUint32Slices(ke[0:len(ke)], testKe); i >= 0 {
-		t.Errorf("ke disagrees at index %v; %v != %v\n", i, ke[i], testKe[i]);
+		t.Errorf("ke disagrees at index %v; %v != %v\n", i, ke[i], testKe[i])
 	}
 	if i := compareFloat32Slices(we[0:len(we)], testWe); i >= 0 {
-		t.Errorf("we disagrees at index %v; %v != %v\n", i, we[i], testWe[i]);
+		t.Errorf("we disagrees at index %v; %v != %v\n", i, we[i], testWe[i])
 	}
 	if i := compareFloat32Slices(fe[0:len(fe)], testFe); i >= 0 {
-		t.Errorf("fe disagrees at index %v; %v != %v\n", i, fe[i], testFe[i]);
+		t.Errorf("fe disagrees at index %v; %v != %v\n", i, fe[i], testFe[i])
 	}
 }

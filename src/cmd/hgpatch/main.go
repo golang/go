@@ -35,11 +35,11 @@ func main() {
 	var err os.Error;
 	switch len(args) {
 	case 0:
-		data, err = io.ReadAll(os.Stdin);
+		data, err = io.ReadAll(os.Stdin)
 	case 1:
-		data, err = io.ReadFile(args[0]);
+		data, err = io.ReadFile(args[0])
 	default:
-		usage();
+		usage()
 	}
 	chk(err);
 
@@ -63,25 +63,25 @@ func main() {
 	chk(err);
 	dirty := make(map[string]int);
 	for _, f := range dirtylist {
-		dirty[f] = 1;
+		dirty[f] = 1
 	}
 	conflict := make(map[string]int);
 	for _, f := range pset.File {
 		if f.Verb == patch.Delete || f.Verb == patch.Rename {
 			if _, ok := dirty[f.Src]; ok {
-				conflict[f.Src] = 1;
+				conflict[f.Src] = 1
 			}
 		}
 		if f.Verb != patch.Delete {
 			if _, ok := dirty[f.Dst]; ok {
-				conflict[f.Dst] = 1;
+				conflict[f.Dst] = 1
 			}
 		}
 	}
 	if len(conflict) > 0 {
 		fmt.Fprintf(os.Stderr, "cannot apply patch to locally modified files:\n");
 		for name := range conflict {
-			fmt.Fprintf(os.Stderr, "\t%s\n", name);
+			fmt.Fprintf(os.Stderr, "\t%s\n", name)
 		}
 		os.Exit(2);
 	}
@@ -136,7 +136,7 @@ func main() {
 	for i := range op {
 		o := &op[i];
 		if o.Verb == patch.Delete {
-			continue;
+			continue
 		}
 		if o.Verb == patch.Add {
 			makeParent(o.Dst);
@@ -145,9 +145,9 @@ func main() {
 		if o.Data != nil {
 			chk(io.WriteFile(o.Dst, o.Data, 0644));
 			if o.Verb == patch.Add {
-				undoRm(o.Dst);
+				undoRm(o.Dst)
 			} else {
-				undoRevert(o.Dst);
+				undoRevert(o.Dst)
 			}
 			changed[o.Dst] = 1;
 		}
@@ -178,7 +178,7 @@ func main() {
 	}
 	sort.SortStrings(list);
 	for _, f := range list {
-		fmt.Printf("%s\n", f);
+		fmt.Printf("%s\n", f)
 	}
 }
 
@@ -195,25 +195,25 @@ func mkdirAll(path string, perm int) os.Error {
 	dir, err := os.Lstat(path);
 	if err == nil {
 		if dir.IsDirectory() {
-			return nil;
+			return nil
 		}
 		return &os.PathError{"mkdir", path, os.ENOTDIR};
 	}
 
 	i := len(path);
 	for i > 0 && path[i-1] == '/' {	// Skip trailing slashes.
-		i--;
+		i--
 	}
 
 	j := i;
 	for j > 0 && path[j-1] != '/' {	// Scan backward over element.
-		j--;
+		j--
 	}
 
 	if j > 0 {
 		err = mkdirAll(path[0 : j-1], perm);
 		if err != nil {
-			return err;
+			return err
 		}
 	}
 
@@ -223,7 +223,7 @@ func mkdirAll(path string, perm int) os.Error {
 		// double-checking that directory doesn't exist.
 		dir, err1 := os.Lstat(path);
 		if err1 == nil && dir.IsDirectory() {
-			return nil;
+			return nil
 		}
 		return err;
 	}
@@ -253,7 +253,7 @@ func undoRm(name string)	{ undoLog.Push(undo(func() os.Error { return os.Remove(
 func runUndo() {
 	for i := undoLog.Len() - 1; i >= 0; i-- {
 		if err := undoLog.At(i).(undo)(); err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err);
+			fmt.Fprintf(os.Stderr, "%s\n", err)
 		}
 	}
 }
@@ -263,7 +263,7 @@ func runUndo() {
 func hgRoot() (string, os.Error) {
 	out, err := run([]string{"hg", "root"}, nil);
 	if err != nil {
-		return "", err;
+		return "", err
 	}
 	return strings.TrimSpace(out), nil;
 }
@@ -280,7 +280,7 @@ func hgIncoming() bool {
 func hgModified() ([]string, os.Error) {
 	out, err := run([]string{"hg", "status", "-n"}, nil);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	return strings.Split(strings.TrimSpace(out), "\n", 0), nil;
 }
@@ -320,7 +320,7 @@ func hgRename(dst, src string) os.Error {
 func copy(a []string) []string {
 	b := make([]string, len(a));
 	for i, s := range a {
-		b[i] = s;
+		b[i] = s
 	}
 	return b;
 }
@@ -338,7 +338,7 @@ func run(argv []string, input []byte) (out string, err os.Error) {
 	if !ok {
 		prog, err = exec.LookPath(argv[0]);
 		if err != nil {
-			goto Error;
+			goto Error
 		}
 		lookPathCache[argv[0]] = prog;
 	}
@@ -347,12 +347,12 @@ func run(argv []string, input []byte) (out string, err os.Error) {
 	if len(input) == 0 {
 		cmd, err = exec.Run(prog, argv, os.Environ(), exec.DevNull, exec.Pipe, exec.MergeWithStdout);
 		if err != nil {
-			goto Error;
+			goto Error
 		}
 	} else {
 		cmd, err = exec.Run(prog, argv, os.Environ(), exec.Pipe, exec.Pipe, exec.MergeWithStdout);
 		if err != nil {
-			goto Error;
+			goto Error
 		}
 		go func() {
 			cmd.Stdin.Write(input);
@@ -369,7 +369,7 @@ func run(argv []string, input []byte) (out string, err os.Error) {
 	}
 	w, err := cmd.Wait(0);
 	if err != nil {
-		goto Error;
+		goto Error
 	}
 	if !w.Exited() || w.ExitStatus() != 0 {
 		err = w;

@@ -24,7 +24,7 @@ type buf struct {
 }
 
 func makeBuf(d *Data, name string, off Offset, data []byte, addrsize int) buf {
-	return buf{d, d.order, name, off, data, addrsize, nil};
+	return buf{d, d.order, name, off, data, addrsize, nil}
 }
 
 func (b *buf) uint8() uint8 {
@@ -67,7 +67,7 @@ func (b *buf) string() string {
 func (b *buf) uint16() uint16 {
 	a := b.bytes(2);
 	if a == nil {
-		return 0;
+		return 0
 	}
 	return b.order.Uint16(a);
 }
@@ -75,7 +75,7 @@ func (b *buf) uint16() uint16 {
 func (b *buf) uint32() uint32 {
 	a := b.bytes(4);
 	if a == nil {
-		return 0;
+		return 0
 	}
 	return b.order.Uint32(a);
 }
@@ -83,7 +83,7 @@ func (b *buf) uint32() uint32 {
 func (b *buf) uint64() uint64 {
 	a := b.bytes(8);
 	if a == nil {
-		return 0;
+		return 0
 	}
 	return b.order.Uint64(a);
 }
@@ -115,7 +115,7 @@ func (b *buf) int() int64 {
 	ux, bits := b.varint();
 	x := int64(ux);
 	if x&(1<<(bits-1)) != 0 {
-		x |= -1 << bits;
+		x |= -1 << bits
 	}
 	return x;
 }
@@ -124,13 +124,13 @@ func (b *buf) int() int64 {
 func (b *buf) addr() uint64 {
 	switch b.addrsize {
 	case 1:
-		return uint64(b.uint8());
+		return uint64(b.uint8())
 	case 2:
-		return uint64(b.uint16());
+		return uint64(b.uint16())
 	case 4:
-		return uint64(b.uint32());
+		return uint64(b.uint32())
 	case 8:
-		return uint64(b.uint64());
+		return uint64(b.uint64())
 	}
 	b.error("unknown address size");
 	return 0;
@@ -150,5 +150,5 @@ type DecodeError struct {
 }
 
 func (e DecodeError) String() string {
-	return "decoding dwarf section " + e.Name + " at offset 0x" + strconv.Itob64(int64(e.Offset), 16) + ": " + e.Error;
+	return "decoding dwarf section " + e.Name + " at offset 0x" + strconv.Itob64(int64(e.Offset), 16) + ": " + e.Error
 }

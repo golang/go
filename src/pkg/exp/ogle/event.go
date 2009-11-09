@@ -76,7 +76,7 @@ type handler struct {
 }
 
 func (h *commonHook) AddHandler(eh EventHandler) {
-	h.addHandler(eh, false);
+	h.addHandler(eh, false)
 }
 
 func (h *commonHook) addHandler(eh EventHandler, internal bool) {
@@ -84,7 +84,7 @@ func (h *commonHook) addHandler(eh EventHandler, internal bool) {
 	h.RemoveHandler(eh);
 
 	if !internal {
-		h.len++;
+		h.len++
 	}
 	// Add internal handlers to the beginning
 	if internal || h.head == nil {
@@ -95,7 +95,7 @@ func (h *commonHook) addHandler(eh EventHandler, internal bool) {
 	// TODO(austin) This should probably go on the end instead
 	prev := h.head;
 	for prev.next != nil && prev.internal {
-		prev = prev.next;
+		prev = prev.next
 	}
 	prev.next = &handler{eh, internal, false, prev.next};
 }
@@ -105,7 +105,7 @@ func (h *commonHook) RemoveHandler(eh EventHandler) {
 	for l := *plink; l != nil; plink, l = &l.next, l.next {
 		if l.eh == eh {
 			if !l.internal {
-				h.len--;
+				h.len--
 			}
 			l.removed = true;
 			*plink = l.next;
@@ -121,22 +121,22 @@ func (h *commonHook) handle(e Event) (EventAction, os.Error) {
 	plink := &h.head;
 	for l := *plink; l != nil; plink, l = &l.next, l.next {
 		if l.removed {
-			continue;
+			continue
 		}
 		a, err := l.eh(e);
 		if a & EARemoveSelf == EARemoveSelf {
 			if !l.internal {
-				h.len--;
+				h.len--
 			}
 			l.removed = true;
 			*plink = l.next;
 			a &^= EARemoveSelf;
 		}
 		if err != nil {
-			return EAStop, err;
+			return EAStop, err
 		}
 		if a > action {
-			action = a;
+			action = a
 		}
 	}
 	return action, nil;
@@ -167,7 +167,7 @@ func EventPrint(ev Event) (EventAction, os.Error) {
 
 // EventStop is a standard event handler that causes the process to stop.
 func EventStop(ev Event) (EventAction, os.Error) {
-	return EAStop, nil;
+	return EAStop, nil
 }
 
 /*
@@ -190,7 +190,7 @@ type Breakpoint struct {
 }
 
 func (h *breakpointHook) AddHandler(eh EventHandler) {
-	h.addHandler(eh, false);
+	h.addHandler(eh, false)
 }
 
 func (h *breakpointHook) addHandler(eh EventHandler, internal bool) {
@@ -198,7 +198,7 @@ func (h *breakpointHook) addHandler(eh EventHandler, internal bool) {
 	// references to breakpoints without handlers.  Be sure to use
 	// the "canonical" breakpoint if there is one.
 	if cur, ok := h.p.breakpointHooks[h.pc]; ok {
-		h = cur;
+		h = cur
 	}
 	oldhead := h.head;
 	h.commonHook.addHandler(eh, internal);
@@ -220,7 +220,7 @@ func (h *breakpointHook) RemoveHandler(eh EventHandler) {
 func (h *breakpointHook) String() string {
 	// TODO(austin) Include process name?
 	// TODO(austin) Use line:pc or at least sym+%#x
-	return fmt.Sprintf("breakpoint at %#x", h.pc);
+	return fmt.Sprintf("breakpoint at %#x", h.pc)
 }
 
 func (b *Breakpoint) PC() proc.Word	{ return b.pc }
@@ -228,7 +228,7 @@ func (b *Breakpoint) PC() proc.Word	{ return b.pc }
 func (b *Breakpoint) String() string {
 	// TODO(austin) Include process name and goroutine
 	// TODO(austin) Use line:pc or at least sym+%#x
-	return fmt.Sprintf("breakpoint at %#x", b.pc);
+	return fmt.Sprintf("breakpoint at %#x", b.pc)
 }
 
 /*
@@ -256,7 +256,7 @@ func (e *GoroutineCreate) Parent() *Goroutine	{ return e.parent }
 func (e *GoroutineCreate) String() string {
 	// TODO(austin) Include process name
 	if e.parent == nil {
-		return fmt.Sprintf("%v created", e.t);
+		return fmt.Sprintf("%v created", e.t)
 	}
 	return fmt.Sprintf("%v created by %v", e.t, e.parent);
 }
@@ -276,5 +276,5 @@ func (e *GoroutineExit) String() string {
 	// TODO(austin) Include process name
 	//return fmt.Sprintf("%v exited", e.t);
 	// For debugging purposes
-	return fmt.Sprintf("goroutine %#x exited", e.t.g.addr().base);
+	return fmt.Sprintf("goroutine %#x exited", e.t.g.addr().base)
 }

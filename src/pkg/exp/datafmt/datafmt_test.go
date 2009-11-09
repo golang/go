@@ -23,13 +23,13 @@ func parse(t *testing.T, form string, fmap FormatterMap) Format {
 
 func verify(t *testing.T, f Format, expected string, args ...) {
 	if f == nil {
-		return;	// allow other tests to run
+		return	// allow other tests to run
 	}
 	result := f.Sprint(args);
 	if result != expected {
 		t.Errorf(
 			"result  : `%s`\nexpected: `%s`\n\n",
-			result, expected);
+			result, expected)
 	}
 }
 
@@ -44,13 +44,13 @@ func formatter(s *State, value interface{}, rule_name string) bool {
 		return true;
 	case "int":
 		if value.(int) & 1 == 0 {
-			fmt.Fprint(s, "even ");
+			fmt.Fprint(s, "even ")
 		} else {
-			fmt.Fprint(s, "odd ");
+			fmt.Fprint(s, "odd ")
 		}
 		return true;
 	case "nil":
-		return false;
+		return false
 	case "testing.T":
 		s.Write(strings.Bytes("testing.T"));
 		return true;
@@ -96,13 +96,13 @@ func TestCustomFormatters(t *testing.T) {
 func check(t *testing.T, form, expected string, args ...) {
 	f := parse(t, form, nil);
 	if f == nil {
-		return;	// allow other tests to run
+		return	// allow other tests to run
 	}
 	result := f.Sprint(args);
 	if result != expected {
 		t.Errorf(
 			"format  : %s\nresult  : `%s`\nexpected: `%s`\n\n",
-			form, result, expected);
+			form, result, expected)
 	}
 }
 

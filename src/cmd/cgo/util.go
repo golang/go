@@ -18,7 +18,7 @@ type ByteReaderAt []byte
 
 func (r ByteReaderAt) ReadAt(p []byte, off int64) (n int, err os.Error) {
 	if off >= int64(len(r)) || off < 0 {
-		return 0, os.EOF;
+		return 0, os.EOF
 	}
 	return bytes.Copy(p, r[off:len(r)]), nil;
 }
@@ -29,23 +29,23 @@ func (r ByteReaderAt) ReadAt(p []byte, off int64) (n int, err os.Error) {
 func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	cmd, err := exec.LookPath(argv[0]);
 	if err != nil {
-		fatal("exec %s: %s", argv[0], err);
+		fatal("exec %s: %s", argv[0], err)
 	}
 	r0, w0, err := os.Pipe();
 	if err != nil {
-		fatal("%s", err);
+		fatal("%s", err)
 	}
 	r1, w1, err := os.Pipe();
 	if err != nil {
-		fatal("%s", err);
+		fatal("%s", err)
 	}
 	r2, w2, err := os.Pipe();
 	if err != nil {
-		fatal("%s", err);
+		fatal("%s", err)
 	}
 	pid, err := os.ForkExec(cmd, argv, os.Environ(), "", []*os.File{r0, w1, w2});
 	if err != nil {
-		fatal("%s", err);
+		fatal("%s", err)
 	}
 	r0.Close();
 	w1.Close();
@@ -70,7 +70,7 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 
 	w, err := os.Wait(pid, 0);
 	if err != nil {
-		fatal("%s", err);
+		fatal("%s", err)
 	}
 	ok = w.Exited() && w.ExitStatus() == 0;
 	return;
@@ -88,7 +88,7 @@ var noPos token.Position
 func error(pos token.Position, msg string, args ...) {
 	nerrors++;
 	if pos.IsValid() {
-		fmt.Fprintf(os.Stderr, "%s: ", pos);
+		fmt.Fprintf(os.Stderr, "%s: ", pos)
 	}
 	fmt.Fprintf(os.Stderr, msg, args);
 	fmt.Fprintf(os.Stderr, "\n");

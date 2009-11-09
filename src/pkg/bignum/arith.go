@@ -25,7 +25,7 @@ func Mul128(x, y uint64) (z1, z0 uint64) {
 	)
 
 	if x < y {
-		x, y = y, x;
+		x, y = y, x
 	}
 
 	if x < B2 {

@@ -77,11 +77,11 @@ const (
 )
 
 func (ts threadState) isRunning() bool {
-	return ts == running || ts == singleStepping || ts == stopping;
+	return ts == running || ts == singleStepping || ts == stopping
 }
 
 func (ts threadState) isStopped() bool {
-	return ts == stopped || ts == stoppedBreakpoint || ts == stoppedSignal || ts == stoppedThreadCreate || ts == stoppedExiting;
+	return ts == stopped || ts == stoppedBreakpoint || ts == stoppedSignal || ts == stoppedThreadCreate || ts == stoppedExiting
 }
 
 func (ts threadState) isZombie() bool	{ return ts == exiting }
@@ -104,7 +104,7 @@ type breakpoint struct {
 
 func (bp *breakpoint) String() string {
 	if bp == nil {
-		return "<nil>";
+		return "<nil>"
 	}
 	return fmt.Sprintf("%#x", bp.pc);
 }
@@ -189,13 +189,13 @@ type badState struct {
 }
 
 func (e *badState) String() string {
-	return fmt.Sprintf("Thread %d %s from state %v", e.thread.tid, e.message, e.state);
+	return fmt.Sprintf("Thread %d %s from state %v", e.thread.tid, e.message, e.state)
 }
 
 type breakpointExistsError Word
 
 func (e breakpointExistsError) String() string {
-	return fmt.Sprintf("breakpoint already exists at PC %#x", e);
+	return fmt.Sprintf("breakpoint already exists at PC %#x", e)
 }
 
 type noBreakpointError Word
@@ -209,7 +209,7 @@ type newThreadError struct {
 }
 
 func (e *newThreadError) String() string {
-	return fmt.Sprintf("newThread wait wanted pid %v and signal %v, got %v and %v", e.Pid, e.StopSignal(), e.wantPid, e.wantSig);
+	return fmt.Sprintf("newThread wait wanted pid %v and signal %v, got %v and %v", e.Pid, e.StopSignal(), e.wantPid, e.wantSig)
 }
 
 type ProcessExited struct{}
@@ -223,7 +223,7 @@ func (p ProcessExited) String() string	{ return "process exited" }
 func (t *thread) ptracePeekText(addr uintptr, out []byte) (int, os.Error) {
 	c, err := syscall.PtracePeekText(t.tid, addr, out);
 	if traceMem {
-		fmt.Printf("peek(%#x) => %v, %v\n", addr, out, err);
+		fmt.Printf("peek(%#x) => %v, %v\n", addr, out, err)
 	}
 	return c, os.NewSyscallError("ptrace(PEEKTEXT)", err);
 }
@@ -231,7 +231,7 @@ func (t *thread) ptracePeekText(addr uintptr, out []byte) (int, os.Error) {
 func (t *thread) ptracePokeText(addr uintptr, out []byte) (int, os.Error) {
 	c, err := syscall.PtracePokeText(t.tid, addr, out);
 	if traceMem {
-		fmt.Printf("poke(%#x, %v) => %v\n", addr, out, err);
+		fmt.Printf("poke(%#x, %v) => %v\n", addr, out, err)
 	}
 	return c, os.NewSyscallError("ptrace(POKETEXT)", err);
 }
@@ -284,7 +284,7 @@ var logLock sync.Mutex
 
 func (t *thread) logTrace(format string, args ...) {
 	if !trace {
-		return;
+		return
 	}
 	logLock.Lock();
 	defer logLock.Unlock();
@@ -293,7 +293,7 @@ func (t *thread) logTrace(format string, args ...) {
 		var regs syscall.PtraceRegs;
 		err := t.ptraceGetRegs(&regs);
 		if err == nil {
-			fmt.Fprintf(os.Stderr, "@%x", regs.PC());
+			fmt.Fprintf(os.Stderr, "@%x", regs.PC())
 		}
 	}
 	fmt.Fprint(os.Stderr, ": ");
@@ -311,7 +311,7 @@ func (t *thread) warn(format string, args ...) {
 
 func (p *process) logTrace(format string, args ...) {
 	if !trace {
-		return;
+		return
 	}
 	logLock.Lock();
 	defer logLock.Unlock();
@@ -331,7 +331,7 @@ func (p *process) logTrace(format string, args ...) {
 func (p *process) someStoppedThread() *thread {
 	for _, t := range p.threads {
 		if t.state.isStopped() {
-			return t;
+			return t
 		}
 	}
 	return nil;
@@ -344,7 +344,7 @@ func (p *process) someStoppedThread() *thread {
 func (p *process) someRunningThread() *thread {
 	for _, t := range p.threads {
 		if t.state.isRunning() {
-			return t;
+			return t
 		}
 	}
 	return nil;
@@ -362,7 +362,7 @@ func (p *process) installBreakpoints() os.Error {
 	main := p.someStoppedThread();
 	for _, b := range p.breakpoints {
 		if b.olddata != nil {
-			continue;
+			continue
 		}
 
 		b.olddata = make([]byte, len(bpinst386));
@@ -380,7 +380,7 @@ func (p *process) installBreakpoints() os.Error {
 		n++;
 	}
 	if n > 0 {
-		p.logTrace("installed %d/%d breakpoints", n, len(p.breakpoints));
+		p.logTrace("installed %d/%d breakpoints", n, len(p.breakpoints))
 	}
 
 	return nil;
@@ -391,24 +391,24 @@ func (p *process) installBreakpoints() os.Error {
 // Must be called from the monitor thread.
 func (p *process) uninstallBreakpoints() os.Error {
 	if len(p.threads) == 0 {
-		return nil;
+		return nil
 	}
 	n := 0;
 	main := p.someStoppedThread();
 	for _, b := range p.breakpoints {
 		if b.olddata == nil {
-			continue;
+			continue
 		}
 
 		_, err := main.ptracePokeText(uintptr(b.pc), b.olddata);
 		if err != nil {
-			return err;
+			return err
 		}
 		b.olddata = nil;
 		n++;
 	}
 	if n > 0 {
-		p.logTrace("uninstalled %d/%d breakpoints", n, len(p.breakpoints));
+		p.logTrace("uninstalled %d/%d breakpoints", n, len(p.breakpoints))
 	}
 
 	return nil;
@@ -430,14 +430,14 @@ func (t *thread) wait() {
 		t.logTrace("beginning wait");
 		ev.Waitmsg, ev.err = os.Wait(t.tid, syscall.WALL);
 		if ev.err == nil && ev.Pid != t.tid {
-			panic("Wait returned pid ", ev.Pid, " wanted ", t.tid);
+			panic("Wait returned pid ", ev.Pid, " wanted ", t.tid)
 		}
 		if ev.StopSignal() == syscall.SIGSTOP && t.ignoreNextSigstop {
 			// Spurious SIGSTOP.  See Thread.Stop().
 			t.ignoreNextSigstop = false;
 			err := t.ptraceCont();
 			if err == nil {
-				continue;
+				continue
 			}
 			// If we failed to continue, just let
 			// the stop go through so we can
@@ -445,7 +445,7 @@ func (t *thread) wait() {
 		}
 		if !<-t.proc.ready {
 			// The monitor exited
-			break;
+			break
 		}
 		t.proc.debugEvents <- &ev;
 		break;
@@ -463,13 +463,13 @@ func (t *thread) setState(new threadState) {
 
 	if !old.isRunning() && (new.isRunning() || new.isZombie()) {
 		// Start waiting on this thread
-		go t.wait();
+		go t.wait()
 	}
 
 	// Invoke state change handlers
 	handlers := t.proc.transitionHandlers;
 	if handlers.Len() == 0 {
-		return;
+		return
 	}
 
 	t.proc.transitionHandlers = vector.New(0);
@@ -494,7 +494,7 @@ func (p *process) stopAsync() os.Error {
 		if t.state == running {
 			err := t.sendSigstop();
 			if err != nil {
-				return err;
+				return err
 			}
 			t.setState(stopping);
 		}
@@ -511,7 +511,7 @@ func (ev *debugEvent) doTrap() (threadState, os.Error) {
 	t := ev.t;
 
 	if t.state == singleStepping {
-		return stopped, nil;
+		return stopped, nil
 	}
 
 	// Hit a breakpoint.  Linux leaves the program counter after
@@ -520,7 +520,7 @@ func (ev *debugEvent) doTrap() (threadState, os.Error) {
 	var regs syscall.PtraceRegs;
 	err := t.ptraceGetRegs(&regs);
 	if err != nil {
-		return stopped, err;
+		return stopped, err
 	}
 
 	b, ok := t.proc.breakpoints[uintptr(regs.PC())-uintptr(len(bpinst386))];
@@ -529,7 +529,7 @@ func (ev *debugEvent) doTrap() (threadState, os.Error) {
 		// the program.  Leave the IP where it is so we don't
 		// re-execute the breakpoint instruction.  Expose the
 		// fact that we stopped with a SIGTRAP.
-		return stoppedSignal, nil;
+		return stoppedSignal, nil
 	}
 
 	t.breakpoint = b;
@@ -538,7 +538,7 @@ func (ev *debugEvent) doTrap() (threadState, os.Error) {
 	regs.SetPC(uint64(b.pc));
 	err = t.ptraceSetRegs(&regs);
 	if err != nil {
-		return stopped, err;
+		return stopped, err
 	}
 	return stoppedBreakpoint, nil;
 }
@@ -552,12 +552,12 @@ func (ev *debugEvent) doPtraceClone() (threadState, os.Error) {
 	// Get the TID of the new thread
 	tid, err := t.ptraceGetEventMsg();
 	if err != nil {
-		return stopped, err;
+		return stopped, err
 	}
 
 	nt, err := t.proc.newThread(int(tid), syscall.SIGSTOP, true);
 	if err != nil {
-		return stopped, err;
+		return stopped, err
 	}
 
 	// Remember the thread
@@ -576,15 +576,15 @@ func (ev *debugEvent) doPtraceExit() (threadState, os.Error) {
 	// Get exit status
 	exitStatus, err := t.ptraceGetEventMsg();
 	if err != nil {
-		return stopped, err;
+		return stopped, err
 	}
 	ws := syscall.WaitStatus(exitStatus);
 	t.logTrace("exited with %v", ws);
 	switch {
 	case ws.Exited():
-		t.exitStatus = ws.ExitStatus();
+		t.exitStatus = ws.ExitStatus()
 	case ws.Signaled():
-		t.signal = ws.Signal();
+		t.signal = ws.Signal()
 	}
 
 	// We still need to continue this thread and wait on this
@@ -597,7 +597,7 @@ func (ev *debugEvent) doPtraceExit() (threadState, os.Error) {
 // any running threads.
 func (ev *debugEvent) process() os.Error {
 	if ev.err != nil {
-		return ev.err;
+		return ev.err
 	}
 
 	t := ev.t;
@@ -617,16 +617,16 @@ func (ev *debugEvent) process() os.Error {
 			switch cause := ev.TrapCause(); cause {
 			case 0:
 				// Breakpoint or single stepping
-				state, err = ev.doTrap();
+				state, err = ev.doTrap()
 
 			case syscall.PTRACE_EVENT_CLONE:
-				state, err = ev.doPtraceClone();
+				state, err = ev.doPtraceClone()
 
 			case syscall.PTRACE_EVENT_EXIT:
-				state, err = ev.doPtraceExit();
+				state, err = ev.doPtraceExit()
 
 			default:
-				t.warn("Unknown trap cause %d", cause);
+				t.warn("Unknown trap cause %d", cause)
 			}
 
 			if err != nil {
@@ -651,7 +651,7 @@ func (ev *debugEvent) process() os.Error {
 		t.signal = ev.Signal();
 
 	default:
-		panic(fmt.Sprintf("Unexpected wait status %v", ev.Waitmsg));
+		panic(fmt.Sprintf("Unexpected wait status %v", ev.Waitmsg))
 	}
 
 	// If we sent a SIGSTOP to the thread (indicated by state
@@ -660,7 +660,7 @@ func (ev *debugEvent) process() os.Error {
 	// SIGSTOP we sent is now queued up, so we should ignore the
 	// next one we get.
 	if t.state == stopping && ev.StopSignal() != syscall.SIGSTOP {
-		t.ignoreNextSigstop = true;
+		t.ignoreNextSigstop = true
 	}
 
 	// TODO(austin) If we're in state stopping and get a SIGSTOP,
@@ -670,7 +670,7 @@ func (ev *debugEvent) process() os.Error {
 
 	if t.proc.someRunningThread() == nil {
 		// Nothing is running, uninstall breakpoints
-		return t.proc.uninstallBreakpoints();
+		return t.proc.uninstallBreakpoints()
 	}
 	// Stop any other running threads
 	return t.proc.stopAsync();
@@ -689,9 +689,9 @@ func (t *thread) onStop(handle func(), onErr func(os.Error)) {
 	h := &transitionHandler{nil, onErr};
 	h.handle = func(st *thread, old, new threadState) {
 		if t == st && old.isRunning() && !new.isRunning() {
-			handle();
+			handle()
 		} else {
-			t.proc.transitionHandlers.Push(h);
+			t.proc.transitionHandlers.Push(h)
 		}
 	};
 	t.proc.transitionHandlers.Push(h);
@@ -717,13 +717,13 @@ func (p *process) monitor() {
 		p.ready <- true;
 		select {
 		case event := <-p.debugEvents:
-			err = event.process();
+			err = event.process()
 
 		case req := <-p.debugReqs:
-			req.res <- req.f();
+			req.res <- req.f()
 
 		case err = <-p.stopReq:
-			break;
+			break
 		}
 
 		if len(p.threads) == 0 {
@@ -732,7 +732,7 @@ func (p *process) monitor() {
 				err = ProcessExited{};
 			}
 		} else {
-			hadThreads = true;
+			hadThreads = true
 		}
 	}
 
@@ -754,7 +754,7 @@ func (p *process) monitor() {
 // Must NOT be called from the monitor thread.
 func (p *process) do(f func() os.Error) os.Error {
 	if !<-p.ready {
-		return p.err;
+		return p.err
 	}
 	req := &debugReq{f, make(chan os.Error)};
 	p.debugReqs <- req;
@@ -765,10 +765,10 @@ func (p *process) do(f func() os.Error) os.Error {
 // is already stopped, does nothing.
 func (p *process) stopMonitor(err os.Error) {
 	if err == nil {
-		panic("cannot stop the monitor with no error");
+		panic("cannot stop the monitor with no error")
 	}
 	if <-p.ready {
-		p.stopReq <- err;
+		p.stopReq <- err
 	}
 }
 
@@ -781,21 +781,21 @@ func (t *thread) Regs() (Regs, os.Error) {
 
 	err := t.proc.do(func() os.Error {
 		if !t.state.isStopped() {
-			return &badState{t, "cannot get registers", t.state};
+			return &badState{t, "cannot get registers", t.state}
 		}
 		return t.ptraceGetRegs(&regs);
 	});
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	setter := func(r *syscall.PtraceRegs) os.Error {
 		return t.proc.do(func() os.Error {
 			if !t.state.isStopped() {
-				return &badState{t, "cannot get registers", t.state};
+				return &badState{t, "cannot get registers", t.state}
 			}
 			return t.ptraceSetRegs(r);
-		});
+		})
 	};
 	return newRegs(&regs, setter), nil;
 }
@@ -805,7 +805,7 @@ func (t *thread) Peek(addr Word, out []byte) (int, os.Error) {
 
 	err := t.proc.do(func() os.Error {
 		if !t.state.isStopped() {
-			return &badState{t, "cannot peek text", t.state};
+			return &badState{t, "cannot peek text", t.state}
 		}
 
 		var err os.Error;
@@ -821,7 +821,7 @@ func (t *thread) Poke(addr Word, out []byte) (int, os.Error) {
 
 	err := t.proc.do(func() os.Error {
 		if !t.state.isStopped() {
-			return &badState{t, "cannot poke text", t.state};
+			return &badState{t, "cannot poke text", t.state}
 		}
 
 		var err os.Error;
@@ -839,7 +839,7 @@ func (t *thread) Poke(addr Word, out []byte) (int, os.Error) {
 // sends that error on the channel.
 func (t *thread) stepAsync(ready chan os.Error) os.Error {
 	if err := t.ptraceStep(); err != nil {
-		return err;
+		return err
 	}
 	t.setState(singleStepping);
 	t.onStop(func() { ready <- nil },
@@ -855,12 +855,12 @@ func (t *thread) Step() os.Error {
 
 	err := t.proc.do(func() os.Error {
 		if !t.state.isStopped() {
-			return &badState{t, "cannot single step", t.state};
+			return &badState{t, "cannot single step", t.state}
 		}
 		return t.stepAsync(ready);
 	});
 	if err != nil {
-		return err;
+		return err
 	}
 
 	err = <-ready;
@@ -882,7 +882,7 @@ var sigNames = [...]string{
 // the signal number is invalid, returns "<invalid>".
 func sigName(signal int) string {
 	if signal < 0 || signal >= len(sigNames) {
-		return "<invalid>";
+		return "<invalid>"
 	}
 	return sigNames[signal];
 }
@@ -892,31 +892,31 @@ func (t *thread) Stopped() (Cause, os.Error) {
 	err := t.proc.do(func() os.Error {
 		switch t.state {
 		case stopped:
-			c = Stopped{};
+			c = Stopped{}
 
 		case stoppedBreakpoint:
-			c = Breakpoint(t.breakpoint.pc);
+			c = Breakpoint(t.breakpoint.pc)
 
 		case stoppedSignal:
-			c = Signal(sigName(t.signal));
+			c = Signal(sigName(t.signal))
 
 		case stoppedThreadCreate:
-			c = &ThreadCreate{t.newThread};
+			c = &ThreadCreate{t.newThread}
 
 		case stoppedExiting, exiting, exited:
 			if t.signal == -1 {
-				c = &ThreadExit{t.exitStatus, ""};
+				c = &ThreadExit{t.exitStatus, ""}
 			} else {
-				c = &ThreadExit{t.exitStatus, sigName(t.signal)};
+				c = &ThreadExit{t.exitStatus, sigName(t.signal)}
 			}
 
 		default:
-			return &badState{t, "cannot get stop cause", t.state};
+			return &badState{t, "cannot get stop cause", t.state}
 		}
 		return nil;
 	});
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	return c, nil;
@@ -932,7 +932,7 @@ func (p *process) Threads() []Thread {
 			// Exclude zombie threads.
 			st := t.state;
 			if st == exiting || st == exited || st == detached {
-				continue;
+				continue
 			}
 
 			res[i] = t;
@@ -947,27 +947,27 @@ func (p *process) Threads() []Thread {
 func (p *process) AddBreakpoint(pc Word) os.Error {
 	return p.do(func() os.Error {
 		if t := p.someRunningThread(); t != nil {
-			return &badState{t, "cannot add breakpoint", t.state};
+			return &badState{t, "cannot add breakpoint", t.state}
 		}
 		if _, ok := p.breakpoints[uintptr(pc)]; ok {
-			return breakpointExistsError(pc);
+			return breakpointExistsError(pc)
 		}
 		p.breakpoints[uintptr(pc)] = &breakpoint{pc: uintptr(pc)};
 		return nil;
-	});
+	})
 }
 
 func (p *process) RemoveBreakpoint(pc Word) os.Error {
 	return p.do(func() os.Error {
 		if t := p.someRunningThread(); t != nil {
-			return &badState{t, "cannot remove breakpoint", t.state};
+			return &badState{t, "cannot remove breakpoint", t.state}
 		}
 		if _, ok := p.breakpoints[uintptr(pc)]; !ok {
-			return noBreakpointError(pc);
+			return noBreakpointError(pc)
 		}
 		p.breakpoints[uintptr(pc)] = nil, false;
 		return nil;
-	});
+	})
 }
 
 func (p *process) Continue() os.Error {
@@ -984,7 +984,7 @@ func (p *process) Continue() os.Error {
 
 		for _, t := range p.threads {
 			if !t.state.isStopped() {
-				continue;
+				continue
 			}
 
 			// We use the breakpoint map directly here
@@ -995,12 +995,12 @@ func (p *process) Continue() os.Error {
 			var regs syscall.PtraceRegs;
 			err := t.ptraceGetRegs(&regs);
 			if err != nil {
-				return err;
+				return err
 			}
 			if b, ok := p.breakpoints[uintptr(regs.PC())]; ok {
 				t.logTrace("stepping over breakpoint %v", b);
 				if err := t.stepAsync(ready); err != nil {
-					return err;
+					return err
 				}
 				count++;
 			}
@@ -1025,14 +1025,14 @@ func (p *process) Continue() os.Error {
 	// Continue all threads
 	err = p.do(func() os.Error {
 		if err := p.installBreakpoints(); err != nil {
-			return err;
+			return err
 		}
 
 		for _, t := range p.threads {
 			var err os.Error;
 			switch {
 			case !t.state.isStopped():
-				continue;
+				continue
 
 			case t.state == stoppedSignal && t.signal != syscall.SIGSTOP && t.signal != syscall.SIGTRAP:
 				t.logTrace("continuing with signal %d", t.signal);
@@ -1043,12 +1043,12 @@ func (p *process) Continue() os.Error {
 				err = t.ptraceCont();
 			}
 			if err != nil {
-				return err;
+				return err
 			}
 			if t.state == stoppedExiting {
-				t.setState(exiting);
+				t.setState(exiting)
 			} else {
-				t.setState(running);
+				t.setState(running)
 			}
 		}
 		return nil;
@@ -1091,7 +1091,7 @@ func (p *process) WaitStop() os.Error {
 		return nil;
 	});
 	if err != nil {
-		return err;
+		return err
 	}
 
 	return <-ready;
@@ -1100,7 +1100,7 @@ func (p *process) WaitStop() os.Error {
 func (p *process) Stop() os.Error {
 	err := p.do(func() os.Error { return p.stopAsync() });
 	if err != nil {
-		return err;
+		return err
 	}
 
 	return p.WaitStop();
@@ -1108,19 +1108,19 @@ func (p *process) Stop() os.Error {
 
 func (p *process) Detach() os.Error {
 	if err := p.Stop(); err != nil {
-		return err;
+		return err
 	}
 
 	err := p.do(func() os.Error {
 		if err := p.uninstallBreakpoints(); err != nil {
-			return err;
+			return err
 		}
 
 		for pid, t := range p.threads {
 			if t.state.isStopped() {
 				// We can't detach from zombies.
 				if err := t.ptraceDetach(); err != nil {
-					return err;
+					return err
 				}
 			}
 			t.setState(detached);
@@ -1144,16 +1144,16 @@ func (p *process) newThread(tid int, signal int, cloned bool) (*thread, os.Error
 	// TODO(austin) Thread might already be stopped if we're attaching.
 	w, err := os.Wait(tid, syscall.WALL);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	if w.Pid != tid || w.StopSignal() != signal {
-		return nil, &newThreadError{w, tid, signal};
+		return nil, &newThreadError{w, tid, signal}
 	}
 
 	if !cloned {
 		err = t.ptraceSetOptions(syscall.PTRACE_O_TRACECLONE | syscall.PTRACE_O_TRACEEXIT);
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 	}
 
@@ -1171,7 +1171,7 @@ func (p *process) attachThread(tid int) (*thread, os.Error) {
 	err := p.do(func() os.Error {
 		errno := syscall.PtraceAttach(tid);
 		if errno != 0 {
-			return os.NewSyscallError("ptrace(ATTACH)", errno);
+			return os.NewSyscallError("ptrace(ATTACH)", errno)
 		}
 
 		var err os.Error;
@@ -1186,7 +1186,7 @@ func (p *process) attachAllThreads() os.Error {
 	taskPath := "/proc/" + strconv.Itoa(p.pid) + "/task";
 	taskDir, err := os.Open(taskPath, os.O_RDONLY, 0);
 	if err != nil {
-		return err;
+		return err
 	}
 	defer taskDir.Close();
 
@@ -1199,16 +1199,16 @@ func (p *process) attachAllThreads() os.Error {
 
 		tids, err := taskDir.Readdirnames(-1);
 		if err != nil {
-			return err;
+			return err
 		}
 
 		for _, tidStr := range tids {
 			tid, err := strconv.Atoi(tidStr);
 			if err != nil {
-				return err;
+				return err
 			}
 			if _, ok := p.threads[tid]; ok {
-				continue;
+				continue
 			}
 
 			_, err = p.attachThread(tid);
@@ -1290,9 +1290,9 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.F
 	intfd := make([]int, len(fd));
 	for i, f := range fd {
 		if f == nil {
-			intfd[i] = -1;
+			intfd[i] = -1
 		} else {
-			intfd[i] = f.Fd();
+			intfd[i] = f.Fd()
 		}
 	}
 
@@ -1300,7 +1300,7 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.F
 	err := p.do(func() os.Error {
 		pid, errno := syscall.PtraceForkExec(argv0, argv, envv, dir, intfd);
 		if errno != 0 {
-			return &os.PathError{"fork/exec", argv0, os.Errno(errno)};
+			return &os.PathError{"fork/exec", argv0, os.Errno(errno)}
 		}
 		p.pid = pid;
 

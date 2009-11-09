@@ -25,10 +25,10 @@ func TestSemaphore(t *testing.T) {
 	*s = 1;
 	c := make(chan bool);
 	for i := 0; i < 10; i++ {
-		go HammerSemaphore(s, c);
+		go HammerSemaphore(s, c)
 	}
 	for i := 0; i < 10; i++ {
-		<-c;
+		<-c
 	}
 }
 
@@ -45,9 +45,9 @@ func TestMutex(t *testing.T) {
 	m := new(Mutex);
 	c := make(chan bool);
 	for i := 0; i < 10; i++ {
-		go HammerMutex(m, c);
+		go HammerMutex(m, c)
 	}
 	for i := 0; i < 10; i++ {
-		<-c;
+		<-c
 	}
 }

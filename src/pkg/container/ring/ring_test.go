@@ -29,7 +29,7 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 	// Len
 	n := r.Len();
 	if n != N {
-		t.Errorf("r.Len() == %d; expected %d", n, N);
+		t.Errorf("r.Len() == %d; expected %d", n, N)
 	}
 
 	// iteration
@@ -38,18 +38,18 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 	for p := range r.Iter() {
 		n++;
 		if p != nil {
-			s += p.(int);
+			s += p.(int)
 		}
 	}
 	if n != N {
-		t.Errorf("number of forward iterations == %d; expected %d", n, N);
+		t.Errorf("number of forward iterations == %d; expected %d", n, N)
 	}
 	if sum >= 0 && s != sum {
-		t.Errorf("forward ring sum = %d; expected %d", s, sum);
+		t.Errorf("forward ring sum = %d; expected %d", s, sum)
 	}
 
 	if r == nil {
-		return;
+		return
 	}
 
 	// connections
@@ -57,41 +57,41 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 		var p *Ring;	// previous element
 		for q := r; p == nil || q != r; q = q.next {
 			if p != nil && p != q.prev {
-				t.Errorf("prev = %p, expected q.prev = %p\n", p, q.prev);
+				t.Errorf("prev = %p, expected q.prev = %p\n", p, q.prev)
 			}
 			p = q;
 		}
 		if p != r.prev {
-			t.Errorf("prev = %p, expected r.prev = %p\n", p, r.prev);
+			t.Errorf("prev = %p, expected r.prev = %p\n", p, r.prev)
 		}
 	}
 
 	// Next, Prev
 	if r.Next() != r.next {
-		t.Errorf("r.Next() != r.next");
+		t.Errorf("r.Next() != r.next")
 	}
 	if r.Prev() != r.prev {
-		t.Errorf("r.Prev() != r.prev");
+		t.Errorf("r.Prev() != r.prev")
 	}
 
 	// Move
 	if r.Move(0) != r {
-		t.Errorf("r.Move(0) != r");
+		t.Errorf("r.Move(0) != r")
 	}
 	if r.Move(N) != r {
-		t.Errorf("r.Move(%d) != r", N);
+		t.Errorf("r.Move(%d) != r", N)
 	}
 	if r.Move(-N) != r {
-		t.Errorf("r.Move(%d) != r", -N);
+		t.Errorf("r.Move(%d) != r", -N)
 	}
 	for i := 0; i < 10; i++ {
 		ni := N+i;
 		mi := ni%N;
 		if r.Move(ni) != r.Move(mi) {
-			t.Errorf("r.Move(%d) != r.Move(%d)", ni, mi);
+			t.Errorf("r.Move(%d) != r.Move(%d)", ni, mi)
 		}
 		if r.Move(-ni) != r.Move(-mi) {
-			t.Errorf("r.Move(%d) != r.Move(%d)", -ni, -mi);
+			t.Errorf("r.Move(%d) != r.Move(%d)", -ni, -mi)
 		}
 	}
 }
@@ -132,7 +132,7 @@ func makeN(n int) *Ring {
 func sum(r *Ring) int {
 	s := 0;
 	for p := range r.Iter() {
-		s += p.(int);
+		s += p.(int)
 	}
 	return s;
 }
@@ -159,13 +159,13 @@ func TestLink1(t *testing.T) {
 	r2a := r1a.Link(&r1b);
 	verify(t, r2a, 2, 1);
 	if r2a != r1a {
-		t.Errorf("a) 2-element link failed");
+		t.Errorf("a) 2-element link failed")
 	}
 
 	r2b := r2a.Link(r2a.Next());
 	verify(t, r2b, 2, 1);
 	if r2b != r2a.Next() {
-		t.Errorf("b) 2-element link failed");
+		t.Errorf("b) 2-element link failed")
 	}
 
 	r1c := r2b.Link(r2b);

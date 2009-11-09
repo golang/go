@@ -37,26 +37,26 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
 	case DevNull:
 		rw := os.O_WRONLY;
 		if fd == 0 {
-			rw = os.O_RDONLY;
+			rw = os.O_RDONLY
 		}
 		f, err := os.Open("/dev/null", rw, 0);
 		return f, nil, err;
 	case PassThrough:
 		switch fd {
 		case 0:
-			return os.Stdin, nil, nil;
+			return os.Stdin, nil, nil
 		case 1:
-			return os.Stdout, nil, nil;
+			return os.Stdout, nil, nil
 		case 2:
-			return os.Stderr, nil, nil;
+			return os.Stderr, nil, nil
 		}
 	case Pipe:
 		r, w, err := os.Pipe();
 		if err != nil {
-			return nil, nil, err;
+			return nil, nil, err
 		}
 		if fd == 0 {
-			return r, w, nil;
+			return r, w, nil
 		}
 		return w, r, nil;
 	}
@@ -83,51 +83,51 @@ func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, 
 	var fd [3]*os.File;
 
 	if fd[0], p.Stdin, err = modeToFiles(stdin, 0); err != nil {
-		goto Error;
+		goto Error
 	}
 	if fd[1], p.Stdout, err = modeToFiles(stdout, 1); err != nil {
-		goto Error;
+		goto Error
 	}
 	if stderr == MergeWithStdout {
-		p.Stderr = p.Stdout;
+		p.Stderr = p.Stdout
 	} else if fd[2], p.Stderr, err = modeToFiles(stderr, 2); err != nil {
-		goto Error;
+		goto Error
 	}
 
 	// Run command.
 	p.Pid, err = os.ForkExec(argv0, argv, envv, "", &fd);
 	if err != nil {
-		goto Error;
+		goto Error
 	}
 	if fd[0] != os.Stdin {
-		fd[0].Close();
+		fd[0].Close()
 	}
 	if fd[1] != os.Stdout {
-		fd[1].Close();
+		fd[1].Close()
 	}
 	if fd[2] != os.Stderr && fd[2] != fd[1] {
-		fd[2].Close();
+		fd[2].Close()
 	}
 	return p, nil;
 
 Error:
 	if fd[0] != os.Stdin && fd[0] != nil {
-		fd[0].Close();
+		fd[0].Close()
 	}
 	if fd[1] != os.Stdout && fd[1] != nil {
-		fd[1].Close();
+		fd[1].Close()
 	}
 	if fd[2] != os.Stderr && fd[2] != nil && fd[2] != fd[1] {
-		fd[2].Close();
+		fd[2].Close()
 	}
 	if p.Stdin != nil {
-		p.Stdin.Close();
+		p.Stdin.Close()
 	}
 	if p.Stdout != nil {
-		p.Stdout.Close();
+		p.Stdout.Close()
 	}
 	if p.Stderr != nil {
-		p.Stderr.Close();
+		p.Stderr.Close()
 	}
 	return nil, err;
 }
@@ -140,11 +140,11 @@ Error:
 // process events; see package os for details.
 func (p *Cmd) Wait(options int) (*os.Waitmsg, os.Error) {
 	if p.Pid <= 0 {
-		return nil, os.ErrorString("exec: invalid use of Cmd.Wait");
+		return nil, os.ErrorString("exec: invalid use of Cmd.Wait")
 	}
 	w, err := os.Wait(p.Pid, options);
 	if w != nil && (w.Exited() || w.Signaled()) {
-		p.Pid = -1;
+		p.Pid = -1
 	}
 	return w, err;
 }
@@ -159,7 +159,7 @@ func (p *Cmd) Close() os.Error {
 		// caller has already waited for pid.
 		_, err := p.Wait(0);
 		for err == os.EINTR {
-			_, err = p.Wait(0);
+			_, err = p.Wait(0)
 		}
 	}
 
@@ -167,17 +167,17 @@ func (p *Cmd) Close() os.Error {
 	var err os.Error;
 	if p.Stdin != nil && p.Stdin.Fd() >= 0 {
 		if err1 := p.Stdin.Close(); err1 != nil {
-			err = err1;
+			err = err1
 		}
 	}
 	if p.Stdout != nil && p.Stdout.Fd() >= 0 {
 		if err1 := p.Stdout.Close(); err1 != nil && err != nil {
-			err = err1;
+			err = err1
 		}
 	}
 	if p.Stderr != nil && p.Stderr != p.Stdout && p.Stderr.Fd() >= 0 {
 		if err1 := p.Stderr.Close(); err1 != nil && err != nil {
-			err = err1;
+			err = err1
 		}
 	}
 	return err;
@@ -186,7 +186,7 @@ func (p *Cmd) Close() os.Error {
 func canExec(file string) bool {
 	d, err := os.Stat(file);
 	if err != nil {
-		return false;
+		return false
 	}
 	return d.IsRegular() && d.Permission() & 0111 != 0;
 }
@@ -203,7 +203,7 @@ func LookPath(file string) (string, os.Error) {
 
 	if strings.Index(file, "/") >= 0 {
 		if canExec(file) {
-			return file, nil;
+			return file, nil
 		}
 		return "", os.ENOENT;
 	}
@@ -211,10 +211,10 @@ func LookPath(file string) (string, os.Error) {
 	for _, dir := range strings.Split(pathenv, ":", 0) {
 		if dir == "" {
 			// Unix shell semantics: path element "" means "."
-			dir = ".";
+			dir = "."
 		}
 		if canExec(dir+"/"+file) {
-			return dir+"/"+file, nil;
+			return dir+"/"+file, nil
 		}
 	}
 	return "", os.ENOENT;

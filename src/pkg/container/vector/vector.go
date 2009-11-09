@@ -20,7 +20,7 @@ type Vector struct {
 
 func copy(dst, src []Element) {
 	for i := 0; i < len(src); i++ {
-		dst[i] = src[i];
+		dst[i] = src[i]
 	}
 }
 
@@ -32,13 +32,13 @@ func expand(a []Element, i, n int) []Element {
 	len1 := len0+n;
 	if len1 < cap(a) {
 		// enough space - just expand
-		a = a[0:len1];
+		a = a[0:len1]
 	} else {
 		// not enough space - double capacity
 		capb := cap(a)*2;
 		if capb < len1 {
 			// still not enough - use required length
-			capb = len1;
+			capb = len1
 		}
 		// capb >= len1
 		b := make([]Element, len1, capb);
@@ -48,7 +48,7 @@ func expand(a []Element, i, n int) []Element {
 
 	// make a hole
 	for j := len0-1; j >= i; j-- {
-		a[j+n] = a[j];
+		a[j+n] = a[j]
 	}
 	return a;
 }
@@ -63,13 +63,13 @@ func (p *Vector) Init(initial_len int) *Vector {
 	if cap(a) == 0 || cap(a) < initial_len {
 		n := 8;	// initial capacity
 		if initial_len > n {
-			n = initial_len;
+			n = initial_len
 		}
 		a = make([]Element, n);
 	} else {
 		// nil out entries
 		for j := len(a)-1; j >= 0; j-- {
-			a[j] = nil;
+			a[j] = nil
 		}
 	}
 
@@ -86,7 +86,7 @@ func New(len int) *Vector	{ return new(Vector).Init(len) }
 // Len is 0 if p == nil.
 func (p *Vector) Len() int {
 	if p == nil {
-		return 0;
+		return 0
 	}
 	return len(p.a);
 }
@@ -108,7 +108,7 @@ func (p *Vector) Last() Element	{ return p.a[len(p.a)-1] }
 func (p *Vector) Data() []Element {
 	arr := make([]Element, p.Len());
 	for i, v := range p.a {
-		arr[i] = v;
+		arr[i] = v
 	}
 	return arr;
 }
@@ -150,7 +150,7 @@ func (p *Vector) Cut(i, j int) {
 
 	copy(a[i:m], a[j:n]);
 	for k := m; k < n; k++ {
-		a[k] = nil;	// support GC, nil out entries
+		a[k] = nil	// support GC, nil out entries
 	}
 
 	p.a = a[0:m];
@@ -170,7 +170,7 @@ func (p *Vector) Slice(i, j int) *Vector {
 // The function should not change the indexing of the vector underfoot.
 func (p *Vector) Do(f func(elem Element)) {
 	for i := 0; i < len(p.a); i++ {
-		f(p.a[i]);	// not too safe if f changes the Vector
+		f(p.a[i])	// not too safe if f changes the Vector
 	}
 }
 
@@ -217,7 +217,7 @@ func (p *Vector) Swap(i, j int) {
 // Iterate over all elements; driver for range
 func (p *Vector) iterate(c chan<- Element) {
 	for _, v := range p.a {
-		c <- v;
+		c <- v
 	}
 	close(c);
 }

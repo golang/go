@@ -13,7 +13,7 @@ import (
 
 func dotest() bool {
 	// For now, only works on ELF platforms.
-	return syscall.OS == "linux" && os.Getenv("GOARCH") == "amd64";
+	return syscall.OS == "linux" && os.Getenv("GOARCH") == "amd64"
 }
 
 func getTable(t *testing.T) *Table {
@@ -26,7 +26,7 @@ func crack(file string, t *testing.T) (*elf.File, *Table) {
 	// Open self
 	f, err := elf.Open(file);
 	if err != nil {
-		t.Fatal(err);
+		t.Fatal(err)
 	}
 	return parse(file, f, t);
 }
@@ -57,7 +57,7 @@ var goarch = os.Getenv("O")
 
 func TestLineFromAline(t *testing.T) {
 	if !dotest() {
-		return;
+		return
 	}
 
 	tab := getTable(t);
@@ -65,7 +65,7 @@ func TestLineFromAline(t *testing.T) {
 	// Find the sym package
 	pkg := tab.LookupFunc("gosym.TestLineFromAline").Obj;
 	if pkg == nil {
-		t.Fatalf("nil pkg");
+		t.Fatalf("nil pkg")
 	}
 
 	// Walk every absolute line and ensure that we hit every
@@ -77,11 +77,11 @@ func TestLineFromAline(t *testing.T) {
 		// Check for end of object
 		if path == "" {
 			if final == -1 {
-				final = i-1;
+				final = i-1
 			}
 			continue;
 		} else if final != -1 {
-			t.Fatalf("reached end of package at absolute line %d, but absolute line %d mapped to %s:%d", final, i, path, line);
+			t.Fatalf("reached end of package at absolute line %d, but absolute line %d mapped to %s:%d", final, i, path, line)
 		}
 		// It's okay to see files multiple times (e.g., sys.a)
 		if line == 1 {
@@ -91,20 +91,20 @@ func TestLineFromAline(t *testing.T) {
 		// Check that the is the next line in path
 		ll, ok := lastline[path];
 		if !ok {
-			t.Errorf("file %s starts on line %d", path, line);
+			t.Errorf("file %s starts on line %d", path, line)
 		} else if line != ll+1 {
-			t.Errorf("expected next line of file %s to be %d, got %d", path, ll+1, line);
+			t.Errorf("expected next line of file %s to be %d, got %d", path, ll+1, line)
 		}
 		lastline[path] = line;
 	}
 	if final == -1 {
-		t.Errorf("never reached end of object");
+		t.Errorf("never reached end of object")
 	}
 }
 
 func TestLineAline(t *testing.T) {
 	if !dotest() {
-		return;
+		return
 	}
 
 	tab := getTable(t);
@@ -117,27 +117,27 @@ func TestLineAline(t *testing.T) {
 		for i := 0; i < 1000; i++ {
 			path, line := o.lineFromAline(i);
 			if path == "" {
-				break;
+				break
 			}
 
 			// cgo files are full of 'Z' symbols, which we don't handle
 			if len(path) > 4 && path[len(path)-4 : len(path)] == ".cgo" {
-				continue;
+				continue
 			}
 
 			if minline, ok := found[path]; path != "" && ok {
 				if minline >= line {
 					// We've already covered this file
-					continue;
+					continue
 				}
 			}
 			found[path] = line;
 
 			a, err := o.alineFromLine(path, line);
 			if err != nil {
-				t.Errorf("absolute line %d in object %s maps to %s:%d, but mapping that back gives error %s", i, o.Paths[0].Name, path, line, err);
+				t.Errorf("absolute line %d in object %s maps to %s:%d, but mapping that back gives error %s", i, o.Paths[0].Name, path, line, err)
 			} else if a != i {
-				t.Errorf("absolute line %d in object %s maps to %s:%d, which maps back to absolute line %d\n", i, o.Paths[0].Name, path, line, a);
+				t.Errorf("absolute line %d in object %s maps to %s:%d, which maps back to absolute line %d\n", i, o.Paths[0].Name, path, line, a)
 			}
 		}
 	}
@@ -148,14 +148,14 @@ func TestLineAline(t *testing.T) {
 // gotest: fi
 func TestPCLine(t *testing.T) {
 	if !dotest() {
-		return;
+		return
 	}
 
 	f, tab := crack("_test/pclinetest", t);
 	text := f.Section(".text");
 	textdat, err := text.Data();
 	if err != nil {
-		t.Fatalf("reading .text: %v", err);
+		t.Fatalf("reading .text: %v", err)
 	}
 
 	// Test PCToLine
@@ -166,9 +166,9 @@ func TestPCLine(t *testing.T) {
 		off := pc - text.Addr;	// TODO(rsc): should not need off; bug in 8g
 		wantLine += int(textdat[off]);
 		if fn == nil {
-			t.Errorf("failed to get line of PC %#x", pc);
+			t.Errorf("failed to get line of PC %#x", pc)
 		} else if len(file) < 12 || file[len(file)-12 : len(file)] != "pclinetest.s" || line != wantLine || fn != sym {
-			t.Errorf("expected %s:%d (%s) at PC %#x, got %s:%d (%s)", "pclinetest.s", wantLine, sym.Name, pc, file, line, fn.Name);
+			t.Errorf("expected %s:%d (%s) at PC %#x, got %s:%d (%s)", "pclinetest.s", wantLine, sym.Name, pc, file, line, fn.Name)
 		}
 	}
 
@@ -187,19 +187,19 @@ func TestPCLine(t *testing.T) {
 			continue;
 		}
 		if lookupline == -1 {
-			lookupline = line;
+			lookupline = line
 		}
 		for ; lookupline <= line; lookupline++ {
 			pc2, fn2, err := tab.LineToPC(file, lookupline);
 			if lookupline != line {
 				// Should be nothing on this line
 				if err == nil {
-					t.Errorf("expected no PC at line %d, got %#x (%s)", lookupline, pc2, fn2.Name);
+					t.Errorf("expected no PC at line %d, got %#x (%s)", lookupline, pc2, fn2.Name)
 				}
 			} else if err != nil {
-				t.Errorf("failed to get PC of line %d: %s", lookupline, err);
+				t.Errorf("failed to get PC of line %d: %s", lookupline, err)
 			} else if pc != pc2 {
-				t.Errorf("expected PC %#x (%s) at line %d, got PC %#x (%s)", pc, fn.Name, line, pc2, fn2.Name);
+				t.Errorf("expected PC %#x (%s) at line %d, got PC %#x (%s)", pc, fn.Name, line, pc2, fn2.Name)
 			}
 		}
 		off = pc + 1 - text.Addr;

@@ -27,7 +27,7 @@ var update = flag.Bool("update", false, "update golden files")
 func lineString(text []byte, i int) string {
 	i0 := i;
 	for i < len(text) && text[i] != '\n' {
-		i++;
+		i++
 	}
 	return string(text[i0:i]);
 }
@@ -58,20 +58,20 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 	// determine printer configuration
 	cfg := Config{Tabwidth: tabwidth};
 	if mode & rawFormat != 0 {
-		cfg.Mode |= RawFormat;
+		cfg.Mode |= RawFormat
 	}
 
 	// format source
 	var buf bytes.Buffer;
 	if _, err := cfg.Fprint(&buf, prog); err != nil {
-		t.Error(err);
+		t.Error(err)
 	}
 	res := buf.Bytes();
 
 	// update golden files if necessary
 	if *update {
 		if err := io.WriteFile(golden, res, 0644); err != nil {
-			t.Error(err);
+			t.Error(err)
 		}
 		return;
 	}
@@ -85,7 +85,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 
 	// compare lengths
 	if len(res) != len(gld) {
-		t.Errorf("len = %d, expected %d (= len(%s))", len(res), len(gld), golden);
+		t.Errorf("len = %d, expected %d (= len(%s))", len(res), len(gld), golden)
 	}
 
 	// compare contents

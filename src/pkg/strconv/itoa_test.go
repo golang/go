@@ -62,14 +62,14 @@ func TestItoa(t *testing.T) {
 		s := Itob64(test.in, test.base);
 		if s != test.out {
 			t.Errorf("Itob64(%v, %v) = %v want %v\n",
-				test.in, test.base, s, test.out);
+				test.in, test.base, s, test.out)
 		}
 
 		if test.in >= 0 {
 			s := Uitob64(uint64(test.in), test.base);
 			if s != test.out {
 				t.Errorf("Uitob64(%v, %v) = %v want %v\n",
-					test.in, test.base, s, test.out);
+					test.in, test.base, s, test.out)
 			}
 		}
 
@@ -77,14 +77,14 @@ func TestItoa(t *testing.T) {
 			s := Itob(int(test.in), test.base);
 			if s != test.out {
 				t.Errorf("Itob(%v, %v) = %v want %v\n",
-					test.in, test.base, s, test.out);
+					test.in, test.base, s, test.out)
 			}
 
 			if test.in >= 0 {
 				s := Uitob(uint(test.in), test.base);
 				if s != test.out {
 					t.Errorf("Uitob(%v, %v) = %v want %v\n",
-						test.in, test.base, s, test.out);
+						test.in, test.base, s, test.out)
 				}
 			}
 		}
@@ -93,14 +93,14 @@ func TestItoa(t *testing.T) {
 			s := Itoa64(test.in);
 			if s != test.out {
 				t.Errorf("Itoa64(%v) = %v want %v\n",
-					test.in, s, test.out);
+					test.in, s, test.out)
 			}
 
 			if test.in >= 0 {
 				s := Uitob64(uint64(test.in), test.base);
 				if s != test.out {
 					t.Errorf("Uitob64(%v, %v) = %v want %v\n",
-						test.in, test.base, s, test.out);
+						test.in, test.base, s, test.out)
 				}
 			}
 
@@ -108,14 +108,14 @@ func TestItoa(t *testing.T) {
 				s := Itoa(int(test.in));
 				if s != test.out {
 					t.Errorf("Itoa(%v) = %v want %v\n",
-						test.in, s, test.out);
+						test.in, s, test.out)
 				}
 
 				if test.in >= 0 {
 					s := Uitoa(uint(test.in));
 					if s != test.out {
 						t.Errorf("Uitoa(%v) = %v want %v\n",
-							test.in, s, test.out);
+							test.in, s, test.out)
 					}
 				}
 			}
@@ -142,14 +142,14 @@ func TestUitoa(t *testing.T) {
 		s := Uitob64(test.in, test.base);
 		if s != test.out {
 			t.Errorf("Uitob64(%v, %v) = %v want %v\n",
-				test.in, test.base, s, test.out);
+				test.in, test.base, s, test.out)
 		}
 
 		if uint64(uint(test.in)) == test.in {
 			s := Uitob(uint(test.in), test.base);
 			if s != test.out {
 				t.Errorf("Uitob(%v, %v) = %v want %v\n",
-					test.in, test.base, s, test.out);
+					test.in, test.base, s, test.out)
 			}
 		}
 
@@ -157,14 +157,14 @@ func TestUitoa(t *testing.T) {
 			s := Uitoa64(test.in);
 			if s != test.out {
 				t.Errorf("Uitoa64(%v) = %v want %v\n",
-					test.in, s, test.out);
+					test.in, s, test.out)
 			}
 
 			if uint64(uint(test.in)) == test.in {
 				s := Uitoa(uint(test.in));
 				if s != test.out {
 					t.Errorf("Uitoa(%v) = %v want %v\n",
-						test.in, s, test.out);
+						test.in, s, test.out)
 				}
 			}
 		}

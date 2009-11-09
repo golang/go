@@ -30,12 +30,12 @@ func memmove(adst, asrc addr, n uintptr) {
 	case (n|src|dst)&(ptrSize-1) != 0:
 		// byte copy forward
 		for i := uintptr(0); i < n; i++ {
-			*(*byte)(addr(dst+i)) = *(*byte)(addr(src+i));
+			*(*byte)(addr(dst+i)) = *(*byte)(addr(src+i))
 		}
 	default:
 		// word copy forward
 		for i := uintptr(0); i < n; i += ptrSize {
-			*(*uintptr)(addr(dst+i)) = *(*uintptr)(addr(src+i));
+			*(*uintptr)(addr(dst+i)) = *(*uintptr)(addr(src+i))
 		}
 	}
 }
@@ -94,7 +94,7 @@ func (v *value) Interface() interface{} {
 		// to extract correctly.
 		if typ.NumMethod() == 0 {
 			// Extract as interface value without methods.
-			return *(*interface{})(v.addr);
+			return *(*interface{})(v.addr)
 		}
 		// Extract from v.addr as interface value with methods.
 		return *(*interface {
@@ -121,7 +121,7 @@ func (v *BoolValue) Get() bool	{ return *(*bool)(v.addr) }
 // Set sets v to the value x.
 func (v *BoolValue) Set(x bool) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*bool)(v.addr) = x;
 }
@@ -140,7 +140,7 @@ func (v *FloatValue) Get() float	{ return *(*float)(v.addr) }
 // Set sets v to the value x.
 func (v *FloatValue) Set(x float) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*float)(v.addr) = x;
 }
@@ -159,7 +159,7 @@ func (v *Float32Value) Get() float32	{ return *(*float32)(v.addr) }
 // Set sets v to the value x.
 func (v *Float32Value) Set(x float32) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*float32)(v.addr) = x;
 }
@@ -178,7 +178,7 @@ func (v *Float64Value) Get() float64	{ return *(*float64)(v.addr) }
 // Set sets v to the value x.
 func (v *Float64Value) Set(x float64) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*float64)(v.addr) = x;
 }
@@ -197,7 +197,7 @@ func (v *IntValue) Get() int	{ return *(*int)(v.addr) }
 // Set sets v to the value x.
 func (v *IntValue) Set(x int) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*int)(v.addr) = x;
 }
@@ -216,7 +216,7 @@ func (v *Int8Value) Get() int8	{ return *(*int8)(v.addr) }
 // Set sets v to the value x.
 func (v *Int8Value) Set(x int8) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*int8)(v.addr) = x;
 }
@@ -235,7 +235,7 @@ func (v *Int16Value) Get() int16	{ return *(*int16)(v.addr) }
 // Set sets v to the value x.
 func (v *Int16Value) Set(x int16) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*int16)(v.addr) = x;
 }
@@ -254,7 +254,7 @@ func (v *Int32Value) Get() int32	{ return *(*int32)(v.addr) }
 // Set sets v to the value x.
 func (v *Int32Value) Set(x int32) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*int32)(v.addr) = x;
 }
@@ -273,7 +273,7 @@ func (v *Int64Value) Get() int64	{ return *(*int64)(v.addr) }
 // Set sets v to the value x.
 func (v *Int64Value) Set(x int64) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*int64)(v.addr) = x;
 }
@@ -292,7 +292,7 @@ func (v *StringValue) Get() string	{ return *(*string)(v.addr) }
 // Set sets v to the value x.
 func (v *StringValue) Set(x string) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*string)(v.addr) = x;
 }
@@ -311,7 +311,7 @@ func (v *UintValue) Get() uint	{ return *(*uint)(v.addr) }
 // Set sets v to the value x.
 func (v *UintValue) Set(x uint) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*uint)(v.addr) = x;
 }
@@ -330,7 +330,7 @@ func (v *Uint8Value) Get() uint8	{ return *(*uint8)(v.addr) }
 // Set sets v to the value x.
 func (v *Uint8Value) Set(x uint8) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*uint8)(v.addr) = x;
 }
@@ -349,7 +349,7 @@ func (v *Uint16Value) Get() uint16	{ return *(*uint16)(v.addr) }
 // Set sets v to the value x.
 func (v *Uint16Value) Set(x uint16) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*uint16)(v.addr) = x;
 }
@@ -368,7 +368,7 @@ func (v *Uint32Value) Get() uint32	{ return *(*uint32)(v.addr) }
 // Set sets v to the value x.
 func (v *Uint32Value) Set(x uint32) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*uint32)(v.addr) = x;
 }
@@ -387,7 +387,7 @@ func (v *Uint64Value) Get() uint64	{ return *(*uint64)(v.addr) }
 // Set sets v to the value x.
 func (v *Uint64Value) Set(x uint64) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*uint64)(v.addr) = x;
 }
@@ -406,7 +406,7 @@ func (v *UintptrValue) Get() uintptr	{ return *(*uintptr)(v.addr) }
 // Set sets v to the value x.
 func (v *UintptrValue) Set(x uintptr) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*uintptr)(v.addr) = x;
 }
@@ -428,19 +428,19 @@ func (v *UnsafePointerValue) Get() uintptr	{ return uintptr(*(*unsafe.Pointer)(v
 // Set sets v to the value x.
 func (v *UnsafePointerValue) Set(x unsafe.Pointer) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	*(*unsafe.Pointer)(v.addr) = x;
 }
 
 // Set sets v to the value x.
 func (v *UnsafePointerValue) SetValue(x Value) {
-	v.Set(unsafe.Pointer(x.(*UnsafePointerValue).Get()));
+	v.Set(unsafe.Pointer(x.(*UnsafePointerValue).Get()))
 }
 
 func typesMustMatch(t1, t2 Type) {
 	if t1 != t2 {
-		panicln("type mismatch:", t1.String(), "!=", t2.String());
+		panicln("type mismatch:", t1.String(), "!=", t2.String())
 	}
 }
 
@@ -470,7 +470,7 @@ func ArrayCopy(dst, src ArrayOrSliceValue) int {
 	typesMustMatch(de, se);
 	n := dst.Len();
 	if xn := src.Len(); n > xn {
-		n = xn;
+		n = xn
 	}
 	memmove(dst.addr(), src.addr(), uintptr(n) * de.Size());
 	return n;
@@ -494,7 +494,7 @@ func (v *ArrayValue) addr() addr	{ return v.value.addr }
 // The new value x must have the same type as v.
 func (v *ArrayValue) Set(x *ArrayValue) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	typesMustMatch(v.typ, x.typ);
 	ArrayCopy(v, x);
@@ -508,7 +508,7 @@ func (v *ArrayValue) Elem(i int) Value {
 	typ := v.typ.(*ArrayType).Elem();
 	n := v.Len();
 	if i < 0 || i >= n {
-		panic("index", i, "in array len", n);
+		panic("index", i, "in array len", n)
 	}
 	p := addr(uintptr(v.addr()) + uintptr(i) * typ.Size());
 	return newValue(typ, p, v.canSet);
@@ -549,7 +549,7 @@ func (v *SliceValue) addr() addr	{ return addr(v.slice().Data) }
 func (v *SliceValue) SetLen(n int) {
 	s := v.slice();
 	if n < 0 || n > int(s.Cap) {
-		panicln("SetLen", n, "with capacity", s.Cap);
+		panicln("SetLen", n, "with capacity", s.Cap)
 	}
 	s.Len = n;
 }
@@ -558,7 +558,7 @@ func (v *SliceValue) SetLen(n int) {
 // The new value x must have the same type as v.
 func (v *SliceValue) Set(x *SliceValue) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	typesMustMatch(v.typ, x.typ);
 	*v.slice() = *x.slice();
@@ -571,7 +571,7 @@ func (v *SliceValue) SetValue(x Value)	{ v.Set(x.(*SliceValue)) }
 func (v *SliceValue) Slice(beg, end int) *SliceValue {
 	cap := v.Cap();
 	if beg < 0 || end < beg || end > cap {
-		panic("slice bounds [", beg, ":", end, "] with capacity ", cap);
+		panic("slice bounds [", beg, ":", end, "] with capacity ", cap)
 	}
 	typ := v.typ.(*SliceType);
 	s := new(SliceHeader);
@@ -586,7 +586,7 @@ func (v *SliceValue) Elem(i int) Value {
 	typ := v.typ.(*SliceType).Elem();
 	n := v.Len();
 	if i < 0 || i >= n {
-		panicln("index", i, "in array of length", n);
+		panicln("index", i, "in array of length", n)
 	}
 	p := addr(uintptr(v.addr()) + uintptr(i) * typ.Size());
 	return newValue(typ, p, v.canSet);
@@ -598,7 +598,7 @@ func MakeSlice(typ *SliceType, len, cap int) *SliceValue {
 	s := new(SliceHeader);
 	size := typ.Elem().Size() * uintptr(cap);
 	if size == 0 {
-		size = 1;
+		size = 1
 	}
 	data := make([]uint8, size);
 	s.Data = uintptr(addr(&data[0]));
@@ -623,7 +623,7 @@ func (v *ChanValue) IsNil() bool	{ return *(*uintptr)(v.addr) == 0 }
 // The new value x must have the same type as v.
 func (v *ChanValue) Set(x *ChanValue) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	typesMustMatch(v.typ, x.typ);
 	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
@@ -671,7 +671,7 @@ func (v *ChanValue) Cap() int {
 func (v *ChanValue) send(x Value, b *bool) {
 	t := v.Type().(*ChanType);
 	if t.Dir() & SendDir == 0 {
-		panic("send on recv-only channel");
+		panic("send on recv-only channel")
 	}
 	typesMustMatch(t.Elem(), x.Type());
 	ch := *(**byte)(v.addr);
@@ -682,7 +682,7 @@ func (v *ChanValue) send(x Value, b *bool) {
 func (v *ChanValue) recv(b *bool) Value {
 	t := v.Type().(*ChanType);
 	if t.Dir() & RecvDir == 0 {
-		panic("recv on send-only channel");
+		panic("recv on send-only channel")
 	}
 	ch := *(**byte)(v.addr);
 	x := MakeZero(t.Elem());
@@ -710,7 +710,7 @@ func (v *ChanValue) TryRecv() Value {
 	var ok bool;
 	x := v.recv(&ok);
 	if !ok {
-		return nil;
+		return nil
 	}
 	return x;
 }
@@ -718,10 +718,10 @@ func (v *ChanValue) TryRecv() Value {
 // MakeChan creates a new channel with the specified type and buffer size.
 func MakeChan(typ *ChanType, buffer int) *ChanValue {
 	if buffer < 0 {
-		panic("MakeChan: negative buffer size");
+		panic("MakeChan: negative buffer size")
 	}
 	if typ.Dir() != BothDir {
-		panic("MakeChan: unidirectional channel type");
+		panic("MakeChan: unidirectional channel type")
 	}
 	v := MakeZero(typ).(*ChanValue);
 	*(**byte)(v.addr) = makechan((*runtime.ChanType)(unsafe.Pointer(typ)), uint32(buffer));
@@ -750,7 +750,7 @@ func (v *FuncValue) Get() uintptr	{ return *(*uintptr)(v.addr) }
 // The new value x must have the same type as v.
 func (v *FuncValue) Set(x *FuncValue) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	typesMustMatch(v.typ, x.typ);
 	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
@@ -766,7 +766,7 @@ func (v *FuncValue) SetValue(x Value)	{ v.Set(x.(*FuncValue)) }
 func (v *value) Method(i int) *FuncValue {
 	t := v.Type().uncommon();
 	if t == nil || i < 0 || i >= len(t.methods) {
-		return nil;
+		return nil
 	}
 	p := &t.methods[i];
 	fn := p.tfn;
@@ -789,10 +789,10 @@ func (fv *FuncValue) Call(in []Value) []Value {
 	t := fv.Type().(*FuncType);
 	nin := len(in);
 	if fv.first != nil && !fv.isInterface {
-		nin++;
+		nin++
 	}
 	if nin != t.NumIn() {
-		panic("FuncValue: wrong argument count");
+		panic("FuncValue: wrong argument count")
 	}
 	nout := t.NumOut();
 
@@ -803,7 +803,7 @@ func (fv *FuncValue) Call(in []Value) []Value {
 	size := uintptr(0);
 	if fv.isInterface {
 		// extra word for interface value
-		size += ptrSize;
+		size += ptrSize
 	}
 	for i := 0; i < nin; i++ {
 		tv := t.In(i);
@@ -823,7 +823,7 @@ func (fv *FuncValue) Call(in []Value) []Value {
 	// the argument copying is going to round it up to
 	// a multiple of 8 anyway, so make it 8 to begin with.
 	if size < 8 {
-		size = 8;
+		size = 8
 	}
 	args := make([]byte, size);
 	ptr := uintptr(unsafe.Pointer(&args[0]));
@@ -908,7 +908,7 @@ func setiface(typ *InterfaceType, x *interface{}, addr addr)
 func (v *InterfaceValue) Set(x Value) {
 	i := x.Interface();
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	// Two different representations; see comment in Get.
 	// Empty interface is easy.
@@ -932,7 +932,7 @@ func (v *InterfaceValue) SetValue(x Value)	{ v.Set(x) }
 func (v *InterfaceValue) Method(i int) *FuncValue {
 	t := v.Type().(*InterfaceType);
 	if t == nil || i < 0 || i >= len(t.methods) {
-		return nil;
+		return nil
 	}
 	p := &t.methods[i];
 
@@ -962,7 +962,7 @@ func (v *MapValue) IsNil() bool	{ return *(*uintptr)(v.addr) == 0 }
 // The new value x must have the same type as v.
 func (v *MapValue) Set(x *MapValue) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	typesMustMatch(v.typ, x.typ);
 	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
@@ -987,11 +987,11 @@ func (v *MapValue) Elem(key Value) Value {
 	typesMustMatch(t.Key(), key.Type());
 	m := *(**byte)(v.addr);
 	if m == nil {
-		return nil;
+		return nil
 	}
 	newval := MakeZero(t.Elem());
 	if !mapaccess(m, (*byte)(key.getAddr()), (*byte)(newval.getAddr())) {
-		return nil;
+		return nil
 	}
 	return newval;
 }
@@ -1014,7 +1014,7 @@ func (v *MapValue) SetElem(key, val Value) {
 func (v *MapValue) Len() int {
 	m := *(**byte)(v.addr);
 	if m == nil {
-		return 0;
+		return 0
 	}
 	return int(maplen(m));
 }
@@ -1026,7 +1026,7 @@ func (v *MapValue) Keys() []Value {
 	m := *(**byte)(v.addr);
 	mlen := int32(0);
 	if m != nil {
-		mlen = maplen(m);
+		mlen = maplen(m)
 	}
 	it := mapiterinit(m);
 	a := make([]Value, mlen);
@@ -1034,7 +1034,7 @@ func (v *MapValue) Keys() []Value {
 	for i = 0; i < len(a); i++ {
 		k := MakeZero(tk);
 		if !mapiterkey(it, (*byte)(k.getAddr())) {
-			break;
+			break
 		}
 		a[i] = k;
 		mapiternext(it);
@@ -1069,7 +1069,7 @@ func (v *PtrValue) Get() uintptr	{ return *(*uintptr)(v.addr) }
 // The new value x must have the same type as v.
 func (v *PtrValue) Set(x *PtrValue) {
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	typesMustMatch(v.typ, x.typ);
 	// TODO: This will have to move into the runtime
@@ -1083,7 +1083,7 @@ func (v *PtrValue) SetValue(x Value)	{ v.Set(x.(*PtrValue)) }
 // PointTo changes v to point to x.
 func (v *PtrValue) PointTo(x Value) {
 	if !x.CanSet() {
-		panic("cannot set x; cannot point to x");
+		panic("cannot set x; cannot point to x")
 	}
 	typesMustMatch(v.typ.(*PtrType).Elem(), x.Type());
 	// TODO: This will have to move into the runtime
@@ -1095,7 +1095,7 @@ func (v *PtrValue) PointTo(x Value) {
 // If v is a nil pointer, Elem returns a nil Value.
 func (v *PtrValue) Elem() Value {
 	if v.IsNil() {
-		return nil;
+		return nil
 	}
 	return newValue(v.typ.(*PtrType).Elem(), *(*addr)(v.addr), v.canSet);
 }
@@ -1105,7 +1105,7 @@ func (v *PtrValue) Elem() Value {
 // If v is not a pointer, Indirect returns v.
 func Indirect(v Value) Value {
 	if pv, ok := v.(*PtrValue); ok {
-		return pv.Elem();
+		return pv.Elem()
 	}
 	return v;
 }
@@ -1125,7 +1125,7 @@ func (v *StructValue) Set(x *StructValue) {
 	// TODO: This will have to move into the runtime
 	// once the gc goes in.
 	if !v.canSet {
-		panic(cannotSet);
+		panic(cannotSet)
 	}
 	typesMustMatch(v.typ, x.typ);
 	memmove(v.addr, x.addr, v.typ.Size());
@@ -1138,7 +1138,7 @@ func (v *StructValue) SetValue(x Value)	{ v.Set(x.(*StructValue)) }
 func (v *StructValue) Field(i int) Value {
 	t := v.typ.(*StructType);
 	if i < 0 || i >= t.NumField() {
-		return nil;
+		return nil
 	}
 	f := t.Field(i);
 	return newValue(f.Type, addr(uintptr(v.addr) + f.Offset), v.canSet && f.PkgPath == "");
@@ -1150,10 +1150,10 @@ func (t *StructValue) FieldByIndex(index []int) (v Value) {
 	for i, x := range index {
 		if i > 0 {
 			if p, ok := v.(*PtrValue); ok {
-				v = p.Elem();
+				v = p.Elem()
 			}
 			if s, ok := v.(*StructValue); ok {
-				t = s;
+				t = s
 			} else {
 				v = nil;
 				return;
@@ -1168,7 +1168,7 @@ func (t *StructValue) FieldByIndex(index []int) (v Value) {
 // The result is nil if no field was found.
 func (t *StructValue) FieldByName(name string) Value {
 	if f, ok := t.Type().(*StructType).FieldByName(name); ok {
-		return t.FieldByIndex(f.Index);
+		return t.FieldByIndex(f.Index)
 	}
 	return nil;
 }
@@ -1184,7 +1184,7 @@ func (v *StructValue) NumField() int	{ return v.typ.(*StructType).NumField() }
 // stored in the interface i.  NewValue(nil) returns nil.
 func NewValue(i interface{}) Value {
 	if i == nil {
-		return nil;
+		return nil
 	}
 	t, a := unsafe.Reflect(i);
 	return newValue(toType(t), addr(a), true);
@@ -1192,14 +1192,14 @@ func NewValue(i interface{}) Value {
 
 
 func newFuncValue(typ Type, addr addr, canSet bool) *FuncValue {
-	return &FuncValue{value: value{typ, addr, canSet}};
+	return &FuncValue{value: value{typ, addr, canSet}}
 }
 
 func newValue(typ Type, addr addr, canSet bool) Value {
 	// FuncValue has a different layout;
 	// it needs a extra space for the fixed receivers.
 	if _, ok := typ.(*FuncType); ok {
-		return newFuncValue(typ, addr, canSet);
+		return newFuncValue(typ, addr, canSet)
 	}
 
 	// All values have same memory layout;
@@ -1214,53 +1214,53 @@ func newValue(typ Type, addr addr, canSet bool) Value {
 		// they're our types.
 		// Something about implicit assignment
 		// to struct fields.
-		return (*ArrayValue)(v);
+		return (*ArrayValue)(v)
 	case *BoolType:
-		return (*BoolValue)(v);
+		return (*BoolValue)(v)
 	case *ChanType:
-		return (*ChanValue)(v);
+		return (*ChanValue)(v)
 	case *FloatType:
-		return (*FloatValue)(v);
+		return (*FloatValue)(v)
 	case *Float32Type:
-		return (*Float32Value)(v);
+		return (*Float32Value)(v)
 	case *Float64Type:
-		return (*Float64Value)(v);
+		return (*Float64Value)(v)
 	case *IntType:
-		return (*IntValue)(v);
+		return (*IntValue)(v)
 	case *Int8Type:
-		return (*Int8Value)(v);
+		return (*Int8Value)(v)
 	case *Int16Type:
-		return (*Int16Value)(v);
+		return (*Int16Value)(v)
 	case *Int32Type:
-		return (*Int32Value)(v);
+		return (*Int32Value)(v)
 	case *Int64Type:
-		return (*Int64Value)(v);
+		return (*Int64Value)(v)
 	case *InterfaceType:
-		return (*InterfaceValue)(v);
+		return (*InterfaceValue)(v)
 	case *MapType:
-		return (*MapValue)(v);
+		return (*MapValue)(v)
 	case *PtrType:
-		return (*PtrValue)(v);
+		return (*PtrValue)(v)
 	case *SliceType:
-		return (*SliceValue)(v);
+		return (*SliceValue)(v)
 	case *StringType:
-		return (*StringValue)(v);
+		return (*StringValue)(v)
 	case *StructType:
-		return (*StructValue)(v);
+		return (*StructValue)(v)
 	case *UintType:
-		return (*UintValue)(v);
+		return (*UintValue)(v)
 	case *Uint8Type:
-		return (*Uint8Value)(v);
+		return (*Uint8Value)(v)
 	case *Uint16Type:
-		return (*Uint16Value)(v);
+		return (*Uint16Value)(v)
 	case *Uint32Type:
-		return (*Uint32Value)(v);
+		return (*Uint32Value)(v)
 	case *Uint64Type:
-		return (*Uint64Value)(v);
+		return (*Uint64Value)(v)
 	case *UintptrType:
-		return (*UintptrValue)(v);
+		return (*UintptrValue)(v)
 	case *UnsafePointerType:
-		return (*UnsafePointerValue)(v);
+		return (*UnsafePointerValue)(v)
 	}
 	panicln("newValue", typ.String());
 }
@@ -1272,7 +1272,7 @@ func MakeZero(typ Type) Value {
 	// with the garbage collector.
 	size := typ.Size();
 	if size == 0 {
-		size = 1;
+		size = 1
 	}
 	data := make([]uint8, size);
 	return newValue(typ, addr(&data[0]), true);

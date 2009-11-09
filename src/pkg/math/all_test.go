@@ -157,13 +157,13 @@ var tanh = []float64{
 func tolerance(a, b, e float64) bool {
 	d := a-b;
 	if d < 0 {
-		d = -d;
+		d = -d
 	}
 
 	if a != 0 {
 		e = e*a;
 		if e < 0 {
-			e = -e;
+			e = -e
 		}
 	}
 	return d < e;
@@ -174,7 +174,7 @@ func veryclose(a, b float64) bool	{ return tolerance(a, b, 4e-16) }
 func TestAsin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Asin(vf[i]/10); !veryclose(asin[i], f) {
-			t.Errorf("Asin(%g) = %g, want %g\n", vf[i]/10, f, asin[i]);
+			t.Errorf("Asin(%g) = %g, want %g\n", vf[i]/10, f, asin[i])
 		}
 	}
 }
@@ -182,7 +182,7 @@ func TestAsin(t *testing.T) {
 func TestAtan(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Atan(vf[i]); !veryclose(atan[i], f) {
-			t.Errorf("Atan(%g) = %g, want %g\n", vf[i], f, atan[i]);
+			t.Errorf("Atan(%g) = %g, want %g\n", vf[i], f, atan[i])
 		}
 	}
 }
@@ -190,7 +190,7 @@ func TestAtan(t *testing.T) {
 func TestExp(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Exp(vf[i]); !veryclose(exp[i], f) {
-			t.Errorf("Exp(%g) = %g, want %g\n", vf[i], f, exp[i]);
+			t.Errorf("Exp(%g) = %g, want %g\n", vf[i], f, exp[i])
 		}
 	}
 }
@@ -198,7 +198,7 @@ func TestExp(t *testing.T) {
 func TestFloor(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Floor(vf[i]); floor[i] != f {
-			t.Errorf("Floor(%g) = %g, want %g\n", vf[i], f, floor[i]);
+			t.Errorf("Floor(%g) = %g, want %g\n", vf[i], f, floor[i])
 		}
 	}
 }
@@ -207,18 +207,18 @@ func TestLog(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := Fabs(vf[i]);
 		if f := Log(a); log[i] != f {
-			t.Errorf("Log(%g) = %g, want %g\n", a, f, log[i]);
+			t.Errorf("Log(%g) = %g, want %g\n", a, f, log[i])
 		}
 	}
 	if f := Log(10); f != Ln10 {
-		t.Errorf("Log(%g) = %g, want %g\n", 10, f, Ln10);
+		t.Errorf("Log(%g) = %g, want %g\n", 10, f, Ln10)
 	}
 }
 
 func TestPow(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Pow(10, vf[i]); !close(pow[i], f) {
-			t.Errorf("Pow(10, %.17g) = %.17g, want %.17g\n", vf[i], f, pow[i]);
+			t.Errorf("Pow(10, %.17g) = %.17g, want %.17g\n", vf[i], f, pow[i])
 		}
 	}
 }
@@ -226,7 +226,7 @@ func TestPow(t *testing.T) {
 func TestSin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Sin(vf[i]); !close(sin[i], f) {
-			t.Errorf("Sin(%g) = %g, want %g\n", vf[i], f, sin[i]);
+			t.Errorf("Sin(%g) = %g, want %g\n", vf[i], f, sin[i])
 		}
 	}
 }
@@ -234,7 +234,7 @@ func TestSin(t *testing.T) {
 func TestSinh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Sinh(vf[i]); !veryclose(sinh[i], f) {
-			t.Errorf("Sinh(%g) = %g, want %g\n", vf[i], f, sinh[i]);
+			t.Errorf("Sinh(%g) = %g, want %g\n", vf[i], f, sinh[i])
 		}
 	}
 }
@@ -243,7 +243,7 @@ func TestSqrt(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := Fabs(vf[i]);
 		if f := Sqrt(a); !veryclose(sqrt[i], f) {
-			t.Errorf("Sqrt(%g) = %g, want %g\n", a, f, floor[i]);
+			t.Errorf("Sqrt(%g) = %g, want %g\n", a, f, floor[i])
 		}
 	}
 }
@@ -251,7 +251,7 @@ func TestSqrt(t *testing.T) {
 func TestTan(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Tan(vf[i]); !close(tan[i], f) {
-			t.Errorf("Tan(%g) = %g, want %g\n", vf[i], f, tan[i]);
+			t.Errorf("Tan(%g) = %g, want %g\n", vf[i], f, tan[i])
 		}
 	}
 }
@@ -259,7 +259,7 @@ func TestTan(t *testing.T) {
 func TestTanh(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		if f := Tanh(vf[i]); !veryclose(tanh[i], f) {
-			t.Errorf("Tanh(%g) = %g, want %g\n", vf[i], f, tanh[i]);
+			t.Errorf("Tanh(%g) = %g, want %g\n", vf[i], f, tanh[i])
 		}
 	}
 }
@@ -268,7 +268,7 @@ func TestHypot(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
 		a := Fabs(tanh[i]*Sqrt(2));
 		if f := Hypot(tanh[i], tanh[i]); !veryclose(a, f) {
-			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a);
+			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a)
 		}
 	}
 }

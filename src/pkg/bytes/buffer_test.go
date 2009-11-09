@@ -19,7 +19,7 @@ var bytes []byte	// test data; same as data but as a slice.
 func init() {
 	bytes = make([]byte, N);
 	for i := 0; i < N; i++ {
-		bytes[i] = 'a'+byte(i%26);
+		bytes[i] = 'a'+byte(i%26)
 	}
 	data = string(bytes);
 }
@@ -29,19 +29,19 @@ func check(t *testing.T, testname string, buf *Buffer, s string) {
 	bytes := buf.Bytes();
 	str := buf.String();
 	if buf.Len() != len(bytes) {
-		t.Errorf("%s: buf.Len() == %d, len(buf.Bytes()) == %d\n", testname, buf.Len(), len(bytes));
+		t.Errorf("%s: buf.Len() == %d, len(buf.Bytes()) == %d\n", testname, buf.Len(), len(bytes))
 	}
 
 	if buf.Len() != len(str) {
-		t.Errorf("%s: buf.Len() == %d, len(buf.String()) == %d\n", testname, buf.Len(), len(str));
+		t.Errorf("%s: buf.Len() == %d, len(buf.String()) == %d\n", testname, buf.Len(), len(str))
 	}
 
 	if buf.Len() != len(s) {
-		t.Errorf("%s: buf.Len() == %d, len(s) == %d\n", testname, buf.Len(), len(s));
+		t.Errorf("%s: buf.Len() == %d, len(s) == %d\n", testname, buf.Len(), len(s))
 	}
 
 	if string(bytes) != s {
-		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q\n", testname, string(bytes), s);
+		t.Errorf("%s: string(buf.Bytes()) == %q, s == %q\n", testname, string(bytes), s)
 	}
 }
 
@@ -54,10 +54,10 @@ func fillString(t *testing.T, testname string, buf *Buffer, s string, n int, fus
 	for ; n > 0; n-- {
 		m, err := buf.WriteString(fus);
 		if m != len(fus) {
-			t.Errorf(testname + " (fill 2): m == %d, expected %d\n", m, len(fus));
+			t.Errorf(testname + " (fill 2): m == %d, expected %d\n", m, len(fus))
 		}
 		if err != nil {
-			t.Errorf(testname + " (fill 3): err should always be nil, found err == %s\n", err);
+			t.Errorf(testname + " (fill 3): err should always be nil, found err == %s\n", err)
 		}
 		s += fus;
 		check(t, testname + " (fill 4)", buf, s);
@@ -74,10 +74,10 @@ func fillBytes(t *testing.T, testname string, buf *Buffer, s string, n int, fub 
 	for ; n > 0; n-- {
 		m, err := buf.Write(fub);
 		if m != len(fub) {
-			t.Errorf(testname + " (fill 2): m == %d, expected %d\n", m, len(fub));
+			t.Errorf(testname + " (fill 2): m == %d, expected %d\n", m, len(fub))
 		}
 		if err != nil {
-			t.Errorf(testname + " (fill 3): err should always be nil, found err == %s\n", err);
+			t.Errorf(testname + " (fill 3): err should always be nil, found err == %s\n", err)
 		}
 		s += string(fub);
 		check(t, testname + " (fill 4)", buf, s);
@@ -106,10 +106,10 @@ func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
 	for {
 		n, err := buf.Read(fub);
 		if n == 0 {
-			break;
+			break
 		}
 		if err != nil {
-			t.Errorf(testname + " (empty 2): err should always be nil, found err == %s\n", err);
+			t.Errorf(testname + " (empty 2): err should always be nil, found err == %s\n", err)
 		}
 		s = s[n:len(s)];
 		check(t, testname + " (empty 3)", buf, s);
@@ -133,10 +133,10 @@ func TestBasicOperations(t *testing.T) {
 
 		n, err := buf.Write(Bytes(data[0:1]));
 		if n != 1 {
-			t.Errorf("wrote 1 byte, but n == %d\n", n);
+			t.Errorf("wrote 1 byte, but n == %d\n", n)
 		}
 		if err != nil {
-			t.Errorf("err should always be nil, but err == %s\n", err);
+			t.Errorf("err should always be nil, but err == %s\n", err)
 		}
 		check(t, "TestBasicOperations (4)", &buf, "a");
 
@@ -145,7 +145,7 @@ func TestBasicOperations(t *testing.T) {
 
 		n, err = buf.Write(Bytes(data[2:26]));
 		if n != 24 {
-			t.Errorf("wrote 25 bytes, but n == %d\n", n);
+			t.Errorf("wrote 25 bytes, but n == %d\n", n)
 		}
 		check(t, "TestBasicOperations (6)", &buf, string(data[0:26]));
 
@@ -161,14 +161,14 @@ func TestBasicOperations(t *testing.T) {
 		buf.WriteByte(data[1]);
 		c, err := buf.ReadByte();
 		if err != nil {
-			t.Errorf("ReadByte unexpected eof\n");
+			t.Errorf("ReadByte unexpected eof\n")
 		}
 		if c != data[1] {
-			t.Errorf("ReadByte wrong value c=%v\n", c);
+			t.Errorf("ReadByte wrong value c=%v\n", c)
 		}
 		c, err = buf.ReadByte();
 		if err == nil {
-			t.Errorf("ReadByte unexpected not eof\n");
+			t.Errorf("ReadByte unexpected not eof\n")
 		}
 	}
 }
@@ -220,9 +220,9 @@ func TestMixedReadsAndWrites(t *testing.T) {
 	for i := 0; i < 50; i++ {
 		wlen := rand.Intn(len(data));
 		if i%2 == 0 {
-			s = fillString(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, data[0:wlen]);
+			s = fillString(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, data[0:wlen])
 		} else {
-			s = fillBytes(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, bytes[0:wlen]);
+			s = fillBytes(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, bytes[0:wlen])
 		}
 
 		rlen := rand.Intn(len(data));
@@ -237,6 +237,6 @@ func TestMixedReadsAndWrites(t *testing.T) {
 func TestNil(t *testing.T) {
 	var b *Buffer;
 	if b.String() != "<nil>" {
-		t.Error("expcted <nil>; got %q", b.String());
+		t.Error("expcted <nil>; got %q", b.String())
 	}
 }

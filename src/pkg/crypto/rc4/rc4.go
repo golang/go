@@ -23,7 +23,7 @@ type Cipher struct {
 type KeySizeError int
 
 func (k KeySizeError) String() string {
-	return "crypto/rc4: invalid key size " + strconv.Itoa(int(k));
+	return "crypto/rc4: invalid key size " + strconv.Itoa(int(k))
 }
 
 // NewCipher creates and returns a new Cipher.  The key argument should be the
@@ -31,11 +31,11 @@ func (k KeySizeError) String() string {
 func NewCipher(key []byte) (*Cipher, os.Error) {
 	k := len(key);
 	if k < 1 || k > 256 {
-		return nil, KeySizeError(k);
+		return nil, KeySizeError(k)
 	}
 	var c Cipher;
 	for i := 0; i < 256; i++ {
-		c.s[i] = uint8(i);
+		c.s[i] = uint8(i)
 	}
 	var j uint8 = 0;
 	for i := 0; i < 256; i++ {
@@ -60,7 +60,7 @@ func (c *Cipher) XORKeyStream(buf []byte) {
 // process's memory.
 func (c *Cipher) Reset() {
 	for i := range c.s {
-		c.s[i] = 0;
+		c.s[i] = 0
 	}
 	c.i, c.j = 0, 0;
 }

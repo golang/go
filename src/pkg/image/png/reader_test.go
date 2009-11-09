@@ -36,7 +36,7 @@ var filenames = []string{
 func readPng(filename string) (image.Image, os.Error) {
 	f, err := os.Open(filename, os.O_RDONLY, 0444);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	defer f.Close();
 	return Decode(f);
@@ -56,14 +56,14 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 	cpm, _ := cm.(image.PalettedColorModel);
 	switch {
 	case cm == image.RGBAColorModel:
-		io.WriteString(w, "    using color;\n");
+		io.WriteString(w, "    using color;\n")
 	case cm == image.NRGBAColorModel:
-		io.WriteString(w, "    using color alpha;\n");
+		io.WriteString(w, "    using color alpha;\n")
 	case cpm != nil:
 		io.WriteString(w, "    using color palette;\n");
 		paletted = png.(*image.Paletted);
 	default:
-		io.WriteString(w, "unknown PNG decoder color model\n");
+		io.WriteString(w, "unknown PNG decoder color model\n")
 	}
 	io.WriteString(w, "}\n");
 
@@ -100,7 +100,7 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 			}
 		case cpm != nil:
 			for x := 0; x < png.Width(); x++ {
-				fmt.Fprintf(w, "%02x", paletted.ColorIndexAt(x, y));
+				fmt.Fprintf(w, "%02x", paletted.ColorIndexAt(x, y))
 			}
 		}
 		io.WriteString(w, "\n");
@@ -139,7 +139,7 @@ func TestReader(t *testing.T) {
 			ps, perr := pb.ReadString('\n');
 			ss, serr := sb.ReadString('\n');
 			if perr == os.EOF && serr == os.EOF {
-				break;
+				break
 			}
 			if perr != nil {
 				t.Error(fn, perr);

@@ -28,7 +28,7 @@ import (
 // Encode does not add these.
 func Encode(dst, src []byte) int {
 	if len(src) == 0 {
-		return 0;
+		return 0
 	}
 
 	n := 0;
@@ -52,7 +52,7 @@ func Encode(dst, src []byte) int {
 			v |= uint32(src[1])<<16;
 			fallthrough;
 		case 1:
-			v |= uint32(src[0])<<24;
+			v |= uint32(src[0])<<24
 		}
 
 		// Special case: zero (!!!!!) shortens to z.
@@ -75,7 +75,7 @@ func Encode(dst, src []byte) int {
 			m -= 4-len(src);
 			src = nil;
 		} else {
-			src = src[4:len(src)];
+			src = src[4:len(src)]
 		}
 		dst = dst[m:len(dst)];
 		n += m;
@@ -103,7 +103,7 @@ type encoder struct {
 
 func (e *encoder) Write(p []byte) (n int, err os.Error) {
 	if e.err != nil {
-		return 0, e.err;
+		return 0, e.err
 	}
 
 	// Leading fringe.
@@ -116,11 +116,11 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 		n += i;
 		p = p[i:len(p)];
 		if e.nbuf < 4 {
-			return;
+			return
 		}
 		nout := Encode(&e.out, &e.buf);
 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
-			return n, e.err;
+			return n, e.err
 		}
 		e.nbuf = 0;
 	}
@@ -129,13 +129,13 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 	for len(p) >= 4 {
 		nn := len(e.out)/5*4;
 		if nn > len(p) {
-			nn = len(p);
+			nn = len(p)
 		}
 		nn -= nn%4;
 		if nn > 0 {
 			nout := Encode(&e.out, p[0:nn]);
 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
-				return n, e.err;
+				return n, e.err
 			}
 		}
 		n += nn;
@@ -144,7 +144,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 
 	// Trailing fringe.
 	for i := 0; i < len(p); i++ {
-		e.buf[i] = p[i];
+		e.buf[i] = p[i]
 	}
 	e.nbuf = len(p);
 	n += len(p);
@@ -170,7 +170,7 @@ func (e *encoder) Close() os.Error {
 type CorruptInputError int64
 
 func (e CorruptInputError) String() string {
-	return "illegal ascii85 data at input byte" + strconv.Itoa64(int64(e));
+	return "illegal ascii85 data at input byte" + strconv.Itoa64(int64(e))
 }
 
 // Decode decodes src into dst, returning both the number
@@ -192,11 +192,11 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
 	var nb int;
 	for i, b := range src {
 		if len(dst)-ndst < 4 {
-			return;
+			return
 		}
 		switch {
 		case b <= ' ':
-			continue;
+			continue
 		case b == 'z' && nb == 0:
 			nb = 5;
 			v = 0;
@@ -204,7 +204,7 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
 			v = v*85 + uint32(b-'!');
 			nb++;
 		default:
-			return 0, 0, CorruptInputError(i);
+			return 0, 0, CorruptInputError(i)
 		}
 		if nb == 5 {
 			nsrc = i+1;
@@ -225,13 +225,13 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
 			// the extra byte provides enough bits to cover
 			// the inefficiency of the encoding for the block.
 			if nb == 1 {
-				return 0, 0, CorruptInputError(len(src));
+				return 0, 0, CorruptInputError(len(src))
 			}
 			for i := nb; i < 5; i++ {
 				// The short encoding truncated the output value.
 				// We have to assume the worst case values (digit 84)
 				// in order to ensure that the top bits are correct.
-				v = v*85 + 84;
+				v = v*85 + 84
 			}
 			for i := 0; i < nb-1; i++ {
 				dst[ndst] = byte(v>>24);
@@ -259,10 +259,10 @@ type decoder struct {
 
 func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	if len(p) == 0 {
-		return 0, nil;
+		return 0, nil
 	}
 	if d.err != nil {
-		return 0, d.err;
+		return 0, d.err
 	}
 
 	for {
@@ -286,7 +286,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 
 		// Out of input, out of decoded output.  Check errors.
 		if d.err != nil {
-			return 0, d.err;
+			return 0, d.err
 		}
 		if d.readErr != nil {
 			d.err = d.readErr;

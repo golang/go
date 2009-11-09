@@ -44,7 +44,7 @@ func (b *Buffer) Bytes() []byte	{ return b.buf[b.off : len(b.buf)] }
 func (b *Buffer) String() string {
 	if b == nil {
 		// Special case, useful in debugging.
-		return "<nil>";
+		return "<nil>"
 	}
 	return string(b.buf[b.off : len(b.buf)]);
 }
@@ -58,7 +58,7 @@ func (b *Buffer) Len() int	{ return len(b.buf) - b.off }
 func (b *Buffer) Truncate(n int) {
 	if n == 0 {
 		// Reuse buffer space.
-		b.off = 0;
+		b.off = 0
 	}
 	b.buf = b.buf[0 : b.off + n];
 }
@@ -78,7 +78,7 @@ func (b *Buffer) Write(p []byte) (n int, err os.Error) {
 		buf := b.buf;
 		if m+n > cap(b.buf) {
 			// not enough space anywhere
-			buf = make([]byte, 2*cap(b.buf) + n);
+			buf = make([]byte, 2*cap(b.buf) + n)
 		}
 		copyBytes(buf, 0, b.buf[b.off : b.off + m]);
 		b.buf = buf;
@@ -101,7 +101,7 @@ func (b *Buffer) WriteString(s string) (n int, err os.Error) {
 		buf := b.buf;
 		if m+n > cap(b.buf) {
 			// not enough space anywhere
-			buf = make([]byte, 2*cap(b.buf) + n);
+			buf = make([]byte, 2*cap(b.buf) + n)
 		}
 		copyBytes(buf, 0, b.buf[b.off : b.off + m]);
 		b.buf = buf;
@@ -119,7 +119,7 @@ func (b *Buffer) WriteString(s string) (n int, err os.Error) {
 func (b *Buffer) WriteByte(c byte) os.Error {
 	if b.oneByte == nil {
 		// Only happens once per Buffer, and then we have a slice.
-		b.oneByte = make([]byte, 1);
+		b.oneByte = make([]byte, 1)
 	}
 	b.oneByte[0] = c;
 	b.Write(b.oneByte);
@@ -132,14 +132,14 @@ func (b *Buffer) WriteByte(c byte) os.Error {
 // otherwise it is nil.
 func (b *Buffer) Read(p []byte) (n int, err os.Error) {
 	if b.off >= len(b.buf) {
-		return 0, os.EOF;
+		return 0, os.EOF
 	}
 	m := b.Len();
 	n = len(p);
 
 	if n > m {
 		// more bytes requested than available
-		n = m;
+		n = m
 	}
 
 	copyBytes(p, 0, b.buf[b.off : b.off + n]);
@@ -151,7 +151,7 @@ func (b *Buffer) Read(p []byte) (n int, err os.Error) {
 // If no byte is available, it returns error os.EOF.
 func (b *Buffer) ReadByte() (c byte, err os.Error) {
 	if b.off >= len(b.buf) {
-		return 0, os.EOF;
+		return 0, os.EOF
 	}
 	c = b.buf[b.off];
 	b.off++;

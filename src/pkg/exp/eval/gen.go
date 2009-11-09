@@ -366,10 +366,10 @@ func main() {
 	t.SetDelims("«", "»");
 	err := t.Parse(templateStr);
 	if err != nil {
-		log.Exit(err);
+		log.Exit(err)
 	}
 	err = t.Execute(data, os.Stdout);
 	if err != nil {
-		log.Exit(err);
+		log.Exit(err)
 	}
 }

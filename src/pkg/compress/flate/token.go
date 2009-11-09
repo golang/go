@@ -72,7 +72,7 @@ func literalToken(literal uint32) token	{ return token(literalType + literal) }
 
 // Convert a < xlength, xoffset > pair into a match token.
 func matchToken(xlength uint32, xoffset uint32) token {
-	return token(matchType + xlength << lengthShift + xoffset);
+	return token(matchType + xlength << lengthShift + xoffset)
 }
 
 // Returns the type of a token
@@ -93,11 +93,11 @@ func offsetCode(off uint32) uint32 {
 	const n = uint32(len(offsetCodes));
 	switch {
 	case off < n:
-		return offsetCodes[off];
+		return offsetCodes[off]
 	case off>>7 < n:
-		return offsetCodes[off>>7] + 14;
+		return offsetCodes[off>>7] + 14
 	default:
-		return offsetCodes[off>>14] + 28;
+		return offsetCodes[off>>14] + 28
 	}
 	panic("unreachable");
 }

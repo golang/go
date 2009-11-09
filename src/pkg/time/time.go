@@ -15,7 +15,7 @@ import (
 func Seconds() int64 {
 	sec, _, err := os.Time();
 	if err != nil {
-		panic("time: os.Time: ", err.String());
+		panic("time: os.Time: ", err.String())
 	}
 	return sec;
 }
@@ -25,7 +25,7 @@ func Seconds() int64 {
 func Nanoseconds() int64 {
 	sec, nsec, err := os.Time();
 	if err != nil {
-		panic("time: os.Time: ", err.String());
+		panic("time: os.Time: ", err.String())
 	}
 	return sec*1e9 + nsec;
 }
@@ -56,7 +56,7 @@ var leapyear = []int{31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 
 func months(year int64) []int {
 	if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
-		return leapyear;
+		return leapyear
 	}
 	return nonleapyear;
 }
@@ -90,7 +90,7 @@ func SecondsToUTC(sec int64) *Time {
 	// Day 0 = January 1, 1970 was a Thursday
 	t.Weekday = int((day+Thursday)%7);
 	if t.Weekday < 0 {
-		t.Weekday += 7;
+		t.Weekday += 7
 	}
 
 	// Change day from 0 = 1970 to 0 = 2001,
@@ -135,7 +135,7 @@ func SecondsToUTC(sec int64) *Time {
 	var m int;
 	yday := int(day);
 	for m = 0; m < 12 && yday >= months[m]; m++ {
-		yday -= months[m];
+		yday -= months[m]
 	}
 	t.Month = m+1;
 	t.Day = yday+1;
@@ -199,7 +199,7 @@ func (t *Time) Seconds() int64 {
 	// Add in days this year.
 	months := months(t.Year);
 	for m := 0; m < t.Month - 1; m++ {
-		day += int64(months[m]);
+		day += int64(months[m])
 	}
 	day += int64(t.Day - 1);
 
@@ -257,13 +257,13 @@ var shortMonthNames = []string{
 
 func copy(dst []byte, s string) {
 	for i := 0; i < len(s); i++ {
-		dst[i] = s[i];
+		dst[i] = s[i]
 	}
 }
 
 func decimal(dst []byte, n int) {
 	if n < 0 {
-		n = 0;
+		n = 0
 	}
 	for i := len(dst)-1; i >= 0; i-- {
 		dst[i] = byte(n%10 + '0');
@@ -288,17 +288,17 @@ func format(t *Time, fmt string) string {
 			i++;
 			switch fmt[i] {
 			case 'A':	// %A full weekday name
-				bp = addString(buf, bp, longDayNames[t.Weekday]);
+				bp = addString(buf, bp, longDayNames[t.Weekday])
 			case 'a':	// %a abbreviated weekday name
-				bp = addString(buf, bp, shortDayNames[t.Weekday]);
+				bp = addString(buf, bp, shortDayNames[t.Weekday])
 			case 'b':	// %b abbreviated month name
-				bp = addString(buf, bp, shortMonthNames[t.Month]);
+				bp = addString(buf, bp, shortMonthNames[t.Month])
 			case 'd':	// %d day of month (01-31)
 				decimal(buf[bp : bp+2], t.Day);
 				bp += 2;
 			case 'e':	// %e day of month ( 1-31)
 				if t.Day >= 10 {
-					decimal(buf[bp : bp+2], t.Day);
+					decimal(buf[bp : bp+2], t.Day)
 				} else {
 					buf[bp] = ' ';
 					buf[bp+1] = byte(t.Day + '0');
@@ -320,7 +320,7 @@ func format(t *Time, fmt string) string {
 				decimal(buf[bp : bp+2], int(t.Year % 100));
 				bp += 2;
 			case 'Z':
-				bp = addString(buf, bp, t.Zone);
+				bp = addString(buf, bp, t.Zone)
 			default:
 				buf[bp] = '%';
 				buf[bp+1] = fmt[i];

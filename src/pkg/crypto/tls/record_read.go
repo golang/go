@@ -23,18 +23,18 @@ func recordReader(c chan<- *record, source io.Reader) {
 		var header [5]byte;
 		n, _ := buf.Read(header[0:len(header)]);
 		if n != 5 {
-			return;
+			return
 		}
 
 		recordLength := int(header[3])<<8 | int(header[4]);
 		if recordLength > maxTLSCiphertext {
-			return;
+			return
 		}
 
 		payload := make([]byte, recordLength);
 		n, _ = buf.Read(payload);
 		if n != recordLength {
-			return;
+			return
 		}
 
 		c <- &record{recordType(header[0]), header[1], header[2], payload};

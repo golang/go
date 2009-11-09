@@ -26,7 +26,7 @@ type pkcs1PrivateKey struct {
 
 // rawValueIsInteger returns true iff the given ASN.1 RawValue is an INTEGER type.
 func rawValueIsInteger(raw *asn1.RawValue) bool {
-	return raw.Class == 0 && raw.Tag == 2 && raw.IsCompound == false;
+	return raw.Class == 0 && raw.Tag == 2 && raw.IsCompound == false
 }
 
 // ParsePKCS1PrivateKey returns an RSA private key from its ASN.1 PKCS#1 DER encoded form.
@@ -34,7 +34,7 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 	var priv pkcs1PrivateKey;
 	err = asn1.Unmarshal(&priv, der);
 	if err != nil {
-		return;
+		return
 	}
 
 	if !rawValueIsInteger(&priv.N) ||
@@ -57,7 +57,7 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 
 	err = key.Validate();
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	return;
 }

@@ -30,7 +30,7 @@ var sumWW = []argWW{
 func testFunWW(t *testing.T, msg string, f funWW, a argWW) {
 	z1, z0 := f(a.x, a.y, a.c);
 	if z1 != a.z1 || z0 != a.z0 {
-		t.Errorf("%s%+v\n\tgot z1:z0 = %#x:%#x; want %#x:%#x", msg, a, z1, z0, a.z1, a.z0);
+		t.Errorf("%s%+v\n\tgot z1:z0 = %#x:%#x; want %#x:%#x", msg, a, z1, z0, a.z1, a.z0)
 	}
 }
 
@@ -54,7 +54,7 @@ func TestFunWW(t *testing.T) {
 
 func addr(x []Word) *Word {
 	if len(x) == 0 {
-		return nil;
+		return nil
 	}
 	return &x[0];
 }
@@ -90,7 +90,7 @@ func testFunVV(t *testing.T, msg string, f funVV, a argVV) {
 		}
 	}
 	if c != a.c {
-		t.Errorf("%s%+v\n\tgot c = %#x; want %#x", msg, a, c, a.c);
+		t.Errorf("%s%+v\n\tgot c = %#x; want %#x", msg, a, c, a.c)
 	}
 }
 
@@ -159,7 +159,7 @@ func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
 		}
 	}
 	if c != a.c {
-		t.Errorf("%s%+v\n\tgot c = %#x; want %#x", msg, a, c, a.c);
+		t.Errorf("%s%+v\n\tgot c = %#x; want %#x", msg, a, c, a.c)
 	}
 }
 
@@ -222,7 +222,7 @@ func testFunVWW(t *testing.T, msg string, f funVWW, a argVWW) {
 		}
 	}
 	if c != a.c {
-		t.Errorf("%s%+v\n\tgot c = %#x; want %#x", msg, a, c, a.c);
+		t.Errorf("%s%+v\n\tgot c = %#x; want %#x", msg, a, c, a.c)
 	}
 }
 
@@ -250,7 +250,7 @@ func testFunWVW(t *testing.T, msg string, f funWVW, a argWVW) {
 		}
 	}
 	if r != a.r {
-		t.Errorf("%s%+v\n\tgot r = %#x; want %#x", msg, a, r, a.r);
+		t.Errorf("%s%+v\n\tgot r = %#x; want %#x", msg, a, r, a.r)
 	}
 }
 
@@ -286,7 +286,7 @@ func TestMulWW(t *testing.T) {
 	for i, test := range mulWWTests {
 		q, r := mulWW_g(test.x, test.y);
 		if q != test.q || r != test.r {
-			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r);
+			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r)
 		}
 	}
 }
@@ -311,7 +311,7 @@ func TestMulAddWWW(t *testing.T) {
 	for i, test := range mulAddWWWTests {
 		q, r := mulAddWWW_g(test.x, test.y, test.c);
 		if q != test.q || r != test.r {
-			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r);
+			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r)
 		}
 	}
 }

@@ -137,7 +137,7 @@ func (p *printer) write(data []byte) {
 				// must not be discarded by the tabwriter
 				j := p.indent;
 				for ; j > len(htabs); j -= len(htabs) {
-					p.write0(&htabs);
+					p.write0(&htabs)
 				}
 				p.write0(htabs[0:j]);
 
@@ -158,15 +158,15 @@ func (p *printer) write(data []byte) {
 				var esc []byte;
 				switch b {
 				case '"':
-					esc = esc_quot;
+					esc = esc_quot
 				case '\'':
-					esc = esc_apos;
+					esc = esc_apos
 				case '&':
-					esc = esc_amp;
+					esc = esc_amp
 				case '<':
-					esc = esc_lt;
+					esc = esc_lt
 				case '>':
-					esc = esc_gt;
+					esc = esc_gt
 				}
 				p.write0(esc);
 
@@ -180,7 +180,7 @@ func (p *printer) write(data []byte) {
 			}
 
 		case tabwriter.Escape:
-			p.escape = !p.escape;
+			p.escape = !p.escape
 		}
 	}
 
@@ -197,7 +197,7 @@ func (p *printer) write(data []byte) {
 func (p *printer) writeNewlines(n int) {
 	if n > 0 {
 		if n > maxNewlines {
-			n = maxNewlines;
+			n = maxNewlines
 		}
 		p.write(newlines[0:n]);
 	}
@@ -207,7 +207,7 @@ func (p *printer) writeNewlines(n int) {
 func (p *printer) writeFormfeeds(n int) {
 	if n > 0 {
 		if n > maxNewlines {
-			n = maxNewlines;
+			n = maxNewlines
 		}
 		p.write(formfeeds[0:n]);
 	}
@@ -218,12 +218,12 @@ func (p *printer) writeTaggedItem(data []byte, tag HTMLTag) {
 	// write start tag, if any
 	// (no html-escaping and no p.pos update for tags - use write0)
 	if tag.Start != "" {
-		p.write0(strings.Bytes(tag.Start));
+		p.write0(strings.Bytes(tag.Start))
 	}
 	p.write(data);
 	// write end tag, if any
 	if tag.End != "" {
-		p.write0(strings.Bytes(tag.End));
+		p.write0(strings.Bytes(tag.End))
 	}
 }
 
@@ -239,7 +239,7 @@ func (p *printer) writeItem(pos token.Position, data []byte, tag HTMLTag) {
 	p.pos = pos;
 	if debug {
 		// do not update p.pos - use write0
-		p.write0(strings.Bytes(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)));
+		p.write0(strings.Bytes(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)))
 	}
 	if p.Mode & GenHTML != 0 {
 		// write line tag if on a new line
@@ -251,7 +251,7 @@ func (p *printer) writeItem(pos token.Position, data []byte, tag HTMLTag) {
 		}
 		p.writeTaggedItem(data, tag);
 	} else {
-		p.write(data);
+		p.write(data)
 	}
 	p.last = p.pos;
 }
@@ -269,7 +269,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 	if !p.last.IsValid() {
 		// there was no preceeding item and the comment is the
 		// first item to be printed - don't write any whitespace
-		return;
+		return
 	}
 
 	if pos.Line == p.last.Line {
@@ -291,7 +291,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 					continue;
 				case indent:
 					// apply pending indentation
-					continue;
+					continue
 				}
 				j = i;
 				break;
@@ -304,9 +304,9 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 				// next item is on the same line as the comment
 				// (which must be a /*-style comment): separate
 				// with a blank instead of a tab
-				p.write([]byte{' '});
+				p.write([]byte{' '})
 			} else {
-				p.write(htab);
+				p.write(htab)
 			}
 		}
 
@@ -323,7 +323,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 					continue;
 				case indent:
 					// apply pending indentation
-					continue;
+					continue
 				case unindent:
 					// if the next token is a keyword, apply the outdent
 					// if it appears that the comment is aligned with the
@@ -332,11 +332,11 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
 					// comments before a case label where the comments
 					// apply to the next case instead of the current one)
 					if isKeyword && pos.Column == next.Column {
-						continue;
+						continue
 					}
 				case newline, formfeed:
 					// TODO(gri): may want to keep formfeed info in some cases
-					p.buffer[i] = ignore;
+					p.buffer[i] = ignore
 				}
 				j = i;
 				break;
@@ -359,7 +359,7 @@ func (p *printer) writeCommentLine(comment *ast.Comment, pos token.Position, lin
 	// apply styler, if any
 	var tag HTMLTag;
 	if p.Styler != nil {
-		line, tag = p.Styler.Comment(comment, line);
+		line, tag = p.Styler.Comment(comment, line)
 	}
 
 	p.writeItem(pos, line, tag);
@@ -376,7 +376,7 @@ func split(text []byte) [][]byte {
 	n := 1;
 	for _, c := range text {
 		if c == '\n' {
-			n++;
+			n++
 		}
 	}
 
@@ -400,7 +400,7 @@ func split(text []byte) [][]byte {
 func isBlank(s []byte) bool {
 	for _, b := range s {
 		if b > ' ' {
-			return false;
+			return false
 		}
 	}
 	return true;
@@ -410,7 +410,7 @@ func isBlank(s []byte) bool {
 func commonPrefix(a, b []byte) []byte {
 	i := 0;
 	for i < len(a) && i < len(b) && a[i] == b[i] && (a[i] <= ' ' || a[i] == '*') {
-		i++;
+		i++
 	}
 	return a[0:i];
 }
@@ -418,7 +418,7 @@ func commonPrefix(a, b []byte) []byte {
 
 func stripCommonPrefix(lines [][]byte) {
 	if len(lines) < 2 {
-		return;	// at most one line - nothing to do
+		return	// at most one line - nothing to do
 	}
 
 	// The heuristic in this function tries to handle a few
@@ -438,11 +438,11 @@ func stripCommonPrefix(lines [][]byte) {
 		case i == 0 || i == len(lines)-1:
 			// ignore
 		case isBlank(line):
-			lines[i] = nil;
+			lines[i] = nil
 		case prefix == nil:
-			prefix = commonPrefix(line, line);
+			prefix = commonPrefix(line, line)
 		default:
-			prefix = commonPrefix(prefix, line);
+			prefix = commonPrefix(prefix, line)
 		}
 	}
 
@@ -453,7 +453,7 @@ func stripCommonPrefix(lines [][]byte) {
 	if i := bytes.Index(prefix, []byte{'*'}); i >= 0 {
 		// Line of stars present.
 		if i > 0 && prefix[i-1] == ' ' {
-			i--;	// remove trailing blank from prefix so stars remain aligned
+			i--	// remove trailing blank from prefix so stars remain aligned
 		}
 		prefix = prefix[0:i];
 		lineOfStars = true;
@@ -474,10 +474,10 @@ func stripCommonPrefix(lines [][]byte) {
 			// in the first place
 			i := len(prefix);
 			for n := 0; n < 3 && i > 0 && prefix[i-1] == ' '; n++ {
-				i--;
+				i--
 			}
 			if i == len(prefix) && i > 0 && prefix[i-1] == '\t' {
-				i--;
+				i--
 			}
 			prefix = prefix[0:i];
 		} else {
@@ -490,7 +490,7 @@ func stripCommonPrefix(lines [][]byte) {
 			}
 			if n > 2 && suffix[2] == '\t' {
 				// assume the '\t' compensates for the /*
-				suffix = suffix[2:n];
+				suffix = suffix[2:n]
 			} else {
 				// otherwise assume two blanks
 				suffix[0], suffix[1] = ' ', ' ';
@@ -499,7 +499,7 @@ func stripCommonPrefix(lines [][]byte) {
 			// Shorten the computed common prefix by the length of
 			// suffix, if it is found as suffix of the prefix.
 			if bytes.HasSuffix(prefix, suffix) {
-				prefix = prefix[0 : len(prefix)-len(suffix)];
+				prefix = prefix[0 : len(prefix)-len(suffix)]
 			}
 		}
 	}
@@ -515,19 +515,19 @@ func stripCommonPrefix(lines [][]byte) {
 		var sep []byte;
 		if lineOfStars {
 			// insert an aligning blank
-			sep = []byte{' '};
+			sep = []byte{' '}
 		}
 		lines[len(lines)-1] = bytes.Join([][]byte{prefix, closing}, sep);
 	} else {
 		// last line contains more comment text - assume
 		// it is aligned like the other lines
-		prefix = commonPrefix(prefix, last);
+		prefix = commonPrefix(prefix, last)
 	}
 
 	// Remove the common prefix from all but the first and empty lines.
 	for i, line := range lines {
 		if i > 0 && len(line) != 0 {
-			lines[i] = line[len(prefix):len(line)];
+			lines[i] = line[len(prefix):len(line)]
 		}
 	}
 }
@@ -557,7 +557,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
 			pos = p.pos;
 		}
 		if len(line) > 0 {
-			p.writeCommentLine(comment, pos, line);
+			p.writeCommentLine(comment, pos, line)
 		}
 	}
 }
@@ -573,15 +573,15 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) {
 		switch ch {
 		case blank, vtab:
 			// ignore trailing whitespace
-			p.buffer[i] = ignore;
+			p.buffer[i] = ignore
 		case indent, unindent:
 			// don't loose indentation information
 		case newline, formfeed:
 			// if we need a line break, keep exactly one
 			if needsLinebreak {
-				needsLinebreak = false;
+				needsLinebreak = false
 			} else {
-				p.buffer[i] = ignore;
+				p.buffer[i] = ignore
 			}
 		}
 	}
@@ -589,7 +589,7 @@ func (p *printer) writeCommentSuffix(needsLinebreak bool) {
 
 	// make sure we have a line break
 	if needsLinebreak {
-		p.write([]byte{'\n'});
+		p.write([]byte{'\n'})
 	}
 }
 
@@ -616,7 +616,7 @@ func (p *printer) intersperseComments(next token.Position, isKeyword bool) {
 	if last != nil && !needsLinebreak && last.Pos().Line == next.Line {
 		// the last comment is a /*-style comment and the next item
 		// follows on the same line: separate with an extra blank
-		p.write([]byte{' '});
+		p.write([]byte{' '})
 	}
 	p.writeCommentSuffix(needsLinebreak);
 }
@@ -631,13 +631,13 @@ func (p *printer) writeWhitespace(n int) {
 		case ignore:
 			// ignore!
 		case indent:
-			p.indent++;
+			p.indent++
 		case unindent:
 			p.indent--;
 			if p.indent < 0 {
 				// handle gracefully unless in debug mode
 				if debug {
-					panicln("negative indentation:", p.indent);
+					panicln("negative indentation:", p.indent)
 				}
 				p.indent = 0;
 			}
@@ -704,7 +704,7 @@ func (p *printer) print(args ...) {
 				// don't add ignore's to the buffer; they
 				// may screw up "correcting" unindents (see
 				// LabeledStmt)
-				break;
+				break
 			}
 			i := len(p.buffer);
 			if i == cap(p.buffer) {
@@ -719,22 +719,22 @@ func (p *printer) print(args ...) {
 		case []byte:
 			// TODO(gri): remove this case once commentList
 			//            handles comments correctly
-			data = x;
+			data = x
 		case string:
 			// TODO(gri): remove this case once fieldList
 			//            handles comments correctly
-			data = strings.Bytes(x);
+			data = strings.Bytes(x)
 		case *ast.Ident:
 			if p.Styler != nil {
-				data, tag = p.Styler.Ident(x);
+				data, tag = p.Styler.Ident(x)
 			} else {
-				data = strings.Bytes(x.Value);
+				data = strings.Bytes(x.Value)
 			}
 		case *ast.BasicLit:
 			if p.Styler != nil {
-				data, tag = p.Styler.BasicLit(x);
+				data, tag = p.Styler.BasicLit(x)
 			} else {
-				data = x.Value;
+				data = x.Value
 			}
 			// escape all literals so they pass through unchanged
 			// (note that valid Go programs cannot contain esc ('\xff')
@@ -743,17 +743,17 @@ func (p *printer) print(args ...) {
 			data = strings.Bytes("\xff"+string(data)+"\xff");
 		case token.Token:
 			if p.Styler != nil {
-				data, tag = p.Styler.Token(x);
+				data, tag = p.Styler.Token(x)
 			} else {
-				data = strings.Bytes(x.String());
+				data = strings.Bytes(x.String())
 			}
 			isKeyword = x.IsKeyword();
 		case token.Position:
 			if x.IsValid() {
-				next = x;	// accurate position of next item
+				next = x	// accurate position of next item
 			}
 		default:
-			panicln("print: unsupported argument type", f.Type().String());
+			panicln("print: unsupported argument type", f.Type().String())
 		}
 		p.pos = next;
 
@@ -775,7 +775,7 @@ func (p *printer) print(args ...) {
 // before the next position in the source code.
 //
 func (p *printer) commentBefore(next token.Position) bool {
-	return p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset;
+	return p.comment != nil && p.comment.List[0].Pos().Offset < next.Offset
 }
 
 
@@ -785,7 +785,7 @@ func (p *printer) commentBefore(next token.Position) bool {
 func (p *printer) flush(next token.Position, isKeyword bool) {
 	// if there are comments before the next item, intersperse them
 	if p.commentBefore(next) {
-		p.intersperseComments(next, isKeyword);
+		p.intersperseComments(next, isKeyword)
 	}
 	// write any leftover whitespace
 	p.writeWhitespace(len(p.buffer));
@@ -817,7 +817,7 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 	// m >= 0: data[m:n] unwritten and no whitespace
 	m := 0;
 	if p.buf.Len() > 0 {
-		m = -1;
+		m = -1
 	}
 
 	var b byte;
@@ -827,7 +827,7 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 			// write any pending whitespace
 			if m < 0 {
 				if _, err = p.output.Write(p.buf.Bytes()); err != nil {
-					return;
+					return
 				}
 				p.buf.Reset();
 				m = n;
@@ -841,13 +841,13 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 			// write any pending (non-whitespace) data
 			if m >= 0 {
 				if _, err = p.output.Write(data[m:n]); err != nil {
-					return;
+					return
 				}
 				m = -1;
 			}
 			// collect whitespace but discard tabrwiter.Escapes.
 			if b != tabwriter.Escape {
-				p.buf.WriteByte(b);	// WriteByte returns no errors
+				p.buf.WriteByte(b)	// WriteByte returns no errors
 			}
 
 		case '\f', '\n':
@@ -856,13 +856,13 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 			// write any pending (non-whitespace) data
 			if m >= 0 {
 				if _, err = p.output.Write(data[m:n]); err != nil {
-					return;
+					return
 				}
 				m = -1;
 			}
 			// convert formfeed into newline
 			if _, err = p.output.Write(newlines[0:1]); err != nil {
-				return;
+				return
 			}
 		}
 	}
@@ -871,7 +871,7 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 	// write any pending non-whitespace
 	if m >= 0 {
 		if _, err = p.output.Write(data[m:n]); err != nil {
-			return;
+			return
 		}
 	}
 
@@ -933,11 +933,11 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 	if cfg.Mode & RawFormat == 0 {
 		padchar := byte('\t');
 		if cfg.Mode & UseSpaces != 0 {
-			padchar = ' ';
+			padchar = ' '
 		}
 		twmode := tabwriter.DiscardEmptyColumns;
 		if cfg.Mode & GenHTML != 0 {
-			twmode |= tabwriter.FilterHTML;
+			twmode |= tabwriter.FilterHTML
 		}
 		tw = tabwriter.NewWriter(output, cfg.Tabwidth, 1, padchar, twmode);
 		output = tw;
@@ -949,11 +949,11 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 	go func() {
 		switch n := node.(type) {
 		case ast.Expr:
-			p.expr(n, ignoreMultiLine);
+			p.expr(n, ignoreMultiLine)
 		case ast.Stmt:
-			p.stmt(n, ignoreMultiLine);
+			p.stmt(n, ignoreMultiLine)
 		case ast.Decl:
-			p.decl(n, atTop, ignoreMultiLine);
+			p.decl(n, atTop, ignoreMultiLine)
 		case *ast.File:
 			p.comment = n.Comments;
 			p.file(n);
@@ -968,7 +968,7 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 
 	// flush tabwriter, if any
 	if tw != nil {
-		tw.Flush();	// ignore errors
+		tw.Flush()	// ignore errors
 	}
 
 	return p.written, err;

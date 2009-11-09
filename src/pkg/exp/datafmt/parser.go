@@ -34,7 +34,7 @@ func (p *parser) next() {
 	case token.CHAN, token.FUNC, token.INTERFACE, token.MAP, token.STRUCT:
 		// Go keywords for composite types are type names
 		// returned by reflect. Accept them as identifiers.
-		p.tok = token.IDENT;	// p.lit is already set correctly
+		p.tok = token.IDENT	// p.lit is already set correctly
 	}
 }
 
@@ -55,7 +55,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'";
 		if p.tok.IsLiteral() {
-			msg += " "+string(p.lit);
+			msg += " "+string(p.lit)
 		}
 	}
 	p.Error(pos, msg);
@@ -65,7 +65,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 func (p *parser) expect(tok token.Token) token.Position {
 	pos := p.pos;
 	if p.tok != tok {
-		p.errorExpected(pos, "'" + tok.String() + "'");
+		p.errorExpected(pos, "'" + tok.String() + "'")
 	}
 	p.next();	// make progress in any case
 	return pos;
@@ -85,9 +85,9 @@ func (p *parser) parseTypeName() (string, bool) {
 	if p.tok == token.PERIOD {
 		// got a package name, lookup package
 		if importPath, found := p.packs[name]; found {
-			name = importPath;
+			name = importPath
 		} else {
-			p.Error(pos, "package not declared: " + name);
+			p.Error(pos, "package not declared: " + name)
 		}
 		p.next();
 		name, isIdent = name + "." + p.parseIdentifier(), false;
@@ -105,7 +105,7 @@ func (p *parser) parseRuleName() (string, bool) {
 	name, isIdent := "", false;
 	switch p.tok {
 	case token.IDENT:
-		name, isIdent = p.parseTypeName();
+		name, isIdent = p.parseTypeName()
 	case token.DEFAULT:
 		name = "default";
 		p.next();
@@ -130,7 +130,7 @@ func (p *parser) parseString() string {
 		p.next();
 		return s;
 	} else {
-		p.expect(token.STRING);
+		p.expect(token.STRING)
 	}
 	return s;
 }
@@ -164,7 +164,7 @@ func (p *parser) parseLiteral() literal {
 	// convert list into a literal
 	lit := make(literal, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		lit[i] = list.At(i).([]byte);
+		lit[i] = list.At(i).([]byte)
 	}
 
 	return lit;
@@ -176,7 +176,7 @@ func (p *parser) parseField() expr {
 	switch p.tok {
 	case token.ILLEGAL:
 		if string(p.lit) != "@" {
-			return nil;
+			return nil
 		}
 		fname = "@";
 		p.next();
@@ -184,9 +184,9 @@ func (p *parser) parseField() expr {
 		fname = "*";
 		p.next();
 	case token.IDENT:
-		fname = p.parseIdentifier();
+		fname = p.parseIdentifier()
 	default:
-		return nil;
+		return nil
 	}
 
 	var ruleName string;
@@ -202,7 +202,7 @@ func (p *parser) parseField() expr {
 func (p *parser) parseOperand() (x expr) {
 	switch p.tok {
 	case token.STRING:
-		x = p.parseLiteral();
+		x = p.parseLiteral()
 
 	case token.LPAREN:
 		p.next();
@@ -230,7 +230,7 @@ func (p *parser) parseOperand() (x expr) {
 		p.expect(token.RBRACE);
 
 	default:
-		x = p.parseField();	// may be nil
+		x = p.parseField()	// may be nil
 	}
 
 	return x;
@@ -242,21 +242,21 @@ func (p *parser) parseSequence() expr {
 	list.Init(0);
 
 	for x := p.parseOperand(); x != nil; x = p.parseOperand() {
-		list.Push(x);
+		list.Push(x)
 	}
 
 	// no need for a sequence if list.Len() < 2
 	switch list.Len() {
 	case 0:
-		return nil;
+		return nil
 	case 1:
-		return list.At(0).(expr);
+		return list.At(0).(expr)
 	}
 
 	// convert list into a sequence
 	seq := make(sequence, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		seq[i] = list.At(i).(expr);
+		seq[i] = list.At(i).(expr)
 	}
 	return seq;
 }
@@ -269,10 +269,10 @@ func (p *parser) parseExpression() expr {
 	for {
 		x := p.parseSequence();
 		if x != nil {
-			list.Push(x);
+			list.Push(x)
 		}
 		if p.tok != token.OR {
-			break;
+			break
 		}
 		p.next();
 	}
@@ -280,15 +280,15 @@ func (p *parser) parseExpression() expr {
 	// no need for an alternatives if list.Len() < 2
 	switch list.Len() {
 	case 0:
-		return nil;
+		return nil
 	case 1:
-		return list.At(0).(expr);
+		return list.At(0).(expr)
 	}
 
 	// convert list into a alternatives
 	alt := make(alternatives, list.Len());
 	for i := 0; i < list.Len(); i++ {
-		alt[i] = list.At(i).(expr);
+		alt[i] = list.At(i).(expr)
 	}
 	return alt;
 }
@@ -306,11 +306,11 @@ func (p *parser) parseFormat() {
 
 			// add package declaration
 			if !isIdent {
-				p.Error(pos, "illegal package name: " + name);
+				p.Error(pos, "illegal package name: " + name)
 			} else if _, found := p.packs[name]; !found {
-				p.packs[name] = importPath;
+				p.packs[name] = importPath
 			} else {
-				p.Error(pos, "package already declared: " + name);
+				p.Error(pos, "package already declared: " + name)
 			}
 
 		case token.ASSIGN:
@@ -320,9 +320,9 @@ func (p *parser) parseFormat() {
 
 			// add rule
 			if _, found := p.rules[name]; !found {
-				p.rules[name] = x;
+				p.rules[name] = x
 			} else {
-				p.Error(pos, "format rule already declared: " + name);
+				p.Error(pos, "format rule already declared: " + name)
 			}
 
 		default:
@@ -331,9 +331,9 @@ func (p *parser) parseFormat() {
 		}
 
 		if p.tok == token.SEMICOLON {
-			p.next();
+			p.next()
 		} else {
-			break;
+			break
 		}
 	}
 	p.expect(token.EOF);
@@ -346,7 +346,7 @@ func remap(p *parser, name string) string {
 		packageName, suffix := name[0:i], name[i:len(name)];
 		// lookup package
 		if importPath, found := p.packs[packageName]; found {
-			name = importPath + suffix;
+			name = importPath + suffix
 		} else {
 			var invalidPos token.Position;
 			p.Error(invalidPos, "package not declared: " + packageName);
@@ -371,7 +371,7 @@ func Parse(filename string, src []byte, fmap FormatterMap) (Format, os.Error) {
 	for name, form := range fmap {
 		name = remap(&p, name);
 		if _, found := p.rules[name]; !found {
-			p.rules[name] = &custom{name, form};
+			p.rules[name] = &custom{name, form}
 		} else {
 			var invalidPos token.Position;
 			p.Error(invalidPos, "formatter already declared: " + name);

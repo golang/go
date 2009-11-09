@@ -47,7 +47,7 @@ func TestSetZ(t *testing.T) {
 		var z Int;
 		z.Set(a.z);
 		if CmpInt(&z, a.z) != 0 {
-			t.Errorf("got z = %v; want %v", z, a.z);
+			t.Errorf("got z = %v; want %v", z, a.z)
 		}
 	}
 }
@@ -57,7 +57,7 @@ func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
 	var z Int;
 	f(&z, a.x, a.y);
 	if CmpInt(&z, a.z) != 0 {
-		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, &z, a.z);
+		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, &z, a.z)
 	}
 }
 
@@ -121,7 +121,7 @@ func TestFact(t *testing.T) {
 	for n, s := range facts {
 		f := fact(n).String();
 		if f != s {
-			t.Errorf("%d! = %s; want %s", n, f, s);
+			t.Errorf("%d! = %s; want %s", n, f, s)
 		}
 	}
 }
@@ -162,11 +162,11 @@ func TestSetString(t *testing.T) {
 			continue;
 		}
 		if !ok {
-			continue;
+			continue
 		}
 
 		if CmpInt(n, new(Int).New(test.out)) != 0 {
-			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n, test.out);
+			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n, test.out)
 		}
 	}
 }
@@ -197,7 +197,7 @@ func TestDivSigns(t *testing.T) {
 		expectedR := new(Int).New(test.r);
 
 		if CmpInt(q, expectedQ) != 0 || CmpInt(r, expectedR) != 0 {
-			t.Errorf("#%d: got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR);
+			t.Errorf("#%d: got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR)
 		}
 	}
 }
@@ -208,11 +208,11 @@ func checkSetBytes(b []byte) bool {
 	hex2 := hex.EncodeToString(b);
 
 	for len(hex1) < len(hex2) {
-		hex1 = "0"+hex1;
+		hex1 = "0"+hex1
 	}
 
 	for len(hex1) > len(hex2) {
-		hex2 = "0"+hex2;
+		hex2 = "0"+hex2
 	}
 
 	return hex1 == hex2;
@@ -222,7 +222,7 @@ func checkSetBytes(b []byte) bool {
 func TestSetBytes(t *testing.T) {
 	err := quick.Check(checkSetBytes, nil);
 	if err != nil {
-		t.Error(err);
+		t.Error(err)
 	}
 }
 
@@ -236,7 +236,7 @@ func checkBytes(b []byte) bool {
 func TestBytes(t *testing.T) {
 	err := quick.Check(checkSetBytes, nil);
 	if err != nil {
-		t.Error(err);
+		t.Error(err)
 	}
 }
 
@@ -246,13 +246,13 @@ func checkDiv(x, y []byte) bool {
 	v := new(Int).SetBytes(y);
 
 	if len(v.abs) == 0 {
-		return true;
+		return true
 	}
 
 	q, r := new(Int).Div(u, v);
 
 	if CmpInt(r, v) >= 0 {
-		return false;
+		return false
 	}
 
 	uprime := new(Int).Set(q);
@@ -282,7 +282,7 @@ var divTests = []divTest{
 func TestDiv(t *testing.T) {
 	err := quick.Check(checkDiv, nil);
 	if err != nil {
-		t.Error(err);
+		t.Error(err)
 	}
 
 	for i, test := range divTests {
@@ -294,7 +294,7 @@ func TestDiv(t *testing.T) {
 		q, r := new(Int).Div(x, y);
 
 		if CmpInt(q, expectedQ) != 0 || CmpInt(r, expectedR) != 0 {
-			t.Errorf("#%d got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR);
+			t.Errorf("#%d got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR)
 		}
 	}
 }
@@ -314,7 +314,7 @@ func TestDivStepD6(t *testing.T) {
 	const expectedR32 = "39614081266355540837921718287";
 	if q.String() != expectedQ64 && q.String() != expectedQ32 ||
 		r.String() != expectedR64 && r.String() != expectedR32 {
-		t.Errorf("got (%s, %s) want (%s, %s) or (%s, %s)", q, r, expectedQ64, expectedR64, expectedQ32, expectedR32);
+		t.Errorf("got (%s, %s) want (%s, %s) or (%s, %s)", q, r, expectedQ64, expectedR64, expectedQ32, expectedR32)
 	}
 }
 
@@ -347,7 +347,7 @@ func TestLen(t *testing.T) {
 		}
 
 		if n.Len() != test.out {
-			t.Errorf("#%d got %d want %d\n", i, n.Len(), test.out);
+			t.Errorf("#%d got %d want %d\n", i, n.Len(), test.out)
 		}
 	}
 }
@@ -390,9 +390,9 @@ func TestExp(t *testing.T) {
 		var m *Int;
 
 		if len(test.m) == 0 {
-			m, ok4 = nil, true;
+			m, ok4 = nil, true
 		} else {
-			m, ok4 = new(Int).SetString(test.m, 0);
+			m, ok4 = new(Int).SetString(test.m, 0)
 		}
 
 		if !ok1 || !ok2 || !ok3 || !ok4 {
@@ -402,7 +402,7 @@ func TestExp(t *testing.T) {
 
 		z := new(Int).Exp(x, y, m);
 		if CmpInt(z, out) != 0 {
-			t.Errorf("#%d got %s want %s", i, z, out);
+			t.Errorf("#%d got %s want %s", i, z, out)
 		}
 	}
 }
@@ -454,7 +454,7 @@ func TestGcd(t *testing.T) {
 		if CmpInt(expectedX, x) != 0 ||
 			CmpInt(expectedY, y) != 0 ||
 			CmpInt(expectedD, d) != 0 {
-			t.Errorf("#%d got (%s %s %s) want (%s %s %s)", i, x, y, d, expectedX, expectedY, expectedD);
+			t.Errorf("#%d got (%s %s %s) want (%s %s %s)", i, x, y, d, expectedX, expectedY, expectedD)
 		}
 	}
 

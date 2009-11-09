@@ -22,7 +22,7 @@ type oneByteReader struct {
 
 func (r *oneByteReader) Read(p []byte) (int, os.Error) {
 	if len(p) == 0 {
-		return 0, nil;
+		return 0, nil
 	}
 	return r.r.Read(p[0:1]);
 }
@@ -36,7 +36,7 @@ type halfReader struct {
 }
 
 func (r *halfReader) Read(p []byte) (int, os.Error) {
-	return r.r.Read(p[0 : (len(p)+1)/2]);
+	return r.r.Read(p[0 : (len(p)+1)/2])
 }
 
 
@@ -61,7 +61,7 @@ func (r *dataErrReader) Read(p []byte) (n int, err os.Error) {
 			err = err1;
 		}
 		if n > 0 {
-			break;
+			break
 		}
 		n = bytes.Copy(p, r.unread);
 		r.unread = r.unread[n:len(r.unread)];

@@ -55,10 +55,10 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
 	if d.nx > 0 {
 		n := len(p);
 		if n > _Chunk - d.nx {
-			n = _Chunk - d.nx;
+			n = _Chunk - d.nx
 		}
 		for i := 0; i < n; i++ {
-			d.x[d.nx + i] = p[i];
+			d.x[d.nx + i] = p[i]
 		}
 		d.nx += n;
 		if d.nx == _Chunk {
@@ -71,7 +71,7 @@ func (d *digest) Write(p []byte) (nn int, err os.Error) {
 	p = p[n:len(p)];
 	if len(p) > 0 {
 		for i := 0; i < len(p); i++ {
-			d.x[i] = p[i];
+			d.x[i] = p[i]
 		}
 		d.nx = len(p);
 	}
@@ -84,20 +84,20 @@ func (d *digest) Sum() []byte {
 	var tmp [64]byte;
 	tmp[0] = 0x80;
 	if len%64 < 56 {
-		d.Write(tmp[0 : 56 - len%64]);
+		d.Write(tmp[0 : 56 - len%64])
 	} else {
-		d.Write(tmp[0 : 64 + 56 - len%64]);
+		d.Write(tmp[0 : 64 + 56 - len%64])
 	}
 
 	// Length in bits.
 	len <<= 3;
 	for i := uint(0); i < 8; i++ {
-		tmp[i] = byte(len>>(56 - 8*i));
+		tmp[i] = byte(len>>(56 - 8*i))
 	}
 	d.Write(tmp[0:8]);
 
 	if d.nx != 0 {
-		panicln("oops");
+		panicln("oops")
 	}
 
 	p := make([]byte, 20);

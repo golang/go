@@ -13,11 +13,11 @@ import (
 
 func eq(a, b []string) bool {
 	if len(a) != len(b) {
-		return false;
+		return false
 	}
 	for i := 0; i < len(a); i++ {
 		if a[i] != b[i] {
-			return false;
+			return false
 		}
 	}
 	return true;
@@ -69,7 +69,7 @@ func runIndexTests(t *testing.T, f func(s, sep string) int, funcName string, tes
 	for _, test := range testCases {
 		actual := f(test.s, test.sep);
 		if actual != test.out {
-			t.Errorf("%s(%q,%q) = %v; want %v", funcName, test.s, test.sep, actual, test.out);
+			t.Errorf("%s(%q,%q) = %v; want %v", funcName, test.s, test.sep, actual, test.out)
 		}
 	}
 }
@@ -100,7 +100,7 @@ func TestExplode(t *testing.T) {
 		}
 		s := Join(a, "");
 		if s != tt.s {
-			t.Errorf(`Join(explode(%q, %d), "") = %q`, tt.s, tt.n, s);
+			t.Errorf(`Join(explode(%q, %d), "") = %q`, tt.s, tt.n, s)
 		}
 	}
 }
@@ -136,7 +136,7 @@ func TestSplit(t *testing.T) {
 		}
 		s := Join(a, tt.sep);
 		if s != tt.s {
-			t.Errorf("Join(Split(%q, %q, %d), %q) = %q", tt.s, tt.sep, tt.n, tt.sep, s);
+			t.Errorf("Join(Split(%q, %q, %d), %q) = %q", tt.s, tt.sep, tt.n, tt.sep, s)
 		}
 	}
 }
@@ -166,7 +166,7 @@ func TestSplitAfter(t *testing.T) {
 		}
 		s := Join(a, "");
 		if s != tt.s {
-			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s);
+			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
 		}
 	}
 }
@@ -182,7 +182,7 @@ func runStringTests(t *testing.T, f func(string) string, funcName string, testCa
 	for _, tc := range testCases {
 		actual := f(tc.in);
 		if actual != tc.out {
-			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out);
+			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out)
 		}
 	}
 }
@@ -221,7 +221,7 @@ var trimSpaceTests = []StringTest{
 func tenRunes(rune int) string {
 	r := make([]int, 10);
 	for i := range r {
-		r[i] = rune;
+		r[i] = rune
 	}
 	return string(r);
 }
@@ -234,14 +234,14 @@ func TestMap(t *testing.T) {
 	m := Map(maxRune, a);
 	expect := tenRunes(unicode.MaxRune);
 	if m != expect {
-		t.Errorf("growing: expected %q got %q", expect, m);
+		t.Errorf("growing: expected %q got %q", expect, m)
 	}
 	// 2. Shrink
 	minRune := func(rune int) int { return 'a' };
 	m = Map(minRune, tenRunes(unicode.MaxRune));
 	expect = a;
 	if m != expect {
-		t.Errorf("shrinking: expected %q got %q", expect, m);
+		t.Errorf("shrinking: expected %q got %q", expect, m)
 	}
 }
 
@@ -253,18 +253,18 @@ func TestTrimSpace(t *testing.T)	{ runStringTests(t, TrimSpace, "TrimSpace", tri
 
 func equal(m string, s1, s2 string, t *testing.T) bool {
 	if s1 == s2 {
-		return true;
+		return true
 	}
 	e1 := Split(s1, "", 0);
 	e2 := Split(s2, "", 0);
 	for i, c1 := range e1 {
 		if i > len(e2) {
-			break;
+			break
 		}
 		r1, _ := utf8.DecodeRuneInString(c1);
 		r2, _ := utf8.DecodeRuneInString(e2[i]);
 		if r1 != r2 {
-			t.Errorf("%s diff at %d: U+%04X U+%04X", m, i, r1, r2);
+			t.Errorf("%s diff at %d: U+%04X U+%04X", m, i, r1, r2)
 		}
 	}
 	return false;
@@ -274,7 +274,7 @@ func TestCaseConsistency(t *testing.T) {
 	// Make a string of all the runes.
 	a := make([]int, unicode.MaxRune + 1);
 	for i := range a {
-		a[i] = i;
+		a[i] = i
 	}
 	s := string(a);
 	// convert the cases.
@@ -283,16 +283,16 @@ func TestCaseConsistency(t *testing.T) {
 
 	// Consistency checks
 	if n := utf8.RuneCountInString(upper); n != unicode.MaxRune + 1 {
-		t.Error("rune count wrong in upper:", n);
+		t.Error("rune count wrong in upper:", n)
 	}
 	if n := utf8.RuneCountInString(lower); n != unicode.MaxRune + 1 {
-		t.Error("rune count wrong in lower:", n);
+		t.Error("rune count wrong in lower:", n)
 	}
 	if !equal("ToUpper(upper)", ToUpper(upper), upper, t) {
-		t.Error("ToUpper(upper) consistency fail");
+		t.Error("ToUpper(upper) consistency fail")
 	}
 	if !equal("ToLower(lower)", ToLower(lower), lower, t) {
-		t.Error("ToLower(lower) consistency fail");
+		t.Error("ToLower(lower) consistency fail")
 	}
 	/*
 		  These fail because of non-one-to-oneness of the data, such as multiple

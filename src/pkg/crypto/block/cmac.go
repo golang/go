@@ -33,11 +33,11 @@ func NewCMAC(c Cipher) hash.Hash {
 	n := c.BlockSize();
 	switch n {
 	case 64/8:
-		r = r64;
+		r = r64
 	case 128/8:
-		r = r128;
+		r = r128
 	default:
-		panic("crypto/block: NewCMAC: invalid cipher block size", n);
+		panic("crypto/block: NewCMAC: invalid cipher block size", n)
 	}
 
 	d := new(cmac);
@@ -50,10 +50,10 @@ func NewCMAC(c Cipher) hash.Hash {
 	// Subkey generation, p. 7
 	c.Encrypt(d.k1, d.k1);
 	if shift1(d.k1, d.k1) != 0 {
-		d.k1[n-1] ^= r;
+		d.k1[n-1] ^= r
 	}
 	if shift1(d.k1, d.k2) != 0 {
-		d.k2[n-1] ^= r;
+		d.k2[n-1] ^= r
 	}
 
 	return d;
@@ -62,7 +62,7 @@ func NewCMAC(c Cipher) hash.Hash {
 // Reset clears the digest state, starting a new digest.
 func (d *cmac) Reset() {
 	for i := range d.ci {
-		d.ci[i] = 0;
+		d.ci[i] = 0
 	}
 	d.p = 0;
 }
@@ -90,13 +90,13 @@ func (d *cmac) Sum() []byte {
 	// to keep digesting after call to Sum.
 	k := d.k1;
 	if d.p < len(d.digest) {
-		k = d.k2;
+		k = d.k2
 	}
 	for i := 0; i < len(d.ci); i++ {
-		d.digest[i] = d.ci[i] ^ k[i];
+		d.digest[i] = d.ci[i] ^ k[i]
 	}
 	if d.p < len(d.digest) {
-		d.digest[d.p] ^= 0x80;
+		d.digest[d.p] ^= 0x80
 	}
 	d.c.Encrypt(d.digest, d.digest);
 	return d.digest;

@@ -81,6 +81,6 @@ func debugHTTP(c *http.Conn, req *http.Request) {
 	sort.Sort(services);
 	err := debug.Execute(services, c);
 	if err != nil {
-		fmt.Fprintln(c, "rpc: error executing template:", err.String());
+		fmt.Fprintln(c, "rpc: error executing template:", err.String())
 	}
 }

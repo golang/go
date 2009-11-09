@@ -14,10 +14,10 @@ import (
 func TestUnmarshalFeed(t *testing.T) {
 	var f Feed;
 	if err := Unmarshal(StringReader(rssFeedString), &f); err != nil {
-		t.Fatalf("Unmarshal: %s", err);
+		t.Fatalf("Unmarshal: %s", err)
 	}
 	if !reflect.DeepEqual(f, rssFeed) {
-		t.Fatalf("have %#v\nwant %#v\n\n%#v", f);
+		t.Fatalf("have %#v\nwant %#v\n\n%#v", f)
 	}
 }
 

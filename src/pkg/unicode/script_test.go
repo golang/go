@@ -172,61 +172,61 @@ var inPropTest = []T{
 func TestScripts(t *testing.T) {
 	notTested := make(map[string]bool);
 	for k := range Scripts {
-		notTested[k] = true;
+		notTested[k] = true
 	}
 	for _, test := range inTest {
 		if _, ok := Scripts[test.script]; !ok {
-			t.Fatal(test.script, "not a known script");
+			t.Fatal(test.script, "not a known script")
 		}
 		if !Is(Scripts[test.script], test.rune) {
-			t.Errorf("IsScript(%#x, %s) = false, want true\n", test.rune, test.script);
+			t.Errorf("IsScript(%#x, %s) = false, want true\n", test.rune, test.script)
 		}
 		notTested[test.script] = false, false;
 	}
 	for _, test := range outTest {
 		if Is(Scripts[test.script], test.rune) {
-			t.Errorf("IsScript(%#x, %s) = true, want false\n", test.rune, test.script);
+			t.Errorf("IsScript(%#x, %s) = true, want false\n", test.rune, test.script)
 		}
 	}
 	for k := range notTested {
-		t.Error("not tested:", k);
+		t.Error("not tested:", k)
 	}
 }
 
 func TestCategories(t *testing.T) {
 	notTested := make(map[string]bool);
 	for k := range Categories {
-		notTested[k] = true;
+		notTested[k] = true
 	}
 	for _, test := range inCategoryTest {
 		if _, ok := Categories[test.script]; !ok {
-			t.Fatal(test.script, "not a known category");
+			t.Fatal(test.script, "not a known category")
 		}
 		if !Is(Categories[test.script], test.rune) {
-			t.Errorf("IsCategory(%#x, %s) = false, want true\n", test.rune, test.script);
+			t.Errorf("IsCategory(%#x, %s) = false, want true\n", test.rune, test.script)
 		}
 		notTested[test.script] = false, false;
 	}
 	for k := range notTested {
-		t.Error("not tested:", k);
+		t.Error("not tested:", k)
 	}
 }
 
 func TestProperties(t *testing.T) {
 	notTested := make(map[string]bool);
 	for k := range Properties {
-		notTested[k] = true;
+		notTested[k] = true
 	}
 	for _, test := range inPropTest {
 		if _, ok := Properties[test.script]; !ok {
-			t.Fatal(test.script, "not a known prop");
+			t.Fatal(test.script, "not a known prop")
 		}
 		if !Is(Properties[test.script], test.rune) {
-			t.Errorf("IsCategory(%#x, %s) = false, want true\n", test.rune, test.script);
+			t.Errorf("IsCategory(%#x, %s) = false, want true\n", test.rune, test.script)
 		}
 		notTested[test.script] = false, false;
 	}
 	for k := range notTested {
-		t.Error("not tested:", k);
+		t.Error("not tested:", k)
 	}
 }

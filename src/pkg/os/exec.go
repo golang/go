@@ -20,15 +20,15 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File
 	intfd := make([]int, len(fd));
 	for i, f := range fd {
 		if f == nil {
-			intfd[i] = -1;
+			intfd[i] = -1
 		} else {
-			intfd[i] = f.Fd();
+			intfd[i] = f.Fd()
 		}
 	}
 
 	p, e := syscall.ForkExec(argv0, argv, envv, dir, intfd);
 	if e != 0 {
-		return 0, &PathError{"fork/exec", argv0, Errno(e)};
+		return 0, &PathError{"fork/exec", argv0, Errno(e)}
 	}
 	return p, nil;
 }
@@ -39,11 +39,11 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File
 // ForkExec is almost always a better way to execute a program.
 func Exec(argv0 string, argv []string, envv []string) Error {
 	if envv == nil {
-		envv = Environ();
+		envv = Environ()
 	}
 	e := syscall.Exec(argv0, argv, envv);
 	if e != 0 {
-		return &PathError{"exec", argv0, Errno(e)};
+		return &PathError{"exec", argv0, Errno(e)}
 	}
 	return nil;
 }
@@ -86,7 +86,7 @@ func Wait(pid int, options int) (w *Waitmsg, err Error) {
 	}
 	pid1, e := syscall.Wait4(pid, &status, options, rusage);
 	if e != 0 {
-		return nil, NewSyscallError("wait", e);
+		return nil, NewSyscallError("wait", e)
 	}
 	w = new(Waitmsg);
 	w.Pid = pid1;
@@ -98,12 +98,12 @@ func Wait(pid int, options int) (w *Waitmsg, err Error) {
 // Convert i to decimal string.
 func itod(i int) string {
 	if i == 0 {
-		return "0";
+		return "0"
 	}
 
 	u := uint64(i);
 	if i < 0 {
-		u = -u;
+		u = -u
 	}
 
 	// Assemble decimal in reverse order.
@@ -127,19 +127,19 @@ func (w Waitmsg) String() string {
 	res := "";
 	switch {
 	case w.Exited():
-		res = "exit status " + itod(w.ExitStatus());
+		res = "exit status " + itod(w.ExitStatus())
 	case w.Signaled():
-		res = "signal " + itod(w.Signal());
+		res = "signal " + itod(w.Signal())
 	case w.Stopped():
 		res = "stop signal " + itod(w.StopSignal());
 		if w.StopSignal() == syscall.SIGTRAP && w.TrapCause() != 0 {
-			res += " (trap " + itod(w.TrapCause()) + ")";
+			res += " (trap " + itod(w.TrapCause()) + ")"
 		}
 	case w.Continued():
-		res = "continued";
+		res = "continued"
 	}
 	if w.CoreDump() {
-		res += " (core dumped)";
+		res += " (core dumped)"
 	}
 	return res;
 }

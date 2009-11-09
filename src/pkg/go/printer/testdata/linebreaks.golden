@@ -209,12 +209,12 @@ testLoop:
 			}
 			if !reflect.DeepEqual(hdr, header) {
 				t.Errorf("test %d, entry %d: Incorrect header:\nhave %+v\nwant %+v",
-					i, j, *hdr, *header);
+					i, j, *hdr, *header)
 			}
 		}
 		hdr, err := tr.Next();
 		if hdr != nil || err != nil {
-			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err);
+			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err)
 		}
 		f.Close();
 	}

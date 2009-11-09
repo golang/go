@@ -74,7 +74,7 @@ type Scope struct {
 
 func (b *block) enterChild() *block {
 	if b.inner != nil && b.inner.scope == b.scope {
-		log.Crash("Failed to exit child block before entering another child");
+		log.Crash("Failed to exit child block before entering another child")
 	}
 	sub := &block{
 		outer: b,
@@ -88,14 +88,14 @@ func (b *block) enterChild() *block {
 
 func (b *block) exit() {
 	if b.outer == nil {
-		log.Crash("Cannot exit top-level block");
+		log.Crash("Cannot exit top-level block")
 	}
 	if b.outer.scope == b.scope {
 		if b.outer.inner != b {
-			log.Crash("Already exited block");
+			log.Crash("Already exited block")
 		}
 		if b.inner != nil && b.inner.scope == b.scope {
-			log.Crash("Exit of parent block without exit of child block");
+			log.Crash("Exit of parent block without exit of child block")
 		}
 	}
 	b.outer.inner = nil;
@@ -103,7 +103,7 @@ func (b *block) exit() {
 
 func (b *block) ChildScope() *Scope {
 	if b.inner != nil && b.inner.scope == b.scope {
-		log.Crash("Failed to exit child block before entering a child scope");
+		log.Crash("Failed to exit child block before entering a child scope")
 	}
 	sub := b.enterChild();
 	sub.offset = 0;
@@ -113,7 +113,7 @@ func (b *block) ChildScope() *Scope {
 
 func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, Def) {
 	if prev, ok := b.defs[name]; ok {
-		return nil, prev;
+		return nil, prev
 	}
 	v := b.defineSlot(t, false);
 	v.Position = pos;
@@ -125,14 +125,14 @@ func (b *block) DefineTemp(t Type) *Variable	{ return b.defineSlot(t, true) }
 
 func (b *block) defineSlot(t Type, temp bool) *Variable {
 	if b.inner != nil && b.inner.scope == b.scope {
-		log.Crash("Failed to exit child block before defining variable");
+		log.Crash("Failed to exit child block before defining variable")
 	}
 	index := -1;
 	if !b.global || temp {
 		index = b.offset + b.numVars;
 		b.numVars++;
 		if index >= b.scope.maxVars {
-			b.scope.maxVars = index+1;
+			b.scope.maxVars = index+1
 		}
 	}
 	v := &Variable{token.Position{}, index, t, nil};
@@ -141,7 +141,7 @@ func (b *block) defineSlot(t Type, temp bool) *Variable {
 
 func (b *block) DefineConst(name string, pos token.Position, t Type, v Value) (*Constant, Def) {
 	if prev, ok := b.defs[name]; ok {
-		return nil, prev;
+		return nil, prev
 	}
 	c := &Constant{pos, t, v};
 	b.defs[name] = c;
@@ -150,11 +150,11 @@ func (b *block) DefineConst(name string, pos token.Position, t Type, v Value) (*
 
 func (b *block) DefineType(name string, pos token.Position, t Type) Type {
 	if _, ok := b.defs[name]; ok {
-		return nil;
+		return nil
 	}
 	nt := &NamedType{pos, name, nil, true, make(map[string]Method)};
 	if t != nil {
-		nt.Complete(t);
+		nt.Complete(t)
 	}
 	b.defs[name] = nt;
 	return nt;
@@ -163,10 +163,10 @@ func (b *block) DefineType(name string, pos token.Position, t Type) Type {
 func (b *block) Lookup(name string) (bl *block, level int, def Def) {
 	for b != nil {
 		if d, ok := b.defs[name]; ok {
-			return b, level, d;
+			return b, level, d
 		}
 		if b.outer != nil && b.scope != b.outer.scope {
-			level++;
+			level++
 		}
 		b = b.outer;
 	}
@@ -186,7 +186,7 @@ type Frame struct {
 
 func (f *Frame) Get(level int, index int) Value {
 	for ; level > 0; level-- {
-		f = f.Outer;
+		f = f.Outer
 	}
 	return f.Vars[index];
 }
@@ -195,5 +195,5 @@ func (f *Frame) child(numVars int) *Frame {
 	// TODO(austin) This is probably rather expensive.  All values
 	// require heap allocation and zeroing them when we execute a
 	// definition typically requires some computation.
-	return &Frame{f, make([]Value, numVars)};
+	return &Frame{f, make([]Value, numVars)}
 }

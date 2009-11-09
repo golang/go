@@ -24,34 +24,34 @@ func (c *IncCipher) BlockSize() int	{ return c.blockSize }
 
 func (c *IncCipher) Encrypt(src, dst []byte) {
 	if !c.encrypting {
-		panicln("encrypt: not encrypting");
+		panicln("encrypt: not encrypting")
 	}
 	if len(src) != c.blockSize || len(dst) != c.blockSize {
-		panicln("encrypt: wrong block size", c.blockSize, len(src), len(dst));
+		panicln("encrypt: wrong block size", c.blockSize, len(src), len(dst))
 	}
 	c.delta++;
 	for i, b := range src {
-		dst[i] = b + c.delta;
+		dst[i] = b + c.delta
 	}
 }
 
 func (c *IncCipher) Decrypt(src, dst []byte) {
 	if c.encrypting {
-		panicln("decrypt: not decrypting");
+		panicln("decrypt: not decrypting")
 	}
 	if len(src) != c.blockSize || len(dst) != c.blockSize {
-		panicln("decrypt: wrong block size", c.blockSize, len(src), len(dst));
+		panicln("decrypt: wrong block size", c.blockSize, len(src), len(dst))
 	}
 	c.delta--;
 	for i, b := range src {
-		dst[i] = b + c.delta;
+		dst[i] = b + c.delta
 	}
 }
 
 func TestECBEncrypter(t *testing.T) {
 	var plain, crypt [256]byte;
 	for i := 0; i < len(plain); i++ {
-		plain[i] = byte(i);
+		plain[i] = byte(i)
 	}
 	b := new(bytes.Buffer);
 	for block := 1; block <= 64; block *= 2 {
@@ -59,7 +59,7 @@ func TestECBEncrypter(t *testing.T) {
 		delta := byte(0);
 		for i := 0; i < len(crypt); i++ {
 			if i%block == 0 {
-				delta++;
+				delta++
 			}
 			crypt[i] = plain[i]+delta;
 		}
@@ -82,7 +82,7 @@ func TestECBEncrypter(t *testing.T) {
 			for n := 1; n <= len(plain)/2; n *= 2 {
 				_, err := io.Copyn(w, r, int64(n));
 				if err != nil {
-					t.Errorf("block=%d frag=%d: Copyn %d: %s", block, frag, n, err);
+					t.Errorf("block=%d frag=%d: Copyn %d: %s", block, frag, n, err)
 				}
 			}
 			if frag != 0 {
@@ -101,7 +101,7 @@ func TestECBEncrypter(t *testing.T) {
 			}
 
 			if string(data) != string(&crypt) {
-				t.Errorf("block=%d frag=%d: want %x got %x", block, frag, data, crypt);
+				t.Errorf("block=%d frag=%d: want %x got %x", block, frag, data, crypt)
 			}
 		}
 	}
@@ -115,7 +115,7 @@ func testECBDecrypter(t *testing.T, maxio int) {
 	};
 	var plain, crypt [256]byte;
 	for i := 0; i < len(plain); i++ {
-		plain[i] = byte(255-i);
+		plain[i] = byte(255-i)
 	}
 	b := new(bytes.Buffer);
 	for block := 1; block <= 64 && block <= maxio; block *= 2 {
@@ -123,7 +123,7 @@ func testECBDecrypter(t *testing.T, maxio int) {
 		delta := byte(0);
 		for i := 0; i < len(crypt); i++ {
 			if i%block == 0 {
-				delta++;
+				delta++
 			}
 			crypt[i] = plain[i]+delta;
 		}
@@ -147,7 +147,7 @@ func testECBDecrypter(t *testing.T, maxio int) {
 				for n := 1; n <= maxio/2; n *= 2 {
 					_, err := io.Copyn(b, r, int64(n));
 					if err != nil {
-						t.Errorf("%s: Copyn %d: %s", test, n, err);
+						t.Errorf("%s: Copyn %d: %s", test, n, err)
 					}
 				}
 				if frag != 0 {
@@ -166,7 +166,7 @@ func testECBDecrypter(t *testing.T, maxio int) {
 				}
 
 				if string(data) != string(plain[0:maxio]) {
-					t.Errorf("%s: input=%x want %x got %x", test, crypt[0:maxio], plain[0:maxio], data);
+					t.Errorf("%s: input=%x want %x got %x", test, crypt[0:maxio], plain[0:maxio], data)
 				}
 			}
 		}
@@ -176,6 +176,6 @@ func testECBDecrypter(t *testing.T, maxio int) {
 func TestECBDecrypter(t *testing.T) {
 	// Do shorter I/O sizes first; they're easier to debug.
 	for n := 1; n <= 256 && !t.Failed(); n *= 2 {
-		testECBDecrypter(t, n);
+		testECBDecrypter(t, n)
 	}
 }

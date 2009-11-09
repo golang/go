@@ -25,7 +25,7 @@ func xadd(val *uint32, delta int32) (new uint32) {
 		v := *val;
 		nv := v+uint32(delta);
 		if cas(val, v, nv) {
-			return nv;
+			return nv
 		}
 	}
 	panic("unreached");
@@ -37,7 +37,7 @@ func xadd(val *uint32, delta int32) (new uint32) {
 func (m *Mutex) Lock() {
 	if xadd(&m.key, 1) == 1 {
 		// changed from 0 to 1; we hold lock
-		return;
+		return
 	}
 	runtime.Semacquire(&m.sema);
 }
@@ -51,7 +51,7 @@ func (m *Mutex) Lock() {
 func (m *Mutex) Unlock() {
 	if xadd(&m.key, -1) == 0 {
 		// changed from 1 to 0; no contention
-		return;
+		return
 	}
 	runtime.Semrelease(&m.sema);
 }

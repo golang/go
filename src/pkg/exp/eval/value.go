@@ -278,7 +278,7 @@ type idealIntV struct {
 func (v *idealIntV) String() string	{ return v.V.String() }
 
 func (v *idealIntV) Assign(t *Thread, o Value) {
-	v.V = o.(IdealIntValue).Get();
+	v.V = o.(IdealIntValue).Get()
 }
 
 func (v *idealIntV) Get() *bignum.Integer	{ return v.V }
@@ -328,7 +328,7 @@ type idealFloatV struct {
 func (v *idealFloatV) String() string	{ return ratToString(v.V) }
 
 func (v *idealFloatV) Assign(t *Thread, o Value) {
-	v.V = o.(IdealFloatValue).Get();
+	v.V = o.(IdealFloatValue).Get()
 }
 
 func (v *idealFloatV) Get() *bignum.Rational	{ return v.V }
@@ -357,7 +357,7 @@ func (v *arrayV) String() string {
 	res := "{";
 	for i, e := range *v {
 		if i > 0 {
-			res += ", ";
+			res += ", "
 		}
 		res += e.String();
 	}
@@ -368,14 +368,14 @@ func (v *arrayV) Assign(t *Thread, o Value) {
 	oa := o.(ArrayValue);
 	l := int64(len(*v));
 	for i := int64(0); i < l; i++ {
-		(*v)[i].Assign(t, oa.Elem(t, i));
+		(*v)[i].Assign(t, oa.Elem(t, i))
 	}
 }
 
 func (v *arrayV) Get(*Thread) ArrayValue	{ return v }
 
 func (v *arrayV) Elem(t *Thread, i int64) Value {
-	return (*v)[i];
+	return (*v)[i]
 }
 
 func (v *arrayV) Sub(i int64, len int64) ArrayValue {
@@ -395,7 +395,7 @@ func (v *structV) String() string {
 	res := "{";
 	for i, v := range *v {
 		if i > 0 {
-			res += ", ";
+			res += ", "
 		}
 		res += v.String();
 	}
@@ -406,14 +406,14 @@ func (v *structV) Assign(t *Thread, o Value) {
 	oa := o.(StructValue);
 	l := len(*v);
 	for i := 0; i < l; i++ {
-		(*v)[i].Assign(t, oa.Field(t, i));
+		(*v)[i].Assign(t, oa.Field(t, i))
 	}
 }
 
 func (v *structV) Get(*Thread) StructValue	{ return v }
 
 func (v *structV) Field(t *Thread, i int) Value {
-	return (*v)[i];
+	return (*v)[i]
 }
 
 /*
@@ -427,7 +427,7 @@ type ptrV struct {
 
 func (v *ptrV) String() string {
 	if v.target == nil {
-		return "<nil>";
+		return "<nil>"
 	}
 	return "&" + v.target.String();
 }
@@ -448,7 +448,7 @@ type funcV struct {
 
 func (v *funcV) String() string {
 	// TODO(austin) Rob wants to see the definition
-	return "func {...}";
+	return "func {...}"
 }
 
 func (v *funcV) Assign(t *Thread, o Value)	{ v.target = o.(FuncValue).Get(t) }
@@ -467,19 +467,19 @@ type interfaceV struct {
 
 func (v *interfaceV) String() string {
 	if v.Type == nil || v.Value == nil {
-		return "<nil>";
+		return "<nil>"
 	}
 	return v.Value.String();
 }
 
 func (v *interfaceV) Assign(t *Thread, o Value) {
-	v.Interface = o.(InterfaceValue).Get(t);
+	v.Interface = o.(InterfaceValue).Get(t)
 }
 
 func (v *interfaceV) Get(*Thread) Interface	{ return v.Interface }
 
 func (v *interfaceV) Set(t *Thread, x Interface) {
-	v.Interface = x;
+	v.Interface = x
 }
 
 /*
@@ -492,7 +492,7 @@ type sliceV struct {
 
 func (v *sliceV) String() string {
 	if v.Base == nil {
-		return "<nil>";
+		return "<nil>"
 	}
 	return v.Base.Sub(0, v.Len).String();
 }
@@ -513,13 +513,13 @@ type mapV struct {
 
 func (v *mapV) String() string {
 	if v.target == nil {
-		return "<nil>";
+		return "<nil>"
 	}
 	res := "map[";
 	i := 0;
 	v.target.Iter(func(key interface{}, val Value) bool {
 		if i > 0 {
-			res += ", ";
+			res += ", "
 		}
 		i++;
 		res += fmt.Sprint(key) + ":" + val.String();
@@ -540,23 +540,23 @@ func (m evalMap) Len(t *Thread) int64	{ return int64(len(m)) }
 
 func (m evalMap) Elem(t *Thread, key interface{}) Value {
 	if v, ok := m[key]; ok {
-		return v;
+		return v
 	}
 	return nil;
 }
 
 func (m evalMap) SetElem(t *Thread, key interface{}, val Value) {
 	if val == nil {
-		m[key] = nil, false;
+		m[key] = nil, false
 	} else {
-		m[key] = val;
+		m[key] = val
 	}
 }
 
 func (m evalMap) Iter(cb func(key interface{}, val Value) bool) {
 	for k, v := range m {
 		if !cb(k, v) {
-			break;
+			break
 		}
 	}
 }
@@ -571,7 +571,7 @@ func (v multiV) String() string {
 	res := "(";
 	for i, v := range v {
 		if i > 0 {
-			res += ", ";
+			res += ", "
 		}
 		res += v.String();
 	}
@@ -581,7 +581,7 @@ func (v multiV) String() string {
 func (v multiV) Assign(t *Thread, o Value) {
 	omv := o.(multiV);
 	for i := range v {
-		v[i].Assign(t, omv[i]);
+		v[i].Assign(t, omv[i])
 	}
 }
 

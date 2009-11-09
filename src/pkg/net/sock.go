@@ -15,7 +15,7 @@ import (
 // Boolean to int.
 func boolint(b bool) int {
 	if b {
-		return 1;
+		return 1
 	}
 	return 0;
 }
@@ -66,7 +66,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
 }
 
 func setsockoptInt(fd, level, opt int, value int) os.Error {
-	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd, level, opt, value));
+	return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(fd, level, opt, value))
 }
 
 func setsockoptNsec(fd, level, opt int, nsec int64) os.Error {
@@ -75,11 +75,11 @@ func setsockoptNsec(fd, level, opt int, nsec int64) os.Error {
 }
 
 func setReadBuffer(fd *netFD, bytes int) os.Error {
-	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes);
+	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes)
 }
 
 func setWriteBuffer(fd *netFD, bytes int) os.Error {
-	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes);
+	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes)
 }
 
 func setReadTimeout(fd *netFD, nsec int64) os.Error {
@@ -94,26 +94,26 @@ func setWriteTimeout(fd *netFD, nsec int64) os.Error {
 
 func setTimeout(fd *netFD, nsec int64) os.Error {
 	if e := setReadTimeout(fd, nsec); e != nil {
-		return e;
+		return e
 	}
 	return setWriteTimeout(fd, nsec);
 }
 
 func setReuseAddr(fd *netFD, reuse bool) os.Error {
-	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse));
+	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse))
 }
 
 func bindToDevice(fd *netFD, dev string) os.Error {
 	// TODO(rsc): call setsockopt with null-terminated string pointer
-	return os.EINVAL;
+	return os.EINVAL
 }
 
 func setDontRoute(fd *netFD, dontroute bool) os.Error {
-	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute));
+	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute))
 }
 
 func setKeepAlive(fd *netFD, keepalive bool) os.Error {
-	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive));
+	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive))
 }
 
 func setLinger(fd *netFD, sec int) os.Error {
@@ -134,17 +134,17 @@ type UnknownSocketError struct {
 }
 
 func (e *UnknownSocketError) String() string {
-	return "unknown socket address type " + reflect.Typeof(e.sa).String();
+	return "unknown socket address type " + reflect.Typeof(e.sa).String()
 }
 
 func sockaddrToString(sa syscall.Sockaddr) (name string, err os.Error) {
 	switch a := sa.(type) {
 	case *syscall.SockaddrInet4:
-		return joinHostPort(IP(&a.Addr).String(), itoa(a.Port)), nil;
+		return joinHostPort(IP(&a.Addr).String(), itoa(a.Port)), nil
 	case *syscall.SockaddrInet6:
-		return joinHostPort(IP(&a.Addr).String(), itoa(a.Port)), nil;
+		return joinHostPort(IP(&a.Addr).String(), itoa(a.Port)), nil
 	case *syscall.SockaddrUnix:
-		return a.Name, nil;
+		return a.Name, nil
 	}
 
 	return "", &UnknownSocketError{sa};

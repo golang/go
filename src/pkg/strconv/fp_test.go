@@ -16,11 +16,11 @@ import (
 func pow2(i int) float64 {
 	switch {
 	case i < 0:
-		return 1/pow2(-i);
+		return 1/pow2(-i)
 	case i == 0:
-		return 1;
+		return 1
 	case i == 1:
-		return 2;
+		return 2
 	}
 	return pow2(i/2)*pow2(i - i/2);
 }
@@ -32,7 +32,7 @@ func myatof64(s string) (f float64, ok bool) {
 	if len(a) == 2 {
 		n, err := strconv.Atoi64(a[0]);
 		if err != nil {
-			return 0, false;
+			return 0, false
 		}
 		e, err1 := strconv.Atoi(a[1]);
 		if err1 != nil {
@@ -64,7 +64,7 @@ func myatof64(s string) (f float64, ok bool) {
 	}
 	f1, err := strconv.Atof64(s);
 	if err != nil {
-		return 0, false;
+		return 0, false
 	}
 	return f1, true;
 }
@@ -88,7 +88,7 @@ func myatof32(s string) (f float32, ok bool) {
 	}
 	f1, err1 := strconv.Atof32(s);
 	if err1 != nil {
-		return 0, false;
+		return 0, false
 	}
 	return f1, true;
 }
@@ -96,7 +96,7 @@ func myatof32(s string) (f float32, ok bool) {
 func TestFp(t *testing.T) {
 	f, err := os.Open("testfp.txt", os.O_RDONLY, 0);
 	if err != nil {
-		panicln("testfp: open testfp.txt:", err.String());
+		panicln("testfp: open testfp.txt:", err.String())
 	}
 	defer f.Close();
 
@@ -106,15 +106,15 @@ func TestFp(t *testing.T) {
 	for {
 		line, err2 := b.ReadString('\n');
 		if err2 == os.EOF {
-			break;
+			break
 		}
 		if err2 != nil {
-			panicln("testfp: read testfp.txt:", err2.String());
+			panicln("testfp: read testfp.txt:", err2.String())
 		}
 		line = line[0 : len(line)-1];
 		lineno++;
 		if len(line) == 0 || line[0] == '#' {
-			continue;
+			continue
 		}
 		a := strings.Split(line, " ", 0);
 		if len(a) != 4 {
@@ -143,7 +143,7 @@ func TestFp(t *testing.T) {
 		}
 		if s != a[3] {
 			t.Error("testfp.txt:", lineno, ": ", a[0], " ", a[1], " ", a[2], " (", v, ") ",
-				"want ", a[3], " got ", s);
+				"want ", a[3], " got ", s)
 		}
 	}
 }

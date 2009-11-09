@@ -131,7 +131,7 @@ func subw(w uint32) uint32 {
 	return uint32(sbox0[w>>24])<<24 |
 		uint32(sbox0[w>>16&0xff])<<16 |
 		uint32(sbox0[w>>8&0xff])<<8 |
-		uint32(sbox0[w&0xff]);
+		uint32(sbox0[w&0xff])
 }
 
 // Rotate
@@ -144,14 +144,14 @@ func expandKey(key []byte, enc, dec []uint32) {
 	var i int;
 	nk := len(key)/4;
 	for i = 0; i < nk; i++ {
-		enc[i] = uint32(key[4*i])<<24 | uint32(key[4*i + 1])<<16 | uint32(key[4*i + 2])<<8 | uint32(key[4*i + 3]);
+		enc[i] = uint32(key[4*i])<<24 | uint32(key[4*i + 1])<<16 | uint32(key[4*i + 2])<<8 | uint32(key[4*i + 3])
 	}
 	for ; i < len(enc); i++ {
 		t := enc[i-1];
 		if i%nk == 0 {
-			t = subw(rotw(t))^(uint32(powx[i/nk - 1])<<24);
+			t = subw(rotw(t))^(uint32(powx[i/nk - 1])<<24)
 		} else if nk > 6 && i%nk == 4 {
-			t = subw(t);
+			t = subw(t)
 		}
 		enc[i] = enc[i-nk]^t;
 	}
@@ -160,7 +160,7 @@ func expandKey(key []byte, enc, dec []uint32) {
 	// Reverse the 4-word round key sets from enc to produce dec.
 	// All sets but the first and last get the MixColumn transform applied.
 	if dec == nil {
-		return;
+		return
 	}
 	n := len(enc);
 	for i := 0; i < n; i += 4 {
@@ -168,7 +168,7 @@ func expandKey(key []byte, enc, dec []uint32) {
 		for j := 0; j < 4; j++ {
 			x := enc[ei+j];
 			if i > 0 && i+4 < n {
-				x = td[0][sbox0[x>>24]]^td[1][sbox0[x>>16&0xff]]^td[2][sbox0[x>>8&0xff]]^td[3][sbox0[x&0xff]];
+				x = td[0][sbox0[x>>24]]^td[1][sbox0[x>>16&0xff]]^td[2][sbox0[x>>8&0xff]]^td[3][sbox0[x&0xff]]
 			}
 			dec[i+j] = x;
 		}

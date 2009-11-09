@@ -19,7 +19,7 @@ type clientHelloMsg struct {
 
 func (m *clientHelloMsg) marshal() []byte {
 	if m.raw != nil {
-		return m.raw;
+		return m.raw
 	}
 
 	length := 2 + 32 + 1 + len(m.sessionId) + 2 + len(m.cipherSuites)*2 + 1 + len(m.compressionMethods);
@@ -50,7 +50,7 @@ func (m *clientHelloMsg) marshal() []byte {
 
 func (m *clientHelloMsg) unmarshal(data []byte) bool {
 	if len(data) < 39 {
-		return false;
+		return false
 	}
 	m.raw = data;
 	m.major = data[4];
@@ -58,31 +58,31 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 	m.random = data[6:38];
 	sessionIdLen := int(data[38]);
 	if sessionIdLen > 32 || len(data) < 39 + sessionIdLen {
-		return false;
+		return false
 	}
 	m.sessionId = data[39 : 39 + sessionIdLen];
 	data = data[39 + sessionIdLen : len(data)];
 	if len(data) < 2 {
-		return false;
+		return false
 	}
 	// cipherSuiteLen is the number of bytes of cipher suite numbers. Since
 	// they are uint16s, the number must be even.
 	cipherSuiteLen := int(data[0])<<8 | int(data[1]);
 	if cipherSuiteLen % 2 == 1 || len(data) < 2 + cipherSuiteLen {
-		return false;
+		return false
 	}
 	numCipherSuites := cipherSuiteLen / 2;
 	m.cipherSuites = make([]uint16, numCipherSuites);
 	for i := 0; i < numCipherSuites; i++ {
-		m.cipherSuites[i] = uint16(data[2 + 2*i])<<8 | uint16(data[3 + 2*i]);
+		m.cipherSuites[i] = uint16(data[2 + 2*i])<<8 | uint16(data[3 + 2*i])
 	}
 	data = data[2 + cipherSuiteLen : len(data)];
 	if len(data) < 2 {
-		return false;
+		return false
 	}
 	compressionMethodsLen := int(data[0]);
 	if len(data) < 1 + compressionMethodsLen {
-		return false;
+		return false
 	}
 	m.compressionMethods = data[1 : 1 + compressionMethodsLen];
 
@@ -101,7 +101,7 @@ type serverHelloMsg struct {
 
 func (m *serverHelloMsg) marshal() []byte {
 	if m.raw != nil {
-		return m.raw;
+		return m.raw
 	}
 
 	length := 38+len(m.sessionId);
@@ -131,12 +131,12 @@ type certificateMsg struct {
 
 func (m *certificateMsg) marshal() (x []byte) {
 	if m.raw != nil {
-		return m.raw;
+		return m.raw
 	}
 
 	var i int;
 	for _, slice := range m.certificates {
-		i += len(slice);
+		i += len(slice)
 	}
 
 	length := 3 + 3*len(m.certificates) + i;
@@ -179,7 +179,7 @@ type clientKeyExchangeMsg struct {
 
 func (m *clientKeyExchangeMsg) marshal() []byte {
 	if m.raw != nil {
-		return m.raw;
+		return m.raw
 	}
 	length := len(m.ciphertext)+2;
 	x := make([]byte, length+4);
@@ -198,11 +198,11 @@ func (m *clientKeyExchangeMsg) marshal() []byte {
 func (m *clientKeyExchangeMsg) unmarshal(data []byte) bool {
 	m.raw = data;
 	if len(data) < 7 {
-		return false;
+		return false
 	}
 	cipherTextLen := int(data[4])<<8 | int(data[5]);
 	if len(data) != 6 + cipherTextLen {
-		return false;
+		return false
 	}
 	m.ciphertext = data[6:len(data)];
 	return true;
@@ -215,7 +215,7 @@ type finishedMsg struct {
 
 func (m *finishedMsg) marshal() (x []byte) {
 	if m.raw != nil {
-		return m.raw;
+		return m.raw
 	}
 
 	x = make([]byte, 16);
@@ -229,7 +229,7 @@ func (m *finishedMsg) marshal() (x []byte) {
 func (m *finishedMsg) unmarshal(data []byte) bool {
 	m.raw = data;
 	if len(data) != 4+12 {
-		return false;
+		return false
 	}
 	m.verifyData = data[4:len(data)];
 	return true;

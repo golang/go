@@ -127,7 +127,7 @@ type FormatError struct {
 func (e *FormatError) String() string {
 	msg := e.msg;
 	if e.val != nil {
-		msg += fmt.Sprintf(" '%v' ", e.val);
+		msg += fmt.Sprintf(" '%v' ", e.val)
 	}
 	msg += fmt.Sprintf("in record at byte %#x", e.off);
 	return msg;
@@ -137,7 +137,7 @@ func (e *FormatError) String() string {
 func Open(name string) (*File, os.Error) {
 	f, err := os.Open(name, os.O_RDONLY, 0);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	ff, err := NewFile(f);
 	if err != nil {
@@ -167,10 +167,10 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	// Read and decode ELF identifier
 	var ident [16]uint8;
 	if _, err := r.ReadAt(&ident, 0); err != nil {
-		return nil, err;
+		return nil, err
 	}
 	if ident[0] != '\x7f' || ident[1] != 'E' || ident[2] != 'L' || ident[3] != 'F' {
-		return nil, &FormatError{0, "bad magic number", ident[0:4]};
+		return nil, &FormatError{0, "bad magic number", ident[0:4]}
 	}
 
 	f := new(File);
@@ -180,22 +180,22 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	case ELFCLASS64:
 		// ok
 	default:
-		return nil, &FormatError{0, "unknown ELF class", f.Class};
+		return nil, &FormatError{0, "unknown ELF class", f.Class}
 	}
 
 	f.Data = Data(ident[EI_DATA]);
 	switch f.Data {
 	case ELFDATA2LSB:
-		f.ByteOrder = binary.LittleEndian;
+		f.ByteOrder = binary.LittleEndian
 	case ELFDATA2MSB:
-		f.ByteOrder = binary.BigEndian;
+		f.ByteOrder = binary.BigEndian
 	default:
-		return nil, &FormatError{0, "unknown ELF data encoding", f.Data};
+		return nil, &FormatError{0, "unknown ELF data encoding", f.Data}
 	}
 
 	f.Version = Version(ident[EI_VERSION]);
 	if f.Version != EV_CURRENT {
-		return nil, &FormatError{0, "unknown ELF version", f.Version};
+		return nil, &FormatError{0, "unknown ELF version", f.Version}
 	}
 
 	f.OSABI = OSABI(ident[EI_OSABI]);
@@ -210,12 +210,12 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		hdr := new(Header32);
 		sr.Seek(0, 0);
 		if err := binary.Read(sr, f.ByteOrder, hdr); err != nil {
-			return nil, err;
+			return nil, err
 		}
 		f.Type = Type(hdr.Type);
 		f.Machine = Machine(hdr.Machine);
 		if v := Version(hdr.Version); v != f.Version {
-			return nil, &FormatError{0, "mismatched ELF version", v};
+			return nil, &FormatError{0, "mismatched ELF version", v}
 		}
 		shoff = int64(hdr.Shoff);
 		shentsize = int(hdr.Shentsize);
@@ -225,12 +225,12 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		hdr := new(Header64);
 		sr.Seek(0, 0);
 		if err := binary.Read(sr, f.ByteOrder, hdr); err != nil {
-			return nil, err;
+			return nil, err
 		}
 		f.Type = Type(hdr.Type);
 		f.Machine = Machine(hdr.Machine);
 		if v := Version(hdr.Version); v != f.Version {
-			return nil, &FormatError{0, "mismatched ELF version", v};
+			return nil, &FormatError{0, "mismatched ELF version", v}
 		}
 		shoff = int64(hdr.Shoff);
 		shentsize = int(hdr.Shentsize);
@@ -238,7 +238,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		shstrndx = int(hdr.Shstrndx);
 	}
 	if shstrndx < 0 || shstrndx >= shnum {
-		return nil, &FormatError{0, "invalid ELF shstrndx", shstrndx};
+		return nil, &FormatError{0, "invalid ELF shstrndx", shstrndx}
 	}
 
 	// Read program headers
@@ -255,7 +255,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		case ELFCLASS32:
 			sh := new(Section32);
 			if err := binary.Read(sr, f.ByteOrder, sh); err != nil {
-				return nil, err;
+				return nil, err
 			}
 			names[i] = sh.Name;
 			s.SectionHeader = SectionHeader{
@@ -272,7 +272,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		case ELFCLASS64:
 			sh := new(Section64);
 			if err := binary.Read(sr, f.ByteOrder, sh); err != nil {
-				return nil, err;
+				return nil, err
 			}
 			names[i] = sh.Name;
 			s.SectionHeader = SectionHeader{
@@ -296,13 +296,13 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	s := f.Sections[shstrndx];
 	shstrtab := make([]byte, s.Size);
 	if _, err := r.ReadAt(shstrtab, int64(s.Offset)); err != nil {
-		return nil, err;
+		return nil, err
 	}
 	for i, s := range f.Sections {
 		var ok bool;
 		s.Name, ok = getString(shstrtab, int(names[i]));
 		if !ok {
-			return nil, &FormatError{shoff+int64(i * shentsize), "bad section name index", names[i]};
+			return nil, &FormatError{shoff+int64(i * shentsize), "bad section name index", names[i]}
 		}
 	}
 
@@ -312,7 +312,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 func (f *File) getSymbols() ([]Symbol, os.Error) {
 	switch f.Class {
 	case ELFCLASS64:
-		return f.getSymbols64();
+		return f.getSymbols64()
 	}
 
 	return nil, os.ErrorString("not implemented");
@@ -329,16 +329,16 @@ func (f *File) getSymbols64() ([]Symbol, os.Error) {
 	}
 
 	if symtabSection == nil {
-		return nil, os.ErrorString("no symbol section");
+		return nil, os.ErrorString("no symbol section")
 	}
 
 	data, err := symtabSection.Data();
 	if err != nil {
-		return nil, os.ErrorString("cannot load symbol section");
+		return nil, os.ErrorString("cannot load symbol section")
 	}
 	symtab := bytes.NewBuffer(data);
 	if symtab.Len() % Sym64Size != 0 {
-		return nil, os.ErrorString("length of symbol section is not a multiple of Sym64Size");
+		return nil, os.ErrorString("length of symbol section is not a multiple of Sym64Size")
 	}
 
 	// The first entry is all zeros.
@@ -366,12 +366,12 @@ func (f *File) getSymbols64() ([]Symbol, os.Error) {
 // getString extracts a string from an ELF string table.
 func getString(section []byte, start int) (string, bool) {
 	if start < 0 || start >= len(section) {
-		return "", false;
+		return "", false
 	}
 
 	for end := start; end < len(section); end++ {
 		if section[end] == 0 {
-			return string(section[start:end]), true;
+			return string(section[start:end]), true
 		}
 	}
 	return "", false;
@@ -382,7 +382,7 @@ func getString(section []byte, start int) (string, bool) {
 func (f *File) Section(name string) *Section {
 	for _, s := range f.Sections {
 		if s.Name == name {
-			return s;
+			return s
 		}
 	}
 	return nil;
@@ -392,7 +392,7 @@ func (f *File) Section(name string) *Section {
 // in RELA format.
 func (f *File) applyRelocations(dst []byte, rels []byte) os.Error {
 	if f.Class == ELFCLASS64 && f.Machine == EM_X86_64 {
-		return f.applyRelocationsAMD64(dst, rels);
+		return f.applyRelocationsAMD64(dst, rels)
 	}
 
 	return os.ErrorString("not implemented");
@@ -400,12 +400,12 @@ func (f *File) applyRelocations(dst []byte, rels []byte) os.Error {
 
 func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) os.Error {
 	if len(rels) % Sym64Size != 0 {
-		return os.ErrorString("length of relocation section is not a multiple of Sym64Size");
+		return os.ErrorString("length of relocation section is not a multiple of Sym64Size")
 	}
 
 	symbols, err := f.getSymbols();
 	if err != nil {
-		return err;
+		return err
 	}
 
 	b := bytes.NewBuffer(rels);
@@ -417,23 +417,23 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) os.Error {
 		t := R_X86_64(rela.Info & 0xffff);
 
 		if symNo >= uint64(len(symbols)) {
-			continue;
+			continue
 		}
 		sym := &symbols[symNo];
 		if SymType(sym.Info & 0xf) != STT_SECTION {
 			// We don't handle non-section relocations for now.
-			continue;
+			continue
 		}
 
 		switch t {
 		case R_X86_64_64:
 			if rela.Off + 8 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue;
+				continue
 			}
 			f.ByteOrder.PutUint64(dst[rela.Off : rela.Off + 8], uint64(rela.Addend));
 		case R_X86_64_32:
 			if rela.Off + 4 >= uint64(len(dst)) || rela.Addend < 0 {
-				continue;
+				continue
 			}
 			f.ByteOrder.PutUint32(dst[rela.Off : rela.Off + 4], uint32(rela.Addend));
 		}
@@ -452,11 +452,11 @@ func (f *File) DWARF() (*dwarf.Data, os.Error) {
 		name = ".debug_" + name;
 		s := f.Section(name);
 		if s == nil {
-			continue;
+			continue
 		}
 		b, err := s.Data();
 		if err != nil && uint64(len(b)) < s.Size {
-			return nil, err;
+			return nil, err
 		}
 		dat[i] = b;
 	}
@@ -467,11 +467,11 @@ func (f *File) DWARF() (*dwarf.Data, os.Error) {
 	if rela != nil && rela.Type == SHT_RELA && f.Machine == EM_X86_64 {
 		data, err := rela.Data();
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 		err = f.applyRelocations(dat[1], data);
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 	}
 

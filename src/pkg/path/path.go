@@ -31,7 +31,7 @@ import (
 // http://plan9.bell-labs.com/sys/doc/lexnames.html
 func Clean(path string) string {
 	if path == "" {
-		return ".";
+		return "."
 	}
 
 	rooted := path[0] == '/';
@@ -45,17 +45,17 @@ func Clean(path string) string {
 	buf := strings.Bytes(path);
 	r, w, dotdot := 0, 0, 0;
 	if rooted {
-		r, w, dotdot = 1, 1, 1;
+		r, w, dotdot = 1, 1, 1
 	}
 
 	for r < n {
 		switch {
 		case path[r] == '/':
 			// empty path element
-			r++;
+			r++
 		case path[r] == '.' && (r+1 == n || path[r+1] == '/'):
 			// . element
-			r++;
+			r++
 		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || path[r+2] == '/'):
 			// .. element: remove to last /
 			r += 2;
@@ -64,7 +64,7 @@ func Clean(path string) string {
 				// can backtrack
 				w--;
 				for w > dotdot && buf[w] != '/' {
-					w--;
+					w--
 				}
 			case !rooted:
 				// cannot backtrack, but not rooted, so append .. element.
@@ -109,7 +109,7 @@ func Clean(path string) string {
 func Split(path string) (dir, file string) {
 	for i := len(path)-1; i >= 0; i-- {
 		if path[i] == '/' {
-			return path[0 : i+1], path[i+1 : len(path)];
+			return path[0 : i+1], path[i+1 : len(path)]
 		}
 	}
 	return "", path;
@@ -119,7 +119,7 @@ func Split(path string) (dir, file string) {
 // slash if necessary.  If dir is empty, it returns file.
 func Join(dir, file string) string {
 	if dir == "" {
-		return file;
+		return file
 	}
 	return Clean(dir+"/"+file);
 }
@@ -131,7 +131,7 @@ func Join(dir, file string) string {
 func Ext(path string) string {
 	for i := len(path)-1; i >= 0 && path[i] != '/'; i-- {
 		if path[i] == '.' {
-			return path[i:len(path)];
+			return path[i:len(path)]
 		}
 	}
 	return "";
@@ -152,18 +152,18 @@ func walk(path string, d *os.Dir, v Visitor, errors chan<- os.Error) {
 	}
 
 	if !v.VisitDir(path, d) {
-		return;	// skip directory entries
+		return	// skip directory entries
 	}
 
 	list, err := io.ReadDir(path);
 	if err != nil {
 		if errors != nil {
-			errors <- err;
+			errors <- err
 		}
 	}
 
 	for _, e := range list {
-		walk(Join(path, e.Name), e, v, errors);
+		walk(Join(path, e.Name), e, v, errors)
 	}
 }
 
@@ -178,7 +178,7 @@ func Walk(root string, v Visitor, errors chan<- os.Error) {
 	d, err := os.Lstat(root);
 	if err != nil {
 		if errors != nil {
-			errors <- err;
+			errors <- err
 		}
 		return;	// can't progress
 	}

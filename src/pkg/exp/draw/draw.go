@@ -30,19 +30,19 @@ func Draw(dst Image, r Rectangle, src, mask image.Image, pt Point) {
 	dx, dy := src.Width(), src.Height();
 	if mask != nil {
 		if dx > mask.Width() {
-			dx = mask.Width();
+			dx = mask.Width()
 		}
 		if dy > mask.Width() {
-			dy = mask.Width();
+			dy = mask.Width()
 		}
 	}
 	dx -= pt.X;
 	dy -= pt.Y;
 	if r.Dx() > dx {
-		r.Max.X = r.Min.X + dx;
+		r.Max.X = r.Min.X + dx
 	}
 	if r.Dy() > dy {
-		r.Max.Y = r.Min.Y + dy;
+		r.Max.Y = r.Min.Y + dy
 	}
 
 	x0, x1, dx := r.Min.X, r.Max.X, 1;
@@ -67,9 +67,9 @@ func Draw(dst Image, r Rectangle, src, mask image.Image, pt Point) {
 			_, _, _, ma := mask.At(sx, sy).RGBA();
 			switch ma {
 			case 0:
-				continue;
+				continue
 			case 0xFFFFFFFF:
-				dst.Set(x, y, src.At(sx, sy));
+				dst.Set(x, y, src.At(sx, sy))
 			default:
 				dr, dg, db, da := dst.At(x, y).RGBA();
 				dr >>= 16;
@@ -89,7 +89,7 @@ func Draw(dst Image, r Rectangle, src, mask image.Image, pt Point) {
 				db = (db*(M-a) + sb*ma)/M;
 				da = (da*(M-a) + sa*ma)/M;
 				if out == nil {
-					out = new(image.RGBA64Color);
+					out = new(image.RGBA64Color)
 				}
 				out.R = uint16(dr);
 				out.G = uint16(dg);

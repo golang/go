@@ -41,7 +41,7 @@ func extractEBNF(src []byte) []byte {
 		// i = beginning of EBNF text
 		i := bytes.Index(src, open);
 		if i < 0 {
-			break;	// no EBNF found - we are done
+			break	// no EBNF found - we are done
 		}
 		i += len(open);
 
@@ -49,14 +49,14 @@ func extractEBNF(src []byte) []byte {
 		// to maintain correct line numbers in error messages
 		for _, ch := range src[0:i] {
 			if ch == '\n' {
-				buf.WriteByte('\n');
+				buf.WriteByte('\n')
 			}
 		}
 
 		// j = end of EBNF text (or end of source)
 		j := bytes.Index(src[i:len(src)], close);	// close marker
 		if j < 0 {
-			j = len(src)-i;
+			j = len(src)-i
 		}
 		j += i;
 
@@ -77,28 +77,28 @@ func main() {
 	var filename string;
 	switch flag.NArg() {
 	case 0:
-		filename = "/dev/stdin";
+		filename = "/dev/stdin"
 	case 1:
-		filename = flag.Arg(0);
+		filename = flag.Arg(0)
 	default:
-		usage();
+		usage()
 	}
 
 	src, err := io.ReadFile(filename);
 	if err != nil {
-		scanner.PrintError(os.Stderr, err);
+		scanner.PrintError(os.Stderr, err)
 	}
 
 	if path.Ext(filename) == ".html" {
-		src = extractEBNF(src);
+		src = extractEBNF(src)
 	}
 
 	grammar, err := ebnf.Parse(filename, src);
 	if err != nil {
-		scanner.PrintError(os.Stderr, err);
+		scanner.PrintError(os.Stderr, err)
 	}
 
 	if err = ebnf.Verify(grammar, *start); err != nil {
-		scanner.PrintError(os.Stderr, err);
+		scanner.PrintError(os.Stderr, err)
 	}
 }

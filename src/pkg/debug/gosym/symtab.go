@@ -41,7 +41,7 @@ func (s *Sym) Static() bool	{ return s.Type >= 'a' }
 // or the empty string if there is none.
 func (s *Sym) PackageName() string {
 	if i := strings.Index(s.Name, "."); i != -1 {
-		return s.Name[0:i];
+		return s.Name[0:i]
 	}
 	return "";
 }
@@ -52,7 +52,7 @@ func (s *Sym) ReceiverName() string {
 	l := strings.Index(s.Name, ".");
 	r := strings.LastIndex(s.Name, ".");
 	if l == -1 || r == -1 || l == r {
-		return "";
+		return ""
 	}
 	return s.Name[l+1 : r];
 }
@@ -60,7 +60,7 @@ func (s *Sym) ReceiverName() string {
 // BaseName returns the symbol name without the package or receiver name.
 func (s *Sym) BaseName() string {
 	if i := strings.LastIndex(s.Name, "."); i != -1 {
-		return s.Name[i+1 : len(s.Name)];
+		return s.Name[i+1 : len(s.Name)]
 	}
 	return s.Name;
 }
@@ -112,7 +112,7 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
 		s.value = binary.BigEndian.Uint32(p[0:4]);
 		typ := p[4];
 		if typ&0x80 == 0 {
-			return &DecodingError{len(data)-len(p)+4, "bad symbol type", typ};
+			return &DecodingError{len(data)-len(p)+4, "bad symbol type", typ}
 		}
 		typ &^= 0x80;
 		s.typ = typ;
@@ -136,7 +136,7 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
 			}
 		}
 		if i+nnul+4 > len(p) {
-			return &DecodingError{len(data), "unexpected EOF", nil};
+			return &DecodingError{len(data), "unexpected EOF", nil}
 		}
 		s.name = p[0:i];
 		i += nnul;
@@ -156,7 +156,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 		return nil;
 	});
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	var t Table;
@@ -188,31 +188,31 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 			ts.Name = string(s.name[0:w]);
 		case 'z', 'Z':
 			if lasttyp != 'z' && lasttyp != 'Z' {
-				nz++;
+				nz++
 			}
 			for i := 0; i < len(s.name); i += 2 {
 				eltIdx := binary.BigEndian.Uint16(s.name[i : i+2]);
 				elt, ok := fname[eltIdx];
 				if !ok {
-					return &DecodingError{-1, "bad filename code", eltIdx};
+					return &DecodingError{-1, "bad filename code", eltIdx}
 				}
 				if n := len(ts.Name); n > 0 && ts.Name[n-1] != '/' {
-					ts.Name += "/";
+					ts.Name += "/"
 				}
 				ts.Name += elt;
 			}
 		}
 		switch s.typ {
 		case 'T', 't', 'L', 'l':
-			nf++;
+			nf++
 		case 'f':
-			fname[uint16(s.value)] = ts.Name;
+			fname[uint16(s.value)] = ts.Name
 		}
 		lasttyp = s.typ;
 		return nil;
 	});
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 
 	t.Funcs = make([]Func, 0, nf);
@@ -229,7 +229,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 		case 'Z', 'z':	// path symbol
 			// Finish the current object
 			if obj != nil {
-				obj.Funcs = t.Funcs[lastf:len(t.Funcs)];
+				obj.Funcs = t.Funcs[lastf:len(t.Funcs)]
 			}
 			lastf = len(t.Funcs);
 
@@ -242,7 +242,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 			var end int;
 			for end = i+1; end < len(t.Syms); end++ {
 				if c := t.Syms[end].Type; c != 'Z' && c != 'z' {
-					break;
+					break
 				}
 			}
 			obj.Paths = t.Syms[i:end];
@@ -253,10 +253,10 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 			for j := range obj.Paths {
 				s := &obj.Paths[j];
 				if s.Name == "" {
-					depth--;
+					depth--
 				} else {
 					if depth == 0 {
-						t.Files[s.Name] = obj;
+						t.Files[s.Name] = obj
 					}
 					depth++;
 				}
@@ -264,10 +264,10 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 
 		case 'T', 't', 'L', 'l':	// text symbol
 			if n := len(t.Funcs); n > 0 {
-				t.Funcs[n-1].End = sym.Value;
+				t.Funcs[n-1].End = sym.Value
 			}
 			if sym.Name == "etext" {
-				continue;
+				continue
 			}
 
 			// Count parameter and local (auto) syms
@@ -277,11 +277,11 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 			for end = i+1; end < len(t.Syms); end++ {
 				switch t.Syms[end].Type {
 				case 'T', 't', 'L', 'l', 'Z', 'z':
-					break countloop;
+					break countloop
 				case 'p':
-					np++;
+					np++
 				case 'a':
-					na++;
+					na++
 				}
 			}
 
@@ -303,7 +303,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 				s := &t.Syms[j];
 				switch s.Type {
 				case 'm':
-					fn.FrameSize = int(s.Value);
+					fn.FrameSize = int(s.Value)
 				case 'p':
 					n := len(fn.Params);
 					fn.Params = fn.Params[0 : n+1];
@@ -318,7 +318,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 		}
 	}
 	if obj != nil {
-		obj.Funcs = t.Funcs[lastf:len(t.Funcs)];
+		obj.Funcs = t.Funcs[lastf:len(t.Funcs)]
 	}
 	return &t, nil;
 }
@@ -332,11 +332,11 @@ func (t *Table) PCToFunc(pc uint64) *Func {
 		fn := &funcs[m];
 		switch {
 		case pc < fn.Entry:
-			funcs = funcs[0:m];
+			funcs = funcs[0:m]
 		case fn.Entry <= pc && pc < fn.End:
-			return fn;
+			return fn
 		default:
-			funcs = funcs[m+1 : len(funcs)];
+			funcs = funcs[m+1 : len(funcs)]
 		}
 	}
 	return nil;
@@ -346,7 +346,7 @@ func (t *Table) PCToFunc(pc uint64) *Func {
 // If there is no information, it returns fn == nil.
 func (t *Table) PCToLine(pc uint64) (file string, line int, fn *Func) {
 	if fn = t.PCToFunc(pc); fn == nil {
-		return;
+		return
 	}
 	file, line = fn.Obj.lineFromAline(fn.LineTable.PCToLine(pc));
 	return;
@@ -358,17 +358,17 @@ func (t *Table) PCToLine(pc uint64) (file string, line int, fn *Func) {
 func (t *Table) LineToPC(file string, line int) (pc uint64, fn *Func, err os.Error) {
 	obj, ok := t.Files[file];
 	if !ok {
-		return 0, nil, UnknownFileError(file);
+		return 0, nil, UnknownFileError(file)
 	}
 	abs, err := obj.alineFromLine(file, line);
 	if err != nil {
-		return;
+		return
 	}
 	for i := range obj.Funcs {
 		f := &obj.Funcs[i];
 		pc := f.LineTable.LineToPC(abs, f.End);
 		if pc != 0 {
-			return pc, f, nil;
+			return pc, f, nil
 		}
 	}
 	return 0, nil, &UnknownLineError{file, line};
@@ -383,7 +383,7 @@ func (t *Table) LookupSym(name string) *Sym {
 		switch s.Type {
 		case 'T', 't', 'L', 'l', 'D', 'd', 'B', 'b':
 			if s.Name == name {
-				return s;
+				return s
 			}
 		}
 	}
@@ -396,7 +396,7 @@ func (t *Table) LookupFunc(name string) *Func {
 	for i := range t.Funcs {
 		f := &t.Funcs[i];
 		if f.Sym.Name == name {
-			return f;
+			return f
 		}
 	}
 	return nil;
@@ -411,7 +411,7 @@ func (t *Table) SymByAddr(addr uint64) *Sym {
 		switch s.Type {
 		case 'T', 't', 'L', 'l', 'D', 'd', 'B', 'b':
 			if s.Value == addr {
-				return s;
+				return s
 			}
 		}
 	}
@@ -440,41 +440,41 @@ pathloop:
 		val := int(s.Value);
 		switch {
 		case val > aline:
-			break pathloop;
+			break pathloop
 
 		case val == 1:
 			// Start a new stack
-			tos = &stackEnt{s.Name, val, 0, noPath};
+			tos = &stackEnt{s.Name, val, 0, noPath}
 
 		case s.Name == "":
 			// Pop
 			if tos == noPath {
-				return "<malformed symbol table>", 0;
+				return "<malformed symbol table>", 0
 			}
 			tos.prev.offset += val - tos.start;
 			tos = tos.prev;
 
 		default:
 			// Push
-			tos = &stackEnt{s.Name, val, 0, tos};
+			tos = &stackEnt{s.Name, val, 0, tos}
 		}
 	}
 
 	if tos == noPath {
-		return "", 0;
+		return "", 0
 	}
 	return tos.path, aline - tos.start - tos.offset + 1;
 }
 
 func (o *Obj) alineFromLine(path string, line int) (int, os.Error) {
 	if line < 1 {
-		return 0, &UnknownLineError{path, line};
+		return 0, &UnknownLineError{path, line}
 	}
 
 	for i, s := range o.Paths {
 		// Find this path
 		if s.Name != path {
-			continue;
+			continue
 		}
 
 		// Find this line at this stack level
@@ -486,19 +486,19 @@ func (o *Obj) alineFromLine(path string, line int) (int, os.Error) {
 			val := int(s.Value);
 			switch {
 			case depth == 1 && val >= line:
-				return line-1, nil;
+				return line-1, nil
 
 			case s.Name == "":
 				depth--;
 				if depth == 0 {
-					break pathloop;
+					break pathloop
 				} else if depth == 1 {
-					line += val-incstart;
+					line += val-incstart
 				}
 
 			default:
 				if depth == 1 {
-					incstart = val;
+					incstart = val
 				}
 				depth++;
 			}
@@ -527,7 +527,7 @@ type UnknownLineError struct {
 }
 
 func (e *UnknownLineError) String() string {
-	return "no code at " + e.File + ":" + strconv.Itoa(e.Line);
+	return "no code at " + e.File + ":" + strconv.Itoa(e.Line)
 }
 
 // DecodingError represents an error during the decoding of
@@ -541,7 +541,7 @@ type DecodingError struct {
 func (e *DecodingError) String() string {
 	msg := e.msg;
 	if e.val != nil {
-		msg += fmt.Sprintf(" '%v'", e.val);
+		msg += fmt.Sprintf(" '%v'", e.val)
 	}
 	msg += fmt.Sprintf(" at byte %#x", e.off);
 	return msg;

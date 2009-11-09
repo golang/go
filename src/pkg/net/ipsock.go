@@ -20,7 +20,7 @@ import (
 func kernelSupportsIPv6() bool {
 	fd, e := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP);
 	if fd >= 0 {
-		syscall.Close(fd);
+		syscall.Close(fd)
 	}
 	return e == 0;
 }
@@ -48,7 +48,7 @@ func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, t
 	family := syscall.AF_INET6;
 	switch net[len(net)-1] {
 	case '4':
-		family = syscall.AF_INET;
+		family = syscall.AF_INET
 	case '6':
 		// nothing to do
 	default:
@@ -57,31 +57,31 @@ func internetSocket(net string, laddr, raddr sockaddr, proto int, mode string, t
 		if preferIPv4 &&
 			(laddr == nil || laddr.family() == syscall.AF_INET) &&
 			(raddr == nil || raddr.family() == syscall.AF_INET) {
-			family = syscall.AF_INET;
+			family = syscall.AF_INET
 		}
 	}
 
 	var la, ra syscall.Sockaddr;
 	if laddr != nil {
 		if la, err = laddr.sockaddr(family); err != nil {
-			goto Error;
+			goto Error
 		}
 	}
 	if raddr != nil {
 		if ra, err = raddr.sockaddr(family); err != nil {
-			goto Error;
+			goto Error
 		}
 	}
 	fd, err = socket(net, family, proto, 0, la, ra, toAddr);
 	if err != nil {
-		goto Error;
+		goto Error
 	}
 	return fd, nil;
 
 Error:
 	addr := raddr;
 	if mode == "listen" {
-		addr = laddr;
+		addr = laddr
 	}
 	return nil, &OpError{mode, net, addr, err};
 }
@@ -92,15 +92,15 @@ func getip(fd int, remote bool) (ip []byte, port int, ok bool) {
 	// caller won't report them anyway.
 	var sa syscall.Sockaddr;
 	if remote {
-		sa, _ = syscall.Getpeername(fd);
+		sa, _ = syscall.Getpeername(fd)
 	} else {
-		sa, _ = syscall.Getsockname(fd);
+		sa, _ = syscall.Getsockname(fd)
 	}
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		return &sa.Addr, sa.Port, true;
+		return &sa.Addr, sa.Port, true
 	case *syscall.SockaddrInet6:
-		return &sa.Addr, sa.Port, true;
+		return &sa.Addr, sa.Port, true
 	}
 	return;
 }
@@ -109,33 +109,33 @@ func ipToSockaddr(family int, ip IP, port int) (syscall.Sockaddr, os.Error) {
 	switch family {
 	case syscall.AF_INET:
 		if len(ip) == 0 {
-			ip = IPv4zero;
+			ip = IPv4zero
 		}
 		if ip = ip.To4(); ip == nil {
-			return nil, os.EINVAL;
+			return nil, os.EINVAL
 		}
 		s := new(syscall.SockaddrInet4);
 		for i := 0; i < IPv4len; i++ {
-			s.Addr[i] = ip[i];
+			s.Addr[i] = ip[i]
 		}
 		s.Port = port;
 		return s, nil;
 	case syscall.AF_INET6:
 		if len(ip) == 0 {
-			ip = IPzero;
+			ip = IPzero
 		}
 		// IPv4 callers use 0.0.0.0 to mean "announce on any available address".
 		// In IPv6 mode, Linux treats that as meaning "announce on 0.0.0.0",
 		// which it refuses to do.  Rewrite to the IPv6 all zeros.
 		if p4 := ip.To4(); p4 != nil && p4[0] == 0 && p4[1] == 0 && p4[2] == 0 && p4[3] == 0 {
-			ip = IPzero;
+			ip = IPzero
 		}
 		if ip = ip.To16(); ip == nil {
-			return nil, os.EINVAL;
+			return nil, os.EINVAL
 		}
 		s := new(syscall.SockaddrInet6);
 		for i := 0; i < IPv6len; i++ {
-			s.Addr[i] = ip[i];
+			s.Addr[i] = ip[i]
 		}
 		s.Port = port;
 		return s, nil;
@@ -157,7 +157,7 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
 
 	// Can put brackets around host ...
 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
-		host = host[1 : len(host)-1];
+		host = host[1 : len(host)-1]
 	} else {
 		// ... but if there are no brackets, no colons.
 		if byteIndex(host, ':') >= 0 {
@@ -173,7 +173,7 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
 func joinHostPort(host, port string) string {
 	// If host has colons, have to bracket it.
 	if byteIndex(host, ':') >= 0 {
-		return "["+host+"]:"+port;
+		return "["+host+"]:"+port
 	}
 	return host+":"+port;
 }
@@ -182,7 +182,7 @@ func joinHostPort(host, port string) string {
 func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
 	host, port, err := splitHostPort(hostport);
 	if err != nil {
-		goto Error;
+		goto Error
 	}
 
 	var addr IP;
@@ -209,7 +209,7 @@ func hostPortToIP(net, hostport string) (ip IP, iport int, err os.Error) {
 	if !ok || i != len(port) {
 		p, err = LookupPort(net, port);
 		if err != nil {
-			goto Error;
+			goto Error
 		}
 	}
 	if p < 0 || p > 0xFFFF {

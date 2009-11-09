@@ -18,10 +18,10 @@ var pow10tab [70]float64
 // Pow10 returns 10**x, the base-10 exponential of x.
 func Pow10(e int) float64 {
 	if e < 0 {
-		return 1/Pow10(-e);
+		return 1/Pow10(-e)
 	}
 	if e < len(pow10tab) {
-		return pow10tab[e];
+		return pow10tab[e]
 	}
 	m := e/2;
 	return Pow10(m)*Pow10(e-m);

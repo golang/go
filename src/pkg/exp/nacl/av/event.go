@@ -381,7 +381,7 @@ type reader []byte
 func (r *reader) Read(p []byte) (n int, err os.Error) {
 	b := *r;
 	if len(b) == 0 && len(p) > 0 {
-		return 0, os.EOF;
+		return 0, os.EOF
 	}
 	n = bytes.Copy(p, b);
 	*r = b[n:len(b)];
@@ -403,7 +403,7 @@ func (w *Window) readEvents() {
 	for {
 		if err := videoPollEvent(buf); err != nil {
 			if !clean {
-				clean = w.resizec <- false;
+				clean = w.resizec <- false
 			}
 			time.Sleep(10e6);	// 10ms
 			continue;
@@ -441,11 +441,11 @@ func (w *Window) readEvents() {
 		// log.Stdoutf("%#v\n", e);
 		switch buf[0] {
 		case eventExpose:
-			w.resizec <- true;
+			w.resizec <- true
 		case eventKeyDown:
-			w.kbdc <- int(ke.Key);
+			w.kbdc <- int(ke.Key)
 		case eventKeyUp:
-			w.kbdc <- -int(ke.Key);
+			w.kbdc <- -int(ke.Key)
 		case eventMouseMotion:
 			m.X = int(mme.X);
 			m.Y = int(mme.Y);
@@ -467,7 +467,7 @@ func (w *Window) readEvents() {
 			m.Nsec = time.Nanoseconds();
 			_ = w.mousec <- m;
 		case eventQuit:
-			w.quitc <- true;
+			w.quitc <- true
 		}
 	}
 }

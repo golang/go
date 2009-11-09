@@ -39,10 +39,10 @@ func Sinh(x float64) float64 {
 	var temp float64;
 	switch true {
 	case x > 21:
-		temp = Exp(x)/2;
+		temp = Exp(x)/2
 
 	case x > 0.5:
-		temp = (Exp(x)-Exp(-x))/2;
+		temp = (Exp(x)-Exp(-x))/2
 
 	default:
 		sq := x*x;
@@ -51,7 +51,7 @@ func Sinh(x float64) float64 {
 	}
 
 	if sign {
-		temp = -temp;
+		temp = -temp
 	}
 	return temp;
 }
@@ -59,10 +59,10 @@ func Sinh(x float64) float64 {
 // Cosh returns the hyperbolic cosine of x.
 func Cosh(x float64) float64 {
 	if x < 0 {
-		x = -x;
+		x = -x
 	}
 	if x > 21 {
-		return Exp(x)/2;
+		return Exp(x)/2
 	}
 	return (Exp(x)+Exp(-x))/2;
 }

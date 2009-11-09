@@ -23,7 +23,7 @@ var (
 // interpreter Type.
 func TypeFromNative(t reflect.Type) Type {
 	if et, ok := evalTypes[t]; ok {
-		return et;
+		return et
 	}
 
 	var nt *NamedType;
@@ -36,42 +36,42 @@ func TypeFromNative(t reflect.Type) Type {
 	var et Type;
 	switch t := t.(type) {
 	case *reflect.BoolType:
-		et = BoolType;
+		et = BoolType
 	case *reflect.Float32Type:
-		et = Float32Type;
+		et = Float32Type
 	case *reflect.Float64Type:
-		et = Float64Type;
+		et = Float64Type
 	case *reflect.FloatType:
-		et = FloatType;
+		et = FloatType
 	case *reflect.Int16Type:
-		et = Int16Type;
+		et = Int16Type
 	case *reflect.Int32Type:
-		et = Int32Type;
+		et = Int32Type
 	case *reflect.Int64Type:
-		et = Int64Type;
+		et = Int64Type
 	case *reflect.Int8Type:
-		et = Int8Type;
+		et = Int8Type
 	case *reflect.IntType:
-		et = IntType;
+		et = IntType
 	case *reflect.StringType:
-		et = StringType;
+		et = StringType
 	case *reflect.Uint16Type:
-		et = Uint16Type;
+		et = Uint16Type
 	case *reflect.Uint32Type:
-		et = Uint32Type;
+		et = Uint32Type
 	case *reflect.Uint64Type:
-		et = Uint64Type;
+		et = Uint64Type
 	case *reflect.Uint8Type:
-		et = Uint8Type;
+		et = Uint8Type
 	case *reflect.UintType:
-		et = UintType;
+		et = UintType
 	case *reflect.UintptrType:
-		et = UintptrType;
+		et = UintptrType
 
 	case *reflect.ArrayType:
-		et = NewArrayType(int64(t.Len()), TypeFromNative(t.Elem()));
+		et = NewArrayType(int64(t.Len()), TypeFromNative(t.Elem()))
 	case *reflect.ChanType:
-		log.Crashf("%T not implemented", t);
+		log.Crashf("%T not implemented", t)
 	case *reflect.FuncType:
 		nin := t.NumIn();
 		// Variadic functions have DotDotDotType at the end
@@ -84,21 +84,21 @@ func TypeFromNative(t reflect.Type) Type {
 		}
 		in := make([]Type, nin);
 		for i := range in {
-			in[i] = TypeFromNative(t.In(i));
+			in[i] = TypeFromNative(t.In(i))
 		}
 		out := make([]Type, t.NumOut());
 		for i := range out {
-			out[i] = TypeFromNative(t.Out(i));
+			out[i] = TypeFromNative(t.Out(i))
 		}
 		et = NewFuncType(in, varidic, out);
 	case *reflect.InterfaceType:
-		log.Crashf("%T not implemented", t);
+		log.Crashf("%T not implemented", t)
 	case *reflect.MapType:
-		log.Crashf("%T not implemented", t);
+		log.Crashf("%T not implemented", t)
 	case *reflect.PtrType:
-		et = NewPtrType(TypeFromNative(t.Elem()));
+		et = NewPtrType(TypeFromNative(t.Elem()))
 	case *reflect.SliceType:
-		et = NewSliceType(TypeFromNative(t.Elem()));
+		et = NewSliceType(TypeFromNative(t.Elem()))
 	case *reflect.StructType:
 		n := t.NumField();
 		fields := make([]StructField, n);
@@ -111,9 +111,9 @@ func TypeFromNative(t reflect.Type) Type {
 		}
 		et = NewStructType(fields);
 	case *reflect.UnsafePointerType:
-		log.Crashf("%T not implemented", t);
+		log.Crashf("%T not implemented", t)
 	default:
-		log.Crashf("unexpected reflect.Type: %T", t);
+		log.Crashf("unexpected reflect.Type: %T", t)
 	}
 
 	if nt != nil {
@@ -147,7 +147,7 @@ func (f *nativeFunc) NewFrame() *Frame {
 }
 
 func (f *nativeFunc) Call(t *Thread) {
-	f.fn(t, t.f.Vars[0 : f.in], t.f.Vars[f.in : f.in + f.out]);
+	f.fn(t, t.f.Vars[0 : f.in], t.f.Vars[f.in : f.in + f.out])
 }
 
 // FuncFromNative creates an interpreter function from a native
@@ -155,7 +155,7 @@ func (f *nativeFunc) Call(t *Thread) {
 // interpreter Value's.  While somewhat inconvenient, this avoids
 // value marshalling.
 func FuncFromNative(fn func(*Thread, []Value, []Value), t *FuncType) FuncValue {
-	return &funcV{&nativeFunc{fn, len(t.In), len(t.Out)}};
+	return &funcV{&nativeFunc{fn, len(t.In), len(t.Out)}}
 }
 
 // FuncFromNativeTyped is like FuncFromNative, but constructs the

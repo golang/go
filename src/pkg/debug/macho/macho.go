@@ -197,7 +197,7 @@ func stringName(i uint32, names []intName, goSyntax bool) string {
 	for _, n := range names {
 		if n.i == i {
 			if goSyntax {
-				return "macho." + n.s;
+				return "macho." + n.s
 			}
 			return n.s;
 		}
@@ -210,20 +210,20 @@ func flagName(i uint32, names []intName, goSyntax bool) string {
 	for _, n := range names {
 		if n.i & i == n.i {
 			if len(s) > 0 {
-				s += "+";
+				s += "+"
 			}
 			if goSyntax {
-				s += "macho.";
+				s += "macho."
 			}
 			s += n.s;
 			i -= n.i;
 		}
 	}
 	if len(s) == 0 {
-		return "0x" + strconv.Uitob64(uint64(i), 16);
+		return "0x" + strconv.Uitob64(uint64(i), 16)
 	}
 	if i != 0 {
-		s += "+0x" + strconv.Uitob64(uint64(i), 16);
+		s += "+0x" + strconv.Uitob64(uint64(i), 16)
 	}
 	return s;
 }

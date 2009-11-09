@@ -230,7 +230,7 @@ func same(t, u *Time) bool {
 		t.Second == u.Second &&
 		t.Weekday == u.Weekday &&
 		t.ZoneOffset == u.ZoneOffset &&
-		t.Zone == u.Zone;
+		t.Zone == u.Zone
 }
 
 
@@ -249,7 +249,7 @@ func addState(s []state, inst instr, match []int) {
 	for i := 0; i < l; i++ {
 		if s[i].inst.index() == index &&	// same instruction
 			s[i].match[0] < pos {	// earlier match already going; leftmost wins
-			return s;
+			return s
 		}
 	}
 }

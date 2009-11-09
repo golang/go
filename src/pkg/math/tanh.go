@@ -18,12 +18,12 @@ func Tanh(x float64) float64 {
 	if x < 0 {
 		x = -x;
 		if x > 21 {
-			return -1;
+			return -1
 		}
 		return -Sinh(x) / Cosh(x);
 	}
 	if x > 21 {
-		return 1;
+		return 1
 	}
 	return Sinh(x)/Cosh(x);
 }

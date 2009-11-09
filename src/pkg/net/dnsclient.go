@@ -29,7 +29,7 @@ type DNSError struct {
 func (e *DNSError) String() string {
 	s := "lookup " + e.Name;
 	if e.Server != "" {
-		s += " on " + e.Server;
+		s += " on " + e.Server
 	}
 	s += ": " + e.Error;
 	return s;
@@ -41,7 +41,7 @@ const noSuchHost = "no such host"
 // Up to cfg.attempts attempts.
 func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error) {
 	if len(name) >= 256 {
-		return nil, &DNSError{"name too long", name, ""};
+		return nil, &DNSError{"name too long", name, ""}
 	}
 	out := new(_DNS_Msg);
 	out.id = 0x1234;
@@ -51,13 +51,13 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
 	out.recursion_desired = true;
 	msg, ok := out.Pack();
 	if !ok {
-		return nil, &DNSError{"internal error - cannot pack message", name, ""};
+		return nil, &DNSError{"internal error - cannot pack message", name, ""}
 	}
 
 	for attempt := 0; attempt < cfg.attempts; attempt++ {
 		n, err := c.Write(msg);
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 
 		c.SetReadTimeout(1e9);	// nanoseconds
@@ -69,18 +69,18 @@ func _Exchange(cfg *_DNS_Config, c Conn, name string) (m *_DNS_Msg, err os.Error
 			continue;
 		}
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 		buf = buf[0:n];
 		in := new(_DNS_Msg);
 		if !in.Unpack(buf) || in.id != out.id {
-			continue;
+			continue
 		}
 		return in, nil;
 	}
 	var server string;
 	if a := c.RemoteAddr(); a != nil {
-		server = a.String();
+		server = a.String()
 	}
 	return nil, &DNSError{"no answer from server", name, server};
 }
@@ -92,14 +92,14 @@ func answer(name, server string, dns *_DNS_Msg) (addrs []string, err *DNSError) 
 	addrs = make([]string, 0, len(dns.answer));
 
 	if dns.rcode == _DNS_RcodeNameError && dns.recursion_available {
-		return nil, &DNSError{noSuchHost, name, ""};
+		return nil, &DNSError{noSuchHost, name, ""}
 	}
 	if dns.rcode != _DNS_RcodeSuccess {
 		// None of the error codes make sense
 		// for the query we sent.  If we didn't get
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly.
-		return nil, &DNSError{"server misbehaving", name, server};
+		return nil, &DNSError{"server misbehaving", name, server}
 	}
 
 	// Look for the name.
@@ -128,7 +128,7 @@ Cname:
 			}
 		}
 		if len(addrs) == 0 {
-			return nil, &DNSError{noSuchHost, name, server};
+			return nil, &DNSError{noSuchHost, name, server}
 		}
 		return addrs, nil;
 	}
@@ -140,7 +140,7 @@ Cname:
 // (otherwise answer will not find the answers).
 func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
 	if len(cfg.servers) == 0 {
-		return nil, &DNSError{"no DNS servers", name, ""};
+		return nil, &DNSError{"no DNS servers", name, ""}
 	}
 	for i := 0; i < len(cfg.servers); i++ {
 		// Calling Dial here is scary -- we have to be sure
@@ -164,12 +164,12 @@ func tryOneName(cfg *_DNS_Config, name string) (addrs []string, err os.Error) {
 		var dnserr *DNSError;
 		addrs, dnserr = answer(name, server, msg);
 		if dnserr != nil {
-			err = dnserr;
+			err = dnserr
 		} else {
-			err = nil;	// nil os.Error, not nil *DNSError
+			err = nil	// nil os.Error, not nil *DNSError
 		}
 		if dnserr == nil || dnserr.Error == noSuchHost {
-			break;
+			break
 		}
 	}
 	return;
@@ -190,10 +190,10 @@ func isDomainName(s string) bool {
 	//	  but RFC 3696 says this has been relaxed to allow digits too.
 	//	  still, there must be a letter somewhere in the entire name.
 	if len(s) == 0 {
-		return false;
+		return false
 	}
 	if s[len(s)-1] != '.' {	// simplify checking loop: make name end in dot
-		s += ".";
+		s += "."
 	}
 
 	last := byte('.');
@@ -202,20 +202,20 @@ func isDomainName(s string) bool {
 		c := s[i];
 		switch {
 		default:
-			return false;
+			return false
 		case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z':
-			ok = true;
+			ok = true
 		case '0' <= c && c <= '9':
 			// fine
 		case c == '-':
 			// byte before dash cannot be dot
 			if last == '.' {
-				return false;
+				return false
 			}
 		case c == '.':
 			// byte before dot cannot be dot, dash
 			if last == '.' || last == '-' {
-				return false;
+				return false
 			}
 		}
 		last = c;
@@ -229,7 +229,7 @@ func isDomainName(s string) bool {
 // host's addresses.
 func LookupHost(name string) (cname string, addrs []string, err os.Error) {
 	if !isDomainName(name) {
-		return name, nil, &DNSError{"invalid domain name", name, ""};
+		return name, nil, &DNSError{"invalid domain name", name, ""}
 	}
 	once.Do(loadConfig);
 	if dnserr != nil || cfg == nil {
@@ -243,7 +243,7 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
 	if rooted || count(name, '.') >= cfg.ndots {
 		rname := name;
 		if !rooted {
-			rname += ".";
+			rname += "."
 		}
 		// Can try as ordinary name.
 		addrs, err = tryOneName(cfg, rname);
@@ -253,14 +253,14 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
 		}
 	}
 	if rooted {
-		return;
+		return
 	}
 
 	// Otherwise, try suffixes.
 	for i := 0; i < len(cfg.search); i++ {
 		rname := name + "." + cfg.search[i];
 		if rname[len(rname)-1] != '.' {
-			rname += ".";
+			rname += "."
 		}
 		addrs, err = tryOneName(cfg, rname);
 		if err == nil {

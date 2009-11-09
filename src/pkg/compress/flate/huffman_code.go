@@ -58,7 +58,7 @@ type levelInfo struct {
 func maxNode() literalNode	{ return literalNode{math.MaxUint16, math.MaxInt32} }
 
 func newHuffmanEncoder(size int) *huffmanEncoder {
-	return &huffmanEncoder{make([]uint8, size), make([]uint16, size)};
+	return &huffmanEncoder{make([]uint8, size), make([]uint16, size)}
 }
 
 // Generates a HuffmanCode corresponding to the fixed literal table
@@ -115,7 +115,7 @@ func (h *huffmanEncoder) bitLength(freq []int32) int64 {
 	var total int64;
 	for i, f := range freq {
 		if f != 0 {
-			total += int64(f)*int64(h.codeBits[i]);
+			total += int64(f)*int64(h.codeBits[i])
 		}
 	}
 	return total;
@@ -163,14 +163,14 @@ func (h *huffmanEncoder) generateChains(top *levelInfo, list []literalNode) {
 			up := l.up;
 			if up == nil {
 				// All done!
-				return;
+				return
 			}
 			up.nextPairFreq = prevFreq + l.lastChain.freq;
 			l = up;
 		} else {
 			// If we stole from below, move down temporarily to replenish it.
 			for l.down.needed > 0 {
-				l = l.down;
+				l = l.down
 			}
 		}
 	}
@@ -215,7 +215,7 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 		};
 		top.down.up = top;
 		if level == 1 {
-			top.nextPairFreq = math.MaxInt32;
+			top.nextPairFreq = math.MaxInt32
 		}
 	}
 
@@ -258,14 +258,14 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 			up := l.up;
 			if up == nil {
 				// All done!
-				break;
+				break
 			}
 			up.nextPairFreq = prevFreq + l.lastChain.freq;
 			l = up;
 		} else {
 			// If we stole from below, move down temporarily to replenish it.
 			for l.down.needed > 0 {
-				l = l.down;
+				l = l.down
 			}
 		}
 	}
@@ -274,7 +274,7 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 	// Somethings is wrong if at the end, the top level is null or hasn't used
 	// all of the leaves.
 	if top.lastChain.leafCount != n {
-		panic("top.lastChain.leafCount != n");
+		panic("top.lastChain.leafCount != n")
 	}
 
 	bitCount := make([]int32, maxBits+1);
@@ -295,7 +295,7 @@ func (h *huffmanEncoder) assignEncodingAndSize(bitCount []int32, list []literalN
 	for n, bits := range bitCount {
 		code <<= 1;
 		if n == 0 || bits == 0 {
-			continue;
+			continue
 		}
 		// The literals list[len(list)-bits] .. list[len(list)-bits]
 		// are encoded using "bits" bits, and get the values
@@ -326,7 +326,7 @@ func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
 			list[count] = literalNode{uint16(i), f};
 			count++;
 		} else {
-			h.codeBits[i] = 0;
+			h.codeBits[i] = 0
 		}
 	}
 	// If freq[] is shorter than codeBits[], fill rest of codeBits[] with zeros
@@ -358,7 +358,7 @@ type literalNodeSorter struct {
 func (s literalNodeSorter) Len() int	{ return len(s.a) }
 
 func (s literalNodeSorter) Less(i, j int) bool {
-	return s.less(i, j);
+	return s.less(i, j)
 }
 
 func (s literalNodeSorter) Swap(i, j int)	{ s.a[i], s.a[j] = s.a[j], s.a[i] }

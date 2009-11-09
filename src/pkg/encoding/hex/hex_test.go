@@ -41,10 +41,10 @@ func TestEncode(t *testing.T) {
 		dst := make([]byte, EncodedLen(len(test.in)));
 		n := Encode(dst, test.in);
 		if n != len(dst) {
-			t.Errorf("#%d: bad return value: got: %d want: %d", i, n, len(dst));
+			t.Errorf("#%d: bad return value: got: %d want: %d", i, n, len(dst))
 		}
 		if bytes.Compare(dst, test.out) != 0 {
-			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.out);
+			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.out)
 		}
 	}
 }
@@ -87,13 +87,13 @@ func TestDecode(t *testing.T) {
 		dst := make([]byte, DecodedLen(len(test.in)));
 		n, err := Decode(dst, test.in);
 		if err == nil && n != len(dst) {
-			t.Errorf("#%d: bad return value: got:%d want:%d", i, n, len(dst));
+			t.Errorf("#%d: bad return value: got:%d want:%d", i, n, len(dst))
 		}
 		if test.ok != (err == nil) {
-			t.Errorf("#%d: unexpected err value: %s", i, err);
+			t.Errorf("#%d: unexpected err value: %s", i, err)
 		}
 		if err == nil && bytes.Compare(dst, test.out) != 0 {
-			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.out);
+			t.Errorf("#%d: got: %#v want: %#v", i, dst, test.out)
 		}
 	}
 }
@@ -114,7 +114,7 @@ func TestEncodeToString(t *testing.T) {
 	for i, test := range encodeStringTests {
 		s := EncodeToString(test.in);
 		if s != test.out {
-			t.Errorf("#%d got:%s want:%s", i, s, test.out);
+			t.Errorf("#%d got:%s want:%s", i, s, test.out)
 		}
 	}
 }
@@ -138,10 +138,10 @@ func TestDecodeString(t *testing.T) {
 	for i, test := range decodeStringTests {
 		dst, err := DecodeString(test.in);
 		if test.ok != (err == nil) {
-			t.Errorf("#%d: unexpected err value: %s", i, err);
+			t.Errorf("#%d: unexpected err value: %s", i, err)
 		}
 		if err == nil && bytes.Compare(dst, test.out) != 0 {
-			t.Errorf("#%d: got: %#v want: #%v", i, dst, test.out);
+			t.Errorf("#%d: got: %#v want: #%v", i, dst, test.out)
 		}
 	}
 }

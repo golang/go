@@ -114,17 +114,17 @@ func TestOpen(t *testing.T) {
 		}
 		for i, s := range f.Sections {
 			if i >= len(tt.sections) {
-				break;
+				break
 			}
 			sh := &tt.sections[i];
 			if !reflect.DeepEqual(&s.SectionHeader, sh) {
-				t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, &s.SectionHeader, sh);
+				t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, &s.SectionHeader, sh)
 			}
 		}
 		tn := len(tt.sections);
 		fn := len(f.Sections);
 		if tn != fn {
-			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn);
+			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn)
 		}
 	}
 }

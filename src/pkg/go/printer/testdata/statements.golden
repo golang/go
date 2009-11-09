@@ -23,10 +23,10 @@ func _() {
 	if expr {
 	}	// no semicolon and parens printed
 	if x := expr; {
-		use(x);
+		use(x)
 	}
 	if x := expr; expr {
-		use(x);
+		use(x)
 	}
 }
 
@@ -48,11 +48,11 @@ func _() {
 	switch x := expr; {
 	default:
 		use(
-			x);
+			x)
 	}
 	switch x := expr; expr {
 	default:
-		use(x);
+		use(x)
 	}
 }
 
@@ -69,7 +69,7 @@ func _() {
 
 	case 2:	// followed by an empty line
 
-		use(x);	// followed by an empty line
+		use(x)	// followed by an empty line
 
 	case 3:	// no empty lines
 		use(x);
@@ -78,20 +78,20 @@ func _() {
 
 	switch x {
 	case 0:
-		use(x);
+		use(x)
 	case 1:	// this comment should have no effect on the previous or next line
-		use(x);
+		use(x)
 	}
 
 	switch x := 0; x {
 	case 1:
-		x = 0;
+		x = 0
 		// this comment should be indented
 	case 2:
-		x = 0;
+		x = 0
 	// this comment should not be indented, it is aligned with the next case
 	case 3:
-		x = 0;
+		x = 0
 		/* indented comment
 		   aligned
 		   aligned
@@ -99,7 +99,7 @@ func _() {
 		// bla
 		/* and more */
 	case 4:
-		x = 0;
+		x = 0
 	/* not indented comment
 	   aligned
 	   aligned
@@ -122,7 +122,7 @@ func _() {
 	for {
 	}	// no semicolons printed
 	for x := expr; ; {
-		use(x);
+		use(x)
 	}
 	for expr {
 	}	// no semicolons printed
@@ -131,18 +131,18 @@ func _() {
 	for ; ; expr = false {
 	}
 	for x := expr; expr; {
-		use(x);
+		use(x)
 	}
 	for x := expr; ; expr = false {
-		use(x);
+		use(x)
 	}
 	for ; expr; expr = false {
 	}
 	for x := expr; expr; expr = false {
-		use(x);
+		use(x)
 	}
 	for x := range []int{} {
-		use(x);
+		use(x)
 	}
 }
 
@@ -169,11 +169,11 @@ func _() {
 
 	if x < x {
 
-		use(x);
+		use(x)
 
 	} else {
 
-		use(x);
+		use(x)
 
 	}
 }
@@ -182,25 +182,25 @@ func _() {
 // Formatting around labels.
 func _() {
 L:
-	;
+
 }
 
 
 func _() {
 	// this comment should be indented
 L:
-	;
+
 }
 
 
 func _() {
-L:	_ = 0;
+L:	_ = 0
 }
 
 
 func _() {
 	// this comment should be indented
-L:	_ = 0;
+L:	_ = 0
 }
 
 
@@ -225,14 +225,14 @@ func _() {
 
 func _() {
 	if {
-		_ = 0;
+		_ = 0
 	}
 	_ = 0;	// the indentation here should not be affected by the long label name
 AnOverlongLabel:
 	_ = 0;
 
 	if {
-		_ = 0;
+		_ = 0
 	}
 	_ = 0;
 

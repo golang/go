@@ -40,7 +40,7 @@ func getLine(data []byte) (line, rest []byte) {
 	} else {
 		j = i+1;
 		if i > 0 && data[i-1] == '\r' {
-			i--;
+			i--
 		}
 	}
 	return data[0:i], data[j:len(data)];
@@ -54,7 +54,7 @@ func removeWhitespace(data []byte) []byte {
 
 	for _, b := range data {
 		if b == ' ' || b == '\t' || b == '\r' || b == '\n' {
-			continue;
+			continue
 		}
 		result[n] = b;
 		n++;
@@ -76,16 +76,16 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	// the byte array, we'll accept the start string without it.
 	rest = data;
 	if bytes.HasPrefix(data, pemStart[1:len(pemStart)]) {
-		rest = rest[len(pemStart)-1 : len(data)];
+		rest = rest[len(pemStart)-1 : len(data)]
 	} else if i := bytes.Index(data, pemStart); i >= 0 {
-		rest = rest[i+len(pemStart) : len(data)];
+		rest = rest[i+len(pemStart) : len(data)]
 	} else {
-		return nil, data;
+		return nil, data
 	}
 
 	typeLine, rest := getLine(rest);
 	if !bytes.HasSuffix(typeLine, pemEndOfLine) {
-		goto Error;
+		goto Error
 	}
 	typeLine = typeLine[0 : len(typeLine)-len(pemEndOfLine)];
 
@@ -98,13 +98,13 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		// This loop terminates because getLine's second result is
 		// always smaller than it's argument.
 		if len(rest) == 0 {
-			return nil, data;
+			return nil, data
 		}
 		line, next := getLine(rest);
 
 		i := bytes.Index(line, []byte{':'});
 		if i == -1 {
-			break;
+			break
 		}
 
 		// TODO(agl): need to cope with values that spread across lines.
@@ -117,14 +117,14 @@ func Decode(data []byte) (p *Block, rest []byte) {
 
 	i := bytes.Index(rest, pemEnd);
 	if i < 0 {
-		goto Error;
+		goto Error
 	}
 	base64Data := removeWhitespace(rest[0:i]);
 
 	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)));
 	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data);
 	if err != nil {
-		goto Error;
+		goto Error
 	}
 	p.Bytes = p.Bytes[0:n];
 
@@ -155,7 +155,7 @@ Error:
 	// and now will try again, using the second BEGIN line.
 	p, rest = Decode(rest);
 	if p == nil {
-		rest = data;
+		rest = data
 	}
 	return;
 }

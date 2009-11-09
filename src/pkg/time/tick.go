@@ -40,17 +40,17 @@ func (t *Ticker) ticker(c chan<- int64) {
 		// if c <- now took too long, skip ahead
 		if when < now {
 			// one big step
-			when += (now-when) / t.ns * t.ns;
+			when += (now-when) / t.ns * t.ns
 		}
 		for when <= now {
 			// little steps until when > now
-			when += t.ns;
+			when += t.ns
 		}
 
 		Sleep(when-now);
 		now = Nanoseconds();
 		if t.shutdown {
-			return;
+			return
 		}
 		c <- now;
 	}
@@ -60,7 +60,7 @@ func (t *Ticker) ticker(c chan<- int64) {
 // channel only.  Useful for clients that have no need to shut down the ticker.
 func Tick(ns int64) <-chan int64 {
 	if ns <= 0 {
-		return nil;
+		return nil
 	}
 	return NewTicker(ns).C;
 }
@@ -70,7 +70,7 @@ func Tick(ns int64) <-chan int64 {
 // intervals to make up for pauses in delivery of the ticks.
 func NewTicker(ns int64) *Ticker {
 	if ns <= 0 {
-		return nil;
+		return nil
 	}
 	c := make(chan int64);
 	t := &Ticker{c, ns, false};

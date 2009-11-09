@@ -84,9 +84,9 @@ func TestCTR_AES(t *testing.T) {
 			var r io.Reader = bytes.NewBuffer(in);
 			n, err := io.Copy(w, r);
 			if n != int64(len(in)) || err != nil {
-				t.Errorf("%s/%d: CTRWriter io.Copy = %d, %v want %d, nil", test, len(in), n, err, len(in));
+				t.Errorf("%s/%d: CTRWriter io.Copy = %d, %v want %d, nil", test, len(in), n, err, len(in))
 			} else if d, out := crypt.Bytes(), tt.out[0:len(in)]; !same(out, d) {
-				t.Errorf("%s/%d: CTRWriter\ninpt %x\nhave %x\nwant %x", test, len(in), in, d, out);
+				t.Errorf("%s/%d: CTRWriter\ninpt %x\nhave %x\nwant %x", test, len(in), in, d, out)
 			}
 		}
 
@@ -97,14 +97,14 @@ func TestCTR_AES(t *testing.T) {
 			w := &plain;
 			n, err := io.Copy(w, r);
 			if n != int64(len(out)) || err != nil {
-				t.Errorf("%s/%d: CTRReader io.Copy = %d, %v want %d, nil", test, len(out), n, err, len(out));
+				t.Errorf("%s/%d: CTRReader io.Copy = %d, %v want %d, nil", test, len(out), n, err, len(out))
 			} else if d, in := plain.Bytes(), tt.in[0:len(out)]; !same(in, d) {
-				t.Errorf("%s/%d: CTRReader\nhave %x\nwant %x", test, len(out), d, in);
+				t.Errorf("%s/%d: CTRReader\nhave %x\nwant %x", test, len(out), d, in)
 			}
 		}
 
 		if t.Failed() {
-			break;
+			break
 		}
 	}
 }

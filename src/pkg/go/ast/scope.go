@@ -26,7 +26,7 @@ func NewScope(outer *Scope) *Scope	{ return &Scope{outer, make(map[string]*Ident
 //
 func (s *Scope) Declare(ident *Ident) bool {
 	if _, found := s.Names[ident.Value]; found {
-		return false;
+		return false
 	}
 	s.Names[ident.Value] = ident;
 	return true;
@@ -40,7 +40,7 @@ func (s *Scope) Declare(ident *Ident) bool {
 func (s *Scope) Lookup(name string) *Ident {
 	for ; s != nil; s = s.Outer {
 		if ident, found := s.Names[name]; found {
-			return ident;
+			return ident
 		}
 	}
 	return nil;

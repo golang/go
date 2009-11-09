@@ -74,7 +74,7 @@ func TestInflater(t *testing.T) {
 		zlib, err := NewInflater(in);
 		if err != nil {
 			if err != tt.err {
-				t.Errorf("%s: NewInflater: %s", tt.desc, err);
+				t.Errorf("%s: NewInflater: %s", tt.desc, err)
 			}
 			continue;
 		}
@@ -83,13 +83,13 @@ func TestInflater(t *testing.T) {
 		n, err := io.Copy(b, zlib);
 		if err != nil {
 			if err != tt.err {
-				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err);
+				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
 			}
 			continue;
 		}
 		s := b.String();
 		if s != tt.raw {
-			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw);
+			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw)
 		}
 	}
 }

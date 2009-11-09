@@ -28,7 +28,7 @@ type stmtCompiler struct {
 }
 
 func (a *stmtCompiler) diag(format string, args ...) {
-	a.diagAt(&a.pos, format, args);
+	a.diagAt(&a.pos, format, args)
 }
 
 /*
@@ -74,7 +74,7 @@ type flowBuf struct {
 }
 
 func newFlowBuf(cb *codeBuf) *flowBuf {
-	return &flowBuf{cb, make(map[uint]*flowEnt), make(map[*token.Position]*flowBlock), make(map[string]*flowBlock)};
+	return &flowBuf{cb, make(map[uint]*flowEnt), make(map[*token.Position]*flowBlock), make(map[string]*flowBlock)}
 }
 
 // put creates a flow control point for the next PC in the code buffer.
@@ -82,7 +82,7 @@ func newFlowBuf(cb *codeBuf) *flowBuf {
 func (f *flowBuf) put(cond bool, term bool, jumps []*uint) {
 	pc := f.cb.nextPC();
 	if ent, ok := f.ents[pc]; ok {
-		log.Crashf("Flow entry already exists at PC %d: %+v", pc, ent);
+		log.Crashf("Flow entry already exists at PC %d: %+v", pc, ent)
 	}
 	f.ents[pc] = &flowEnt{cond, term, jumps, false};
 }
@@ -95,19 +95,19 @@ func (f *flowBuf) putTerm()	{ f.put(false, true, nil) }
 // PC and, if cond is true, can also continue to the PC following the
 // next PC.
 func (f *flowBuf) put1(cond bool, jumpPC *uint) {
-	f.put(cond, false, []*uint{jumpPC});
+	f.put(cond, false, []*uint{jumpPC})
 }
 
 func newFlowBlock(target string, b *block) *flowBlock {
 	// Find the inner-most block containing definitions
 	for b.numVars == 0 && b.outer != nil && b.outer.scope == b.scope {
-		b = b.outer;
+		b = b.outer
 	}
 
 	// Count parents leading to the root of the scope
 	n := 0;
 	for bp := b; bp.scope == b.scope; bp = bp.outer {
-		n++;
+		n++
 	}
 
 	// Capture numVars from each block to the root of the scope
@@ -124,12 +124,12 @@ func newFlowBlock(target string, b *block) *flowBlock {
 // putGoto captures the block at a goto statement.  This should be
 // called in addition to putting a flow control point.
 func (f *flowBuf) putGoto(pos token.Position, target string, b *block) {
-	f.gotos[&pos] = newFlowBlock(target, b);
+	f.gotos[&pos] = newFlowBlock(target, b)
 }
 
 // putLabel captures the block at a label.
 func (f *flowBuf) putLabel(name string, b *block) {
-	f.labels[name] = newFlowBlock("", b);
+	f.labels[name] = newFlowBlock("", b)
 }
 
 // reachesEnd returns true if the end of f's code buffer can be
@@ -138,35 +138,35 @@ func (f *flowBuf) putLabel(name string, b *block) {
 func (f *flowBuf) reachesEnd(pc uint) bool {
 	endPC := f.cb.nextPC();
 	if pc > endPC {
-		log.Crashf("Reached bad PC %d past end PC %d", pc, endPC);
+		log.Crashf("Reached bad PC %d past end PC %d", pc, endPC)
 	}
 
 	for ; pc < endPC; pc++ {
 		ent, ok := f.ents[pc];
 		if !ok {
-			continue;
+			continue
 		}
 
 		if ent.visited {
-			return false;
+			return false
 		}
 		ent.visited = true;
 
 		if ent.term {
-			return false;
+			return false
 		}
 
 		// If anything can reach the end, we can reach the end
 		// from pc.
 		for _, j := range ent.jumps {
 			if f.reachesEnd(*j) {
-				return true;
+				return true
 			}
 		}
 		// If the jump was conditional, we can reach the next
 		// PC, so try reaching the end from it.
 		if ent.cond {
-			continue;
+			continue
 		}
 		return false;
 	}
@@ -216,9 +216,9 @@ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
 		// Pos() in a variable.
 		pos := prev.Pos();
 		if pos.IsValid() {
-			a.diagAt(ident, "variable %s redeclared in this block\n\tprevious declaration at %s", ident.Value, &pos);
+			a.diagAt(ident, "variable %s redeclared in this block\n\tprevious declaration at %s", ident.Value, &pos)
 		} else {
-			a.diagAt(ident, "variable %s redeclared in this block", ident.Value);
+			a.diagAt(ident, "variable %s redeclared in this block", ident.Value)
 		}
 		return nil;
 	}
@@ -226,7 +226,7 @@ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
 	// Initialize the variable
 	index := v.Index;
 	if v.Index >= 0 {
-		a.push(func(v *Thread) { v.f.Vars[index] = t.Zero() });
+		a.push(func(v *Thread) { v.f.Vars[index] = t.Zero() })
 	}
 	return v;
 }
@@ -239,85 +239,85 @@ func (a *stmtCompiler) defineVar(ident *ast.Ident, t Type) *Variable {
 
 func (a *stmtCompiler) compile(s ast.Stmt) {
 	if a.block.inner != nil {
-		log.Crash("Child scope still entered");
+		log.Crash("Child scope still entered")
 	}
 
 	notimpl := false;
 	switch s := s.(type) {
 	case *ast.BadStmt:
 		// Error already reported by parser.
-		a.silentErrors++;
+		a.silentErrors++
 
 	case *ast.DeclStmt:
-		a.compileDeclStmt(s);
+		a.compileDeclStmt(s)
 
 	case *ast.EmptyStmt:
 		// Do nothing.
 
 	case *ast.LabeledStmt:
-		a.compileLabeledStmt(s);
+		a.compileLabeledStmt(s)
 
 	case *ast.ExprStmt:
-		a.compileExprStmt(s);
+		a.compileExprStmt(s)
 
 	case *ast.IncDecStmt:
-		a.compileIncDecStmt(s);
+		a.compileIncDecStmt(s)
 
 	case *ast.AssignStmt:
-		a.compileAssignStmt(s);
+		a.compileAssignStmt(s)
 
 	case *ast.GoStmt:
-		notimpl = true;
+		notimpl = true
 
 	case *ast.DeferStmt:
-		notimpl = true;
+		notimpl = true
 
 	case *ast.ReturnStmt:
-		a.compileReturnStmt(s);
+		a.compileReturnStmt(s)
 
 	case *ast.BranchStmt:
-		a.compileBranchStmt(s);
+		a.compileBranchStmt(s)
 
 	case *ast.BlockStmt:
-		a.compileBlockStmt(s);
+		a.compileBlockStmt(s)
 
 	case *ast.IfStmt:
-		a.compileIfStmt(s);
+		a.compileIfStmt(s)
 
 	case *ast.CaseClause:
-		a.diag("case clause outside switch");
+		a.diag("case clause outside switch")
 
 	case *ast.SwitchStmt:
-		a.compileSwitchStmt(s);
+		a.compileSwitchStmt(s)
 
 	case *ast.TypeCaseClause:
-		notimpl = true;
+		notimpl = true
 
 	case *ast.TypeSwitchStmt:
-		notimpl = true;
+		notimpl = true
 
 	case *ast.CommClause:
-		notimpl = true;
+		notimpl = true
 
 	case *ast.SelectStmt:
-		notimpl = true;
+		notimpl = true
 
 	case *ast.ForStmt:
-		a.compileForStmt(s);
+		a.compileForStmt(s)
 
 	case *ast.RangeStmt:
-		notimpl = true;
+		notimpl = true
 
 	default:
-		log.Crashf("unexpected ast node type %T", s);
+		log.Crashf("unexpected ast node type %T", s)
 	}
 
 	if notimpl {
-		a.diag("%T statment node not implemented", s);
+		a.diag("%T statment node not implemented", s)
 	}
 
 	if a.block.inner != nil {
-		log.Crash("Forgot to exit child scope");
+		log.Crash("Forgot to exit child scope")
 	}
 }
 
@@ -325,20 +325,20 @@ func (a *stmtCompiler) compileDeclStmt(s *ast.DeclStmt) {
 	switch decl := s.Decl.(type) {
 	case *ast.BadDecl:
 		// Do nothing.  Already reported by parser.
-		a.silentErrors++;
+		a.silentErrors++
 
 	case *ast.FuncDecl:
 		if !a.block.global {
-			log.Crash("FuncDecl at statement level");
+			log.Crash("FuncDecl at statement level")
 		}
 
 	case *ast.GenDecl:
 		if decl.Tok == token.IMPORT && !a.block.global {
-			log.Crash("import at statement level");
+			log.Crash("import at statement level")
 		}
 
 	default:
-		log.Crashf("Unexpected Decl type %T", s.Decl);
+		log.Crashf("Unexpected Decl type %T", s.Decl)
 	}
 	a.compileDecl(s.Decl);
 }
@@ -350,18 +350,18 @@ func (a *stmtCompiler) compileVarDecl(decl *ast.GenDecl) {
 			// Declaration without assignment
 			if spec.Type == nil {
 				// Parser should have caught
-				log.Crash("Type and Values nil");
+				log.Crash("Type and Values nil")
 			}
 			t := a.compileType(a.block, spec.Type);
 			// Define placeholders even if type compile failed
 			for _, n := range spec.Names {
-				a.defineVar(n, t);
+				a.defineVar(n, t)
 			}
 		} else {
 			// Declaration with assignment
 			lhs := make([]ast.Expr, len(spec.Names));
 			for i, n := range spec.Names {
-				lhs[i] = n;
+				lhs[i] = n
 			}
 			a.doAssign(lhs, spec.Values, decl.Tok, spec.Type);
 		}
@@ -372,12 +372,12 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
 	switch d := decl.(type) {
 	case *ast.BadDecl:
 		// Do nothing.  Already reported by parser.
-		a.silentErrors++;
+		a.silentErrors++
 
 	case *ast.FuncDecl:
 		decl := a.compileFuncType(a.block, d.Type);
 		if decl == nil {
-			return;
+			return
 		}
 		// Declare and initialize v before compiling func
 		// so that body can refer to itself.
@@ -385,14 +385,14 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
 		if prev != nil {
 			pos := prev.Pos();
 			if pos.IsValid() {
-				a.diagAt(d.Name, "identifier %s redeclared in this block\n\tprevious declaration at %s", d.Name.Value, &pos);
+				a.diagAt(d.Name, "identifier %s redeclared in this block\n\tprevious declaration at %s", d.Name.Value, &pos)
 			} else {
-				a.diagAt(d.Name, "identifier %s redeclared in this block", d.Name.Value);
+				a.diagAt(d.Name, "identifier %s redeclared in this block", d.Name.Value)
 			}
 		}
 		fn := a.compileFunc(a.block, decl, d.Body);
 		if c == nil || fn == nil {
-			return;
+			return
 		}
 		var zeroThread Thread;
 		c.Value.(FuncValue).Set(nil, fn(&zeroThread));
@@ -400,17 +400,17 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
 	case *ast.GenDecl:
 		switch d.Tok {
 		case token.IMPORT:
-			log.Crashf("%v not implemented", d.Tok);
+			log.Crashf("%v not implemented", d.Tok)
 		case token.CONST:
-			log.Crashf("%v not implemented", d.Tok);
+			log.Crashf("%v not implemented", d.Tok)
 		case token.TYPE:
-			a.compileTypeDecl(a.block, d);
+			a.compileTypeDecl(a.block, d)
 		case token.VAR:
-			a.compileVarDecl(d);
+			a.compileVarDecl(d)
 		}
 
 	default:
-		log.Crashf("Unexpected Decl type %T", decl);
+		log.Crashf("Unexpected Decl type %T", decl)
 	}
 }
 
@@ -419,7 +419,7 @@ func (a *stmtCompiler) compileLabeledStmt(s *ast.LabeledStmt) {
 	l, ok := a.labels[s.Label.Value];
 	if ok {
 		if l.resolved.IsValid() {
-			a.diag("label %s redeclared in this block\n\tprevious declaration at %s", s.Label.Value, &l.resolved);
+			a.diag("label %s redeclared in this block\n\tprevious declaration at %s", s.Label.Value, &l.resolved)
 		}
 	} else {
 		pc := badPC;
@@ -446,7 +446,7 @@ func (a *stmtCompiler) compileExprStmt(s *ast.ExprStmt) {
 
 	e := a.compileExpr(bc.block, false, s.X);
 	if e == nil {
-		return;
+		return
 	}
 
 	if e.exec == nil {
@@ -464,7 +464,7 @@ func (a *stmtCompiler) compileIncDecStmt(s *ast.IncDecStmt) {
 
 	l := a.compileExpr(bc.block, false, s.X);
 	if l == nil {
-		return;
+		return
 	}
 
 	if l.evalAddr == nil {
@@ -486,7 +486,7 @@ func (a *stmtCompiler) compileIncDecStmt(s *ast.IncDecStmt) {
 		op = token.SUB;
 		desc = "decrement statement";
 	default:
-		log.Crashf("Unexpected IncDec token %v", s.Tok);
+		log.Crashf("Unexpected IncDec token %v", s.Tok)
 	}
 
 	effect, l := l.extractEffect(bc.block, desc);
@@ -497,12 +497,12 @@ func (a *stmtCompiler) compileIncDecStmt(s *ast.IncDecStmt) {
 
 	binop := l.compileBinaryExpr(op, l, one);
 	if binop == nil {
-		return;
+		return
 	}
 
 	assign := a.compileAssign(s.Pos(), bc.block, l.t, []*expr{binop}, "", "");
 	if assign == nil {
-		log.Crashf("compileAssign type check failed");
+		log.Crashf("compileAssign type check failed")
 	}
 
 	lf := l.evalAddr;
@@ -520,12 +520,12 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 	// made on the left side.
 	rs := make([]*expr, len(rhs));
 	for i, re := range rhs {
-		rs[i] = a.compileExpr(a.block, false, re);
+		rs[i] = a.compileExpr(a.block, false, re)
 	}
 
 	errOp := "assignment";
 	if tok == token.DEFINE || tok == token.VAR {
-		errOp = "declaration";
+		errOp = "declaration"
 	}
 	ac, ok := a.checkAssign(a.pos, rs, errOp, "value");
 	ac.allowMapForms(len(lhs));
@@ -534,13 +534,13 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 	// able to produce the usual error message because we can't
 	// begin to infer the types of the LHS.
 	if (tok == token.DEFINE || tok == token.VAR) && len(lhs) > len(ac.rmt.Elems) {
-		a.diag("not enough values for definition");
+		a.diag("not enough values for definition")
 	}
 
 	// Compile left type if there is one
 	var declType Type;
 	if declTypeExpr != nil {
-		declType = a.compileType(a.block, declTypeExpr);
+		declType = a.compileType(a.block, declTypeExpr)
 	}
 
 	// Compile left side
@@ -569,7 +569,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 			nDefs++;
 
 		case token.VAR:
-			ident = le.(*ast.Ident);
+			ident = le.(*ast.Ident)
 		}
 
 		// If it's a definition, get or infer its type.
@@ -582,17 +582,17 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 				// We have a declaration type, use it.
 				// If declType is nil, we gave an
 				// error when we compiled it.
-				lt = declType;
+				lt = declType
 
 			case i >= len(ac.rmt.Elems):
 				// Define a placeholder.  We already
 				// gave the "not enough" error above.
-				lt = nil;
+				lt = nil
 
 			case ac.rmt.Elems[i] == nil:
 				// We gave the error when we compiled
 				// the RHS.
-				lt = nil;
+				lt = nil
 
 			case ac.rmt.Elems[i].isIdeal():
 				// If the type is absent and the
@@ -603,29 +603,29 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 				// int or float respectively.
 				switch {
 				case ac.rmt.Elems[i].isInteger():
-					lt = IntType;
+					lt = IntType
 				case ac.rmt.Elems[i].isFloat():
-					lt = FloatType;
+					lt = FloatType
 				default:
-					log.Crashf("unexpected ideal type %v", rs[i].t);
+					log.Crashf("unexpected ideal type %v", rs[i].t)
 				}
 
 			default:
-				lt = ac.rmt.Elems[i];
+				lt = ac.rmt.Elems[i]
 			}
 		}
 
 		// If it's a definition, define the identifier
 		if ident != nil {
 			if a.defineVar(ident, lt) == nil {
-				continue;
+				continue
 			}
 		}
 
 		// Compile LHS
 		ls[i] = a.compileExpr(a.block, false, le);
 		if ls[i] == nil {
-			continue;
+			continue
 		}
 
 		if ls[i].evalMapValue != nil {
@@ -667,7 +667,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 	// If there have been errors, our arrays are full of nil's so
 	// get out of here now.
 	if nerr != a.numError() {
-		return;
+		return
 	}
 
 	// Check for 'a[x] = r, ok'
@@ -680,12 +680,12 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 	var lt Type;
 	n := len(lhs);
 	if n == 1 {
-		lt = ls[0].t;
+		lt = ls[0].t
 	} else {
 		lts := make([]Type, len(ls));
 		for i, l := range ls {
 			if l != nil {
-				lts[i] = l.t;
+				lts[i] = l.t
 			}
 		}
 		lt = NewMultiType(lts);
@@ -694,7 +694,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 	defer bc.exit();
 	assign := ac.compile(bc.block, lt);
 	if assign == nil {
-		return;
+		return
 	}
 
 	// Compile
@@ -706,12 +706,12 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 		// Don't need temporaries
 		lfs := make([]func(*Thread) Value, n);
 		for i, l := range ls {
-			lfs[i] = l.evalAddr;
+			lfs[i] = l.evalAddr
 		}
 		a.push(func(t *Thread) {
 			dest := make([]Value, n);
 			for i, lf := range lfs {
-				dest[i] = lf(t);
+				dest[i] = lf(t)
 			}
 			assign(multiV(dest), t);
 		});
@@ -720,7 +720,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 		lmt := lt.(*MultiType);
 		lfs := make([]func(*Thread) Value, n);
 		for i, l := range ls {
-			lfs[i] = l.evalAddr;
+			lfs[i] = l.evalAddr
 		}
 		a.push(func(t *Thread) {
 			temp := lmt.Zero().(multiV);
@@ -729,7 +729,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
 			for i := 0; i < n; i++ {
 				// TODO(austin) Need to evaluate LHS
 				// before RHS
-				lfs[i](t).Assign(t, temp[i]);
+				lfs[i](t).Assign(t, temp[i])
 			}
 		});
 	}
@@ -763,7 +763,7 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 	l := a.compileExpr(bc.block, false, s.Lhs[0]);
 	r := a.compileExpr(bc.block, false, s.Rhs[0]);
 	if l == nil || r == nil {
-		return;
+		return
 	}
 
 	if l.evalAddr == nil {
@@ -775,12 +775,12 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 
 	binop := r.compileBinaryExpr(assignOpToOp[s.Tok], l, r);
 	if binop == nil {
-		return;
+		return
 	}
 
 	assign := a.compileAssign(s.Pos(), bc.block, l.t, []*expr{binop}, "assignment", "value");
 	if assign == nil {
-		log.Crashf("compileAssign type check failed");
+		log.Crashf("compileAssign type check failed")
 	}
 
 	lf := l.evalAddr;
@@ -793,10 +793,10 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
 func (a *stmtCompiler) compileAssignStmt(s *ast.AssignStmt) {
 	switch s.Tok {
 	case token.ASSIGN, token.DEFINE:
-		a.doAssign(s.Lhs, s.Rhs, s.Tok, nil);
+		a.doAssign(s.Lhs, s.Rhs, s.Tok, nil)
 
 	default:
-		a.doAssignOp(s);
+		a.doAssignOp(s)
 	}
 }
 
@@ -822,11 +822,11 @@ func (a *stmtCompiler) compileReturnStmt(s *ast.ReturnStmt) {
 	for i, re := range s.Results {
 		rs[i] = a.compileExpr(bc.block, false, re);
 		if rs[i] == nil {
-			bad = true;
+			bad = true
 		}
 	}
 	if bad {
-		return;
+		return
 	}
 
 	// Create assigner
@@ -855,11 +855,11 @@ func (a *stmtCompiler) findLexicalLabel(name *ast.Ident, pred func(*label) bool,
 	bc := a.blockCompiler;
 	for ; bc != nil; bc = bc.parent {
 		if bc.label == nil {
-			continue;
+			continue
 		}
 		l := bc.label;
 		if name == nil && pred(l) {
-			return l;
+			return l
 		}
 		if name != nil && l.name == name.Value {
 			if !pred(l) {
@@ -870,9 +870,9 @@ func (a *stmtCompiler) findLexicalLabel(name *ast.Ident, pred func(*label) bool,
 		}
 	}
 	if name == nil {
-		a.diag("%s outside %s", errOp, errCtx);
+		a.diag("%s outside %s", errOp, errCtx)
 	} else {
-		a.diag("%s label %s not defined", errOp, name.Value);
+		a.diag("%s label %s not defined", errOp, name.Value)
 	}
 	return nil;
 }
@@ -884,14 +884,14 @@ func (a *stmtCompiler) compileBranchStmt(s *ast.BranchStmt) {
 	case token.BREAK:
 		l := a.findLexicalLabel(s.Label, func(l *label) bool { return l.breakPC != nil }, "break", "for loop, switch, or select");
 		if l == nil {
-			return;
+			return
 		}
 		pc = l.breakPC;
 
 	case token.CONTINUE:
 		l := a.findLexicalLabel(s.Label, func(l *label) bool { return l.continuePC != nil }, "continue", "for loop");
 		if l == nil {
-			return;
+			return
 		}
 		pc = l.continuePC;
 
@@ -911,7 +911,7 @@ func (a *stmtCompiler) compileBranchStmt(s *ast.BranchStmt) {
 		return;
 
 	default:
-		log.Crash("Unexpected branch token %v", s.Tok);
+		log.Crash("Unexpected branch token %v", s.Tok)
 	}
 
 	a.flow.put1(false, pc);
@@ -940,7 +940,7 @@ func (a *stmtCompiler) compileIfStmt(s *ast.IfStmt) {
 
 	// Compile init statement, if any
 	if s.Init != nil {
-		bc.compileStmt(s.Init);
+		bc.compileStmt(s.Init)
 	}
 
 	elsePC := badPC;
@@ -954,13 +954,13 @@ func (a *stmtCompiler) compileIfStmt(s *ast.IfStmt) {
 		case e == nil:
 			// Error reported by compileExpr
 		case !e.t.isBoolean():
-			e.diag("'if' condition must be boolean\n\t%v", e.t);
+			e.diag("'if' condition must be boolean\n\t%v", e.t)
 		default:
 			eval := e.asBool();
 			a.flow.put1(true, &elsePC);
 			a.push(func(t *Thread) {
 				if !eval(t) {
-					t.pc = elsePC;
+					t.pc = elsePC
 				}
 			});
 		}
@@ -979,7 +979,7 @@ func (a *stmtCompiler) compileIfStmt(s *ast.IfStmt) {
 		elsePC = a.nextPC();
 		bc.compileStmt(s.Else);
 	} else {
-		elsePC = a.nextPC();
+		elsePC = a.nextPC()
 	}
 	endPC = a.nextPC();
 }
@@ -991,7 +991,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 
 	// Compile init statement, if any
 	if s.Init != nil {
-		bc.compileStmt(s.Init);
+		bc.compileStmt(s.Init)
 	}
 
 	// Compile condition, if any, and extract its effects
@@ -1017,11 +1017,11 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 		}
 		if clause.Values == nil {
 			if hasDefault {
-				a.diagAt(clause, "switch statement contains more than one default case");
+				a.diagAt(clause, "switch statement contains more than one default case")
 			}
 			hasDefault = true;
 		} else {
-			ncases += len(clause.Values);
+			ncases += len(clause.Values)
 		}
 	}
 
@@ -1031,7 +1031,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 	for _, c := range s.Body.List {
 		clause, ok := c.(*ast.CaseClause);
 		if !ok {
-			continue;
+			continue
 		}
 		for _, v := range clause.Values {
 			e := condbc.compileExpr(condbc.block, false, v);
@@ -1039,15 +1039,15 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 			case e == nil:
 				// Error reported by compileExpr
 			case cond == nil && !e.t.isBoolean():
-				a.diagAt(v, "'case' condition must be boolean");
+				a.diagAt(v, "'case' condition must be boolean")
 			case cond == nil:
-				cases[i] = e.asBool();
+				cases[i] = e.asBool()
 			case cond != nil:
 				// Create comparison
 				// TOOD(austin) This produces bad error messages
 				compare := e.compileBinaryExpr(token.EQL, cond, e);
 				if compare != nil {
-					cases[i] = compare.asBool();
+					cases[i] = compare.asBool()
 				}
 			}
 			i++;
@@ -1075,7 +1075,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 	for _, c := range s.Body.List {
 		clause, ok := c.(*ast.CaseClause);
 		if !ok {
-			continue;
+			continue
 		}
 
 		// Save jump PC's
@@ -1087,7 +1087,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 			}
 		} else {
 			// Default clause
-			casePCs[ncases] = &pc;
+			casePCs[ncases] = &pc
 		}
 
 		// Compile body
@@ -1110,7 +1110,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 				}
 				fall = true;
 			} else {
-				bc.compileStmt(s);
+				bc.compileStmt(s)
 			}
 		}
 		// Jump out of switch, unless there was a fallthrough
@@ -1123,7 +1123,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 	// Get end PC
 	endPC = a.nextPC();
 	if !hasDefault {
-		casePCs[ncases] = &endPC;
+		casePCs[ncases] = &endPC
 	}
 }
 
@@ -1134,7 +1134,7 @@ func (a *stmtCompiler) compileForStmt(s *ast.ForStmt) {
 
 	// Compile init statement, if any
 	if s.Init != nil {
-		bc.compileStmt(s.Init);
+		bc.compileStmt(s.Init)
 	}
 
 	bodyPC := badPC;
@@ -1151,9 +1151,9 @@ func (a *stmtCompiler) compileForStmt(s *ast.ForStmt) {
 	bodyPC = a.nextPC();
 	body := bc.enterChild();
 	if a.stmtLabel != nil {
-		body.label = a.stmtLabel;
+		body.label = a.stmtLabel
 	} else {
-		body.label = &label{resolved: s.Pos()};
+		body.label = &label{resolved: s.Pos()}
 	}
 	body.label.desc = "for loop";
 	body.label.breakPC = &endPC;
@@ -1166,7 +1166,7 @@ func (a *stmtCompiler) compileForStmt(s *ast.ForStmt) {
 	if s.Post != nil {
 		// TODO(austin) Does the parser disallow short
 		// declarations in s.Post?
-		bc.compileStmt(s.Post);
+		bc.compileStmt(s.Post)
 	}
 
 	// Compile condition check, if any
@@ -1181,13 +1181,13 @@ func (a *stmtCompiler) compileForStmt(s *ast.ForStmt) {
 		case e == nil:
 			// Error reported by compileExpr
 		case !e.t.isBoolean():
-			a.diag("'for' condition must be boolean\n\t%v", e.t);
+			a.diag("'for' condition must be boolean\n\t%v", e.t)
 		default:
 			eval := e.asBool();
 			a.flow.put1(true, &bodyPC);
 			a.push(func(t *Thread) {
 				if eval(t) {
-					t.pc = bodyPC;
+					t.pc = bodyPC
 				}
 			});
 		}
@@ -1207,7 +1207,7 @@ func (a *blockCompiler) compileStmt(s ast.Stmt) {
 
 func (a *blockCompiler) compileStmts(block *ast.BlockStmt) {
 	for _, sub := range block.List {
-		a.compileStmt(sub);
+		a.compileStmt(sub)
 	}
 }
 
@@ -1235,16 +1235,16 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
 	defer bodyScope.exit();
 	for i, t := range decl.Type.In {
 		if decl.InNames[i] != nil {
-			bodyScope.DefineVar(decl.InNames[i].Value, decl.InNames[i].Pos(), t);
+			bodyScope.DefineVar(decl.InNames[i].Value, decl.InNames[i].Pos(), t)
 		} else {
-			bodyScope.DefineTemp(t);
+			bodyScope.DefineTemp(t)
 		}
 	}
 	for i, t := range decl.Type.Out {
 		if decl.OutNames[i] != nil {
-			bodyScope.DefineVar(decl.OutNames[i].Value, decl.OutNames[i].Pos(), t);
+			bodyScope.DefineVar(decl.OutNames[i].Value, decl.OutNames[i].Pos(), t)
 		} else {
-			bodyScope.DefineTemp(t);
+			bodyScope.DefineTemp(t)
 		}
 	}
 
@@ -1268,7 +1268,7 @@ func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (f
 	bc.compileStmts(body);
 	fc.checkLabels();
 	if nerr != a.numError() {
-		return nil;
+		return nil
 	}
 
 	// Check that the body returned if necessary.  We only check
@@ -1290,12 +1290,12 @@ func (a *funcCompiler) checkLabels() {
 	nerr := a.numError();
 	for _, l := range a.labels {
 		if !l.resolved.IsValid() {
-			a.diagAt(&l.used, "label %s not defined", l.name);
+			a.diagAt(&l.used, "label %s not defined", l.name)
 		}
 	}
 	if nerr != a.numError() {
 		// Don't check scopes if we have unresolved labels
-		return;
+		return
 	}
 
 	// Executing the "goto" statement must not cause any variables

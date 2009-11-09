@@ -31,7 +31,7 @@ type writer struct {
 
 // NewDeflater calls NewDeflaterLevel with the default compression level.
 func NewDeflater(w io.Writer) (io.WriteCloser, os.Error) {
-	return NewDeflaterLevel(w, DefaultCompression);
+	return NewDeflaterLevel(w, DefaultCompression)
 }
 
 // NewDeflater creates a new io.WriteCloser that satisfies writes by compressing data written to w.
@@ -50,19 +50,19 @@ func NewDeflaterLevel(w io.Writer, level int) (io.WriteCloser, os.Error) {
 	// The final five FCHECK bits form a mod-31 checksum.
 	switch level {
 	case 0, 1:
-		z.scratch[1] = 0x01;
+		z.scratch[1] = 0x01
 	case 2, 3, 4, 5:
-		z.scratch[1] = 0x5e;
+		z.scratch[1] = 0x5e
 	case 6, -1:
-		z.scratch[1] = 0x9c;
+		z.scratch[1] = 0x9c
 	case 7, 8, 9:
-		z.scratch[1] = 0xda;
+		z.scratch[1] = 0xda
 	default:
-		return nil, os.NewError("level out of range");
+		return nil, os.NewError("level out of range")
 	}
 	_, err := w.Write(z.scratch[0:2]);
 	if err != nil {
-		return nil, err;
+		return nil, err
 	}
 	z.w = w;
 	z.deflater = flate.NewDeflater(w, level);
@@ -72,10 +72,10 @@ func NewDeflaterLevel(w io.Writer, level int) (io.WriteCloser, os.Error) {
 
 func (z *writer) Write(p []byte) (n int, err os.Error) {
 	if z.err != nil {
-		return 0, z.err;
+		return 0, z.err
 	}
 	if len(p) == 0 {
-		return 0, nil;
+		return 0, nil
 	}
 	n, err = z.deflater.Write(p);
 	if err != nil {
@@ -89,11 +89,11 @@ func (z *writer) Write(p []byte) (n int, err os.Error) {
 // Calling Close does not close the wrapped io.Writer originally passed to NewDeflater.
 func (z *writer) Close() os.Error {
 	if z.err != nil {
-		return z.err;
+		return z.err
 	}
 	z.err = z.deflater.Close();
 	if z.err != nil {
-		return z.err;
+		return z.err
 	}
 	checksum := z.digest.Sum32();
 	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).

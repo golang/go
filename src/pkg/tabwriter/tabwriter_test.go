@@ -28,10 +28,10 @@ func (b *buffer) Write(buf []byte) (written int, err os.Error) {
 	if n+m <= cap(b.a) {
 		b.a = b.a[0 : n+m];
 		for i := 0; i < m; i++ {
-			b.a[n+i] = buf[i];
+			b.a[n+i] = buf[i]
 		}
 	} else {
-		panicln("buffer.Write: buffer too small", n, m, cap(b.a));
+		panicln("buffer.Write: buffer too small", n, m, cap(b.a))
 	}
 	return len(buf), nil;
 }
@@ -43,10 +43,10 @@ func (b *buffer) String() string	{ return string(b.a) }
 func write(t *testing.T, testname string, w *Writer, src string) {
 	written, err := io.WriteString(w, src);
 	if err != nil {
-		t.Errorf("--- test: %s\n--- src:\n%s\n--- write error: %v\n", testname, src, err);
+		t.Errorf("--- test: %s\n--- src:\n%s\n--- write error: %v\n", testname, src, err)
 	}
 	if written != len(src) {
-		t.Errorf("--- test: %s\n--- src:\n%s\n--- written = %d, len(src) = %d\n", testname, src, written, len(src));
+		t.Errorf("--- test: %s\n--- src:\n%s\n--- written = %d, len(src) = %d\n", testname, src, written, len(src))
 	}
 }
 
@@ -54,12 +54,12 @@ func write(t *testing.T, testname string, w *Writer, src string) {
 func verify(t *testing.T, testname string, w *Writer, b *buffer, src, expected string) {
 	err := w.Flush();
 	if err != nil {
-		t.Errorf("--- test: %s\n--- src:\n%s\n--- flush error: %v\n", testname, src, err);
+		t.Errorf("--- test: %s\n--- src:\n%s\n--- flush error: %v\n", testname, src, err)
 	}
 
 	res := b.String();
 	if res != expected {
-		t.Errorf("--- test: %s\n--- src:\n%s\n--- found:\n%s\n--- expected:\n%s\n", testname, src, res, expected);
+		t.Errorf("--- test: %s\n--- src:\n%s\n--- found:\n%s\n--- expected:\n%s\n", testname, src, res, expected)
 	}
 }
 
@@ -79,7 +79,7 @@ func check(t *testing.T, testname string, tabwidth, padding int, padchar byte, f
 	// write byte-by-byte
 	b.clear();
 	for i := 0; i < len(src); i++ {
-		write(t, testname, &w, src[i : i+1]);
+		write(t, testname, &w, src[i : i+1])
 	}
 	verify(t, testname, &w, &b, src, expected);
 
@@ -89,7 +89,7 @@ func check(t *testing.T, testname string, tabwidth, padding int, padchar byte, f
 		write(t, testname, &w, src[i : i+d]);
 		i, d = i+d, d+1;
 		if i+d > len(src) {
-			d = len(src)-i;
+			d = len(src)-i
 		}
 	}
 	verify(t, testname, &w, &b, src, expected);
@@ -591,6 +591,6 @@ var tests = []entry{
 
 func Test(t *testing.T) {
 	for _, e := range tests {
-		check(t, e.testname, e.tabwidth, e.padding, e.padchar, e.flags, e.src, e.expected);
+		check(t, e.testname, e.tabwidth, e.padding, e.padchar, e.flags, e.src, e.expected)
 	}
 }

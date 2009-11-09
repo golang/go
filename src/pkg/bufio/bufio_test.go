@@ -28,14 +28,14 @@ func newRot13Reader(r io.Reader) *rot13Reader {
 func (r13 *rot13Reader) Read(p []byte) (int, os.Error) {
 	n, e := r13.r.Read(p);
 	if e != nil {
-		return n, e;
+		return n, e
 	}
 	for i := 0; i < n; i++ {
 		c := p[i]|0x20;	// lowercase byte
 		if 'a' <= c && c <= 'm' {
-			p[i] += 13;
+			p[i] += 13
 		} else if 'n' <= c && c <= 'z' {
-			p[i] -= 13;
+			p[i] -= 13
 		}
 	}
 	return n, nil;
@@ -48,10 +48,10 @@ func readBytes(buf *Reader) string {
 	for {
 		c, e := buf.ReadByte();
 		if e == os.EOF {
-			break;
+			break
 		}
 		if e != nil {
-			panic("Data: " + e.String());
+			panic("Data: " + e.String())
 		}
 		b[nb] = c;
 		nb++;
@@ -63,12 +63,12 @@ func TestReaderSimple(t *testing.T) {
 	data := "hello world";
 	b := NewReader(bytes.NewBufferString(data));
 	if s := readBytes(b); s != "hello world" {
-		t.Errorf("simple hello world test failed: got %q", s);
+		t.Errorf("simple hello world test failed: got %q", s)
 	}
 
 	b = NewReader(newRot13Reader(bytes.NewBufferString(data)));
 	if s := readBytes(b); s != "uryyb jbeyq" {
-		t.Error("rot13 hello world test failed: got %q", s);
+		t.Error("rot13 hello world test failed: got %q", s)
 	}
 }
 
@@ -92,10 +92,10 @@ func readLines(b *Reader) string {
 	for {
 		s1, e := b.ReadString('\n');
 		if e == os.EOF {
-			break;
+			break
 		}
 		if e != nil {
-			panic("GetLines: " + e.String());
+			panic("GetLines: " + e.String())
 		}
 		s += s1;
 	}
@@ -110,7 +110,7 @@ func reads(buf *Reader, m int) string {
 		n, e := buf.Read(b[nb : nb+m]);
 		nb += n;
 		if e == os.EOF {
-			break;
+			break
 		}
 	}
 	return string(b[0:nb]);
@@ -161,7 +161,7 @@ func TestReader(t *testing.T) {
 					s := bufreader.fn(buf);
 					if s != text {
 						t.Errorf("reader=%s fn=%s bufsize=%d want=%q got=%q",
-							readmaker.name, bufreader.name, bufsize, text, s);
+							readmaker.name, bufreader.name, bufsize, text, s)
 					}
 				}
 			}
@@ -179,12 +179,12 @@ func (r *StringReader) Read(p []byte) (n int, err os.Error) {
 	if r.step < len(r.data) {
 		s := r.data[r.step];
 		for i := 0; i < len(s); i++ {
-			p[i] = s[i];
+			p[i] = s[i]
 		}
 		n = len(s);
 		r.step++;
 	} else {
-		err = os.EOF;
+		err = os.EOF
 	}
 	return;
 }
@@ -197,14 +197,14 @@ func readRuneSegments(t *testing.T, segments []string) {
 		rune, _, err := r.ReadRune();
 		if err != nil {
 			if err != os.EOF {
-				return;
+				return
 			}
 			break;
 		}
 		got += string(rune);
 	}
 	if got != want {
-		t.Errorf("segments=%v got=%s want=%s", segments, got, want);
+		t.Errorf("segments=%v got=%s want=%s", segments, got, want)
 	}
 }
 
@@ -221,7 +221,7 @@ var segmentList = [][]string{
 
 func TestReadRune(t *testing.T) {
 	for _, s := range segmentList {
-		readRuneSegments(t, s);
+		readRuneSegments(t, s)
 	}
 }
 
@@ -229,7 +229,7 @@ func TestWriter(t *testing.T) {
 	var data [8192]byte;
 
 	for i := 0; i < len(data); i++ {
-		data[i] = byte(' ' + i%('~'-' '));
+		data[i] = byte(' ' + i%('~'-' '))
 	}
 	w := new(bytes.Buffer);
 	for i := 0; i < len(bufsizes); i++ {
@@ -254,12 +254,12 @@ func TestWriter(t *testing.T) {
 				continue;
 			}
 			if e = buf.Flush(); e != nil {
-				t.Errorf("%s: buf.Flush = %v", context, e);
+				t.Errorf("%s: buf.Flush = %v", context, e)
 			}
 
 			written := w.Bytes();
 			if len(written) != nwrite {
-				t.Errorf("%s: %d bytes written", context, len(written));
+				t.Errorf("%s: %d bytes written", context, len(written))
 			}
 			for l := 0; l < len(written); l++ {
 				if written[i] != data[i] {
@@ -281,7 +281,7 @@ type errorWriterTest struct {
 }
 
 func (w errorWriterTest) Write(p []byte) (int, os.Error) {
-	return len(p) * w.n / w.m, w.err;
+	return len(p) * w.n / w.m, w.err
 }
 
 var errorWriterTests = []errorWriterTest{
@@ -303,7 +303,7 @@ func TestWriteErrors(t *testing.T) {
 		}
 		e = buf.Flush();
 		if e != w.expect {
-			t.Errorf("Flush %v: got %v, wanted %v", w, e, w.expect);
+			t.Errorf("Flush %v: got %v, wanted %v", w, e, w.expect)
 		}
 	}
 }
@@ -312,23 +312,23 @@ func TestNewReaderSizeIdempotent(t *testing.T) {
 	const BufSize = 1000;
 	b, err := NewReaderSize(bytes.NewBufferString("hello world"), BufSize);
 	if err != nil {
-		t.Error("NewReaderSize create fail", err);
+		t.Error("NewReaderSize create fail", err)
 	}
 	// Does it recognize itself?
 	b1, err2 := NewReaderSize(b, BufSize);
 	if err2 != nil {
-		t.Error("NewReaderSize #2 create fail", err2);
+		t.Error("NewReaderSize #2 create fail", err2)
 	}
 	if b1 != b {
-		t.Error("NewReaderSize did not detect underlying Reader");
+		t.Error("NewReaderSize did not detect underlying Reader")
 	}
 	// Does it wrap if existing buffer is too small?
 	b2, err3 := NewReaderSize(b, 2*BufSize);
 	if err3 != nil {
-		t.Error("NewReaderSize #3 create fail", err3);
+		t.Error("NewReaderSize #3 create fail", err3)
 	}
 	if b2 == b {
-		t.Error("NewReaderSize did not enlarge buffer");
+		t.Error("NewReaderSize did not enlarge buffer")
 	}
 }
 
@@ -336,23 +336,23 @@ func TestNewWriterSizeIdempotent(t *testing.T) {
 	const BufSize = 1000;
 	b, err := NewWriterSize(new(bytes.Buffer), BufSize);
 	if err != nil {
-		t.Error("NewWriterSize create fail", err);
+		t.Error("NewWriterSize create fail", err)
 	}
 	// Does it recognize itself?
 	b1, err2 := NewWriterSize(b, BufSize);
 	if err2 != nil {
-		t.Error("NewWriterSize #2 create fail", err2);
+		t.Error("NewWriterSize #2 create fail", err2)
 	}
 	if b1 != b {
-		t.Error("NewWriterSize did not detect underlying Writer");
+		t.Error("NewWriterSize did not detect underlying Writer")
 	}
 	// Does it wrap if existing buffer is too small?
 	b2, err3 := NewWriterSize(b, 2*BufSize);
 	if err3 != nil {
-		t.Error("NewWriterSize #3 create fail", err3);
+		t.Error("NewWriterSize #3 create fail", err3)
 	}
 	if b2 == b {
-		t.Error("NewWriterSize did not enlarge buffer");
+		t.Error("NewWriterSize did not enlarge buffer")
 	}
 }
 
@@ -361,7 +361,7 @@ func TestWriteString(t *testing.T) {
 	buf := new(bytes.Buffer);
 	b, err := NewWriterSize(buf, BufSize);
 	if err != nil {
-		t.Error("NewWriterSize create fail", err);
+		t.Error("NewWriterSize create fail", err)
 	}
 	b.WriteString("0");				// easy
 	b.WriteString("123456");			// still easy
@@ -370,10 +370,10 @@ func TestWriteString(t *testing.T) {
 	b.WriteString("z");
 	b.Flush();
 	if b.err != nil {
-		t.Error("WriteString", b.err);
+		t.Error("WriteString", b.err)
 	}
 	s := "01234567890abcdefghijklmnopqrstuvwxyz";
 	if string(buf.Bytes()) != s {
-		t.Errorf("WriteString wants %q gets %q", s, string(buf.Bytes()));
+		t.Errorf("WriteString wants %q gets %q", s, string(buf.Bytes()))
 	}
 }

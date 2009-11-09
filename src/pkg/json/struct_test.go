@@ -58,9 +58,9 @@ var decodedMapPtrStruct = map[string]*myStruct{
 
 func check(t *testing.T, ok bool, name string, v interface{}) {
 	if !ok {
-		t.Errorf("%s = %v (BAD)", name, v);
+		t.Errorf("%s = %v (BAD)", name, v)
 	} else {
-		t.Logf("%s = %v (good)", name, v);
+		t.Logf("%s = %v (good)", name, v)
 	}
 }
 
@@ -69,7 +69,7 @@ func TestUnmarshal(t *testing.T) {
 	m.F = true;
 	ok, errtok := Unmarshal(encoded, &m);
 	if !ok {
-		t.Fatalf("Unmarshal failed near %s", errtok);
+		t.Fatalf("Unmarshal failed near %s", errtok)
 	}
 	check(t, m.T == true, "t", m.T);
 	check(t, m.F == false, "f", m.F);
@@ -95,7 +95,7 @@ func TestUnmarshal(t *testing.T) {
 	}
 	check(t, m.My != nil, "my", m.My);
 	if m.My != nil {
-		check(t, m.My.S == "subguy", "my.s", m.My.S);
+		check(t, m.My.S == "subguy", "my.s", m.My.S)
 	}
 	check(t, reflect.DeepEqual(m.Map, decodedMap), "map", m.Map);
 	check(t, reflect.DeepEqual(m.MapStruct, decodedMapStruct), "mapstruct", m.MapStruct);

@@ -121,7 +121,7 @@ func TestInitDecoder(t *testing.T) {
 			continue;
 		}
 		if !reflect.DeepEqual(&h, &tt.out) {
-			t.Errorf("test %d:\nhave %v\nwant %v", i, h, tt.out);
+			t.Errorf("test %d:\nhave %v\nwant %v", i, h, tt.out)
 		}
 	}
 }
@@ -131,9 +131,9 @@ func TestUncompressedSource(t *testing.T) {
 	output := make([]byte, 1);
 	n, error := decoder.Read(output);
 	if n != 1 || error != nil {
-		t.Fatalf("decoder.Read() = %d, %v, want 1, nil", n, error);
+		t.Fatalf("decoder.Read() = %d, %v, want 1, nil", n, error)
 	}
 	if output[0] != 0x11 {
-		t.Errorf("output[0] = %x, want 0x11", output[0]);
+		t.Errorf("output[0] = %x, want 0x11", output[0])
 	}
 }

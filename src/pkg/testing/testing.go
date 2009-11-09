@@ -32,7 +32,7 @@ func tabify(s string) string {
 	}
 	for i := 0; i < n-1; i++ {	// -1 to avoid final newline
 		if s[i] == '\n' {
-			return s[0 : i+1]+"\t"+tabify(s[i+1 : n]);
+			return s[0 : i+1]+"\t"+tabify(s[i+1 : n])
 		}
 	}
 	return s;
@@ -67,7 +67,7 @@ func (t *T) Log(args ...)	{ t.errors += "\t"+tabify(fmt.Sprintln(args)) }
 // Log formats its arguments according to the format, analogous to Printf(),
 // and records the text in the error log.
 func (t *T) Logf(format string, args ...) {
-	t.errors += "\t"+tabify(fmt.Sprintf(format, args));
+	t.errors += "\t"+tabify(fmt.Sprintf(format, args))
 }
 
 // Error is equivalent to Log() followed by Fail().
@@ -112,7 +112,7 @@ func Main(tests []Test) {
 	flag.Parse();
 	ok := true;
 	if len(tests) == 0 {
-		println("testing: warning: no tests to run");
+		println("testing: warning: no tests to run")
 	}
 	re, err := CompileRegexp(*match);
 	if err != "" {
@@ -121,10 +121,10 @@ func Main(tests []Test) {
 	}
 	for i := 0; i < len(tests); i++ {
 		if !re.MatchString(tests[i].Name) {
-			continue;
+			continue
 		}
 		if *chatty {
-			println("=== RUN ", tests[i].Name);
+			println("=== RUN ", tests[i].Name)
 		}
 		t := new(T);
 		t.ch = make(chan *T);

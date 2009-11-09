@@ -67,7 +67,7 @@ func (dt *delayTime) backoff(max int) {
 	dt.mutex.Lock();
 	v := dt.value.(int) * 2;
 	if v > max {
-		v = max;
+		v = max
 	}
 	dt.value = v;
 	dt.mutex.Unlock();
@@ -94,7 +94,7 @@ var fsTree RWValue	// *Directory tree of packages, updated with each sync
 func init() {
 	goroot = os.Getenv("GOROOT");
 	if goroot == "" {
-		goroot = pathutil.Join(os.Getenv("HOME"), "go");
+		goroot = pathutil.Join(os.Getenv("HOME"), "go")
 	}
 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory");
 }
@@ -106,25 +106,25 @@ func init() {
 func isGoFile(dir *os.Dir) bool {
 	return dir.IsRegular() &&
 		!strings.HasPrefix(dir.Name, ".") &&	// ignore .files
-		pathutil.Ext(dir.Name) == ".go";
+		pathutil.Ext(dir.Name) == ".go"
 }
 
 
 func isPkgFile(dir *os.Dir) bool {
 	return isGoFile(dir) &&
-		!strings.HasSuffix(dir.Name, "_test.go");	// ignore test files
+		!strings.HasSuffix(dir.Name, "_test.go")	// ignore test files
 }
 
 
 func isPkgDir(dir *os.Dir) bool {
-	return dir.IsDirectory() && len(dir.Name) > 0 && dir.Name[0] != '_';
+	return dir.IsDirectory() && len(dir.Name) > 0 && dir.Name[0] != '_'
 }
 
 
 func pkgName(filename string) string {
 	file, err := parse(filename, parser.PackageClauseOnly);
 	if err != nil || file == nil {
-		return "";
+		return ""
 	}
 	return file.Name.Value;
 }
@@ -145,11 +145,11 @@ func firstSentence(s string) string {
 		k1 := k+1;
 		if ch == '.' {
 			if i < 0 {
-				i = k1;	// first period
+				i = k1	// first period
 			}
 			if k1 < len(s) && s[k1] <= ' ' {
 				if j < 0 {
-					j = k1;	// first period followed by white space
+					j = k1	// first period followed by white space
 				}
 				if !unicode.IsUpper(prev) {
 					j = k1;
@@ -165,7 +165,7 @@ func firstSentence(s string) string {
 		j = i;
 		if j < 0 {
 			// no period at all, use the entire string
-			j = len(s);
+			j = len(s)
 		}
 	}
 
@@ -190,7 +190,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 		// return a dummy directory so that the parent directory
 		// doesn't get discarded just because we reached the max
 		// directory depth
-		return &Directory{depth, path, name, "", nil};
+		return &Directory{depth, path, name, "", nil}
 	}
 
 	list, _ := io.ReadDir(path);	// ignore errors
@@ -202,7 +202,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 	for _, d := range list {
 		switch {
 		case isPkgDir(d):
-			ndirs++;
+			ndirs++
 		case isPkgFile(d):
 			nfiles++;
 			if text == "" {
@@ -218,7 +218,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 					(file.Name.Value == name || file.Name.Value == fakePkgName) &&
 					file.Doc != nil {
 					// found documentation; extract a synopsys
-					text = firstSentence(doc.CommentText(file.Doc));
+					text = firstSentence(doc.CommentText(file.Doc))
 				}
 			}
 		}
@@ -244,7 +244,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 	// if there are no package files and no subdirectories
 	// (with package files), ignore the directory
 	if nfiles == 0 && len(dirs) == 0 {
-		return nil;
+		return nil
 	}
 
 	return &Directory{depth, path, name, text, dirs};
@@ -259,7 +259,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 func newDirectory(root string, maxDepth int) *Directory {
 	d, err := os.Lstat(root);
 	if err != nil || !isPkgDir(d) {
-		return nil;
+		return nil
 	}
 	return newDirTree(root, d.Name, 0, maxDepth);
 }
@@ -268,10 +268,10 @@ func newDirectory(root string, maxDepth int) *Directory {
 func (dir *Directory) walk(c chan<- *Directory, skipRoot bool) {
 	if dir != nil {
 		if !skipRoot {
-			c <- dir;
+			c <- dir
 		}
 		for _, d := range dir.Dirs {
-			d.walk(c, false);
+			d.walk(c, false)
 		}
 	}
 }
@@ -292,7 +292,7 @@ func (dir *Directory) lookup(path string) *Directory {
 	path = pathutil.Clean(path);	// no trailing '/'
 
 	if dir == nil || path == "" || path == "." {
-		return dir;
+		return dir
 	}
 
 	dpath, dname := pathutil.Split(path);
@@ -300,7 +300,7 @@ func (dir *Directory) lookup(path string) *Directory {
 		// directory-local name
 		for _, d := range dir.Dirs {
 			if dname == d.Name {
-				return d;
+				return d
 			}
 		}
 		return nil;
@@ -333,7 +333,7 @@ type DirList struct {
 //
 func (root *Directory) listing(skipRoot bool) *DirList {
 	if root == nil {
-		return nil;
+		return nil
 	}
 
 	// determine number of entries n and maximum height
@@ -343,16 +343,16 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 	for d := range root.iter(skipRoot) {
 		n++;
 		if minDepth > d.Depth {
-			minDepth = d.Depth;
+			minDepth = d.Depth
 		}
 		if maxDepth < d.Depth {
-			maxDepth = d.Depth;
+			maxDepth = d.Depth
 		}
 	}
 	maxHeight := maxDepth-minDepth+1;
 
 	if n == 0 {
-		return nil;
+		return nil
 	}
 
 	// create list
@@ -367,11 +367,11 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 		// crashes and check)
 		path := d.Path;
 		if strings.HasPrefix(d.Path, root.Path) {
-			path = d.Path[len(root.Path):len(d.Path)];
+			path = d.Path[len(root.Path):len(d.Path)]
 		}
 		// remove trailing '/' if any - path must be relative
 		if len(path) > 0 && path[0] == '/' {
-			path = path[1:len(path)];
+			path = path[1:len(path)]
 		}
 		p.Path = path;
 		p.Name = d.Name;
@@ -502,7 +502,7 @@ func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HTMLTag) {
 func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
 	text = strings.Bytes(id.Value);
 	if s.highlight == id.Value {
-		tag = printer.HTMLTag{"<span class=highlight>", "</span>"};
+		tag = printer.HTMLTag{"<span class=highlight>", "</span>"}
 	}
 	return;
 }
@@ -521,7 +521,7 @@ func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HTMLTag) {
 func writeNode(w io.Writer, node interface{}, html bool, styler printer.Styler) {
 	mode := printer.UseSpaces;
 	if html {
-		mode |= printer.GenHTML;
+		mode |= printer.GenHTML
 	}
 	(&printer.Config{mode, *tabwidth, styler}).Fprint(w, node);
 }
@@ -541,20 +541,20 @@ func writeText(w io.Writer, text []byte, html bool) {
 func writeAny(w io.Writer, x interface{}, html bool) {
 	switch v := x.(type) {
 	case []byte:
-		writeText(w, v, html);
+		writeText(w, v, html)
 	case string:
-		writeText(w, strings.Bytes(v), html);
+		writeText(w, strings.Bytes(v), html)
 	case ast.Decl:
-		writeNode(w, v, html, &defaultStyler);
+		writeNode(w, v, html, &defaultStyler)
 	case ast.Expr:
-		writeNode(w, v, html, &defaultStyler);
+		writeNode(w, v, html, &defaultStyler)
 	default:
 		if html {
 			var buf bytes.Buffer;
 			fmt.Fprint(&buf, x);
 			writeText(w, buf.Bytes(), true);
 		} else {
-			fmt.Fprint(w, x);
+			fmt.Fprint(w, x)
 		}
 	}
 }
@@ -562,7 +562,7 @@ func writeAny(w io.Writer, x interface{}, html bool) {
 
 // Template formatter for "html" format.
 func htmlFmt(w io.Writer, x interface{}, format string) {
-	writeAny(w, x, true);
+	writeAny(w, x, true)
 }
 
 
@@ -576,13 +576,13 @@ func htmlCommentFmt(w io.Writer, x interface{}, format string) {
 
 // Template formatter for "" (default) format.
 func textFmt(w io.Writer, x interface{}, format string) {
-	writeAny(w, x, false);
+	writeAny(w, x, false)
 }
 
 
 func removePrefix(s, prefix string) string {
 	if strings.HasPrefix(s, prefix) {
-		return s[len(prefix):len(s)];
+		return s[len(prefix):len(s)]
 	}
 	return s;
 }
@@ -593,7 +593,7 @@ func pathFmt(w io.Writer, x interface{}, format string) {
 	// TODO(gri): Need to find a better solution for this.
 	//            This will not work correctly if *cmdroot
 	//            or *pkgroot change.
-	writeAny(w, removePrefix(x.(string), "src"), true);
+	writeAny(w, removePrefix(x.(string), "src"), true)
 }
 
 
@@ -607,7 +607,7 @@ func linkFmt(w io.Writer, x interface{}, format string) {
 		if pos.IsValid() {
 			// line id's in html-printed source are of the
 			// form "L%d" where %d stands for the line number
-			fmt.Fprintf(w, "/%s#L%d", htmlEscape(pos.Filename), pos.Line);
+			fmt.Fprintf(w, "/%s#L%d", htmlEscape(pos.Filename), pos.Line)
 		}
 	}
 }
@@ -628,7 +628,7 @@ var infoKinds = [nKinds]string{
 
 // Template formatter for "infoKind" format.
 func infoKindFmt(w io.Writer, x interface{}, format string) {
-	fmt.Fprintf(w, infoKinds[x.(SpotKind)]);	// infoKind entries are html-escaped
+	fmt.Fprintf(w, infoKinds[x.(SpotKind)])	// infoKind entries are html-escaped
 }
 
 
@@ -661,7 +661,7 @@ func infoSnippetFmt(w io.Writer, x interface{}, format string) {
 // Template formatter for "padding" format.
 func paddingFmt(w io.Writer, x interface{}, format string) {
 	for i := x.(int); i > 0; i-- {
-		fmt.Fprint(w, `<td width="25"></td>`);
+		fmt.Fprint(w, `<td width="25"></td>`)
 	}
 }
 
@@ -669,7 +669,7 @@ func paddingFmt(w io.Writer, x interface{}, format string) {
 // Template formatter for "time" format.
 func timeFmt(w io.Writer, x interface{}, format string) {
 	// note: os.Dir.Mtime_ns is in uint64 in ns!
-	template.HTMLEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64) / 1e9)).String()));
+	template.HTMLEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64) / 1e9)).String()))
 }
 
 
@@ -691,11 +691,11 @@ func readTemplate(name string) *template.Template {
 	path := pathutil.Join(*tmplroot, name);
 	data, err := io.ReadFile(path);
 	if err != nil {
-		log.Exitf("ReadFile %s: %v", path, err);
+		log.Exitf("ReadFile %s: %v", path, err)
 	}
 	t, err := template.Parse(string(data), fmap);
 	if err != nil {
-		log.Exitf("%s: %v", name, err);
+		log.Exitf("%s: %v", name, err)
 	}
 	return t;
 }
@@ -744,7 +744,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
 	};
 
 	if err := godocHTML.Execute(&d, c); err != nil {
-		log.Stderrf("godocHTML.Execute: %s", err);
+		log.Stderrf("godocHTML.Execute: %s", err)
 	}
 }
 
@@ -768,7 +768,7 @@ func commentText(src []byte) (text string) {
 	i := bytes.Index(src, tagBegin);
 	j := bytes.Index(src, tagEnd);
 	if i >= 0 && j >= i+len(tagBegin) {
-		text = string(bytes.TrimSpace(src[i+len(tagBegin) : j]));
+		text = string(bytes.TrimSpace(src[i+len(tagBegin) : j]))
 	}
 	return;
 }
@@ -799,7 +799,7 @@ func serveParseErrors(c *http.Conn, errors *parseErrors) {
 	// format errors
 	var buf bytes.Buffer;
 	if err := parseerrorHTML.Execute(errors, &buf); err != nil {
-		log.Stderrf("parseerrorHTML.Execute: %s", err);
+		log.Stderrf("parseerrorHTML.Execute: %s", err)
 	}
 	servePage(c, "Parse errors in source file " + errors.filename, "", buf.Bytes());
 }
@@ -842,7 +842,7 @@ var textExt = map[string]bool{
 func isTextFile(path string) bool {
 	// if the extension is known, use it for decision making
 	if isText, found := textExt[pathutil.Ext(path)]; found {
-		return isText;
+		return isText
 	}
 
 	// the extension is not known; read an initial chunk of
@@ -850,24 +850,24 @@ func isTextFile(path string) bool {
 	// does, it's probably a text file
 	f, err := os.Open(path, os.O_RDONLY, 0);
 	if err != nil {
-		return false;
+		return false
 	}
 
 	var buf [1024]byte;
 	n, err := f.Read(&buf);
 	if err != nil {
-		return false;
+		return false
 	}
 
 	s := string(buf[0:n]);
 	n -= utf8.UTFMax;	// make sure there's enough bytes for a complete unicode char
 	for i, c := range s {
 		if i > n {
-			break;
+			break
 		}
 		if c == 0xFFFD || c < ' ' && c != '\n' && c != '\t' {
 			// decoding error or control character - not a text file
-			return false;
+			return false
 		}
 	}
 
@@ -879,7 +879,7 @@ func isTextFile(path string) bool {
 func serveTextFile(c *http.Conn, r *http.Request, path string) {
 	src, err := io.ReadFile(path);
 	if err != nil {
-		log.Stderrf("serveTextFile: %s", err);
+		log.Stderrf("serveTextFile: %s", err)
 	}
 
 	var buf bytes.Buffer;
@@ -893,7 +893,7 @@ func serveTextFile(c *http.Conn, r *http.Request, path string) {
 
 func serveDirectory(c *http.Conn, r *http.Request, path string) {
 	if redirect(c, r) {
-		return;
+		return
 	}
 
 	list, err := io.ReadDir(path);
@@ -904,7 +904,7 @@ func serveDirectory(c *http.Conn, r *http.Request, path string) {
 
 	var buf bytes.Buffer;
 	if err := dirlistHTML.Execute(list, &buf); err != nil {
-		log.Stderrf("dirlistHTML.Execute: %s", err);
+		log.Stderrf("dirlistHTML.Execute: %s", err)
 	}
 
 	servePage(c, "Directory " + path, "", buf.Bytes());
@@ -1009,7 +1009,7 @@ func (h *httpHandler) getPageInfo(path string) PageInfo {
 	pkg, err := parser.ParsePackage(dirname, filter, parser.ParseComments);
 	if err != nil {
 		// TODO: parse errors should be shown instead of an empty directory
-		log.Stderrf("parser.parsePackage: %s", err);
+		log.Stderrf("parser.parsePackage: %s", err)
 	}
 
 	// compute package documentation
@@ -1025,11 +1025,11 @@ func (h *httpHandler) getPageInfo(path string) PageInfo {
 		// directory tree is present; lookup respective directory
 		// (may still fail if the file system was updated and the
 		// new directory tree has not yet beet computed)
-		dir = tree.(*Directory).lookup(dirname);
+		dir = tree.(*Directory).lookup(dirname)
 	} else {
 		// no directory tree present (either early after startup
 		// or command-line mode); compute one level for this page
-		dir = newDirectory(dirname, 1);
+		dir = newDirectory(dirname, 1)
 	}
 
 	return PageInfo{pdoc, dir.listing(true), h.isPkg};
@@ -1038,7 +1038,7 @@ func (h *httpHandler) getPageInfo(path string) PageInfo {
 
 func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 	if redirect(c, r) {
-		return;
+		return
 	}
 
 	path := r.URL.Path;
@@ -1048,30 +1048,30 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 	var buf bytes.Buffer;
 	if r.FormValue("f") == "text" {
 		if err := packageText.Execute(info, &buf); err != nil {
-			log.Stderrf("packageText.Execute: %s", err);
+			log.Stderrf("packageText.Execute: %s", err)
 		}
 		serveText(c, buf.Bytes());
 		return;
 	}
 
 	if err := packageHTML.Execute(info, &buf); err != nil {
-		log.Stderrf("packageHTML.Execute: %s", err);
+		log.Stderrf("packageHTML.Execute: %s", err)
 	}
 
 	if path == "" {
-		path = ".";	// don't display an empty path
+		path = "."	// don't display an empty path
 	}
 	title := "Directory " + path;
 	if info.PDoc != nil {
 		switch {
 		case h.isPkg:
-			title = "Package " + info.PDoc.PackageName;
+			title = "Package " + info.PDoc.PackageName
 		case info.PDoc.PackageName == fakePkgName:
 			// assume that the directory name is the command name
 			_, pkgname := pathutil.Split(pathutil.Clean(path));
 			title = "Command " + pkgname;
 		default:
-			title = "Command " + info.PDoc.PackageName;
+			title = "Command " + info.PDoc.PackageName
 		}
 	}
 
@@ -1105,14 +1105,14 @@ func search(c *http.Conn, r *http.Request) {
 
 	var buf bytes.Buffer;
 	if err := searchHTML.Execute(result, &buf); err != nil {
-		log.Stderrf("searchHTML.Execute: %s", err);
+		log.Stderrf("searchHTML.Execute: %s", err)
 	}
 
 	var title string;
 	if result.Hit != nil {
-		title = fmt.Sprintf(`Results for query %q`, query);
+		title = fmt.Sprintf(`Results for query %q`, query)
 	} else {
-		title = fmt.Sprintf(`No results found for query %q`, query);
+		title = fmt.Sprintf(`No results found for query %q`, query)
 	}
 
 	servePage(c, title, query, buf.Bytes());

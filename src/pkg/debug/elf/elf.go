@@ -1482,7 +1482,7 @@ func stringName(i uint32, names []intName, goSyntax bool) string {
 	for _, n := range names {
 		if n.i == i {
 			if goSyntax {
-				return "elf." + n.s;
+				return "elf." + n.s
 			}
 			return n.s;
 		}
@@ -1495,7 +1495,7 @@ func stringName(i uint32, names []intName, goSyntax bool) string {
 		if n.i < i {
 			s := n.s;
 			if goSyntax {
-				s = "elf."+s;
+				s = "elf."+s
 			}
 			return s + "+" + strconv.Uitoa64(uint64(i - n.i));
 		}
@@ -1509,20 +1509,20 @@ func flagName(i uint32, names []intName, goSyntax bool) string {
 	for _, n := range names {
 		if n.i & i == n.i {
 			if len(s) > 0 {
-				s += "+";
+				s += "+"
 			}
 			if goSyntax {
-				s += "elf.";
+				s += "elf."
 			}
 			s += n.s;
 			i -= n.i;
 		}
 	}
 	if len(s) == 0 {
-		return "0x" + strconv.Uitob64(uint64(i), 16);
+		return "0x" + strconv.Uitob64(uint64(i), 16)
 	}
 	if i != 0 {
-		s += "+0x" + strconv.Uitob64(uint64(i), 16);
+		s += "+0x" + strconv.Uitob64(uint64(i), 16)
 	}
 	return s;
 }

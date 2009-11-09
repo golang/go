@@ -50,10 +50,10 @@ func NewReader(r io.Reader) *Reader	{ return &Reader{r: r} }
 func (tr *Reader) Next() (*Header, os.Error) {
 	var hdr *Header;
 	if tr.err == nil {
-		tr.skipUnread();
+		tr.skipUnread()
 	}
 	if tr.err == nil {
-		hdr = tr.readHeader();
+		hdr = tr.readHeader()
 	}
 	return hdr, tr.err;
 }
@@ -63,7 +63,7 @@ func (tr *Reader) Next() (*Header, os.Error) {
 func cString(b []byte) string {
 	n := 0;
 	for n < len(b) && b[n] != 0 {
-		n++;
+		n++
 	}
 	return string(b[0:n]);
 }
@@ -71,15 +71,15 @@ func cString(b []byte) string {
 func (tr *Reader) octal(b []byte) int64 {
 	// Removing leading spaces.
 	for len(b) > 0 && b[0] == ' ' {
-		b = b[1:len(b)];
+		b = b[1:len(b)]
 	}
 	// Removing trailing NULs and spaces.
 	for len(b) > 0 && (b[len(b)-1] == ' ' || b[len(b)-1] == '\x00') {
-		b = b[0 : len(b)-1];
+		b = b[0 : len(b)-1]
 	}
 	x, err := strconv.Btoui64(cString(b), 8);
 	if err != nil {
-		tr.err = err;
+		tr.err = err
 	}
 	return int64(x);
 }
@@ -87,7 +87,7 @@ func (tr *Reader) octal(b []byte) int64 {
 type ignoreWriter struct{}
 
 func (ignoreWriter) Write(b []byte) (n int, err os.Error) {
-	return len(b), nil;
+	return len(b), nil
 }
 
 // Skip any unread bytes in the existing file entry, as well as any alignment padding.
@@ -95,16 +95,16 @@ func (tr *Reader) skipUnread() {
 	nr := tr.nb + tr.pad;	// number of bytes to skip
 
 	if sr, ok := tr.r.(io.Seeker); ok {
-		_, tr.err = sr.Seek(nr, 1);
+		_, tr.err = sr.Seek(nr, 1)
 	} else {
-		_, tr.err = io.Copyn(ignoreWriter{}, tr.r, nr);
+		_, tr.err = io.Copyn(ignoreWriter{}, tr.r, nr)
 	}
 	tr.nb, tr.pad = 0, 0;
 }
 
 func (tr *Reader) verifyChecksum(header []byte) bool {
 	if tr.err != nil {
-		return false;
+		return false
 	}
 
 	given := tr.octal(header[148:156]);
@@ -115,16 +115,16 @@ func (tr *Reader) verifyChecksum(header []byte) bool {
 func (tr *Reader) readHeader() *Header {
 	header := make([]byte, blockSize);
 	if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
-		return nil;
+		return nil
 	}
 
 	// Two blocks of zero bytes marks the end of the archive.
 	if bytes.Equal(header, zeroBlock[0 : blockSize]) {
 		if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
-			return nil;
+			return nil
 		}
 		if !bytes.Equal(header, zeroBlock[0 : blockSize]) {
-			tr.err = HeaderError;
+			tr.err = HeaderError
 		}
 		return nil;
 	}
@@ -156,12 +156,12 @@ func (tr *Reader) readHeader() *Header {
 	switch magic {
 	case "ustar\x0000":	// POSIX tar (1003.1-1988)
 		if string(header[508:512]) == "tar\x00" {
-			format = "star";
+			format = "star"
 		} else {
-			format = "posix";
+			format = "posix"
 		}
 	case "ustar  \x00":	// old GNU tar
-		format = "gnu";
+		format = "gnu"
 	}
 
 	switch format {
@@ -177,14 +177,14 @@ func (tr *Reader) readHeader() *Header {
 		var prefix string;
 		switch format {
 		case "posix", "gnu":
-			prefix = cString(s.next(155));
+			prefix = cString(s.next(155))
 		case "star":
 			prefix = cString(s.next(131));
 			hdr.Atime = tr.octal(s.next(12));
 			hdr.Ctime = tr.octal(s.next(12));
 		}
 		if len(prefix) > 0 {
-			hdr.Name = prefix + "/" + hdr.Name;
+			hdr.Name = prefix + "/" + hdr.Name
 		}
 	}
 
@@ -206,7 +206,7 @@ func (tr *Reader) readHeader() *Header {
 // until Next is called to advance to the next entry.
 func (tr *Reader) Read(b []uint8) (n int, err os.Error) {
 	if int64(len(b)) > tr.nb {
-		b = b[0 : tr.nb];
+		b = b[0 : tr.nb]
 	}
 	n, err = tr.r.Read(b);
 	tr.nb -= int64(n);

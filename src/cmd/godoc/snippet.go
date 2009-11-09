@@ -31,14 +31,14 @@ type snippetStyler struct {
 
 
 func (s *snippetStyler) LineTag(line int) (text []uint8, tag printer.HTMLTag) {
-	return;	// no LineTag for snippets
+	return	// no LineTag for snippets
 }
 
 
 func (s *snippetStyler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
 	text = strings.Bytes(id.Value);
 	if s.highlight == id {
-		tag = printer.HTMLTag{"<span class=highlight>", "</span>"};
+		tag = printer.HTMLTag{"<span class=highlight>", "</span>"}
 	}
 	return;
 }
@@ -56,17 +56,17 @@ func findSpec(list []ast.Spec, id *ast.Ident) ast.Spec {
 		switch s := spec.(type) {
 		case *ast.ImportSpec:
 			if s.Name == id {
-				return s;
+				return s
 			}
 		case *ast.ValueSpec:
 			for _, n := range s.Names {
 				if n == id {
-					return s;
+					return s
 				}
 			}
 		case *ast.TypeSpec:
 			if s.Name == id {
-				return s;
+				return s
 			}
 		}
 	}
@@ -77,7 +77,7 @@ func findSpec(list []ast.Spec, id *ast.Ident) ast.Spec {
 func genSnippet(d *ast.GenDecl, id *ast.Ident) *Snippet {
 	s := findSpec(d.Specs, id);
 	if s == nil {
-		return nil;	//  declaration doesn't contain id - exit gracefully
+		return nil	//  declaration doesn't contain id - exit gracefully
 	}
 
 	// only use the spec containing the id for the snippet
@@ -89,7 +89,7 @@ func genSnippet(d *ast.GenDecl, id *ast.Ident) *Snippet {
 
 func funcSnippet(d *ast.FuncDecl, id *ast.Ident) *Snippet {
 	if d.Name != id {
-		return nil;	//  declaration doesn't contain id - exit gracefully
+		return nil	//  declaration doesn't contain id - exit gracefully
 	}
 
 	// only use the function signature for the snippet
@@ -106,9 +106,9 @@ func funcSnippet(d *ast.FuncDecl, id *ast.Ident) *Snippet {
 func NewSnippet(decl ast.Decl, id *ast.Ident) (s *Snippet) {
 	switch d := decl.(type) {
 	case *ast.GenDecl:
-		s = genSnippet(d, id);
+		s = genSnippet(d, id)
 	case *ast.FuncDecl:
-		s = funcSnippet(d, id);
+		s = funcSnippet(d, id)
 	}
 
 	// handle failure gracefully
@@ -116,7 +116,7 @@ func NewSnippet(decl ast.Decl, id *ast.Ident) (s *Snippet) {
 		s = &Snippet{
 			id.Pos().Line,
 			fmt.Sprintf(`could not generate a snippet for <span class="highlight">%s</span>`, id.Value),
-		};
+		}
 	}
 	return;
 }

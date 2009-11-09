@@ -55,7 +55,7 @@ func TestDialError(t *testing.T) {
 	for i, tt := range dialErrorTests {
 		c, e := Dial(tt.Net, tt.Laddr, tt.Raddr);
 		if c != nil {
-			c.Close();
+			c.Close()
 		}
 		if e == nil {
 			t.Errorf("#%d: nil error, want match for %#q", i, tt.Pattern);
@@ -64,7 +64,7 @@ func TestDialError(t *testing.T) {
 		s := e.String();
 		match, _ := regexp.MatchString(tt.Pattern, s);
 		if !match {
-			t.Errorf("#%d: %q, want match for %#q", i, s, tt.Pattern);
+			t.Errorf("#%d: %q, want match for %#q", i, s, tt.Pattern)
 		}
 	}
 }

@@ -53,7 +53,7 @@ func (tw *Writer) Flush() os.Error {
 	for n > 0 && tw.err == nil {
 		nr := n;
 		if nr > blockSize {
-			nr = blockSize;
+			nr = blockSize
 		}
 		var nw int;
 		nw, tw.err = tw.w.Write(zeroBlock[0:nr]);
@@ -68,15 +68,15 @@ func (tw *Writer) Flush() os.Error {
 func (tw *Writer) cString(b []byte, s string) {
 	if len(s) > len(b) {
 		if tw.err == nil {
-			tw.err = ErrFieldTooLong;
+			tw.err = ErrFieldTooLong
 		}
 		return;
 	}
 	for i, ch := range strings.Bytes(s) {
-		b[i] = ch;
+		b[i] = ch
 	}
 	if len(s) < len(b) {
-		b[len(s)] = 0;
+		b[len(s)] = 0
 	}
 }
 
@@ -85,7 +85,7 @@ func (tw *Writer) octal(b []byte, x int64) {
 	s := strconv.Itob64(x, 8);
 	// leading zeros, but leave room for a NUL.
 	for len(s)+1 < len(b) {
-		s = "0"+s;
+		s = "0"+s
 	}
 	tw.cString(b, s);
 }
@@ -111,10 +111,10 @@ func (tw *Writer) numeric(b []byte, x int64) {
 // WriteHeader calls Flush if it is not the first header.
 func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 	if tw.err == nil {
-		tw.Flush();
+		tw.Flush()
 	}
 	if tw.err != nil {
-		return tw.err;
+		return tw.err
 	}
 
 	tw.nb = int64(hdr.Size);
@@ -142,7 +142,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 
 	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
 	if tw.usedBinary {
-		bytes.Copy(header[257:265], strings.Bytes("ustar  \x00"));
+		bytes.Copy(header[257:265], strings.Bytes("ustar  \x00"))
 	}
 
 	// The chksum field is terminated by a NUL and a space.
@@ -153,7 +153,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 
 	if tw.err != nil {
 		// problem with header; probably integer too big for a field.
-		return tw.err;
+		return tw.err
 	}
 
 	_, tw.err = tw.w.Write(header);
@@ -173,7 +173,7 @@ func (tw *Writer) Write(b []uint8) (n int, err os.Error) {
 	n, err = tw.w.Write(b);
 	tw.nb -= int64(n);
 	if err == nil && overwrite {
-		err = ErrWriteTooLong;
+		err = ErrWriteTooLong
 	}
 	tw.err = err;
 	return;
@@ -181,7 +181,7 @@ func (tw *Writer) Write(b []uint8) (n int, err os.Error) {
 
 func (tw *Writer) Close() os.Error {
 	if tw.err != nil || tw.closed {
-		return tw.err;
+		return tw.err
 	}
 	tw.Flush();
 	tw.closed = true;
@@ -190,7 +190,7 @@ func (tw *Writer) Close() os.Error {
 	for i := 0; i < 2; i++ {
 		_, tw.err = tw.w.Write(zeroBlock);
 		if tw.err != nil {
-			break;
+			break
 		}
 	}
 	return tw.err;

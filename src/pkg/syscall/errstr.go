@@ -7,7 +7,7 @@ package syscall
 
 func str(val int) string {	// do it here rather than with fmt to avoid dependency
 	if val < 0 {
-		return "-"+str(-val);
+		return "-"+str(-val)
 	}
 	var buf [32]byte;	// big enough for int64
 	i := len(buf)-1;
@@ -22,7 +22,7 @@ func str(val int) string {	// do it here rather than with fmt to avoid dependenc
 
 func Errstr(errno int) string {
 	if errno < 0 || errno >= int(len(errors)) {
-		return "error "+str(errno);
+		return "error "+str(errno)
 	}
 	return errors[errno];
 }

@@ -36,11 +36,11 @@ func (x *cbcCipher) BlockSize() int	{ return x.blockSize }
 
 func (x *cbcCipher) Encrypt(src, dst []byte) {
 	for i := 0; i < x.blockSize; i++ {
-		x.iv[i] ^= src[i];
+		x.iv[i] ^= src[i]
 	}
 	x.c.Encrypt(x.iv, x.iv);
 	for i := 0; i < x.blockSize; i++ {
-		dst[i] = x.iv[i];
+		dst[i] = x.iv[i]
 	}
 }
 
@@ -58,7 +58,7 @@ func (x *cbcCipher) Decrypt(src, dst []byte) {
 // The returned Reader does not buffer or read ahead except
 // as required by the cipher's block size.
 func NewCBCDecrypter(c Cipher, iv []byte, r io.Reader) io.Reader {
-	return NewECBDecrypter(newCBC(c, iv), r);
+	return NewECBDecrypter(newCBC(c, iv), r)
 }
 
 // NewCBCEncrypter returns a writer that encrypts data using c
@@ -67,5 +67,5 @@ func NewCBCDecrypter(c Cipher, iv []byte, r io.Reader) io.Reader {
 // The returned Writer does no buffering except as required
 // by the cipher's block size, so there is no need for a Flush method.
 func NewCBCEncrypter(c Cipher, iv []byte, w io.Writer) io.Writer {
-	return NewECBEncrypter(newCBC(c, iv), w);
+	return NewECBEncrypter(newCBC(c, iv), w)
 }

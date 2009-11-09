@@ -31,16 +31,16 @@ type pipe struct {
 
 func (p *pipe) Read(data []byte) (n int, err os.Error) {
 	if p == nil || p.rclosed {
-		return 0, os.EINVAL;
+		return 0, os.EINVAL
 	}
 
 	// Wait for next write block if necessary.
 	if p.wpend == nil {
 		if !p.wclosed {
-			p.wpend = <-p.cr;
+			p.wpend = <-p.cr
 		}
 		if p.wpend == nil {
-			return 0, p.werr;
+			return 0, p.werr
 		}
 		p.wtot = 0;
 	}
@@ -48,10 +48,10 @@ func (p *pipe) Read(data []byte) (n int, err os.Error) {
 	// Read from current write block.
 	n = len(data);
 	if n > len(p.wpend) {
-		n = len(p.wpend);
+		n = len(p.wpend)
 	}
 	for i := 0; i < n; i++ {
-		data[i] = p.wpend[i];
+		data[i] = p.wpend[i]
 	}
 	p.wtot += n;
 	p.wpend = p.wpend[n:len(p.wpend)];
@@ -68,10 +68,10 @@ func (p *pipe) Read(data []byte) (n int, err os.Error) {
 
 func (p *pipe) Write(data []byte) (n int, err os.Error) {
 	if p == nil || p.wclosed {
-		return 0, os.EINVAL;
+		return 0, os.EINVAL
 	}
 	if p.rclosed {
-		return 0, p.rerr;
+		return 0, p.rerr
 	}
 
 	// Send data to reader.
@@ -84,19 +84,19 @@ func (p *pipe) Write(data []byte) (n int, err os.Error) {
 
 func (p *pipe) CloseReader(rerr os.Error) os.Error {
 	if p == nil || p.rclosed {
-		return os.EINVAL;
+		return os.EINVAL
 	}
 
 	// Stop any future writes.
 	p.rclosed = true;
 	if rerr == nil {
-		rerr = os.EPIPE;
+		rerr = os.EPIPE
 	}
 	p.rerr = rerr;
 
 	// Stop the current write.
 	if !p.wclosed {
-		p.cw <- pipeReturn{p.wtot, rerr};
+		p.cw <- pipeReturn{p.wtot, rerr}
 	}
 
 	return nil;
@@ -104,10 +104,10 @@ func (p *pipe) CloseReader(rerr os.Error) os.Error {
 
 func (p *pipe) CloseWriter(werr os.Error) os.Error {
 	if werr == nil {
-		werr = os.EOF;
+		werr = os.EOF
 	}
 	if p == nil || p.wclosed {
-		return os.EINVAL;
+		return os.EINVAL
 	}
 
 	// Stop any future reads.
@@ -116,7 +116,7 @@ func (p *pipe) CloseWriter(werr os.Error) os.Error {
 
 	// Stop the current read.
 	if !p.rclosed {
-		p.cr <- nil;
+		p.cr <- nil
 	}
 
 	return nil;

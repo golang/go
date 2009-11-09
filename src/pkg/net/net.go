@@ -126,12 +126,12 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 		var la, ra *TCPAddr;
 		if laddr != "" {
 			if la, err = ResolveTCPAddr(laddr); err != nil {
-				goto Error;
+				goto Error
 			}
 		}
 		if raddr != "" {
 			if ra, err = ResolveTCPAddr(raddr); err != nil {
-				goto Error;
+				goto Error
 			}
 		}
 		return DialTCP(net, la, ra);
@@ -139,12 +139,12 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 		var la, ra *UDPAddr;
 		if laddr != "" {
 			if la, err = ResolveUDPAddr(laddr); err != nil {
-				goto Error;
+				goto Error
 			}
 		}
 		if raddr != "" {
 			if ra, err = ResolveUDPAddr(raddr); err != nil {
-				goto Error;
+				goto Error
 			}
 		}
 		return DialUDP(net, la, ra);
@@ -152,12 +152,12 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 		var la, ra *UnixAddr;
 		if raddr != "" {
 			if ra, err = ResolveUnixAddr(net, raddr); err != nil {
-				goto Error;
+				goto Error
 			}
 		}
 		if laddr != "" {
 			if la, err = ResolveUnixAddr(net, laddr); err != nil {
-				goto Error;
+				goto Error
 			}
 		}
 		return DialUnix(net, la, ra);
@@ -176,24 +176,24 @@ func Listen(net, laddr string) (l Listener, err os.Error) {
 		var la *TCPAddr;
 		if laddr != "" {
 			if la, err = ResolveTCPAddr(laddr); err != nil {
-				return nil, err;
+				return nil, err
 			}
 		}
 		l, err := ListenTCP(net, la);
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 		return l, nil;
 	case "unix":
 		var la *UnixAddr;
 		if laddr != "" {
 			if la, err = ResolveUnixAddr(net, laddr); err != nil {
-				return nil, err;
+				return nil, err
 			}
 		}
 		l, err := ListenUnix(net, la);
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 		return l, nil;
 	}
@@ -209,24 +209,24 @@ func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
 		var la *UDPAddr;
 		if laddr != "" {
 			if la, err = ResolveUDPAddr(laddr); err != nil {
-				return nil, err;
+				return nil, err
 			}
 		}
 		c, err := ListenUDP(net, la);
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 		return c, nil;
 	case "unixgram":
 		var la *UnixAddr;
 		if laddr != "" {
 			if la, err = ResolveUnixAddr(net, laddr); err != nil {
-				return nil, err;
+				return nil, err
 			}
 		}
 		c, err := DialUnix(net, la, nil);
 		if err != nil {
-			return nil, err;
+			return nil, err
 		}
 		return c, nil;
 	}
@@ -245,10 +245,10 @@ type OpError struct {
 func (e *OpError) String() string {
 	s := e.Op;
 	if e.Net != "" {
-		s += " " + e.Net;
+		s += " " + e.Net
 	}
 	if e.Addr != nil {
-		s += " " + e.Addr.String();
+		s += " " + e.Addr.String()
 	}
 	s += ": " + e.Error.String();
 	return s;
@@ -262,7 +262,7 @@ type AddrError struct {
 func (e *AddrError) String() string {
 	s := e.Error;
 	if e.Addr != "" {
-		s += " " + e.Addr;
+		s += " " + e.Addr
 	}
 	return s;
 }

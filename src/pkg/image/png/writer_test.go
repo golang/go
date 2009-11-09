@@ -14,14 +14,14 @@ import (
 
 func diff(m0, m1 image.Image) os.Error {
 	if m0.Width() != m1.Width() || m0.Height() != m1.Height() {
-		return os.NewError(fmt.Sprintf("dimensions differ: %dx%d vs %dx%d", m0.Width(), m0.Height(), m1.Width(), m1.Height()));
+		return os.NewError(fmt.Sprintf("dimensions differ: %dx%d vs %dx%d", m0.Width(), m0.Height(), m1.Width(), m1.Height()))
 	}
 	for y := 0; y < m0.Height(); y++ {
 		for x := 0; x < m0.Width(); x++ {
 			r0, g0, b0, a0 := m0.At(x, y).RGBA();
 			r1, g1, b1, a1 := m1.At(x, y).RGBA();
 			if r0 != r1 || g0 != g1 || b0 != b1 || a0 != a1 {
-				return os.NewError(fmt.Sprintf("colors differ at (%d, %d): %v vs %v", x, y, m0.At(x, y), m1.At(x, y)));
+				return os.NewError(fmt.Sprintf("colors differ at (%d, %d): %v vs %v", x, y, m0.At(x, y), m1.At(x, y)))
 			}
 		}
 	}

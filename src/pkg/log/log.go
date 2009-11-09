@@ -50,7 +50,7 @@ type Logger struct {
 // The prefix appears at the beginning of each generated log line.
 // The flag argument defines the logging properties.
 func New(out0, out1 io.Writer, prefix string, flag int) *Logger {
-	return &Logger{out0, out1, prefix, flag};
+	return &Logger{out0, out1, prefix, flag}
 }
 
 var (
@@ -66,7 +66,7 @@ var shortnames = make(map[string]string)	// cache of short names to avoid alloca
 func itoa(i int, wid int) string {
 	var u uint = uint(i);
 	if u == 0 && wid <= 1 {
-		return "0";
+		return "0"
 	}
 
 	// Assemble decimal in reverse order.
@@ -86,12 +86,12 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
 	if l.flag & (Ldate | Ltime | Lmicroseconds) != 0 {
 		t := time.SecondsToLocalTime(ns/1e9);
 		if l.flag & (Ldate) != 0 {
-			h += itoa(int(t.Year), 4) + "/" + itoa(t.Month, 2) + "/" + itoa(t.Day, 2) + " ";
+			h += itoa(int(t.Year), 4) + "/" + itoa(t.Month, 2) + "/" + itoa(t.Day, 2) + " "
 		}
 		if l.flag & (Ltime | Lmicroseconds) != 0 {
 			h += itoa(t.Hour, 2) + ":" + itoa(t.Minute, 2) + ":" + itoa(t.Second, 2);
 			if l.flag & Lmicroseconds != 0 {
-				h += "." + itoa(int(ns%1e9)/1e3, 6);
+				h += "." + itoa(int(ns%1e9)/1e3, 6)
 			}
 			h += " ";
 		}
@@ -129,18 +129,18 @@ func (l *Logger) Output(calldepth int, s string) {
 	now := time.Nanoseconds();	// get this early.
 	newline := "\n";
 	if len(s) > 0 && s[len(s)-1] == '\n' {
-		newline = "";
+		newline = ""
 	}
 	s = l.formatHeader(now, calldepth + 1) + s + newline;
 	io.WriteString(l.out0, s);
 	if l.out1 != nil {
-		io.WriteString(l.out1, s);
+		io.WriteString(l.out1, s)
 	}
 	switch l.flag & ^lAllBits {
 	case Lcrash:
-		panic("log: fatal error");
+		panic("log: fatal error")
 	case Lexit:
-		os.Exit(1);
+		os.Exit(1)
 	}
 }
 

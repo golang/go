@@ -29,7 +29,7 @@ type Integer struct {
 //
 func MakeInt(sign bool, mant Natural) *Integer {
 	if mant.IsZero() {
-		sign = false;	// normalize
+		sign = false	// normalize
 	}
 	return &Integer{sign, mant};
 }
@@ -42,9 +42,9 @@ func Int(x int64) *Integer {
 	if x < 0 {
 		// For the most negative x, -x == x, and
 		// the bit pattern has the correct value.
-		ux = uint64(-x);
+		ux = uint64(-x)
 	} else {
-		ux = uint64(x);
+		ux = uint64(x)
 	}
 	return MakeInt(x < 0, Nat(ux));
 }
@@ -56,7 +56,7 @@ func Int(x int64) *Integer {
 func (x *Integer) Value() int64 {
 	z := int64(x.mant.Value());
 	if x.sign {
-		z = -z;
+		z = -z
 	}
 	return z;
 }
@@ -167,7 +167,7 @@ func (x *Integer) Sub(y *Integer) *Integer {
 func Iscale(z *Integer, d int64) {
 	f := uint64(d);
 	if d < 0 {
-		f = uint64(-d);
+		f = uint64(-d)
 	}
 	z.sign = z.sign != (d < 0);
 	Nscale(&z.mant, f);
@@ -179,7 +179,7 @@ func Iscale(z *Integer, d int64) {
 func (x *Integer) Mul1(d int64) *Integer {
 	f := uint64(d);
 	if d < 0 {
-		f = uint64(-d);
+		f = uint64(-d)
 	}
 	return MakeInt(x.sign != (d < 0), x.mant.Mul1(f));
 }
@@ -192,7 +192,7 @@ func (x *Integer) Mul(y *Integer) *Integer {
 	// x * (-y) == -(x * y)
 	// (-x) * y == -(x * y)
 	// (-x) * (-y) == x * y
-	return MakeInt(x.sign != y.sign, x.mant.Mul(y.mant));
+	return MakeInt(x.sign != y.sign, x.mant.Mul(y.mant))
 }
 
 
@@ -201,7 +201,7 @@ func (x *Integer) Mul(y *Integer) *Integer {
 func (x *Integer) MulNat(y Natural) *Integer {
 	// x * y == x * y
 	// (-x) * y == -(x * y)
-	return MakeInt(x.sign, x.mant.Mul(y));
+	return MakeInt(x.sign, x.mant.Mul(y))
 }
 
 
@@ -220,7 +220,7 @@ func (x *Integer) Quo(y *Integer) *Integer {
 	// x / (-y) == -(x / y)
 	// (-x) / y == -(x / y)
 	// (-x) / (-y) == x / y
-	return MakeInt(x.sign != y.sign, x.mant.Div(y.mant));
+	return MakeInt(x.sign != y.sign, x.mant.Div(y.mant))
 }
 
 
@@ -234,7 +234,7 @@ func (x *Integer) Rem(y *Integer) *Integer {
 	// x % (-y) == x % y
 	// (-x) % y == -(x % y)
 	// (-x) % (-y) == -(x % y)
-	return MakeInt(x.sign, x.mant.Mod(y.mant));
+	return MakeInt(x.sign, x.mant.Mod(y.mant))
 }
 
 
@@ -264,9 +264,9 @@ func (x *Integer) Div(y *Integer) *Integer {
 	q, r := x.QuoRem(y);
 	if r.IsNeg() {
 		if y.IsPos() {
-			q = q.Sub(Int(1));
+			q = q.Sub(Int(1))
 		} else {
-			q = q.Add(Int(1));
+			q = q.Add(Int(1))
 		}
 	}
 	return q;
@@ -281,9 +281,9 @@ func (x *Integer) Mod(y *Integer) *Integer {
 	r := x.Rem(y);
 	if r.IsNeg() {
 		if y.IsPos() {
-			r = r.Add(y);
+			r = r.Add(y)
 		} else {
-			r = r.Sub(y);
+			r = r.Sub(y)
 		}
 	}
 	return r;
@@ -333,7 +333,7 @@ func (x *Integer) Shl(s uint) *Integer	{ return MakeInt(x.sign, x.mant.Shl(s)) }
 func (x *Integer) Shr(s uint) *Integer {
 	if x.sign {
 		// (-x) >> s == ^(x-1) >> s == ^((x-1) >> s) == -(((x-1) >> s) + 1)
-		return MakeInt(true, x.mant.Sub(Nat(1)).Shr(s).Add(Nat(1)));
+		return MakeInt(true, x.mant.Sub(Nat(1)).Shr(s).Add(Nat(1)))
 	}
 
 	return MakeInt(false, x.mant.Shr(s));
@@ -344,7 +344,7 @@ func (x *Integer) Shr(s uint) *Integer {
 func (x *Integer) Not() *Integer {
 	if x.sign {
 		// ^(-x) == ^(^(x-1)) == x-1
-		return MakeInt(false, x.mant.Sub(Nat(1)));
+		return MakeInt(false, x.mant.Sub(Nat(1)))
 	}
 
 	// ^x == -x-1 == -(x+1)
@@ -358,7 +358,7 @@ func (x *Integer) And(y *Integer) *Integer {
 	if x.sign == y.sign {
 		if x.sign {
 			// (-x) & (-y) == ^(x-1) & ^(y-1) == ^((x-1) | (y-1)) == -(((x-1) | (y-1)) + 1)
-			return MakeInt(true, x.mant.Sub(Nat(1)).Or(y.mant.Sub(Nat(1))).Add(Nat(1)));
+			return MakeInt(true, x.mant.Sub(Nat(1)).Or(y.mant.Sub(Nat(1))).Add(Nat(1)))
 		}
 
 		// x & y == x & y
@@ -367,7 +367,7 @@ func (x *Integer) And(y *Integer) *Integer {
 
 	// x.sign != y.sign
 	if x.sign {
-		x, y = y, x;	// & is symmetric
+		x, y = y, x	// & is symmetric
 	}
 
 	// x & (-y) == x & ^(y-1) == x &^ (y-1)
@@ -381,7 +381,7 @@ func (x *Integer) AndNot(y *Integer) *Integer {
 	if x.sign == y.sign {
 		if x.sign {
 			// (-x) &^ (-y) == ^(x-1) &^ ^(y-1) == ^(x-1) & (y-1) == (y-1) &^ (x-1)
-			return MakeInt(false, y.mant.Sub(Nat(1)).AndNot(x.mant.Sub(Nat(1))));
+			return MakeInt(false, y.mant.Sub(Nat(1)).AndNot(x.mant.Sub(Nat(1))))
 		}
 
 		// x &^ y == x &^ y
@@ -390,7 +390,7 @@ func (x *Integer) AndNot(y *Integer) *Integer {
 
 	if x.sign {
 		// (-x) &^ y == ^(x-1) &^ y == ^(x-1) & ^y == ^((x-1) | y) == -(((x-1) | y) + 1)
-		return MakeInt(true, x.mant.Sub(Nat(1)).Or(y.mant).Add(Nat(1)));
+		return MakeInt(true, x.mant.Sub(Nat(1)).Or(y.mant).Add(Nat(1)))
 	}
 
 	// x &^ (-y) == x &^ ^(y-1) == x & (y-1)
@@ -404,7 +404,7 @@ func (x *Integer) Or(y *Integer) *Integer {
 	if x.sign == y.sign {
 		if x.sign {
 			// (-x) | (-y) == ^(x-1) | ^(y-1) == ^((x-1) & (y-1)) == -(((x-1) & (y-1)) + 1)
-			return MakeInt(true, x.mant.Sub(Nat(1)).And(y.mant.Sub(Nat(1))).Add(Nat(1)));
+			return MakeInt(true, x.mant.Sub(Nat(1)).And(y.mant.Sub(Nat(1))).Add(Nat(1)))
 		}
 
 		// x | y == x | y
@@ -413,7 +413,7 @@ func (x *Integer) Or(y *Integer) *Integer {
 
 	// x.sign != y.sign
 	if x.sign {
-		x, y = y, x;	// | or symmetric
+		x, y = y, x	// | or symmetric
 	}
 
 	// x | (-y) == x | ^(y-1) == ^((y-1) &^ x) == -(^((y-1) &^ x) + 1)
@@ -427,7 +427,7 @@ func (x *Integer) Xor(y *Integer) *Integer {
 	if x.sign == y.sign {
 		if x.sign {
 			// (-x) ^ (-y) == ^(x-1) ^ ^(y-1) == (x-1) ^ (y-1)
-			return MakeInt(false, x.mant.Sub(Nat(1)).Xor(y.mant.Sub(Nat(1))));
+			return MakeInt(false, x.mant.Sub(Nat(1)).Xor(y.mant.Sub(Nat(1))))
 		}
 
 		// x ^ y == x ^ y
@@ -436,7 +436,7 @@ func (x *Integer) Xor(y *Integer) *Integer {
 
 	// x.sign != y.sign
 	if x.sign {
-		x, y = y, x;	// ^ is symmetric
+		x, y = y, x	// ^ is symmetric
 	}
 
 	// x ^ (-y) == x ^ ^(y-1) == ^(x ^ (y-1)) == -((x ^ (y-1)) + 1)
@@ -460,12 +460,12 @@ func (x *Integer) Cmp(y *Integer) int {
 	case x.sign == y.sign:
 		r = x.mant.Cmp(y.mant);
 		if x.sign {
-			r = -r;
+			r = -r
 		}
 	case x.sign:
-		r = -1;
+		r = -1
 	case y.sign:
-		r = 1;
+		r = 1
 	}
 	return r;
 }
@@ -475,11 +475,11 @@ func (x *Integer) Cmp(y *Integer) int {
 //
 func (x *Integer) ToString(base uint) string {
 	if x.mant.IsZero() {
-		return "0";
+		return "0"
 	}
 	var s string;
 	if x.sign {
-		s = "-";
+		s = "-"
 	}
 	return s + x.mant.ToString(base);
 }
@@ -511,7 +511,7 @@ func IntFromString(s string, base uint) (*Integer, uint, int) {
 	// skip sign, if any
 	i0 := 0;
 	if len(s) > 0 && (s[0] == '-' || s[0] == '+') {
-		i0 = 1;
+		i0 = 1
 	}
 
 	mant, base, slen := NatFromString(s[i0:len(s)], base);

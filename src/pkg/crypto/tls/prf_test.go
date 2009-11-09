@@ -28,7 +28,7 @@ func TestSplitPreMasterSecret(t *testing.T) {
 		s1 := hex.EncodeToString(out1);
 		s2 := hex.EncodeToString(out2);
 		if s1 != test.out1 || s2 != test.out2 {
-			t.Errorf("#%d: got: (%s, %s) want: (%s, %s)", i, s1, s2, test.out1, test.out2);
+			t.Errorf("#%d: got: (%s, %s) want: (%s, %s)", i, s1, s2, test.out1, test.out2)
 		}
 	}
 }
@@ -58,7 +58,7 @@ func TestKeysFromPreMasterSecret(t *testing.T) {
 			serverMACString != test.serverMAC ||
 			clientKeyString != test.clientKey ||
 			serverKeyString != test.serverKey {
-			t.Errorf("#%d: got: (%s, %s, %s, %s, %s) want: (%s, %s, %s, %s %s)", i, masterString, clientMACString, serverMACString, clientKeyString, serverMACString, test.masterSecret, test.clientMAC, test.serverMAC, test.clientKey, test.serverKey);
+			t.Errorf("#%d: got: (%s, %s, %s, %s, %s) want: (%s, %s, %s, %s %s)", i, masterString, clientMACString, serverMACString, clientKeyString, serverMACString, test.masterSecret, test.clientMAC, test.serverMAC, test.clientKey, test.serverKey)
 		}
 	}
 }

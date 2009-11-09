@@ -19,7 +19,7 @@ import (
 // Disabled formatting - enable eventually and remove the flag.
 const (
 	compositeLitBlank	= false;
-	fewerSemis		= false;
+	fewerSemis		= true;
 	stringListMode		= exprListMode(0);	// previously: noIndent
 )
 
@@ -49,9 +49,9 @@ func (p *printer) linebreak(line, min, max int, ws whiteSpace, newSection bool) 
 	n := line - p.pos.Line;
 	switch {
 	case n < min:
-		n = min;
+		n = min
 	case n > max:
-		n = max;
+		n = max
 	}
 	if n > 0 {
 		p.print(ws);
@@ -81,7 +81,7 @@ func (p *printer) commentList(list []*ast.Comment) {
 		p.print(c.Pos(), t);
 		if t[1] == '/' && i+1 < len(list) {
 			//-style comment which is not at the end; print a newline
-			p.print(newline);
+			p.print(newline)
 		}
 	}
 }
@@ -114,7 +114,7 @@ func (p *printer) identList(list []*ast.Ident, multiLine *bool) {
 	// convert into an expression list
 	xlist := make([]ast.Expr, len(list));
 	for i, x := range list {
-		xlist[i] = x;
+		xlist[i] = x
 	}
 	p.exprList(noPos, xlist, commaSep, multiLine);
 }
@@ -125,7 +125,7 @@ func (p *printer) stringList(list []*ast.BasicLit, multiLine *bool) {
 	// convert into an expression list
 	xlist := make([]ast.Expr, len(list));
 	for i, x := range list {
-		xlist[i] = x;
+		xlist[i] = x
 	}
 	p.exprList(noPos, xlist, stringListMode, multiLine);
 }
@@ -148,11 +148,11 @@ const (
 // lines.
 func (p *printer) exprList(prev token.Position, list []ast.Expr, mode exprListMode, multiLine *bool) {
 	if len(list) == 0 {
-		return;
+		return
 	}
 
 	if mode & blankStart != 0 {
-		p.print(blank);
+		p.print(blank)
 	}
 
 	// TODO(gri): endLine may be incorrect as it is really the beginning
@@ -166,14 +166,14 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, mode exprListMo
 		for i, x := range list {
 			if i > 0 {
 				if mode&commaSep != 0 {
-					p.print(token.COMMA);
+					p.print(token.COMMA)
 				}
 				p.print(blank);
 			}
 			p.expr(x, multiLine);
 		}
 		if mode&blankEnd != 0 {
-			p.print(blank);
+			p.print(blank)
 		}
 		return;
 	}
@@ -185,7 +185,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, mode exprListMo
 	// i.e., pretend that the first line is already indented
 	ws := ignore;
 	if mode&noIndent == 0 {
-		ws = indent;
+		ws = indent
 	}
 
 	if prev.IsValid() && prev.Line < line && p.linebreak(line, 1, 2, ws, true) {
@@ -198,7 +198,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, mode exprListMo
 		line = x.Pos().Line;
 		if i > 0 {
 			if mode&commaSep != 0 {
-				p.print(token.COMMA);
+				p.print(token.COMMA)
 			}
 			if prev < line {
 				if p.linebreak(line, 1, 2, ws, true) {
@@ -206,7 +206,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, mode exprListMo
 					*multiLine = true;
 				}
 			} else {
-				p.print(blank);
+				p.print(blank)
 			}
 		}
 		p.expr(x, multiLine);
@@ -216,19 +216,19 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, mode exprListMo
 		p.print(token.COMMA);
 		if ws == ignore && mode&noIndent == 0 {
 			// unindent if we indented
-			p.print(unindent);
+			p.print(unindent)
 		}
 		p.print(formfeed);	// terminating comma needs a line break to look good
 		return;
 	}
 
 	if mode&blankEnd != 0 {
-		p.print(blank);
+		p.print(blank)
 	}
 
 	if ws == ignore && mode&noIndent == 0 {
 		// unindent if we indented
-		p.print(unindent);
+		p.print(unindent)
 	}
 }
 
@@ -239,7 +239,7 @@ func (p *printer) parameters(list []*ast.Field, multiLine *bool) {
 	if len(list) > 0 {
 		for i, par := range list {
 			if i > 0 {
-				p.print(token.COMMA, blank);
+				p.print(token.COMMA, blank)
 			}
 			if len(par.Names) > 0 {
 				p.identList(par.Names, multiLine);
@@ -277,13 +277,13 @@ func (p *printer) signature(params, result []*ast.Field, multiLine *bool) (optSe
 func identListSize(list []*ast.Ident, maxSize int) (size int) {
 	for i, x := range list {
 		if i > 0 {
-			size += 2 // ", "
-			;
+			size += 2	// ", "
+
 
 		}
 		size += len(x.Value);
 		if size >= maxSize {
-			break;
+			break
 		}
 	}
 	return;
@@ -292,18 +292,18 @@ func identListSize(list []*ast.Ident, maxSize int) (size int) {
 
 func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
 	if len(list) != 1 {
-		return false;	// allow only one field
+		return false	// allow only one field
 	}
 	f := list[0];
 	if f.Tag != nil || f.Comment != nil {
-		return false;	// don't allow tags or comments
+		return false	// don't allow tags or comments
 	}
 	// only name(s) and type
 	const maxSize = 30;	// adjust as appropriate, this is an approximate value
 	namesSize := identListSize(f.Names, maxSize);
 	if namesSize > 0 {
-		namesSize = 1 // blank between names and types
-		;
+		namesSize = 1	// blank between names and types
+
 
 	}
 	typeSize := p.nodeSize(f.Type, maxSize);
@@ -326,12 +326,12 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			f := list[0];
 			for i, x := range f.Names {
 				if i > 0 {
-					p.print(token.COMMA, blank);
+					p.print(token.COMMA, blank)
 				}
 				p.expr(x, ignoreMultiLine);
 			}
 			if len(f.Names) > 0 {
-				p.print(blank);
+				p.print(blank)
 			}
 			p.expr(f.Type, ignoreMultiLine);
 			p.print(blank, rbrace, token.RBRACE);
@@ -345,12 +345,12 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 
 		sep := vtab;
 		if len(list) == 1 {
-			sep = blank;
+			sep = blank
 		}
 		var ml bool;
 		for i, f := range list {
 			if i > 0 {
-				p.linebreak(f.Pos().Line, 1, 2, ignore, ml);
+				p.linebreak(f.Pos().Line, 1, 2, ignore, ml)
 			}
 			ml = false;
 			extraTabs := 0;
@@ -368,7 +368,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			}
 			if f.Tag != nil {
 				if len(f.Names) > 0 && sep == vtab {
-					p.print(sep);
+					p.print(sep)
 				}
 				p.print(sep);
 				p.expr(&ast.StringList{f.Tag}, &ml);
@@ -377,14 +377,14 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 			p.print(token.SEMICOLON);
 			if f.Comment != nil {
 				for ; extraTabs > 0; extraTabs-- {
-					p.print(vtab);
+					p.print(vtab)
 				}
 				p.lineComment(f.Comment);
 			}
 		}
 		if isIncomplete {
 			if len(list) > 0 {
-				p.print(formfeed);
+				p.print(formfeed)
 			}
 			// TODO(gri): this needs to be styled like normal comments
 			p.print("// contains unexported fields");
@@ -395,7 +395,7 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 		var ml bool;
 		for i, f := range list {
 			if i > 0 {
-				p.linebreak(f.Pos().Line, 1, 2, ignore, ml);
+				p.linebreak(f.Pos().Line, 1, 2, ignore, ml)
 			}
 			ml = false;
 			p.leadComment(f.Doc);
@@ -405,14 +405,14 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 				p.signature(ftyp.Params, ftyp.Results, &ml);
 			} else {
 				// embedded interface
-				p.expr(f.Type, &ml);
+				p.expr(f.Type, &ml)
 			}
 			p.print(token.SEMICOLON);
 			p.lineComment(f.Comment);
 		}
 		if isIncomplete {
 			if len(list) > 0 {
-				p.print(formfeed);
+				p.print(formfeed)
 			}
 			// TODO(gri): this needs to be styled like normal comments
 			p.print("// contains unexported methods");
@@ -439,20 +439,20 @@ func needsBlanks(expr ast.Expr) bool {
 	switch x := expr.(type) {
 	case *ast.Ident:
 		// "long" identifiers look better with blanks around them
-		return len(x.Value) > 8;
+		return len(x.Value) > 8
 	case *ast.BasicLit:
 		// "long" literals look better with blanks around them
-		return len(x.Value) > 8;
+		return len(x.Value) > 8
 	case *ast.ParenExpr:
 		// parenthesized expressions don't need blanks around them
-		return false;
+		return false
 	case *ast.IndexExpr:
 		// index expressions don't need blanks if the indexed expressions are simple
-		return needsBlanks(x.X);
+		return needsBlanks(x.X)
 	case *ast.CallExpr:
 		// call expressions need blanks if they have more than one
 		// argument or if the function expression needs blanks
-		return len(x.Args) > 1 || needsBlanks(x.Fun);
+		return len(x.Args) > 1 || needsBlanks(x.Fun)
 	}
 	return true;
 }
@@ -487,16 +487,16 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int, multiLine *bool) {
 			prev := line;
 			line = x.Y.Pos().Line;
 			if needsBlanks(x.Y) || prev != line {
-				printBlanks = true;
+				printBlanks = true
 			}
 		} else {
-			break;
+			break
 		}
 	}
 	prev := line;
 	line = x.X.Pos().Line;
 	if needsBlanks(x.X) || prev != line {
-		printBlanks = true;
+		printBlanks = true
 	}
 
 	// Print collected operations left-to-right, with blanks if necessary.
@@ -516,18 +516,18 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int, multiLine *bool) {
 					*multiLine = true;
 				}
 			} else {
-				p.print(blank, x.OpPos, x.Op, blank);
+				p.print(blank, x.OpPos, x.Op, blank)
 			}
 		} else {
 			if prev != line {
-				panic("internal error");
+				panic("internal error")
 			}
 			p.print(x.OpPos, x.Op);
 		}
 		p.expr1(x.Y, prec, 0, multiLine);
 	}
 	if ws == ignore {
-		p.print(unindent);
+		p.print(unindent)
 	}
 }
 
@@ -539,13 +539,13 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, ctxt exprContext, multiLine *b
 
 	switch x := expr.(type) {
 	case *ast.BadExpr:
-		p.print("BadExpr");
+		p.print("BadExpr")
 
 	case *ast.Ident:
-		p.print(x);
+		p.print(x)
 
 	case *ast.BinaryExpr:
-		p.binaryExpr(x, prec1, multiLine);
+		p.binaryExpr(x, prec1, multiLine)
 
 	case *ast.KeyValueExpr:
 		p.expr(x.Key, multiLine);
@@ -567,16 +567,16 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, ctxt exprContext, multiLine *b
 			// no parenthesis needed
 			p.print(x.Op);
 			if x.Op == token.RANGE {
-				p.print(blank);
+				p.print(blank)
 			}
 			p.expr1(x.X, prec, 0, multiLine);
 		}
 
 	case *ast.BasicLit:
-		p.print(x);
+		p.print(x)
 
 	case *ast.StringList:
-		p.stringList(x.Strings, multiLine);
+		p.stringList(x.Strings, multiLine)
 
 	case *ast.FuncLit:
 		p.expr(x.Type, multiLine);
@@ -596,9 +596,9 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, ctxt exprContext, multiLine *b
 		p.expr1(x.X, token.HighestPrec, 0, multiLine);
 		p.print(token.PERIOD, token.LPAREN);
 		if x.Type != nil {
-			p.expr(x.Type, multiLine);
+			p.expr(x.Type, multiLine)
 		} else {
-			p.print(token.TYPE);
+			p.print(token.TYPE)
 		}
 		p.print(token.RPAREN);
 
@@ -609,10 +609,10 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, ctxt exprContext, multiLine *b
 		if x.End != nil {
 			if needsBlanks(x.Index) || needsBlanks(x.End) {
 				// blanks around ":"
-				p.print(blank, token.COLON, blank);
+				p.print(blank, token.COLON, blank)
 			} else {
 				// no blanks around ":"
-				p.print(token.COLON);
+				p.print(token.COLON)
 			}
 			p.expr(x.End, multiLine);
 		}
@@ -636,7 +636,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, ctxt exprContext, multiLine *b
 				// TODO(gri): for now this decision is made by looking at the
 				//            source code - it may not be correct if the source
 				//            code was badly misformatted in the first place
-				p.print(blank);
+				p.print(blank)
 			}
 		}
 		p.print(x.Lbrace, token.LBRACE);
@@ -644,12 +644,12 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, ctxt exprContext, multiLine *b
 		p.print(x.Rbrace, token.RBRACE);
 
 	case *ast.Ellipsis:
-		p.print(token.ELLIPSIS);
+		p.print(token.ELLIPSIS)
 
 	case *ast.ArrayType:
 		p.print(token.LBRACK);
 		if x.Len != nil {
-			p.expr(x.Len, multiLine);
+			p.expr(x.Len, multiLine)
 		}
 		p.print(token.RBRACK);
 		optSemi = p.expr(x.Elt, multiLine);
@@ -677,17 +677,17 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, ctxt exprContext, multiLine *b
 	case *ast.ChanType:
 		switch x.Dir {
 		case ast.SEND | ast.RECV:
-			p.print(token.CHAN);
+			p.print(token.CHAN)
 		case ast.RECV:
-			p.print(token.ARROW, token.CHAN);
+			p.print(token.ARROW, token.CHAN)
 		case ast.SEND:
-			p.print(token.CHAN, token.ARROW);
+			p.print(token.CHAN, token.ARROW)
 		}
 		p.print(blank);
 		optSemi = p.expr(x.Value, multiLine);
 
 	default:
-		panic("unreachable");
+		panic("unreachable")
 	}
 
 	return;
@@ -697,7 +697,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int, ctxt exprContext, multiLine *b
 // Returns true if a separating semicolon is optional.
 // Sets multiLine to true if the expression spans multiple lines.
 func (p *printer) expr(x ast.Expr, multiLine *bool) (optSemi bool) {
-	return p.expr1(x, token.LowestPrec, 0, multiLine);
+	return p.expr1(x, token.LowestPrec, 0, multiLine)
 }
 
 
@@ -712,7 +712,7 @@ const maxStmtNewlines = 2	// maximum number of newlines between statements
 func (p *printer) stmtList(list []ast.Stmt, _indent int) {
 	// TODO(gri): fix _indent code
 	if _indent > 0 {
-		p.print(indent);
+		p.print(indent)
 	}
 	var multiLine bool;
 	for i, s := range list {
@@ -721,11 +721,11 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int) {
 		p.linebreak(s.Pos().Line, 1, maxStmtNewlines, ignore, i == 0 || _indent == 0 || multiLine);
 		multiLine = false;
 		if !p.stmt(s, &multiLine) && (!fewerSemis || len(list) > 1) {
-			p.print(token.SEMICOLON);
+			p.print(token.SEMICOLON)
 		}
 	}
 	if _indent > 0 {
-		p.print(unindent);
+		p.print(unindent)
 	}
 }
 
@@ -744,7 +744,7 @@ func (p *printer) block(s *ast.BlockStmt, indent int) {
 //            need to be careful to keep them around type expressions.
 func stripParens(x ast.Expr) ast.Expr {
 	if px, hasParens := x.(*ast.ParenExpr); hasParens {
-		return stripParens(px.X);
+		return stripParens(px.X)
 	}
 	return x;
 }
@@ -763,7 +763,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 		// all semicolons required
 		// (they are not separators, print them explicitly)
 		if init != nil {
-			p.stmt(init, ignoreMultiLine);
+			p.stmt(init, ignoreMultiLine)
 		}
 		p.print(token.SEMICOLON, blank);
 		if expr != nil {
@@ -780,7 +780,7 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 		}
 	}
 	if needsBlank {
-		p.print(blank);
+		p.print(blank)
 	}
 }
 
@@ -792,7 +792,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 
 	switch s := stmt.(type) {
 	case *ast.BadStmt:
-		p.print("BadStmt");
+		p.print("BadStmt")
 
 	case *ast.DeclStmt:
 		p.decl(s.Decl, inStmtList, multiLine);
@@ -812,7 +812,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		optSemi = p.stmt(s.Stmt, multiLine);
 
 	case *ast.ExprStmt:
-		p.expr(s.X, multiLine);
+		p.expr(s.X, multiLine)
 
 	case *ast.IncDecStmt:
 		p.expr(s.X, multiLine);
@@ -834,7 +834,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 	case *ast.ReturnStmt:
 		p.print(token.RETURN);
 		if s.Results != nil {
-			p.exprList(s.Pos(), s.Results, blankStart | commaSep, multiLine);
+			p.exprList(s.Pos(), s.Results, blankStart | commaSep, multiLine)
 		}
 
 	case *ast.BranchStmt:
@@ -859,7 +859,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 			p.print(blank, token.ELSE, blank);
 			switch s.Else.(type) {
 			case *ast.BlockStmt, *ast.IfStmt:
-				optSemi = p.stmt(s.Else, ignoreMultiLine);
+				optSemi = p.stmt(s.Else, ignoreMultiLine)
 			default:
 				p.print(token.LBRACE, indent, formfeed);
 				p.stmt(s.Else, ignoreMultiLine);
@@ -872,7 +872,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 			p.print(token.CASE);
 			p.exprList(s.Pos(), s.Values, blankStart | commaSep, multiLine);
 		} else {
-			p.print(token.DEFAULT);
+			p.print(token.DEFAULT)
 		}
 		p.print(s.Colon, token.COLON);
 		p.stmtList(s.Body, 1);
@@ -890,7 +890,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 			p.print(token.CASE);
 			p.exprList(s.Pos(), s.Types, blankStart | commaSep, multiLine);
 		} else {
-			p.print(token.DEFAULT);
+			p.print(token.DEFAULT)
 		}
 		p.print(s.Colon, token.COLON);
 		p.stmtList(s.Body, 1);
@@ -919,7 +919,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 			}
 			p.expr(s.Rhs, multiLine);
 		} else {
-			p.print(token.DEFAULT);
+			p.print(token.DEFAULT)
 		}
 		p.print(s.Colon, token.COLON);
 		p.stmtList(s.Body, 1);
@@ -953,7 +953,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		optSemi = true;
 
 	default:
-		panic("unreachable");
+		panic("unreachable")
 	}
 
 	return;
@@ -1009,7 +1009,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 		} else {
 			extraTabs = 2;
 			if s.Type != nil || s.Values != nil {
-				p.print(vtab);
+				p.print(vtab)
 			}
 			if s.Type != nil {
 				optSemi = p.expr(s.Type, multiLine);
@@ -1029,24 +1029,24 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 		p.leadComment(s.Doc);
 		p.expr(s.Name, multiLine);
 		if n == 1 {
-			p.print(blank);
+			p.print(blank)
 		} else {
-			p.print(vtab);
+			p.print(vtab)
 		}
 		optSemi = p.expr(s.Type, multiLine);
 		comment = s.Comment;
 
 	default:
-		panic("unreachable");
+		panic("unreachable")
 	}
 
 	if context == inGroup || context == inStmtList && !optSemi {
-		p.print(token.SEMICOLON);
+		p.print(token.SEMICOLON)
 	}
 
 	if comment != nil {
 		for ; extraTabs > 0; extraTabs-- {
-			p.print(vtab);
+			p.print(vtab)
 		}
 		p.lineComment(comment);
 	}
@@ -1066,7 +1066,7 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool) 
 			var ml bool;
 			for i, s := range d.Specs {
 				if i > 0 {
-					p.linebreak(s.Pos().Line, 1, 2, ignore, ml);
+					p.linebreak(s.Pos().Line, 1, 2, ignore, ml)
 				}
 				ml = false;
 				p.spec(s, len(d.Specs), inGroup, &ml);
@@ -1078,7 +1078,7 @@ func (p *printer) genDecl(d *ast.GenDecl, context declContext, multiLine *bool) 
 
 	} else {
 		// single declaration
-		p.spec(d.Specs[0], 1, context, multiLine);
+		p.spec(d.Specs[0], 1, context, multiLine)
 	}
 }
 
@@ -1096,12 +1096,12 @@ func (p *printer) nodeSize(n ast.Node, maxSize int) (size int) {
 	cfg := Config{Mode: RawFormat};
 	var buf bytes.Buffer;
 	if _, err := cfg.Fprint(&buf, n); err != nil {
-		return;
+		return
 	}
 	if buf.Len() <= maxSize {
 		for _, ch := range buf.Bytes() {
 			if ch < ' ' {
-				return;
+				return
 			}
 		}
 		size = buf.Len();	// n fits
@@ -1115,9 +1115,9 @@ func (p *printer) isOneLineFunc(b *ast.BlockStmt, headerSize int) bool {
 	bodySize := 0;
 	switch {
 	case len(b.List) > 1 || p.commentBefore(b.Rbrace):
-		return false;	// too many statements or there is a comment - all bets are off
+		return false	// too many statements or there is a comment - all bets are off
 	case len(b.List) == 1:
-		bodySize = p.nodeSize(b.List[0], maxSize);
+		bodySize = p.nodeSize(b.List[0], maxSize)
 	}
 	// require both headers and overall size to be not "too large"
 	return headerSize <= maxSize/2 && headerSize + bodySize <= maxSize;
@@ -1127,20 +1127,20 @@ func (p *printer) isOneLineFunc(b *ast.BlockStmt, headerSize int) bool {
 // Sets multiLine to true if the function body spans multiple lines.
 func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLine *bool) {
 	if b == nil {
-		return;
+		return
 	}
 
 	if p.isOneLineFunc(b, headerSize) {
 		sep := vtab;
 		if isLit {
-			sep = blank;
+			sep = blank
 		}
 		if len(b.List) > 0 {
 			p.print(sep, b.Pos(), token.LBRACE, blank);
 			p.stmt(b.List[0], ignoreMultiLine);
 			p.print(blank, b.Rbrace, token.RBRACE);
 		} else {
-			p.print(sep, b.Pos(), token.LBRACE, b.Rbrace, token.RBRACE);
+			p.print(sep, b.Pos(), token.LBRACE, b.Rbrace, token.RBRACE)
 		}
 		return;
 	}
@@ -1156,7 +1156,7 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLi
 // the result is infinity (1<<30).
 func distance(from, to token.Position) int {
 	if from.IsValid() && to.IsValid() && from.Line == to.Line {
-		return to.Column - from.Column;
+		return to.Column - from.Column
 	}
 	return 1<<30;
 }
@@ -1186,13 +1186,13 @@ func (p *printer) funcDecl(d *ast.FuncDecl, multiLine *bool) {
 func (p *printer) decl(decl ast.Decl, context declContext, multiLine *bool) {
 	switch d := decl.(type) {
 	case *ast.BadDecl:
-		p.print(d.Pos(), "BadDecl");
+		p.print(d.Pos(), "BadDecl")
 	case *ast.GenDecl:
-		p.genDecl(d, context, multiLine);
+		p.genDecl(d, context, multiLine)
 	case *ast.FuncDecl:
-		p.funcDecl(d, multiLine);
+		p.funcDecl(d, multiLine)
 	default:
-		panic("unreachable");
+		panic("unreachable")
 	}
 }
 
@@ -1206,9 +1206,9 @@ func declToken(decl ast.Decl) (tok token.Token) {
 	tok = token.ILLEGAL;
 	switch d := decl.(type) {
 	case *ast.GenDecl:
-		tok = d.Tok;
+		tok = d.Tok
 	case *ast.FuncDecl:
-		tok = token.FUNC;
+		tok = token.FUNC
 	}
 	return;
 }
@@ -1228,7 +1228,7 @@ func (p *printer) file(src *ast.File) {
 			// print an empty line between top-level declarations
 			min := 1;
 			if prev != tok {
-				min = 2;
+				min = 2
 			}
 			p.linebreak(d.Pos().Line, min, maxDeclNewlines, ignore, false);
 			p.decl(d, atTop, ignoreMultiLine);

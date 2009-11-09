@@ -37,10 +37,10 @@ func sinus(x float64, quad int) float64 {
 	}
 
 	if quad&1 != 0 {
-		y = 1-y;
+		y = 1-y
 	}
 	if quad > 1 {
-		y = -y;
+		y = -y
 	}
 
 	yy := y*y;
@@ -52,7 +52,7 @@ func sinus(x float64, quad int) float64 {
 // Cos returns the cosine of x.
 func Cos(x float64) float64 {
 	if x < 0 {
-		x = -x;
+		x = -x
 	}
 	return sinus(x, 1);
 }

@@ -13,7 +13,7 @@ func ConstantTimeCompare(x, y []byte) int {
 	var v byte;
 
 	for i := 0; i < len(x); i++ {
-		v |= x[i]^y[i];
+		v |= x[i]^y[i]
 	}
 
 	return ConstantTimeByteEq(v, 0);
@@ -51,7 +51,7 @@ func ConstantTimeCopy(v int, x, y []byte) {
 	xmask := byte(v-1);
 	ymask := byte(^(v-1));
 	for i := 0; i < len(x); i++ {
-		x[i] = x[i]&xmask | y[i]&ymask;
+		x[i] = x[i]&xmask | y[i]&ymask
 	}
 	return;
 }
