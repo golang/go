@@ -311,7 +311,7 @@ func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
 }
 
 
-func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete bool, ctxt Context) {
+func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete bool, ctxt exprContext) {
 	if !isIncomplete && !p.commentBefore(rbrace) {
 		// possibly a one-line struct/interface
 		if len(list) == 0 {
@@ -426,8 +426,8 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 // ----------------------------------------------------------------------------
 // Expressions
 
-// Context describes the syntactic environment in which an expression node is printed.
-type Context uint
+// exprContext describes the syntactic environment in which an expression node is printed.
+type exprContext uint
 
 const (
 	compositeLit	= 1<<iota;
@@ -534,7 +534,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1 int, multiLine *bool) {
 
 // Returns true if a separating semicolon is optional.
 // Sets multiLine to true if the expression spans multiple lines.
-func (p *printer) expr1(expr ast.Expr, prec1 int, ctxt Context, multiLine *bool) (optSemi bool) {
+func (p *printer) expr1(expr ast.Expr, prec1 int, ctxt exprContext, multiLine *bool) (optSemi bool) {
 	p.print(expr.Pos());
 
 	switch x := expr.(type) {
