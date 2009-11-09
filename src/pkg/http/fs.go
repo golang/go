@@ -99,8 +99,8 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 
 	if redirect {
 		// redirect to canonical path: / at end of directory url
-		// r.Url.Path always begins with /
-		url := r.Url.Path;
+		// r.URL.Path always begins with /
+		url := r.URL.Path;
 		if d.IsDirectory() {
 			if url[len(url)-1] != '/' {
 				Redirect(c, url+"/", StatusMovedPermanently);
@@ -171,7 +171,7 @@ type fileHandler struct {
 func FileServer(root, prefix string) Handler	{ return &fileHandler{root, prefix} }
 
 func (f *fileHandler) ServeHTTP(c *Conn, r *Request) {
-	path := r.Url.Path;
+	path := r.URL.Path;
 	if !strings.HasPrefix(path, f.prefix) {
 		NotFound(c, r);
 		return;

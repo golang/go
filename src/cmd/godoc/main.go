@@ -133,7 +133,7 @@ func usage() {
 
 func loggingHandler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(c *http.Conn, req *http.Request) {
-		log.Stderrf("%s\t%s", c.RemoteAddr, req.Url);
+		log.Stderrf("%s\t%s", c.RemoteAddr, req.URL);
 		h.ServeHTTP(c, req);
 	});
 }
@@ -162,7 +162,7 @@ func main() {
 	readTemplates();
 
 	if *httpaddr != "" {
-		// Http server mode.
+		// HTTP server mode.
 		var handler http.Handler = http.DefaultServeMux;
 		if *verbose {
 			log.Stderrf("Go Documentation Server\n");
@@ -218,8 +218,8 @@ func main() {
 
 	// Command line mode.
 	if *html {
-		packageText = packageHtml;
-		parseerrorText = parseerrorHtml;
+		packageText = packageHTML;
+		parseerrorText = parseerrorHTML;
 	}
 
 	info := pkgHandler.getPageInfo(flag.Arg(0));

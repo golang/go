@@ -214,7 +214,7 @@ func (p *printer) writeFormfeeds(n int) {
 }
 
 
-func (p *printer) writeTaggedItem(data []byte, tag HtmlTag) {
+func (p *printer) writeTaggedItem(data []byte, tag HTMLTag) {
 	// write start tag, if any
 	// (no html-escaping and no p.pos update for tags - use write0)
 	if tag.Start != "" {
@@ -235,7 +235,7 @@ func (p *printer) writeTaggedItem(data []byte, tag HtmlTag) {
 // before and after the data. writeItem updates p.last to the position
 // immediately following the data.
 //
-func (p *printer) writeItem(pos token.Position, data []byte, tag HtmlTag) {
+func (p *printer) writeItem(pos token.Position, data []byte, tag HTMLTag) {
 	p.pos = pos;
 	if debug {
 		// do not update p.pos - use write0
@@ -357,7 +357,7 @@ func (p *printer) writeCommentLine(comment *ast.Comment, pos token.Position, lin
 	line = bytes.Join([][]byte{esc, line, esc}, nil);
 
 	// apply styler, if any
-	var tag HtmlTag;
+	var tag HTMLTag;
 	if p.Styler != nil {
 		line, tag = p.Styler.Comment(comment, line);
 	}
@@ -696,7 +696,7 @@ func (p *printer) print(args ...) {
 
 		next := p.pos;	// estimated position of next item
 		var data []byte;
-		var tag HtmlTag;
+		var tag HTMLTag;
 		isKeyword := false;
 		switch x := f.Interface().(type) {
 		case whiteSpace:
@@ -890,8 +890,8 @@ const (
 )
 
 
-// An HtmlTag specifies a start and end tag.
-type HtmlTag struct {
+// An HTMLTag specifies a start and end tag.
+type HTMLTag struct {
 	Start, End string;	// empty if tags are absent
 }
 
@@ -900,11 +900,11 @@ type HtmlTag struct {
 // A format consists of text and a (possibly empty) surrounding HTML tag.
 //
 type Styler interface {
-	LineTag(line int) ([]byte, HtmlTag);
-	Comment(c *ast.Comment, line []byte) ([]byte, HtmlTag);
-	BasicLit(x *ast.BasicLit) ([]byte, HtmlTag);
-	Ident(id *ast.Ident) ([]byte, HtmlTag);
-	Token(tok token.Token) ([]byte, HtmlTag);
+	LineTag(line int) ([]byte, HTMLTag);
+	Comment(c *ast.Comment, line []byte) ([]byte, HTMLTag);
+	BasicLit(x *ast.BasicLit) ([]byte, HTMLTag);
+	Ident(id *ast.Ident) ([]byte, HTMLTag);
+	Token(tok token.Token) ([]byte, HTMLTag);
 }
 
 

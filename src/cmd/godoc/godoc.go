@@ -131,7 +131,7 @@ func pkgName(filename string) string {
 
 func htmlEscape(s string) string {
 	var buf bytes.Buffer;
-	template.HtmlEscape(&buf, strings.Bytes(s));
+	template.HTMLEscape(&buf, strings.Bytes(s));
 	return buf.String();
 }
 
@@ -460,37 +460,37 @@ type Styler struct {
 var defaultStyler Styler
 
 
-func (s *Styler) LineTag(line int) (text []byte, tag printer.HtmlTag) {
-	tag = printer.HtmlTag{fmt.Sprintf(`<a id="L%d">`, line), "</a>"};
+func (s *Styler) LineTag(line int) (text []byte, tag printer.HTMLTag) {
+	tag = printer.HTMLTag{fmt.Sprintf(`<a id="L%d">`, line), "</a>"};
 	return;
 }
 
 
-func (s *Styler) Comment(c *ast.Comment, line []byte) (text []byte, tag printer.HtmlTag) {
+func (s *Styler) Comment(c *ast.Comment, line []byte) (text []byte, tag printer.HTMLTag) {
 	text = line;
 	// minimal syntax-coloring of comments for now - people will want more
 	// (don't do anything more until there's a button to turn it on/off)
-	tag = printer.HtmlTag{`<span class="comment">`, "</span>"};
+	tag = printer.HTMLTag{`<span class="comment">`, "</span>"};
 	return;
 }
 
 
-func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HtmlTag) {
+func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HTMLTag) {
 	text = x.Value;
 	return;
 }
 
 
-func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HtmlTag) {
+func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
 	text = strings.Bytes(id.Value);
 	if s.highlight == id.Value {
-		tag = printer.HtmlTag{"<span class=highlight>", "</span>"};
+		tag = printer.HTMLTag{"<span class=highlight>", "</span>"};
 	}
 	return;
 }
 
 
-func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HtmlTag) {
+func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HTMLTag) {
 	text = strings.Bytes(tok.String());
 	return;
 }
@@ -512,7 +512,7 @@ func writeNode(w io.Writer, node interface{}, html bool, styler printer.Styler) 
 // Write text to w; optionally html-escaped.
 func writeText(w io.Writer, text []byte, html bool) {
 	if html {
-		template.HtmlEscape(w, text);
+		template.HTMLEscape(w, text);
 		return;
 	}
 	w.Write(text);
@@ -552,7 +552,7 @@ func htmlFmt(w io.Writer, x interface{}, format string) {
 func htmlCommentFmt(w io.Writer, x interface{}, format string) {
 	var buf bytes.Buffer;
 	writeAny(&buf, x, false);
-	doc.ToHtml(w, buf.Bytes());	// does html-escaping
+	doc.ToHTML(w, buf.Bytes());	// does html-escaping
 }
 
 
@@ -651,7 +651,7 @@ func paddingFmt(w io.Writer, x interface{}, format string) {
 // Template formatter for "time" format.
 func timeFmt(w io.Writer, x interface{}, format string) {
 	// note: os.Dir.Mtime_ns is in uint64 in ns!
-	template.HtmlEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64) / 1e9)).String()));
+	template.HTMLEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64) / 1e9)).String()));
 }
 
 
@@ -684,25 +684,25 @@ func readTemplate(name string) *template.Template {
 
 
 var (
-	dirlistHtml,
-		godocHtml,
-		packageHtml,
+	dirlistHTML,
+		godocHTML,
+		packageHTML,
 		packageText,
-		parseerrorHtml,
+		parseerrorHTML,
 		parseerrorText,
-		searchHtml *template.Template;
+		searchHTML *template.Template;
 )
 
 func readTemplates() {
 	// have to delay until after flags processing,
 	// so that main has chdir'ed to goroot.
-	dirlistHtml = readTemplate("dirlist.html");
-	godocHtml = readTemplate("godoc.html");
-	packageHtml = readTemplate("package.html");
+	dirlistHTML = readTemplate("dirlist.html");
+	godocHTML = readTemplate("godoc.html");
+	packageHTML = readTemplate("package.html");
 	packageText = readTemplate("package.txt");
-	parseerrorHtml = readTemplate("parseerror.html");
+	parseerrorHTML = readTemplate("parseerror.html");
 	parseerrorText = readTemplate("parseerror.txt");
-	searchHtml = readTemplate("search.html");
+	searchHTML = readTemplate("search.html");
 }
 
 
@@ -725,8 +725,8 @@ func servePage(c *http.Conn, title, query string, content []byte) {
 		Content: content,
 	};
 
-	if err := godocHtml.Execute(&d, c); err != nil {
-		log.Stderrf("godocHtml.Execute: %s", err);
+	if err := godocHTML.Execute(&d, c); err != nil {
+		log.Stderrf("godocHTML.Execute: %s", err);
 	}
 }
 
@@ -756,7 +756,7 @@ func commentText(src []byte) (text string) {
 }
 
 
-func serveHtmlDoc(c *http.Conn, r *http.Request, path string) {
+func serveHTMLDoc(c *http.Conn, r *http.Request, path string) {
 	// get HTML body contents
 	src, err := io.ReadFile(path);
 	if err != nil {
@@ -780,8 +780,8 @@ func serveHtmlDoc(c *http.Conn, r *http.Request, path string) {
 func serveParseErrors(c *http.Conn, errors *parseErrors) {
 	// format errors
 	var buf bytes.Buffer;
-	if err := parseerrorHtml.Execute(errors, &buf); err != nil {
-		log.Stderrf("parseerrorHtml.Execute: %s", err);
+	if err := parseerrorHTML.Execute(errors, &buf); err != nil {
+		log.Stderrf("parseerrorHTML.Execute: %s", err);
 	}
 	servePage(c, "Parse errors in source file " + errors.filename, "", buf.Bytes());
 }
@@ -799,12 +799,12 @@ func serveGoSource(c *http.Conn, r *http.Request, path string, styler printer.St
 	writeNode(&buf, prog, true, styler);
 	fmt.Fprintln(&buf, "</pre>");
 
-	servePage(c, "Source file " + r.Url.Path, "", buf.Bytes());
+	servePage(c, "Source file " + r.URL.Path, "", buf.Bytes());
 }
 
 
 func redirect(c *http.Conn, r *http.Request) (redirected bool) {
-	if canonical := pathutil.Clean(r.Url.Path) + "/"; r.Url.Path != canonical {
+	if canonical := pathutil.Clean(r.URL.Path) + "/"; r.URL.Path != canonical {
 		http.Redirect(c, canonical, http.StatusMovedPermanently);
 		redirected = true;
 	}
@@ -866,7 +866,7 @@ func serveTextFile(c *http.Conn, r *http.Request, path string) {
 
 	var buf bytes.Buffer;
 	fmt.Fprintln(&buf, "<pre>");
-	template.HtmlEscape(&buf, src);
+	template.HTMLEscape(&buf, src);
 	fmt.Fprintln(&buf, "</pre>");
 
 	servePage(c, "Text file " + path, "", buf.Bytes());
@@ -885,8 +885,8 @@ func serveDirectory(c *http.Conn, r *http.Request, path string) {
 	}
 
 	var buf bytes.Buffer;
-	if err := dirlistHtml.Execute(list, &buf); err != nil {
-		log.Stderrf("dirlistHtml.Execute: %s", err);
+	if err := dirlistHTML.Execute(list, &buf); err != nil {
+		log.Stderrf("dirlistHTML.Execute: %s", err);
 	}
 
 	servePage(c, "Directory " + path, "", buf.Bytes());
@@ -896,21 +896,21 @@ func serveDirectory(c *http.Conn, r *http.Request, path string) {
 var fileServer = http.FileServer(".", "")
 
 func serveFile(c *http.Conn, r *http.Request) {
-	path := pathutil.Join(".", r.Url.Path);
+	path := pathutil.Join(".", r.URL.Path);
 
 	// pick off special cases and hand the rest to the standard file server
 	switch ext := pathutil.Ext(path); {
-	case r.Url.Path == "/":
-		serveHtmlDoc(c, r, "doc/root.html");
+	case r.URL.Path == "/":
+		serveHTMLDoc(c, r, "doc/root.html");
 		return;
 
-	case r.Url.Path == "/doc/root.html":
+	case r.URL.Path == "/doc/root.html":
 		// hide landing page from its real name
 		http.NotFound(c, r);
 		return;
 
 	case ext == ".html":
-		serveHtmlDoc(c, r, path);
+		serveHTMLDoc(c, r, path);
 		return;
 
 	case ext == ".go":
@@ -1023,7 +1023,7 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 		return;
 	}
 
-	path := r.Url.Path;
+	path := r.URL.Path;
 	path = path[len(h.pattern):len(path)];
 	info := h.getPageInfo(path);
 
@@ -1036,8 +1036,8 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 		return;
 	}
 
-	if err := packageHtml.Execute(info, &buf); err != nil {
-		log.Stderrf("packageHtml.Execute: %s", err);
+	if err := packageHTML.Execute(info, &buf); err != nil {
+		log.Stderrf("packageHTML.Execute: %s", err);
 	}
 
 	if path == "" {
@@ -1085,8 +1085,8 @@ func search(c *http.Conn, r *http.Request) {
 	}
 
 	var buf bytes.Buffer;
-	if err := searchHtml.Execute(result, &buf); err != nil {
-		log.Stderrf("searchHtml.Execute: %s", err);
+	if err := searchHTML.Execute(result, &buf); err != nil {
+		log.Stderrf("searchHTML.Execute: %s", err);
 	}
 
 	var title string;

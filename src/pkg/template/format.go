@@ -29,9 +29,9 @@ var (
 	esc_gt		= strings.Bytes("&gt;");
 )
 
-// HtmlEscape writes to w the properly escaped HTML equivalent
+// HTMLEscape writes to w the properly escaped HTML equivalent
 // of the plain text data s.
-func HtmlEscape(w io.Writer, s []byte) {
+func HTMLEscape(w io.Writer, s []byte) {
 	var esc []byte;
 	last := 0;
 	for i, c := range s {
@@ -56,9 +56,9 @@ func HtmlEscape(w io.Writer, s []byte) {
 	w.Write(s[last:len(s)]);
 }
 
-// HtmlFormatter formats arbitrary values for HTML
-func HtmlFormatter(w io.Writer, value interface{}, format string) {
+// HTMLFormatter formats arbitrary values for HTML
+func HTMLFormatter(w io.Writer, value interface{}, format string) {
 	var b bytes.Buffer;
 	fmt.Fprint(&b, value);
-	HtmlEscape(w, b.Bytes());
+	HTMLEscape(w, b.Bytes());
 }

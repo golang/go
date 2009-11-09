@@ -30,15 +30,15 @@ type snippetStyler struct {
 }
 
 
-func (s *snippetStyler) LineTag(line int) (text []uint8, tag printer.HtmlTag) {
+func (s *snippetStyler) LineTag(line int) (text []uint8, tag printer.HTMLTag) {
 	return;	// no LineTag for snippets
 }
 
 
-func (s *snippetStyler) Ident(id *ast.Ident) (text []byte, tag printer.HtmlTag) {
+func (s *snippetStyler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
 	text = strings.Bytes(id.Value);
 	if s.highlight == id {
-		tag = printer.HtmlTag{"<span class=highlight>", "</span>"};
+		tag = printer.HTMLTag{"<span class=highlight>", "</span>"};
 	}
 	return;
 }

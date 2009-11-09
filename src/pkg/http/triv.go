@@ -59,8 +59,8 @@ var pathVar = expvar.NewMap("file-requests")
 
 func FileServer(c *http.Conn, req *http.Request) {
 	c.SetHeader("content-type", "text/plain; charset=utf-8");
-	pathVar.Add(req.Url.Path, 1);
-	path := *webroot + req.Url.Path;	// TODO: insecure: use os.CleanName
+	pathVar.Add(req.URL.Path, 1);
+	path := *webroot + req.URL.Path;	// TODO: insecure: use os.CleanName
 	f, err := os.Open(path, os.O_RDONLY, 0);
 	if err != nil {
 		c.WriteHeader(http.StatusNotFound);

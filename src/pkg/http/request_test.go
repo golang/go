@@ -62,7 +62,7 @@ func TestParseForm(t *testing.T) {
 
 func TestQuery(t *testing.T) {
 	req := &Request{Method: "GET"};
-	req.Url, _ = ParseURL("http://www.google.com/search?q=foo&q=bar");
+	req.URL, _ = ParseURL("http://www.google.com/search?q=foo&q=bar");
 	if q := req.FormValue("q"); q != "foo" {
 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q);
 	}

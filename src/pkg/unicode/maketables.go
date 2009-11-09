@@ -30,7 +30,7 @@ func main() {
 	printCases();
 }
 
-var dataUrl = flag.String("data", "", "full URL for UnicodeData.txt; defaults to --url/UnicodeData.txt")
+var dataURL = flag.String("data", "", "full URL for UnicodeData.txt; defaults to --url/UnicodeData.txt")
 var url = flag.String("url",
 	"http://www.unicode.org/Public/5.1.0/ucd/",
 	"URL of Unicode database directory")
@@ -255,10 +255,10 @@ func letterOp(code int) bool {
 }
 
 func loadChars() {
-	if *dataUrl == "" {
+	if *dataURL == "" {
 		flag.Set("data", *url + "UnicodeData.txt");
 	}
-	resp, _, err := http.Get(*dataUrl);
+	resp, _, err := http.Get(*dataURL);
 	if err != nil {
 		die.Log(err);
 	}
@@ -318,7 +318,7 @@ func printCategories() {
 			"// DO NOT EDIT\n\n"
 			"package unicode\n\n",
 		*tablelist,
-		*dataUrl);
+		*dataURL);
 
 	fmt.Println("// Version is the Unicode edition from which the tables are derived.");
 	fmt.Printf("const Version = %q\n\n", version());
@@ -784,7 +784,7 @@ func printCases() {
 			"// non-self mappings.\n"
 			"var CaseRanges = _CaseRanges\n"
 			"var _CaseRanges = []CaseRange {\n",
-		*dataUrl);
+		*dataURL);
 
 	var startState *caseState;	// the start of a run; nil for not active
 	var prevState = &caseState{};	// the state of the previous character

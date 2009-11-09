@@ -99,7 +99,7 @@ type FormatterMap map[string]func(io.Writer, interface{}, string)
 
 // Built-in formatters.
 var builtins = FormatterMap{
-	"html": HtmlFormatter,
+	"html": HTMLFormatter,
 	"str": StringFormatter,
 	"": StringFormatter,
 }
