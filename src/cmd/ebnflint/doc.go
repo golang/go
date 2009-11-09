@@ -4,8 +4,8 @@
 
 /*
 
-The ebnflint program verifies that EBNF productions in an HTML document
-such as the Go specification document are consistent and grammatically correct.
+Ebnflint verifies that EBNF productions are consistent and gramatically correct.
+It reads them from an HTML document such as the Go specification.
 
 Grammar productions are grouped in boxes demarcated by the HTML elements
 	<pre class="ebnf">

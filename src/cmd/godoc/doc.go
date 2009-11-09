@@ -4,7 +4,7 @@
 
 /*
 
-The godoc program extracts and generates documentation for Go programs.
+Godoc extracts and generates documentation for Go programs.
 
 It has two modes.
 

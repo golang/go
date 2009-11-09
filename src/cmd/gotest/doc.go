@@ -4,7 +4,7 @@
 
 /*
 
-The gotest program is an automated testing tool for Go packages.
+Gotest is an automated testing tool for Go packages.
 
 Normally a Go package is compiled without its test files.  Gotest
 is a simple script that recompiles the package along with any files

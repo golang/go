@@ -4,7 +4,7 @@
 
 /*
 
-The gofmt program is a formatter for Go programs.
+Gofmt formats Go programs.
 
 Without an explicit path, it processes the standard input.  Given a file,
 it operates on that file; given a directory, it operates on all .go files in

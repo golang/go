@@ -4,8 +4,8 @@
 
 /*
 
-The program goyacc is a version of yacc written in Go and generating
-as output a parser also in Go.
+Goyacc is a version of yacc for Go.
+It is written in Go and generates parsers written in Go.
 
 It is largely transliterated from the Inferno version written in Limbo
 which in turn was largely transliterated from the Plan 9 version

@@ -4,7 +4,7 @@
 
 /*
 
-The name gc is the generic label given to the family of Go compilers
+Gc is the generic label for the family of Go compilers
 that function as part of the (modified) Plan 9 tool chain.  The C compiler
 documentation at
 

@@ -4,8 +4,8 @@
 
 /*
 
-5g is the version of the gc compiler for the ARM,
-referred to by these tools as arm.
+5g is the version of the gc compiler for the ARM.
+The $GOARCH for these tools is arm.
 
 It reads .go files and outputs .5 files. The flags are documented in ../gc/doc.go.
 
