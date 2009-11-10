@@ -822,7 +822,6 @@ func NewFile(fd int, name string) *File {
 	f := new(File);
 	f.fd = fd;
 	f.name = name;
-	f.error = nil;
 	f.dirinfo = nil;
 	f.nepipe = 0;
 	return f;
