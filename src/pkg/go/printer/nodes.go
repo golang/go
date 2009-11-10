@@ -110,7 +110,7 @@ func (p *printer) lineComment(d *ast.CommentGroup) {
 
 // Sets multiLine to true if the identifier list spans multiple lines.
 func (p *printer) identList(list []*ast.Ident, multiLine *bool) {
-	// convert into an expression list
+	// convert into an expression list so we can re-use exprList formatting
 	xlist := make([]ast.Expr, len(list));
 	for i, x := range list {
 		xlist[i] = x
@@ -121,7 +121,7 @@ func (p *printer) identList(list []*ast.Ident, multiLine *bool) {
 
 // Sets multiLine to true if the string list spans multiple lines.
 func (p *printer) stringList(list []*ast.BasicLit, multiLine *bool) {
-	// convert into an expression list
+	// convert into an expression list so we can re-use exprList formatting
 	xlist := make([]ast.Expr, len(list));
 	for i, x := range list {
 		xlist[i] = x
@@ -481,13 +481,6 @@ func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
 
 
 func cutoff(e *ast.BinaryExpr, depth int) int {
-	if depth < 1 {
-		// handle gracefully unless in debug mode
-		if debug {
-			panicln("negative depth:", depth)
-		}
-		depth = 1;
-	}
 	has5, has6, maxProblem := walkBinary(e);
 	if maxProblem > 0 {
 		return maxProblem + 1
@@ -555,10 +548,8 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiL
 		// parenthesis needed
 		// Note: The parser inserts an ast.ParenExpr node; thus this case
 		//       can only occur if the AST is created in a different way.
-		// parentheses undo one level of depth
-		depth--;
 		p.print(token.LPAREN);
-		p.expr0(x, depth, multiLine);
+		p.expr0(x, depth-1, multiLine);	// parentheses undo one level of depth
 		p.print(token.RPAREN);
 		return;
 	}
@@ -612,7 +603,11 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		p.print(x)
 
 	case *ast.BinaryExpr:
-		p.binaryExpr(x, prec1, cutoff(x, depth), depth, multiLine)
+		if depth < 1 {
+			p.internalError("depth < 1:", depth);
+			depth = 1;
+		}
+		p.binaryExpr(x, prec1, cutoff(x, depth), depth, multiLine);
 
 	case *ast.KeyValueExpr:
 		p.expr(x.Key, multiLine);
@@ -650,10 +645,8 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		p.funcBody(x.Body, distance(x.Type.Pos(), p.pos), true, multiLine);
 
 	case *ast.ParenExpr:
-		// parentheses undo one level of depth
-		depth--;
 		p.print(token.LPAREN);
-		p.expr0(x.X, depth, multiLine);
+		p.expr0(x.X, depth-1, multiLine);	// parentheses undo one level of depth
 		p.print(x.Rparen, token.RPAREN);
 
 	case *ast.SelectorExpr:
