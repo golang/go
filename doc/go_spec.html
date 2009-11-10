@@ -1870,9 +1870,11 @@ package, which means that it must begin with a Unicode upper case letter.
 math.Sin
 </pre>
 
+<!---
 <p>
 <span class="alert">TODO: Unify this section with Selectors - it's the same syntax.</span>
 </p>
+--->
 
 <h3 id="Composite_literals">Composite literals</h3>
 
@@ -2223,9 +2225,11 @@ p.M0        // ((*p).T0).M0
 </pre>
 
 
+<!---
 <span class="alert">
 TODO: Specify what happens to receivers.
 </span>
+--->
 
 
 <h3 id="Indexes">Indexes</h3>
@@ -2811,7 +2815,7 @@ that is, either a variable, pointer indirection, array or slice indexing
 operation,
 or a field selector of an addressable struct operand.
 A function result variable is not addressable.
-(<span class="alert">TODO: remove this restriction.</span>)
+<!--- (<span class="alert">TODO: remove this restriction.</span>) --->
 Given an operand of pointer type, the pointer indirection
 operator <code>*</code> retrieves the value pointed
 to by the operand.
@@ -2912,10 +2916,12 @@ to <code>false</code> and <code>x</code> is set to the
 zero value for its type (§<a href="#The_zero_value">The zero value</a>).
 </p>
 
+<!---
 <p>
 <span class="alert">TODO: Probably in a separate section, communication semantics
 need to be presented regarding send, receive, select, and goroutines.</span>
 </p>
+--->
 
 <h3 id="Method_expressions">Method expressions</h3>
 
@@ -3192,6 +3198,7 @@ int8(^1)    // same as int8(-2)
 ^int8(1)    // same as -1 ^ int8(1) = -2
 </pre>
 
+<!---
 <p>
 <span class="alert">
 TODO: perhaps ^ should be disallowed on non-uints instead of assuming twos complement.
@@ -3199,7 +3206,7 @@ Also it may be possible to make typed constants more like variables, at the cost
 overflow etc. errors being caught.
 </span>
 </p>
-
+--->
 
 <h3 id="Order_of_evaluation">Order of evaluation</h3>
 
@@ -3931,6 +3938,7 @@ func complex_f3() (re float, im float) {
 	</li>
 </ol>
 
+<!---
 <p>
 <span class="alert">
 TODO: Define when return is required.<br />
@@ -3938,6 +3946,7 @@ TODO: Language about result parameters needs to go into a section on
       function/method invocation<br />
 </span>
 </p>
+--->
 
 <h3 id="Break_statements">Break statements</h3>
 
@@ -4009,7 +4018,9 @@ L:
 <p>
 is erroneous because the jump to label <code>L</code> skips
 the creation of <code>v</code>.
+<!---
 (<span class="alert">TODO: Eliminate in favor of used and not set errors?</span>)
+--->
 </p>
 
 <h3 id="Fallthrough_statements">Fallthrough statements</h3>
