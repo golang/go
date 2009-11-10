@@ -361,7 +361,7 @@ func (v *arrayV) String() string {
 		}
 		res += e.String();
 	}
-	return res+"}";
+	return res + "}";
 }
 
 func (v *arrayV) Assign(t *Thread, o Value) {
@@ -399,7 +399,7 @@ func (v *structV) String() string {
 		}
 		res += v.String();
 	}
-	return res+"}";
+	return res + "}";
 }
 
 func (v *structV) Assign(t *Thread, o Value) {
@@ -525,7 +525,7 @@ func (v *mapV) String() string {
 		res += fmt.Sprint(key) + ":" + val.String();
 		return true;
 	});
-	return res+"]";
+	return res + "]";
 }
 
 func (v *mapV) Assign(t *Thread, o Value)	{ v.target = o.(MapValue).Get(t) }
@@ -575,7 +575,7 @@ func (v multiV) String() string {
 		}
 		res += v.String();
 	}
-	return res+")";
+	return res + ")";
 }
 
 func (v multiV) Assign(t *Thread, o Value) {

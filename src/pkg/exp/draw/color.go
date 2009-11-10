@@ -50,14 +50,14 @@ var (
 func (c Color) RGBA() (r, g, b, a uint32) {
 	x := uint32(c);
 	r, g, b, a = x>>24, (x>>16)&0xFF, (x>>8)&0xFF, x&0xFF;
-	r |= r<<8;
-	r |= r<<16;
-	g |= g<<8;
-	g |= g<<16;
-	b |= b<<8;
-	b |= b<<16;
-	a |= a<<8;
-	a |= a<<16;
+	r |= r << 8;
+	r |= r << 16;
+	g |= g << 8;
+	g |= g << 16;
+	b |= b << 8;
+	b |= b << 16;
+	a |= a << 8;
+	a |= a << 16;
 	return;
 }
 
@@ -68,21 +68,21 @@ func (c Color) SetAlpha(a uint8) Color {
 	if oa == 0 {
 		return 0
 	}
-	r = r*Color(a)/oa;
+	r = r * Color(a) / oa;
 	if r < 0 {
 		r = 0
 	}
 	if r > 0xFF {
 		r = 0xFF
 	}
-	g = g*Color(a)/oa;
+	g = g * Color(a) / oa;
 	if g < 0 {
 		g = 0
 	}
 	if g > 0xFF {
 		g = 0xFF
 	}
-	b = b*Color(a)/oa;
+	b = b * Color(a) / oa;
 	if b < 0 {
 		b = 0
 	}

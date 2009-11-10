@@ -37,7 +37,7 @@ func NewCipher(key []byte) (*Cipher, os.Error) {
 		break
 	}
 
-	n := k+28;
+	n := k + 28;
 	c := &Cipher{make([]uint32, n), make([]uint32, n)};
 	expandKey(key, c.enc, c.dec);
 	return c, nil;

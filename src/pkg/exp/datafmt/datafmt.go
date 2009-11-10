@@ -361,14 +361,14 @@ func (s *State) Write(data []byte) (int, os.Error) {
 			// write text segment and indentation
 			n1, _ := s.output.Write(data[i0 : i+1]);
 			n2, _ := s.output.Write(s.indent.Bytes());
-			n += n1+n2;
-			i0 = i+1;
+			n += n1 + n2;
+			i0 = i + 1;
 			s.linePos.Offset = s.output.Len();
 			s.linePos.Line++;
 		}
 	}
 	n3, _ := s.output.Write(data[i0:len(data)]);
-	return n+n3, nil;
+	return n + n3, nil;
 }
 
 
@@ -597,7 +597,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 		// if the indentation evaluates to nil, the state's output buffer
 		// didn't change - either way it's ok to append the difference to
 		// the current identation
-		s.indent.Write(s.output.Bytes()[mark.outputLen : s.output.Len()]);
+		s.indent.Write(s.output.Bytes()[mark.outputLen:s.output.Len()]);
 		s.restore(mark);
 
 		// format group body

@@ -72,7 +72,7 @@ var reverseBitsTests = []*reverseBitsTest{
 func getLargeDataChunk() []byte {
 	result := make([]byte, 100000);
 	for i := range result {
-		result[i] = byte(int64(i)*int64(i)&0xFF)
+		result[i] = byte(int64(i) * int64(i) & 0xFF)
 	}
 	return result;
 }

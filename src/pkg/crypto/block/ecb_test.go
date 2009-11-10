@@ -61,7 +61,7 @@ func TestECBEncrypter(t *testing.T) {
 			if i%block == 0 {
 				delta++
 			}
-			crypt[i] = plain[i]+delta;
+			crypt[i] = plain[i] + delta;
 		}
 
 		for frag := 0; frag < 2; frag++ {
@@ -115,7 +115,7 @@ func testECBDecrypter(t *testing.T, maxio int) {
 	};
 	var plain, crypt [256]byte;
 	for i := 0; i < len(plain); i++ {
-		plain[i] = byte(255-i)
+		plain[i] = byte(255 - i)
 	}
 	b := new(bytes.Buffer);
 	for block := 1; block <= 64 && block <= maxio; block *= 2 {
@@ -125,7 +125,7 @@ func testECBDecrypter(t *testing.T, maxio int) {
 			if i%block == 0 {
 				delta++
 			}
-			crypt[i] = plain[i]+delta;
+			crypt[i] = plain[i] + delta;
 		}
 
 		for mode := 0; mode < len(readers); mode++ {

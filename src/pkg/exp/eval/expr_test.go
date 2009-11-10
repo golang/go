@@ -230,13 +230,13 @@ var exprTests = []test{
 	Val("2<<u", 2<<1),
 	CErr("2<<f", opTypes),
 
-	Val("-2<<2", bignum.Int(-2 << 2)),
+	Val("-2<<2", bignum.Int(-2<<2)),
 	CErr("-2<<(-1)", constantUnderflows),
 	CErr("-2<<0x10000000000000000", constantOverflows),
 	CErr("-2<<2.5", constantTruncated),
-	Val("-2<<2.0", bignum.Int(-2 << 2.0)),
+	Val("-2<<2.0", bignum.Int(-2<<2.0)),
 	CErr("-2<<i", mustBeUnsigned),
-	Val("-2<<u", -2 << 1),
+	Val("-2<<u", -2<<1),
 	CErr("-2<<f", opTypes),
 
 	Val("0x10000000000000000<<2", hugeInteger.Shl(2)),

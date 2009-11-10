@@ -135,7 +135,7 @@ func (doc *docReader) addValue(decl *ast.GenDecl) {
 	// determine values list
 	const threshold = 0.75;
 	values := doc.values;
-	if domName != "" && domFreq >= int(float(len(decl.Specs)) * threshold) {
+	if domName != "" && domFreq >= int(float(len(decl.Specs))*threshold) {
 		// typed entries are sufficiently frequent
 		typ := doc.lookupTypeDoc(domName);
 		if typ != nil {

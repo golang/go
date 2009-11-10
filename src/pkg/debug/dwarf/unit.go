@@ -53,7 +53,7 @@ func (d *Data) parseUnits() ([]unit, os.Error) {
 		u.atable = atable;
 		u.addrsize = int(b.uint8());
 		u.off = b.off;
-		u.data = b.bytes(int(n-(2+4+1)));
+		u.data = b.bytes(int(n - (2 + 4 + 1)));
 	}
 	if b.err != nil {
 		return nil, b.err

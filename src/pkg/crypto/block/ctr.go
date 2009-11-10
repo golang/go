@@ -35,7 +35,7 @@ func (x *ctrStream) Next() []byte {
 	x.c.Encrypt(x.ctr, x.out);
 
 	// Increment counter
-	for i := len(x.ctr)-1; i >= 0; i-- {
+	for i := len(x.ctr) - 1; i >= 0; i-- {
 		x.ctr[i]++;
 		if x.ctr[i] != 0 {
 			break

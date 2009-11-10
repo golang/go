@@ -132,7 +132,7 @@ func (b *block) defineSlot(t Type, temp bool) *Variable {
 		index = b.offset + b.numVars;
 		b.numVars++;
 		if index >= b.scope.maxVars {
-			b.scope.maxVars = index+1
+			b.scope.maxVars = index + 1
 		}
 	}
 	v := &Variable{token.Position{}, index, t, nil};

@@ -26,7 +26,7 @@ var oneToFive = IntArray{1, 2, 3, 4, 5}
 func isNegative(n interface{}) bool	{ return n.(int) < 0 }
 func isPositive(n interface{}) bool	{ return n.(int) > 0 }
 func isAbove3(n interface{}) bool	{ return n.(int) > 3 }
-func isEven(n interface{}) bool		{ return n.(int) % 2 == 0 }
+func isEven(n interface{}) bool		{ return n.(int)%2 == 0 }
 func doubler(n interface{}) interface{}	{ return n.(int) * 2 }
 func addOne(n interface{}) interface{}	{ return n.(int) + 1 }
 func adder(acc interface{}, n interface{}) interface{} {

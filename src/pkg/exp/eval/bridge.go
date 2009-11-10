@@ -77,7 +77,7 @@ func TypeFromNative(t reflect.Type) Type {
 		// Variadic functions have DotDotDotType at the end
 		varidic := false;
 		if nin > 0 {
-			if _, ok := t.In(nin-1).(*reflect.DotDotDotType); ok {
+			if _, ok := t.In(nin - 1).(*reflect.DotDotDotType); ok {
 				varidic = true;
 				nin--;
 			}
@@ -142,13 +142,11 @@ type nativeFunc struct {
 }
 
 func (f *nativeFunc) NewFrame() *Frame {
-	vars := make([]Value, f.in + f.out);
+	vars := make([]Value, f.in+f.out);
 	return &Frame{nil, vars};
 }
 
-func (f *nativeFunc) Call(t *Thread) {
-	f.fn(t, t.f.Vars[0 : f.in], t.f.Vars[f.in : f.in + f.out])
-}
+func (f *nativeFunc) Call(t *Thread)	{ f.fn(t, t.f.Vars[0:f.in], t.f.Vars[f.in:f.in+f.out]) }
 
 // FuncFromNative creates an interpreter function from a native
 // function that takes its in and out arguments as slices of

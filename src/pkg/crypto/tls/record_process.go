@@ -173,22 +173,22 @@ func (p *recordProcessor) processRecord(r *record) {
 		return;
 	}
 
-	fillMACHeader(&p.header, p.seqNum, len(r.payload) - p.mac.Size(), r);
+	fillMACHeader(&p.header, p.seqNum, len(r.payload)-p.mac.Size(), r);
 	p.seqNum++;
 
 	p.mac.Reset();
 	p.mac.Write(p.header[0:13]);
-	p.mac.Write(r.payload[0 : len(r.payload) - p.mac.Size()]);
+	p.mac.Write(r.payload[0 : len(r.payload)-p.mac.Size()]);
 	macBytes := p.mac.Sum();
 
-	if subtle.ConstantTimeCompare(macBytes, r.payload[len(r.payload) - p.mac.Size() : len(r.payload)]) != 1 {
+	if subtle.ConstantTimeCompare(macBytes, r.payload[len(r.payload)-p.mac.Size():len(r.payload)]) != 1 {
 		p.error(alertBadRecordMAC);
 		return;
 	}
 
 	switch r.contentType {
 	case recordTypeHandshake:
-		p.processHandshakeRecord(r.payload[0 : len(r.payload) - p.mac.Size()])
+		p.processHandshakeRecord(r.payload[0 : len(r.payload)-p.mac.Size()])
 	case recordTypeChangeCipherSpec:
 		if len(r.payload) != 1 || r.payload[0] != 1 {
 			p.error(alertUnexpectedMessage);
@@ -237,12 +237,12 @@ func (p *recordProcessor) processHandshakeRecord(data []byte) {
 		handshakeLen := int(p.handshakeBuf[1])<<16 |
 			int(p.handshakeBuf[2])<<8 |
 			int(p.handshakeBuf[3]);
-		if handshakeLen + 4 > len(p.handshakeBuf) {
+		if handshakeLen+4 > len(p.handshakeBuf) {
 			break
 		}
 
-		bytes := p.handshakeBuf[0 : handshakeLen + 4];
-		p.handshakeBuf = p.handshakeBuf[handshakeLen + 4 : len(p.handshakeBuf)];
+		bytes := p.handshakeBuf[0 : handshakeLen+4];
+		p.handshakeBuf = p.handshakeBuf[handshakeLen+4 : len(p.handshakeBuf)];
 		if bytes[0] == typeFinished {
 			// Special case because Finished is synchronous: the
 			// handshake handler has to tell us if it's ok to start

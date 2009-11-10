@@ -111,9 +111,9 @@ func decodeInt(state *decodeState) int64 {
 		return 0
 	}
 	if x&1 != 0 {
-		return ^int64(x>>1)
+		return ^int64(x >> 1)
 	}
-	return int64(x>>1);
+	return int64(x >> 1);
 }
 
 type decOp func(i *decInstr, state *decodeState, p unsafe.Pointer)
@@ -279,7 +279,7 @@ func floatFromBits(u uint64) float64 {
 	var v uint64;
 	for i := 0; i < 8; i++ {
 		v <<= 8;
-		v |= u&0xFF;
+		v |= u & 0xFF;
 		u >>= 8;
 	}
 	return math.Float64frombits(v);
@@ -476,7 +476,7 @@ func decodeSlice(atyp *reflect.SliceType, state *decodeState, p uintptr, elemOp 
 		p = *(*uintptr)(up);
 	}
 	// Allocate storage for the slice elements, that is, the underlying array.
-	data := make([]byte, length * atyp.Elem().Size());
+	data := make([]byte, length*atyp.Elem().Size());
 	// Always write a header at p.
 	hdrp := (*reflect.SliceHeader)(unsafe.Pointer(p));
 	hdrp.Data = uintptr(unsafe.Pointer(&data[0]));

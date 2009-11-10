@@ -116,7 +116,7 @@ func (m *SpacewarPDP1) Init(ctxt draw.Context) {
 }
 
 const (
-	frameDelay = 56*1e6;	// 56 ms
+	frameDelay = 56 * 1e6;	// 56 ms
 )
 
 var ctlBits = [...]pdp1.Word{
@@ -134,10 +134,10 @@ func (m *SpacewarPDP1) Step() os.Error {
 	if m.PC == 02051 {
 		m.pollInput();
 		m.nframe++;
-		if m.nframe & 1 == 0 {
+		if m.nframe&1 == 0 {
 			m.flush();
 			t := time.Nanoseconds();
-			if t >= m.frameTime + 3 * frameDelay {
+			if t >= m.frameTime+3*frameDelay {
 				m.frameTime = t
 			} else {
 				m.frameTime += frameDelay;
@@ -152,10 +152,10 @@ func (m *SpacewarPDP1) Step() os.Error {
 }
 
 func (m *SpacewarPDP1) Trap(y pdp1.Word) {
-	switch y&077 {
+	switch y & 077 {
 	case 7:
-		x := int(m.AC + 0400000)&0777777;
-		y := int(m.IO + 0400000)&0777777;
+		x := int(m.AC+0400000) & 0777777;
+		y := int(m.IO+0400000) & 0777777;
 		x = x * m.dx / 0777777;
 		y = y * m.dy / 0777777;
 		if 0 <= x && x < m.dx && 0 <= y && y < m.dy {

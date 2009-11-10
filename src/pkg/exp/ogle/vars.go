@@ -217,7 +217,7 @@ func (p *Process) typeOfSym(s *gosym.Sym) (*remoteType, os.Error) {
 // The offsets in this struct type are such that the struct can be
 // instantiated at this function's frame pointer.
 func (p *Process) makeFrameType(s *gosym.Func) (*remoteType, os.Error) {
-	n := len(s.Params)+len(s.Locals);
+	n := len(s.Params) + len(s.Locals);
 	fields := make([]eval.StructField, n);
 	layout := make([]remoteStructField, n);
 	i := 0;

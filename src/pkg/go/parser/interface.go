@@ -154,7 +154,7 @@ func ParsePkgFile(pkgname, filename string, mode uint) (*ast.File, os.Error) {
 	}
 
 	// ignore flags that control partial parsing
-	return ParseFile(filename, src, mode&^(PackageClauseOnly | ImportsOnly));
+	return ParseFile(filename, src, mode&^(PackageClauseOnly|ImportsOnly));
 }
 
 

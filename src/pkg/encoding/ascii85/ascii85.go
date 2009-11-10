@@ -46,13 +46,13 @@ func Encode(dst, src []byte) int {
 			v |= uint32(src[3]);
 			fallthrough;
 		case 3:
-			v |= uint32(src[2])<<8;
+			v |= uint32(src[2]) << 8;
 			fallthrough;
 		case 2:
-			v |= uint32(src[1])<<16;
+			v |= uint32(src[1]) << 16;
 			fallthrough;
 		case 1:
-			v |= uint32(src[0])<<24
+			v |= uint32(src[0]) << 24
 		}
 
 		// Special case: zero (!!!!!) shortens to z.
@@ -65,14 +65,14 @@ func Encode(dst, src []byte) int {
 
 		// Otherwise, 5 base 85 digits starting at !.
 		for i := 4; i >= 0; i-- {
-			dst[i] = '!'+byte(v%85);
+			dst[i] = '!' + byte(v%85);
 			v /= 85;
 		}
 
 		// If src was short, discard the low destination bytes.
 		m := 5;
 		if len(src) < 4 {
-			m -= 4-len(src);
+			m -= 4 - len(src);
 			src = nil;
 		} else {
 			src = src[4:len(src)]
@@ -84,7 +84,7 @@ func Encode(dst, src []byte) int {
 }
 
 // MaxEncodedLen returns the maximum length of an encoding of n source bytes.
-func MaxEncodedLen(n int) int	{ return (n+3)/4*5 }
+func MaxEncodedLen(n int) int	{ return (n + 3) / 4 * 5 }
 
 // NewEncoder returns a new ascii85 stream encoder.  Data written to
 // the returned writer will be encoded and then written to w.
@@ -127,11 +127,11 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 
 	// Large interior chunks.
 	for len(p) >= 4 {
-		nn := len(e.out)/5*4;
+		nn := len(e.out) / 5 * 4;
 		if nn > len(p) {
 			nn = len(p)
 		}
-		nn -= nn%4;
+		nn -= nn % 4;
 		if nn > 0 {
 			nout := Encode(&e.out, p[0:nn]);
 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
@@ -156,7 +156,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 func (e *encoder) Close() os.Error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
-		nout := Encode(&e.out, e.buf[0 : e.nbuf]);
+		nout := Encode(&e.out, e.buf[0:e.nbuf]);
 		e.nbuf = 0;
 		_, e.err = e.w.Write(e.out[0:nout]);
 	}
@@ -207,10 +207,10 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
 			return 0, 0, CorruptInputError(i)
 		}
 		if nb == 5 {
-			nsrc = i+1;
-			dst[ndst] = byte(v>>24);
-			dst[ndst+1] = byte(v>>16);
-			dst[ndst+2] = byte(v>>8);
+			nsrc = i + 1;
+			dst[ndst] = byte(v >> 24);
+			dst[ndst+1] = byte(v >> 16);
+			dst[ndst+2] = byte(v >> 8);
 			dst[ndst+3] = byte(v);
 			ndst += 4;
 			nb = 0;
@@ -234,7 +234,7 @@ func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
 				v = v*85 + 84
 			}
 			for i := 0; i < nb-1; i++ {
-				dst[ndst] = byte(v>>24);
+				dst[ndst] = byte(v >> 24);
 				v <<= 8;
 				ndst++;
 			}
@@ -276,10 +276,10 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		// Decode leftover input from last read.
 		var nn, nsrc, ndst int;
 		if d.nbuf > 0 {
-			ndst, nsrc, d.err = Decode(&d.outbuf, d.buf[0 : d.nbuf], d.readErr != nil);
+			ndst, nsrc, d.err = Decode(&d.outbuf, d.buf[0:d.nbuf], d.readErr != nil);
 			if ndst > 0 {
 				d.out = d.outbuf[0:ndst];
-				d.nbuf = bytes.Copy(&d.buf, d.buf[nsrc : d.nbuf]);
+				d.nbuf = bytes.Copy(&d.buf, d.buf[nsrc:d.nbuf]);
 				continue;	// copy out and return
 			}
 		}
@@ -294,7 +294,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		}
 
 		// Read more data.
-		nn, d.readErr = d.r.Read(d.buf[d.nbuf : len(d.buf)]);
+		nn, d.readErr = d.r.Read(d.buf[d.nbuf:len(d.buf)]);
 		d.nbuf += nn;
 	}
 	panic("unreachable");

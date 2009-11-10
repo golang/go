@@ -301,35 +301,35 @@ func (a *expr) genBinOpAdd(l, r *expr) {
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l+r;
+				ret = l + r;
 				return uint64(uint8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l+r;
+				ret = l + r;
 				return uint64(uint16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l+r;
+				ret = l + r;
 				return uint64(uint32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l+r;
+				ret = l + r;
 				return uint64(uint64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l+r;
+				ret = l + r;
 				return uint64(uint(ret));
 			}
 		default:
@@ -343,35 +343,35 @@ func (a *expr) genBinOpAdd(l, r *expr) {
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l+r;
+				ret = l + r;
 				return int64(int8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l+r;
+				ret = l + r;
 				return int64(int16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l+r;
+				ret = l + r;
 				return int64(int32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l+r;
+				ret = l + r;
 				return int64(int64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l+r;
+				ret = l + r;
 				return int64(int(ret));
 			}
 		default:
@@ -390,21 +390,21 @@ func (a *expr) genBinOpAdd(l, r *expr) {
 			a.eval = func(t *Thread) float64 {
 				l, r := lf(t), rf(t);
 				var ret float64;
-				ret = l+r;
+				ret = l + r;
 				return float64(float32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) float64 {
 				l, r := lf(t), rf(t);
 				var ret float64;
-				ret = l+r;
+				ret = l + r;
 				return float64(float64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) float64 {
 				l, r := lf(t), rf(t);
 				var ret float64;
-				ret = l+r;
+				ret = l + r;
 				return float64(float(ret));
 			}
 		default:
@@ -420,7 +420,7 @@ func (a *expr) genBinOpAdd(l, r *expr) {
 		rf := r.asString();
 		a.eval = func(t *Thread) string {
 			l, r := lf(t), rf(t);
-			return l+r;
+			return l + r;
 		};
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
@@ -437,35 +437,35 @@ func (a *expr) genBinOpSub(l, r *expr) {
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l-r;
+				ret = l - r;
 				return uint64(uint8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l-r;
+				ret = l - r;
 				return uint64(uint16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l-r;
+				ret = l - r;
 				return uint64(uint32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l-r;
+				ret = l - r;
 				return uint64(uint64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l-r;
+				ret = l - r;
 				return uint64(uint(ret));
 			}
 		default:
@@ -479,35 +479,35 @@ func (a *expr) genBinOpSub(l, r *expr) {
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l-r;
+				ret = l - r;
 				return int64(int8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l-r;
+				ret = l - r;
 				return int64(int16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l-r;
+				ret = l - r;
 				return int64(int32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l-r;
+				ret = l - r;
 				return int64(int64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l-r;
+				ret = l - r;
 				return int64(int(ret));
 			}
 		default:
@@ -526,21 +526,21 @@ func (a *expr) genBinOpSub(l, r *expr) {
 			a.eval = func(t *Thread) float64 {
 				l, r := lf(t), rf(t);
 				var ret float64;
-				ret = l-r;
+				ret = l - r;
 				return float64(float32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) float64 {
 				l, r := lf(t), rf(t);
 				var ret float64;
-				ret = l-r;
+				ret = l - r;
 				return float64(float64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) float64 {
 				l, r := lf(t), rf(t);
 				var ret float64;
-				ret = l-r;
+				ret = l - r;
 				return float64(float(ret));
 			}
 		default:
@@ -566,35 +566,35 @@ func (a *expr) genBinOpMul(l, r *expr) {
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l*r;
+				ret = l * r;
 				return uint64(uint8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l*r;
+				ret = l * r;
 				return uint64(uint16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l*r;
+				ret = l * r;
 				return uint64(uint32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l*r;
+				ret = l * r;
 				return uint64(uint64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l*r;
+				ret = l * r;
 				return uint64(uint(ret));
 			}
 		default:
@@ -608,35 +608,35 @@ func (a *expr) genBinOpMul(l, r *expr) {
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l*r;
+				ret = l * r;
 				return int64(int8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l*r;
+				ret = l * r;
 				return int64(int16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l*r;
+				ret = l * r;
 				return int64(int32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l*r;
+				ret = l * r;
 				return int64(int64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l*r;
+				ret = l * r;
 				return int64(int(ret));
 			}
 		default:
@@ -655,21 +655,21 @@ func (a *expr) genBinOpMul(l, r *expr) {
 			a.eval = func(t *Thread) float64 {
 				l, r := lf(t), rf(t);
 				var ret float64;
-				ret = l*r;
+				ret = l * r;
 				return float64(float32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) float64 {
 				l, r := lf(t), rf(t);
 				var ret float64;
-				ret = l*r;
+				ret = l * r;
 				return float64(float64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) float64 {
 				l, r := lf(t), rf(t);
 				var ret float64;
-				ret = l*r;
+				ret = l * r;
 				return float64(float(ret));
 			}
 		default:
@@ -698,7 +698,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l/r;
+				ret = l / r;
 				return uint64(uint8(ret));
 			}
 		case 16:
@@ -708,7 +708,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l/r;
+				ret = l / r;
 				return uint64(uint16(ret));
 			}
 		case 32:
@@ -718,7 +718,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l/r;
+				ret = l / r;
 				return uint64(uint32(ret));
 			}
 		case 64:
@@ -728,7 +728,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l/r;
+				ret = l / r;
 				return uint64(uint64(ret));
 			}
 		case 0:
@@ -738,7 +738,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l/r;
+				ret = l / r;
 				return uint64(uint(ret));
 			}
 		default:
@@ -755,7 +755,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l/r;
+				ret = l / r;
 				return int64(int8(ret));
 			}
 		case 16:
@@ -765,7 +765,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l/r;
+				ret = l / r;
 				return int64(int16(ret));
 			}
 		case 32:
@@ -775,7 +775,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l/r;
+				ret = l / r;
 				return int64(int32(ret));
 			}
 		case 64:
@@ -785,7 +785,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l/r;
+				ret = l / r;
 				return int64(int64(ret));
 			}
 		case 0:
@@ -795,7 +795,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l/r;
+				ret = l / r;
 				return int64(int(ret));
 			}
 		default:
@@ -817,7 +817,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l/r;
+				ret = l / r;
 				return float64(float32(ret));
 			}
 		case 64:
@@ -827,7 +827,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l/r;
+				ret = l / r;
 				return float64(float64(ret));
 			}
 		case 0:
@@ -837,7 +837,7 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l/r;
+				ret = l / r;
 				return float64(float(ret));
 			}
 		default:
@@ -866,7 +866,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l%r;
+				ret = l % r;
 				return uint64(uint8(ret));
 			}
 		case 16:
@@ -876,7 +876,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l%r;
+				ret = l % r;
 				return uint64(uint16(ret));
 			}
 		case 32:
@@ -886,7 +886,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l%r;
+				ret = l % r;
 				return uint64(uint32(ret));
 			}
 		case 64:
@@ -896,7 +896,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l%r;
+				ret = l % r;
 				return uint64(uint64(ret));
 			}
 		case 0:
@@ -906,7 +906,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l%r;
+				ret = l % r;
 				return uint64(uint(ret));
 			}
 		default:
@@ -923,7 +923,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l%r;
+				ret = l % r;
 				return int64(int8(ret));
 			}
 		case 16:
@@ -933,7 +933,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l%r;
+				ret = l % r;
 				return int64(int16(ret));
 			}
 		case 32:
@@ -943,7 +943,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l%r;
+				ret = l % r;
 				return int64(int32(ret));
 			}
 		case 64:
@@ -953,7 +953,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l%r;
+				ret = l % r;
 				return int64(int64(ret));
 			}
 		case 0:
@@ -963,7 +963,7 @@ func (a *expr) genBinOpRem(l, r *expr) {
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l%r;
+				ret = l % r;
 				return int64(int(ret));
 			}
 		default:
@@ -989,35 +989,35 @@ func (a *expr) genBinOpAnd(l, r *expr) {
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l&r;
+				ret = l & r;
 				return uint64(uint8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l&r;
+				ret = l & r;
 				return uint64(uint16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l&r;
+				ret = l & r;
 				return uint64(uint32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l&r;
+				ret = l & r;
 				return uint64(uint64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l&r;
+				ret = l & r;
 				return uint64(uint(ret));
 			}
 		default:
@@ -1031,35 +1031,35 @@ func (a *expr) genBinOpAnd(l, r *expr) {
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l&r;
+				ret = l & r;
 				return int64(int8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l&r;
+				ret = l & r;
 				return int64(int16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l&r;
+				ret = l & r;
 				return int64(int32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l&r;
+				ret = l & r;
 				return int64(int64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l&r;
+				ret = l & r;
 				return int64(int(ret));
 			}
 		default:
@@ -1085,35 +1085,35 @@ func (a *expr) genBinOpOr(l, r *expr) {
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l|r;
+				ret = l | r;
 				return uint64(uint8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l|r;
+				ret = l | r;
 				return uint64(uint16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l|r;
+				ret = l | r;
 				return uint64(uint32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l|r;
+				ret = l | r;
 				return uint64(uint64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l|r;
+				ret = l | r;
 				return uint64(uint(ret));
 			}
 		default:
@@ -1127,35 +1127,35 @@ func (a *expr) genBinOpOr(l, r *expr) {
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l|r;
+				ret = l | r;
 				return int64(int8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l|r;
+				ret = l | r;
 				return int64(int16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l|r;
+				ret = l | r;
 				return int64(int32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l|r;
+				ret = l | r;
 				return int64(int64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l|r;
+				ret = l | r;
 				return int64(int(ret));
 			}
 		default:
@@ -1181,35 +1181,35 @@ func (a *expr) genBinOpXor(l, r *expr) {
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l^r;
+				ret = l ^ r;
 				return uint64(uint8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l^r;
+				ret = l ^ r;
 				return uint64(uint16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l^r;
+				ret = l ^ r;
 				return uint64(uint32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l^r;
+				ret = l ^ r;
 				return uint64(uint64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l^r;
+				ret = l ^ r;
 				return uint64(uint(ret));
 			}
 		default:
@@ -1223,35 +1223,35 @@ func (a *expr) genBinOpXor(l, r *expr) {
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l^r;
+				ret = l ^ r;
 				return int64(int8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l^r;
+				ret = l ^ r;
 				return int64(int16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l^r;
+				ret = l ^ r;
 				return int64(int32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l^r;
+				ret = l ^ r;
 				return int64(int64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l^r;
+				ret = l ^ r;
 				return int64(int(ret));
 			}
 		default:
@@ -1277,35 +1277,35 @@ func (a *expr) genBinOpAndNot(l, r *expr) {
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l&^r;
+				ret = l &^ r;
 				return uint64(uint8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l&^r;
+				ret = l &^ r;
 				return uint64(uint16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l&^r;
+				ret = l &^ r;
 				return uint64(uint32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l&^r;
+				ret = l &^ r;
 				return uint64(uint64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l&^r;
+				ret = l &^ r;
 				return uint64(uint(ret));
 			}
 		default:
@@ -1319,35 +1319,35 @@ func (a *expr) genBinOpAndNot(l, r *expr) {
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l&^r;
+				ret = l &^ r;
 				return int64(int8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l&^r;
+				ret = l &^ r;
 				return int64(int16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l&^r;
+				ret = l &^ r;
 				return int64(int32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l&^r;
+				ret = l &^ r;
 				return int64(int64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l&^r;
+				ret = l &^ r;
 				return int64(int(ret));
 			}
 		default:
@@ -1373,35 +1373,35 @@ func (a *expr) genBinOpShl(l, r *expr) {
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l<<r;
+				ret = l << r;
 				return uint64(uint8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l<<r;
+				ret = l << r;
 				return uint64(uint16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l<<r;
+				ret = l << r;
 				return uint64(uint32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l<<r;
+				ret = l << r;
 				return uint64(uint64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l<<r;
+				ret = l << r;
 				return uint64(uint(ret));
 			}
 		default:
@@ -1415,35 +1415,35 @@ func (a *expr) genBinOpShl(l, r *expr) {
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l<<r;
+				ret = l << r;
 				return int64(int8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l<<r;
+				ret = l << r;
 				return int64(int16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l<<r;
+				ret = l << r;
 				return int64(int32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l<<r;
+				ret = l << r;
 				return int64(int64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l<<r;
+				ret = l << r;
 				return int64(int(ret));
 			}
 		default:
@@ -1464,35 +1464,35 @@ func (a *expr) genBinOpShr(l, r *expr) {
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l>>r;
+				ret = l >> r;
 				return uint64(uint8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l>>r;
+				ret = l >> r;
 				return uint64(uint16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l>>r;
+				ret = l >> r;
 				return uint64(uint32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l>>r;
+				ret = l >> r;
 				return uint64(uint64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
 				l, r := lf(t), rf(t);
 				var ret uint64;
-				ret = l>>r;
+				ret = l >> r;
 				return uint64(uint(ret));
 			}
 		default:
@@ -1506,35 +1506,35 @@ func (a *expr) genBinOpShr(l, r *expr) {
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l>>r;
+				ret = l >> r;
 				return int64(int8(ret));
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l>>r;
+				ret = l >> r;
 				return int64(int16(ret));
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l>>r;
+				ret = l >> r;
 				return int64(int32(ret));
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l>>r;
+				ret = l >> r;
 				return int64(int64(ret));
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
 				l, r := lf(t), rf(t);
 				var ret int64;
-				ret = l>>r;
+				ret = l >> r;
 				return int64(int(ret));
 			}
 		default:

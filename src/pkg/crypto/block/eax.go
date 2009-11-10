@@ -184,7 +184,7 @@ func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
 
 	// copy tag+p into p+tmp and then swap tmp, tag
 	tmp := cr.tmp;
-	for i := n+tagBytes-1; i >= 0; i-- {
+	for i := n + tagBytes - 1; i >= 0; i-- {
 		var c byte;
 		if i < tagBytes {
 			c = tag[i]

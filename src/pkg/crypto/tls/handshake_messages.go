@@ -25,22 +25,22 @@ func (m *clientHelloMsg) marshal() []byte {
 	length := 2 + 32 + 1 + len(m.sessionId) + 2 + len(m.cipherSuites)*2 + 1 + len(m.compressionMethods);
 	x := make([]byte, 4+length);
 	x[0] = typeClientHello;
-	x[1] = uint8(length>>16);
-	x[2] = uint8(length>>8);
+	x[1] = uint8(length >> 16);
+	x[2] = uint8(length >> 8);
 	x[3] = uint8(length);
 	x[4] = m.major;
 	x[5] = m.minor;
 	bytes.Copy(x[6:38], m.random);
 	x[38] = uint8(len(m.sessionId));
-	bytes.Copy(x[39 : 39+len(m.sessionId)], m.sessionId);
+	bytes.Copy(x[39:39+len(m.sessionId)], m.sessionId);
 	y := x[39+len(m.sessionId) : len(x)];
-	y[0] = uint8(len(m.cipherSuites)>>7);
-	y[1] = uint8(len(m.cipherSuites)<<1);
+	y[0] = uint8(len(m.cipherSuites) >> 7);
+	y[1] = uint8(len(m.cipherSuites) << 1);
 	for i, suite := range m.cipherSuites {
-		y[2 + i*2] = uint8(suite>>8);
-		y[3 + i*2] = uint8(suite);
+		y[2+i*2] = uint8(suite >> 8);
+		y[3+i*2] = uint8(suite);
 	}
-	z := y[2 + len(m.cipherSuites)*2 : len(y)];
+	z := y[2+len(m.cipherSuites)*2 : len(y)];
 	z[0] = uint8(len(m.compressionMethods));
 	bytes.Copy(z[1:len(z)], m.compressionMethods);
 	m.raw = x;
@@ -57,34 +57,34 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 	m.minor = data[5];
 	m.random = data[6:38];
 	sessionIdLen := int(data[38]);
-	if sessionIdLen > 32 || len(data) < 39 + sessionIdLen {
+	if sessionIdLen > 32 || len(data) < 39+sessionIdLen {
 		return false
 	}
-	m.sessionId = data[39 : 39 + sessionIdLen];
-	data = data[39 + sessionIdLen : len(data)];
+	m.sessionId = data[39 : 39+sessionIdLen];
+	data = data[39+sessionIdLen : len(data)];
 	if len(data) < 2 {
 		return false
 	}
 	// cipherSuiteLen is the number of bytes of cipher suite numbers. Since
 	// they are uint16s, the number must be even.
 	cipherSuiteLen := int(data[0])<<8 | int(data[1]);
-	if cipherSuiteLen % 2 == 1 || len(data) < 2 + cipherSuiteLen {
+	if cipherSuiteLen%2 == 1 || len(data) < 2+cipherSuiteLen {
 		return false
 	}
 	numCipherSuites := cipherSuiteLen / 2;
 	m.cipherSuites = make([]uint16, numCipherSuites);
 	for i := 0; i < numCipherSuites; i++ {
-		m.cipherSuites[i] = uint16(data[2 + 2*i])<<8 | uint16(data[3 + 2*i])
+		m.cipherSuites[i] = uint16(data[2+2*i])<<8 | uint16(data[3+2*i])
 	}
-	data = data[2 + cipherSuiteLen : len(data)];
+	data = data[2+cipherSuiteLen : len(data)];
 	if len(data) < 2 {
 		return false
 	}
 	compressionMethodsLen := int(data[0]);
-	if len(data) < 1 + compressionMethodsLen {
+	if len(data) < 1+compressionMethodsLen {
 		return false
 	}
-	m.compressionMethods = data[1 : 1 + compressionMethodsLen];
+	m.compressionMethods = data[1 : 1+compressionMethodsLen];
 
 	// A ClientHello may be following by trailing data: RFC 4346 section 7.4.1.2
 	return true;
@@ -104,17 +104,17 @@ func (m *serverHelloMsg) marshal() []byte {
 		return m.raw
 	}
 
-	length := 38+len(m.sessionId);
+	length := 38 + len(m.sessionId);
 	x := make([]byte, 4+length);
 	x[0] = typeServerHello;
-	x[1] = uint8(length>>16);
-	x[2] = uint8(length>>8);
+	x[1] = uint8(length >> 16);
+	x[2] = uint8(length >> 8);
 	x[3] = uint8(length);
 	x[4] = m.major;
 	x[5] = m.minor;
 	bytes.Copy(x[6:38], m.random);
 	x[38] = uint8(len(m.sessionId));
-	bytes.Copy(x[39 : 39+len(m.sessionId)], m.sessionId);
+	bytes.Copy(x[39:39+len(m.sessionId)], m.sessionId);
 	z := x[39+len(m.sessionId) : len(x)];
 	z[0] = uint8(m.cipherSuite >> 8);
 	z[1] = uint8(m.cipherSuite);
@@ -142,19 +142,19 @@ func (m *certificateMsg) marshal() (x []byte) {
 	length := 3 + 3*len(m.certificates) + i;
 	x = make([]byte, 4+length);
 	x[0] = typeCertificate;
-	x[1] = uint8(length>>16);
-	x[2] = uint8(length>>8);
+	x[1] = uint8(length >> 16);
+	x[2] = uint8(length >> 8);
 	x[3] = uint8(length);
 
-	certificateOctets := length-3;
+	certificateOctets := length - 3;
 	x[4] = uint8(certificateOctets >> 16);
 	x[5] = uint8(certificateOctets >> 8);
 	x[6] = uint8(certificateOctets);
 
 	y := x[7:len(x)];
 	for _, slice := range m.certificates {
-		y[0] = uint8(len(slice)>>16);
-		y[1] = uint8(len(slice)>>8);
+		y[0] = uint8(len(slice) >> 16);
+		y[1] = uint8(len(slice) >> 8);
 		y[2] = uint8(len(slice));
 		bytes.Copy(y[3:len(y)], slice);
 		y = y[3+len(slice) : len(y)];
@@ -181,13 +181,13 @@ func (m *clientKeyExchangeMsg) marshal() []byte {
 	if m.raw != nil {
 		return m.raw
 	}
-	length := len(m.ciphertext)+2;
+	length := len(m.ciphertext) + 2;
 	x := make([]byte, length+4);
 	x[0] = typeClientKeyExchange;
-	x[1] = uint8(length>>16);
-	x[2] = uint8(length>>8);
+	x[1] = uint8(length >> 16);
+	x[2] = uint8(length >> 8);
 	x[3] = uint8(length);
-	x[4] = uint8(len(m.ciphertext)>>8);
+	x[4] = uint8(len(m.ciphertext) >> 8);
 	x[5] = uint8(len(m.ciphertext));
 	bytes.Copy(x[6:len(x)], m.ciphertext);
 
@@ -201,7 +201,7 @@ func (m *clientKeyExchangeMsg) unmarshal(data []byte) bool {
 		return false
 	}
 	cipherTextLen := int(data[4])<<8 | int(data[5]);
-	if len(data) != 6 + cipherTextLen {
+	if len(data) != 6+cipherTextLen {
 		return false
 	}
 	m.ciphertext = data[6:len(data)];

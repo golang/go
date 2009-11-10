@@ -27,7 +27,7 @@ var noPos token.Position
 // parser functionality.
 //
 const (
-	PackageClauseOnly	uint	= 1<<iota;	// parsing stops after package clause
+	PackageClauseOnly	uint	= 1 << iota;	// parsing stops after package clause
 	ImportsOnly;			// parsing stops after import declarations
 	ParseComments;			// parse comments and add them to AST
 	Trace;				// print a trace of parsed productions
@@ -68,7 +68,7 @@ type parser struct {
 
 // scannerMode returns the scanner mode bits given the parser's mode bits.
 func scannerMode(mode uint) uint {
-	if mode & ParseComments != 0 {
+	if mode&ParseComments != 0 {
 		return scanner.ScanComments
 	}
 	return 0;
@@ -127,7 +127,7 @@ func (p *parser) next0() {
 		case p.tok.IsLiteral():
 			p.printTrace(s, string(p.lit))
 		case p.tok.IsOperator(), p.tok.IsKeyword():
-			p.printTrace("\""+s+"\"")
+			p.printTrace("\"" + s + "\"")
 		default:
 			p.printTrace(s)
 		}
@@ -246,7 +246,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'";
 		if p.tok.IsLiteral() {
-			msg += " "+string(p.lit)
+			msg += " " + string(p.lit)
 		}
 	}
 	p.Error(pos, msg);
@@ -256,7 +256,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 func (p *parser) expect(tok token.Token) token.Position {
 	pos := p.pos;
 	if p.tok != tok {
-		p.errorExpected(pos, "'" + tok.String() + "'")
+		p.errorExpected(pos, "'"+tok.String()+"'")
 	}
 	p.next();	// make progress in any case
 	return pos;
@@ -278,7 +278,7 @@ func close(p *parser)	{ p.topScope = p.topScope.Outer }
 
 func (p *parser) declare(ident *ast.Ident) {
 	if !p.topScope.Declare(ident) {
-		p.Error(p.pos, "'" + ident.Value + "' declared already")
+		p.Error(p.pos, "'"+ident.Value+"' declared already")
 	}
 }
 
@@ -1220,7 +1220,7 @@ func (p *parser) parseBinaryExpr(prec1 int) ast.Expr {
 		for p.tok.Precedence() == prec {
 			pos, op := p.pos, p.tok;
 			p.next();
-			y := p.parseBinaryExpr(prec+1);
+			y := p.parseBinaryExpr(prec + 1);
 			x = &ast.BinaryExpr{p.checkExpr(x), pos, op, p.checkExpr(y)};
 		}
 	}
@@ -1806,7 +1806,7 @@ func parseVarSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec
 
 func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi bool) (decl *ast.GenDecl, gotSemi bool) {
 	if p.trace {
-		defer un(trace(p, keyword.String() + "Decl"))
+		defer un(trace(p, keyword.String()+"Decl"))
 	}
 
 	doc := p.leadComment;
@@ -1977,7 +1977,7 @@ func (p *parser) parseFile() *ast.File {
 	// Don't bother parsing the rest if we had errors already.
 	// Likely not a Go source file at all.
 
-	if p.ErrorCount() == 0 && p.mode & PackageClauseOnly == 0 {
+	if p.ErrorCount() == 0 && p.mode&PackageClauseOnly == 0 {
 		// import decls
 		list := vector.New(0);
 		for p.tok == token.IMPORT {
@@ -1985,7 +1985,7 @@ func (p *parser) parseFile() *ast.File {
 			list.Push(decl);
 		}
 
-		if p.mode & ImportsOnly == 0 {
+		if p.mode&ImportsOnly == 0 {
 			// rest of package body
 			for p.tok != token.EOF {
 				decl, _ := p.parseDecl(true);	// consume optional semicolon

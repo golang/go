@@ -79,7 +79,7 @@ func TestInsertDeleteClear(t *testing.T) {
 			t.Error("B")
 		}
 	}
-	for i := n-1; i >= 0; i-- {
+	for i := n - 1; i >= 0; i-- {
 		if a.Last().(int) != val(0) {
 			t.Error("C")
 		}
@@ -146,7 +146,7 @@ func verify_slice(t *testing.T, x *Vector, elt, i, j int) {
 
 
 func verify_pattern(t *testing.T, x *Vector, a, b, c int) {
-	n := a+b+c;
+	n := a + b + c;
 	if x.Len() != n {
 		t.Errorf("O) wrong len %d (expected %d)", x.Len(), n)
 	}
@@ -194,7 +194,7 @@ func TestSorting(t *testing.T) {
 	const n = 100;
 
 	a := NewIntVector(n);
-	for i := n-1; i >= 0; i-- {
+	for i := n - 1; i >= 0; i-- {
 		a.Set(i, n-1-i)
 	}
 	if sort.IsSorted(a) {
@@ -202,7 +202,7 @@ func TestSorting(t *testing.T) {
 	}
 
 	b := NewStringVector(n);
-	for i := n-1; i >= 0; i-- {
+	for i := n - 1; i >= 0; i-- {
 		b.Set(i, fmt.Sprint(n-1-i))
 	}
 	if sort.IsSorted(b) {

@@ -127,7 +127,7 @@ func (p *printer) write(data []byte) {
 			p.write0(data[i0 : i+1]);
 
 			// update p.pos
-			p.pos.Offset += i+1-i0;
+			p.pos.Offset += i + 1 - i0;
 			p.pos.Line++;
 			p.pos.Column = 1;
 
@@ -147,10 +147,10 @@ func (p *printer) write(data []byte) {
 			}
 
 			// next segment start
-			i0 = i+1;
+			i0 = i + 1;
 
 		case '"', '\'', '&', '<', '>':
-			if p.Mode & GenHTML != 0 {
+			if p.Mode&GenHTML != 0 {
 				// write segment ending in b
 				p.write0(data[i0:i]);
 
@@ -171,12 +171,12 @@ func (p *printer) write(data []byte) {
 				p.write0(esc);
 
 				// update p.pos
-				d := i+1-i0;
+				d := i + 1 - i0;
 				p.pos.Offset += d;
 				p.pos.Column += d;
 
 				// next segment start
-				i0 = i+1;
+				i0 = i + 1;
 			}
 
 		case tabwriter.Escape:
@@ -188,7 +188,7 @@ func (p *printer) write(data []byte) {
 	p.write0(data[i0:len(data)]);
 
 	// update p.pos
-	d := len(data)-i0;
+	d := len(data) - i0;
 	p.pos.Offset += d;
 	p.pos.Column += d;
 }
@@ -241,7 +241,7 @@ func (p *printer) writeItem(pos token.Position, data []byte, tag HTMLTag) {
 		// do not update p.pos - use write0
 		p.write0(strings.Bytes(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)))
 	}
-	if p.Mode & GenHTML != 0 {
+	if p.Mode&GenHTML != 0 {
 		// write line tag if on a new line
 		// TODO(gri): should write line tags on each line at the start
 		//            will be more useful (e.g. to show line numbers)
@@ -387,7 +387,7 @@ func split(text []byte) [][]byte {
 	for j, c := range text {
 		if c == '\n' {
 			lines[n] = text[i:j];	// exclude newline
-			i = j+1;		// discard newline
+			i = j + 1;		// discard newline
 			n++;
 		}
 	}
@@ -740,7 +740,7 @@ func (p *printer) print(args ...) {
 			// (note that valid Go programs cannot contain esc ('\xff')
 			// bytes since they do not appear in legal UTF-8 sequences)
 			// TODO(gri): this this more efficiently.
-			data = strings.Bytes("\xff"+string(data)+"\xff");
+			data = strings.Bytes("\xff" + string(data) + "\xff");
 		case token.Token:
 			if p.Styler != nil {
 				data, tag = p.Styler.Token(x)
@@ -884,7 +884,7 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 
 // General printing is controlled with these Config.Mode flags.
 const (
-	GenHTML		uint	= 1<<iota;	// generate HTML
+	GenHTML		uint	= 1 << iota;	// generate HTML
 	RawFormat;		// do not use a tabwriter; if set, UseSpaces is ignored
 	UseSpaces;		// use spaces instead of tabs for indentation and alignment
 )
@@ -930,13 +930,13 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 
 	// setup tabwriter if needed and redirect output
 	var tw *tabwriter.Writer;
-	if cfg.Mode & RawFormat == 0 {
+	if cfg.Mode&RawFormat == 0 {
 		padchar := byte('\t');
-		if cfg.Mode & UseSpaces != 0 {
+		if cfg.Mode&UseSpaces != 0 {
 			padchar = ' '
 		}
 		twmode := tabwriter.DiscardEmptyColumns;
-		if cfg.Mode & GenHTML != 0 {
+		if cfg.Mode&GenHTML != 0 {
 			twmode |= tabwriter.FilterHTML
 		}
 		tw = tabwriter.NewWriter(output, cfg.Tabwidth, 1, padchar, twmode);
@@ -961,7 +961,7 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 			p.errors <- os.NewError(fmt.Sprintf("printer.Fprint: unsupported node type %T", n));
 			runtime.Goexit();
 		}
-		p.flush(token.Position{Offset: 1<<30, Line: 1<<30}, false);	// flush to "infinity"
+		p.flush(token.Position{Offset: 1 << 30, Line: 1 << 30}, false);	// flush to "infinity"
 		p.errors <- nil;						// no errors
 	}();
 	err := <-p.errors;	// wait for completion of goroutine

@@ -137,7 +137,7 @@ func (a *expr) convertTo(t Type) *expr {
 		res.eval = func() *bignum.Integer { return f };
 	case *floatType:
 		n, d := rat.Value();
-		v := float64(n.Value())/float64(d.Value());
+		v := float64(n.Value()) / float64(d.Value());
 		res.eval = func(*Thread) float64 { return v };
 	case *idealFloatType:
 		res.eval = func() *bignum.Rational { return rat }
@@ -830,7 +830,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 		default:
 			log.Crashf("Marked field at depth %d, but already found one at depth %d", depth, bestDepth)
 		}
-		amberr += "\n\t"+pathName[1:len(pathName)];
+		amberr += "\n\t" + pathName[1:len(pathName)];
 	};
 
 	visited := make(map[Type]bool);
@@ -886,7 +886,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 					sub = func(e *expr) *expr { return e };
 
 				case f.Anonymous:
-					sub = find(f.Type, depth+1, pathName + "." + f.Name);
+					sub = find(f.Type, depth+1, pathName+"."+f.Name);
 					if sub == nil {
 						continue
 					}
@@ -975,7 +975,7 @@ func (a *exprInfo) compileSliceExpr(arr, lo, hi *expr) *expr {
 			if lo > hi || hi > bound || lo < 0 {
 				t.Abort(SliceError{lo, hi, bound})
 			}
-			return Slice{arr.Sub(lo, bound-lo), hi-lo, bound-lo};
+			return Slice{arr.Sub(lo, bound-lo), hi - lo, bound - lo};
 		};
 
 	case *SliceType:
@@ -985,7 +985,7 @@ func (a *exprInfo) compileSliceExpr(arr, lo, hi *expr) *expr {
 			if lo > hi || hi > arr.Cap || lo < 0 {
 				t.Abort(SliceError{lo, hi, arr.Cap})
 			}
-			return Slice{arr.Base.Sub(lo, arr.Cap - lo), hi-lo, arr.Cap - lo};
+			return Slice{arr.Base.Sub(lo, arr.Cap-lo), hi - lo, arr.Cap - lo};
 		};
 
 	case *stringType:

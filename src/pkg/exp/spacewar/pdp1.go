@@ -133,7 +133,7 @@ func (m *M) Step(t Trapper) os.Error {
 // Normalize actual 32-bit integer i to 18-bit ones-complement integer.
 // Interpret mod 0777777, because 0777777 == -0 == +0 == 0000000.
 func norm(i Word) Word {
-	i += i>>18;
+	i += i >> 18;
 	i &= mask;
 	if i == mask {
 		i = 0
@@ -162,13 +162,13 @@ func (e LoopError) String() string	{ return fmt.Sprintf("indirect load looping a
 
 func (m *M) run(inst Word, t Trapper) os.Error {
 	ib, y := (inst>>12)&1, inst&07777;
-	op := inst>>13;
+	op := inst >> 13;
 	if op < opSKP && op != opCALJDA {
 		for n := 0; ib != 0; n++ {
 			if n > 07777 {
 				return LoopError(m.PC - 1)
 			}
-			ib = (m.Mem[y] >> 12)&1;
+			ib = (m.Mem[y] >> 12) & 1;
 			y = m.Mem[y] & 07777;
 		}
 	}
@@ -189,7 +189,7 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 		}
 		m.Mem[a] = m.AC;
 		m.AC = (m.OV << 17) + m.PC;
-		m.PC = a+1;
+		m.PC = a + 1;
 	case opLAC:
 		m.AC = m.Mem[y]
 	case opLIO:
@@ -197,7 +197,7 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 	case opDAC:
 		m.Mem[y] = m.AC
 	case opDAP:
-		m.Mem[y] = m.Mem[y] & 0770000 | m.AC & 07777
+		m.Mem[y] = m.Mem[y]&0770000 | m.AC&07777
 	case opDIO:
 		m.Mem[y] = m.IO
 	case opDZM:
@@ -207,10 +207,10 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 		m.OV = m.AC >> 18;
 		m.AC = norm(m.AC);
 	case opSUB:
-		diffSigns := (m.AC ^ m.Mem[y])>>17 == 1;
+		diffSigns := (m.AC^m.Mem[y])>>17 == 1;
 		m.AC += m.Mem[y] ^ mask;
 		m.AC = norm(m.AC);
-		if diffSigns && m.Mem[y] >> 17 == m.AC >> 17 {
+		if diffSigns && m.Mem[y]>>17 == m.AC>>17 {
 			m.OV = 1
 		}
 	case opIDX:
@@ -219,7 +219,7 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 	case opISP:
 		m.AC = norm(m.Mem[y] + 1);
 		m.Mem[y] = m.AC;
-		if m.AC & sign == 0 {
+		if m.AC&sign == 0 {
 			m.PC++
 		}
 	case opSAD:
@@ -231,16 +231,16 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 			m.PC++
 		}
 	case opMUS:
-		if m.IO & 1 == 1 {
+		if m.IO&1 == 1 {
 			m.AC += m.Mem[y];
 			m.AC = norm(m.AC);
 		}
-		m.IO = (m.IO >> 1 | m.AC << 17)&mask;
+		m.IO = (m.IO>>1 | m.AC<<17) & mask;
 		m.AC >>= 1;
 	case opDIS:
-		m.AC, m.IO = (m.AC << 1 | m.IO >> 17)&mask,
-			((m.IO << 1 | m.AC >> 17)&mask)^1;
-		if m.IO & 1 == 1 {
+		m.AC, m.IO = (m.AC<<1|m.IO>>17)&mask,
+			((m.IO<<1|m.AC>>17)&mask)^1;
+		if m.IO&1 == 1 {
 			m.AC = m.AC + (m.Mem[y] ^ mask)
 		} else {
 			m.AC = m.AC + 1 + m.Mem[y]
@@ -253,10 +253,10 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 		m.PC = y;
 	case opSKP:
 		cond := y&0100 == 0100 && m.AC == 0 ||
-			y&0200 == 0200 && m.AC >> 17 == 0 ||
-			y&0400 == 0400 && m.AC >> 17 == 1 ||
+			y&0200 == 0200 && m.AC>>17 == 0 ||
+			y&0400 == 0400 && m.AC>>17 == 1 ||
 			y&01000 == 01000 && m.OV == 0 ||
-			y&02000 == 02000 && m.IO >> 17 == 0 ||
+			y&02000 == 02000 && m.IO>>17 == 0 ||
 			y&7 != 0 && !m.Flag[y&7] ||
 			y&070 != 0 && !m.Sense[(y&070)>>3] ||
 			y&070 == 010;
@@ -267,47 +267,47 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 			m.OV = 0
 		}
 	case opSFT:
-		for count := inst&0777; count != 0; count >>= 1 {
+		for count := inst & 0777; count != 0; count >>= 1 {
 			if count&1 == 0 {
 				continue
 			}
-			switch (inst>>9)&017 {
+			switch (inst >> 9) & 017 {
 			case 001:	// rotate AC left
-				m.AC = (m.AC << 1 | m.AC >> 17)&mask
+				m.AC = (m.AC<<1 | m.AC>>17) & mask
 			case 002:	// rotate IO left
-				m.IO = (m.IO << 1 | m.IO >> 17)&mask
+				m.IO = (m.IO<<1 | m.IO>>17) & mask
 			case 003:	// rotate AC and IO left.
 				w := uint64(m.AC)<<18 | uint64(m.IO);
 				w = w<<1 | w>>35;
-				m.AC = Word(w>>18)&mask;
-				m.IO = Word(w)&mask;
+				m.AC = Word(w>>18) & mask;
+				m.IO = Word(w) & mask;
 			case 005:	// shift AC left (excluding sign bit)
-				m.AC = (m.AC << 1 | m.AC >> 17)&mask&^sign | m.AC & sign
+				m.AC = (m.AC<<1|m.AC>>17)&mask&^sign | m.AC&sign
 			case 006:	// shift IO left (excluding sign bit)
-				m.IO = (m.IO << 1 | m.IO >> 17)&mask&^sign | m.IO & sign
+				m.IO = (m.IO<<1|m.IO>>17)&mask&^sign | m.IO&sign
 			case 007:	// shift AC and IO left (excluding AC's sign bit)
 				w := uint64(m.AC)<<18 | uint64(m.IO);
 				w = w<<1 | w>>35;
-				m.AC = Word(w>>18)&mask&^sign | m.AC & sign;
-				m.IO = Word(w)&mask&^sign | m.AC & sign;
+				m.AC = Word(w>>18)&mask&^sign | m.AC&sign;
+				m.IO = Word(w)&mask&^sign | m.AC&sign;
 			case 011:	// rotate AC right
-				m.AC = (m.AC >> 1 | m.AC << 17)&mask
+				m.AC = (m.AC>>1 | m.AC<<17) & mask
 			case 012:	// rotate IO right
-				m.IO = (m.IO >> 1 | m.IO << 17)&mask
+				m.IO = (m.IO>>1 | m.IO<<17) & mask
 			case 013:	// rotate AC and IO right
 				w := uint64(m.AC)<<18 | uint64(m.IO);
 				w = w>>1 | w<<35;
-				m.AC = Word(w>>18)&mask;
-				m.IO = Word(w)&mask;
+				m.AC = Word(w>>18) & mask;
+				m.IO = Word(w) & mask;
 			case 015:	// shift AC right (excluding sign bit)
-				m.AC = m.AC >> 1 | m.AC & sign
+				m.AC = m.AC>>1 | m.AC&sign
 			case 016:	// shift IO right (excluding sign bit)
-				m.IO = m.IO >> 1 | m.IO & sign
+				m.IO = m.IO>>1 | m.IO&sign
 			case 017:	// shift AC and IO right (excluding AC's sign bit)
 				w := uint64(m.AC)<<18 | uint64(m.IO);
-				w = w>>1;
-				m.AC = Word(w>>18) | m.AC & sign;
-				m.IO = Word(w)&mask;
+				w = w >> 1;
+				m.AC = Word(w>>18) | m.AC&sign;
+				m.IO = Word(w) & mask;
 			default:
 				goto Unknown
 			}
@@ -316,7 +316,7 @@ func (m *M) run(inst Word, t Trapper) os.Error {
 		if ib == 0 {
 			m.AC = y
 		} else {
-			m.AC = y^mask
+			m.AC = y ^ mask
 		}
 	case opIOT:
 		t.Trap(y)

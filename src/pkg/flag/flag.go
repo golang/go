@@ -298,7 +298,7 @@ func Arg(i int) string {
 func NArg() int	{ return len(os.Args) - flags.first_arg }
 
 // Args returns the non-flag command-line arguments.
-func Args() []string	{ return os.Args[flags.first_arg : len(os.Args)] }
+func Args() []string	{ return os.Args[flags.first_arg:len(os.Args)] }
 
 func add(name string, value FlagValue, usage string) {
 	// Remember the default value as a string; it won't change.
@@ -440,10 +440,10 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 	if s[1] == '-' {
 		num_minuses++;
 		if len(s) == 2 {	// "--" terminates the flags
-			return false, index+1
+			return false, index + 1
 		}
 	}
-	name := s[num_minuses : len(s)];
+	name := s[num_minuses:len(s)];
 	if len(name) == 0 || name[0] == '-' || name[0] == '=' {
 		fmt.Fprintln(os.Stderr, "bad flag syntax:", s);
 		Usage();
@@ -505,7 +505,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 		}
 	}
 	flags.actual[name] = flag;
-	return true, index+1;
+	return true, index + 1;
 }
 
 // Parse parses the command-line flags.  Must be called after all flags are defined

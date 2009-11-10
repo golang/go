@@ -19,7 +19,7 @@ import (
 type Errno uint32
 
 const (
-	OK	Errno	= 256+iota;
+	OK	Errno	= 256 + iota;
 	ErrBreak;
 	ErrMessageTruncated;
 	ErrNoMemory;
@@ -35,8 +35,8 @@ const (
 )
 
 var errstr = [...]string{
-	OK-OK: "ok",
-	ErrBreak-OK: "break",
+	OK - OK: "ok",
+	ErrBreak - OK: "break",
 	ErrMessageTruncated - OK: "message truncated",
 	ErrNoMemory - OK: "out of memory",
 	ErrProtocolMismatch - OK: "protocol mismatch",
@@ -97,7 +97,7 @@ type msg struct {
 // A msgReceiver receives messages from a file descriptor.
 type msgReceiver struct {
 	fd	int;
-	data	[128*1024]byte;
+	data	[128 * 1024]byte;
 	desc	[8]int32;
 	hdr	msgHdr;
 	iov	iov;
@@ -196,7 +196,7 @@ func (m *msg) uint64() uint64 {
 	}
 	b := m.rdata[0:8];
 	x := uint64(uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24);
-	x |= uint64(uint32(b[4]) | uint32(b[5])<<8 | uint32(b[6])<<16 | uint32(b[7])<<24)<<32;
+	x |= uint64(uint32(b[4])|uint32(b[5])<<8|uint32(b[6])<<16|uint32(b[7])<<24) << 32;
 	m.rdata = m.rdata[8:len(m.rdata)];
 	return x;
 }
@@ -231,23 +231,23 @@ func (m *msg) wuint8(x uint8)	{ m.grow(1)[0] = x }
 func (m *msg) wuint32(x uint32) {
 	b := m.grow(4);
 	b[0] = byte(x);
-	b[1] = byte(x>>8);
-	b[2] = byte(x>>16);
-	b[3] = byte(x>>24);
+	b[1] = byte(x >> 8);
+	b[2] = byte(x >> 16);
+	b[3] = byte(x >> 24);
 }
 
 func (m *msg) wuint64(x uint64) {
 	b := m.grow(8);
 	lo := uint32(x);
 	b[0] = byte(lo);
-	b[1] = byte(lo>>8);
-	b[2] = byte(lo>>16);
-	b[3] = byte(lo>>24);
-	hi := uint32(x>>32);
+	b[1] = byte(lo >> 8);
+	b[2] = byte(lo >> 16);
+	b[3] = byte(lo >> 24);
+	hi := uint32(x >> 32);
 	b[4] = byte(hi);
-	b[5] = byte(hi>>8);
-	b[6] = byte(hi>>16);
-	b[7] = byte(hi>>24);
+	b[5] = byte(hi >> 8);
+	b[6] = byte(hi >> 16);
+	b[7] = byte(hi >> 24);
 }
 
 func (m *msg) wbytes(p []byte)	{ bytes.Copy(m.grow(len(p)), p) }

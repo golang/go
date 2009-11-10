@@ -97,10 +97,10 @@ func (z *writer) Close() os.Error {
 	}
 	checksum := z.digest.Sum32();
 	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
-	z.scratch[0] = uint8(checksum>>24);
-	z.scratch[1] = uint8(checksum>>16);
-	z.scratch[2] = uint8(checksum>>8);
-	z.scratch[3] = uint8(checksum>>0);
+	z.scratch[0] = uint8(checksum >> 24);
+	z.scratch[1] = uint8(checksum >> 16);
+	z.scratch[2] = uint8(checksum >> 8);
+	z.scratch[3] = uint8(checksum >> 0);
 	_, z.err = z.w.Write(z.scratch[0:4]);
 	return z.err;
 }

@@ -27,7 +27,7 @@ var srpcEnabled = srpc.Enabled()
 
 // Subsystem values for Init.
 const (
-	SubsystemVideo	= 1<<iota;
+	SubsystemVideo	= 1 << iota;
 	SubsystemAudio;
 	SubsystemEmbed;
 )
@@ -84,7 +84,7 @@ func Init(subsys int, dx, dy int) (*Window, os.Error) {
 		xsubsys &^= SubsystemVideo | SubsystemEmbed;
 	}
 
-	if xsubsys & SubsystemEmbed != 0 {
+	if xsubsys&SubsystemEmbed != 0 {
 		return nil, os.NewError("not embedded")
 	}
 
@@ -94,7 +94,7 @@ func Init(subsys int, dx, dy int) (*Window, os.Error) {
 		return nil, err
 	}
 
-	if subsys & SubsystemVideo != 0 {
+	if subsys&SubsystemVideo != 0 {
 		if dx, dy, err = videoInit(dx, dy); err != nil {
 			return nil, err
 		}
@@ -105,7 +105,7 @@ func Init(subsys int, dx, dy int) (*Window, os.Error) {
 		w.quitc = make(chan bool);
 	}
 
-	if subsys & SubsystemAudio != 0 {
+	if subsys&SubsystemAudio != 0 {
 		var n int;
 		if n, err = audioInit(AudioFormatStereo44K, 2048); err != nil {
 			return nil, err
@@ -113,7 +113,7 @@ func Init(subsys int, dx, dy int) (*Window, os.Error) {
 		println("audio", n);
 	}
 
-	if subsys & SubsystemVideo != 0 {
+	if subsys&SubsystemVideo != 0 {
 		go w.readEvents()
 	}
 
@@ -159,7 +159,7 @@ func videoPollEvent(ev []byte) (err os.Error) {
 			return noEvents
 		}
 		bytes.Copy(ev, &bridge.share.eq.event[r]);
-		bridge.share.eq.ri = (r+1)%eqsize;
+		bridge.share.eq.ri = (r + 1) % eqsize;
 		return nil;
 	}
 	return os.NewSyscallError("video_poll_event", syscall.VideoPollEvent(&ev[0]));
@@ -242,7 +242,7 @@ type videoShare struct {
 
 // The frame buffer data is videoShareSize bytes after
 // the videoShare begins.
-const videoShareSize = 16*1024
+const videoShareSize = 16 * 1024
 
 type multimediaBridge struct{}
 
@@ -261,7 +261,7 @@ func (multimediaBridge) Run(arg, ret []interface{}, size []int) srpc.Errno {
 	addr, _, errno := syscall.Syscall6(syscall.SYS_MMAP,
 		0,
 		uintptr(st.Size),
-		syscall.PROT_READ | syscall.PROT_WRITE,
+		syscall.PROT_READ|syscall.PROT_WRITE,
 		syscall.MAP_SHARED,
 		uintptr(bridge.displayFd),
 		0);
@@ -274,8 +274,8 @@ func (multimediaBridge) Run(arg, ret []interface{}, size []int) srpc.Errno {
 	// Overestimate frame buffer size
 	// (must use a compile-time constant)
 	// and then reslice.  256 megapixels (1 GB) should be enough.
-	fb := (*[256*1024*1024]Color)(unsafe.Pointer(addr + videoShareSize));
-	bridge.pixel = fb[0 : (st.Size - videoShareSize)/4];
+	fb := (*[256 * 1024 * 1024]Color)(unsafe.Pointer(addr + videoShareSize));
+	bridge.pixel = fb[0 : (st.Size-videoShareSize)/4];
 
 	// Configure RPC connection back to client.
 	var err os.Error;

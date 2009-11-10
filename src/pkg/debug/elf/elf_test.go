@@ -22,7 +22,7 @@ var nameTests = []nameTest{
 	nameTest{SHT_PROGBITS, "SHT_PROGBITS"},
 	nameTest{SHF_MERGE + SHF_TLS, "SHF_MERGE+SHF_TLS"},
 	nameTest{PT_LOAD, "PT_LOAD"},
-	nameTest{PF_W+PF_R+0x50, "PF_W+PF_R+0x50"},
+	nameTest{PF_W + PF_R + 0x50, "PF_W+PF_R+0x50"},
 	nameTest{DT_SYMBOLIC, "DT_SYMBOLIC"},
 	nameTest{DF_BIND_NOW, "DF_BIND_NOW"},
 	nameTest{NT_FPREGSET, "NT_FPREGSET"},
@@ -35,7 +35,7 @@ var nameTests = []nameTest{
 	nameTest{R_386_GOT32, "R_386_GOT32"},
 	nameTest{R_PPC_GOT16_HI, "R_PPC_GOT16_HI"},
 	nameTest{R_SPARC_GOT22, "R_SPARC_GOT22"},
-	nameTest{ET_LOOS+5, "ET_LOOS+5"},
+	nameTest{ET_LOOS + 5, "ET_LOOS+5"},
 	nameTest{ProgFlag(0x50), "0x50"},
 }
 

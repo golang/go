@@ -138,9 +138,9 @@ func (f *Fmt) pad(s string) {
 				buf[i] = padchar
 			}
 			if left {
-				s = string(buf)+s
+				s = string(buf) + s
 			} else {
-				s = s+string(buf)
+				s = s + string(buf)
 			}
 		}
 	}
@@ -153,14 +153,14 @@ func (f *Fmt) pad(s string) {
 // marginally faster by splitting the 32-bit case out into a separate function
 // but it's not worth the duplication, so val has 64 bits.
 func putint(buf []byte, base, val uint64, digits string) int {
-	i := len(buf)-1;
+	i := len(buf) - 1;
 	for val >= base {
 		buf[i] = digits[val%base];
 		i--;
 		val /= base;
 	}
 	buf[i] = digits[val];
-	return i-1;
+	return i - 1;
 }
 
 // Fmt_boolean formats a boolean.
@@ -209,7 +209,7 @@ func (f *Fmt) integer(a int64, base uint, is_signed bool, digits string) string 
 				i--;
 			}
 		case 16:
-			buf[i] = 'x'+digits[10]-'a';
+			buf[i] = 'x' + digits[10] - 'a';
 			i--;
 			buf[i] = '0';
 			i--;
@@ -357,7 +357,7 @@ func (f *Fmt) Fmt_c(v int) *Fmt {
 func (f *Fmt) Fmt_s(s string) *Fmt {
 	if f.prec_present {
 		if f.prec < len(s) {
-			s = s[0 : f.prec]
+			s = s[0:f.prec]
 		}
 	}
 	f.pad(s);
@@ -398,7 +398,7 @@ func (f *Fmt) Fmt_sX(s string) *Fmt {
 func (f *Fmt) Fmt_q(s string) *Fmt {
 	var quoted string;
 	if f.sharp && strconv.CanBackquote(s) {
-		quoted = "`"+s+"`"
+		quoted = "`" + s + "`"
 	} else {
 		quoted = strconv.Quote(s)
 	}

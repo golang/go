@@ -102,7 +102,7 @@ func getCmd(line []byte) (*cmd, []byte) {
 	slit := string(lit);
 	for i := range cmds {
 		if cmds[i].cmd == slit {
-			return &cmds[i], line[pos.Offset + len(lit) : len(line)]
+			return &cmds[i], line[pos.Offset+len(lit) : len(line)]
 		}
 	}
 	return nil, nil;

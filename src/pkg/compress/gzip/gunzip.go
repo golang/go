@@ -19,11 +19,11 @@ const (
 	gzipID1		= 0x1f;
 	gzipID2		= 0x8b;
 	gzipDeflate	= 8;
-	flagText	= 1<<0;
-	flagHdrCrc	= 1<<1;
-	flagExtra	= 1<<2;
-	flagName	= 1<<3;
-	flagComment	= 1<<4;
+	flagText	= 1 << 0;
+	flagHdrCrc	= 1 << 1;
+	flagExtra	= 1 << 2;
+	flagName	= 1 << 3;
+	flagComment	= 1 << 4;
 )
 
 func makeReader(r io.Reader) flate.Reader {
@@ -130,7 +130,7 @@ func (z *Inflater) readHeader(save bool) os.Error {
 	z.digest.Reset();
 	z.digest.Write(z.buf[0:10]);
 
-	if z.flg & flagExtra != 0 {
+	if z.flg&flagExtra != 0 {
 		n, err := z.read2();
 		if err != nil {
 			return err
@@ -145,7 +145,7 @@ func (z *Inflater) readHeader(save bool) os.Error {
 	}
 
 	var s string;
-	if z.flg & flagName != 0 {
+	if z.flg&flagName != 0 {
 		if s, err = z.readString(); err != nil {
 			return err
 		}
@@ -154,7 +154,7 @@ func (z *Inflater) readHeader(save bool) os.Error {
 		}
 	}
 
-	if z.flg & flagComment != 0 {
+	if z.flg&flagComment != 0 {
 		if s, err = z.readString(); err != nil {
 			return err
 		}
@@ -163,7 +163,7 @@ func (z *Inflater) readHeader(save bool) os.Error {
 		}
 	}
 
-	if z.flg & flagHdrCrc != 0 {
+	if z.flg&flagHdrCrc != 0 {
 		n, err := z.read2();
 		if err != nil {
 			return err

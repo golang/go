@@ -38,7 +38,7 @@ func (x *ecbDecrypter) fillCrypt() os.Error {
 	for len(x.crypt) < x.blockSize {
 		off := len(x.crypt);
 		var m int;
-		m, err = x.r.Read(x.crypt[off : x.blockSize]);
+		m, err = x.r.Read(x.crypt[off:x.blockSize]);
 		x.crypt = x.crypt[0 : off+m];
 		if m == 0 {
 			break
@@ -118,8 +118,8 @@ func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
 		return;
 	}
 	var i int;
-	for i = 0; i + x.blockSize <= n; i += x.blockSize {
-		a := p[i : i + x.blockSize];
+	for i = 0; i+x.blockSize <= n; i += x.blockSize {
+		a := p[i : i+x.blockSize];
 		x.c.Decrypt(a, a);
 	}
 
@@ -205,7 +205,7 @@ func (x *ecbEncrypter) slidePlain() {
 func (x *ecbEncrypter) fillPlain(p []byte) int {
 	off := len(x.plain);
 	n := len(p);
-	if max := cap(x.plain)-off; n > max {
+	if max := cap(x.plain) - off; n > max {
 		n = max
 	}
 	x.plain = x.plain[0 : off+n];
@@ -219,8 +219,8 @@ func (x *ecbEncrypter) fillPlain(p []byte) int {
 func (x *ecbEncrypter) encrypt() {
 	var i int;
 	n := len(x.plain);
-	for i = 0; i + x.blockSize <= n; i += x.blockSize {
-		a := x.plain[i : i + x.blockSize];
+	for i = 0; i+x.blockSize <= n; i += x.blockSize {
+		a := x.plain[i : i+x.blockSize];
 		x.c.Encrypt(a, a);
 	}
 	x.crypt = x.plain[0:i];
@@ -271,6 +271,6 @@ func NewECBEncrypter(c Cipher, w io.Writer) io.Writer {
 	x.blockSize = c.BlockSize();
 
 	// Create a buffer that is an integral number of blocks.
-	x.buf = make([]byte, 8192 / x.blockSize * x.blockSize);
+	x.buf = make([]byte, 8192/x.blockSize*x.blockSize);
 	return x;
 }

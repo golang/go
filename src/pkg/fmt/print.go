@@ -211,7 +211,7 @@ func Fprintf(w io.Writer, format string, a ...) (n int, error os.Error) {
 	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprintf(format, v);
-	n, error = w.Write(p.buf[0 : p.n]);
+	n, error = w.Write(p.buf[0:p.n]);
 	return n, error;
 }
 
@@ -226,7 +226,7 @@ func Sprintf(format string, a ...) string {
 	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprintf(format, v);
-	s := string(p.buf)[0 : p.n];
+	s := string(p.buf)[0:p.n];
 	return s;
 }
 
@@ -238,7 +238,7 @@ func Fprint(w io.Writer, a ...) (n int, error os.Error) {
 	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, false, false);
-	n, error = w.Write(p.buf[0 : p.n]);
+	n, error = w.Write(p.buf[0:p.n]);
 	return n, error;
 }
 
@@ -255,7 +255,7 @@ func Sprint(a ...) string {
 	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, false, false);
-	s := string(p.buf)[0 : p.n];
+	s := string(p.buf)[0:p.n];
 	return s;
 }
 
@@ -269,7 +269,7 @@ func Fprintln(w io.Writer, a ...) (n int, error os.Error) {
 	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, true, true);
-	n, error = w.Write(p.buf[0 : p.n]);
+	n, error = w.Write(p.buf[0:p.n]);
 	return n, error;
 }
 
@@ -286,7 +286,7 @@ func Sprintln(a ...) string {
 	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, true, true);
-	s := string(p.buf)[0 : p.n];
+	s := string(p.buf)[0:p.n];
 	return s;
 }
 
@@ -356,7 +356,7 @@ func getFloat32(v reflect.Value) (val float32, ok bool) {
 	case *reflect.Float32Value:
 		return float32(v.Get()), true
 	case *reflect.FloatValue:
-		if v.Type().Size() * 8 == 32 {
+		if v.Type().Size()*8 == 32 {
 			return float32(v.Get()), true
 		}
 	}
@@ -366,7 +366,7 @@ func getFloat32(v reflect.Value) (val float32, ok bool) {
 func getFloat64(v reflect.Value) (val float64, ok bool) {
 	switch v := v.(type) {
 	case *reflect.FloatValue:
-		if v.Type().Size() * 8 == 64 {
+		if v.Type().Size()*8 == 64 {
 			return float64(v.Get()), true
 		}
 	case *reflect.Float64Value:
@@ -429,7 +429,7 @@ BigSwitch:
 	case *reflect.Float64Value:
 		s = p.fmt.Fmt_g64(f.Get()).Str()
 	case *reflect.FloatValue:
-		if field.Type().Size() * 8 == 32 {
+		if field.Type().Size()*8 == 32 {
 			s = p.fmt.Fmt_g32(float32(f.Get())).Str()
 		} else {
 			s = p.fmt.Fmt_g64(float64(f.Get())).Str()
@@ -600,7 +600,7 @@ BigSwitch:
 
 func (p *pp) doprintf(format string, v *reflect.StructValue) {
 	p.ensure(len(format));	// a good starting size
-	end := len(format)-1;
+	end := len(format) - 1;
 	fieldnum := 0;	// we process one field per non-trivial format
 	for i := 0; i <= end; {
 		c, w := utf8.DecodeRuneInString(format[i:len(format)]);

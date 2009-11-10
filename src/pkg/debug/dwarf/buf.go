@@ -56,7 +56,7 @@ func (b *buf) string() string {
 		if b.data[i] == 0 {
 			s := string(b.data[0:i]);
 			b.data = b.data[i+1 : len(b.data)];
-			b.off += Offset(i+1);
+			b.off += Offset(i + 1);
 			return s;
 		}
 	}
@@ -93,10 +93,10 @@ func (b *buf) uint64() uint64 {
 func (b *buf) varint() (c uint64, bits uint) {
 	for i := 0; i < len(b.data); i++ {
 		byte := b.data[i];
-		c |= uint64(byte&0x7F)<<bits;
+		c |= uint64(byte&0x7F) << bits;
 		bits += 7;
 		if byte&0x80 == 0 {
-			b.off += Offset(i+1);
+			b.off += Offset(i + 1);
 			b.data = b.data[i+1 : len(b.data)];
 			return c, bits;
 		}

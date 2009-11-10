@@ -77,7 +77,7 @@ func TestLineFromAline(t *testing.T) {
 		// Check for end of object
 		if path == "" {
 			if final == -1 {
-				final = i-1
+				final = i - 1
 			}
 			continue;
 		} else if final != -1 {
@@ -121,7 +121,7 @@ func TestLineAline(t *testing.T) {
 			}
 
 			// cgo files are full of 'Z' symbols, which we don't handle
-			if len(path) > 4 && path[len(path)-4 : len(path)] == ".cgo" {
+			if len(path) > 4 && path[len(path)-4:len(path)] == ".cgo" {
 				continue
 			}
 
@@ -167,7 +167,7 @@ func TestPCLine(t *testing.T) {
 		wantLine += int(textdat[off]);
 		if fn == nil {
 			t.Errorf("failed to get line of PC %#x", pc)
-		} else if len(file) < 12 || file[len(file)-12 : len(file)] != "pclinetest.s" || line != wantLine || fn != sym {
+		} else if len(file) < 12 || file[len(file)-12:len(file)] != "pclinetest.s" || line != wantLine || fn != sym {
 			t.Errorf("expected %s:%d (%s) at PC %#x, got %s:%d (%s)", "pclinetest.s", wantLine, sym.Name, pc, file, line, fn.Name)
 		}
 	}
@@ -177,7 +177,7 @@ func TestPCLine(t *testing.T) {
 	lookupline := -1;
 	wantLine = 0;
 	off := uint64(0);	// TODO(rsc): should not need off; bug in 8g
-	for pc := sym.Value; pc < sym.End; pc += 2+uint64(textdat[off]) {
+	for pc := sym.Value; pc < sym.End; pc += 2 + uint64(textdat[off]) {
 		file, line, fn := tab.PCToLine(pc);
 		off = pc - text.Addr;
 		wantLine += int(textdat[off]);

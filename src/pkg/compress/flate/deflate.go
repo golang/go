@@ -25,11 +25,11 @@ const (
 
 	// The maximum number of tokens we put into a single flat block, just too
 	// stop things from getting too large.
-	maxFlateBlockTokens	= 1<<14;
+	maxFlateBlockTokens	= 1 << 14;
 	maxStoreBlockSize	= 65535;
 	hashBits		= 15;
-	hashSize		= 1<<hashBits;
-	hashMask		= (1<<hashBits)-1;
+	hashSize		= 1 << hashBits;
+	hashMask		= (1 << hashBits) - 1;
 	hashShift		= (hashBits + minMatchLength - 1) / minMatchLength;
 )
 
@@ -126,9 +126,9 @@ func (d *deflater) flush() os.Error {
 
 func (d *deflater) fillWindow(index int) (int, os.Error) {
 	wSize := d.windowMask + 1;
-	if index >= wSize+wSize-(minMatchLength + maxMatchLength) {
+	if index >= wSize+wSize-(minMatchLength+maxMatchLength) {
 		// shift the window by wSize
-		bytes.Copy(d.window, d.window[wSize : 2*wSize]);
+		bytes.Copy(d.window, d.window[wSize:2*wSize]);
 		index -= wSize;
 		d.windowEnd -= wSize;
 		if d.blockStart >= wSize {
@@ -145,7 +145,7 @@ func (d *deflater) fillWindow(index int) (int, os.Error) {
 	}
 	var count int;
 	var err os.Error;
-	count, err = io.ReadAtLeast(d.r, d.window[d.windowEnd : len(d.window)], 1);
+	count, err = io.ReadAtLeast(d.r, d.window[d.windowEnd:len(d.window)], 1);
 	d.windowEnd += count;
 	if err == os.EOF {
 		return index, nil
@@ -157,7 +157,7 @@ func (d *deflater) writeBlock(tokens []token, index int, eof bool) os.Error {
 	if index > 0 || eof {
 		var window []byte;
 		if d.blockStart <= index {
-			window = d.window[d.blockStart : index]
+			window = d.window[d.blockStart:index]
 		}
 		d.blockStart = index;
 		d.w.writeBlock(tokens, eof, window);
@@ -169,7 +169,7 @@ func (d *deflater) writeBlock(tokens []token, index int, eof bool) os.Error {
 // Try to find a match starting at index whose length is greater than prevSize.
 // We only look at chainCount possibilities before giving up.
 func (d *deflater) findMatch(pos int, prevHead int, prevLength int, lookahead int) (length, offset int, ok bool) {
-	win := d.window[0 : pos + min(maxMatchLength, lookahead)];
+	win := d.window[0 : pos+min(maxMatchLength, lookahead)];
 
 	// We quit when we get a match that's at least nice long
 	nice := min(d.niceMatch, len(win)-pos);
@@ -184,7 +184,7 @@ func (d *deflater) findMatch(pos int, prevHead int, prevLength int, lookahead in
 	w0 := win[pos];
 	w1 := win[pos+1];
 	wEnd := win[pos+length];
-	minIndex := pos-(d.windowMask + 1);
+	minIndex := pos - (d.windowMask + 1);
 
 	for i := prevHead; tries > 0; tries-- {
 		if w0 == win[i] && w1 == win[i+1] && wEnd == win[i+length] {
@@ -196,7 +196,7 @@ func (d *deflater) findMatch(pos int, prevHead int, prevLength int, lookahead in
 			}
 			if n > length && (n > 3 || pos-i <= 4096) {
 				length = n;
-				offset = pos-i;
+				offset = pos - i;
 				ok = true;
 				if n >= nice {
 					// The match is good enough that we don't try to find a better one.
@@ -209,7 +209,7 @@ func (d *deflater) findMatch(pos int, prevHead int, prevLength int, lookahead in
 			// hashPrev[i & windowMask] has already been overwritten, so stop now.
 			break
 		}
-		if i = d.hashPrev[i & d.windowMask]; i < minIndex || i < 0 {
+		if i = d.hashPrev[i&d.windowMask]; i < minIndex || i < 0 {
 			break
 		}
 	}
@@ -245,12 +245,12 @@ func (d *deflater) storedDeflate() os.Error {
 
 func (d *deflater) doDeflate() (err os.Error) {
 	// init
-	d.windowMask = 1 << d.logWindowSize - 1;
+	d.windowMask = 1<<d.logWindowSize - 1;
 	d.hashHead = make([]int, hashSize);
-	d.hashPrev = make([]int, 1 << d.logWindowSize);
-	d.window = make([]byte, 2 << d.logWindowSize);
+	d.hashPrev = make([]int, 1<<d.logWindowSize);
+	d.window = make([]byte, 2<<d.logWindowSize);
 	fillInts(d.hashHead, -1);
-	tokens := make([]token, maxFlateBlockTokens, maxFlateBlockTokens + 1);
+	tokens := make([]token, maxFlateBlockTokens, maxFlateBlockTokens+1);
 	l := levels[d.level];
 	d.goodMatch = l.good;
 	d.niceMatch = l.nice;
@@ -273,7 +273,7 @@ func (d *deflater) doDeflate() (err os.Error) {
 
 	hash := int(0);
 	if index < maxInsertIndex {
-		hash = int(d.window[index]) << hashShift + int(d.window[index+1])
+		hash = int(d.window[index])<<hashShift + int(d.window[index+1])
 	}
 	chainHead := -1;
 	for {
@@ -281,7 +281,7 @@ func (d *deflater) doDeflate() (err os.Error) {
 			panic("index > windowEnd")
 		}
 		lookahead := windowEnd - index;
-		if lookahead < minMatchLength + maxMatchLength {
+		if lookahead < minMatchLength+maxMatchLength {
 			if index, err = d.fillWindow(index); err != nil {
 				return
 			}
@@ -297,21 +297,21 @@ func (d *deflater) doDeflate() (err os.Error) {
 		}
 		if index < maxInsertIndex {
 			// Update the hash
-			hash = (hash << hashShift + int(d.window[index+2]))&hashMask;
+			hash = (hash<<hashShift + int(d.window[index+2])) & hashMask;
 			chainHead = d.hashHead[hash];
-			d.hashPrev[index & d.windowMask] = chainHead;
+			d.hashPrev[index&d.windowMask] = chainHead;
 			d.hashHead[hash] = index;
 		}
 		prevLength := length;
 		prevOffset := offset;
-		minIndex := max(index - maxOffset, 0);
+		minIndex := max(index-maxOffset, 0);
 		length = minMatchLength - 1;
 		offset = 0;
 
 		if chainHead >= minIndex &&
-			(isFastDeflate && lookahead > minMatchLength - 1 ||
+			(isFastDeflate && lookahead > minMatchLength-1 ||
 				!isFastDeflate && lookahead > prevLength && prevLength < lazyMatch) {
-			if newLength, newOffset, ok := d.findMatch(index, chainHead, minMatchLength - 1, lookahead); ok {
+			if newLength, newOffset, ok := d.findMatch(index, chainHead, minMatchLength-1, lookahead); ok {
 				length = newLength;
 				offset = newOffset;
 			}
@@ -321,9 +321,9 @@ func (d *deflater) doDeflate() (err os.Error) {
 			// There was a match at the previous step, and the current match is
 			// not better. Output the previous match.
 			if isFastDeflate {
-				tokens[ti] = matchToken(uint32(length - minMatchLength), uint32(offset - minOffsetSize))
+				tokens[ti] = matchToken(uint32(length-minMatchLength), uint32(offset-minOffsetSize))
 			} else {
-				tokens[ti] = matchToken(uint32(prevLength - minMatchLength), uint32(prevOffset - minOffsetSize))
+				tokens[ti] = matchToken(uint32(prevLength-minMatchLength), uint32(prevOffset-minOffsetSize))
 			}
 			ti++;
 			// Insert in the hash table all strings up to the end of the match.
@@ -333,16 +333,16 @@ func (d *deflater) doDeflate() (err os.Error) {
 			if length <= l.fastSkipHashing {
 				var newIndex int;
 				if isFastDeflate {
-					newIndex = index+length
+					newIndex = index + length
 				} else {
 					newIndex = prevLength - 1
 				}
 				for index++; index < newIndex; index++ {
 					if index < maxInsertIndex {
-						hash = (hash << hashShift + int(d.window[index+2]))&hashMask;
+						hash = (hash<<hashShift + int(d.window[index+2])) & hashMask;
 						// Get previous value with the same hash.
 						// Our chain should point to the previous value.
-						d.hashPrev[index & d.windowMask] = d.hashHead[hash];
+						d.hashPrev[index&d.windowMask] = d.hashHead[hash];
 						// Set the head of the hash chain to us.
 						d.hashHead[hash] = index;
 					}
@@ -366,11 +366,11 @@ func (d *deflater) doDeflate() (err os.Error) {
 			}
 		} else {
 			if isFastDeflate || byteAvailable {
-				i := index-1;
+				i := index - 1;
 				if isFastDeflate {
 					i = index
 				}
-				tokens[ti] = literalToken(uint32(d.window[i])&0xFF);
+				tokens[ti] = literalToken(uint32(d.window[i]) & 0xFF);
 				ti++;
 				if ti == maxFlateBlockTokens {
 					if err = d.writeBlock(tokens, i+1, false); err != nil {
@@ -388,7 +388,7 @@ func (d *deflater) doDeflate() (err os.Error) {
 	}
 	if byteAvailable {
 		// There is still one pending token that needs to be flushed
-		tokens[ti] = literalToken(uint32(d.window[index-1])&0xFF);
+		tokens[ti] = literalToken(uint32(d.window[index-1]) & 0xFF);
 		ti++;
 	}
 

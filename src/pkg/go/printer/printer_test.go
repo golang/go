@@ -36,7 +36,7 @@ func lineString(text []byte, i int) string {
 type checkMode uint
 
 const (
-	export	checkMode	= 1<<iota;
+	export	checkMode	= 1 << iota;
 	rawFormat;
 )
 
@@ -57,7 +57,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 
 	// determine printer configuration
 	cfg := Config{Tabwidth: tabwidth};
-	if mode & rawFormat != 0 {
+	if mode&rawFormat != 0 {
 		cfg.Mode |= RawFormat
 	}
 
@@ -99,7 +99,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 		}
 		if ch == '\n' {
 			line++;
-			offs = i+1;
+			offs = i + 1;
 		}
 	}
 }

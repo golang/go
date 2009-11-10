@@ -29,13 +29,13 @@ func copy(dst, src []Element) {
 func expand(a []Element, i, n int) []Element {
 	// make sure we have enough space
 	len0 := len(a);
-	len1 := len0+n;
+	len1 := len0 + n;
 	if len1 < cap(a) {
 		// enough space - just expand
 		a = a[0:len1]
 	} else {
 		// not enough space - double capacity
-		capb := cap(a)*2;
+		capb := cap(a) * 2;
 		if capb < len1 {
 			// still not enough - use required length
 			capb = len1
@@ -47,7 +47,7 @@ func expand(a []Element, i, n int) []Element {
 	}
 
 	// make a hole
-	for j := len0-1; j >= i; j-- {
+	for j := len0 - 1; j >= i; j-- {
 		a[j+n] = a[j]
 	}
 	return a;
@@ -68,12 +68,12 @@ func (p *Vector) Init(initial_len int) *Vector {
 		a = make([]Element, n);
 	} else {
 		// nil out entries
-		for j := len(a)-1; j >= 0; j-- {
+		for j := len(a) - 1; j >= 0; j-- {
 			a[j] = nil
 		}
 	}
 
-	p.a = a[0 : initial_len];
+	p.a = a[0:initial_len];
 	return p;
 }
 
@@ -128,7 +128,7 @@ func (p *Vector) Delete(i int) {
 	a := p.a;
 	n := len(a);
 
-	copy(a[i : n-1], a[i+1 : n]);
+	copy(a[i:n-1], a[i+1:n]);
 	a[n-1] = nil;	// support GC, nil out entry
 	p.a = a[0 : n-1];
 }
@@ -138,7 +138,7 @@ func (p *Vector) Delete(i int) {
 // x such that the 0th element of x appears at index i after insertion.
 func (p *Vector) InsertVector(i int, x *Vector) {
 	p.a = expand(p.a, i, len(x.a));
-	copy(p.a[i : i+len(x.a)], x.a);
+	copy(p.a[i:i+len(x.a)], x.a);
 }
 
 
@@ -146,7 +146,7 @@ func (p *Vector) InsertVector(i int, x *Vector) {
 func (p *Vector) Cut(i, j int) {
 	a := p.a;
 	n := len(a);
-	m := n-(j-i);
+	m := n - (j - i);
 
 	copy(a[i:m], a[j:n]);
 	for k := m; k < n; k++ {
@@ -160,7 +160,7 @@ func (p *Vector) Cut(i, j int) {
 // Slice returns a new Vector by slicing the old one to extract slice [i:j].
 // The elements are copied. The original vector is unchanged.
 func (p *Vector) Slice(i, j int) *Vector {
-	s := New(j-i);	// will fail in Init() if j < j
+	s := New(j - i);	// will fail in Init() if j < j
 	copy(s.a, p.a[i:j]);
 	return s;
 }
@@ -183,7 +183,7 @@ func (p *Vector) Push(x Element)	{ p.Insert(len(p.a), x) }
 
 // Pop deletes the last element of the vector.
 func (p *Vector) Pop() Element {
-	i := len(p.a)-1;
+	i := len(p.a) - 1;
 	x := p.a[i];
 	p.a[i] = nil;	// support GC, nil out entry
 	p.a = p.a[0:i];

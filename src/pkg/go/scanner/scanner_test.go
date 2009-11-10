@@ -233,7 +233,7 @@ func TestScan(t *testing.T) {
 			if tokenclass(tok) != e.class {
 				t.Errorf("bad class for %s: got %d, expected %d", lit, tokenclass(tok), e.class)
 			}
-			epos.Offset += len(lit)+len(whitespace);
+			epos.Offset += len(lit) + len(whitespace);
 			epos.Line += NewlineCount(lit) + whitespace_linecount;
 			if tok == token.COMMENT && litb[1] == '/' {
 				// correct for unaccounted '/n' in //-style comment

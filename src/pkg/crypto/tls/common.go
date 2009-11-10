@@ -14,7 +14,7 @@ const (
 	// maxTLSCiphertext is the maximum length of a plaintext payload.
 	maxTLSPlaintext	= 16384;
 	// maxTLSCiphertext is the maximum length payload after compression and encryption.
-	maxTLSCiphertext	= 16384+2048;
+	maxTLSCiphertext	= 16384 + 2048;
 	// maxHandshakeMsg is the largest single handshake message that we'll buffer.
 	maxHandshakeMsg	= 65536;
 )

@@ -32,9 +32,9 @@ func NewCMAC(c Cipher) hash.Hash {
 	var r byte;
 	n := c.BlockSize();
 	switch n {
-	case 64/8:
+	case 64 / 8:
 		r = r64
-	case 128/8:
+	case 128 / 8:
 		r = r128
 	default:
 		panic("crypto/block: NewCMAC: invalid cipher block size", n)

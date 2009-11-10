@@ -34,7 +34,7 @@ var encodeT = []EncodeT{
 	EncodeT{0x1111, []byte{0xFE, 0x11, 0x11}},
 	EncodeT{0x1111111111111111, []byte{0xF8, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}},
 	EncodeT{0x8888888888888888, []byte{0xF8, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88}},
-	EncodeT{1<<63, []byte{0xF8, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
+	EncodeT{1 << 63, []byte{0xF8, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
 }
 
 
@@ -54,7 +54,7 @@ func TestUintCodec(t *testing.T) {
 		}
 	}
 	decState := newDecodeState(b);
-	for u := uint64(0); ; u = (u+1)*7 {
+	for u := uint64(0); ; u = (u + 1) * 7 {
 		b.Reset();
 		encodeUint(encState, u);
 		if encState.err != nil {
@@ -94,7 +94,7 @@ func verifyInt(i int64, t *testing.T) {
 
 // Test basic encode/decode routines for signed integers
 func TestIntCodec(t *testing.T) {
-	for u := uint64(0); ; u = (u+1)*7 {
+	for u := uint64(0); ; u = (u + 1) * 7 {
 		// Do positive and negative values
 		i := int64(u);
 		verifyInt(i, t);
@@ -104,13 +104,13 @@ func TestIntCodec(t *testing.T) {
 			break
 		}
 	}
-	verifyInt(-1 << 63, t);	// a tricky case
+	verifyInt(-1<<63, t);	// a tricky case
 }
 
 // The result of encoding a true boolean with field number 7
 var boolResult = []byte{0x07, 0x01}
 // The result of encoding a number 17 with field number 7
-var signedResult = []byte{0x07, 2*17}
+var signedResult = []byte{0x07, 2 * 17}
 var unsignedResult = []byte{0x07, 17}
 var floatResult = []byte{0x07, 0xFE, 0x31, 0x40}
 // The result of encoding "hello" with field number 6
@@ -326,8 +326,8 @@ func execDec(typ string, instr *decInstr, state *decodeState, t *testing.T, p un
 	if state.err != nil {
 		t.Fatalf("decoding %s field: %v", typ, state.err)
 	}
-	if v + state.fieldnum != 6 {
-		t.Fatalf("decoding field number %d, got %d", 6, v + state.fieldnum)
+	if v+state.fieldnum != 6 {
+		t.Fatalf("decoding field number %d, got %d", 6, v+state.fieldnum)
 	}
 	instr.op(instr, state, decIndirect(p, instr.indir));
 	state.fieldnum = 6;

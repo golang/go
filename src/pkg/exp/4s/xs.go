@@ -165,7 +165,7 @@ func movemouse() int {
 
 func warp(p draw.Point, x int) int {
 	if !suspended && piece != nil {
-		x = pos.X + piece.sz.X * pcsz / 2;
+		x = pos.X + piece.sz.X*pcsz/2;
 		if p.Y < rboard.Min.Y {
 			p.Y = rboard.Min.Y
 		}
@@ -194,8 +194,8 @@ func initPieces() {
 }
 
 func collide(pt draw.Point, p *Piece) bool {
-	pt.X = (pt.X - rboard.Min.X)/pcsz;
-	pt.Y = (pt.Y - rboard.Min.Y)/pcsz;
+	pt.X = (pt.X - rboard.Min.X) / pcsz;
+	pt.Y = (pt.Y - rboard.Min.Y) / pcsz;
 	for _, q := range p.d {
 		pt.X += q.X;
 		pt.Y += q.Y;
@@ -211,10 +211,10 @@ func collide(pt draw.Point, p *Piece) bool {
 }
 
 func collider(pt, pmax draw.Point) bool {
-	pi := (pt.X - rboard.Min.X)/pcsz;
-	pj := (pt.Y - rboard.Min.Y)/pcsz;
+	pi := (pt.X - rboard.Min.X) / pcsz;
+	pj := (pt.Y - rboard.Min.Y) / pcsz;
 	n := pmax.X / pcsz;
-	m := pmax.Y / pcsz + 1;
+	m := pmax.Y/pcsz + 1;
 	for i := pi; i < pi+n && i < NX; i++ {
 		for j := pj; j < pj+m && j < NY; j++ {
 			if board[j][i] != 0 {
@@ -296,7 +296,7 @@ func rest() {
 
 func canfit(p *Piece) bool {
 	var dx = [...]int{0, -1, 1, -2, 2, -3, 3, 4, -4};
-	j := N+1;
+	j := N + 1;
 	if j >= 4 {
 		j = p.sz.X;
 		if j < p.sz.Y {
@@ -338,12 +338,12 @@ func drawsq(b draw.Image, p draw.Point, ptx int) {
 
 func drawboard() {
 	draw.Border(screen, rboard.Inset(-2), 2, draw.Black, draw.ZP);
-	draw.Draw(screen, draw.Rect(rboard.Min.X, rboard.Min.Y - 2, rboard.Max.X, rboard.Min.Y),
+	draw.Draw(screen, draw.Rect(rboard.Min.X, rboard.Min.Y-2, rboard.Max.X, rboard.Min.Y),
 		draw.White, nil, draw.ZP);
 	for i := 0; i < NY; i++ {
 		for j := 0; j < NX; j++ {
 			if board[i][j] != 0 {
-				drawsq(screen, draw.Pt(rboard.Min.X + j*pcsz, rboard.Min.Y + i*pcsz), int(board[i][j]-16))
+				drawsq(screen, draw.Pt(rboard.Min.X+j*pcsz, rboard.Min.Y+i*pcsz), int(board[i][j]-16))
 			}
 		}
 	}
@@ -359,7 +359,7 @@ func choosepiece() {
 		setpiece(&pieces[i]);
 		pos = rboard.Min;
 		pos.X += rand.Intn(NX) * pcsz;
-		if !collide(draw.Pt(pos.X, pos.Y + pcsz - DY), piece) {
+		if !collide(draw.Pt(pos.X, pos.Y+pcsz-DY), piece) {
 			break
 		}
 	}
@@ -369,7 +369,7 @@ func choosepiece() {
 
 func movepiece() bool {
 	var mask image.Image;
-	if collide(draw.Pt(pos.X, pos.Y + pcsz), piece) {
+	if collide(draw.Pt(pos.X, pos.Y+pcsz), piece) {
 		return false
 	}
 	if collider(pos, br2.Max) {
@@ -463,14 +463,14 @@ func horiz() bool {
 	}
 	r = rboard;
 	for j := 0; j < h; j++ {
-		i := NY-lev[j]-1;
+		i := NY - lev[j] - 1;
 		score(250 + 10*i*i);
 		r.Min.Y = rboard.Min.Y;
 		r.Max.Y = rboard.Min.Y + lev[j]*pcsz;
 		draw.Draw(screen, r.Add(draw.Pt(0, pcsz)), screen, nil, r.Min);
 		r.Max.Y = rboard.Min.Y + pcsz;
 		draw.Draw(screen, r, draw.White, nil, draw.ZP);
-		for k := lev[j]-1; k >= 0; k-- {
+		for k := lev[j] - 1; k >= 0; k-- {
 			board[k+1] = board[k]
 		}
 		board[0] = [NX]byte{};
@@ -480,8 +480,8 @@ func horiz() bool {
 }
 
 func mright() {
-	if !collide(draw.Pt(pos.X + pcsz, pos.Y), piece) &&
-		!collide(draw.Pt(pos.X + pcsz, pos.Y + pcsz - DY), piece) {
+	if !collide(draw.Pt(pos.X+pcsz, pos.Y), piece) &&
+		!collide(draw.Pt(pos.X+pcsz, pos.Y+pcsz-DY), piece) {
 		undrawpiece();
 		pos.X += pcsz;
 		drawpiece();
@@ -490,8 +490,8 @@ func mright() {
 }
 
 func mleft() {
-	if !collide(draw.Pt(pos.X - pcsz, pos.Y), piece) &&
-		!collide(draw.Pt(pos.X - pcsz, pos.Y + pcsz - DY), piece) {
+	if !collide(draw.Pt(pos.X-pcsz, pos.Y), piece) &&
+		!collide(draw.Pt(pos.X-pcsz, pos.Y+pcsz-DY), piece) {
 		undrawpiece();
 		pos.X -= pcsz;
 		drawpiece();
@@ -519,7 +519,7 @@ var fusst = 0
 
 func drop(f bool) bool {
 	if f {
-		score(5*(rboard.Max.Y - pos.Y)/pcsz);
+		score(5 * (rboard.Max.Y - pos.Y) / pcsz);
 		for movepiece() {
 		}
 	}
@@ -561,15 +561,15 @@ func play() {
 				mleft();
 				lastmx = mouse.X;
 			}
-			if mouse.Buttons &^ om.Buttons & 1 == 1 {
+			if mouse.Buttons&^om.Buttons&1 == 1 {
 				rleft()
 			}
-			if mouse.Buttons &^ om.Buttons & 2 == 2 {
+			if mouse.Buttons&^om.Buttons&2 == 2 {
 				if drop(true) {
 					return
 				}
 			}
-			if mouse.Buttons &^ om.Buttons & 4 == 4 {
+			if mouse.Buttons&^om.Buttons&4 == 4 {
 				rright()
 			}
 			om = mouse;
@@ -611,12 +611,12 @@ func play() {
 			dt -= tsleep;
 			if dt < 0 {
 				i := 1;
-				dt = 16*(points + rand.Intn(10000) - 5000)/10000;
+				dt = 16 * (points + rand.Intn(10000) - 5000) / 10000;
 				if dt >= 32 {
-					i += (dt-32)/16;
+					i += (dt - 32) / 16;
 					dt = 32;
 				}
-				dt = 52-dt;
+				dt = 52 - dt;
 				for ; i > 0; i-- {
 					if movepiece() {
 						continue
@@ -670,37 +670,37 @@ func redraw(new bool) {
 	//		sysfatal("can't reattach to window");
 	//	}
 	r := draw.Rect(0, 0, screen.Width(), screen.Height());
-	pos.X = (pos.X - rboard.Min.X)/pcsz;
-	pos.Y = (pos.Y - rboard.Min.Y)/pcsz;
+	pos.X = (pos.X - rboard.Min.X) / pcsz;
+	pos.Y = (pos.Y - rboard.Min.Y) / pcsz;
 	dx := r.Max.X - r.Min.X;
 	dy := r.Max.Y - r.Min.Y - 2*32;
-	DY = dx/NX;
+	DY = dx / NX;
 	if DY > dy/NY {
-		DY = dy/NY
+		DY = dy / NY
 	}
 	DY /= 8;
 	if DY > 4 {
 		DY = 4
 	}
-	pcsz = DY*8;
-	DMOUSE = pcsz/3;
+	pcsz = DY * 8;
+	DMOUSE = pcsz / 3;
 	if pcsz < 8 {
 		log.Exitf("screen too small: %d", pcsz)
 	}
 	rboard = screenr;
-	rboard.Min.X += (dx - pcsz*NX)/2;
-	rboard.Min.Y += (dy - pcsz*NY)/2 + 32;
+	rboard.Min.X += (dx - pcsz*NX) / 2;
+	rboard.Min.Y += (dy-pcsz*NY)/2 + 32;
 	rboard.Max.X = rboard.Min.X + NX*pcsz;
 	rboard.Max.Y = rboard.Min.Y + NY*pcsz;
 	pscore.X = rboard.Min.X + 8;
 	pscore.Y = rboard.Min.Y - 32;
 	//	scoresz = stringsize(font, "000000");
-	pos.X = pos.X * pcsz + rboard.Min.X;
-	pos.Y = pos.Y * pcsz + rboard.Min.Y;
+	pos.X = pos.X*pcsz + rboard.Min.X;
+	pos.Y = pos.Y*pcsz + rboard.Min.Y;
 	bbr = draw.Rect(0, 0, N*pcsz, N*pcsz);
 	bb = image.NewRGBA(bbr.Max.X, bbr.Max.Y);
 	bbmask = image.NewRGBA(bbr.Max.X, bbr.Max.Y);	// actually just a bitmap
-	bb2r = draw.Rect(0, 0, N*pcsz, N*pcsz + DY);
+	bb2r = draw.Rect(0, 0, N*pcsz, N*pcsz+DY);
 	bb2 = image.NewRGBA(bb2r.Dx(), bb2r.Dy());
 	bb2mask = image.NewRGBA(bb2r.Dx(), bb2r.Dy());	// actually just a bitmap
 	draw.Draw(screen, screenr, draw.White, nil, draw.ZP);
@@ -726,10 +726,10 @@ func Play(pp []Piece, ctxt draw.Context) {
 	pieces = pp;
 	N = len(pieces[0].d);
 	initPieces();
-	rand.Seed(int32(time.Nanoseconds() % (1e9-1)));
+	rand.Seed(int32(time.Nanoseconds() % (1e9 - 1)));
 	whitemask = draw.White.SetAlpha(0x7F);
 	tsleep = 50;
-	timerc = time.Tick(int64(tsleep/2)*1e6);
+	timerc = time.Tick(int64(tsleep/2) * 1e6);
 	suspc = make(chan bool);
 	mousec = make(chan draw.Mouse);
 	resizec = ctxt.ResizeChan();

@@ -56,10 +56,10 @@ func encryptBlock(xk []uint32, src, dst []byte) {
 	nr := len(xk)/4 - 2;	// - 2: one above, one more below
 	k := 4;
 	for r := 0; r < nr; r++ {
-		t0 = xk[k+0]^te[0][s0>>24]^te[1][s1>>16&0xff]^te[2][s2>>8&0xff]^te[3][s3&0xff];
-		t1 = xk[k+1]^te[0][s1>>24]^te[1][s2>>16&0xff]^te[2][s3>>8&0xff]^te[3][s0&0xff];
-		t2 = xk[k+2]^te[0][s2>>24]^te[1][s3>>16&0xff]^te[2][s0>>8&0xff]^te[3][s1&0xff];
-		t3 = xk[k+3]^te[0][s3>>24]^te[1][s0>>16&0xff]^te[2][s1>>8&0xff]^te[3][s2&0xff];
+		t0 = xk[k+0] ^ te[0][s0>>24] ^ te[1][s1>>16&0xff] ^ te[2][s2>>8&0xff] ^ te[3][s3&0xff];
+		t1 = xk[k+1] ^ te[0][s1>>24] ^ te[1][s2>>16&0xff] ^ te[2][s3>>8&0xff] ^ te[3][s0&0xff];
+		t2 = xk[k+2] ^ te[0][s2>>24] ^ te[1][s3>>16&0xff] ^ te[2][s0>>8&0xff] ^ te[3][s1&0xff];
+		t3 = xk[k+3] ^ te[0][s3>>24] ^ te[1][s0>>16&0xff] ^ te[2][s1>>8&0xff] ^ te[3][s2&0xff];
 		k += 4;
 		s0, s1, s2, s3 = t0, t1, t2, t3;
 	}
@@ -101,10 +101,10 @@ func decryptBlock(xk []uint32, src, dst []byte) {
 	nr := len(xk)/4 - 2;	// - 2: one above, one more below
 	k := 4;
 	for r := 0; r < nr; r++ {
-		t0 = xk[k+0]^td[0][s0>>24]^td[1][s3>>16&0xff]^td[2][s2>>8&0xff]^td[3][s1&0xff];
-		t1 = xk[k+1]^td[0][s1>>24]^td[1][s0>>16&0xff]^td[2][s3>>8&0xff]^td[3][s2&0xff];
-		t2 = xk[k+2]^td[0][s2>>24]^td[1][s1>>16&0xff]^td[2][s0>>8&0xff]^td[3][s3&0xff];
-		t3 = xk[k+3]^td[0][s3>>24]^td[1][s2>>16&0xff]^td[2][s1>>8&0xff]^td[3][s0&0xff];
+		t0 = xk[k+0] ^ td[0][s0>>24] ^ td[1][s3>>16&0xff] ^ td[2][s2>>8&0xff] ^ td[3][s1&0xff];
+		t1 = xk[k+1] ^ td[0][s1>>24] ^ td[1][s0>>16&0xff] ^ td[2][s3>>8&0xff] ^ td[3][s2&0xff];
+		t2 = xk[k+2] ^ td[0][s2>>24] ^ td[1][s1>>16&0xff] ^ td[2][s0>>8&0xff] ^ td[3][s3&0xff];
+		t3 = xk[k+3] ^ td[0][s3>>24] ^ td[1][s2>>16&0xff] ^ td[2][s1>>8&0xff] ^ td[3][s0&0xff];
 		k += 4;
 		s0, s1, s2, s3 = t0, t1, t2, t3;
 	}
@@ -142,18 +142,18 @@ func rotw(w uint32) uint32	{ return w<<8 | w>>24 }
 func expandKey(key []byte, enc, dec []uint32) {
 	// Encryption key setup.
 	var i int;
-	nk := len(key)/4;
+	nk := len(key) / 4;
 	for i = 0; i < nk; i++ {
-		enc[i] = uint32(key[4*i])<<24 | uint32(key[4*i + 1])<<16 | uint32(key[4*i + 2])<<8 | uint32(key[4*i + 3])
+		enc[i] = uint32(key[4*i])<<24 | uint32(key[4*i+1])<<16 | uint32(key[4*i+2])<<8 | uint32(key[4*i+3])
 	}
 	for ; i < len(enc); i++ {
 		t := enc[i-1];
 		if i%nk == 0 {
-			t = subw(rotw(t))^(uint32(powx[i/nk - 1])<<24)
+			t = subw(rotw(t)) ^ (uint32(powx[i/nk-1]) << 24)
 		} else if nk > 6 && i%nk == 4 {
 			t = subw(t)
 		}
-		enc[i] = enc[i-nk]^t;
+		enc[i] = enc[i-nk] ^ t;
 	}
 
 	// Derive decryption key from encryption key.
@@ -164,11 +164,11 @@ func expandKey(key []byte, enc, dec []uint32) {
 	}
 	n := len(enc);
 	for i := 0; i < n; i += 4 {
-		ei := n-i-4;
+		ei := n - i - 4;
 		for j := 0; j < 4; j++ {
 			x := enc[ei+j];
 			if i > 0 && i+4 < n {
-				x = td[0][sbox0[x>>24]]^td[1][sbox0[x>>16&0xff]]^td[2][sbox0[x>>8&0xff]]^td[3][sbox0[x&0xff]]
+				x = td[0][sbox0[x>>24]] ^ td[1][sbox0[x>>16&0xff]] ^ td[2][sbox0[x>>8&0xff]] ^ td[3][sbox0[x&0xff]]
 			}
 			dec[i+j] = x;
 		}

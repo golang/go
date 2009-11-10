@@ -21,8 +21,8 @@ type FileHeader struct {
 }
 
 const (
-	fileHeaderSize32	= 7*4;
-	fileHeaderSize64	= 8*4;
+	fileHeaderSize32	= 7 * 4;
+	fileHeaderSize64	= 8 * 4;
 )
 
 const (
@@ -208,7 +208,7 @@ func stringName(i uint32, names []intName, goSyntax bool) string {
 func flagName(i uint32, names []intName, goSyntax bool) string {
 	s := "";
 	for _, n := range names {
-		if n.i & i == n.i {
+		if n.i&i == n.i {
 			if len(s) > 0 {
 				s += "+"
 			}

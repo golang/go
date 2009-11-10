@@ -82,7 +82,7 @@ type typeArrayMap map[uintptr]*typeArrayMapEntry
 func hashTypeArray(key []Type) uintptr {
 	hash := uintptr(0);
 	for _, t := range key {
-		hash = hash*33;
+		hash = hash * 33;
 		if t == nil {
 			continue
 		}
@@ -631,7 +631,7 @@ func (t *StructType) String() string {
 		}
 		s += f.Type.String();
 	}
-	return s+"}";
+	return s + "}";
 }
 
 func (t *StructType) Zero() Value {
@@ -788,7 +788,7 @@ func (t *FuncType) String() string {
 		}
 		args += "...";
 	}
-	s := "func("+args+")";
+	s := "func(" + args + ")";
 	if len(t.Out) > 0 {
 		s += " (" + typeListString(t.Out, nil) + ")"
 	}
@@ -937,7 +937,7 @@ func (t *InterfaceType) String() string {
 		}
 		s += m.Name + funcTypeString(m.Type, nil, nil);
 	}
-	return s+"}";
+	return s + "}";
 }
 
 // implementedBy tests if o implements t, returning nil, true if it does.

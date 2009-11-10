@@ -52,7 +52,7 @@ func (c *Cipher) XORKeyStream(buf []byte) {
 		c.i += 1;
 		c.j += c.s[c.i];
 		c.s[c.i], c.s[c.j] = c.s[c.j], c.s[c.i];
-		buf[i] ^= c.s[c.s[c.i] + c.s[c.j]];
+		buf[i] ^= c.s[c.s[c.i]+c.s[c.j]];
 	}
 }
 
