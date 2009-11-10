@@ -152,7 +152,7 @@ func main() {
 			changed[o.Dst] = 1;
 		}
 		if o.Mode != 0 {
-			chk(os.Chmod(o.Dst, o.Mode & 0755));
+			chk(os.Chmod(o.Dst, o.Mode&0755));
 			undoRevert(o.Dst);
 			changed[o.Dst] = 1;
 		}
@@ -211,7 +211,7 @@ func mkdirAll(path string, perm int) os.Error {
 	}
 
 	if j > 0 {
-		err = mkdirAll(path[0 : j-1], perm);
+		err = mkdirAll(path[0:j-1], perm);
 		if err != nil {
 			return err
 		}

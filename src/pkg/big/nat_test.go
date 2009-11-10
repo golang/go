@@ -32,9 +32,9 @@ var prodNN = []argNN{
 	argNN{nil, nil, nil},
 	argNN{nil, []Word{991}, nil},
 	argNN{[]Word{991}, []Word{991}, []Word{1}},
-	argNN{[]Word{991*991}, []Word{991}, []Word{991}},
-	argNN{[]Word{0, 0, 991*991}, []Word{0, 991}, []Word{0, 991}},
-	argNN{[]Word{1*991, 2*991, 3*991, 4*991}, []Word{1, 2, 3, 4}, []Word{991}},
+	argNN{[]Word{991 * 991}, []Word{991}, []Word{991}},
+	argNN{[]Word{0, 0, 991 * 991}, []Word{0, 991}, []Word{0, 991}},
+	argNN{[]Word{1 * 991, 2 * 991, 3 * 991, 4 * 991}, []Word{1, 2, 3, 4}, []Word{991}},
 	argNN{[]Word{4, 11, 20, 30, 20, 11, 4}, []Word{1, 2, 3, 4}, []Word{4, 3, 2, 1}},
 }
 
@@ -119,7 +119,7 @@ func TestStringN(t *testing.T) {
 
 
 func TestLeadingZeroBits(t *testing.T) {
-	var x Word = 1<<(_W-1);
+	var x Word = 1 << (_W - 1);
 	for i := 0; i <= int(_W); i++ {
 		if leadingZeroBits(x) != i {
 			t.Errorf("failed at %x: got %d want %d", x, leadingZeroBits(x), i)
@@ -142,8 +142,8 @@ var leftShiftTests = []shiftTest{
 	shiftTest{[]Word{0}, 0, []Word{0}},
 	shiftTest{[]Word{1}, 0, []Word{1}},
 	shiftTest{[]Word{1}, 1, []Word{2}},
-	shiftTest{[]Word{1<<(_W-1)}, 1, []Word{0}},
-	shiftTest{[]Word{1<<(_W-1), 0}, 1, []Word{0, 1}},
+	shiftTest{[]Word{1 << (_W - 1)}, 1, []Word{0}},
+	shiftTest{[]Word{1 << (_W - 1), 0}, 1, []Word{0, 1}},
 }
 
 
@@ -168,8 +168,8 @@ var rightShiftTests = []shiftTest{
 	shiftTest{[]Word{1}, 0, []Word{1}},
 	shiftTest{[]Word{1}, 1, []Word{0}},
 	shiftTest{[]Word{2}, 1, []Word{1}},
-	shiftTest{[]Word{0, 1}, 1, []Word{1<<(_W-1), 0}},
-	shiftTest{[]Word{2, 1, 1}, 1, []Word{1<<(_W-1) + 1, 1<<(_W-1), 0}},
+	shiftTest{[]Word{0, 1}, 1, []Word{1 << (_W - 1), 0}},
+	shiftTest{[]Word{2, 1, 1}, 1, []Word{1<<(_W-1) + 1, 1 << (_W - 1), 0}},
 }
 
 

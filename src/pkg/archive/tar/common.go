@@ -55,8 +55,8 @@ func checksum(header []byte) (unsigned int64, signed int64) {
 	for i := 0; i < len(header); i++ {
 		if i == 148 {
 			// The chksum field (header[148:156]) is special: it should be treated as space bytes.
-			unsigned += ' '*8;
-			signed += ' '*8;
+			unsigned += ' ' * 8;
+			signed += ' ' * 8;
 			i += 7;
 			continue;
 		}

@@ -84,7 +84,7 @@ func newN(z []Word, x uint64) []Word {
 	// split x into n words
 	z = makeN(z, n, false);
 	for i := 0; i < n; i++ {
-		z[i] = Word(x&_M);
+		z[i] = Word(x & _M);
 		x >>= _W;
 	}
 
@@ -174,7 +174,7 @@ func cmpNN(x, y []Word) (r int) {
 		return;
 	}
 
-	i := m-1;
+	i := m - 1;
 	for i > 0 && x[i] == y[i] {
 		i--
 	}
@@ -264,7 +264,7 @@ func divNW(z, x []Word, y Word) (q []Word, r Word) {
 //    len(uIn) >= 1 + len(vIn)
 func divNN(z, z2, uIn, v []Word) (q, r []Word) {
 	n := len(v);
-	m := len(uIn)-len(v);
+	m := len(uIn) - len(v);
 
 	u := makeN(z2, len(uIn)+1, false);
 	qhatv := make([]Word, len(v)+1);
@@ -274,7 +274,7 @@ func divNN(z, z2, uIn, v []Word) (q, r []Word) {
 	shift := leadingZeroBits(v[n-1]);
 	shiftLeft(v, v, shift);
 	shiftLeft(u, uIn, shift);
-	u[len(uIn)] = uIn[len(uIn)-1]>>(uint(_W)-uint(shift));
+	u[len(uIn)] = uIn[len(uIn)-1] >> (uint(_W) - uint(shift));
 
 	// D2.
 	for j := m; j >= 0; j-- {
@@ -325,7 +325,7 @@ func log2(x Word) int {
 	for ; x > 0; x >>= 1 {
 		n++
 	}
-	return n-1;
+	return n - 1;
 }
 
 
@@ -345,11 +345,11 @@ func hexValue(ch byte) int {
 	var d byte;
 	switch {
 	case '0' <= ch && ch <= '9':
-		d = ch-'0'
+		d = ch - '0'
 	case 'a' <= ch && ch <= 'f':
-		d = ch-'a'+10
+		d = ch - 'a' + 10
 	case 'A' <= ch && ch <= 'F':
-		d = ch-'A'+10
+		d = ch - 'A' + 10
 	default:
 		return -1
 	}
@@ -438,13 +438,13 @@ func stringN(x []Word, base int) string {
 func leadingZeroBits(x Word) int {
 	c := 0;
 	if x < 1<<(_W/2) {
-		x <<= _W/2;
-		c = int(_W/2);
+		x <<= _W / 2;
+		c = int(_W / 2);
 	}
 
 	for i := 0; x != 0; i++ {
 		if x&(1<<(_W-1)) != 0 {
-			return i+c
+			return i + c
 		}
 		x <<= 1;
 	}
@@ -458,12 +458,12 @@ func shiftLeft(dst, src []Word, n int) {
 		return
 	}
 
-	ñ := uint(_W)-uint(n);
-	for i := len(src)-1; i >= 1; i-- {
-		dst[i] = src[i]<<uint(n);
-		dst[i] |= src[i-1]>>ñ;
+	ñ := uint(_W) - uint(n);
+	for i := len(src) - 1; i >= 1; i-- {
+		dst[i] = src[i] << uint(n);
+		dst[i] |= src[i-1] >> ñ;
 	}
-	dst[0] = src[0]<<uint(n);
+	dst[0] = src[0] << uint(n);
 }
 
 
@@ -472,12 +472,12 @@ func shiftRight(dst, src []Word, n int) {
 		return
 	}
 
-	ñ := uint(_W)-uint(n);
+	ñ := uint(_W) - uint(n);
 	for i := 0; i < len(src)-1; i++ {
-		dst[i] = src[i]>>uint(n);
-		dst[i] |= src[i+1]<<ñ;
+		dst[i] = src[i] >> uint(n);
+		dst[i] |= src[i+1] << ñ;
 	}
-	dst[len(src)-1] = src[len(src)-1]>>uint(n);
+	dst[len(src)-1] = src[len(src)-1] >> uint(n);
 }
 
 

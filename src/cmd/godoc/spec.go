@@ -32,7 +32,7 @@ type ebnfParser struct {
 
 
 func (p *ebnfParser) flush() {
-	p.out.Write(p.src[p.prev : p.pos.Offset]);
+	p.out.Write(p.src[p.prev:p.pos.Offset]);
 	p.prev = p.pos.Offset;
 }
 
@@ -60,7 +60,7 @@ func (p *ebnfParser) errorExpected(pos token.Position, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'";
 		if p.tok.IsLiteral() {
-			msg += " "+string(p.lit)
+			msg += " " + string(p.lit)
 		}
 	}
 	p.Error(pos, msg);
@@ -70,7 +70,7 @@ func (p *ebnfParser) errorExpected(pos token.Position, msg string) {
 func (p *ebnfParser) expect(tok token.Token) token.Position {
 	pos := p.pos;
 	if p.tok != tok {
-		p.errorExpected(pos, "'" + tok.String() + "'")
+		p.errorExpected(pos, "'"+tok.String()+"'")
 	}
 	p.next();	// make progress in any case
 	return pos;
@@ -178,14 +178,14 @@ func linkify(out io.Writer, src []byte) {
 		// i: beginning of EBNF text (or end of source)
 		i := bytes.Index(src, openTag);
 		if i < 0 {
-			i = n-len(openTag)
+			i = n - len(openTag)
 		}
 		i += len(openTag);
 
 		// j: end of EBNF text (or end of source)
 		j := bytes.Index(src[i:n], closeTag);	// close marker
 		if j < 0 {
-			j = n-i
+			j = n - i
 		}
 		j += i;
 

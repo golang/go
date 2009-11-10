@@ -31,7 +31,7 @@ func (r13 *rot13Reader) Read(p []byte) (int, os.Error) {
 		return n, e
 	}
 	for i := 0; i < n; i++ {
-		c := p[i]|0x20;	// lowercase byte
+		c := p[i] | 0x20;	// lowercase byte
 		if 'a' <= c && c <= 'm' {
 			p[i] += 13
 		} else if 'n' <= c && c <= 'z' {
@@ -142,7 +142,7 @@ func TestReader(t *testing.T) {
 	str := "";
 	all := "";
 	for i := 0; i < len(texts)-1; i++ {
-		texts[i] = str+"\n";
+		texts[i] = str + "\n";
 		all += texts[i];
 		str += string(i%26 + 'a');
 	}

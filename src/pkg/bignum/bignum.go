@@ -64,17 +64,17 @@ type (
 const (
 	logW	= 64;		// word width
 	logH	= 4;		// bits for a hex digit (= small number)
-	logB	= logW-logH;	// largest bit-width available
+	logB	= logW - logH;	// largest bit-width available
 
 	// half-digits
-	_W2	= logB/2;	// width
-	_B2	= 1<<_W2;	// base
-	_M2	= _B2-1;	// mask
+	_W2	= logB / 2;	// width
+	_B2	= 1 << _W2;	// base
+	_M2	= _B2 - 1;	// mask
 
 	// full digits
-	_W	= _W2*2;	// width
-	_B	= 1<<_W;	// base
-	_M	= _B-1;		// mask
+	_W	= _W2 * 2;	// width
+	_B	= 1 << _W;	// base
+	_M	= _B - 1;	// mask
 )
 
 
@@ -136,7 +136,7 @@ func Nat(x uint64) Natural {
 	// split x into digits
 	z := make(Natural, n);
 	for i := 0; i < n; i++ {
-		z[i] = digit(x&_M);
+		z[i] = digit(x & _M);
 		x >>= _W;
 	}
 
@@ -162,7 +162,7 @@ func (x Natural) Value() uint64 {
 	z := uint64(0);
 	s := uint(0);
 	for i := 0; i < n && s < 64; i++ {
-		z += uint64(x[i])<<s;
+		z += uint64(x[i]) << s;
 		s += _W;
 	}
 
@@ -236,12 +236,12 @@ func Nadd(zp *Natural, x, y Natural) {
 	c := digit(0);
 	i := 0;
 	for i < m {
-		t := c+x[i]+y[i];
+		t := c + x[i] + y[i];
 		c, z[i] = t>>_W, t&_M;
 		i++;
 	}
 	for i < n {
-		t := c+x[i];
+		t := c + x[i];
 		c, z[i] = t>>_W, t&_M;
 		i++;
 	}
@@ -277,12 +277,12 @@ func Nsub(zp *Natural, x, y Natural) {
 	c := digit(0);
 	i := 0;
 	for i < m {
-		t := c+x[i]-y[i];
+		t := c + x[i] - y[i];
 		c, z[i] = digit(int64(t)>>_W), t&_M;	// requires arithmetic shift!
 		i++;
 	}
 	for i < n {
-		t := c+x[i];
+		t := c + x[i];
 		c, z[i] = digit(int64(t)>>_W), t&_M;	// requires arithmetic shift!
 		i++;
 	}
@@ -307,7 +307,7 @@ func (x Natural) Sub(y Natural) Natural {
 //
 func muladd11(x, y, c digit) (digit, digit) {
 	z1, z0 := MulAdd128(uint64(x), uint64(y), uint64(c));
-	return digit(z1<<(64-logB) | z0>>logB), digit(z0&_M);
+	return digit(z1<<(64-logB) | z0>>logB), digit(z0 & _M);
 }
 
 
@@ -429,15 +429,15 @@ func (x Natural) Mul(y Natural) Natural {
 
 func unpack(x Natural) []digit2 {
 	n := len(x);
-	z := make([]digit2, n*2 + 1);	// add space for extra digit (used by DivMod)
+	z := make([]digit2, n*2+1);	// add space for extra digit (used by DivMod)
 	for i := 0; i < n; i++ {
 		t := x[i];
-		z[i*2] = digit2(t&_M2);
-		z[i*2 + 1] = digit2(t>>_W2&_M2);
+		z[i*2] = digit2(t & _M2);
+		z[i*2+1] = digit2(t >> _W2 & _M2);
 	}
 
 	// normalize result
-	k := 2*n;
+	k := 2 * n;
 	for k > 0 && z[k-1] == 0 {
 		k--
 	}
@@ -446,7 +446,7 @@ func unpack(x Natural) []digit2 {
 
 
 func pack(x []digit2) Natural {
-	n := (len(x)+1)/2;
+	n := (len(x) + 1) / 2;
 	z := make(Natural, n);
 	if len(x)&1 == 1 {
 		// handle odd len(x)
@@ -454,7 +454,7 @@ func pack(x []digit2) Natural {
 		z[n] = digit(x[n*2]);
 	}
 	for i := 0; i < n; i++ {
-		z[i] = digit(x[i*2 + 1])<<_W2 | digit(x[i*2])
+		z[i] = digit(x[i*2+1])<<_W2 | digit(x[i*2])
 	}
 	return normalize(z);
 }
@@ -474,7 +474,7 @@ func mul21(z, x []digit2, y digit2) digit2 {
 func div21(z, x []digit2, y digit2) digit2 {
 	c := digit(0);
 	d := digit(y);
-	for i := len(x)-1; i >= 0; i-- {
+	for i := len(x) - 1; i >= 0; i-- {
 		t := c<<_W2 + digit(x[i]);
 		c, z[i] = t%d, digit2(t/d);
 	}
@@ -515,7 +515,7 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
 	if m == 1 {
 		// division by single digit
 		// result is shifted left by 1 in place!
-		x[0] = div21(x[1 : n+1], x[0:n], y[0])
+		x[0] = div21(x[1:n+1], x[0:n], y[0])
 
 	} else if m > n {
 		// y > x => quotient = 0, remainder = x
@@ -530,7 +530,7 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
 		// TODO Instead of multiplying, it would be sufficient to
 		//      shift y such that the normalization condition is
 		//      satisfied (as done in Hacker's Delight).
-		f := _B2/(digit(y[m-1])+1);
+		f := _B2 / (digit(y[m-1]) + 1);
 		if f != 1 {
 			mul21(x, x, digit2(f));
 			mul21(y, y, digit2(f));
@@ -538,19 +538,19 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
 		assert(_B2/2 <= y[m-1] && y[m-1] < _B2);	// incorrect scaling
 
 		y1, y2 := digit(y[m-1]), digit(y[m-2]);
-		for i := n-m; i >= 0; i-- {
-			k := i+m;
+		for i := n - m; i >= 0; i-- {
+			k := i + m;
 
 			// compute trial digit (Knuth)
 			var q digit;
 			{
 				x0, x1, x2 := digit(x[k]), digit(x[k-1]), digit(x[k-2]);
 				if x0 != y1 {
-					q = (x0<<_W2 + x1)/y1
+					q = (x0<<_W2 + x1) / y1
 				} else {
-					q = _B2-1
+					q = _B2 - 1
 				}
-				for y2*q > (x0<<_W2 + x1 - y1*q)<<_W2 + x2 {
+				for y2*q > (x0<<_W2+x1-y1*q)<<_W2+x2 {
 					q--
 				}
 			}
@@ -567,7 +567,7 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
 				// add y
 				c := digit(0);
 				for j := 0; j < m; j++ {
-					t := c+digit(x[i+j])+digit(y[j]);
+					t := c + digit(x[i+j]) + digit(y[j]);
 					c, x[i+j] = t>>_W2, digit2(t&_M2);
 				}
 				assert(c+digit(x[k]) == 0);
@@ -623,7 +623,7 @@ func shl(z, x Natural, s uint) digit {
 	n := len(x);
 	c := digit(0);
 	for i := 0; i < n; i++ {
-		c, z[i] = x[i]>>(_W-s), x[i]<<s&_M | c
+		c, z[i] = x[i]>>(_W-s), x[i]<<s&_M|c
 	}
 	return c;
 }
@@ -636,7 +636,7 @@ func (x Natural) Shl(s uint) Natural {
 	m := n + s/_W;
 	z := make(Natural, m+1);
 
-	z[m] = shl(z[m-n : m], x, s%_W);
+	z[m] = shl(z[m-n:m], x, s%_W);
 
 	return normalize(z);
 }
@@ -646,8 +646,8 @@ func shr(z, x Natural, s uint) digit {
 	assert(s <= _W);
 	n := len(x);
 	c := digit(0);
-	for i := n-1; i >= 0; i-- {
-		c, z[i] = x[i]<<(_W-s)&_M, x[i]>>s | c
+	for i := n - 1; i >= 0; i-- {
+		c, z[i] = x[i]<<(_W-s)&_M, x[i]>>s|c
 	}
 	return c;
 }
@@ -663,7 +663,7 @@ func (x Natural) Shr(s uint) Natural {
 	}
 	z := make(Natural, m);
 
-	shr(z, x[n-m : n], s%_W);
+	shr(z, x[n-m:n], s%_W);
 
 	return normalize(z);
 }
@@ -680,7 +680,7 @@ func (x Natural) And(y Natural) Natural {
 
 	z := make(Natural, m);
 	for i := 0; i < m; i++ {
-		z[i] = x[i]&y[i]
+		z[i] = x[i] & y[i]
 	}
 	// upper bits are 0
 
@@ -706,7 +706,7 @@ func (x Natural) AndNot(y Natural) Natural {
 
 	z := make(Natural, n);
 	for i := 0; i < m; i++ {
-		z[i] = x[i]&^y[i]
+		z[i] = x[i] &^ y[i]
 	}
 	copy(z[m:n], x[m:n]);
 
@@ -725,7 +725,7 @@ func (x Natural) Or(y Natural) Natural {
 
 	z := make(Natural, n);
 	for i := 0; i < m; i++ {
-		z[i] = x[i]|y[i]
+		z[i] = x[i] | y[i]
 	}
 	copy(z[m:n], x[m:n]);
 
@@ -744,7 +744,7 @@ func (x Natural) Xor(y Natural) Natural {
 
 	z := make(Natural, n);
 	for i := 0; i < m; i++ {
-		z[i] = x[i]^y[i]
+		z[i] = x[i] ^ y[i]
 	}
 	copy(z[m:n], x[m:n]);
 
@@ -763,10 +763,10 @@ func (x Natural) Cmp(y Natural) int {
 	m := len(y);
 
 	if n != m || n == 0 {
-		return n-m
+		return n - m
 	}
 
-	i := n-1;
+	i := n - 1;
 	for i > 0 && x[i] == y[i] {
 		i--
 	}
@@ -794,7 +794,7 @@ func log2(x uint64) uint {
 		x >>= 1;
 		n++;
 	}
-	return n-1;
+	return n - 1;
 }
 
 
@@ -818,7 +818,7 @@ func divmod1(x Natural, d digit) (Natural, digit) {
 	assert(0 < d && isSmall(d-1));
 
 	c := digit(0);
-	for i := len(x)-1; i >= 0; i-- {
+	for i := len(x) - 1; i >= 0; i-- {
 		t := c<<_W + x[i];
 		c, x[i] = t%d, t/d;
 	}
@@ -836,7 +836,7 @@ func (x Natural) ToString(base uint) string {
 
 	// allocate buffer for conversion
 	assert(2 <= base && base <= 16);
-	n := (x.Log2() + 1)/log2(uint64(base)) + 1;	// +1: round up
+	n := (x.Log2()+1)/log2(uint64(base)) + 1;	// +1: round up
 	s := make([]byte, n);
 
 	// don't destroy x
@@ -882,14 +882,14 @@ func (x Natural) Format(h fmt.State, c int)	{ fmt.Fprintf(h, "%s", x.ToString(fm
 
 
 func hexvalue(ch byte) uint {
-	d := uint(1<<logH);
+	d := uint(1 << logH);
 	switch {
 	case '0' <= ch && ch <= '9':
-		d = uint(ch-'0')
+		d = uint(ch - '0')
 	case 'a' <= ch && ch <= 'f':
-		d = uint(ch-'a')+10
+		d = uint(ch-'a') + 10
 	case 'A' <= ch && ch <= 'F':
-		d = uint(ch-'A')+10
+		d = uint(ch-'A') + 10
 	}
 	return d;
 }
@@ -940,7 +940,7 @@ func NatFromString(s string, base uint) (Natural, uint, int) {
 func pop1(x digit) uint {
 	n := uint(0);
 	for x != 0 {
-		x &= x-1;
+		x &= x - 1;
 		n++;
 	}
 	return n;
@@ -951,7 +951,7 @@ func pop1(x digit) uint {
 //
 func (x Natural) Pop() uint {
 	n := uint(0);
-	for i := len(x)-1; i >= 0; i-- {
+	for i := len(x) - 1; i >= 0; i-- {
 		n += pop1(x[i])
 	}
 	return n;
@@ -986,7 +986,7 @@ func MulRange(a, b uint) Natural {
 	case a+1 == b:
 		return Nat(uint64(a)).Mul(Nat(uint64(b)))
 	}
-	m := (a+b)>>1;
+	m := (a + b) >> 1;
 	assert(a <= m && m < b);
 	return MulRange(a, m).Mul(MulRange(m+1, b));
 }

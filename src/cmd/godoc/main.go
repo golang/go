@@ -117,7 +117,7 @@ func dosync(c *http.Conn, r *http.Request) {
 		syncDelay.set(*syncMin)	//  revert to regular sync schedule
 	default:
 		// sync failed because of an error - back off exponentially, but try at least once a day
-		syncDelay.backoff(24*60)
+		syncDelay.backoff(24 * 60)
 	}
 }
 
@@ -194,7 +194,7 @@ func main() {
 					if *verbose {
 						log.Stderrf("next sync in %dmin", delay.(int))
 					}
-					time.Sleep(int64(delay.(int))*60e9);
+					time.Sleep(int64(delay.(int)) * 60e9);
 				}
 			}();
 		}

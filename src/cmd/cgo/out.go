@@ -13,7 +13,7 @@ import (
 )
 
 func creat(name string) *os.File {
-	f, err := os.Open(name, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0666);
+	f, err := os.Open(name, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666);
 	if err != nil {
 		fatal("%s", err)
 	}
@@ -72,7 +72,7 @@ func (p *Prog) writeOutput(srcfile string) {
 	for name, def := range p.Funcdef {
 		// Go func declaration.
 		d := &ast.FuncDecl{
-			Name: &ast.Ident{Value: "_C_"+name},
+			Name: &ast.Ident{Value: "_C_" + name},
 			Type: def.Go,
 		};
 		printer.Fprint(fgo2, d);
@@ -92,8 +92,8 @@ func (p *Prog) writeOutput(srcfile string) {
 		off := int64(0);
 		npad := 0;
 		for i, t := range def.Params {
-			if off % t.Align != 0 {
-				pad := t.Align - off % t.Align;
+			if off%t.Align != 0 {
+				pad := t.Align - off%t.Align;
 				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
 				off += pad;
 				npad++;
@@ -101,15 +101,15 @@ func (p *Prog) writeOutput(srcfile string) {
 			structType += fmt.Sprintf("\t\t%s p%d;\n", t.C, i);
 			off += t.Size;
 		}
-		if off % p.PtrSize != 0 {
-			pad := p.PtrSize - off % p.PtrSize;
+		if off%p.PtrSize != 0 {
+			pad := p.PtrSize - off%p.PtrSize;
 			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
 			off += pad;
 			npad++;
 		}
 		if t := def.Result; t != nil {
-			if off % t.Align != 0 {
-				pad := t.Align - off % t.Align;
+			if off%t.Align != 0 {
+				pad := t.Align - off%t.Align;
 				structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
 				off += pad;
 				npad++;
@@ -117,8 +117,8 @@ func (p *Prog) writeOutput(srcfile string) {
 			structType += fmt.Sprintf("\t\t%s r;\n", t.C);
 			off += t.Size;
 		}
-		if off % p.PtrSize != 0 {
-			pad := p.PtrSize - off % p.PtrSize;
+		if off%p.PtrSize != 0 {
+			pad := p.PtrSize - off%p.PtrSize;
 			structType += fmt.Sprintf("\t\tchar __pad%d[%d];\n", npad, pad);
 			off += pad;
 			npad++;

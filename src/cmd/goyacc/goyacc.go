@@ -99,7 +99,7 @@ const (
 
 // flags for a rule having an action, and being reduced
 const (
-	ACTFLAG	= 1<<(iota+2);
+	ACTFLAG	= 1 << (iota + 2);
 	REDFLAG;
 )
 
@@ -108,7 +108,7 @@ const YYFLAG = -1000
 
 // parse tokens
 const (
-	IDENTIFIER	= PRIVATE+iota;
+	IDENTIFIER	= PRIVATE + iota;
 	MARK;
 	TERM;
 	LEFT;
@@ -131,18 +131,18 @@ const OK = 1
 const NOMORE = -1000
 
 // macros for getting associativity and precedence levels
-func ASSOC(i int) int	{ return i&3 }
+func ASSOC(i int) int	{ return i & 3 }
 
-func PLEVEL(i int) int	{ return (i>>4)&077 }
+func PLEVEL(i int) int	{ return (i >> 4) & 077 }
 
-func TYPE(i int) int	{ return (i>>10)&077 }
+func TYPE(i int) int	{ return (i >> 10) & 077 }
 
 // macros for setting associativity and precedence levels
-func SETASC(i, j int) int	{ return i|j }
+func SETASC(i, j int) int	{ return i | j }
 
-func SETPLEV(i, j int) int	{ return i|(j<<4) }
+func SETPLEV(i, j int) int	{ return i | (j << 4) }
 
-func SETTYPE(i, j int) int	{ return i|(j<<10) }
+func SETTYPE(i, j int) int	{ return i | (j << 10) }
 
 // I/O descriptors
 var finput *bufio.Reader	// input file
@@ -318,7 +318,7 @@ func main() {
 
 	setup();	// initialize and read productions
 
-	tbitset = (ntokens+32)/32;
+	tbitset = (ntokens + 32) / 32;
 	cpres();	// make table of which productions yield a given nonterminal
 	cempty();	// make a table of which nonterminals can match the empty string
 	cpfir();	// make a table of firsts of nonterminals
@@ -430,7 +430,7 @@ outer:
 
 		case LEFT, BINARY, RIGHT, TERM:
 			// nonzero means new prec. and assoc.
-			lev := t-TERM;
+			lev := t - TERM;
 			if lev != 0 {
 				i++
 			}
@@ -699,7 +699,7 @@ outer:
 func moreprod() {
 	n := len(prdptr);
 	if nprod >= n {
-		nn := n+PRODINC;
+		nn := n + PRODINC;
 		aprod := make([][]int, nn);
 		alevprd := make([]int, nn);
 		arlines := make([]int, nn);
@@ -732,13 +732,13 @@ func defin(nt int, s string) int {
 			nontrst = anontrst;
 		}
 		nontrst[nnonter] = Symb{s, 0};
-		return NTBASE+nnonter;
+		return NTBASE + nnonter;
 	}
 
 	// must be a token
 	ntokens++;
 	if ntokens >= len(tokset) {
-		nn := ntokens+SYMINC;
+		nn := ntokens + SYMINC;
 		atokset := make([]Symb, nn);
 		atoklev := make([]int, nn);
 
@@ -791,9 +791,9 @@ func defin(nt int, s string) int {
 				case c >= '0' && c <= '9':
 					c -= '0'
 				case c >= 'a' && c <= 'f':
-					c -= 'a'-10
+					c -= 'a' - 10
 				case c >= 'A' && c <= 'F':
-					c -= 'A'-10
+					c -= 'A' - 10
 				default:
 					error("illegal \\unnnn construction")
 				}
@@ -928,7 +928,7 @@ func gettok() int {
 			if tokname == resrv[c].name {
 				if tokflag {
 					fmt.Printf(">>> %%%v %v %v\n", tokname,
-						resrv[c].value - PRIVATE, lineno)
+						resrv[c].value-PRIVATE, lineno)
 				}
 				return resrv[c].value;
 			}
@@ -936,7 +936,7 @@ func gettok() int {
 		error("invalid escape, or illegal reserved word: %v", tokname);
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		numbval = c-'0';
+		numbval = c - '0';
 		for {
 			c = getrune(finput);
 			if !isdigit(c) {
@@ -1027,7 +1027,7 @@ func chfind(t int, s string) int {
 	}
 	for i := 0; i <= nnonter; i++ {
 		if s == nontrst[i].name {
-			return NTBASE+i
+			return NTBASE + i
 		}
 	}
 
@@ -1302,7 +1302,7 @@ loop:
 					c = getrune(finput);
 				}
 				ungetrune(finput, c);
-				j = j*s;
+				j = j * s;
 				if j >= max {
 					error("Illegal use of $%v", j)
 				}
@@ -1485,7 +1485,7 @@ func cpres() {
 	fatfl = 0;	// make undefined symbols nonfatal
 	for i := 0; i <= nnonter; i++ {
 		n := 0;
-		c := i+NTBASE;
+		c := i + NTBASE;
 		for j := 0; j < nprod; j++ {
 			if prdptr[j][0] == c {
 				curres[n] = prdptr[j][1:len(prdptr[j])];
@@ -1545,7 +1545,7 @@ more:
 			if pempty[prd[0]-NTBASE] != 0 {
 				continue
 			}
-			np = len(prd)-1;
+			np = len(prd) - 1;
 			for p = 1; p < np; p++ {
 				if prd[p] >= NTBASE && pempty[prd[p]-NTBASE] == WHOKNOWS {
 					break
@@ -1592,7 +1592,7 @@ again:
 			if pempty[prd[0]-NTBASE] != WHOKNOWS {
 				continue
 			}
-			np = len(prd)-1;
+			np = len(prd) - 1;
 			for p = 1; p < np; p++ {
 				if prd[p] < NTBASE || pempty[prd[p]-NTBASE] != EMPTY {
 					continue next
@@ -1636,7 +1636,7 @@ func cpfir() {
 		// initially fill the sets
 		for s = 0; s < n; s++ {
 			prd = curres[s];
-			np = len(prd)-1;
+			np = len(prd) - 1;
 			for p = 0; p < np; p++ {
 				ch = prd[p];
 				if ch < NTBASE {
@@ -1659,9 +1659,9 @@ func cpfir() {
 			n = len(curres);
 			for s = 0; s < n; s++ {
 				prd = curres[s];
-				np = len(prd)-1;
+				np = len(prd) - 1;
 				for p = 0; p < np; p++ {
-					ch = prd[p]-NTBASE;
+					ch = prd[p] - NTBASE;
 					if ch < 0 {
 						break
 					}
@@ -1743,7 +1743,7 @@ func stagen() {
 
 				// do a goto on c
 				putitem(wsets[p].pitem, wsets[p].ws);
-				for q := p+1; q < cwp; q++ {
+				for q := p + 1; q < cwp; q++ {
 					// this item contributes to the goto
 					if c == wsets[q].pitem.first {
 						putitem(wsets[q].pitem, wsets[q].ws);
@@ -1928,7 +1928,7 @@ func state(c int) int {
 
 	// sort the items
 	var k, l int;
-	for k = p1+1; k < p2; k++ {	// make k the biggest
+	for k = p1 + 1; k < p2; k++ {	// make k the biggest
 		for l = k; l > p1; l-- {
 			if statemem[l].pitem.prodno < statemem[l-1].pitem.prodno ||
 				statemem[l].pitem.prodno == statemem[l-1].pitem.prodno &&
@@ -1942,7 +1942,7 @@ func state(c int) int {
 		}
 	}
 
-	size1 := p2-p1;	// size of state
+	size1 := p2 - p1;	// size of state
 
 	var i int;
 	if c >= NTBASE {
@@ -1956,7 +1956,7 @@ look:
 		// get ith state
 		q1 := pstate[i];
 		q2 := pstate[i+1];
-		size2 := q2-q1;
+		size2 := q2 - q1;
 		if size1 != size2 {
 			continue
 		}
@@ -2004,7 +2004,7 @@ look:
 	}
 	tystate[nstate] = MUSTDO;
 	nstate++;
-	return nstate-1;
+	return nstate - 1;
 }
 
 func putitem(p Pitem, set Lkset) {
@@ -2041,7 +2041,7 @@ func writem(pp Pitem) string {
 	var i int;
 
 	p := pp.prod;
-	q := chcopy(nontrst[prdptr[pp.prodno][0]-NTBASE].name)+": ";
+	q := chcopy(nontrst[prdptr[pp.prodno][0]-NTBASE].name) + ": ";
 	npi := pp.off;
 
 	pi := aryeq(p, prdptr[pp.prodno]);
@@ -2094,7 +2094,7 @@ func apack(p []int, n int) int {
 	p = p[pp : n+1];
 
 	// now, find a place for the elements from p to q, inclusive
-	r := len(amem)-len(p);
+	r := len(amem) - len(p);
 
 nextk:
 	for rr := 0; rr <= r; rr++ {
@@ -2131,7 +2131,7 @@ nextk:
 				fmt.Fprintf(foutput, "\n");
 			}
 		}
-		return off+rr;
+		return off + rr;
 	}
 	error("no space in action table");
 	return 0;
@@ -2366,7 +2366,7 @@ func wrstate(i int) {
 	}
 	if tystate[i] == MUSTLOOKAHEAD {
 		// print out empty productions in closure
-		for u = pstate[i+1]-pstate[i]; u < cwp; u++ {
+		for u = pstate[i+1] - pstate[i]; u < cwp; u++ {
 			if wsets[u].pitem.first < 0 {
 				fmt.Fprintf(foutput, "\t%v\n", writem(wsets[u].pitem))
 			}
@@ -2447,14 +2447,14 @@ func go2out() {
 		}
 
 		// best is now the default entry
-		zzgobest += times-1;
+		zzgobest += times - 1;
 		n := 0;
 		for j := 0; j < nstate; j++ {
 			if tystate[j] != 0 && tystate[j] != best {
 				n++
 			}
 		}
-		goent := make([]int, 2*n + 1);
+		goent := make([]int, 2*n+1);
 		n = 0;
 		for j := 0; j < nstate; j++ {
 			if tystate[j] != 0 && tystate[j] != best {
@@ -2491,10 +2491,10 @@ func go2gen(c int) {
 		work = 0;
 		for i = 0; i < nprod; i++ {
 			// cc is a nonterminal with a goto on c
-			cc = prdptr[i][1]-NTBASE;
+			cc = prdptr[i][1] - NTBASE;
 			if cc >= 0 && temp1[cc] != 0 {
 				// thus, the left side of production i does too
-				cc = prdptr[i][0]-NTBASE;
+				cc = prdptr[i][0] - NTBASE;
 				if temp1[cc] == 0 {
 					work = 1;
 					temp1[cc] = 1;
@@ -2541,7 +2541,7 @@ func hideprod() {
 	nred := 0;
 	levprd[0] = 0;
 	for i := 1; i < nprod; i++ {
-		if (levprd[i]&REDFLAG) == 0 {
+		if (levprd[i] & REDFLAG) == 0 {
 			if foutput != nil {
 				fmt.Fprintf(foutput, "Rule not reduced: %v\n",
 					writem(Pitem{prdptr[i], 0, 0, i}))
@@ -2549,7 +2549,7 @@ func hideprod() {
 			fmt.Printf("rule %v never reduced\n", writem(Pitem{prdptr[i], 0, 0, i}));
 			nred++;
 		}
-		levprd[i] = prdptr[i][0]-NTBASE;
+		levprd[i] = prdptr[i][0] - NTBASE;
 	}
 	if nred != 0 {
 		fmt.Printf("%v rules never reduced\n", nred)
@@ -2600,7 +2600,7 @@ func callopt() {
 
 		// minimum entry index is always 0
 		v = yypgo[i];
-		q = len(v)-1;
+		q = len(v) - 1;
 		for p = 0; p < q; p += 2 {
 			ggreed[i] += 2;
 			if v[p] > j {
@@ -2681,7 +2681,7 @@ func gin(i int) {
 	ggreed[i] = 0;
 
 	q := yypgo[i];
-	nq := len(q)-1;
+	nq := len(q) - 1;
 
 	// now, find amem place for it
 nextgp:
@@ -2690,7 +2690,7 @@ nextgp:
 			continue
 		}
 		for r := 0; r < nq; r += 2 {
-			s = p+q[r]+1;
+			s = p + q[r] + 1;
 			if s > maxa {
 				maxa = s;
 				if maxa >= ACTSIZE {
@@ -2708,7 +2708,7 @@ nextgp:
 			maxa = p
 		}
 		for r := 0; r < nq; r += 2 {
-			s = p+q[r]+1;
+			s = p + q[r] + 1;
 			amem[s] = q[r+1];
 		}
 		pgo[i] = p;
@@ -2734,7 +2734,7 @@ nextn:
 	for n := -maxoff; n < ACTSIZE; n++ {
 		flag := 0;
 		for r := 0; r < nq; r += 2 {
-			s = q[r]+n;
+			s = q[r] + n;
 			if s < 0 || s > ACTSIZE {
 				continue nextn
 			}
@@ -2771,7 +2771,7 @@ nextn:
 		}
 
 		for r := 0; r < nq; r += 2 {
-			s = q[r]+n;
+			s = q[r] + n;
 			if s > maxa {
 				maxa = s
 			}
@@ -2813,7 +2813,7 @@ func others() {
 	//yyr2 is the number of rules for each production
 	//
 	for i = 1; i < nprod; i++ {
-		temp1[i] = len(prdptr[i])-2
+		temp1[i] = len(prdptr[i]) - 2
 	}
 	arout("YYR2", temp1, nprod);
 
@@ -2928,7 +2928,7 @@ func summary() {
 		fmt.Fprintf(foutput, "%v shift/reduce, %v reduce/reduce conflicts reported\n", zzsrconf, zzrrconf);
 		fmt.Fprintf(foutput, "%v working sets used\n", len(wsets));
 		fmt.Fprintf(foutput, "memory: parser %v/%v\n", memp, ACTSIZE);
-		fmt.Fprintf(foutput, "%v extra closures\n", zzclose - 2*nstate);
+		fmt.Fprintf(foutput, "%v extra closures\n", zzclose-2*nstate);
 		fmt.Fprintf(foutput, "%v shift entries, %v exceptions\n", zzacent, zzexcp);
 		fmt.Fprintf(foutput, "%v goto entries\n", zzgoent);
 		fmt.Fprintf(foutput, "%v entries saved by goto default\n", zzgobest);
@@ -2976,11 +2976,11 @@ func chcopy(q string) string {
 	j := 0;
 	for i = 0; i < len(q); i++ {
 		if q[i] == '"' {
-			s += q[j:i]+"\\";
+			s += q[j:i] + "\\";
 			j = i;
 		}
 	}
-	return s+q[j:i];
+	return s + q[j:i];
 }
 
 func usage() {
@@ -2988,9 +2988,9 @@ func usage() {
 	exit(1);
 }
 
-func bitset(set Lkset, bit int) int	{ return set[bit>>5]&(1<<uint(bit&31)) }
+func bitset(set Lkset, bit int) int	{ return set[bit>>5] & (1 << uint(bit&31)) }
 
-func setbit(set Lkset, bit int)	{ set[bit>>5] |= (1<<uint(bit&31)) }
+func setbit(set Lkset, bit int)	{ set[bit>>5] |= (1 << uint(bit & 31)) }
 
 func mkset() Lkset	{ return make([]int, tbitset) }
 
@@ -3002,7 +3002,7 @@ func setunion(a, b []int) int {
 	sub := 0;
 	for i := 0; i < tbitset; i++ {
 		x := a[i];
-		y := x|b[i];
+		y := x | b[i];
 		a[i] = y;
 		if y != x {
 			sub = 1
@@ -3110,7 +3110,7 @@ func open(s string) *bufio.Reader {
 }
 
 func create(s string, m int) *bufio.Writer {
-	fo, err := os.Open(s, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, m);
+	fo, err := os.Open(s, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, m);
 	if err != nil {
 		error("error opening %v: %v", s, err)
 	}

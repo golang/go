@@ -22,7 +22,7 @@ var sumWW = []argWW{
 	argWW{_M, 1, 0, 1, 0},
 	argWW{_M, 0, 1, 1, 0},
 	argWW{_M, 1, 1, 1, 1},
-	argWW{_M, _M, 0, 1, _M-1},
+	argWW{_M, _M, 0, 1, _M - 1},
 	argWW{_M, _M, 1, 1, _M},
 }
 
@@ -72,9 +72,9 @@ var sumVV = []argVV{
 	argVV{[]Word{1}, []Word{1}, []Word{0}, 0},
 	argVV{[]Word{0}, []Word{_M}, []Word{1}, 1},
 	argVV{[]Word{80235}, []Word{12345}, []Word{67890}, 0},
-	argVV{[]Word{_M-1}, []Word{_M}, []Word{_M}, 1},
+	argVV{[]Word{_M - 1}, []Word{_M}, []Word{_M}, 1},
 	argVV{[]Word{0, 0, 0, 0}, []Word{_M, _M, _M, _M}, []Word{1, 0, 0, 0}, 1},
-	argVV{[]Word{0, 0, 0, _M}, []Word{_M, _M, _M, _M-1}, []Word{1, 0, 0, 0}, 0},
+	argVV{[]Word{0, 0, 0, _M}, []Word{_M, _M, _M, _M - 1}, []Word{1, 0, 0, 0}, 0},
 	argVV{[]Word{0, 0, 0, 0}, []Word{_M, 0, _M, 0}, []Word{1, _M, 0, _M}, 1},
 }
 
@@ -142,9 +142,9 @@ var prodVW = []argVW{
 	argVW{[]Word{0, 0, 0, 22793}, []Word{0, 0, 0, 991}, 23, 0},
 	argVW{[]Word{0, 0, 0, 0}, []Word{7893475, 7395495, 798547395, 68943}, 0, 0},
 	argVW{[]Word{0, 0, 0, 0}, []Word{0, 0, 0, 0}, 894375984, 0},
-	argVW{[]Word{_M<<1&_M}, []Word{_M}, 1<<1, _M>>(_W-1)},
-	argVW{[]Word{_M<<7&_M}, []Word{_M}, 1<<7, _M>>(_W-7)},
-	argVW{[]Word{_M<<7&_M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1<<7, _M>>(_W-7)},
+	argVW{[]Word{_M << 1 & _M}, []Word{_M}, 1 << 1, _M >> (_W - 1)},
+	argVW{[]Word{_M << 7 & _M}, []Word{_M}, 1 << 7, _M >> (_W - 7)},
+	argVW{[]Word{_M << 7 & _M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1 << 7, _M >> (_W - 7)},
 }
 
 
@@ -202,12 +202,12 @@ var prodVWW = []argVWW{
 	argVWW{[]Word{991, 0, 0, 0}, []Word{7893475, 7395495, 798547395, 68943}, 0, 991, 0},
 	argVWW{[]Word{0, 0, 0, 0}, []Word{0, 0, 0, 0}, 894375984, 0, 0},
 	argVWW{[]Word{991, 0, 0, 0}, []Word{0, 0, 0, 0}, 894375984, 991, 0},
-	argVWW{[]Word{_M<<1&_M}, []Word{_M}, 1<<1, 0, _M>>(_W-1)},
-	argVWW{[]Word{_M<<1&_M + 1}, []Word{_M}, 1<<1, 1, _M>>(_W-1)},
-	argVWW{[]Word{_M<<7&_M}, []Word{_M}, 1<<7, 0, _M>>(_W-7)},
-	argVWW{[]Word{_M<<7&_M + 1<<6}, []Word{_M}, 1<<7, 1<<6, _M>>(_W-7)},
-	argVWW{[]Word{_M<<7&_M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1<<7, 0, _M>>(_W-7)},
-	argVWW{[]Word{_M<<7&_M + 1<<6, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1<<7, 1<<6, _M>>(_W-7)},
+	argVWW{[]Word{_M << 1 & _M}, []Word{_M}, 1 << 1, 0, _M >> (_W - 1)},
+	argVWW{[]Word{_M<<1&_M + 1}, []Word{_M}, 1 << 1, 1, _M >> (_W - 1)},
+	argVWW{[]Word{_M << 7 & _M}, []Word{_M}, 1 << 7, 0, _M >> (_W - 7)},
+	argVWW{[]Word{_M<<7&_M + 1<<6}, []Word{_M}, 1 << 7, 1 << 6, _M >> (_W - 7)},
+	argVWW{[]Word{_M << 7 & _M, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1 << 7, 0, _M >> (_W - 7)},
+	argVWW{[]Word{_M<<7&_M + 1<<6, _M, _M, _M}, []Word{_M, _M, _M, _M}, 1 << 7, 1 << 6, _M >> (_W - 7)},
 }
 
 
@@ -277,7 +277,7 @@ type mulWWTest struct {
 
 
 var mulWWTests = []mulWWTest{
-	mulWWTest{_M, _M, _M-1, 1},
+	mulWWTest{_M, _M, _M - 1, 1},
 	// 32 bit only: mulWWTest{0xc47dfa8c, 50911, 0x98a4, 0x998587f4},
 }
 
@@ -302,7 +302,7 @@ var mulAddWWWTests = []mulAddWWWTest{
 	// TODO(agl): These will only work on 64-bit platforms.
 	// mulAddWWWTest{15064310297182388543, 0xe7df04d2d35d5d80, 13537600649892366549, 13644450054494335067, 10832252001440893781},
 	// mulAddWWWTest{15064310297182388543, 0xdab2f18048baa68d, 13644450054494335067, 12869334219691522700, 14233854684711418382},
-	mulAddWWWTest{_M, _M, 0, _M-1, 1},
+	mulAddWWWTest{_M, _M, 0, _M - 1, 1},
 	mulAddWWWTest{_M, _M, _M, _M, 0},
 }
 

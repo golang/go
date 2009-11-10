@@ -19,7 +19,7 @@ var bytes []byte	// test data; same as data but as a slice.
 func init() {
 	bytes = make([]byte, N);
 	for i := 0; i < N; i++ {
-		bytes[i] = 'a'+byte(i%26)
+		bytes[i] = 'a' + byte(i%26)
 	}
 	data = string(bytes);
 }
@@ -50,17 +50,17 @@ func check(t *testing.T, testname string, buf *Buffer, s string) {
 // The initial contents of buf corresponds to the string s;
 // the result is the final contents of buf returned as a string.
 func fillString(t *testing.T, testname string, buf *Buffer, s string, n int, fus string) string {
-	check(t, testname + " (fill 1)", buf, s);
+	check(t, testname+" (fill 1)", buf, s);
 	for ; n > 0; n-- {
 		m, err := buf.WriteString(fus);
 		if m != len(fus) {
-			t.Errorf(testname + " (fill 2): m == %d, expected %d\n", m, len(fus))
+			t.Errorf(testname+" (fill 2): m == %d, expected %d\n", m, len(fus))
 		}
 		if err != nil {
-			t.Errorf(testname + " (fill 3): err should always be nil, found err == %s\n", err)
+			t.Errorf(testname+" (fill 3): err should always be nil, found err == %s\n", err)
 		}
 		s += fus;
-		check(t, testname + " (fill 4)", buf, s);
+		check(t, testname+" (fill 4)", buf, s);
 	}
 	return s;
 }
@@ -70,17 +70,17 @@ func fillString(t *testing.T, testname string, buf *Buffer, s string, n int, fus
 // The initial contents of buf corresponds to the string s;
 // the result is the final contents of buf returned as a string.
 func fillBytes(t *testing.T, testname string, buf *Buffer, s string, n int, fub []byte) string {
-	check(t, testname + " (fill 1)", buf, s);
+	check(t, testname+" (fill 1)", buf, s);
 	for ; n > 0; n-- {
 		m, err := buf.Write(fub);
 		if m != len(fub) {
-			t.Errorf(testname + " (fill 2): m == %d, expected %d\n", m, len(fub))
+			t.Errorf(testname+" (fill 2): m == %d, expected %d\n", m, len(fub))
 		}
 		if err != nil {
-			t.Errorf(testname + " (fill 3): err should always be nil, found err == %s\n", err)
+			t.Errorf(testname+" (fill 3): err should always be nil, found err == %s\n", err)
 		}
 		s += string(fub);
-		check(t, testname + " (fill 4)", buf, s);
+		check(t, testname+" (fill 4)", buf, s);
 	}
 	return s;
 }
@@ -101,7 +101,7 @@ func TestNewBufferString(t *testing.T) {
 // Empty buf through repeated reads into fub.
 // The initial contents of buf corresponds to the string s.
 func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
-	check(t, testname + " (empty 1)", buf, s);
+	check(t, testname+" (empty 1)", buf, s);
 
 	for {
 		n, err := buf.Read(fub);
@@ -109,13 +109,13 @@ func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
 			break
 		}
 		if err != nil {
-			t.Errorf(testname + " (empty 2): err should always be nil, found err == %s\n", err)
+			t.Errorf(testname+" (empty 2): err should always be nil, found err == %s\n", err)
 		}
 		s = s[n:len(s)];
-		check(t, testname + " (empty 3)", buf, s);
+		check(t, testname+" (empty 3)", buf, s);
 	}
 
-	check(t, testname + " (empty 4)", buf, "");
+	check(t, testname+" (empty 4)", buf, "");
 }
 
 
@@ -197,7 +197,7 @@ func TestLargeByteWrites(t *testing.T) {
 func TestLargeStringReads(t *testing.T) {
 	var buf Buffer;
 	for i := 3; i < 30; i += 3 {
-		s := fillString(t, "TestLargeReads (1)", &buf, "", 5, data[0 : len(data)/i]);
+		s := fillString(t, "TestLargeReads (1)", &buf, "", 5, data[0:len(data)/i]);
 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(data)));
 	}
 	check(t, "TestLargeStringReads (3)", &buf, "");
@@ -207,7 +207,7 @@ func TestLargeStringReads(t *testing.T) {
 func TestLargeByteReads(t *testing.T) {
 	var buf Buffer;
 	for i := 3; i < 30; i += 3 {
-		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, bytes[0 : len(bytes)/i]);
+		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, bytes[0:len(bytes)/i]);
 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(data)));
 	}
 	check(t, "TestLargeByteReads (3)", &buf, "");

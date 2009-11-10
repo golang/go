@@ -89,7 +89,7 @@ func NewReader(rd io.Reader) *Reader {
 func (b *Reader) fill() {
 	// Slide existing data to beginning.
 	if b.w > b.r {
-		copySlice(b.buf[0 : b.w - b.r], b.buf[b.r : b.w]);
+		copySlice(b.buf[0:b.w-b.r], b.buf[b.r:b.w]);
 		b.w -= b.r;
 	} else {
 		b.w = 0
@@ -97,7 +97,7 @@ func (b *Reader) fill() {
 	b.r = 0;
 
 	// Read new data.
-	n, e := b.rd.Read(b.buf[b.w : len(b.buf)]);
+	n, e := b.rd.Read(b.buf[b.w:len(b.buf)]);
 	b.w += n;
 	if e != nil {
 		b.err = e
@@ -131,13 +131,13 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 			b.fill();
 			continue;
 		}
-		if n > b.w - b.r {
+		if n > b.w-b.r {
 			n = b.w - b.r
 		}
-		copySlice(p[0:n], b.buf[b.r : b.r + n]);
+		copySlice(p[0:n], b.buf[b.r:b.r+n]);
 		p = p[n:len(p)];
 		b.r += n;
-		b.lastbyte = int(b.buf[b.r - 1]);
+		b.lastbyte = int(b.buf[b.r-1]);
 		nn += n;
 	}
 	return nn, nil;
@@ -178,7 +178,7 @@ func (b *Reader) UnreadByte() os.Error {
 // ReadRune reads a single UTF-8 encoded Unicode character and returns the
 // rune and its size in bytes.
 func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
-	for b.r + utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r : b.w]) && b.err == nil {
+	for b.r+utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) && b.err == nil {
 		b.fill()
 	}
 	if b.r == b.w {
@@ -186,10 +186,10 @@ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
 	}
 	rune, size = int(b.buf[b.r]), 1;
 	if rune >= 0x80 {
-		rune, size = utf8.DecodeRune(b.buf[b.r : b.w])
+		rune, size = utf8.DecodeRune(b.buf[b.r:b.w])
 	}
 	b.r += size;
-	b.lastbyte = int(b.buf[b.r - 1]);
+	b.lastbyte = int(b.buf[b.r-1]);
 	return rune, size, nil;
 }
 
@@ -219,16 +219,16 @@ func (b *Reader) Buffered() int	{ return b.w - b.r }
 // ReadSlice returns err != nil if and only if line does not end in delim.
 func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
 	// Look in buffer.
-	if i := findByte(b.buf[b.r : b.w], delim); i >= 0 {
-		line1 := b.buf[b.r : b.r + i + 1];
-		b.r += i+1;
+	if i := findByte(b.buf[b.r:b.w], delim); i >= 0 {
+		line1 := b.buf[b.r : b.r+i+1];
+		b.r += i + 1;
 		return line1, nil;
 	}
 
 	// Read more into buffer, until buffer fills or we find delim.
 	for {
 		if b.err != nil {
-			line := b.buf[b.r : b.w];
+			line := b.buf[b.r:b.w];
 			b.r = b.w;
 			return line, b.err;
 		}
@@ -237,9 +237,9 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
 		b.fill();
 
 		// Search new part of buffer
-		if i := findByte(b.buf[n : b.w], delim); i >= 0 {
+		if i := findByte(b.buf[n:b.w], delim); i >= 0 {
 			line := b.buf[0 : n+i+1];
-			b.r = n+i+1;
+			b.r = n + i + 1;
 			return line, nil;
 		}
 
@@ -317,10 +317,10 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
 	buf := make([]byte, n);
 	n = 0;
 	for i := 0; i < nfull; i++ {
-		copySlice(buf[n : n+len(full[i])], full[i]);
+		copySlice(buf[n:n+len(full[i])], full[i]);
 		n += len(full[i]);
 	}
-	copySlice(buf[n : n+len(frag)], frag);
+	copySlice(buf[n:n+len(frag)], frag);
 	return buf, err;
 }
 
@@ -379,13 +379,13 @@ func (b *Writer) Flush() os.Error {
 	if b.err != nil {
 		return b.err
 	}
-	n, e := b.wr.Write(b.buf[0 : b.n]);
+	n, e := b.wr.Write(b.buf[0:b.n]);
 	if n < b.n && e == nil {
 		e = io.ErrShortWrite
 	}
 	if e != nil {
 		if n > 0 && n < b.n {
-			copySlice(b.buf[0 : b.n - n], b.buf[n : b.n])
+			copySlice(b.buf[0:b.n-n], b.buf[n:b.n])
 		}
 		b.n -= n;
 		b.err = e;
@@ -432,7 +432,7 @@ func (b *Writer) Write(p []byte) (nn int, err os.Error) {
 		if n > len(p) {
 			n = len(p)
 		}
-		copySlice(b.buf[b.n : b.n + n], p[0:n]);
+		copySlice(b.buf[b.n:b.n+n], p[0:n]);
 		b.n += n;
 		nn += n;
 		p = p[n:len(p)];

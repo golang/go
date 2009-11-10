@@ -37,7 +37,7 @@ type Buffer struct {
 
 // Bytes returns the contents of the unread portion of the buffer;
 // len(b.Bytes()) == b.Len().
-func (b *Buffer) Bytes() []byte	{ return b.buf[b.off : len(b.buf)] }
+func (b *Buffer) Bytes() []byte	{ return b.buf[b.off:len(b.buf)] }
 
 // String returns the contents of the unread portion of the buffer
 // as a string.  If the Buffer is a nil pointer, it returns "<nil>".
@@ -46,7 +46,7 @@ func (b *Buffer) String() string {
 		// Special case, useful in debugging.
 		return "<nil>"
 	}
-	return string(b.buf[b.off : len(b.buf)]);
+	return string(b.buf[b.off:len(b.buf)]);
 }
 
 // Len returns the number of bytes of the unread portion of the buffer;
@@ -60,7 +60,7 @@ func (b *Buffer) Truncate(n int) {
 		// Reuse buffer space.
 		b.off = 0
 	}
-	b.buf = b.buf[0 : b.off + n];
+	b.buf = b.buf[0 : b.off+n];
 }
 
 // Reset resets the buffer so it has no content.
@@ -78,15 +78,15 @@ func (b *Buffer) Write(p []byte) (n int, err os.Error) {
 		buf := b.buf;
 		if m+n > cap(b.buf) {
 			// not enough space anywhere
-			buf = make([]byte, 2*cap(b.buf) + n)
+			buf = make([]byte, 2*cap(b.buf)+n)
 		}
-		copyBytes(buf, 0, b.buf[b.off : b.off + m]);
+		copyBytes(buf, 0, b.buf[b.off:b.off+m]);
 		b.buf = buf;
 		b.off = 0;
 	}
 
-	b.buf = b.buf[0 : b.off + m + n];
-	copyBytes(b.buf, b.off + m, p);
+	b.buf = b.buf[0 : b.off+m+n];
+	copyBytes(b.buf, b.off+m, p);
 	return n, nil;
 }
 
@@ -101,15 +101,15 @@ func (b *Buffer) WriteString(s string) (n int, err os.Error) {
 		buf := b.buf;
 		if m+n > cap(b.buf) {
 			// not enough space anywhere
-			buf = make([]byte, 2*cap(b.buf) + n)
+			buf = make([]byte, 2*cap(b.buf)+n)
 		}
-		copyBytes(buf, 0, b.buf[b.off : b.off + m]);
+		copyBytes(buf, 0, b.buf[b.off:b.off+m]);
 		b.buf = buf;
 		b.off = 0;
 	}
 
-	b.buf = b.buf[0 : b.off + m + n];
-	copyString(b.buf, b.off + m, s);
+	b.buf = b.buf[0 : b.off+m+n];
+	copyString(b.buf, b.off+m, s);
 	return n, nil;
 }
 
@@ -142,7 +142,7 @@ func (b *Buffer) Read(p []byte) (n int, err os.Error) {
 		n = m
 	}
 
-	copyBytes(p, 0, b.buf[b.off : b.off + n]);
+	copyBytes(p, 0, b.buf[b.off:b.off+n]);
 	b.off += n;
 	return n, err;
 }
