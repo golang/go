@@ -634,9 +634,7 @@ def CheckGofmt(ui, repo, files, just_warn=False):
 #######################################################################
 # Mercurial commands
 
-# until done debugging
-server = "localhost:1"
-# server = "codereview.appspot.com"
+server = "codereview.appspot.com"
 
 server_url_base = None
 
@@ -1568,9 +1566,6 @@ def RietveldSetup(ui, repo):
 		cc = x
 
 	server_url_base = "http://" + server + "/"
-
-	# TODO(rsc): Remove after release
-	server_url_base = "http://go/go-review/"
 
 	testing = ui.config("codereview", "testing")
 	force_google_account = ui.configbool("codereview", "force_google_account", False)
