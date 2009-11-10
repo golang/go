@@ -23,7 +23,7 @@ type Mutex struct {
 func xadd(val *uint32, delta int32) (new uint32) {
 	for {
 		v := *val;
-		nv := v+uint32(delta);
+		nv := v + uint32(delta);
 		if cas(val, v, nv) {
 			return nv
 		}

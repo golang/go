@@ -30,11 +30,11 @@ func max(a, b float64) float64 {
 }
 
 func nearEqual(a, b, closeEnough, maxError float64) bool {
-	absDiff := math.Fabs(a-b);
+	absDiff := math.Fabs(a - b);
 	if absDiff < closeEnough {	// Necessary when one value is zero and one value is close to zero.
 		return true
 	}
-	return absDiff / max(math.Fabs(a), math.Fabs(b)) < maxError;
+	return absDiff/max(math.Fabs(a), math.Fabs(b)) < maxError;
 }
 
 var testSeeds = []int64{1, 1754801282, 1698661970, 1550503961}
@@ -61,12 +61,12 @@ func getStatsResults(samples []float64) *statsResults {
 	for i := range samples {
 		sum += samples[i]
 	}
-	res.mean = sum/float64(len(samples));
+	res.mean = sum / float64(len(samples));
 	var devsum float64;
 	for i := range samples {
-		devsum += math.Pow(samples[i] - res.mean, 2)
+		devsum += math.Pow(samples[i]-res.mean, 2)
 	}
-	res.stddev = math.Sqrt(devsum/float64(len(samples)));
+	res.stddev = math.Sqrt(devsum / float64(len(samples)));
 	return res;
 }
 
@@ -79,14 +79,14 @@ func checkSampleDistribution(t *testing.T, samples []float64, expected *statsRes
 }
 
 func checkSampleSliceDistributions(t *testing.T, samples []float64, nslices int, expected *statsResults) {
-	chunk := len(samples)/nslices;
+	chunk := len(samples) / nslices;
 	for i := 0; i < nslices; i++ {
-		low := i*chunk;
+		low := i * chunk;
 		var high int;
 		if i == nslices-1 {
-			high = len(samples)-1
+			high = len(samples) - 1
 		} else {
-			high = (i+1)*chunk
+			high = (i + 1) * chunk
 		}
 		checkSampleDistribution(t, samples[low:high], expected);
 	}
@@ -100,7 +100,7 @@ func generateNormalSamples(nsamples int, mean, stddev float64, seed int64) []flo
 	r := New(NewSource(seed));
 	samples := make([]float64, nsamples);
 	for i := range samples {
-		samples[i] = r.NormFloat64() * stddev + mean
+		samples[i] = r.NormFloat64()*stddev + mean
 	}
 	return samples;
 }
@@ -156,7 +156,7 @@ func generateExponentialSamples(nsamples int, rate float64, seed int64) []float6
 func testExponentialDistribution(t *testing.T, nsamples int, rate float64, seed int64) {
 	//fmt.Printf("testing nsamples=%v rate=%v seed=%v\n", nsamples, rate, seed);
 
-	mean := 1/rate;
+	mean := 1 / rate;
 	stddev := mean;
 
 	samples := generateExponentialSamples(nsamples, rate, seed);
@@ -194,7 +194,7 @@ func TestNonStandardExponentialValues(t *testing.T) {
 //
 
 func initNorm() (testKn []uint32, testWn, testFn []float32) {
-	const m1 = 1<<31;
+	const m1 = 1 << 31;
 	var (
 		dn	float64	= rn;
 		tn		= dn;
@@ -205,25 +205,25 @@ func initNorm() (testKn []uint32, testWn, testFn []float32) {
 	testWn = make([]float32, 128);
 	testFn = make([]float32, 128);
 
-	q := vn / math.Exp(-0.5 * dn * dn);
-	testKn[0] = uint32((dn/q)*m1);
+	q := vn / math.Exp(-0.5*dn*dn);
+	testKn[0] = uint32((dn / q) * m1);
 	testKn[1] = 0;
-	testWn[0] = float32(q/m1);
-	testWn[127] = float32(dn/m1);
+	testWn[0] = float32(q / m1);
+	testWn[127] = float32(dn / m1);
 	testFn[0] = 1.0;
 	testFn[127] = float32(math.Exp(-0.5 * dn * dn));
 	for i := 126; i >= 1; i-- {
-		dn = math.Sqrt(-2.0 * math.Log(vn/dn + math.Exp(-0.5 * dn * dn)));
-		testKn[i+1] = uint32((dn/tn)*m1);
+		dn = math.Sqrt(-2.0 * math.Log(vn/dn+math.Exp(-0.5*dn*dn)));
+		testKn[i+1] = uint32((dn / tn) * m1);
 		tn = dn;
 		testFn[i] = float32(math.Exp(-0.5 * dn * dn));
-		testWn[i] = float32(dn/m1);
+		testWn[i] = float32(dn / m1);
 	}
 	return;
 }
 
 func initExp() (testKe []uint32, testWe, testFe []float32) {
-	const m2 = 1<<32;
+	const m2 = 1 << 32;
 	var (
 		de	float64	= re;
 		te		= de;
@@ -235,18 +235,18 @@ func initExp() (testKe []uint32, testWe, testFe []float32) {
 	testFe = make([]float32, 256);
 
 	q := ve / math.Exp(-de);
-	testKe[0] = uint32((de/q)*m2);
+	testKe[0] = uint32((de / q) * m2);
 	testKe[1] = 0;
-	testWe[0] = float32(q/m2);
-	testWe[255] = float32(de/m2);
+	testWe[0] = float32(q / m2);
+	testWe[255] = float32(de / m2);
 	testFe[0] = 1.0;
 	testFe[255] = float32(math.Exp(-de));
 	for i := 254; i >= 1; i-- {
 		de = -math.Log(ve/de + math.Exp(-de));
-		testKe[i+1] = uint32((de/te)*m2);
+		testKe[i+1] = uint32((de / te) * m2);
 		te = de;
 		testFe[i] = float32(math.Exp(-de));
-		testWe[i] = float32(de/m2);
+		testWe[i] = float32(de / m2);
 	}
 	return;
 }
@@ -257,9 +257,9 @@ func initExp() (testKe []uint32, testWe, testFe []float32) {
 func compareUint32Slices(s1, s2 []uint32) int {
 	if len(s1) != len(s2) {
 		if len(s1) > len(s2) {
-			return len(s2)+1
+			return len(s2) + 1
 		}
-		return len(s1)+1;
+		return len(s1) + 1;
 	}
 	for i := range s1 {
 		if s1[i] != s2[i] {
@@ -275,9 +275,9 @@ func compareUint32Slices(s1, s2 []uint32) int {
 func compareFloat32Slices(s1, s2 []float32) int {
 	if len(s1) != len(s2) {
 		if len(s1) > len(s2) {
-			return len(s2)+1
+			return len(s2) + 1
 		}
-		return len(s1)+1;
+		return len(s1) + 1;
 	}
 	for i := range s1 {
 		if !nearEqual(float64(s1[i]), float64(s2[i]), 0, 1e-7) {

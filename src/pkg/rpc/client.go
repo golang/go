@@ -117,7 +117,7 @@ func DialHTTP(network, address string) (*Client, os.Error) {
 	if err != nil {
 		return nil, err
 	}
-	io.WriteString(conn, "CONNECT " + rpcPath + " HTTP/1.0\n\n");
+	io.WriteString(conn, "CONNECT "+rpcPath+" HTTP/1.0\n\n");
 
 	// Require successful HTTP response
 	// before switching to RPC protocol.
@@ -129,7 +129,7 @@ func DialHTTP(network, address string) (*Client, os.Error) {
 		err = os.ErrorString("unexpected HTTP response: " + resp.Status)
 	}
 	conn.Close();
-	return nil, &net.OpError{"dial-http", network+" "+address, nil, err};
+	return nil, &net.OpError{"dial-http", network + " " + address, nil, err};
 }
 
 // Dial connects to an RPC server at the specified network address.

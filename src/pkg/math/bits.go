@@ -9,7 +9,7 @@ const (
 	uvinf		= 0x7FF0000000000000;
 	uvneginf	= 0xFFF0000000000000;
 	mask		= 0x7FF;
-	shift		= 64-11-1;
+	shift		= 64 - 11 - 1;
 	bias		= 1022;
 )
 
@@ -51,9 +51,9 @@ func Frexp(f float64) (frac float64, exp int) {
 		return
 	}
 	x := Float64bits(f);
-	exp = int((x>>shift)&mask)-bias;
-	x &^= mask<<shift;
-	x |= bias<<shift;
+	exp = int((x>>shift)&mask) - bias;
+	x &^= mask << shift;
+	x |= bias << shift;
 	frac = Float64frombits(x);
 	return;
 }
@@ -62,7 +62,7 @@ func Frexp(f float64) (frac float64, exp int) {
 // It returns frac × 2<sup>exp</sup>.
 func Ldexp(frac float64, exp int) float64 {
 	x := Float64bits(frac);
-	exp += int(x>>shift)&mask;
+	exp += int(x>>shift) & mask;
 	if exp <= 0 {
 		return 0	// underflow
 	}
@@ -72,8 +72,8 @@ func Ldexp(frac float64, exp int) float64 {
 		}
 		return Inf(1);
 	}
-	x &^= mask<<shift;
-	x |= uint64(exp)<<shift;
+	x &^= mask << shift;
+	x |= uint64(exp) << shift;
 	return Float64frombits(x);
 }
 
@@ -97,6 +97,6 @@ func Modf(f float64) (int float64, frac float64) {
 		x &^= 1<<(64-11-e) - 1
 	}
 	int = Float64frombits(x);
-	frac = f-int;
+	frac = f - int;
 	return;
 }

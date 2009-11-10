@@ -86,15 +86,15 @@ func TestRPC(t *testing.T) {
 	args := &Args{7, 8};
 	reply := new(Reply);
 	err = client.Call("Arith.Add", args, reply);
-	if reply.C != args.A + args.B {
-		t.Errorf("Add: expected %d got %d", reply.C, args.A + args.B)
+	if reply.C != args.A+args.B {
+		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
 	}
 
 	args = &Args{7, 8};
 	reply = new(Reply);
 	err = client.Call("Arith.Mul", args, reply);
-	if reply.C != args.A * args.B {
-		t.Errorf("Mul: expected %d got %d", reply.C, args.A * args.B)
+	if reply.C != args.A*args.B {
+		t.Errorf("Mul: expected %d got %d", reply.C, args.A*args.B)
 	}
 
 	// Out of order.
@@ -105,13 +105,13 @@ func TestRPC(t *testing.T) {
 	addCall := client.Go("Arith.Add", args, addReply, nil);
 
 	<-addCall.Done;
-	if addReply.C != args.A + args.B {
-		t.Errorf("Add: expected %d got %d", addReply.C, args.A + args.B)
+	if addReply.C != args.A+args.B {
+		t.Errorf("Add: expected %d got %d", addReply.C, args.A+args.B)
 	}
 
 	<-mulCall.Done;
-	if mulReply.C != args.A * args.B {
-		t.Errorf("Mul: expected %d got %d", mulReply.C, args.A * args.B)
+	if mulReply.C != args.A*args.B {
+		t.Errorf("Mul: expected %d got %d", mulReply.C, args.A*args.B)
 	}
 
 	// Error test
@@ -138,8 +138,8 @@ func TestHTTPRPC(t *testing.T) {
 	args := &Args{7, 8};
 	reply := new(Reply);
 	err = client.Call("Arith.Add", args, reply);
-	if reply.C != args.A + args.B {
-		t.Errorf("Add: expected %d got %d", reply.C, args.A + args.B)
+	if reply.C != args.A+args.B {
+		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
 	}
 }
 

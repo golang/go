@@ -51,7 +51,7 @@ var test = flag.Bool("test",
 	"test existing tables; can be used to compare web data with package data")
 
 var scriptRe = regexp.MustCompile(`([0-9A-F]+)(\.\.[0-9A-F]+)? *; ([A-Za-z_]+)`)
-var die = log.New(os.Stderr, nil, "", log.Lexit | log.Lshortfile)
+var die = log.New(os.Stderr, nil, "", log.Lexit|log.Lshortfile)
 
 var category = map[string]bool{"letter": true}	// Nd Lu etc. letter is a special case
 
@@ -256,7 +256,7 @@ func letterOp(code int) bool {
 
 func loadChars() {
 	if *dataURL == "" {
-		flag.Set("data", *url + "UnicodeData.txt")
+		flag.Set("data", *url+"UnicodeData.txt")
 	}
 	resp, _, err := http.Get(*dataURL);
 	if err != nil {
@@ -289,7 +289,7 @@ func loadChars() {
 			if first == 0 {
 				die.Logf("bad state last at U+%04X", lastChar)
 			}
-			for i := first+1; i <= lastChar; i++ {
+			for i := first + 1; i <= lastChar; i++ {
 				chars[i] = chars[first];
 				chars[i].codePoint = i;
 			}
@@ -414,10 +414,10 @@ func dumpRange(header string, inCategory Op) {
 			break;
 		}
 		// set stride
-		stride = next-lo;
+		stride = next - lo;
 		// check for length of run. next points to first jump in stride
 		for i := next; i < len(chars); i++ {
-			if inCategory(i) == (((i-lo)%stride) == 0) {
+			if inCategory(i) == (((i - lo) % stride) == 0) {
 				// accept
 				if inCategory(i) {
 					hi = i
@@ -429,7 +429,7 @@ func dumpRange(header string, inCategory Op) {
 		}
 		fmt.Printf(format, lo, hi, stride);
 		// next range: start looking where this range ends
-		next = hi+1;
+		next = hi + 1;
 	}
 	fmt.Print("}\n\n");
 }
@@ -511,7 +511,7 @@ func foldAdjacent(r []Script) []unicode.Range {
 	s := make([]unicode.Range, 0, len(r));
 	j := 0;
 	for i := 0; i < len(r); i++ {
-		if j > 0 && int(r[i].lo) == s[j-1].Hi + 1 {
+		if j > 0 && int(r[i].lo) == s[j-1].Hi+1 {
 			s[j-1].Hi = int(r[i].hi)
 		} else {
 			s = s[0 : j+1];
@@ -575,7 +575,7 @@ func printScriptOrProperty(doProps bool) {
 			}
 			die.Log(err);
 		}
-		parseScript(line[0 : len(line)-1], table);
+		parseScript(line[0:len(line)-1], table);
 	}
 	resp.Body.Close();
 
@@ -639,7 +639,7 @@ func printScriptOrProperty(doProps bool) {
 }
 
 const (
-	CaseUpper	= 1<<iota;
+	CaseUpper	= 1 << iota;
 	CaseLower;
 	CaseTitle;
 	CaseNone	= 0;	// must be zero
@@ -660,7 +660,7 @@ func (c *caseState) adjacent(d *caseState) bool {
 		c, d = d, c
 	}
 	switch {
-	case d.point != c.point + 1:	// code points not adjacent (shouldn't happen)
+	case d.point != c.point+1:	// code points not adjacent (shouldn't happen)
 		return false
 	case d._case != c._case:	// different cases
 		return c.upperLowerAdjacent(d)

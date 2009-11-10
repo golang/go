@@ -118,7 +118,7 @@ func TestDecodeRune(t *testing.T) {
 		}
 		rune, size = DecodeRune(b[0 : len(b)-1]);
 		if rune != RuneError || size != wantsize {
-			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b[0 : len(b)-1], rune, size, RuneError, wantsize)
+			t.Errorf("DecodeRune(%q) = 0x%04x, %d want 0x%04x, %d", b[0:len(b)-1], rune, size, RuneError, wantsize)
 		}
 		s = m.str[0 : len(m.str)-1];
 		rune, size = DecodeRuneInString(s);

@@ -46,7 +46,7 @@ func uppercase(v interface{}) string {
 	for i := 0; i < len(s); i++ {
 		c := s[i];
 		if 'a' <= c && c <= 'z' {
-			c = c+'A'-'a'
+			c = c + 'A' - 'a'
 		}
 		t += string(c);
 	}
@@ -55,7 +55,7 @@ func uppercase(v interface{}) string {
 
 func plus1(v interface{}) string {
 	i := v.(int);
-	return fmt.Sprint(i+1);
+	return fmt.Sprint(i + 1);
 }
 
 func writer(f func(interface{}) string) (func(io.Writer, interface{}, string)) {
@@ -387,7 +387,7 @@ func TestCustomDelims(t *testing.T) {
 			var b bytes.Buffer;
 			err = tmpl.Execute("hello", &b);
 			s := b.String();
-			if s != "template: hello" + ldelim + rdelim {
+			if s != "template: hello"+ldelim+rdelim {
 				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s)
 			}
 		}

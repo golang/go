@@ -31,19 +31,19 @@ func Hypot(p, q float64) float64 {
 	}
 
 	pfac := p;
-	q = q/p;
+	q = q / p;
 	r := q;
 	p = 1;
 	for {
-		r = r*r;
-		s := r+4;
+		r = r * r;
+		s := r + 4;
 		if s == 4 {
-			return p*pfac
+			return p * pfac
 		}
-		r = r/s;
+		r = r / s;
 		p = p + 2*r*p;
-		q = q*r;
-		r = q/p;
+		q = q * r;
+		r = q / p;
 	}
 	panic("unreachable");
 }

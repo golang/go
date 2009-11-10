@@ -27,7 +27,7 @@ type Generator interface {
 // randFloat32 generates a random float taking the full range of a float32.
 func randFloat32(rand *rand.Rand) float32 {
 	f := rand.Float64() * math.MaxFloat32;
-	if rand.Int() & 1 == 1 {
+	if rand.Int()&1 == 1 {
 		f = -f
 	}
 	return float32(f);
@@ -36,7 +36,7 @@ func randFloat32(rand *rand.Rand) float32 {
 // randFloat64 generates a random float taking the full range of a float64.
 func randFloat64(rand *rand.Rand) float64 {
 	f := rand.Float64();
-	if rand.Int() & 1 == 1 {
+	if rand.Int()&1 == 1 {
 		f = -f
 	}
 	return f;
@@ -59,7 +59,7 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 
 	switch concrete := t.(type) {
 	case *reflect.BoolType:
-		return reflect.NewValue(rand.Int() & 1 == 0), true
+		return reflect.NewValue(rand.Int()&1 == 0), true
 	case *reflect.Float32Type:
 		return reflect.NewValue(randFloat32(rand)), true
 	case *reflect.Float64Type:
@@ -262,7 +262,7 @@ func Check(function interface{}, config *Config) (err os.Error) {
 		}
 
 		if !f.Call(arguments)[0].(*reflect.BoolValue).Get() {
-			err = &CheckError{i+1, toInterfaces(arguments)};
+			err = &CheckError{i + 1, toInterfaces(arguments)};
 			return;
 		}
 	}
@@ -309,7 +309,7 @@ func CheckEqual(f, g interface{}, config *Config) (err os.Error) {
 		yOut := toInterfaces(y.Call(arguments));
 
 		if !reflect.DeepEqual(xOut, yOut) {
-			err = &CheckEqualError{CheckError{i+1, toInterfaces(arguments)}, xOut, yOut};
+			err = &CheckEqualError{CheckError{i + 1, toInterfaces(arguments)}, xOut, yOut};
 			return;
 		}
 	}

@@ -134,28 +134,28 @@ func (w WaitStatus) ExitStatus() int {
 	if !w.Exited() {
 		return -1
 	}
-	return int(w>>shift)&0xFF;
+	return int(w>>shift) & 0xFF;
 }
 
 func (w WaitStatus) Signal() int {
 	if !w.Signaled() {
 		return -1
 	}
-	return int(w&mask);
+	return int(w & mask);
 }
 
 func (w WaitStatus) StopSignal() int {
 	if !w.Stopped() {
 		return -1
 	}
-	return int(w>>shift)&0xFF;
+	return int(w>>shift) & 0xFF;
 }
 
 func (w WaitStatus) TrapCause() int {
 	if w.StopSignal() != SIGTRAP {
 		return -1
 	}
-	return int(w>>shift)>>8;
+	return int(w>>shift) >> 8;
 }
 
 //sys	wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int)
@@ -242,7 +242,7 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
 	}
 
 	// length is family, name, NUL.
-	return uintptr(unsafe.Pointer(&sa.raw)), 1+_Socklen(n)+1, 0;
+	return uintptr(unsafe.Pointer(&sa.raw)), 1 + _Socklen(n) + 1, 0;
 }
 
 func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
@@ -411,12 +411,12 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
 	// boundary and not get the bytes leading up to the page
 	// boundary.
 	n := 0;
-	if addr % sizeofPtr != 0 {
-		errno = ptrace(req, pid, addr - addr % sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
+	if addr%sizeofPtr != 0 {
+		errno = ptrace(req, pid, addr-addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
 		if errno != 0 {
 			return 0, errno
 		}
-		n += bytesCopy(out, buf[addr % sizeofPtr : len(buf)]);
+		n += bytesCopy(out, buf[addr%sizeofPtr:len(buf)]);
 		out = out[n:len(out)];
 	}
 
@@ -450,15 +450,15 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
 
 	// Leading edge.
 	n := 0;
-	if addr % sizeofPtr != 0 {
+	if addr%sizeofPtr != 0 {
 		var buf [sizeofPtr]byte;
-		errno = ptrace(peekReq, pid, addr - addr % sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
+		errno = ptrace(peekReq, pid, addr-addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
 		if errno != 0 {
 			return 0, errno
 		}
-		n += bytesCopy(buf[addr % sizeofPtr : len(buf)], data);
+		n += bytesCopy(buf[addr%sizeofPtr:len(buf)], data);
 		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
-		errno = ptrace(pokeReq, pid, addr - addr % sizeofPtr, word);
+		errno = ptrace(pokeReq, pid, addr-addr%sizeofPtr, word);
 		if errno != 0 {
 			return 0, errno
 		}
@@ -473,7 +473,7 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
 			return n, errno
 		}
 		n += sizeofPtr;
-		data = data[sizeofPtr : len(data)];
+		data = data[sizeofPtr:len(data)];
 	}
 
 	// Trailing edge.

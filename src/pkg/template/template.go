@@ -220,7 +220,7 @@ func (t *Template) nextItem() []byte {
 	sawLeft := false;	// are we waiting for an opening delimiter?
 	special := false;	// is this a {.foo} directive, which means trim white space?
 	// Delete surrounding white space if this {.foo} is the only thing on the line.
-	trim_white := t.p == 0 || t.buf[t.p - 1] == '\n';
+	trim_white := t.p == 0 || t.buf[t.p-1] == '\n';
 	only_white := true;	// we have seen only white space so far
 	var i int;
 	start := t.p;
@@ -239,7 +239,7 @@ Loop:
 				break Loop
 			}
 			// is it a directive or comment?
-			j := i+len(t.ldelim);	// position after delimiter
+			j := i + len(t.ldelim);	// position after delimiter
 			if j+1 < len(t.buf) && (t.buf[j] == '.' || t.buf[j] == '#') {
 				special = true;
 				if trim_white && only_white {
@@ -249,7 +249,7 @@ Loop:
 				break Loop
 			}
 			sawLeft = true;
-			i = j-1;
+			i = j - 1;
 		case equal(t.buf, i, t.rdelim):
 			if !sawLeft {
 				t.parseError("unmatched closing delimiter");
@@ -681,13 +681,13 @@ func (t *Template) executeElement(i int, st *state) int {
 	switch elem := t.elems.At(i).(type) {
 	case *textElement:
 		st.wr.Write(elem.text);
-		return i+1;
+		return i + 1;
 	case *literalElement:
 		st.wr.Write(elem.text);
-		return i+1;
+		return i + 1;
 	case *variableElement:
 		t.writeVariable(elem, st);
-		return i+1;
+		return i + 1;
 	case *sectionElement:
 		t.executeSection(elem, st);
 		return elem.end;
@@ -744,7 +744,7 @@ func iter(v reflect.Value) *reflect.ChanValue {
 			continue
 		}
 		ct, ok := ft.Out(0).(*reflect.ChanType);
-		if !ok || ct.Dir() & reflect.RecvDir == 0 {
+		if !ok || ct.Dir()&reflect.RecvDir == 0 {
 			continue
 		}
 		return fv.Call(nil)[0].(*reflect.ChanValue);

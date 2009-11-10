@@ -27,7 +27,7 @@ func Asin(x float64) float64 {
 	if x > 0.7 {
 		temp = Pi/2 - Atan(temp/x)
 	} else {
-		temp = Atan(x/temp)
+		temp = Atan(x / temp)
 	}
 
 	if sign {

@@ -7,7 +7,7 @@ package os
 import "syscall"
 
 func isSymlink(stat *syscall.Stat_t) bool {
-	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
+	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
 }
 
 func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
@@ -21,10 +21,10 @@ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
 	dir.Size = uint64(stat.Size);
 	dir.Blksize = uint64(stat.Blksize);
 	dir.Blocks = uint64(stat.Blocks);
-	dir.Atime_ns = uint64(stat.Atime)*1e9;
-	dir.Mtime_ns = uint64(stat.Mtime)*1e9;
-	dir.Ctime_ns = uint64(stat.Ctime)*1e9;
-	for i := len(name)-1; i >= 0; i-- {
+	dir.Atime_ns = uint64(stat.Atime) * 1e9;
+	dir.Mtime_ns = uint64(stat.Mtime) * 1e9;
+	dir.Ctime_ns = uint64(stat.Ctime) * 1e9;
+	for i := len(name) - 1; i >= 0; i-- {
 		if name[i] == '/' {
 			name = name[i+1 : len(name)];
 			break;

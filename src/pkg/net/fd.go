@@ -134,7 +134,7 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
 	}
 
 	var t int64;
-	key := intfd<<1;
+	key := intfd << 1;
 	if mode == 'r' {
 		fd.ncr++;
 		t = fd.rdeadline;
@@ -150,7 +150,7 @@ func (s *pollServer) AddFD(fd *netFD, mode int) {
 }
 
 func (s *pollServer) LookupFD(fd int, mode int) *netFD {
-	key := fd<<1;
+	key := fd << 1;
 	if mode == 'w' {
 		key++
 	}
@@ -181,7 +181,7 @@ func (s *pollServer) Now() int64 {
 	if err != nil {
 		panic("net: os.Time: ", err.String())
 	}
-	nsec += sec*1e9;
+	nsec += sec * 1e9;
 	return nsec;
 }
 

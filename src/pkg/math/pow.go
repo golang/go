@@ -20,7 +20,7 @@ func Pow(x, y float64) float64 {
 	case y == 0.5:
 		return Sqrt(x)
 	case y == -0.5:
-		return 1/Sqrt(x)
+		return 1 / Sqrt(x)
 	}
 
 	absy := y;
@@ -34,7 +34,7 @@ func Pow(x, y float64) float64 {
 		return NaN()
 	}
 	if yi >= 1<<63 {
-		return Exp(y*Log(x))
+		return Exp(y * Log(x))
 	}
 
 	// ans = a1 * 2^ae (= 1 for now).
@@ -47,7 +47,7 @@ func Pow(x, y float64) float64 {
 			yf--;
 			yi++;
 		}
-		a1 = Exp(yf*Log(x));
+		a1 = Exp(yf * Log(x));
 	}
 
 	// ans *= x^yi
@@ -72,7 +72,7 @@ func Pow(x, y float64) float64 {
 	// if flip { ans = 1 / ans }
 	// but in the opposite order
 	if flip {
-		a1 = 1/a1;
+		a1 = 1 / a1;
 		ae = -ae;
 	}
 	return Ldexp(a1, ae);

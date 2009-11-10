@@ -40,14 +40,14 @@ func (t *Ticker) ticker(c chan<- int64) {
 		// if c <- now took too long, skip ahead
 		if when < now {
 			// one big step
-			when += (now-when) / t.ns * t.ns
+			when += (now - when) / t.ns * t.ns
 		}
 		for when <= now {
 			// little steps until when > now
 			when += t.ns
 		}
 
-		Sleep(when-now);
+		Sleep(when - now);
 		now = Nanoseconds();
 		if t.shutdown {
 			return

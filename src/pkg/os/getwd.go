@@ -50,7 +50,7 @@ func Getwd() (string, Error) {
 	// and then find name of parent.  Each iteration
 	// adds /name to the beginning of pwd.
 	pwd = "";
-	for parent := ".."; ; parent = "../"+parent {
+	for parent := ".."; ; parent = "../" + parent {
 		if len(parent) >= 1024 {	// Sanity check
 			return "", ENAMETOOLONG
 		}
@@ -66,9 +66,9 @@ func Getwd() (string, Error) {
 				return "", err;
 			}
 			for _, name := range names {
-				d, _ := Lstat(parent+"/"+name);
+				d, _ := Lstat(parent + "/" + name);
 				if d.Dev == dot.Dev && d.Ino == dot.Ino {
-					pwd = "/"+name+pwd;
+					pwd = "/" + name + pwd;
 					goto Found;
 				}
 			}

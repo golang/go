@@ -18,17 +18,17 @@ type RGBAColor struct {
 
 func (c RGBAColor) RGBA() (r, g, b, a uint32) {
 	r = uint32(c.R);
-	r |= r<<8;
-	r |= r<<16;
+	r |= r << 8;
+	r |= r << 16;
 	g = uint32(c.G);
-	g |= g<<8;
-	g |= g<<16;
+	g |= g << 8;
+	g |= g << 16;
 	b = uint32(c.B);
-	b |= b<<8;
-	b |= b<<16;
+	b |= b << 8;
+	b |= b << 16;
 	a = uint32(c.A);
-	a |= a<<8;
-	a |= a<<16;
+	a |= a << 8;
+	a |= a << 16;
 	return;
 }
 
@@ -39,13 +39,13 @@ type RGBA64Color struct {
 
 func (c RGBA64Color) RGBA() (r, g, b, a uint32) {
 	r = uint32(c.R);
-	r |= r<<16;
+	r |= r << 16;
 	g = uint32(c.G);
-	g |= g<<16;
+	g |= g << 16;
 	b = uint32(c.B);
-	b |= b<<16;
+	b |= b << 16;
 	a = uint32(c.A);
-	a |= a<<16;
+	a |= a << 16;
 	return;
 }
 
@@ -56,23 +56,23 @@ type NRGBAColor struct {
 
 func (c NRGBAColor) RGBA() (r, g, b, a uint32) {
 	r = uint32(c.R);
-	r |= r<<8;
+	r |= r << 8;
 	r *= uint32(c.A);
 	r /= 0xff;
-	r |= r<<16;
+	r |= r << 16;
 	g = uint32(c.G);
-	g |= g<<8;
+	g |= g << 8;
 	g *= uint32(c.A);
 	g /= 0xff;
-	g |= g<<16;
+	g |= g << 16;
 	b = uint32(c.B);
-	b |= b<<8;
+	b |= b << 8;
 	b *= uint32(c.A);
 	b /= 0xff;
-	b |= b<<16;
+	b |= b << 16;
 	a = uint32(c.A);
-	a |= a<<8;
-	a |= a<<16;
+	a |= a << 8;
+	a |= a << 16;
 	return;
 }
 
@@ -85,18 +85,18 @@ func (c NRGBA64Color) RGBA() (r, g, b, a uint32) {
 	r = uint32(c.R);
 	r *= uint32(c.A);
 	r /= 0xffff;
-	r |= r<<16;
+	r |= r << 16;
 	g = uint32(c.G);
 	g *= uint32(c.A);
 	g /= 0xffff;
-	g |= g<<16;
+	g |= g << 16;
 	b = uint32(c.B);
 	b *= uint32(c.A);
 	b /= 0xffff;
-	b |= b<<16;
+	b |= b << 16;
 	a = uint32(c.A);
-	a |= a<<8;
-	a |= a<<16;
+	a |= a << 8;
+	a |= a << 16;
 	return;
 }
 
@@ -121,7 +121,7 @@ func toRGBAColor(c Color) Color {
 		return c
 	}
 	r, g, b, a := c.RGBA();
-	return RGBAColor{uint8(r>>24), uint8(g>>24), uint8(b>>24), uint8(a>>24)};
+	return RGBAColor{uint8(r >> 24), uint8(g >> 24), uint8(b >> 24), uint8(a >> 24)};
 }
 
 func toRGBA64Color(c Color) Color {
@@ -129,7 +129,7 @@ func toRGBA64Color(c Color) Color {
 		return c
 	}
 	r, g, b, a := c.RGBA();
-	return RGBA64Color{uint16(r>>16), uint16(g>>16), uint16(b>>16), uint16(a>>16)};
+	return RGBA64Color{uint16(r >> 16), uint16(g >> 16), uint16(b >> 16), uint16(a >> 16)};
 }
 
 func toNRGBAColor(c Color) Color {
@@ -139,7 +139,7 @@ func toNRGBAColor(c Color) Color {
 	r, g, b, a := c.RGBA();
 	a >>= 16;
 	if a == 0xffff {
-		return NRGBAColor{uint8(r>>24), uint8(g>>24), uint8(b>>24), 0xff}
+		return NRGBAColor{uint8(r >> 24), uint8(g >> 24), uint8(b >> 24), 0xff}
 	}
 	if a == 0 {
 		return NRGBAColor{0, 0, 0, 0}
@@ -148,10 +148,10 @@ func toNRGBAColor(c Color) Color {
 	g >>= 16;
 	b >>= 16;
 	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
-	r = (r*0xffff)/a;
-	g = (g*0xffff)/a;
-	b = (b*0xffff)/a;
-	return NRGBAColor{uint8(r>>8), uint8(g>>8), uint8(b>>8), uint8(a>>8)};
+	r = (r * 0xffff) / a;
+	g = (g * 0xffff) / a;
+	b = (b * 0xffff) / a;
+	return NRGBAColor{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), uint8(a >> 8)};
 }
 
 func toNRGBA64Color(c Color) Color {
@@ -170,9 +170,9 @@ func toNRGBA64Color(c Color) Color {
 		return NRGBA64Color{0, 0, 0, 0}
 	}
 	// Since Color.RGBA returns a alpha-premultiplied color, we should have r <= a && g <= a && b <= a.
-	r = (r*0xffff)/a;
-	g = (g*0xffff)/a;
-	b = (b*0xffff)/a;
+	r = (r * 0xffff) / a;
+	g = (g * 0xffff) / a;
+	b = (b * 0xffff) / a;
 	return NRGBA64Color{uint16(r), uint16(g), uint16(b), uint16(a)};
 }
 

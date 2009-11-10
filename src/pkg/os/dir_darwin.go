@@ -59,7 +59,7 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
 				continue
 			}
 			bytes := (*[len(dirent.Name)]byte)(unsafe.Pointer(&dirent.Name[0]));
-			var name = string(bytes[0 : dirent.Namlen]);
+			var name = string(bytes[0:dirent.Namlen]);
 			if name == "." || name == ".." {	// Useless names
 				continue
 			}

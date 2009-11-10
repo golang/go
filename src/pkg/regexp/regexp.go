@@ -157,7 +157,7 @@ func (cclass *_CharClass) print() {
 	}
 	for i := 0; i < cclass.ranges.Len(); i += 2 {
 		l := cclass.ranges.At(i);
-		r := cclass.ranges.At(i+1);
+		r := cclass.ranges.At(i + 1);
 		if l == r {
 			print(" [", string(l), "]")
 		} else {
@@ -173,9 +173,9 @@ func (cclass *_CharClass) addRange(a, b int) {
 }
 
 func (cclass *_CharClass) matches(c int) bool {
-	for i := 0; i < cclass.ranges.Len(); i = i+2 {
+	for i := 0; i < cclass.ranges.Len(); i = i + 2 {
 		min := cclass.ranges.At(i);
-		max := cclass.ranges.At(i+1);
+		max := cclass.ranges.At(i + 1);
 		if min <= c && c <= max {
 			return !cclass.negate
 		}
@@ -262,7 +262,7 @@ func (p *parser) nextc() int {
 	if p.pos >= len(p.re.expr) {
 		p.ch = endOfFile
 	} else {
-		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos : len(p.re.expr)]);
+		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos:len(p.re.expr)]);
 		p.ch = c;
 		p.pos += w;
 	}
@@ -680,7 +680,7 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 	for pos <= end {
 		if !found {
 			// prime the pump if we haven't seen a match yet
-			match := make([]int, 2*(re.nbra + 1));
+			match := make([]int, 2*(re.nbra+1));
 			for i := 0; i < len(match); i++ {
 				match[i] = -1	// no match seen; catches cases like "a(b)?c" on "ac"
 			}
@@ -735,12 +735,12 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 				s[in] = addState(s[in], st.inst.next(), st.match);
 			case _EBRA:
 				n := st.inst.(*_Ebra).n;
-				st.match[2*n + 1] = pos;
+				st.match[2*n+1] = pos;
 				s[in] = addState(s[in], st.inst.next(), st.match);
 			case _ALT:
 				s[in] = addState(s[in], st.inst.(*_Alt).left, st.match);
 				// give other branch a copy of this match vector
-				s1 := make([]int, 2*(re.nbra + 1));
+				s1 := make([]int, 2*(re.nbra+1));
 				for i := 0; i < len(s1); i++ {
 					s1[i] = st.match[i]
 				}
@@ -871,7 +871,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 		}
 
 		// Copy the unmatched characters before this match.
-		io.WriteString(buf, src[lastMatchEnd : a[0]]);
+		io.WriteString(buf, src[lastMatchEnd:a[0]]);
 
 		// Now insert a copy of the replacement string, but not for a
 		// match of the empty string immediately after another match.
@@ -883,10 +883,10 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 		lastMatchEnd = a[1];
 
 		// Advance past this match; always advance at least one character.
-		_, width := utf8.DecodeRuneInString(src[searchPos : len(src)]);
-		if searchPos + width > a[1] {
+		_, width := utf8.DecodeRuneInString(src[searchPos:len(src)]);
+		if searchPos+width > a[1] {
 			searchPos += width
-		} else if searchPos + 1 > a[1] {
+		} else if searchPos+1 > a[1] {
 			// This clause is only needed at the end of the input
 			// string.  In that case, DecodeRuneInString returns width=0.
 			searchPos++
@@ -896,7 +896,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 	}
 
 	// Copy the unmatched characters after the last match.
-	io.WriteString(buf, src[lastMatchEnd : len(src)]);
+	io.WriteString(buf, src[lastMatchEnd:len(src)]);
 
 	return buf.String();
 }
@@ -915,7 +915,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 		}
 
 		// Copy the unmatched characters before this match.
-		buf.Write(src[lastMatchEnd : a[0]]);
+		buf.Write(src[lastMatchEnd:a[0]]);
 
 		// Now insert a copy of the replacement string, but not for a
 		// match of the empty string immediately after another match.
@@ -927,10 +927,10 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 		lastMatchEnd = a[1];
 
 		// Advance past this match; always advance at least one character.
-		_, width := utf8.DecodeRune(src[searchPos : len(src)]);
-		if searchPos + width > a[1] {
+		_, width := utf8.DecodeRune(src[searchPos:len(src)]);
+		if searchPos+width > a[1] {
 			searchPos += width
-		} else if searchPos + 1 > a[1] {
+		} else if searchPos+1 > a[1] {
 			// This clause is only needed at the end of the input
 			// string.  In that case, DecodeRuneInString returns width=0.
 			searchPos++
@@ -940,7 +940,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 	}
 
 	// Copy the unmatched characters after the last match.
-	buf.Write(src[lastMatchEnd : len(src)]);
+	buf.Write(src[lastMatchEnd:len(src)]);
 
 	return buf.Bytes();
 }
@@ -996,7 +996,7 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func(int, int)) 
 			if width > 0 {
 				pos += width
 			} else {
-				pos = end+1
+				pos = end + 1
 			}
 		} else {
 			pos = matches[1]
@@ -1017,7 +1017,7 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func(int, int)) 
 // containing the matching substrings.
 func (re *Regexp) AllMatches(b []byte, n int) [][]byte {
 	if n <= 0 {
-		n = len(b)+1
+		n = len(b) + 1
 	}
 	result := make([][]byte, n);
 	i := 0;
@@ -1035,7 +1035,7 @@ func (re *Regexp) AllMatches(b []byte, n int) [][]byte {
 // containing the matching substrings.
 func (re *Regexp) AllMatchesString(s string, n int) []string {
 	if n <= 0 {
-		n = len(s)+1
+		n = len(s) + 1
 	}
 	result := make([]string, n);
 	i := 0;
@@ -1053,7 +1053,7 @@ func (re *Regexp) AllMatchesString(s string, n int) []string {
 // channel that iterates over the matching substrings.
 func (re *Regexp) AllMatchesIter(b []byte, n int) <-chan []byte {
 	if n <= 0 {
-		n = len(b)+1
+		n = len(b) + 1
 	}
 	c := make(chan []byte, 10);
 	go func() {
@@ -1070,7 +1070,7 @@ func (re *Regexp) AllMatchesIter(b []byte, n int) <-chan []byte {
 // channel that iterates over the matching substrings.
 func (re *Regexp) AllMatchesStringIter(s string, n int) <-chan string {
 	if n <= 0 {
-		n = len(s)+1
+		n = len(s) + 1
 	}
 	c := make(chan string, 10);
 	go func() {

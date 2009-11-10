@@ -73,7 +73,7 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
 
 	// If syscall.EPOLLONESHOT is not set, the wait
 	// is a repeating wait, so don't change it.
-	if events & syscall.EPOLLONESHOT == 0 {
+	if events&syscall.EPOLLONESHOT == 0 {
 		return
 	}
 
@@ -81,7 +81,7 @@ func (p *pollster) StopWaiting(fd int, bits uint) {
 	// If we're still waiting for other events, modify the fd
 	// event in the kernel.  Otherwise, delete it.
 	events &= ^uint32(bits);
-	if int32(events) & ^syscall.EPOLLONESHOT != 0 {
+	if int32(events)&^syscall.EPOLLONESHOT != 0 {
 		var ev syscall.EpollEvent;
 		ev.Fd = int32(fd);
 		ev.Events = events;
@@ -111,7 +111,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 	ev := &evarray[0];
 	var msec int = -1;
 	if nsec > 0 {
-		msec = int((nsec+1e6-1)/1e6)
+		msec = int((nsec + 1e6 - 1) / 1e6)
 	}
 	n, e := syscall.EpollWait(p.epfd, &evarray, msec);
 	for e == syscall.EAGAIN || e == syscall.EINTR {
@@ -125,18 +125,18 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 	}
 	fd = int(ev.Fd);
 
-	if ev.Events & writeFlags != 0 {
+	if ev.Events&writeFlags != 0 {
 		p.StopWaiting(fd, writeFlags);
 		return fd, 'w', nil;
 	}
-	if ev.Events & readFlags != 0 {
+	if ev.Events&readFlags != 0 {
 		p.StopWaiting(fd, readFlags);
 		return fd, 'r', nil;
 	}
 
 	// Other events are error conditions - wake whoever is waiting.
 	events, _ := p.events[fd];
-	if events & writeFlags != 0 {
+	if events&writeFlags != 0 {
 		p.StopWaiting(fd, writeFlags);
 		return fd, 'w', nil;
 	}

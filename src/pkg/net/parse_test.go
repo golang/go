@@ -41,6 +41,6 @@ func TestReadLine(t *testing.T) {
 			break
 		}
 		lineno++;
-		byteno += len(line)+1;
+		byteno += len(line) + 1;
 	}
 }

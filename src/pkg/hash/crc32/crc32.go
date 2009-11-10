@@ -41,7 +41,7 @@ func MakeTable(poly uint32) *Table {
 		crc := uint32(i);
 		for j := 0; j < 8; j++ {
 			if crc&1 == 1 {
-				crc = (crc>>1)^poly
+				crc = (crc >> 1) ^ poly
 			} else {
 				crc >>= 1
 			}
@@ -75,7 +75,7 @@ func (d *digest) Reset()	{ d.crc = 0 }
 func update(crc uint32, tab *Table, p []byte) uint32 {
 	crc = ^crc;
 	for i := 0; i < len(p); i++ {
-		crc = tab[byte(crc)^p[i]]^(crc>>8)
+		crc = tab[byte(crc)^p[i]] ^ (crc >> 8)
 	}
 	return ^crc;
 }
@@ -90,9 +90,9 @@ func (d *digest) Sum32() uint32	{ return d.crc }
 func (d *digest) Sum() []byte {
 	p := make([]byte, 4);
 	s := d.Sum32();
-	p[0] = byte(s>>24);
-	p[1] = byte(s>>16);
-	p[2] = byte(s>>8);
+	p[0] = byte(s >> 24);
+	p[1] = byte(s >> 16);
+	p[2] = byte(s >> 8);
 	p[3] = byte(s);
 	return p;
 }

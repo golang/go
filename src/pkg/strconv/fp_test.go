@@ -16,13 +16,13 @@ import (
 func pow2(i int) float64 {
 	switch {
 	case i < 0:
-		return 1/pow2(-i)
+		return 1 / pow2(-i)
 	case i == 0:
 		return 1
 	case i == 1:
 		return 2
 	}
-	return pow2(i/2)*pow2(i - i/2);
+	return pow2(i/2) * pow2(i-i/2);
 }
 
 // Wrapper around strconv.Atof64.  Handles dddddp+ddd (binary exponent)
@@ -60,7 +60,7 @@ func myatof64(s string) (f float64, ok bool) {
 			}
 			return v, true;
 		}
-		return v*pow2(e), true;
+		return v * pow2(e), true;
 	}
 	f1, err := strconv.Atof64(s);
 	if err != nil {
@@ -84,7 +84,7 @@ func myatof32(s string) (f float32, ok bool) {
 			println("bad p", a[1]);
 			return 0, false;
 		}
-		return float32(float64(n)*pow2(e)), true;
+		return float32(float64(n) * pow2(e)), true;
 	}
 	f1, err1 := strconv.Atof32(s);
 	if err1 != nil {

@@ -53,12 +53,12 @@ func Quote(s string) string {
 			if r < 0x10000 {
 				buf.WriteString(`\u`);
 				for j := uint(0); j < 4; j++ {
-					buf.WriteByte(lowerhex[(r>>(12 - 4*j))&0xF])
+					buf.WriteByte(lowerhex[(r>>(12-4*j))&0xF])
 				}
 			} else {
 				buf.WriteString(`\U`);
 				for j := uint(0); j < 8; j++ {
-					buf.WriteByte(lowerhex[(r>>(28 - 4*j))&0xF])
+					buf.WriteByte(lowerhex[(r>>(28-4*j))&0xF])
 				}
 			}
 
@@ -88,11 +88,11 @@ func unhex(b byte) (v int, ok bool) {
 	c := int(b);
 	switch {
 	case '0' <= c && c <= '9':
-		return c-'0', true
+		return c - '0', true
 	case 'a' <= c && c <= 'f':
-		return c-'a'+10, true
+		return c - 'a' + 10, true
 	case 'A' <= c && c <= 'F':
-		return c-'A'+10, true
+		return c - 'A' + 10, true
 	}
 	return;
 }
@@ -182,17 +182,17 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 		value = v;
 		multibyte = true;
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		v := int(c)-'0';
+		v := int(c) - '0';
 		if len(s) < 2 {
 			err = os.EINVAL;
 			return;
 		}
 		for j := 0; j < 2; j++ {	// one digit already; two more
-			x := int(s[j])-'0';
+			x := int(s[j]) - '0';
 			if x < 0 || x > 7 {
 				return
 			}
-			v = (v<<3)|x;
+			v = (v << 3) | x;
 		}
 		s = s[2:len(s)];
 		if v > 255 {

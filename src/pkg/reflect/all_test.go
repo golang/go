@@ -966,7 +966,7 @@ type Point struct {
 	x, y int;
 }
 
-func (p Point) Dist(scale int) int	{ return p.x * p.x * scale + p.y * p.y * scale }
+func (p Point) Dist(scale int) int	{ return p.x*p.x*scale + p.y*p.y*scale }
 
 func TestMethod(t *testing.T) {
 	// Non-curried method of type.

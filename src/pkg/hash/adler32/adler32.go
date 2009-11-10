@@ -47,7 +47,7 @@ func update(a, b uint32, p []byte) (aa, bb uint32) {
 		a += uint32(p[i]);
 		b += a;
 		// invariant: a <= b
-		if b > (0xffffffff - 255)/2 {
+		if b > (0xffffffff-255)/2 {
 			a %= mod;
 			b %= mod;
 			// invariant: a < mod && b < mod
@@ -77,9 +77,9 @@ func (d *digest) Sum32() uint32	{ return finish(d.a, d.b) }
 func (d *digest) Sum() []byte {
 	p := make([]byte, 4);
 	s := d.Sum32();
-	p[0] = byte(s>>24);
-	p[1] = byte(s>>16);
-	p[2] = byte(s>>8);
+	p[0] = byte(s >> 24);
+	p[1] = byte(s >> 16);
+	p[2] = byte(s >> 8);
 	p[3] = byte(s);
 	return p;
 }

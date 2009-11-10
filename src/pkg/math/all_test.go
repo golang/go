@@ -155,13 +155,13 @@ var tanh = []float64{
 }
 
 func tolerance(a, b, e float64) bool {
-	d := a-b;
+	d := a - b;
 	if d < 0 {
 		d = -d
 	}
 
 	if a != 0 {
-		e = e*a;
+		e = e * a;
 		if e < 0 {
 			e = -e
 		}
@@ -173,7 +173,7 @@ func veryclose(a, b float64) bool	{ return tolerance(a, b, 4e-16) }
 
 func TestAsin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Asin(vf[i]/10); !veryclose(asin[i], f) {
+		if f := Asin(vf[i] / 10); !veryclose(asin[i], f) {
 			t.Errorf("Asin(%g) = %g, want %g\n", vf[i]/10, f, asin[i])
 		}
 	}
@@ -266,7 +266,7 @@ func TestTanh(t *testing.T) {
 
 func TestHypot(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := Fabs(tanh[i]*Sqrt(2));
+		a := Fabs(tanh[i] * Sqrt(2));
 		if f := Hypot(tanh[i], tanh[i]); !veryclose(a, f) {
 			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a)
 		}

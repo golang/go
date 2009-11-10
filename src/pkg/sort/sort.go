@@ -28,7 +28,7 @@ func min(a, b int) int {
 
 // Insertion sort
 func insertionSort(data Interface, a, b int) {
-	for i := a+1; i < b; i++ {
+	for i := a + 1; i < b; i++ {
 		for j := i; j > a && data.Less(j, j-1); j-- {
 			data.Swap(j, j-1)
 		}
@@ -63,13 +63,13 @@ func swapRange(data Interface, a, b, n int) {
 }
 
 func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
-	m := (lo+hi)/2;
+	m := (lo + hi) / 2;
 	if hi-lo > 40 {
 		// Tukey's ``Ninther,'' median of three medians of three.
-		s := (hi-lo)/8;
-		medianOfThree(data, lo, lo+s, lo + 2*s);
+		s := (hi - lo) / 8;
+		medianOfThree(data, lo, lo+s, lo+2*s);
 		medianOfThree(data, m, m-s, m+s);
-		medianOfThree(data, hi-1, hi-1-s, hi - 1 - 2*s);
+		medianOfThree(data, hi-1, hi-1-s, hi-1-2*s);
 	}
 	medianOfThree(data, lo, m, hi-1);
 
@@ -118,7 +118,7 @@ func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
 	n = min(hi-d, d-c);
 	swapRange(data, c, hi-n, n);
 
-	return lo+b-a, hi-(d-c);
+	return lo + b - a, hi - (d - c);
 }
 
 func quickSort(data Interface, a, b int) {
@@ -136,7 +136,7 @@ func Sort(data Interface)	{ quickSort(data, 0, data.Len()) }
 
 func IsSorted(data Interface) bool {
 	n := data.Len();
-	for i := n-1; i > 0; i-- {
+	for i := n - 1; i > 0; i-- {
 		if data.Less(i, i-1) {
 			return false
 		}

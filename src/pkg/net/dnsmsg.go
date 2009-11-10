@@ -82,11 +82,11 @@ type __DNS_Header struct {
 
 const (
 	// __DNS_Header.Bits
-	_QR	= 1<<15;	// query/response (response=1)
-	_AA	= 1<<10;	// authoritative
-	_TC	= 1<<9;		// truncated
-	_RD	= 1<<8;		// recursion desired
-	_RA	= 1<<7;		// recursion available
+	_QR	= 1 << 15;	// query/response (response=1)
+	_AA	= 1 << 10;	// authoritative
+	_TC	= 1 << 9;	// truncated
+	_RD	= 1 << 8;	// recursion desired
+	_RA	= 1 << 7;	// recursion available
 )
 
 // DNS queries.
@@ -271,7 +271,7 @@ func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
 	// We trade each dot byte for a length byte.
 	// There is also a trailing zero.
 	// Check that we have all the space we need.
-	tot := len(s)+1;
+	tot := len(s) + 1;
 	if off+tot > len(msg) {
 		return len(msg), false
 	}
@@ -283,13 +283,13 @@ func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
 			if i-begin >= 1<<6 {	// top two bits of length must be clear
 				return len(msg), false
 			}
-			msg[off] = byte(i-begin);
+			msg[off] = byte(i - begin);
 			off++;
 			for j := begin; j < i; j++ {
 				msg[off] = s[j];
 				off++;
 			}
-			begin = i+1;
+			begin = i + 1;
 		}
 	}
 	msg[off] = 0;
@@ -320,7 +320,7 @@ Loop:
 		}
 		c := int(msg[off]);
 		off++;
-		switch c&0xC0 {
+		switch c & 0xC0 {
 		case 0x00:
 			if c == 0x00 {
 				// end of name
@@ -330,7 +330,7 @@ Loop:
 			if off+c > len(msg) {
 				return "", len(msg), false
 			}
-			s += string(msg[off : off+c])+".";
+			s += string(msg[off:off+c]) + ".";
 			off += c;
 		case 0xC0:
 			// pointer to somewhere else in msg.
@@ -378,7 +378,7 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
 			if off+2 > len(msg) {
 				return len(msg), false
 			}
-			msg[off] = byte(i>>8);
+			msg[off] = byte(i >> 8);
 			msg[off+1] = byte(i);
 			off += 2;
 		case *reflect.Uint32Value:
@@ -386,9 +386,9 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
 			if off+4 > len(msg) {
 				return len(msg), false
 			}
-			msg[off] = byte(i>>24);
-			msg[off+1] = byte(i>>16);
-			msg[off+2] = byte(i>>8);
+			msg[off] = byte(i >> 24);
+			msg[off+1] = byte(i >> 16);
+			msg[off+2] = byte(i >> 8);
 			msg[off+4] = byte(i);
 			off += 4;
 		case *reflect.StringValue:
@@ -535,7 +535,7 @@ func packRR(rr _DNS_RR, msg []byte, off int) (off2 int, ok bool) {
 		return len(msg), false
 	}
 	// pack a third time; redo header with correct data length
-	rr.Header().Rdlength = uint16(off2-off1);
+	rr.Header().Rdlength = uint16(off2 - off1);
 	packStruct(rr.Header(), msg, off);
 	return off2, true;
 }
@@ -548,7 +548,7 @@ func unpackRR(msg []byte, off int) (rr _DNS_RR, off1 int, ok bool) {
 	if off, ok = unpackStruct(&h, msg, off); !ok {
 		return nil, len(msg), false
 	}
-	end := off+int(h.Rdlength);
+	end := off + int(h.Rdlength);
 
 	// make an rr of that type and re-unpack.
 	// again inefficient but doesn't need to be fast.
@@ -657,7 +657,7 @@ func (dns *_DNS_Msg) Unpack(msg []byte) bool {
 	}
 	dns.id = dh.Id;
 	dns.response = (dh.Bits & _QR) != 0;
-	dns.opcode = int(dh.Bits >> 11)&0xF;
+	dns.opcode = int(dh.Bits>>11) & 0xF;
 	dns.authoritative = (dh.Bits & _AA) != 0;
 	dns.truncated = (dh.Bits & _TC) != 0;
 	dns.recursion_desired = (dh.Bits & _RD) != 0;

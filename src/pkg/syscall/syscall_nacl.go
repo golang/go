@@ -219,7 +219,7 @@ type SockaddrUnix struct {
 func (*SockaddrUnix) sockaddr()	{}
 
 const (
-	AF_INET	= 1+iota;
+	AF_INET	= 1 + iota;
 	AF_INET6;
 	AF_UNIX;
 	IPPROTO_TCP;

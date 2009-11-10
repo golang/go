@@ -107,7 +107,7 @@ func Clean(path string) string {
 // If there is no slash in path, DirFile returns an empty dir and
 // file set to path.
 func Split(path string) (dir, file string) {
-	for i := len(path)-1; i >= 0; i-- {
+	for i := len(path) - 1; i >= 0; i-- {
 		if path[i] == '/' {
 			return path[0 : i+1], path[i+1 : len(path)]
 		}
@@ -121,7 +121,7 @@ func Join(dir, file string) string {
 	if dir == "" {
 		return file
 	}
-	return Clean(dir+"/"+file);
+	return Clean(dir + "/" + file);
 }
 
 // Ext returns the file name extension used by path.
@@ -129,7 +129,7 @@ func Join(dir, file string) string {
 // in the final slash-separated element of path;
 // it is empty if there is no dot.
 func Ext(path string) string {
-	for i := len(path)-1; i >= 0 && path[i] != '/'; i-- {
+	for i := len(path) - 1; i >= 0 && path[i] != '/'; i-- {
 		if path[i] == '.' {
 			return path[i:len(path)]
 		}

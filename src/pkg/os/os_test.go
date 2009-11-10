@@ -297,7 +297,7 @@ func TestSymLink(t *testing.T) {
 
 func TestLongSymlink(t *testing.T) {
 	s := "0123456789abcdef";
-	s = s+s+s+s+s+s+s+s+s+s+s+s+s+s+s+s+s;
+	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s;
 	from := "longsymlinktestfrom";
 	err := Symlink(s, from);
 	if err != nil {
@@ -339,7 +339,7 @@ func checkMode(t *testing.T, path string, mode uint32) {
 	if err != nil {
 		t.Fatalf("Stat %q (looking for mode %#o): %s", path, mode, err)
 	}
-	if dir.Mode & 0777 != mode {
+	if dir.Mode&0777 != mode {
 		t.Errorf("Stat %q: mode %#o want %#o", path, dir.Mode, 0777)
 	}
 }
@@ -539,9 +539,9 @@ func TestSeek(t *testing.T) {
 		test{5, 0, 5},
 		test{0, 2, int64(len(data))},
 		test{0, 0, 0},
-		test{-1, 2, int64(len(data))-1},
-		test{1<<40, 0, 1<<40},
-		test{1<<40, 2, 1<<40 + int64(len(data))},
+		test{-1, 2, int64(len(data)) - 1},
+		test{1 << 40, 0, 1 << 40},
+		test{1 << 40, 2, 1<<40 + int64(len(data))},
 	};
 	for i, tt := range tests {
 		off, err := f.Seek(tt.in, tt.whence);
