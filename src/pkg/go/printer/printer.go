@@ -101,6 +101,15 @@ func (p *printer) init(output io.Writer, cfg *Config) {
 }
 
 
+func (p *printer) internalError(msg ...) {
+	if debug {
+		fmt.Print(p.pos.String() + ": ");
+		fmt.Println(msg);
+		panic();
+	}
+}
+
+
 // write0 writes raw (uninterpreted) data to p.output and handles errors.
 // write0 does not indent after newlines, and does not HTML-escape or update p.pos.
 //
@@ -635,10 +644,7 @@ func (p *printer) writeWhitespace(n int) {
 		case unindent:
 			p.indent--;
 			if p.indent < 0 {
-				// handle gracefully unless in debug mode
-				if debug {
-					panicln("negative indentation:", p.indent)
-				}
+				p.internalError("negative indentation:", p.indent);
 				p.indent = 0;
 			}
 		case newline, formfeed:
