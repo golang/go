@@ -19,8 +19,8 @@ type Vector struct {
 
 
 func copy(dst, src []Element) {
-	for i := 0; i < len(src); i++ {
-		dst[i] = src[i]
+	for i, x := range src {
+		dst[i] = x
 	}
 }
 
