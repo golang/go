@@ -167,7 +167,7 @@ func (b *structBuilder) Elem(i int) Builder {
 			v.Set(nv);
 		}
 		if v.Len() <= i && i < v.Cap() {
-			v.SetLen(i+1)
+			v.SetLen(i + 1)
 		}
 		if i < v.Len() {
 			return &structBuilder{val: v.Elem(i)}

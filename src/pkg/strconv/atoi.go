@@ -29,7 +29,7 @@ func cutoff64(base int) uint64 {
 	if base < 2 {
 		return 0
 	}
-	return (1<<64 - 1)/uint64(base) + 1;
+	return (1<<64-1)/uint64(base) + 1;
 }
 
 // Btoui64 interprets a string s in an arbitrary base b (2 to 36)
@@ -79,11 +79,11 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 		var v byte;
 		switch {
 		case '0' <= s[i] && s[i] <= '9':
-			v = s[i]-'0'
+			v = s[i] - '0'
 		case 'a' <= s[i] && s[i] <= 'z':
-			v = s[i]-'a'+10
+			v = s[i] - 'a' + 10
 		case 'A' <= s[i] && s[i] <= 'Z':
-			v = s[i]-'A'+10
+			v = s[i] - 'A' + 10
 		default:
 			n = 0;
 			err = os.EINVAL;
@@ -103,7 +103,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 		}
 		n *= uint64(b);
 
-		n1 := n+uint64(v);
+		n1 := n + uint64(v);
 		if n1 < n {
 			// n+v overflows
 			n = 1<<64 - 1;
@@ -193,7 +193,7 @@ func Atoi(s string) (i int, err os.Error) {
 	i = int(i1);
 	if int64(i) != i1 {
 		if i1 < 0 {
-			return -1 << (IntSize-1), &NumError{s, os.ERANGE}
+			return -1 << (IntSize - 1), &NumError{s, os.ERANGE}
 		}
 		return 1<<(IntSize-1) - 1, &NumError{s, os.ERANGE};
 	}

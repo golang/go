@@ -134,7 +134,7 @@ func (ip IP) Mask(mask IPMask) IP {
 	}
 	out := make(IP, n);
 	for i := 0; i < n; i++ {
-		out[i] = ip[i]&mask[i]
+		out[i] = ip[i] & mask[i]
 	}
 	return out;
 }
@@ -150,7 +150,7 @@ func itod(i uint) string {
 	bp := len(b);
 	for ; i > 0; i /= 10 {
 		bp--;
-		b[bp] = byte(i%10)+'0';
+		b[bp] = byte(i%10) + '0';
 	}
 
 	return string(b[bp:len(b)]);
@@ -221,7 +221,7 @@ func (ip IP) String() string {
 		} else if i > 0 {
 			s += ":"
 		}
-		s += itox((uint(p[i])<<8)|uint(p[i+1]));
+		s += itox((uint(p[i]) << 8) | uint(p[i+1]));
 	}
 	return s;
 }
@@ -235,7 +235,7 @@ func simpleMaskLength(mask IPMask) int {
 			break
 		}
 	}
-	n := 8*i;
+	n := 8 * i;
 	v := mask[i];
 	for v&0x80 != 0 {
 		n++;
@@ -356,7 +356,7 @@ L:	for j < IPv6len {
 		}
 
 		// Save this 16-bit chunk.
-		p[j] = byte(n>>8);
+		p[j] = byte(n >> 8);
 		p[j+1] = byte(n);
 		j += 2;
 
@@ -394,11 +394,11 @@ L:	for j < IPv6len {
 		if ellipsis < 0 {
 			return nil
 		}
-		n := IPv6len-j;
-		for k := j-1; k >= ellipsis; k-- {
+		n := IPv6len - j;
+		for k := j - 1; k >= ellipsis; k-- {
 			p[k+n] = p[k]
 		}
-		for k := ellipsis+n-1; k >= ellipsis; k-- {
+		for k := ellipsis + n - 1; k >= ellipsis; k-- {
 			p[k] = 0
 		}
 	}

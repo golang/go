@@ -208,7 +208,7 @@ const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
 var trimSpaceTests = []StringTest{
 	StringTest{"", ""},
 	StringTest{"abc", "abc"},
-	StringTest{space+"abc"+space, "abc"},
+	StringTest{space + "abc" + space, "abc"},
 	StringTest{" ", ""},
 	StringTest{" \t\r\n \t\t\r\r\n\n ", ""},
 	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
@@ -272,7 +272,7 @@ func equal(m string, s1, s2 string, t *testing.T) bool {
 
 func TestCaseConsistency(t *testing.T) {
 	// Make a string of all the runes.
-	a := make([]int, unicode.MaxRune + 1);
+	a := make([]int, unicode.MaxRune+1);
 	for i := range a {
 		a[i] = i
 	}
@@ -282,10 +282,10 @@ func TestCaseConsistency(t *testing.T) {
 	lower := ToLower(s);
 
 	// Consistency checks
-	if n := utf8.RuneCountInString(upper); n != unicode.MaxRune + 1 {
+	if n := utf8.RuneCountInString(upper); n != unicode.MaxRune+1 {
 		t.Error("rune count wrong in upper:", n)
 	}
-	if n := utf8.RuneCountInString(lower); n != unicode.MaxRune + 1 {
+	if n := utf8.RuneCountInString(lower); n != unicode.MaxRune+1 {
 		t.Error("rune count wrong in lower:", n)
 	}
 	if !equal("ToUpper(upper)", ToUpper(upper), upper, t) {

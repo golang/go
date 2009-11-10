@@ -31,11 +31,11 @@ func _UnHex(p string, r, l int) (v int, ok bool) {
 		v *= 16;
 		switch {
 		case '0' <= p[i] && p[i] <= '9':
-			v += int(p[i]-'0')
+			v += int(p[i] - '0')
 		case 'a' <= p[i] && p[i] <= 'f':
-			v += int(p[i]-'a'+10)
+			v += int(p[i] - 'a' + 10)
 		case 'A' <= p[i] && p[i] <= 'F':
-			v += int(p[i]-'A'+10)
+			v += int(p[i] - 'A' + 10)
 		default:
 			return 0, false
 		}
@@ -208,7 +208,7 @@ func skipstring(p string, i int) int {
 	if i >= len(p) {
 		return i
 	}
-	return i+1;
+	return i + 1;
 }
 
 func (t *_Lexer) Next() {

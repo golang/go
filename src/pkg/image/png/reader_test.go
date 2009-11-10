@@ -49,7 +49,7 @@ func sng(w io.WriteCloser, filename string, png image.Image) {
 	bitdepth := 8;
 
 	// Write the filename and IHDR.
-	io.WriteString(w, "#SNG: from " + filename + ".png\nIHDR {\n");
+	io.WriteString(w, "#SNG: from "+filename+".png\nIHDR {\n");
 	fmt.Fprintf(w, "    width: %d; height: %d; bitdepth: %d;\n", png.Width(), png.Height(), bitdepth);
 	cm := png.ColorModel();
 	var paletted *image.Paletted;
@@ -122,7 +122,7 @@ func TestReader(t *testing.T) {
 		defer piper.Close();
 
 		// Read the .sng file.
-		sf, err := os.Open("testdata/pngsuite/" + fn + ".sng", os.O_RDONLY, 0444);
+		sf, err := os.Open("testdata/pngsuite/"+fn+".sng", os.O_RDONLY, 0444);
 		if err != nil {
 			t.Error(fn, err);
 			continue;

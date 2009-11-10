@@ -391,7 +391,7 @@ func serveHTTP(c *http.Conn, req *http.Request) {
 	if req.Method != "CONNECT" {
 		c.SetHeader("Content-Type", "text/plain; charset=utf-8");
 		c.WriteHeader(http.StatusMethodNotAllowed);
-		io.WriteString(c, "405 must CONNECT to " + rpcPath + "\n");
+		io.WriteString(c, "405 must CONNECT to "+rpcPath+"\n");
 		return;
 	}
 	conn, _, err := c.Hijack();
@@ -399,7 +399,7 @@ func serveHTTP(c *http.Conn, req *http.Request) {
 		log.Stderr("rpc hijacking ", c.RemoteAddr, ": ", err.String());
 		return;
 	}
-	io.WriteString(conn, "HTTP/1.0 " + connected + "\n\n");
+	io.WriteString(conn, "HTTP/1.0 "+connected+"\n\n");
 	server.input(conn);
 }
 

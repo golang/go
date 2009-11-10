@@ -194,7 +194,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 		// Grow slice.
 		n := v.Len();
 		if n >= v.Cap() {
-			ncap := 2*n;
+			ncap := 2 * n;
 			if ncap < 4 {
 				ncap = 4
 			}
@@ -202,7 +202,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 			reflect.ArrayCopy(new, v);
 			v.Set(new);
 		}
-		v.SetLen(n+1);
+		v.SetLen(n + 1);
 
 		// Recur to read element into slice.
 		if err := p.unmarshal(v.Elem(n), start); err != nil {
@@ -231,7 +231,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 				ns := "";
 				i := strings.LastIndex(tag, " ");
 				if i >= 0 {
-					ns, tag = tag[0:i], tag[i+1 : len(tag)]
+					ns, tag = tag[0:i], tag[i+1:len(tag)]
 				}
 				if tag != start.Name.Local {
 					return UnmarshalError("expected element type <" + tag + "> but have <" + start.Name.Local + ">")

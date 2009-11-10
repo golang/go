@@ -146,7 +146,7 @@ func (c *Conn) WriteHeader(code int) {
 	if !ok {
 		text = "status code " + codestring
 	}
-	io.WriteString(c.buf, proto + " " + codestring + " " + text + "\r\n");
+	io.WriteString(c.buf, proto+" "+codestring+" "+text+"\r\n");
 	for k, v := range c.header {
 		io.WriteString(c.buf, k+": "+v+"\r\n")
 	}
@@ -366,7 +366,7 @@ func Redirect(c *Conn, url string, code int) {
 		if url == "" || url[0] != '/' {
 			// make relative path absolute
 			olddir, _ := path.Split(oldpath);
-			url = olddir+url;
+			url = olddir + url;
 		}
 
 		// clean up but preserve trailing slash
@@ -453,7 +453,7 @@ func cleanPath(p string) string {
 		return "/"
 	}
 	if p[0] != '/' {
-		p = "/"+p
+		p = "/" + p
 	}
 	np := path.Clean(p);
 	// path.Clean removes trailing slash except for root;
@@ -504,7 +504,7 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 	// If pattern is /tree/, insert permanent redirect for /tree.
 	n := len(pattern);
 	if n > 0 && pattern[n-1] == '/' {
-		mux.m[pattern[0 : n-1]] = RedirectHandler(pattern, StatusMovedPermanently)
+		mux.m[pattern[0:n-1]] = RedirectHandler(pattern, StatusMovedPermanently)
 	}
 }
 

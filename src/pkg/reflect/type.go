@@ -161,9 +161,9 @@ type ArrayType struct {
 type ChanDir int
 
 const (
-	RecvDir	ChanDir	= 1<<iota;
+	RecvDir	ChanDir	= 1 << iota;
 	SendDir;
-	BothDir	= RecvDir|SendDir;
+	BothDir	= RecvDir | SendDir;
 )
 
 // ChanType represents a channel type.
@@ -482,7 +482,7 @@ func (t *StructType) FieldByIndex(index []int) (f StructField) {
 	return;
 }
 
-const inf = 1<<30	// infinity - no struct has that many nesting levels
+const inf = 1 << 30	// infinity - no struct has that many nesting levels
 
 func (t *StructType) fieldByName(name string, mark map[*StructType]bool, depth int) (ff StructField, fd int) {
 	fd = inf;	// field depth

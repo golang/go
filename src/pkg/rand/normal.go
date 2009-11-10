@@ -38,8 +38,8 @@ func absInt32(i int32) uint32 {
 func (r *Rand) NormFloat64() float64 {
 	for {
 		j := int32(r.Uint32());	// Possibly negative
-		i := j&0x7F;
-		x := float64(j)*float64(wn[i]);
+		i := j & 0x7F;
+		x := float64(j) * float64(wn[i]);
 		if absInt32(j) < kn[i] {
 			// This case should be hit better than 99% of the time.
 			return x
@@ -48,18 +48,18 @@ func (r *Rand) NormFloat64() float64 {
 		if i == 0 {
 			// This extra work is only required for the base strip.
 			for {
-				x = -math.Log(r.Float64()) * (1.0/rn);
+				x = -math.Log(r.Float64()) * (1.0 / rn);
 				y := -math.Log(r.Float64());
 				if y+y >= x*x {
 					break
 				}
 			}
 			if j > 0 {
-				return rn+x
+				return rn + x
 			}
 			return -rn - x;
 		}
-		if fn[i] + float32(r.Float64())*(fn[i-1]-fn[i]) < float32(math.Exp(-.5 * x * x)) {
+		if fn[i]+float32(r.Float64())*(fn[i-1]-fn[i]) < float32(math.Exp(-.5*x*x)) {
 			return x
 		}
 	}

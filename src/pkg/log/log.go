@@ -29,7 +29,7 @@ const (
 	// order they appear (the order listed here) or the format they present (as
 	// described in the comments).  A colon appears after these items:
 	//	2009/0123 01:23:23.123123 /a/b/c/d.go:23: message
-	Ldate		= 1<<iota;	// the date: 2009/0123
+	Ldate		= 1 << iota;	// the date: 2009/0123
 	Ltime;		// the time: 01:23:23
 	Lmicroseconds;	// microsecond resolution: 01:23:23.123123.  assumes Ltime.
 	Llongfile;	// full file name and line number: /a/b/c/d.go:23
@@ -75,7 +75,7 @@ func itoa(i int, wid int) string {
 	for ; u > 0 || wid > 0; u /= 10 {
 		bp--;
 		wid--;
-		b[bp] = byte(u%10)+'0';
+		b[bp] = byte(u%10) + '0';
 	}
 
 	return string(b[bp:len(b)]);
@@ -83,27 +83,27 @@ func itoa(i int, wid int) string {
 
 func (l *Logger) formatHeader(ns int64, calldepth int) string {
 	h := l.prefix;
-	if l.flag & (Ldate | Ltime | Lmicroseconds) != 0 {
-		t := time.SecondsToLocalTime(ns/1e9);
-		if l.flag & (Ldate) != 0 {
+	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
+		t := time.SecondsToLocalTime(ns / 1e9);
+		if l.flag&(Ldate) != 0 {
 			h += itoa(int(t.Year), 4) + "/" + itoa(t.Month, 2) + "/" + itoa(t.Day, 2) + " "
 		}
-		if l.flag & (Ltime | Lmicroseconds) != 0 {
+		if l.flag&(Ltime|Lmicroseconds) != 0 {
 			h += itoa(t.Hour, 2) + ":" + itoa(t.Minute, 2) + ":" + itoa(t.Second, 2);
-			if l.flag & Lmicroseconds != 0 {
+			if l.flag&Lmicroseconds != 0 {
 				h += "." + itoa(int(ns%1e9)/1e3, 6)
 			}
 			h += " ";
 		}
 	}
-	if l.flag & (Lshortfile | Llongfile) != 0 {
+	if l.flag&(Lshortfile|Llongfile) != 0 {
 		_, file, line, ok := runtime.Caller(calldepth);
 		if ok {
-			if l.flag & Lshortfile != 0 {
+			if l.flag&Lshortfile != 0 {
 				short, ok := shortnames[file];
 				if !ok {
 					short = file;
-					for i := len(file)-1; i > 0; i-- {
+					for i := len(file) - 1; i > 0; i-- {
 						if file[i] == '/' {
 							short = file[i+1 : len(file)];
 							break;
@@ -131,7 +131,7 @@ func (l *Logger) Output(calldepth int, s string) {
 	if len(s) > 0 && s[len(s)-1] == '\n' {
 		newline = ""
 	}
-	s = l.formatHeader(now, calldepth + 1) + s + newline;
+	s = l.formatHeader(now, calldepth+1) + s + newline;
 	io.WriteString(l.out0, s);
 	if l.out1 != nil {
 		io.WriteString(l.out1, s)

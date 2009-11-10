@@ -43,7 +43,7 @@ func (r *Rand) Int31() int32	{ return int32(r.Int63() >> 32) }
 // Int returns a non-negative pseudo-random int.
 func (r *Rand) Int() int {
 	u := uint(r.Int63());
-	return int(u<<1>>1);	// clear sign bit if int == int32
+	return int(u << 1 >> 1);	// clear sign bit if int == int32
 }
 
 // Int63n returns, as an int64, a non-negative pseudo-random number in [0,n).
@@ -51,12 +51,12 @@ func (r *Rand) Int63n(n int64) int64 {
 	if n <= 0 {
 		return 0
 	}
-	max := int64((1<<63) - 1 - (1<<63)%uint64(n));
+	max := int64((1 << 63) - 1 - (1<<63)%uint64(n));
 	v := r.Int63();
 	for v > max {
 		v = r.Int63()
 	}
-	return v%n;
+	return v % n;
 }
 
 // Int31n returns, as an int32, a non-negative pseudo-random number in [0,n).
@@ -66,7 +66,7 @@ func (r *Rand) Int31n(n int32) int32	{ return int32(r.Int63n(int64(n))) }
 func (r *Rand) Intn(n int) int	{ return int(r.Int63n(int64(n))) }
 
 // Float64 returns, as a float64, a pseudo-random number in [0.0,1.0).
-func (r *Rand) Float64() float64	{ return float64(r.Int63())/(1<<63) }
+func (r *Rand) Float64() float64	{ return float64(r.Int63()) / (1 << 63) }
 
 // Float32 returns, as a float32, a pseudo-random number in [0.0,1.0).
 func (r *Rand) Float32() float32	{ return float32(r.Float64()) }
@@ -81,7 +81,7 @@ func (r *Rand) Perm(n int) []int {
 		m[i] = i
 	}
 	for i := 0; i < n; i++ {
-		j := r.Intn(i+1);
+		j := r.Intn(i + 1);
 		m[i], m[j] = m[j], m[i];
 	}
 	return m;

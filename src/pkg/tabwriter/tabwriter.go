@@ -138,7 +138,7 @@ func (b *Writer) reset() {
 const (
 	// Ignore html tags and treat entities (starting with '&'
 	// and ending in ';') as single characters (width = 1).
-	FilterHTML	uint	= 1<<iota;
+	FilterHTML	uint	= 1 << iota;
 
 	// Force right-alignment of cell content.
 	// Default is left-alignment.
@@ -183,7 +183,7 @@ func (b *Writer) Init(output io.Writer, cellwidth, padding int, padchar byte, fl
 	b.output = output;
 	b.cellwidth = cellwidth;
 	b.padding = padding;
-	for i := len(b.padbytes)-1; i >= 0; i-- {
+	for i := len(b.padbytes) - 1; i >= 0; i-- {
 		b.padbytes[i] = padchar
 	}
 	if padchar == '\t' {
@@ -238,7 +238,7 @@ func (b *Writer) writePadding(textw, cellw int) os.Error {
 		cellw = ((cellw + b.cellwidth - 1) / b.cellwidth) * b.cellwidth
 	}
 
-	n := cellw-textw;
+	n := cellw - textw;
 	if n < 0 {
 		panic("internal error")
 	}
@@ -267,7 +267,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) 
 		for j := 0; j < line.Len(); j++ {
 			c := line.At(j).(cell);
 
-			if j > 0 && b.flags & Debug != 0 {
+			if j > 0 && b.flags&Debug != 0 {
 				if err = b.write0(vbar); err != nil {
 					return
 				}
@@ -275,7 +275,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) 
 			switch {
 			default:	// align left
 
-				if err = b.write0(b.buf.Bytes()[pos : pos + c.size]); err != nil {
+				if err = b.write0(b.buf.Bytes()[pos : pos+c.size]); err != nil {
 					return
 				}
 				pos += c.size;
@@ -285,14 +285,14 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) 
 					}
 				}
 
-			case b.flags & AlignRight != 0:	// align right
+			case b.flags&AlignRight != 0:	// align right
 
 				if j < b.widths.Len() {
 					if err = b.writePadding(c.width, b.widths.At(j)); err != nil {
 						return
 					}
 				}
-				if err = b.write0(b.buf.Bytes()[pos : pos + c.size]); err != nil {
+				if err = b.write0(b.buf.Bytes()[pos : pos+c.size]); err != nil {
 					return
 				}
 				pos += c.size;
@@ -302,7 +302,7 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) 
 		if i+1 == b.lines.Len() {
 			// last buffered line - we don't have a newline, so just write
 			// any outstanding buffered data
-			if err = b.write0(b.buf.Bytes()[pos : pos + b.cell.size]); err != nil {
+			if err = b.write0(b.buf.Bytes()[pos : pos+b.cell.size]); err != nil {
 				return
 			}
 			pos += b.cell.size;
@@ -328,7 +328,7 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 	for this := line0; this < line1; this++ {
 		line := b.line(this);
 
-		if column < line.Len() - 1 {
+		if column < line.Len()-1 {
 			// cell exists in this column => this line
 			// has more cells than the previous line
 			// (the last cell per line is ignored because cells are
@@ -347,7 +347,7 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 			discardable := true;	// true if all cells in this column are empty and "soft"
 			for ; this < line1; this++ {
 				line = b.line(this);
-				if column < line.Len() - 1 {
+				if column < line.Len()-1 {
 					// cell exists in this column
 					c := line.At(column).(cell);
 					// update width
@@ -365,7 +365,7 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 			// column block end
 
 			// discard empty columns if necessary
-			if discardable && b.flags & DiscardEmptyColumns != 0 {
+			if discardable && b.flags&DiscardEmptyColumns != 0 {
 				width = 0
 			}
 
@@ -392,7 +392,7 @@ func (b *Writer) append(text []byte) {
 
 // Update the cell width.
 func (b *Writer) updateWidth() {
-	b.cell.width += utf8.RuneCount(b.buf.Bytes()[b.pos : b.buf.Len()]);
+	b.cell.width += utf8.RuneCount(b.buf.Bytes()[b.pos:b.buf.Len()]);
 	b.pos = b.buf.Len();
 }
 
@@ -490,7 +490,7 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
 				// end of cell
 				b.append(buf[n:i]);
 				b.updateWidth();
-				n = i+1;	// ch consumed
+				n = i + 1;	// ch consumed
 				ncells := b.terminateCell(ch == '\t');
 				if ch == '\n' || ch == '\f' {
 					// terminate line
@@ -511,12 +511,12 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
 				// start of escaped sequence
 				b.append(buf[n:i]);
 				b.updateWidth();
-				n = i+1;	// exclude Escape
+				n = i + 1;	// exclude Escape
 				b.startEscape(Escape);
 
 			case '<', '&':
 				// possibly an html tag/entity
-				if b.flags & FilterHTML != 0 {
+				if b.flags&FilterHTML != 0 {
 					// begin of tag/entity
 					b.append(buf[n:i]);
 					b.updateWidth();
@@ -529,12 +529,12 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
 			// inside escape
 			if ch == b.endChar {
 				// end of tag/entity
-				j := i+1;
+				j := i + 1;
 				if ch == Escape {
 					j = i	// exclude Escape
 				}
 				b.append(buf[n:j]);
-				n = i+1;	// ch consumed
+				n = i + 1;	// ch consumed
 				b.endEscape();
 			}
 		}

@@ -94,7 +94,7 @@ func stringToDecimal(s string) (neg bool, d *decimal, trunc bool, ok bool) {
 				e = e*10 + int(s[i]) - '0'
 			}
 		}
-		b.dp += e*esign;
+		b.dp += e * esign;
 	}
 
 	if i != len(s) {
@@ -162,13 +162,13 @@ func decimalToFloatBits(neg bool, d *decimal, trunc bool, flt *floatInfo) (b uin
 	// Minimum representable exponent is flt.bias+1.
 	// If the exponent is smaller, move it up and
 	// adjust d accordingly.
-	if exp < flt.bias + 1 {
+	if exp < flt.bias+1 {
 		n := flt.bias + 1 - exp;
 		d.Shift(-n);
 		exp += n;
 	}
 
-	if exp - flt.bias >= 1 << flt.expbits - 1 {
+	if exp-flt.bias >= 1<<flt.expbits-1 {
 		goto overflow
 	}
 
@@ -176,16 +176,16 @@ func decimalToFloatBits(neg bool, d *decimal, trunc bool, flt *floatInfo) (b uin
 	mant = d.Shift(int(1 + flt.mantbits)).RoundedInteger();
 
 	// Rounding might have added a bit; shift down.
-	if mant == 2 << flt.mantbits {
+	if mant == 2<<flt.mantbits {
 		mant >>= 1;
 		exp++;
-		if exp - flt.bias >= 1 << flt.expbits - 1 {
+		if exp-flt.bias >= 1<<flt.expbits-1 {
 			goto overflow
 		}
 	}
 
 	// Denormalized?
-	if mant&(1 << flt.mantbits) == 0 {
+	if mant&(1<<flt.mantbits) == 0 {
 		exp = flt.bias
 	}
 	goto out;
@@ -193,13 +193,13 @@ func decimalToFloatBits(neg bool, d *decimal, trunc bool, flt *floatInfo) (b uin
 overflow:
 	// ±Inf
 	mant = 0;
-	exp = 1 << flt.expbits - 1 + flt.bias;
+	exp = 1<<flt.expbits - 1 + flt.bias;
 	overflow = true;
 
 out:
 	// Assemble bits.
-	bits := mant&(uint64(1) << flt.mantbits - 1);
-	bits |= uint64((exp - flt.bias)&(1 << flt.expbits - 1)) << flt.mantbits;
+	bits := mant & (uint64(1)<<flt.mantbits - 1);
+	bits |= uint64((exp-flt.bias)&(1<<flt.expbits-1)) << flt.mantbits;
 	if neg {
 		bits |= 1 << flt.mantbits << flt.expbits
 	}
@@ -211,7 +211,7 @@ out:
 func decimalAtof64Int(neg bool, d *decimal) float64 {
 	f := float64(0);
 	for i := 0; i < d.nd; i++ {
-		f = f*10 + float64(d.d[i] - '0')
+		f = f*10 + float64(d.d[i]-'0')
 	}
 	if neg {
 		f *= -1	// BUG work around 6g f = -f.
@@ -222,7 +222,7 @@ func decimalAtof64Int(neg bool, d *decimal) float64 {
 func decimalAtof32Int(neg bool, d *decimal) float32 {
 	f := float32(0);
 	for i := 0; i < d.nd; i++ {
-		f = f*10 + float32(d.d[i] - '0')
+		f = f*10 + float32(d.d[i]-'0')
 	}
 	if neg {
 		f *= -1	// BUG work around 6g f = -f.
@@ -267,9 +267,9 @@ func decimalAtof64(neg bool, d *decimal, trunc bool) (f float64, ok bool) {
 		}
 		return f * float64pow10[k], true;
 
-	case d.dp < d.nd && d.nd - d.dp <= 22:	// int / 10^k
+	case d.dp < d.nd && d.nd-d.dp <= 22:	// int / 10^k
 		f := decimalAtof64Int(neg, d);
-		return f / float64pow10[d.nd - d.dp], true;
+		return f / float64pow10[d.nd-d.dp], true;
 	}
 	return;
 }
@@ -298,9 +298,9 @@ func decimalAtof32(neg bool, d *decimal, trunc bool) (f float32, ok bool) {
 		}
 		return f * float32pow10[k], true;
 
-	case d.dp < d.nd && d.nd - d.dp <= 10:	// int / 10^k
+	case d.dp < d.nd && d.nd-d.dp <= 10:	// int / 10^k
 		f := decimalAtof32Int(neg, d);
-		return f / float32pow10[d.nd - d.dp], true;
+		return f / float32pow10[d.nd-d.dp], true;
 	}
 	return;
 }

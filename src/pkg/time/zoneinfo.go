@@ -119,19 +119,19 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 	}
 
 	// Transition times.
-	txtimes := data{d.read(n[NTime]*4), false};
+	txtimes := data{d.read(n[NTime] * 4), false};
 
 	// Time zone indices for transition times.
 	txzones := d.read(n[NTime]);
 
 	// Zone info structures
-	zonedata := data{d.read(n[NZone]*6), false};
+	zonedata := data{d.read(n[NZone] * 6), false};
 
 	// Time zone abbreviations.
 	abbrev := d.read(n[NChar]);
 
 	// Leap-second time pairs
-	d.read(n[NLeap]*8);
+	d.read(n[NLeap] * 8);
 
 	// Whether tx times associated with local time types
 	// are specified as standard time or wall time.
@@ -215,7 +215,7 @@ func setupZone() {
 	case err == os.ENOENV:
 		zones, _ = readinfofile("/etc/localtime")
 	case len(tz) > 0:
-		zones, _ = readinfofile(zoneDir+tz)
+		zones, _ = readinfofile(zoneDir + tz)
 	case len(tz) == 0:
 		// do nothing: use UTC
 	}
@@ -230,7 +230,7 @@ func lookupTimezone(sec int64) (zone string, offset int) {
 	// Binary search for entry with largest time <= sec
 	tz := zones;
 	for len(tz) > 1 {
-		m := len(tz)/2;
+		m := len(tz) / 2;
 		if sec < int64(tz[m].time) {
 			tz = tz[0:m]
 		} else {

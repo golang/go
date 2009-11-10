@@ -78,7 +78,7 @@ func Environ() []string {
 		// check i < len(a) for safety,
 		// in case env is changing underfoot.
 		if i < len(a) {
-			a[i] = k+"="+v;
+			a[i] = k + "=" + v;
 			i++;
 		}
 	}

@@ -20,33 +20,33 @@ func sinus(x float64, quad int) float64 {
 	)
 	if x < 0 {
 		x = -x;
-		quad = quad+2;
+		quad = quad + 2;
 	}
-	x = x*(2/Pi);	/* underflow? */
+	x = x * (2 / Pi);	/* underflow? */
 	var y float64;
 	if x > 32764 {
 		var e float64;
 		e, y = Modf(x);
-		e = e+float64(quad);
-		_, f := Modf(0.25*e);
+		e = e + float64(quad);
+		_, f := Modf(0.25 * e);
 		quad = int(e - 4*f);
 	} else {
 		k := int32(x);
-		y = x-float64(k);
-		quad = (quad+int(k))&3;
+		y = x - float64(k);
+		quad = (quad + int(k)) & 3;
 	}
 
 	if quad&1 != 0 {
-		y = 1-y
+		y = 1 - y
 	}
 	if quad > 1 {
 		y = -y
 	}
 
-	yy := y*y;
-	temp1 := ((((P4*yy + P3)*yy + P2)*yy + P1)*yy + P0)*y;
-	temp2 := ((((yy+Q3)*yy + Q2)*yy + Q1)*yy + Q0);
-	return temp1/temp2;
+	yy := y * y;
+	temp1 := ((((P4*yy+P3)*yy+P2)*yy+P1)*yy + P0) * y;
+	temp2 := ((((yy+Q3)*yy+Q2)*yy + Q1) * yy + Q0);
+	return temp1 / temp2;
 }
 
 // Cos returns the cosine of x.

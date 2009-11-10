@@ -79,17 +79,17 @@ func check(t *testing.T, testname string, tabwidth, padding int, padchar byte, f
 	// write byte-by-byte
 	b.clear();
 	for i := 0; i < len(src); i++ {
-		write(t, testname, &w, src[i : i+1])
+		write(t, testname, &w, src[i:i+1])
 	}
 	verify(t, testname, &w, &b, src, expected);
 
 	// write using Fibonacci slice sizes
 	b.clear();
 	for i, d := 0, 0; i < len(src); {
-		write(t, testname, &w, src[i : i+d]);
+		write(t, testname, &w, src[i:i+d]);
 		i, d = i+d, d+1;
 		if i+d > len(src) {
-			d = len(src)-i
+			d = len(src) - i
 		}
 	}
 	verify(t, testname, &w, &b, src, expected);

@@ -63,7 +63,7 @@ func TestPipe2(t *testing.T) {
 	go reader(t, r, c);
 	var buf = make([]byte, 64);
 	for i := 0; i < 5; i++ {
-		p := buf[0 : 5 + i*10];
+		p := buf[0 : 5+i*10];
 		n, err := w.Write(p);
 		if n != len(p) {
 			t.Errorf("wrote %d, got %d", len(p), n)

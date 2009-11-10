@@ -183,7 +183,7 @@ func (cclass *_CharClass) addRange(a, b int) {
 }
 
 func (cclass *_CharClass) matches(c int) bool {
-	for i := 0; i < len(cclass.ranges); i = i+2 {
+	for i := 0; i < len(cclass.ranges); i = i + 2 {
 		min := cclass.ranges[i];
 		max := cclass.ranges[i+1];
 		if min <= c && c <= max {
@@ -281,7 +281,7 @@ func (p *parser) nextc() int {
 	if p.pos >= len(p.re.expr) {
 		p.ch = endOfFile
 	} else {
-		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos : len(p.re.expr)]);
+		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos:len(p.re.expr)]);
 		p.ch = c;
 		p.pos += w;
 	}
@@ -677,7 +677,7 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 	for pos <= end {
 		if !found {
 			// prime the pump if we haven't seen a match yet
-			match := make([]int, 2*(re.nbra + 1));
+			match := make([]int, 2*(re.nbra+1));
 			for i := 0; i < len(match); i++ {
 				match[i] = -1	// no match seen; catches cases like "a(b)?c" on "ac"
 			}
@@ -732,12 +732,12 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 				s[in] = addState(s[in], st.inst.next(), st.match);
 			case _EBRA:
 				n := st.inst.(*_Ebra).n;
-				st.match[2*n + 1] = pos;
+				st.match[2*n+1] = pos;
 				s[in] = addState(s[in], st.inst.next(), st.match);
 			case _ALT:
 				s[in] = addState(s[in], st.inst.(*_Alt).left, st.match);
 				// give other branch a copy of this match vector
-				s1 := make([]int, 2*(re.nbra + 1));
+				s1 := make([]int, 2*(re.nbra+1));
 				for i := 0; i < len(s1); i++ {
 					s1[i] = st.match[i]
 				}

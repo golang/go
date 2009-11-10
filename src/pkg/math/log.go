@@ -103,18 +103,18 @@ func Log(x float64) float64 {
 		f1 *= 2;
 		ki--;
 	}
-	f := f1-1;
+	f := f1 - 1;
 	k := float64(ki);
 
 	// compute
-	s := f/(2+f);
-	s2 := s*s;
-	s4 := s2*s2;
-	t1 := s2*(L1 + s4*(L3 + s4*(L5 + s4*L7)));
-	t2 := s4*(L2 + s4*(L4 + s4*L6));
-	R := t1+t2;
-	hfsq := 0.5*f*f;
-	return k*Ln2Hi - ((hfsq-(s*(hfsq+R) + k*Ln2Lo))-f);
+	s := f / (2 + f);
+	s2 := s * s;
+	s4 := s2 * s2;
+	t1 := s2 * (L1 + s4*(L3+s4*(L5+s4*L7)));
+	t2 := s4 * (L2 + s4*(L4+s4*L6));
+	R := t1 + t2;
+	hfsq := 0.5 * f * f;
+	return k*Ln2Hi - ((hfsq - (s*(hfsq+R) + k*Ln2Lo)) - f);
 }
 
 // Log10 returns the decimal logarithm of x.
@@ -123,5 +123,5 @@ func Log10(x float64) float64 {
 	if x <= 0 {
 		return NaN()
 	}
-	return Log(x)*(1/Ln10);
+	return Log(x) * (1 / Ln10);
 }

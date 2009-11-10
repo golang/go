@@ -32,8 +32,8 @@ var tests = []tester{
 	// individual pieces:
 	tester{0, "", ""},
 	tester{0, "XXX", "XXX"},
-	tester{Lok|Ldate, "", Rdate+" "},
-	tester{Lok|Ltime, "", Rtime+" "},
+	tester{Lok | Ldate, "", Rdate + " "},
+	tester{Lok | Ltime, "", Rtime + " "},
 	tester{Lok | Ltime | Lmicroseconds, "", Rtime + Rmicroseconds + " "},
 	tester{Lok | Lmicroseconds, "", Rtime + Rmicroseconds + " "},	// microsec implies time
 	tester{Lok | Llongfile, "", Rlongfile + " "},

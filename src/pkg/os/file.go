@@ -68,7 +68,7 @@ const (
 // if applicable.  If successful, methods on the returned File can be used for I/O.
 // It returns the File and an Error, if any.
 func Open(name string, flag int, perm int) (file *File, err Error) {
-	r, e := syscall.Open(name, flag | syscall.O_CLOEXEC, perm);
+	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm);
 	if e != 0 {
 		return nil, &PathError{"open", name, Errno(e)}
 	}
@@ -260,7 +260,7 @@ func Stat(name string) (dir *Dir, err Error) {
 		return nil, &PathError{"stat", name, Errno(e)}
 	}
 	statp := &lstat;
-	if lstat.Mode & syscall.S_IFMT == syscall.S_IFLNK {
+	if lstat.Mode&syscall.S_IFMT == syscall.S_IFLNK {
 		e := syscall.Stat(name, &stat);
 		if e == 0 {
 			statp = &stat
@@ -309,7 +309,7 @@ func (file *File) Readdir(count int) (dirs []Dir, err Error) {
 	}
 	dirs = make([]Dir, len(names));
 	for i, filename := range names {
-		dirp, err := Lstat(dirname+filename);
+		dirp, err := Lstat(dirname + filename);
 		if dirp == nil || err != nil {
 			dirs[i].Name = filename	// rest is already zeroed out
 		} else {

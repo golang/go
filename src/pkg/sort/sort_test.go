@@ -147,11 +147,11 @@ func TestBentleyMcIlroy(t *testing.T) {
 				for i := 0; i < n; i++ {
 					switch dist {
 					case _Sawtooth:
-						data[i] = i%m
+						data[i] = i % m
 					case _Rand:
 						data[i] = rand.Intn(m)
 					case _Stagger:
-						data[i] = (i*m + i)%n
+						data[i] = (i*m + i) % n
 					case _Plateau:
 						data[i] = min(i, m)
 					case _Shuffle:
@@ -178,17 +178,17 @@ func TestBentleyMcIlroy(t *testing.T) {
 						}
 					case _ReverseFirstHalf:
 						for i := 0; i < n/2; i++ {
-							mdata[i] = data[n/2 - i - 1]
+							mdata[i] = data[n/2-i-1]
 						}
-						for i := n/2; i < n; i++ {
+						for i := n / 2; i < n; i++ {
 							mdata[i] = data[i]
 						}
 					case _ReverseSecondHalf:
 						for i := 0; i < n/2; i++ {
 							mdata[i] = data[i]
 						}
-						for i := n/2; i < n; i++ {
-							mdata[i] = data[n-(i - n/2)-1]
+						for i := n / 2; i < n; i++ {
+							mdata[i] = data[n-(i-n/2)-1]
 						}
 					case _Sorted:
 						for i := 0; i < n; i++ {
@@ -204,7 +204,7 @@ func TestBentleyMcIlroy(t *testing.T) {
 					}
 
 					desc := fmt.Sprintf("n=%d m=%d dist=%s mode=%s", n, m, dists[dist], modes[mode]);
-					d := &testingData{desc, t, mdata[0:n], n*lg(n)*12/10, 0};
+					d := &testingData{desc, t, mdata[0:n], n * lg(n) * 12 / 10, 0};
 					Sort(d);
 
 					// If we were testing C qsort, we'd have to make a copy

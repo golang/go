@@ -10,7 +10,7 @@ func Floor(x float64) float64 {
 	if x < 0 {
 		d, fract := Modf(-x);
 		if fract != 0.0 {
-			d = d+1
+			d = d + 1
 		}
 		return -d;
 	}

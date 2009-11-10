@@ -101,7 +101,7 @@ func Exp(x float64) float64 {
 
 		Overflow	= 7.09782712893383973096e+02;
 		Underflow	= -7.45133219101941108420e+02;
-		NearZero	= 1.0/(1<<28);	// 2^-28
+		NearZero	= 1.0 / (1 << 28);	// 2^-28
 	)
 
 	// special cases
@@ -127,13 +127,13 @@ func Exp(x float64) float64 {
 		k = int(Log2e*x + 0.5)
 	}
 	hi := x - float64(k)*Ln2Hi;
-	lo := float64(k)*Ln2Lo;
-	r := hi-lo;
+	lo := float64(k) * Ln2Lo;
+	r := hi - lo;
 
 	// compute
-	t := r*r;
-	c := r - t*(P1 + t*(P2 + t*(P3 + t*(P4 + t*P5))));
-	y := 1-((lo - (r*c)/(2-c))-hi);
+	t := r * r;
+	c := r - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))));
+	y := 1 - ((lo - (r*c)/(2-c)) - hi);
 	// TODO(rsc): make sure Ldexp can handle boundary k
 	return Ldexp(y, k);
 }

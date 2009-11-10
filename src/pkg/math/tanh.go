@@ -25,5 +25,5 @@ func Tanh(x float64) float64 {
 	if x > 21 {
 		return 1
 	}
-	return Sinh(x)/Cosh(x);
+	return Sinh(x) / Cosh(x);
 }

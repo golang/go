@@ -140,9 +140,9 @@ type PalettedColorModel []Color
 
 func diff(a, b uint32) uint32 {
 	if a > b {
-		return a-b
+		return a - b
 	}
-	return b-a;
+	return b - a;
 }
 
 // Convert returns the palette color closest to c in Euclidean R,G,B space.
@@ -166,7 +166,7 @@ func (p PalettedColorModel) Convert(c Color) Color {
 		vg >>= 17;
 		vb >>= 17;
 		dr, dg, db := diff(cr, vr), diff(cg, vg), diff(cb, vb);
-		ssd := (dr*dr)+(dg*dg)+(db*db);
+		ssd := (dr * dr) + (dg * dg) + (db * db);
 		if ssd < bestSSD {
 			bestSSD = ssd;
 			result = v;

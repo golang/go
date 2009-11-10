@@ -17,7 +17,7 @@ type ftoaTest struct {
 	s	string;
 }
 
-func fdiv(a, b float64) float64	{ return a/b }	// keep compiler in the dark
+func fdiv(a, b float64) float64	{ return a / b }	// keep compiler in the dark
 
 const (
 	below1e23	= 99999999999999974834176;

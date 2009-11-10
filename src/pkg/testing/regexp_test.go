@@ -99,7 +99,7 @@ func printVec(t *T, m []int) {
 	if l == 0 {
 		t.Log("\t<no match>")
 	} else {
-		for i := 0; i < l; i = i+2 {
+		for i := 0; i < l; i = i + 2 {
 			t.Log("\t", m[i], ",", m[i+1])
 		}
 	}
@@ -110,7 +110,7 @@ func printStrings(t *T, m []string) {
 	if l == 0 {
 		t.Log("\t<no match>")
 	} else {
-		for i := 0; i < l; i = i+2 {
+		for i := 0; i < l; i = i + 2 {
 			t.Logf("\t%q", m[i])
 		}
 	}
@@ -121,7 +121,7 @@ func printBytes(t *T, b [][]byte) {
 	if l == 0 {
 		t.Log("\t<no match>")
 	} else {
-		for i := 0; i < l; i = i+2 {
+		for i := 0; i < l; i = i + 2 {
 			t.Logf("\t%q", b[i])
 		}
 	}

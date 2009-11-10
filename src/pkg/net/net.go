@@ -164,7 +164,7 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 	}
 	err = UnknownNetworkError(net);
 Error:
-	return nil, &OpError{"dial", net+" "+raddr, nil, err};
+	return nil, &OpError{"dial", net + " " + raddr, nil, err};
 }
 
 // Listen announces on the local network address laddr.

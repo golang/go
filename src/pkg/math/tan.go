@@ -29,14 +29,14 @@ func Tan(x float64) float64 {
 		x = -x;
 		sign = true;
 	}
-	x = x*(4/Pi);	/* overflow? */
+	x = x * (4 / Pi);	/* overflow? */
 	var e float64;
 	e, x = Modf(x);
 	i := int32(e);
 
-	switch i&3 {
+	switch i & 3 {
 	case 1:
-		x = 1-x;
+		x = 1 - x;
 		flag = true;
 
 	case 2:
@@ -44,19 +44,19 @@ func Tan(x float64) float64 {
 		flag = true;
 
 	case 3:
-		x = 1-x;
+		x = 1 - x;
 		sign = !sign;
 	}
 
-	xsq := x*x;
-	temp := ((((P4*xsq + P3)*xsq + P2)*xsq + P1)*xsq + P0)*x;
-	temp = temp/(((xsq+Q2)*xsq + Q1)*xsq + Q0);
+	xsq := x * x;
+	temp := ((((P4*xsq+P3)*xsq+P2)*xsq+P1)*xsq + P0) * x;
+	temp = temp / (((xsq+Q2)*xsq+Q1)*xsq + Q0);
 
 	if flag {
 		if temp == 0 {
 			panic(NaN())
 		}
-		temp = 1/temp;
+		temp = 1 / temp;
 	}
 	if sign {
 		temp = -temp

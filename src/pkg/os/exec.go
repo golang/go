@@ -67,7 +67,7 @@ const (
 	WNOHANG		= syscall.WNOHANG;	// Don't wait if no process has exited.
 	WSTOPPED	= syscall.WSTOPPED;	// If set, status of stopped subprocesses is also reported.
 	WUNTRACED	= WSTOPPED;
-	WRUSAGE		= 1<<20;	// Record resource usage.
+	WRUSAGE		= 1 << 20;	// Record resource usage.
 )
 
 // WRUSAGE must not be too high a bit, to avoid clashing with Linux's
@@ -111,7 +111,7 @@ func itod(i int) string {
 	bp := len(b);
 	for ; u > 0; u /= 10 {
 		bp--;
-		b[bp] = byte(u%10)+'0';
+		b[bp] = byte(u%10) + '0';
 	}
 
 	if i < 0 {

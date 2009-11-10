@@ -37,11 +37,11 @@ func ishex(c byte) bool {
 func unhex(c byte) byte {
 	switch {
 	case '0' <= c && c <= '9':
-		return c-'0'
+		return c - '0'
 	case 'a' <= c && c <= 'f':
-		return c-'a'+10
+		return c - 'a' + 10
 	case 'A' <= c && c <= 'F':
-		return c-'A'+10
+		return c - 'A' + 10
 	}
 	return 0;
 }
@@ -97,7 +97,7 @@ func URLUnescape(s string) (string, os.Error) {
 		return s, nil
 	}
 
-	t := make([]byte, len(s) - 2*n);
+	t := make([]byte, len(s)-2*n);
 	j := 0;
 	for i := 0; i < len(s); {
 		switch s[i] {
@@ -136,7 +136,7 @@ func URLEscape(s string) string {
 		return s
 	}
 
-	t := make([]byte, len(s) + 2*hexCount);
+	t := make([]byte, len(s)+2*hexCount);
 	j := 0;
 	for i := 0; i < len(s); i++ {
 		switch c := s[i]; {

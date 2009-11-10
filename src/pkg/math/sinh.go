@@ -39,15 +39,15 @@ func Sinh(x float64) float64 {
 	var temp float64;
 	switch true {
 	case x > 21:
-		temp = Exp(x)/2
+		temp = Exp(x) / 2
 
 	case x > 0.5:
-		temp = (Exp(x)-Exp(-x))/2
+		temp = (Exp(x) - Exp(-x)) / 2
 
 	default:
-		sq := x*x;
-		temp = (((P3*sq + P2)*sq + P1)*sq + P0)*x;
-		temp = temp/(((sq+Q2)*sq + Q1)*sq + Q0);
+		sq := x * x;
+		temp = (((P3*sq+P2)*sq+P1)*sq + P0) * x;
+		temp = temp / (((sq+Q2)*sq+Q1)*sq + Q0);
 	}
 
 	if sign {
@@ -62,7 +62,7 @@ func Cosh(x float64) float64 {
 		x = -x
 	}
 	if x > 21 {
-		return Exp(x)/2
+		return Exp(x) / 2
 	}
-	return (Exp(x)+Exp(-x))/2;
+	return (Exp(x) + Exp(-x)) / 2;
 }

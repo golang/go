@@ -14,10 +14,10 @@ package rand
 const (
 	_LEN	= 607;
 	_TAP	= 273;
-	_MAX	= 1<<63;
-	_MASK	= _MAX-1;
+	_MAX	= 1 << 63;
+	_MASK	= _MAX - 1;
 	_A	= 48271;
-	_M	= (1<<31)-1;
+	_M	= (1 << 31) - 1;
 	_Q	= 44488;
 	_R	= 3399;
 )
@@ -190,8 +190,8 @@ type rngSource struct {
 
 // seed rng x[n+1] = 48271 * x[n] mod (2**31 - 1)
 func seedrand(x int32) int32 {
-	hi := x/_Q;
-	lo := x%_Q;
+	hi := x / _Q;
+	lo := x % _Q;
 	x = _A*lo - _R*hi;
 	if x < 0 {
 		x += _M
@@ -202,9 +202,9 @@ func seedrand(x int32) int32 {
 // Seed uses the provided seed value to initialize the generator to a deterministic state.
 func (rng *rngSource) Seed(seed int64) {
 	rng.tap = 0;
-	rng.feed = _LEN-_TAP;
+	rng.feed = _LEN - _TAP;
 
-	seed = seed%_M;
+	seed = seed % _M;
 	if seed < 0 {
 		seed += _M
 	}
@@ -217,13 +217,13 @@ func (rng *rngSource) Seed(seed int64) {
 		x = seedrand(x);
 		if i >= 0 {
 			var u int64;
-			u = int64(x)<<40;
+			u = int64(x) << 40;
 			x = seedrand(x);
-			u ^= int64(x)<<20;
+			u ^= int64(x) << 20;
 			x = seedrand(x);
 			u ^= int64(x);
 			u ^= rng_cooked[i];
-			rng.vec[i] = u&_MASK;
+			rng.vec[i] = u & _MASK;
 		}
 	}
 }
@@ -240,7 +240,7 @@ func (rng *rngSource) Int63() int64 {
 		rng.feed += _LEN
 	}
 
-	x := (rng.vec[rng.feed] + rng.vec[rng.tap])&_MASK;
+	x := (rng.vec[rng.feed] + rng.vec[rng.tap]) & _MASK;
 	rng.vec[rng.feed] = x;
 	return x;
 }

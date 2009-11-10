@@ -62,7 +62,7 @@ func months(year int64) []int {
 }
 
 const (
-	secondsPerDay	= 24*60*60;
+	secondsPerDay	= 24 * 60 * 60;
 	daysPer400Years	= 365*400 + 97;
 	daysPer100Years	= 365*100 + 24;
 	daysPer4Years	= 365*4 + 1;
@@ -83,12 +83,12 @@ func SecondsToUTC(sec int64) *Time {
 	}
 
 	// Time
-	t.Hour = int(sec/3600);
-	t.Minute = int((sec/60)%60);
-	t.Second = int(sec%60);
+	t.Hour = int(sec / 3600);
+	t.Minute = int((sec / 60) % 60);
+	t.Second = int(sec % 60);
 
 	// Day 0 = January 1, 1970 was a Thursday
-	t.Weekday = int((day+Thursday)%7);
+	t.Weekday = int((day + Thursday) % 7);
 	if t.Weekday < 0 {
 		t.Weekday += 7
 	}
@@ -101,30 +101,30 @@ func SecondsToUTC(sec int64) *Time {
 	year := int64(2001);
 	if day < 0 {
 		// Go back enough 400 year cycles to make day positive.
-		n := -day / daysPer400Years + 1;
-		year -= 400*n;
+		n := -day/daysPer400Years + 1;
+		year -= 400 * n;
 		day += daysPer400Years * n;
 	} else {
 		// Cut off 400 year cycles.
 		n := day / daysPer400Years;
-		year += 400*n;
+		year += 400 * n;
 		day -= daysPer400Years * n;
 	}
 
 	// Cut off 100-year cycles
 	n := day / daysPer100Years;
-	year += 100*n;
+	year += 100 * n;
 	day -= daysPer100Years * n;
 
 	// Cut off 4-year cycles
 	n = day / daysPer4Years;
-	year += 4*n;
+	year += 4 * n;
 	day -= daysPer4Years * n;
 
 	// Cut off non-leap years.
-	n = day/365;
+	n = day / 365;
 	year += n;
-	day -= 365*n;
+	day -= 365 * n;
 
 	t.Year = year;
 
@@ -137,8 +137,8 @@ func SecondsToUTC(sec int64) *Time {
 	for m = 0; m < 12 && yday >= months[m]; m++ {
 		yday -= months[m]
 	}
-	t.Month = m+1;
-	t.Day = yday+1;
+	t.Month = m + 1;
+	t.Day = yday + 1;
 	t.Zone = "UTC";
 
 	return t;
@@ -151,7 +151,7 @@ func UTC() *Time	{ return SecondsToUTC(Seconds()) }
 // into a parsed Time value in the local time zone.
 func SecondsToLocalTime(sec int64) *Time {
 	z, offset := lookupTimezone(sec);
-	t := SecondsToUTC(sec+int64(offset));
+	t := SecondsToUTC(sec + int64(offset));
 	t.Zone = z;
 	t.ZoneOffset = offset;
 	return t;
@@ -173,32 +173,32 @@ func (t *Time) Seconds() int64 {
 	year := t.Year;
 	if year < 2001 {
 		n := (2001-year)/400 + 1;
-		year += 400*n;
+		year += 400 * n;
 		day -= daysPer400Years * n;
 	}
 
 	// Add in days from 400-year cycles.
-	n := (year-2001)/400;
-	year -= 400*n;
+	n := (year - 2001) / 400;
+	year -= 400 * n;
 	day += daysPer400Years * n;
 
 	// Add in 100-year cycles.
-	n = (year-2001)/100;
-	year -= 100*n;
+	n = (year - 2001) / 100;
+	year -= 100 * n;
 	day += daysPer100Years * n;
 
 	// Add in 4-year cycles.
-	n = (year-2001)/4;
-	year -= 4*n;
+	n = (year - 2001) / 4;
+	year -= 4 * n;
 	day += daysPer4Years * n;
 
 	// Add in non-leap years.
-	n = year-2001;
-	day += 365*n;
+	n = year - 2001;
+	day += 365 * n;
 
 	// Add in days this year.
 	months := months(t.Year);
-	for m := 0; m < t.Month - 1; m++ {
+	for m := 0; m < t.Month-1; m++ {
 		day += int64(months[m])
 	}
 	day += int64(t.Day - 1);
@@ -207,8 +207,8 @@ func (t *Time) Seconds() int64 {
 	sec := day * secondsPerDay;
 
 	// Add in time elapsed today.
-	sec += int64(t.Hour)*3600;
-	sec += int64(t.Minute)*60;
+	sec += int64(t.Hour) * 3600;
+	sec += int64(t.Minute) * 60;
 	sec += int64(t.Second);
 
 	// Convert from seconds since 2001 to seconds since 1970.
@@ -265,7 +265,7 @@ func decimal(dst []byte, n int) {
 	if n < 0 {
 		n = 0
 	}
-	for i := len(dst)-1; i >= 0; i-- {
+	for i := len(dst) - 1; i >= 0; i-- {
 		dst[i] = byte(n%10 + '0');
 		n /= 10;
 	}
@@ -273,8 +273,8 @@ func decimal(dst []byte, n int) {
 
 func addString(buf []byte, bp int, s string) int {
 	n := len(s);
-	copy(buf[bp : bp+n], s);
-	return bp+n;
+	copy(buf[bp:bp+n], s);
+	return bp + n;
 }
 
 // Just enough of strftime to implement the date formats below.
@@ -294,30 +294,30 @@ func format(t *Time, fmt string) string {
 			case 'b':	// %b abbreviated month name
 				bp = addString(buf, bp, shortMonthNames[t.Month])
 			case 'd':	// %d day of month (01-31)
-				decimal(buf[bp : bp+2], t.Day);
+				decimal(buf[bp:bp+2], t.Day);
 				bp += 2;
 			case 'e':	// %e day of month ( 1-31)
 				if t.Day >= 10 {
-					decimal(buf[bp : bp+2], t.Day)
+					decimal(buf[bp:bp+2], t.Day)
 				} else {
 					buf[bp] = ' ';
 					buf[bp+1] = byte(t.Day + '0');
 				}
 				bp += 2;
 			case 'H':	// %H hour 00-23
-				decimal(buf[bp : bp+2], t.Hour);
+				decimal(buf[bp:bp+2], t.Hour);
 				bp += 2;
 			case 'M':	// %M minute 00-59
-				decimal(buf[bp : bp+2], t.Minute);
+				decimal(buf[bp:bp+2], t.Minute);
 				bp += 2;
 			case 'S':	// %S second 00-59
-				decimal(buf[bp : bp+2], t.Second);
+				decimal(buf[bp:bp+2], t.Second);
 				bp += 2;
 			case 'Y':	// %Y year 2008
-				decimal(buf[bp : bp+4], int(t.Year));
+				decimal(buf[bp:bp+4], int(t.Year));
 				bp += 4;
 			case 'y':	// %y year 08
-				decimal(buf[bp : bp+2], int(t.Year % 100));
+				decimal(buf[bp:bp+2], int(t.Year%100));
 				bp += 2;
 			case 'Z':
 				bp = addString(buf, bp, t.Zone)

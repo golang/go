@@ -27,7 +27,7 @@ func (f *file) getLineFromData() (s string, ok bool) {
 			ok = true;
 			// move data
 			i++;
-			n := len(data)-i;
+			n := len(data) - i;
 			for j := 0; j < n; j++ {
 				data[j] = data[i+j]
 			}
@@ -83,7 +83,7 @@ func countAnyByte(s string, t string) int {
 
 // Split s at any bytes in t.
 func splitAtBytes(s string, t string) []string {
-	a := make([]string, 1 + countAnyByte(s, t));
+	a := make([]string, 1+countAnyByte(s, t));
 	n := 0;
 	last := 0;
 	for i := 0; i < len(s); i++ {
@@ -92,7 +92,7 @@ func splitAtBytes(s string, t string) []string {
 				a[n] = string(s[last:i]);
 				n++;
 			}
-			last = i+1;
+			last = i + 1;
 		}
 	}
 	if last < len(s) {
@@ -130,13 +130,13 @@ func xtoi(s string, i0 int) (n int, i int, ok bool) {
 	for i = i0; i < len(s); i++ {
 		if '0' <= s[i] && s[i] <= '9' {
 			n *= 16;
-			n += int(s[i]-'0');
+			n += int(s[i] - '0');
 		} else if 'a' <= s[i] && s[i] <= 'f' {
 			n *= 16;
-			n += int(s[i]-'a')+10;
+			n += int(s[i]-'a') + 10;
 		} else if 'A' <= s[i] && s[i] <= 'F' {
 			n *= 16;
-			n += int(s[i]-'A')+10;
+			n += int(s[i]-'A') + 10;
 		} else {
 			break
 		}

@@ -42,20 +42,20 @@ func (a *decimal) String() string {
 		w++;
 		buf[w] = '.';
 		w++;
-		w += digitZero(buf[w : w + -a.dp]);
-		w += bytes.Copy(buf[w : w + a.nd], a.d[0 : a.nd]);
+		w += digitZero(buf[w : w+-a.dp]);
+		w += bytes.Copy(buf[w:w+a.nd], a.d[0:a.nd]);
 
 	case a.dp < a.nd:
 		// decimal point in middle of digits
-		w += bytes.Copy(buf[w : w + a.dp], a.d[0 : a.dp]);
+		w += bytes.Copy(buf[w:w+a.dp], a.d[0:a.dp]);
 		buf[w] = '.';
 		w++;
-		w += bytes.Copy(buf[w : w + a.nd - a.dp], a.d[a.dp : a.nd]);
+		w += bytes.Copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
 
 	default:
 		// zeros fill space between digits and decimal point
-		w += bytes.Copy(buf[w : w + a.nd], a.d[0 : a.nd]);
-		w += digitZero(buf[w : w + a.dp - a.nd]);
+		w += bytes.Copy(buf[w:w+a.nd], a.d[0:a.nd]);
+		w += digitZero(buf[w : w+a.dp-a.nd]);
 	}
 	return string(buf[0:w]);
 }
@@ -78,7 +78,7 @@ func digitZero(dst []byte) int {
 // (They are meaningless; the decimal point is tracked
 // independent of the number of digits.)
 func trim(a *decimal) {
-	for a.nd > 0 && a.d[a.nd - 1] == '0' {
+	for a.nd > 0 && a.d[a.nd-1] == '0' {
 		a.nd--
 	}
 	if a.nd == 0 {
@@ -93,9 +93,9 @@ func (a *decimal) Assign(v uint64) {
 	// Write reversed decimal in buf.
 	n := 0;
 	for v > 0 {
-		v1 := v/10;
-		v -= 10*v1;
-		buf[n] = byte(v+'0');
+		v1 := v / 10;
+		v -= 10 * v1;
+		buf[n] = byte(v + '0');
 		n++;
 		v = v1;
 	}
@@ -135,7 +135,7 @@ func rightShift(a *decimal, k uint) {
 				return;
 			}
 			for n>>k == 0 {
-				n = n*10;
+				n = n * 10;
 				r++;
 			}
 			break;
@@ -143,25 +143,25 @@ func rightShift(a *decimal, k uint) {
 		c := int(a.d[r]);
 		n = n*10 + c - '0';
 	}
-	a.dp -= r-1;
+	a.dp -= r - 1;
 
 	// Pick up a digit, put down a digit.
 	for ; r < a.nd; r++ {
 		c := int(a.d[r]);
-		dig := n>>k;
-		n -= dig<<k;
-		a.d[w] = byte(dig+'0');
+		dig := n >> k;
+		n -= dig << k;
+		a.d[w] = byte(dig + '0');
 		w++;
 		n = n*10 + c - '0';
 	}
 
 	// Put down extra digits.
 	for n > 0 {
-		dig := n>>k;
-		n -= dig<<k;
-		a.d[w] = byte(dig+'0');
+		dig := n >> k;
+		n -= dig << k;
+		a.d[w] = byte(dig + '0');
 		w++;
-		n = n*10;
+		n = n * 10;
 	}
 
 	a.nd = w;
@@ -242,7 +242,7 @@ func prefixIsLessThan(b []byte, s string) bool {
 // Binary shift left (/ 2) by k bits.  k <= maxShift to avoid overflow.
 func leftShift(a *decimal, k uint) {
 	delta := leftcheats[k].delta;
-	if prefixIsLessThan(a.d[0 : a.nd], leftcheats[k].cutoff) {
+	if prefixIsLessThan(a.d[0:a.nd], leftcheats[k].cutoff) {
 		delta--
 	}
 
@@ -252,20 +252,20 @@ func leftShift(a *decimal, k uint) {
 
 	// Pick up a digit, put down a digit.
 	for r--; r >= 0; r-- {
-		n += (int(a.d[r])-'0')<<k;
-		quo := n/10;
+		n += (int(a.d[r]) - '0') << k;
+		quo := n / 10;
 		rem := n - 10*quo;
 		w--;
-		a.d[w] = byte(rem+'0');
+		a.d[w] = byte(rem + '0');
 		n = quo;
 	}
 
 	// Put down extra digits.
 	for n > 0 {
-		quo := n/10;
+		quo := n / 10;
 		rem := n - 10*quo;
 		w--;
-		a.d[w] = byte(rem+'0');
+		a.d[w] = byte(rem + '0');
 		n = quo;
 	}
 
@@ -302,7 +302,7 @@ func shouldRoundUp(a *decimal, nd int) bool {
 		return false
 	}
 	if a.d[nd] == '5' && nd+1 == a.nd {	// exactly halfway - round to even
-		return (a.d[nd-1] - '0')%2 != 0
+		return (a.d[nd-1]-'0')%2 != 0
 	}
 	// not halfway - digit tells all
 	return a.d[nd] >= '5';
@@ -339,11 +339,11 @@ func (a *decimal) RoundUp(nd int) *decimal {
 	}
 
 	// round up
-	for i := nd-1; i >= 0; i-- {
+	for i := nd - 1; i >= 0; i-- {
 		c := a.d[i];
 		if c < '9' {	// can stop after this digit
 			a.d[i]++;
-			a.nd = i+1;
+			a.nd = i + 1;
 			return a;
 		}
 	}
@@ -365,7 +365,7 @@ func (a *decimal) RoundedInteger() uint64 {
 	var i int;
 	n := uint64(0);
 	for i = 0; i < a.dp && i < a.nd; i++ {
-		n = n*10 + uint64(a.d[i] - '0')
+		n = n*10 + uint64(a.d[i]-'0')
 	}
 	for ; i < a.dp; i++ {
 		n *= 10

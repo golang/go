@@ -48,7 +48,7 @@ var btoui64tests = []atoui64Test{
 	atoui64Test{"01777777777777777777777", 1<<64 - 1, nil},
 	atoui64Test{"01777777777777777777778", 0, os.EINVAL},
 	atoui64Test{"02000000000000000000000", 1<<64 - 1, os.ERANGE},
-	atoui64Test{"0200000000000000000000", 1<<61, nil},
+	atoui64Test{"0200000000000000000000", 1 << 61, nil},
 }
 
 type atoi64Test struct {
@@ -70,7 +70,7 @@ var atoi64tests = []atoi64Test{
 	atoi64Test{"98765432100", 98765432100, nil},
 	atoi64Test{"-98765432100", -98765432100, nil},
 	atoi64Test{"9223372036854775807", 1<<63 - 1, nil},
-	atoi64Test{"-9223372036854775807", -(1<<63 - 1), nil},
+	atoi64Test{"-9223372036854775807", -(1 << 63 - 1), nil},
 	atoi64Test{"9223372036854775808", 1<<63 - 1, os.ERANGE},
 	atoi64Test{"-9223372036854775808", -1 << 63, nil},
 	atoi64Test{"9223372036854775809", 1<<63 - 1, os.ERANGE},
@@ -94,7 +94,7 @@ var btoi64tests = []atoi64Test{
 	atoi64Test{"98765432100", 98765432100, nil},
 	atoi64Test{"-98765432100", -98765432100, nil},
 	atoi64Test{"9223372036854775807", 1<<63 - 1, nil},
-	atoi64Test{"-9223372036854775807", -(1<<63 - 1), nil},
+	atoi64Test{"-9223372036854775807", -(1 << 63 - 1), nil},
 	atoi64Test{"9223372036854775808", 1<<63 - 1, os.ERANGE},
 	atoi64Test{"-9223372036854775808", -1 << 63, nil},
 	atoi64Test{"9223372036854775809", 1<<63 - 1, os.ERANGE},
@@ -140,7 +140,7 @@ var atoi32tests = []atoi32Test{
 	atoi32Test{"987654321", 987654321, nil},
 	atoi32Test{"-987654321", -987654321, nil},
 	atoi32Test{"2147483647", 1<<31 - 1, nil},
-	atoi32Test{"-2147483647", -(1<<31 - 1), nil},
+	atoi32Test{"-2147483647", -(1 << 31 - 1), nil},
 	atoi32Test{"2147483648", 1<<31 - 1, os.ERANGE},
 	atoi32Test{"-2147483648", -1 << 31, nil},
 	atoi32Test{"2147483649", 1<<31 - 1, os.ERANGE},

@@ -153,7 +153,7 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
 		return;
 	}
 
-	host, port = hostport[0:i], hostport[i+1 : len(hostport)];
+	host, port = hostport[0:i], hostport[i+1:len(hostport)];
 
 	// Can put brackets around host ...
 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
@@ -173,9 +173,9 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
 func joinHostPort(host, port string) string {
 	// If host has colons, have to bracket it.
 	if byteIndex(host, ':') >= 0 {
-		return "["+host+"]:"+port
+		return "[" + host + "]:" + port
 	}
-	return host+":"+port;
+	return host + ":" + port;
 }
 
 // Convert "host:port" into IP address and port.

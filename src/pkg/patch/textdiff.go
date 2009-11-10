@@ -112,7 +112,7 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 		if oldLine+delta != newLine {
 			return nil, SyntaxError("chunk delta is out of sync with previous chunks")
 		}
-		delta += nnew-nold;
+		delta += nnew - nold;
 		c.Line = oldLine;
 
 		var old, new bytes.Buffer;
@@ -157,7 +157,7 @@ func (d TextDiff) Apply(data []byte) ([]byte, os.Error) {
 	for _, c := range d {
 		var ok bool;
 		var prefix []byte;
-		prefix, data, ok = getLine(data, c.Line - line);
+		prefix, data, ok = getLine(data, c.Line-line);
 		if !ok || !bytes.HasPrefix(data, c.Old) {
 			return nil, ErrPatchFailure
 		}

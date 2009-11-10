@@ -48,7 +48,7 @@ func runServe(t *testing.T, network, addr string, listening chan<- string, done 
 func connect(t *testing.T, network, addr string) {
 	var laddr string;
 	if network == "unixgram" {
-		laddr = addr+".local"
+		laddr = addr + ".local"
 	}
 	fd, err := Dial(network, laddr, addr);
 	if err != nil {
@@ -80,7 +80,7 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 	go runServe(t, network, listenaddr, listening, done);
 	addr := <-listening;	// wait for server to start
 	if network == "tcp" {
-		dialaddr += addr[strings.LastIndex(addr, ":") : len(addr)]
+		dialaddr += addr[strings.LastIndex(addr, ":"):len(addr)]
 	}
 	connect(t, network, dialaddr);
 	<-done;	// make sure server stopped
@@ -141,7 +141,7 @@ func doTestPacket(t *testing.T, network, listenaddr, dialaddr string) {
 	go runPacket(t, network, listenaddr, listening, done);
 	addr := <-listening;	// wait for server to start
 	if network == "udp" {
-		dialaddr += addr[strings.LastIndex(addr, ":") : len(addr)]
+		dialaddr += addr[strings.LastIndex(addr, ":"):len(addr)]
 	}
 	connect(t, network, dialaddr);
 	<-done;	// tell server to stop

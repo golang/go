@@ -57,7 +57,7 @@ type decoder struct {
 	stage		int;
 	idatWriter	io.WriteCloser;
 	idatDone	chan os.Error;
-	tmp		[3*256]byte;
+	tmp		[3 * 256]byte;
 }
 
 // A FormatError reports that the input is not a valid PNG.
@@ -118,7 +118,7 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 	if w < 0 || h < 0 {
 		return FormatError("negative dimension")
 	}
-	nPixels := int64(w)*int64(h);
+	nPixels := int64(w) * int64(h);
 	if nPixels != int64(int(nPixels)) {
 		return UnsupportedError("dimension overflow")
 	}
@@ -138,11 +138,11 @@ func (d *decoder) parseIHDR(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 }
 
 func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Error {
-	np := int(length/3);	// The number of palette entries.
+	np := int(length / 3);	// The number of palette entries.
 	if length%3 != 0 || np <= 0 || np > 256 {
 		return FormatError("bad PLTE length")
 	}
-	n, err := io.ReadFull(r, d.tmp[0 : 3*np]);
+	n, err := io.ReadFull(r, d.tmp[0:3*np]);
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 	case ctPaletted:
 		palette := make([]image.Color, np);
 		for i := 0; i < np; i++ {
-			palette[i] = image.RGBAColor{d.tmp[3*i + 0], d.tmp[3*i + 1], d.tmp[3*i + 2], 0xff}
+			palette[i] = image.RGBAColor{d.tmp[3*i+0], d.tmp[3*i+1], d.tmp[3*i+2], 0xff}
 		}
 		d.image.(*image.Paletted).Palette = image.PalettedColorModel(palette);
 	case ctTrueColor, ctTrueColorAlpha:
@@ -166,10 +166,10 @@ func (d *decoder) parsePLTE(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 
 // The Paeth filter function, as per the PNG specification.
 func paeth(a, b, c uint8) uint8 {
-	p := int(a)+int(b)-int(c);
-	pa := abs(p-int(a));
-	pb := abs(p-int(b));
-	pc := abs(p-int(c));
+	p := int(a) + int(b) - int(c);
+	pa := abs(p - int(a));
+	pb := abs(p - int(b));
+	pc := abs(p - int(c));
 	if pa <= pb && pa <= pc {
 		return a
 	} else if pb <= pc {
@@ -198,15 +198,15 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 	case ctPaletted:
 		bpp = 1;
 		paletted = d.image.(*image.Paletted);
-		maxPalette = uint8(len(paletted.Palette)-1);
+		maxPalette = uint8(len(paletted.Palette) - 1);
 	case ctTrueColorAlpha:
 		bpp = 4;
 		nrgba = d.image.(*image.NRGBA);
 	}
 	// cr and pr are the bytes for the current and previous row.
 	// The +1 is for the per-row filter type, which is at cr[0].
-	cr := make([]uint8, 1 + bpp * d.width);
-	pr := make([]uint8, 1 + bpp * d.width);
+	cr := make([]uint8, 1+bpp*d.width);
+	pr := make([]uint8, 1+bpp*d.width);
 
 	for y := 0; y < d.height; y++ {
 		// Read the decompressed bytes.
@@ -231,10 +231,10 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 			}
 		case ftAverage:
 			for i := 0; i < bpp; i++ {
-				cdat[i] += pdat[i]/2
+				cdat[i] += pdat[i] / 2
 			}
 			for i := bpp; i < len(cdat); i++ {
-				cdat[i] += uint8((int(cdat[i-bpp])+int(pdat[i]))/2)
+				cdat[i] += uint8((int(cdat[i-bpp]) + int(pdat[i])) / 2)
 			}
 		case ftPaeth:
 			for i := 0; i < bpp; i++ {
@@ -251,7 +251,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 		switch d.colorType {
 		case ctTrueColor:
 			for x := 0; x < d.width; x++ {
-				rgba.Set(x, y, image.RGBAColor{cdat[3*x + 0], cdat[3*x + 1], cdat[3*x + 2], 0xff})
+				rgba.Set(x, y, image.RGBAColor{cdat[3*x+0], cdat[3*x+1], cdat[3*x+2], 0xff})
 			}
 		case ctPaletted:
 			for x := 0; x < d.width; x++ {
@@ -262,7 +262,7 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 			}
 		case ctTrueColorAlpha:
 			for x := 0; x < d.width; x++ {
-				nrgba.Set(x, y, image.NRGBAColor{cdat[4*x + 0], cdat[4*x + 1], cdat[4*x + 2], cdat[4*x + 3]})
+				nrgba.Set(x, y, image.NRGBAColor{cdat[4*x+0], cdat[4*x+1], cdat[4*x+2], cdat[4*x+3]})
 			}
 		}
 
@@ -293,7 +293,7 @@ func (d *decoder) parseIDAT(r io.Reader, crc hash.Hash32, length uint32) os.Erro
 	}
 	var buf [4096]byte;
 	for length > 0 {
-		n, err1 := r.Read(buf[0 : min(len(buf), int(length))]);
+		n, err1 := r.Read(buf[0:min(len(buf), int(length))]);
 		// We delay checking err1. It is possible to get n bytes and an error,
 		// but if the n bytes themselves contain a FormatError, for example, we
 		// want to report that error, and not the one that made the Read stop.
@@ -369,7 +369,7 @@ func (d *decoder) parseChunk(r io.Reader) os.Error {
 		// Ignore this chunk (of a known length).
 		var ignored [4096]byte;
 		for length > 0 {
-			n, err = io.ReadFull(r, ignored[0 : min(len(ignored), int(length))]);
+			n, err = io.ReadFull(r, ignored[0:min(len(ignored), int(length))]);
 			if err != nil {
 				return err
 			}

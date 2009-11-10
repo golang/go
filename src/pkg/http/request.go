@@ -24,7 +24,7 @@ const (
 	maxLineLength	= 1024;	// assumed < bufio.DefaultBufSize
 	maxValueLength	= 1024;
 	maxHeaderLines	= 1024;
-	chunkSize	= 4<<10;	// 4 KB chunks
+	chunkSize	= 4 << 10;	// 4 KB chunks
 )
 
 // HTTP request parsing errors.
@@ -293,7 +293,7 @@ func readKeyValue(b *bufio.Reader) (key, value string, err os.Error) {
 		if line, e = readLineBytes(b); e != nil {
 			return "", "", e
 		}
-		value += " "+string(line);
+		value += " " + string(line);
 
 		if len(value) >= maxValueLength {
 			return "", "", &badStringError{"value too long for key", key}
@@ -360,10 +360,10 @@ func CanonicalHeaderKey(s string) string {
 	upper := true;
 	for i, v := range a {
 		if upper && 'a' <= v && v <= 'z' {
-			a[i] = v+'A'-'a'
+			a[i] = v + 'A' - 'a'
 		}
 		if !upper && 'A' <= v && v <= 'Z' {
-			a[i] = v+'a'-'A'
+			a[i] = v + 'a' - 'A'
 		}
 		upper = false;
 		if v == '-' {
@@ -422,7 +422,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
 		}
 	}
 	if uint64(len(b)) > cr.n {
-		b = b[0 : cr.n]
+		b = b[0:cr.n]
 	}
 	n, cr.err = cr.r.Read(b);
 	cr.n -= uint64(n);
@@ -484,7 +484,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 		// to concatenating the values separated by commas.
 		oldvalue, present := req.Header[key];
 		if present {
-			req.Header[key] = oldvalue+","+value
+			req.Header[key] = oldvalue + "," + value
 		} else {
 			req.Header[key] = value
 		}

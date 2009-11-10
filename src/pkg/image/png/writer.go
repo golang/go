@@ -21,15 +21,15 @@ type encoder struct {
 	err		os.Error;
 	header		[8]byte;
 	footer		[4]byte;
-	tmp		[3*256]byte;
+	tmp		[3 * 256]byte;
 }
 
 // Big-endian.
 func writeUint32(b []uint8, u uint32) {
-	b[0] = uint8(u>>24);
-	b[1] = uint8(u>>16);
-	b[2] = uint8(u>>8);
-	b[3] = uint8(u>>0);
+	b[0] = uint8(u >> 24);
+	b[1] = uint8(u >> 16);
+	b[2] = uint8(u >> 8);
+	b[3] = uint8(u >> 0);
 }
 
 // Returns whether or not the image is fully opaque.
@@ -50,7 +50,7 @@ func abs8(d uint8) int {
 	if d < 128 {
 		return int(d)
 	}
-	return 256-int(d);
+	return 256 - int(d);
 }
 
 func (e *encoder) writeChunk(b []byte, name string) {
@@ -105,11 +105,11 @@ func (e *encoder) writePLTE(p image.PalettedColorModel) {
 			e.err = UnsupportedError("non-opaque palette color");
 			return;
 		}
-		e.tmp[3*i + 0] = uint8(r>>24);
-		e.tmp[3*i + 1] = uint8(g>>24);
-		e.tmp[3*i + 2] = uint8(b>>24);
+		e.tmp[3*i+0] = uint8(r >> 24);
+		e.tmp[3*i+1] = uint8(g >> 24);
+		e.tmp[3*i+2] = uint8(b >> 24);
 	}
-	e.writeChunk(e.tmp[0 : 3*len(p)], "PLTE");
+	e.writeChunk(e.tmp[0:3*len(p)], "PLTE");
 }
 
 // An encoder is an io.Writer that satisfies writes by writing PNG IDAT chunks,
@@ -148,7 +148,7 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
 	// The up filter.
 	sum := 0;
 	for i := 0; i < n; i++ {
-		cdat2[i] = cdat0[i]-pdat[i];
+		cdat2[i] = cdat0[i] - pdat[i];
 		sum += abs8(cdat2[i]);
 	}
 	best := sum;
@@ -192,7 +192,7 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
 		sum += abs8(cdat1[i]);
 	}
 	for i := bpp; i < n; i++ {
-		cdat1[i] = cdat0[i]-cdat0[i-bpp];
+		cdat1[i] = cdat0[i] - cdat0[i-bpp];
 		sum += abs8(cdat1[i]);
 		if sum >= best {
 			break
@@ -210,7 +210,7 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
 		sum += abs8(cdat3[i]);
 	}
 	for i := bpp; i < n; i++ {
-		cdat3[i] = cdat0[i]-uint8((int(cdat0[i-bpp])+int(pdat[i]))/2);
+		cdat3[i] = cdat0[i] - uint8((int(cdat0[i-bpp])+int(pdat[i]))/2);
 		sum += abs8(cdat3[i]);
 		if sum >= best {
 			break
@@ -249,10 +249,10 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 	// The +1 is for the per-row filter type, which is at cr[*][0].
 	var cr [nFilter][]uint8;
 	for i := 0; i < len(cr); i++ {
-		cr[i] = make([]uint8, 1 + bpp * m.Width());
+		cr[i] = make([]uint8, 1+bpp*m.Width());
 		cr[i][0] = uint8(i);
 	}
-	pr := make([]uint8, 1 + bpp * m.Width());
+	pr := make([]uint8, 1+bpp*m.Width());
 
 	for y := 0; y < m.Height(); y++ {
 		// Convert from colors to bytes.
@@ -261,9 +261,9 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 			for x := 0; x < m.Width(); x++ {
 				// We have previously verified that the alpha value is fully opaque.
 				r, g, b, _ := m.At(x, y).RGBA();
-				cr[0][3*x + 1] = uint8(r>>24);
-				cr[0][3*x + 2] = uint8(g>>24);
-				cr[0][3*x + 3] = uint8(b>>24);
+				cr[0][3*x+1] = uint8(r >> 24);
+				cr[0][3*x+2] = uint8(g >> 24);
+				cr[0][3*x+3] = uint8(b >> 24);
 			}
 		case ctPaletted:
 			for x := 0; x < m.Width(); x++ {
@@ -273,10 +273,10 @@ func writeImage(w io.Writer, m image.Image, ct uint8) os.Error {
 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
 			for x := 0; x < m.Width(); x++ {
 				c := image.NRGBAColorModel.Convert(m.At(x, y)).(image.NRGBAColor);
-				cr[0][4*x + 1] = c.R;
-				cr[0][4*x + 2] = c.G;
-				cr[0][4*x + 3] = c.B;
-				cr[0][4*x + 4] = c.A;
+				cr[0][4*x+1] = c.R;
+				cr[0][4*x+2] = c.G;
+				cr[0][4*x+3] = c.B;
+				cr[0][4*x+4] = c.A;
 			}
 		}
 

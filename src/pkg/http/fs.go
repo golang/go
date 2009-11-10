@@ -76,9 +76,9 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 	const indexPage = "/index.html";
 
 	// redirect to strip off any index.html
-	n := len(name)-len(indexPage);
+	n := len(name) - len(indexPage);
 	if n >= 0 && name[n:len(name)] == indexPage {
-		Redirect(c, name[0 : n+1], StatusMovedPermanently);
+		Redirect(c, name[0:n+1], StatusMovedPermanently);
 		return;
 	}
 
@@ -108,7 +108,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 			}
 		} else {
 			if url[len(url)-1] == '/' {
-				Redirect(c, url[0 : len(url)-1], StatusMovedPermanently);
+				Redirect(c, url[0:len(url)-1], StatusMovedPermanently);
 				return;
 			}
 		}
@@ -177,5 +177,5 @@ func (f *fileHandler) ServeHTTP(c *Conn, r *Request) {
 		return;
 	}
 	path = path[len(f.prefix):len(path)];
-	serveFileInternal(c, r, f.root + "/" + path, true);
+	serveFileInternal(c, r, f.root+"/"+path, true);
 }

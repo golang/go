@@ -25,17 +25,17 @@ func memmove(adst, asrc addr, n uintptr) {
 		// careful: i is unsigned
 		for i := n; i > 0; {
 			i--;
-			*(*byte)(addr(dst+i)) = *(*byte)(addr(src+i));
+			*(*byte)(addr(dst + i)) = *(*byte)(addr(src + i));
 		}
 	case (n|src|dst)&(ptrSize-1) != 0:
 		// byte copy forward
 		for i := uintptr(0); i < n; i++ {
-			*(*byte)(addr(dst+i)) = *(*byte)(addr(src+i))
+			*(*byte)(addr(dst + i)) = *(*byte)(addr(src + i))
 		}
 	default:
 		// word copy forward
 		for i := uintptr(0); i < n; i += ptrSize {
-			*(*uintptr)(addr(dst+i)) = *(*uintptr)(addr(src+i))
+			*(*uintptr)(addr(dst + i)) = *(*uintptr)(addr(src + i))
 		}
 	}
 }
@@ -472,7 +472,7 @@ func ArrayCopy(dst, src ArrayOrSliceValue) int {
 	if xn := src.Len(); n > xn {
 		n = xn
 	}
-	memmove(dst.addr(), src.addr(), uintptr(n) * de.Size());
+	memmove(dst.addr(), src.addr(), uintptr(n)*de.Size());
 	return n;
 }
 
@@ -510,7 +510,7 @@ func (v *ArrayValue) Elem(i int) Value {
 	if i < 0 || i >= n {
 		panic("index", i, "in array len", n)
 	}
-	p := addr(uintptr(v.addr()) + uintptr(i) * typ.Size());
+	p := addr(uintptr(v.addr()) + uintptr(i)*typ.Size());
 	return newValue(typ, p, v.canSet);
 }
 
@@ -575,9 +575,9 @@ func (v *SliceValue) Slice(beg, end int) *SliceValue {
 	}
 	typ := v.typ.(*SliceType);
 	s := new(SliceHeader);
-	s.Data = uintptr(v.addr()) + uintptr(beg) * typ.Elem().Size();
-	s.Len = end-beg;
-	s.Cap = cap-beg;
+	s.Data = uintptr(v.addr()) + uintptr(beg)*typ.Elem().Size();
+	s.Len = end - beg;
+	s.Cap = cap - beg;
 	return newValue(typ, addr(s), v.canSet).(*SliceValue);
 }
 
@@ -588,7 +588,7 @@ func (v *SliceValue) Elem(i int) Value {
 	if i < 0 || i >= n {
 		panicln("index", i, "in array of length", n)
 	}
-	p := addr(uintptr(v.addr()) + uintptr(i) * typ.Size());
+	p := addr(uintptr(v.addr()) + uintptr(i)*typ.Size());
 	return newValue(typ, p, v.canSet);
 }
 
@@ -670,7 +670,7 @@ func (v *ChanValue) Cap() int {
 // internal send; non-blocking if b != nil
 func (v *ChanValue) send(x Value, b *bool) {
 	t := v.Type().(*ChanType);
-	if t.Dir() & SendDir == 0 {
+	if t.Dir()&SendDir == 0 {
 		panic("send on recv-only channel")
 	}
 	typesMustMatch(t.Elem(), x.Type());
@@ -681,7 +681,7 @@ func (v *ChanValue) send(x Value, b *bool) {
 // internal recv; non-blocking if b != nil
 func (v *ChanValue) recv(b *bool) Value {
 	t := v.Type().(*ChanType);
-	if t.Dir() & RecvDir == 0 {
+	if t.Dir()&RecvDir == 0 {
 		panic("recv on send-only channel")
 	}
 	ch := *(**byte)(v.addr);
@@ -808,14 +808,14 @@ func (fv *FuncValue) Call(in []Value) []Value {
 	for i := 0; i < nin; i++ {
 		tv := t.In(i);
 		a := uintptr(tv.Align());
-		size = (size+a-1)&^(a-1);
+		size = (size + a - 1) &^ (a - 1);
 		size += tv.Size();
 	}
-	size = (size + structAlign - 1)&^(structAlign - 1);
+	size = (size + structAlign - 1) &^ (structAlign - 1);
 	for i := 0; i < nout; i++ {
 		tv := t.Out(i);
 		a := uintptr(tv.Align());
-		size = (size+a-1)&^(a-1);
+		size = (size + a - 1) &^ (a - 1);
 		size += tv.Size();
 	}
 
@@ -856,12 +856,12 @@ func (fv *FuncValue) Call(in []Value) []Value {
 		tv := v.Type();
 		typesMustMatch(t.In(i+delta), tv);
 		a := uintptr(tv.Align());
-		off = (off+a-1)&^(a-1);
+		off = (off + a - 1) &^ (a - 1);
 		n := tv.Size();
 		memmove(addr(ptr+off), v.getAddr(), n);
 		off += n;
 	}
-	off = (off + structAlign - 1)&^(structAlign - 1);
+	off = (off + structAlign - 1) &^ (structAlign - 1);
 
 	// Call
 	call(*(**byte)(fv.addr), (*byte)(addr(ptr)), uint32(size));
@@ -873,7 +873,7 @@ func (fv *FuncValue) Call(in []Value) []Value {
 	for i := 0; i < nout; i++ {
 		tv := t.Out(i);
 		a := uintptr(tv.Align());
-		off = (off+a-1)&^(a-1);
+		off = (off + a - 1) &^ (a - 1);
 		v := MakeZero(tv);
 		n := tv.Size();
 		memmove(v.getAddr(), addr(ptr+off), n);
@@ -938,7 +938,7 @@ func (v *InterfaceValue) Method(i int) *FuncValue {
 
 	// Interface is two words: itable, data.
 	tab := *(**runtime.Itable)(v.addr);
-	data := &value{Typeof((*byte)(nil)), addr(uintptr(v.addr)+ptrSize), true};
+	data := &value{Typeof((*byte)(nil)), addr(uintptr(v.addr) + ptrSize), true};
 
 	// Function pointer is at p.perm in the table.
 	fn := tab.Fn[p.perm];
@@ -1141,7 +1141,7 @@ func (v *StructValue) Field(i int) Value {
 		return nil
 	}
 	f := t.Field(i);
-	return newValue(f.Type, addr(uintptr(v.addr) + f.Offset), v.canSet && f.PkgPath == "");
+	return newValue(f.Type, addr(uintptr(v.addr)+f.Offset), v.canSet && f.PkgPath == "");
 }
 
 // FieldByIndex returns the nested field corresponding to index.

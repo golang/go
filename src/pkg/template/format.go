@@ -51,7 +51,7 @@ func HTMLEscape(w io.Writer, s []byte) {
 		}
 		w.Write(s[last:i]);
 		w.Write(esc);
-		last = i+1;
+		last = i + 1;
 	}
 	w.Write(s[last:len(s)]);
 }

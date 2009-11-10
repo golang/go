@@ -233,7 +233,7 @@ func EncodeRune(rune int, p []byte) int {
 	}
 
 	if rune <= _Rune2Max {
-		p[0] = _T2|byte(rune>>6);
+		p[0] = _T2 | byte(rune>>6);
 		p[1] = _Tx | byte(rune)&_Maskx;
 		return 2;
 	}
@@ -243,13 +243,13 @@ func EncodeRune(rune int, p []byte) int {
 	}
 
 	if rune <= _Rune3Max {
-		p[0] = _T3|byte(rune>>12);
+		p[0] = _T3 | byte(rune>>12);
 		p[1] = _Tx | byte(rune>>6)&_Maskx;
 		p[2] = _Tx | byte(rune)&_Maskx;
 		return 3;
 	}
 
-	p[0] = _T4|byte(rune>>18);
+	p[0] = _T4 | byte(rune>>18);
 	p[1] = _Tx | byte(rune>>12)&_Maskx;
 	p[2] = _Tx | byte(rune>>6)&_Maskx;
 	p[3] = _Tx | byte(rune)&_Maskx;

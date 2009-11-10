@@ -50,7 +50,7 @@ func (p *pollster) AddFD(fd int, mode int, repeat bool) os.Error {
 	if e != 0 {
 		return os.NewSyscallError("kevent", e)
 	}
-	if n != 1 || (ev.Flags & syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
+	if n != 1 || (ev.Flags&syscall.EV_ERROR) == 0 || int(ev.Ident) != fd || int(ev.Filter) != kmode {
 		return os.ErrorString("kqueue phase error")
 	}
 	if ev.Data != 0 {
@@ -71,7 +71,7 @@ func (p *pollster) DelFD(fd int, mode int) {
 	// EV_DELETE - delete event from kqueue list
 	// EV_RECEIPT - generate fake EV_ERROR as result of add,
 	//	rather than waiting for real event
-	syscall.SetKevent(ev, fd, kmode, syscall.EV_DELETE | syscall.EV_RECEIPT);
+	syscall.SetKevent(ev, fd, kmode, syscall.EV_DELETE|syscall.EV_RECEIPT);
 	syscall.Kevent(p.kq, &events, &events, nil);
 }
 

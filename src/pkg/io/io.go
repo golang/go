@@ -183,7 +183,7 @@ func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
 	buf := make([]byte, 32*1024);
 	for written < n {
 		l := len(buf);
-		if d := n-written; d < int64(l) {
+		if d := n - written; d < int64(l) {
 			l = int(d)
 		}
 		nr, er := src.Read(buf[0:l]);
@@ -255,7 +255,7 @@ func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
 		return 0, os.EOF
 	}
 	if int64(len(p)) > l.n {
-		p = p[0 : l.n]
+		p = p[0:l.n]
 	}
 	n, err = l.r.Read(p);
 	l.n -= int64(n);
@@ -265,7 +265,7 @@ func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
 // NewSectionReader returns a SectionReader that reads from r
 // starting at offset off and stops with os.EOF after n bytes.
 func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
-	return &SectionReader{r, off, off, off+n}
+	return &SectionReader{r, off, off, off + n}
 }
 
 // SectionReader implements Read, Seek, and ReadAt on a section
@@ -308,7 +308,7 @@ func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err os.Error)
 }
 
 func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
-	if off < 0 || off >= s.limit - s.base {
+	if off < 0 || off >= s.limit-s.base {
 		return 0, os.EOF
 	}
 	off += s.base;

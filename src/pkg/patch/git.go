@@ -44,11 +44,11 @@ func (d *GITBinaryLiteral) Apply(old []byte) ([]byte, os.Error) {
 func unhex(c byte) uint8 {
 	switch {
 	case '0' <= c && c <= '9':
-		return c-'0'
+		return c - '0'
 	case 'a' <= c && c <= 'f':
-		return c-'a'+10
+		return c - 'a' + 10
 	case 'A' <= c && c <= 'F':
-		return c-'A'+10
+		return c - 'A' + 10
 	}
 	return 255;
 }
@@ -61,7 +61,7 @@ func getHex(s []byte) (data []byte, rest []byte) {
 	n &^= 1;	// Only take an even number of hex digits.
 	data = make([]byte, n/2);
 	for i := range data {
-		data[i] = unhex(s[2*i])<<4 | unhex(s[2*i + 1])
+		data[i] = unhex(s[2*i])<<4 | unhex(s[2*i+1])
 	}
 	rest = s[n:len(s)];
 	return;

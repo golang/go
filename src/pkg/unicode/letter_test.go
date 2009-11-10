@@ -114,7 +114,7 @@ var caseTest = []caseT{
 	// errors
 	caseT{-1, '\n', 0xFFFD},
 	caseT{UpperCase, -1, -1},
-	caseT{UpperCase, 1<<30, 1<<30},
+	caseT{UpperCase, 1 << 30, 1 << 30},
 
 	// ASCII (special-cased so test carefully)
 	caseT{UpperCase, '\n', '\n'},
