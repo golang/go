@@ -120,8 +120,7 @@ func valueOrDefault(value, def string) string {
 	return def;
 }
 
-// TODO(rsc): Change default UserAgent before open-source release.
-const defaultUserAgent = "http.Client"
+const defaultUserAgent = "Go http package"
 
 // Write writes an HTTP/1.1 request -- header and body -- in wire format.
 // This method consults the following fields of req:
