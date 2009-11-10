@@ -286,7 +286,7 @@ The package name is only the default name for imports; it need not be unique
 across all source code, and in the rare case of a collision the
 importing package can choose a different name to use locally.
 In any case, confusion is rare because the file name in the import
-defines which version is being used.
+determines just which package is being used.
 </p>
 
 <p>
@@ -362,7 +362,7 @@ multiword names.
 <p>
 Go needs fewer semicolons between statements than do other C variants.
 Semicolons are never required at the top level.
-Also they are separators, not terminators, so they
+And they are separators, not terminators, so they
 can be left off the last element of a statement or declaration list,
 a convenience
 for one-line <code>funcs</code> and the like.
@@ -656,8 +656,8 @@ case *int:
 <h3 id="multiple-returns">Multiple return values</h3>
 
 <p>
-One of Go's unusual properties is that functions and methods
-can return multiple values.  This feature can be used to
+One of Go's unusual features is that functions and methods
+can return multiple values.  This can be used to
 improve on a couple of clumsy idioms in C programs: in-band
 error returns (such as <code>-1</code> for <code>EOF</code>)
 and modifying an argument.
@@ -745,7 +745,7 @@ of <code>io.ReadFull</code> that uses them well:
 
 <pre>
 func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
-	for len(buf) > 0 &amp;&amp; err != nil {
+	for len(buf) > 0 &amp;&amp; err == nil {
 		var nr int;
 		nr, err = r.Read(buf);
 		n += nr;
@@ -1162,7 +1162,7 @@ return a string rather than filling in a provided buffer.
 </p>
 <p>
 You don't need to provide a format string.  For each of <code>Printf</code>,
-<code>fmt.Fprintf</code> and <code>fmt.Sprintf</code> there is another pair
+<code>Fprintf</code> and <code>Sprintf</code> there is another pair
 of functions, for instance <code>Print</code> and <code>Println</code>.
 These functions do not take a format string but instead generate a default
 format for each argument. The <code>ln</code> version also inserts a blank
@@ -1175,7 +1175,9 @@ fmt.Fprint(os.Stdout, "Hello ", 23, "\n");
 fmt.Println(fmt.Sprint("Hello ", 23));
 </pre>
 <p>
-Recall that <code>fmt.Fprint</code> and friends take as a first argument any object
+As mentioned in
+the <a href="go_tutorial.html">tutorial</a>, <code>fmt.Fprint</code>
+and friends take as a first argument any object
 that implements the <code>io.Writer</code> interface; the variables <code>os.Stdout</code>
 and <code>os.Stderr</code> are familiar instances.
 </p>
@@ -1428,7 +1430,7 @@ func init() {
 
 <h3 id="pointers_vs_values">Pointers vs. Values</h3>
 <p>
-Methods can be defined for any named type except pointers and interfaces;
+Methods can be defined for any named type that is not a pointer or an interface;
 the receiver does not have to be a struct.
 <p>
 In the discussion of slices above, we wrote an <code>Append</code>
@@ -2078,7 +2080,8 @@ Receivers always block until there is data to receive.
 If the channel is unbuffered, the sender blocks until the receiver has
 received the value.
 If the channel has a buffer, the sender blocks only until the
-value has been copied to the buffer.
+value has been copied to the buffer; if the buffer is full, this
+means waiting until some receiver has retrieved a value.
 </p>
 <p>
 A buffered channel can be used like a semaphore, for instance to
@@ -2147,7 +2150,7 @@ Here's a schematic definition of type <code>Request</code>.
 type Request struct {
     args  []int;
     f    func([]int) int;
-    resultChan	<-chan int;
+    resultChan	chan int;
 }
 </pre>
 <p>
