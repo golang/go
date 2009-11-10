@@ -22,6 +22,7 @@
 //		'[' [ '^' ] character-ranges ']'
 //		'(' regexp ')'
 //
+
 package testing
 
 import (
