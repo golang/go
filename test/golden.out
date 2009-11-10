@@ -94,66 +94,6 @@ panic PC=xxx
 
 == nilptr/
 
-=========== nilptr/arrayindex.go
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
-
-
-=========== nilptr/arrayindex1.go
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
-
-
-=========== nilptr/arraytoslice.go
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
-
-
-=========== nilptr/arraytoslice1.go
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
-
-
-=========== nilptr/arraytoslice2.go
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
-
-
-=========== nilptr/slicearray.go
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
-
-
-=========== nilptr/structfield.go
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
-
-
-=========== nilptr/structfield1.go
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
-
-
-=========== nilptr/structfield2.go
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
-
-
-=========== nilptr/structfieldaddr.go
-SIGSEGV: segmentation violation
-Faulting address: 0x0
-pc: xxx
-
-
 == fixedbugs/
 
 =========== fixedbugs/bug016.go

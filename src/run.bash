@@ -5,6 +5,9 @@
 
 set -e
 
+# no core files, please
+ulimit -c 0
+
 xcd() {
 	echo
 	echo --- cd $1
