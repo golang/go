@@ -7,6 +7,10 @@
 /* ------------------------------------------------------------------------- */
 /* Styles meant to help page authors achieve beauty. */
 
+a {
+  text-decoration: none;
+}
+
 code, .code {
   font-size: 100%;
   font-family: monospace;
@@ -178,14 +182,6 @@ div#linkList li.navhead {
 
 /* ------------------------------------------------------------------------- */
 /* Styles used by godoc */
-
-a.noline {
-  text-decoration: none;
-}
-
-a.info {
-  text-decoration: none;
-}
 
 table.layout {
   border-width: 0px;

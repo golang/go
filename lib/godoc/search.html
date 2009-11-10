@@ -22,11 +22,11 @@
 	{.section Decls}
 		<h2>Package-level declarations</h2>
 		{.repeated section @}
-			<h3>package <a href="{Pak.Path|path}" class="noline">{Pak.Name|html}</a></h3>
+			<h3>package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
 			{.repeated section Files}
 				{.repeated section Groups}
 					{.repeated section Infos}
-						<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}" class="noline">{File.Path|html}:{@|infoLine}</a>
+						<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}">{File.Path|html}:{@|infoLine}</a>
 						<pre>{@|infoSnippet}</pre>
 					{.end}
 				{.end}
@@ -36,9 +36,9 @@
 	{.section Others}
 		<h2>Local declarations and uses</h2>
 		{.repeated section @}
-			<h3>package <a href="{Pak.Path|path}" class="noline">{Pak.Name|html}</a></h3>
+			<h3>package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
 			{.repeated section Files}
-				<a href="{File.Path|html}?h={Query|html}" class="noline">{File.Path|html}</a>
+				<a href="{File.Path|html}?h={Query|html}">{File.Path|html}</a>
 				<table class="layout">
 				{.repeated section Groups}
 					<tr>
@@ -47,7 +47,7 @@
 					<td align="left" width="4"></td>
 					<td>
 					{.repeated section Infos}
-						<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}" class="info">{@|infoLine}</a>
+						<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}">{@|infoLine}</a>
 					{.end}
 					</td>
 					</tr>
