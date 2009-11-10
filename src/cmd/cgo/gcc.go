@@ -198,7 +198,7 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
 		machine,
 		"-Wall",	// many warnings
 		"-Werror",	// warnings are errors
-		"-o"+tmp,	// write object to tmp
+		"-o" + tmp,	// write object to tmp
 		"-gdwarf-2",	// generate DWARF v2 debugging symbols
 		"-c",	// do not link
 		"-xc",	// input language is C
@@ -515,7 +515,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 				s = ss
 			}
 			s = strings.Join(strings.Split(s, " ", 0), "");	// strip spaces
-			name := c.Ident("_C_"+s);
+			name := c.Ident("_C_" + s);
 			c.typedef[name.Value] = t.Go;
 			t.Go = name;
 		}
@@ -609,11 +609,11 @@ func (c *typeConv) pad(fld []*ast.Field, size int64) []*ast.Field {
 // Struct conversion
 func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax string, align int64) {
 	csyntax = "struct { ";
-	fld := make([]*ast.Field, 0, 2*len(dt.Field) + 1);	// enough for padding around every field
+	fld := make([]*ast.Field, 0, 2*len(dt.Field)+1);	// enough for padding around every field
 	off := int64(0);
 	for _, f := range dt.Field {
 		if f.ByteOffset > off {
-			fld = c.pad(fld, f.ByteOffset - off);
+			fld = c.pad(fld, f.ByteOffset-off);
 			off = f.ByteOffset;
 		}
 		t := c.Type(f.Type);
@@ -627,7 +627,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
 		}
 	}
 	if off < dt.ByteSize {
-		fld = c.pad(fld, dt.ByteSize - off);
+		fld = c.pad(fld, dt.ByteSize-off);
 		off = dt.ByteSize;
 	}
 	if off != dt.ByteSize {

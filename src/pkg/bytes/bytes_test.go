@@ -229,7 +229,7 @@ const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
 var trimSpaceTests = []StringTest{
 	StringTest{"", ""},
 	StringTest{"abc", "abc"},
-	StringTest{space+"abc"+space, "abc"},
+	StringTest{space + "abc" + space, "abc"},
 	StringTest{" ", ""},
 	StringTest{" \t\r\n \t\t\r\r\n\n ", ""},
 	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
@@ -312,7 +312,7 @@ func TestAdd(t *testing.T) {
 			b[i] = test.s[i]
 		}
 		b = Add(b, strings.Bytes(test.t));
-		if string(b) != test.s + test.t {
+		if string(b) != test.s+test.t {
 			t.Errorf("Add(%q,%q) = %q", test.s, test.t, string(b))
 		}
 	}

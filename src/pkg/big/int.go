@@ -285,7 +285,7 @@ func (z *Int) Bytes() []byte {
 
 	for i, w := range z.abs {
 		wordBytes := b[(len(z.abs)-i-1)*s : (len(z.abs)-i)*s];
-		for j := s-1; j >= 0; j-- {
+		for j := s - 1; j >= 0; j-- {
 			wordBytes[j] = byte(w);
 			w >>= 8;
 		}
@@ -327,13 +327,13 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 	shift := leadingZeros(v) + 1;
 	v <<= shift;
 
-	const mask = 1<<(_W-1);
+	const mask = 1 << (_W - 1);
 
 	// We walk through the bits of the exponent one by one. Each time we see
 	// a bit, we square, thus doubling the power. If the bit is a one, we
 	// also multiply by x, thus adding one to the power.
 
-	w := int(_W)-int(shift);
+	w := int(_W) - int(shift);
 	for j := 0; j < w; j++ {
 		z.Mul(z, z);
 
@@ -348,7 +348,7 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 		v <<= 1;
 	}
 
-	for i := len(y.abs)-2; i >= 0; i-- {
+	for i := len(y.abs) - 2; i >= 0; i-- {
 		v = y.abs[i];
 
 		for j := 0; j < int(_W); j++ {
@@ -366,7 +366,7 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 		}
 	}
 
-	z.neg = x.neg && y.abs[0] & 1 == 1;
+	z.neg = x.neg && y.abs[0]&1 == 1;
 	return z;
 }
 

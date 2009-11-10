@@ -119,11 +119,11 @@ func (tr *Reader) readHeader() *Header {
 	}
 
 	// Two blocks of zero bytes marks the end of the archive.
-	if bytes.Equal(header, zeroBlock[0 : blockSize]) {
+	if bytes.Equal(header, zeroBlock[0:blockSize]) {
 		if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
 			return nil
 		}
-		if !bytes.Equal(header, zeroBlock[0 : blockSize]) {
+		if !bytes.Equal(header, zeroBlock[0:blockSize]) {
 			tr.err = HeaderError
 		}
 		return nil;
@@ -206,7 +206,7 @@ func (tr *Reader) readHeader() *Header {
 // until Next is called to advance to the next entry.
 func (tr *Reader) Read(b []uint8) (n int, err os.Error) {
 	if int64(len(b)) > tr.nb {
-		b = b[0 : tr.nb]
+		b = b[0:tr.nb]
 	}
 	n, err = tr.r.Read(b);
 	tr.nb -= int64(n);

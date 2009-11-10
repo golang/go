@@ -85,7 +85,7 @@ func (tw *Writer) octal(b []byte, x int64) {
 	s := strconv.Itob64(x, 8);
 	// leading zeros, but leave room for a NUL.
 	for len(s)+1 < len(b) {
-		s = "0"+s
+		s = "0" + s
 	}
 	tw.cString(b, s);
 }
@@ -100,7 +100,7 @@ func (tw *Writer) numeric(b []byte, x int64) {
 	}
 	// Too big: use binary (big-endian).
 	tw.usedBinary = true;
-	for i := len(b)-1; x > 0 && i >= 0; i-- {
+	for i := len(b) - 1; x > 0 && i >= 0; i-- {
 		b[i] = byte(x);
 		x >>= 8;
 	}
@@ -167,7 +167,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 func (tw *Writer) Write(b []uint8) (n int, err os.Error) {
 	overwrite := false;
 	if int64(len(b)) > tw.nb {
-		b = b[0 : tw.nb];
+		b = b[0:tw.nb];
 		overwrite = true;
 	}
 	n, err = tw.w.Write(b);

@@ -106,9 +106,9 @@ func (b BitString) At(i int) int {
 	if i < 0 || i >= b.BitLength {
 		return 0
 	}
-	x := i/8;
-	y := 7-uint(i%8);
-	return int(b.Bytes[x] >> y)&1;
+	x := i / 8;
+	y := 7 - uint(i%8);
+	return int(b.Bytes[x]>>y) & 1;
 }
 
 // parseBitString parses an ASN.1 bit string from the given byte array and returns it.
@@ -148,8 +148,8 @@ func parseObjectIdentifier(bytes []byte) (s []int, err os.Error) {
 	s = make([]int, len(bytes)+1);
 
 	// The first byte is 40*value1 + value2:
-	s[0] = int(bytes[0])/40;
-	s[1] = int(bytes[0])%40;
+	s[0] = int(bytes[0]) / 40;
+	s[1] = int(bytes[0]) % 40;
 	i := 2;
 	for offset := 1; offset < len(bytes); i++ {
 		var v int;
@@ -174,7 +174,7 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err os.Erro
 		}
 		ret <<= 7;
 		b := bytes[offset];
-		ret |= int(b&0x7f);
+		ret |= int(b & 0x7f);
 		offset++;
 		if b&0x80 == 0 {
 			return
@@ -225,9 +225,9 @@ func parseUTCTime(bytes []byte) (ret time.Time, err os.Error) {
 	// RFC 5280, section 5.1.2.4 says that years 2050 or later use another date
 	// scheme.
 	if year > 50 {
-		ret.Year = 1900+int64(year)
+		ret.Year = 1900 + int64(year)
 	} else {
-		ret.Year = 2000+int64(year)
+		ret.Year = 2000 + int64(year)
 	}
 	ret.Month, ok2 = twoDigits(bytes[2:4], 12);
 	ret.Day, ok3 = twoDigits(bytes[4:6], 31);
@@ -270,7 +270,7 @@ func parseUTCTime(bytes []byte) (ret time.Time, err os.Error) {
 		if bytes[0] == '-' {
 			sign = -1
 		}
-		ret.ZoneOffset = sign*(60*(hours*60 + minutes));
+		ret.ZoneOffset = sign * (60 * (hours*60 + minutes));
 	default:
 		goto Error
 	}
@@ -374,9 +374,9 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 	offset = initOffset;
 	b := bytes[offset];
 	offset++;
-	ret.class = int(b>>6);
+	ret.class = int(b >> 6);
 	ret.isCompound = b&0x20 == 0x20;
-	ret.tag = int(b&0x1f);
+	ret.tag = int(b & 0x1f);
 
 	// If the bottom five bits are set, then the tag number is actually base 128
 	// encoded afterwards
@@ -394,10 +394,10 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 	offset++;
 	if b&0x80 == 0 {
 		// The length is encoded in the bottom 7 bits.
-		ret.length = int(b&0x7f)
+		ret.length = int(b & 0x7f)
 	} else {
 		// Bottom 7 bits give the number of length bytes to follow.
-		numBytes := int(b&0x7f);
+		numBytes := int(b & 0x7f);
 		// We risk overflowing a signed 32-bit number if we accept more than 3 bytes.
 		if numBytes > 3 {
 			err = StructuralError{"length too large"};
@@ -600,7 +600,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			err = SyntaxError{"data truncated"};
 			return;
 		}
-		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset + t.length]};
+		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset+t.length]};
 		offset += t.length;
 		v.(*reflect.StructValue).Set(reflect.NewValue(result).(*reflect.StructValue));
 		return;
@@ -620,7 +620,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		}
 		var result interface{}
 		if !t.isCompound && t.class == classUniversal {
-			innerBytes := bytes[offset : offset + t.length];
+			innerBytes := bytes[offset : offset+t.length];
 			switch t.tag {
 			case tagPrintableString:
 				result, err = parsePrintableString(innerBytes)
@@ -708,7 +708,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		err = SyntaxError{"data truncated"};
 		return;
 	}
-	innerBytes := bytes[offset : offset + t.length];
+	innerBytes := bytes[offset : offset+t.length];
 
 	// We deal with the structures defined in this package first.
 	switch fieldType {

@@ -142,7 +142,7 @@ func firstSentence(s string) string {
 	j := -1;	// index+1 of first period that is followed by white space
 	prev := 'A';
 	for k, ch := range s {
-		k1 := k+1;
+		k1 := k + 1;
 		if ch == '.' {
 			if i < 0 {
 				i = k1	// first period
@@ -208,7 +208,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 			if text == "" {
 				// no package documentation yet; take the first found
 				file, err := parser.ParseFile(pathutil.Join(path, d.Name), nil,
-					parser.ParseComments | parser.PackageClauseOnly);
+					parser.ParseComments|parser.PackageClauseOnly);
 				if err == nil &&
 					// Also accept fakePkgName, so we get synopses for commmands.
 					// Note: This may lead to incorrect results if there is a
@@ -338,7 +338,7 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 
 	// determine number of entries n and maximum height
 	n := 0;
-	minDepth := 1<<30;	// infinity
+	minDepth := 1 << 30;	// infinity
 	maxDepth := 0;
 	for d := range root.iter(skipRoot) {
 		n++;
@@ -349,7 +349,7 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 			maxDepth = d.Depth
 		}
 	}
-	maxHeight := maxDepth-minDepth+1;
+	maxHeight := maxDepth - minDepth + 1;
 
 	if n == 0 {
 		return nil
@@ -445,7 +445,7 @@ func parse(path string, mode uint) (*ast.File, *parseErrors) {
 			for i, r := range errors {
 				// Should always be true, but check for robustness.
 				if 0 <= r.Pos.Offset && r.Pos.Offset <= len(src) {
-					errs[i].src = src[offs : r.Pos.Offset];
+					errs[i].src = src[offs:r.Pos.Offset];
 					offs = r.Pos.Offset;
 				}
 				errs[i].line = r.Pos.Line;
@@ -669,7 +669,7 @@ func paddingFmt(w io.Writer, x interface{}, format string) {
 // Template formatter for "time" format.
 func timeFmt(w io.Writer, x interface{}, format string) {
 	// note: os.Dir.Mtime_ns is in uint64 in ns!
-	template.HTMLEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64) / 1e9)).String()))
+	template.HTMLEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64)/1e9)).String()))
 }
 
 
@@ -738,7 +738,7 @@ func servePage(c *http.Conn, title, query string, content []byte) {
 	_, ts := fsTree.get();
 	d := Data{
 		Title: title,
-		Timestamp: uint64(ts)*1e9,	// timestamp in ns
+		Timestamp: uint64(ts) * 1e9,	// timestamp in ns
 		Query: query,
 		Content: content,
 	};
@@ -801,7 +801,7 @@ func serveParseErrors(c *http.Conn, errors *parseErrors) {
 	if err := parseerrorHTML.Execute(errors, &buf); err != nil {
 		log.Stderrf("parseerrorHTML.Execute: %s", err)
 	}
-	servePage(c, "Parse errors in source file " + errors.filename, "", buf.Bytes());
+	servePage(c, "Parse errors in source file "+errors.filename, "", buf.Bytes());
 }
 
 
@@ -817,7 +817,7 @@ func serveGoSource(c *http.Conn, r *http.Request, path string, styler printer.St
 	writeNode(&buf, prog, true, styler);
 	fmt.Fprintln(&buf, "</pre>");
 
-	servePage(c, "Source file " + r.URL.Path, "", buf.Bytes());
+	servePage(c, "Source file "+r.URL.Path, "", buf.Bytes());
 }
 
 
@@ -887,7 +887,7 @@ func serveTextFile(c *http.Conn, r *http.Request, path string) {
 	template.HTMLEscape(&buf, src);
 	fmt.Fprintln(&buf, "</pre>");
 
-	servePage(c, "Text file " + path, "", buf.Bytes());
+	servePage(c, "Text file "+path, "", buf.Bytes());
 }
 
 
@@ -907,7 +907,7 @@ func serveDirectory(c *http.Conn, r *http.Request, path string) {
 		log.Stderrf("dirlistHTML.Execute: %s", err)
 	}
 
-	servePage(c, "Directory " + path, "", buf.Bytes());
+	servePage(c, "Directory "+path, "", buf.Bytes());
 }
 
 
@@ -1150,11 +1150,11 @@ func indexer() {
 			stop := time.Nanoseconds();
 			searchIndex.set(index);
 			if *verbose {
-				secs := float64((stop-start)/1e6)/1e3;
+				secs := float64((stop-start)/1e6) / 1e3;
 				nwords, nspots := index.Size();
 				log.Stderrf("index updated (%gs, %d unique words, %d spots)", secs, nwords, nspots);
 			}
 		}
-		time.Sleep(1*60e9);	// try once a minute
+		time.Sleep(1 * 60e9);	// try once a minute
 	}
 }

@@ -516,5 +516,5 @@ func IntFromString(s string, base uint) (*Integer, uint, int) {
 
 	mant, base, slen := NatFromString(s[i0:len(s)], base);
 
-	return MakeInt(i0 > 0 && s[0] == '-', mant), base, i0+slen;
+	return MakeInt(i0 > 0 && s[0] == '-', mant), base, i0 + slen;
 }

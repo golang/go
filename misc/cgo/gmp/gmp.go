@@ -138,7 +138,7 @@ func (z *Int) doinit() {
 
 // Bytes returns z's representation as a big-endian byte array.
 func (z *Int) Bytes() []byte {
-	b := make([]byte, (z.Len() + 7)/8);
+	b := make([]byte, (z.Len()+7)/8);
 	n := C.size_t(len(b));
 	C.mpz_export(unsafe.Pointer(&b[0]), &n, 1, 1, 1, 0, &z.i[0]);
 	return b[0:n];

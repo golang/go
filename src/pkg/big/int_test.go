@@ -208,11 +208,11 @@ func checkSetBytes(b []byte) bool {
 	hex2 := hex.EncodeToString(b);
 
 	for len(hex1) < len(hex2) {
-		hex1 = "0"+hex1
+		hex1 = "0" + hex1
 	}
 
 	for len(hex1) > len(hex2) {
-		hex2 = "0"+hex2
+		hex2 = "0" + hex2
 	}
 
 	return hex1 == hex2;
@@ -304,8 +304,8 @@ func TestDivStepD6(t *testing.T) {
 	// See Knuth, Volume 2, section 4.3.1, exercise 21. This code exercises
 	// a code path which only triggers 1 in 10^{-19} cases.
 
-	u := &Int{false, []Word{0, 0, 1 + 1<<(_W-1), _M^(1<<(_W-1))}};
-	v := &Int{false, []Word{5, 2 + 1<<(_W-1), 1<<(_W-1)}};
+	u := &Int{false, []Word{0, 0, 1 + 1<<(_W-1), _M ^ (1 << (_W - 1))}};
+	v := &Int{false, []Word{5, 2 + 1<<(_W-1), 1 << (_W - 1)}};
 
 	q, r := new(Int).Div(u, v);
 	const expectedQ64 = "18446744073709551613";

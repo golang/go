@@ -138,9 +138,9 @@ func TestNatConv(t *testing.T) {
 	var slen int;
 	nat_eq(10, natFromString("0", 0, nil), nat_zero);
 	nat_eq(11, natFromString("123", 0, nil), Nat(123));
-	nat_eq(12, natFromString("077", 0, nil), Nat(7*8 + 7));
-	nat_eq(13, natFromString("0x1f", 0, nil), Nat(1*16 + 15));
-	nat_eq(14, natFromString("0x1fg", 0, &slen), Nat(1*16 + 15));
+	nat_eq(12, natFromString("077", 0, nil), Nat(7*8+7));
+	nat_eq(13, natFromString("0x1f", 0, nil), Nat(1*16+15));
+	nat_eq(14, natFromString("0x1fg", 0, &slen), Nat(1*16+15));
 	test(4, slen == 4);
 
 	test_msg = "NatConvF";
@@ -194,14 +194,14 @@ func TestIntConv(t *testing.T) {
 	int_eq(1, intFromString("-0", 0, nil), int_zero);
 	int_eq(2, intFromString("123", 0, nil), Int(123));
 	int_eq(3, intFromString("-123", 0, nil), Int(-123));
-	int_eq(4, intFromString("077", 0, nil), Int(7*8 + 7));
+	int_eq(4, intFromString("077", 0, nil), Int(7*8+7));
 	int_eq(5, intFromString("-077", 0, nil), Int(-(7*8 + 7)));
-	int_eq(6, intFromString("0x1f", 0, nil), Int(1*16 + 15));
+	int_eq(6, intFromString("0x1f", 0, nil), Int(1*16+15));
 	int_eq(7, intFromString("-0x1f", 0, &slen), Int(-(1*16 + 15)));
 	test(7, slen == 5);
 	int_eq(8, intFromString("+0x1f", 0, &slen), Int(+(1*16 + 15)));
 	test(8, slen == 5);
-	int_eq(9, intFromString("0x1fg", 0, &slen), Int(1*16 + 15));
+	int_eq(9, intFromString("0x1fg", 0, &slen), Int(1*16+15));
 	test(9, slen == 4);
 	int_eq(10, intFromString("-0x1fg", 0, &slen), Int(-(1*16 + 15)));
 	test(10, slen == 5);
@@ -355,10 +355,10 @@ func TestIntQuoRem(t *testing.T) {
 		x, y := Int(e.x).Mul(ip), Int(e.y).Mul(ip);
 		q, r := Int(e.q), Int(e.r).Mul(ip);
 		qq, rr := x.QuoRem(y);
-		int_eq(4*i + 0, x.Quo(y), q);
-		int_eq(4*i + 1, x.Rem(y), r);
-		int_eq(4*i + 2, qq, q);
-		int_eq(4*i + 3, rr, r);
+		int_eq(4*i+0, x.Quo(y), q);
+		int_eq(4*i+1, x.Rem(y), r);
+		int_eq(4*i+2, qq, q);
+		int_eq(4*i+3, rr, r);
 	}
 }
 
@@ -384,10 +384,10 @@ func TestIntDivMod(t *testing.T) {
 		x, y := Int(e.x).Mul(ip), Int(e.y).Mul(ip);
 		q, r := Int(e.q), Int(e.r).Mul(ip);
 		qq, rr := x.DivMod(y);
-		int_eq(4*i + 0, x.Div(y), q);
-		int_eq(4*i + 1, x.Mod(y), r);
-		int_eq(4*i + 2, qq, q);
-		int_eq(4*i + 3, rr, r);
+		int_eq(4*i+0, x.Div(y), q);
+		int_eq(4*i+1, x.Mod(y), r);
+		int_eq(4*i+2, qq, q);
+		int_eq(4*i+3, rr, r);
 	}
 }
 
@@ -427,7 +427,7 @@ func TestNatShift(t *testing.T) {
 	{
 		const m = 3;
 		p := b;
-		f := Nat(1<<m);
+		f := Nat(1 << m);
 		for i := uint(0); i < 100; i++ {
 			nat_eq(i, b.Shl(i*m), p);
 			p = mul(p, f);
@@ -464,7 +464,7 @@ func TestIntShift(t *testing.T) {
 	{
 		const m = 3;
 		p := ip;
-		f := Int(1<<m);
+		f := Int(1 << m);
 		for i := uint(0); i < 100; i++ {
 			int_eq(i, ip.Shl(i*m), p);
 			p = p.Mul(f);
@@ -481,7 +481,7 @@ func TestIntShift(t *testing.T) {
 	}
 
 	test_msg = "IntShift4R";
-	int_eq(0, Int(-43).Shr(1), Int(-43 >> 1));
+	int_eq(0, Int(-43).Shr(1), Int(-43>>1));
 	int_eq(0, Int(-1024).Shr(100), Int(-1));
 	int_eq(1, ip.Neg().Shr(10), ip.Neg().Div(Int(1).Shl(10)));
 }
@@ -497,25 +497,25 @@ func TestNatBitOps(t *testing.T) {
 	by := Nat(y);
 
 	test_msg = "NatAnd";
-	bz := Nat(x&y);
+	bz := Nat(x & y);
 	for i := uint(0); i < 100; i++ {
 		nat_eq(i, bx.Shl(i).And(by.Shl(i)), bz.Shl(i))
 	}
 
 	test_msg = "NatAndNot";
-	bz = Nat(x&^y);
+	bz = Nat(x &^ y);
 	for i := uint(0); i < 100; i++ {
 		nat_eq(i, bx.Shl(i).AndNot(by.Shl(i)), bz.Shl(i))
 	}
 
 	test_msg = "NatOr";
-	bz = Nat(x|y);
+	bz = Nat(x | y);
 	for i := uint(0); i < 100; i++ {
 		nat_eq(i, bx.Shl(i).Or(by.Shl(i)), bz.Shl(i))
 	}
 
 	test_msg = "NatXor";
-	bz = Nat(x^y);
+	bz = Nat(x ^ y);
 	for i := uint(0); i < 100; i++ {
 		nat_eq(i, bx.Shl(i).Xor(by.Shl(i)), bz.Shl(i))
 	}
@@ -536,10 +536,10 @@ func TestIntBitOps1(t *testing.T) {
 	};
 	for i := uint(0); i < uint(len(a)); i++ {
 		e := &a[i];
-		int_eq(4*i + 0, Int(e.x).And(Int(e.y)), Int(e.x & e.y));
-		int_eq(4*i + 1, Int(e.x).AndNot(Int(e.y)), Int(e.x &^ e.y));
-		int_eq(4*i + 2, Int(e.x).Or(Int(e.y)), Int(e.x | e.y));
-		int_eq(4*i + 3, Int(e.x).Xor(Int(e.y)), Int(e.x ^ e.y));
+		int_eq(4*i+0, Int(e.x).And(Int(e.y)), Int(e.x&e.y));
+		int_eq(4*i+1, Int(e.x).AndNot(Int(e.y)), Int(e.x&^e.y));
+		int_eq(4*i+2, Int(e.x).Or(Int(e.y)), Int(e.x|e.y));
+		int_eq(4*i+3, Int(e.x).Xor(Int(e.y)), Int(e.x^e.y));
 	}
 }
 
@@ -571,8 +571,8 @@ func TestIntBitOps2(t *testing.T) {
 		for y := int64(-5); y < 15; y++ {
 			by := Int(y);
 			for i := uint(50); i < 70; i++ {	// shift across 64bit boundary
-				int_eq(2*i + 0, bx.Shl(i).AndNot(by.Shl(i)), Int(x&^y).Shl(i));
-				int_eq(2*i + 1, bx.Shl(i).And(by.Shl(i).Not()), Int(x&^y).Shl(i));
+				int_eq(2*i+0, bx.Shl(i).AndNot(by.Shl(i)), Int(x&^y).Shl(i));
+				int_eq(2*i+1, bx.Shl(i).And(by.Shl(i).Not()), Int(x&^y).Shl(i));
 			}
 		}
 	}

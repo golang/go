@@ -185,7 +185,7 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
 	}
 
 	// read exponent, if any
-	rlen := alen+blen;
+	rlen := alen + blen;
 	if rlen < len(s) {
 		ch := s[rlen];
 		if ch == 'e' || ch == 'E' {

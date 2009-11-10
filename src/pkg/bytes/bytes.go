@@ -89,9 +89,9 @@ func Count(s, sep []byte) int {
 	c := sep[0];
 	n := 0;
 	for i := 0; i+len(sep) <= len(s); i++ {
-		if s[i] == c && (len(sep) == 1 || Equal(s[i : i+len(sep)], sep)) {
+		if s[i] == c && (len(sep) == 1 || Equal(s[i:i+len(sep)], sep)) {
 			n++;
-			i += len(sep)-1;
+			i += len(sep) - 1;
 		}
 	}
 	return n;
@@ -105,7 +105,7 @@ func Index(s, sep []byte) int {
 	}
 	c := sep[0];
 	for i := 0; i+n <= len(s); i++ {
-		if s[i] == c && (n == 1 || Equal(s[i : i+n], sep)) {
+		if s[i] == c && (n == 1 || Equal(s[i:i+n], sep)) {
 			return i
 		}
 	}
@@ -119,8 +119,8 @@ func LastIndex(s, sep []byte) int {
 		return len(s)
 	}
 	c := sep[0];
-	for i := len(s)-n; i >= 0; i-- {
-		if s[i] == c && (n == 1 || Equal(s[i : i+n], sep)) {
+	for i := len(s) - n; i >= 0; i-- {
+		if s[i] == c && (n == 1 || Equal(s[i:i+n], sep)) {
 			return i
 		}
 	}
@@ -141,11 +141,11 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 	a := make([][]byte, n);
 	na := 0;
 	for i := 0; i+len(sep) <= len(s) && na+1 < n; i++ {
-		if s[i] == c && (len(sep) == 1 || Equal(s[i : i+len(sep)], sep)) {
+		if s[i] == c && (len(sep) == 1 || Equal(s[i:i+len(sep)], sep)) {
 			a[na] = s[start : i+sepSave];
 			na++;
-			start = i+len(sep);
-			i += len(sep)-1;
+			start = i + len(sep);
+			i += len(sep) - 1;
 		}
 	}
 	a[na] = s[start:len(s)];
@@ -174,7 +174,7 @@ func Join(a [][]byte, sep []byte) []byte {
 	if len(a) == 1 {
 		return a[0]
 	}
-	n := len(sep)*(len(a)-1);
+	n := len(sep) * (len(a) - 1);
 	for i := 0; i < len(a); i++ {
 		n += len(a[i])
 	}
@@ -205,7 +205,7 @@ func HasPrefix(s, prefix []byte) bool {
 
 // HasSuffix tests whether the byte array s ends with suffix.
 func HasSuffix(s, suffix []byte) bool {
-	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix) : len(s)], suffix)
+	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix):len(s)], suffix)
 }
 
 // Map returns a copy of the byte array s with all its characters modified
@@ -226,7 +226,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
 			rune, wid = utf8.DecodeRune(s[i:len(s)])
 		}
 		rune = mapping(rune);
-		if nbytes + utf8.RuneLen(rune) > maxbytes {
+		if nbytes+utf8.RuneLen(rune) > maxbytes {
 			// Grow the buffer.
 			maxbytes = maxbytes*2 + utf8.UTFMax;
 			nb := make([]byte, maxbytes);
@@ -307,7 +307,7 @@ func Add(s, t []byte) []byte {
 		Copy(news, s);
 		s = news;
 	}
-	Copy(s[lens : lens+lent], t);
+	Copy(s[lens:lens+lent], t);
 	return s;
 }
 
