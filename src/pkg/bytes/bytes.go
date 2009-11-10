@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// A package of simple functions to manipulate arrays of bytes.
+// The bytes package implements functions for the manipulation of byte slices.
 // Analagous to the facilities of the strings package.
 package bytes
 
