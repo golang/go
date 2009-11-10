@@ -88,6 +88,78 @@ func _() {
 
 
 func _() {
+	a+b;
+	a+b+c;
+	a+b*c;
+	a+(b*c);
+	(a+b)*c;
+	a+(b*c*d);
+	a+(b*c+d);
+
+	1<<x;
+	-1<<x;
+	1<<x-1;
+	-1<<x-1;
+
+	f(a+b);
+	f(a+b+c);
+	f(a+b*c);
+	f(a+(b*c));
+	f(1<<x-1, 1<<x-2);
+
+	1<<d.logWindowSize-1;
+
+	buf = make(x, 2*cap(b.buf) + n);
+
+	dst[i*3+2] = dbuf[0]<<2;
+	dst[i*3+2] = dbuf[0]<<2 | dbuf[1]>>4;
+
+	b.buf = b.buf[0:b.off+m+n];
+	b.buf = b.buf[0:b.off+m*n];
+	f(b.buf[0:b.off+m+n]);
+
+	signed += ' '*8;
+	tw.octal(header[148:155], chksum);
+
+	x > 0 && i >= 0;
+
+	x1, x0 := x>>w2, x&m2;
+	z0 = t1<<w2+t0;
+	z1 = (t1+t0>>w2)>>w2;
+	q1, r1 := x1/d1, x1%d1;
+	r1 = r1*b2 | x0>>w2;
+	x1 = (x1<<z)|(x0>>(uint(w)-z));
+	x1 = x1<<z | x0>>(uint(w)-z);
+
+	buf[0:len(buf)+1];
+	buf[0:n+1];
+
+	a,b = b,a;
+	a = b+c;
+	a = b*c+d;
+	a*b+c;
+	a-b-c;
+	a-(b-c);
+	a-b*c;
+	a-(b*c);
+	a*b/c;
+	a/ *b;
+	x[a|^b];
+	x[a/ *b];
+	a& ^b;
+	a+ +b;
+	a- -b;
+	x[a*-b];
+	x[a+ +b];
+	x^y^z;
+	b[a>>24] ^ b[(a>>16)&0xFF] ^ b[(a>>8)&0xFF] ^ b[a&0xFF];
+	len(longVariableName)*2;
+
+	token(matchType + xlength<<lengthShift + xoffset);
+}
+
+
+func _() {
 	_ = T{};
 	_ = struct{}{};
 	_ = [10]T{};

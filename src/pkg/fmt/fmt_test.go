@@ -197,14 +197,14 @@ func TestSprintf(t *testing.T) {
 	for _, tt := range fmttests {
 		s := Sprintf(tt.fmt, tt.val);
 		if i := strings.Index(s, "0x"); i >= 0 && strings.Index(tt.out, "PTR") >= 0 {
-			j := i+2;
+			j := i + 2;
 			for ; j < len(s); j++ {
 				c := s[j];
 				if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
 					break
 				}
 			}
-			s = s[0:i]+"PTR"+s[j:len(s)];
+			s = s[0:i] + "PTR" + s[j:len(s)];
 		}
 		if s != tt.out {
 			if _, ok := tt.val.(string); ok {

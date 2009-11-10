@@ -99,7 +99,7 @@ func _Block(dig *digest, p []byte) int {
 		aa, bb, cc, dd := a, b, c, d;
 
 		for i := 0; i < 16; i++ {
-			j := i*4;
+			j := i * 4;
 			X[i] = uint32(p[j]) | uint32(p[j+1])<<8 | uint32(p[j+2])<<16 | uint32(p[j+3])<<24;
 		}
 
@@ -116,8 +116,8 @@ func _Block(dig *digest, p []byte) int {
 			x := i;
 			t := i;
 			s := shift1[i%4];
-			f := ((c^d)&b)^d;
-			a += f+X[x]+table[t];
+			f := ((c ^ d) & b) ^ d;
+			a += f + X[x] + table[t];
 			a = a<<s | a>>(32-s);
 			a += b;
 			a, b, c, d = d, a, b, c;
@@ -125,11 +125,11 @@ func _Block(dig *digest, p []byte) int {
 
 		// Round 2.
 		for i := 0; i < 16; i++ {
-			x := (1 + 5*i)%16;
-			t := 16+i;
+			x := (1 + 5*i) % 16;
+			t := 16 + i;
 			s := shift2[i%4];
-			g := ((b^c)&d)^c;
-			a += g+X[x]+table[t];
+			g := ((b ^ c) & d) ^ c;
+			a += g + X[x] + table[t];
 			a = a<<s | a>>(32-s);
 			a += b;
 			a, b, c, d = d, a, b, c;
@@ -137,11 +137,11 @@ func _Block(dig *digest, p []byte) int {
 
 		// Round 3.
 		for i := 0; i < 16; i++ {
-			x := (5 + 3*i)%16;
-			t := 32+i;
+			x := (5 + 3*i) % 16;
+			t := 32 + i;
 			s := shift3[i%4];
-			h := b^c^d;
-			a += h+X[x]+table[t];
+			h := b ^ c ^ d;
+			a += h + X[x] + table[t];
 			a = a<<s | a>>(32-s);
 			a += b;
 			a, b, c, d = d, a, b, c;
@@ -149,11 +149,11 @@ func _Block(dig *digest, p []byte) int {
 
 		// Round 4.
 		for i := 0; i < 16; i++ {
-			x := (7*i)%16;
+			x := (7 * i) % 16;
 			s := shift4[i%4];
-			t := 48+i;
-			ii := c^(b | ^d);
-			a += ii+X[x]+table[t];
+			t := 48 + i;
+			ii := c ^ (b | ^d);
+			a += ii + X[x] + table[t];
 			a = a<<s | a>>(32-s);
 			a += b;
 			a, b, c, d = d, a, b, c;

@@ -278,7 +278,7 @@ var encryptTests = []CryptTest{
 // Test encryptBlock against FIPS 197 examples.
 func TestEncryptBlock(t *testing.T) {
 	for i, tt := range encryptTests {
-		n := len(tt.key)+28;
+		n := len(tt.key) + 28;
 		enc := make([]uint32, n);
 		dec := make([]uint32, n);
 		expandKey(tt.key, enc, dec);
@@ -296,7 +296,7 @@ func TestEncryptBlock(t *testing.T) {
 // Test decryptBlock against FIPS 197 examples.
 func TestDecryptBlock(t *testing.T) {
 	for i, tt := range encryptTests {
-		n := len(tt.key)+28;
+		n := len(tt.key) + 28;
 		enc := make([]uint32, n);
 		dec := make([]uint32, n);
 		expandKey(tt.key, enc, dec);

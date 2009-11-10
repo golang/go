@@ -210,7 +210,7 @@ func (*testFunc) NewFrame() *Frame	{ return &Frame{nil, &[2]Value{}} }
 func (*testFunc) Call(t *Thread) {
 	n := t.f.Vars[0].(IntValue).Get(t);
 
-	res := n+1;
+	res := n + 1;
 
 	t.f.Vars[1].(IntValue).Set(t, res);
 }

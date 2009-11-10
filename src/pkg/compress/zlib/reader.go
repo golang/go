@@ -44,10 +44,10 @@ func NewInflater(r io.Reader) (io.ReadCloser, os.Error) {
 		return nil, err
 	}
 	h := uint(z.scratch[0])<<8 | uint(z.scratch[1]);
-	if (z.scratch[0] & 0x0f != zlibDeflate) || (h%31 != 0) {
+	if (z.scratch[0]&0x0f != zlibDeflate) || (h%31 != 0) {
 		return nil, HeaderError
 	}
-	if z.scratch[1] & 0x20 != 0 {
+	if z.scratch[1]&0x20 != 0 {
 		// BUG(nigeltao): The zlib package does not implement the FDICT flag.
 		return nil, UnsupportedError
 	}

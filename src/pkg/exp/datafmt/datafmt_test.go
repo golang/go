@@ -43,7 +43,7 @@ func formatter(s *State, value interface{}, rule_name string) bool {
 		s.Write([]byte{' '});
 		return true;
 	case "int":
-		if value.(int) & 1 == 0 {
+		if value.(int)&1 == 0 {
 			fmt.Fprint(s, "even ")
 		} else {
 			fmt.Fprint(s, "odd ")

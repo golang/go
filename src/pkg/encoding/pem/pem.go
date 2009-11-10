@@ -38,7 +38,7 @@ func getLine(data []byte) (line, rest []byte) {
 		i = len(data);
 		j = i;
 	} else {
-		j = i+1;
+		j = i + 1;
 		if i > 0 && data[i-1] == '\r' {
 			i--
 		}
@@ -108,7 +108,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		}
 
 		// TODO(agl): need to cope with values that spread across lines.
-		key, val := line[0:i], line[i+1 : len(line)];
+		key, val := line[0:i], line[i+1:len(line)];
 		key = bytes.TrimSpace(key);
 		val = bytes.TrimSpace(val);
 		p.Headers[string(key)] = string(val);

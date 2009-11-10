@@ -59,18 +59,18 @@ type Color uint32
 
 func (p Color) RGBA() (r, g, b, a uint32) {
 	x := uint32(p);
-	a = x>>24;
-	a |= a<<8;
-	a |= a<<16;
-	r = (x>>16)&0xFF;
-	r |= r<<8;
-	r |= r<<16;
-	g = (x>>8)&0xFF;
-	g |= g<<8;
-	g |= g<<16;
-	b = x&0xFF;
-	b |= b<<8;
-	b |= b<<16;
+	a = x >> 24;
+	a |= a << 8;
+	a |= a << 16;
+	r = (x >> 16) & 0xFF;
+	r |= r << 8;
+	r |= r << 16;
+	g = (x >> 8) & 0xFF;
+	g |= g << 8;
+	g |= g << 16;
+	b = x & 0xFF;
+	b |= b << 8;
+	b |= b << 16;
 	return;
 }
 

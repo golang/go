@@ -56,7 +56,7 @@ type ArchLSB struct{}
 func (ArchLSB) ToWord(data []byte) proc.Word {
 	var v proc.Word;
 	for i, b := range data {
-		v |= proc.Word(b) << (uint(i)*8)
+		v |= proc.Word(b) << (uint(i) * 8)
 	}
 	return v;
 }
@@ -83,7 +83,7 @@ func (ArchLSB) FromFloat64(f float64) uint64	{ return math.Float64bits(f) }
 type ArchAlignedMultiple struct{}
 
 func (ArchAlignedMultiple) Align(offset, width int) int {
-	return ((offset-1)|(width-1))+1
+	return ((offset - 1) | (width - 1)) + 1
 }
 
 type amd64 struct {

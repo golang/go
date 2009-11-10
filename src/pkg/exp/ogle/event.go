@@ -124,7 +124,7 @@ func (h *commonHook) handle(e Event) (EventAction, os.Error) {
 			continue
 		}
 		a, err := l.eh(e);
-		if a & EARemoveSelf == EARemoveSelf {
+		if a&EARemoveSelf == EARemoveSelf {
 			if !l.internal {
 				h.len--
 			}

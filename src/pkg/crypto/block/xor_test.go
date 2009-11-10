@@ -46,7 +46,7 @@ func testXorWriter(t *testing.T, maxio int) {
 			if i%block == 0 {
 				n++
 			}
-			crypt[i] = plain[i]^n;
+			crypt[i] = plain[i] ^ n;
 			n++;
 		}
 
@@ -104,7 +104,7 @@ func testXorReader(t *testing.T, maxio int) {
 	};
 	var plain, crypt [256]byte;
 	for i := 0; i < len(plain); i++ {
-		plain[i] = byte(255-i)
+		plain[i] = byte(255 - i)
 	}
 	b := new(bytes.Buffer);
 	for block := 1; block <= 64 && block <= maxio; block *= 2 {
@@ -114,7 +114,7 @@ func testXorReader(t *testing.T, maxio int) {
 			if i%block == 0 {
 				n++
 			}
-			crypt[i] = plain[i]^n;
+			crypt[i] = plain[i] ^ n;
 			n++;
 		}
 

@@ -31,7 +31,7 @@ func CommentText(comment *ast.CommentGroup) string {
 		// Remove comment markers.
 		// The parser has given us exactly the comment text.
 		switch n := len(c); {
-		case n >= 4 && c[0:2] == "/*" && c[n-2 : n] == "*/":
+		case n >= 4 && c[0:2] == "/*" && c[n-2:n] == "*/":
 			c = c[2 : n-2]
 		case n >= 2 && c[0:2] == "//":
 			c = c[2:n];
@@ -95,7 +95,7 @@ func split(text []byte) [][]byte {
 	last := 0;
 	for i, c := range text {
 		if c == '\n' {
-			last = i+1;
+			last = i + 1;
 			n++;
 		}
 	}
@@ -110,7 +110,7 @@ func split(text []byte) [][]byte {
 	for i, c := range text {
 		if c == '\n' {
 			out[n] = text[last : i+1];
-			last = i+1;
+			last = i + 1;
 			n++;
 		}
 	}
@@ -134,7 +134,7 @@ func commentEscape(w io.Writer, s []byte) {
 	for i := 0; i < len(s)-1; i++ {
 		if s[i] == s[i+1] && (s[i] == '`' || s[i] == '\'') {
 			template.HTMLEscape(w, s[last:i]);
-			last = i+2;
+			last = i + 2;
 			switch s[i] {
 			case '`':
 				w.Write(ldquo)
@@ -183,10 +183,10 @@ func unindent(block [][]byte) {
 	}
 
 	// compute maximum common white prefix
-	prefix := block[0][0 : indentLen(block[0])];
+	prefix := block[0][0:indentLen(block[0])];
 	for _, line := range block {
 		if !isBlank(line) {
-			prefix = commonPrefix(prefix, line[0 : indentLen(line)])
+			prefix = commonPrefix(prefix, line[0:indentLen(line)])
 		}
 	}
 	n := len(prefix);
@@ -242,7 +242,7 @@ func ToHTML(w io.Writer, s []byte) {
 			close();
 
 			// count indented or blank lines
-			j := i+1;
+			j := i + 1;
 			for j < len(lines) && (isBlank(lines[j]) || indentLen(lines[j]) > 0) {
 				j++
 			}

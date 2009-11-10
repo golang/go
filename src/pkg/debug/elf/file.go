@@ -76,7 +76,7 @@ func (s *Section) Data() ([]byte, os.Error) {
 }
 
 // Open returns a new ReadSeeker reading the ELF section.
-func (s *Section) Open() io.ReadSeeker	{ return io.NewSectionReader(s.sr, 0, 1<<63 - 1) }
+func (s *Section) Open() io.ReadSeeker	{ return io.NewSectionReader(s.sr, 0, 1<<63-1) }
 
 // A ProgHeader represents a single ELF program header.
 type ProgHeader struct {
@@ -104,7 +104,7 @@ type Prog struct {
 }
 
 // Open returns a new ReadSeeker reading the ELF program body.
-func (p *Prog) Open() io.ReadSeeker	{ return io.NewSectionReader(p.sr, 0, 1<<63 - 1) }
+func (p *Prog) Open() io.ReadSeeker	{ return io.NewSectionReader(p.sr, 0, 1<<63-1) }
 
 // A Symbol represents an entry in an ELF symbol table section.
 type Symbol struct {
@@ -163,7 +163,7 @@ func (f *File) Close() os.Error {
 // NewFile creates a new File for acecssing an ELF binary in an underlying reader.
 // The ELF binary is expected to start at position 0 in the ReaderAt.
 func NewFile(r io.ReaderAt) (*File, os.Error) {
-	sr := io.NewSectionReader(r, 0, 1<<63 - 1);
+	sr := io.NewSectionReader(r, 0, 1<<63-1);
 	// Read and decode ELF identifier
 	var ident [16]uint8;
 	if _, err := r.ReadAt(&ident, 0); err != nil {
@@ -302,7 +302,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 		var ok bool;
 		s.Name, ok = getString(shstrtab, int(names[i]));
 		if !ok {
-			return nil, &FormatError{shoff+int64(i * shentsize), "bad section name index", names[i]}
+			return nil, &FormatError{shoff + int64(i*shentsize), "bad section name index", names[i]}
 		}
 	}
 
@@ -337,7 +337,7 @@ func (f *File) getSymbols64() ([]Symbol, os.Error) {
 		return nil, os.ErrorString("cannot load symbol section")
 	}
 	symtab := bytes.NewBuffer(data);
-	if symtab.Len() % Sym64Size != 0 {
+	if symtab.Len()%Sym64Size != 0 {
 		return nil, os.ErrorString("length of symbol section is not a multiple of Sym64Size")
 	}
 
@@ -345,7 +345,7 @@ func (f *File) getSymbols64() ([]Symbol, os.Error) {
 	var skip [Sym64Size]byte;
 	symtab.Read(skip[0:len(skip)]);
 
-	symbols := make([]Symbol, symtab.Len() / Sym64Size);
+	symbols := make([]Symbol, symtab.Len()/Sym64Size);
 
 	i := 0;
 	var sym Sym64;
@@ -399,7 +399,7 @@ func (f *File) applyRelocations(dst []byte, rels []byte) os.Error {
 }
 
 func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) os.Error {
-	if len(rels) % Sym64Size != 0 {
+	if len(rels)%Sym64Size != 0 {
 		return os.ErrorString("length of relocation section is not a multiple of Sym64Size")
 	}
 
@@ -420,22 +420,22 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) os.Error {
 			continue
 		}
 		sym := &symbols[symNo];
-		if SymType(sym.Info & 0xf) != STT_SECTION {
+		if SymType(sym.Info&0xf) != STT_SECTION {
 			// We don't handle non-section relocations for now.
 			continue
 		}
 
 		switch t {
 		case R_X86_64_64:
-			if rela.Off + 8 >= uint64(len(dst)) || rela.Addend < 0 {
+			if rela.Off+8 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			f.ByteOrder.PutUint64(dst[rela.Off : rela.Off + 8], uint64(rela.Addend));
+			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], uint64(rela.Addend));
 		case R_X86_64_32:
-			if rela.Off + 4 >= uint64(len(dst)) || rela.Addend < 0 {
+			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
 				continue
 			}
-			f.ByteOrder.PutUint32(dst[rela.Off : rela.Off + 4], uint32(rela.Addend));
+			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], uint32(rela.Addend));
 		}
 	}
 

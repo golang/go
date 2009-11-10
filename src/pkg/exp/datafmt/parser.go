@@ -55,7 +55,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'";
 		if p.tok.IsLiteral() {
-			msg += " "+string(p.lit)
+			msg += " " + string(p.lit)
 		}
 	}
 	p.Error(pos, msg);
@@ -65,7 +65,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 func (p *parser) expect(tok token.Token) token.Position {
 	pos := p.pos;
 	if p.tok != tok {
-		p.errorExpected(pos, "'" + tok.String() + "'")
+		p.errorExpected(pos, "'"+tok.String()+"'")
 	}
 	p.next();	// make progress in any case
 	return pos;
@@ -87,10 +87,10 @@ func (p *parser) parseTypeName() (string, bool) {
 		if importPath, found := p.packs[name]; found {
 			name = importPath
 		} else {
-			p.Error(pos, "package not declared: " + name)
+			p.Error(pos, "package not declared: "+name)
 		}
 		p.next();
-		name, isIdent = name + "." + p.parseIdentifier(), false;
+		name, isIdent = name+"."+p.parseIdentifier(), false;
 	}
 	return name, isIdent;
 }
@@ -306,11 +306,11 @@ func (p *parser) parseFormat() {
 
 			// add package declaration
 			if !isIdent {
-				p.Error(pos, "illegal package name: " + name)
+				p.Error(pos, "illegal package name: "+name)
 			} else if _, found := p.packs[name]; !found {
 				p.packs[name] = importPath
 			} else {
-				p.Error(pos, "package already declared: " + name)
+				p.Error(pos, "package already declared: "+name)
 			}
 
 		case token.ASSIGN:
@@ -322,7 +322,7 @@ func (p *parser) parseFormat() {
 			if _, found := p.rules[name]; !found {
 				p.rules[name] = x
 			} else {
-				p.Error(pos, "format rule already declared: " + name)
+				p.Error(pos, "format rule already declared: "+name)
 			}
 
 		default:
@@ -349,7 +349,7 @@ func remap(p *parser, name string) string {
 			name = importPath + suffix
 		} else {
 			var invalidPos token.Position;
-			p.Error(invalidPos, "package not declared: " + packageName);
+			p.Error(invalidPos, "package not declared: "+packageName);
 		}
 	}
 	return name;
@@ -374,7 +374,7 @@ func Parse(filename string, src []byte, fmap FormatterMap) (Format, os.Error) {
 			p.rules[name] = &custom{name, form}
 		} else {
 			var invalidPos token.Position;
-			p.Error(invalidPos, "formatter already declared: " + name);
+			p.Error(invalidPos, "formatter already declared: "+name);
 		}
 	}
 

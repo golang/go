@@ -93,7 +93,7 @@ func (x *xorWriter) Write(p []byte) (n int, err os.Error) {
 					buf = x.rand.Next();
 					bp = 0;
 				}
-				x.work[i] = buf[bp]^p[i];
+				x.work[i] = buf[bp] ^ p[i];
 				bp++;
 			}
 			x.buf = buf[bp:len(buf)];

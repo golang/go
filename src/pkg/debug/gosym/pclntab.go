@@ -44,9 +44,9 @@ func (t *LineTable) parse(targetPC uint64, targetLine int) (b []byte, pc uint64,
 		case code <= 64:
 			line += int(code)
 		case code <= 128:
-			line -= int(code-64)
+			line -= int(code - 64)
 		default:
-			pc += quantum*uint64(code-128);
+			pc += quantum * uint64(code-128);
 			continue;
 		}
 		pc += quantum;
@@ -70,7 +70,7 @@ func (t *LineTable) LineToPC(line int, maxpc uint64) uint64 {
 		return 0
 	}
 	// Subtract quantum from PC to account for post-line increment
-	return pc-quantum;
+	return pc - quantum;
 }
 
 // NewLineTable returns a new PC/line table

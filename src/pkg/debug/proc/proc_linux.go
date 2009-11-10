@@ -1215,7 +1215,7 @@ func (p *process) attachAllThreads() os.Error {
 			if err != nil {
 				// There could have been a race, or
 				// this process could be a zobmie.
-				statFile, err2 := io.ReadFile(taskPath+"/"+tidStr+"/stat");
+				statFile, err2 := io.ReadFile(taskPath + "/" + tidStr + "/stat");
 				if err2 != nil {
 					switch err2 := err2.(type) {
 					case *os.PathError:

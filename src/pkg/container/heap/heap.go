@@ -35,7 +35,7 @@ func Init(h Interface)	{ sort.Sort(h) }
 //
 func Push(h Interface, x interface{}) {
 	h.Push(x);
-	up(h, h.Len() - 1);
+	up(h, h.Len()-1);
 }
 
 
@@ -66,7 +66,7 @@ func Remove(h Interface, i int) interface{} {
 
 func up(h Interface, j int) {
 	for {
-		i := (j-1)/2;
+		i := (j - 1) / 2;
 		if i == j || h.Less(i, j) {
 			break
 		}
@@ -82,7 +82,7 @@ func down(h Interface, i, n int) {
 		if j >= n {
 			break
 		}
-		if j1 := j+1; j1 < n && !h.Less(j, j1) {
+		if j1 := j + 1; j1 < n && !h.Less(j, j1) {
 			j = j1	// = 2*i + 2
 		}
 		if h.Less(i, j) {

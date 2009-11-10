@@ -89,18 +89,18 @@ func (w *recordWriter) loop(writer io.Writer, appChan <-chan []byte, controlChan
 
 // fillMACHeader generates a MAC header. See RFC 4346, section 6.2.3.1.
 func fillMACHeader(header *[13]byte, seqNum uint64, length int, r *record) {
-	header[0] = uint8(seqNum>>56);
-	header[1] = uint8(seqNum>>48);
-	header[2] = uint8(seqNum>>40);
-	header[3] = uint8(seqNum>>32);
-	header[4] = uint8(seqNum>>24);
-	header[5] = uint8(seqNum>>16);
-	header[6] = uint8(seqNum>>8);
+	header[0] = uint8(seqNum >> 56);
+	header[1] = uint8(seqNum >> 48);
+	header[2] = uint8(seqNum >> 40);
+	header[3] = uint8(seqNum >> 32);
+	header[4] = uint8(seqNum >> 24);
+	header[5] = uint8(seqNum >> 16);
+	header[6] = uint8(seqNum >> 8);
 	header[7] = uint8(seqNum);
 	header[8] = uint8(r.contentType);
 	header[9] = r.major;
 	header[10] = r.minor;
-	header[11] = uint8(length>>8);
+	header[11] = uint8(length >> 8);
 	header[12] = uint8(length);
 }
 
@@ -116,8 +116,8 @@ func (w *recordWriter) writeRecord(r *record) {
 	w.encryptor.XORKeyStream(r.payload);
 	w.encryptor.XORKeyStream(macBytes);
 
-	length := len(r.payload)+len(macBytes);
-	w.header[11] = uint8(length>>8);
+	length := len(r.payload) + len(macBytes);
+	w.header[11] = uint8(length >> 8);
 	w.header[12] = uint8(length);
 	w.writer.Write(w.header[8:13]);
 	w.writer.Write(r.payload);

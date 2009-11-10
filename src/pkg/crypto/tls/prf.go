@@ -35,9 +35,9 @@ func pHash(result, secret, seed []byte, hash hash.Hash) {
 		b := h.Sum();
 		todo := len(b);
 		if j+todo > len(result) {
-			todo = len(result)-j
+			todo = len(result) - j
 		}
-		bytes.Copy(result[j : j+todo], b);
+		bytes.Copy(result[j:j+todo], b);
 		j += todo;
 
 		h.Reset();
@@ -94,8 +94,8 @@ func keysFromPreMasterSecret11(preMasterSecret, clientRandom, serverRandom []byt
 	pRF11(keyMaterial, masterSecret, keyExpansionLabel, seed[0:len(seed)]);
 	clientMAC = keyMaterial[0:macLen];
 	serverMAC = keyMaterial[macLen : macLen*2];
-	clientKey = keyMaterial[macLen*2 : macLen*2 + keyLen];
-	serverKey = keyMaterial[macLen*2 + keyLen : len(keyMaterial)];
+	clientKey = keyMaterial[macLen*2 : macLen*2+keyLen];
+	serverKey = keyMaterial[macLen*2+keyLen : len(keyMaterial)];
 	return;
 }
 

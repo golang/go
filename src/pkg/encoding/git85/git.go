@@ -56,15 +56,15 @@ func Encode(dst, src []byte) int {
 			n = 52
 		}
 		if n <= 27 {
-			dst[ndst] = byte('A'+n-1)
+			dst[ndst] = byte('A' + n - 1)
 		} else {
-			dst[ndst] = byte('a'+n-26-1)
+			dst[ndst] = byte('a' + n - 26 - 1)
 		}
 		ndst++;
 		for i := 0; i < n; i += 4 {
 			var v uint32;
 			for j := 0; j < 4 && i+j < n; j++ {
-				v |= uint32(src[i+j])<<uint(24 - j*8)
+				v |= uint32(src[i+j]) << uint(24-j*8)
 			}
 			for j := 4; j >= 0; j-- {
 				dst[ndst+j] = encode[v%85];
@@ -103,16 +103,16 @@ func Decode(dst, src []byte) (n int, err os.Error) {
 		var l int;
 		switch ch := int(src[nsrc]); {
 		case 'A' <= ch && ch <= 'Z':
-			l = ch-'A'+1
+			l = ch - 'A' + 1
 		case 'a' <= ch && ch <= 'z':
-			l = ch-'a'+26+1
+			l = ch - 'a' + 26 + 1
 		default:
 			return ndst, CorruptInputError(nsrc)
 		}
 		if nsrc+1+l > len(src) {
 			return ndst, CorruptInputError(nsrc)
 		}
-		el := (l+3)/4*5;	// encoded len
+		el := (l + 3) / 4 * 5;	// encoded len
 		if nsrc+1+el+1 > len(src) || src[nsrc+1+el] != '\n' {
 			return ndst, CorruptInputError(nsrc)
 		}
@@ -122,12 +122,12 @@ func Decode(dst, src []byte) (n int, err os.Error) {
 			for j := 0; j < 5; j++ {
 				ch := decode[line[i+j]];
 				if ch == 0 {
-					return ndst, CorruptInputError(nsrc+1+i+j)
+					return ndst, CorruptInputError(nsrc + 1 + i + j)
 				}
 				v = v*85 + uint32(ch-1);
 			}
 			for j := 0; j < 4; j++ {
-				dst[ndst] = byte(v>>24);
+				dst[ndst] = byte(v >> 24);
 				v <<= 8;
 				ndst++;
 			}
@@ -137,12 +137,12 @@ func Decode(dst, src []byte) (n int, err os.Error) {
 		if l%4 != 0 {
 			ndst -= 4 - l%4
 		}
-		nsrc += 1+el+1;
+		nsrc += 1 + el + 1;
 	}
 	return ndst, nil;
 }
 
-func MaxDecodedLen(n int) int	{ return n/5*4 }
+func MaxDecodedLen(n int) int	{ return n / 5 * 4 }
 
 // NewEncoder returns a new GIT base85 stream encoder.  Data written to
 // the returned writer will be encoded and then written to w.
@@ -186,9 +186,9 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 
 	// Large interior chunks.
 	for len(p) >= 52 {
-		nn := len(e.out)/(1 + 52/4*5 + 1)*52;
+		nn := len(e.out) / (1 + 52/4*5 + 1) * 52;
 		if nn > len(p) {
-			nn = len(p)/52*52
+			nn = len(p) / 52 * 52
 		}
 		if nn > 0 {
 			nout := Encode(&e.out, p[0:nn]);
@@ -212,7 +212,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 func (e *encoder) Close() os.Error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
-		nout := Encode(&e.out, e.buf[0 : e.nbuf]);
+		nout := Encode(&e.out, e.buf[0:e.nbuf]);
 		e.nbuf = 0;
 		_, e.err = e.w.Write(e.out[0:nout]);
 	}
@@ -257,21 +257,21 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 
 		// Read and decode more input.
 		var nn int;
-		nn, d.readErr = d.r.Read(d.buf[d.nbuf : len(d.buf)]);
+		nn, d.readErr = d.r.Read(d.buf[d.nbuf:len(d.buf)]);
 		d.nbuf += nn;
 
 		// Send complete lines to Decode.
-		nl := bytes.LastIndex(d.buf[0 : d.nbuf], newline);
+		nl := bytes.LastIndex(d.buf[0:d.nbuf], newline);
 		if nl < 0 {
 			continue
 		}
-		nn, d.err = Decode(&d.outbuf, d.buf[0 : nl+1]);
+		nn, d.err = Decode(&d.outbuf, d.buf[0:nl+1]);
 		if e, ok := d.err.(CorruptInputError); ok {
 			d.err = CorruptInputError(int64(e) + d.off)
 		}
 		d.out = d.outbuf[0:nn];
-		d.nbuf = bytes.Copy(&d.buf, d.buf[nl+1 : d.nbuf]);
-		d.off += int64(nl+1);
+		d.nbuf = bytes.Copy(&d.buf, d.buf[nl+1:d.nbuf]);
+		d.off += int64(nl + 1);
 	}
 	panic("unreacahable");
 }

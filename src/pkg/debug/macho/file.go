@@ -75,7 +75,7 @@ func (s *Segment) Data() ([]byte, os.Error) {
 }
 
 // Open returns a new ReadSeeker reading the segment.
-func (s *Segment) Open() io.ReadSeeker	{ return io.NewSectionReader(s.sr, 0, 1<<63 - 1) }
+func (s *Segment) Open() io.ReadSeeker	{ return io.NewSectionReader(s.sr, 0, 1<<63-1) }
 
 type SectionHeader struct {
 	Name	string;
@@ -110,7 +110,7 @@ func (s *Section) Data() ([]byte, os.Error) {
 }
 
 // Open returns a new ReadSeeker reading the Mach-O section.
-func (s *Section) Open() io.ReadSeeker	{ return io.NewSectionReader(s.sr, 0, 1<<63 - 1) }
+func (s *Section) Open() io.ReadSeeker	{ return io.NewSectionReader(s.sr, 0, 1<<63-1) }
 
 
 /*
@@ -163,7 +163,7 @@ func (f *File) Close() os.Error {
 // The Mach-O binary is expected to start at position 0 in the ReaderAt.
 func NewFile(r io.ReaderAt) (*File, os.Error) {
 	f := new(File);
-	sr := io.NewSectionReader(r, 0, 1<<63 - 1);
+	sr := io.NewSectionReader(r, 0, 1<<63-1);
 
 	// Read and decode Mach magic to determine byte order, size.
 	// Magic32 and Magic64 differ only in the bottom bit.
@@ -173,11 +173,11 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 	}
 	be := binary.BigEndian.Uint32(&ident);
 	le := binary.LittleEndian.Uint32(&ident);
-	switch Magic32&^1 {
-	case be&^1:
+	switch Magic32 &^ 1 {
+	case be &^ 1:
 		f.ByteOrder = binary.BigEndian;
 		f.Magic = be;
-	case le&^1:
+	case le &^ 1:
 		f.ByteOrder = binary.LittleEndian;
 		f.Magic = le;
 	}
@@ -302,7 +302,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 func (f *File) pushSection(sh *Section, r io.ReaderAt) {
 	n := len(f.Sections);
 	if n >= cap(f.Sections) {
-		m := (n+1)*2;
+		m := (n + 1) * 2;
 		new := make([]*Section, n, m);
 		for i, sh := range f.Sections {
 			new[i] = sh

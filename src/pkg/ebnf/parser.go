@@ -39,7 +39,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 		// make the error message more specific
 		msg += ", found '" + p.tok.String() + "'";
 		if p.tok.IsLiteral() {
-			msg += " "+string(p.lit)
+			msg += " " + string(p.lit)
 		}
 	}
 	p.Error(pos, msg);
@@ -49,7 +49,7 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
 func (p *parser) expect(tok token.Token) token.Position {
 	pos := p.pos;
 	if p.tok != tok {
-		p.errorExpected(pos, "'" + tok.String() + "'")
+		p.errorExpected(pos, "'"+tok.String()+"'")
 	}
 	p.next();	// make progress in any case
 	return pos;
@@ -194,7 +194,7 @@ func (p *parser) parse(filename string, src []byte) Grammar {
 		if _, found := grammar[name]; !found {
 			grammar[name] = prod
 		} else {
-			p.Error(prod.Pos(), name + " declared already")
+			p.Error(prod.Pos(), name+" declared already")
 		}
 	}
 

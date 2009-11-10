@@ -85,8 +85,8 @@ func verify(t *testing.T, r *Ring, N int, sum int) {
 		t.Errorf("r.Move(%d) != r", -N)
 	}
 	for i := 0; i < 10; i++ {
-		ni := N+i;
-		mi := ni%N;
+		ni := N + i;
+		mi := ni % N;
 		if r.Move(ni) != r.Move(mi) {
 			t.Errorf("r.Move(%d) != r.Move(%d)", ni, mi)
 		}
@@ -138,7 +138,7 @@ func sum(r *Ring) int {
 }
 
 
-func sumN(n int) int	{ return (n*n + n)/2 }
+func sumN(n int) int	{ return (n*n + n) / 2 }
 
 
 func TestNew(t *testing.T) {

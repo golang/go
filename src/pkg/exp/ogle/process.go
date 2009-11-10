@@ -391,7 +391,7 @@ func (p *Process) causesToEvents() ([]Event, os.Error) {
 // be processed before any currently pending events.
 func (p *Process) postEvent(ev Event) {
 	n := len(p.posted);
-	m := n*2;
+	m := n * 2;
 	if m == 0 {
 		m = 4
 	}

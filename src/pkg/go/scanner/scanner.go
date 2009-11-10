@@ -52,7 +52,7 @@ func (S *Scanner) next() {
 			S.pos.Column = 0;
 		case r >= 0x80:
 			// not ASCII
-			r, w = utf8.DecodeRune(S.src[S.offset : len(S.src)])
+			r, w = utf8.DecodeRune(S.src[S.offset:len(S.src)])
 		}
 		S.offset += w;
 		S.ch = r;
@@ -67,7 +67,7 @@ func (S *Scanner) next() {
 // They control scanner behavior.
 //
 const (
-	ScanComments		= 1<<iota;	// return comments as COMMENT tokens
+	ScanComments		= 1 << iota;	// return comments as COMMENT tokens
 	AllowIllegalChars;	// do not report an error for illegal chars
 )
 
@@ -132,7 +132,7 @@ func (S *Scanner) error(pos token.Position, msg string) {
 
 func (S *Scanner) expect(ch int) {
 	if S.ch != ch {
-		S.error(S.pos, "expected " + charString(ch) + ", found " + charString(S.ch))
+		S.error(S.pos, "expected "+charString(ch)+", found "+charString(S.ch))
 	}
 	S.next();	// always make progress
 }
@@ -151,7 +151,7 @@ func (S *Scanner) scanComment(pos token.Position) {
 				// '\n' is not part of the comment
 				// (the comment ends on the same line where it started)
 				if pos.Column == 1 {
-					text := S.src[pos.Offset + 2 : S.pos.Offset];
+					text := S.src[pos.Offset+2 : S.pos.Offset];
 					if bytes.HasPrefix(text, prefix) {
 						// comment starts at beginning of line with "//line ";
 						// get filename and line number, if any
@@ -202,18 +202,18 @@ func (S *Scanner) scanIdentifier() token.Token {
 	for isLetter(S.ch) || isDigit(S.ch) {
 		S.next()
 	}
-	return token.Lookup(S.src[pos : S.pos.Offset]);
+	return token.Lookup(S.src[pos:S.pos.Offset]);
 }
 
 
 func digitVal(ch int) int {
 	switch {
 	case '0' <= ch && ch <= '9':
-		return ch-'0'
+		return ch - '0'
 	case 'a' <= ch && ch <= 'f':
-		return ch-'a'+10
+		return ch - 'a' + 10
 	case 'A' <= ch && ch <= 'F':
-		return ch-'A'+10
+		return ch - 'A' + 10
 	}
 	return 16;	// larger than any legal digit val
 }
@@ -501,7 +501,7 @@ scan_again:
 			if S.ch == '/' || S.ch == '*' {
 				S.scanComment(pos);
 				tok = token.COMMENT;
-				if S.mode & ScanComments == 0 {
+				if S.mode&ScanComments == 0 {
 					goto scan_again
 				}
 			} else {
@@ -534,13 +534,13 @@ scan_again:
 		case '|':
 			tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
 		default:
-			if S.mode & AllowIllegalChars == 0 {
-				S.error(pos, "illegal character " + charString(ch))
+			if S.mode&AllowIllegalChars == 0 {
+				S.error(pos, "illegal character "+charString(ch))
 			}
 		}
 	}
 
-	return pos, tok, S.src[pos.Offset : S.pos.Offset];
+	return pos, tok, S.src[pos.Offset:S.pos.Offset];
 }
 
 

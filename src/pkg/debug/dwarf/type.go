@@ -339,11 +339,11 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 					max = -2	// Count == -1, as in x[].
 				}
 				if ndim == 0 {
-					t.Count = max+1
+					t.Count = max + 1
 				} else {
 					// Multidimensional array.
 					// Create new array type underneath this one.
-					t.Type = &ArrayType{Type: t.Type, Count: max+1}
+					t.Type = &ArrayType{Type: t.Type, Count: max + 1}
 				}
 				ndim++;
 			case TagEnumerationType:

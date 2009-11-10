@@ -134,7 +134,7 @@ func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *
 		spdelta, ok := p.ParseClosure(buf);
 		if ok {
 			sp += proc.Word(spdelta);
-			pc = p.peekUintptr(a, sp - proc.Word(p.PtrSize()));
+			pc = p.peekUintptr(a, sp-proc.Word(p.PtrSize()));
 		}
 	}
 	if fn == nil {
@@ -188,7 +188,7 @@ func (f *Frame) aOuter(a aborter) *Frame {
 		sp += proc.Word(2 * p.PtrSize())
 	}
 
-	pc := p.peekUintptr(a, f.fp - proc.Word(p.PtrSize()));
+	pc := p.peekUintptr(a, f.fp-proc.Word(p.PtrSize()));
 	if pc < 0x1000 {
 		return nil
 	}
@@ -206,7 +206,7 @@ func (f *Frame) Inner() *Frame	{ return f.inner }
 func (f *Frame) String() string {
 	res := f.fn.Name;
 	if f.pc > proc.Word(f.fn.Value) {
-		res += fmt.Sprintf("+%#x", f.pc - proc.Word(f.fn.Entry))
+		res += fmt.Sprintf("+%#x", f.pc-proc.Word(f.fn.Entry))
 	}
 	return res + fmt.Sprintf(" %s:%d", f.path, f.line);
 }

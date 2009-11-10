@@ -172,22 +172,22 @@ func (r *RPC) Start(name string, arg []interface{}) {
 			m.Ret[i] = false
 		case 'C':
 			m.Ret[i] = []byte(nil);
-			m.Size[i] = 1<<30;
+			m.Size[i] = 1 << 30;
 		case 'd':
 			m.Ret[i] = float64(0)
 		case 'D':
 			m.Ret[i] = []float64(nil);
-			m.Size[i] = 1<<30;
+			m.Size[i] = 1 << 30;
 		case 'h':
 			m.Ret[i] = int(-1)
 		case 'i':
 			m.Ret[i] = int32(0)
 		case 'I':
 			m.Ret[i] = []int32(nil);
-			m.Size[i] = 1<<30;
+			m.Size[i] = 1 << 30;
 		case 's':
 			m.Ret[i] = "";
-			m.Size[i] = 1<<30;
+			m.Size[i] = 1 << 30;
 		}
 	}
 

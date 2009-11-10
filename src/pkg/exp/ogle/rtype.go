@@ -57,7 +57,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 		basicType(eval.Int16Type, mkInt16, 2, 0);
 		basicType(eval.Int32Type, mkInt32, 4, 0);
 		basicType(eval.IntType, mkInt, arch.IntSize(), 0);
-		basicType(eval.StringType, mkString, arch.PtrSize() + arch.IntSize(), arch.PtrSize());
+		basicType(eval.StringType, mkString, arch.PtrSize()+arch.IntSize(), arch.PtrSize());
 	}
 
 	if rt, ok := typeMap[t]; ok {
@@ -83,7 +83,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
 	case *eval.SliceType:
 		elem := newManualType(t.Elem, arch);
 		mk := func(r remote) eval.Value { return remoteSlice{r, elem} };
-		rt = &remoteType{t, arch.PtrSize() + 2 * arch.IntSize(), arch.PtrSize(), mk};
+		rt = &remoteType{t, arch.PtrSize() + 2*arch.IntSize(), arch.PtrSize(), mk};
 
 	case *eval.StructType:
 		layout := make([]remoteStructField, len(t.Elems));

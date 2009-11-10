@@ -188,7 +188,7 @@ func canExec(file string) bool {
 	if err != nil {
 		return false
 	}
-	return d.IsRegular() && d.Permission() & 0111 != 0;
+	return d.IsRegular() && d.Permission()&0111 != 0;
 }
 
 // LookPath searches for an executable binary named file
@@ -213,8 +213,8 @@ func LookPath(file string) (string, os.Error) {
 			// Unix shell semantics: path element "" means "."
 			dir = "."
 		}
-		if canExec(dir+"/"+file) {
-			return dir+"/"+file, nil
+		if canExec(dir + "/" + file) {
+			return dir + "/" + file, nil
 		}
 	}
 	return "", os.ENOENT;

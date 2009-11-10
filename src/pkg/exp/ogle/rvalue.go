@@ -323,7 +323,7 @@ func (v remoteArray) String() string {
 		}
 		res += v.elem(i).String();
 	}
-	return res+"}";
+	return res + "}";
 }
 
 func (v remoteArray) Assign(t *eval.Thread, o eval.Value) {
@@ -344,11 +344,11 @@ func (v remoteArray) Elem(t *eval.Thread, i int64) eval.Value {
 }
 
 func (v remoteArray) elem(i int64) eval.Value {
-	return v.elemType.mk(v.r.plus(proc.Word(int64(v.elemType.size)*i)))
+	return v.elemType.mk(v.r.plus(proc.Word(int64(v.elemType.size) * i)))
 }
 
 func (v remoteArray) Sub(i int64, len int64) eval.ArrayValue {
-	return remoteArray{v.r.plus(proc.Word(int64(v.elemType.size)*i)), len, v.elemType}
+	return remoteArray{v.r.plus(proc.Word(int64(v.elemType.size) * i)), len, v.elemType}
 }
 
 /*
@@ -373,7 +373,7 @@ func (v remoteStruct) String() string {
 		}
 		res += v.field(i).String();
 	}
-	return res+"}";
+	return res + "}";
 }
 
 func (v remoteStruct) Assign(t *eval.Thread, o eval.Value) {

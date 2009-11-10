@@ -31,7 +31,7 @@ func newCFB(c Cipher, s int, iv []byte) *cfbCipher {
 	b := c.BlockSize();
 	x := new(cfbCipher);
 	x.c = c;
-	x.blockSize = s/8;
+	x.blockSize = s / 8;
 	x.cipherSize = b;
 	x.iv = copy(iv);
 	x.tmp = make([]byte, b);
@@ -48,8 +48,8 @@ func (x *cfbCipher) Encrypt(src, dst []byte) {
 	}
 
 	// Slide unused IV pieces down and insert dst at end.
-	for i := 0; i < x.cipherSize - x.blockSize; i++ {
-		x.iv[i] = x.iv[i + x.blockSize]
+	for i := 0; i < x.cipherSize-x.blockSize; i++ {
+		x.iv[i] = x.iv[i+x.blockSize]
 	}
 	off := x.cipherSize - x.blockSize;
 	for i := off; i < x.cipherSize; i++ {
@@ -65,8 +65,8 @@ func (x *cfbCipher) Decrypt(src, dst []byte) {
 	}
 
 	// Slide unused IV pieces down and insert src at top.
-	for i := 0; i < x.cipherSize - x.blockSize; i++ {
-		x.iv[i] = x.iv[i + x.blockSize]
+	for i := 0; i < x.cipherSize-x.blockSize; i++ {
+		x.iv[i] = x.iv[i+x.blockSize]
 	}
 	off := x.cipherSize - x.blockSize;
 	for i := off; i < x.cipherSize; i++ {

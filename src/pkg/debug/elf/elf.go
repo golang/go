@@ -1351,8 +1351,8 @@ type Rela32 struct {
 	Addend	int32;	/* Addend. */
 }
 
-func R_SYM32(info uint32) uint32	{ return uint32(info>>8) }
-func R_TYPE32(info uint32) uint32	{ return uint32(info&0xff) }
+func R_SYM32(info uint32) uint32	{ return uint32(info >> 8) }
+func R_TYPE32(info uint32) uint32	{ return uint32(info & 0xff) }
 func R_INFO32(sym, typ uint32) uint32	{ return sym<<8 | typ }
 
 // ELF32 Symbol.
@@ -1367,9 +1367,9 @@ type Sym32 struct {
 
 const Sym32Size = 16
 
-func ST_BIND(info uint8) SymBind		{ return SymBind(info>>4) }
+func ST_BIND(info uint8) SymBind		{ return SymBind(info >> 4) }
 func ST_TYPE(bind SymBind, typ SymType) uint8	{ return uint8(bind)<<4 | uint8(typ)&0xf }
-func ST_VISIBILITY(other uint8) SymVis		{ return SymVis(other&3) }
+func ST_VISIBILITY(other uint8) SymVis		{ return SymVis(other & 3) }
 
 /*
  * ELF64
@@ -1454,7 +1454,7 @@ type Rela64 struct {
 	Addend	int64;	/* Addend. */
 }
 
-func R_SYM64(info uint64) uint32	{ return uint32(info>>32) }
+func R_SYM64(info uint64) uint32	{ return uint32(info >> 32) }
 func R_TYPE64(info uint64) uint32	{ return uint32(info) }
 func R_INFO(sym, typ uint32) uint64	{ return uint64(sym)<<32 | uint64(typ) }
 
@@ -1490,14 +1490,14 @@ func stringName(i uint32, names []intName, goSyntax bool) string {
 
 	// second pass - look for smaller to add with.
 	// assume sorted already
-	for j := len(names)-1; j >= 0; j-- {
+	for j := len(names) - 1; j >= 0; j-- {
 		n := names[j];
 		if n.i < i {
 			s := n.s;
 			if goSyntax {
-				s = "elf."+s
+				s = "elf." + s
 			}
-			return s + "+" + strconv.Uitoa64(uint64(i - n.i));
+			return s + "+" + strconv.Uitoa64(uint64(i-n.i));
 		}
 	}
 
@@ -1507,7 +1507,7 @@ func stringName(i uint32, names []intName, goSyntax bool) string {
 func flagName(i uint32, names []intName, goSyntax bool) string {
 	s := "";
 	for _, n := range names {
-		if n.i & i == n.i {
+		if n.i&i == n.i {
 			if len(s) > 0 {
 				s += "+"
 			}

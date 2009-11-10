@@ -44,12 +44,12 @@ func encodeUint(state *encoderState, x uint64) {
 	var n, m int;
 	m = uint64Size;
 	for n = 1; x > 0; n++ {
-		state.buf[m] = uint8(x&0xFF);
+		state.buf[m] = uint8(x & 0xFF);
 		x >>= 8;
 		m--;
 	}
-	state.buf[m] = uint8(-(n-1));
-	n, state.err = state.b.Write(state.buf[m : uint64Size + 1]);
+	state.buf[m] = uint8(-(n - 1));
+	n, state.err = state.b.Write(state.buf[m : uint64Size+1]);
 }
 
 // encodeInt writes an encoded signed integer to state.w.
@@ -58,9 +58,9 @@ func encodeUint(state *encoderState, x uint64) {
 func encodeInt(state *encoderState, i int64) {
 	var x uint64;
 	if i < 0 {
-		x = uint64(^i << 1)|1
+		x = uint64(^i<<1) | 1
 	} else {
-		x = uint64(i<<1)
+		x = uint64(i << 1)
 	}
 	encodeUint(state, uint64(x));
 }
@@ -79,7 +79,7 @@ type encInstr struct {
 // If the instruction pointer is nil, do nothing
 func (state *encoderState) update(instr *encInstr) {
 	if instr != nil {
-		encodeUint(state, uint64(instr.field - state.fieldnum));
+		encodeUint(state, uint64(instr.field-state.fieldnum));
 		state.fieldnum = instr.field;
 	}
 }
@@ -206,7 +206,7 @@ func floatBits(f float64) uint64 {
 	var v uint64;
 	for i := 0; i < 8; i++ {
 		v <<= 8;
-		v |= u&0xFF;
+		v |= u & 0xFF;
 		u >>= 8;
 	}
 	return v;
@@ -396,7 +396,7 @@ func compileEnc(rt reflect.Type) (*encEngine, os.Error) {
 		panicln("can't happen: non-struct")
 	}
 	engine := new(encEngine);
-	engine.instr = make([]encInstr, srt.NumField() + 1);	// +1 for terminator
+	engine.instr = make([]encInstr, srt.NumField()+1);	// +1 for terminator
 	for fieldnum := 0; fieldnum < srt.NumField(); fieldnum++ {
 		f := srt.Field(fieldnum);
 		op, indir, err := encOpFor(f.Type);

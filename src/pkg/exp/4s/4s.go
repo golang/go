@@ -32,7 +32,7 @@ func main() {
 		p = pieces5
 	}
 	dx, dy := 500, 500;
-	w, err := av.Init(av.SubsystemVideo | av.SubsystemAudio, dx, dy);
+	w, err := av.Init(av.SubsystemVideo|av.SubsystemAudio, dx, dy);
 	if err != nil {
 		log.Exit(err)
 	}
@@ -55,7 +55,7 @@ func audioServer() {
 		b := <-sndc;
 		for len(b)*2 >= n {
 			var a []uint16;
-			a, b = b[0 : n/2], b[n/2 : len(b)];
+			a, b = b[0:n/2], b[n/2:len(b)];
 			n, err = av.AudioStream(a);
 			if err != nil {
 				log.Exit(err)

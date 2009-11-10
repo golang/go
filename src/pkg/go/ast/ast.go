@@ -237,7 +237,7 @@ type (
 type ChanDir int
 
 const (
-	SEND	ChanDir	= 1<<iota;
+	SEND	ChanDir	= 1 << iota;
 	RECV;
 )
 

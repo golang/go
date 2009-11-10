@@ -29,8 +29,8 @@ type Cipher interface {
 
 func shift1(src, dst []byte) byte {
 	var b byte;
-	for i := len(src)-1; i >= 0; i-- {
-		bb := src[i]>>7;
+	for i := len(src) - 1; i >= 0; i-- {
+		bb := src[i] >> 7;
 		dst[i] = src[i]<<1 | b;
 		b = bb;
 	}

@@ -61,7 +61,7 @@ func randomSafePrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
 
 // randomNumber returns a uniform random value in [0, max).
 func randomNumber(rand io.Reader, max *big.Int) (n *big.Int, err os.Error) {
-	k := (max.Len() + 7)/8;
+	k := (max.Len() + 7) / 8;
 
 	// r is the number of bits in the used in the most significant byte of
 	// max.
@@ -81,7 +81,7 @@ func randomNumber(rand io.Reader, max *big.Int) (n *big.Int, err os.Error) {
 
 		// Clear bits in the first byte to increase the probability
 		// that the candidate is < max.
-		bytes[0] &= uint8(int(1<<r)-1);
+		bytes[0] &= uint8(int(1<<r) - 1);
 
 		n.SetBytes(bytes);
 		if big.CmpInt(n, max) < 0 {
@@ -259,8 +259,8 @@ func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
 // twice the hash length plus 2.
 func EncryptOAEP(hash hash.Hash, rand io.Reader, pub *PublicKey, msg []byte, label []byte) (out []byte, err os.Error) {
 	hash.Reset();
-	k := (pub.N.Len() + 7)/8;
-	if len(msg) > k - 2 * hash.Size() - 2 {
+	k := (pub.N.Len() + 7) / 8;
+	if len(msg) > k-2*hash.Size()-2 {
 		err = MessageTooLongError{};
 		return;
 	}
@@ -270,12 +270,12 @@ func EncryptOAEP(hash hash.Hash, rand io.Reader, pub *PublicKey, msg []byte, lab
 	hash.Reset();
 
 	em := make([]byte, k);
-	seed := em[1 : 1 + hash.Size()];
-	db := em[1 + hash.Size() : len(em)];
+	seed := em[1 : 1+hash.Size()];
+	db := em[1+hash.Size() : len(em)];
 
-	bytes.Copy(db[0 : hash.Size()], lHash);
+	bytes.Copy(db[0:hash.Size()], lHash);
 	db[len(db)-len(msg)-1] = 1;
-	bytes.Copy(db[len(db)-len(msg) : len(db)], msg);
+	bytes.Copy(db[len(db)-len(msg):len(db)], msg);
 
 	_, err = io.ReadFull(rand, seed);
 	if err != nil {
@@ -359,9 +359,9 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
 // DecryptOAEP decrypts ciphertext using RSA-OAEP.
 // If rand != nil, DecryptOAEP uses RSA blinding to avoid timing side-channel attacks.
 func DecryptOAEP(hash hash.Hash, rand io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) (msg []byte, err os.Error) {
-	k := (priv.N.Len() + 7)/8;
+	k := (priv.N.Len() + 7) / 8;
 	if len(ciphertext) > k ||
-		k < hash.Size() * 2 + 2 {
+		k < hash.Size()*2+2 {
 		err = DecryptionError{};
 		return;
 	}
@@ -386,13 +386,13 @@ func DecryptOAEP(hash hash.Hash, rand io.Reader, priv *PrivateKey, ciphertext []
 
 	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0);
 
-	seed := em[1 : hash.Size() + 1];
-	db := em[hash.Size() + 1 : len(em)];
+	seed := em[1 : hash.Size()+1];
+	db := em[hash.Size()+1 : len(em)];
 
 	mgf1XOR(seed, hash, db);
 	mgf1XOR(db, hash, seed);
 
-	lHash2 := db[0 : hash.Size()];
+	lHash2 := db[0:hash.Size()];
 
 	// We have to validate the plaintext in contanst time in order to avoid
 	// attacks like: J. Manger. A Chosen Ciphertext Attack on RSA Optimal
@@ -407,17 +407,17 @@ func DecryptOAEP(hash hash.Hash, rand io.Reader, priv *PrivateKey, ciphertext []
 	//   invalid: 1 iff we saw a non-zero byte before the 0x01.
 	var lookingForIndex, index, invalid int;
 	lookingForIndex = 1;
-	rest := db[hash.Size() : len(db)];
+	rest := db[hash.Size():len(db)];
 
 	for i := 0; i < len(rest); i++ {
 		equals0 := subtle.ConstantTimeByteEq(rest[i], 0);
 		equals1 := subtle.ConstantTimeByteEq(rest[i], 1);
-		index = subtle.ConstantTimeSelect(lookingForIndex & equals1, i, index);
+		index = subtle.ConstantTimeSelect(lookingForIndex&equals1, i, index);
 		lookingForIndex = subtle.ConstantTimeSelect(equals1, 0, lookingForIndex);
-		invalid = subtle.ConstantTimeSelect(lookingForIndex & ^equals0, 1, invalid);
+		invalid = subtle.ConstantTimeSelect(lookingForIndex&^equals0, 1, invalid);
 	}
 
-	if firstByteIsZero & lHash2Good & ^invalid & ^lookingForIndex != 1 {
+	if firstByteIsZero&lHash2Good&^invalid&^lookingForIndex != 1 {
 		err = DecryptionError{};
 		return;
 	}
@@ -434,6 +434,6 @@ func leftPad(input []byte, size int) (out []byte) {
 		n = size
 	}
 	out = make([]byte, size);
-	bytes.Copy(out[len(out)-n : len(out)], input);
+	bytes.Copy(out[len(out)-n:len(out)], input);
 	return;
 }

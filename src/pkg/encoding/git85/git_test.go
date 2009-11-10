@@ -90,7 +90,7 @@ func TestEncoderBuffering(t *testing.T) {
 		bb := &bytes.Buffer{};
 		encoder := NewEncoder(bb);
 		for pos := 0; pos < len(input); pos += bs {
-			end := pos+bs;
+			end := pos + bs;
 			if end > len(input) {
 				end = len(input)
 			}

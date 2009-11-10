@@ -119,7 +119,7 @@ func (r *Ring) Unlink(n int) *Ring {
 	if n <= 0 {
 		return nil
 	}
-	return r.Link(r.Move(n+1));
+	return r.Link(r.Move(n + 1));
 }
 
 

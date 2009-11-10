@@ -14,7 +14,7 @@ import (
 const hextable = "0123456789abcdef"
 
 // EncodedLen returns the length of an encoding of n source bytes.
-func EncodedLen(n int) int	{ return n*2 }
+func EncodedLen(n int) int	{ return n * 2 }
 
 // Encode encodes src into EncodedLen(len(src))
 // bytes of dst.  As a convenience, it returns the number
@@ -23,10 +23,10 @@ func EncodedLen(n int) int	{ return n*2 }
 func Encode(dst, src []byte) int {
 	for i, v := range src {
 		dst[i*2] = hextable[v>>4];
-		dst[i*2 + 1] = hextable[v&0x0f];
+		dst[i*2+1] = hextable[v&0x0f];
 	}
 
-	return len(src)*2;
+	return len(src) * 2;
 }
 
 // OddLengthInputError results from decoding an odd length slice.
@@ -42,7 +42,7 @@ func (e InvalidHexCharError) String() string {
 }
 
 
-func DecodedLen(x int) int	{ return x/2 }
+func DecodedLen(x int) int	{ return x / 2 }
 
 // Decode decodes src into DecodedLen(len(src)) bytes, returning the actual
 // number of bytes written to dst.
@@ -59,25 +59,25 @@ func Decode(dst, src []byte) (int, os.Error) {
 		if !ok {
 			return 0, InvalidHexCharError(src[i*2])
 		}
-		b, ok := fromHexChar(src[i*2 + 1]);
+		b, ok := fromHexChar(src[i*2+1]);
 		if !ok {
-			return 0, InvalidHexCharError(src[i*2 + 1])
+			return 0, InvalidHexCharError(src[i*2+1])
 		}
-		dst[i] = (a<<4)|b;
+		dst[i] = (a << 4) | b;
 	}
 
-	return len(src)/2, nil;
+	return len(src) / 2, nil;
 }
 
 // fromHexChar converts a hex character into its value and a success flag.
 func fromHexChar(c byte) (byte, bool) {
 	switch {
 	case 0 <= c && c <= '9':
-		return c-'0', true
+		return c - '0', true
 	case 'a' <= c && c <= 'f':
-		return c-'a'+10, true
+		return c - 'a' + 10, true
 	case 'A' <= c && c <= 'F':
-		return c-'A'+10, true
+		return c - 'A' + 10, true
 	}
 
 	return 0, false;

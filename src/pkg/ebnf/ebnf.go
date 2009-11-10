@@ -141,7 +141,7 @@ func (v *verifier) push(prod *Production) {
 func (v *verifier) verifyChar(x *Token) int {
 	s := x.String;
 	if utf8.RuneCountInString(s) != 1 {
-		v.Error(x.Pos(), "single char expected, found " + s);
+		v.Error(x.Pos(), "single char expected, found "+s);
 		return 0;
 	}
 	ch, _ := utf8.DecodeRuneInString(s);
@@ -167,12 +167,12 @@ func (v *verifier) verifyExpr(expr Expression, lexical bool) {
 		if prod, found := v.grammar[x.String]; found {
 			v.push(prod)
 		} else {
-			v.Error(x.Pos(), "missing production " + x.String)
+			v.Error(x.Pos(), "missing production "+x.String)
 		}
 		// within a lexical production references
 		// to non-lexical productions are invalid
 		if lexical && !isLexical(x.String) {
-			v.Error(x.Pos(), "reference to non-lexical production " + x.String)
+			v.Error(x.Pos(), "reference to non-lexical production "+x.String)
 		}
 	case *Token:
 		// nothing to do for now
@@ -199,7 +199,7 @@ func (v *verifier) verify(grammar Grammar, start string) {
 	root, found := grammar[start];
 	if !found {
 		var noPos token.Position;
-		v.Error(noPos, "no start production " + start);
+		v.Error(noPos, "no start production "+start);
 		return;
 	}
 
@@ -220,7 +220,7 @@ func (v *verifier) verify(grammar Grammar, start string) {
 	if len(v.reached) < len(v.grammar) {
 		for name, prod := range v.grammar {
 			if _, found := v.reached[name]; !found {
-				v.Error(prod.Pos(), name + " is unreachable")
+				v.Error(prod.Pos(), name+" is unreachable")
 			}
 		}
 	}

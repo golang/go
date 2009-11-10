@@ -42,7 +42,7 @@ type hmac struct {
 
 func (h *hmac) tmpPad(xor byte) {
 	for i, k := range h.key {
-		h.tmp[i] = xor^k
+		h.tmp[i] = xor ^ k
 	}
 	for i := len(h.key); i < padSize; i++ {
 		h.tmp[i] = xor
@@ -86,7 +86,7 @@ func New(h hash.Hash, key []byte) hash.Hash {
 	for i, k := range key {
 		hm.key[i] = k
 	}
-	hm.tmp = make([]byte, padSize + hm.size);
+	hm.tmp = make([]byte, padSize+hm.size);
 	hm.Reset();
 	return hm;
 }

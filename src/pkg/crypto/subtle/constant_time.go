@@ -13,7 +13,7 @@ func ConstantTimeCompare(x, y []byte) int {
 	var v byte;
 
 	for i := 0; i < len(x); i++ {
-		v |= x[i]^y[i]
+		v |= x[i] ^ y[i]
 	}
 
 	return ConstantTimeByteEq(v, 0);
@@ -21,35 +21,35 @@ func ConstantTimeCompare(x, y []byte) int {
 
 // ConstantTimeSelect returns x if v is 1 and y if v is 0.
 // Its behavior is undefined if v takes any other value.
-func ConstantTimeSelect(v, x, y int) int	{ return ^(v-1) & x | (v-1)&y }
+func ConstantTimeSelect(v, x, y int) int	{ return ^(v-1)&x | (v-1)&y }
 
 // ConstantTimeByteEq returns 1 if x == x and 0 otherwise.
 func ConstantTimeByteEq(x, y uint8) int {
-	z := ^(x^y);
-	z &= z>>4;
-	z &= z>>2;
-	z &= z>>1;
+	z := ^(x ^ y);
+	z &= z >> 4;
+	z &= z >> 2;
+	z &= z >> 1;
 
 	return int(z);
 }
 
 // ConstantTimeEq returns 1 if x == y and 0 otherwise.
 func ConstantTimeEq(x, y int32) int {
-	z := ^(x^y);
-	z &= z>>16;
-	z &= z>>8;
-	z &= z>>4;
-	z &= z>>2;
-	z &= z>>1;
+	z := ^(x ^ y);
+	z &= z >> 16;
+	z &= z >> 8;
+	z &= z >> 4;
+	z &= z >> 2;
+	z &= z >> 1;
 
-	return int(z&1);
+	return int(z & 1);
 }
 
 // ConstantTimeCopy copies the contents of y into x iff v == 1. If v == 0, x is left unchanged.
 // Its behavior is undefined if v takes any other value.
 func ConstantTimeCopy(v int, x, y []byte) {
-	xmask := byte(v-1);
-	ymask := byte(^(v-1));
+	xmask := byte(v - 1);
+	ymask := byte(^(v - 1));
 	for i := 0; i < len(x); i++ {
 		x[i] = x[i]&xmask | y[i]&ymask
 	}

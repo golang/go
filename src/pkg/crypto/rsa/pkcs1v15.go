@@ -19,7 +19,7 @@ import (
 // WARNING: use of this function to encrypt plaintexts other than session keys
 // is dangerous. Use RSA OAEP in new protocols.
 func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, err os.Error) {
-	k := (pub.N.Len() + 7)/8;
+	k := (pub.N.Len() + 7) / 8;
 	if len(msg) > k-11 {
 		err = MessageTooLongError{};
 		return;
@@ -28,7 +28,7 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
 	// EM = 0x02 || PS || 0x00 || M
 	em := make([]byte, k-1);
 	em[0] = 2;
-	ps, mm := em[1 : len(em)-len(msg)-1], em[len(em)-len(msg) : len(em)];
+	ps, mm := em[1:len(em)-len(msg)-1], em[len(em)-len(msg):len(em)];
 	err = nonZeroRandomBytes(ps, rand);
 	if err != nil {
 		return
@@ -67,7 +67,7 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out [
 // Encryption Standard PKCS #1'', Daniel Bleichenbacher, Advances in Cryptology
 // (Crypto '98),
 func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) (err os.Error) {
-	k := (priv.N.Len() + 7)/8;
+	k := (priv.N.Len() + 7) / 8;
 	if k-(len(key)+3+8) < 0 {
 		err = DecryptionError{};
 		return;
@@ -84,7 +84,7 @@ func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []by
 }
 
 func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid int, msg []byte, err os.Error) {
-	k := (priv.N.Len() + 7)/8;
+	k := (priv.N.Len() + 7) / 8;
 	if k < 11 {
 		err = DecryptionError{};
 		return;
@@ -109,7 +109,7 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
 
 	for i := 2; i < len(em); i++ {
 		equals0 := subtle.ConstantTimeByteEq(em[i], 0);
-		index = subtle.ConstantTimeSelect(lookingForIndex & equals0, i, index);
+		index = subtle.ConstantTimeSelect(lookingForIndex&equals0, i, index);
 		lookingForIndex = subtle.ConstantTimeSelect(equals0, 0, lookingForIndex);
 	}
 

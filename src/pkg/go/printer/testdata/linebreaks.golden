@@ -70,7 +70,7 @@ var writerTests = []*writerTest{
 					Mode: 0640,
 					Uid: 73025,
 					Gid: 5000,
-					Size: 16<<30,
+					Size: 16 << 30,
 					Mtime: 1254699560,
 					Typeflag: '0',
 					Uname: "dsymonds",

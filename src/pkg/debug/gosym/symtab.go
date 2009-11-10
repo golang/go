@@ -112,7 +112,7 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
 		s.value = binary.BigEndian.Uint32(p[0:4]);
 		typ := p[4];
 		if typ&0x80 == 0 {
-			return &DecodingError{len(data)-len(p)+4, "bad symbol type", typ}
+			return &DecodingError{len(data) - len(p) + 4, "bad symbol type", typ}
 		}
 		typ &^= 0x80;
 		s.typ = typ;
@@ -240,13 +240,13 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 
 			// Count & copy path symbols
 			var end int;
-			for end = i+1; end < len(t.Syms); end++ {
+			for end = i + 1; end < len(t.Syms); end++ {
 				if c := t.Syms[end].Type; c != 'Z' && c != 'z' {
 					break
 				}
 			}
 			obj.Paths = t.Syms[i:end];
-			i = end-1;	// loop will i++
+			i = end - 1;	// loop will i++
 
 			// Record file names
 			depth := 0;
@@ -274,7 +274,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 			var np, na int;
 			var end int;
 		countloop:
-			for end = i+1; end < len(t.Syms); end++ {
+			for end = i + 1; end < len(t.Syms); end++ {
 				switch t.Syms[end].Type {
 				case 'T', 't', 'L', 'l', 'Z', 'z':
 					break countloop
@@ -314,7 +314,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 					fn.Locals[n] = s;
 				}
 			}
-			i = end-1;	// loop will i++
+			i = end - 1;	// loop will i++
 		}
 	}
 	if obj != nil {
@@ -328,7 +328,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 func (t *Table) PCToFunc(pc uint64) *Func {
 	funcs := t.Funcs;
 	for len(funcs) > 0 {
-		m := len(funcs)/2;
+		m := len(funcs) / 2;
 		fn := &funcs[m];
 		switch {
 		case pc < fn.Entry:
@@ -486,14 +486,14 @@ func (o *Obj) alineFromLine(path string, line int) (int, os.Error) {
 			val := int(s.Value);
 			switch {
 			case depth == 1 && val >= line:
-				return line-1, nil
+				return line - 1, nil
 
 			case s.Name == "":
 				depth--;
 				if depth == 0 {
 					break pathloop
 				} else if depth == 1 {
-					line += val-incstart
+					line += val - incstart
 				}
 
 			default:

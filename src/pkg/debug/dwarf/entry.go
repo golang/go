@@ -190,15 +190,15 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 		case formRefAddr:
 			val = Offset(b.addr())
 		case formRef1:
-			val = Offset(b.uint8())+ubase
+			val = Offset(b.uint8()) + ubase
 		case formRef2:
-			val = Offset(b.uint16())+ubase
+			val = Offset(b.uint16()) + ubase
 		case formRef4:
-			val = Offset(b.uint32())+ubase
+			val = Offset(b.uint32()) + ubase
 		case formRef8:
-			val = Offset(b.uint64())+ubase
+			val = Offset(b.uint64()) + ubase
 		case formRefUdata:
-			val = Offset(b.uint())+ubase
+			val = Offset(b.uint()) + ubase
 
 		// string
 		case formString:
@@ -267,9 +267,9 @@ func (r *Reader) Seek(off Offset) {
 	var u *unit;
 	for i = range d.unit {
 		u = &d.unit[i];
-		if u.off <= off && off < u.off + Offset(len(u.data)) {
+		if u.off <= off && off < u.off+Offset(len(u.data)) {
 			r.unit = i;
-			r.b = makeBuf(r.d, "info", off, u.data[off - u.off : len(u.data)], u.addrsize);
+			r.b = makeBuf(r.d, "info", off, u.data[off-u.off:len(u.data)], u.addrsize);
 			return;
 		}
 	}
@@ -278,7 +278,7 @@ func (r *Reader) Seek(off Offset) {
 
 // maybeNextUnit advances to the next unit if this one is finished.
 func (r *Reader) maybeNextUnit() {
-	for len(r.b.data) == 0 && r.unit + 1 < len(r.d.unit) {
+	for len(r.b.data) == 0 && r.unit+1 < len(r.d.unit) {
 		r.unit++;
 		u := &r.d.unit[r.unit];
 		r.b = makeBuf(r.d, "info", u.off, u.data, u.addrsize);

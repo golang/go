@@ -22,7 +22,7 @@ import (
 type eventType uint8
 
 const (
-	eventActive	= 1+iota;
+	eventActive	= 1 + iota;
 	eventExpose;
 	eventKeyDown;
 	eventKeyUp;
@@ -456,14 +456,14 @@ func (w *Window) readEvents() {
 			m.X = int(mbe.X);
 			m.Y = int(mbe.Y);
 			// TODO(rsc): Remove uint cast once 8g bug is fixed.
-			m.Buttons |= 1<<uint(mbe.Button - 1);
+			m.Buttons |= 1 << uint(mbe.Button-1);
 			m.Nsec = time.Nanoseconds();
 			_ = w.mousec <- m;
 		case eventMouseButtonUp:
 			m.X = int(mbe.X);
 			m.Y = int(mbe.Y);
 			// TODO(rsc): Remove uint cast once 8g bug is fixed.
-			m.Buttons &^= 1<<uint(mbe.Button - 1);
+			m.Buttons &^= 1 << uint(mbe.Button-1);
 			m.Nsec = time.Nanoseconds();
 			_ = w.mousec <- m;
 		case eventQuit:

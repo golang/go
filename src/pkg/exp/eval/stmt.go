@@ -846,7 +846,7 @@ func (a *stmtCompiler) compileReturnStmt(s *ast.ReturnStmt) {
 	nout := len(a.fnType.Out);
 	a.flow.putTerm();
 	a.push(func(t *Thread) {
-		assign(multiV(t.f.Vars[start : start+nout]), t);
+		assign(multiV(t.f.Vars[start:start+nout]), t);
 		t.pc = returnPC;
 	});
 }
