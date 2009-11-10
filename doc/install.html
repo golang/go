@@ -154,13 +154,14 @@ $ hg clone http://r45/ $GOROOT
 
 <h2>Install Go</h2>
 
-<p>You need to have the parser generator Bison installed.
-It is installed as part of Xcode on OS X.
-If you need it on Linux,
+<p>The Go tool chain is written in C.  To build it, you need
+to have  GCC, the standard C libraries, and the parser generator Bison
+installed.  On OS X, they can be installed as part of <a href="http://developer.apple.com/TOOLS/Xcode/">Xcode</a>.
+On Linux, 
 </p>
 
 <pre>
-$ sudo apt-get install bison
+$ sudo apt-get install bison gcc libc6-dev
 </pre>
 
 <p>
