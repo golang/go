@@ -62,6 +62,7 @@ const (
 	O_NDELAY	= O_NONBLOCK;		// synonym for O_NONBLOCK
 	O_SYNC		= syscall.O_SYNC;	// open for synchronous I/O.
 	O_TRUNC		= syscall.O_TRUNC;	// if possible, truncate file when opened.
+	O_CREATE	= O_CREAT;		// create a new file if none exists.
 )
 
 // Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
