@@ -6,7 +6,11 @@ all: package
 package: _obj/$(TARG).a
 testpackage: _test/$(TARG).a
 
-elem=$(lastword $(subst /, ,$(TARG)))
+# GNU Make 3.80 has a bug in lastword
+# elem=$(lastword $(subst /, ,$(TARG)))
+TARG_words=$(subst /, ,$(TARG))
+elem=$(word $(words $(TARG_words)),$(TARG_words))
+
 dir=$(patsubst %/$(elem),%,./$(TARG))
 pkgdir=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)
 
