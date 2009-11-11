@@ -38,7 +38,7 @@ func (d *digest) Reset() {
 	d.len = 0;
 }
 
-// New returns a Hash computing the SHA1 checksum.
+// New returns a hash.Hash computing the SHA1 checksum.
 func New() hash.Hash {
 	d := new(digest);
 	d.Reset();

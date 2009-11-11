@@ -32,7 +32,7 @@ type digest struct {
 
 func (d *digest) Reset()	{ d.a, d.b = 1, 0 }
 
-// New returns a new Hash32 computing the Adler-32 checksum.
+// New returns a new hash.Hash32 computing the Adler-32 checksum.
 func New() hash.Hash32 {
 	d := new(digest);
 	d.Reset();
