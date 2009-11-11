@@ -1215,11 +1215,13 @@ void
 longt(Armember *bp)
 {
 	char *cp;
+	time_t date;
 
 	pmode(strtoul(bp->hdr.mode, 0, 8));
 	Bprint(&bout, "%3ld/%1ld", strtol(bp->hdr.uid, 0, 0), strtol(bp->hdr.gid, 0, 0));
 	Bprint(&bout, "%7ld", bp->size);
-	cp = ctime(&bp->date);
+	date = bp->date;
+	cp = ctime(&date);
 	Bprint(&bout, " %-12.12s %-4.4s ", cp+4, cp+24);
 }
 
