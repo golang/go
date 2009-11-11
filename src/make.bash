@@ -20,6 +20,23 @@ then
 	exit 1
 fi
 
+case "$GOARCH" in
+amd64 | 386 | arm)
+	;;
+*)
+	echo '$GOARCH is set to <'$GOARCH'>, must be amd64, 386, or arm' 1>&2
+	exit 1
+esac
+
+case "$GOOS" in
+darwin | linux | nacl)
+	;;
+*)
+	echo '$GOOS is set to <'$GOOS'>, must be darwin, linux, or nacl' 1>&2
+	exit 1
+esac
+
+
 bash clean.bash
 
 rm -f $GOBIN/quietgcc
