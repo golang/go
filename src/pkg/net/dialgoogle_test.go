@@ -80,6 +80,10 @@ func TestDialGoogle(t *testing.T) {
 				preferIPv4 = false;
 			}
 		}
-		doDial(t, "tcp6", addr);
+
+		// Only run tcp6 if the kernel will take it.
+		if kernelSupportsIPv6() {
+			doDial(t, "tcp6", addr)
+		}
 	}
 }
