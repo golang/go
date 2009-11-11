@@ -44,7 +44,6 @@ disksize(int fd, int x)
 	return 0;
 }
 
-int _p9usepwlibrary = 1;
 /*
  * Caching the last group and passwd looked up is
  * a significant win (stupidly enough) on most systems.
@@ -89,12 +88,6 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
 	sz += strlen(s)+1;
 
 	/* user */
-	if(p && st->st_uid == uid && p->pw_uid == uid)
-		;
-	else if(_p9usepwlibrary){
-		p = getpwuid(st->st_uid);
-		uid = st->st_uid;
-	}
 	if(p == nil || st->st_uid != uid || p->pw_uid != uid){
 		snprint(tmp, sizeof tmp, "%d", (int)st->st_uid);
 		s = tmp;
@@ -112,12 +105,6 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
 	}
 
 	/* group */
-	if(g && st->st_gid == gid && g->gr_gid == gid)
-		;
-	else if(_p9usepwlibrary){
-		g = getgrgid(st->st_gid);
-		gid = st->st_gid;
-	}
 	if(g == nil || st->st_gid != gid || g->gr_gid != gid){
 		snprint(tmp, sizeof tmp, "%d", (int)st->st_gid);
 		s = tmp;

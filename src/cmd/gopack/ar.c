@@ -1430,6 +1430,10 @@ armalloc(int n)
 {
 	char *cp;
 
+	// bump so that arwrite can do the same
+	if(n&1)
+		n++;
+
 	do {
 		cp = malloc(n);
 		if (cp) {
