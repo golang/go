@@ -297,7 +297,8 @@ func TestSymLink(t *testing.T) {
 
 func TestLongSymlink(t *testing.T) {
 	s := "0123456789abcdef";
-	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s + s;
+	// Long, but not too long: a common limit is 255.
+	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s;
 	from := "longsymlinktestfrom";
 	err := Symlink(s, from);
 	if err != nil {
