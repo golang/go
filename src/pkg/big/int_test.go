@@ -46,7 +46,7 @@ func TestSetZ(t *testing.T) {
 	for _, a := range sumZZ {
 		var z Int;
 		z.Set(a.z);
-		if (&z).Cmp(a.z) != 0 {
+		if CmpInt(&z, a.z) != 0 {
 			t.Errorf("got z = %v; want %v", z, a.z)
 		}
 	}
@@ -56,7 +56,7 @@ func TestSetZ(t *testing.T) {
 func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
 	var z Int;
 	f(&z, a.x, a.y);
-	if (&z).Cmp(a.z) != 0 {
+	if CmpInt(&z, a.z) != 0 {
 		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, &z, a.z)
 	}
 }
@@ -165,7 +165,7 @@ func TestSetString(t *testing.T) {
 			continue
 		}
 
-		if n.Cmp(new(Int).New(test.out)) != 0 {
+		if CmpInt(n, new(Int).New(test.out)) != 0 {
 			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n, test.out)
 		}
 	}
@@ -196,7 +196,7 @@ func TestDivSigns(t *testing.T) {
 		expectedQ := new(Int).New(test.q);
 		expectedR := new(Int).New(test.r);
 
-		if q.Cmp(expectedQ) != 0 || r.Cmp(expectedR) != 0 {
+		if CmpInt(q, expectedQ) != 0 || CmpInt(r, expectedR) != 0 {
 			t.Errorf("#%d: got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR)
 		}
 	}
@@ -251,7 +251,7 @@ func checkDiv(x, y []byte) bool {
 
 	q, r := new(Int).Div(u, v);
 
-	if r.Cmp(v) >= 0 {
+	if CmpInt(r, v) >= 0 {
 		return false
 	}
 
@@ -259,7 +259,7 @@ func checkDiv(x, y []byte) bool {
 	uprime.Mul(uprime, v);
 	uprime.Add(uprime, r);
 
-	return uprime.Cmp(u) == 0;
+	return CmpInt(uprime, u) == 0;
 }
 
 
@@ -275,12 +275,6 @@ var divTests = []divTest{
 		"9353930466774385905609975137998169297361893554149986716853295022578535724979483772383667534691121982974895531435241089241440253066816724367338287092081996",
 		"50911",
 		"1",
-	},
-	divTest{
-		"11510768301994997771168",
-		"1328165573307167369775",
-		"8",
-		"885443715537658812968",
 	},
 }
 
@@ -299,7 +293,7 @@ func TestDiv(t *testing.T) {
 
 		q, r := new(Int).Div(x, y);
 
-		if q.Cmp(expectedQ) != 0 || r.Cmp(expectedR) != 0 {
+		if CmpInt(q, expectedQ) != 0 || CmpInt(r, expectedR) != 0 {
 			t.Errorf("#%d got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR)
 		}
 	}
@@ -407,7 +401,7 @@ func TestExp(t *testing.T) {
 		}
 
 		z := new(Int).Exp(x, y, m);
-		if z.Cmp(out) != 0 {
+		if CmpInt(z, out) != 0 {
 			t.Errorf("#%d got %s want %s", i, z, out)
 		}
 	}
@@ -427,7 +421,7 @@ func checkGcd(aBytes, bBytes []byte) bool {
 	y.Mul(y, b);
 	x.Add(x, y);
 
-	return x.Cmp(d) == 0;
+	return CmpInt(x, d) == 0;
 }
 
 
@@ -457,95 +451,12 @@ func TestGcd(t *testing.T) {
 
 		GcdInt(d, x, y, a, b);
 
-		if expectedX.Cmp(x) != 0 ||
-			expectedY.Cmp(y) != 0 ||
-			expectedD.Cmp(d) != 0 {
+		if CmpInt(expectedX, x) != 0 ||
+			CmpInt(expectedY, y) != 0 ||
+			CmpInt(expectedD, d) != 0 {
 			t.Errorf("#%d got (%s %s %s) want (%s %s %s)", i, x, y, d, expectedX, expectedY, expectedD)
 		}
 	}
 
 	quick.Check(checkGcd, nil);
-}
-
-
-var primes = []string{
-	"2",
-	"3",
-	"5",
-	"7",
-	"11",
-	"98920366548084643601728869055592650835572950932266967461790948584315647051443",
-	"94560208308847015747498523884063394671606671904944666360068158221458669711639",
-	// http://primes.utm.edu/lists/small/small3.html
-	"449417999055441493994709297093108513015373787049558499205492347871729927573118262811508386655998299074566974373711472560655026288668094291699357843464363003144674940345912431129144354948751003607115263071543163",
-	"230975859993204150666423538988557839555560243929065415434980904258310530753006723857139742334640122533598517597674807096648905501653461687601339782814316124971547968912893214002992086353183070342498989426570593",
-	"5521712099665906221540423207019333379125265462121169655563495403888449493493629943498064604536961775110765377745550377067893607246020694972959780839151452457728855382113555867743022746090187341871655890805971735385789993",
-	"203956878356401977405765866929034577280193993314348263094772646453283062722701277632936616063144088173312372882677123879538709400158306567338328279154499698366071906766440037074217117805690872792848149112022286332144876183376326512083574821647933992961249917319836219304274280243803104015000563790123",
-}
-
-
-var composites = []string{
-	"21284175091214687912771199898307297748211672914763848041968395774954376176754",
-	"6084766654921918907427900243509372380954290099172559290432744450051395395951",
-	"84594350493221918389213352992032324280367711247940675652888030554255915464401",
-	"82793403787388584738507275144194252681",
-}
-
-
-func TestProbablyPrime(t *testing.T) {
-	for i, s := range primes {
-		p, _ := new(Int).SetString(s, 10);
-		if !ProbablyPrime(p, 20) {
-			t.Errorf("#%d prime found to be non-prime", i)
-		}
-	}
-
-	for i, s := range composites {
-		c, _ := new(Int).SetString(s, 10);
-		if ProbablyPrime(c, 20) {
-			t.Errorf("#%d composite found to be prime", i)
-		}
-	}
-}
-
-
-type rshTest struct {
-	in	string;
-	shift	int;
-	out	string;
-}
-
-
-var rshTests = []rshTest{
-	rshTest{"0", 0, "0"},
-	rshTest{"0", 1, "0"},
-	rshTest{"0", 2, "0"},
-	rshTest{"1", 0, "1"},
-	rshTest{"1", 1, "0"},
-	rshTest{"1", 2, "0"},
-	rshTest{"2", 0, "2"},
-	rshTest{"2", 1, "1"},
-	rshTest{"2", 2, "0"},
-	rshTest{"4294967296", 0, "4294967296"},
-	rshTest{"4294967296", 1, "2147483648"},
-	rshTest{"4294967296", 2, "1073741824"},
-	rshTest{"18446744073709551616", 0, "18446744073709551616"},
-	rshTest{"18446744073709551616", 1, "9223372036854775808"},
-	rshTest{"18446744073709551616", 2, "4611686018427387904"},
-	rshTest{"18446744073709551616", 64, "1"},
-	rshTest{"340282366920938463463374607431768211456", 64, "18446744073709551616"},
-	rshTest{"340282366920938463463374607431768211456", 128, "1"},
-}
-
-
-func TestRsh(t *testing.T) {
-	for i, test := range rshTests {
-		in, _ := new(Int).SetString(test.in, 10);
-		expected, _ := new(Int).SetString(test.out, 10);
-		out := new(Int).Rsh(in, test.shift);
-
-		if out.Cmp(expected) != 0 {
-			t.Errorf("#%d got %s want %s", i, out, expected)
-		}
-	}
 }

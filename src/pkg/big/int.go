@@ -119,6 +119,40 @@ func (z *Int) Mod(x, y *Int) (r *Int) {
 
 
 func div(q, r, x, y *Int) {
+	if len(y.abs) == 0 {
+		panic("Divide by zero undefined")
+	}
+
+	if cmpNN(x.abs, y.abs) < 0 {
+		q.neg = false;
+		q.abs = nil;
+		r.neg = y.neg;
+
+		src := x.abs;
+		dst := x.abs;
+		if r == x {
+			dst = nil
+		}
+
+		r.abs = makeN(dst, len(src), false);
+		for i, v := range src {
+			r.abs[i] = v
+		}
+		return;
+	}
+
+	if len(y.abs) == 1 {
+		var rprime Word;
+		q.abs, rprime = divNW(q.abs, x.abs, y.abs[0]);
+		if rprime > 0 {
+			r.abs = makeN(r.abs, 1, false);
+			r.abs[0] = rprime;
+			r.neg = x.neg;
+		}
+		q.neg = len(q.abs) > 0 && x.neg != y.neg;
+		return;
+	}
+
 	q.neg = x.neg != y.neg;
 	r.neg = x.neg;
 	q.abs, r.abs = divNN(q.abs, r.abs, x.abs, y.abs);
@@ -134,13 +168,15 @@ func (z *Int) Neg(x *Int) *Int {
 }
 
 
-// Cmp compares x and y. The result is
+// TODO(gri) Should this be x.Cmp(y) instead?
+
+// CmpInt compares x and y. The result is
 //
 //   -1 if x <  y
 //    0 if x == y
 //   +1 if x >  y
 //
-func (x *Int) Cmp(y *Int) (r int) {
+func CmpInt(x, y *Int) (r int) {
 	// x cmp y == x cmp y
 	// x cmp (-y) == x
 	// (-x) cmp y == y
@@ -271,7 +307,7 @@ func (z *Int) Len() int {
 		return 0
 	}
 
-	return len(z.abs)*_W - int(leadingZeros(z.abs[len(z.abs)-1]));
+	return len(z.abs)*int(_W) - int(leadingZeros(z.abs[len(z.abs)-1]));
 }
 
 
@@ -284,12 +320,52 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 		return z;
 	}
 
-	var mWords []Word;
-	if m != nil {
-		mWords = m.abs
+	z.Set(x);
+	v := y.abs[len(y.abs)-1];
+	// It's invalid for the most significant word to be zero, therefore we
+	// will find a one bit.
+	shift := leadingZeros(v) + 1;
+	v <<= shift;
+
+	const mask = 1 << (_W - 1);
+
+	// We walk through the bits of the exponent one by one. Each time we see
+	// a bit, we square, thus doubling the power. If the bit is a one, we
+	// also multiply by x, thus adding one to the power.
+
+	w := int(_W) - int(shift);
+	for j := 0; j < w; j++ {
+		z.Mul(z, z);
+
+		if v&mask != 0 {
+			z.Mul(z, x)
+		}
+
+		if m != nil {
+			z.Mod(z, m)
+		}
+
+		v <<= 1;
 	}
 
-	z.abs = expNNN(z.abs, x.abs, y.abs, mWords);
+	for i := len(y.abs) - 2; i >= 0; i-- {
+		v = y.abs[i];
+
+		for j := 0; j < int(_W); j++ {
+			z.Mul(z, z);
+
+			if v&mask != 0 {
+				z.Mul(z, x)
+			}
+
+			if m != nil {
+				z.Mod(z, m)
+			}
+
+			v <<= 1;
+		}
+	}
+
 	z.neg = x.neg && y.abs[0]&1 == 1;
 	return z;
 }
@@ -350,21 +426,4 @@ func GcdInt(d, x, y, a, b *Int) {
 	}
 
 	*d = *A;
-}
-
-
-// ProbablyPrime performs n Miller-Rabin tests to check whether z is prime.
-// If it returns true, z is prime with probability 1 - 1/4^n.
-// If it returns false, z is not prime.
-func ProbablyPrime(z *Int, reps int) bool	{ return !z.neg && probablyPrime(z.abs, reps) }
-
-
-// Rsh sets z = x >> s and returns z.
-func (z *Int) Rsh(x *Int, n int) *Int {
-	removedWords := n / _W;
-	z.abs = makeN(z.abs, len(x.abs)-removedWords, false);
-	z.neg = x.neg;
-	shiftRight(z.abs, x.abs[removedWords:len(x.abs)], n%_W);
-	z.abs = normN(z.abs);
-	return z;
 }
