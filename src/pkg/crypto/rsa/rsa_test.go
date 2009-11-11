@@ -12,41 +12,35 @@ import (
 	"testing";
 )
 
-/*
-
-TODO(agl): Enable once big implements ProbablyPrime.
-
 func TestKeyGeneration(t *testing.T) {
 	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0);
 	if err != nil {
-		t.Errorf("failed to open /dev/urandom");
+		t.Errorf("failed to open /dev/urandom")
 	}
 
 	priv, err := GenerateKey(urandom, 16);
 	if err != nil {
-		t.Errorf("failed to generate key");
+		t.Errorf("failed to generate key")
 	}
 	pub := &priv.PublicKey;
 	m := big.NewInt(42);
 	c := encrypt(new(big.Int), pub, m);
 	m2, err := decrypt(nil, priv, c);
 	if err != nil {
-		t.Errorf("error while decrypting: %s", err);
+		t.Errorf("error while decrypting: %s", err)
 	}
-	if big.CmpInt(m, m2) != 0 {
-		t.Errorf("got:%v, want:%v (%s)", m2, m, priv);
+	if m.Cmp(m2) != 0 {
+		t.Errorf("got:%v, want:%v (%s)", m2, m, priv)
 	}
 
 	m3, err := decrypt(urandom, priv, c);
 	if err != nil {
-		t.Errorf("error while decrypting (blind): %s", err);
+		t.Errorf("error while decrypting (blind): %s", err)
 	}
-	if big.CmpInt(m, m3) != 0 {
-		t.Errorf("(blind) got:%v, want:%v", m3, m);
+	if m.Cmp(m3) != 0 {
+		t.Errorf("(blind) got:%v, want:%v", m3, m)
 	}
 }
-
-*/
 
 type testEncryptOAEPMessage struct {
 	in	[]byte;

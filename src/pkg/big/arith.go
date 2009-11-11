@@ -14,7 +14,8 @@ type Word uintptr
 
 const (
 	_S	= uintptr(unsafe.Sizeof(Word(0)));	// TODO(gri) should Sizeof return a uintptr?
-	_W	= _S * 8;
+	_logW	= (0x650 >> _S) & 7;
+	_W	= 1 << _logW;
 	_B	= 1 << _W;
 	_M	= _B - 1;
 	_W2	= _W / 2;
@@ -213,7 +214,7 @@ func divStep(x1, x0, y Word) (q, r Word) {
 // Number of leading zeros in x.
 func leadingZeros(x Word) (n uint) {
 	if x == 0 {
-		return uint(_W)
+		return _W
 	}
 	for x&(1<<(_W-1)) == 0 {
 		n++;
@@ -235,7 +236,7 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
 	if y > x1 {
 		if z != 0 {
 			y <<= z;
-			x1 = (x1 << z) | (x0 >> (uint(_W) - z));
+			x1 = (x1 << z) | (x0 >> (_W - z));
 			x0 <<= z;
 		}
 		q0, x0 = divStep(x1, x0, y);
@@ -245,7 +246,7 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
 			x1 -= y;
 			q1 = 1;
 		} else {
-			z1 := uint(_W) - z;
+			z1 := _W - z;
 			y <<= z;
 			x2 := x1 >> z1;
 			x1 = (x1 << z) | (x0 >> z1);

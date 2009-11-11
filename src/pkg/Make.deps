@@ -1,6 +1,6 @@
 archive/tar.install: bytes.install io.install os.install strconv.install strings.install
 asn1.install: fmt.install os.install reflect.install strconv.install strings.install time.install
-big.install:
+big.install: rand.install
 bignum.install: fmt.install
 bufio.install: io.install os.install strconv.install utf8.install
 bytes.install: os.install unicode.install utf8.install
@@ -19,8 +19,8 @@ crypto/rc4.install: os.install strconv.install
 crypto/rsa.install: big.install bytes.install crypto/subtle.install hash.install io.install os.install
 crypto/sha1.install: hash.install os.install
 crypto/subtle.install:
-crypto/tls.install: bufio.install bytes.install container/list.install crypto/hmac.install crypto/md5.install crypto/rc4.install crypto/rsa.install crypto/sha1.install crypto/subtle.install fmt.install hash.install io.install net.install os.install strings.install time.install
-crypto/x509.install: asn1.install big.install crypto/rsa.install os.install
+crypto/tls.install: bufio.install bytes.install container/list.install crypto/hmac.install crypto/md5.install crypto/rc4.install crypto/rsa.install crypto/sha1.install crypto/subtle.install crypto/x509.install fmt.install hash.install io.install net.install os.install strings.install time.install
+crypto/x509.install: asn1.install big.install container/vector.install crypto/rsa.install os.install time.install
 debug/dwarf.install: encoding/binary.install os.install strconv.install
 debug/macho.install: bytes.install debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
 debug/elf.install: bytes.install debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
@@ -43,7 +43,7 @@ fmt.install: io.install os.install reflect.install strconv.install utf8.install
 go/ast.install: fmt.install go/token.install unicode.install utf8.install
 go/doc.install: container/vector.install go/ast.install go/token.install io.install regexp.install sort.install strings.install template.install
 go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install path.install strings.install
-go/printer.install: bytes.install container/vector.install fmt.install go/ast.install go/token.install io.install os.install reflect.install runtime.install strings.install tabwriter.install
+go/printer.install: bytes.install fmt.install go/ast.install go/token.install io.install os.install reflect.install runtime.install strings.install tabwriter.install
 go/scanner.install: bytes.install container/vector.install fmt.install go/token.install io.install os.install sort.install strconv.install unicode.install utf8.install
 go/token.install: fmt.install strconv.install
 gob.install: bytes.install fmt.install io.install math.install os.install reflect.install sync.install

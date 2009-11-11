@@ -120,7 +120,7 @@ func TestStringN(t *testing.T) {
 
 func TestLeadingZeroBits(t *testing.T) {
 	var x Word = 1 << (_W - 1);
-	for i := 0; i <= int(_W); i++ {
+	for i := 0; i <= _W; i++ {
 		if leadingZeroBits(x) != i {
 			t.Errorf("failed at %x: got %d want %d", x, leadingZeroBits(x), i)
 		}
@@ -182,6 +182,100 @@ func TestShiftRight(t *testing.T) {
 				t.Errorf("#%d: got: %v want: %v", i, dst, test.out);
 				break;
 			}
+		}
+	}
+}
+
+
+type modNWTest struct {
+	in		string;
+	dividend	string;
+	out		string;
+}
+
+
+var modNWTests32 = []modNWTest{
+	modNWTest{"23492635982634928349238759823742", "252341", "220170"},
+}
+
+
+var modNWTests64 = []modNWTest{
+	modNWTest{"6527895462947293856291561095690465243862946", "524326975699234", "375066989628668"},
+}
+
+
+func runModNWTests(t *testing.T, tests []modNWTest) {
+	for i, test := range tests {
+		in, _ := new(Int).SetString(test.in, 10);
+		d, _ := new(Int).SetString(test.dividend, 10);
+		out, _ := new(Int).SetString(test.out, 10);
+
+		r := modNW(in.abs, d.abs[0]);
+		if r != out.abs[0] {
+			t.Errorf("#%d failed: got %s want %s\n", i, r, out)
+		}
+	}
+}
+
+
+func TestModNW(t *testing.T) {
+	if _W >= 32 {
+		runModNWTests(t, modNWTests32)
+	}
+	if _W >= 64 {
+		runModNWTests(t, modNWTests32)
+	}
+}
+
+
+func TestTrailingZeroBits(t *testing.T) {
+	var x Word;
+	x--;
+	for i := 0; i < _W; i++ {
+		if trailingZeroBits(x) != i {
+			t.Errorf("Failed at step %d: x: %x got: %d\n", i, x, trailingZeroBits(x))
+		}
+		x <<= 1;
+	}
+}
+
+
+type expNNNTest struct {
+	x, y, m	string;
+	out	string;
+}
+
+
+var expNNNTests = []expNNNTest{
+	expNNNTest{"0x8000000000000000", "2", "", "0x40000000000000000000000000000000"},
+	expNNNTest{"0x8000000000000000", "2", "6719", "4944"},
+	expNNNTest{"0x8000000000000000", "3", "6719", "5447"},
+	expNNNTest{"0x8000000000000000", "1000", "6719", "1603"},
+	expNNNTest{"0x8000000000000000", "1000000", "6719", "3199"},
+	expNNNTest{
+		"2938462938472983472983659726349017249287491026512746239764525612965293865296239471239874193284792387498274256129746192347",
+		"298472983472983471903246121093472394872319615612417471234712061",
+		"29834729834729834729347290846729561262544958723956495615629569234729836259263598127342374289365912465901365498236492183464",
+		"23537740700184054162508175125554701713153216681790245129157191391322321508055833908509185839069455749219131480588829346291",
+	},
+}
+
+
+func TestExpNNN(t *testing.T) {
+	for i, test := range expNNNTests {
+		x, _, _ := scanN(nil, test.x, 0);
+		y, _, _ := scanN(nil, test.y, 0);
+		out, _, _ := scanN(nil, test.out, 0);
+
+		var m []Word;
+
+		if len(test.m) > 0 {
+			m, _, _ = scanN(nil, test.m, 0)
+		}
+
+		z := expNNN(nil, x, y, m);
+		if cmpNN(z, out) != 0 {
+			t.Errorf("#%d got %v want %v", i, z, out)
 		}
 	}
 }
