@@ -50,7 +50,7 @@ var dialErrorTests = []DialErrorTest{
 	},
 	DialErrorTest{
 		"unix", "", "/etc/",
-		"dial unix /etc/: (permission denied|socket operation on non-socket)",
+		"dial unix /etc/: (permission denied|socket operation on non-socket|connection refused)",
 	},
 }
 
