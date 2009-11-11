@@ -35,7 +35,7 @@ var dialErrorTests = []DialErrorTest{
 	},
 	DialErrorTest{
 		"tcp", "", "no-such-name:80",
-		`dial tcp no-such-name:80: lookup no-such-name\..*\.( on .*)?: no (.*)`,
+		`dial tcp no-such-name:80: lookup no-such-name\.(.*\.)?( on .*)?: no (.*)`,
 	},
 	DialErrorTest{
 		"tcp", "", "mh/astro/r70:http",
