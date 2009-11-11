@@ -60,11 +60,11 @@ type digest struct {
 	tab	*Table;
 }
 
-// New creates a new Hash computing the CRC-32 checksum
+// New creates a new hash.Hash32 computing the CRC-32 checksum
 // using the polynomial represented by the Table.
 func New(tab *Table) hash.Hash32	{ return &digest{0, tab} }
 
-// NewIEEE creates a new Hash computing the CRC-32 checksum
+// NewIEEE creates a new hash.Hash32 computing the CRC-32 checksum
 // using the IEEE polynomial.
 func NewIEEE() hash.Hash32	{ return New(IEEETable) }
 
