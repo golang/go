@@ -6,9 +6,7 @@
 // These are the building blocks for the operations on signed integers
 // and rationals.
 
-//	NOTE: PACKAGE UNDER CONSTRUCTION.
-//
-// The big package implements multi-precision arithmetic (big numbers).
+// This package implements multi-precision arithmetic (big numbers).
 // The following numeric types are supported:
 //
 //	- Int	signed integers
@@ -17,7 +15,12 @@
 // of the operands it may be overwritten (and its memory reused).
 // To enable chaining of operations, the result is also returned.
 //
+// If possible, one should use big over bignum as the latter is headed for
+// deprecation.
+//
 package big
+
+import "rand"
 
 // An unsigned integer x of the form
 //
@@ -257,12 +260,40 @@ func divNW(z, x []Word, y Word) (q []Word, r Word) {
 }
 
 
+func divNN(z, z2, u, v []Word) (q, r []Word) {
+	if len(v) == 0 {
+		panic("Divide by zero undefined")
+	}
+
+	if cmpNN(u, v) < 0 {
+		q = makeN(z, 0, false);
+		r = setN(z2, u);
+		return;
+	}
+
+	if len(v) == 1 {
+		var rprime Word;
+		q, rprime = divNW(z, u, v[0]);
+		if rprime > 0 {
+			r = makeN(z2, 1, false);
+			r[0] = rprime;
+		} else {
+			r = makeN(z2, 0, false)
+		}
+		return;
+	}
+
+	q, r = divLargeNN(z, z2, u, v);
+	return;
+}
+
+
 // q = (uIn-r)/v, with 0 <= r < y
 // See Knuth, Volume 2, section 4.3.1, Algorithm D.
 // Preconditions:
 //    len(v) >= 2
-//    len(uIn) >= 1 + len(vIn)
-func divNN(z, z2, uIn, v []Word) (q, r []Word) {
+//    len(uIn) >= len(v)
+func divLargeNN(z, z2, uIn, v []Word) (q, r []Word) {
 	n := len(v);
 	m := len(uIn) - len(v);
 
@@ -274,7 +305,7 @@ func divNN(z, z2, uIn, v []Word) (q, r []Word) {
 	shift := leadingZeroBits(v[n-1]);
 	shiftLeft(v, v, shift);
 	shiftLeft(u, uIn, shift);
-	u[len(uIn)] = uIn[len(uIn)-1] >> (uint(_W) - uint(shift));
+	u[len(uIn)] = uIn[len(uIn)-1] >> (_W - uint(shift));
 
 	// D2.
 	for j := m; j >= 0; j-- {
@@ -335,7 +366,7 @@ func log2(x Word) int {
 func log2N(x []Word) int {
 	m := len(x);
 	if m > 0 {
-		return (m-1)*int(_W) + log2(x[m-1])
+		return (m-1)*_W + log2(x[m-1])
 	}
 	return -1;
 }
@@ -439,7 +470,7 @@ func leadingZeroBits(x Word) int {
 	c := 0;
 	if x < 1<<(_W/2) {
 		x <<= _W / 2;
-		c = int(_W / 2);
+		c = _W / 2;
 	}
 
 	for i := 0; x != 0; i++ {
@@ -449,7 +480,47 @@ func leadingZeroBits(x Word) int {
 		x <<= 1;
 	}
 
-	return int(_W);
+	return _W;
+}
+
+const deBruijn32 = 0x077CB531
+
+var deBruijn32Lookup = []byte{
+	0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
+	31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9,
+}
+
+const deBruijn64 = 0x03f79d71b4ca8b09
+
+var deBruijn64Lookup = []byte{
+	0, 1, 56, 2, 57, 49, 28, 3, 61, 58, 42, 50, 38, 29, 17, 4,
+	62, 47, 59, 36, 45, 43, 51, 22, 53, 39, 33, 30, 24, 18, 12, 5,
+	63, 55, 48, 27, 60, 41, 37, 16, 46, 35, 44, 21, 52, 32, 23, 11,
+	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
+}
+
+// trailingZeroBits returns the number of consecutive zero bits on the right
+// side of the given Word.
+// See Knuth, volume 4, section 7.3.1
+func trailingZeroBits(x Word) int {
+	// x & -x leaves only the right-most bit set in the word. Let k be the
+	// index of that bit. Since only a single bit is set, the value is two
+	// to the power of k. Multipling by a power of two is equivalent to
+	// left shifting, in this case by k bits.  The de Bruijn constant is
+	// such that all six bit, consecutive substrings are distinct.
+	// Therefore, if we have a left shifted version of this constant we can
+	// find by how many bits it was shifted by looking at which six bit
+	// substring ended up at the top of the word.
+	switch _W {
+	case 32:
+		return int(deBruijn32Lookup[((x&-x)*deBruijn32)>>27])
+	case 64:
+		return int(deBruijn64Lookup[((x&-x)*(deBruijn64&_M))>>58])
+	default:
+		panic("Unknown word size")
+	}
+
+	return 0;
 }
 
 
@@ -458,7 +529,7 @@ func shiftLeft(dst, src []Word, n int) {
 		return
 	}
 
-	ñ := uint(_W) - uint(n);
+	ñ := _W - uint(n);
 	for i := len(src) - 1; i >= 1; i-- {
 		dst[i] = src[i] << uint(n);
 		dst[i] |= src[i-1] >> ñ;
@@ -472,7 +543,7 @@ func shiftRight(dst, src []Word, n int) {
 		return
 	}
 
-	ñ := uint(_W) - uint(n);
+	ñ := _W - uint(n);
 	for i := 0; i < len(src)-1; i++ {
 		dst[i] = src[i] >> uint(n);
 		dst[i] |= src[i+1] << ñ;
@@ -483,3 +554,221 @@ func shiftRight(dst, src []Word, n int) {
 
 // greaterThan returns true iff (x1<<_W + x2) > (y1<<_W + y2)
 func greaterThan(x1, x2, y1, y2 Word) bool	{ return x1 > y1 || x1 == y1 && x2 > y2 }
+
+
+// modNW returns x % d.
+func modNW(x []Word, d Word) (r Word) {
+	// TODO(agl): we don't actually need to store the q value.
+	q := makeN(nil, len(x), false);
+	return divWVW(&q[0], 0, &x[0], d, len(x));
+}
+
+
+// powersOfTwoDecompose finds q and k such that q * 1<<k = n and q is odd.
+func powersOfTwoDecompose(n []Word) (q []Word, k Word) {
+	if len(n) == 0 {
+		return n, 0
+	}
+
+	zeroWords := 0;
+	for n[zeroWords] == 0 {
+		zeroWords++
+	}
+	// One of the words must be non-zero by invariant, therefore
+	// zeroWords < len(n).
+	x := trailingZeroBits(n[zeroWords]);
+
+	q = makeN(nil, len(n)-zeroWords, false);
+	shiftRight(q, n[zeroWords:len(n)], x);
+
+	k = Word(_W*zeroWords + x);
+	return;
+}
+
+
+// randomN creates a random integer in [0..limit), using the space in z if
+// possible. n is the bit length of limit.
+func randomN(z []Word, rand *rand.Rand, limit []Word, n int) []Word {
+	bitLengthOfMSW := uint(n % _W);
+	mask := Word((1 << bitLengthOfMSW) - 1);
+	z = makeN(z, len(limit), false);
+
+	for {
+		for i := range z {
+			switch _W {
+			case 32:
+				z[i] = Word(rand.Uint32())
+			case 64:
+				z[i] = Word(rand.Uint32()) | Word(rand.Uint32())<<32
+			}
+		}
+
+		z[len(limit)-1] &= mask;
+
+		if cmpNN(z, limit) < 0 {
+			break
+		}
+	}
+
+	return z;
+}
+
+
+// If m != nil, expNNN calculates x**y mod m. Otherwise it calculates x**y. It
+// reuses the storage of z if possible.
+func expNNN(z, x, y, m []Word) []Word {
+	if len(y) == 0 {
+		z = makeN(z, 1, false);
+		z[0] = 1;
+		return z;
+	}
+
+	if m != nil {
+		// We likely end up being as long as the modulus.
+		z = makeN(z, len(m), false)
+	}
+	z = setN(z, x);
+	v := y[len(y)-1];
+	// It's invalid for the most significant word to be zero, therefore we
+	// will find a one bit.
+	shift := leadingZeros(v) + 1;
+	v <<= shift;
+	var q []Word;
+
+	const mask = 1 << (_W - 1);
+
+	// We walk through the bits of the exponent one by one. Each time we
+	// see a bit, we square, thus doubling the power. If the bit is a one,
+	// we also multiply by x, thus adding one to the power.
+
+	w := _W - int(shift);
+	for j := 0; j < w; j++ {
+		z = mulNN(z, z, z);
+
+		if v&mask != 0 {
+			z = mulNN(z, z, x)
+		}
+
+		if m != nil {
+			q, z = divNN(q, z, z, m)
+		}
+
+		v <<= 1;
+	}
+
+	for i := len(y) - 2; i >= 0; i-- {
+		v = y[i];
+
+		for j := 0; j < _W; j++ {
+			z = mulNN(z, z, z);
+
+			if v&mask != 0 {
+				z = mulNN(z, z, x)
+			}
+
+			if m != nil {
+				q, z = divNN(q, z, z, m)
+			}
+
+			v <<= 1;
+		}
+	}
+
+	return z;
+}
+
+
+// lenN returns the bit length of z.
+func lenN(z []Word) int {
+	if len(z) == 0 {
+		return 0
+	}
+
+	return (len(z)-1)*_W + (_W - leadingZeroBits(z[len(z)-1]));
+}
+
+
+const (
+	primesProduct32	= 0xC0CFD797;		// Π {p ∈ primes, 2 < p <= 29}
+	primesProduct64	= 0xE221F97C30E94E1D;	// Π {p ∈ primes, 2 < p <= 53}
+)
+
+var bigOne = []Word{1}
+var bigTwo = []Word{2}
+
+// ProbablyPrime performs n Miller-Rabin tests to check whether n is prime.
+// If it returns true, n is prime with probability 1 - 1/4^n.
+// If it returns false, n is not prime.
+func probablyPrime(n []Word, reps int) bool {
+	if len(n) == 0 {
+		return false
+	}
+
+	if len(n) == 1 {
+		if n[0]%2 == 0 {
+			return n[0] == 2
+		}
+
+		// We have to exclude these cases because we reject all
+		// multiples of these numbers below.
+		if n[0] == 3 || n[0] == 5 || n[0] == 7 || n[0] == 11 ||
+			n[0] == 13 || n[0] == 17 || n[0] == 19 || n[0] == 23 ||
+			n[0] == 29 || n[0] == 31 || n[0] == 37 || n[0] == 41 ||
+			n[0] == 43 || n[0] == 47 || n[0] == 53 {
+			return true
+		}
+	}
+
+	var r Word;
+	switch _W {
+	case 32:
+		r = modNW(n, primesProduct32)
+	case 64:
+		r = modNW(n, primesProduct64&_M)
+	default:
+		panic("Unknown word size")
+	}
+
+	if r%3 == 0 || r%5 == 0 || r%7 == 0 || r%11 == 0 ||
+		r%13 == 0 || r%17 == 0 || r%19 == 0 || r%23 == 0 || r%29 == 0 {
+		return false
+	}
+
+	if _W == 64 && (r%31 == 0 || r%37 == 0 || r%41 == 0 ||
+		r%43 == 0 || r%47 == 0 || r%53 == 0) {
+		return false
+	}
+
+	nm1 := subNN(nil, n, bigOne);
+	// 1<<k * q = nm1;
+	q, k := powersOfTwoDecompose(nm1);
+
+	nm3 := subNN(nil, nm1, bigTwo);
+	rand := rand.New(rand.NewSource(int64(n[0])));
+
+	var x, y, quotient []Word;
+	nm3Len := lenN(nm3);
+
+NextRandom:
+	for i := 0; i < reps; i++ {
+		x = randomN(x, rand, nm3, nm3Len);
+		addNN(x, x, bigTwo);
+		y = expNNN(y, x, q, n);
+		if cmpNN(y, bigOne) == 0 || cmpNN(y, nm1) == 0 {
+			continue
+		}
+		for j := Word(1); j < k; j++ {
+			y = mulNN(y, y, y);
+			quotient, y = divNN(quotient, y, y, n);
+			if cmpNN(y, nm1) == 0 {
+				continue NextRandom
+			}
+			if cmpNN(y, bigOne) == 0 {
+				return false
+			}
+		}
+		return false;
+	}
+
+	return true;
+}
