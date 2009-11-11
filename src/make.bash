@@ -47,19 +47,6 @@ if ! (cd lib9 && which quietgcc) >/dev/null 2>&1; then
 	exit 1
 fi
 
-if make --version | head -n 1 | grep -c '^GNU Make' >> /dev/null ; then
-	MAKEVERSION=$(make --version | head -n 1 | cut -d' ' -f3)
-	MAKEMAJOR=$(echo $MAKEVERSION | cut -d'.' -f 1)
-	MAKEMINOR=$(echo $MAKEVERSION | cut -d'.' -f 2)
-
-	if [ "$MAKEMAJOR" -lt 3 -o "$MAKEMAJOR" -eq 3 -a "$MAKEMINOR" -le 80 ]; then
-		echo "Your make is too old. You appear to have $MAKEMAJOR.$MAKEMINOR, but we need at least 3.81."
-		exit 1
-	fi
-fi
-
-MAKEVERSION=$(make --version | head -n 1 | cut -d' ' -f3)
-
 bash clean.bash
 
 for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc cmd/hgpatch
