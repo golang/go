@@ -1566,9 +1566,8 @@ alloc(int32 n)
 void*
 allocn(void *p, int32 n, int32 d)
 {
-
 	if(p == nil)
-		return alloc(d);
+		return alloc(n+d);
 	p = realloc(p, n+d);
 	if(p == nil) {
 		print("allocn out of mem\n");
