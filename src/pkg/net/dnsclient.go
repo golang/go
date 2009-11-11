@@ -268,5 +268,16 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
 			return;
 		}
 	}
+
+	// Last ditch effort: try unsuffixed.
+	rname := name;
+	if !rooted {
+		rname += "."
+	}
+	addrs, err = tryOneName(cfg, rname);
+	if err == nil {
+		cname = rname;
+		return;
+	}
 	return;
 }
