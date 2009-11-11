@@ -470,3 +470,9 @@ Useful for development work."
   (go-mode))
 
 (provide 'go-mode)
+
+(defun gofmt ()
+  "Pipe the current buffer through the external tool `gofmt`."
+  
+  (interactive)
+  (shell-command-on-region 1 (+ (buffer-size) 1) "gofmt" t t shell-command-default-error-buffer))
