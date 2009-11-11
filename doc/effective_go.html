@@ -2394,7 +2394,7 @@ import (
 
 var addr = flag.String("addr", ":1718", "http service address") // Q=17, R=18
 var fmap = template.FormatterMap{
-	"html": template.HtmlFormatter,
+	"html": template.HTMLFormatter,
 	"url+html": UrlHtmlFormatter,
 }
 var templ = template.MustParse(templateStr, fmap)
@@ -2413,7 +2413,7 @@ func QR(c *http.Conn, req *http.Request) {
 }
 
 func UrlHtmlFormatter(w io.Writer, v interface{}, fmt string) {
-	template.HtmlEscape(w, strings.Bytes(http.URLEscape(v.(string))));
+	template.HTMLEscape(w, strings.Bytes(http.URLEscape(v.(string))));
 }
 
 
