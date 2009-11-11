@@ -71,8 +71,17 @@ In effect, you are always cross-compiling.
 </p>
 
 <p>
-After setting these variables in your <code>.bashrc</code>, double-check them by
-listing your environment.
+Set these variables in your <code>.bashrc</code>.  For example:
+</p>
+
+<pre>
+export GOROOT=$HOME/go
+export GOARCH=amd64
+export GOOS=linux
+</pre>
+
+<p>
+Double-check them by listing your environment.
 </p>
 
 <pre>
@@ -142,6 +151,7 @@ $ sudo easy_install mercurial
 </pre>
 
 <p>works on most systems.
+(On Ubuntu, you might try <code>apt-get install python-setuptools python-dev</code> first.)
 If that fails, visit the <a href="http://mercurial.selenic.com/wiki/Download">Mercurial Download</a> page.</p>
 
 <p>Make sure the <code>$GOROOT</code> directory does not exist or is empty.
