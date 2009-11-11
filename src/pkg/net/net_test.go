@@ -5,9 +5,12 @@
 package net
 
 import (
+	"flag";
 	"regexp";
 	"testing";
 )
+
+var runErrorTest = flag.Bool("run_error_test", false, "let TestDialError check for dns errors")
 
 type DialErrorTest struct {
 	Net	string;
@@ -52,6 +55,10 @@ var dialErrorTests = []DialErrorTest{
 }
 
 func TestDialError(t *testing.T) {
+	if !*runErrorTest {
+		t.Logf("test disabled; use --run_error_test to enable");
+		return;
+	}
 	for i, tt := range dialErrorTests {
 		c, e := Dial(tt.Net, tt.Laddr, tt.Raddr);
 		if c != nil {
