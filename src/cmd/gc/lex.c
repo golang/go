@@ -48,8 +48,8 @@ main(int argc, char *argv[])
 	if(argc < 1)
 		goto usage;
 
-	pathname = mal(100);
-	if(getwd(pathname, 99) == 0)
+	pathname = mal(1000);
+	if(getwd(pathname, 999) == 0)
 		strcpy(pathname, "/???");
 
 	fmtinstall('O', Oconv);		// node opcodes
