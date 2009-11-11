@@ -20,11 +20,12 @@ static	int32	debug	= 0;
 // OS thread, so that all ready gs can run simultaneously, up to a limit.
 // For now, ms never go away.
 //
-// The default maximum number of ms is one: go runs single-threaded.
-// This is because some locking details have to be worked ou
-// (select in particular is not locked properly) and because the low-level
-// code hasn't been written yet for OS X.  Setting the environmen
-// variable $gomaxprocs changes sched.mmax for now.
+// By default, Go keeps only one kernel thread (m) running user code
+// at a single time; other threads may be blocked in the operating system.
+// Setting the environment variable $GOMAXPROCS or calling
+// runtime.GOMAXPROCS() will change the number of user threads
+// allowed to execute simultaneously.  $GOMAXPROCS is thus an
+// approximation of the maximum number of cores to use.
 //
 // Even a program that can run without deadlock in a single process
 // might use more ms if given the chance.  For example, the prime
