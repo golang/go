@@ -13,6 +13,11 @@
 #ifndef	EXTERN
 #define	EXTERN	extern
 #endif
+
+
+#define	getc	gcgetc
+#define	ungetc	gcungetc
+
 enum
 {
 	NHUNK		= 50000,
