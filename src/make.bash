@@ -13,6 +13,13 @@ then
 	exit 1
 fi
 
+if ! test -d $GOBIN
+then
+	echo '$GOBIN is not a directory or does not exist' 1>&2
+	echo 'create it or set $GOBIN differently' 1>&2
+	exit 1
+fi
+
 bash clean.bash
 
 rm -f $GOBIN/quietgcc
