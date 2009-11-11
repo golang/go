@@ -32,119 +32,17 @@ THE SOFTWARE.
 #include <pwd.h>
 #include <grp.h>
 
-#if defined(__FreeBSD__)
-#include <sys/disk.h>
-#include <sys/disklabel.h>
-#include <sys/ioctl.h>
-#endif
-
-#if defined(__OpenBSD__)
-#include <sys/disklabel.h>
-#include <sys/ioctl.h>
-#define _HAVEDISKLABEL
-static int diskdev[] = {
-	151,	/* aacd */
-	116,	/* ad */
-	157,	/* ar */
-	118,	/* afd */
-	133,	/* amrd */
-	13,	/* da */
-	102,	/* fla */
-	109,	/* idad */
-	95,	/* md */
-	131,	/* mlxd */
-	168,	/* pst */
-	147,	/* twed */
-	43,	/* vn */
-	3,	/* wd */
-	87,	/* wfd */
-	4,	/* da on FreeBSD 5 */
-};
-static int
-isdisk(struct stat *st)
-{
-	int i, dev;
-
-	if(!S_ISCHR(st->st_mode))
-		return 0;
-	dev = major(st->st_rdev);
-	for(i=0; i<nelem(diskdev); i++)
-		if(diskdev[i] == dev)
-			return 1;
-	return 0;
-}
-#endif
-
-#if defined(__FreeBSD__)	/* maybe OpenBSD too? */
-char *diskdev[] = {
-	"aacd",
-	"ad",
-	"ar",
-	"afd",
-	"amrd",
-	"da",
-	"fla",
-	"idad",
-	"md",
-	"mlxd",
-	"pst",
-	"twed",
-	"vn",
-	"wd",
-	"wfd",
-	"da",
-};
-static int
-isdisk(struct stat *st)
-{
-	char *name;
-	int i, len;
-
-	if(!S_ISCHR(st->st_mode))
-		return 0;
-	name = devname(st->st_rdev, S_IFCHR);
-	for(i=0; i<nelem(diskdev); i++){
-		len = strlen(diskdev[i]);
-		if(strncmp(diskdev[i], name, len) == 0 && isdigit((uchar)name[len]))
-			return 1;
-	}
-	return 0;
-}
-#endif
-
-
-#if defined(__linux__)
-#include <linux/hdreg.h>
-#include <linux/fs.h>
-#include <sys/ioctl.h>
-#undef major
-#define major(dev) ((int)(((dev) >> 8) & 0xff))
+/*
+ * No need for a real disk size function here:
+ * the Go build isn't looking at raw disk devices,
+ * so this avoids portability problems.
+ */
+#define  _HAVEDISKSIZE
 static vlong
-disksize(int fd, int dev)
+disksize(int fd, int x)
 {
-	u64int u64;
-	long l;
-	struct hd_geometry geo;
-
-	memset(&geo, 0, sizeof geo);
-	l = 0;
-	u64 = 0;
-#ifdef BLKGETSIZE64
-	if(ioctl(fd, BLKGETSIZE64, &u64) >= 0)
-		return u64;
-#endif
-	if(ioctl(fd, BLKGETSIZE, &l) >= 0)
-		return l*512;
-	if(ioctl(fd, HDIO_GETGEO, &geo) >= 0)
-		return (vlong)geo.heads*geo.sectors*geo.cylinders*512;
 	return 0;
 }
-#define _HAVEDISKSIZE
-#endif
-
-#if !defined(__linux__) && !defined(__sun__)
-#define _HAVESTGEN
-#endif
 
 int _p9usepwlibrary = 1;
 /*
