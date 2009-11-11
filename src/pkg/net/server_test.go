@@ -88,10 +88,12 @@ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
 
 func TestTCPServer(t *testing.T) {
 	doTest(t, "tcp", "0.0.0.0", "127.0.0.1");
-	doTest(t, "tcp", "[::]", "[::ffff:127.0.0.1]");
-	doTest(t, "tcp", "[::]", "127.0.0.1");
 	doTest(t, "tcp", "", "127.0.0.1");
-	doTest(t, "tcp", "0.0.0.0", "[::ffff:127.0.0.1]");
+	if kernelSupportsIPv6() {
+		doTest(t, "tcp", "[::]", "[::ffff:127.0.0.1]");
+		doTest(t, "tcp", "[::]", "127.0.0.1");
+		doTest(t, "tcp", "0.0.0.0", "[::ffff:127.0.0.1]");
+	}
 }
 
 func TestUnixServer(t *testing.T) {
@@ -150,10 +152,12 @@ func doTestPacket(t *testing.T, network, listenaddr, dialaddr string) {
 
 func TestUDPServer(t *testing.T) {
 	doTestPacket(t, "udp", "0.0.0.0", "127.0.0.1");
-	doTestPacket(t, "udp", "[::]", "[::ffff:127.0.0.1]");
-	doTestPacket(t, "udp", "[::]", "127.0.0.1");
 	doTestPacket(t, "udp", "", "127.0.0.1");
-	doTestPacket(t, "udp", "0.0.0.0", "[::ffff:127.0.0.1]");
+	if kernelSupportsIPv6() {
+		doTestPacket(t, "udp", "[::]", "[::ffff:127.0.0.1]");
+		doTestPacket(t, "udp", "[::]", "127.0.0.1");
+		doTestPacket(t, "udp", "0.0.0.0", "[::ffff:127.0.0.1]");
+	}
 }
 
 func TestUnixDatagramServer(t *testing.T) {
