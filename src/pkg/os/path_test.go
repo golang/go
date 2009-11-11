@@ -104,35 +104,38 @@ func TestRemoveAll(t *testing.T) {
 		t.Fatalf("Lstat %q succeeded after RemoveAll (second)", path)
 	}
 
-	// Make directory with file and subdirectory and trigger error.
-	if err = MkdirAll(dpath, 0777); err != nil {
-		t.Fatalf("MkdirAll %q: %s", dpath, err)
+	if Getuid() != 0 {	// Test fails as root
+		// Make directory with file and subdirectory and trigger error.
+		if err = MkdirAll(dpath, 0777); err != nil {
+			t.Fatalf("MkdirAll %q: %s", dpath, err)
+		}
+
+		for _, s := range []string{fpath, dpath + "/file1", path + "/zzz"} {
+			fd, err = Open(s, O_WRONLY|O_CREAT, 0666);
+			if err != nil {
+				t.Fatalf("create %q: %s", s, err)
+			}
+			fd.Close();
+		}
+		if err = Chmod(dpath, 0); err != nil {
+			t.Fatalf("Chmod %q 0: %s", dpath, err)
+		}
+		if err = RemoveAll(path); err == nil {
+			_, err := Lstat(path);
+			if err == nil {
+				t.Errorf("Can lstat %q after supposed RemoveAll", path)
+			}
+			t.Fatalf("RemoveAll %q succeeded with chmod 0 subdirectory", path, err);
+		}
+		perr, ok := err.(*PathError);
+		if !ok {
+			t.Fatalf("RemoveAll %q returned %T not *PathError", path, err)
+		}
+		if perr.Path != dpath {
+			t.Fatalf("RemoveAll %q failed at %q not %q", path, perr.Path, dpath)
+		}
 	}
 
-	for _, s := range []string{fpath, dpath + "/file1", path + "/zzz"} {
-		fd, err = Open(s, O_WRONLY|O_CREAT, 0666);
-		if err != nil {
-			t.Fatalf("create %q: %s", s, err)
-		}
-		fd.Close();
-	}
-	if err = Chmod(dpath, 0); err != nil {
-		t.Fatalf("Chmod %q 0: %s", dpath, err)
-	}
-	if err = RemoveAll(path); err == nil {
-		_, err := Lstat(path);
-		if err == nil {
-			t.Errorf("Can lstat %q after supposed RemoveAll", path)
-		}
-		t.Fatalf("RemoveAll %q succeeded with chmod 0 subdirectory", path, err);
-	}
-	perr, ok := err.(*PathError);
-	if !ok {
-		t.Fatalf("RemoveAll %q returned %T not *PathError", path, err)
-	}
-	if perr.Path != dpath {
-		t.Fatalf("RemoveAll %q failed at %q not %q", path, perr.Path, dpath)
-	}
 	if err = Chmod(dpath, 0777); err != nil {
 		t.Fatalf("Chmod %q 0777: %s", dpath, err)
 	}
