@@ -9,6 +9,10 @@
 //	- Integer	signed integers
 //	- Rational	rational numbers
 //
+// This package has been designed for ease of use but the functions it provides
+// are likely to be quite slow. It may be deprecated eventually. Use package
+// big instead, if possible.
+//
 package bignum
 
 import (

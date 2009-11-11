@@ -19,15 +19,11 @@ import (
 var bigZero = big.NewInt(0)
 var bigOne = big.NewInt(1)
 
-/*
-
-TODO(agl): Enable once big implements ProbablyPrime.
-
 // randomSafePrime returns a number, p, of the given size, such that p and
 // (p-1)/2 are both prime with high probability.
 func randomSafePrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
 	if bits < 1 {
-		err = os.EINVAL;
+		err = os.EINVAL
 	}
 
 	bytes := make([]byte, (bits+7)/8);
@@ -37,7 +33,7 @@ func randomSafePrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
 	for {
 		_, err = io.ReadFull(rand, bytes);
 		if err != nil {
-			return;
+			return
 		}
 
 		// Don't let the value be too small.
@@ -46,18 +42,16 @@ func randomSafePrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
 		bytes[len(bytes)-1] |= 1;
 
 		p.SetBytes(bytes);
-		if p.ProbablyPrime(20) {
+		if big.ProbablyPrime(p, 20) {
 			p2.Rsh(p, 1);	// p2 = (p - 1)/2
-			if p2.ProbablyPrime(20) {
-				return;
+			if big.ProbablyPrime(p2, 20) {
+				return
 			}
 		}
 	}
 
 	return;
 }
-
-*/
 
 // randomNumber returns a uniform random value in [0, max).
 func randomNumber(rand io.Reader, max *big.Int) (n *big.Int, err os.Error) {
@@ -84,7 +78,7 @@ func randomNumber(rand io.Reader, max *big.Int) (n *big.Int, err os.Error) {
 		bytes[0] &= uint8(int(1<<r) - 1);
 
 		n.SetBytes(bytes);
-		if big.CmpInt(n, max) < 0 {
+		if n.Cmp(max) < 0 {
 			return
 		}
 	}
@@ -109,20 +103,20 @@ type PrivateKey struct {
 // It returns nil if the key is valid, or else an os.Error describing a problem.
 
 func (priv PrivateKey) Validate() os.Error {
-	/*
-		TODO(agl): Enable once big implements ProbablyPrime.
+	// Check that p and q are prime. Note that this is just a sanity
+	// check. Since the random witnesses chosen by ProbablyPrime are
+	// deterministic, given the candidate number, it's easy for an attack
+	// to generate composites that pass this test.
+	if !big.ProbablyPrime(priv.P, 20) {
+		return os.ErrorString("P is composite")
+	}
+	if !big.ProbablyPrime(priv.Q, 20) {
+		return os.ErrorString("Q is composite")
+	}
 
-		// Check that p and q are prime.
-		if !priv.P.ProbablyPrime(20) {
-			return os.ErrorString("P is composite");
-		}
-		if !priv.Q.ProbablyPrime(20) {
-			return os.ErrorString("Q is composite");
-		}
-	*/
 	// Check that p*q == n.
 	modulus := new(big.Int).Mul(priv.P, priv.Q);
-	if big.CmpInt(modulus, priv.N) != 0 {
+	if modulus.Cmp(priv.N) != 0 {
 		return os.ErrorString("invalid modulus")
 	}
 	// Check that e and totient(p, q) are coprime.
@@ -134,19 +128,17 @@ func (priv PrivateKey) Validate() os.Error {
 	x := new(big.Int);
 	y := new(big.Int);
 	big.GcdInt(gcd, x, y, totient, e);
-	if big.CmpInt(gcd, bigOne) != 0 {
+	if gcd.Cmp(bigOne) != 0 {
 		return os.ErrorString("invalid public exponent E")
 	}
 	// Check that de ≡ 1 (mod totient(p, q))
 	de := new(big.Int).Mul(priv.D, e);
 	de.Mod(de, totient);
-	if big.CmpInt(de, bigOne) != 0 {
+	if de.Cmp(bigOne) != 0 {
 		return os.ErrorString("invalid private exponent D")
 	}
 	return nil;
 }
-
-/*
 
 // GenerateKeyPair generates an RSA keypair of the given bit size.
 func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
@@ -168,16 +160,16 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
 	for {
 		p, err := randomSafePrime(rand, bits/2);
 		if err != nil {
-			return;
+			return
 		}
 
 		q, err := randomSafePrime(rand, bits/2);
 		if err != nil {
-			return;
+			return
 		}
 
-		if big.CmpInt(p, q) == 0 {
-			continue;
+		if p.Cmp(q) == 0 {
+			continue
 		}
 
 		n := new(big.Int).Mul(p, q);
@@ -191,7 +183,7 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
 		e := big.NewInt(int64(priv.E));
 		big.GcdInt(g, priv.D, y, e, totient);
 
-		if big.CmpInt(g, bigOne) == 0 {
+		if g.Cmp(bigOne) == 0 {
 			priv.D.Add(priv.D, totient);
 			priv.P = p;
 			priv.Q = q;
@@ -203,8 +195,6 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
 
 	return;
 }
-
-*/
 
 // incCounter increments a four byte, big-endian counter.
 func incCounter(c *[4]byte) {
@@ -305,7 +295,7 @@ func modInverse(a, n *big.Int) (ia *big.Int) {
 	x := new(big.Int);
 	y := new(big.Int);
 	big.GcdInt(g, x, y, a, n);
-	if big.CmpInt(x, bigOne) < 0 {
+	if x.Cmp(bigOne) < 0 {
 		// 0 is not the multiplicative inverse of any element so, if x
 		// < 1, then x is negative.
 		x.Add(x, n)
@@ -318,7 +308,7 @@ func modInverse(a, n *big.Int) (ia *big.Int) {
 // random source is given, RSA blinding is used.
 func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.Error) {
 	// TODO(agl): can we get away with reusing blinds?
-	if big.CmpInt(c, priv.N) > 0 {
+	if c.Cmp(priv.N) > 0 {
 		err = DecryptionError{};
 		return;
 	}
@@ -335,7 +325,7 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
 			err = err1;
 			return;
 		}
-		if big.CmpInt(r, bigZero) == 0 {
+		if r.Cmp(bigZero) == 0 {
 			r = bigOne
 		}
 		ir = modInverse(r, priv.N);
