@@ -436,7 +436,7 @@ functions, and some types.  It also provides indentation that is
   ;; Remove stale text properties
   (save-restriction
     (widen)
-    (remove-list-of-text-properties 1 (buffer-size)
+    (remove-list-of-text-properties 1 (+ (buffer-size) 1)
                                     '(go-mode-cs go-mode-nesting)))
 
   ;; Reset the syntax mark caches
