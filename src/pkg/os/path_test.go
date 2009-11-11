@@ -134,14 +134,13 @@ func TestRemoveAll(t *testing.T) {
 		if perr.Path != dpath {
 			t.Fatalf("RemoveAll %q failed at %q not %q", path, perr.Path, dpath)
 		}
-	}
-
-	if err = Chmod(dpath, 0777); err != nil {
-		t.Fatalf("Chmod %q 0777: %s", dpath, err)
-	}
-	for _, s := range []string{fpath, path + "/zzz"} {
-		if _, err := Lstat(s); err == nil {
-			t.Fatalf("Lstat %q succeeded after partial RemoveAll", s)
+		if err = Chmod(dpath, 0777); err != nil {
+			t.Fatalf("Chmod %q 0777: %s", dpath, err)
+		}
+		for _, s := range []string{fpath, path + "/zzz"} {
+			if _, err := Lstat(s); err == nil {
+				t.Fatalf("Lstat %q succeeded after partial RemoveAll", s)
+			}
 		}
 	}
 	if err = RemoveAll(path); err != nil {
