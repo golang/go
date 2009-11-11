@@ -36,13 +36,18 @@ darwin | linux | nacl)
 	exit 1
 esac
 
-
-bash clean.bash
-
 rm -f $GOBIN/quietgcc
 CC=${CC:-gcc}
 sed -e "s|@CC@|$CC|" < quietgcc.bash > $GOBIN/quietgcc
 chmod +x $GOBIN/quietgcc
+
+if ! (cd lib9 && which quietgcc) >/dev/null 2>&1; then
+	echo "installed quietgcc as $GOBIN/quietgcc but 'which quietgcc' fails" 1>&2
+	echo "double-check that $GOBIN is in your "'$PATH' 1>&2
+	exit 1
+fi
+
+bash clean.bash
 
 for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc cmd/hgpatch
 do
