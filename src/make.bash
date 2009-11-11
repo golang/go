@@ -47,6 +47,22 @@ if ! (cd lib9 && which quietgcc) >/dev/null 2>&1; then
 	exit 1
 fi
 
+if [ -d /selinux -a -f /selinux/booleans/allow_execstack ] ; then
+	if ! cat /selinux/booleans/allow_execstack | grep -c '^1 1$' >> /dev/null ; then
+		echo "WARNING: the default SELinux policy on, at least, Fedora 12 breaks "
+		echo "Go. You can enable the features that Go needs via the following "
+		echo "command (as root):"
+		echo "  # setsebool -P allow_execstack 1"
+		echo
+		echo "Note that this affects your system globally! "
+		echo
+		echo "The build will continue in five seconds in case we "
+		echo "misdiagnosed the issue..."
+
+		sleep 5
+	fi
+fi
+
 bash clean.bash
 
 for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc cmd/hgpatch
