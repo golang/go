@@ -8,6 +8,11 @@
 # tests.
 # If files are named on the command line, use them instead of test*.go.
 
+# Makes egrep,grep work better with · if we put them
+# in ordinary C mode instead of what the current language is.
+unset LANG
+export LC_CTYPE=C
+
 _GC=$GC	# Make.$GOARCH will overwrite this
 
 . $GOROOT/src/Make.$GOARCH
