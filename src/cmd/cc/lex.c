@@ -411,8 +411,7 @@ lookup(void)
 		h += *p++;
 	}
 	n = (p - symb) + 1;
-	if((int32)h < 0)
-		h = ~h;
+	h &= 0xffffff;
 	h %= NHASH;
 	c = symb[0];
 	for(s = hash[h]; s != S; s = s->link) {

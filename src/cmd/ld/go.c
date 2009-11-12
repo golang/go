@@ -42,8 +42,8 @@ hashstr(char *name)
 	h = 0;
 	for(cp = name; *cp; h += *cp++)
 		h *= 1119;
-	if(h < 0)
-		h = ~h;
+	// not if(h < 0) h = ~h, because gcc 4.3 -O2 miscompiles it.
+	h &= 0xffffff;
 	return h;
 }
 
