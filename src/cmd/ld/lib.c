@@ -384,8 +384,8 @@ lookup(char *symb, int v)
 	for(p=symb; c = *p; p++)
 		h = h+h+h + c;
 	l = (p - symb) + 1;
-	if(h < 0)
-		h = ~h;
+	// not if(h < 0) h = ~h, because gcc 4.3 -O2 miscompiles it.
+	h &= 0xffffff;
 	h %= NHASH;
 	for(s = hash[h]; s != S; s = s->link)
 		if(s->version == v)
