@@ -6,19 +6,14 @@
 // linear arrays of elements.  Unlike arrays, vectors can change size dynamically.
 package vector
 
-// Element is an empty-interface object representing the contents of
-// a cell in the vector.
-type Element interface{}
-
-
 // Vector is the container itself.
 // The zero value for Vector is an empty vector ready to use.
 type Vector struct {
-	a []Element;
+	a []interface{};
 }
 
 
-func copy(dst, src []Element) {
+func copy(dst, src []interface{}) {
 	for i, x := range src {
 		dst[i] = x
 	}
@@ -26,7 +21,7 @@ func copy(dst, src []Element) {
 
 
 // Insert n elements at position i.
-func expand(a []Element, i, n int) []Element {
+func expand(a []interface{}, i, n int) []interface{} {
 	// make sure we have enough space
 	len0 := len(a);
 	len1 := len0 + n;
@@ -41,7 +36,7 @@ func expand(a []Element, i, n int) []Element {
 			capb = len1
 		}
 		// capb >= len1
-		b := make([]Element, len1, capb);
+		b := make([]interface{}, len1, capb);
 		copy(b, a);
 		a = b;
 	}
@@ -65,7 +60,7 @@ func (p *Vector) Init(initial_len int) *Vector {
 		if initial_len > n {
 			n = initial_len
 		}
-		a = make([]Element, n);
+		a = make([]interface{}, n);
 	} else {
 		// nil out entries
 		for j := len(a) - 1; j >= 0; j-- {
@@ -93,20 +88,20 @@ func (p *Vector) Len() int {
 
 
 // At returns the i'th element of the vector.
-func (p *Vector) At(i int) Element	{ return p.a[i] }
+func (p *Vector) At(i int) interface{}	{ return p.a[i] }
 
 
 // Set sets the i'th element of the vector to value x.
-func (p *Vector) Set(i int, x Element)	{ p.a[i] = x }
+func (p *Vector) Set(i int, x interface{})	{ p.a[i] = x }
 
 
 // Last returns the element in the vector of highest index.
-func (p *Vector) Last() Element	{ return p.a[len(p.a)-1] }
+func (p *Vector) Last() interface{}	{ return p.a[len(p.a)-1] }
 
 
 // Data returns all the elements as a slice.
-func (p *Vector) Data() []Element {
-	arr := make([]Element, p.Len());
+func (p *Vector) Data() []interface{} {
+	arr := make([]interface{}, p.Len());
 	for i, v := range p.a {
 		arr[i] = v
 	}
@@ -116,7 +111,7 @@ func (p *Vector) Data() []Element {
 
 // Insert inserts into the vector an element of value x before
 // the current element at index i.
-func (p *Vector) Insert(i int, x Element) {
+func (p *Vector) Insert(i int, x interface{}) {
 	p.a = expand(p.a, i, 1);
 	p.a[i] = x;
 }
@@ -168,7 +163,7 @@ func (p *Vector) Slice(i, j int) *Vector {
 
 // Do calls function f for each element of the vector, in order.
 // The function should not change the indexing of the vector underfoot.
-func (p *Vector) Do(f func(elem Element)) {
+func (p *Vector) Do(f func(elem interface{})) {
 	for i := 0; i < len(p.a); i++ {
 		f(p.a[i])	// not too safe if f changes the Vector
 	}
@@ -178,11 +173,11 @@ func (p *Vector) Do(f func(elem Element)) {
 // Convenience wrappers
 
 // Push appends x to the end of the vector.
-func (p *Vector) Push(x Element)	{ p.Insert(len(p.a), x) }
+func (p *Vector) Push(x interface{})	{ p.Insert(len(p.a), x) }
 
 
 // Pop deletes the last element of the vector.
-func (p *Vector) Pop() Element {
+func (p *Vector) Pop() interface{} {
 	i := len(p.a) - 1;
 	x := p.a[i];
 	p.a[i] = nil;	// support GC, nil out entry
@@ -199,7 +194,7 @@ func (p *Vector) AppendVector(x *Vector)	{ p.InsertVector(len(p.a), x) }
 
 // LessInterface provides partial support of the sort.Interface.
 type LessInterface interface {
-	Less(y Element) bool;
+	Less(y interface{}) bool;
 }
 
 
@@ -215,7 +210,7 @@ func (p *Vector) Swap(i, j int) {
 
 
 // Iterate over all elements; driver for range
-func (p *Vector) iterate(c chan<- Element) {
+func (p *Vector) iterate(c chan<- interface{}) {
 	for _, v := range p.a {
 		c <- v
 	}
@@ -224,8 +219,8 @@ func (p *Vector) iterate(c chan<- Element) {
 
 
 // Channel iterator for range.
-func (p *Vector) Iter() <-chan Element {
-	c := make(chan Element);
+func (p *Vector) Iter() <-chan interface{} {
+	c := make(chan interface{});
 	go p.iterate(c);
 	return c;
 }
