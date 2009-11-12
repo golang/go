@@ -17,7 +17,7 @@
 
 #define	getc	gcgetc
 #define	ungetc	gcungetc
-#define	BUFSIZ	GCBUFSIZ
+#undef	BUFSIZ
 
 enum
 {

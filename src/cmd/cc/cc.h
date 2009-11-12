@@ -41,7 +41,7 @@
 
 #define	getc	ccgetc
 #define	ungetc	ccungetc
-#define	BUFSIZ	GCBUFSIZ
+#undef	BUFSIZ
 
 typedef	struct	Node	Node;
 typedef	struct	Sym	Sym;
