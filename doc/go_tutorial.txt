@@ -1,4 +1,4 @@
-<!-- Let's Go -->
+<!-- A Tutorial for the Go Programming Language -->
 Introduction
 ----
 
@@ -264,6 +264,20 @@ The built-in function "len()", which returns number of elements,
 makes its first appearance in "sum".  It works on strings, arrays,
 slices, maps, and channels.
 
+By the way, another thing that works on strings, arrays, slices, maps
+and channels is the "range" clause on "for" loops.  Instead of writing
+
+	for i := 0; i < len(a); i++ { ... }
+
+to loop over the elements of a slice (or map or ...) , we could write
+
+	for i, v := range a { ... }
+
+This assigns "i" to the index and "v" to the value of the successive
+elements of the target of the range.   See
+<a href='/doc/effective_go.html'>Effective Go</a>
+for more examples of its use.
+
 
 An Interlude about Allocation
 ----
@@ -391,7 +405,7 @@ exported factory to use is "Open":
 --PROG progs/file.go /func.Open/ /^}/
 
 There are a number of new things in these few lines.  First, "Open" returns
-multiple values, an "File" and an error (more about errors in a moment).
+multiple values, a "File" and an error (more about errors in a moment).
 We declare the
 multi-value return as a parenthesized list of declarations; syntactically
 they look just like a second parameter list.  The function
