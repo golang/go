@@ -40,7 +40,7 @@
 
 #define	getc	aagetc
 #define	ungetc	aaungetc
-#define	BUFSIZ	AABUFSIZ
+#undef	BUFSIZ
 
 typedef	struct	Sym	Sym;
 typedef	struct	Ref	Ref;
