@@ -1356,17 +1356,17 @@ automatically for printing, even as part of a general type.
 <pre>
 func (b ByteSize) String() string {
 	switch {
-	case s >= YB:
+	case b >= YB:
 		return fmt.Sprintf("%.2fYB", b/YB)
-	case s >= PB:
+	case b >= PB:
 		return fmt.Sprintf("%.2fPB", b/PB)
-	case s >= TB:
+	case b >= TB:
 		return fmt.Sprintf("%.2fTB", b/TB)
-	case s >= GB:
+	case b >= GB:
 		return fmt.Sprintf("%.2fGB", b/GB)
-	case s >= MB:
+	case b >= MB:
 		return fmt.Sprintf("%.2fMB", b/MB)
-	case s >= KB:
+	case b >= KB:
 		return fmt.Sprintf("%.2fKB", b/KB)
 	}
 	return fmt.Sprintf("%.2fB", b)
