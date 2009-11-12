@@ -28,9 +28,11 @@ OFILES_386=\
 	vlop.$O\
 	vlrt.$O\
 
+GOARM ?= 6
+
 # arm-specific object files
 OFILES_arm=\
-	cas.$O\
+	cas$(GOARM).$O\
 	memset.$O\
 	vlop.$O\
 	vlrt.$O\
