@@ -29,6 +29,7 @@ export G=${A}g
 export L=${A}l
 export GOTRACEBACK=0
 export LANG=C
+unset GREP_OPTIONS	# in case user has a non-standard set
 
 failed=0
 
