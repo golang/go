@@ -21,6 +21,7 @@ var jsontests = []string{
 	`[1,2,"abc",null,true,false]`,
 	`{}`,
 	`{"a":1}`,
+	`"q\u0302"`,
 }
 
 func TestJson(t *testing.T) {

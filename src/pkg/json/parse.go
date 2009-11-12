@@ -43,6 +43,14 @@ func _UnHex(p string, r, l int) (v int, ok bool) {
 	return v, true;
 }
 
+func _ToHex(b []byte, rune int) {
+	const hexDigits = "0123456789abcdef";
+	b[0] = hexDigits[rune>>12&0xf];
+	b[1] = hexDigits[rune>>8&0xf];
+	b[2] = hexDigits[rune>>4&0xf];
+	b[3] = hexDigits[rune&0xf];
+}
+
 // Unquote unquotes the JSON-quoted string s,
 // returning a raw string t.  If s is not a valid
 // JSON-quoted string, Unquote returns with ok set to false.
@@ -88,7 +96,7 @@ func Unquote(s string) (t string, ok bool) {
 				w++;
 			case 'u':
 				r++;
-				rune, ok := _UnHex(s, r, 4);
+				rune, ok := _UnHex(s, r, r+4);
 				if !ok {
 					return
 				}
@@ -122,46 +130,53 @@ func Unquote(s string) (t string, ok bool) {
 // Quote quotes the raw string s using JSON syntax,
 // so that Unquote(Quote(s)) = s, true.
 func Quote(s string) string {
-	chr := make([]byte, utf8.UTFMax);
+	chr := make([]byte, 6);
 	chr0 := chr[0:1];
 	b := new(bytes.Buffer);
 	chr[0] = '"';
 	b.Write(chr0);
-	for i := 0; i < len(s); i++ {
+
+	for _, rune := range s {
 		switch {
-		case s[i] == '"' || s[i] == '\\':
+		case rune == '"' || rune == '\\':
 			chr[0] = '\\';
-			chr[1] = s[i];
+			chr[1] = byte(rune);
 			b.Write(chr[0:2]);
 
-		case s[i] == '\b':
+		case rune == '\b':
 			chr[0] = '\\';
 			chr[1] = 'b';
 			b.Write(chr[0:2]);
 
-		case s[i] == '\f':
+		case rune == '\f':
 			chr[0] = '\\';
 			chr[1] = 'f';
 			b.Write(chr[0:2]);
 
-		case s[i] == '\n':
+		case rune == '\n':
 			chr[0] = '\\';
 			chr[1] = 'n';
 			b.Write(chr[0:2]);
 
-		case s[i] == '\r':
+		case rune == '\r':
 			chr[0] = '\\';
 			chr[1] = 'r';
 			b.Write(chr[0:2]);
 
-		case s[i] == '\t':
+		case rune == '\t':
 			chr[0] = '\\';
 			chr[1] = 't';
 			b.Write(chr[0:2]);
 
-		case 0x20 <= s[i] && s[i] < utf8.RuneSelf:
-			chr[0] = s[i];
+		case 0x20 <= rune && rune < utf8.RuneSelf:
+			chr[0] = byte(rune);
 			b.Write(chr0);
+
+		default:
+			chr[0] = '\\';
+			chr[1] = 'u';
+			_ToHex(chr[2:6], rune);
+			b.Write(chr);
 		}
 	}
 	chr[0] = '"';
