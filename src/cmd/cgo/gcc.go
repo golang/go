@@ -96,6 +96,10 @@ func (p *Prog) loadDebugInfo() {
 		}
 	}
 
+	if nerrors > 0 {
+		fatal("failed to interpret gcc output:\n%s", stderr)
+	}
+
 	// Extract the types from the DWARF section of an object
 	// from a well-formed C program.  Gcc only generates DWARF info
 	// for symbols in the object file, so it is not enough to print the
