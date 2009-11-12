@@ -219,7 +219,7 @@ func TestDo(t *testing.T) {
 		a.Set(i, salt*i)
 	}
 	count := 0;
-	a.Do(func(e Element) {
+	a.Do(func(e interface{}) {
 		i := e.(int);
 		if i != count*salt {
 			t.Error("value at", count, "should be", count*salt, "not", i)
