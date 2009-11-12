@@ -541,13 +541,18 @@ func TestSeek(t *testing.T) {
 		test{0, 2, int64(len(data))},
 		test{0, 0, 0},
 		test{-1, 2, int64(len(data)) - 1},
-		test{1 << 40, 0, 1 << 40},
-		test{1 << 40, 2, 1<<40 + int64(len(data))},
+		test{1 << 33, 0, 1 << 33},
+		test{1 << 33, 2, 1<<33 + int64(len(data))},
 	};
 	for i, tt := range tests {
 		off, err := f.Seek(tt.in, tt.whence);
 		if off != tt.out || err != nil {
-			t.Errorf("#%d: Seek(%v, %v) = %v, %v want %v, nil", i, tt.in, tt.whence, off, err, tt.out)
+			if e, ok := err.(*PathError); ok && e.Error == EINVAL && tt.out > 1<<32 {
+				// Reiserfs rejects the big seeks.
+				// http://code.google.com/p/go/issues/detail?id=91
+				break
+			}
+			t.Errorf("#%d: Seek(%v, %v) = %v, %v want %v, nil", i, tt.in, tt.whence, off, err, tt.out);
 		}
 	}
 	f.Close();
