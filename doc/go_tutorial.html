@@ -1,4 +1,4 @@
-<!-- Let's Go -->
+<!-- A Tutorial for the Go Programming Language -->
 <h2>Introduction</h2>
 <p>
 This document is a tutorial introduction to the basics of the Go programming
@@ -340,6 +340,24 @@ The built-in function <code>len()</code>, which returns number of elements,
 makes its first appearance in <code>sum</code>.  It works on strings, arrays,
 slices, maps, and channels.
 <p>
+By the way, another thing that works on strings, arrays, slices, maps
+and channels is the <code>range</code> clause on <code>for</code> loops.  Instead of writing
+<p>
+<pre>
+    for i := 0; i < len(a); i++ { ... }
+</pre>
+<p>
+to loop over the elements of a slice (or map or ...) , we could write
+<p>
+<pre>
+    for i, v := range a { ... }
+</pre>
+<p>
+This assigns <code>i</code> to the index and <code>v</code> to the value of the successive
+elements of the target of the range.   See
+<a href='/doc/effective_go.html'>Effective Go</a>
+for more examples of its use.
+<p>
 <p>
 <h2>An Interlude about Allocation</h2>
 <p>
@@ -511,7 +529,7 @@ exported factory to use is <code>Open</code>:
 </pre>
 <p>
 There are a number of new things in these few lines.  First, <code>Open</code> returns
-multiple values, an <code>File</code> and an error (more about errors in a moment).
+multiple values, a <code>File</code> and an error (more about errors in a moment).
 We declare the
 multi-value return as a parenthesized list of declarations; syntactically
 they look just like a second parameter list.  The function
