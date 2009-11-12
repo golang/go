@@ -43,6 +43,8 @@ vars:		WORD	arg0
 		WORD	arg2
 */
 
+extern void cacheflush(byte* start, byte* end);
+
 #pragma textflag 7
 void
 runtime·closure(int32 siz, byte *fn, byte *arg0)
@@ -121,5 +123,7 @@ runtime·closure(int32 siz, byte *fn, byte *arg0)
 
 	if(p > q)
 		throw("bad math in sys.closure");
+
+	cacheflush(*ret, q+siz);
 }
 
