@@ -110,7 +110,7 @@ Next up, here's a version of the Unix utility <code>echo(1)</code>:
 23            if i &gt; 0 {
 24                s += Space
 25            }
-26            s += flag.Arg(i)
+26            s += flag.Arg(i);
 27        }
 28        if !*omitNewline {
 29            s += Newline
@@ -134,6 +134,17 @@ But it's not necessary to do so; we could have said
 Semicolons aren't needed here; in fact, semicolons are unnecessary after any
 top-level declaration, although they are needed as separators <i>within</i>
 a parenthesized list of declarations.
+<p>
+You can use semicolons just the way you would in C, C++, or Java, but if you
+prefer you can also leave them out in many cases.   They <i>separate</i> statements
+rather than terminate them, so they aren't needed (but are still OK) at the end of the last
+statement in a block.
+They're also optional after braces, as in C.
+Have a look at the source to <code>echo</code>.
+The only necessary semicolons in that program are on lines 8, 15, and 21
+and of course between the elements of the <code>for</code> loop on line 22.
+The ones on line 9, 16, 26, and 31 are optional but are there because a semicolon
+on the end of a list of statements makes it easier to edit the list later.
 <p>
 This program imports the <code>&quot;os&quot;</code> package to access its <code>Stdout</code> variable, of type
 <code>*os.File</code>.  The <code>import</code> statement is actually a declaration: in its general form,

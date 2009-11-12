@@ -23,7 +23,7 @@ func main() {
 		if i > 0 {
 			s += Space
 		}
-		s += flag.Arg(i)
+		s += flag.Arg(i);
 	}
 	if !*omitNewline {
 		s += Newline
