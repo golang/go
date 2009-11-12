@@ -16,10 +16,15 @@ export LC_CTYPE=C
 
 _GC=$GC	# Make.$GOARCH will overwrite this
 
+if [ ! -f [Mm]akefile ]; then
+	echo 'please create a Makefile for gotest; see http://golang.org/doc/contribute.html (sic) for details' 1>&2
+	exit 2
+fi
+
 . $GOROOT/src/Make.$GOARCH
 if [ -z "$O" ]; then
 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
-	exit 1
+	exit 2
 fi
 
 E=""
@@ -66,7 +71,7 @@ esac
 case "x$gofiles" in
 x)
 	echo 'no test files found' 1>&2
-	exit 1
+	exit 2
 esac
 
 # Run any commands given in sources, like
