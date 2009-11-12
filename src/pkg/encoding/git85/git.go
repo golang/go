@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package git85 implements the radix 85 data encoding
-// used in the GIT version control system.
+// used in the Git version control system.
 package git85
 
 import (
@@ -44,7 +44,7 @@ var decode = [256]uint8{
 // bytes of dst.  As a convenience, it returns the number
 // of bytes written to dst, but this value is always EncodedLen(len(src)).
 // Encode implements the radix 85 encoding used in the
-// GIT version control tool.
+// Git version control tool.
 //
 // The encoding splits src into chunks of at most 52 bytes
 // and encodes each chunk on its own line.
@@ -144,9 +144,9 @@ func Decode(dst, src []byte) (n int, err os.Error) {
 
 func MaxDecodedLen(n int) int	{ return n / 5 * 4 }
 
-// NewEncoder returns a new GIT base85 stream encoder.  Data written to
+// NewEncoder returns a new Git base85 stream encoder.  Data written to
 // the returned writer will be encoded and then written to w.
-// The GIT encoding operates on 52-byte blocks; when finished
+// The Git encoding operates on 52-byte blocks; when finished
 // writing, the caller must Close the returned encoder to flush any
 // partially written blocks.
 func NewEncoder(w io.Writer) io.WriteCloser	{ return &encoder{w: w} }
@@ -219,7 +219,7 @@ func (e *encoder) Close() os.Error {
 	return e.err;
 }
 
-// NewDecoder returns a new GIT base85 stream decoder.
+// NewDecoder returns a new Git base85 stream decoder.
 func NewDecoder(r io.Reader) io.Reader	{ return &decoder{r: r} }
 
 type decoder struct {

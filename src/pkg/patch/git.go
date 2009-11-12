@@ -25,16 +25,16 @@ func gitSHA1(data []byte) []byte {
 	return h.Sum();
 }
 
-// BUG(rsc): The GIT binary delta format is not implemented, only GIT binary literals.
+// BUG(rsc): The Git binary delta format is not implemented, only Git binary literals.
 
-// GITBinaryLiteral represents a GIT binary literal diff.
-type GITBinaryLiteral struct {
+// GitBinaryLiteral represents a Git binary literal diff.
+type GitBinaryLiteral struct {
 	OldSHA1	[]byte;	// if non-empty, the SHA1 hash of the original
 	New	[]byte;	// the new contents
 }
 
 // Apply implements the Diff interface's Apply method.
-func (d *GITBinaryLiteral) Apply(old []byte) ([]byte, os.Error) {
+func (d *GitBinaryLiteral) Apply(old []byte) ([]byte, os.Error) {
 	if sum := gitSHA1(old); !bytes.HasPrefix(sum, d.OldSHA1) {
 		return nil, ErrPatchFailure
 	}
@@ -67,8 +67,8 @@ func getHex(s []byte) (data []byte, rest []byte) {
 	return;
 }
 
-// ParseGITBinary parses raw as a GIT binary patch.
-func ParseGITBinary(raw []byte) (Diff, os.Error) {
+// ParseGitBinary parses raw as a Git binary patch.
+func ParseGitBinary(raw []byte) (Diff, os.Error) {
 	var oldSHA1, newSHA1 []byte;
 	var sawBinary bool;
 
@@ -105,16 +105,16 @@ func ParseGITBinary(raw []byte) (Diff, os.Error) {
 			var buf [1]byte;
 			m, err := z.Read(&buf);
 			if m != 0 || err != os.EOF {
-				return nil, os.NewError("GIT binary literal longer than expected")
+				return nil, os.NewError("Git binary literal longer than expected")
 			}
 
 			if sum := gitSHA1(data); !bytes.HasPrefix(sum, newSHA1) {
-				return nil, os.NewError("GIT binary literal SHA1 mismatch")
+				return nil, os.NewError("Git binary literal SHA1 mismatch")
 			}
-			return &GITBinaryLiteral{oldSHA1, data}, nil;
+			return &GitBinaryLiteral{oldSHA1, data}, nil;
 		}
 		if !sawBinary {
-			return nil, os.NewError("unexpected GIT patch header: " + string(first))
+			return nil, os.NewError("unexpected Git patch header: " + string(first))
 		}
 	}
 	panic("unreachable");
