@@ -1138,6 +1138,11 @@ Tpretty(Fmt *fp, Type *t)
 			break;
 		case 1:
 			t1 = getoutargx(t)->type;
+			if(t1 == T) {
+				// failure to typecheck earlier; don't know the type
+				fmtprint(fp, " ?unknown-type?");
+				break;
+			}
 			if(t1->etype != TFIELD && t1->etype != TFUNC) {
 				fmtprint(fp, " %T", t1);
 				break;
