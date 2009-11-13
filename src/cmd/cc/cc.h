@@ -39,9 +39,12 @@
 #define EXTERN	extern
 #endif
 
+#undef	getc
+#undef	ungetc
+#undef	BUFSIZ
+
 #define	getc	ccgetc
 #define	ungetc	ccungetc
-#undef	BUFSIZ
 
 typedef	struct	Node	Node;
 typedef	struct	Sym	Sym;

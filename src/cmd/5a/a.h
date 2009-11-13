@@ -37,9 +37,12 @@
 #define	EXTERN	extern
 #endif
 
-#define	getc	aagetc
-#define	ungetc	aaungetc
+#undef	getc
+#undef	ungetc
 #undef	BUFSIZ
+
+#define	getc	ccgetc
+#define	ungetc	ccungetc
 
 typedef	struct	Sym	Sym;
 typedef	struct	Gen	Gen;
