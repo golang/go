@@ -1352,10 +1352,14 @@ def DownloadCL(ui, repo, clname):
 	try:
 		data = MySend("/user_popup/" + nick, force_auth=False)
 	except:
-		return None, None, "error looking up %s: %s" % (nick, ExceptionDetail())
+		ui.warn("error looking up %s: %s\n" % (nick, ExceptionDetail()))
+		cl.original_author = nick+"@needtofix"
+		return cl, diffdata, ""
 	match = re.match(r"<b>(.*) \((.*)\)</b>", data)
-	if not match or match.group(2) != nick:
-		return None, None, "error looking up %s: cannot parse result" % (nick,)
+	if not match:
+		return None, None, "error looking up %s: cannot parse result %s" % (nick, repr(data))
+	if match.group(1) != nick and match.group(2) != nick:
+		return None, None, "error looking up %s: got info for %s, %s" % (nick, match.group(1), match.group(2))
 	email = match.group(1)
 
 	# Temporary hack until we move to the public code review server.
