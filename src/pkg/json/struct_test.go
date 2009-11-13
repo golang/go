@@ -126,7 +126,32 @@ func TestIssue147(t *testing.T) {
 	var timeline Issue147;
 	Unmarshal(issue147Input, &timeline);
 
+	if len(timeline.Test) != 30 {
+		t.Errorf("wrong length: got %d want 30", len(timeline.Test))
+	}
+
 	for i, e := range timeline.Test {
+		if e.Text != strconv.Itoa(i) {
+			t.Errorf("index: %d got: %s want: %d", i, e.Text, i)
+		}
+	}
+}
+
+type Issue114 struct {
+	Text string;
+}
+
+const issue114Input = `[{"text" : "0"}, {"text" : "1"}, {"text" : "2"}, {"text" : "3"}]`
+
+func TestIssue114(t *testing.T) {
+	var items []Issue114;
+	Unmarshal(issue114Input, &items);
+
+	if len(items) != 4 {
+		t.Errorf("wrong length: got %d want 4", len(items))
+	}
+
+	for i, e := range items {
 		if e.Text != strconv.Itoa(i) {
 			t.Errorf("index: %d got: %s want: %d", i, e.Text, i)
 		}

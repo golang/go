@@ -224,7 +224,7 @@ func (b *structBuilder) Key(k string) Builder {
 }
 
 // Unmarshal parses the JSON syntax string s and fills in
-// an arbitrary struct or array pointed at by val.
+// an arbitrary struct or slice pointed at by val.
 // It uses the reflect package to assign to fields
 // and arrays embedded in val.  Well-formed data that does not fit
 // into the struct is discarded.
@@ -279,11 +279,27 @@ func (b *structBuilder) Key(k string) Builder {
 // assign to upper case fields.  Unmarshal uses a case-insensitive
 // comparison to match JSON field names to struct field names.
 //
+// To unmarshal a top-level JSON array, pass in a pointer to an empty
+// slice of the correct type.
+//
 // On success, Unmarshal returns with ok set to true.
 // On a syntax error, it returns with ok set to false and errtok
 // set to the offending token.
 func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
-	b := &structBuilder{val: reflect.NewValue(val)};
+	v := reflect.NewValue(val);
+	var b *structBuilder;
+
+	// If val is a pointer to a slice, we mutate the pointee.
+	if ptr, ok := v.(*reflect.PtrValue); ok {
+		if slice, ok := ptr.Elem().(*reflect.SliceValue); ok {
+			b = &structBuilder{val: slice}
+		}
+	}
+
+	if b == nil {
+		b = &structBuilder{val: v}
+	}
+
 	ok, _, errtok = Parse(s, b);
 	if !ok {
 		return false, errtok
