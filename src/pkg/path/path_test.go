@@ -233,31 +233,33 @@ func TestWalk(t *testing.T) {
 	}
 	checkMarks(t);
 
-	// introduce 2 errors: chmod top-level directories to 0
-	os.Chmod(Join(tree.name, tree.entries[1].name), 0);
-	os.Chmod(Join(tree.name, tree.entries[3].name), 0);
-	// mark respective subtrees manually
-	markTree(tree.entries[1]);
-	markTree(tree.entries[3]);
-	// correct double-marking of directory itself
-	tree.entries[1].mark--;
-	tree.entries[3].mark--;
+	if os.Getuid() != 0 {
+		// introduce 2 errors: chmod top-level directories to 0
+		os.Chmod(Join(tree.name, tree.entries[1].name), 0);
+		os.Chmod(Join(tree.name, tree.entries[3].name), 0);
+		// mark respective subtrees manually
+		markTree(tree.entries[1]);
+		markTree(tree.entries[3]);
+		// correct double-marking of directory itself
+		tree.entries[1].mark--;
+		tree.entries[3].mark--;
 
-	// 3) handle errors, expect two
-	errors = make(chan os.Error, 64);
-	os.Chmod(Join(tree.name, tree.entries[1].name), 0);
-	Walk(tree.name, v, errors);
-	for i := 1; i <= 2; i++ {
-		if _, ok := <-errors; !ok {
-			t.Errorf("%d. error expected, none found", i);
-			break;
+		// 3) handle errors, expect two
+		errors = make(chan os.Error, 64);
+		os.Chmod(Join(tree.name, tree.entries[1].name), 0);
+		Walk(tree.name, v, errors);
+		for i := 1; i <= 2; i++ {
+			if _, ok := <-errors; !ok {
+				t.Errorf("%d. error expected, none found", i);
+				break;
+			}
 		}
+		if err, ok := <-errors; ok {
+			t.Errorf("only two errors expected, found 3rd: %v", err)
+		}
+		// the inaccessible subtrees were marked manually
+		checkMarks(t);
 	}
-	if err, ok := <-errors; ok {
-		t.Errorf("only two errors expected, found 3rd: %v", err)
-	}
-	// the inaccessible subtrees were marked manually
-	checkMarks(t);
 
 	// cleanup
 	os.Chmod(Join(tree.name, tree.entries[1].name), 0770);
