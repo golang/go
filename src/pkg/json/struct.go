@@ -154,7 +154,7 @@ func (b *structBuilder) Elem(i int) Builder {
 			return &structBuilder{val: v.Elem(i)}
 		}
 	case *reflect.SliceValue:
-		if i > v.Cap() {
+		if i >= v.Cap() {
 			n := v.Cap();
 			if n < 8 {
 				n = 8

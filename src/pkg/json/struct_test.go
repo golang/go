@@ -6,6 +6,7 @@ package json
 
 import (
 	"reflect";
+	"strconv";
 	"testing";
 )
 
@@ -100,4 +101,34 @@ func TestUnmarshal(t *testing.T) {
 	check(t, reflect.DeepEqual(m.Map, decodedMap), "map", m.Map);
 	check(t, reflect.DeepEqual(m.MapStruct, decodedMapStruct), "mapstruct", m.MapStruct);
 	check(t, reflect.DeepEqual(m.MapPtrStruct, decodedMapPtrStruct), "mapptrstruct", m.MapPtrStruct);
+}
+
+type Issue147Text struct {
+	Text string;
+}
+
+type Issue147 struct {
+	Test []Issue147Text;
+}
+
+const issue147Input = `{"test": [{"text":"0"},{"text":"1"},{"text":"2"},
+{"text":"3"},{"text":"4"},{"text":"5"},
+{"text":"6"},{"text":"7"},{"text":"8"},
+{"text":"9"},{"text":"10"},{"text":"11"},
+{"text":"12"},{"text":"13"},{"text":"14"},
+{"text":"15"},{"text":"16"},{"text":"17"},
+{"text":"18"},{"text":"19"},{"text":"20"},
+{"text":"21"},{"text":"22"},{"text":"23"},
+{"text":"24"},{"text":"25"},{"text":"26"},
+{"text":"27"},{"text":"28"},{"text":"29"}]}`
+
+func TestIssue147(t *testing.T) {
+	var timeline Issue147;
+	Unmarshal(issue147Input, &timeline);
+
+	for i, e := range timeline.Test {
+		if e.Text != strconv.Itoa(i) {
+			t.Errorf("index: %d got: %s want: %d", i, e.Text, i)
+		}
+	}
 }
