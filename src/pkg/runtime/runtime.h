@@ -447,6 +447,13 @@ void	notewakeup(Note*);
 #endif
 
 /*
+ * This is consistent across Linux and BSD.
+ * If a new OS is added that is different, move this to
+ * $GOOS/$GOARCH/defs.h.
+ */
+#define EACCES		13
+
+/*
  * low level go-called
  */
 uint8*	runtime_mmap(byte*, uint32, int32, int32, int32, uint32);

@@ -20,6 +20,10 @@ brk(uint32 n)
 	byte *v;
 
 	v = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, 0, 0);
+	if(v < (void *)4096) {
+		printf("mmap: errno=%p\n", v);
+		exit(2);
+	}
 	m->mem.nmmap += n;
 	return v;
 }
@@ -56,6 +60,9 @@ oldmal(uint32 n)
 			m->mem.hunk =
 				runtime_mmap(nil, NHUNK, PROT_READ|PROT_WRITE|PROT_EXEC,
 					MAP_ANON|MAP_PRIVATE, 0, 0);
+			if(m->mem.hunk < (void*)4096) {
+				*(uint32*)0xf1 = 0;
+			}
 			m->mem.nhunk = NHUNK;
 			m->mem.nmmap += NHUNK;
 		}
