@@ -22,7 +22,9 @@
 # individual or corporate CLA was used.
 
 # Names should be added to this file like so:
-# Name <email address>
+#     Name <email address>
+
+# Please keep the list sorted.
 
 Adam Langley <agl@golang.org>
 Austin Clements <aclements@csail.mit.edu>
@@ -35,8 +37,10 @@ David Symonds <dsymonds@golang.org>
 Ian Lance Taylor <iant@golang.org>
 Ivan Krasin <krasin@golang.org>
 Jacob Baskin <jbaskin@google.com>
+James Aguilar <jaguilar@google.com>
 Kai Backman <kaib@golang.org>
 Ken Thompson <ken@golang.org>
+Kevin Ballard <kevin@sb.org>
 Larry Hosken <lahosken@golang.org>
 Nigel Tao <nigeltao@golang.org>
 Peter McKenzie <petermck@google.com>
@@ -48,4 +52,3 @@ Scott Schwartz <scotts@golang.org>
 Stephen Ma <stephenm@golang.org>
 Tom Szymanski <tgs@google.com>
 Vish Subramanian <vish@google.com>
-Kevin Ballard <kevin@sb.org>
