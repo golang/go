@@ -289,7 +289,7 @@ func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
 	v := reflect.NewValue(val);
 	var b *structBuilder;
 
-	// If val is a pointer to a slice, we mutate the pointee.
+	// If val is a pointer to a slice, we append to the slice.
 	if ptr, ok := v.(*reflect.PtrValue); ok {
 		if slice, ok := ptr.Elem().(*reflect.SliceValue); ok {
 			b = &structBuilder{val: slice}
