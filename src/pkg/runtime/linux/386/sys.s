@@ -69,8 +69,9 @@ TEXT runtime·mmap(SB),7,$0
 	SHRL	$12, BP
 	INT	$0x80
 	CMPL	AX, $0xfffff001
-	JLS	2(PC)
-	INT	$3
+	JLS	3(PC)
+	NOTL	AX
+	INCL	AX
 	RET
 
 // int32 futex(int32 *uaddr, int32 op, int32 val,

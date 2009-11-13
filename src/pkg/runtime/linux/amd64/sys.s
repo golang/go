@@ -81,8 +81,9 @@ TEXT	runtime·mmap(SB),7,$0-32
 	MOVL	$9, AX			// syscall entry
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
-	JLS	2(PC)
-	CALL	notok(SB)
+	JLS	3(PC)
+	NOTQ	AX
+	INCQ	AX
 	RET
 
 TEXT	notok(SB),7,$0
