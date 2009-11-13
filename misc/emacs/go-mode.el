@@ -475,4 +475,15 @@ Useful for development work."
   "Pipe the current buffer through the external tool `gofmt`."
   
   (interactive)
-  (shell-command-on-region 1 (+ (buffer-size) 1) "gofmt" t t shell-command-default-error-buffer))
+  ;; for some reason save-excursion isn't working
+  ;; probably because shell-command-on-region deletes the contents of the
+  ;; region before filling in the new values
+  ;; so we will save the point/mark by hand
+  ;; similarly we can't use push-mark/pop-mark
+  (let ((old-mark (mark t)) (old-point (point)))
+    (save-restriction
+      (let (deactivate-mark)
+        (widen)
+        (shell-command-on-region (point-min) (point-max) "gofmt" t t shell-command-default-error-buffer)))
+    (goto-char (min old-point (point-max)))
+    (if old-mark (set-mark (min old-mark (point-max))))))
