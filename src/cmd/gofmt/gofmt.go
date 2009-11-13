@@ -28,7 +28,6 @@ var (
 	trace		= flag.Bool("trace", false, "print parse trace");
 
 	// layout control
-	align		= flag.Bool("align", true, "align columns");
 	tabwidth	= flag.Int("tabwidth", 8, "tab width");
 	usespaces	= flag.Bool("spaces", false, "align with spaces instead of tabs");
 )
@@ -63,9 +62,6 @@ func parserMode() uint {
 
 func printerMode() uint {
 	mode := uint(0);
-	if !*align {
-		mode |= printer.RawFormat
-	}
 	if *usespaces {
 		mode |= printer.UseSpaces
 	}

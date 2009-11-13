@@ -24,8 +24,6 @@ The flags are:
 		align with spaces instead of tabs.
 	-tabwidth=8
 		tab width in spaces.
-	-align=true
-		align columns.
 
 Debugging flags:
 
