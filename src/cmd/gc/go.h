@@ -14,10 +14,12 @@
 #define	EXTERN	extern
 #endif
 
-
-#define	getc	gcgetc
-#define	ungetc	gcungetc
+#undef	getc
+#undef	ungetc
 #undef	BUFSIZ
+
+#define	getc	ccgetc
+#define	ungetc	ccungetc
 
 enum
 {

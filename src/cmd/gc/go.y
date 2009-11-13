@@ -18,6 +18,7 @@
  */
 
 %{
+#include <stdio.h>	/* if we don't, bison will, and go.h re-#defines getc */
 #include "go.h"
 %}
 %union	{
