@@ -352,7 +352,8 @@ indented one level."
        (t
         ;; Neither top-level nor in a multi-line string or comment
         (let ((indent 0)
-              (inside-indenting-paren nil))
+              (inside-indenting-paren nil)
+              (current-line-closes-scope nil))
           ;; Count every enclosing brace, plus parens that follow
           ;; import, const, var, or type and indent according to
           ;; depth.  This simple rule does quite well, but also has a
@@ -376,9 +377,18 @@ indented one level."
                        (setq inside-indenting-paren t)))))
                 (setq first nil))))
 
+          (setq current-line-closes-scope
+                (case (char-after)
+                  ((?\} ?\)) t)
+                  (t nil)))
+
           ;; case, default, and labels are outdented 1 level
           (when (looking-at "\\<case\\>\\|\\<default\\>\\|\\w+\\s *:\\(\\S.\\|$\\)")
-            (decf indent tab-width))
+            (decf indent tab-width)
+            ;; Lines with case, default, etc. also "close" the previous line's 
+            ;; scope, even when there is no semicolon. Don't treat them as
+            ;; continuation lines.
+            (setq current-line-closes-scope t))
 
           ;; Continuation lines are indented 1 level
           (forward-comment (- (buffer-size)))
@@ -401,8 +411,9 @@ indented one level."
                      (and depth
                           (not (eq (char-after (caar depth)) ?\{)))))
                   (t
-                   ;; Anything else is always a continuation line
-                   t))
+                   ;; Except when the current line closes the previous line's 
+                   ;; scope, anything else is a continuation line.
+                   (not current-line-closes-scope)))
             (incf indent tab-width))
           (max indent 0)))))))
 
