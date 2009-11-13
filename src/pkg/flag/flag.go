@@ -31,8 +31,13 @@
 	Command line flag syntax:
 		-flag
 		-flag=x
-		-flag x
+		-flag x  // non-boolean flags only
 	One or two minus signs may be used; they are equivalent.
+	The last form is not permitted for boolean flags because the
+	meaning of the command
+		cmd -x *
+	will change if there is a file called 0, false, etc.  You must
+	use the -flag=false form to turn off a boolean flag.
 
 	Flag parsing stops just before the first non-flag argument
 	("-" is a non-flag argument) or after the terminator "--".
