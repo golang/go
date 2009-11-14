@@ -238,7 +238,7 @@ func errorKludge(c *Conn, req *Request) {
 	}
 }
 
-func (c *Conn) flush() {
+func (c *Conn) finishRequest() {
 	if !c.wroteHeader {
 		c.WriteHeader(StatusOK)
 	}
@@ -247,6 +247,14 @@ func (c *Conn) flush() {
 		io.WriteString(c.buf, "0\r\n");
 		// trailer key/value pairs, followed by blank line
 		io.WriteString(c.buf, "\r\n");
+	}
+	c.buf.Flush();
+}
+
+// Flush sends any buffered data to the client.
+func (c *Conn) Flush() {
+	if !c.wroteHeader {
+		c.WriteHeader(StatusOK)
 	}
 	c.buf.Flush();
 }
@@ -277,7 +285,7 @@ func (c *Conn) serve() {
 		if c.hijacked {
 			return
 		}
-		c.flush();
+		c.finishRequest();
 		if c.closeAfterReply {
 			break
 		}
