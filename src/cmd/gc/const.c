@@ -335,6 +335,7 @@ evconst(Node *n)
 	case OMAKESLICE:
 	case OMAKECHAN:
 	case ODCLCONST:
+	case OCONVIFACE:
 		return;
 	}
 
