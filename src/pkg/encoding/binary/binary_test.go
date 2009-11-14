@@ -5,6 +5,7 @@
 package binary
 
 import (
+	"os";
 	"bytes";
 	"math";
 	"reflect";
@@ -63,24 +64,36 @@ var little = []byte{
 	39, 40, 41, 42,
 }
 
-func TestRead(t *testing.T) {
-	var sl, sb Struct;
-
-	err := Read(bytes.NewBuffer(big), BigEndian, &sb);
+func checkResult(t *testing.T, dir string, order, err os.Error, have, want interface{}) {
 	if err != nil {
-		t.Errorf("Read big-endian: %v", err);
-		goto little;
+		t.Errorf("%v %v: %v", dir, order, err);
+		return;
 	}
-	if !reflect.DeepEqual(sb, s) {
-		t.Errorf("Read big-endian:\n\thave %+v\n\twant %+v", sb, s)
-	}
-
-little:
-	err = Read(bytes.NewBuffer(little), LittleEndian, &sl);
-	if err != nil {
-		t.Errorf("Read little-endian: %v", err)
-	}
-	if !reflect.DeepEqual(sl, s) {
-		t.Errorf("Read little-endian:\n\thave %+v\n\twant %+v", sl, s)
+	if !reflect.DeepEqual(have, want) {
+		t.Errorf("%v %v:\n\thave %+v\n\twant %+v", dir, order, have, want)
 	}
 }
+
+func testRead(t *testing.T, order ByteOrder, b []byte, s1 interface{}) {
+	var s2 Struct;
+	err := Read(bytes.NewBuffer(b), order, &s2);
+	checkResult(t, "Read", order, err, s2, s1);
+}
+
+func testWrite(t *testing.T, order ByteOrder, b []byte, s1 interface{}) {
+	buf := new(bytes.Buffer);
+	err := Write(buf, order, s1);
+	checkResult(t, "Write", order, err, buf.Bytes(), b);
+}
+
+func TestBigEndianRead(t *testing.T)	{ testRead(t, BigEndian, big, s) }
+
+func TestLittleEndianRead(t *testing.T)	{ testRead(t, LittleEndian, little, s) }
+
+func TestBigEndianWrite(t *testing.T)	{ testWrite(t, BigEndian, big, s) }
+
+func TestLittleEndianWrite(t *testing.T)	{ testWrite(t, LittleEndian, little, s) }
+
+func TestBigEndianPtrWrite(t *testing.T)	{ testWrite(t, BigEndian, big, &s) }
+
+func TestLittleEndianPtrWrite(t *testing.T)	{ testWrite(t, LittleEndian, little, &s) }

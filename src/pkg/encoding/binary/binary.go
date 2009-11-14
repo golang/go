@@ -117,8 +117,8 @@ func (bigEndian) GoString() string	{ return "binary.BigEndian" }
 // A fixed-size value is either a fixed-size integer
 // (int8, uint8, int16, uint16, ...) or an array or struct
 // containing only fixed-size values.  Bytes read from
-// r are decoded using order and written to successive
-// fields of the data.
+// r are decoded using the specified byte order and written
+// to successive fields of the data.
 func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 	v := reflect.NewValue(data).(*reflect.PtrValue).Elem();
 	size := sizeof(v.Type());
@@ -131,6 +131,27 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 	}
 	d.value(v);
 	return nil;
+}
+
+// Write writes the binary representation of data into w.
+// Data must be a fixed-size value or a pointer to
+// a fixed-size value.
+// A fixed-size value is either a fixed-size integer
+// (int8, uint8, int16, uint16, ...) or an array or struct
+// containing only fixed-size values.  Bytes written to
+// w are encoded using the specified byte order and read
+// from successive fields of the data.
+func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
+	v := reflect.Indirect(reflect.NewValue(data));
+	size := sizeof(v.Type());
+	if size < 0 {
+		return os.NewError("binary.Write: invalid type " + v.Type().String())
+	}
+	buf := make([]byte, size);
+	e := &encoder{order: order, buf: buf};
+	e.value(v);
+	_, err := w.Write(buf);
+	return err;
 }
 
 func sizeof(t reflect.Type) int {
@@ -182,10 +203,20 @@ type decoder struct {
 	buf	[]byte;
 }
 
+type encoder struct {
+	order	ByteOrder;
+	buf	[]byte;
+}
+
 func (d *decoder) uint8() uint8 {
 	x := d.buf[0];
 	d.buf = d.buf[1:len(d.buf)];
 	return x;
+}
+
+func (e *encoder) uint8(x uint8) {
+	e.buf[0] = x;
+	e.buf = e.buf[1:len(e.buf)];
 }
 
 func (d *decoder) uint16() uint16 {
@@ -194,10 +225,20 @@ func (d *decoder) uint16() uint16 {
 	return x;
 }
 
+func (e *encoder) uint16(x uint16) {
+	e.order.PutUint16(e.buf[0:2], x);
+	e.buf = e.buf[2:len(e.buf)];
+}
+
 func (d *decoder) uint32() uint32 {
 	x := d.order.Uint32(d.buf[0:4]);
 	d.buf = d.buf[4:len(d.buf)];
 	return x;
+}
+
+func (e *encoder) uint32(x uint32) {
+	e.order.PutUint32(e.buf[0:4], x);
+	e.buf = e.buf[4:len(e.buf)];
 }
 
 func (d *decoder) uint64() uint64 {
@@ -206,13 +247,26 @@ func (d *decoder) uint64() uint64 {
 	return x;
 }
 
+func (e *encoder) uint64(x uint64) {
+	e.order.PutUint64(e.buf[0:8], x);
+	e.buf = e.buf[8:len(e.buf)];
+}
+
 func (d *decoder) int8() int8	{ return int8(d.uint8()) }
+
+func (e *encoder) int8(x int8)	{ e.uint8(uint8(x)) }
 
 func (d *decoder) int16() int16	{ return int16(d.uint16()) }
 
+func (e *encoder) int16(x int16)	{ e.uint16(uint16(x)) }
+
 func (d *decoder) int32() int32	{ return int32(d.uint32()) }
 
+func (e *encoder) int32(x int32)	{ e.uint32(uint32(x)) }
+
 func (d *decoder) int64() int64	{ return int64(d.uint64()) }
+
+func (e *encoder) int64(x int64)	{ e.uint64(uint64(x)) }
 
 func (d *decoder) value(v reflect.Value) {
 	switch v := v.(type) {
@@ -247,5 +301,41 @@ func (d *decoder) value(v reflect.Value) {
 		v.Set(math.Float32frombits(d.uint32()))
 	case *reflect.Float64Value:
 		v.Set(math.Float64frombits(d.uint64()))
+	}
+}
+
+func (e *encoder) value(v reflect.Value) {
+	switch v := v.(type) {
+	case *reflect.ArrayValue:
+		l := v.Len();
+		for i := 0; i < l; i++ {
+			e.value(v.Elem(i))
+		}
+	case *reflect.StructValue:
+		l := v.NumField();
+		for i := 0; i < l; i++ {
+			e.value(v.Field(i))
+		}
+
+	case *reflect.Uint8Value:
+		e.uint8(v.Get())
+	case *reflect.Uint16Value:
+		e.uint16(v.Get())
+	case *reflect.Uint32Value:
+		e.uint32(v.Get())
+	case *reflect.Uint64Value:
+		e.uint64(v.Get())
+	case *reflect.Int8Value:
+		e.int8(v.Get())
+	case *reflect.Int16Value:
+		e.int16(v.Get())
+	case *reflect.Int32Value:
+		e.int32(v.Get())
+	case *reflect.Int64Value:
+		e.int64(v.Get())
+	case *reflect.Float32Value:
+		e.uint32(math.Float32bits(v.Get()))
+	case *reflect.Float64Value:
+		e.uint64(math.Float64bits(v.Get()))
 	}
 }
