@@ -398,3 +398,11 @@ nbody -n 50000000
 	gccgo -O2 nbody.go	121.03u 0.00s 121.04r
 	gc nbody	30.26u 0.00s 30.27r	# -65% ***
 	gc_B nbody	30.20u 0.02s 30.22r	# -72% *** 
+
+Nov 13 2009
+
+# fix bug in regexp; take performance hit.  good regexps will come in time.
+regex-dna 100000
+	gcc -O2 regex-dna.c -lpcre	0.92u 0.00s 0.94r
+	gc regex-dna	29.78u 0.03s 29.83r
+	gc_B regex-dna	32.63u 0.03s 32.74r

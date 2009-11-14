@@ -639,15 +639,37 @@ type state struct {
 
 // Append new state to to-do list.  Leftmost-longest wins so avoid
 // adding a state that's already active.
-func addState(s []state, inst instr, match []int) []state {
+func (re *Regexp) addState(s []state, inst instr, match []int, pos, end int) []state {
+	switch inst.kind() {
+	case _BOT:
+		if pos == 0 {
+			s = re.addState(s, inst.next(), match, pos, end)
+		}
+		return s;
+	case _EOT:
+		if pos == end {
+			s = re.addState(s, inst.next(), match, pos, end)
+		}
+		return s;
+	case _BRA:
+		n := inst.(*_Bra).n;
+		match[2*n] = pos;
+		s = re.addState(s, inst.next(), match, pos, end);
+		return s;
+	case _EBRA:
+		n := inst.(*_Ebra).n;
+		match[2*n+1] = pos;
+		s = re.addState(s, inst.next(), match, pos, end);
+		return s;
+	}
 	index := inst.index();
 	l := len(s);
-	pos := match[0];
+	begin := match[0];
 	// TODO: Once the state is a vector and we can do insert, have inputs always
 	// go in order correctly and this "earlier" test is never necessary,
 	for i := 0; i < l; i++ {
 		if s[i].inst.index() == index &&	// same instruction
-			s[i].match[0] < pos {	// earlier match already going; lefmost wins
+			s[i].match[0] <= begin {	// earlier match already going; lefmost wins
 			return s
 		}
 	}
@@ -661,6 +683,19 @@ func addState(s []state, inst instr, match []int) []state {
 	s = s[0 : l+1];
 	s[l].inst = inst;
 	s[l].match = match;
+	if inst.kind() == _ALT {
+		s1 := make([]int, 2*(re.nbra+1));
+		for i := 0; i < len(s1); i++ {
+			s1[i] = match[i]
+		}
+		s = re.addState(s, inst.(*_Alt).left, s1, pos, end);
+		// give other branch a copy of this match vector
+		s1 = make([]int, 2*(re.nbra+1));
+		for i := 0; i < len(s1); i++ {
+			s1[i] = match[i]
+		}
+		s = re.addState(s, inst.next(), s1, pos, end);
+	}
 	return s;
 }
 
@@ -685,11 +720,11 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 				match[i] = -1	// no match seen; catches cases like "a(b)?c" on "ac"
 			}
 			match[0] = pos;
-			s[out] = addState(s[out], re.start.next(), match);
+			s[out] = re.addState(s[out], re.start.next(), match, pos, end);
 		}
 		in, out = out, in;	// old out state is new in state
 		s[out] = s[out][0:0];	// clear out state
-		if len(s[in]) == 0 {
+		if found && len(s[in]) == 0 {
 			// machine has completed
 			break
 		}
@@ -702,56 +737,38 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 				c, charwidth = utf8.DecodeRune(bytes[pos:end])
 			}
 		}
+		pos += charwidth;
 		for i := 0; i < len(s[in]); i++ {
 			st := s[in][i];
 			switch s[in][i].inst.kind() {
 			case _BOT:
-				if pos == 0 {
-					s[in] = addState(s[in], st.inst.next(), st.match)
-				}
 			case _EOT:
-				if pos == end {
-					s[in] = addState(s[in], st.inst.next(), st.match)
-				}
 			case _CHAR:
 				if c == st.inst.(*_Char).char {
-					s[out] = addState(s[out], st.inst.next(), st.match)
+					s[out] = re.addState(s[out], st.inst.next(), st.match, pos, end)
 				}
 			case _CHARCLASS:
 				if st.inst.(*_CharClass).matches(c) {
-					s[out] = addState(s[out], st.inst.next(), st.match)
+					s[out] = re.addState(s[out], st.inst.next(), st.match, pos, end)
 				}
 			case _ANY:
 				if c != endOfFile {
-					s[out] = addState(s[out], st.inst.next(), st.match)
+					s[out] = re.addState(s[out], st.inst.next(), st.match, pos, end)
 				}
 			case _NOTNL:
 				if c != endOfFile && c != '\n' {
-					s[out] = addState(s[out], st.inst.next(), st.match)
+					s[out] = re.addState(s[out], st.inst.next(), st.match, pos, end)
 				}
 			case _BRA:
-				n := st.inst.(*_Bra).n;
-				st.match[2*n] = pos;
-				s[in] = addState(s[in], st.inst.next(), st.match);
 			case _EBRA:
-				n := st.inst.(*_Ebra).n;
-				st.match[2*n+1] = pos;
-				s[in] = addState(s[in], st.inst.next(), st.match);
 			case _ALT:
-				s[in] = addState(s[in], st.inst.(*_Alt).left, st.match);
-				// give other branch a copy of this match vector
-				s1 := make([]int, 2*(re.nbra+1));
-				for i := 0; i < len(s1); i++ {
-					s1[i] = st.match[i]
-				}
-				s[in] = addState(s[in], st.inst.next(), s1);
 			case _END:
 				// choose leftmost longest
 				if !found ||	// first
 					st.match[0] < final.match[0] ||	// leftmost
-					(st.match[0] == final.match[0] && pos > final.match[1]) {	// longest
+					(st.match[0] == final.match[0] && pos-charwidth > final.match[1]) {	// longest
 					final = st;
-					final.match[1] = pos;
+					final.match[1] = pos - charwidth;
 				}
 				found = true;
 			default:
@@ -759,7 +776,6 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 				panic("unknown instruction in execute");
 			}
 		}
-		pos += charwidth;
 	}
 	return final.match;
 }
