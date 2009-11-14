@@ -39,7 +39,7 @@ func (p *RGBA) Set(x, y int, c Color)	{ p.Pixel[y][x] = toRGBAColor(c).(RGBAColo
 // NewRGBA returns a new RGBA with the given width and height.
 func NewRGBA(w, h int) *RGBA {
 	pixel := make([][]RGBAColor, h);
-	for y := 0; y < int(h); y++ {
+	for y := 0; y < h; y++ {
 		pixel[y] = make([]RGBAColor, w)
 	}
 	return &RGBA{pixel};
@@ -69,7 +69,7 @@ func (p *RGBA64) Set(x, y int, c Color)	{ p.Pixel[y][x] = toRGBA64Color(c).(RGBA
 // NewRGBA64 returns a new RGBA64 with the given width and height.
 func NewRGBA64(w, h int) *RGBA64 {
 	pixel := make([][]RGBA64Color, h);
-	for y := 0; y < int(h); y++ {
+	for y := 0; y < h; y++ {
 		pixel[y] = make([]RGBA64Color, w)
 	}
 	return &RGBA64{pixel};
@@ -99,7 +99,7 @@ func (p *NRGBA) Set(x, y int, c Color)	{ p.Pixel[y][x] = toNRGBAColor(c).(NRGBAC
 // NewNRGBA returns a new NRGBA with the given width and height.
 func NewNRGBA(w, h int) *NRGBA {
 	pixel := make([][]NRGBAColor, h);
-	for y := 0; y < int(h); y++ {
+	for y := 0; y < h; y++ {
 		pixel[y] = make([]NRGBAColor, w)
 	}
 	return &NRGBA{pixel};
@@ -129,7 +129,7 @@ func (p *NRGBA64) Set(x, y int, c Color)	{ p.Pixel[y][x] = toNRGBA64Color(c).(NR
 // NewNRGBA64 returns a new NRGBA64 with the given width and height.
 func NewNRGBA64(w, h int) *NRGBA64 {
 	pixel := make([][]NRGBA64Color, h);
-	for y := 0; y < int(h); y++ {
+	for y := 0; y < h; y++ {
 		pixel[y] = make([]NRGBA64Color, w)
 	}
 	return &NRGBA64{pixel};
@@ -206,7 +206,7 @@ func (p *Paletted) SetColorIndex(x, y int, index uint8) {
 // NewPaletted returns a new Paletted with the given width, height and palette.
 func NewPaletted(w, h int, m PalettedColorModel) *Paletted {
 	pixel := make([][]uint8, h);
-	for y := 0; y < int(h); y++ {
+	for y := 0; y < h; y++ {
 		pixel[y] = make([]uint8, w)
 	}
 	return &Paletted{pixel, m};
