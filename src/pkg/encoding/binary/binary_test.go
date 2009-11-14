@@ -81,6 +81,6 @@ little:
 		t.Errorf("Read little-endian: %v", err)
 	}
 	if !reflect.DeepEqual(sl, s) {
-		t.Errorf("Read big-endian:\n\thave %+v\n\twant %+v", sl, s)
+		t.Errorf("Read little-endian:\n\thave %+v\n\twant %+v", sl, s)
 	}
 }

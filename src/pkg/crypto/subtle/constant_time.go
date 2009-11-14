@@ -23,7 +23,7 @@ func ConstantTimeCompare(x, y []byte) int {
 // Its behavior is undefined if v takes any other value.
 func ConstantTimeSelect(v, x, y int) int	{ return ^(v-1)&x | (v-1)&y }
 
-// ConstantTimeByteEq returns 1 if x == x and 0 otherwise.
+// ConstantTimeByteEq returns 1 if x == y and 0 otherwise.
 func ConstantTimeByteEq(x, y uint8) int {
 	z := ^(x ^ y);
 	z &= z >> 4;
