@@ -69,7 +69,7 @@ dir:
 	@echo $(dir)
 
 %.make:
-	(cd $* && make)
+	(cd $* && gomake)
 
 # To use cgo in a Go package, add a line
 #

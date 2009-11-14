@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2009 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -13,6 +13,6 @@ do(
 	if test -f clean.bash; then
 		bash clean.bash
 	else
-		make clean
+		gomake clean
 	fi
 )done

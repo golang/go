@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2009 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -29,7 +29,7 @@ amd64 | 386 | arm)
 esac
 
 case "$GOOS" in
-darwin | linux | nacl)
+darwin | linux | nacl | freebsd)
 	;;
 *)
 	echo '$GOOS is set to <'$GOOS'>, must be darwin, linux, or nacl' 1>&2
@@ -40,6 +40,14 @@ rm -f $GOBIN/quietgcc
 CC=${CC:-gcc}
 sed -e "s|@CC@|$CC|" < quietgcc.bash > $GOBIN/quietgcc
 chmod +x $GOBIN/quietgcc
+
+rm -f $GOBIN/gomake
+MAKE=make
+if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
+	MAKE=gmake
+fi
+(echo '#!/bin/sh'; echo 'exec '$MAKE' "$@"') >$GOBIN/gomake
+chmod +x $GOBIN/gomake
 
 if ! (cd lib9 && which quietgcc) >/dev/null 2>&1; then
 	echo "installed quietgcc as $GOBIN/quietgcc but 'which quietgcc' fails" 1>&2
@@ -83,7 +91,7 @@ do
 				bash make.bash
 				;;
 			*)
-				make install
+				gomake install
 			esac
 		)  || exit 1
 	esac

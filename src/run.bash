@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2009 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -19,10 +19,10 @@ maketest() {
 	do
 		(
 			xcd $i
-			make clean
-			time make
-			make install
-			make test
+			gomake clean
+			time gomake
+			gomake install
+			gomake test
 		) || exit $?
 	done
 }
@@ -34,31 +34,31 @@ maketest \
 # from what maketest does.
 
 (xcd pkg/sync;
-make clean;
-time make
-GOMAXPROCS=10 make test
+gomake clean;
+time gomake
+GOMAXPROCS=10 gomake test
 ) || exit $?
 
 (xcd cmd/gofmt
-make clean
-time make
-time make smoketest
+gomake clean
+time gomake
+time gomake smoketest
 ) || exit $?
 
 (xcd cmd/ebnflint
-make clean
-time make
-time make test
+gomake clean
+time gomake
+time gomake test
 ) || exit $?
 
 (xcd ../misc/cgo/stdio
-make clean
+gomake clean
 ./test.bash
 ) || exit $?
 
 (xcd pkg/exp/ogle
-make clean
-time make ogle
+gomake clean
+time gomake ogle
 ) || exit $?
 
 (xcd ../doc/progs

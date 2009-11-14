@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2009 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -34,6 +34,11 @@ includes_Darwin='
 #define __DARWIN_UNIX03 0
 #define KERNEL
 #define _DARWIN_USE_64_BIT_INODE
+#include <sys/wait.h>
+#include <sys/event.h>
+'
+
+includes_FreeBSD='
 #include <sys/wait.h>
 #include <sys/event.h>
 '
