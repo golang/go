@@ -120,16 +120,16 @@ nuke.dirs: $(addsuffix .nuke, $(DIRS))
 test.dirs: $(addsuffix .test, $(TEST))
 
 %.clean:
-	+cd $* && make clean
+	+cd $* && gomake clean
 
 %.install:
-	+cd $* && make install
+	+cd $* && gomake install
 
 %.nuke:
-	+cd $* && make nuke
+	+cd $* && gomake nuke
 
 %.test:
-	+cd $* && make test
+	+cd $* && gomake test
 
 clean: clean.dirs
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2009 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -94,8 +94,8 @@ fi
 
 set -e
 
-make testpackage-clean
-make testpackage "GOTESTFILES=$gofiles"
+gomake testpackage-clean
+gomake testpackage "GOTESTFILES=$gofiles"
 if $havex; then
 	$GC -o $xofile $xgofiles
 fi
@@ -107,7 +107,7 @@ trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
 MAKEFLAGS=
 MAKELEVEL=
 
-importpath=$(make -s importpath)
+importpath=$(gomake -s importpath)
 {
 	# test functions are named TestFoo
 	# the grep -v eliminates methods and other special names

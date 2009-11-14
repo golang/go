@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Copyright 2009 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -98,6 +98,10 @@ case "$GOOSARCH" in
 _* | *_ | _)
 	echo 'undefined $GOOS_$GOARCH:' "$GOOSARCH" 1>&2
 	exit 1
+	;;
+freebsd_amd64)
+	mksysnum="mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master"
+	mktypes="godefs -gsyscall -f-m64"
 	;;
 darwin_386)
 	mksyscall="mksyscall.sh -l32"

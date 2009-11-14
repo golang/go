@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright 2009 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -15,13 +15,13 @@ fi
 
 cd ${O}l
 bash mkenam
-make enam.o
+gomake enam.o
 cd ..
 
 for i in cc ${O}l ${O}a ${O}c gc ${O}g gopack nm cov godefs prof gotest
 do
 	echo; echo; echo %%%% making $i %%%%; echo
 	cd $i
-	make install
+	gomake install
 	cd ..
 done
