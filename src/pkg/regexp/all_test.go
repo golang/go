@@ -66,6 +66,8 @@ var matches = []tester{
 	tester{`b`, "abc", vec{1, 2}},
 	tester{`.`, "a", vec{0, 1}},
 	tester{`.*`, "abcdef", vec{0, 6}},
+	tester{`^`, "abcde", vec{0, 0}},
+	tester{`$`, "abcde", vec{5, 5}},
 	tester{`^abcd$`, "abcd", vec{0, 4}},
 	tester{`^bcd'`, "abcdef", vec{}},
 	tester{`^abcd$`, "abcde", vec{}},
@@ -86,6 +88,7 @@ var matches = []tester{
 	tester{`((a|b|c)*(d))`, "abcd", vec{0, 4, 0, 4, 2, 3, 3, 4}},
 	tester{`(((a|b|c)*)(d))`, "abcd", vec{0, 4, 0, 4, 0, 3, 2, 3, 3, 4}},
 	tester{`a*(|(b))c*`, "aacc", vec{0, 4, 2, 2, -1, -1}},
+	tester{`(.*).*`, "ab", vec{0, 2, 0, 2}},
 }
 
 func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
@@ -182,12 +185,12 @@ func matchTest(t *testing.T, expr string, str string, match []int) {
 	}
 	m := re.MatchString(str);
 	if m != (len(match) > 0) {
-		t.Errorf("MatchString failure on %#q matching %q: %d should be %d", expr, str, m, len(match) > 0)
+		t.Errorf("MatchString failure on %#q matching %q: %t should be %t", expr, str, m, len(match) > 0)
 	}
 	// now try bytes
 	m = re.Match(strings.Bytes(str));
 	if m != (len(match) > 0) {
-		t.Errorf("Match failure on %#q matching %q: %d should be %d", expr, str, m, len(match) > 0)
+		t.Errorf("Match failure on %#q matching %q: %t should be %t", expr, str, m, len(match) > 0)
 	}
 }
 
@@ -377,14 +380,7 @@ var matchCases = []matchCase{
 }
 
 func printStringSlice(t *testing.T, s []string) {
-	l := len(s);
-	if l == 0 {
-		t.Log("\t<empty>")
-	} else {
-		for i := 0; i < l; i++ {
-			t.Logf("\t%q", s[i])
-		}
-	}
+	t.Logf("%#v", s)
 }
 
 func TestAllMatches(t *testing.T) {
