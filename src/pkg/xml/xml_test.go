@@ -24,7 +24,7 @@ const testInput = `
     <inner/>
   </outer>
   <tag:name>
-    Some text here.
+    <![CDATA[Some text here.]]>
   </tag:name>
 </body><!-- missing final newline -->`
 
@@ -52,7 +52,9 @@ var rawTokens = []Token{
 	EndElement{Name{"", "outer"}},
 	CharData(strings.Bytes("\n  ")),
 	StartElement{Name{"tag", "name"}, nil},
-	CharData(strings.Bytes("\n    Some text here.\n  ")),
+	CharData(strings.Bytes("\n    ")),
+	CharData(strings.Bytes("Some text here.")),
+	CharData(strings.Bytes("\n  ")),
 	EndElement{Name{"tag", "name"}},
 	CharData(strings.Bytes("\n")),
 	EndElement{Name{"", "body"}},
@@ -83,7 +85,9 @@ var cookedTokens = []Token{
 	EndElement{Name{"ns2", "outer"}},
 	CharData(strings.Bytes("\n  ")),
 	StartElement{Name{"ns3", "name"}, nil},
-	CharData(strings.Bytes("\n    Some text here.\n  ")),
+	CharData(strings.Bytes("\n    ")),
+	CharData(strings.Bytes("Some text here.")),
+	CharData(strings.Bytes("\n  ")),
 	EndElement{Name{"ns3", "name"}},
 	CharData(strings.Bytes("\n")),
 	EndElement{Name{"ns2", "body"}},

@@ -497,11 +497,11 @@ func (p *Parser) RawToken() (Token, os.Error) {
 
 		case '[':	// <![
 			// Probably <![CDATA[.
-			for i := 0; i < 7; i++ {
+			for i := 0; i < 6; i++ {
 				if b, ok = p.getc(); !ok {
 					return nil, p.err
 				}
-				if b != "[CDATA["[i] {
+				if b != "CDATA["[i] {
 					p.err = SyntaxError("invalid <![ sequence");
 					return nil, p.err;
 				}
