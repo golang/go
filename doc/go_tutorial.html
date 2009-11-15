@@ -550,7 +550,7 @@ declaration on line 31; it declares <code>r</code> and <code>e</code> to hold th
 both of type <code>int</code> (although you'd have to look at the <code>syscall</code> package
 to see that).  Finally, line 35 returns two values: a pointer to the new <code>File</code>
 and the error.  If <code>syscall.Open</code> fails, the file descriptor <code>r</code> will
-be negative and <code>NewFile</code> will return <code>nil</code>.
+be negative and <code>newFile</code> will return <code>nil</code>.
 <p>
 About those errors:  The <code>os</code> library includes a general notion of an error.
 It's a good idea to use its facility in your own interfaces, as we do here, for
@@ -1279,7 +1279,7 @@ code that invokes the operation and responds to the request:
 19    }
 </pre>
 <p>
-Line 18 defines the name <code>binOp</code> to be a function taking two integers and
+Line 14 defines the name <code>binOp</code> to be a function taking two integers and
 returning a third.
 <p>
 The <code>server</code> routine loops forever, receiving requests and, to avoid blocking due to

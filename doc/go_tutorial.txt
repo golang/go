@@ -841,7 +841,7 @@ code that invokes the operation and responds to the request:
 
 --PROG progs/server.go /type.binOp/ /^}/
 
-Line 18 defines the name "binOp" to be a function taking two integers and
+Line 14 defines the name "binOp" to be a function taking two integers and
 returning a third.
 
 The "server" routine loops forever, receiving requests and, to avoid blocking due to
