@@ -13,7 +13,7 @@
  */
 if (window.addEventListener){
   window.addEventListener('load', godocs_onload, false);
-} else if (elm.attachEvent){
+} else if (window.attachEvent){
   window.attachEvent('onload', godocs_onload);
 }
 
