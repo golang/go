@@ -220,9 +220,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
 	for i := 0; i < len(s); {
 		wid := 1;
 		rune := int(s[i]);
-		if rune < utf8.RuneSelf {
-			rune = mapping(rune)
-		} else {
+		if rune >= utf8.RuneSelf {
 			rune, wid = utf8.DecodeRune(s[i:len(s)])
 		}
 		rune = mapping(rune);
