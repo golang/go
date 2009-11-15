@@ -70,7 +70,7 @@ esac
 
 case "x$gofiles" in
 x)
-	echo 'no test files found' 1>&2
+	echo 'no test files found (*_test.go)' 1>&2
 	exit 2
 esac
 
