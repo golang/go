@@ -112,7 +112,7 @@ _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
 	gcc $(_CGO_CFLAGS_$(GOARCH)) -fPIC -O2 -o $@ -c $(CGO_CFLAGS) $*.cgo4.c
 
 $(elem)_%.so: %.cgo4.o
-	gcc $(_CGO_CFLAGS_$(GOARCH)) $(_CGO_LDFLAGS_$(GOOS)) -o $@ $*.cgo4.o $(CGO_LDFLAGS)
+	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $*.cgo4.o $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
 
 $(pkgdir)/$(dir)/$(elem)_%.so: $(elem)_%.so
 	@test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
