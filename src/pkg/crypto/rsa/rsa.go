@@ -290,18 +290,26 @@ func (DecryptionError) String() string	{ return "RSA decryption error" }
 
 // modInverse returns ia, the inverse of a in the multiplicative group of prime
 // order n. It requires that a be a member of the group (i.e. less than n).
-func modInverse(a, n *big.Int) (ia *big.Int) {
+func modInverse(a, n *big.Int) (ia *big.Int, ok bool) {
 	g := new(big.Int);
 	x := new(big.Int);
 	y := new(big.Int);
 	big.GcdInt(g, x, y, a, n);
+	if g.Cmp(bigOne) != 0 {
+		// In this case, a and n aren't coprime and we cannot calculate
+		// the inverse. This happens because the values of n are nearly
+		// prime (being the product of two primes) rather than truly
+		// prime.
+		return
+	}
+
 	if x.Cmp(bigOne) < 0 {
 		// 0 is not the multiplicative inverse of any element so, if x
 		// < 1, then x is negative.
 		x.Add(x, n)
 	}
 
-	return x;
+	return x, true;
 }
 
 // decrypt performs an RSA decryption, resulting in a plaintext integer. If a
@@ -320,15 +328,22 @@ func decrypt(rand io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err os.E
 		// which equals mr mod n. The factor of r can then be removed
 		// by multipling by the multiplicative inverse of r.
 
-		r, err1 := randomNumber(rand, priv.N);
-		if err1 != nil {
-			err = err1;
-			return;
+		var r *big.Int;
+
+		for {
+			r, err = randomNumber(rand, priv.N);
+			if err != nil {
+				return
+			}
+			if r.Cmp(bigZero) == 0 {
+				r = bigOne
+			}
+			var ok bool;
+			ir, ok = modInverse(r, priv.N);
+			if ok {
+				break
+			}
 		}
-		if r.Cmp(bigZero) == 0 {
-			r = bigOne
-		}
-		ir = modInverse(r, priv.N);
 		bigE := big.NewInt(int64(priv.E));
 		rpowe := new(big.Int).Exp(r, bigE, priv.N);
 		c.Mul(c, rpowe);
