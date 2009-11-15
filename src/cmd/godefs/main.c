@@ -163,11 +163,11 @@ main(int argc, char **argv)
 
 	n = 0;
 	av[n++] = "gcc";
-	av[n++] = "-c";
 	av[n++] = "-fdollars-in-identifiers";
 	av[n++] = "-S";	// write assembly
 	av[n++] = "-gstabs";	// include stabs info
-	av[n++] = "-o-";	// to stdout
+	av[n++] = "-o";	// to ...
+	av[n++] = "-";	// ... stdout
 	av[n++] = "-xc";	// read C
 
 	ARGBEGIN{
