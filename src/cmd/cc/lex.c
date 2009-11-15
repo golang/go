@@ -419,8 +419,6 @@ lookup(void)
 	s = alloc(sizeof(*s));
 	s->name = alloc(n);
 	memmove(s->name, symb, n);
-
-	strcpy(s->name, symb);
 	s->link = hash[h];
 	hash[h] = s;
 	syminit(s);
