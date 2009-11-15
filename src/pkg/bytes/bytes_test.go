@@ -268,9 +268,22 @@ func tenRunes(rune int) string {
 	return string(r);
 }
 
+// User-defined self-inverse mapping function
+func rot13(rune int) int {
+	step := 13;
+	if rune >= 'a' && rune <= 'z' {
+		return ((rune - 'a' + step) % 26) + 'a'
+	}
+	if rune >= 'A' && rune <= 'Z' {
+		return ((rune - 'A' + step) % 26) + 'A'
+	}
+	return rune;
+}
+
 func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
 	a := tenRunes('a');
+
 	// 1.  Grow.  This triggers two reallocations in Map.
 	maxRune := func(rune int) int { return unicode.MaxRune };
 	m := Map(maxRune, Bytes(a));
@@ -278,12 +291,27 @@ func TestMap(t *testing.T) {
 	if string(m) != expect {
 		t.Errorf("growing: expected %q got %q", expect, m)
 	}
+
 	// 2. Shrink
 	minRune := func(rune int) int { return 'a' };
 	m = Map(minRune, Bytes(tenRunes(unicode.MaxRune)));
 	expect = a;
 	if string(m) != expect {
 		t.Errorf("shrinking: expected %q got %q", expect, m)
+	}
+
+	// 3. Rot13
+	m = Map(rot13, Bytes("a to zed"));
+	expect = "n gb mrq";
+	if string(m) != expect {
+		t.Errorf("rot13: expected %q got %q", expect, m)
+	}
+
+	// 4. Rot13^2
+	m = Map(rot13, Map(rot13, Bytes("a to zed")));
+	expect = "a to zed";
+	if string(m) != expect {
+		t.Errorf("rot13: expected %q got %q", expect, m)
 	}
 }
 
