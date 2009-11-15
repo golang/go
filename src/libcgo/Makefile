@@ -24,7 +24,7 @@ LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup /usr/lib/libpthread.dyl
 	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.S
 
 libcgo.so: $(OFILES)
-	gcc $(CFLAGS_$(GOARCH)) $(LDFLAGS_$(GOOS)) -o libcgo.so $(OFILES)
+	gcc $(CFLAGS_$(GOARCH)) -o libcgo.so $(OFILES) $(LDFLAGS_$(GOOS))
 
 $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so: libcgo.so
 	cp libcgo.so $@
