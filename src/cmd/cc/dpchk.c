@@ -61,7 +61,7 @@ struct	Tname
 
 static	Type*	indchar;
 static	uchar	flagbits[512];
-static	char	fmtbuf[100];
+static	char*	lastfmt;
 static	int	lastadj;
 static	int	lastverb;
 static	int	nstar;
@@ -97,17 +97,17 @@ getflag(char *s)
 {
 	Bits flag;
 	int f;
-	char *fmt;
+	Fmt fmt;
 	Rune c;
 
-	fmt = fmtbuf;
 	flag = zbits;
 	nstar = 0;
+	fmtstrinit(&fmt);
 	for(;;) {
 		s += chartorune(&c, s);
 		if(c == 0 || c >= nelem(flagbits))
 			break;
-		fmt += runetochar(fmt, &c);
+		fmtrune(&fmt, c);
 		f = flagbits[c];
 		switch(f) {
 		case Fnone:
@@ -126,7 +126,8 @@ getflag(char *s)
 		if(f >= Fverb)
 			break;
 	}
-	*fmt = 0;
+	free(lastfmt);
+	lastfmt = fmtstrflush(&fmt);
 	return flag;
 }
 
@@ -204,23 +205,26 @@ static char*
 getquoted(void)
 {
 	int c;
-	char *t;
 	Rune r;
+	Fmt fmt;
 
 	c = getnsc();
 	if(c != '"')
 		return nil;
-	t = fmtbuf;
+	fmtstrinit(&fmt);
 	for(;;) {
 		r = getr();
-		if(r == ' ' || r == '\n')
+		if(r == ' ' || r == '\n') {
+			free(fmtstrflush(&fmt));
 			return nil;
+		}
 		if(r == '"')
 			break;
-		t += runetochar(t, &r);
+		fmtrune(&fmt, r);
 	}
-	*t = 0;
-	return strdup(fmtbuf);
+	free(lastfmt);
+	lastfmt = fmtstrflush(&fmt);
+	return strdup(lastfmt);
 }
 
 void
@@ -336,7 +340,7 @@ checkargs(Node *nn, char *s, int pos)
 			nstar--;
 			if(a == Z) {
 				warn(nn, "more format than arguments %s",
-					fmtbuf);
+					lastfmt);
 				return;
 			}
 			if(a->type == T)
@@ -344,7 +348,7 @@ checkargs(Node *nn, char *s, int pos)
 			if(!sametype(types[TINT], a->type) &&
 			   !sametype(types[TUINT], a->type))
 				warn(nn, "format mismatch '*' in %s %T, arg %d",
-					fmtbuf, a->type, pos);
+					lastfmt, a->type, pos);
 		}
 		for(l=tprot; l; l=l->link)
 			if(sametype(types[TVOID], l->type)) {
@@ -358,7 +362,7 @@ checkargs(Node *nn, char *s, int pos)
 		pos++;
 		if(a == Z) {
 			warn(nn, "more format than arguments %s",
-				fmtbuf);
+				lastfmt);
 			return;
 		}
 		if(a->type == 0)
@@ -369,7 +373,7 @@ checkargs(Node *nn, char *s, int pos)
 				if(beq(flag, l->flag))
 					goto loop;
 			}
-		warn(nn, "format mismatch %s %T, arg %d", fmtbuf, a->type, pos);
+		warn(nn, "format mismatch %s %T, arg %d", lastfmt, a->type, pos);
 	loop:;
 	}
 }

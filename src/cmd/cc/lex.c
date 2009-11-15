@@ -188,12 +188,12 @@ main(int argc, char *argv[])
 int
 compile(char *file, char **defs, int ndef)
 {
-	char ofile[400], incfile[20];
+	char *ofile, incfile[20];
 	char *p, *av[100], opt[256];
 	int i, c, fd[2];
 	static int first = 1;
 
-	strcpy(ofile, file);
+	ofile = strdup(file);
 	p = utfrrune(ofile, pathchar());
 	if(p) {
 		*p++ = 0;
@@ -288,14 +288,10 @@ compile(char *file, char **defs, int ndef)
 				sprint(opt, "-+");
 				av[i++] = strdup(opt);
 			}
-			for(c = 0; c < ndef; c++) {
-				sprint(opt, "-D%s", defs[c]);
-				av[i++] = strdup(opt);
-			}
-			for(c = 0; c < ninclude; c++) {
-				sprint(opt, "-I%s", include[c]);
-				av[i++] = strdup(opt);
-			}
+			for(c = 0; c < ndef; c++)
+				av[i++] = smprint("-D%s", defs[c]);
+			for(c = 0; c < ninclude; c++)
+				av[i++] = smprint("-I%s", include[c]);
 			if(strcmp(file, "stdin") != 0)
 				av[i++] = file;
 			av[i] = 0;
