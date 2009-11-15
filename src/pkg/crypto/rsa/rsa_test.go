@@ -18,7 +18,7 @@ func TestKeyGeneration(t *testing.T) {
 		t.Errorf("failed to open /dev/urandom")
 	}
 
-	priv, err := GenerateKey(urandom, 16);
+	priv, err := GenerateKey(urandom, 32);
 	if err != nil {
 		t.Errorf("failed to generate key")
 	}
