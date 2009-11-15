@@ -1,4 +1,4 @@
-// errchk $G $D/$F.go
+// errchk $G -e $D/$F.go
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -32,6 +32,14 @@ func main() {
 	{
 		var x, y [2]T;
 		x = y;	// ERROR "assignment.*Mutex"
+		_ = x;
+	}
+	{
+		x := sync.Mutex{0, 0};	// ERROR "assignment.*Mutex"
+		_ = x;
+	}
+	{
+		x := sync.Mutex{key: 0};	// ERROR "(unknown|assignment).*Mutex"
 		_ = x;
 	}
 }

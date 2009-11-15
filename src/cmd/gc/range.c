@@ -66,12 +66,12 @@ typecheckrange(Node *n)
 
 	if(v1->defn == n)
 		v1->type = t1;
-	else if(v1->type != T && checkconv(t1, v1->type, 0, &op, &et) < 0)
+	else if(v1->type != T && checkconv(t1, v1->type, 0, &op, &et, "range") < 0)
 		yyerror("cannot assign type %T to %+N", t1, v1);
 	if(v2) {
 		if(v2->defn == n)
 			v2->type = t2;
-		else if(v2->type != T && checkconv(t2, v2->type, 0, &op, &et) < 0)
+		else if(v2->type != T && checkconv(t2, v2->type, 0, &op, &et, "range") < 0)
 			yyerror("cannot assign type %T to %+N", t1, v1);
 	}
 

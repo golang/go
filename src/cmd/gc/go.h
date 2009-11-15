@@ -1048,8 +1048,8 @@ void	typechecklist(NodeList*, int);
 void	typecheckswitch(Node*);
 void	typecheckselect(Node*);
 void	typecheckrange(Node*);
-Node*	typecheckconv(Node*, Node*, Type*, int);
-int	checkconv(Type*, Type*, int, int*, int*);
+Node*	typecheckconv(Node*, Node*, Type*, int, char*);
+int	checkconv(Type*, Type*, int, int*, int*, char*);
 Node*	typecheck(Node**, int);
 
 /*

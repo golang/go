@@ -495,10 +495,11 @@ typeinit(void)
 	mpatofix(maxintval[TUINT32], "0xffffffff");
 	mpatofix(maxintval[TUINT64], "0xffffffffffffffff");
 
-	mpatoflt(maxfltval[TFLOAT32], "3.40282347e+38");
-	mpatoflt(minfltval[TFLOAT32], "-3.40282347e+38");
-	mpatoflt(maxfltval[TFLOAT64], "1.7976931348623157e+308");
-	mpatoflt(minfltval[TFLOAT64], "-1.7976931348623157e+308");
+	/* f is valid float if min < f < max.  (min and max are not themselves valid.) */
+	mpatoflt(maxfltval[TFLOAT32], "33554431p103");	/* 2^24-1 p (127-23) + 1/2 ulp*/
+	mpatoflt(minfltval[TFLOAT32], "-33554431p103");
+	mpatoflt(maxfltval[TFLOAT64], "18014398509481983p970");	/* 2^53-1 p (1023-52) + 1/2 ulp */
+	mpatoflt(minfltval[TFLOAT64], "-18014398509481983p970");
 
 	/* for walk to use in error messages */
 	types[TFUNC] = functype(N, nil, nil);
