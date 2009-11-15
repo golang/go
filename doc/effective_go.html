@@ -977,14 +977,14 @@ you can pass a pointer to the array.
 
 <pre>
 func Sum(a *[3]float) (sum float) {
-	for _, v := range a {
+	for _, v := range *a {
 		sum += v
 	}
 	return
 }
 
 array := [...]float{7.0, 8.5, 9.1};
-x := sum(&amp;array);  // Note the explicit address-of operator
+x := Sum(&amp;array);  // Note the explicit address-of operator
 </pre>
 
 <p>
