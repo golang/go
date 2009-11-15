@@ -13,11 +13,42 @@ then
 	exit 1
 fi
 
+if ! test -d $GOBIN
+then
+	echo '$GOBIN is not a directory or does not exist' 1>&2
+	echo 'create it or set $GOBIN differently' 1>&2
+	exit 1
+fi
+
+case "$GOARCH" in
+arm)
+	;;
+*)
+	echo '$GOARCH is set to <'$GOARCH'>, must be arm' 1>&2
+	exit 1
+esac
+
+case "$GOOS" in
+linux)
+	;;
+*)
+	echo '$GOOS is set to <'$GOOS'>, must be linux' 1>&2
+	exit 1
+esac
+
 bash clean.bash
 
 rm -f $GOBIN/quietgcc
 cp quietgcc.bash $GOBIN/quietgcc
 chmod +x $GOBIN/quietgcc
+
+rm -f $GOBIN/gomake
+MAKE=make
+if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
+	MAKE=gmake
+fi
+(echo '#!/bin/sh'; echo 'exec '$MAKE' "$@"') >$GOBIN/gomake
+chmod +x $GOBIN/gomake
 
 # TODO(kaib): converge with normal build
 #for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
