@@ -2233,6 +2233,22 @@ func (v Vector) DoAll(u Vector) {
 
 </pre>
 
+<p>
+The current implementation of <code>gc</code> (<code>6g</code>, etc.)
+will not parallelize this code by default.
+It dedicates only a single core to user-level processing.  An
+arbitrary number of goroutines can be blocked in system calls, but
+by default only one can be executing user-level code at any time.
+It should be smarter and one day it will be smarter, but until it
+is if you want CPU parallelism you must tell the run-time
+how many goroutines you want executing code simultaneously.  There
+are two related ways to do this.  Either run your job with environment
+variable <code>GOMAXPROCS</code> set to the number of cores to use
+(default 1); or import the <code>runtime</code> package and call
+<code>runtime.GOMAXPROCS(NCPU)</code>.
+Again, this requirement is expected to be retired as the scheduling and run-time improve.
+</p>
+
 <h3 id="leaky_buffer">A leaky buffer</h3>
 
 <p>
