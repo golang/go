@@ -52,6 +52,11 @@ func main() {
 		fatal("unknown architecture %s", arch)
 	}
 
+	// Clear locale variables so gcc emits English errors [sic].
+	os.Setenv("LANG", "en_US.UTF-8");
+	os.Setenv("LC_ALL", "C");
+	os.Setenv("LC_CTYPE", "C");
+
 	p := openProg(input);
 	for _, cref := range p.Crefs {
 		// Convert C.ulong to C.unsigned long, etc.
