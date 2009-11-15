@@ -1087,6 +1087,8 @@ xfndcl:
 	LFUNC fndcl fnbody
 	{
 		$$ = $2;
+		if($$ == N)
+			break;
 		$$->nbody = $3;
 		funcbody($$);
 	}
@@ -1111,10 +1113,19 @@ fndcl:
 	{
 		Node *rcvr, *t;
 
+		$$ = N;
+		if($2 == nil) {
+			yyerror("method has no receiver");
+			break;
+		}
+		if($2->next != nil) {
+			yyerror("method has multiple receivers");
+			break;
+		}
 		rcvr = $2->n;
-		if($2->next != nil || $2->n->op != ODCLFIELD) {
+		if(rcvr->op != ODCLFIELD) {
 			yyerror("bad receiver in method");
-			rcvr = N;
+			break;
 		}
 
 		$$ = nod(ODCLFUNC, N, N);

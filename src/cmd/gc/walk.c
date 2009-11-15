@@ -1922,7 +1922,7 @@ vmatch1(Node *l, Node *r)
 	/*
 	 * isolate all left sides
 	 */
-	if(l == N)
+	if(l == N || r == N)
 		return 0;
 	switch(l->op) {
 	case ONAME:

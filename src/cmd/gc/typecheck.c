@@ -19,8 +19,8 @@
 static void	implicitstar(Node**);
 static int	onearg(Node*);
 static int	lookdot(Node*, Type*);
-static void	typecheckaste(int, Type*, NodeList*);
-static int	exportassignok(Type*);
+static void	typecheckaste(int, Type*, NodeList*, char*);
+static int	exportassignok(Type*, char*);
 static Type*	lookdot1(Sym *s, Type *t, Type *f);
 static int	nokeys(NodeList*);
 static void	typecheckcomplit(Node**);
@@ -673,7 +673,7 @@ reswitch:
 
 		case ODOTMETH:
 			n->op = OCALLMETH;
-			typecheckaste(OCALL, getthisx(t), list1(l->left));
+			typecheckaste(OCALL, getthisx(t), list1(l->left), "method receiver");
 			break;
 
 		default:
@@ -684,7 +684,7 @@ reswitch:
 			}
 			break;
 		}
-		typecheckaste(OCALL, getinargx(t), n->list);
+		typecheckaste(OCALL, getinargx(t), n->list, "function argument");
 		ok |= Etop;
 		if(t->outtuple == 0)
 			goto ret;
@@ -768,7 +768,7 @@ reswitch:
 		convlit1(&n->left, n->type, 1);
 		if((t = n->left->type) == T || n->type == T)
 			goto error;
-		n = typecheckconv(n, n->left, n->type, 1);
+		n = typecheckconv(n, n->left, n->type, 1, "conversion");
 		if(n->type == T)
 			goto error;
 		goto ret;
@@ -960,7 +960,7 @@ reswitch:
 		typechecklist(n->list, Erv | Efnstruct);
 		if(curfn->type->outnamed && n->list == nil)
 			goto ret;
-		typecheckaste(ORETURN, getoutargx(curfn->type), n->list);
+		typecheckaste(ORETURN, getoutargx(curfn->type), n->list, "return argument");
 		goto ret;
 
 	case OSELECT:
@@ -1206,12 +1206,10 @@ nokeys(NodeList *l)
  * check implicit or explicit conversion from node type nt to type t.
  */
 int
-checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
+checkconv(Type *nt, Type *t, int explicit, int *op, int *et, char *desc)
 {
 	*op = OCONV;
 	*et = 0;
-
-
 
 	// preexisting error
 	if(t == T || t->etype == TFORW)
@@ -1229,7 +1227,7 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
 	}
 
 	if(eqtype(t, nt)) {
-		exportassignok(t);
+		exportassignok(t, desc);
 		*op = OCONVNOP;
 		if(!explicit || t == nt)
 			return 0;
@@ -1334,14 +1332,16 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
 }
 
 Node*
-typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
+typecheckconv(Node *nconv, Node *n, Type *t, int explicit, char *desc)
 {
 	int et, op;
 	Node *n1;
+	char *prefix;
 
 	convlit1(&n, t, explicit);
 	if(n->type == T)
 		return n;
+
 
 	if(n->op == OLITERAL)
 	if(explicit || isideal(n->type))
@@ -1354,12 +1354,17 @@ typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
 		return n1;
 	}
 
-	switch(checkconv(n->type, t, explicit, &op, &et)) {
+	prefix = "";
+	if(desc != nil)
+		prefix = " in ";
+	else
+		desc = "";
+	switch(checkconv(n->type, t, explicit, &op, &et, desc)) {
 	case -1:
 		if(explicit)
-			yyerror("cannot convert %+N to type %T", n, t);
+			yyerror("cannot convert %+N to type %T%s%s", n, t, prefix, desc);
 		else
-			yyerror("cannot use %+N as type %T", n, t);
+			yyerror("cannot use %+N as type %T%s%s", n, t, prefix, desc);
 		return n;
 
 	case 0:
@@ -1386,7 +1391,7 @@ typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
  * typecheck assignment: type list = expression list
  */
 static void
-typecheckaste(int op, Type *tstruct, NodeList *nl)
+typecheckaste(int op, Type *tstruct, NodeList *nl, char *desc)
 {
 	Type *t, *tl, *tn;
 	Node *n;
@@ -1409,8 +1414,8 @@ typecheckaste(int op, Type *tstruct, NodeList *nl)
 			}
 			if(isddd(tl->type))
 				goto out;
-			if(checkconv(tn->type, tl->type, 0, &xx, &yy) < 0)
-				yyerror("cannot use type %T as type %T", tn->type, tl->type);
+			if(checkconv(tn->type, tl->type, 0, &xx, &yy, desc) < 0)
+				yyerror("cannot use type %T as type %T in %s", tn->type, tl->type, desc);
 			tn = tn->down;
 		}
 		if(tn != T)
@@ -1434,7 +1439,7 @@ typecheckaste(int op, Type *tstruct, NodeList *nl)
 		n = nl->n;
 		setlineno(nl->n);
 		if(n->type != T)
-			nl->n = typecheckconv(nil, n, t, 0);
+			nl->n = typecheckconv(nil, n, t, 0, desc);
 		nl = nl->next;
 	}
 	if(nl != nil) {
@@ -1452,13 +1457,17 @@ out:
  * an unavailable field.
  */
 static int
-exportassignok(Type *t)
+exportassignok(Type *t, char *desc)
 {
 	Type *f;
 	Sym *s;
 
 	if(t == T)
 		return 1;
+	if(t->trecur)
+		return 1;
+	t->trecur = 1;
+
 	switch(t->etype) {
 	default:
 		// most types can't contain others; they're all fine.
@@ -1471,22 +1480,34 @@ exportassignok(Type *t)
 			// s == nil doesn't happen for embedded fields (they get the type symbol).
 			// it only happens for fields in a ... struct.
 			if(s != nil && !exportname(s->name) && strcmp(package, s->package) != 0) {
-				yyerror("implicit assignment of %T field '%s'", t, s->name);
-				return 0;
+				char *prefix;
+				
+				prefix = "";
+				if(desc != nil)
+					prefix = " in ";
+				else
+					desc = "";
+				yyerror("implicit assignment of %T field '%s'%s%s", t, s->name, prefix, desc);
+				goto no;
 			}
-			if(!exportassignok(f->type))
-				return 0;
+			if(!exportassignok(f->type, desc))
+				goto no;
 		}
 		break;
 
 	case TARRAY:
 		if(t->bound < 0)	// slices are pointers; that's fine
 			break;
-		if(!exportassignok(t->type))
-			return 0;
+		if(!exportassignok(t->type, desc))
+			goto no;
 		break;
 	}
+	t->trecur = 0;
 	return 1;
+
+no:
+	t->trecur = 0;
+	return 0;
 }
 
 
@@ -1600,6 +1621,7 @@ typecheckcomplit(Node **np)
 	Node *l, *n, *hash[101];
 	NodeList *ll;
 	Type *t, *f;
+	Sym *s;
 
 	n = *np;
 
@@ -1630,11 +1652,11 @@ typecheckcomplit(Node **np)
 				}
 				typecheck(&l->right, Erv);
 				defaultlit(&l->right, t->type);
-				l->right = typecheckconv(nil, l->right, t->type, 0);
+				l->right = typecheckconv(nil, l->right, t->type, 0, "array index");
 			} else {
 				typecheck(&ll->n, Erv);
 				defaultlit(&ll->n, t->type);
-				ll->n = typecheckconv(nil, ll->n, t->type, 0);
+				ll->n = typecheckconv(nil, ll->n, t->type, 0, "array index");
 				ll->n = nod(OKEY, nodintconst(i), ll->n);
 				ll->n->left->type = types[TINT];
 				ll->n->left->typecheck = 1;
@@ -1670,8 +1692,8 @@ typecheckcomplit(Node **np)
 			typecheck(&l->right, Erv);
 			defaultlit(&l->left, t->down);
 			defaultlit(&l->right, t->type);
-			l->left = typecheckconv(nil, l->left, t->down, 0);
-			l->right = typecheckconv(nil, l->right, t->type, 0);
+			l->left = typecheckconv(nil, l->left, t->down, 0, "map key");
+			l->right = typecheckconv(nil, l->right, t->type, 0, "map value");
 			keydup(l->left, hash, nelem(hash));
 		}
 		n->op = OMAPLIT;
@@ -1689,7 +1711,10 @@ typecheckcomplit(Node **np)
 						yyerror("too many values in struct initializer");
 					continue;
 				}
-				ll->n = typecheckconv(nil, ll->n, f->type, 0);
+				s = f->sym;
+				if(s != nil && !exportname(s->name) && strcmp(package, s->package) != 0)
+					yyerror("implicit assignment of %T field '%s' in struct literal", t, s->name);
+				ll->n = typecheckconv(nil, ll->n, f->type, 0, "field value");
 				ll->n = nod(OKEY, newname(f->sym), ll->n);
 				ll->n->left->typecheck = 1;
 				f = f->down;
@@ -1706,19 +1731,23 @@ typecheckcomplit(Node **np)
 					typecheck(&ll->n, Erv);
 					continue;
 				}
-				if(l->left->sym == S) {
+				s = l->left->sym;
+				if(s == S) {
 					yyerror("invalid field name %#N in struct initializer", l->left);
 					typecheck(&l->right, Erv);
 					continue;
 				}
-				l->left = newname(l->left->sym);
+				l->left = newname(s);
 				l->left->typecheck = 1;
-				f = lookdot1(l->left->sym, t, t->type);
+				f = lookdot1(s, t, t->type);
 				typecheck(&l->right, Erv);
-				if(f == nil)
+				if(f == nil) {
+					yyerror("unknown %T field '%s' in struct literal", t, s->name);
 					continue;
-				fielddup(newname(f->sym), hash, nelem(hash));
-				l->right = typecheckconv(nil, l->right, f->type, 0);
+				}
+				s = f->sym;
+				fielddup(newname(s), hash, nelem(hash));
+				l->right = typecheckconv(nil, l->right, f->type, 0, "field value");
 			}
 		}
 		n->op = OSTRUCTLIT;
@@ -1879,7 +1908,7 @@ typecheckas(Node *n)
 	checkassign(n->left);
 	typecheck(&n->right, Erv);
 	if(n->left->type != T && n->right && n->right->type != T)
-		n->right = typecheckconv(nil, n->right, n->left->type, 0);
+		n->right = typecheckconv(nil, n->right, n->left->type, 0, nil);
 	if(n->left->defn == n && n->left->ntype == N) {
 		defaultlit(&n->right, T);
 		n->left->type = n->right->type;
@@ -1919,7 +1948,7 @@ typecheckas2(Node *n)
 		// easy
 		for(ll=n->list, lr=n->rlist; ll; ll=ll->next, lr=lr->next) {
 			if(ll->n->type != T && lr->n->type != T)
-				lr->n = typecheckconv(nil, lr->n, ll->n->type, 0);
+				lr->n = typecheckconv(nil, lr->n, ll->n->type, 0, nil);
 			if(ll->n->defn == n && ll->n->ntype == N) {
 				defaultlit(&lr->n, T);
 				ll->n->type = lr->n->type;
@@ -1937,9 +1966,9 @@ typecheckas2(Node *n)
 		if(l->type == T)
 			goto out;
 		n->op = OAS2MAPW;
-		n->rlist->n = typecheckconv(nil, r, l->type->down, 0);
+		n->rlist->n = typecheckconv(nil, r, l->type->down, 0, nil);
 		r = n->rlist->next->n;
-		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 0);
+		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 0, nil);
 		goto out;
 	}
 
@@ -1960,7 +1989,7 @@ typecheckas2(Node *n)
 			t = structfirst(&s, &r->type);
 			for(ll=n->list; ll; ll=ll->next) {
 				if(ll->n->type != T)
-					if(checkconv(t->type, ll->n->type, 0, &op, &et) < 0)
+					if(checkconv(t->type, ll->n->type, 0, &op, &et, nil) < 0)
 						yyerror("cannot assign type %T to %+N", t->type, ll->n);
 				if(ll->n->defn == n && ll->n->ntype == N)
 					ll->n->type = t->type;
@@ -1984,12 +2013,12 @@ typecheckas2(Node *n)
 		case ODOTTYPE:
 			n->op = OAS2DOTTYPE;
 		common:
-			if(l->type != T && checkconv(r->type, l->type, 0, &op, &et) < 0)
+			if(l->type != T && checkconv(r->type, l->type, 0, &op, &et, nil) < 0)
 				yyerror("cannot assign %+N to %+N", r, l);
 			if(l->defn == n)
 				l->type = r->type;
 			l = n->list->next->n;
-			if(l->type != T && checkconv(types[TBOOL], l->type, 0, &op, &et) < 0)
+			if(l->type != T && checkconv(types[TBOOL], l->type, 0, &op, &et, nil) < 0)
 				yyerror("cannot assign bool value to %+N", l);
 			if(l->defn == n && l->ntype == N)
 				l->type = types[TBOOL];

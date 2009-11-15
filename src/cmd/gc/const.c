@@ -261,8 +261,8 @@ overflow(Val v, Type *t)
 	case CTFLT:
 		if(!isfloat[t->etype])
 			fatal("overflow: %T floating-point constant", t);
-		if(mpcmpfltflt(v.u.fval, minfltval[t->etype]) < 0
-		|| mpcmpfltflt(v.u.fval, maxfltval[t->etype]) > 0)
+		if(mpcmpfltflt(v.u.fval, minfltval[t->etype]) <= 0
+		|| mpcmpfltflt(v.u.fval, maxfltval[t->etype]) >= 0)
 			yyerror("constant %#F overflows %T", v.u.fval, t);
 		break;
 	}

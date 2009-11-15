@@ -114,6 +114,7 @@ ieeedtod(uint64 *ieee, double native)
 	double fr, ho, f;
 	int exp;
 	uint32 h, l;
+	uint64 bits;
 
 	if(native < 0) {
 		ieeedtod(ieee, -native);
@@ -129,13 +130,20 @@ ieeedtod(uint64 *ieee, double native)
 	fr = modf(fr*f, &ho);
 	h = ho;
 	h &= 0xfffffL;
-	h |= (exp+1022L) << 20;
 	f = 65536L;
 	fr = modf(fr*f, &ho);
 	l = ho;
 	l <<= 16;
 	l |= (int32)(fr*f);
-	*ieee = ((uint64)h << 32) | l;
+	bits = ((uint64)h<<32) | l;
+	if(exp < -1021) {
+		// gradual underflow
+		bits |= 1LL<<52;
+		bits >>= -1021 - exp;
+		exp = -1022;
+	}
+	bits |= (uint64)(exp+1022L) << 52;
+	*ieee = bits;
 }
 
 int

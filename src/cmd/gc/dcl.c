@@ -302,11 +302,27 @@ NodeList*
 variter(NodeList *vl, Node *t, NodeList *el)
 {
 	int doexpr;
-	Node *v, *e;
+	Node *v, *e, *as2;
 	NodeList *init;
 
 	init = nil;
 	doexpr = el != nil;
+	
+	if(count(el) == 1 && count(vl) > 1) {
+		e = el->n;
+		as2 = nod(OAS2, N, N);
+		as2->list = vl;
+		as2->rlist = list1(e);
+		for(; vl; vl=vl->next) {
+			v = vl->n;
+			v->op = ONAME;
+			declare(v, dclcontext);
+			v->ntype = t;
+			v->defn = as2;
+		}
+		return list1(as2);
+	}
+	
 	for(; vl; vl=vl->next) {
 		if(doexpr) {
 			if(el == nil) {

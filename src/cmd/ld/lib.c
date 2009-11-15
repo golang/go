@@ -599,8 +599,13 @@ ieeedtof(Ieee *e)
 			exp++;
 		}
 	}
-	if(exp <= -126 || exp >= 130)
-		diag("double fp to single fp overflow");
+	if(-148 <= exp && exp <= -126) {
+		v |= 1<<23;
+		v >>= -125 - exp;
+		exp = -126;
+	}
+	else if(exp < -148 || exp >= 130)
+		diag("double fp to single fp overflow: %.17g", ieeedtod(e));
 	v |= ((exp + 126) & 0xffL) << 23;
 	v |= e->h & 0x80000000L;
 	return v;
@@ -620,14 +625,18 @@ ieeedtod(Ieee *ieeep)
 	}
 	if(ieeep->l == 0 && ieeep->h == 0)
 		return 0;
+	exp = (ieeep->h>>20) & ((1L<<11)-1L);
+	exp -= (1L<<10) - 2L;
 	fr = ieeep->l & ((1L<<16)-1L);
 	fr /= 1L<<16;
 	fr += (ieeep->l>>16) & ((1L<<16)-1L);
 	fr /= 1L<<16;
-	fr += (ieeep->h & (1L<<20)-1L) | (1L<<20);
+	if(exp == -(1L<<10) - 2L) {
+		fr += (ieeep->h & (1L<<20)-1L);
+		exp++;
+	} else
+		fr += (ieeep->h & (1L<<20)-1L) | (1L<<20);
 	fr /= 1L<<21;
-	exp = (ieeep->h>>20) & ((1L<<11)-1L);
-	exp -= (1L<<10) - 2L;
 	return ldexp(fr, exp);
 }
 
