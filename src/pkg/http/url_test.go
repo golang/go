@@ -335,8 +335,8 @@ var escapeTests = []URLEscapeTest{
 		nil,
 	},
 	URLEscapeTest{
-		" ?&=#+%!",
-		"+%3f%26%3d%23%2b%25!",
+		" ?&=#+%!<>#\"{}|\\^[]`☺\t",
+		"+%3f%26%3d%23%2b%25!%3c%3e%23%22%7b%7d%7c%5c%5e%5b%5d%60%e2%98%ba%09",
 		nil,
 	},
 }

@@ -52,14 +52,16 @@ func (e URLEscapeError) String() string {
 	return "invalid URL escape " + strconv.Quote(string(e))
 }
 
-// Return true if the specified character should be escaped when appearing in a
-// URL string.
-//
-// TODO: for now, this is a hack; it only flags a few common characters that have
-// special meaning in URLs.  That will get the job done in the common cases.
+// Return true if the specified character should be escaped when
+// appearing in a URL string, according to RFC 2396.
 func shouldEscape(c byte) bool {
+	if c <= ' ' || c >= 0x7F {
+		return true
+	}
 	switch c {
-	case ' ', '?', '&', '=', '#', '+', '%':
+	case '<', '>', '#', '%', '"',	// RFC 2396 delims
+		'{', '}', '|', '\\', '^', '[', ']', '`',	// RFC2396 unwise
+		'?', '&', '=', '+':	// RFC 2396 reserved in path
 		return true
 	}
 	return false;
