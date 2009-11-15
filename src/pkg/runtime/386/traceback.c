@@ -42,7 +42,7 @@ traceback(byte *pc0, byte *sp, G *g)
 		if(f == nil) {
 			// dangerous, but poke around to see if it is a closure
 			// ADDL $xxx, SP; RET
-			if(p != 0 && p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
+			if((uint64)pc > 0x1000 && p[0] == 0x81 && p[1] == 0xc4 && p[6] == 0xc3) {
 				sp += *(uint32*)(p+2) + 8;
 				pc = *(uintptr*)(sp - 8);
 				if(pc <= 0x1000)

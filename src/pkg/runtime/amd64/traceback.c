@@ -127,7 +127,7 @@ runtime·Caller(int32 n, uint64 retpc, String retfile, int32 retline, bool retbo
 			// see if it is a closure.
 			p = (byte*)pc;
 			// ADDQ $xxx, SP; RET
-			if(p[0] == 0x48 && p[1] == 0x81 && p[2] == 0xc4 && p[7] == 0xc3) {
+			if(pc > 0x1000 && p[0] == 0x48 && p[1] == 0x81 && p[2] == 0xc4 && p[7] == 0xc3) {
 				sp += *(uint32*)(p+3) + 8;
 				goto loop;
 			}
