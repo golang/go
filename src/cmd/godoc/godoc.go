@@ -470,16 +470,23 @@ func parse(path string, mode uint) (*ast.File, *parseErrors) {
 
 // Styler implements a printer.Styler.
 type Styler struct {
-	highlight string;
+	linetags	bool;
+	highlight	string;
 }
 
 
 // Use the defaultStyler when there is no specific styler.
+// The defaultStyler does not emit line tags since they may
+// interfere with tags emitted by templates.
+// TODO(gri): Should emit line tags at the beginning of a line;
+//            never in the middle of code.
 var defaultStyler Styler
 
 
 func (s *Styler) LineTag(line int) (text []byte, tag printer.HTMLTag) {
-	tag = printer.HTMLTag{fmt.Sprintf(`<a id="L%d">`, line), "</a>"};
+	if s.linetags {
+		tag = printer.HTMLTag{fmt.Sprintf(`<a id="L%d">`, line), "</a>"}
+	}
 	return;
 }
 
@@ -932,7 +939,7 @@ func serveFile(c *http.Conn, r *http.Request) {
 		return;
 
 	case ext == ".go":
-		serveGoSource(c, r, path, &Styler{highlight: r.FormValue("h")});
+		serveGoSource(c, r, path, &Styler{linetags: true, highlight: r.FormValue("h")});
 		return;
 	}
 
