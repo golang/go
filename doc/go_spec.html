@@ -966,7 +966,7 @@ type File interface {
 
 <p>
 A map is an unordered group of elements of one type, called the
-value type, indexed by a set of unique <i>keys</i> of another type,
+element type, indexed by a set of unique <i>keys</i> of another type,
 called the key type.
 A map value may be <code>nil</code>.
 
@@ -975,7 +975,6 @@ A map value may be <code>nil</code>.
 <pre class="ebnf">
 MapType     = "map" "[" KeyType "]" ElementType .
 KeyType     = Type .
-ValueType   = Type .
 </pre>
 
 <p>
@@ -1030,9 +1029,9 @@ A value of channel type may be <code>nil</code>.
 
 <pre class="ebnf">
 ChannelType   = Channel | SendChannel | RecvChannel .
-Channel       = "chan" ValueType .
-SendChannel   = "chan" "&lt;-" ValueType .
-RecvChannel   = "&lt;-" "chan" ValueType .
+Channel       = "chan" ElementType .
+SendChannel   = "chan" "&lt;-" ElementType .
+RecvChannel   = "&lt;-" "chan" ElementType .
 </pre>
 
 <p>
