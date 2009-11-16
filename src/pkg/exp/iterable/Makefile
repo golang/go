@@ -6,6 +6,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=exp/iterable
 GOFILES=\
+	array.go\
 	iterable.go\
 
 include $(GOROOT)/src/Make.pkg
