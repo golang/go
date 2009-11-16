@@ -361,3 +361,30 @@ func TestAddByte(t *testing.T) {
 		}
 	}
 }
+
+type RepeatTest struct {
+	in, out	string;
+	count	int;
+}
+
+var RepeatTests = []RepeatTest{
+	RepeatTest{"", "", 0},
+	RepeatTest{"", "", 1},
+	RepeatTest{"", "", 2},
+	RepeatTest{"-", "", 0},
+	RepeatTest{"-", "-", 1},
+	RepeatTest{"-", "----------", 10},
+	RepeatTest{"abc ", "abc abc abc ", 3},
+}
+
+func TestRepeat(t *testing.T) {
+	for _, tt := range RepeatTests {
+		tin := strings.Bytes(tt.in);
+		tout := strings.Bytes(tt.out);
+		a := Repeat(tin, tt.count);
+		if !Equal(a, tout) {
+			t.Errorf("Repeat(%q, %d) = %q; want %q", tin, tt.count, a, tout);
+			continue;
+		}
+	}
+}

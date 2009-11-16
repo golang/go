@@ -336,3 +336,28 @@ func TestCaseConsistency(t *testing.T) {
 		}
 	*/
 }
+
+type RepeatTest struct {
+	in, out	string;
+	count	int;
+}
+
+var RepeatTests = []RepeatTest{
+	RepeatTest{"", "", 0},
+	RepeatTest{"", "", 1},
+	RepeatTest{"", "", 2},
+	RepeatTest{"-", "", 0},
+	RepeatTest{"-", "-", 1},
+	RepeatTest{"-", "----------", 10},
+	RepeatTest{"abc ", "abc abc abc ", 3},
+}
+
+func TestRepeat(t *testing.T) {
+	for _, tt := range RepeatTests {
+		a := Repeat(tt.in, tt.count);
+		if !equal("Repeat(s)", a, tt.out, t) {
+			t.Errorf("Repeat(%v, %d) = %v; want %v", tt.in, tt.count, a, tt.out);
+			continue;
+		}
+	}
+}

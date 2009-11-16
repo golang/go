@@ -239,6 +239,19 @@ func Map(mapping func(rune int) int, s []byte) []byte {
 	return b[0:nbytes];
 }
 
+// Repeat returns a new byte array consisting of count copies of b.
+func Repeat(b []byte, count int) []byte {
+	nb := make([]byte, len(b)*count);
+	bp := 0;
+	for i := 0; i < count; i++ {
+		for j := 0; j < len(b); j++ {
+			nb[bp] = b[j];
+			bp++;
+		}
+	}
+	return nb;
+}
+
 // ToUpper returns a copy of the byte array s with all Unicode letters mapped to their upper case.
 func ToUpper(s []byte) []byte	{ return Map(unicode.ToUpper, s) }
 
