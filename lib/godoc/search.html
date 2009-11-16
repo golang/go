@@ -20,9 +20,9 @@
 {.end}
 {.section Hit}
 	{.section Decls}
-		<h2>Package-level declarations</h2>
+		<h2 id="Global">Package-level declarations</h2>
 		{.repeated section @}
-			<h3>package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
+			<h3 id="Global_{Pak.Path|path}">package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
 			{.repeated section Files}
 				{.repeated section Groups}
 					{.repeated section Infos}
@@ -34,9 +34,9 @@
 		{.end}
 	{.end}
 	{.section Others}
-		<h2>Local declarations and uses</h2>
+		<h2 id="Local">Local declarations and uses</h2>
 		{.repeated section @}
-			<h3>package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
+			<h3 id="Local_{Pak.Path|path}">package <a href="{Pak.Path|path}">{Pak.Name|html}</a></h3>
 			{.repeated section Files}
 				<a href="{File.Path|html}?h={Query|html}">{File.Path|html}</a>
 				<table class="layout">
