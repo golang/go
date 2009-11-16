@@ -188,6 +188,20 @@ func Map(mapping func(rune int) int, s string) string {
 	return string(b[0:nbytes]);
 }
 
+// Repeat returns a new string consisting of count copies of the string s.
+func Repeat(s string, count int) string {
+	b := make([]byte, len(s)*count);
+	bp := 0;
+	for i := 0; i < count; i++ {
+		for j := 0; j < len(s); j++ {
+			b[bp] = s[j];
+			bp++;
+		}
+	}
+	return string(b);
+}
+
+
 // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
 func ToUpper(s string) string	{ return Map(unicode.ToUpper, s) }
 
