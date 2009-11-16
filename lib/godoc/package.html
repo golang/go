@@ -23,14 +23,14 @@
 		{.end}
 	{.end}
 	{.section Consts}
-		<h2>Constants</h2>
+		<h2 id="Constants">Constants</h2>
 		{.repeated section @}
 			{Doc|html-comment}
 			<pre>{Decl|html}</pre>
 		{.end}
 	{.end}
 	{.section Vars}
-		<h2>Variables</h2>
+		<h2 id="Variables">Variables</h2>
 		{.repeated section @}
 			{Doc|html-comment}
 			<pre>{Decl|html}</pre>
@@ -38,14 +38,14 @@
 	{.end}
 	{.section Funcs}
 		{.repeated section @}
-			<h2>func <a href="{Decl|link}">{Name|html}</a></h2>
+			<h2 id="{Name|html}">func <a href="{Decl|link}">{Name|html}</a></h2>
 			<p><code>{Decl|html}</code></p>
 			{Doc|html-comment}
 		{.end}
 	{.end}
 	{.section Types}
 		{.repeated section @}
-			<h2>type <a href="{Decl|link}">{Type.Name|html}</a></h2>
+			<h2 id="{Type.Name|html}">type <a href="{Decl|link}">{Type.Name|html}</a></h2>
 			{Doc|html-comment}
 			<p><pre>{Decl|html}</pre></p>
 			{.repeated section Consts}
@@ -57,26 +57,26 @@
 				<pre>{Decl|html}</pre>
 			{.end}
 			{.repeated section Factories}
-				<h3>func <a href="{Decl|link}">{Name|html}</a></h3>
+				<h3 id="{Type.Name|html}.{Name|html}">func <a href="{Decl|link}">{Name|html}</a></h3>
 				<p><code>{Decl|html}</code></p>
 				{Doc|html-comment}
 			{.end}
 			{.repeated section Methods}
-				<h3>func ({Recv|html}) <a href="{Decl|link}">{Name|html}</a></h3>
+				<h3 id="{Type.Name|html}.{Name|html}">func ({Recv|html}) <a href="{Decl|link}">{Name|html}</a></h3>
 				<p><code>{Decl|html}</code></p>
 				{Doc|html-comment}
 			{.end}
 		{.end}
 	{.end}
 	{.section Bugs}
-		<h2>Bugs</h2>
+		<h2 id="Bugs">Bugs</h2>
 		{.repeated section @}
 		{@|html-comment}
 		{.end}
 	{.end}
 {.end}
 {.section Dirs}
-	<h2>Subdirectories</h2>
+	<h2 id="Subdirectories">Subdirectories</h2>
 	<p>
 	<table class="layout">
 	<tr>
