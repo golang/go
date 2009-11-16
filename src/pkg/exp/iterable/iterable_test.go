@@ -8,17 +8,24 @@ import (
 	"testing";
 )
 
-type IntArray []int
-
-func (arr IntArray) Iter() <-chan interface{} {
-	ch := make(chan interface{});
-	go func() {
-		for _, x := range arr {
-			ch <- x
-		}
-		close(ch);
-	}();
-	return ch;
+func TestArrayTypes(t *testing.T) {
+	// Test that conversion works correctly.
+	bytes := ByteArray([]byte{1, 2, 3});
+	if x := Data(bytes)[1].(byte); x != 2 {
+		t.Error("Data(bytes)[1].(byte) = %v, want 2", x)
+	}
+	ints := IntArray([]int{1, 2, 3});
+	if x := Data(ints)[2].(int); x != 3 {
+		t.Error("Data(ints)[2].(int) = %v, want 3", x)
+	}
+	floats := FloatArray([]float{1, 2, 3});
+	if x := Data(floats)[0].(float); x != 1 {
+		t.Error("Data(floats)[0].(float) = %v, want 1", x)
+	}
+	strings := StringArray([]string{"a", "b", "c"});
+	if x := Data(strings)[1].(string); x != "b" {
+		t.Error(`Data(strings)[1].(string) = %q, want "b"`, x)
+	}
 }
 
 var oneToFive = IntArray{1, 2, 3, 4, 5}
