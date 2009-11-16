@@ -838,8 +838,19 @@ bgen(Node *n, int true, Prog *to)
 	case OLE:
 	case OGE:
 		a = n->op;
-		if(!true)
+		if(!true) {
+			if(isfloat[nl->type->etype]) {
+				// brcom is not valid on floats when NaN is involved.
+				p1 = gbranch(AJMP, T);
+				p2 = gbranch(AJMP, T);
+				patch(p1, pc);
+				bgen(n, 1, p2);
+				patch(gbranch(AJMP, T), to);
+				patch(p2, pc);
+				break;
+			}				
 			a = brcom(a);
+		}
 
 		// make simplest on right
 		if(nl->op == OLITERAL || nl->ullman < nr->ullman) {
@@ -888,6 +899,14 @@ bgen(Node *n, int true, Prog *to)
 		}
 
 		if(isfloat[nr->type->etype]) {
+			a = brrev(a);	// because the args are stacked
+			if(a == OGE || a == OGT) {
+				// only < and <= work right with NaN; reverse if needed
+				r = nr;
+				nr = nl;
+				nl = r;
+				a = brrev(a);
+			}
 			nodreg(&tmp, nr->type, D_F0);
 			nodreg(&n2, nr->type, D_F0 + 1);
 			nodreg(&ax, types[TUINT16], D_AX);
@@ -915,7 +934,19 @@ bgen(Node *n, int true, Prog *to)
 			}
 			gins(AFSTSW, N, &ax);
 			gins(ASAHF, N, N);
-			patch(gbranch(optoas(brrev(a), nr->type), T), to);
+			if(a == OEQ) {
+				// neither NE nor P
+				p1 = gbranch(AJNE, T);
+				p2 = gbranch(AJPS, T);
+				patch(gbranch(AJMP, T), to);
+				patch(p1, pc);
+				patch(p2, pc);
+			} else if(a == ONE) {
+				// either NE or P
+				patch(gbranch(AJNE, T), to);
+				patch(gbranch(AJPS, T), to);
+			} else
+				patch(gbranch(optoas(a, nr->type), T), to);
 			break;
 		}
 
@@ -941,21 +972,14 @@ bgen(Node *n, int true, Prog *to)
 		a = optoas(a, nr->type);
 
 		if(nr->ullman >= UINF) {
+			tempalloc(&n1, nl->type);
 			tempalloc(&tmp, nr->type);
 			cgen(nr, &tmp);
-
-			tempalloc(&n1, nl->type);
 			cgen(nl, &n1);
-
 			regalloc(&n2, nr->type, N);
 			cgen(&tmp, &n2);
-
-			gins(optoas(OCMP, nr->type), &n1, &n2);
-			patch(gbranch(a, nr->type), to);
-			tempfree(&n1);
 			tempfree(&tmp);
-			regfree(&n2);
-			break;
+			goto cmp;
 		}
 
 		tempalloc(&n1, nl->type);
@@ -974,6 +998,7 @@ bgen(Node *n, int true, Prog *to)
 		gmove(&tmp, &n2);
 		tempfree(&tmp);
 
+cmp:
 		gins(optoas(OCMP, nr->type), &n1, &n2);
 		patch(gbranch(a, nr->type), to);
 		regfree(&n2);
