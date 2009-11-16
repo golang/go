@@ -898,11 +898,11 @@ bgen(Node *n, int true, Prog *to)
 		if(!true) {
 			if(isfloat[nl->type->etype]) {
 				// brcom is not valid on floats when NaN is involved.
-				p1 = gbranch(AJMP, T);
-				p2 = gbranch(AJMP, T);
+				p1 = gbranch(AB, T);
+				p2 = gbranch(AB, T);
 				patch(p1, pc);
 				bgen(n, 1, p2);
-				patch(gbranch(AJMP, T), to);
+				patch(gbranch(AB, T), to);
 				patch(p2, pc);
 				goto ret;
 			}				
