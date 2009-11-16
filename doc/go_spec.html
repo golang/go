@@ -694,17 +694,19 @@ new([100]int)[0:50]
 <h3 id="Struct_types">Struct types</h3>
 
 <p>
-A struct is a sequence of named
-elements, called fields, with various types. A struct type declares
-an identifier and type for each field. Within a struct, non-<a href="#Blank_identifier">blank</a>
-field identifiers must be unique.
+A struct is a sequence of named elements, called fields, each of which has a
+name and a type. Field names may be specified explicitly (IdentifierList) or
+implicitly (AnonymousField).
+Within a struct, non-<a href="#Blank_identifier">blank</a> field names must
+be unique.
 </p>
 
 <pre class="ebnf">
-StructType = "struct" "{" [ FieldDeclList ] "}" .
-FieldDeclList = FieldDecl { ";" FieldDecl } [ ";" ] .
-FieldDecl = (IdentifierList Type | [ "*" ] TypeName) [ Tag ] .
-Tag = StringLit .
+StructType     = "struct" "{" [ FieldDeclList ] "}" .
+FieldDeclList  = FieldDecl { ";" FieldDecl } [ ";" ] .
+FieldDecl      = (IdentifierList Type | AnonymousField) [ Tag ] .
+AnonymousField = [ "*" ] TypeName .
+Tag            = StringLit .
 </pre>
 
 <pre>
@@ -722,28 +724,27 @@ struct {
 </pre>
 
 <p>
-A field declared with a type but no field identifier is an <i>anonymous field</i>.
+A field declared with a type but no explicit field name is an <i>anonymous field</i>.
 Such a field type must be specified as
 a type name <code>T</code> or as a pointer to a type name <code>*T</code>,
 and <code>T</code> itself may not be
-a pointer type. The unqualified type name acts as the field identifier.
+a pointer type. The unqualified type name acts as the field name.
 </p>
 
 <pre>
 // A struct with four anonymous fields of type T1, *T2, P.T3 and *P.T4
 struct {
-	T1;        // the field name is T1
-	*T2;       // the field name is T2
-	P.T3;      // the field name is T3
-	*P.T4;     // the field name is T4
-	x, y int;
+	T1;        // field name is T1
+	*T2;       // field name is T2
+	P.T3;      // field name is T3
+	*P.T4;     // field name is T4
+	x, y int;  // field names are x and y
 }
 </pre>
 
 <p>
-The unqualified type name of an anonymous field must be distinct from the
-field identifier (or unqualified type name for an anonymous field) of every
-other field within the struct. The following declaration is illegal:
+The following declaration is illegal because field names must be unique
+in a struct type:
 </p>
 
 <pre>
@@ -778,7 +779,7 @@ a type named <code>T</code>:
 </ul>
 <p>
 A field declaration may be followed by an optional string literal <i>tag</i>,
-which becomes an attribute for all the identifiers in the corresponding
+which becomes an attribute for all the fields in the corresponding
 field declaration. The tags are made
 visible through a <a href="#Package_unsafe">reflection interface</a>
 but are otherwise ignored.
@@ -1915,6 +1916,8 @@ constant key value.
 For struct literals the following rules apply:
 </p>
 <ul>
+	<li>A key must be a field name declared in the LiteralType.
+	</li>
 	<li>A literal that does not contain any keys must
 	    list an element for each struct field in the
 	    order in which the fields are declared.
