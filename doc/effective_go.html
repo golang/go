@@ -639,7 +639,7 @@ have the corresponding type in each clause.
 <pre>
 switch t := interfaceValue.(type) {
 default:
-	fmt.Printf("unexpected type %T", type);  // %T prints type
+	fmt.Printf("unexpected type %T", t);  // %T prints type
 case bool:
 	fmt.Printf("boolean %t\n", t);
 case int:
