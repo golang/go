@@ -20,8 +20,8 @@ close(da float64, ia, ib int64, pow int) bool
 	db := float64(ia) / float64(ib);
 	db *= pow10(pow);
 
-	if da == 0 {
-		if db == 0 {
+	if da == 0 || db == 0 {
+		if da == 0 && db == 0 {
 			return true;
 		}
 		return false;
@@ -59,8 +59,8 @@ main()
 	if !close(-210e3, -210, 1, 3) { print("-210e3 is ", -210e3, "\n"); }
 
 	if !close(0E-1, 0, 1, 0) { print("0E-1 is ", 0E-1, "\n"); }
-	if !close(+0e23, 0, 1, 23) { print("+0e23 is ", +0e23, "\n"); }
-	if !close(-0e345, 0, 1, 345) { print("-0e345 is ", -0e345, "\n"); }
+	if !close(+0e23, 0, 1, 1) { print("+0e23 is ", +0e23, "\n"); }
+	if !close(-0e345, 0, 1, 1) { print("-0e345 is ", -0e345, "\n"); }
 
 	if !close(0E1, 0, 1, 1) { print("0E1 is ", 0E1, "\n"); }
 	if !close(+10e23, 10, 1, 23) { print("+10e23 is ", +10e23, "\n"); }

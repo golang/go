@@ -668,7 +668,7 @@ void
 bgen(Node *n, int true, Prog *to)
 {
 	int et, a;
-	Node *nl, *nr, *r;
+	Node *nl, *nr, *l, *r;
 	Node n1, n2, tmp;
 	Prog *p1, *p2;
 
@@ -782,8 +782,19 @@ bgen(Node *n, int true, Prog *to)
 	case OLE:
 	case OGE:
 		a = n->op;
-		if(!true)
+		if(!true) {
+			if(isfloat[nr->type->etype]) {
+				// brcom is not valid on floats when NaN is involved.
+				p1 = gbranch(AJMP, T);
+				p2 = gbranch(AJMP, T);
+				patch(p1, pc);
+				bgen(n, 1, p2);
+				patch(gbranch(AJMP, T), to);
+				patch(p2, pc);
+				goto ret;
+			}				
 			a = brcom(a);
+		}
 
 		// make simplest on right
 		if(nl->op == OLITERAL || nl->ullman < nr->ullman) {
@@ -792,7 +803,7 @@ bgen(Node *n, int true, Prog *to)
 			nl = nr;
 			nr = r;
 		}
-
+		
 		if(isslice(nl->type)) {
 			// only valid to cmp darray to literal nil
 			if((a != OEQ && a != ONE) || nr->op != OLITERAL) {
@@ -831,8 +842,6 @@ bgen(Node *n, int true, Prog *to)
 			break;
 		}
 
-		a = optoas(a, nr->type);
-
 		if(nr->ullman >= UINF) {
 			regalloc(&n1, nr->type, N);
 			cgen(nr, &n1);
@@ -847,12 +856,7 @@ bgen(Node *n, int true, Prog *to)
 			regalloc(&n2, nr->type, &n2);
 			cgen(&tmp, &n2);
 
-			gins(optoas(OCMP, nr->type), &n1, &n2);
-			patch(gbranch(a, nr->type), to);
-
-			regfree(&n1);
-			regfree(&n2);
-			break;
+			goto cmp;
 		}
 
 		regalloc(&n1, nl->type, N);
@@ -860,17 +864,40 @@ bgen(Node *n, int true, Prog *to)
 
 		if(smallintconst(nr)) {
 			gins(optoas(OCMP, nr->type), &n1, nr);
-			patch(gbranch(a, nr->type), to);
+			patch(gbranch(optoas(a, nr->type), nr->type), to);
 			regfree(&n1);
 			break;
 		}
 
 		regalloc(&n2, nr->type, N);
 		cgen(nr, &n2);
+	cmp:
+		// only < and <= work right with NaN; reverse if needed
+		l = &n1;
+		r = &n2;
+		if(isfloat[nl->type->etype] && (a == OGT || a == OGE)) {
+			l = &n2;
+			r = &n1;
+			a = brrev(a);
+		}
 
-		gins(optoas(OCMP, nr->type), &n1, &n2);
-		patch(gbranch(a, nr->type), to);
+		gins(optoas(OCMP, nr->type), l, r);
 
+		if(isfloat[nr->type->etype] && (n->op == OEQ || n->op == ONE)) {
+			if(n->op == OEQ) {
+				// neither NE nor P
+				p1 = gbranch(AJNE, T);
+				p2 = gbranch(AJPS, T);
+				patch(gbranch(AJMP, T), to);
+				patch(p1, pc);
+				patch(p2, pc);
+			} else {
+				// either NE or P
+				patch(gbranch(AJNE, T), to);
+				patch(gbranch(AJPS, T), to);
+			}
+		} else
+			patch(gbranch(optoas(a, nr->type), nr->type), to);
 		regfree(&n1);
 		regfree(&n2);
 		break;

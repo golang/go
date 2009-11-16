@@ -895,8 +895,19 @@ bgen(Node *n, int true, Prog *to)
 	case OLE:
 	case OGE:
 		a = n->op;
-		if(!true)
+		if(!true) {
+			if(isfloat[nl->type->etype]) {
+				// brcom is not valid on floats when NaN is involved.
+				p1 = gbranch(AJMP, T);
+				p2 = gbranch(AJMP, T);
+				patch(p1, pc);
+				bgen(n, 1, p2);
+				patch(gbranch(AJMP, T), to);
+				patch(p2, pc);
+				goto ret;
+			}				
 			a = brcom(a);
+		}
 
 		// make simplest on right
 		if(nl->op == OLITERAL || nl->ullman < nr->ullman) {
