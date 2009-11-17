@@ -235,19 +235,15 @@ func (enc *Encoder) send() {
 	enc.w.Write(enc.buf[0:total]);
 }
 
-func (enc *Encoder) sendType(origt reflect.Type, topLevel bool) {
+func (enc *Encoder) sendType(origt reflect.Type) {
 	// Drill down to the base type.
 	rt, _ := indirect(origt);
 
 	// We only send structs - everything else is basic or an error
-	switch rt.(type) {
+	switch rt := rt.(type) {
 	default:
-		// Basic types do not need to be described, but if this is a top-level
-		// type, it's a user error, at least for now.
-		if topLevel {
-			enc.badType(rt)
-		}
-		return;
+		// Basic types do not need to be described.
+		return
 	case *reflect.StructType:
 		// Structs do need to be described.
 		break
@@ -255,10 +251,9 @@ func (enc *Encoder) sendType(origt reflect.Type, topLevel bool) {
 		// Probably a bad field in a struct.
 		enc.badType(rt);
 		return;
-	case *reflect.ArrayType, *reflect.SliceType:
-		// Array and slice types are not sent, only their element types.
-		// If we see one here it's user error; probably a bad top-level value.
-		enc.badType(rt);
+	// Array and slice types are not sent, only their element types.
+	case reflect.ArrayOrSliceType:
+		enc.sendType(rt.Elem());
 		return;
 	}
 
@@ -289,7 +284,7 @@ func (enc *Encoder) sendType(origt reflect.Type, topLevel bool) {
 	// Now send the inner types
 	st := rt.(*reflect.StructType);
 	for i := 0; i < st.NumField(); i++ {
-		enc.sendType(st.Field(i).Type, false)
+		enc.sendType(st.Field(i).Type)
 	}
 	return;
 }
@@ -301,6 +296,12 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 		panicln("Encoder: buffer not empty")
 	}
 	rt, _ := indirect(reflect.Typeof(e));
+	// Must be a struct
+	if _, ok := rt.(*reflect.StructType); !ok {
+		enc.badType(rt);
+		return enc.state.err;
+	}
+
 
 	// Make sure we're single-threaded through here.
 	enc.mutex.Lock();
@@ -310,7 +311,7 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 	// First, have we already sent this type?
 	if _, alreadySent := enc.sent[rt]; !alreadySent {
 		// No, so send it.
-		enc.sendType(rt, true);
+		enc.sendType(rt);
 		if enc.state.err != nil {
 			enc.state.b.Reset();
 			enc.countState.b.Reset();
