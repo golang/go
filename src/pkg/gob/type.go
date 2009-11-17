@@ -48,6 +48,7 @@ type gobType interface {
 
 var types = make(map[reflect.Type]gobType)
 var idToType = make(map[typeId]gobType)
+var builtinIdToType map[typeId]gobType	// set in init() after builtins are established
 
 func setTypeId(typ gobType) {
 	nextId++;
@@ -104,6 +105,10 @@ func init() {
 	checkId(8, getTypeInfoNoError(reflect.Typeof(structType{})).id);
 	checkId(9, getTypeInfoNoError(reflect.Typeof(commonType{})).id);
 	checkId(10, getTypeInfoNoError(reflect.Typeof(fieldType{})).id);
+	builtinIdToType = make(map[typeId]gobType);
+	for k, v := range idToType {
+		builtinIdToType[k] = v
+	}
 }
 
 // Array type

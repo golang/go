@@ -37,7 +37,6 @@ var encodeT = []EncodeT{
 	EncodeT{1 << 63, []byte{0xF8, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
 }
 
-
 // Test basic encode/decode routines for unsigned integers
 func TestUintCodec(t *testing.T) {
 	b := new(bytes.Buffer);
@@ -592,9 +591,15 @@ func TestEndToEnd(t *testing.T) {
 		t: &T2{"this is T2"},
 	};
 	b := new(bytes.Buffer);
-	encode(b, t1);
+	err := NewEncoder(b).Encode(t1);
+	if err != nil {
+		t.Error("encode:", err)
+	}
 	var _t1 T1;
-	decode(b, getTypeInfoNoError(reflect.Typeof(_t1)).id, &_t1);
+	err = NewDecoder(b).Decode(&_t1);
+	if err != nil {
+		t.Fatal("decode:", err)
+	}
 	if !reflect.DeepEqual(t1, &_t1) {
 		t.Errorf("encode expected %v got %v", *t1, _t1)
 	}
@@ -610,8 +615,9 @@ func TestOverflow(t *testing.T) {
 	}
 	var it inputT;
 	var err os.Error;
-	id := getTypeInfoNoError(reflect.Typeof(it)).id;
 	b := new(bytes.Buffer);
+	enc := NewEncoder(b);
+	dec := NewDecoder(b);
 
 	// int8
 	b.Reset();
@@ -623,8 +629,8 @@ func TestOverflow(t *testing.T) {
 		mini	int8;
 	}
 	var o1 outi8;
-	encode(b, it);
-	err = decode(b, id, &o1);
+	enc.Encode(it);
+	err = dec.Decode(&o1);
 	if err == nil || err.String() != `value for "maxi" out of range` {
 		t.Error("wrong overflow error for int8:", err)
 	}
@@ -632,8 +638,8 @@ func TestOverflow(t *testing.T) {
 		mini: math.MinInt8 - 1,
 	};
 	b.Reset();
-	encode(b, it);
-	err = decode(b, id, &o1);
+	enc.Encode(it);
+	err = dec.Decode(&o1);
 	if err == nil || err.String() != `value for "mini" out of range` {
 		t.Error("wrong underflow error for int8:", err)
 	}
@@ -648,8 +654,8 @@ func TestOverflow(t *testing.T) {
 		mini	int16;
 	}
 	var o2 outi16;
-	encode(b, it);
-	err = decode(b, id, &o2);
+	enc.Encode(it);
+	err = dec.Decode(&o2);
 	if err == nil || err.String() != `value for "maxi" out of range` {
 		t.Error("wrong overflow error for int16:", err)
 	}
@@ -657,8 +663,8 @@ func TestOverflow(t *testing.T) {
 		mini: math.MinInt16 - 1,
 	};
 	b.Reset();
-	encode(b, it);
-	err = decode(b, id, &o2);
+	enc.Encode(it);
+	err = dec.Decode(&o2);
 	if err == nil || err.String() != `value for "mini" out of range` {
 		t.Error("wrong underflow error for int16:", err)
 	}
@@ -673,8 +679,8 @@ func TestOverflow(t *testing.T) {
 		mini	int32;
 	}
 	var o3 outi32;
-	encode(b, it);
-	err = decode(b, id, &o3);
+	enc.Encode(it);
+	err = dec.Decode(&o3);
 	if err == nil || err.String() != `value for "maxi" out of range` {
 		t.Error("wrong overflow error for int32:", err)
 	}
@@ -682,8 +688,8 @@ func TestOverflow(t *testing.T) {
 		mini: math.MinInt32 - 1,
 	};
 	b.Reset();
-	encode(b, it);
-	err = decode(b, id, &o3);
+	enc.Encode(it);
+	err = dec.Decode(&o3);
 	if err == nil || err.String() != `value for "mini" out of range` {
 		t.Error("wrong underflow error for int32:", err)
 	}
@@ -697,8 +703,8 @@ func TestOverflow(t *testing.T) {
 		maxu uint8;
 	}
 	var o4 outu8;
-	encode(b, it);
-	err = decode(b, id, &o4);
+	enc.Encode(it);
+	err = dec.Decode(&o4);
 	if err == nil || err.String() != `value for "maxu" out of range` {
 		t.Error("wrong overflow error for uint8:", err)
 	}
@@ -712,8 +718,8 @@ func TestOverflow(t *testing.T) {
 		maxu uint16;
 	}
 	var o5 outu16;
-	encode(b, it);
-	err = decode(b, id, &o5);
+	enc.Encode(it);
+	err = dec.Decode(&o5);
 	if err == nil || err.String() != `value for "maxu" out of range` {
 		t.Error("wrong overflow error for uint16:", err)
 	}
@@ -727,8 +733,8 @@ func TestOverflow(t *testing.T) {
 		maxu uint32;
 	}
 	var o6 outu32;
-	encode(b, it);
-	err = decode(b, id, &o6);
+	enc.Encode(it);
+	err = dec.Decode(&o6);
 	if err == nil || err.String() != `value for "maxu" out of range` {
 		t.Error("wrong overflow error for uint32:", err)
 	}
@@ -743,8 +749,8 @@ func TestOverflow(t *testing.T) {
 		minf	float32;
 	}
 	var o7 outf32;
-	encode(b, it);
-	err = decode(b, id, &o7);
+	enc.Encode(it);
+	err = dec.Decode(&o7);
 	if err == nil || err.String() != `value for "maxf" out of range` {
 		t.Error("wrong overflow error for float32:", err)
 	}
@@ -761,9 +767,13 @@ func TestNesting(t *testing.T) {
 	rt.next = new(RT);
 	rt.next.a = "level2";
 	b := new(bytes.Buffer);
-	encode(b, rt);
+	NewEncoder(b).Encode(rt);
 	var drt RT;
-	decode(b, getTypeInfoNoError(reflect.Typeof(drt)).id, &drt);
+	dec := NewDecoder(b);
+	err := dec.Decode(&drt);
+	if err != nil {
+		t.Errorf("decoder error:", err)
+	}
 	if drt.a != rt.a {
 		t.Errorf("nesting: encode expected %v got %v", *rt, drt)
 	}
@@ -809,10 +819,11 @@ func TestAutoIndirection(t *testing.T) {
 	**t1.d = new(int);
 	***t1.d = 17777;
 	b := new(bytes.Buffer);
-	encode(b, t1);
+	enc := NewEncoder(b);
+	enc.Encode(t1);
+	dec := NewDecoder(b);
 	var t0 T0;
-	t0Id := getTypeInfoNoError(reflect.Typeof(t0)).id;
-	decode(b, t0Id, &t0);
+	dec.Decode(&t0);
 	if t0.a != 17 || t0.b != 177 || t0.c != 1777 || t0.d != 17777 {
 		t.Errorf("t1->t0: expected {17 177 1777 17777}; got %v", t0)
 	}
@@ -830,9 +841,9 @@ func TestAutoIndirection(t *testing.T) {
 	**t2.a = new(int);
 	***t2.a = 17;
 	b.Reset();
-	encode(b, t2);
+	enc.Encode(t2);
 	t0 = T0{};
-	decode(b, t0Id, &t0);
+	dec.Decode(&t0);
 	if t0.a != 17 || t0.b != 177 || t0.c != 1777 || t0.d != 17777 {
 		t.Errorf("t2->t0 expected {17 177 1777 17777}; got %v", t0)
 	}
@@ -840,32 +851,30 @@ func TestAutoIndirection(t *testing.T) {
 	// Now transfer t0 into t1
 	t0 = T0{17, 177, 1777, 17777};
 	b.Reset();
-	encode(b, t0);
+	enc.Encode(t0);
 	t1 = T1{};
-	t1Id := getTypeInfoNoError(reflect.Typeof(t1)).id;
-	decode(b, t1Id, &t1);
+	dec.Decode(&t1);
 	if t1.a != 17 || *t1.b != 177 || **t1.c != 1777 || ***t1.d != 17777 {
 		t.Errorf("t0->t1 expected {17 177 1777 17777}; got {%d %d %d %d}", t1.a, *t1.b, **t1.c, ***t1.d)
 	}
 
 	// Now transfer t0 into t2
 	b.Reset();
-	encode(b, t0);
+	enc.Encode(t0);
 	t2 = T2{};
-	t2Id := getTypeInfoNoError(reflect.Typeof(t2)).id;
-	decode(b, t2Id, &t2);
+	dec.Decode(&t2);
 	if ***t2.a != 17 || **t2.b != 177 || *t2.c != 1777 || t2.d != 17777 {
 		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.a, **t2.b, *t2.c, t2.d)
 	}
 
 	// Now do t2 again but without pre-allocated pointers.
 	b.Reset();
-	encode(b, t0);
+	enc.Encode(t0);
 	***t2.a = 0;
 	**t2.b = 0;
 	*t2.c = 0;
 	t2.d = 0;
-	decode(b, t2Id, &t2);
+	dec.Decode(&t2);
 	if ***t2.a != 17 || **t2.b != 177 || *t2.c != 1777 || t2.d != 17777 {
 		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.a, **t2.b, *t2.c, t2.d)
 	}
@@ -889,11 +898,14 @@ func TestReorderedFields(t *testing.T) {
 	rt0.b = "hello";
 	rt0.c = 3.14159;
 	b := new(bytes.Buffer);
-	encode(b, rt0);
-	rt0Id := getTypeInfoNoError(reflect.Typeof(rt0)).id;
+	NewEncoder(b).Encode(rt0);
+	dec := NewDecoder(b);
 	var rt1 RT1;
 	// Wire type is RT0, local type is RT1.
-	decode(b, rt0Id, &rt1);
+	err := dec.Decode(&rt1);
+	if err != nil {
+		t.Error("decode error:", err)
+	}
 	if rt0.a != rt1.a || rt0.b != rt1.b || rt0.c != rt1.c {
 		t.Errorf("rt1->rt0: expected %v; got %v", rt0, rt1)
 	}
@@ -927,11 +939,11 @@ func TestIgnoredFields(t *testing.T) {
 	it0.ignore_i = &RT1{3.1, "hi", 7, "hello"};
 
 	b := new(bytes.Buffer);
-	encode(b, it0);
-	rt0Id := getTypeInfoNoError(reflect.Typeof(it0)).id;
+	NewEncoder(b).Encode(it0);
+	dec := NewDecoder(b);
 	var rt1 RT1;
 	// Wire type is IT0, local type is RT1.
-	err := decode(b, rt0Id, &rt1);
+	err := dec.Decode(&rt1);
 	if err != nil {
 		t.Error("error: ", err)
 	}

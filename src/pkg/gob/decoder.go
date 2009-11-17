@@ -8,17 +8,20 @@ import (
 	"bytes";
 	"io";
 	"os";
+	"reflect";
 	"sync";
 )
 
 // A Decoder manages the receipt of type and data information read from the
 // remote side of a connection.
 type Decoder struct {
-	mutex		sync.Mutex;		// each item must be received atomically
-	r		io.Reader;		// source of the data
-	seen		map[typeId]*wireType;	// which types we've already seen described
-	state		*decodeState;		// reads data from in-memory buffer
-	countState	*decodeState;		// reads counts from wire
+	mutex		sync.Mutex;					// each item must be received atomically
+	r		io.Reader;					// source of the data
+	wireType	map[typeId]*wireType;				// map from remote ID to local description
+	decoderCache	map[reflect.Type]map[typeId]**decEngine;	// cache of compiled engines
+	ignorerCache	map[typeId]**decEngine;				// ditto for ignored objects
+	state		*decodeState;					// reads data from in-memory buffer
+	countState	*decodeState;					// reads counts from wire
 	buf		[]byte;
 	oneByte		[]byte;
 }
@@ -27,8 +30,10 @@ type Decoder struct {
 func NewDecoder(r io.Reader) *Decoder {
 	dec := new(Decoder);
 	dec.r = r;
-	dec.seen = make(map[typeId]*wireType);
+	dec.wireType = make(map[typeId]*wireType);
 	dec.state = newDecodeState(nil);	// buffer set in Decode(); rest is unimportant
+	dec.decoderCache = make(map[reflect.Type]map[typeId]**decEngine);
+	dec.ignorerCache = make(map[typeId]**decEngine);
 	dec.oneByte = make([]byte, 1);
 
 	return dec;
@@ -36,16 +41,16 @@ func NewDecoder(r io.Reader) *Decoder {
 
 func (dec *Decoder) recvType(id typeId) {
 	// Have we already seen this type?  That's an error
-	if _, alreadySeen := dec.seen[id]; alreadySeen {
+	if _, alreadySeen := dec.wireType[id]; alreadySeen {
 		dec.state.err = os.ErrorString("gob: duplicate type received");
 		return;
 	}
 
 	// Type:
 	wire := new(wireType);
-	decode(dec.state.b, tWireType, wire);
+	dec.state.err = dec.decode(tWireType, wire);
 	// Remember we've seen this type.
-	dec.seen[id] = wire;
+	dec.wireType[id] = wire;
 }
 
 // Decode reads the next value from the connection and stores
@@ -97,7 +102,13 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
 		}
 
 		// No, it's a value.
-		dec.state.err = decode(dec.state.b, id, e);
+		// Make sure the type has been defined already.
+		_, ok := dec.wireType[id];
+		if !ok {
+			dec.state.err = errBadType;
+			break;
+		}
+		dec.state.err = dec.decode(id, e);
 		break;
 	}
 	return dec.state.err;
