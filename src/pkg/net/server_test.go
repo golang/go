@@ -116,7 +116,7 @@ func runPacket(t *testing.T, network, addr string, listening chan<- string, done
 	var buf [1000]byte;
 	for {
 		n, addr, err := c.ReadFrom(&buf);
-		if err == os.EAGAIN {
+		if isEAGAIN(err) {
 			if done <- 1 {
 				break
 			}
