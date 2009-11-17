@@ -201,6 +201,33 @@ Finally, concurrency aside, garbage collection makes interfaces
 simpler because they don't need to specify how memory is managed across them.
 </p>
 
+<h2 id="unicode_identifiers">What's up with Unicode identifiers?</h2>
+
+<p>
+It was important to us to extend the space of identifiers from the
+confines of ASCII.  Go's rule&mdash;identifier characters must be
+letters or digits as defined by Unicode&mdash;is simple to understand
+and to implement but has restrictions.  Combining characters are
+excluded by design, for instance.
+Until there
+is an agreed external definition of what an identifier might be,
+plus a definition of canonicalization of identifiers that guarantees
+no ambiguity, it seemed better to keep combining characters out of
+the mix.  Thus we have a simple rule that can be expanded later
+without breaking programs, one that avoids bugs that would surely arise
+from a rule that admits ambiguous identifiers.
+</p>
+
+<p>
+On a related note, since an exported identifier must begin with an
+upper-case letter, identifiers created from &ldquo;letters&rdquo;
+in some languages can, by definition, not be exported.  For now the
+only solution is to use something like <code>X日本語</code>, which
+is clearly unsatisfactory; we are considering other options.  The
+case-for-visibility rule is unlikely to change however; it's one
+of our favorite features of Go.
+</p>
+
 <h2 id="absent_features">Absent features</h2>
 
 <h3 id="generics">
