@@ -17,7 +17,7 @@ uint32	mach_thread_self(void);
 uint32	mach_thread_self(void);
 
 struct Sigaction;
-void	sigaction(int64, struct Sigaction*, struct Sigaction*);
+void	sigaction(uintptr, struct Sigaction*, struct Sigaction*);
 
 struct StackT;
 void	sigaltstack(struct StackT*, struct StackT*);
