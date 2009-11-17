@@ -276,7 +276,9 @@ func sendResponse(sending *sync.Mutex, req *Request, reply interface{}, enc *gob
 	resp := new(Response);
 	// Encode the response header
 	resp.ServiceMethod = req.ServiceMethod;
-	resp.Error = errmsg;
+	if errmsg != "" {
+		resp.Error = errmsg
+	}
 	resp.Seq = req.Seq;
 	sending.Lock();
 	enc.Encode(resp);
