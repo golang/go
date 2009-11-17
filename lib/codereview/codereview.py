@@ -1421,6 +1421,8 @@ def MySend(request_path, payload=None,
           f = self.opener.open(req)
           response = f.read()
           f.close()
+          # Translate \r\n into \n, because Rietveld doesn't.
+          response = response.replace('\r\n', '\n')
           return response
         except urllib2.HTTPError, e:
           if tries > 3:
