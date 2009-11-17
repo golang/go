@@ -83,7 +83,12 @@ func (client *Client) input() {
 		client.pending[seq] = c, false;
 		client.mutex.Unlock();
 		err = client.dec.Decode(c.Reply);
-		c.Error = os.ErrorString(response.Error);
+		// Empty strings should turn into nil os.Errors
+		if response.Error != "" {
+			c.Error = os.ErrorString(response.Error)
+		} else {
+			c.Error = nil
+		}
 		// We don't want to block here.  It is the caller's responsibility to make
 		// sure the channel has enough buffer space. See comment in Go().
 		_ = c.Done <- c;	// do not block
