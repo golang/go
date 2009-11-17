@@ -329,14 +329,38 @@ evconst(Node *n)
 	Val v;
 	Mpint b;
 
+	// pick off just the opcodes that can be
+	// constant evaluated.
 	switch(n->op) {
-	case OMAKE:
-	case OMAKEMAP:
-	case OMAKESLICE:
-	case OMAKECHAN:
-	case ODCLCONST:
-	case OCONVIFACE:
+	default:
 		return;
+	case OADD:
+	case OADDSTR:
+	case OAND:
+	case OANDAND:
+	case OANDNOT:
+	case OARRAYBYTESTR:
+	case OCOM:
+	case OCONV:
+	case ODIV:
+	case OEQ:
+	case OGE:
+	case OGT:
+	case OLE:
+	case OLSH:
+	case OLT:
+	case OMINUS:
+	case OMOD:
+	case OMUL:
+	case ONE:
+	case ONOT:
+	case OOR:
+	case OOROR:
+	case OPLUS:
+	case ORSH:
+	case OSUB:
+	case OXOR:
+		break;
 	}
 
 	nl = n->left;
