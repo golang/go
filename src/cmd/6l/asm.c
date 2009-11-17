@@ -38,6 +38,7 @@
 #define PADDR(a)	((uint32)(a) & ~0x80000000)
 
 char linuxdynld[] = "/lib64/ld-linux-x86-64.so.2";
+char freebsddynld[] = "/libexec/ld-elf.so.1";
 
 char	zeroes[32];
 
@@ -284,7 +285,7 @@ doelf(void)
 	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
 	int h, nsym, t;
 
-	if(HEADTYPE != 7)
+	if(HEADTYPE != 7 && HEADTYPE != 9)
 		return;
 
 	/* predefine strings we need for section headers */
@@ -317,7 +318,14 @@ doelf(void)
 		s = lookup(".interp", 0);
 		s->reachable = 1;
 		s->type = SDATA;	// TODO: rodata
-		addstring(lookup(".interp", 0), linuxdynld);
+		switch(HEADTYPE) {
+		case 7:
+			addstring(lookup(".interp", 0), linuxdynld);
+			break;
+		case 9:
+			addstring(lookup(".interp", 0), freebsddynld);
+			break;
+		}
 
 		/*
 		 * hash table.
@@ -512,6 +520,7 @@ asmb(void)
 		break;
 
 	case 7:
+	case 9:
 		debug['8'] = 1;	/* 64-bit addresses */
 		v = rnd(HEADR+textsize, INITRND);
 		seek(cout, v, 0);
@@ -565,6 +574,7 @@ asmb(void)
 			symo = rnd(HEADR+textsize, INITRND)+rnd(datsize, INITRND)+machlink;
 			break;
 		case 7:
+		case 9:
 			symo = rnd(HEADR+textsize, INITRND)+datsize;
 			symo = rnd(symo, INITRND);
 			break;
@@ -649,6 +659,7 @@ asmb(void)
 		asmbmacho(symdatva, symo);
 		break;
 	case 7:
+	case 9:
 		/* elf amd-64 */
 
 		eh = getElfEhdr();
@@ -871,6 +882,8 @@ asmb(void)
 		eh->ident[EI_MAG1] = 'E';
 		eh->ident[EI_MAG2] = 'L';
 		eh->ident[EI_MAG3] = 'F';
+		if(HEADTYPE == 9)
+			eh->ident[EI_OSABI] = 9;
 		eh->ident[EI_CLASS] = ELFCLASS64;
 		eh->ident[EI_DATA] = ELFDATA2LSB;
 		eh->ident[EI_VERSION] = EV_CURRENT;

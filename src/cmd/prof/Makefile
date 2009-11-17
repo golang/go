@@ -24,6 +24,7 @@ clean:
 
 install: install-$(shell uname | tr A-Z a-z)
 install-linux: install-default
+install-freebsd: install-default
 
 # on Darwin, have to install and setgid; see $GOROOT/src/sudo.bash
 install-darwin: $(TARG)

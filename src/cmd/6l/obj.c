@@ -46,6 +46,7 @@ char*	paramspace	= "FP";
  *	-H5 -T0x80110000 -R4096		is ELF32
  *	-H6 -Tx -Rx			is apple MH-exec
  *	-H7 -Tx -Rx			is linux elf-exec
+ *      -H9 -Tx -Rx			is FreeBSD elf-exec
  *
  *	options used: 189BLQSWabcjlnpsvz
  */
@@ -149,6 +150,10 @@ main(int argc, char *argv[])
 		if(strcmp(goos, "darwin") == 0)
 			HEADTYPE = 6;
 		else
+		if(strcmp(goos, "freebsd") == 0) {
+			debug['d'] = 1;	/* no dynamic syms for now */
+			HEADTYPE = 9;
+		} else
 			print("goos is not known: %s\n", goos);
 	}
 
@@ -194,6 +199,7 @@ main(int argc, char *argv[])
 			INITDAT = 0;
 		break;
 	case 7:	/* elf64 executable */
+	case 9: /* freebsd */
 		elfinit();
 		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)

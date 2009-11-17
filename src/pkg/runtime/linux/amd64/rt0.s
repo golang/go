@@ -11,6 +11,7 @@ TEXT	_rt0_amd64_linux(SB),7,$-8
 	CALL	AX
 
 	MOVQ	$_rt0_amd64(SB), AX
+	MOVQ	SP, DI
 	JMP	AX
 
 GLOBL initcgo(SB), $8
