@@ -10,19 +10,19 @@
 void
 dumpregs(Sigcontext *r)
 {
-	printf("eax     %X\n", r->eax);
-	printf("ebx     %X\n", r->ebx);
-	printf("ecx     %X\n", r->ecx);
-	printf("edx     %X\n", r->edx);
-	printf("edi     %X\n", r->edi);
-	printf("esi     %X\n", r->esi);
-	printf("ebp     %X\n", r->ebp);
-	printf("esp     %X\n", r->esp);
-	printf("eip     %X\n", r->eip);
-	printf("eflags  %X\n", r->eflags);
-	printf("cs      %X\n", r->cs);
-	printf("fs      %X\n", r->fs);
-	printf("gs      %X\n", r->gs);
+	printf("eax     %x\n", r->eax);
+	printf("ebx     %x\n", r->ebx);
+	printf("ecx     %x\n", r->ecx);
+	printf("edx     %x\n", r->edx);
+	printf("edi     %x\n", r->edi);
+	printf("esi     %x\n", r->esi);
+	printf("ebp     %x\n", r->ebp);
+	printf("esp     %x\n", r->esp);
+	printf("eip     %x\n", r->eip);
+	printf("eflags  %x\n", r->eflags);
+	printf("cs      %x\n", r->cs);
+	printf("fs      %x\n", r->fs);
+	printf("gs      %x\n", r->gs);
 }
 
 /*

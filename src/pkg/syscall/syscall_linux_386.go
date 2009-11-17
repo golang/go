@@ -125,7 +125,7 @@ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
 func recvfrom(s int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
 	var base uintptr;
 	if len(p) > 0 {
-		base = uintptr(unsafe.Pointer(&p))
+		base = uintptr(unsafe.Pointer(&p[0]))
 	}
 	n, errno = socketcall(_RECVFROM, uintptr(s), base, uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)));
 	return;
@@ -134,7 +134,7 @@ func recvfrom(s int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Sockle
 func sendto(s int, p []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
 	var base uintptr;
 	if len(p) > 0 {
-		base = uintptr(unsafe.Pointer(&p))
+		base = uintptr(unsafe.Pointer(&p[0]))
 	}
 	_, errno = socketcall(_SENDTO, uintptr(s), base, uintptr(len(p)), uintptr(flags), to, uintptr(addrlen));
 	return;
