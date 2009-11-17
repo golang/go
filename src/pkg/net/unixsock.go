@@ -243,10 +243,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (n int, addr *UnixAddr, err os.Error) 
 	if !c.ok() {
 		return 0, nil, os.EINVAL
 	}
-	n, sa, errno := syscall.Recvfrom(c.fd.fd, b, 0);
-	if errno != 0 {
-		err = os.Errno(errno)
-	}
+	n, sa, err := c.fd.ReadFrom(b);
 	switch sa := sa.(type) {
 	case *syscall.SockaddrUnix:
 		addr = &UnixAddr{sa.Name, c.fd.proto == syscall.SOCK_DGRAM}
@@ -281,10 +278,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (n int, err os.Error) {
 		return 0, os.EAFNOSUPPORT
 	}
 	sa := &syscall.SockaddrUnix{Name: addr.Name};
-	if errno := syscall.Sendto(c.fd.fd, b, 0, sa); errno != 0 {
-		return 0, os.Errno(errno)
-	}
-	return len(b), nil;
+	return c.fd.WriteTo(b, sa);
 }
 
 // WriteTo writes a packet to addr via c, copying the payload from b.

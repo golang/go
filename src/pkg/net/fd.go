@@ -372,6 +372,33 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 	return;
 }
 
+func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err os.Error) {
+	if fd == nil || fd.file == nil {
+		return 0, nil, os.EINVAL
+	}
+	fd.rio.Lock();
+	defer fd.rio.Unlock();
+	if fd.rdeadline_delta > 0 {
+		fd.rdeadline = pollserver.Now() + fd.rdeadline_delta
+	} else {
+		fd.rdeadline = 0
+	}
+	for {
+		var errno int;
+		n, sa, errno = syscall.Recvfrom(fd.fd, p, 0);
+		if errno == syscall.EAGAIN && fd.rdeadline >= 0 {
+			pollserver.WaitRead(fd);
+			continue;
+		}
+		if errno != 0 {
+			n = 0;
+			err = &os.PathError{"recvfrom", fd.file.Name(), os.Errno(errno)};
+		}
+		break;
+	}
+	return;
+}
+
 func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 	if fd == nil || fd.file == nil {
 		return 0, os.EINVAL
@@ -402,6 +429,35 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 		}
 	}
 	return nn, err;
+}
+
+func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
+	if fd == nil || fd.file == nil {
+		return 0, os.EINVAL
+	}
+	fd.wio.Lock();
+	defer fd.wio.Unlock();
+	if fd.wdeadline_delta > 0 {
+		fd.wdeadline = pollserver.Now() + fd.wdeadline_delta
+	} else {
+		fd.wdeadline = 0
+	}
+	err = nil;
+	for {
+		errno := syscall.Sendto(fd.fd, p, 0, sa);
+		if errno == syscall.EAGAIN && fd.wdeadline >= 0 {
+			pollserver.WaitWrite(fd);
+			continue;
+		}
+		if errno != 0 {
+			err = &os.PathError{"sendto", fd.file.Name(), os.Errno(errno)}
+		}
+		break;
+	}
+	if err == nil {
+		n = len(p)
+	}
+	return;
 }
 
 func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.Error) {

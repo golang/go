@@ -188,10 +188,7 @@ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err os.Error) {
 	if !c.ok() {
 		return 0, nil, os.EINVAL
 	}
-	n, sa, errno := syscall.Recvfrom(c.fd.fd, b, 0);
-	if errno != 0 {
-		err = os.Errno(errno)
-	}
+	n, sa, err := c.fd.ReadFrom(b);
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
 		addr = &UDPAddr{&sa.Addr, sa.Port}
@@ -228,10 +225,7 @@ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err os.Error) {
 	if err != nil {
 		return 0, err
 	}
-	if errno := syscall.Sendto(c.fd.fd, b, 0, sa); errno != 0 {
-		return 0, os.Errno(errno)
-	}
-	return len(b), nil;
+	return c.fd.WriteTo(b, sa);
 }
 
 // WriteTo writes a UDP packet with payload b to addr via c.
