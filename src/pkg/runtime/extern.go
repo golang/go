@@ -4,7 +4,9 @@
 
 /*
 	The runtime package contains operations that interact with Go's runtime system,
-	such as functions to control goroutines.
+	such as functions to control goroutines. It also includes the low-level type information
+	used by the reflect package; see reflect's documentation for the programmable
+	interface to the run-time type system.
 */
 package runtime
 
