@@ -86,6 +86,9 @@ func TestRPC(t *testing.T) {
 	args := &Args{7, 8};
 	reply := new(Reply);
 	err = client.Call("Arith.Add", args, reply);
+	if err != nil {
+		t.Errorf("Add: expected no error but got string %q", err.String())
+	}
 	if reply.C != args.A+args.B {
 		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
 	}
@@ -93,6 +96,9 @@ func TestRPC(t *testing.T) {
 	args = &Args{7, 8};
 	reply = new(Reply);
 	err = client.Call("Arith.Mul", args, reply);
+	if err != nil {
+		t.Errorf("Mul: expected no error but got string %q", err.String())
+	}
 	if reply.C != args.A*args.B {
 		t.Errorf("Mul: expected %d got %d", reply.C, args.A*args.B)
 	}
@@ -104,12 +110,18 @@ func TestRPC(t *testing.T) {
 	addReply := new(Reply);
 	addCall := client.Go("Arith.Add", args, addReply, nil);
 
-	<-addCall.Done;
+	addCall = <-addCall.Done;
+	if addCall.Error != nil {
+		t.Errorf("Add: expected no error but got string %q", addCall.Error.String())
+	}
 	if addReply.C != args.A+args.B {
 		t.Errorf("Add: expected %d got %d", addReply.C, args.A+args.B)
 	}
 
-	<-mulCall.Done;
+	mulCall = <-mulCall.Done;
+	if mulCall.Error != nil {
+		t.Errorf("Mul: expected no error but got string %q", mulCall.Error.String())
+	}
 	if mulReply.C != args.A*args.B {
 		t.Errorf("Mul: expected %d got %d", mulReply.C, args.A*args.B)
 	}
@@ -138,6 +150,9 @@ func TestHTTPRPC(t *testing.T) {
 	args := &Args{7, 8};
 	reply := new(Reply);
 	err = client.Call("Arith.Add", args, reply);
+	if err != nil {
+		t.Errorf("Add: expected no error but got string %q", err.String())
+	}
 	if reply.C != args.A+args.B {
 		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
 	}
