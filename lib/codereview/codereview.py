@@ -702,7 +702,7 @@ def change(ui, repo, *pats, **opts):
 		if opts["delete"]:
 			if cl.original_author:
 				return "original author must delete CL; hg change -D will remove locally"
-			PostMessage(cl.name, "*** Abandoned ***", send_mail="checked")
+			PostMessage(ui, cl.name, "*** Abandoned ***", send_mail="checked")
 			EditDesc(cl.name, closed="checked")
 		cl.Delete(ui, repo)
 		return
@@ -903,7 +903,7 @@ def mail(ui, repo, *pats, **opts):
 	pmsg += ",\n"
 	pmsg += "\n"
 	pmsg += "I'd like you to review the following change.\n"
-	PostMessage(cl.name, pmsg, send_mail="checked", subject=cl.Subject())
+	PostMessage(ui, cl.name, pmsg, send_mail="checked", subject=cl.Subject())
 
 def nocommit(ui, repo, *pats, **opts):
 	"""(disabled when using this extension)"""
@@ -1059,7 +1059,7 @@ def submit(ui, repo, *pats, **opts):
 	else:
 		print >>sys.stderr, "URL: ", url
 	pmsg = "*** Submitted as " + changeURL + " ***\n\n" + opts['message']
-	PostMessage(cl.name, pmsg, send_mail="checked")
+	PostMessage(ui, cl.name, pmsg, send_mail="checked")
 	if not cl.original_author:
 		EditDesc(cl.name, closed="checked")
 	cl.Delete(ui, repo)
@@ -1517,7 +1517,7 @@ def PostMessage1(issue, message, reviewers=None, cc=None, send_mail=None, subjec
 		print response
 		sys.exit(2)
 
-def PostMessage(issue, message, reviewers=None, cc=None, send_mail=None, subject=None):
+def PostMessage(ui, issue, message, reviewers=None, cc=None, send_mail=None, subject=None):
 	# When Rietveld is busy, it seems to throw off a lot of HTTP Error 500: Internal Server Error.
 	# Rather than abort, sleep and try again.
 	# Even if the second time fails, let the overall hg command keep going.
