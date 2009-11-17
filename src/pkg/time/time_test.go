@@ -14,7 +14,7 @@ func init() {
 	// Force US Pacific time for daylight-savings
 	// tests below (localtests).  Needs to be set
 	// before the first call into the time library.
-	os.Setenv("TZ", "US/Pacific")
+	os.Setenv("TZ", "America/Los_Angeles")
 }
 
 type TimeTest struct {

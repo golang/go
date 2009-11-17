@@ -18,6 +18,10 @@ import (
 // Unfortunately, we need to run on kernels built without IPv6 support too.
 // So probe the kernel to figure it out.
 func kernelSupportsIPv6() bool {
+	// FreeBSD does not support this sort of interface.
+	if syscall.OS == "freebsd" {
+		return false
+	}
 	fd, e := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP);
 	if fd >= 0 {
 		syscall.Close(fd)

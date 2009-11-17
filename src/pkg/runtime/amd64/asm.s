@@ -5,10 +5,9 @@
 #include "amd64/asm.h"
 
 TEXT	_rt0_amd64(SB),7,$-8
-
 	// copy arguments forward on an even stack
-	MOVQ	0(SP), AX		// argc
-	LEAQ	8(SP), BX		// argv
+	MOVQ	0(DI), AX		// argc
+	LEAQ	8(DI), BX		// argv
 	SUBQ	$(4*8+7), SP		// 2args 2auto
 	ANDQ	$~7, SP
 	MOVQ	AX, 16(SP)
