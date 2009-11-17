@@ -58,23 +58,34 @@ TEXT sigaction(SB),7,$0
 //	16(FP)	siginfo
 //	20(FP)	context
 TEXT sigtramp(SB),7,$40
+	// Darwin sets GS to 0x37 on entry.
+	// The original GS is at 0x70(FP).
+	MOVL	oldgs+0x70(FP), BX
+	MOVW	BX, GS
+
 	// g = m->gsignal
 	MOVL	m, BP
 	MOVL	m_gsignal(BP), BP
 	MOVL	BP, g
 
-	MOVL	handler+4(FP), DI
-	MOVL	signo+12(FP), AX
-	MOVL	siginfo+16(FP), BX
-	MOVL	context+20(FP), CX
+	MOVL	handler+0(FP), DI
+	// 4(FP) is sigstyle
+	MOVL	signo+8(FP), AX
+	MOVL	siginfo+12(FP), BX
+	MOVL	context+16(FP), CX
 
 	MOVL	AX, 0(SP)
 	MOVL	BX, 4(SP)
 	MOVL	CX, 8(SP)
 	CALL	DI
 
-	MOVL	context+20(FP), CX
-	MOVL	style+8(FP), BX
+	// g = m->curg
+	MOVL	m, BP
+	MOVL	m_curg(BP), BP
+	MOVL	BP, g
+
+	MOVL	context+16(FP), CX
+	MOVL	style+4(FP), BX
 
 	MOVL	$0, 0(SP)	// "caller PC" - ignored
 	MOVL	CX, 4(SP)
