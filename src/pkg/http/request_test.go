@@ -33,7 +33,8 @@ var parseTests = []parseTest{
 
 func TestParseForm(t *testing.T) {
 	for i, test := range parseTests {
-		form, err := parseForm(test.query);
+		form := make(map[string][]string);
+		err := parseForm(form, test.query);
 		if err != nil {
 			t.Errorf("test %d: Unexpected error: %v", i, err);
 			continue;
