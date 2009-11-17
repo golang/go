@@ -141,3 +141,7 @@ throw: interface conversion
 panic PC=xxx
 
 == bugs/
+
+=========== bugs/bug218.go
+<epoch>: fatal error: dowidth: unknown type: blank
+BUG: bug218
