@@ -576,7 +576,7 @@ func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
 	return req, nil;
 }
 
-func parseForm(query string) (m map[string][]string, err os.Error) {
+func parseForm(m map[string][]string, query string) (err os.Error) {
 	data := make(map[string]*vector.StringVector);
 	for _, kv := range strings.Split(query, "&", 0) {
 		kvPair := strings.Split(kv, "=", 2);
@@ -599,7 +599,6 @@ func parseForm(query string) (m map[string][]string, err os.Error) {
 		vec.Push(value);
 	}
 
-	m = make(map[string][]string);
 	for k, vec := range data {
 		m[k] = vec.Data()
 	}
@@ -613,9 +612,9 @@ func (r *Request) ParseForm() (err os.Error) {
 	if r.Form != nil {
 		return
 	}
+	r.Form = make(map[string][]string);
 
 	var query string;
-
 	switch r.Method {
 	case "GET":
 		query = r.URL.RawQuery
@@ -628,7 +627,7 @@ func (r *Request) ParseForm() (err os.Error) {
 		case "text/plain", "application/x-www-form-urlencoded", "":
 			var b []byte;
 			if b, err = io.ReadAll(r.Body); err != nil {
-				return
+				return err
 			}
 			query = string(b);
 		// TODO(dsymonds): Handle multipart/form-data
@@ -636,8 +635,7 @@ func (r *Request) ParseForm() (err os.Error) {
 			return &badStringError{"unknown Content-Type", ct}
 		}
 	}
-	r.Form, err = parseForm(query);
-	return;
+	return parseForm(r.Form, query);
 }
 
 // FormValue returns the first value for the named component of the query.
