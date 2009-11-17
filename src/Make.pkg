@@ -26,7 +26,7 @@ PREREQ+=$(patsubst %,%.make,$(DEPS))
 
 coverage:
 	gotest
-	6cov -g $(shell pwd) | grep -v '_test\.go:'
+	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
 
 clean:
 	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo[12].go *.cgo[34].c *.so _obj _test _testmain.go $(CLEANFILES)
