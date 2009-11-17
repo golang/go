@@ -778,7 +778,7 @@ def clpatch(ui, repo, clname, **opts):
 		os._exit(0)
 	cmd.stdin.close()
 	out = cmd.stdout.read()
-	if cmd.wait() != 0:
+	if cmd.wait() != 0 and not opts["ignore_hgpatch_failure"]:
 		return "hgpatch failed"
 	cl.local = True
 	cl.files = out.strip().split()
@@ -1174,6 +1174,7 @@ cmdtable = {
 	"^clpatch": (
 		clpatch,
 		[
+			('', 'ignore_hgpatch_failure', None, 'create CL metadata even if hgpatch fails'),
 			('', 'no_incoming', None, 'disable check for incoming changes'),
 		],
 		"change#"
