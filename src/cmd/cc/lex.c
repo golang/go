@@ -1517,16 +1517,11 @@ void
 setinclude(char *p)
 {
 	int i;
-	char *e;
 
-	while(*p != 0) {
-		e = strchr(p, ' ');
-		if(e != 0)
-			*e = '\0';
-
+	if(*p != 0) {
 		for(i=1; i < ninclude; i++)
 			if(strcmp(p, include[i]) == 0)
-				break;
+				return;
 
 		if(i >= ninclude)
 			include[ninclude++] = p;
@@ -1536,9 +1531,6 @@ setinclude(char *p)
 			exits("ninclude");
 		}
 
-		if(e == 0)
-			break;
-		p = e+1;
 	}
 }
 
