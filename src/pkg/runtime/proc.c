@@ -146,7 +146,7 @@ tracebackothers(G *me)
 	for(g = allg; g != nil; g = g->alllink) {
 		if(g == me || g->status == Gdead)
 			continue;
-		printf("\ngoroutine %d:\n", g->goid);
+		printf("\ngoroutine %d [%d]:\n", g->goid, g->status);
 		traceback(g->sched.pc, g->sched.sp, g);
 	}
 }
@@ -411,10 +411,13 @@ struct CgoThreadStart
 static void
 matchmg(void)
 {
-	M *m;
 	G *g;
 
+	if(m->mallocing)
+		return;
 	while(sched.mcpu < sched.mcpumax && (g = gget()) != nil){
+		M *m;
+
 		// Find the m that will run g.
 		if((m = mget(g)) == nil){
 			m = malloc(sizeof(M));
