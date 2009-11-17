@@ -957,7 +957,7 @@ def FindContributor(ui, repo, user, warn=True):
 		match = re.match(r"(.*) <(.*)>", line)
 		if not match:
 			continue
-		if line == user or match.group(2) == user:
+		if line == user or match.group(2).lower() == user.lower():
 			return match.group(2), line
 	if warn:
 		ui.warn("warning: cannot find %s in CONTRIBUTORS\n" % (user,))
