@@ -1,4 +1,5 @@
 syntax:glob
+.git
 *.[568ao]
 *.ao
 *.so
