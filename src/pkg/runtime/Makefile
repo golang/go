@@ -49,6 +49,7 @@ OFILES=\
 	mcache.$O\
 	mcentral.$O\
 	mem.$O\
+	memmove.$O\
 	mfixalloc.$O\
 	mgc0.$O\
 	mheap.$O\
@@ -68,7 +69,6 @@ OFILES=\
 	sys.$O\
 	thread.$O\
 	traceback.$O\
-	memmove_$(GOARCH).$O\
 	$(OFILES_$(GOARCH))\
 
 HFILES=\
