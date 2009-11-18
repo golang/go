@@ -38,7 +38,7 @@ For example, if change 123456 contains the files x.go and y.go,
 
 from mercurial import cmdutil, commands, hg, util, error, match
 from mercurial.node import nullrev, hex, nullid, short
-import os, re
+import os, re, time
 import stat
 import subprocess
 import threading
@@ -1031,24 +1031,28 @@ def submit(ui, repo, *pats, **opts):
 	if not node:
 		return "nothing changed"
 
-	log = repo.changelog
-	rev = log.rev(node)
-	parents = log.parentrevs(rev)
-	if (rev-1 not in parents and
-			(parents == (nullrev, nullrev) or
-			len(log.heads(log.node(parents[0]))) > 1 and
-			(parents[1] == nullrev or len(log.heads(log.node(parents[1]))) > 1))):
-		repo.rollback()
-		return "local repository out of date (created new head); must sync before submit"
+	# push to remote; if it fails for any reason, roll back
+	try:
+		log = repo.changelog
+		rev = log.rev(node)
+		parents = log.parentrevs(rev)
+		if (rev-1 not in parents and
+				(parents == (nullrev, nullrev) or
+				len(log.heads(log.node(parents[0]))) > 1 and
+				(parents[1] == nullrev or len(log.heads(log.node(parents[1]))) > 1))):
+			# created new head
+			raise util.Abort("local repository out of date; must sync before submit")
 
-	# push changes to remote.
-	# if it works, we're committed.
-	# if not, roll back
-	other = getremote(ui, repo, opts)
-	r = repo.push(other, False, None)
-	if r == 0:
+		# push changes to remote.
+		# if it works, we're committed.
+		# if not, roll back
+		other = getremote(ui, repo, opts)
+		r = repo.push(other, False, None)
+		if r == 0:
+			raise util.Abort("local repository out of date; must sync before submit")
+	except:
 		repo.rollback()
-		return "local repository out of date; must sync before submit"
+		raise
 
 	# we're committed. upload final patch, close review, add commit message
 	changeURL = short(node)
@@ -1376,10 +1380,25 @@ def DownloadCL(ui, repo, clname):
 
 	return cl, diffdata, ""
 
+def MySend(request_path, payload=None,
+           content_type="application/octet-stream",
+           timeout=None, force_auth=True,
+           **kwargs):
+     """Run MySend1 maybe twice, because Rietveld is unreliable."""
+     try:
+         return MySend1(request_path, payload, content_type, timeout, force_auth, **kwargs)
+     except Exception, e:
+         if type(e) == urllib2.HTTPError and e.code == 403:	# forbidden, it happens
+         	raise
+         print >>sys.stderr, "Loading "+request_path+": "+ExceptionDetail()+"; trying again in 2 seconds."
+     time.sleep(2)
+     return MySend1(request_path, payload, content_type, timeout, force_auth, **kwargs)
+
+
 # Like upload.py Send but only authenticates when the
 # redirect is to www.google.com/accounts.  This keeps
 # unnecessary redirects from happening during testing.
-def MySend(request_path, payload=None,
+def MySend1(request_path, payload=None,
            content_type="application/octet-stream",
            timeout=None, force_auth=True,
            **kwargs):
@@ -1523,23 +1542,7 @@ def PostMessage1(issue, message, reviewers=None, cc=None, send_mail=None, subjec
 		sys.exit(2)
 
 def PostMessage(ui, issue, message, reviewers=None, cc=None, send_mail=None, subject=None):
-	# When Rietveld is busy, it seems to throw off a lot of HTTP Error 500: Internal Server Error.
-	# Rather than abort, sleep and try again.
-	# Even if the second time fails, let the overall hg command keep going.
-	try:
-		PostMessage1(issue, message, reviewers, cc, send_mail, subject)
-		return
-	except:
-		pass
-	ui.warn("error posting to "+server+" log; sleep 2 and try again.")
-	os.sleep(2)
-	try:
-		PostMessage1(issue, message, reviewers, cc, send_mail, subject)
-		return
-	except:
-		pass
-	ui.warn("error posting to "+server+" twice; log not updated.")
-
+	PostMessage1(issue, message, reviewers, cc, send_mail, subject)
 
 class opt(object):
 	pass
