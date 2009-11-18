@@ -5,11 +5,6 @@
 // This file provides fast assembly versions for the elementary
 // arithmetic operations on vectors implemented in arith.go.
 
-TEXT big·useAsm(SB),7,$0
-	MOVB $1, 8(SP)  // assembly routines enabled
-	RET
-
-
 // TODO(gri) - experiment with unrolled loops for faster execution
 
 // func addVV_s(z, x, y *Word, n int) (c Word)

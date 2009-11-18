@@ -298,20 +298,18 @@ var (
 )
 
 
-// UseAsm returns true if the assembly routines are enabled.
-func useAsm() bool
-
 func init() {
-	if useAsm() {
-		// Install assembly routines.
-		addVV = addVV_s;
-		subVV = subVV_s;
-		addVW = addVW_s;
-		subVW = subVW_s;
-		mulAddVWW = mulAddVWW_s;
-		addMulVVW = addMulVVW_s;
-		divWVW = divWVW_s;
-	}
+	// Uncomment to use generic routines.
+	//return;
+
+	// Install assembly routines.
+	addVV = addVV_s;
+	subVV = subVV_s;
+	addVW = addVW_s;
+	subVW = subVW_s;
+	mulAddVWW = mulAddVWW_s;
+	addMulVVW = addMulVVW_s;
+	divWVW = divWVW_s;
 }
 
 
