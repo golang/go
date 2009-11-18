@@ -7,5 +7,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
 TARG=asn1
 GOFILES=\
 	asn1.go\
+	common.go\
+	marshal.go\
 
 include $(GOROOT)/src/Make.pkg

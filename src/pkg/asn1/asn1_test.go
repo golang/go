@@ -89,6 +89,31 @@ func TestBitStringAt(t *testing.T) {
 	}
 }
 
+type bitStringRightAlignTest struct {
+	in	[]byte;
+	inlen	int;
+	out	[]byte;
+}
+
+var bitStringRightAlignTests = []bitStringRightAlignTest{
+	bitStringRightAlignTest{[]byte{0x80}, 1, []byte{0x01}},
+	bitStringRightAlignTest{[]byte{0x80, 0x80}, 9, []byte{0x01, 0x01}},
+	bitStringRightAlignTest{[]byte{}, 0, []byte{}},
+	bitStringRightAlignTest{[]byte{0xce}, 8, []byte{0xce}},
+	bitStringRightAlignTest{[]byte{0xce, 0x47}, 16, []byte{0xce, 0x47}},
+	bitStringRightAlignTest{[]byte{0x34, 0x50}, 12, []byte{0x03, 0x45}},
+}
+
+func TestBitStringRightAlign(t *testing.T) {
+	for i, test := range bitStringRightAlignTests {
+		bs := BitString{test.in, test.inlen};
+		out := bs.RightAlign();
+		if bytes.Compare(out, test.out) != 0 {
+			t.Errorf("#%d got: %x want: %x", i, out, test.out)
+		}
+	}
+}
+
 type objectIdentifierTest struct {
 	in	[]byte;
 	ok	bool;
@@ -120,22 +145,22 @@ func TestObjectIdentifier(t *testing.T) {
 type timeTest struct {
 	in	string;
 	ok	bool;
-	out	time.Time;
+	out	*time.Time;
 }
 
 var timeTestData = []timeTest{
-	timeTest{"910506164540-0700", true, time.Time{1991, 05, 06, 16, 45, 40, 0, -7 * 60 * 60, ""}},
-	timeTest{"910506164540+0730", true, time.Time{1991, 05, 06, 16, 45, 40, 0, 7*60*60 + 30*60, ""}},
-	timeTest{"910506234540Z", true, time.Time{1991, 05, 06, 23, 45, 40, 0, 0, ""}},
-	timeTest{"9105062345Z", true, time.Time{1991, 05, 06, 23, 45, 0, 0, 0, ""}},
-	timeTest{"a10506234540Z", false, time.Time{}},
-	timeTest{"91a506234540Z", false, time.Time{}},
-	timeTest{"9105a6234540Z", false, time.Time{}},
-	timeTest{"910506a34540Z", false, time.Time{}},
-	timeTest{"910506334a40Z", false, time.Time{}},
-	timeTest{"91050633444aZ", false, time.Time{}},
-	timeTest{"910506334461Z", false, time.Time{}},
-	timeTest{"910506334400Za", false, time.Time{}},
+	timeTest{"910506164540-0700", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, -7 * 60 * 60, ""}},
+	timeTest{"910506164540+0730", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, 7*60*60 + 30*60, ""}},
+	timeTest{"910506234540Z", true, &time.Time{1991, 05, 06, 23, 45, 40, 0, 0, ""}},
+	timeTest{"9105062345Z", true, &time.Time{1991, 05, 06, 23, 45, 0, 0, 0, ""}},
+	timeTest{"a10506234540Z", false, nil},
+	timeTest{"91a506234540Z", false, nil},
+	timeTest{"9105a6234540Z", false, nil},
+	timeTest{"910506a34540Z", false, nil},
+	timeTest{"910506334a40Z", false, nil},
+	timeTest{"91050633444aZ", false, nil},
+	timeTest{"910506334461Z", false, nil},
+	timeTest{"910506334400Za", false, nil},
 }
 
 func TestTime(t *testing.T) {
@@ -199,14 +224,16 @@ func newString(s string) *string	{ return &s }
 func newBool(b bool) *bool	{ return &b }
 
 var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParametersTest{
-	parseFieldParametersTest{"", fieldParameters{false, false, nil, nil}},
-	parseFieldParametersTest{"optional", fieldParameters{true, false, nil, nil}},
-	parseFieldParametersTest{"explicit", fieldParameters{false, true, nil, new(int)}},
-	parseFieldParametersTest{"optional,explicit", fieldParameters{true, true, nil, new(int)}},
-	parseFieldParametersTest{"default:42", fieldParameters{false, false, newInt64(42), nil}},
-	parseFieldParametersTest{"tag:17", fieldParameters{false, false, nil, newInt(17)}},
-	parseFieldParametersTest{"optional,explicit,default:42,tag:17", fieldParameters{true, true, newInt64(42), newInt(17)}},
-	parseFieldParametersTest{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, newInt64(42), newInt(17)}},
+	parseFieldParametersTest{"", fieldParameters{false, false, nil, nil, 0}},
+	parseFieldParametersTest{"ia5", fieldParameters{false, false, nil, nil, tagIA5String}},
+	parseFieldParametersTest{"printable", fieldParameters{false, false, nil, nil, tagPrintableString}},
+	parseFieldParametersTest{"optional", fieldParameters{true, false, nil, nil, 0}},
+	parseFieldParametersTest{"explicit", fieldParameters{false, true, nil, new(int), 0}},
+	parseFieldParametersTest{"optional,explicit", fieldParameters{true, true, nil, new(int), 0}},
+	parseFieldParametersTest{"default:42", fieldParameters{false, false, newInt64(42), nil, 0}},
+	parseFieldParametersTest{"tag:17", fieldParameters{false, false, nil, newInt(17), 0}},
+	parseFieldParametersTest{"optional,explicit,default:42,tag:17", fieldParameters{true, true, newInt64(42), newInt(17), 0}},
+	parseFieldParametersTest{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, newInt64(42), newInt(17), 0}},
 }
 
 func TestParseFieldParameters(t *testing.T) {
@@ -258,7 +285,7 @@ func TestUnmarshal(t *testing.T) {
 		zv := reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem());
 		pv.(*reflect.PtrValue).PointTo(zv);
 		val := pv.Interface();
-		err := Unmarshal(val, test.in);
+		_, err := Unmarshal(val, test.in);
 		if err != nil {
 			t.Errorf("Unmarshal failed at index %d %v", i, err)
 		}
@@ -298,7 +325,7 @@ type AttributeTypeAndValue struct {
 }
 
 type Validity struct {
-	NotBefore, NotAfter time.Time;
+	NotBefore, NotAfter *time.Time;
 }
 
 type PublicKeyInfo struct {
@@ -309,7 +336,7 @@ type PublicKeyInfo struct {
 func TestCertificate(t *testing.T) {
 	// This is a minimal, self-signed certificate that should parse correctly.
 	var cert Certificate;
-	if err := Unmarshal(&cert, derEncodedSelfSignedCertBytes); err != nil {
+	if _, err := Unmarshal(&cert, derEncodedSelfSignedCertBytes); err != nil {
 		t.Errorf("Unmarshal failed: %v", err)
 	}
 	if !reflect.DeepEqual(cert, derEncodedSelfSignedCert) {
@@ -322,7 +349,7 @@ func TestCertificateWithNUL(t *testing.T) {
 	// NUL isn't a permitted character in a PrintableString.
 
 	var cert Certificate;
-	if err := Unmarshal(&cert, derEncodedPaypalNULCertBytes); err == nil {
+	if _, err := Unmarshal(&cert, derEncodedPaypalNULCertBytes); err == nil {
 		t.Error("Unmarshal succeeded, should not have")
 	}
 }
@@ -340,7 +367,7 @@ var derEncodedSelfSignedCert = Certificate{
 			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 3}, Value: "false.example.com"}},
 			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{1, 2, 840, 113549, 1, 9, 1}, Value: "false@example.com"}},
 		},
-		Validity: Validity{NotBefore: time.Time{Year: 2009, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, Weekday: 0, ZoneOffset: 0, Zone: ""}, NotAfter: time.Time{Year: 2010, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, Weekday: 0, ZoneOffset: 0, Zone: ""}},
+		Validity: Validity{NotBefore: &time.Time{Year: 2009, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, Weekday: 0, ZoneOffset: 0, Zone: ""}, NotAfter: &time.Time{Year: 2010, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, Weekday: 0, ZoneOffset: 0, Zone: ""}},
 		Subject: RDNSequence{
 			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 6}, Value: "XX"}},
 			RelativeDistinguishedName{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 8}, Value: "Some-State"}},

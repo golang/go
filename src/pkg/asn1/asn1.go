@@ -23,8 +23,6 @@ import (
 	"fmt";
 	"os";
 	"reflect";
-	"strconv";
-	"strings";
 	"time";
 )
 
@@ -109,6 +107,24 @@ func (b BitString) At(i int) int {
 	x := i / 8;
 	y := 7 - uint(i%8);
 	return int(b.Bytes[x]>>y) & 1;
+}
+
+// RightAlign returns a slice where the padding bits are at the beginning. The
+// slice may share memory with the BitString.
+func (b BitString) RightAlign() []byte {
+	shift := uint(8 - (b.BitLength % 8));
+	if shift == 8 || len(b.Bytes) == 0 {
+		return b.Bytes
+	}
+
+	a := make([]byte, len(b.Bytes));
+	a[0] = b.Bytes[0] >> shift;
+	for i := 1; i < len(b.Bytes); i++ {
+		a[i] = b.Bytes[i-1] << (8 - shift);
+		a[i] |= b.Bytes[i] >> shift;
+	}
+
+	return a;
 }
 
 // parseBitString parses an ASN.1 bit string from the given byte array and returns it.
@@ -204,7 +220,7 @@ func twoDigits(bytes []byte, max int) (int, bool) {
 
 // parseUTCTime parses the UTCTime from the given byte array and returns the
 // resulting time.
-func parseUTCTime(bytes []byte) (ret time.Time, err os.Error) {
+func parseUTCTime(bytes []byte) (ret *time.Time, err os.Error) {
 	// A UTCTime can take the following formats:
 	//
 	//             1111111
@@ -220,11 +236,13 @@ func parseUTCTime(bytes []byte) (ret time.Time, err os.Error) {
 		err = SyntaxError{"UTCTime too short"};
 		return;
 	}
+	ret = new(time.Time);
+
 	var ok1, ok2, ok3, ok4, ok5 bool;
 	year, ok1 := twoDigits(bytes[0:2], 99);
 	// RFC 5280, section 5.1.2.4 says that years 2050 or later use another date
 	// scheme.
-	if year > 50 {
+	if year >= 50 {
 		ret.Year = 1900 + int64(year)
 	} else {
 		ret.Year = 2000 + int64(year)
@@ -333,39 +351,6 @@ type RawValue struct {
 
 // Tagging
 
-// ASN.1 objects have metadata preceeding them:
-//   the tag: the type of the object
-//   a flag denoting if this object is compound or not
-//   the class type: the namespace of the tag
-//   the length of the object, in bytes
-
-// Here are some standard tags and classes
-
-const (
-	tagBoolean		= 1;
-	tagInteger		= 2;
-	tagBitString		= 3;
-	tagOctetString		= 4;
-	tagOID			= 6;
-	tagSequence		= 16;
-	tagSet			= 17;
-	tagPrintableString	= 19;
-	tagIA5String		= 22;
-	tagUTCTime		= 23;
-)
-
-const (
-	classUniversal		= 0;
-	classApplication	= 1;
-	classContextSpecific	= 2;
-	classPrivate		= 3;
-)
-
-type tagAndLength struct {
-	class, tag, length	int;
-	isCompound		bool;
-}
-
 // parseTagAndLength parses an ASN.1 tag and length pair from the given offset
 // into a byte array. It returns the parsed data and the new offset. SET and
 // SET OF (tag 17) are mapped to SEQUENCE and SEQUENCE OF (tag 16) since we
@@ -428,97 +413,6 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 	return;
 }
 
-// ASN.1 has IMPLICIT and EXPLICIT tags, which can be translated as "instead
-// of" and "in addition to". When not specified, every primitive type has a
-// default tag in the UNIVERSAL class.
-//
-// For example: a BIT STRING is tagged [UNIVERSAL 3] by default (although ASN.1
-// doesn't actually have a UNIVERSAL keyword). However, by saying [IMPLICIT
-// CONTEXT-SPECIFIC 42], that means that the tag is replaced by another.
-//
-// On the other hand, if it said [EXPLICIT CONTEXT-SPECIFIC 10], then an
-// /additional/ tag would wrap the default tag. This explicit tag will have the
-// compound flag set.
-//
-// (This is used in order to remove ambiguity with optional elements.)
-//
-// You can layer EXPLICIT and IMPLICIT tags to an arbitrary depth, however we
-// don't support that here. We support a single layer of EXPLICIT or IMPLICIT
-// tagging with tag strings on the fields of a structure.
-
-// fieldParameters is the parsed representation of tag string from a structure field.
-type fieldParameters struct {
-	optional	bool;	// true iff the field is OPTIONAL
-	explicit	bool;	// true iff and EXPLICIT tag is in use.
-	defaultValue	*int64;	// a default value for INTEGER typed fields (maybe nil).
-	tag		*int;	// the EXPLICIT or IMPLICIT tag (maybe nil).
-
-	// Invariants:
-	//   if explicit is set, tag is non-nil.
-}
-
-// Given a tag string with the format specified in the package comment,
-// parseFieldParameters will parse it into a fieldParameters structure,
-// ignoring unknown parts of the string.
-func parseFieldParameters(str string) (ret fieldParameters) {
-	for _, part := range strings.Split(str, ",", 0) {
-		switch {
-		case part == "optional":
-			ret.optional = true
-		case part == "explicit":
-			ret.explicit = true;
-			if ret.tag == nil {
-				ret.tag = new(int);
-				*ret.tag = 0;
-			}
-		case strings.HasPrefix(part, "default:"):
-			i, err := strconv.Atoi64(part[8:len(part)]);
-			if err == nil {
-				ret.defaultValue = new(int64);
-				*ret.defaultValue = i;
-			}
-		case strings.HasPrefix(part, "tag:"):
-			i, err := strconv.Atoi(part[4:len(part)]);
-			if err == nil {
-				ret.tag = new(int);
-				*ret.tag = i;
-			}
-		}
-	}
-	return;
-}
-
-// Given a reflected Go type, getUniversalType returns the default tag number
-// and expected compound flag.
-func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
-	switch t {
-	case objectIdentifierType:
-		return tagOID, false, true
-	case bitStringType:
-		return tagBitString, false, true
-	case timeType:
-		return tagUTCTime, false, true
-	}
-	switch i := t.(type) {
-	case *reflect.BoolType:
-		return tagBoolean, false, true
-	case *reflect.IntType:
-		return tagInteger, false, true
-	case *reflect.Int64Type:
-		return tagInteger, false, true
-	case *reflect.StructType:
-		return tagSequence, true, true
-	case *reflect.SliceType:
-		if _, ok := t.(*reflect.SliceType).Elem().(*reflect.Uint8Type); ok {
-			return tagOctetString, false, true
-		}
-		return tagSequence, true, true;
-	case *reflect.StringType:
-		return tagPrintableString, false, true
-	}
-	return 0, false, false;
-}
-
 // parseSequenceOf is used for SEQUENCE OF and SET OF values. It tries to parse
 // a number of ASN.1 values from the given byte array and returns them as a
 // slice of Go values of the given type.
@@ -564,7 +458,7 @@ func parseSequenceOf(bytes []byte, sliceType *reflect.SliceType, elemType reflec
 var (
 	bitStringType		= reflect.Typeof(BitString{});
 	objectIdentifierType	= reflect.Typeof(ObjectIdentifier{});
-	timeType		= reflect.Typeof(time.Time{});
+	timeType		= reflect.Typeof(&time.Time{});
 	rawValueType		= reflect.Typeof(RawValue{});
 )
 
@@ -732,11 +626,11 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		err = err1;
 		return;
 	case timeType:
-		structValue := v.(*reflect.StructValue);
+		ptrValue := v.(*reflect.PtrValue);
 		time, err1 := parseUTCTime(innerBytes);
 		offset += t.length;
 		if err1 == nil {
-			structValue.Set(reflect.NewValue(time).(*reflect.StructValue))
+			ptrValue.Set(reflect.NewValue(time).(*reflect.PtrValue))
 		}
 		err = err1;
 		return;
@@ -871,8 +765,11 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //
 // Other ASN.1 types are not supported; if it encounters them,
 // Unmarshal returns a parse error.
-func Unmarshal(val interface{}, b []byte) os.Error {
+func Unmarshal(val interface{}, b []byte) (rest []byte, err os.Error) {
 	v := reflect.NewValue(val).(*reflect.PtrValue).Elem();
-	_, err := parseField(v, b, 0, fieldParameters{});
-	return err;
+	offset, err := parseField(v, b, 0, fieldParameters{});
+	if err != nil {
+		return nil, err
+	}
+	return b[offset:len(b)], nil;
 }

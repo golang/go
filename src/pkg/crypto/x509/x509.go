@@ -32,7 +32,7 @@ func rawValueIsInteger(raw *asn1.RawValue) bool {
 // ParsePKCS1PrivateKey returns an RSA private key from its ASN.1 PKCS#1 DER encoded form.
 func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 	var priv pkcs1PrivateKey;
-	err = asn1.Unmarshal(&priv, der);
+	_, err = asn1.Unmarshal(&priv, der);
 	if err != nil {
 		return
 	}
