@@ -1,0 +1,193 @@
+// $G $F.go && $L $F.$A && ./$A.out
+
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Semi-exhaustive test for copy()
+
+package main
+
+import (
+	"fmt";
+	"os";
+)
+
+const N = 40
+
+var input8 = make([]uint8, N)
+var output8 = make([]uint8, N)
+var input16 = make([]uint16, N)
+var output16 = make([]uint16, N)
+var input32 = make([]uint32, N)
+var output32 = make([]uint32, N)
+var input64 = make([]uint64, N)
+var output64 = make([]uint64, N)
+
+func u8(i int) uint8 {
+	i = 'a' + i%26;
+	return uint8(i);
+}
+
+func u16(ii int) uint16 {
+	var i = uint16(ii);
+	i = 'a' + i%26;
+	i |= i << 8;
+	return i;
+}
+
+func u32(ii int) uint32 {
+	var i = uint32(ii);
+	i = 'a' + i%26;
+	i |= i << 8;
+	i |= i << 16;
+	return i;
+}
+
+func u64(ii int) uint64 {
+	var i = uint64(ii);
+	i = 'a' + i%26;
+	i |= i << 8;
+	i |= i << 16;
+	i |= i << 32;
+	return i;
+}
+
+func reset() {
+	in := 0;
+	out := 13;
+	for i := range input8 {
+		input8[i] = u8(in);
+		output8[i] = u8(out);
+		input16[i] = u16(in);
+		output16[i] = u16(out);
+		input32[i] = u32(in);
+		output32[i] = u32(out);
+		input64[i] = u64(in);
+		output64[i] = u64(out);
+		in++;
+		out++;
+	}
+}
+
+func clamp(n int) int {
+	if n > N {
+		return N
+	}
+	return n;
+}
+
+func doAllSlices(length, in, out int) {
+	reset();
+	copy(output8[out:clamp(out+length)], input8[in:clamp(in+length)]);
+	verify8(length, in, out);
+	copy(output16[out:clamp(out+length)], input16[in:clamp(in+length)]);
+	verify16(length, in, out);
+	copy(output32[out:clamp(out+length)], input32[in:clamp(in+length)]);
+	verify32(length, in, out);
+	copy(output64[out:clamp(out+length)], input64[in:clamp(in+length)]);
+	verify64(length, in, out);
+}
+
+func bad8(state string, i, length, in, out int) {
+	fmt.Printf("%s bad(%d %d %d): %c not %c:\n\t%s\n\t%s\n",
+		state,
+		length, in, out,
+		output8[i],
+		uint8(i+13),
+		input8, output8);
+	os.Exit(1);
+}
+
+func verify8(length, in, out int) {
+	for i := 0; i < out; i++ {
+		if output8[i] != u8(i+13) {
+			bad8("preamble8", i, length, in, out);
+			break;
+		}
+	}
+}
+
+func bad16(state string, i, length, in, out int) {
+	fmt.Printf("%s bad(%d %d %d): %x not %x:\n\t%v\n\t%v\n",
+		state,
+		length, in, out,
+		output16[i],
+		uint16(i+13),
+		input16, output16);
+	os.Exit(1);
+}
+
+func verify16(length, in, out int) {
+	for i := 0; i < out; i++ {
+		if output16[i] != u16(i+13) {
+			bad16("preamble16", i, length, in, out);
+			break;
+		}
+	}
+}
+
+func bad32(state string, i, length, in, out int) {
+	fmt.Printf("%s bad(%d %d %d): %x not %x:\n\t%v\n\t%v\n",
+		state,
+		length, in, out,
+		output32[i],
+		uint32(i+13),
+		input32, output32);
+	os.Exit(1);
+}
+
+func verify32(length, in, out int) {
+	for i := 0; i < out; i++ {
+		if output32[i] != u32(i+13) {
+			bad32("preamble32", i, length, in, out);
+			break;
+		}
+	}
+}
+
+func bad64(state string, i, length, in, out int) {
+	fmt.Printf("%s bad(%d %d %d): %x not %x:\n\t%v\n\t%v\n",
+		state,
+		length, in, out,
+		output64[i],
+		uint64(i+13),
+		input64, output64);
+	os.Exit(1);
+}
+
+func verify64(length, in, out int) {
+	for i := 0; i < out; i++ {
+		if output64[i] != u64(i+13) {
+			bad64("preamble64", i, length, in, out);
+			break;
+		}
+	}
+}
+
+func slice() {
+	for length := 0; length < N; length++ {
+		for in := 0; in <= 32; in++ {
+			for out := 0; out <= 32; out++ {
+				doAllSlices(length, in, out)
+			}
+		}
+	}
+}
+
+// Array test. Can be much simpler. It's mostly checking for promotion of *[N] to []
+func array() {
+	var array [N]uint8;
+	reset();
+	copy(&array, input8);
+	for i := 0; i < N; i++ {
+		output8[i] = 0
+	}
+	copy(output8, &array);
+	verify8(N, 0, 0);
+}
+
+func main() {
+	slice();
+	array();
+}
