@@ -9,7 +9,6 @@ package rsa
 
 import (
 	"big";
-	"bytes";
 	"crypto/subtle";
 	"hash";
 	"io";
@@ -263,9 +262,9 @@ func EncryptOAEP(hash hash.Hash, rand io.Reader, pub *PublicKey, msg []byte, lab
 	seed := em[1 : 1+hash.Size()];
 	db := em[1+hash.Size() : len(em)];
 
-	bytes.Copy(db[0:hash.Size()], lHash);
+	copy(db[0:hash.Size()], lHash);
 	db[len(db)-len(msg)-1] = 1;
-	bytes.Copy(db[len(db)-len(msg):len(db)], msg);
+	copy(db[len(db)-len(msg):len(db)], msg);
 
 	_, err = io.ReadFull(rand, seed);
 	if err != nil {
@@ -445,6 +444,6 @@ func leftPad(input []byte, size int) (out []byte) {
 		n = size
 	}
 	out = make([]byte, size);
-	bytes.Copy(out[len(out)-n:len(out)], input);
+	copy(out[len(out)-n:len(out)], input);
 	return;
 }

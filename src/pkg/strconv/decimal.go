@@ -11,8 +11,6 @@
 
 package strconv
 
-import "bytes"
-
 type decimal struct {
 	// TODO(rsc): Can make d[] a bit smaller and add
 	// truncated bool;
@@ -43,18 +41,18 @@ func (a *decimal) String() string {
 		buf[w] = '.';
 		w++;
 		w += digitZero(buf[w : w+-a.dp]);
-		w += bytes.Copy(buf[w:w+a.nd], a.d[0:a.nd]);
+		w += copy(buf[w:w+a.nd], a.d[0:a.nd]);
 
 	case a.dp < a.nd:
 		// decimal point in middle of digits
-		w += bytes.Copy(buf[w:w+a.dp], a.d[0:a.dp]);
+		w += copy(buf[w:w+a.dp], a.d[0:a.dp]);
 		buf[w] = '.';
 		w++;
-		w += bytes.Copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
+		w += copy(buf[w:w+a.nd-a.dp], a.d[a.dp:a.nd]);
 
 	default:
 		// zeros fill space between digits and decimal point
-		w += bytes.Copy(buf[w:w+a.nd], a.d[0:a.nd]);
+		w += copy(buf[w:w+a.nd], a.d[0:a.nd]);
 		w += digitZero(buf[w : w+a.dp-a.nd]);
 	}
 	return string(buf[0:w]);

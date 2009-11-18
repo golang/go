@@ -6,7 +6,6 @@ package rsa
 
 import (
 	"big";
-	"bytes";
 	"crypto/subtle";
 	"io";
 	"os";
@@ -34,7 +33,7 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
 		return
 	}
 	em[len(em)-len(msg)-1] = 0;
-	bytes.Copy(mm, msg);
+	copy(mm, msg);
 
 	m := new(big.Int).SetBytes(em);
 	c := encrypt(new(big.Int), pub, m);
@@ -191,8 +190,8 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash PKCS1v15Hash, hashed []
 	for i := 2; i < k-tLen-1; i++ {
 		em[i] = 0xff
 	}
-	bytes.Copy(em[k-tLen:k-hashLen], prefix);
-	bytes.Copy(em[k-hashLen:k], hashed);
+	copy(em[k-tLen:k-hashLen], prefix);
+	copy(em[k-hashLen:k], hashed);
 
 	m := new(big.Int).SetBytes(em);
 	c, err := decrypt(rand, priv, m);

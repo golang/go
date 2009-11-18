@@ -241,7 +241,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	for {
 		// Copy leftover output from last decode.
 		if len(d.out) > 0 {
-			n = bytes.Copy(p, d.out);
+			n = copy(p, d.out);
 			d.out = d.out[n:len(d.out)];
 			return;
 		}
@@ -270,7 +270,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 			d.err = CorruptInputError(int64(e) + d.off)
 		}
 		d.out = d.outbuf[0:nn];
-		d.nbuf = bytes.Copy(&d.buf, d.buf[nl+1:d.nbuf]);
+		d.nbuf = copy(&d.buf, d.buf[nl+1:d.nbuf]);
 		d.off += int64(nl + 1);
 	}
 	panic("unreacahable");

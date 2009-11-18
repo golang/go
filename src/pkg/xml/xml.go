@@ -65,19 +65,19 @@ type EndElement struct {
 // the characters they represent.
 type CharData []byte
 
-func copy(b []byte) []byte {
+func makeCopy(b []byte) []byte {
 	b1 := make([]byte, len(b));
-	bytes.Copy(b1, b);
+	copy(b1, b);
 	return b1;
 }
 
-func (c CharData) Copy() CharData	{ return CharData(copy(c)) }
+func (c CharData) Copy() CharData	{ return CharData(makeCopy(c)) }
 
 // A Comment represents an XML comment of the form <!--comment-->.
 // The bytes do not include the <!-- and --> comment markers.
 type Comment []byte
 
-func (c Comment) Copy() Comment	{ return Comment(copy(c)) }
+func (c Comment) Copy() Comment	{ return Comment(makeCopy(c)) }
 
 // A ProcInst represents an XML processing instruction of the form <?target inst?>
 type ProcInst struct {
@@ -86,7 +86,7 @@ type ProcInst struct {
 }
 
 func (p ProcInst) Copy() ProcInst {
-	p.Inst = copy(p.Inst);
+	p.Inst = makeCopy(p.Inst);
 	return p;
 }
 
@@ -94,7 +94,7 @@ func (p ProcInst) Copy() ProcInst {
 // The bytes do not include the <! and > markers.
 type Directive []byte
 
-func (d Directive) Copy() Directive	{ return Directive(copy(d)) }
+func (d Directive) Copy() Directive	{ return Directive(makeCopy(d)) }
 
 type readByter interface {
 	ReadByte() (b byte, err os.Error);

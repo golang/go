@@ -4,10 +4,6 @@
 
 package tls
 
-import (
-	"bytes";
-)
-
 type clientHelloMsg struct {
 	raw			[]byte;
 	major, minor		uint8;
@@ -30,9 +26,9 @@ func (m *clientHelloMsg) marshal() []byte {
 	x[3] = uint8(length);
 	x[4] = m.major;
 	x[5] = m.minor;
-	bytes.Copy(x[6:38], m.random);
+	copy(x[6:38], m.random);
 	x[38] = uint8(len(m.sessionId));
-	bytes.Copy(x[39:39+len(m.sessionId)], m.sessionId);
+	copy(x[39:39+len(m.sessionId)], m.sessionId);
 	y := x[39+len(m.sessionId) : len(x)];
 	y[0] = uint8(len(m.cipherSuites) >> 7);
 	y[1] = uint8(len(m.cipherSuites) << 1);
@@ -42,7 +38,7 @@ func (m *clientHelloMsg) marshal() []byte {
 	}
 	z := y[2+len(m.cipherSuites)*2 : len(y)];
 	z[0] = uint8(len(m.compressionMethods));
-	bytes.Copy(z[1:len(z)], m.compressionMethods);
+	copy(z[1:len(z)], m.compressionMethods);
 	m.raw = x;
 
 	return x;
@@ -112,9 +108,9 @@ func (m *serverHelloMsg) marshal() []byte {
 	x[3] = uint8(length);
 	x[4] = m.major;
 	x[5] = m.minor;
-	bytes.Copy(x[6:38], m.random);
+	copy(x[6:38], m.random);
 	x[38] = uint8(len(m.sessionId));
-	bytes.Copy(x[39:39+len(m.sessionId)], m.sessionId);
+	copy(x[39:39+len(m.sessionId)], m.sessionId);
 	z := x[39+len(m.sessionId) : len(x)];
 	z[0] = uint8(m.cipherSuite >> 8);
 	z[1] = uint8(m.cipherSuite);
@@ -156,7 +152,7 @@ func (m *certificateMsg) marshal() (x []byte) {
 		y[0] = uint8(len(slice) >> 16);
 		y[1] = uint8(len(slice) >> 8);
 		y[2] = uint8(len(slice));
-		bytes.Copy(y[3:len(y)], slice);
+		copy(y[3:len(y)], slice);
 		y = y[3+len(slice) : len(y)];
 	}
 
@@ -189,7 +185,7 @@ func (m *clientKeyExchangeMsg) marshal() []byte {
 	x[3] = uint8(length);
 	x[4] = uint8(len(m.ciphertext) >> 8);
 	x[5] = uint8(len(m.ciphertext));
-	bytes.Copy(x[6:len(x)], m.ciphertext);
+	copy(x[6:len(x)], m.ciphertext);
 
 	m.raw = x;
 	return x;
@@ -221,7 +217,7 @@ func (m *finishedMsg) marshal() (x []byte) {
 	x = make([]byte, 16);
 	x[0] = typeFinished;
 	x[3] = 12;
-	bytes.Copy(x[4:len(x)], m.verifyData);
+	copy(x[4:len(x)], m.verifyData);
 	m.raw = x;
 	return;
 }

@@ -8,7 +8,6 @@ package tar
 // - catch more errors (no first header, write after close, etc.)
 
 import (
-	"bytes";
 	"io";
 	"os";
 	"strconv";
@@ -124,25 +123,25 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 	s := slicer(header);
 
 	// TODO(dsymonds): handle names longer than 100 chars
-	bytes.Copy(s.next(100), strings.Bytes(hdr.Name));
+	copy(s.next(100), strings.Bytes(hdr.Name));
 
-	tw.octal(s.next(8), hdr.Mode);				// 100:108
-	tw.numeric(s.next(8), hdr.Uid);				// 108:116
-	tw.numeric(s.next(8), hdr.Gid);				// 116:124
-	tw.numeric(s.next(12), hdr.Size);			// 124:136
-	tw.numeric(s.next(12), hdr.Mtime);			// 136:148
-	s.next(8);						// chksum (148:156)
-	s.next(1)[0] = hdr.Typeflag;				// 156:157
-	s.next(100);						// linkname (157:257)
-	bytes.Copy(s.next(8), strings.Bytes("ustar\x0000"));	// 257:265
-	tw.cString(s.next(32), hdr.Uname);			// 265:297
-	tw.cString(s.next(32), hdr.Gname);			// 297:329
-	tw.numeric(s.next(8), hdr.Devmajor);			// 329:337
-	tw.numeric(s.next(8), hdr.Devminor);			// 337:345
+	tw.octal(s.next(8), hdr.Mode);			// 100:108
+	tw.numeric(s.next(8), hdr.Uid);			// 108:116
+	tw.numeric(s.next(8), hdr.Gid);			// 116:124
+	tw.numeric(s.next(12), hdr.Size);		// 124:136
+	tw.numeric(s.next(12), hdr.Mtime);		// 136:148
+	s.next(8);					// chksum (148:156)
+	s.next(1)[0] = hdr.Typeflag;			// 156:157
+	s.next(100);					// linkname (157:257)
+	copy(s.next(8), strings.Bytes("ustar\x0000"));	// 257:265
+	tw.cString(s.next(32), hdr.Uname);		// 265:297
+	tw.cString(s.next(32), hdr.Gname);		// 297:329
+	tw.numeric(s.next(8), hdr.Devmajor);		// 329:337
+	tw.numeric(s.next(8), hdr.Devminor);		// 337:345
 
 	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
 	if tw.usedBinary {
-		bytes.Copy(header[257:265], strings.Bytes("ustar  \x00"))
+		copy(header[257:265], strings.Bytes("ustar  \x00"))
 	}
 
 	// The chksum field is terminated by a NUL and a space.

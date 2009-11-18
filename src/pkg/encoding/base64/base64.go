@@ -6,7 +6,6 @@
 package base64
 
 import (
-	"bytes";
 	"io";
 	"os";
 	"strconv";
@@ -279,7 +278,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 
 	// Use leftover decoded output from last read.
 	if len(d.out) > 0 {
-		n = bytes.Copy(p, d.out);
+		n = copy(p, d.out);
 		d.out = d.out[n:len(d.out)];
 		return n, nil;
 	}
@@ -304,7 +303,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	if nw > len(p) {
 		nw, d.end, d.err = d.enc.decode(&d.outbuf, d.buf[0:nr]);
 		d.out = d.outbuf[0:nw];
-		n = bytes.Copy(p, d.out);
+		n = copy(p, d.out);
 		d.out = d.out[n:len(d.out)];
 	} else {
 		n, d.end, d.err = d.enc.decode(p, d.buf[0:nr])

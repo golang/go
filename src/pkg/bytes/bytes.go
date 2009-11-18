@@ -44,20 +44,6 @@ func Equal(a, b []byte) bool {
 	return true;
 }
 
-// Copy copies bytes from src to dst,
-// stopping when either all of src has been copied
-// or all of dst has been filled.
-// It returns the number of bytes copied.
-func Copy(dst, src []byte) int {
-	if len(src) > len(dst) {
-		src = src[0:len(dst)]
-	}
-	for i, x := range src {
-		dst[i] = x
-	}
-	return len(src);
-}
-
 // explode splits s into an array of UTF-8 sequences, one per Unicode character (still arrays of bytes),
 // up to a maximum of n byte arrays. Invalid UTF-8 sequences are chopped into individual bytes.
 func explode(s []byte, n int) [][]byte {
@@ -315,10 +301,10 @@ func Add(s, t []byte) []byte {
 		s = s[0 : lens+lent]
 	} else {
 		news := make([]byte, lens+lent, resize(lens+lent));
-		Copy(news, s);
+		copy(news, s);
 		s = news;
 	}
-	Copy(s[lens:lens+lent], t);
+	copy(s[lens:lens+lent], t);
 	return s;
 }
 
@@ -331,7 +317,7 @@ func AddByte(s []byte, t byte) []byte {
 		s = s[0 : lens+1]
 	} else {
 		news := make([]byte, lens+1, resize(lens+1));
-		Copy(news, s);
+		copy(news, s);
 		s = news;
 	}
 	s[lens] = t;
