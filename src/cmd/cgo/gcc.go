@@ -552,7 +552,11 @@ func (c *typeConv) FuncArg(dtype dwarf.Type) *Type {
 		// is type T defined as *X, simulate a little of the
 		// laxness of C by making the argument *X instead of T.
 		if ptr, ok := base(dt.Type).(*dwarf.PtrType); ok {
-			return c.Type(ptr)
+			// Unless the typedef happens to point to void* since
+			// Go has special rules around using unsafe.Pointer.
+			if _, void := base(ptr.Type).(*dwarf.VoidType); !void {
+				return c.Type(ptr)
+			}
 		}
 	}
 	return t;
