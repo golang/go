@@ -762,7 +762,7 @@ reswitch:
 		goto ret;
 
 	case OCOPY:
-		ok |= Erv;
+		ok |= Etop|Erv;
 		args = n->list;
 		if(args == nil || args->next == nil) {
 			yyerror("missing arguments to copy");
@@ -772,19 +772,19 @@ reswitch:
 			yyerror("too many arguments to copy");
 			goto error;
 		}
-		typecheck(&args->n, Erv);
-		typecheck(&args->next->n, Erv);
-		if(!isslice(args->n->type) || !isslice(args->next->n->type)) {
-			yyerror("arguments to copy must be slices");
-			goto error;
-		}
-		if(!eqtype(args->n->type, args->next->n->type)) {
-			yyerror("arguments to copy must be slices of the same type");
-			goto error;
-		}
 		n->left = args->n;
 		n->right = args->next->n;
 		n->type = types[TINT];
+		typecheck(&n->left, Erv);
+		typecheck(&n->right, Erv);
+		if(!isslice(n->left->type) || !isslice(n->right->type)) {
+			yyerror("arguments to copy must be slices");
+			goto error;
+		}
+		if(!eqtype(n->left->type, n->right->type)) {
+			yyerror("arguments to copy must be slices of the same type");
+			goto error;
+		}
 		goto ret;
 
 	case OCONV:
