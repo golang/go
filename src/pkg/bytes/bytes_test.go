@@ -172,36 +172,6 @@ func TestSplitAfter(t *testing.T) {
 	}
 }
 
-type CopyTest struct {
-	a	string;
-	b	string;
-	n	int;
-	res	string;
-}
-
-var copytests = []CopyTest{
-	CopyTest{"", "", 0, ""},
-	CopyTest{"a", "", 0, "a"},
-	CopyTest{"a", "a", 1, "a"},
-	CopyTest{"a", "b", 1, "b"},
-	CopyTest{"xyz", "abc", 3, "abc"},
-	CopyTest{"wxyz", "abc", 3, "abcz"},
-	CopyTest{"xyz", "abcd", 3, "abc"},
-}
-
-func TestCopy(t *testing.T) {
-	for i := 0; i < len(copytests); i++ {
-		tt := copytests[i];
-		dst := strings.Bytes(tt.a);
-		n := Copy(dst, strings.Bytes(tt.b));
-		result := string(dst);
-		if result != tt.res || n != tt.n {
-			t.Errorf(`Copy(%q, %q) = %d, %q; want %d, %q`, tt.a, tt.b, n, result, tt.n, tt.res);
-			continue;
-		}
-	}
-}
-
 // Test case for any function which accepts and returns a byte array.
 // For ease of creation, we write the byte arrays as strings.
 type StringTest struct {

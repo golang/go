@@ -20,10 +20,11 @@ func copyString(dst []byte, doff int, str string) {
 
 // Copy from bytes to byte array at offset doff.  Assume there's room.
 func copyBytes(dst []byte, doff int, src []byte) {
-	for soff := 0; soff < len(src); soff++ {
-		dst[doff] = src[soff];
-		doff++;
+	if len(src) == 1 {
+		dst[doff] = src[0];
+		return;
 	}
+	copy(dst[doff:len(dst)], src);
 }
 
 // A Buffer is a variable-sized buffer of bytes

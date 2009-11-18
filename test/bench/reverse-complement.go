@@ -37,39 +37,38 @@ package main
 
 import (
 	"bufio";
-	"bytes";
 	"os";
 )
 
-const	lineSize = 60
+const lineSize = 60
 
-var complement = [256]uint8 {
-	'A':	'T',	'a':	'T',
-	'C':	'G',	'c':	'G',
-	'G':	'C',	'g':	'C',
-	'T':	'A',	't':	'A',
-	'U':	'A',	'u':	'A',
-	'M':	'K',	'm':	'K',
-	'R':	'Y',	'r':	'Y',
-	'W':	'W',	'w':	'W',
-	'S':	'S',	's':	'S',
-	'Y':	'R',	'y':	'R',
-	'K':	'M',	'k':	'M',
-	'V':	'B',	'v':	'B',
-	'H':	'D',	'h':	'D',
-	'D':	'H',	'd':	'H',
-	'B':	'V',	'b':	'V',
-	'N':	'N',	'n':	'N',
+var complement = [256]uint8{
+	'A': 'T', 'a': 'T',
+	'C': 'G', 'c': 'G',
+	'G': 'C', 'g': 'C',
+	'T': 'A', 't': 'A',
+	'U': 'A', 'u': 'A',
+	'M': 'K', 'm': 'K',
+	'R': 'Y', 'r': 'Y',
+	'W': 'W', 'w': 'W',
+	'S': 'S', 's': 'S',
+	'Y': 'R', 'y': 'R',
+	'K': 'M', 'k': 'M',
+	'V': 'B', 'v': 'B',
+	'H': 'D', 'h': 'D',
+	'D': 'H', 'd': 'H',
+	'B': 'V', 'b': 'V',
+	'N': 'N', 'n': 'N',
 }
 
 var in *bufio.Reader
 
 func reverseComplement(in []byte) []byte {
-	outLen := len(in) + (len(in) + lineSize -1)/lineSize;
+	outLen := len(in) + (len(in)+lineSize-1)/lineSize;
 	out := make([]byte, outLen);
 	j := 0;
 	k := 0;
-	for i := len(in)-1; i >= 0; i-- {
+	for i := len(in) - 1; i >= 0; i-- {
 		if k == lineSize {
 			out[j] = '\n';
 			j++;
@@ -106,15 +105,15 @@ func main() {
 				top = 0;
 			}
 			os.Stdout.Write(line);
-			continue
+			continue;
 		}
-		line = line[0:len(line)-1];	// drop newline
+		line = line[0 : len(line)-1];	// drop newline
 		if top+len(line) > len(buf) {
-			nbuf := make([]byte, 2*len(buf) + 1024*(100+len(line)));
-			bytes.Copy(nbuf, buf[0:top]);
+			nbuf := make([]byte, 2*len(buf)+1024*(100+len(line)));
+			copy(nbuf, buf[0:top]);
 			buf = nbuf;
 		}
-		bytes.Copy(buf[top:len(buf)], line);
+		copy(buf[top:len(buf)], line);
 		top += len(line);
 	}
 	output(buf[0:top]);

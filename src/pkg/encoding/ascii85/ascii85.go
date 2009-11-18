@@ -7,7 +7,6 @@
 package ascii85
 
 import (
-	"bytes";
 	"io";
 	"os";
 	"strconv";
@@ -268,7 +267,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	for {
 		// Copy leftover output from last decode.
 		if len(d.out) > 0 {
-			n = bytes.Copy(p, d.out);
+			n = copy(p, d.out);
 			d.out = d.out[n:len(d.out)];
 			return;
 		}
@@ -279,7 +278,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 			ndst, nsrc, d.err = Decode(&d.outbuf, d.buf[0:d.nbuf], d.readErr != nil);
 			if ndst > 0 {
 				d.out = d.outbuf[0:ndst];
-				d.nbuf = bytes.Copy(&d.buf, d.buf[nsrc:d.nbuf]);
+				d.nbuf = copy(&d.buf, d.buf[nsrc:d.nbuf]);
 				continue;	// copy out and return
 			}
 		}

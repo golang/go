@@ -10,7 +10,6 @@ package tls
 // state, or for a notification when the state changes.
 
 import (
-	"bytes";
 	"container/list";
 	"crypto/subtle";
 	"hash";
@@ -228,8 +227,8 @@ func (p *recordProcessor) processHandshakeRecord(data []byte) {
 			return;
 		}
 		newBuf := make([]byte, len(p.handshakeBuf)+len(data));
-		bytes.Copy(newBuf, p.handshakeBuf);
-		bytes.Copy(newBuf[len(p.handshakeBuf):len(newBuf)], data);
+		copy(newBuf, p.handshakeBuf);
+		copy(newBuf[len(p.handshakeBuf):len(newBuf)], data);
 		p.handshakeBuf = newBuf;
 	}
 

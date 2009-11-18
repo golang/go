@@ -5,7 +5,6 @@
 package flate
 
 import (
-	"bytes";
 	"io";
 	"math";
 	"os";
@@ -128,7 +127,7 @@ func (d *deflater) fillWindow(index int) (int, os.Error) {
 	wSize := d.windowMask + 1;
 	if index >= wSize+wSize-(minMatchLength+maxMatchLength) {
 		// shift the window by wSize
-		bytes.Copy(d.window, d.window[wSize:2*wSize]);
+		copy(d.window, d.window[wSize:2*wSize]);
 		index -= wSize;
 		d.windowEnd -= wSize;
 		if d.blockStart >= wSize {
@@ -355,7 +354,7 @@ func (d *deflater) doDeflate() (err os.Error) {
 				// For matches this long, we don't bother inserting each individual
 				// item into the table.
 				index += length;
-				hash = (int(d.window[index]) << hashShift + int(d.window[index+1]));
+				hash = (int(d.window[index])<<hashShift + int(d.window[index+1]));
 			}
 			if ti == maxFlateBlockTokens {
 				// The block includes the current character

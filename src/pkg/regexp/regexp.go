@@ -277,9 +277,8 @@ func newParser(re *Regexp) *parser {
 }
 
 func special(c int) bool {
-	s := `\.+*?()|[]^$`;
-	for i := 0; i < len(s); i++ {
-		if c == int(s[i]) {
+	for _, r := range `\.+*?()|[]^$` {
+		if c == r {
 			return true
 		}
 	}
@@ -287,9 +286,8 @@ func special(c int) bool {
 }
 
 func specialcclass(c int) bool {
-	s := `\-[]`;
-	for i := 0; i < len(s); i++ {
-		if c == int(s[i]) {
+	for _, r := range `\-[]` {
+		if c == r {
 			return true
 		}
 	}
@@ -675,9 +673,7 @@ func (re *Regexp) addState(s []state, inst instr, match []int, pos, end int) []s
 	}
 	if l == cap(s) {
 		s1 := make([]state, 2*l)[0:l];
-		for i := 0; i < l; i++ {
-			s1[i] = s[i]
-		}
+		copy(s1, s);
 		s = s1;
 	}
 	s = s[0 : l+1];
@@ -685,15 +681,11 @@ func (re *Regexp) addState(s []state, inst instr, match []int, pos, end int) []s
 	s[l].match = match;
 	if inst.kind() == _ALT {
 		s1 := make([]int, 2*(re.nbra+1));
-		for i := 0; i < len(s1); i++ {
-			s1[i] = match[i]
-		}
+		copy(s1, match);
 		s = re.addState(s, inst.(*_Alt).left, s1, pos, end);
 		// give other branch a copy of this match vector
 		s1 = make([]int, 2*(re.nbra+1));
-		for i := 0; i < len(s1); i++ {
-			s1[i] = match[i]
-		}
+		copy(s1, match);
 		s = re.addState(s, inst.next(), s1, pos, end);
 	}
 	return s;

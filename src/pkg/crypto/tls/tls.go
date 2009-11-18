@@ -6,7 +6,6 @@
 package tls
 
 import (
-	"bytes";
 	"io";
 	"os";
 	"net";
@@ -59,7 +58,7 @@ func (tls *Conn) Read(p []byte) (int, os.Error) {
 		}
 	}
 
-	n := bytes.Copy(p, tls.readBuf);
+	n := copy(p, tls.readBuf);
 	tls.readBuf = tls.readBuf[n:len(tls.readBuf)];
 	return n, nil;
 }

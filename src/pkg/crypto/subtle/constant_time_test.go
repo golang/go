@@ -5,7 +5,6 @@
 package subtle
 
 import (
-	"bytes";
 	"testing";
 	"testing/quick";
 )
@@ -75,14 +74,14 @@ func TestConstantTimeEq(t *testing.T) {
 	}
 }
 
-func copy(v int, x, y []byte) []byte {
+func makeCopy(v int, x, y []byte) []byte {
 	if len(x) > len(y) {
 		x = x[0:len(y)]
 	} else {
 		y = y[0:len(x)]
 	}
 	if v == 1 {
-		bytes.Copy(x, y)
+		copy(x, y)
 	}
 	return x;
 }
@@ -99,7 +98,7 @@ func constantTimeCopyWrapper(v int, x, y []byte) []byte {
 }
 
 func TestConstantTimeCopy(t *testing.T) {
-	err := quick.CheckEqual(constantTimeCopyWrapper, copy, nil);
+	err := quick.CheckEqual(constantTimeCopyWrapper, makeCopy, nil);
 	if err != nil {
 		t.Error(err)
 	}

@@ -5,7 +5,6 @@
 package main
 
 import (
-	"bytes";
 	"exec";
 	"fmt";
 	"go/token";
@@ -20,7 +19,7 @@ func (r ByteReaderAt) ReadAt(p []byte, off int64) (n int, err os.Error) {
 	if off >= int64(len(r)) || off < 0 {
 		return 0, os.EOF
 	}
-	return bytes.Copy(p, r[off:len(r)]), nil;
+	return copy(p, r[off:len(r)]), nil;
 }
 
 // run runs the command argv, feeding in stdin on standard input.
