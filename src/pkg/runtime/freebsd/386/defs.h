@@ -1,4 +1,4 @@
-// godefs -f -m64 defs.c
+// godefs freebsd/defs.c
 
 // MACHINE GENERATED - DO NOT EDIT.
 
@@ -32,13 +32,12 @@ struct ThrParam {
 	void *start_func;
 	void *arg;
 	int8 *stack_base;
-	uint64 stack_size;
+	uint32 stack_size;
 	int8 *tls_base;
-	uint64 tls_size;
-	int64 *child_tid;
-	int64 *parent_tid;
+	uint32 tls_size;
+	int32 *child_tid;
+	int32 *parent_tid;
 	int32 flags;
-	byte pad0[4];
 	Rtprio *rtp;
 	void* spare[3];
 };
@@ -46,9 +45,8 @@ struct ThrParam {
 typedef struct Sigaltstack Sigaltstack;
 struct Sigaltstack {
 	int8 *ss_sp;
-	uint64 ss_size;
+	uint32 ss_size;
 	int32 ss_flags;
-	byte pad0[4];
 };
 
 typedef struct Sigset Sigset;
@@ -67,9 +65,8 @@ union Sigval {
 typedef struct StackT StackT;
 struct StackT {
 	int8 *ss_sp;
-	uint64 ss_size;
+	uint32 ss_size;
 	int32 ss_flags;
-	byte pad0[4];
 };
 
 typedef struct Siginfo Siginfo;
@@ -82,47 +79,39 @@ struct Siginfo {
 	int32 si_status;
 	void *si_addr;
 	Sigval si_value;
-	byte _reason[40];
+	byte _reason[32];
 };
 
 typedef struct Mcontext Mcontext;
 struct Mcontext {
-	int64 mc_onstack;
-	int64 mc_rdi;
-	int64 mc_rsi;
-	int64 mc_rdx;
-	int64 mc_rcx;
-	int64 mc_r8;
-	int64 mc_r9;
-	int64 mc_rax;
-	int64 mc_rbx;
-	int64 mc_rbp;
-	int64 mc_r10;
-	int64 mc_r11;
-	int64 mc_r12;
-	int64 mc_r13;
-	int64 mc_r14;
-	int64 mc_r15;
-	uint32 mc_trapno;
-	uint16 mc_fs;
-	uint16 mc_gs;
-	int64 mc_addr;
-	uint32 mc_flags;
-	uint16 mc_es;
-	uint16 mc_ds;
-	int64 mc_err;
-	int64 mc_rip;
-	int64 mc_cs;
-	int64 mc_rflags;
-	int64 mc_rsp;
-	int64 mc_ss;
-	int64 mc_len;
-	int64 mc_fpformat;
-	int64 mc_ownedfp;
-	int64 mc_fpstate[64];
-	int64 mc_fsbase;
-	int64 mc_gsbase;
-	int64 mc_spare[6];
+	int32 mc_onstack;
+	int32 mc_gs;
+	int32 mc_fs;
+	int32 mc_es;
+	int32 mc_ds;
+	int32 mc_edi;
+	int32 mc_esi;
+	int32 mc_ebp;
+	int32 mc_isp;
+	int32 mc_ebx;
+	int32 mc_edx;
+	int32 mc_ecx;
+	int32 mc_eax;
+	int32 mc_trapno;
+	int32 mc_err;
+	int32 mc_eip;
+	int32 mc_cs;
+	int32 mc_eflags;
+	int32 mc_esp;
+	int32 mc_ss;
+	int32 mc_len;
+	int32 mc_fpformat;
+	int32 mc_ownedfp;
+	int32 mc_spare1[1];
+	int32 mc_fpstate[128];
+	int32 mc_fsbase;
+	int32 mc_gsbase;
+	int32 mc_spare2[6];
 };
 
 typedef struct Ucontext Ucontext;
@@ -139,41 +128,33 @@ struct Ucontext {
 typedef struct Sigcontext Sigcontext;
 struct Sigcontext {
 	Sigset sc_mask;
-	int64 sc_onstack;
-	int64 sc_rdi;
-	int64 sc_rsi;
-	int64 sc_rdx;
-	int64 sc_rcx;
-	int64 sc_r8;
-	int64 sc_r9;
-	int64 sc_rax;
-	int64 sc_rbx;
-	int64 sc_rbp;
-	int64 sc_r10;
-	int64 sc_r11;
-	int64 sc_r12;
-	int64 sc_r13;
-	int64 sc_r14;
-	int64 sc_r15;
+	int32 sc_onstack;
+	int32 sc_gs;
+	int32 sc_fs;
+	int32 sc_es;
+	int32 sc_ds;
+	int32 sc_edi;
+	int32 sc_esi;
+	int32 sc_ebp;
+	int32 sc_isp;
+	int32 sc_ebx;
+	int32 sc_edx;
+	int32 sc_ecx;
+	int32 sc_eax;
 	int32 sc_trapno;
-	int16 sc_fs;
-	int16 sc_gs;
-	int64 sc_addr;
-	int32 sc_flags;
-	int16 sc_es;
-	int16 sc_ds;
-	int64 sc_err;
-	int64 sc_rip;
-	int64 sc_cs;
-	int64 sc_rflags;
-	int64 sc_rsp;
-	int64 sc_ss;
-	int64 sc_len;
-	int64 sc_fpformat;
-	int64 sc_ownedfp;
-	int64 sc_fpstate[64];
-	int64 sc_fsbase;
-	int64 sc_gsbase;
-	int64 sc_spare[6];
+	int32 sc_err;
+	int32 sc_eip;
+	int32 sc_cs;
+	int32 sc_efl;
+	int32 sc_esp;
+	int32 sc_ss;
+	int32 sc_len;
+	int32 sc_fpformat;
+	int32 sc_ownedfp;
+	int32 sc_spare1[1];
+	int32 sc_fpstate[128];
+	int32 sc_fsbase;
+	int32 sc_gsbase;
+	int32 sc_spare2[6];
 };
 #pragma pack off

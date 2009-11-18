@@ -99,6 +99,11 @@ _* | *_ | _)
 	echo 'undefined $GOOS_$GOARCH:' "$GOOSARCH" 1>&2
 	exit 1
 	;;
+freebsd_386)
+	mksyscall="mksyscall.sh -l32"
+	mksysnum="mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master"
+	mktypes="godefs -gsyscall -f-m32"
+	;;
 freebsd_amd64)
 	mksysnum="mksysnum_freebsd.sh /usr/src/sys/kern/syscalls.master"
 	mktypes="godefs -gsyscall -f-m64"

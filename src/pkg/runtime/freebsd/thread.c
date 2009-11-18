@@ -125,7 +125,7 @@ void thr_start(void*);
 void
 newosproc(M *m, G *g, void *stk, void (*fn)(void))
 {
-	struct thr_param param;
+	ThrParam param;
 
 	USED(fn);	// thr_start assumes fn == mstart
 	USED(g);	// thr_start assumes g == m->g0
@@ -141,8 +141,12 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
 	param.arg = m;
 	param.stack_base = stk;
 	param.stack_size = g->stackbase - g->stackguard + 256;
-	param.child_tid = (int64*)&m->procid;
+	param.child_tid = (int32*)&m->procid;
 	param.parent_tid = nil;
+	param.tls_base = (int8*)&m->tls[0];
+	param.tls_size = sizeof m->tls;
+
+	m->tls[0] = m->id;	// so 386 asm can find it
 
 	thr_new(&param, sizeof param);
 }

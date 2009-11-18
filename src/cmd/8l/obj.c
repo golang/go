@@ -49,6 +49,10 @@ char	*thestring 	= "386";
  *	-H2 -T4128 -R4096		is plan9 format
  *	-H3 -Tx -Rx			is MS-DOS .COM
  *	-H4 -Tx -Rx			is fake MS-DOS .EXE
+ *	-H6 -Tx -Rx			is Apple Mach-O
+ *	-H7 -Tx -Rx			is Linux ELF32
+ *	-H8 -Tx -Rx			is Google Native Client
+ *	-H9 -Tx -Rx			is FreeBSD ELF32
  */
 
 static int
@@ -154,6 +158,10 @@ main(int argc, char *argv[])
 		if(strcmp(goos, "nacl") == 0)
 			HEADTYPE = 8;
 		else
+		if(strcmp(goos, "freebsd") == 0) {
+			debug['d'] = 1; /* no dynamic syms for now */
+			HEADTYPE = 9;
+		} else
 			print("goos is not known: %sn", goos);
 	}
 
@@ -226,13 +234,17 @@ main(int argc, char *argv[])
 			INITRND = 4096;
 		break;
 	case 7:	/* elf32 executable */
+	case 9:
 		/*
 		 * Linux ELF uses TLS offsets negative from %gs.
 		 * Translate 0(GS) and 4(GS) into -8(GS) and -4(GS).
 		 * Also known to ../../pkg/runtime/linux/386/sys.s
 		 * and ../../libcgo/linux_386.c.
 		 */
-		tlsoffset = -8;
+		if (HEADTYPE == 7)
+			tlsoffset = -8;
+		else
+			tlsoffset = 0;
 		elfinit();
 		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)

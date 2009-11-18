@@ -16,6 +16,8 @@
 #include <sys/mman.h>
 #include <sys/ucontext.h>
 #include <sys/umtx.h>
+#include <sys/rtprio.h>
+#include <sys/thr.h>
 #include <sys/_sigset.h>
 
 enum {
@@ -37,6 +39,8 @@ enum {
 	$EINTR = EINTR,
 };
 
+typedef struct rtprio	$Rtprio;
+typedef struct thr_param $ThrParam;
 typedef struct sigaltstack $Sigaltstack;
 typedef struct __sigset $Sigset;
 typedef union sigval $Sigval;
