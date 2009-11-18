@@ -36,6 +36,7 @@
 #define	Dbufslop	100
 
 char linuxdynld[] = "/lib/ld-linux.so.2";
+char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
 uint32 symdatva = 0x99<<24;
 
 int32
@@ -273,7 +274,7 @@ doelf(void)
 	Sym *s, *shstrtab, *dynamic, *dynstr, *d;
 	int h, nsym, t;
 
-	if(HEADTYPE != 7 && HEADTYPE != 8)
+	if(HEADTYPE != 7 && HEADTYPE != 8 && HEADTYPE != 9)
 		return;
 
 	/* predefine strings we need for section headers */
@@ -303,7 +304,14 @@ doelf(void)
 		s = lookup(".interp", 0);
 		s->reachable = 1;
 		s->type = SDATA;	// TODO: rodata
-		addstring(lookup(".interp", 0), linuxdynld);
+		switch(HEADTYPE) {
+		case 7:
+			addstring(lookup(".interp", 0), linuxdynld);
+			break;
+		case 9:
+			addstring(lookup(".interp", 0), freebsddynld);
+			break;
+		}
 
 		/*
 		 * hash table - empty for now.
@@ -527,6 +535,7 @@ asmb(void)
 		break;
 	case 7:
 	case 8:
+	case 9:
 		v = rnd(HEADR+textsize, INITRND);
 		seek(cout, v, 0);
 		break;
@@ -583,6 +592,7 @@ asmb(void)
 			break;
 		case 7:
 		case 8:
+		case 9:
 			symo = rnd(HEADR+textsize, INITRND)+datsize;
 			symo = rnd(symo, INITRND);
 			break;
@@ -752,6 +762,7 @@ asmb(void)
 
 	case 7:
 	case 8:
+	case 9:
 		/* elf 386 */
 		if(HEADTYPE == 8)
 			debug['d'] = 1;
@@ -975,10 +986,15 @@ asmb(void)
 		eh->ident[EI_CLASS] = ELFCLASS32;
 		eh->ident[EI_DATA] = ELFDATA2LSB;
 		eh->ident[EI_VERSION] = EV_CURRENT;
-		if(HEADTYPE == 8) {
+		switch(HEADTYPE) {
+		case 8:
 			eh->ident[EI_OSABI] = ELFOSABI_NACL;
 			eh->ident[EI_ABIVERSION] = 6;
 			eh->flags = 0x200000;	// aligned mod 32
+			break;
+		case 9:
+			eh->ident[EI_OSABI] = 9;
+			break;
 		}
 
 		eh->type = ET_EXEC;
