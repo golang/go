@@ -189,7 +189,7 @@ runtime·slicecopy(Slice to, Slice fm, uintptr width, int32 ret)
 	}
 
 	ret = fm.len;
-	if(to.len > ret)
+	if(to.len < ret)
 		ret = to.len;
 
 	memmove(to.array, fm.array, ret*width);
