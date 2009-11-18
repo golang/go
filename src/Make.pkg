@@ -103,6 +103,7 @@ RUNTIME_CFLAGS=-I$(GOROOT)/src/pkg/runtime $(RUNTIME_CFLAGS_$(GOARCH))
 # Have to run gcc with the right size argument on hybrid 32/64 machines.
 _CGO_CFLAGS_386=-m32
 _CGO_CFLAGS_amd64=-m64
+_CGO_LDFLAGS_freebsd=-shared -lpthread -lm
 _CGO_LDFLAGS_linux=-shared -lpthread -lm
 _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
 
