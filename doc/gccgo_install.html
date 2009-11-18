@@ -31,11 +31,16 @@ repository: <code>svn://gcc.gnu.org/svn/gcc/branches/gccgo</code>.
 
 <p>
 Building <code>gccgo</code> is just like building <code>gcc</code>
-with one additional option.  See
+with one or two additional options.  See
 the <a href="http://gcc.gnu.org/install/">instructions on the gcc web
 site</a>.  When you run <code>configure</code>, add the
-option <code>--enable-languages=c,c++,go</code> (along with other languages you
-may want to build).
+option <code>--enable-languages=c,c++,go</code> (along with other
+languages you may want to build).  If you are targeting a 32-bit x86,
+then you will want to build <code>gccgo</code> to default to
+supporting locked compare and exchange instructions; do this by also
+using the <code>configure</code> option <code>--with-arch=i586</code>
+(or a newer architecture, depending on where you need your programs to
+run).
 </p>
 
 <p>
