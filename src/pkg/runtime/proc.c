@@ -413,7 +413,7 @@ matchmg(void)
 {
 	G *g;
 
-	if(m->mallocing)
+	if(m->mallocing || m->gcing)
 		return;
 	while(sched.mcpu < sched.mcpumax && (g = gget()) != nil){
 		M *m;

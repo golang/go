@@ -287,7 +287,7 @@ TEXT setldt(SB),7,$32
 	ORL	$0x40, CX		// 32-bit operand size
 	MOVB	CX, 6(AX)
 
-	MOVL	$0xF2, 5(AX)	// r/w data descriptor, dpl=3, present
+	MOVB	$0xF2, 5(AX)	// r/w data descriptor, dpl=3, present
 
 	// call i386_set_ldt(entry, desc, 1)
 	MOVL	$0xffffffff, 0(SP)	// auto-allocate entry and return in AX
