@@ -746,6 +746,7 @@ goopnames[] =
 	[OCLOSE]	= "close",
 	[OCOM]		= "^",
 	[OCONTINUE]	= "continue",
+	[OCOPY]		= "copy",
 	[ODEC]		= "--",
 	[ODEFER]	= "defer",
 	[ODIV]		= "/",

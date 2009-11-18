@@ -1245,6 +1245,7 @@ static	struct
 	"cap",		LNAME,		Txxx,		OCAP,
 	"close",	LNAME,		Txxx,		OCLOSE,
 	"closed",	LNAME,		Txxx,		OCLOSED,
+	"copy",		LNAME,		Txxx,		OCOPY,
 	"len",		LNAME,		Txxx,		OLEN,
 	"make",		LNAME,		Txxx,		OMAKE,
 	"new",		LNAME,		Txxx,		ONEW,
