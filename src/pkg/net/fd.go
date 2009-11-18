@@ -22,6 +22,7 @@ type netFD struct {
 	file	*os.File;
 	cr	chan *netFD;
 	cw	chan *netFD;
+	cc	chan *netFD;
 	net	string;
 	laddr	Addr;
 	raddr	Addr;
@@ -66,9 +67,14 @@ type netFD struct {
 // one will succeed, the pollServer will read the request, and then the
 // channel will be empty for the next process's request.  A larger buffer
 // might help batch requests.
+//
+// In order to prevent race conditions, pollServer has an additional cc channel
+// that receives fds to be closed. pollServer doesn't make the close system
+// call, it just sets fd.file = nil and fd.fd = -1. Because of this, pollServer
+// is always in sync with the kernel's view of a given descriptor.
 
 type pollServer struct {
-	cr, cw		chan *netFD;	// buffered >= 1
+	cr, cw, cc	chan *netFD;	// buffered >= 1
 	pr, pw		*os.File;
 	pending		map[int]*netFD;
 	poll		*pollster;	// low-level OS hooks
@@ -79,6 +85,7 @@ func newPollServer() (s *pollServer, err os.Error) {
 	s = new(pollServer);
 	s.cr = make(chan *netFD, 1);
 	s.cw = make(chan *netFD, 1);
+	s.cc = make(chan *netFD, 1);
 	if s.pr, s.pw, err = os.Pipe(); err != nil {
 		return nil, err
 	}
@@ -107,17 +114,15 @@ func newPollServer() (s *pollServer, err os.Error) {
 }
 
 func (s *pollServer) AddFD(fd *netFD, mode int) {
-	// TODO(rsc): This check handles a race between
-	// one goroutine reading and another one closing,
-	// but it doesn't solve the race completely:
-	// it still could happen that one goroutine closes
-	// but we read fd.fd before it does, and then
-	// another goroutine creates a new open file with
-	// that fd, which we'd now be referring to.
-	// The fix is probably to send the Close call
-	// through the poll server too, except that
-	// not all Reads and Writes go through the poll
-	// server even now.
+	// This check verifies that the underlying file descriptor hasn't been
+	// closed in the mean time. Any time a netFD is closed, the closing
+	// goroutine makes a round trip to the pollServer which sets file = nil
+	// and fd = -1. The goroutine then closes the actual file descriptor.
+	// Thus fd.fd mirrors the kernel's view of the file descriptor.
+
+	// TODO(rsc,agl): There is still a race in Read and Write,
+	// because they optimistically try to use the fd and don't
+	// call into the PollServer unless they get EAGAIN.
 	intfd := fd.fd;
 	if intfd < 0 {
 		// fd closed underfoot
@@ -257,6 +262,11 @@ func (s *pollServer) Run() {
 			for fd, ok := <-s.cw; ok; fd, ok = <-s.cw {
 				s.AddFD(fd, 'w')
 			}
+			for fd, ok := <-s.cc; ok; fd, ok = <-s.cc {
+				fd.file = nil;
+				fd.fd = -1;
+				fd.cc <- fd;
+			}
 		} else {
 			netfd := s.LookupFD(fd, mode);
 			if netfd == nil {
@@ -284,6 +294,11 @@ func (s *pollServer) WaitWrite(fd *netFD) {
 	<-fd.cw;
 }
 
+func (s *pollServer) WaitCloseAck(fd *netFD) {
+	s.cc <- fd;
+	s.Wakeup();
+	<-fd.cc;
+}
 
 // Network FD methods.
 // All the network FDs use a single pollServer.
@@ -321,6 +336,7 @@ func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err 
 	f.file = os.NewFile(fd, net+":"+ls+"->"+rs);
 	f.cr = make(chan *netFD, 1);
 	f.cw = make(chan *netFD, 1);
+	f.cc = make(chan *netFD, 1);
 	return f, nil;
 }
 
@@ -344,10 +360,9 @@ func (fd *netFD) Close() os.Error {
 	// for Close too.  Sigh.
 	syscall.SetNonblock(fd.file.Fd(), false);
 
-	e := fd.file.Close();
-	fd.file = nil;
-	fd.fd = -1;
-	return e;
+	f := fd.file;
+	pollserver.WaitCloseAck(fd);
+	return f.Close();
 }
 
 func (fd *netFD) Read(p []byte) (n int, err os.Error) {
