@@ -1351,7 +1351,9 @@ def DownloadCL(ui, repo, clname):
 
 	# The author is just a nickname: get the real email address.
 	try:
-		data = MySend("/user_popup/" + nick, force_auth=False)
+		# want URL-encoded nick, but without a=, and rietveld rejects + for %20.
+		url = "/user_popup/" + urllib.urlencode({"a": nick})[2:].replace("+", "%20")
+		data = MySend(url, force_auth=False)
 	except:
 		ui.warn("error looking up %s: %s\n" % (nick, ExceptionDetail()))
 		cl.original_author = nick+"@needtofix"
