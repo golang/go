@@ -619,6 +619,34 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
 	csyntax = "struct { ";
 	fld := make([]*ast.Field, 0, 2*len(dt.Field)+1);	// enough for padding around every field
 	off := int64(0);
+
+	// Mangle struct fields that happen to be named Go keywords into
+	// _{keyword}.  Create a map from C ident -> Go ident.  The Go ident will
+	// be mangled.  Any existing identifier that already has the same name on
+	// the C-side will cause the Go-mangled version to be prefixed with _.
+	// (e.g. in a struct with fields '_type' and 'type', the latter would be
+	// rendered as '__type' in Go).
+	ident := make(map[string]string);
+	used := make(map[string]bool);
+	for _, f := range dt.Field {
+		ident[f.Name] = f.Name;
+		used[f.Name] = true;
+	}
+	for cid, goid := range ident {
+		if token.Lookup(strings.Bytes(goid)).IsKeyword() {
+			// Avoid keyword
+			goid = "_" + goid;
+
+			// Also avoid existing fields
+			for _, exist := used[goid]; exist; _, exist = used[goid] {
+				goid = "_" + goid
+			}
+
+			used[goid] = true;
+			ident[cid] = goid;
+		}
+	}
+
 	for _, f := range dt.Field {
 		if f.ByteOffset > off {
 			fld = c.pad(fld, f.ByteOffset-off);
@@ -627,7 +655,8 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
 		t := c.Type(f.Type);
 		n := len(fld);
 		fld = fld[0 : n+1];
-		fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident(f.Name)}, Type: t.Go};
+
+		fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident(ident[f.Name])}, Type: t.Go};
 		off += t.Size;
 		csyntax += t.C + " " + f.Name + "; ";
 		if t.Align > align {
