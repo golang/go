@@ -7,7 +7,9 @@ package rsa
 import (
 	"big";
 	"bytes";
+	"crypto/sha1";
 	"encoding/base64";
+	"encoding/hex";
 	"os";
 	"io";
 	"strings";
@@ -150,6 +152,49 @@ func TestNonZeroRandomBytes(t *testing.T) {
 		if b == 0 {
 			t.Errorf("Zero octet found");
 			return;
+		}
+	}
+}
+
+type signPKCS1v15Test struct {
+	in, out string;
+}
+
+// These vectors have been tested with
+//   `openssl rsautl -verify -inkey pk -in signature | hexdump -C`
+var signPKCS1v15Tests = []signPKCS1v15Test{
+	signPKCS1v15Test{"Test.\n", "a4f3fa6ea93bcdd0c57be020c1193ecbfd6f200a3d95c409769b029578fa0e336ad9a347600e40d3ae823b8c7e6bad88cc07c1d54c3a1523cbbb6d58efc362ae"},
+}
+
+func TestSignPKCS1v15(t *testing.T) {
+	for i, test := range signPKCS1v15Tests {
+		h := sha1.New();
+		h.Write(strings.Bytes(test.in));
+		digest := h.Sum();
+
+		s, err := SignPKCS1v15(nil, rsaPrivateKey, HashSHA1, digest);
+		if err != nil {
+			t.Errorf("#%d %s", i, err)
+		}
+
+		expected, _ := hex.DecodeString(test.out);
+		if bytes.Compare(s, expected) != 0 {
+			t.Errorf("#%d got: %x want: %x", i, s, expected)
+		}
+	}
+}
+
+func TestVerifyPKCS1v15(t *testing.T) {
+	for i, test := range signPKCS1v15Tests {
+		h := sha1.New();
+		h.Write(strings.Bytes(test.in));
+		digest := h.Sum();
+
+		sig, _ := hex.DecodeString(test.out);
+
+		err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, HashSHA1, digest, sig);
+		if err != nil {
+			t.Errorf("#%d %s", i, err)
 		}
 	}
 }

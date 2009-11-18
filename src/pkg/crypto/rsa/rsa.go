@@ -288,6 +288,12 @@ type DecryptionError struct{}
 
 func (DecryptionError) String() string	{ return "RSA decryption error" }
 
+// A VerificationError represents a failure to verify a signature.
+// It is deliberately vague to avoid adaptive attacks.
+type VerificationError struct{}
+
+func (VerificationError) String() string	{ return "RSA verification error" }
+
 // modInverse returns ia, the inverse of a in the multiplicative group of prime
 // order n. It requires that a be a member of the group (i.e. less than n).
 func modInverse(a, n *big.Int) (ia *big.Int, ok bool) {
