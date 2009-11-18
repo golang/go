@@ -32,6 +32,7 @@ static void	checklvalue(Node*, char*);
 static void	checkassign(Node*);
 static void	checkassignlist(NodeList*);
 static int	islvalue(Node*);
+static void	toslice(Node**);
 
 void
 typechecklist(NodeList *l, int top)
@@ -777,12 +778,16 @@ reswitch:
 		n->type = types[TINT];
 		typecheck(&n->left, Erv);
 		typecheck(&n->right, Erv);
+		if(n->left->type == T || n->right->type == T)
+			goto error;
+		toslice(&n->left);
+		toslice(&n->right);
 		if(!isslice(n->left->type) || !isslice(n->right->type)) {
-			yyerror("arguments to copy must be slices");
+			yyerror("arguments to copy must be slices or array pointers");
 			goto error;
 		}
 		if(!eqtype(n->left->type, n->right->type)) {
-			yyerror("arguments to copy must be slices of the same type");
+			yyerror("arguments to copy must have the same type element type");
 			goto error;
 		}
 		goto ret;
@@ -1118,6 +1123,25 @@ implicitstar(Node **nn)
 	n = nod(OIND, n, N);
 	typecheck(&n, Erv);
 	*nn = n;
+}
+
+static void
+toslice(Node **nn)
+{
+	Node *n;
+	Type *t;
+
+	n = *nn;
+	if(n->type == T)
+		return;
+	if(isptr[n->type->etype] && isfixedarray(n->type->type)) {
+		// convert to slice
+		t = typ(TARRAY);
+		t->bound = -1;
+		t->type = n->type->type->type;
+		n = typecheckconv(nil, n, t, 0, "conversion of array pointer to slice");
+		*nn = n;
+	}
 }
 
 static int
