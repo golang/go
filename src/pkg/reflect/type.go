@@ -252,9 +252,11 @@ type Method struct {
 type Type interface {
 	// PkgPath returns the type's package path.
 	// The package path is a full package import path like "container/vector".
+	// PkgPath returns an empty string for unnamed types.
 	PkgPath() string;
 
 	// Name returns the type's name within its package.
+	// Name returns an empty string for unnamed types.
 	Name() string;
 
 	// String returns a string representation of the type.
