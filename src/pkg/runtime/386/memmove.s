@@ -23,11 +23,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-	TEXT	memmove(SB), $0
+	TEXT	memmove(SB), 7, $0
 
 	MOVL	to+0(FP), DI
 	MOVL	fr+4(FP), SI
 	MOVL	n+8(FP), BX
+	CMPL	BX, $0
 	JLT	fault
 
 /*
@@ -38,7 +39,7 @@
 	JLS	back
 
 /*
- * foreward copy loop
+ * forward copy loop
  */
 	MOVL	BX, CX
 	SHRL	$2, CX
