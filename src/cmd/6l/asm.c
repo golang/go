@@ -315,19 +315,6 @@ doelf(void)
 		elfstr[ElfStrDynstr] = addstring(shstrtab, ".dynstr");
 		elfstr[ElfStrRela] = addstring(shstrtab, ".rela");
 
-		/* interpreter string */
-		s = lookup(".interp", 0);
-		s->reachable = 1;
-		s->type = SDATA;	// TODO: rodata
-		switch(HEADTYPE) {
-		case 7:
-			addstring(lookup(".interp", 0), linuxdynld);
-			break;
-		case 9:
-			addstring(lookup(".interp", 0), freebsddynld);
-			break;
-		}
-
 		/*
 		 * hash table.
 		 * only entries that other objects need to find when
@@ -688,7 +675,14 @@ asmb(void)
 			sh->type = SHT_PROGBITS;
 			sh->flags = SHF_ALLOC;
 			sh->addralign = 1;
-			shsym(sh, lookup(".interp", 0));
+			switch(HEADTYPE) {
+			case 7:
+				elfinterp(sh, startva, linuxdynld);
+				break;
+			case 9:
+				elfinterp(sh, startva, freebsddynld);
+				break;
+			}
 
 			ph = newElfPhdr();
 			ph->type = PT_INTERP;
@@ -903,7 +897,8 @@ asmb(void)
 		a += elfwritehdr();
 		a += elfwritephdrs();
 		a += elfwriteshdrs();
-		if (a > ELFRESERVE)
+		cflush();
+		if(a+elfwriteinterp() > ELFRESERVE)
 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
 		break;
 	}
