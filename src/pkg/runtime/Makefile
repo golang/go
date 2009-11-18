@@ -68,6 +68,7 @@ OFILES=\
 	sys.$O\
 	thread.$O\
 	traceback.$O\
+	memmove_$(GOARCH).$O\
 	$(OFILES_$(GOARCH))\
 
 HFILES=\

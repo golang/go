@@ -44,6 +44,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OCAP:
 	case OCLOSE:
 	case OCLOSED:
+	case OCOPY:
 	case OLEN:
 	case OMAKE:
 	case ONEW:
@@ -305,6 +306,7 @@ exprfmt(Fmt *f, Node *n, int prec)
 	case OCLOSE:
 	case OCLOSED:
 	case OLEN:
+	case OCOPY:
 	case OMAKE:
 	case ONEW:
 	case OPANIC:

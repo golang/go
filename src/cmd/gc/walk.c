@@ -307,6 +307,7 @@ walkstmt(Node **np)
 	case OAS2MAPR:
 	case OCLOSE:
 	case OCLOSED:
+	case OCOPY:
 	case OCALLMETH:
 	case OCALLINTER:
 	case OCALL:
@@ -904,6 +905,15 @@ walkexpr(Node **np, NodeList **init)
 			conv(n->right, types[TINT]));
 		goto ret;
 
+	case OCOPY:
+		fn = syslook("slicecopy", 1);
+		argtype(fn, n->left->type);
+		argtype(fn, n->right->type);
+		n = mkcall1(fn, n->type, init,
+			n->left, n->right,
+			nodintconst(n->left->type->width));
+		goto ret;
+
 	case OCLOSE:
 		// cannot use chanfn - closechan takes any, not chan any
 		fn = syslook("closechan", 1);
@@ -950,7 +960,8 @@ walkexpr(Node **np, NodeList **init)
 
 	case ORUNESTR:
 		// sys_intstring(v)
-		n = mkcall("intstring", n->type, init, conv(n->left, types[TINT64]));	// TODO(rsc): int64?!
+		n = mkcall("intstring", n->type, init,
+			conv(n->left, types[TINT64]));	// TODO(rsc): int64?!
 		goto ret;
 
 	case OARRAYBYTESTR:

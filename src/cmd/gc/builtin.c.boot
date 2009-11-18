@@ -25,6 +25,7 @@ char *runtimeimport =
 	"func runtime.sliceinttostring (? []int) (? string)\n"
 	"func runtime.stringiter (? string, ? int) (? int)\n"
 	"func runtime.stringiter2 (? string, ? int) (retk int, retv int)\n"
+	"func runtime.slicecopy (to any, fr any, wid uint32) (? int)\n"
 	"func runtime.ifaceI2E (iface any) (ret any)\n"
 	"func runtime.ifaceE2I (typ *uint8, iface any) (ret any)\n"
 	"func runtime.ifaceT2E (typ *uint8, elem any) (ret any)\n"

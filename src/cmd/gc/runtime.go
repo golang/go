@@ -33,6 +33,7 @@ func slicebytetostring([]byte) string
 func sliceinttostring([]int) string
 func stringiter(string, int) int
 func stringiter2(string, int) (retk int, retv int)
+func slicecopy(to any, fr any, wid uint32) int
 
 func ifaceI2E(iface any) (ret any)
 func ifaceE2I(typ *byte, iface any) (ret any)

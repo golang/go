@@ -177,6 +177,39 @@ runtime·arraytoslice(byte* old, uint32 nel, Slice ret)
 	}
 }
 
+// slicecopy(to any, fr any, wid uint32) int
+void
+runtime·slicecopy(Slice to, Slice fm, uintptr width, int32 ret)
+{
+	if(fm.array == nil || fm.len == 0 ||
+	   to.array == nil || to.len == 0 ||
+	   width == 0) {
+		ret = 0;
+		goto out;
+	}
+
+	ret = fm.len;
+	if(to.len > ret)
+		ret = to.len;
+
+	memmove(to.array, fm.array, ret*width);
+
+out:
+	FLUSH(&ret);
+
+	if(debug) {
+		prints("main·copy: to=");
+		runtime·printslice(to);
+		prints("; fm=");
+		runtime·printslice(fm);
+		prints("; width=");
+		runtime·printint(width);
+		prints("; ret=");
+		runtime·printint(ret);
+		prints("\n");
+	}
+}
+
 void
 runtime·printslice(Slice a)
 {
