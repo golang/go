@@ -305,24 +305,6 @@ doelf(void)
 		s->reachable = 1;
 		s->type = SDATA;	// TODO: rodata
 
-		/*
-		 * hash table - empty for now.
-		 * only entries that other objects need to find when
-		 * linking us need to be in this table.  right now that
-		 * is no entries.
-		 *
-		 * must have at least 1 bucket, though, to avoid
-		 * a divide by zero bug in some copies of the
-		 * glibc dynamic loader.
-		 */
-		s = lookup(".hash", 0);
-		s->type = SDATA;	// TODO: rodata
-		s->reachable = 1;
-		adduint32(s, 1);	// nbucket
-		adduint32(s, 1);	// nchain
-		adduint32(s, 0);	// bucket[0]
-		adduint32(s, 0);	// chain[0]
-
 		/* dynamic symbol table - first entry all zeros */
 		s = lookup(".dynsym", 0);
 		s->type = SDATA;
@@ -381,6 +363,27 @@ doelf(void)
 					elfwritedynent(dynamic, DT_NEEDED, addstring(dynstr, s->dynldlib));
 			}
 		}
+
+		/*
+		 * hash table.
+		 * only entries that other objects need to find when
+		 * linking us need to be in the table.  right now that is
+		 * no entries.
+		 *
+		 * freebsd insists on having chains enough for all
+		 * the local symbols, though.  for now, we just lay
+		 * down a trivial hash table with 1 bucket and a long chain,
+		 * because no one is actually looking for our symbols.
+		 */
+		s = lookup(".hash", 0);
+		s->type = SDATA;	// TODO: rodata
+		s->reachable = 1;
+		adduint32(s, 1);	// nbucket
+		adduint32(s, nsym);	// nchain
+		adduint32(s, nsym-1);	// bucket 0
+		adduint32(s, 0);	// chain 0
+		for(h=1; h<nsym; h++)	// chain nsym-1 -> nsym-2 -> ... -> 2 -> 1 -> 0
+			adduint32(s, h-1);
 
 		/*
 		 * .dynamic table
