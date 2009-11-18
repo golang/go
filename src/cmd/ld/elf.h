@@ -961,11 +961,14 @@ uint64	startelf(void);
 uint64	endelf(void);
 extern	int	numelfphdr;
 extern	int	numelfshdr;
+int	elfwriteinterp(void);
+void	elfinterp(ElfShdr*, uint64, char*);
 
 /*
  * Total amount of space to reserve at the start of the file
- * for Header, PHeaders, and SHeaders.
+ * for Header, PHeaders, SHeaders, and interp.
  * May waste some.
+ * On FreeBSD, cannot be larger than a page.
  */
 #define	ELFRESERVE	2048
 
