@@ -911,7 +911,7 @@ walkexpr(Node **np, NodeList **init)
 		argtype(fn, n->right->type);
 		n = mkcall1(fn, n->type, init,
 			n->left, n->right,
-			nodintconst(n->left->type->width));
+			nodintconst(n->left->type->type->width));
 		goto ret;
 
 	case OCLOSE:
