@@ -78,7 +78,7 @@ type certificate struct {
 }
 
 type tbsCertificate struct {
-	Raw			asn1.RawContents;
+	Raw			asn1.RawContent;
 	Version			int	"optional,explicit,default:1,tag:0";
 	SerialNumber		asn1.RawValue;
 	SignatureAlgorithm	algorithmIdentifier;
