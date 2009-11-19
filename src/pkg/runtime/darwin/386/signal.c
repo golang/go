@@ -83,7 +83,7 @@ initsig(void)
 	static Sigaction sa;
 
 	sa.sa_flags |= SA_SIGINFO|SA_ONSTACK;
-	sa.sa_mask = 0; // 0xFFFFFFFFU;
+	sa.sa_mask = 0xFFFFFFFFU;
 	sa.sa_tramp = sigtramp;	// sigtramp's job is to call into real handler
 	for(i = 0; i<NSIG; i++) {
 		if(sigtab[i].flags) {
