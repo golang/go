@@ -54,6 +54,11 @@ func u64(ii int) uint64 {
 }
 
 func reset() {
+	// swap in and out to exercise copy-up and copy-down
+	input8, output8 = output8, input8;
+	input16, output16 = output16, input16;
+	input32, output32 = output32, input32;
+	input64, output64 = output64, input64;
 	in := 0;
 	out := 13;
 	for i := range input8 {
@@ -77,16 +82,27 @@ func clamp(n int) int {
 	return n;
 }
 
+func ncopied(length, in, out int) int {
+	n := length;
+	if in+n > N {
+		n = N-in
+	}
+	if out+n > N {
+		n = N-out
+	}
+	return n;
+}
+
 func doAllSlices(length, in, out int) {
 	reset();
-	copy(output8[out:clamp(out+length)], input8[in:clamp(in+length)]);
-	verify8(length, in, out);
-	copy(output16[out:clamp(out+length)], input16[in:clamp(in+length)]);
-	verify16(length, in, out);
-	copy(output32[out:clamp(out+length)], input32[in:clamp(in+length)]);
-	verify32(length, in, out);
-	copy(output64[out:clamp(out+length)], input64[in:clamp(in+length)]);
-	verify64(length, in, out);
+	n := copy(output8[out:clamp(out+length)], input8[in:clamp(in+length)]);
+	verify8(length, in, out, n);
+	n = copy(output16[out:clamp(out+length)], input16[in:clamp(in+length)]);
+	verify16(length, in, out, n);
+	n = copy(output32[out:clamp(out+length)], input32[in:clamp(in+length)]);
+	verify32(length, in, out, n);
+	n = copy(output64[out:clamp(out+length)], input64[in:clamp(in+length)]);
+	verify64(length, in, out, n);
 }
 
 func bad8(state string, i, length, in, out int) {
@@ -99,11 +115,32 @@ func bad8(state string, i, length, in, out int) {
 	os.Exit(1);
 }
 
-func verify8(length, in, out int) {
-	for i := 0; i < out; i++ {
+func verify8(length, in, out, m int) {
+	n := ncopied(length, in, out);
+	if m != n {
+		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n);
+		return;
+	}
+	// before
+	var i int;
+	for i = 0; i < out; i++ {
 		if output8[i] != u8(i+13) {
-			bad8("preamble8", i, length, in, out);
-			break;
+			bad8("before8", i, length, in, out);
+			return;
+		}
+	}
+	// copied part
+	for ; i < out+n; i++ {
+		if output8[i] != u8(i+in-out) {
+			bad8("copied8", i, length, in, out);
+			return;
+		}
+	}
+	// after
+	for ; i < len(output8); i++ {
+		if output8[i] != u8(i+13) {
+			bad8("after8", i, length, in, out);
+			return;
 		}
 	}
 }
@@ -118,11 +155,32 @@ func bad16(state string, i, length, in, out int) {
 	os.Exit(1);
 }
 
-func verify16(length, in, out int) {
-	for i := 0; i < out; i++ {
+func verify16(length, in, out, m int) {
+	n := ncopied(length, in, out);
+	if m != n {
+		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n);
+		return;
+	}
+	// before
+	var i int;
+	for i = 0; i < out; i++ {
 		if output16[i] != u16(i+13) {
-			bad16("preamble16", i, length, in, out);
-			break;
+			bad16("before16", i, length, in, out);
+			return;
+		}
+	}
+	// copied part
+	for ; i < out+n; i++ {
+		if output16[i] != u16(i+in-out) {
+			bad16("copied16", i, length, in, out);
+			return;
+		}
+	}
+	// after
+	for ; i < len(output16); i++ {
+		if output16[i] != u16(i+13) {
+			bad16("after16", i, length, in, out);
+			return;
 		}
 	}
 }
@@ -137,11 +195,32 @@ func bad32(state string, i, length, in, out int) {
 	os.Exit(1);
 }
 
-func verify32(length, in, out int) {
-	for i := 0; i < out; i++ {
+func verify32(length, in, out, m int) {
+	n := ncopied(length, in, out);
+	if m != n {
+		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n);
+		return;
+	}
+	// before
+	var i int;
+	for i = 0; i < out; i++ {
 		if output32[i] != u32(i+13) {
-			bad32("preamble32", i, length, in, out);
-			break;
+			bad32("before32", i, length, in, out);
+			return;
+		}
+	}
+	// copied part
+	for ; i < out+n; i++ {
+		if output32[i] != u32(i+in-out) {
+			bad32("copied32", i, length, in, out);
+			return;
+		}
+	}
+	// after
+	for ; i < len(output32); i++ {
+		if output32[i] != u32(i+13) {
+			bad32("after32", i, length, in, out);
+			return;
 		}
 	}
 }
@@ -156,11 +235,32 @@ func bad64(state string, i, length, in, out int) {
 	os.Exit(1);
 }
 
-func verify64(length, in, out int) {
-	for i := 0; i < out; i++ {
+func verify64(length, in, out, m int) {
+	n := ncopied(length, in, out);
+	if m != n {
+		fmt.Printf("count bad(%d %d %d): %d not %d\n", length, in, out, m, n);
+		return;
+	}
+	// before
+	var i int;
+	for i = 0; i < out; i++ {
 		if output64[i] != u64(i+13) {
-			bad64("preamble64", i, length, in, out);
-			break;
+			bad64("before64", i, length, in, out);
+			return;
+		}
+	}
+	// copied part
+	for ; i < out+n; i++ {
+		if output64[i] != u64(i+in-out) {
+			bad64("copied64", i, length, in, out);
+			return;
+		}
+	}
+	// after
+	for ; i < len(output64); i++ {
+		if output64[i] != u64(i+13) {
+			bad64("after64", i, length, in, out);
+			return;
 		}
 	}
 }
@@ -184,7 +284,7 @@ func array() {
 		output8[i] = 0
 	}
 	copy(output8, &array);
-	verify8(N, 0, 0);
+	verify8(N, 0, 0, N);
 }
 
 func main() {
