@@ -7,6 +7,9 @@
 
 static void* threadentry(void*);
 
+char *environ[] = { 0 };
+char *__progname;
+
 void
 initcgo(void)
 {
