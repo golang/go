@@ -46,6 +46,14 @@ var indexTests = []IndexTest{
 	IndexTest{"foo", "", 0},
 	IndexTest{"foo", "o", 1},
 	IndexTest{"abcABCabc", "A", 3},
+	// cases with one byte strings - test special case in Index()
+	IndexTest{"", "a", -1},
+	IndexTest{"x", "a", -1},
+	IndexTest{"x", "x", 0},
+	IndexTest{"abc", "a", 0},
+	IndexTest{"abc", "b", 1},
+	IndexTest{"abc", "c", 2},
+	IndexTest{"abc", "x", -1},
 }
 
 var lastIndexTests = []IndexTest{
@@ -54,6 +62,7 @@ var lastIndexTests = []IndexTest{
 	IndexTest{"", "foo", -1},
 	IndexTest{"fo", "foo", -1},
 	IndexTest{"foo", "foo", 0},
+	IndexTest{"foo", "f", 0},
 	IndexTest{"oofofoofooo", "f", 7},
 	IndexTest{"oofofoofooo", "foo", 7},
 	IndexTest{"barfoobarfoo", "foo", 9},

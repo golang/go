@@ -39,41 +39,83 @@ var faces = "☺☻☹"
 var commas = "1,2,3,4"
 var dots = "1....2....3....4"
 
-type CompareTest struct {
+type BinOpTest struct {
 	a	string;
 	b	string;
-	cmp	int;
+	i	int;
 }
 
-var comparetests = []CompareTest{
-	CompareTest{"", "", 0},
-	CompareTest{"a", "", 1},
-	CompareTest{"", "a", -1},
-	CompareTest{"abc", "abc", 0},
-	CompareTest{"ab", "abc", -1},
-	CompareTest{"abc", "ab", 1},
-	CompareTest{"x", "ab", 1},
-	CompareTest{"ab", "x", -1},
-	CompareTest{"x", "a", 1},
-	CompareTest{"b", "x", -1},
+var comparetests = []BinOpTest{
+	BinOpTest{"", "", 0},
+	BinOpTest{"a", "", 1},
+	BinOpTest{"", "a", -1},
+	BinOpTest{"abc", "abc", 0},
+	BinOpTest{"ab", "abc", -1},
+	BinOpTest{"abc", "ab", 1},
+	BinOpTest{"x", "ab", 1},
+	BinOpTest{"ab", "x", -1},
+	BinOpTest{"x", "a", 1},
+	BinOpTest{"b", "x", -1},
 }
 
 func TestCompare(t *testing.T) {
-	for i := 0; i < len(comparetests); i++ {
-		tt := comparetests[i];
+	for _, tt := range comparetests {
 		a := strings.Bytes(tt.a);
 		b := strings.Bytes(tt.b);
 		cmp := Compare(a, b);
 		eql := Equal(a, b);
-		if cmp != tt.cmp {
+		if cmp != tt.i {
 			t.Errorf(`Compare(%q, %q) = %v`, tt.a, tt.b, cmp)
 		}
-		if eql != (tt.cmp == 0) {
+		if eql != (tt.i == 0) {
 			t.Errorf(`Equal(%q, %q) = %v`, tt.a, tt.b, eql)
 		}
 	}
 }
 
+var indextests = []BinOpTest{
+	BinOpTest{"", "", 0},
+	BinOpTest{"a", "", 0},
+	BinOpTest{"", "a", -1},
+	BinOpTest{"abc", "abc", 0},
+	BinOpTest{"ab", "abc", -1},
+	BinOpTest{"abc", "bc", 1},
+	BinOpTest{"x", "ab", -1},
+	// one-byte tests for IndexByte
+	BinOpTest{"ab", "x", -1},
+	BinOpTest{"", "a", -1},
+	BinOpTest{"x", "a", -1},
+	BinOpTest{"x", "x", 0},
+	BinOpTest{"abc", "a", 0},
+	BinOpTest{"abc", "b", 1},
+	BinOpTest{"abc", "c", 2},
+	BinOpTest{"abc", "x", -1},
+}
+
+func TestIndex(t *testing.T) {
+	for _, tt := range indextests {
+		a := strings.Bytes(tt.a);
+		b := strings.Bytes(tt.b);
+		pos := Index(a, b);
+		if pos != tt.i {
+			t.Errorf(`Index(%q, %q) = %v`, tt.a, tt.b, pos)
+		}
+	}
+}
+
+func TestIndexByte(t *testing.T) {
+	for _, tt := range indextests {
+		if len(tt.b) != 1 {
+			continue
+		}
+		a := strings.Bytes(tt.a);
+		b := tt.b[0];
+		pos := IndexByte(a, b);
+		if pos != tt.i {
+			t.Errorf(`IndexByte(%q, '%c') = %v`, tt.a, b, pos)
+		}
+	}
+}
 
 type ExplodeTest struct {
 	s	string;

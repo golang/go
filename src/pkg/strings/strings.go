@@ -56,6 +56,15 @@ func Index(s, sep string) int {
 		return 0
 	}
 	c := sep[0];
+	if n == 1 {
+		// special case worth making fast
+		for i := 0; i < len(s); i++ {
+			if s[i] == c {
+				return i
+			}
+		}
+		return -1;
+	}
 	for i := 0; i+n <= len(s); i++ {
 		if s[i] == c && (n == 1 || s[i:i+n] == sep) {
 			return i
@@ -71,6 +80,15 @@ func LastIndex(s, sep string) int {
 		return len(s)
 	}
 	c := sep[0];
+	if n == 1 {
+		// special case worth making fast
+		for i := len(s) - 1; i >= 0; i-- {
+			if s[i] == c {
+				return i
+			}
+		}
+		return -1;
+	}
 	for i := len(s) - n; i >= 0; i-- {
 		if s[i] == c && (n == 1 || s[i:i+n] == sep) {
 			return i
