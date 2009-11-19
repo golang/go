@@ -8,6 +8,7 @@
 package bufio
 
 import (
+	"bytes";
 	"io";
 	"os";
 	"strconv";
@@ -193,17 +194,6 @@ func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
 	return rune, size, nil;
 }
 
-// Helper function: look for byte c in array p,
-// returning its index or -1.
-func findByte(p []byte, c byte) int {
-	for i := 0; i < len(p); i++ {
-		if p[i] == c {
-			return i
-		}
-	}
-	return -1;
-}
-
 // Buffered returns the number of bytes that can be read from the current buffer.
 func (b *Reader) Buffered() int	{ return b.w - b.r }
 
@@ -219,7 +209,7 @@ func (b *Reader) Buffered() int	{ return b.w - b.r }
 // ReadSlice returns err != nil if and only if line does not end in delim.
 func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
 	// Look in buffer.
-	if i := findByte(b.buf[b.r:b.w], delim); i >= 0 {
+	if i := bytes.IndexByte(b.buf[b.r:b.w], delim); i >= 0 {
 		line1 := b.buf[b.r : b.r+i+1];
 		b.r += i + 1;
 		return line1, nil;
@@ -237,7 +227,7 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
 		b.fill();
 
 		// Search new part of buffer
-		if i := findByte(b.buf[n:b.w], delim); i >= 0 {
+		if i := bytes.IndexByte(b.buf[n:b.w], delim); i >= 0 {
 			line := b.buf[0 : n+i+1];
 			b.r = n + i + 1;
 			return line, nil;
