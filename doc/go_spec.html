@@ -2097,7 +2097,7 @@ PrimaryExpr =
 
 Selector       = "." identifier .
 Index          = "[" Expression "]" .
-Slice          = "[" Expression ":" Expression "]" .
+Slice          = "[" Expression ":" [ Expression ] "]" .
 TypeAssertion  = "." "(" Type ")" .
 Call           = "(" [ ExpressionList ] ")" .
 </pre>
@@ -2330,28 +2330,39 @@ a regular assignment to an element of the map.
 <h3 id="Slices">Slices</h3>
 
 <p>
-Strings, arrays, and slices can be <i>sliced</i> to construct substrings or descriptors
-of subarrays. The index expressions in the slice select which elements appear
-in the result.  The result has indexes starting at 0 and length equal to the
-difference in the index values in the slice.  After slicing the array <code>a</code>
+For a string, array, or slice <code>a</code>, the primary expression
 </p>
 
 <pre>
-a := [4]int{1, 2, 3, 4};
-s := a[1:3];
+a[lo : hi]
 </pre>
 
 <p>
-the slice <code>s</code> has type <code>[]int</code>, length 2, capacity 3, and elements
+constructs a substring or slice. The index expressions <code>lo</code> and
+<code>hi</code> select which elements appear in the result. The result has
+indexes starting at 0 and length equal to
+<code>hi</code>&nbsp;-&nbsp;<code>lo</code>.
+After slicing the array <code>a</code>
+</p>
+
+<pre>
+a := [5]int{1, 2, 3, 4, 5};
+s := a[1:4];
+</pre>
+
+<p>
+the slice <code>s</code> has type <code>[]int</code>, length 3, capacity 4, and elements
 </p>
 
 <pre>
 s[0] == 2
 s[1] == 3
+s[2] == 4
 </pre>
 
 <p>
-The slice length must not be negative.
+For convenience, the <code>hi</code> expression may be omitted; the notation
+<code>a[lo :]</code> is shorthand for <code>a[lo : len(a)]</code>.
 For arrays or strings, the indexes
 <code>lo</code> and <code>hi</code> must satisfy
 0 &lt;= <code>lo</code> &lt;= <code>hi</code> &lt;= length;
@@ -2461,7 +2472,7 @@ assignment of regular parameters.
 
 <pre>
 func Split(s string, pos int) (string, string) {
-	return s[0:pos], s[pos:len(s)]
+	return s[0:pos], s[pos:]
 }
 
 func Join(s, t string) string {
@@ -4137,7 +4148,7 @@ The memory is initialized as described in the section on initial values
 (§<a href="#The_zero_value">The zero value</a>).
 </p>
 
-<pre>
+<pre class="grammar">
 new(T)
 </pre>
 
@@ -4170,7 +4181,7 @@ The memory is initialized as described in the section on initial values
 (§<a href="#The_zero_value">The zero value</a>).
 </p>
 
-<pre>
+<pre class="grammar">
 make(T [, optional list of expressions])
 </pre>
 
@@ -4196,6 +4207,34 @@ s := make([]int, 10, 100);        // slice with len(s) == 10, cap(s) == 100
 s := make([]int, 10);             // slice with len(s) == cap(s) == 10
 c := make(chan int, 10);          // channel with a buffer size of 10
 m := make(map[string] int, 100);  // map with initial space for 100 elements
+</pre>
+
+
+<h3 id="Copying_slices">Copying slices</h3>
+
+<p>
+The built-in function <code>copy</code> copies array or slice elements from
+a source <code>src</code> to a destination <code>dst</code> and returns the
+number of elements copied. Source and destination may overlap.
+Both arguments must have the same element type <code>T</code> and must be
+<a href="#Assignment_compatibility">assignment compatible</a> to a slice
+of type <code>[]T</code>. The number of arguments copied is the minimum of
+<code>len(src)</code> and <code>len(dst)</code>.
+</p>
+
+<pre class="grammar">
+copy(dst, src []T) int
+</pre>
+
+<p>
+Examples:
+</p>
+
+<pre>
+var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7};
+var s = make([]int, 6);
+n1 := copy(s, &amp;a);     // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
+n2 := copy(s, s[2:]);  // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
 </pre>
 
 
