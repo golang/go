@@ -132,7 +132,7 @@ TEXT bsdthread_create(SB),7,$-8
 // The thread that bsdthread_create creates starts executing here,
 // because we registered this function using bsdthread_register
 // at startup.
-//	DI = "pthread" (= g)
+//	DI = "pthread"
 //	SI = mach thread port
 //	DX = "func" (= fn)
 //	CX = "arg" (= m)
@@ -141,7 +141,7 @@ TEXT bsdthread_create(SB),7,$-8
 //	SP = stack - C_64_REDZONE_LEN (= stack - 128)
 TEXT bsdthread_start(SB),7,$-8
 	MOVQ	CX, m
-	MOVQ	DI, g
+	MOVQ	m_g0(m), g
 	MOVQ	SI, m_procid(m)	// thread port is m->procid
 	CALL	DX	// fn
 	CALL	exit1(SB)
