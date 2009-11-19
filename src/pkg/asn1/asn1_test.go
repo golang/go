@@ -354,6 +354,32 @@ func TestCertificateWithNUL(t *testing.T) {
 	}
 }
 
+type rawStructTest struct {
+	Raw	RawContent;
+	A	int;
+}
+
+func TestRawStructs(t *testing.T) {
+	var s rawStructTest;
+	input := []byte{0x30, 0x03, 0x02, 0x01, 0x50};
+
+	rest, err := Unmarshal(&s, input);
+	if len(rest) != 0 {
+		t.Errorf("incomplete parse: %x", rest);
+		return;
+	}
+	if err != nil {
+		t.Error(err);
+		return;
+	}
+	if s.A != 0x50 {
+		t.Errorf("bad value for A: got %d want %d", s.A, 0x50)
+	}
+	if bytes.Compare([]byte(s.Raw), input) != 0 {
+		t.Errorf("bad value for Raw: got %x want %x", s.Raw, input)
+	}
+}
+
 var derEncodedSelfSignedCert = Certificate{
 	TBSCertificate: TBSCertificate{
 		Version: 0,
