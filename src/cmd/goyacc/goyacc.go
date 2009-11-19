@@ -569,9 +569,7 @@ outer:
 				mem++;
 				if mem >= len(curprod) {
 					ncurprod := make([]int, mem+RULEINC);
-					for ll := 0; ll < mem; ll++ {
-						ncurprod[ll] = curprod[ll]
-					}
+					copy(ncurprod, curprod);
 					curprod = ncurprod;
 				}
 				t = gettok();
@@ -620,9 +618,7 @@ outer:
 				mem++;
 				if mem >= len(curprod) {
 					ncurprod := make([]int, mem+RULEINC);
-					for ll := 0; ll < mem; ll++ {
-						ncurprod[ll] = curprod[ll]
-					}
+					copy(ncurprod, curprod);
 					curprod = ncurprod;
 				}
 			}
@@ -656,9 +652,7 @@ outer:
 		}
 		moreprod();
 		prdptr[nprod] = make([]int, mem);
-		for ll := 0; ll < mem; ll++ {
-			prdptr[nprod][ll] = curprod[ll]
-		}
+		copy(prdptr[nprod], curprod);
 		nprod++;
 		moreprod();
 		levprd[nprod] = 0;
@@ -704,11 +698,9 @@ func moreprod() {
 		alevprd := make([]int, nn);
 		arlines := make([]int, nn);
 
-		for ll := 0; ll < n; ll++ {
-			aprod[ll] = prdptr[ll];
-			alevprd[ll] = levprd[ll];
-			arlines[ll] = rlines[ll];
-		}
+		copy(aprod, prdptr);
+		copy(alevprd, levprd);
+		copy(arlines, rlines);
 
 		prdptr = aprod;
 		levprd = alevprd;
@@ -726,9 +718,7 @@ func defin(nt int, s string) int {
 		nnonter++;
 		if nnonter >= len(nontrst) {
 			anontrst := make([]Symb, nnonter+SYMINC);
-			for ll := 0; ll < len(nontrst); ll++ {
-				anontrst[ll] = nontrst[ll]
-			}
+			copy(anontrst, nontrst);
 			nontrst = anontrst;
 		}
 		nontrst[nnonter] = Symb{s, 0};
@@ -742,10 +732,8 @@ func defin(nt int, s string) int {
 		atokset := make([]Symb, nn);
 		atoklev := make([]int, nn);
 
-		for ll := 0; ll < len(tokset); ll++ {
-			atoklev[ll] = toklev[ll];
-			atokset[ll] = tokset[ll];
-		}
+		copy(atoklev, toklev);
+		copy(atokset, tokset);
 
 		tokset = atokset;
 		toklev = atoklev;
@@ -1497,9 +1485,7 @@ func cpres() {
 			continue;
 		}
 		pres[i] = make([][]int, n);
-		for ll := 0; ll < n; ll++ {
-			pres[i][ll] = curres[ll]
-		}
+		copy(pres[i], curres);
 	}
 	fatfl = 1;
 	if nerrors != 0 {
@@ -1789,9 +1775,7 @@ func closure(i int) {
 	for p := pstate[i]; p < q; p++ {
 		wsets[cwp].pitem = statemem[p].pitem;
 		wsets[cwp].flag = 1;	// this item must get closed
-		for ll := 0; ll < len(wsets[cwp].ws); ll++ {
-			wsets[cwp].ws[ll] = statemem[p].look[ll]
-		}
+		copy(wsets[cwp].ws, statemem[p].look);
 		cwp++;
 	}
 
@@ -1881,9 +1865,7 @@ func closure(i int) {
 				//  not there; make a new entry
 				if cwp >= len(wsets) {
 					awsets := make([]Wset, cwp+WSETINC);
-					for ll := 0; ll < len(wsets); ll++ {
-						awsets[ll] = wsets[ll]
-					}
+					copy(awsets, wsets);
 					wsets = awsets;
 				}
 				wsets[cwp].pitem = Pitem{prd, 0, prd[0], -prd[len(prd)-1]};
@@ -1891,9 +1873,7 @@ func closure(i int) {
 				wsets[cwp].ws = mkset();
 				if nolook == 0 {
 					work = 1;
-					for ll := 0; ll < len(wsets[cwp].ws); ll++ {
-						wsets[cwp].ws[ll] = clset[ll]
-					}
+					copy(wsets[cwp].ws, clset);
 				}
 				cwp++;
 			}
@@ -2017,17 +1997,13 @@ func putitem(p Pitem, set Lkset) {
 	j := pstate[nstate+1];
 	if j >= len(statemem) {
 		asm := make([]Item, j+STATEINC);
-		for ll := 0; ll < len(statemem); ll++ {
-			asm[ll] = statemem[ll]
-		}
+		copy(asm, statemem);
 		statemem = asm;
 	}
 	statemem[j].pitem = p;
 	if nolook == 0 {
 		s := mkset();
-		for ll := 0; ll < len(set); ll++ {
-			s[ll] = set[ll]
-		}
+		copy(s, set);
 		statemem[j].look = s;
 	}
 	j++;
@@ -2990,7 +2966,7 @@ func usage() {
 
 func bitset(set Lkset, bit int) int	{ return set[bit>>5] & (1 << uint(bit&31)) }
 
-func setbit(set Lkset, bit int)	{ set[bit>>5] |= (1 << uint(bit & 31)) }
+func setbit(set Lkset, bit int)	{ set[bit>>5] |= (1 << uint(bit&31)) }
 
 func mkset() Lkset	{ return make([]int, tbitset) }
 
