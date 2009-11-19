@@ -19,8 +19,8 @@ TEXT thr_new(SB),7,$-4
 	RET
 
 TEXT thr_start(SB),7,$0
-	MOVL mm+0(FP), AX
-	MOVL m_g0(AX), BX
+	MOVL	mm+0(FP), AX
+	MOVL	m_g0(AX), BX
 	LEAL	m_tls(AX), BP
 	MOVL	0(BP), DI
 	ADDL	$7, DI
@@ -132,7 +132,8 @@ int i386_set_ldt(int, const union ldt_entry *, int);
 // setldt(int entry, int address, int limit)
 TEXT setldt(SB),7,$32
 	MOVL	address+4(FP), BX	// aka base
-	MOVL	limit+8(FP), CX
+	// see comment in linux/386/sys.s; freebsd is similar
+	ADDL	$0x8, BX
 
 	// set up data_desc
 	LEAL	16(SP), AX	// struct data_desc
@@ -145,11 +146,8 @@ TEXT setldt(SB),7,$32
 	SHRL	$8, BX
 	MOVB	BX, 7(AX)
 
-	MOVW	CX, 0(AX)
-	SHRL	$16, CX
-	ANDL	$0x0F, CX
-	ORL	$0x40, CX		// 32-bit operand size
-	MOVB	CX, 6(AX)
+	MOVW	$0xffff, 0(AX)
+	MOVB	$0xCF, 6(AX)	// 32-bit operand, 4k limit unit, 4 more bits of limit
 
 	MOVB	$0xF2, 5(AX)	// r/w data descriptor, dpl=3, present
 

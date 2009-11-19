@@ -385,6 +385,8 @@ starttheworld(void)
 void
 mstart(void)
 {
+	if(g != m->g0)
+		throw("bad mstart");
 	if(m->mcache == nil)
 		m->mcache = allocmcache();
 	minit();

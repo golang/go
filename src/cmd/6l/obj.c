@@ -150,10 +150,9 @@ main(int argc, char *argv[])
 		if(strcmp(goos, "darwin") == 0)
 			HEADTYPE = 6;
 		else
-		if(strcmp(goos, "freebsd") == 0) {
-			debug['d'] = 1;	/* no dynamic syms for now */
+		if(strcmp(goos, "freebsd") == 0)
 			HEADTYPE = 9;
-		} else
+		else
 			print("goos is not known: %s\n", goos);
 	}
 

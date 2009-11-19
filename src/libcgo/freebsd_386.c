@@ -6,15 +6,13 @@
 #include "libcgo.h"
 
 static void* threadentry(void*);
-static pthread_key_t k1, k2;
 
-/* gccism: arrange for inittls to be called at dynamic load time */
-static void inittls(void) __attribute__((constructor));
+char *environ[] = { 0 };
+char *__progname;
 
 static void
 inittls(void)
 {
-	/* unimplemented for now */
 }
 
 void
@@ -51,8 +49,16 @@ threadentry(void *v)
 	 */
 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
 
-	pthread_setspecific(k1, (void*)ts.g);
-	pthread_setspecific(k2, (void*)ts.m);
+	/*
+	 * Set specific keys.  On FreeBSD/ELF, the thread local storage
+	 * is just before %gs:0.  Our dynamic 8.out's reserve 8 bytes
+	 * for the two words g and m at %gs:-8 and %gs:-4.
+	 */
+	asm volatile (
+		"movl %0, %%gs:-8\n"	// MOVL g, -8(GS)
+		"movl %1, %%gs:-4\n"	// MOVL m, -4(GS)
+		:: "r"(ts.g), "r"(ts.m)
+	);
 
 	crosscall_386(ts.fn);
 	return nil;

@@ -158,10 +158,9 @@ main(int argc, char *argv[])
 		if(strcmp(goos, "nacl") == 0)
 			HEADTYPE = 8;
 		else
-		if(strcmp(goos, "freebsd") == 0) {
-			debug['d'] = 1; /* no dynamic syms for now */
+		if(strcmp(goos, "freebsd") == 0)
 			HEADTYPE = 9;
-		} else
+		else
 			print("goos is not known: %sn", goos);
 	}
 
@@ -241,10 +240,7 @@ main(int argc, char *argv[])
 		 * Also known to ../../pkg/runtime/linux/386/sys.s
 		 * and ../../libcgo/linux_386.c.
 		 */
-		if (HEADTYPE == 7)
-			tlsoffset = -8;
-		else
-			tlsoffset = 0;
+		tlsoffset = -8;
 		elfinit();
 		HEADR = ELFRESERVE;
 		if(INITTEXT == -1)
