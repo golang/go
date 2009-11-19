@@ -349,6 +349,11 @@ type RawValue struct {
 	Bytes		[]byte;
 }
 
+// RawContent is used to signal that the undecoded, DER data needs to be
+// preserved for a struct. To use it, the first field of the struct must have
+// this type. It's an error for any of the other fields to have this type.
+type RawContent []byte
+
 // Tagging
 
 // parseTagAndLength parses an ASN.1 tag and length pair from the given offset
@@ -460,6 +465,7 @@ var (
 	objectIdentifierType	= reflect.Typeof(ObjectIdentifier{});
 	timeType		= reflect.Typeof(&time.Time{});
 	rawValueType		= reflect.Typeof(RawValue{});
+	rawContentsType		= reflect.Typeof(RawContent(nil));
 )
 
 // invalidLength returns true iff offset + length > sliceLength, or if the
@@ -594,7 +600,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		if ok {
 			offset = initOffset
 		} else {
-			err = StructuralError{fmt.Sprintf("tags don't match (%d vs %+v) %+v %s %#v", expectedTag, t, params, fieldType.Name(), bytes[offset:len(bytes)])}
+			err = StructuralError{fmt.Sprintf("tags don't match (%d vs %+v) %+v %s @%d", expectedTag, t, params, fieldType.Name(), offset)}
 		}
 		return;
 	}
@@ -662,9 +668,19 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		return;
 	case *reflect.StructValue:
 		structType := fieldType.(*reflect.StructType);
+
+		if structType.NumField() > 0 &&
+			structType.Field(0).Type == rawContentsType {
+			bytes := bytes[initOffset : offset+t.length];
+			val.Field(0).SetValue(reflect.NewValue(RawContent(bytes)));
+		}
+
 		innerOffset := 0;
 		for i := 0; i < structType.NumField(); i++ {
 			field := structType.Field(i);
+			if i == 0 && field.Type == rawContentsType {
+				continue
+			}
 			innerOffset, err = parseField(val.Field(i), innerBytes, innerOffset, parseFieldParameters(field.Tag));
 			if err != nil {
 				return
@@ -762,6 +778,9 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //	optional		marks the field as ASN.1 OPTIONAL
 //	[explicit] tag:x	specifies the ASN.1 tag number; implies ASN.1 CONTEXT SPECIFIC
 //	default:x		sets the default value for optional integer fields
+//
+// If the type of the first field of a structure is RawContent then the raw
+// ASN1 contents of the struct will be stored in it.
 //
 // Other ASN.1 types are not supported; if it encounters them,
 // Unmarshal returns a parse error.
