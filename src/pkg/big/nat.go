@@ -310,20 +310,26 @@ func divLargeNN(z, z2, uIn, v []Word) (q, r []Word) {
 	// D2.
 	for j := m; j >= 0; j-- {
 		// D3.
-		qhat, rhat := divWW_g(u[j+n], u[j+n-1], v[n-1]);
+		var qhat Word;
+		if u[j+n] == v[n-1] {
+			qhat = _B - 1
+		} else {
+			var rhat Word;
+			qhat, rhat = divWW_g(u[j+n], u[j+n-1], v[n-1]);
 
-		// x1 | x2 = q̂v_{n-2}
-		x1, x2 := mulWW_g(qhat, v[n-2]);
-		// test if q̂v_{n-2} > br̂ + u_{j+n-2}
-		for greaterThan(x1, x2, rhat, u[j+n-2]) {
-			qhat--;
-			prevRhat := rhat;
-			rhat += v[n-1];
-			// v[n-1] >= 0, so this tests for overflow.
-			if rhat < prevRhat {
-				break
+			// x1 | x2 = q̂v_{n-2}
+			x1, x2 := mulWW_g(qhat, v[n-2]);
+			// test if q̂v_{n-2} > br̂ + u_{j+n-2}
+			for greaterThan(x1, x2, rhat, u[j+n-2]) {
+				qhat--;
+				prevRhat := rhat;
+				rhat += v[n-1];
+				// v[n-1] >= 0, so this tests for overflow.
+				if rhat < prevRhat {
+					break
+				}
+				x1, x2 = mulWW_g(qhat, v[n-2]);
 			}
-			x1, x2 = mulWW_g(qhat, v[n-2]);
 		}
 
 		// D4.
