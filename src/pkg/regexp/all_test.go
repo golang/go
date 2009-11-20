@@ -60,6 +60,7 @@ type tester struct {
 }
 
 var matches = []tester{
+	tester{`^abcdefg`, "abcdefg", vec{0, 7}},
 	tester{`a+`, "baaab", vec{1, 4}},
 	tester{"abcd..", "abcdef", vec{0, 6}},
 	tester{``, "", vec{0, 0}},
@@ -447,6 +448,32 @@ func TestAllMatches(t *testing.T) {
 			t.Log("got: ");
 			printStringSlice(t, result);
 			t.Log("\n");
+		}
+	}
+}
+
+func BenchmarkLiteral(b *testing.B) {
+	x := strings.Repeat("x", 50);
+	b.StopTimer();
+	re, _ := Compile(x);
+	b.StartTimer();
+	for i := 0; i < b.N; i++ {
+		if !re.MatchString(x) {
+			println("no match!");
+			break;
+		}
+	}
+}
+
+func BenchmarkNotLiteral(b *testing.B) {
+	x := strings.Repeat("x", 49);
+	b.StopTimer();
+	re, _ := Compile("^" + x);
+	b.StartTimer();
+	for i := 0; i < b.N; i++ {
+		if !re.MatchString(x) {
+			println("no match!");
+			break;
 		}
 	}
 }
