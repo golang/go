@@ -8,6 +8,7 @@ import (
 	"bytes";
 	"flag";
 	"fmt";
+	"go/ast";
 	"go/parser";
 	"go/printer";
 	"go/scanner";
@@ -20,8 +21,9 @@ import (
 
 var (
 	// main operation modes
-	list	= flag.Bool("l", false, "list files whose formatting differs from gofmt's");
-	write	= flag.Bool("w", false, "write result to (source) file instead of stdout");
+	list		= flag.Bool("l", false, "list files whose formatting differs from gofmt's");
+	write		= flag.Bool("w", false, "write result to (source) file instead of stdout");
+	rewriteRule	= flag.String("r", "", "rewrite rule (e.g., 'α[β:len(α)] -> α[β:]')");
 
 	// debugging support
 	comments	= flag.Bool("comments", true, "print comments");
@@ -34,6 +36,8 @@ var (
 
 
 var exitCode = 0
+var rewrite func(*ast.File) *ast.File
+
 
 func report(err os.Error) {
 	scanner.PrintError(os.Stderr, err);
@@ -84,6 +88,10 @@ func processFile(filename string) os.Error {
 	file, err := parser.ParseFile(filename, src, parserMode());
 	if err != nil {
 		return err
+	}
+
+	if rewrite != nil {
+		file = rewrite(file)
 	}
 
 	var res bytes.Buffer;
@@ -153,6 +161,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", *tabwidth);
 		os.Exit(2);
 	}
+
+	initRewrite();
 
 	if flag.NArg() == 0 {
 		if err := processFile("/dev/stdin"); err != nil {
