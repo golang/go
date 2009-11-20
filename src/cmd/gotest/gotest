@@ -118,6 +118,9 @@ importpath=$(gomake -s importpath)
 		echo 'gotest: error: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
 		exit 2
 	fi
+	# benchmarks are named BenchmarkFoo.
+	pattern='Benchmark([^a-z].*)?'
+	benchmarks=$(6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
 
 	# package spec
 	echo 'package main'
@@ -140,10 +143,19 @@ importpath=$(gomake -s importpath)
 		echo '	testing.Test{ "'$i'", '$i' },'
 	done
 	echo '}'
+	# benchmark array
+	echo 'var benchmarks = []testing.Benchmark {'
+	for i in $benchmarks
+	do
+		echo '	testing.Benchmark{ "'$i'", '$i' },'
+	done
+	echo '}'
+
 	# body
 	echo
 	echo 'func main() {'
-	echo '	testing.Main(tests)'
+	echo '	testing.Main(tests);'
+	echo '	testing.RunBenchmarks(benchmarks)'
 	echo '}'
 }>_testmain.go
 

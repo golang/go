@@ -6,6 +6,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
 
 TARG=testing
 GOFILES=\
+        benchmark.go\
 	regexp.go\
 	testing.go\
 

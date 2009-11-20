@@ -19,6 +19,12 @@ They should have signature
 
 	func TestXXX(t *testing.T) { ... }
 
+Benchmark functions can be written as well; they will be run only
+when the -benchmarks flag is provided.  Benchmarks should have
+signature
+
+	func BenchmarkXXX(b *testing.B) { ... }
+
 See the documentation of the testing package for more information.
 
 By default, gotest needs no arguments.  It compiles all the .go files
@@ -36,14 +42,15 @@ The resulting binary, called (for amd64) 6.out, has a couple of
 arguments.
 
 Usage:
-	6.out [-v] [-match pattern]
+	6.out [-v] [-match pattern] [-benchmarks pattern]
 
-The -v flag causes the tests to be logged as they run.  The --match
+The -v flag causes the tests to be logged as they run.  The -match
 flag causes only those tests whose names match the regular expression
 pattern to be run. By default all tests are run silently.  If all
 the specified test pass, 6.out prints PASS and exits with a 0 exit
 code.  If any tests fail, it prints FAIL and exits with a non-zero
-code.
+code.  The -benchmarks flag is analogous to the -match flag, but
+applies to benchmarks.  No benchmarks run by default.
 
 */
 package documentation
