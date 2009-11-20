@@ -186,6 +186,18 @@ dowidth(Type *t)
 	case TCHAN:		// implemented as pointer
 		w = widthptr;
 		checkwidth(t->type);
+
+		// make fake type to check later to
+		// trigger channel argument check.
+		t1 = typ(TCHANARGS);
+		t1->type = t;
+		checkwidth(t1);
+		break;
+	case TCHANARGS:
+		t1 = t->type;
+		dowidth(t->type);	// just in case
+		if(t1->type->width >= (1<<16))
+			yyerror("channel element type too large (>64kB)");
 		break;
 	case TMAP:		// implemented as pointer
 		w = widthptr;

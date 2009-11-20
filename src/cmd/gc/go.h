@@ -441,6 +441,7 @@ enum
 	
 	// pseudo-type for frame layout
 	TFUNCARGS,
+	TCHANARGS,
 
 	NTYPE,
 };
