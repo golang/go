@@ -44,15 +44,15 @@ import (
 var n = flag.Int("n", 15, "depth")
 
 type Node struct {
-	  item	int;
-	  left, right	*Node;
+	item		int;
+	left, right	*Node;
 }
 
-func  bottomUpTree(item, depth int) *Node {
+func bottomUpTree(item, depth int) *Node {
 	if depth <= 0 {
 		return &Node{item: item}
 	}
-	return &Node{ item, bottomUpTree(2*item-1, depth-1), bottomUpTree(2*item, depth-1) }
+	return &Node{item, bottomUpTree(2*item-1, depth-1), bottomUpTree(2*item, depth-1)};
 }
 
 func (n *Node) itemCheck() int {
@@ -62,13 +62,13 @@ func (n *Node) itemCheck() int {
 	return n.item + n.left.itemCheck() - n.right.itemCheck();
 }
 
-const minDepth = 4;
+const minDepth = 4
 
 func main() {
 	flag.Parse();
 
 	maxDepth := *n;
-	if minDepth + 2 > *n {
+	if minDepth+2 > *n {
 		maxDepth = minDepth + 2
 	}
 	stretchDepth := maxDepth + 1;
@@ -78,13 +78,13 @@ func main() {
 
 	longLivedTree := bottomUpTree(0, maxDepth);
 
-	for depth := minDepth; depth <= maxDepth; depth+=2 {
-		iterations := 1 << uint(maxDepth - depth + minDepth);
+	for depth := minDepth; depth <= maxDepth; depth += 2 {
+		iterations := 1 << uint(maxDepth-depth+minDepth);
 		check = 0;
 
 		for i := 1; i <= iterations; i++ {
-			check += bottomUpTree(i,depth).itemCheck();
-			check += bottomUpTree(-i,depth).itemCheck();
+			check += bottomUpTree(i, depth).itemCheck();
+			check += bottomUpTree(-i, depth).itemCheck();
 		}
 		fmt.Printf("%d\t trees of depth %d\t check: %d\n", iterations*2, depth, check);
 	}

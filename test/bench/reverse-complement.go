@@ -96,20 +96,20 @@ func main() {
 	line, err := in.ReadSlice('\n');
 	for err == nil {
 		os.Stdout.Write(line);
-		
+
 		// Accumulate reversed complement in buf[w:]
 		nchar := 0;
 		w := len(buf);
 		for {
 			line, err = in.ReadSlice('\n');
 			if err != nil || line[0] == '>' {
-				break;
+				break
 			}
-			line = line[0:len(line)-1];
+			line = line[0 : len(line)-1];
 			nchar += len(line);
 			if len(line)+nchar/60+128 >= w {
 				nbuf := make([]byte, len(buf)*5);
-				copy(nbuf[len(nbuf)-len(buf):len(nbuf)], buf);
+				copy(nbuf[len(nbuf)-len(buf):], buf);
 				w += len(nbuf) - len(buf);
 				buf = nbuf;
 			}
@@ -118,14 +118,14 @@ func main() {
 				buf[w] = complement[line[r]];
 			}
 		}
-		
+
 		// Copy down to beginning of buffer, inserting newlines.
 		// The loop left room for the newlines and 128 bytes of padding.
 		i := 0;
 		for j := w; j < len(buf); j += 60 {
-			n := copy(buf[i:i+60], buf[j:len(buf)]);
+			n := copy(buf[i:i+60], buf[j:]);
 			buf[i+n] = '\n';
-			i += n+1;
+			i += n + 1;
 		}
 		os.Stdout.Write(buf[0:i]);
 	}

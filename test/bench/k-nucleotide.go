@@ -47,18 +47,18 @@ import (
 
 var in *bufio.Reader
 
-func count(data string, n int) map[string] int {
-	counts := make(map[string] int);
+func count(data string, n int) map[string]int {
+	counts := make(map[string]int);
 	top := len(data) - n;
 	for i := 0; i <= top; i++ {
-		s := data[i:i+n];
+		s := data[i : i+n];
 		if k, ok := counts[s]; ok {
-			counts[s] = k+1
+			counts[s] = k + 1
 		} else {
 			counts[s] = 1
 		}
 	}
-	return counts
+	return counts;
 }
 
 func countOne(data string, s string) int {
@@ -66,7 +66,7 @@ func countOne(data string, s string) int {
 	if i, ok := counts[s]; ok {
 		return i
 	}
-	return 0
+	return 0;
 }
 
 
@@ -77,16 +77,16 @@ type kNuc struct {
 
 type kNucArray []kNuc
 
-func (kn kNucArray) Len() int { return len(kn) }
-func (kn kNucArray) Swap(i, j int) { kn[i], kn[j] = kn[j], kn[i] }
+func (kn kNucArray) Len() int		{ return len(kn) }
+func (kn kNucArray) Swap(i, j int)	{ kn[i], kn[j] = kn[j], kn[i] }
 func (kn kNucArray) Less(i, j int) bool {
 	if kn[i].count == kn[j].count {
 		return kn[i].name > kn[j].name	// sort down
 	}
-	return kn[i].count > kn[j].count
+	return kn[i].count > kn[j].count;
 }
 
-func sortedArray(m map[string] int) kNucArray {
+func sortedArray(m map[string]int) kNucArray {
 	kn := make(kNucArray, len(m));
 	i := 0;
 	for k, v := range m {
@@ -98,14 +98,14 @@ func sortedArray(m map[string] int) kNucArray {
 	return kn;
 }
 
-func print(m map[string] int) {
+func print(m map[string]int) {
 	a := sortedArray(m);
 	sum := 0;
 	for _, kn := range a {
-		sum += kn.count;
+		sum += kn.count
 	}
 	for _, kn := range a {
-		fmt.Printf("%s %.3f\n", kn.name, 100*float64(kn.count)/float64(sum));
+		fmt.Printf("%s %.3f\n", kn.name, 100*float64(kn.count)/float64(sum))
 	}
 }
 
@@ -119,7 +119,7 @@ func main() {
 			os.Exit(2);
 		}
 		if line[0] == '>' && bytes.Equal(line[0:len(three)], three) {
-			break;
+			break
 		}
 	}
 	data, err := io.ReadAll(in);
@@ -132,7 +132,7 @@ func main() {
 	for i := 0; i < len(data); i++ {
 		if data[i] != '\n' {
 			data[j] = data[i] &^ ' ';	// upper case
-			j++
+			j++;
 		}
 	}
 	str := string(data[0:j]);
@@ -145,6 +145,6 @@ func main() {
 
 	interests := []string{"GGT", "GGTA", "GGTATT", "GGTATTTTAATT", "GGTATTTTAATTTATAGT"};
 	for _, s := range interests {
-		fmt.Printf("%d %s\n", countOne(str, s), s);
+		fmt.Printf("%d %s\n", countOne(str, s), s)
 	}
 }

@@ -43,20 +43,20 @@ import (
 	"fmt";
 )
 
-var n = flag.Int("n", 27, "number of digits");
-var silent = flag.Bool("s", false, "don't print result");
+var n = flag.Int("n", 27, "number of digits")
+var silent = flag.Bool("s", false, "don't print result")
 
 var (
-	tmp1 *bignum.Integer;
-	tmp2 *bignum.Integer;
-	numer = bignum.Int(1);
-	accum = bignum.Int(0);
-	denom = bignum.Int(1);
+	tmp1	*bignum.Integer;
+	tmp2	*bignum.Integer;
+	numer	= bignum.Int(1);
+	accum	= bignum.Int(0);
+	denom	= bignum.Int(1);
 )
 
 func extract_digit() int64 {
 	if numer.Cmp(accum) > 0 {
-		return -1;
+		return -1
 	}
 
 	// Compute (numer * 3 + accum) / denom
@@ -70,7 +70,7 @@ func extract_digit() int64 {
 
 	// ... is normalized, then the two divisions have the same result.
 	if tmp2.Cmp(denom) >= 0 {
-		return -1;
+		return -1
 	}
 
 	return tmp1.Value();
@@ -94,7 +94,7 @@ func eliminate_digit(d int64) {
 
 func printf(s string, arg ...) {
 	if !*silent {
-		fmt.Printf(s, arg);
+		fmt.Printf(s, arg)
 	}
 }
 
@@ -110,20 +110,20 @@ func main() {
 			d = extract_digit();
 		}
 
-		printf("%c", d + '0');
+		printf("%c", d+'0');
 
 		i++;
-		m = i%10;
+		m = i % 10;
 		if m == 0 {
-			printf("\t:%d\n", i);
+			printf("\t:%d\n", i)
 		}
 		if i >= *n {
-			break;
+			break
 		}
 		eliminate_digit(d);
 	}
 
 	if m > 0 {
-		printf("%s\t:%d\n", "          "[m : 10], *n);
+		printf("%s\t:%d\n", "          "[m:10], *n)
 	}
 }
