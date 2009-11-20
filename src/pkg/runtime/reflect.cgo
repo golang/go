@@ -108,5 +108,11 @@ func setiface(typ *byte, x *byte, ret *byte) {
 		*(Eface*)ret = *(Eface*)x;
 		return;
 	}
+	if(((Eface*)x)->type == nil) {
+		// can assign nil to any interface
+		((Iface*)ret)->tab = nil;
+		((Iface*)ret)->data = nil;
+		return;
+	}
 	ifaceE2I((InterfaceType*)gettype(typ), *(Eface*)x, (Iface*)ret);
 }

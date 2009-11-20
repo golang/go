@@ -569,6 +569,8 @@ func (t *StructType) NumField() int	{ return len(t.fields) }
 // Same memory layouts, different method sets.
 func toType(i interface{}) Type {
 	switch v := i.(type) {
+	case nil:
+		return nil
 	case *runtime.BoolType:
 		return (*BoolType)(unsafe.Pointer(v))
 	case *runtime.DotDotDotType:
