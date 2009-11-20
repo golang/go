@@ -27,6 +27,7 @@ import (
 	"container/vector";
 	"io";
 	"os";
+	"strings";
 	"utf8";
 )
 
@@ -70,10 +71,12 @@ func (c *common) setIndex(i int)	{ c._index = i }
 // Regexp is the representation of a compiled regular expression.
 // The public interface is entirely through methods.
 type Regexp struct {
-	expr	string;	// the original expression
-	inst	*vector.Vector;
-	start	instr;
-	nbra	int;	// number of brackets in expression, for subexpressions
+	expr		string;	// the original expression
+	prefix		string;	// initial plain text string
+	prefixBytes	[]byte;	// initial plain text bytes
+	inst		*vector.Vector;
+	start		instr;
+	nbra		int;	// number of brackets in expression, for subexpressions
 }
 
 const (
@@ -314,6 +317,12 @@ func (p *parser) charClass() instr {
 				nl := new(_NotNl);
 				p.re.add(nl);
 				return nl;
+			}
+			// Special common case: "[a]" -> "a"
+			if !cc.negate && cc.ranges.Len() == 2 && cc.ranges.At(0) == cc.ranges.At(1) {
+				c := newChar(cc.ranges.At(0));
+				p.re.add(c);
+				return c;
 			}
 			p.re.add(cc);
 			return cc;
@@ -573,6 +582,7 @@ func (re *Regexp) eliminateNops() {
 }
 
 func (re *Regexp) dump() {
+	print("prefix <", re.prefix, ">\n");
 	for i := 0; i < re.inst.Len(); i++ {
 		inst := re.inst.At(i).(instr);
 		print(inst.index(), ": ");
@@ -606,7 +616,40 @@ func (re *Regexp) doParse() os.Error {
 		re.dump();
 		println();
 	}
+	if p.error == nil {
+		re.setPrefix();
+		if debug {
+			re.dump();
+			println();
+		}
+	}
 	return p.error;
+}
+
+// return regular text at the beginning of str
+func (re *Regexp) setPrefix() {
+	var b []byte;
+	var utf = make([]byte, utf8.UTFMax);
+	// First instruction is start; skip that.
+	i := re.inst.At(0).(instr).next().index();
+	for i < re.inst.Len() {
+		inst := re.inst.At(i).(instr);
+		// stop if this is not a char
+		if inst.kind() != _CHAR {
+			break
+		}
+		// stop if this char starts a closure; liberal but easy test: is an ALT next?
+		if re.inst.At(inst.next().index()).(instr).kind() == _ALT {
+			break
+		}
+		n := utf8.EncodeRune(inst.(*_Char).char, utf);
+		b = bytes.Add(b, utf[0:n]);
+		i = inst.next().index();
+	}
+	// point start instruction to first non-CHAR
+	re.inst.At(0).(instr).setNext(re.inst.At(i).(instr));
+	re.prefixBytes = b;
+	re.prefix = string(b);
 }
 
 // Compile parses a regular expression and returns, if successful, a Regexp
@@ -691,9 +734,17 @@ func (re *Regexp) addState(s []state, inst instr, match []int, pos, end int) []s
 	return s;
 }
 
+func noMatch(nbra int) []int {
+	match := make([]int, 2*(nbra+1));
+	for i := range match {
+		match[i] = -1	// no match seen; catches cases like "a(b)?c" on "ac"
+	}
+	return match;
+}
+
 // Accepts either string or bytes - the logic is identical either way.
 // If bytes == nil, scan str.
-func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
+func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 	var s [2][]state;	// TODO: use a vector when state values (not ptrs) can be vector elements
 	s[0] = make([]state, 10)[0:0];
 	s[1] = make([]state, 10)[0:0];
@@ -701,16 +752,26 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 	var final state;
 	found := false;
 	end := len(str);
-	if bytes != nil {
-		end = len(bytes)
+	if bytestr != nil {
+		end = len(bytestr)
+	}
+	// fast check for initial plain substring
+	if re.prefix != "" {
+		var advance int;
+		if bytestr == nil {
+			advance = strings.Index(str[pos:len(str)], re.prefix)
+		} else {
+			advance = bytes.Index(bytestr[pos:len(bytestr)], re.prefixBytes)
+		}
+		if advance == -1 {
+			return []int{}
+		}
+		pos += advance + len(re.prefix);
 	}
 	for pos <= end {
 		if !found {
 			// prime the pump if we haven't seen a match yet
-			match := make([]int, 2*(re.nbra+1));
-			for i := 0; i < len(match); i++ {
-				match[i] = -1	// no match seen; catches cases like "a(b)?c" on "ac"
-			}
+			match := noMatch(re.nbra);
 			match[0] = pos;
 			s[out] = re.addState(s[out], re.start.next(), match, pos, end);
 		}
@@ -723,10 +784,10 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 		charwidth := 1;
 		c := endOfFile;
 		if pos < end {
-			if bytes == nil {
+			if bytestr == nil {
 				c, charwidth = utf8.DecodeRuneInString(str[pos:end])
 			} else {
-				c, charwidth = utf8.DecodeRune(bytes[pos:end])
+				c, charwidth = utf8.DecodeRune(bytestr[pos:end])
 			}
 		}
 		pos += charwidth;
@@ -768,6 +829,10 @@ func (re *Regexp) doExecute(str string, bytes []byte, pos int) []int {
 				panic("unknown instruction in execute");
 			}
 		}
+	}
+	// if match found, back up start of match by width of prefix.
+	if re.prefix != "" && len(final.match) > 0 {
+		final.match[0] -= len(re.prefix)
 	}
 	return final.match;
 }
