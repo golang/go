@@ -82,7 +82,7 @@ static void repeat_fasta (char const *s, size_t count) {
     memcpy (s2 + len, s, WIDTH);
     do {
      	size_t line = MIN(WIDTH, count);
-     	fwrite_unlocked (s2 + pos,1,line,stdout);
+     	fwrite (s2 + pos,1,line,stdout);
      	putchar_unlocked ('\n');
      	pos += line;
      	if (pos >= len) pos -= len;
@@ -113,7 +113,7 @@ static void random_fasta (aminoacid_t const *genelist, size_t count) {
 	    buf[pos++] = genelist[i].c;
 	} while (pos < line);
 	buf[line] = '\n';
-	fwrite_unlocked (buf, 1, line + 1, stdout);
+	fwrite (buf, 1, line + 1, stdout);
 	count -= line;
     } while (count);
 }
@@ -163,11 +163,11 @@ GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG\
 AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC\
 AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
 
-    fputs_unlocked (">ONE Homo sapiens alu\n", stdout);
+    fputs (">ONE Homo sapiens alu\n", stdout);
     repeat_fasta (alu, 2 * n);
-    fputs_unlocked (">TWO IUB ambiguity codes\n", stdout);
+    fputs (">TWO IUB ambiguity codes\n", stdout);
     random_fasta (iub, 3 * n);
-    fputs_unlocked (">THREE Homo sapiens frequency\n", stdout);
+    fputs (">THREE Homo sapiens frequency\n", stdout);
     random_fasta (homosapiens, 5 * n);
     return 0;
 }
