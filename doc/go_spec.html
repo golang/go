@@ -607,12 +607,16 @@ integer value.  The length of array <code>a</code> can be discovered
 using the built-in function <code>len(a)</code>, which is a
 compile-time constant.  The elements can be indexed by integer
 indices 0 through the <code>len(a)-1</code> (§<a href="#Indexes">Indexes</a>).
+Array types are always one-dimensional but may be composed to form
+multi-dimensional types.
 </p>
 
 <pre>
 [32]byte
 [2*N] struct { x, y int32 }
 [1000]*float64
+[3][5]int
+[2][2][2]float64  // same as [2]([2]([2]float64))
 </pre>
 
 <h3 id="Slice_types">Slice types</h3>
@@ -690,6 +694,13 @@ make([]int, 50, 100)
 new([100]int)[0:50]
 </pre>
 
+<p>
+Like arrays, slices are always one-dimensional but may be composed to construct
+higher-dimensional objects.
+With arrays of arrays, the inner arrays are, by construction, always the same length;
+however with slices of slices (or arrays of slices), the lengths may vary dynamically.
+Moreover, the inner slices must be allocated individually (with <code>make</code>).
+</p>
 
 <h3 id="Struct_types">Struct types</h3>
 
