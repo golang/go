@@ -101,7 +101,21 @@ var fmttests = []fmtTest{
 	fmtTest{"%010.3d", -1, "      -001"},
 	fmtTest{"%+d", 12345, "+12345"},
 	fmtTest{"%+d", -12345, "-12345"},
+	fmtTest{"%+d", 0, "+0"},
+	fmtTest{"% d", 0, " 0"},
 	fmtTest{"% d", 12345, " 12345"},
+
+	// floats
+	fmtTest{"%+.3e", 0.0, "+0.000e+00"},
+	fmtTest{"%+.3e", 1.0, "+1.000e+00"},
+	fmtTest{"%+.3f", -1.0, "-1.000"},
+	fmtTest{"% .3E", -1.0, "-1.000E+00"},
+	fmtTest{"% .3e", 1.0, " 1.000e+00"},
+	fmtTest{"%+.3g", 0.0, "+0"},
+	fmtTest{"%+.3g", 1.0, "+1"},
+	fmtTest{"%+.3g", -1.0, "-1"},
+	fmtTest{"% .3g", -1.0, "-1"},
+	fmtTest{"% .3g", 1.0, " 1"},
 
 	// erroneous formats
 	fmtTest{"", 2, "?(extra int=2)"},
