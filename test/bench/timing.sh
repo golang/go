@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Copyright 2009 The Go Authors.  All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
@@ -59,7 +59,8 @@ run() {
 	echo -n '	'$1'	'
 	$1
 	shift
-	(/home/r/plan9/bin/time $* 2>&1 >/dev/null) |  sed 's/r.*/r/'
+	
+	echo $((time -p $* >/dev/null) 2>&1) | awk '{print $4 "u " $6 "s " $2 "r"}'
 }
 
 fasta() {
@@ -78,6 +79,11 @@ revcomp() {
 	run 'gccgo -O2 reverse-complement.go' a.out < x
 	run 'gc reverse-complement' $O.out < x
 	run 'gc_B reverse-complement' $O.out < x
+	export GOGC=off
+	runonly echo 'GOGC=off'
+	run 'gc reverse-complement' $O.out < x
+	run 'gc_B reverse-complement' $O.out < x
+	unset GOGC
 	rm x
 }
 
