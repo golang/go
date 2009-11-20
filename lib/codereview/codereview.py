@@ -1310,7 +1310,7 @@ class FormParser(HTMLParser):
 			self.handle_data("&" + name + ";")
 	def handle_data(self, data):
 		if self.curdata is not None:
-			self.curdata += data
+			self.curdata += data.decode("utf-8").encode("utf-8")
 
 # XML parser
 def XMLGet(ui, path):
