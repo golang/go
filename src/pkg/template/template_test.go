@@ -21,6 +21,10 @@ type T struct {
 	value	string;
 }
 
+type U struct {
+	mp map[string]int;
+}
+
 type S struct {
 	header		string;
 	integer		int;
@@ -35,6 +39,8 @@ type S struct {
 	vec		*vector.Vector;
 	true		bool;
 	false		bool;
+	mp		map[string]string;
+	innermap	U;
 }
 
 var t1 = T{"ItemNumber1", "ValueNumber1"}
@@ -275,6 +281,20 @@ var tests = []*Test{
 
 		out: "1\n4\n",
 	},
+
+	// Maps
+
+	&Test{
+		in: "{mp.mapkey}\n",
+
+		out: "Ahoy!\n",
+	},
+
+	&Test{
+		in: "{innermap.mp.innerkey}\n",
+
+		out: "55\n",
+	},
 }
 
 func TestAll(t *testing.T) {
@@ -293,6 +313,10 @@ func TestAll(t *testing.T) {
 	s.vec.Push("elt2");
 	s.true = true;
 	s.false = false;
+	s.mp = make(map[string]string);
+	s.mp["mapkey"] = "Ahoy!";
+	s.innermap.mp = make(map[string]int);
+	s.innermap.mp["innerkey"] = 55;
 
 	var buf bytes.Buffer;
 	for _, test := range tests {
@@ -315,6 +339,24 @@ func TestAll(t *testing.T) {
 		if buf.String() != test.out {
 			t.Errorf("for %q: expected %q got %q", test.in, test.out, buf.String())
 		}
+	}
+}
+
+func TestMapDriverType(t *testing.T) {
+	mp := map[string]string{"footer": "Ahoy!"};
+	tmpl, err := Parse("template: {footer}", nil);
+	if err != nil {
+		t.Error("unexpected parse error:", err)
+	}
+	var b bytes.Buffer;
+	err = tmpl.Execute(mp, &b);
+	if err != nil {
+		t.Error("unexpected execute error:", err)
+	}
+	s := b.String();
+	expected := "template: Ahoy!";
+	if s != expected {
+		t.Errorf("failed passing string as data: expected %q got %q", "template: Ahoy!", s)
 	}
 }
 

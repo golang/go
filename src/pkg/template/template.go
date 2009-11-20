@@ -10,10 +10,11 @@
 
 	Templates are executed by applying them to a data structure.
 	Annotations in the template refer to elements of the data
-	structure (typically a field of a struct) to control execution
-	and derive values to be displayed.  The template walks the
-	structure as it executes and the "cursor" @ represents the
-	value at the current location in the structure.
+	structure (typically a field of a struct or a key in a map)
+	to control execution and derive values to be displayed.
+	The template walks the structure as it executes and the
+	"cursor" @ represents the value at the current location
+	in the structure.
 
 	Data items may be values or pointers; the interface hides the
 	indirection.
@@ -605,20 +606,24 @@ func (st *state) findVar(s string) reflect.Value {
 	data := st.data;
 	elems := strings.Split(s, ".", 0);
 	for i := 0; i < len(elems); i++ {
-		// Look up field; data must be a struct.
+		// Look up field; data must be a struct or map.
 		data = reflect.Indirect(data);
 		if data == nil {
 			return nil
 		}
-		typ, ok := data.Type().(*reflect.StructType);
-		if !ok {
+
+		switch typ := data.Type().(type) {
+		case *reflect.StructType:
+			field, ok := typ.FieldByName(elems[i]);
+			if !ok {
+				return nil
+			}
+			data = data.(*reflect.StructValue).FieldByIndex(field.Index);
+		case *reflect.MapType:
+			data = data.(*reflect.MapValue).Elem(reflect.NewValue(elems[i]))
+		default:
 			return nil
 		}
-		field, ok := typ.FieldByName(elems[i]);
-		if !ok {
-			return nil
-		}
-		data = data.(*reflect.StructValue).FieldByIndex(field.Index);
 	}
 	return data;
 }
