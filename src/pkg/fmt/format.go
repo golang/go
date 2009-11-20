@@ -422,33 +422,45 @@ func fmtString(f *Fmt, s string) *Fmt {
 	return f;
 }
 
+// Add a plus sign or space to the string if missing and required.
+func (f *Fmt) plusSpace(s string) *Fmt {
+	if s[0] != '-' {
+		if f.plus {
+			s = "+" + s
+		} else if f.space {
+			s = " " + s
+		}
+	}
+	return fmtString(f, s);
+}
+
 // Fmt_e64 formats a float64 in the form -1.23e+12.
 func (f *Fmt) Fmt_e64(v float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(v, 'e', doPrec(f, 6)))
+	return f.plusSpace(strconv.Ftoa64(v, 'e', doPrec(f, 6)))
 }
 
 // Fmt_E64 formats a float64 in the form -1.23E+12.
 func (f *Fmt) Fmt_E64(v float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(v, 'E', doPrec(f, 6)))
+	return f.plusSpace(strconv.Ftoa64(v, 'E', doPrec(f, 6)))
 }
 
 // Fmt_f64 formats a float64 in the form -1.23.
 func (f *Fmt) Fmt_f64(v float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(v, 'f', doPrec(f, 6)))
+	return f.plusSpace(strconv.Ftoa64(v, 'f', doPrec(f, 6)))
 }
 
 // Fmt_g64 formats a float64 in the 'f' or 'e' form according to size.
 func (f *Fmt) Fmt_g64(v float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(v, 'g', doPrec(f, -1)))
+	return f.plusSpace(strconv.Ftoa64(v, 'g', doPrec(f, -1)))
 }
 
 // Fmt_g64 formats a float64 in the 'f' or 'E' form according to size.
 func (f *Fmt) Fmt_G64(v float64) *Fmt {
-	return fmtString(f, strconv.Ftoa64(v, 'G', doPrec(f, -1)))
+	return f.plusSpace(strconv.Ftoa64(v, 'G', doPrec(f, -1)))
 }
 
 // Fmt_fb64 formats a float64 in the form -123p3 (exponent is power of 2).
-func (f *Fmt) Fmt_fb64(v float64) *Fmt	{ return fmtString(f, strconv.Ftoa64(v, 'b', 0)) }
+func (f *Fmt) Fmt_fb64(v float64) *Fmt	{ return f.plusSpace(strconv.Ftoa64(v, 'b', 0)) }
 
 // float32
 // cannot defer to float64 versions
@@ -456,27 +468,27 @@ func (f *Fmt) Fmt_fb64(v float64) *Fmt	{ return fmtString(f, strconv.Ftoa64(v, '
 
 // Fmt_e32 formats a float32 in the form -1.23e+12.
 func (f *Fmt) Fmt_e32(v float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(v, 'e', doPrec(f, 6)))
+	return f.plusSpace(strconv.Ftoa32(v, 'e', doPrec(f, 6)))
 }
 
 // Fmt_E32 formats a float32 in the form -1.23E+12.
 func (f *Fmt) Fmt_E32(v float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(v, 'e', doPrec(f, 6)))
+	return f.plusSpace(strconv.Ftoa32(v, 'E', doPrec(f, 6)))
 }
 
 // Fmt_f32 formats a float32 in the form -1.23.
 func (f *Fmt) Fmt_f32(v float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(v, 'f', doPrec(f, 6)))
+	return f.plusSpace(strconv.Ftoa32(v, 'f', doPrec(f, 6)))
 }
 
 // Fmt_g32 formats a float32 in the 'f' or 'e' form according to size.
 func (f *Fmt) Fmt_g32(v float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(v, 'g', doPrec(f, -1)))
+	return f.plusSpace(strconv.Ftoa32(v, 'g', doPrec(f, -1)))
 }
 
 // Fmt_G32 formats a float32 in the 'f' or 'E' form according to size.
 func (f *Fmt) Fmt_G32(v float32) *Fmt {
-	return fmtString(f, strconv.Ftoa32(v, 'G', doPrec(f, -1)))
+	return f.plusSpace(strconv.Ftoa32(v, 'G', doPrec(f, -1)))
 }
 
 // Fmt_fb32 formats a float32 in the form -123p3 (exponent is power of 2).
