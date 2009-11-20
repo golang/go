@@ -763,7 +763,6 @@ func (a *matchArena) addState(s []state, inst instr, match *matchVec, pos, end i
 	}
 	index := inst.index();
 	l := len(s);
-	begin := match.m[0];
 	// States are inserted in order so it's sufficient to see if we have the same
 	// instruction; no need to see if existing match is earlier (it is).
 	for i := 0; i < l; i++ {
