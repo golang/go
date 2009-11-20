@@ -43,7 +43,7 @@ import (
 	"strings";
 )
 
-var variants = []string {
+var variants = []string{
 	"agggtaaa|tttaccct",
 	"[cgt]gggtaaa|tttaccc[acg]",
 	"a[act]ggtaaa|tttacc[agt]t",
@@ -56,21 +56,21 @@ var variants = []string {
 }
 
 type Subst struct {
-	pat, repl string
+	pat, repl string;
 }
 
-var substs = [] Subst {
-	Subst {"B", "(c|g|t)"},
-	Subst {"D", "(a|g|t)"},
-	Subst {"H", "(a|c|t)"},
-	Subst {"K", "(g|t)"},
-	Subst {"M", "(a|c)"},
-	Subst {"N", "(a|c|g|t)"},
-	Subst {"R", "(a|g)"},
-	Subst {"S", "(c|g)"},
-	Subst {"V", "(a|c|g)"},
-	Subst {"W", "(a|t)"},
-	Subst {"Y", "(c|t)"},
+var substs = []Subst{
+	Subst{"B", "(c|g|t)"},
+	Subst{"D", "(a|g|t)"},
+	Subst{"H", "(a|c|t)"},
+	Subst{"K", "(g|t)"},
+	Subst{"M", "(a|c)"},
+	Subst{"N", "(a|c|g|t)"},
+	Subst{"R", "(a|g)"},
+	Subst{"S", "(c|g)"},
+	Subst{"V", "(a|c|g)"},
+	Subst{"W", "(a|t)"},
+	Subst{"Y", "(c|t)"},
 }
 
 func countMatches(pat string, bytes []byte) int {
@@ -79,10 +79,10 @@ func countMatches(pat string, bytes []byte) int {
 	for {
 		e := re.Execute(bytes);
 		if len(e) == 0 {
-			break;
+			break
 		}
 		n++;
-		bytes = bytes[e[1]:len(bytes)];
+		bytes = bytes[e[1]:];
 	}
 	return n;
 }
@@ -98,10 +98,10 @@ func main() {
 	bytes = regexp.MustCompile("(>[^\n]+)?\n").ReplaceAll(bytes, []byte{});
 	clen := len(bytes);
 	for _, s := range variants {
-		fmt.Printf("%s %d\n", s, countMatches(s, bytes));
+		fmt.Printf("%s %d\n", s, countMatches(s, bytes))
 	}
 	for _, sub := range substs {
-		bytes = regexp.MustCompile(sub.pat).ReplaceAll(bytes, strings.Bytes(sub.repl));
+		bytes = regexp.MustCompile(sub.pat).ReplaceAll(bytes, strings.Bytes(sub.repl))
 	}
 	fmt.Printf("\n%d\n%d\n%d\n", ilen, clen, len(bytes));
 }

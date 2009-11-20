@@ -45,15 +45,15 @@ import (
 var n = flag.Int("n", 1000, "number of iterations")
 
 type Body struct {
-	x, y, z, vx, vy, vz, mass float64
+	x, y, z, vx, vy, vz, mass float64;
 }
 
 const (
-	solarMass = 4 * math.Pi * math.Pi;
-	daysPerYear = 365.24;
+	solarMass	= 4 * math.Pi * math.Pi;
+	daysPerYear	= 365.24;
 )
 
-func (b *Body) offsetMomentum(px, py, pz float64){
+func (b *Body) offsetMomentum(px, py, pz float64) {
 	b.vx = -px / solarMass;
 	b.vy = -py / solarMass;
 	b.vz = -pz / solarMass;
@@ -82,7 +82,7 @@ func (sys System) energy() float64 {
 	for i, body := range sys {
 		e += 0.5 * body.mass *
 			(body.vx*body.vx + body.vy*body.vy + body.vz*body.vz);
-		for j := i+1; j < len(sys); j++ {
+		for j := i + 1; j < len(sys); j++ {
 			body2 := sys[j];
 			dx := body.x - body2.x;
 			dy := body.y - body2.y;
@@ -96,7 +96,7 @@ func (sys System) energy() float64 {
 
 func (sys System) advance(dt float64) {
 	for i, body := range sys {
-		for j := i+1; j < len(sys); j++ {
+		for j := i + 1; j < len(sys); j++ {
 			body2 := sys[j];
 			dx := body.x - body2.x;
 			dy := body.y - body2.y;
@@ -124,7 +124,7 @@ func (sys System) advance(dt float64) {
 }
 
 var (
-	jupiter = Body {
+	jupiter	= Body{
 		x: 4.84143144246472090e+00,
 		y: -1.16032004402742839e+00,
 		z: -1.03622044471123109e-01,
@@ -133,7 +133,7 @@ var (
 		vz: -6.90460016972063023e-05 * daysPerYear,
 		mass: 9.54791938424326609e-04 * solarMass,
 	};
-	saturn = Body {
+	saturn	= Body{
 		x: 8.34336671824457987e+00,
 		y: 4.12479856412430479e+00,
 		z: -4.03523417114321381e-01,
@@ -142,7 +142,7 @@ var (
 		vz: 2.30417297573763929e-05 * daysPerYear,
 		mass: 2.85885980666130812e-04 * solarMass,
 	};
-	uranus = Body {
+	uranus	= Body{
 		x: 1.28943695621391310e+01,
 		y: -1.51111514016986312e+01,
 		z: -2.23307578892655734e-01,
@@ -151,7 +151,7 @@ var (
 		vz: -2.96589568540237556e-05 * daysPerYear,
 		mass: 4.36624404335156298e-05 * solarMass,
 	};
-	neptune = Body {
+	neptune	= Body{
 		x: 1.53796971148509165e+01,
 		y: -2.59193146099879641e+01,
 		z: 1.79258772950371181e-01,
@@ -160,9 +160,9 @@ var (
 		vz: -9.51592254519715870e-05 * daysPerYear,
 		mass: 5.15138902046611451e-05 * solarMass,
 	};
-	sun = Body {
-		mass: solarMass
-	}
+	sun	= Body{
+		mass: solarMass,
+	};
 )
 
 func main() {

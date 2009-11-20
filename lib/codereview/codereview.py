@@ -607,7 +607,7 @@ def RelativePath(path, cwd):
 
 # Check that gofmt run on the list of files does not change them
 def CheckGofmt(ui, repo, files, just_warn=False):
-	files = [f for f in files if f.startswith('src/') and f.endswith('.go')]
+	files = [f for f in files if (f.startswith('src/') or f.startswith('test/bench/')) and f.endswith('.go')]
 	if not files:
 		return
 	cwd = os.getcwd()
@@ -1082,6 +1082,7 @@ def sync(ui, repo, **opts):
 		err = commands.postincoming(ui, repo, modheads, True, "tip")
 		if err:
 			return err
+	commands.update(ui, repo)
 	sync_changes(ui, repo)
 
 def sync_note(msg):

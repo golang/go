@@ -52,7 +52,7 @@ func f(i int, in <-chan int, out chan<- int) {
 			fmt.Printf("%d\n", i);
 			os.Exit(0);
 		}
-		out <- n - 1
+		out <- n-1;
 	}
 }
 
