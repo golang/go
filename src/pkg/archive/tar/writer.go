@@ -163,7 +163,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 // Write writes to the current entry in the tar archive.
 // Write returns the error ErrWriteTooLong if more than
 // hdr.Size bytes are written after WriteHeader.
-func (tw *Writer) Write(b []uint8) (n int, err os.Error) {
+func (tw *Writer) Write(b []byte) (n int, err os.Error) {
 	overwrite := false;
 	if int64(len(b)) > tw.nb {
 		b = b[0:tw.nb];
