@@ -101,6 +101,6 @@ func main() {
 		os.Exit(2)
 	}
 
-	p.PackagePath = p.Package;
+	p.PackagePath = os.Getenv("CGOPKGPATH") + "/" + p.Package;
 	p.writeOutput(input);
 }
