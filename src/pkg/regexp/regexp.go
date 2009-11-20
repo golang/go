@@ -764,11 +764,10 @@ func (a *matchArena) addState(s []state, inst instr, match *matchVec, pos, end i
 	index := inst.index();
 	l := len(s);
 	begin := match.m[0];
-	// TODO: If the state were a vector and we could do insert, have inputs always
-	// go in order correctly and this "earlier" test is not necessary,
+	// States are inserted in order so it's sufficient to see if we have the same
+	// instruction; no need to see if existing match is earlier (it is).
 	for i := 0; i < l; i++ {
-		if s[i].inst.index() == index &&	// same instruction
-			s[i].match.m[0] <= begin {	// earlier match already going; lefmost wins
+		if s[i].inst.index() == index {
 			return s
 		}
 	}
