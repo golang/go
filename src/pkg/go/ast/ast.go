@@ -172,10 +172,16 @@ type (
 		Sel	*Ident;	// field selector
 	};
 
-	// An IndexExpr node represents an expression followed by an index or slice.
+	// An IndexExpr node represents an expression followed by an index.
 	IndexExpr	struct {
 		X	Expr;	// expression
-		Index	Expr;	// index expression or beginning of slice range
+		Index	Expr;	// index expression
+	};
+
+	// An SliceExpr node represents an expression followed by slice indices.
+	SliceExpr	struct {
+		X	Expr;	// expression
+		Index	Expr;	// beginning of slice range
 		End	Expr;	// end of slice range; or nil
 	};
 
@@ -305,6 +311,7 @@ func (x *FuncLit) Pos() token.Position		{ return x.Type.Pos() }
 func (x *CompositeLit) Pos() token.Position	{ return x.Type.Pos() }
 func (x *SelectorExpr) Pos() token.Position	{ return x.X.Pos() }
 func (x *IndexExpr) Pos() token.Position	{ return x.X.Pos() }
+func (x *SliceExpr) Pos() token.Position	{ return x.X.Pos() }
 func (x *TypeAssertExpr) Pos() token.Position	{ return x.X.Pos() }
 func (x *CallExpr) Pos() token.Position		{ return x.Fun.Pos() }
 func (x *BinaryExpr) Pos() token.Position	{ return x.X.Pos() }
@@ -323,6 +330,7 @@ func (x *CompositeLit) exprNode()	{}
 func (x *ParenExpr) exprNode()		{}
 func (x *SelectorExpr) exprNode()	{}
 func (x *IndexExpr) exprNode()		{}
+func (x *SliceExpr) exprNode()		{}
 func (x *TypeAssertExpr) exprNode()	{}
 func (x *CallExpr) exprNode()		{}
 func (x *StarExpr) exprNode()		{}

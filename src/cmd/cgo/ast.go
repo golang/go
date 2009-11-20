@@ -178,6 +178,9 @@ func walk(x interface{}, p *Prog, context string) {
 	case *ast.IndexExpr:
 		walk(&n.X, p, "expr");
 		walk(&n.Index, p, "expr");
+	case *ast.SliceExpr:
+		walk(&n.X, p, "expr");
+		walk(&n.Index, p, "expr");
 		if n.End != nil {
 			walk(&n.End, p, "expr")
 		}

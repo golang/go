@@ -665,17 +665,25 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		p.print(token.RPAREN);
 
 	case *ast.IndexExpr:
+		// TODO(gri): should treat[] like parentheses and undo one level of depth
 		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine);
 		p.print(token.LBRACK);
 		p.expr0(x.Index, depth+1, multiLine);
+		p.print(token.RBRACK);
+
+	case *ast.SliceExpr:
+		// TODO(gri): should treat[] like parentheses and undo one level of depth
+		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine);
+		p.print(token.LBRACK);
+		p.expr0(x.Index, depth+1, multiLine);
+		// blanks around ":" if both sides exist and either side is a binary expression
+		if depth <= 1 && x.End != nil && (isBinary(x.Index) || isBinary(x.End)) {
+			p.print(blank, token.COLON, blank)
+		} else {
+			p.print(token.COLON)
+		}
 		if x.End != nil {
-			// blanks around ":" if either side is a binary expression
-			if depth <= 1 && (isBinary(x.Index) || isBinary(x.End)) {
-				p.print(blank, token.COLON, blank)
-			} else {
-				p.print(token.COLON)
-			}
-			p.expr0(x.End, depth+1, multiLine);
+			p.expr0(x.End, depth+1, multiLine)
 		}
 		p.print(token.RBRACK);
 

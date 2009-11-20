@@ -129,6 +129,10 @@ func Walk(v Visitor, node interface{}) {
 	case *IndexExpr:
 		Walk(v, n.X);
 		Walk(v, n.Index);
+
+	case *SliceExpr:
+		Walk(v, n.X);
+		Walk(v, n.Index);
 		Walk(v, n.End);
 
 	case *TypeAssertExpr:
