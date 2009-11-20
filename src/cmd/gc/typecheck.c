@@ -587,7 +587,7 @@ reswitch:
 		defaultlit(&n->right->left, types[TUINT]);
 		defaultlit(&n->right->right, types[TUINT]);
 		implicitstar(&n->left);
-		if(n->right->left == N || n->right->right == N) {
+		if(n->right->left == N) {
 			yyerror("missing slice bounds?");
 			goto error;
 		}
@@ -597,11 +597,13 @@ reswitch:
 			yyerror("invalid slice index %#N (type %T)", n->right->left, t);
 			goto error;
 		}
-		if((t = n->right->right->type) == T)
-			goto error;
-		if(!isint[t->etype]) {
-			yyerror("invalid slice index %#N (type %T)", n->right->right, t);
-			goto error;
+		if(n->right->right != N) {
+			if((t = n->right->right->type) == T)
+				goto error;
+			if(!isint[t->etype]) {
+				yyerror("invalid slice index %#N (type %T)", n->right->right, t);
+				goto error;
+			}
 		}
 		l = n->left;
 		if((t = l->type) == T)

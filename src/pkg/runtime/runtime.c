@@ -104,28 +104,6 @@ mcmp(byte *s1, byte *s2, uint32 n)
 }
 
 
-void
-mmov(byte *t, byte *f, uint32 n)
-{
-	if(t < f) {
-		while(n > 0) {
-			*t = *f;
-			t++;
-			f++;
-			n--;
-		}
-	} else {
-		t += n;
-		f += n;
-		while(n > 0) {
-			t--;
-			f--;
-			*t = *f;
-			n--;
-		}
-	}
-}
-
 byte*
 mchr(byte *p, byte c, byte *ep)
 {

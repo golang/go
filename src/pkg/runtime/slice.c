@@ -52,7 +52,6 @@ throwslice(uint32 lb, uint32 hb, uint32 n)
 void
 runtime·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
 {
-
 	if(hb > old.cap || lb > hb) {
 		if(debug) {
 			prints("runtime·sliceslice: old=");
@@ -75,7 +74,7 @@ runtime·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
 	}
 
 	// new array is inside old array
-	ret.len = hb-lb;
+	ret.len = hb - lb;
 	ret.cap = old.cap - lb;
 	ret.array = old.array + lb*width;
 
@@ -88,6 +87,49 @@ runtime·sliceslice(Slice old, uint32 lb, uint32 hb, uint32 width, Slice ret)
 		runtime·printint(lb);
 		prints("; hb=");
 		runtime·printint(hb);
+		prints("; width=");
+		runtime·printint(width);
+		prints("; ret=");
+		runtime·printslice(ret);
+		prints("\n");
+	}
+}
+
+// sliceslice1(old []any, lb int, width int) (ary []any);
+void
+runtime·sliceslice1(Slice old, uint32 lb, uint32 width, Slice ret)
+{
+	if(lb > old.len) {
+		if(debug) {
+			prints("runtime·sliceslice: old=");
+			runtime·printslice(old);
+			prints("; lb=");
+			runtime·printint(lb);
+			prints("; width=");
+			runtime·printint(width);
+			prints("\n");
+
+			prints("oldarray: nel=");
+			runtime·printint(old.len);
+			prints("; cap=");
+			runtime·printint(old.cap);
+			prints("\n");
+		}
+		throwslice(lb, old.len, old.cap);
+	}
+
+	// new array is inside old array
+	ret.len = old.len - lb;
+	ret.cap = old.cap - lb;
+	ret.array = old.array + lb*width;
+
+	FLUSH(&ret);
+
+	if(debug) {
+		prints("runtime·sliceslice: old=");
+		runtime·printslice(old);
+		prints("; lb=");
+		runtime·printint(lb);
 		prints("; width=");
 		runtime·printint(width);
 		prints("; ret=");
@@ -143,34 +185,6 @@ runtime·slicearray(byte* old, uint32 nel, uint32 lb, uint32 hb, uint32 width, S
 		runtime·printint(hb);
 		prints("; width=");
 		runtime·printint(width);
-		prints("; ret=");
-		runtime·printslice(ret);
-		prints("\n");
-	}
-}
-
-// arraytoslice(old *any, nel int) (ary []any)
-void
-runtime·arraytoslice(byte* old, uint32 nel, Slice ret)
-{
-	if(nel > 0 && old == nil) {
-		// crash if old == nil.
-		// could give a better message
-		// but this is consistent with all the in-line checks
-		// that the compiler inserts for other uses.
-		*old = 0;
-	}
-
-	// new dope to old array
-	ret.len = nel;
-	ret.cap = nel;
-	ret.array = old;
-
-	FLUSH(&ret);
-
-	if(debug) {
-		prints("runtime·slicearrayp: old=");
-		runtime·printpointer(old);
 		prints("; ret=");
 		runtime·printslice(ret);
 		prints("\n");

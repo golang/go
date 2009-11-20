@@ -1131,7 +1131,7 @@ cgen_inline(Node *n, Node *res)
 	Node nodes[5];
 	Node n1, n2, nres, nnode0, ntemp;
 	vlong v;
-	int i, bad;
+	int i, narg, bad;
 
 	if(n->op != OCALLFUNC)
 		goto no;
@@ -1141,10 +1141,14 @@ cgen_inline(Node *n, Node *res)
 		goto no;
 	if(strcmp(n->left->sym->name, "slicearray") == 0)
 		goto slicearray;
-	if(strcmp(n->left->sym->name, "sliceslice") == 0)
+	if(strcmp(n->left->sym->name, "sliceslice") == 0) {
+		narg = 4;
 		goto sliceslice;
-	if(strcmp(n->left->sym->name, "arraytoslice") == 0)
-		goto arraytoslice;
+	}
+	if(strcmp(n->left->sym->name, "sliceslice1") == 0) {
+		narg = 3;
+		goto sliceslice;
+	}
 	goto no;
 
 slicearray:
@@ -1231,44 +1235,8 @@ slicearray:
 	}
 	return 1;
 
-arraytoslice:
-	if(!sleasy(res))
-		goto no;
-	getargs(n->list, nodes, 2);
-
-	// ret.len = nel[1];
-	n2 = *res;
-	n2.xoffset += Array_nel;
-	gins(optoas(OAS, types[TUINT32]), &nodes[1], &n2);
-
-	// ret.cap = nel[1];
-	n2 = *res;
-	n2.xoffset += Array_cap;
-	gins(optoas(OAS, types[TUINT32]), &nodes[1], &n2);
-
-	// ret.array = old[0];
-	n2 = *res;
-	n2.xoffset += Array_array;
-	gins(optoas(OAS, types[tptr]), &nodes[0], &n2);
-
-	// if slice could be too big, dereference to
-	// catch nil array pointer.
-	if(nodes[0].op == OREGISTER && nodes[0].type->type->width >= unmappedzero) {
-		n2 = nodes[0];
-		n2.xoffset = 0;
-		n2.op = OINDREG;
-		n2.type = types[TUINT8];
-		gins(ATESTB, nodintconst(0), &n2);
-	}
-
-	for(i=0; i<2; i++) {
-		if(nodes[i].op == OREGISTER)
-			regfree(&nodes[i]);
-	}
-	return 1;
-
 sliceslice:
-	getargs(n->list, nodes, 4);
+	getargs(n->list, nodes, narg);
 
 	nres = *res;		// result
 	nnode0 = nodes[0];	// input slice
@@ -1276,7 +1244,7 @@ sliceslice:
 		bad = 0;
 		if(res->ullman >= UINF)
 			bad = 1;
-		for(i=0; i<4; i++) {
+		for(i=0; i<narg; i++) {
 			if(nodes[i].ullman >= UINF)
 				bad = 1;
 			if(nodes[i].op == OREGISTER)
@@ -1291,35 +1259,60 @@ sliceslice:
 			cgen(&nodes[0], &ntemp);
 			nnode0 = ntemp;
 		}
-		getargs(n->list, nodes, 4);
+		getargs(n->list, nodes, narg);
 		if(!sleasy(res))
 			nres = ntemp;
 	}
+	
+	if(narg == 3) {	// old[lb:]
+		// move width to where it would be for old[lb:hb]
+		nodes[3] = nodes[2];
+		nodes[2].op = OXXX;
+		
+		// if(lb[1] > old.nel[0]) goto throw;
+		n2 = nnode0;
+		n2.xoffset += Array_nel;
+		cmpandthrow(&nodes[1], &n2);
 
-	// if(hb[2] > old.cap[0]) goto throw;
-	n2 = nnode0;
-	n2.xoffset += Array_cap;
-	cmpandthrow(&nodes[2], &n2);
-
-	// if(lb[1] > hb[2]) goto throw;
-	cmpandthrow(&nodes[1], &nodes[2]);
-
-	// ret.len = hb[2]-lb[1]; (destroys hb[2])
-	n2 = nres;
-	n2.xoffset += Array_nel;
-
-	if(smallintconst(&nodes[2]) && smallintconst(&nodes[1])) {
-		v = mpgetfix(nodes[2].val.u.xval) -
-			mpgetfix(nodes[1].val.u.xval);
-		nodconst(&n1, types[TUINT32], v);
-		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
-	} else {
-		regalloc(&n1, types[TUINT32], &nodes[2]);
-		gmove(&nodes[2], &n1);
+		// ret.nel = old.nel[0]-lb[1];
+		n2 = nnode0;
+		n2.xoffset += Array_nel;
+	
+		regalloc(&n1, types[TUINT32], N);
+		gins(optoas(OAS, types[TUINT32]), &n2, &n1);
 		if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
 			gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
+	
+		n2 = nres;
+		n2.xoffset += Array_nel;
 		gins(optoas(OAS, types[TUINT32]), &n1, &n2);
 		regfree(&n1);
+	} else {	// old[lb:hb]
+		// if(hb[2] > old.cap[0]) goto throw;
+		n2 = nnode0;
+		n2.xoffset += Array_cap;
+		cmpandthrow(&nodes[2], &n2);
+
+		// if(lb[1] > hb[2]) goto throw;
+		cmpandthrow(&nodes[1], &nodes[2]);
+
+		// ret.len = hb[2]-lb[1]; (destroys hb[2])
+		n2 = nres;
+		n2.xoffset += Array_nel;
+	
+		if(smallintconst(&nodes[2]) && smallintconst(&nodes[1])) {
+			v = mpgetfix(nodes[2].val.u.xval) -
+				mpgetfix(nodes[1].val.u.xval);
+			nodconst(&n1, types[TUINT32], v);
+			gins(optoas(OAS, types[TUINT32]), &n1, &n2);
+		} else {
+			regalloc(&n1, types[TUINT32], &nodes[2]);
+			gmove(&nodes[2], &n1);
+			if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
+				gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
+			gins(optoas(OAS, types[TUINT32]), &n1, &n2);
+			regfree(&n1);
+		}
 	}
 
 	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])

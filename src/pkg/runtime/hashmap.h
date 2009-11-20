@@ -67,7 +67,6 @@
 #define	free(a)		USED(a)
 #define	offsetof(s,m)	(uint32)(&(((s*)0)->m))
 #define	memset(a,b,c)	runtime·memclr((byte*)(a), (uint32)(c))
-#define	memmove(a,b,c)	mmov((byte*)(a),(byte*)(b),(uint32)(c))
 #define	memcpy(a,b,c)	mcpy((byte*)(a),(byte*)(b),(uint32)(c))
 #define	assert(a)	if(!(a)) throw("assert")
 

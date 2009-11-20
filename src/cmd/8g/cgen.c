@@ -61,6 +61,10 @@ cgen(Node *n, Node *res)
 	if(res == N || res->type == T)
 		fatal("cgen: res nil");
 
+	// inline slices
+	if(cgen_inline(n, res))
+		return;
+
 	while(n->op == OCONVNOP)
 		n = n->left;
 
