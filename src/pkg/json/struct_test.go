@@ -5,6 +5,7 @@
 package json
 
 import (
+	"bytes";
 	"reflect";
 	"strconv";
 	"testing";
@@ -154,6 +155,51 @@ func TestIssue114(t *testing.T) {
 	for i, e := range items {
 		if e.Text != strconv.Itoa(i) {
 			t.Errorf("index: %d got: %s want: %d", i, e.Text, i)
+		}
+	}
+}
+
+type marshalTest struct {
+	val	interface{};
+	out	string;
+}
+
+var marshalTests = []marshalTest{
+	// basic string
+	marshalTest{true, "true"},
+	marshalTest{false, "false"},
+	marshalTest{123, "123"},
+	marshalTest{0.1, "0.1"},
+	marshalTest{1e-10, "1e-10"},
+	marshalTest{"teststring", `"teststring"`},
+	marshalTest{[4]int{1, 2, 3, 4}, "[1,2,3,4]"},
+	marshalTest{[]int{1, 2, 3, 4}, "[1,2,3,4]"},
+	marshalTest{[][]int{[]int{1, 2}, []int{3, 4}}, "[[1,2],[3,4]]"},
+	marshalTest{map[string]string{"one": "one"}, `{"one":"one"}`},
+	marshalTest{map[string]int{"one": 1}, `{"one":1}`},
+	marshalTest{struct{}{}, "{}"},
+	marshalTest{struct{ a int }{1}, `{"a":1}`},
+	marshalTest{struct {
+		a	int;
+		b	string;
+	}{1, "hello"},
+		`{"a":1,"b":"hello"}`,
+	},
+	marshalTest{map[string][]int{"3": []int{1, 2, 3}}, `{"3":[1,2,3]}`},
+}
+
+func TestJsonMarshal(t *testing.T) {
+	for _, tt := range marshalTests {
+		var buf bytes.Buffer;
+
+		err := Marshal(&buf, tt.val);
+		if err != nil {
+			t.Errorf("Error converting %s to JSON: \n", err.String())
+		}
+
+		s := buf.String();
+		if s != tt.out {
+			t.Errorf("Error converting to JSON. Expected: %q Actual %q\n", tt.out, s)
 		}
 	}
 }

@@ -8,6 +8,9 @@
 package json
 
 import (
+	"fmt";
+	"io";
+	"os";
 	"reflect";
 	"strings";
 )
@@ -305,4 +308,98 @@ func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
 		return false, errtok
 	}
 	return true, "";
+}
+
+type MarshalError struct {
+	T reflect.Type;
+}
+
+func (e *MarshalError) String() string {
+	return "json cannot encode value of type " + e.T.String()
+}
+func writeArrayOrSlice(w io.Writer, val reflect.ArrayOrSliceValue) os.Error {
+	fmt.Fprint(w, "[");
+
+	for i := 0; i < val.Len(); i++ {
+		if err := writeValue(w, val.Elem(i)); err != nil {
+			return err
+		}
+
+		if i < val.Len()-1 {
+			fmt.Fprint(w, ",")
+		}
+	}
+
+	fmt.Fprint(w, "]");
+	return nil;
+}
+
+func writeMap(w io.Writer, val *reflect.MapValue) os.Error {
+	key := val.Type().(*reflect.MapType).Key();
+	if _, ok := key.(*reflect.StringType); !ok {
+		return &MarshalError{val.Type()}
+	}
+
+	keys := val.Keys();
+	fmt.Fprint(w, "{");
+	for i := 0; i < len(keys); i++ {
+		fmt.Fprintf(w, "%q:", keys[i].(*reflect.StringValue).Get());
+
+		if err := writeValue(w, val.Elem(keys[i])); err != nil {
+			return err
+		}
+
+		if i < len(keys)-1 {
+			fmt.Fprint(w, ",")
+		}
+	}
+
+	fmt.Fprint(w, "}");
+	return nil;
+}
+
+func writeStruct(w io.Writer, val *reflect.StructValue) os.Error {
+	fmt.Fprint(w, "{");
+
+	typ := val.Type().(*reflect.StructType);
+
+	for i := 0; i < val.NumField(); i++ {
+		fieldValue := val.Field(i);
+		fmt.Fprintf(w, "%q:", typ.Field(i).Name);
+		writeValue(w, fieldValue);
+		if i < val.NumField()-1 {
+			fmt.Fprint(w, ",")
+		}
+	}
+
+	fmt.Fprint(w, "}");
+	return nil;
+}
+
+func writeValue(w io.Writer, val reflect.Value) (err os.Error) {
+	switch v := val.(type) {
+	case *reflect.StringValue:
+		fmt.Fprintf(w, "%q", v.Get())
+	case *reflect.ArrayValue:
+		err = writeArrayOrSlice(w, v)
+	case *reflect.SliceValue:
+		err = writeArrayOrSlice(w, v)
+	case *reflect.MapValue:
+		err = writeMap(w, v)
+	case *reflect.StructValue:
+		err = writeStruct(w, v)
+	case *reflect.ChanValue,
+		*reflect.InterfaceValue,
+		*reflect.PtrValue,
+		*reflect.UnsafePointerValue:
+		return &MarshalError{val.Type()}
+	default:
+		value := val.(reflect.Value);
+		fmt.Fprint(w, value.Interface());
+	}
+	return nil;
+}
+
+func Marshal(w io.Writer, val interface{}) os.Error {
+	return writeValue(w, reflect.NewValue(val))
 }
