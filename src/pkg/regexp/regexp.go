@@ -265,7 +265,7 @@ func (p *parser) nextc() int {
 	if p.pos >= len(p.re.expr) {
 		p.ch = endOfFile
 	} else {
-		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos:len(p.re.expr)]);
+		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos:]);
 		p.ch = c;
 		p.pos += w;
 	}
@@ -804,9 +804,9 @@ func (re *Regexp) doExecute(str string, bytestr []byte, pos int) []int {
 	if re.prefix != "" {
 		var advance int;
 		if bytestr == nil {
-			advance = strings.Index(str[pos:len(str)], re.prefix)
+			advance = strings.Index(str[pos:], re.prefix)
 		} else {
-			advance = bytes.Index(bytestr[pos:len(bytestr)], re.prefixBytes)
+			advance = bytes.Index(bytestr[pos:], re.prefixBytes)
 		}
 		if advance == -1 {
 			return []int{}
@@ -1014,7 +1014,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 		lastMatchEnd = a[1];
 
 		// Advance past this match; always advance at least one character.
-		_, width := utf8.DecodeRuneInString(src[searchPos:len(src)]);
+		_, width := utf8.DecodeRuneInString(src[searchPos:]);
 		if searchPos+width > a[1] {
 			searchPos += width
 		} else if searchPos+1 > a[1] {
@@ -1027,7 +1027,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 	}
 
 	// Copy the unmatched characters after the last match.
-	io.WriteString(buf, src[lastMatchEnd:len(src)]);
+	io.WriteString(buf, src[lastMatchEnd:]);
 
 	return buf.String();
 }
@@ -1058,7 +1058,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 		lastMatchEnd = a[1];
 
 		// Advance past this match; always advance at least one character.
-		_, width := utf8.DecodeRune(src[searchPos:len(src)]);
+		_, width := utf8.DecodeRune(src[searchPos:]);
 		if searchPos+width > a[1] {
 			searchPos += width
 		} else if searchPos+1 > a[1] {
@@ -1071,7 +1071,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 	}
 
 	// Copy the unmatched characters after the last match.
-	buf.Write(src[lastMatchEnd:len(src)]);
+	buf.Write(src[lastMatchEnd:]);
 
 	return buf.Bytes();
 }

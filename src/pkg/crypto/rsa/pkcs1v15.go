@@ -27,7 +27,7 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
 	// EM = 0x02 || PS || 0x00 || M
 	em := make([]byte, k-1);
 	em[0] = 2;
-	ps, mm := em[1:len(em)-len(msg)-1], em[len(em)-len(msg):len(em)];
+	ps, mm := em[1:len(em)-len(msg)-1], em[len(em)-len(msg):];
 	err = nonZeroRandomBytes(ps, rand);
 	if err != nil {
 		return
@@ -113,7 +113,7 @@ func decryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (valid
 	}
 
 	valid = firstByteIsZero & secondByteIsTwo & (^lookingForIndex & 1);
-	msg = em[index+1 : len(em)];
+	msg = em[index+1:];
 	return;
 }
 

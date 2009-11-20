@@ -236,7 +236,7 @@ func TestSprintf(t *testing.T) {
 					break
 				}
 			}
-			s = s[0:i] + "PTR" + s[j:len(s)];
+			s = s[0:i] + "PTR" + s[j:];
 		}
 		if s != tt.out {
 			if _, ok := tt.val.(string); ok {

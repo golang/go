@@ -230,7 +230,7 @@ func main() {
 
 	if info.PDoc != nil && flag.NArg() > 1 {
 		args := flag.Args();
-		info.PDoc.Filter(args[1:len(args)]);
+		info.PDoc.Filter(args[1:]);
 	}
 
 	if err := packageText.Execute(info, os.Stdout); err != nil {

@@ -47,7 +47,7 @@ func isText(b []byte) bool {
 				return false
 			}
 		}
-		b = b[size:len(b)];
+		b = b[size:];
 	}
 	return true;
 }
@@ -77,7 +77,7 @@ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 
 	// redirect to strip off any index.html
 	n := len(name) - len(indexPage);
-	if n >= 0 && name[n:len(name)] == indexPage {
+	if n >= 0 && name[n:] == indexPage {
 		Redirect(c, name[0:n+1], StatusMovedPermanently);
 		return;
 	}
@@ -176,6 +176,6 @@ func (f *fileHandler) ServeHTTP(c *Conn, r *Request) {
 		NotFound(c, r);
 		return;
 	}
-	path = path[len(f.prefix):len(path)];
+	path = path[len(f.prefix):];
 	serveFileInternal(c, r, f.root+"/"+path, true);
 }

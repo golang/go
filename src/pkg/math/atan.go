@@ -32,7 +32,7 @@ func xatan(arg float64) float64 {
 		Q0	= .89678597403663861962481162e3;
 	)
 	sq := arg * arg;
-	value := ((((P4*sq+P3)*sq+P2)*sq + P1) * sq + P0);
+	value := ((((P4*sq+P3)*sq+P2)*sq+P1)*sq + P0);
 	value = value / (((((sq+Q4)*sq+Q3)*sq+Q2)*sq+Q1)*sq + Q0);
 	return value * arg;
 }

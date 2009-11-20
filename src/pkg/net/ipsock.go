@@ -157,7 +157,7 @@ func splitHostPort(hostport string) (host, port string, err os.Error) {
 		return;
 	}
 
-	host, port = hostport[0:i], hostport[i+1:len(hostport)];
+	host, port = hostport[0:i], hostport[i+1:];
 
 	// Can put brackets around host ...
 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {

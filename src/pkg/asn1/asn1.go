@@ -141,7 +141,7 @@ func parseBitString(bytes []byte) (ret BitString, err os.Error) {
 		return;
 	}
 	ret.BitLength = (len(bytes)-1)*8 - paddingBits;
-	ret.Bytes = bytes[1:len(bytes)];
+	ret.Bytes = bytes[1:];
 	return;
 }
 
@@ -254,7 +254,7 @@ func parseUTCTime(bytes []byte) (ret *time.Time, err os.Error) {
 	if !ok1 || !ok2 || !ok3 || !ok4 || !ok5 {
 		goto Error
 	}
-	bytes = bytes[10:len(bytes)];
+	bytes = bytes[10:];
 	switch bytes[0] {
 	case '0', '1', '2', '3', '4', '5', '6':
 		if len(bytes) < 3 {
@@ -264,7 +264,7 @@ func parseUTCTime(bytes []byte) (ret *time.Time, err os.Error) {
 		if !ok1 {
 			goto Error
 		}
-		bytes = bytes[2:len(bytes)];
+		bytes = bytes[2:];
 	}
 	if len(bytes) == 0 {
 		goto Error
@@ -790,5 +790,5 @@ func Unmarshal(val interface{}, b []byte) (rest []byte, err os.Error) {
 	if err != nil {
 		return nil, err
 	}
-	return b[offset:len(b)], nil;
+	return b[offset:], nil;
 }

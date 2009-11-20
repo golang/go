@@ -101,7 +101,7 @@ func Unquote(s string) (t string, ok bool) {
 					return
 				}
 				r += 4;
-				w += utf8.EncodeRune(rune, b[w:len(b)]);
+				w += utf8.EncodeRune(rune, b[w:]);
 			}
 		// Control characters are invalid, but we've seen raw \n.
 		case s[r] < ' ' && s[r] != '\n':
@@ -119,9 +119,9 @@ func Unquote(s string) (t string, ok bool) {
 			w++;
 		// Coerce to well-formed UTF-8.
 		default:
-			rune, size := utf8.DecodeRuneInString(s[r:len(s)]);
+			rune, size := utf8.DecodeRuneInString(s[r:]);
 			r += size;
-			w += utf8.EncodeRune(rune, b[w:len(b)]);
+			w += utf8.EncodeRune(rune, b[w:]);
 		}
 	}
 	return string(b[0:w]), true;

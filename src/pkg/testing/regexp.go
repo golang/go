@@ -282,7 +282,7 @@ func (p *parser) nextc() int {
 	if p.pos >= len(p.re.expr) {
 		p.ch = endOfFile
 	} else {
-		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos:len(p.re.expr)]);
+		c, w := utf8.DecodeRuneInString(p.re.expr[p.pos:]);
 		p.ch = c;
 		p.pos += w;
 	}

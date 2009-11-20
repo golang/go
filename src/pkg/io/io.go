@@ -154,7 +154,7 @@ func WriteString(w Writer, s string) (n int, err os.Error) {
 func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
 	n = 0;
 	for n < min {
-		nn, e := r.Read(buf[n:len(buf)]);
+		nn, e := r.Read(buf[n:]);
 		if nn > 0 {
 			n += nn
 		}

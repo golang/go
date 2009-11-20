@@ -54,7 +54,7 @@ func extractEBNF(src []byte) []byte {
 		}
 
 		// j = end of EBNF text (or end of source)
-		j := bytes.Index(src[i:len(src)], close);	// close marker
+		j := bytes.Index(src[i:], close);	// close marker
 		if j < 0 {
 			j = len(src) - i
 		}
@@ -64,7 +64,7 @@ func extractEBNF(src []byte) []byte {
 		buf.Write(src[i:j]);
 
 		// advance
-		src = src[j:len(src)];
+		src = src[j:];
 	}
 
 	return buf.Bytes();

@@ -772,7 +772,7 @@ func defin(nt int, s string) int {
 			}
 		} else if s[2] == 'u' && len(s) == 2+1+4 {	// \unnnn sequence
 			val = 0;
-			s = s[3:len(s)];
+			s = s[3:];
 			for s != "" {
 				c := int(s[0]);
 				switch {
@@ -786,7 +786,7 @@ func defin(nt int, s string) int {
 					error("illegal \\unnnn construction")
 				}
 				val = val*16 + c;
-				s = s[1:len(s)];
+				s = s[1:];
 			}
 			if val == 0 {
 				error("'\\u0000' is illegal")
@@ -1438,7 +1438,7 @@ func symnam(i int) string {
 		s = tokset[i].name
 	}
 	if s[0] == ' ' {
-		s = s[1:len(s)]
+		s = s[1:]
 	}
 	return s;
 }
@@ -1476,7 +1476,7 @@ func cpres() {
 		c := i + NTBASE;
 		for j := 0; j < nprod; j++ {
 			if prdptr[j][0] == c {
-				curres[n] = prdptr[j][1:len(prdptr[j])];
+				curres[n] = prdptr[j][1:];
 				n++;
 			}
 		}
@@ -1755,7 +1755,7 @@ func stagen() {
 			}
 
 			if first != 0 {
-				indgo[i] = apack(temp1[1:len(temp1)], nnonter-1) - 1
+				indgo[i] = apack(temp1[1:], nnonter-1) - 1
 			}
 
 			more++;

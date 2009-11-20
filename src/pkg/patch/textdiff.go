@@ -64,7 +64,7 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 		var dropOldNL, dropNewNL bool;
 		var nold, nnew int;
 		var lastch byte;
-		chunk = chunk[1:len(chunk)];
+		chunk = chunk[1:];
 		for _, l := range chunk {
 			if nold == oldCount && nnew == newCount && (len(l) == 0 || l[0] != '\\') {
 				if len(bytes.TrimSpace(l)) != 0 {
@@ -122,7 +122,7 @@ func ParseTextDiff(raw []byte) (TextDiff, os.Error) {
 			if nold == oldCount && nnew == newCount {
 				break
 			}
-			ch, l := l[0], l[1:len(l)];
+			ch, l := l[0], l[1:];
 			if ch == '\\' {
 				continue
 			}
@@ -162,7 +162,7 @@ func (d TextDiff) Apply(data []byte) ([]byte, os.Error) {
 			return nil, ErrPatchFailure
 		}
 		buf.Write(prefix);
-		data = data[len(c.Old):len(data)];
+		data = data[len(c.Old):];
 		buf.Write(c.New);
 		line = c.Line + bytes.Count(c.Old, newline);
 	}

@@ -19,7 +19,7 @@ func (r *Reader) Read(b []byte) (n int, err os.Error) {
 		b[n] = s[n];
 		n++;
 	}
-	*r = s[n:len(s)];
+	*r = s[n:];
 	return;
 }
 
@@ -29,7 +29,7 @@ func (r *Reader) ReadByte() (b byte, err os.Error) {
 		return 0, os.EOF
 	}
 	b = s[0];
-	*r = s[1:len(s)];
+	*r = s[1:];
 	return;
 }
 

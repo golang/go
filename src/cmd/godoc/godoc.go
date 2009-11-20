@@ -367,11 +367,11 @@ func (root *Directory) listing(skipRoot bool) *DirList {
 		// crashes and check)
 		path := d.Path;
 		if strings.HasPrefix(d.Path, root.Path) {
-			path = d.Path[len(root.Path):len(d.Path)]
+			path = d.Path[len(root.Path):]
 		}
 		// remove trailing '/' if any - path must be relative
 		if len(path) > 0 && path[0] == '/' {
-			path = path[1:len(path)]
+			path = path[1:]
 		}
 		p.Path = path;
 		p.Name = d.Name;
@@ -451,7 +451,7 @@ func parse(path string, mode uint) (*ast.File, *parseErrors) {
 				errs[i].line = r.Pos.Line;
 				errs[i].msg = r.Msg;
 			}
-			errs[len(errors)].src = src[offs:len(src)];
+			errs[len(errors)].src = src[offs:];
 		} else {
 			// single error of unspecified type
 			errs = make([]parseError, 2);
@@ -589,7 +589,7 @@ func textFmt(w io.Writer, x interface{}, format string) {
 
 func removePrefix(s, prefix string) string {
 	if strings.HasPrefix(s, prefix) {
-		return s[len(prefix):len(s)]
+		return s[len(prefix):]
 	}
 	return s;
 }
@@ -1049,7 +1049,7 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
 	}
 
 	path := r.URL.Path;
-	path = path[len(h.pattern):len(path)];
+	path = path[len(h.pattern):];
 	info := h.getPageInfo(path);
 
 	var buf bytes.Buffer;

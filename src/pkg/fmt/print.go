@@ -603,7 +603,7 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 	end := len(format) - 1;
 	fieldnum := 0;	// we process one field per non-trivial format
 	for i := 0; i <= end; {
-		c, w := utf8.DecodeRuneInString(format[i:len(format)]);
+		c, w := utf8.DecodeRuneInString(format[i:]);
 		if c != '%' || i == end {
 			p.add(c);
 			i += w;
@@ -634,7 +634,7 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 		if i < end && format[i] == '.' {
 			p.fmt.prec, p.fmt.prec_present, i = parsenum(format, i+1, end)
 		}
-		c, w = utf8.DecodeRuneInString(format[i:len(format)]);
+		c, w = utf8.DecodeRuneInString(format[i:]);
 		i += w;
 		// percent is special - absorbs no operand
 		if c == '%' {

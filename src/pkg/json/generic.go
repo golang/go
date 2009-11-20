@@ -172,7 +172,7 @@ func Walk(j Json, path string) Json {
 		var elem string;
 		if i := strings.Index(path, "/"); i >= 0 {
 			elem = path[0:i];
-			path = path[i+1 : len(path)];
+			path = path[i+1:];
 		} else {
 			elem = path;
 			path = "";

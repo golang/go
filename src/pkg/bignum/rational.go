@@ -173,10 +173,10 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
 		ch := s[alen];
 		if ch == '/' {
 			alen++;
-			b, base, blen = NatFromString(s[alen:len(s)], base);
+			b, base, blen = NatFromString(s[alen:], base);
 		} else if ch == '.' {
 			alen++;
-			b, base, blen = NatFromString(s[alen:len(s)], abase);
+			b, base, blen = NatFromString(s[alen:], abase);
 			assert(base == abase);
 			f := Nat(uint64(base)).Pow(uint(blen));
 			a = MakeInt(a.sign, a.mant.Mul(f).Add(b));
@@ -190,7 +190,7 @@ func RatFromString(s string, base uint) (*Rational, uint, int) {
 		ch := s[rlen];
 		if ch == 'e' || ch == 'E' {
 			rlen++;
-			e, _, elen := IntFromString(s[rlen:len(s)], 10);
+			e, _, elen := IntFromString(s[rlen:], 10);
 			rlen += elen;
 			m := Nat(10).Pow(uint(e.mant.Value()));
 			if e.sign {

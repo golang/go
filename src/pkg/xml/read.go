@@ -231,7 +231,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 				ns := "";
 				i := strings.LastIndex(tag, " ");
 				if i >= 0 {
-					ns, tag = tag[0:i], tag[i+1:len(tag)]
+					ns, tag = tag[0:i], tag[i+1:]
 				}
 				if tag != start.Name.Local {
 					return UnmarshalError("expected element type <" + tag + "> but have <" + start.Name.Local + ">")

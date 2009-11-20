@@ -487,7 +487,7 @@ func parseScript(line string, scripts map[string][]Script) {
 	}
 	hi := lo;
 	if len(matches[2]) > 2 {	// ignore leading ..
-		hi, err = strconv.Btoui64(matches[2][2:len(matches[2])], 16);
+		hi, err = strconv.Btoui64(matches[2][2:], 16);
 		if err != nil {
 			die.Log("%.5s...:", err)
 		}

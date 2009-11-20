@@ -60,7 +60,7 @@ func (s *Sym) ReceiverName() string {
 // BaseName returns the symbol name without the package or receiver name.
 func (s *Sym) BaseName() string {
 	if i := strings.LastIndex(s.Name, "."); i != -1 {
-		return s.Name[i+1 : len(s.Name)]
+		return s.Name[i+1:]
 	}
 	return s.Name;
 }
@@ -116,7 +116,7 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
 		}
 		typ &^= 0x80;
 		s.typ = typ;
-		p = p[5:len(p)];
+		p = p[5:];
 		var i int;
 		var nnul int;
 		for i = 0; i < len(p); i++ {
@@ -127,7 +127,7 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
 		}
 		switch typ {
 		case 'z', 'Z':
-			p = p[i+nnul : len(p)];
+			p = p[i+nnul:];
 			for i = 0; i+2 <= len(p); i += 2 {
 				if p[i] == 0 && p[i+1] == 0 {
 					nnul = 2;
@@ -141,7 +141,7 @@ func walksymtab(data []byte, fn func(sym) os.Error) os.Error {
 		s.name = p[0:i];
 		i += nnul;
 		s.gotype = binary.BigEndian.Uint32(p[i : i+4]);
-		p = p[i+4 : len(p)];
+		p = p[i+4:];
 		fn(s);
 	}
 	return nil;
@@ -229,7 +229,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 		case 'Z', 'z':	// path symbol
 			// Finish the current object
 			if obj != nil {
-				obj.Funcs = t.Funcs[lastf:len(t.Funcs)]
+				obj.Funcs = t.Funcs[lastf:]
 			}
 			lastf = len(t.Funcs);
 
@@ -318,7 +318,7 @@ func NewTable(symtab []byte, pcln *LineTable) (*Table, os.Error) {
 		}
 	}
 	if obj != nil {
-		obj.Funcs = t.Funcs[lastf:len(t.Funcs)]
+		obj.Funcs = t.Funcs[lastf:]
 	}
 	return &t, nil;
 }
@@ -336,7 +336,7 @@ func (t *Table) PCToFunc(pc uint64) *Func {
 		case fn.Entry <= pc && pc < fn.End:
 			return fn
 		default:
-			funcs = funcs[m+1 : len(funcs)]
+			funcs = funcs[m+1:]
 		}
 	}
 	return nil;
@@ -482,7 +482,7 @@ func (o *Obj) alineFromLine(path string, line int) (int, os.Error) {
 		var incstart int;
 		line += int(s.Value);
 	pathloop:
-		for _, s := range o.Paths[i:len(o.Paths)] {
+		for _, s := range o.Paths[i:] {
 			val := int(s.Value);
 			switch {
 			case depth == 1 && val >= line:

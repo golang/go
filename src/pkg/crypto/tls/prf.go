@@ -16,7 +16,7 @@ import (
 // Split a premaster secret in two as specified in RFC 4346, section 5.
 func splitPreMasterSecret(secret []byte) (s1, s2 []byte) {
 	s1 = secret[0 : (len(secret)+1)/2];
-	s2 = secret[len(secret)/2 : len(secret)];
+	s2 = secret[len(secret)/2:];
 	return;
 }
 
@@ -52,7 +52,7 @@ func pRF11(result, secret, label, seed []byte) {
 
 	labelAndSeed := make([]byte, len(label)+len(seed));
 	copy(labelAndSeed, label);
-	copy(labelAndSeed[len(label):len(labelAndSeed)], seed);
+	copy(labelAndSeed[len(label):], seed);
 
 	s1, s2 := splitPreMasterSecret(secret);
 	pHash(result, s1, labelAndSeed, hashMD5);
@@ -81,20 +81,20 @@ var serverFinishedLabel = strings.Bytes("server finished")
 func keysFromPreMasterSecret11(preMasterSecret, clientRandom, serverRandom []byte, macLen, keyLen int) (masterSecret, clientMAC, serverMAC, clientKey, serverKey []byte) {
 	var seed [tlsRandomLength * 2]byte;
 	copy(seed[0:len(clientRandom)], clientRandom);
-	copy(seed[len(clientRandom):len(seed)], serverRandom);
+	copy(seed[len(clientRandom):], serverRandom);
 	masterSecret = make([]byte, masterSecretLength);
-	pRF11(masterSecret, preMasterSecret, masterSecretLabel, seed[0:len(seed)]);
+	pRF11(masterSecret, preMasterSecret, masterSecretLabel, seed[0:]);
 
 	copy(seed[0:len(clientRandom)], serverRandom);
-	copy(seed[len(serverRandom):len(seed)], clientRandom);
+	copy(seed[len(serverRandom):], clientRandom);
 
 	n := 2*macLen + 2*keyLen;
 	keyMaterial := make([]byte, n);
-	pRF11(keyMaterial, masterSecret, keyExpansionLabel, seed[0:len(seed)]);
+	pRF11(keyMaterial, masterSecret, keyExpansionLabel, seed[0:]);
 	clientMAC = keyMaterial[0:macLen];
 	serverMAC = keyMaterial[macLen : macLen*2];
 	clientKey = keyMaterial[macLen*2 : macLen*2+keyLen];
-	serverKey = keyMaterial[macLen*2+keyLen : len(keyMaterial)];
+	serverKey = keyMaterial[macLen*2+keyLen:];
 	return;
 }
 
@@ -124,7 +124,7 @@ func (h finishedHash) Write(msg []byte) (n int, err os.Error) {
 func finishedSum(md5, sha1, label, masterSecret []byte) []byte {
 	seed := make([]byte, len(md5)+len(sha1));
 	copy(seed, md5);
-	copy(seed[len(md5):len(seed)], sha1);
+	copy(seed[len(md5):], sha1);
 	out := make([]byte, finishedVerifyLength);
 	pRF11(out, masterSecret, label, seed);
 	return out;

@@ -102,7 +102,7 @@ func getCmd(line []byte) (*cmd, []byte) {
 	slit := string(lit);
 	for i := range cmds {
 		if cmds[i].cmd == slit {
-			return &cmds[i], line[pos.Offset+len(lit) : len(line)]
+			return &cmds[i], line[pos.Offset+len(lit):]
 		}
 	}
 	return nil, nil;
@@ -140,7 +140,7 @@ func cmdLoad(args []byte) os.Error {
 	var fname string;
 	var tproc proc.Process;
 	if len(path) >= 4 && path[0:4] == "pid:" {
-		pid, err := strconv.Atoi(path[4:len(path)]);
+		pid, err := strconv.Atoi(path[4:]);
 		if err != nil {
 			return err
 		}

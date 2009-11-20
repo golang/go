@@ -20,7 +20,7 @@ func Uitob64(u uint64, base uint) string {
 		u /= b;
 	}
 
-	return string(buf[j:len(buf)]);
+	return string(buf[j:]);
 }
 
 // Itob64 returns the string representation of i in the given base.

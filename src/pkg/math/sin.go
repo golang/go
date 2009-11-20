@@ -45,7 +45,7 @@ func sinus(x float64, quad int) float64 {
 
 	yy := y * y;
 	temp1 := ((((P4*yy+P3)*yy+P2)*yy+P1)*yy + P0) * y;
-	temp2 := ((((yy+Q3)*yy+Q2)*yy + Q1) * yy + Q0);
+	temp2 := ((((yy+Q3)*yy+Q2)*yy+Q1)*yy + Q0);
 	return temp1 / temp2;
 }
 

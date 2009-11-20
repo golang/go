@@ -17,7 +17,7 @@ func str(val int) string {	// do it here rather than with fmt to avoid dependenc
 		val /= 10;
 	}
 	buf[i] = byte(val + '0');
-	return string(buf[i:len(buf)]);
+	return string(buf[i:]);
 }
 
 func Errstr(errno int) string {

@@ -61,7 +61,7 @@ func explode(s []byte, n int) [][]byte {
 		}
 		_, size = utf8.DecodeRune(s);
 		a[na] = s[0:size];
-		s = s[size:len(s)];
+		s = s[size:];
 		na++;
 	}
 	return a[0:na];
@@ -144,7 +144,7 @@ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
 			i += len(sep) - 1;
 		}
 	}
-	a[na] = s[start:len(s)];
+	a[na] = s[start:];
 	return a[0 : na+1];
 }
 
@@ -201,7 +201,7 @@ func HasPrefix(s, prefix []byte) bool {
 
 // HasSuffix tests whether the byte array s ends with suffix.
 func HasSuffix(s, suffix []byte) bool {
-	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix):len(s)], suffix)
+	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix):], suffix)
 }
 
 // Map returns a copy of the byte array s with all its characters modified
@@ -217,7 +217,7 @@ func Map(mapping func(rune int) int, s []byte) []byte {
 		wid := 1;
 		rune := int(s[i]);
 		if rune >= utf8.RuneSelf {
-			rune, wid = utf8.DecodeRune(s[i:len(s)])
+			rune, wid = utf8.DecodeRune(s[i:])
 		}
 		rune = mapping(rune);
 		if nbytes+utf8.RuneLen(rune) > maxbytes {

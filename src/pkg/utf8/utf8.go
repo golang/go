@@ -265,7 +265,7 @@ func RuneCount(p []byte) int {
 		if p[i] < RuneSelf {
 			i++
 		} else {
-			_, size := DecodeRune(p[i:len(p)]);
+			_, size := DecodeRune(p[i:]);
 			i += size;
 		}
 	}

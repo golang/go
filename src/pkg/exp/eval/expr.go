@@ -763,7 +763,7 @@ func (a *exprInfo) compileCharLit(lit string) *expr {
 		a.silentErrors++;
 		return nil;
 	}
-	v, _, tail, err := strconv.UnquoteChar(lit[1:len(lit)], '\'');
+	v, _, tail, err := strconv.UnquoteChar(lit[1:], '\'');
 	if err != nil || tail != "'" {
 		// Caught by parser
 		a.silentErrors++;
@@ -835,7 +835,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
 		default:
 			log.Crashf("Marked field at depth %d, but already found one at depth %d", depth, bestDepth)
 		}
-		amberr += "\n\t" + pathName[1:len(pathName)];
+		amberr += "\n\t" + pathName[1:];
 	};
 
 	visited := make(map[Type]bool);

@@ -233,7 +233,7 @@ func (p *Process) bootstrap() {
 		if n[0] != 'P' || n[1] < 'A' || n[1] > 'Z' {
 			continue
 		}
-		sym := p.syms.LookupSym("type.*runtime." + n[1:len(n)]);
+		sym := p.syms.LookupSym("type.*runtime." + n[1:]);
 		if sym == nil {
 			continue
 		}
@@ -409,7 +409,7 @@ func (p *Process) postEvent(ev Event) {
 func (p *Process) processEvents() (EventAction, os.Error) {
 	var ev Event;
 	for len(p.posted) > 0 {
-		ev, p.posted = p.posted[0], p.posted[1:len(p.posted)];
+		ev, p.posted = p.posted[0], p.posted[1:];
 		action, err := p.processEvent(ev);
 		if action == EAStop {
 			return action, err
@@ -417,7 +417,7 @@ func (p *Process) processEvents() (EventAction, os.Error) {
 	}
 
 	for len(p.pending) > 0 {
-		ev, p.pending = p.pending[0], p.pending[1:len(p.pending)];
+		ev, p.pending = p.pending[0], p.pending[1:];
 		action, err := p.processEvent(ev);
 		if action == EAStop {
 			return action, err

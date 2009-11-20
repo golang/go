@@ -98,7 +98,7 @@ func (b *Reader) fill() {
 	b.r = 0;
 
 	// Read new data.
-	n, e := b.rd.Read(b.buf[b.w:len(b.buf)]);
+	n, e := b.rd.Read(b.buf[b.w:]);
 	b.w += n;
 	if e != nil {
 		b.err = e
@@ -125,7 +125,7 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 				if n > 0 {
 					b.lastbyte = int(p[n-1])
 				}
-				p = p[n:len(p)];
+				p = p[n:];
 				nn += n;
 				continue;
 			}
@@ -136,7 +136,7 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 			n = b.w - b.r
 		}
 		copySlice(p[0:n], b.buf[b.r:b.r+n]);
-		p = p[n:len(p)];
+		p = p[n:];
 		b.r += n;
 		b.lastbyte = int(b.buf[b.r-1]);
 		nn += n;
@@ -413,7 +413,7 @@ func (b *Writer) Write(p []byte) (nn int, err os.Error) {
 			// Write directly from p to avoid copy.
 			n, b.err = b.wr.Write(p);
 			nn += n;
-			p = p[n:len(p)];
+			p = p[n:];
 			if b.err != nil {
 				break
 			}
@@ -425,7 +425,7 @@ func (b *Writer) Write(p []byte) (nn int, err os.Error) {
 		copySlice(b.buf[b.n:b.n+n], p[0:n]);
 		b.n += n;
 		nn += n;
-		p = p[n:len(p)];
+		p = p[n:];
 	}
 	return nn, b.err;
 }

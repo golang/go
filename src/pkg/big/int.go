@@ -185,7 +185,7 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
 
 	if s[0] == '-' {
 		z.neg = true;
-		s = s[1:len(s)];
+		s = s[1:];
 	} else {
 		z.neg = false
 	}
@@ -260,7 +260,7 @@ func (z *Int) Bytes() []byte {
 		i++
 	}
 
-	return b[i:len(b)];
+	return b[i:];
 }
 
 
@@ -364,7 +364,7 @@ func (z *Int) Rsh(x *Int, n int) *Int {
 	removedWords := n / _W;
 	z.abs = makeN(z.abs, len(x.abs)-removedWords, false);
 	z.neg = x.neg;
-	shiftRight(z.abs, x.abs[removedWords:len(x.abs)], n%_W);
+	shiftRight(z.abs, x.abs[removedWords:], n%_W);
 	z.abs = normN(z.abs);
 	return z;
 }

@@ -109,7 +109,7 @@ func Clean(path string) string {
 func Split(path string) (dir, file string) {
 	for i := len(path) - 1; i >= 0; i-- {
 		if path[i] == '/' {
-			return path[0 : i+1], path[i+1 : len(path)]
+			return path[0 : i+1], path[i+1:]
 		}
 	}
 	return "", path;
@@ -131,7 +131,7 @@ func Join(dir, file string) string {
 func Ext(path string) string {
 	for i := len(path) - 1; i >= 0 && path[i] != '/'; i-- {
 		if path[i] == '.' {
-			return path[i:len(path)]
+			return path[i:]
 		}
 	}
 	return "";

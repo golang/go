@@ -367,7 +367,7 @@ func (s *State) Write(data []byte) (int, os.Error) {
 			s.linePos.Line++;
 		}
 	}
-	n3, _ := s.output.Write(data[i0:len(data)]);
+	n3, _ := s.output.Write(data[i0:]);
 	return n + n3, nil;
 }
 
@@ -501,7 +501,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 				// segment contains a %-format at the beginning
 				if lit[1] == '%' {
 					// "%%" is printed as a single "%"
-					s.Write(lit[1:len(lit)])
+					s.Write(lit[1:])
 				} else {
 					// use s instead of s.output to get indentation right
 					fmt.Fprintf(s, string(lit), value.Interface())

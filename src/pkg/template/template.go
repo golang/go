@@ -199,7 +199,7 @@ func white(c uint8) bool	{ return c == ' ' || c == '\t' || c == '\r' || c == '\n
 
 // Safely, does s[n:n+len(t)] == t?
 func equal(s []byte, n int, t []byte) bool {
-	b := s[n:len(s)];
+	b := s[n:];
 	if len(t) > len(b) {	// not enough space left for a match.
 		return false
 	}
@@ -387,7 +387,7 @@ func (t *Template) newVariable(name_formatter string) (v *variableElement) {
 	bar := strings.Index(name_formatter, "|");
 	if bar >= 0 {
 		name = name_formatter[0:bar];
-		formatter = name_formatter[bar+1 : len(name_formatter)];
+		formatter = name_formatter[bar+1:];
 	}
 	// Probably ok, so let's build it.
 	v = &variableElement{t.linenum, name, formatter};

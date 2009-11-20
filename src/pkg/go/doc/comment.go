@@ -37,7 +37,7 @@ func CommentText(comment *ast.CommentGroup) string {
 			c = c[2:n];
 			// Remove leading space after //, if there is one.
 			if len(c) > 0 && c[0] == ' ' {
-				c = c[1:len(c)]
+				c = c[1:]
 			}
 		}
 
@@ -115,7 +115,7 @@ func split(text []byte) [][]byte {
 		}
 	}
 	if last < len(text) {
-		out[n] = text[last:len(text)]
+		out[n] = text[last:]
 	}
 
 	return out;
@@ -144,7 +144,7 @@ func commentEscape(w io.Writer, s []byte) {
 			i++;	// loop will add one more
 		}
 	}
-	template.HTMLEscape(w, s[last:len(s)]);
+	template.HTMLEscape(w, s[last:]);
 }
 
 
@@ -194,7 +194,7 @@ func unindent(block [][]byte) {
 	// remove
 	for i, line := range block {
 		if !isBlank(line) {
-			block[i] = line[n:len(line)]
+			block[i] = line[n:]
 		}
 	}
 }

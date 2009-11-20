@@ -265,7 +265,7 @@ func readKeyValue(b *bufio.Reader) (key, value string, err os.Error) {
 			break
 		}
 	}
-	value = string(line[i:len(line)]);
+	value = string(line[i:]);
 
 	// Look for extension lines, which must begin with space.
 	for {

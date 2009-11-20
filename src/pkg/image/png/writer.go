@@ -137,12 +137,12 @@ func filter(cr [][]byte, pr []byte, bpp int) int {
 	// This is the same heuristic that libpng uses, although the filters are attempted in order of
 	// estimated most likely to be minimal (ftUp, ftPaeth, ftNone, ftSub, ftAverage), rather than
 	// in their enumeration order (ftNone, ftSub, ftUp, ftAverage, ftPaeth).
-	cdat0 := cr[0][1:len(cr[0])];
-	cdat1 := cr[1][1:len(cr[1])];
-	cdat2 := cr[2][1:len(cr[2])];
-	cdat3 := cr[3][1:len(cr[3])];
-	cdat4 := cr[4][1:len(cr[4])];
-	pdat := pr[1:len(pr)];
+	cdat0 := cr[0][1:];
+	cdat1 := cr[1][1:];
+	cdat2 := cr[2][1:];
+	cdat3 := cr[3][1:];
+	cdat4 := cr[4][1:];
+	pdat := pr[1:];
 	n := len(cdat0);
 
 	// The up filter.

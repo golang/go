@@ -32,7 +32,7 @@ func readServices() {
 		if !ok || port <= 0 || j >= len(portnet) || portnet[j] != '/' {
 			continue
 		}
-		netw := portnet[j+1 : len(portnet)];	// "tcp"
+		netw := portnet[j+1:];	// "tcp"
 		m, ok1 := services[netw];
 		if !ok1 {
 			m = make(map[string]int);

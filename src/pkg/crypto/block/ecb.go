@@ -66,7 +66,7 @@ func (x *ecbDecrypter) readPlain(p []byte) int {
 		p[i] = x.plain[i]
 	}
 	if n < len(x.plain) {
-		x.plain = x.plain[n:len(x.plain)]
+		x.plain = x.plain[n:]
 	} else {
 		x.plain = nil
 	}
@@ -172,7 +172,7 @@ func (x *ecbEncrypter) flushCrypt() os.Error {
 	}
 	n, err := x.w.Write(x.crypt);
 	if n < len(x.crypt) {
-		x.crypt = x.crypt[n:len(x.crypt)];
+		x.crypt = x.crypt[n:];
 		if err == nil {
 			err = io.ErrShortWrite
 		}
@@ -246,7 +246,7 @@ func (x *ecbEncrypter) Write(p []byte) (n int, err os.Error) {
 			break
 		}
 		n += m;
-		p = p[m:len(p)];
+		p = p[m:];
 
 		// Encrypt, adjusting crypt and plain.
 		x.encrypt();

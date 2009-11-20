@@ -112,8 +112,8 @@ func bytediff(a []byte, b []byte) string {
 		if sa != sb {
 			s += fmt.Sprintf("-%v\n+%v\n", sa, sb)
 		}
-		a = a[na:len(a)];
-		b = b[nb:len(b)];
+		a = a[na:];
+		b = b[nb:];
 	}
 	return s;
 }

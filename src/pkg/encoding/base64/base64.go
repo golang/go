@@ -101,8 +101,8 @@ func (enc *Encoding) Encode(dst, src []byte) {
 			break;
 		}
 
-		src = src[3:len(src)];
-		dst = dst[4:len(dst)];
+		src = src[3:];
+		dst = dst[4:];
 	}
 }
 
@@ -128,7 +128,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 			e.nbuf++;
 		}
 		n += i;
-		p = p[i:len(p)];
+		p = p[i:];
 		if e.nbuf < 3 {
 			return
 		}
@@ -153,7 +153,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 			}
 		}
 		n += nn;
-		p = p[nn:len(p)];
+		p = p[nn:];
 	}
 
 	// Trailing fringe.
@@ -279,7 +279,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	// Use leftover decoded output from last read.
 	if len(d.out) > 0 {
 		n = copy(p, d.out);
-		d.out = d.out[n:len(d.out)];
+		d.out = d.out[n:];
 		return n, nil;
 	}
 
@@ -304,7 +304,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		nw, d.end, d.err = d.enc.decode(&d.outbuf, d.buf[0:nr]);
 		d.out = d.outbuf[0:nw];
 		n = copy(p, d.out);
-		d.out = d.out[n:len(d.out)];
+		d.out = d.out[n:];
 	} else {
 		n, d.end, d.err = d.enc.decode(p, d.buf[0:nr])
 	}

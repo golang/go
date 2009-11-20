@@ -53,7 +53,7 @@ func HTMLEscape(w io.Writer, s []byte) {
 		w.Write(esc);
 		last = i + 1;
 	}
-	w.Write(s[last:len(s)]);
+	w.Write(s[last:]);
 }
 
 // HTMLFormatter formats arbitrary values for HTML

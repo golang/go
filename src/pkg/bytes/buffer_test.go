@@ -111,7 +111,7 @@ func empty(t *testing.T, testname string, buf *Buffer, s string, fub []byte) {
 		if err != nil {
 			t.Errorf(testname+" (empty 2): err should always be nil, found err == %s\n", err)
 		}
-		s = s[n:len(s)];
+		s = s[n:];
 		check(t, testname+" (empty 3)", buf, s);
 	}
 
@@ -228,7 +228,7 @@ func TestMixedReadsAndWrites(t *testing.T) {
 		rlen := rand.Intn(len(data));
 		fub := make([]byte, rlen);
 		n, _ := buf.Read(fub);
-		s = s[n:len(s)];
+		s = s[n:];
 	}
 	empty(t, "TestMixedReadsAndWrites (2)", &buf, s, make([]byte, buf.Len()));
 }

@@ -59,7 +59,7 @@ func (tls *Conn) Read(p []byte) (int, os.Error) {
 	}
 
 	n := copy(p, tls.readBuf);
-	tls.readBuf = tls.readBuf[n:len(tls.readBuf)];
+	tls.readBuf = tls.readBuf[n:];
 	return n, nil;
 }
 

@@ -180,7 +180,7 @@ func (p *recordProcessor) processRecord(r *record) {
 	p.mac.Write(r.payload[0 : len(r.payload)-p.mac.Size()]);
 	macBytes := p.mac.Sum();
 
-	if subtle.ConstantTimeCompare(macBytes, r.payload[len(r.payload)-p.mac.Size():len(r.payload)]) != 1 {
+	if subtle.ConstantTimeCompare(macBytes, r.payload[len(r.payload)-p.mac.Size():]) != 1 {
 		p.error(alertBadRecordMAC);
 		return;
 	}
@@ -228,7 +228,7 @@ func (p *recordProcessor) processHandshakeRecord(data []byte) {
 		}
 		newBuf := make([]byte, len(p.handshakeBuf)+len(data));
 		copy(newBuf, p.handshakeBuf);
-		copy(newBuf[len(p.handshakeBuf):len(newBuf)], data);
+		copy(newBuf[len(p.handshakeBuf):], data);
 		p.handshakeBuf = newBuf;
 	}
 
@@ -241,7 +241,7 @@ func (p *recordProcessor) processHandshakeRecord(data []byte) {
 		}
 
 		bytes := p.handshakeBuf[0 : handshakeLen+4];
-		p.handshakeBuf = p.handshakeBuf[handshakeLen+4 : len(p.handshakeBuf)];
+		p.handshakeBuf = p.handshakeBuf[handshakeLen+4:];
 		if bytes[0] == typeFinished {
 			// Special case because Finished is synchronous: the
 			// handshake handler has to tell us if it's ok to start

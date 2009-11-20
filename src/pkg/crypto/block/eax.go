@@ -161,7 +161,7 @@ func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
 	tagBytes := len(tag);
 	if len(p) > 4*tagBytes {
 		// If p is big, try to read directly into p to avoid a copy.
-		n, err = cr.r.Read(p[tagBytes:len(p)]);
+		n, err = cr.r.Read(p[tagBytes:]);
 		if n == 0 {
 			goto out
 		}

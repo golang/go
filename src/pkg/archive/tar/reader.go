@@ -71,7 +71,7 @@ func cString(b []byte) string {
 func (tr *Reader) octal(b []byte) int64 {
 	// Removing leading spaces.
 	for len(b) > 0 && b[0] == ' ' {
-		b = b[1:len(b)]
+		b = b[1:]
 	}
 	// Removing trailing NULs and spaces.
 	for len(b) > 0 && (b[len(b)-1] == ' ' || b[len(b)-1] == '\x00') {

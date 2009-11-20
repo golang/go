@@ -96,7 +96,7 @@ func splitAtBytes(s string, t string) []string {
 		}
 	}
 	if last < len(s) {
-		a[n] = string(s[last:len(s)]);
+		a[n] = string(s[last:]);
 		n++;
 	}
 	return a[0:n];
@@ -169,7 +169,7 @@ func itoa(i int) string {
 		n--;
 		buf[n] = '-';
 	}
-	return string(buf[n:len(buf)]);
+	return string(buf[n:]);
 }
 
 // Number of occurrences of b in s.

@@ -78,7 +78,7 @@ func itoa(i int, wid int) string {
 		b[bp] = byte(u%10) + '0';
 	}
 
-	return string(b[bp:len(b)]);
+	return string(b[bp:]);
 }
 
 func (l *Logger) formatHeader(ns int64, calldepth int) string {
@@ -105,7 +105,7 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
 					short = file;
 					for i := len(file) - 1; i > 0; i-- {
 						if file[i] == '/' {
-							short = file[i+1 : len(file)];
+							short = file[i+1:];
 							break;
 						}
 					}
