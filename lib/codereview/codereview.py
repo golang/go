@@ -1101,15 +1101,7 @@ def sync_changes(ui, repo):
 	# Look through recent change log descriptions to find
 	# potential references to http://.*/our-CL-number.
 	# Double-check them by looking at the Rietveld log.
-	get = util.cachefunc(lambda r: repo[r].changeset())
-	changeiter, matchfn = cmdutil.walkchangerevs(ui, repo, [], get, {'rev': None})
-	n = 0
-	for st, rev, fns in changeiter:
-		if st != 'iter':
-			continue
-		n += 1
-		if n > 100:
-			break
+	def Rev(rev):
 		desc = repo[rev].description().strip()
 		for clname in re.findall('(?m)^http://(?:[^\n]+)/([0-9]+)$', desc):
 			if IsLocalCL(ui, repo, clname) and IsRietveldSubmitted(ui, clname, repo[rev].hex()):
@@ -1118,8 +1110,27 @@ def sync_changes(ui, repo):
 				if err != "":
 					ui.warn("loading CL %s: %s\n" % (clname, err))
 					continue
-				EditDesc(cl.name, closed="checked")
+				if not cl.original_author:
+					EditDesc(cl.name, closed="checked")
 				cl.Delete(ui, repo)
+
+	if hgversion < '1.4':
+		get = util.cachefunc(lambda r: repo[r].changeset())
+		changeiter, matchfn = cmdutil.walkchangerevs(ui, repo, [], get, {'rev': None})
+		n = 0
+		for st, rev, fns in changeiter:
+			if st != 'iter':
+				continue
+			n += 1
+			if n > 100:
+				break
+			Rev(rev)
+	else:
+		matchfn = cmdutil.match(repo, [], {'rev': None})
+		def prep(ctx, fns):
+			pass
+		for ctx in cmdutil.walkchangerevs(repo, matchfn, {'rev': None}, prep):
+			Rev(ctx.rev())
 
 	# Remove files that are not modified from the CLs in which they appear.
 	all = LoadAllCL(ui, repo, web=False)
