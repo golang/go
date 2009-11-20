@@ -124,37 +124,4 @@ struct Ucontext {
 	int32 __spare__[4];
 	byte pad0[12];
 };
-
-typedef struct Sigcontext Sigcontext;
-struct Sigcontext {
-	Sigset sc_mask;
-	int32 sc_onstack;
-	int32 sc_gs;
-	int32 sc_fs;
-	int32 sc_es;
-	int32 sc_ds;
-	int32 sc_edi;
-	int32 sc_esi;
-	int32 sc_ebp;
-	int32 sc_isp;
-	int32 sc_ebx;
-	int32 sc_edx;
-	int32 sc_ecx;
-	int32 sc_eax;
-	int32 sc_trapno;
-	int32 sc_err;
-	int32 sc_eip;
-	int32 sc_cs;
-	int32 sc_efl;
-	int32 sc_esp;
-	int32 sc_ss;
-	int32 sc_len;
-	int32 sc_fpformat;
-	int32 sc_ownedfp;
-	int32 sc_spare1[1];
-	int32 sc_fpstate[128];
-	int32 sc_fsbase;
-	int32 sc_gsbase;
-	int32 sc_spare2[6];
-};
 #pragma pack off

@@ -50,4 +50,3 @@ typedef siginfo_t $Siginfo;
 
 typedef mcontext_t $Mcontext;
 typedef ucontext_t $Ucontext;
-typedef struct sigcontext $Sigcontext;
