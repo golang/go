@@ -7,6 +7,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
 TARG=gofmt
 GOFILES=\
 	gofmt.go\
+	rewrite.go\
 
 include $(GOROOT)/src/Make.cmd
 

@@ -52,6 +52,17 @@ func (p *printer) linebreak(line, min, max int, ws whiteSpace, newSection bool) 
 	case n > max:
 		n = max
 	}
+
+	// TODO(gri): try to avoid direct manipulation of p.pos
+	// demo of why this is necessary: run gofmt -r 'i < i -> i < j' x.go on this x.go:
+	//	package main
+	//	func main() {
+	//		i < i;
+	//		j < 10;
+	//	}
+	//
+	p.pos.Line += n;
+
 	if n > 0 {
 		p.print(ws);
 		if newSection {
@@ -199,7 +210,7 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 			if mode&commaSep != 0 {
 				p.print(token.COMMA)
 			}
-			if prev < line {
+			if prev < line && prev > 0 && line > 0 {
 				if p.linebreak(line, 1, 2, ws, true) {
 					ws = ignore;
 					*multiLine = true;
@@ -564,8 +575,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiL
 	xline := p.pos.Line;	// before the operator (it may be on the next line!)
 	yline := x.Y.Pos().Line;
 	p.print(x.OpPos, x.Op);
-	if xline != yline {
-		//println(x.OpPos.String());
+	if xline != yline && xline > 0 && yline > 0 {
 		// at least one line break, but respect an extra empty line
 		// in the source
 		if p.linebreak(yline, 1, 2, ws, true) {
