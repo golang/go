@@ -88,7 +88,7 @@ dir:
 #	x.cgo4.c - C implementations compiled with gcc to create dynamic library
 #
 %.cgo1.go %.cgo2.go %.cgo3.c %.cgo4.c: %.go
-	cgo $(CGO_CFLAGS) $*.go
+	CGOPKGPATH=$(dir) cgo $(CGO_CFLAGS) $*.go
 
 # The rules above added x.cgo1.go and x.cgo2.go to $(GOFILES),
 # added x.cgo3.$O to $OFILES, and added the installed copy of
