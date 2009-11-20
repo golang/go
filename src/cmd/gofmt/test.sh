@@ -29,15 +29,12 @@ count() {
 apply1() {
 	#echo $1 $2
 	case `basename $F` in
-	# except for elf.go (which is not yet idempotent due to a few
-	# tricky-to-format comments) the following files are skipped
-	# because they are test cases for syntax errors and thus won't
-	# parse in the first place:
-	elf.go | \
+	# the following files are skipped because they are test cases
+	# for syntax errors and thus won't parse in the first place:
 	func3.go | const2.go | \
 	bug014.go | bug050.go |  bug068.go |  bug083.go | bug088.go | \
 	bug106.go | bug121.go | bug125.go | bug133.go | bug160.go | \
-	bug163.go | bug166.go | bug169.go ) ;;
+	bug163.go | bug166.go | bug169.go | bug217.go ) ;;
 	* ) $1 $2; count $F;;
 	esac
 }
