@@ -9,6 +9,33 @@
 // where Xxx can by any alphanumeric string (but the first letter must not be in
 // [a-z]) and serves to identify the test routine.
 // These TestXxx routines should be declared within the package they are testing.
+//
+// Functions of the form
+//     func BenchmarkXxx(*testing.B)
+// are considered benchmarks, and are executed by gotest when the -benchmarks
+// flag is provided.
+//
+// A sample benchmark function looks like this:
+//     func BenchmarkHello(b *testing.B) {
+//         for i := 0; i < b.N; i++ {
+//             fmt.Sprintf("hello")
+//         }
+//     }
+// The benchmark package will vary b.N until the benchmark function lasts
+// long enough to be timed reliably.  The output
+//     testing.BenchmarkHello	500000	      4076 ns/op
+// means that the loop ran 500000 times at a speed of 4076 ns per loop.
+//
+// If a benchmark needs some expensive setup before running, the timer
+// may be stopped:
+//     func BenchmarkBigLen(b *testing.B) {
+//         b.StopTimer();
+//         big := NewBig();
+//         b.StartTimer();
+//         for i := 0; i < b.N; i++ {
+//             big.Len();
+//         }
+//     }
 package testing
 
 import (

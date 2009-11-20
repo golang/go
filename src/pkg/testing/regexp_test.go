@@ -279,3 +279,33 @@ func TestMatchFunction(t *T) {
 		matchFunctionTest(t, test.re, test.text, test.match);
 	}
 }
+
+func BenchmarkSimpleMatch(b *B) {
+	b.StopTimer();
+	re, _ := CompileRegexp("a");
+	b.StartTimer();
+
+	for i := 0; i < b.N; i++ {
+		re.MatchString("a")
+	}
+}
+
+func BenchmarkUngroupedMatch(b *B) {
+	b.StopTimer();
+	re, _ := CompileRegexp("[a-z]+ [0-9]+ [a-z]+");
+	b.StartTimer();
+
+	for i := 0; i < b.N; i++ {
+		re.MatchString("word 123 other")
+	}
+}
+
+func BenchmarkGroupedMatch(b *B) {
+	b.StopTimer();
+	re, _ := CompileRegexp("([a-z]+) ([0-9]+) ([a-z]+)");
+	b.StartTimer();
+
+	for i := 0; i < b.N; i++ {
+		re.MatchString("word 123 other")
+	}
+}
