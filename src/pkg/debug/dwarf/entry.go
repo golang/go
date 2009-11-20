@@ -38,7 +38,7 @@ func (d *Data) parseAbbrev(off uint32) (abbrevTable, os.Error) {
 	if off > uint32(len(data)) {
 		data = nil
 	} else {
-		data = data[off:len(data)]
+		data = data[off:]
 	}
 	b := makeBuf(d, "abbrev", 0, data, 0);
 
@@ -269,7 +269,7 @@ func (r *Reader) Seek(off Offset) {
 		u = &d.unit[i];
 		if u.off <= off && off < u.off+Offset(len(u.data)) {
 			r.unit = i;
-			r.b = makeBuf(r.d, "info", off, u.data[off-u.off:len(u.data)], u.addrsize);
+			r.b = makeBuf(r.d, "info", off, u.data[off-u.off:], u.addrsize);
 			return;
 		}
 	}

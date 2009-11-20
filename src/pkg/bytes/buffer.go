@@ -24,7 +24,7 @@ func copyBytes(dst []byte, doff int, src []byte) {
 		dst[doff] = src[0];
 		return;
 	}
-	copy(dst[doff:len(dst)], src);
+	copy(dst[doff:], src);
 }
 
 // A Buffer is a variable-sized buffer of bytes
@@ -38,7 +38,7 @@ type Buffer struct {
 
 // Bytes returns the contents of the unread portion of the buffer;
 // len(b.Bytes()) == b.Len().
-func (b *Buffer) Bytes() []byte	{ return b.buf[b.off:len(b.buf)] }
+func (b *Buffer) Bytes() []byte	{ return b.buf[b.off:] }
 
 // String returns the contents of the unread portion of the buffer
 // as a string.  If the Buffer is a nil pointer, it returns "<nil>".
@@ -47,7 +47,7 @@ func (b *Buffer) String() string {
 		// Special case, useful in debugging.
 		return "<nil>"
 	}
-	return string(b.buf[b.off:len(b.buf)]);
+	return string(b.buf[b.off:]);
 }
 
 // Len returns the number of bytes of the unread portion of the buffer;

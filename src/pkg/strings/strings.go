@@ -26,7 +26,7 @@ func explode(s string, n int) []string {
 			break;
 		}
 		rune, size = utf8.DecodeRuneInString(s);
-		s = s[size:len(s)];
+		s = s[size:];
 		a[na] = string(rune);
 		na++;
 	}
@@ -118,7 +118,7 @@ func genSplit(s, sep string, sepSave, n int) []string {
 			i += len(sep) - 1;
 		}
 	}
-	a[na] = s[start:len(s)];
+	a[na] = s[start:];
 	return a[0 : na+1];
 }
 
@@ -174,7 +174,7 @@ func HasPrefix(s, prefix string) bool {
 
 // HasSuffix tests whether the string s ends with suffix.
 func HasSuffix(s, suffix string) bool {
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):len(s)] == suffix
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
 }
 
 // Map returns a copy of the string s with all its characters modified

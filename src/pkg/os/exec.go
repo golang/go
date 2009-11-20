@@ -119,7 +119,7 @@ func itod(i int) string {
 		b[bp] = '-';
 	}
 
-	return string(b[bp:len(b)]);
+	return string(b[bp:]);
 }
 
 func (w Waitmsg) String() string {

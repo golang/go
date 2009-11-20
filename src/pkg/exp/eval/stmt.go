@@ -185,7 +185,7 @@ func (f *flowBuf) gotosObeyScopes(a *compiler) {
 		b := src.block;
 		for len(numVars) > 0 && b != tgt.block {
 			b = b.outer;
-			numVars = numVars[1:len(numVars)];
+			numVars = numVars[1:];
 		}
 		if b != tgt.block {
 			// We jumped into a deeper block
@@ -1099,7 +1099,7 @@ func (a *stmtCompiler) compileSwitchStmt(s *ast.SwitchStmt) {
 				// non-empty statement in a case or
 				// default clause in an expression
 				// "switch" statement.
-				for _, s2 := range clause.Body[j+1 : len(clause.Body)] {
+				for _, s2 := range clause.Body[j+1:] {
 					// XXX(Spec) 6g also considers
 					// empty blocks to be empty
 					// statements.

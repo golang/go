@@ -208,7 +208,7 @@ func NewFile(r io.ReaderAt) (*File, os.Error) {
 			return nil, &FormatError{offset, "invalid command block size", nil}
 		}
 		var cmddat []byte;
-		cmddat, dat = dat[0:siz], dat[siz:len(dat)];
+		cmddat, dat = dat[0:siz], dat[siz:];
 		offset += int64(siz);
 		var s *Segment;
 		switch cmd {

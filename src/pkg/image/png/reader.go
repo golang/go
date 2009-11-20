@@ -216,8 +216,8 @@ func (d *decoder) idatReader(idat io.Reader) os.Error {
 		}
 
 		// Apply the filter.
-		cdat := cr[1:len(cr)];
-		pdat := pr[1:len(pr)];
+		cdat := cr[1:];
+		pdat := pr[1:];
 		switch cr[0] {
 		case ftNone:
 			// No-op.

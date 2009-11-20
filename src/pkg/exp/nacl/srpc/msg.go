@@ -168,7 +168,7 @@ func (m *msg) uint8() uint8 {
 		return 0;
 	}
 	x := m.rdata[0];
-	m.rdata = m.rdata[1:len(m.rdata)];
+	m.rdata = m.rdata[1:];
 	return x;
 }
 
@@ -182,7 +182,7 @@ func (m *msg) uint32() uint32 {
 	}
 	b := m.rdata[0:4];
 	x := uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24;
-	m.rdata = m.rdata[4:len(m.rdata)];
+	m.rdata = m.rdata[4:];
 	return x;
 }
 
@@ -197,7 +197,7 @@ func (m *msg) uint64() uint64 {
 	b := m.rdata[0:8];
 	x := uint64(uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24);
 	x |= uint64(uint32(b[4])|uint32(b[5])<<8|uint32(b[6])<<16|uint32(b[7])<<24) << 32;
-	m.rdata = m.rdata[8:len(m.rdata)];
+	m.rdata = m.rdata[8:];
 	return x;
 }
 
@@ -210,7 +210,7 @@ func (m *msg) bytes(n int) []byte {
 		return nil;
 	}
 	x := m.rdata[0:n];
-	m.rdata = m.rdata[n:len(m.rdata)];
+	m.rdata = m.rdata[n:];
 	return x;
 }
 
@@ -357,7 +357,7 @@ func (m *msg) unpackValues(v []interface{}) {
 				return;
 			}
 			v[i] = int(m.rdesc[0]);
-			m.rdesc = m.rdesc[1:len(m.rdesc)];
+			m.rdesc = m.rdesc[1:];
 		case 'i':	// int
 			v[i] = int32(m.uint32())
 		case 'I':	// int array

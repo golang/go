@@ -92,13 +92,13 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 		case part == "printable":
 			ret.stringType = tagPrintableString
 		case strings.HasPrefix(part, "default:"):
-			i, err := strconv.Atoi64(part[8:len(part)]);
+			i, err := strconv.Atoi64(part[8:]);
 			if err == nil {
 				ret.defaultValue = new(int64);
 				*ret.defaultValue = i;
 			}
 		case strings.HasPrefix(part, "tag:"):
-			i, err := strconv.Atoi(part[4:len(part)]);
+			i, err := strconv.Atoi(part[4:]);
 			if err == nil {
 				ret.tag = new(int);
 				*ret.tag = i;

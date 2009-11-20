@@ -397,7 +397,7 @@ func fmtB(neg bool, mant uint64, exp int, flt *floatInfo) string {
 		w--;
 		buf[w] = '-';
 	}
-	return string(buf[w:len(buf)]);
+	return string(buf[w:]);
 }
 
 func max(a, b int) int {

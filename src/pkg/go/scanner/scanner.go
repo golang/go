@@ -52,7 +52,7 @@ func (S *Scanner) next() {
 			S.pos.Column = 0;
 		case r >= 0x80:
 			// not ASCII
-			r, w = utf8.DecodeRune(S.src[S.offset:len(S.src)])
+			r, w = utf8.DecodeRune(S.src[S.offset:])
 		}
 		S.offset += w;
 		S.ch = r;
@@ -157,7 +157,7 @@ func (S *Scanner) scanComment(pos token.Position) {
 						// get filename and line number, if any
 						i := bytes.Index(text, []byte{':'});
 						if i >= 0 {
-							if line, err := strconv.Atoi(string(text[i+1 : len(text)])); err == nil && line > 0 {
+							if line, err := strconv.Atoi(string(text[i+1:])); err == nil && line > 0 {
 								// valid //line filename:line comment;
 								// update scanner position
 								S.pos.Filename = string(text[len(prefix):i]);

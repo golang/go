@@ -194,7 +194,7 @@ func (p *printer) write(data []byte) {
 	}
 
 	// write remaining segment
-	p.write0(data[i0:len(data)]);
+	p.write0(data[i0:]);
 
 	// update p.pos
 	d := len(data) - i0;
@@ -400,7 +400,7 @@ func split(text []byte) [][]byte {
 			n++;
 		}
 	}
-	lines[n] = text[i:len(text)];
+	lines[n] = text[i:];
 
 	return lines;
 }
@@ -475,7 +475,7 @@ func stripCommonPrefix(lines [][]byte) {
 		// for the opening /*, assume up to 3 blanks or a tab. This
 		// whitespace may be found as suffix in the common prefix.
 		first := lines[0];
-		if isBlank(first[2:len(first)]) {
+		if isBlank(first[2:]) {
 			// no comment text on the first line:
 			// reduce prefix by up to 3 blanks or a tab
 			// if present - this keeps comment text indented
@@ -536,7 +536,7 @@ func stripCommonPrefix(lines [][]byte) {
 	// Remove the common prefix from all but the first and empty lines.
 	for i, line := range lines {
 		if i > 0 && len(line) != 0 {
-			lines[i] = line[len(prefix):len(line)]
+			lines[i] = line[len(prefix):]
 		}
 	}
 }

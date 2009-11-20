@@ -31,7 +31,7 @@ func (t *LineTable) parse(targetPC uint64, targetLine int) (b []byte, pc uint64,
 	b, pc, line = t.Data, t.PC, t.Line;
 	for pc <= targetPC && line != targetLine && len(b) > 0 {
 		code := b[0];
-		b = b[1:len(b)];
+		b = b[1:];
 		switch {
 		case code == 0:
 			if len(b) < 4 {
@@ -39,7 +39,7 @@ func (t *LineTable) parse(targetPC uint64, targetLine int) (b []byte, pc uint64,
 				break;
 			}
 			val := binary.BigEndian.Uint32(b);
-			b = b[4:len(b)];
+			b = b[4:];
 			line += int(val);
 		case code <= 64:
 			line += int(code)

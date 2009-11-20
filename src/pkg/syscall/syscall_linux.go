@@ -416,8 +416,8 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
 		if errno != 0 {
 			return 0, errno
 		}
-		n += bytesCopy(out, buf[addr%sizeofPtr:len(buf)]);
-		out = out[n:len(out)];
+		n += bytesCopy(out, buf[addr%sizeofPtr:]);
+		out = out[n:];
 	}
 
 	// Remainder.
@@ -430,7 +430,7 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
 		}
 		copied := bytesCopy(out, &buf);
 		n += copied;
-		out = out[copied:len(out)];
+		out = out[copied:];
 	}
 
 	return n, 0;
@@ -456,13 +456,13 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
 		if errno != 0 {
 			return 0, errno
 		}
-		n += bytesCopy(buf[addr%sizeofPtr:len(buf)], data);
+		n += bytesCopy(buf[addr%sizeofPtr:], data);
 		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
 		errno = ptrace(pokeReq, pid, addr-addr%sizeofPtr, word);
 		if errno != 0 {
 			return 0, errno
 		}
-		data = data[n:len(data)];
+		data = data[n:];
 	}
 
 	// Interior.
@@ -473,7 +473,7 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
 			return n, errno
 		}
 		n += sizeofPtr;
-		data = data[sizeofPtr:len(data)];
+		data = data[sizeofPtr:];
 	}
 
 	// Trailing edge.

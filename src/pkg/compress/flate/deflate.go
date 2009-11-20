@@ -144,7 +144,7 @@ func (d *deflater) fillWindow(index int) (int, os.Error) {
 	}
 	var count int;
 	var err os.Error;
-	count, err = io.ReadAtLeast(d.r, d.window[d.windowEnd:len(d.window)], 1);
+	count, err = io.ReadAtLeast(d.r, d.window[d.windowEnd:], 1);
 	d.windowEnd += count;
 	if err == os.EOF {
 		return index, nil

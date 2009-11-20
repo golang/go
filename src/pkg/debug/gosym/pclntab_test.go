@@ -121,7 +121,7 @@ func TestLineAline(t *testing.T) {
 			}
 
 			// cgo files are full of 'Z' symbols, which we don't handle
-			if len(path) > 4 && path[len(path)-4:len(path)] == ".cgo" {
+			if len(path) > 4 && path[len(path)-4:] == ".cgo" {
 				continue
 			}
 
@@ -167,7 +167,7 @@ func TestPCLine(t *testing.T) {
 		wantLine += int(textdat[off]);
 		if fn == nil {
 			t.Errorf("failed to get line of PC %#x", pc)
-		} else if len(file) < 12 || file[len(file)-12:len(file)] != "pclinetest.s" || line != wantLine || fn != sym {
+		} else if len(file) < 12 || file[len(file)-12:] != "pclinetest.s" || line != wantLine || fn != sym {
 			t.Errorf("expected %s:%d (%s) at PC %#x, got %s:%d (%s)", "pclinetest.s", wantLine, sym.Name, pc, file, line, fn.Name)
 		}
 	}

@@ -428,7 +428,7 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 	err = nil;
 	nn := 0;
 	for nn < len(p) {
-		n, err = fd.file.Write(p[nn:len(p)]);
+		n, err = fd.file.Write(p[nn:]);
 		if n > 0 {
 			nn += n
 		}

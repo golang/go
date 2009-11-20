@@ -93,7 +93,7 @@ func (p *pollster) WaitFD(nsec int64) (fd int, mode int, err os.Error) {
 		p.events = p.eventbuf[0:nn];
 	}
 	ev := &p.events[0];
-	p.events = p.events[1:len(p.events)];
+	p.events = p.events[1:];
 	fd = int(ev.Ident);
 	if ev.Filter == syscall.EVFILT_READ {
 		mode = 'r'

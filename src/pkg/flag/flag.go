@@ -303,7 +303,7 @@ func Arg(i int) string {
 func NArg() int	{ return len(os.Args) - flags.first_arg }
 
 // Args returns the non-flag command-line arguments.
-func Args() []string	{ return os.Args[flags.first_arg:len(os.Args)] }
+func Args() []string	{ return os.Args[flags.first_arg:] }
 
 func add(name string, value FlagValue, usage string) {
 	// Remember the default value as a string; it won't change.
@@ -448,7 +448,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 			return false, index + 1
 		}
 	}
-	name := s[num_minuses:len(s)];
+	name := s[num_minuses:];
 	if len(name) == 0 || name[0] == '-' || name[0] == '=' {
 		fmt.Fprintln(os.Stderr, "bad flag syntax:", s);
 		Usage();
@@ -460,7 +460,7 @@ func (f *allFlags) parseOne(index int) (ok bool, next int) {
 	value := "";
 	for i := 1; i < len(name); i++ {	// equals cannot be first
 		if name[i] == '=' {
-			value = name[i+1 : len(name)];
+			value = name[i+1:];
 			has_value = true;
 			name = name[0:i];
 			break;

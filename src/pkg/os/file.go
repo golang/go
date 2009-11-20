@@ -146,7 +146,7 @@ func (file *File) ReadAt(b []byte, off int64) (n int, err Error) {
 			err = &PathError{"read", file.name, Errno(e)};
 			break;
 		}
-		b = b[m:len(b)];
+		b = b[m:];
 		off += int64(m);
 	}
 	return;
@@ -191,7 +191,7 @@ func (file *File) WriteAt(b []byte, off int64) (n int, err Error) {
 			err = &PathError{"write", file.name, Errno(e)};
 			break;
 		}
-		b = b[m:len(b)];
+		b = b[m:];
 		off += int64(m);
 	}
 	return;

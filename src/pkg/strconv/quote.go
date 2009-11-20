@@ -21,7 +21,7 @@ const lowerhex = "0123456789abcdef"
 func Quote(s string) string {
 	var buf bytes.Buffer;
 	buf.WriteByte('"');
-	for ; len(s) > 0; s = s[1:len(s)] {
+	for ; len(s) > 0; s = s[1:] {
 		switch c := s[0]; {
 		case c == '"':
 			buf.WriteString(`\"`)
@@ -49,7 +49,7 @@ func Quote(s string) string {
 			if r == utf8.RuneError && size == 1 {
 				goto EscX
 			}
-			s = s[size-1 : len(s)];	// next iteration will slice off 1 more
+			s = s[size-1:];	// next iteration will slice off 1 more
 			if r < 0x10000 {
 				buf.WriteString(`\u`);
 				for j := uint(0); j < 4; j++ {
@@ -118,9 +118,9 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 		return;
 	case c >= utf8.RuneSelf:
 		r, size := utf8.DecodeRuneInString(s);
-		return r, true, s[size:len(s)], nil;
+		return r, true, s[size:], nil;
 	case c != '\\':
-		return int(s[0]), false, s[1:len(s)], nil
+		return int(s[0]), false, s[1:], nil
 	}
 
 	// hard case: c is backslash
@@ -129,7 +129,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 		return;
 	}
 	c := s[1];
-	s = s[2:len(s)];
+	s = s[2:];
 
 	switch c {
 	case 'a':
@@ -169,7 +169,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 			}
 			v = v<<4 | x;
 		}
-		s = s[n:len(s)];
+		s = s[n:];
 		if c == 'x' {
 			// single-byte string, possibly not UTF-8
 			value = v;
@@ -194,7 +194,7 @@ func UnquoteChar(s string, quote byte) (value int, multibyte bool, tail string, 
 			}
 			v = (v << 3) | x;
 		}
-		s = s[2:len(s)];
+		s = s[2:];
 		if v > 255 {
 			err = os.EINVAL;
 			return;

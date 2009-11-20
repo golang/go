@@ -260,11 +260,11 @@ func EncryptOAEP(hash hash.Hash, rand io.Reader, pub *PublicKey, msg []byte, lab
 
 	em := make([]byte, k);
 	seed := em[1 : 1+hash.Size()];
-	db := em[1+hash.Size() : len(em)];
+	db := em[1+hash.Size():];
 
 	copy(db[0:hash.Size()], lHash);
 	db[len(db)-len(msg)-1] = 1;
-	copy(db[len(db)-len(msg):len(db)], msg);
+	copy(db[len(db)-len(msg):], msg);
 
 	_, err = io.ReadFull(rand, seed);
 	if err != nil {
@@ -397,7 +397,7 @@ func DecryptOAEP(hash hash.Hash, rand io.Reader, priv *PrivateKey, ciphertext []
 	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0);
 
 	seed := em[1 : hash.Size()+1];
-	db := em[hash.Size()+1 : len(em)];
+	db := em[hash.Size()+1:];
 
 	mgf1XOR(seed, hash, db);
 	mgf1XOR(db, hash, seed);
@@ -417,7 +417,7 @@ func DecryptOAEP(hash hash.Hash, rand io.Reader, priv *PrivateKey, ciphertext []
 	//   invalid: 1 iff we saw a non-zero byte before the 0x01.
 	var lookingForIndex, index, invalid int;
 	lookingForIndex = 1;
-	rest := db[hash.Size():len(db)];
+	rest := db[hash.Size():];
 
 	for i := 0; i < len(rest); i++ {
 		equals0 := subtle.ConstantTimeByteEq(rest[i], 0);
@@ -432,7 +432,7 @@ func DecryptOAEP(hash hash.Hash, rand io.Reader, priv *PrivateKey, ciphertext []
 		return;
 	}
 
-	msg = rest[index+1 : len(rest)];
+	msg = rest[index+1:];
 	return;
 }
 
@@ -444,6 +444,6 @@ func leftPad(input []byte, size int) (out []byte) {
 		n = size
 	}
 	out = make([]byte, size);
-	copy(out[len(out)-n:len(out)], input);
+	copy(out[len(out)-n:], input);
 	return;
 }

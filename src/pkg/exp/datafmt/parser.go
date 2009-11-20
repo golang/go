@@ -159,7 +159,7 @@ func (p *parser) parseLiteral() literal {
 	}
 	// the final segment may start with any character
 	// (it is empty iff the string is empty)
-	list.Push(s[i0:len(s)]);
+	list.Push(s[i0:]);
 
 	// convert list into a literal
 	lit := make(literal, list.Len());
@@ -343,7 +343,7 @@ func (p *parser) parseFormat() {
 func remap(p *parser, name string) string {
 	i := strings.Index(name, ".");
 	if i >= 0 {
-		packageName, suffix := name[0:i], name[i:len(name)];
+		packageName, suffix := name[0:i], name[i:];
 		// lookup package
 		if importPath, found := p.packs[packageName]; found {
 			name = importPath + suffix

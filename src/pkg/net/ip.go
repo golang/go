@@ -153,7 +153,7 @@ func itod(i uint) string {
 		b[bp] = byte(i%10) + '0';
 	}
 
-	return string(b[bp:len(b)]);
+	return string(b[bp:]);
 }
 
 // Convert i to hexadecimal string.
@@ -170,7 +170,7 @@ func itox(i uint) string {
 		b[bp] = "0123456789abcdef"[byte(i%16)];
 	}
 
-	return string(b[bp:len(b)]);
+	return string(b[bp:]);
 }
 
 // String returns the string form of the IP address ip.
@@ -342,7 +342,7 @@ L:	for j < IPv6len {
 				// Not enough room.
 				return nil
 			}
-			p4 := parseIPv4(s[i:len(s)]);
+			p4 := parseIPv4(s[i:]);
 			if p4 == nil {
 				return nil
 			}

@@ -56,7 +56,7 @@ func Btoui64(s string, b int) (n uint64, err os.Error) {
 		switch {
 		case s[0] == '0' && len(s) > 1 && (s[1] == 'x' || s[1] == 'X'):
 			b = 16;
-			s = s[2:len(s)];
+			s = s[2:];
 			if len(s) < 1 {
 				err = os.EINVAL;
 				goto Error;
@@ -140,10 +140,10 @@ func Btoi64(s string, base int) (i int64, err os.Error) {
 	s0 := s;
 	neg := false;
 	if s[0] == '+' {
-		s = s[1:len(s)]
+		s = s[1:]
 	} else if s[0] == '-' {
 		neg = true;
-		s = s[1:len(s)];
+		s = s[1:];
 	}
 
 	// Convert unsigned and check range.

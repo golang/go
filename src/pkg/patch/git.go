@@ -63,7 +63,7 @@ func getHex(s []byte) (data []byte, rest []byte) {
 	for i := range data {
 		data[i] = unhex(s[2*i])<<4 | unhex(s[2*i+1])
 	}
-	rest = s[n:len(s)];
+	rest = s[n:];
 	return;
 }
 

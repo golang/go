@@ -749,9 +749,9 @@ Input:
 				var n uint64;
 				var err os.Error;
 				if i >= 3 && s[1] == 'x' {
-					n, err = strconv.Btoui64(s[2:len(s)], 16)
+					n, err = strconv.Btoui64(s[2:], 16)
 				} else {
-					n, err = strconv.Btoui64(s[1:len(s)], 10)
+					n, err = strconv.Btoui64(s[1:], 10)
 				}
 				if err == nil && n <= unicode.MaxRune {
 					text = string(n);
@@ -813,7 +813,7 @@ func (p *Parser) nsname() (name Name, ok bool) {
 		name.Local = s
 	} else {
 		name.Space = s[0:i];
-		name.Local = s[i+1 : len(s)];
+		name.Local = s[i+1:];
 	}
 	return name, true;
 }

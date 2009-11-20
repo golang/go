@@ -74,7 +74,7 @@ func Encode(dst, src []byte) int {
 		}
 		dst[ndst] = '\n';
 		ndst++;
-		src = src[n:len(src)];
+		src = src[n:];
 	}
 	return ndst;
 }
@@ -173,7 +173,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 			e.nbuf++;
 		}
 		n += i;
-		p = p[i:len(p)];
+		p = p[i:];
 		if e.nbuf < 52 {
 			return
 		}
@@ -197,7 +197,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 			}
 		}
 		n += nn;
-		p = p[nn:len(p)];
+		p = p[nn:];
 	}
 
 	// Trailing fringe.
@@ -242,7 +242,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		// Copy leftover output from last decode.
 		if len(d.out) > 0 {
 			n = copy(p, d.out);
-			d.out = d.out[n:len(d.out)];
+			d.out = d.out[n:];
 			return;
 		}
 
@@ -257,7 +257,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 
 		// Read and decode more input.
 		var nn int;
-		nn, d.readErr = d.r.Read(d.buf[d.nbuf:len(d.buf)]);
+		nn, d.readErr = d.r.Read(d.buf[d.nbuf:]);
 		d.nbuf += nn;
 
 		// Send complete lines to Decode.

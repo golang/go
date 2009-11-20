@@ -29,16 +29,16 @@ func (m *clientHelloMsg) marshal() []byte {
 	copy(x[6:38], m.random);
 	x[38] = uint8(len(m.sessionId));
 	copy(x[39:39+len(m.sessionId)], m.sessionId);
-	y := x[39+len(m.sessionId) : len(x)];
+	y := x[39+len(m.sessionId):];
 	y[0] = uint8(len(m.cipherSuites) >> 7);
 	y[1] = uint8(len(m.cipherSuites) << 1);
 	for i, suite := range m.cipherSuites {
 		y[2+i*2] = uint8(suite >> 8);
 		y[3+i*2] = uint8(suite);
 	}
-	z := y[2+len(m.cipherSuites)*2 : len(y)];
+	z := y[2+len(m.cipherSuites)*2:];
 	z[0] = uint8(len(m.compressionMethods));
-	copy(z[1:len(z)], m.compressionMethods);
+	copy(z[1:], m.compressionMethods);
 	m.raw = x;
 
 	return x;
@@ -57,7 +57,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 		return false
 	}
 	m.sessionId = data[39 : 39+sessionIdLen];
-	data = data[39+sessionIdLen : len(data)];
+	data = data[39+sessionIdLen:];
 	if len(data) < 2 {
 		return false
 	}
@@ -72,7 +72,7 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 	for i := 0; i < numCipherSuites; i++ {
 		m.cipherSuites[i] = uint16(data[2+2*i])<<8 | uint16(data[3+2*i])
 	}
-	data = data[2+cipherSuiteLen : len(data)];
+	data = data[2+cipherSuiteLen:];
 	if len(data) < 2 {
 		return false
 	}
@@ -111,7 +111,7 @@ func (m *serverHelloMsg) marshal() []byte {
 	copy(x[6:38], m.random);
 	x[38] = uint8(len(m.sessionId));
 	copy(x[39:39+len(m.sessionId)], m.sessionId);
-	z := x[39+len(m.sessionId) : len(x)];
+	z := x[39+len(m.sessionId):];
 	z[0] = uint8(m.cipherSuite >> 8);
 	z[1] = uint8(m.cipherSuite);
 	z[2] = uint8(m.compressionMethod);
@@ -147,13 +147,13 @@ func (m *certificateMsg) marshal() (x []byte) {
 	x[5] = uint8(certificateOctets >> 8);
 	x[6] = uint8(certificateOctets);
 
-	y := x[7:len(x)];
+	y := x[7:];
 	for _, slice := range m.certificates {
 		y[0] = uint8(len(slice) >> 16);
 		y[1] = uint8(len(slice) >> 8);
 		y[2] = uint8(len(slice));
-		copy(y[3:len(y)], slice);
-		y = y[3+len(slice) : len(y)];
+		copy(y[3:], slice);
+		y = y[3+len(slice):];
 	}
 
 	m.raw = x;
@@ -185,7 +185,7 @@ func (m *clientKeyExchangeMsg) marshal() []byte {
 	x[3] = uint8(length);
 	x[4] = uint8(len(m.ciphertext) >> 8);
 	x[5] = uint8(len(m.ciphertext));
-	copy(x[6:len(x)], m.ciphertext);
+	copy(x[6:], m.ciphertext);
 
 	m.raw = x;
 	return x;
@@ -200,7 +200,7 @@ func (m *clientKeyExchangeMsg) unmarshal(data []byte) bool {
 	if len(data) != 6+cipherTextLen {
 		return false
 	}
-	m.ciphertext = data[6:len(data)];
+	m.ciphertext = data[6:];
 	return true;
 }
 
@@ -217,7 +217,7 @@ func (m *finishedMsg) marshal() (x []byte) {
 	x = make([]byte, 16);
 	x[0] = typeFinished;
 	x[3] = 12;
-	copy(x[4:len(x)], m.verifyData);
+	copy(x[4:], m.verifyData);
 	m.raw = x;
 	return;
 }
@@ -227,6 +227,6 @@ func (m *finishedMsg) unmarshal(data []byte) bool {
 	if len(data) != 4+12 {
 		return false
 	}
-	m.verifyData = data[4:len(data)];
+	m.verifyData = data[4:];
 	return true;
 }

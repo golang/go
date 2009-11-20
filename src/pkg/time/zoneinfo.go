@@ -34,7 +34,7 @@ func (d *data) read(n int) []byte {
 		return nil;
 	}
 	p := d.p[0:n];
-	d.p = d.p[n:len(d.p)];
+	d.p = d.p[n:];
 	return p;
 }
 
@@ -168,7 +168,7 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
 			return nil, false
 		}
-		z[i].name = byteString(abbrev[b:len(abbrev)]);
+		z[i].name = byteString(abbrev[b:]);
 	}
 
 	// Now the transition time info.
@@ -234,7 +234,7 @@ func lookupTimezone(sec int64) (zone string, offset int) {
 		if sec < int64(tz[m].time) {
 			tz = tz[0:m]
 		} else {
-			tz = tz[m:len(tz)]
+			tz = tz[m:]
 		}
 	}
 	z := tz[0].zone;

@@ -210,46 +210,46 @@ type encoder struct {
 
 func (d *decoder) uint8() uint8 {
 	x := d.buf[0];
-	d.buf = d.buf[1:len(d.buf)];
+	d.buf = d.buf[1:];
 	return x;
 }
 
 func (e *encoder) uint8(x uint8) {
 	e.buf[0] = x;
-	e.buf = e.buf[1:len(e.buf)];
+	e.buf = e.buf[1:];
 }
 
 func (d *decoder) uint16() uint16 {
 	x := d.order.Uint16(d.buf[0:2]);
-	d.buf = d.buf[2:len(d.buf)];
+	d.buf = d.buf[2:];
 	return x;
 }
 
 func (e *encoder) uint16(x uint16) {
 	e.order.PutUint16(e.buf[0:2], x);
-	e.buf = e.buf[2:len(e.buf)];
+	e.buf = e.buf[2:];
 }
 
 func (d *decoder) uint32() uint32 {
 	x := d.order.Uint32(d.buf[0:4]);
-	d.buf = d.buf[4:len(d.buf)];
+	d.buf = d.buf[4:];
 	return x;
 }
 
 func (e *encoder) uint32(x uint32) {
 	e.order.PutUint32(e.buf[0:4], x);
-	e.buf = e.buf[4:len(e.buf)];
+	e.buf = e.buf[4:];
 }
 
 func (d *decoder) uint64() uint64 {
 	x := d.order.Uint64(d.buf[0:8]);
-	d.buf = d.buf[8:len(d.buf)];
+	d.buf = d.buf[8:];
 	return x;
 }
 
 func (e *encoder) uint64(x uint64) {
 	e.order.PutUint64(e.buf[0:8], x);
-	e.buf = e.buf[8:len(e.buf)];
+	e.buf = e.buf[8:];
 }
 
 func (d *decoder) int8() int8	{ return int8(d.uint8()) }

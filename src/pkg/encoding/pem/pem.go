@@ -43,7 +43,7 @@ func getLine(data []byte) (line, rest []byte) {
 			i--
 		}
 	}
-	return data[0:i], data[j:len(data)];
+	return data[0:i], data[j:];
 }
 
 // removeWhitespace returns a copy of its input with all spaces, tab and
@@ -75,7 +75,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	// pemStart begins with a newline. However, at the very beginning of
 	// the byte array, we'll accept the start string without it.
 	rest = data;
-	if bytes.HasPrefix(data, pemStart[1:len(pemStart)]) {
+	if bytes.HasPrefix(data, pemStart[1:]) {
 		rest = rest[len(pemStart)-1 : len(data)]
 	} else if i := bytes.Index(data, pemStart); i >= 0 {
 		rest = rest[i+len(pemStart) : len(data)]
@@ -108,7 +108,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		}
 
 		// TODO(agl): need to cope with values that spread across lines.
-		key, val := line[0:i], line[i+1:len(line)];
+		key, val := line[0:i], line[i+1:];
 		key = bytes.TrimSpace(key);
 		val = bytes.TrimSpace(val);
 		p.Headers[string(key)] = string(val);
@@ -128,7 +128,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	}
 	p.Bytes = p.Bytes[0:n];
 
-	_, rest = getLine(rest[i+len(pemEnd) : len(rest)]);
+	_, rest = getLine(rest[i+len(pemEnd):]);
 
 	return;
 

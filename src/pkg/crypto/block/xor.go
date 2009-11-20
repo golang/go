@@ -46,7 +46,7 @@ func (x *xorReader) Read(p []byte) (n int, err os.Error) {
 		p[i] ^= buf[bp];
 		bp++;
 	}
-	x.buf = buf[bp:len(buf)];
+	x.buf = buf[bp:];
 	return n, err;
 }
 
@@ -96,7 +96,7 @@ func (x *xorWriter) Write(p []byte) (n int, err os.Error) {
 				x.work[i] = buf[bp] ^ p[i];
 				bp++;
 			}
-			x.buf = buf[bp:len(buf)];
+			x.buf = buf[bp:];
 			chunk = x.work[0:m];
 		}
 
@@ -112,13 +112,13 @@ func (x *xorWriter) Write(p []byte) (n int, err os.Error) {
 			for i := nn; i < m; i++ {
 				chunk[i] ^= p[i]
 			}
-			x.extra = chunk[nn:len(chunk)];
+			x.extra = chunk[nn:];
 		}
 		n += nn;
 		if err != nil {
 			return
 		}
-		p = p[m:len(p)];
+		p = p[m:];
 	}
 	return;
 }

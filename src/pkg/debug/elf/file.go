@@ -343,7 +343,7 @@ func (f *File) getSymbols64() ([]Symbol, os.Error) {
 
 	// The first entry is all zeros.
 	var skip [Sym64Size]byte;
-	symtab.Read(skip[0:len(skip)]);
+	symtab.Read(skip[0:]);
 
 	symbols := make([]Symbol, symtab.Len()/Sym64Size);
 

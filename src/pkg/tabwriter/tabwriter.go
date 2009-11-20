@@ -542,7 +542,7 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
 	}
 
 	// append leftover text
-	b.append(buf[n:len(buf)]);
+	b.append(buf[n:]);
 	n = len(buf);
 	return;
 }

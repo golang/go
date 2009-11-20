@@ -65,7 +65,7 @@ func (p *Prog) loadDebugInfo() {
 		if len(line) < 9 || line[0:9] != "cgo-test:" {
 			continue
 		}
-		line = line[9:len(line)];
+		line = line[9:];
 		colon := strings.Index(line, ":");
 		if colon < 0 {
 			continue
@@ -148,7 +148,7 @@ func (p *Prog) loadDebugInfo() {
 		if !ok || t == nil {
 			fatal("internal error: %s has non-pointer type", name)
 		}
-		i, err := strconv.Atoi(name[7:len(name)]);
+		i, err := strconv.Atoi(name[7:]);
 		if err != nil {
 			fatal("malformed __cgo__ name: %s", name)
 		}

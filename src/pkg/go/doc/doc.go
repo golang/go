@@ -277,10 +277,10 @@ func (doc *docReader) addFile(src *ast.File) {
 		cstr := string(text);
 		if m := bug_markers.ExecuteString(cstr); len(m) > 0 {
 			// found a BUG comment; maybe empty
-			if bstr := cstr[m[1]:len(cstr)]; bug_content.MatchString(bstr) {
+			if bstr := cstr[m[1]:]; bug_content.MatchString(bstr) {
 				// non-empty BUG comment; collect comment without BUG prefix
 				list := copyCommentList(c.List);
-				list[0].Text = text[m[1]:len(text)];
+				list[0].Text = text[m[1]:];
 				doc.bugs.Push(&ast.CommentGroup{list, nil});
 			}
 		}

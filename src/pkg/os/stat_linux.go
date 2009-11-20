@@ -26,7 +26,7 @@ func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
 	dir.Ctime_ns = uint64(syscall.TimespecToNsec(stat.Ctim));
 	for i := len(name) - 1; i >= 0; i-- {
 		if name[i] == '/' {
-			name = name[i+1 : len(name)];
+			name = name[i+1:];
 			break;
 		}
 	}

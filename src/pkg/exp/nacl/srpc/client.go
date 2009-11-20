@@ -72,7 +72,7 @@ func NewClient(fd int) (c *Client, err os.Error) {
 		if i < 0 {
 			continue
 		}
-		c.service[string(line[0:i])] = srv{uint32(n), string(line[i+1 : len(line)])};
+		c.service[string(line[0:i])] = srv{uint32(n), string(line[i+1:])};
 	}
 
 	c.out = make(chan *msg);
@@ -159,7 +159,7 @@ func (r *RPC) Start(name string, arg []interface{}) {
 	for srv.fmt[i] != ':' {
 		i++
 	}
-	fmt := srv.fmt[i+1 : len(srv.fmt)];
+	fmt := srv.fmt[i+1:];
 
 	// Now the return prototypes.
 	m.Ret = make([]interface{}, len(fmt)-i);

@@ -301,7 +301,7 @@ func (h *huffmanEncoder) assignEncodingAndSize(bitCount []int32, list []literalN
 		// are encoded using "bits" bits, and get the values
 		// code, code + 1, ....  The code values are
 		// assigned in literal order (not frequency order).
-		chunk := list[len(list)-int(bits) : len(list)];
+		chunk := list[len(list)-int(bits):];
 		sortByLiteral(chunk);
 		for _, node := range chunk {
 			h.codeBits[node.literal] = uint8(n);

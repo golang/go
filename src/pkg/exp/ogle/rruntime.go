@@ -254,7 +254,7 @@ func fillRuntimeIndexes(runtime *runtimeValues, out *runtimeIndexes) {
 			}
 			name := f.Name;
 			if name[0] >= 'a' && name[0] <= 'z' {
-				name = string(name[0]+'A'-'a') + name[1:len(name)]
+				name = string(name[0]+'A'-'a') + name[1:]
 			}
 			indexes[name] = j;
 		}

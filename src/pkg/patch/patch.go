@@ -100,13 +100,13 @@ func Parse(text []byte) (*Set, os.Error) {
 		// begins the section.  After that is the file name.
 		s, raw, _ := getLine(raw, 1);
 		if hasPrefix(s, "Index: ") {
-			p.Dst = string(bytes.TrimSpace(s[7:len(s)]));
+			p.Dst = string(bytes.TrimSpace(s[7:]));
 			goto HaveName;
 		} else if hasPrefix(s, "diff ") {
 			str := string(bytes.TrimSpace(s));
 			i := strings.LastIndex(str, " b/");
 			if i >= 0 {
-				p.Dst = str[i+3 : len(str)];
+				p.Dst = str[i+3:];
 				goto HaveName;
 			}
 		}
@@ -240,7 +240,7 @@ func getLine(data []byte, n int) (first []byte, rest []byte, ok bool) {
 			ok = false;
 			break;
 		}
-		rest = rest[nl+1 : len(rest)];
+		rest = rest[nl+1:];
 	}
 	first = data[0 : len(data)-len(rest)];
 	return;
@@ -260,7 +260,7 @@ func sections(text []byte, prefix string) ([]byte, [][]byte) {
 		if nl < 0 {
 			break
 		}
-		b = b[nl+1 : len(b)];
+		b = b[nl+1:];
 	}
 
 	sect := make([][]byte, n+1);
@@ -276,9 +276,9 @@ func sections(text []byte, prefix string) ([]byte, [][]byte) {
 			sect[n] = text;
 			break;
 		}
-		b = b[nl+1 : len(b)];
+		b = b[nl+1:];
 	}
-	return sect[0], sect[1:len(sect)];
+	return sect[0], sect[1:];
 }
 
 // if s begins with the prefix t, skip returns
@@ -287,7 +287,7 @@ func skip(s []byte, t string) (ss []byte, ok bool) {
 	if len(s) < len(t) || string(s[0:len(t)]) != t {
 		return nil, false
 	}
-	return s[len(t):len(s)], true;
+	return s[len(t):], true;
 }
 
 // if s begins with the prefix t and then is a sequence
@@ -305,7 +305,7 @@ func atoi(s []byte, t string, base int) (n int, ss []byte, ok bool) {
 	if i == 0 {
 		return
 	}
-	return n, s[i:len(s)], true;
+	return n, s[i:], true;
 }
 
 // hasPrefix returns true if s begins with t.

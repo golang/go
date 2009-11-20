@@ -467,7 +467,7 @@ func stringN(x []Word, base int) string {
 		s[i] = "0123456789abcdef"[r];
 	}
 
-	return string(s[i:len(s)]);
+	return string(s[i:]);
 }
 
 
@@ -585,7 +585,7 @@ func powersOfTwoDecompose(n []Word) (q []Word, k Word) {
 	x := trailingZeroBits(n[zeroWords]);
 
 	q = makeN(nil, len(n)-zeroWords, false);
-	shiftRight(q, n[zeroWords:len(n)], x);
+	shiftRight(q, n[zeroWords:], x);
 
 	k = Word(_W*zeroWords + x);
 	return;

@@ -164,7 +164,7 @@ func _Block(dig *digest, p []byte) int {
 		c += cc;
 		d += dd;
 
-		p = p[_Chunk:len(p)];
+		p = p[_Chunk:];
 		n += _Chunk;
 	}
 

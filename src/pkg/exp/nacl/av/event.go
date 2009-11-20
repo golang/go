@@ -384,7 +384,7 @@ func (r *reader) Read(p []byte) (n int, err os.Error) {
 		return 0, os.EOF
 	}
 	n = bytes.Copy(p, b);
-	*r = b[n:len(b)];
+	*r = b[n:];
 	return;
 }
 

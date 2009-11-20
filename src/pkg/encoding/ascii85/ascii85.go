@@ -57,7 +57,7 @@ func Encode(dst, src []byte) int {
 		// Special case: zero (!!!!!) shortens to z.
 		if v == 0 && len(src) >= 4 {
 			dst[0] = 'z';
-			dst = dst[1:len(dst)];
+			dst = dst[1:];
 			n++;
 			continue;
 		}
@@ -74,9 +74,9 @@ func Encode(dst, src []byte) int {
 			m -= 4 - len(src);
 			src = nil;
 		} else {
-			src = src[4:len(src)]
+			src = src[4:]
 		}
-		dst = dst[m:len(dst)];
+		dst = dst[m:];
 		n += m;
 	}
 	return n;
@@ -113,7 +113,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 			e.nbuf++;
 		}
 		n += i;
-		p = p[i:len(p)];
+		p = p[i:];
 		if e.nbuf < 4 {
 			return
 		}
@@ -138,7 +138,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 			}
 		}
 		n += nn;
-		p = p[nn:len(p)];
+		p = p[nn:];
 	}
 
 	// Trailing fringe.
@@ -268,7 +268,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		// Copy leftover output from last decode.
 		if len(d.out) > 0 {
 			n = copy(p, d.out);
-			d.out = d.out[n:len(d.out)];
+			d.out = d.out[n:];
 			return;
 		}
 
@@ -293,7 +293,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 		}
 
 		// Read more data.
-		nn, d.readErr = d.r.Read(d.buf[d.nbuf:len(d.buf)]);
+		nn, d.readErr = d.r.Read(d.buf[d.nbuf:]);
 		d.nbuf += nn;
 	}
 	panic("unreachable");
