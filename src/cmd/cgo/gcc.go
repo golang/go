@@ -315,11 +315,14 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 	t.Size = dtype.Size();
 	t.Align = -1;
 	t.C = dtype.Common().Name;
+	c.m[dtype] = t;
 	if t.Size < 0 {
-		fatal("dwarf.Type %s reports unknown size", dtype)
+		// Unsized types are [0]byte
+		t.Size = 0;
+		t.Go = c.Opaque(0);
+		return t;
 	}
 
-	c.m[dtype] = t;
 	switch dt := dtype.(type) {
 	default:
 		fatal("unexpected type: %s", dtype)
