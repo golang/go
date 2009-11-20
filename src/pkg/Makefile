@@ -50,6 +50,7 @@ DIRS=\
 	exec\
 	exp/datafmt\
 	exp/eval\
+	exp/exception\
 	exp/iterable\
 	expvar\
 	flag\
