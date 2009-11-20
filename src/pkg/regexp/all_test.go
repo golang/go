@@ -60,6 +60,8 @@ type tester struct {
 }
 
 var matches = []tester{
+	tester{`a+`, "baaab", vec{1, 4}},
+	tester{"abcd..", "abcdef", vec{0, 6}},
 	tester{``, "", vec{0, 0}},
 	tester{`a`, "a", vec{0, 1}},
 	tester{`x`, "y", vec{}},
@@ -78,6 +80,8 @@ var matches = []tester{
 	tester{`[a\-\]z]+`, "az]-bcz", vec{0, 4}},
 	tester{`[^\n]+`, "abcd\n", vec{0, 4}},
 	tester{`[日本語]+`, "日本語日本語", vec{0, 18}},
+	tester{`日本語+`, "日本語", vec{0, 9}},
+	tester{`日本語+`, "日本語語語語", vec{0, 18}},
 	tester{`()`, "", vec{0, 0, 0, 0}},
 	tester{`(a)`, "a", vec{0, 1, 0, 1}},
 	tester{`(.)(.)`, "日a", vec{0, 4, 0, 3, 3, 4}},
@@ -89,6 +93,7 @@ var matches = []tester{
 	tester{`(((a|b|c)*)(d))`, "abcd", vec{0, 4, 0, 4, 0, 3, 2, 3, 3, 4}},
 	tester{`a*(|(b))c*`, "aacc", vec{0, 4, 2, 2, -1, -1}},
 	tester{`(.*).*`, "ab", vec{0, 2, 0, 2}},
+	tester{`[.]`, ".", vec{0, 1}},
 }
 
 func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
