@@ -808,15 +808,26 @@ walkexpr(Node **np, NodeList **init)
 		walkexpr(&n->right->right, init);
 		// dynamic slice
 		// sliceslice(old []any, lb int, hb int, width int) (ary []any)
+		// sliceslice1(old []any, lb int, width int) (ary []any)
 		t = n->type;
-		fn = syslook("sliceslice", 1);
-		argtype(fn, t->type);			// any-1
-		argtype(fn, t->type);			// any-2
-		n = mkcall1(fn, t, init,
-			n->left,
-			conv(n->right->left, types[TINT]),
-			conv(n->right->right, types[TINT]),
-			nodintconst(t->type->width));
+		if(n->right->right != N) {
+			fn = syslook("sliceslice", 1);
+			argtype(fn, t->type);			// any-1
+			argtype(fn, t->type);			// any-2
+			n = mkcall1(fn, t, init,
+				n->left,
+				conv(n->right->left, types[TINT]),
+				conv(n->right->right, types[TINT]),
+				nodintconst(t->type->width));
+		} else {
+			fn = syslook("sliceslice1", 1);
+			argtype(fn, t->type);			// any-1
+			argtype(fn, t->type);			// any-2
+			n = mkcall1(fn, t, init,
+				n->left,
+				conv(n->right->left, types[TINT]),
+				nodintconst(t->type->width));
+		}
 		goto ret;
 
 	case OSLICEARR:
@@ -829,11 +840,27 @@ walkexpr(Node **np, NodeList **init)
 		fn = syslook("slicearray", 1);
 		argtype(fn, n->left->type);	// any-1
 		argtype(fn, t->type);			// any-2
+		if(n->right->right == N)
+			r = nodintconst(n->left->type->bound);
+		else
+			r = conv(n->right->right, types[TINT]);
 		n = mkcall1(fn, t, init,
 			nod(OADDR, n->left, N), nodintconst(n->left->type->bound),
 			conv(n->right->left, types[TINT]),
-			conv(n->right->right, types[TINT]),
+			r,
 			nodintconst(t->type->width));
+		goto ret;
+
+	case OCONVSLICE:
+		// slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)
+		fn = syslook("slicearray", 1);
+		argtype(fn, n->left->type->type);		// any-1
+		argtype(fn, n->type->type);			// any-2
+		n = mkcall1(fn, n->type, init, n->left,
+			nodintconst(n->left->type->type->bound),
+			nodintconst(0),
+			nodintconst(n->left->type->type->bound),
+			nodintconst(n->type->type->width));
 		goto ret;
 
 	case OADDR:;
@@ -1012,14 +1039,6 @@ walkexpr(Node **np, NodeList **init)
 	case OCONVIFACE:
 		walkexpr(&n->left, init);
 		n = ifacecvt(n->type, n->left, n->etype, init);
-		goto ret;
-
-	case OCONVSLICE:
-		// arraytoslice(old *any, nel int) (ary []any)
-		fn = syslook("arraytoslice", 1);
-		argtype(fn, n->left->type->type);		// any-1
-		argtype(fn, n->type->type);			// any-2
-		n = mkcall1(fn, n->type, init, n->left, nodintconst(n->left->type->type->bound));
 		goto ret;
 
 	case OCLOSURE:

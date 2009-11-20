@@ -831,9 +831,13 @@ pexpr:
 	{
 		$$ = nod(OINDEX, $1, $3);
 	}
-|	pexpr '[' keyval ']'
+|	pexpr '[' expr ':' ']'
 	{
-		$$ = nod(OSLICE, $1, $3);
+		$$ = nod(OSLICE, $1, nod(OKEY, $3, N));
+	}
+|	pexpr '[' expr ':' expr ']'
+	{
+		$$ = nod(OSLICE, $1, nod(OKEY, $3, $5));
 	}
 |	pseudocall
 |	convtype '(' expr ')'

@@ -22,6 +22,7 @@ compile(Node *fn)
 		deferproc = sysfunc("deferproc");
 		deferreturn = sysfunc("deferreturn");
 		throwindex = sysfunc("throwindex");
+		throwslice = sysfunc("throwslice");
 		throwreturn = sysfunc("throwreturn");
 	}
 
@@ -685,3 +686,382 @@ clearfat(Node *nl)
 	regfree(&nz);
 }
 
+static int
+regcmp(const void *va, const void *vb)
+{
+	Node *ra, *rb;
+
+	ra = (Node*)va;
+	rb = (Node*)vb;
+	return ra->local - rb->local;
+}
+
+static	Prog*	throwpc;
+
+void
+getargs(NodeList *nn, Node *reg, int n)
+{
+	NodeList *l;
+	int i;
+
+	throwpc = nil;
+
+	l = nn;
+	for(i=0; i<n; i++) {
+		if(!smallintconst(l->n->right) && !isslice(l->n->right->type)) {
+			regalloc(reg+i, l->n->right->type, N);
+			cgen(l->n->right, reg+i);
+		} else
+			reg[i] = *l->n->right;
+		if(reg[i].local != 0)
+			yyerror("local used");
+		reg[i].local = l->n->left->xoffset;
+		l = l->next;
+	}
+	qsort((void*)reg, n, sizeof(*reg), regcmp);
+	for(i=0; i<n; i++)
+		reg[i].local = 0;
+}
+
+void
+cmpandthrow(Node *nl, Node *nr)
+{
+	vlong cl, cr;
+	Prog *p1;
+	int op;
+	Node *c, n1, n2;
+
+	op = OLE;
+	if(smallintconst(nl)) {
+		cl = mpgetfix(nl->val.u.xval);
+		if(cl == 0)
+			return;
+		if(smallintconst(nr)) {
+			cr = mpgetfix(nr->val.u.xval);
+			if(cl > cr) {
+				if(throwpc == nil) {
+					throwpc = pc;
+					ginscall(throwslice, 0);
+				} else
+					patch(gbranch(AB, T), throwpc);
+			}
+			return;
+		}
+
+		// put the constant on the right
+		op = brrev(op);
+		c = nl;
+		nl = nr;
+		nr = c;
+	}
+
+	n1.op = OXXX;
+	if(nr->op != OREGISTER) {
+		regalloc(&n1, types[TUINT32], N);
+		gmove(nr, &n1);
+		nr = &n1;
+	}
+	n2.op = OXXX;
+	if(nl->op != OREGISTER) {
+		regalloc(&n2, types[TUINT32], N);
+		gmove(nl, &n2);
+		nl = &n2;
+	}
+	gcmp(optoas(OCMP, types[TUINT32]), nl, nr);
+	if(nr == &n1)
+		regfree(&n1);
+	if(nl == &n2)
+		regfree(&n2);
+	if(throwpc == nil) {
+		p1 = gbranch(optoas(op, types[TUINT32]), T);
+		throwpc = pc;
+		ginscall(throwslice, 0);
+		patch(p1, pc);
+	} else {
+		op = brcom(op);
+		p1 = gbranch(optoas(op, types[TUINT32]), T);
+		patch(p1, throwpc);
+	}
+}
+
+int
+sleasy(Node *n)
+{
+	if(n->op != ONAME)
+		return 0;
+	if(!n->addable)
+		return 0;
+	return 1;
+}
+
+// generate inline code for
+//	slicearray
+//	sliceslice
+//	arraytoslice
+int
+cgen_inline(Node *n, Node *res)
+{
+	Node nodes[5];
+	Node n1, n2, n3, nres, nnode0, ntemp;
+	vlong v;
+	int i, narg, bad;
+
+	if(n->op != OCALLFUNC)
+		goto no;
+	if(!n->left->addable)
+		goto no;
+	if(strcmp(n->left->sym->package, "runtime") != 0)
+		goto no;
+	if(strcmp(n->left->sym->name, "slicearray") == 0)
+		goto slicearray;
+	if(strcmp(n->left->sym->name, "sliceslice") == 0) {
+		narg = 4;
+		goto sliceslice;
+	}
+	if(strcmp(n->left->sym->name, "sliceslice1") == 0) {
+		narg = 3;
+		goto sliceslice;
+	}
+	goto no;
+
+slicearray:
+	if(!sleasy(res))
+		goto no;
+	getargs(n->list, nodes, 5);
+
+	// if(hb[3] > nel[1]) goto throw
+	cmpandthrow(&nodes[3], &nodes[1]);
+
+	// if(lb[2] > hb[3]) goto throw
+	cmpandthrow(&nodes[2], &nodes[3]);
+
+	// len = hb[3] - lb[2] (destroys hb)
+	n2 = *res;
+	n2.type = types[TUINT32];
+	n2.xoffset += Array_nel;
+
+	if(smallintconst(&nodes[3]) && smallintconst(&nodes[2])) {
+		v = mpgetfix(nodes[3].val.u.xval) -
+			mpgetfix(nodes[2].val.u.xval);
+		nodconst(&n1, types[TUINT32], v);
+		gmove(&n1, &n2);
+	} else {
+		regalloc(&n1, types[TUINT32], &nodes[3]);
+		gmove(&nodes[3], &n1);
+		if(!smallintconst(&nodes[2]) || mpgetfix(nodes[2].val.u.xval) != 0)
+			gins(optoas(OSUB, types[TUINT32]), &nodes[2], &n1);
+		gmove(&n1, &n2);
+		regfree(&n1);
+	}
+
+	// cap = nel[1] - lb[2] (destroys nel)
+	n2 = *res;
+	n2.type = types[TUINT32];
+	n2.xoffset += Array_cap;
+
+	if(smallintconst(&nodes[1]) && smallintconst(&nodes[2])) {
+		v = mpgetfix(nodes[1].val.u.xval) -
+			mpgetfix(nodes[2].val.u.xval);
+		nodconst(&n1, types[TUINT32], v);
+		gmove(&n1, &n2);
+	} else {
+		regalloc(&n1, types[TUINT32], &nodes[1]);
+		gmove(&nodes[1], &n1);
+		if(!smallintconst(&nodes[2]) || mpgetfix(nodes[2].val.u.xval) != 0)
+			gins(optoas(OSUB, types[TUINT32]), &nodes[2], &n1);
+		gmove(&n1, &n2);
+		regfree(&n1);
+	}
+
+	// if slice could be too big, dereference to
+	// catch nil array pointer.
+	if(nodes[0].op == OREGISTER && nodes[0].type->type->width >= unmappedzero) {
+		n2 = nodes[0];
+		n2.xoffset = 0;
+		n2.op = OINDREG;
+		n2.type = types[TUINT8];
+		regalloc(&n1, types[TUINT32], N);
+		gins(AMOVB, &n2, &n1);
+		regfree(&n1);
+	}
+
+	// ary = old[0] + (lb[2] * width[4]) (destroys old)
+	n2 = *res;
+	n2.type = types[tptr];
+	n2.xoffset += Array_array;
+
+	if(smallintconst(&nodes[2]) && smallintconst(&nodes[4])) {
+		v = mpgetfix(nodes[2].val.u.xval) *
+			mpgetfix(nodes[4].val.u.xval);
+		if(v != 0) {
+			nodconst(&n1, types[tptr], v);
+			gins(optoas(OADD, types[tptr]), &n1, &nodes[0]);
+		}
+	} else {
+		regalloc(&n1, types[tptr], &nodes[2]);
+		gmove(&nodes[2], &n1);
+		if(!smallintconst(&nodes[4]) || mpgetfix(nodes[4].val.u.xval) != 1) {
+			regalloc(&n3, types[tptr], N);
+			gmove(&nodes[4], &n3);
+			gins(optoas(OMUL, types[tptr]), &n3, &n1);
+			regfree(&n3);
+		}
+		gins(optoas(OADD, types[tptr]), &n1, &nodes[0]);
+		regfree(&n1);
+	}
+	gmove(&nodes[0], &n2);
+
+	for(i=0; i<5; i++) {
+		if(nodes[i].op == OREGISTER)
+			regfree(&nodes[i]);
+	}
+	return 1;
+
+sliceslice:
+	getargs(n->list, nodes, narg);
+
+	nres = *res;		// result
+	nnode0 = nodes[0];	// input slice
+	if(!sleasy(res) || !sleasy(&nodes[0])) {
+		bad = 0;
+		if(res->ullman >= UINF)
+			bad = 1;
+		for(i=0; i<narg; i++) {
+			if(nodes[i].ullman >= UINF)
+				bad = 1;
+			if(nodes[i].op == OREGISTER)
+				regfree(&nodes[i]);
+		}
+
+		if(bad)
+			goto no;
+
+		tempname(&ntemp, res->type);
+		if(!sleasy(&nodes[0])) {
+			cgen(&nodes[0], &ntemp);
+			nnode0 = ntemp;
+		}
+		getargs(n->list, nodes, narg);
+		if(!sleasy(res))
+			nres = ntemp;
+	}
+	
+	if(narg == 3) {	// old[lb:]
+		// move width to where it would be for old[lb:hb]
+		nodes[3] = nodes[2];
+		nodes[2].op = OXXX;
+		
+		// if(lb[1] > old.nel[0]) goto throw;
+		n2 = nnode0;
+		n2.xoffset += Array_nel;
+		n2.type = types[TUINT32];
+		cmpandthrow(&nodes[1], &n2);
+
+		// ret.nel = old.nel[0]-lb[1];
+		n2 = nnode0;
+		n2.type = types[TUINT32];
+		n2.xoffset += Array_nel;
+	
+		regalloc(&n1, types[TUINT32], N);
+		gmove(&n2, &n1);
+		if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
+			gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
+	
+		n2 = nres;
+		n2.type = types[TUINT32];
+		n2.xoffset += Array_nel;
+		gmove(&n1, &n2);
+		regfree(&n1);
+	} else {	// old[lb:hb]
+		// if(hb[2] > old.cap[0]) goto throw;
+		n2 = nnode0;
+		n2.xoffset += Array_cap;
+		n2.type = types[TUINT32];
+		cmpandthrow(&nodes[2], &n2);
+
+		// if(lb[1] > hb[2]) goto throw;
+		cmpandthrow(&nodes[1], &nodes[2]);
+
+		// ret.len = hb[2]-lb[1]; (destroys hb[2])
+		n2 = nres;
+		n2.type = types[TUINT32];
+		n2.xoffset += Array_nel;
+	
+		if(smallintconst(&nodes[2]) && smallintconst(&nodes[1])) {
+			v = mpgetfix(nodes[2].val.u.xval) -
+				mpgetfix(nodes[1].val.u.xval);
+			nodconst(&n1, types[TUINT32], v);
+			gmove(&n1, &n2);
+		} else {
+			regalloc(&n1, types[TUINT32], &nodes[2]);
+			gmove(&nodes[2], &n1);
+			if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
+				gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
+			gmove(&n1, &n2);
+			regfree(&n1);
+		}
+	}
+
+	// ret.cap = old.cap[0]-lb[1]; (uses hb[2])
+	n2 = nnode0;
+	n2.type = types[TUINT32];
+	n2.xoffset += Array_cap;
+
+	regalloc(&n1, types[TUINT32], &nodes[2]);
+	gmove(&n2, &n1);
+	if(!smallintconst(&nodes[1]) || mpgetfix(nodes[1].val.u.xval) != 0)
+		gins(optoas(OSUB, types[TUINT32]), &nodes[1], &n1);
+
+	n2 = nres;
+	n2.type = types[TUINT32];
+	n2.xoffset += Array_cap;
+	gmove(&n1, &n2);
+	regfree(&n1);
+
+	// ret.array = old.array[0]+lb[1]*width[3]; (uses lb[1])
+	n2 = nnode0;
+	n2.type = types[tptr];
+	n2.xoffset += Array_array;
+	regalloc(&n3, types[tptr], N);
+	gmove(&n2, &n3);
+
+	regalloc(&n1, types[tptr], &nodes[1]);
+	if(smallintconst(&nodes[1]) && smallintconst(&nodes[3])) {
+		gmove(&n2, &n1);
+		v = mpgetfix(nodes[1].val.u.xval) *
+			mpgetfix(nodes[3].val.u.xval);
+		if(v != 0) {
+			nodconst(&n2, types[tptr], v);
+			gins(optoas(OADD, types[tptr]), &n3, &n1);
+		}
+	} else {
+		gmove(&nodes[1], &n1);
+		if(!smallintconst(&nodes[3]) || mpgetfix(nodes[3].val.u.xval) != 1) {
+			regalloc(&n2, types[tptr], N);
+			gmove(&nodes[3], &n2);
+			gins(optoas(OMUL, types[tptr]), &n2, &n1);
+			regfree(&n2);
+		}
+		gins(optoas(OADD, types[tptr]), &n3, &n1);
+	}
+	regfree(&n3);
+
+	n2 = nres;
+	n2.type = types[tptr];
+	n2.xoffset += Array_array;
+	gmove(&n1, &n2);
+	regfree(&n1);
+
+	for(i=0; i<4; i++) {
+		if(nodes[i].op == OREGISTER)
+			regfree(&nodes[i]);
+	}
+
+	if(!sleasy(res)) {
+		cgen(&nres, res);
+	}
+	return 1;
+
+no:
+	return 0;
+}

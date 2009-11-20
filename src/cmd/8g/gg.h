@@ -65,6 +65,7 @@ EXTERN	Node*	newproc;
 EXTERN	Node*	deferproc;
 EXTERN	Node*	deferreturn;
 EXTERN	Node*	throwindex;
+EXTERN	Node*	throwslice;
 EXTERN	Node*	throwreturn;
 EXTERN	int	maxstksize;
 extern	uint32	unmappedzero;
@@ -106,6 +107,7 @@ Prog*	gins(int, Node*, Node*);
 int	samaddr(Node*, Node*);
 void	naddr(Node*, Addr*, int);
 void	cgen_aret(Node*, Node*);
+int	cgen_inline(Node*, Node*);
 Node*	ncon(uint32);
 
 /*

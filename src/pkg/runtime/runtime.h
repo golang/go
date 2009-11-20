@@ -342,7 +342,7 @@ void	printf(int8*, ...);
 byte*	mchr(byte*, byte, byte*);
 void	mcpy(byte*, byte*, uint32);
 int32	mcmp(byte*, byte*, uint32);
-void	mmov(byte*, byte*, uint32);
+void	memmove(void*, void*, uint32);
 void*	mal(uint32);
 uint32	cmpstring(String, String);
 String	gostring(byte*);
