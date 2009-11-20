@@ -27,6 +27,7 @@ func printsp()
 func catstring(string, string) string
 func cmpstring(string, string) int
 func slicestring(string, int, int) string
+func slicestring1(string, int) string
 func indexstring(string, int) byte
 func intstring(int64) string
 func slicebytetostring([]byte) string
