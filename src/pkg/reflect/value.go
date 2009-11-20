@@ -906,7 +906,10 @@ func setiface(typ *InterfaceType, x *interface{}, addr addr)
 
 // Set assigns x to v.
 func (v *InterfaceValue) Set(x Value) {
-	i := x.Interface();
+	var i interface{}
+	if x != nil {
+		i = x.Interface()
+	}
 	if !v.canSet {
 		panic(cannotSet)
 	}
