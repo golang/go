@@ -55,7 +55,7 @@ truncfltlit(Mpflt *oldv, Type *t)
 void
 convlit(Node **np, Type *t)
 {
-	return convlit1(np, t, 0);
+	convlit1(np, t, 0);
 }
 
 /*

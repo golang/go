@@ -918,10 +918,16 @@ walkexpr(Node **np, NodeList **init)
 
 	case OSLICESTR:
 		// sys_slicestring(s, lb, hb)
-		n = mkcall("slicestring", n->type, init,
-			conv(n->left, types[TSTRING]),
-			conv(n->right->left, types[TINT]),
-			conv(n->right->right, types[TINT]));
+		if(n->right->right) {
+			n = mkcall("slicestring", n->type, init,
+				conv(n->left, types[TSTRING]),
+				conv(n->right->left, types[TINT]),
+				conv(n->right->right, types[TINT]));
+		} else {
+			n = mkcall("slicestring1", n->type, init,
+				conv(n->left, types[TSTRING]),
+				conv(n->right->left, types[TINT]));
+		}
 		goto ret;
 
 	case OINDEXSTR:

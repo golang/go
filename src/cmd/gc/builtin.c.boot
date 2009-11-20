@@ -19,6 +19,7 @@ char *runtimeimport =
 	"func runtime.catstring (? string, ? string) (? string)\n"
 	"func runtime.cmpstring (? string, ? string) (? int)\n"
 	"func runtime.slicestring (? string, ? int, ? int) (? string)\n"
+	"func runtime.slicestring1 (? string, ? int) (? string)\n"
 	"func runtime.indexstring (? string, ? int) (? uint8)\n"
 	"func runtime.intstring (? int64) (? string)\n"
 	"func runtime.slicebytetostring (? []uint8) (? string)\n"
