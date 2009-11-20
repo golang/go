@@ -15,21 +15,21 @@ typedef struct sigaction {
 } Sigaction;
 
 void
-dumpregs(Sigcontext *r)
+dumpregs(Mcontext *r)
 {
-	printf("eax     %x\n", r->sc_eax);
-	printf("ebx     %x\n", r->sc_ebx);
-	printf("ecx     %x\n", r->sc_ecx);
-	printf("edx     %x\n", r->sc_edx);
-	printf("edi     %x\n", r->sc_edi);
-	printf("esi     %x\n", r->sc_esi);
-	printf("ebp     %x\n", r->sc_ebp);
-	printf("esp     %x\n", r->sc_esp);
-	printf("eip     %x\n", r->sc_eip);
-	printf("eflags  %x\n", r->sc_efl);
-	printf("cs      %x\n", r->sc_cs);
-	printf("fs      %x\n", r->sc_fsbase);
-	printf("gs      %x\n", r->sc_gsbase);
+	printf("eax     %x\n", r->mc_eax);
+	printf("ebx     %x\n", r->mc_ebx);
+	printf("ecx     %x\n", r->mc_ecx);
+	printf("edx     %x\n", r->mc_edx);
+	printf("edi     %x\n", r->mc_edi);
+	printf("esi     %x\n", r->mc_esi);
+	printf("ebp     %x\n", r->mc_ebp);
+	printf("esp     %x\n", r->mc_esp);
+	printf("eip     %x\n", r->mc_eip);
+	printf("eflags  %x\n", r->mc_eflags);
+	printf("cs      %x\n", r->mc_cs);
+	printf("fs      %x\n", r->mc_fs);
+	printf("gs      %x\n", r->mc_gs);
 }
 
 void
@@ -37,7 +37,6 @@ sighandler(int32 sig, Siginfo* info, void* context)
 {
 	Ucontext *uc;
 	Mcontext *mc;
-	Sigcontext *sc;
 
 	if(panicking)	// traceback already printed
 		exit(2);
@@ -45,7 +44,6 @@ sighandler(int32 sig, Siginfo* info, void* context)
 
 	uc = context;
 	mc = &uc->uc_mcontext;
-	sc = (Sigcontext*)mc;	// same layout, more conveient names
 
 	if(sig < 0 || sig >= NSIG)
 		printf("Signal %d\n", sig);
@@ -53,13 +51,13 @@ sighandler(int32 sig, Siginfo* info, void* context)
 		printf("%s\n", sigtab[sig].name);
 
 	printf("Faulting address: %p\n", info->si_addr);
-	printf("PC=%X\n", sc->sc_eip);
+	printf("PC=%X\n", mc->mc_eip);
 	printf("\n");
 
 	if(gotraceback()){
-		traceback((void*)sc->sc_eip, (void*)sc->sc_esp, m->curg);
+		traceback((void*)sc->sc_eip, (void*)mc->mc_esp, m->curg);
 		tracebackothers(m->curg);
-		dumpregs(sc);
+		dumpregs(mc);
 	}
 
 	breakpoint();

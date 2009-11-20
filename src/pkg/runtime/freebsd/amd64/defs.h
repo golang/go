@@ -135,45 +135,4 @@ struct Ucontext {
 	int32 __spare__[4];
 	byte pad0[12];
 };
-
-typedef struct Sigcontext Sigcontext;
-struct Sigcontext {
-	Sigset sc_mask;
-	int64 sc_onstack;
-	int64 sc_rdi;
-	int64 sc_rsi;
-	int64 sc_rdx;
-	int64 sc_rcx;
-	int64 sc_r8;
-	int64 sc_r9;
-	int64 sc_rax;
-	int64 sc_rbx;
-	int64 sc_rbp;
-	int64 sc_r10;
-	int64 sc_r11;
-	int64 sc_r12;
-	int64 sc_r13;
-	int64 sc_r14;
-	int64 sc_r15;
-	int32 sc_trapno;
-	int16 sc_fs;
-	int16 sc_gs;
-	int64 sc_addr;
-	int32 sc_flags;
-	int16 sc_es;
-	int16 sc_ds;
-	int64 sc_err;
-	int64 sc_rip;
-	int64 sc_cs;
-	int64 sc_rflags;
-	int64 sc_rsp;
-	int64 sc_ss;
-	int64 sc_len;
-	int64 sc_fpformat;
-	int64 sc_ownedfp;
-	int64 sc_fpstate[64];
-	int64 sc_fsbase;
-	int64 sc_gsbase;
-	int64 sc_spare[6];
-};
 #pragma pack off

@@ -15,29 +15,29 @@ typedef struct sigaction {
 } Sigaction;
 
 void
-dumpregs(Sigcontext *r)
+dumpregs(Mcontext *r)
 {
-	printf("rax     %X\n", r->sc_rax);
-	printf("rbx     %X\n", r->sc_rbx);
-	printf("rcx     %X\n", r->sc_rcx);
-	printf("rdx     %X\n", r->sc_rdx);
-	printf("rdi     %X\n", r->sc_rdi);
-	printf("rsi     %X\n", r->sc_rsi);
-	printf("rbp     %X\n", r->sc_rbp);
-	printf("rsp     %X\n", r->sc_rsp);
-	printf("r8      %X\n", r->sc_r8 );
-	printf("r9      %X\n", r->sc_r9 );
-	printf("r10     %X\n", r->sc_r10);
-	printf("r11     %X\n", r->sc_r11);
-	printf("r12     %X\n", r->sc_r12);
-	printf("r13     %X\n", r->sc_r13);
-	printf("r14     %X\n", r->sc_r14);
-	printf("r15     %X\n", r->sc_r15);
-	printf("rip     %X\n", r->sc_rip);
-	printf("rflags  %X\n", r->sc_flags);
-	printf("cs      %X\n", (uint64)r->sc_cs);
-	printf("fs      %X\n", (uint64)r->sc_fsbase);
-	printf("gs      %X\n", (uint64)r->sc_gsbase);
+	printf("rax     %X\n", r->mc_rax);
+	printf("rbx     %X\n", r->mc_rbx);
+	printf("rcx     %X\n", r->mc_rcx);
+	printf("rdx     %X\n", r->mc_rdx);
+	printf("rdi     %X\n", r->mc_rdi);
+	printf("rsi     %X\n", r->mc_rsi);
+	printf("rbp     %X\n", r->mc_rbp);
+	printf("rsp     %X\n", r->mc_rsp);
+	printf("r8      %X\n", r->mc_r8 );
+	printf("r9      %X\n", r->mc_r9 );
+	printf("r10     %X\n", r->mc_r10);
+	printf("r11     %X\n", r->mc_r11);
+	printf("r12     %X\n", r->mc_r12);
+	printf("r13     %X\n", r->mc_r13);
+	printf("r14     %X\n", r->mc_r14);
+	printf("r15     %X\n", r->mc_r15);
+	printf("rip     %X\n", r->mc_rip);
+	printf("rflags  %X\n", r->mc_flags);
+	printf("cs      %X\n", r->mc_cs);
+	printf("fs      %X\n", r->mc_fs);
+	printf("gs      %X\n", r->mc_gs);
 }
 
 void
@@ -45,7 +45,6 @@ sighandler(int32 sig, Siginfo* info, void* context)
 {
 	Ucontext *uc;
 	Mcontext *mc;
-	Sigcontext *sc;
 
 	if(panicking)	// traceback already printed
 		exit(2);
@@ -53,7 +52,6 @@ sighandler(int32 sig, Siginfo* info, void* context)
 
 	uc = context;
 	mc = &uc->uc_mcontext;
-	sc = (Sigcontext*)mc;	// same layout, more conveient names
 
 	if(sig < 0 || sig >= NSIG)
 		printf("Signal %d\n", sig);
@@ -61,13 +59,13 @@ sighandler(int32 sig, Siginfo* info, void* context)
 		printf("%s\n", sigtab[sig].name);
 
 	printf("Faulting address: %p\n", info->si_addr);
-	printf("PC=%X\n", sc->sc_rip);
+	printf("PC=%X\n", mc->mc_rip);
 	printf("\n");
 
 	if(gotraceback()){
-		traceback((void*)sc->sc_rip, (void*)sc->sc_rsp, (void*)sc->sc_r15);
-		tracebackothers((void*)sc->sc_r15);
-		dumpregs(sc);
+		traceback((void*)mc->mc_rip, (void*)mc->mc_rsp, (void*)mc->mc_r15);
+		tracebackothers((void*)mc->mc_r15);
+		dumpregs(mc);
 	}
 
 	breakpoint();
