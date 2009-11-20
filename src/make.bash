@@ -90,6 +90,10 @@ do
 			cmd)
 				bash make.bash
 				;;
+			pkg)
+				bash deps.bash
+				gomake install
+				;;
 			*)
 				gomake install
 			esac
