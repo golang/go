@@ -962,23 +962,28 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
 }
 
 
-func (p *parser) parseIndex(x ast.Expr) ast.Expr {
+func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
 	if p.trace {
-		defer un(trace(p, "Index"))
+		defer un(trace(p, "IndexOrSlice"))
 	}
 
 	p.expect(token.LBRACK);
 	p.exprLev++;
-	begin := p.parseExpr();
-	var end ast.Expr;
+	index := p.parseExpr();
 	if p.tok == token.COLON {
 		p.next();
-		end = p.parseExpr();
+		var end ast.Expr;
+		if p.tok != token.RBRACK {
+			end = p.parseExpr()
+		}
+		x = &ast.SliceExpr{x, index, end};
+	} else {
+		x = &ast.IndexExpr{x, index}
 	}
 	p.exprLev--;
 	p.expect(token.RBRACK);
 
-	return &ast.IndexExpr{x, begin, end};
+	return x;
 }
 
 
@@ -1072,6 +1077,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	case *ast.ParenExpr:
 	case *ast.SelectorExpr:
 	case *ast.IndexExpr:
+	case *ast.SliceExpr:
 	case *ast.TypeAssertExpr:
 		if t.Type == nil {
 			// the form X.(type) is only allowed in type switch expressions
@@ -1168,7 +1174,7 @@ L:	for {
 		case token.PERIOD:
 			x = p.parseSelectorOrTypeAssertion(p.checkExpr(x))
 		case token.LBRACK:
-			x = p.parseIndex(p.checkExpr(x))
+			x = p.parseIndexOrSlice(p.checkExpr(x))
 		case token.LPAREN:
 			x = p.parseCallOrConversion(p.checkExprOrType(x))
 		case token.LBRACE:
