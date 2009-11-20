@@ -50,6 +50,8 @@ fi
 (echo '#!/bin/sh'; echo 'exec '$MAKE' "$@"') >$GOBIN/gomake
 chmod +x $GOBIN/gomake
 
+bash clean.bash
+
 # TODO(kaib): converge with normal build
 #for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
 for i in lib9 libbio libmach cmd pkg cmd/ebnflint cmd/godoc cmd/gofmt
@@ -64,6 +66,10 @@ do
 		case $i in
 		cmd)
 			bash make.bash
+			;;
+		pkg)
+			bash deps.bash
+			gomake install
 			;;
 		*)
 			make install
