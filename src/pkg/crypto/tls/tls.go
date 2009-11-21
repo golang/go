@@ -112,9 +112,19 @@ func (tls *Conn) GetConnectionState() ConnectionState {
 	return <-replyChan;
 }
 
+func (tls *Conn) WaitConnectionState() ConnectionState {
+	replyChan := make(chan ConnectionState);
+	tls.requestChan <- waitConnectionState{replyChan};
+	return <-replyChan;
+}
+
+type handshaker interface {
+	loop(writeChan chan<- interface{}, controlChan chan<- interface{}, msgChan <-chan interface{}, config *Config);
+}
+
 // Server establishes a secure connection over the given connection and acts
 // as a TLS server.
-func Server(conn net.Conn, config *Config) *Conn {
+func startTLSGoroutines(conn net.Conn, h handshaker, config *Config) *Conn {
 	tls := new(Conn);
 	tls.Conn = conn;
 
@@ -134,9 +144,17 @@ func Server(conn net.Conn, config *Config) *Conn {
 	go new(recordWriter).loop(conn, writeChan, handshakeWriterChan);
 	go recordReader(readerProcessorChan, conn);
 	go new(recordProcessor).loop(readChan, requestChan, handshakeProcessorChan, readerProcessorChan, processorHandshakeChan);
-	go new(serverHandshake).loop(handshakeWriterChan, handshakeProcessorChan, processorHandshakeChan, config);
+	go h.loop(handshakeWriterChan, handshakeProcessorChan, processorHandshakeChan, config);
 
 	return tls;
+}
+
+func Server(conn net.Conn, config *Config) *Conn {
+	return startTLSGoroutines(conn, new(serverHandshake), config)
+}
+
+func Client(conn net.Conn, config *Config) *Conn {
+	return startTLSGoroutines(conn, new(clientHandshake), config)
 }
 
 type Listener struct {

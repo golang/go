@@ -13,6 +13,8 @@ import (
 
 var tests = []interface{}{
 	&clientHelloMsg{},
+	&serverHelloMsg{},
+	&certificateMsg{},
 	&clientKeyExchangeMsg{},
 	&finishedMsg{},
 }
@@ -59,6 +61,20 @@ func TestMarshalUnmarshal(t *testing.T) {
 	}
 }
 
+func TestFuzz(t *testing.T) {
+	rand := rand.New(rand.NewSource(0));
+	for _, iface := range tests {
+		m := iface.(testMessage);
+
+		for j := 0; j < 1000; j++ {
+			len := rand.Intn(100);
+			bytes := randomBytes(len, rand);
+			// This just looks for crashes due to bounds errors etc.
+			m.unmarshal(bytes);
+		}
+	}
+}
+
 func randomBytes(n int, rand *rand.Rand) []byte {
 	r := make([]byte, n);
 	for i := 0; i < n; i++ {
@@ -82,9 +98,30 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.NewValue(m);
 }
 
+func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+	m := &serverHelloMsg{};
+	m.major = uint8(rand.Intn(256));
+	m.minor = uint8(rand.Intn(256));
+	m.random = randomBytes(32, rand);
+	m.sessionId = randomBytes(rand.Intn(32), rand);
+	m.cipherSuite = uint16(rand.Int31());
+	m.compressionMethod = uint8(rand.Intn(256));
+	return reflect.NewValue(m);
+}
+
+func (*certificateMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+	m := &certificateMsg{};
+	numCerts := rand.Intn(20);
+	m.certificates = make([][]byte, numCerts);
+	for i := 0; i < numCerts; i++ {
+		m.certificates[i] = randomBytes(rand.Intn(10)+1, rand)
+	}
+	return reflect.NewValue(m);
+}
+
 func (*clientKeyExchangeMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &clientKeyExchangeMsg{};
-	m.ciphertext = randomBytes(rand.Intn(1000), rand);
+	m.ciphertext = randomBytes(rand.Intn(1000)+1, rand);
 	return reflect.NewValue(m);
 }
 
