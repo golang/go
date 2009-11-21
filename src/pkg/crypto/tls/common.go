@@ -17,6 +17,9 @@ const (
 	maxTLSCiphertext	= 16384 + 2048;
 	// maxHandshakeMsg is the largest single handshake message that we'll buffer.
 	maxHandshakeMsg	= 65536;
+	// defaultMajor and defaultMinor are the maximum TLS version that we support.
+	defaultMajor	= 3;
+	defaultMinor	= 2;
 )
 
 
@@ -64,6 +67,7 @@ type Config struct {
 	// Time returns the current time as the number of seconds since the epoch.
 	Time		func() int64;
 	Certificates	[]Certificate;
+	RootCAs		*CASet;
 }
 
 type Certificate struct {

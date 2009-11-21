@@ -224,12 +224,12 @@ func (h *serverHandshake) error(e alertType) {
 	if h.msgChan != nil {
 		// If we didn't get an error from the processor, then we need
 		// to tell it about the error.
-		h.controlChan <- ConnectionState{false, "", e};
-		close(h.controlChan);
 		go func() {
 			for _ = range h.msgChan {
 			}
 		}();
+		h.controlChan <- ConnectionState{false, "", e};
+		close(h.controlChan);
 		h.writeChan <- alert{alertLevelError, e};
 	}
 }

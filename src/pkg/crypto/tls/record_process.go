@@ -210,7 +210,7 @@ func (p *recordProcessor) processRecord(r *record) {
 			return;
 		}
 		p.recordRead = nil;
-		p.appData = r.payload;
+		p.appData = r.payload[0 : len(r.payload)-p.mac.Size()];
 		p.appDataSend = p.appDataChan;
 	default:
 		p.error(alertUnexpectedMessage);
@@ -283,6 +283,12 @@ func parseHandshakeMsg(data []byte) (interface{}, bool) {
 	switch data[0] {
 	case typeClientHello:
 		m = new(clientHelloMsg)
+	case typeServerHello:
+		m = new(serverHelloMsg)
+	case typeCertificate:
+		m = new(certificateMsg)
+	case typeServerHelloDone:
+		m = new(serverHelloDoneMsg)
 	case typeClientKeyExchange:
 		m = new(clientKeyExchangeMsg)
 	default:

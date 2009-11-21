@@ -45,7 +45,7 @@ func (m *clientHelloMsg) marshal() []byte {
 }
 
 func (m *clientHelloMsg) unmarshal(data []byte) bool {
-	if len(data) < 39 {
+	if len(data) < 43 {
 		return false
 	}
 	m.raw = data;
@@ -120,6 +120,30 @@ func (m *serverHelloMsg) marshal() []byte {
 	return x;
 }
 
+func (m *serverHelloMsg) unmarshal(data []byte) bool {
+	if len(data) < 42 {
+		return false
+	}
+	m.raw = data;
+	m.major = data[4];
+	m.minor = data[5];
+	m.random = data[6:38];
+	sessionIdLen := int(data[38]);
+	if sessionIdLen > 32 || len(data) < 39+sessionIdLen {
+		return false
+	}
+	m.sessionId = data[39 : 39+sessionIdLen];
+	data = data[39+sessionIdLen : len(data)];
+	if len(data) < 3 {
+		return false
+	}
+	m.cipherSuite = uint16(data[0])<<8 | uint16(data[1]);
+	m.compressionMethod = data[2];
+
+	// Trailing data is allowed because extensions may be present.
+	return true;
+}
+
 type certificateMsg struct {
 	raw		[]byte;
 	certificates	[][]byte;
@@ -160,12 +184,53 @@ func (m *certificateMsg) marshal() (x []byte) {
 	return;
 }
 
+func (m *certificateMsg) unmarshal(data []byte) bool {
+	if len(data) < 7 {
+		return false
+	}
+
+	m.raw = data;
+	certsLen := uint32(data[4])<<16 | uint32(data[5])<<8 | uint32(data[6]);
+	if uint32(len(data)) != certsLen+7 {
+		return false
+	}
+
+	numCerts := 0;
+	d := data[7:len(data)];
+	for certsLen > 0 {
+		if len(d) < 4 {
+			return false
+		}
+		certLen := uint32(d[0])<<24 | uint32(d[1])<<8 | uint32(d[2]);
+		if uint32(len(d)) < 3+certLen {
+			return false
+		}
+		d = d[3+certLen : len(d)];
+		certsLen -= 3 + certLen;
+		numCerts++;
+	}
+
+	m.certificates = make([][]byte, numCerts);
+	d = data[7:len(data)];
+	for i := 0; i < numCerts; i++ {
+		certLen := uint32(d[0])<<24 | uint32(d[1])<<8 | uint32(d[2]);
+		m.certificates[i] = d[3 : 3+certLen];
+		d = d[3+certLen : len(d)];
+	}
+
+	return true;
+}
+
 type serverHelloDoneMsg struct{}
 
 func (m *serverHelloDoneMsg) marshal() []byte {
 	x := make([]byte, 4);
 	x[0] = typeServerHelloDone;
 	return x;
+}
+
+func (m *serverHelloDoneMsg) unmarshal(data []byte) bool {
+	return len(data) == 4
 }
 
 type clientKeyExchangeMsg struct {
