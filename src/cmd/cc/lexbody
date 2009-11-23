@@ -226,8 +226,7 @@ lookup(void)
 	for(p=symb; c = *p; p++)
 		h = h+h+h + c;
 	l = (p - symb) + 1;
-	if(h < 0)
-		h = ~h;
+	h &= 0xffffff;
 	h %= NHASH;
 	c = symb[0];
 	for(s = hash[h]; s != S; s = s->link) {
