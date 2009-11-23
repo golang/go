@@ -69,7 +69,7 @@ type Seeker interface {
 	Seek(offset int64, whence int) (ret int64, err os.Error);
 }
 
-// ReadWrite is the interface that groups the basic Read and Write methods.
+// ReadWriter is the interface that groups the basic Read and Write methods.
 type ReadWriter interface {
 	Reader;
 	Writer;
