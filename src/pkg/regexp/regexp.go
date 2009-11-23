@@ -633,15 +633,18 @@ func (re *Regexp) setPrefix() {
 	var utf = make([]byte, utf8.UTFMax);
 	// First instruction is start; skip that.
 	i := re.inst.At(0).(instr).next().index();
+Loop:
 	for i < re.inst.Len() {
 		inst := re.inst.At(i).(instr);
 		// stop if this is not a char
 		if inst.kind() != _CHAR {
 			break
 		}
-		// stop if this char starts a closure; liberal but easy test: is an ALT next?
-		if re.inst.At(inst.next().index()).(instr).kind() == _ALT {
-			break
+		// stop if this char can be followed by a match for an empty string,
+		// which includes closures, ^, and $.
+		switch re.inst.At(inst.next().index()).(instr).kind() {
+		case _BOT, _EOT, _ALT:
+			break Loop
 		}
 		n := utf8.EncodeRune(inst.(*_Char).char, utf);
 		b = bytes.Add(b, utf[0:n]);
