@@ -257,9 +257,7 @@ objlookup(int id, char *name, int type, uint sig)
 	h = *name;
 	for(cp = name+1; *cp; h += *cp++)
 		h *= HASHMUL;
-	if(h < 0)
-		h = ~h;
-	h &= (NHASH-1);
+	h &= NHASH-1;
 	if (type == 'U' || type == 'b' || islocal(type)) {
 		for(sp = hash[h]; sp; sp = sp->next)
 			if(strcmp(sp->s.name, name) == 0) {
