@@ -761,7 +761,7 @@ Input:
 				if r, ok := entity[s]; ok {
 					text = string(r);
 					haveText = true;
-				} else {
+				} else if p.Entity != nil {
 					text, haveText = p.Entity[s]
 				}
 			}
