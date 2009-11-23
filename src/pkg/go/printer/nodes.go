@@ -53,16 +53,6 @@ func (p *printer) linebreak(line, min, max int, ws whiteSpace, newSection bool) 
 		n = max
 	}
 
-	// TODO(gri): try to avoid direct manipulation of p.pos
-	// demo of why this is necessary: run gofmt -r 'i < i -> i < j' x.go on this x.go:
-	//	package main
-	//	func main() {
-	//		i < i;
-	//		j < 10;
-	//	}
-	//
-	p.pos.Line += n;
-
 	if n > 0 {
 		p.print(ws);
 		if newSection {
@@ -455,6 +445,11 @@ func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
 
 	switch l := e.X.(type) {
 	case *ast.BinaryExpr:
+		if l.Op.Precedence() < e.Op.Precedence() {
+			// parens will be inserted.
+			// pretend this is an *ast.ParenExpr and do nothing.
+			break
+		}
 		h5, h6, mp := walkBinary(l);
 		has5 = has5 || h5;
 		has6 = has6 || h6;
@@ -465,6 +460,11 @@ func walkBinary(e *ast.BinaryExpr) (has5, has6 bool, maxProblem int) {
 
 	switch r := e.Y.(type) {
 	case *ast.BinaryExpr:
+		if r.Op.Precedence() <= e.Op.Precedence() {
+			// parens will be inserted.
+			// pretend this is an *ast.ParenExpr and do nothing.
+			break
+		}
 		h5, h6, mp := walkBinary(r);
 		has5 = has5 || h5;
 		has6 = has6 || h6;
@@ -587,7 +587,7 @@ func (p *printer) binaryExpr(x *ast.BinaryExpr, prec1, cutoff, depth int, multiL
 	if printBlank {
 		p.print(blank)
 	}
-	p.expr1(x.Y, prec, depth+1, 0, multiLine);
+	p.expr1(x.Y, prec+1, depth+1, 0, multiLine);
 	if ws == ignore {
 		p.print(unindent)
 	}
@@ -625,8 +625,18 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
 		p.expr(x.Value, multiLine);
 
 	case *ast.StarExpr:
-		p.print(token.MUL);
-		optSemi = p.expr(x.X, multiLine);
+		const prec = token.UnaryPrec;
+		if prec < prec1 {
+			// parenthesis needed
+			p.print(token.LPAREN);
+			p.print(token.MUL);
+			optSemi = p.expr(x.X, multiLine);
+			p.print(token.RPAREN);
+		} else {
+			// no parenthesis needed
+			p.print(token.MUL);
+			optSemi = p.expr(x.X, multiLine);
+		}
 
 	case *ast.UnaryExpr:
 		const prec = token.UnaryPrec;

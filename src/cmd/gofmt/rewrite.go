@@ -65,23 +65,23 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
 		for k := range m {
 			m[k] = nil, false
 		}
+		val = apply(f, val);
 		if match(m, pat, val) {
-			return subst(m, repl)
+			val = subst(m, repl, reflect.NewValue(val.Interface().(ast.Node).Pos()))
 		}
-		return apply(f, val);
+		return val;
 	};
 	return apply(f, reflect.NewValue(p)).Interface().(*ast.File);
 }
 
 
 var positionType = reflect.Typeof(token.Position{})
-var zeroPosition = reflect.NewValue(token.Position{})
 var identType = reflect.Typeof((*ast.Ident)(nil))
 
 
 func isWildcard(s string) bool {
-	rune, _ := utf8.DecodeRuneInString(s);
-	return unicode.Is(unicode.Greek, rune) && unicode.IsLower(rune);
+	rune, size := utf8.DecodeRuneInString(s);
+	return size == len(s) && unicode.IsLower(rune);
 }
 
 
@@ -173,10 +173,11 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 }
 
 
-// subst returns a copy of pattern with values from m substituted in place of wildcards.
-// if m == nil, subst returns a copy of pattern.
-// Either way, the returned value has no valid line number information.
-func subst(m map[string]reflect.Value, pattern reflect.Value) reflect.Value {
+// subst returns a copy of pattern with values from m substituted in place
+// of wildcards and pos used as the position of tokens from the pattern.
+// if m == nil, subst returns a copy of pattern and doesn't change the line
+// number information.
+func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value) reflect.Value {
 	if pattern == nil {
 		return nil
 	}
@@ -186,13 +187,13 @@ func subst(m map[string]reflect.Value, pattern reflect.Value) reflect.Value {
 		name := pattern.Interface().(*ast.Ident).Value;
 		if isWildcard(name) {
 			if old, ok := m[name]; ok {
-				return subst(nil, old)
+				return subst(nil, old, nil)
 			}
 		}
 	}
 
-	if pattern.Type() == positionType {
-		return zeroPosition
+	if pos != nil && pattern.Type() == positionType {
+		return pos
 	}
 
 	// Otherwise copy.
@@ -200,25 +201,25 @@ func subst(m map[string]reflect.Value, pattern reflect.Value) reflect.Value {
 	case *reflect.SliceValue:
 		v := reflect.MakeSlice(p.Type().(*reflect.SliceType), p.Len(), p.Len());
 		for i := 0; i < p.Len(); i++ {
-			v.Elem(i).SetValue(subst(m, p.Elem(i)))
+			v.Elem(i).SetValue(subst(m, p.Elem(i), pos))
 		}
 		return v;
 
 	case *reflect.StructValue:
 		v := reflect.MakeZero(p.Type()).(*reflect.StructValue);
 		for i := 0; i < p.NumField(); i++ {
-			v.Field(i).SetValue(subst(m, p.Field(i)))
+			v.Field(i).SetValue(subst(m, p.Field(i), pos))
 		}
 		return v;
 
 	case *reflect.PtrValue:
 		v := reflect.MakeZero(p.Type()).(*reflect.PtrValue);
-		v.PointTo(subst(m, p.Elem()));
+		v.PointTo(subst(m, p.Elem(), pos));
 		return v;
 
 	case *reflect.InterfaceValue:
 		v := reflect.MakeZero(p.Type()).(*reflect.InterfaceValue);
-		v.SetValue(subst(m, p.Elem()));
+		v.SetValue(subst(m, p.Elem(), pos));
 		return v;
 	}
 
