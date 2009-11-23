@@ -47,8 +47,8 @@ func (l *readLogger) Read(p []byte) (n int, err os.Error) {
 	return;
 }
 
-// NewReadLogger returns a writer that behaves like w except
-// that it logs (using log.Stdout) each write to standard output,
+// NewReadLogger returns a reader that behaves like r except
+// that it logs (using log.Stdout) each read to standard output,
 // printing the prefix and the hexadecimal data written.
 func NewReadLogger(prefix string, r io.Reader) io.Reader {
 	return &readLogger{prefix, r}
