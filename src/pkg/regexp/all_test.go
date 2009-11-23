@@ -95,6 +95,8 @@ var matches = []tester{
 	tester{`a*(|(b))c*`, "aacc", vec{0, 4, 2, 2, -1, -1}},
 	tester{`(.*).*`, "ab", vec{0, 2, 0, 2}},
 	tester{`[.]`, ".", vec{0, 1}},
+	tester{`/$`, "/abc/", vec{4, 5}},
+	tester{`/$`, "/abc", vec{}},
 }
 
 func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
