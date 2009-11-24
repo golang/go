@@ -456,12 +456,12 @@ func (t *thread) wait() {
 // necessary, and invokes state transition handlers.
 //
 // Must be called from the monitor thread.
-func (t *thread) setState(new threadState) {
-	old := t.state;
-	t.state = new;
-	t.logTrace("state %v -> %v", old, new);
+func (t *thread) setState(newState threadState) {
+	oldState := t.state;
+	t.state = newState;
+	t.logTrace("state %v -> %v", oldState, newState);
 
-	if !old.isRunning() && (new.isRunning() || new.isZombie()) {
+	if !oldState.isRunning() && (newState.isRunning() || newState.isZombie()) {
 		// Start waiting on this thread
 		go t.wait()
 	}
@@ -475,7 +475,7 @@ func (t *thread) setState(new threadState) {
 	t.proc.transitionHandlers = new(vector.Vector);
 	for _, h := range handlers.Data() {
 		h := h.(*transitionHandler);
-		h.handle(t, old, new);
+		h.handle(t, oldState, newState);
 	}
 }
 
