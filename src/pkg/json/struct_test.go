@@ -188,18 +188,47 @@ var marshalTests = []marshalTest{
 	marshalTest{map[string][]int{"3": []int{1, 2, 3}}, `{"3":[1,2,3]}`},
 }
 
-func TestJsonMarshal(t *testing.T) {
+func TestMarshal(t *testing.T) {
 	for _, tt := range marshalTests {
 		var buf bytes.Buffer;
 
 		err := Marshal(&buf, tt.val);
 		if err != nil {
-			t.Errorf("Error converting %s to JSON: \n", err.String())
+			t.Fatalf("Marshal(%T): %s", tt.val, err)
 		}
 
 		s := buf.String();
 		if s != tt.out {
-			t.Errorf("Error converting to JSON. Expected: %q Actual %q\n", tt.out, s)
+			t.Errorf("Marshal(%T) = %q, want %q\n", tt.val, tt.out, s)
 		}
+	}
+}
+
+type marshalErrorTest struct {
+	val	interface{};
+	error	string;
+}
+
+type MTE string
+
+var marshalErrorTests = []marshalErrorTest{
+	marshalErrorTest{map[chan int]string{make(chan int): "one"}, "json cannot encode value of type map[chan int] string"},
+	marshalErrorTest{map[string]*MTE{"hi": nil}, "json cannot encode value of type *json.MTE"},
+}
+
+func TestMarshalError(t *testing.T) {
+	for _, tt := range marshalErrorTests {
+		var buf bytes.Buffer;
+
+		err := Marshal(&buf, tt.val);
+
+		if err == nil {
+			t.Fatalf("Marshal(%T): no error, want error %s", tt.val, tt.error)
+		}
+
+		if err.String() != tt.error {
+			t.Fatalf("Marshal(%T) = error %s, want error %s", tt.val, err, tt.error)
+		}
+
 	}
 }

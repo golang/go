@@ -392,12 +392,12 @@ func writeValue(w io.Writer, val reflect.Value) (err os.Error) {
 		*reflect.InterfaceValue,
 		*reflect.PtrValue,
 		*reflect.UnsafePointerValue:
-		return &MarshalError{val.Type()}
+		err = &MarshalError{val.Type()}
 	default:
 		value := val.(reflect.Value);
 		fmt.Fprint(w, value.Interface());
 	}
-	return nil;
+	return;
 }
 
 func Marshal(w io.Writer, val interface{}) os.Error {
