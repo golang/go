@@ -35,169 +35,142 @@ POSSIBILITY OF SUCH DAMAGE.
 
 package main
 
-import (
-	"flag";
-	"fmt";
-	"os";
-)
-
-var n = flag.Int("n", 600, "count")
-
-type Color int
+import "fmt"
+import "flag"
 
 const (
-	blue Color = iota;
+	blue	= iota;
 	red;
 	yellow;
+	ncol;
 )
 
-func (c Color) String() string {
-	return []string{"blue", "red", "yellow"}[c]
+var complement = [...]int{
+	red | red<<2: red,
+	red | yellow<<2: blue,
+	red | blue<<2: yellow,
+	yellow | red<<2: blue,
+	yellow | yellow<<2: yellow,
+	yellow | blue<<2: red,
+	blue | red<<2: yellow,
+	blue | yellow<<2: red,
+	blue | blue<<2: blue,
 }
 
-func complement(c1, c2 Color) Color {
-	 switch c1 << 2 | c2 {
-	 case blue << 2 | blue:
-	 	return blue
-	 case blue << 2 | red:
-	 	return yellow
-	 case blue << 2 | yellow:
-	 	return red
-	 case red << 2 | blue:
-	 	return yellow
-	 case red << 2 | red:
-	 	return red
-	 case red << 2 | yellow:
-	 	return blue
-	 case yellow << 2 | blue:
-	 	return red
-	 case yellow << 2 | red:
-	 	return blue
-	 case yellow << 2 | yellow:
-	 	return yellow
-	}
-	fmt.Println("invalid colors", c1, c2);
-	os.Exit(2);
-	return 0
+var colname = [...]string{
+	blue: "blue",
+	red: "red",
+	yellow: "yellow",
 }
 
-func printColors(c1, c2 Color) {
-	fmt.Printf("%s + %s -> %s\n", c1, c2, complement(c1, c2));
+// information about the current state of a creature.
+type info struct {
+	colour	int;	// creature's current colour.
+	name	int;	// creature's name.
 }
 
-func printColorTable() {
-	printColors(blue, blue);
-	printColors(blue, red);
-	printColors(blue, yellow);
-	printColors(red, blue);
-	printColors(red, red);
-	printColors(red, yellow);
-	printColors(yellow, blue);
-	printColors(yellow, red);
-	printColors(yellow, yellow);
+// exclusive access data-structure kept inside meetingplace.
+// if mate is nil, it indicates there's no creature currently waiting;
+// otherwise the creature's info is stored in info, and
+// it is waiting to receive its mate's information on the mate channel.
+type rendez struct {
+	n	int;		// current number of encounters.
+	mate	chan<- info;	// creature waiting when non-nil.
+	info	info;		// info about creature waiting.
 }
 
-type Referee struct {
-	rendezCount	int;
-	cham	[]*Chameneos;
-	rendez	chan *Chameneos;
-	done	chan int;
-}
-
-func NewReferee() *Referee {
-	ref := new(Referee);
-	ref.cham = make([]*Chameneos, 0, 100);
-	ref.rendez = make(chan *Chameneos);
-	ref.done = make(chan int);
-	go ref.Serve();
-	return ref;
-}
-
-func (ref *Referee) Serve() {
-	for i := 0; i < *n; i++ {
-		c1 := <-ref.rendez;
-		c2 := <-ref.rendez;
-		c1.col, c2.col = complement(c1.col, c2.col), complement(c2.col, c1.col);
-		c1.rendez <- c2;
-		c2.rendez <- c1;
-	}
-	for i := 0; i < len(ref.cham); i++ {
-		c := <-ref.rendez;
-		c.rendez <- nil;
-	}
-	ref.done <- 1;
-}
-
-func (ref *Referee) Add(ch *Chameneos) {
-	n := len(ref.cham);
-	ref.cham = ref.cham[0:n+1];
-	ref.cham[n] = ch;
-}
-
-type Chameneos struct {
-	index	int;
-	col	Color;
-	rendez	chan *Chameneos;
-	count	int;
+// result sent by each creature at the end of processing.
+type result struct {
+	met	int;
 	same	int;
-	ref	*Referee;
 }
 
-func (c *Chameneos) Init(index int, ref *Referee, col Color) *Chameneos {
-	c.index = index;
-	c.ref = ref;
-	c.col = col;
-	c.rendez = make(chan *Chameneos);
-	go c.Serve();
-	return c;
-}
-
-func (c *Chameneos) Serve() {
-	for {
-		c.ref.rendez <- c;
-		c1 := <- c.rendez;
-		if c1 == nil {
-			break
-		}
-		if c1.index == c.index {
-			c.same++
-		}
-		c.count++;
-	}
-}
-
-func play(ref *Referee, color []Color) {
-	cham := make([]Chameneos, len(color));
-	for i, c := range color {
-		fmt.Printf(" %s", c);
-		ref.Add(cham[i].Init(i, ref, c));
-	}
-	fmt.Printf("\n");
-	<-ref.done;
-	total := 0;
-	for _, c := range cham {
-		total += c.count;
-		fmt.Printf("%d %s\n", c.count, say(c.same));
-	}
-	fmt.Printf("%s\n", say(total));
-}
-
-var words = []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}
-
-func say(n int) string {
-	digits := fmt.Sprint(n);
-	s := "";
-	for _, c := range digits {
-		s += " " + words[c-'0'];
-	}
-	return s;
-}
+var np = flag.Int("n", 600, "count")
+var N int
 
 func main() {
 	flag.Parse();
-	printColorTable();
+	N = *np;
+
+	for c0 := 0; c0 < ncol; c0++ {
+		for c1 := 0; c1 < ncol; c1++ {
+			fmt.Printf("%s + %s -> %s\n", colname[c0], colname[c1], colname[complement[c0|c1<<2]])
+		}
+	}
+
+	pallmall([]int{blue, red, yellow});
+	pallmall([]int{blue, red, yellow, red, yellow, blue, red, yellow, red, blue});
+}
+
+func pallmall(cols []int) {
 	fmt.Print("\n");
-	play(NewReferee(), []Color{blue, red, yellow});
-	fmt.Print("\n");
-	play(NewReferee(), []Color{blue, red, yellow, red, yellow, blue, red, yellow, red, blue});
+
+	// invariant: meetingplace always contains a value unless a creature
+	// is currently dealing with it (whereupon it must put it back).
+	meetingplace := make(chan rendez, 1);
+	meetingplace <- rendez{n: 0};
+
+	ended := make(chan result);
+	msg := "";
+	for i, col := range cols {
+		go creature(info{col, i}, meetingplace, ended);
+		msg += " " + colname[col];
+	}
+	fmt.Println(msg);
+	tot := 0;
+	// wait for all results
+	for _ = range (cols) {
+		result := <-ended;
+		tot += result.met;
+		fmt.Println(result.met, spell(result.same, true));
+	}
+	fmt.Println(spell(tot, true));
+}
+
+// in this function, variables ending in 0 refer to the local creature,
+// variables ending in 1 to the creature we've met.
+func creature(info0 info, meetingplace chan rendez, ended chan result) {
+	c0 := make(chan info);
+	met := 0;
+	same := 0;
+	for {
+		var othername int;
+		// get access to rendez data and decide what to do.
+		switch r := <-meetingplace; {
+		case r.n >= N:
+			// if more than N meetings, then send our result data and exit.
+			meetingplace <- rendez{n: r.n};
+			ended <- result{met, same};
+			return;
+		case r.mate == nil:
+			// no creature waiting; wait for someone to meet us,
+			// get their info and send our info in reply.
+			meetingplace <- rendez{n: r.n, info: info0, mate: c0};
+			info1 := <-c0;
+			othername = info1.name;
+			info0.colour = complement[info0.colour|info1.colour<<2];
+		default:
+			// another creature is waiting for us with its info;
+			// increment meeting count,
+			// send them our info in reply.
+			r.n++;
+			meetingplace <- rendez{n: r.n, mate: nil};
+			r.mate <- info0;
+			othername = r.info.name;
+			info0.colour = complement[info0.colour|r.info.colour<<2];
+		}
+		if othername == info0.name {
+			same++
+		}
+		met++;
+	}
+}
+
+var digits = [...]string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}
+
+func spell(n int, required bool) string {
+	if n == 0 && !required {
+		return ""
+	}
+	return spell(n/10, false) + " " + digits[n%10];
 }
