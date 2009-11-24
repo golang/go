@@ -122,3 +122,63 @@ func TestPartition(t *testing.T) {
 	assertArraysAreEqual(t, Data(ti), []int{2, 4});
 	assertArraysAreEqual(t, Data(fi), []int{1, 3, 5});
 }
+
+func TestTake(t *testing.T) {
+	res := Take(oneToFive, 2);
+	assertArraysAreEqual(t, Data(res), []int{1, 2});
+	assertArraysAreEqual(t, Data(res), []int{1, 2});	// second test to ensure that .Iter() returns a new channel
+
+	// take none
+	res = Take(oneToFive, 0);
+	assertArraysAreEqual(t, Data(res), []int{});
+
+	// try to take more than available
+	res = Take(oneToFive, 20);
+	assertArraysAreEqual(t, Data(res), oneToFive);
+}
+
+func TestTakeWhile(t *testing.T) {
+	// take some
+	res := TakeWhile(oneToFive, func(v interface{}) bool { return v.(int) <= 3 });
+	assertArraysAreEqual(t, Data(res), []int{1, 2, 3});
+	assertArraysAreEqual(t, Data(res), []int{1, 2, 3});	// second test to ensure that .Iter() returns a new channel
+
+	// take none
+	res = TakeWhile(oneToFive, func(v interface{}) bool { return v.(int) > 3000 });
+	assertArraysAreEqual(t, Data(res), []int{});
+
+	// take all
+	res = TakeWhile(oneToFive, func(v interface{}) bool { return v.(int) < 3000 });
+	assertArraysAreEqual(t, Data(res), oneToFive);
+}
+
+func TestDrop(t *testing.T) {
+	// drop none
+	res := Drop(oneToFive, 0);
+	assertArraysAreEqual(t, Data(res), oneToFive);
+	assertArraysAreEqual(t, Data(res), oneToFive);	// second test to ensure that .Iter() returns a new channel
+
+	// drop some
+	res = Drop(oneToFive, 2);
+	assertArraysAreEqual(t, Data(res), []int{3, 4, 5});
+	assertArraysAreEqual(t, Data(res), []int{3, 4, 5});	// second test to ensure that .Iter() returns a new channel
+
+	// drop more than available
+	res = Drop(oneToFive, 88);
+	assertArraysAreEqual(t, Data(res), []int{});
+}
+
+func TestDropWhile(t *testing.T) {
+	// drop some
+	res := DropWhile(oneToFive, func(v interface{}) bool { return v.(int) < 3 });
+	assertArraysAreEqual(t, Data(res), []int{3, 4, 5});
+	assertArraysAreEqual(t, Data(res), []int{3, 4, 5});	// second test to ensure that .Iter() returns a new channel
+
+	// test case where all elements are dropped
+	res = DropWhile(oneToFive, func(v interface{}) bool { return v.(int) < 100 });
+	assertArraysAreEqual(t, Data(res), []int{});
+
+	// test case where none are dropped
+	res = DropWhile(oneToFive, func(v interface{}) bool { return v.(int) > 1000 });
+	assertArraysAreEqual(t, Data(res), oneToFive);
+}
