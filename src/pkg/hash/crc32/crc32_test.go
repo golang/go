@@ -60,3 +60,17 @@ func TestGolden(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkCrc32KB(b *testing.B) {
+	b.StopTimer();
+	data := make([]uint8, 1024);
+	for i := 0; i < 1024; i++ {
+		data[i] = uint8(i)
+	}
+	c := NewIEEE();
+	b.StartTimer();
+
+	for i := 0; i < b.N; i++ {
+		c.Write(data)
+	}
+}

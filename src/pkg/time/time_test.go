@@ -82,3 +82,15 @@ func TestSecondsToLocalTime(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkSeconds(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Seconds()
+	}
+}
+
+func BenchmarkNanoseconds(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Nanoseconds()
+	}
+}

@@ -277,3 +277,27 @@ func TestAtoi(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkAtoi(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Atoi("12345678")
+	}
+}
+
+func BenchmarkAtoiNeg(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Atoi("-12345678")
+	}
+}
+
+func BenchmarkAtoi64(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Atoi64("12345678901234")
+	}
+}
+
+func BenchmarkAtoi64Neg(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Atoi64("-12345678901234")
+	}
+}

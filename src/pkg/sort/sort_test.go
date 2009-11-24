@@ -7,6 +7,7 @@ package sort
 import (
 	"fmt";
 	"rand";
+	"strconv";
 	"testing";
 )
 
@@ -83,6 +84,45 @@ func TestSortLarge_Random(t *testing.T) {
 	SortInts(data);
 	if !IntsAreSorted(data) {
 		t.Errorf("sort didn't sort - 1M ints")
+	}
+}
+
+func BenchmarkSortString1K(b *testing.B) {
+	b.StopTimer();
+	for i := 0; i < b.N; i++ {
+		data := make([]string, 1<<10);
+		for i := 0; i < len(data); i++ {
+			data[i] = strconv.Itoa(i ^ 0x2cc)
+		}
+		b.StartTimer();
+		SortStrings(data);
+		b.StopTimer();
+	}
+}
+
+func BenchmarkSortInt1K(b *testing.B) {
+	b.StopTimer();
+	for i := 0; i < b.N; i++ {
+		data := make([]int, 1<<10);
+		for i := 0; i < len(data); i++ {
+			data[i] = i ^ 0x2cc
+		}
+		b.StartTimer();
+		SortInts(data);
+		b.StopTimer();
+	}
+}
+
+func BenchmarkSortInt64K(b *testing.B) {
+	b.StopTimer();
+	for i := 0; i < b.N; i++ {
+		data := make([]int, 1<<16);
+		for i := 0; i < len(data); i++ {
+			data[i] = i ^ 0xcccc
+		}
+		b.StartTimer();
+		SortInts(data);
+		b.StopTimer();
 	}
 }
 
