@@ -2,11 +2,11 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include $(GOROOT)/src/Make.$(GOARCH)
+include ../../../Make.$(GOARCH)
 
 TARG=crypto/md5
 GOFILES=\
 	md5.go\
 	md5block.go\
 
-include $(GOROOT)/src/Make.pkg
+include ../../../Make.pkg

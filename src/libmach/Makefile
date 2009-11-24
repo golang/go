@@ -49,10 +49,10 @@ OFILES=\
 	8obj.$O\
 	$(shell uname | tr A-Z a-z).$O\
 
-HFILES=$(GOROOT)/include/mach.h elf.h macho.h obj.h
+HFILES=../../include/mach.h elf.h macho.h obj.h
 
 install: $(LIB)
-	cp $(LIB) $(GOROOT)/lib
+	cp $(LIB) ../../lib
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)
@@ -63,5 +63,5 @@ clean:
 	rm -f *.$O $(LIB)
 
 nuke: clean
-	rm -f $(GOROOT)/lib/$(LIB)
+	rm -f "$(GOROOT)"/lib/$(LIB)
 

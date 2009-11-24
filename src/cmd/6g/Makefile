@@ -28,7 +28,7 @@ LIB=\
 	../gc/gc.a$O
 
 $(TARG): $(OFILES) $(LIB)
-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lbio -l9 -lm
+	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lbio -l9 -lm
 
 $(OFILES): $(HFILES)
 
@@ -36,4 +36,4 @@ clean:
 	rm -f $(TARG) enam.c 6.out a.out *.$O *.6
 
 install: $(TARG)
-	cp $(TARG) $(GOBIN)/$(TARG)
+	cp $(TARG) "$(GOBIN)"/$(TARG)

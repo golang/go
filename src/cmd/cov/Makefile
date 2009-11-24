@@ -17,7 +17,7 @@ HFILES=\
 	tree.h\
 
 $(TARG): $(OFILES)
-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lbio -l9
+	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lmach -lbio -l9
 
 clean:
 	rm -f *.$O $(TARG)
@@ -31,6 +31,6 @@ install-darwin: $(TARG)
 	@true
 
 install-default: $(TARG)
-	cp $(TARG) $(GOBIN)/$(TARG)
+	cp $(TARG) "$(GOBIN)"/$(TARG)
 
 $(OFILES): $(HFILES)

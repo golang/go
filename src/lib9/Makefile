@@ -92,11 +92,11 @@ OFILES=\
 	$(UTFOFILES)\
 
 HFILES=\
-	$(GOROOT)/include/u.h\
-	$(GOROOT)/include/libc.h\
+	"$(GOROOT)"/include/u.h\
+	"$(GOROOT)"/include/libc.h\
 
 install: $(LIB)
-	cp $(LIB) $(GOROOT)/lib
+	cp $(LIB) "$(GOROOT)/lib"
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)
@@ -111,7 +111,7 @@ clean:
 	rm -f *.$O *.6 6.out $(LIB)
 
 nuke: clean
-	rm -f $(GOROOT)/lib/$(LIB)
+	rm -f "$(GOROOT)"/lib/$(LIB)
 
 #XLIB=$PLAN9/lib/$LIB
 

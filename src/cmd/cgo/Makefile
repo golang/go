@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include $(GOROOT)/src/Make.$(GOARCH)
+include ../../Make.$(GOARCH)
 
 TARG=cgo
 GOFILES=\
@@ -12,4 +12,4 @@ GOFILES=\
 	out.go\
 	util.go\
 
-include $(GOROOT)/src/Make.cmd
+include ../../Make.cmd

@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include $(GOROOT)/src/Make.$(GOARCH)
+include ../../../src/Make.$(GOARCH)
 
 TARG=stdio
 CGOFILES=\
@@ -10,7 +10,7 @@ CGOFILES=\
 
 CLEANFILES+=hello fib chain run.out
 
-include $(GOROOT)/src/Make.pkg
+include ../../../src/Make.pkg
 
 %: install %.go
 	$(GC) $*.go

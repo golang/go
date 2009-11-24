@@ -5,7 +5,7 @@
 
 set -e
 
-. $GOROOT/src/Make.$GOARCH
+. "$GOROOT"/src/Make.$GOARCH
 if [ -z "$GC" ]; then
 	echo 'missing $GC - maybe no Make.$GOARCH?' 1>&2
 	exit 1

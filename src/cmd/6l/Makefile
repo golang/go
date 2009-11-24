@@ -28,7 +28,7 @@ HFILES=\
 	../ld/macho.h\
 
 $(TARG): $(OFILES)
-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
+	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
 
 $(OFILES): $(HFILES)
 
@@ -39,7 +39,7 @@ clean:
 	rm -f *.$O $(TARG) *.6 enam.c 6.out a.out
 
 install: $(TARG)
-	cp $(TARG) $(GOBIN)/$(TARG)
+	cp $(TARG) "$(GOBIN)"/$(TARG)
 
 %.$O: ../ld/%.c
 	$(CC) $(CFLAGS) -c -I. ../ld/$*.c

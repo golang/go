@@ -13,12 +13,12 @@ OFILES=\
 	nm.$O\
 
 $(TARG): $(OFILES)
-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lbio -l9
+	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lmach -lbio -l9
 
 clean:
 	rm -f *.$O $(TARG)
 
 install: $(TARG)
-	cp $(TARG) $(GOBIN)/$(TARG)
+	cp $(TARG) "$(GOBIN)"/$(TARG)
 
 $(OFILES): $(HFILES)

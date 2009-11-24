@@ -12,7 +12,7 @@ esac
 
 for i in prof cov
 do
-	sudo cp $GOROOT/src/cmd/$i/6$i /usr/local/bin/6$i
+	sudo cp "$GOROOT"/src/cmd/$i/6$i /usr/local/bin/6$i
 	sudo chgrp procmod /usr/local/bin/6$i
 	sudo chmod g+s /usr/local/bin/6$i
 done
