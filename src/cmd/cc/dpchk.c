@@ -214,7 +214,7 @@ getquoted(void)
 	fmtstrinit(&fmt);
 	for(;;) {
 		r = getr();
-		if(r == ' ' || r == '\n') {
+		if(r == '\n') {
 			free(fmtstrflush(&fmt));
 			return nil;
 		}
