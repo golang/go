@@ -28,6 +28,7 @@ DIRS=\
 	crypto/aes\
 	crypto/block\
 	crypto/hmac\
+	crypto/md4\
 	crypto/md5\
 	crypto/rc4\
 	crypto/rsa\
