@@ -10,41 +10,100 @@ import "fmt"
 
 
 func TestZeroLen(t *testing.T) {
-	var a *Vector;
-	if a.Len() != 0 {
-		t.Errorf("A) expected 0, got %d", a.Len())
-	}
-	a = New(0);
+	a := new(Vector);
 	if a.Len() != 0 {
 		t.Errorf("B) expected 0, got %d", a.Len())
 	}
 }
 
 
-func TestInit(t *testing.T) {
-	var a Vector;
-	if a.Init(0).Len() != 0 {
-		t.Error("A")
+type VectorInterface interface {
+	Len() int;
+	Cap() int;
+}
+
+
+func checkSize(t *testing.T, v VectorInterface, len, cap int) {
+	if v.Len() != len {
+		t.Errorf("expected len = %d; found %d", len, v.Len())
 	}
-	if a.Init(1).Len() != 1 {
-		t.Error("B")
-	}
-	if a.Init(10).Len() != 10 {
-		t.Error("C")
+	if v.Cap() != cap {
+		t.Errorf("expected cap = %d; found %d", cap, v.Cap())
 	}
 }
 
 
-func TestNew(t *testing.T) {
-	if New(0).Len() != 0 {
-		t.Error("A")
+func TestResize(t *testing.T) {
+	var a Vector;
+	checkSize(t, &a, 0, 0);
+	checkSize(t, a.Resize(0, 5), 0, 5);
+	checkSize(t, a.Resize(1, 0), 1, 5);
+	checkSize(t, a.Resize(10, 0), 10, 10);
+	checkSize(t, a.Resize(5, 0), 5, 10);
+	checkSize(t, a.Resize(3, 8), 3, 10);
+	checkSize(t, a.Resize(0, 100), 0, 100);
+	checkSize(t, a.Resize(11, 100), 11, 100);
+}
+
+
+func TestIntResize(t *testing.T) {
+	var a IntVector;
+	checkSize(t, &a, 0, 0);
+	a.Push(1);
+	a.Push(2);
+	a.Push(3);
+	a.Push(4);
+	checkSize(t, &a, 4, 4);
+	checkSize(t, a.Resize(10, 0), 10, 10);
+	for i := 4; i < a.Len(); i++ {
+		if a.At(i) != 0 {
+			t.Errorf("expected a.At(%d) == 0; found %d", i, a.At(i))
+		}
 	}
-	if New(1).Len() != 1 {
-		t.Error("B")
+}
+
+
+func TestStringResize(t *testing.T) {
+	var a StringVector;
+	checkSize(t, &a, 0, 0);
+	a.Push("1");
+	a.Push("2");
+	a.Push("3");
+	a.Push("4");
+	checkSize(t, &a, 4, 4);
+	checkSize(t, a.Resize(10, 0), 10, 10);
+	for i := 4; i < a.Len(); i++ {
+		if a.At(i) != "" {
+			t.Errorf("expected a.At(%d) == " "; found %s", i, a.At(i))
+		}
 	}
-	if New(10).Len() != 10 {
-		t.Error("C")
+}
+
+
+func checkNil(t *testing.T, a *Vector, i int) {
+	for j := 0; j < i; j++ {
+		if a.At(j) == nil {
+			t.Errorf("expected a.At(%d) == %d; found %v", j, j, a.At(j))
+		}
 	}
+	for ; i < a.Len(); i++ {
+		if a.At(i) != nil {
+			t.Errorf("expected a.At(%d) == nil; found %v", i, a.At(i))
+		}
+	}
+}
+
+
+func TestTrailingElements(t *testing.T) {
+	var a Vector;
+	for i := 0; i < 10; i++ {
+		a.Push(i)
+	}
+	checkNil(t, &a, 10);
+	checkSize(t, &a, 10, 16);
+	checkSize(t, a.Resize(5, 0), 5, 16);
+	checkSize(t, a.Resize(10, 0), 10, 16);
+	checkNil(t, &a, 5);
 }
 
 
@@ -54,7 +113,7 @@ func val(i int) int	{ return i*991 - 1234 }
 func TestAccess(t *testing.T) {
 	const n = 100;
 	var a Vector;
-	a.Init(n);
+	a.Resize(n, 0);
 	for i := 0; i < n; i++ {
 		a.Set(i, val(i))
 	}
@@ -104,7 +163,7 @@ func TestInsertDeleteClear(t *testing.T) {
 			t.Error("H")
 		}
 	}
-	a.Init(0);
+	a.Resize(0, 0);
 	if a.Len() != 0 {
 		t.Errorf("I wrong len %d (expected 0)", a.Len())
 	}
@@ -157,7 +216,7 @@ func verify_pattern(t *testing.T, x *Vector, a, b, c int) {
 
 
 func make_vector(elt, len int) *Vector {
-	x := New(len);
+	x := new(Vector).Resize(len, 0);
 	for i := 0; i < len; i++ {
 		x.Set(i, elt)
 	}
@@ -193,7 +252,7 @@ func TestInsertVector(t *testing.T) {
 func TestSorting(t *testing.T) {
 	const n = 100;
 
-	a := NewIntVector(n);
+	a := new(IntVector).Resize(n, 0);
 	for i := n - 1; i >= 0; i-- {
 		a.Set(i, n-1-i)
 	}
@@ -201,7 +260,7 @@ func TestSorting(t *testing.T) {
 		t.Error("int vector not sorted")
 	}
 
-	b := NewStringVector(n);
+	b := new(StringVector).Resize(n, 0);
 	for i := n - 1; i >= 0; i-- {
 		b.Set(i, fmt.Sprint(n-1-i))
 	}
@@ -214,7 +273,7 @@ func TestSorting(t *testing.T) {
 func TestDo(t *testing.T) {
 	const n = 25;
 	const salt = 17;
-	a := NewIntVector(n);
+	a := new(IntVector).Resize(n, 0);
 	for i := 0; i < n; i++ {
 		a.Set(i, salt*i)
 	}
@@ -234,7 +293,7 @@ func TestDo(t *testing.T) {
 
 func TestIter(t *testing.T) {
 	const Len = 100;
-	x := New(Len);
+	x := new(Vector).Resize(Len, 0);
 	for i := 0; i < Len; i++ {
 		x.Set(i, i*i)
 	}

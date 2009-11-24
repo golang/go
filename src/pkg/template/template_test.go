@@ -308,7 +308,7 @@ func TestAll(t *testing.T) {
 	s.pdata = []*T{&t1, &t2};
 	s.empty = []*T{};
 	s.null = nil;
-	s.vec = vector.New(0);
+	s.vec = new(vector.Vector);
 	s.vec.Push("elt1");
 	s.vec.Push("elt2");
 	s.true = true;

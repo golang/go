@@ -93,7 +93,7 @@ type Writer struct {
 }
 
 
-func (b *Writer) addLine()	{ b.lines.Push(vector.New(0)) }
+func (b *Writer) addLine()	{ b.lines.Push(new(vector.Vector)) }
 
 
 func (b *Writer) line(i int) *vector.Vector	{ return b.lines.At(i).(*vector.Vector) }
@@ -105,8 +105,8 @@ func (b *Writer) reset() {
 	b.pos = 0;
 	b.cell = cell{};
 	b.endChar = 0;
-	b.lines.Init(0);
-	b.widths.Init(0);
+	b.lines.Resize(0, 0);
+	b.widths.Resize(0, 0);
 	b.addLine();
 }
 

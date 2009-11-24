@@ -24,9 +24,9 @@ type ErrorHandler interface {
 }
 
 
-// ErrorVector implements the ErrorHandler interface. It must be
-// initialized with Init(). It maintains a list of errors which can
-// be retrieved with GetErrorList and GetError.
+// ErrorVector implements the ErrorHandler interface. It maintains a list
+// of errors which can be retrieved with GetErrorList and GetError. The
+// zero value for an ErrorVector is an empty ErrorVector ready to use.
 //
 // A common usage pattern is to embed an ErrorVector alongside a
 // scanner in a data structure that uses the scanner. By passing a
@@ -38,16 +38,8 @@ type ErrorVector struct {
 }
 
 
-// Init initializes an ErrorVector.
-func (h *ErrorVector) Init()	{ h.errors.Init(0) }
-
-
-// NewErrorVector creates a new ErrorVector.
-func NewErrorVector() *ErrorVector {
-	h := new(ErrorVector);
-	h.Init();
-	return h;
-}
+// Reset resets an ErrorVector to no errors.
+func (h *ErrorVector) Reset()	{ h.errors.Resize(0, 0) }
 
 
 // ErrorCount returns the number of errors collected.

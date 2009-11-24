@@ -15,13 +15,6 @@ type myHeap struct {
 }
 
 
-func newHeap() *myHeap {
-	var h myHeap;
-	h.IntVector.Init(0);
-	return &h;
-}
-
-
 func (h *myHeap) verify(t *testing.T, i int) {
 	n := h.Len();
 	j1 := 2*i + 1;
@@ -50,7 +43,7 @@ func (h *myHeap) Pop() interface{}	{ return h.IntVector.Pop() }
 
 
 func TestInit(t *testing.T) {
-	h := newHeap();
+	h := new(myHeap);
 	for i := 20; i > 0; i-- {
 		h.Push(i)
 	}
@@ -68,7 +61,7 @@ func TestInit(t *testing.T) {
 
 
 func Test(t *testing.T) {
-	h := newHeap();
+	h := new(myHeap);
 	h.verify(t, 0);
 
 	for i := 20; i > 10; i-- {

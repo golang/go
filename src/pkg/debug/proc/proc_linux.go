@@ -472,7 +472,7 @@ func (t *thread) setState(new threadState) {
 		return
 	}
 
-	t.proc.transitionHandlers = vector.New(0);
+	t.proc.transitionHandlers = new(vector.Vector);
 	for _, h := range handlers.Data() {
 		h := h.(*transitionHandler);
 		h.handle(t, old, new);
@@ -1256,7 +1256,7 @@ func newProcess(pid int) *process {
 		debugEvents: make(chan *debugEvent),
 		debugReqs: make(chan *debugReq),
 		stopReq: make(chan os.Error),
-		transitionHandlers: vector.New(0),
+		transitionHandlers: new(vector.Vector),
 	};
 
 	go p.monitor();

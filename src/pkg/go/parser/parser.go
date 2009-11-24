@@ -76,7 +76,6 @@ func scannerMode(mode uint) uint {
 
 
 func (p *parser) init(filename string, src []byte, mode uint) {
-	p.ErrorVector.Init();
 	p.scanner.Init(filename, src, p, scannerMode(mode));
 	p.mode = mode;
 	p.trace = mode&Trace != 0;	// for convenience (p.trace is used frequently)
@@ -164,7 +163,7 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
 // a comment group.
 //
 func (p *parser) consumeCommentGroup() int {
-	list := vector.New(0);
+	list := new(vector.Vector);
 	endline := p.pos.Line;
 	for p.tok == token.COMMENT && endline+1 >= p.pos.Line {
 		var comment *ast.Comment;
@@ -309,7 +308,7 @@ func (p *parser) parseIdentList() []*ast.Ident {
 		defer un(trace(p, "IdentList"))
 	}
 
-	list := vector.New(0);
+	list := new(vector.Vector);
 	list.Push(p.parseIdent());
 	for p.tok == token.COMMA {
 		p.next();
@@ -331,7 +330,7 @@ func (p *parser) parseExprList() []ast.Expr {
 		defer un(trace(p, "ExpressionList"))
 	}
 
-	list := vector.New(0);
+	list := new(vector.Vector);
 	list.Push(p.parseExpr());
 	for p.tok == token.COMMA {
 		p.next();
@@ -436,7 +435,7 @@ func (p *parser) parseFieldDecl() *ast.Field {
 	doc := p.leadComment;
 
 	// a list of identifiers looks like a list of type names
-	list := vector.New(0);
+	list := new(vector.Vector);
 	for {
 		// TODO(gri): do not allow ()'s here
 		list.Push(p.parseType());
@@ -483,7 +482,7 @@ func (p *parser) parseStructType() *ast.StructType {
 
 	pos := p.expect(token.STRUCT);
 	lbrace := p.expect(token.LBRACE);
-	list := vector.New(0);
+	list := new(vector.Vector);
 	for p.tok == token.IDENT || p.tok == token.MUL {
 		f := p.parseFieldDecl();
 		if p.tok != token.RBRACE {
@@ -548,7 +547,7 @@ func (p *parser) parseParameterDecl(ellipsisOk bool) (*vector.Vector, ast.Expr) 
 	}
 
 	// a list of identifiers looks like a list of type names
-	list := vector.New(0);
+	list := new(vector.Vector);
 	for {
 		// TODO(gri): do not allow ()'s here
 		list.Push(p.parseParameterType(ellipsisOk));
@@ -575,7 +574,7 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
 	if typ != nil {
 		// IdentifierList Type
 		idents := p.makeIdentList(list);
-		list.Init(0);
+		list.Resize(0, 0);
 		list.Push(&ast.Field{nil, idents, typ, nil, nil});
 
 		for p.tok == token.COMMA {
@@ -693,7 +692,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 
 	pos := p.expect(token.INTERFACE);
 	lbrace := p.expect(token.LBRACE);
-	list := vector.New(0);
+	list := new(vector.Vector);
 	for p.tok == token.IDENT {
 		m := p.parseMethodSpec();
 		if p.tok != token.RBRACE {
@@ -805,7 +804,7 @@ func (p *parser) parseStmtList() []ast.Stmt {
 		defer un(trace(p, "StatementList"))
 	}
 
-	list := vector.New(0);
+	list := new(vector.Vector);
 	expectSemi := false;
 	for p.tok != token.CASE && p.tok != token.DEFAULT && p.tok != token.RBRACE && p.tok != token.EOF {
 		if expectSemi {
@@ -850,7 +849,7 @@ func (p *parser) parseStringList(x *ast.BasicLit) []*ast.BasicLit {
 		defer un(trace(p, "StringList"))
 	}
 
-	list := vector.New(0);
+	list := new(vector.Vector);
 	if x != nil {
 		list.Push(x)
 	}
@@ -1024,7 +1023,7 @@ func (p *parser) parseElementList() []ast.Expr {
 		defer un(trace(p, "ElementList"))
 	}
 
-	list := vector.New(0);
+	list := new(vector.Vector);
 	for p.tok != token.RBRACE && p.tok != token.EOF {
 		list.Push(p.parseElement());
 		if p.tok == token.COMMA {
@@ -1464,7 +1463,7 @@ func (p *parser) parseTypeList() []ast.Expr {
 		defer un(trace(p, "TypeList"))
 	}
 
-	list := vector.New(0);
+	list := new(vector.Vector);
 	list.Push(p.parseType());
 	for p.tok == token.COMMA {
 		p.next();
@@ -1533,7 +1532,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 
 	if isExprSwitch(s2) {
 		lbrace := p.expect(token.LBRACE);
-		cases := vector.New(0);
+		cases := new(vector.Vector);
 		for p.tok == token.CASE || p.tok == token.DEFAULT {
 			cases.Push(p.parseCaseClause())
 		}
@@ -1546,7 +1545,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	// type switch
 	// TODO(gri): do all the checks!
 	lbrace := p.expect(token.LBRACE);
-	cases := vector.New(0);
+	cases := new(vector.Vector);
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
 		cases.Push(p.parseTypeCaseClause())
 	}
@@ -1608,7 +1607,7 @@ func (p *parser) parseSelectStmt() *ast.SelectStmt {
 
 	pos := p.expect(token.SELECT);
 	lbrace := p.expect(token.LBRACE);
-	cases := vector.New(0);
+	cases := new(vector.Vector);
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
 		cases.Push(p.parseCommClause())
 	}
@@ -1818,7 +1817,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi 
 	doc := p.leadComment;
 	pos := p.expect(keyword);
 	var lparen, rparen token.Position;
-	list := vector.New(0);
+	list := new(vector.Vector);
 	if p.tok == token.LPAREN {
 		lparen = p.pos;
 		p.next();
@@ -1947,7 +1946,7 @@ func (p *parser) parseDeclList() []ast.Decl {
 		defer un(trace(p, "DeclList"))
 	}
 
-	list := vector.New(0);
+	list := new(vector.Vector);
 	for p.tok != token.EOF {
 		decl, _ := p.parseDecl(true);	// consume optional semicolon
 		list.Push(decl);
@@ -1985,7 +1984,7 @@ func (p *parser) parseFile() *ast.File {
 
 	if p.ErrorCount() == 0 && p.mode&PackageClauseOnly == 0 {
 		// import decls
-		list := vector.New(0);
+		list := new(vector.Vector);
 		for p.tok == token.IMPORT {
 			decl, _ := p.parseGenDecl(token.IMPORT, parseImportSpec, true);	// consume optional semicolon
 			list.Push(decl);

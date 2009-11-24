@@ -10,7 +10,7 @@ import "container/vector"
 
 
 type S struct {
-	val int
+	val int;
 }
 
 
@@ -21,36 +21,36 @@ func (p *S) Init(val int) *S {
 
 
 func test0() {
-	v := vector.New(0);
+	v := new(vector.Vector);
 	if v.Len() != 0 {
-		panic("len = ", v.Len(), "\n");
+		panic("len = ", v.Len(), "\n")
 	}
 }
 
 
 func test1() {
-	var a [1000] *S;
+	var a [1000]*S;
 	for i := 0; i < len(a); i++ {
-		a[i] = new(S).Init(i);
+		a[i] = new(S).Init(i)
 	}
 
-	v := vector.New(0);
+	v := new(vector.Vector);
 	for i := 0; i < len(a); i++ {
 		v.Insert(0, a[i]);
-		if v.Len() != i + 1 {
-			panic("len = ", v.Len(), "\n");
+		if v.Len() != i+1 {
+			panic("len = ", v.Len(), "\n")
 		}
 	}
 
 	for i := 0; i < v.Len(); i++ {
 		x := v.At(i).(*S);
-		if x.val != v.Len() - i - 1 {
-			panic("expected ", i, ", found ", x.val, "\n");
+		if x.val != v.Len()-i-1 {
+			panic("expected ", i, ", found ", x.val, "\n")
 		}
 	}
 
 	for v.Len() > 10 {
-		v.Delete(10);
+		v.Delete(10)
 	}
 }
 
