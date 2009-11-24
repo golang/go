@@ -75,10 +75,9 @@ func dirList(c *Conn, f *os.File) {
 func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
 	const indexPage = "/index.html";
 
-	// redirect to strip off any index.html
-	n := len(name) - len(indexPage);
-	if n >= 0 && name[n:] == indexPage {
-		Redirect(c, name[0:n+1], StatusMovedPermanently);
+	// redirect .../index.html to .../
+	if strings.HasSuffix(r.URL.Path, indexPage) {
+		Redirect(c, r.URL.Path[0:len(r.URL.Path)-len(indexPage)+1], StatusMovedPermanently);
 		return;
 	}
 
