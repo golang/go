@@ -5,6 +5,7 @@
 package json
 
 import (
+	"reflect";
 	"testing";
 )
 
@@ -72,5 +73,8 @@ func TestJsonMap(t *testing.T) {
 		if v1 := mapv.Get(k); !Equal(v1, v) {
 			t.Errorf("MapTest: Walk(%#q) => %v, want %v", k, v1, v)
 		}
+	}
+	if !reflect.DeepEqual(values, mapv.Map()) {
+		t.Errorf("DeepEqual(values, mapv.Map()) failed")
 	}
 }
