@@ -571,6 +571,15 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType) *FuncType {
 	p := make([]*Type, len(dtype.ParamType));
 	gp := make([]*ast.Field, len(dtype.ParamType));
 	for i, f := range dtype.ParamType {
+		// gcc's DWARF generator outputs a single DotDotDotType parameter for
+		// function pointers that specify no parameters (e.g. void
+		// (*__cgo_0)()).  Treat this special case as void.  This case is
+		// invalid according to ISO C anyway (i.e. void (*__cgo_1)(...) is not
+		// legal).
+		if _, ok := f.(*dwarf.DotDotDotType); ok && i == 0 {
+			p, gp = nil, nil;
+			break;
+		}
 		p[i] = c.FuncArg(f);
 		gp[i] = &ast.Field{Type: p[i].Go};
 	}
