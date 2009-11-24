@@ -859,6 +859,7 @@ func isTextFile(path string) bool {
 	if err != nil {
 		return false
 	}
+	defer f.Close();
 
 	var buf [1024]byte;
 	n, err := f.Read(&buf);
