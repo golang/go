@@ -626,20 +626,36 @@ who &ldquo;The Go Authors&rdquo;&mdash;the copyright holders&mdash;are.
 </p>
 
 <p>
-When sending your first change list, you should prepare
-and send a separate change list adding yourself to
-<code>CONTRIBUTORS</code> and adding
-the copyright holder for your code to <code>AUTHORS</code> if not already listed.
+When sending your first change list, you need to do two extra things before your
+code can be accepted.
+</p>
+<ol>
+<li>
 If you are the copyright holder, you will need to agree to
-the <a href="http://code.google.com/legal/individual-cla-v1.0.html">individual contributor license agreement</a>,
-which can be completed online;
+the <a href="http://code.google.com/legal/individual-cla-v1.0.html">individual
+contributor license agreement</a>, which can be completed online;
 if your organization is the copyright holder, the organization
 will need to agree to the <a href="http://code.google.com/legal/corporate-cla-v1.0.html">corporate contributor license agreement</a>.
-If the copyright holder for your code has already completed the
+(If the copyright holder for your code has already completed the
 agreement in connection with another Google open source project,
-it does not need to be completed again.
-One of the Go developers at Google will approve and submit
-this change after checking the list of people/organizations
-that have completed the agreement.
+it does not need to be completed again.)
+<li>
+Send mail, or include information in the change list description,
+notifying us how you should be represented in the <code>CONTRIBUTORS</code>
+and <code>AUTHORS</code> files so we can add your information to
+them.  Specifically, tell us either that you've completed the
+individual agreement or tell us the name of your organization once
+it has completed the corporate agreement.  One of the Go developers
+at Google will add you to <code>CONTRIBUTORS</code> and, if
+appropriate, <code>AUTHORS</code> after verifying that the agreement
+has been completed.  We will use the email address you use on
+codereview.appspot.com as the email address in these files.</ol>
+<p>
+This rigamarole needs to be done only for your first submission.
 </p>
 
+<p>
+Once the code is ready to be committed,
+one of the Go developers at Google will approve and submit
+your change.
+</p>
