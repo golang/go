@@ -169,6 +169,7 @@ func tolerance(a, b, e float64) bool {
 	}
 	return d < e;
 }
+func kindaclose(a, b float64) bool	{ return tolerance(a, b, 1e-8) }
 func close(a, b float64) bool		{ return tolerance(a, b, 1e-14) }
 func veryclose(a, b float64) bool	{ return tolerance(a, b, 4e-16) }
 
@@ -270,6 +271,42 @@ func TestHypot(t *testing.T) {
 		a := Fabs(tanh[i] * Sqrt(2));
 		if f := Hypot(tanh[i], tanh[i]); !veryclose(a, f) {
 			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a)
+		}
+	}
+}
+
+// Check that math functions of high angle values
+// return similar results to low angle values
+func TestLargeSin(t *testing.T) {
+	large := float64(100000 * Pi);
+	for i := 0; i < len(vf); i++ {
+		f1 := Sin(vf[i]);
+		f2 := Sin(vf[i] + large);
+		if !kindaclose(f1, f2) {
+			t.Errorf("Sin(%g) = %g, want %g\n", vf[i]+large, f1, f2)
+		}
+	}
+}
+
+func TestLargeCos(t *testing.T) {
+	large := float64(100000 * Pi);
+	for i := 0; i < len(vf); i++ {
+		f1 := Cos(vf[i]);
+		f2 := Cos(vf[i] + large);
+		if !kindaclose(f1, f2) {
+			t.Errorf("Cos(%g) = %g, want %g\n", vf[i]+large, f1, f2)
+		}
+	}
+}
+
+
+func TestLargeTan(t *testing.T) {
+	large := float64(100000 * Pi);
+	for i := 0; i < len(vf); i++ {
+		f1 := Tan(vf[i]);
+		f2 := Tan(vf[i] + large);
+		if !kindaclose(f1, f2) {
+			t.Errorf("Tan(%g) = %g, want %g\n", vf[i]+large, f1, f2)
 		}
 	}
 }
