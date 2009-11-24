@@ -11,17 +11,19 @@ type IntVector struct {
 }
 
 
-// Init initializes a new or resized vector.  The initial length may be <= 0 to
-// request a default length.  If initial_len is shorter than the current
-// length of the IntVector, trailing elements of the IntVector will be cleared.
-func (p *IntVector) Init(len int) *IntVector {
-	p.Vector.Init(len);
+// Resize changes the length and capacity of a vector.
+// If the new length is shorter than the current length, Resize discards
+// trailing elements. If the new length is longer than the current length,
+// Resize adds 0 elements. The capacity parameter is ignored unless the
+// new length or capacity is longer that the current capacity.
+func (p *IntVector) Resize(length, capacity int) *IntVector {
+	i := p.Len();
+	p.Vector.Resize(length, capacity);
+	for a := p.a; i < len(a); i++ {
+		a[i] = 0
+	}
 	return p;
 }
-
-
-// NewIntVector returns an initialized new IntVector with length at least len.
-func NewIntVector(len int) *IntVector	{ return new(IntVector).Init(len) }
 
 
 // At returns the i'th element of the vector.

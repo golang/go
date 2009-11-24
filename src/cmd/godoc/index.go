@@ -255,7 +255,7 @@ func newFileRun(h0 *RunList, i, j int) interface{} {
 
 	// reduce the list of Spots into a list of KindRuns
 	var h1 RunList;
-	h1.Vector.Init(j - i);
+	h1.Vector.Resize(j-i, 0);
 	k := 0;
 	for ; i < j; i++ {
 		h1.Set(k, h0.At(i).(Spot).Info);

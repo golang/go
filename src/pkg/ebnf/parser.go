@@ -117,7 +117,6 @@ func (p *parser) parseTerm() (x Expression) {
 
 func (p *parser) parseSequence() Expression {
 	var list vector.Vector;
-	list.Init(0);
 
 	for x := p.parseTerm(); x != nil; x = p.parseTerm() {
 		list.Push(x)
@@ -142,7 +141,6 @@ func (p *parser) parseSequence() Expression {
 
 func (p *parser) parseExpression() Expression {
 	var list vector.Vector;
-	list.Init(0);
 
 	for {
 		x := p.parseSequence();
@@ -183,7 +181,7 @@ func (p *parser) parseProduction() *Production {
 
 func (p *parser) parse(filename string, src []byte) Grammar {
 	// initialize parser
-	p.ErrorVector.Init();
+	p.ErrorVector.Reset();
 	p.scanner.Init(filename, src, p, 0);
 	p.next();	// initializes pos, tok, lit
 

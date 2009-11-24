@@ -46,10 +46,10 @@ type docReader struct {
 
 func (doc *docReader) init(pkgName string) {
 	doc.pkgName = pkgName;
-	doc.values = vector.New(0);
+	doc.values = new(vector.Vector);
 	doc.types = make(map[string]*typeDoc);
 	doc.funcs = make(map[string]*ast.FuncDecl);
-	doc.bugs = vector.New(0);
+	doc.bugs = new(vector.Vector);
 }
 
 
@@ -74,7 +74,7 @@ func (doc *docReader) lookupTypeDoc(name string) *typeDoc {
 		return tdoc
 	}
 	// type wasn't found - add one without declaration
-	tdoc := &typeDoc{nil, vector.New(0), make(map[string]*ast.FuncDecl), make(map[string]*ast.FuncDecl)};
+	tdoc := &typeDoc{nil, new(vector.Vector), make(map[string]*ast.FuncDecl), make(map[string]*ast.FuncDecl)};
 	doc.types[name] = tdoc;
 	return tdoc;
 }

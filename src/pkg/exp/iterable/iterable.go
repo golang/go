@@ -36,7 +36,7 @@ func Any(iter Iterable, f func(interface{}) bool) bool {
 
 // Data returns a slice containing the elements of iter.
 func Data(iter Iterable) []interface{} {
-	vec := vector.New(0);
+	vec := new(vector.Vector);
 	for e := range iter.Iter() {
 		vec.Push(e)
 	}

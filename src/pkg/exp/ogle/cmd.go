@@ -63,7 +63,6 @@ func Main() {
 func newScanner(input []byte) (*scanner.Scanner, *scanner.ErrorVector) {
 	sc := new(scanner.Scanner);
 	ev := new(scanner.ErrorVector);
-	ev.Init();
 	sc.Init("input", input, ev, 0);
 
 	return sc, ev;

@@ -47,7 +47,7 @@ func (w *World) CompileStmtList(stmts []ast.Stmt) (Code, os.Error) {
 			return w.CompileExpr(s.X)
 		}
 	}
-	errors := scanner.NewErrorVector();
+	errors := new(scanner.ErrorVector);
 	cc := &compiler{errors, 0, 0};
 	cb := newCodeBuf();
 	fc := &funcCompiler{
@@ -96,7 +96,7 @@ type exprCode struct {
 }
 
 func (w *World) CompileExpr(e ast.Expr) (Code, os.Error) {
-	errors := scanner.NewErrorVector();
+	errors := new(scanner.ErrorVector);
 	cc := &compiler{errors, 0, 0};
 
 	ec := cc.compileExpr(w.scope.block, false, e);

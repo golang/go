@@ -566,7 +566,7 @@ func ParseCertificate(asn1Data []byte) (*Certificate, os.Error) {
 // ParseCertificates parses one or more certificates from the given ASN.1 DER
 // data. The certificates must be concatenated with no intermediate padding.
 func ParseCertificates(asn1Data []byte) ([]*Certificate, os.Error) {
-	v := vector.New(0);
+	v := new(vector.Vector);
 
 	for len(asn1Data) > 0 {
 		cert := new(certificate);

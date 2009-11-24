@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The vector package implements an efficient container for managing
-// linear arrays of elements.  Unlike arrays, vectors can change size dynamically.
+// The vector package implements a container for managing sequences
+// of elements. Vectors grow and shrink dynamically as necessary.
 package vector
 
 // Vector is the container itself.
@@ -13,29 +13,22 @@ type Vector struct {
 }
 
 
-func copy(dst, src []interface{}) {
-	for i, x := range src {
-		dst[i] = x
-	}
-}
-
-
 // Insert n elements at position i.
 func expand(a []interface{}, i, n int) []interface{} {
 	// make sure we have enough space
 	len0 := len(a);
 	len1 := len0 + n;
-	if len1 < cap(a) {
+	if len1 <= cap(a) {
 		// enough space - just expand
 		a = a[0:len1]
 	} else {
 		// not enough space - double capacity
 		capb := cap(a) * 2;
-		if capb < len1 {
+		if capb <= len1 {
 			// still not enough - use required length
 			capb = len1
 		}
-		// capb >= len1
+		// capb > len1
 		b := make([]interface{}, len1, capb);
 		copy(b, a);
 		a = b;
@@ -49,42 +42,38 @@ func expand(a []interface{}, i, n int) []interface{} {
 }
 
 
-// Init initializes a new or resized vector.  The initial_len may be <= 0 to
-// request a default length.  If initial_len is shorter than the current
-// length of the Vector, trailing elements of the Vector will be cleared.
-func (p *Vector) Init(initial_len int) *Vector {
+// Resize changes the length and capacity of a vector.
+// If the new length is shorter than the current length, Resize discards
+// trailing elements. If the new length is longer than the current length,
+// Resize adds nil elements. The capacity parameter is ignored unless the
+// new length or capacity is longer that the current capacity.
+func (p *Vector) Resize(length, capacity int) *Vector {
 	a := p.a;
 
-	if cap(a) == 0 || cap(a) < initial_len {
-		n := 8;	// initial capacity
-		if initial_len > n {
-			n = initial_len
-		}
-		a = make([]interface{}, n);
-	} else {
-		// nil out entries
-		for j := len(a) - 1; j >= 0; j-- {
-			a[j] = nil
+	if length > cap(a) || capacity > cap(a) {
+		// not enough space or larger capacity requested explicitly
+		b := make([]interface{}, length, capacity);
+		copy(b, a);
+		a = b;
+	} else if length < len(a) {
+		// clear trailing elements
+		for i := range a[length:] {
+			a[length+i] = nil
 		}
 	}
 
-	p.a = a[0:initial_len];
+	p.a = a[0:length];
 	return p;
 }
 
 
-// New returns an initialized new Vector with length at least len.
-func New(len int) *Vector	{ return new(Vector).Init(len) }
-
-
 // Len returns the number of elements in the vector.
-// Len is 0 if p == nil.
-func (p *Vector) Len() int {
-	if p == nil {
-		return 0
-	}
-	return len(p.a);
-}
+func (p *Vector) Len() int	{ return len(p.a) }
+
+
+// Cap returns the capacity of the vector; that is, the
+// maximum length the vector can grow without resizing.
+func (p *Vector) Cap() int	{ return cap(p.a) }
 
 
 // At returns the i'th element of the vector.
@@ -155,7 +144,7 @@ func (p *Vector) Cut(i, j int) {
 // Slice returns a new Vector by slicing the old one to extract slice [i:j].
 // The elements are copied. The original vector is unchanged.
 func (p *Vector) Slice(i, j int) *Vector {
-	s := New(j - i);	// will fail in Init() if j < j
+	s := new(Vector).Resize(j-i, 0);	// will fail in Init() if j < i
 	copy(s.a, p.a[i:j]);
 	return s;
 }

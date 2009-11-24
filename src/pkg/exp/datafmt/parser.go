@@ -40,7 +40,7 @@ func (p *parser) next() {
 
 
 func (p *parser) init(filename string, src []byte) {
-	p.ErrorVector.Init();
+	p.ErrorVector.Reset();
 	p.scanner.Init(filename, src, p, scanner.AllowIllegalChars);	// return '@' as token.ILLEGAL w/o error message
 	p.next();							// initializes pos, tok, lit
 	p.packs = make(map[string]string);
@@ -144,7 +144,6 @@ func (p *parser) parseLiteral() literal {
 	// that start with "%" possibly followed by a last segment that
 	// starts with some other character.
 	var list vector.Vector;
-	list.Init(0);
 	i0 := 0;
 	for i := 0; i < len(s); i++ {
 		if s[i] == '%' && i+1 < len(s) {
@@ -239,7 +238,6 @@ func (p *parser) parseOperand() (x expr) {
 
 func (p *parser) parseSequence() expr {
 	var list vector.Vector;
-	list.Init(0);
 
 	for x := p.parseOperand(); x != nil; x = p.parseOperand() {
 		list.Push(x)
@@ -264,7 +262,6 @@ func (p *parser) parseSequence() expr {
 
 func (p *parser) parseExpression() expr {
 	var list vector.Vector;
-	list.Init(0);
 
 	for {
 		x := p.parseSequence();

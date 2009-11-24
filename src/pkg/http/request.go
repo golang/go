@@ -593,7 +593,7 @@ func parseForm(m map[string][]string, query string) (err os.Error) {
 
 		vec, ok := data[key];
 		if !ok {
-			vec = vector.NewStringVector(0);
+			vec = new(vector.StringVector);
 			data[key] = vec;
 		}
 		vec.Push(value);

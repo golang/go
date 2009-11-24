@@ -176,7 +176,7 @@ func New(fmap FormatterMap) *Template {
 	t.fmap = fmap;
 	t.ldelim = lbrace;
 	t.rdelim = rbrace;
-	t.elems = vector.New(0);
+	t.elems = new(vector.Vector);
 	return t;
 }
 

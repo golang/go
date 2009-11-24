@@ -188,7 +188,7 @@ func (cclass *_CharClass) matches(c int) bool {
 
 func newCharClass() *_CharClass {
 	c := new(_CharClass);
-	c.ranges = vector.NewIntVector(0);
+	c.ranges = new(vector.IntVector);
 	return c;
 }
 
@@ -661,7 +661,7 @@ Loop:
 func Compile(str string) (regexp *Regexp, error os.Error) {
 	regexp = new(Regexp);
 	regexp.expr = str;
-	regexp.inst = vector.New(0);
+	regexp.inst = new(vector.Vector);
 	error = regexp.doParse();
 	return;
 }

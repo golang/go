@@ -295,7 +295,7 @@ func (b *_JsonBuilder) Null()	{ b.Put(Null) }
 func (b *_JsonBuilder) String(s string)	{ b.Put(&_String{s, _Null{}}) }
 
 
-func (b *_JsonBuilder) Array()	{ b.Put(&_Array{vector.New(0), _Null{}}) }
+func (b *_JsonBuilder) Array()	{ b.Put(&_Array{new(vector.Vector), _Null{}}) }
 
 func (b *_JsonBuilder) Map()	{ b.Put(&_Map{make(map[string]Json), _Null{}}) }
 

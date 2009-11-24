@@ -204,8 +204,8 @@ func (v *verifier) verify(grammar Grammar, start string) {
 	}
 
 	// initialize verifier
-	v.ErrorVector.Init();
-	v.worklist.Init(0);
+	v.ErrorVector.Reset();
+	v.worklist.Resize(0, 0);
 	v.reached = make(Grammar);
 	v.grammar = grammar;
 
