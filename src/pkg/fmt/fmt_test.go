@@ -250,6 +250,24 @@ func TestSprintf(t *testing.T) {
 	}
 }
 
+func BenchmarkSprintfEmpty(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Sprintf("")
+	}
+}
+
+func BenchmarkSprintfString(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Sprintf("%s", "hello")
+	}
+}
+
+func BenchmarkSprintfInt(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Sprintf("%d", 5)
+	}
+}
+
 type flagPrinter struct{}
 
 func (*flagPrinter) Format(f State, c int) {

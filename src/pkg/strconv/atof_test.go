@@ -138,3 +138,27 @@ func testAtof(t *testing.T, opt bool) {
 func TestAtof(t *testing.T)	{ testAtof(t, true) }
 
 func TestAtofSlow(t *testing.T)	{ testAtof(t, false) }
+
+func BenchmarkAtofDecimal(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Atof("33909")
+	}
+}
+
+func BenchmarkAtofFloat(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Atof("339.7784")
+	}
+}
+
+func BenchmarkAtofFloatExp(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Atof("-5.09e75")
+	}
+}
+
+func BenchmarkAtofBig(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Atof("123456789123456789123456789")
+	}
+}
