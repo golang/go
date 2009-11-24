@@ -33,6 +33,7 @@ type Json interface {
 	Get(s string) Json;	// field lookup (MapKind)
 	Elem(i int) Json;	// element lookup (ArrayKind)
 	Len() int;		// length (ArrayKind, MapKind)
+	Map() map[string]Json;	// map form (MapKind)
 }
 
 // JsonToString returns the textual JSON syntax representation
@@ -63,6 +64,7 @@ func (*_Null) Bool() bool		{ return false }
 func (*_Null) Get(s string) Json	{ return Null }
 func (*_Null) Elem(int) Json		{ return Null }
 func (*_Null) Len() int			{ return 0 }
+func (*_Null) Map() map[string]Json	{ return nil }
 
 type _String struct {
 	s	string;
@@ -158,6 +160,7 @@ func (j *_Map) String() string {
 	s += "}";
 	return s;
 }
+func (j *_Map) Map() map[string]Json	{ return j.m }
 
 // Walk evaluates path relative to the JSON object j.
 // Path is taken as a sequence of slash-separated field names
