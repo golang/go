@@ -139,7 +139,7 @@ install: install.dirs
 test:	test.dirs
 
 nuke: nuke.dirs
-	rm -rf $(GOROOT)/pkg/*
+	rm -rf "$(GOROOT)"/pkg/*
 
 deps:
 	./deps.bash

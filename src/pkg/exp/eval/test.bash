@@ -12,13 +12,13 @@ set -e
 make
 6g main.go && 6l main.6
 (
-for i in $(egrep -l '// \$G (\$D/)?\$F\.go \&\& \$L \$F\.\$A && \./\$A\.out' $GOROOT/test/*.go $GOROOT/test/*/*.go)
+for i in $(egrep -l '// \$G (\$D/)?\$F\.go \&\& \$L \$F\.\$A && \./\$A\.out' "$GOROOT"/test/*.go "$GOROOT"/test/*/*.go)
 do
 	if grep '^import' $i >/dev/null 2>&1
 	then
 		true
 	else
-		if $GOROOT/usr/austin/eval/6.out -f $i >/tmp/out 2>&1 && ! test -s /tmp/out
+		if "$GOROOT"/usr/austin/eval/6.out -f $i >/tmp/out 2>&1 && ! test -s /tmp/out
 		then
 			echo PASS $i
 		else

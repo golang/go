@@ -7,6 +7,11 @@ ifndef GOBIN
 GOBIN=$(HOME)/bin
 endif
 
+# ugly hack to deal with whitespaces in $GOBIN
+nullstring :=
+space := $(nullstring) # a space at the end
+QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+
 all: $(TARG)
 
 $(TARG): _go_.$O $(OFILES)
@@ -15,13 +20,13 @@ $(TARG): _go_.$O $(OFILES)
 _go_.$O: $(GOFILES)
 	$(GC) -o $@ $(GOFILES)
 
-install: $(GOBIN)/$(TARG)
+install: $(QUOTED_GOBIN)/$(TARG)
 
-$(GOBIN)/$(TARG): $(TARG)
-	cp $(TARG) $@
+$(QUOTED_GOBIN)/$(TARG): $(TARG)
+	cp -f $(TARG) $(QUOTED_GOBIN)
 
 clean:
 	rm -f *.[$(OS)] $(TARG) $(CLEANFILES)
 
 nuke:
-	rm -f *.[$(OS)] $(TARG) $(CLEANFILES) $(GOBIN)/$(TARG)
+	rm -f *.[$(OS)] $(TARG) $(CLEANFILES) $(QUOTED_GOBIN)/$(TARG)

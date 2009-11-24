@@ -2,14 +2,14 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include $(GOROOT)/src/Make.$(GOARCH)
+include ../../Make.$(GOARCH)
 
 TARG=ebnflint
 GOFILES=\
 	ebnflint.go\
 
-include $(GOROOT)/src/Make.cmd
+include ../../Make.cmd
 
 test: $(TARG)
-	$(TARG) -start="SourceFile" $(GOROOT)/doc/go_spec.html
+	$(TARG) -start="SourceFile" "$(GOROOT)"/doc/go_spec.html
 

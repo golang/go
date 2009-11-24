@@ -2,9 +2,14 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+# ugly hack to deal with whitespaces in $GOROOT
+nullstring :=
+space := $(nullstring) # a space at the end
+QUOTED_GOROOT=$(subst $(space),\ ,$(GOROOT))
+
 all: libcgo.so
 
-install: $(GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so
+install: $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so
 
 OFILES=\
 	$(GOOS)_$(GOARCH).o\
@@ -27,8 +32,8 @@ LDFLAGS_freebsd=-pthread -shared -lm
 libcgo.so: $(OFILES)
 	gcc $(CFLAGS_$(GOARCH)) -o libcgo.so $(OFILES) $(LDFLAGS_$(GOOS))
 
-$(GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so: libcgo.so
-	cp libcgo.so $@
+$(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)/libcgo.so: libcgo.so
+	cp libcgo.so $(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
 
 clean:
 	rm -f *.o *.so

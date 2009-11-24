@@ -7,7 +7,7 @@ set -e
 
 bash clean.bash
 
-. $GOROOT/src/Make.$GOARCH
+. "$GOROOT"/src/Make.$GOARCH
 if [ -z "$O" ]; then
 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
 	exit 1

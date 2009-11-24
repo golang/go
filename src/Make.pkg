@@ -12,7 +12,13 @@ TARG_words=$(subst /, ,$(TARG))
 elem=$(word $(words $(TARG_words)),$(TARG_words))
 
 dir=$(patsubst %/$(elem),%,./$(TARG))
-pkgdir=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)
+
+# ugly hack to deal with whitespaces in $GOROOT
+nullstring :=
+space := $(nullstring) # a space at the end
+QUOTED_GOROOT=$(subst $(space),\ ,$(GOROOT))
+
+pkgdir=$(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
 
 INSTALLFILES=$(pkgdir)/$(TARG).a
 
@@ -43,8 +49,8 @@ testpackage-clean:
 install: $(INSTALLFILES)
 
 $(pkgdir)/$(TARG).a: package
-	@test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
-	cp _obj/$(TARG).a $@
+	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
+	cp _obj/$(TARG).a "$@"
 
 _go_.$O: $(GOFILES) $(PREREQ)
 	$(GC) -o $@ $(GOFILES)
@@ -96,7 +102,7 @@ dir:
 
 # Compile x.cgo3.c with 6c; needs access to the runtime headers.
 RUNTIME_CFLAGS_amd64=-D_64BIT
-RUNTIME_CFLAGS=-I$(GOROOT)/src/pkg/runtime $(RUNTIME_CFLAGS_$(GOARCH))
+RUNTIME_CFLAGS=-I"$(GOROOT)/src/pkg/runtime" $(RUNTIME_CFLAGS_$(GOARCH))
 %.cgo3.$O: %.cgo3.c
 	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) $*.cgo3.c
 
@@ -116,8 +122,8 @@ $(elem)_%.so: %.cgo4.o
 	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $*.cgo4.o $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
 
 $(pkgdir)/$(dir)/$(elem)_%.so: $(elem)_%.so
-	@test -d $(GOROOT)/pkg && mkdir -p $(pkgdir)/$(dir)
-	cp $(elem)_$*.so $@
+	@test -d $(QUOTED_GOROOT/pkg && mkdir -p $(pkgdir)/$(dir)
+	cp $(elem)_$*.so "$@"
 
 # Generic build rules.
 # These come last so that the rules above can override them

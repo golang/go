@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include $(GOROOT)/src/Make.$(GOARCH)
+include ../../Make.$(GOARCH)
 
 TARG=unicode
 GOFILES=\
@@ -10,7 +10,7 @@ GOFILES=\
 	letter.go\
 	tables.go\
 
-include $(GOROOT)/src/Make.pkg
+include ../../Make.pkg
 
 maketables: maketables.go
 	$(GC) maketables.go

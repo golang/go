@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-include $(GOROOT)/src/Make.$(GOARCH)
+include ../../Make.$(GOARCH)
 
 TARG=runtime
 
@@ -80,7 +80,7 @@ HFILES=\
 	$(GOOS)/os.h\
 	$(GOOS)/$(GOARCH)/defs.h\
 
-include $(GOROOT)/src/Make.pkg
+include ../../Make.pkg
 
 clean: clean-local
 

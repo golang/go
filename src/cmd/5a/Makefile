@@ -21,7 +21,7 @@ YFILES=\
 	a.y\
 
 $(TARG): $(OFILES)
-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
+	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
 
 $(OFILES): $(HFILES)
 
@@ -37,4 +37,4 @@ clean:
 	rm -f *.$O $(TARG) *.5 enam.c 5.out a.out y.tab.h y.tab.c
 
 install: $(TARG)
-	cp $(TARG) $(GOBIN)/$(TARG)
+	cp $(TARG) "$(GOBIN)"/$(TARG)

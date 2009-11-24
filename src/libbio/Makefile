@@ -45,10 +45,10 @@ OFILES=\
 	bwrite.$O\
 
 HFILES=\
-	$(GOROOT)/include/bio.h\
+	../../include/bio.h
 
 install: $(LIB)
-	cp $(LIB) $(GOROOT)/lib
+	cp $(LIB) ../../lib
 
 $(LIB): $(OFILES)
 	ar rsc $(LIB) $(OFILES)
@@ -62,4 +62,4 @@ clean:
 	rm -f $(OFILES) *.6 6.out $(LIB)
 
 nuke: clean
-	rm -f $(GOROOT)/lib/$(LIB)
+	rm -f ../../lib/$(LIB)

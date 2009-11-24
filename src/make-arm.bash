@@ -7,7 +7,7 @@ set -e
 GOBIN="${GOBIN:-$HOME/bin}"
 export MAKEFLAGS=-j4
 
-if ! test -f $GOROOT/include/u.h
+if ! test -f "$GOROOT"/include/u.h
 then
 	echo '$GOROOT is not set correctly or not exported' 1>&2
 	exit 1

@@ -4,7 +4,7 @@
 # license that can be found in the LICENSE file.
 
 set -e
-. $GOROOT/src/Make.$GOARCH
+. "$GOROOT"/src/Make.$GOARCH
 PATH=.:$PATH
 
 mode=run

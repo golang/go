@@ -10,5 +10,5 @@ clean:
 	@true
 
 install: $(TARG)
-	! test -f $(GOBIN)/$(TARG) || chmod u+w $(GOBIN)/$(TARG)
-	cp $(TARG) $(GOBIN)/$(TARG)
+	! test -f "$(GOBIN)"/$(TARG) || chmod u+w "$(GOBIN)"/$(TARG)
+	cp $(TARG) "$(GOBIN)"/$(TARG)

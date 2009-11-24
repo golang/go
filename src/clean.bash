@@ -3,8 +3,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-rm -rf $GOROOT/pkg/${GOOS}_$GOARCH
-rm -f $GOROOT/lib/*.a
+rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH
+rm -f "$GOROOT"/lib/*.a
 for i in lib9 libbio libcgo libmach cmd pkg \
 	../misc/cgo/gmp ../misc/cgo/stdio \
 	../test/bench

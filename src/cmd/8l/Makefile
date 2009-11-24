@@ -28,7 +28,7 @@ HFILES=\
 
 
 $(TARG): $(OFILES)
-	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
+	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
 
 $(OFILES): $(HFILES)
 
@@ -39,7 +39,7 @@ clean:
 	rm -f *.$O $(TARG) *.8 enam.c 8.out a.out
 
 install: $(TARG)
-	cp $(TARG) $(GOBIN)/$(TARG)
+	cp $(TARG) "$(GOBIN)"/$(TARG)
 
 %.$O: ../ld/%.c
 	$(CC) $(CFLAGS) -c -I. ../ld/$*.c

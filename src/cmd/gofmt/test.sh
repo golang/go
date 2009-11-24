@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-. $GOROOT/src/Make.$GOARCH
+. "$GOROOT"/src/Make.$GOARCH
 if [ -z "$O" ]; then
 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
 	exit 1
@@ -28,14 +28,14 @@ count() {
 # apply to one file
 apply1() {
 	#echo $1 $2
-	case `basename $F` in
+	case `basename "$F"` in
 	# the following files are skipped because they are test cases
 	# for syntax errors and thus won't parse in the first place:
 	func3.go | const2.go | \
 	bug014.go | bug050.go |  bug068.go |  bug083.go | bug088.go | \
 	bug106.go | bug121.go | bug125.go | bug133.go | bug160.go | \
 	bug163.go | bug166.go | bug169.go | bug217.go ) ;;
-	* ) $1 $2; count $F;;
+	* ) "$1" "$2"; count "$F";;
 	esac
 }
 
@@ -43,15 +43,15 @@ apply1() {
 # apply to local files
 applydot() {
 	for F in `find . -name "*.go" | grep -v "._"`; do
-		apply1 $1 $F
+		apply1 "$1" $F
 	done
 }
 
 
 # apply to all .go files we can find
 apply() {
-	for F in `find $GOROOT -name "*.go" | grep -v "._"`; do
-		apply1 $1 $F
+	for F in `find "$GOROOT" -name "*.go" | grep -v "._"`; do
+		apply1 "$1" $F
 	done
 }
 
@@ -63,7 +63,7 @@ cleanup() {
 
 silent() {
 	cleanup
-	$CMD $1 > /dev/null 2> $TMP1
+	$CMD "$1" > /dev/null 2> $TMP1
 	if [ $? != 0 ]; then
 		cat $TMP1
 		echo "Error (silent mode test): test.sh $1"
@@ -74,7 +74,7 @@ silent() {
 
 idempotent() {
 	cleanup
-	$CMD $1 > $TMP1
+	$CMD "$1" > $TMP1
 	if [ $? != 0 ]; then
 		echo "Error (step 1 of idempotency test): test.sh $1"
 		exit 1
@@ -103,7 +103,7 @@ idempotent() {
 
 valid() {
 	cleanup
-	$CMD $1 > $TMP1
+	$CMD "$1" > $TMP1
 	if [ $? != 0 ]; then
 		echo "Error (step 1 of validity test): test.sh $1"
 		exit 1
@@ -120,11 +120,11 @@ valid() {
 runtest() {
 	#echo "Testing silent mode"
 	cleanup
-	$1 silent $2
+	"$1" silent "$2"
 
 	#echo "Testing idempotency"
 	cleanup
-	$1 idempotent $2
+	"$1" idempotent "$2"
 }
 
 
@@ -137,15 +137,15 @@ runtests() {
 		cleanup
 		applydot valid
 	else
-		for F in $*; do
-			runtest apply1 $F
+		for F in "$*"; do
+			runtest apply1 "$F"
 		done
 	fi
 }
 
 
 # run over all .go files
-runtests $*
+runtests "$*"
 cleanup
 
 # done
