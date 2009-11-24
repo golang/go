@@ -406,3 +406,11 @@ regex-dna 100000
 	gcc -O2 regex-dna.c -lpcre	0.92u 0.00s 0.94r
 	gc regex-dna	29.78u 0.03s 29.83r
 	gc_B regex-dna	32.63u 0.03s 32.74r
+
+Nov 24 2009
+
+# Roger Peppe's rewrite of the benchmark
+chameneos 6000000
+	gcc -O2 chameneosredux.c -lpthread	18.00u 303.29s 83.64r
+	gc chameneosredux	12.10u 0.00s 12.10r  # 2.22X faster
+
