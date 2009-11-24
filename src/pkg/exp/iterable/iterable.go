@@ -132,3 +132,77 @@ func Partition(iter Iterable, f func(interface{}) bool) (Iterable, Iterable) {
 
 // TODO:
 // - Zip
+
+// helper type for the Take/TakeWhile/Drop/DropWhile functions.
+// primarily used so that the .Iter() method can be attached
+type iterFunc func(chan interface{})
+
+// provide the Iterable interface
+func (v iterFunc) Iter() <-chan interface{} {
+	ch := make(chan interface{});
+	go v(ch);
+	return ch;
+}
+
+// Take returns an Iterable that contains the first n elements of iter.
+func Take(iter Iterable, n int) Iterable {
+	return iterFunc(func(ch chan interface{}) {
+		defer close(ch);
+		if n <= 0 {
+			return
+		}
+		m := n;
+		for v := range iter.Iter() {
+			ch <- v;
+			m--;
+			if m == 0 {
+				return
+			}
+		}
+	})
+}
+
+// TakeWhile returns an Iterable that contains elements from iter while f is true.
+func TakeWhile(iter Iterable, f func(interface{}) bool) Iterable {
+	return iterFunc(func(ch chan interface{}) {
+		for v := range iter.Iter() {
+			if !f(v) {
+				break
+			}
+			ch <- v;
+		}
+		close(ch);
+	})
+}
+
+// Drop returns an Iterable that returns each element of iter after the first n elements.
+func Drop(iter Iterable, n int) Iterable {
+	return iterFunc(func(ch chan interface{}) {
+		m := n;
+		for v := range iter.Iter() {
+			if m > 0 {
+				m--;
+				continue;
+			}
+			ch <- v;
+		}
+		close(ch);
+	})
+}
+
+// DropWhile returns an Iterable that returns each element of iter after the initial sequence for which f returns true.
+func DropWhile(iter Iterable, f func(interface{}) bool) Iterable {
+	return iterFunc(func(ch chan interface{}) {
+		drop := true;
+		for v := range iter.Iter() {
+			if drop {
+				if f(v) {
+					continue
+				}
+				drop = false;
+			}
+			ch <- v;
+		}
+		close(ch);
+	})
+}
