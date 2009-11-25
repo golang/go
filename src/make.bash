@@ -31,10 +31,10 @@ amd64 | 386 | arm)
 esac
 
 case "$GOOS" in
-darwin | linux | nacl | freebsd)
+darwin | freebsd | linux | nacl)
 	;;
 *)
-	echo '$GOOS is set to <'$GOOS'>, must be darwin, linux, or nacl' 1>&2
+	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, or nacl' 1>&2
 	exit 1
 esac
 
@@ -73,6 +73,10 @@ if [ -d /selinux -a -f /selinux/booleans/allow_execstack ] ; then
 	fi
 fi
 
+(
+	cd pkg;
+	bash deps.bash	# do this here so clean.bash will work in the pkg directory
+)
 bash clean.bash
 
 for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc cmd/hgpatch
@@ -93,7 +97,6 @@ do
 				bash make.bash
 				;;
 			pkg)
-				bash deps.bash
 				gomake install
 				;;
 			*)
