@@ -273,19 +273,11 @@ func RuneCount(p []byte) int {
 }
 
 // RuneCountInString is like RuneCount but its input is a string.
-func RuneCountInString(s string) int {
-	ei := len(s);
-	i := 0;
-	var n int;
-	for n = 0; i < ei; n++ {
-		if s[i] < RuneSelf {
-			i++
-		} else {
-			_, size, _ := decodeRuneInStringInternal(s[i:ei]);
-			i += size;
-		}
+func RuneCountInString(s string) (n int) {
+	for _ = range s {
+		n++
 	}
-	return n;
+	return;
 }
 
 // RuneStart reports whether the byte could be the first byte of
