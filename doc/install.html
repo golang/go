@@ -37,19 +37,44 @@ plus one optional variable:</p>
 <dd>
 	The name of the target operating system and compilation architecture.
 	Choices for <code>$GOOS</code> are <code>linux</code>,
+	<code>freebsd</code>,
 	<code>darwin</code> (Mac OS X 10.5 or 10.6),
 	and <code>nacl</code> (Native Client, an incomplete port).
 	Choices for <code>$GOARCH</code> are <code>amd64</code> (64-bit x86, the most mature port),
 	<code>386</code> (32-bit x86), and
 	<code>arm</code> (32-bit ARM, an incomplete port).
-	The valid combinations are
-	<code>linux</code>/<code>amd64</code>,
-	<code>linux</code>/<code>arm</code>,
-	<code>linux</code>/<code>386</code>,
-	<code>darwin</code>/<code>amd64</code>,
-	<code>darwin</code>/<code>386</code>,
-	and
-	<code>nacl</code>/<code>386</code>.
+	The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
+	<p>
+	<table cellpadding="0">
+	<tr>
+	<th width="50"><th align="left" width="100"><code>$GOOS</code></th> <th align="left" width="100"><code>$GOARCH</code></th>
+	</tr>
+	<tr>
+	<td></td><td><code>darwin</code></td> <td><code>386</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>darwin</code></td> <td><code>amd64</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>freebsd</code></td> <td><code>386</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>freebsd</code></td> <td><code>amd64</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>linux</code></td> <td><code>386</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>linux</code></td> <td><code>amd64</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>linux</code></td> <td><code>arm</code></td>
+	</tr>
+	<tr>
+	<td></td><td><code>nacl</code></td> <td><code>386</code></td>
+	</tr>
+	</table>
+	<p>
 </dd>
 
 <dt>
