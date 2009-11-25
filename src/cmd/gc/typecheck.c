@@ -2018,7 +2018,7 @@ typecheckas2(Node *n)
 		if(l->type == T)
 			goto out;
 		n->op = OAS2MAPW;
-		n->rlist->n = typecheckconv(nil, r, l->type->down, 0, nil);
+		n->rlist->n = typecheckconv(nil, r, l->type, 0, nil);
 		r = n->rlist->next->n;
 		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 0, nil);
 		goto out;
