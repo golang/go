@@ -10,10 +10,10 @@ package heap
 import "sort"
 
 // Any type that implements heap.Interface may be used as a
-// heap with the following invariants (established after Init
-// has been called):
+// min-heap with the following invariants (established after
+// Init has been called):
 //
-//	h.Less(i, j) for 0 <= i < h.Len() and j = 2*i+1 or 2*i+2 and j < h.Len()
+//	!h.Less(j, i) for 0 <= i < h.Len() and j = 2*i+1 or 2*i+2 and j < h.Len()
 //
 type Interface interface {
 	sort.Interface;
@@ -25,9 +25,15 @@ type Interface interface {
 // A heaper must be initialized before any of the heap operations
 // can be used. Init is idempotent with respect to the heap invariants
 // and may be called whenever the heap invariants may have been invalidated.
-// Its complexity is O(n*log(n)) where n = h.Len().
+// Its complexity is O(n) where n = h.Len().
 //
-func Init(h Interface)	{ sort.Sort(h) }
+func Init(h Interface) {
+	// heapify
+	n := h.Len();
+	for i := n/2 - 1; i >= 0; i-- {
+		down(h, i, n)
+	}
+}
 
 
 // Push pushes the element x onto the heap. The complexity is
@@ -41,6 +47,7 @@ func Push(h Interface, x interface{}) {
 
 // Pop removes the minimum element (according to Less) from the heap
 // and returns it. The complexity is O(log(n)) where n = h.Len().
+// Same as Remove(h, 0).
 //
 func Pop(h Interface) interface{} {
 	n := h.Len() - 1;
@@ -56,7 +63,7 @@ func Pop(h Interface) interface{} {
 func Remove(h Interface, i int) interface{} {
 	n := h.Len() - 1;
 	if n != i {
-		h.Swap(n, i);
+		h.Swap(i, n);
 		down(h, i, n);
 		up(h, i);
 	}
@@ -66,7 +73,7 @@ func Remove(h Interface, i int) interface{} {
 
 func up(h Interface, j int) {
 	for {
-		i := (j - 1) / 2;
+		i := (j - 1) / 2;	// parent
 		if i == j || h.Less(i, j) {
 			break
 		}
@@ -78,12 +85,13 @@ func up(h Interface, j int) {
 
 func down(h Interface, i, n int) {
 	for {
-		j := 2*i + 1;
-		if j >= n {
+		j1 := 2*i + 1;
+		if j1 >= n {
 			break
 		}
-		if j1 := j + 1; j1 < n && !h.Less(j, j1) {
-			j = j1	// = 2*i + 2
+		j := j1;	// left child
+		if j2 := j1 + 1; j2 < n && !h.Less(j1, j2) {
+			j = j2	// = 2*i + 2  // right child
 		}
 		if h.Less(i, j) {
 			break
