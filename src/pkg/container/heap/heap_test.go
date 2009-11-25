@@ -11,8 +11,13 @@ import (
 
 
 type myHeap struct {
-	vector.IntVector;
+	// A vector.Vector implements sort.Interface except for Less,
+	// and it implements Push and Pop as required for heap.Interface.
+	vector.Vector;
 }
+
+
+func (h *myHeap) Less(i, j int) bool	{ return h.At(i).(int) < h.At(j).(int) }
 
 
 func (h *myHeap) verify(t *testing.T, i int) {
@@ -36,16 +41,28 @@ func (h *myHeap) verify(t *testing.T, i int) {
 }
 
 
-func (h *myHeap) Push(x interface{})	{ h.IntVector.Push(x.(int)) }
-
-
-func (h *myHeap) Pop() interface{}	{ return h.IntVector.Pop() }
-
-
-func TestInit(t *testing.T) {
+func TestInit0(t *testing.T) {
 	h := new(myHeap);
 	for i := 20; i > 0; i-- {
-		h.Push(i)
+		h.Push(0)	// all elements are the same
+	}
+	Init(h);
+	h.verify(t, 0);
+
+	for i := 1; h.Len() > 0; i++ {
+		x := Pop(h).(int);
+		h.verify(t, 0);
+		if x != 0 {
+			t.Errorf("%d.th pop got %d; want %d", i, x, 0)
+		}
+	}
+}
+
+
+func TestInit1(t *testing.T) {
+	h := new(myHeap);
+	for i := 20; i > 0; i-- {
+		h.Push(i)	// all elements are different
 	}
 	Init(h);
 	h.verify(t, 0);
@@ -83,6 +100,67 @@ func Test(t *testing.T) {
 		h.verify(t, 0);
 		if x != i {
 			t.Errorf("%d.th pop got %d; want %d", i, x, i)
+		}
+	}
+}
+
+
+func TestRemove0(t *testing.T) {
+	h := new(myHeap);
+	for i := 0; i < 10; i++ {
+		h.Push(i)
+	}
+	h.verify(t, 0);
+
+	for h.Len() > 0 {
+		i := h.Len() - 1;
+		x := Remove(h, i).(int);
+		if x != i {
+			t.Errorf("Remove(%d) got %d; want %d", i, x, i)
+		}
+		h.verify(t, 0);
+	}
+}
+
+
+func TestRemove1(t *testing.T) {
+	h := new(myHeap);
+	for i := 0; i < 10; i++ {
+		h.Push(i)
+	}
+	h.verify(t, 0);
+
+	for i := 0; h.Len() > 0; i++ {
+		x := Remove(h, 0).(int);
+		if x != i {
+			t.Errorf("Remove(0) got %d; want %d", x, i)
+		}
+		h.verify(t, 0);
+	}
+}
+
+
+func TestRemove2(t *testing.T) {
+	N := 10;
+
+	h := new(myHeap);
+	for i := 0; i < N; i++ {
+		h.Push(i)
+	}
+	h.verify(t, 0);
+
+	m := make(map[int]int);
+	for h.Len() > 0 {
+		m[Remove(h, (h.Len()-1)/2).(int)] = 1;
+		h.verify(t, 0);
+	}
+
+	if len(m) != N {
+		t.Errorf("len(m) = %d; want %d", len(m), N)
+	}
+	for i := 0; i < len(m); i++ {
+		if _, exists := m[i]; !exists {
+			t.Errorf("m[%d] doesn't exist", i)
 		}
 	}
 }
