@@ -1977,6 +1977,14 @@ func (p *parser) parseFile() *ast.File {
 	doc := p.leadComment;
 	pos := p.expect(token.PACKAGE);
 	ident := p.parseIdent();
+
+	// Common error: semicolon after package clause.
+	// Accept and report it for better error synchronization.
+	if p.tok == token.SEMICOLON {
+		p.Error(p.pos, "expected declaration, found ';'");
+		p.next();
+	}
+
 	var decls []ast.Decl;
 
 	// Don't bother parsing the rest if we had errors already.
