@@ -167,3 +167,43 @@ func TestRuneCount(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkRuneCountTenASCIIChars(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		RuneCountInString("0123456789")
+	}
+}
+
+func BenchmarkRuneCountTenJapaneseChars(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		RuneCountInString("日本語日本語日本語日")
+	}
+}
+
+func BenchmarkEncodeASCIIRune(b *testing.B) {
+	buf := make([]byte, UTFMax);
+	for i := 0; i < b.N; i++ {
+		EncodeRune('a', buf)
+	}
+}
+
+func BenchmarkEncodeJapaneseRune(b *testing.B) {
+	buf := make([]byte, UTFMax);
+	for i := 0; i < b.N; i++ {
+		EncodeRune('本', buf)
+	}
+}
+
+func BenchmarkDecodeASCIIRune(b *testing.B) {
+	a := []byte{'a'};
+	for i := 0; i < b.N; i++ {
+		DecodeRune(a)
+	}
+}
+
+func BenchmarkDecodeJapaneseRune(b *testing.B) {
+	nihon := strings.Bytes("本");
+	for i := 0; i < b.N; i++ {
+		DecodeRune(nihon)
+	}
+}
