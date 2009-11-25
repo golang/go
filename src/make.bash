@@ -7,6 +7,8 @@ set -e
 GOBIN="${GOBIN:-$HOME/bin}"
 export MAKEFLAGS=-j4
 
+unset CDPATH	# in case user has it set
+
 if ! test -f "$GOROOT"/include/u.h
 then
 	echo '$GOROOT is not set correctly or not exported' 1>&2
