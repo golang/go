@@ -992,10 +992,12 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 	}
 
 	lparen := p.expect(token.LPAREN);
+	p.exprLev++;
 	var args []ast.Expr;
 	if p.tok != token.RPAREN {
 		args = p.parseExprList()
 	}
+	p.exprLev--;
 	rparen := p.expect(token.RPAREN);
 
 	return &ast.CallExpr{fun, lparen, args, rparen};
