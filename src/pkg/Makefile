@@ -98,6 +98,7 @@ DIRS=\
 	time\
 	unicode\
 	utf8\
+	websocket\
 	xml\
 
 NOTEST=\
