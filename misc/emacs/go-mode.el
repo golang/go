@@ -462,8 +462,8 @@ functions, and some types.  It also provides indentation that is
   (add-hook 'after-change-functions #'go-mode-delayed-electric-hook nil t)
 
   ;; Comments
-  (setq comment-start "// "
-        comment-end   "")
+  (set (make-local-variable 'comment-start) "// ")
+  (set (make-local-variable 'comment-end)   "")
 
   ;; Go style
   (setq indent-tabs-mode t))
