@@ -61,18 +61,20 @@ func TestMapCounter(t *testing.T) {
 	// colours.String() should be '{"red":3, "blue":4}',
 	// though the order of red and blue could vary.
 	s := colours.String();
-	j, ok, errtok := json.StringToJson(s);
-	if !ok {
-		t.Errorf("colours.String() isn't valid JSON: %v", errtok)
+	j, err := json.Decode(s);
+	if err != nil {
+		t.Errorf("colours.String() isn't valid JSON: %v", err)
 	}
-	if j.Kind() != json.MapKind {
+	m, ok := j.(map[string]interface{});
+	if !ok {
 		t.Error("colours.String() didn't produce a map.")
 	}
-	red := j.Get("red");
-	if red.Kind() != json.NumberKind {
-		t.Error("red.Kind() is not a NumberKind.")
+	red := m["red"];
+	x, ok := red.(float64);
+	if !ok {
+		t.Error("red.Kind() is not a number.")
 	}
-	if x := red.Number(); x != 3 {
+	if x != 3 {
 		t.Error("red = %v, want 3", x)
 	}
 }
