@@ -12,7 +12,6 @@
 package av
 
 import (
-	"bytes";
 	"exp/draw";
 	"exp/nacl/srpc";
 	"log";
@@ -158,7 +157,7 @@ func videoPollEvent(ev []byte) (err os.Error) {
 		if r == bridge.share.eq.wi {
 			return noEvents
 		}
-		bytes.Copy(ev, &bridge.share.eq.event[r]);
+		copy(ev, &bridge.share.eq.event[r]);
 		bridge.share.eq.ri = (r + 1) % eqsize;
 		return nil;
 	}
