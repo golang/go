@@ -57,7 +57,7 @@ do
 		export F=$(basename $i .go)
 		export D=$dir
 		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|' >$RUNFILE
-		if ! time -p bash -c "bash $RUNFILE >$TMP1FILE 2>&1" 2>$TMP2FILE
+		if ! { time -p bash -c "bash $RUNFILE >$TMP1FILE 2>&1" ; } 2>$TMP2FILE
 		then
 			echo
 			echo "===========" $i
