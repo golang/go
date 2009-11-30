@@ -54,7 +54,6 @@ LIB9OFILES=\
 	_exits.$O\
 	argv0.$O\
 	atoi.$O\
-	await.$O\
 	cleanname.$O\
 	create.$O\
 	dirfstat.$O\
@@ -69,22 +68,31 @@ LIB9OFILES=\
 	exits.$O\
 	getenv.$O\
 	getfields.$O\
-	getuser.$O\
 	getwd.$O\
-	jmp.$O\
 	main.$O\
 	nan.$O\
-	notify.$O\
 	nulldir.$O\
 	open.$O\
-	pipe.$O\
 	readn.$O\
-	rfork.$O\
 	seek.$O\
 	strecpy.$O\
 	sysfatal.$O\
 	time.$O\
 	tokenize.$O\
+
+ifeq ($(GOOS),mingw)
+LIB9OFILES+=\
+	win32.$O\
+
+else
+LIB9OFILES+=\
+	await.$O\
+	getuser.$O\
+	jmp.$O\
+	notify.$O\
+	rfork.$O\
+
+endif
 
 OFILES=\
 	$(LIB9OFILES)\

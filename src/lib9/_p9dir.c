@@ -29,20 +29,6 @@ THE SOFTWARE.
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
-#include <pwd.h>
-#include <grp.h>
-
-/*
- * No need for a real disk size function here:
- * the Go build isn't looking at raw disk devices,
- * so this avoids portability problems.
- */
-#define  _HAVEDISKSIZE
-static vlong
-disksize(int fd, int x)
-{
-	return 0;
-}
 
 /*
  * Caching the last group and passwd looked up is
@@ -55,9 +41,6 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
 {
 	char *s;
 	char tmp[20];
-	static struct group *g;
-	static struct passwd *p;
-	static int gid, uid;
 	int sz, fd;
 
 	fd = -1;
@@ -88,11 +71,8 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
 	sz += strlen(s)+1;
 
 	/* user */
-	if(p == nil || st->st_uid != uid || p->pw_uid != uid){
-		snprint(tmp, sizeof tmp, "%d", (int)st->st_uid);
-		s = tmp;
-	}else
-		s = p->pw_name;
+	snprint(tmp, sizeof tmp, "%d", (int)st->st_uid);
+	s = tmp;
 	sz += strlen(s)+1;
 	if(d){
 		if(*str+strlen(s)+1 > estr)
@@ -105,11 +85,8 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
 	}
 
 	/* group */
-	if(g == nil || st->st_gid != gid || g->gr_gid != gid){
-		snprint(tmp, sizeof tmp, "%d", (int)st->st_gid);
-		s = tmp;
-	}else
-		s = g->gr_name;
+	snprint(tmp, sizeof tmp, "%d", (int)st->st_gid);
+	s = tmp;
 	sz += strlen(s)+1;
 	if(d){
 		if(*str + strlen(s)+1 > estr)
@@ -141,12 +118,16 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
 			d->mode |= DMDIR;
 			d->qid.type = QTDIR;
 		}
+#ifdef S_ISLNK
 		if(S_ISLNK(lst->st_mode))	/* yes, lst not st */
 			d->mode |= DMSYMLINK;
+#endif
 		if(S_ISFIFO(st->st_mode))
 			d->mode |= DMNAMEDPIPE;
+#ifdef S_ISSOCK
 		if(S_ISSOCK(st->st_mode))
 			d->mode |= DMSOCKET;
+#endif
 		if(S_ISBLK(st->st_mode)){
 			d->mode |= DMDEVICE;
 			d->qid.path = ('b'<<16)|st->st_rdev;
@@ -156,12 +137,10 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
 			d->qid.path = ('c'<<16)|st->st_rdev;
 		}
 		/* fetch real size for disks */
-#ifdef _HAVEDISKSIZE
 		if(S_ISBLK(st->st_mode) && (fd = open(name, O_RDONLY)) >= 0){
-			d->length = disksize(fd, major(st->st_dev));
+			d->length = 0;
 			close(fd);
 		}
-#endif
 #if defined(DIOCGMEDIASIZE)
 		if(isdisk(st)){
 			int fd;

@@ -403,7 +403,7 @@ def LoadAllCL(ui, repo, web=True):
 # Find repository root.  On error, ui.warn and return None
 def RepoDir(ui, repo):
 	url = repo.url();
-	if not url.startswith('file:/'):
+	if not url.startswith('file:'):
 		ui.warn("repository %s is not in local file system\n" % (url,))
 		return None
 	url = url[5:]
