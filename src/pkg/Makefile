@@ -99,6 +99,7 @@ DIRS=\
 	unicode\
 	utf8\
 	websocket\
+	xgb\
 	xml\
 
 NOTEST=\
@@ -113,6 +114,7 @@ NOTEST=\
 	runtime\
 	syscall\
 	testing/iotest\
+	xgb\
 
 TEST=\
 	$(filter-out $(NOTEST),$(DIRS))
