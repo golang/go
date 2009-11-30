@@ -198,7 +198,7 @@ func punct(c byte) bool {
 	return c == '"' || c == '[' || c == ']' || c == ':' || c == '{' || c == '}' || c == ','
 }
 
-func white(c byte) bool	{ return c == ' ' || c == '\t' || c == '\n' || c == '\v' }
+func white(c byte) bool	{ return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\v' }
 
 func skipwhite(p string, i int) int {
 	for i < len(p) && white(p[i]) {

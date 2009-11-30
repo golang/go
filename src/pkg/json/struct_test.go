@@ -66,6 +66,17 @@ func check(t *testing.T, ok bool, name string, v interface{}) {
 	}
 }
 
+const whiteSpaceEncoded = " \t{\n\"s\"\r:\"string\"\v}"
+
+func TestUnmarshalWhitespace(t *testing.T) {
+	var m myStruct;
+	ok, errtok := Unmarshal(whiteSpaceEncoded, &m);
+	if !ok {
+		t.Fatalf("Unmarshal failed near %s", errtok)
+	}
+	check(t, m.S == "string", "string", m.S);
+}
+
 func TestUnmarshal(t *testing.T) {
 	var m myStruct;
 	m.F = true;
