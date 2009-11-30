@@ -176,8 +176,8 @@ threadring() {
 chameneos() {
 	runonly echo 'chameneos 6000000'
 	run 'gcc -O2 chameneosredux.c -lpthread' a.out 6000000
-#	run 'gccgo -O2 chameneosredux.go' a.out -n 6000000	# doesn't support the non-forward-decl variant
-	run 'gc chameneosredux' $O.out -n 6000000
+#	run 'gccgo -O2 chameneosredux.go' a.out 6000000	# doesn't support the non-forward-decl variant
+	run 'gc chameneosredux' $O.out 6000000
 }
 
 case $# in
