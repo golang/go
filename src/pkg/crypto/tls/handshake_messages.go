@@ -133,7 +133,7 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 		return false
 	}
 	m.sessionId = data[39 : 39+sessionIdLen];
-	data = data[39+sessionIdLen : len(data)];
+	data = data[39+sessionIdLen:];
 	if len(data) < 3 {
 		return false
 	}
@@ -196,7 +196,7 @@ func (m *certificateMsg) unmarshal(data []byte) bool {
 	}
 
 	numCerts := 0;
-	d := data[7:len(data)];
+	d := data[7:];
 	for certsLen > 0 {
 		if len(d) < 4 {
 			return false
@@ -205,17 +205,17 @@ func (m *certificateMsg) unmarshal(data []byte) bool {
 		if uint32(len(d)) < 3+certLen {
 			return false
 		}
-		d = d[3+certLen : len(d)];
+		d = d[3+certLen:];
 		certsLen -= 3 + certLen;
 		numCerts++;
 	}
 
 	m.certificates = make([][]byte, numCerts);
-	d = data[7:len(data)];
+	d = data[7:];
 	for i := 0; i < numCerts; i++ {
 		certLen := uint32(d[0])<<24 | uint32(d[1])<<8 | uint32(d[2]);
 		m.certificates[i] = d[3 : 3+certLen];
-		d = d[3+certLen : len(d)];
+		d = d[3+certLen:];
 	}
 
 	return true;

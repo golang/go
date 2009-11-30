@@ -46,7 +46,7 @@ func (h *clientHandshake) loop(writeChan chan<- interface{}, controlChan chan<- 
 	hello.random[1] = byte(currentTime >> 16);
 	hello.random[2] = byte(currentTime >> 8);
 	hello.random[3] = byte(currentTime);
-	_, err := io.ReadFull(config.Rand, hello.random[4:len(hello.random)]);
+	_, err := io.ReadFull(config.Rand, hello.random[4:]);
 	if err != nil {
 		h.error(alertInternalError);
 		return;
@@ -132,7 +132,7 @@ func (h *clientHandshake) loop(writeChan chan<- interface{}, controlChan chan<- 
 	// version offered in the ClientHello.
 	preMasterSecret[0] = defaultMajor;
 	preMasterSecret[1] = defaultMinor;
-	_, err = io.ReadFull(config.Rand, preMasterSecret[2:len(preMasterSecret)]);
+	_, err = io.ReadFull(config.Rand, preMasterSecret[2:]);
 	if err != nil {
 		h.error(alertInternalError);
 		return;
