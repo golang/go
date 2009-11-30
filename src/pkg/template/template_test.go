@@ -9,6 +9,7 @@ import (
 	"container/vector";
 	"fmt";
 	"io";
+	"strings";
 	"testing";
 )
 
@@ -41,6 +42,7 @@ type S struct {
 	false		bool;
 	mp		map[string]string;
 	innermap	U;
+	bytes		[]byte;
 }
 
 var t1 = T{"ItemNumber1", "ValueNumber1"}
@@ -282,6 +284,12 @@ var tests = []*Test{
 		out: "1\n4\n",
 	},
 
+	&Test{
+		in: "{bytes}",
+
+		out: "hello",
+	},
+
 	// Maps
 
 	&Test{
@@ -317,6 +325,7 @@ func TestAll(t *testing.T) {
 	s.mp["mapkey"] = "Ahoy!";
 	s.innermap.mp = make(map[string]int);
 	s.innermap.mp["innerkey"] = 55;
+	s.bytes = strings.Bytes("hello");
 
 	var buf bytes.Buffer;
 	for _, test := range tests {

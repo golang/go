@@ -18,7 +18,11 @@ import (
 // You can override the default formatter by storing your default
 // under the name "" in your custom formatter map.
 func StringFormatter(w io.Writer, value interface{}, format string) {
-	fmt.Fprint(w, value)
+	if b, ok := value.([]byte); ok {
+		w.Write(b);
+		return;
+	}
+	fmt.Fprint(w, value);
 }
 
 var (
