@@ -7,7 +7,6 @@
 package srpc
 
 import (
-	"bytes";
 	"math";
 	"os";
 	"strconv";
@@ -121,7 +120,7 @@ func (r *msgReceiver) recv() (*msg, os.Error) {
 	// returned the total byte count as n.
 	m := new(msg);
 	m.rdata = make([]byte, n);
-	bytes.Copy(m.rdata, &r.data);
+	copy(m.rdata, &r.data);
 
 	// Make a copy of the desc too.
 	// The system call *did* update r.hdr.ndesc.
@@ -219,7 +218,7 @@ func (m *msg) grow(n int) []byte {
 	i := len(m.wdata);
 	if i+n > cap(m.wdata) {
 		a := make([]byte, i, (i+n)*2);
-		bytes.Copy(a, m.wdata);
+		copy(a, m.wdata);
 		m.wdata = a;
 	}
 	m.wdata = m.wdata[0 : i+n];
@@ -250,7 +249,7 @@ func (m *msg) wuint64(x uint64) {
 	b[7] = byte(hi >> 24);
 }
 
-func (m *msg) wbytes(p []byte)	{ bytes.Copy(m.grow(len(p)), p) }
+func (m *msg) wbytes(p []byte)	{ copy(m.grow(len(p)), p) }
 
 func (m *msg) wstring(s string) {
 	b := m.grow(len(s));

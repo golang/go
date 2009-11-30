@@ -385,17 +385,6 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
 
 //sys	ptrace(request int, pid int, addr uintptr, data uintptr) (errno int)
 
-// See bytes.Copy.
-func bytesCopy(dst, src []byte) int {
-	if len(src) > len(dst) {
-		src = src[0:len(dst)]
-	}
-	for i, x := range src {
-		dst[i] = x
-	}
-	return len(src);
-}
-
 func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno int) {
 	// The peek requests are machine-size oriented, so we wrap it
 	// to retrieve arbitrary-length data.
@@ -416,7 +405,7 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
 		if errno != 0 {
 			return 0, errno
 		}
-		n += bytesCopy(out, buf[addr%sizeofPtr:]);
+		n += copy(out, buf[addr%sizeofPtr:]);
 		out = out[n:];
 	}
 
@@ -428,7 +417,7 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
 		if errno != 0 {
 			return n, errno
 		}
-		copied := bytesCopy(out, &buf);
+		copied := copy(out, &buf);
 		n += copied;
 		out = out[copied:];
 	}
@@ -456,7 +445,7 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
 		if errno != 0 {
 			return 0, errno
 		}
-		n += bytesCopy(buf[addr%sizeofPtr:], data);
+		n += copy(buf[addr%sizeofPtr:], data);
 		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
 		errno = ptrace(pokeReq, pid, addr-addr%sizeofPtr, word);
 		if errno != 0 {
@@ -483,7 +472,7 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
 		if errno != 0 {
 			return n, errno
 		}
-		bytesCopy(&buf, data);
+		copy(&buf, data);
 		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
 		errno = ptrace(pokeReq, pid, addr+uintptr(n), word);
 		if errno != 0 {
