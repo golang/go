@@ -6,7 +6,8 @@ include ../../Make.$(GOARCH)
 
 TARG=json
 GOFILES=\
-	generic.go\
+	decode.go\
+	error.go\
 	parse.go\
 	struct.go\
 
