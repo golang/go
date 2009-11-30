@@ -71,7 +71,11 @@ type UDPConn struct {
 	fd *netFD;
 }
 
-func newUDPConn(fd *netFD) *UDPConn	{ return &UDPConn{fd} }
+func newUDPConn(fd *netFD) *UDPConn {
+	c := &UDPConn{fd};
+	setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1);
+	return c;
+}
 
 func (c *UDPConn) ok() bool	{ return c != nil && c.fd != nil }
 
