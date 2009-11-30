@@ -35,8 +35,11 @@ POSSIBILITY OF SUCH DAMAGE.
 
 package main
 
-import "fmt"
-import "flag"
+import (
+	"flag";
+	"fmt";
+	"strconv";
+)
 
 const (
 	blue	= iota;
@@ -85,12 +88,13 @@ type result struct {
 	same	int;
 }
 
-var np = flag.Int("n", 600, "count")
-var N int
+var n = 600
 
 func main() {
 	flag.Parse();
-	N = *np;
+	if flag.NArg() > 0 {
+		n, _ = strconv.Atoi(flag.Arg(0))
+	}
 
 	for c0 := 0; c0 < ncol; c0++ {
 		for c1 := 0; c1 < ncol; c1++ {
@@ -137,8 +141,8 @@ func creature(info0 info, meetingplace chan rendez, ended chan result) {
 		var othername int;
 		// get access to rendez data and decide what to do.
 		switch r := <-meetingplace; {
-		case r.n >= N:
-			// if more than N meetings, then send our result data and exit.
+		case r.n >= n:
+			// if no more meetings left, then send our result data and exit.
 			meetingplace <- rendez{n: r.n};
 			ended <- result{met, same};
 			return;
