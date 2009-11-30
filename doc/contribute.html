@@ -64,7 +64,7 @@ The basic form is illustrated by <a href="../src/pkg/container/vector/Makefile">
 </p>
 
 <pre>
-include $(GOROOT)/src/Make.$(GOARCH)
+include ../../../Make.$(GOARCH)
 
 TARG=container/vector
 GOFILES=\
@@ -72,12 +72,15 @@ GOFILES=\
 	stringvector.go\
 	vector.go\
 
-include $(GOROOT)/src/Make.pkg
+include ../../../Make.pkg
 </pre>
 
 <p>
 The first and last lines <code>include</code> standard definitions and rules,
+<code>$(GOROOT)/src/Make.$(GOARCH)</code> and <code>$(GOROOT)/src/Make.pkg</code>,
 so that the body of the <code>Makefile</code> need only specify two variables.
+For packages to be installed in the Go tree, use a relative path instead of
+<code>$(GOROOT)/src</code>, so that make will work correctly even if <code>$(GOROOT)</code> contains spaces.
 </p>
 
 <p>
