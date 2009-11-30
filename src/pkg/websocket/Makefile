@@ -1,4 +1,4 @@
-include $(GOROOT)/src/Make.$(GOARCH)
+include ../../Make.$(GOARCH)
 
 TARG=websocket
 GOFILES=\
@@ -6,4 +6,4 @@ GOFILES=\
 	server.go\
 	websocket.go\
 
-include $(GOROOT)/src/Make.pkg
+include ../../Make.pkg
