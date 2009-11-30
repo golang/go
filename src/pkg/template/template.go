@@ -847,6 +847,9 @@ func validDelim(d []byte) bool {
 // s contains the template text.  If any errors occur, Parse returns
 // the error.
 func (t *Template) Parse(s string) os.Error {
+	if t.elems == nil {
+		return &Error{1, "template not allocated with New"}
+	}
 	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
 		return &Error{1, fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
 	}
