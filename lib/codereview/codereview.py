@@ -344,7 +344,14 @@ def LoadCL(ui, repo, name, web=True):
 			return None, "malformed response loading CL data from code review server"
 		cl.reviewer = SplitCommaSpace(f['reviewers'])
 		cl.cc = SplitCommaSpace(f['cc'])
-		cl.desc = f['description']
+		if cl.local and cl.original_author and cl.desc:
+			# local copy of CL written by someone else
+			# and we saved a description.  use that one,
+			# so that committers can edit the description
+			# before doing hg submit.
+			pass
+		else:
+			cl.desc = f['description']
 		cl.url = server_url_base + name
 		cl.web = True
 	return cl, ''
