@@ -197,7 +197,7 @@ func (enc *Encoding) EncodedLen(n int) int	{ return (n + 2) / 3 * 4 }
 type CorruptInputError int64
 
 func (e CorruptInputError) String() string {
-	return "illegal base64 data at input byte" + strconv.Itoa64(int64(e))
+	return "illegal base64 data at input byte " + strconv.Itoa64(int64(e))
 }
 
 // decode is like Decode but returns an additional 'end' value, which

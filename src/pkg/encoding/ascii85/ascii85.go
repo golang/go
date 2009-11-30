@@ -169,7 +169,7 @@ func (e *encoder) Close() os.Error {
 type CorruptInputError int64
 
 func (e CorruptInputError) String() string {
-	return "illegal ascii85 data at input byte" + strconv.Itoa64(int64(e))
+	return "illegal ascii85 data at input byte " + strconv.Itoa64(int64(e))
 }
 
 // Decode decodes src into dst, returning both the number
