@@ -25,13 +25,18 @@ THE SOFTWARE.
 #include <u.h>
 #include <sys/time.h>
 #include <time.h>
+#ifndef __MINGW32__
 #include <sys/resource.h>
+#endif
 #define NOPLAN9DEFINES
 #include <libc.h>
 
 long
 p9times(long *t)
 {
+#ifdef __MINGW32__
+	memset(t, 0, 4*sizeof(long));
+#else
 	struct rusage ru, cru;
 
 	if(getrusage(0, &ru) < 0 || getrusage(-1, &cru) < 0)
@@ -41,6 +46,7 @@ p9times(long *t)
 	t[1] = ru.ru_stime.tv_sec*1000 + ru.ru_stime.tv_usec/1000;
 	t[2] = cru.ru_utime.tv_sec*1000 + cru.ru_utime.tv_usec/1000;
 	t[3] = cru.ru_stime.tv_sec*1000 + cru.ru_stime.tv_usec/1000;
+#endif
 
 	/* BUG */
 	return t[0]+t[1]+t[2]+t[3];

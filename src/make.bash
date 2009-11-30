@@ -31,10 +31,10 @@ amd64 | 386 | arm)
 esac
 
 case "$GOOS" in
-darwin | freebsd | linux | nacl)
+darwin | freebsd | linux | mingw | nacl)
 	;;
 *)
-	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, or nacl' 1>&2
+	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, mingw, or nacl' 1>&2
 	exit 1
 esac
 

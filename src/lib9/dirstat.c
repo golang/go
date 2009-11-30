@@ -39,11 +39,17 @@ dirstat(char *file)
 	Dir *d;
 	char *str;
 
+#ifdef __MINGW32__
+	if(stat(file, &st) < 0)
+		return nil;
+	lst = st;
+#else
 	if(lstat(file, &lst) < 0)
 		return nil;
 	st = lst;
 	if((lst.st_mode&S_IFMT) == S_IFLNK)
 		stat(file, &st);
+#endif
 
 	nstr = _p9dir(&lst, &st, file, nil, nil, nil);
 	d = malloc(sizeof(Dir)+nstr);

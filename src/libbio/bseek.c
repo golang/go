@@ -33,10 +33,12 @@ Bseek(Biobuf *bp, vlong offset, int base)
 	vlong n, d;
 	int bufsz;
 
+#ifndef __MINGW32__
 	if(sizeof(offset) != sizeof(off_t)) {
 		fprint(2, "Bseek: libbio compiled with %d-byte offset\n", sizeof(off_t));
 		abort();
 	}
+#endif
 
 	switch(bp->state) {
 	default:

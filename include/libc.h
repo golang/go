@@ -137,12 +137,9 @@ extern	void	sysfatal(char*, ...);
 #define	ORDWR	2	/* read and write */
 #define	OEXEC	3	/* execute, == read but check execute permission */
 #define	OTRUNC	16	/* or'ed in (except for exec), truncate file first */
-#define	OCEXEC	32	/* or'ed in, close on exec */
 #define	ORCLOSE	64	/* or'ed in, remove on close */
 #define	ODIRECT	128	/* or'ed in, direct access */
-#define	ONONBLOCK 256	/* or'ed in, non-blocking call */
 #define	OEXCL	0x1000	/* or'ed in, exclusive use (create only) */
-#define	OLOCK	0x2000	/* or'ed in, lock after opening */
 #define	OAPPEND	0x4000	/* or'ed in, append only */
 
 #define	AEXIST	0	/* accessible: exists */
@@ -279,7 +276,6 @@ extern	int	notifyon(char*);
 extern	int	notifyoff(char*);
 extern	int	p9open(char*, int);
 extern	int	fd2path(int, char*, int);
-extern	int	p9pipe(int*);
 extern	long	readn(int, void*, long);
 extern	int	remove(const char*);
 extern	vlong	p9seek(int, vlong, int);
@@ -289,6 +285,18 @@ extern	Waitmsg*	p9waitfor(int);
 extern	Waitmsg*	waitnohang(void);
 extern	int	p9waitpid(void);
 extern	ulong	rendezvous(ulong, ulong);
+
+#ifdef __MINGW32__
+extern int fork();
+extern int pread(int fd, void *buf, int n, int off);
+extern int pwrite(int fd, void *buf, int n, int off);
+#define execvp(prog, argv) execvp(prog, (const char**)(argv))
+#define lseek(fd, n, base) _lseeki64(fd, n, base)
+#define mkdir(path, perm) mkdir(path)
+#define pipe(fd) _pipe(fd, 512, O_BINARY)
+#else
+#define O_BINARY 0
+#endif
 
 #ifndef NOPLAN9DEFINES
 #define alarm		p9alarm
@@ -303,7 +311,6 @@ extern	ulong	rendezvous(ulong, ulong);
 #define create		p9create
 #undef open
 #define open		p9open
-#define pipe		p9pipe
 #define	waitfor		p9waitfor
 #endif
 

@@ -47,7 +47,12 @@ OFILES=\
 	5obj.$O\
 	6obj.$O\
 	8obj.$O\
+
+ifneq ($(GOOS),mingw)
+OFILES+=\
 	$(shell uname | tr A-Z a-z).$O\
+
+endif
 
 HFILES=../../include/mach.h elf.h macho.h obj.h
 
