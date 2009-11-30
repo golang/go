@@ -320,6 +320,9 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
 		// Unsized types are [0]byte
 		t.Size = 0;
 		t.Go = c.Opaque(0);
+		if t.C == "" {
+			t.C = "void"
+		}
 		return t;
 	}
 
