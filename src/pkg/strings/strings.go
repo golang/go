@@ -223,7 +223,7 @@ func Repeat(s string, count int) string {
 // ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
 func ToUpper(s string) string	{ return Map(unicode.ToUpper, s) }
 
-// ToUpper returns a copy of the string s with all Unicode letters mapped to their lower case.
+// ToLower returns a copy of the string s with all Unicode letters mapped to their lower case.
 func ToLower(s string) string	{ return Map(unicode.ToLower, s) }
 
 // ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.
