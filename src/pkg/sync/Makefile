@@ -7,6 +7,7 @@ include ../../Make.$(GOARCH)
 TARG=sync
 GOFILES=\
 	mutex.go\
+	rwmutex.go\
 
 OFILES=\
 	asm_$(GOARCH).$O\
