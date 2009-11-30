@@ -28,6 +28,7 @@
 
 Abhinav Gupta <abhinav.g90@gmail.com>
 Adam Langley <agl@golang.org>
+Andrew Skiba <skibaa@gmail.com>
 Aron Nopanen <aron.nopanen@gmail.com>
 Austin Clements <aclements@csail.mit.edu>
 Ben Eitzen <eitzenb@golang.org>
@@ -35,6 +36,7 @@ Bill Neubauer <wcn@golang.org>
 Brendan O'Dea <bod@golang.org>
 Cary Hull <chull@google.com>
 Chris Lennert <calennert@gmail.com>
+Christopher Wedgwood <cw@f00f.org>
 Daniel Nadasi <dnadasi@google.com>
 David G. Andersen <dave.andersen@gmail.com>
 David Symonds <dsymonds@golang.org>
@@ -44,11 +46,14 @@ Eden Li <eden.li@gmail.com>
 Evan Shaw <chickencha@gmail.com>
 Fazlul Shahriar <fshahriar@gmail.com>
 Fumitoshi Ukai <ukai@google.com>
+Hector Chu <hectorchu@gmail.com>
 Ian Lance Taylor <iant@golang.org>
+Isaac Wagner <ibw@isaacwagner.me>
 Ivan Krasin <krasin@golang.org>
 Jacob Baskin <jbaskin@google.com>
 James Aguilar <jaguilar@google.com>
 James Meneghello <rawrz0r@gmail.com>
+Jonathan Wills <runningwild@gmail.com>
 Josh Goebel <dreamer3@gmail.com>
 Kai Backman <kaib@golang.org>
 Ken Thompson <ken@golang.org>
@@ -58,6 +63,7 @@ Michael Elkins <michael.elkins@gmail.com>
 Michael Hoisie <hoisie@gmail.com>
 Môshe van der Sterre <moshevds@gmail.com>
 Nigel Tao <nigeltao@golang.org>
+Peter Froehlich <peter.hans.froehlich@gmail.com>
 Peter McKenzie <petermck@google.com>
 Péter Szabó <pts@google.com>
 Phil Pennock <pdp@golang.org>
@@ -70,6 +76,7 @@ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>
 Sergio Luis O. B. Correia <sergio@larces.uece.br>
 Stephen Ma <stephenm@golang.org>
 Tom Szymanski <tgs@google.com>
+Tor Andersson <tor.andersson@gmail.com>
 Trevor Strohman <trevor.strohman@gmail.com>
 Vish Subramanian <vish@google.com>
 William Josephson <wjosephson@gmail.com>
