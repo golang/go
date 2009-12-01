@@ -1289,10 +1289,12 @@ gmove(Node *f, Node *t)
 		if(t->op == OREGISTER)
 			goto hardmem;
 		nodreg(&r1, types[ft], D_F0);
-		if(ft == TFLOAT32 && f->op != OREGISTER)
-			gins(AFMOVF, f, &r1);
-		else
-			gins(AFMOVD, f, &r1);
+		if(f->op != OREGISTER) {
+			if(ft == TFLOAT32)
+				gins(AFMOVF, f, &r1);
+			else
+				gins(AFMOVD, f, &r1);
+		}
 
 		// set round to zero mode during conversion
 		tempalloc(&t1, types[TUINT16]);

@@ -306,8 +306,9 @@ regopt(Prog *firstp)
 		 */
 		case AFMOVDP:
 		case AFMOVFP:
-		case AFMOVVP:
 		case AFMOVLP:
+		case AFMOVVP:
+		case AFMOVWP:
 		case ACALL:
 			for(z=0; z<BITS; z++)
 				addrs.b[z] |= bit.b[z];
