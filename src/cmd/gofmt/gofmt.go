@@ -79,13 +79,13 @@ func isGoFile(d *os.Dir) bool {
 }
 
 
-func processFile(filename string) os.Error {
-	src, err := io.ReadFile(filename);
+func processFile(f *os.File) os.Error {
+	src, err := io.ReadAll(f);
 	if err != nil {
 		return err
 	}
 
-	file, err := parser.ParseFile(filename, src, parserMode());
+	file, err := parser.ParseFile(f.Name(), src, parserMode());
 	if err != nil {
 		return err
 	}
@@ -103,10 +103,10 @@ func processFile(filename string) os.Error {
 	if bytes.Compare(src, res.Bytes()) != 0 {
 		// formatting has changed
 		if *list {
-			fmt.Fprintln(os.Stdout, filename)
+			fmt.Fprintln(os.Stdout, f.Name())
 		}
 		if *write {
-			err = io.WriteFile(filename, res.Bytes(), 0);
+			err = io.WriteFile(f.Name(), res.Bytes(), 0);
 			if err != nil {
 				return err
 			}
@@ -121,6 +121,16 @@ func processFile(filename string) os.Error {
 }
 
 
+func processFileByName(filename string) (err os.Error) {
+	file, err := os.Open(filename, os.O_RDONLY, 0);
+	if err != nil {
+		return
+	}
+	defer file.Close();
+	return processFile(file);
+}
+
+
 type fileVisitor chan os.Error
 
 func (v fileVisitor) VisitDir(path string, d *os.Dir) bool {
@@ -131,7 +141,7 @@ func (v fileVisitor) VisitDir(path string, d *os.Dir) bool {
 func (v fileVisitor) VisitFile(path string, d *os.Dir) {
 	if isGoFile(d) {
 		v <- nil;	// synchronize error handler
-		if err := processFile(path); err != nil {
+		if err := processFileByName(path); err != nil {
 			v <- err
 		}
 	}
@@ -165,7 +175,7 @@ func main() {
 	initRewrite();
 
 	if flag.NArg() == 0 {
-		if err := processFile("/dev/stdin"); err != nil {
+		if err := processFile(os.Stdin); err != nil {
 			report(err)
 		}
 	}
@@ -176,7 +186,7 @@ func main() {
 		case err != nil:
 			report(err)
 		case dir.IsRegular():
-			if err := processFile(path); err != nil {
+			if err := processFileByName(path); err != nil {
 				report(err)
 			}
 		case dir.IsDirectory():
