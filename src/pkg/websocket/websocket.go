@@ -52,14 +52,14 @@ func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
 	for {
 		frameByte, err := ws.buf.ReadByte();
 		if err != nil {
-			return
+			return n, err
 		}
 		if (frameByte & 0x80) == 0x80 {
 			length := 0;
 			for {
 				c, err := ws.buf.ReadByte();
 				if err != nil {
-					return
+					return n, err
 				}
 				if (c & 0x80) == 0x80 {
 					length = length*128 + int(c&0x7f)
@@ -70,7 +70,7 @@ func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
 			for length > 0 {
 				_, err := ws.buf.ReadByte();
 				if err != nil {
-					return
+					return n, err
 				}
 				length--;
 			}
@@ -78,10 +78,10 @@ func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
 			for {
 				c, err := ws.buf.ReadByte();
 				if err != nil {
-					return
+					return n, err
 				}
 				if c == '\xff' {
-					return
+					return n, err
 				}
 				if frameByte == 0 {
 					if n+1 <= cap(msg) {
@@ -91,13 +91,13 @@ func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
 					n++;
 				}
 				if n >= cap(msg) {
-					err = os.E2BIG;
-					return;
+					return n, os.E2BIG
 				}
 			}
 		}
 	}
-	return;
+
+	panic("unreachable");
 }
 
 func (ws *Conn) Write(msg []byte) (n int, err os.Error) {
