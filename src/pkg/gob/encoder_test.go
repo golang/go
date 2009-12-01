@@ -213,3 +213,15 @@ func TestTypeToPtrPtrPtrPtrType(t *testing.T) {
 		t.Errorf("wrong value after decode: %g not %g", ****(****t2pppp).a, ****t2.a)
 	}
 }
+
+func TestSlice(t *testing.T) {
+	// Encode a *T, decode a T
+	type Type3 struct {
+		a []string;
+	}
+	t3p := &Type3{[]string{"hello", "world"}};
+	var t3 Type3;
+	if err := encAndDec(t3, t3p); err != nil {
+		t.Error(err)
+	}
+}

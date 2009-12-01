@@ -527,7 +527,12 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
 				op = decUint8Array;
 				break;
 			}
-			elemId := wireId.gobType().(*sliceType).Elem;
+			var elemId typeId;
+			if tt, ok := builtinIdToType[wireId]; ok {
+				elemId = tt.(*sliceType).Elem
+			} else {
+				elemId = dec.wireType[wireId].slice.Elem
+			}
 			elemOp, elemIndir, err := dec.decOpFor(elemId, t.Elem(), name);
 			if err != nil {
 				return nil, 0, err
@@ -614,7 +619,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) (decOp, os.Error) {
 // Are these two gob Types compatible?
 // Answers the question for basic types, arrays, and slices.
 // Structs are considered ok; fields will be checked later.
-func compatibleType(fr reflect.Type, fw typeId) bool {
+func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
 	for {
 		if pt, ok := fr.(*reflect.PtrType); ok {
 			fr = pt.Elem();
@@ -660,16 +665,22 @@ func compatibleType(fr reflect.Type, fw typeId) bool {
 		return fw == tString
 	case *reflect.ArrayType:
 		aw, ok := fw.gobType().(*arrayType);
-		return ok && t.Len() == aw.Len && compatibleType(t.Elem(), aw.Elem);
+		return ok && t.Len() == aw.Len && dec.compatibleType(t.Elem(), aw.Elem);
 	case *reflect.SliceType:
 		// Is it an array of bytes?
 		et := t.Elem();
 		if _, ok := et.(*reflect.Uint8Type); ok {
 			return fw == tBytes
 		}
-		sw, ok := fw.gobType().(*sliceType);
+		// Extract and compare element types.
+		var sw *sliceType;
+		if tt, ok := builtinIdToType[fw]; ok {
+			sw = tt.(*sliceType)
+		} else {
+			sw = dec.wireType[fw].slice
+		}
 		elem, _ := indirect(t.Elem());
-		return ok && compatibleType(elem, sw.Elem);
+		return sw != nil && dec.compatibleType(elem, sw.Elem);
 	case *reflect.StructType:
 		return true
 	}
@@ -687,7 +698,7 @@ func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEng
 		if !ok1 || !ok2 {
 			return nil, errNotStruct
 		}
-		wireStruct = w.s;
+		wireStruct = w.strct;
 	}
 	engine = new(decEngine);
 	engine.instr = make([]decInstr, len(wireStruct.field));
@@ -706,7 +717,7 @@ func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEng
 			engine.instr[fieldnum] = decInstr{op, fieldnum, 0, 0, ovfl};
 			continue;
 		}
-		if !compatibleType(localField.Type, wireField.id) {
+		if !dec.compatibleType(localField.Type, wireField.id) {
 			details := " (" + wireField.id.String() + " incompatible with " + localField.Type.String() + ") in type " + remoteId.Name();
 			return nil, os.ErrorString("gob: wrong type for field " + wireField.name + details);
 		}

@@ -98,13 +98,13 @@ var tBytes = bootstrapType("bytes", make([]byte, 0), 5)
 var tString = bootstrapType("string", "", 6)
 
 // Predefined because it's needed by the Decoder
-var tWireType = getTypeInfoNoError(reflect.Typeof(wireType{})).id
+var tWireType = mustGetTypeInfo(reflect.Typeof(wireType{})).id
 
 func init() {
 	checkId(7, tWireType);
-	checkId(8, getTypeInfoNoError(reflect.Typeof(structType{})).id);
-	checkId(9, getTypeInfoNoError(reflect.Typeof(commonType{})).id);
-	checkId(10, getTypeInfoNoError(reflect.Typeof(fieldType{})).id);
+	checkId(9, mustGetTypeInfo(reflect.Typeof(commonType{})).id);
+	checkId(11, mustGetTypeInfo(reflect.Typeof(structType{})).id);
+	checkId(12, mustGetTypeInfo(reflect.Typeof(fieldType{})).id);
 	builtinIdToType = make(map[typeId]gobType);
 	for k, v := range idToType {
 		builtinIdToType[k] = v
@@ -346,12 +346,16 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 // are built in encode.go's init() function.
 
 type wireType struct {
-	s *structType;
+	array	*arrayType;
+	slice	*sliceType;
+	strct	*structType;
 }
 
 func (w *wireType) name() string {
-	// generalize once we can have non-struct types on the wire.
-	return w.s.name
+	if w.strct != nil {
+		return w.strct.name
+	}
+	return "unknown";
 }
 
 type typeInfo struct {
@@ -377,15 +381,25 @@ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
 			return nil, err
 		}
 		info.id = gt.id();
-		// assume it's a struct type
-		info.wire = &wireType{info.id.gobType().(*structType)};
+		t := info.id.gobType();
+		switch typ := rt.(type) {
+		case *reflect.ArrayType:
+			info.wire = &wireType{array: t.(*arrayType)}
+		case *reflect.SliceType:
+			// []byte == []uint8 is a special case handled separately
+			if _, ok := typ.Elem().(*reflect.Uint8Type); !ok {
+				info.wire = &wireType{slice: t.(*sliceType)}
+			}
+		case *reflect.StructType:
+			info.wire = &wireType{strct: t.(*structType)}
+		}
 		typeInfoMap[rt] = info;
 	}
 	return info, nil;
 }
 
 // Called only when a panic is acceptable and unexpected.
-func getTypeInfoNoError(rt reflect.Type) *typeInfo {
+func mustGetTypeInfo(rt reflect.Type) *typeInfo {
 	t, err := getTypeInfo(rt);
 	if err != nil {
 		panicln("getTypeInfo:", err.String())

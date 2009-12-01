@@ -244,16 +244,19 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 	default:
 		// Basic types do not need to be described.
 		return
+	case reflect.ArrayOrSliceType:
+		// If it's []uint8, don't send; it's considered basic.
+		if _, ok := rt.Elem().(*reflect.Uint8Type); ok {
+			return
+		}
+		// Otherwise we do send.
+		break;
+	// Struct types are not sent, only their element types.
 	case *reflect.StructType:
-		// Structs do need to be described.
 		break
 	case *reflect.ChanType, *reflect.FuncType, *reflect.MapType, *reflect.InterfaceType:
 		// Probably a bad field in a struct.
 		enc.badType(rt);
-		return;
-	// Array and slice types are not sent, only their element types.
-	case reflect.ArrayOrSliceType:
-		enc.sendType(rt.Elem());
 		return;
 	}
 
@@ -282,9 +285,13 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 	// Remember we've sent the top-level, possibly indirect type too.
 	enc.sent[origt] = info.id;
 	// Now send the inner types
-	st := rt.(*reflect.StructType);
-	for i := 0; i < st.NumField(); i++ {
-		enc.sendType(st.Field(i).Type)
+	switch st := rt.(type) {
+	case *reflect.StructType:
+		for i := 0; i < st.NumField(); i++ {
+			enc.sendType(st.Field(i).Type)
+		}
+	case reflect.ArrayOrSliceType:
+		enc.sendType(st.Elem())
 	}
 	return;
 }
