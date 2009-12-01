@@ -12,7 +12,6 @@ import (
 	"go/doc";
 	"go/parser";
 	"go/printer";
-	"go/scanner";
 	"go/token";
 	"http";
 	"io";
@@ -122,7 +121,7 @@ func isPkgDir(dir *os.Dir) bool {
 
 
 func pkgName(filename string) string {
-	file, err := parse(filename, parser.PackageClauseOnly);
+	file, err := parser.ParseFile(filename, nil, parser.PackageClauseOnly);
 	if err != nil || file == nil {
 		return ""
 	}
@@ -398,74 +397,6 @@ func listing(dirs []*os.Dir) *DirList {
 
 
 // ----------------------------------------------------------------------------
-// Parsing
-
-// A single error in the parsed file.
-type parseError struct {
-	src	[]byte;	// source before error
-	line	int;	// line number of error
-	msg	string;	// error message
-}
-
-
-// All the errors in the parsed file, plus surrounding source code.
-// Each error has a slice giving the source text preceding it
-// (starting where the last error occurred).  The final element in list[]
-// has msg = "", to give the remainder of the source code.
-// This data structure is handed to the templates parseerror.txt and parseerror.html.
-//
-type parseErrors struct {
-	filename	string;		// path to file
-	list		[]parseError;	// the errors
-	src		[]byte;		// the file's entire source code
-}
-
-
-// Parses a file (path) and returns the corresponding AST and
-// a sorted list (by file position) of errors, if any.
-//
-func parse(path string, mode uint) (*ast.File, *parseErrors) {
-	src, err := io.ReadFile(path);
-	if err != nil {
-		log.Stderrf("%v", err);
-		errs := []parseError{parseError{nil, 0, err.String()}};
-		return nil, &parseErrors{path, errs, nil};
-	}
-
-	prog, err := parser.ParseFile(path, src, mode);
-	if err != nil {
-		var errs []parseError;
-		if errors, ok := err.(scanner.ErrorList); ok {
-			// convert error list (already sorted)
-			// TODO(gri) If the file contains //line comments, the errors
-			//           may not be sorted in increasing file offset value
-			//           which will lead to incorrect output.
-			errs = make([]parseError, len(errors)+1);	// +1 for final fragment of source
-			offs := 0;
-			for i, r := range errors {
-				// Should always be true, but check for robustness.
-				if 0 <= r.Pos.Offset && r.Pos.Offset <= len(src) {
-					errs[i].src = src[offs:r.Pos.Offset];
-					offs = r.Pos.Offset;
-				}
-				errs[i].line = r.Pos.Line;
-				errs[i].msg = r.Msg;
-			}
-			errs[len(errors)].src = src[offs:];
-		} else {
-			// single error of unspecified type
-			errs = make([]parseError, 2);
-			errs[0] = parseError{[]byte{}, 0, err.String()};
-			errs[1].src = src;
-		}
-		return nil, &parseErrors{path, errs, src};
-	}
-
-	return prog, nil;
-}
-
-
-// ----------------------------------------------------------------------------
 // HTML formatting support
 
 // Styler implements a printer.Styler.
@@ -544,6 +475,12 @@ func writeText(w io.Writer, text []byte, html bool) {
 }
 
 
+type StyledNode struct {
+	node	interface{};
+	styler	printer.Styler;
+}
+
+
 // Write anything to w; optionally html-escaped.
 func writeAny(w io.Writer, x interface{}, html bool) {
 	switch v := x.(type) {
@@ -551,10 +488,10 @@ func writeAny(w io.Writer, x interface{}, html bool) {
 		writeText(w, v, html)
 	case string:
 		writeText(w, strings.Bytes(v), html)
-	case ast.Decl:
-		writeNode(w, v, html, &defaultStyler)
-	case ast.Expr:
-		writeNode(w, v, html, &defaultStyler)
+	case ast.Decl, ast.Expr, ast.Stmt, *ast.File:
+		writeNode(w, x, html, &defaultStyler)
+	case StyledNode:
+		writeNode(w, v.node, html, v.styler)
 	default:
 		if html {
 			var buf bytes.Buffer;
@@ -713,9 +650,8 @@ var (
 		godocHTML,
 		packageHTML,
 		packageText,
-		parseerrorHTML,
-		parseerrorText,
-		searchHTML *template.Template;
+		searchHTML,
+		sourceHTML *template.Template;
 )
 
 func readTemplates() {
@@ -725,9 +661,8 @@ func readTemplates() {
 	godocHTML = readTemplate("godoc.html");
 	packageHTML = readTemplate("package.html");
 	packageText = readTemplate("package.txt");
-	parseerrorHTML = readTemplate("parseerror.html");
-	parseerrorText = readTemplate("parseerror.txt");
 	searchHTML = readTemplate("search.html");
+	sourceHTML = readTemplate("source.html");
 }
 
 
@@ -802,29 +737,24 @@ func serveHTMLDoc(c *http.Conn, r *http.Request, path string) {
 }
 
 
-func serveParseErrors(c *http.Conn, errors *parseErrors) {
-	// format errors
-	var buf bytes.Buffer;
-	if err := parseerrorHTML.Execute(errors, &buf); err != nil {
-		log.Stderrf("parseerrorHTML.Execute: %s", err)
+func serveGoSource(c *http.Conn, r *http.Request, path string) {
+	var info struct {
+		Source	StyledNode;
+		Error	string;
 	}
-	servePage(c, "Parse errors in source file "+errors.filename, "", buf.Bytes());
-}
 
-
-func serveGoSource(c *http.Conn, r *http.Request, path string, styler printer.Styler) {
-	prog, errors := parse(path, parser.ParseComments);
-	if errors != nil {
-		serveParseErrors(c, errors);
-		return;
+	file, err := parser.ParseFile(path, nil, parser.ParseComments);
+	info.Source = StyledNode{file, &Styler{linetags: true, highlight: r.FormValue("h")}};
+	if err != nil {
+		info.Error = err.String()
 	}
 
 	var buf bytes.Buffer;
-	fmt.Fprintln(&buf, "<pre>");
-	writeNode(&buf, prog, true, styler);
-	fmt.Fprintln(&buf, "</pre>");
+	if err := sourceHTML.Execute(info, &buf); err != nil {
+		log.Stderrf("sourceHTML.Execute: %s", err)
+	}
 
-	servePage(c, "Source file "+r.URL.Path, "", buf.Bytes());
+	servePage(c, "Source file "+path, "", buf.Bytes());
 }
 
 
@@ -940,7 +870,7 @@ func serveFile(c *http.Conn, r *http.Request) {
 		return;
 
 	case ext == ".go":
-		serveGoSource(c, r, path, &Styler{linetags: true, highlight: r.FormValue("h")});
+		serveGoSource(c, r, path);
 		return;
 	}
 
