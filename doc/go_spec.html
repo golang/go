@@ -4402,7 +4402,7 @@ func generate(ch chan&lt;- int) {
 	}
 }
 
-// Copy the values from channel 'in' to channel 'out',
+// Copy the values from channel 'src' to channel 'dst',
 // removing those divisible by 'prime'.
 func filter(src &lt;-chan int, dst chan&lt;- int, prime int) {
 	for i := range src {	// Loop over values received from 'src'.
