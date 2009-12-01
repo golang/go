@@ -217,8 +217,7 @@ func main() {
 
 	// Command line mode.
 	if *html {
-		packageText = packageHTML;
-		parseerrorText = parseerrorHTML;
+		packageText = packageHTML
 	}
 
 	info := pkgHandler.getPageInfo(flag.Arg(0));

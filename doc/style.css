@@ -194,6 +194,7 @@ span.comment {
 }
 
 span.highlight {
+  font-weight: bold;
   background-color: #ffffa0;
 }
 
