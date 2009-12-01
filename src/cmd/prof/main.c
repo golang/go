@@ -462,8 +462,14 @@ main(int argc, char *argv[])
 	}
 	if(argc > 0)
 		file = argv[0];
-	else if(pid)
+	else if(pid) {
 		file = proctextfile(pid);
+		if (file == NULL) {
+			fprint(2, "prof: can't find file for pid %d: %r\n", pid);
+			fprint(2, "prof: on Darwin, need to provide file name explicitly\n");
+			exit(1);
+		}
+	}
 	fd = open(file, 0);
 	if(fd < 0) {
 		fprint(2, "prof: can't open %s: %r\n", file);
