@@ -1,0 +1,65 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+{
+	BBEditDocumentType = "CodelessLanguageModule";
+	BBLMColorsSyntax = YES;
+	BBLMIsCaseSensitive = YES;
+	BBLMKeywordList = (
+		break,
+		case,         
+		chan,
+		const,
+		continue,
+		default,      
+		defer,
+		else,
+		fallthrough,
+		for,
+		func,         
+		go,
+		goto,
+		if,
+		import,
+		interface,    
+		map,
+		package,
+		range,
+		return,
+		select,
+		struct,
+		switch,
+		type,
+		var,
+	);
+	BBLMLanguageCode = go;
+	"BBLMLanguageDisplayName" = "Go";
+	BBLMScansFunctions = YES;
+	BBLMSuffixMap = (
+		{
+			BBLMLanguageSuffix = ".go";
+		},
+	);
+	"Language Features" = {
+		"Close Block Comments" = "*/";
+		"Close Parameter Lists" = ")";
+		"Close Statement Blocks" = "}";
+		"Close Strings 1" = "`";
+		"Close Strings 2" = "\"";
+		"End-of-line Ends Strings 1" = YES;
+		"End-of-line Ends Strings 2" = YES;
+		"Escape Char in Strings 1" = "\\";
+		"Escape Char in Strings 2" = "\\";
+		"Identifier and Keyword Characters" = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
+		"Open Block Comments" = "/*";
+		"Open Line Comments" = "//";
+		"Open Parameter Lists" = "(";
+		"Open Statement Blocks" = "{";
+		"Open Strings 1" = "`";
+		"Open Strings 2" = "\"";
+		"Prefix for Functions" = "func";
+		"Prefix for Procedures" = func;
+		"Terminator for Prototypes 1" = ";";
+		"Terminator for Prototypes 2" = "";
+	};
+}
