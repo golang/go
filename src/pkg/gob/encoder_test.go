@@ -230,9 +230,27 @@ func TestValueError(t *testing.T) {
 	type Type4 struct {
 		a int;
 	}
-	t4p := Type4{3};	// note: not a pointer, unlike the other tests.
-	var t4 Type4;
-	if err := encAndDec(t4, t4p); err == nil || strings.Index(err.String(), "pointer") <= 0 {
-		t.Error("expected error; got none or got wrong one")
+	t4p := &Type4{3};
+	var t4 Type4;	// note: not a pointer.
+	if err := encAndDec(t4p, t4); err == nil || strings.Index(err.String(), "pointer") < 0 {
+		t.Error("expected error about pointer; got", err)
+	}
+}
+
+func TestArray(t *testing.T) {
+	type Type5 struct {
+		a [3]string;
+	}
+	type Type6 struct {
+		a [2]string;	// can't hold t5.a
+	}
+	t5 := Type5{[3]string{"hello", ",", "world"}};
+	var t5p Type5;
+	if err := encAndDec(t5, &t5p); err != nil {
+		t.Error(err)
+	}
+	var t6 Type6;
+	if err := encAndDec(t5, &t6); err == nil {
+		t.Error("should fail with mismatched array sizes")
 	}
 }
