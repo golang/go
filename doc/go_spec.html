@@ -78,7 +78,8 @@ The form <code>a ... b</code> represents the set of characters from
 <h2 id="Source_code_representation">Source code representation</h2>
 
 <p>
-Source code is Unicode text encoded in UTF-8. The text is not
+Source code is Unicode text encoded in
+<a href="http://en.wikipedia.org/wiki/UTF-8">UTF-8</a>. The text is not
 canonicalized, so a single accented code point is distinct from the
 same character constructed from combining an accent and a letter;
 those are treated as two code points.  For simplicity, this document
@@ -101,7 +102,7 @@ unicode_digit  = /* a Unicode code point classified as "Digit" */ .
 </pre>
 
 <p>
-In <a href="http://www.unicode.org/versions/Unicode5.1.0/">The Unicode Standard 5.1</a>,
+In <a href="http://www.unicode.org/versions/Unicode5.2.0/">The Unicode Standard 5.2</a>,
 Section 4.5 General Category-Normative
 defines a set of character categories.  Go treats
 those characters in category Lu, Ll, Lt, Lm, or Lo as Unicode letters,
@@ -347,8 +348,8 @@ quotes <code>&quot;&quot;</code>. The text between the quotes,
 which may not span multiple lines, forms the
 value of the literal, with backslash escapes interpreted as they
 are in character literals (except that <code>\'</code> is illegal and
-<code>\"</code> is legal).  The three-digit octal (<code>\000</code>)
-and two-digit hexadecimal (<code>\x00</code>) escapes represent individual
+<code>\"</code> is legal).  The three-digit octal (<code>\</code><i>nnn</i>)
+and two-digit hexadecimal (<code>\x</code><i>nn</i>) escapes represent individual
 <i>bytes</i> of the resulting string; all other escapes represent
 the (possibly multi-byte) UTF-8 encoding of individual <i>characters</i>.
 Thus inside a string literal <code>\377</code> and <code>\xFF</code> represent
@@ -359,7 +360,7 @@ U+00FF.
 </p>
 
 <p>
-A sequence of string literals is concatenated to form a single string.
+A sequence of string literals is concatenated to form a single string constant.
 </p>
 
 <pre class="ebnf">
@@ -428,8 +429,7 @@ The boolean truth values are represented by the predeclared constants
 </p>
 
 <p>
-Numeric constants represent values of arbitrary precision that
-have no size and cannot overflow.
+Numeric constants represent values of arbitrary precision and do not overflow.
 </p>
 
 <p>
@@ -447,7 +447,7 @@ or <a href="#Conversions">conversion</a>, or implicitly when used in a
 operand in an <a href="#Expressions">expression</a>.
 It is an error if the constant value
 cannot be accurately represented as a value of the respective type.
-For instance, <code>3.0</code> can be given any integer type but also any
+For instance, <code>3.0</code> can be given any integer or any
 floating-point type, while <code>2147483648.0</code> (equal to <code>1&lt;&lt;31</code>)
 can be given the types <code>float32</code>, <code>float64</code>, or <code>uint32</code> but
 not <code>int32</code> or <code>string</code>.
@@ -539,9 +539,8 @@ byte     familiar alias for uint8
 </pre>
 
 <p>
-Integer types are represented in the usual binary format; the value of
-an n-bit integer is n bits wide. A negative signed integer is represented
-as the two's complement of its absolute value.
+The value of an <i>n</i>-bit integer is <i>n</i> bits wide and represented using
+<a href="http://en.wikipedia.org/wiki/Two's_complement">two's complement arithmetic</a>.
 </p>
 
 <p>
@@ -601,7 +600,7 @@ ElementType = Type .
 </pre>
 
 <p>
-The length is part of the array's type and must must be a
+The length is part of the array's type and must be a
 <a href="#Constant_expressions">constant expression</a> that evaluates to a non-negative
 integer value.  The length of array <code>a</code> can be discovered
 using the built-in function <code>len(a)</code>, which is a
@@ -1061,7 +1060,7 @@ chan&lt;- float   // can only be used to send floats
 
 <p>
 The value of an uninitialized channel is <code>nil</code>. A new, initialized channel
-value is made using the built-in function <code>make</code>,
+value can be made using the built-in function <code>make</code>,
 which takes the channel type and an optional capacity as arguments:
 </p>
 
@@ -1520,7 +1519,7 @@ const (
 <h3 id="Iota">Iota</h3>
 
 <p>
-Within a constant declaration, the predeclared pseudo-constant
+Within a constant declaration, the predeclared identifier
 <code>iota</code> represents successive untyped integer <a href="#Constants">
 constants</a>. It is reset to 0 whenever the reserved word <code>const</code>
 appears in the source and increments with each semicolon. It can be used to construct a
@@ -1780,8 +1779,8 @@ func flushICache(begin, end uintptr)  // implemented externally
 <h3 id="Method_declarations">Method declarations</h3>
 
 <p>
-A method declaration binds an identifier to a method,
-which is a function with a <i>receiver</i>.
+A method is a function with a <i>receiver</i>.
+A method declaration binds an identifier to a method.
 </p>
 <pre class="ebnf">
 MethodDecl   = "func" Receiver MethodName Signature [ Body ] .
@@ -1822,7 +1821,7 @@ to the base type <code>Point</code>.
 </p>
 
 <p>
-If the receiver's value is not referenced inside the the body of the method,
+If the receiver's value is not referenced inside the body of the method,
 its identifier may be omitted in the declaration. The same applies in
 general to parameters of functions and methods.
 </p>
@@ -2391,7 +2390,8 @@ with the same element type as the array.
 <h3 id="Type_assertions">Type assertions</h3>
 
 <p>
-For an expression <code>x</code> and a type <code>T</code>, the primary expression
+For an expression <code>x</code> of <a href="#Interface_types">interface type</a>
+and a type <code>T</code>, the primary expression
 </p>
 
 <pre>
@@ -2399,10 +2399,9 @@ x.(T)
 </pre>
 
 <p>
-asserts that <code>x</code> is not the zero interface value
+asserts that <code>x</code> is not <code>nil</code>
 and that the value stored in <code>x</code> is of type <code>T</code>.
 The notation <code>x.(T)</code> is called a <i>type assertion</i>.
-The type of <code>x</code> must be an interface type.
 </p>
 <p>
 More precisely, if <code>T</code> is not an interface type, <code>x.(T)</code> asserts
@@ -2463,7 +2462,7 @@ the method.
 </p>
 
 <pre>
-Atan2(x, y)    // function call
+math.Atan2(x, y)    // function call
 var pt *Point;
 pt.Scale(3.5)  // method call with receiver pt
 </pre>
@@ -2738,7 +2737,7 @@ as if the left operand is shifted <code>n</code> times by 1 for a shift
 count of <code>n</code>.
 As a result, <code>x &lt;&lt; 1</code> is the same as <code>x*2</code>
 and <code>x &gt;&gt; 1</code> is the same as
-<code>x/2</code> truncated towards negative infinity.
+<code>x/2</code> but truncated towards negative infinity.
 </p>
 
 <p>
@@ -3201,11 +3200,11 @@ of the constant type. The following constant expressions are illegal:
 </p>
 
 <pre>
-uint(-1)       // -1 overflows uint
-int(3.14)      // 3.14 truncated to integer
-int64(Huge)    // 1&lt;&lt;100 overflows int64
-Four * 300     // 300 overflows int8
-Four * 100     // 400 overflows int8
+uint(-1)       // -1 cannot be represented as a uint
+int(3.14)      // 3.14 cannot be represented as an int
+int64(Huge)    // 1&lt;&lt;100 cannot be represented as an int64
+Four * 300     // 300 cannot be represented as an int8
+Four * 100     // 400 cannot be represented as an int8
 </pre>
 
 <p>
@@ -3304,7 +3303,7 @@ EmptyStmt = .
 </pre>
 
 <p>
-A statement list can always in effect be terminated with a semicolon by
+A statement list can always be terminated with a semicolon, in effect
 adding an empty statement.
 </p>
 
@@ -3525,7 +3524,7 @@ If no case matches and there is a "default" case,
 its statements are executed.
 There can be at most one default case and it may appear anywhere in the
 "switch" statement.
-A missing expression is equivalent to
+A missing switch expression is equivalent to
 the expression <code>true</code>.
 </p>
 
@@ -3556,12 +3555,12 @@ case 0, 1, 2, 3: s1()
 case 4, 5, 6, 7: s2()
 }
 
-switch x := f(); {
+switch x := f(); {  // missing switch expression means "true"
 case x &lt; 0: return -x
 default: return x
 }
 
-switch {  // missing expression means "true"
+switch {
 case x &lt; y: f1();
 case x &lt; z: f2();
 case x == 4: f3();
@@ -3604,15 +3603,14 @@ is a <code>nil</code> interface value.
 </p>
 
 <p>
-Given a function <code>f</code> that returns
-a value of type <code>interface{}</code>,
+Given an expression <code>x</code> of type <code>interface{}</code>,
 the following type switch:
 </p>
 
 <pre>
-switch i := f().(type) {
+switch i := x.(type) {
 case nil:
-	printString("f() returns nil");
+	printString("x is nil");
 case int:
 	printInt(i);  // i is an int
 case float:
@@ -3631,9 +3629,9 @@ could be rewritten:
 </p>
 
 <pre>
-v := f();
+v := x;  // x is evaluated exactly once
 if v == nil {
-	printString("f() returns nil");
+	printString("x is nil");
 } else if i, is_int := v.(int); is_int {
 	printInt(i);  // i is an int
 } else if i, is_float := v.(float); is_float {
@@ -4129,12 +4127,12 @@ The implementation guarantees that the result always fits into an <code>int</cod
 Call      Argument type        Result
 
 len(s)    string type          string length in bytes
-          [n]T, *[n]T          array length (== n)
+          [n]T, *[n]T          array length (== constant n)
           []T                  slice length
           map[K]T              map length (number of defined keys)
           chan T               number of elements queued in channel buffer
 
-cap(s)    [n]T, *[n]T          array length (== n)
+cap(s)    [n]T, *[n]T          array length (== constant n)
           []T                  slice capacity
           chan T               channel buffer capacity
 </pre>
