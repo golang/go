@@ -1047,7 +1047,7 @@ stkof(Node *n)
  *	memmove(&res, &n, w);
  */
 void
-sgen(Node *n, Node *res, int w)
+sgen(Node *n, Node *res, int32 w)
 {
 	Node dst, src, tdst, tsrc;
 	int32 c, q, odst, osrc;
