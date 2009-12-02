@@ -43,7 +43,10 @@ import stat
 import subprocess
 import threading
 from HTMLParser import HTMLParser
-from xml.etree import ElementTree as ET
+try:
+	from xml.etree import ElementTree as ET
+except:
+	from lxml.etree import ElementTree as ET
 
 try:
 	hgversion = util.version()
