@@ -26,6 +26,7 @@ var utctests = []TimeTest{
 	TimeTest{0, Time{1970, 1, 1, 0, 0, 0, Thursday, 0, "UTC"}},
 	TimeTest{1221681866, Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "UTC"}},
 	TimeTest{-1221681866, Time{1931, 4, 16, 3, 55, 34, Thursday, 0, "UTC"}},
+	TimeTest{-11644473600, Time{1601, 1, 1, 0, 0, 0, Monday, 0, "UTC"}},
 	TimeTest{1e18, Time{31688740476, 10, 23, 1, 46, 40, Friday, 0, "UTC"}},
 	TimeTest{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, Tuesday, 0, "UTC"}},
 	TimeTest{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, Sunday, 0, "UTC"}},
