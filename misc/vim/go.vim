@@ -83,7 +83,7 @@ syn match       goType              /\<func\>/
 syn match       goDeclaration       /^func\>/
 
 " Predefined functions and values
-syn keyword     goBuiltins          cap close closed convert len make new panic panicln print println
+syn keyword     goBuiltins          cap close closed convert copy len make new panic panicln print println
 syn keyword     goConstants         iota true false nil
 
 hi def link     goBuiltins          Keyword
