@@ -9,6 +9,7 @@ import (
 	"io";
 	"os";
 	"reflect";
+	"strings";
 	"testing";
 )
 
@@ -195,7 +196,6 @@ func TestPtrTypeToType(t *testing.T) {
 }
 
 func TestTypeToPtrPtrPtrPtrType(t *testing.T) {
-	// Encode a *T, decode a T
 	type Type2 struct {
 		a ****float;
 	}
@@ -215,7 +215,6 @@ func TestTypeToPtrPtrPtrPtrType(t *testing.T) {
 }
 
 func TestSlice(t *testing.T) {
-	// Encode a *T, decode a T
 	type Type3 struct {
 		a []string;
 	}
@@ -223,5 +222,17 @@ func TestSlice(t *testing.T) {
 	var t3 Type3;
 	if err := encAndDec(t3, t3p); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestValueError(t *testing.T) {
+	// Encode a *T, decode a T
+	type Type4 struct {
+		a int;
+	}
+	t4p := Type4{3};	// note: not a pointer, unlike the other tests.
+	var t4 Type4;
+	if err := encAndDec(t4, t4p); err == nil || strings.Index(err.String(), "pointer") <= 0 {
+		t.Error("expected error; got none or got wrong one")
 	}
 }
