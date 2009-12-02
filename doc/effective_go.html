@@ -308,12 +308,12 @@ which is a clear, concise name.
 Moreover,
 because imported entities are always addressed with their package name, <code>bufio.Reader</code>
 does not conflict with <code>io.Reader</code>.
-Similarly, the function to make new instances of <code>vector.Vector</code>&mdash;which
+Similarly, the function to make new instances of <code>ring.Ring</code>&mdash;which
 is the definition of a <em>constructor</em> in Go&mdash;would
-normally be called <code>NewVector</code>, but since
-<code>Vector</code> is the only type exported by the package, and since the
-package is called <code>vector</code>, it's called just <code>New</code>.
-Clients of the package see that as <code>vector.New</code>.
+normally be called <code>NewRing</code>, but since
+<code>Ring</code> is the only type exported by the package, and since the
+package is called <code>ring</code>, it's called just <code>New</code>.
+Clients of the package see that as <code>ring.New</code>.
 Use the package structure to help you choose good names.
 </p>
 
