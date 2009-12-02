@@ -20,6 +20,7 @@ tables:	maketables
 	$(GC) maketables.go
 	$(LD) -o maketables maketables.$O
 	./maketables --tables=all > tables.go
+	gofmt -w tables.go
 	rm -f maketables
 
 testtables: maketables
