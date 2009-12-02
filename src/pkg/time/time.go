@@ -104,15 +104,15 @@ func SecondsToUTC(sec int64) *Time {
 		n := -day/daysPer400Years + 1;
 		year -= 400 * n;
 		day += daysPer400Years * n;
-	} else {
-		// Cut off 400 year cycles.
-		n := day / daysPer400Years;
-		year += 400 * n;
-		day -= daysPer400Years * n;
 	}
 
+	// Cut off 400 year cycles.
+	n := day / daysPer400Years;
+	year += 400 * n;
+	day -= daysPer400Years * n;
+
 	// Cut off 100-year cycles
-	n := day / daysPer100Years;
+	n = day / daysPer100Years;
 	year += 100 * n;
 	day -= daysPer100Years * n;
 
