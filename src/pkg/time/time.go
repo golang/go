@@ -113,16 +113,25 @@ func SecondsToUTC(sec int64) *Time {
 
 	// Cut off 100-year cycles
 	n = day / daysPer100Years;
+	if n > 3 {	// happens on last day of 400th year
+		n = 3
+	}
 	year += 100 * n;
 	day -= daysPer100Years * n;
 
 	// Cut off 4-year cycles
 	n = day / daysPer4Years;
+	if n > 24 {	// happens on last day of 100th year
+		n = 24
+	}
 	year += 4 * n;
 	day -= daysPer4Years * n;
 
 	// Cut off non-leap years.
 	n = day / 365;
+	if n > 3 {	// happens on last day of 4th year
+		n = 3
+	}
 	year += n;
 	day -= 365 * n;
 
