@@ -77,6 +77,12 @@ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
 	return;
 }
 
+func Shutdown(s int, how int) (errno int) {
+	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(s), uintptr(how), 0);
+	errno = int(e1);
+	return;
+}
+
 func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
 	var _p0 *byte;
 	if len(p) > 0 {
