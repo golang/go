@@ -7,6 +7,10 @@
 # values (ENAMETOOLONG etc.), by asking the preprocessor
 # about the definitions.
 
+unset LANG
+export LC_ALL=C
+export LC_CTYPE=C
+
 case "$GOARCH" in
 arm)
 	GCC=arm-gcc
@@ -72,7 +76,7 @@ includes='
 
 		$2 ~ /^E[A-Z0-9_]+$/ ||
 		$2 ~ /^SIG[^_]/ ||
-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|TCP|EVFILT|EV)_/ ||
+		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|TCP|EVFILT|EV|SHUT|PROT|MAP)_/ ||
 		$2 == "SOMAXCONN" ||
 		$2 == "NAME_MAX" ||
 		$2 ~ /^(O|F|FD|NAME|S|PTRACE)_/ ||
@@ -89,7 +93,8 @@ includes='
 # Pull out just the error names for later.
 errors=$(
 	echo '#include <errno.h>' | $GCC -x c - -E -dM |
-	awk '$1=="#define" && $2 ~ /^E[A-Z0-9_]+$/ { print $2 }'
+	awk '$1=="#define" && $2 ~ /^E[A-Z0-9_]+$/ { print $2 }' |
+	sort
 )
 
 echo '// mkerrors.sh' "$@"

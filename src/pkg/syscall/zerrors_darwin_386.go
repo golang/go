@@ -20,6 +20,7 @@ const (
 	AF_E164				= 0x1c;
 	AF_ECMA				= 0x8;
 	AF_HYLINK			= 0xf;
+	AF_IEEE80211			= 0x25;
 	AF_IMPLINK			= 0x3;
 	AF_INET				= 0x2;
 	AF_INET6			= 0x1e;
@@ -29,7 +30,7 @@ const (
 	AF_LAT				= 0xe;
 	AF_LINK				= 0x12;
 	AF_LOCAL			= 0x1;
-	AF_MAX				= 0x25;
+	AF_MAX				= 0x26;
 	AF_NATM				= 0x1f;
 	AF_NDRV				= 0x1b;
 	AF_NETBIOS			= 0x21;
@@ -152,16 +153,19 @@ const (
 	EVFILT_MACHPORT			= -0x8;
 	EVFILT_PROC			= -0x5;
 	EVFILT_READ			= -0x1;
+	EVFILT_SESSION			= -0xb;
 	EVFILT_SIGNAL			= -0x6;
-	EVFILT_SYSCOUNT			= 0x9;
-	EVFILT_THREADMARKER		= 0x9;
+	EVFILT_SYSCOUNT			= 0xb;
+	EVFILT_THREADMARKER		= 0xb;
 	EVFILT_TIMER			= -0x7;
+	EVFILT_USER			= -0xa;
 	EVFILT_VNODE			= -0x4;
 	EVFILT_WRITE			= -0x2;
 	EV_ADD				= 0x1;
 	EV_CLEAR			= 0x20;
 	EV_DELETE			= 0x2;
 	EV_DISABLE			= 0x8;
+	EV_DISPATCH			= 0x80;
 	EV_ENABLE			= 0x4;
 	EV_EOF				= 0x8000;
 	EV_ERROR			= 0x4000;
@@ -172,10 +176,12 @@ const (
 	EV_POLL				= 0x1000;
 	EV_RECEIPT			= 0x40;
 	EV_SYSFLAGS			= 0xf000;
+	EV_TRIGGER			= 0x100;
 	EWOULDBLOCK			= 0x23;
 	EXDEV				= 0x12;
 	FD_CLOEXEC			= 0x1;
 	FD_SETSIZE			= 0x400;
+	F_ADDFILESIGS			= 0x3d;
 	F_ADDSIGS			= 0x3b;
 	F_ALLOCATEALL			= 0x4;
 	F_ALLOCATECONTIG		= 0x2;
@@ -318,6 +324,7 @@ const (
 	IPPROTO_XNET			= 0xf;
 	IPPROTO_XTP			= 0x24;
 	IP_ADD_MEMBERSHIP		= 0xc;
+	IP_BOUND_IF			= 0x19;
 	IP_DEFAULT_MULTICAST_LOOP	= 0x1;
 	IP_DEFAULT_MULTICAST_TTL	= 0x1;
 	IP_DROP_MEMBERSHIP		= 0xd;
@@ -371,6 +378,7 @@ const (
 	O_ASYNC				= 0x40;
 	O_CREAT				= 0x200;
 	O_DIRECTORY			= 0x100000;
+	O_DSYNC				= 0x400000;
 	O_EVTONLY			= 0x8000;
 	O_EXCL				= 0x800;
 	O_EXLOCK			= 0x20;
@@ -387,6 +395,9 @@ const (
 	O_SYNC				= 0x80;
 	O_TRUNC				= 0x400;
 	O_WRONLY			= 0x1;
+	SHUT_RD				= 0;
+	SHUT_RDWR			= 0x2;
+	SHUT_WR				= 0x1;
 	SIGABRT				= 0x6;
 	SIGALRM				= 0xe;
 	SIGBUS				= 0xa;
@@ -441,10 +452,12 @@ const (
 	SO_NOADDRERR			= 0x1023;
 	SO_NOSIGPIPE			= 0x1022;
 	SO_NOTIFYCONFLICT		= 0x1026;
+	SO_NP_EXTENSIONS		= 0x1083;
 	SO_NREAD			= 0x1020;
 	SO_NWRITE			= 0x1024;
 	SO_OOBINLINE			= 0x100;
 	SO_PEERLABEL			= 0x1011;
+	SO_RANDOMPORT			= 0x1082;
 	SO_RCVBUF			= 0x1002;
 	SO_RCVLOWAT			= 0x1004;
 	SO_RCVTIMEO			= 0x1006;
@@ -460,6 +473,7 @@ const (
 	SO_SNDTIMEO			= 0x1005;
 	SO_TIMESTAMP			= 0x400;
 	SO_TYPE				= 0x1008;
+	SO_UPCALLCLOSEWAIT		= 0x1027;
 	SO_USELOOPBACK			= 0x40;
 	SO_WANTMORE			= 0x4000;
 	SO_WANTOOBFLAG			= 0x8000;
@@ -473,7 +487,6 @@ const (
 	S_IFREG				= 0x8000;
 	S_IFSOCK			= 0xc000;
 	S_IFWHT				= 0xe000;
-	S_IFXATTR			= 0x10000;
 	S_IREAD				= 0x100;
 	S_IRGRP				= 0x20;
 	S_IROTH				= 0x4;
@@ -492,6 +505,7 @@ const (
 	S_IXGRP				= 0x8;
 	S_IXOTH				= 0x1;
 	S_IXUSR				= 0x40;
+	TCP_CONNECTIONTIMEOUT		= 0x20;
 	TCP_KEEPALIVE			= 0x10;
 	TCP_MAXBURST			= 0x4;
 	TCP_MAXHLEN			= 0x3c;
@@ -511,7 +525,7 @@ const (
 	WEXITED				= 0x4;
 	WNOHANG				= 0x1;
 	WNOWAIT				= 0x20;
-	WORDSIZE			= 0x20;
+	WORDSIZE			= 0x40;
 	WSTOPPED			= 0x7f;
 	WUNTRACED			= 0x2;
 )
@@ -521,107 +535,107 @@ const (
 
 // Error table
 var errors = [...]string{
-	95: "EMULTIHOP (Reserved)",
-	47: "address family not supported by protocol family",
-	13: "permission denied",
-	39: "destination address required",
-	92: "illegal byte sequence",
-	29: "illegal seek",
-	31: "too many links",
-	74: "RPC prog. not avail",
-	25: "inappropriate ioctl for device",
-	9: "bad file descriptor",
-	34: "result too large",
-	89: "operation canceled",
-	26: "text file busy",
-	12: "cannot allocate memory",
-	36: "operation now in progress",
-	66: "directory not empty",
-	15: "block device required",
-	41: "protocol wrong type for socket",
-	91: "no message of desired type",
-	73: "RPC version wrong",
-	20: "not a directory",
-	37: "operation already in progress",
-	60: "operation timed out",
-	81: "need authenticator",
-	96: "no message available on STREAM",
-	4: "interrupted system call",
-	97: "ENOLINK (Reserved)",
-	1: "operation not permitted",
-	50: "network is down",
-	70: "stale NFS file handle",
-	38: "socket operation on non-socket",
-	98: "no STREAM resources",
-	80: "authentication error",
-	10: "no child processes",
-	32: "broken pipe",
-	93: "attribute not found",
-	94: "bad message",
-	71: "too many levels of remote in path",
-	59: "too many references: can't splice",
-	46: "protocol family not supported",
-	76: "bad procedure for program",
-	48: "address already in use",
-	52: "network dropped connection on reset",
-	21: "is a directory",
-	90: "identifier removed",
-	83: "device error",
-	22: "invalid argument",
-	58: "can't send after socket shutdown",
-	82: "device power is off",
-	84: "value too large to be stored in data type",
-	16: "resource busy",
-	67: "too many processes",
-	100: "protocol error",
-	19: "operation not supported by device",
-	30: "read-only file system",
 	7: "argument list too long",
-	11: "resource deadlock avoided",
-	54: "connection reset by peer",
-	88: "malformed Mach-o file",
-	6: "device not configured",
-	72: "RPC struct is bad",
-	63: "file name too long",
-	103: "policy not found",
-	44: "socket type not supported",
+	13: "permission denied",
+	48: "address already in use",
 	49: "can't assign requested address",
-	101: "STREAM ioctl timeout",
-	43: "protocol not supported",
-	5: "input/output error",
-	51: "network is unreachable",
-	18: "cross-device link",
-	69: "disc quota exceeded",
-	28: "no space left on device",
-	8: "exec format error",
-	40: "message too long",
-	79: "inappropriate file type or format",
-	33: "numerical argument out of domain",
-	99: "not a STREAM",
-	27: "file too large",
-	3: "no such process",
-	64: "host is down",
-	77: "no locks available",
-	23: "too many open files in system",
-	78: "function not implemented",
-	86: "bad CPU type in executable",
-	57: "socket is not connected",
-	45: "operation not supported",
-	53: "software caused connection abort",
-	56: "socket is already connected",
-	87: "shared library version mismatch",
-	68: "too many users",
-	42: "protocol not available",
-	24: "too many open files",
-	62: "too many levels of symbolic links",
-	55: "no buffer space available",
-	14: "bad address",
+	47: "address family not supported by protocol family",
 	35: "resource temporarily unavailable",
+	37: "operation already in progress",
+	80: "authentication error",
+	86: "bad CPU type in executable",
 	85: "bad executable (or shared library)",
+	9: "bad file descriptor",
+	88: "malformed Mach-o file",
+	94: "bad message",
+	72: "RPC struct is bad",
+	16: "resource busy",
+	89: "operation canceled",
+	10: "no child processes",
+	53: "software caused connection abort",
 	61: "connection refused",
+	54: "connection reset by peer",
+	11: "resource deadlock avoided",
+	39: "destination address required",
+	83: "device error",
+	33: "numerical argument out of domain",
+	69: "disc quota exceeded",
 	17: "file exists",
-	75: "program version wrong",
-	2: "no such file or directory",
+	14: "bad address",
+	27: "file too large",
+	79: "inappropriate file type or format",
+	64: "host is down",
 	65: "no route to host",
+	90: "identifier removed",
+	92: "illegal byte sequence",
+	36: "operation now in progress",
+	4: "interrupted system call",
+	22: "invalid argument",
+	5: "input/output error",
+	56: "socket is already connected",
+	21: "is a directory",
+	103: "policy not found",
+	62: "too many levels of symbolic links",
+	24: "too many open files",
+	31: "too many links",
+	40: "message too long",
+	95: "EMULTIHOP (Reserved)",
+	63: "file name too long",
+	81: "need authenticator",
+	50: "network is down",
+	52: "network dropped connection on reset",
+	51: "network is unreachable",
+	23: "too many open files in system",
+	93: "attribute not found",
+	55: "no buffer space available",
+	96: "no message available on STREAM",
+	19: "operation not supported by device",
+	2: "no such file or directory",
+	8: "exec format error",
+	77: "no locks available",
+	97: "ENOLINK (Reserved)",
+	12: "cannot allocate memory",
+	91: "no message of desired type",
+	42: "protocol not available",
+	28: "no space left on device",
+	98: "no STREAM resources",
+	99: "not a STREAM",
+	78: "function not implemented",
+	15: "block device required",
+	57: "socket is not connected",
+	20: "not a directory",
+	66: "directory not empty",
+	38: "socket operation on non-socket",
+	45: "operation not supported",
+	25: "inappropriate ioctl for device",
+	6: "device not configured",
 	102: "operation not supported on socket",
+	84: "value too large to be stored in data type",
+	1: "operation not permitted",
+	46: "protocol family not supported",
+	32: "broken pipe",
+	67: "too many processes",
+	76: "bad procedure for program",
+	75: "program version wrong",
+	74: "RPC prog. not avail",
+	100: "protocol error",
+	43: "protocol not supported",
+	41: "protocol wrong type for socket",
+	82: "device power is off",
+	34: "result too large",
+	71: "too many levels of remote in path",
+	30: "read-only file system",
+	73: "RPC version wrong",
+	87: "shared library version mismatch",
+	58: "can't send after socket shutdown",
+	44: "socket type not supported",
+	29: "illegal seek",
+	3: "no such process",
+	70: "stale NFS file handle",
+	101: "STREAM ioctl timeout",
+	60: "operation timed out",
+	59: "too many references: can't splice",
+	26: "text file busy",
+	68: "too many users",
+	18: "cross-device link",
 }

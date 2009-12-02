@@ -16,27 +16,34 @@ const (
 	AF_AX25					= 0x3;
 	AF_BLUETOOTH				= 0x1f;
 	AF_BRIDGE				= 0x7;
+	AF_CAN					= 0x1d;
 	AF_DECnet				= 0xc;
 	AF_ECONET				= 0x13;
 	AF_FILE					= 0x1;
+	AF_IEEE802154				= 0x24;
 	AF_INET					= 0x2;
 	AF_INET6				= 0xa;
 	AF_IPX					= 0x4;
 	AF_IRDA					= 0x17;
+	AF_ISDN					= 0x22;
 	AF_IUCV					= 0x20;
 	AF_KEY					= 0xf;
+	AF_LLC					= 0x1a;
 	AF_LOCAL				= 0x1;
-	AF_MAX					= 0x22;
+	AF_MAX					= 0x25;
 	AF_NETBEUI				= 0xd;
 	AF_NETLINK				= 0x10;
 	AF_NETROM				= 0x6;
 	AF_PACKET				= 0x11;
+	AF_PHONET				= 0x23;
 	AF_PPPOX				= 0x18;
+	AF_RDS					= 0x15;
 	AF_ROSE					= 0xb;
 	AF_ROUTE				= 0x10;
 	AF_RXRPC				= 0x21;
 	AF_SECURITY				= 0xe;
 	AF_SNA					= 0x16;
+	AF_TIPC					= 0x1e;
 	AF_UNIX					= 0x1;
 	AF_UNSPEC				= 0;
 	AF_WANPIPE				= 0x19;
@@ -160,9 +167,11 @@ const (
 	EPOLLRDNORM				= 0x40;
 	EPOLLWRBAND				= 0x200;
 	EPOLLWRNORM				= 0x100;
+	EPOLL_CLOEXEC				= 0x80000;
 	EPOLL_CTL_ADD				= 0x1;
 	EPOLL_CTL_DEL				= 0x2;
 	EPOLL_CTL_MOD				= 0x3;
+	EPOLL_NONBLOCK				= 0x800;
 	EPROTO					= 0x47;
 	EPROTONOSUPPORT				= 0x5d;
 	EPROTOTYPE				= 0x5b;
@@ -171,6 +180,7 @@ const (
 	EREMOTE					= 0x42;
 	EREMOTEIO				= 0x79;
 	ERESTART				= 0x55;
+	ERFKILL					= 0x84;
 	EROFS					= 0x1e;
 	ESHUTDOWN				= 0x6c;
 	ESOCKTNOSUPPORT				= 0x5e;
@@ -189,7 +199,6 @@ const (
 	EWOULDBLOCK				= 0xb;
 	EXDEV					= 0x12;
 	EXFULL					= 0x36;
-	EXPR_NEST_MAX				= 0x20;
 	FD_CLOEXEC				= 0x1;
 	FD_SETSIZE				= 0x400;
 	F_DUPFD					= 0;
@@ -223,6 +232,7 @@ const (
 	F_WRLCK					= 0x1;
 	IPPROTO_AH				= 0x33;
 	IPPROTO_COMP				= 0x6c;
+	IPPROTO_DCCP				= 0x21;
 	IPPROTO_DSTOPTS				= 0x3c;
 	IPPROTO_EGP				= 0x8;
 	IPPROTO_ENCAP				= 0x62;
@@ -248,6 +258,7 @@ const (
 	IPPROTO_TCP				= 0x6;
 	IPPROTO_TP				= 0x1d;
 	IPPROTO_UDP				= 0x11;
+	IPPROTO_UDPLITE				= 0x88;
 	IP_ADD_MEMBERSHIP			= 0x23;
 	IP_ADD_SOURCE_MEMBERSHIP		= 0x27;
 	IP_BLOCK_SOURCE				= 0x26;
@@ -268,6 +279,7 @@ const (
 	IP_PMTUDISC				= 0xa;
 	IP_PMTUDISC_DO				= 0x2;
 	IP_PMTUDISC_DONT			= 0;
+	IP_PMTUDISC_PROBE			= 0x3;
 	IP_PMTUDISC_WANT			= 0x1;
 	IP_RECVERR				= 0xb;
 	IP_RECVOPTS				= 0x6;
@@ -304,6 +316,16 @@ const (
 	O_WRONLY				= 0x1;
 	PTRACE_ARCH_PRCTL			= 0x1e;
 	PTRACE_ATTACH				= 0x10;
+	PTRACE_BTS_CLEAR			= 0x2c;
+	PTRACE_BTS_CONFIG			= 0x28;
+	PTRACE_BTS_DRAIN			= 0x2d;
+	PTRACE_BTS_GET				= 0x2b;
+	PTRACE_BTS_O_ALLOC			= 0x8;
+	PTRACE_BTS_O_SCHED			= 0x2;
+	PTRACE_BTS_O_SIGNAL			= 0x4;
+	PTRACE_BTS_O_TRACE			= 0x1;
+	PTRACE_BTS_SIZE				= 0x2a;
+	PTRACE_BTS_STATUS			= 0x29;
 	PTRACE_CONT				= 0x7;
 	PTRACE_DETACH				= 0x11;
 	PTRACE_EVENT_CLONE			= 0x3;
@@ -340,9 +362,15 @@ const (
 	PTRACE_SETREGS				= 0xd;
 	PTRACE_SETSIGINFO			= 0x4203;
 	PTRACE_SET_THREAD_AREA			= 0x1a;
+	PTRACE_SINGLEBLOCK			= 0x21;
 	PTRACE_SINGLESTEP			= 0x9;
 	PTRACE_SYSCALL				= 0x18;
+	PTRACE_SYSEMU				= 0x1f;
+	PTRACE_SYSEMU_SINGLESTEP		= 0x20;
 	PTRACE_TRACEME				= 0;
+	SHUT_RD					= 0;
+	SHUT_RDWR				= 0x2;
+	SHUT_WR					= 0x1;
 	SIGABRT					= 0x6;
 	SIGALRM					= 0xe;
 	SIGBUS					= 0x7;
@@ -378,7 +406,10 @@ const (
 	SIGWINCH				= 0x1c;
 	SIGXCPU					= 0x18;
 	SIGXFSZ					= 0x19;
+	SOCK_CLOEXEC				= 0x80000;
+	SOCK_DCCP				= 0x6;
 	SOCK_DGRAM				= 0x2;
+	SOCK_NONBLOCK				= 0x800;
 	SOCK_PACKET				= 0xa;
 	SOCK_RAW				= 0x3;
 	SOCK_RDM				= 0x4;
@@ -408,6 +439,7 @@ const (
 	SO_ERROR				= 0x4;
 	SO_KEEPALIVE				= 0x9;
 	SO_LINGER				= 0xd;
+	SO_MARK					= 0x24;
 	SO_NO_CHECK				= 0xb;
 	SO_OOBINLINE				= 0xa;
 	SO_PASSCRED				= 0x10;
@@ -429,6 +461,7 @@ const (
 	SO_SNDLOWAT				= 0x13;
 	SO_SNDTIMEO				= 0x15;
 	SO_TIMESTAMP				= 0x1d;
+	SO_TIMESTAMPING				= 0x25;
 	SO_TIMESTAMPNS				= 0x23;
 	SO_TYPE					= 0x3;
 	S_BLKSIZE				= 0x200;
@@ -493,133 +526,134 @@ const (
 
 // Error table
 var errors = [...]string{
-	72: "multihop attempted",
-	49: "protocol driver not attached",
-	97: "address family not supported by protocol",
-	78: "remote address changed",
+	7: "argument list too long",
 	13: "permission denied",
-	47: "level 3 reset",
-	89: "destination address required",
-	84: "invalid or incomplete multibyte or wide character",
-	29: "illegal seek",
-	31: "too many links",
-	130: "owner died",
-	25: "inappropriate ioctl for device",
+	98: "address already in use",
+	99: "cannot assign requested address",
+	68: "advertise error",
+	97: "address family not supported by protocol",
+	11: "resource temporarily unavailable",
+	114: "operation already in progress",
 	52: "invalid exchange",
 	9: "bad file descriptor",
-	53: "invalid request descriptor",
-	68: "advertise error",
-	34: "numerical result out of range",
-	125: "operation canceled",
-	26: "text file busy",
-	12: "cannot allocate memory",
-	115: "operation now in progress",
-	15: "block device required",
-	91: "protocol wrong type for socket",
-	85: "interrupted system call should be restarted",
-	120: "is a named type file",
-	42: "no message of desired type",
-	114: "operation already in progress",
-	110: "connection timed out",
-	61: "no data available",
-	4: "interrupted system call",
-	67: "link has been severed",
-	1: "operation not permitted",
-	40: "too many levels of symbolic links",
-	100: "network is down",
-	116: "stale NFS file handle",
-	88: "socket operation on non-socket",
-	63: "out of streams resources",
-	10: "no child processes",
-	48: "link number out of range",
-	32: "broken pipe",
-	74: "bad message",
-	59: "bad font file format",
-	66: "object is remote",
-	109: "too many references: cannot splice",
-	96: "protocol family not supported",
-	64: "machine is not on the network",
-	54: "exchange full",
-	57: "invalid slot",
-	118: "not a XENIX named type file",
-	83: "cannot exec a shared library directly",
-	50: "no CSI structure available",
-	39: "directory not empty",
-	98: "address already in use",
-	102: "network dropped connection on reset",
-	21: "is a directory",
-	43: "identifier removed",
-	70: "communication error on send",
 	77: "file descriptor in bad state",
-	51: "level 2 halted",
-	126: "required key not available",
-	22: "invalid argument",
-	108: "cannot send after transport endpoint shutdown",
-	129: "key was rejected by service",
-	81: ".lib section in a.out corrupted",
-	119: "no XENIX semaphores available",
-	60: "device not a stream",
-	75: "value too large for defined data type",
-	117: "structure needs cleaning",
-	123: "no medium found",
-	16: "device or resource busy",
-	71: "protocol error",
-	19: "no such device",
-	127: "key has expired",
-	30: "read-only file system",
-	79: "can not access a needed shared library",
-	7: "argument list too long",
-	35: "resource deadlock avoided",
-	104: "connection reset by peer",
-	6: "no such device or address",
+	74: "bad message",
+	53: "invalid request descriptor",
 	56: "invalid request code",
-	36: "file name too long",
-	94: "socket type not supported",
-	73: "RFS specific error",
-	99: "cannot assign requested address",
-	62: "timer expired",
-	93: "protocol not supported",
-	131: "state not recoverable",
-	5: "input/output error",
-	101: "network is unreachable",
-	18: "invalid cross-device link",
-	122: "disk quota exceeded",
-	121: "remote I/O error",
-	28: "no space left on device",
-	8: "exec format error",
-	90: "message too long",
-	33: "numerical argument out of domain",
-	27: "file too large",
-	3: "no such process",
+	57: "invalid slot",
+	59: "bad font file format",
+	16: "device or resource busy",
+	125: "operation canceled",
+	10: "no child processes",
 	44: "channel number out of range",
-	112: "host is down",
-	37: "no locks available",
-	23: "too many open files in system",
-	38: "function not implemented",
-	107: "transport endpoint is not connected",
-	95: "operation not supported",
-	69: "srmount error",
+	70: "communication error on send",
 	103: "software caused connection abort",
-	55: "no anode",
-	106: "transport endpoint is already connected",
-	87: "too many users",
-	92: "protocol not available",
-	24: "too many open files",
-	105: "no buffer space available",
-	46: "level 3 halted",
-	14: "bad address",
-	11: "resource temporarily unavailable",
-	80: "accessing a corrupted shared library",
-	86: "streams pipe error",
 	111: "connection refused",
-	82: "attempting to link in too many shared libraries",
+	104: "connection reset by peer",
+	35: "resource deadlock avoided",
+	89: "destination address required",
+	33: "numerical argument out of domain",
+	73: "RFS specific error",
+	122: "disk quota exceeded",
 	17: "file exists",
-	45: "level 2 not synchronized",
-	2: "no such file or directory",
-	65: "package not installed",
-	128: "key has been revoked",
+	14: "bad address",
+	27: "file too large",
+	112: "host is down",
 	113: "no route to host",
-	76: "name not unique on network",
-	20: "not a directory",
+	43: "identifier removed",
+	84: "invalid or incomplete multibyte or wide character",
+	115: "operation now in progress",
+	4: "interrupted system call",
+	22: "invalid argument",
+	5: "input/output error",
+	106: "transport endpoint is already connected",
+	21: "is a directory",
+	120: "is a named type file",
+	127: "key has expired",
+	129: "key was rejected by service",
+	128: "key has been revoked",
+	51: "level 2 halted",
+	45: "level 2 not synchronized",
+	46: "level 3 halted",
+	47: "level 3 reset",
+	79: "can not access a needed shared library",
+	80: "accessing a corrupted shared library",
+	83: "cannot exec a shared library directly",
+	82: "attempting to link in too many shared libraries",
+	81: ".lib section in a.out corrupted",
+	48: "link number out of range",
+	40: "too many levels of symbolic links",
 	124: "wrong medium type",
+	24: "too many open files",
+	31: "too many links",
+	90: "message too long",
+	72: "multihop attempted",
+	36: "file name too long",
+	119: "no XENIX semaphores available",
+	100: "network is down",
+	102: "network dropped connection on reset",
+	101: "network is unreachable",
+	23: "too many open files in system",
+	55: "no anode",
+	105: "no buffer space available",
+	50: "no CSI structure available",
+	61: "no data available",
+	19: "no such device",
+	2: "no such file or directory",
+	8: "exec format error",
+	126: "required key not available",
+	37: "no locks available",
+	67: "link has been severed",
+	123: "no medium found",
+	12: "cannot allocate memory",
+	42: "no message of desired type",
+	64: "machine is not on the network",
+	65: "package not installed",
+	92: "protocol not available",
+	28: "no space left on device",
+	63: "out of streams resources",
+	60: "device not a stream",
+	38: "function not implemented",
+	15: "block device required",
+	107: "transport endpoint is not connected",
+	20: "not a directory",
+	39: "directory not empty",
+	118: "not a XENIX named type file",
+	131: "state not recoverable",
+	88: "socket operation on non-socket",
+	95: "operation not supported",
+	25: "inappropriate ioctl for device",
+	76: "name not unique on network",
+	6: "no such device or address",
+	75: "value too large for defined data type",
+	130: "owner died",
+	1: "operation not permitted",
+	96: "protocol family not supported",
+	32: "broken pipe",
+	71: "protocol error",
+	93: "protocol not supported",
+	91: "protocol wrong type for socket",
+	34: "numerical result out of range",
+	78: "remote address changed",
+	66: "object is remote",
+	121: "remote I/O error",
+	85: "interrupted system call should be restarted",
+	132: "unknown error 132",
+	30: "read-only file system",
+	108: "cannot send after transport endpoint shutdown",
+	94: "socket type not supported",
+	29: "illegal seek",
+	3: "no such process",
+	69: "srmount error",
+	116: "stale NFS file handle",
+	86: "streams pipe error",
+	62: "timer expired",
+	110: "connection timed out",
+	109: "too many references: cannot splice",
+	26: "text file busy",
+	117: "structure needs cleaning",
+	49: "protocol driver not attached",
+	87: "too many users",
+	18: "invalid cross-device link",
+	54: "exchange full",
 }

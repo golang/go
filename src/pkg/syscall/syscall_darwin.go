@@ -158,6 +158,7 @@ func Sleep(ns int64) (errno int) {
 //sys	setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
 //sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
 //sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+//sys	Shutdown(s int, how int) (errno int)
 
 // For testing: clients can set this flag to force
 // creation of IPv6 sockets to return EAFNOSUPPORT.
