@@ -104,8 +104,8 @@ func assertResult(t *testing.T, results, expected interface{}) {
 }
 
 type decodeTest struct {
-	s string;
-	r interface{};
+	s	string;
+	r	interface{};
 }
 
 var tests = []decodeTest{
