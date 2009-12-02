@@ -375,7 +375,7 @@ func encOpFor(rt reflect.Type) (encOp, int, os.Error) {
 			if err != nil {
 				return nil, 0, err
 			}
-			info := getTypeInfoNoError(typ);
+			info := mustGetTypeInfo(typ);
 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
 				state.update(i);
 				// indirect through info to delay evaluation for recursive structs
