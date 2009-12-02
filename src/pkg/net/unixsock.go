@@ -332,9 +332,9 @@ func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
 		}
 		return nil, e;
 	}
-	e1 := syscall.Listen(fd.fd, 8);	// listenBacklog());
+	e1 := syscall.Listen(fd.sysfd, 8);	// listenBacklog());
 	if e1 != 0 {
-		syscall.Close(fd.fd);
+		syscall.Close(fd.sysfd);
 		return nil, &OpError{"listen", "unix", laddr, os.Errno(e1)};
 	}
 	return &UnixListener{fd, laddr.Name}, nil;
@@ -343,7 +343,7 @@ func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
 // AcceptUnix accepts the next incoming call and returns the new connection
 // and the remote address.
 func (l *UnixListener) AcceptUnix() (c *UnixConn, err os.Error) {
-	if l == nil || l.fd == nil || l.fd.fd < 0 {
+	if l == nil || l.fd == nil {
 		return nil, os.EINVAL
 	}
 	fd, e := l.fd.accept(sockaddrToUnix);

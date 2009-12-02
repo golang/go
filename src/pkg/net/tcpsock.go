@@ -73,7 +73,7 @@ type TCPConn struct {
 
 func newTCPConn(fd *netFD) *TCPConn {
 	c := &TCPConn{fd};
-	setsockoptInt(fd.fd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, 1);
+	setsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_NODELAY, 1);
 	return c;
 }
 
@@ -234,9 +234,9 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err os.Error) {
 	if err != nil {
 		return nil, err
 	}
-	errno := syscall.Listen(fd.fd, listenBacklog());
+	errno := syscall.Listen(fd.sysfd, listenBacklog());
 	if errno != 0 {
-		syscall.Close(fd.fd);
+		syscall.Close(fd.sysfd);
 		return nil, &OpError{"listen", "tcp", laddr, os.Errno(errno)};
 	}
 	l = new(TCPListener);
@@ -247,7 +247,7 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err os.Error) {
 // AcceptTCP accepts the next incoming call and returns the new connection
 // and the remote address.
 func (l *TCPListener) AcceptTCP() (c *TCPConn, err os.Error) {
-	if l == nil || l.fd == nil || l.fd.fd < 0 {
+	if l == nil || l.fd == nil || l.fd.sysfd < 0 {
 		return nil, os.EINVAL
 	}
 	fd, err := l.fd.accept(sockaddrToTCP);

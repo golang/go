@@ -75,11 +75,15 @@ func setsockoptNsec(fd, level, opt int, nsec int64) os.Error {
 }
 
 func setReadBuffer(fd *netFD, bytes int) os.Error {
-	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes)
+	fd.incref();
+	defer fd.decref();
+	return setsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes);
 }
 
 func setWriteBuffer(fd *netFD, bytes int) os.Error {
-	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes)
+	fd.incref();
+	defer fd.decref();
+	return setsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_SNDBUF, bytes);
 }
 
 func setReadTimeout(fd *netFD, nsec int64) os.Error {
@@ -100,7 +104,9 @@ func setTimeout(fd *netFD, nsec int64) os.Error {
 }
 
 func setReuseAddr(fd *netFD, reuse bool) os.Error {
-	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse))
+	fd.incref();
+	defer fd.decref();
+	return setsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, boolint(reuse));
 }
 
 func bindToDevice(fd *netFD, dev string) os.Error {
@@ -109,11 +115,15 @@ func bindToDevice(fd *netFD, dev string) os.Error {
 }
 
 func setDontRoute(fd *netFD, dontroute bool) os.Error {
-	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute))
+	fd.incref();
+	defer fd.decref();
+	return setsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_DONTROUTE, boolint(dontroute));
 }
 
 func setKeepAlive(fd *netFD, keepalive bool) os.Error {
-	return setsockoptInt(fd.fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive))
+	fd.incref();
+	defer fd.decref();
+	return setsockoptInt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, boolint(keepalive));
 }
 
 func setLinger(fd *netFD, sec int) os.Error {
@@ -125,7 +135,9 @@ func setLinger(fd *netFD, sec int) os.Error {
 		l.Onoff = 0;
 		l.Linger = 0;
 	}
-	e := syscall.SetsockoptLinger(fd.fd, syscall.SOL_SOCKET, syscall.SO_LINGER, &l);
+	fd.incref();
+	defer fd.decref();
+	e := syscall.SetsockoptLinger(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_LINGER, &l);
 	return os.NewSyscallError("setsockopt", e);
 }
 
