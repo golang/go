@@ -214,28 +214,28 @@ func (server *serverType) register(rcvr interface{}) os.Error {
 		}
 		argType, ok := mtype.In(1).(*reflect.PtrType);
 		if !ok {
-			log.Stderr(mname, "arg type not a pointer:", argType.String());
+			log.Stderr(mname, "arg type not a pointer:", mtype.In(1));
 			continue;
 		}
 		if _, ok := argType.Elem().(*reflect.StructType); !ok {
-			log.Stderr(mname, "arg type not a pointer to a struct:", argType.String());
+			log.Stderr(mname, "arg type not a pointer to a struct:", argType);
 			continue;
 		}
 		replyType, ok := mtype.In(2).(*reflect.PtrType);
 		if !ok {
-			log.Stderr(mname, "reply type not a pointer:", replyType.String());
+			log.Stderr(mname, "reply type not a pointer:", mtype.In(2));
 			continue;
 		}
 		if _, ok := replyType.Elem().(*reflect.StructType); !ok {
-			log.Stderr(mname, "reply type not a pointer to a struct:", replyType.String());
+			log.Stderr(mname, "reply type not a pointer to a struct:", replyType);
 			continue;
 		}
 		if !isPublic(argType.Elem().Name()) {
-			log.Stderr(mname, "argument type not public:", argType.String());
+			log.Stderr(mname, "argument type not public:", argType);
 			continue;
 		}
 		if !isPublic(replyType.Elem().Name()) {
-			log.Stderr(mname, "reply type not public:", replyType.String());
+			log.Stderr(mname, "reply type not public:", replyType);
 			continue;
 		}
 		// Method needs one out: os.Error.

@@ -216,3 +216,38 @@ func TestCheckBadType(t *testing.T) {
 		t.Error("expected error about type; got", err)
 	}
 }
+
+type Bad int
+type local struct{}
+
+func (t *Bad) ArgNotPointer(args Args, reply *Reply) os.Error {
+	return nil
+}
+
+func (t *Bad) ArgNotPointerToStruct(args *int, reply *Reply) os.Error {
+	return nil
+}
+
+func (t *Bad) ReplyNotPointer(args *Args, reply Reply) os.Error {
+	return nil
+}
+
+func (t *Bad) ReplyNotPointerToStruct(args *Args, reply *int) os.Error {
+	return nil
+}
+
+func (t *Bad) ArgNotPublic(args *local, reply *Reply) os.Error {
+	return nil
+}
+
+func (t *Bad) ReplyNotPublic(args *Args, reply *local) os.Error {
+	return nil
+}
+
+// Check that registration handles lots of bad methods and a type with no suitable methods.
+func TestRegistrationError(t *testing.T) {
+	err := Register(new(Bad));
+	if err == nil {
+		t.Errorf("expected error registering bad type")
+	}
+}
