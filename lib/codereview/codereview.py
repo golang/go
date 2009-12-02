@@ -46,7 +46,7 @@ from HTMLParser import HTMLParser
 try:
 	from xml.etree import ElementTree as ET
 except:
-	from lxml.etree import ElementTree as ET
+	from elementtree import ElementTree as ET
 
 try:
 	hgversion = util.version()
