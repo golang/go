@@ -51,9 +51,7 @@ func (j *decoder) Int64(i int64)	{ j.value = float64(i) }
 
 func (j *decoder) Uint64(i uint64)	{ j.value = float64(i) }
 
-func (j *decoder) Float64(f float64) {
-	j.value = float64(f)
-}
+func (j *decoder) Float64(f float64)	{ j.value = float64(f) }
 
 func (j *decoder) String(s string)	{ j.value = s }
 
