@@ -58,6 +58,13 @@ func (dec *Decoder) recvType(id typeId) {
 // The value underlying e must be the correct type for the next
 // data item received.
 func (dec *Decoder) Decode(e interface{}) os.Error {
+	// If e represents a value, the answer won't get back to the
+	// caller.  Make sure it's a pointer.
+	if _, ok := reflect.Typeof(e).(*reflect.PtrType); !ok {
+		dec.state.err = os.ErrorString("gob: attempt to decode into a non-pointer");
+		return dec.state.err;
+	}
+
 	// Make sure we're single-threaded through here.
 	dec.mutex.Lock();
 	defer dec.mutex.Unlock();
