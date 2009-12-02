@@ -7,6 +7,7 @@ package time_test
 import (
 	"os";
 	"testing";
+	"testing/quick";
 	. "time";
 )
 
@@ -27,6 +28,8 @@ var utctests = []TimeTest{
 	TimeTest{1221681866, Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "UTC"}},
 	TimeTest{-1221681866, Time{1931, 4, 16, 3, 55, 34, Thursday, 0, "UTC"}},
 	TimeTest{-11644473600, Time{1601, 1, 1, 0, 0, 0, Monday, 0, "UTC"}},
+	TimeTest{599529660, Time{1988, 12, 31, 0, 1, 0, Saturday, 0, "UTC"}},
+	TimeTest{978220860, Time{2000, 12, 31, 0, 1, 0, Sunday, 0, "UTC"}},
 	TimeTest{1e18, Time{31688740476, 10, 23, 1, 46, 40, Friday, 0, "UTC"}},
 	TimeTest{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, Tuesday, 0, "UTC"}},
 	TimeTest{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, Sunday, 0, "UTC"}},
@@ -81,6 +84,20 @@ func TestSecondsToLocalTime(t *testing.T) {
 			t.Errorf("  want=%+v", *golden);
 			t.Errorf("  have=%+v", *tm);
 		}
+	}
+}
+
+func TestSecondsToUTCAndBack(t *testing.T) {
+	f := func(sec int64) bool { return SecondsToUTC(sec).Seconds() == sec };
+	f32 := func(sec int32) bool { return f(int64(sec)) };
+	cfg := &quick.Config{MaxCount: 10000};
+
+	// Try a reasonable date first, then the huge ones.
+	if err := quick.Check(f32, cfg); err != nil {
+		t.Fatal(err)
+	}
+	if err := quick.Check(f, cfg); err != nil {
+		t.Fatal(err)
 	}
 }
 
