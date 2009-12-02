@@ -386,6 +386,10 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
 		}
 		break;
 	}
+	if fd.proto == syscall.SOCK_DGRAM && err == os.EOF {
+		// 0 in datagram protocol just means 0-length packet
+		err = nil
+	}
 	return;
 }
 
@@ -433,7 +437,9 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
 	}
 	err = nil;
 	nn := 0;
-	for nn < len(p) {
+	first := true;	// force at least one Write, to send 0-length datagram packets
+	for nn < len(p) || first {
+		first = false;
 		n, err = fd.sysfile.Write(p[nn:]);
 		if n > 0 {
 			nn += n
