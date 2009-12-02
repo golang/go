@@ -712,7 +712,7 @@ def change(ui, repo, *pats, **opts):
 		if opts["delete"]:
 			if cl.original_author:
 				return "original author must delete CL; hg change -D will remove locally"
-			PostMessage(ui, cl.name, "*** Abandoned ***", send_mail="checked")
+			PostMessage(ui, cl.name, "*** Abandoned ***")
 			EditDesc(cl.name, closed="checked")
 		cl.Delete(ui, repo)
 		return
@@ -913,7 +913,7 @@ def mail(ui, repo, *pats, **opts):
 	pmsg += ",\n"
 	pmsg += "\n"
 	pmsg += "I'd like you to review the following change.\n"
-	PostMessage(ui, cl.name, pmsg, send_mail="checked", subject=cl.Subject())
+	PostMessage(ui, cl.name, pmsg, subject=cl.Subject())
 
 def nocommit(ui, repo, *pats, **opts):
 	"""(disabled when using this extension)"""
@@ -1073,7 +1073,11 @@ def submit(ui, repo, *pats, **opts):
 	else:
 		print >>sys.stderr, "URL: ", url
 	pmsg = "*** Submitted as " + changeURL + " ***\n\n" + opts['message']
-	PostMessage(ui, cl.name, pmsg, send_mail="checked")
+
+	# When posting, move reviewers to CC line,
+	# so that the issue stops showing up in their "My Issues" page.
+	PostMessage(ui, cl.name, pmsg, reviewers="", cc=JoinComma(cl.reviewer+cl.cc))
+
 	if not cl.original_author:
 		EditDesc(cl.name, closed="checked")
 	cl.Delete(ui, repo)
@@ -1545,26 +1549,29 @@ def EditDesc(issue, subject=None, desc=None, reviewers=None, cc=None, closed=Non
 		print >>sys.stderr, "Error editing description:\n" + "Sent form: \n", form_fields, "\n", response
 		sys.exit(2)
 
-def PostMessage1(issue, message, reviewers=None, cc=None, send_mail=None, subject=None):
+def PostMessage(ui, issue, message, reviewers=None, cc=None, send_mail=True, subject=None):
 	form_fields = GetForm("/" + issue + "/publish")
 	if reviewers is not None:
 		form_fields['reviewers'] = reviewers
 	if cc is not None:
 		form_fields['cc'] = cc
-	if send_mail is not None:
-		form_fields['send_mail'] = send_mail
+	if send_mail:
+		form_fields['send_mail'] = "checked"
+	else:
+		del form_fields['send_mail']
 	if subject is not None:
 		form_fields['subject'] = subject
 	form_fields['message'] = message
-	form_fields['message_only'] = '1'
-	ctype, body = EncodeMultipartFormData(form_fields.items(), [])
+	
+	form_fields['message_only'] = '1'	# Don't include draft comments
+	if reviewers is not None or cc is not None:
+		form_fields['message_only'] = ''	# Must set '' in order to override cc/reviewer
+	ctype = "applications/x-www-form-urlencoded"
+	body = urllib.urlencode(form_fields)
 	response = MySend("/" + issue + "/publish", body, content_type=ctype)
 	if response != "":
 		print response
 		sys.exit(2)
-
-def PostMessage(ui, issue, message, reviewers=None, cc=None, send_mail=None, subject=None):
-	PostMessage1(issue, message, reviewers, cc, send_mail, subject)
 
 class opt(object):
 	pass
