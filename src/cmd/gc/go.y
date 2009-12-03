@@ -85,7 +85,9 @@
 %type	<list>	hidden_interfacedcl_list ohidden_interfacedcl_list
 %type	<list>	hidden_structdcl_list ohidden_structdcl_list
 
-%type	<type>	hidden_type hidden_type1 hidden_type2 hidden_pkgtype
+%type	<type>	hidden_type hidden_type_misc hidden_pkgtype
+%type	<type>	hidden_type_func hidden_type_non_func
+%type	<type>	hidden_type_chan hidden_type_non_chan
 
 %left		LOROR
 %left		LANDAND
@@ -1613,10 +1615,19 @@ hidden_pkgtype:
 	}
 
 hidden_type:
-	hidden_type1
-|	hidden_type2
+	hidden_type_misc
+|	hidden_type_chan
+|	hidden_type_func
 
-hidden_type1:
+hidden_type_non_chan:
+	hidden_type_misc
+|	hidden_type_func
+
+hidden_type_non_func:
+	hidden_type_misc
+|	hidden_type_chan
+
+hidden_type_misc:
 	hidden_importsym
 	{
 		$$ = pkgtype($1);
@@ -1662,10 +1673,16 @@ hidden_type1:
 		$$->type = $3;
 		$$->chan = Crecv;
 	}
-|	LCHAN LCOMM hidden_type1
+|	LCHAN LCOMM hidden_type_non_chan
 	{
 		$$ = typ(TCHAN);
 		$$->type = $3;
+		$$->chan = Csend;
+	}
+|	LCHAN LCOMM '(' hidden_type_chan ')'
+	{
+		$$ = typ(TCHAN);
+		$$->type = $4;
 		$$->chan = Csend;
 	}
 |	LDDD
@@ -1673,14 +1690,16 @@ hidden_type1:
 		$$ = typ(TDDD);
 	}
 
-hidden_type2:
+hidden_type_chan:
 	LCHAN hidden_type
 	{
 		$$ = typ(TCHAN);
 		$$->type = $2;
 		$$->chan = Cboth;
 	}
-|	LFUNC '(' ohidden_funarg_list ')' ohidden_funres
+
+hidden_type_func:
+	LFUNC '(' ohidden_funarg_list ')' ohidden_funres
 	{
 		$$ = functype(nil, $3, $5);
 	}
@@ -1732,7 +1751,7 @@ hidden_funres:
 	{
 		$$ = $2;
 	}
-|	hidden_type1
+|	hidden_type_non_func
 	{
 		$$ = list1(nod(ODCLFIELD, N, typenod($1)));
 	}
