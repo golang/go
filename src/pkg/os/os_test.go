@@ -8,6 +8,7 @@ import (
 	"bytes";
 	"fmt";
 	"io";
+	"io/ioutil";
 	. "os";
 	"strings";
 	"testing";
@@ -666,7 +667,7 @@ func TestWriteAt(t *testing.T) {
 		t.Fatalf("WriteAt 7: %d, %v", n, err)
 	}
 
-	b, err := io.ReadFile("_obj/writetest");
+	b, err := ioutil.ReadFile("_obj/writetest");
 	if err != nil {
 		t.Fatalf("ReadFile _obj/writetest: %v", err)
 	}

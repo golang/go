@@ -7,7 +7,7 @@ package printer
 import (
 	"bytes";
 	"flag";
-	"io";
+	"io/ioutil";
 	"go/ast";
 	"go/parser";
 	"path";
@@ -70,14 +70,14 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 
 	// update golden files if necessary
 	if *update {
-		if err := io.WriteFile(golden, res, 0644); err != nil {
+		if err := ioutil.WriteFile(golden, res, 0644); err != nil {
 			t.Error(err)
 		}
 		return;
 	}
 
 	// get golden
-	gld, err := io.ReadFile(golden);
+	gld, err := ioutil.ReadFile(golden);
 	if err != nil {
 		t.Error(err);
 		return;

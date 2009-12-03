@@ -10,7 +10,7 @@ import (
 	"flag";
 	"fmt";
 	"go/scanner";
-	"io";
+	"io/ioutil";
 	"os";
 	"path";
 	"strings";
@@ -84,7 +84,7 @@ func main() {
 		usage()
 	}
 
-	src, err := io.ReadFile(filename);
+	src, err := ioutil.ReadFile(filename);
 	if err != nil {
 		scanner.PrintError(os.Stderr, err)
 	}

@@ -4,18 +4,19 @@
 
 // Utility functions.
 
-package io
+package ioutil
 
 import (
 	"bytes";
+	"io";
 	"os";
 	"sort";
 )
 
 // ReadAll reads from r until an error or EOF and returns the data it read.
-func ReadAll(r Reader) ([]byte, os.Error) {
+func ReadAll(r io.Reader) ([]byte, os.Error) {
 	var buf bytes.Buffer;
-	_, err := Copy(&buf, r);
+	_, err := io.Copy(&buf, r);
 	return buf.Bytes(), err;
 }
 
@@ -41,7 +42,7 @@ func ReadFile(filename string) ([]byte, os.Error) {
 	// we'll either waste some space off the end or reallocate as needed, but
 	// in the overwhelmingly common case we'll get it just right.
 	buf := bytes.NewBuffer(make([]byte, n)[0:0]);
-	_, err = Copy(buf, f);
+	_, err = io.Copy(buf, f);
 	return buf.Bytes(), err;
 }
 
@@ -56,7 +57,7 @@ func WriteFile(filename string, data []byte, perm int) os.Error {
 	n, err := f.Write(data);
 	f.Close();
 	if err == nil && n < len(data) {
-		err = ErrShortWrite
+		err = io.ErrShortWrite
 	}
 	return err;
 }

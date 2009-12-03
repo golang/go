@@ -10,7 +10,7 @@
 package time
 
 import (
-	"io";
+	"io/ioutil";
 	"once";
 	"os";
 )
@@ -195,7 +195,7 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 }
 
 func readinfofile(name string) ([]zonetime, bool) {
-	buf, err := io.ReadFile(name);
+	buf, err := ioutil.ReadFile(name);
 	if err != nil {
 		return nil, false
 	}

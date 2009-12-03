@@ -6,6 +6,7 @@ package zlib
 
 import (
 	"io";
+	"io/ioutil";
 	"os";
 	"testing";
 )
@@ -72,8 +73,8 @@ func testFileLevel(t *testing.T, fn string, level int) {
 	defer zlibr.Close();
 
 	// Compare the two.
-	b0, err0 := io.ReadAll(golden);
-	b1, err1 := io.ReadAll(zlibr);
+	b0, err0 := ioutil.ReadAll(golden);
+	b1, err1 := ioutil.ReadAll(zlibr);
 	if err0 != nil {
 		t.Errorf("%s (level=%d): %v", fn, level, err0);
 		return;
