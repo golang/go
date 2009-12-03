@@ -52,7 +52,7 @@ allocparams(void)
 			continue;
 		dowidth(n->type);
 		w = n->type->width;
-		if(w >= 100000000)
+		if(w >= MAXWIDTH)
 			fatal("bad width");
 		stksize += w;
 		stksize = rnd(stksize, w);
