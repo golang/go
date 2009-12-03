@@ -24,6 +24,8 @@ The flags are:
 		if set, overwrite each input file with its output.
 	-spaces
 		align with spaces instead of tabs.
+	-tabindent
+		indent with tabs independent of -spaces.
 	-tabwidth=8
 		tab width in spaces.
 
