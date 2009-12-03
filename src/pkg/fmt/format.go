@@ -8,12 +8,22 @@ import (
 	"strconv";
 )
 
+const (
+	nByte	= 64;
+	nPows10	= 160;
 
-const nByte = 64
-const nPows10 = 160
+	ldigits	= "0123456789abcdef";
+	udigits	= "0123456789ABCDEF";
+)
 
-var ldigits string = "0123456789abcdef"	// var not const because we take its address
-var udigits string = "0123456789ABCDEF"
+const padZeros = "0000000000000000000000000000000000000000000000000000000000000000"
+const padSpaces = "                                                                "
+
+func init() {
+	if len(padZeros) != nByte || len(padSpaces) != nByte {
+		panic("fmt padding wrong length")
+	}
+}
 
 /*
 	Fmt is the raw formatter used by Printf etc.  Not meant for normal use.
@@ -125,22 +135,19 @@ func (f *Fmt) pad(s string) {
 			w = -w;
 		}
 		w -= len(s);
-		padchar := byte(' ');
+		padding := padSpaces;
 		if left && f.zero {
-			padchar = '0'
+			padding = padZeros
 		}
 		if w > 0 {
 			if w > nByte {
 				w = nByte
 			}
-			buf := make([]byte, w);
-			for i := 0; i < w; i++ {
-				buf[i] = padchar
-			}
+			padding = padding[0:w];
 			if left {
-				s = string(buf) + s
+				s = padding + s
 			} else {
-				s = s + string(buf)
+				s += padding
 			}
 		}
 	}
