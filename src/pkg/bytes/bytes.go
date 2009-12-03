@@ -333,3 +333,16 @@ func AddByte(s []byte, t byte) []byte {
 	s[lens] = t;
 	return s;
 }
+
+// Runes returns a slice of runes (Unicode code points) equivalent to s.
+func Runes(s []byte) []int {
+	t := make([]int, utf8.RuneCount(s));
+	i := 0;
+	for len(s) > 0 {
+		r, l := utf8.DecodeRune(s);
+		t[i] = r;
+		i++;
+		s = s[l:];
+	}
+	return t;
+}

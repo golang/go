@@ -370,3 +370,48 @@ func TestRepeat(t *testing.T) {
 		}
 	}
 }
+
+func runesEqual(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, r := range a {
+		if r != b[i] {
+			return false
+		}
+	}
+	return true;
+}
+
+type RunesTest struct {
+	in	string;
+	out	[]int;
+	lossy	bool;
+}
+
+var RunesTests = []RunesTest{
+	RunesTest{"", []int{}, false},
+	RunesTest{" ", []int{32}, false},
+	RunesTest{"ABC", []int{65, 66, 67}, false},
+	RunesTest{"abc", []int{97, 98, 99}, false},
+	RunesTest{"\u65e5\u672c\u8a9e", []int{26085, 26412, 35486}, false},
+	RunesTest{"ab\x80c", []int{97, 98, 0xFFFD, 99}, true},
+	RunesTest{"ab\xc0c", []int{97, 98, 0xFFFD, 99}, true},
+}
+
+func TestRunes(t *testing.T) {
+	for _, tt := range RunesTests {
+		a := Runes(tt.in);
+		if !runesEqual(a, tt.out) {
+			t.Errorf("Runes(%q) = %v; want %v", tt.in, a, tt.out);
+			continue;
+		}
+		if !tt.lossy {
+			// can only test reassembly if we didn't lose information
+			s := string(a);
+			if s != tt.in {
+				t.Errorf("string(Runes(%q)) = %x; want %x", tt.in, s, tt.in)
+			}
+		}
+	}
+}
