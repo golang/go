@@ -7,6 +7,7 @@ package bytes
 // Simple byte buffer for marshaling data.
 
 import (
+	"io";
 	"os";
 )
 
@@ -89,6 +90,60 @@ func (b *Buffer) Write(p []byte) (n int, err os.Error) {
 	b.buf = b.buf[0 : b.off+m+n];
 	copyBytes(b.buf, b.off+m, p);
 	return n, nil;
+}
+
+// MinRead is the minimum slice size passed to a Read call by
+// Buffer.ReadFrom.  As long as the Buffer has at least MinRead bytes beyond
+// what is required to hold the contents of r, ReadFrom will not grow the
+// underlying buffer.
+const MinRead = 512
+
+// ReadFrom reads data from r until EOF and appends it to the buffer.
+// The return value n is the number of bytes read.
+// Any error except os.EOF encountered during the read
+// is also returned.
+func (b *Buffer) ReadFrom(r io.Reader) (n int64, err os.Error) {
+	for {
+		if cap(b.buf)-len(b.buf) < MinRead {
+			var newBuf []byte;
+			// can we get space without allocation?
+			if b.off+cap(b.buf)-len(b.buf) >= MinRead {
+				// reuse beginning of buffer
+				newBuf = b.buf[0 : len(b.buf)-b.off]
+			} else {
+				// not enough space at end; put space on end
+				newBuf = make([]byte, len(b.buf)-b.off, 2*(cap(b.buf)-b.off)+MinRead)
+			}
+			copy(newBuf, b.buf[b.off:]);
+			b.buf = newBuf;
+			b.off = 0;
+		}
+		m, e := r.Read(b.buf[len(b.buf):cap(b.buf)]);
+		b.buf = b.buf[b.off : len(b.buf)+m];
+		n += int64(m);
+		if e == os.EOF {
+			break
+		}
+		if e != nil {
+			return n, e
+		}
+	}
+	return n, nil;	// err is EOF, so return nil explicitly
+}
+
+// WriteTo writes data to w until the buffer is drained or an error
+// occurs. The return value n is the number of bytes written.
+// Any error encountered during the write is also returned.
+func (b *Buffer) WriteTo(w io.Writer) (n int64, err os.Error) {
+	for b.off < len(b.buf) {
+		m, e := w.Write(b.buf[b.off:]);
+		n += int64(m);
+		b.off += m;
+		if e != nil {
+			return n, e
+		}
+	}
+	return;
 }
 
 // WriteString appends the contents of s to the buffer.  The return
