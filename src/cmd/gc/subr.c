@@ -753,7 +753,6 @@ goopnames[] =
 	[OEQ]		= "==",
 	[OFALL]		= "fallthrough",
 	[OFOR]		= "for",
-	[OFUNC]		= "func",
 	[OGE]		= ">=",
 	[OGOTO]		= "goto",
 	[OGT]		= ">",

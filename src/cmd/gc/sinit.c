@@ -8,6 +8,10 @@
 
 #include	"go.h"
 
+static NodeList *initlist;
+static void init2(Node*, NodeList**);
+static void init2list(NodeList*, NodeList**);
+
 static void
 init1(Node *n, NodeList **out)
 {
@@ -34,20 +38,45 @@ init1(Node *n, NodeList **out)
 
 	if(n->initorder == 1)
 		return;
-	if(n->initorder == 2)
-		fatal("init loop");
+	if(n->initorder == 2) {
+		if(n->class == PFUNC)
+			return;
+		
+		// if there have already been errors printed,
+		// those errors probably confused us and
+		// there might not be a loop.  let the user
+		// fix those first.
+		flusherrors();
+		if(nerrors > 0)
+			errorexit();
+
+		print("initialization loop:\n");
+		for(l=initlist;; l=l->next) {
+			if(l->next == nil)
+				break;
+			l->next->end = l;
+		}
+		for(; l; l=l->end)
+			print("\t%L %S refers to\n", l->n->lineno, l->n->sym);
+		print("\t%L %S\n", n->lineno, n->sym);
+		errorexit();
+	}
+	n->initorder = 2;
+	l = malloc(sizeof *l);
+	l->next = initlist;
+	l->n = n;
+	l->end = nil;
+	initlist = l;
 
 	// make sure that everything n depends on is initialized.
 	// n->defn is an assignment to n
-	n->initorder = 2;
 	if(n->defn != N) {
 		switch(n->defn->op) {
 		default:
 			goto bad;
 
 		case ODCLFUNC:
-			for(l=n->defn->nbody; l; l=l->next)
-				init1(l->n, out);
+			init2list(n->defn->nbody, out);
 			break;
 
 		case OAS:
@@ -67,6 +96,11 @@ init1(Node *n, NodeList **out)
 			break;
 		}
 	}
+	l = initlist;
+	initlist = l->next;
+	if(l->n != n)
+		fatal("bad initlist");
+	free(l);
 	n->initorder = 1;
 	return;
 
@@ -74,6 +108,31 @@ bad:
 	dump("defn", n->defn);
 	fatal("init1: bad defn");
 }
+
+// recurse over n, doing init1 everywhere.
+static void
+init2(Node *n, NodeList **out)
+{
+	if(n == N || n->initorder == 1)
+		return;
+	init1(n, out);
+	init2(n->left, out);
+	init2(n->right, out);
+	init2(n->ntest, out);
+	init2list(n->ninit, out);
+	init2list(n->list, out);
+	init2list(n->rlist, out);
+	init2list(n->nbody, out);
+	init2list(n->nelse, out);
+}
+
+static void
+init2list(NodeList *l, NodeList **out)
+{
+	for(; l; l=l->next)
+		init2(l->n, out);
+}
+
 
 static void
 initreorder(NodeList *l, NodeList **out)

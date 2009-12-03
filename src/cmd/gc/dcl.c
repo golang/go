@@ -167,6 +167,7 @@ declare(Node *n, int ctxt)
 	if(isblank(n))
 		return;
 
+	n->lineno = parserline();
 	s = n->sym;
 	gen = 0;
 	if(ctxt == PEXTERN) {
