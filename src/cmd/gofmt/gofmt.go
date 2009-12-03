@@ -31,12 +31,17 @@ var (
 
 	// layout control
 	tabwidth	= flag.Int("tabwidth", 8, "tab width");
+	tabindent	= flag.Bool("tabindent", false, "indent with tabs independent of -spaces");
 	usespaces	= flag.Bool("spaces", false, "align with spaces instead of tabs");
 )
 
 
-var exitCode = 0
-var rewrite func(*ast.File) *ast.File
+var (
+	exitCode	= 0;
+	rewrite		func(*ast.File) *ast.File;
+	parserMode	uint;
+	printerMode	uint;
+)
 
 
 func report(err os.Error) {
@@ -52,24 +57,25 @@ func usage() {
 }
 
 
-func parserMode() uint {
-	mode := uint(0);
+func initParserMode() {
+	parserMode = uint(0);
 	if *comments {
-		mode |= parser.ParseComments
+		parserMode |= parser.ParseComments
 	}
 	if *trace {
-		mode |= parser.Trace
+		parserMode |= parser.Trace
 	}
-	return mode;
 }
 
 
-func printerMode() uint {
-	mode := uint(0);
-	if *usespaces {
-		mode |= printer.UseSpaces
+func initPrinterMode() {
+	printerMode = uint(0);
+	if *tabindent {
+		printerMode |= printer.TabIndent
 	}
-	return mode;
+	if *usespaces {
+		printerMode |= printer.UseSpaces
+	}
 }
 
 
@@ -85,7 +91,7 @@ func processFile(f *os.File) os.Error {
 		return err
 	}
 
-	file, err := parser.ParseFile(f.Name(), src, parserMode());
+	file, err := parser.ParseFile(f.Name(), src, parserMode);
 	if err != nil {
 		return err
 	}
@@ -95,7 +101,7 @@ func processFile(f *os.File) os.Error {
 	}
 
 	var res bytes.Buffer;
-	_, err = (&printer.Config{printerMode(), *tabwidth, nil}).Fprint(&res, file);
+	_, err = (&printer.Config{printerMode, *tabwidth, nil}).Fprint(&res, file);
 	if err != nil {
 		return err
 	}
@@ -175,6 +181,8 @@ func main() {
 		os.Exit(2);
 	}
 
+	initParserMode();
+	initPrinterMode();
 	initRewrite();
 
 	if flag.NArg() == 0 {

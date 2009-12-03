@@ -64,12 +64,12 @@ func verify(t *testing.T, testname string, w *Writer, b *buffer, src, expected s
 }
 
 
-func check(t *testing.T, testname string, tabwidth, padding int, padchar byte, flags uint, src, expected string) {
+func check(t *testing.T, testname string, minwidth, tabwidth, padding int, padchar byte, flags uint, src, expected string) {
 	var b buffer;
 	b.init(1000);
 
 	var w Writer;
-	w.Init(&b, tabwidth, padding, padchar, flags);
+	w.Init(&b, minwidth, tabwidth, padding, padchar, flags);
 
 	// write all at once
 	b.clear();
@@ -97,193 +97,193 @@ func check(t *testing.T, testname string, tabwidth, padding int, padchar byte, f
 
 
 type entry struct {
-	testname		string;
-	tabwidth, padding	int;
-	padchar			byte;
-	flags			uint;
-	src, expected		string;
+	testname			string;
+	minwidth, tabwidth, padding	int;
+	padchar				byte;
+	flags				uint;
+	src, expected			string;
 }
 
 
 var tests = []entry{
 	entry{
 		"1a",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"",
 		"",
 	},
 
 	entry{
 		"1a debug",
-		8, 1, '.', Debug,
+		8, 0, 1, '.', Debug,
 		"",
 		"",
 	},
 
 	entry{
 		"1b esc",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"\xff\xff",
 		"",
 	},
 
 	entry{
 		"1c esc",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"\xff\t\xff",
 		"\t",
 	},
 
 	entry{
 		"1d esc",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"\xff\"foo\t\n\tbar\"\xff",
 		"\"foo\t\n\tbar\"",
 	},
 
 	entry{
 		"1e esc",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"abc\xff\tdef",	// unterminated escape
 		"abc\tdef",
 	},
 
 	entry{
 		"2",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"\n\n\n",
 		"\n\n\n",
 	},
 
 	entry{
 		"3",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"a\nb\nc",
 		"a\nb\nc",
 	},
 
 	entry{
 		"4a",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"\t",	// '\t' terminates an empty cell on last line - nothing to print
 		"",
 	},
 
 	entry{
 		"4b",
-		8, 1, '.', AlignRight,
+		8, 0, 1, '.', AlignRight,
 		"\t",	// '\t' terminates an empty cell on last line - nothing to print
 		"",
 	},
 
 	entry{
 		"5",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"*\t*",
 		"*.......*",
 	},
 
 	entry{
 		"5b",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"*\t*\n",
 		"*.......*\n",
 	},
 
 	entry{
 		"5c",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"*\t*\t",
 		"*.......*",
 	},
 
 	entry{
 		"5c debug",
-		8, 1, '.', Debug,
+		8, 0, 1, '.', Debug,
 		"*\t*\t",
 		"*.......|*",
 	},
 
 	entry{
 		"5d",
-		8, 1, '.', AlignRight,
+		8, 0, 1, '.', AlignRight,
 		"*\t*\t",
 		".......**",
 	},
 
 	entry{
 		"6",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"\t\n",
 		"........\n",
 	},
 
 	entry{
 		"7a",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"a) foo",
 		"a) foo",
 	},
 
 	entry{
 		"7b",
-		8, 1, ' ', 0,
+		8, 0, 1, ' ', 0,
 		"b) foo\tbar",
 		"b) foo  bar",
 	},
 
 	entry{
 		"7c",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"c) foo\tbar\t",
 		"c) foo..bar",
 	},
 
 	entry{
 		"7d",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"d) foo\tbar\n",
 		"d) foo..bar\n",
 	},
 
 	entry{
 		"7e",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"e) foo\tbar\t\n",
 		"e) foo..bar.....\n",
 	},
 
 	entry{
 		"7f",
-		8, 1, '.', FilterHTML,
+		8, 0, 1, '.', FilterHTML,
 		"f) f&lt;o\t<b>bar</b>\t\n",
 		"f) f&lt;o..<b>bar</b>.....\n",
 	},
 
 	entry{
 		"7g",
-		8, 1, '.', FilterHTML,
+		8, 0, 1, '.', FilterHTML,
 		"g) f&lt;o\t<b>bar</b>\t non-terminated entity &amp",
 		"g) f&lt;o..<b>bar</b>..... non-terminated entity &amp",
 	},
 
 	entry{
 		"7g debug",
-		8, 1, '.', FilterHTML | Debug,
+		8, 0, 1, '.', FilterHTML | Debug,
 		"g) f&lt;o\t<b>bar</b>\t non-terminated entity &amp",
 		"g) f&lt;o..|<b>bar</b>.....| non-terminated entity &amp",
 	},
 
 	entry{
 		"8",
-		8, 1, '*', 0,
+		8, 0, 1, '*', 0,
 		"Hello, world!\n",
 		"Hello, world!\n",
 	},
 
 	entry{
 		"9a",
-		1, 0, '.', 0,
+		1, 0, 0, '.', 0,
 		"1\t2\t3\t4\n"
 			"11\t222\t3333\t44444\n",
 
@@ -293,7 +293,7 @@ var tests = []entry{
 
 	entry{
 		"9b",
-		1, 0, '.', FilterHTML,
+		1, 0, 0, '.', FilterHTML,
 		"1\t2<!---\f--->\t3\t4\n"	// \f inside HTML is ignored
 			"11\t222\t3333\t44444\n",
 
@@ -303,7 +303,7 @@ var tests = []entry{
 
 	entry{
 		"9c",
-		1, 0, '.', 0,
+		1, 0, 0, '.', 0,
 		"1\t2\t3\t4\f"	// \f causes a newline and flush
 			"11\t222\t3333\t44444\n",
 
@@ -313,7 +313,7 @@ var tests = []entry{
 
 	entry{
 		"9c debug",
-		1, 0, '.', Debug,
+		1, 0, 0, '.', Debug,
 		"1\t2\t3\t4\f"	// \f causes a newline and flush
 			"11\t222\t3333\t44444\n",
 
@@ -323,21 +323,21 @@ var tests = []entry{
 
 	entry{
 		"10a",
-		5, 0, '.', 0,
+		5, 0, 0, '.', 0,
 		"1\t2\t3\t4\n",
 		"1....2....3....4\n",
 	},
 
 	entry{
 		"10b",
-		5, 0, '.', 0,
+		5, 0, 0, '.', 0,
 		"1\t2\t3\t4\t\n",
 		"1....2....3....4....\n",
 	},
 
 	entry{
 		"11",
-		8, 1, '.', 0,
+		8, 0, 1, '.', 0,
 		"本\tb\tc\n"
 			"aa\t\u672c\u672c\u672c\tcccc\tddddd\n"
 			"aaa\tbbbb\n",
@@ -349,7 +349,7 @@ var tests = []entry{
 
 	entry{
 		"12a",
-		8, 1, ' ', AlignRight,
+		8, 0, 1, ' ', AlignRight,
 		"a\tè\tc\t\n"
 			"aa\tèèè\tcccc\tddddd\t\n"
 			"aaa\tèèèè\t\n",
@@ -361,7 +361,7 @@ var tests = []entry{
 
 	entry{
 		"12b",
-		2, 0, ' ', 0,
+		2, 0, 0, ' ', 0,
 		"a\tb\tc\n"
 			"aa\tbbb\tcccc\n"
 			"aaa\tbbbb\n",
@@ -373,7 +373,7 @@ var tests = []entry{
 
 	entry{
 		"12c",
-		8, 1, '_', 0,
+		8, 0, 1, '_', 0,
 		"a\tb\tc\n"
 			"aa\tbbb\tcccc\n"
 			"aaa\tbbbb\n",
@@ -385,7 +385,7 @@ var tests = []entry{
 
 	entry{
 		"13a",
-		4, 1, '-', 0,
+		4, 0, 1, '-', 0,
 		"4444\t日本語\t22\t1\t333\n"
 			"999999999\t22\n"
 			"7\t22\n"
@@ -405,7 +405,7 @@ var tests = []entry{
 
 	entry{
 		"13b",
-		4, 3, '.', 0,
+		4, 0, 3, '.', 0,
 		"4444\t333\t22\t1\t333\n"
 			"999999999\t22\n"
 			"7\t22\n"
@@ -425,7 +425,7 @@ var tests = []entry{
 
 	entry{
 		"13c",
-		8, 1, '\t', FilterHTML,
+		8, 8, 1, '\t', FilterHTML,
 		"4444\t333\t22\t1\t333\n"
 			"999999999\t22\n"
 			"7\t22\n"
@@ -445,7 +445,7 @@ var tests = []entry{
 
 	entry{
 		"14",
-		1, 2, ' ', AlignRight,
+		1, 0, 2, ' ', AlignRight,
 		".0\t.3\t2.4\t-5.1\t\n"
 			"23.0\t12345678.9\t2.4\t-989.4\t\n"
 			"5.1\t12.0\t2.4\t-7.0\t\n"
@@ -463,7 +463,7 @@ var tests = []entry{
 
 	entry{
 		"14 debug",
-		1, 2, ' ', AlignRight | Debug,
+		1, 0, 2, ' ', AlignRight | Debug,
 		".0\t.3\t2.4\t-5.1\t\n"
 			"23.0\t12345678.9\t2.4\t-989.4\t\n"
 			"5.1\t12.0\t2.4\t-7.0\t\n"
@@ -481,35 +481,35 @@ var tests = []entry{
 
 	entry{
 		"15a",
-		4, 0, '.', 0,
+		4, 0, 0, '.', 0,
 		"a\t\tb",
 		"a.......b",
 	},
 
 	entry{
 		"15b",
-		4, 0, '.', DiscardEmptyColumns,
+		4, 0, 0, '.', DiscardEmptyColumns,
 		"a\t\tb",	// htabs - do not discard column
 		"a.......b",
 	},
 
 	entry{
 		"15c",
-		4, 0, '.', DiscardEmptyColumns,
+		4, 0, 0, '.', DiscardEmptyColumns,
 		"a\v\vb",
 		"a...b",
 	},
 
 	entry{
 		"15d",
-		4, 0, '.', AlignRight | DiscardEmptyColumns,
+		4, 0, 0, '.', AlignRight | DiscardEmptyColumns,
 		"a\v\vb",
 		"...ab",
 	},
 
 	entry{
 		"16a",
-		100, 0, '\t', 0,
+		100, 100, 0, '\t', 0,
 		"a\tb\t\td\n"
 			"a\tb\t\td\te\n"
 			"a\n"
@@ -525,7 +525,7 @@ var tests = []entry{
 
 	entry{
 		"16b",
-		100, 0, '\t', DiscardEmptyColumns,
+		100, 100, 0, '\t', DiscardEmptyColumns,
 		"a\vb\v\vd\n"
 			"a\vb\v\vd\ve\n"
 			"a\n"
@@ -541,7 +541,7 @@ var tests = []entry{
 
 	entry{
 		"16b debug",
-		100, 0, '\t', DiscardEmptyColumns | Debug,
+		100, 100, 0, '\t', DiscardEmptyColumns | Debug,
 		"a\vb\v\vd\n"
 			"a\vb\v\vd\ve\n"
 			"a\n"
@@ -557,7 +557,7 @@ var tests = []entry{
 
 	entry{
 		"16c",
-		100, 0, '\t', DiscardEmptyColumns,
+		100, 100, 0, '\t', DiscardEmptyColumns,
 		"a\tb\t\td\n"	// hard tabs - do not discard column
 			"a\tb\t\td\te\n"
 			"a\n"
@@ -573,7 +573,7 @@ var tests = []entry{
 
 	entry{
 		"16c debug",
-		100, 0, '\t', DiscardEmptyColumns | Debug,
+		100, 100, 0, '\t', DiscardEmptyColumns | Debug,
 		"a\tb\t\td\n"	// hard tabs - do not discard column
 			"a\tb\t\td\te\n"
 			"a\n"
@@ -591,6 +591,6 @@ var tests = []entry{
 
 func Test(t *testing.T) {
 	for _, e := range tests {
-		check(t, e.testname, e.tabwidth, e.padding, e.padchar, e.flags, e.src, e.expected)
+		check(t, e.testname, e.minwidth, e.tabwidth, e.padding, e.padchar, e.flags, e.src, e.expected)
 	}
 }
