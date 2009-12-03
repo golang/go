@@ -205,6 +205,9 @@ dowidth(Type *t)
 		checkwidth(t->down);
 		break;
 	case TFORW:		// should have been filled in
+		yyerror("invalid recursive type %T", t);
+		w = 1;	// anything will do
+		break;
 	case TANY:
 		// dummy type; should be replaced before use.
 		if(!debug['A'])
