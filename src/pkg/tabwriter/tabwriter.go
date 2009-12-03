@@ -22,10 +22,10 @@ import (
 // ----------------------------------------------------------------------------
 // Filter implementation
 
-// A cell represents a segment of text delineated by tabs, formfeed,
-// or newline chars. The text itself is stored in a separate buffer;
-// cell only describes the segment's size in bytes, its width in runes,
-// and whether it's an htab ('\t') or vtab ('\v') terminated call.
+// A cell represents a segment of text terminated by tabs or line breaks.
+// The text itself is stored in a separate buffer; cell only describes the
+// segment's size in bytes, its width in runes, and whether it's an htab
+// ('\t') terminated cell.
 //
 type cell struct {
 	size	int;	// cell size in bytes
@@ -38,15 +38,16 @@ type cell struct {
 // tab-delimited columns in its input to align them
 // in the output.
 //
-// The Writer treats incoming bytes as UTF-8 encoded text
-// consisting of tab-terminated cells. Cells in adjacent lines
-// constitute a column. The Writer inserts padding as needed
-// to make all cells in a column have the same width, effectively
-// aligning the columns. Note that cells are tab-terminated,
-// not tab-separated: trailing non-tab text at the end of a line
-// is not part of any cell.
+// The Writer treats incoming bytes as UTF-8 encoded text consisting
+// of cells terminated by (horizontal or vertical) tabs or line
+// breaks (newline or formfeed characters). Cells in adjacent lines
+// constitute a column. The Writer inserts padding as needed to
+// make all cells in a column have the same width, effectively
+// aligning the columns. It assumes that all characters have the
+// same width except for tabs for which a tabwidth must be specified.
+// Note that cells are tab-terminated, not tab-separated: trailing
+// non-tab text at the end of a line does not form a column cell.
 //
-// Horizontal and vertical tabs may be used to terminate a cell.
 // If DiscardEmptyColumns is set, empty columns that are terminated
 // entirely by vertical (or "soft") tabs are discarded. Columns
 // terminated by horizontal (or "hard") tabs are not affected by
@@ -78,17 +79,18 @@ type cell struct {
 type Writer struct {
 	// configuration
 	output		io.Writer;
-	cellwidth	int;
+	minwidth	int;
+	tabwidth	int;
 	padding		int;
 	padbytes	[8]byte;
 	flags		uint;
 
 	// current state
-	buf	bytes.Buffer;		// collected text w/o tabs, newlines, or formfeed chars
-	pos	int;			// buffer position up to which width of incomplete cell has been computed
-	cell	cell;			// current incomplete cell; cell.width is up to buf[pos] w/o ignored sections
+	buf	bytes.Buffer;		// collected text excluding tabs or line breaks
+	pos	int;			// buffer position up to which cell.width of incomplete cell has been computed
+	cell	cell;			// current incomplete cell; cell.width is up to buf[pos] excluding ignored sections
 	endChar	byte;			// terminating char of escaped sequence (Escape for escapes, '>', ';' for HTML tags/entities, or 0)
-	lines	vector.Vector;		// list if lines; each line is a list of cells
+	lines	vector.Vector;		// list of lines; each line is a list of cells
 	widths	vector.IntVector;	// list of column widths in runes - re-used during formatting
 }
 
@@ -113,9 +115,9 @@ func (b *Writer) reset() {
 
 // Internal representation (current state):
 //
-// - all text written is appended to buf; formfeed chars, tabs and newlines are stripped away
+// - all text written is appended to buf; tabs and line breaks are stripped away
 // - at any given time there is a (possibly empty) incomplete cell at the end
-//   (the cell starts after a tab, formfeed, or newline)
+//   (the cell starts after a tab or line break)
 // - cell.size is the number of bytes belonging to the cell so far
 // - cell.width is text width in runes of that cell from the start of the cell to
 //   position pos; html tags and entities are excluded from this width if html
@@ -149,6 +151,10 @@ const (
 	// the input in the first place.
 	DiscardEmptyColumns;
 
+	// Always use tabs for indentation columns (i.e., padding of
+	// leading empty cells on the left) independent of padchar.
+	TabIndent;
+
 	// Print a vertical bar ('|') between columns (after formatting).
 	// Discarded colums appear as zero-width columns ("||").
 	Debug;
@@ -158,37 +164,36 @@ const (
 // A Writer must be initialized with a call to Init. The first parameter (output)
 // specifies the filter output. The remaining parameters control the formatting:
 //
-//	cellwidth	minimal cell width
-//	padding		cell padding added to cell before computing its width
+//	minwidth	minimal cell width including any padding
+//      tabwidth	width of tab characters (equivalent number of spaces)
+//	padding		padding added to a cell before computing its width
 //	padchar		ASCII char used for padding
 //			if padchar == '\t', the Writer will assume that the
-//			width of a '\t' in the formatted output is cellwidth,
+//			width of a '\t' in the formatted output is tabwidth,
 //			and cells are left-aligned independent of align_left
-//			(for correct-looking results, cellwidth must correspond
+//			(for correct-looking results, tabwidth must correspond
 //			to the tab width in the viewer displaying the result)
 //	flags		formatting control
 //
 // To format in tab-separated columns with a tab stop of 8:
-//	b.Init(w, 8, 1, '\t', 0);
+//	b.Init(w, 8, 1, 8, '\t', 0);
 //
 // To format in space-separated columns with at least 4 spaces between columns:
-//	b.Init(w, 1, 4, ' ', 0);
+//	b.Init(w, 0, 4, 8, ' ', 0);
 //
-func (b *Writer) Init(output io.Writer, cellwidth, padding int, padchar byte, flags uint) *Writer {
-	if cellwidth < 0 {
-		panic("negative cellwidth")
-	}
-	if padding < 0 {
-		panic("negative padding")
+func (b *Writer) Init(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
+	if minwidth < 0 || tabwidth < 0 || padding < 0 {
+		panic("negative minwidth, tabwidth, or padding")
 	}
 	b.output = output;
-	b.cellwidth = cellwidth;
+	b.minwidth = minwidth;
+	b.tabwidth = tabwidth;
 	b.padding = padding;
-	for i := len(b.padbytes) - 1; i >= 0; i-- {
+	for i := range b.padbytes {
 		b.padbytes[i] = padchar
 	}
 	if padchar == '\t' {
-		// tab enforces left-alignment
+		// tab padding enforces left-alignment
 		flags &^= AlignRight
 	}
 	b.flags = flags;
@@ -200,22 +205,20 @@ func (b *Writer) Init(output io.Writer, cellwidth, padding int, padchar byte, fl
 
 
 // debugging support (keep code around)
-/*
 func (b *Writer) dump() {
 	pos := 0;
-	for i := 0; i < b.lines_size.Len(); i++ {
-		line_size, line_width := b.line(i);
+	for i := 0; i < b.lines.Len(); i++ {
+		line := b.line(i);
 		print("(", i, ") ");
-		for j := 0; j < line_size.Len(); j++ {
-			s := line_size.At(j);
-			print("[", string(b.buf.slice(pos, pos + s)), "]");
-			pos += s;
+		for j := 0; j < line.Len(); j++ {
+			c := line.At(j).(cell);
+			print("[", string(b.buf.Bytes()[pos:pos+c.size]), "]");
+			pos += c.size;
 		}
 		print("\n");
 	}
 	print("\n");
 }
-*/
 
 
 func (b *Writer) write0(buf []byte) os.Error {
@@ -227,35 +230,40 @@ func (b *Writer) write0(buf []byte) os.Error {
 }
 
 
-var newline = []byte{'\n'}
-
-func (b *Writer) writePadding(textw, cellw int) os.Error {
-	if b.cellwidth == 0 {
-		return nil
-	}
-
-	if b.padbytes[0] == '\t' {
-		// make cell width a multiple of cellwidth
-		cellw = ((cellw + b.cellwidth - 1) / b.cellwidth) * b.cellwidth
-	}
-
-	n := cellw - textw;
-	if n < 0 {
-		panic("internal error")
-	}
-
-	if b.padbytes[0] == '\t' {
-		n = (n + b.cellwidth - 1) / b.cellwidth
-	}
-
-	for n > len(b.padbytes) {
-		if err := b.write0(&b.padbytes); err != nil {
+func (b *Writer) writeN(src []byte, n int) os.Error {
+	for n > len(src) {
+		if err := b.write0(src); err != nil {
 			return err
 		}
-		n -= len(b.padbytes);
+		n -= len(src);
+	}
+	return b.write0(src[0:n]);
+}
+
+
+var (
+	newline	= []byte{'\n'};
+	tabs	= []byte{'\t', '\t', '\t', '\t', '\t', '\t', '\t', '\t'};
+)
+
+
+func (b *Writer) writePadding(textw, cellw int, useTabs bool) os.Error {
+	if b.padbytes[0] == '\t' || useTabs {
+		// padding is done with tabs
+		if b.tabwidth == 0 {
+			return nil	// tabs have no width - can't do any padding
+		}
+		// make cellw the smallest multiple of b.tabwidth
+		cellw = (cellw + b.tabwidth - 1) / b.tabwidth * b.tabwidth;
+		n := cellw - textw;	// amount of padding
+		if n < 0 {
+			panic("internal error")
+		}
+		return b.writeN(tabs, (n+b.tabwidth-1)/b.tabwidth);
 	}
 
-	return b.write0(b.padbytes[0:n]);
+	// padding is done with non-tab characters
+	return b.writeN(&b.padbytes, cellw-textw);
 }
 
 
@@ -265,6 +273,10 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) 
 	pos = pos0;
 	for i := line0; i < line1; i++ {
 		line := b.line(i);
+
+		// if TabIndent is set, use tabs to pad leading empty cells
+		useTabs := b.flags&TabIndent != 0;
+
 		for j := 0; j < line.Len(); j++ {
 			c := line.At(j).(cell);
 
@@ -273,30 +285,38 @@ func (b *Writer) writeLines(pos0 int, line0, line1 int) (pos int, err os.Error) 
 					return
 				}
 			}
-			switch {
-			default:	// align left
 
-				if err = b.write0(b.buf.Bytes()[pos : pos+c.size]); err != nil {
-					return
-				}
-				pos += c.size;
+			if c.size == 0 {
+				// empty cell
 				if j < b.widths.Len() {
-					if err = b.writePadding(c.width, b.widths.At(j)); err != nil {
+					if err = b.writePadding(c.width, b.widths.At(j), useTabs); err != nil {
 						return
 					}
 				}
-
-			case b.flags&AlignRight != 0:	// align right
-
-				if j < b.widths.Len() {
-					if err = b.writePadding(c.width, b.widths.At(j)); err != nil {
+			} else {
+				// non-empty cell
+				useTabs = false;
+				if b.flags&AlignRight == 0 {	// align left
+					if err = b.write0(b.buf.Bytes()[pos : pos+c.size]); err != nil {
 						return
 					}
+					pos += c.size;
+					if j < b.widths.Len() {
+						if err = b.writePadding(c.width, b.widths.At(j), false); err != nil {
+							return
+						}
+					}
+				} else {	// align right
+					if j < b.widths.Len() {
+						if err = b.writePadding(c.width, b.widths.At(j), false); err != nil {
+							return
+						}
+					}
+					if err = b.write0(b.buf.Bytes()[pos : pos+c.size]); err != nil {
+						return
+					}
+					pos += c.size;
 				}
-				if err = b.write0(b.buf.Bytes()[pos : pos+c.size]); err != nil {
-					return
-				}
-				pos += c.size;
 			}
 		}
 
@@ -344,7 +364,7 @@ func (b *Writer) format(pos0 int, line0, line1 int) (pos int, err os.Error) {
 			line0 = this;
 
 			// column block begin
-			width := b.cellwidth;	// minimal column width
+			width := b.minwidth;	// minimal column width
 			discardable := true;	// true if all cells in this column are empty and "soft"
 			for ; this < line1; this++ {
 				line = b.line(this);
@@ -551,6 +571,6 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
 // NewWriter allocates and initializes a new tabwriter.Writer.
 // The parameters are the same as for the the Init function.
 //
-func NewWriter(output io.Writer, cellwidth, padding int, padchar byte, flags uint) *Writer {
-	return new(Writer).Init(output, cellwidth, padding, padchar, flags)
+func NewWriter(output io.Writer, minwidth, tabwidth, padding int, padchar byte, flags uint) *Writer {
+	return new(Writer).Init(output, minwidth, tabwidth, padding, padchar, flags)
 }

@@ -892,7 +892,8 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
 const (
 	GenHTML		uint	= 1 << iota;	// generate HTML
 	RawFormat;		// do not use a tabwriter; if set, UseSpaces is ignored
-	UseSpaces;		// use spaces instead of tabs for indentation and alignment
+	TabIndent;		// use tabs for indentation independent of UseSpaces
+	UseSpaces;		// use spaces instead of tabs for alignment
 )
 
 
@@ -937,15 +938,23 @@ func (cfg *Config) Fprint(output io.Writer, node interface{}) (int, os.Error) {
 	// setup tabwriter if needed and redirect output
 	var tw *tabwriter.Writer;
 	if cfg.Mode&RawFormat == 0 {
+		minwidth := cfg.Tabwidth;
+
 		padchar := byte('\t');
 		if cfg.Mode&UseSpaces != 0 {
 			padchar = ' '
 		}
+
 		twmode := tabwriter.DiscardEmptyColumns;
 		if cfg.Mode&GenHTML != 0 {
 			twmode |= tabwriter.FilterHTML
 		}
-		tw = tabwriter.NewWriter(output, cfg.Tabwidth, 1, padchar, twmode);
+		if cfg.Mode&TabIndent != 0 {
+			minwidth = 0;
+			twmode |= tabwriter.TabIndent;
+		}
+
+		tw = tabwriter.NewWriter(output, minwidth, cfg.Tabwidth, 1, padchar, twmode);
 		output = tw;
 	}
 
