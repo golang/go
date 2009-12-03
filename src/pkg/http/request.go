@@ -15,6 +15,7 @@ import (
 	"container/vector";
 	"fmt";
 	"io";
+	"io/ioutil";
 	"os";
 	"strconv";
 	"strings";
@@ -626,7 +627,7 @@ func (r *Request) ParseForm() (err os.Error) {
 		switch strings.Split(ct, ";", 2)[0] {
 		case "text/plain", "application/x-www-form-urlencoded", "":
 			var b []byte;
-			if b, err = io.ReadAll(r.Body); err != nil {
+			if b, err = ioutil.ReadAll(r.Body); err != nil {
 				return err
 			}
 			query = string(b);

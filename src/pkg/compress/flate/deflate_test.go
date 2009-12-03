@@ -7,7 +7,7 @@ package flate
 import (
 	"bytes";
 	"fmt";
-	"io";
+	"io/ioutil";
 	"os";
 	"testing";
 )
@@ -96,7 +96,7 @@ func testToFromWithLevel(t *testing.T, level int, input []byte, name string) os.
 	w.Write(input);
 	w.Close();
 	inflater := NewInflater(buffer);
-	decompressed, err := io.ReadAll(inflater);
+	decompressed, err := ioutil.ReadAll(inflater);
 	if err != nil {
 		t.Errorf("reading inflater: %s", err);
 		return err;

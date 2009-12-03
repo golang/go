@@ -12,6 +12,7 @@ import (
 	"go/ast";
 	"go/scanner";
 	"io";
+	"io/ioutil";
 	"os";
 	pathutil "path";
 	"strings";
@@ -46,7 +47,7 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
 		}
 	}
 
-	return io.ReadFile(filename);
+	return ioutil.ReadFile(filename);
 }
 
 
@@ -138,7 +139,7 @@ func ParseFile(filename string, src interface{}, mode uint) (*ast.File, os.Error
 // flags that control the amount of source text parsed are ignored.
 //
 func ParsePkgFile(pkgname, filename string, mode uint) (*ast.File, os.Error) {
-	src, err := io.ReadFile(filename);
+	src, err := ioutil.ReadFile(filename);
 	if err != nil {
 		return nil, err
 	}

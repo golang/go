@@ -20,7 +20,7 @@ func main() {
 	flag.Parse();
 	w := eval.NewWorld();
 	if *filename != "" {
-		data, err := io.ReadFile(*filename);
+		data, err := ioutil.ReadFile(*filename);
 		if err != nil {
 			println(err.String());
 			os.Exit(1);

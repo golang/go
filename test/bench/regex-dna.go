@@ -37,7 +37,7 @@ package main
 
 import (
 	"fmt";
-	"io";
+	"io/ioutil";
 	"os";
 	"regexp";
 	"strings";
@@ -88,7 +88,7 @@ func countMatches(pat string, bytes []byte) int {
 }
 
 func main() {
-	bytes, err := io.ReadFile("/dev/stdin");
+	bytes, err := ioutil.ReadFile("/dev/stdin");
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "can't read input: %s\n", err);
 		os.Exit(2);

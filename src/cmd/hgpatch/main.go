@@ -11,6 +11,7 @@ import (
 	"flag";
 	"fmt";
 	"io";
+	"io/ioutil";
 	"os";
 	"patch";
 	"path";
@@ -35,9 +36,9 @@ func main() {
 	var err os.Error;
 	switch len(args) {
 	case 0:
-		data, err = io.ReadAll(os.Stdin)
+		data, err = ioutil.ReadAll(os.Stdin)
 	case 1:
-		data, err = io.ReadFile(args[0])
+		data, err = ioutil.ReadFile(args[0])
 	default:
 		usage()
 	}
@@ -87,7 +88,7 @@ func main() {
 	}
 
 	// Apply changes in memory.
-	op, err := pset.Apply(io.ReadFile);
+	op, err := pset.Apply(ioutil.ReadFile);
 	chk(err);
 
 	// Write changes to disk copy: order of commands matters.
@@ -143,7 +144,7 @@ func main() {
 			changed[o.Dst] = 1;
 		}
 		if o.Data != nil {
-			chk(io.WriteFile(o.Dst, o.Data, 0644));
+			chk(ioutil.WriteFile(o.Dst, o.Data, 0644));
 			if o.Verb == patch.Add {
 				undoRm(o.Dst)
 			} else {

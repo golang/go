@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package io_test
+package ioutil_test
 
 import (
-	. "io";
+	. "io/ioutil";
 	"os";
 	"strings";
 	"testing";
@@ -28,7 +28,7 @@ func TestReadFile(t *testing.T) {
 		t.Fatalf("ReadFile %s: error expected, none found", filename)
 	}
 
-	filename = "utils_test.go";
+	filename = "ioutil_test.go";
 	contents, err = ReadFile(filename);
 	if err != nil {
 		t.Fatalf("ReadFile %s: %v", filename, err)
@@ -78,7 +78,7 @@ func TestReadDir(t *testing.T) {
 	foundObj := false;
 	for _, dir := range list {
 		switch {
-		case dir.IsRegular() && dir.Name == "utils_test.go":
+		case dir.IsRegular() && dir.Name == "ioutil_test.go":
 			foundTest = true
 		case dir.IsDirectory() && dir.Name == "_obj":
 			foundObj = true

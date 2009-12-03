@@ -15,6 +15,7 @@ import (
 	"go/token";
 	"http";
 	"io";
+	"io/ioutil";
 	"log";
 	"os";
 	pathutil "path";
@@ -192,7 +193,7 @@ func newDirTree(path, name string, depth, maxDepth int) *Directory {
 		return &Directory{depth, path, name, "", nil}
 	}
 
-	list, _ := io.ReadDir(path);	// ignore errors
+	list, _ := ioutil.ReadDir(path);	// ignore errors
 
 	// determine number of subdirectories and package files
 	ndirs := 0;
@@ -633,7 +634,7 @@ var fmap = template.FormatterMap{
 
 func readTemplate(name string) *template.Template {
 	path := pathutil.Join(*tmplroot, name);
-	data, err := io.ReadFile(path);
+	data, err := ioutil.ReadFile(path);
 	if err != nil {
 		log.Exitf("ReadFile %s: %v", path, err)
 	}
@@ -718,7 +719,7 @@ func commentText(src []byte) (text string) {
 
 func serveHTMLDoc(c *http.Conn, r *http.Request, path string) {
 	// get HTML body contents
-	src, err := io.ReadFile(path);
+	src, err := ioutil.ReadFile(path);
 	if err != nil {
 		log.Stderrf("%v", err);
 		http.NotFound(c, r);
@@ -815,7 +816,7 @@ func isTextFile(path string) bool {
 
 
 func serveTextFile(c *http.Conn, r *http.Request, path string) {
-	src, err := io.ReadFile(path);
+	src, err := ioutil.ReadFile(path);
 	if err != nil {
 		log.Stderrf("serveTextFile: %s", err)
 	}
@@ -834,7 +835,7 @@ func serveDirectory(c *http.Conn, r *http.Request, path string) {
 		return
 	}
 
-	list, err := io.ReadDir(path);
+	list, err := ioutil.ReadDir(path);
 	if err != nil {
 		http.NotFound(c, r);
 		return;

@@ -7,7 +7,7 @@
 package path
 
 import (
-	"io";
+	"io/ioutil";
 	"os";
 	"strings";
 )
@@ -155,7 +155,7 @@ func walk(path string, d *os.Dir, v Visitor, errors chan<- os.Error) {
 		return	// skip directory entries
 	}
 
-	list, err := io.ReadDir(path);
+	list, err := ioutil.ReadDir(path);
 	if err != nil {
 		if errors != nil {
 			errors <- err

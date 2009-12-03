@@ -12,7 +12,7 @@ import (
 	"go/parser";
 	"go/printer";
 	"go/scanner";
-	"io";
+	"io/ioutil";
 	"os";
 	pathutil "path";
 	"strings";
@@ -86,7 +86,7 @@ func isGoFile(d *os.Dir) bool {
 
 
 func processFile(f *os.File) os.Error {
-	src, err := io.ReadAll(f);
+	src, err := ioutil.ReadAll(f);
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func processFile(f *os.File) os.Error {
 			fmt.Fprintln(os.Stdout, f.Name())
 		}
 		if *write {
-			err = io.WriteFile(f.Name(), res.Bytes(), 0);
+			err = ioutil.WriteFile(f.Name(), res.Bytes(), 0);
 			if err != nil {
 				return err
 			}

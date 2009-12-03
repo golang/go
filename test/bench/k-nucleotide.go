@@ -39,7 +39,7 @@ import (
 	"bufio";
 	"bytes";
 	"fmt";
-	"io";
+	"io/ioutil";
 	"os";
 	"sort";
 	"strings";
@@ -122,7 +122,7 @@ func main() {
 			break
 		}
 	}
-	data, err := io.ReadAll(in);
+	data, err := ioutil.ReadAll(in);
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ReadAll err:", err);
 		os.Exit(2);

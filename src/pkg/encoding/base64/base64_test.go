@@ -6,7 +6,7 @@ package base64
 
 import (
 	"bytes";
-	"io";
+	"io/ioutil";
 	"os";
 	"reflect";
 	"strings";
@@ -184,9 +184,9 @@ func TestBig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Encoder.Close() = %v want nil", err)
 	}
-	decoded, err := io.ReadAll(NewDecoder(StdEncoding, encoded));
+	decoded, err := ioutil.ReadAll(NewDecoder(StdEncoding, encoded));
 	if err != nil {
-		t.Fatalf("io.ReadAll(NewDecoder(...)): %v", err)
+		t.Fatalf("ioutil.ReadAll(NewDecoder(...)): %v", err)
 	}
 
 	if !bytes.Equal(raw, decoded) {

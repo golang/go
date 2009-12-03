@@ -7,7 +7,7 @@
 package http
 
 import (
-	"io";
+	"io/ioutil";
 	"strings";
 	"testing";
 )
@@ -19,7 +19,7 @@ func TestClient(t *testing.T) {
 	r, _, err := Get("http://www.google.com/robots.txt");
 	var b []byte;
 	if err == nil {
-		b, err = io.ReadAll(r.Body);
+		b, err = ioutil.ReadAll(r.Body);
 		r.Body.Close();
 	}
 	if err != nil {

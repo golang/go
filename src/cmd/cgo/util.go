@@ -8,7 +8,7 @@ import (
 	"exec";
 	"fmt";
 	"go/token";
-	"io";
+	"io/ioutil";
 	"os";
 )
 
@@ -57,11 +57,11 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 	}();
 	var xstdout []byte;	// TODO(rsc): delete after 6g can take address of out parameter
 	go func() {
-		xstdout, _ = io.ReadAll(r1);
+		xstdout, _ = ioutil.ReadAll(r1);
 		r1.Close();
 		c <- true;
 	}();
-	stderr, _ = io.ReadAll(r2);
+	stderr, _ = ioutil.ReadAll(r2);
 	r2.Close();
 	<-c;
 	<-c;

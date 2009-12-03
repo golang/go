@@ -5,7 +5,7 @@
 package ebnf
 
 import (
-	"io";
+	"io/ioutil";
 	"strings";
 	"testing";
 )
@@ -65,7 +65,7 @@ var files = []string{
 
 func TestFiles(t *testing.T) {
 	for _, filename := range files {
-		src, err := io.ReadFile(filename);
+		src, err := ioutil.ReadFile(filename);
 		if err != nil {
 			t.Fatal(err)
 		}

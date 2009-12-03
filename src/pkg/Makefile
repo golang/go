@@ -70,6 +70,7 @@ DIRS=\
 	image\
 	image/png\
 	io\
+	io/ioutil\
 	json\
 	log\
 	malloc\
