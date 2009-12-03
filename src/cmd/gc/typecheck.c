@@ -1039,6 +1039,8 @@ reswitch:
 	case ODCLTYPE:
 		ok |= Etop;
 		typecheck(&n->left, Etype);
+		if(!incannedimport)
+			checkwidth(n->left->type);
 		goto ret;
 	}
 
