@@ -547,7 +547,7 @@ agen(Node *n, Node *res)
 			v = mpgetfix(nr->val.u.xval);
 			if(isslice(nl->type)) {
 
-				if(!debug['B']) {
+				if(!debug['B'] && !n->etype) {
 					n1 = n3;
 					n1.op = OINDREG;
 					n1.type = types[tptr];
@@ -599,7 +599,7 @@ agen(Node *n, Node *res)
 		gmove(&n1, &n2);
 		regfree(&n1);
 
-		if(!debug['B']) {
+		if(!debug['B'] && !n->etype) {
 			// check bounds
 			regalloc(&n4, types[TUINT32], N);
 			if(isslice(nl->type)) {
