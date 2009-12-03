@@ -1875,7 +1875,7 @@ reorder1(NodeList *all)
 {
 	Node *f, *a, *n;
 	NodeList *l, *r, *g;
-	int c, t;
+	int c, d, t;
 
 	c = 0;	// function calls
 	t = 0;	// total parameters
@@ -1891,17 +1891,17 @@ reorder1(NodeList *all)
 		return all;
 
 	g = nil;	// fncalls assigned to tempnames
-	f = N;	// one fncall assigned to stack
+	f = N;	// last fncall assigned to stack
 	r = nil;	// non fncalls and tempnames assigned to stack
-
+	d = 0;
 	for(l=all; l; l=l->next) {
 		n = l->n;
-		ullmancalc(n);
 		if(n->ullman < UINF) {
 			r = list(r, n);
 			continue;
 		}
-		if(f == N) {
+		d++;
+		if(d == c) {
 			f = n;
 			continue;
 		}
