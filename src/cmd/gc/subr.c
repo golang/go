@@ -2431,7 +2431,7 @@ setmaxarg(Type *t)
 
 	dowidth(t);
 	w = t->argwid;
-	if(t->argwid >= 100000000)
+	if(t->argwid >= MAXWIDTH)
 		fatal("bad argwid %T", t);
 	if(w > maxarg)
 		maxarg = w;
