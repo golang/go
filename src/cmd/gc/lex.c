@@ -1065,7 +1065,9 @@ loop:
 		goto loop;
 	c = chartorune(&rune, str);
 	if(rune == Runeerror && c == 1) {
-		yyerror("illegal rune in string");
+		lineno = lexlineno;
+		yyerror("illegal UTF-8 sequence in comment or string");
+		flusherrors();
 		for(c=0; c<i; c++)
 			print(" %.2x", *(uchar*)(str+c));
 		print("\n");
