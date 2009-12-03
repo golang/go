@@ -124,7 +124,7 @@ func genSplit(s, sep string, sepSave, n int) []string {
 
 // Split splits the string s around each instance of sep, returning an array of substrings of s.
 // If sep is empty, Split splits s after each UTF-8 sequence.
-// If n > 0, split Splits s into at most n substrings; the last substring will be the unsplit remainder.
+// If n > 0, Split splits s into at most n substrings; the last substring will be the unsplit remainder.
 func Split(s, sep string, n int) []string	{ return genSplit(s, sep, 0, n) }
 
 // SplitAfter splits the string s after each instance of sep, returning an array of substrings of s.
@@ -271,4 +271,15 @@ func Bytes(s string) []byte {
 		b[i] = s[i]
 	}
 	return b;
+}
+
+// Runes returns a slice of runes (Unicode code points) equivalent to the string s.
+func Runes(s string) []int {
+	t := make([]int, utf8.RuneCountInString(s));
+	i := 0;
+	for _, r := range s {
+		t[i] = r;
+		i++;
+	}
+	return t;
 }
