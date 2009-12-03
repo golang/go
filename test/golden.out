@@ -142,10 +142,6 @@ panic PC=xxx
 
 == bugs/
 
-=========== bugs/bug218.go
-<epoch>: fatal error: dowidth: unknown type: blank
-BUG: bug218
-
 =========== bugs/bug219.go
 bugs/bug219.go:16: syntax error near if
 BUG: bug219

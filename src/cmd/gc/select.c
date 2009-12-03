@@ -118,7 +118,7 @@ walkselect(Node *sel)
 			else {
 				// introduce temporary until we're sure this will succeed.
 				tmp = nod(OXXX, N, N);
-				tempname(tmp, n->left->type);
+				tempname(tmp, n->right->type->type);
 				a = nod(OADDR, tmp, N);
 			}
 			// selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
