@@ -137,8 +137,6 @@ void	ginit(void);
 void	gclean(void);
 void	regalloc(Node*, Type*, Node*);
 void	regfree(Node*);
-void	tempalloc(Node*, Type*);
-void	tempfree(Node*);
 Node*	nodarg(Type*, int);
 void	nodreg(Node*, Type*, int);
 void	nodindreg(Node*, Type*, int);

@@ -60,12 +60,12 @@ cgen64(Node *n, Node *res)
 	l = n->left;
 	r = n->right;
 	if(!l->addable) {
-		tempalloc(&t1, l->type);
+		tempname(&t1, l->type);
 		cgen(l, &t1);
 		l = &t1;
 	}
 	if(r != N && !r->addable) {
-		tempalloc(&t2, r->type);
+		tempname(&t2, r->type);
 		cgen(r, &t2);
 		r = &t2;
 	}
@@ -417,11 +417,7 @@ cgen64(Node *n, Node *res)
 	gins(AMOVL, &dx, &hi1);
 	splitclean();
 
-out:
-	if(r == &t2)
-		tempfree(&t2);
-	if(l == &t1)
-		tempfree(&t1);
+out:;
 }
 
 /*

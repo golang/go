@@ -80,6 +80,7 @@ compile(Node *fn)
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
+if(0)
 	if(!debug['N'] || debug['R'] || debug['P']) {
 		regopt(ptxt);
 	}
@@ -198,7 +199,7 @@ cgen_callinter(Node *n, Node *res, int proc)
 	i = i->left;		// interface
 
 	if(!i->addable) {
-		tempalloc(&tmpi, i->type);
+		tempname(&tmpi, i->type);
 		cgen(i, &tmpi);
 		i = &tmpi;
 	}
@@ -230,9 +231,6 @@ cgen_callinter(Node *n, Node *res, int proc)
 	regfree(&nodr);
 	regfree(&nodo);
 
-	if(i == &tmpi)
-		tempfree(i);
-
 	setmaxarg(n->left->type);
 }
 
@@ -254,7 +252,7 @@ cgen_call(Node *n, int proc)
 	if(n->left->ullman >= UINF) {
 		// if name involves a fn call
 		// precompute the address of the fn
-		tempalloc(&afun, types[tptr]);
+		tempname(&afun, types[tptr]);
 		cgen(n->left, &afun);
 	}
 
@@ -267,7 +265,6 @@ cgen_call(Node *n, int proc)
 	if(n->left->ullman >= UINF) {
 		regalloc(&nod, types[tptr], N);
 		cgen_as(&nod, &afun);
-		tempfree(&afun);
 		nod.type = t;
 		ginscall(&nod, proc);
 		regfree(&nod);
@@ -385,12 +382,11 @@ cgen_asop(Node *n)
 	nr = n->right;
 
 	if(nr->ullman >= UINF && nl->ullman >= UINF) {
-		tempalloc(&n1, nr->type);
+		tempname(&n1, nr->type);
 		cgen(nr, &n1);
 		n2 = *n;
 		n2.right = &n1;
 		cgen_asop(&n2);
-		tempfree(&n1);
 		goto ret;
 	}
 
@@ -475,12 +471,12 @@ cgen_asop(Node *n)
 
 hard:
 	if(nr->ullman > nl->ullman) {
-		tempalloc(&n2, nr->type);
+		tempname(&n2, nr->type);
 		cgen(nr, &n2);
 		igen(nl, &n1, N);
 	} else {
 		igen(nl, &n1, N);
-		tempalloc(&n2, nr->type);
+		tempname(&n2, nr->type);
 		cgen(nr, &n2);
 	}
 
@@ -489,13 +485,11 @@ hard:
 	n3.right = &n2;
 	n3.op = n->etype;
 
-	tempalloc(&n4, nl->type);
+	tempname(&n4, nl->type);
 	cgen(&n3, &n4);
 	gmove(&n4, &n1);
 
 	regfree(&n1);
-	tempfree(&n4);
-	tempfree(&n2);
 
 ret:
 	;
@@ -528,8 +522,8 @@ dodiv(int op, Type *t, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 {
 	Node n1, t1, t2, nz;
 
-	tempalloc(&t1, nl->type);
-	tempalloc(&t2, nr->type);
+	tempname(&t1, nl->type);
+	tempname(&t2, nr->type);
 	cgen(nl, &t1);
 	cgen(nr, &t2);
 
@@ -546,8 +540,6 @@ dodiv(int op, Type *t, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
 		gins(optoas(OEXTEND, t), N, N);
 	gins(optoas(op, t), &n1, N);
 	regfree(&n1);
-	tempfree(&t2);
-	tempfree(&t1);
 
 	if(op == ODIV)
 		gmove(ax, res);
@@ -567,7 +559,7 @@ savex(int dr, Node *x, Node *oldx, Node *res, Type *t)
 	// and not the destination
 	memset(oldx, 0, sizeof *oldx);
 	if(r > 0 && !samereg(x, res)) {
-		tempalloc(oldx, types[TINT32]);
+		tempname(oldx, types[TINT32]);
 		gmove(x, oldx);
 	}
 
@@ -582,7 +574,6 @@ restx(Node *x, Node *oldx)
 	if(oldx->op != 0) {
 		x->type = types[TINT32];
 		gmove(oldx, x);
-		tempfree(oldx);
 	}
 }
 
@@ -653,7 +644,7 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	memset(&oldcx, 0, sizeof oldcx);
 	nodreg(&cx, types[TUINT32], D_CX);
 	if(reg[D_CX] > 1 && !samereg(&cx, res)) {
-		tempalloc(&oldcx, types[TUINT32]);
+		tempname(&oldcx, types[TUINT32]);
 		gmove(&cx, &oldcx);
 	}
 
@@ -683,10 +674,8 @@ cgen_shift(int op, Node *nl, Node *nr, Node *res)
 	patch(p1, pc);
 	gins(a, &n1, &n2);
 
-	if(oldcx.op != 0) {
+	if(oldcx.op != 0)
 		gmove(&oldcx, &cx);
-		tempfree(&oldcx);
-	}
 
 	gmove(&n2, res);
 
@@ -971,7 +960,7 @@ sliceslice:
 		if(bad)
 			goto no;
 
-		tempalloc(&ntemp, res->type);
+		tempname(&ntemp, res->type);
 		if(!sleasy(&nodes[0])) {
 			cgen(&nodes[0], &ntemp);
 			nnode0 = ntemp;
@@ -1079,8 +1068,6 @@ sliceslice:
 	if(!sleasy(res)) {
 		cgen(&nres, res);
 	}
-	if(ntemp.op != OXXX)
-		tempfree(&ntemp);
 	return 1;
 
 no:

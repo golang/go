@@ -10,18 +10,16 @@
 void
 mgen(Node *n, Node *n1, Node *rg)
 {
-	n1->ostk = 0;
 	n1->op = OEMPTY;
 
 	if(n->addable) {
 		*n1 = *n;
-		n1->ostk = 0;
 		if(n1->op == OREGISTER || n1->op == OINDREG)
 			reg[n->val.u.reg]++;
 		return;
 	}
 	if(n->type->width > widthptr)
-		tempalloc(n1, n->type);
+		tempname(n1, n->type);
 	else
 		regalloc(n1, n->type, rg);
 	cgen(n, n1);
@@ -30,9 +28,7 @@ mgen(Node *n, Node *n1, Node *rg)
 void
 mfree(Node *n)
 {
-	if(n->ostk)
-		tempfree(n);
-	else if(n->op == OREGISTER)
+	if(n->op == OREGISTER)
 		regfree(n);
 }
 
@@ -70,10 +66,9 @@ cgen(Node *n, Node *res)
 
 	// function calls on both sides?  introduce temporary
 	if(n->ullman >= UINF && res->ullman >= UINF) {
-		tempalloc(&n1, n->type);
+		tempname(&n1, n->type);
 		cgen(n, &n1);
 		cgen(&n1, res);
-		tempfree(&n1);
 		return;
 	}
 
@@ -107,10 +102,9 @@ cgen(Node *n, Node *res)
 	if(!n->addable && !res->addable) {
 		// could use regalloc here sometimes,
 		// but have to check for ullman >= UINF.
-		tempalloc(&n1, n->type);
+		tempname(&n1, n->type);
 		cgen(n, &n1);
 		cgen(&n1, res);
-		tempfree(&n1);
 		return;
 	}
 
@@ -132,12 +126,11 @@ cgen(Node *n, Node *res)
 	if(nl != N && nl->ullman >= UINF)
 	if(nr != N && nr->ullman >= UINF) {
 		// both are hard
-		tempalloc(&n1, nl->type);
+		tempname(&n1, nl->type);
 		cgen(nl, &n1);
 		n2 = *n;
 		n2.left = &n1;
 		cgen(&n2, res);
-		tempfree(&n1);
 		return;
 	}
 
@@ -240,11 +233,10 @@ cgen(Node *n, Node *res)
 		if(istype(nl->type, TMAP) || istype(nl->type, TCHAN)) {
 			// map has len in the first 32-bit word.
 			// a zero pointer means zero length
-			tempalloc(&n1, types[tptr]);
+			tempname(&n1, types[tptr]);
 			cgen(nl, &n1);
 			regalloc(&n2, types[tptr], N);
 			gmove(&n1, &n2);
-			tempfree(&n1);
 			n1 = n2;
 
 			nodconst(&n2, types[tptr], 0);
@@ -354,7 +346,7 @@ sbop:	// symmetric binary
 
 abop:	// asymmetric binary
 	if(nl->ullman >= nr->ullman) {
-		tempalloc(&nt, nl->type);
+		tempname(&nt, nl->type);
 		cgen(nl, &nt);
 		mgen(nr, &n2, N);
 		regalloc(&n1, nl->type, res);
@@ -363,7 +355,6 @@ abop:	// asymmetric binary
 		gmove(&n1, res);
 		regfree(&n1);
 		mfree(&n2);
-		tempfree(&nt);
 	} else {
 		regalloc(&n2, nr->type, res);
 		cgen(nr, &n2);
@@ -377,11 +368,10 @@ abop:	// asymmetric binary
 	return;
 
 uop:	// unary
-	tempalloc(&n1, nl->type);
+	tempname(&n1, nl->type);
 	cgen(nl, &n1);
 	gins(a, N, &n1);
 	gmove(&n1, res);
-	tempfree(&n1);
 	return;
 
 flt:	// floating-point.  387 (not SSE2) to interoperate with 6c
@@ -490,30 +480,27 @@ agen(Node *n, Node *res)
 		if(nr->addable) {
 			agenr(nl, &n3, res);
 			if(!isconst(nr, CTINT)) {
-				tempalloc(&tmp, types[TINT32]);
+				tempname(&tmp, types[TINT32]);
 				cgen(nr, &tmp);
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
-				tempfree(&tmp);
 			}
 		} else if(nl->addable) {
 			if(!isconst(nr, CTINT)) {
-				tempalloc(&tmp, types[TINT32]);
+				tempname(&tmp, types[TINT32]);
 				cgen(nr, &tmp);
 				regalloc(&n1, tmp.type, N);
 				gmove(&tmp, &n1);
-				tempfree(&tmp);
 			}
 			regalloc(&n3, types[tptr], res);
 			agen(nl, &n3);
 		} else {
-			tempalloc(&tmp, types[TINT32]);
+			tempname(&tmp, types[TINT32]);
 			cgen(nr, &tmp);
 			nr = &tmp;
 			agenr(nl, &n3, res);
 			regalloc(&n1, tmp.type, N);
 			gins(optoas(OAS, tmp.type), &tmp, &n1);
-			tempfree(&tmp);
 		}
 
 		// &a is in &n3 (allocated in res)
@@ -693,11 +680,10 @@ igen(Node *n, Node *a, Node *res)
 {
 	Node n1;
 
-	tempalloc(&n1, types[tptr]);
+	tempname(&n1, types[tptr]);
 	agen(n, &n1);
 	regalloc(a, types[tptr], res);
 	gmove(&n1, a);
-	tempfree(&n1);
 	a->op = OINDREG;
 	a->type = n->type;
 }
@@ -713,11 +699,10 @@ agenr(Node *n, Node *a, Node *res)
 {
 	Node n1;
 
-	tempalloc(&n1, types[tptr]);
+	tempname(&n1, types[tptr]);
 	agen(n, &n1);
 	regalloc(a, types[tptr], res);
 	gmove(&n1, a);
-	tempfree(&n1);
 }
 
 /*
@@ -925,14 +910,12 @@ bgen(Node *n, int true, Prog *to)
 				// all the other ops have the same problem.
 				// We need to figure out what the right general
 				// solution is, besides telling people to use float64.
-				tempalloc(&t1, types[TFLOAT32]);
-				tempalloc(&t2, types[TFLOAT32]);
+				tempname(&t1, types[TFLOAT32]);
+				tempname(&t2, types[TFLOAT32]);
 				cgen(nr, &t1);
 				cgen(nl, &t2);
 				gmove(&t2, &tmp);
 				gins(AFCOMFP, &t1, &tmp);
-				tempfree(&t2);
-				tempfree(&t1);
 			}
 			gins(AFSTSW, N, &ax);
 			gins(ASAHF, N, N);
@@ -954,57 +937,49 @@ bgen(Node *n, int true, Prog *to)
 
 		if(is64(nr->type)) {
 			if(!nl->addable) {
-				tempalloc(&n1, nl->type);
+				tempname(&n1, nl->type);
 				cgen(nl, &n1);
 				nl = &n1;
 			}
 			if(!nr->addable) {
-				tempalloc(&n2, nr->type);
+				tempname(&n2, nr->type);
 				cgen(nr, &n2);
 				nr = &n2;
 			}
 			cmp64(nl, nr, a, to);
-			if(nr == &n2)
-				tempfree(&n2);
-			if(nl == &n1)
-				tempfree(&n1);
 			break;
 		}
 
 		a = optoas(a, nr->type);
 
 		if(nr->ullman >= UINF) {
-			tempalloc(&n1, nl->type);
-			tempalloc(&tmp, nr->type);
+			tempname(&n1, nl->type);
+			tempname(&tmp, nr->type);
 			cgen(nr, &tmp);
 			cgen(nl, &n1);
 			regalloc(&n2, nr->type, N);
 			cgen(&tmp, &n2);
-			tempfree(&tmp);
 			goto cmp;
 		}
 
-		tempalloc(&n1, nl->type);
+		tempname(&n1, nl->type);
 		cgen(nl, &n1);
 
 		if(smallintconst(nr)) {
 			gins(optoas(OCMP, nr->type), &n1, nr);
 			patch(gbranch(a, nr->type), to);
-			tempfree(&n1);
 			break;
 		}
 
-		tempalloc(&tmp, nr->type);
+		tempname(&tmp, nr->type);
 		cgen(nr, &tmp);
 		regalloc(&n2, nr->type, N);
 		gmove(&tmp, &n2);
-		tempfree(&tmp);
 
 cmp:
 		gins(optoas(OCMP, nr->type), &n1, &n2);
 		patch(gbranch(a, nr->type), to);
 		regfree(&n2);
-		tempfree(&n1);
 		break;
 	}
 }
@@ -1073,8 +1048,8 @@ sgen(Node *n, Node *res, int32 w)
 	nodreg(&dst, types[tptr], D_DI);
 	nodreg(&src, types[tptr], D_SI);
 
-	tempalloc(&tsrc, types[tptr]);
-	tempalloc(&tdst, types[tptr]);
+	tempname(&tsrc, types[tptr]);
+	tempname(&tdst, types[tptr]);
 	if(!n->addable)
 		agen(n, &tsrc);
 	if(!res->addable)
@@ -1087,8 +1062,6 @@ sgen(Node *n, Node *res, int32 w)
 		agen(res, &dst);
 	else
 		gmove(&tdst, &dst);
-	tempfree(&tdst);
-	tempfree(&tsrc);
 
 	c = w % 4;	// bytes
 	q = w / 4;	// doublewords
