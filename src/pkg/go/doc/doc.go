@@ -561,8 +561,8 @@ func isRegexp(s string) bool {
 }
 
 
-func match(s string, a []string) bool {
-	for _, t := range a {
+func match(s string, names []string) bool {
+	for _, t := range names {
 		if isRegexp(t) {
 			if matched, _ := regexp.MatchString(t, s); matched {
 				return true
@@ -622,16 +622,18 @@ func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
 func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
 	w := 0;
 	for _, td := range a {
-		match := false;
+		n := 0;	// number of matches
 		if matchDecl(td.Decl, names) {
-			match = true
+			n = 1
 		} else {
-			// type name doesn't match, but we may have matching factories or methods
+			// type name doesn't match, but we may have matching consts, vars, factories or methods
+			td.Consts = filterValueDocs(td.Consts, names);
+			td.Vars = filterValueDocs(td.Vars, names);
 			td.Factories = filterFuncDocs(td.Factories, names);
 			td.Methods = filterFuncDocs(td.Methods, names);
-			match = len(td.Factories) > 0 || len(td.Methods) > 0;
+			n += len(td.Consts) + len(td.Vars) + len(td.Factories) + len(td.Methods);
 		}
-		if match {
+		if n > 0 {
 			a[w] = td;
 			w++;
 		}
