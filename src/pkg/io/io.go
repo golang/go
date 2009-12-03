@@ -112,6 +112,16 @@ type ReadWriteSeeker interface {
 	Seeker;
 }
 
+// ReaderFrom is the interface that wraps the ReadFrom method.
+type ReaderFrom interface {
+	ReadFrom(r Reader) (n int64, err os.Error);
+}
+
+// WriterTo is the interface that wraps the WriteTo method.
+type WriterTo interface {
+	WriteTo(w Writer) (n int64, err os.Error);
+}
+
 // ReaderAt is the interface that wraps the basic ReadAt method.
 //
 // ReadAt reads len(p) bytes into p starting at offset off in the
@@ -178,7 +188,15 @@ func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
 
 // Copyn copies n bytes (or until an error) from src to dst.
 // It returns the number of bytes copied and the error, if any.
+//
+// If dst implements the ReaderFrom interface,
+// the copy is implemented by calling dst.ReadFrom(src).
 func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
+	// If the writer has a ReadFrom method, use it to to do the copy.
+	// Avoids a buffer allocation and a copy.
+	if rt, ok := dst.(ReaderFrom); ok {
+		return rt.ReadFrom(LimitReader(src, n))
+	}
 	buf := make([]byte, 32*1024);
 	for written < n {
 		l := len(buf);
@@ -211,7 +229,21 @@ func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
 // Copy copies from src to dst until either EOF is reached
 // on src or an error occurs.  It returns the number of bytes
 // copied and the error, if any.
+//
+// If dst implements the ReaderFrom interface,
+// the copy is implemented by calling dst.ReadFrom(src).
+// Otherwise, if src implements the WriterTo interface,
+// the copy is implemented by calling src.WriteTo(dst).
 func Copy(dst Writer, src Reader) (written int64, err os.Error) {
+	// If the writer has a ReadFrom method, use it to to do the copy.
+	// Avoids an allocation and a copy.
+	if rt, ok := dst.(ReaderFrom); ok {
+		return rt.ReadFrom(src)
+	}
+	// Similarly, if the reader has a WriteTo method, use it to to do the copy.
+	if wt, ok := src.(WriterTo); ok {
+		return wt.WriteTo(dst)
+	}
 	buf := make([]byte, 32*1024);
 	for {
 		nr, er := src.Read(buf);

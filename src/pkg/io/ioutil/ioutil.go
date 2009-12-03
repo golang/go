@@ -34,15 +34,15 @@ func ReadFile(filename string) ([]byte, os.Error) {
 	if err != nil && dir.Size < 2e9 {	// Don't preallocate a huge buffer, just in case.
 		n = dir.Size
 	}
-	if n == 0 {
-		n = 1024	// No idea what's right, but zero isn't.
-	}
+	// Add a little extra in case Size is zero, and to avoid another allocation after
+	// Read has filled the buffer.
+	n += bytes.MinRead;
 	// Pre-allocate the correct size of buffer, then set its size to zero.  The
 	// Buffer will read into the allocated space cheaply.  If the size was wrong,
 	// we'll either waste some space off the end or reallocate as needed, but
 	// in the overwhelmingly common case we'll get it just right.
-	buf := bytes.NewBuffer(make([]byte, n)[0:0]);
-	_, err = io.Copy(buf, f);
+	buf := bytes.NewBuffer(make([]byte, 0, n));
+	_, err = buf.ReadFrom(f);
 	return buf.Bytes(), err;
 }
 

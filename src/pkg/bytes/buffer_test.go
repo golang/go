@@ -240,3 +240,25 @@ func TestNil(t *testing.T) {
 		t.Error("expcted <nil>; got %q", b.String())
 	}
 }
+
+
+func TestReadFrom(t *testing.T) {
+	var buf Buffer;
+	for i := 3; i < 30; i += 3 {
+		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, bytes[0:len(bytes)/i]);
+		var b Buffer;
+		b.ReadFrom(&buf);
+		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(data)));
+	}
+}
+
+
+func TestWriteTo(t *testing.T) {
+	var buf Buffer;
+	for i := 3; i < 30; i += 3 {
+		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, bytes[0:len(bytes)/i]);
+		var b Buffer;
+		buf.WriteTo(&b);
+		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(data)));
+	}
+}
