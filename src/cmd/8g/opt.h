@@ -34,8 +34,6 @@
 #define	D_HI	D_NONE
 #define	D_LO	D_NONE
 
-#define	isregtype(t)	((t)>= D_AX && (t)<=D_R15)
-
 #define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
 #define	BSTORE(r)	band(bnot(r->calbehind), r->calahead)
 #define	LOAD(r)		(~r->refbehind.b[z] & r->refahead.b[z])

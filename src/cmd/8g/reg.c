@@ -287,8 +287,12 @@ regopt(Prog *firstp)
 		case ASHRW:
 		case AIMULL:
 		case AIMULW:
+		case ANEGB:
 		case ANEGL:
+		case ANEGW:
+		case ANOTB:
 		case ANOTL:
+		case ANOTW:
 		case AADCL:
 		case ASBBL:
 

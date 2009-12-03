@@ -793,42 +793,6 @@ regfree(Node *n)
 		fatal("regfree %R", i);
 }
 
-void
-tempalloc(Node *n, Type *t)
-{
-	int w;
-
-	dowidth(t);
-
-	memset(n, 0, sizeof(*n));
-	n->op = ONAME;
-	n->sym = S;
-	n->type = t;
-	n->etype = t->etype;
-	n->class = PAUTO;
-	n->addable = 1;
-	n->ullman = 1;
-	n->noescape = 1;
-	n->ostk = stksize;
-
-	w = t->width;
-	stksize += w;
-	stksize = rnd(stksize, w);
-	n->xoffset = -stksize;
-//print("tempalloc %d -> %d from %p\n", n->ostk, n->xoffset, __builtin_return_address(0));
-	if(stksize > maxstksize)
-		maxstksize = stksize;
-}
-
-void
-tempfree(Node *n)
-{
-//print("tempfree %d\n", n->xoffset);
-	if(n->xoffset != -stksize)
-		fatal("tempfree %lld %d", -n->xoffset, stksize);
-	stksize = n->ostk;
-}
-
 /*
  * initialize n to be register r of type t.
  */
@@ -1073,6 +1037,15 @@ bignodes(void)
 }
 
 void
+memname(Node *n, Type *t)
+{
+	tempname(n, t);
+	strcpy(namebuf, n->sym->name);
+	namebuf[0] = '.';	// keep optimizer from registerizing
+	n->sym = lookup(namebuf);
+}
+
+void
 gmove(Node *f, Node *t)
 {
 	int a, ft, tt;
@@ -1297,8 +1270,8 @@ gmove(Node *f, Node *t)
 		}
 
 		// set round to zero mode during conversion
-		tempalloc(&t1, types[TUINT16]);
-		tempalloc(&t2, types[TUINT16]);
+		memname(&t1, types[TUINT16]);
+		memname(&t2, types[TUINT16]);
 		gins(AFSTCW, N, &t1);
 		gins(AMOVW, ncon(0xf7f), &t2);
 		gins(AFLDCW, &t2, N);
@@ -1309,8 +1282,6 @@ gmove(Node *f, Node *t)
 		else
 			gins(AFMOVVP, &r1, t);
 		gins(AFLDCW, &t1, N);
-		tempfree(&t2);
-		tempfree(&t1);
 		return;
 
 	case CASE(TFLOAT32, TINT8):
@@ -1320,7 +1291,7 @@ gmove(Node *f, Node *t)
 	case CASE(TFLOAT64, TUINT16):
 	case CASE(TFLOAT64, TUINT8):
 		// convert via int32.
-		tempalloc(&t1, types[TINT32]);
+		tempname(&t1, types[TINT32]);
 		gmove(f, &t1);
 		switch(tt) {
 		default:
@@ -1352,13 +1323,12 @@ gmove(Node *f, Node *t)
 			gmove(&t1, t);
 			break;
 		}
-		tempfree(&t1);
 		return;
 
 	case CASE(TFLOAT32, TUINT32):
 	case CASE(TFLOAT64, TUINT32):
 		// convert via int64.
-		tempalloc(&t1, types[TINT64]);
+		tempname(&t1, types[TINT64]);
 		gmove(f, &t1);
 		split64(&t1, &tlo, &thi);
 		gins(ACMPL, &thi, ncon(0));
@@ -1367,7 +1337,6 @@ gmove(Node *f, Node *t)
 		patch(p1, pc);
 		gmove(&tlo, t);
 		splitclean();
-		tempfree(&t1);
 		return;
 
 	case CASE(TFLOAT32, TUINT64):
@@ -1405,12 +1374,11 @@ gmove(Node *f, Node *t)
 		//	otherwise, subtract 2^63, convert, and add it back.
 
 		// set round to zero mode during conversion
-		tempalloc(&t1, types[TUINT16]);
-		tempalloc(&t2, types[TUINT16]);
+		memname(&t1, types[TUINT16]);
+		memname(&t2, types[TUINT16]);
 		gins(AFSTCW, N, &t1);
 		gins(AMOVW, ncon(0xf7f), &t2);
 		gins(AFLDCW, &t2, N);
-		tempfree(&t2);
 
 		// actual work
 		gmove(&two63f, &f0);
@@ -1432,7 +1400,6 @@ gmove(Node *f, Node *t)
 
 		// restore rounding mode
 		gins(AFLDCW, &t1, N);
-		tempfree(&t1);
 		return;
 
 	/*
@@ -1487,7 +1454,7 @@ gmove(Node *f, Node *t)
 		nodreg(&ax, types[TUINT32], D_AX);
 		nodreg(&dx, types[TUINT32], D_DX);
 		nodreg(&cx, types[TUINT32], D_CX);
-		tempalloc(&t1, f->type);
+		tempname(&t1, f->type);
 		split64(&t1, &tlo, &thi);
 		gmove(f, &t1);
 		gins(ACMPL, &thi, ncon(0));
@@ -1516,7 +1483,6 @@ gmove(Node *f, Node *t)
 		gmove(&r1, t);
 		patch(p2, pc);
 		splitclean();
-		tempfree(&t1);
 		return;
 
 	/*
@@ -1563,10 +1529,9 @@ gmove(Node *f, Node *t)
 
 	case CASE(TFLOAT64, TFLOAT32):
 		if(f->op == OREGISTER && t->op == OREGISTER) {
-			tempalloc(&r1, types[TFLOAT32]);
+			tempname(&r1, types[TFLOAT32]);
 			gins(AFMOVFP, f, &r1);
 			gins(AFMOVF, &r1, t);
-			tempfree(&r1);
 			return;
 		}
 		if(f->op == OREGISTER)
@@ -1597,10 +1562,9 @@ hard:
 
 hardmem:
 	// requires memory intermediate
-	tempalloc(&r1, cvt);
+	tempname(&r1, cvt);
 	gmove(f, &r1);
 	gmove(&r1, t);
-	tempfree(&r1);
 	return;
 
 fatal:
