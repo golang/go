@@ -1827,23 +1827,24 @@ oindex:
 		agen(l, reg);
 	}
 
+	if(!(o & ODynam) && l->type->width >= unmappedzero && l->op == OIND) {
+		// cannot rely on page protections to
+		// catch array ptr == 0, so dereference.
+		n2 = *reg;
+		n2.op = OINDREG;
+		n2.type = types[TUINT8];
+		n2.xoffset = 0;
+		gins(ATESTB, nodintconst(0), &n2);
+	}
+
 	// check bounds
-	if(!debug['B']) {
+	if(!debug['B'] && !n->etype) {
 		if(o & ODynam) {
 			n2 = *reg;
 			n2.op = OINDREG;
 			n2.type = types[tptr];
 			n2.xoffset = Array_nel;
 		} else {
-			if(l->type->width >= unmappedzero && l->op == OIND) {
-				// cannot rely on page protections to
-				// catch array ptr == 0, so dereference.
-				n2 = *reg;
-				n2.op = OINDREG;
-				n2.type = types[TUINT8];
-				n2.xoffset = 0;
-				gins(ATESTB, nodintconst(0), &n2);
-			}
 			nodconst(&n2, types[TUINT64], l->type->bound);
 		}
 		gins(optoas(OCMP, types[TUINT32]), reg1, &n2);
@@ -1879,7 +1880,7 @@ oindex_const:
 	v = mpgetfix(r->val.u.xval);
 	if(o & ODynam) {
 
-		if(!debug['B']) {
+		if(!debug['B'] && !n->etype) {
 			n1 = *reg;
 			n1.op = OINDREG;
 			n1.type = types[tptr];

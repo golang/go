@@ -787,6 +787,14 @@ walkexpr(Node **np, NodeList **init)
 	case OINDEX:
 		walkexpr(&n->left, init);
 		walkexpr(&n->right, init);
+		
+		// if range of type cannot exceed static array bound,
+		// disable bounds check
+		if(!isslice(n->left->type))
+		if(n->right->type->width < 4)
+		if((1<<(8*n->right->type->width)) <= n->left->type->bound)
+			n->etype = 1;
+
 		goto ret;
 
 	case OINDEXMAP:

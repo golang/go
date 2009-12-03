@@ -91,7 +91,7 @@ walkrange(Node *n)
 	Node *ohv1, *hv1, *hv2;	// hidden (old) val 1, 2
 	Node *ha, *hit;	// hidden aggregate, iterator
 	Node *a, *v1, *v2;	// not hidden aggregate, val 1, 2
-	Node *fn;
+	Node *fn, *tmp;
 	NodeList *body, *init;
 	Type *th, *t;
 
@@ -128,8 +128,11 @@ walkrange(Node *n)
 		n->nincr = nod(OASOP, hv1, nodintconst(1));
 		n->nincr->etype = OADD;
 		body = list1(nod(OAS, v1, hv1));
-		if(v2)
-			body = list(body, nod(OAS, v2, nod(OINDEX, ha, hv1)));
+		if(v2) {
+			tmp = nod(OINDEX, ha, hv1);
+			tmp->etype = 1;	// no bounds check
+			body = list(body, nod(OAS, v2, tmp));
+		}
 		break;
 
 	case TMAP:

@@ -1767,7 +1767,7 @@ oindex_const:
 	v = mpgetfix(r->val.u.xval);
 	if(o & ODynam) {
 
-		if(!debug['B']) {
+		if(!debug['B'] && !n->etype) {
 			n1 = *reg;
 			n1.op = OINDREG;
 			n1.type = types[tptr];
