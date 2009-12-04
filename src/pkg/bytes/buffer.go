@@ -32,9 +32,9 @@ func copyBytes(dst []byte, doff int, src []byte) {
 // with Read and Write methods.
 // The zero value for Buffer is an empty buffer ready to use.
 type Buffer struct {
-	buf	[]byte;	// contents are the bytes buf[off : len(buf)]
-	off	int;	// read at &buf[off], write at &buf[len(buf)]
-	oneByte	[]byte;	// avoid allocation of slice on each WriteByte
+	buf	[]byte;		// contents are the bytes buf[off : len(buf)]
+	off	int;		// read at &buf[off], write at &buf[len(buf)]
+	oneByte	[1]byte;	// avoid allocation of slice on each WriteByte
 }
 
 // Bytes returns the contents of the unread portion of the buffer;
@@ -173,12 +173,8 @@ func (b *Buffer) WriteString(s string) (n int, err os.Error) {
 // The returned error is always nil, but is included
 // to match bufio.Writer's WriteByte.
 func (b *Buffer) WriteByte(c byte) os.Error {
-	if b.oneByte == nil {
-		// Only happens once per Buffer, and then we have a slice.
-		b.oneByte = make([]byte, 1)
-	}
 	b.oneByte[0] = c;
-	b.Write(b.oneByte);
+	b.Write(&b.oneByte);
 	return nil;
 }
 
