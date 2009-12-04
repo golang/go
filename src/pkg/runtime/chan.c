@@ -660,12 +660,8 @@ runtime·selectgo(Select *sel)
 	// sort the cases by Hchan address to get the locking order.
 	for(i=1; i<sel->ncase; i++) {
 		cas = sel->scase[i];
-		for(j=i-1; j<i && sel->scase[j]->chan >= cas->chan; j--)
-			sel->scase[j+1] = sel->scase[j];
-		// careful: j might be (unsigned)-1
-		// 6c trips on sel->scase[j+1] in that case by rewriting it to
-		// sel->scase[j] + 8.
-		j++;
+		for(j=i; j>0 && sel->scase[j-1]->chan >= cas->chan; j--)
+			sel->scase[j] = sel->scase[j-1];
 		sel->scase[j] = cas;
 	}
 
