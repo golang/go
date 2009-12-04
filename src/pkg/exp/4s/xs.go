@@ -726,7 +726,7 @@ func Play(pp []Piece, ctxt draw.Context) {
 	pieces = pp;
 	N = len(pieces[0].d);
 	initPieces();
-	rand.Seed(int32(time.Nanoseconds() % (1e9 - 1)));
+	rand.Seed(int64(time.Nanoseconds() % (1e9 - 1)));
 	whitemask = draw.White.SetAlpha(0x7F);
 	tsleep = 50;
 	timerc = time.Tick(int64(tsleep/2) * 1e6);

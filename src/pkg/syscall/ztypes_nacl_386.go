@@ -31,6 +31,7 @@ const (
 	O_SYNC		= 0x1000;
 	O_TRUNC		= 0x200;
 	O_CLOEXEC	= 0;
+	O_EXCL		= 0;
 	F_GETFD		= 0x1;
 	F_SETFD		= 0x2;
 	F_GETFL		= 0x3;

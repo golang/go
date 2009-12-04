@@ -1,0 +1,36 @@
+Native Client support is still incomplete:
+Native Client does not yet allow runtime code generation,
+so Go's many uses of closures do not work.
+
+To try Native Client by running 4s (tetris) or 5s or Spacewar:
+
+1. Build the Go distribution for your native system.
+
+2. Download Native Client and install it.
+	http://nativeclient.googlecode.com/svn/trunk/src/native_client/documentation/getting_started.html
+    * You can stop after step 4 on those instructions
+    (the ./scons --prebuilt firefox_install).
+
+3. (optional) Install "./build/native_client/scons-out/opt-*/staging/sel_ldr"
+   from the Native Client distribution somewhere in your path as "nacl".
+   This will let you run binaries using "nacl 8.out".
+
+4. Build the Go distribution again, this time for Native Client:
+	cd $GOROOT/src
+	./all-nacl.bash
+   * If you didn't do step 3, the tests at the end will fail, but that's okay.
+   * If you are on a Mac, your dock will flicker as the "nacl" binary
+   starts and stops while the tests run.  You can stop the tests at any time.
+
+5. Run "godoc --http=:5103".
+   * This will run the godoc built for your host OS, not Native Client,
+   because all-nacl.bash doesn't install a nacl godoc.
+   * Note that there is a colon before the 5103 in the argument
+   (shorthand for 0.0.0.0:5103).
+   * The port must be 5103: that's the only port that Native Client
+   trusts to run binaries from.
+
+6. Open Firefox and visit one of:
+  * http://localhost:5103/src/pkg/exp/4s/4s.html
+  * http://localhost:5103/src/pkg/exp/4s/5s.html [sic]
+  * http://localhost:5103/src/pkg/exp/spacewar/spacewar.html

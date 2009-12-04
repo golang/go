@@ -21,6 +21,7 @@
 
 // This package and spacewar.go implement a simple PDP-1 emulator
 // complete enough to run the original PDP-1 video game Spacewar!
+// See ../../nacl/README for details on running them.
 //
 // They are a translation of the Java emulator pdp1.java in
 // http://spacewar.oversigma.com/sources/sources.zip.

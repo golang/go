@@ -5,6 +5,8 @@
 // This is a simple demo of Go running under Native Client.
 // It is a tetris clone built on top of the exp/nacl/av and exp/draw
 // packages.
+//
+// See ../nacl/README for how to run it.
 package main
 
 import (

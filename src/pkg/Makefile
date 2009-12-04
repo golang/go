@@ -50,6 +50,7 @@ DIRS=\
 	encoding/pem\
 	exec\
 	exp/datafmt\
+	exp/draw\
 	exp/eval\
 	exp/exception\
 	exp/iterable\
@@ -105,6 +106,7 @@ DIRS=\
 
 NOTEST=\
 	debug/proc\
+	exp/draw\
 	go/ast\
 	go/doc\
 	go/token\

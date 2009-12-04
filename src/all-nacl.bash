@@ -5,6 +5,9 @@
 
 # TODO(rsc): delete in favor of all.bash once nacl support is complete
 
+export GOARCH=386
+export GOOS=nacl
+
 set -e
 bash make.bash
 
@@ -20,6 +23,14 @@ make install
 
 (xcd pkg/exp/nacl/av
 make install
+) || exit $?
+
+(xcd pkg/exp/4s
+make
+) || exit $?
+
+(xcd pkg/exp/spacewar
+make
 ) || exit $?
 
 (xcd ../test

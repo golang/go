@@ -50,7 +50,7 @@ enum {
 	$SYS_CHDIR = 0,
 	$SYS_DUP2 = 0,
 	$SYS_FCNTL = 0,
-	$SYS_EXECVE = 0
+	$SYS_EXECVE = 0,
 };
 
 // Basic types
