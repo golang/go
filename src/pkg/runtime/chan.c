@@ -6,7 +6,6 @@
 #include "type.h"
 
 static	int32	debug	= 0;
-static	Lock		chanlock;
 
 enum
 {
@@ -51,6 +50,7 @@ struct	Hchan
 	WaitQ	recvq;			// list of recv waiters
 	WaitQ	sendq;			// list of send waiters
 	SudoG*	free;			// freelist
+	Lock;
 };
 
 struct	Link
@@ -154,7 +154,7 @@ incerr(Hchan* c)
 {
 	c->closed += Eincr;
 	if(c->closed & Emax) {
-		unlock(&chanlock);
+		// Note that channel locks may still be held at this point.
 		throw("too many operations on a closed channel");
 	}
 }
@@ -182,7 +182,7 @@ chansend(Hchan *c, byte *ep, bool *pres)
 		prints("\n");
 	}
 
-	lock(&chanlock);
+	lock(c);
 loop:
 	if(c->closed & Wclosed)
 		goto closed;
@@ -197,7 +197,7 @@ loop:
 
 		gp = sg->g;
 		gp->param = sg;
-		unlock(&chanlock);
+		unlock(c);
 		ready(gp);
 
 		if(pres != nil)
@@ -206,7 +206,7 @@ loop:
 	}
 
 	if(pres != nil) {
-		unlock(&chanlock);
+		unlock(c);
 		*pres = false;
 		return;
 	}
@@ -217,15 +217,15 @@ loop:
 	g->param = nil;
 	g->status = Gwaiting;
 	enqueue(&c->sendq, sg);
-	unlock(&chanlock);
+	unlock(c);
 	gosched();
 
-	lock(&chanlock);
+	lock(c);
 	sg = g->param;
 	if(sg == nil)
 		goto loop;
 	freesg(c, sg);
-	unlock(&chanlock);
+	unlock(c);
 	return;
 
 asynch:
@@ -234,17 +234,17 @@ asynch:
 
 	if(c->qcount >= c->dataqsiz) {
 		if(pres != nil) {
-			unlock(&chanlock);
+			unlock(c);
 			*pres = false;
 			return;
 		}
 		sg = allocsg(c);
 		g->status = Gwaiting;
 		enqueue(&c->sendq, sg);
-		unlock(&chanlock);
+		unlock(c);
 		gosched();
 
-		lock(&chanlock);
+		lock(c);
 		goto asynch;
 	}
 	if(ep != nil)
@@ -256,10 +256,10 @@ asynch:
 	if(sg != nil) {
 		gp = sg->g;
 		freesg(c, sg);
-		unlock(&chanlock);
+		unlock(c);
 		ready(gp);
 	} else
-		unlock(&chanlock);
+		unlock(c);
 	if(pres != nil)
 		*pres = true;
 	return;
@@ -268,7 +268,7 @@ closed:
 	incerr(c);
 	if(pres != nil)
 		*pres = true;
-	unlock(&chanlock);
+	unlock(c);
 }
 
 void
@@ -283,7 +283,7 @@ chanrecv(Hchan* c, byte *ep, bool* pres)
 		prints("\n");
 	}
 
-	lock(&chanlock);
+	lock(c);
 loop:
 	if(c->dataqsiz > 0)
 		goto asynch;
@@ -297,7 +297,7 @@ loop:
 
 		gp = sg->g;
 		gp->param = sg;
-		unlock(&chanlock);
+		unlock(c);
 		ready(gp);
 
 		if(pres != nil)
@@ -306,7 +306,7 @@ loop:
 	}
 
 	if(pres != nil) {
-		unlock(&chanlock);
+		unlock(c);
 		*pres = false;
 		return;
 	}
@@ -315,17 +315,17 @@ loop:
 	g->param = nil;
 	g->status = Gwaiting;
 	enqueue(&c->recvq, sg);
-	unlock(&chanlock);
+	unlock(c);
 	gosched();
 
-	lock(&chanlock);
+	lock(c);
 	sg = g->param;
 	if(sg == nil)
 		goto loop;
 
 	c->elemalg->copy(c->elemsize, ep, sg->elem);
 	freesg(c, sg);
-	unlock(&chanlock);
+	unlock(c);
 	return;
 
 asynch:
@@ -334,17 +334,17 @@ asynch:
 			goto closed;
 
 		if(pres != nil) {
-			unlock(&chanlock);
+			unlock(c);
 			*pres = false;
 			return;
 		}
 		sg = allocsg(c);
 		g->status = Gwaiting;
 		enqueue(&c->recvq, sg);
-		unlock(&chanlock);
+		unlock(c);
 		gosched();
 
-		lock(&chanlock);
+		lock(c);
 		goto asynch;
 	}
 	c->elemalg->copy(c->elemsize, ep, c->recvdataq->elem);
@@ -354,14 +354,14 @@ asynch:
 	if(sg != nil) {
 		gp = sg->g;
 		freesg(c, sg);
-		unlock(&chanlock);
+		unlock(c);
 		ready(gp);
 		if(pres != nil)
 			*pres = true;
 		return;
 	}
 
-	unlock(&chanlock);
+	unlock(c);
 	if(pres != nil)
 		*pres = true;
 	return;
@@ -372,7 +372,7 @@ closed:
 	incerr(c);
 	if(pres != nil)
 		*pres = true;
-	unlock(&chanlock);
+	unlock(c);
 }
 
 // chansend1(hchan *chan any, elem any);
@@ -588,11 +588,41 @@ freesel(Select *sel)
 	free(sel);
 }
 
+static void
+sellock(Select *sel)
+{
+	uint32 i;
+	Hchan *c;
+
+	c = nil;
+	for(i=0; i<sel->ncase; i++) {
+		if(sel->scase[i]->chan != c) {
+			c = sel->scase[i]->chan;
+			lock(c);
+		}
+	}
+}
+
+static void
+selunlock(Select *sel)
+{
+	uint32 i;
+	Hchan *c;
+
+	c = nil;
+	for(i=sel->ncase; i>0; i--) {
+		if(sel->scase[i-1]->chan && sel->scase[i-1]->chan != c) {
+			c = sel->scase[i-1]->chan;
+			unlock(c);
+		}
+	}
+}
+
 // selectgo(sel *byte);
 void
 runtime·selectgo(Select *sel)
 {
-	uint32 p, o, i;
+	uint32 p, o, i, j;
 	Scase *cas, *dfl;
 	Hchan *c;
 	SudoG *sg;
@@ -627,7 +657,19 @@ runtime·selectgo(Select *sel)
 	p %= sel->ncase;
 	o %= sel->ncase;
 
-	lock(&chanlock);
+	// sort the cases by Hchan address to get the locking order.
+	for(i=1; i<sel->ncase; i++) {
+		cas = sel->scase[i];
+		for(j=i-1; j<i && sel->scase[j]->chan >= cas->chan; j--)
+			sel->scase[j+1] = sel->scase[j];
+		// careful: j might be (unsigned)-1
+		// 6c trips on sel->scase[j+1] in that case by rewriting it to
+		// sel->scase[j] + 8.
+		j++;
+		sel->scase[j] = cas;
+	}
+
+	sellock(sel);
 
 loop:
 	// pass 1 - look for something already waiting
@@ -739,10 +781,10 @@ loop:
 
 	g->param = nil;
 	g->status = Gwaiting;
-	unlock(&chanlock);
+	selunlock(sel);
 	gosched();
 
-	lock(&chanlock);
+	sellock(sel);
 	sg = g->param;
 	if(sg == nil)
 		goto loop;
@@ -853,7 +895,7 @@ sclose:
 	goto retc;
 
 retc:
-	unlock(&chanlock);
+	selunlock(sel);
 
 	runtime·setcallerpc(&sel, cas->pc);
 	as = (byte*)&sel + cas->so;
@@ -868,7 +910,7 @@ runtime·closechan(Hchan *c)
 	SudoG *sg;
 	G* gp;
 
-	lock(&chanlock);
+	lock(c);
 	incerr(c);
 	c->closed |= Wclosed;
 
@@ -894,7 +936,7 @@ runtime·closechan(Hchan *c)
 		ready(gp);
 	}
 
-	unlock(&chanlock);
+	unlock(c);
 }
 
 void
