@@ -42,7 +42,7 @@ type gobType interface {
 	id() typeId;
 	setId(id typeId);
 	Name() string;
-	String() string;
+	string() string;	// not public; only for debugging
 	safeString(seen map[typeId]bool) string;
 }
 
@@ -63,8 +63,8 @@ func (t typeId) gobType() gobType {
 	return idToType[t];
 }
 
-// String returns the string representation of the type associated with the typeId.
-func (t typeId) String() string	{ return t.gobType().String() }
+// string returns the string representation of the type associated with the typeId.
+func (t typeId) string() string	{ return t.gobType().string() }
 
 // Name returns the name of the type associated with the typeId.
 func (t typeId) Name() string	{ return t.gobType().Name() }
@@ -79,7 +79,7 @@ func (t *commonType) id() typeId	{ return t._id }
 
 func (t *commonType) setId(id typeId)	{ t._id = id }
 
-func (t *commonType) String() string	{ return t.name }
+func (t *commonType) string() string	{ return t.name }
 
 func (t *commonType) safeString(seen map[typeId]bool) string {
 	return t.name
@@ -132,7 +132,7 @@ func (a *arrayType) safeString(seen map[typeId]bool) string {
 	return fmt.Sprintf("[%d]%s", a.Len, a.Elem.gobType().safeString(seen));
 }
 
-func (a *arrayType) String() string	{ return a.safeString(make(map[typeId]bool)) }
+func (a *arrayType) string() string	{ return a.safeString(make(map[typeId]bool)) }
 
 // Slice type
 type sliceType struct {
@@ -154,7 +154,7 @@ func (s *sliceType) safeString(seen map[typeId]bool) string {
 	return fmt.Sprintf("[]%s", s.Elem.gobType().safeString(seen));
 }
 
-func (s *sliceType) String() string	{ return s.safeString(make(map[typeId]bool)) }
+func (s *sliceType) string() string	{ return s.safeString(make(map[typeId]bool)) }
 
 // Struct type
 type fieldType struct {
@@ -183,7 +183,7 @@ func (s *structType) safeString(seen map[typeId]bool) string {
 	return str;
 }
 
-func (s *structType) String() string	{ return s.safeString(make(map[typeId]bool)) }
+func (s *structType) string() string	{ return s.safeString(make(map[typeId]bool)) }
 
 func newStructType(name string) *structType {
 	s := &structType{commonType{name: name}, nil};
