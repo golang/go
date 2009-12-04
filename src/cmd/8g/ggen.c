@@ -80,7 +80,6 @@ compile(Node *fn)
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
-if(0)
 	if(!debug['N'] || debug['R'] || debug['P']) {
 		regopt(ptxt);
 	}
@@ -470,15 +469,10 @@ cgen_asop(Node *n)
 	}
 
 hard:
-	if(nr->ullman > nl->ullman) {
-		tempname(&n2, nr->type);
-		cgen(nr, &n2);
-		igen(nl, &n1, N);
-	} else {
-		igen(nl, &n1, N);
-		tempname(&n2, nr->type);
-		cgen(nr, &n2);
-	}
+	tempname(&n2, nr->type);
+	cgen(nr, &n2);
+
+	igen(nl, &n1, N);
 
 	n3 = *n;
 	n3.left = &n1;
