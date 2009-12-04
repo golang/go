@@ -213,7 +213,14 @@ func NewEncoder(w io.Writer) *Encoder {
 }
 
 func (enc *Encoder) badType(rt reflect.Type) {
-	enc.state.err = os.ErrorString("gob: can't encode type " + rt.String())
+	enc.setError(os.ErrorString("gob: can't encode type " + rt.String()))
+}
+
+func (enc *Encoder) setError(err os.Error) {
+	if enc.state.err == nil {	// remember the first.
+		enc.state.err = err
+	}
+	enc.state.b.Reset();
 }
 
 // Send the data item preceded by a unsigned count of its length.
@@ -232,7 +239,10 @@ func (enc *Encoder) send() {
 	// Now the data.
 	enc.state.b.Read(enc.buf[countLen:total]);
 	// Write the data.
-	enc.w.Write(enc.buf[0:total]);
+	_, err := enc.w.Write(enc.buf[0:total]);
+	if err != nil {
+		enc.setError(err)
+	}
 }
 
 func (enc *Encoder) sendType(origt reflect.Type) {
@@ -270,7 +280,7 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 	info, err := getTypeInfo(rt);
 	typeLock.Unlock();
 	if err != nil {
-		enc.state.err = err;
+		enc.setError(err);
 		return;
 	}
 	// Send the pair (-id, type)
@@ -279,6 +289,9 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 	// Type:
 	encode(enc.state.b, info.wire);
 	enc.send();
+	if enc.state.err != nil {
+		return
+	}
 
 	// Remember we've sent this type.
 	enc.sent[rt] = info.id;
@@ -299,9 +312,12 @@ func (enc *Encoder) sendType(origt reflect.Type) {
 // Encode transmits the data item represented by the empty interface value,
 // guaranteeing that all necessary type information has been transmitted first.
 func (enc *Encoder) Encode(e interface{}) os.Error {
-	if enc.state.b.Len() > 0 || enc.countState.b.Len() > 0 {
-		panicln("Encoder: buffer not empty")
-	}
+	// Make sure we're single-threaded through here, so multiple
+	// goroutines can share an encoder.
+	enc.mutex.Lock();
+	defer enc.mutex.Unlock();
+
+	enc.state.err = nil;
 	rt, _ := indirect(reflect.Typeof(e));
 	// Must be a struct
 	if _, ok := rt.(*reflect.StructType); !ok {
@@ -309,10 +325,11 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 		return enc.state.err;
 	}
 
-
-	// Make sure we're single-threaded through here.
-	enc.mutex.Lock();
-	defer enc.mutex.Unlock();
+	// Sanity check only: encoder should never come in with data present.
+	if enc.state.b.Len() > 0 || enc.countState.b.Len() > 0 {
+		enc.state.err = os.ErrorString("encoder: buffer not empty");
+		return enc.state.err;
+	}
 
 	// Make sure the type is known to the other side.
 	// First, have we already sent this type?
@@ -320,7 +337,6 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
 		// No, so send it.
 		enc.sendType(rt);
 		if enc.state.err != nil {
-			enc.state.b.Reset();
 			enc.countState.b.Reset();
 			return enc.state.err;
 		}
