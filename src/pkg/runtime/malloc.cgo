@@ -5,7 +5,6 @@
 // See malloc.h for overview.
 //
 // TODO(rsc): double-check stats.
-// TODO(rsc): solve "stack overflow during malloc" problem.
 
 package malloc
 #include "runtime.h"
@@ -19,7 +18,7 @@ MStats mstats;
 // Small objects are allocated from the per-thread cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
 void*
-malloc(uintptr size)
+mallocgc(uintptr size, uint32 refflag, int32 dogc)
 {
 	int32 sizeclass;
 	MCache *c;
@@ -35,6 +34,7 @@ malloc(uintptr size)
 	if(size == 0)
 		size = 1;
 
+	mstats.nmalloc++;
 	if(size <= MaxSmallSize) {
 		// Allocate from mcache free lists.
 		sizeclass = SizeToClass(size);
@@ -63,21 +63,19 @@ malloc(uintptr size)
 		printf("malloc %D; mlookup failed\n", (uint64)size);
 		throw("malloc mlookup");
 	}
-	*ref = RefNone;
+	*ref = RefNone | refflag;
 
 	m->mallocing = 0;
+
+	if(dogc && mstats.inuse_pages > mstats.next_gc)
+		gc(0);
 	return v;
 }
 
 void*
-mallocgc(uintptr size)
+malloc(uintptr size)
 {
-	void *v;
-
-	v = malloc(size);
-	if(mstats.inuse_pages > mstats.next_gc)
-		gc(0);
-	return v;
+	return mallocgc(size, 0, 0);
 }
 
 // Free the object whose base pointer is v.
@@ -138,6 +136,7 @@ mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
 	byte *p;
 	MSpan *s;
 
+	mstats.nlookup++;
 	s = MHeap_LookupMaybe(&mheap, (uintptr)v>>PageShift);
 	if(s == nil) {
 		if(base)
@@ -209,6 +208,7 @@ void*
 SysAlloc(uintptr n)
 {
 	void *p;
+
 	mstats.sys += n;
 	p = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
 	if(p < (void*)4096) {
@@ -241,30 +241,10 @@ SysFree(void *v, uintptr n)
 
 // Runtime stubs.
 
-extern void *oldmal(uint32);
-
 void*
 mal(uint32 n)
 {
-//return oldmal(n);
-	void *v;
-
-	v = mallocgc(n);
-
-	if(0) {
-		byte *p;
-		uint32 i;
-		p = v;
-		for(i=0; i<n; i++) {
-			if(p[i] != 0) {
-				printf("mal %d => %p: byte %d is non-zero\n", n, v, i);
-				throw("mal");
-			}
-		}
-	}
-
-//printf("mal %d %p\n", n, v);  // |checkmal to check for overlapping returns.
-	return v;
+	return mallocgc(n, 0, 1);
 }
 
 // Stack allocator uses malloc/free most of the time,
@@ -285,7 +265,6 @@ stackalloc(uint32 n)
 	void *v;
 	uint32 *ref;
 
-//return oldmal(n);
 	if(m->mallocing || m->gcing) {
 		lock(&stacks);
 		if(stacks.size == 0)
@@ -308,8 +287,6 @@ stackalloc(uint32 n)
 void
 stackfree(void *v)
 {
-//return;
-
 	if(m->mallocing || m->gcing) {
 		lock(&stacks);
 		FixAlloc_Free(&stacks, v);
