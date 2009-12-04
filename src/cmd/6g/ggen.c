@@ -80,8 +80,9 @@ compile(Node *fn)
 	pc->as = ARET;	// overwrite AEND
 	pc->lineno = lineno;
 
-	if(!debug['N'] || debug['R'] || debug['P'])
+	if(!debug['N'] || debug['R'] || debug['P']) {
 		regopt(ptxt);
+	}
 
 	// fill in argument size
 	ptxt->to.offset = rnd(curfn->type->argwid, maxround);
