@@ -315,6 +315,27 @@ func TestLongSymlink(t *testing.T) {
 	}
 }
 
+func TestRename(t *testing.T) {
+	from, to := "renamefrom", "renameto";
+	Remove(to);	// Just in case.
+	file, err := Open(from, O_CREAT|O_WRONLY, 0666);
+	if err != nil {
+		t.Fatalf("open %q failed: %v", to, err)
+	}
+	if err = file.Close(); err != nil {
+		t.Errorf("close %q failed: %v", to, err)
+	}
+	err = Rename(from, to);
+	if err != nil {
+		t.Fatalf("rename %q, %q failed: %v", to, from, err)
+	}
+	defer Remove(to);
+	_, err = Stat(to);
+	if err != nil {
+		t.Errorf("stat %q failed: %v", to, err)
+	}
+}
+
 func TestForkExec(t *testing.T) {
 	r, w, err := Pipe();
 	if err != nil {

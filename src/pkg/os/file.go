@@ -370,7 +370,7 @@ func Remove(name string) Error {
 	return &PathError{"remove", name, Errno(e)};
 }
 
-// LinkError records an error during a link or symlink
+// LinkError records an error during a link or symlink or rename
 // system call and the paths that caused it.
 type LinkError struct {
 	Op	string;
@@ -416,6 +416,15 @@ func Readlink(name string) (string, Error) {
 	}
 	// Silence 6g.
 	return "", nil;
+}
+
+// Rename renames a file.
+func Rename(oldname, newname string) Error {
+	e := syscall.Rename(oldname, newname);
+	if e != 0 {
+		return &LinkError{"rename", oldname, newname, Errno(e)}
+	}
+	return nil;
 }
 
 // Chmod changes the mode of the named file to mode.
