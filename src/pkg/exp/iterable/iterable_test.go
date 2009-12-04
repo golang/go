@@ -5,6 +5,7 @@
 package iterable
 
 import (
+	"container/vector";
 	"testing";
 )
 
@@ -28,7 +29,11 @@ func TestArrayTypes(t *testing.T) {
 	}
 }
 
-var oneToFive = IntArray{1, 2, 3, 4, 5}
+var (
+	oneToFive	= IntArray{1, 2, 3, 4, 5};
+	sixToTen	= IntArray{6, 7, 8, 9, 10};
+	elevenToTwenty	= IntArray{11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+)
 
 func isNegative(n interface{}) bool	{ return n.(int) < 0 }
 func isPositive(n interface{}) bool	{ return n.(int) > 0 }
@@ -181,4 +186,202 @@ func TestDropWhile(t *testing.T) {
 	// test case where none are dropped
 	res = DropWhile(oneToFive, func(v interface{}) bool { return v.(int) > 1000 });
 	assertArraysAreEqual(t, Data(res), oneToFive);
+}
+
+func TestCycle(t *testing.T) {
+	res := Cycle(oneToFive);
+	exp := []int{1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4};
+
+	// read the first nineteen values from the iterable
+	out := make([]interface{}, 19);
+	for i, it := 0, res.Iter(); i < 19; i++ {
+		out[i] = <-it
+	}
+	assertArraysAreEqual(t, out, exp);
+
+	res2 := Cycle(sixToTen);
+	exp2 := []int{6, 7, 8, 9, 10, 6, 7, 8, 9, 10, 6, 7, 8, 9, 10, 6, 7, 8, 9};
+	for i, it := 0, res2.Iter(); i < 19; i++ {
+		out[i] = <-it
+	}
+	assertArraysAreEqual(t, out, exp2);
+
+	// ensure first iterator was not harmed
+	for i, it := 0, res.Iter(); i < 19; i++ {
+		out[i] = <-it
+	}
+	assertArraysAreEqual(t, out, exp);
+}
+
+func TestChain(t *testing.T) {
+
+	exp := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+	res := Chain([]Iterable{oneToFive, sixToTen, elevenToTwenty});
+	assertArraysAreEqual(t, Data(res), exp);
+
+	// reusing the same iterator should produce the same result again
+	assertArraysAreEqual(t, Data(res), exp);
+
+	// test short read from Chain
+	i := 0;
+	out := make([]interface{}, 4);
+	for v := range res.Iter() {
+		out[i] = v;
+		i++;
+		if i == len(out) {
+			break
+		}
+	}
+	assertArraysAreEqual(t, out, exp[0:4]);
+
+	// test zero length array
+	res = Chain([]Iterable{});
+	assertArraysAreEqual(t, Data(res), []int{});
+}
+
+func TestZipWith(t *testing.T) {
+	exp := []int{7, 9, 11, 13, 15};
+
+	// f with 2 args and 1 return value
+	f := func(a, b interface{}) interface{} { return a.(int) + b.(int) };
+	res := ZipWith2(f, oneToFive, sixToTen);
+	assertArraysAreEqual(t, Data(res), exp);
+
+	// test again to make sure returns new iter each time
+	assertArraysAreEqual(t, Data(res), exp);
+
+	// test a function with 3 args
+	f2 := func(a, b, c interface{}) interface{} { return a.(int) + b.(int) + c.(int) };
+	res = ZipWith3(f2, oneToFive, sixToTen, oneToFive);
+	exp = []int{8, 11, 14, 17, 20};
+	assertArraysAreEqual(t, Data(res), exp);
+
+	// test a function with multiple values returned
+	f3 := func(a, b interface{}) interface{} { return ([]interface{}{a.(int) + 1, b.(int) + 1}) };
+	res = ZipWith2(f3, oneToFive, sixToTen);
+
+	exp2 := [][]int{[]int{2, 7}, []int{3, 8}, []int{4, 9}, []int{5, 10}, []int{6, 11}};
+	i := 0;
+	for v := range res.Iter() {
+		out := v.([]interface{});
+		assertArraysAreEqual(t, out, exp2[i]);
+		i++;
+	}
+
+	// test different length iterators--should stop after shortest is exhausted
+	res = ZipWith2(f, elevenToTwenty, oneToFive);
+	exp = []int{12, 14, 16, 18, 20};
+	assertArraysAreEqual(t, Data(res), exp);
+}
+
+func TestSlice(t *testing.T) {
+	out := Data(Slice(elevenToTwenty, 2, 6));
+	exp := []int{13, 14, 15, 16};
+	assertArraysAreEqual(t, out, exp);
+
+	// entire iterable
+	out = Data(Slice(elevenToTwenty, 0, len(elevenToTwenty)));
+	exp = []int{11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+	assertArraysAreEqual(t, out, exp);
+
+	// empty slice at offset 0
+	exp = []int{};
+	out = Data(Slice(elevenToTwenty, 0, 0));
+	assertArraysAreEqual(t, out, exp);
+
+	// slice upper bound exceeds length of iterable
+	exp = []int{1, 2, 3, 4, 5};
+	out = Data(Slice(oneToFive, 0, 88));
+	assertArraysAreEqual(t, out, exp);
+
+	// slice upper bounce is lower than lower bound
+	exp = []int{};
+	out = Data(Slice(oneToFive, 93, 4));
+	assertArraysAreEqual(t, out, exp);
+
+	// slice lower bound is greater than len of iterable
+	exp = []int{};
+	out = Data(Slice(oneToFive, 93, 108));
+	assertArraysAreEqual(t, out, exp);
+}
+
+func TestRepeat(t *testing.T) {
+	res := Repeat(42);
+	i := 0;
+	for v := range res.Iter() {
+		if v.(int) != 42 {
+			t.Fatal("Repeat returned the wrong value")
+		}
+		if i == 9 {
+			break
+		}
+		i++;
+	}
+}
+
+func TestRepeatTimes(t *testing.T) {
+	res := RepeatTimes(84, 9);
+	exp := []int{84, 84, 84, 84, 84, 84, 84, 84, 84};
+	assertArraysAreEqual(t, Data(res), exp);
+	assertArraysAreEqual(t, Data(res), exp);	// second time to ensure new iter is returned
+
+	// 0 repeat
+	res = RepeatTimes(7, 0);
+	exp = []int{};
+	assertArraysAreEqual(t, Data(res), exp);
+
+	// negative repeat
+	res = RepeatTimes(7, -3);
+	exp = []int{};
+	assertArraysAreEqual(t, Data(res), exp);
+}
+
+// a type that implements Key for ints
+type intkey struct{}
+
+func (v intkey) Key(a interface{}) interface{} {
+	return a
+}
+func (v intkey) Equal(a, b interface{}) bool	{ return a.(int) == b.(int) }
+
+func TestGroupBy(t *testing.T) {
+	in := IntArray{1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5};
+	exp := [][]int{[]int{1}, []int{2, 2}, []int{3, 3, 3}, []int{4, 4, 4, 4}, []int{5, 5, 5, 5, 5}};
+	i := 0;
+	for x := range GroupBy(in, intkey{}).Iter() {
+		gr := x.(Group);
+		if gr.Key.(int) != i+1 {
+			t.Fatal("group key wrong; expected", i+1, "but got", gr.Key.(int))
+		}
+		vals := Data(gr.Vals);
+		assertArraysAreEqual(t, vals, exp[i]);
+		i++;
+	}
+	if i != 5 {
+		t.Fatal("did not return expected number of groups")
+	}
+
+	// test 0 length Iterable
+	for _ = range GroupBy(IntArray([]int{}), &intkey{}).Iter() {
+		t.Fatal("iterator should be empty")
+	}
+
+	// test case with only uniques
+	var out vector.Vector;
+	for x := range GroupBy(elevenToTwenty, intkey{}).Iter() {
+		out.Push(x.(Group).Key)
+	}
+	assertArraysAreEqual(t, out.Data(), elevenToTwenty);
+}
+
+func TestUnique(t *testing.T) {
+	in := IntArray([]int{1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5});
+	exp := []int{1, 2, 3, 4, 5};
+	res := Unique(in, intkey{});
+	assertArraysAreEqual(t, Data(res), exp);
+	assertArraysAreEqual(t, Data(res), exp);	// second time to ensure new iter is returned
+
+	// test case with only uniques
+	res = Unique(elevenToTwenty, intkey{});
+	assertArraysAreEqual(t, Data(res), elevenToTwenty);
 }

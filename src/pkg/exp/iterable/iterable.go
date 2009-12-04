@@ -8,7 +8,10 @@
 // something that would produce an infinite amount of data.
 package iterable
 
-import "container/vector"
+import (
+	"container/list";
+	"container/vector";
+)
 
 type Iterable interface {
 	// Iter should return a fresh channel each time it is called.
@@ -130,12 +133,9 @@ func Partition(iter Iterable, f func(interface{}) bool) (Iterable, Iterable) {
 	return Filter(iter, f), Filter(iter, not(f))
 }
 
-// TODO:
-// - Zip
-
 // helper type for the Take/TakeWhile/Drop/DropWhile functions.
 // primarily used so that the .Iter() method can be attached
-type iterFunc func(chan interface{})
+type iterFunc func(chan<- interface{})
 
 // provide the Iterable interface
 func (v iterFunc) Iter() <-chan interface{} {
@@ -145,26 +145,11 @@ func (v iterFunc) Iter() <-chan interface{} {
 }
 
 // Take returns an Iterable that contains the first n elements of iter.
-func Take(iter Iterable, n int) Iterable {
-	return iterFunc(func(ch chan interface{}) {
-		defer close(ch);
-		if n <= 0 {
-			return
-		}
-		m := n;
-		for v := range iter.Iter() {
-			ch <- v;
-			m--;
-			if m == 0 {
-				return
-			}
-		}
-	})
-}
+func Take(iter Iterable, n int) Iterable	{ return Slice(iter, 0, n) }
 
 // TakeWhile returns an Iterable that contains elements from iter while f is true.
 func TakeWhile(iter Iterable, f func(interface{}) bool) Iterable {
-	return iterFunc(func(ch chan interface{}) {
+	return iterFunc(func(ch chan<- interface{}) {
 		for v := range iter.Iter() {
 			if !f(v) {
 				break
@@ -177,7 +162,7 @@ func TakeWhile(iter Iterable, f func(interface{}) bool) Iterable {
 
 // Drop returns an Iterable that returns each element of iter after the first n elements.
 func Drop(iter Iterable, n int) Iterable {
-	return iterFunc(func(ch chan interface{}) {
+	return iterFunc(func(ch chan<- interface{}) {
 		m := n;
 		for v := range iter.Iter() {
 			if m > 0 {
@@ -192,7 +177,7 @@ func Drop(iter Iterable, n int) Iterable {
 
 // DropWhile returns an Iterable that returns each element of iter after the initial sequence for which f returns true.
 func DropWhile(iter Iterable, f func(interface{}) bool) Iterable {
-	return iterFunc(func(ch chan interface{}) {
+	return iterFunc(func(ch chan<- interface{}) {
 		drop := true;
 		for v := range iter.Iter() {
 			if drop {
@@ -205,4 +190,154 @@ func DropWhile(iter Iterable, f func(interface{}) bool) Iterable {
 		}
 		close(ch);
 	})
+}
+
+// Cycle repeats the values of iter in order infinitely.
+func Cycle(iter Iterable) Iterable {
+	return iterFunc(func(ch chan<- interface{}) {
+		for {
+			for v := range iter.Iter() {
+				ch <- v
+			}
+		}
+	})
+}
+
+// Chain returns an Iterable that concatentates all values from the specified Iterables.
+func Chain(args []Iterable) Iterable {
+	return iterFunc(func(ch chan<- interface{}) {
+		for _, e := range args {
+			for v := range e.Iter() {
+				ch <- v
+			}
+		}
+		close(ch);
+	})
+}
+
+// Zip returns an Iterable of []interface{} consisting of the next element from
+// each input Iterable.  The length of the returned Iterable is the minimum of
+// the lengths of the input Iterables.
+func Zip(args []Iterable) Iterable {
+	return iterFunc(func(ch chan<- interface{}) {
+		defer close(ch);
+		if len(args) == 0 {
+			return
+		}
+		iters := make([]<-chan interface{}, len(args));
+		for i := 0; i < len(iters); i++ {
+			iters[i] = args[i].Iter()
+		}
+		for {
+			out := make([]interface{}, len(args));
+			for i, v := range iters {
+				out[i] = <-v;
+				if closed(v) {
+					return
+				}
+			}
+			ch <- out;
+		}
+	})
+}
+
+// ZipWith returns an Iterable containing the result of executing f using arguments read from a and b.
+func ZipWith2(f func(c, d interface{}) interface{}, a, b Iterable) Iterable {
+	return Map(Zip([]Iterable{a, b}), func(a1 interface{}) interface{} {
+		arr := a1.([]interface{});
+		return f(arr[0], arr[1]);
+	})
+}
+
+// ZipWith returns an Iterable containing the result of executing f using arguments read from a, b and c.
+func ZipWith3(f func(d, e, f interface{}) interface{}, a, b, c Iterable) Iterable {
+	return Map(Zip([]Iterable{a, b, c}), func(a1 interface{}) interface{} {
+		arr := a1.([]interface{});
+		return f(arr[0], arr[1], arr[2]);
+	})
+}
+
+// Slice returns an Iterable that contains the elements from iter
+// with indexes in [start, stop).
+func Slice(iter Iterable, start, stop int) Iterable {
+	return iterFunc(func(ch chan<- interface{}) {
+		defer close(ch);
+		i := 0;
+		for v := range iter.Iter() {
+			switch {
+			case i >= stop:
+				return
+			case i >= start:
+				ch <- v
+			}
+			i++;
+		}
+	})
+}
+
+// Repeat generates an infinite stream of v.
+func Repeat(v interface{}) Iterable {
+	return iterFunc(func(ch chan<- interface{}) {
+		for {
+			ch <- v
+		}
+	})
+}
+
+// RepeatTimes generates a stream of n copies of v.
+func RepeatTimes(v interface{}, n int) Iterable {
+	return iterFunc(func(ch chan<- interface{}) {
+		for i := 0; i < n; i++ {
+			ch <- v
+		}
+		close(ch);
+	})
+}
+
+// Group is the type for elements returned by the GroupBy function.
+type Group struct {
+	Key	interface{};	// key value for matching items
+	Vals	Iterable;	// Iterable for receiving values in the group
+}
+
+// Key defines the interface required by the GroupBy function.
+type Grouper interface {
+	// Return the key for the given value
+	Key(interface{}) interface{};
+
+	// Compute equality for the given keys
+	Equal(a, b interface{}) bool;
+}
+
+// GroupBy combines sequences of logically identical values from iter using k
+// to generate a key to compare values.  Each value emitted by the returned
+// Iterable is of type Group, which contains the key used for matching the
+// values for the group, and an Iterable for retrieving all the values in the
+// group.
+func GroupBy(iter Iterable, k Grouper) Iterable {
+	return iterFunc(func(ch chan<- interface{}) {
+		var curkey interface{}
+		var lst *list.List;
+		// Basic strategy is to read one group at a time into a list prior to emitting the Group value
+		for v := range iter.Iter() {
+			kv := k.Key(v);
+			if lst == nil || !k.Equal(curkey, kv) {
+				if lst != nil {
+					ch <- Group{curkey, lst}
+				}
+				lst = list.New();
+				curkey = kv;
+			}
+			lst.PushBack(v);
+		}
+		if lst != nil {
+			ch <- Group{curkey, lst}
+		}
+		close(ch);
+	})
+}
+
+// Unique removes duplicate values which occur consecutively using id to compute keys.
+func Unique(iter Iterable, id Grouper) Iterable {
+	return Map(GroupBy(iter, id), func(v interface{}) interface{} { return v.(Group).Key })
 }
