@@ -152,6 +152,10 @@ func Readlink(path string, buf []byte) (n int, errno int) {
 	return 0, ENACL
 }
 
+func Rename(oldpath, newpath string) (errno int) {
+	return ENACL
+}
+
 func Fchmod(fd int, mode int) (errno int)	{ return ENACL }
 
 func Chown(path string, uid int, gid int) (errno int) {
