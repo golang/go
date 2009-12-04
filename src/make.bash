@@ -82,7 +82,7 @@ bash clean.bash
 for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc cmd/hgpatch
 do
 	case "$i-$GOOS" in
-	libcgo-nacl)
+	libcgo-nacl | cmd/*-nacl)
 		;;
 	*)
 		# The ( ) here are to preserve the current directory

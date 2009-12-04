@@ -5,6 +5,9 @@
 
 case X"$GOARCH" in
 X386)
+	# After downloading the Native Client binary distribution,
+	# copy build/native_client/scons-out/opt-*/obj/src/trusted/service_runtime/sel_ldr
+	# into your path as "nacl"
 	export A=8
 	export E=nacl
 	;;

@@ -236,7 +236,9 @@ const (
 	TCP_NODELAY;
 	WNOHANG;
 	WSTOPPED;
-	_PTRACE_TRACEME;
+	PTRACE_TRACEME;
+	SO_BROADCAST	= 0;
+	SHUT_RDWR	= 0;
 )
 
 func Accept(fd int) (nfd int, sa Sockaddr, errno int) {
@@ -260,6 +262,16 @@ func Socket(domain, typ, proto int) (fd, errno int) {
 }
 
 func SetsockoptInt(fd, level, opt int, value int) (errno int) {
+	return ENACL
+}
+
+func Shutdown(fd, how int) (errno int)	{ return ENACL }
+
+func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) {
+	return 0, nil, ENACL
+}
+
+func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
 	return ENACL
 }
 
