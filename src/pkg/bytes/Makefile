@@ -9,4 +9,7 @@ GOFILES=\
 	buffer.go\
 	bytes.go\
 
+OFILES=\
+	asm_$(GOARCH).$O\
+
 include ../../Make.pkg
