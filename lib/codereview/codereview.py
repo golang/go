@@ -622,6 +622,7 @@ def CheckGofmt(ui, repo, files, just_warn=False):
 		return
 	cwd = os.getcwd()
 	files = [RelativePath(repo.root + '/' + f, cwd) for f in files]
+	files = [f for f in files if os.access(f, 0)]
 	try:
 		cmd = subprocess.Popen(["gofmt", "-l"] + files, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
 		cmd.stdin.close()
