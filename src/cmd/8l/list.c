@@ -55,18 +55,18 @@ Pconv(Fmt *fp)
 	switch(p->as) {
 	case ATEXT:
 		if(p->from.scale) {
-			sprint(str, "(%ld)	%A	%D,%d,%D",
+			sprint(str, "(%d)	%A	%D,%d,%D",
 				p->line, p->as, &p->from, p->from.scale, &p->to);
 			break;
 		}
 	default:
-		sprint(str, "(%ld)	%A	%D,%D",
+		sprint(str, "(%d)	%A	%D,%D",
 			p->line, p->as, &p->from, &p->to);
 		break;
 	case ADATA:
 	case AINIT:
 	case ADYNT:
-		sprint(str, "(%ld)	%A	%D/%d,%D",
+		sprint(str, "(%d)	%A	%D/%d,%D",
 			p->line, p->as, &p->from, p->from.scale, &p->to);
 		break;
 	}
@@ -94,7 +94,7 @@ xsymname(Sym *s)
 int
 Dconv(Fmt *fp)
 {
-	char str[40], s[20];
+	char str[200], s[200];
 	Adr *a;
 	int i;
 
