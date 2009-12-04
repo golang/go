@@ -163,6 +163,8 @@ struct MStats
 	uint64	stacks;
 	uint64	inuse_pages;	// protected by mheap.Lock
 	uint64	next_gc;	// protected by mheap.Lock
+	uint64	nlookup;	// unprotected (approximate)
+	uint64	nmalloc;	// unprotected (approximate)
 	bool	enablegc;
 };
 extern MStats mstats;
@@ -271,6 +273,10 @@ struct MHeap
 	// span lookup
 	MHeapMap map;
 	MHeapMapCache mapcache;
+	
+	// range of addresses we might see in the heap
+	byte *min;
+	byte *max;
 
 	// central free lists for small size classes.
 	// the union makes sure that the MCentrals are
@@ -292,6 +298,7 @@ void	MHeap_Free(MHeap *h, MSpan *s);
 MSpan*	MHeap_Lookup(MHeap *h, PageID p);
 MSpan*	MHeap_LookupMaybe(MHeap *h, PageID p);
 
+void*	mallocgc(uintptr size, uint32 flag, int32 dogc);
 int32	mlookup(void *v, byte **base, uintptr *size, uint32 **ref);
 void	gc(int32 force);
 
@@ -300,9 +307,9 @@ enum
 	RefcountOverhead = 4,	// one uint32 per object
 
 	RefFree = 0,	// must be zero
-	RefManual,	// manual allocation - don't free
 	RefStack,		// stack segment - don't free and don't scan for pointers
 	RefNone,		// no references
 	RefSome,		// some references
+	RefNoPointers = 0x80000000U,	// flag - no pointers here     
 };
 

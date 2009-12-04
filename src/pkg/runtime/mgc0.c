@@ -48,9 +48,16 @@ scanblock(int32 depth, byte *b, int64 n)
 	vp = (void**)b;
 	n /= PtrSize;
 	for(i=0; i<n; i++) {
-		if(mlookup(vp[i], &obj, &size, &ref)) {
+		obj = vp[i];
+		if(obj == nil || (byte*)obj < mheap.min || (byte*)obj >= mheap.max)
+			continue;
+		if(mlookup(obj, &obj, &size, &ref)) {
 			if(*ref == RefFree || *ref == RefStack)
 				continue;
+			if(*ref == (RefNone|RefNoPointers)) {
+				*ref = RefSome|RefNoPointers;
+				continue;
+			}
 			if(*ref == RefNone) {
 				if(Debug)
 					printf("%d found at %p: ", depth, &vp[i]);
@@ -125,15 +132,16 @@ sweepspan(MSpan *s)
 		default:
 			throw("bad 'ref count'");
 		case RefFree:
-		case RefManual:
 		case RefStack:
 			break;
 		case RefNone:
+		case RefNone|RefNoPointers:
 			if(Debug)
 				printf("free %D at %p\n", (uint64)s->npages<<PageShift, p);
 			free(p);
 			break;
 		case RefSome:
+		case RefSome|RefNoPointers:
 //printf("gc-mem 1 %D\n", (uint64)s->npages<<PageShift);
 			s->gcref0 = RefNone;	// set up for next mark phase
 			break;
@@ -151,15 +159,16 @@ sweepspan(MSpan *s)
 		default:
 			throw("bad 'ref count'");
 		case RefFree:
-		case RefManual:
 		case RefStack:
 			break;
 		case RefNone:
+		case RefNone|RefNoPointers:
 			if(Debug)
 				printf("free %d at %p\n", size, p+i*size);
 			free(p + i*size);
 			break;
 		case RefSome:
+		case RefSome|RefNoPointers:
 			s->gcref[i] = RefNone;	// set up for next mark phase
 			break;
 		}

@@ -175,13 +175,6 @@ struct	G
 	void	(*cgofn)(void*);	// for cgo/ffi
 	void	*cgoarg;
 };
-struct	Mem
-{
-	uint8*	hunk;
-	uint32	nhunk;
-	uint64	nmmap;
-	uint64	nmal;
-};
 struct	M
 {
 	// The offsets of these fields are known to (hard-coded in) libmach.
@@ -208,7 +201,6 @@ struct	M
 	G*	nextg;
 	M*	alllink;	// on allm
 	M*	schedlink;
-	Mem	mem;
 	uint32	machport;	// Return address for Mach IPC (OS X)
 	MCache	*mcache;
 	G*	lockedg;
@@ -375,7 +367,6 @@ uintptr	efacehash(Eface);
 uintptr	nohash(uint32, void*);
 uint32	noequal(uint32, void*, void*);
 void*	malloc(uintptr size);
-void*	mallocgc(uintptr size);
 void	free(void *v);
 void	exit(int32);
 void	breakpoint(void);

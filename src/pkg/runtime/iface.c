@@ -590,12 +590,12 @@ unsafe·Reflect(Eface e, Eface rettype, void *retaddr)
 
 			// but then build pointer to x so that Reflect
 			// always returns pointer to data.
-			p = mallocgc(sizeof(uintptr));
+			p = mal(sizeof(uintptr));
 			*p = x;
 		} else {
 			// Already a pointer, but still make a copy,
 			// to preserve value semantics for interface data.
-			p = mallocgc(e.type->size);
+			p = mal(e.type->size);
 			algarray[e.type->alg].copy(e.type->size, p, e.data);
 		}
 		retaddr = p;

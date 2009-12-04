@@ -186,6 +186,11 @@ MHeap_Grow(MHeap *h, uintptr npage)
 			return false;
 	}
 
+	if((byte*)v < h->min || h->min == nil)
+		h->min = v;
+	if((byte*)v+ask > h->max)
+		h->max = (byte*)v+ask;
+
 	// NOTE(rsc): In tcmalloc, if we've accumulated enough
 	// system allocations, the heap map gets entirely allocated
 	// in 32-bit mode.  (In 64-bit mode that's not practical.)
