@@ -26,6 +26,7 @@ type B struct {
 	N		int;
 	benchmark	Benchmark;
 	ns		int64;
+	bytes		int64;
 	start		int64;
 }
 
@@ -49,6 +50,10 @@ func (b *B) ResetTimer() {
 	b.start = 0;
 	b.ns = 0;
 }
+
+// SetBytes records the number of bytes processed in a single operation.
+// If this is called, the benchmark will report ns/op and MB/s.
+func (b *B) SetBytes(n int64)	{ b.bytes = n }
 
 func (b *B) nsPerOp() int64 {
 	if b.N <= 0 {
@@ -125,7 +130,12 @@ func (b *B) run() {
 		n = roundUp(n);
 		b.runN(n);
 	}
-	fmt.Printf("%s\t%d\t%10d ns/op\n", b.benchmark.Name, b.N, b.nsPerOp());
+	ns := b.nsPerOp();
+	mb := "";
+	if ns > 0 && b.bytes > 0 {
+		mb = fmt.Sprintf("\t%7.2f MB/s", (float64(b.bytes)/1e6)/(float64(ns)/1e9))
+	}
+	fmt.Printf("%s\t%8d\t%10d ns/op%s\n", b.benchmark.Name, b.N, b.nsPerOp(), mb);
 }
 
 // An internal function but exported because it is cross-package; part of the implementation
