@@ -114,7 +114,47 @@ func TestIndexByte(t *testing.T) {
 		if pos != tt.i {
 			t.Errorf(`IndexByte(%q, '%c') = %v`, tt.a, b, pos)
 		}
+		posp := IndexBytePortable(a, b);
+		if posp != tt.i {
+			t.Errorf(`indexBytePortable(%q, '%c') = %v`, tt.a, b, posp)
+		}
 	}
+}
+
+func BenchmarkIndexByte4K(b *testing.B)	{ bmIndex(b, IndexByte, 4<<10) }
+
+func BenchmarkIndexByte4M(b *testing.B)	{ bmIndex(b, IndexByte, 4<<20) }
+
+func BenchmarkIndexByte64M(b *testing.B)	{ bmIndex(b, IndexByte, 64<<20) }
+
+func BenchmarkIndexBytePortable4K(b *testing.B) {
+	bmIndex(b, IndexBytePortable, 4<<10)
+}
+
+func BenchmarkIndexBytePortable4M(b *testing.B) {
+	bmIndex(b, IndexBytePortable, 4<<20)
+}
+
+func BenchmarkIndexBytePortable64M(b *testing.B) {
+	bmIndex(b, IndexBytePortable, 64<<20)
+}
+
+var bmbuf []byte
+
+func bmIndex(b *testing.B, index func([]byte, byte) int, n int) {
+	if len(bmbuf) < n {
+		bmbuf = make([]byte, n)
+	}
+	b.SetBytes(int64(n));
+	buf := bmbuf[0:n];
+	buf[n-1] = 'x';
+	for i := 0; i < b.N; i++ {
+		j := index(buf, 'x');
+		if j != n-1 {
+			panic("bad index", j)
+		}
+	}
+	buf[n-1] = '0';
 }
 
 type ExplodeTest struct {
