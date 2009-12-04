@@ -5,12 +5,19 @@
 package net
 
 import (
+	"flag";
 	"io";
 	"os";
 	"strings";
 	"syscall";
 	"testing";
 )
+
+// Do not test empty datagrams by default.
+// It causes unexplained timeouts on some systems,
+// including Snow Leopard.  I think that the kernel
+// doesn't quite expect them.
+var testEmptyDatagrams = flag.Bool("empty_datagrams", false, "whether to test empty datagrams")
 
 func runEcho(fd io.ReadWriter, done chan<- int) {
 	var buf [1024]byte;
@@ -155,7 +162,7 @@ func doTestPacket(t *testing.T, network, listenaddr, dialaddr string, isEmpty bo
 }
 
 func TestUDPServer(t *testing.T) {
-	for _, isEmpty := range []bool{false, true} {
+	for _, isEmpty := range []bool{false, *testEmptyDatagrams} {
 		doTestPacket(t, "udp", "0.0.0.0", "127.0.0.1", isEmpty);
 		doTestPacket(t, "udp", "", "127.0.0.1", isEmpty);
 		if kernelSupportsIPv6() {
@@ -167,7 +174,7 @@ func TestUDPServer(t *testing.T) {
 }
 
 func TestUnixDatagramServer(t *testing.T) {
-	for _, isEmpty := range []bool{false, true} {
+	for _, isEmpty := range []bool{false, *testEmptyDatagrams} {
 		os.Remove("/tmp/gotest1.net");
 		os.Remove("/tmp/gotest1.net.local");
 		doTestPacket(t, "unixgram", "/tmp/gotest1.net", "/tmp/gotest1.net", isEmpty);
