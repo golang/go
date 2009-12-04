@@ -611,7 +611,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) (decOp, os.Error) {
 		}
 	}
 	if op == nil {
-		return nil, os.ErrorString("ignore can't handle type " + wireId.String())
+		return nil, os.ErrorString("ignore can't handle type " + wireId.string())
 	}
 	return op, nil;
 }
@@ -718,7 +718,7 @@ func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEng
 			continue;
 		}
 		if !dec.compatibleType(localField.Type, wireField.id) {
-			details := " (" + wireField.id.String() + " incompatible with " + localField.Type.String() + ") in type " + remoteId.Name();
+			details := " (" + wireField.id.string() + " incompatible with " + localField.Type.String() + ") in type " + remoteId.Name();
 			return nil, os.ErrorString("gob: wrong type for field " + wireField.name + details);
 		}
 		op, indir, err := dec.decOpFor(wireField.id, localField.Type, localField.Name);
