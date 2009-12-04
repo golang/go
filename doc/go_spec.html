@@ -4099,6 +4099,12 @@ They are called like any other function but some of them
 accept a type instead of an expression as the first argument.
 </p>
 
+<p>
+The built-in functions do not have standard Go types,
+so they can only appear in <a href="#Calls">call expressions</a>;
+they cannot be used as function values.
+</p>
+
 <pre class="ebnf">
 BuiltinCall = identifier "(" [ BuiltinArgs ] ")" .
 BuiltinArgs = Type [ "," ExpressionList ] | ExpressionList .
