@@ -1961,8 +1961,12 @@ typecheckas(Node *n)
 
 	checkassign(n->left);
 	typecheck(&n->right, Erv);
-	if(n->left->type != T && n->right && n->right->type != T)
-		n->right = typecheckconv(nil, n->right, n->left->type, 0, nil);
+	if(n->right && n->right->type != T) {
+		if(n->left->type != T)
+			n->right = typecheckconv(nil, n->right, n->left->type, 0, "assignment");
+		else
+			exportassignok(n->right->type, "assignment");
+	}
 	if(n->left->defn == n && n->left->ntype == N) {
 		defaultlit(&n->right, T);
 		n->left->type = n->right->type;
