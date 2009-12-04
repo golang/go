@@ -159,12 +159,12 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
 	for {
 		p, err := randomSafePrime(rand, bits/2);
 		if err != nil {
-			return
+			return nil, err
 		}
 
 		q, err := randomSafePrime(rand, bits/2);
 		if err != nil {
-			return
+			return nil, err
 		}
 
 		if p.Cmp(q) == 0 {
