@@ -42,4 +42,12 @@ func main() {
 		x := sync.Mutex{key: 0};	// ERROR "(unknown|assignment).*Mutex"
 		_ = x;
 	}
+	{
+		x := &sync.Mutex{};	// ok
+		var y sync.Mutex;	// ok
+		y = *x;	// ERROR "assignment.*Mutex"
+		*x = y;	// ERROR "assignment.*Mutex"
+		_ = x;
+		_ = y;
+	}		
 }
