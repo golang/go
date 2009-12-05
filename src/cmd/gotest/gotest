@@ -77,7 +77,7 @@ esac
 # Run any commands given in sources, like
 #   // gotest: $GC foo.go
 # to build any test-only dependencies.
-sed -n 's/^\/\/ gotest: //p' $gofiles | sh
+sed -n 's/^\/\/ gotest: //p' $gofiles | sh -e || exit 1
 
 # Split $gofiles into external gofiles (those in *_test packages)
 # and internal ones (those in the main package).
