@@ -31,9 +31,42 @@ type commonType struct {
 	alg		uint8;		// algorithm for copy+hash+cmp (../runtime/runtime.h:/AMEM)
 	align		uint8;		// alignment of variable with this type
 	fieldAlign	uint8;		// alignment of struct field with this type
+	kind		uint8;		// enumeration for C
 	string		*string;	// string form; unnecessary  but undeniably useful
 	*uncommonType;			// (relatively) uncommon fields
 }
+
+// Values for commonType.kind.
+const (
+	kindBool	= 1 + iota;
+	kindInt;
+	kindInt8;
+	kindInt16;
+	kindInt32;
+	kindInt64;
+	kindUint;
+	kindUint8;
+	kindUint16;
+	kindUint32;
+	kindUint64;
+	kindUintptr;
+	kindFloat;
+	kindFloat32;
+	kindFloat64;
+	kindArray;
+	kindChan;
+	kindDotDotDot;
+	kindFunc;
+	kindInterface;
+	kindMap;
+	kindPtr;
+	kindSlice;
+	kindString;
+	kindStruct;
+	kindUnsafePointer;
+
+	kindNoPointers	= 1 << 7;	// OR'ed into kind
+)
 
 // Method on non-interface type
 type method struct {

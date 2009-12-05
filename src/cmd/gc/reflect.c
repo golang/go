@@ -325,6 +325,67 @@ dextratype(Type *t)
 	return s;
 }
 
+enum {
+	KindBool = 1,
+	KindInt,
+	KindInt8,
+	KindInt16,
+	KindInt32,
+	KindInt64,
+	KindUint,
+	KindUint8,
+	KindUint16,
+	KindUint32,
+	KindUint64,
+	KindUintptr,
+	KindFloat,
+	KindFloat32,
+	KindFloat64,
+	KindArray,
+	KindChan,
+	KindDotDotDot,
+	KindFunc,
+	KindInterface,
+	KindMap,
+	KindPtr,
+	KindSlice,
+	KindString,
+	KindStruct,
+	KindUnsafePointer,
+	
+	KindNoPointers = 1<<7,
+};
+
+static int
+kinds[] =
+{
+	[TINT]		= KindInt,
+	[TUINT]		= KindUint,
+	[TINT8]		= KindInt8,
+	[TUINT8]	= KindUint8,
+	[TINT16]	= KindInt16,
+	[TUINT16]	= KindUint16,
+	[TINT32]	= KindInt32,
+	[TUINT32]	= KindUint32,
+	[TINT64]	= KindInt64,
+	[TUINT64]	= KindUint64,
+	[TUINTPTR]	= KindUintptr,
+	[TFLOAT]	= KindFloat,
+	[TFLOAT32]	= KindFloat32,
+	[TFLOAT64]	= KindFloat64,
+	[TBOOL]		= KindBool,
+	[TSTRING]		= KindString,
+	[TDDD]		= KindDotDotDot,
+	[TPTR32]		= KindPtr,
+	[TPTR64]		= KindPtr,
+	[TSTRUCT]	= KindStruct,
+	[TINTER]		= KindInterface,
+	[TCHAN]		= KindChan,
+	[TMAP]		= KindMap,
+	[TARRAY]		= KindArray,
+	[TFUNC]		= KindFunc,
+};
+
 static char*
 structnames[] =
 {
@@ -377,6 +438,50 @@ typestruct(Type *t)
 	return pkglookup(name, "type");
 }
 
+static int
+haspointers(Type *t)
+{
+	Type *t1;
+
+	switch(t->etype) {
+	case TINT:
+	case TUINT:
+	case TINT8:
+	case TUINT8:
+	case TINT16:
+	case TUINT16:
+	case TINT32:
+	case TUINT32:
+	case TINT64:
+	case TUINT64:
+	case TUINTPTR:
+	case TFLOAT:
+	case TFLOAT32:
+	case TFLOAT64:
+	case TBOOL:
+		return 0;
+	case TARRAY:
+		if(t->bound < 0)	// slice
+			return 1;
+		return haspointers(t->type);
+	case TSTRUCT:
+		for(t1=t->type; t1!=T; t1=t1->down)
+			if(haspointers(t1->type))
+				return 1;
+		return 0;
+	case TSTRING:
+	case TDDD:
+	case TPTR32:
+	case TPTR64:
+	case TINTER:
+	case TCHAN:
+	case TMAP:
+	case TFUNC:
+	default:
+		return 1;
+	}
+}
+
 /*
  * commonType
  * ../../pkg/runtime/type.go:/commonType
@@ -421,6 +526,12 @@ dcommontype(Sym *s, int ot, Type *t)
 		i = maxround;
 	ot = duint8(s, ot, i);	// align
 	ot = duint8(s, ot, i);	// fieldAlign
+	i = kinds[t->etype];
+	if(t->etype == TARRAY && t->bound < 0)
+		i = KindSlice;
+	if(!haspointers(t))
+		i |= KindNoPointers;
+	ot = duint8(s, ot, i);
 	p = smprint("%#-T", t);
 	ot = dgostringptr(s, ot, p);	// string
 	free(p);

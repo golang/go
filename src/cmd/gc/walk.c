@@ -994,9 +994,9 @@ walkexpr(Node **np, NodeList **init)
 		fn = syslook("makeslice", 1);
 		argtype(fn, t->type);			// any-1
 		n = mkcall1(fn, n->type, nil,
+			typename(n->type),
 			conv(n->left, types[TINT]),
-			conv(n->right, types[TINT]),
-			nodintconst(t->type->width));
+			conv(n->right, types[TINT]));
 		goto ret;
 
 	case ORUNESTR:

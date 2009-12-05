@@ -79,7 +79,7 @@ func selectrecv(sel *byte, hchan <-chan any, elem *any) (selected bool)
 func selectdefault(sel *byte) (selected bool)
 func selectgo(sel *byte)
 
-func makeslice(nel int, cap int, width int) (ary []any)
+func makeslice(typ *byte, nel int, cap int) (ary []any)
 func sliceslice1(old []any, lb int, width int) (ary []any)
 func sliceslice(old []any, lb int, hb int, width int) (ary []any)
 func slicearray(old *any, nel int, lb int, hb int, width int) (ary []any)

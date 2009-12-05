@@ -3,35 +3,35 @@
 // license that can be found in the LICENSE file.
 
 #include "runtime.h"
+#include "type.h"
+#include "malloc.h"
 
 static	int32	debug	= 0;
 
-// makeslice(nel int, cap int, width int) (ary []any);
+// makeslice(typ *Type, nel int, cap int) (ary []any);
 void
-runtime·makeslice(uint32 nel, uint32 cap, uint32 width, Slice ret)
+runtime·makeslice(SliceType *t, uint32 nel, uint32 cap, Slice ret)
 {
 	uint64 size;
 
 	if(cap < nel)
 		cap = nel;
-	size = cap*width;
+	size = cap*t->elem->size;
 
 	ret.len = nel;
 	ret.cap = cap;
-	ret.array = mal(size);
+
+	if(t->elem->kind&KindNoPointers)
+		ret.array = mallocgc(size, RefNoPointers, 1);
+	else
+		ret.array = mal(size);
 
 	FLUSH(&ret);
 
 	if(debug) {
-		prints("makeslice: nel=");
-		runtime·printint(nel);
-		prints("; cap=");
-		runtime·printint(cap);
-		prints("; width=");
-		runtime·printint(width);
-		prints("; ret=");
-		runtime·printslice(ret);
-		prints("\n");
+		printf("makeslice(%S, %d, %d); ret=", 
+			*t->string, nel, cap);
+ 		runtime·printslice(ret);
 	}
 }
 

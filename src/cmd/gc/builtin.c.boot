@@ -64,7 +64,7 @@ char *runtimeimport =
 	"func runtime.selectrecv (sel *uint8, hchan <-chan any, elem *any) (selected bool)\n"
 	"func runtime.selectdefault (sel *uint8) (selected bool)\n"
 	"func runtime.selectgo (sel *uint8)\n"
-	"func runtime.makeslice (nel int, cap int, width int) (ary []any)\n"
+	"func runtime.makeslice (typ *uint8, nel int, cap int) (ary []any)\n"
 	"func runtime.sliceslice1 (old []any, lb int, width int) (ary []any)\n"
 	"func runtime.sliceslice (old []any, lb int, hb int, width int) (ary []any)\n"
 	"func runtime.slicearray (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
