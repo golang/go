@@ -65,7 +65,7 @@ done
 
 case "x$gofiles" in
 x)
-	gofiles=$(echo -n $(ls *_test.go *_test.pb.go 2>/dev/null))
+	gofiles=$(echo -n $(ls *_test.go 2>/dev/null))
 esac
 
 case "x$gofiles" in
