@@ -61,37 +61,8 @@ var complement = [256]uint8{
 	'N': 'N', 'n': 'N',
 }
 
-var in *bufio.Reader
-
-func reverseComplement(in []byte) []byte {
-	outLen := len(in) + (len(in)+lineSize-1)/lineSize;
-	out := make([]byte, outLen);
-	j := 0;
-	k := 0;
-	for i := len(in) - 1; i >= 0; i-- {
-		if k == lineSize {
-			out[j] = '\n';
-			j++;
-			k = 0;
-		}
-		out[j] = complement[in[i]];
-		j++;
-		k++;
-	}
-	out[j] = '\n';
-	j++;
-	return out[0:j];
-}
-
-func output(buf []byte) {
-	if len(buf) == 0 {
-		return
-	}
-	os.Stdout.Write(reverseComplement(buf));
-}
-
 func main() {
-	in = bufio.NewReader(os.Stdin);
+	in := bufio.NewReader(os.Stdin);
 	buf := make([]byte, 1024*1024);
 	line, err := in.ReadSlice('\n');
 	for err == nil {
@@ -113,6 +84,8 @@ func main() {
 				w += len(nbuf) - len(buf);
 				buf = nbuf;
 			}
+
+			// This loop is the bottleneck.
 			for r := 0; r < len(line); r++ {
 				w--;
 				buf[w] = complement[line[r]];
