@@ -61,7 +61,7 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
 	if err != nil {
 		t.Fatalf("net.Dial(%q, %q, %q) = _, %v", network, laddr, addr, err)
 	}
-	fd.SetReadTimeout(10e6);	// 10ms
+	fd.SetReadTimeout(1e9);	// 1s
 
 	var b []byte;
 	if !isEmpty {
