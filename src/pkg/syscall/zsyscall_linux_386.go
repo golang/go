@@ -598,12 +598,6 @@ func Fstat(fd int, stat *Stat_t) (errno int) {
 	return;
 }
 
-func Fstatfs(fd int, buf *Statfs_t) (errno int) {
-	_, _, e1 := Syscall(SYS_FSTATFS64, uintptr(fd), uintptr(unsafe.Pointer(buf)), 0);
-	errno = int(e1);
-	return;
-}
-
 func Getegid() (egid int) {
 	r0, _, _ := Syscall(SYS_GETEGID32, 0, 0, 0);
 	egid = int(r0);
@@ -696,12 +690,6 @@ func Setreuid(ruid int, euid int) (errno int) {
 
 func Stat(path string, stat *Stat_t) (errno int) {
 	_, _, e1 := Syscall(SYS_STAT64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(stat)), 0);
-	errno = int(e1);
-	return;
-}
-
-func Statfs(path string, buf *Statfs_t) (errno int) {
-	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0);
 	errno = int(e1);
 	return;
 }

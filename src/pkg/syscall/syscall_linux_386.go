@@ -30,7 +30,6 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sys	Chown(path string, uid int, gid int) (errno int) = SYS_CHOWN32
 //sys	Fchown(fd int, uid int, gid int) (errno int) = SYS_FCHOWN32
 //sys	Fstat(fd int, stat *Stat_t) (errno int) = SYS_FSTAT64
-//sys	Fstatfs(fd int, buf *Statfs_t) (errno int) = SYS_FSTATFS64
 //sys	Getegid() (egid int) = SYS_GETEGID32
 //sys	Geteuid() (euid int) = SYS_GETEUID32
 //sys	Getgid() (gid int) = SYS_GETGID32
@@ -47,7 +46,6 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
 //sys	Setresuid(ruid int, euid int, suid int) (errno int) = SYS_SETRESUID32
 //sys	Setreuid(ruid int, euid int) (errno int) = SYS_SETREUID32
 //sys	Stat(path string, stat *Stat_t) (errno int) = SYS_STAT64
-//sys	Statfs(path string, buf *Statfs_t) (errno int) = SYS_STATFS64
 //sys	SyncFileRange(fd int, off int64, n int64, flags int) (errno int)
 //sys	getgroups(n int, list *_Gid_t) (nn int, errno int) = SYS_GETGROUPS32
 //sys	setgroups(n int, list *_Gid_t) (errno int) = SYS_SETGROUPS32
@@ -147,6 +145,18 @@ func Listen(s int, n int) (errno int) {
 
 func Shutdown(s, how int) (errno int) {
 	_, errno = socketcall(_SHUTDOWN, uintptr(s), uintptr(how), 0, 0, 0, 0);
+	return;
+}
+
+func Fstatfs(fd int, buf *Statfs_t) (errno int) {
+	_, _, e1 := Syscall(SYS_FSTATFS64, uintptr(fd), uintptr(unsafe.Sizeof(*buf)), uintptr(unsafe.Pointer(buf)));
+	errno = int(e1);
+	return;
+}
+
+func Statfs(path string, buf *Statfs_t) (errno int) {
+	_, _, e1 := Syscall(SYS_STATFS64, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Sizeof(*buf)), uintptr(unsafe.Pointer(buf)));
+	errno = int(e1);
 	return;
 }
 
