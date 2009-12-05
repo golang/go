@@ -90,6 +90,7 @@ walkrange(Node *n)
 {
 	Node *ohv1, *hv1, *hv2;	// hidden (old) val 1, 2
 	Node *ha, *hit;	// hidden aggregate, iterator
+	Node *hn, *hp;	// hidden len, pointer
 	Node *a, *v1, *v2;	// not hidden aggregate, val 1, 2
 	Node *fn, *tmp;
 	NodeList *body, *init;
@@ -122,16 +123,32 @@ walkrange(Node *n)
 	case TARRAY:
 		hv1 = nod(OXXX, N, n);
 		tempname(hv1, types[TINT]);
+		hn = nod(OXXX, N, N);
+		tempname(hn, types[TINT]);
+		hp = nil;
 
 		init = list(init, nod(OAS, hv1, N));
-		n->ntest = nod(OLT, hv1, nod(OLEN, ha, N));
+		init = list(init, nod(OAS, hn, nod(OLEN, ha, N)));
+		if(v2) {
+			hp = nod(OXXX, N, N);
+			tempname(hp, ptrto(a->type->type));
+			tmp = nod(OINDEX, ha, nodintconst(0));
+			tmp->etype = 1;	// no bounds check
+			init = list(init, nod(OAS, hp, nod(OADDR, tmp, N)));
+		}
+
+		n->ntest = nod(OLT, hv1, hn);
 		n->nincr = nod(OASOP, hv1, nodintconst(1));
 		n->nincr->etype = OADD;
 		body = list1(nod(OAS, v1, hv1));
 		if(v2) {
-			tmp = nod(OINDEX, ha, hv1);
-			tmp->etype = 1;	// no bounds check
-			body = list(body, nod(OAS, v2, tmp));
+			body = list(body, nod(OAS, v2, nod(OIND, hp, N)));
+			tmp = nod(OADD, hp, nodintconst(t->type->width));
+			tmp->type = hp->type;
+			tmp->typecheck = 1;
+			tmp->right->type = types[tptr];
+			tmp->right->typecheck = 1;
+			body = list(body, nod(OAS, hp, tmp));
 		}
 		break;
 
