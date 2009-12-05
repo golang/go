@@ -86,9 +86,9 @@ func main() {
 			}
 
 			// This loop is the bottleneck.
-			for r := 0; r < len(line); r++ {
+			for _, c := range line {
 				w--;
-				buf[w] = complement[line[r]];
+				buf[w] = complement[c];
 			}
 		}
 
