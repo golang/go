@@ -1376,7 +1376,7 @@ static Optable optable[256+1] =
 [0xfd]	0,0,		"STD",
 [0xfe]	RMOPB,0,	optabFE,
 [0xff]	RMOP,0,		optabFF,
-[0x100]	RM,0,		"MOVLQSX	%r,%e",
+[0x100]	RM,0,		"MOVLQSX	%e,%r",
 };
 
 /*
