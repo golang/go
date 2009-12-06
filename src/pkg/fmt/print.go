@@ -136,7 +136,6 @@ type GoStringer interface {
 	GoString() string;
 }
 
-const runeSelf = utf8.RuneSelf
 const allocSize = 32
 
 type pp struct {
@@ -149,17 +148,25 @@ type pp struct {
 // A leaky bucket of reusable pp structures.
 var ppFree = make(chan *pp, 100)
 
+// Allocate a new pp struct.  Probably can grab the previous one from ppFree.
 func newPrinter() *pp {
 	p, ok := <-ppFree;
 	if !ok {
 		p = new(pp)
 	}
-	p.buf.Reset();
 	p.fmt.init(&p.buf);
 	return p;
 }
 
-func (p *pp) free()	{ _ = ppFree <- p }
+// Save used pp structs in ppFree; avoids an allocation per invocation.
+func (p *pp) free() {
+	// Don't hold on to pp structs with large buffers.
+	if cap(p.buf.Bytes()) > 1024 {
+		return
+	}
+	p.buf.Reset();
+	_ = ppFree <- p;
+}
 
 func (p *pp) Width() (wid int, ok bool)	{ return p.fmt.wid, p.fmt.widPresent }
 
@@ -182,7 +189,7 @@ func (p *pp) Flag(b int) bool {
 }
 
 func (p *pp) add(c int) {
-	if c < runeSelf {
+	if c < utf8.RuneSelf {
 		p.buf.WriteByte(byte(c))
 	} else {
 		w := utf8.EncodeRune(c, &p.runeBuf);
@@ -250,8 +257,9 @@ func Sprint(a ...) string {
 	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, false, false);
+	s := p.buf.String();
 	p.free();
-	return p.buf.String();
+	return s;
 }
 
 // These routines end in 'ln', do not take a format string,
