@@ -21,7 +21,9 @@ runtime·makeslice(SliceType *t, uint32 nel, uint32 cap, Slice ret)
 	ret.len = nel;
 	ret.cap = cap;
 
-	if(t->elem->kind&KindNoPointers)
+	// TODO(rsc): Disabled because reflect and gob cast []byte
+	// to data structures with pointers.
+	if(0 && (t->elem->kind&KindNoPointers))
 		ret.array = mallocgc(size, RefNoPointers, 1);
 	else
 		ret.array = mal(size);
