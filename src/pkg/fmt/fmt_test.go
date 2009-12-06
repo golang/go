@@ -7,6 +7,7 @@ package fmt_test
 import (
 	. "fmt";
 	"io";
+	"malloc";	// for the malloc count test only
 	"math";
 	"strings";
 	"testing";
@@ -242,7 +243,7 @@ func TestSprintf(t *testing.T) {
 			if _, ok := tt.val.(string); ok {
 				// Don't requote the already-quoted strings.
 				// It's too confusing to read the errors.
-				t.Errorf("Sprintf(%q, %q) = %s want %s", tt.fmt, tt.val, s, tt.out)
+				t.Errorf("Sprintf(%q, %q) = <%s> want <%s>", tt.fmt, tt.val, s, tt.out)
 			} else {
 				t.Errorf("Sprintf(%q, %v) = %q want %q", tt.fmt, tt.val, s, tt.out)
 			}
@@ -266,6 +267,39 @@ func BenchmarkSprintfInt(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Sprintf("%d", 5)
 	}
+}
+
+func BenchmarkSprintfIntInt(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Sprintf("%d %d", 5, 6)
+	}
+}
+
+func TestCountMallocs(t *testing.T) {
+	mallocs := 0 - malloc.GetStats().Mallocs;
+	for i := 0; i < 100; i++ {
+		Sprintf("")
+	}
+	mallocs += malloc.GetStats().Mallocs;
+	Printf("mallocs per Sprintf(\"\"): %d\n", mallocs/100);
+	mallocs = 0 - malloc.GetStats().Mallocs;
+	for i := 0; i < 100; i++ {
+		Sprintf("xxx")
+	}
+	mallocs += malloc.GetStats().Mallocs;
+	Printf("mallocs per Sprintf(\"xxx\"): %d\n", mallocs/100);
+	mallocs = 0 - malloc.GetStats().Mallocs;
+	for i := 0; i < 100; i++ {
+		Sprintf("%x", i)
+	}
+	mallocs += malloc.GetStats().Mallocs;
+	Printf("mallocs per Sprintf(\"%%x\"): %d\n", mallocs/100);
+	mallocs = 0 - malloc.GetStats().Mallocs;
+	for i := 0; i < 100; i++ {
+		Sprintf("%x %x", i, i)
+	}
+	mallocs += malloc.GetStats().Mallocs;
+	Printf("mallocs per Sprintf(\"%%x %%x\"): %d\n", mallocs/100);
 }
 
 type flagPrinter struct{}

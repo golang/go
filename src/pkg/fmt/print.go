@@ -77,10 +77,25 @@ package fmt
 
 
 import (
+	"bytes";
 	"io";
 	"os";
 	"reflect";
 	"utf8";
+)
+
+// Some constants in the form of bytes, to avoid string overhead.
+// Needlessly fastidious, I suppose.
+var (
+	trueBytes	= []byte{'t', 'r', 'u', 'e'};
+	falseBytes	= []byte{'f', 'a', 'l', 's', 'e'};
+	commaSpaceBytes	= []byte{',', ' '};
+	nilAngleBytes	= []byte{'<', 'n', 'i', 'l', '>'};
+	nilParenBytes	= []byte{'(', 'n', 'i', 'l', ')'};
+	nilBytes	= []byte{'n', 'i', 'l'};
+	mapBytes	= []byte{'m', 'a', 'p', '['};
+	missingBytes	= []byte{'m', 'i', 's', 's', 'i', 'n', 'g'};
+	extraBytes	= []byte{'?', '(', 'e', 'x', 't', 'r', 'a', ' '};
 )
 
 // State represents the printer state passed to custom formatters.
@@ -126,19 +141,29 @@ const allocSize = 32
 
 type pp struct {
 	n	int;
-	buf	[]byte;
-	fmt	*Fmt;
+	buf	bytes.Buffer;
+	runeBuf	[utf8.UTFMax]byte;
+	fmt	Fmt;
 }
 
+// A leaky bucket of reusable pp structures.
+var ppFree = make(chan *pp, 100)
+
 func newPrinter() *pp {
-	p := new(pp);
-	p.fmt = New();
+	p, ok := <-ppFree;
+	if !ok {
+		p = new(pp)
+	}
+	p.buf.Reset();
+	p.fmt.Init(&p.buf);
 	return p;
 }
 
-func (p *pp) Width() (wid int, ok bool)	{ return p.fmt.wid, p.fmt.wid_present }
+func (p *pp) free()	{ _ = ppFree <- p }
 
-func (p *pp) Precision() (prec int, ok bool)	{ return p.fmt.prec, p.fmt.prec_present }
+func (p *pp) Width() (wid int, ok bool)	{ return p.fmt.wid, p.fmt.widPresent }
+
+func (p *pp) Precision() (prec int, ok bool)	{ return p.fmt.prec, p.fmt.precPresent }
 
 func (p *pp) Flag(b int) bool {
 	switch b {
@@ -156,52 +181,19 @@ func (p *pp) Flag(b int) bool {
 	return false;
 }
 
-func (p *pp) ensure(n int) {
-	if len(p.buf) < n {
-		newn := allocSize + len(p.buf);
-		if newn < n {
-			newn = n + allocSize
-		}
-		b := make([]byte, newn);
-		for i := 0; i < p.n; i++ {
-			b[i] = p.buf[i]
-		}
-		p.buf = b;
-	}
-}
-
-func (p *pp) addstr(s string) {
-	n := len(s);
-	p.ensure(p.n + n);
-	for i := 0; i < n; i++ {
-		p.buf[p.n] = s[i];
-		p.n++;
-	}
-}
-
-func (p *pp) addbytes(b []byte, start, end int) {
-	p.ensure(p.n + end - start);
-	for i := start; i < end; i++ {
-		p.buf[p.n] = b[i];
-		p.n++;
-	}
-}
-
 func (p *pp) add(c int) {
-	p.ensure(p.n + 1);
 	if c < runeSelf {
-		p.buf[p.n] = byte(c);
-		p.n++;
+		p.buf.WriteByte(byte(c))
 	} else {
-		p.addstr(string(c))
+		w := utf8.EncodeRune(c, &p.runeBuf);
+		p.buf.Write(p.runeBuf[0:w]);
 	}
 }
 
-// Implement Write so we can call fprintf on a P, for
+// Implement Write so we can call Fprintf on a pp (through State), for
 // recursive use in custom verbs.
 func (p *pp) Write(b []byte) (ret int, err os.Error) {
-	p.addbytes(b, 0, len(b));
-	return len(b), nil;
+	return p.buf.Write(b)
 }
 
 // These routines end in 'f' and take a format string.
@@ -211,8 +203,9 @@ func Fprintf(w io.Writer, format string, a ...) (n int, error os.Error) {
 	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprintf(format, v);
-	n, error = w.Write(p.buf[0:p.n]);
-	return n, error;
+	n64, error := p.buf.WriteTo(w);
+	p.free();
+	return int(n64), error;
 }
 
 // Printf formats according to a format specifier and writes to standard output.
@@ -226,7 +219,8 @@ func Sprintf(format string, a ...) string {
 	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprintf(format, v);
-	s := string(p.buf)[0:p.n];
+	s := p.buf.String();
+	p.free();
 	return s;
 }
 
@@ -238,8 +232,9 @@ func Fprint(w io.Writer, a ...) (n int, error os.Error) {
 	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, false, false);
-	n, error = w.Write(p.buf[0:p.n]);
-	return n, error;
+	n64, error := p.buf.WriteTo(w);
+	p.free();
+	return int(n64), error;
 }
 
 // Print formats using the default formats for its operands and writes to standard output.
@@ -255,8 +250,8 @@ func Sprint(a ...) string {
 	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, false, false);
-	s := string(p.buf)[0:p.n];
-	return s;
+	p.free();
+	return p.buf.String();
 }
 
 // These routines end in 'ln', do not take a format string,
@@ -269,8 +264,9 @@ func Fprintln(w io.Writer, a ...) (n int, error os.Error) {
 	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, true, true);
-	n, error = w.Write(p.buf[0:p.n]);
-	return n, error;
+	n64, error := p.buf.WriteTo(w);
+	p.free();
+	return int(n64), error;
 }
 
 // Println formats using the default formats for its operands and writes to standard output.
@@ -286,7 +282,8 @@ func Sprintln(a ...) string {
 	v := reflect.NewValue(a).(*reflect.StructValue);
 	p := newPrinter();
 	p.doprint(v, true, true);
-	s := string(p.buf)[0:p.n];
+	s := p.buf.String();
+	p.free();
 	return s;
 }
 
@@ -409,121 +406,120 @@ func (p *pp) printField(field reflect.Value, plus, sharp bool, depth int) (was_s
 		switch {
 		default:
 			if stringer, ok := inter.(Stringer); ok {
-				p.addstr(stringer.String());
+				p.buf.WriteString(stringer.String());
 				return false;	// this value is not a string
 			}
 		case sharp:
 			if stringer, ok := inter.(GoStringer); ok {
-				p.addstr(stringer.GoString());
+				p.buf.WriteString(stringer.GoString());
 				return false;	// this value is not a string
 			}
 		}
 	}
-	s := "";
 BigSwitch:
 	switch f := field.(type) {
 	case *reflect.BoolValue:
-		s = p.fmt.Fmt_boolean(f.Get()).Str()
+		p.fmt.Fmt_boolean(f.Get())
 	case *reflect.Float32Value:
-		s = p.fmt.Fmt_g32(f.Get()).Str()
+		p.fmt.Fmt_g32(f.Get())
 	case *reflect.Float64Value:
-		s = p.fmt.Fmt_g64(f.Get()).Str()
+		p.fmt.Fmt_g64(f.Get())
 	case *reflect.FloatValue:
 		if field.Type().Size()*8 == 32 {
-			s = p.fmt.Fmt_g32(float32(f.Get())).Str()
+			p.fmt.Fmt_g32(float32(f.Get()))
 		} else {
-			s = p.fmt.Fmt_g64(float64(f.Get())).Str()
+			p.fmt.Fmt_g64(float64(f.Get()))
 		}
 	case *reflect.StringValue:
 		if sharp {
-			s = p.fmt.Fmt_q(f.Get()).Str()
+			p.fmt.Fmt_q(f.Get())
 		} else {
-			s = p.fmt.Fmt_s(f.Get()).Str();
+			p.fmt.Fmt_s(f.Get());
 			was_string = true;
 		}
 	case *reflect.MapValue:
 		if sharp {
-			p.addstr(field.Type().String());
-			p.addstr("{");
+			p.buf.WriteString(field.Type().String());
+			p.buf.WriteByte('{');
 		} else {
-			p.addstr("map[")
+			p.buf.Write(mapBytes)
 		}
 		keys := f.Keys();
 		for i, key := range keys {
 			if i > 0 {
 				if sharp {
-					p.addstr(", ")
+					p.buf.Write(commaSpaceBytes)
 				} else {
-					p.addstr(" ")
+					p.buf.WriteByte(' ')
 				}
 			}
 			p.printField(key, plus, sharp, depth+1);
-			p.addstr(":");
+			p.buf.WriteByte(':');
 			p.printField(f.Elem(key), plus, sharp, depth+1);
 		}
 		if sharp {
-			p.addstr("}")
+			p.buf.WriteByte('}')
 		} else {
-			p.addstr("]")
+			p.buf.WriteByte(']')
 		}
 	case *reflect.StructValue:
 		if sharp {
-			p.addstr(field.Type().String())
+			p.buf.WriteString(field.Type().String())
 		}
 		p.add('{');
 		v := f;
 		t := v.Type().(*reflect.StructType);
-		p.fmt.clearflags();	// clear flags for p.printField
+		p.fmt.ClearFlags();	// clear flags for p.printField
 		for i := 0; i < v.NumField(); i++ {
 			if i > 0 {
 				if sharp {
-					p.addstr(", ")
+					p.buf.Write(commaSpaceBytes)
 				} else {
-					p.addstr(" ")
+					p.buf.WriteByte(' ')
 				}
 			}
 			if plus || sharp {
 				if f := t.Field(i); f.Name != "" {
-					p.addstr(f.Name);
-					p.add(':');
+					p.buf.WriteString(f.Name);
+					p.buf.WriteByte(':');
 				}
 			}
 			p.printField(getField(v, i), plus, sharp, depth+1);
 		}
-		p.addstr("}");
+		p.buf.WriteByte('}');
 	case *reflect.InterfaceValue:
 		value := f.Elem();
 		if value == nil {
 			if sharp {
-				p.addstr(field.Type().String());
-				p.addstr("(nil)");
+				p.buf.WriteString(field.Type().String());
+				p.buf.Write(nilParenBytes);
 			} else {
-				s = "<nil>"
+				p.buf.Write(nilAngleBytes)
 			}
 		} else {
 			return p.printField(value, plus, sharp, depth+1)
 		}
 	case reflect.ArrayOrSliceValue:
 		if sharp {
-			p.addstr(field.Type().String());
-			p.addstr("{");
+			p.buf.WriteString(field.Type().String());
+			p.buf.WriteByte('{');
 		} else {
-			p.addstr("[")
+			p.buf.WriteByte('[')
 		}
 		for i := 0; i < f.Len(); i++ {
 			if i > 0 {
 				if sharp {
-					p.addstr(", ")
+					p.buf.Write(commaSpaceBytes)
 				} else {
-					p.addstr(" ")
+					p.buf.WriteByte(' ')
 				}
 			}
 			p.printField(f.Elem(i), plus, sharp, depth+1);
 		}
 		if sharp {
-			p.addstr("}")
+			p.buf.WriteByte('}')
 		} else {
-			p.addstr("]")
+			p.buf.WriteByte(']')
 		}
 	case *reflect.PtrValue:
 		v := f.Get();
@@ -532,86 +528,92 @@ BigSwitch:
 		if v != 0 && depth == 0 {
 			switch a := f.Elem().(type) {
 			case reflect.ArrayOrSliceValue:
-				p.addstr("&");
+				p.buf.WriteByte('&');
 				p.printField(a, plus, sharp, depth+1);
 				break BigSwitch;
 			case *reflect.StructValue:
-				p.addstr("&");
+				p.buf.WriteByte('&');
 				p.printField(a, plus, sharp, depth+1);
 				break BigSwitch;
 			}
 		}
 		if sharp {
-			p.addstr("(");
-			p.addstr(field.Type().String());
-			p.addstr(")(");
+			p.buf.WriteByte('(');
+			p.buf.WriteString(field.Type().String());
+			p.buf.WriteByte(')');
+			p.buf.WriteByte('(');
 			if v == 0 {
-				p.addstr("nil")
+				p.buf.Write(nilBytes)
 			} else {
 				p.fmt.sharp = true;
-				p.addstr(p.fmt.Fmt_ux64(uint64(v)).Str());
+				p.fmt.Fmt_ux64(uint64(v));
 			}
-			p.addstr(")");
+			p.buf.WriteByte(')');
 			break;
 		}
 		if v == 0 {
-			s = "<nil>";
+			p.buf.Write(nilAngleBytes);
 			break;
 		}
 		p.fmt.sharp = true;	// turn 0x on
-		s = p.fmt.Fmt_ux64(uint64(v)).Str();
+		p.fmt.Fmt_ux64(uint64(v));
 	case uintptrGetter:
 		v := f.Get();
 		if sharp {
-			p.addstr("(");
-			p.addstr(field.Type().String());
-			p.addstr(")(");
+			p.buf.WriteByte('(');
+			p.buf.WriteString(field.Type().String());
+			p.buf.WriteByte(')');
+			p.buf.WriteByte('(');
 			if v == 0 {
-				p.addstr("nil")
+				p.buf.Write(nilBytes)
 			} else {
 				p.fmt.sharp = true;
-				p.addstr(p.fmt.Fmt_ux64(uint64(v)).Str());
+				p.fmt.Fmt_ux64(uint64(v));
 			}
-			p.addstr(")");
+			p.buf.WriteByte(')');
 		} else {
 			p.fmt.sharp = true;	// turn 0x on
-			p.addstr(p.fmt.Fmt_ux64(uint64(f.Get())).Str());
+			p.fmt.Fmt_ux64(uint64(f.Get()));
 		}
 	default:
 		v, signed, ok := getInt(field);
 		if ok {
 			if signed {
-				s = p.fmt.Fmt_d64(v).Str()
+				p.fmt.Fmt_d64(v)
 			} else {
 				if sharp {
 					p.fmt.sharp = true;	// turn on 0x
-					s = p.fmt.Fmt_ux64(uint64(v)).Str();
+					p.fmt.Fmt_ux64(uint64(v));
 				} else {
-					s = p.fmt.Fmt_ud64(uint64(v)).Str()
+					p.fmt.Fmt_ud64(uint64(v))
 				}
 			}
 			break;
 		}
-		s = "?" + field.Type().String() + "?";
+		p.buf.WriteByte('?');
+		p.buf.WriteString(field.Type().String());
+		p.buf.WriteByte('?');
 	}
-	p.addstr(s);
 	return was_string;
 }
 
 func (p *pp) doprintf(format string, v *reflect.StructValue) {
-	p.ensure(len(format));	// a good starting size
 	end := len(format) - 1;
 	fieldnum := 0;	// we process one field per non-trivial format
 	for i := 0; i <= end; {
 		c, w := utf8.DecodeRuneInString(format[i:]);
 		if c != '%' || i == end {
-			p.add(c);
+			if w == 1 {
+				p.buf.WriteByte(byte(c))
+			} else {
+				p.buf.WriteString(format[i : i+w])
+			}
 			i += w;
 			continue;
 		}
 		i++;
 		// flags and widths
-		p.fmt.clearflags();
+		p.fmt.ClearFlags();
 	F:	for ; i < end; i++ {
 			switch format[i] {
 			case '#':
@@ -629,22 +631,22 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 			}
 		}
 		// do we have 20 (width)?
-		p.fmt.wid, p.fmt.wid_present, i = parsenum(format, i, end);
+		p.fmt.wid, p.fmt.widPresent, i = parsenum(format, i, end);
 		// do we have .20 (precision)?
 		if i < end && format[i] == '.' {
-			p.fmt.prec, p.fmt.prec_present, i = parsenum(format, i+1, end)
+			p.fmt.prec, p.fmt.precPresent, i = parsenum(format, i+1, end)
 		}
 		c, w = utf8.DecodeRuneInString(format[i:]);
 		i += w;
 		// percent is special - absorbs no operand
 		if c == '%' {
-			p.add('%');	// TODO: should we bother with width & prec?
+			p.buf.WriteByte('%');	// TODO: should we bother with width & prec?
 			continue;
 		}
 		if fieldnum >= v.NumField() {	// out of operands
-			p.add('%');
+			p.buf.WriteByte('%');
 			p.add(c);
-			p.addstr("(missing)");
+			p.buf.Write(missingBytes);
 			continue;
 		}
 		field := getField(v, fieldnum);
@@ -660,15 +662,14 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 			}
 		}
 
-		s := "";
 		switch c {
 		// bool
 		case 't':
 			if v, ok := getBool(field); ok {
 				if v {
-					s = "true"
+					p.buf.Write(trueBytes)
 				} else {
-					s = "false"
+					p.buf.Write(falseBytes)
 				}
 			} else {
 				goto badtype
@@ -677,26 +678,26 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 		// int
 		case 'b':
 			if v, _, ok := getInt(field); ok {
-				s = p.fmt.Fmt_b64(uint64(v)).Str()	// always unsigned
+				p.fmt.Fmt_b64(uint64(v))	// always unsigned
 			} else if v, ok := getFloat32(field); ok {
-				s = p.fmt.Fmt_fb32(v).Str()
+				p.fmt.Fmt_fb32(v)
 			} else if v, ok := getFloat64(field); ok {
-				s = p.fmt.Fmt_fb64(v).Str()
+				p.fmt.Fmt_fb64(v)
 			} else {
 				goto badtype
 			}
 		case 'c':
 			if v, _, ok := getInt(field); ok {
-				s = p.fmt.Fmt_c(int(v)).Str()
+				p.fmt.Fmt_c(int(v))
 			} else {
 				goto badtype
 			}
 		case 'd':
 			if v, signed, ok := getInt(field); ok {
 				if signed {
-					s = p.fmt.Fmt_d64(v).Str()
+					p.fmt.Fmt_d64(v)
 				} else {
-					s = p.fmt.Fmt_ud64(uint64(v)).Str()
+					p.fmt.Fmt_ud64(uint64(v))
 				}
 			} else {
 				goto badtype
@@ -704,9 +705,9 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 		case 'o':
 			if v, signed, ok := getInt(field); ok {
 				if signed {
-					s = p.fmt.Fmt_o64(v).Str()
+					p.fmt.Fmt_o64(v)
 				} else {
-					s = p.fmt.Fmt_uo64(uint64(v)).Str()
+					p.fmt.Fmt_uo64(uint64(v))
 				}
 			} else {
 				goto badtype
@@ -714,24 +715,24 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 		case 'x':
 			if v, signed, ok := getInt(field); ok {
 				if signed {
-					s = p.fmt.Fmt_x64(v).Str()
+					p.fmt.Fmt_x64(v)
 				} else {
-					s = p.fmt.Fmt_ux64(uint64(v)).Str()
+					p.fmt.Fmt_ux64(uint64(v))
 				}
 			} else if v, ok := getString(field); ok {
-				s = p.fmt.Fmt_sx(v).Str()
+				p.fmt.Fmt_sx(v)
 			} else {
 				goto badtype
 			}
 		case 'X':
 			if v, signed, ok := getInt(field); ok {
 				if signed {
-					s = p.fmt.Fmt_X64(v).Str()
+					p.fmt.Fmt_X64(v)
 				} else {
-					s = p.fmt.Fmt_uX64(uint64(v)).Str()
+					p.fmt.Fmt_uX64(uint64(v))
 				}
 			} else if v, ok := getString(field); ok {
-				s = p.fmt.Fmt_sX(v).Str()
+				p.fmt.Fmt_sX(v)
 			} else {
 				goto badtype
 			}
@@ -739,41 +740,41 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 		// float
 		case 'e':
 			if v, ok := getFloat32(field); ok {
-				s = p.fmt.Fmt_e32(v).Str()
+				p.fmt.Fmt_e32(v)
 			} else if v, ok := getFloat64(field); ok {
-				s = p.fmt.Fmt_e64(v).Str()
+				p.fmt.Fmt_e64(v)
 			} else {
 				goto badtype
 			}
 		case 'E':
 			if v, ok := getFloat32(field); ok {
-				s = p.fmt.Fmt_E32(v).Str()
+				p.fmt.Fmt_E32(v)
 			} else if v, ok := getFloat64(field); ok {
-				s = p.fmt.Fmt_E64(v).Str()
+				p.fmt.Fmt_E64(v)
 			} else {
 				goto badtype
 			}
 		case 'f':
 			if v, ok := getFloat32(field); ok {
-				s = p.fmt.Fmt_f32(v).Str()
+				p.fmt.Fmt_f32(v)
 			} else if v, ok := getFloat64(field); ok {
-				s = p.fmt.Fmt_f64(v).Str()
+				p.fmt.Fmt_f64(v)
 			} else {
 				goto badtype
 			}
 		case 'g':
 			if v, ok := getFloat32(field); ok {
-				s = p.fmt.Fmt_g32(v).Str()
+				p.fmt.Fmt_g32(v)
 			} else if v, ok := getFloat64(field); ok {
-				s = p.fmt.Fmt_g64(v).Str()
+				p.fmt.Fmt_g64(v)
 			} else {
 				goto badtype
 			}
 		case 'G':
 			if v, ok := getFloat32(field); ok {
-				s = p.fmt.Fmt_G32(v).Str()
+				p.fmt.Fmt_G32(v)
 			} else if v, ok := getFloat64(field); ok {
-				s = p.fmt.Fmt_G64(v).Str()
+				p.fmt.Fmt_G64(v)
 			} else {
 				goto badtype
 			}
@@ -783,18 +784,18 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 			if inter != nil {
 				// if object implements String, use the result.
 				if stringer, ok := inter.(Stringer); ok {
-					s = p.fmt.Fmt_s(stringer.String()).Str();
+					p.fmt.Fmt_s(stringer.String());
 					break;
 				}
 			}
 			if v, ok := getString(field); ok {
-				s = p.fmt.Fmt_s(v).Str()
+				p.fmt.Fmt_s(v)
 			} else {
 				goto badtype
 			}
 		case 'q':
 			if v, ok := getString(field); ok {
-				s = p.fmt.Fmt_q(v).Str()
+				p.fmt.Fmt_q(v)
 			} else {
 				goto badtype
 			}
@@ -803,9 +804,10 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 		case 'p':
 			if v, ok := getPtr(field); ok {
 				if v == 0 {
-					s = "<nil>"
+					p.buf.Write(nilAngleBytes)
 				} else {
-					s = "0x" + p.fmt.Fmt_uX64(uint64(v)).Str()
+					p.fmt.Fmt_s("0x");
+					p.fmt.Fmt_uX64(uint64(v));
 				}
 			} else {
 				goto badtype
@@ -820,29 +822,31 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 
 		// the value's type
 		case 'T':
-			s = field.Type().String()
+			p.buf.WriteString(field.Type().String())
 
 		default:
 		badtype:
-			s = "%" + string(c) + "(" + field.Type().String() + "=";
-			p.addstr(s);
+			p.buf.WriteByte('%');
+			p.add(c);
+			p.buf.WriteByte('(');
+			p.buf.WriteString(field.Type().String());
+			p.buf.WriteByte('=');
 			p.printField(field, false, false, 0);
-			s = ")";
+			p.buf.WriteByte(')');
 		}
-		p.addstr(s);
 	}
 	if fieldnum < v.NumField() {
-		p.addstr("?(extra ");
+		p.buf.Write(extraBytes);
 		for ; fieldnum < v.NumField(); fieldnum++ {
 			field := getField(v, fieldnum);
-			p.addstr(field.Type().String());
-			p.addstr("=");
+			p.buf.WriteString(field.Type().String());
+			p.buf.WriteByte('=');
 			p.printField(field, false, false, 0);
 			if fieldnum+1 < v.NumField() {
-				p.addstr(", ")
+				p.buf.Write(commaSpaceBytes)
 			}
 		}
-		p.addstr(")");
+		p.buf.WriteByte(')');
 	}
 }
 
@@ -854,12 +858,12 @@ func (p *pp) doprint(v *reflect.StructValue, addspace, addnewline bool) {
 		if fieldnum > 0 {
 			_, is_string := field.(*reflect.StringValue);
 			if addspace || !is_string && !prev_string {
-				p.add(' ')
+				p.buf.WriteByte(' ')
 			}
 		}
 		prev_string = p.printField(field, false, false, 0);
 	}
 	if addnewline {
-		p.add('\n')
+		p.buf.WriteByte('\n')
 	}
 }
