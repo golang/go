@@ -143,7 +143,7 @@ type pp struct {
 	n	int;
 	buf	bytes.Buffer;
 	runeBuf	[utf8.UTFMax]byte;
-	fmt	Fmt;
+	fmt	fmt;
 }
 
 // A leaky bucket of reusable pp structures.
@@ -155,7 +155,7 @@ func newPrinter() *pp {
 		p = new(pp)
 	}
 	p.buf.Reset();
-	p.fmt.Init(&p.buf);
+	p.fmt.init(&p.buf);
 	return p;
 }
 
@@ -419,22 +419,22 @@ func (p *pp) printField(field reflect.Value, plus, sharp bool, depth int) (was_s
 BigSwitch:
 	switch f := field.(type) {
 	case *reflect.BoolValue:
-		p.fmt.Fmt_boolean(f.Get())
+		p.fmt.fmt_boolean(f.Get())
 	case *reflect.Float32Value:
-		p.fmt.Fmt_g32(f.Get())
+		p.fmt.fmt_g32(f.Get())
 	case *reflect.Float64Value:
-		p.fmt.Fmt_g64(f.Get())
+		p.fmt.fmt_g64(f.Get())
 	case *reflect.FloatValue:
 		if field.Type().Size()*8 == 32 {
-			p.fmt.Fmt_g32(float32(f.Get()))
+			p.fmt.fmt_g32(float32(f.Get()))
 		} else {
-			p.fmt.Fmt_g64(float64(f.Get()))
+			p.fmt.fmt_g64(float64(f.Get()))
 		}
 	case *reflect.StringValue:
 		if sharp {
-			p.fmt.Fmt_q(f.Get())
+			p.fmt.fmt_q(f.Get())
 		} else {
-			p.fmt.Fmt_s(f.Get());
+			p.fmt.fmt_s(f.Get());
 			was_string = true;
 		}
 	case *reflect.MapValue:
@@ -469,7 +469,7 @@ BigSwitch:
 		p.add('{');
 		v := f;
 		t := v.Type().(*reflect.StructType);
-		p.fmt.ClearFlags();	// clear flags for p.printField
+		p.fmt.clearflags();	// clear flags for p.printField
 		for i := 0; i < v.NumField(); i++ {
 			if i > 0 {
 				if sharp {
@@ -546,7 +546,7 @@ BigSwitch:
 				p.buf.Write(nilBytes)
 			} else {
 				p.fmt.sharp = true;
-				p.fmt.Fmt_ux64(uint64(v));
+				p.fmt.fmt_ux64(uint64(v));
 			}
 			p.buf.WriteByte(')');
 			break;
@@ -556,7 +556,7 @@ BigSwitch:
 			break;
 		}
 		p.fmt.sharp = true;	// turn 0x on
-		p.fmt.Fmt_ux64(uint64(v));
+		p.fmt.fmt_ux64(uint64(v));
 	case uintptrGetter:
 		v := f.Get();
 		if sharp {
@@ -568,24 +568,24 @@ BigSwitch:
 				p.buf.Write(nilBytes)
 			} else {
 				p.fmt.sharp = true;
-				p.fmt.Fmt_ux64(uint64(v));
+				p.fmt.fmt_ux64(uint64(v));
 			}
 			p.buf.WriteByte(')');
 		} else {
 			p.fmt.sharp = true;	// turn 0x on
-			p.fmt.Fmt_ux64(uint64(f.Get()));
+			p.fmt.fmt_ux64(uint64(f.Get()));
 		}
 	default:
 		v, signed, ok := getInt(field);
 		if ok {
 			if signed {
-				p.fmt.Fmt_d64(v)
+				p.fmt.fmt_d64(v)
 			} else {
 				if sharp {
 					p.fmt.sharp = true;	// turn on 0x
-					p.fmt.Fmt_ux64(uint64(v));
+					p.fmt.fmt_ux64(uint64(v));
 				} else {
-					p.fmt.Fmt_ud64(uint64(v))
+					p.fmt.fmt_ud64(uint64(v))
 				}
 			}
 			break;
@@ -613,7 +613,7 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 		}
 		i++;
 		// flags and widths
-		p.fmt.ClearFlags();
+		p.fmt.clearflags();
 	F:	for ; i < end; i++ {
 			switch format[i] {
 			case '#':
@@ -678,26 +678,26 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 		// int
 		case 'b':
 			if v, _, ok := getInt(field); ok {
-				p.fmt.Fmt_b64(uint64(v))	// always unsigned
+				p.fmt.fmt_b64(uint64(v))	// always unsigned
 			} else if v, ok := getFloat32(field); ok {
-				p.fmt.Fmt_fb32(v)
+				p.fmt.fmt_fb32(v)
 			} else if v, ok := getFloat64(field); ok {
-				p.fmt.Fmt_fb64(v)
+				p.fmt.fmt_fb64(v)
 			} else {
 				goto badtype
 			}
 		case 'c':
 			if v, _, ok := getInt(field); ok {
-				p.fmt.Fmt_c(int(v))
+				p.fmt.fmt_c(int(v))
 			} else {
 				goto badtype
 			}
 		case 'd':
 			if v, signed, ok := getInt(field); ok {
 				if signed {
-					p.fmt.Fmt_d64(v)
+					p.fmt.fmt_d64(v)
 				} else {
-					p.fmt.Fmt_ud64(uint64(v))
+					p.fmt.fmt_ud64(uint64(v))
 				}
 			} else {
 				goto badtype
@@ -705,9 +705,9 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 		case 'o':
 			if v, signed, ok := getInt(field); ok {
 				if signed {
-					p.fmt.Fmt_o64(v)
+					p.fmt.fmt_o64(v)
 				} else {
-					p.fmt.Fmt_uo64(uint64(v))
+					p.fmt.fmt_uo64(uint64(v))
 				}
 			} else {
 				goto badtype
@@ -715,24 +715,24 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 		case 'x':
 			if v, signed, ok := getInt(field); ok {
 				if signed {
-					p.fmt.Fmt_x64(v)
+					p.fmt.fmt_x64(v)
 				} else {
-					p.fmt.Fmt_ux64(uint64(v))
+					p.fmt.fmt_ux64(uint64(v))
 				}
 			} else if v, ok := getString(field); ok {
-				p.fmt.Fmt_sx(v)
+				p.fmt.fmt_sx(v)
 			} else {
 				goto badtype
 			}
 		case 'X':
 			if v, signed, ok := getInt(field); ok {
 				if signed {
-					p.fmt.Fmt_X64(v)
+					p.fmt.fmt_X64(v)
 				} else {
-					p.fmt.Fmt_uX64(uint64(v))
+					p.fmt.fmt_uX64(uint64(v))
 				}
 			} else if v, ok := getString(field); ok {
-				p.fmt.Fmt_sX(v)
+				p.fmt.fmt_sX(v)
 			} else {
 				goto badtype
 			}
@@ -740,41 +740,41 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 		// float
 		case 'e':
 			if v, ok := getFloat32(field); ok {
-				p.fmt.Fmt_e32(v)
+				p.fmt.fmt_e32(v)
 			} else if v, ok := getFloat64(field); ok {
-				p.fmt.Fmt_e64(v)
+				p.fmt.fmt_e64(v)
 			} else {
 				goto badtype
 			}
 		case 'E':
 			if v, ok := getFloat32(field); ok {
-				p.fmt.Fmt_E32(v)
+				p.fmt.fmt_E32(v)
 			} else if v, ok := getFloat64(field); ok {
-				p.fmt.Fmt_E64(v)
+				p.fmt.fmt_E64(v)
 			} else {
 				goto badtype
 			}
 		case 'f':
 			if v, ok := getFloat32(field); ok {
-				p.fmt.Fmt_f32(v)
+				p.fmt.fmt_f32(v)
 			} else if v, ok := getFloat64(field); ok {
-				p.fmt.Fmt_f64(v)
+				p.fmt.fmt_f64(v)
 			} else {
 				goto badtype
 			}
 		case 'g':
 			if v, ok := getFloat32(field); ok {
-				p.fmt.Fmt_g32(v)
+				p.fmt.fmt_g32(v)
 			} else if v, ok := getFloat64(field); ok {
-				p.fmt.Fmt_g64(v)
+				p.fmt.fmt_g64(v)
 			} else {
 				goto badtype
 			}
 		case 'G':
 			if v, ok := getFloat32(field); ok {
-				p.fmt.Fmt_G32(v)
+				p.fmt.fmt_G32(v)
 			} else if v, ok := getFloat64(field); ok {
-				p.fmt.Fmt_G64(v)
+				p.fmt.fmt_G64(v)
 			} else {
 				goto badtype
 			}
@@ -784,18 +784,18 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 			if inter != nil {
 				// if object implements String, use the result.
 				if stringer, ok := inter.(Stringer); ok {
-					p.fmt.Fmt_s(stringer.String());
+					p.fmt.fmt_s(stringer.String());
 					break;
 				}
 			}
 			if v, ok := getString(field); ok {
-				p.fmt.Fmt_s(v)
+				p.fmt.fmt_s(v)
 			} else {
 				goto badtype
 			}
 		case 'q':
 			if v, ok := getString(field); ok {
-				p.fmt.Fmt_q(v)
+				p.fmt.fmt_q(v)
 			} else {
 				goto badtype
 			}
@@ -806,8 +806,8 @@ func (p *pp) doprintf(format string, v *reflect.StructValue) {
 				if v == 0 {
 					p.buf.Write(nilAngleBytes)
 				} else {
-					p.fmt.Fmt_s("0x");
-					p.fmt.Fmt_uX64(uint64(v));
+					p.fmt.fmt_s("0x");
+					p.fmt.fmt_uX64(uint64(v));
 				}
 			} else {
 				goto badtype
