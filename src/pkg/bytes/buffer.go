@@ -32,9 +32,10 @@ func copyBytes(dst []byte, doff int, src []byte) {
 // with Read and Write methods.
 // The zero value for Buffer is an empty buffer ready to use.
 type Buffer struct {
-	buf	[]byte;		// contents are the bytes buf[off : len(buf)]
-	off	int;		// read at &buf[off], write at &buf[len(buf)]
-	oneByte	[1]byte;	// avoid allocation of slice on each WriteByte
+	buf		[]byte;		// contents are the bytes buf[off : len(buf)]
+	off		int;		// read at &buf[off], write at &buf[len(buf)]
+	oneByte		[1]byte;	// avoid allocation of slice on each WriteByte
+	bootstrap	[64]byte;	// memory to hold first slice; helps small buffers (Printf) avoid allocation.
 }
 
 // Bytes returns the contents of the unread portion of the buffer;
@@ -69,26 +70,48 @@ func (b *Buffer) Truncate(n int) {
 // b.Reset() is the same as b.Truncate(0).
 func (b *Buffer) Reset()	{ b.Truncate(0) }
 
+// Resize buffer to guarantee enough space for n more bytes.
+// After this call, the state of b.buf is inconsistent.
+// It must be fixed up as is done in Write and WriteString.
+func (b *Buffer) resize(n int) {
+	var buf []byte;
+	if b.buf == nil && n <= len(b.bootstrap) {
+		buf = &b.bootstrap
+	} else {
+		buf = b.buf;
+		if len(b.buf)+n > cap(b.buf) {
+			// not enough space anywhere
+			buf = make([]byte, 2*cap(b.buf)+n)
+		}
+		copy(buf, b.buf[b.off:]);
+	}
+	b.buf = buf;
+	b.off = 0;
+}
+
 // Write appends the contents of p to the buffer.  The return
 // value n is the length of p; err is always nil.
 func (b *Buffer) Write(p []byte) (n int, err os.Error) {
 	m := b.Len();
 	n = len(p);
-
 	if len(b.buf)+n > cap(b.buf) {
-		// not enough space at end
-		buf := b.buf;
-		if m+n > cap(b.buf) {
-			// not enough space anywhere
-			buf = make([]byte, 2*cap(b.buf)+n)
-		}
-		copyBytes(buf, 0, b.buf[b.off:b.off+m]);
-		b.buf = buf;
-		b.off = 0;
+		b.resize(n)
 	}
-
 	b.buf = b.buf[0 : b.off+m+n];
 	copyBytes(b.buf, b.off+m, p);
+	return n, nil;
+}
+
+// WriteString appends the contents of s to the buffer.  The return
+// value n is the length of s; err is always nil.
+func (b *Buffer) WriteString(s string) (n int, err os.Error) {
+	m := b.Len();
+	n = len(s);
+	if len(b.buf)+n > cap(b.buf) {
+		b.resize(n)
+	}
+	b.buf = b.buf[0 : b.off+m+n];
+	copyString(b.buf, b.off+m, s);
 	return n, nil;
 }
 
@@ -144,29 +167,6 @@ func (b *Buffer) WriteTo(w io.Writer) (n int64, err os.Error) {
 		}
 	}
 	return;
-}
-
-// WriteString appends the contents of s to the buffer.  The return
-// value n is the length of s; err is always nil.
-func (b *Buffer) WriteString(s string) (n int, err os.Error) {
-	m := b.Len();
-	n = len(s);
-
-	if len(b.buf)+n > cap(b.buf) {
-		// not enough space at end
-		buf := b.buf;
-		if m+n > cap(b.buf) {
-			// not enough space anywhere
-			buf = make([]byte, 2*cap(b.buf)+n)
-		}
-		copyBytes(buf, 0, b.buf[b.off:b.off+m]);
-		b.buf = buf;
-		b.off = 0;
-	}
-
-	b.buf = b.buf[0 : b.off+m+n];
-	copyString(b.buf, b.off+m, s);
-	return n, nil;
 }
 
 // WriteByte appends the byte c to the buffer.
