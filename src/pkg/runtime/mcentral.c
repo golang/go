@@ -40,7 +40,6 @@ MCentral_AllocList(MCentral *c, int32 n, MLink **pfirst)
 	MLink *first, *last, *v;
 	int32 i;
 
-
 	lock(c);
 	// Replenish central list if empty.
 	if(MSpanList_IsEmpty(&c->nonempty)) {

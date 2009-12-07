@@ -113,8 +113,9 @@ struct MLink
 	MLink *next;
 };
 
-// SysAlloc obtains a large chunk of memory from the operating system,
-// typically on the order of a hundred kilobytes or a megabyte.
+// SysAlloc obtains a large chunk of zeroed memory from the
+// operating system, typically on the order of a hundred kilobytes
+// or a megabyte.
 //
 // SysUnused notifies the operating system that the contents
 // of the memory region are no longer needed and can be reused
@@ -312,4 +313,3 @@ enum
 	RefSome,		// some references
 	RefNoPointers = 0x80000000U,	// flag - no pointers here     
 };
-
