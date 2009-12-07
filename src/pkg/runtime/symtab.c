@@ -24,40 +24,6 @@
 #define SYMDATA ((byte*)(0x99LL<<24) + 8)
 #endif
 
-
-// Return a pointer to a byte array containing the symbol table segment.
-void
-runtime·symdat(Slice *symtab, Slice *pclntab)
-{
-	Slice *a;
-	int32 *v;
-
-	// TODO(rsc): Remove once TODO at top of file is done.
-	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0) {
-		symtab = mal(sizeof *a);
-		pclntab = mal(sizeof *a);
-		FLUSH(&symtab);
-		FLUSH(&pclntab);
-		return;
-	}
-
-	v = SYMCOUNTS;
-
-	a = mal(sizeof *a);
-	a->len = v[0];
-	a->cap = a->len;
-	a->array = SYMDATA;
-	symtab = a;
-	FLUSH(&symtab);
-
-	a = mal(sizeof *a);
-	a->len = v[1];
-	a->cap = a->len;
-	a->array = SYMDATA + v[0];
-	pclntab = a;
-	FLUSH(&pclntab);
-}
-
 typedef struct Sym Sym;
 struct Sym
 {
@@ -121,6 +87,8 @@ static int32 nfunc;
 
 static byte **fname;
 static int32 nfname;
+
+static Lock funclock;
 
 static void
 dofunc(Sym *sym)
@@ -379,8 +347,11 @@ findfunc(uintptr addr)
 	Func *f;
 	int32 nf, n;
 
+	lock(&funclock);
 	if(func == nil)
 		buildfuncs();
+	unlock(&funclock);
+
 	if(nfunc == 0)
 		return nil;
 	if(addr < func[0].entry || addr >= func[nfunc].entry)

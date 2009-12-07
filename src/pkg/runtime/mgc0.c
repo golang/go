@@ -91,8 +91,11 @@ mark(void)
 {
 	G *gp;
 
-	// mark data+bss
-	scanblock(0, data, end - data);
+	// mark data+bss.
+	// skip mheap itself, which has no interesting pointers
+	// and is mostly zeroed and would not otherwise be paged in.
+	scanblock(0, data, (byte*)&mheap - data);
+	scanblock(0, (byte*)(&mheap+1), end - (byte*)(&mheap+1));
 
 	// mark stacks
 	for(gp=allg; gp!=nil; gp=gp->alllink) {

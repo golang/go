@@ -102,9 +102,10 @@ schedinit(void)
 	mallocinit();
 	goargs();
 
+	// For debugging:
 	// Allocate internal symbol table representation now,
 	// so that we don't need to call malloc when we crash.
-	findfunc(0);
+	// findfunc(0);
 
 	sched.gomaxprocs = 1;
 	p = getenv("GOMAXPROCS");

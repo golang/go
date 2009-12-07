@@ -194,7 +194,6 @@ MHeap_Grow(MHeap *h, uintptr npage)
 	// NOTE(rsc): In tcmalloc, if we've accumulated enough
 	// system allocations, the heap map gets entirely allocated
 	// in 32-bit mode.  (In 64-bit mode that's not practical.)
-
 	if(!MHeapMap_Preallocate(&h->map, ((uintptr)v>>PageShift) - 1, (ask>>PageShift) + 2)) {
 		SysFree(v, ask);
 		return false;
