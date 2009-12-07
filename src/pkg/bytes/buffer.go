@@ -19,15 +19,6 @@ func copyString(dst []byte, doff int, str string) {
 	}
 }
 
-// Copy from bytes to byte array at offset doff.  Assume there's room.
-func copyBytes(dst []byte, doff int, src []byte) {
-	if len(src) == 1 {
-		dst[doff] = src[0];
-		return;
-	}
-	copy(dst[doff:], src);
-}
-
 // A Buffer is a variable-sized buffer of bytes
 // with Read and Write methods.
 // The zero value for Buffer is an empty buffer ready to use.
@@ -98,7 +89,7 @@ func (b *Buffer) Write(p []byte) (n int, err os.Error) {
 		b.resize(n)
 	}
 	b.buf = b.buf[0 : b.off+m+n];
-	copyBytes(b.buf, b.off+m, p);
+	copy(b.buf[b.off+m:], p);
 	return n, nil;
 }
 
@@ -194,7 +185,7 @@ func (b *Buffer) Read(p []byte) (n int, err os.Error) {
 		n = m
 	}
 
-	copyBytes(p, 0, b.buf[b.off:b.off+n]);
+	copy(p, b.buf[b.off:b.off+n]);
 	b.off += n;
 	return n, err;
 }
