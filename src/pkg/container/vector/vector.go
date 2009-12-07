@@ -9,12 +9,28 @@ package vector
 // Vector is the container itself.
 // The zero value for Vector is an empty vector ready to use.
 type Vector struct {
-	a []interface{};
+	a		[]interface{};
+	bootstrap	[8]interface{};
+}
+
+
+func (p *Vector) realloc(length, capacity int) (b []interface{}) {
+	if length <= cap(p.bootstrap) && capacity <= cap(p.bootstrap) {
+		// don't allocate; use pre-allocated bootstrap array
+		b = p.bootstrap[0:length]
+	} else {
+		b = make([]interface{}, length, capacity)
+	}
+	copy(b, p.a);
+	p.a = b;
+	return;
 }
 
 
 // Insert n elements at position i.
-func expand(a []interface{}, i, n int) []interface{} {
+func (p *Vector) expand(i, n int) {
+	a := p.a;
+
 	// make sure we have enough space
 	len0 := len(a);
 	len1 := len0 + n;
@@ -24,21 +40,20 @@ func expand(a []interface{}, i, n int) []interface{} {
 	} else {
 		// not enough space - double capacity
 		capb := cap(a) * 2;
-		if capb <= len1 {
+		if capb < len1 {
 			// still not enough - use required length
 			capb = len1
 		}
-		// capb > len1
-		b := make([]interface{}, len1, capb);
-		copy(b, a);
-		a = b;
+		// capb >= len1
+		a = p.realloc(len1, capb);
 	}
 
 	// make a hole
 	for j := len0 - 1; j >= i; j-- {
 		a[j+n] = a[j]
 	}
-	return a;
+
+	p.a = a;
 }
 
 
@@ -46,15 +61,14 @@ func expand(a []interface{}, i, n int) []interface{} {
 // If the new length is shorter than the current length, Resize discards
 // trailing elements. If the new length is longer than the current length,
 // Resize adds nil elements. The capacity parameter is ignored unless the
-// new length or capacity is longer that the current capacity.
+// new length or capacity is longer that the current capacity. The resized
+// vector's capacity may be larger than the requested capacity.
 func (p *Vector) Resize(length, capacity int) *Vector {
 	a := p.a;
 
 	if length > cap(a) || capacity > cap(a) {
 		// not enough space or larger capacity requested explicitly
-		b := make([]interface{}, length, capacity);
-		copy(b, a);
-		a = b;
+		a = p.realloc(length, capacity)
 	} else if length < len(a) {
 		// clear trailing elements
 		for i := range a[length:] {
@@ -101,7 +115,7 @@ func (p *Vector) Data() []interface{} {
 // Insert inserts into the vector an element of value x before
 // the current element at index i.
 func (p *Vector) Insert(i int, x interface{}) {
-	p.a = expand(p.a, i, 1);
+	p.expand(i, 1);
 	p.a[i] = x;
 }
 
@@ -121,7 +135,7 @@ func (p *Vector) Delete(i int) {
 // InsertVector inserts into the vector the contents of the Vector
 // x such that the 0th element of x appears at index i after insertion.
 func (p *Vector) InsertVector(i int, x *Vector) {
-	p.a = expand(p.a, i, len(x.a));
+	p.expand(i, len(x.a));
 	copy(p.a[i:i+len(x.a)], x.a);
 }
 

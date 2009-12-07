@@ -27,8 +27,8 @@ func checkSize(t *testing.T, v VectorInterface, len, cap int) {
 	if v.Len() != len {
 		t.Errorf("expected len = %d; found %d", len, v.Len())
 	}
-	if v.Cap() != cap {
-		t.Errorf("expected cap = %d; found %d", cap, v.Cap())
+	if v.Cap() < cap {
+		t.Errorf("expected cap >= %d; found %d", cap, v.Cap())
 	}
 }
 
