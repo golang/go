@@ -6,12 +6,11 @@ package ast
 
 import "fmt"
 
-
 // A Visitor's Visit method is invoked for each node encountered by Walk.
-// If Visit returns true, Walk is invoked for each of the node's children.
-//
+// If the result visitor w is not nil, Walk visits each of the children
+// of node with the visitor w, followed by a call of w.Visit(nil).
 type Visitor interface {
-	Visit(node interface{}) bool;
+	Visit(node interface{}) (w Visitor);
 }
 
 
@@ -29,34 +28,6 @@ func walkCommentGroup(v Visitor, g *CommentGroup) {
 }
 
 
-func walkFieldList(v Visitor, list []*Field) {
-	for _, x := range list {
-		Walk(v, x)
-	}
-}
-
-
-func walkIdentList(v Visitor, list []*Ident) {
-	for _, x := range list {
-		Walk(v, x)
-	}
-}
-
-
-func walkExprList(v Visitor, list []Expr) {
-	for _, x := range list {
-		Walk(v, x)
-	}
-}
-
-
-func walkStmtList(v Visitor, list []Stmt) {
-	for _, s := range list {
-		Walk(v, s)
-	}
-}
-
-
 func walkBlockStmt(v Visitor, b *BlockStmt) {
 	if b != nil {
 		Walk(v, b)
@@ -64,12 +35,20 @@ func walkBlockStmt(v Visitor, b *BlockStmt) {
 }
 
 
-// Walk traverses an AST in depth-first order and invokes v.Visit(n) for each
-// non-nil node n encountered, starting with node. If v.Visit(n) returns true,
-// Walk visits each of the children of n.
+// Walk traverses an AST in depth-first order: If node != nil, it
+// invokes v.Visit(node). If the visitor w returned by v.Visit(node) is
+// not nil, Walk visits each of the children of node with the visitor w,
+// followed by a call of w.Visit(nil).
+//
+// Walk may be called with any of the named ast node types. It also
+// accepts arguments of type []*Field, []*Ident, []Expr and []Stmt;
+// the respective children are the slice elements.
 //
 func Walk(v Visitor, node interface{}) {
-	if node == nil || !v.Visit(node) {
+	if node == nil {
+		return
+	}
+	if v = v.Visit(node); v == nil {
 		return
 	}
 
@@ -93,7 +72,7 @@ func Walk(v Visitor, node interface{}) {
 
 	case *Field:
 		walkCommentGroup(v, n.Doc);
-		walkIdentList(v, n.Names);
+		Walk(v, n.Names);
 		Walk(v, n.Type);
 		for _, x := range n.Tag {
 			Walk(v, x)
@@ -117,7 +96,7 @@ func Walk(v Visitor, node interface{}) {
 
 	case *CompositeLit:
 		Walk(v, n.Type);
-		walkExprList(v, n.Elts);
+		Walk(v, n.Elts);
 
 	case *ParenExpr:
 		Walk(v, n.X)
@@ -141,7 +120,7 @@ func Walk(v Visitor, node interface{}) {
 
 	case *CallExpr:
 		Walk(v, n.Fun);
-		walkExprList(v, n.Args);
+		Walk(v, n.Args);
 
 	case *StarExpr:
 		Walk(v, n.X)
@@ -163,14 +142,14 @@ func Walk(v Visitor, node interface{}) {
 		Walk(v, n.Elt);
 
 	case *StructType:
-		walkFieldList(v, n.Fields)
+		Walk(v, n.Fields)
 
 	case *FuncType:
-		walkFieldList(v, n.Params);
-		walkFieldList(v, n.Results);
+		Walk(v, n.Params);
+		Walk(v, n.Results);
 
 	case *InterfaceType:
-		walkFieldList(v, n.Methods)
+		Walk(v, n.Methods)
 
 	case *MapType:
 		Walk(v, n.Key);
@@ -200,8 +179,8 @@ func Walk(v Visitor, node interface{}) {
 		Walk(v, n.X)
 
 	case *AssignStmt:
-		walkExprList(v, n.Lhs);
-		walkExprList(v, n.Rhs);
+		Walk(v, n.Lhs);
+		Walk(v, n.Rhs);
 
 	case *GoStmt:
 		if n.Call != nil {
@@ -214,13 +193,13 @@ func Walk(v Visitor, node interface{}) {
 		}
 
 	case *ReturnStmt:
-		walkExprList(v, n.Results)
+		Walk(v, n.Results)
 
 	case *BranchStmt:
 		walkIdent(v, n.Label)
 
 	case *BlockStmt:
-		walkStmtList(v, n.List)
+		Walk(v, n.List)
 
 	case *IfStmt:
 		Walk(v, n.Init);
@@ -229,8 +208,8 @@ func Walk(v Visitor, node interface{}) {
 		Walk(v, n.Else);
 
 	case *CaseClause:
-		walkExprList(v, n.Values);
-		walkStmtList(v, n.Body);
+		Walk(v, n.Values);
+		Walk(v, n.Body);
 
 	case *SwitchStmt:
 		Walk(v, n.Init);
@@ -238,8 +217,8 @@ func Walk(v Visitor, node interface{}) {
 		walkBlockStmt(v, n.Body);
 
 	case *TypeCaseClause:
-		walkExprList(v, n.Types);
-		walkStmtList(v, n.Body);
+		Walk(v, n.Types);
+		Walk(v, n.Body);
 
 	case *TypeSwitchStmt:
 		Walk(v, n.Init);
@@ -249,7 +228,7 @@ func Walk(v Visitor, node interface{}) {
 	case *CommClause:
 		Walk(v, n.Lhs);
 		Walk(v, n.Rhs);
-		walkStmtList(v, n.Body);
+		Walk(v, n.Body);
 
 	case *SelectStmt:
 		walkBlockStmt(v, n.Body)
@@ -277,9 +256,9 @@ func Walk(v Visitor, node interface{}) {
 
 	case *ValueSpec:
 		walkCommentGroup(v, n.Doc);
-		walkIdentList(v, n.Names);
+		Walk(v, n.Names);
 		Walk(v, n.Type);
-		walkExprList(v, n.Values);
+		Walk(v, n.Values);
 		walkCommentGroup(v, n.Comment);
 
 	case *TypeSpec:
@@ -322,8 +301,30 @@ func Walk(v Visitor, node interface{}) {
 			Walk(v, f)
 		}
 
+	case []*Field:
+		for _, x := range n {
+			Walk(v, x)
+		}
+
+	case []*Ident:
+		for _, x := range n {
+			Walk(v, x)
+		}
+
+	case []Expr:
+		for _, x := range n {
+			Walk(v, x)
+		}
+
+	case []Stmt:
+		for _, x := range n {
+			Walk(v, x)
+		}
+
 	default:
 		fmt.Printf("ast.Walk: unexpected type %T", n);
 		panic();
 	}
+
+	v.Visit(nil);
 }
