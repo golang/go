@@ -8,6 +8,7 @@
 
 static	int32	debug	= 0;
 
+// see also unsafe·NewArray
 // makeslice(typ *Type, nel int, cap int) (ary []any);
 void
 runtime·makeslice(SliceType *t, uint32 nel, uint32 cap, Slice ret)
@@ -21,9 +22,7 @@ runtime·makeslice(SliceType *t, uint32 nel, uint32 cap, Slice ret)
 	ret.len = nel;
 	ret.cap = cap;
 
-	// TODO(rsc): Disabled because reflect and gob cast []byte
-	// to data structures with pointers.
-	if(0 && (t->elem->kind&KindNoPointers))
+	if((t->elem->kind&KindNoPointers))
 		ret.array = mallocgc(size, RefNoPointers, 1);
 	else
 		ret.array = mal(size);
