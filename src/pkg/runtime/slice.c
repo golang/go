@@ -208,7 +208,11 @@ runtime·slicecopy(Slice to, Slice fm, uintptr width, int32 ret)
 	if(to.len < ret)
 		ret = to.len;
 
-	memmove(to.array, fm.array, ret*width);
+	if(ret == 1 && width == 1) {	// common case worth about 2x to do here
+		*to.array = *fm.array;	// known to be a byte pointer
+	} else {
+		memmove(to.array, fm.array, ret*width);
+	}
 
 out:
 	FLUSH(&ret);
