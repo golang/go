@@ -13,6 +13,7 @@ import (
 	"math";
 	"os";
 	"reflect";
+	"runtime";
 	"unsafe";
 )
 
@@ -361,10 +362,8 @@ func decodeStruct(engine *decEngine, rtyp *reflect.StructType, b *bytes.Buffer, 
 			up = decIndirect(up, indir)
 		}
 		if *(*unsafe.Pointer)(up) == nil {
-			// Allocate object by making a slice of bytes and recording the
-			// address of the beginning of the array. TODO(rsc).
-			b := make([]byte, rtyp.Size());
-			*(*unsafe.Pointer)(up) = unsafe.Pointer(&b[0]);
+			// Allocate object.
+			*(*unsafe.Pointer)(up) = unsafe.New((*runtime.StructType)(unsafe.Pointer(rtyp)))
 		}
 		p = *(*uintptr)(up);
 	}
@@ -437,10 +436,8 @@ func decodeArray(atyp *reflect.ArrayType, state *decodeState, p uintptr, elemOp 
 	if indir > 0 {
 		up := unsafe.Pointer(p);
 		if *(*unsafe.Pointer)(up) == nil {
-			// Allocate the array by making a slice of bytes of the correct size
-			// and taking the address of the beginning of the array. TODO(rsc).
-			b := make([]byte, atyp.Size());
-			*(**byte)(up) = &b[0];
+			// Allocate object.
+			*(*unsafe.Pointer)(up) = unsafe.New(atyp)
 		}
 		p = *(*uintptr)(up);
 	}
@@ -466,23 +463,22 @@ func ignoreArray(state *decodeState, elemOp decOp, length int) os.Error {
 }
 
 func decodeSlice(atyp *reflect.SliceType, state *decodeState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl os.ErrorString) os.Error {
-	length := uintptr(decodeUint(state));
+	n := int(uintptr(decodeUint(state)));
 	if indir > 0 {
 		up := unsafe.Pointer(p);
 		if *(*unsafe.Pointer)(up) == nil {
 			// Allocate the slice header.
-			*(*unsafe.Pointer)(up) = unsafe.Pointer(new(reflect.SliceHeader))
+			*(*unsafe.Pointer)(up) = unsafe.Pointer(new([]unsafe.Pointer))
 		}
 		p = *(*uintptr)(up);
 	}
 	// Allocate storage for the slice elements, that is, the underlying array.
-	data := make([]byte, length*atyp.Elem().Size());
 	// Always write a header at p.
 	hdrp := (*reflect.SliceHeader)(unsafe.Pointer(p));
-	hdrp.Data = uintptr(unsafe.Pointer(&data[0]));
-	hdrp.Len = int(length);
-	hdrp.Cap = int(length);
-	return decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, int(length), elemIndir, ovfl);
+	hdrp.Data = uintptr(unsafe.NewArray(atyp.Elem(), n));
+	hdrp.Len = n;
+	hdrp.Cap = n;
+	return decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, n, elemIndir, ovfl);
 }
 
 func ignoreSlice(state *decodeState, elemOp decOp) os.Error {

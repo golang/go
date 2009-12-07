@@ -4,6 +4,7 @@
 
 #include "runtime.h"
 #include "type.h"
+#include "malloc.h"
 
 static void
 printiface(Iface i)
@@ -605,7 +606,7 @@ unsafe·Reflect(Eface e, Eface rettype, void *retaddr)
 }
 
 void
-unsafe·Unreflect(Iface typ, void *addr, Eface e)
+unsafe·Unreflect(Eface typ, void *addr, Eface e)
 {
 	// Reflect library has reinterpreted typ
 	// as its own kind of type structure.
@@ -624,4 +625,42 @@ unsafe·Unreflect(Iface typ, void *addr, Eface e)
 	}
 
 	FLUSH(&e);
+}
+
+void
+unsafe·New(Eface typ, void *ret)
+{
+	Type *t;
+
+	// Reflect library has reinterpreted typ
+	// as its own kind of type structure.
+	// We know that the pointer to the original
+	// type structure sits before the data pointer.
+	t = (Type*)((Eface*)typ.data-1);
+
+	if(t->kind&KindNoPointers)
+		ret = mallocgc(t->size, RefNoPointers, 1);
+	else
+		ret = mal(t->size);
+	FLUSH(&ret);
+}
+
+void
+unsafe·NewArray(Eface typ, uint32 n, void *ret)
+{
+	uint64 size;
+	Type *t;
+
+	// Reflect library has reinterpreted typ
+	// as its own kind of type structure.
+	// We know that the pointer to the original
+	// type structure sits before the data pointer.
+	t = (Type*)((Eface*)typ.data-1);
+	
+	size = n*t->size;
+	if(t->kind&KindNoPointers)
+		ret = mallocgc(size, RefNoPointers, 1);
+	else
+		ret = mal(size);
+	FLUSH(&ret);
 }

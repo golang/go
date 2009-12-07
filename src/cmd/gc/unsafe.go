@@ -12,3 +12,5 @@ func Alignof(any) int
 func Typeof(i interface{}) (typ interface{})
 func Reflect(i interface{}) (typ interface{}, addr Pointer)
 func Unreflect(typ interface{}, addr Pointer) (ret interface{})
+func New(typ interface{}) Pointer
+func NewArray(typ interface{}, n int) Pointer

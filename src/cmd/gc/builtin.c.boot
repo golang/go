@@ -86,5 +86,7 @@ char *unsafeimport =
 	"func unsafe.Typeof (i interface { }) (typ interface { })\n"
 	"func unsafe.Reflect (i interface { }) (typ interface { }, addr unsafe.Pointer)\n"
 	"func unsafe.Unreflect (typ interface { }, addr unsafe.Pointer) (ret interface { })\n"
+	"func unsafe.New (typ interface { }) (? unsafe.Pointer)\n"
+	"func unsafe.NewArray (typ interface { }, n int) (? unsafe.Pointer)\n"
 	"\n"
 	"$$\n";

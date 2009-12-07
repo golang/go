@@ -43,5 +43,17 @@ func Typeof(i interface{}) (typ interface{})
 func Reflect(i interface{}) (typ interface{}, addr uintptr)
 
 // Unreflect inverts Reflect: Given a type and a pointer, it returns an empty interface value
-// with those contents.
+// with those contents.  The typ is assumed to contain a pointer to a runtime type;
+// the type information in the interface{} is ignored, so that, for example, both
+// *reflect.StructType and *runtime.StructType can be passed for typ.
 func Unreflect(typ interface{}, addr uintptr) (ret interface{})
+
+// New allocates and returns a pointer to memory for a new value of the given type.
+// The typ is assumed to hold a pointer to a runtime type.
+// Callers should use reflect.MakeZero instead of invoking unsafe.New directly.
+func New(typ interface{}) Pointer
+
+// NewArray allocates and returns a pointer to an array of n elements of the given type.
+// The typ is assumed to hold a pointer to a runtime type.
+// Callers should use reflect.MakeSlice instead of invoking unsafe.NewArray directly.
+func NewArray(typ interface{}, n int) Pointer
