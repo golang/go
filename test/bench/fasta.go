@@ -62,20 +62,6 @@ type AminoAcid struct {
 	c	byte;
 }
 
-var lastrandom uint32 = 42
-
-// Random number between 0.0 and 1.0
-func myrandom() float {
-	const (
-		IM	= 139968;
-		IA	= 3877;
-		IC	= 29573;
-	)
-	lastrandom = (lastrandom*IA + IC) % IM;
-	// Integer to float conversions are faster if the integer is signed.
-	return float(int32(lastrandom)) / IM;
-}
-
 func AccumulateProbabilities(genelist []AminoAcid) {
 	for i := 1; i < len(genelist); i++ {
 		genelist[i].p += genelist[i-1].p
@@ -104,6 +90,14 @@ func RepeatFasta(s []byte, count int) {
 	}
 }
 
+var lastrandom uint32 = 42
+
+const (
+	IM	= 139968;
+	IA	= 3877;
+	IC	= 29573;
+)
+
 // Each element of genelist is a struct with a character and
 // a floating point number p between 0 and 1.
 // RandomFasta generates a random float r and
@@ -117,11 +111,15 @@ func RandomFasta(genelist []AminoAcid, count int) {
 	for count > 0 {
 		line := min(WIDTH, count);
 		for pos := 0; pos < line; pos++ {
-			r := myrandom();
-			var i int;
-			for i = 0; genelist[i].p < r; i++ {
+			lastrandom = (lastrandom*IA + IC) % IM;
+			// Integer to float conversions are faster if the integer is signed.
+			r := float(int32(lastrandom)) / IM;
+			for _, v := range genelist {
+				if v.p >= r {
+					buf[pos] = v.c;
+					break;
+				}
 			}
-			buf[pos] = genelist[i].c;
 		}
 		buf[line] = '\n';
 		out.Write(buf[0 : line+1]);
