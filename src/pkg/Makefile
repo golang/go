@@ -36,6 +36,7 @@ DIRS=\
 	crypto/subtle\
 	crypto/tls\
 	crypto/x509\
+	crypto/xtea\
 	debug/dwarf\
 	debug/macho\
 	debug/elf\
