@@ -38,12 +38,6 @@ func (b BufSizeError) String() string {
 	return "bufio: bad buffer size " + strconv.Itoa(int(b))
 }
 
-func copySlice(dst []byte, src []byte) {
-	for i := 0; i < len(dst); i++ {
-		dst[i] = src[i]
-	}
-}
-
 
 // Buffered input.
 
@@ -90,7 +84,7 @@ func NewReader(rd io.Reader) *Reader {
 func (b *Reader) fill() {
 	// Slide existing data to beginning.
 	if b.w > b.r {
-		copySlice(b.buf[0:b.w-b.r], b.buf[b.r:b.w]);
+		copy(b.buf[0:b.w-b.r], b.buf[b.r:b.w]);
 		b.w -= b.r;
 	} else {
 		b.w = 0
@@ -135,7 +129,7 @@ func (b *Reader) Read(p []byte) (nn int, err os.Error) {
 		if n > b.w-b.r {
 			n = b.w - b.r
 		}
-		copySlice(p[0:n], b.buf[b.r:b.r+n]);
+		copy(p[0:n], b.buf[b.r:b.r+n]);
 		p = p[n:];
 		b.r += n;
 		b.lastbyte = int(b.buf[b.r-1]);
@@ -307,10 +301,10 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err os.Error) {
 	buf := make([]byte, n);
 	n = 0;
 	for i := 0; i < nfull; i++ {
-		copySlice(buf[n:n+len(full[i])], full[i]);
+		copy(buf[n:n+len(full[i])], full[i]);
 		n += len(full[i]);
 	}
-	copySlice(buf[n:n+len(frag)], frag);
+	copy(buf[n:n+len(frag)], frag);
 	return buf, err;
 }
 
@@ -375,7 +369,7 @@ func (b *Writer) Flush() os.Error {
 	}
 	if e != nil {
 		if n > 0 && n < b.n {
-			copySlice(b.buf[0:b.n-n], b.buf[n:b.n])
+			copy(b.buf[0:b.n-n], b.buf[n:b.n])
 		}
 		b.n -= n;
 		b.err = e;
@@ -422,7 +416,7 @@ func (b *Writer) Write(p []byte) (nn int, err os.Error) {
 		if n > len(p) {
 			n = len(p)
 		}
-		copySlice(b.buf[b.n:b.n+n], p[0:n]);
+		copy(b.buf[b.n:b.n+n], p[0:n]);
 		b.n += n;
 		nn += n;
 		p = p[n:];
