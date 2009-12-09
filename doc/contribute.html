@@ -3,175 +3,20 @@
 <h2 id="Introduction">Introduction</h2>
 
 <p>
-This document explains how to write a new package,
-how to test code, and how to contribute changes to the Go project.
+This document explains how to contribute changes to the Go project.
 It assumes you have installed Go using the
-<a href="install.html">installation instructions</a>.  (Note that
-the <code>gccgo</code> frontend lives elsewhere;
+<a href="install.html">installation instructions</a> and
+have <a href="code.html">written and tested your code</a>.
+(Note that the <code>gccgo</code> frontend lives elsewhere;
 see <a href="gccgo_contribute.html">Contributing to gccgo</a>.)
 </p>
 
-<p>
-Before embarking on a significant change to an existing
-package or the creation of a major new package,
-it's a good idea to send mail to the <a href="http://groups.google.com/group/golang-nuts">mailing list</a>
-to let people know what you are thinking of doing.
-Doing so helps avoid duplication of effort and
-enables discussions about design before much code
-has been written.
-</p>
-
-<h2 id="Community_resources">Community resources</h2>
+<h2 id="Testing">Testing redux</h2>
 
 <p>
-For real-time help, there may be users or developers on
-<code>#go-nuts</code> on the <a href="http://freenode.net/">Freenode</a> IRC server.
-</p>
-
-<p>
-The official mailing list for discussion of the Go language is
-<a href="http://groups.google.com/group/golang-nuts">Go Nuts</a>.
-</p>
-
-<p>
-Bugs can be reported using the <a href="http://code.google.com/p/go/issues/list">Go issue tracker</a>.
-</p>
-
-<p>
-For those who wish to keep up with development,
-there is another mailing list, <a href="http://groups.google.com/group/golang-checkins">golang-checkins</a>,
-that receives a message summarizing each checkin to the Go repository.
-</p>
-
-
-<h2 id="New_package">Creating a new package</h2>
-
-<p>
-The source code for the package with import path
-<code>x/y</code> is, by convention, kept in the
-directory <code>$GOROOT/src/pkg/x/y</code>.
-</p>
-
-<h3>Makefile</h3>
-
-<p>
-It would be nice to have Go-specific tools that
-inspect the source files to determine what to build and in
-what order, but for now, Go uses GNU <code>make</code>.
-Thus, the first file to create in a new package directory is
-usually the <code>Makefile</code>.
-The basic form is illustrated by <a href="../src/pkg/container/vector/Makefile"><code>src/pkg/container/vector/Makefile</code></a>:
-</p>
-
-<pre>
-include ../../../Make.$(GOARCH)
-
-TARG=container/vector
-GOFILES=\
-	intvector.go\
-	stringvector.go\
-	vector.go\
-
-include ../../../Make.pkg
-</pre>
-
-<p>
-The first and last lines <code>include</code> standard definitions and rules,
-<code>$(GOROOT)/src/Make.$(GOARCH)</code> and <code>$(GOROOT)/src/Make.pkg</code>,
-so that the body of the <code>Makefile</code> need only specify two variables.
-For packages to be installed in the Go tree, use a relative path instead of
-<code>$(GOROOT)/src</code>, so that make will work correctly even if <code>$(GOROOT)</code> contains spaces.
-</p>
-
-<p>
-<code>TARG</code> is the target install path for the package,
-the string that clients will use to import it.
-This string should be the same as the directory
-in which the <code>Makefile</code> appears, with the
-<code>$GOROOT/src/pkg/</code> removed.
-</p>
-
-<p>
-<code>GOFILES</code> is a list of source files to compile to
-create the package.  The trailing <code>\</code> characters
-allow the list to be split onto multiple lines
-for easy sorting.
-</p>
-
-<p>
-After creating a new package directory, add it to the list in
-<code>$GOROOT/src/pkg/Makefile</code> so that it
-is included in the standard build.  Then run:
-<pre>
-cd $GOROOT/src/pkg
-./deps.bash
-</pre>
-<p>
-to update the dependency file <code>Make.deps</code>.
-(This happens automatically each time you run <code>all.bash</code>
-or <code>make.bash</code>.)
-</p>
-
-<p>
-If you change the imports of an existing package,
-you do not need to edit <code>$GOROOT/src/pkg/Makefile</code>
-but you will still need to run <code>deps.bash</code> as above.
-</p>
-
-
-<h3>Go source files</h3>
-
-<p>
-The first statement in each of the source files listed in the <code>Makefile</code>
-should be <code>package <i>name</i></code>, where <code><i>name</i></code>
-is the package's default name for imports.
-(All files in a package must use the same <code><i>name</i></code>.)
-Go's convention is that the package name is the last element of the
-import path: the package imported as <code>"crypto/rot13"</code>
-should be named <code>rot13</code>.
-The Go tools impose a restriction that package names are unique
-across all packages linked into a single binary, but that restriction
-will be lifted soon.
-</p>
-
-<p>
-Go compiles all the source files in a package at once, so one file
-can refer to constants, variables, types, and functions in another
-file without special arrangement or declarations.
-</p>
-
-<p>
-Writing clean, idiomatic Go code is beyond the scope of this document.
-<a href="effective_go.html">Effective Go</a> is an introduction to
-that topic.
-</p>
-
-<h2 id="Testing">Testing</h2>
-
-<p>
-Go has a lightweight test framework known as <code>gotest</code>.
-You write a test by creating a file with a name ending in <code>_test.go</code>
-that contains functions named <code>TestXXX</code> with signature <code>func (t *testing.T)</code>.
-The test framework runs each such function;
-if the function calls a failure function such as <code>t.Error</code> or <code>t.Fail</code>, the test is considered to have failed.
-The <a href="/cmd/gotest/">gotest command documentation</a>
-and the <a href="/pkg/testing/">testing package documentation</a> give more detail.
-</p>
-
-<p>
-The <code>*_test.go</code> files should not be listed in the <code>Makefile</code>.
-</p>
-
-<p>
-To run the test, run either <code>make test</code> or <code>gotest</code>
-(they are equivalent).
-To run only the tests in a single test file, for instance <code>one_test.go</code>,
-run <code>gotest one_test.go</code>.
-</p>
-
-<p>
-Before sending code out for review, make sure everything
-still works and the dependencies are right:
+You've <a href="code.html">written and tested your code</a>, but
+before sending code out for review, run all the tests for the whole
+tree to make sure the changes don't break other packages or programs:
 </p>
 
 <pre>
@@ -193,10 +38,6 @@ say &ldquo;<code>0 unexpected bugs</code>&rdquo; and must not
 add &ldquo;<code>test output differs</code>.&rdquo;
 </p>
 
-<p>
-Once your new code is tested and working,
-it's time to get it reviewed and submitted.
-</p>
 
 <h2 id="Code_review">Code review</h2>
 
@@ -252,10 +93,15 @@ the Mercurial Queues extension.
 <pre>
 [extensions]
 codereview = YOUR_GO_ROOT/lib/codereview/codereview.py
+
+[ui]
+username = Your Name &lt;you@server.dom&gt;
 </pre>
 
 <p>Replace YOUR_GO_ROOT with the value of <code>$GOROOT</code>.
 The Mercurial configuration file format does not allow environment variable substitution.
+The <code>username</code> information will not be used unless
+you are a committer (see below), but Mercurial complains if it is missing.
 </p>
 
 <h3>Log in to the code review site.</h3>
@@ -264,7 +110,12 @@ The Mercurial configuration file format does not allow environment variable subs
 The code review server uses a Google Account to authenticate.
 (If you can use the account to
 <a href="https://www.google.com/accounts/Login?hl=en&amp;continue=http://www.google.com/">sign in at google.com</a>,
-you can use it to sign in to the code review server.)
+you can use it to sign in to the code review server.
+The email address you use on the Code Review site
+will be recorded in the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>
+and in the <a href="/CONTRIBUTORS"><code>CONTRIBUTORS</code></a> file.
+You can <a href="https://www.google.com/accounts/NewAccount">create a Google Account</a>
+associated with any address where you receive email.
 </p>
 
 <pre>
@@ -369,7 +220,7 @@ After editing, the template might now read:
 # Lines beginning with # are ignored.
 # Multi-line values should be indented.
 
-Reviewer: r, rsc
+Reviewer: golang-dev@googlegroups.com
 CC: math-nuts@swtch.com
 
 Description:
@@ -475,7 +326,7 @@ might turn up:
 <p>
 Mercurial doesn't show it, but suppose the original text that both edits
 started with was 6; you added 1 and the other change added 2,
-so the correct answer might now be 9.  If you edit the section
+so the correct answer might now be 9.  First, edit the section
 to remove the markers and leave the correct code:
 </p>
 
@@ -486,15 +337,19 @@ to remove the markers and leave the correct code:
 </pre>
 
 <p>
-then that is enough.  There is no need to inform Mercurial
-that you have corrected the file.
+Then ask Mercurial to mark the conflict as resolved:
 </p>
+
+<pre>
+$ hg resolve -m flag_test.go
+</pre>
 
 <p>
 If you had been editing the file, say for debugging, but do not
 care to preserve your changes, you can run
 <code>hg revert flag_test.go</code> to abandon your
-changes.
+changes, but you may still need to run
+<code>hg resolve -m</code> to mark the conflict resolved.
 </p>
 
 <h3>Mail the change for review</h3>
@@ -513,7 +368,7 @@ lines blank and then run:
 </p>
 
 <pre>
-$ hg mail -r r,rsc --cc math-nuts@swtch.com 99999
+$ hg mail -r golang-dev@googlegroups.com --cc math-nuts@swtch.com 99999
 </pre>
 
 <p>to achieve the same effect.</p>
@@ -580,7 +435,7 @@ will refuse the change:
 </p>
 
 <pre>
-$ hg submit 12345678
+$ hg submit 99999
 local repository out of date; must sync before submit
 </pre>
 
@@ -609,56 +464,44 @@ when you next run <code>hg sync</code>.
 
 <h3 id="copyright">Copyright</h3>
 
-<p>The standard copyright header for files in the Go tree is:</p>
+<p>Files in the Go repository don't list author names,
+both to avoid clutter and to avoid having to keep the lists up to date.
+Instead, your name will appear in the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>
+and in the <a href="/CONTRIBUTORS"><code>CONTRIBUTORS</code></a> file
+and perhaps the <a href="/AUTHORS"><code>AUTHORS</code></a> file.
+</p>
+
+<p>The <a href="/CONTRIBUTORS"><code>CONTRIBUTORS</code></a> file
+defines who the Go contributors&mdash;the people&mdash;are;
+the <a href="/AUTHORS"><code>AUTHORS</code></a> file, which defines
+who &ldquo;The Go Authors&rdquo;&mdash;the copyright holders&mdash;are.
+The Go developers at Google will update these files when submitting
+your first change.
+In order for them to do that, you need to have completed one of the
+contributor license agreements:
+<ul>
+<li>
+If you are the copyright holder, you will need to agree to
+the <a href="http://code.google.com/legal/individual-cla-v1.0.html">individual
+contributor license agreement</a>, which can be completed online.
+</li>
+<li>
+If your organization is the copyright holder, the organization
+will need to agree to the <a href="http://code.google.com/legal/corporate-cla-v1.0.html">corporate contributor license agreement</a>.
+(If the copyright holder for your code has already completed the
+agreement in connection with another Google open source project,
+it does not need to be completed again.)
+</li>
+</ul>
+
+<p>
+This rigmarole needs to be done only for your first submission.
+</p>
+
+<p>Code that you contribute should use the standard copyright header:</p>
 
 <pre>
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 </pre>
-
-<p>
-Code you contribute should have this header.
-You need to be listed in the
-<a href="/CONTRIBUTORS"><code>CONTRIBUTORS</code></a> file,
-which defines who the Go contributors&mdash;the people&mdash;are;
-and the copyright holder for the code you submit (either you or the
-organization you work for) needs to be listed in the
-<a href="/AUTHORS"><code>AUTHORS</code></a> file, which defines
-who &ldquo;The Go Authors&rdquo;&mdash;the copyright holders&mdash;are.
-</p>
-
-<p>
-When sending your first change list, you need to do two extra things before your
-code can be accepted.
-</p>
-<ol>
-<li>
-If you are the copyright holder, you will need to agree to
-the <a href="http://code.google.com/legal/individual-cla-v1.0.html">individual
-contributor license agreement</a>, which can be completed online;
-if your organization is the copyright holder, the organization
-will need to agree to the <a href="http://code.google.com/legal/corporate-cla-v1.0.html">corporate contributor license agreement</a>.
-(If the copyright holder for your code has already completed the
-agreement in connection with another Google open source project,
-it does not need to be completed again.)
-<li>
-Send mail, or include information in the change list description,
-notifying us how you should be represented in the <code>CONTRIBUTORS</code>
-and <code>AUTHORS</code> files so we can add your information to
-them.  Specifically, tell us either that you've completed the
-individual agreement or tell us the name of your organization once
-it has completed the corporate agreement.  One of the Go developers
-at Google will add you to <code>CONTRIBUTORS</code> and, if
-appropriate, <code>AUTHORS</code> after verifying that the agreement
-has been completed.  We will use the email address you use on
-codereview.appspot.com as the email address in these files.</ol>
-<p>
-This rigamarole needs to be done only for your first submission.
-</p>
-
-<p>
-Once the code is ready to be committed,
-one of the Go developers at Google will approve and submit
-your change.
-</p>
