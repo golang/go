@@ -141,11 +141,11 @@ func (file *File) ReadAt(b []byte, off int64) (n int, err Error) {
 		if m == 0 && e == 0 {
 			return n, EOF
 		}
-		n += m;
 		if e != 0 {
 			err = &PathError{"read", file.name, Errno(e)};
 			break;
 		}
+		n += m;
 		b = b[m:];
 		off += int64(m);
 	}
@@ -186,11 +186,11 @@ func (file *File) WriteAt(b []byte, off int64) (n int, err Error) {
 	}
 	for len(b) > 0 {
 		m, e := syscall.Pwrite(file.fd, b, off);
-		n += m;
 		if e != 0 {
 			err = &PathError{"write", file.name, Errno(e)};
 			break;
 		}
+		n += m;
 		b = b[m:];
 		off += int64(m);
 	}
