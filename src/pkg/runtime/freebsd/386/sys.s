@@ -9,13 +9,13 @@
 #include "386/asm.h"
 	
 TEXT sys_umtx_op(SB),7,$-4
-	MOVL $454, AX
-	INT $0x80
+	MOVL	$454, AX
+	INT	$0x80
 	RET
 
 TEXT thr_new(SB),7,$-4
-	MOVL $455, AX
-	INT $0x80
+	MOVL	$455, AX
+	INT	$0x80
 	RET
 
 TEXT thr_start(SB),7,$0
@@ -33,10 +33,11 @@ TEXT thr_start(SB),7,$0
 	POPL	AX
 	POPL	AX
 	POPAL
-	MOVL BX, g
-	MOVL AX, m
-	CALL mstart(SB)
-	MOVL 0, AX			// crash (not reached)
+	MOVL	BX, g
+	MOVL	AX, m
+	CALL	stackcheck(SB)		// smashes AX
+	CALL	mstart(SB)
+	MOVL	0, AX			// crash (not reached)
 
 // Exit the entire program (like C exit)
 TEXT exit(SB),7,$-4

@@ -153,6 +153,7 @@ TEXT bsdthread_start(SB),7,$0
 	MOVL	AX, g
 	MOVL	DX, m
 	MOVL	BX, m_procid(DX)	// m->procid = thread port (for debuggers)
+	CALL	stackcheck(SB)		// smashes AX
 	CALL	CX	// fn()
 	CALL	exit1(SB)
 	RET

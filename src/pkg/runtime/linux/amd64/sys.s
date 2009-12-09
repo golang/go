@@ -149,6 +149,7 @@ TEXT clone(SB),7,$0
 	MOVQ	SI, SP
 	MOVQ	R8, m
 	MOVQ	R9, g
+	CALL	stackcheck(SB)
 
 	// Initialize m->procid to Linux tid
 	MOVL	$186, AX	// gettid

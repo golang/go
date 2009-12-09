@@ -28,6 +28,7 @@ TEXT thr_new(SB),7,$0
 TEXT thr_start(SB),7,$0
 	MOVQ DI, m
 	MOVQ m_g0(m), g
+	CALL stackcheck(SB)
 	CALL mstart(SB)
 	MOVQ 0, AX			// crash (not reached)
 

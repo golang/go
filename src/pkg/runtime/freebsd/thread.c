@@ -139,8 +139,8 @@ newosproc(M *m, G *g, void *stk, void (*fn)(void))
 
 	param.start_func = thr_start;
 	param.arg = m;
-	param.stack_base = stk;
-	param.stack_size = g->stackbase - g->stackguard + 256;
+	param.stack_base = (int8*)g->stackbase;
+	param.stack_size = (byte*)stk - (byte*)g->stackbase;
 	param.child_tid = (intptr*)&m->procid;
 	param.parent_tid = nil;
 	param.tls_base = (int8*)&m->tls[0];

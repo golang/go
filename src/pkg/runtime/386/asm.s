@@ -323,6 +323,17 @@ TEXT	runcgo(SB),7,$16
 	MOVL	4(SP), SP
 	RET
 
+// check that SP is in range [g->stackbase, g->stackguard)
+TEXT stackcheck(SB), 7, $0
+	MOVL g, AX
+	CMPL g_stackbase(AX), SP
+	JHI 2(PC)
+	INT $3
+	CMPL SP, g_stackguard(AX)
+	JHI 2(PC)
+	INT $3
+	RET
+
 
 GLOBL m0(SB), $1024
 GLOBL g0(SB), $1024
