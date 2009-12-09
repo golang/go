@@ -11,7 +11,7 @@
 #include "amd64/asm.h"
 
 // Exit the entire program (like C exit)
-TEXT	exit(SB),7,$-8
+TEXT	exit(SB),7,$0
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$(0x2000000+1), AX	// syscall entry
 	SYSCALL
@@ -20,14 +20,14 @@ TEXT	exit(SB),7,$-8
 
 // Exit this OS thread (like pthread_exit, which eventually
 // calls __bsdthread_terminate).
-TEXT	exit1(SB),7,$-8
+TEXT	exit1(SB),7,$0
 	MOVL	8(SP), DI		// arg 1 exit status
 	MOVL	$(0x2000000+361), AX	// syscall entry
 	SYSCALL
 	CALL	notok(SB)
 	RET
 
-TEXT	write(SB),7,$-8
+TEXT	write(SB),7,$0
 	MOVL	8(SP), DI		// arg 1 fd
 	MOVQ	16(SP), SI		// arg 2 buf
 	MOVL	24(SP), DX		// arg 3 count
@@ -37,7 +37,7 @@ TEXT	write(SB),7,$-8
 	CALL	notok(SB)
 	RET
 
-TEXT	sigaction(SB),7,$-8
+TEXT	sigaction(SB),7,$0
 	MOVL	8(SP), DI		// arg 1 sig
 	MOVQ	16(SP), SI		// arg 2 act
 	MOVQ	24(SP), DX		// arg 3 oact
@@ -63,7 +63,7 @@ TEXT sigtramp(SB),7,$40
 	SYSCALL
 	INT $3	// not reached
 
-TEXT	runtime·mmap(SB),7,$-8
+TEXT	runtime·mmap(SB),7,$0
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVL	16(SP), SI		// arg 2 len
 	MOVL	20(SP), DX		// arg 3 prot
@@ -76,12 +76,12 @@ TEXT	runtime·mmap(SB),7,$-8
 	CALL	notok(SB)
 	RET
 
-TEXT	notok(SB),7,$-8
+TEXT	notok(SB),7,$0
 	MOVL	$0xf1, BP
 	MOVQ	BP, (BP)
 	RET
 
-TEXT	runtime·memclr(SB),7,$-8
+TEXT	runtime·memclr(SB),7,$0
 	MOVQ	8(SP), DI		// arg 1 addr
 	MOVL	16(SP), CX		// arg 2 count
 	ADDL	$7, CX
@@ -103,7 +103,7 @@ TEXT	runtime·setcallerpc+0(SB),7,$0
 	MOVQ	BX, -8(AX)		// set calling pc
 	RET
 
-TEXT sigaltstack(SB),7,$-8
+TEXT sigaltstack(SB),7,$0
 	MOVQ	new+8(SP), DI
 	MOVQ	old+16(SP), SI
 	MOVQ	$(0x2000000+53), AX
@@ -113,7 +113,7 @@ TEXT sigaltstack(SB),7,$-8
 	RET
 
 // void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
-TEXT bsdthread_create(SB),7,$-8
+TEXT bsdthread_create(SB),7,$0
 	// Set up arguments to bsdthread_create system call.
 	// The ones in quotes pass through to the thread callback
 	// uninterpreted, so we can put whatever we want there.
@@ -139,9 +139,11 @@ TEXT bsdthread_create(SB),7,$-8
 //	R8 = stack
 //	R9 = flags (= 0)
 //	SP = stack - C_64_REDZONE_LEN (= stack - 128)
-TEXT bsdthread_start(SB),7,$-8
+TEXT bsdthread_start(SB),7,$0
+	MOVQ	R8, SP		// empirically, SP is very wrong but R8 is right
 	MOVQ	CX, m
 	MOVQ	m_g0(m), g
+	CALL	stackcheck(SB)
 	MOVQ	SI, m_procid(m)	// thread port is m->procid
 	CALL	DX	// fn
 	CALL	exit1(SB)
@@ -150,7 +152,7 @@ TEXT bsdthread_start(SB),7,$-8
 // void bsdthread_register(void)
 // registers callbacks for threadstart (see bsdthread_create above
 // and wqthread and pthsize (not used).  returns 0 on success.
-TEXT bsdthread_register(SB),7,$-8
+TEXT bsdthread_register(SB),7,$0
 	MOVQ	$bsdthread_start(SB), DI	// threadstart
 	MOVQ	$0, SI	// wqthread, not used by us
 	MOVQ	$0, DX	// pthsize, not used by us
