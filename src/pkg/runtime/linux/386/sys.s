@@ -152,6 +152,7 @@ TEXT clone(SB),7,$0
 	MOVL	DX, g
 	MOVL	BX, m
 
+	CALL	stackcheck(SB)	// smashes AX
 	MOVL	0(DX), DX	// paranoia; check they are not nil
 	MOVL	0(BX), BX
 

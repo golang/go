@@ -301,3 +301,13 @@ TEXT runcgo(SB),7,$32
 	MOVQ	8(SP), SP
 	RET
 
+// check that SP is in range [g->stackbase, g->stackguard)
+TEXT stackcheck(SB), 7, $0
+	CMPQ g_stackbase(g), SP
+	JHI 2(PC)
+	INT $3
+	CMPQ SP, g_stackguard(g)
+	JHI 2(PC)
+	INT $3
+	RET
+
