@@ -177,6 +177,7 @@ type marshalTest struct {
 
 var marshalTests = []marshalTest{
 	// basic string
+	marshalTest{nil, "null"},
 	marshalTest{true, "true"},
 	marshalTest{false, "false"},
 	marshalTest{123, "123"},
@@ -185,11 +186,14 @@ var marshalTests = []marshalTest{
 	marshalTest{"teststring", `"teststring"`},
 	marshalTest{[4]int{1, 2, 3, 4}, "[1,2,3,4]"},
 	marshalTest{[]int{1, 2, 3, 4}, "[1,2,3,4]"},
+	marshalTest{[]interface{}{nil}, "[null]"},
 	marshalTest{[][]int{[]int{1, 2}, []int{3, 4}}, "[[1,2],[3,4]]"},
 	marshalTest{map[string]string{"one": "one"}, `{"one":"one"}`},
 	marshalTest{map[string]int{"one": 1}, `{"one":1}`},
+	marshalTest{map[string]interface{}{"null": nil}, `{"null":null}`},
 	marshalTest{struct{}{}, "{}"},
 	marshalTest{struct{ a int }{1}, `{"a":1}`},
+	marshalTest{struct{ a interface{} }{nil}, `{"a":null}`},
 	marshalTest{struct {
 		a	int;
 		b	string;
