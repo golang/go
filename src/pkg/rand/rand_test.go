@@ -312,3 +312,18 @@ func TestExpTables(t *testing.T) {
 		t.Errorf("fe disagrees at index %v; %v != %v\n", i, fe[i], testFe[i])
 	}
 }
+
+// Benchmarks
+
+func BenchmarkInt63Threadsafe(b *testing.B) {
+	for n := b.N; n > 0; n-- {
+		Int63()
+	}
+}
+
+func BenchmarkInt63Unthreadsafe(b *testing.B) {
+	r := New(NewSource(1));
+	for n := b.N; n > 0; n-- {
+		r.Int63()
+	}
+}
