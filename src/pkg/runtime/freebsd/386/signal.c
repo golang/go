@@ -92,9 +92,9 @@ initsig(void)
 	for(i = 0; i < NSIG; i++) {
 		if(sigtab[i].flags) {
 			if(sigtab[i].flags & SigCatch)
-				sa.__sigaction_u.__sa_handler = (void*) sigtramp;
+				sa.__sigaction_u.__sa_sigaction = (void*) sigtramp;
 			else
-				sa.__sigaction_u.__sa_handler = (void*) sigignore;
+				sa.__sigaction_u.__sa_sigaction = (void*) sigignore;
 
 			if(sigtab[i].flags & SigRestart)
 				sa.sa_flags |= SA_RESTART;
