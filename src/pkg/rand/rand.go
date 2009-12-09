@@ -5,6 +5,8 @@
 // Package rand implements pseudo-random number generators.
 package rand
 
+import "sync"
+
 // A Source represents a source of uniformly-distributed
 // pseudo-random int64 values in the range [0, 1<<63).
 type Source interface {
@@ -91,7 +93,7 @@ func (r *Rand) Perm(n int) []int {
  * Top-level convenience functions
  */
 
-var globalRand = New(NewSource(1))
+var globalRand = New(&lockedSource{src: NewSource(1)})
 
 // Seed uses the provided seed value to initialize the generator to a deterministic state.
 func Seed(seed int64)	{ globalRand.Seed(seed) }
@@ -148,3 +150,21 @@ func NormFloat64() float64	{ return globalRand.NormFloat64() }
 //  sample = ExpFloat64() / desiredRateParameter
 //
 func ExpFloat64() float64	{ return globalRand.ExpFloat64() }
+
+type lockedSource struct {
+	lk	sync.Mutex;
+	src	Source;
+}
+
+func (r *lockedSource) Int63() (n int64) {
+	r.lk.Lock();
+	n = r.src.Int63();
+	r.lk.Unlock();
+	return;
+}
+
+func (r *lockedSource) Seed(seed int64) {
+	r.lk.Lock();
+	r.src.Seed(seed);
+	r.lk.Unlock();
+}
