@@ -274,7 +274,7 @@ int
 Sconv(Fmt *fp)
 {
 	int i, c;
-	char str[30], *p, *a;
+	char str[100], *p, *a;
 
 	a = va_arg(fp->args, char*);
 	p = str;
