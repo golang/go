@@ -225,13 +225,13 @@ func TestScan(t *testing.T) {
 			}
 			checkPos(t, lit, pos, epos);
 			if tok != e.tok {
-				t.Errorf("bad token for %s: got %s, expected %s", lit, tok.String(), e.tok.String())
+				t.Errorf("bad token for %q: got %s, expected %s", lit, tok.String(), e.tok.String())
 			}
 			if e.tok.IsLiteral() && lit != e.lit {
-				t.Errorf("bad literal for %s: got %s, expected %s", lit, lit, e.lit)
+				t.Errorf("bad literal for %q: got %q, expected %q", lit, lit, e.lit)
 			}
 			if tokenclass(tok) != e.class {
-				t.Errorf("bad class for %s: got %d, expected %d", lit, tokenclass(tok), e.class)
+				t.Errorf("bad class for %q: got %d, expected %d", lit, tokenclass(tok), e.class)
 			}
 			epos.Offset += len(lit) + len(whitespace);
 			epos.Line += NewlineCount(lit) + whitespace_linecount;
@@ -245,6 +245,160 @@ func TestScan(t *testing.T) {
 		});
 	if nerrors != 0 {
 		t.Errorf("found %d errors", nerrors)
+	}
+}
+
+
+func getTok(_ token.Position, tok token.Token, _ []byte) token.Token {
+	return tok
+}
+
+
+func checkSemi(t *testing.T, line string, mode uint) {
+	var S Scanner;
+	S.Init("TestSemis", strings.Bytes(line), nil, mode);
+	pos, tok, lit := S.Scan();
+	for tok != token.EOF {
+		if tok == token.ILLEGAL {
+			// next token must be a semicolon
+			offs := pos.Offset + 1;
+			pos, tok, lit = S.Scan();
+			if tok == token.SEMICOLON {
+				if pos.Offset != offs {
+					t.Errorf("bad offset for %q: got %d, expected %d", line, pos.Offset, offs)
+				}
+				if string(lit) != ";" {
+					t.Errorf(`bad literal for %q: got %q, expected ";"`, line, lit)
+				}
+			} else {
+				t.Errorf("bad token for %q: got %s, expected ;", line, tok.String())
+			}
+		} else if tok == token.SEMICOLON {
+			t.Errorf("bad token for %q: got ;, expected no ;", line)
+		}
+		pos, tok, lit = S.Scan();
+	}
+}
+
+
+var lines = []string{
+	// the $ character indicates where a semicolon is expected
+	"",
+	"foo$\n",
+	"123$\n",
+	"1.2$\n",
+	"'x'$\n",
+	`"x"` + "$\n",
+	"`x`$\n",
+
+	"+\n",
+	"-\n",
+	"*\n",
+	"/\n",
+	"%\n",
+
+	"&\n",
+	"|\n",
+	"^\n",
+	"<<\n",
+	">>\n",
+	"&^\n",
+
+	"+=\n",
+	"-=\n",
+	"*=\n",
+	"/=\n",
+	"%=\n",
+
+	"&=\n",
+	"|=\n",
+	"^=\n",
+	"<<=\n",
+	">>=\n",
+	"&^=\n",
+
+	"&&\n",
+	"||\n",
+	"<-\n",
+	"++$\n",
+	"--$\n",
+
+	"==\n",
+	"<\n",
+	">\n",
+	"=\n",
+	"!\n",
+
+	"!=\n",
+	"<=\n",
+	">=\n",
+	":=\n",
+	"...\n",
+
+	"(\n",
+	"[\n",
+	"{\n",
+	",\n",
+	".\n",
+
+	")$\n",
+	"]$\n",
+	"}$\n",
+	"$;\n",
+	":\n",
+
+	"break$\n",
+	"case\n",
+	"chan\n",
+	"const\n",
+	"continue$\n",
+
+	"default\n",
+	"defer\n",
+	"else\n",
+	"fallthrough$\n",
+	"for\n",
+
+	"func\n",
+	"go\n",
+	"goto\n",
+	"if\n",
+	"import\n",
+
+	"interface\n",
+	"map\n",
+	"package\n",
+	"range\n",
+	"return$\n",
+
+	"select\n",
+	"struct\n",
+	"switch\n",
+	"type\n",
+	"var\n",
+
+	"foo$//comment\n",
+	"foo$/*comment*/\n",
+	"foo$/*\n*/",
+	"foo    $// comment\n",
+	"foo    $/*comment*/\n",
+	"foo    $/*\n*/",
+
+	// TODO(gri): These need to insert the semicolon *before* the
+	//            first comment which requires arbitrary far look-
+	//            ahead. Only relevant for gofmt placement of
+	//            comments.
+	"foo    /*comment*/    $\n",
+	"foo    /*0*/ /*1*/ $/*2*/\n",
+}
+
+
+func TestSemis(t *testing.T) {
+	for _, line := range lines {
+		checkSemi(t, line, AllowIllegalChars|InsertSemis)
+	}
+	for _, line := range lines {
+		checkSemi(t, line, AllowIllegalChars|InsertSemis|ScanComments)
 	}
 }
 

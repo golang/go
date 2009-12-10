@@ -29,9 +29,11 @@ type Scanner struct {
 	mode	uint;		// scanning mode
 
 	// scanning state
-	pos	token.Position;	// previous reading position (position before ch)
-	offset	int;		// current reading offset (position after ch)
-	ch	int;		// one char look-ahead
+	pos		token.Position;	// previous reading position (position before ch)
+	offset		int;		// current reading offset (position after ch)
+	ch		int;		// one char look-ahead
+	insertSemi	bool;		// insert a semicolon before next newline
+	pendingComment	token.Position;	// valid if pendingComment.Line > 0
 
 	// public state - ok to modify
 	ErrorCount	int;	// number of errors encountered
@@ -69,6 +71,7 @@ func (S *Scanner) next() {
 const (
 	ScanComments		= 1 << iota;	// return comments as COMMENT tokens
 	AllowIllegalChars;	// do not report an error for illegal chars
+	InsertSemis;		// automatically insert semicolons
 )
 
 
@@ -420,6 +423,8 @@ func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 int, tok2, tok3 token.Toke
 }
 
 
+var semicolon = []byte{';'}
+
 // Scan scans the next token and returns the token position pos,
 // the token tok, and the literal text lit corresponding to the
 // token. The source end is indicated by token.EOF.
@@ -432,40 +437,63 @@ func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 int, tok2, tok3 token.Toke
 // of the error handler, if there was one installed.
 //
 func (S *Scanner) Scan() (pos token.Position, tok token.Token, lit []byte) {
-scan_again:
+	if S.pendingComment.Line > 0 {
+		// "consume" pending comment
+		S.pos = S.pendingComment;
+		S.offset = S.pos.Offset + 1;
+		S.ch = '/';
+		S.pendingComment.Line = 0;
+	}
+
+scanAgain:
 	// skip white space
-	for S.ch == ' ' || S.ch == '\t' || S.ch == '\n' || S.ch == '\r' {
+	for S.ch == ' ' || S.ch == '\t' || S.ch == '\n' && !S.insertSemi || S.ch == '\r' {
 		S.next()
 	}
 
 	// current token start
+	insertSemi := false;
 	pos, tok = S.pos, token.ILLEGAL;
 
 	// determine token value
 	switch ch := S.ch; {
 	case isLetter(ch):
-		tok = S.scanIdentifier()
+		tok = S.scanIdentifier();
+		switch tok {
+		case token.IDENT, token.BREAK, token.CONTINUE, token.FALLTHROUGH, token.RETURN:
+			insertSemi = true
+		default:
+			insertSemi = false
+		}
 	case digitVal(ch) < 10:
-		tok = S.scanNumber(false)
+		insertSemi = true;
+		tok = S.scanNumber(false);
 	default:
 		S.next();	// always make progress
 		switch ch {
 		case -1:
 			tok = token.EOF
+		case '\n':
+			S.insertSemi = false;
+			return pos, token.SEMICOLON, semicolon;
 		case '"':
+			insertSemi = true;
 			tok = token.STRING;
 			S.scanString(pos);
 		case '\'':
+			insertSemi = true;
 			tok = token.CHAR;
 			S.scanChar(pos);
 		case '`':
+			insertSemi = true;
 			tok = token.STRING;
 			S.scanRawString(pos);
 		case ':':
 			tok = S.switch2(token.COLON, token.DEFINE)
 		case '.':
 			if digitVal(S.ch) < 10 {
-				tok = S.scanNumber(true)
+				insertSemi = true;
+				tok = S.scanNumber(true);
 			} else if S.ch == '.' {
 				S.next();
 				if S.ch == '.' {
@@ -482,27 +510,57 @@ scan_again:
 		case '(':
 			tok = token.LPAREN
 		case ')':
-			tok = token.RPAREN
+			insertSemi = true;
+			tok = token.RPAREN;
 		case '[':
 			tok = token.LBRACK
 		case ']':
-			tok = token.RBRACK
+			insertSemi = true;
+			tok = token.RBRACK;
 		case '{':
 			tok = token.LBRACE
 		case '}':
-			tok = token.RBRACE
+			insertSemi = true;
+			tok = token.RBRACE;
 		case '+':
-			tok = S.switch3(token.ADD, token.ADD_ASSIGN, '+', token.INC)
+			tok = S.switch3(token.ADD, token.ADD_ASSIGN, '+', token.INC);
+			if tok == token.INC {
+				insertSemi = true
+			}
 		case '-':
-			tok = S.switch3(token.SUB, token.SUB_ASSIGN, '-', token.DEC)
+			tok = S.switch3(token.SUB, token.SUB_ASSIGN, '-', token.DEC);
+			if tok == token.DEC {
+				insertSemi = true
+			}
 		case '*':
 			tok = S.switch2(token.MUL, token.MUL_ASSIGN)
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
-				S.scanComment(pos);
-				tok = token.COMMENT;
-				if S.mode&ScanComments == 0 {
-					goto scan_again
+				// comment
+				newline := false;
+				if S.insertSemi {
+					if S.ch == '/' {
+						// a line comment acts like a newline
+						newline = true
+					} else {
+						// a general comment may act like a newline
+						S.scanComment(pos);
+						newline = pos.Line < S.pos.Line;
+					}
+				} else {
+					S.scanComment(pos)
+				}
+				if newline {
+					// insert a semicolon and retain pending comment
+					S.insertSemi = false;
+					S.pendingComment = pos;
+					return pos, token.SEMICOLON, semicolon;
+				} else if S.mode&ScanComments == 0 {
+					// skip comment
+					goto scanAgain
+				} else {
+					insertSemi = S.insertSemi;	// preserve insertSemi info
+					tok = token.COMMENT;
 				}
 			} else {
 				tok = S.switch2(token.QUO, token.QUO_ASSIGN)
@@ -537,9 +595,13 @@ scan_again:
 			if S.mode&AllowIllegalChars == 0 {
 				S.error(pos, "illegal character "+charString(ch))
 			}
+			insertSemi = S.insertSemi;	// preserve insertSemi info
 		}
 	}
 
+	if S.mode&InsertSemis != 0 {
+		S.insertSemi = insertSemi
+	}
 	return pos, tok, S.src[pos.Offset:S.pos.Offset];
 }
 
