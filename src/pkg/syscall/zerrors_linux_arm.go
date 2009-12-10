@@ -153,6 +153,9 @@ const (
 	SIGIO		= 0x1d;
 	SIGQUIT		= 0x3;
 	SIGCLD		= 0x11;
+	SHUT_RD		= 0;
+	SHUT_RDWR	= 0x2;
+	SHUT_WR		= 0x1;
 	SIGABRT		= 0x6;
 	SIGTRAP		= 0x5;
 	SIGVTALRM	= 0x1a;
