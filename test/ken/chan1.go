@@ -22,8 +22,7 @@ r(c chan int, m int) {
 				panicln("r",
 					"m=", m,
 					"r=", r,
-					"h=", h[r],
-				);
+					"h=", h[r]);
 			}
 			h[r] = 2;
 		}
