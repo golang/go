@@ -127,7 +127,11 @@ func (p *printer) stringList(list []*ast.BasicLit, multiLine *bool) {
 	for i, x := range list {
 		xlist[i] = x
 	}
-	p.exprList(noPos, xlist, 1, stringListMode, multiLine);
+	mode := stringListMode;
+	if p.Mode&NoStringConcat != 0 {
+		mode |= plusSep
+	}
+	p.exprList(noPos, xlist, 1, mode, multiLine);
 }
 
 
@@ -136,6 +140,7 @@ type exprListMode uint
 const (
 	blankStart	exprListMode	= 1 << iota;	// print a blank before a non-empty list
 	blankEnd;			// print a blank after a non-empty list
+	plusSep;			// elements are separared by + operators
 	commaSep;			// elements are separated by commas
 	commaTerm;			// elements are terminated by comma
 	noIndent;			// no extra indentation in multi-line lists
@@ -165,6 +170,9 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 		// all list entries on a single line
 		for i, x := range list {
 			if i > 0 {
+				if mode&plusSep != 0 {
+					p.print(blank, token.ADD)
+				}
 				if mode&commaSep != 0 {
 					p.print(token.COMMA)
 				}
@@ -197,6 +205,9 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
 		prev := line;
 		line = x.Pos().Line;
 		if i > 0 {
+			if mode&plusSep != 0 {
+				p.print(blank, token.ADD)
+			}
 			if mode&commaSep != 0 {
 				p.print(token.COMMA)
 			}
@@ -374,7 +385,9 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 				p.expr(&ast.StringList{f.Tag}, &ml);
 				extraTabs = 0;
 			}
-			p.print(token.SEMICOLON);
+			if p.Mode&NoSemis == 0 {
+				p.print(token.SEMICOLON)
+			}
 			if f.Comment != nil {
 				for ; extraTabs > 0; extraTabs-- {
 					p.print(vtab)
@@ -407,7 +420,9 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
 				// embedded interface
 				p.expr(f.Type, &ml)
 			}
-			p.print(token.SEMICOLON);
+			if p.Mode&NoSemis == 0 {
+				p.print(token.SEMICOLON)
+			}
 			p.lineComment(f.Comment);
 		}
 		if isIncomplete {
@@ -818,7 +833,7 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int) {
 		// in those cases each clause is a new section
 		p.linebreak(s.Pos().Line, 1, maxStmtNewlines, ignore, i == 0 || _indent == 0 || multiLine);
 		multiLine = false;
-		if !p.stmt(s, &multiLine) && (!fewerSemis || len(list) > 1) {
+		if !p.stmt(s, &multiLine) && (!fewerSemis || len(list) > 1) && p.Mode&NoSemis == 0 {
 			p.print(token.SEMICOLON)
 		}
 	}
@@ -1144,7 +1159,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 		panic("unreachable")
 	}
 
-	if context == inGroup || context == inStmtList && !optSemi {
+	if (context == inGroup || context == inStmtList && !optSemi) && p.Mode&NoSemis == 0 {
 		p.print(token.SEMICOLON)
 	}
 
