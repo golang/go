@@ -15,7 +15,7 @@ var	i1	I1;
 var	i2	I2;
 
 func
-main()
-{
+main() {
+
 	i2 = e().(I2);	// bug089.go:16: fatal error: agen_inter i2i
 }

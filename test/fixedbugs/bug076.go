@@ -7,12 +7,12 @@
 package main
 
 func f() {
-exit:
+exit: ;
 }
 
 
 func main() {
-exit:  // this should be legal (labels not properly scoped?)
+exit: ; // this should be legal (labels not properly scoped?)
 }
 
 /*
