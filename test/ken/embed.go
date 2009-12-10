@@ -8,8 +8,7 @@ package main
 
 
 type
-I	interface
-{
+I	interface {
 	test1() int;
 	test2() int;
 	test3() int;
@@ -24,20 +23,15 @@ I	interface
  ******/
 
 type
-SubpSubp	struct
-{
+SubpSubp	struct {
 	a7	int;
 	a	int;
 }
-func (p *SubpSubp)
-test7() int
-{
+func (p *SubpSubp) test7() int {
 	if p.a != p.a7 { panicln("SubpSubp", p, p.a7) }
 	return p.a
 }
-func (p *SubpSubp)
-testx()
-{
+func (p *SubpSubp) testx() {
 	println("SubpSubp", p, p.a7);
 }
 
@@ -46,21 +40,16 @@ testx()
  ******/
 
 type
-SubpSub	struct
-{
+SubpSub	struct {
 	a6	int;
 		SubpSubp;
 	a	int;
 }
-func (p *SubpSub)
-test6() int
-{
+func (p *SubpSub) test6() int {
 	if p.a != p.a6 { panicln("SubpSub", p, p.a6) }
 	return p.a
 }
-func (p *SubpSub)
-testx()
-{
+func (p *SubpSub) testx() {
 	println("SubpSub", p, p.a6);
 }
 
@@ -69,14 +58,11 @@ testx()
  ******/
 
 type
-SubSubp	struct
-{
+SubSubp	struct {
 	a5	int;
 	a	int;
 }
-func (p *SubSubp)
-test5() int
-{
+func (p *SubSubp) test5() int {
 	if p.a != p.a5 { panicln("SubpSub", p, p.a5) }
 	return p.a
 }
@@ -86,14 +72,11 @@ test5() int
  ******/
 
 type
-SubSub	struct
-{
+SubSub	struct {
 	a4	int;
 	a	int;
 }
-func (p *SubSub)
-test4() int
-{
+func (p *SubSub) test4() int {
 	if p.a != p.a4 { panicln("SubpSub", p, p.a4) }
 	return p.a
 }
@@ -103,16 +86,13 @@ test4() int
  ******/
 
 type
-Subp	struct
-{
+Subp	struct {
 	a3	int;
 		*SubpSubp;
 		SubpSub;
 	a	int;
 }
-func (p *Subp)
-test3() int
-{
+func (p *Subp) test3() int {
 	if p.a != p.a3 { panicln("SubpSub", p, p.a3) }
 	return p.a
 }
@@ -129,9 +109,7 @@ Sub	struct
 		SubSub;
 	a	int;
 }
-func (p *Sub)
-test2() int
-{
+func (p *Sub) test2() int {
 	if p.a != p.a2 { panicln("SubpSub", p, p.a2) }
 	return p.a
 }
@@ -141,16 +119,13 @@ test2() int
  ******/
 
 type
-S	struct
-{
+S	struct {
 	a1	int;
 		Sub;
 		*Subp;
 	a	int;
 }
-func (p *S)
-test1() int
-{
+func (p *S) test1() int {
 	if p.a != p.a1 { panicln("SubpSub", p, p.a1) }
 	return p.a
 }
@@ -160,8 +135,7 @@ test1() int
  ******/
 
 func
-main()
-{
+main() {
 	var i I;
 	var s *S;
 

@@ -7,21 +7,17 @@
 
 package main
 
-type C struct
-{
+type C struct {
 	a	int;
 	x	func(p *C)int;
 }
 
-func
-(this *C) f()int
-{
+func (this *C) f()int {
 	return this.a;
 }
 
 func
-main()
-{
+main() {
 	var v int;
 	var c *C;
 
@@ -39,9 +35,7 @@ main()
 	if v != 6 { panic(v); }
 }
 
-func
-g(p *C)int
-{
+func g(p *C)int {
 	var v int;
 
 	v = p.a;

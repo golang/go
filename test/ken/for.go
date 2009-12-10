@@ -8,8 +8,7 @@
 package main
 
 func
-main()
-{
+main() {
 	var t,i int;
 
 	for i=0; i<100; i=i+1 {

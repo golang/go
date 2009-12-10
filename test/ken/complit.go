@@ -14,8 +14,7 @@ type	SC	struct{ a,b,c []int };
 type	SM	struct{ a,b,c M };
 
 func
-main()
-{
+main() {
 	test("s.a", s.a);
 	test("s.b", s.b);
 	test("s.c", s.c);
@@ -79,8 +78,7 @@ main()
 var	ref	= 0;
 
 func
-test(xs string, x int)
-{
+test(xs string, x int) {
 
 	if ref >= len(answers) {
 		println(xs, x);
@@ -119,8 +117,7 @@ var	ms	= map[int]S{0:S{5101,5102,5103},1:S{5104,5105,5106},2:S{5107,5108,5109}}
 var	mc	= map[int][]int{0:[]int{5201,5202,5203}, 1:[]int{5204,5205,5206}, 2:[]int{5207,5208,5209}}
 var	mm	= map[int]M{0:M{0:5301,1:5302,2:5303}, 1:M{0:5304,1:5305,2:5306}, 2:M{0:5307,1:5308,2:5309}}
 
-var	answers	= [...]int
-{
+var	answers	= [...]int {
 	// s
 	1101, 1102, 1103,
 

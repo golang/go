@@ -6,15 +6,13 @@
 
 package main
 
-type s struct
-{
+type s struct {
 	a	bool;
 	b	bool;
 }
 
 func
-main()
-{
+main() {
 	var a,b bool;
 
 	a = true;

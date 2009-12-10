@@ -12,8 +12,7 @@ import "runtime"
 var	randx	int;
 
 func
-nrand(n int) int
-{
+nrand(n int) int {
 	randx += 10007;
 	if randx >= 1000000 {
 		randx -= 1000000;
@@ -21,9 +20,7 @@ nrand(n int) int
 	return randx%n;
 }
 
-type	Chan
-struct
-{
+type	Chan struct {
 	sc,rc	chan int;	// send and recv chan
 	sv,rv	int;		// send and recv seq
 }
@@ -38,14 +35,12 @@ var
 )
 
 func
-init()
-{
+init() {
 	nc = new(Chan);
 }
 
 func
-mkchan(c,n int) []*Chan
-{
+mkchan(c,n int) []*Chan {
 	ca := make([]*Chan, n);
 	for i:=0; i<n; i++ {
 		cval = cval+100;
@@ -60,8 +55,7 @@ mkchan(c,n int) []*Chan
 }
 
 func
-expect(v, v0 int) (newv int)
-{
+expect(v, v0 int) (newv int) {
 	if v == v0 {
 		if v%100 == 75 {
 			return end;
@@ -71,9 +65,7 @@ expect(v, v0 int) (newv int)
 	panic("got ", v, " expected ", v0+1, "\n");
 }
 
-func (c *Chan)
-send() bool
-{
+func (c *Chan) send() bool {
 //	print("send ", c.sv, "\n");
 	tots++;
 	c.sv = expect(c.sv, c.sv);
@@ -85,8 +77,7 @@ send() bool
 }
 
 func
-send(c *Chan)
-{
+send(c *Chan) {
 	nproc++;	// total goroutines running
 	for {
 		for r:=nrand(10); r>=0; r-- {
@@ -100,9 +91,7 @@ send(c *Chan)
 	nproc--;
 }
 
-func (c *Chan)
-recv(v int) bool
-{
+func (c *Chan) recv(v int) bool {
 //	print("recv ", v, "\n");
 	totr++;
 	c.rv = expect(c.rv, v);
@@ -114,8 +103,7 @@ recv(v int) bool
 }
 
 func
-recv(c *Chan)
-{
+recv(c *Chan) {
 	var v int;
 
 	nproc++;	// total goroutines running
@@ -132,8 +120,7 @@ recv(c *Chan)
 }
 
 func
-sel(r0,r1,r2,r3, s0,s1,s2,s3 *Chan)
-{
+sel(r0,r1,r2,r3, s0,s1,s2,s3 *Chan) {
 	var v int;
 
 	nproc++;	// total goroutines running
@@ -196,16 +183,14 @@ sel(r0,r1,r2,r3, s0,s1,s2,s3 *Chan)
 
 // direct send to direct recv
 func
-test1(c *Chan)
-{
+test1(c *Chan) {
 	go send(c);
 	go recv(c);
 }
 
 // direct send to select recv
 func
-test2(c int)
-{
+test2(c int) {
 	ca := mkchan(c,4);
 
 	go send(ca[0]);
@@ -218,8 +203,7 @@ test2(c int)
 
 // select send to direct recv
 func
-test3(c int)
-{
+test3(c int) {
 	ca := mkchan(c,4);
 
 	go recv(ca[0]);
@@ -232,8 +216,7 @@ test3(c int)
 
 // select send to select recv
 func
-test4(c int)
-{
+test4(c int) {
 	ca := mkchan(c,4);
 
 	go sel(nc,nc,nc,nc, ca[0],ca[1],ca[2],ca[3]);
@@ -241,8 +224,7 @@ test4(c int)
 }
 
 func
-test5(c int)
-{
+test5(c int) {
 	ca := mkchan(c,8);
 
 	go sel(ca[4],ca[5],ca[6],ca[7], ca[0],ca[1],ca[2],ca[3]);
@@ -250,8 +232,7 @@ test5(c int)
 }
 
 func
-test6(c int)
-{
+test6(c int) {
 	ca := mkchan(c,12);
 
 	go send(ca[4]);
@@ -270,8 +251,7 @@ test6(c int)
 
 // wait for outstanding tests to finish
 func
-wait()
-{
+wait() {
 	runtime.Gosched();
 	for nproc != 0 {
 		runtime.Gosched();
@@ -280,8 +260,7 @@ wait()
 
 // run all tests with specified buffer size
 func
-tests(c int)
-{
+tests(c int) {
 	ca := mkchan(c,4);
 	test1(ca[0]);
 	test1(ca[1]);
@@ -307,19 +286,18 @@ tests(c int)
 
 // run all test with 4 buffser sizes
 func
-main()
-{
+main() {
 
 	tests(0);
 	tests(1);
 	tests(10);
 	tests(100);
 
-	t :=	4			// buffer sizes
-		* (	4*4		// tests 1,2,3,4 channels
-			+ 8		// test 5 channels
-			+ 12		// test 6 channels
-		) * 76;			// sends/recvs on a channel
+	t :=	4 *			// buffer sizes
+		(	4*4 +		// tests 1,2,3,4 channels
+			8 +		// test 5 channels
+			12 ) *		// test 6 channels
+		76;			// sends/recvs on a channel
 
 	if tots != t || totr != t {
 		print("tots=", tots, " totr=", totr, " sb=", t, "\n");

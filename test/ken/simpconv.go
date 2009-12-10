@@ -10,8 +10,7 @@ type vlong int64;
 type short int16;
 
 func
-main()
-{
+main() {
 	s1 := vlong(0);
 	for i:=short(0); i<10; i=i+1 {
 		s1 = s1 + vlong(i);

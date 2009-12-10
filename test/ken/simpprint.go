@@ -8,7 +8,6 @@
 package main
 
 func
-main()
-{
+main() {
 	print("hello world\n");
 }

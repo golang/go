@@ -26,8 +26,7 @@ const
 )
 
 func
-main()
-{
+main() {
 	/* ideals */
 	if n1/d1 != q1 || n1%d1 != r1 {
 		panicln("ideal-1", n1, d1, n1/d1, n1%d1);

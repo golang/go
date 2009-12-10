@@ -14,8 +14,7 @@ const	W	= 2;		// channel buffering
 var	h	[N]int;		// marking of send/recv
 
 func
-r(c chan int, m int)
-{
+r(c chan int, m int) {
 	for {
 		select {
 		case r := <- c:
@@ -23,7 +22,7 @@ r(c chan int, m int)
 				panicln("r",
 					"m=", m,
 					"r=", r,
-					"h=", h[r]
+					"h=", h[r],
 				);
 			}
 			h[r] = 2;
@@ -32,8 +31,7 @@ r(c chan int, m int)
 }
 
 func
-s(c chan int)
-{
+s(c chan int) {
 	for n:=0; n<N; n++ {
 		r := n;
 		if h[r] != 0 {
@@ -45,8 +43,7 @@ s(c chan int)
 }
 
 func
-main()
-{
+main() {
 	c := make(chan int, W);
 	for m:=0; m<M; m++ {
 		go r(c, m);

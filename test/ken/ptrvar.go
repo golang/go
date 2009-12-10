@@ -12,8 +12,7 @@ var	g1	x2;
 var	g2	struct { a,b,c int; d x2; };
 
 func
-main()
-{
+main() {
 	var x int;
 	var s1 *x2;
 	var s2 *struct { a,b,c int; d x2; };

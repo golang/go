@@ -7,8 +7,7 @@
 package	main
 
 func
-setpd(a []int)
-{
+setpd(a []int) {
 //	print("setpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
 	for i:=0; i<len(a); i++ {
 		a[i] = i;
@@ -16,8 +15,7 @@ setpd(a []int)
 }
 
 func
-sumpd(a []int) int
-{
+sumpd(a []int) int {
 //	print("sumpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
 	t := 0;
 	for i:=0; i<len(a); i++ {
@@ -28,8 +26,7 @@ sumpd(a []int) int
 }
 
 func
-setpf(a *[20]int)
-{
+setpf(a *[20]int) {
 //	print("setpf a=", a, " len=", len(a), " cap=", cap(a), "\n");
 	for i:=0; i<len(a); i++ {
 		a[i] = i;
@@ -37,8 +34,7 @@ setpf(a *[20]int)
 }
 
 func
-sumpf(a *[20]int) int
-{
+sumpf(a *[20]int) int {
 //	print("sumpf a=", a, " len=", len(a), " cap=", cap(a), "\n");
 	t := 0;
 	for i:=0; i<len(a); i++ {
@@ -49,8 +45,7 @@ sumpf(a *[20]int) int
 }
 
 func
-res(t int, lb, hb int)
-{
+res(t int, lb, hb int) {
 	sb := (hb-lb)*(hb+lb-1)/2;
 	if t != sb {
 		print(	"lb=", lb,
@@ -64,8 +59,7 @@ res(t int, lb, hb int)
 
 // call ptr dynamic with ptr dynamic
 func
-testpdpd()
-{
+testpdpd() {
 	a := make([]int, 10, 100);
 	if len(a) != 10 && cap(a) != 100 {
 		panic("len and cap from new: ", len(a), " ", cap(a), "\n");
@@ -83,8 +77,7 @@ testpdpd()
 
 // call ptr fixed with ptr fixed
 func
-testpfpf()
-{
+testpfpf() {
 	var a [20]int;
 
 	setpf(&a);
@@ -93,8 +86,7 @@ testpfpf()
 
 // call ptr dynamic with ptr fixed from new
 func
-testpdpf1()
-{
+testpdpf1() {
 	a := new([40]int);
 	setpd(a);
 	res(sumpd(a), 0, 40);
@@ -105,8 +97,7 @@ testpdpf1()
 
 // call ptr dynamic with ptr fixed from var
 func
-testpdpf2()
-{
+testpdpf2() {
 	var a [80]int;
 
 	setpd(&a);
@@ -115,8 +106,7 @@ testpdpf2()
 
 // generate bounds error with ptr dynamic
 func
-testpdfault()
-{
+testpdfault() {
 	a := make([]int, 100);
 
 	print("good\n");
@@ -130,8 +120,7 @@ testpdfault()
 
 // generate bounds error with ptr fixed
 func
-testfdfault()
-{
+testfdfault() {
 	var a [80]int;
 
 	print("good\n");
@@ -145,8 +134,7 @@ testfdfault()
 }
 
 func
-main()
-{
+main() {
 	testpdpd();
 	testpfpf();
 	testpdpf1();

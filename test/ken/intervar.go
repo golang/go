@@ -6,58 +6,47 @@
 
 package main
 
-type	Iputs	interface
-{
+type	Iputs	interface {
 	puts	(s string);
 }
 
 // ---------
 
-type	Print	struct
-{
+type	Print	struct {
 	whoami	int;
 	put	Iputs;
 }
 
-func (p *Print)
-dop()
-{
+func (p *Print) dop() {
 	print(" print ", p.whoami);
 	p.put.puts("abc");
 }
 
 // ---------
 
-type	Bio	struct
-{
+type	Bio	struct {
 	whoami	int;
 	put	Iputs;
 }
 
-func (b *Bio)
-puts(s string)
-{
+func (b *Bio) puts(s string) {
 	print(" bio ", b.whoami);
 	b.put.puts(s);
 }
 
 // ---------
 
-type	File	struct
-{
+type	File	struct {
 	whoami	int;
 	put	Iputs;
 }
 
-func (f *File)
-puts(s string)
-{
+func (f *File) puts(s string) {
 	print(" file ", f.whoami, " -- ", s);
 }
 
 func
-main()
-{
+main() {
 	p := new(Print);
 	b := new(Bio);
 	f := new(File);

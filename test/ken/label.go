@@ -8,8 +8,7 @@
 package main
 
 func
-main()
-{
+main() {
 	i := 0;
 	if false {
 		goto gogoloop;

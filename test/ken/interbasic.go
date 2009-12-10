@@ -11,8 +11,7 @@ type	mystring	string;
 type	I0		interface {};
 
 func
-f()
-{
+f() {
 	var ia, ib I0;
 	var i myint;
 	var s mystring;
@@ -52,8 +51,7 @@ f()
 }
 
 func
-main()
-{
+main() {
 	var ia [20]I0;
 	var b bool;
 	var s string;

@@ -72,8 +72,7 @@ var tokenlen int = 0;
 
 const EOF int = -1;
 
-func main()
-{
+func main() {
 	var list *Slist;
 
 	OpenFile();
@@ -88,8 +87,7 @@ func main()
 	}
 }
 
-func (slist *Slist) PrintOne(doparen bool)
-{
+func (slist *Slist) PrintOne(doparen bool) {
 	if slist == nil {
 		return;
 	}
@@ -114,14 +112,12 @@ func (slist *Slist) PrintOne(doparen bool)
 	}
 }
 
-func (slist *Slist) Print()
-{
+func (slist *Slist) Print() {
 	slist.PrintOne(true);
 	print("\n");
 }
 
-func Get() int
-{
+func Get() int {
 	var c int;
 
 	if peekc >= 0 {
@@ -141,13 +137,11 @@ func Get() int
 	return c;
 }
 
-func WhiteSpace(c int) bool
-{
+func WhiteSpace(c int) bool {
 	return c == ' ' || c == '\t' || c == '\r' || c == '\n';
 }
 
-func NextToken()
-{
+func NextToken() {
 	var i, c int;
 
 	tokenbuf[0] = nilchar;	// clear previous token
@@ -187,8 +181,7 @@ func NextToken()
 	}
 }
 
-func Expect(c int)
-{
+func Expect(c int) {
 	if token != c {
 		print("parse error: expected ", c, "\n");
 		panic("parse");
@@ -197,8 +190,7 @@ func Expect(c int)
 }
 
 // Parse a non-parenthesized list up to a closing paren or EOF
-func ParseList() *Slist
-{
+func ParseList() *Slist {
 	var slist, retval *Slist;
 
 	slist = new(Slist);
@@ -219,8 +211,7 @@ func ParseList() *Slist
 	return retval;
 }
 
-func atom(i int) *Slist	// BUG: uses tokenbuf; should take argument
-{
+func atom(i int) *Slist	{ // BUG: uses tokenbuf; should take argument)
 	var slist *Slist;
 
 	slist = new(Slist);
@@ -235,8 +226,7 @@ func atom(i int) *Slist	// BUG: uses tokenbuf; should take argument
 	return slist;
 }
 
-func atoi() int	// BUG: uses tokenbuf; should take argument
-{
+func atoi() int	{ // BUG: uses tokenbuf; should take argument)
 	var v int = 0;
 	for i := 0; i < tokenlen && '0' <= tokenbuf[i] && tokenbuf[i] <= '9'; i = i + 1 {
 		v = 10 * v + int(tokenbuf[i] - '0');
@@ -244,8 +234,7 @@ func atoi() int	// BUG: uses tokenbuf; should take argument
 	return v;
 }
 
-func Parse() *Slist
-{
+func Parse() *Slist {
 	var slist *Slist;
 
 	if token == EOF || token == ')' {
@@ -275,8 +264,7 @@ func Parse() *Slist
 	return nil;
 }
 
-func OpenFile()
-{
+func OpenFile() {
 	input = "(defn foo (add 12 34))\n\x00";
 	inputindex = 0;
 	peekc = -1;		// BUG

@@ -11,8 +11,7 @@ var	uans	[18]uint;
 var	pass	string;
 
 func
-testi(i int, t1,t2,t3 int)
-{
+testi(i int, t1,t2,t3 int) {
 	n := ((t1*3) + t2)*2 + t3;
 	if i != ians[n] {
 		print("itest ", t1,t2,t3,pass,
@@ -21,14 +20,12 @@ testi(i int, t1,t2,t3 int)
 }
 
 func
-index(t1,t2,t3 int) int
-{
+index(t1,t2,t3 int) int {
 	return ((t1*3) + t2)*2 + t3;
 }
 
 func
-testu(u uint, t1,t2,t3 int)
-{
+testu(u uint, t1,t2,t3 int) {
 	n := index(t1,t2,t3);
 	if u != uans[n] {
 		print("utest ", t1,t2,t3,pass,
@@ -37,8 +34,7 @@ testu(u uint, t1,t2,t3 int)
 }
 
 func
-main()
-{
+main() {
 	var i int;
 	var u,c uint;
 
@@ -95,8 +91,7 @@ main()
 }
 
 func
-init()
-{
+init() {
 	/*
 	 * set the 'correct' answer
 	 */
