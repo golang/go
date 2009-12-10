@@ -30,9 +30,14 @@ N = 3
 TMP = 3					/* N and TMP don't overlap */
 TMP1 = 4
 
-TEXT memmove(SB), 7, $-4
+// TODO(kaib): This can be done with the existing registers of LR is re-used. Same for memset.
+TEXT memmove(SB), 7, $8
+	// save g and m
+	MOVW	R9, 4(R13)
+	MOVW	R10, 8(R13)
+
 _memmove:
-	MOVW	R(TS), to+0(FP)		/* need to save for return value */
+	MOVW	to+0(FP), R(TS)
 	MOVW	from+4(FP), R(FROM)
 	MOVW	n+8(FP), R(N)
 
@@ -129,6 +134,9 @@ _f1tail:
 	B	_f1tail
 
 _return:
+	// restore g and m
+	MOVW	4(R13), R9
+	MOVW	8(R13), R10
 	MOVW	to+0(FP), R0
 	RET
 
