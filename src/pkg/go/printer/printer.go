@@ -894,6 +894,8 @@ const (
 	RawFormat;		// do not use a tabwriter; if set, UseSpaces is ignored
 	TabIndent;		// use tabs for indentation independent of UseSpaces
 	UseSpaces;		// use spaces instead of tabs for alignment
+	NoSemis;		// don't print semicolons at the end of a line
+	NoStringConcat;		// don't print string lists without "+"
 )
 
 
