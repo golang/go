@@ -14,8 +14,7 @@ var	lb,hb	int
 var	t	int
 
 func
-main()
-{
+main() {
 
 	// width 1 (byte)
 	lb = 0; hb = 10;
@@ -77,8 +76,7 @@ main()
 }
 
 func
-tstb()
-{
+tstb() {
 	t++;
 	if len(by) != hb-lb {
 		panicln("t=", t, "lb=", lb, "hb=", hb,
@@ -99,8 +97,7 @@ tstb()
 }
 
 func
-tstf()
-{
+tstf() {
 	t++;
 	if len(fy) != hb-lb {
 		panicln("t=", t, "lb=", lb, "hb=", hb,
@@ -121,8 +118,7 @@ tstf()
 }
 
 func
-init()
-{
+init() {
 	bx = make([]byte, 10);
 	for i:=0; i<len(bx); i++ {
 		bx[i] = byte(i+20);

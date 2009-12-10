@@ -7,8 +7,7 @@
 package main
 
 func
-main()
-{
+main() {
 	a := 3;
 	for i:=0; i<10; i=i+1 {
 		switch(i) {

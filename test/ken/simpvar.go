@@ -10,8 +10,7 @@ package main
 var	x,y	int;
 
 func
-main()
-{
+main() {
 
 	x = 15;
 	y = 20;

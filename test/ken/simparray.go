@@ -9,8 +9,7 @@ package main
 var b[10] float32;
 
 func
-main()
-{
+main() {
 	var a[10] float32;
 
 	for i:=int16(5); i<10; i=i+1 {

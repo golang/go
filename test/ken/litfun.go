@@ -8,8 +8,7 @@
 package main
 
 func
-main()
-{
+main() {
 	x := func(a int)int {
 		x := func(a int)int {
 			x := func(a int)int {

@@ -8,8 +8,7 @@
 package main
 
 func
-main()
-{
+main() {
 	var x int;
 
 	x = fun(10,20,30);
@@ -17,8 +16,7 @@ main()
 }
 
 func
-fun(ia,ib,ic int)int
-{
+fun(ia,ib,ic int)int {
 	var o int;
 
 	o = ia+ib+ic;

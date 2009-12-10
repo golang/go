@@ -6,40 +6,31 @@
 
 package main
 
-type Item interface
-{
+type Item interface {
 	Print();
 }
 
-type ListItem struct
-{
+type ListItem struct {
 	item    Item;
 	next    *ListItem;
 }
 
-type List struct
-{
+type List struct {
 	head    *ListItem;
 }
 
-func (list *List)
-Init()
-{
+func (list *List) Init() {
 	list.head = nil;
 }
 
-func (list *List)
-Insert(i Item)
-{
+func (list *List) Insert(i Item) {
 	item := new(ListItem);
 	item.item = i;
 	item.next = list.head;
 	list.head = item;
 }
 
-func (list *List)
-Print()
-{
+func (list *List) Print() {
 	i := list.head;
 	for i != nil {
 		i.item.Print();
@@ -48,27 +39,21 @@ Print()
 }
 
 // Something to put in a list
-type Integer struct
-{
+type Integer struct {
 	val		int;
 }
 
-func (this *Integer)
-Init(i int) *Integer
-{
+func (this *Integer) Init(i int) *Integer {
 	this.val = i;
 	return this;
 }
 
-func (this *Integer)
-Print()
-{
+func (this *Integer) Print() {
 	print(this.val);
 }
 
 func
-main()
-{
+main() {
 	list := new(List);
 	list.Init();
 	for i := 0; i < 10; i = i + 1 {

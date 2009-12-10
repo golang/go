@@ -8,8 +8,7 @@
 package main
 
 func
-main()
-{
+main() {
 	var c string;
 
 	a := `abc`;

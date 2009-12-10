@@ -11,8 +11,7 @@ import	"rand"
 const	Count	= 1e5
 
 func
-i64rand() int64
-{
+i64rand() int64 {
 	for {
 		a := int64(rand.Uint32());
 		a = (a<<32) | int64(rand.Uint32());
@@ -25,8 +24,7 @@ i64rand() int64
 }
 
 func
-i64test(a,b,c int64)
-{
+i64test(a,b,c int64) {
 	d := a%c;
 	if d != b {
 		panicln("i64", a, b, c, d);
@@ -34,8 +32,7 @@ i64test(a,b,c int64)
 }
 
 func
-i64run()
-{
+i64run() {
 	var a, b int64;
 
 	for i:=0; i<Count; i++ {
@@ -80,8 +77,7 @@ i64run()
 }
 
 func
-u64rand() uint64
-{
+u64rand() uint64 {
 	a := uint64(rand.Uint32());
 	a = (a<<32) | uint64(rand.Uint32());
 	a >>= uint(rand.Intn(64));
@@ -89,8 +85,7 @@ u64rand() uint64
 }
 
 func
-u64test(a,b,c uint64)
-{
+u64test(a,b,c uint64) {
 	d := a%c;
 	if d != b {
 		panicln("u64", a, b, c, d);
@@ -98,8 +93,7 @@ u64test(a,b,c uint64)
 }
 
 func
-u64run()
-{
+u64run() {
 	var a, b uint64;
 
 	for i:=0; i<Count; i++ {
@@ -126,8 +120,7 @@ u64run()
 }
 
 func
-i32rand() int32
-{
+i32rand() int32 {
 	for {
 		a := int32(rand.Uint32());
 		a >>= uint(rand.Intn(32));
@@ -139,8 +132,7 @@ i32rand() int32
 }
 
 func
-i32test(a,b,c int32)
-{
+i32test(a,b,c int32) {
 	d := a%c;
 	if d != b {
 		panicln("i32", a, b, c, d);
@@ -148,8 +140,7 @@ i32test(a,b,c int32)
 }
 
 func
-i32run()
-{
+i32run() {
 	var a, b int32;
 
 	for i:=0; i<Count; i++ {
@@ -193,16 +184,14 @@ i32run()
 }
 
 func
-u32rand() uint32
-{
+u32rand() uint32 {
 	a := uint32(rand.Uint32());
 	a >>= uint(rand.Intn(32));
 	return a;
 }
 
 func
-u32test(a,b,c uint32)
-{
+u32test(a,b,c uint32) {
 	d := a%c;
 	if d != b {
 		panicln("u32", a, b, c, d);
@@ -210,8 +199,7 @@ u32test(a,b,c uint32)
 }
 
 func
-u32run()
-{
+u32run() {
 	var a, b uint32;
 
 	for i:=0; i<Count; i++ {
@@ -238,8 +226,7 @@ u32run()
 }
 
 func
-i16rand() int16
-{
+i16rand() int16 {
 	for {
 		a := int16(rand.Uint32());
 		a >>= uint(rand.Intn(16));
@@ -251,8 +238,7 @@ i16rand() int16
 }
 
 func
-i16test(a,b,c int16)
-{
+i16test(a,b,c int16) {
 	d := a%c;
 	if d != b {
 		panicln("i16", a, b, c, d);
@@ -260,8 +246,7 @@ i16test(a,b,c int16)
 }
 
 func
-i16run()
-{
+i16run() {
 	var a, b int16;
 
 	for i:=0; i<Count; i++ {
@@ -306,16 +291,14 @@ i16run()
 }
 
 func
-u16rand() uint16
-{
+u16rand() uint16 {
 	a := uint16(rand.Uint32());
 	a >>= uint(rand.Intn(16));
 	return a;
 }
 
 func
-u16test(a,b,c uint16)
-{
+u16test(a,b,c uint16) {
 	d := a%c;
 	if d != b {
 		panicln("u16", a, b, c, d);
@@ -323,8 +306,7 @@ u16test(a,b,c uint16)
 }
 
 func
-u16run()
-{
+u16run() {
 	var a, b uint16;
 
 	for i:=0; i<Count; i++ {
@@ -351,8 +333,7 @@ u16run()
 }
 
 func
-i8rand() int8
-{
+i8rand() int8 {
 	for {
 		a := int8(rand.Uint32());
 		a >>= uint(rand.Intn(8));
@@ -364,8 +345,7 @@ i8rand() int8
 }
 
 func
-i8test(a,b,c int8)
-{
+i8test(a,b,c int8) {
 	d := a%c;
 	if d != b {
 		panicln("i8", a, b, c, d);
@@ -373,8 +353,7 @@ i8test(a,b,c int8)
 }
 
 func
-i8run()
-{
+i8run() {
 	var a, b int8;
 
 	for i:=0; i<Count; i++ {
@@ -416,16 +395,14 @@ i8run()
 }
 
 func
-u8rand() uint8
-{
+u8rand() uint8 {
 	a := uint8(rand.Uint32());
 	a >>= uint(rand.Intn(8));
 	return a;
 }
 
 func
-u8test(a,b,c uint8)
-{
+u8test(a,b,c uint8) {
 	d := a%c;
 	if d != b {
 		panicln("u8", a, b, c, d);
@@ -433,8 +410,7 @@ u8test(a,b,c uint8)
 }
 
 func
-u8run()
-{
+u8run() {
 	var a, b uint8;
 
 	for i:=0; i<Count; i++ {
@@ -459,8 +435,7 @@ u8run()
 }
 
 func
-main()
-{
+main() {
 	xtest();
 	i64run();
 	u64run();
@@ -473,6 +448,5 @@ main()
 }
 
 func
-xtest()
-{
+xtest() {
 }

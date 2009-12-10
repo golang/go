@@ -7,8 +7,7 @@
 package main
 
 func
-main()
-{
+main() {
 	var x,y int;
 
 	x,y = simple(10,20,30);
@@ -16,7 +15,6 @@ main()
 }
 
 func
-simple(ia,ib,ic int) (oa,ob int)
-{
+simple(ia,ib,ic int) (oa,ob int) {
 	return ia+5, ib+ic;
 }

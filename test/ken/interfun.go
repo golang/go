@@ -6,37 +6,29 @@
 
 package main
 
-type S struct
-{
+type S struct {
 	a,b	int;
 }
 
-type I1 interface
-{
+type I1 interface {
 	f	()int;
 }
 
-type I2 interface
-{
+type I2 interface {
 	g() int;
 	f() int;
 }
 
-func
-(this *S) f()int
-{
+func (this *S) f()int {
 	return this.a;
 }
 
-func
-(this *S) g()int
-{
+func (this *S) g()int {
 	return this.b;
 }
 
 func
-main()
-{
+main() {
 	var i1 I1;
 	var i2 I2;
 	var g *S;

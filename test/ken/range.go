@@ -13,14 +13,12 @@ var	p	[]byte;
 var	m	map[int]byte;
 
 func
-f(k int) byte
-{
+f(k int) byte {
 	return byte(k*10007 % size);
 }
 
 func
-init()
-{
+init() {
 	p = make([]byte, size);
 	m = make(map[int]byte);
 	for k:=0; k<size; k++ {
@@ -32,8 +30,7 @@ init()
 }
 
 func
-main()
-{
+main() {
 	var i int;
 
 	/*
