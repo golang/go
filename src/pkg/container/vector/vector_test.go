@@ -74,7 +74,7 @@ func TestStringResize(t *testing.T) {
 	checkSize(t, a.Resize(10, 0), 10, 10);
 	for i := 4; i < a.Len(); i++ {
 		if a.At(i) != "" {
-			t.Errorf("expected a.At(%d) == " "; found %s", i, a.At(i))
+			t.Errorf("expected a.At(%d) == "+"; found %s", i, a.At(i))
 		}
 	}
 }

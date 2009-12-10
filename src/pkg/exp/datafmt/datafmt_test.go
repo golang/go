@@ -232,8 +232,8 @@ type T1 struct {
 	a int;
 }
 
-const F1 = `datafmt "datafmt";`
-	`int = "%d";`
+const F1 = `datafmt "datafmt";` +
+	`int = "%d";` +
 	`datafmt.T1 = "<" a ">";`
 
 func TestStruct1(t *testing.T)	{ check(t, F1, "<42>", T1{42}) }
@@ -248,14 +248,14 @@ type T2 struct {
 }
 
 const F2a = F1 +
-	`string = "%s";`
-		`ptr = *;`
-		`datafmt.T2 = s ["-" p "-"];`
+	`string = "%s";` +
+	`ptr = *;` +
+	`datafmt.T2 = s ["-" p "-"];`
 
 const F2b = F1 +
-	`string = "%s";`
-		`ptr = *;`
-		`datafmt.T2 = s ("-" p "-" | "empty");`
+	`string = "%s";` +
+	`ptr = *;` +
+	`datafmt.T2 = s ("-" p "-" | "empty");`
 
 func TestStruct2(t *testing.T) {
 	check(t, F2a, "foo", T2{"foo", nil});
@@ -272,17 +272,17 @@ type T3 struct {
 	a	[]int;
 }
 
-const F3a = `datafmt "datafmt";`
-	`default = "%v";`
-	`array = *;`
+const F3a = `datafmt "datafmt";` +
+	`default = "%v";` +
+	`array = *;` +
 	`datafmt.T3 = s  {" " a a / ","};`
 
-const F3b = `datafmt "datafmt";`
-	`int = "%d";`
-	`string = "%s";`
-	`array = *;`
-	`nil = ;`
-	`empty = *:nil;`
+const F3b = `datafmt "datafmt";` +
+	`int = "%d";` +
+	`string = "%s";` +
+	`array = *;` +
+	`nil = ;` +
+	`empty = *:nil;` +
 	`datafmt.T3 = s [a:empty ": " {a / "-"}]`
 
 func TestStruct3(t *testing.T) {
@@ -301,20 +301,20 @@ type T4 struct {
 	a	[]int;
 }
 
-const F4a = `datafmt "datafmt";`
-	`int = "%d";`
-	`ptr = *;`
-	`array = *;`
-	`nil = ;`
-	`empty = *:nil;`
+const F4a = `datafmt "datafmt";` +
+	`int = "%d";` +
+	`ptr = *;` +
+	`array = *;` +
+	`nil = ;` +
+	`empty = *:nil;` +
 	`datafmt.T4 = "<" (x:empty x | "-") ">" `
 
-const F4b = `datafmt "datafmt";`
-	`int = "%d";`
-	`ptr = *;`
-	`array = *;`
-	`nil = ;`
-	`empty = *:nil;`
+const F4b = `datafmt "datafmt";` +
+	`int = "%d";` +
+	`ptr = *;` +
+	`array = *;` +
+	`nil = ;` +
+	`empty = *:nil;` +
 	`datafmt.T4 = "<" (a:empty {a / ", "} | "-") ">" `
 
 func TestStruct4(t *testing.T) {
@@ -334,10 +334,10 @@ type Point struct {
 	x, y	int;
 }
 
-const FPoint = `datafmt "datafmt";`
-	`int = "%d";`
-	`hexInt = "0x%x";`
-	`string = "---%s---";`
+const FPoint = `datafmt "datafmt";` +
+	`int = "%d";` +
+	`hexInt = "0x%x";` +
+	`string = "---%s---";` +
 	`datafmt.Point = name "{" x ", " y:hexInt "}";`
 
 func TestStructPoint(t *testing.T) {
@@ -349,7 +349,7 @@ func TestStructPoint(t *testing.T) {
 // ----------------------------------------------------------------------------
 // Formatting a slice (documentation example)
 
-const FSlice = `int = "%b";`
+const FSlice = `int = "%b";` +
 	`array = { * / ", " }`
 
 func TestSlice(t *testing.T)	{ check(t, FSlice, "10, 11, 101, 111", []int{2, 3, 5, 7}) }

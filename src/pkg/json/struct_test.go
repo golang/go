@@ -35,13 +35,13 @@ type myStruct struct {
 	MapPtrStruct	map[string]*myStruct;
 }
 
-const encoded = `{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,`
-	` "u8":5,"u16":6,"u32":7,"u64":8,`
-	` "i":-9,"u":10,"bogusfield":"should be ignored",`
-	` "fl":11.5,"fl32":12.25,"fl64":13.75,`
-	` "a":["x","y","z"],"my":{"s":"subguy"},`
-	`"map":{"k1":[1,2,3],"k2":[],"k3":[3,4]},`
-	`"mapstruct":{"m1":{"u8":8}},`
+const encoded = `{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,` +
+	` "u8":5,"u16":6,"u32":7,"u64":8,` +
+	` "i":-9,"u":10,"bogusfield":"should be ignored",` +
+	` "fl":11.5,"fl32":12.25,"fl64":13.75,` +
+	` "a":["x","y","z"],"my":{"s":"subguy"},` +
+	`"map":{"k1":[1,2,3],"k2":[],"k3":[3,4]},` +
+	`"mapstruct":{"m1":{"u8":8}},` +
 	`"mapptrstruct":{"m1":{"u8":8}}}`
 
 var decodedMap = map[string][]int{

@@ -97,62 +97,62 @@ var tests = []*Test{
 
 	// Section
 	&Test{
-		in: "{.section data }\n"
-			"some text for the section\n"
+		in: "{.section data }\n" +
+			"some text for the section\n" +
 			"{.end}\n",
 
 		out: "some text for the section\n",
 	},
 	&Test{
-		in: "{.section data }\n"
-			"{header}={integer}\n"
+		in: "{.section data }\n" +
+			"{header}={integer}\n" +
 			"{.end}\n",
 
 		out: "Header=77\n",
 	},
 	&Test{
-		in: "{.section pdata }\n"
-			"{header}={integer}\n"
+		in: "{.section pdata }\n" +
+			"{header}={integer}\n" +
 			"{.end}\n",
 
 		out: "Header=77\n",
 	},
 	&Test{
-		in: "{.section pdata }\n"
-			"data present\n"
-			"{.or}\n"
-			"data not present\n"
+		in: "{.section pdata }\n" +
+			"data present\n" +
+			"{.or}\n" +
+			"data not present\n" +
 			"{.end}\n",
 
 		out: "data present\n",
 	},
 	&Test{
-		in: "{.section empty }\n"
-			"data present\n"
-			"{.or}\n"
-			"data not present\n"
+		in: "{.section empty }\n" +
+			"data present\n" +
+			"{.or}\n" +
+			"data not present\n" +
 			"{.end}\n",
 
 		out: "data not present\n",
 	},
 	&Test{
-		in: "{.section null }\n"
-			"data present\n"
-			"{.or}\n"
-			"data not present\n"
+		in: "{.section null }\n" +
+			"data present\n" +
+			"{.or}\n" +
+			"data not present\n" +
 			"{.end}\n",
 
 		out: "data not present\n",
 	},
 	&Test{
-		in: "{.section pdata }\n"
-			"{header}={integer}\n"
-			"{.section @ }\n"
-			"{header}={integer}\n"
-			"{.end}\n"
+		in: "{.section pdata }\n" +
+			"{header}={integer}\n" +
+			"{.section @ }\n" +
+			"{header}={integer}\n" +
+			"{.end}\n" +
 			"{.end}\n",
 
-		out: "Header=77\n"
+		out: "Header=77\n" +
 			"Header=77\n",
 	},
 	&Test{
@@ -163,69 +163,69 @@ var tests = []*Test{
 
 	// Repeated
 	&Test{
-		in: "{.section pdata }\n"
-			"{.repeated section @ }\n"
-			"{item}={value}\n"
-			"{.end}\n"
+		in: "{.section pdata }\n" +
+			"{.repeated section @ }\n" +
+			"{item}={value}\n" +
+			"{.end}\n" +
 			"{.end}\n",
 
-		out: "ItemNumber1=ValueNumber1\n"
+		out: "ItemNumber1=ValueNumber1\n" +
 			"ItemNumber2=ValueNumber2\n",
 	},
 	&Test{
-		in: "{.section pdata }\n"
-			"{.repeated section @ }\n"
-			"{item}={value}\n"
-			"{.or}\n"
-			"this should not appear\n"
-			"{.end}\n"
+		in: "{.section pdata }\n" +
+			"{.repeated section @ }\n" +
+			"{item}={value}\n" +
+			"{.or}\n" +
+			"this should not appear\n" +
+			"{.end}\n" +
 			"{.end}\n",
 
-		out: "ItemNumber1=ValueNumber1\n"
+		out: "ItemNumber1=ValueNumber1\n" +
 			"ItemNumber2=ValueNumber2\n",
 	},
 	&Test{
-		in: "{.section @ }\n"
-			"{.repeated section empty }\n"
-			"{item}={value}\n"
-			"{.or}\n"
-			"this should appear: empty field\n"
-			"{.end}\n"
+		in: "{.section @ }\n" +
+			"{.repeated section empty }\n" +
+			"{item}={value}\n" +
+			"{.or}\n" +
+			"this should appear: empty field\n" +
+			"{.end}\n" +
 			"{.end}\n",
 
 		out: "this should appear: empty field\n",
 	},
 	&Test{
-		in: "{.repeated section pdata }\n"
-			"{item}\n"
-			"{.alternates with}\n"
-			"is\nover\nmultiple\nlines\n"
+		in: "{.repeated section pdata }\n" +
+			"{item}\n" +
+			"{.alternates with}\n" +
+			"is\nover\nmultiple\nlines\n" +
 			"{.end}\n",
 
-		out: "ItemNumber1\n"
-			"is\nover\nmultiple\nlines\n"
+		out: "ItemNumber1\n" +
+			"is\nover\nmultiple\nlines\n" +
 			"ItemNumber2\n",
 	},
 	&Test{
-		in: "{.section pdata }\n"
-			"{.repeated section @ }\n"
-			"{item}={value}\n"
-			"{.alternates with}DIVIDER\n"
-			"{.or}\n"
-			"this should not appear\n"
-			"{.end}\n"
+		in: "{.section pdata }\n" +
+			"{.repeated section @ }\n" +
+			"{item}={value}\n" +
+			"{.alternates with}DIVIDER\n" +
+			"{.or}\n" +
+			"this should not appear\n" +
+			"{.end}\n" +
 			"{.end}\n",
 
-		out: "ItemNumber1=ValueNumber1\n"
-			"DIVIDER\n"
+		out: "ItemNumber1=ValueNumber1\n" +
+			"DIVIDER\n" +
 			"ItemNumber2=ValueNumber2\n",
 	},
 	&Test{
-		in: "{.repeated section vec }\n"
-			"{@}\n"
+		in: "{.repeated section vec }\n" +
+			"{@}\n" +
 			"{.end}\n",
 
-		out: "elt1\n"
+		out: "elt1\n" +
 			"elt2\n",
 	},
 	&Test{
@@ -236,15 +236,15 @@ var tests = []*Test{
 
 	// Nested names
 	&Test{
-		in: "{.section @ }\n"
-			"{innerT.item}={innerT.value}\n"
+		in: "{.section @ }\n" +
+			"{innerT.item}={innerT.value}\n" +
 			"{.end}",
 
 		out: "ItemNumber1=ValueNumber1\n",
 	},
 	&Test{
-		in: "{.section @ }\n"
-			"{innerT.item}={.section innerT}{.section value}{@}{.end}{.end}\n"
+		in: "{.section @ }\n" +
+			"{innerT.item}={.section innerT}{.section value}{@}{.end}{.end}\n" +
 			"{.end}",
 
 		out: "ItemNumber1=ValueNumber1\n",
@@ -253,32 +253,32 @@ var tests = []*Test{
 
 	// Formatters
 	&Test{
-		in: "{.section pdata }\n"
-			"{header|uppercase}={integer|+1}\n"
-			"{header|html}={integer|str}\n"
+		in: "{.section pdata }\n" +
+			"{header|uppercase}={integer|+1}\n" +
+			"{header|html}={integer|str}\n" +
 			"{.end}\n",
 
-		out: "HEADER=78\n"
+		out: "HEADER=78\n" +
 			"Header=77\n",
 	},
 
 	&Test{
-		in: "{raw}\n"
+		in: "{raw}\n" +
 			"{raw|html}\n",
 
-		out: "&<>!@ #$%^\n"
+		out: "&<>!@ #$%^\n" +
 			"&amp;&lt;&gt;!@ #$%^\n",
 	},
 
 	&Test{
-		in: "{.section emptystring}emptystring{.end}\n"
+		in: "{.section emptystring}emptystring{.end}\n" +
 			"{.section header}header{.end}\n",
 
 		out: "\nheader\n",
 	},
 
 	&Test{
-		in: "{.section true}1{.or}2{.end}\n"
+		in: "{.section true}1{.or}2{.end}\n" +
 			"{.section false}3{.or}4{.end}\n",
 
 		out: "1\n4\n",
