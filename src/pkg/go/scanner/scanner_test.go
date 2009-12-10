@@ -66,8 +66,8 @@ var tokens = [...]elt{
 	elt{token.CHAR, "'\\uff16'", literal},
 	elt{token.CHAR, "'\\U0000ff16'", literal},
 	elt{token.STRING, "`foobar`", literal},
-	elt{token.STRING, "`" `foo
-	                        bar`
+	elt{token.STRING, "`" + `foo
+	                        bar` +
 		"`",
 		literal,
 	},
@@ -345,15 +345,14 @@ func TestIllegalChars(t *testing.T) {
 
 
 func TestStdErrorHander(t *testing.T) {
-	const src = "@\n"	// illegal character, cause an error
-		"@ @\n"	// two errors on the same line
-		"//line File2:20\n"
-		"@\n"	// different file, but same line
-		"//line File2:1\n"
-		"@ @\n"	// same file, decreasing line number
-		"//line File1:1\n"
+	const src = "@\n" +	// illegal character, cause an error
+		"@ @\n" +	// two errors on the same line
+		"//line File2:20\n" +
+		"@\n" +	// different file, but same line
+		"//line File2:1\n" +
+		"@ @\n" +	// same file, decreasing line number
+		"//line File1:1\n" +
 		"@ @ @";	// original file, line 1 again
-
 
 	v := new(ErrorVector);
 	nerrors := Tokenize("File1", strings.Bytes(src), v, 0,

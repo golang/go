@@ -87,7 +87,7 @@ func (p *parser) init(filename string, src []byte, mode uint) {
 // Parsing support
 
 func (p *parser) printTrace(a ...) {
-	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
+	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . " +
 		". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ";
 	const n = uint(len(dots));
 	fmt.Printf("%5d:%3d: ", p.pos.Line, p.pos.Column);

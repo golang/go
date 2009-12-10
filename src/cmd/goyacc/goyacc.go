@@ -2174,7 +2174,7 @@ func output() {
 				} else if temp1[k] < 0 {	// reduce/reduce conflict
 					if foutput != nil {
 						fmt.Fprintf(foutput,
-							"\n %v: reduce/reduce conflict  (red'ns "
+							"\n %v: reduce/reduce conflict  (red'ns "+
 								"%v and %v) on %v",
 							i, -temp1[k], lastred, symnam(k))
 					}
@@ -2734,7 +2734,7 @@ nextn:
 					// states are equal
 					indgo[i] = n;
 					if adb > 1 {
-						fmt.Fprintf(ftable, "State %v: entry at"
+						fmt.Fprintf(ftable, "State %v: entry at"+
 							"%v equals state %v\n",
 							i, n, j)
 					}

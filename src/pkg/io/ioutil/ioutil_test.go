@@ -39,8 +39,8 @@ func TestReadFile(t *testing.T) {
 
 func TestWriteFile(t *testing.T) {
 	filename := "_obj/rumpelstilzchen";
-	data := "Programming today is a race between software engineers striving to "
-		"build bigger and better idiot-proof programs, and the Universe trying "
+	data := "Programming today is a race between software engineers striving to " +
+		"build bigger and better idiot-proof programs, and the Universe trying " +
 		"to produce bigger and better idiots. So far, the Universe is winning.";
 
 	if err := WriteFile(filename, strings.Bytes(data), 0644); err != nil {

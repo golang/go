@@ -124,7 +124,7 @@ func dosync(c *http.Conn, r *http.Request) {
 
 func usage() {
 	fmt.Fprintf(os.Stderr,
-		"usage: godoc package [name ...]\n"
+		"usage: godoc package [name ...]\n"+
 			"	godoc -http=:6060\n");
 	flag.PrintDefaults();
 	os.Exit(2);
