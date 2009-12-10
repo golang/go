@@ -20,20 +20,20 @@ import (
 	"os";
 )
 
-var bout *bufio.Writer;
+var bout *bufio.Writer
 
 // 64-bit math without using 64-bit numbers,
 // so that we can generate the test program even
 // if the compiler has buggy or missing 64-bit support.
 
 type Uint64 struct {
-	hi uint32;
-	lo uint32;
+	hi	uint32;
+	lo	uint32;
 }
 
 type Int64 struct {
-	hi int32;
-	lo uint32;
+	hi	int32;
+	lo	uint32;
 }
 
 func (a Uint64) Int64() (c Int64) {
@@ -45,13 +45,13 @@ func (a Uint64) Int64() (c Int64) {
 func (a Uint64) Cmp(b Uint64) int {
 	switch {
 	case a.hi < b.hi:
-		return -1;
+		return -1
 	case a.hi > b.hi:
-		return 1;
+		return 1
 	case a.lo < b.lo:
-		return -1;
+		return -1
 	case a.lo > b.lo:
-		return 1;
+		return 1
 	}
 	return 0;
 }
@@ -62,10 +62,10 @@ func (a Uint64) LeftShift(b uint) (c Uint64) {
 		c.hi = 0;
 		c.lo = 0;
 	case b >= 32:
-		c.hi = a.lo << (b-32);
+		c.hi = a.lo << (b - 32);
 		c.lo = 0;
 	default:
-		c.hi = a.hi << b | a.lo >> (32-b);
+		c.hi = a.hi<<b | a.lo>>(32-b);
 		c.lo = a.lo << b;
 	}
 	return;
@@ -78,24 +78,24 @@ func (a Uint64) RightShift(b uint) (c Uint64) {
 		c.lo = a.hi;
 	case b >= 32:
 		c.hi = 0;
-		c.lo = a.hi >> (b-32);
+		c.lo = a.hi >> (b - 32);
 	default:
 		c.hi = a.hi >> b;
-		c.lo = a.hi << (32-b) | a.lo >> b;
+		c.lo = a.hi<<(32-b) | a.lo>>b;
 	}
 	return;
 }
 
 func (a Uint64) LeftShift64(b Uint64) (c Uint64) {
 	if b.hi != 0 || b.lo >= 64 {
-		return;
+		return
 	}
 	return a.LeftShift(uint(b.lo));
 }
 
 func (a Uint64) RightShift64(b Uint64) (c Uint64) {
 	if b.hi != 0 || b.lo >= 64 {
-		return;
+		return
 	}
 	return a.RightShift(uint(b.lo));
 }
@@ -103,7 +103,7 @@ func (a Uint64) RightShift64(b Uint64) (c Uint64) {
 func (a Uint64) Plus(b Uint64) (c Uint64) {
 	var carry uint32;
 	if c.lo = a.lo + b.lo; c.lo < a.lo {
-		carry = 1;
+		carry = 1
 	}
 	c.hi = a.hi + b.hi + carry;
 	return;
@@ -112,7 +112,7 @@ func (a Uint64) Plus(b Uint64) (c Uint64) {
 func (a Uint64) Minus(b Uint64) (c Uint64) {
 	var borrow uint32;
 	if c.lo = a.lo - b.lo; c.lo > a.lo {
-		borrow = 1;
+		borrow = 1
 	}
 	c.hi = a.hi - b.hi - borrow;
 	return;
@@ -133,14 +133,14 @@ func (a Uint64) Len() int {
 	switch {
 	case a.hi != 0:
 		for i := 31; i >= 0; i-- {
-			if a.hi & (1<<uint(i)) != 0 {
-				return i + 1 + 32;
+			if a.hi&(1<<uint(i)) != 0 {
+				return i + 1 + 32
 			}
 		}
 	case a.lo != 0:
 		for i := 31; i >= 0; i-- {
-			if a.lo & (1<<uint(i)) != 0 {
-				return i + 1;
+			if a.lo&(1<<uint(i)) != 0 {
+				return i + 1
 			}
 		}
 	}
@@ -150,17 +150,17 @@ func (a Uint64) Len() int {
 func (a Uint64) HasBit(b uint) bool {
 	switch {
 	case b >= 64:
-		return false;
+		return false
 	case b >= 32:
-		return a.hi & (1<<(b-32)) != 0;
+		return a.hi&(1<<(b-32)) != 0
 	}
-	return a.lo & (1<<b) != 0;
+	return a.lo&(1<<b) != 0;
 }
 
 func (a Uint64) Times(b Uint64) (c Uint64) {
 	for i := uint(0); i < 64; i++ {
-		if(b.HasBit(i)) {
-			c = c.Plus(a.LeftShift(i));
+		if b.HasBit(i) {
+			c = c.Plus(a.LeftShift(i))
 		}
 	}
 	return;
@@ -207,9 +207,7 @@ func (a Uint64) Xor(b Uint64) (c Uint64) {
 	return;
 }
 
-func (a Uint64) String() string {
-	return fmt.Sprintf("%#x%08x", a.hi, a.lo);
-}
+func (a Uint64) String() string	{ return fmt.Sprintf("%#x%08x", a.hi, a.lo) }
 
 func (a Int64) Uint64() (c Uint64) {
 	c.hi = uint32(a.hi);
@@ -223,20 +221,18 @@ func (a Int64) Cmp(b Int64) int {
 	// because hi is uint32 not int32.
 	switch {
 	case a.hi < b.hi:
-		return -1;
+		return -1
 	case a.hi > b.hi:
-		return 1;
+		return 1
 	case a.lo < b.lo:
-		return -1;
+		return -1
 	case a.lo > b.lo:
-		return 1;
+		return 1
 	}
 	return 0;
 }
 
-func (a Int64) LeftShift(b uint) (c Int64) {
-	return a.Uint64().LeftShift(b).Int64();
-}
+func (a Int64) LeftShift(b uint) (c Int64)	{ return a.Uint64().LeftShift(b).Int64() }
 
 func (a Int64) RightShift(b uint) (c Int64) {
 	switch {
@@ -245,47 +241,37 @@ func (a Int64) RightShift(b uint) (c Int64) {
 		c.lo = uint32(c.hi);
 	case b >= 32:
 		c.hi = a.hi >> 31;	// sign extend
-		c.lo = uint32(a.hi >> (b-32));
+		c.lo = uint32(a.hi >> (b - 32));
 	default:
 		c.hi = a.hi >> b;
-		c.lo = uint32(a.hi << (32-b)) | a.lo >> b;
+		c.lo = uint32(a.hi<<(32-b)) | a.lo>>b;
 	}
 	return;
 }
 
 func (a Int64) LeftShift64(b Uint64) (c Int64) {
 	if b.hi != 0 || b.lo >= 64 {
-		return;
+		return
 	}
 	return a.LeftShift(uint(b.lo));
 }
 
 func (a Int64) RightShift64(b Uint64) (c Int64) {
 	if b.hi != 0 || b.lo >= 64 {
-		return a.RightShift(64);
+		return a.RightShift(64)
 	}
 	return a.RightShift(uint(b.lo));
 }
 
-func (a Int64) Plus(b Int64) (c Int64) {
-	return a.Uint64().Plus(b.Uint64()).Int64();
-}
+func (a Int64) Plus(b Int64) (c Int64)	{ return a.Uint64().Plus(b.Uint64()).Int64() }
 
-func (a Int64) Minus(b Int64) (c Int64) {
-	return a.Uint64().Minus(b.Uint64()).Int64();
-}
+func (a Int64) Minus(b Int64) (c Int64)	{ return a.Uint64().Minus(b.Uint64()).Int64() }
 
-func (a Int64) Neg() (c Int64) {
-	return a.Uint64().Neg().Int64();
-}
+func (a Int64) Neg() (c Int64)	{ return a.Uint64().Neg().Int64() }
 
-func (a Int64) Com() (c Int64) {
-	return a.Uint64().Com().Int64();
-}
+func (a Int64) Com() (c Int64)	{ return a.Uint64().Com().Int64() }
 
-func (a Int64) Times(b Int64) (c Int64) {
-	return a.Uint64().Times(b.Uint64()).Int64();
-}
+func (a Int64) Times(b Int64) (c Int64)	{ return a.Uint64().Times(b.Uint64()).Int64() }
 
 func (a Int64) DivMod(b Int64) (quo Int64, rem Int64) {
 	var zero Int64;
@@ -307,38 +293,30 @@ func (a Int64) DivMod(b Int64) (quo Int64, rem Int64) {
 	rem = r.Int64();
 
 	if quoSign < 0 {
-		quo = quo.Neg();
+		quo = quo.Neg()
 	}
 	if remSign < 0 {
-		rem = rem.Neg();
+		rem = rem.Neg()
 	}
 	return;
 }
 
-func (a Int64) And(b Int64) (c Int64) {
-	return a.Uint64().And(b.Uint64()).Int64();
-}
+func (a Int64) And(b Int64) (c Int64)	{ return a.Uint64().And(b.Uint64()).Int64() }
 
-func (a Int64) AndNot(b Int64) (c Int64) {
-	return a.Uint64().AndNot(b.Uint64()).Int64();
-}
+func (a Int64) AndNot(b Int64) (c Int64)	{ return a.Uint64().AndNot(b.Uint64()).Int64() }
 
-func (a Int64) Or(b Int64) (c Int64) {
-	return a.Uint64().Or(b.Uint64()).Int64();
-}
+func (a Int64) Or(b Int64) (c Int64)	{ return a.Uint64().Or(b.Uint64()).Int64() }
 
-func (a Int64) Xor(b Int64) (c Int64) {
-	return a.Uint64().Xor(b.Uint64()).Int64();
-}
+func (a Int64) Xor(b Int64) (c Int64)	{ return a.Uint64().Xor(b.Uint64()).Int64() }
 
 func (a Int64) String() string {
 	if a.hi < 0 {
-		return fmt.Sprintf("-%s", a.Neg().Uint64());
+		return fmt.Sprintf("-%s", a.Neg().Uint64())
 	}
 	return a.Uint64().String();
 }
 
-var int64Values = []Int64 {
+var int64Values = []Int64{
 	Int64{0, 0},
 	Int64{0, 1},
 	Int64{0, 2},
@@ -346,7 +324,7 @@ var int64Values = []Int64 {
 	Int64{0, 100},
 	Int64{0, 10001},
 	Int64{0, 1<<31 - 1},
-	Int64{0, 1<<31},
+	Int64{0, 1 << 31},
 	Int64{0, 1<<31 + 1},
 	Int64{0, 1<<32 - 1<<30},
 	Int64{0, 1<<32 - 1},
@@ -363,19 +341,19 @@ var int64Values = []Int64 {
 	Int64{-1, 1<<32 - 100},
 	Int64{-1, 1<<32 - 10001},
 	Int64{-1, 1<<32 - (1<<31 - 1)},
-	Int64{-1, 1<<32 - 1<<31 },
+	Int64{-1, 1<<32 - 1<<31},
 	Int64{-1, 1<<32 - (1<<31 + 1)},
 	Int64{-1, 1<<32 - (1<<32 - 1<<30)},
-	Int64{-1, 0 },
+	Int64{-1, 0},
 	Int64{-1, 1},
 	Int64{-2, 0},
-	Int64{-(1<<31), 10000},
-	Int64{-(1<<31), 1},
-	Int64{-(1<<31), 0},
+	Int64{-(1 << 31), 10000},
+	Int64{-(1 << 31), 1},
+	Int64{-(1 << 31), 0},
 	Int64{-0x789abcde, 0xf0123456},
 }
 
-var uint64Values = []Uint64 {
+var uint64Values = []Uint64{
 	Uint64{0, 0},
 	Uint64{0, 1},
 	Uint64{0, 2},
@@ -383,7 +361,7 @@ var uint64Values = []Uint64 {
 	Uint64{0, 100},
 	Uint64{0, 10001},
 	Uint64{0, 1<<31 - 1},
-	Uint64{0, 1<<31},
+	Uint64{0, 1 << 31},
 	Uint64{0, 1<<31 + 1},
 	Uint64{0, 1<<32 - 1<<30},
 	Uint64{0, 1<<32 - 1},
@@ -400,7 +378,7 @@ var uint64Values = []Uint64 {
 	Uint64{0xfedcba98, 0x76543210},
 }
 
-var shiftValues = []Uint64 {
+var shiftValues = []Uint64{
 	Uint64{0, 0},
 	Uint64{0, 1},
 	Uint64{0, 2},
@@ -419,114 +397,113 @@ var shiftValues = []Uint64 {
 	Uint64{0, 1<<32 - 1},
 	Uint64{1, 0},
 	Uint64{1, 1},
-	Uint64{1<<28, 0},
-	Uint64{1<<31, 0},
+	Uint64{1 << 28, 0},
+	Uint64{1 << 31, 0},
 	Uint64{1<<32 - 1, 0},
 	Uint64{1<<32 - 1, 1<<32 - 1},
 }
 
-var ntest = 0;
+var ntest = 0
 
 // Part 1 is tests of variable operations; generic functions
 // called by repetitive code.  Could make a table but not worth it.
 
-const prolog =
-	"\n"
-	"package main\n"
-	"\n"
-	"import \"os\"\n"
-	"\n"
-	"var ok = true\n"
-	"\n"
-	"func testInt64Unary(a, plus, xor, minus int64) {\n"
-	"	if n, op, want := +a, `+`, plus; n != want { ok=false; println(`int64`, op, a, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := ^a, `^`, xor; n != want { ok=false; println(`int64`, op, a, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := -a, `-`, minus; n != want { ok=false; println(`int64`, op, a, `=`, n, `should be`, want); }\n"
-	"}\n"
-	"\n"
-	"func testInt64Binary(a, b, add, sub, mul, div, mod, and, or, xor, andnot int64, dodiv bool) {\n"
-	"	if n, op, want := a + b, `+`, add; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a - b, `-`, sub; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a * b, `*`, mul; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	if dodiv {\n"
-	"		if n, op, want := a / b, `/`, div; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"		if n, op, want := a % b, `%`, mod; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	}\n"
-	"	if n, op, want := a & b, `&`, and; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a | b, `|`, or; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a ^ b, `^`, xor; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a &^ b, `&^`, andnot; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"}\n"
-	"\n"
-	"func testInt64Shift(a int64, b uint64, left, right int64) {\n"
-	"	if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint64`, s, `=`, n, `should be`, want); }\n"
-	"	if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint64`, s, `=`, n, `should be`, want); }\n"
-	"	if uint64(uint(b)) == b {\n"
-	"		b := uint(b);\n"
-	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint`, s, `=`, n, `should be`, want); }\n"
-	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint`, s, `=`, n, `should be`, want); }\n"
-	"	}\n"
-	"	if uint64(uint32(b)) == b {\n"
-	"		b := uint32(b);\n"
-	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint32`, s, `=`, n, `should be`, want); }\n"
-	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint32`, s, `=`, n, `should be`, want); }\n"
-	"	}\n"
-	"	if uint64(uint16(b)) == b {\n"
-	"		b := uint16(b);\n"
-	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint16`, s, `=`, n, `should be`, want); }\n"
-	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint16`, s, `=`, n, `should be`, want); }\n"
-	"	}\n"
-	"	if uint64(uint8(b)) == b {\n"
-	"		b := uint8(b);\n"
-	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint8`, s, `=`, n, `should be`, want); }\n"
-	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint8`, s, `=`, n, `should be`, want); }\n"
-	"	}\n"
-	"}\n"
-	"\n"
-	"func testUint64Unary(a, plus, xor, minus uint64) {\n"
-	"	if n, op, want := +a, `+`, plus; n != want { ok=false; println(`uint64`, op, a, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := ^a, `^`, xor; n != want { ok=false; println(`uint64`, op, a, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := -a, `-`, minus; n != want { ok=false; println(`uint64`, op, a, `=`, n, `should be`, want); }\n"
-	"}\n"
-	"\n"
-	"func testUint64Binary(a, b, add, sub, mul, div, mod, and, or, xor, andnot uint64, dodiv bool) {\n"
-	"	if n, op, want := a + b, `+`, add; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a - b, `-`, sub; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a * b, `*`, mul; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	if dodiv {\n"
-	"		if n, op, want := a / b, `/`, div; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"		if n, op, want := a % b, `%`, mod; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	}\n"
-	"	if n, op, want := a & b, `&`, and; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a | b, `|`, or; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a ^ b, `^`, xor; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a &^ b, `&^`, andnot; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n"
-	"}\n"
-	"\n"
-	"func testUint64Shift(a, b, left, right uint64) {\n"
-	"	if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint64`, s, `=`, n, `should be`, want); }\n"
-	"	if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint64`, s, `=`, n, `should be`, want); }\n"
-	"	if uint64(uint(b)) == b {\n"
-	"		b := uint(b);\n"
-	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint`, s, `=`, n, `should be`, want); }\n"
-	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint`, s, `=`, n, `should be`, want); }\n"
-	"	}\n"
-	"	if uint64(uint32(b)) == b {\n"
-	"		b := uint32(b);\n"
-	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint32`, s, `=`, n, `should be`, want); }\n"
-	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint32`, s, `=`, n, `should be`, want); }\n"
-	"	}\n"
-	"	if uint64(uint16(b)) == b {\n"
-	"		b := uint16(b);\n"
-	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint16`, s, `=`, n, `should be`, want); }\n"
-	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint16`, s, `=`, n, `should be`, want); }\n"
-	"	}\n"
-	"	if uint64(uint8(b)) == b {\n"
-	"		b := uint8(b);\n"
-	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint8`, s, `=`, n, `should be`, want); }\n"
-	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint8`, s, `=`, n, `should be`, want); }\n"
-	"	}\n"
-	"}\n"
+const prolog = "\n" +
+	"package main\n" +
+	"\n" +
+	"import \"os\"\n" +
+	"\n" +
+	"var ok = true\n" +
+	"\n" +
+	"func testInt64Unary(a, plus, xor, minus int64) {\n" +
+	"	if n, op, want := +a, `+`, plus; n != want { ok=false; println(`int64`, op, a, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := ^a, `^`, xor; n != want { ok=false; println(`int64`, op, a, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := -a, `-`, minus; n != want { ok=false; println(`int64`, op, a, `=`, n, `should be`, want); }\n" +
+	"}\n" +
+	"\n" +
+	"func testInt64Binary(a, b, add, sub, mul, div, mod, and, or, xor, andnot int64, dodiv bool) {\n" +
+	"	if n, op, want := a + b, `+`, add; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a - b, `-`, sub; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a * b, `*`, mul; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	if dodiv {\n" +
+	"		if n, op, want := a / b, `/`, div; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"		if n, op, want := a % b, `%`, mod; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
+	"	if n, op, want := a & b, `&`, and; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a | b, `|`, or; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a ^ b, `^`, xor; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a &^ b, `&^`, andnot; n != want { ok=false; println(`int64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"}\n" +
+	"\n" +
+	"func testInt64Shift(a int64, b uint64, left, right int64) {\n" +
+	"	if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint64`, s, `=`, n, `should be`, want); }\n" +
+	"	if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint64`, s, `=`, n, `should be`, want); }\n" +
+	"	if uint64(uint(b)) == b {\n" +
+	"		b := uint(b);\n" +
+	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint`, s, `=`, n, `should be`, want); }\n" +
+	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint`, s, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
+	"	if uint64(uint32(b)) == b {\n" +
+	"		b := uint32(b);\n" +
+	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint32`, s, `=`, n, `should be`, want); }\n" +
+	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint32`, s, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
+	"	if uint64(uint16(b)) == b {\n" +
+	"		b := uint16(b);\n" +
+	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint16`, s, `=`, n, `should be`, want); }\n" +
+	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint16`, s, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
+	"	if uint64(uint8(b)) == b {\n" +
+	"		b := uint8(b);\n" +
+	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`int64`, a, op, `uint8`, s, `=`, n, `should be`, want); }\n" +
+	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`int64`, a, op, `uint8`, s, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
+	"}\n" +
+	"\n" +
+	"func testUint64Unary(a, plus, xor, minus uint64) {\n" +
+	"	if n, op, want := +a, `+`, plus; n != want { ok=false; println(`uint64`, op, a, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := ^a, `^`, xor; n != want { ok=false; println(`uint64`, op, a, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := -a, `-`, minus; n != want { ok=false; println(`uint64`, op, a, `=`, n, `should be`, want); }\n" +
+	"}\n" +
+	"\n" +
+	"func testUint64Binary(a, b, add, sub, mul, div, mod, and, or, xor, andnot uint64, dodiv bool) {\n" +
+	"	if n, op, want := a + b, `+`, add; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a - b, `-`, sub; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a * b, `*`, mul; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	if dodiv {\n" +
+	"		if n, op, want := a / b, `/`, div; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"		if n, op, want := a % b, `%`, mod; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
+	"	if n, op, want := a & b, `&`, and; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a | b, `|`, or; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a ^ b, `^`, xor; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a &^ b, `&^`, andnot; n != want { ok=false; println(`uint64`, a, op, b, `=`, n, `should be`, want); }\n" +
+	"}\n" +
+	"\n" +
+	"func testUint64Shift(a, b, left, right uint64) {\n" +
+	"	if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint64`, s, `=`, n, `should be`, want); }\n" +
+	"	if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint64`, s, `=`, n, `should be`, want); }\n" +
+	"	if uint64(uint(b)) == b {\n" +
+	"		b := uint(b);\n" +
+	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint`, s, `=`, n, `should be`, want); }\n" +
+	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint`, s, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
+	"	if uint64(uint32(b)) == b {\n" +
+	"		b := uint32(b);\n" +
+	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint32`, s, `=`, n, `should be`, want); }\n" +
+	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint32`, s, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
+	"	if uint64(uint16(b)) == b {\n" +
+	"		b := uint16(b);\n" +
+	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint16`, s, `=`, n, `should be`, want); }\n" +
+	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint16`, s, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
+	"	if uint64(uint8(b)) == b {\n" +
+	"		b := uint8(b);\n" +
+	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(`uint64`, a, op, `uint8`, s, `=`, n, `should be`, want); }\n" +
+	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(`uint64`, a, op, `uint8`, s, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
+	"}\n" +
 	"\n"
 
 func varTests() {
@@ -554,7 +531,7 @@ func varTests() {
 		}
 		for _, b := range shiftValues {
 			fmt.Fprintf(bout, "\ttestInt64Shift(%v, %v, %v, %v);\n",
-				a, b, a.LeftShift64(b), a.RightShift64(b));
+				a, b, a.LeftShift64(b), a.RightShift64(b))
 		}
 		fmt.Fprintf(bout, "}\n");
 	}
@@ -569,7 +546,7 @@ func varTests() {
 			var zero Uint64;
 			if b.Cmp(zero) != 0 {	// b != 0
 				div, mod = a.DivMod(b);
-				dodiv =true;
+				dodiv = true;
 			}
 			fmt.Fprintf(bout, "\ttestUint64Binary(%v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v, %v);\n",
 				a, b, a.Plus(b), a.Minus(b), a.Times(b), div, mod,
@@ -577,7 +554,7 @@ func varTests() {
 		}
 		for _, b := range shiftValues {
 			fmt.Fprintf(bout, "\ttestUint64Shift(%v, %v, %v, %v);\n",
-				a, b, a.LeftShift64(b), a.RightShift64(b));
+				a, b, a.LeftShift64(b), a.RightShift64(b))
 		}
 		fmt.Fprintf(bout, "}\n");
 	}
@@ -585,66 +562,62 @@ func varTests() {
 
 // Part 2 is tests of operations involving one variable and one constant.
 
-const binaryConstL =
-	"func test%vBinaryL%v(b, add, sub, mul, div, mod, and, or, xor, andnot %v, dodiv bool) {\n"
-	"	const a %v = %v;\n"
-	"	const typ = `%s`;\n"
-	"	if n, op, want := a + b, `+`, add; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a - b, `-`, sub; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a * b, `*`, mul; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n"
-	"	if dodiv {\n"
-	"		if n, op, want := a / b, `/`, div; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n"
-	"		if n, op, want := a %% b, `%%`, mod; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n"
-	"	}\n"
-	"	if n, op, want := a & b, `&`, and; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a | b, `|`, or; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a ^ b, `^`, xor; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a &^ b, `&^`, andnot; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n"
-	"}\n"
+const binaryConstL = "func test%vBinaryL%v(b, add, sub, mul, div, mod, and, or, xor, andnot %v, dodiv bool) {\n" +
+	"	const a %v = %v;\n" +
+	"	const typ = `%s`;\n" +
+	"	if n, op, want := a + b, `+`, add; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a - b, `-`, sub; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a * b, `*`, mul; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n" +
+	"	if dodiv {\n" +
+	"		if n, op, want := a / b, `/`, div; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n" +
+	"		if n, op, want := a %% b, `%%`, mod; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
+	"	if n, op, want := a & b, `&`, and; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a | b, `|`, or; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a ^ b, `^`, xor; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a &^ b, `&^`, andnot; n != want { ok=false; println(typ, `const`, a, op, `var`, b, `=`, n, `should be`, want); }\n" +
+	"}\n" +
 	"\n"
 
-const binaryConstR =
-	"func test%vBinaryR%v(a, add, sub, mul, div, mod, and, or, xor, andnot %v, dodiv bool) {\n"
-	"	const b %v = %v;\n"
-	"	const typ = `%s`;\n"
-	"	if n, op, want := a + b, `+`, add; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a - b, `-`, sub; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a * b, `*`, mul; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n"
-	"	if dodiv {\n"
-	"		if n, op, want := a / b, `/`, div; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n"
-	"		if n, op, want := a %% b, `%%`, mod; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n"
-	"	}\n"
-	"	if n, op, want := a & b, `&`, and; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a | b, `|`, or; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a ^ b, `^`, xor; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n"
-	"	if n, op, want := a &^ b, `&^`, andnot; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n"
-	"}\n"
+const binaryConstR = "func test%vBinaryR%v(a, add, sub, mul, div, mod, and, or, xor, andnot %v, dodiv bool) {\n" +
+	"	const b %v = %v;\n" +
+	"	const typ = `%s`;\n" +
+	"	if n, op, want := a + b, `+`, add; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a - b, `-`, sub; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a * b, `*`, mul; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"	if dodiv {\n" +
+	"		if n, op, want := a / b, `/`, div; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"		if n, op, want := a %% b, `%%`, mod; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
+	"	if n, op, want := a & b, `&`, and; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a | b, `|`, or; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a ^ b, `^`, xor; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"	if n, op, want := a &^ b, `&^`, andnot; n != want { ok=false; println(typ, `var`, a, op, `const`, b, `=`, n, `should be`, want); }\n" +
+	"}\n" +
 	"\n"
 
-const shiftConstL =
-	"func test%vShiftL%v(b uint64, left, right %v) {\n"
-	"	const a %v = %v;\n"
-	"	const typ = `%s`;\n"
-	"	if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(typ, `const`, a, op, `var`, s, `=`, n, `should be`, want); }\n"
-	"	if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(typ, `const`, a, op, `var`, s, `=`, n, `should be`, want); }\n"
-	"	if uint64(uint32(b)) == b {\n"
-	"		b := uint32(b);\n"
-	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(typ, `const`, a, op, `var`, s, `=`, n, `should be`, want); }\n"
-	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(typ, `const`, a, op, `var`, s, `=`, n, `should be`, want); }\n"
-	"	}\n"
+const shiftConstL = "func test%vShiftL%v(b uint64, left, right %v) {\n" +
+	"	const a %v = %v;\n" +
+	"	const typ = `%s`;\n" +
+	"	if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(typ, `const`, a, op, `var`, s, `=`, n, `should be`, want); }\n" +
+	"	if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(typ, `const`, a, op, `var`, s, `=`, n, `should be`, want); }\n" +
+	"	if uint64(uint32(b)) == b {\n" +
+	"		b := uint32(b);\n" +
+	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(typ, `const`, a, op, `var`, s, `=`, n, `should be`, want); }\n" +
+	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(typ, `const`, a, op, `var`, s, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
 	"}\n"
 
-const shiftConstR =
-	"func test%vShiftR%v(a, left, right %v) {\n"
-	"	const b uint64 = %v;\n"
-	"	const typ = `%s`;\n"
-	"	if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(typ, `var`, a, op, `const`, s, `=`, n, `should be`, want); }\n"
-	"	if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(typ, `var`, a, op, `const`, s, `=`, n, `should be`, want); }\n"
-	"	if b & 0xffffffff == b {\n"
-	"		const b = uint32(b & 0xffffffff);\n"
-	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(typ, `var`, a, op, `const`, s, `=`, n, `should be`, want); }\n"
-	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(typ, `var`, a, op, `const`, s, `=`, n, `should be`, want); }\n"
-	"	}\n"
+const shiftConstR = "func test%vShiftR%v(a, left, right %v) {\n" +
+	"	const b uint64 = %v;\n" +
+	"	const typ = `%s`;\n" +
+	"	if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(typ, `var`, a, op, `const`, s, `=`, n, `should be`, want); }\n" +
+	"	if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(typ, `var`, a, op, `const`, s, `=`, n, `should be`, want); }\n" +
+	"	if b & 0xffffffff == b {\n" +
+	"		const b = uint32(b & 0xffffffff);\n" +
+	"		if n, op, s, want := a << b, `<<`, b, left; n != want { ok=false; println(typ, `var`, a, op, `const`, s, `=`, n, `should be`, want); }\n" +
+	"		if n, op, s, want := a >> b, `>>`, b, right; n != want { ok=false; println(typ, `var`, a, op, `const`, s, `=`, n, `should be`, want); }\n" +
+	"	}\n" +
 	"}\n"
 
 func constTests() {
@@ -728,7 +701,7 @@ func main() {
 
 	fmt.Fprintf(bout, "func main() {\n");
 	for i := 0; i < ntest; i++ {
-		fmt.Fprintf(bout, "\ttest%v();\n", i);
+		fmt.Fprintf(bout, "\ttest%v();\n", i)
 	}
 	fmt.Fprintf(bout, "\tif !ok { os.Exit(1) }\n");
 	fmt.Fprintf(bout, "}\n");

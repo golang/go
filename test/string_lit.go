@@ -8,7 +8,7 @@ package main
 
 import "os"
 
-var ecode int;
+var ecode int
 
 func assert(a, b, c string) {
 	if a != b {
@@ -16,19 +16,19 @@ func assert(a, b, c string) {
 		print("FAIL: ", c, ": ", a, "!=", b, "\n");
 		var max int = len(a);
 		if len(b) > max {
-			max = len(b);
+			max = len(b)
 		}
 		for i := 0; i < max; i++ {
 			ac := 0;
 			bc := 0;
 			if i < len(a) {
-				ac = int(a[i]);
+				ac = int(a[i])
 			}
 			if i < len(b) {
-				bc = int(b[i]);
+				bc = int(b[i])
 			}
 			if ac != bc {
-				print("\ta[", i, "] = ", ac, "; b[", i, "] =", bc, "\n");
+				print("\ta[", i, "] = ", ac, "; b[", i, "] =", bc, "\n")
 			}
 		}
 	}
@@ -37,25 +37,25 @@ func assert(a, b, c string) {
 func main() {
 	ecode = 0;
 	s :=
-		""
-		" "
-		"'`"
-		"a"
-		"ä"
-		"本"
-		"\a\b\f\n\r\t\v\\\""
-		"\000\123\x00\xca\xFE\u0123\ubabe\U0000babe"
+		"" +
+			" " +
+			"'`" +
+			"a" +
+			"ä" +
+			"本" +
+			"\a\b\f\n\r\t\v\\\"" +
+			"\000\123\x00\xca\xFE\u0123\ubabe\U0000babe" +
 
-		``
-		` `
-		`'"`
-		`a`
-		`ä`
-		`本`
-		`\a\b\f\n\r\t\v\\\'`
-		`\000\123\x00\xca\xFE\u0123\ubabe\U0000babe`
-		`\x\u\U\`
-	;
+			`` +
+			` ` +
+			`'"` +
+			`a` +
+			`ä` +
+			`本` +
+			`\a\b\f\n\r\t\v\\\'` +
+			`\000\123\x00\xca\xFE\u0123\ubabe\U0000babe` +
+			`\x\u\U\`;
+
 	assert("", ``, "empty");
 	assert(" ", " ", "blank");
 	assert("\x61", "a", "lowercase a");
@@ -65,11 +65,11 @@ func main() {
 	assert("\u672c", "本", "nihon");
 	assert("\u672c", `本`, "nihon (backquote)");
 	assert("\x07\x08\x0c\x0a\x0d\x09\x0b\x5c\x22",
-	       "\a\b\f\n\r\t\v\\\"",
-	       "backslashes");
+		"\a\b\f\n\r\t\v\\\"",
+		"backslashes");
 	assert("\\a\\b\\f\\n\\r\\t\\v\\\\\\\"",
 		`\a\b\f\n\r\t\v\\\"`,
-	       "backslashes (backquote)");
+		"backslashes (backquote)");
 	assert("\x00\x53\000\xca\376S몾몾",
 		"\000\123\x00\312\xFE\u0053\ubabe\U0000babe",
 		"backslashes 2");
