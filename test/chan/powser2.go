@@ -28,8 +28,11 @@ type item interface {
 }
 
 func (u *rat) pr(){
-	if u.den==1 { print(u.num) }
-	else { print(u.num, "/", u.den) }
+	if u.den==1 {
+		print(u.num)
+	} else {
+		print(u.num, "/", u.den)
+	}
 	print(" ")
 }
 
@@ -273,8 +276,7 @@ func inv(u *rat) *rat{	// invert a rat
 }
 
 // print eval in floating point of PS at x=c to n terms
-func Evaln(c *rat, U PS, n int)
-{
+func Evaln(c *rat, U PS, n int) {
 	xn := float64(1);
 	x := float64(c.num)/float64(c.den);
 	val := float64(0);
@@ -294,8 +296,11 @@ func Printn(U PS, n int){
 	done := false;
 	for ; !done && n>0; n-- {
 		u := get(U);
-		if end(u) != 0 { done = true }
-		else { u.pr() }
+		if end(u) != 0 {
+			done = true
+		} else {
+			u.pr()
+		}
 	}
 	print(("\n"));
 }
@@ -357,8 +362,11 @@ func Cmul(c *rat,U PS) PS{
 		for !done {
 			<-Z.req;
 			u := get(U);
-			if end(u) != 0 { done = true }
-			else { Z.dat <- mul(c,u) }
+			if end(u) != 0 {
+				done = true
+			} else {
+				Z.dat <- mul(c,u)
+			}
 		}
 		Z.dat <- finis;
 	}(c, U, Z);
@@ -474,8 +482,9 @@ func Diff(U PS) PS{
 			done:=false;
 			for i:=1; !done; i++ {
 				u = get(U);
-				if end(u) != 0 { done=true }
-				else {
+				if end(u) != 0 {
+					done=true
+				} else {
 					Z.dat <- mul(itor(int64(i)),u);
 					<-Z.req;
 				}
@@ -569,8 +578,11 @@ func Subst(U, V PS) PS {
 		u := get(U);
 		Z.dat <- u;
 		if end(u) == 0 {
-			if end(get(VV[0])) != 0 { put(finis,Z); }
-			else { copy(Mul(VV[0],Subst(U,VV[1])),Z); }
+			if end(get(VV[0])) != 0 {
+				put(finis,Z);
+			} else {
+				copy(Mul(VV[0],Subst(U,VV[1])),Z);
+			}
 		}
 	}(U, V, Z);
 	return Z;

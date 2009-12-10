@@ -9,14 +9,12 @@ package main
 var	a,b,c,d,e,f,g,h,i int;
 
 func
-printit()
-{
+printit() {
 	println(a,b,c,d,e,f,g,h,i);
 }
 
 func
-testit(permuteok bool) bool
-{
+testit(permuteok bool) bool {
 	if a+b+c+d+e+f+g+h+i != 45 {
 		print("sum does not add to 45\n");
 		printit();
@@ -40,8 +38,7 @@ swap(x, y int) (u, v int) {
 }
 
 func
-main()
-{
+main() {
 	a = 1;
 	b = 2;
 	c = 3;
