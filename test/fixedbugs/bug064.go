@@ -12,8 +12,7 @@ swap(x, y int) (u, v int) {
 }
 
 func
-main()
-{
+main() {
 	a := 1;
 	b := 2;
 	a, b = swap(swap(a, b));

@@ -7,8 +7,7 @@
 
 package main
 
-func main()
-{
+func main() {
 	s := float(0);
 	s := float(0);  // BUG redeclaration
 }
