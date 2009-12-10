@@ -51,8 +51,7 @@ var googleaddrs = []string{
 	"[0:0:0:0:0000:ffff:74.125.19.99]:80",
 	"[0:0:0:0:000000:ffff:74.125.19.99]:80",
 	"[0:0:0:0:0:ffff::74.125.19.99]:80",
-	"[2001:4860:0:2001::68]:80" // ipv6.google.com; removed if ipv6 flag not set
-	,
+	"[2001:4860:0:2001::68]:80",	// ipv6.google.com; removed if ipv6 flag not set
 }
 
 func TestDialGoogle(t *testing.T) {

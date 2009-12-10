@@ -200,7 +200,6 @@ var (
 func (t *uintType) compat(o Type, conv bool) bool {
 	t2, ok := o.lit().(*uintType);
 	return ok && t == t2;
-	;
 }
 
 func (t *uintType) lit() Type	{ return t }
