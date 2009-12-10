@@ -28,16 +28,14 @@ var b2 *[]int = &b0
 var b3 []int = []int{1, 2, 3}
 var b4 *[]int = &b3
 
-func crash()
-{
+func crash() {
 	// these uses of nil pointers
 	// would crash but should type check
 	println("crash",
 		len(a1) + cap(a1));
 }
 
-func nocrash()
-{
+func nocrash() {
 	// this is spaced funny so that
 	// the compiler will print a different
 	// line number for each len call if
@@ -79,7 +77,6 @@ func nocrash()
 	}
 }
 
-func main()
-{
+func main() {
 	nocrash();
 }

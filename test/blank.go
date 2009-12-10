@@ -31,7 +31,7 @@ const (
 var ints = []string {
 	"1",
 	"2",
-	"3"
+	"3",
 }
 
 func f() (int, int) {

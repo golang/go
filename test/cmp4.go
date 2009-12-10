@@ -6,8 +6,7 @@
 
 package main
 
-func main()
-{
+func main() {
 	var a []int;
 	var ia interface{} = a;
 	var m = make(map[interface{}] int);

@@ -22,9 +22,7 @@ func g() int {
 
 type T func() int
 
-var m = map[string] T {
-	"f": f
-}
+var m = map[string] T { "f": f }
 
 type A int
 type B int

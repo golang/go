@@ -47,8 +47,7 @@ func chku64(i, v uint64) { if i != v { panicln(i, "!=", v) } }
 //func chkf32(f, v float32) { if f != v { panicln(f, "!=", v) } }
 //func chkf64(f, v float64) { if f != v { panicln(f, "!=", v) } }
 
-func main()
-{
+func main() {
 	chki8(int8(i8), ci8 & 0xff - 1<<8);
 	chki8(int8(i16), ci16 & 0xff);
 	chki8(int8(i32), ci32 & 0xff - 1<<8);

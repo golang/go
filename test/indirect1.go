@@ -28,8 +28,7 @@ var b2 *[]int = &b0
 var b3 []int = []int{1, 2, 3}
 var b4 *[]int = &b3
 
-func f()
-{
+func f() {
 	// this is spaced funny so that
 	// the compiler will print a different
 	// line number for each len call when
