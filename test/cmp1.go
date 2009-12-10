@@ -22,8 +22,7 @@ func istrue(b bool) {
 	if !b { panicln("wanted true, got false") } // stack will explain where
 }
 
-func main()
-{
+func main() {
 	var a []int;
 	var b map[string]int;
 

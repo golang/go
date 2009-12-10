@@ -7,16 +7,14 @@
 package main
 
 func
-pow10(pow int) float64
-{
+pow10(pow int) float64 {
 	if pow < 0 { return 1/pow10(-pow); }
 	if pow > 0 { return pow10(pow-1)*10; }
 	return 1;
 }
 
 func
-close(da float64, ia, ib int64, pow int) bool
-{
+close(da float64, ia, ib int64, pow int) bool {
 	db := float64(ia) / float64(ib);
 	db *= pow10(pow);
 
@@ -39,8 +37,7 @@ close(da float64, ia, ib int64, pow int) bool
 }
 
 func
-main()
-{
+main() {
 
 	if !close(0., 0, 1, 0) { print("0. is ", 0., "\n"); }
 	if !close(+10., 10, 1, 0) { print("+10. is ", +10., "\n"); }

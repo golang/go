@@ -8,8 +8,7 @@ package main
 
 func use(bool) { }
 
-func main()
-{
+func main() {
 	var a []int;
 	var ia interface{} = a;
 	use(ia == ia);
