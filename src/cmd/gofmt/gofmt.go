@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes";
+	oldParser "exp/parser";
 	"flag";
 	"fmt";
 	"go/ast";
@@ -30,9 +31,13 @@ var (
 	trace		= flag.Bool("trace", false, "print parse trace");
 
 	// layout control
-	tabwidth	= flag.Int("tabwidth", 8, "tab width");
-	tabindent	= flag.Bool("tabindent", false, "indent with tabs independent of -spaces");
-	usespaces	= flag.Bool("spaces", false, "align with spaces instead of tabs");
+	tabWidth	= flag.Int("tabwidth", 8, "tab width");
+	tabIndent	= flag.Bool("tabindent", false, "indent with tabs independent of -spaces");
+	useSpaces	= flag.Bool("spaces", false, "align with spaces instead of tabs");
+
+	// semicolon transition
+	useOldParser	= flag.Bool("oldparser", true, "parse old syntax (required semicolons)");
+	useOldPrinter	= flag.Bool("oldprinter", true, "print old syntax (required semicolons)");
 )
 
 
@@ -69,12 +74,15 @@ func initParserMode() {
 
 
 func initPrinterMode() {
-	printerMode = uint(0);
-	if *tabindent {
+	printerMode = printer.NoStringConcat;
+	if *tabIndent {
 		printerMode |= printer.TabIndent
 	}
-	if *usespaces {
+	if *useSpaces {
 		printerMode |= printer.UseSpaces
+	}
+	if !*useOldPrinter {
+		printerMode |= printer.NoSemis
 	}
 }
 
@@ -91,7 +99,12 @@ func processFile(f *os.File) os.Error {
 		return err
 	}
 
-	file, err := parser.ParseFile(f.Name(), src, parserMode);
+	var file *ast.File;
+	if *useOldParser {
+		file, err = oldParser.ParseFile(f.Name(), src, parserMode)
+	} else {
+		file, err = parser.ParseFile(f.Name(), src, parserMode)
+	}
 	if err != nil {
 		return err
 	}
@@ -101,7 +114,7 @@ func processFile(f *os.File) os.Error {
 	}
 
 	var res bytes.Buffer;
-	_, err = (&printer.Config{printerMode, *tabwidth, nil}).Fprint(&res, file);
+	_, err = (&printer.Config{printerMode, *tabWidth, nil}).Fprint(&res, file);
 	if err != nil {
 		return err
 	}
@@ -176,8 +189,8 @@ func walkDir(path string) {
 func main() {
 	flag.Usage = usage;
 	flag.Parse();
-	if *tabwidth < 0 {
-		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", *tabwidth);
+	if *tabWidth < 0 {
+		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", *tabWidth);
 		os.Exit(2);
 	}
 
