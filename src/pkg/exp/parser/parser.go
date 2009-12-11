@@ -2,12 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// A parser for Go source files. Input may be provided in a variety of
-// forms (see the various Parse* functions); the output is an abstract
-// syntax tree (AST) representing the Go source. The parser is invoked
-// through one of the Parse* functions.
+// A parser for "old" Go source files using the old semicolon syntax.
+// Input may be provided in a variety of forms (see the various Parse*
+// functions); the output is an abstract syntax tree (AST) representing
+// the Go source. The oldParser is invoked through one of the Parse*
+// functions.
 //
-package parser
+// NOTE: This package is deprecated and will be removed once all Go code
+//       has been converted to using the new syntax and after a reasonable
+//       grace period.
+//
+package oldParser
 
 import (
 	"container/vector";

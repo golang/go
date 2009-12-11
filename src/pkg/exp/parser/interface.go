@@ -4,7 +4,7 @@
 
 // This file contains the exported entry points for invoking the parser.
 
-package parser
+package oldParser
 
 import (
 	"bytes";
