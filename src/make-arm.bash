@@ -4,19 +4,27 @@
 # license that can be found in the LICENSE file.
 
 set -e
+
+if test -z "$GOBIN"; then
+	if ! test -d "$HOME"/bin; then
+		echo '$GOBIN is not set and $HOME/bin is not a directory or does not exist.' 1>&2
+		echo 'mkdir $HOME/bin or set $GOBIN to a directory where binaries should' 1>&2
+		echo 'be installed.' 1>&2
+		exit 1
+	fi
+	GOBIN="$HOME/bin"
+elif ! test -d "$GOBIN"; then
+	echo '$GOBIN is not a directory or does not exist' 1>&2
+	echo 'create it or set $GOBIN differently' 1>&2
+	exit 1
+fi
+
 GOBIN="${GOBIN:-$HOME/bin}"
 export MAKEFLAGS=-j4
 
 if ! test -f "$GOROOT"/include/u.h
 then
 	echo '$GOROOT is not set correctly or not exported' 1>&2
-	exit 1
-fi
-
-if ! test -d $GOBIN
-then
-	echo '$GOBIN is not a directory or does not exist' 1>&2
-	echo 'create it or set $GOBIN differently' 1>&2
 	exit 1
 fi
 
@@ -38,17 +46,17 @@ esac
 
 bash clean.bash
 
-rm -f $GOBIN/quietgcc
-cp quietgcc.bash $GOBIN/quietgcc
-chmod +x $GOBIN/quietgcc
+rm -f "$GOBIN"/quietgcc
+cp quietgcc.bash "$GOBIN"/quietgcc
+chmod +x "$GOBIN"/quietgcc
 
-rm -f $GOBIN/gomake
+rm -f "$GOBIN"/gomake
 MAKE=make
 if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
 	MAKE=gmake
 fi
-(echo '#!/bin/sh'; echo 'exec '$MAKE' "$@"') >$GOBIN/gomake
-chmod +x $GOBIN/gomake
+(echo '#!/bin/sh'; echo 'exec '$MAKE' "$@"') >"$GOBIN"/gomake
+chmod +x "$GOBIN"/gomake
 
 bash clean.bash
 

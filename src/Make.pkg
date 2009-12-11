@@ -6,6 +6,18 @@ all: package
 package: _obj/$(TARG).a
 testpackage: _test/$(TARG).a
 
+ifndef GOBIN
+nullstring :=
+space := $(nullstring) # a space at the end
+QUOTED_HOME=$(subst $(space),\ ,$(HOME))
+GOBIN=$(QUOTED_HOME)/bin
+QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+else
+nullstring :=
+space := $(nullstring) # a space at the end
+QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+endif
+
 # GNU Make 3.80 has a bug in lastword
 # elem=$(lastword $(subst /, ,$(TARG)))
 TARG_words=$(subst /, ,$(TARG))
@@ -31,14 +43,14 @@ INSTALLFILES+=$(patsubst %.go,$(pkgdir)/$(dir)/$(elem)_%.so,$(CGOFILES))
 PREREQ+=$(patsubst %,%.make,$(DEPS))
 
 coverage:
-	gotest
-	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
+	$(QUOTED_GOBIN)/gotest
+	$(QUOTED_GOBIN)/6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
 
 clean:
 	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo[12].go *.cgo[34].c *.so _obj _test _testmain.go $(CLEANFILES)
 
 test:
-	gotest
+	$(QUOTED_GOBIN)/gotest
 
 nuke: clean
 	rm -f $(pkgdir)/$(TARG).a
@@ -53,20 +65,20 @@ $(pkgdir)/$(TARG).a: package
 	cp _obj/$(TARG).a "$@"
 
 _go_.$O: $(GOFILES) $(PREREQ)
-	$(GC) -o $@ $(GOFILES)
+	$(QUOTED_GOBIN)/$(GC) -o $@ $(GOFILES)
 
 _gotest_.$O: $(GOFILES) $(GOTESTFILES) $(PREREQ)
-	$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
+	$(QUOTED_GOBIN)/$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
 
 _obj/$(TARG).a: _go_.$O $(OFILES)
 	@mkdir -p _obj/$(dir)
 	rm -f _obj/$(TARG).a
-	gopack grc $@ _go_.$O $(OFILES)
+	$(QUOTED_GOBIN)/gopack grc $@ _go_.$O $(OFILES)
 
 _test/$(TARG).a: _gotest_.$O $(OFILES)
 	@mkdir -p _test/$(dir)
 	rm -f _test/$(TARG).a
-	gopack grc $@ _gotest_.$O $(OFILES)
+	$(QUOTED_GOBIN)/gopack grc $@ _gotest_.$O $(OFILES)
 
 importpath:
 	@echo $(TARG)
@@ -75,7 +87,7 @@ dir:
 	@echo $(dir)
 
 %.make:
-	(cd $* && gomake)
+	(cd $* && $(QUOTED_GOBIN)/gomake)
 
 # To use cgo in a Go package, add a line
 #
@@ -94,7 +106,7 @@ dir:
 #	x.cgo4.c - C implementations compiled with gcc to create dynamic library
 #
 %.cgo1.go %.cgo2.go %.cgo3.c %.cgo4.c: %.go
-	CGOPKGPATH=$(dir) cgo $(CGO_CFLAGS) $*.go
+	CGOPKGPATH=$(dir) $(QUOTED_GOBIN)/cgo $(CGO_CFLAGS) $*.go
 
 # The rules above added x.cgo1.go and x.cgo2.go to $(GOFILES),
 # added x.cgo3.$O to $OFILES, and added the installed copy of
@@ -104,7 +116,7 @@ dir:
 RUNTIME_CFLAGS_amd64=-D_64BIT
 RUNTIME_CFLAGS=-I"$(GOROOT)/src/pkg/runtime" $(RUNTIME_CFLAGS_$(GOARCH))
 %.cgo3.$O: %.cgo3.c
-	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) $*.cgo3.c
+	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) $*.cgo3.c
 
 # Have to run gcc with the right size argument on hybrid 32/64 machines.
 _CGO_CFLAGS_386=-m32
@@ -129,10 +141,10 @@ $(pkgdir)/$(dir)/$(elem)_%.so: $(elem)_%.so
 # These come last so that the rules above can override them
 # for more specific file names.
 %.$O: %.c
-	$(CC) $(CFLAGS) $*.c
+	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $*.c
 
 %.$O: %.s
-	$(AS) $*.s
+	$(QUOTED_GOBIN)/$(AS) $*.s
 
 %.$O: $(HFILES)
 

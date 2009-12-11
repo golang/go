@@ -11,5 +11,5 @@ GOFILES=\
 include ../../Make.cmd
 
 test: $(TARG)
-	$(TARG) -start="SourceFile" "$(GOROOT)"/doc/go_spec.html
+	$(QUOTED_GOBIN)/$(TARG) -start="SourceFile" "$(GOROOT)"/doc/go_spec.html
 

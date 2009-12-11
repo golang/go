@@ -13,5 +13,5 @@ CLEANFILES+=hello fib chain run.out
 include ../../../src/Make.pkg
 
 %: install %.go
-	$(GC) $*.go
-	$(LD) -o $@ $*.$O
+	$(QUOTED_GOBIN)/$(GC) $*.go
+	$(QUOTED_GOBIN)/$(LD) -o $@ $*.$O

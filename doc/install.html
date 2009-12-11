@@ -82,10 +82,9 @@ plus one optional variable:</p>
 </dt>
 <dd>
 	The location where binaries will be installed.
-	If you set <code>$GOBIN</code>, you need to ensure that it
-	is in your <code>$PATH</code> so that newly built Go-specific
-	command such as the compiler can be found during the build.
-	The default, <code>$HOME/bin</code>, may already be in your <code>$PATH</code>.
+	The default is <code>$HOME/bin</code>.
+	After installing, you will want to arrange to add this
+	directory to your <code>$PATH</code>, so you can use the tools.
 </dd>
 </dl>
 
@@ -204,9 +203,7 @@ $ sudo apt-get install bison gcc libc6-dev ed make
 </p>
 
 <p>
-To build the Go distribution, make sure <code>$GOBIN</code>
-(or <code>$HOME/bin</code> if <code>$GOBIN</code> is not set)
-is in your <code>$PATH</code> and then run
+To build the Go distribution, run
 </p>
 
 <pre>

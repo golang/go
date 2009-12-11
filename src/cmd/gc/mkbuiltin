@@ -5,6 +5,8 @@
 
 set -e
 
+GOBIN="${GOBIN:-$HOME/bin}"
+
 . "$GOROOT"/src/Make.$GOARCH
 if [ -z "$GC" ]; then
 	echo 'missing $GC - maybe no Make.$GOARCH?' 1>&2
@@ -15,7 +17,7 @@ gcc -o mkbuiltin1 mkbuiltin1.c
 rm -f _builtin.c
 for i in runtime unsafe
 do
-	$GC -A $i.go
+	"$GOBIN"/$GC -A $i.go
 	O=$O ./mkbuiltin1 $i >>_builtin.c
 done
 

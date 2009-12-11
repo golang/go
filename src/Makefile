@@ -1,11 +1,16 @@
+# GNU Make syntax:
+nullstring :=
+space := $(nullstring) # a space at the end
+QUOTED_GOROOT=$(subst $(space),\ ,$(GOROOT))
+
 all: build run
 
 build:
-	bash $(GOROOT)/src/make.bash
+	bash $(QUOTED_GOROOT)/src/make.bash
 
 run:
-	bash $(GOROOT)/src/run.bash
+	bash $(QUOTED_GOROOT)/src/run.bash
 
 clean:
-	bash $(GOROOT)/src/clean.bash
+	bash $(QUOTED_GOROOT)/src/clean.bash
 
