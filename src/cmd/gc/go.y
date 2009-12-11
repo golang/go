@@ -8,13 +8,14 @@
  * The Go semicolon rules are:
  *
  *  1. all statements and declarations are terminated by semicolons
- *  2. semicolons can be omitted at top level.
- *  3. semicolons can be omitted before and after the closing ) or }
+ *  2. semicolons can be omitted before and after the closing ) or }
  *	on a list of statements or declarations.
+ *  3. semicolons are inserted by the lexer before a newline
+ *      following a specific list of tokens.
  *
- * This is accomplished by calling yyoptsemi() to mark the places
- * where semicolons are optional.  That tells the lexer that if a
- * semicolon isn't the next token, it should insert one for us.
+ * Rules #1 and #2 are accomplished by writing the lists as
+ * semicolon-separated lists with an optional trailing semicolon.
+ * Rule #3 is implemented in yylex.
  */
 
 %{
@@ -67,7 +68,7 @@
 
 %type	<list>	xdcl fnbody fnres switch_body loop_body dcl_name_list
 %type	<list>	new_name_list expr_list keyval_list braced_keyval_list expr_or_type_list xdcl_list
-%type	<list>	oexpr_list oexpr_or_type_list caseblock_list stmt_list oarg_type_list arg_type_list
+%type	<list>	oexpr_list oexpr_or_type_list_ocomma caseblock_list stmt_list oarg_type_list_ocomma arg_type_list
 %type	<list>	interfacedcl_list vardcl vardcl_list structdcl structdcl_list
 %type	<list>	common_dcl constdcl constdcl1 constdcl_list typedcl_list
 
@@ -112,13 +113,6 @@
 %left		')'
 %left		PreferToRightParen
 
-%left		'.'
-
-%left		'{'
-
-%left		NotSemi
-%left		';'
-
 %%
 file:
 	loadsys
@@ -134,9 +128,10 @@ package:
 	{
 		prevlineno = lineno;
 		yyerror("package statement must be first");
+		flusherrors();
 		mkpackage("main");
 	}
-|	LPACKAGE sym
+|	LPACKAGE sym ';'
 	{
 		mkpackage($2->name);
 	}
@@ -157,12 +152,12 @@ loadsys:
 	}
 
 imports:
-|	imports import
+|	imports import ';'
 
 import:
-	LIMPORT import_stmt osemi
-|	LIMPORT '(' import_stmt_list osemi ')' osemi
-|	LIMPORT '(' ')' osemi
+	LIMPORT import_stmt
+|	LIMPORT '(' import_stmt_list osemi ')'
+|	LIMPORT '(' ')'
 
 import_stmt:
 	import_here import_package import_there
@@ -235,7 +230,7 @@ import_here:
 	}
 
 import_package:
-	LPACKAGE sym
+	LPACKAGE sym ';'
 	{
 		pkgimportname = $2;
 		if(strcmp($2->name, "main") == 0)
@@ -265,24 +260,24 @@ import_there:
 	{
 		resumecheckwidth();
 		checkimports();
+		unimportfile();
 	}
 
 /*
  * declarations
  */
 xdcl:
-	common_dcl osemi
-|	xfndcl osemi
+	{
+		yyerror("empty top-level declaration");
+		$$ = nil;
+	}
+|	common_dcl
+|	xfndcl
 	{
 		$$ = list1($1);
 	}
-|	error osemi
+|	error
 	{
-		$$ = nil;
-	}
-|	';'
-	{
-		yyerror("empty top-level declaration");
 		$$ = nil;
 	}
 
@@ -290,18 +285,14 @@ common_dcl:
 	LVAR vardcl
 	{
 		$$ = $2;
-		if(yylast == LSEMIBRACE)
-			yyoptsemi(0);
 	}
 |	LVAR '(' vardcl_list osemi ')'
 	{
 		$$ = $3;
-		yyoptsemi(0);
 	}
 |	LVAR '(' ')'
 	{
 		$$ = nil;
-		yyoptsemi(0);
 	}
 |	LCONST constdcl
 	{
@@ -314,51 +305,38 @@ common_dcl:
 		$$ = $3;
 		iota = 0;
 		lastconst = nil;
-		yyoptsemi(0);
 	}
 |	LCONST '(' constdcl ';' constdcl_list osemi ')'
 	{
 		$$ = concat($3, $5);
 		iota = 0;
 		lastconst = nil;
-		yyoptsemi(0);
 	}
 |	LCONST '(' ')'
 	{
 		$$ = nil;
-		yyoptsemi(0);
 	}
 |	LTYPE typedcl
 	{
 		$$ = list1($2);
-		if(yylast == LSEMIBRACE)
-			yyoptsemi(0);
 	}
 |	LTYPE '(' typedcl_list osemi ')'
 	{
 		$$ = $3;
-		yyoptsemi(0);
 	}
 |	LTYPE '(' ')'
 	{
 		$$ = nil;
-		yyoptsemi(0);
-	}
-
-varoptsemi:
-	{
-		if(yylast == LSEMIBRACE)
-			yyoptsemi('=');
 	}
 
 vardcl:
-	dcl_name_list ntype varoptsemi
+	dcl_name_list ntype
 	{
 		$$ = variter($1, $2, nil);
 	}
-|	dcl_name_list ntype varoptsemi '=' expr_list
+|	dcl_name_list ntype '=' expr_list
 	{
-		$$ = variter($1, $2, $5);
+		$$ = variter($1, $2, $4);
 	}
 |	dcl_name_list '=' expr_list
 	{
@@ -508,7 +486,6 @@ compound_stmt:
 	{
 		$$ = liststmt($3);
 		popdcl();
-		yyoptsemi(0);
 	}
 
 switch_body:
@@ -520,7 +497,6 @@ switch_body:
 	{
 		$$ = $3;
 		popdcl();
-		yyoptsemi(0);
 	}
 
 caseblock:
@@ -590,7 +566,6 @@ for_body:
 	{
 		$$ = $1;
 		$$->nbody = concat($$->nbody, $2);
-		yyoptsemi(0);
 	}
 
 for_stmt:
@@ -630,7 +605,6 @@ if_stmt:
 		$$ = $3;
 		$$->nbody = $4;
 		// no popdcl; maybe there's an LELSE
-		yyoptsemi(LELSE);
 	}
 
 switch_stmt:
@@ -794,7 +768,7 @@ uexpr:
  * can be preceded by 'defer' and 'go'
  */
 pseudocall:
-	pexpr '(' oexpr_or_type_list ')'
+	pexpr '(' oexpr_or_type_list_ocomma ')'
 	{
 		$$ = nod(OCALL, $1, N);
 		$$->list = $3;
@@ -1054,15 +1028,10 @@ structtype:
 	{
 		$$ = nod(OTSTRUCT, N, N);
 		$$->list = $3;
-		// Distinguish closing brace in struct from
-		// other closing braces by explicitly marking it.
-		// Used above (yylast == LSEMIBRACE).
-		yylast = LSEMIBRACE;
 	}
 |	LSTRUCT '{' '}'
 	{
 		$$ = nod(OTSTRUCT, N, N);
-		yylast = LSEMIBRACE;
 	}
 
 interfacetype:
@@ -1070,12 +1039,10 @@ interfacetype:
 	{
 		$$ = nod(OTINTER, N, N);
 		$$->list = $3;
-		yylast = LSEMIBRACE;
 	}
 |	LINTERFACE '{' '}'
 	{
 		$$ = nod(OTINTER, N, N);
-		yylast = LSEMIBRACE;
 	}
 
 keyval:
@@ -1100,7 +1067,7 @@ xfndcl:
 	}
 
 fndcl:
-	dcl_name '(' oarg_type_list ')' fnres
+	dcl_name '(' oarg_type_list_ocomma ')' fnres
 	{
 		Node *n;
 
@@ -1115,7 +1082,7 @@ fndcl:
 		$$->nname->ntype = n;
 		funchdr($$);
 	}
-|	'(' oarg_type_list ')' new_name '(' oarg_type_list ')' fnres
+|	'(' oarg_type_list_ocomma ')' new_name '(' oarg_type_list_ocomma ')' fnres
 	{
 		Node *rcvr, *t;
 
@@ -1145,7 +1112,7 @@ fndcl:
 	}
 
 fntype:
-	LFUNC '(' oarg_type_list ')' fnres
+	LFUNC '(' oarg_type_list_ocomma ')' fnres
 	{
 		$$ = nod(OTFUNC, N, N);
 		$$->list = $3;
@@ -1161,7 +1128,6 @@ fnbody:
 		$$ = $2;
 		if($$ == nil)
 			$$ = list1(nod(OEMPTY, N, N));
-		yyoptsemi(0);
 	}
 
 fnres:
@@ -1173,7 +1139,7 @@ fnres:
 	{
 		$$ = list1(nod(ODCLFIELD, N, $1));
 	}
-|	'(' oarg_type_list ')'
+|	'(' oarg_type_list_ocomma ')'
 	{
 		$$ = $2;
 	}
@@ -1201,7 +1167,7 @@ xdcl_list:
 	{
 		$$ = nil;
 	}
-|	xdcl_list xdcl
+|	xdcl_list xdcl ';'
 	{
 		$$ = concat($1, $2);
 		if(nsyntaxerrors == 0)
@@ -1312,7 +1278,7 @@ interfacedcl:
 	}
 
 indcl:
-	'(' oarg_type_list ')' fnres
+	'(' oarg_type_list_ocomma ')' fnres
 	{
 		// without func keyword
 		$$ = nod(OTFUNC, fakethis(), N);
@@ -1349,11 +1315,11 @@ arg_type_list:
 		$$ = list($1, $3);
 	}
 
-oarg_type_list:
+oarg_type_list_ocomma:
 	{
 		$$ = nil;
 	}
-|	arg_type_list
+|	arg_type_list ocomma
 	{
 		$$ = checkarglist($1);
 	}
@@ -1517,7 +1483,6 @@ braced_keyval_list:
  * optional things
  */
 osemi:
-	%prec NotSemi
 |	';'
 
 ocomma:
@@ -1535,11 +1500,11 @@ oexpr_list:
 	}
 |	expr_list
 
-oexpr_or_type_list:
+oexpr_or_type_list_ocomma:
 	{
 		$$ = nil;
 	}
-|	expr_or_type_list
+|	expr_or_type_list ocomma
 
 osimple_stmt:
 	{
@@ -1576,29 +1541,29 @@ oliteral:
  * an output package
  */
 hidden_import:
-	LPACKAGE sym
+	LPACKAGE sym ';'
 	/* variables */
-|	LVAR hidden_pkg_importsym hidden_type
+|	LVAR hidden_pkg_importsym hidden_type ';'
 	{
 		importvar($2, $3, PEXTERN);
 	}
-|	LCONST hidden_pkg_importsym '=' hidden_constant
+|	LCONST hidden_pkg_importsym '=' hidden_constant ';'
 	{
 		importconst($2, types[TIDEAL], $4);
 	}
-|	LCONST hidden_pkg_importsym hidden_type '=' hidden_constant
+|	LCONST hidden_pkg_importsym hidden_type '=' hidden_constant ';'
 	{
 		importconst($2, $3, $5);
 	}
-|	LTYPE hidden_pkgtype hidden_type
+|	LTYPE hidden_pkgtype hidden_type ';'
 	{
 		importtype($2, $3);
 	}
-|	LFUNC hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres
+|	LFUNC hidden_pkg_importsym '(' ohidden_funarg_list ')' ohidden_funres ';'
 	{
 		importvar($2, functype(N, $4, $6), PFUNC);
 	}
-|	LFUNC '(' hidden_funarg_list ')' sym '(' ohidden_funarg_list ')' ohidden_funres
+|	LFUNC '(' hidden_funarg_list ')' sym '(' ohidden_funarg_list ')' ohidden_funres ';'
 	{
 		if($3->next != nil || $3->n->op != ODCLFIELD) {
 			yyerror("bad receiver in method");

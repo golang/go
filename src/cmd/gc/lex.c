@@ -85,6 +85,7 @@ main(int argc, char *argv[])
 			fatal("open %s: %r", infile);
 		curio.peekc = 0;
 		curio.peekc1 = 0;
+		curio.nlsemi = 0;
 
 		block = 1;
 
@@ -310,6 +311,7 @@ importfile(Val *f, int line)
 	curio.peekc = 0;
 	curio.peekc1 = 0;
 	curio.infile = file;
+	curio.nlsemi = 0;
 	typecheckok = 1;
 	for(;;) {
 		c = getc();
@@ -354,6 +356,7 @@ cannedimports(char *file, char *cp)
 	curio.peekc1 = 0;
 	curio.infile = file;
 	curio.cp = cp;
+	curio.nlsemi = 0;
 
 	pkgmyname = S;
 	typecheckok = 1;
@@ -389,8 +392,14 @@ _yylex(void)
 
 l0:
 	c = getc();
-	if(isspace(c))
+	if(isspace(c)) {
+		if(c == '\n' && curio.nlsemi) {
+			ungetc(c);
+			DBG("lex: implicit semi\n");
+			return ';';
+		}
 		goto l0;
+	}
 
 	lineno = lexlineno;	/* start of token */
 
@@ -444,7 +453,6 @@ l0:
 		cp = mal(sizeof(int32));
 		clen = sizeof(int32);
 
-	caseq:
 		for(;;) {
 			if(escchar('"', &escflag, &v))
 				break;
@@ -460,15 +468,14 @@ l0:
 				clen += c;
 			}
 		}
-		goto catem;
-
+		goto strlit;
+	
 	case '`':
 		/* `...` */
 		strcpy(lexbuf, "`<string>`");
 		cp = mal(sizeof(int32));
 		clen = sizeof(int32);
 
-	casebq:
 		for(;;) {
 			c = getc();
 			if(c == EOF) {
@@ -480,51 +487,8 @@ l0:
 			cp = remal(cp, clen, 1);
 			cp[clen++] = c;
 		}
-		goto catem;
 
-	catem:
-		c = getc();
-		if(isspace(c))
-			goto catem;
-
-		// skip comments
-		if(c == '/') {
-			c1 = getc();
-			if(c1 == '*') {
-				for(;;) {
-					c = getr();
-					while(c == '*') {
-						c = getr();
-						if(c == '/')
-							goto catem;
-					}
-					if(c == EOF) {
-						yyerror("eof in comment");
-						errorexit();
-					}
-				}
-			}
-			if(c1 == '/') {
-				for(;;) {
-					c = getr();
-					if(c == '\n')
-						goto catem;
-					if(c == EOF) {
-						yyerror("eof in comment");
-						errorexit();
-					}
-				}
-			}
-			ungetc(c1);
-		}
-
-		// cat adjacent strings
-		if(c == '"')
-			goto caseq;
-		if(c == '`')
-			goto casebq;
-		ungetc(c);
-
+	strlit:
 		*(int32*)cp = clen-sizeof(int32);	// length
 		do {
 			cp = remal(cp, clen, 1);
@@ -554,12 +518,22 @@ l0:
 	case '/':
 		c1 = getc();
 		if(c1 == '*') {
+			int nl;
+			
+			nl = 0;
 			for(;;) {
 				c = getr();
+				if(c == '\n')
+					nl = 1;
 				while(c == '*') {
 					c = getr();
-					if(c == '/')
+					if(c == '/') {
+						if(nl)
+							ungetc('\n');
 						goto l0;
+					}
+					if(c == '\n')
+						nl = 1;
 				}
 				if(c == EOF) {
 					yyerror("eof in comment");
@@ -570,8 +544,10 @@ l0:
 		if(c1 == '/') {
 			for(;;) {
 				c = getr();
-				if(c == '\n')
+				if(c == '\n') {
+					ungetc(c);
 					goto l0;
+				}
 				if(c == EOF) {
 					yyerror("eof in comment");
 					errorexit();
@@ -962,42 +938,43 @@ caseout:
 	return LLITERAL;
 }
 
-/*
- * help the parser.  if the next token is not c and not ';',
- * insert a ';' before it.
- */
-void
-yyoptsemi(int c)
-{
-	if(c == 0)
-		c = -1;
-	if(yychar <= 0)
-		yysemi = c;
-}
-
 int32
 yylex(void)
 {
-	// if we delayed a token, return that one.
-	if(yynext) {
-		yylast = yynext;
-		yynext = 0;
-		return yylast;
+	int lx;
+	
+	lx = _yylex();
+	
+	if(curio.nlsemi && lx == EOF) {
+		// if the nlsemi bit is set, we'd be willing to
+		// insert a ; if we saw a \n, but we didn't.
+		// that means the final \n is missing.
+		// complain here, because we can give a
+		// good message.  the syntax error we'd get
+		// otherwise is inscrutable.
+		yyerror("missing newline at end of file");
+		lx = ';';
 	}
 
-	yylast = _yylex();
-
-	// if there's an optional semicolon needed,
-	// delay the token we just read.
-	if(yysemi) {
-		if(yylast != ';' && yylast != yysemi) {
-			yynext = yylast;
-			yylast = ';';
-		}
-		yysemi = 0;
+	switch(lx) {
+	case LNAME:
+	case LLITERAL:
+	case LBREAK:
+	case LCONTINUE:
+	case LFALL:
+	case LRETURN:
+	case LINC:
+	case LDEC:
+	case ')':
+	case '}':
+	case ']':
+		curio.nlsemi = 1;
+		break;
+	default:
+		curio.nlsemi = 0;
+		break;
 	}
-
-	return yylast;
+	return lx;
 }
 
 int
