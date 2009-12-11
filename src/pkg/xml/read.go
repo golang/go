@@ -10,6 +10,7 @@ import (
 	"os";
 	"reflect";
 	"strings";
+	"unicode";
 )
 
 // BUG(rsc): Mapping between XML elements and data structures is inherently flawed:
@@ -144,6 +145,20 @@ func (p *Parser) Unmarshal(val interface{}, start *StartElement) os.Error {
 	return p.unmarshal(v.Elem(), start);
 }
 
+// fieldName strips invalid characters from an XML name
+// to create a valid Go struct name.  It also converts the
+// name to lower case letters.
+func fieldName(original string) string {
+	return strings.Map(
+		func(x int) int {
+			if unicode.IsDigit(x) || unicode.IsLetter(x) {
+				return unicode.ToLower(x)
+			}
+			return -1;
+		},
+		original)
+}
+
 // Unmarshal a single XML element into val.
 func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 	// Find start element if we need it.
@@ -269,7 +284,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 				val := "";
 				k := strings.ToLower(f.Name);
 				for _, a := range start.Attr {
-					if strings.ToLower(a.Name.Local) == k {
+					if fieldName(a.Name.Local) == k {
 						val = a.Value;
 						break;
 					}
@@ -303,7 +318,7 @@ Loop:
 			// Look up by tag name.
 			// If that fails, fall back to mop-up field named "Any".
 			if sv != nil {
-				k := strings.ToLower(t.Name.Local);
+				k := fieldName(t.Name.Local);
 				any := -1;
 				for i, n := 0, styp.NumField(); i < n; i++ {
 					f := styp.Field(i);

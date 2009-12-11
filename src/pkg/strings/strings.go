@@ -178,7 +178,8 @@ func HasSuffix(s, suffix string) bool {
 }
 
 // Map returns a copy of the string s with all its characters modified
-// according to the mapping function.
+// according to the mapping function. If mapping returns a negative value, the character is
+// dropped from the string with no replacement.
 func Map(mapping func(rune int) int, s string) string {
 	// In the worst case, the string can grow when mapped, making
 	// things unpleasant.  But it's so rare we barge in assuming it's
@@ -188,20 +189,22 @@ func Map(mapping func(rune int) int, s string) string {
 	b := make([]byte, maxbytes);
 	for _, c := range s {
 		rune := mapping(c);
-		wid := 1;
-		if rune >= utf8.RuneSelf {
-			wid = utf8.RuneLen(rune)
-		}
-		if nbytes+wid > maxbytes {
-			// Grow the buffer.
-			maxbytes = maxbytes*2 + utf8.UTFMax;
-			nb := make([]byte, maxbytes);
-			for i, c := range b[0:nbytes] {
-				nb[i] = c
+		if rune >= 0 {
+			wid := 1;
+			if rune >= utf8.RuneSelf {
+				wid = utf8.RuneLen(rune)
 			}
-			b = nb;
+			if nbytes+wid > maxbytes {
+				// Grow the buffer.
+				maxbytes = maxbytes*2 + utf8.UTFMax;
+				nb := make([]byte, maxbytes);
+				for i, c := range b[0:nbytes] {
+					nb[i] = c
+				}
+				b = nb;
+			}
+			nbytes += utf8.EncodeRune(rune, b[nbytes:maxbytes]);
 		}
-		nbytes += utf8.EncodeRune(rune, b[nbytes:maxbytes]);
 	}
 	return string(b[0:nbytes]);
 }

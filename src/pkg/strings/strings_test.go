@@ -279,6 +279,19 @@ func TestMap(t *testing.T) {
 	if m != expect {
 		t.Errorf("rot13: expected %q got %q", expect, m)
 	}
+
+	// 5. Drop
+	dropNotLatin := func(rune int) int {
+		if unicode.Is(unicode.Latin, rune) {
+			return rune
+		}
+		return -1;
+	};
+	m = Map(dropNotLatin, "Hello, 세계");
+	expect = "Hello";
+	if m != expect {
+		t.Errorf("drop: expected %q got %q", expect, m)
+	}
 }
 
 func TestToUpper(t *testing.T)	{ runStringTests(t, ToUpper, "ToUpper", upperTests) }
