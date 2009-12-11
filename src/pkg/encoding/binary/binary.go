@@ -113,15 +113,24 @@ func (bigEndian) String() string	{ return "BigEndian" }
 func (bigEndian) GoString() string	{ return "binary.BigEndian" }
 
 // Read reads structured binary data from r into data.
-// Data must be a pointer to a fixed-size value.
+// Data must be a pointer to a fixed-size value or a slice
+// of fixed-size values.
 // A fixed-size value is either a fixed-size integer
 // (int8, uint8, int16, uint16, ...) or an array or struct
 // containing only fixed-size values.  Bytes read from
 // r are decoded using the specified byte order and written
 // to successive fields of the data.
 func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
-	v := reflect.NewValue(data).(*reflect.PtrValue).Elem();
-	size := sizeof(v.Type());
+	var v reflect.Value;
+	switch d := reflect.NewValue(data).(type) {
+	case *reflect.PtrValue:
+		v = d.Elem()
+	case *reflect.SliceValue:
+		v = d
+	default:
+		return os.NewError("binary.Read: invalid type " + v.Type().String())
+	}
+	size := TotalSize(v);
 	if size < 0 {
 		return os.NewError("binary.Read: invalid type " + v.Type().String())
 	}
@@ -143,7 +152,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 // from successive fields of the data.
 func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
 	v := reflect.Indirect(reflect.NewValue(data));
-	size := sizeof(v.Type());
+	size := TotalSize(v);
 	if size < 0 {
 		return os.NewError("binary.Write: invalid type " + v.Type().String())
 	}
@@ -154,8 +163,19 @@ func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
 	return err;
 }
 
-func sizeof(t reflect.Type) int {
-	switch t := t.(type) {
+func TotalSize(v reflect.Value) int {
+	if sv, ok := v.(*reflect.SliceValue); ok {
+		elem := sizeof(v.Type().(*reflect.SliceType).Elem());
+		if elem < 0 {
+			return -1
+		}
+		return sv.Len() * elem;
+	}
+	return sizeof(v.Type());
+}
+
+func sizeof(v reflect.Type) int {
+	switch t := v.(type) {
 	case *reflect.ArrayType:
 		n := sizeof(t.Elem());
 		if n < 0 {
@@ -281,6 +301,12 @@ func (d *decoder) value(v reflect.Value) {
 			d.value(v.Field(i))
 		}
 
+	case *reflect.SliceValue:
+		l := v.Len();
+		for i := 0; i < l; i++ {
+			d.value(v.Elem(i))
+		}
+
 	case *reflect.Uint8Value:
 		v.Set(d.uint8())
 	case *reflect.Uint16Value:
@@ -315,6 +341,11 @@ func (e *encoder) value(v reflect.Value) {
 		l := v.NumField();
 		for i := 0; i < l; i++ {
 			e.value(v.Field(i))
+		}
+	case *reflect.SliceValue:
+		l := v.Len();
+		for i := 0; i < l; i++ {
+			e.value(v.Elem(i))
 		}
 
 	case *reflect.Uint8Value:
