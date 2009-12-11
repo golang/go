@@ -23,7 +23,7 @@ CLEANFILES+=ogle
 include ../../../Make.pkg
 
 main.$O: main.go package
-	$(GC) -I_obj $<
+	$(QUOTED_GOBIN)/$(GC) -I_obj $<
 
 ogle: main.$O
-	$(LD) -L_obj -o $@ $<
+	$(QUOTED_GOBIN)/$(LD) -L_obj -o $@ $<

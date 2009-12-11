@@ -4,6 +4,9 @@
 # license that can be found in the LICENSE file.
 
 set -e
+
+GOBIN="${GOBIN:-$HOME/bin}"
+
 . "$GOROOT"/src/Make.$GOARCH
 PATH=.:$PATH
 
@@ -15,11 +18,11 @@ X-test)
 esac
 
 gc() {
-	$GC $1.go; $LD $1.$O
+	"$GOBIN"/$GC $1.go; "$GOBIN"/$LD $1.$O
 }
 
 gc_B() {
-	$GC -B $1.go; $LD $1.$O
+	"$GOBIN"/$GC -B $1.go; "$GOBIN"/$LD $1.$O
 }
 
 runonly() {

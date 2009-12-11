@@ -14,6 +14,8 @@ unset LANG
 export LC_ALL=C
 export LC_CTYPE=C
 
+GOBIN="${GOBIN:-$HOME/bin}"
+
 _GC=$GC	# Make.$GOARCH will overwrite this
 
 if [ ! -f [Mm]akefile ]; then
@@ -94,10 +96,10 @@ fi
 
 set -e
 
-gomake testpackage-clean
-gomake testpackage "GOTESTFILES=$gofiles"
+"$GOBIN"/gomake testpackage-clean
+"$GOBIN"/gomake testpackage "GOTESTFILES=$gofiles"
 if $havex; then
-	$GC -o $xofile $xgofiles
+	"$GOBIN"/$GC -o $xofile $xgofiles
 fi
 
 # They all compile; now generate the code to call them.
@@ -107,20 +109,20 @@ trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
 MAKEFLAGS=
 MAKELEVEL=
 
-importpath=$(gomake -s importpath)
+importpath=$("$GOBIN"/gomake -s importpath)
 {
 	# test functions are named TestFoo
 	# the grep -v eliminates methods and other special names
 	# that have multiple dots.
 	pattern='Test([^a-z].*)?'
-	tests=$(6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+	tests=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
 	if [ "x$tests" = x ]; then
 		echo 'gotest: error: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
 		exit 2
 	fi
 	# benchmarks are named BenchmarkFoo.
 	pattern='Benchmark([^a-z].*)?'
-	benchmarks=$(6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+	benchmarks=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
 
 	# package spec
 	echo 'package main'
@@ -159,6 +161,6 @@ importpath=$(gomake -s importpath)
 	echo '}'
 }>_testmain.go
 
-$GC _testmain.go
-$GL _testmain.$O
+"$GOBIN"/$GC _testmain.go
+"$GOBIN"/$GL _testmain.$O
 $E ./$O.out "$@"

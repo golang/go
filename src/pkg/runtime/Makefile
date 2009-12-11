@@ -92,27 +92,27 @@ $(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
 	mv -f $@.x $@
 
 cgo2c: cgo2c.c
-	quietgcc -o $@ $<
+	$(QUOTED_GOBIN)/quietgcc -o $@ $<
 
 %.c:	%.cgo cgo2c
 	./cgo2c $< > $@.tmp
 	mv -f $@.tmp $@
 
 %.$O:	$(GOARCH)/%.c
-	$(CC) $(CFLAGS) $<
+	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
 
 %.$O:	$(GOOS)/%.c
-	$(CC) $(CFLAGS) $<
+	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
 
 %.$O:	$(GOOS)/$(GOARCH)/%.c
-	$(CC) $(CFLAGS) $<
+	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
 
 %.$O:	$(GOARCH)/%.s $(GOARCH)/asm.h
-	$(AS) $<
+	$(QUOTED_GOBIN)/$(AS) $<
 
 %.$O:	$(GOOS)/$(GOARCH)/%.s $(GOARCH)/asm.h
-	$(AS) $<
+	$(QUOTED_GOBIN)/$(AS) $<
 
 # for discovering offsets inside structs when debugging
 runtime.acid.$(GOARCH): runtime.h proc.c
-	$(CC) -a proc.c >$@
+	$(QUOTED_GOBIN)/$(CC) -a proc.c >$@

@@ -4,6 +4,21 @@
 # license that can be found in the LICENSE file.
 
 set -e
+
+if test -z "$GOBIN"; then
+	if ! test -d "$HOME"/bin; then
+		echo '$GOBIN is not set and $HOME/bin is not a directory or does not exist.' 1>&2
+		echo 'mkdir $HOME/bin or set $GOBIN to a directory where binaries should' 1>&2
+		echo 'be installed.' 1>&2
+		exit 1
+	fi
+	GOBIN="$HOME/bin"
+elif ! test -d "$GOBIN"; then
+	echo '$GOBIN is not a directory or does not exist' 1>&2
+	echo 'create it or set $GOBIN differently' 1>&2
+	exit 1
+fi
+
 GOBIN="${GOBIN:-$HOME/bin}"
 export MAKEFLAGS=-j4
 
@@ -12,13 +27,6 @@ unset CDPATH	# in case user has it set
 if ! test -f "$GOROOT"/include/u.h
 then
 	echo '$GOROOT is not set correctly or not exported' 1>&2
-	exit 1
-fi
-
-if ! test -d "$GOBIN"
-then
-	echo '$GOBIN is not a directory or does not exist' 1>&2
-	echo 'create it or set $GOBIN differently' 1>&2
 	exit 1
 fi
 
@@ -40,7 +48,7 @@ esac
 
 rm -f "$GOBIN"/quietgcc
 CC=${CC:-gcc}
-sed -e "s|@CC@|$CC|" < quietgcc.bash > "$GOBIN"/quietgcc
+sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOBIN"/quietgcc
 chmod +x "$GOBIN"/quietgcc
 
 rm -f "$GOBIN"/gomake
@@ -50,12 +58,6 @@ if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
 fi
 (echo '#!/bin/sh'; echo 'exec '$MAKE' "$@"') >"$GOBIN"/gomake
 chmod +x "$GOBIN"/gomake
-
-if ! (cd lib9 && which quietgcc) >/dev/null 2>&1; then
-	echo "installed quietgcc as $GOBIN/quietgcc but 'which quietgcc' fails" 1>&2
-	echo "double-check that $GOBIN is in your "'$PATH' 1>&2
-	exit 1
-fi
 
 if [ -d /selinux -a -f /selinux/booleans/allow_execstack ] ; then
 	if ! cat /selinux/booleans/allow_execstack | grep -c '^1 1$' >> /dev/null ; then
@@ -74,10 +76,10 @@ if [ -d /selinux -a -f /selinux/booleans/allow_execstack ] ; then
 fi
 
 (
-	cd pkg;
+	cd "$GOROOT"/src/pkg;
 	bash deps.bash	# do this here so clean.bash will work in the pkg directory
 )
-bash clean.bash
+bash "$GOROOT"/src/clean.bash
 
 for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc cmd/hgpatch
 do
@@ -91,16 +93,16 @@ do
 		# test the exit status.
 		(
 			echo; echo; echo %%%% making $i %%%%; echo
-			cd $i
+			cd "$GOROOT"/src/$i
 			case $i in
 			cmd)
 				bash make.bash
 				;;
 			pkg)
-				gomake install
+				"$GOBIN"/gomake install
 				;;
 			*)
-				gomake install
+				"$GOBIN"/gomake install
 			esac
 		)  || exit 1
 	esac

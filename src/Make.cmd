@@ -15,10 +15,10 @@ QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
 all: $(TARG)
 
 $(TARG): _go_.$O $(OFILES)
-	$(LD) -o $@ _go_.$O $(OFILES)
+	$(QUOTED_GOBIN)/$(LD) -o $@ _go_.$O $(OFILES)
 
 _go_.$O: $(GOFILES)
-	$(GC) -o $@ $(GOFILES)
+	$(QUOTED_GOBIN)/$(GC) -o $@ $(GOFILES)
 
 install: $(QUOTED_GOBIN)/$(TARG)
 

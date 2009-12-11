@@ -3,6 +3,8 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+GOBIN="${GOBIN:-$HOME/bin}"
+
 . "$GOROOT"/src/Make.$GOARCH
 
 if [ -z "$O" ]; then
@@ -30,11 +32,11 @@ for i in \
 ; do
 	BASE=$(basename $i .go)
 
-	$GC $i
+	"$GOBIN"/$GC $i
 done
 
 function testit {
-	$LD $1.$O
+	"$GOBIN"/$LD $1.$O
 	x=$(echo $(./$O.out $2 2>&1))  # extra echo canonicalizes
 	if [ "$x" != "$3" ]
 	then
@@ -43,7 +45,7 @@ function testit {
 }
 
 function testitpipe {
-	$LD $1.$O
+	"$GOBIN"/$LD $1.$O
 	x=$(echo $(./$O.out | $2 2>&1))  # extra echo canonicalizes
 	if [ "$x" != "$3" ]
 	then
@@ -72,7 +74,7 @@ testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
 testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
 
 # server hangs; don't run it, just compile it
-$GC server.go
+"$GOBIN"/$GC server.go
 testit server1 "" ""
 
 rm -f $O.out *.$O

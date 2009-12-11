@@ -5,13 +5,15 @@
 
 set -e
 
+GOBIN="${GOBIN:-$HOME/bin}"
+
 # no core files, please
 ulimit -c 0
 
 xcd() {
 	echo
 	echo --- cd $1
-	builtin cd $1
+	builtin cd "$GOROOT"/src/$1
 }
 
 maketest() {
@@ -19,10 +21,10 @@ maketest() {
 	do
 		(
 			xcd $i
-			gomake clean
-			time gomake
-			gomake install
-			gomake test
+			"$GOBIN"/gomake clean
+			time "$GOBIN"/gomake
+			"$GOBIN"/gomake install
+			"$GOBIN"/gomake test
 		) || exit $?
 	done
 }
@@ -34,31 +36,31 @@ maketest \
 # from what maketest does.
 
 (xcd pkg/sync;
-gomake clean;
-time gomake
-GOMAXPROCS=10 gomake test
+"$GOBIN"/gomake clean;
+time "$GOBIN"/gomake
+GOMAXPROCS=10 "$GOBIN"/gomake test
 ) || exit $?
 
 (xcd cmd/gofmt
-gomake clean
-time gomake
-time gomake smoketest
+"$GOBIN"/gomake clean
+time "$GOBIN"/gomake
+time "$GOBIN"/gomake smoketest
 ) || exit $?
 
 (xcd cmd/ebnflint
-gomake clean
-time gomake
-time gomake test
+"$GOBIN"/gomake clean
+time "$GOBIN"/gomake
+time "$GOBIN"/gomake test
 ) || exit $?
 
 (xcd ../misc/cgo/stdio
-gomake clean
+"$GOBIN"/gomake clean
 ./test.bash
 ) || exit $?
 
 (xcd pkg/exp/ogle
-gomake clean
-time gomake ogle
+"$GOBIN"/gomake clean
+time "$GOBIN"/gomake ogle
 ) || exit $?
 
 (xcd ../doc/progs

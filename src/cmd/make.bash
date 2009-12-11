@@ -7,6 +7,8 @@ set -e
 
 bash clean.bash
 
+GOBIN="${GOBIN:-$HOME/bin}"
+
 . "$GOROOT"/src/Make.$GOARCH
 if [ -z "$O" ]; then
 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
@@ -15,13 +17,13 @@ fi
 
 cd ${O}l
 bash mkenam
-gomake enam.o
+"$GOBIN"/gomake enam.o
 cd ..
 
 for i in cc ${O}l ${O}a ${O}c gc ${O}g gopack nm cov godefs prof gotest
 do
 	echo; echo; echo %%%% making $i %%%%; echo
 	cd $i
-	gomake install
+	"$GOBIN"/gomake install
 	cd ..
 done
