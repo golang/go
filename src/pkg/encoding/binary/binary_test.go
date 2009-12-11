@@ -64,6 +64,9 @@ var little = []byte{
 	39, 40, 41, 42,
 }
 
+var src = []byte{1, 2, 3, 4, 5, 6, 7, 8}
+var res = []int32{0x01020304, 0x05060708}
+
 func checkResult(t *testing.T, dir string, order, err os.Error, have, want interface{}) {
 	if err != nil {
 		t.Errorf("%v %v: %v", dir, order, err);
@@ -97,3 +100,15 @@ func TestLittleEndianWrite(t *testing.T)	{ testWrite(t, LittleEndian, little, s)
 func TestBigEndianPtrWrite(t *testing.T)	{ testWrite(t, BigEndian, big, &s) }
 
 func TestLittleEndianPtrWrite(t *testing.T)	{ testWrite(t, LittleEndian, little, &s) }
+
+func TestReadSlice(t *testing.T) {
+	slice := make([]int32, 2);
+	err := Read(bytes.NewBuffer(src), BigEndian, slice);
+	checkResult(t, "ReadSlice", BigEndian, err, slice, res);
+}
+
+func TestWriteSlice(t *testing.T) {
+	buf := new(bytes.Buffer);
+	err := Write(buf, BigEndian, res);
+	checkResult(t, "WriteSlice", BigEndian, err, buf.Bytes(), src);
+}
