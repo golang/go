@@ -25,6 +25,12 @@ count() {
 }
 
 
+error() {
+	echo $1
+	exit 1
+}
+
+
 # apply to one file
 apply1() {
 	#echo $1 $2
@@ -34,7 +40,8 @@ apply1() {
 	func3.go | const2.go | \
 	bug014.go | bug050.go |  bug068.go |  bug083.go | bug088.go | \
 	bug106.go | bug121.go | bug125.go | bug133.go | bug160.go | \
-	bug163.go | bug166.go | bug169.go | bug217.go ) ;;
+	bug163.go | bug166.go | bug169.go | bug217.go | bug222.go | \
+	bug226.go ) ;;
 	* ) "$1" "$2"; count "$F";;
 	esac
 }
@@ -66,8 +73,7 @@ silent() {
 	$CMD "$1" > /dev/null 2> $TMP1
 	if [ $? != 0 ]; then
 		cat $TMP1
-		echo "Error (silent mode test): test.sh $1"
-		exit 1
+		error "Error (silent mode test): test.sh $1"
 	fi
 }
 
@@ -76,27 +82,23 @@ idempotent() {
 	cleanup
 	$CMD "$1" > $TMP1
 	if [ $? != 0 ]; then
-		echo "Error (step 1 of idempotency test): test.sh $1"
-		exit 1
+		error "Error (step 1 of idempotency test): test.sh $1"
 	fi
 
 	$CMD $TMP1 > $TMP2
 	if [ $? != 0 ]; then
-		echo "Error (step 2 of idempotency test): test.sh $1"
-		exit 1
+		error "Error (step 2 of idempotency test): test.sh $1"
 	fi
 
 	$CMD $TMP2 > $TMP3
 	if [ $? != 0 ]; then
-		echo "Error (step 3 of idempotency test): test.sh $1"
-		exit 1
+		error "Error (step 3 of idempotency test): test.sh $1"
 	fi
 
 	cmp -s $TMP2 $TMP3
 	if [ $? != 0 ]; then
 		diff $TMP2 $TMP3
-		echo "Error (step 4 of idempotency test): test.sh $1"
-		exit 1
+		error "Error (step 4 of idempotency test): test.sh $1"
 	fi
 }
 
@@ -105,14 +107,12 @@ valid() {
 	cleanup
 	$CMD "$1" > $TMP1
 	if [ $? != 0 ]; then
-		echo "Error (step 1 of validity test): test.sh $1"
-		exit 1
+		error "Error (step 1 of validity test): test.sh $1"
 	fi
 
 	$GC -o /dev/null $TMP1
 	if [ $? != 0 ]; then
-		echo "Error (step 2 of validity test): test.sh $1"
-		exit 1
+		error "Error (step 2 of validity test): test.sh $1"
 	fi
 }
 
