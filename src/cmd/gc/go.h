@@ -513,6 +513,7 @@ struct	Var
 	int	width;
 	char	name;
 	char	etype;
+	char	addr;
 };
 
 EXTERN	Var	var[NVAR];
