@@ -56,7 +56,6 @@ type parser struct {
 	lit	[]byte;		// token literal
 
 	// Non-syntactic parser control
-	optSemi	bool;	// true if semicolon separator is optional in statement list
 	exprLev	int;	// < 0: in control clause, >= 0: in expression
 
 	// Scopes
@@ -68,10 +67,11 @@ type parser struct {
 
 // scannerMode returns the scanner mode bits given the parser's mode bits.
 func scannerMode(mode uint) uint {
+	var m uint = scanner.InsertSemis;
 	if mode&ParseComments != 0 {
-		return scanner.ScanComments
+		m |= scanner.ScanComments
 	}
-	return 0;
+	return m;
 }
 
 
@@ -133,9 +133,7 @@ func (p *parser) next0() {
 	}
 
 	p.pos, p.tok, p.lit = p.scanner.Scan();
-	p.optSemi = false;
 }
-
 
 // Consume a comment and return it and the line on which it ends.
 func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
@@ -163,7 +161,7 @@ func (p *parser) consumeComment() (comment *ast.Comment, endline int) {
 // a comment group.
 //
 func (p *parser) consumeCommentGroup() int {
-	list := new(vector.Vector);
+	var list vector.Vector;
 	endline := p.pos.Line;
 	for p.tok == token.COMMENT && endline+1 >= p.pos.Line {
 		var comment *ast.Comment;
@@ -262,6 +260,13 @@ func (p *parser) expect(tok token.Token) token.Position {
 }
 
 
+func (p *parser) expectSemi() {
+	if p.tok != token.RPAREN && p.tok != token.RBRACE {
+		p.expect(token.SEMICOLON)
+	}
+}
+
+
 // ----------------------------------------------------------------------------
 // Scope support
 
@@ -308,7 +313,7 @@ func (p *parser) parseIdentList() []*ast.Ident {
 		defer un(trace(p, "IdentList"))
 	}
 
-	list := new(vector.Vector);
+	var list vector.Vector;
 	list.Push(p.parseIdent());
 	for p.tok == token.COMMA {
 		p.next();
@@ -325,25 +330,28 @@ func (p *parser) parseIdentList() []*ast.Ident {
 }
 
 
+func makeExprList(list *vector.Vector) []ast.Expr {
+	exprs := make([]ast.Expr, list.Len());
+	for i := 0; i < list.Len(); i++ {
+		exprs[i] = list.At(i).(ast.Expr)
+	}
+	return exprs;
+}
+
+
 func (p *parser) parseExprList() []ast.Expr {
 	if p.trace {
 		defer un(trace(p, "ExpressionList"))
 	}
 
-	list := new(vector.Vector);
+	var list vector.Vector;
 	list.Push(p.parseExpr());
 	for p.tok == token.COMMA {
 		p.next();
 		list.Push(p.parseExpr());
 	}
 
-	// convert list
-	exprs := make([]ast.Expr, list.Len());
-	for i := 0; i < list.Len(); i++ {
-		exprs[i] = list.At(i).(ast.Expr)
-	}
-
-	return exprs;
+	return makeExprList(&list);
 }
 
 
@@ -435,15 +443,14 @@ func (p *parser) parseFieldDecl() *ast.Field {
 	doc := p.leadComment;
 
 	// a list of identifiers looks like a list of type names
-	list := new(vector.Vector);
+	var list vector.Vector;
 	for {
 		// TODO(gri): do not allow ()'s here
 		list.Push(p.parseType());
-		if p.tok == token.COMMA {
-			p.next()
-		} else {
+		if p.tok != token.COMMA {
 			break
 		}
+		p.next();
 	}
 
 	// if we had a list of identifiers, it must be followed by a type
@@ -452,14 +459,16 @@ func (p *parser) parseFieldDecl() *ast.Field {
 	// optional tag
 	var tag []*ast.BasicLit;
 	if p.tok == token.STRING {
-		tag = p.parseStringList(nil)
+		x := &ast.BasicLit{p.pos, p.tok, p.lit};
+		p.next();
+		tag = []*ast.BasicLit{x};
 	}
 
 	// analyze case
 	var idents []*ast.Ident;
 	if typ != nil {
 		// IdentifierList Type
-		idents = p.makeIdentList(list)
+		idents = p.makeIdentList(&list)
 	} else {
 		// Type (anonymous field)
 		if list.Len() == 1 {
@@ -471,7 +480,9 @@ func (p *parser) parseFieldDecl() *ast.Field {
 		}
 	}
 
-	return &ast.Field{doc, idents, typ, tag, nil};
+	p.expectSemi();
+
+	return &ast.Field{doc, idents, typ, tag, p.lineComment};
 }
 
 
@@ -482,17 +493,11 @@ func (p *parser) parseStructType() *ast.StructType {
 
 	pos := p.expect(token.STRUCT);
 	lbrace := p.expect(token.LBRACE);
-	list := new(vector.Vector);
+	var list vector.Vector;
 	for p.tok == token.IDENT || p.tok == token.MUL {
-		f := p.parseFieldDecl();
-		if p.tok != token.RBRACE {
-			p.expect(token.SEMICOLON)
-		}
-		f.Comment = p.lineComment;
-		list.Push(f);
+		list.Push(p.parseFieldDecl())
 	}
 	rbrace := p.expect(token.RBRACE);
-	p.optSemi = true;
 
 	// convert vector
 	fields := make([]*ast.Field, list.Len());
@@ -547,21 +552,20 @@ func (p *parser) parseParameterDecl(ellipsisOk bool) (*vector.Vector, ast.Expr) 
 	}
 
 	// a list of identifiers looks like a list of type names
-	list := new(vector.Vector);
+	var list vector.Vector;
 	for {
 		// TODO(gri): do not allow ()'s here
 		list.Push(p.parseParameterType(ellipsisOk));
-		if p.tok == token.COMMA {
-			p.next()
-		} else {
+		if p.tok != token.COMMA {
 			break
 		}
+		p.next();
 	}
 
 	// if we had a list of identifiers, it must be followed by a type
 	typ := p.tryParameterType(ellipsisOk);
 
-	return list, typ;
+	return &list, typ;
 }
 
 
@@ -576,12 +580,18 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
 		idents := p.makeIdentList(list);
 		list.Resize(0, 0);
 		list.Push(&ast.Field{nil, idents, typ, nil, nil});
+		if p.tok == token.COMMA {
+			p.next()
+		}
 
-		for p.tok == token.COMMA {
-			p.next();
+		for p.tok != token.RPAREN && p.tok != token.EOF {
 			idents := p.parseIdentList();
 			typ := p.parseParameterType(ellipsisOk);
 			list.Push(&ast.Field{nil, idents, typ, nil, nil});
+			if p.tok != token.COMMA {
+				break
+			}
+			p.next();
 		}
 
 	} else {
@@ -680,8 +690,9 @@ func (p *parser) parseMethodSpec() *ast.Field {
 		// embedded interface
 		typ = x
 	}
+	p.expectSemi();
 
-	return &ast.Field{doc, idents, typ, nil, nil};
+	return &ast.Field{doc, idents, typ, nil, p.lineComment};
 }
 
 
@@ -692,17 +703,11 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 
 	pos := p.expect(token.INTERFACE);
 	lbrace := p.expect(token.LBRACE);
-	list := new(vector.Vector);
+	var list vector.Vector;
 	for p.tok == token.IDENT {
-		m := p.parseMethodSpec();
-		if p.tok != token.RBRACE {
-			p.expect(token.SEMICOLON)
-		}
-		m.Comment = p.lineComment;
-		list.Push(m);
+		list.Push(p.parseMethodSpec())
 	}
 	rbrace := p.expect(token.RBRACE);
-	p.optSemi = true;
 
 	// convert vector
 	methods := make([]*ast.Field, list.Len());
@@ -804,28 +809,16 @@ func (p *parser) parseStmtList() []ast.Stmt {
 		defer un(trace(p, "StatementList"))
 	}
 
-	list := new(vector.Vector);
-	expectSemi := false;
+	var list vector.Vector;
 	for p.tok != token.CASE && p.tok != token.DEFAULT && p.tok != token.RBRACE && p.tok != token.EOF {
-		if expectSemi {
-			p.expect(token.SEMICOLON);
-			expectSemi = false;
-		}
-		list.Push(p.parseStmt());
-		if p.tok == token.SEMICOLON {
-			p.next()
-		} else if p.optSemi {
-			p.optSemi = false	// "consume" optional semicolon
-		} else {
-			expectSemi = true
-		}
+		list.Push(p.parseStmt())
 	}
 
-	return makeStmtList(list);
+	return makeStmtList(&list);
 }
 
 
-func (p *parser) parseBlockStmt(idents []*ast.Ident) *ast.BlockStmt {
+func (p *parser) parseBlockStmt() *ast.BlockStmt {
 	if p.trace {
 		defer un(trace(p, "BlockStmt"))
 	}
@@ -835,7 +828,6 @@ func (p *parser) parseBlockStmt(idents []*ast.Ident) *ast.BlockStmt {
 	lbrace := p.expect(token.LBRACE);
 	list := p.parseStmtList();
 	rbrace := p.expect(token.RBRACE);
-	p.optSemi = true;
 
 	return &ast.BlockStmt{lbrace, list, rbrace};
 }
@@ -843,31 +835,6 @@ func (p *parser) parseBlockStmt(idents []*ast.Ident) *ast.BlockStmt {
 
 // ----------------------------------------------------------------------------
 // Expressions
-
-func (p *parser) parseStringList(x *ast.BasicLit) []*ast.BasicLit {
-	if p.trace {
-		defer un(trace(p, "StringList"))
-	}
-
-	list := new(vector.Vector);
-	if x != nil {
-		list.Push(x)
-	}
-
-	for p.tok == token.STRING {
-		list.Push(&ast.BasicLit{p.pos, token.STRING, p.lit});
-		p.next();
-	}
-
-	// convert list
-	strings := make([]*ast.BasicLit, list.Len());
-	for i := 0; i < list.Len(); i++ {
-		strings[i] = list.At(i).(*ast.BasicLit)
-	}
-
-	return strings;
-}
-
 
 func (p *parser) parseFuncTypeOrLit() ast.Expr {
 	if p.trace {
@@ -881,8 +848,7 @@ func (p *parser) parseFuncTypeOrLit() ast.Expr {
 	}
 
 	p.exprLev++;
-	body := p.parseBlockStmt(nil);
-	p.optSemi = false;	// function body requires separating ";"
+	body := p.parseBlockStmt();
 	p.exprLev--;
 
 	return &ast.FuncLit{typ, body};
@@ -904,9 +870,6 @@ func (p *parser) parseOperand() ast.Expr {
 	case token.INT, token.FLOAT, token.CHAR, token.STRING:
 		x := &ast.BasicLit{p.pos, p.tok, p.lit};
 		p.next();
-		if p.tok == token.STRING && p.tok == token.STRING {
-			return &ast.StringList{p.parseStringList(x)}
-		}
 		return x;
 
 	case token.LPAREN:
@@ -993,14 +956,18 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
 
 	lparen := p.expect(token.LPAREN);
 	p.exprLev++;
-	var args []ast.Expr;
-	if p.tok != token.RPAREN {
-		args = p.parseExprList()
+	var list vector.Vector;
+	for p.tok != token.RPAREN && p.tok != token.EOF {
+		list.Push(p.parseExpr());
+		if p.tok != token.COMMA {
+			break
+		}
+		p.next();
 	}
 	p.exprLev--;
 	rparen := p.expect(token.RPAREN);
 
-	return &ast.CallExpr{fun, lparen, args, rparen};
+	return &ast.CallExpr{fun, lparen, makeExprList(&list), rparen};
 }
 
 
@@ -1025,23 +992,16 @@ func (p *parser) parseElementList() []ast.Expr {
 		defer un(trace(p, "ElementList"))
 	}
 
-	list := new(vector.Vector);
+	var list vector.Vector;
 	for p.tok != token.RBRACE && p.tok != token.EOF {
 		list.Push(p.parseElement());
-		if p.tok == token.COMMA {
-			p.next()
-		} else {
+		if p.tok != token.COMMA {
 			break
 		}
+		p.next();
 	}
 
-	// convert list
-	elts := make([]ast.Expr, list.Len());
-	for i := 0; i < list.Len(); i++ {
-		elts[i] = list.At(i).(ast.Expr)
-	}
-
-	return elts;
+	return makeExprList(&list);
 }
 
 
@@ -1250,7 +1210,6 @@ func (p *parser) parseExpr() ast.Expr {
 // ----------------------------------------------------------------------------
 // Statements
 
-
 func (p *parser) parseSimpleStmt(labelOk bool) ast.Stmt {
 	if p.trace {
 		defer un(trace(p, "SimpleStmt"))
@@ -1319,10 +1278,12 @@ func (p *parser) parseGoStmt() ast.Stmt {
 
 	pos := p.expect(token.GO);
 	call := p.parseCallExpr();
-	if call != nil {
-		return &ast.GoStmt{pos, call}
+	p.expectSemi();
+	if call == nil {
+		return &ast.BadStmt{pos}
 	}
-	return &ast.BadStmt{pos};
+
+	return &ast.GoStmt{pos, call};
 }
 
 
@@ -1333,10 +1294,12 @@ func (p *parser) parseDeferStmt() ast.Stmt {
 
 	pos := p.expect(token.DEFER);
 	call := p.parseCallExpr();
-	if call != nil {
-		return &ast.DeferStmt{pos, call}
+	p.expectSemi();
+	if call == nil {
+		return &ast.BadStmt{pos}
 	}
-	return &ast.BadStmt{pos};
+
+	return &ast.DeferStmt{pos, call};
 }
 
 
@@ -1348,9 +1311,10 @@ func (p *parser) parseReturnStmt() *ast.ReturnStmt {
 	pos := p.pos;
 	p.expect(token.RETURN);
 	var x []ast.Expr;
-	if p.tok != token.SEMICOLON && p.tok != token.CASE && p.tok != token.DEFAULT && p.tok != token.RBRACE {
+	if p.tok != token.SEMICOLON && p.tok != token.RBRACE {
 		x = p.parseExprList()
 	}
+	p.expectSemi();
 
 	return &ast.ReturnStmt{pos, x};
 }
@@ -1366,6 +1330,7 @@ func (p *parser) parseBranchStmt(tok token.Token) *ast.BranchStmt {
 	if tok != token.FALLTHROUGH && p.tok == token.IDENT {
 		s.Label = p.parseIdent()
 	}
+	p.expectSemi();
 
 	return s;
 }
@@ -1398,7 +1363,7 @@ func (p *parser) parseControlClause(isForStmt bool) (s1, s2, s3 ast.Stmt) {
 			}
 			if isForStmt {
 				// for statements have a 3rd section
-				p.expect(token.SEMICOLON);
+				p.expectSemi();
 				if p.tok != token.LBRACE {
 					s3 = p.parseSimpleStmt(false)
 				}
@@ -1424,11 +1389,13 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 
 	pos := p.expect(token.IF);
 	s1, s2, _ := p.parseControlClause(false);
-	body := p.parseBlockStmt(nil);
+	body := p.parseBlockStmt();
 	var else_ ast.Stmt;
 	if p.tok == token.ELSE {
 		p.next();
 		else_ = p.parseStmt();
+	} else {
+		p.expectSemi()
 	}
 
 	return &ast.IfStmt{pos, s1, p.makeExpr(s2), body, else_};
@@ -1465,20 +1432,14 @@ func (p *parser) parseTypeList() []ast.Expr {
 		defer un(trace(p, "TypeList"))
 	}
 
-	list := new(vector.Vector);
+	var list vector.Vector;
 	list.Push(p.parseType());
 	for p.tok == token.COMMA {
 		p.next();
 		list.Push(p.parseType());
 	}
 
-	// convert list
-	exprs := make([]ast.Expr, list.Len());
-	for i := 0; i < list.Len(); i++ {
-		exprs[i] = list.At(i).(ast.Expr)
-	}
-
-	return exprs;
+	return makeExprList(&list);
 }
 
 
@@ -1534,26 +1495,26 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 
 	if isExprSwitch(s2) {
 		lbrace := p.expect(token.LBRACE);
-		cases := new(vector.Vector);
+		var cases vector.Vector;
 		for p.tok == token.CASE || p.tok == token.DEFAULT {
 			cases.Push(p.parseCaseClause())
 		}
 		rbrace := p.expect(token.RBRACE);
-		p.optSemi = true;
-		body := &ast.BlockStmt{lbrace, makeStmtList(cases), rbrace};
+		body := &ast.BlockStmt{lbrace, makeStmtList(&cases), rbrace};
+		p.expectSemi();
 		return &ast.SwitchStmt{pos, s1, p.makeExpr(s2), body};
 	}
 
 	// type switch
 	// TODO(gri): do all the checks!
 	lbrace := p.expect(token.LBRACE);
-	cases := new(vector.Vector);
+	var cases vector.Vector;
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
 		cases.Push(p.parseTypeCaseClause())
 	}
 	rbrace := p.expect(token.RBRACE);
-	p.optSemi = true;
-	body := &ast.BlockStmt{lbrace, makeStmtList(cases), rbrace};
+	p.expectSemi();
+	body := &ast.BlockStmt{lbrace, makeStmtList(&cases), rbrace};
 	return &ast.TypeSwitchStmt{pos, s1, s2, body};
 }
 
@@ -1609,13 +1570,13 @@ func (p *parser) parseSelectStmt() *ast.SelectStmt {
 
 	pos := p.expect(token.SELECT);
 	lbrace := p.expect(token.LBRACE);
-	cases := new(vector.Vector);
+	var cases vector.Vector;
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
 		cases.Push(p.parseCommClause())
 	}
 	rbrace := p.expect(token.RBRACE);
-	p.optSemi = true;
-	body := &ast.BlockStmt{lbrace, makeStmtList(cases), rbrace};
+	p.expectSemi();
+	body := &ast.BlockStmt{lbrace, makeStmtList(&cases), rbrace};
 
 	return &ast.SelectStmt{pos, body};
 }
@@ -1631,7 +1592,8 @@ func (p *parser) parseForStmt() ast.Stmt {
 
 	pos := p.expect(token.FOR);
 	s1, s2, s3 := p.parseControlClause(true);
-	body := p.parseBlockStmt(nil);
+	body := p.parseBlockStmt();
+	p.expectSemi();
 
 	if as, isAssign := s2.(*ast.AssignStmt); isAssign {
 		// possibly a for statement with a range clause; check assignment operator
@@ -1673,70 +1635,69 @@ func (p *parser) parseForStmt() ast.Stmt {
 }
 
 
-func (p *parser) parseStmt() ast.Stmt {
+func (p *parser) parseStmt() (s ast.Stmt) {
 	if p.trace {
 		defer un(trace(p, "Statement"))
 	}
 
 	switch p.tok {
 	case token.CONST, token.TYPE, token.VAR:
-		decl, _ := p.parseDecl(false);	// do not consume trailing semicolon
-		return &ast.DeclStmt{decl};
+		s = &ast.DeclStmt{p.parseDecl()}
 	case
 		// tokens that may start a top-level expression
 		token.IDENT, token.INT, token.FLOAT, token.CHAR, token.STRING, token.FUNC, token.LPAREN,	// operand
 		token.LBRACK, token.STRUCT,	// composite type
 		token.MUL, token.AND, token.ARROW, token.ADD, token.SUB, token.XOR:	// unary operators
-		return p.parseSimpleStmt(true)
+		s = p.parseSimpleStmt(true);
+		// because of the required look-ahead, labeled statements are
+		// parsed by parseSimpleStmt - don't expect a semicolon after
+		// them
+		if _, isLabeledStmt := s.(*ast.LabeledStmt); !isLabeledStmt {
+			p.expectSemi()
+		}
 	case token.GO:
-		return p.parseGoStmt()
+		s = p.parseGoStmt()
 	case token.DEFER:
-		return p.parseDeferStmt()
+		s = p.parseDeferStmt()
 	case token.RETURN:
-		return p.parseReturnStmt()
+		s = p.parseReturnStmt()
 	case token.BREAK, token.CONTINUE, token.GOTO, token.FALLTHROUGH:
-		return p.parseBranchStmt(p.tok)
+		s = p.parseBranchStmt(p.tok)
 	case token.LBRACE:
-		return p.parseBlockStmt(nil)
+		s = p.parseBlockStmt();
+		p.expectSemi();
 	case token.IF:
-		return p.parseIfStmt()
+		s = p.parseIfStmt()
 	case token.SWITCH:
-		return p.parseSwitchStmt()
+		s = p.parseSwitchStmt()
 	case token.SELECT:
-		return p.parseSelectStmt()
+		s = p.parseSelectStmt()
 	case token.FOR:
-		return p.parseForStmt()
-	case token.SEMICOLON, token.RBRACE:
-		// don't consume the ";", it is the separator following the empty statement
-		return &ast.EmptyStmt{p.pos}
+		s = p.parseForStmt()
+	case token.SEMICOLON:
+		p.next();
+		fallthrough;
+	case token.RBRACE:
+		// a semicolon may be omitted before a closing "}"
+		s = &ast.EmptyStmt{p.pos}
+	default:
+		// no statement found
+		p.errorExpected(p.pos, "statement");
+		p.next();	// make progress
+		s = &ast.BadStmt{p.pos};
 	}
 
-	// no statement found
-	p.errorExpected(p.pos, "statement");
-	p.next();	// make progress
-	return &ast.BadStmt{p.pos};
+	return;
 }
 
 
 // ----------------------------------------------------------------------------
 // Declarations
 
-type parseSpecFunction func(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec, gotSemi bool)
+type parseSpecFunction func(p *parser, doc *ast.CommentGroup) ast.Spec
 
 
-// Consume semicolon if there is one and getSemi is set, and get any line comment.
-// Return the comment if any and indicate if a semicolon was consumed.
-//
-func (p *parser) parseComment(getSemi bool) (comment *ast.CommentGroup, gotSemi bool) {
-	if getSemi && p.tok == token.SEMICOLON {
-		p.next();
-		gotSemi = true;
-	}
-	return p.lineComment, gotSemi;
-}
-
-
-func parseImportSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec, gotSemi bool) {
+func parseImportSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ImportSpec"))
 	}
@@ -1751,18 +1712,19 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.S
 
 	var path []*ast.BasicLit;
 	if p.tok == token.STRING {
-		path = p.parseStringList(nil)
+		x := &ast.BasicLit{p.pos, p.tok, p.lit};
+		p.next();
+		path = []*ast.BasicLit{x};
 	} else {
 		p.expect(token.STRING)	// use expect() error handling
 	}
+	p.expectSemi();
 
-	comment, gotSemi := p.parseComment(getSemi);
-
-	return &ast.ImportSpec{doc, ident, path, comment}, gotSemi;
+	return &ast.ImportSpec{doc, ident, path, p.lineComment};
 }
 
 
-func parseConstSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec, gotSemi bool) {
+func parseConstSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ConstSpec"))
 	}
@@ -1774,26 +1736,26 @@ func parseConstSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Sp
 		p.expect(token.ASSIGN);
 		values = p.parseExprList();
 	}
-	comment, gotSemi := p.parseComment(getSemi);
+	p.expectSemi();
 
-	return &ast.ValueSpec{doc, idents, typ, values, comment}, gotSemi;
+	return &ast.ValueSpec{doc, idents, typ, values, p.lineComment};
 }
 
 
-func parseTypeSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec, gotSemi bool) {
+func parseTypeSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "TypeSpec"))
 	}
 
 	ident := p.parseIdent();
 	typ := p.parseType();
-	comment, gotSemi := p.parseComment(getSemi);
+	p.expectSemi();
 
-	return &ast.TypeSpec{doc, ident, typ, comment}, gotSemi;
+	return &ast.TypeSpec{doc, ident, typ, p.lineComment};
 }
 
 
-func parseVarSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec, gotSemi bool) {
+func parseVarSpec(p *parser, doc *ast.CommentGroup) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "VarSpec"))
 	}
@@ -1805,13 +1767,13 @@ func parseVarSpec(p *parser, doc *ast.CommentGroup, getSemi bool) (spec ast.Spec
 		p.expect(token.ASSIGN);
 		values = p.parseExprList();
 	}
-	comment, gotSemi := p.parseComment(getSemi);
+	p.expectSemi();
 
-	return &ast.ValueSpec{doc, idents, typ, values, comment}, gotSemi;
+	return &ast.ValueSpec{doc, idents, typ, values, p.lineComment};
 }
 
 
-func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi bool) (decl *ast.GenDecl, gotSemi bool) {
+func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.GenDecl {
 	if p.trace {
 		defer un(trace(p, keyword.String()+"Decl"))
 	}
@@ -1819,30 +1781,17 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi 
 	doc := p.leadComment;
 	pos := p.expect(keyword);
 	var lparen, rparen token.Position;
-	list := new(vector.Vector);
+	var list vector.Vector;
 	if p.tok == token.LPAREN {
 		lparen = p.pos;
 		p.next();
 		for p.tok != token.RPAREN && p.tok != token.EOF {
-			doc := p.leadComment;
-			spec, semi := f(p, doc, true);	// consume semicolon if any
-			list.Push(spec);
-			if !semi {
-				break
-			}
+			list.Push(f(p, p.leadComment))
 		}
 		rparen = p.expect(token.RPAREN);
-
-		if getSemi && p.tok == token.SEMICOLON {
-			p.next();
-			gotSemi = true;
-		} else {
-			p.optSemi = true
-		}
+		p.expectSemi();
 	} else {
-		spec, semi := f(p, nil, getSemi);
-		list.Push(spec);
-		gotSemi = semi;
+		list.Push(f(p, nil))
 	}
 
 	// convert vector
@@ -1851,7 +1800,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction, getSemi 
 		specs[i] = list.At(i).(ast.Spec)
 	}
 
-	return &ast.GenDecl{doc, pos, keyword, lparen, specs, rparen}, gotSemi;
+	return &ast.GenDecl{doc, pos, keyword, lparen, specs, rparen};
 }
 
 
@@ -1902,14 +1851,15 @@ func (p *parser) parseFunctionDecl() *ast.FuncDecl {
 
 	var body *ast.BlockStmt;
 	if p.tok == token.LBRACE {
-		body = p.parseBlockStmt(nil)
+		body = p.parseBlockStmt()
 	}
+	p.expectSemi();
 
 	return &ast.FuncDecl{doc, recv, ident, &ast.FuncType{pos, params, results}, body};
 }
 
 
-func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
+func (p *parser) parseDecl() ast.Decl {
 	if p.trace {
 		defer un(trace(p, "Declaration"))
 	}
@@ -1926,20 +1876,17 @@ func (p *parser) parseDecl(getSemi bool) (decl ast.Decl, gotSemi bool) {
 		f = parseVarSpec
 
 	case token.FUNC:
-		decl = p.parseFunctionDecl();
-		_, gotSemi := p.parseComment(getSemi);
-		return decl, gotSemi;
+		return p.parseFunctionDecl()
 
 	default:
 		pos := p.pos;
 		p.errorExpected(pos, "declaration");
-		decl = &ast.BadDecl{pos};
-		gotSemi = getSemi && p.tok == token.SEMICOLON;
+		decl := &ast.BadDecl{pos};
 		p.next();	// make progress in any case
-		return decl, gotSemi;
+		return decl;
 	}
 
-	return p.parseGenDecl(p.tok, f, getSemi);
+	return p.parseGenDecl(p.tok, f);
 }
 
 
@@ -1948,10 +1895,9 @@ func (p *parser) parseDeclList() []ast.Decl {
 		defer un(trace(p, "DeclList"))
 	}
 
-	list := new(vector.Vector);
+	var list vector.Vector;
 	for p.tok != token.EOF {
-		decl, _ := p.parseDecl(true);	// consume optional semicolon
-		list.Push(decl);
+		list.Push(p.parseDecl())
 	}
 
 	// convert vector
@@ -1979,13 +1925,7 @@ func (p *parser) parseFile() *ast.File {
 	doc := p.leadComment;
 	pos := p.expect(token.PACKAGE);
 	ident := p.parseIdent();
-
-	// Common error: semicolon after package clause.
-	// Accept and report it for better error synchronization.
-	if p.tok == token.SEMICOLON {
-		p.Error(p.pos, "expected declaration, found ';'");
-		p.next();
-	}
+	p.expectSemi();
 
 	var decls []ast.Decl;
 
@@ -1994,17 +1934,15 @@ func (p *parser) parseFile() *ast.File {
 
 	if p.ErrorCount() == 0 && p.mode&PackageClauseOnly == 0 {
 		// import decls
-		list := new(vector.Vector);
+		var list vector.Vector;
 		for p.tok == token.IMPORT {
-			decl, _ := p.parseGenDecl(token.IMPORT, parseImportSpec, true);	// consume optional semicolon
-			list.Push(decl);
+			list.Push(p.parseGenDecl(token.IMPORT, parseImportSpec))
 		}
 
 		if p.mode&ImportsOnly == 0 {
 			// rest of package body
 			for p.tok != token.EOF {
-				decl, _ := p.parseDecl(true);	// consume optional semicolon
-				list.Push(decl);
+				list.Push(p.parseDecl())
 			}
 		}
 

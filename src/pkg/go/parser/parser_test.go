@@ -29,9 +29,9 @@ func TestParseIllegalInputs(t *testing.T) {
 
 
 var validPrograms = []interface{}{
-	`package main`,
-	`package main import "fmt" func main() { fmt.Println("Hello, World!") }`,
-	`package main func main() { if f(T{}) {} }`,
+	`package main;`,
+	`package main; import "fmt"; func main() { fmt.Println("Hello, World!") }` + "\n",
+	`package main; func main() { if f(T{}) {} }` + "\n",
 }
 
 
