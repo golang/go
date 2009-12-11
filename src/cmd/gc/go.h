@@ -548,6 +548,7 @@ struct	Io
 	char*	infile;
 	Biobuf*	bin;
 	int32	ilineno;
+	int	nlsemi;
 	int	peekc;
 	int	peekc1;	// second peekc for ...
 	char*	cp;	// used for content when bin==nil
@@ -725,7 +726,6 @@ void	importfile(Val*, int line);
 void	cannedimports(char*, char*);
 void	unimportfile();
 int32	yylex(void);
-void	yyoptsemi(int);
 void	typeinit(void);
 void	lexinit(void);
 char*	lexname(int);
@@ -1127,10 +1127,6 @@ EXTERN	Prog*	continpc;
 EXTERN	Prog*	breakpc;
 EXTERN	Prog*	pc;
 EXTERN	Prog*	firstpc;
-
-EXTERN	int	yylast;
-EXTERN	int	yynext;
-EXTERN	int	yysemi;
 
 void	allocparams(void);
 void	cgen_as(Node *nl, Node *nr);
