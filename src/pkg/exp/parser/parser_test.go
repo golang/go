@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package parser
+package oldParser
 
 import (
 	"os";
@@ -82,7 +82,7 @@ func TestParse4(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParsePackage(%s): %v", path, err)
 	}
-	if pkg.Name != "parser" {
+	if pkg.Name != "oldParser" {
 		t.Errorf("incorrect package name: %s", pkg.Name)
 	}
 	for filename, _ := range pkg.Files {
