@@ -35,6 +35,4 @@ ken | r | rsc)
 	fi
 esac
 
-cat _builtin.c
-rm -f _builtin.c
-
+mv _builtin.c builtin.c
