@@ -56,7 +56,7 @@ var writerTests = []*writerTest{
 				},
 				contents: "Google.com\n",
 			},
-		}
+		},
 	},
 	// The truncated test file was produced using these commands:
 	//   dd if=/dev/zero bs=1048576 count=16384 > /tmp/16gig.txt
@@ -177,17 +177,16 @@ var facts = map[int] string {
 	2: "2",
 	10: "3628800",
 	20: "2432902008176640000",
-	100: "933262154439441526816992388562667004907159682643816214685929"
-		"638952175999932299156089414639761565182862536979208272237582"
+	100: "933262154439441526816992388562667004907159682643816214685929" +
+		"638952175999932299156089414639761565182862536979208272237582" +
 		"51185210916864000000000000000000000000",
 }
 
 func usage() {
 	fmt.Fprintf(os.Stderr,
 		// TODO(gri): the 2nd string of this string list should not be indented
-		"usage: godoc package [name ...]\n"
-		"	godoc -http=:6060\n"
-	);
+		"usage: godoc package [name ...]\n" +
+		"	godoc -http=:6060\n");
 	flag.PrintDefaults();
 	os.Exit(2);
 }

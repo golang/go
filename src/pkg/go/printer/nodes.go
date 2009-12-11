@@ -843,8 +843,20 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int) {
 }
 
 
+func (p *printer) moveCommentsAfter(pos token.Position) {
+	// TODO(gri): Make sure a comment doesn't accidentally introduce
+	//            a newline and thus cause a semicolon to be inserted.
+	//            Remove this after transitioning to new semicolon
+	//            syntax and some reasonable grace period (12/11/09).
+	if p.commentBefore(pos) {
+		p.comment.List[0].Position = pos
+	}
+}
+
+
 // block prints an *ast.BlockStmt; it always spans at least two lines.
 func (p *printer) block(s *ast.BlockStmt, indent int) {
+	p.moveCommentsAfter(s.Pos());
 	p.print(s.Pos(), token.LBRACE);
 	p.stmtList(s.List, indent);
 	p.linebreak(s.Rbrace.Line, 1, maxStmtNewlines, ignore, true);
@@ -1109,12 +1121,18 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 			p.expr(s.Name, multiLine);
 			p.print(blank);
 		}
+		p.moveCommentsAfter(s.Path[0].Pos());
 		p.expr(&ast.StringList{s.Path}, multiLine);
 		comment = s.Comment;
 
 	case *ast.ValueSpec:
 		p.leadComment(s.Doc);
 		p.identList(s.Names, multiLine);	// always present
+		if s.Values != nil {
+			p.moveCommentsAfter(s.Values[0].Pos())
+		} else if s.Type != nil {
+			p.moveCommentsAfter(s.Type.Pos())
+		}
 		if n == 1 {
 			if s.Type != nil {
 				p.print(blank);
@@ -1147,6 +1165,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, multiLine *boo
 	case *ast.TypeSpec:
 		p.leadComment(s.Doc);
 		p.expr(s.Name, multiLine);
+		p.moveCommentsAfter(s.Type.Pos());
 		if n == 1 {
 			p.print(blank)
 		} else {
