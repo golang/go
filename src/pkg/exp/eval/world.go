@@ -9,7 +9,7 @@ package eval
 
 import (
 	"go/ast";
-	"go/parser";
+	parser "exp/parser";
 	"go/scanner";
 	"go/token";
 	"os";
