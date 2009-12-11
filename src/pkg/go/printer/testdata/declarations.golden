@@ -23,7 +23,6 @@ import (
 	aLongRename "io";
 
 	b "io";
-	c "i" "o";
 )
 
 // no newlines between consecutive single imports, but
@@ -40,6 +39,10 @@ import _ "os"
 import _ "fmt"
 import _ "fmt"
 import _ "fmt"
+
+// make sure a comment doesn't cause semicolons to be inserted
+import _ "foo"	// a comment
+import "bar"	// a comment
 
 
 // at least one empty line between declarations of different kind
@@ -444,6 +447,13 @@ func _() {
 }
 
 
+func _() {
+	var _ = T{
+		a,	// must introduce trailing comma
+	};
+}
+
+
 // formatting of consecutive single-line functions
 func _()	{}
 func _()	{}
@@ -456,3 +466,67 @@ func _()	{}
 func _()		{ f(1, 2, 3) }
 func _(x int) int	{ return x + 1 }
 func _() int		{ type T struct{} }
+
+
+// making function declarations safe for new semicolon rules
+func _() { /* one-line func */ }
+
+func _() { // opening "{" must move up /* one-line func */ }
+
+func _() {	// opening "{" must move up// multi-line func
+
+	// in the following declarations, a comment must not
+	// introduce a newline and thus cause a semicolon to
+	// be inserted
+	const _ T = x // comment
+	;
+	const _ = x // comment
+	;
+
+	type _ T // comment
+	;
+	type _ struct // comment
+	{
+
+	}
+	type _ interface // comment
+	{
+
+	}
+	type _ * // comment
+	T;
+	type _ [ // comment
+	]T;
+	type _ [ // comment
+	10]T;
+	type _ chan // comment
+	T;
+	type _ map // comment
+	[T]T;
+
+	var _ T // comment
+	;
+	var _ T = x // comment
+	;
+	var _ struct // comment
+	{
+
+	}
+	var _ interface // comment
+	{
+
+	}
+	var _ * // comment
+	T;
+	var _ [ // comment
+	]T;
+	var _ [ // comment
+	10]T;
+	var _ chan // comment
+	T;
+	var _ map // comment
+	[T]T;
+
+	var _ = x // comment
+	;
+}

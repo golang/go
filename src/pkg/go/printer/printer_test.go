@@ -6,10 +6,12 @@ package printer
 
 import (
 	"bytes";
+	oldParser "exp/parser";
 	"flag";
 	"io/ioutil";
 	"go/ast";
 	"go/parser";
+	"os";
 	"path";
 	"testing";
 )
@@ -38,12 +40,19 @@ type checkMode uint
 const (
 	export	checkMode	= 1 << iota;
 	rawFormat;
+	oldSyntax;
 )
 
 
 func check(t *testing.T, source, golden string, mode checkMode) {
 	// parse source
-	prog, err := parser.ParseFile(source, nil, parser.ParseComments);
+	var prog *ast.File;
+	var err os.Error;
+	if mode&oldSyntax != 0 {
+		prog, err = oldParser.ParseFile(source, nil, parser.ParseComments)
+	} else {
+		prog, err = parser.ParseFile(source, nil, parser.ParseComments)
+	}
 	if err != nil {
 		t.Error(err);
 		return;
@@ -127,7 +136,7 @@ func Test(t *testing.T) {
 	for _, e := range data {
 		source := path.Join(dataDir, e.source);
 		golden := path.Join(dataDir, e.golden);
-		check(t, source, golden, e.mode);
+		check(t, source, golden, e.mode|oldSyntax);
 		// TODO(gri) check that golden is idempotent
 		//check(t, golden, golden, e.mode);
 	}

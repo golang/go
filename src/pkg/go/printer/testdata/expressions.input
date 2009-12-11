@@ -226,53 +226,53 @@ func _() {
 
 func _() {
 	// not not add extra indentation to multi-line string lists
-	_ = "foo" "bar";
-	_ = "foo"
-	"bar"
+	_ = "foo" + "bar";
+	_ = "foo" +
+	"bar" +
 	"bah";
 	_ = []string {
-		"abc"
+		"abc" +
 		"def",
-		"foo"
-		"bar"
+		"foo" +
+		"bar",
 	}
 }
 
 
 const _ = F1 +
-	`string = "%s";`
-	`ptr = *;`
+	`string = "%s";` +
+	`ptr = *;` +
 	`datafmt.T2 = s ["-" p "-"];`
 
 
 const _ =
-	`datafmt "datafmt";`
-	`default = "%v";`
-	`array = *;`
+	`datafmt "datafmt";` +
+	`default = "%v";` +
+	`array = *;` +
 	`datafmt.T3 = s  {" " a a / ","};`
 
 
-const _ = `datafmt "datafmt";`
-`default = "%v";`
-`array = *;`
+const _ = `datafmt "datafmt";` +
+`default = "%v";` +
+`array = *;` +
 `datafmt.T3 = s  {" " a a / ","};`
 
 
 func _() {
 	_ = F1 +
-		`string = "%s";`
-		`ptr = *;`
+		`string = "%s";` +
+		`ptr = *;` +
 		`datafmt.T2 = s ["-" p "-"];`;
 
 	_ =
-		`datafmt "datafmt";`
-		`default = "%v";`
-		`array = *;`
+		`datafmt "datafmt";` +
+		`default = "%v";` +
+		`array = *;` +
 		`datafmt.T3 = s  {" " a a / ","};`;
 
-	_ = `datafmt "datafmt";`
-	`default = "%v";`
-	`array = *;`
+	_ = `datafmt "datafmt";` +
+	`default = "%v";` +
+	`array = *;` +
 	`datafmt.T3 = s  {" " a a / ","};`
 }
 
@@ -284,8 +284,8 @@ func _() {
 	c;
 	_ = a < b ||
 		b < a;
-	_ = "933262154439441526816992388562667004907159682643816214685929"
-	"638952175999932299156089414639761565182862536979208272237582"
+	_ = "933262154439441526816992388562667004907159682643816214685929" +
+	"638952175999932299156089414639761565182862536979208272237582" +
 	"51185210916864000000000000000000000000";  // 100!
 	_ = "170141183460469231731687303715884105727";  // prime
 }
@@ -295,8 +295,8 @@ func _() {
 const (
 	_ = "991";
 	_ = "2432902008176640000";  // 20!
-	_ = "933262154439441526816992388562667004907159682643816214685929"
-	"638952175999932299156089414639761565182862536979208272237582"
+	_ = "933262154439441526816992388562667004907159682643816214685929" +
+	"638952175999932299156089414639761565182862536979208272237582" +
 	"51185210916864000000000000000000000000";  // 100!
 	_ = "170141183460469231731687303715884105727";  // prime
 )
@@ -304,15 +304,15 @@ const (
 
 func same(t, u *Time) bool {
 	// respect source lines in multi-line expressions
-	return t.Year == u.Year
-		&& t.Month == u.Month
-		&& t.Day == u.Day
-		&& t.Hour == u.Hour
-		&& t.Minute == u.Minute
-		&& t.Second == u.Second
-		&& t.Weekday == u.Weekday
-		&& t.ZoneOffset == u.ZoneOffset
-		&& t.Zone == u.Zone
+	return t.Year == u.Year &&
+		t.Month == u.Month &&
+		t.Day == u.Day &&
+		t.Hour == u.Hour &&
+		t.Minute == u.Minute &&
+		t.Second == u.Second &&
+		t.Weekday == u.Weekday &&
+		t.ZoneOffset == u.ZoneOffset &&
+		t.Zone == u.Zone
 }
 
 
