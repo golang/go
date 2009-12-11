@@ -125,16 +125,19 @@ func (l *Logger) formatHeader(ns int64, calldepth int) string {
 // Output writes the output for a logging event.  The string s contains the text to print after
 // the time stamp;  calldepth is used to recover the PC.  It is provided for generality, although
 // at the moment on all pre-defined paths it will be 2.
-func (l *Logger) Output(calldepth int, s string) {
+func (l *Logger) Output(calldepth int, s string) os.Error {
 	now := time.Nanoseconds();	// get this early.
 	newline := "\n";
 	if len(s) > 0 && s[len(s)-1] == '\n' {
 		newline = ""
 	}
 	s = l.formatHeader(now, calldepth+1) + s + newline;
-	io.WriteString(l.out0, s);
+	_, err := io.WriteString(l.out0, s);
 	if l.out1 != nil {
-		io.WriteString(l.out1, s)
+		_, err1 := io.WriteString(l.out1, s);
+		if err == nil && err1 != nil {
+			err = err1
+		}
 	}
 	switch l.flag & ^lAllBits {
 	case Lcrash:
@@ -142,6 +145,7 @@ func (l *Logger) Output(calldepth int, s string) {
 	case Lexit:
 		os.Exit(1)
 	}
+	return err;
 }
 
 // Logf is analogous to Printf() for a Logger.

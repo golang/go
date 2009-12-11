@@ -93,6 +93,7 @@ DIRS=\
 	strings\
 	sync\
 	syscall\
+	syslog\
 	tabwriter\
 	template\
 	testing\
