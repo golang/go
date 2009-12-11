@@ -1769,6 +1769,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 	case OLEN:
 		// len of string or slice
 		naddr(n->left, a, canemitcode);
+		a->etype = TUINT;
 		a->offset += Array_nel;
 		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
 			checkoffset(a, canemitcode);
@@ -1777,6 +1778,7 @@ naddr(Node *n, Addr *a, int canemitcode)
 	case OCAP:
 		// cap of string or slice
 		naddr(n->left, a, canemitcode);
+		a->etype = TUINT;
 		a->offset += Array_cap;
 		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
 			checkoffset(a, canemitcode);
