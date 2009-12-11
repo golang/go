@@ -1,0 +1,6 @@
+# install in /etc/bash_completion.d/ or your personal directory
+
+complete -f -X '!*.8' 8l
+complete -f -X '!*.6' 6l
+complete -f -X '!*.5' 5l
+complete -f -X '!*.go' 8g 6g 5g
