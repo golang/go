@@ -126,11 +126,26 @@ hex_digit     = "0" ... "9" | "A" ... "F" | "a" ... "f" .
 <h3 id="Comments">Comments</h3>
 
 <p>
-There are two forms of comments.  The first starts at the character
-sequence <code>//</code> and continues through the next newline.  The
-second starts at the character sequence <code>/*</code> and continues
-through the character sequence <code>*/</code>.  Comments do not nest.
+There are two forms of comments:
 </p>
+
+<ol>
+<li>
+<i>Line comments</i> start with the character sequence <code>//</code>
+and continue through the next newline. A line comment acts like a newline.
+</li>
+<li>
+<i>General comments</i> start with the character sequence <code>/*</code>
+and continue through the character sequence <code>*/</code>. A general
+comment that spans multiple lines acts like a newline, otherwise it acts
+like a space.
+</li>
+</ol>
+
+<p>
+Comments do not nest.
+</p>
+
 
 <h3 id="Tokens">Tokens</h3>
 
@@ -141,11 +156,51 @@ and delimiters, and literals.  <i>White space</i>, formed from
 spaces (U+0020), horizontal tabs (U+0009),
 carriage returns (U+000D), and newlines (U+000A),
 is ignored except as it separates tokens
-that would otherwise combine into a single token.  Comments
-behave as white space.  While breaking the input into tokens,
+that would otherwise combine into a single token.
+While breaking the input into tokens,
 the next token is the longest sequence of characters that form a
 valid token.
 </p>
+
+<h3 id="Semicolons">Semicolons</h3>
+
+<p>
+The formal grammar uses semicolons <code>";"</code> as terminators in
+a number of productions. Go programs may omit most of these semicolons
+using the following two rules:
+</p>
+
+<ol>
+<li>
+<p>
+When the input is broken into tokens, a semicolon is automatically inserted
+into the token stream at the end of a non-blank line if the line's final
+token is
+</p>
+<ul>
+	<li>an identifier or basic literal
+	<li>one of the keywords
+	    <code>break</code>, <code>continue</code>, <code>fallthrough</code>,
+	    or <code>return</code>
+	</li>
+	<li>one of the operators and delimiters
+	    <code>++</code>, <code>--</code>, <code>)</code>, <code>]</code>,
+	    or <code>}</code>
+	</li>
+</ul>
+</li>
+
+<li>
+To allow complex statements to occupy a single line, a semicolon
+may be omitted before a closing <code>")"</code> or <code>"}"</code>.
+</li>
+</ol>
+
+<p>
+To reflect idiomatic use, code examples in this document elide semicolons
+using these rules.
+</p>
+
 
 <h3 id="Identifiers">Identifiers</h3>
 
@@ -163,7 +218,11 @@ _x9
 ThisVariableIsExported
 αβ
 </pre>
+
+<p>
 Some identifiers are <a href="#Predeclared_identifiers">predeclared</a>.
+</p>
+
 
 <h3 id="Keywords">Keywords</h3>
 
@@ -359,12 +418,7 @@ the two bytes <code>0xc3</code> <code>0xbf</code> of the UTF-8 encoding of chara
 U+00FF.
 </p>
 
-<p>
-A sequence of string literals is concatenated to form a single string constant.
-</p>
-
 <pre class="ebnf">
-StringLit              = string_lit { string_lit } .
 string_lit             = raw_string_lit | interpreted_string_lit .
 raw_string_lit         = "`" { unicode_char } "`" .
 interpreted_string_lit = `"` { unicode_value | byte_value } `"` .
@@ -380,8 +434,6 @@ interpreted_string_lit = `"` { unicode_value | byte_value } `"` .
 "日本語"
 "\u65e5本\U00008a9e"
 "\xff\u00FF"
-"Alea iacta est."
-"Alea " /* The die */ `iacta est` /* is cast */ "."  // same as "Alea iacta est."
 </pre>
 
 <p>
@@ -712,11 +764,10 @@ be unique.
 </p>
 
 <pre class="ebnf">
-StructType     = "struct" "{" [ FieldDeclList ] "}" .
-FieldDeclList  = FieldDecl { ";" FieldDecl } [ ";" ] .
+StructType     = "struct" "{" { FieldDecl ";" } "}" .
 FieldDecl      = (IdentifierList Type | AnonymousField) [ Tag ] .
 AnonymousField = [ "*" ] TypeName .
-Tag            = StringLit .
+Tag            = string_lit .
 </pre>
 
 <pre>
@@ -725,11 +776,11 @@ struct {}
 
 // A struct with 6 fields.
 struct {
-	x, y int;
-	u float;
-	_ float;  // padding
-	A *[]int;
-	F func();
+	x, y int
+	u float
+	_ float  // padding
+	A *[]int
+	F func()
 }
 </pre>
 
@@ -744,11 +795,11 @@ a pointer type. The unqualified type name acts as the field name.
 <pre>
 // A struct with four anonymous fields of type T1, *T2, P.T3 and *P.T4
 struct {
-	T1;        // field name is T1
-	*T2;       // field name is T2
-	P.T3;      // field name is T3
-	*P.T4;     // field name is T4
-	x, y int;  // field names are x and y
+	T1        // field name is T1
+	*T2       // field name is T2
+	P.T3      // field name is T3
+	*P.T4     // field name is T4
+	x, y int  // field names are x and y
 }
 </pre>
 
@@ -759,9 +810,9 @@ in a struct type:
 
 <pre>
 struct {
-	T;         // conflicts with anonymous field *T and *P.T
-	*T;        // conflicts with anonymous field T and *P.T
-	*P.T;      // conflicts with anonymous field T and *T
+	T         // conflicts with anonymous field *T and *P.T
+	*T        // conflicts with anonymous field T and *P.T
+	*P.T      // conflicts with anonymous field T and *T
 }
 </pre>
 
@@ -799,9 +850,9 @@ but are otherwise ignored.
 // A struct corresponding to the TimeStamp protocol buffer.
 // The tag strings define the protocol buffer field numbers.
 struct {
-	microsec  uint64 "field 1";
-	serverIP6 uint64 "field 2";
-	process   string "field 3";
+	microsec  uint64 "field 1"
+	serverIP6 uint64 "field 2"
+	process   string "field 3"
 }
 </pre>
 
@@ -835,7 +886,7 @@ A function value may be <code>nil</code>.
 FunctionType   = "func" Signature .
 Signature      = Parameters [ Result ] .
 Result         = Parameters | Type .
-Parameters     = "(" [ ParameterList ] ")" .
+Parameters     = "(" [ ParameterList [ "," ] ] ")" .
 ParameterList  = ParameterDecl { "," ParameterDecl } .
 ParameterDecl  = [ IdentifierList ] ( Type | "..." ) .
 </pre>
@@ -878,8 +929,7 @@ that is any superset of the interface. Such a type is said to
 </p>
 
 <pre class="ebnf">
-InterfaceType      = "interface" "{" [ MethodSpecList ] "}" .
-MethodSpecList     = MethodSpec { ";" MethodSpec } [ ";" ] .
+InterfaceType      = "interface" "{" { MethodSpec ";" } "}" .
 MethodSpec         = MethodName Signature | InterfaceTypeName .
 MethodName         = identifier .
 InterfaceTypeName  = TypeName .
@@ -892,9 +942,9 @@ As with all method sets, in an interface type, each method must have a unique na
 <pre>
 // A simple File interface
 interface {
-	Read(b Buffer) bool;
-	Write(b Buffer) bool;
-	Close();
+	Read(b Buffer) bool
+	Write(b Buffer) bool
+	Close()
 }
 </pre>
 
@@ -935,8 +985,8 @@ to define an interface called <code>Lock</code>:
 
 <pre>
 type Lock interface {
-	Lock();
-	Unlock();
+	Lock()
+	Unlock()
 }
 </pre>
 
@@ -962,14 +1012,14 @@ in the interface.
 
 <pre>
 type ReadWrite interface {
-	Read(b Buffer) bool;
-	Write(b Buffer) bool;
+	Read(b Buffer) bool
+	Write(b Buffer) bool
 }
 
 type File interface {
-	ReadWrite;  // same as enumerating the methods in ReadWrite
-	Lock;       // same as enumerating the methods in Lock
-	Close();
+	ReadWrite  // same as enumerating the methods in ReadWrite
+	Lock       // same as enumerating the methods in Lock
+	Close()
 }
 </pre>
 
@@ -1144,12 +1194,12 @@ Given the declarations
 
 <pre>
 type (
-	T0 []string;
-	T1 []string;
-	T2 struct { a, b int };
-	T3 struct { a, c int };
-	T4 func (int, float) *T0;
-	T5 func (x int, y float) *[]string;
+	T0 []string
+	T1 []string
+	T2 struct { a, b int }
+	T3 struct { a, c int }
+	T4 func (int, float) *T0
+	T5 func (x int, y float) *[]string
 )
 </pre>
 
@@ -1297,7 +1347,7 @@ brace brackets.
 </p>
 
 <pre class="ebnf">
-Block = "{" StatementList "}" .
+Block = "{" { Statement ";" } "}" .
 </pre>
 
 <p>
@@ -1459,8 +1509,7 @@ right.
 </p>
 
 <pre class="ebnf">
-ConstDecl      = "const" ( ConstSpec | "(" [ ConstSpecList ] ")" ) .
-ConstSpecList  = ConstSpec { ";" ConstSpec } [ ";" ] .
+ConstDecl      = "const" ( ConstSpec | "(" { ConstSpec ";" } ")" ) .
 ConstSpec      = IdentifierList [ [ Type ] "=" ExpressionList ] .
 
 IdentifierList = identifier { "," identifier } .
@@ -1483,8 +1532,8 @@ constant, even if the literal's fractional part is zero.
 const Pi float64 = 3.14159265358979323846
 const zero = 0.0             // untyped floating-point constant
 const (
-	size int64 = 1024;
-	eof = -1;            // untyped integer constant
+	size int64 = 1024
+	eof = -1             // untyped integer constant
 )
 const a, b, c = 3, 4, "foo"  // a = 3, b = 4, c = "foo", untyped integer and string constants
 const u, v float = 0, 3      // u = 0.0, v = 3.0
@@ -1504,14 +1553,14 @@ this mechanism permits light-weight declaration of sequential values:
 
 <pre>
 const (
-	Sunday = iota;
-	Monday;
-	Tuesday;
-	Wednesday;
-	Thursday;
-	Friday;
-	Partyday;
-	numberOfDays;  // this constant is not exported
+	Sunday = iota
+	Monday
+	Tuesday
+	Wednesday
+	Thursday
+	Friday
+	Partyday
+	numberOfDays  // this constant is not exported
 )
 </pre>
 
@@ -1522,31 +1571,32 @@ const (
 Within a constant declaration, the predeclared identifier
 <code>iota</code> represents successive untyped integer <a href="#Constants">
 constants</a>. It is reset to 0 whenever the reserved word <code>const</code>
-appears in the source and increments with each semicolon. It can be used to construct a
+appears in the source and increments with each
+<a href="#Semicolons">semicolon</a>. It can be used to construct a
 set of related constants:
 </p>
 
 <pre>
 const (  // iota is reset to 0
-	c0 = iota;  // c0 == 0
-	c1 = iota;  // c1 == 1
-	c2 = iota   // c2 == 2
+	c0 = iota  // c0 == 0
+	c1 = iota  // c1 == 1
+	c2 = iota  // c2 == 2
 )
 
 const (
-	a = 1 &lt;&lt; iota;  // a == 1 (iota has been reset)
-	b = 1 &lt;&lt; iota;  // b == 2
-	c = 1 &lt;&lt; iota;  // c == 4
+	a = 1 &lt;&lt; iota  // a == 1 (iota has been reset)
+	b = 1 &lt;&lt; iota  // b == 2
+	c = 1 &lt;&lt; iota  // c == 4
 )
 
 const (
-	u       = iota * 42;  // u == 0     (untyped integer constant)
-	v float = iota * 42;  // v == 42.0  (float constant)
-	w       = iota * 42;  // w == 84    (untyped integer constant)
+	u       = iota * 42  // u == 0     (untyped integer constant)
+	v float = iota * 42  // v == 42.0  (float constant)
+	w       = iota * 42  // w == 84    (untyped integer constant)
 )
 
-const x = iota;  // x == 0 (iota has been reset)
-const y = iota;  // y == 0 (iota has been reset)
+const x = iota  // x == 0 (iota has been reset)
+const y = iota  // y == 0 (iota has been reset)
 </pre>
 
 <p>
@@ -1556,10 +1606,10 @@ it is only incremented at a semicolon:
 
 <pre>
 const (
-	bit0, mask0 = 1 &lt;&lt; iota, 1 &lt;&lt; iota - 1;  // bit0 == 1, mask0 == 0
-	bit1, mask1;                             // bit1 == 2, mask1 == 1
-	_, _;                                    // skips iota == 2
-	bit3, mask3;                             // bit3 == 8, mask3 == 7
+	bit0, mask0 = 1 &lt;&lt; iota, 1 &lt;&lt; iota - 1  // bit0 == 1, mask0 == 0
+	bit1, mask1                             // bit1 == 2, mask1 == 1
+	_, _                                    // skips iota == 2
+	bit3, mask3                             // bit3 == 8, mask3 == 7
 )
 </pre>
 
@@ -1580,8 +1630,7 @@ an existing type.  The new type is
 </p>
 
 <pre class="ebnf">
-TypeDecl     = "type" ( TypeSpec | "(" [ TypeSpecList ] ")" ) .
-TypeSpecList = TypeSpec { ";" TypeSpec } [ ";" ] .
+TypeDecl     = "type" ( TypeSpec | "(" { TypeSpec ";" } ")" ) .
 TypeSpec     = identifier Type .
 </pre>
 
@@ -1589,19 +1638,19 @@ TypeSpec     = identifier Type .
 type IntArray [16]int
 
 type (
-	Point struct { x, y float };
+	Point struct { x, y float }
 	Polar Point
 )
 
 type TreeNode struct {
-	left, right *TreeNode;
-	value *Comparable;
+	left, right *TreeNode
+	value *Comparable
 }
 
 type Cipher interface {
-	BlockSize() int;
-	Encrypt(src, dst []byte);
-	Decrypt(src, dst []byte);
+	BlockSize() int
+	Encrypt(src, dst []byte)
+	Decrypt(src, dst []byte)
 }
 </pre>
 
@@ -1623,7 +1672,7 @@ type NewMutex Mutex
 // PrintableMutex's method set contains the methods
 // Lock and Unlock bound to its anonymous field Mutex.
 type PrintableMutex struct {
-	Mutex;
+	Mutex
 }
 </pre>
 
@@ -1636,14 +1685,14 @@ type and attach methods to it:
 type TimeZone int
 
 const (
-	EST TimeZone = -(5 + iota);
-	CST;
-	MST;
-	PST;
+	EST TimeZone = -(5 + iota)
+	CST
+	MST
+	PST
 )
 
 func (tz TimeZone) String() string {
-	return fmt.Sprintf("GMT+%dh", tz);
+	return fmt.Sprintf("GMT+%dh", tz)
 }
 </pre>
 
@@ -1655,8 +1704,7 @@ A variable declaration creates a variable, binds an identifier to it and
 gives it a type and optionally an initial value.
 </p>
 <pre class="ebnf">
-VarDecl     = "var" ( VarSpec | "(" [ VarSpecList ] ")" ) .
-VarSpecList = VarSpec { ";" VarSpec } [ ";" ] .
+VarDecl     = "var" ( VarSpec | "(" { VarSpec ";" } ")" ) .
 VarSpec     = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
 </pre>
 
@@ -1666,11 +1714,11 @@ var U, V, W float
 var k = 0
 var x, y float = -1, -2
 var (
-	i int;
+	i int
 	u, v, s = 2.0, 3.0, "bar"
 )
 var re, im = complexSqrt(-1)
-var _, found = entries[name];  // map lookup; only interested in "found"
+var _, found = entries[name]  // map lookup; only interested in "found"
 </pre>
 
 <p>
@@ -1721,11 +1769,11 @@ initializer expressions but no types:
 </pre>
 
 <pre>
-i, j := 0, 10;
-f := func() int { return 7; }
-ch := make(chan int);
-r, w := os.Pipe(fd);  // os.Pipe() returns two values
-_, y, _ := coord(p);  // coord() returns three values; only interested in y coordinate
+i, j := 0, 10
+f := func() int { return 7 }
+ch := make(chan int)
+r, w := os.Pipe(fd)  // os.Pipe() returns two values
+_, y, _ := coord(p)  // coord() returns three values; only interested in y coordinate
 </pre>
 
 <p>
@@ -1738,8 +1786,8 @@ variable; it just assigns a new value to the original.
 </p>
 
 <pre>
-field1, offset := nextField(str, 0);
-field2, offset := nextField(str, offset);  // redeclares offset
+field1, offset := nextField(str, 0)
+field2, offset := nextField(str, offset)  // redeclares offset
 </pre>
 
 <p>
@@ -1768,9 +1816,9 @@ signature for a function implemented outside Go, such as an assembly routine.
 <pre>
 func min(x int, y int) int {
 	if x &lt; y {
-		return x;
+		return x
 	}
-	return y;
+	return y
 }
 
 func flushICache(begin, end uintptr)  // implemented externally
@@ -1805,12 +1853,12 @@ Given type <code>Point</code>, the declarations
 
 <pre>
 func (p *Point) Length() float {
-	return Math.sqrt(p.x * p.x + p.y * p.y);
+	return Math.sqrt(p.x * p.x + p.y * p.y)
 }
 
 func (p *Point) Scale(factor float) {
-	p.x = p.x * factor;
-	p.y = p.y * factor;
+	p.x = p.x * factor
+	p.y = p.y * factor
 }
 </pre>
 
@@ -1856,7 +1904,7 @@ Operands denote the elementary values in an expression.
 <pre class="ebnf">
 Operand    = Literal | QualifiedIdent | MethodExpr | "(" Expression ")" .
 Literal    = BasicLit | CompositeLit | FunctionLit .
-BasicLit   = int_lit | float_lit | char_lit | StringLit .
+BasicLit   = int_lit | float_lit | char_lit | string_lit .
 </pre>
 
 
@@ -1897,10 +1945,10 @@ a single expression or a key-value pair.
 </p>
 
 <pre class="ebnf">
-CompositeLit  = LiteralType "{" [ ElementList ] "}" .
+CompositeLit  = LiteralType "{" [ ElementList [ "," ] ] "}" .
 LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
                 SliceType | MapType | TypeName | "(" LiteralType ")" .
-ElementList   = Element { "," Element } [ "," ] .
+ElementList   = Element { "," Element } .
 Element       = [ Key ":" ] Value .
 Key           = FieldName | ElementIndex .
 FieldName     = identifier .
@@ -1959,8 +2007,8 @@ one may write
 </p>
 
 <pre>
-origin := Point{};                            // zero value for Point
-line := Line{origin, Point{y: -4, z: 12.3}};  // zero value for line.q.x
+origin := Point{}                            // zero value for Point
+line := Line{origin, Point{y: -4, z: 12.3}}  // zero value for line.q.x
 </pre>
 
 <p>
@@ -1983,7 +2031,7 @@ Taking the address of a composite literal (§<a href="#Address_operators">Addres
 generates a unique pointer to an instance of the literal's value.
 </p>
 <pre>
-var pointer *Point = &amp;Point{y: 1000};
+var pointer *Point = &amp;Point{y: 1000}
 </pre>
 
 <p>
@@ -1996,9 +2044,9 @@ to the maximum element index plus one.
 </p>
 
 <pre>
-buffer := [10]string{};               // len(buffer) == 10
-intSet := [6]int{1, 2, 3, 5};         // len(intSet) == 6
-days := [...]string{"Sat", "Sun"};    // len(days) == 2
+buffer := [10]string{}               // len(buffer) == 10
+intSet := [6]int{1, 2, 3, 5}         // len(intSet) == 6
+days := [...]string{"Sat", "Sun"}    // len(days) == 2
 </pre>
 
 <p>
@@ -2040,13 +2088,13 @@ Examples of valid array, slice, and map literals:
 
 <pre>
 // list of prime numbers
-primes := []int{2, 3, 5, 7, 9, 11, 13, 17, 19, 991};
+primes := []int{2, 3, 5, 7, 9, 11, 13, 17, 19, 991}
 
 // vowels[ch] is true if ch is a vowel
-vowels := [128]bool{'a': true, 'e': true, 'i': true, 'o': true, 'u': true, 'y': true};
+vowels := [128]bool{'a': true, 'e': true, 'i': true, 'o': true, 'u': true, 'y': true}
 
-// the array [10]float{-1, 0, 0, 0, -0.1, -0.1, 0, 0, 0, -1};
-filter := [10]float{-1, 4: -0.1, -0.1, 9: -1};
+// the array [10]float{-1, 0, 0, 0, -0.1, -0.1, 0, 0, 0, -1}
+filter := [10]float{-1, 4: -0.1, -0.1, 9: -1}
 
 // frequencies in Hz for equal-tempered scale (A4 = 440Hz)
 noteFrequency := map[string]float{
@@ -2109,7 +2157,7 @@ Selector       = "." identifier .
 Index          = "[" Expression "]" .
 Slice          = "[" Expression ":" [ Expression ] "]" .
 TypeAssertion  = "." "(" Type ")" .
-Call           = "(" [ ExpressionList ] ")" .
+Call           = "(" [ ExpressionList [ "," ] ] ")" .
 </pre>
 
 
@@ -2200,26 +2248,26 @@ For example, given the declarations:
 
 <pre>
 type T0 struct {
-	x int;
+	x int
 }
 
 func (recv *T0) M0()
 
 type T1 struct {
-	y int;
+	y int
 }
 
 func (recv T1) M1()
 
 type T2 struct {
-	z int;
-	T1;
-	*T0;
+	z int
+	T1
+	*T0
 }
 
 func (recv *T2) M2()
 
-var p *T2;  // with p != nil and p.T1 != nil
+var p *T2  // with p != nil and p.T1 != nil
 </pre>
 
 <p>
@@ -2356,8 +2404,8 @@ After slicing the array <code>a</code>
 </p>
 
 <pre>
-a := [5]int{1, 2, 3, 4, 5};
-s := a[1:4];
+a := [5]int{1, 2, 3, 4, 5}
+s := a[1:4]
 </pre>
 
 <p>
@@ -2463,7 +2511,7 @@ the method.
 
 <pre>
 math.Atan2(x, y)    // function call
-var pt *Point;
+var pt *Point
 pt.Scale(3.5)  // method call with receiver pt
 </pre>
 
@@ -2504,7 +2552,7 @@ for <code>(&amp;x).m()</code>:
 </p>
 
 <pre>
-var p Point;
+var p Point
 p.Scale(3.5)
 </pre>
 
@@ -2540,7 +2588,7 @@ Given the function and call
 </p>
 <pre>
 func Fprintf(f io.Writer, format string, args ...)
-Fprintf(os.Stdout, "%s %d", "hello", 23);
+Fprintf(os.Stdout, "%s %d", "hello", 23)
 </pre>
 
 <p>
@@ -2610,12 +2658,12 @@ the left operand alone.
 </p>
 
 <pre>
-var s uint = 33;
-var i = 1&lt;&lt;s;          // 1 has type int
-var j = int32(1&lt;&lt;s);   // 1 has type int32; j == 0
-var u = uint64(1&lt;&lt;s);  // 1 has type uint64; u == 1&lt;&lt;33
-var f = float(1&lt;&lt;s);   // illegal: 1 has type float, cannot shift
-var g = float(1&lt;&lt;33);  // legal; 1&lt;&lt;33 is a constant shift operation; g == 1&lt;&lt;33
+var s uint = 33
+var i = 1&lt;&lt;s          // 1 has type int
+var j = int32(1&lt;&lt;s)   // 1 has type int32; j == 0
+var u = uint64(1&lt;&lt;s)  // 1 has type uint64; u == 1&lt;&lt;33
+var f = float(1&lt;&lt;s)   // illegal: 1 has type float, cannot shift
+var g = float(1&lt;&lt;33)  // legal; 1&lt;&lt;33 is a constant shift operation; g == 1&lt;&lt;33
 </pre>
 
 <h3 id="Operator_precedence">Operator precedence</h3>
@@ -2688,8 +2736,8 @@ or the <code>+=</code> assignment operator:
 </p>
 
 <pre>
-s := "hi" + string(c);
-s += " and good bye";
+s := "hi" + string(c)
+s += " and good bye"
 </pre>
 
 <p>
@@ -2883,7 +2931,7 @@ These two examples are equivalent:
 </p>
 
 <pre>
-ok := ch &lt;- 3;
+ok := ch &lt;- 3
 if ok { print("sent") } else { print("not sent") }
 
 if ch &lt;- 3 { print("sent") } else { print("not sent") }
@@ -2968,11 +3016,11 @@ Consider a struct type <code>T</code> with two methods,
 
 <pre>
 type T struct {
-	a int;
+	a int
 }
 func (tv  T) Mv(a int)   int   { return 0 }  // value receiver
 func (tp *T) Mp(f float) float { return 1 }  // pointer receiver
-var t T;
+var t T
 </pre>
 
 <p>
@@ -3190,8 +3238,8 @@ by any predeclared type in the language. The following are legal declarations:
 </p>
 
 <pre>
-const Huge = 1 &lt;&lt; 100;
-const Four int8 = Huge &gt;&gt; 98;
+const Huge = 1 &lt;&lt; 100
+const Four int8 = Huge &gt;&gt; 98
 </pre>
 
 <p>
@@ -3277,19 +3325,7 @@ Statement =
 	DeferStmt .
 
 SimpleStmt = EmptyStmt | ExpressionStmt | IncDecStmt | Assignment | ShortVarDecl .
-
-StatementList = Statement { Separator Statement } .
-Separator     = [ ";" ] .
 </pre>
-
-<p>
-Elements of a list of statements are separated by semicolons,
-which may be omitted only if the previous statement:
-</p>
-<ul>
-	<li>ends with the closing parenthesis ")" of a list of <a href="#Declarations_and_scope">declarations</a>; or</li>
-	<li>ends with a closing brace "}" that is not part of an expression.
-</ul>
 
 
 <h3 id="Empty_statements">Empty statements</h3>
@@ -3301,11 +3337,6 @@ The empty statement does nothing.
 <pre class="ebnf">
 EmptyStmt = .
 </pre>
-
-<p>
-A statement list can always be terminated with a semicolon, in effect
-adding an empty statement.
-</p>
 
 
 <h3 id="Labeled_statements">Labeled statements</h3>
@@ -3479,12 +3510,12 @@ executes before the expression is evaluated.
 </p>
 
 <pre>
-if x := f(); x < y {
-	return x;
+if x := f(); x &lt; y {
+	return x
 } else if x > z {
-	return z;
+	return z
 } else {
-	return y;
+	return y
 }
 </pre>
 
@@ -3530,7 +3561,7 @@ the expression <code>true</code>.
 
 <pre class="ebnf">
 ExprSwitchStmt = "switch" [ SimpleStmt ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
-ExprCaseClause = ExprSwitchCase ":" [ StatementList ] .
+ExprCaseClause = ExprSwitchCase ":" { Statement ";" } .
 ExprSwitchCase = "case" ExpressionList | "default" .
 </pre>
 
@@ -3555,15 +3586,15 @@ case 0, 1, 2, 3: s1()
 case 4, 5, 6, 7: s2()
 }
 
-switch x := f(); {  // missing switch expression means "true"
+switch x := f() {  // missing switch expression means "true"
 case x &lt; 0: return -x
 default: return x
 }
 
 switch {
-case x &lt; y: f1();
-case x &lt; z: f2();
-case x == 4: f3();
+case x &lt; y: f1()
+case x &lt; z: f2()
+case x == 4: f3()
 }
 </pre>
 
@@ -3581,7 +3612,7 @@ in the type assertion.
 <pre class="ebnf">
 TypeSwitchStmt  = "switch" [ SimpleStmt ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
 TypeSwitchGuard = [ identifier ":=" ] Expression "." "(" "type" ")" .
-TypeCaseClause  = TypeSwitchCase ":" [ StatementList ] .
+TypeCaseClause  = TypeSwitchCase ":" { Statement ";" } .
 TypeSwitchCase  = "case" TypeList | "default" .
 TypeList        = Type { "," Type } .
 </pre>
@@ -3610,17 +3641,17 @@ the following type switch:
 <pre>
 switch i := x.(type) {
 case nil:
-	printString("x is nil");
+	printString("x is nil")
 case int:
-	printInt(i);  // i is an int
+	printInt(i)  // i is an int
 case float:
-	printFloat(i);  // i is a float
+	printFloat(i)  // i is a float
 case func(int) float:
-	printFunction(i);  // i is a function
+	printFunction(i)  // i is a function
 case bool, string:
-	printString("type is bool or string");  // i is an interface{}
+	printString("type is bool or string")  // i is an interface{}
 default:
-	printString("don't know the type");
+	printString("don't know the type")
 }
 </pre>
 
@@ -3629,24 +3660,24 @@ could be rewritten:
 </p>
 
 <pre>
-v := x;  // x is evaluated exactly once
+v := x  // x is evaluated exactly once
 if v == nil {
-	printString("x is nil");
+	printString("x is nil")
 } else if i, is_int := v.(int); is_int {
-	printInt(i);  // i is an int
+	printInt(i)  // i is an int
 } else if i, is_float := v.(float); is_float {
-	printFloat(i);  // i is a float
+	printFloat(i)  // i is a float
 } else if i, is_func := v.(func(int) float); is_func {
-	printFunction(i);  // i is a function
+	printFunction(i)  // i is a function
 } else {
-	i1, is_bool := v.(bool);
-	i2, is_string := v.(string);
+	i1, is_bool := v.(bool)
+	i2, is_string := v.(string)
 	if is_bool || is_string {
-		i := v;
-		printString("type is bool or string");  // i is an interface{}
+		i := v
+		printString("type is bool or string")  // i is an interface{}
 	} else {
-		i := v;
-		printString("don't know the type");  // i is an interface{}
+		i := v
+		printString("don't know the type")  // i is an interface{}
 	}
 }
 </pre>
@@ -3694,13 +3725,13 @@ an increment or decrement statement. The init statement may be a
 </p>
 
 <pre class="ebnf">
-ForClause = InitStmt ";" [ Condition ] ";" PostStmt .
+ForClause = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ] .
 InitStmt = SimpleStmt .
 PostStmt = SimpleStmt .
 </pre>
 
 <pre>
-for i := 0; i < 10; i++ {
+for i := 0; i &lt; 10; i++ {
 	f(i)
 }
 </pre>
@@ -3710,7 +3741,8 @@ If non-empty, the init statement is executed once before evaluating the
 condition for the first iteration;
 the post statement is executed after each execution of the block (and
 only if the block was executed).
-Any element of the ForClause may be empty but the semicolons are
+Any element of the ForClause may be empty but the
+<a href="#Semicolons">semicolons</a> are
 required unless there is only a condition.
 If the condition is absent, it is equivalent to <code>true</code>.
 </p>
@@ -3776,8 +3808,8 @@ after execution their values will be those of the last iteration.
 </p>
 
 <pre>
-var a [10]string;
-m := map[string]int{"mon":0, "tue":1, "wed":2, "thu":3, "fri":4, "sat":5, "sun":6};
+var a [10]string
+m := map[string]int{"mon":0, "tue":1, "wed":2, "thu":3, "fri":4, "sat":5, "sun":6}
 
 for i, s := range a {
 	// type of i is int
@@ -3786,8 +3818,8 @@ for i, s := range a {
 	g(i, s)
 }
 
-var key string;
-var val interface {};  // value type of m is assignment compatible with val
+var key string
+var val interface {}  // value type of m is assignment compatible with val
 for key, val = range m {
 	h(key, val)
 }
@@ -3835,7 +3867,7 @@ cases all referring to communication operations.
 
 <pre class="ebnf">
 SelectStmt = "select" "{" { CommClause } "}" .
-CommClause = CommCase ":" StatementList .
+CommClause = CommCase ":" { Statement ";" } .
 CommCase = "case" ( SendExpr | RecvExpr) | "default" .
 SendExpr =  Expression "&lt;-" Expression .
 RecvExpr =  [ Expression ( "=" | ":=" ) ] "&lt;-" Expression .
@@ -3870,15 +3902,15 @@ The receive case may declare a new variable using a
 </p>
 
 <pre>
-var c, c1, c2 chan int;
-var i1, i2 int;
+var c, c1, c2 chan int
+var i1, i2 int
 select {
 case i1 = &lt;-c1:
-	print("received ", i1, " from c1\n");
+	print("received ", i1, " from c1\n")
 case c2 &lt;- i2:
-	print("sent ", i2, " to c2\n");
+	print("sent ", i2, " to c2\n")
 default:
-	print("no communication\n");
+	print("no communication\n")
 }
 
 for {  // send random sequence of bits to c
@@ -3952,9 +3984,9 @@ func complex_f2() (re float, im float) {
 		The "return" statement returns the values of these variables.
 <pre>
 func complex_f3() (re float, im float) {
-	re = 7.0;
-	im = 4.0;
-	return;
+	re = 7.0
+	im = 4.0
+	return
 }
 </pre>
 	</li>
@@ -3978,7 +4010,7 @@ A "break" statement terminates execution of the innermost
 </p>
 
 <pre class="ebnf">
-BreakStmt = "break" [ Label ].
+BreakStmt = "break" [ Label ] .
 </pre>
 
 <p>
@@ -3989,7 +4021,7 @@ terminates
 </p>
 
 <pre>
-L: for i < n {
+L: for i &lt; n {
 	switch i {
 		case 5: break L
 	}
@@ -4004,7 +4036,7 @@ innermost "for" loop at its post statement (§<a href="#For_statements">For stat
 </p>
 
 <pre class="ebnf">
-ContinueStmt = "continue" [ Label ].
+ContinueStmt = "continue" [ Label ] .
 </pre>
 
 <p>
@@ -4032,8 +4064,8 @@ instance, this example:
 </p>
 
 <pre>
-goto L;  // BAD
-v := 3;
+goto L  // BAD
+v := 3
 L:
 </pre>
 
@@ -4081,12 +4113,12 @@ but after the return values, if any, have been evaluated.
 </p>
 
 <pre>
-lock(l);
-defer unlock(l);  // unlocking happens before surrounding function returns
+lock(l)
+defer unlock(l)  // unlocking happens before surrounding function returns
 
 // prints 3 2 1 0 before surrounding function returns
 for i := 0; i &lt;= 3; i++ {
-	defer fmt.Print(i);
+	defer fmt.Print(i)
 }
 </pre>
 
@@ -4218,10 +4250,10 @@ buffered channels:
 </p>
 
 <pre>
-s := make([]int, 10, 100);        // slice with len(s) == 10, cap(s) == 100
-s := make([]int, 10);             // slice with len(s) == cap(s) == 10
-c := make(chan int, 10);          // channel with a buffer size of 10
-m := make(map[string] int, 100);  // map with initial space for 100 elements
+s := make([]int, 10, 100)        // slice with len(s) == 10, cap(s) == 100
+s := make([]int, 10)             // slice with len(s) == cap(s) == 10
+c := make(chan int, 10)          // channel with a buffer size of 10
+m := make(map[string] int, 100)  // map with initial space for 100 elements
 </pre>
 
 
@@ -4246,10 +4278,10 @@ Examples:
 </p>
 
 <pre>
-var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7};
-var s = make([]int, 6);
-n1 := copy(s, &amp;a);     // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
-n2 := copy(s, s[2:]);  // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
+var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
+var s = make([]int, 6)
+n1 := copy(s, &amp;a)     // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
+n2 := copy(s, s[2:])  // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
 </pre>
 
 
@@ -4293,7 +4325,7 @@ types, variables, and constants.
 </p>
 
 <pre class="ebnf">
-SourceFile       = PackageClause { ImportDecl [ ";" ] } { TopLevelDecl [ ";" ] } .
+SourceFile       = PackageClause ";" { ImportDecl ";" } { TopLevelDecl ";" } .
 </pre>
 
 <h3 id="Package_clause">Package clause</h3>
@@ -4333,10 +4365,9 @@ that specifies the package to be imported.
 </p>
 
 <pre class="ebnf">
-ImportDecl       = "import" ( ImportSpec | "(" [ ImportSpecList ] ")" ) .
-ImportSpecList   = ImportSpec { ";" ImportSpec } [ ";" ] .
+ImportDecl       = "import" ( ImportSpec | "(" { ImportSpec ";" } ")" ) .
 ImportSpec       = [ "." | PackageName ] ImportPath .
-ImportPath       = StringLit .
+ImportPath       = string_lit .
 </pre>
 
 <p>
@@ -4402,7 +4433,7 @@ import "fmt"
 // Send the sequence 2, 3, 4, ... to channel 'ch'.
 func generate(ch chan&lt;- int) {
 	for i := 2; ; i++ {
-		ch &lt;- i;	// Send 'i' to channel 'ch'.
+		ch &lt;- i  // Send 'i' to channel 'ch'.
 	}
 }
 
@@ -4411,26 +4442,26 @@ func generate(ch chan&lt;- int) {
 func filter(src &lt;-chan int, dst chan&lt;- int, prime int) {
 	for i := range src {	// Loop over values received from 'src'.
 		if i%prime != 0 {
-			dst &lt;- i;	// Send 'i' to channel 'dst'.
+			dst &lt;- i  // Send 'i' to channel 'dst'.
 		}
 	}
 }
 
 // The prime sieve: Daisy-chain filter processes together.
 func sieve() {
-	ch := make(chan int);	// Create a new channel.
-	go generate(ch);	// Start generate() as a subprocess.
+	ch := make(chan int)  // Create a new channel.
+	go generate(ch)       // Start generate() as a subprocess.
 	for {
-		prime := &lt;-ch;
-		fmt.Print(prime, "\n");
-		ch1 := make(chan int);
-		go filter(ch, ch1, prime);
-		ch = ch1;
+		prime := &lt;-ch
+		fmt.Print(prime, "\n")
+		ch1 := make(chan int)
+		go filter(ch, ch1, prime)
+		ch = ch1
 	}
 }
 
 func main() {
-	sieve();
+	sieve()
 }
 </pre>
 
@@ -4453,8 +4484,8 @@ These two simple declarations are equivalent:
 </p>
 
 <pre>
-var i int;
-var i int = 0;
+var i int
+var i int = 0
 </pre>
 
 <p>
@@ -4462,8 +4493,8 @@ After
 </p>
 
 <pre>
-type T struct { i int; f float; next *T };
-t := new(T);
+type T struct { i int; f float; next *T }
+t := new(T)
 </pre>
 
 <p>
