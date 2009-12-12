@@ -94,8 +94,24 @@ setoutvar(void)
 static void
 setaddrs(Bits bit)
 {
-	if(bany(&bit))
-		var[bnum(bit)].addr = 1;
+	int i, n;
+	Var *v;
+	Sym *s;
+
+	while(bany(&bit)) {
+		// convert each bit to a variable
+		i = bnum(bit);
+		s = var[i].sym;
+		n = var[i].name;
+		bit.b[i/32] &= ~(1L<<(i%32));
+
+		// disable all pieces of that variable
+		for(i=0; i<nvar; i++) {
+			v = var+i;
+			if(v->sym == s && v->name == n)
+				v->addr = 2;
+		}
+	}
 }
 
 void
@@ -851,15 +867,12 @@ mkvar(Reg *r, Adr *a)
 	for(i=0; i<nvar; i++) {
 		v = var+i;
 		if(v->sym == s && v->name == n) {
-			if(v->offset == o) {
-				// if it is the same, use it
-				if(v->etype != et||
-			   	   v->width != w)
-					v->addr = 1;
+			if(v->offset == o)
+			if(v->etype == et)
+			if(v->width == w)
 				return blsh(i);
-			}
 
-			// if it overlaps, disable bothj
+			// if they overlaps, disable both
 			if(overlap(v->offset, v->width, o, w)) {
 				v->addr = 1;
 				flag = 1;
@@ -888,6 +901,8 @@ mkvar(Reg *r, Adr *a)
 	v->gotype = a->gotype;
 	v->etype = et;
 	v->width = w;
+	v->addr = flag;		// funny punning
+
 	if(debug['R'])
 		print("bit=%2d et=%2d w=%d %S %D\n", i, et, w, s, a);
 	ostats.nvar++;
@@ -899,10 +914,6 @@ mkvar(Reg *r, Adr *a)
 	if(n == D_PARAM)
 		for(z=0; z<BITS; z++)
 			params.b[z] |= bit.b[z];
-
-	// funny punning
-	if(flag)
-		v->addr = 1;
 
 	return bit;
 

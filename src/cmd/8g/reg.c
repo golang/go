@@ -67,7 +67,7 @@ rcmp(const void *a1, const void *a2)
 	return p2->varno - p1->varno;
 }
 
-void
+static void
 setoutvar(void)
 {
 	Type *t;
@@ -89,6 +89,29 @@ setoutvar(void)
 	}
 //if(bany(b))
 //print("ovars = %Q\n", &ovar);
+}
+
+static void
+setaddrs(Bits bit)
+{
+	int i, n;
+	Var *v;
+	Sym *s;
+
+	while(bany(&bit)) {
+		// convert each bit to a variable
+		i = bnum(bit);
+		s = var[i].sym;
+		n = var[i].name;
+		bit.b[i/32] &= ~(1L<<(i%32));
+
+		// disable all pieces of that variable
+		for(i=0; i<nvar; i++) {
+			v = var+i;
+			if(v->sym == s && v->name == n)
+				v->addr = 2;
+		}
+	}
 }
 
 void
@@ -179,8 +202,7 @@ regopt(Prog *firstp)
 		 * funny
 		 */
 		case ALEAL:
-			for(z=0; z<BITS; z++)
-				addrs.b[z] |= bit.b[z];
+			setaddrs(bit);
 			break;
 
 		/*
@@ -314,8 +336,7 @@ regopt(Prog *firstp)
 		case AFMOVVP:
 		case AFMOVWP:
 		case ACALL:
-			for(z=0; z<BITS; z++)
-				addrs.b[z] |= bit.b[z];
+			setaddrs(bit);
 			break;
 		}
 
@@ -379,6 +400,18 @@ regopt(Prog *firstp)
 	}
 	if(firstr == R)
 		return;
+
+	for(i=0; i<nvar; i++) {
+		Var *v = var+i;
+		if(v->addr) {
+			bit = blsh(i);
+			for(z=0; z<BITS; z++)
+				addrs.b[z] |= bit.b[z];
+		}
+
+//		print("bit=%2d addr=%d et=%-6E w=%-2d s=%S + %lld\n",
+//			i, v->addr, v->etype, v->width, v->sym, v->offset);
+	}
 
 	if(debug['R'] && debug['v'])
 		dumpit("pass1", firstr);
@@ -679,30 +712,15 @@ doregbits(int r)
 }
 
 static int
-overlap(Var *v, int o2, int w2)
+overlap(int32 o1, int w1, int32 o2, int w2)
 {
-	int o1, w1, t1, t2, z;
-	Bits bit;
+	int32 t1, t2;
 
-	o1 = v->offset;
-	w1 = v->width;
 	t1 = o1+w1;
 	t2 = o2+w2;
+
 	if(!(t1 > o2 && t2 > o1))
 		return 0;
-
-	// set to max extent
-	if(o2 < o1)
-		v->offset = o2;
-	if(t1 > t2)
-		v->width = t1-v->offset;
-	else
-		v->width = t2-v->offset;
-
-	// and dont registerize
-	bit = blsh(v-var);
-	for(z=0; z<BITS; z++)
-		addrs.b[z] |= bit.b[z];
 
 	return 1;
 }
@@ -720,6 +738,9 @@ mkvar(Reg *r, Adr *a)
 	 * mark registers used
 	 */
 	t = a->type;
+	if(t == D_NONE)
+		goto none;
+
 	if(r != R) {
 		r->regu |= doregbits(t);
 		r->regu |= doregbits(a->index);
@@ -728,14 +749,15 @@ mkvar(Reg *r, Adr *a)
 	switch(t) {
 	default:
 		goto none;
+
 	case D_ADDR:
 		a->type = a->index;
 		bit = mkvar(r, a);
-		for(z=0; z<BITS; z++)
-			addrs.b[z] |= bit.b[z];
+		setaddrs(bit);
 		a->type = t;
 		ostats.naddr++;
 		goto none;
+
 	case D_EXTERN:
 	case D_STATIC:
 	case D_PARAM:
@@ -752,32 +774,27 @@ mkvar(Reg *r, Adr *a)
 	et = a->etype;
 	o = a->offset;
 	w = a->width;
-	v = var;
 
 	flag = 0;
 	for(i=0; i<nvar; i++) {
-		if(s == v->sym)
-		if(n == v->name) {
-			// if it is the same, use it
+		v = var+i;
+		if(v->sym == s && v->name == n) {
+			if(v->offset == o)
 			if(v->etype == et)
 			if(v->width == w)
-			if(v->offset == o)
-				goto out;
+				return blsh(i);
 
-			// if it overlaps, set max
-			// width and dont registerize
-			if(overlap(v, o, w))
+			// if they overlaps, disable both
+			if(overlap(v->offset, v->width, o, w)) {
+				v->addr = 1;
 				flag = 1;
+			}
 		}
-		v++;
 	}
-	if(flag)
-		goto none;
 
 	switch(et) {
 	case 0:
 	case TFUNC:
-	case TARRAY:
 		goto none;
 	}
 
@@ -786,34 +803,23 @@ mkvar(Reg *r, Adr *a)
 			fatal("variable not optimized: %D", a);
 		goto none;
 	}
+
 	i = nvar;
 	nvar++;
-	v = &var[i];
+	v = var+i;
 	v->sym = s;
 	v->offset = o;
 	v->name = n;
 	v->gotype = a->gotype;
 	v->etype = et;
 	v->width = w;
+	v->addr = flag;		// funny punning
+
 	if(debug['R'])
-		print("bit=%2d et=%2d w=%d %D\n", i, et, w, a);
+		print("bit=%2d et=%2d w=%d %S %D\n", i, et, w, s, a);
 	ostats.nvar++;
 
-out:
 	bit = blsh(i);
-
-	// funny punning
-	if(v->etype != et) {
-		if(debug['R'])
-			print("pun et=%d/%d w=%d/%d o=%d/%d %D\n",
-				v->etype, et,
-				v->width, w,
-				v->offset, o, a);
-		for(z=0; z<BITS; z++)
-			addrs.b[z] |= bit.b[z];
-		goto none;
-	}
-
 	if(n == D_EXTERN || n == D_STATIC)
 		for(z=0; z<BITS; z++)
 			externs.b[z] |= bit.b[z];
