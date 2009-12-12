@@ -74,7 +74,7 @@ func initParserMode() {
 
 
 func initPrinterMode() {
-	printerMode = printer.NoStringConcat;
+	printerMode = uint(0);
 	if *tabIndent {
 		printerMode |= printer.TabIndent
 	}

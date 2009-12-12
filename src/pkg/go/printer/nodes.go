@@ -17,9 +17,7 @@ import (
 
 // Disabled formatting - enable eventually and remove the flag.
 const (
-	compositeLitBlank	= false;
-	fewerSemis		= true;
-	stringListMode		= exprListMode(0);	// previously: noIndent
+	compositeLitBlank = false;
 )
 
 
@@ -28,7 +26,7 @@ const (
 // - better comment formatting for /*-style comments at the end of a line (e.g. a declaration)
 //   when the comment spans multiple lines; if such a comment is just two lines, formatting is
 //   not idempotent
-// - formatting of expression lists; especially for string lists (stringListMode)
+// - formatting of expression lists; especially for string lists
 // - blank after { and before } in one-line composite literals probably looks better
 // - should use blank instead of tab to separate one-line function bodies from
 //   the function header unless there is a group of consecutive one-liners
@@ -127,11 +125,7 @@ func (p *printer) stringList(list []*ast.BasicLit, multiLine *bool) {
 	for i, x := range list {
 		xlist[i] = x
 	}
-	mode := stringListMode;
-	if p.Mode&NoStringConcat != 0 {
-		mode |= plusSep
-	}
-	p.exprList(noPos, xlist, 1, mode, multiLine);
+	p.exprList(noPos, xlist, 1, plusSep, multiLine);
 }
 
 
@@ -833,7 +827,7 @@ func (p *printer) stmtList(list []ast.Stmt, _indent int) {
 		// in those cases each clause is a new section
 		p.linebreak(s.Pos().Line, 1, maxStmtNewlines, ignore, i == 0 || _indent == 0 || multiLine);
 		multiLine = false;
-		if !p.stmt(s, &multiLine) && (!fewerSemis || len(list) > 1) && p.Mode&NoSemis == 0 {
+		if !p.stmt(s, &multiLine) && len(list) > 1 && p.Mode&NoSemis == 0 {
 			p.print(token.SEMICOLON)
 		}
 	}
@@ -855,8 +849,10 @@ func (p *printer) moveCommentsAfter(pos token.Position) {
 
 
 // block prints an *ast.BlockStmt; it always spans at least two lines.
-func (p *printer) block(s *ast.BlockStmt, indent int) {
-	p.moveCommentsAfter(s.Pos());
+func (p *printer) block(s *ast.BlockStmt, indent int, moveComments bool) {
+	if moveComments {
+		p.moveCommentsAfter(s.Pos())
+	}
 	p.print(s.Pos(), token.LBRACE);
 	p.stmtList(s.List, indent);
 	p.linebreak(s.Rbrace.Line, 1, maxStmtNewlines, ignore, true);
@@ -976,14 +972,14 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		}
 
 	case *ast.BlockStmt:
-		p.block(s, 1);
+		p.block(s, 1, false);
 		*multiLine = true;
 		optSemi = true;
 
 	case *ast.IfStmt:
 		p.print(token.IF);
 		p.controlClause(false, s.Init, s.Cond, nil);
-		p.block(s.Body, 1);
+		p.block(s.Body, 1, true);
 		*multiLine = true;
 		optSemi = true;
 		if s.Else != nil {
@@ -1012,7 +1008,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 	case *ast.SwitchStmt:
 		p.print(token.SWITCH);
 		p.controlClause(false, s.Init, s.Tag, nil);
-		p.block(s.Body, 0);
+		p.block(s.Body, 0, true);
 		*multiLine = true;
 		optSemi = true;
 
@@ -1037,7 +1033,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		p.print(blank);
 		p.stmt(s.Assign, ignoreMultiLine);
 		p.print(blank);
-		p.block(s.Body, 0);
+		p.block(s.Body, 0, true);
 		*multiLine = true;
 		optSemi = true;
 
@@ -1058,14 +1054,14 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 
 	case *ast.SelectStmt:
 		p.print(token.SELECT, blank);
-		p.block(s.Body, 0);
+		p.block(s.Body, 0, false);
 		*multiLine = true;
 		optSemi = true;
 
 	case *ast.ForStmt:
 		p.print(token.FOR);
 		p.controlClause(true, s.Init, s.Cond, s.Post);
-		p.block(s.Body, 1);
+		p.block(s.Body, 1, true);
 		*multiLine = true;
 		optSemi = true;
 
@@ -1079,7 +1075,7 @@ func (p *printer) stmt(stmt ast.Stmt, multiLine *bool) (optSemi bool) {
 		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank);
 		p.expr(s.X, multiLine);
 		p.print(blank);
-		p.block(s.Body, 1);
+		p.block(s.Body, 1, true);
 		*multiLine = true;
 		optSemi = true;
 
@@ -1284,7 +1280,7 @@ func (p *printer) funcBody(b *ast.BlockStmt, headerSize int, isLit bool, multiLi
 	}
 
 	p.print(blank);
-	p.block(b, 1);
+	p.block(b, 1, true);
 	*multiLine = true;
 }
 
