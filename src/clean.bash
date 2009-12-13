@@ -3,6 +3,13 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
+set -e
+
+if [ -z "$GOROOT" ] ; then
+	echo '$GOROOT not set'
+	exit 1
+fi
+
 GOBIN="${GOBIN:-$HOME/bin}"
 
 rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH
