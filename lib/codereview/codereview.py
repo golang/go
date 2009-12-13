@@ -171,6 +171,8 @@ class CL(object):
 		f = open(path+'!', "w")
 		f.write(self.DiskText())
 		f.close()
+		if sys.platform == "win32" and os.path.isfile(path):
+			os.remove(path)
 		os.rename(path+'!', path)
 		if self.web and not self.original_author:
 			EditDesc(self.name, desc=self.desc,
