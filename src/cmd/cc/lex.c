@@ -38,8 +38,11 @@
 int
 systemtype(int sys)
 {
-
+#ifdef __MINGW32__
+	return sys&Windows;
+#else
 	return sys&Plan9;
+#endif
 }
 
 int

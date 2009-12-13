@@ -33,6 +33,7 @@
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
 #include	"../ld/macho.h"
+#include	"../ld/pe.h"
 #include	<ar.h>
 
 #ifndef	DEFAULT
@@ -94,7 +95,7 @@ main(int argc, char *argv[])
 	listinit();
 	memset(debug, 0, sizeof(debug));
 	nerrors = 0;
-	outfile = "8.out";
+	outfile = nil;
 	HEADTYPE = -1;
 	INITTEXT = -1;
 	INITDAT = -1;
@@ -145,7 +146,7 @@ main(int argc, char *argv[])
 	if(*argv == 0)
 		usage();
 
-	libinit();
+	mywhatsys();	// get goos
 
 	if(HEADTYPE == -1) {
 		HEADTYPE = 2;
@@ -161,8 +162,20 @@ main(int argc, char *argv[])
 		if(strcmp(goos, "freebsd") == 0)
 			HEADTYPE = 9;
 		else
-			print("goos is not known: %sn", goos);
+		if(strcmp(goos, "mingw") == 0)
+			HEADTYPE = 10;
+		else
+			print("goos is not known: %s\n", goos);
 	}
+
+	if(outfile == nil) {
+		if(HEADTYPE == 10)
+			outfile = "8.out.exe";
+		else
+			outfile = "8.out";
+	}
+
+	libinit();
 
 	switch(HEADTYPE) {
 	default:
@@ -259,6 +272,16 @@ main(int argc, char *argv[])
 			INITDAT = 0;
 		if(INITRND == -1)
 			INITRND = 4096;
+		break;
+	case 10: /* PE executable */
+		peinit();
+		HEADR = PERESERVE;
+		if(INITTEXT == -1)
+			INITTEXT = PEBASE+0x1000;
+		if(INITDAT == -1)
+			INITDAT = 0;
+		if(INITRND == -1)
+			INITRND = PEALIGN;
 		break;
 	}
 	if(INITDAT != 0 && INITRND != 0)
@@ -387,6 +410,8 @@ main(int argc, char *argv[])
 			doprof2();
 	span();
 	doinit();
+	if(HEADTYPE == 10)
+		dope();
 	asmb();
 	undef();
 	if(debug['v']) {

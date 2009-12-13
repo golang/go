@@ -358,6 +358,27 @@ patch(void)
 	s = lookup("exit", 0);
 	vexit = s->value;
 	for(p = firstp; p != P; p = p->link) {
+		if(HEADTYPE == 10) {
+			// Convert
+			//   op   n(GS), reg
+			// to
+			//   MOVL 0x2C(FS), reg
+			//   op   n(reg), reg
+			// The purpose of this patch is to fix some accesses
+			// to extern register variables (TLS) on Windows, as
+			// a different method is used to access them.
+			if(p->from.type == D_INDIR+D_GS
+			&& p->to.type >= D_AX && p->to.type <= D_DI) {
+				q = appendp(p);
+				q->from = p->from;
+				q->from.type += p->to.type-D_GS;
+				q->to = p->to;
+				q->as = p->as;
+				p->as = AMOVL;
+				p->from.type = D_INDIR+D_FS;
+				p->from.offset = 0x2C;
+			}
+		}
 		if(p->as == ATEXT)
 			curtext = p;
 		if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
@@ -575,10 +596,23 @@ dostkoff(void)
 			if(pmorestack != P)
 			if(!(p->from.scale & NOSPLIT)) {
 				p = appendp(p);	// load g into CX
-				p->as = AMOVL;
-				p->from.type = D_INDIR+D_GS;
-				p->from.offset = tlsoffset + 0;
-				p->to.type = D_CX;
+				if(HEADTYPE == 10) {
+					p->as = AMOVL;
+					p->from.type = D_INDIR+D_FS;
+					p->from.offset = 0x2c;
+					p->to.type = D_CX;
+
+					p = appendp(p);
+					p->as = AMOVL;
+					p->from.type = D_INDIR+D_CX;
+					p->from.offset = 0;
+					p->to.type = D_CX;
+				} else {
+					p->as = AMOVL;
+					p->from.type = D_INDIR+D_GS;
+					p->from.offset = tlsoffset + 0;
+					p->to.type = D_CX;
+				}
 
 				if(debug['K']) {
 					// 8l -K means check not only for stack

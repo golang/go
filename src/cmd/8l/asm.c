@@ -32,6 +32,7 @@
 #include	"../ld/lib.h"
 #include	"../ld/elf.h"
 #include	"../ld/macho.h"
+#include	"../ld/pe.h"
 
 #define	Dbufslop	100
 
@@ -531,6 +532,7 @@ asmb(void)
 	case 7:
 	case 8:
 	case 9:
+	case 10:
 		v = rnd(HEADR+textsize, INITRND);
 		seek(cout, v, 0);
 		break;
@@ -588,6 +590,7 @@ asmb(void)
 		case 7:
 		case 8:
 		case 9:
+		case 10:
 			symo = rnd(HEADR+textsize, INITRND)+datsize;
 			symo = rnd(symo, INITRND);
 			break;
@@ -605,6 +608,8 @@ asmb(void)
 			asmlc();
 		if(dlm)
 			asmdyn();
+		if(HEADTYPE == 10)
+			strnput("", INITRND-(8+symsize+lcsize)%INITRND);
 		cflush();
 		seek(cout, symo, 0);
 		lputl(symsize);
@@ -1017,6 +1022,10 @@ asmb(void)
 		cflush();
 		if(a+elfwriteinterp() > ELFRESERVE)
 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+		break;
+
+	case 10:
+		asmbpe();
 		break;
 	}
 	cflush();
