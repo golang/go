@@ -17,6 +17,7 @@ OFILES=\
 	obj.$O\
 	optab.$O\
 	pass.$O\
+	pe.$O\
 	span.$O\
 	go.$O\
 
@@ -25,6 +26,7 @@ HFILES=\
 	../8l/8.out.h\
 	../ld/elf.h\
 	../ld/macho.h\
+	../ld/pe.h\
 
 
 $(TARG): $(OFILES)
