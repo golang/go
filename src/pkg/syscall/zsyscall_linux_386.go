@@ -453,8 +453,9 @@ func Setuid(uid int) (errno int) {
 }
 
 func Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, errno int) {
-	r0, r1, _ := Syscall6(SYS_SPLICE, uintptr(rfd), uintptr(unsafe.Pointer(roff)), uintptr(wfd), uintptr(unsafe.Pointer(woff)), uintptr(len), uintptr(flags));
+	r0, r1, e1 := Syscall6(SYS_SPLICE, uintptr(rfd), uintptr(unsafe.Pointer(roff)), uintptr(wfd), uintptr(unsafe.Pointer(woff)), uintptr(len), uintptr(flags));
 	n = int64(int64(r1)<<32 | int64(r0));
+	errno = int(e1);
 	return;
 }
 
@@ -476,8 +477,9 @@ func Sysinfo(info *Sysinfo_t) (errno int) {
 }
 
 func Tee(rfd int, wfd int, len int, flags int) (n int64, errno int) {
-	r0, r1, _ := Syscall6(SYS_TEE, uintptr(rfd), uintptr(wfd), uintptr(len), uintptr(flags), 0, 0);
+	r0, r1, e1 := Syscall6(SYS_TEE, uintptr(rfd), uintptr(wfd), uintptr(len), uintptr(flags), 0, 0);
 	n = int64(int64(r1)<<32 | int64(r0));
+	errno = int(e1);
 	return;
 }
 

@@ -158,7 +158,6 @@ while(<>) {
 			}
 			$ret[$i] = sprintf("r%d", $i);
 			$ret[$i+1] = sprintf("r%d", $i+1);
-			$i++;		# loop will do another $i++
 		}
 		$body .= "\t$name = $type($reg);\n";
 	}
