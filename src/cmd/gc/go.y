@@ -7,9 +7,8 @@
  *
  * The Go semicolon rules are:
  *
- *  1. all statements and declarations are terminated by semicolons
- *  2. semicolons can be omitted before and after the closing ) or }
- *	on a list of statements or declarations.
+ *  1. all statements and declarations are terminated by semicolons.
+ *  2. semicolons can be omitted before a closing ) or }.
  *  3. semicolons are inserted by the lexer before a newline
  *      following a specific list of tokens.
  *
