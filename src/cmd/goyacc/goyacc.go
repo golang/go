@@ -2195,7 +2195,7 @@ func output() {
 	fmt.Fprintf(ftable, "const\tYYNPROD\t= %v\n", nprod);
 	fmt.Fprintf(ftable, "const\tYYPRIVATE\t= %v\n", PRIVATE);
 	fmt.Fprintf(ftable, "var\tYYTOKENNAMES []string\n");
-	fmt.Fprintf(ftable, "var\tYYSTATES\n[]string\n");
+	fmt.Fprintf(ftable, "var\tYYSTATES []string\n");
 }
 
 //
@@ -2869,7 +2869,7 @@ func others() {
 			putrune(ftable, '\n')
 		}
 	}
-	fmt.Fprintf(ftable, "%4d\n };\n", 0);
+	fmt.Fprintf(ftable, "%4d,\n };\n", 0);
 
 	// copy parser text
 	c = getrune(finput);
@@ -3123,10 +3123,7 @@ func exit(status int) {
 	os.Exit(status);
 }
 
-var yaccpar =
-// from here to the end of the file is
-// a single string containing the old yaccpar file
-`
+var yaccpar = `
 /*	parser for yacc output	*/
 
 var	Nerrs		= 0		/* number of errors */
@@ -3135,8 +3132,7 @@ var	Debug		= 0
 const	YYFLAG		= -1000
 
 func
-Tokname(yyc int) string
-{
+Tokname(yyc int) string {
 	if yyc > 0 && yyc <= len(Toknames) {
 		if Toknames[yyc-1] != "" {
 			return Toknames[yyc-1];
@@ -3146,8 +3142,7 @@ Tokname(yyc int) string
 }
 
 func
-Statname(yys int) string
-{
+Statname(yys int) string {
 	if yys >= 0 && yys < len(Statenames) {
 		if Statenames[yys] != "" {
 			return Statenames[yys];
@@ -3157,8 +3152,7 @@ Statname(yys int) string
 }
 
 func
-lex1() int
-{
+lex1() int {
 	var yychar int;
 	var c int;
 
@@ -3197,8 +3191,7 @@ out:
 }
 
 func
-Parse() int
-{
+Parse() int {
 	var yyj, yystate, yyn, yyg, yyxi, yyp int;
 	var yychar int;
 	var yypt, yynt int;

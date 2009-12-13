@@ -40,16 +40,14 @@ const
 	Maxe	= 695;				// log of largest number
 )
 
-type	Node
-struct
-{
+type
+Node struct {
 	vval	float64;
 	dim	[Ndim]int8;
 }
 
-type	Var
-struct
-{
+type
+Var struct {
 	name	string;
 	node	Node;
 }
@@ -220,8 +218,7 @@ expr0:
 %%
 
 func
-Lex() int
-{
+Lex() int {
 	var c, i int;
 
 	c = peekrune;
@@ -287,8 +284,7 @@ numb:
 }
 
 func
-main()
-{
+main() {
 	var file string;
 
 	flag.BoolVar(&vflag, "v", false, "verbose");
@@ -369,8 +365,7 @@ main()
  * meaning. rest are usable as names
  */
 func
-ralpha(c int) bool
-{
+ralpha(c int) bool {
 	switch c {
 	case	0, '+', '-', '*', '/', '[', ']', '(', ')',
 		'^', ':', '?', ' ', '\t', '.', '|', '#',
@@ -384,8 +379,7 @@ ralpha(c int) bool
  * number forming character
  */
 func
-rdigit(c int) bool
-{
+rdigit(c int) bool {
 	switch c {
 	case	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 		'.', 'e', '+', '-':
@@ -395,8 +389,7 @@ rdigit(c int) bool
 }
 
 func
-Error(s string, v ...)
-{
+Error(s string, v ...) {
 
 	/*
 	 * hack to intercept message from yaccpar
@@ -417,8 +410,7 @@ Error(s string, v ...)
 }
 
 func
-add(c,a,b *Node)
-{
+add(c,a,b *Node) {
 	var i int;
 	var d int8;
 
@@ -433,8 +425,7 @@ add(c,a,b *Node)
 }
 
 func
-sub(c,a,b *Node)
-{
+sub(c,a,b *Node) {
 	var i int;
 	var d int8;
 
@@ -449,8 +440,7 @@ sub(c,a,b *Node)
 }
 
 func
-mul(c,a,b *Node)
-{
+mul(c,a,b *Node) {
 	var i int;
 
 	for i=0; i<Ndim; i++ {
@@ -460,8 +450,7 @@ mul(c,a,b *Node)
 }
 
 func
-div(c,a,b *Node)
-{
+div(c,a,b *Node) {
 	var i int;
 
 	for i=0; i<Ndim; i++ {
@@ -471,8 +460,7 @@ div(c,a,b *Node)
 }
 
 func
-xpn(c,a *Node, b int)
-{
+xpn(c,a *Node, b int) {
 	var i int;
 
 	*c = one;
@@ -488,8 +476,7 @@ xpn(c,a *Node, b int)
 }
 
 func
-specialcase(c,a,b *Node) bool
-{
+specialcase(c,a,b *Node) bool {
 	var i int;
 	var d, d1, d2 int8;
 
@@ -536,8 +523,7 @@ specialcase(c,a,b *Node) bool
 }
 
 func
-printdim(str string, d, n int) string
-{
+printdim(str string, d, n int) string {
 	var v *Var;
 
 	if n != 0 {
@@ -560,9 +546,8 @@ printdim(str string, d, n int) string
 	return str;
 }
 
-func (n Node)
-String() string
-{
+func
+(n Node) String() string {
 	var str string;
 	var f, i, d int;
 
@@ -592,17 +577,15 @@ String() string
 	return str;
 }
 
-func (v *Var)
-String() string
-{
+func
+(v *Var) String() string {
 	var str string;
 	str = fmt.Sprintf("%v %v", v.name, v.node);
 	return str;
 }
 
 func
-readline() bool
-{
+readline() bool {
 	s,err := fi.ReadString('\n');
 	if err != nil {
 		return true;
@@ -613,8 +596,7 @@ readline() bool
 }
 
 func
-getrune() int
-{
+getrune() int {
 	var c,n int;
 
 	if linep >= len(line) {
@@ -631,8 +613,7 @@ getrune() int
 var	symmap	= make(map[string]*Var);	// symbol table
 
 func
-lookup(f int) *Var
-{
+lookup(f int) *Var {
 	var p float64;
 	var w *Var;
 
@@ -663,8 +644,8 @@ lookup(f int) *Var
 	return v;
 }
 
-type	Prefix
-struct
+type
+Prefix struct
 {
 	vval	float64;
 	name	string;
@@ -693,12 +674,11 @@ var	prefix	 = []Prefix {			// prefix table
 	Prefix { 1e15,		"peta"  },
 	Prefix { 1e18,		"exa"   },
 	Prefix { 1e21,		"zetta" },
-	Prefix { 1e24,		"yotta" }
+	Prefix { 1e24,		"yotta" },
 }
 
 func
-pname() float64
-{
+pname() float64 {
 	var i, j, n int;
 	var s string;
 
@@ -730,8 +710,7 @@ pname() float64
 // careful multiplication
 // exponents (log) are checked before multiply
 func
-fmul(a, b float64) float64
-{
+fmul(a, b float64) float64 {
 	var l float64;
 
 	if b <= 0 {
@@ -764,8 +743,7 @@ fmul(a, b float64) float64
 // careful division
 // exponents (log) are checked before divide
 func
-fdiv(a, b float64) float64
-{
+fdiv(a, b float64) float64 {
 	var l float64;
 
 	if b <= 0 {
@@ -797,7 +775,6 @@ fdiv(a, b float64) float64
 }
 
 func
-fadd(a, b float64) float64
-{
+fadd(a, b float64) float64 {
 	return a + b;
 }
