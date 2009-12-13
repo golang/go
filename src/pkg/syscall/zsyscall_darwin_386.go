@@ -502,8 +502,9 @@ func Rmdir(path string) (errno int) {
 }
 
 func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
-	r0, r1, _ := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset>>32), uintptr(whence), 0, 0);
+	r0, r1, e1 := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset>>32), uintptr(whence), 0, 0);
 	newoffset = int64(int64(r1)<<32 | int64(r0));
+	errno = int(e1);
 	return;
 }
 

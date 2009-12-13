@@ -453,8 +453,9 @@ func Setuid(uid int) (errno int) {
 }
 
 func Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, errno int) {
-	r0, r1, _ := Syscall6(SYS_SPLICE, uintptr(rfd), uintptr(unsafe.Pointer(roff)), uintptr(wfd), uintptr(unsafe.Pointer(woff)), uintptr(len), uintptr(flags));
+	r0, r1, e1 := Syscall6(SYS_SPLICE, uintptr(rfd), uintptr(unsafe.Pointer(roff)), uintptr(wfd), uintptr(unsafe.Pointer(woff)), uintptr(len), uintptr(flags));
 	n = int64(int64(r1)<<32 | int64(r0));
+	errno = int(e1);
 	return;
 }
 
@@ -476,8 +477,9 @@ func Sysinfo(info *Sysinfo_t) (errno int) {
 }
 
 func Tee(rfd int, wfd int, len int, flags int) (n int64, errno int) {
-	r0, r1, _ := Syscall6(SYS_TEE, uintptr(rfd), uintptr(wfd), uintptr(len), uintptr(flags), 0, 0);
+	r0, r1, e1 := Syscall6(SYS_TEE, uintptr(rfd), uintptr(wfd), uintptr(len), uintptr(flags), 0, 0);
 	n = int64(int64(r1)<<32 | int64(r0));
+	errno = int(e1);
 	return;
 }
 
@@ -637,6 +639,27 @@ func getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
 	return;
 }
 
+func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
+	var _p0 *byte;
+	if len(p) > 0 {
+		_p0 = &p[0]
+	}
+	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)));
+	n = int(r0);
+	errno = int(e1);
+	return;
+}
+
+func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
+	var _p0 *byte;
+	if len(buf) > 0 {
+		_p0 = &buf[0]
+	}
+	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen));
+	errno = int(e1);
+	return;
+}
+
 func Chown(path string, uid int, gid int) (errno int) {
 	_, _, e1 := Syscall(SYS_CHOWN, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(uid), uintptr(gid));
 	errno = int(e1);
@@ -704,8 +727,9 @@ func Lstat(path string, stat *Stat_t) (errno int) {
 }
 
 func Seek(fd int, offset int64, whence int) (off int64, errno int) {
-	r0, r1, _ := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset>>32), uintptr(whence), 0, 0);
+	r0, r1, e1 := Syscall6(SYS_LSEEK, uintptr(fd), uintptr(offset), uintptr(offset>>32), uintptr(whence), 0, 0);
 	off = int64(int64(r1)<<32 | int64(r0));
+	errno = int(e1);
 	return;
 }
 
@@ -772,27 +796,6 @@ func Stat(path string, stat *Stat_t) (errno int) {
 
 func Statfs(path string, buf *Statfs_t) (errno int) {
 	_, _, e1 := Syscall(SYS_STATFS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(unsafe.Pointer(buf)), 0);
-	errno = int(e1);
-	return;
-}
-
-func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
-	var _p0 *byte;
-	if len(p) > 0 {
-		_p0 = &p[0]
-	}
-	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)));
-	n = int(r0);
-	errno = int(e1);
-	return;
-}
-
-func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
-	var _p0 *byte;
-	if len(buf) > 0 {
-		_p0 = &buf[0]
-	}
-	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen));
 	errno = int(e1);
 	return;
 }
