@@ -85,6 +85,7 @@ struct Lang
 	char *constend;
 
 	char *typdef;
+	char *typdefend;
 
 	char *structbegin;
 	char *unionbegin;

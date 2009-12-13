@@ -82,6 +82,34 @@
 
 #include "a.h"
 
+#ifdef __MINGW32__
+int
+spawn(char *prog, char **argv)
+{
+	return _spawnvp(P_NOWAIT, prog, (const char**)argv);
+}
+#undef waitfor
+void
+waitfor(int pid)
+{
+	_cwait(0, pid, 0);
+}
+#else
+int
+spawn(char *prog, char **argv)
+{
+	int pid = fork();
+	if(pid < 0)
+		sysfatal("fork: %r");
+	if(pid == 0) {
+		exec(argv[0], argv);
+		fprint(2, "exec gcc: %r\n");
+		exit(1);
+	}
+	return pid;
+}
+#endif
+
 void
 usage(void)
 {
@@ -101,6 +129,7 @@ Lang go =
 	")\n",
 
 	"type",
+	"\n",
 
 	"type %s struct {\n",
 	"type %s struct {\n",
@@ -117,6 +146,7 @@ Lang c =
 	"};\n",
 
 	"typedef",
+	";\n",
 
 	"typedef struct %s %s;\nstruct %s {\n",
 	"typedef union %s %s;\nunion %s {\n",
@@ -153,6 +183,7 @@ main(int argc, char **argv)
 	Biobuf *bin, *bout;
 	Type *t;
 	Field *f;
+	int orig_output_fd;
 
 	quotefmtinstall();
 
@@ -191,76 +222,57 @@ main(int argc, char **argv)
 		av[n++] = argv[0];
 	av[n] = nil;
 
-	// Run gcc writing assembly and stabs debugging to p[1].
-	if(pipe(p) < 0)
-		sysfatal("pipe: %r");
-
-	pid = fork();
-	if(pid < 0)
-		sysfatal("fork: %r");
-	if(pid == 0) {
-		close(p[0]);
-		dup(p[1], 1);
-		if(argc == 0) {
-			exec(av[0], av);
-			fprint(2, "exec gcc: %r\n");
-			exit(1);
-		}
+	orig_output_fd = dup(1, -1);
+	for(i=0; i==0 || i < argc; i++) {
 		// Some versions of gcc do not accept -S with multiple files.
 		// Run gcc once for each file.
-		close(0);
-		open("/dev/null", OREAD);
-		for(i=0; i<argc; i++) {
-			pid = fork();
-			if(pid < 0)
-				sysfatal("fork: %r");
-			if(pid == 0) {
-				av[n-1] = argv[i];
-				exec(av[0], av);
-				fprint(2, "exec gcc: %r\n");
-				exit(1);
+		// Write assembly and stabs debugging to p[1].
+		if(pipe(p) < 0)
+			sysfatal("pipe: %r");
+		dup(p[1], 1);
+		close(p[1]);
+		if (argc)
+			av[n-1] = argv[i];
+		pid = spawn(av[0], av);
+		dup(orig_output_fd, 1);
+
+		// Read assembly, pulling out .stabs lines.
+		bin = Bfdopen(p[0], OREAD);
+		while((q = Brdstr(bin, '\n', 1)) != nil) {
+			//	.stabs	"float:t(0,12)=r(0,1);4;0;",128,0,0,0
+			tofree = q;
+			while(*q == ' ' || *q == '\t')
+				q++;
+			if(strncmp(q, ".stabs", 6) != 0)
+				goto Continue;
+			q += 6;
+			while(*q == ' ' || *q == '\t')
+				q++;
+			if(*q++ != '\"') {
+Bad:
+				sysfatal("cannot parse .stabs line:\n%s", tofree);
 			}
-			waitpid();
+
+			r = strchr(q, '\"');
+			if(r == nil)
+				goto Bad;
+			*r++ = '\0';
+			if(*r++ != ',')
+				goto Bad;
+			if(*r < '0' || *r > '9')
+				goto Bad;
+			if(atoi(r) != 128)	// stabs kind = local symbol
+				goto Continue;
+
+			parsestabtype(q);
+
+Continue:
+			free(tofree);
 		}
-		exit(0);
+		Bterm(bin);
+		waitfor(pid);
 	}
-	close(p[1]);
-
-	// Read assembly, pulling out .stabs lines.
-	bin = Bfdopen(p[0], OREAD);
-	while((q = Brdstr(bin, '\n', 1)) != nil) {
-		//	.stabs	"float:t(0,12)=r(0,1);4;0;",128,0,0,0
-		tofree = q;
-		while(*q == ' ' || *q == '\t')
-			q++;
-		if(strncmp(q, ".stabs", 6) != 0)
-			goto Continue;
-		q += 6;
-		while(*q == ' ' || *q == '\t')
-			q++;
-		if(*q++ != '\"') {
-		Bad:
-			sysfatal("cannot parse .stabs line:\n%s", tofree);
-		}
-
-		r = strchr(q, '\"');
-		if(r == nil)
-			goto Bad;
-		*r++ = '\0';
-		if(*r++ != ',')
-			goto Bad;
-		if(*r < '0' || *r > '9')
-			goto Bad;
-		if(atoi(r) != 128)	// stabs kind = local symbol
-			goto Continue;
-
-		parsestabtype(q);
-
-	Continue:
-		free(tofree);
-	}
-	Bterm(bin);
-	waitpid();
+	close(orig_output_fd);
 
 	// Write defs to standard output.
 	bout = Bfdopen(1, OWRITE);
@@ -283,7 +295,7 @@ main(int argc, char **argv)
 	if(ncon > 0) {
 		Bprint(bout, lang->constbegin);
 		for(i=0; i<ncon; i++)
-			Bprint(bout, lang->constfmt, con[i].name, con[i].value);
+			Bprint(bout, lang->constfmt, con[i].name, con[i].value & 0xFFFFFFFF);
 		Bprint(bout, lang->constend);
 	}
 	Bprint(bout, "\n");
@@ -340,7 +352,7 @@ main(int argc, char **argv)
 		default:	// numeric, array, or pointer
 		case Array:
 		case Ptr:
-			Bprint(bout, "%s %lT\n", lang->typdef, name, t);
+			Bprint(bout, "%s %lT%s", lang->typdef, name, t, lang->typdefend);
 			break;
 		case Union:
 			// In Go, print union as struct with only first element,
