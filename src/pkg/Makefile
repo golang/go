@@ -33,6 +33,7 @@ DIRS=\
 	crypto/rc4\
 	crypto/rsa\
 	crypto/sha1\
+	crypto/sha256\
 	crypto/subtle\
 	crypto/tls\
 	crypto/x509\
