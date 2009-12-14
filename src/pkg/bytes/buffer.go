@@ -84,6 +84,10 @@ func (b *Buffer) resize(n int) {
 // value n is the length of p; err is always nil.
 func (b *Buffer) Write(p []byte) (n int, err os.Error) {
 	m := b.Len();
+	// If buffer is empty, reset to recover space.
+	if m == 0 && b.off != 0 {
+		b.Truncate(0)
+	}
 	n = len(p);
 	if len(b.buf)+n > cap(b.buf) {
 		b.resize(n)
@@ -97,6 +101,10 @@ func (b *Buffer) Write(p []byte) (n int, err os.Error) {
 // value n is the length of s; err is always nil.
 func (b *Buffer) WriteString(s string) (n int, err os.Error) {
 	m := b.Len();
+	// If buffer is empty, reset to recover space.
+	if m == 0 && b.off != 0 {
+		b.Truncate(0)
+	}
 	n = len(s);
 	if len(b.buf)+n > cap(b.buf) {
 		b.resize(n)
@@ -117,6 +125,10 @@ const MinRead = 512
 // Any error except os.EOF encountered during the read
 // is also returned.
 func (b *Buffer) ReadFrom(r io.Reader) (n int64, err os.Error) {
+	// If buffer is empty, reset to recover space.
+	if b.off >= len(b.buf) {
+		b.Truncate(0)
+	}
 	for {
 		if cap(b.buf)-len(b.buf) < MinRead {
 			var newBuf []byte;
@@ -157,6 +169,8 @@ func (b *Buffer) WriteTo(w io.Writer) (n int64, err os.Error) {
 			return n, e
 		}
 	}
+	// Buffer is now empty; reset.
+	b.Truncate(0);
 	return;
 }
 
@@ -175,7 +189,9 @@ func (b *Buffer) WriteByte(c byte) os.Error {
 // otherwise it is nil.
 func (b *Buffer) Read(p []byte) (n int, err os.Error) {
 	if b.off >= len(b.buf) {
-		return 0, os.EOF
+		// Buffer is empty, reset to recover space.
+		b.Truncate(0);
+		return 0, os.EOF;
 	}
 	m := b.Len();
 	n = len(p);
@@ -194,7 +210,9 @@ func (b *Buffer) Read(p []byte) (n int, err os.Error) {
 // If no byte is available, it returns error os.EOF.
 func (b *Buffer) ReadByte() (c byte, err os.Error) {
 	if b.off >= len(b.buf) {
-		return 0, os.EOF
+		// Buffer is empty, reset to recover space.
+		b.Truncate(0);
+		return 0, os.EOF;
 	}
 	c = b.buf[b.off];
 	b.off++;
