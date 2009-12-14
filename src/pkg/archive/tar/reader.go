@@ -93,13 +93,13 @@ func (ignoreWriter) Write(b []byte) (n int, err os.Error) {
 // Skip any unread bytes in the existing file entry, as well as any alignment padding.
 func (tr *Reader) skipUnread() {
 	nr := tr.nb + tr.pad;	// number of bytes to skip
-
-	if sr, ok := tr.r.(io.Seeker); ok {
-		_, tr.err = sr.Seek(nr, 1)
-	} else {
-		_, tr.err = io.Copyn(ignoreWriter{}, tr.r, nr)
-	}
 	tr.nb, tr.pad = 0, 0;
+	if sr, ok := tr.r.(io.Seeker); ok {
+		if _, err := sr.Seek(nr, 1); err == nil {
+			return
+		}
+	}
+	_, tr.err = io.Copyn(ignoreWriter{}, tr.r, nr);
 }
 
 func (tr *Reader) verifyChecksum(header []byte) bool {
@@ -123,8 +123,10 @@ func (tr *Reader) readHeader() *Header {
 		if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
 			return nil
 		}
-		if !bytes.Equal(header, zeroBlock[0:blockSize]) {
-			tr.err = HeaderError
+		if bytes.Equal(header, zeroBlock[0:blockSize]) {
+			tr.err = os.EOF
+		} else {
+			tr.err = HeaderError	// zero block and then non-zero block
 		}
 		return nil;
 	}
@@ -202,14 +204,23 @@ func (tr *Reader) readHeader() *Header {
 }
 
 // Read reads from the current entry in the tar archive.
-// It returns 0, nil when it reaches the end of that entry,
+// It returns 0, os.EOF when it reaches the end of that entry,
 // until Next is called to advance to the next entry.
 func (tr *Reader) Read(b []byte) (n int, err os.Error) {
+	if tr.nb == 0 {
+		// file consumed
+		return 0, os.EOF
+	}
+
 	if int64(len(b)) > tr.nb {
 		b = b[0:tr.nb]
 	}
 	n, err = tr.r.Read(b);
 	tr.nb -= int64(n);
+
+	if err == os.EOF && tr.nb > 0 {
+		err = io.ErrUnexpectedEOF
+	}
 	tr.err = err;
 	return;
 }
