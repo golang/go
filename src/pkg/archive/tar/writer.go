@@ -15,8 +15,9 @@ import (
 )
 
 var (
-	ErrWriteTooLong	= os.NewError("write too long");
-	ErrFieldTooLong	= os.NewError("header field too long");
+	ErrWriteTooLong		= os.NewError("write too long");
+	ErrFieldTooLong		= os.NewError("header field too long");
+	ErrWriteAfterClose	= os.NewError("write after close");
 )
 
 // A Writer provides sequential writing of a tar archive in POSIX.1 format.
@@ -108,7 +109,11 @@ func (tw *Writer) numeric(b []byte, x int64) {
 
 // WriteHeader writes hdr and prepares to accept the file's contents.
 // WriteHeader calls Flush if it is not the first header.
+// Calling after a Close will return ErrWriteAfterClose.
 func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+	if tw.closed {
+		return ErrWriteAfterClose
+	}
 	if tw.err == nil {
 		tw.Flush()
 	}
@@ -164,6 +169,10 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
 // Write returns the error ErrWriteTooLong if more than
 // hdr.Size bytes are written after WriteHeader.
 func (tw *Writer) Write(b []byte) (n int, err os.Error) {
+	if tw.closed {
+		err = ErrWriteTooLong;
+		return;
+	}
 	overwrite := false;
 	if int64(len(b)) > tw.nb {
 		b = b[0:tw.nb];
@@ -172,12 +181,15 @@ func (tw *Writer) Write(b []byte) (n int, err os.Error) {
 	n, err = tw.w.Write(b);
 	tw.nb -= int64(n);
 	if err == nil && overwrite {
-		err = ErrWriteTooLong
+		err = ErrWriteTooLong;
+		return;
 	}
 	tw.err = err;
 	return;
 }
 
+// Close closes the tar archive, flushing any unwritten
+// data to the underlying writer.
 func (tw *Writer) Close() os.Error {
 	if tw.err != nil || tw.closed {
 		return tw.err
