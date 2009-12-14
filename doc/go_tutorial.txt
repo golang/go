@@ -278,7 +278,7 @@ slices, maps, and channels.
 By the way, another thing that works on strings, arrays, slices, maps
 and channels is the "range" clause on "for" loops.  Instead of writing
 
-	for i := 0; i < len(a); i++ { ... }
+	for i := 0; i &lt; len(a); i++ { ... }
 
 to loop over the elements of a slice (or map or ...) , we could write
 
