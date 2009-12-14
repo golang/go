@@ -227,6 +227,11 @@ func RuneLen(rune int) int {
 // EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
 // It returns the number of bytes written.
 func EncodeRune(rune int, p []byte) int {
+	// Negative values are erroneous.
+	if rune < 0 {
+		rune = RuneError
+	}
+
 	if rune <= _Rune1Max {
 		p[0] = byte(rune);
 		return 1;
