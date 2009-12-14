@@ -227,37 +227,35 @@ func RuneLen(rune int) int {
 // EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
 // It returns the number of bytes written.
 func EncodeRune(rune int, p []byte) int {
-	// Negative values are erroneous.
-	if rune < 0 {
-		rune = RuneError
-	}
+	// Negative values are erroneous.  Making it unsigned addresses the problem.
+	r := uint(rune);
 
-	if rune <= _Rune1Max {
-		p[0] = byte(rune);
+	if r <= _Rune1Max {
+		p[0] = byte(r);
 		return 1;
 	}
 
-	if rune <= _Rune2Max {
-		p[0] = _T2 | byte(rune>>6);
-		p[1] = _Tx | byte(rune)&_Maskx;
+	if r <= _Rune2Max {
+		p[0] = _T2 | byte(r>>6);
+		p[1] = _Tx | byte(r)&_Maskx;
 		return 2;
 	}
 
-	if rune > unicode.MaxRune {
-		rune = RuneError
+	if r > unicode.MaxRune {
+		r = RuneError
 	}
 
-	if rune <= _Rune3Max {
-		p[0] = _T3 | byte(rune>>12);
-		p[1] = _Tx | byte(rune>>6)&_Maskx;
-		p[2] = _Tx | byte(rune)&_Maskx;
+	if r <= _Rune3Max {
+		p[0] = _T3 | byte(r>>12);
+		p[1] = _Tx | byte(r>>6)&_Maskx;
+		p[2] = _Tx | byte(r)&_Maskx;
 		return 3;
 	}
 
-	p[0] = _T4 | byte(rune>>18);
-	p[1] = _Tx | byte(rune>>12)&_Maskx;
-	p[2] = _Tx | byte(rune>>6)&_Maskx;
-	p[3] = _Tx | byte(rune)&_Maskx;
+	p[0] = _T4 | byte(r>>18);
+	p[1] = _Tx | byte(r>>12)&_Maskx;
+	p[2] = _Tx | byte(r>>6)&_Maskx;
+	p[3] = _Tx | byte(r)&_Maskx;
 	return 4;
 }
 
