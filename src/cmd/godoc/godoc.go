@@ -458,7 +458,7 @@ func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HTMLTag) {
 
 // Write an AST-node to w; optionally html-escaped.
 func writeNode(w io.Writer, node interface{}, html bool, styler printer.Styler) {
-	mode := printer.UseSpaces;
+	mode := printer.UseSpaces | printer.NoSemis;
 	if html {
 		mode |= printer.GenHTML
 	}
