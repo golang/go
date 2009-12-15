@@ -90,6 +90,10 @@ if __name__ == "__main__":
 	sys.exit(2)
 
 
+server = "codereview.appspot.com"
+server_url_base = None
+defaultcc = [ "golang-dev@googlegroups.com" ]
+
 #######################################################################
 # Change list parsing.
 #
@@ -100,6 +104,13 @@ if __name__ == "__main__":
 # The only thing in the cl.nnnnnn file is the list of relevant files.
 # Also, the existence of the cl.nnnnnn file marks this repository
 # as the one where the change list lives.
+
+emptydiff = """Index: ~rietveld~placeholder~
+===================================================================
+diff --git a/~rietveld~placeholder~ b/~rietveld~placeholder~
+new file mode 100644
+"""
+
 
 class CL(object):
 	def __init__(self, name):
@@ -191,6 +202,8 @@ class CL(object):
 		return s
 
 	def Upload(self, ui, repo, send_mail=False, gofmt=True, gofmt_just_warn=False):
+		if not self.files:
+			ui.warn("no files in change list\n")
 		if ui.configbool("codereview", "force_gofmt", True) and gofmt:
 			CheckGofmt(ui, repo, self.files, just_warn=gofmt_just_warn)
 		os.chdir(repo.root)
@@ -209,14 +222,18 @@ class CL(object):
 		# but RealMain doesn't have the most reusable interface.
 		if self.name != "new":
 			form_fields.append(("issue", self.name))
-		vcs = GuessVCS(upload_options)
-		data = vcs.GenerateDiff(self.files)
-		files = vcs.GetBaseFiles(data)
-		if len(data) > MAX_UPLOAD_SIZE:
-			uploaded_diff_file = []
-			form_fields.append(("separate_patches", "1"))
+		vcs = None
+		if self.files:
+			vcs = GuessVCS(upload_options)
+			data = vcs.GenerateDiff(self.files)
+			files = vcs.GetBaseFiles(data)
+			if len(data) > MAX_UPLOAD_SIZE:
+				uploaded_diff_file = []
+				form_fields.append(("separate_patches", "1"))
+			else:
+				uploaded_diff_file = [("data", "data.diff", data)]
 		else:
-			uploaded_diff_file = [("data", "data.diff", data)]
+			uploaded_diff_file = [("data", "data.diff", emptydiff)]
 		ctype, body = EncodeMultipartFormData(form_fields, uploaded_diff_file)
 		response_body = MySend("/upload", body, content_type=ctype)
 		patchset = None
@@ -235,7 +252,8 @@ class CL(object):
 			self.url = server_url_base + self.name
 		if not uploaded_diff_file:
 			patches = UploadSeparatePatches(issue, rpc, patchset, data, upload_options)
-		vcs.UploadBaseFiles(issue, rpc, patches, patchset, upload_options, files)
+		if vcs:
+			vcs.UploadBaseFiles(issue, rpc, patches, patchset, upload_options, files)
 		if send_mail:
 			MySend("/" + issue + "/mail", payload="")
 		self.web = True
@@ -563,7 +581,7 @@ def EditCL(ui, repo, cl):
 # For use by submit, etc. (NOT by change)
 # Get change list number or list of files from command line.
 # If files are given, make a new change list.
-def CommandLineCL(ui, repo, pats, opts):
+def CommandLineCL(ui, repo, pats, opts, defaultcc=None):
 	if len(pats) > 0 and GoodCLName(pats[0]):
 		if len(pats) != 1:
 			return None, "cannot specify change number and file names"
@@ -582,6 +600,8 @@ def CommandLineCL(ui, repo, pats, opts):
 		cl.reviewer = Add(cl.reviewer, SplitCommaSpace(opts.get('reviewer')))
 	if opts.get('cc'):
 		cl.cc = Add(cl.cc, SplitCommaSpace(opts.get('cc')))
+	if defaultcc:
+		cl.cc = Add(cl.cc, defaultcc)
 	if cl.name == "new":
 		if opts.get('message'):
 			cl.desc = opts.get('message')
@@ -607,6 +627,8 @@ def ReplacementForCmdutilMatch(repo, pats=[], opts={}, globbed=False, default='r
 			cl, err = LoadCL(repo.ui, repo, clname, web=False)
 			if err != '':
 				raise util.Abort("loading CL " + clname + ": " + err)
+			if cl.files == None:
+				raise util.Abort("no files in CL " + clname)
 			files = Add(files, cl.files)
 	pats = Sub(pats, taken)	+ ['path:'+f for f in files]
 	return original_match(repo, pats=pats, opts=opts, globbed=globbed, default=default)
@@ -646,10 +668,6 @@ def CheckGofmt(ui, repo, files, just_warn=False):
 
 #######################################################################
 # Mercurial commands
-
-server = "codereview.appspot.com"
-
-server_url_base = None
 
 # every command must take a ui and and repo as arguments.
 # opts is a dict where you can find other command line flags
@@ -904,11 +922,11 @@ def mail(ui, repo, *pats, **opts):
 	Uploads a patch to the code review server and then sends mail
 	to the reviewer and CC list asking for a review.
 	"""
-	cl, err = CommandLineCL(ui, repo, pats, opts)
+	cl, err = CommandLineCL(ui, repo, pats, opts, defaultcc=defaultcc)
 	if err != "":
 		return err
 	cl.Upload(ui, repo, gofmt_just_warn=True)
-	if not cl.reviewer:
+	if not cl.reviewer and not cl.cc:
 		return "no reviewers listed in CL"
 	pmsg = "Hello " + JoinComma(cl.reviewer)
 	if cl.cc:
@@ -1281,12 +1299,6 @@ cmdtable = {
 #######################################################################
 # Wrappers around upload.py for interacting with Rietveld
 
-emptydiff = """Index: ~rietveld~placeholder~
-===================================================================
-diff --git a/~rietveld~placeholder~ b/~rietveld~placeholder~
-new file mode 100644
-"""
-
 # HTML form parser
 class FormParser(HTMLParser):
 	def __init__(self):
@@ -1514,25 +1526,6 @@ def GetSettings(issue):
 		f = GetForm("/" + issue + "/publish")
 		f['description'] = MySend("/"+issue+"/description", force_auth=False)
 	return f
-
-def CreateIssue(subject, desc):
-	form_fields = [
-		("content_upload", "1"),
-#		("user", upload_options.email),
-		("reviewers", ''),
-		("cc", ''),
-		("description", desc),
-		("base_hashes", ""),
-		("subject", subject),
-	]
-	uploaded_diff_file = [
-		("data", "data.diff", emptydiff),
-	]
-	ctype, body = EncodeMultipartFormData(form_fields, uploaded_diff_file)
-	response = MySend("/upload", body, content_type=ctype)
-	if response != "":
-		print >>sys.stderr, "Error creating issue:\n" + response
-		sys.exit(2)
 
 def EditDesc(issue, subject=None, desc=None, reviewers=None, cc=None, closed=None):
 	form_fields = GetForm("/" + issue + "/edit")
