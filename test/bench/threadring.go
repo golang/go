@@ -36,9 +36,9 @@ POSSIBILITY OF SUCH DAMAGE.
 package main
 
 import (
-	"flag";
-	"fmt";
-	"os";
+	"flag"
+	"fmt"
+	"os"
 )
 
 var n = flag.Int("n", 1000, "how many passes")
@@ -47,25 +47,25 @@ const Nthread = 503
 
 func f(i int, in <-chan int, out chan<- int) {
 	for {
-		n := <-in;
+		n := <-in
 		if n == 0 {
-			fmt.Printf("%d\n", i);
-			os.Exit(0);
+			fmt.Printf("%d\n", i)
+			os.Exit(0)
 		}
-		out <- n-1;
+		out <- n-1
 	}
 }
 
 func main() {
-	flag.Parse();
+	flag.Parse()
 
-	one := make(chan int);	// will be input to thread 1
-	var in, out chan int = nil, one;
+	one := make(chan int) // will be input to thread 1
+	var in, out chan int = nil, one
 	for i := 1; i <= Nthread-1; i++ {
-		in, out = out, make(chan int);
-		go f(i, in, out);
+		in, out = out, make(chan int)
+		go f(i, in, out)
 	}
-	go f(Nthread, out, one);
-	one <- *n;
-	<-make(chan int);	// hang until ring completes
+	go f(Nthread, out, one)
+	one <- *n
+	<-make(chan int) // hang until ring completes
 }

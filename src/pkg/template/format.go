@@ -7,10 +7,10 @@
 package template
 
 import (
-	"bytes";
-	"fmt";
-	"io";
-	"strings";
+	"bytes"
+	"fmt"
+	"io"
+	"strings"
 )
 
 // StringFormatter formats into the default string representation.
@@ -19,25 +19,25 @@ import (
 // under the name "" in your custom formatter map.
 func StringFormatter(w io.Writer, value interface{}, format string) {
 	if b, ok := value.([]byte); ok {
-		w.Write(b);
-		return;
+		w.Write(b)
+		return
 	}
-	fmt.Fprint(w, value);
+	fmt.Fprint(w, value)
 }
 
 var (
-	esc_quot	= strings.Bytes("&#34;");	// shorter than "&quot;"
-	esc_apos	= strings.Bytes("&#39;");	// shorter than "&apos;"
-	esc_amp		= strings.Bytes("&amp;");
-	esc_lt		= strings.Bytes("&lt;");
-	esc_gt		= strings.Bytes("&gt;");
+	esc_quot = strings.Bytes("&#34;") // shorter than "&quot;"
+	esc_apos = strings.Bytes("&#39;") // shorter than "&apos;"
+	esc_amp  = strings.Bytes("&amp;")
+	esc_lt   = strings.Bytes("&lt;")
+	esc_gt   = strings.Bytes("&gt;")
 )
 
 // HTMLEscape writes to w the properly escaped HTML equivalent
 // of the plain text data s.
 func HTMLEscape(w io.Writer, s []byte) {
-	var esc []byte;
-	last := 0;
+	var esc []byte
+	last := 0
 	for i, c := range s {
 		switch c {
 		case '"':
@@ -53,16 +53,16 @@ func HTMLEscape(w io.Writer, s []byte) {
 		default:
 			continue
 		}
-		w.Write(s[last:i]);
-		w.Write(esc);
-		last = i + 1;
+		w.Write(s[last:i])
+		w.Write(esc)
+		last = i + 1
 	}
-	w.Write(s[last:]);
+	w.Write(s[last:])
 }
 
 // HTMLFormatter formats arbitrary values for HTML
 func HTMLFormatter(w io.Writer, value interface{}, format string) {
-	var b bytes.Buffer;
-	fmt.Fprint(&b, value);
-	HTMLEscape(w, b.Bytes());
+	var b bytes.Buffer
+	fmt.Fprint(&b, value)
+	HTMLEscape(w, b.Bytes())
 }

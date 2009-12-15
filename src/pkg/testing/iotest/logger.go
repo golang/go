@@ -5,24 +5,24 @@
 package iotest
 
 import (
-	"io";
-	"log";
-	"os";
+	"io"
+	"log"
+	"os"
 )
 
 type writeLogger struct {
-	prefix	string;
-	w	io.Writer;
+	prefix string
+	w      io.Writer
 }
 
 func (l *writeLogger) Write(p []byte) (n int, err os.Error) {
-	n, err = l.w.Write(p);
+	n, err = l.w.Write(p)
 	if err != nil {
 		log.Stdoutf("%s %x: %v", l.prefix, p[0:n], err)
 	} else {
 		log.Stdoutf("%s %x", l.prefix, p[0:n])
 	}
-	return;
+	return
 }
 
 // NewWriteLogger returns a writer that behaves like w except
@@ -33,18 +33,18 @@ func NewWriteLogger(prefix string, w io.Writer) io.Writer {
 }
 
 type readLogger struct {
-	prefix	string;
-	r	io.Reader;
+	prefix string
+	r      io.Reader
 }
 
 func (l *readLogger) Read(p []byte) (n int, err os.Error) {
-	n, err = l.r.Read(p);
+	n, err = l.r.Read(p)
 	if err != nil {
 		log.Stdoutf("%s %x: %v", l.prefix, p[0:n], err)
 	} else {
 		log.Stdoutf("%s %x", l.prefix, p[0:n])
 	}
-	return;
+	return
 }
 
 // NewReadLogger returns a reader that behaves like r except

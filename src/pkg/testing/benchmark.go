@@ -5,10 +5,10 @@
 package testing
 
 import (
-	"flag";
-	"fmt";
-	"os";
-	"time";
+	"flag"
+	"fmt"
+	"os"
+	"time"
 )
 
 var matchBenchmarks = flag.String("benchmarks", "", "regular expression to select benchmarks to run")
@@ -16,24 +16,24 @@ var matchBenchmarks = flag.String("benchmarks", "", "regular expression to selec
 // An internal type but exported because it is cross-package; part of the implementation
 // of gotest.
 type Benchmark struct {
-	Name	string;
-	F	func(b *B);
+	Name string
+	F    func(b *B)
 }
 
 // B is a type passed to Benchmark functions to manage benchmark
 // timing and to specify the number of iterations to run.
 type B struct {
-	N		int;
-	benchmark	Benchmark;
-	ns		int64;
-	bytes		int64;
-	start		int64;
+	N         int
+	benchmark Benchmark
+	ns        int64
+	bytes     int64
+	start     int64
 }
 
 // StartTimer starts timing a test.  This function is called automatically
 // before a benchmark starts, but it can also used to resume timing after
 // a call to StopTimer.
-func (b *B) StartTimer()	{ b.start = time.Nanoseconds() }
+func (b *B) StartTimer() { b.start = time.Nanoseconds() }
 
 // StopTimer stops timing a test.  This can be used to pause the timer
 // while performing complex initialization that you don't
@@ -42,68 +42,68 @@ func (b *B) StopTimer() {
 	if b.start > 0 {
 		b.ns += time.Nanoseconds() - b.start
 	}
-	b.start = 0;
+	b.start = 0
 }
 
 // ResetTimer stops the timer and sets the elapsed benchmark time to zero.
 func (b *B) ResetTimer() {
-	b.start = 0;
-	b.ns = 0;
+	b.start = 0
+	b.ns = 0
 }
 
 // SetBytes records the number of bytes processed in a single operation.
 // If this is called, the benchmark will report ns/op and MB/s.
-func (b *B) SetBytes(n int64)	{ b.bytes = n }
+func (b *B) SetBytes(n int64) { b.bytes = n }
 
 func (b *B) nsPerOp() int64 {
 	if b.N <= 0 {
 		return 0
 	}
-	return b.ns / int64(b.N);
+	return b.ns / int64(b.N)
 }
 
 // runN runs a single benchmark for the specified number of iterations.
 func (b *B) runN(n int) {
-	b.N = n;
-	b.ResetTimer();
-	b.StartTimer();
-	b.benchmark.F(b);
-	b.StopTimer();
+	b.N = n
+	b.ResetTimer()
+	b.StartTimer()
+	b.benchmark.F(b)
+	b.StopTimer()
 }
 
 func min(x, y int) int {
 	if x > y {
 		return y
 	}
-	return x;
+	return x
 }
 
 // roundDown10 rounds a number down to the nearest power of 10.
 func roundDown10(n int) int {
-	var tens = 0;
+	var tens = 0
 	// tens = floor(log_10(n))
 	for n > 10 {
-		n = n / 10;
-		tens++;
+		n = n / 10
+		tens++
 	}
 	// result = 10^tens
-	result := 1;
+	result := 1
 	for i := 0; i < tens; i++ {
 		result *= 10
 	}
-	return result;
+	return result
 }
 
 // roundUp rounds x up to a number of the form [1eX, 2eX, 5eX].
 func roundUp(n int) int {
-	base := roundDown10(n);
+	base := roundDown10(n)
 	if n < (2 * base) {
 		return 2 * base
 	}
 	if n < (5 * base) {
 		return 5 * base
 	}
-	return 10 * base;
+	return 10 * base
 }
 
 // run times the benchmark function.  It gradually increases the number
@@ -112,11 +112,11 @@ func roundUp(n int) int {
 //		testing.BenchmarkHello	100000		19 ns/op
 func (b *B) run() {
 	// Run the benchmark for a single iteration in case it's expensive.
-	n := 1;
-	b.runN(n);
+	n := 1
+	b.runN(n)
 	// Run the benchmark for at least a second.
 	for b.ns < 1e9 && n < 1e9 {
-		last := n;
+		last := n
 		// Predict iterations/sec.
 		if b.nsPerOp() == 0 {
 			n = 1e9
@@ -125,17 +125,17 @@ func (b *B) run() {
 		}
 		// Run more iterations than we think we'll need for a second (1.5x).
 		// Don't grow too fast in case we had timing errors previously.
-		n = min(int(1.5*float(n)), 100*last);
+		n = min(int(1.5*float(n)), 100*last)
 		// Round up to something easy to read.
-		n = roundUp(n);
-		b.runN(n);
+		n = roundUp(n)
+		b.runN(n)
 	}
-	ns := b.nsPerOp();
-	mb := "";
+	ns := b.nsPerOp()
+	mb := ""
 	if ns > 0 && b.bytes > 0 {
 		mb = fmt.Sprintf("\t%7.2f MB/s", (float64(b.bytes)/1e6)/(float64(ns)/1e9))
 	}
-	fmt.Printf("%s\t%8d\t%10d ns/op%s\n", b.benchmark.Name, b.N, b.nsPerOp(), mb);
+	fmt.Printf("%s\t%8d\t%10d ns/op%s\n", b.benchmark.Name, b.N, b.nsPerOp(), mb)
 }
 
 // An internal function but exported because it is cross-package; part of the implementation
@@ -145,16 +145,16 @@ func RunBenchmarks(benchmarks []Benchmark) {
 	if len(*matchBenchmarks) == 0 {
 		return
 	}
-	re, err := CompileRegexp(*matchBenchmarks);
+	re, err := CompileRegexp(*matchBenchmarks)
 	if err != "" {
-		println("invalid regexp for -benchmarks:", err);
-		os.Exit(1);
+		println("invalid regexp for -benchmarks:", err)
+		os.Exit(1)
 	}
 	for _, Benchmark := range benchmarks {
 		if !re.MatchString(Benchmark.Name) {
 			continue
 		}
-		b := &B{benchmark: Benchmark};
-		b.run();
+		b := &B{benchmark: Benchmark}
+		b.run()
 	}
 }

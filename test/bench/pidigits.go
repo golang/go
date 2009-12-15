@@ -38,20 +38,20 @@ POSSIBILITY OF SUCH DAMAGE.
 package main
 
 import (
-	"bignum";
-	"flag";
-	"fmt";
+	"bignum"
+	"flag"
+	"fmt"
 )
 
 var n = flag.Int("n", 27, "number of digits")
 var silent = flag.Bool("s", false, "don't print result")
 
 var (
-	tmp1	*bignum.Integer;
-	tmp2	*bignum.Integer;
-	numer	= bignum.Int(1);
-	accum	= bignum.Int(0);
-	denom	= bignum.Int(1);
+	tmp1  *bignum.Integer
+	tmp2  *bignum.Integer
+	numer = bignum.Int(1)
+	accum = bignum.Int(0)
+	denom = bignum.Int(1)
 )
 
 func extract_digit() int64 {
@@ -60,36 +60,36 @@ func extract_digit() int64 {
 	}
 
 	// Compute (numer * 3 + accum) / denom
-	tmp1 = numer.Shl(1);
-	bignum.Iadd(tmp1, tmp1, numer);
-	bignum.Iadd(tmp1, tmp1, accum);
-	tmp1, tmp2 := tmp1.QuoRem(denom);
+	tmp1 = numer.Shl(1)
+	bignum.Iadd(tmp1, tmp1, numer)
+	bignum.Iadd(tmp1, tmp1, accum)
+	tmp1, tmp2 := tmp1.QuoRem(denom)
 
 	// Now, if (numer * 4 + accum) % denom...
-	bignum.Iadd(tmp2, tmp2, numer);
+	bignum.Iadd(tmp2, tmp2, numer)
 
 	// ... is normalized, then the two divisions have the same result.
 	if tmp2.Cmp(denom) >= 0 {
 		return -1
 	}
 
-	return tmp1.Value();
+	return tmp1.Value()
 }
 
 func next_term(k int64) {
-	y2 := k*2 + 1;
+	y2 := k*2 + 1
 
-	tmp1 = numer.Shl(1);
-	bignum.Iadd(accum, accum, tmp1);
-	bignum.Iscale(accum, y2);
-	bignum.Iscale(numer, k);
-	bignum.Iscale(denom, y2);
+	tmp1 = numer.Shl(1)
+	bignum.Iadd(accum, accum, tmp1)
+	bignum.Iscale(accum, y2)
+	bignum.Iscale(numer, k)
+	bignum.Iscale(denom, y2)
 }
 
 func eliminate_digit(d int64) {
-	bignum.Isub(accum, accum, denom.Mul1(d));
-	bignum.Iscale(accum, 10);
-	bignum.Iscale(numer, 10);
+	bignum.Isub(accum, accum, denom.Mul1(d))
+	bignum.Iscale(accum, 10)
+	bignum.Iscale(numer, 10)
 }
 
 func printf(s string, arg ...) {
@@ -99,28 +99,28 @@ func printf(s string, arg ...) {
 }
 
 func main() {
-	flag.Parse();
+	flag.Parse()
 
-	var m int;	// 0 <= m < 10
+	var m int // 0 <= m < 10
 	for i, k := 0, int64(0); ; {
-		d := int64(-1);
+		d := int64(-1)
 		for d < 0 {
-			k++;
-			next_term(k);
-			d = extract_digit();
+			k++
+			next_term(k)
+			d = extract_digit()
 		}
 
-		printf("%c", d+'0');
+		printf("%c", d+'0')
 
-		i++;
-		m = i % 10;
+		i++
+		m = i % 10
 		if m == 0 {
 			printf("\t:%d\n", i)
 		}
 		if i >= *n {
 			break
 		}
-		eliminate_digit(d);
+		eliminate_digit(d)
 	}
 
 	if m > 0 {

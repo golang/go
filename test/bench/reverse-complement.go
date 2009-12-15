@@ -36,8 +36,8 @@ POSSIBILITY OF SUCH DAMAGE.
 package main
 
 import (
-	"bufio";
-	"os";
+	"bufio"
+	"os"
 )
 
 const lineSize = 60
@@ -62,44 +62,44 @@ var complement = [256]uint8{
 }
 
 func main() {
-	in := bufio.NewReader(os.Stdin);
-	buf := make([]byte, 1024*1024);
-	line, err := in.ReadSlice('\n');
+	in := bufio.NewReader(os.Stdin)
+	buf := make([]byte, 1024*1024)
+	line, err := in.ReadSlice('\n')
 	for err == nil {
-		os.Stdout.Write(line);
+		os.Stdout.Write(line)
 
 		// Accumulate reversed complement in buf[w:]
-		nchar := 0;
-		w := len(buf);
+		nchar := 0
+		w := len(buf)
 		for {
-			line, err = in.ReadSlice('\n');
+			line, err = in.ReadSlice('\n')
 			if err != nil || line[0] == '>' {
 				break
 			}
-			line = line[0 : len(line)-1];
-			nchar += len(line);
+			line = line[0 : len(line)-1]
+			nchar += len(line)
 			if len(line)+nchar/60+128 >= w {
-				nbuf := make([]byte, len(buf)*5);
-				copy(nbuf[len(nbuf)-len(buf):], buf);
-				w += len(nbuf) - len(buf);
-				buf = nbuf;
+				nbuf := make([]byte, len(buf)*5)
+				copy(nbuf[len(nbuf)-len(buf):], buf)
+				w += len(nbuf) - len(buf)
+				buf = nbuf
 			}
 
 			// This loop is the bottleneck.
 			for _, c := range line {
-				w--;
-				buf[w] = complement[c];
+				w--
+				buf[w] = complement[c]
 			}
 		}
 
 		// Copy down to beginning of buffer, inserting newlines.
 		// The loop left room for the newlines and 128 bytes of padding.
-		i := 0;
+		i := 0
 		for j := w; j < len(buf); j += 60 {
-			n := copy(buf[i:i+60], buf[j:]);
-			buf[i+n] = '\n';
-			i += n + 1;
+			n := copy(buf[i:i+60], buf[j:])
+			buf[i+n] = '\n'
+			i += n + 1
 		}
-		os.Stdout.Write(buf[0:i]);
+		os.Stdout.Write(buf[0:i])
 	}
 }

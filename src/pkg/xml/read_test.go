@@ -5,14 +5,14 @@
 package xml
 
 import (
-	"reflect";
-	"testing";
+	"reflect"
+	"testing"
 )
 
 // Stripped down Atom feed data structures.
 
 func TestUnmarshalFeed(t *testing.T) {
-	var f Feed;
+	var f Feed
 	if err := Unmarshal(StringReader(rssFeedString), &f); err != nil {
 		t.Fatalf("Unmarshal: %s", err)
 	}
@@ -78,38 +78,38 @@ not being used from outside intra_region_diff.py.
 </summary></entry></feed>`
 
 type Feed struct {
-	XMLName	Name	"http://www.w3.org/2005/Atom feed";
-	Title	string;
-	Id	string;
-	Link	[]Link;
-	Updated	Time;
-	Author	Person;
-	Entry	[]Entry;
+	XMLName Name "http://www.w3.org/2005/Atom feed"
+	Title   string
+	Id      string
+	Link    []Link
+	Updated Time
+	Author  Person
+	Entry   []Entry
 }
 
 type Entry struct {
-	Title	string;
-	Id	string;
-	Link	[]Link;
-	Updated	Time;
-	Author	Person;
-	Summary	Text;
+	Title   string
+	Id      string
+	Link    []Link
+	Updated Time
+	Author  Person
+	Summary Text
 }
 
 type Link struct {
-	Rel	string	"attr";
-	Href	string	"attr";
+	Rel  string "attr"
+	Href string "attr"
 }
 
 type Person struct {
-	Name	string;
-	URI	string;
-	Email	string;
+	Name  string
+	URI   string
+	Email string
 }
 
 type Text struct {
-	Type	string	"attr";
-	Body	string	"chardata";
+	Type string "attr"
+	Body string "chardata"
 }
 
 type Time string
@@ -210,7 +210,7 @@ not being used from outside intra_region_diff.py.
 }
 
 type FieldNameTest struct {
-	in, out string;
+	in, out string
 }
 
 var FieldNameTests = []FieldNameTest{
@@ -220,7 +220,7 @@ var FieldNameTests = []FieldNameTest{
 
 func TestFieldName(t *testing.T) {
 	for _, tt := range FieldNameTests {
-		a := fieldName(tt.in);
+		a := fieldName(tt.in)
 		if a != tt.out {
 			t.Fatalf("have %#v\nwant %#v\n\n", a, tt.out)
 		}

@@ -5,12 +5,12 @@
 package xml
 
 import (
-	"bytes";
-	"io";
-	"os";
-	"reflect";
-	"strings";
-	"unicode";
+	"bytes"
+	"io"
+	"os"
+	"reflect"
+	"strings"
+	"unicode"
 )
 
 // BUG(rsc): Mapping between XML elements and data structures is inherently flawed:
@@ -113,23 +113,23 @@ import (
 // to a freshly allocated value and then mapping the element to that value.
 //
 func Unmarshal(r io.Reader, val interface{}) os.Error {
-	v, ok := reflect.NewValue(val).(*reflect.PtrValue);
+	v, ok := reflect.NewValue(val).(*reflect.PtrValue)
 	if !ok {
 		return os.NewError("non-pointer passed to Unmarshal")
 	}
-	p := NewParser(r);
-	elem := v.Elem();
-	err := p.unmarshal(elem, nil);
+	p := NewParser(r)
+	elem := v.Elem()
+	err := p.unmarshal(elem, nil)
 	if err != nil {
 		return err
 	}
-	return nil;
+	return nil
 }
 
 // An UnmarshalError represents an error in the unmarshalling process.
 type UnmarshalError string
 
-func (e UnmarshalError) String() string	{ return string(e) }
+func (e UnmarshalError) String() string { return string(e) }
 
 // The Parser's Unmarshal method is like xml.Unmarshal
 // except that it can be passed a pointer to the initial start element,
@@ -138,11 +138,11 @@ func (e UnmarshalError) String() string	{ return string(e) }
 // Passing a nil start element indicates that Unmarshal should
 // read the token stream to find the start element.
 func (p *Parser) Unmarshal(val interface{}, start *StartElement) os.Error {
-	v, ok := reflect.NewValue(val).(*reflect.PtrValue);
+	v, ok := reflect.NewValue(val).(*reflect.PtrValue)
 	if !ok {
 		return os.NewError("non-pointer passed to Unmarshal")
 	}
-	return p.unmarshal(v.Elem(), start);
+	return p.unmarshal(v.Elem(), start)
 }
 
 // fieldName strips invalid characters from an XML name
@@ -154,7 +154,7 @@ func fieldName(original string) string {
 			if unicode.IsDigit(x) || unicode.IsLetter(x) {
 				return unicode.ToLower(x)
 			}
-			return -1;
+			return -1
 		},
 		original)
 }
@@ -164,87 +164,87 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 	// Find start element if we need it.
 	if start == nil {
 		for {
-			tok, err := p.Token();
+			tok, err := p.Token()
 			if err != nil {
 				return err
 			}
 			if t, ok := tok.(StartElement); ok {
-				start = &t;
-				break;
+				start = &t
+				break
 			}
 		}
 	}
 
 	if pv, ok := val.(*reflect.PtrValue); ok {
 		if pv.Get() == 0 {
-			zv := reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem());
-			pv.PointTo(zv);
-			val = zv;
+			zv := reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem())
+			pv.PointTo(zv)
+			val = zv
 		} else {
 			val = pv.Elem()
 		}
 	}
 
 	var (
-		data		[]byte;
-		saveData	reflect.Value;
-		comment		[]byte;
-		saveComment	reflect.Value;
-		sv		*reflect.StructValue;
-		styp		*reflect.StructType;
+		data        []byte
+		saveData    reflect.Value
+		comment     []byte
+		saveComment reflect.Value
+		sv          *reflect.StructValue
+		styp        *reflect.StructType
 	)
 	switch v := val.(type) {
 	case *reflect.BoolValue:
 		v.Set(true)
 
 	case *reflect.SliceValue:
-		typ := v.Type().(*reflect.SliceType);
+		typ := v.Type().(*reflect.SliceType)
 		if _, ok := typ.Elem().(*reflect.Uint8Type); ok {
 			// []byte
-			saveData = v;
-			break;
+			saveData = v
+			break
 		}
 
 		// Slice of element values.
 		// Grow slice.
-		n := v.Len();
+		n := v.Len()
 		if n >= v.Cap() {
-			ncap := 2 * n;
+			ncap := 2 * n
 			if ncap < 4 {
 				ncap = 4
 			}
-			new := reflect.MakeSlice(typ, n, ncap);
-			reflect.ArrayCopy(new, v);
-			v.Set(new);
+			new := reflect.MakeSlice(typ, n, ncap)
+			reflect.ArrayCopy(new, v)
+			v.Set(new)
 		}
-		v.SetLen(n + 1);
+		v.SetLen(n + 1)
 
 		// Recur to read element into slice.
 		if err := p.unmarshal(v.Elem(n), start); err != nil {
-			v.SetLen(n);
-			return err;
+			v.SetLen(n)
+			return err
 		}
-		return nil;
+		return nil
 
 	case *reflect.StringValue:
 		saveData = v
 
 	case *reflect.StructValue:
 		if _, ok := v.Interface().(Name); ok {
-			v.Set(reflect.NewValue(start.Name).(*reflect.StructValue));
-			break;
+			v.Set(reflect.NewValue(start.Name).(*reflect.StructValue))
+			break
 		}
 
-		sv = v;
-		typ := sv.Type().(*reflect.StructType);
-		styp = typ;
+		sv = v
+		typ := sv.Type().(*reflect.StructType)
+		styp = typ
 		// Assign name.
 		if f, ok := typ.FieldByName("XMLName"); ok {
 			// Validate element name.
 			if f.Tag != "" {
-				tag := f.Tag;
-				ns := "";
-				i := strings.LastIndex(tag, " ");
+				tag := f.Tag
+				ns := ""
+				i := strings.LastIndex(tag, " ")
 				if i >= 0 {
 					ns, tag = tag[0:i], tag[i+1:]
 				}
@@ -252,44 +252,44 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 					return UnmarshalError("expected element type <" + tag + "> but have <" + start.Name.Local + ">")
 				}
 				if ns != "" && ns != start.Name.Space {
-					e := "expected element <" + tag + "> in name space " + ns + " but have ";
+					e := "expected element <" + tag + "> in name space " + ns + " but have "
 					if start.Name.Space == "" {
 						e += "no name space"
 					} else {
 						e += start.Name.Space
 					}
-					return UnmarshalError(e);
+					return UnmarshalError(e)
 				}
 			}
 
 			// Save
-			v := sv.FieldByIndex(f.Index);
+			v := sv.FieldByIndex(f.Index)
 			if _, ok := v.Interface().(Name); !ok {
 				return UnmarshalError(sv.Type().String() + " field XMLName does not have type xml.Name")
 			}
-			v.(*reflect.StructValue).Set(reflect.NewValue(start.Name).(*reflect.StructValue));
+			v.(*reflect.StructValue).Set(reflect.NewValue(start.Name).(*reflect.StructValue))
 		}
 
 		// Assign attributes.
 		// Also, determine whether we need to save character data or comments.
 		for i, n := 0, typ.NumField(); i < n; i++ {
-			f := typ.Field(i);
+			f := typ.Field(i)
 			switch f.Tag {
 			case "attr":
-				strv, ok := sv.FieldByIndex(f.Index).(*reflect.StringValue);
+				strv, ok := sv.FieldByIndex(f.Index).(*reflect.StringValue)
 				if !ok {
 					return UnmarshalError(sv.Type().String() + " field " + f.Name + " has attr tag but is not type string")
 				}
 				// Look for attribute.
-				val := "";
-				k := strings.ToLower(f.Name);
+				val := ""
+				k := strings.ToLower(f.Name)
 				for _, a := range start.Attr {
 					if fieldName(a.Name.Local) == k {
-						val = a.Value;
-						break;
+						val = a.Value
+						break
 					}
 				}
-				strv.Set(val);
+				strv.Set(val)
 
 			case "comment":
 				if saveComment == nil {
@@ -308,7 +308,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
 	// Process sub-elements along the way.
 Loop:
 	for {
-		tok, err := p.Token();
+		tok, err := p.Token()
 		if err != nil {
 			return err
 		}
@@ -318,15 +318,15 @@ Loop:
 			// Look up by tag name.
 			// If that fails, fall back to mop-up field named "Any".
 			if sv != nil {
-				k := fieldName(t.Name.Local);
-				any := -1;
+				k := fieldName(t.Name.Local)
+				any := -1
 				for i, n := 0, styp.NumField(); i < n; i++ {
-					f := styp.Field(i);
+					f := styp.Field(i)
 					if strings.ToLower(f.Name) == k {
 						if err := p.unmarshal(sv.FieldByIndex(f.Index), &t); err != nil {
 							return err
 						}
-						continue Loop;
+						continue Loop
 					}
 					if any < 0 && f.Name == "Any" {
 						any = i
@@ -336,7 +336,7 @@ Loop:
 					if err := p.unmarshal(sv.FieldByIndex(styp.Field(any).Index), &t); err != nil {
 						return err
 					}
-					continue Loop;
+					continue Loop
 				}
 			}
 			// Not saving sub-element but still have to skip over it.
@@ -374,7 +374,7 @@ Loop:
 		t.Set(reflect.NewValue(comment).(*reflect.SliceValue))
 	}
 
-	return nil;
+	return nil
 }
 
 // Have already read a start element.
@@ -383,7 +383,7 @@ Loop:
 // end element matches the start element we saw.
 func (p *Parser) Skip() os.Error {
 	for {
-		tok, err := p.Token();
+		tok, err := p.Token()
 		if err != nil {
 			return err
 		}
@@ -396,5 +396,5 @@ func (p *Parser) Skip() os.Error {
 			return nil
 		}
 	}
-	panic("unreachable");
+	panic("unreachable")
 }

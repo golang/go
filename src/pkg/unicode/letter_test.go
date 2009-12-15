@@ -5,8 +5,8 @@
 package unicode_test
 
 import (
-	"testing";
-	. "unicode";
+	"testing"
+	. "unicode"
 )
 
 var upperTest = []int{
@@ -107,7 +107,7 @@ var spaceTest = []int{
 }
 
 type caseT struct {
-	cas, in, out int;
+	cas, in, out int
 }
 
 var caseTest = []caseT{
@@ -258,12 +258,12 @@ func caseString(c int) string {
 	case TitleCase:
 		return "TitleCase"
 	}
-	return "ErrorCase";
+	return "ErrorCase"
 }
 
 func TestTo(t *testing.T) {
 	for _, c := range caseTest {
-		r := To(c.cas, c.in);
+		r := To(c.cas, c.in)
 		if c.out != r {
 			t.Errorf("To(U+%04X, %s) = U+%04X want U+%04X\n", c.in, caseString(c.cas), r, c.out)
 		}
@@ -275,7 +275,7 @@ func TestToUpperCase(t *testing.T) {
 		if c.cas != UpperCase {
 			continue
 		}
-		r := ToUpper(c.in);
+		r := ToUpper(c.in)
 		if c.out != r {
 			t.Errorf("ToUpper(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out)
 		}
@@ -287,7 +287,7 @@ func TestToLowerCase(t *testing.T) {
 		if c.cas != LowerCase {
 			continue
 		}
-		r := ToLower(c.in);
+		r := ToLower(c.in)
 		if c.out != r {
 			t.Errorf("ToLower(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out)
 		}
@@ -299,7 +299,7 @@ func TestToTitleCase(t *testing.T) {
 		if c.cas != TitleCase {
 			continue
 		}
-		r := ToTitle(c.in);
+		r := ToTitle(c.in)
 		if c.out != r {
 			t.Errorf("ToTitle(U+%04X) = U+%04X want U+%04X\n", c.in, r, c.out)
 		}

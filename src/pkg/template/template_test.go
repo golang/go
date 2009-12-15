@@ -5,65 +5,65 @@
 package template
 
 import (
-	"bytes";
-	"container/vector";
-	"fmt";
-	"io";
-	"strings";
-	"testing";
+	"bytes"
+	"container/vector"
+	"fmt"
+	"io"
+	"strings"
+	"testing"
 )
 
 type Test struct {
-	in, out, err string;
+	in, out, err string
 }
 
 type T struct {
-	item	string;
-	value	string;
+	item  string
+	value string
 }
 
 type U struct {
-	mp map[string]int;
+	mp map[string]int
 }
 
 type S struct {
-	header		string;
-	integer		int;
-	raw		string;
-	innerT		T;
-	innerPointerT	*T;
-	data		[]T;
-	pdata		[]*T;
-	empty		[]*T;
-	emptystring	string;
-	null		[]*T;
-	vec		*vector.Vector;
-	true		bool;
-	false		bool;
-	mp		map[string]string;
-	innermap	U;
-	bytes		[]byte;
+	header        string
+	integer       int
+	raw           string
+	innerT        T
+	innerPointerT *T
+	data          []T
+	pdata         []*T
+	empty         []*T
+	emptystring   string
+	null          []*T
+	vec           *vector.Vector
+	true          bool
+	false         bool
+	mp            map[string]string
+	innermap      U
+	bytes         []byte
 }
 
 var t1 = T{"ItemNumber1", "ValueNumber1"}
 var t2 = T{"ItemNumber2", "ValueNumber2"}
 
 func uppercase(v interface{}) string {
-	s := v.(string);
-	t := "";
+	s := v.(string)
+	t := ""
 	for i := 0; i < len(s); i++ {
-		c := s[i];
+		c := s[i]
 		if 'a' <= c && c <= 'z' {
 			c = c + 'A' - 'a'
 		}
-		t += string(c);
+		t += string(c)
 	}
-	return t;
+	return t
 }
 
 func plus1(v interface{}) string {
-	i := v.(int);
-	return fmt.Sprint(i + 1);
+	i := v.(int)
+	return fmt.Sprint(i + 1)
 }
 
 func writer(f func(interface{}) string) (func(io.Writer, interface{}, string)) {
@@ -306,36 +306,36 @@ var tests = []*Test{
 }
 
 func TestAll(t *testing.T) {
-	s := new(S);
+	s := new(S)
 	// initialized by hand for clarity.
-	s.header = "Header";
-	s.integer = 77;
-	s.raw = "&<>!@ #$%^";
-	s.innerT = t1;
-	s.data = []T{t1, t2};
-	s.pdata = []*T{&t1, &t2};
-	s.empty = []*T{};
-	s.null = nil;
-	s.vec = new(vector.Vector);
-	s.vec.Push("elt1");
-	s.vec.Push("elt2");
-	s.true = true;
-	s.false = false;
-	s.mp = make(map[string]string);
-	s.mp["mapkey"] = "Ahoy!";
-	s.innermap.mp = make(map[string]int);
-	s.innermap.mp["innerkey"] = 55;
-	s.bytes = strings.Bytes("hello");
+	s.header = "Header"
+	s.integer = 77
+	s.raw = "&<>!@ #$%^"
+	s.innerT = t1
+	s.data = []T{t1, t2}
+	s.pdata = []*T{&t1, &t2}
+	s.empty = []*T{}
+	s.null = nil
+	s.vec = new(vector.Vector)
+	s.vec.Push("elt1")
+	s.vec.Push("elt2")
+	s.true = true
+	s.false = false
+	s.mp = make(map[string]string)
+	s.mp["mapkey"] = "Ahoy!"
+	s.innermap.mp = make(map[string]int)
+	s.innermap.mp["innerkey"] = 55
+	s.bytes = strings.Bytes("hello")
 
-	var buf bytes.Buffer;
+	var buf bytes.Buffer
 	for _, test := range tests {
-		buf.Reset();
-		tmpl, err := Parse(test.in, formatters);
+		buf.Reset()
+		tmpl, err := Parse(test.in, formatters)
 		if err != nil {
-			t.Error("unexpected parse error:", err);
-			continue;
+			t.Error("unexpected parse error:", err)
+			continue
 		}
-		err = tmpl.Execute(s, &buf);
+		err = tmpl.Execute(s, &buf)
 		if test.err == "" {
 			if err != nil {
 				t.Error("unexpected execute error:", err)
@@ -352,60 +352,60 @@ func TestAll(t *testing.T) {
 }
 
 func TestMapDriverType(t *testing.T) {
-	mp := map[string]string{"footer": "Ahoy!"};
-	tmpl, err := Parse("template: {footer}", nil);
+	mp := map[string]string{"footer": "Ahoy!"}
+	tmpl, err := Parse("template: {footer}", nil)
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
-	var b bytes.Buffer;
-	err = tmpl.Execute(mp, &b);
+	var b bytes.Buffer
+	err = tmpl.Execute(mp, &b)
 	if err != nil {
 		t.Error("unexpected execute error:", err)
 	}
-	s := b.String();
-	expected := "template: Ahoy!";
+	s := b.String()
+	expected := "template: Ahoy!"
 	if s != expected {
 		t.Errorf("failed passing string as data: expected %q got %q", "template: Ahoy!", s)
 	}
 }
 
 func TestStringDriverType(t *testing.T) {
-	tmpl, err := Parse("template: {@}", nil);
+	tmpl, err := Parse("template: {@}", nil)
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
-	var b bytes.Buffer;
-	err = tmpl.Execute("hello", &b);
+	var b bytes.Buffer
+	err = tmpl.Execute("hello", &b)
 	if err != nil {
 		t.Error("unexpected execute error:", err)
 	}
-	s := b.String();
+	s := b.String()
 	if s != "template: hello" {
 		t.Errorf("failed passing string as data: expected %q got %q", "template: hello", s)
 	}
 }
 
 func TestTwice(t *testing.T) {
-	tmpl, err := Parse("template: {@}", nil);
+	tmpl, err := Parse("template: {@}", nil)
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
-	var b bytes.Buffer;
-	err = tmpl.Execute("hello", &b);
+	var b bytes.Buffer
+	err = tmpl.Execute("hello", &b)
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
-	s := b.String();
-	text := "template: hello";
+	s := b.String()
+	text := "template: hello"
 	if s != text {
 		t.Errorf("failed passing string as data: expected %q got %q", text, s)
 	}
-	err = tmpl.Execute("hello", &b);
+	err = tmpl.Execute("hello", &b)
 	if err != nil {
 		t.Error("unexpected parse error:", err)
 	}
-	s = b.String();
-	text += text;
+	s = b.String()
+	text += text
 	if s != text {
 		t.Errorf("failed passing string as data: expected %q got %q", text, s)
 	}
@@ -415,29 +415,29 @@ func TestCustomDelims(t *testing.T) {
 	// try various lengths.  zero should catch error.
 	for i := 0; i < 7; i++ {
 		for j := 0; j < 7; j++ {
-			tmpl := New(nil);
+			tmpl := New(nil)
 			// first two chars deliberately the same to test equal left and right delims
-			ldelim := "$!#$%^&"[0:i];
-			rdelim := "$*&^%$!"[0:j];
-			tmpl.SetDelims(ldelim, rdelim);
+			ldelim := "$!#$%^&"[0:i]
+			rdelim := "$*&^%$!"[0:j]
+			tmpl.SetDelims(ldelim, rdelim)
 			// if braces, this would be template: {@}{.meta-left}{.meta-right}
 			text := "template: " +
 				ldelim + "@" + rdelim +
 				ldelim + ".meta-left" + rdelim +
-				ldelim + ".meta-right" + rdelim;
-			err := tmpl.Parse(text);
+				ldelim + ".meta-right" + rdelim
+			err := tmpl.Parse(text)
 			if err != nil {
-				if i == 0 || j == 0 {	// expected
+				if i == 0 || j == 0 { // expected
 					continue
 				}
-				t.Error("unexpected parse error:", err);
+				t.Error("unexpected parse error:", err)
 			} else if i == 0 || j == 0 {
-				t.Errorf("expected parse error for empty delimiter: %d %d %q %q", i, j, ldelim, rdelim);
-				continue;
+				t.Errorf("expected parse error for empty delimiter: %d %d %q %q", i, j, ldelim, rdelim)
+				continue
 			}
-			var b bytes.Buffer;
-			err = tmpl.Execute("hello", &b);
-			s := b.String();
+			var b bytes.Buffer
+			err = tmpl.Execute("hello", &b)
+			s := b.String()
 			if s != "template: hello"+ldelim+rdelim {
 				t.Errorf("failed delim check(%q %q) %q got %q", ldelim, rdelim, text, s)
 			}
@@ -447,21 +447,21 @@ func TestCustomDelims(t *testing.T) {
 
 // Test that a variable evaluates to the field itself and does not further indirection
 func TestVarIndirection(t *testing.T) {
-	s := new(S);
+	s := new(S)
 	// initialized by hand for clarity.
-	s.innerPointerT = &t1;
+	s.innerPointerT = &t1
 
-	var buf bytes.Buffer;
-	input := "{.section @}{innerPointerT}{.end}";
-	tmpl, err := Parse(input, nil);
+	var buf bytes.Buffer
+	input := "{.section @}{innerPointerT}{.end}"
+	tmpl, err := Parse(input, nil)
 	if err != nil {
 		t.Fatal("unexpected parse error:", err)
 	}
-	err = tmpl.Execute(s, &buf);
+	err = tmpl.Execute(s, &buf)
 	if err != nil {
 		t.Fatal("unexpected execute error:", err)
 	}
-	expect := fmt.Sprintf("%v", &t1);	// output should be hex address of t1
+	expect := fmt.Sprintf("%v", &t1) // output should be hex address of t1
 	if buf.String() != expect {
 		t.Errorf("for %q: expected %q got %q", input, expect, buf.String())
 	}
