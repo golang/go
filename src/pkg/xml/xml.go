@@ -409,7 +409,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		return CharData(data), nil;
 	}
 
-	if b, ok = p.getc(); !ok {
+	if b, ok = p.mustgetc(); !ok {
 		return nil, p.err
 	}
 	switch b {
@@ -423,7 +423,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			return nil, p.err;
 		}
 		p.space();
-		if b, ok = p.getc(); !ok {
+		if b, ok = p.mustgetc(); !ok {
 			return nil, p.err
 		}
 		if b != '>' {
@@ -438,17 +438,17 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		// the version is 1.0 and the encoding is UTF-8.
 		var target string;
 		if target, ok = p.name(); !ok {
-			return nil, p.err
+			if p.err == nil {
+				p.err = SyntaxError("expected target name after <?")
+			}
+			return nil, p.err;
 		}
 		p.space();
 		p.buf.Reset();
 		var b0 byte;
 		for {
-			if b, ok = p.getc(); !ok {
-				if p.err == os.EOF {
-					p.err = SyntaxError("unterminated <? directive")
-				}
-				return nil, p.err;
+			if b, ok = p.mustgetc(); !ok {
+				return nil, p.err
 			}
 			p.buf.WriteByte(b);
 			if b0 == '?' && b == '>' {
@@ -462,13 +462,13 @@ func (p *Parser) RawToken() (Token, os.Error) {
 
 	case '!':
 		// <!: Maybe comment, maybe CDATA.
-		if b, ok = p.getc(); !ok {
+		if b, ok = p.mustgetc(); !ok {
 			return nil, p.err
 		}
 		switch b {
 		case '-':	// <!-
 			// Probably <!-- for a comment.
-			if b, ok = p.getc(); !ok {
+			if b, ok = p.mustgetc(); !ok {
 				return nil, p.err
 			}
 			if b != '-' {
@@ -479,11 +479,8 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			p.buf.Reset();
 			var b0, b1 byte;
 			for {
-				if b, ok = p.getc(); !ok {
-					if p.err == os.EOF {
-						p.err = SyntaxError("unterminated <!-- comment")
-					}
-					return nil, p.err;
+				if b, ok = p.mustgetc(); !ok {
+					return nil, p.err
 				}
 				p.buf.WriteByte(b);
 				if b0 == '-' && b1 == '-' && b == '>' {
@@ -498,7 +495,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		case '[':	// <![
 			// Probably <![CDATA[.
 			for i := 0; i < 6; i++ {
-				if b, ok = p.getc(); !ok {
+				if b, ok = p.mustgetc(); !ok {
 					return nil, p.err
 				}
 				if b != "CDATA["[i] {
@@ -519,7 +516,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 		p.buf.Reset();
 		p.buf.WriteByte(b);
 		for {
-			if b, ok = p.getc(); !ok {
+			if b, ok = p.mustgetc(); !ok {
 				return nil, p.err
 			}
 			if b == '>' {
@@ -548,12 +545,12 @@ func (p *Parser) RawToken() (Token, os.Error) {
 	attr = make([]Attr, 0, 4);
 	for {
 		p.space();
-		if b, ok = p.getc(); !ok {
+		if b, ok = p.mustgetc(); !ok {
 			return nil, p.err
 		}
 		if b == '/' {
 			empty = true;
-			if b, ok = p.getc(); !ok {
+			if b, ok = p.mustgetc(); !ok {
 				return nil, p.err
 			}
 			if b != '>' {
@@ -584,7 +581,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			return nil, p.err;
 		}
 		p.space();
-		if b, ok = p.getc(); !ok {
+		if b, ok = p.mustgetc(); !ok {
 			return nil, p.err
 		}
 		if b != '=' {
@@ -592,7 +589,7 @@ func (p *Parser) RawToken() (Token, os.Error) {
 			return nil, p.err;
 		}
 		p.space();
-		if b, ok = p.getc(); !ok {
+		if b, ok = p.mustgetc(); !ok {
 			return nil, p.err
 		}
 		if b != '"' && b != '\'' {
@@ -652,6 +649,19 @@ func (p *Parser) getc() (b byte, ok bool) {
 	return b, true;
 }
 
+// Must read a single byte.
+// If there is no byte to read,
+// set p.err to SyntaxError("unexpected EOF")
+// and return ok==false
+func (p *Parser) mustgetc() (b byte, ok bool) {
+	if b, ok = p.getc(); !ok {
+		if p.err == os.EOF {
+			p.err = SyntaxError("unexpected EOF")
+		}
+	}
+	return;
+}
+
 // Unread a single byte.
 func (p *Parser) ungetc(b byte) {
 	if b == '\n' {
@@ -678,7 +688,7 @@ func (p *Parser) text(quote int, cdata bool) []byte {
 	p.buf.Reset();
 Input:
 	for {
-		b, ok := p.getc();
+		b, ok := p.mustgetc();
 		if !ok {
 			return nil
 		}
@@ -717,7 +727,10 @@ Input:
 			for i = 0; i < len(p.tmp); i++ {
 				p.tmp[i], p.err = p.r.ReadByte();
 				if p.err != nil {
-					return nil
+					if p.err == os.EOF {
+						p.err = SyntaxError("unexpected EOF")
+					}
+					return nil;
 				}
 				c := p.tmp[i];
 				if c == ';' {
@@ -819,22 +832,23 @@ func (p *Parser) nsname() (name Name, ok bool) {
 }
 
 // Get name: /first(first|second)*/
-// Do not set p.err if the name is missing: let the caller provide better context.
+// Do not set p.err if the name is missing (unless unexpected EOF is received):
+// let the caller provide better context.
 func (p *Parser) name() (s string, ok bool) {
 	var b byte;
-	if b, ok = p.getc(); !ok {
+	if b, ok = p.mustgetc(); !ok {
 		return
 	}
 
 	// As a first approximation, we gather the bytes [A-Za-z_:.-\x80-\xFF]*
 	if b < utf8.RuneSelf && !isNameByte(b) {
 		p.ungetc(b);
-		return;
+		return "", false;
 	}
 	p.buf.Reset();
 	p.buf.WriteByte(b);
 	for {
-		if b, ok = p.getc(); !ok {
+		if b, ok = p.mustgetc(); !ok {
 			return
 		}
 		if b < utf8.RuneSelf && !isNameByte(b) {

@@ -94,6 +94,57 @@ var cookedTokens = []Token{
 	Comment(strings.Bytes(" missing final newline ")),
 }
 
+var xmlInput = []string{
+	// unexpected EOF cases
+	"<",
+	"<t",
+	"<t ",
+	"<t/",
+	"<t/>c",
+	"<!",
+	"<!-",
+	"<!--",
+	"<!--c-",
+	"<!--c--",
+	"<!d",
+	"<t></",
+	"<t></t",
+	"<?",
+	"<?p",
+	"<t a",
+	"<t a=",
+	"<t a='",
+	"<t a=''",
+	"<t/><![",
+	"<t/><![C",
+	"<t/><![CDATA[d",
+	"<t/><![CDATA[d]",
+	"<t/><![CDATA[d]]",
+
+	// other Syntax errors
+	" ",
+	">",
+	"<>",
+	"<t/a",
+	"<0 />",
+	"<?0 >",
+	//	"<!0 >",	// let the Token() caller handle
+	"</0>",
+	"<t 0=''>",
+	"<t a='&'>",
+	"<t a='<'>",
+	"<t>&nbspc;</t>",
+	"<t a>",
+	"<t a=>",
+	"<t a=v>",
+	//	"<![CDATA[d]]>",	// let the Token() caller handle
+	"cdata",
+	"<t></e>",
+	"<t></>",
+	"<t></t!",
+	"<t>cdata]]></t>",
+}
+
 type stringReader struct {
 	s	string;
 	off	int;
@@ -146,6 +197,18 @@ func TestToken(t *testing.T) {
 		}
 		if !reflect.DeepEqual(have, want) {
 			t.Errorf("token %d = %#v want %#v", i, have, want)
+		}
+	}
+}
+
+func TestSyntax(t *testing.T) {
+	for i := range xmlInput {
+		p := NewParser(StringReader(xmlInput[i]));
+		var err os.Error;
+		for _, err = p.Token(); err == nil; _, err = p.Token() {
+		}
+		if _, ok := err.(SyntaxError); !ok {
+			t.Fatalf(`xmlInput "%s": expected SyntaxError not received`, xmlInput[i])
 		}
 	}
 }
