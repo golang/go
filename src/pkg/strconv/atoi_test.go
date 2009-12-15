@@ -5,16 +5,16 @@
 package strconv_test
 
 import (
-	"os";
-	"reflect";
-	. "strconv";
-	"testing";
+	"os"
+	"reflect"
+	. "strconv"
+	"testing"
 )
 
 type atoui64Test struct {
-	in	string;
-	out	uint64;
-	err	os.Error;
+	in  string
+	out uint64
+	err os.Error
 }
 
 var atoui64tests = []atoui64Test{
@@ -52,9 +52,9 @@ var btoui64tests = []atoui64Test{
 }
 
 type atoi64Test struct {
-	in	string;
-	out	int64;
-	err	os.Error;
+	in  string
+	out int64
+	err os.Error
 }
 
 var atoi64tests = []atoi64Test{
@@ -102,9 +102,9 @@ var btoi64tests = []atoi64Test{
 }
 
 type atoui32Test struct {
-	in	string;
-	out	uint32;
-	err	os.Error;
+	in  string
+	out uint32
+	err os.Error
 }
 
 var atoui32tests = []atoui32Test{
@@ -120,9 +120,9 @@ var atoui32tests = []atoui32Test{
 }
 
 type atoi32Test struct {
-	in	string;
-	out	int32;
-	err	os.Error;
+	in  string
+	out int32
+	err os.Error
 }
 
 var atoi32tests = []atoi32Test{
@@ -151,37 +151,37 @@ func init() {
 	// The atoi routines return NumErrors wrapping
 	// the error and the string.  Convert the tables above.
 	for i := range atoui64tests {
-		test := &atoui64tests[i];
+		test := &atoui64tests[i]
 		if test.err != nil {
 			test.err = &NumError{test.in, test.err}
 		}
 	}
 	for i := range btoui64tests {
-		test := &btoui64tests[i];
+		test := &btoui64tests[i]
 		if test.err != nil {
 			test.err = &NumError{test.in, test.err}
 		}
 	}
 	for i := range atoi64tests {
-		test := &atoi64tests[i];
+		test := &atoi64tests[i]
 		if test.err != nil {
 			test.err = &NumError{test.in, test.err}
 		}
 	}
 	for i := range btoi64tests {
-		test := &btoi64tests[i];
+		test := &btoi64tests[i]
 		if test.err != nil {
 			test.err = &NumError{test.in, test.err}
 		}
 	}
 	for i := range atoui32tests {
-		test := &atoui32tests[i];
+		test := &atoui32tests[i]
 		if test.err != nil {
 			test.err = &NumError{test.in, test.err}
 		}
 	}
 	for i := range atoi32tests {
-		test := &atoi32tests[i];
+		test := &atoi32tests[i]
 		if test.err != nil {
 			test.err = &NumError{test.in, test.err}
 		}
@@ -190,8 +190,8 @@ func init() {
 
 func TestAtoui64(t *testing.T) {
 	for i := range atoui64tests {
-		test := &atoui64tests[i];
-		out, err := Atoui64(test.in);
+		test := &atoui64tests[i]
+		out, err := Atoui64(test.in)
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
 			t.Errorf("Atoui64(%q) = %v, %v want %v, %v\n",
 				test.in, out, err, test.out, test.err)
@@ -201,8 +201,8 @@ func TestAtoui64(t *testing.T) {
 
 func TestBtoui64(t *testing.T) {
 	for i := range btoui64tests {
-		test := &btoui64tests[i];
-		out, err := Btoui64(test.in, 0);
+		test := &btoui64tests[i]
+		out, err := Btoui64(test.in, 0)
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
 			t.Errorf("Btoui64(%q) = %v, %v want %v, %v\n",
 				test.in, out, err, test.out, test.err)
@@ -212,8 +212,8 @@ func TestBtoui64(t *testing.T) {
 
 func TestAtoi64(t *testing.T) {
 	for i := range atoi64tests {
-		test := &atoi64tests[i];
-		out, err := Atoi64(test.in);
+		test := &atoi64tests[i]
+		out, err := Atoi64(test.in)
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
 			t.Errorf("Atoi64(%q) = %v, %v want %v, %v\n",
 				test.in, out, err, test.out, test.err)
@@ -223,8 +223,8 @@ func TestAtoi64(t *testing.T) {
 
 func TestBtoi64(t *testing.T) {
 	for i := range btoi64tests {
-		test := &btoi64tests[i];
-		out, err := Btoi64(test.in, 0);
+		test := &btoi64tests[i]
+		out, err := Btoi64(test.in, 0)
 		if test.out != out || !reflect.DeepEqual(test.err, err) {
 			t.Errorf("Btoi64(%q) = %v, %v want %v, %v\n",
 				test.in, out, err, test.out, test.err)
@@ -236,8 +236,8 @@ func TestAtoui(t *testing.T) {
 	switch IntSize {
 	case 32:
 		for i := range atoui32tests {
-			test := &atoui32tests[i];
-			out, err := Atoui(test.in);
+			test := &atoui32tests[i]
+			out, err := Atoui(test.in)
 			if test.out != uint32(out) || !reflect.DeepEqual(test.err, err) {
 				t.Errorf("Atoui(%q) = %v, %v want %v, %v\n",
 					test.in, out, err, test.out, test.err)
@@ -245,8 +245,8 @@ func TestAtoui(t *testing.T) {
 		}
 	case 64:
 		for i := range atoui64tests {
-			test := &atoui64tests[i];
-			out, err := Atoui(test.in);
+			test := &atoui64tests[i]
+			out, err := Atoui(test.in)
 			if test.out != uint64(out) || !reflect.DeepEqual(test.err, err) {
 				t.Errorf("Atoui(%q) = %v, %v want %v, %v\n",
 					test.in, out, err, test.out, test.err)
@@ -259,8 +259,8 @@ func TestAtoi(t *testing.T) {
 	switch IntSize {
 	case 32:
 		for i := range atoi32tests {
-			test := &atoi32tests[i];
-			out, err := Atoi(test.in);
+			test := &atoi32tests[i]
+			out, err := Atoi(test.in)
 			if test.out != int32(out) || !reflect.DeepEqual(test.err, err) {
 				t.Errorf("Atoi(%q) = %v, %v want %v, %v\n",
 					test.in, out, err, test.out, test.err)
@@ -268,8 +268,8 @@ func TestAtoi(t *testing.T) {
 		}
 	case 64:
 		for i := range atoi64tests {
-			test := &atoi64tests[i];
-			out, err := Atoi(test.in);
+			test := &atoi64tests[i]
+			out, err := Atoi(test.in)
 			if test.out != int64(out) || !reflect.DeepEqual(test.err, err) {
 				t.Errorf("Atoi(%q) = %v, %v want %v, %v\n",
 					test.in, out, err, test.out, test.err)

@@ -9,8 +9,8 @@ package once
 import "sync"
 
 type job struct {
-	done		bool;
-	sync.Mutex;	// should probably be sync.Notification or some such
+	done       bool
+	sync.Mutex // should probably be sync.Notification or some such
 }
 
 var jobs = make(map[func()]*job)
@@ -37,23 +37,23 @@ var joblock sync.Mutex
 // because the func() expression in the first creates a new
 // func each time f runs, and each of those funcs is run once.
 func Do(f func()) {
-	joblock.Lock();
-	j, present := jobs[f];
+	joblock.Lock()
+	j, present := jobs[f]
 	if !present {
 		// run it
-		j = new(job);
-		j.Lock();
-		jobs[f] = j;
-		joblock.Unlock();
-		f();
-		j.done = true;
-		j.Unlock();
+		j = new(job)
+		j.Lock()
+		jobs[f] = j
+		joblock.Unlock()
+		f()
+		j.done = true
+		j.Unlock()
 	} else {
 		// wait for it
-		joblock.Unlock();
+		joblock.Unlock()
 		if j.done != true {
-			j.Lock();
-			j.Unlock();
+			j.Lock()
+			j.Unlock()
 		}
 	}
 }

@@ -5,10 +5,10 @@
 package strings_test
 
 import (
-	. "strings";
-	"testing";
-	"unicode";
-	"utf8";
+	. "strings"
+	"testing"
+	"unicode"
+	"utf8"
 )
 
 func eq(a, b []string) bool {
@@ -20,7 +20,7 @@ func eq(a, b []string) bool {
 			return false
 		}
 	}
-	return true;
+	return true
 }
 
 var abcd = "abcd"
@@ -29,9 +29,9 @@ var commas = "1,2,3,4"
 var dots = "1....2....3....4"
 
 type IndexTest struct {
-	s	string;
-	sep	string;
-	out	int;
+	s   string
+	sep string
+	out int
 }
 
 var indexTests = []IndexTest{
@@ -76,22 +76,22 @@ var lastIndexTests = []IndexTest{
 // in failure reports.
 func runIndexTests(t *testing.T, f func(s, sep string) int, funcName string, testCases []IndexTest) {
 	for _, test := range testCases {
-		actual := f(test.s, test.sep);
+		actual := f(test.s, test.sep)
 		if actual != test.out {
 			t.Errorf("%s(%q,%q) = %v; want %v", funcName, test.s, test.sep, actual, test.out)
 		}
 	}
 }
 
-func TestIndex(t *testing.T)	{ runIndexTests(t, Index, "Index", indexTests) }
+func TestIndex(t *testing.T) { runIndexTests(t, Index, "Index", indexTests) }
 
-func TestLastIndex(t *testing.T)	{ runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
+func TestLastIndex(t *testing.T) { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
 
 
 type ExplodeTest struct {
-	s	string;
-	n	int;
-	a	[]string;
+	s string
+	n int
+	a []string
 }
 
 var explodetests = []ExplodeTest{
@@ -102,12 +102,12 @@ var explodetests = []ExplodeTest{
 
 func TestExplode(t *testing.T) {
 	for _, tt := range explodetests {
-		a := Split(tt.s, "", tt.n);
+		a := Split(tt.s, "", tt.n)
 		if !eq(a, tt.a) {
-			t.Errorf("explode(%q, %d) = %v; want %v", tt.s, tt.n, a, tt.a);
-			continue;
+			t.Errorf("explode(%q, %d) = %v; want %v", tt.s, tt.n, a, tt.a)
+			continue
 		}
-		s := Join(a, "");
+		s := Join(a, "")
 		if s != tt.s {
 			t.Errorf(`Join(explode(%q, %d), "") = %q`, tt.s, tt.n, s)
 		}
@@ -115,10 +115,10 @@ func TestExplode(t *testing.T) {
 }
 
 type SplitTest struct {
-	s	string;
-	sep	string;
-	n	int;
-	a	[]string;
+	s   string
+	sep string
+	n   int
+	a   []string
 }
 
 var splittests = []SplitTest{
@@ -138,12 +138,12 @@ var splittests = []SplitTest{
 
 func TestSplit(t *testing.T) {
 	for _, tt := range splittests {
-		a := Split(tt.s, tt.sep, tt.n);
+		a := Split(tt.s, tt.sep, tt.n)
 		if !eq(a, tt.a) {
-			t.Errorf("Split(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, a, tt.a);
-			continue;
+			t.Errorf("Split(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, a, tt.a)
+			continue
 		}
-		s := Join(a, tt.sep);
+		s := Join(a, tt.sep)
 		if s != tt.s {
 			t.Errorf("Join(Split(%q, %q, %d), %q) = %q", tt.s, tt.sep, tt.n, tt.sep, s)
 		}
@@ -168,12 +168,12 @@ var splitaftertests = []SplitTest{
 
 func TestSplitAfter(t *testing.T) {
 	for _, tt := range splitaftertests {
-		a := SplitAfter(tt.s, tt.sep, tt.n);
+		a := SplitAfter(tt.s, tt.sep, tt.n)
 		if !eq(a, tt.a) {
-			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, a, tt.a);
-			continue;
+			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, a, tt.a)
+			continue
 		}
-		s := Join(a, "");
+		s := Join(a, "")
 		if s != tt.s {
 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
 		}
@@ -182,14 +182,14 @@ func TestSplitAfter(t *testing.T) {
 
 // Test case for any function which accepts and returns a single string.
 type StringTest struct {
-	in, out string;
+	in, out string
 }
 
 // Execute f on each test case.  funcName should be the name of f; it's used
 // in failure reports.
 func runStringTests(t *testing.T, f func(string) string, funcName string, testCases []StringTest) {
 	for _, tc := range testCases {
-		actual := f(tc.in);
+		actual := f(tc.in)
 		if actual != tc.out {
 			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out)
 		}
@@ -201,7 +201,7 @@ var upperTests = []StringTest{
 	StringTest{"abc", "ABC"},
 	StringTest{"AbC123", "ABC123"},
 	StringTest{"azAZ09_", "AZAZ09_"},
-	StringTest{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"},	// grows one byte per char
+	StringTest{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"}, // grows one byte per char
 }
 
 var lowerTests = []StringTest{
@@ -209,7 +209,7 @@ var lowerTests = []StringTest{
 	StringTest{"abc", "abc"},
 	StringTest{"AbC123", "abc123"},
 	StringTest{"azAZ09_", "azaz09_"},
-	StringTest{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"},	// shrinks one byte per char
+	StringTest{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"}, // shrinks one byte per char
 }
 
 const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
@@ -223,59 +223,59 @@ var trimSpaceTests = []StringTest{
 	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
 	StringTest{" \u2000\t\r\n x\t\t\r\r\ny\n \u3000", "x\t\t\r\r\ny"},
 	StringTest{"1 \t\r\n2", "1 \t\r\n2"},
-	StringTest{" x\x80", "x\x80"},	// invalid UTF-8 on end
-	StringTest{" x\xc0", "x\xc0"},	// invalid UTF-8 on end
+	StringTest{" x\x80", "x\x80"}, // invalid UTF-8 on end
+	StringTest{" x\xc0", "x\xc0"}, // invalid UTF-8 on end
 }
 
 func tenRunes(rune int) string {
-	r := make([]int, 10);
+	r := make([]int, 10)
 	for i := range r {
 		r[i] = rune
 	}
-	return string(r);
+	return string(r)
 }
 
 // User-defined self-inverse mapping function
 func rot13(rune int) int {
-	step := 13;
+	step := 13
 	if rune >= 'a' && rune <= 'z' {
 		return ((rune - 'a' + step) % 26) + 'a'
 	}
 	if rune >= 'A' && rune <= 'Z' {
 		return ((rune - 'A' + step) % 26) + 'A'
 	}
-	return rune;
+	return rune
 }
 
 func TestMap(t *testing.T) {
 	// Run a couple of awful growth/shrinkage tests
-	a := tenRunes('a');
+	a := tenRunes('a')
 	// 1.  Grow.  This triggers two reallocations in Map.
-	maxRune := func(rune int) int { return unicode.MaxRune };
-	m := Map(maxRune, a);
-	expect := tenRunes(unicode.MaxRune);
+	maxRune := func(rune int) int { return unicode.MaxRune }
+	m := Map(maxRune, a)
+	expect := tenRunes(unicode.MaxRune)
 	if m != expect {
 		t.Errorf("growing: expected %q got %q", expect, m)
 	}
 
 	// 2. Shrink
-	minRune := func(rune int) int { return 'a' };
-	m = Map(minRune, tenRunes(unicode.MaxRune));
-	expect = a;
+	minRune := func(rune int) int { return 'a' }
+	m = Map(minRune, tenRunes(unicode.MaxRune))
+	expect = a
 	if m != expect {
 		t.Errorf("shrinking: expected %q got %q", expect, m)
 	}
 
 	// 3. Rot13
-	m = Map(rot13, "a to zed");
-	expect = "n gb mrq";
+	m = Map(rot13, "a to zed")
+	expect = "n gb mrq"
 	if m != expect {
 		t.Errorf("rot13: expected %q got %q", expect, m)
 	}
 
 	// 4. Rot13^2
-	m = Map(rot13, Map(rot13, "a to zed"));
-	expect = "a to zed";
+	m = Map(rot13, Map(rot13, "a to zed"))
+	expect = "a to zed"
 	if m != expect {
 		t.Errorf("rot13: expected %q got %q", expect, m)
 	}
@@ -285,50 +285,50 @@ func TestMap(t *testing.T) {
 		if unicode.Is(unicode.Latin, rune) {
 			return rune
 		}
-		return -1;
-	};
-	m = Map(dropNotLatin, "Hello, 세계");
-	expect = "Hello";
+		return -1
+	}
+	m = Map(dropNotLatin, "Hello, 세계")
+	expect = "Hello"
 	if m != expect {
 		t.Errorf("drop: expected %q got %q", expect, m)
 	}
 }
 
-func TestToUpper(t *testing.T)	{ runStringTests(t, ToUpper, "ToUpper", upperTests) }
+func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }
 
-func TestToLower(t *testing.T)	{ runStringTests(t, ToLower, "ToLower", lowerTests) }
+func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
 
-func TestTrimSpace(t *testing.T)	{ runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
+func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
 
 func equal(m string, s1, s2 string, t *testing.T) bool {
 	if s1 == s2 {
 		return true
 	}
-	e1 := Split(s1, "", 0);
-	e2 := Split(s2, "", 0);
+	e1 := Split(s1, "", 0)
+	e2 := Split(s2, "", 0)
 	for i, c1 := range e1 {
 		if i > len(e2) {
 			break
 		}
-		r1, _ := utf8.DecodeRuneInString(c1);
-		r2, _ := utf8.DecodeRuneInString(e2[i]);
+		r1, _ := utf8.DecodeRuneInString(c1)
+		r2, _ := utf8.DecodeRuneInString(e2[i])
 		if r1 != r2 {
 			t.Errorf("%s diff at %d: U+%04X U+%04X", m, i, r1, r2)
 		}
 	}
-	return false;
+	return false
 }
 
 func TestCaseConsistency(t *testing.T) {
 	// Make a string of all the runes.
-	a := make([]int, unicode.MaxRune+1);
+	a := make([]int, unicode.MaxRune+1)
 	for i := range a {
 		a[i] = i
 	}
-	s := string(a);
+	s := string(a)
 	// convert the cases.
-	upper := ToUpper(s);
-	lower := ToLower(s);
+	upper := ToUpper(s)
+	lower := ToLower(s)
 
 	// Consistency checks
 	if n := utf8.RuneCountInString(upper); n != unicode.MaxRune+1 {
@@ -360,8 +360,8 @@ func TestCaseConsistency(t *testing.T) {
 }
 
 type RepeatTest struct {
-	in, out	string;
-	count	int;
+	in, out string
+	count   int
 }
 
 var RepeatTests = []RepeatTest{
@@ -376,10 +376,10 @@ var RepeatTests = []RepeatTest{
 
 func TestRepeat(t *testing.T) {
 	for _, tt := range RepeatTests {
-		a := Repeat(tt.in, tt.count);
+		a := Repeat(tt.in, tt.count)
 		if !equal("Repeat(s)", a, tt.out, t) {
-			t.Errorf("Repeat(%v, %d) = %v; want %v", tt.in, tt.count, a, tt.out);
-			continue;
+			t.Errorf("Repeat(%v, %d) = %v; want %v", tt.in, tt.count, a, tt.out)
+			continue
 		}
 	}
 }
@@ -393,13 +393,13 @@ func runesEqual(a, b []int) bool {
 			return false
 		}
 	}
-	return true;
+	return true
 }
 
 type RunesTest struct {
-	in	string;
-	out	[]int;
-	lossy	bool;
+	in    string
+	out   []int
+	lossy bool
 }
 
 var RunesTests = []RunesTest{
@@ -414,14 +414,14 @@ var RunesTests = []RunesTest{
 
 func TestRunes(t *testing.T) {
 	for _, tt := range RunesTests {
-		a := Runes(tt.in);
+		a := Runes(tt.in)
 		if !runesEqual(a, tt.out) {
-			t.Errorf("Runes(%q) = %v; want %v", tt.in, a, tt.out);
-			continue;
+			t.Errorf("Runes(%q) = %v; want %v", tt.in, a, tt.out)
+			continue
 		}
 		if !tt.lossy {
 			// can only test reassembly if we didn't lose information
-			s := string(a);
+			s := string(a)
 			if s != tt.in {
 				t.Errorf("string(Runes(%q)) = %x; want %x", tt.in, s, tt.in)
 			}

@@ -5,23 +5,23 @@
 package strconv_test
 
 import (
-	"math";
-	. "strconv";
-	"testing";
+	"math"
+	. "strconv"
+	"testing"
 )
 
 type ftoaTest struct {
-	f	float64;
-	fmt	byte;
-	prec	int;
-	s	string;
+	f    float64
+	fmt  byte
+	prec int
+	s    string
 }
 
-func fdiv(a, b float64) float64	{ return a / b }	// keep compiler in the dark
+func fdiv(a, b float64) float64 { return a / b } // keep compiler in the dark
 
 const (
-	below1e23	= 99999999999999974834176;
-	above1e23	= 100000000000000008388608;
+	below1e23 = 99999999999999974834176
+	above1e23 = 100000000000000008388608
 )
 
 var ftoatests = []ftoaTest{
@@ -104,13 +104,13 @@ func TestFtoa(t *testing.T) {
 		panic("floatsize: ", FloatSize)
 	}
 	for i := 0; i < len(ftoatests); i++ {
-		test := &ftoatests[i];
-		s := Ftoa64(test.f, test.fmt, test.prec);
+		test := &ftoatests[i]
+		s := Ftoa64(test.f, test.fmt, test.prec)
 		if s != test.s {
 			t.Error("test", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
 		}
 		if float64(float32(test.f)) == test.f && test.fmt != 'b' {
-			s := Ftoa32(float32(test.f), test.fmt, test.prec);
+			s := Ftoa32(float32(test.f), test.fmt, test.prec)
 			if s != test.s {
 				t.Error("test32", test.f, string(test.fmt), test.prec, "want", test.s, "got", s)
 			}

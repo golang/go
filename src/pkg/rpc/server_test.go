@@ -5,13 +5,13 @@
 package rpc
 
 import (
-	"http";
-	"log";
-	"net";
-	"once";
-	"os";
-	"strings";
-	"testing";
+	"http"
+	"log"
+	"net"
+	"once"
+	"os"
+	"strings"
+	"testing"
 )
 
 var serverAddr string
@@ -21,31 +21,31 @@ const second = 1e9
 
 
 type Args struct {
-	A, B int;
+	A, B int
 }
 
 type Reply struct {
-	C int;
+	C int
 }
 
 type Arith int
 
 func (t *Arith) Add(args *Args, reply *Reply) os.Error {
-	reply.C = args.A + args.B;
-	return nil;
+	reply.C = args.A + args.B
+	return nil
 }
 
 func (t *Arith) Mul(args *Args, reply *Reply) os.Error {
-	reply.C = args.A * args.B;
-	return nil;
+	reply.C = args.A * args.B
+	return nil
 }
 
 func (t *Arith) Div(args *Args, reply *Reply) os.Error {
 	if args.B == 0 {
 		return os.ErrorString("divide by zero")
 	}
-	reply.C = args.A / args.B;
-	return nil;
+	reply.C = args.A / args.B
+	return nil
 }
 
 func (t *Arith) Error(args *Args, reply *Reply) os.Error {
@@ -53,39 +53,39 @@ func (t *Arith) Error(args *Args, reply *Reply) os.Error {
 }
 
 func startServer() {
-	Register(new(Arith));
+	Register(new(Arith))
 
-	l, e := net.Listen("tcp", ":0");	// any available address
+	l, e := net.Listen("tcp", ":0") // any available address
 	if e != nil {
 		log.Exitf("net.Listen tcp :0: %v", e)
 	}
-	serverAddr = l.Addr().String();
-	log.Stderr("Test RPC server listening on ", serverAddr);
-	go Accept(l);
+	serverAddr = l.Addr().String()
+	log.Stderr("Test RPC server listening on ", serverAddr)
+	go Accept(l)
 
-	HandleHTTP();
-	l, e = net.Listen("tcp", ":0");	// any available address
+	HandleHTTP()
+	l, e = net.Listen("tcp", ":0") // any available address
 	if e != nil {
-		log.Stderrf("net.Listen tcp :0: %v", e);
-		os.Exit(1);
+		log.Stderrf("net.Listen tcp :0: %v", e)
+		os.Exit(1)
 	}
-	httpServerAddr = l.Addr().String();
-	log.Stderr("Test HTTP RPC server listening on ", httpServerAddr);
-	go http.Serve(l, nil);
+	httpServerAddr = l.Addr().String()
+	log.Stderr("Test HTTP RPC server listening on ", httpServerAddr)
+	go http.Serve(l, nil)
 }
 
 func TestRPC(t *testing.T) {
-	once.Do(startServer);
+	once.Do(startServer)
 
-	client, err := Dial("tcp", serverAddr);
+	client, err := Dial("tcp", serverAddr)
 	if err != nil {
 		t.Fatal("dialing", err)
 	}
 
 	// Synchronous calls
-	args := &Args{7, 8};
-	reply := new(Reply);
-	err = client.Call("Arith.Add", args, reply);
+	args := &Args{7, 8}
+	reply := new(Reply)
+	err = client.Call("Arith.Add", args, reply)
 	if err != nil {
 		t.Errorf("Add: expected no error but got string %q", err.String())
 	}
@@ -93,9 +93,9 @@ func TestRPC(t *testing.T) {
 		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
 	}
 
-	args = &Args{7, 8};
-	reply = new(Reply);
-	err = client.Call("Arith.Mul", args, reply);
+	args = &Args{7, 8}
+	reply = new(Reply)
+	err = client.Call("Arith.Mul", args, reply)
 	if err != nil {
 		t.Errorf("Mul: expected no error but got string %q", err.String())
 	}
@@ -104,13 +104,13 @@ func TestRPC(t *testing.T) {
 	}
 
 	// Out of order.
-	args = &Args{7, 8};
-	mulReply := new(Reply);
-	mulCall := client.Go("Arith.Mul", args, mulReply, nil);
-	addReply := new(Reply);
-	addCall := client.Go("Arith.Add", args, addReply, nil);
+	args = &Args{7, 8}
+	mulReply := new(Reply)
+	mulCall := client.Go("Arith.Mul", args, mulReply, nil)
+	addReply := new(Reply)
+	addCall := client.Go("Arith.Add", args, addReply, nil)
 
-	addCall = <-addCall.Done;
+	addCall = <-addCall.Done
 	if addCall.Error != nil {
 		t.Errorf("Add: expected no error but got string %q", addCall.Error.String())
 	}
@@ -118,7 +118,7 @@ func TestRPC(t *testing.T) {
 		t.Errorf("Add: expected %d got %d", addReply.C, args.A+args.B)
 	}
 
-	mulCall = <-mulCall.Done;
+	mulCall = <-mulCall.Done
 	if mulCall.Error != nil {
 		t.Errorf("Mul: expected no error but got string %q", mulCall.Error.String())
 	}
@@ -127,9 +127,9 @@ func TestRPC(t *testing.T) {
 	}
 
 	// Error test
-	args = &Args{7, 0};
-	reply = new(Reply);
-	err = client.Call("Arith.Div", args, reply);
+	args = &Args{7, 0}
+	reply = new(Reply)
+	err = client.Call("Arith.Div", args, reply)
 	// expect an error: zero divide
 	if err == nil {
 		t.Error("Div: expected error")
@@ -139,17 +139,17 @@ func TestRPC(t *testing.T) {
 }
 
 func TestHTTPRPC(t *testing.T) {
-	once.Do(startServer);
+	once.Do(startServer)
 
-	client, err := DialHTTP("tcp", httpServerAddr);
+	client, err := DialHTTP("tcp", httpServerAddr)
 	if err != nil {
 		t.Fatal("dialing", err)
 	}
 
 	// Synchronous calls
-	args := &Args{7, 8};
-	reply := new(Reply);
-	err = client.Call("Arith.Add", args, reply);
+	args := &Args{7, 8}
+	reply := new(Reply)
+	err = client.Call("Arith.Add", args, reply)
 	if err != nil {
 		t.Errorf("Add: expected no error but got string %q", err.String())
 	}
@@ -159,18 +159,18 @@ func TestHTTPRPC(t *testing.T) {
 }
 
 func TestCheckUnknownService(t *testing.T) {
-	once.Do(startServer);
+	once.Do(startServer)
 
-	conn, err := net.Dial("tcp", "", serverAddr);
+	conn, err := net.Dial("tcp", "", serverAddr)
 	if err != nil {
 		t.Fatal("dialing:", err)
 	}
 
-	client := NewClient(conn);
+	client := NewClient(conn)
 
-	args := &Args{7, 8};
-	reply := new(Reply);
-	err = client.Call("Unknown.Add", args, reply);
+	args := &Args{7, 8}
+	reply := new(Reply)
+	err = client.Call("Unknown.Add", args, reply)
 	if err == nil {
 		t.Error("expected error calling unknown service")
 	} else if strings.Index(err.String(), "service") < 0 {
@@ -179,18 +179,18 @@ func TestCheckUnknownService(t *testing.T) {
 }
 
 func TestCheckUnknownMethod(t *testing.T) {
-	once.Do(startServer);
+	once.Do(startServer)
 
-	conn, err := net.Dial("tcp", "", serverAddr);
+	conn, err := net.Dial("tcp", "", serverAddr)
 	if err != nil {
 		t.Fatal("dialing:", err)
 	}
 
-	client := NewClient(conn);
+	client := NewClient(conn)
 
-	args := &Args{7, 8};
-	reply := new(Reply);
-	err = client.Call("Arith.Unknown", args, reply);
+	args := &Args{7, 8}
+	reply := new(Reply)
+	err = client.Call("Arith.Unknown", args, reply)
 	if err == nil {
 		t.Error("expected error calling unknown service")
 	} else if strings.Index(err.String(), "method") < 0 {
@@ -199,17 +199,17 @@ func TestCheckUnknownMethod(t *testing.T) {
 }
 
 func TestCheckBadType(t *testing.T) {
-	once.Do(startServer);
+	once.Do(startServer)
 
-	conn, err := net.Dial("tcp", "", serverAddr);
+	conn, err := net.Dial("tcp", "", serverAddr)
 	if err != nil {
 		t.Fatal("dialing:", err)
 	}
 
-	client := NewClient(conn);
+	client := NewClient(conn)
 
-	reply := new(Reply);
-	err = client.Call("Arith.Add", reply, reply);	// args, reply would be the correct thing to use
+	reply := new(Reply)
+	err = client.Call("Arith.Add", reply, reply) // args, reply would be the correct thing to use
 	if err == nil {
 		t.Error("expected error calling Arith.Add with wrong arg type")
 	} else if strings.Index(err.String(), "type") < 0 {
@@ -246,7 +246,7 @@ func (t *Bad) ReplyNotPublic(args *Args, reply *local) os.Error {
 
 // Check that registration handles lots of bad methods and a type with no suitable methods.
 func TestRegistrationError(t *testing.T) {
-	err := Register(new(Bad));
+	err := Register(new(Bad))
 	if err == nil {
 		t.Errorf("expected error registering bad type")
 	}

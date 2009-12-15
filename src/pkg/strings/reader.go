@@ -11,28 +11,28 @@ import "os"
 type Reader string
 
 func (r *Reader) Read(b []byte) (n int, err os.Error) {
-	s := *r;
+	s := *r
 	if len(s) == 0 {
 		return 0, os.EOF
 	}
 	for n < len(s) && n < len(b) {
-		b[n] = s[n];
-		n++;
+		b[n] = s[n]
+		n++
 	}
-	*r = s[n:];
-	return;
+	*r = s[n:]
+	return
 }
 
 func (r *Reader) ReadByte() (b byte, err os.Error) {
-	s := *r;
+	s := *r
 	if len(s) == 0 {
 		return 0, os.EOF
 	}
-	b = s[0];
-	*r = s[1:];
-	return;
+	b = s[0]
+	*r = s[1:]
+	return
 }
 
 // NewReader returns a new Reader reading from s.
 // It is similar to bytes.NewBufferString but more efficient and read-only.
-func NewReader(s string) *Reader	{ return (*Reader)(&s) }
+func NewReader(s string) *Reader { return (*Reader)(&s) }

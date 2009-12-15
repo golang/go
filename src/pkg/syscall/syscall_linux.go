@@ -24,11 +24,11 @@ func Pipe(p []int) (errno int) {
 	if len(p) != 2 {
 		return EINVAL
 	}
-	var pp [2]_C_int;
-	errno = pipe(&pp);
-	p[0] = int(pp[0]);
-	p[1] = int(pp[1]);
-	return;
+	var pp [2]_C_int
+	errno = pipe(&pp)
+	p[0] = int(pp[0])
+	p[1] = int(pp[1])
+	return
 }
 
 //sys	utimes(path string, times *[2]Timeval) (errno int)
@@ -36,7 +36,7 @@ func Utimes(path string, tv []Timeval) (errno int) {
 	if len(tv) != 2 {
 		return EINVAL
 	}
-	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])));
+	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
 //sys	futimesat(dirfd int, path string, times *[2]Timeval) (errno int)
@@ -44,15 +44,15 @@ func Futimesat(dirfd int, path string, tv []Timeval) (errno int) {
 	if len(tv) != 2 {
 		return EINVAL
 	}
-	return futimesat(dirfd, path, (*[2]Timeval)(unsafe.Pointer(&tv[0])));
+	return futimesat(dirfd, path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
 const ImplementsGetwd = true
 
 //sys	Getcwd(buf []byte) (n int, errno int)
 func Getwd() (wd string, errno int) {
-	var buf [PathMax]byte;
-	n, err := Getcwd(&buf);
+	var buf [PathMax]byte
+	n, err := Getcwd(&buf)
 	if err != 0 {
 		return "", err
 	}
@@ -60,11 +60,11 @@ func Getwd() (wd string, errno int) {
 	if n < 1 || n > len(buf) || buf[n-1] != 0 {
 		return "", EINVAL
 	}
-	return string(buf[0 : n-1]), 0;
+	return string(buf[0 : n-1]), 0
 }
 
 func Getgroups() (gids []int, errno int) {
-	n, err := getgroups(0, nil);
+	n, err := getgroups(0, nil)
 	if err != 0 {
 		return nil, errno
 	}
@@ -77,16 +77,16 @@ func Getgroups() (gids []int, errno int) {
 		return nil, EINVAL
 	}
 
-	a := make([]_Gid_t, n);
-	n, err = getgroups(n, &a[0]);
+	a := make([]_Gid_t, n)
+	n, err = getgroups(n, &a[0])
 	if err != 0 {
 		return nil, errno
 	}
-	gids = make([]int, n);
+	gids = make([]int, n)
 	for i, v := range a[0:n] {
 		gids[i] = int(v)
 	}
-	return;
+	return
 }
 
 func Setgroups(gids []int) (errno int) {
@@ -94,11 +94,11 @@ func Setgroups(gids []int) (errno int) {
 		return setgroups(0, nil)
 	}
 
-	a := make([]_Gid_t, len(gids));
+	a := make([]_Gid_t, len(gids))
 	for i, v := range gids {
 		a[i] = _Gid_t(v)
 	}
-	return setgroups(len(a), &a[0]);
+	return setgroups(len(a), &a[0])
 }
 
 type WaitStatus uint32
@@ -113,65 +113,65 @@ type WaitStatus uint32
 // from stopped via the core dump bit.
 
 const (
-	mask	= 0x7F;
-	core	= 0x80;
-	exited	= 0x00;
-	stopped	= 0x7F;
-	shift	= 8;
+	mask    = 0x7F
+	core    = 0x80
+	exited  = 0x00
+	stopped = 0x7F
+	shift   = 8
 )
 
-func (w WaitStatus) Exited() bool	{ return w&mask == exited }
+func (w WaitStatus) Exited() bool { return w&mask == exited }
 
-func (w WaitStatus) Signaled() bool	{ return w&mask != stopped && w&mask != exited }
+func (w WaitStatus) Signaled() bool { return w&mask != stopped && w&mask != exited }
 
-func (w WaitStatus) Stopped() bool	{ return w&0xFF == stopped }
+func (w WaitStatus) Stopped() bool { return w&0xFF == stopped }
 
-func (w WaitStatus) Continued() bool	{ return w == 0xFFFF }
+func (w WaitStatus) Continued() bool { return w == 0xFFFF }
 
-func (w WaitStatus) CoreDump() bool	{ return w.Signaled() && w&core != 0 }
+func (w WaitStatus) CoreDump() bool { return w.Signaled() && w&core != 0 }
 
 func (w WaitStatus) ExitStatus() int {
 	if !w.Exited() {
 		return -1
 	}
-	return int(w>>shift) & 0xFF;
+	return int(w>>shift) & 0xFF
 }
 
 func (w WaitStatus) Signal() int {
 	if !w.Signaled() {
 		return -1
 	}
-	return int(w & mask);
+	return int(w & mask)
 }
 
 func (w WaitStatus) StopSignal() int {
 	if !w.Stopped() {
 		return -1
 	}
-	return int(w>>shift) & 0xFF;
+	return int(w>>shift) & 0xFF
 }
 
 func (w WaitStatus) TrapCause() int {
 	if w.StopSignal() != SIGTRAP {
 		return -1
 	}
-	return int(w>>shift) >> 8;
+	return int(w>>shift) >> 8
 }
 
 //sys	wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, errno int)
 func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
-	var status _C_int;
-	wpid, errno = wait4(pid, &status, options, rusage);
+	var status _C_int
+	wpid, errno = wait4(pid, &status, options, rusage)
 	if wstatus != nil {
 		*wstatus = WaitStatus(status)
 	}
-	return;
+	return
 }
 
 func Sleep(nsec int64) (errno int) {
-	tv := NsecToTimeval(nsec);
-	_, err := Select(0, nil, nil, nil, &tv);
-	return err;
+	tv := NsecToTimeval(nsec)
+	_, err := Select(0, nil, nil, nil, &tv)
+	return err
 }
 
 // For testing: clients can set this flag to force
@@ -179,61 +179,61 @@ func Sleep(nsec int64) (errno int) {
 var SocketDisableIPv6 bool
 
 type Sockaddr interface {
-	sockaddr() (ptr uintptr, len _Socklen, errno int);	// lowercase; only we can define Sockaddrs
+	sockaddr() (ptr uintptr, len _Socklen, errno int) // lowercase; only we can define Sockaddrs
 }
 
 type SockaddrInet4 struct {
-	Port	int;
-	Addr	[4]byte;
-	raw	RawSockaddrInet4;
+	Port int
+	Addr [4]byte
+	raw  RawSockaddrInet4
 }
 
 func (sa *SockaddrInet4) sockaddr() (uintptr, _Socklen, int) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
 		return 0, 0, EINVAL
 	}
-	sa.raw.Family = AF_INET;
-	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port));
-	p[0] = byte(sa.Port >> 8);
-	p[1] = byte(sa.Port);
+	sa.raw.Family = AF_INET
+	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
+	p[0] = byte(sa.Port >> 8)
+	p[1] = byte(sa.Port)
 	for i := 0; i < len(sa.Addr); i++ {
 		sa.raw.Addr[i] = sa.Addr[i]
 	}
-	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrInet4, 0;
+	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrInet4, 0
 }
 
 type SockaddrInet6 struct {
-	Port	int;
-	Addr	[16]byte;
-	raw	RawSockaddrInet6;
+	Port int
+	Addr [16]byte
+	raw  RawSockaddrInet6
 }
 
 func (sa *SockaddrInet6) sockaddr() (uintptr, _Socklen, int) {
 	if sa.Port < 0 || sa.Port > 0xFFFF {
 		return 0, 0, EINVAL
 	}
-	sa.raw.Family = AF_INET6;
-	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port));
-	p[0] = byte(sa.Port >> 8);
-	p[1] = byte(sa.Port);
+	sa.raw.Family = AF_INET6
+	p := (*[2]byte)(unsafe.Pointer(&sa.raw.Port))
+	p[0] = byte(sa.Port >> 8)
+	p[1] = byte(sa.Port)
 	for i := 0; i < len(sa.Addr); i++ {
 		sa.raw.Addr[i] = sa.Addr[i]
 	}
-	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrInet6, 0;
+	return uintptr(unsafe.Pointer(&sa.raw)), SizeofSockaddrInet6, 0
 }
 
 type SockaddrUnix struct {
-	Name	string;
-	raw	RawSockaddrUnix;
+	Name string
+	raw  RawSockaddrUnix
 }
 
 func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
-	name := sa.Name;
-	n := len(name);
+	name := sa.Name
+	n := len(name)
 	if n >= len(sa.raw.Path) || n == 0 {
 		return 0, 0, EINVAL
 	}
-	sa.raw.Family = AF_UNIX;
+	sa.raw.Family = AF_UNIX
 	for i := 0; i < n; i++ {
 		sa.raw.Path[i] = int8(name[i])
 	}
@@ -242,14 +242,14 @@ func (sa *SockaddrUnix) sockaddr() (uintptr, _Socklen, int) {
 	}
 
 	// length is family, name, NUL.
-	return uintptr(unsafe.Pointer(&sa.raw)), 1 + _Socklen(n) + 1, 0;
+	return uintptr(unsafe.Pointer(&sa.raw)), 1 + _Socklen(n) + 1, 0
 }
 
 func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
 	switch rsa.Addr.Family {
 	case AF_UNIX:
-		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa));
-		sa := new(SockaddrUnix);
+		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa))
+		sa := new(SockaddrUnix)
 		if pp.Path[0] == 0 {
 			// "Abstract" Unix domain socket.
 			// Rewrite leading NUL as @ for textual display.
@@ -264,97 +264,97 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, int) {
 		// abstract Unix domain sockets--they are supposed
 		// to be uninterpreted fixed-size binary blobs--but
 		// everyone uses this convention.
-		n := 0;
+		n := 0
 		for n < len(pp.Path) && pp.Path[n] != 0 {
 			n++
 		}
-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]));
-		sa.Name = string(bytes[0:n]);
-		return sa, 0;
+		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))
+		sa.Name = string(bytes[0:n])
+		return sa, 0
 
 	case AF_INET:
-		pp := (*RawSockaddrInet4)(unsafe.Pointer(rsa));
-		sa := new(SockaddrInet4);
-		p := (*[2]byte)(unsafe.Pointer(&pp.Port));
-		sa.Port = int(p[0])<<8 + int(p[1]);
+		pp := (*RawSockaddrInet4)(unsafe.Pointer(rsa))
+		sa := new(SockaddrInet4)
+		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+		sa.Port = int(p[0])<<8 + int(p[1])
 		for i := 0; i < len(sa.Addr); i++ {
 			sa.Addr[i] = pp.Addr[i]
 		}
-		return sa, 0;
+		return sa, 0
 
 	case AF_INET6:
-		pp := (*RawSockaddrInet6)(unsafe.Pointer(rsa));
-		sa := new(SockaddrInet6);
-		p := (*[2]byte)(unsafe.Pointer(&pp.Port));
-		sa.Port = int(p[0])<<8 + int(p[1]);
+		pp := (*RawSockaddrInet6)(unsafe.Pointer(rsa))
+		sa := new(SockaddrInet6)
+		p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+		sa.Port = int(p[0])<<8 + int(p[1])
 		for i := 0; i < len(sa.Addr); i++ {
 			sa.Addr[i] = pp.Addr[i]
 		}
-		return sa, 0;
+		return sa, 0
 	}
-	return nil, EAFNOSUPPORT;
+	return nil, EAFNOSUPPORT
 }
 
 func Accept(fd int) (nfd int, sa Sockaddr, errno int) {
-	var rsa RawSockaddrAny;
-	var len _Socklen = SizeofSockaddrAny;
-	nfd, errno = accept(fd, &rsa, &len);
+	var rsa RawSockaddrAny
+	var len _Socklen = SizeofSockaddrAny
+	nfd, errno = accept(fd, &rsa, &len)
 	if errno != 0 {
 		return
 	}
-	sa, errno = anyToSockaddr(&rsa);
+	sa, errno = anyToSockaddr(&rsa)
 	if errno != 0 {
-		Close(nfd);
-		nfd = 0;
+		Close(nfd)
+		nfd = 0
 	}
-	return;
+	return
 }
 
 func Getsockname(fd int) (sa Sockaddr, errno int) {
-	var rsa RawSockaddrAny;
-	var len _Socklen = SizeofSockaddrAny;
+	var rsa RawSockaddrAny
+	var len _Socklen = SizeofSockaddrAny
 	if errno = getsockname(fd, &rsa, &len); errno != 0 {
 		return
 	}
-	return anyToSockaddr(&rsa);
+	return anyToSockaddr(&rsa)
 }
 
 func Getpeername(fd int) (sa Sockaddr, errno int) {
-	var rsa RawSockaddrAny;
-	var len _Socklen = SizeofSockaddrAny;
+	var rsa RawSockaddrAny
+	var len _Socklen = SizeofSockaddrAny
 	if errno = getpeername(fd, &rsa, &len); errno != 0 {
 		return
 	}
-	return anyToSockaddr(&rsa);
+	return anyToSockaddr(&rsa)
 }
 
 func Bind(fd int, sa Sockaddr) (errno int) {
-	ptr, n, err := sa.sockaddr();
+	ptr, n, err := sa.sockaddr()
 	if err != 0 {
 		return err
 	}
-	return bind(fd, ptr, n);
+	return bind(fd, ptr, n)
 }
 
 func Connect(fd int, sa Sockaddr) (errno int) {
-	ptr, n, err := sa.sockaddr();
+	ptr, n, err := sa.sockaddr()
 	if err != 0 {
 		return err
 	}
-	return connect(fd, ptr, n);
+	return connect(fd, ptr, n)
 }
 
 func Socket(domain, typ, proto int) (fd, errno int) {
 	if domain == AF_INET6 && SocketDisableIPv6 {
 		return -1, EAFNOSUPPORT
 	}
-	fd, errno = socket(domain, typ, proto);
-	return;
+	fd, errno = socket(domain, typ, proto)
+	return
 }
 
 func SetsockoptInt(fd, level, opt int, value int) (errno int) {
-	var n = int32(value);
-	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4);
+	var n = int32(value)
+	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
 }
 
 func SetsockoptTimeval(fd, level, opt int, tv *Timeval) (errno int) {
@@ -366,21 +366,21 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
 }
 
 func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, errno int) {
-	var rsa RawSockaddrAny;
-	var len _Socklen = SizeofSockaddrAny;
+	var rsa RawSockaddrAny
+	var len _Socklen = SizeofSockaddrAny
 	if n, errno = recvfrom(fd, p, flags, &rsa, &len); errno != 0 {
 		return
 	}
-	from, errno = anyToSockaddr(&rsa);
-	return;
+	from, errno = anyToSockaddr(&rsa)
+	return
 }
 
 func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
-	ptr, n, err := to.sockaddr();
+	ptr, n, err := to.sockaddr()
 	if err != 0 {
 		return err
 	}
-	return sendto(fd, p, flags, ptr, n);
+	return sendto(fd, p, flags, ptr, n)
 }
 
 //sys	ptrace(request int, pid int, addr uintptr, data uintptr) (errno int)
@@ -392,37 +392,37 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
 	// The ptrace syscall differs from glibc's ptrace.
 	// Peeks returns the word in *data, not as the return value.
 
-	var buf [sizeofPtr]byte;
+	var buf [sizeofPtr]byte
 
 	// Leading edge.  PEEKTEXT/PEEKDATA don't require aligned
 	// access (PEEKUSER warns that it might), but if we don't
 	// align our reads, we might straddle an unmapped page
 	// boundary and not get the bytes leading up to the page
 	// boundary.
-	n := 0;
+	n := 0
 	if addr%sizeofPtr != 0 {
-		errno = ptrace(req, pid, addr-addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
+		errno = ptrace(req, pid, addr-addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])))
 		if errno != 0 {
 			return 0, errno
 		}
-		n += copy(out, buf[addr%sizeofPtr:]);
-		out = out[n:];
+		n += copy(out, buf[addr%sizeofPtr:])
+		out = out[n:]
 	}
 
 	// Remainder.
 	for len(out) > 0 {
 		// We use an internal buffer to gaurantee alignment.
 		// It's not documented if this is necessary, but we're paranoid.
-		errno = ptrace(req, pid, addr+uintptr(n), uintptr(unsafe.Pointer(&buf[0])));
+		errno = ptrace(req, pid, addr+uintptr(n), uintptr(unsafe.Pointer(&buf[0])))
 		if errno != 0 {
 			return n, errno
 		}
-		copied := copy(out, &buf);
-		n += copied;
-		out = out[copied:];
+		copied := copy(out, &buf)
+		n += copied
+		out = out[copied:]
 	}
 
-	return n, 0;
+	return n, 0
 }
 
 func PtracePeekText(pid int, addr uintptr, out []byte) (count int, errno int) {
@@ -438,50 +438,50 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
 	// with the possibility of straddling an invalid page.
 
 	// Leading edge.
-	n := 0;
+	n := 0
 	if addr%sizeofPtr != 0 {
-		var buf [sizeofPtr]byte;
-		errno = ptrace(peekReq, pid, addr-addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
+		var buf [sizeofPtr]byte
+		errno = ptrace(peekReq, pid, addr-addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])))
 		if errno != 0 {
 			return 0, errno
 		}
-		n += copy(buf[addr%sizeofPtr:], data);
-		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
-		errno = ptrace(pokeReq, pid, addr-addr%sizeofPtr, word);
+		n += copy(buf[addr%sizeofPtr:], data)
+		word := *((*uintptr)(unsafe.Pointer(&buf[0])))
+		errno = ptrace(pokeReq, pid, addr-addr%sizeofPtr, word)
 		if errno != 0 {
 			return 0, errno
 		}
-		data = data[n:];
+		data = data[n:]
 	}
 
 	// Interior.
 	for len(data) > sizeofPtr {
-		word := *((*uintptr)(unsafe.Pointer(&data[0])));
-		errno = ptrace(pokeReq, pid, addr+uintptr(n), word);
+		word := *((*uintptr)(unsafe.Pointer(&data[0])))
+		errno = ptrace(pokeReq, pid, addr+uintptr(n), word)
 		if errno != 0 {
 			return n, errno
 		}
-		n += sizeofPtr;
-		data = data[sizeofPtr:];
+		n += sizeofPtr
+		data = data[sizeofPtr:]
 	}
 
 	// Trailing edge.
 	if len(data) > 0 {
-		var buf [sizeofPtr]byte;
-		errno = ptrace(peekReq, pid, addr+uintptr(n), uintptr(unsafe.Pointer(&buf[0])));
+		var buf [sizeofPtr]byte
+		errno = ptrace(peekReq, pid, addr+uintptr(n), uintptr(unsafe.Pointer(&buf[0])))
 		if errno != 0 {
 			return n, errno
 		}
-		copy(&buf, data);
-		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
-		errno = ptrace(pokeReq, pid, addr+uintptr(n), word);
+		copy(&buf, data)
+		word := *((*uintptr)(unsafe.Pointer(&buf[0])))
+		errno = ptrace(pokeReq, pid, addr+uintptr(n), word)
 		if errno != 0 {
 			return n, errno
 		}
-		n += len(data);
+		n += len(data)
 	}
 
-	return n, 0;
+	return n, 0
 }
 
 func PtracePokeText(pid int, addr uintptr, data []byte) (count int, errno int) {
@@ -505,21 +505,21 @@ func PtraceSetOptions(pid int, options int) (errno int) {
 }
 
 func PtraceGetEventMsg(pid int) (msg uint, errno int) {
-	var data _C_long;
-	errno = ptrace(PTRACE_GETEVENTMSG, pid, 0, uintptr(unsafe.Pointer(&data)));
-	msg = uint(data);
-	return;
+	var data _C_long
+	errno = ptrace(PTRACE_GETEVENTMSG, pid, 0, uintptr(unsafe.Pointer(&data)))
+	msg = uint(data)
+	return
 }
 
 func PtraceCont(pid int, signal int) (errno int) {
 	return ptrace(PTRACE_CONT, pid, 0, uintptr(signal))
 }
 
-func PtraceSingleStep(pid int) (errno int)	{ return ptrace(PTRACE_SINGLESTEP, pid, 0, 0) }
+func PtraceSingleStep(pid int) (errno int) { return ptrace(PTRACE_SINGLESTEP, pid, 0, 0) }
 
-func PtraceAttach(pid int) (errno int)	{ return ptrace(PTRACE_ATTACH, pid, 0, 0) }
+func PtraceAttach(pid int) (errno int) { return ptrace(PTRACE_ATTACH, pid, 0, 0) }
 
-func PtraceDetach(pid int) (errno int)	{ return ptrace(PTRACE_DETACH, pid, 0, 0) }
+func PtraceDetach(pid int) (errno int) { return ptrace(PTRACE_DETACH, pid, 0, 0) }
 
 // Sendto
 // Recvfrom

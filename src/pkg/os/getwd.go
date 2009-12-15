@@ -5,7 +5,7 @@
 package os
 
 import (
-	"syscall";
+	"syscall"
 )
 
 // Getwd returns a rooted path name corresponding to the
@@ -15,21 +15,21 @@ import (
 func Getwd() (string, Error) {
 	// If the operating system provides a Getwd call, use it.
 	if syscall.ImplementsGetwd {
-		s, e := syscall.Getwd();
-		return s, NewSyscallError("getwd", e);
+		s, e := syscall.Getwd()
+		return s, NewSyscallError("getwd", e)
 	}
 
 	// Otherwise, we're trying to find our way back to ".".
-	dot, err := Stat(".");
+	dot, err := Stat(".")
 	if err != nil {
 		return "", err
 	}
 
 	// Clumsy but widespread kludge:
 	// if $PWD is set and matches ".", use it.
-	pwd := Getenv("PWD");
+	pwd := Getenv("PWD")
 	if len(pwd) > 0 && pwd[0] == '/' {
-		d, err := Stat(pwd);
+		d, err := Stat(pwd)
 		if err == nil && d.Dev == dot.Dev && d.Ino == dot.Ino {
 			return pwd, nil
 		}
@@ -37,7 +37,7 @@ func Getwd() (string, Error) {
 
 	// Root is a special case because it has no parent
 	// and ends in a slash.
-	root, err := Stat("/");
+	root, err := Stat("/")
 	if err != nil {
 		// Can't stat root - no hope.
 		return "", err
@@ -49,44 +49,44 @@ func Getwd() (string, Error) {
 	// General algorithm: find name in parent
 	// and then find name of parent.  Each iteration
 	// adds /name to the beginning of pwd.
-	pwd = "";
+	pwd = ""
 	for parent := ".."; ; parent = "../" + parent {
-		if len(parent) >= 1024 {	// Sanity check
+		if len(parent) >= 1024 { // Sanity check
 			return "", ENAMETOOLONG
 		}
-		fd, err := Open(parent, O_RDONLY, 0);
+		fd, err := Open(parent, O_RDONLY, 0)
 		if err != nil {
 			return "", err
 		}
 
 		for {
-			names, err := fd.Readdirnames(100);
+			names, err := fd.Readdirnames(100)
 			if err != nil {
-				fd.Close();
-				return "", err;
+				fd.Close()
+				return "", err
 			}
 			for _, name := range names {
-				d, _ := Lstat(parent + "/" + name);
+				d, _ := Lstat(parent + "/" + name)
 				if d.Dev == dot.Dev && d.Ino == dot.Ino {
-					pwd = "/" + name + pwd;
-					goto Found;
+					pwd = "/" + name + pwd
+					goto Found
 				}
 			}
 		}
-		fd.Close();
-		return "", ENOENT;
+		fd.Close()
+		return "", ENOENT
 
 	Found:
-		pd, err := fd.Stat();
+		pd, err := fd.Stat()
 		if err != nil {
 			return "", err
 		}
-		fd.Close();
+		fd.Close()
 		if pd.Dev == root.Dev && pd.Ino == root.Ino {
 			break
 		}
 		// Set up for next round.
-		dot = pd;
+		dot = pd
 	}
-	return pwd, nil;
+	return pwd, nil
 }

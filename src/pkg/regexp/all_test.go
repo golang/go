@@ -5,9 +5,9 @@
 package regexp
 
 import (
-	"os";
-	"strings";
-	"testing";
+	"os"
+	"strings"
+	"testing"
 )
 
 var good_re = []string{
@@ -32,8 +32,8 @@ var good_re = []string{
 
 // TODO: nice to do this with a map
 type stringError struct {
-	re	string;
-	err	os.Error;
+	re  string
+	err os.Error
 }
 
 var bad_re = []stringError{
@@ -54,9 +54,9 @@ var bad_re = []stringError{
 type vec []int
 
 type tester struct {
-	re	string;
-	text	string;
-	match	vec;
+	re    string
+	text  string
+	match vec
 }
 
 var matches = []tester{
@@ -100,27 +100,27 @@ var matches = []tester{
 }
 
 func compileTest(t *testing.T, expr string, error os.Error) *Regexp {
-	re, err := Compile(expr);
+	re, err := Compile(expr)
 	if err != error {
 		t.Error("compiling `", expr, "`; unexpected error: ", err.String())
 	}
-	return re;
+	return re
 }
 
 func printVec(t *testing.T, m []int) {
-	l := len(m);
+	l := len(m)
 	if l == 0 {
 		t.Log("\t<no match>")
 	} else {
 		if m[len(m)-1] == -1 {
 			m = m[0 : len(m)-2]
 		}
-		t.Log("\t", m);
+		t.Log("\t", m)
 	}
 }
 
 func equal(m1, m2 []int) bool {
-	l := len(m1);
+	l := len(m1)
 	if l != len(m2) {
 		return false
 	}
@@ -129,11 +129,11 @@ func equal(m1, m2 []int) bool {
 			return false
 		}
 	}
-	return true;
+	return true
 }
 
 func equalStrings(m1, m2 []string) bool {
-	l := len(m1);
+	l := len(m1)
 	if l != len(m2) {
 		return false
 	}
@@ -142,28 +142,28 @@ func equalStrings(m1, m2 []string) bool {
 			return false
 		}
 	}
-	return true;
+	return true
 }
 
 func executeTest(t *testing.T, expr string, str string, match []int) {
-	re := compileTest(t, expr, nil);
+	re := compileTest(t, expr, nil)
 	if re == nil {
 		return
 	}
-	m := re.ExecuteString(str);
+	m := re.ExecuteString(str)
 	if !equal(m, match) {
-		t.Errorf("ExecuteString failure on %#q matching %q:", expr, str);
-		printVec(t, m);
-		t.Log("should be:");
-		printVec(t, match);
+		t.Errorf("ExecuteString failure on %#q matching %q:", expr, str)
+		printVec(t, m)
+		t.Log("should be:")
+		printVec(t, match)
 	}
 	// now try bytes
-	m = re.Execute(strings.Bytes(str));
+	m = re.Execute(strings.Bytes(str))
 	if !equal(m, match) {
-		t.Errorf("Execute failure on %#q matching %q:", expr, str);
-		printVec(t, m);
-		t.Log("should be:");
-		printVec(t, match);
+		t.Errorf("Execute failure on %#q matching %q:", expr, str)
+		printVec(t, m)
+		t.Log("should be:")
+		printVec(t, match)
 	}
 }
 
@@ -181,22 +181,22 @@ func TestBadCompile(t *testing.T) {
 
 func TestExecute(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
-		test := &matches[i];
-		executeTest(t, test.re, test.text, test.match);
+		test := &matches[i]
+		executeTest(t, test.re, test.text, test.match)
 	}
 }
 
 func matchTest(t *testing.T, expr string, str string, match []int) {
-	re := compileTest(t, expr, nil);
+	re := compileTest(t, expr, nil)
 	if re == nil {
 		return
 	}
-	m := re.MatchString(str);
+	m := re.MatchString(str)
 	if m != (len(match) > 0) {
 		t.Errorf("MatchString failure on %#q matching %q: %t should be %t", expr, str, m, len(match) > 0)
 	}
 	// now try bytes
-	m = re.Match(strings.Bytes(str));
+	m = re.Match(strings.Bytes(str))
 	if m != (len(match) > 0) {
 		t.Errorf("Match failure on %#q matching %q: %t should be %t", expr, str, m, len(match) > 0)
 	}
@@ -204,20 +204,20 @@ func matchTest(t *testing.T, expr string, str string, match []int) {
 
 func TestMatch(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
-		test := &matches[i];
-		matchTest(t, test.re, test.text, test.match);
+		test := &matches[i]
+		matchTest(t, test.re, test.text, test.match)
 	}
 }
 
 func TestMatchStrings(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
-		test := &matches[i];
-		matchTest(t, test.re, test.text, test.match);
+		test := &matches[i]
+		matchTest(t, test.re, test.text, test.match)
 	}
 }
 
 func matchFunctionTest(t *testing.T, expr string, str string, match []int) {
-	m, err := MatchString(expr, str);
+	m, err := MatchString(expr, str)
 	if err == nil {
 		return
 	}
@@ -228,13 +228,13 @@ func matchFunctionTest(t *testing.T, expr string, str string, match []int) {
 
 func TestMatchFunction(t *testing.T) {
 	for i := 0; i < len(matches); i++ {
-		test := &matches[i];
-		matchFunctionTest(t, test.re, test.text, test.match);
+		test := &matches[i]
+		matchFunctionTest(t, test.re, test.text, test.match)
 	}
 }
 
 type ReplaceTest struct {
-	pattern, replacement, input, output string;
+	pattern, replacement, input, output string
 }
 
 var replaceTests = []ReplaceTest{
@@ -301,18 +301,18 @@ var replaceTests = []ReplaceTest{
 
 func TestReplaceAll(t *testing.T) {
 	for _, tc := range replaceTests {
-		re, err := Compile(tc.pattern);
+		re, err := Compile(tc.pattern)
 		if err != nil {
-			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err);
-			continue;
+			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
+			continue
 		}
-		actual := re.ReplaceAllString(tc.input, tc.replacement);
+		actual := re.ReplaceAllString(tc.input, tc.replacement)
 		if actual != tc.output {
 			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
 		}
 		// now try bytes
-		actual = string(re.ReplaceAll(strings.Bytes(tc.input), strings.Bytes(tc.replacement)));
+		actual = string(re.ReplaceAll(strings.Bytes(tc.input), strings.Bytes(tc.replacement)))
 		if actual != tc.output {
 			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
@@ -321,7 +321,7 @@ func TestReplaceAll(t *testing.T) {
 }
 
 type QuoteMetaTest struct {
-	pattern, output string;
+	pattern, output string
 }
 
 var quoteMetaTests = []QuoteMetaTest{
@@ -333,25 +333,25 @@ var quoteMetaTests = []QuoteMetaTest{
 func TestQuoteMeta(t *testing.T) {
 	for _, tc := range quoteMetaTests {
 		// Verify that QuoteMeta returns the expected string.
-		quoted := QuoteMeta(tc.pattern);
+		quoted := QuoteMeta(tc.pattern)
 		if quoted != tc.output {
 			t.Errorf("QuoteMeta(`%s`) = `%s`; want `%s`",
-				tc.pattern, quoted, tc.output);
-			continue;
+				tc.pattern, quoted, tc.output)
+			continue
 		}
 
 		// Verify that the quoted string is in fact treated as expected
 		// by Compile -- i.e. that it matches the original, unquoted string.
 		if tc.pattern != "" {
-			re, err := Compile(quoted);
+			re, err := Compile(quoted)
 			if err != nil {
-				t.Errorf("Unexpected error compiling QuoteMeta(`%s`): %v", tc.pattern, err);
-				continue;
+				t.Errorf("Unexpected error compiling QuoteMeta(`%s`): %v", tc.pattern, err)
+				continue
 			}
-			src := "abc" + tc.pattern + "def";
-			repl := "xyz";
-			replaced := re.ReplaceAllString(src, repl);
-			expected := "abcxyzdef";
+			src := "abc" + tc.pattern + "def"
+			repl := "xyz"
+			replaced := re.ReplaceAllString(src, repl)
+			expected := "abcxyzdef"
 			if replaced != expected {
 				t.Errorf("QuoteMeta(`%s`).Replace(`%s`,`%s`) = `%s`; want `%s`",
 					tc.pattern, src, repl, replaced, expected)
@@ -361,11 +361,11 @@ func TestQuoteMeta(t *testing.T) {
 }
 
 type matchCase struct {
-	matchfunc	string;
-	input		string;
-	n		int;
-	regexp		string;
-	expected	[]string;
+	matchfunc string
+	input     string
+	n         int
+	regexp    string
+	expected  []string
 }
 
 var matchCases = []matchCase{
@@ -392,90 +392,90 @@ func printStringSlice(t *testing.T, s []string) {
 }
 
 func TestAllMatches(t *testing.T) {
-	ch := make(chan matchCase);
+	ch := make(chan matchCase)
 	go func() {
 		for _, c := range matchCases {
-			ch <- c;
+			ch <- c
 			stringCase := matchCase{
 				"string" + c.matchfunc,
 				c.input,
 				c.n,
 				c.regexp,
 				c.expected,
-			};
-			ch <- stringCase;
+			}
+			ch <- stringCase
 		}
-		close(ch);
-	}();
+		close(ch)
+	}()
 
 	for c := range ch {
-		var result []string;
-		re, _ := Compile(c.regexp);
+		var result []string
+		re, _ := Compile(c.regexp)
 
 		switch c.matchfunc {
 		case "matchit":
-			result = make([]string, len(c.input)+1);
-			i := 0;
-			b := strings.Bytes(c.input);
+			result = make([]string, len(c.input)+1)
+			i := 0
+			b := strings.Bytes(c.input)
 			for match := range re.AllMatchesIter(b, c.n) {
-				result[i] = string(match);
-				i++;
+				result[i] = string(match)
+				i++
 			}
-			result = result[0:i];
+			result = result[0:i]
 		case "stringmatchit":
-			result = make([]string, len(c.input)+1);
-			i := 0;
+			result = make([]string, len(c.input)+1)
+			i := 0
 			for match := range re.AllMatchesStringIter(c.input, c.n) {
-				result[i] = match;
-				i++;
+				result[i] = match
+				i++
 			}
-			result = result[0:i];
+			result = result[0:i]
 		case "match":
-			result = make([]string, len(c.input)+1);
-			b := strings.Bytes(c.input);
-			i := 0;
+			result = make([]string, len(c.input)+1)
+			b := strings.Bytes(c.input)
+			i := 0
 			for _, match := range re.AllMatches(b, c.n) {
-				result[i] = string(match);
-				i++;
+				result[i] = string(match)
+				i++
 			}
-			result = result[0:i];
+			result = result[0:i]
 		case "stringmatch":
 			result = re.AllMatchesString(c.input, c.n)
 		}
 
 		if !equalStrings(result, c.expected) {
 			t.Errorf("testing '%s'.%s('%s', %d), expected: ",
-				c.regexp, c.matchfunc, c.input, c.n);
-			printStringSlice(t, c.expected);
-			t.Log("got: ");
-			printStringSlice(t, result);
-			t.Log("\n");
+				c.regexp, c.matchfunc, c.input, c.n)
+			printStringSlice(t, c.expected)
+			t.Log("got: ")
+			printStringSlice(t, result)
+			t.Log("\n")
 		}
 	}
 }
 
 func BenchmarkLiteral(b *testing.B) {
-	x := strings.Repeat("x", 50);
-	b.StopTimer();
-	re, _ := Compile(x);
-	b.StartTimer();
+	x := strings.Repeat("x", 50)
+	b.StopTimer()
+	re, _ := Compile(x)
+	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		if !re.MatchString(x) {
-			println("no match!");
-			break;
+			println("no match!")
+			break
 		}
 	}
 }
 
 func BenchmarkNotLiteral(b *testing.B) {
-	x := strings.Repeat("x", 49);
-	b.StopTimer();
-	re, _ := Compile("^" + x);
-	b.StartTimer();
+	x := strings.Repeat("x", 49)
+	b.StopTimer()
+	re, _ := Compile("^" + x)
+	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		if !re.MatchString(x) {
-			println("no match!");
-			break;
+			println("no match!")
+			break
 		}
 	}
 }

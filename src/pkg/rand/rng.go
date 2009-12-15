@@ -12,14 +12,14 @@ package rand
  */
 
 const (
-	_LEN	= 607;
-	_TAP	= 273;
-	_MAX	= 1 << 63;
-	_MASK	= _MAX - 1;
-	_A	= 48271;
-	_M	= (1 << 31) - 1;
-	_Q	= 44488;
-	_R	= 3399;
+	_LEN  = 607
+	_TAP  = 273
+	_MAX  = 1 << 63
+	_MASK = _MAX - 1
+	_A    = 48271
+	_M    = (1 << 31) - 1
+	_Q    = 44488
+	_R    = 3399
 )
 
 var (
@@ -179,32 +179,32 @@ var (
 		4922828954023452664, 2879211533496425641, 5896236396443472108, 8465043815351752425,
 		7329020396871624740, 8915471717014488588, 2944902635677463047, 7052079073493465134,
 		8382142935188824023, 9103922860780351547, 4152330101494654406,
-	};
+	}
 )
 
 type rngSource struct {
-	tap	int;		// index into vec
-	feed	int;		// index into vec
-	vec	[_LEN]int64;	// current feedback register
+	tap  int         // index into vec
+	feed int         // index into vec
+	vec  [_LEN]int64 // current feedback register
 }
 
 // seed rng x[n+1] = 48271 * x[n] mod (2**31 - 1)
 func seedrand(x int32) int32 {
-	hi := x / _Q;
-	lo := x % _Q;
-	x = _A*lo - _R*hi;
+	hi := x / _Q
+	lo := x % _Q
+	x = _A*lo - _R*hi
 	if x < 0 {
 		x += _M
 	}
-	return x;
+	return x
 }
 
 // Seed uses the provided seed value to initialize the generator to a deterministic state.
 func (rng *rngSource) Seed(seed int64) {
-	rng.tap = 0;
-	rng.feed = _LEN - _TAP;
+	rng.tap = 0
+	rng.feed = _LEN - _TAP
 
-	seed = seed % _M;
+	seed = seed % _M
 	if seed < 0 {
 		seed += _M
 	}
@@ -212,35 +212,35 @@ func (rng *rngSource) Seed(seed int64) {
 		seed = 89482311
 	}
 
-	x := int32(seed);
+	x := int32(seed)
 	for i := -20; i < _LEN; i++ {
-		x = seedrand(x);
+		x = seedrand(x)
 		if i >= 0 {
-			var u int64;
-			u = int64(x) << 40;
-			x = seedrand(x);
-			u ^= int64(x) << 20;
-			x = seedrand(x);
-			u ^= int64(x);
-			u ^= rng_cooked[i];
-			rng.vec[i] = u & _MASK;
+			var u int64
+			u = int64(x) << 40
+			x = seedrand(x)
+			u ^= int64(x) << 20
+			x = seedrand(x)
+			u ^= int64(x)
+			u ^= rng_cooked[i]
+			rng.vec[i] = u & _MASK
 		}
 	}
 }
 
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
 func (rng *rngSource) Int63() int64 {
-	rng.tap--;
+	rng.tap--
 	if rng.tap < 0 {
 		rng.tap += _LEN
 	}
 
-	rng.feed--;
+	rng.feed--
 	if rng.feed < 0 {
 		rng.feed += _LEN
 	}
 
-	x := (rng.vec[rng.feed] + rng.vec[rng.tap]) & _MASK;
-	rng.vec[rng.feed] = x;
-	return x;
+	x := (rng.vec[rng.feed] + rng.vec[rng.tap]) & _MASK
+	rng.vec[rng.feed] = x
+	return x
 }
