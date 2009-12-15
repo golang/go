@@ -5,14 +5,14 @@
 package proc
 
 import (
-	"os";
-	"strconv";
-	"syscall";
+	"os"
+	"strconv"
+	"syscall"
 )
 
 type _386Regs struct {
-	syscall.PtraceRegs;
-	setter	func(*syscall.PtraceRegs) os.Error;
+	syscall.PtraceRegs
+	setter func(*syscall.PtraceRegs) os.Error
 }
 
 var names = [...]string{
@@ -34,11 +34,11 @@ var names = [...]string{
 	"gs",
 }
 
-func (r *_386Regs) PC() Word	{ return Word(r.Eip) }
+func (r *_386Regs) PC() Word { return Word(r.Eip) }
 
 func (r *_386Regs) SetPC(val Word) os.Error {
-	r.Eip = int32(val);
-	return r.setter(&r.PtraceRegs);
+	r.Eip = int32(val)
+	return r.setter(&r.PtraceRegs)
 }
 
 func (r *_386Regs) Link() Word {
@@ -46,16 +46,16 @@ func (r *_386Regs) Link() Word {
 	panic("No link register")
 }
 
-func (r *_386Regs) SetLink(val Word) os.Error	{ panic("No link register") }
+func (r *_386Regs) SetLink(val Word) os.Error { panic("No link register") }
 
-func (r *_386Regs) SP() Word	{ return Word(r.Esp) }
+func (r *_386Regs) SP() Word { return Word(r.Esp) }
 
 func (r *_386Regs) SetSP(val Word) os.Error {
-	r.Esp = int32(val);
-	return r.setter(&r.PtraceRegs);
+	r.Esp = int32(val)
+	return r.setter(&r.PtraceRegs)
 }
 
-func (r *_386Regs) Names() []string	{ return &names }
+func (r *_386Regs) Names() []string { return &names }
 
 func (r *_386Regs) Get(i int) Word {
 	switch i {
@@ -92,7 +92,7 @@ func (r *_386Regs) Get(i int) Word {
 	case 15:
 		return Word(r.Gs)
 	}
-	panic("invalid register index ", strconv.Itoa(i));
+	panic("invalid register index ", strconv.Itoa(i))
 }
 
 func (r *_386Regs) Set(i int, val Word) os.Error {
@@ -132,12 +132,12 @@ func (r *_386Regs) Set(i int, val Word) os.Error {
 	default:
 		panic("invalid register index ", strconv.Itoa(i))
 	}
-	return r.setter(&r.PtraceRegs);
+	return r.setter(&r.PtraceRegs)
 }
 
 func newRegs(regs *syscall.PtraceRegs, setter func(*syscall.PtraceRegs) os.Error) Regs {
-	res := _386Regs{};
-	res.PtraceRegs = *regs;
-	res.setter = setter;
-	return &res;
+	res := _386Regs{}
+	res.PtraceRegs = *regs
+	res.setter = setter
+	return &res
 }

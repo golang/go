@@ -9,13 +9,13 @@
 package iterable
 
 import (
-	"container/list";
-	"container/vector";
+	"container/list"
+	"container/vector"
 )
 
 type Iterable interface {
 	// Iter should return a fresh channel each time it is called.
-	Iter() <-chan interface{};
+	Iter() <-chan interface{}
 }
 
 func not(f func(interface{}) bool) (func(interface{}) bool) {
@@ -29,7 +29,7 @@ func All(iter Iterable, f func(interface{}) bool) bool {
 			return false
 		}
 	}
-	return true;
+	return true
 }
 
 // Any tests whether f is true for at least one element of iter.
@@ -39,18 +39,18 @@ func Any(iter Iterable, f func(interface{}) bool) bool {
 
 // Data returns a slice containing the elements of iter.
 func Data(iter Iterable) []interface{} {
-	vec := new(vector.Vector);
+	vec := new(vector.Vector)
 	for e := range iter.Iter() {
 		vec.Push(e)
 	}
-	return vec.Data();
+	return vec.Data()
 }
 
 // filteredIterable is a struct that implements Iterable with each element
 // passed through a filter.
 type filteredIterable struct {
-	it	Iterable;
-	f	func(interface{}) bool;
+	it Iterable
+	f  func(interface{}) bool
 }
 
 func (f *filteredIterable) iterate(out chan<- interface{}) {
@@ -59,13 +59,13 @@ func (f *filteredIterable) iterate(out chan<- interface{}) {
 			out <- e
 		}
 	}
-	close(out);
+	close(out)
 }
 
 func (f *filteredIterable) Iter() <-chan interface{} {
-	ch := make(chan interface{});
-	go f.iterate(ch);
-	return ch;
+	ch := make(chan interface{})
+	go f.iterate(ch)
+	return ch
 }
 
 // Filter returns an Iterable that returns the elements of iter that satisfy f.
@@ -79,7 +79,7 @@ func Find(iter Iterable, f func(interface{}) bool) interface{} {
 	for e := range Filter(iter, f).Iter() {
 		return e
 	}
-	return nil;
+	return nil
 }
 
 // Injector is a type representing a function that takes two arguments,
@@ -96,30 +96,30 @@ type Injector func(interface{}, interface{}) interface{}
 //                          func(ax interface {}, x interface {}) interface {} {
 //                            return ax.(int) + x.(int) }).(int)
 func Inject(iter Iterable, initial interface{}, f Injector) interface{} {
-	acc := initial;
+	acc := initial
 	for e := range iter.Iter() {
 		acc = f(acc, e)
 	}
-	return acc;
+	return acc
 }
 
 // mappedIterable is a helper struct that implements Iterable, returned by Map.
 type mappedIterable struct {
-	it	Iterable;
-	f	func(interface{}) interface{};
+	it Iterable
+	f  func(interface{}) interface{}
 }
 
 func (m *mappedIterable) iterate(out chan<- interface{}) {
 	for e := range m.it.Iter() {
 		out <- m.f(e)
 	}
-	close(out);
+	close(out)
 }
 
 func (m *mappedIterable) Iter() <-chan interface{} {
-	ch := make(chan interface{});
-	go m.iterate(ch);
-	return ch;
+	ch := make(chan interface{})
+	go m.iterate(ch)
+	return ch
 }
 
 // Map returns an Iterable that returns the result of applying f to each
@@ -139,13 +139,13 @@ type iterFunc func(chan<- interface{})
 
 // provide the Iterable interface
 func (v iterFunc) Iter() <-chan interface{} {
-	ch := make(chan interface{});
-	go v(ch);
-	return ch;
+	ch := make(chan interface{})
+	go v(ch)
+	return ch
 }
 
 // Take returns an Iterable that contains the first n elements of iter.
-func Take(iter Iterable, n int) Iterable	{ return Slice(iter, 0, n) }
+func Take(iter Iterable, n int) Iterable { return Slice(iter, 0, n) }
 
 // TakeWhile returns an Iterable that contains elements from iter while f is true.
 func TakeWhile(iter Iterable, f func(interface{}) bool) Iterable {
@@ -154,41 +154,41 @@ func TakeWhile(iter Iterable, f func(interface{}) bool) Iterable {
 			if !f(v) {
 				break
 			}
-			ch <- v;
+			ch <- v
 		}
-		close(ch);
+		close(ch)
 	})
 }
 
 // Drop returns an Iterable that returns each element of iter after the first n elements.
 func Drop(iter Iterable, n int) Iterable {
 	return iterFunc(func(ch chan<- interface{}) {
-		m := n;
+		m := n
 		for v := range iter.Iter() {
 			if m > 0 {
-				m--;
-				continue;
+				m--
+				continue
 			}
-			ch <- v;
+			ch <- v
 		}
-		close(ch);
+		close(ch)
 	})
 }
 
 // DropWhile returns an Iterable that returns each element of iter after the initial sequence for which f returns true.
 func DropWhile(iter Iterable, f func(interface{}) bool) Iterable {
 	return iterFunc(func(ch chan<- interface{}) {
-		drop := true;
+		drop := true
 		for v := range iter.Iter() {
 			if drop {
 				if f(v) {
 					continue
 				}
-				drop = false;
+				drop = false
 			}
-			ch <- v;
+			ch <- v
 		}
-		close(ch);
+		close(ch)
 	})
 }
 
@@ -211,7 +211,7 @@ func Chain(args []Iterable) Iterable {
 				ch <- v
 			}
 		}
-		close(ch);
+		close(ch)
 	})
 }
 
@@ -220,23 +220,23 @@ func Chain(args []Iterable) Iterable {
 // the lengths of the input Iterables.
 func Zip(args []Iterable) Iterable {
 	return iterFunc(func(ch chan<- interface{}) {
-		defer close(ch);
+		defer close(ch)
 		if len(args) == 0 {
 			return
 		}
-		iters := make([]<-chan interface{}, len(args));
+		iters := make([]<-chan interface{}, len(args))
 		for i := 0; i < len(iters); i++ {
 			iters[i] = args[i].Iter()
 		}
 		for {
-			out := make([]interface{}, len(args));
+			out := make([]interface{}, len(args))
 			for i, v := range iters {
-				out[i] = <-v;
+				out[i] = <-v
 				if closed(v) {
 					return
 				}
 			}
-			ch <- out;
+			ch <- out
 		}
 	})
 }
@@ -244,16 +244,16 @@ func Zip(args []Iterable) Iterable {
 // ZipWith returns an Iterable containing the result of executing f using arguments read from a and b.
 func ZipWith2(f func(c, d interface{}) interface{}, a, b Iterable) Iterable {
 	return Map(Zip([]Iterable{a, b}), func(a1 interface{}) interface{} {
-		arr := a1.([]interface{});
-		return f(arr[0], arr[1]);
+		arr := a1.([]interface{})
+		return f(arr[0], arr[1])
 	})
 }
 
 // ZipWith returns an Iterable containing the result of executing f using arguments read from a, b and c.
 func ZipWith3(f func(d, e, f interface{}) interface{}, a, b, c Iterable) Iterable {
 	return Map(Zip([]Iterable{a, b, c}), func(a1 interface{}) interface{} {
-		arr := a1.([]interface{});
-		return f(arr[0], arr[1], arr[2]);
+		arr := a1.([]interface{})
+		return f(arr[0], arr[1], arr[2])
 	})
 }
 
@@ -261,8 +261,8 @@ func ZipWith3(f func(d, e, f interface{}) interface{}, a, b, c Iterable) Iterabl
 // with indexes in [start, stop).
 func Slice(iter Iterable, start, stop int) Iterable {
 	return iterFunc(func(ch chan<- interface{}) {
-		defer close(ch);
-		i := 0;
+		defer close(ch)
+		i := 0
 		for v := range iter.Iter() {
 			switch {
 			case i >= stop:
@@ -270,7 +270,7 @@ func Slice(iter Iterable, start, stop int) Iterable {
 			case i >= start:
 				ch <- v
 			}
-			i++;
+			i++
 		}
 	})
 }
@@ -290,23 +290,23 @@ func RepeatTimes(v interface{}, n int) Iterable {
 		for i := 0; i < n; i++ {
 			ch <- v
 		}
-		close(ch);
+		close(ch)
 	})
 }
 
 // Group is the type for elements returned by the GroupBy function.
 type Group struct {
-	Key	interface{};	// key value for matching items
-	Vals	Iterable;	// Iterable for receiving values in the group
+	Key  interface{} // key value for matching items
+	Vals Iterable    // Iterable for receiving values in the group
 }
 
 // Key defines the interface required by the GroupBy function.
 type Grouper interface {
 	// Return the key for the given value
-	Key(interface{}) interface{};
+	Key(interface{}) interface{}
 
 	// Compute equality for the given keys
-	Equal(a, b interface{}) bool;
+	Equal(a, b interface{}) bool
 }
 
 // GroupBy combines sequences of logically identical values from iter using k
@@ -317,23 +317,23 @@ type Grouper interface {
 func GroupBy(iter Iterable, k Grouper) Iterable {
 	return iterFunc(func(ch chan<- interface{}) {
 		var curkey interface{}
-		var lst *list.List;
+		var lst *list.List
 		// Basic strategy is to read one group at a time into a list prior to emitting the Group value
 		for v := range iter.Iter() {
-			kv := k.Key(v);
+			kv := k.Key(v)
 			if lst == nil || !k.Equal(curkey, kv) {
 				if lst != nil {
 					ch <- Group{curkey, lst}
 				}
-				lst = list.New();
-				curkey = kv;
+				lst = list.New()
+				curkey = kv
 			}
-			lst.PushBack(v);
+			lst.PushBack(v)
 		}
 		if lst != nil {
 			ch <- Group{curkey, lst}
 		}
-		close(ch);
+		close(ch)
 	})
 }
 

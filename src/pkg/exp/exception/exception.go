@@ -11,8 +11,8 @@
 package exception
 
 import (
-	"fmt";
-	"runtime";
+	"fmt"
+	"runtime"
 )
 
 // A Handler function handles an arbitrary exception value x.
@@ -20,7 +20,7 @@ type Handler func(x interface{})
 
 // An Exception carries an exception value.
 type Exception struct {
-	Value interface{};	// Value may be the nil exception
+	Value interface{} // Value may be the nil exception
 }
 
 // Try invokes a function f with a Handler to throw exceptions.
@@ -51,18 +51,18 @@ type Exception struct {
 //	})
 //
 func Try(f func(throw Handler)) *Exception {
-	h := make(chan *Exception);
+	h := make(chan *Exception)
 
 	// execute try block
 	go func() {
 		f(func(x interface{}) {
-			h <- &Exception{x};
-			runtime.Goexit();
-		});
-		h <- nil;	// clean termination
-	}();
+			h <- &Exception{x}
+			runtime.Goexit()
+		})
+		h <- nil // clean termination
+	}()
 
-	return <-h;
+	return <-h
 }
 
 
@@ -79,5 +79,5 @@ func (x *Exception) String() string {
 	if x != nil {
 		return fmt.Sprintf("exception: %v", x.Value)
 	}
-	return "";
+	return ""
 }

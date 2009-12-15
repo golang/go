@@ -5,20 +5,20 @@
 package exec
 
 import (
-	"io";
-	"io/ioutil";
-	"testing";
+	"io"
+	"io/ioutil"
+	"testing"
 )
 
 func TestRunCat(t *testing.T) {
 	cmd, err := Run("/bin/cat", []string{"cat"}, nil,
-		Pipe, Pipe, DevNull);
+		Pipe, Pipe, DevNull)
 	if err != nil {
 		t.Fatalf("opencmd /bin/cat: %v", err)
 	}
-	io.WriteString(cmd.Stdin, "hello, world\n");
-	cmd.Stdin.Close();
-	buf, err := ioutil.ReadAll(cmd.Stdout);
+	io.WriteString(cmd.Stdin, "hello, world\n")
+	cmd.Stdin.Close()
+	buf, err := ioutil.ReadAll(cmd.Stdout)
 	if err != nil {
 		t.Fatalf("reading from /bin/cat: %v", err)
 	}
@@ -32,11 +32,11 @@ func TestRunCat(t *testing.T) {
 
 func TestRunEcho(t *testing.T) {
 	cmd, err := Run("/bin/echo", []string{"echo", "hello", "world"}, nil,
-		DevNull, Pipe, DevNull);
+		DevNull, Pipe, DevNull)
 	if err != nil {
 		t.Fatalf("opencmd /bin/echo: %v", err)
 	}
-	buf, err := ioutil.ReadAll(cmd.Stdout);
+	buf, err := ioutil.ReadAll(cmd.Stdout)
 	if err != nil {
 		t.Fatalf("reading from /bin/echo: %v", err)
 	}

@@ -14,14 +14,14 @@ import "os"
 
 // a single entry's description: a sequence of attributes
 type abbrev struct {
-	tag		Tag;
-	children	bool;
-	field		[]afield;
+	tag      Tag
+	children bool
+	field    []afield
 }
 
 type afield struct {
-	attr	Attr;
-	fmt	format;
+	attr Attr
+	fmt  format
 }
 
 // a map from entry format ids to their descriptions
@@ -34,74 +34,74 @@ func (d *Data) parseAbbrev(off uint32) (abbrevTable, os.Error) {
 		return m, nil
 	}
 
-	data := d.abbrev;
+	data := d.abbrev
 	if off > uint32(len(data)) {
 		data = nil
 	} else {
 		data = data[off:]
 	}
-	b := makeBuf(d, "abbrev", 0, data, 0);
+	b := makeBuf(d, "abbrev", 0, data, 0)
 
 	// Error handling is simplified by the buf getters
 	// returning an endless stream of 0s after an error.
-	m := make(abbrevTable);
+	m := make(abbrevTable)
 	for {
 		// Table ends with id == 0.
-		id := uint32(b.uint());
+		id := uint32(b.uint())
 		if id == 0 {
 			break
 		}
 
 		// Walk over attributes, counting.
-		n := 0;
-		b1 := b;	// Read from copy of b.
-		b1.uint();
-		b1.uint8();
+		n := 0
+		b1 := b // Read from copy of b.
+		b1.uint()
+		b1.uint8()
 		for {
-			tag := b1.uint();
-			fmt := b1.uint();
+			tag := b1.uint()
+			fmt := b1.uint()
 			if tag == 0 && fmt == 0 {
 				break
 			}
-			n++;
+			n++
 		}
 		if b1.err != nil {
 			return nil, b1.err
 		}
 
 		// Walk over attributes again, this time writing them down.
-		var a abbrev;
-		a.tag = Tag(b.uint());
-		a.children = b.uint8() != 0;
-		a.field = make([]afield, n);
+		var a abbrev
+		a.tag = Tag(b.uint())
+		a.children = b.uint8() != 0
+		a.field = make([]afield, n)
 		for i := range a.field {
-			a.field[i].attr = Attr(b.uint());
-			a.field[i].fmt = format(b.uint());
+			a.field[i].attr = Attr(b.uint())
+			a.field[i].fmt = format(b.uint())
 		}
-		b.uint();
-		b.uint();
+		b.uint()
+		b.uint()
 
-		m[id] = a;
+		m[id] = a
 	}
 	if b.err != nil {
 		return nil, b.err
 	}
-	d.abbrevCache[off] = m;
-	return m, nil;
+	d.abbrevCache[off] = m
+	return m, nil
 }
 
 // An entry is a sequence of attribute/value pairs.
 type Entry struct {
-	Offset		Offset;	// offset of Entry in DWARF info
-	Tag		Tag;	// tag (kind of Entry)
-	Children	bool;	// whether Entry is followed by children
-	Field		[]Field;
+	Offset   Offset // offset of Entry in DWARF info
+	Tag      Tag    // tag (kind of Entry)
+	Children bool   // whether Entry is followed by children
+	Field    []Field
 }
 
 // A Field is a single attribute/value pair in an Entry.
 type Field struct {
-	Attr	Attr;
-	Val	interface{};
+	Attr Attr
+	Val  interface{}
 }
 
 // Val returns the value associated with attribute Attr in Entry,
@@ -117,7 +117,7 @@ func (e *Entry) Val(a Attr) interface{} {
 			return f.Val
 		}
 	}
-	return nil;
+	return nil
 }
 
 // An Offset represents the location of an Entry within the DWARF info.
@@ -127,25 +127,25 @@ type Offset uint32
 // Entry reads a single entry from buf, decoding
 // according to the given abbreviation table.
 func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
-	off := b.off;
-	id := uint32(b.uint());
+	off := b.off
+	id := uint32(b.uint())
 	if id == 0 {
 		return &Entry{}
 	}
-	a, ok := atab[id];
+	a, ok := atab[id]
 	if !ok {
-		b.error("unknown abbreviation table index");
-		return nil;
+		b.error("unknown abbreviation table index")
+		return nil
 	}
 	e := &Entry{
 		Offset: off,
 		Tag: a.tag,
 		Children: a.children,
 		Field: make([]Field, len(a.field)),
-	};
+	}
 	for i := range e.Field {
-		e.Field[i].Attr = a.field[i].attr;
-		fmt := a.field[i].fmt;
+		e.Field[i].Attr = a.field[i].attr
+		fmt := a.field[i].fmt
 		if fmt == formIndirect {
 			fmt = format(b.uint())
 		}
@@ -204,24 +204,24 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 		case formString:
 			val = b.string()
 		case formStrp:
-			off := b.uint32();	// offset into .debug_str
+			off := b.uint32() // offset into .debug_str
 			if b.err != nil {
 				return nil
 			}
-			b1 := makeBuf(b.dwarf, "str", 0, b.dwarf.str, 0);
-			b1.skip(int(off));
-			val = b1.string();
+			b1 := makeBuf(b.dwarf, "str", 0, b.dwarf.str, 0)
+			b1.skip(int(off))
+			val = b1.string()
 			if b1.err != nil {
-				b.err = b1.err;
-				return nil;
+				b.err = b1.err
+				return nil
 			}
 		}
-		e.Field[i].Val = val;
+		e.Field[i].Val = val
 	}
 	if b.err != nil {
 		return nil
 	}
-	return e;
+	return e
 }
 
 // A Reader allows reading Entry structures from a DWARF ``info'' section.
@@ -230,58 +230,58 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 // If an entry has children, its Children field will be true, and the children
 // follow, terminated by an Entry with Tag 0.
 type Reader struct {
-	b		buf;
-	d		*Data;
-	err		os.Error;
-	unit		int;
-	lastChildren	bool;	// .Children of last entry returned by Next
-	lastSibling	Offset;	// .Val(AttrSibling) of last entry returned by Next
+	b            buf
+	d            *Data
+	err          os.Error
+	unit         int
+	lastChildren bool   // .Children of last entry returned by Next
+	lastSibling  Offset // .Val(AttrSibling) of last entry returned by Next
 }
 
 // Reader returns a new Reader for Data.
 // The reader is positioned at byte offset 0 in the DWARF ``info'' section.
 func (d *Data) Reader() *Reader {
-	r := &Reader{d: d};
-	r.Seek(0);
-	return r;
+	r := &Reader{d: d}
+	r.Seek(0)
+	return r
 }
 
 // Seek positions the Reader at offset off in the encoded entry stream.
 // Offset 0 can be used to denote the first entry.
 func (r *Reader) Seek(off Offset) {
-	d := r.d;
-	r.err = nil;
-	r.lastChildren = false;
+	d := r.d
+	r.err = nil
+	r.lastChildren = false
 	if off == 0 {
 		if len(d.unit) == 0 {
 			return
 		}
-		u := &d.unit[0];
-		r.unit = 0;
-		r.b = makeBuf(r.d, "info", u.off, u.data, u.addrsize);
-		return;
+		u := &d.unit[0]
+		r.unit = 0
+		r.b = makeBuf(r.d, "info", u.off, u.data, u.addrsize)
+		return
 	}
 
 	// TODO(rsc): binary search (maybe a new package)
-	var i int;
-	var u *unit;
+	var i int
+	var u *unit
 	for i = range d.unit {
-		u = &d.unit[i];
+		u = &d.unit[i]
 		if u.off <= off && off < u.off+Offset(len(u.data)) {
-			r.unit = i;
-			r.b = makeBuf(r.d, "info", off, u.data[off-u.off:], u.addrsize);
-			return;
+			r.unit = i
+			r.b = makeBuf(r.d, "info", off, u.data[off-u.off:], u.addrsize)
+			return
 		}
 	}
-	r.err = os.NewError("offset out of range");
+	r.err = os.NewError("offset out of range")
 }
 
 // maybeNextUnit advances to the next unit if this one is finished.
 func (r *Reader) maybeNextUnit() {
 	for len(r.b.data) == 0 && r.unit+1 < len(r.d.unit) {
-		r.unit++;
-		u := &r.d.unit[r.unit];
-		r.b = makeBuf(r.d, "info", u.off, u.data, u.addrsize);
+		r.unit++
+		u := &r.d.unit[r.unit]
+		r.b = makeBuf(r.d, "info", u.off, u.data, u.addrsize)
 	}
 }
 
@@ -293,25 +293,25 @@ func (r *Reader) Next() (*Entry, os.Error) {
 	if r.err != nil {
 		return nil, r.err
 	}
-	r.maybeNextUnit();
+	r.maybeNextUnit()
 	if len(r.b.data) == 0 {
 		return nil, nil
 	}
-	u := &r.d.unit[r.unit];
-	e := r.b.entry(u.atable, u.base);
+	u := &r.d.unit[r.unit]
+	e := r.b.entry(u.atable, u.base)
 	if r.b.err != nil {
-		r.err = r.b.err;
-		return nil, r.err;
+		r.err = r.b.err
+		return nil, r.err
 	}
 	if e != nil {
-		r.lastChildren = e.Children;
+		r.lastChildren = e.Children
 		if r.lastChildren {
 			r.lastSibling, _ = e.Val(AttrSibling).(Offset)
 		}
 	} else {
 		r.lastChildren = false
 	}
-	return e, nil;
+	return e, nil
 }
 
 // SkipChildren skips over the child entries associated with
@@ -327,12 +327,12 @@ func (r *Reader) SkipChildren() {
 	// sibling, so we can avoid decoding the
 	// child subtrees.
 	if r.lastSibling >= r.b.off {
-		r.Seek(r.lastSibling);
-		return;
+		r.Seek(r.lastSibling)
+		return
 	}
 
 	for {
-		e, err := r.Next();
+		e, err := r.Next()
 		if err != nil || e == nil || e.Tag == 0 {
 			break
 		}

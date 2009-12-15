@@ -15,12 +15,12 @@
 package main
 
 import (
-	"exp/draw";
-	"image";
-	"log";
-	"os";
-	"rand";
-	"time";
+	"exp/draw"
+	"image"
+	"log"
+	"os"
+	"rand"
+	"time"
 )
 
 /*
@@ -38,57 +38,57 @@ Cursor whitearrow = {
 */
 
 const (
-	CNone	= 0;
-	CBounds	= 1;
-	CPiece	= 2;
-	NX	= 10;
-	NY	= 20;
+	CNone   = 0
+	CBounds = 1
+	CPiece  = 2
+	NX      = 10
+	NY      = 20
 
-	NCOL	= 10;
+	NCOL = 10
 
-	MAXN	= 5;
+	MAXN = 5
 )
 
 var (
-	N				int;
-	display				draw.Context;
-	screen				draw.Image;
-	screenr				draw.Rectangle;
-	board				[NY][NX]byte;
-	rboard				draw.Rectangle;
-	pscore				draw.Point;
-	scoresz				draw.Point;
-	pcsz				= 32;
-	pos				draw.Point;
-	bbr, bb2r			draw.Rectangle;
-	bb, bbmask, bb2, bb2mask	*image.RGBA;
-	whitemask			image.Image;
-	br, br2				draw.Rectangle;
-	points				int;
-	dt				int;
-	DY				int;
-	DMOUSE				int;
-	lastmx				int;
-	mouse				draw.Mouse;
-	newscreen			bool;
-	timerc				<-chan int64;
-	suspc				chan bool;
-	mousec				chan draw.Mouse;
-	resizec				<-chan bool;
-	kbdc				chan int;
-	suspended			bool;
-	tsleep				int;
-	piece				*Piece;
-	pieces				[]Piece;
+	N                        int
+	display                  draw.Context
+	screen                   draw.Image
+	screenr                  draw.Rectangle
+	board                    [NY][NX]byte
+	rboard                   draw.Rectangle
+	pscore                   draw.Point
+	scoresz                  draw.Point
+	pcsz                     = 32
+	pos                      draw.Point
+	bbr, bb2r                draw.Rectangle
+	bb, bbmask, bb2, bb2mask *image.RGBA
+	whitemask                image.Image
+	br, br2                  draw.Rectangle
+	points                   int
+	dt                       int
+	DY                       int
+	DMOUSE                   int
+	lastmx                   int
+	mouse                    draw.Mouse
+	newscreen                bool
+	timerc                   <-chan int64
+	suspc                    chan bool
+	mousec                   chan draw.Mouse
+	resizec                  <-chan bool
+	kbdc                     chan int
+	suspended                bool
+	tsleep                   int
+	piece                    *Piece
+	pieces                   []Piece
 )
 
 type Piece struct {
-	rot	int;
-	tx	int;
-	sz	draw.Point;
-	d	[]draw.Point;
-	left	*Piece;
-	right	*Piece;
+	rot   int
+	tx    int
+	sz    draw.Point
+	d     []draw.Point
+	left  *Piece
+	right *Piece
 }
 
 var txbits = [NCOL][32]byte{
@@ -145,16 +145,16 @@ var txbits = [NCOL][32]byte{
 }
 
 var txpix = [NCOL]draw.Color{
-	draw.Yellow,		/* yellow */
-	draw.Cyan,		/* cyan */
-	draw.Green,		/* lime green */
-	draw.GreyBlue,		/* slate */
-	draw.Red,		/* red */
-	draw.GreyGreen,		/* olive green */
-	draw.Blue,		/* blue */
-	draw.Color(0xFF55AAFF),	/* pink */
-	draw.Color(0xFFAAFFFF),	/* lavender */
-	draw.Color(0xBB005DFF),	/* maroon */
+	draw.Yellow,            /* yellow */
+	draw.Cyan,              /* cyan */
+	draw.Green,             /* lime green */
+	draw.GreyBlue,          /* slate */
+	draw.Red,               /* red */
+	draw.GreyGreen,         /* olive green */
+	draw.Blue,              /* blue */
+	draw.Color(0xFF55AAFF), /* pink */
+	draw.Color(0xFFAAFFFF), /* lavender */
+	draw.Color(0xBB005DFF), /* maroon */
 }
 
 func movemouse() int {
@@ -165,7 +165,7 @@ func movemouse() int {
 
 func warp(p draw.Point, x int) int {
 	if !suspended && piece != nil {
-		x = pos.X + piece.sz.X*pcsz/2;
+		x = pos.X + piece.sz.X*pcsz/2
 		if p.Y < rboard.Min.Y {
 			p.Y = rboard.Min.Y
 		}
@@ -174,12 +174,12 @@ func warp(p draw.Point, x int) int {
 		}
 		//moveto(mousectl, draw.Pt(x, p.Y));
 	}
-	return x;
+	return x
 }
 
 func initPieces() {
 	for i := range pieces {
-		p := &pieces[i];
+		p := &pieces[i]
 		if p.rot == 3 {
 			p.right = &pieces[i-3]
 		} else {
@@ -194,27 +194,27 @@ func initPieces() {
 }
 
 func collide(pt draw.Point, p *Piece) bool {
-	pt.X = (pt.X - rboard.Min.X) / pcsz;
-	pt.Y = (pt.Y - rboard.Min.Y) / pcsz;
+	pt.X = (pt.X - rboard.Min.X) / pcsz
+	pt.Y = (pt.Y - rboard.Min.Y) / pcsz
 	for _, q := range p.d {
-		pt.X += q.X;
-		pt.Y += q.Y;
+		pt.X += q.X
+		pt.Y += q.Y
 		if pt.X < 0 || pt.X >= NX || pt.Y < 0 || pt.Y >= NY {
-			return true;
-			continue;
+			return true
+			continue
 		}
 		if board[pt.Y][pt.X] != 0 {
 			return true
 		}
 	}
-	return false;
+	return false
 }
 
 func collider(pt, pmax draw.Point) bool {
-	pi := (pt.X - rboard.Min.X) / pcsz;
-	pj := (pt.Y - rboard.Min.Y) / pcsz;
-	n := pmax.X / pcsz;
-	m := pmax.Y/pcsz + 1;
+	pi := (pt.X - rboard.Min.X) / pcsz
+	pj := (pt.Y - rboard.Min.Y) / pcsz
+	n := pmax.X / pcsz
+	m := pmax.Y/pcsz + 1
 	for i := pi; i < pi+n && i < NX; i++ {
 		for j := pj; j < pj+m && j < NY; j++ {
 			if board[j][i] != 0 {
@@ -222,34 +222,34 @@ func collider(pt, pmax draw.Point) bool {
 			}
 		}
 	}
-	return false;
+	return false
 }
 
 func setpiece(p *Piece) {
-	draw.Draw(bb, bbr, draw.White, nil, draw.ZP);
-	draw.Draw(bbmask, bbr, draw.Transparent, nil, draw.ZP);
-	br = draw.Rect(0, 0, 0, 0);
-	br2 = br;
-	piece = p;
+	draw.Draw(bb, bbr, draw.White, nil, draw.ZP)
+	draw.Draw(bbmask, bbr, draw.Transparent, nil, draw.ZP)
+	br = draw.Rect(0, 0, 0, 0)
+	br2 = br
+	piece = p
 	if p == nil {
 		return
 	}
-	var op draw.Point;
-	var r draw.Rectangle;
-	r.Min = bbr.Min;
+	var op draw.Point
+	var r draw.Rectangle
+	r.Min = bbr.Min
 	for i, pt := range p.d {
-		r.Min.X += pt.X * pcsz;
-		r.Min.Y += pt.Y * pcsz;
-		r.Max.X = r.Min.X + pcsz;
-		r.Max.Y = r.Min.Y + pcsz;
+		r.Min.X += pt.X * pcsz
+		r.Min.Y += pt.Y * pcsz
+		r.Max.X = r.Min.X + pcsz
+		r.Max.Y = r.Min.Y + pcsz
 		if i == 0 {
-			draw.Draw(bb, r, draw.Black, nil, draw.ZP);
-			draw.Draw(bb, r.Inset(1), txpix[piece.tx], nil, draw.ZP);
-			draw.Draw(bbmask, r, draw.Opaque, nil, draw.ZP);
-			op = r.Min;
+			draw.Draw(bb, r, draw.Black, nil, draw.ZP)
+			draw.Draw(bb, r.Inset(1), txpix[piece.tx], nil, draw.ZP)
+			draw.Draw(bbmask, r, draw.Opaque, nil, draw.ZP)
+			op = r.Min
 		} else {
-			draw.Draw(bb, r, bb, nil, op);
-			draw.Draw(bbmask, r, bbmask, nil, op);
+			draw.Draw(bb, r, bb, nil, op)
+			draw.Draw(bbmask, r, bbmask, nil, op)
 		}
 		if br.Max.X < r.Max.X {
 			br.Max.X = r.Max.X
@@ -258,66 +258,66 @@ func setpiece(p *Piece) {
 			br.Max.Y = r.Max.Y
 		}
 	}
-	br.Max = br.Max.Sub(bbr.Min);
-	delta := draw.Pt(0, DY);
-	br2.Max = br.Max.Add(delta);
-	r = br.Add(bb2r.Min);
-	r2 := br2.Add(bb2r.Min);
-	draw.Draw(bb2, r2, draw.White, nil, draw.ZP);
-	draw.Draw(bb2, r.Add(delta), bb, nil, bbr.Min);
-	draw.Draw(bb2mask, r2, draw.Transparent, nil, draw.ZP);
-	draw.Draw(bb2mask, r, draw.Opaque, bbmask, bbr.Min);
-	draw.Draw(bb2mask, r.Add(delta), draw.Opaque, bbmask, bbr.Min);
+	br.Max = br.Max.Sub(bbr.Min)
+	delta := draw.Pt(0, DY)
+	br2.Max = br.Max.Add(delta)
+	r = br.Add(bb2r.Min)
+	r2 := br2.Add(bb2r.Min)
+	draw.Draw(bb2, r2, draw.White, nil, draw.ZP)
+	draw.Draw(bb2, r.Add(delta), bb, nil, bbr.Min)
+	draw.Draw(bb2mask, r2, draw.Transparent, nil, draw.ZP)
+	draw.Draw(bb2mask, r, draw.Opaque, bbmask, bbr.Min)
+	draw.Draw(bb2mask, r.Add(delta), draw.Opaque, bbmask, bbr.Min)
 }
 
 func drawpiece() {
-	draw.Draw(screen, br.Add(pos), bb, bbmask, bbr.Min);
+	draw.Draw(screen, br.Add(pos), bb, bbmask, bbr.Min)
 	if suspended {
 		draw.Draw(screen, br.Add(pos), draw.White, whitemask, draw.ZP)
 	}
 }
 
 func undrawpiece() {
-	var mask image.Image;
+	var mask image.Image
 	if collider(pos, br.Max) {
 		mask = bbmask
 	}
-	draw.Draw(screen, br.Add(pos), draw.White, mask, bbr.Min);
+	draw.Draw(screen, br.Add(pos), draw.White, mask, bbr.Min)
 }
 
 func rest() {
-	pt := pos.Sub(rboard.Min).Div(pcsz);
+	pt := pos.Sub(rboard.Min).Div(pcsz)
 	for _, p := range piece.d {
-		pt.X += p.X;
-		pt.Y += p.Y;
-		board[pt.Y][pt.X] = byte(piece.tx + 16);
+		pt.X += p.X
+		pt.Y += p.Y
+		board[pt.Y][pt.X] = byte(piece.tx + 16)
 	}
 }
 
 func canfit(p *Piece) bool {
-	var dx = [...]int{0, -1, 1, -2, 2, -3, 3, 4, -4};
-	j := N + 1;
+	var dx = [...]int{0, -1, 1, -2, 2, -3, 3, 4, -4}
+	j := N + 1
 	if j >= 4 {
-		j = p.sz.X;
+		j = p.sz.X
 		if j < p.sz.Y {
 			j = p.sz.Y
 		}
-		j = 2*j - 1;
+		j = 2*j - 1
 	}
 	for i := 0; i < j; i++ {
-		var z draw.Point;
-		z.X = pos.X + dx[i]*pcsz;
-		z.Y = pos.Y;
+		var z draw.Point
+		z.X = pos.X + dx[i]*pcsz
+		z.Y = pos.Y
 		if !collide(z, p) {
-			z.Y = pos.Y + pcsz - 1;
+			z.Y = pos.Y + pcsz - 1
 			if !collide(z, p) {
-				undrawpiece();
-				pos.X = z.X;
-				return true;
+				undrawpiece()
+				pos.X = z.X
+				return true
 			}
 		}
 	}
-	return false;
+	return false
 }
 
 func score(p int) {
@@ -328,18 +328,18 @@ func score(p int) {
 }
 
 func drawsq(b draw.Image, p draw.Point, ptx int) {
-	var r draw.Rectangle;
-	r.Min = p;
-	r.Max.X = r.Min.X + pcsz;
-	r.Max.Y = r.Min.Y + pcsz;
-	draw.Draw(b, r, draw.Black, nil, draw.ZP);
-	draw.Draw(b, r.Inset(1), txpix[ptx], nil, draw.ZP);
+	var r draw.Rectangle
+	r.Min = p
+	r.Max.X = r.Min.X + pcsz
+	r.Max.Y = r.Min.Y + pcsz
+	draw.Draw(b, r, draw.Black, nil, draw.ZP)
+	draw.Draw(b, r.Inset(1), txpix[ptx], nil, draw.ZP)
 }
 
 func drawboard() {
-	draw.Border(screen, rboard.Inset(-2), 2, draw.Black, draw.ZP);
+	draw.Border(screen, rboard.Inset(-2), 2, draw.Black, draw.ZP)
 	draw.Draw(screen, draw.Rect(rboard.Min.X, rboard.Min.Y-2, rboard.Max.X, rboard.Min.Y),
-		draw.White, nil, draw.ZP);
+		draw.White, nil, draw.ZP)
 	for i := 0; i < NY; i++ {
 		for j := 0; j < NX; j++ {
 			if board[i][j] != 0 {
@@ -347,7 +347,7 @@ func drawboard() {
 			}
 		}
 	}
-	score(0);
+	score(0)
 	if suspended {
 		draw.Draw(screen, screenr, draw.White, whitemask, draw.ZP)
 	}
@@ -355,34 +355,34 @@ func drawboard() {
 
 func choosepiece() {
 	for {
-		i := rand.Intn(len(pieces));
-		setpiece(&pieces[i]);
-		pos = rboard.Min;
-		pos.X += rand.Intn(NX) * pcsz;
+		i := rand.Intn(len(pieces))
+		setpiece(&pieces[i])
+		pos = rboard.Min
+		pos.X += rand.Intn(NX) * pcsz
 		if !collide(draw.Pt(pos.X, pos.Y+pcsz-DY), piece) {
 			break
 		}
 	}
-	drawpiece();
-	display.FlushImage();
+	drawpiece()
+	display.FlushImage()
 }
 
 func movepiece() bool {
-	var mask image.Image;
+	var mask image.Image
 	if collide(draw.Pt(pos.X, pos.Y+pcsz), piece) {
 		return false
 	}
 	if collider(pos, br2.Max) {
 		mask = bb2mask
 	}
-	draw.Draw(screen, br2.Add(pos), bb2, mask, bb2r.Min);
-	pos.Y += DY;
-	display.FlushImage();
-	return true;
+	draw.Draw(screen, br2.Add(pos), bb2, mask, bb2r.Min)
+	pos.Y += DY
+	display.FlushImage()
+	return true
 }
 
 func suspend(s bool) {
-	suspended = s;
+	suspended = s
 	/*
 		if suspended {
 			setcursor(mousectl, &whitearrow);
@@ -393,26 +393,26 @@ func suspend(s bool) {
 	if !suspended {
 		drawpiece()
 	}
-	drawboard();
-	display.FlushImage();
+	drawboard()
+	display.FlushImage()
 }
 
 func pause(t int) {
-	display.FlushImage();
+	display.FlushImage()
 	for {
 		select {
 		case s := <-suspc:
 			if !suspended && s {
 				suspend(true)
 			} else if suspended && !s {
-				suspend(false);
-				lastmx = warp(mouse.Point, lastmx);
+				suspend(false)
+				lastmx = warp(mouse.Point, lastmx)
 			}
 		case <-timerc:
 			if suspended {
 				break
 			}
-			t -= tsleep;
+			t -= tsleep
 			if t < 0 {
 				return
 			}
@@ -425,93 +425,93 @@ func pause(t int) {
 }
 
 func horiz() bool {
-	var lev [MAXN]int;
-	h := 0;
+	var lev [MAXN]int
+	h := 0
 	for i := 0; i < NY; i++ {
 		for j := 0; board[i][j] != 0; j++ {
 			if j == NX-1 {
-				lev[h] = i;
-				h++;
-				break;
+				lev[h] = i
+				h++
+				break
 			}
 		}
 	}
 	if h == 0 {
 		return false
 	}
-	r := rboard;
-	newscreen = false;
+	r := rboard
+	newscreen = false
 	for j := 0; j < h; j++ {
-		r.Min.Y = rboard.Min.Y + lev[j]*pcsz;
-		r.Max.Y = r.Min.Y + pcsz;
-		draw.Draw(screen, r, draw.White, whitemask, draw.ZP);
-		display.FlushImage();
+		r.Min.Y = rboard.Min.Y + lev[j]*pcsz
+		r.Max.Y = r.Min.Y + pcsz
+		draw.Draw(screen, r, draw.White, whitemask, draw.ZP)
+		display.FlushImage()
 	}
-	PlaySound(whoosh);
+	PlaySound(whoosh)
 	for i := 0; i < 3; i++ {
-		pause(250);
+		pause(250)
 		if newscreen {
-			drawboard();
-			break;
+			drawboard()
+			break
 		}
 		for j := 0; j < h; j++ {
-			r.Min.Y = rboard.Min.Y + lev[j]*pcsz;
-			r.Max.Y = r.Min.Y + pcsz;
-			draw.Draw(screen, r, draw.White, whitemask, draw.ZP);
+			r.Min.Y = rboard.Min.Y + lev[j]*pcsz
+			r.Max.Y = r.Min.Y + pcsz
+			draw.Draw(screen, r, draw.White, whitemask, draw.ZP)
 		}
-		display.FlushImage();
+		display.FlushImage()
 	}
-	r = rboard;
+	r = rboard
 	for j := 0; j < h; j++ {
-		i := NY - lev[j] - 1;
-		score(250 + 10*i*i);
-		r.Min.Y = rboard.Min.Y;
-		r.Max.Y = rboard.Min.Y + lev[j]*pcsz;
-		draw.Draw(screen, r.Add(draw.Pt(0, pcsz)), screen, nil, r.Min);
-		r.Max.Y = rboard.Min.Y + pcsz;
-		draw.Draw(screen, r, draw.White, nil, draw.ZP);
+		i := NY - lev[j] - 1
+		score(250 + 10*i*i)
+		r.Min.Y = rboard.Min.Y
+		r.Max.Y = rboard.Min.Y + lev[j]*pcsz
+		draw.Draw(screen, r.Add(draw.Pt(0, pcsz)), screen, nil, r.Min)
+		r.Max.Y = rboard.Min.Y + pcsz
+		draw.Draw(screen, r, draw.White, nil, draw.ZP)
 		for k := lev[j] - 1; k >= 0; k-- {
 			board[k+1] = board[k]
 		}
-		board[0] = [NX]byte{};
+		board[0] = [NX]byte{}
 	}
-	display.FlushImage();
-	return true;
+	display.FlushImage()
+	return true
 }
 
 func mright() {
 	if !collide(draw.Pt(pos.X+pcsz, pos.Y), piece) &&
 		!collide(draw.Pt(pos.X+pcsz, pos.Y+pcsz-DY), piece) {
-		undrawpiece();
-		pos.X += pcsz;
-		drawpiece();
-		display.FlushImage();
+		undrawpiece()
+		pos.X += pcsz
+		drawpiece()
+		display.FlushImage()
 	}
 }
 
 func mleft() {
 	if !collide(draw.Pt(pos.X-pcsz, pos.Y), piece) &&
 		!collide(draw.Pt(pos.X-pcsz, pos.Y+pcsz-DY), piece) {
-		undrawpiece();
-		pos.X -= pcsz;
-		drawpiece();
-		display.FlushImage();
+		undrawpiece()
+		pos.X -= pcsz
+		drawpiece()
+		display.FlushImage()
 	}
 }
 
 func rright() {
 	if canfit(piece.right) {
-		setpiece(piece.right);
-		drawpiece();
-		display.FlushImage();
+		setpiece(piece.right)
+		drawpiece()
+		display.FlushImage()
 	}
 }
 
 func rleft() {
 	if canfit(piece.left) {
-		setpiece(piece.left);
-		drawpiece();
-		display.FlushImage();
+		setpiece(piece.left)
+		drawpiece()
+		display.FlushImage()
 	}
 }
 
@@ -519,47 +519,47 @@ var fusst = 0
 
 func drop(f bool) bool {
 	if f {
-		score(5 * (rboard.Max.Y - pos.Y) / pcsz);
+		score(5 * (rboard.Max.Y - pos.Y) / pcsz)
 		for movepiece() {
 		}
 	}
-	fusst = 0;
-	rest();
+	fusst = 0
+	rest()
 	if pos.Y == rboard.Min.Y && !horiz() {
 		return true
 	}
-	horiz();
-	setpiece(nil);
-	pause(1500);
-	choosepiece();
-	lastmx = warp(mouse.Point, lastmx);
-	return false;
+	horiz()
+	setpiece(nil)
+	pause(1500)
+	choosepiece()
+	lastmx = warp(mouse.Point, lastmx)
+	return false
 }
 
 func play() {
-	var om draw.Mouse;
-	dt = 64;
-	lastmx = -1;
-	lastmx = movemouse();
-	choosepiece();
-	lastmx = warp(mouse.Point, lastmx);
+	var om draw.Mouse
+	dt = 64
+	lastmx = -1
+	lastmx = movemouse()
+	choosepiece()
+	lastmx = warp(mouse.Point, lastmx)
 	for {
 		select {
 		case mouse = <-mousec:
 			if suspended {
-				om = mouse;
-				break;
+				om = mouse
+				break
 			}
 			if lastmx < 0 {
 				lastmx = mouse.X
 			}
 			if mouse.X > lastmx+DMOUSE {
-				mright();
-				lastmx = mouse.X;
+				mright()
+				lastmx = mouse.X
 			}
 			if mouse.X < lastmx-DMOUSE {
-				mleft();
-				lastmx = mouse.X;
+				mleft()
+				lastmx = mouse.X
 			}
 			if mouse.Buttons&^om.Buttons&1 == 1 {
 				rleft()
@@ -572,14 +572,14 @@ func play() {
 			if mouse.Buttons&^om.Buttons&4 == 4 {
 				rright()
 			}
-			om = mouse;
+			om = mouse
 
 		case s := <-suspc:
 			if !suspended && s {
 				suspend(true)
 			} else if suspended && !s {
-				suspend(false);
-				lastmx = warp(mouse.Point, lastmx);
+				suspend(false)
+				lastmx = warp(mouse.Point, lastmx)
 			}
 
 		case <-resizec:
@@ -608,25 +608,25 @@ func play() {
 			if suspended {
 				break
 			}
-			dt -= tsleep;
+			dt -= tsleep
 			if dt < 0 {
-				i := 1;
-				dt = 16 * (points + rand.Intn(10000) - 5000) / 10000;
+				i := 1
+				dt = 16 * (points + rand.Intn(10000) - 5000) / 10000
 				if dt >= 32 {
-					i += (dt - 32) / 16;
-					dt = 32;
+					i += (dt - 32) / 16
+					dt = 32
 				}
-				dt = 52 - dt;
+				dt = 52 - dt
 				for ; i > 0; i-- {
 					if movepiece() {
 						continue
 					}
-					fusst++;
+					fusst++
 					if fusst == 40 {
 						if drop(false) {
 							return
 						}
-						break;
+						break
 					}
 				}
 			}
@@ -635,10 +635,10 @@ func play() {
 }
 
 func suspproc() {
-	mc := display.MouseChan();
-	kc := display.KeyboardChan();
+	mc := display.MouseChan()
+	kc := display.KeyboardChan()
 
-	s := false;
+	s := false
 	for {
 		select {
 		case mouse = <-mc:
@@ -649,14 +649,14 @@ func suspproc() {
 				os.Exit(0)
 			default:
 				if s {
-					s = false;
-					suspc <- s;
-					break;
+					s = false
+					suspc <- s
+					break
 				}
 				switch r {
 				case 'z', 'Z', 'p', 'P', 0x1B:
-					s = true;
-					suspc <- s;
+					s = true
+					suspc <- s
 				default:
 					kbdc <- r
 				}
@@ -669,74 +669,74 @@ func redraw(new bool) {
 	//	if new && getwindow(display, Refmesg) < 0 {
 	//		sysfatal("can't reattach to window");
 	//	}
-	r := draw.Rect(0, 0, screen.Width(), screen.Height());
-	pos.X = (pos.X - rboard.Min.X) / pcsz;
-	pos.Y = (pos.Y - rboard.Min.Y) / pcsz;
-	dx := r.Max.X - r.Min.X;
-	dy := r.Max.Y - r.Min.Y - 2*32;
-	DY = dx / NX;
+	r := draw.Rect(0, 0, screen.Width(), screen.Height())
+	pos.X = (pos.X - rboard.Min.X) / pcsz
+	pos.Y = (pos.Y - rboard.Min.Y) / pcsz
+	dx := r.Max.X - r.Min.X
+	dy := r.Max.Y - r.Min.Y - 2*32
+	DY = dx / NX
 	if DY > dy/NY {
 		DY = dy / NY
 	}
-	DY /= 8;
+	DY /= 8
 	if DY > 4 {
 		DY = 4
 	}
-	pcsz = DY * 8;
-	DMOUSE = pcsz / 3;
+	pcsz = DY * 8
+	DMOUSE = pcsz / 3
 	if pcsz < 8 {
 		log.Exitf("screen too small: %d", pcsz)
 	}
-	rboard = screenr;
-	rboard.Min.X += (dx - pcsz*NX) / 2;
-	rboard.Min.Y += (dy-pcsz*NY)/2 + 32;
-	rboard.Max.X = rboard.Min.X + NX*pcsz;
-	rboard.Max.Y = rboard.Min.Y + NY*pcsz;
-	pscore.X = rboard.Min.X + 8;
-	pscore.Y = rboard.Min.Y - 32;
+	rboard = screenr
+	rboard.Min.X += (dx - pcsz*NX) / 2
+	rboard.Min.Y += (dy-pcsz*NY)/2 + 32
+	rboard.Max.X = rboard.Min.X + NX*pcsz
+	rboard.Max.Y = rboard.Min.Y + NY*pcsz
+	pscore.X = rboard.Min.X + 8
+	pscore.Y = rboard.Min.Y - 32
 	//	scoresz = stringsize(font, "000000");
-	pos.X = pos.X*pcsz + rboard.Min.X;
-	pos.Y = pos.Y*pcsz + rboard.Min.Y;
-	bbr = draw.Rect(0, 0, N*pcsz, N*pcsz);
-	bb = image.NewRGBA(bbr.Max.X, bbr.Max.Y);
-	bbmask = image.NewRGBA(bbr.Max.X, bbr.Max.Y);	// actually just a bitmap
-	bb2r = draw.Rect(0, 0, N*pcsz, N*pcsz+DY);
-	bb2 = image.NewRGBA(bb2r.Dx(), bb2r.Dy());
-	bb2mask = image.NewRGBA(bb2r.Dx(), bb2r.Dy());	// actually just a bitmap
-	draw.Draw(screen, screenr, draw.White, nil, draw.ZP);
-	drawboard();
-	setpiece(piece);
+	pos.X = pos.X*pcsz + rboard.Min.X
+	pos.Y = pos.Y*pcsz + rboard.Min.Y
+	bbr = draw.Rect(0, 0, N*pcsz, N*pcsz)
+	bb = image.NewRGBA(bbr.Max.X, bbr.Max.Y)
+	bbmask = image.NewRGBA(bbr.Max.X, bbr.Max.Y) // actually just a bitmap
+	bb2r = draw.Rect(0, 0, N*pcsz, N*pcsz+DY)
+	bb2 = image.NewRGBA(bb2r.Dx(), bb2r.Dy())
+	bb2mask = image.NewRGBA(bb2r.Dx(), bb2r.Dy()) // actually just a bitmap
+	draw.Draw(screen, screenr, draw.White, nil, draw.ZP)
+	drawboard()
+	setpiece(piece)
 	if piece != nil {
 		drawpiece()
 	}
-	lastmx = movemouse();
-	newscreen = true;
-	display.FlushImage();
+	lastmx = movemouse()
+	newscreen = true
+	display.FlushImage()
 }
 
 func quitter(c <-chan bool) {
-	<-c;
-	os.Exit(0);
+	<-c
+	os.Exit(0)
 }
 
 func Play(pp []Piece, ctxt draw.Context) {
-	display = ctxt;
-	screen = ctxt.Screen();
-	screenr = draw.Rect(0, 0, screen.Width(), screen.Height());
-	pieces = pp;
-	N = len(pieces[0].d);
-	initPieces();
-	rand.Seed(int64(time.Nanoseconds() % (1e9 - 1)));
-	whitemask = draw.White.SetAlpha(0x7F);
-	tsleep = 50;
-	timerc = time.Tick(int64(tsleep/2) * 1e6);
-	suspc = make(chan bool);
-	mousec = make(chan draw.Mouse);
-	resizec = ctxt.ResizeChan();
-	kbdc = make(chan int);
-	go quitter(ctxt.QuitChan());
-	go suspproc();
-	points = 0;
-	redraw(false);
-	play();
+	display = ctxt
+	screen = ctxt.Screen()
+	screenr = draw.Rect(0, 0, screen.Width(), screen.Height())
+	pieces = pp
+	N = len(pieces[0].d)
+	initPieces()
+	rand.Seed(int64(time.Nanoseconds() % (1e9 - 1)))
+	whitemask = draw.White.SetAlpha(0x7F)
+	tsleep = 50
+	timerc = time.Tick(int64(tsleep/2) * 1e6)
+	suspc = make(chan bool)
+	mousec = make(chan draw.Mouse)
+	resizec = ctxt.ResizeChan()
+	kbdc = make(chan int)
+	go quitter(ctxt.QuitChan())
+	go suspproc()
+	points = 0
+	redraw(false)
+	play()
 }

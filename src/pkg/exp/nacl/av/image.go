@@ -5,7 +5,7 @@
 package av
 
 import (
-	"image";
+	"image"
 )
 
 // Native Client image format:
@@ -16,41 +16,41 @@ import (
 // linear slice or as a two-dimensional slice of slices.
 // Image implements image.Image.
 type Image struct {
-	Linear	[]Color;
-	Pixel	[][]Color;
+	Linear []Color
+	Pixel  [][]Color
 }
 
 var _ image.Image = (*Image)(nil)
 
-func (m *Image) ColorModel() image.ColorModel	{ return ColorModel }
+func (m *Image) ColorModel() image.ColorModel { return ColorModel }
 
 func (m *Image) Width() int {
 	if len(m.Pixel) == 0 {
 		return 0
 	}
-	return len(m.Pixel[0]);
+	return len(m.Pixel[0])
 }
 
-func (m *Image) Height() int	{ return len(m.Pixel) }
+func (m *Image) Height() int { return len(m.Pixel) }
 
-func (m *Image) At(x, y int) image.Color	{ return m.Pixel[y][x] }
+func (m *Image) At(x, y int) image.Color { return m.Pixel[y][x] }
 
 func (m *Image) Set(x, y int, color image.Color) {
 	if c, ok := color.(Color); ok {
 		m.Pixel[y][x] = c
 	}
-	m.Pixel[y][x] = makeColor(color.RGBA());
+	m.Pixel[y][x] = makeColor(color.RGBA())
 }
 
 func newImage(dx, dy int, linear []Color) *Image {
 	if linear == nil {
 		linear = make([]Color, dx*dy)
 	}
-	pix := make([][]Color, dy);
+	pix := make([][]Color, dy)
 	for i := range pix {
 		pix[i] = linear[dx*i : dx*(i+1)]
 	}
-	return &Image{linear, pix};
+	return &Image{linear, pix}
 }
 
 // A Color represents a Native Client color value,
@@ -58,20 +58,20 @@ func newImage(dx, dy int, linear []Color) *Image {
 type Color uint32
 
 func (p Color) RGBA() (r, g, b, a uint32) {
-	x := uint32(p);
-	a = x >> 24;
-	a |= a << 8;
-	a |= a << 16;
-	r = (x >> 16) & 0xFF;
-	r |= r << 8;
-	r |= r << 16;
-	g = (x >> 8) & 0xFF;
-	g |= g << 8;
-	g |= g << 16;
-	b = x & 0xFF;
-	b |= b << 8;
-	b |= b << 16;
-	return;
+	x := uint32(p)
+	a = x >> 24
+	a |= a << 8
+	a |= a << 16
+	r = (x >> 16) & 0xFF
+	r |= r << 8
+	r |= r << 16
+	g = (x >> 8) & 0xFF
+	g |= g << 8
+	g |= g << 16
+	b = x & 0xFF
+	b |= b << 8
+	b |= b << 16
+	return
 }
 
 func makeColor(r, g, b, a uint32) Color {
@@ -82,7 +82,7 @@ func toColor(color image.Color) image.Color {
 	if c, ok := color.(Color); ok {
 		return c
 	}
-	return makeColor(color.RGBA());
+	return makeColor(color.RGBA())
 }
 
 // ColorModel is the color model corresponding to the Native Client Color.

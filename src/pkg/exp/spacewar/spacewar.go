@@ -24,36 +24,36 @@
 package main
 
 import (
-	"bytes";
-	"exp/draw";
-	"exp/nacl/av";
-	"exp/nacl/srpc";
-	"image";
-	"log";
-	"os";
-	"runtime";
-	"strings";
-	"time";
-	"./pdp1";
+	"bytes"
+	"exp/draw"
+	"exp/nacl/av"
+	"exp/nacl/srpc"
+	"image"
+	"log"
+	"os"
+	"runtime"
+	"strings"
+	"time"
+	"./pdp1"
 )
 
 func main() {
-	runtime.LockOSThread();
+	runtime.LockOSThread()
 	if srpc.Enabled() {
 		go srpc.ServeRuntime()
 	}
 
-	w, err := av.Init(av.SubsystemVideo, 512, 512);
+	w, err := av.Init(av.SubsystemVideo, 512, 512)
 	if err != nil {
 		log.Exitf("av.Init: %s", err)
 	}
 
-	go quitter(w.QuitChan());
+	go quitter(w.QuitChan())
 
-	var m SpacewarPDP1;
-	m.Init(w);
-	m.PC = 4;
-	f := bytes.NewBuffer(strings.Bytes(spacewarCode));
+	var m SpacewarPDP1
+	m.Init(w)
+	m.PC = 4
+	f := bytes.NewBuffer(strings.Bytes(spacewarCode))
 	if err = m.Load(f); err != nil {
 		log.Exitf("loading %s: %s", "spacewar.lst", err)
 	}
@@ -63,12 +63,12 @@ func main() {
 		//	m.Mem[m.PC], m.AC, m.IO, m.OV);
 		err = m.Step()
 	}
-	log.Exitf("step: %s", err);
+	log.Exitf("step: %s", err)
 }
 
 func quitter(c <-chan bool) {
-	<-c;
-	os.Exit(0);
+	<-c
+	os.Exit(0)
 }
 
 // A SpacewarPDP1 is a PDP-1 machine configured to run Spacewar!
@@ -76,49 +76,49 @@ func quitter(c <-chan bool) {
 // display and pauses every second time the program counter reaches
 // instruction 02051.
 type SpacewarPDP1 struct {
-	pdp1.M;
-	nframe		int;
-	frameTime	int64;
-	ctxt		draw.Context;
-	dx, dy		int;
-	screen		draw.Image;
-	ctl		pdp1.Word;
-	kc		<-chan int;
-	colorModel	image.ColorModel;
-	cmap		[]image.Color;
-	pix		[][]uint8;
+	pdp1.M
+	nframe     int
+	frameTime  int64
+	ctxt       draw.Context
+	dx, dy     int
+	screen     draw.Image
+	ctl        pdp1.Word
+	kc         <-chan int
+	colorModel image.ColorModel
+	cmap       []image.Color
+	pix        [][]uint8
 }
 
 func min(a, b int) int {
 	if a < b {
 		return a
 	}
-	return b;
+	return b
 }
 
 func (m *SpacewarPDP1) Init(ctxt draw.Context) {
-	m.ctxt = ctxt;
-	m.kc = ctxt.KeyboardChan();
-	m.screen = ctxt.Screen();
-	m.dx = m.screen.Width();
-	m.dy = m.screen.Height();
-	m.colorModel = m.screen.ColorModel();
-	m.pix = make([][]uint8, m.dy);
+	m.ctxt = ctxt
+	m.kc = ctxt.KeyboardChan()
+	m.screen = ctxt.Screen()
+	m.dx = m.screen.Width()
+	m.dy = m.screen.Height()
+	m.colorModel = m.screen.ColorModel()
+	m.pix = make([][]uint8, m.dy)
 	for i := range m.pix {
 		m.pix[i] = make([]uint8, m.dx)
 	}
-	m.cmap = make([]image.Color, 256);
+	m.cmap = make([]image.Color, 256)
 	for i := range m.cmap {
-		var r, g, b uint8;
-		r = uint8(min(0, 255));
-		g = uint8(min(i*2, 255));
-		b = uint8(min(0, 255));
-		m.cmap[i] = m.colorModel.Convert(image.RGBAColor{r, g, b, 0xff});
+		var r, g, b uint8
+		r = uint8(min(0, 255))
+		g = uint8(min(i*2, 255))
+		b = uint8(min(0, 255))
+		m.cmap[i] = m.colorModel.Convert(image.RGBAColor{r, g, b, 0xff})
 	}
 }
 
 const (
-	frameDelay = 56 * 1e6;	// 56 ms
+	frameDelay = 56 * 1e6 // 56 ms
 )
 
 var ctlBits = [...]pdp1.Word{
@@ -134,35 +134,35 @@ var ctlBits = [...]pdp1.Word{
 
 func (m *SpacewarPDP1) Step() os.Error {
 	if m.PC == 02051 {
-		m.pollInput();
-		m.nframe++;
+		m.pollInput()
+		m.nframe++
 		if m.nframe&1 == 0 {
-			m.flush();
-			t := time.Nanoseconds();
+			m.flush()
+			t := time.Nanoseconds()
 			if t >= m.frameTime+3*frameDelay {
 				m.frameTime = t
 			} else {
-				m.frameTime += frameDelay;
+				m.frameTime += frameDelay
 				for t < m.frameTime {
-					time.Sleep(m.frameTime - t);
-					t = time.Nanoseconds();
+					time.Sleep(m.frameTime - t)
+					t = time.Nanoseconds()
 				}
 			}
 		}
 	}
-	return m.M.Step(m);
+	return m.M.Step(m)
 }
 
 func (m *SpacewarPDP1) Trap(y pdp1.Word) {
 	switch y & 077 {
 	case 7:
-		x := int(m.AC+0400000) & 0777777;
-		y := int(m.IO+0400000) & 0777777;
-		x = x * m.dx / 0777777;
-		y = y * m.dy / 0777777;
+		x := int(m.AC+0400000) & 0777777
+		y := int(m.IO+0400000) & 0777777
+		x = x * m.dx / 0777777
+		y = y * m.dy / 0777777
 		if 0 <= x && x < m.dx && 0 <= y && y < m.dy {
-			n := uint8(min(int(m.pix[y][x])+128, 255));
-			m.pix[y][x] = n;
+			n := uint8(min(int(m.pix[y][x])+128, 255))
+			m.pix[y][x] = n
 		}
 	case 011:
 		m.IO = m.ctl
@@ -173,11 +173,11 @@ func (m *SpacewarPDP1) flush() {
 	// Update screen image; simulate phosphor decay.
 	for y := 0; y < m.dy; y++ {
 		for x := 0; x < m.dx; x++ {
-			m.screen.Set(x, y, m.cmap[m.pix[y][x]]);
-			m.pix[y][x] >>= 1;
+			m.screen.Set(x, y, m.cmap[m.pix[y][x]])
+			m.pix[y][x] >>= 1
 		}
 	}
-	m.ctxt.FlushImage();
+	m.ctxt.FlushImage()
 }
 
 func (m *SpacewarPDP1) pollInput() {

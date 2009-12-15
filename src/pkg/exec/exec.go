@@ -6,16 +6,16 @@
 package exec
 
 import (
-	"os";
-	"strings";
+	"os"
+	"strings"
 )
 
 // Arguments to Run.
 const (
-	DevNull	= iota;
-	PassThrough;
-	Pipe;
-	MergeWithStdout;
+	DevNull = iota
+	PassThrough
+	Pipe
+	MergeWithStdout
 )
 
 // A Cmd represents a running command.
@@ -24,10 +24,10 @@ const (
 // or else nil, depending on the arguments to Run.
 // Pid is the running command's operating system process ID.
 type Cmd struct {
-	Stdin	*os.File;
-	Stdout	*os.File;
-	Stderr	*os.File;
-	Pid	int;
+	Stdin  *os.File
+	Stdout *os.File
+	Stderr *os.File
+	Pid    int
 }
 
 // Given mode (DevNull, etc), return file for child
@@ -35,12 +35,12 @@ type Cmd struct {
 func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
 	switch mode {
 	case DevNull:
-		rw := os.O_WRONLY;
+		rw := os.O_WRONLY
 		if fd == 0 {
 			rw = os.O_RDONLY
 		}
-		f, err := os.Open("/dev/null", rw, 0);
-		return f, nil, err;
+		f, err := os.Open("/dev/null", rw, 0)
+		return f, nil, err
 	case PassThrough:
 		switch fd {
 		case 0:
@@ -51,16 +51,16 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
 			return os.Stderr, nil, nil
 		}
 	case Pipe:
-		r, w, err := os.Pipe();
+		r, w, err := os.Pipe()
 		if err != nil {
 			return nil, nil, err
 		}
 		if fd == 0 {
 			return r, w, nil
 		}
-		return w, r, nil;
+		return w, r, nil
 	}
-	return nil, nil, os.EINVAL;
+	return nil, nil, os.EINVAL
 }
 
 // Run starts the binary prog running with
@@ -79,8 +79,8 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
 // of the returned Cmd is the other end of the pipe.
 // Otherwise the field in Cmd is nil.
 func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
-	p = new(Cmd);
-	var fd [3]*os.File;
+	p = new(Cmd)
+	var fd [3]*os.File
 
 	if fd[0], p.Stdin, err = modeToFiles(stdin, 0); err != nil {
 		goto Error
@@ -95,7 +95,7 @@ func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, 
 	}
 
 	// Run command.
-	p.Pid, err = os.ForkExec(argv0, argv, envv, "", &fd);
+	p.Pid, err = os.ForkExec(argv0, argv, envv, "", &fd)
 	if err != nil {
 		goto Error
 	}
@@ -108,7 +108,7 @@ func Run(argv0 string, argv, envv []string, stdin, stdout, stderr int) (p *Cmd, 
 	if fd[2] != os.Stderr && fd[2] != fd[1] {
 		fd[2].Close()
 	}
-	return p, nil;
+	return p, nil
 
 Error:
 	if fd[0] != os.Stdin && fd[0] != nil {
@@ -129,7 +129,7 @@ Error:
 	if p.Stderr != nil {
 		p.Stderr.Close()
 	}
-	return nil, err;
+	return nil, err
 }
 
 // Wait waits for the running command p,
@@ -142,11 +142,11 @@ func (p *Cmd) Wait(options int) (*os.Waitmsg, os.Error) {
 	if p.Pid <= 0 {
 		return nil, os.ErrorString("exec: invalid use of Cmd.Wait")
 	}
-	w, err := os.Wait(p.Pid, options);
+	w, err := os.Wait(p.Pid, options)
 	if w != nil && (w.Exited() || w.Signaled()) {
 		p.Pid = -1
 	}
-	return w, err;
+	return w, err
 }
 
 // Close waits for the running command p to exit,
@@ -157,14 +157,14 @@ func (p *Cmd) Close() os.Error {
 		// Loop on interrupt, but
 		// ignore other errors -- maybe
 		// caller has already waited for pid.
-		_, err := p.Wait(0);
+		_, err := p.Wait(0)
 		for err == os.EINTR {
 			_, err = p.Wait(0)
 		}
 	}
 
 	// Close the FDs that are still open.
-	var err os.Error;
+	var err os.Error
 	if p.Stdin != nil && p.Stdin.Fd() >= 0 {
 		if err1 := p.Stdin.Close(); err1 != nil {
 			err = err1
@@ -180,15 +180,15 @@ func (p *Cmd) Close() os.Error {
 			err = err1
 		}
 	}
-	return err;
+	return err
 }
 
 func canExec(file string) bool {
-	d, err := os.Stat(file);
+	d, err := os.Stat(file)
 	if err != nil {
 		return false
 	}
-	return d.IsRegular() && d.Permission()&0111 != 0;
+	return d.IsRegular() && d.Permission()&0111 != 0
 }
 
 // LookPath searches for an executable binary named file
@@ -205,9 +205,9 @@ func LookPath(file string) (string, os.Error) {
 		if canExec(file) {
 			return file, nil
 		}
-		return "", os.ENOENT;
+		return "", os.ENOENT
 	}
-	pathenv := os.Getenv("PATH");
+	pathenv := os.Getenv("PATH")
 	for _, dir := range strings.Split(pathenv, ":", 0) {
 		if dir == "" {
 			// Unix shell semantics: path element "" means "."
@@ -217,5 +217,5 @@ func LookPath(file string) (string, os.Error) {
 			return dir + "/" + file, nil
 		}
 	}
-	return "", os.ENOENT;
+	return "", os.ENOENT
 }

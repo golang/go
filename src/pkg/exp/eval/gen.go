@@ -7,58 +7,58 @@ package main
 // generate operator implementations
 
 import (
-	"log";
-	"os";
-	"template";
+	"log"
+	"os"
+	"template"
 )
 
 type Op struct {
-	Name		string;
-	Expr		string;
-	Body		string;	// overrides Expr
-	ConstExpr	string;
-	AsRightName	string;
-	ReturnType	string;
-	Types		[]*Type;
+	Name        string
+	Expr        string
+	Body        string // overrides Expr
+	ConstExpr   string
+	AsRightName string
+	ReturnType  string
+	Types       []*Type
 }
 
 type Size struct {
-	Bits	int;
-	Sized	string;
+	Bits  int
+	Sized string
 }
 
 type Type struct {
-	Repr		string;
-	Value		string;
-	Native		string;
-	As		string;
-	IsIdeal		bool;
-	HasAssign	bool;
-	Sizes		[]Size;
+	Repr      string
+	Value     string
+	Native    string
+	As        string
+	IsIdeal   bool
+	HasAssign bool
+	Sizes     []Size
 }
 
 var (
-	boolType	= &Type{Repr: "*boolType", Value: "BoolValue", Native: "bool", As: "asBool"};
-	uintType	= &Type{Repr: "*uintType", Value: "UintValue", Native: "uint64", As: "asUint",
+	boolType = &Type{Repr: "*boolType", Value: "BoolValue", Native: "bool", As: "asBool"}
+	uintType = &Type{Repr: "*uintType", Value: "UintValue", Native: "uint64", As: "asUint",
 		Sizes: []Size{Size{8, "uint8"}, Size{16, "uint16"}, Size{32, "uint32"}, Size{64, "uint64"}, Size{0, "uint"}},
-	};
-	intType	= &Type{Repr: "*intType", Value: "IntValue", Native: "int64", As: "asInt",
+	}
+	intType = &Type{Repr: "*intType", Value: "IntValue", Native: "int64", As: "asInt",
 		Sizes: []Size{Size{8, "int8"}, Size{16, "int16"}, Size{32, "int32"}, Size{64, "int64"}, Size{0, "int"}},
-	};
-	idealIntType	= &Type{Repr: "*idealIntType", Value: "IdealIntValue", Native: "*bignum.Integer", As: "asIdealInt", IsIdeal: true};
-	floatType	= &Type{Repr: "*floatType", Value: "FloatValue", Native: "float64", As: "asFloat",
+	}
+	idealIntType = &Type{Repr: "*idealIntType", Value: "IdealIntValue", Native: "*bignum.Integer", As: "asIdealInt", IsIdeal: true}
+	floatType    = &Type{Repr: "*floatType", Value: "FloatValue", Native: "float64", As: "asFloat",
 		Sizes: []Size{Size{32, "float32"}, Size{64, "float64"}, Size{0, "float"}},
-	};
-	idealFloatType	= &Type{Repr: "*idealFloatType", Value: "IdealFloatValue", Native: "*bignum.Rational", As: "asIdealFloat", IsIdeal: true};
-	stringType	= &Type{Repr: "*stringType", Value: "StringValue", Native: "string", As: "asString"};
-	arrayType	= &Type{Repr: "*ArrayType", Value: "ArrayValue", Native: "ArrayValue", As: "asArray", HasAssign: true};
-	structType	= &Type{Repr: "*StructType", Value: "StructValue", Native: "StructValue", As: "asStruct", HasAssign: true};
-	ptrType		= &Type{Repr: "*PtrType", Value: "PtrValue", Native: "Value", As: "asPtr"};
-	funcType	= &Type{Repr: "*FuncType", Value: "FuncValue", Native: "Func", As: "asFunc"};
-	sliceType	= &Type{Repr: "*SliceType", Value: "SliceValue", Native: "Slice", As: "asSlice"};
-	mapType		= &Type{Repr: "*MapType", Value: "MapValue", Native: "Map", As: "asMap"};
+	}
+	idealFloatType = &Type{Repr: "*idealFloatType", Value: "IdealFloatValue", Native: "*bignum.Rational", As: "asIdealFloat", IsIdeal: true}
+	stringType     = &Type{Repr: "*stringType", Value: "StringValue", Native: "string", As: "asString"}
+	arrayType      = &Type{Repr: "*ArrayType", Value: "ArrayValue", Native: "ArrayValue", As: "asArray", HasAssign: true}
+	structType     = &Type{Repr: "*StructType", Value: "StructValue", Native: "StructValue", As: "asStruct", HasAssign: true}
+	ptrType        = &Type{Repr: "*PtrType", Value: "PtrValue", Native: "Value", As: "asPtr"}
+	funcType       = &Type{Repr: "*FuncType", Value: "FuncValue", Native: "Func", As: "asFunc"}
+	sliceType      = &Type{Repr: "*SliceType", Value: "SliceValue", Native: "Slice", As: "asSlice"}
+	mapType        = &Type{Repr: "*MapType", Value: "MapValue", Native: "Map", As: "asMap"}
 
-	all	= []*Type{
+	all = []*Type{
 		boolType,
 		uintType,
 		intType,
@@ -72,13 +72,13 @@ var (
 		funcType,
 		sliceType,
 		mapType,
-	};
-	bools		= all[0:1];
-	integers	= all[1:4];
-	shiftable	= all[1:3];
-	numbers		= all[1:6];
-	addable		= all[1:7];
-	cmpable		= []*Type{
+	}
+	bools     = all[0:1]
+	integers  = all[1:4]
+	shiftable = all[1:3]
+	numbers   = all[1:6]
+	addable   = all[1:7]
+	cmpable   = []*Type{
 		boolType,
 		uintType,
 		intType,
@@ -89,7 +89,7 @@ var (
 		ptrType,
 		funcType,
 		mapType,
-	};
+	}
 )
 
 var unOps = []Op{
@@ -131,9 +131,9 @@ var binOps = []Op{
 }
 
 type Data struct {
-	UnaryOps	[]Op;
-	BinaryOps	[]Op;
-	Types		[]*Type;
+	UnaryOps  []Op
+	BinaryOps []Op
+	Types     []*Type
 }
 
 var data = Data{
@@ -362,13 +362,13 @@ func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
 `
 
 func main() {
-	t := template.New(nil);
-	t.SetDelims("«", "»");
-	err := t.Parse(templateStr);
+	t := template.New(nil)
+	t.SetDelims("«", "»")
+	err := t.Parse(templateStr)
 	if err != nil {
 		log.Exit(err)
 	}
-	err = t.Execute(data, os.Stdout);
+	err = t.Execute(data, os.Stdout)
 	if err != nil {
 		log.Exit(err)
 	}

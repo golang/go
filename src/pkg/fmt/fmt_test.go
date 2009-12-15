@@ -5,27 +5,27 @@
 package fmt_test
 
 import (
-	. "fmt";
-	"io";
-	"malloc";	// for the malloc count test only
-	"math";
-	"strings";
-	"testing";
+	. "fmt"
+	"io"
+	"malloc" // for the malloc count test only
+	"math"
+	"strings"
+	"testing"
 )
 
 func TestFmtInterface(t *testing.T) {
 	var i1 interface{}
-	i1 = "abc";
-	s := Sprintf("%s", i1);
+	i1 = "abc"
+	s := Sprintf("%s", i1)
 	if s != "abc" {
 		t.Errorf(`Sprintf("%%s", empty("abc")) = %q want %q`, s, "abc")
 	}
 }
 
 type fmtTest struct {
-	fmt	string;
-	val	interface{};
-	out	string;
+	fmt string
+	val interface{}
+	out string
 }
 
 const b32 uint32 = 1<<32 - 1
@@ -35,24 +35,24 @@ var array = []int{1, 2, 3, 4, 5}
 var iarray = []interface{}{1, "hello", 2.5, nil}
 
 type A struct {
-	i	int;
-	j	uint;
-	s	string;
-	x	[]int;
+	i int
+	j uint
+	s string
+	x []int
 }
 
 type I int
 
-func (i I) String() string	{ return Sprintf("<%d>", i) }
+func (i I) String() string { return Sprintf("<%d>", i) }
 
 type B struct {
-	i	I;
-	j	int;
+	i I
+	j int
 }
 
 type C struct {
-	i	int;
-	B;
+	i int
+	B
 }
 
 var b byte
@@ -228,16 +228,16 @@ var fmttests = []fmtTest{
 
 func TestSprintf(t *testing.T) {
 	for _, tt := range fmttests {
-		s := Sprintf(tt.fmt, tt.val);
+		s := Sprintf(tt.fmt, tt.val)
 		if i := strings.Index(s, "0x"); i >= 0 && strings.Index(tt.out, "PTR") >= 0 {
-			j := i + 2;
+			j := i + 2
 			for ; j < len(s); j++ {
-				c := s[j];
+				c := s[j]
 				if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
 					break
 				}
 			}
-			s = s[0:i] + "PTR" + s[j:];
+			s = s[0:i] + "PTR" + s[j:]
 		}
 		if s != tt.out {
 			if _, ok := tt.val.(string); ok {
@@ -276,36 +276,36 @@ func BenchmarkSprintfIntInt(b *testing.B) {
 }
 
 func TestCountMallocs(t *testing.T) {
-	mallocs := 0 - malloc.GetStats().Mallocs;
+	mallocs := 0 - malloc.GetStats().Mallocs
 	for i := 0; i < 100; i++ {
 		Sprintf("")
 	}
-	mallocs += malloc.GetStats().Mallocs;
-	Printf("mallocs per Sprintf(\"\"): %d\n", mallocs/100);
-	mallocs = 0 - malloc.GetStats().Mallocs;
+	mallocs += malloc.GetStats().Mallocs
+	Printf("mallocs per Sprintf(\"\"): %d\n", mallocs/100)
+	mallocs = 0 - malloc.GetStats().Mallocs
 	for i := 0; i < 100; i++ {
 		Sprintf("xxx")
 	}
-	mallocs += malloc.GetStats().Mallocs;
-	Printf("mallocs per Sprintf(\"xxx\"): %d\n", mallocs/100);
-	mallocs = 0 - malloc.GetStats().Mallocs;
+	mallocs += malloc.GetStats().Mallocs
+	Printf("mallocs per Sprintf(\"xxx\"): %d\n", mallocs/100)
+	mallocs = 0 - malloc.GetStats().Mallocs
 	for i := 0; i < 100; i++ {
 		Sprintf("%x", i)
 	}
-	mallocs += malloc.GetStats().Mallocs;
-	Printf("mallocs per Sprintf(\"%%x\"): %d\n", mallocs/100);
-	mallocs = 0 - malloc.GetStats().Mallocs;
+	mallocs += malloc.GetStats().Mallocs
+	Printf("mallocs per Sprintf(\"%%x\"): %d\n", mallocs/100)
+	mallocs = 0 - malloc.GetStats().Mallocs
 	for i := 0; i < 100; i++ {
 		Sprintf("%x %x", i, i)
 	}
-	mallocs += malloc.GetStats().Mallocs;
-	Printf("mallocs per Sprintf(\"%%x %%x\"): %d\n", mallocs/100);
+	mallocs += malloc.GetStats().Mallocs
+	Printf("mallocs per Sprintf(\"%%x %%x\"): %d\n", mallocs/100)
 }
 
 type flagPrinter struct{}
 
 func (*flagPrinter) Format(f State, c int) {
-	s := "%";
+	s := "%"
 	for i := 0; i < 128; i++ {
 		if f.Flag(i) {
 			s += string(i)
@@ -317,13 +317,13 @@ func (*flagPrinter) Format(f State, c int) {
 	if p, ok := f.Precision(); ok {
 		s += Sprintf(".%d", p)
 	}
-	s += string(c);
-	io.WriteString(f, "["+s+"]");
+	s += string(c)
+	io.WriteString(f, "["+s+"]")
 }
 
 type flagTest struct {
-	in	string;
-	out	string;
+	in  string
+	out string
 }
 
 var flagtests = []flagTest{
@@ -342,9 +342,9 @@ var flagtests = []flagTest{
 }
 
 func TestFlagParser(t *testing.T) {
-	var flagprinter flagPrinter;
+	var flagprinter flagPrinter
 	for _, tt := range flagtests {
-		s := Sprintf(tt.in, &flagprinter);
+		s := Sprintf(tt.in, &flagprinter)
 		if s != tt.out {
 			t.Errorf("Sprintf(%q, &flagprinter) => %q, want %q", tt.in, s, tt.out)
 		}
@@ -353,23 +353,23 @@ func TestFlagParser(t *testing.T) {
 
 func TestStructPrinter(t *testing.T) {
 	var s struct {
-		a	string;
-		b	string;
-		c	int;
+		a string
+		b string
+		c int
 	}
-	s.a = "abc";
-	s.b = "def";
-	s.c = 123;
+	s.a = "abc"
+	s.b = "def"
+	s.c = 123
 	type Test struct {
-		fmt	string;
-		out	string;
+		fmt string
+		out string
 	}
 	var tests = []Test{
 		Test{"%v", "{abc def 123}"},
 		Test{"%+v", "{a:abc b:def c:123}"},
-	};
+	}
 	for _, tt := range tests {
-		out := Sprintf(tt.fmt, s);
+		out := Sprintf(tt.fmt, s)
 		if out != tt.out {
 			t.Errorf("Sprintf(%q, &s) = %q, want %q", tt.fmt, out, tt.out)
 		}
@@ -379,12 +379,12 @@ func TestStructPrinter(t *testing.T) {
 // Check map printing using substrings so we don't depend on the print order.
 func presentInMap(s string, a []string, t *testing.T) {
 	for i := 0; i < len(a); i++ {
-		loc := strings.Index(s, a[i]);
+		loc := strings.Index(s, a[i])
 		if loc < 0 {
 			t.Errorf("map print: expected to find %q in %q", a[i], s)
 		}
 		// make sure the match ends here
-		loc += len(a[i]);
+		loc += len(a[i])
 		if loc >= len(s) || (s[loc] != ' ' && s[loc] != ']') {
 			t.Errorf("map print: %q not properly terminated in %q", a[i], s)
 		}
@@ -392,26 +392,26 @@ func presentInMap(s string, a []string, t *testing.T) {
 }
 
 func TestMapPrinter(t *testing.T) {
-	m0 := make(map[int]string);
-	s := Sprint(m0);
+	m0 := make(map[int]string)
+	s := Sprint(m0)
 	if s != "map[]" {
 		t.Errorf("empty map printed as %q not %q", s, "map[]")
 	}
-	m1 := map[int]string{1: "one", 2: "two", 3: "three"};
-	a := []string{"1:one", "2:two", "3:three"};
-	presentInMap(Sprintf("%v", m1), a, t);
-	presentInMap(Sprint(m1), a, t);
+	m1 := map[int]string{1: "one", 2: "two", 3: "three"}
+	a := []string{"1:one", "2:two", "3:three"}
+	presentInMap(Sprintf("%v", m1), a, t)
+	presentInMap(Sprint(m1), a, t)
 }
 
 func TestEmptyMap(t *testing.T) {
-	const emptyMapStr = "map[]";
-	var m map[string]int;
-	s := Sprint(m);
+	const emptyMapStr = "map[]"
+	var m map[string]int
+	s := Sprint(m)
 	if s != emptyMapStr {
 		t.Errorf("nil map printed as %q not %q", s, emptyMapStr)
 	}
-	m = make(map[string]int);
-	s = Sprint(m);
+	m = make(map[string]int)
+	s = Sprint(m)
 	if s != emptyMapStr {
 		t.Errorf("empty map printed as %q not %q", s, emptyMapStr)
 	}

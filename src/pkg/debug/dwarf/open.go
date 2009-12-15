@@ -8,29 +8,29 @@
 package dwarf
 
 import (
-	"encoding/binary";
-	"os";
+	"encoding/binary"
+	"os"
 )
 
 // Data represents the DWARF debugging information
 // loaded from an executable file (for example, an ELF or Mach-O executable).
 type Data struct {
 	// raw data
-	abbrev		[]byte;
-	aranges		[]byte;
-	frame		[]byte;
-	info		[]byte;
-	line		[]byte;
-	pubnames	[]byte;
-	ranges		[]byte;
-	str		[]byte;
+	abbrev   []byte
+	aranges  []byte
+	frame    []byte
+	info     []byte
+	line     []byte
+	pubnames []byte
+	ranges   []byte
+	str      []byte
 
 	// parsed data
-	abbrevCache	map[uint32]abbrevTable;
-	addrsize	int;
-	order		binary.ByteOrder;
-	typeCache	map[Offset]Type;
-	unit		[]unit;
+	abbrevCache map[uint32]abbrevTable
+	addrsize    int
+	order       binary.ByteOrder
+	typeCache   map[Offset]Type
+	unit        []unit
 }
 
 // New returns a new Data object initialized from the given parameters.
@@ -52,14 +52,14 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
 		str: str,
 		abbrevCache: make(map[uint32]abbrevTable),
 		typeCache: make(map[Offset]Type),
-	};
+	}
 
 	// Sniff .debug_info to figure out byte order.
 	// bytes 4:6 are the version, a tiny 16-bit number (1, 2, 3).
 	if len(d.info) < 6 {
 		return nil, DecodeError{"info", Offset(len(d.info)), "too short"}
 	}
-	x, y := d.info[4], d.info[5];
+	x, y := d.info[4], d.info[5]
 	switch {
 	case x == 0 && y == 0:
 		return nil, DecodeError{"info", 4, "unsupported version 0"}
@@ -71,10 +71,10 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
 		return nil, DecodeError{"info", 4, "cannot determine byte order"}
 	}
 
-	u, err := d.parseUnits();
+	u, err := d.parseUnits()
 	if err != nil {
 		return nil, err
 	}
-	d.unit = u;
-	return d, nil;
+	d.unit = u
+	return d, nil
 }

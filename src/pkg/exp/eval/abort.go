@@ -5,9 +5,9 @@
 package eval
 
 import (
-	"fmt";
-	"os";
-	"runtime";
+	"fmt"
+	"os"
+	"runtime"
 )
 
 // Abort aborts the thread's current computation,
@@ -16,46 +16,46 @@ func (t *Thread) Abort(err os.Error) {
 	if t.abort == nil {
 		panicln("abort:", err.String())
 	}
-	t.abort <- err;
-	runtime.Goexit();
+	t.abort <- err
+	runtime.Goexit()
 }
 
 // Try executes a computation; if the computation
 // Aborts, Try returns the error passed to abort.
 func (t *Thread) Try(f func(t *Thread)) os.Error {
-	oc := t.abort;
-	c := make(chan os.Error);
-	t.abort = c;
+	oc := t.abort
+	c := make(chan os.Error)
+	t.abort = c
 	go func() {
-		f(t);
-		c <- nil;
-	}();
-	err := <-c;
-	t.abort = oc;
-	return err;
+		f(t)
+		c <- nil
+	}()
+	err := <-c
+	t.abort = oc
+	return err
 }
 
 type DivByZeroError struct{}
 
-func (DivByZeroError) String() string	{ return "divide by zero" }
+func (DivByZeroError) String() string { return "divide by zero" }
 
 type NilPointerError struct{}
 
-func (NilPointerError) String() string	{ return "nil pointer dereference" }
+func (NilPointerError) String() string { return "nil pointer dereference" }
 
 type IndexError struct {
-	Idx, Len int64;
+	Idx, Len int64
 }
 
 func (e IndexError) String() string {
 	if e.Idx < 0 {
 		return fmt.Sprintf("negative index: %d", e.Idx)
 	}
-	return fmt.Sprintf("index %d exceeds length %d", e.Idx, e.Len);
+	return fmt.Sprintf("index %d exceeds length %d", e.Idx, e.Len)
 }
 
 type SliceError struct {
-	Lo, Hi, Cap int64;
+	Lo, Hi, Cap int64
 }
 
 func (e SliceError) String() string {
@@ -63,13 +63,13 @@ func (e SliceError) String() string {
 }
 
 type KeyError struct {
-	Key interface{};
+	Key interface{}
 }
 
-func (e KeyError) String() string	{ return fmt.Sprintf("key '%v' not found in map", e.Key) }
+func (e KeyError) String() string { return fmt.Sprintf("key '%v' not found in map", e.Key) }
 
 type NegativeLengthError struct {
-	Len int64;
+	Len int64
 }
 
 func (e NegativeLengthError) String() string {
@@ -77,7 +77,7 @@ func (e NegativeLengthError) String() string {
 }
 
 type NegativeCapacityError struct {
-	Len int64;
+	Len int64
 }
 
 func (e NegativeCapacityError) String() string {

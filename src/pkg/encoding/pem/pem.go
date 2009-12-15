@@ -8,9 +8,9 @@
 package pem
 
 import (
-	"bytes";
-	"encoding/base64";
-	"strings";
+	"bytes"
+	"encoding/base64"
+	"strings"
 )
 
 // A Block represents a PEM encoded structure.
@@ -22,9 +22,9 @@ import (
 //    -----END Type-----
 // where Headers is a possibly empty sequence of Key: Value lines.
 type Block struct {
-	Type	string;			// The type, taken from the preamble (i.e. "RSA PRIVATE KEY").
-	Headers	map[string]string;	// Optional headers.
-	Bytes	[]byte;			// The decoded bytes of the contents. Typically a DER encoded ASN.1 structure.
+	Type    string            // The type, taken from the preamble (i.e. "RSA PRIVATE KEY").
+	Headers map[string]string // Optional headers.
+	Bytes   []byte            // The decoded bytes of the contents. Typically a DER encoded ASN.1 structure.
 }
 
 // getLine results the first \r\n or \n delineated line from the given byte
@@ -32,35 +32,35 @@ type Block struct {
 // array (also not including the new line bytes) is also returned and this will
 // always be smaller than the original argument.
 func getLine(data []byte) (line, rest []byte) {
-	i := bytes.Index(data, []byte{'\n'});
-	var j int;
+	i := bytes.Index(data, []byte{'\n'})
+	var j int
 	if i < 0 {
-		i = len(data);
-		j = i;
+		i = len(data)
+		j = i
 	} else {
-		j = i + 1;
+		j = i + 1
 		if i > 0 && data[i-1] == '\r' {
 			i--
 		}
 	}
-	return data[0:i], data[j:];
+	return data[0:i], data[j:]
 }
 
 // removeWhitespace returns a copy of its input with all spaces, tab and
 // newline characters removed.
 func removeWhitespace(data []byte) []byte {
-	result := make([]byte, len(data));
-	n := 0;
+	result := make([]byte, len(data))
+	n := 0
 
 	for _, b := range data {
 		if b == ' ' || b == '\t' || b == '\r' || b == '\n' {
 			continue
 		}
-		result[n] = b;
-		n++;
+		result[n] = b
+		n++
 	}
 
-	return result[0:n];
+	return result[0:n]
 }
 
 var pemStart = strings.Bytes("\n-----BEGIN ")
@@ -74,7 +74,7 @@ var pemEndOfLine = strings.Bytes("-----")
 func Decode(data []byte) (p *Block, rest []byte) {
 	// pemStart begins with a newline. However, at the very beginning of
 	// the byte array, we'll accept the start string without it.
-	rest = data;
+	rest = data
 	if bytes.HasPrefix(data, pemStart[1:]) {
 		rest = rest[len(pemStart)-1 : len(data)]
 	} else if i := bytes.Index(data, pemStart); i >= 0 {
@@ -83,16 +83,16 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		return nil, data
 	}
 
-	typeLine, rest := getLine(rest);
+	typeLine, rest := getLine(rest)
 	if !bytes.HasSuffix(typeLine, pemEndOfLine) {
 		goto Error
 	}
-	typeLine = typeLine[0 : len(typeLine)-len(pemEndOfLine)];
+	typeLine = typeLine[0 : len(typeLine)-len(pemEndOfLine)]
 
 	p = &Block{
 		Headers: make(map[string]string),
 		Type: string(typeLine),
-	};
+	}
 
 	for {
 		// This loop terminates because getLine's second result is
@@ -100,37 +100,37 @@ func Decode(data []byte) (p *Block, rest []byte) {
 		if len(rest) == 0 {
 			return nil, data
 		}
-		line, next := getLine(rest);
+		line, next := getLine(rest)
 
-		i := bytes.Index(line, []byte{':'});
+		i := bytes.Index(line, []byte{':'})
 		if i == -1 {
 			break
 		}
 
 		// TODO(agl): need to cope with values that spread across lines.
-		key, val := line[0:i], line[i+1:];
-		key = bytes.TrimSpace(key);
-		val = bytes.TrimSpace(val);
-		p.Headers[string(key)] = string(val);
-		rest = next;
+		key, val := line[0:i], line[i+1:]
+		key = bytes.TrimSpace(key)
+		val = bytes.TrimSpace(val)
+		p.Headers[string(key)] = string(val)
+		rest = next
 	}
 
-	i := bytes.Index(rest, pemEnd);
+	i := bytes.Index(rest, pemEnd)
 	if i < 0 {
 		goto Error
 	}
-	base64Data := removeWhitespace(rest[0:i]);
+	base64Data := removeWhitespace(rest[0:i])
 
-	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)));
-	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data);
+	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
+	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
 	if err != nil {
 		goto Error
 	}
-	p.Bytes = p.Bytes[0:n];
+	p.Bytes = p.Bytes[0:n]
 
-	_, rest = getLine(rest[i+len(pemEnd):]);
+	_, rest = getLine(rest[i+len(pemEnd):])
 
-	return;
+	return
 
 Error:
 	// If we get here then we have rejected a likely looking, but
@@ -153,9 +153,9 @@ Error:
 	//
 	// we've failed to parse using the first BEGIN line
 	// and now will try again, using the second BEGIN line.
-	p, rest = Decode(rest);
+	p, rest = Decode(rest)
 	if p == nil {
 		rest = data
 	}
-	return;
+	return
 }

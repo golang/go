@@ -5,8 +5,8 @@
 package eval
 
 import (
-	"go/token";
-	"log";
+	"go/token"
+	"log"
 )
 
 /*
@@ -15,25 +15,25 @@ import (
 
 // A definition can be a *Variable, *Constant, or Type.
 type Def interface {
-	Pos() token.Position;
+	Pos() token.Position
 }
 
 type Variable struct {
-	token.Position;
+	token.Position
 	// Index of this variable in the Frame structure
-	Index	int;
+	Index int
 	// Static type of this variable
-	Type	Type;
+	Type Type
 	// Value of this variable.  This is only used by Scope.NewFrame;
 	// therefore, it is useful for global scopes but cannot be used
 	// in function scopes.
-	Init	Value;
+	Init Value
 }
 
 type Constant struct {
-	token.Position;
-	Type	Type;
-	Value	Value;
+	token.Position
+	Type  Type
+	Value Value
 }
 
 // A block represents a definition block in which a name may not be
@@ -41,35 +41,35 @@ type Constant struct {
 type block struct {
 	// The block enclosing this one, including blocks in other
 	// scopes.
-	outer	*block;
+	outer *block
 	// The nested block currently being compiled, or nil.
-	inner	*block;
+	inner *block
 	// The Scope containing this block.
-	scope	*Scope;
+	scope *Scope
 	// The Variables, Constants, and Types defined in this block.
-	defs	map[string]Def;
+	defs map[string]Def
 	// The index of the first variable defined in this block.
 	// This must be greater than the index of any variable defined
 	// in any parent of this block within the same Scope at the
 	// time this block is entered.
-	offset	int;
+	offset int
 	// The number of Variables defined in this block.
-	numVars	int;
+	numVars int
 	// If global, do not allocate new vars and consts in
 	// the frame; assume that the refs will be compiled in
 	// using defs[name].Init.
-	global	bool;
+	global bool
 }
 
 // A Scope is the compile-time analogue of a Frame, which captures
 // some subtree of blocks.
 type Scope struct {
 	// The root block of this scope.
-	*block;
+	*block
 	// The maximum number of variables required at any point in
 	// this Scope.  This determines the number of slots needed in
 	// Frame's created from this Scope at run-time.
-	maxVars	int;
+	maxVars int
 }
 
 func (b *block) enterChild() *block {
@@ -81,9 +81,9 @@ func (b *block) enterChild() *block {
 		scope: b.scope,
 		defs: make(map[string]Def),
 		offset: b.offset + b.numVars,
-	};
-	b.inner = sub;
-	return sub;
+	}
+	b.inner = sub
+	return sub
 }
 
 func (b *block) exit() {
@@ -98,66 +98,66 @@ func (b *block) exit() {
 			log.Crash("Exit of parent block without exit of child block")
 		}
 	}
-	b.outer.inner = nil;
+	b.outer.inner = nil
 }
 
 func (b *block) ChildScope() *Scope {
 	if b.inner != nil && b.inner.scope == b.scope {
 		log.Crash("Failed to exit child block before entering a child scope")
 	}
-	sub := b.enterChild();
-	sub.offset = 0;
-	sub.scope = &Scope{sub, 0};
-	return sub.scope;
+	sub := b.enterChild()
+	sub.offset = 0
+	sub.scope = &Scope{sub, 0}
+	return sub.scope
 }
 
 func (b *block) DefineVar(name string, pos token.Position, t Type) (*Variable, Def) {
 	if prev, ok := b.defs[name]; ok {
 		return nil, prev
 	}
-	v := b.defineSlot(t, false);
-	v.Position = pos;
-	b.defs[name] = v;
-	return v, nil;
+	v := b.defineSlot(t, false)
+	v.Position = pos
+	b.defs[name] = v
+	return v, nil
 }
 
-func (b *block) DefineTemp(t Type) *Variable	{ return b.defineSlot(t, true) }
+func (b *block) DefineTemp(t Type) *Variable { return b.defineSlot(t, true) }
 
 func (b *block) defineSlot(t Type, temp bool) *Variable {
 	if b.inner != nil && b.inner.scope == b.scope {
 		log.Crash("Failed to exit child block before defining variable")
 	}
-	index := -1;
+	index := -1
 	if !b.global || temp {
-		index = b.offset + b.numVars;
-		b.numVars++;
+		index = b.offset + b.numVars
+		b.numVars++
 		if index >= b.scope.maxVars {
 			b.scope.maxVars = index + 1
 		}
 	}
-	v := &Variable{token.Position{}, index, t, nil};
-	return v;
+	v := &Variable{token.Position{}, index, t, nil}
+	return v
 }
 
 func (b *block) DefineConst(name string, pos token.Position, t Type, v Value) (*Constant, Def) {
 	if prev, ok := b.defs[name]; ok {
 		return nil, prev
 	}
-	c := &Constant{pos, t, v};
-	b.defs[name] = c;
-	return c, nil;
+	c := &Constant{pos, t, v}
+	b.defs[name] = c
+	return c, nil
 }
 
 func (b *block) DefineType(name string, pos token.Position, t Type) Type {
 	if _, ok := b.defs[name]; ok {
 		return nil
 	}
-	nt := &NamedType{pos, name, nil, true, make(map[string]Method)};
+	nt := &NamedType{pos, name, nil, true, make(map[string]Method)}
 	if t != nil {
 		nt.Complete(t)
 	}
-	b.defs[name] = nt;
-	return nt;
+	b.defs[name] = nt
+	return nt
 }
 
 func (b *block) Lookup(name string) (bl *block, level int, def Def) {
@@ -168,27 +168,27 @@ func (b *block) Lookup(name string) (bl *block, level int, def Def) {
 		if b.outer != nil && b.scope != b.outer.scope {
 			level++
 		}
-		b = b.outer;
+		b = b.outer
 	}
-	return nil, 0, nil;
+	return nil, 0, nil
 }
 
-func (s *Scope) NewFrame(outer *Frame) *Frame	{ return outer.child(s.maxVars) }
+func (s *Scope) NewFrame(outer *Frame) *Frame { return outer.child(s.maxVars) }
 
 /*
  * Frames
  */
 
 type Frame struct {
-	Outer	*Frame;
-	Vars	[]Value;
+	Outer *Frame
+	Vars  []Value
 }
 
 func (f *Frame) Get(level int, index int) Value {
 	for ; level > 0; level-- {
 		f = f.Outer
 	}
-	return f.Vars[index];
+	return f.Vars[index]
 }
 
 func (f *Frame) child(numVars int) *Frame {

@@ -5,12 +5,12 @@
 package expvar
 
 import (
-	"json";
-	"testing";
+	"json"
+	"testing"
 )
 
 func TestInt(t *testing.T) {
-	reqs := NewInt("requests");
+	reqs := NewInt("requests")
 	if reqs.i != 0 {
 		t.Errorf("reqs.i = %v, want 4", reqs.i)
 	}
@@ -18,8 +18,8 @@ func TestInt(t *testing.T) {
 		t.Errorf("Get() failed.")
 	}
 
-	reqs.Add(1);
-	reqs.Add(3);
+	reqs.Add(1)
+	reqs.Add(3)
 	if reqs.i != 4 {
 		t.Errorf("reqs.i = %v, want 4", reqs.i)
 	}
@@ -30,12 +30,12 @@ func TestInt(t *testing.T) {
 }
 
 func TestString(t *testing.T) {
-	name := NewString("my-name");
+	name := NewString("my-name")
 	if name.s != "" {
 		t.Errorf("name.s = %q, want \"\"", name.s)
 	}
 
-	name.Set("Mike");
+	name.Set("Mike")
 	if name.s != "Mike" {
 		t.Errorf("name.s = %q, want \"Mike\"", name.s)
 	}
@@ -46,11 +46,11 @@ func TestString(t *testing.T) {
 }
 
 func TestMapCounter(t *testing.T) {
-	colours := NewMap("bike-shed-colours");
+	colours := NewMap("bike-shed-colours")
 
-	colours.Add("red", 1);
-	colours.Add("red", 2);
-	colours.Add("blue", 4);
+	colours.Add("red", 1)
+	colours.Add("red", 2)
+	colours.Add("blue", 4)
 	if x := colours.m["red"].(*Int).i; x != 3 {
 		t.Errorf("colours.m[\"red\"] = %v, want 3", x)
 	}
@@ -60,17 +60,17 @@ func TestMapCounter(t *testing.T) {
 
 	// colours.String() should be '{"red":3, "blue":4}',
 	// though the order of red and blue could vary.
-	s := colours.String();
-	j, err := json.Decode(s);
+	s := colours.String()
+	j, err := json.Decode(s)
 	if err != nil {
 		t.Errorf("colours.String() isn't valid JSON: %v", err)
 	}
-	m, ok := j.(map[string]interface{});
+	m, ok := j.(map[string]interface{})
 	if !ok {
 		t.Error("colours.String() didn't produce a map.")
 	}
-	red := m["red"];
-	x, ok := red.(float64);
+	red := m["red"]
+	x, ok := red.(float64)
 	if !ok {
 		t.Error("red.Kind() is not a number.")
 	}
@@ -80,13 +80,13 @@ func TestMapCounter(t *testing.T) {
 }
 
 func TestIntFunc(t *testing.T) {
-	x := int(4);
-	ix := IntFunc(func() int64 { return int64(x) });
+	x := int(4)
+	ix := IntFunc(func() int64 { return int64(x) })
 	if s := ix.String(); s != "4" {
 		t.Errorf("ix.String() = %v, want 4", s)
 	}
 
-	x++;
+	x++
 	if s := ix.String(); s != "5" {
 		t.Errorf("ix.String() = %v, want 5", s)
 	}

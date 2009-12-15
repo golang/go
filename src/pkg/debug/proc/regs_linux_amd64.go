@@ -5,14 +5,14 @@
 package proc
 
 import (
-	"os";
-	"strconv";
-	"syscall";
+	"os"
+	"strconv"
+	"syscall"
 )
 
 type amd64Regs struct {
-	syscall.PtraceRegs;
-	setter	func(*syscall.PtraceRegs) os.Error;
+	syscall.PtraceRegs
+	setter func(*syscall.PtraceRegs) os.Error
 }
 
 var names = [...]string{
@@ -48,11 +48,11 @@ var names = [...]string{
 	//"gs_base",
 }
 
-func (r *amd64Regs) PC() Word	{ return Word(r.Rip) }
+func (r *amd64Regs) PC() Word { return Word(r.Rip) }
 
 func (r *amd64Regs) SetPC(val Word) os.Error {
-	r.Rip = uint64(val);
-	return r.setter(&r.PtraceRegs);
+	r.Rip = uint64(val)
+	return r.setter(&r.PtraceRegs)
 }
 
 func (r *amd64Regs) Link() Word {
@@ -64,14 +64,14 @@ func (r *amd64Regs) SetLink(val Word) os.Error {
 	panic("No link register")
 }
 
-func (r *amd64Regs) SP() Word	{ return Word(r.Rsp) }
+func (r *amd64Regs) SP() Word { return Word(r.Rsp) }
 
 func (r *amd64Regs) SetSP(val Word) os.Error {
-	r.Rsp = uint64(val);
-	return r.setter(&r.PtraceRegs);
+	r.Rsp = uint64(val)
+	return r.setter(&r.PtraceRegs)
 }
 
-func (r *amd64Regs) Names() []string	{ return &names }
+func (r *amd64Regs) Names() []string { return &names }
 
 func (r *amd64Regs) Get(i int) Word {
 	switch i {
@@ -124,7 +124,7 @@ func (r *amd64Regs) Get(i int) Word {
 	case 23:
 		return Word(r.Gs)
 	}
-	panic("invalid register index ", strconv.Itoa(i));
+	panic("invalid register index ", strconv.Itoa(i))
 }
 
 func (r *amd64Regs) Set(i int, val Word) os.Error {
@@ -180,12 +180,12 @@ func (r *amd64Regs) Set(i int, val Word) os.Error {
 	default:
 		panic("invalid register index ", strconv.Itoa(i))
 	}
-	return r.setter(&r.PtraceRegs);
+	return r.setter(&r.PtraceRegs)
 }
 
 func newRegs(regs *syscall.PtraceRegs, setter func(*syscall.PtraceRegs) os.Error) Regs {
-	res := amd64Regs{};
-	res.PtraceRegs = *regs;
-	res.setter = setter;
-	return &res;
+	res := amd64Regs{}
+	res.PtraceRegs = *regs
+	res.setter = setter
+	return &res
 }

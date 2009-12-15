@@ -5,8 +5,8 @@
 package eval
 
 import (
-	"bignum";
-	"testing";
+	"bignum"
+	"testing"
 )
 
 var undefined = "undefined"
@@ -340,4 +340,4 @@ var exprTests = []test{
 	CErr("fn==oneTwo", opTypes),
 }
 
-func TestExpr(t *testing.T)	{ runTests(t, "exprTests", exprTests) }
+func TestExpr(t *testing.T) { runTests(t, "exprTests", exprTests) }

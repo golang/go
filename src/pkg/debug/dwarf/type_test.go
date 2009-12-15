@@ -5,10 +5,10 @@
 package dwarf_test
 
 import (
-	. "debug/dwarf";
-	"debug/elf";
-	"debug/macho";
-	"testing";
+	. "debug/dwarf"
+	"debug/elf"
+	"debug/macho"
+	"testing"
 )
 
 var typedefTests = map[string]string{
@@ -30,43 +30,43 @@ var typedefTests = map[string]string{
 }
 
 func elfData(t *testing.T, name string) *Data {
-	f, err := elf.Open(name);
+	f, err := elf.Open(name)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	d, err := f.DWARF();
+	d, err := f.DWARF()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return d;
+	return d
 }
 
 func machoData(t *testing.T, name string) *Data {
-	f, err := macho.Open(name);
+	f, err := macho.Open(name)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	d, err := f.DWARF();
+	d, err := f.DWARF()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return d;
+	return d
 }
 
 
-func TestTypedefsELF(t *testing.T)	{ testTypedefs(t, elfData(t, "testdata/typedef.elf")) }
+func TestTypedefsELF(t *testing.T) { testTypedefs(t, elfData(t, "testdata/typedef.elf")) }
 
 func TestTypedefsMachO(t *testing.T) {
 	testTypedefs(t, machoData(t, "testdata/typedef.macho"))
 }
 
 func testTypedefs(t *testing.T, d *Data) {
-	r := d.Reader();
-	seen := make(map[string]bool);
+	r := d.Reader()
+	seen := make(map[string]bool)
 	for {
-		e, err := r.Next();
+		e, err := r.Next()
 		if err != nil {
 			t.Fatal("r.Next:", err)
 		}
@@ -74,12 +74,12 @@ func testTypedefs(t *testing.T, d *Data) {
 			break
 		}
 		if e.Tag == TagTypedef {
-			typ, err := d.Type(e.Offset);
+			typ, err := d.Type(e.Offset)
 			if err != nil {
 				t.Fatal("d.Type:", err)
 			}
-			t1 := typ.(*TypedefType);
-			var typstr string;
+			t1 := typ.(*TypedefType)
+			var typstr string
 			if ts, ok := t1.Type.(*StructType); ok {
 				typstr = ts.Defn()
 			} else {
@@ -90,7 +90,7 @@ func testTypedefs(t *testing.T, d *Data) {
 				if _, ok := seen[t1.Name]; ok {
 					t.Errorf("multiple definitions for %s", t1.Name)
 				}
-				seen[t1.Name] = true;
+				seen[t1.Name] = true
 				if typstr != want {
 					t.Errorf("%s:\n\thave %s\n\twant %s", t1.Name, typstr, want)
 				}

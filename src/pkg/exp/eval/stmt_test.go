@@ -344,4 +344,4 @@ var stmtTests = []test{
 	Run2("func f1(){}", "f1()"),
 }
 
-func TestStmt(t *testing.T)	{ runTests(t, "stmtTests", stmtTests) }
+func TestStmt(t *testing.T) { runTests(t, "stmtTests", stmtTests) }

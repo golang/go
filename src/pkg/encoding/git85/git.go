@@ -7,10 +7,10 @@
 package git85
 
 import (
-	"bytes";
-	"io";
-	"os";
-	"strconv";
+	"bytes"
+	"io"
+	"os"
+	"strconv"
 )
 
 type CorruptInputError int64
@@ -49,9 +49,9 @@ var decode = [256]uint8{
 // The encoding splits src into chunks of at most 52 bytes
 // and encodes each chunk on its own line.
 func Encode(dst, src []byte) int {
-	ndst := 0;
+	ndst := 0
 	for len(src) > 0 {
-		n := len(src);
+		n := len(src)
 		if n > 52 {
 			n = 52
 		}
@@ -60,23 +60,23 @@ func Encode(dst, src []byte) int {
 		} else {
 			dst[ndst] = byte('a' + n - 26 - 1)
 		}
-		ndst++;
+		ndst++
 		for i := 0; i < n; i += 4 {
-			var v uint32;
+			var v uint32
 			for j := 0; j < 4 && i+j < n; j++ {
 				v |= uint32(src[i+j]) << uint(24-j*8)
 			}
 			for j := 4; j >= 0; j-- {
-				dst[ndst+j] = encode[v%85];
-				v /= 85;
+				dst[ndst+j] = encode[v%85]
+				v /= 85
 			}
-			ndst += 5;
+			ndst += 5
 		}
-		dst[ndst] = '\n';
-		ndst++;
-		src = src[n:];
+		dst[ndst] = '\n'
+		ndst++
+		src = src[n:]
 	}
-	return ndst;
+	return ndst
 }
 
 // EncodedLen returns the length of an encoding of n source bytes.
@@ -86,7 +86,7 @@ func EncodedLen(n int) int {
 	}
 	// 5 bytes per 4 bytes of input, rounded up.
 	// 2 extra bytes for each line of 52 src bytes, rounded up.
-	return (n+3)/4*5 + (n+51)/52*2;
+	return (n+3)/4*5 + (n+51)/52*2
 }
 
 var newline = []byte{'\n'}
@@ -97,10 +97,10 @@ var newline = []byte{'\n'}
 // If Decode encounters invalid input, it returns a CorruptInputError.
 //
 func Decode(dst, src []byte) (n int, err os.Error) {
-	ndst := 0;
-	nsrc := 0;
+	ndst := 0
+	nsrc := 0
 	for nsrc < len(src) {
-		var l int;
+		var l int
 		switch ch := int(src[nsrc]); {
 		case 'A' <= ch && ch <= 'Z':
 			l = ch - 'A' + 1
@@ -112,24 +112,24 @@ func Decode(dst, src []byte) (n int, err os.Error) {
 		if nsrc+1+l > len(src) {
 			return ndst, CorruptInputError(nsrc)
 		}
-		el := (l + 3) / 4 * 5;	// encoded len
+		el := (l + 3) / 4 * 5 // encoded len
 		if nsrc+1+el+1 > len(src) || src[nsrc+1+el] != '\n' {
 			return ndst, CorruptInputError(nsrc)
 		}
-		line := src[nsrc+1 : nsrc+1+el];
+		line := src[nsrc+1 : nsrc+1+el]
 		for i := 0; i < el; i += 5 {
-			var v uint32;
+			var v uint32
 			for j := 0; j < 5; j++ {
-				ch := decode[line[i+j]];
+				ch := decode[line[i+j]]
 				if ch == 0 {
 					return ndst, CorruptInputError(nsrc + 1 + i + j)
 				}
-				v = v*85 + uint32(ch-1);
+				v = v*85 + uint32(ch-1)
 			}
 			for j := 0; j < 4; j++ {
-				dst[ndst] = byte(v >> 24);
-				v <<= 8;
-				ndst++;
+				dst[ndst] = byte(v >> 24)
+				v <<= 8
+				ndst++
 			}
 		}
 		// Last fragment may have run too far (but there was room in dst).
@@ -137,27 +137,27 @@ func Decode(dst, src []byte) (n int, err os.Error) {
 		if l%4 != 0 {
 			ndst -= 4 - l%4
 		}
-		nsrc += 1 + el + 1;
+		nsrc += 1 + el + 1
 	}
-	return ndst, nil;
+	return ndst, nil
 }
 
-func MaxDecodedLen(n int) int	{ return n / 5 * 4 }
+func MaxDecodedLen(n int) int { return n / 5 * 4 }
 
 // NewEncoder returns a new Git base85 stream encoder.  Data written to
 // the returned writer will be encoded and then written to w.
 // The Git encoding operates on 52-byte blocks; when finished
 // writing, the caller must Close the returned encoder to flush any
 // partially written blocks.
-func NewEncoder(w io.Writer) io.WriteCloser	{ return &encoder{w: w} }
+func NewEncoder(w io.Writer) io.WriteCloser { return &encoder{w: w} }
 
 type encoder struct {
-	w	io.Writer;
-	err	os.Error;
-	buf	[52]byte;
-	nbuf	int;
-	out	[1024]byte;
-	nout	int;
+	w    io.Writer
+	err  os.Error
+	buf  [52]byte
+	nbuf int
+	out  [1024]byte
+	nout int
 }
 
 func (e *encoder) Write(p []byte) (n int, err os.Error) {
@@ -167,70 +167,70 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 
 	// Leading fringe.
 	if e.nbuf > 0 {
-		var i int;
+		var i int
 		for i = 0; i < len(p) && e.nbuf < 52; i++ {
-			e.buf[e.nbuf] = p[i];
-			e.nbuf++;
+			e.buf[e.nbuf] = p[i]
+			e.nbuf++
 		}
-		n += i;
-		p = p[i:];
+		n += i
+		p = p[i:]
 		if e.nbuf < 52 {
 			return
 		}
-		nout := Encode(&e.out, &e.buf);
+		nout := Encode(&e.out, &e.buf)
 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 			return n, e.err
 		}
-		e.nbuf = 0;
+		e.nbuf = 0
 	}
 
 	// Large interior chunks.
 	for len(p) >= 52 {
-		nn := len(e.out) / (1 + 52/4*5 + 1) * 52;
+		nn := len(e.out) / (1 + 52/4*5 + 1) * 52
 		if nn > len(p) {
 			nn = len(p) / 52 * 52
 		}
 		if nn > 0 {
-			nout := Encode(&e.out, p[0:nn]);
+			nout := Encode(&e.out, p[0:nn])
 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
 				return n, e.err
 			}
 		}
-		n += nn;
-		p = p[nn:];
+		n += nn
+		p = p[nn:]
 	}
 
 	// Trailing fringe.
 	for i := 0; i < len(p); i++ {
 		e.buf[i] = p[i]
 	}
-	e.nbuf = len(p);
-	n += len(p);
-	return;
+	e.nbuf = len(p)
+	n += len(p)
+	return
 }
 
 func (e *encoder) Close() os.Error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
-		nout := Encode(&e.out, e.buf[0:e.nbuf]);
-		e.nbuf = 0;
-		_, e.err = e.w.Write(e.out[0:nout]);
+		nout := Encode(&e.out, e.buf[0:e.nbuf])
+		e.nbuf = 0
+		_, e.err = e.w.Write(e.out[0:nout])
 	}
-	return e.err;
+	return e.err
 }
 
 // NewDecoder returns a new Git base85 stream decoder.
-func NewDecoder(r io.Reader) io.Reader	{ return &decoder{r: r} }
+func NewDecoder(r io.Reader) io.Reader { return &decoder{r: r} }
 
 type decoder struct {
-	r	io.Reader;
-	err	os.Error;
-	readErr	os.Error;
-	buf	[1024]byte;
-	nbuf	int;
-	out	[]byte;
-	outbuf	[1024]byte;
-	off	int64;
+	r       io.Reader
+	err     os.Error
+	readErr os.Error
+	buf     [1024]byte
+	nbuf    int
+	out     []byte
+	outbuf  [1024]byte
+	off     int64
 }
 
 func (d *decoder) Read(p []byte) (n int, err os.Error) {
@@ -241,9 +241,9 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	for {
 		// Copy leftover output from last decode.
 		if len(d.out) > 0 {
-			n = copy(p, d.out);
-			d.out = d.out[n:];
-			return;
+			n = copy(p, d.out)
+			d.out = d.out[n:]
+			return
 		}
 
 		// Out of decoded output.  Check errors.
@@ -251,27 +251,27 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 			return 0, d.err
 		}
 		if d.readErr != nil {
-			d.err = d.readErr;
-			return 0, d.err;
+			d.err = d.readErr
+			return 0, d.err
 		}
 
 		// Read and decode more input.
-		var nn int;
-		nn, d.readErr = d.r.Read(d.buf[d.nbuf:]);
-		d.nbuf += nn;
+		var nn int
+		nn, d.readErr = d.r.Read(d.buf[d.nbuf:])
+		d.nbuf += nn
 
 		// Send complete lines to Decode.
-		nl := bytes.LastIndex(d.buf[0:d.nbuf], newline);
+		nl := bytes.LastIndex(d.buf[0:d.nbuf], newline)
 		if nl < 0 {
 			continue
 		}
-		nn, d.err = Decode(&d.outbuf, d.buf[0:nl+1]);
+		nn, d.err = Decode(&d.outbuf, d.buf[0:nl+1])
 		if e, ok := d.err.(CorruptInputError); ok {
 			d.err = CorruptInputError(int64(e) + d.off)
 		}
-		d.out = d.outbuf[0:nn];
-		d.nbuf = copy(&d.buf, d.buf[nl+1:d.nbuf]);
-		d.off += int64(nl + 1);
+		d.out = d.outbuf[0:nn]
+		d.nbuf = copy(&d.buf, d.buf[nl+1:d.nbuf])
+		d.off += int64(nl + 1)
 	}
-	panic("unreacahable");
+	panic("unreacahable")
 }

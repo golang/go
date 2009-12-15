@@ -6,9 +6,9 @@
 package base64
 
 import (
-	"io";
-	"os";
-	"strconv";
+	"io"
+	"os"
+	"strconv"
 )
 
 /*
@@ -21,8 +21,8 @@ import (
 // (RFC 1421).  RFC 4648 also defines an alternate encoding, which is
 // the standard encoding with - and _ substituted for + and /.
 type Encoding struct {
-	encode		string;
-	decodeMap	[256]byte;
+	encode    string
+	decodeMap [256]byte
 }
 
 const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
@@ -31,15 +31,15 @@ const encodeURL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345678
 // NewEncoding returns a new Encoding defined by the given alphabet,
 // which must be a 64-byte string.
 func NewEncoding(encoder string) *Encoding {
-	e := new(Encoding);
-	e.encode = encoder;
+	e := new(Encoding)
+	e.encode = encoder
 	for i := 0; i < len(e.decodeMap); i++ {
 		e.decodeMap[i] = 0xFF
 	}
 	for i := 0; i < len(encoder); i++ {
 		e.decodeMap[encoder[i]] = byte(i)
 	}
-	return e;
+	return e
 }
 
 // StdEncoding is the standard base64 encoding, as defined in
@@ -66,25 +66,25 @@ func (enc *Encoding) Encode(dst, src []byte) {
 	}
 
 	for len(src) > 0 {
-		dst[0] = 0;
-		dst[1] = 0;
-		dst[2] = 0;
-		dst[3] = 0;
+		dst[0] = 0
+		dst[1] = 0
+		dst[2] = 0
+		dst[3] = 0
 
 		// Unpack 4x 6-bit source blocks into a 4 byte
 		// destination quantum
 		switch len(src) {
 		default:
-			dst[3] |= src[2] & 0x3F;
-			dst[2] |= src[2] >> 6;
-			fallthrough;
+			dst[3] |= src[2] & 0x3F
+			dst[2] |= src[2] >> 6
+			fallthrough
 		case 2:
-			dst[2] |= (src[1] << 2) & 0x3F;
-			dst[1] |= src[1] >> 4;
-			fallthrough;
+			dst[2] |= (src[1] << 2) & 0x3F
+			dst[1] |= src[1] >> 4
+			fallthrough
 		case 1:
-			dst[1] |= (src[0] << 4) & 0x3F;
-			dst[0] |= src[0] >> 2;
+			dst[1] |= (src[0] << 4) & 0x3F
+			dst[0] |= src[0] >> 2
 		}
 
 		// Encode 6-bit blocks using the base64 alphabet
@@ -94,25 +94,25 @@ func (enc *Encoding) Encode(dst, src []byte) {
 
 		// Pad the final quantum
 		if len(src) < 3 {
-			dst[3] = '=';
+			dst[3] = '='
 			if len(src) < 2 {
 				dst[2] = '='
 			}
-			break;
+			break
 		}
 
-		src = src[3:];
-		dst = dst[4:];
+		src = src[3:]
+		dst = dst[4:]
 	}
 }
 
 type encoder struct {
-	err	os.Error;
-	enc	*Encoding;
-	w	io.Writer;
-	buf	[3]byte;	// buffered data waiting to be encoded
-	nbuf	int;		// number of bytes in buf
-	out	[1024]byte;	// output buffer
+	err  os.Error
+	enc  *Encoding
+	w    io.Writer
+	buf  [3]byte    // buffered data waiting to be encoded
+	nbuf int        // number of bytes in buf
+	out  [1024]byte // output buffer
 }
 
 func (e *encoder) Write(p []byte) (n int, err os.Error) {
@@ -122,47 +122,47 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 
 	// Leading fringe.
 	if e.nbuf > 0 {
-		var i int;
+		var i int
 		for i = 0; i < len(p) && e.nbuf < 3; i++ {
-			e.buf[e.nbuf] = p[i];
-			e.nbuf++;
+			e.buf[e.nbuf] = p[i]
+			e.nbuf++
 		}
-		n += i;
-		p = p[i:];
+		n += i
+		p = p[i:]
 		if e.nbuf < 3 {
 			return
 		}
-		e.enc.Encode(&e.out, &e.buf);
+		e.enc.Encode(&e.out, &e.buf)
 		if _, e.err = e.w.Write(e.out[0:4]); e.err != nil {
 			return n, e.err
 		}
-		e.nbuf = 0;
+		e.nbuf = 0
 	}
 
 	// Large interior chunks.
 	for len(p) >= 3 {
-		nn := len(e.out) / 4 * 3;
+		nn := len(e.out) / 4 * 3
 		if nn > len(p) {
 			nn = len(p)
 		}
-		nn -= nn % 3;
+		nn -= nn % 3
 		if nn > 0 {
-			e.enc.Encode(&e.out, p[0:nn]);
+			e.enc.Encode(&e.out, p[0:nn])
 			if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
 				return n, e.err
 			}
 		}
-		n += nn;
-		p = p[nn:];
+		n += nn
+		p = p[nn:]
 	}
 
 	// Trailing fringe.
 	for i := 0; i < len(p); i++ {
 		e.buf[i] = p[i]
 	}
-	e.nbuf = len(p);
-	n += len(p);
-	return;
+	e.nbuf = len(p)
+	n += len(p)
+	return
 }
 
 // Close flushes any pending output from the encoder.
@@ -170,11 +170,11 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
 func (e *encoder) Close() os.Error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
-		e.enc.Encode(&e.out, e.buf[0:e.nbuf]);
-		e.nbuf = 0;
-		_, e.err = e.w.Write(e.out[0:4]);
+		e.enc.Encode(&e.out, e.buf[0:e.nbuf])
+		e.nbuf = 0
+		_, e.err = e.w.Write(e.out[0:4])
 	}
-	return e.err;
+	return e.err
 }
 
 // NewEncoder returns a new base64 stream encoder.  Data written to
@@ -188,7 +188,7 @@ func NewEncoder(enc *Encoding, w io.Writer) io.WriteCloser {
 
 // EncodedLen returns the length in bytes of the base64 encoding
 // of an input buffer of length n.
-func (enc *Encoding) EncodedLen(n int) int	{ return (n + 2) / 3 * 4 }
+func (enc *Encoding) EncodedLen(n int) int { return (n + 2) / 3 * 4 }
 
 /*
  * Decoder
@@ -207,23 +207,23 @@ func (e CorruptInputError) String() string {
 func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err os.Error) {
 	for i := 0; i < len(src)/4 && !end; i++ {
 		// Decode quantum using the base64 alphabet
-		var dbuf [4]byte;
-		dlen := 4;
+		var dbuf [4]byte
+		dlen := 4
 
 	dbufloop:
 		for j := 0; j < 4; j++ {
-			in := src[i*4+j];
+			in := src[i*4+j]
 			if in == '=' && j >= 2 && i == len(src)/4-1 {
 				// We've reached the end and there's
 				// padding
 				if src[i*4+3] != '=' {
 					return n, false, CorruptInputError(i*4 + 2)
 				}
-				dlen = j;
-				end = true;
-				break dbufloop;
+				dlen = j
+				end = true
+				break dbufloop
 			}
-			dbuf[j] = enc.decodeMap[in];
+			dbuf[j] = enc.decodeMap[in]
 			if dbuf[j] == 0xFF {
 				return n, false, CorruptInputError(i*4 + j)
 			}
@@ -233,18 +233,18 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err os.Error) {
 		// quantum
 		switch dlen {
 		case 4:
-			dst[i*3+2] = dbuf[2]<<6 | dbuf[3];
-			fallthrough;
+			dst[i*3+2] = dbuf[2]<<6 | dbuf[3]
+			fallthrough
 		case 3:
-			dst[i*3+1] = dbuf[1]<<4 | dbuf[2]>>2;
-			fallthrough;
+			dst[i*3+1] = dbuf[1]<<4 | dbuf[2]>>2
+			fallthrough
 		case 2:
 			dst[i*3+0] = dbuf[0]<<2 | dbuf[1]>>4
 		}
-		n += dlen - 1;
+		n += dlen - 1
 	}
 
-	return n, end, nil;
+	return n, end, nil
 }
 
 // Decode decodes src using the encoding enc.  It writes at most
@@ -256,19 +256,19 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err os.Error) {
 		return 0, CorruptInputError(len(src) / 4 * 4)
 	}
 
-	n, _, err = enc.decode(dst, src);
-	return;
+	n, _, err = enc.decode(dst, src)
+	return
 }
 
 type decoder struct {
-	err	os.Error;
-	enc	*Encoding;
-	r	io.Reader;
-	end	bool;		// saw end of message
-	buf	[1024]byte;	// leftover input
-	nbuf	int;
-	out	[]byte;	// leftover decoded output
-	outbuf	[1024 / 4 * 3]byte;
+	err    os.Error
+	enc    *Encoding
+	r      io.Reader
+	end    bool       // saw end of message
+	buf    [1024]byte // leftover input
+	nbuf   int
+	out    []byte // leftover decoded output
+	outbuf [1024 / 4 * 3]byte
 }
 
 func (d *decoder) Read(p []byte) (n int, err os.Error) {
@@ -278,37 +278,37 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 
 	// Use leftover decoded output from last read.
 	if len(d.out) > 0 {
-		n = copy(p, d.out);
-		d.out = d.out[n:];
-		return n, nil;
+		n = copy(p, d.out)
+		d.out = d.out[n:]
+		return n, nil
 	}
 
 	// Read a chunk.
-	nn := len(p) / 3 * 4;
+	nn := len(p) / 3 * 4
 	if nn < 4 {
 		nn = 4
 	}
 	if nn > len(d.buf) {
 		nn = len(d.buf)
 	}
-	nn, d.err = io.ReadAtLeast(d.r, d.buf[d.nbuf:nn], 4-d.nbuf);
-	d.nbuf += nn;
+	nn, d.err = io.ReadAtLeast(d.r, d.buf[d.nbuf:nn], 4-d.nbuf)
+	d.nbuf += nn
 	if d.nbuf < 4 {
 		return 0, d.err
 	}
 
 	// Decode chunk into p, or d.out and then p if p is too small.
-	nr := d.nbuf / 4 * 4;
-	nw := d.nbuf / 4 * 3;
+	nr := d.nbuf / 4 * 4
+	nw := d.nbuf / 4 * 3
 	if nw > len(p) {
-		nw, d.end, d.err = d.enc.decode(&d.outbuf, d.buf[0:nr]);
-		d.out = d.outbuf[0:nw];
-		n = copy(p, d.out);
-		d.out = d.out[n:];
+		nw, d.end, d.err = d.enc.decode(&d.outbuf, d.buf[0:nr])
+		d.out = d.outbuf[0:nw]
+		n = copy(p, d.out)
+		d.out = d.out[n:]
 	} else {
 		n, d.end, d.err = d.enc.decode(p, d.buf[0:nr])
 	}
-	d.nbuf -= nr;
+	d.nbuf -= nr
 	for i := 0; i < d.nbuf; i++ {
 		d.buf[i] = d.buf[i+nr]
 	}
@@ -316,7 +316,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
 	if d.err == nil {
 		d.err = err
 	}
-	return n, d.err;
+	return n, d.err
 }
 
 // NewDecoder constructs a new base64 stream decoder.
@@ -326,4 +326,4 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
 
 // DecodeLen returns the maximum length in bytes of the decoded data
 // corresponding to n bytes of base64-encoded data.
-func (enc *Encoding) DecodedLen(n int) int	{ return n / 4 * 3 }
+func (enc *Encoding) DecodedLen(n int) int { return n / 4 * 3 }

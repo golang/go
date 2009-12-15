@@ -5,16 +5,16 @@
 package elf
 
 import (
-	"debug/dwarf";
-	"encoding/binary";
-	"reflect";
-	"testing";
+	"debug/dwarf"
+	"encoding/binary"
+	"reflect"
+	"testing"
 )
 
 type fileTest struct {
-	file		string;
-	hdr		FileHeader;
-	sections	[]SectionHeader;
+	file     string
+	hdr      FileHeader
+	sections []SectionHeader
 }
 
 var fileTests = []fileTest{
@@ -101,28 +101,28 @@ var fileTests = []fileTest{
 
 func TestOpen(t *testing.T) {
 	for i := range fileTests {
-		tt := &fileTests[i];
+		tt := &fileTests[i]
 
-		f, err := Open(tt.file);
+		f, err := Open(tt.file)
 		if err != nil {
-			t.Error(err);
-			continue;
+			t.Error(err)
+			continue
 		}
 		if !reflect.DeepEqual(f.FileHeader, tt.hdr) {
-			t.Errorf("open %s:\n\thave %#v\n\twant %#v\n", tt.file, f.FileHeader, tt.hdr);
-			continue;
+			t.Errorf("open %s:\n\thave %#v\n\twant %#v\n", tt.file, f.FileHeader, tt.hdr)
+			continue
 		}
 		for i, s := range f.Sections {
 			if i >= len(tt.sections) {
 				break
 			}
-			sh := &tt.sections[i];
+			sh := &tt.sections[i]
 			if !reflect.DeepEqual(&s.SectionHeader, sh) {
 				t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, &s.SectionHeader, sh)
 			}
 		}
-		tn := len(tt.sections);
-		fn := len(f.Sections);
+		tn := len(tt.sections)
+		fn := len(f.Sections)
 		if tn != fn {
 			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn)
 		}
@@ -130,8 +130,8 @@ func TestOpen(t *testing.T) {
 }
 
 type relocationTest struct {
-	file		string;
-	firstEntry	*dwarf.Entry;
+	file       string
+	firstEntry *dwarf.Entry
 }
 
 var relocationTests = []relocationTest{
@@ -151,30 +151,30 @@ var relocationTests = []relocationTest{
 
 func TestDWARFRelocations(t *testing.T) {
 	for i, test := range relocationTests {
-		f, err := Open(test.file);
+		f, err := Open(test.file)
 		if err != nil {
-			t.Error(err);
-			continue;
+			t.Error(err)
+			continue
 		}
-		dwarf, err := f.DWARF();
+		dwarf, err := f.DWARF()
 		if err != nil {
-			t.Error(err);
-			continue;
+			t.Error(err)
+			continue
 		}
-		reader := dwarf.Reader();
+		reader := dwarf.Reader()
 		// Checking only the first entry is sufficient since it has
 		// many different strings. If the relocation had failed, all
 		// the string offsets would be zero and all the strings would
 		// end up being the same.
-		firstEntry, err := reader.Next();
+		firstEntry, err := reader.Next()
 		if err != nil {
-			t.Error(err);
-			continue;
+			t.Error(err)
+			continue
 		}
 
 		if !reflect.DeepEqual(test.firstEntry, firstEntry) {
-			t.Errorf("#%d: mismatch: got:%#v want:%#v", i, firstEntry, test.firstEntry);
-			continue;
+			t.Errorf("#%d: mismatch: got:%#v want:%#v", i, firstEntry, test.firstEntry)
+			continue
 		}
 	}
 }

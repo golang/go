@@ -202,13 +202,13 @@
 package datafmt
 
 import (
-	"bytes";
-	"fmt";
-	"go/token";
-	"io";
-	"os";
-	"reflect";
-	"runtime";
+	"bytes"
+	"fmt"
+	"go/token"
+	"io"
+	"os"
+	"reflect"
+	"runtime"
 )
 
 
@@ -238,35 +238,35 @@ type FormatterMap map[string]Formatter
 // A parsed format expression is built from the following nodes.
 //
 type (
-	expr	interface{};
+	expr interface{}
 
-	alternatives	[]expr;	// x | y | z
+	alternatives []expr // x | y | z
 
-	sequence	[]expr;	// x y z
+	sequence []expr // x y z
 
-	literal	[][]byte;	// a list of string segments, possibly starting with '%'
+	literal [][]byte // a list of string segments, possibly starting with '%'
 
-	field	struct {
-		fieldName	string;	// including "@", "*"
-		ruleName	string;	// "" if no rule name specified
-	};
+	field struct {
+		fieldName string // including "@", "*"
+		ruleName  string // "" if no rule name specified
+	}
 
-	group	struct {
-		indent, body expr;	// (indent >> body)
-	};
+	group struct {
+		indent, body expr // (indent >> body)
+	}
 
-	option	struct {
-		body expr;	// [body]
-	};
+	option struct {
+		body expr // [body]
+	}
 
-	repetition	struct {
-		body, separator expr;	// {body / separator}
-	};
+	repetition struct {
+		body, separator expr // {body / separator}
+	}
 
-	custom	struct {
-		ruleName	string;
-		fun		Formatter;
-	};
+	custom struct {
+		ruleName string
+		fun      Formatter
+	}
 )
 
 
@@ -290,7 +290,7 @@ type Format map[string]expr
 // the receiver, and thus can be very light-weight.
 //
 type Environment interface {
-	Copy() Environment;
+	Copy() Environment
 }
 
 
@@ -298,24 +298,24 @@ type Environment interface {
 // It is provided as argument to custom formatters.
 //
 type State struct {
-	fmt		Format;		// format in use
-	env		Environment;	// user-supplied environment
-	errors		chan os.Error;	// not chan *Error (errors <- nil would be wrong!)
-	hasOutput	bool;		// true after the first literal has been written
-	indent		bytes.Buffer;	// current indentation
-	output		bytes.Buffer;	// format output
-	linePos		token.Position;	// position of line beginning (Column == 0)
-	default_	expr;		// possibly nil
-	separator	expr;		// possibly nil
+	fmt       Format         // format in use
+	env       Environment    // user-supplied environment
+	errors    chan os.Error  // not chan *Error (errors <- nil would be wrong!)
+	hasOutput bool           // true after the first literal has been written
+	indent    bytes.Buffer   // current indentation
+	output    bytes.Buffer   // format output
+	linePos   token.Position // position of line beginning (Column == 0)
+	default_  expr           // possibly nil
+	separator expr           // possibly nil
 }
 
 
 func newState(fmt Format, env Environment, errors chan os.Error) *State {
-	s := new(State);
-	s.fmt = fmt;
-	s.env = env;
-	s.errors = errors;
-	s.linePos = token.Position{Line: 1};
+	s := new(State)
+	s.fmt = fmt
+	s.env = env
+	s.errors = errors
+	s.linePos = token.Position{Line: 1}
 
 	// if we have a default rule, cache it's expression for fast access
 	if x, found := fmt["default"]; found {
@@ -327,26 +327,26 @@ func newState(fmt Format, env Environment, errors chan os.Error) *State {
 		s.separator = x
 	}
 
-	return s;
+	return s
 }
 
 
 // Env returns the environment passed to Format.Apply.
-func (s *State) Env() interface{}	{ return s.env }
+func (s *State) Env() interface{} { return s.env }
 
 
 // LinePos returns the position of the current line beginning
 // in the state's output buffer. Line numbers start at 1.
 //
-func (s *State) LinePos() token.Position	{ return s.linePos }
+func (s *State) LinePos() token.Position { return s.linePos }
 
 
 // Pos returns the position of the next byte to be written to the
 // output buffer. Line numbers start at 1.
 //
 func (s *State) Pos() token.Position {
-	offs := s.output.Len();
-	return token.Position{Line: s.linePos.Line, Column: offs - s.linePos.Offset, Offset: offs};
+	offs := s.output.Len()
+	return token.Position{Line: s.linePos.Line, Column: offs - s.linePos.Offset, Offset: offs}
 }
 
 
@@ -354,50 +354,50 @@ func (s *State) Pos() token.Position {
 // string after each newline or form feed character. It cannot return an error.
 //
 func (s *State) Write(data []byte) (int, os.Error) {
-	n := 0;
-	i0 := 0;
+	n := 0
+	i0 := 0
 	for i, ch := range data {
 		if ch == '\n' || ch == '\f' {
 			// write text segment and indentation
-			n1, _ := s.output.Write(data[i0 : i+1]);
-			n2, _ := s.output.Write(s.indent.Bytes());
-			n += n1 + n2;
-			i0 = i + 1;
-			s.linePos.Offset = s.output.Len();
-			s.linePos.Line++;
+			n1, _ := s.output.Write(data[i0 : i+1])
+			n2, _ := s.output.Write(s.indent.Bytes())
+			n += n1 + n2
+			i0 = i + 1
+			s.linePos.Offset = s.output.Len()
+			s.linePos.Line++
 		}
 	}
-	n3, _ := s.output.Write(data[i0:]);
-	return n + n3, nil;
+	n3, _ := s.output.Write(data[i0:])
+	return n + n3, nil
 }
 
 
 type checkpoint struct {
-	env		Environment;
-	hasOutput	bool;
-	outputLen	int;
-	linePos		token.Position;
+	env       Environment
+	hasOutput bool
+	outputLen int
+	linePos   token.Position
 }
 
 
 func (s *State) save() checkpoint {
-	saved := checkpoint{nil, s.hasOutput, s.output.Len(), s.linePos};
+	saved := checkpoint{nil, s.hasOutput, s.output.Len(), s.linePos}
 	if s.env != nil {
 		saved.env = s.env.Copy()
 	}
-	return saved;
+	return saved
 }
 
 
 func (s *State) restore(m checkpoint) {
-	s.env = m.env;
-	s.output.Truncate(m.outputLen);
+	s.env = m.env
+	s.output.Truncate(m.outputLen)
 }
 
 
 func (s *State) error(msg string) {
-	s.errors <- os.NewError(msg);
-	runtime.Goexit();
+	s.errors <- os.NewError(msg)
+	runtime.Goexit()
 }
 
 
@@ -426,7 +426,7 @@ func typename(typ reflect.Type) string {
 	case *reflect.PtrType:
 		return "ptr"
 	}
-	return typ.String();
+	return typ.String()
 }
 
 func (s *State) getFormat(name string) expr {
@@ -438,8 +438,8 @@ func (s *State) getFormat(name string) expr {
 		return s.default_
 	}
 
-	s.error(fmt.Sprintf("no format rule for type: '%s'", name));
-	return nil;
+	s.error(fmt.Sprintf("no format rule for type: '%s'", name))
+	return nil
 }
 
 
@@ -459,42 +459,42 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 	case alternatives:
 		// append the result of the first alternative that evaluates to
 		// a non-nil []byte to the state's output
-		mark := s.save();
+		mark := s.save()
 		for _, x := range t {
 			if s.eval(x, value, index) {
 				return true
 			}
-			s.restore(mark);
+			s.restore(mark)
 		}
-		return false;
+		return false
 
 	case sequence:
 		// append the result of all operands to the state's output
 		// unless a nil result is encountered
-		mark := s.save();
+		mark := s.save()
 		for _, x := range t {
 			if !s.eval(x, value, index) {
-				s.restore(mark);
-				return false;
+				s.restore(mark)
+				return false
 			}
 		}
-		return true;
+		return true
 
 	case literal:
 		// write separator, if any
 		if s.hasOutput {
 			// not the first literal
 			if s.separator != nil {
-				sep := s.separator;	// save current separator
-				s.separator = nil;	// and disable it (avoid recursion)
-				mark := s.save();
+				sep := s.separator // save current separator
+				s.separator = nil  // and disable it (avoid recursion)
+				mark := s.save()
 				if !s.eval(sep, value, index) {
 					s.restore(mark)
 				}
-				s.separator = sep;	// enable it again
+				s.separator = sep // enable it again
 			}
 		}
-		s.hasOutput = true;
+		s.hasOutput = true
 		// write literal segments
 		for _, lit := range t {
 			if len(lit) > 1 && lit[0] == '%' {
@@ -511,7 +511,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 				s.Write(lit)
 			}
 		}
-		return true;	// a literal never evaluates to nil
+		return true // a literal never evaluates to nil
 
 	case *field:
 		// determine field value
@@ -526,13 +526,13 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 				if v.Len() <= index {
 					return false
 				}
-				value = v.Elem(index);
+				value = v.Elem(index)
 
 			case *reflect.SliceValue:
 				if v.IsNil() || v.Len() <= index {
 					return false
 				}
-				value = v.Elem(index);
+				value = v.Elem(index)
 
 			case *reflect.MapValue:
 				s.error("reflection support for maps incomplete")
@@ -541,13 +541,13 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 				if v.IsNil() {
 					return false
 				}
-				value = v.Elem();
+				value = v.Elem()
 
 			case *reflect.InterfaceValue:
 				if v.IsNil() {
 					return false
 				}
-				value = v.Elem();
+				value = v.Elem()
 
 			case *reflect.ChanValue:
 				s.error("reflection support for chans incomplete")
@@ -561,98 +561,98 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
 
 		default:
 			// value is value of named field
-			var field reflect.Value;
+			var field reflect.Value
 			if sval, ok := value.(*reflect.StructValue); ok {
-				field = sval.FieldByName(t.fieldName);
+				field = sval.FieldByName(t.fieldName)
 				if field == nil {
 					// TODO consider just returning false in this case
 					s.error(fmt.Sprintf("error: no field `%s` in `%s`", t.fieldName, value.Type()))
 				}
 			}
-			value = field;
+			value = field
 		}
 
 		// determine rule
-		ruleName := t.ruleName;
+		ruleName := t.ruleName
 		if ruleName == "" {
 			// no alternate rule name, value type determines rule
 			ruleName = typename(value.Type())
 		}
-		fexpr = s.getFormat(ruleName);
+		fexpr = s.getFormat(ruleName)
 
-		mark := s.save();
+		mark := s.save()
 		if !s.eval(fexpr, value, index) {
-			s.restore(mark);
-			return false;
+			s.restore(mark)
+			return false
 		}
-		return true;
+		return true
 
 	case *group:
 		// remember current indentation
-		indentLen := s.indent.Len();
+		indentLen := s.indent.Len()
 
 		// update current indentation
-		mark := s.save();
-		s.eval(t.indent, value, index);
+		mark := s.save()
+		s.eval(t.indent, value, index)
 		// if the indentation evaluates to nil, the state's output buffer
 		// didn't change - either way it's ok to append the difference to
 		// the current identation
-		s.indent.Write(s.output.Bytes()[mark.outputLen:s.output.Len()]);
-		s.restore(mark);
+		s.indent.Write(s.output.Bytes()[mark.outputLen:s.output.Len()])
+		s.restore(mark)
 
 		// format group body
-		mark = s.save();
-		b := true;
+		mark = s.save()
+		b := true
 		if !s.eval(t.body, value, index) {
-			s.restore(mark);
-			b = false;
+			s.restore(mark)
+			b = false
 		}
 
 		// reset indentation
-		s.indent.Truncate(indentLen);
-		return b;
+		s.indent.Truncate(indentLen)
+		return b
 
 	case *option:
 		// evaluate the body and append the result to the state's output
 		// buffer unless the result is nil
-		mark := s.save();
-		if !s.eval(t.body, value, 0) {	// TODO is 0 index correct?
+		mark := s.save()
+		if !s.eval(t.body, value, 0) { // TODO is 0 index correct?
 			s.restore(mark)
 		}
-		return true;	// an option never evaluates to nil
+		return true // an option never evaluates to nil
 
 	case *repetition:
 		// evaluate the body and append the result to the state's output
 		// buffer until a result is nil
 		for i := 0; ; i++ {
-			mark := s.save();
+			mark := s.save()
 			// write separator, if any
 			if i > 0 && t.separator != nil {
 				// nil result from separator is ignored
-				mark := s.save();
+				mark := s.save()
 				if !s.eval(t.separator, value, i) {
 					s.restore(mark)
 				}
 			}
 			if !s.eval(t.body, value, i) {
-				s.restore(mark);
-				break;
+				s.restore(mark)
+				break
 			}
 		}
-		return true;	// a repetition never evaluates to nil
+		return true // a repetition never evaluates to nil
 
 	case *custom:
 		// invoke the custom formatter to obtain the result
-		mark := s.save();
+		mark := s.save()
 		if !t.fun(s, value.Interface(), t.ruleName) {
-			s.restore(mark);
-			return false;
+			s.restore(mark)
+			return false
 		}
-		return true;
+		return true
 	}
 
-	panic("unreachable");
-	return false;
+	panic("unreachable")
+	return false
 }
 
 
@@ -668,23 +668,23 @@ func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
 		return nil, os.NewError("format is nil")
 	}
 
-	errors := make(chan os.Error);
-	s := newState(f, env, errors);
+	errors := make(chan os.Error)
+	s := newState(f, env, errors)
 
 	go func() {
-		value := reflect.NewValue(args).(*reflect.StructValue);
+		value := reflect.NewValue(args).(*reflect.StructValue)
 		for i := 0; i < value.NumField(); i++ {
-			fld := value.Field(i);
-			mark := s.save();
-			if !s.eval(s.getFormat(typename(fld.Type())), fld, 0) {	// TODO is 0 index correct?
+			fld := value.Field(i)
+			mark := s.save()
+			if !s.eval(s.getFormat(typename(fld.Type())), fld, 0) { // TODO is 0 index correct?
 				s.restore(mark)
 			}
 		}
-		errors <- nil;	// no errors
-	}();
+		errors <- nil // no errors
+	}()
 
-	err := <-errors;
-	return s.output.Bytes(), err;
+	err := <-errors
+	return s.output.Bytes(), err
 }
 
 
@@ -696,12 +696,12 @@ func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
 // written and an os.Error, if any.
 //
 func (f Format) Fprint(w io.Writer, env Environment, args ...) (int, os.Error) {
-	data, err := f.Eval(env, args);
+	data, err := f.Eval(env, args)
 	if err != nil {
 		// TODO should we print partial result in case of error?
 		return 0, err
 	}
-	return w.Write(data);
+	return w.Write(data)
 }
 
 
@@ -720,10 +720,10 @@ func (f Format) Print(args ...) (int, os.Error) {
 // partially formatted result followed by an error message.
 //
 func (f Format) Sprint(args ...) string {
-	var buf bytes.Buffer;
-	_, err := f.Fprint(&buf, nil, args);
+	var buf bytes.Buffer
+	_, err := f.Fprint(&buf, nil, args)
 	if err != nil {
 		fmt.Fprintf(&buf, "--- Sprint(%s) failed: %v", fmt.Sprint(args), err)
 	}
-	return buf.String();
+	return buf.String()
 }
