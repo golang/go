@@ -47,6 +47,33 @@ The comment convention is the same as in C++:
 
 Later we'll have much more to say about printing.
 
+Semicolons
+----
+
+You might have noticed that our program has no semicolons.  In Go
+code, the only place you typically see semicolons is separating the
+clauses of "for" loops and the like; they are not necessary after
+every statement.
+
+In fact, what happens is that the formal language uses semicolons,
+much as in C or Java, but they are inserted automatically
+at the end of every line that looks like the end of a statement. You
+don't need to type them yourself.
+
+For details about how this is done you can see the language
+specification, but in practice all you need to know is that you
+never need to put a semicolon at the end of a line.  (You can put
+them in if you want to write multiple statements per line.) As an
+extra help, you can also leave out a semicolon immediately before
+a closing brace.
+
+This approach makes for clean-looking, semicolon-free code.  The
+one surprise is that it's important to put the opening
+brace of a construct such as an "if" statement on the same line as
+the "if"; if you don't, there are situations that may not compile
+or may give the wrong result.  The language forces the brace style
+to some extent.
+
 Compiling
 ----
 
@@ -84,26 +111,11 @@ This program is small but it's doing a number of new things.  In the last exampl
 we saw "func" introduce a function.  The keywords "var", "const", and "type"
 (not used yet) also introduce declarations, as does "import".
 Notice that we can group declarations of the same sort into
-parenthesized, semicolon-separated lists if we want, as on lines 7-10 and 14-17.
+parenthesized lists, one item per line, as on lines 7-10 and 14-17.
 But it's not necessary to do so; we could have said
 
 	const Space = " "
 	const Newline = "\n"
-
-Semicolons aren't needed here; in fact, semicolons are unnecessary after any
-top-level declaration, although they are needed as separators <i>within</i>
-a parenthesized list of declarations.
-
-You can use semicolons just the way you would in C, C++, or Java, but if you
-prefer you can also leave them out in many cases.   They <i>separate</i> statements
-rather than terminate them, so they aren't needed (but are still OK) at the end of the last
-statement in a block.
-They're also optional after braces, as in C.
-Have a look at the source to "echo".
-The only necessary semicolons in that program are on lines 8, 15, and 21
-and of course between the elements of the "for" loop on line 22.
-The ones on line 9, 16, 26, and 31 are optional but are there because a semicolon
-on the end of a list of statements makes it easier to edit the list later.
 
 This program imports the "&quot;os&quot;" package to access its "Stdout" variable, of type
 "*os.File".  The "import" statement is actually a declaration: in its general form,
@@ -634,7 +646,7 @@ prints
 In fact, if you're lazy the format "%v" will print, in a simple
 appropriate style, any value, even an array or structure.  The output of
 
---PROG progs/print.go 'NR==14' 'NR==17'
+--PROG progs/print.go 'NR==14' 'NR==20'
 
 is
 
@@ -647,7 +659,7 @@ of "%v" while "Println" inserts spaces between arguments
 and adds a newline.  The output of each of these two lines is identical
 to that of the "Printf" call above.
 
---PROG progs/print.go 'NR==18' 'NR==19'
+--PROG progs/print.go 'NR==21' 'NR==22'
 
 If you have your own type you'd like "Printf" or "Print" to format,
 just give it a "String()" method that returns a string.  The print

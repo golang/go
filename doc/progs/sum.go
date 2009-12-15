@@ -7,7 +7,7 @@ package main
 import "fmt"
 
 func sum(a []int) int {   // returns an int
-	s := 0;
+	s := 0
 	for i := 0; i < len(a); i++ {
 		s += a[i]
 	}
@@ -16,6 +16,6 @@ func sum(a []int) int {   // returns an int
 
 
 func main() {
-	s := sum(&[3]int{1,2,3});  // a slice of the array is passed to sum
-	fmt.Print(s, "\n");
+	s := sum(&[3]int{1,2,3})  // a slice of the array is passed to sum
+	fmt.Print(s, "\n")
 }

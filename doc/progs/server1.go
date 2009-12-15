@@ -7,50 +7,50 @@ package main
 import "fmt"
 
 type request struct {
-	a, b	int;
-	replyc	chan int;
+	a, b	int
+	replyc	chan int
 }
 
 type binOp func(a, b int) int
 
 func run(op binOp, req *request) {
-	reply := op(req.a, req.b);
-	req.replyc <- reply;
+	reply := op(req.a, req.b)
+	req.replyc <- reply
 }
 
 func server(op binOp, service chan *request, quit chan bool) {
 	for {
 		select {
 		case req := <-service:
-			go run(op, req);  // don't wait for it
+			go run(op, req)  // don't wait for it
 		case <-quit:
-			return;
+			return
 		}
 	}
 }
 
 func startServer(op binOp) (service chan *request, quit chan bool) {
-	service = make(chan *request);
-	quit = make(chan bool);
-	go server(op, service, quit);
-	return service, quit;
+	service = make(chan *request)
+	quit = make(chan bool)
+	go server(op, service, quit)
+	return service, quit
 }
 
 func main() {
-	adder, quit := startServer(func(a, b int) int { return a + b });
-	const N = 100;
-	var reqs [N]request;
+	adder, quit := startServer(func(a, b int) int { return a + b })
+	const N = 100
+	var reqs [N]request
 	for i := 0; i < N; i++ {
-		req := &reqs[i];
-		req.a = i;
-		req.b = i + N;
-		req.replyc = make(chan int);
-		adder <- req;
+		req := &reqs[i]
+		req.a = i
+		req.b = i + N
+		req.replyc = make(chan int)
+		adder <- req
 	}
 	for i := N-1; i >= 0; i-- {   // doesn't matter what order
 		if <-reqs[i].replyc != N + 2*i {
-			fmt.Println("fail at", i);
+			fmt.Println("fail at", i)
 		}
 	}
-	quit <- true;
+	quit <- true
 }

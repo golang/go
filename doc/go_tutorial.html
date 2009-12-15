@@ -30,7 +30,7 @@ Let's start in the usual way:
 07    import fmt &quot;fmt&quot;  // Package implementing formatted I/O.
 <p>
 09    func main() {
-10        fmt.Printf(&quot;Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n&quot;);
+10        fmt.Printf(&quot;Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n&quot;)
 11    }
 </pre>
 <p>
@@ -54,6 +54,32 @@ The comment convention is the same as in C++:
 </pre>
 <p>
 Later we'll have much more to say about printing.
+<p>
+<h2>Semicolons</h2>
+<p>
+You might have noticed that our program has no semicolons.  In Go
+code, the only place you typically see semicolons is separating the
+clauses of <code>for</code> loops and the like; they are not necessary after
+every statement.
+<p>
+In fact, what happens is that the formal language uses semicolons,
+much as in C or Java, but they are inserted automatically
+at the end of every line that looks like the end of a statement. You
+don't need to type them yourself.
+<p>
+For details about how this is done you can see the language
+specification, but in practice all you need to know is that you
+never need to put a semicolon at the end of a line.  (You can put
+them in if you want to write multiple statements per line.) As an
+extra help, you can also leave out a semicolon immediately before
+a closing brace.
+<p>
+This approach makes for clean-looking, semicolon-free code.  The
+one surprise is that it's important to put the opening
+brace of a construct such as an <code>if</code> statement on the same line as
+the <code>if</code>; if you don't, there are situations that may not compile
+or may give the wrong result.  The language forces the brace style
+to some extent.
 <p>
 <h2>Compiling</h2>
 <p>
@@ -92,30 +118,30 @@ Next up, here's a version of the Unix utility <code>echo(1)</code>:
 05    package main
 <p>
 07    import (
-08        &quot;os&quot;;
-09        &quot;flag&quot;;  // command line option parser
+08        &quot;os&quot;
+09        &quot;flag&quot;  // command line option parser
 10    )
 <p>
 12    var omitNewline = flag.Bool(&quot;n&quot;, false, &quot;don't print final newline&quot;)
 <p>
 14    const (
-15        Space = &quot; &quot;;
-16        Newline = &quot;\n&quot;;
+15        Space = &quot; &quot;
+16        Newline = &quot;\n&quot;
 17    )
 <p>
 19    func main() {
-20        flag.Parse();   // Scans the arg list and sets up flags
-21        var s string = &quot;&quot;;
+20        flag.Parse()   // Scans the arg list and sets up flags
+21        var s string = &quot;&quot;
 22        for i := 0; i &lt; flag.NArg(); i++ {
 23            if i &gt; 0 {
 24                s += Space
 25            }
-26            s += flag.Arg(i);
+26            s += flag.Arg(i)
 27        }
 28        if !*omitNewline {
 29            s += Newline
 30        }
-31        os.Stdout.WriteString(s);
+31        os.Stdout.WriteString(s)
 32    }
 </pre>
 <p>
@@ -123,28 +149,13 @@ This program is small but it's doing a number of new things.  In the last exampl
 we saw <code>func</code> introduce a function.  The keywords <code>var</code>, <code>const</code>, and <code>type</code>
 (not used yet) also introduce declarations, as does <code>import</code>.
 Notice that we can group declarations of the same sort into
-parenthesized, semicolon-separated lists if we want, as on lines 7-10 and 14-17.
+parenthesized lists, one item per line, as on lines 7-10 and 14-17.
 But it's not necessary to do so; we could have said
 <p>
 <pre>
     const Space = " "
     const Newline = "\n"
 </pre>
-<p>
-Semicolons aren't needed here; in fact, semicolons are unnecessary after any
-top-level declaration, although they are needed as separators <i>within</i>
-a parenthesized list of declarations.
-<p>
-You can use semicolons just the way you would in C, C++, or Java, but if you
-prefer you can also leave them out in many cases.   They <i>separate</i> statements
-rather than terminate them, so they aren't needed (but are still OK) at the end of the last
-statement in a block.
-They're also optional after braces, as in C.
-Have a look at the source to <code>echo</code>.
-The only necessary semicolons in that program are on lines 8, 15, and 21
-and of course between the elements of the <code>for</code> loop on line 22.
-The ones on line 9, 16, 26, and 31 are optional but are there because a semicolon
-on the end of a list of statements makes it easier to edit the list later.
 <p>
 This program imports the <code>&quot;os&quot;</code> package to access its <code>Stdout</code> variable, of type
 <code>*os.File</code>.  The <code>import</code> statement is actually a declaration: in its general form,
@@ -242,11 +253,11 @@ of course you can change a string <i>variable</i> simply by
 reassigning it.  This snippet from <code>strings.go</code> is legal code:
 <p>
 <pre> <!-- progs/strings.go /hello/ /ciao/ -->
-11        s := &quot;hello&quot;;
+11        s := &quot;hello&quot;
 12        if s[1] != 'e' { os.Exit(1) }
-13        s = &quot;good bye&quot;;
-14        var p *string = &amp;s;
-15        *p = &quot;ciao&quot;;
+13        s = &quot;good bye&quot;
+14        var p *string = &amp;s
+15        *p = &quot;ciao&quot;
 </pre>
 <p>
 However the following statements are illegal because they would modify
@@ -302,7 +313,7 @@ Using slices one can write this function (from <code>sum.go</code>):
 <p>
 <pre> <!-- progs/sum.go /sum/ /^}/ -->
 09    func sum(a []int) int {   // returns an int
-10        s := 0;
+10        s := 0
 11        for i := 0; i &lt; len(a); i++ {
 12            s += a[i]
 13        }
@@ -313,7 +324,7 @@ Using slices one can write this function (from <code>sum.go</code>):
 and invoke it like this:
 <p>
 <pre> <!-- progs/sum.go /1,2,3/ -->
-19        s := sum(&amp;[3]int{1,2,3});  // a slice of the array is passed to sum
+19        s := sum(&amp;[3]int{1,2,3})  // a slice of the array is passed to sum
 </pre>
 <p>
 Note how the return type (<code>int</code>) is defined for <code>sum()</code> by stating it
@@ -454,13 +465,13 @@ sort of open/close/read/write interface.  Here's the start of <code>file.go</cod
 05    package file
 <p>
 07    import (
-08        &quot;os&quot;;
-09        &quot;syscall&quot;;
+08        &quot;os&quot;
+09        &quot;syscall&quot;
 10    )
 <p>
 12    type File struct {
-13        fd      int;    // file descriptor number
-14        name    string; // file name at Open time
+13        fd      int    // file descriptor number
+14        name    string // file name at Open time
 15    }
 </pre>
 <p>
@@ -520,9 +531,9 @@ We can use the factory to construct some familiar, exported variables of type <c
 <p>
 <pre> <!-- progs/file.go /var/ /^.$/ -->
 24    var (
-25        Stdin  = newFile(0, &quot;/dev/stdin&quot;);
-26        Stdout = newFile(1, &quot;/dev/stdout&quot;);
-27        Stderr = newFile(2, &quot;/dev/stderr&quot;);
+25        Stdin  = newFile(0, &quot;/dev/stdin&quot;)
+26        Stdout = newFile(1, &quot;/dev/stdout&quot;)
+27        Stderr = newFile(2, &quot;/dev/stderr&quot;)
 28    )
 </pre>
 <p>
@@ -531,9 +542,9 @@ exported factory to use is <code>Open</code>:
 <p>
 <pre> <!-- progs/file.go /func.Open/ /^}/ -->
 30    func Open(name string, mode int, perm int) (file *File, err os.Error) {
-31        r, e := syscall.Open(name, mode, perm);
+31        r, e := syscall.Open(name, mode, perm)
 32        if e != 0 {
-33            err = os.Errno(e);
+33            err = os.Errno(e)
 34        }
 35        return newFile(r, name), err
 36    }
@@ -569,10 +580,10 @@ each of which declares a receiver variable <code>file</code>.
 39        if file == nil {
 40            return os.EINVAL
 41        }
-42        e := syscall.Close(file.fd);
-43        file.fd = -1;  // so it can't be closed again
+42        e := syscall.Close(file.fd)
+43        file.fd = -1  // so it can't be closed again
 44        if e != 0 {
-45            return os.Errno(e);
+45            return os.Errno(e)
 46        }
 47        return nil
 48    }
@@ -581,9 +592,9 @@ each of which declares a receiver variable <code>file</code>.
 51        if file == nil {
 52            return -1, os.EINVAL
 53        }
-54        r, e := syscall.Read(file.fd, b);
+54        r, e := syscall.Read(file.fd, b)
 55        if e != 0 {
-56            err = os.Errno(e);
+56            err = os.Errno(e)
 57        }
 58        return int(r), err
 59    }
@@ -592,9 +603,9 @@ each of which declares a receiver variable <code>file</code>.
 62        if file == nil {
 63            return -1, os.EINVAL
 64        }
-65        r, e := syscall.Write(file.fd, b);
+65        r, e := syscall.Write(file.fd, b)
 66        if e != 0 {
-67            err = os.Errno(e);
+67            err = os.Errno(e)
 68        }
 69        return int(r), err
 70    }
@@ -623,18 +634,18 @@ We can now use our new package:
 05    package main
 <p>
 07    import (
-08        &quot;./file&quot;;
-09        &quot;fmt&quot;;
-10        &quot;os&quot;;
+08        &quot;./file&quot;
+09        &quot;fmt&quot;
+10        &quot;os&quot;
 11    )
 <p>
 13    func main() {
-14        hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'};
-15        file.Stdout.Write(hello);
-16        file, err := file.Open(&quot;/does/not/exist&quot;,  0,  0);
+14        hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'}
+15        file.Stdout.Write(hello)
+16        file, err := file.Open(&quot;/does/not/exist&quot;,  0,  0)
 17        if file == nil {
-18            fmt.Printf(&quot;can't open file; err=%s\n&quot;,  err.String());
-19            os.Exit(1);
+18            fmt.Printf(&quot;can't open file; err=%s\n&quot;,  err.String())
+19            os.Exit(1)
 20        }
 21    }
 </pre>
@@ -660,43 +671,43 @@ Building on the <code>file</code> package, here's a simple version of the Unix u
 05    package main
 <p>
 07    import (
-08        &quot;./file&quot;;
-09        &quot;flag&quot;;
-10        &quot;fmt&quot;;
-11        &quot;os&quot;;
+08        &quot;./file&quot;
+09        &quot;flag&quot;
+10        &quot;fmt&quot;
+11        &quot;os&quot;
 12    )
 <p>
 14    func cat(f *file.File) {
-15        const NBUF = 512;
-16        var buf [NBUF]byte;
+15        const NBUF = 512
+16        var buf [NBUF]byte
 17        for {
 18            switch nr, er := f.Read(&amp;buf); true {
 19            case nr &lt; 0:
-20                fmt.Fprintf(os.Stderr, &quot;cat: error reading from %s: %s\n&quot;, f.String(), er.String());
-21                os.Exit(1);
+20                fmt.Fprintf(os.Stderr, &quot;cat: error reading from %s: %s\n&quot;, f.String(), er.String())
+21                os.Exit(1)
 22            case nr == 0:  // EOF
-23                return;
+23                return
 24            case nr &gt; 0:
 25                if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
-26                    fmt.Fprintf(os.Stderr, &quot;cat: error writing from %s: %s\n&quot;, f.String(), ew.String());
+26                    fmt.Fprintf(os.Stderr, &quot;cat: error writing from %s: %s\n&quot;, f.String(), ew.String())
 27                }
 28            }
 29        }
 30    }
 <p>
 32    func main() {
-33        flag.Parse();   // Scans the arg list and sets up flags
+33        flag.Parse()   // Scans the arg list and sets up flags
 34        if flag.NArg() == 0 {
-35            cat(file.Stdin);
+35            cat(file.Stdin)
 36        }
 37        for i := 0; i &lt; flag.NArg(); i++ {
-38            f, err := file.Open(flag.Arg(i), 0, 0);
+38            f, err := file.Open(flag.Arg(i), 0, 0)
 39            if f == nil {
-40                fmt.Fprintf(os.Stderr, &quot;cat: can't open %s: error %s\n&quot;, flag.Arg(i), err);
-41                os.Exit(1);
+40                fmt.Fprintf(os.Stderr, &quot;cat: can't open %s: error %s\n&quot;, flag.Arg(i), err)
+41                os.Exit(1)
 42            }
-43            cat(f);
-44            f.Close();
+43            cat(f)
+44            f.Close()
 45        }
 46    }
 </pre>
@@ -729,8 +740,8 @@ Here is code from <code>progs/cat_rot13.go</code>:
 <p>
 <pre> <!-- progs/cat_rot13.go /type.reader/ /^}/ -->
 26    type reader interface {
-27        Read(b []byte) (ret int, err os.Error);
-28        String() string;
+27        Read(b []byte) (ret int, err os.Error)
+28        String() string
 29    }
 </pre>
 <p>
@@ -746,7 +757,7 @@ we have a second implementation of the <code>reader</code> interface.
 <p>
 <pre> <!-- progs/cat_rot13.go /type.rotate13/ /end.of.rotate13/ -->
 31    type rotate13 struct {
-32        source    reader;
+32        source    reader
 33    }
 <p>
 35    func newRotate13(source reader) *rotate13 {
@@ -754,7 +765,7 @@ we have a second implementation of the <code>reader</code> interface.
 37    }
 <p>
 39    func (r13 *rotate13) Read(b []byte) (ret int, err os.Error) {
-40        r, e := r13.source.Read(b);
+40        r, e := r13.source.Read(b)
 41        for i := 0; i &lt; r; i++ {
 42            b[i] = rot13(b[i])
 43        }
@@ -779,8 +790,8 @@ and use it from within a mostly unchanged <code>cat()</code> function:
 <p>
 <pre> <!-- progs/cat_rot13.go /func.cat/ /^}/ -->
 52    func cat(r reader) {
-53        const NBUF = 512;
-54        var buf [NBUF]byte;
+53        const NBUF = 512
+54        var buf [NBUF]byte
 <p>
 56        if *rot13Flag {
 57            r = newRotate13(r)
@@ -788,14 +799,14 @@ and use it from within a mostly unchanged <code>cat()</code> function:
 59        for {
 60            switch nr, er := r.Read(&amp;buf); {
 61            case nr &lt; 0:
-62                fmt.Fprintf(os.Stderr, &quot;cat: error reading from %s: %s\n&quot;, r.String(), er.String());
-63                os.Exit(1);
+62                fmt.Fprintf(os.Stderr, &quot;cat: error reading from %s: %s\n&quot;, r.String(), er.String())
+63                os.Exit(1)
 64            case nr == 0:  // EOF
-65                return;
+65                return
 66            case nr &gt; 0:
-67                nw, ew := file.Stdout.Write(buf[0:nr]);
+67                nw, ew := file.Stdout.Write(buf[0:nr])
 68                if nw != nr {
-69                    fmt.Fprintf(os.Stderr, &quot;cat: error writing from %s: %s\n&quot;, r.String(), ew.String());
+69                    fmt.Fprintf(os.Stderr, &quot;cat: error writing from %s: %s\n&quot;, r.String(), ew.String())
 70                }
 71            }
 72        }
@@ -851,7 +862,7 @@ As an example, consider this simple sort algorithm taken from <code>progs/sort.g
 13    func Sort(data Interface) {
 14        for i := 1; i &lt; data.Len(); i++ {
 15            for j := i; j &gt; 0 &amp;&amp; data.Less(j, j-1); j-- {
-16                data.Swap(j, j-1);
+16                data.Swap(j, j-1)
 17            }
 18        }
 19    }
@@ -861,9 +872,9 @@ The code needs only three methods, which we wrap into sort's <code>Interface</co
 <p>
 <pre> <!-- progs/sort.go /interface/ /^}/ -->
 07    type Interface interface {
-08        Len() int;
-09        Less(i, j int) bool;
-10        Swap(i, j int);
+08        Len() int
+09        Less(i, j int) bool
+10        Swap(i, j int)
 11    }
 </pre>
 <p>
@@ -874,9 +885,9 @@ arrays of integers, strings, etc.; here's the code for arrays of <code>int</code
 <pre> <!-- progs/sort.go /type.*IntArray/ /Swap/ -->
 33    type IntArray []int
 <p>
-35    func (p IntArray) Len() int            { return len(p); }
-36    func (p IntArray) Less(i, j int) bool  { return p[i] &lt; p[j]; }
-37    func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+35    func (p IntArray) Len() int            { return len(p) }
+36    func (p IntArray) Less(i, j int) bool  { return p[i] &lt; p[j] }
+37    func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
 </pre>
 <p>
 Here we see methods defined for non-<code>struct</code> types.  You can define methods
@@ -888,9 +899,9 @@ to test that the result is sorted.
 <p>
 <pre> <!-- progs/sortmain.go /func.ints/ /^}/ -->
 12    func ints() {
-13        data := []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586};
-14        a := sort.IntArray(data);
-15        sort.Sort(a);
+13        data := []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
+14        a := sort.IntArray(data)
+15        sort.Sort(a)
 16        if !sort.IsSorted(a) {
 17            panic()
 18        }
@@ -902,18 +913,18 @@ to implement the three methods for that type, like this:
 <p>
 <pre> <!-- progs/sortmain.go /type.day/ /Swap/ -->
 30    type day struct {
-31        num        int;
-32        shortName  string;
-33        longName   string;
+31        num        int
+32        shortName  string
+33        longName   string
 34    }
 <p>
 36    type dayArray struct {
-37        data []*day;
+37        data []*day
 38    }
 <p>
-40    func (p *dayArray) Len() int            { return len(p.data); }
-41    func (p *dayArray) Less(i, j int) bool  { return p.data[i].num &lt; p.data[j].num; }
-42    func (p *dayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+40    func (p *dayArray) Len() int            { return len(p.data) }
+41    func (p *dayArray) Less(i, j int) bool  { return p.data[i].num &lt; p.data[j].num }
+42    func (p *dayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i] }
 </pre>
 <p>
 <p>
@@ -944,8 +955,8 @@ can just say <code>%d</code>; <code>Printf</code> knows the size and signedness 
 integer and can do the right thing for you.  The snippet
 <p>
 <pre> <!-- progs/print.go NR==10 NR==11 -->
-10        var u64 uint64 = 1&lt;&lt;64-1;
-11        fmt.Printf(&quot;%d %d\n&quot;, u64, int64(u64));
+10        var u64 uint64 = 1&lt;&lt;64-1
+11        fmt.Printf(&quot;%d %d\n&quot;, u64, int64(u64))
 </pre>
 <p>
 prints
@@ -957,11 +968,14 @@ prints
 In fact, if you're lazy the format <code>%v</code> will print, in a simple
 appropriate style, any value, even an array or structure.  The output of
 <p>
-<pre> <!-- progs/print.go NR==14 NR==17 -->
-14        type T struct { a int; b string };
-15        t := T{77, &quot;Sunset Strip&quot;};
-16        a := []int{1, 2, 3, 4};
-17        fmt.Printf(&quot;%v %v %v\n&quot;, u64, t, a);
+<pre> <!-- progs/print.go NR==14 NR==20 -->
+14        type T struct {
+15            a int
+16            b string
+17        }
+18        t := T{77, &quot;Sunset Strip&quot;}
+19        a := []int{1, 2, 3, 4}
+20        fmt.Printf(&quot;%v %v %v\n&quot;, u64, t, a)
 </pre>
 <p>
 is
@@ -977,9 +991,9 @@ of <code>%v</code> while <code>Println</code> inserts spaces between arguments
 and adds a newline.  The output of each of these two lines is identical
 to that of the <code>Printf</code> call above.
 <p>
-<pre> <!-- progs/print.go NR==18 NR==19 -->
-18        fmt.Print(u64, &quot; &quot;, t, &quot; &quot;, a, &quot;\n&quot;);
-19        fmt.Println(u64, t, a);
+<pre> <!-- progs/print.go NR==21 NR==22 -->
+21        fmt.Print(u64, &quot; &quot;, t, &quot; &quot;, a, &quot;\n&quot;)
+22        fmt.Println(u64, t, a)
 </pre>
 <p>
 If you have your own type you'd like <code>Printf</code> or <code>Print</code> to format,
@@ -989,16 +1003,19 @@ the method and if so, use it rather than some other formatting.
 Here's a simple example.
 <p>
 <pre> <!-- progs/print_string.go NR==9 END -->
-09    type testType struct { a int; b string }
+09    type testType struct {
+10        a int
+11        b string
+12    }
 <p>
-11    func (t *testType) String() string {
-12        return fmt.Sprint(t.a) + &quot; &quot; + t.b
-13    }
+14    func (t *testType) String() string {
+15        return fmt.Sprint(t.a) + &quot; &quot; + t.b
+16    }
 <p>
-15    func main() {
-16        t := &amp;testType{77, &quot;Sunset Strip&quot;};
-17        fmt.Println(t)
-18    }
+18    func main() {
+19        t := &amp;testType{77, &quot;Sunset Strip&quot;}
+20        fmt.Println(t)
+21    }
 </pre>
 <p>
 Since <code>*testType</code> has a <code>String()</code> method, the
@@ -1128,7 +1145,7 @@ operator <code>&lt;-</code> (receive) retrieves the next value on the channel.
 17    // removing those divisible by 'prime'.
 18    func filter(in, out chan int, prime int) {
 19        for {
-20            i := &lt;-in;  // Receive value of new variable 'i' from 'in'.
+20            i := &lt;-in  // Receive value of new variable 'i' from 'in'.
 21            if i % prime != 0 {
 22                out &lt;- i  // Send 'i' to channel 'out'.
 23            }
@@ -1163,13 +1180,13 @@ together:
 <p>
 <pre> <!-- progs/sieve.go /func.main/ /^}/ -->
 28    func main() {
-29        ch := make(chan int);  // Create a new channel.
-30        go generate(ch);  // Start generate() as a goroutine.
+29        ch := make(chan int)  // Create a new channel.
+30        go generate(ch)  // Start generate() as a goroutine.
 31        for {
-32            prime := &lt;-ch;
-33            fmt.Println(prime);
-34            ch1 := make(chan int);
-35            go filter(ch, ch1, prime);
+32            prime := &lt;-ch
+33            fmt.Println(prime)
+34            ch1 := make(chan int)
+35            go filter(ch, ch1, prime)
 36            ch = ch1
 37        }
 38    }
@@ -1186,13 +1203,13 @@ of <code>generate</code>, from <code>progs/sieve1.go</code>:
 <p>
 <pre> <!-- progs/sieve1.go /func.generate/ /^}/ -->
 10    func generate() chan int {
-11        ch := make(chan int);
+11        ch := make(chan int)
 12        go func(){
 13            for i := 2; ; i++ {
 14                ch &lt;- i
 15            }
-16        }();
-17        return ch;
+16        }()
+17        return ch
 18    }
 </pre>
 <p>
@@ -1210,15 +1227,15 @@ The same change can be made to <code>filter</code>:
 <p>
 <pre> <!-- progs/sieve1.go /func.filter/ /^}/ -->
 21    func filter(in chan int, prime int) chan int {
-22        out := make(chan int);
+22        out := make(chan int)
 23        go func() {
 24            for {
 25                if i := &lt;-in; i % prime != 0 {
 26                    out &lt;- i
 27                }
 28            }
-29        }();
-30        return out;
+29        }()
+30        return out
 31    }
 </pre>
 <p>
@@ -1227,16 +1244,16 @@ result, and while we're at it let's turn it into a factory too:
 <p>
 <pre> <!-- progs/sieve1.go /func.sieve/ /^}/ -->
 33    func sieve() chan int {
-34        out := make(chan int);
+34        out := make(chan int)
 35        go func() {
-36            ch := generate();
+36            ch := generate()
 37            for {
-38                prime := &lt;-ch;
-39                out &lt;- prime;
-40                ch = filter(ch, prime);
+38                prime := &lt;-ch
+39                out &lt;- prime
+40                ch = filter(ch, prime)
 41            }
-42        }();
-43        return out;
+42        }()
+43        return out
 44    }
 </pre>
 <p>
@@ -1244,9 +1261,9 @@ Now <code>main</code>'s interface to the prime sieve is a channel of primes:
 <p>
 <pre> <!-- progs/sieve1.go /func.main/ /^}/ -->
 46    func main() {
-47        primes := sieve();
+47        primes := sieve()
 48        for {
-49            fmt.Println(&lt;-primes);
+49            fmt.Println(&lt;-primes)
 50        }
 51    }
 </pre>
@@ -1262,8 +1279,8 @@ that will be used for the reply.
 <p>
 <pre> <!-- progs/server.go /type.request/ /^}/ -->
 09    type request struct {
-10        a, b    int;
-11        replyc  chan int;
+10        a, b    int
+11        replyc  chan int
 12    }
 </pre>
 <p>
@@ -1274,8 +1291,8 @@ code that invokes the operation and responds to the request:
 14    type binOp func(a, b int) int
 <p>
 16    func run(op binOp, req *request) {
-17        reply := op(req.a, req.b);
-18        req.replyc &lt;- reply;
+17        reply := op(req.a, req.b)
+18        req.replyc &lt;- reply
 19    }
 </pre>
 <p>
@@ -1288,8 +1305,8 @@ a long-running operation, starting a goroutine to do the actual work.
 <pre> <!-- progs/server.go /func.server/ /^}/ -->
 21    func server(op binOp, service chan *request) {
 22        for {
-23            req := &lt;-service;
-24            go run(op, req);  // don't wait for it
+23            req := &lt;-service
+24            go run(op, req)  // don't wait for it
 25        }
 26    }
 </pre>
@@ -1299,9 +1316,9 @@ connected to it:
 <p>
 <pre> <!-- progs/server.go /func.startServer/ /^}/ -->
 28    func startServer(op binOp) chan *request {
-29        req := make(chan *request);
-30        go server(op, req);
-31        return req;
+29        req := make(chan *request)
+30        go server(op, req)
+31        return req
 32    }
 </pre>
 <p>
@@ -1311,22 +1328,22 @@ does it check the results.
 <p>
 <pre> <!-- progs/server.go /func.main/ /^}/ -->
 34    func main() {
-35        adder := startServer(func(a, b int) int { return a + b });
-36        const N = 100;
-37        var reqs [N]request;
+35        adder := startServer(func(a, b int) int { return a + b })
+36        const N = 100
+37        var reqs [N]request
 38        for i := 0; i &lt; N; i++ {
-39            req := &amp;reqs[i];
-40            req.a = i;
-41            req.b = i + N;
-42            req.replyc = make(chan int);
-43            adder &lt;- req;
+39            req := &amp;reqs[i]
+40            req.a = i
+41            req.b = i + N
+42            req.replyc = make(chan int)
+43            adder &lt;- req
 44        }
 45        for i := N-1; i &gt;= 0; i-- {   // doesn't matter what order
 46            if &lt;-reqs[i].replyc != N + 2*i {
-47                fmt.Println(&quot;fail at&quot;, i);
+47                fmt.Println(&quot;fail at&quot;, i)
 48            }
 49        }
-50        fmt.Println(&quot;done&quot;);
+50        fmt.Println(&quot;done&quot;)
 51    }
 </pre>
 <p>
@@ -1336,10 +1353,10 @@ we can provide a second, <code>quit</code> channel to the server:
 <p>
 <pre> <!-- progs/server1.go /func.startServer/ /^}/ -->
 32    func startServer(op binOp) (service chan *request, quit chan bool) {
-33        service = make(chan *request);
-34        quit = make(chan bool);
-35        go server(op, service, quit);
-36        return service, quit;
+33        service = make(chan *request)
+34        quit = make(chan bool)
+35        go server(op, service, quit)
+36        return service, quit
 37    }
 </pre>
 <p>
@@ -1350,9 +1367,9 @@ It passes the quit channel to the <code>server</code> function, which uses it li
 22        for {
 23            select {
 24            case req := &lt;-service:
-25                go run(op, req);  // don't wait for it
+25                go run(op, req)  // don't wait for it
 26            case &lt;-quit:
-27                return;
+27                return
 28            }
 29        }
 30    }
@@ -1369,11 +1386,11 @@ All that's left is to strobe the <code>quit</code> channel
 at the end of main:
 <p>
 <pre> <!-- progs/server1.go /adder,.quit/ -->
-40        adder, quit := startServer(func(a, b int) int { return a + b });
+40        adder, quit := startServer(func(a, b int) int { return a + b })
 </pre>
 ...
 <pre> <!-- progs/server1.go /quit....true/ -->
-55        quit &lt;- true;
+55        quit &lt;- true
 </pre>
 <p>
 There's a lot more to Go programming and concurrent programming in general but this
