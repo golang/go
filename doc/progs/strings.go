@@ -8,9 +8,9 @@ import "fmt"
 import "os"
 
 func main() {
-	s := "hello";
+	s := "hello"
 	if s[1] != 'e' { os.Exit(1) }
-	s = "good bye";
-	var p *string = &s;
-	*p = "ciao";
+	s = "good bye"
+	var p *string = &s
+	*p = "ciao"
 }

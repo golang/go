@@ -5,17 +5,17 @@
 package main
 
 import (
-	"./file";
-	"flag";
-	"fmt";
-	"os";
+	"./file"
+	"flag"
+	"fmt"
+	"os"
 )
 
 var rot13Flag = flag.Bool("rot13", false, "rot13 the input")
 
 func rot13(b byte) byte {
 	if 'a' <= b && b <= 'z' {
-	   b = 'a' + ((b - 'a') + 13) % 26;
+	   b = 'a' + ((b - 'a') + 13) % 26
 	}
 	if 'A' <= b && b <= 'Z' {
 	   b = 'A' + ((b - 'A') + 13) % 26
@@ -24,12 +24,12 @@ func rot13(b byte) byte {
 }
 
 type reader interface {
-	Read(b []byte) (ret int, err os.Error);
-	String() string;
+	Read(b []byte) (ret int, err os.Error)
+	String() string
 }
 
 type rotate13 struct {
-	source	reader;
+	source	reader
 }
 
 func newRotate13(source reader) *rotate13 {
@@ -37,7 +37,7 @@ func newRotate13(source reader) *rotate13 {
 }
 
 func (r13 *rotate13) Read(b []byte) (ret int, err os.Error) {
-	r, e := r13.source.Read(b);
+	r, e := r13.source.Read(b)
 	for i := 0; i < r; i++ {
 		b[i] = rot13(b[i])
 	}
@@ -50,8 +50,8 @@ func (r13 *rotate13) String() string {
 // end of rotate13 implementation
 
 func cat(r reader) {
-	const NBUF = 512;
-	var buf [NBUF]byte;
+	const NBUF = 512
+	var buf [NBUF]byte
 
 	if *rot13Flag {
 		r = newRotate13(r)
@@ -59,31 +59,31 @@ func cat(r reader) {
 	for {
 		switch nr, er := r.Read(&buf); {
 		case nr < 0:
-			fmt.Fprintf(os.Stderr, "cat: error reading from %s: %s\n", r.String(), er.String());
-			os.Exit(1);
+			fmt.Fprintf(os.Stderr, "cat: error reading from %s: %s\n", r.String(), er.String())
+			os.Exit(1)
 		case nr == 0:  // EOF
-			return;
+			return
 		case nr > 0:
-			nw, ew := file.Stdout.Write(buf[0:nr]);
+			nw, ew := file.Stdout.Write(buf[0:nr])
 			if nw != nr {
-				fmt.Fprintf(os.Stderr, "cat: error writing from %s: %s\n", r.String(), ew.String());
+				fmt.Fprintf(os.Stderr, "cat: error writing from %s: %s\n", r.String(), ew.String())
 			}
 		}
 	}
 }
 
 func main() {
-	flag.Parse();   // Scans the arg list and sets up flags
+	flag.Parse()   // Scans the arg list and sets up flags
 	if flag.NArg() == 0 {
-		cat(file.Stdin);
+		cat(file.Stdin)
 	}
 	for i := 0; i < flag.NArg(); i++ {
-		f, err := file.Open(flag.Arg(i), 0, 0);
+		f, err := file.Open(flag.Arg(i), 0, 0)
 		if f == nil {
-			fmt.Fprintf(os.Stderr, "cat: can't open %s: error %s\n", flag.Arg(i), err);
-			os.Exit(1);
+			fmt.Fprintf(os.Stderr, "cat: can't open %s: error %s\n", flag.Arg(i), err)
+			os.Exit(1)
 		}
-		cat(f);
-		f.Close();
+		cat(f)
+		f.Close()
 	}
 }

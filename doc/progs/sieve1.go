@@ -8,44 +8,44 @@ import "fmt"
 
 // Send the sequence 2, 3, 4, ... to returned channel 
 func generate() chan int {
-	ch := make(chan int);
+	ch := make(chan int)
 	go func(){
 		for i := 2; ; i++ {
 			ch <- i
 		}
-	}();
-	return ch;
+	}()
+	return ch
 }
 
 // Filter out input values divisible by 'prime', send rest to returned channel
 func filter(in chan int, prime int) chan int {
-	out := make(chan int);
+	out := make(chan int)
 	go func() {
 		for {
 			if i := <-in; i % prime != 0 {
 				out <- i
 			}
 		}
-	}();
-	return out;
+	}()
+	return out
 }
 
 func sieve() chan int {
-	out := make(chan int);
+	out := make(chan int)
 	go func() {
-		ch := generate();
+		ch := generate()
 		for {
-			prime := <-ch;
-			out <- prime;
-			ch = filter(ch, prime);
+			prime := <-ch
+			out <- prime
+			ch = filter(ch, prime)
 		}
-	}();
-	return out;
+	}()
+	return out
 }
 
 func main() {
-	primes := sieve();
+	primes := sieve()
 	for {
-		fmt.Println(<-primes);
+		fmt.Println(<-primes)
 	}
 }
