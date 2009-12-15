@@ -961,7 +961,7 @@ findtype(NodeList *l)
 }
 
 NodeList*
-checkarglist(NodeList *all)
+checkarglist(NodeList *all, int input)
 {
 	int named;
 	Node *n, *t, *nextt;
@@ -1015,8 +1015,12 @@ checkarglist(NodeList *all)
 		if(n != N)
 			n = newname(n->sym);
 		n = nod(ODCLFIELD, n, t);
-		if(l->next != nil && n->right != N && n->right->op == OTYPE && isddd(n->right->type))
-			yyerror("only last argument can have type ...");
+		if(n->right != N && n->right->op == OTYPE && isddd(n->right->type)) {
+			if(!input)
+				yyerror("cannot use ... in output argument list");
+			else if(l->next != nil)
+				yyerror("can only use ... as final argument in list");
+		}
 		l->n = n;
 	}
 	return all;

@@ -955,7 +955,7 @@ Type*	newtype(Sym*);
 Type*	oldtype(Sym*);
 void	fninit(NodeList*);
 Node*	nametodcl(Node*, Type*);
-NodeList*	checkarglist(NodeList*);
+NodeList*	checkarglist(NodeList*, int);
 void	checkwidth(Type*);
 void	defercheckwidth(void);
 void	resumecheckwidth(void);
