@@ -566,14 +566,19 @@ runtime·exitsyscall(void)
 		unlock(&sched);
 		return;
 	}
-	g->status = Grunning;
 	sched.msyscall--;
 	sched.mcpu++;
 	// Fast path - if there's room for this m, we're done.
 	if(sched.mcpu <= sched.mcpumax) {
+		g->status = Grunning;
 		unlock(&sched);
 		return;
 	}
+	// Tell scheduler to put g back on the run queue:
+	// mostly equivalent to g->status = Grunning,
+	// but keeps the garbage collector from thinking
+	// that g is running right now, which it's not.
+	g->readyonstop = 1;
 	unlock(&sched);
 
 	// Slow path - all the cpus are taken.
