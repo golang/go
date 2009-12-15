@@ -33,7 +33,6 @@ type Scanner struct {
 	offset		int;		// current reading offset (position after ch)
 	ch		int;		// one char look-ahead
 	insertSemi	bool;		// insert a semicolon before next newline
-	pendingComment	token.Position;	// valid if pendingComment.Line > 0
 
 	// public state - ok to modify
 	ErrorCount	int;	// number of errors encountered
@@ -151,7 +150,7 @@ func (S *Scanner) scanComment(pos token.Position) {
 		for S.ch >= 0 {
 			S.next();
 			if S.ch == '\n' {
-				// '\n' is not part of the comment
+				// '\n' is not part of the comment for purposes of scanning
 				// (the comment ends on the same line where it started)
 				if pos.Column == 1 {
 					text := S.src[pos.Offset+2 : S.pos.Offset];
@@ -187,6 +186,49 @@ func (S *Scanner) scanComment(pos token.Position) {
 	}
 
 	S.error(pos, "comment not terminated");
+}
+
+
+func (S *Scanner) findNewline(pos token.Position) bool {
+	// first '/' already consumed; assume S.ch == '/' || S.ch == '*'
+
+	// read ahead until a newline or non-comment token is found
+	newline := false;
+	for pos1 := pos; S.ch >= 0; {
+		if S.ch == '/' {
+			//-style comment always contains a newline
+			newline = true;
+			break;
+		}
+		S.scanComment(pos1);
+		if pos1.Line < S.pos.Line {
+			/*-style comment contained a newline */
+			newline = true;
+			break;
+		}
+		S.skipWhitespace();
+		if S.ch == '\n' {
+			newline = true;
+			break;
+		}
+		if S.ch != '/' {
+			// non-comment token
+			break
+		}
+		pos1 = S.pos;
+		S.next();
+		if S.ch != '/' && S.ch != '*' {
+			// non-comment token
+			break
+		}
+	}
+
+	// reset position
+	S.pos = pos;
+	S.offset = pos.Offset + 1;
+	S.ch = '/';
+
+	return newline;
 }
 
 
@@ -378,6 +420,13 @@ func (S *Scanner) scanRawString(pos token.Position) {
 }
 
 
+func (S *Scanner) skipWhitespace() {
+	for S.ch == ' ' || S.ch == '\t' || S.ch == '\n' && !S.insertSemi || S.ch == '\r' {
+		S.next()
+	}
+}
+
+
 // Helper functions for scanning multi-byte tokens such as >> += >>= .
 // Different routines recognize different length tok_i based on matches
 // of ch_i. If a token ends in '=', the result is tok1 or tok3
@@ -437,19 +486,8 @@ var semicolon = []byte{';'}
 // of the error handler, if there was one installed.
 //
 func (S *Scanner) Scan() (pos token.Position, tok token.Token, lit []byte) {
-	if S.pendingComment.Line > 0 {
-		// "consume" pending comment
-		S.pos = S.pendingComment;
-		S.offset = S.pos.Offset + 1;
-		S.ch = '/';
-		S.pendingComment.Line = 0;
-	}
-
 scanAgain:
-	// skip white space
-	for S.ch == ' ' || S.ch == '\t' || S.ch == '\n' && !S.insertSemi || S.ch == '\r' {
-		S.next()
-	}
+	S.skipWhitespace();
 
 	// current token start
 	insertSemi := false;
@@ -462,8 +500,6 @@ scanAgain:
 		switch tok {
 		case token.IDENT, token.BREAK, token.CONTINUE, token.FALLTHROUGH, token.RETURN:
 			insertSemi = true
-		default:
-			insertSemi = false
 		}
 	case digitVal(ch) < 10:
 		insertSemi = true;
@@ -474,7 +510,10 @@ scanAgain:
 		case -1:
 			tok = token.EOF
 		case '\n':
-			S.insertSemi = false;
+			// we only reach here of S.insertSemi was
+			// set in the first place and exited early
+			// from S.skipWhitespace()
+			S.insertSemi = false;	// newline consumed
 			return pos, token.SEMICOLON, semicolon;
 		case '"':
 			insertSemi = true;
@@ -537,31 +576,17 @@ scanAgain:
 		case '/':
 			if S.ch == '/' || S.ch == '*' {
 				// comment
-				newline := false;
-				if S.insertSemi {
-					if S.ch == '/' {
-						// a line comment acts like a newline
-						newline = true
-					} else {
-						// a general comment may act like a newline
-						S.scanComment(pos);
-						newline = pos.Line < S.pos.Line;
-					}
-				} else {
-					S.scanComment(pos)
-				}
-				if newline {
-					// insert a semicolon and retain pending comment
-					S.insertSemi = false;
-					S.pendingComment = pos;
+				if S.insertSemi && S.findNewline(pos) {
+					S.insertSemi = false;	// newline consumed
 					return pos, token.SEMICOLON, semicolon;
-				} else if S.mode&ScanComments == 0 {
-					// skip comment
-					goto scanAgain
-				} else {
-					insertSemi = S.insertSemi;	// preserve insertSemi info
-					tok = token.COMMENT;
 				}
+				S.scanComment(pos);
+				if S.mode&ScanComments == 0 {
+					// skip comment
+					S.insertSemi = false;	// newline consumed
+					goto scanAgain;
+				}
+				tok = token.COMMENT;
 			} else {
 				tok = S.switch2(token.QUO, token.QUO_ASSIGN)
 			}
