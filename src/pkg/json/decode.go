@@ -8,8 +8,8 @@
 package json
 
 import (
-	"container/vector";
-	"os";
+	"container/vector"
+	"os"
 )
 
 // Decode a JSON string
@@ -23,75 +23,75 @@ import (
 // If Decode encounters a syntax error, it returns with err set to an
 // instance of ParseError.  See ParseError documentation for details.
 func Decode(s string) (data interface{}, err os.Error) {
-	jb := newDecoder(nil, nil);
-	ok, errPos, errTok := Parse(s, jb);
+	jb := newDecoder(nil, nil)
+	ok, errPos, errTok := Parse(s, jb)
 	if ok {
 		data = jb.Data()
 	} else {
 		err = &ParseError{Index: errPos, Token: errTok}
 	}
-	return;
+	return
 }
 
 type decoder struct {
 	// A value being constructed.
-	value	interface{};
+	value interface{}
 	// Container entity to flush into.  Can be either vector.Vector or
 	// map[string]interface{}.
-	container	interface{};
+	container interface{}
 	// The index into the container interface.  Either int or string.
-	index	interface{};
+	index interface{}
 }
 
 func newDecoder(container interface{}, key interface{}) *decoder {
 	return &decoder{container: container, index: key}
 }
 
-func (j *decoder) Int64(i int64)	{ j.value = float64(i) }
+func (j *decoder) Int64(i int64) { j.value = float64(i) }
 
-func (j *decoder) Uint64(i uint64)	{ j.value = float64(i) }
+func (j *decoder) Uint64(i uint64) { j.value = float64(i) }
 
-func (j *decoder) Float64(f float64)	{ j.value = float64(f) }
+func (j *decoder) Float64(f float64) { j.value = float64(f) }
 
-func (j *decoder) String(s string)	{ j.value = s }
+func (j *decoder) String(s string) { j.value = s }
 
-func (j *decoder) Bool(b bool)	{ j.value = b }
+func (j *decoder) Bool(b bool) { j.value = b }
 
-func (j *decoder) Null()	{ j.value = nil }
+func (j *decoder) Null() { j.value = nil }
 
-func (j *decoder) Array()	{ j.value = new(vector.Vector) }
+func (j *decoder) Array() { j.value = new(vector.Vector) }
 
-func (j *decoder) Map()	{ j.value = make(map[string]interface{}) }
+func (j *decoder) Map() { j.value = make(map[string]interface{}) }
 
 func (j *decoder) Elem(i int) Builder {
-	v, ok := j.value.(*vector.Vector);
+	v, ok := j.value.(*vector.Vector)
 	if !ok {
-		v = new(vector.Vector);
-		j.value = v;
+		v = new(vector.Vector)
+		j.value = v
 	}
 	if v.Len() <= i {
 		v.Resize(i+1, (i+1)*2)
 	}
-	return newDecoder(v, i);
+	return newDecoder(v, i)
 }
 
 func (j *decoder) Key(s string) Builder {
-	m, ok := j.value.(map[string]interface{});
+	m, ok := j.value.(map[string]interface{})
 	if !ok {
-		m = make(map[string]interface{});
-		j.value = m;
+		m = make(map[string]interface{})
+		j.value = m
 	}
-	return newDecoder(m, s);
+	return newDecoder(m, s)
 }
 
 func (j *decoder) Flush() {
 	switch c := j.container.(type) {
 	case *vector.Vector:
-		index := j.index.(int);
-		c.Set(index, j.Data());
+		index := j.index.(int)
+		c.Set(index, j.Data())
 	case map[string]interface{}:
-		index := j.index.(string);
-		c[index] = j.Data();
+		index := j.index.(string)
+		c[index] = j.Data()
 	}
 }
 
@@ -101,5 +101,5 @@ func (j *decoder) Data() interface{} {
 	case *vector.Vector:
 		return v.Data()
 	}
-	return j.value;
+	return j.value
 }

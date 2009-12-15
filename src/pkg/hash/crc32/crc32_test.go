@@ -5,13 +5,13 @@
 package crc32
 
 import (
-	"io";
-	"testing";
+	"io"
+	"testing"
 )
 
 type _Crc32Test struct {
-	out	uint32;
-	in	string;
+	out uint32
+	in  string
 }
 
 var golden = []_Crc32Test{
@@ -50,25 +50,25 @@ var golden = []_Crc32Test{
 
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
-		g := golden[i];
-		c := NewIEEE();
-		io.WriteString(c, g.in);
-		s := c.Sum32();
+		g := golden[i]
+		c := NewIEEE()
+		io.WriteString(c, g.in)
+		s := c.Sum32()
 		if s != g.out {
-			t.Errorf("crc32(%s) = 0x%x want 0x%x", g.in, s, g.out);
-			t.FailNow();
+			t.Errorf("crc32(%s) = 0x%x want 0x%x", g.in, s, g.out)
+			t.FailNow()
 		}
 	}
 }
 
 func BenchmarkCrc32KB(b *testing.B) {
-	b.StopTimer();
-	data := make([]uint8, 1024);
+	b.StopTimer()
+	data := make([]uint8, 1024)
 	for i := 0; i < 1024; i++ {
 		data[i] = uint8(i)
 	}
-	c := NewIEEE();
-	b.StartTimer();
+	c := NewIEEE()
+	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
 		c.Write(data)

@@ -12,14 +12,14 @@
 package malloc
 
 type Stats struct {
-	Alloc		uint64;
-	Sys		uint64;
-	Stacks		uint64;
-	InusePages	uint64;
-	NextGC		uint64;
-	Lookups		uint64;
-	Mallocs		uint64;
-	EnableGC	bool;
+	Alloc      uint64
+	Sys        uint64
+	Stacks     uint64
+	InusePages uint64
+	NextGC     uint64
+	Lookups    uint64
+	Mallocs    uint64
+	EnableGC   bool
 }
 
 func Alloc(uintptr) *byte

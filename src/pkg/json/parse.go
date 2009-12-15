@@ -11,9 +11,9 @@
 package json
 
 import (
-	"bytes";
-	"strconv";
-	"utf8";
+	"bytes"
+	"strconv"
+	"utf8"
 )
 
 // Strings
@@ -23,12 +23,12 @@ import (
 //   Have also seen \' and embedded newlines.
 
 func _UnHex(p string, r, l int) (v int, ok bool) {
-	v = 0;
+	v = 0
 	for i := r; i < l; i++ {
 		if i >= len(p) {
 			return 0, false
 		}
-		v *= 16;
+		v *= 16
 		switch {
 		case '0' <= p[i] && p[i] <= '9':
 			v += int(p[i] - '0')
@@ -40,15 +40,15 @@ func _UnHex(p string, r, l int) (v int, ok bool) {
 			return 0, false
 		}
 	}
-	return v, true;
+	return v, true
 }
 
 func _ToHex(b []byte, rune int) {
-	const hexDigits = "0123456789abcdef";
-	b[0] = hexDigits[rune>>12&0xf];
-	b[1] = hexDigits[rune>>8&0xf];
-	b[2] = hexDigits[rune>>4&0xf];
-	b[3] = hexDigits[rune&0xf];
+	const hexDigits = "0123456789abcdef"
+	b[0] = hexDigits[rune>>12&0xf]
+	b[1] = hexDigits[rune>>8&0xf]
+	b[2] = hexDigits[rune>>4&0xf]
+	b[3] = hexDigits[rune&0xf]
 }
 
 // Unquote unquotes the JSON-quoted string s,
@@ -58,12 +58,12 @@ func Unquote(s string) (t string, ok bool) {
 	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
 		return
 	}
-	b := make([]byte, len(s));
-	w := 0;
+	b := make([]byte, len(s))
+	w := 0
 	for r := 1; r < len(s)-1; {
 		switch {
 		case s[r] == '\\':
-			r++;
+			r++
 			if r >= len(s)-1 {
 				return
 			}
@@ -71,147 +71,147 @@ func Unquote(s string) (t string, ok bool) {
 			default:
 				return
 			case '"', '\\', '/', '\'':
-				b[w] = s[r];
-				r++;
-				w++;
+				b[w] = s[r]
+				r++
+				w++
 			case 'b':
-				b[w] = '\b';
-				r++;
-				w++;
+				b[w] = '\b'
+				r++
+				w++
 			case 'f':
-				b[w] = '\f';
-				r++;
-				w++;
+				b[w] = '\f'
+				r++
+				w++
 			case 'n':
-				b[w] = '\n';
-				r++;
-				w++;
+				b[w] = '\n'
+				r++
+				w++
 			case 'r':
-				b[w] = '\r';
-				r++;
-				w++;
+				b[w] = '\r'
+				r++
+				w++
 			case 't':
-				b[w] = '\t';
-				r++;
-				w++;
+				b[w] = '\t'
+				r++
+				w++
 			case 'u':
-				r++;
-				rune, ok := _UnHex(s, r, r+4);
+				r++
+				rune, ok := _UnHex(s, r, r+4)
 				if !ok {
 					return
 				}
-				r += 4;
-				w += utf8.EncodeRune(rune, b[w:]);
+				r += 4
+				w += utf8.EncodeRune(rune, b[w:])
 			}
 		// Control characters are invalid, but we've seen raw \n.
 		case s[r] < ' ' && s[r] != '\n':
 			if s[r] == '\n' {
-				b[w] = '\n';
-				r++;
-				w++;
-				break;
+				b[w] = '\n'
+				r++
+				w++
+				break
 			}
-			return;
+			return
 		// ASCII
 		case s[r] < utf8.RuneSelf:
-			b[w] = s[r];
-			r++;
-			w++;
+			b[w] = s[r]
+			r++
+			w++
 		// Coerce to well-formed UTF-8.
 		default:
-			rune, size := utf8.DecodeRuneInString(s[r:]);
-			r += size;
-			w += utf8.EncodeRune(rune, b[w:]);
+			rune, size := utf8.DecodeRuneInString(s[r:])
+			r += size
+			w += utf8.EncodeRune(rune, b[w:])
 		}
 	}
-	return string(b[0:w]), true;
+	return string(b[0:w]), true
 }
 
 // Quote quotes the raw string s using JSON syntax,
 // so that Unquote(Quote(s)) = s, true.
 func Quote(s string) string {
-	chr := make([]byte, 6);
-	chr0 := chr[0:1];
-	b := new(bytes.Buffer);
-	chr[0] = '"';
-	b.Write(chr0);
+	chr := make([]byte, 6)
+	chr0 := chr[0:1]
+	b := new(bytes.Buffer)
+	chr[0] = '"'
+	b.Write(chr0)
 
 	for _, rune := range s {
 		switch {
 		case rune == '"' || rune == '\\':
-			chr[0] = '\\';
-			chr[1] = byte(rune);
-			b.Write(chr[0:2]);
+			chr[0] = '\\'
+			chr[1] = byte(rune)
+			b.Write(chr[0:2])
 
 		case rune == '\b':
-			chr[0] = '\\';
-			chr[1] = 'b';
-			b.Write(chr[0:2]);
+			chr[0] = '\\'
+			chr[1] = 'b'
+			b.Write(chr[0:2])
 
 		case rune == '\f':
-			chr[0] = '\\';
-			chr[1] = 'f';
-			b.Write(chr[0:2]);
+			chr[0] = '\\'
+			chr[1] = 'f'
+			b.Write(chr[0:2])
 
 		case rune == '\n':
-			chr[0] = '\\';
-			chr[1] = 'n';
-			b.Write(chr[0:2]);
+			chr[0] = '\\'
+			chr[1] = 'n'
+			b.Write(chr[0:2])
 
 		case rune == '\r':
-			chr[0] = '\\';
-			chr[1] = 'r';
-			b.Write(chr[0:2]);
+			chr[0] = '\\'
+			chr[1] = 'r'
+			b.Write(chr[0:2])
 
 		case rune == '\t':
-			chr[0] = '\\';
-			chr[1] = 't';
-			b.Write(chr[0:2]);
+			chr[0] = '\\'
+			chr[1] = 't'
+			b.Write(chr[0:2])
 
 		case 0x20 <= rune && rune < utf8.RuneSelf:
-			chr[0] = byte(rune);
-			b.Write(chr0);
+			chr[0] = byte(rune)
+			b.Write(chr0)
 
 		default:
-			chr[0] = '\\';
-			chr[1] = 'u';
-			_ToHex(chr[2:6], rune);
-			b.Write(chr);
+			chr[0] = '\\'
+			chr[1] = 'u'
+			_ToHex(chr[2:6], rune)
+			b.Write(chr)
 		}
 	}
-	chr[0] = '"';
-	b.Write(chr0);
-	return b.String();
+	chr[0] = '"'
+	b.Write(chr0)
+	return b.String()
 }
 
 
 // _Lexer
 
 type _Lexer struct {
-	s	string;
-	i	int;
-	kind	int;
-	token	string;
+	s     string
+	i     int
+	kind  int
+	token string
 }
 
 func punct(c byte) bool {
 	return c == '"' || c == '[' || c == ']' || c == ':' || c == '{' || c == '}' || c == ','
 }
 
-func white(c byte) bool	{ return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\v' }
+func white(c byte) bool { return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\v' }
 
 func skipwhite(p string, i int) int {
 	for i < len(p) && white(p[i]) {
 		i++
 	}
-	return i;
+	return i
 }
 
 func skiptoken(p string, i int) int {
 	for i < len(p) && !punct(p[i]) && !white(p[i]) {
 		i++
 	}
-	return i;
+	return i
 }
 
 func skipstring(p string, i int) int {
@@ -223,50 +223,50 @@ func skipstring(p string, i int) int {
 	if i >= len(p) {
 		return i
 	}
-	return i + 1;
+	return i + 1
 }
 
 func (t *_Lexer) Next() {
-	i, s := t.i, t.s;
-	i = skipwhite(s, i);
+	i, s := t.i, t.s
+	i = skipwhite(s, i)
 	if i >= len(s) {
-		t.kind = 0;
-		t.token = "";
-		t.i = len(s);
-		return;
+		t.kind = 0
+		t.token = ""
+		t.i = len(s)
+		return
 	}
 
-	c := s[i];
+	c := s[i]
 	switch {
 	case c == '-' || '0' <= c && c <= '9':
-		j := skiptoken(s, i);
-		t.kind = '1';
-		t.token = s[i:j];
-		i = j;
+		j := skiptoken(s, i)
+		t.kind = '1'
+		t.token = s[i:j]
+		i = j
 
 	case 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z':
-		j := skiptoken(s, i);
-		t.kind = 'a';
-		t.token = s[i:j];
-		i = j;
+		j := skiptoken(s, i)
+		t.kind = 'a'
+		t.token = s[i:j]
+		i = j
 
 	case c == '"':
-		j := skipstring(s, i);
-		t.kind = '"';
-		t.token = s[i:j];
-		i = j;
+		j := skipstring(s, i)
+		t.kind = '"'
+		t.token = s[i:j]
+		i = j
 
 	case c == '[', c == ']', c == ':', c == '{', c == '}', c == ',':
-		t.kind = int(c);
-		t.token = s[i : i+1];
-		i++;
+		t.kind = int(c)
+		t.token = s[i : i+1]
+		i++
 
 	default:
-		t.kind = '?';
-		t.token = s[i : i+1];
+		t.kind = '?'
+		t.token = s[i : i+1]
 	}
 
-	t.i = i;
+	t.i = i
 }
 
 
@@ -297,25 +297,25 @@ type _Value interface{}
 // eventual representation returned by the parser.
 type Builder interface {
 	// Set value
-	Int64(i int64);
-	Uint64(i uint64);
-	Float64(f float64);
-	String(s string);
-	Bool(b bool);
-	Null();
-	Array();
-	Map();
+	Int64(i int64)
+	Uint64(i uint64)
+	Float64(f float64)
+	String(s string)
+	Bool(b bool)
+	Null()
+	Array()
+	Map()
 
 	// Create sub-Builders
-	Elem(i int) Builder;
-	Key(s string) Builder;
+	Elem(i int) Builder
+	Key(s string) Builder
 
 	// Flush changes to parent Builder if necessary.
-	Flush();
+	Flush()
 }
 
 func parse(lex *_Lexer, build Builder) bool {
-	ok := false;
+	ok := false
 Switch:
 	switch lex.kind {
 	case 0:
@@ -323,93 +323,93 @@ Switch:
 	case '1':
 		// If the number is exactly an integer, use that.
 		if i, err := strconv.Atoi64(lex.token); err == nil {
-			build.Int64(i);
-			ok = true;
+			build.Int64(i)
+			ok = true
 		} else if i, err := strconv.Atoui64(lex.token); err == nil {
-			build.Uint64(i);
-			ok = true;
+			build.Uint64(i)
+			ok = true
 		} else
 		// Fall back to floating point.
 		if f, err := strconv.Atof64(lex.token); err == nil {
-			build.Float64(f);
-			ok = true;
+			build.Float64(f)
+			ok = true
 		}
 
 	case 'a':
 		switch lex.token {
 		case "true":
-			build.Bool(true);
-			ok = true;
+			build.Bool(true)
+			ok = true
 		case "false":
-			build.Bool(false);
-			ok = true;
+			build.Bool(false)
+			ok = true
 		case "null":
-			build.Null();
-			ok = true;
+			build.Null()
+			ok = true
 		}
 
 	case '"':
 		if str, ok1 := Unquote(lex.token); ok1 {
-			build.String(str);
-			ok = true;
+			build.String(str)
+			ok = true
 		}
 
 	case '[':
 		// array
-		build.Array();
-		lex.Next();
-		n := 0;
+		build.Array()
+		lex.Next()
+		n := 0
 		for lex.kind != ']' {
 			if n > 0 {
 				if lex.kind != ',' {
 					break Switch
 				}
-				lex.Next();
+				lex.Next()
 			}
 			if !parse(lex, build.Elem(n)) {
 				break Switch
 			}
-			n++;
+			n++
 		}
-		ok = true;
+		ok = true
 
 	case '{':
 		// map
-		lex.Next();
-		build.Map();
-		n := 0;
+		lex.Next()
+		build.Map()
+		n := 0
 		for lex.kind != '}' {
 			if n > 0 {
 				if lex.kind != ',' {
 					break Switch
 				}
-				lex.Next();
+				lex.Next()
 			}
 			if lex.kind != '"' {
 				break Switch
 			}
-			key, ok := Unquote(lex.token);
+			key, ok := Unquote(lex.token)
 			if !ok {
 				break Switch
 			}
-			lex.Next();
+			lex.Next()
 			if lex.kind != ':' {
 				break Switch
 			}
-			lex.Next();
+			lex.Next()
 			if !parse(lex, build.Key(key)) {
 				break Switch
 			}
-			n++;
+			n++
 		}
-		ok = true;
+		ok = true
 	}
 
 	if ok {
 		lex.Next()
 	}
-	build.Flush();
-	return ok;
+	build.Flush()
+	return ok
 }
 
 // Parse parses the JSON syntax string s and makes calls to
@@ -419,13 +419,13 @@ Switch:
 // to the byte index in s where a syntax error occurred,
 // and errtok set to the offending token.
 func Parse(s string, builder Builder) (ok bool, errindx int, errtok string) {
-	lex := new(_Lexer);
-	lex.s = s;
-	lex.Next();
+	lex := new(_Lexer)
+	lex.s = s
+	lex.Next()
 	if parse(lex, builder) {
-		if lex.kind == 0 {	// EOF
+		if lex.kind == 0 { // EOF
 			return true, 0, ""
 		}
 	}
-	return false, lex.i, lex.token;
+	return false, lex.i, lex.token
 }

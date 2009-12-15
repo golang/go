@@ -5,18 +5,18 @@
 package net
 
 import (
-	"flag";
-	"regexp";
-	"testing";
+	"flag"
+	"regexp"
+	"testing"
 )
 
 var runErrorTest = flag.Bool("run_error_test", false, "let TestDialError check for dns errors")
 
 type DialErrorTest struct {
-	Net	string;
-	Laddr	string;
-	Raddr	string;
-	Pattern	string;
+	Net     string
+	Laddr   string
+	Raddr   string
+	Pattern string
 }
 
 var dialErrorTests = []DialErrorTest{
@@ -56,20 +56,20 @@ var dialErrorTests = []DialErrorTest{
 
 func TestDialError(t *testing.T) {
 	if !*runErrorTest {
-		t.Logf("test disabled; use --run_error_test to enable");
-		return;
+		t.Logf("test disabled; use --run_error_test to enable")
+		return
 	}
 	for i, tt := range dialErrorTests {
-		c, e := Dial(tt.Net, tt.Laddr, tt.Raddr);
+		c, e := Dial(tt.Net, tt.Laddr, tt.Raddr)
 		if c != nil {
 			c.Close()
 		}
 		if e == nil {
-			t.Errorf("#%d: nil error, want match for %#q", i, tt.Pattern);
-			continue;
+			t.Errorf("#%d: nil error, want match for %#q", i, tt.Pattern)
+			continue
 		}
-		s := e.String();
-		match, _ := regexp.MatchString(tt.Pattern, s);
+		s := e.String()
+		match, _ := regexp.MatchString(tt.Pattern, s)
 		if !match {
 			t.Errorf("#%d: %q, want match for %#q", i, s, tt.Pattern)
 		}

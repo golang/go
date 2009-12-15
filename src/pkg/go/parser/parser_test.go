@@ -5,8 +5,8 @@
 package parser
 
 import (
-	"os";
-	"testing";
+	"os"
+	"testing"
 )
 
 
@@ -20,7 +20,7 @@ var illegalInputs = []interface{}{
 
 func TestParseIllegalInputs(t *testing.T) {
 	for _, src := range illegalInputs {
-		_, err := ParseFile("", src, 0);
+		_, err := ParseFile("", src, 0)
 		if err == nil {
 			t.Errorf("ParseFile(%v) should have failed", src)
 		}
@@ -37,7 +37,7 @@ var validPrograms = []interface{}{
 
 func TestParseValidPrograms(t *testing.T) {
 	for _, src := range validPrograms {
-		_, err := ParseFile("", src, 0);
+		_, err := ParseFile("", src, 0)
 		if err != nil {
 			t.Errorf("ParseFile(%q): %v", src, err)
 		}
@@ -53,7 +53,7 @@ var validFiles = []string{
 
 func TestParse3(t *testing.T) {
 	for _, filename := range validFiles {
-		_, err := ParseFile(filename, nil, 0);
+		_, err := ParseFile(filename, nil, 0)
 		if err != nil {
 			t.Errorf("ParseFile(%s): %v", filename, err)
 		}
@@ -69,16 +69,16 @@ func nameFilter(filename string) bool {
 	default:
 		return false
 	}
-	return true;
+	return true
 }
 
 
-func dirFilter(d *os.Dir) bool	{ return nameFilter(d.Name) }
+func dirFilter(d *os.Dir) bool { return nameFilter(d.Name) }
 
 
 func TestParse4(t *testing.T) {
-	path := ".";
-	pkg, err := ParsePackage(path, dirFilter, 0);
+	path := "."
+	pkg, err := ParsePackage(path, dirFilter, 0)
 	if err != nil {
 		t.Fatalf("ParsePackage(%s): %v", path, err)
 	}

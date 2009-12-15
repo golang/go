@@ -5,29 +5,29 @@
 package net
 
 import (
-	"os";
-	"testing";
-	"time";
+	"os"
+	"testing"
+	"time"
 )
 
 func testTimeout(t *testing.T, network, addr string, readFrom bool) {
-	fd, err := Dial(network, "", addr);
-	defer fd.Close();
+	fd, err := Dial(network, "", addr)
+	defer fd.Close()
 	if err != nil {
 		t.Errorf("dial %s %s failed: %v", network, addr, err)
 	}
-	t0 := time.Nanoseconds();
-	fd.SetReadTimeout(1e8);	// 100ms
-	var b [100]byte;
-	var n int;
-	var err1 os.Error;
+	t0 := time.Nanoseconds()
+	fd.SetReadTimeout(1e8) // 100ms
+	var b [100]byte
+	var n int
+	var err1 os.Error
 	if readFrom {
 		n, _, err1 = fd.(PacketConn).ReadFrom(&b)
 	} else {
 		n, err1 = fd.Read(&b)
 	}
-	t1 := time.Nanoseconds();
-	what := "Read";
+	t1 := time.Nanoseconds()
+	what := "Read"
 	if readFrom {
 		what = "ReadFrom"
 	}
@@ -40,8 +40,8 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
 }
 
 func TestTimeoutUDP(t *testing.T) {
-	testTimeout(t, "udp", "127.0.0.1:53", false);
-	testTimeout(t, "udp", "127.0.0.1:53", true);
+	testTimeout(t, "udp", "127.0.0.1:53", false)
+	testTimeout(t, "udp", "127.0.0.1:53", true)
 }
 
 func TestTimeoutTCP(t *testing.T) {

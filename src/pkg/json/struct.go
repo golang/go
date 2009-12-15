@@ -8,19 +8,19 @@
 package json
 
 import (
-	"fmt";
-	"io";
-	"os";
-	"reflect";
-	"strings";
+	"fmt"
+	"io"
+	"os"
+	"reflect"
+	"strings"
 )
 
 type structBuilder struct {
-	val	reflect.Value;
+	val reflect.Value
 
 	// if map_ != nil, write val to map_[key] on each change
-	map_	*reflect.MapValue;
-	key	reflect.Value;
+	map_ *reflect.MapValue
+	key  reflect.Value
 }
 
 var nobuilder *structBuilder
@@ -30,7 +30,7 @@ func isfloat(v reflect.Value) bool {
 	case *reflect.FloatValue, *reflect.Float32Value, *reflect.Float64Value:
 		return true
 	}
-	return false;
+	return false
 }
 
 func setfloat(v reflect.Value, f float64) {
@@ -84,7 +84,7 @@ func (b *structBuilder) Int64(i int64) {
 	if b == nil {
 		return
 	}
-	v := b.val;
+	v := b.val
 	if isfloat(v) {
 		setfloat(v, float64(i))
 	} else {
@@ -96,7 +96,7 @@ func (b *structBuilder) Uint64(i uint64) {
 	if b == nil {
 		return
 	}
-	v := b.val;
+	v := b.val
 	if isfloat(v) {
 		setfloat(v, float64(i))
 	} else {
@@ -108,7 +108,7 @@ func (b *structBuilder) Float64(f float64) {
 	if b == nil {
 		return
 	}
-	v := b.val;
+	v := b.val
 	if isfloat(v) {
 		setfloat(v, f)
 	} else {
@@ -116,7 +116,7 @@ func (b *structBuilder) Float64(f float64) {
 	}
 }
 
-func (b *structBuilder) Null()	{}
+func (b *structBuilder) Null() {}
 
 func (b *structBuilder) String(s string) {
 	if b == nil {
@@ -158,16 +158,16 @@ func (b *structBuilder) Elem(i int) Builder {
 		}
 	case *reflect.SliceValue:
 		if i >= v.Cap() {
-			n := v.Cap();
+			n := v.Cap()
 			if n < 8 {
 				n = 8
 			}
 			for n <= i {
 				n *= 2
 			}
-			nv := reflect.MakeSlice(v.Type().(*reflect.SliceType), v.Len(), n);
-			reflect.ArrayCopy(nv, v);
-			v.Set(nv);
+			nv := reflect.MakeSlice(v.Type().(*reflect.SliceType), v.Len(), n)
+			reflect.ArrayCopy(nv, v)
+			v.Set(nv)
 		}
 		if v.Len() <= i && i < v.Cap() {
 			v.SetLen(i + 1)
@@ -176,7 +176,7 @@ func (b *structBuilder) Elem(i int) Builder {
 			return &structBuilder{val: v.Elem(i)}
 		}
 	}
-	return nobuilder;
+	return nobuilder
 }
 
 func (b *structBuilder) Map() {
@@ -185,11 +185,11 @@ func (b *structBuilder) Map() {
 	}
 	if v, ok := b.val.(*reflect.PtrValue); ok && v.IsNil() {
 		if v.IsNil() {
-			v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()));
-			b.Flush();
+			v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()))
+			b.Flush()
 		}
-		b.map_ = nil;
-		b.val = v.Elem();
+		b.map_ = nil
+		b.val = v.Elem()
 	}
 	if v, ok := b.val.(*reflect.MapValue); ok && v.IsNil() {
 		v.Set(reflect.MakeMap(v.Type().(*reflect.MapType)))
@@ -202,28 +202,28 @@ func (b *structBuilder) Key(k string) Builder {
 	}
 	switch v := reflect.Indirect(b.val).(type) {
 	case *reflect.StructValue:
-		t := v.Type().(*reflect.StructType);
+		t := v.Type().(*reflect.StructType)
 		// Case-insensitive field lookup.
-		k = strings.ToLower(k);
+		k = strings.ToLower(k)
 		for i := 0; i < t.NumField(); i++ {
 			if strings.ToLower(t.Field(i).Name) == k {
 				return &structBuilder{val: v.Field(i)}
 			}
 		}
 	case *reflect.MapValue:
-		t := v.Type().(*reflect.MapType);
+		t := v.Type().(*reflect.MapType)
 		if t.Key() != reflect.Typeof(k) {
 			break
 		}
-		key := reflect.NewValue(k);
-		elem := v.Elem(key);
+		key := reflect.NewValue(k)
+		elem := v.Elem(key)
 		if elem == nil {
-			v.SetElem(key, reflect.MakeZero(t.Elem()));
-			elem = v.Elem(key);
+			v.SetElem(key, reflect.MakeZero(t.Elem()))
+			elem = v.Elem(key)
 		}
-		return &structBuilder{val: elem, map_: v, key: key};
+		return &structBuilder{val: elem, map_: v, key: key}
 	}
-	return nobuilder;
+	return nobuilder
 }
 
 // Unmarshal parses the JSON syntax string s and fills in
@@ -289,8 +289,8 @@ func (b *structBuilder) Key(k string) Builder {
 // On a syntax error, it returns with ok set to false and errtok
 // set to the offending token.
 func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
-	v := reflect.NewValue(val);
-	var b *structBuilder;
+	v := reflect.NewValue(val)
+	var b *structBuilder
 
 	// If val is a pointer to a slice, we append to the slice.
 	if ptr, ok := v.(*reflect.PtrValue); ok {
@@ -303,22 +303,22 @@ func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
 		b = &structBuilder{val: v}
 	}
 
-	ok, _, errtok = Parse(s, b);
+	ok, _, errtok = Parse(s, b)
 	if !ok {
 		return false, errtok
 	}
-	return true, "";
+	return true, ""
 }
 
 type MarshalError struct {
-	T reflect.Type;
+	T reflect.Type
 }
 
 func (e *MarshalError) String() string {
 	return "json cannot encode value of type " + e.T.String()
 }
 func writeArrayOrSlice(w io.Writer, val reflect.ArrayOrSliceValue) os.Error {
-	fmt.Fprint(w, "[");
+	fmt.Fprint(w, "[")
 
 	for i := 0; i < val.Len(); i++ {
 		if err := writeValue(w, val.Elem(i)); err != nil {
@@ -330,20 +330,20 @@ func writeArrayOrSlice(w io.Writer, val reflect.ArrayOrSliceValue) os.Error {
 		}
 	}
 
-	fmt.Fprint(w, "]");
-	return nil;
+	fmt.Fprint(w, "]")
+	return nil
 }
 
 func writeMap(w io.Writer, val *reflect.MapValue) os.Error {
-	key := val.Type().(*reflect.MapType).Key();
+	key := val.Type().(*reflect.MapType).Key()
 	if _, ok := key.(*reflect.StringType); !ok {
 		return &MarshalError{val.Type()}
 	}
 
-	keys := val.Keys();
-	fmt.Fprint(w, "{");
+	keys := val.Keys()
+	fmt.Fprint(w, "{")
 	for i := 0; i < len(keys); i++ {
-		fmt.Fprintf(w, "%q:", keys[i].(*reflect.StringValue).Get());
+		fmt.Fprintf(w, "%q:", keys[i].(*reflect.StringValue).Get())
 
 		if err := writeValue(w, val.Elem(keys[i])); err != nil {
 			return err
@@ -354,32 +354,32 @@ func writeMap(w io.Writer, val *reflect.MapValue) os.Error {
 		}
 	}
 
-	fmt.Fprint(w, "}");
-	return nil;
+	fmt.Fprint(w, "}")
+	return nil
 }
 
 func writeStruct(w io.Writer, val *reflect.StructValue) os.Error {
-	fmt.Fprint(w, "{");
+	fmt.Fprint(w, "{")
 
-	typ := val.Type().(*reflect.StructType);
+	typ := val.Type().(*reflect.StructType)
 
 	for i := 0; i < val.NumField(); i++ {
-		fieldValue := val.Field(i);
-		fmt.Fprintf(w, "%q:", typ.Field(i).Name);
-		writeValue(w, fieldValue);
+		fieldValue := val.Field(i)
+		fmt.Fprintf(w, "%q:", typ.Field(i).Name)
+		writeValue(w, fieldValue)
 		if i < val.NumField()-1 {
 			fmt.Fprint(w, ",")
 		}
 	}
 
-	fmt.Fprint(w, "}");
-	return nil;
+	fmt.Fprint(w, "}")
+	return nil
 }
 
 func writeValue(w io.Writer, val reflect.Value) (err os.Error) {
 	if val == nil {
-		fmt.Fprint(w, "null");
-		return;
+		fmt.Fprint(w, "null")
+		return
 	}
 
 	switch v := val.(type) {
@@ -404,10 +404,10 @@ func writeValue(w io.Writer, val reflect.Value) (err os.Error) {
 			err = &MarshalError{val.Type()}
 		}
 	default:
-		value := val.(reflect.Value);
-		fmt.Fprint(w, value.Interface());
+		value := val.(reflect.Value)
+		fmt.Fprint(w, value.Interface())
 	}
-	return;
+	return
 }
 
 func Marshal(w io.Writer, val interface{}) os.Error {

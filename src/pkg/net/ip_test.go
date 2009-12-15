@@ -5,7 +5,7 @@
 package net
 
 import (
-	"testing";
+	"testing"
 )
 
 func isEqual(a, b IP) bool {
@@ -20,12 +20,12 @@ func isEqual(a, b IP) bool {
 			return false
 		}
 	}
-	return true;
+	return true
 }
 
 type parseIPTest struct {
-	in	string;
-	out	IP;
+	in  string
+	out IP
 }
 
 var parseiptests = []parseIPTest{
@@ -44,7 +44,7 @@ var parseiptests = []parseIPTest{
 
 func TestParseIP(t *testing.T) {
 	for i := 0; i < len(parseiptests); i++ {
-		tt := parseiptests[i];
+		tt := parseiptests[i]
 		if out := ParseIP(tt.in); !isEqual(out, tt.out) {
 			t.Errorf("ParseIP(%#q) = %v, want %v", tt.in, out, tt.out)
 		}

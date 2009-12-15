@@ -7,20 +7,20 @@
 package http
 
 import (
-	"io/ioutil";
-	"strings";
-	"testing";
+	"io/ioutil"
+	"strings"
+	"testing"
 )
 
 func TestClient(t *testing.T) {
 	// TODO: add a proper test suite.  Current test merely verifies that
 	// we can retrieve the Google robots.txt file.
 
-	r, _, err := Get("http://www.google.com/robots.txt");
-	var b []byte;
+	r, _, err := Get("http://www.google.com/robots.txt")
+	var b []byte
 	if err == nil {
-		b, err = ioutil.ReadAll(r.Body);
-		r.Body.Close();
+		b, err = ioutil.ReadAll(r.Body)
+		r.Body.Close()
 	}
 	if err != nil {
 		t.Error(err)

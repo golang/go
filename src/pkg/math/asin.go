@@ -14,16 +14,16 @@ package math
 
 // Asin returns the arc sine of x.
 func Asin(x float64) float64 {
-	sign := false;
+	sign := false
 	if x < 0 {
-		x = -x;
-		sign = true;
+		x = -x
+		sign = true
 	}
 	if x > 1 {
 		return NaN()
 	}
 
-	temp := Sqrt(1 - x*x);
+	temp := Sqrt(1 - x*x)
 	if x > 0.7 {
 		temp = Pi/2 - Atan(temp/x)
 	} else {
@@ -33,7 +33,7 @@ func Asin(x float64) float64 {
 	if sign {
 		temp = -temp
 	}
-	return temp;
+	return temp
 }
 
 // Acos returns the arc cosine of x.
@@ -41,5 +41,5 @@ func Acos(x float64) float64 {
 	if x > 1 || x < -1 {
 		return NaN()
 	}
-	return Pi/2 - Asin(x);
+	return Pi/2 - Asin(x)
 }

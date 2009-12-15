@@ -5,34 +5,34 @@
 package json
 
 import (
-	"bytes";
-	"reflect";
-	"strconv";
-	"testing";
+	"bytes"
+	"reflect"
+	"strconv"
+	"testing"
 )
 
 type myStruct struct {
-	T		bool;
-	F		bool;
-	S		string;
-	I8		int8;
-	I16		int16;
-	I32		int32;
-	I64		int64;
-	U8		uint8;
-	U16		uint16;
-	U32		uint32;
-	U64		uint64;
-	I		int;
-	U		uint;
-	Fl		float;
-	Fl32		float32;
-	Fl64		float64;
-	A		[]string;
-	My		*myStruct;
-	Map		map[string][]int;
-	MapStruct	map[string]myStruct;
-	MapPtrStruct	map[string]*myStruct;
+	T            bool
+	F            bool
+	S            string
+	I8           int8
+	I16          int16
+	I32          int32
+	I64          int64
+	U8           uint8
+	U16          uint16
+	U32          uint32
+	U64          uint64
+	I            int
+	U            uint
+	Fl           float
+	Fl32         float32
+	Fl64         float64
+	A            []string
+	My           *myStruct
+	Map          map[string][]int
+	MapStruct    map[string]myStruct
+	MapPtrStruct map[string]*myStruct
 }
 
 const encoded = `{"t":true,"f":false,"s":"abc","i8":1,"i16":2,"i32":3,"i64":4,` +
@@ -69,58 +69,58 @@ func check(t *testing.T, ok bool, name string, v interface{}) {
 const whiteSpaceEncoded = " \t{\n\"s\"\r:\"string\"\v}"
 
 func TestUnmarshalWhitespace(t *testing.T) {
-	var m myStruct;
-	ok, errtok := Unmarshal(whiteSpaceEncoded, &m);
+	var m myStruct
+	ok, errtok := Unmarshal(whiteSpaceEncoded, &m)
 	if !ok {
 		t.Fatalf("Unmarshal failed near %s", errtok)
 	}
-	check(t, m.S == "string", "string", m.S);
+	check(t, m.S == "string", "string", m.S)
 }
 
 func TestUnmarshal(t *testing.T) {
-	var m myStruct;
-	m.F = true;
-	ok, errtok := Unmarshal(encoded, &m);
+	var m myStruct
+	m.F = true
+	ok, errtok := Unmarshal(encoded, &m)
 	if !ok {
 		t.Fatalf("Unmarshal failed near %s", errtok)
 	}
-	check(t, m.T == true, "t", m.T);
-	check(t, m.F == false, "f", m.F);
-	check(t, m.S == "abc", "s", m.S);
-	check(t, m.I8 == 1, "i8", m.I8);
-	check(t, m.I16 == 2, "i16", m.I16);
-	check(t, m.I32 == 3, "i32", m.I32);
-	check(t, m.I64 == 4, "i64", m.I64);
-	check(t, m.U8 == 5, "u8", m.U8);
-	check(t, m.U16 == 6, "u16", m.U16);
-	check(t, m.U32 == 7, "u32", m.U32);
-	check(t, m.U64 == 8, "u64", m.U64);
-	check(t, m.I == -9, "i", m.I);
-	check(t, m.U == 10, "u", m.U);
-	check(t, m.Fl == 11.5, "fl", m.Fl);
-	check(t, m.Fl32 == 12.25, "fl32", m.Fl32);
-	check(t, m.Fl64 == 13.75, "fl64", m.Fl64);
-	check(t, m.A != nil, "a", m.A);
+	check(t, m.T == true, "t", m.T)
+	check(t, m.F == false, "f", m.F)
+	check(t, m.S == "abc", "s", m.S)
+	check(t, m.I8 == 1, "i8", m.I8)
+	check(t, m.I16 == 2, "i16", m.I16)
+	check(t, m.I32 == 3, "i32", m.I32)
+	check(t, m.I64 == 4, "i64", m.I64)
+	check(t, m.U8 == 5, "u8", m.U8)
+	check(t, m.U16 == 6, "u16", m.U16)
+	check(t, m.U32 == 7, "u32", m.U32)
+	check(t, m.U64 == 8, "u64", m.U64)
+	check(t, m.I == -9, "i", m.I)
+	check(t, m.U == 10, "u", m.U)
+	check(t, m.Fl == 11.5, "fl", m.Fl)
+	check(t, m.Fl32 == 12.25, "fl32", m.Fl32)
+	check(t, m.Fl64 == 13.75, "fl64", m.Fl64)
+	check(t, m.A != nil, "a", m.A)
 	if m.A != nil {
-		check(t, m.A[0] == "x", "a[0]", m.A[0]);
-		check(t, m.A[1] == "y", "a[1]", m.A[1]);
-		check(t, m.A[2] == "z", "a[2]", m.A[2]);
+		check(t, m.A[0] == "x", "a[0]", m.A[0])
+		check(t, m.A[1] == "y", "a[1]", m.A[1])
+		check(t, m.A[2] == "z", "a[2]", m.A[2])
 	}
-	check(t, m.My != nil, "my", m.My);
+	check(t, m.My != nil, "my", m.My)
 	if m.My != nil {
 		check(t, m.My.S == "subguy", "my.s", m.My.S)
 	}
-	check(t, reflect.DeepEqual(m.Map, decodedMap), "map", m.Map);
-	check(t, reflect.DeepEqual(m.MapStruct, decodedMapStruct), "mapstruct", m.MapStruct);
-	check(t, reflect.DeepEqual(m.MapPtrStruct, decodedMapPtrStruct), "mapptrstruct", m.MapPtrStruct);
+	check(t, reflect.DeepEqual(m.Map, decodedMap), "map", m.Map)
+	check(t, reflect.DeepEqual(m.MapStruct, decodedMapStruct), "mapstruct", m.MapStruct)
+	check(t, reflect.DeepEqual(m.MapPtrStruct, decodedMapPtrStruct), "mapptrstruct", m.MapPtrStruct)
 }
 
 type Issue147Text struct {
-	Text string;
+	Text string
 }
 
 type Issue147 struct {
-	Test []Issue147Text;
+	Test []Issue147Text
 }
 
 const issue147Input = `{"test": [{"text":"0"},{"text":"1"},{"text":"2"},
@@ -135,8 +135,8 @@ const issue147Input = `{"test": [{"text":"0"},{"text":"1"},{"text":"2"},
 {"text":"27"},{"text":"28"},{"text":"29"}]}`
 
 func TestIssue147(t *testing.T) {
-	var timeline Issue147;
-	Unmarshal(issue147Input, &timeline);
+	var timeline Issue147
+	Unmarshal(issue147Input, &timeline)
 
 	if len(timeline.Test) != 30 {
 		t.Errorf("wrong length: got %d want 30", len(timeline.Test))
@@ -150,14 +150,14 @@ func TestIssue147(t *testing.T) {
 }
 
 type Issue114 struct {
-	Text string;
+	Text string
 }
 
 const issue114Input = `[{"text" : "0"}, {"text" : "1"}, {"text" : "2"}, {"text" : "3"}]`
 
 func TestIssue114(t *testing.T) {
-	var items []Issue114;
-	Unmarshal(issue114Input, &items);
+	var items []Issue114
+	Unmarshal(issue114Input, &items)
 
 	if len(items) != 4 {
 		t.Errorf("wrong length: got %d want 4", len(items))
@@ -171,8 +171,8 @@ func TestIssue114(t *testing.T) {
 }
 
 type marshalTest struct {
-	val	interface{};
-	out	string;
+	val interface{}
+	out string
 }
 
 var marshalTests = []marshalTest{
@@ -195,8 +195,8 @@ var marshalTests = []marshalTest{
 	marshalTest{struct{ a int }{1}, `{"a":1}`},
 	marshalTest{struct{ a interface{} }{nil}, `{"a":null}`},
 	marshalTest{struct {
-		a	int;
-		b	string;
+		a int
+		b string
 	}{1, "hello"},
 		`{"a":1,"b":"hello"}`,
 	},
@@ -205,14 +205,14 @@ var marshalTests = []marshalTest{
 
 func TestMarshal(t *testing.T) {
 	for _, tt := range marshalTests {
-		var buf bytes.Buffer;
+		var buf bytes.Buffer
 
-		err := Marshal(&buf, tt.val);
+		err := Marshal(&buf, tt.val)
 		if err != nil {
 			t.Fatalf("Marshal(%T): %s", tt.val, err)
 		}
 
-		s := buf.String();
+		s := buf.String()
 		if s != tt.out {
 			t.Errorf("Marshal(%T) = %q, want %q\n", tt.val, tt.out, s)
 		}
@@ -220,8 +220,8 @@ func TestMarshal(t *testing.T) {
 }
 
 type marshalErrorTest struct {
-	val	interface{};
-	error	string;
+	val   interface{}
+	error string
 }
 
 type MTE string
@@ -233,9 +233,9 @@ var marshalErrorTests = []marshalErrorTest{
 
 func TestMarshalError(t *testing.T) {
 	for _, tt := range marshalErrorTests {
-		var buf bytes.Buffer;
+		var buf bytes.Buffer
 
-		err := Marshal(&buf, tt.val);
+		err := Marshal(&buf, tt.val)
 
 		if err == nil {
 			t.Fatalf("Marshal(%T): no error, want error %s", tt.val, tt.error)

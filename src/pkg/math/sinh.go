@@ -21,22 +21,22 @@ package math
 func Sinh(x float64) float64 {
 	// The coefficients are #2029 from Hart & Cheney. (20.36D)
 	const (
-		P0	= -0.6307673640497716991184787251e+6;
-		P1	= -0.8991272022039509355398013511e+5;
-		P2	= -0.2894211355989563807284660366e+4;
-		P3	= -0.2630563213397497062819489e+2;
-		Q0	= -0.6307673640497716991212077277e+6;
-		Q1	= 0.1521517378790019070696485176e+5;
-		Q2	= -0.173678953558233699533450911e+3;
+		P0 = -0.6307673640497716991184787251e+6
+		P1 = -0.8991272022039509355398013511e+5
+		P2 = -0.2894211355989563807284660366e+4
+		P3 = -0.2630563213397497062819489e+2
+		Q0 = -0.6307673640497716991212077277e+6
+		Q1 = 0.1521517378790019070696485176e+5
+		Q2 = -0.173678953558233699533450911e+3
 	)
 
-	sign := false;
+	sign := false
 	if x < 0 {
-		x = -x;
-		sign = true;
+		x = -x
+		sign = true
 	}
 
-	var temp float64;
+	var temp float64
 	switch true {
 	case x > 21:
 		temp = Exp(x) / 2
@@ -45,15 +45,15 @@ func Sinh(x float64) float64 {
 		temp = (Exp(x) - Exp(-x)) / 2
 
 	default:
-		sq := x * x;
-		temp = (((P3*sq+P2)*sq+P1)*sq + P0) * x;
-		temp = temp / (((sq+Q2)*sq+Q1)*sq + Q0);
+		sq := x * x
+		temp = (((P3*sq+P2)*sq+P1)*sq + P0) * x
+		temp = temp / (((sq+Q2)*sq+Q1)*sq + Q0)
 	}
 
 	if sign {
 		temp = -temp
 	}
-	return temp;
+	return temp
 }
 
 // Cosh returns the hyperbolic cosine of x.
@@ -64,5 +64,5 @@ func Cosh(x float64) float64 {
 	if x > 21 {
 		return Exp(x) / 2
 	}
-	return (Exp(x) + Exp(-x)) / 2;
+	return (Exp(x) + Exp(-x)) / 2
 }

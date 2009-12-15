@@ -5,9 +5,9 @@
 package math_test
 
 import (
-	"fmt";
-	. "math";
-	"testing";
+	"fmt"
+	. "math"
+	"testing"
 )
 
 var vf = []float64{
@@ -156,22 +156,22 @@ var tanh = []float64{
 }
 
 func tolerance(a, b, e float64) bool {
-	d := a - b;
+	d := a - b
 	if d < 0 {
 		d = -d
 	}
 
 	if a != 0 {
-		e = e * a;
+		e = e * a
 		if e < 0 {
 			e = -e
 		}
 	}
-	return d < e;
+	return d < e
 }
-func kindaclose(a, b float64) bool	{ return tolerance(a, b, 1e-8) }
-func close(a, b float64) bool		{ return tolerance(a, b, 1e-14) }
-func veryclose(a, b float64) bool	{ return tolerance(a, b, 4e-16) }
+func kindaclose(a, b float64) bool { return tolerance(a, b, 1e-8) }
+func close(a, b float64) bool      { return tolerance(a, b, 1e-14) }
+func veryclose(a, b float64) bool  { return tolerance(a, b, 4e-16) }
 
 func TestAsin(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
@@ -207,7 +207,7 @@ func TestFloor(t *testing.T) {
 
 func TestLog(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := Fabs(vf[i]);
+		a := Fabs(vf[i])
 		if f := Log(a); log[i] != f {
 			t.Errorf("Log(%g) = %g, want %g\n", a, f, log[i])
 		}
@@ -243,7 +243,7 @@ func TestSinh(t *testing.T) {
 
 func TestSqrt(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := Fabs(vf[i]);
+		a := Fabs(vf[i])
 		if f := Sqrt(a); !veryclose(sqrt[i], f) {
 			t.Errorf("Sqrt(%g) = %g, want %g\n", a, f, floor[i])
 		}
@@ -268,7 +268,7 @@ func TestTanh(t *testing.T) {
 
 func TestHypot(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		a := Fabs(tanh[i] * Sqrt(2));
+		a := Fabs(tanh[i] * Sqrt(2))
 		if f := Hypot(tanh[i], tanh[i]); !veryclose(a, f) {
 			t.Errorf("Hypot(%g, %g) = %g, want %g\n", tanh[i], tanh[i], f, a)
 		}
@@ -278,10 +278,10 @@ func TestHypot(t *testing.T) {
 // Check that math functions of high angle values
 // return similar results to low angle values
 func TestLargeSin(t *testing.T) {
-	large := float64(100000 * Pi);
+	large := float64(100000 * Pi)
 	for i := 0; i < len(vf); i++ {
-		f1 := Sin(vf[i]);
-		f2 := Sin(vf[i] + large);
+		f1 := Sin(vf[i])
+		f2 := Sin(vf[i] + large)
 		if !kindaclose(f1, f2) {
 			t.Errorf("Sin(%g) = %g, want %g\n", vf[i]+large, f1, f2)
 		}
@@ -289,10 +289,10 @@ func TestLargeSin(t *testing.T) {
 }
 
 func TestLargeCos(t *testing.T) {
-	large := float64(100000 * Pi);
+	large := float64(100000 * Pi)
 	for i := 0; i < len(vf); i++ {
-		f1 := Cos(vf[i]);
-		f2 := Cos(vf[i] + large);
+		f1 := Cos(vf[i])
+		f2 := Cos(vf[i] + large)
 		if !kindaclose(f1, f2) {
 			t.Errorf("Cos(%g) = %g, want %g\n", vf[i]+large, f1, f2)
 		}
@@ -301,10 +301,10 @@ func TestLargeCos(t *testing.T) {
 
 
 func TestLargeTan(t *testing.T) {
-	large := float64(100000 * Pi);
+	large := float64(100000 * Pi)
 	for i := 0; i < len(vf); i++ {
-		f1 := Tan(vf[i]);
-		f2 := Tan(vf[i] + large);
+		f1 := Tan(vf[i])
+		f2 := Tan(vf[i] + large)
 		if !kindaclose(f1, f2) {
 			t.Errorf("Tan(%g) = %g, want %g\n", vf[i]+large, f1, f2)
 		}
@@ -316,9 +316,9 @@ func TestLargeTan(t *testing.T) {
 // http://code.google.com/p/go/issues/detail?id=201
 
 type floatTest struct {
-	val	interface{};
-	name	string;
-	str	string;
+	val  interface{}
+	name string
+	str  string
 }
 
 var floatTests = []floatTest{
@@ -330,7 +330,7 @@ var floatTests = []floatTest{
 
 func TestFloatMinMax(t *testing.T) {
 	for _, tt := range floatTests {
-		s := fmt.Sprint(tt.val);
+		s := fmt.Sprint(tt.val)
 		if s != tt.str {
 			t.Errorf("Sprint(%v) = %s, want %s", tt.name, s, tt.str)
 		}

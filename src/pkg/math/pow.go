@@ -23,13 +23,13 @@ func Pow(x, y float64) float64 {
 		return 1 / Sqrt(x)
 	}
 
-	absy := y;
-	flip := false;
+	absy := y
+	flip := false
 	if absy < 0 {
-		absy = -absy;
-		flip = true;
+		absy = -absy
+		flip = true
 	}
-	yi, yf := Modf(absy);
+	yi, yf := Modf(absy)
 	if yf != 0 && x < 0 {
 		return NaN()
 	}
@@ -38,33 +38,33 @@ func Pow(x, y float64) float64 {
 	}
 
 	// ans = a1 * 2^ae (= 1 for now).
-	a1 := float64(1);
-	ae := 0;
+	a1 := float64(1)
+	ae := 0
 
 	// ans *= x^yf
 	if yf != 0 {
 		if yf > 0.5 {
-			yf--;
-			yi++;
+			yf--
+			yi++
 		}
-		a1 = Exp(yf * Log(x));
+		a1 = Exp(yf * Log(x))
 	}
 
 	// ans *= x^yi
 	// by multiplying in successive squarings
 	// of x according to bits of yi.
 	// accumulate powers of two into exp.
-	x1, xe := Frexp(x);
+	x1, xe := Frexp(x)
 	for i := int64(yi); i != 0; i >>= 1 {
 		if i&1 == 1 {
-			a1 *= x1;
-			ae += xe;
+			a1 *= x1
+			ae += xe
 		}
-		x1 *= x1;
-		xe <<= 1;
+		x1 *= x1
+		xe <<= 1
 		if x1 < .5 {
-			x1 += x1;
-			xe--;
+			x1 += x1
+			xe--
 		}
 	}
 
@@ -72,8 +72,8 @@ func Pow(x, y float64) float64 {
 	// if flip { ans = 1 / ans }
 	// but in the opposite order
 	if flip {
-		a1 = 1 / a1;
-		ae = -ae;
+		a1 = 1 / a1
+		ae = -ae
 	}
-	return Ldexp(a1, ae);
+	return Ldexp(a1, ae)
 }

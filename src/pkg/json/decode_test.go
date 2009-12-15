@@ -5,73 +5,73 @@
 package json
 
 import (
-	"container/vector";
-	"reflect";
-	"testing";
+	"container/vector"
+	"reflect"
+	"testing"
 )
 
 func TestDecodeInt64(t *testing.T) {
-	nb := newDecoder(nil, nil);
-	nb.Int64(-15);
-	assertResult(t, nb.Data(), float64(-15));
+	nb := newDecoder(nil, nil)
+	nb.Int64(-15)
+	assertResult(t, nb.Data(), float64(-15))
 }
 
 func TestDecodeUint64(t *testing.T) {
-	nb := newDecoder(nil, nil);
-	nb.Uint64(15);
-	assertResult(t, nb.Data(), float64(15));
+	nb := newDecoder(nil, nil)
+	nb.Uint64(15)
+	assertResult(t, nb.Data(), float64(15))
 }
 
 func TestDecodeFloat64(t *testing.T) {
-	nb := newDecoder(nil, nil);
-	nb.Float64(3.14159);
-	assertResult(t, nb.Data(), float64(3.14159));
+	nb := newDecoder(nil, nil)
+	nb.Float64(3.14159)
+	assertResult(t, nb.Data(), float64(3.14159))
 }
 
 func TestDecodeString(t *testing.T) {
-	nb := newDecoder(nil, nil);
-	nb.String("Some string");
-	assertResult(t, nb.Data(), "Some string");
+	nb := newDecoder(nil, nil)
+	nb.String("Some string")
+	assertResult(t, nb.Data(), "Some string")
 }
 
 func TestDecodeBool(t *testing.T) {
-	nb := newDecoder(nil, nil);
-	nb.Bool(true);
-	assertResult(t, nb.Data(), true);
+	nb := newDecoder(nil, nil)
+	nb.Bool(true)
+	assertResult(t, nb.Data(), true)
 }
 
 func TestDecodeNull(t *testing.T) {
-	nb := newDecoder(nil, nil);
-	nb.Null();
-	assertResult(t, nb.Data(), nil);
+	nb := newDecoder(nil, nil)
+	nb.Null()
+	assertResult(t, nb.Data(), nil)
 }
 
 func TestDecodeEmptyArray(t *testing.T) {
-	nb := newDecoder(nil, nil);
-	nb.Array();
-	assertResult(t, nb.Data(), []interface{}{});
+	nb := newDecoder(nil, nil)
+	nb.Array()
+	assertResult(t, nb.Data(), []interface{}{})
 }
 
 func TestDecodeEmptyMap(t *testing.T) {
-	nb := newDecoder(nil, nil);
-	nb.Map();
-	assertResult(t, nb.Data(), map[string]interface{}{});
+	nb := newDecoder(nil, nil)
+	nb.Map()
+	assertResult(t, nb.Data(), map[string]interface{}{})
 }
 
 func TestDecodeFlushElem(t *testing.T) {
-	testVec := new(vector.Vector).Resize(2, 2);
-	nb := newDecoder(testVec, 1);
-	nb.Float64(3.14159);
-	nb.Flush();
-	assertResult(t, testVec.Data(), []interface{}{nil, float64(3.14159)});
+	testVec := new(vector.Vector).Resize(2, 2)
+	nb := newDecoder(testVec, 1)
+	nb.Float64(3.14159)
+	nb.Flush()
+	assertResult(t, testVec.Data(), []interface{}{nil, float64(3.14159)})
 }
 
 func TestDecodeFlushKey(t *testing.T) {
-	testMap := make(map[string]interface{});
-	nb := newDecoder(testMap, "key");
-	nb.Float64(3.14159);
-	nb.Flush();
-	assertResult(t, testMap, map[string]interface{}{"key": float64(3.14159)});
+	testMap := make(map[string]interface{})
+	nb := newDecoder(testMap, "key")
+	nb.Float64(3.14159)
+	nb.Flush()
+	assertResult(t, testMap, map[string]interface{}{"key": float64(3.14159)})
 }
 
 // Elem() and Key() are hard to test in isolation because all they do
@@ -80,21 +80,21 @@ func TestDecodeFlushKey(t *testing.T) {
 // Array(), String(), and Flush().
 
 func TestDecodeElem(t *testing.T) {
-	nb := newDecoder(nil, nil);
-	nb.Array();
-	var b Builder = nb.Elem(0);
-	b.String("0");
-	b.Flush();
-	assertResult(t, nb.Data(), []interface{}{"0"});
+	nb := newDecoder(nil, nil)
+	nb.Array()
+	var b Builder = nb.Elem(0)
+	b.String("0")
+	b.Flush()
+	assertResult(t, nb.Data(), []interface{}{"0"})
 }
 
 func TestDecodeKey(t *testing.T) {
-	nb := newDecoder(nil, nil);
-	nb.Map();
-	var b Builder = nb.Key("a");
-	b.String("0");
-	b.Flush();
-	assertResult(t, nb.Data(), map[string]interface{}{"a": "0"});
+	nb := newDecoder(nil, nil)
+	nb.Map()
+	var b Builder = nb.Key("a")
+	b.String("0")
+	b.Flush()
+	assertResult(t, nb.Data(), map[string]interface{}{"a": "0"})
 }
 
 func assertResult(t *testing.T, results, expected interface{}) {
@@ -104,8 +104,8 @@ func assertResult(t *testing.T, results, expected interface{}) {
 }
 
 type decodeTest struct {
-	s	string;
-	r	interface{};
+	s string
+	r interface{}
 }
 
 var tests = []decodeTest{

@@ -5,13 +5,13 @@
 package adler32
 
 import (
-	"io";
-	"testing";
+	"io"
+	"testing"
 )
 
 type _Adler32Test struct {
-	out	uint32;
-	in	string;
+	out uint32
+	in  string
 }
 
 var golden = []_Adler32Test{
@@ -51,13 +51,13 @@ var golden = []_Adler32Test{
 
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
-		g := golden[i];
-		c := New();
-		io.WriteString(c, g.in);
-		s := c.Sum32();
+		g := golden[i]
+		c := New()
+		io.WriteString(c, g.in)
+		s := c.Sum32()
 		if s != g.out {
-			t.Errorf("adler32(%s) = 0x%x want 0x%x", g.in, s, g.out);
-			t.FailNow();
+			t.Errorf("adler32(%s) = 0x%x want 0x%x", g.in, s, g.out)
+			t.FailNow()
 		}
 	}
 }
