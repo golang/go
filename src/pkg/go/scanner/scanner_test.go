@@ -284,6 +284,7 @@ func checkSemi(t *testing.T, line string, mode uint) {
 var lines = []string{
 	// the $ character indicates where a semicolon is expected
 	"",
+	"$;",
 	"foo$\n",
 	"123$\n",
 	"1.2$\n",
@@ -380,16 +381,17 @@ var lines = []string{
 	"foo$//comment\n",
 	"foo$/*comment*/\n",
 	"foo$/*\n*/",
+	"foo$/*comment*/    \n",
+	"foo$/*\n*/    ",
 	"foo    $// comment\n",
 	"foo    $/*comment*/\n",
 	"foo    $/*\n*/",
 
-	// TODO(gri): These need to insert the semicolon *before* the
-	//            first comment which requires arbitrary far look-
-	//            ahead. Only relevant for gofmt placement of
-	//            comments.
-	"foo    /*comment*/    $\n",
-	"foo    /*0*/ /*1*/ $/*2*/\n",
+	"foo    $/*comment*/\n",
+	"foo    $/*0*/ /*1*/ /*2*/\n",
+	"foo    $/*comment*/    \n",
+	"foo    $/*0*/ /*1*/ /*2*/    \n",
+	"foo	$/**/ /*-------------*/       /*----\n*/bar       $/*  \n*/baa",
 }
 
 
