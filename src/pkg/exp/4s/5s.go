@@ -6,4 +6,4 @@
 
 package main
 
-func init()	{ pieces4 = pieces5 }
+func init() { pieces4 = pieces5 }

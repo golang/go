@@ -5,15 +5,15 @@
 package macho
 
 import (
-	"reflect";
-	"testing";
+	"reflect"
+	"testing"
 )
 
 type fileTest struct {
-	file		string;
-	hdr		FileHeader;
-	segments	[]*SegmentHeader;
-	sections	[]*SectionHeader;
+	file     string
+	hdr      FileHeader
+	segments []*SegmentHeader
+	sections []*SectionHeader
 }
 
 var fileTests = []fileTest{
@@ -100,41 +100,41 @@ var fileTests = []fileTest{
 
 func TestOpen(t *testing.T) {
 	for i := range fileTests {
-		tt := &fileTests[i];
+		tt := &fileTests[i]
 
-		f, err := Open(tt.file);
+		f, err := Open(tt.file)
 		if err != nil {
-			t.Error(err);
-			continue;
+			t.Error(err)
+			continue
 		}
 		if !reflect.DeepEqual(f.FileHeader, tt.hdr) {
-			t.Errorf("open %s:\n\thave %#v\n\twant %#v\n", tt.file, f.FileHeader, tt.hdr);
-			continue;
+			t.Errorf("open %s:\n\thave %#v\n\twant %#v\n", tt.file, f.FileHeader, tt.hdr)
+			continue
 		}
 		for i, l := range f.Loads {
 			if i >= len(tt.segments) {
 				break
 			}
-			sh := tt.segments[i];
-			s, ok := l.(*Segment);
+			sh := tt.segments[i]
+			s, ok := l.(*Segment)
 			if sh == nil {
 				if ok {
 					t.Errorf("open %s, section %d: skipping %#v\n", tt.file, i, &s.SegmentHeader)
 				}
-				continue;
+				continue
 			}
 			if !ok {
-				t.Errorf("open %s, section %d: not *Segment\n", tt.file, i);
-				continue;
+				t.Errorf("open %s, section %d: not *Segment\n", tt.file, i)
+				continue
 			}
-			have := &s.SegmentHeader;
-			want := sh;
+			have := &s.SegmentHeader
+			want := sh
 			if !reflect.DeepEqual(have, want) {
 				t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
 			}
 		}
-		tn := len(tt.segments);
-		fn := len(f.Loads);
+		tn := len(tt.segments)
+		fn := len(f.Loads)
 		if tn != fn {
 			t.Errorf("open %s: len(Loads) = %d, want %d", tt.file, fn, tn)
 		}
@@ -143,14 +143,14 @@ func TestOpen(t *testing.T) {
 			if i >= len(tt.sections) {
 				break
 			}
-			have := &sh.SectionHeader;
-			want := tt.sections[i];
+			have := &sh.SectionHeader
+			want := tt.sections[i]
 			if !reflect.DeepEqual(have, want) {
 				t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
 			}
 		}
-		tn = len(tt.sections);
-		fn = len(f.Sections);
+		tn = len(tt.sections)
+		fn = len(f.Sections)
 		if tn != fn {
 			t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn)
 		}

@@ -5,10 +5,10 @@
 package ogle
 
 import (
-	"debug/gosym";
-	"debug/proc";
-	"fmt";
-	"os";
+	"debug/gosym"
+	"debug/proc"
+	"fmt"
+	"os"
 )
 
 // A Frame represents a single frame on a remote call stack.
@@ -16,30 +16,30 @@ type Frame struct {
 	// pc is the PC of the next instruction that will execute in
 	// this frame.  For lower frames, this is the instruction
 	// following the CALL instruction.
-	pc, sp, fp	proc.Word;
+	pc, sp, fp proc.Word
 	// The runtime.Stktop of the active stack segment
-	stk	remoteStruct;
+	stk remoteStruct
 	// The function this stack frame is in
-	fn	*gosym.Func;
+	fn *gosym.Func
 	// The path and line of the CALL or current instruction.  Note
 	// that this differs slightly from the meaning of Frame.pc.
-	path	string;
-	line	int;
+	path string
+	line int
 	// The inner and outer frames of this frame.  outer is filled
 	// in lazily.
-	inner, outer	*Frame;
+	inner, outer *Frame
 }
 
 // newFrame returns the top-most Frame of the given g's thread.
 func newFrame(g remoteStruct) (*Frame, os.Error) {
-	var f *Frame;
-	err := try(func(a aborter) { f = aNewFrame(a, g) });
-	return f, err;
+	var f *Frame
+	err := try(func(a aborter) { f = aNewFrame(a, g) })
+	return f, err
 }
 
 func aNewFrame(a aborter, g remoteStruct) *Frame {
-	p := g.r.p;
-	var pc, sp proc.Word;
+	p := g.r.p
+	var pc, sp proc.Word
 
 	// Is this G alive?
 	switch g.field(p.f.G.Status).(remoteInt).aGet(a) {
@@ -54,39 +54,39 @@ func aNewFrame(a aborter, g remoteStruct) *Frame {
 	// is difficult because the state isn't updated atomically
 	// with scheduling changes.
 	for _, t := range p.proc.Threads() {
-		regs, err := t.Regs();
+		regs, err := t.Regs()
 		if err != nil {
 			// TODO(austin) What to do?
 			continue
 		}
-		thisg := p.G(regs);
+		thisg := p.G(regs)
 		if thisg == g.addr().base {
 			// Found this G's OS thread
-			pc = regs.PC();
-			sp = regs.SP();
+			pc = regs.PC()
+			sp = regs.SP()
 
 			// If this thread crashed, try to recover it
 			if pc == 0 {
-				pc = p.peekUintptr(a, pc);
-				sp += 8;
+				pc = p.peekUintptr(a, pc)
+				sp += 8
 			}
 
-			break;
+			break
 		}
 	}
 
 	if pc == 0 && sp == 0 {
 		// G is not mapped to an OS thread.  Use the
 		// scheduler's stored PC and SP.
-		sched := g.field(p.f.G.Sched).(remoteStruct);
-		pc = proc.Word(sched.field(p.f.Gobuf.Pc).(remoteUint).aGet(a));
-		sp = proc.Word(sched.field(p.f.Gobuf.Sp).(remoteUint).aGet(a));
+		sched := g.field(p.f.G.Sched).(remoteStruct)
+		pc = proc.Word(sched.field(p.f.Gobuf.Pc).(remoteUint).aGet(a))
+		sp = proc.Word(sched.field(p.f.Gobuf.Sp).(remoteUint).aGet(a))
 	}
 
 	// Get Stktop
-	stk := g.field(p.f.G.Stackbase).(remotePtr).aGet(a).(remoteStruct);
+	stk := g.field(p.f.G.Stackbase).(remotePtr).aGet(a).(remoteStruct)
 
-	return prepareFrame(a, pc, sp, stk, nil);
+	return prepareFrame(a, pc, sp, stk, nil)
 }
 
 // prepareFrame creates a Frame from the PC and SP within that frame,
@@ -94,47 +94,47 @@ func aNewFrame(a aborter, g remoteStruct) *Frame {
 // traversing stack breaks and unwinding closures.
 func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *Frame {
 	// Based on src/pkg/runtime/amd64/traceback.c:traceback
-	p := stk.r.p;
-	top := inner == nil;
+	p := stk.r.p
+	top := inner == nil
 
 	// Get function
-	var path string;
-	var line int;
-	var fn *gosym.Func;
+	var path string
+	var line int
+	var fn *gosym.Func
 
 	for i := 0; i < 100; i++ {
 		// Traverse segmented stack breaks
 		if p.sys.lessstack != nil && pc == proc.Word(p.sys.lessstack.Value) {
 			// Get stk->gobuf.pc
-			pc = proc.Word(stk.field(p.f.Stktop.Gobuf).(remoteStruct).field(p.f.Gobuf.Pc).(remoteUint).aGet(a));
+			pc = proc.Word(stk.field(p.f.Stktop.Gobuf).(remoteStruct).field(p.f.Gobuf.Pc).(remoteUint).aGet(a))
 			// Get stk->gobuf.sp
-			sp = proc.Word(stk.field(p.f.Stktop.Gobuf).(remoteStruct).field(p.f.Gobuf.Sp).(remoteUint).aGet(a));
+			sp = proc.Word(stk.field(p.f.Stktop.Gobuf).(remoteStruct).field(p.f.Gobuf.Sp).(remoteUint).aGet(a))
 			// Get stk->stackbase
-			stk = stk.field(p.f.Stktop.Stackbase).(remotePtr).aGet(a).(remoteStruct);
-			continue;
+			stk = stk.field(p.f.Stktop.Stackbase).(remotePtr).aGet(a).(remoteStruct)
+			continue
 		}
 
 		// Get the PC of the call instruction
-		callpc := pc;
+		callpc := pc
 		if !top && (p.sys.goexit == nil || pc != proc.Word(p.sys.goexit.Value)) {
 			callpc--
 		}
 
 		// Look up function
-		path, line, fn = p.syms.PCToLine(uint64(callpc));
+		path, line, fn = p.syms.PCToLine(uint64(callpc))
 		if fn != nil {
 			break
 		}
 
 		// Closure?
-		var buf = make([]byte, p.ClosureSize());
+		var buf = make([]byte, p.ClosureSize())
 		if _, err := p.Peek(pc, buf); err != nil {
 			break
 		}
-		spdelta, ok := p.ParseClosure(buf);
+		spdelta, ok := p.ParseClosure(buf)
 		if ok {
-			sp += proc.Word(spdelta);
-			pc = p.peekUintptr(a, sp-proc.Word(p.PtrSize()));
+			sp += proc.Word(spdelta)
+			pc = p.peekUintptr(a, sp-proc.Word(p.PtrSize()))
 		}
 	}
 	if fn == nil {
@@ -142,7 +142,7 @@ func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *
 	}
 
 	// Compute frame pointer
-	var fp proc.Word;
+	var fp proc.Word
 	if fn.FrameSize < p.PtrSize() {
 		fp = sp + proc.Word(p.PtrSize())
 	} else {
@@ -160,15 +160,15 @@ func prepareFrame(a aborter, pc, sp proc.Word, stk remoteStruct, inner *Frame) *
 		fp -= proc.Word(fn.FrameSize - p.PtrSize())
 	}
 
-	return &Frame{pc, sp, fp, stk, fn, path, line, inner, nil};
+	return &Frame{pc, sp, fp, stk, fn, path, line, inner, nil}
 }
 
 // Outer returns the Frame that called this Frame, or nil if this is
 // the outermost frame.
 func (f *Frame) Outer() (*Frame, os.Error) {
-	var fr *Frame;
-	err := try(func(a aborter) { fr = f.aOuter(a) });
-	return fr, err;
+	var fr *Frame
+	err := try(func(a aborter) { fr = f.aOuter(a) })
+	return fr, err
 }
 
 func (f *Frame) aOuter(a aborter) *Frame {
@@ -177,9 +177,9 @@ func (f *Frame) aOuter(a aborter) *Frame {
 		return f.outer
 	}
 
-	p := f.stk.r.p;
+	p := f.stk.r.p
 
-	sp := f.fp;
+	sp := f.fp
 	if f.fn == p.sys.newproc && f.fn == p.sys.deferproc {
 		// TODO(rsc) The compiler inserts two push/pop's
 		// around calls to go and defer.  Russ says this
@@ -188,25 +188,25 @@ func (f *Frame) aOuter(a aborter) *Frame {
 		sp += proc.Word(2 * p.PtrSize())
 	}
 
-	pc := p.peekUintptr(a, f.fp-proc.Word(p.PtrSize()));
+	pc := p.peekUintptr(a, f.fp-proc.Word(p.PtrSize()))
 	if pc < 0x1000 {
 		return nil
 	}
 
 	// TODO(austin) Register this frame for shoot-down.
 
-	f.outer = prepareFrame(a, pc, sp, f.stk, f);
-	return f.outer;
+	f.outer = prepareFrame(a, pc, sp, f.stk, f)
+	return f.outer
 }
 
 // Inner returns the Frame called by this Frame, or nil if this is the
 // innermost frame.
-func (f *Frame) Inner() *Frame	{ return f.inner }
+func (f *Frame) Inner() *Frame { return f.inner }
 
 func (f *Frame) String() string {
-	res := f.fn.Name;
+	res := f.fn.Name
 	if f.pc > proc.Word(f.fn.Value) {
 		res += fmt.Sprintf("+%#x", f.pc-proc.Word(f.fn.Entry))
 	}
-	return res + fmt.Sprintf(" %s:%d", f.path, f.line);
+	return res + fmt.Sprintf(" %s:%d", f.path, f.line)
 }

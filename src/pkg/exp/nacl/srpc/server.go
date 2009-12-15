@@ -7,10 +7,10 @@
 package srpc
 
 import (
-	"bytes";
-	"log";
-	"os";
-	"syscall";
+	"bytes"
+	"log"
+	"os"
+	"syscall"
 )
 
 // TODO(rsc): I'd prefer to make this
@@ -22,13 +22,13 @@ import (
 // It reads arguments from arg, checks size for array limits,
 // writes return values to ret, and returns an Errno status code.
 type Handler interface {
-	Run(arg, ret []interface{}, size []int) Errno;
+	Run(arg, ret []interface{}, size []int) Errno
 }
 
 type method struct {
-	name	string;
-	fmt	string;
-	handler	Handler;
+	name    string
+	fmt     string
+	handler Handler
 }
 
 var rpcMethod []method
@@ -53,80 +53,80 @@ var rpcMethod []method
 //	s	string
 //
 func Add(name, fmt string, handler Handler) {
-	n := len(rpcMethod);
+	n := len(rpcMethod)
 	if n >= cap(rpcMethod) {
-		a := make([]method, n, (n+4)*2);
+		a := make([]method, n, (n+4)*2)
 		for i := range a {
 			a[i] = rpcMethod[i]
 		}
-		rpcMethod = a;
+		rpcMethod = a
 	}
-	rpcMethod = rpcMethod[0 : n+1];
-	rpcMethod[n] = method{name, fmt, handler};
+	rpcMethod = rpcMethod[0 : n+1]
+	rpcMethod[n] = method{name, fmt, handler}
 }
 
 // Serve accepts new SRPC connections from the file descriptor fd
 // and answers RPCs issued on those connections.
 // It closes fd and returns an error if the imc_accept system call fails.
 func Serve(fd int) os.Error {
-	defer syscall.Close(fd);
+	defer syscall.Close(fd)
 
 	for {
-		cfd, _, e := syscall.Syscall(syscall.SYS_IMC_ACCEPT, uintptr(fd), 0, 0);
+		cfd, _, e := syscall.Syscall(syscall.SYS_IMC_ACCEPT, uintptr(fd), 0, 0)
 		if e != 0 {
 			return os.NewSyscallError("imc_accept", int(e))
 		}
-		go serveLoop(int(cfd));
+		go serveLoop(int(cfd))
 	}
-	panic("unreachable");
+	panic("unreachable")
 }
 
 func serveLoop(fd int) {
-	c := make(chan *msg);
-	go sendLoop(fd, c);
+	c := make(chan *msg)
+	go sendLoop(fd, c)
 
-	var r msgReceiver;
-	r.fd = fd;
+	var r msgReceiver
+	r.fd = fd
 	for {
-		m, err := r.recv();
+		m, err := r.recv()
 		if err != nil {
 			break
 		}
-		m.unpackRequest();
+		m.unpackRequest()
 		if !m.gotHeader {
-			log.Stderrf("cannot unpack header: %s", m.status);
-			continue;
+			log.Stderrf("cannot unpack header: %s", m.status)
+			continue
 		}
 		// log.Stdoutf("<- %#v", m);
-		m.isReq = false;	// set up for response
-		go serveMsg(m, c);
+		m.isReq = false // set up for response
+		go serveMsg(m, c)
 	}
-	close(c);
+	close(c)
 }
 
 func sendLoop(fd int, c <-chan *msg) {
-	var s msgSender;
-	s.fd = fd;
+	var s msgSender
+	s.fd = fd
 	for m := range c {
 		// log.Stdoutf("-> %#v", m);
-		m.packResponse();
-		s.send(m);
+		m.packResponse()
+		s.send(m)
 	}
-	syscall.Close(fd);
+	syscall.Close(fd)
 }
 
 func serveMsg(m *msg, c chan<- *msg) {
 	if m.status != OK {
-		c <- m;
-		return;
+		c <- m
+		return
 	}
 	if m.rpcNumber >= uint32(len(rpcMethod)) {
-		m.status = ErrBadRPCNumber;
-		c <- m;
-		return;
+		m.status = ErrBadRPCNumber
+		c <- m
+		return
 	}
 
-	meth := &rpcMethod[m.rpcNumber];
+	meth := &rpcMethod[m.rpcNumber]
 	if meth.fmt != m.fmt {
 		switch {
 		case len(m.fmt) < len(meth.fmt):
@@ -137,20 +137,20 @@ func serveMsg(m *msg, c chan<- *msg) {
 			// There's a type mismatch.
 			// It's an in-arg mismatch if the mismatch happens
 			// before the colon; otherwise it's an out-arg mismatch.
-			m.status = ErrInArgTypeMismatch;
+			m.status = ErrInArgTypeMismatch
 			for i := 0; i < len(m.fmt) && m.fmt[i] == meth.fmt[i]; i++ {
 				if m.fmt[i] == ':' {
-					m.status = ErrOutArgTypeMismatch;
-					break;
+					m.status = ErrOutArgTypeMismatch
+					break
 				}
 			}
 		}
-		c <- m;
-		return;
+		c <- m
+		return
 	}
 
-	m.status = meth.handler.Run(m.Arg, m.Ret, m.Size);
-	c <- m;
+	m.status = meth.handler.Run(m.Arg, m.Ret, m.Size)
+	c <- m
 }
 
 // ServeRuntime serves RPCs issued by the Native Client embedded runtime.
@@ -164,19 +164,19 @@ func ServeRuntime() os.Error {
 	// We are running embedded.
 	// The fd returned by getFd is a red herring.
 	// Accept connections on magic fd 3.
-	return Serve(3);
+	return Serve(3)
 }
 
 // getFd runs the srpc_get_fd system call.
 func getFd() (fd int, err os.Error) {
-	r1, _, e := syscall.Syscall(syscall.SYS_SRPC_GET_FD, 0, 0, 0);
-	return int(r1), os.NewSyscallError("srpc_get_fd", int(e));
+	r1, _, e := syscall.Syscall(syscall.SYS_SRPC_GET_FD, 0, 0, 0)
+	return int(r1), os.NewSyscallError("srpc_get_fd", int(e))
 }
 
 // Enabled returns true if SRPC is enabled in the Native Client runtime.
 func Enabled() bool {
-	_, err := getFd();
-	return err == nil;
+	_, err := getFd()
+	return err == nil
 }
 
 // Service #0, service_discovery, returns a list of the other services
@@ -184,18 +184,18 @@ func Enabled() bool {
 type serviceDiscovery struct{}
 
 func (serviceDiscovery) Run(arg, ret []interface{}, size []int) Errno {
-	var b bytes.Buffer;
+	var b bytes.Buffer
 	for _, m := range rpcMethod {
-		b.WriteString(m.name);
-		b.WriteByte(':');
-		b.WriteString(m.fmt);
-		b.WriteByte('\n');
+		b.WriteString(m.name)
+		b.WriteByte(':')
+		b.WriteString(m.fmt)
+		b.WriteByte('\n')
 	}
 	if b.Len() > size[0] {
 		return ErrNoMemory
 	}
-	ret[0] = b.Bytes();
-	return OK;
+	ret[0] = b.Bytes()
+	return OK
 }
 
-func init()	{ Add("service_discovery", ":C", serviceDiscovery{}) }
+func init() { Add("service_discovery", ":C", serviceDiscovery{}) }

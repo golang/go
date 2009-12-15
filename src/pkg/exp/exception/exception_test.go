@@ -7,7 +7,7 @@ package exception
 import "testing"
 
 func TestNoException(t *testing.T) {
-	e := Try(func(throw Handler) {});
+	e := Try(func(throw Handler) {})
 	if e != nil {
 		t.Fatalf("no exception expected, found: %v", e)
 	}
@@ -15,7 +15,7 @@ func TestNoException(t *testing.T) {
 
 
 func TestNilException(t *testing.T) {
-	e := Try(func(throw Handler) { throw(nil) });
+	e := Try(func(throw Handler) { throw(nil) })
 	if e == nil {
 		t.Fatalf("exception expected", e)
 	}
@@ -26,19 +26,19 @@ func TestNilException(t *testing.T) {
 
 
 func TestTry(t *testing.T) {
-	s := 0;
+	s := 0
 	for i := 1; i <= 10; i++ {
 		e := Try(func(throw Handler) {
 			if i%3 == 0 {
-				throw(i);
-				panic("throw returned");
+				throw(i)
+				panic("throw returned")
 			}
-		});
+		})
 		if e != nil {
 			s += e.Value.(int)
 		}
 	}
-	result := 3 + 6 + 9;
+	result := 3 + 6 + 9
 	if s != result {
 		t.Fatalf("expected: %d, found: %d", result, s)
 	}
@@ -46,7 +46,7 @@ func TestTry(t *testing.T) {
 
 
 func TestCatch(t *testing.T) {
-	s := 0;
+	s := 0
 	for i := 1; i <= 10; i++ {
 		Try(func(throw Handler) {
 			if i%3 == 0 {
@@ -54,7 +54,7 @@ func TestCatch(t *testing.T) {
 			}
 		}).Catch(func(x interface{}) { s += x.(int) })
 	}
-	result := 3 + 6 + 9;
+	result := 3 + 6 + 9
 	if s != result {
 		t.Fatalf("expected: %d, found: %d", result, s)
 	}

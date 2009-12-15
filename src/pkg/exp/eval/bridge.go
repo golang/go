@@ -5,9 +5,9 @@
 package eval
 
 import (
-	"log";
-	"go/token";
-	"reflect";
+	"log"
+	"go/token"
+	"reflect"
 )
 
 /*
@@ -15,8 +15,8 @@ import (
  */
 
 var (
-	evalTypes	= make(map[reflect.Type]Type);
-	nativeTypes	= make(map[Type]reflect.Type);
+	evalTypes   = make(map[reflect.Type]Type)
+	nativeTypes = make(map[Type]reflect.Type)
 )
 
 // TypeFromNative converts a regular Go type into a the corresponding
@@ -26,14 +26,14 @@ func TypeFromNative(t reflect.Type) Type {
 		return et
 	}
 
-	var nt *NamedType;
+	var nt *NamedType
 	if t.Name() != "" {
-		name := t.PkgPath() + "·" + t.Name();
-		nt = &NamedType{token.Position{}, name, nil, true, make(map[string]Method)};
-		evalTypes[t] = nt;
+		name := t.PkgPath() + "·" + t.Name()
+		nt = &NamedType{token.Position{}, name, nil, true, make(map[string]Method)}
+		evalTypes[t] = nt
 	}
 
-	var et Type;
+	var et Type
 	switch t := t.(type) {
 	case *reflect.BoolType:
 		et = BoolType
@@ -73,24 +73,24 @@ func TypeFromNative(t reflect.Type) Type {
 	case *reflect.ChanType:
 		log.Crashf("%T not implemented", t)
 	case *reflect.FuncType:
-		nin := t.NumIn();
+		nin := t.NumIn()
 		// Variadic functions have DotDotDotType at the end
-		varidic := false;
+		varidic := false
 		if nin > 0 {
 			if _, ok := t.In(nin - 1).(*reflect.DotDotDotType); ok {
-				varidic = true;
-				nin--;
+				varidic = true
+				nin--
 			}
 		}
-		in := make([]Type, nin);
+		in := make([]Type, nin)
 		for i := range in {
 			in[i] = TypeFromNative(t.In(i))
 		}
-		out := make([]Type, t.NumOut());
+		out := make([]Type, t.NumOut())
 		for i := range out {
 			out[i] = TypeFromNative(t.Out(i))
 		}
-		et = NewFuncType(in, varidic, out);
+		et = NewFuncType(in, varidic, out)
 	case *reflect.InterfaceType:
 		log.Crashf("%T not implemented", t)
 	case *reflect.MapType:
@@ -100,16 +100,16 @@ func TypeFromNative(t reflect.Type) Type {
 	case *reflect.SliceType:
 		et = NewSliceType(TypeFromNative(t.Elem()))
 	case *reflect.StructType:
-		n := t.NumField();
-		fields := make([]StructField, n);
+		n := t.NumField()
+		fields := make([]StructField, n)
 		for i := 0; i < n; i++ {
-			sf := t.Field(i);
+			sf := t.Field(i)
 			// TODO(austin) What to do about private fields?
-			fields[i].Name = sf.Name;
-			fields[i].Type = TypeFromNative(sf.Type);
-			fields[i].Anonymous = sf.Anonymous;
+			fields[i].Name = sf.Name
+			fields[i].Type = TypeFromNative(sf.Type)
+			fields[i].Anonymous = sf.Anonymous
 		}
-		et = NewStructType(fields);
+		et = NewStructType(fields)
 	case *reflect.UnsafePointerType:
 		log.Crashf("%T not implemented", t)
 	default:
@@ -118,35 +118,35 @@ func TypeFromNative(t reflect.Type) Type {
 
 	if nt != nil {
 		if _, ok := et.(*NamedType); !ok {
-			nt.Complete(et);
-			et = nt;
+			nt.Complete(et)
+			et = nt
 		}
 	}
 
-	nativeTypes[et] = t;
-	evalTypes[t] = et;
+	nativeTypes[et] = t
+	evalTypes[t] = et
 
-	return et;
+	return et
 }
 
 // TypeOfNative returns the interpreter Type of a regular Go value.
-func TypeOfNative(v interface{}) Type	{ return TypeFromNative(reflect.Typeof(v)) }
+func TypeOfNative(v interface{}) Type { return TypeFromNative(reflect.Typeof(v)) }
 
 /*
  * Function bridging
  */
 
 type nativeFunc struct {
-	fn	func(*Thread, []Value, []Value);
-	in, out	int;
+	fn      func(*Thread, []Value, []Value)
+	in, out int
 }
 
 func (f *nativeFunc) NewFrame() *Frame {
-	vars := make([]Value, f.in+f.out);
-	return &Frame{nil, vars};
+	vars := make([]Value, f.in+f.out)
+	return &Frame{nil, vars}
 }
 
-func (f *nativeFunc) Call(t *Thread)	{ f.fn(t, t.f.Vars[0:f.in], t.f.Vars[f.in:f.in+f.out]) }
+func (f *nativeFunc) Call(t *Thread) { f.fn(t, t.f.Vars[0:f.in], t.f.Vars[f.in:f.in+f.out]) }
 
 // FuncFromNative creates an interpreter function from a native
 // function that takes its in and out arguments as slices of
@@ -161,6 +161,6 @@ func FuncFromNative(fn func(*Thread, []Value, []Value), t *FuncType) FuncValue {
 // the type will be given as a nil pointer to a function with the
 // desired signature.
 func FuncFromNativeTyped(fn func(*Thread, []Value, []Value), t interface{}) (*FuncType, FuncValue) {
-	ft := TypeOfNative(t).(*FuncType);
-	return ft, FuncFromNative(fn, ft);
+	ft := TypeOfNative(t).(*FuncType)
+	return ft, FuncFromNative(fn, ft)
 }

@@ -5,24 +5,24 @@
 package binary
 
 import (
-	"os";
-	"bytes";
-	"math";
-	"reflect";
-	"testing";
+	"os"
+	"bytes"
+	"math"
+	"reflect"
+	"testing"
 )
 
 type Struct struct {
-	Int8	int8;
-	Int16	int16;
-	Int32	int32;
-	Int64	int64;
-	Uint8	uint8;
-	Uint16	uint16;
-	Uint32	uint32;
-	Uint64	uint64;
-	Float64	float64;
-	Array	[4]uint8;
+	Int8    int8
+	Int16   int16
+	Int32   int32
+	Int64   int64
+	Uint8   uint8
+	Uint16  uint16
+	Uint32  uint32
+	Uint64  uint64
+	Float64 float64
+	Array   [4]uint8
 }
 
 var s = Struct{
@@ -69,8 +69,8 @@ var res = []int32{0x01020304, 0x05060708}
 
 func checkResult(t *testing.T, dir string, order, err os.Error, have, want interface{}) {
 	if err != nil {
-		t.Errorf("%v %v: %v", dir, order, err);
-		return;
+		t.Errorf("%v %v: %v", dir, order, err)
+		return
 	}
 	if !reflect.DeepEqual(have, want) {
 		t.Errorf("%v %v:\n\thave %+v\n\twant %+v", dir, order, have, want)
@@ -78,37 +78,37 @@ func checkResult(t *testing.T, dir string, order, err os.Error, have, want inter
 }
 
 func testRead(t *testing.T, order ByteOrder, b []byte, s1 interface{}) {
-	var s2 Struct;
-	err := Read(bytes.NewBuffer(b), order, &s2);
-	checkResult(t, "Read", order, err, s2, s1);
+	var s2 Struct
+	err := Read(bytes.NewBuffer(b), order, &s2)
+	checkResult(t, "Read", order, err, s2, s1)
 }
 
 func testWrite(t *testing.T, order ByteOrder, b []byte, s1 interface{}) {
-	buf := new(bytes.Buffer);
-	err := Write(buf, order, s1);
-	checkResult(t, "Write", order, err, buf.Bytes(), b);
+	buf := new(bytes.Buffer)
+	err := Write(buf, order, s1)
+	checkResult(t, "Write", order, err, buf.Bytes(), b)
 }
 
-func TestBigEndianRead(t *testing.T)	{ testRead(t, BigEndian, big, s) }
+func TestBigEndianRead(t *testing.T) { testRead(t, BigEndian, big, s) }
 
-func TestLittleEndianRead(t *testing.T)	{ testRead(t, LittleEndian, little, s) }
+func TestLittleEndianRead(t *testing.T) { testRead(t, LittleEndian, little, s) }
 
-func TestBigEndianWrite(t *testing.T)	{ testWrite(t, BigEndian, big, s) }
+func TestBigEndianWrite(t *testing.T) { testWrite(t, BigEndian, big, s) }
 
-func TestLittleEndianWrite(t *testing.T)	{ testWrite(t, LittleEndian, little, s) }
+func TestLittleEndianWrite(t *testing.T) { testWrite(t, LittleEndian, little, s) }
 
-func TestBigEndianPtrWrite(t *testing.T)	{ testWrite(t, BigEndian, big, &s) }
+func TestBigEndianPtrWrite(t *testing.T) { testWrite(t, BigEndian, big, &s) }
 
-func TestLittleEndianPtrWrite(t *testing.T)	{ testWrite(t, LittleEndian, little, &s) }
+func TestLittleEndianPtrWrite(t *testing.T) { testWrite(t, LittleEndian, little, &s) }
 
 func TestReadSlice(t *testing.T) {
-	slice := make([]int32, 2);
-	err := Read(bytes.NewBuffer(src), BigEndian, slice);
-	checkResult(t, "ReadSlice", BigEndian, err, slice, res);
+	slice := make([]int32, 2)
+	err := Read(bytes.NewBuffer(src), BigEndian, slice)
+	checkResult(t, "ReadSlice", BigEndian, err, slice, res)
 }
 
 func TestWriteSlice(t *testing.T) {
-	buf := new(bytes.Buffer);
-	err := Write(buf, BigEndian, res);
-	checkResult(t, "WriteSlice", BigEndian, err, buf.Bytes(), src);
+	buf := new(bytes.Buffer)
+	err := Write(buf, BigEndian, res)
+	checkResult(t, "WriteSlice", BigEndian, err, buf.Bytes(), src)
 }

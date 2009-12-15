@@ -5,9 +5,9 @@
 package ebnf
 
 import (
-	"io/ioutil";
-	"strings";
-	"testing";
+	"io/ioutil"
+	"strings"
+	"testing"
 )
 
 
@@ -41,7 +41,7 @@ var grammars = []string{
 
 
 func check(t *testing.T, filename string, src []byte) {
-	grammar, err := Parse(filename, src);
+	grammar, err := Parse(filename, src)
 	if err != nil {
 		t.Errorf("Parse(%s) failed: %v", src, err)
 	}
@@ -65,10 +65,10 @@ var files = []string{
 
 func TestFiles(t *testing.T) {
 	for _, filename := range files {
-		src, err := ioutil.ReadFile(filename);
+		src, err := ioutil.ReadFile(filename)
 		if err != nil {
 			t.Fatal(err)
 		}
-		check(t, filename, src);
+		check(t, filename, src)
 	}
 }

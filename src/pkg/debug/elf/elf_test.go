@@ -5,13 +5,13 @@
 package elf
 
 import (
-	"fmt";
-	"testing";
+	"fmt"
+	"testing"
 )
 
 type nameTest struct {
-	val	interface{};
-	str	string;
+	val interface{}
+	str string
 }
 
 var nameTests = []nameTest{
@@ -41,7 +41,7 @@ var nameTests = []nameTest{
 
 func TestNames(t *testing.T) {
 	for i, tt := range nameTests {
-		s := fmt.Sprint(tt.val);
+		s := fmt.Sprint(tt.val)
 		if s != tt.str {
 			t.Errorf("#%d: want %q have %q", i, s, tt.str)
 		}

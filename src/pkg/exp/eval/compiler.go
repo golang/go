@@ -5,14 +5,14 @@
 package eval
 
 import (
-	"fmt";
-	"go/scanner";
-	"go/token";
+	"fmt"
+	"go/scanner"
+	"go/token"
 )
 
 
 type positioned interface {
-	Pos() token.Position;
+	Pos() token.Position
 }
 
 
@@ -22,28 +22,28 @@ type positioned interface {
 // TODO(austin) This might actually represent package level, in which
 // case it should be package compiler.
 type compiler struct {
-	errors		scanner.ErrorHandler;
-	numErrors	int;
-	silentErrors	int;
+	errors       scanner.ErrorHandler
+	numErrors    int
+	silentErrors int
 }
 
 func (a *compiler) diagAt(pos positioned, format string, args ...) {
-	a.errors.Error(pos.Pos(), fmt.Sprintf(format, args));
-	a.numErrors++;
+	a.errors.Error(pos.Pos(), fmt.Sprintf(format, args))
+	a.numErrors++
 }
 
-func (a *compiler) numError() int	{ return a.numErrors + a.silentErrors }
+func (a *compiler) numError() int { return a.numErrors + a.silentErrors }
 
 // The universal scope
 func newUniverse() *Scope {
-	sc := &Scope{nil, 0};
+	sc := &Scope{nil, 0}
 	sc.block = &block{
 		offset: 0,
 		scope: sc,
 		global: true,
 		defs: make(map[string]Def),
-	};
-	return sc;
+	}
+	return sc
 }
 
 var universe *Scope = newUniverse()
@@ -51,46 +51,46 @@ var universe *Scope = newUniverse()
 
 // TODO(austin) These can all go in stmt.go now
 type label struct {
-	name	string;
-	desc	string;
+	name string
+	desc string
 	// The PC goto statements should jump to, or nil if this label
 	// cannot be goto'd (such as an anonymous for loop label).
-	gotoPC	*uint;
+	gotoPC *uint
 	// The PC break statements should jump to, or nil if a break
 	// statement is invalid.
-	breakPC	*uint;
+	breakPC *uint
 	// The PC continue statements should jump to, or nil if a
 	// continue statement is invalid.
-	continuePC	*uint;
+	continuePC *uint
 	// The position where this label was resolved.  If it has not
 	// been resolved yet, an invalid position.
-	resolved	token.Position;
+	resolved token.Position
 	// The position where this label was first jumped to.
-	used	token.Position;
+	used token.Position
 }
 
 // A funcCompiler captures information used throughout the compilation
 // of a single function body.
 type funcCompiler struct {
-	*compiler;
-	fnType	*FuncType;
+	*compiler
+	fnType *FuncType
 	// Whether the out variables are named.  This affects what
 	// kinds of return statements are legal.
-	outVarsNamed	bool;
-	*codeBuf;
-	flow	*flowBuf;
-	labels	map[string]*label;
+	outVarsNamed bool
+	*codeBuf
+	flow   *flowBuf
+	labels map[string]*label
 }
 
 // A blockCompiler captures information used throughout the compilation
 // of a single block within a function.
 type blockCompiler struct {
-	*funcCompiler;
-	block	*block;
+	*funcCompiler
+	block *block
 	// The label of this block, used for finding break and
 	// continue labels.
-	label	*label;
+	label *label
 	// The blockCompiler for the block enclosing this one, or nil
 	// for a function-level block.
-	parent	*blockCompiler;
+	parent *blockCompiler
 }

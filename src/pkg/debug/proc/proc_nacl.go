@@ -5,8 +5,8 @@
 package proc
 
 import (
-	"os";
-	"syscall";
+	"os"
+	"syscall"
 )
 
 // Process tracing is not supported on Native Client.

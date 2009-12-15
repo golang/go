@@ -5,13 +5,13 @@
 package pem
 
 import (
-	"testing";
-	"strings";
-	"reflect";
+	"testing"
+	"strings"
+	"reflect"
 )
 
 type GetLineTest struct {
-	in, out1, out2 string;
+	in, out1, out2 string
 }
 
 var getLineTests = []GetLineTest{
@@ -27,7 +27,7 @@ var getLineTests = []GetLineTest{
 
 func TestGetLine(t *testing.T) {
 	for i, test := range getLineTests {
-		x, y := getLine(strings.Bytes(test.in));
+		x, y := getLine(strings.Bytes(test.in))
 		if string(x) != test.out1 || string(y) != test.out2 {
 			t.Errorf("#%d got:%+v,%+v want:%s,%s", i, x, y, test.out1, test.out2)
 		}
@@ -35,15 +35,15 @@ func TestGetLine(t *testing.T) {
 }
 
 func TestDecode(t *testing.T) {
-	result, remainder := Decode(strings.Bytes(pemData));
+	result, remainder := Decode(strings.Bytes(pemData))
 	if !reflect.DeepEqual(result, certificate) {
 		t.Errorf("#0 got:%#v want:%#v", result, certificate)
 	}
-	result, remainder = Decode(remainder);
+	result, remainder = Decode(remainder)
 	if !reflect.DeepEqual(result, privateKey) {
 		t.Errorf("#1 got:%#v want:%#v", result, privateKey)
 	}
-	result, _ = Decode(strings.Bytes(pemPrivateKey));
+	result, _ = Decode(strings.Bytes(pemPrivateKey))
 	if !reflect.DeepEqual(result, privateKey2) {
 		t.Errorf("#2 got:%#v want:%#v", result, privateKey2)
 	}

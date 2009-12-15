@@ -5,12 +5,12 @@
 package hex
 
 import (
-	"bytes";
-	"testing";
+	"bytes"
+	"testing"
 )
 
 type encodeTest struct {
-	in, out []byte;
+	in, out []byte
 }
 
 var encodeTests = []encodeTest{
@@ -38,8 +38,8 @@ var encodeTests = []encodeTest{
 
 func TestEncode(t *testing.T) {
 	for i, test := range encodeTests {
-		dst := make([]byte, EncodedLen(len(test.in)));
-		n := Encode(dst, test.in);
+		dst := make([]byte, EncodedLen(len(test.in)))
+		n := Encode(dst, test.in)
 		if n != len(dst) {
 			t.Errorf("#%d: bad return value: got: %d want: %d", i, n, len(dst))
 		}
@@ -50,8 +50,8 @@ func TestEncode(t *testing.T) {
 }
 
 type decodeTest struct {
-	in, out	[]byte;
-	ok	bool;
+	in, out []byte
+	ok      bool
 }
 
 var decodeTests = []decodeTest{
@@ -84,8 +84,8 @@ var decodeTests = []decodeTest{
 
 func TestDecode(t *testing.T) {
 	for i, test := range decodeTests {
-		dst := make([]byte, DecodedLen(len(test.in)));
-		n, err := Decode(dst, test.in);
+		dst := make([]byte, DecodedLen(len(test.in)))
+		n, err := Decode(dst, test.in)
 		if err == nil && n != len(dst) {
 			t.Errorf("#%d: bad return value: got:%d want:%d", i, n, len(dst))
 		}
@@ -99,8 +99,8 @@ func TestDecode(t *testing.T) {
 }
 
 type encodeStringTest struct {
-	in	[]byte;
-	out	string;
+	in  []byte
+	out string
 }
 
 var encodeStringTests = []encodeStringTest{
@@ -112,7 +112,7 @@ var encodeStringTests = []encodeStringTest{
 
 func TestEncodeToString(t *testing.T) {
 	for i, test := range encodeStringTests {
-		s := EncodeToString(test.in);
+		s := EncodeToString(test.in)
 		if s != test.out {
 			t.Errorf("#%d got:%s want:%s", i, s, test.out)
 		}
@@ -120,9 +120,9 @@ func TestEncodeToString(t *testing.T) {
 }
 
 type decodeStringTest struct {
-	in	string;
-	out	[]byte;
-	ok	bool;
+	in  string
+	out []byte
+	ok  bool
 }
 
 var decodeStringTests = []decodeStringTest{
@@ -136,7 +136,7 @@ var decodeStringTests = []decodeStringTest{
 
 func TestDecodeString(t *testing.T) {
 	for i, test := range decodeStringTests {
-		dst, err := DecodeString(test.in);
+		dst, err := DecodeString(test.in)
 		if test.ok != (err == nil) {
 			t.Errorf("#%d: unexpected err value: %s", i, err)
 		}

@@ -6,4 +6,4 @@ package main
 
 import "exp/ogle"
 
-func main()	{ ogle.Main() }
+func main() { ogle.Main() }

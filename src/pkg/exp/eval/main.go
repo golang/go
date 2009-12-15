@@ -5,32 +5,32 @@
 package main
 
 import (
-	"./_obj/eval";
-	"bufio";
-	"flag";
-	"go/parser";
-	"go/scanner";
-	"io";
-	"os";
+	"./_obj/eval"
+	"bufio"
+	"flag"
+	"go/parser"
+	"go/scanner"
+	"io"
+	"os"
 )
 
 var filename = flag.String("f", "", "file to run")
 
 func main() {
-	flag.Parse();
-	w := eval.NewWorld();
+	flag.Parse()
+	w := eval.NewWorld()
 	if *filename != "" {
-		data, err := ioutil.ReadFile(*filename);
+		data, err := ioutil.ReadFile(*filename)
 		if err != nil {
-			println(err.String());
-			os.Exit(1);
+			println(err.String())
+			os.Exit(1)
 		}
-		file, err := parser.ParseFile(*filename, data, 0);
+		file, err := parser.ParseFile(*filename, data, 0)
 		if err != nil {
-			println(err.String());
-			os.Exit(1);
+			println(err.String())
+			os.Exit(1)
 		}
-		code, err := w.CompileDeclList(file.Decls);
+		code, err := w.CompileDeclList(file.Decls)
 		if err != nil {
 			if list, ok := err.(scanner.ErrorList); ok {
 				for _, e := range list {
@@ -39,50 +39,50 @@ func main() {
 			} else {
 				println(err.String())
 			}
-			os.Exit(1);
+			os.Exit(1)
 		}
-		_, err := code.Run();
+		_, err := code.Run()
 		if err != nil {
-			println(err.String());
-			os.Exit(1);
+			println(err.String())
+			os.Exit(1)
 		}
-		code, err = w.Compile("init()");
+		code, err = w.Compile("init()")
 		if code != nil {
-			_, err := code.Run();
+			_, err := code.Run()
 			if err != nil {
-				println(err.String());
-				os.Exit(1);
+				println(err.String())
+				os.Exit(1)
 			}
 		}
-		code, err = w.Compile("main()");
+		code, err = w.Compile("main()")
 		if err != nil {
-			println(err.String());
-			os.Exit(1);
+			println(err.String())
+			os.Exit(1)
 		}
-		_, err = code.Run();
+		_, err = code.Run()
 		if err != nil {
-			println(err.String());
-			os.Exit(1);
+			println(err.String())
+			os.Exit(1)
 		}
-		os.Exit(0);
+		os.Exit(0)
 	}
 
-	r := bufio.NewReader(os.Stdin);
+	r := bufio.NewReader(os.Stdin)
 	for {
-		print("; ");
-		line, err := r.ReadString('\n');
+		print("; ")
+		line, err := r.ReadString('\n')
 		if err != nil {
 			break
 		}
-		code, err := w.Compile(line);
+		code, err := w.Compile(line)
 		if err != nil {
-			println(err.String());
-			continue;
+			println(err.String())
+			continue
 		}
-		v, err := code.Run();
+		v, err := code.Run()
 		if err != nil {
-			println(err.String());
-			continue;
+			println(err.String())
+			continue
 		}
 		if v != nil {
 			println(v.String())

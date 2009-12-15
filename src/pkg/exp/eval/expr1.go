@@ -4,19 +4,19 @@
 package eval
 
 import (
-	"bignum";
-	"log";
+	"bignum"
+	"log"
 )
 
 /*
  * "As" functions.  These retrieve evaluator functions from an
  * expr, panicking if the requested evaluator has the wrong type.
  */
-func (a *expr) asBool() (func(*Thread) bool)	{ return a.eval.(func(*Thread) bool) }
+func (a *expr) asBool() (func(*Thread) bool) { return a.eval.(func(*Thread) bool) }
 func (a *expr) asUint() (func(*Thread) uint64) {
 	return a.eval.(func(*Thread) uint64)
 }
-func (a *expr) asInt() (func(*Thread) int64)	{ return a.eval.(func(*Thread) int64) }
+func (a *expr) asInt() (func(*Thread) int64) { return a.eval.(func(*Thread) int64) }
 func (a *expr) asIdealInt() (func() *bignum.Integer) {
 	return a.eval.(func() *bignum.Integer)
 }
@@ -35,12 +35,12 @@ func (a *expr) asArray() (func(*Thread) ArrayValue) {
 func (a *expr) asStruct() (func(*Thread) StructValue) {
 	return a.eval.(func(*Thread) StructValue)
 }
-func (a *expr) asPtr() (func(*Thread) Value)	{ return a.eval.(func(*Thread) Value) }
-func (a *expr) asFunc() (func(*Thread) Func)	{ return a.eval.(func(*Thread) Func) }
+func (a *expr) asPtr() (func(*Thread) Value) { return a.eval.(func(*Thread) Value) }
+func (a *expr) asFunc() (func(*Thread) Func) { return a.eval.(func(*Thread) Func) }
 func (a *expr) asSlice() (func(*Thread) Slice) {
 	return a.eval.(func(*Thread) Slice)
 }
-func (a *expr) asMap() (func(*Thread) Map)	{ return a.eval.(func(*Thread) Map) }
+func (a *expr) asMap() (func(*Thread) Map) { return a.eval.(func(*Thread) Map) }
 func (a *expr) asMulti() (func(*Thread) []Value) {
 	return a.eval.(func(*Thread) []Value)
 }
@@ -76,7 +76,7 @@ func (a *expr) asInterface() (func(*Thread) interface{}) {
 	default:
 		log.Crashf("unexpected expression node type %T at %v", a.eval, a.pos)
 	}
-	panic();
+	panic()
 }
 
 /*
@@ -92,13 +92,13 @@ func (a *expr) genConstant(v Value) {
 	case *intType:
 		a.eval = func(t *Thread) int64 { return v.(IntValue).Get(t) }
 	case *idealIntType:
-		val := v.(IdealIntValue).Get();
-		a.eval = func() *bignum.Integer { return val };
+		val := v.(IdealIntValue).Get()
+		a.eval = func() *bignum.Integer { return val }
 	case *floatType:
 		a.eval = func(t *Thread) float64 { return v.(FloatValue).Get(t) }
 	case *idealFloatType:
-		val := v.(IdealFloatValue).Get();
-		a.eval = func() *bignum.Rational { return val };
+		val := v.(IdealFloatValue).Get()
+		a.eval = func() *bignum.Rational { return val }
 	case *stringType:
 		a.eval = func(t *Thread) string { return v.(StringValue).Get(t) }
 	case *ArrayType:
@@ -119,7 +119,7 @@ func (a *expr) genConstant(v Value) {
 }
 
 func (a *expr) genIdentOp(level, index int) {
-	a.evalAddr = func(t *Thread) Value { return t.f.Get(level, index) };
+	a.evalAddr = func(t *Thread) Value { return t.f.Get(level, index) }
 	switch a.t.lit().(type) {
 	case *boolType:
 		a.eval = func(t *Thread) bool { return t.f.Get(level, index).(BoolValue).Get(t) }
@@ -149,7 +149,7 @@ func (a *expr) genIdentOp(level, index int) {
 }
 
 func (a *expr) genFuncCall(call func(t *Thread) []Value) {
-	a.exec = func(t *Thread) { call(t) };
+	a.exec = func(t *Thread) { call(t) }
 	switch a.t.lit().(type) {
 	case *boolType:
 		a.eval = func(t *Thread) bool { return call(t)[0].(BoolValue).Get(t) }
@@ -181,7 +181,7 @@ func (a *expr) genFuncCall(call func(t *Thread) []Value) {
 }
 
 func (a *expr) genValue(vf func(*Thread) Value) {
-	a.evalAddr = vf;
+	a.evalAddr = vf
 	switch a.t.lit().(type) {
 	case *boolType:
 		a.eval = func(t *Thread) bool { return vf(t).(BoolValue).Get(t) }
@@ -213,31 +213,31 @@ func (a *expr) genValue(vf func(*Thread) Value) {
 func (a *expr) genUnaryOpNeg(v *expr) {
 	switch a.t.lit().(type) {
 	case *uintType:
-		vf := v.asUint();
+		vf := v.asUint()
 		a.eval = func(t *Thread) uint64 {
-			v := vf(t);
-			return -v;
-		};
+			v := vf(t)
+			return -v
+		}
 	case *intType:
-		vf := v.asInt();
+		vf := v.asInt()
 		a.eval = func(t *Thread) int64 {
-			v := vf(t);
-			return -v;
-		};
+			v := vf(t)
+			return -v
+		}
 	case *idealIntType:
-		v := v.asIdealInt()();
-		val := v.Neg();
-		a.eval = func() *bignum.Integer { return val };
+		v := v.asIdealInt()()
+		val := v.Neg()
+		a.eval = func() *bignum.Integer { return val }
 	case *floatType:
-		vf := v.asFloat();
+		vf := v.asFloat()
 		a.eval = func(t *Thread) float64 {
-			v := vf(t);
-			return -v;
-		};
+			v := vf(t)
+			return -v
+		}
 	case *idealFloatType:
-		v := v.asIdealFloat()();
-		val := v.Neg();
-		a.eval = func() *bignum.Rational { return val };
+		v := v.asIdealFloat()()
+		val := v.Neg()
+		a.eval = func() *bignum.Rational { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", a.t, a.pos)
 	}
@@ -246,11 +246,11 @@ func (a *expr) genUnaryOpNeg(v *expr) {
 func (a *expr) genUnaryOpNot(v *expr) {
 	switch a.t.lit().(type) {
 	case *boolType:
-		vf := v.asBool();
+		vf := v.asBool()
 		a.eval = func(t *Thread) bool {
-			v := vf(t);
-			return !v;
-		};
+			v := vf(t)
+			return !v
+		}
 	default:
 		log.Crashf("unexpected type %v at %v", a.t, a.pos)
 	}
@@ -259,169 +259,169 @@ func (a *expr) genUnaryOpNot(v *expr) {
 func (a *expr) genUnaryOpXor(v *expr) {
 	switch a.t.lit().(type) {
 	case *uintType:
-		vf := v.asUint();
+		vf := v.asUint()
 		a.eval = func(t *Thread) uint64 {
-			v := vf(t);
-			return ^v;
-		};
+			v := vf(t)
+			return ^v
+		}
 	case *intType:
-		vf := v.asInt();
+		vf := v.asInt()
 		a.eval = func(t *Thread) int64 {
-			v := vf(t);
-			return ^v;
-		};
+			v := vf(t)
+			return ^v
+		}
 	case *idealIntType:
-		v := v.asIdealInt()();
-		val := v.Neg().Sub(bignum.Int(1));
-		a.eval = func() *bignum.Integer { return val };
+		v := v.asIdealInt()()
+		val := v.Neg().Sub(bignum.Int(1))
+		a.eval = func() *bignum.Integer { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", a.t, a.pos)
 	}
 }
 
 func (a *expr) genBinOpLogAnd(l, r *expr) {
-	lf := l.asBool();
-	rf := r.asBool();
-	a.eval = func(t *Thread) bool { return lf(t) && rf(t) };
+	lf := l.asBool()
+	rf := r.asBool()
+	a.eval = func(t *Thread) bool { return lf(t) && rf(t) }
 }
 
 func (a *expr) genBinOpLogOr(l, r *expr) {
-	lf := l.asBool();
-	rf := r.asBool();
-	a.eval = func(t *Thread) bool { return lf(t) || rf(t) };
+	lf := l.asBool()
+	rf := r.asBool()
+	a.eval = func(t *Thread) bool { return lf(t) || rf(t) }
 }
 
 func (a *expr) genBinOpAdd(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l + r;
-				return uint64(uint8(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l + r
+				return uint64(uint8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l + r;
-				return uint64(uint16(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l + r
+				return uint64(uint16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l + r;
-				return uint64(uint32(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l + r
+				return uint64(uint32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l + r;
-				return uint64(uint64(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l + r
+				return uint64(uint64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l + r;
-				return uint64(uint(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l + r
+				return uint64(uint(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l + r;
-				return int64(int8(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l + r
+				return int64(int8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l + r;
-				return int64(int16(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l + r
+				return int64(int16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l + r;
-				return int64(int32(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l + r
+				return int64(int32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l + r;
-				return int64(int64(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l + r
+				return int64(int64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l + r;
-				return int64(int(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l + r
+				return int64(int(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.Add(r);
-		a.eval = func() *bignum.Integer { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.Add(r)
+		a.eval = func() *bignum.Integer { return val }
 	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
+		lf := l.asFloat()
+		rf := r.asFloat()
 		switch t.Bits {
 		case 32:
 			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t);
-				var ret float64;
-				ret = l + r;
-				return float64(float32(ret));
+				l, r := lf(t), rf(t)
+				var ret float64
+				ret = l + r
+				return float64(float32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t);
-				var ret float64;
-				ret = l + r;
-				return float64(float64(ret));
+				l, r := lf(t), rf(t)
+				var ret float64
+				ret = l + r
+				return float64(float64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t);
-				var ret float64;
-				ret = l + r;
-				return float64(float(ret));
+				l, r := lf(t), rf(t)
+				var ret float64
+				ret = l + r
+				return float64(float(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealFloatType:
-		l := l.asIdealFloat()();
-		r := r.asIdealFloat()();
-		val := l.Add(r);
-		a.eval = func() *bignum.Rational { return val };
+		l := l.asIdealFloat()()
+		r := r.asIdealFloat()()
+		val := l.Add(r)
+		a.eval = func() *bignum.Rational { return val }
 	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
+		lf := l.asString()
+		rf := r.asString()
 		a.eval = func(t *Thread) string {
-			l, r := lf(t), rf(t);
-			return l + r;
-		};
+			l, r := lf(t), rf(t)
+			return l + r
+		}
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -430,127 +430,127 @@ func (a *expr) genBinOpAdd(l, r *expr) {
 func (a *expr) genBinOpSub(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l - r;
-				return uint64(uint8(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l - r
+				return uint64(uint8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l - r;
-				return uint64(uint16(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l - r
+				return uint64(uint16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l - r;
-				return uint64(uint32(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l - r
+				return uint64(uint32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l - r;
-				return uint64(uint64(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l - r
+				return uint64(uint64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l - r;
-				return uint64(uint(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l - r
+				return uint64(uint(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l - r;
-				return int64(int8(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l - r
+				return int64(int8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l - r;
-				return int64(int16(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l - r
+				return int64(int16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l - r;
-				return int64(int32(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l - r
+				return int64(int32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l - r;
-				return int64(int64(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l - r
+				return int64(int64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l - r;
-				return int64(int(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l - r
+				return int64(int(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.Sub(r);
-		a.eval = func() *bignum.Integer { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.Sub(r)
+		a.eval = func() *bignum.Integer { return val }
 	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
+		lf := l.asFloat()
+		rf := r.asFloat()
 		switch t.Bits {
 		case 32:
 			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t);
-				var ret float64;
-				ret = l - r;
-				return float64(float32(ret));
+				l, r := lf(t), rf(t)
+				var ret float64
+				ret = l - r
+				return float64(float32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t);
-				var ret float64;
-				ret = l - r;
-				return float64(float64(ret));
+				l, r := lf(t), rf(t)
+				var ret float64
+				ret = l - r
+				return float64(float64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t);
-				var ret float64;
-				ret = l - r;
-				return float64(float(ret));
+				l, r := lf(t), rf(t)
+				var ret float64
+				ret = l - r
+				return float64(float(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealFloatType:
-		l := l.asIdealFloat()();
-		r := r.asIdealFloat()();
-		val := l.Sub(r);
-		a.eval = func() *bignum.Rational { return val };
+		l := l.asIdealFloat()()
+		r := r.asIdealFloat()()
+		val := l.Sub(r)
+		a.eval = func() *bignum.Rational { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -559,127 +559,127 @@ func (a *expr) genBinOpSub(l, r *expr) {
 func (a *expr) genBinOpMul(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l * r;
-				return uint64(uint8(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l * r
+				return uint64(uint8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l * r;
-				return uint64(uint16(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l * r
+				return uint64(uint16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l * r;
-				return uint64(uint32(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l * r
+				return uint64(uint32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l * r;
-				return uint64(uint64(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l * r
+				return uint64(uint64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l * r;
-				return uint64(uint(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l * r
+				return uint64(uint(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l * r;
-				return int64(int8(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l * r
+				return int64(int8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l * r;
-				return int64(int16(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l * r
+				return int64(int16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l * r;
-				return int64(int32(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l * r
+				return int64(int32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l * r;
-				return int64(int64(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l * r
+				return int64(int64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l * r;
-				return int64(int(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l * r
+				return int64(int(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.Mul(r);
-		a.eval = func() *bignum.Integer { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.Mul(r)
+		a.eval = func() *bignum.Integer { return val }
 	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
+		lf := l.asFloat()
+		rf := r.asFloat()
 		switch t.Bits {
 		case 32:
 			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t);
-				var ret float64;
-				ret = l * r;
-				return float64(float32(ret));
+				l, r := lf(t), rf(t)
+				var ret float64
+				ret = l * r
+				return float64(float32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t);
-				var ret float64;
-				ret = l * r;
-				return float64(float64(ret));
+				l, r := lf(t), rf(t)
+				var ret float64
+				ret = l * r
+				return float64(float64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t);
-				var ret float64;
-				ret = l * r;
-				return float64(float(ret));
+				l, r := lf(t), rf(t)
+				var ret float64
+				ret = l * r
+				return float64(float(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealFloatType:
-		l := l.asIdealFloat()();
-		r := r.asIdealFloat()();
-		val := l.Mul(r);
-		a.eval = func() *bignum.Rational { return val };
+		l := l.asIdealFloat()()
+		r := r.asIdealFloat()()
+		val := l.Mul(r)
+		a.eval = func() *bignum.Rational { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -688,166 +688,166 @@ func (a *expr) genBinOpMul(l, r *expr) {
 func (a *expr) genBinOpQuo(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
+				l, r := lf(t), rf(t)
+				var ret uint64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l / r;
-				return uint64(uint8(ret));
+				ret = l / r
+				return uint64(uint8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
+				l, r := lf(t), rf(t)
+				var ret uint64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l / r;
-				return uint64(uint16(ret));
+				ret = l / r
+				return uint64(uint16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
+				l, r := lf(t), rf(t)
+				var ret uint64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l / r;
-				return uint64(uint32(ret));
+				ret = l / r
+				return uint64(uint32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
+				l, r := lf(t), rf(t)
+				var ret uint64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l / r;
-				return uint64(uint64(ret));
+				ret = l / r
+				return uint64(uint64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
+				l, r := lf(t), rf(t)
+				var ret uint64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l / r;
-				return uint64(uint(ret));
+				ret = l / r
+				return uint64(uint(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
+				l, r := lf(t), rf(t)
+				var ret int64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l / r;
-				return int64(int8(ret));
+				ret = l / r
+				return int64(int8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
+				l, r := lf(t), rf(t)
+				var ret int64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l / r;
-				return int64(int16(ret));
+				ret = l / r
+				return int64(int16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
+				l, r := lf(t), rf(t)
+				var ret int64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l / r;
-				return int64(int32(ret));
+				ret = l / r
+				return int64(int32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
+				l, r := lf(t), rf(t)
+				var ret int64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l / r;
-				return int64(int64(ret));
+				ret = l / r
+				return int64(int64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
+				l, r := lf(t), rf(t)
+				var ret int64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l / r;
-				return int64(int(ret));
+				ret = l / r
+				return int64(int(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.Quo(r);
-		a.eval = func() *bignum.Integer { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.Quo(r)
+		a.eval = func() *bignum.Integer { return val }
 	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
+		lf := l.asFloat()
+		rf := r.asFloat()
 		switch t.Bits {
 		case 32:
 			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t);
-				var ret float64;
+				l, r := lf(t), rf(t)
+				var ret float64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l / r;
-				return float64(float32(ret));
+				ret = l / r
+				return float64(float32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t);
-				var ret float64;
+				l, r := lf(t), rf(t)
+				var ret float64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l / r;
-				return float64(float64(ret));
+				ret = l / r
+				return float64(float64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) float64 {
-				l, r := lf(t), rf(t);
-				var ret float64;
+				l, r := lf(t), rf(t)
+				var ret float64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l / r;
-				return float64(float(ret));
+				ret = l / r
+				return float64(float(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealFloatType:
-		l := l.asIdealFloat()();
-		r := r.asIdealFloat()();
-		val := l.Quo(r);
-		a.eval = func() *bignum.Rational { return val };
+		l := l.asIdealFloat()()
+		r := r.asIdealFloat()()
+		val := l.Quo(r)
+		a.eval = func() *bignum.Rational { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -856,124 +856,124 @@ func (a *expr) genBinOpQuo(l, r *expr) {
 func (a *expr) genBinOpRem(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
+				l, r := lf(t), rf(t)
+				var ret uint64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l % r;
-				return uint64(uint8(ret));
+				ret = l % r
+				return uint64(uint8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
+				l, r := lf(t), rf(t)
+				var ret uint64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l % r;
-				return uint64(uint16(ret));
+				ret = l % r
+				return uint64(uint16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
+				l, r := lf(t), rf(t)
+				var ret uint64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l % r;
-				return uint64(uint32(ret));
+				ret = l % r
+				return uint64(uint32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
+				l, r := lf(t), rf(t)
+				var ret uint64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l % r;
-				return uint64(uint64(ret));
+				ret = l % r
+				return uint64(uint64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
+				l, r := lf(t), rf(t)
+				var ret uint64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l % r;
-				return uint64(uint(ret));
+				ret = l % r
+				return uint64(uint(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
+				l, r := lf(t), rf(t)
+				var ret int64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l % r;
-				return int64(int8(ret));
+				ret = l % r
+				return int64(int8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
+				l, r := lf(t), rf(t)
+				var ret int64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l % r;
-				return int64(int16(ret));
+				ret = l % r
+				return int64(int16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
+				l, r := lf(t), rf(t)
+				var ret int64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l % r;
-				return int64(int32(ret));
+				ret = l % r
+				return int64(int32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
+				l, r := lf(t), rf(t)
+				var ret int64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l % r;
-				return int64(int64(ret));
+				ret = l % r
+				return int64(int64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
+				l, r := lf(t), rf(t)
+				var ret int64
 				if r == 0 {
 					t.Abort(DivByZeroError{})
 				}
-				ret = l % r;
-				return int64(int(ret));
+				ret = l % r
+				return int64(int(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.Rem(r);
-		a.eval = func() *bignum.Integer { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.Rem(r)
+		a.eval = func() *bignum.Integer { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -982,94 +982,94 @@ func (a *expr) genBinOpRem(l, r *expr) {
 func (a *expr) genBinOpAnd(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l & r;
-				return uint64(uint8(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l & r
+				return uint64(uint8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l & r;
-				return uint64(uint16(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l & r
+				return uint64(uint16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l & r;
-				return uint64(uint32(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l & r
+				return uint64(uint32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l & r;
-				return uint64(uint64(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l & r
+				return uint64(uint64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l & r;
-				return uint64(uint(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l & r
+				return uint64(uint(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l & r;
-				return int64(int8(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l & r
+				return int64(int8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l & r;
-				return int64(int16(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l & r
+				return int64(int16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l & r;
-				return int64(int32(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l & r
+				return int64(int32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l & r;
-				return int64(int64(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l & r
+				return int64(int64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l & r;
-				return int64(int(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l & r
+				return int64(int(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.And(r);
-		a.eval = func() *bignum.Integer { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.And(r)
+		a.eval = func() *bignum.Integer { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1078,94 +1078,94 @@ func (a *expr) genBinOpAnd(l, r *expr) {
 func (a *expr) genBinOpOr(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l | r;
-				return uint64(uint8(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l | r
+				return uint64(uint8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l | r;
-				return uint64(uint16(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l | r
+				return uint64(uint16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l | r;
-				return uint64(uint32(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l | r
+				return uint64(uint32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l | r;
-				return uint64(uint64(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l | r
+				return uint64(uint64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l | r;
-				return uint64(uint(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l | r
+				return uint64(uint(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l | r;
-				return int64(int8(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l | r
+				return int64(int8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l | r;
-				return int64(int16(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l | r
+				return int64(int16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l | r;
-				return int64(int32(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l | r
+				return int64(int32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l | r;
-				return int64(int64(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l | r
+				return int64(int64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l | r;
-				return int64(int(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l | r
+				return int64(int(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.Or(r);
-		a.eval = func() *bignum.Integer { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.Or(r)
+		a.eval = func() *bignum.Integer { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1174,94 +1174,94 @@ func (a *expr) genBinOpOr(l, r *expr) {
 func (a *expr) genBinOpXor(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l ^ r;
-				return uint64(uint8(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l ^ r
+				return uint64(uint8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l ^ r;
-				return uint64(uint16(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l ^ r
+				return uint64(uint16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l ^ r;
-				return uint64(uint32(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l ^ r
+				return uint64(uint32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l ^ r;
-				return uint64(uint64(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l ^ r
+				return uint64(uint64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l ^ r;
-				return uint64(uint(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l ^ r
+				return uint64(uint(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l ^ r;
-				return int64(int8(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l ^ r
+				return int64(int8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l ^ r;
-				return int64(int16(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l ^ r
+				return int64(int16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l ^ r;
-				return int64(int32(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l ^ r
+				return int64(int32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l ^ r;
-				return int64(int64(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l ^ r
+				return int64(int64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l ^ r;
-				return int64(int(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l ^ r
+				return int64(int(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.Xor(r);
-		a.eval = func() *bignum.Integer { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.Xor(r)
+		a.eval = func() *bignum.Integer { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1270,94 +1270,94 @@ func (a *expr) genBinOpXor(l, r *expr) {
 func (a *expr) genBinOpAndNot(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l &^ r;
-				return uint64(uint8(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l &^ r
+				return uint64(uint8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l &^ r;
-				return uint64(uint16(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l &^ r
+				return uint64(uint16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l &^ r;
-				return uint64(uint32(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l &^ r
+				return uint64(uint32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l &^ r;
-				return uint64(uint64(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l &^ r
+				return uint64(uint64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l &^ r;
-				return uint64(uint(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l &^ r
+				return uint64(uint(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l &^ r;
-				return int64(int8(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l &^ r
+				return int64(int8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l &^ r;
-				return int64(int16(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l &^ r
+				return int64(int16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l &^ r;
-				return int64(int32(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l &^ r
+				return int64(int32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l &^ r;
-				return int64(int64(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l &^ r
+				return int64(int64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l &^ r;
-				return int64(int(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l &^ r
+				return int64(int(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.AndNot(r);
-		a.eval = func() *bignum.Integer { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.AndNot(r)
+		a.eval = func() *bignum.Integer { return val }
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1366,85 +1366,85 @@ func (a *expr) genBinOpAndNot(l, r *expr) {
 func (a *expr) genBinOpShl(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l << r;
-				return uint64(uint8(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l << r
+				return uint64(uint8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l << r;
-				return uint64(uint16(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l << r
+				return uint64(uint16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l << r;
-				return uint64(uint32(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l << r
+				return uint64(uint32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l << r;
-				return uint64(uint64(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l << r
+				return uint64(uint64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l << r;
-				return uint64(uint(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l << r
+				return uint64(uint(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asUint();
+		lf := l.asInt()
+		rf := r.asUint()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l << r;
-				return int64(int8(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l << r
+				return int64(int8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l << r;
-				return int64(int16(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l << r
+				return int64(int16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l << r;
-				return int64(int32(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l << r
+				return int64(int32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l << r;
-				return int64(int64(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l << r
+				return int64(int64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l << r;
-				return int64(int(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l << r
+				return int64(int(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
@@ -1457,85 +1457,85 @@ func (a *expr) genBinOpShl(l, r *expr) {
 func (a *expr) genBinOpShr(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l >> r;
-				return uint64(uint8(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l >> r
+				return uint64(uint8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l >> r;
-				return uint64(uint16(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l >> r
+				return uint64(uint16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l >> r;
-				return uint64(uint32(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l >> r
+				return uint64(uint32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l >> r;
-				return uint64(uint64(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l >> r
+				return uint64(uint64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) uint64 {
-				l, r := lf(t), rf(t);
-				var ret uint64;
-				ret = l >> r;
-				return uint64(uint(ret));
+				l, r := lf(t), rf(t)
+				var ret uint64
+				ret = l >> r
+				return uint64(uint(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
 		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asUint();
+		lf := l.asInt()
+		rf := r.asUint()
 		switch t.Bits {
 		case 8:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l >> r;
-				return int64(int8(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l >> r
+				return int64(int8(ret))
 			}
 		case 16:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l >> r;
-				return int64(int16(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l >> r
+				return int64(int16(ret))
 			}
 		case 32:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l >> r;
-				return int64(int32(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l >> r
+				return int64(int32(ret))
 			}
 		case 64:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l >> r;
-				return int64(int64(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l >> r
+				return int64(int64(ret))
 			}
 		case 0:
 			a.eval = func(t *Thread) int64 {
-				l, r := lf(t), rf(t);
-				var ret int64;
-				ret = l >> r;
-				return int64(int(ret));
+				l, r := lf(t), rf(t)
+				var ret int64
+				ret = l >> r
+				return int64(int(ret))
 			}
 		default:
 			log.Crashf("unexpected size %d in type %v at %v", t.Bits, t, a.pos)
@@ -1548,43 +1548,43 @@ func (a *expr) genBinOpShr(l, r *expr) {
 func (a *expr) genBinOpLss(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l < r;
-		};
+			l, r := lf(t), rf(t)
+			return l < r
+		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l < r;
-		};
+			l, r := lf(t), rf(t)
+			return l < r
+		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.Cmp(r) < 0;
-		a.eval = func(t *Thread) bool { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.Cmp(r) < 0
+		a.eval = func(t *Thread) bool { return val }
 	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
+		lf := l.asFloat()
+		rf := r.asFloat()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l < r;
-		};
+			l, r := lf(t), rf(t)
+			return l < r
+		}
 	case *idealFloatType:
-		l := l.asIdealFloat()();
-		r := r.asIdealFloat()();
-		val := l.Cmp(r) < 0;
-		a.eval = func(t *Thread) bool { return val };
+		l := l.asIdealFloat()()
+		r := r.asIdealFloat()()
+		val := l.Cmp(r) < 0
+		a.eval = func(t *Thread) bool { return val }
 	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
+		lf := l.asString()
+		rf := r.asString()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l < r;
-		};
+			l, r := lf(t), rf(t)
+			return l < r
+		}
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1593,43 +1593,43 @@ func (a *expr) genBinOpLss(l, r *expr) {
 func (a *expr) genBinOpGtr(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l > r;
-		};
+			l, r := lf(t), rf(t)
+			return l > r
+		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l > r;
-		};
+			l, r := lf(t), rf(t)
+			return l > r
+		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.Cmp(r) > 0;
-		a.eval = func(t *Thread) bool { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.Cmp(r) > 0
+		a.eval = func(t *Thread) bool { return val }
 	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
+		lf := l.asFloat()
+		rf := r.asFloat()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l > r;
-		};
+			l, r := lf(t), rf(t)
+			return l > r
+		}
 	case *idealFloatType:
-		l := l.asIdealFloat()();
-		r := r.asIdealFloat()();
-		val := l.Cmp(r) > 0;
-		a.eval = func(t *Thread) bool { return val };
+		l := l.asIdealFloat()()
+		r := r.asIdealFloat()()
+		val := l.Cmp(r) > 0
+		a.eval = func(t *Thread) bool { return val }
 	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
+		lf := l.asString()
+		rf := r.asString()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l > r;
-		};
+			l, r := lf(t), rf(t)
+			return l > r
+		}
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1638,43 +1638,43 @@ func (a *expr) genBinOpGtr(l, r *expr) {
 func (a *expr) genBinOpLeq(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l <= r;
-		};
+			l, r := lf(t), rf(t)
+			return l <= r
+		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l <= r;
-		};
+			l, r := lf(t), rf(t)
+			return l <= r
+		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.Cmp(r) <= 0;
-		a.eval = func(t *Thread) bool { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.Cmp(r) <= 0
+		a.eval = func(t *Thread) bool { return val }
 	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
+		lf := l.asFloat()
+		rf := r.asFloat()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l <= r;
-		};
+			l, r := lf(t), rf(t)
+			return l <= r
+		}
 	case *idealFloatType:
-		l := l.asIdealFloat()();
-		r := r.asIdealFloat()();
-		val := l.Cmp(r) <= 0;
-		a.eval = func(t *Thread) bool { return val };
+		l := l.asIdealFloat()()
+		r := r.asIdealFloat()()
+		val := l.Cmp(r) <= 0
+		a.eval = func(t *Thread) bool { return val }
 	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
+		lf := l.asString()
+		rf := r.asString()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l <= r;
-		};
+			l, r := lf(t), rf(t)
+			return l <= r
+		}
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1683,43 +1683,43 @@ func (a *expr) genBinOpLeq(l, r *expr) {
 func (a *expr) genBinOpGeq(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l >= r;
-		};
+			l, r := lf(t), rf(t)
+			return l >= r
+		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l >= r;
-		};
+			l, r := lf(t), rf(t)
+			return l >= r
+		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.Cmp(r) >= 0;
-		a.eval = func(t *Thread) bool { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.Cmp(r) >= 0
+		a.eval = func(t *Thread) bool { return val }
 	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
+		lf := l.asFloat()
+		rf := r.asFloat()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l >= r;
-		};
+			l, r := lf(t), rf(t)
+			return l >= r
+		}
 	case *idealFloatType:
-		l := l.asIdealFloat()();
-		r := r.asIdealFloat()();
-		val := l.Cmp(r) >= 0;
-		a.eval = func(t *Thread) bool { return val };
+		l := l.asIdealFloat()()
+		r := r.asIdealFloat()()
+		val := l.Cmp(r) >= 0
+		a.eval = func(t *Thread) bool { return val }
 	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
+		lf := l.asString()
+		rf := r.asString()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l >= r;
-		};
+			l, r := lf(t), rf(t)
+			return l >= r
+		}
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1728,71 +1728,71 @@ func (a *expr) genBinOpGeq(l, r *expr) {
 func (a *expr) genBinOpEql(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *boolType:
-		lf := l.asBool();
-		rf := r.asBool();
+		lf := l.asBool()
+		rf := r.asBool()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l == r;
-		};
+			l, r := lf(t), rf(t)
+			return l == r
+		}
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l == r;
-		};
+			l, r := lf(t), rf(t)
+			return l == r
+		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l == r;
-		};
+			l, r := lf(t), rf(t)
+			return l == r
+		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.Cmp(r) == 0;
-		a.eval = func(t *Thread) bool { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.Cmp(r) == 0
+		a.eval = func(t *Thread) bool { return val }
 	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
+		lf := l.asFloat()
+		rf := r.asFloat()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l == r;
-		};
+			l, r := lf(t), rf(t)
+			return l == r
+		}
 	case *idealFloatType:
-		l := l.asIdealFloat()();
-		r := r.asIdealFloat()();
-		val := l.Cmp(r) == 0;
-		a.eval = func(t *Thread) bool { return val };
+		l := l.asIdealFloat()()
+		r := r.asIdealFloat()()
+		val := l.Cmp(r) == 0
+		a.eval = func(t *Thread) bool { return val }
 	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
+		lf := l.asString()
+		rf := r.asString()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l == r;
-		};
+			l, r := lf(t), rf(t)
+			return l == r
+		}
 	case *PtrType:
-		lf := l.asPtr();
-		rf := r.asPtr();
+		lf := l.asPtr()
+		rf := r.asPtr()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l == r;
-		};
+			l, r := lf(t), rf(t)
+			return l == r
+		}
 	case *FuncType:
-		lf := l.asFunc();
-		rf := r.asFunc();
+		lf := l.asFunc()
+		rf := r.asFunc()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l == r;
-		};
+			l, r := lf(t), rf(t)
+			return l == r
+		}
 	case *MapType:
-		lf := l.asMap();
-		rf := r.asMap();
+		lf := l.asMap()
+		rf := r.asMap()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l == r;
-		};
+			l, r := lf(t), rf(t)
+			return l == r
+		}
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1801,71 +1801,71 @@ func (a *expr) genBinOpEql(l, r *expr) {
 func (a *expr) genBinOpNeq(l, r *expr) {
 	switch t := l.t.lit().(type) {
 	case *boolType:
-		lf := l.asBool();
-		rf := r.asBool();
+		lf := l.asBool()
+		rf := r.asBool()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l != r;
-		};
+			l, r := lf(t), rf(t)
+			return l != r
+		}
 	case *uintType:
-		lf := l.asUint();
-		rf := r.asUint();
+		lf := l.asUint()
+		rf := r.asUint()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l != r;
-		};
+			l, r := lf(t), rf(t)
+			return l != r
+		}
 	case *intType:
-		lf := l.asInt();
-		rf := r.asInt();
+		lf := l.asInt()
+		rf := r.asInt()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l != r;
-		};
+			l, r := lf(t), rf(t)
+			return l != r
+		}
 	case *idealIntType:
-		l := l.asIdealInt()();
-		r := r.asIdealInt()();
-		val := l.Cmp(r) != 0;
-		a.eval = func(t *Thread) bool { return val };
+		l := l.asIdealInt()()
+		r := r.asIdealInt()()
+		val := l.Cmp(r) != 0
+		a.eval = func(t *Thread) bool { return val }
 	case *floatType:
-		lf := l.asFloat();
-		rf := r.asFloat();
+		lf := l.asFloat()
+		rf := r.asFloat()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l != r;
-		};
+			l, r := lf(t), rf(t)
+			return l != r
+		}
 	case *idealFloatType:
-		l := l.asIdealFloat()();
-		r := r.asIdealFloat()();
-		val := l.Cmp(r) != 0;
-		a.eval = func(t *Thread) bool { return val };
+		l := l.asIdealFloat()()
+		r := r.asIdealFloat()()
+		val := l.Cmp(r) != 0
+		a.eval = func(t *Thread) bool { return val }
 	case *stringType:
-		lf := l.asString();
-		rf := r.asString();
+		lf := l.asString()
+		rf := r.asString()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l != r;
-		};
+			l, r := lf(t), rf(t)
+			return l != r
+		}
 	case *PtrType:
-		lf := l.asPtr();
-		rf := r.asPtr();
+		lf := l.asPtr()
+		rf := r.asPtr()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l != r;
-		};
+			l, r := lf(t), rf(t)
+			return l != r
+		}
 	case *FuncType:
-		lf := l.asFunc();
-		rf := r.asFunc();
+		lf := l.asFunc()
+		rf := r.asFunc()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l != r;
-		};
+			l, r := lf(t), rf(t)
+			return l != r
+		}
 	case *MapType:
-		lf := l.asMap();
-		rf := r.asMap();
+		lf := l.asMap()
+		rf := r.asMap()
 		a.eval = func(t *Thread) bool {
-			l, r := lf(t), rf(t);
-			return l != r;
-		};
+			l, r := lf(t), rf(t)
+			return l != r
+		}
 	default:
 		log.Crashf("unexpected type %v at %v", l.t, a.pos)
 	}
@@ -1874,40 +1874,40 @@ func (a *expr) genBinOpNeq(l, r *expr) {
 func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
 	switch lt.lit().(type) {
 	case *boolType:
-		rf := r.asBool();
-		return func(lv Value, t *Thread) { lv.(BoolValue).Set(t, rf(t)) };
+		rf := r.asBool()
+		return func(lv Value, t *Thread) { lv.(BoolValue).Set(t, rf(t)) }
 	case *uintType:
-		rf := r.asUint();
-		return func(lv Value, t *Thread) { lv.(UintValue).Set(t, rf(t)) };
+		rf := r.asUint()
+		return func(lv Value, t *Thread) { lv.(UintValue).Set(t, rf(t)) }
 	case *intType:
-		rf := r.asInt();
-		return func(lv Value, t *Thread) { lv.(IntValue).Set(t, rf(t)) };
+		rf := r.asInt()
+		return func(lv Value, t *Thread) { lv.(IntValue).Set(t, rf(t)) }
 	case *floatType:
-		rf := r.asFloat();
-		return func(lv Value, t *Thread) { lv.(FloatValue).Set(t, rf(t)) };
+		rf := r.asFloat()
+		return func(lv Value, t *Thread) { lv.(FloatValue).Set(t, rf(t)) }
 	case *stringType:
-		rf := r.asString();
-		return func(lv Value, t *Thread) { lv.(StringValue).Set(t, rf(t)) };
+		rf := r.asString()
+		return func(lv Value, t *Thread) { lv.(StringValue).Set(t, rf(t)) }
 	case *ArrayType:
-		rf := r.asArray();
-		return func(lv Value, t *Thread) { lv.Assign(t, rf(t)) };
+		rf := r.asArray()
+		return func(lv Value, t *Thread) { lv.Assign(t, rf(t)) }
 	case *StructType:
-		rf := r.asStruct();
-		return func(lv Value, t *Thread) { lv.Assign(t, rf(t)) };
+		rf := r.asStruct()
+		return func(lv Value, t *Thread) { lv.Assign(t, rf(t)) }
 	case *PtrType:
-		rf := r.asPtr();
-		return func(lv Value, t *Thread) { lv.(PtrValue).Set(t, rf(t)) };
+		rf := r.asPtr()
+		return func(lv Value, t *Thread) { lv.(PtrValue).Set(t, rf(t)) }
 	case *FuncType:
-		rf := r.asFunc();
-		return func(lv Value, t *Thread) { lv.(FuncValue).Set(t, rf(t)) };
+		rf := r.asFunc()
+		return func(lv Value, t *Thread) { lv.(FuncValue).Set(t, rf(t)) }
 	case *SliceType:
-		rf := r.asSlice();
-		return func(lv Value, t *Thread) { lv.(SliceValue).Set(t, rf(t)) };
+		rf := r.asSlice()
+		return func(lv Value, t *Thread) { lv.(SliceValue).Set(t, rf(t)) }
 	case *MapType:
-		rf := r.asMap();
-		return func(lv Value, t *Thread) { lv.(MapValue).Set(t, rf(t)) };
+		rf := r.asMap()
+		return func(lv Value, t *Thread) { lv.(MapValue).Set(t, rf(t)) }
 	default:
 		log.Crashf("unexpected left operand type %v at %v", lt, r.pos)
 	}
-	panic();
+	panic()
 }

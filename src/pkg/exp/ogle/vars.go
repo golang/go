@@ -5,11 +5,11 @@
 package ogle
 
 import (
-	"debug/gosym";
-	"debug/proc";
-	"exp/eval";
-	"log";
-	"os";
+	"debug/gosym"
+	"debug/proc"
+	"exp/eval"
+	"log"
+	"os"
 )
 
 /*
@@ -19,8 +19,8 @@ import (
 // A NotOnStack error occurs when attempting to access a variable in a
 // remote frame where that remote frame is not on the current stack.
 type NotOnStack struct {
-	Fn		*gosym.Func;
-	Goroutine	*Goroutine;
+	Fn        *gosym.Func
+	Goroutine *Goroutine
 }
 
 func (e NotOnStack) String() string {
@@ -33,9 +33,9 @@ func (e NotOnStack) String() string {
 // stack and returns a structure containing the local variables of
 // that function.
 type remoteFramePtr struct {
-	p	*Process;
-	fn	*gosym.Func;
-	rt	*remoteType;
+	p  *Process
+	fn *gosym.Func
+	rt *remoteType
 }
 
 func (v remoteFramePtr) String() string {
@@ -48,7 +48,7 @@ func (v remoteFramePtr) Assign(t *eval.Thread, o eval.Value) {
 }
 
 func (v remoteFramePtr) Get(t *eval.Thread) eval.Value {
-	g := v.p.curGoroutine;
+	g := v.p.curGoroutine
 	if g == nil || g.frame == nil {
 		t.Abort(NoCurrentGoroutine{})
 	}
@@ -59,11 +59,11 @@ func (v remoteFramePtr) Get(t *eval.Thread) eval.Value {
 		}
 
 		// TODO(austin): Register for shootdown with f
-		return v.rt.mk(remote{f.fp, v.p});
+		return v.rt.mk(remote{f.fp, v.p})
 	}
 
-	t.Abort(NotOnStack{v.fn, g});
-	panic();
+	t.Abort(NotOnStack{v.fn, g})
+	panic()
 }
 
 func (v remoteFramePtr) Set(t *eval.Thread, x eval.Value) {
@@ -87,10 +87,10 @@ func (v remoteFramePtr) Set(t *eval.Thread, x eval.Value) {
 // represents a package in a remote process.  It's essentially a
 // regular struct, except it cannot be assigned to.
 type remotePackage struct {
-	defs []eval.Value;
+	defs []eval.Value
 }
 
-func (v remotePackage) String() string	{ return "<remote package>" }
+func (v remotePackage) String() string { return "<remote package>" }
 
 func (v remotePackage) Assign(t *eval.Thread, o eval.Value) {
 	t.Abort(ReadOnlyError("remote packages cannot be assigned to"))
@@ -113,10 +113,10 @@ func (v remotePackage) Field(t *eval.Thread, i int) eval.Value {
 // fields for each global and function in that package.
 func (p *Process) populateWorld(w *eval.World) os.Error {
 	type def struct {
-		t	eval.Type;
-		v	eval.Value;
+		t eval.Type
+		v eval.Value
 	}
-	packages := make(map[string]map[string]def);
+	packages := make(map[string]map[string]def)
 
 	for _, s := range p.syms.Syms {
 		if s.ReceiverName() != "" {
@@ -125,27 +125,27 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 		}
 
 		// Package
-		pkgName := s.PackageName();
+		pkgName := s.PackageName()
 		switch pkgName {
 		case "", "type", "extratype", "string", "go":
 			// "go" is really "go.string"
 			continue
 		}
-		pkg, ok := packages[pkgName];
+		pkg, ok := packages[pkgName]
 		if !ok {
-			pkg = make(map[string]def);
-			packages[pkgName] = pkg;
+			pkg = make(map[string]def)
+			packages[pkgName] = pkg
 		}
 
 		// Symbol name
-		name := s.BaseName();
+		name := s.BaseName()
 		if _, ok := pkg[name]; ok {
-			log.Stderrf("Multiple definitions of symbol %s", s.Name);
-			continue;
+			log.Stderrf("Multiple definitions of symbol %s", s.Name)
+			continue
 		}
 
 		// Symbol type
-		rt, err := p.typeOfSym(&s);
+		rt, err := p.typeOfSym(&s)
 		if err != nil {
 			return err
 		}
@@ -157,19 +157,19 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 			if rt == nil {
 				continue
 			}
-			pkg[name] = def{rt.Type, rt.mk(remote{proc.Word(s.Value), p})};
+			pkg[name] = def{rt.Type, rt.mk(remote{proc.Word(s.Value), p})}
 
 		case 'T', 't', 'L', 'l':
 			// Function
-			s := s.Func;
+			s := s.Func
 			// TODO(austin): Ideally, this would *also* be
 			// callable.  How does that interact with type
 			// conversion syntax?
-			rt, err := p.makeFrameType(s);
+			rt, err := p.makeFrameType(s)
 			if err != nil {
 				return err
 			}
-			pkg[name] = def{eval.NewPtrType(rt.Type), remoteFramePtr{p, s, rt}};
+			pkg[name] = def{eval.NewPtrType(rt.Type), remoteFramePtr{p, s, rt}}
 		}
 	}
 
@@ -177,25 +177,25 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
 
 	// Define packages
 	for pkgName, defs := range packages {
-		fields := make([]eval.StructField, len(defs));
-		vals := make([]eval.Value, len(defs));
-		i := 0;
+		fields := make([]eval.StructField, len(defs))
+		vals := make([]eval.Value, len(defs))
+		i := 0
 		for name, def := range defs {
-			fields[i].Name = name;
-			fields[i].Type = def.t;
-			vals[i] = def.v;
-			i++;
+			fields[i].Name = name
+			fields[i].Type = def.t
+			vals[i] = def.v
+			i++
 		}
-		pkgType := eval.NewStructType(fields);
-		pkgVal := remotePackage{vals};
+		pkgType := eval.NewStructType(fields)
+		pkgVal := remotePackage{vals}
 
-		err := w.DefineConst(pkgName, pkgType, pkgVal);
+		err := w.DefineConst(pkgName, pkgType, pkgVal)
 		if err != nil {
 			log.Stderrf("while defining package %s: %v", pkgName, err)
 		}
 	}
 
-	return nil;
+	return nil
 }
 
 // typeOfSym returns the type associated with a symbol.  If the symbol
@@ -204,23 +204,23 @@ func (p *Process) typeOfSym(s *gosym.Sym) (*remoteType, os.Error) {
 	if s.GoType == 0 {
 		return nil, nil
 	}
-	addr := proc.Word(s.GoType);
-	var rt *remoteType;
-	err := try(func(a aborter) { rt = parseRemoteType(a, p.runtime.Type.mk(remote{addr, p}).(remoteStruct)) });
+	addr := proc.Word(s.GoType)
+	var rt *remoteType
+	err := try(func(a aborter) { rt = parseRemoteType(a, p.runtime.Type.mk(remote{addr, p}).(remoteStruct)) })
 	if err != nil {
 		return nil, err
 	}
-	return rt, nil;
+	return rt, nil
 }
 
 // makeFrameType constructs a struct type for the frame of a function.
 // The offsets in this struct type are such that the struct can be
 // instantiated at this function's frame pointer.
 func (p *Process) makeFrameType(s *gosym.Func) (*remoteType, os.Error) {
-	n := len(s.Params) + len(s.Locals);
-	fields := make([]eval.StructField, n);
-	layout := make([]remoteStructField, n);
-	i := 0;
+	n := len(s.Params) + len(s.Locals)
+	fields := make([]eval.StructField, n)
+	layout := make([]remoteStructField, n)
+	i := 0
 
 	// TODO(austin): There can be multiple locals/parameters with
 	// the same name.  We probably need liveness information to do
@@ -230,7 +230,7 @@ func (p *Process) makeFrameType(s *gosym.Func) (*remoteType, os.Error) {
 	// things like "i", where there's an obvious right answer.
 
 	for _, param := range s.Params {
-		rt, err := p.typeOfSym(param);
+		rt, err := p.typeOfSym(param)
 		if err != nil {
 			return nil, err
 		}
@@ -240,33 +240,33 @@ func (p *Process) makeFrameType(s *gosym.Func) (*remoteType, os.Error) {
 		}
 		// TODO(austin): Why do local variables carry their
 		// package name?
-		fields[i].Name = param.BaseName();
-		fields[i].Type = rt.Type;
+		fields[i].Name = param.BaseName()
+		fields[i].Type = rt.Type
 		// Parameters have positive offsets from FP
-		layout[i].offset = int(param.Value);
-		layout[i].fieldType = rt;
-		i++;
+		layout[i].offset = int(param.Value)
+		layout[i].fieldType = rt
+		i++
 	}
 
 	for _, local := range s.Locals {
-		rt, err := p.typeOfSym(local);
+		rt, err := p.typeOfSym(local)
 		if err != nil {
 			return nil, err
 		}
 		if rt == nil {
 			continue
 		}
-		fields[i].Name = local.BaseName();
-		fields[i].Type = rt.Type;
+		fields[i].Name = local.BaseName()
+		fields[i].Type = rt.Type
 		// Locals have negative offsets from FP - PtrSize
-		layout[i].offset = -int(local.Value) - p.PtrSize();
-		layout[i].fieldType = rt;
-		i++;
+		layout[i].offset = -int(local.Value) - p.PtrSize()
+		layout[i].fieldType = rt
+		i++
 	}
 
-	fields = fields[0:i];
-	layout = layout[0:i];
-	t := eval.NewStructType(fields);
-	mk := func(r remote) eval.Value { return remoteStruct{r, layout} };
-	return &remoteType{t, 0, 0, mk}, nil;
+	fields = fields[0:i]
+	layout = layout[0:i]
+	t := eval.NewStructType(fields)
+	mk := func(r remote) eval.Value { return remoteStruct{r, layout} }
+	return &remoteType{t, 0, 0, mk}, nil
 }

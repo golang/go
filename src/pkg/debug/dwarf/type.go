@@ -9,259 +9,259 @@
 package dwarf
 
 import (
-	"os";
-	"strconv";
+	"os"
+	"strconv"
 )
 
 // A Type conventionally represents a pointer to any of the
 // specific Type structures (CharType, StructType, etc.).
 type Type interface {
-	Common() *CommonType;
-	String() string;
-	Size() int64;
+	Common() *CommonType
+	String() string
+	Size() int64
 }
 
 // A CommonType holds fields common to multiple types.
 // If a field is not known or not applicable for a given type,
 // the zero value is used.
 type CommonType struct {
-	ByteSize	int64;	// size of value of this type, in bytes
-	Name		string;	// name that can be used to refer to type
+	ByteSize int64  // size of value of this type, in bytes
+	Name     string // name that can be used to refer to type
 }
 
-func (c *CommonType) Common() *CommonType	{ return c }
+func (c *CommonType) Common() *CommonType { return c }
 
-func (c *CommonType) Size() int64	{ return c.ByteSize }
+func (c *CommonType) Size() int64 { return c.ByteSize }
 
 // Basic types
 
 // A BasicType holds fields common to all basic types.
 type BasicType struct {
-	CommonType;
-	BitSize		int64;
-	BitOffset	int64;
+	CommonType
+	BitSize   int64
+	BitOffset int64
 }
 
-func (b *BasicType) Basic() *BasicType	{ return b }
+func (b *BasicType) Basic() *BasicType { return b }
 
 func (t *BasicType) String() string {
 	if t.Name != "" {
 		return t.Name
 	}
-	return "?";
+	return "?"
 }
 
 // A CharType represents a signed character type.
 type CharType struct {
-	BasicType;
+	BasicType
 }
 
 // A UcharType represents an unsigned character type.
 type UcharType struct {
-	BasicType;
+	BasicType
 }
 
 // An IntType represents a signed integer type.
 type IntType struct {
-	BasicType;
+	BasicType
 }
 
 // A UintType represents an unsigned integer type.
 type UintType struct {
-	BasicType;
+	BasicType
 }
 
 // A FloatType represents a floating point type.
 type FloatType struct {
-	BasicType;
+	BasicType
 }
 
 // A ComplexType represents a complex floating point type.
 type ComplexType struct {
-	BasicType;
+	BasicType
 }
 
 // A BoolType represents a boolean type.
 type BoolType struct {
-	BasicType;
+	BasicType
 }
 
 // An AddrType represents a machine address type.
 type AddrType struct {
-	BasicType;
+	BasicType
 }
 
 // qualifiers
 
 // A QualType represents a type that has the C/C++ "const", "restrict", or "volatile" qualifier.
 type QualType struct {
-	CommonType;
-	Qual	string;
-	Type	Type;
+	CommonType
+	Qual string
+	Type Type
 }
 
-func (t *QualType) String() string	{ return t.Qual + " " + t.Type.String() }
+func (t *QualType) String() string { return t.Qual + " " + t.Type.String() }
 
-func (t *QualType) Size() int64	{ return t.Type.Size() }
+func (t *QualType) Size() int64 { return t.Type.Size() }
 
 // An ArrayType represents a fixed size array type.
 type ArrayType struct {
-	CommonType;
-	Type		Type;
-	StrideBitSize	int64;	// if > 0, number of bits to hold each element
-	Count		int64;	// if == -1, an incomplete array, like char x[].
+	CommonType
+	Type          Type
+	StrideBitSize int64 // if > 0, number of bits to hold each element
+	Count         int64 // if == -1, an incomplete array, like char x[].
 }
 
 func (t *ArrayType) String() string {
 	return "[" + strconv.Itoa64(t.Count) + "]" + t.Type.String()
 }
 
-func (t *ArrayType) Size() int64	{ return t.Count * t.Type.Size() }
+func (t *ArrayType) Size() int64 { return t.Count * t.Type.Size() }
 
 // A VoidType represents the C void type.
 type VoidType struct {
-	CommonType;
+	CommonType
 }
 
-func (t *VoidType) String() string	{ return "void" }
+func (t *VoidType) String() string { return "void" }
 
 // A PtrType represents a pointer type.
 type PtrType struct {
-	CommonType;
-	Type	Type;
+	CommonType
+	Type Type
 }
 
-func (t *PtrType) String() string	{ return "*" + t.Type.String() }
+func (t *PtrType) String() string { return "*" + t.Type.String() }
 
 // A StructType represents a struct, union, or C++ class type.
 type StructType struct {
-	CommonType;
-	StructName	string;
-	Kind		string;	// "struct", "union", or "class".
-	Field		[]*StructField;
-	Incomplete	bool;	// if true, struct, union, class is declared but not defined
+	CommonType
+	StructName string
+	Kind       string // "struct", "union", or "class".
+	Field      []*StructField
+	Incomplete bool // if true, struct, union, class is declared but not defined
 }
 
 // A StructField represents a field in a struct, union, or C++ class type.
 type StructField struct {
-	Name		string;
-	Type		Type;
-	ByteOffset	int64;
-	ByteSize	int64;
-	BitOffset	int64;	// within the ByteSize bytes at ByteOffset
-	BitSize		int64;	// zero if not a bit field
+	Name       string
+	Type       Type
+	ByteOffset int64
+	ByteSize   int64
+	BitOffset  int64 // within the ByteSize bytes at ByteOffset
+	BitSize    int64 // zero if not a bit field
 }
 
 func (t *StructType) String() string {
 	if t.StructName != "" {
 		return t.Kind + " " + t.StructName
 	}
-	return t.Defn();
+	return t.Defn()
 }
 
 func (t *StructType) Defn() string {
-	s := t.Kind;
+	s := t.Kind
 	if t.StructName != "" {
 		s += " " + t.StructName
 	}
 	if t.Incomplete {
-		s += " /*incomplete*/";
-		return s;
+		s += " /*incomplete*/"
+		return s
 	}
-	s += " {";
+	s += " {"
 	for i, f := range t.Field {
 		if i > 0 {
 			s += "; "
 		}
-		s += f.Name + " " + f.Type.String();
-		s += "@" + strconv.Itoa64(f.ByteOffset);
+		s += f.Name + " " + f.Type.String()
+		s += "@" + strconv.Itoa64(f.ByteOffset)
 		if f.BitSize > 0 {
-			s += " : " + strconv.Itoa64(f.BitSize);
-			s += "@" + strconv.Itoa64(f.BitOffset);
+			s += " : " + strconv.Itoa64(f.BitSize)
+			s += "@" + strconv.Itoa64(f.BitOffset)
 		}
 	}
-	s += "}";
-	return s;
+	s += "}"
+	return s
 }
 
 // An EnumType represents an enumerated type.
 // The only indication of its native integer type is its ByteSize
 // (inside CommonType).
 type EnumType struct {
-	CommonType;
-	EnumName	string;
-	Val		[]*EnumValue;
+	CommonType
+	EnumName string
+	Val      []*EnumValue
 }
 
 // An EnumValue represents a single enumeration value.
 type EnumValue struct {
-	Name	string;
-	Val	int64;
+	Name string
+	Val  int64
 }
 
 func (t *EnumType) String() string {
-	s := "enum";
+	s := "enum"
 	if t.EnumName != "" {
 		s += " " + t.EnumName
 	}
-	s += " {";
+	s += " {"
 	for i, v := range t.Val {
 		if i > 0 {
 			s += "; "
 		}
-		s += v.Name + "=" + strconv.Itoa64(v.Val);
+		s += v.Name + "=" + strconv.Itoa64(v.Val)
 	}
-	s += "}";
-	return s;
+	s += "}"
+	return s
 }
 
 // A FuncType represents a function type.
 type FuncType struct {
-	CommonType;
-	ReturnType	Type;
-	ParamType	[]Type;
+	CommonType
+	ReturnType Type
+	ParamType  []Type
 }
 
 func (t *FuncType) String() string {
-	s := "func(";
+	s := "func("
 	for i, t := range t.ParamType {
 		if i > 0 {
 			s += ", "
 		}
-		s += t.String();
+		s += t.String()
 	}
-	s += ")";
+	s += ")"
 	if t.ReturnType != nil {
 		s += " " + t.ReturnType.String()
 	}
-	return s;
+	return s
 }
 
 // A DotDotDotType represents the variadic ... function parameter.
 type DotDotDotType struct {
-	CommonType;
+	CommonType
 }
 
-func (t *DotDotDotType) String() string	{ return "..." }
+func (t *DotDotDotType) String() string { return "..." }
 
 // A TypedefType represents a named type.
 type TypedefType struct {
-	CommonType;
-	Type	Type;
+	CommonType
+	Type Type
 }
 
-func (t *TypedefType) String() string	{ return t.Name }
+func (t *TypedefType) String() string { return t.Name }
 
-func (t *TypedefType) Size() int64	{ return t.Type.Size() }
+func (t *TypedefType) Size() int64 { return t.Type.Size() }
 
 func (d *Data) Type(off Offset) (Type, os.Error) {
 	if t, ok := d.typeCache[off]; ok {
 		return t, nil
 	}
 
-	r := d.Reader();
-	r.Seek(off);
-	e, err := r.Next();
+	r := d.Reader()
+	r.Seek(off)
+	e, err := r.Next()
 	if err != nil {
 		return nil, err
 	}
@@ -272,42 +272,42 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 	// Parse type from Entry.
 	// Must always set d.typeCache[off] before calling
 	// d.Type recursively, to handle circular types correctly.
-	var typ Type;
+	var typ Type
 
 	// Get next child; set err if error happens.
 	next := func() *Entry {
 		if !e.Children {
 			return nil
 		}
-		kid, err1 := r.Next();
+		kid, err1 := r.Next()
 		if err1 != nil {
-			err = err1;
-			return nil;
+			err = err1
+			return nil
 		}
 		if kid == nil {
-			err = DecodeError{"info", r.b.off, "unexpected end of DWARF entries"};
-			return nil;
+			err = DecodeError{"info", r.b.off, "unexpected end of DWARF entries"}
+			return nil
 		}
 		if kid.Tag == 0 {
 			return nil
 		}
-		return kid;
-	};
+		return kid
+	}
 
 	// Get Type referred to by Entry's AttrType field.
 	// Set err if error happens.  Not having a type is an error.
 	typeOf := func(e *Entry) Type {
-		toff, ok := e.Val(AttrType).(Offset);
+		toff, ok := e.Val(AttrType).(Offset)
 		if !ok {
 			// It appears that no Type means "void".
 			return new(VoidType)
 		}
-		var t Type;
+		var t Type
 		if t, err = d.Type(toff); err != nil {
 			return nil
 		}
-		return t;
-	};
+		return t
+	}
 
 	switch e.Tag {
 	case TagArrayType:
@@ -319,24 +319,24 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		// Children:
 		//	TagSubrangeType or TagEnumerationType giving one dimension.
 		//	dimensions are in left to right order.
-		t := new(ArrayType);
-		typ = t;
-		d.typeCache[off] = t;
+		t := new(ArrayType)
+		typ = t
+		d.typeCache[off] = t
 		if t.Type = typeOf(e); err != nil {
 			goto Error
 		}
-		t.StrideBitSize, _ = e.Val(AttrStrideSize).(int64);
+		t.StrideBitSize, _ = e.Val(AttrStrideSize).(int64)
 
 		// Accumulate dimensions,
-		ndim := 0;
+		ndim := 0
 		for kid := next(); kid != nil; kid = next() {
 			// TODO(rsc): Can also be TagEnumerationType
 			// but haven't seen that in the wild yet.
 			switch kid.Tag {
 			case TagSubrangeType:
-				max, ok := kid.Val(AttrUpperBound).(int64);
+				max, ok := kid.Val(AttrUpperBound).(int64)
 				if !ok {
-					max = -2	// Count == -1, as in x[].
+					max = -2 // Count == -1, as in x[].
 				}
 				if ndim == 0 {
 					t.Count = max + 1
@@ -345,15 +345,15 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 					// Create new array type underneath this one.
 					t.Type = &ArrayType{Type: t.Type, Count: max + 1}
 				}
-				ndim++;
+				ndim++
 			case TagEnumerationType:
-				err = DecodeError{"info", kid.Offset, "cannot handle enumeration type as array bound"};
-				goto Error;
+				err = DecodeError{"info", kid.Offset, "cannot handle enumeration type as array bound"}
+				goto Error
 			}
 		}
 		if ndim == 0 {
-			err = DecodeError{"info", e.Offset, "missing dimension for array"};
-			goto Error;
+			err = DecodeError{"info", e.Offset, "missing dimension for array"}
+			goto Error
 		}
 
 	case TagBaseType:
@@ -364,16 +364,16 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		//	AttrByteSize: size of type in bytes [required]
 		//	AttrBitOffset: for sub-byte types, size in bits
 		//	AttrBitSize: for sub-byte types, bit offset of high order bit in the AttrByteSize bytes
-		name, _ := e.Val(AttrName).(string);
-		enc, ok := e.Val(AttrEncoding).(int64);
+		name, _ := e.Val(AttrName).(string)
+		enc, ok := e.Val(AttrEncoding).(int64)
 		if !ok {
-			err = DecodeError{"info", e.Offset, "missing encoding attribute for " + name};
-			goto Error;
+			err = DecodeError{"info", e.Offset, "missing encoding attribute for " + name}
+			goto Error
 		}
 		switch enc {
 		default:
-			err = DecodeError{"info", e.Offset, "unrecognized encoding attribute value"};
-			goto Error;
+			err = DecodeError{"info", e.Offset, "unrecognized encoding attribute value"}
+			goto Error
 
 		case encAddress:
 			typ = new(AddrType)
@@ -392,13 +392,13 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		case encUnsignedChar:
 			typ = new(UcharType)
 		}
-		d.typeCache[off] = typ;
+		d.typeCache[off] = typ
 		t := typ.(interface {
-			Basic() *BasicType;
-		}).Basic();
-		t.Name = name;
-		t.BitSize, _ = e.Val(AttrBitSize).(int64);
-		t.BitOffset, _ = e.Val(AttrBitOffset).(int64);
+			Basic() *BasicType
+		}).Basic()
+		t.Name = name
+		t.BitSize, _ = e.Val(AttrBitSize).(int64)
+		t.BitOffset, _ = e.Val(AttrBitOffset).(int64)
 
 	case TagClassType, TagStructType, TagUnionType:
 		// Structure, union, or class type.  (DWARF v2 §5.5)
@@ -415,9 +415,9 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		//		AttrBitSize: bit size for bit fields
 		//		AttrDataMemberLoc: location within struct [required for struct, class]
 		// There is much more to handle C++, all ignored for now.
-		t := new(StructType);
-		typ = t;
-		d.typeCache[off] = t;
+		t := new(StructType)
+		typ = t
+		d.typeCache[off] = t
 		switch e.Tag {
 		case TagClassType:
 			t.Kind = "class"
@@ -426,41 +426,41 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		case TagUnionType:
 			t.Kind = "union"
 		}
-		t.StructName, _ = e.Val(AttrName).(string);
-		t.Incomplete = e.Val(AttrDeclaration) != nil;
-		t.Field = make([]*StructField, 0, 8);
+		t.StructName, _ = e.Val(AttrName).(string)
+		t.Incomplete = e.Val(AttrDeclaration) != nil
+		t.Field = make([]*StructField, 0, 8)
 		for kid := next(); kid != nil; kid = next() {
 			if kid.Tag == TagMember {
-				f := new(StructField);
+				f := new(StructField)
 				if f.Type = typeOf(kid); err != nil {
 					goto Error
 				}
 				if loc, ok := kid.Val(AttrDataMemberLoc).([]byte); ok {
-					b := makeBuf(d, "location", 0, loc, d.addrsize);
+					b := makeBuf(d, "location", 0, loc, d.addrsize)
 					if b.uint8() != opPlusUconst {
-						err = DecodeError{"info", kid.Offset, "unexpected opcode"};
-						goto Error;
+						err = DecodeError{"info", kid.Offset, "unexpected opcode"}
+						goto Error
 					}
-					f.ByteOffset = int64(b.uint());
+					f.ByteOffset = int64(b.uint())
 					if b.err != nil {
-						err = b.err;
-						goto Error;
+						err = b.err
+						goto Error
 					}
 				}
-				f.Name, _ = kid.Val(AttrName).(string);
-				f.ByteSize, _ = kid.Val(AttrByteSize).(int64);
-				f.BitOffset, _ = kid.Val(AttrBitOffset).(int64);
-				f.BitSize, _ = kid.Val(AttrBitSize).(int64);
-				n := len(t.Field);
+				f.Name, _ = kid.Val(AttrName).(string)
+				f.ByteSize, _ = kid.Val(AttrByteSize).(int64)
+				f.BitOffset, _ = kid.Val(AttrBitOffset).(int64)
+				f.BitSize, _ = kid.Val(AttrBitSize).(int64)
+				n := len(t.Field)
 				if n >= cap(t.Field) {
-					fld := make([]*StructField, n, n*2);
+					fld := make([]*StructField, n, n*2)
 					for i, f := range t.Field {
 						fld[i] = f
 					}
-					t.Field = fld;
+					t.Field = fld
 				}
-				t.Field = t.Field[0 : n+1];
-				t.Field[n] = f;
+				t.Field = t.Field[0 : n+1]
+				t.Field[n] = f
 			}
 		}
 
@@ -468,9 +468,9 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		// Type modifier (DWARF v2 §5.2)
 		// Attributes:
 		//	AttrType: subtype
-		t := new(QualType);
-		typ = t;
-		d.typeCache[off] = t;
+		t := new(QualType)
+		typ = t
+		d.typeCache[off] = t
 		if t.Type = typeOf(e); err != nil {
 			goto Error
 		}
@@ -492,26 +492,26 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		//	TagEnumerator:
 		//		AttrName: name of constant
 		//		AttrConstValue: value of constant
-		t := new(EnumType);
-		typ = t;
-		d.typeCache[off] = t;
-		t.EnumName, _ = e.Val(AttrName).(string);
-		t.Val = make([]*EnumValue, 0, 8);
+		t := new(EnumType)
+		typ = t
+		d.typeCache[off] = t
+		t.EnumName, _ = e.Val(AttrName).(string)
+		t.Val = make([]*EnumValue, 0, 8)
 		for kid := next(); kid != nil; kid = next() {
 			if kid.Tag == TagEnumerator {
-				f := new(EnumValue);
-				f.Name, _ = kid.Val(AttrName).(string);
-				f.Val, _ = kid.Val(AttrConstValue).(int64);
-				n := len(t.Val);
+				f := new(EnumValue)
+				f.Name, _ = kid.Val(AttrName).(string)
+				f.Val, _ = kid.Val(AttrConstValue).(int64)
+				n := len(t.Val)
 				if n >= cap(t.Val) {
-					val := make([]*EnumValue, n, n*2);
+					val := make([]*EnumValue, n, n*2)
 					for i, f := range t.Val {
 						val[i] = f
 					}
-					t.Val = val;
+					t.Val = val
 				}
-				t.Val = t.Val[0 : n+1];
-				t.Val[n] = f;
+				t.Val = t.Val[0 : n+1]
+				t.Val[n] = f
 			}
 		}
 
@@ -520,14 +520,14 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		// Attributes:
 		//	AttrType: subtype [not required!  void* has no AttrType]
 		//	AttrAddrClass: address class [ignored]
-		t := new(PtrType);
-		typ = t;
-		d.typeCache[off] = t;
+		t := new(PtrType)
+		typ = t
+		d.typeCache[off] = t
 		if e.Val(AttrType) == nil {
-			t.Type = &VoidType{};
-			break;
+			t.Type = &VoidType{}
+			break
 		}
-		t.Type = typeOf(e);
+		t.Type = typeOf(e)
 
 	case TagSubroutineType:
 		// Subroutine type.  (DWARF v2 §5.7)
@@ -539,15 +539,15 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		//	TagFormalParameter: typed parameter
 		//		AttrType: type of parameter
 		//	TagUnspecifiedParameter: final ...
-		t := new(FuncType);
-		typ = t;
-		d.typeCache[off] = t;
+		t := new(FuncType)
+		typ = t
+		d.typeCache[off] = t
 		if t.ReturnType = typeOf(e); err != nil {
 			goto Error
 		}
-		t.ParamType = make([]Type, 0, 8);
+		t.ParamType = make([]Type, 0, 8)
 		for kid := next(); kid != nil; kid = next() {
-			var tkid Type;
+			var tkid Type
 			switch kid.Tag {
 			default:
 				continue
@@ -558,16 +558,16 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 			case TagUnspecifiedParameters:
 				tkid = &DotDotDotType{}
 			}
-			n := len(t.ParamType);
+			n := len(t.ParamType)
 			if n >= cap(t.ParamType) {
-				param := make([]Type, n, n*2);
+				param := make([]Type, n, n*2)
 				for i, t := range t.ParamType {
 					param[i] = t
 				}
-				t.ParamType = param;
+				t.ParamType = param
 			}
-			t.ParamType = t.ParamType[0 : n+1];
-			t.ParamType[n] = tkid;
+			t.ParamType = t.ParamType[0 : n+1]
+			t.ParamType[n] = tkid
 		}
 
 	case TagTypedef:
@@ -575,29 +575,29 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
 		// Attributes:
 		//	AttrName: name [required]
 		//	AttrType: type definition [required]
-		t := new(TypedefType);
-		typ = t;
-		d.typeCache[off] = t;
-		t.Name, _ = e.Val(AttrName).(string);
-		t.Type = typeOf(e);
+		t := new(TypedefType)
+		typ = t
+		d.typeCache[off] = t
+		t.Name, _ = e.Val(AttrName).(string)
+		t.Type = typeOf(e)
 	}
 
 	if err != nil {
 		goto Error
 	}
 
-	b, ok := e.Val(AttrByteSize).(int64);
+	b, ok := e.Val(AttrByteSize).(int64)
 	if !ok {
 		b = -1
 	}
-	typ.Common().ByteSize = b;
+	typ.Common().ByteSize = b
 
-	return typ, nil;
+	return typ, nil
 
 Error:
 	// If the parse fails, take the type out of the cache
 	// so that the next call with this offset doesn't hit
 	// the cache and return success.
-	d.typeCache[off] = nil, false;
-	return nil, err;
+	d.typeCache[off] = nil, false
+	return nil, err
 }

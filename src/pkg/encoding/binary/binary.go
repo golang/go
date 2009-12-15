@@ -7,22 +7,22 @@
 package binary
 
 import (
-	"math";
-	"io";
-	"os";
-	"reflect";
+	"math"
+	"io"
+	"os"
+	"reflect"
 )
 
 // A ByteOrder specifies how to convert byte sequences into
 // 16-, 32-, or 64-bit unsigned integers.
 type ByteOrder interface {
-	Uint16(b []byte) uint16;
-	Uint32(b []byte) uint32;
-	Uint64(b []byte) uint64;
-	PutUint16([]byte, uint16);
-	PutUint32([]byte, uint32);
-	PutUint64([]byte, uint64);
-	String() string;
+	Uint16(b []byte) uint16
+	Uint32(b []byte) uint32
+	Uint64(b []byte) uint64
+	PutUint16([]byte, uint16)
+	PutUint32([]byte, uint32)
+	PutUint64([]byte, uint64)
+	String() string
 }
 
 // This is byte instead of struct{} so that it can be compared,
@@ -34,11 +34,11 @@ var BigEndian ByteOrder = bigEndian(0)
 
 type littleEndian unused
 
-func (littleEndian) Uint16(b []byte) uint16	{ return uint16(b[0]) | uint16(b[1])<<8 }
+func (littleEndian) Uint16(b []byte) uint16 { return uint16(b[0]) | uint16(b[1])<<8 }
 
 func (littleEndian) PutUint16(b []byte, v uint16) {
-	b[0] = byte(v);
-	b[1] = byte(v >> 8);
+	b[0] = byte(v)
+	b[1] = byte(v >> 8)
 }
 
 func (littleEndian) Uint32(b []byte) uint32 {
@@ -46,10 +46,10 @@ func (littleEndian) Uint32(b []byte) uint32 {
 }
 
 func (littleEndian) PutUint32(b []byte, v uint32) {
-	b[0] = byte(v);
-	b[1] = byte(v >> 8);
-	b[2] = byte(v >> 16);
-	b[3] = byte(v >> 24);
+	b[0] = byte(v)
+	b[1] = byte(v >> 8)
+	b[2] = byte(v >> 16)
+	b[3] = byte(v >> 24)
 }
 
 func (littleEndian) Uint64(b []byte) uint64 {
@@ -58,27 +58,27 @@ func (littleEndian) Uint64(b []byte) uint64 {
 }
 
 func (littleEndian) PutUint64(b []byte, v uint64) {
-	b[0] = byte(v);
-	b[1] = byte(v >> 8);
-	b[2] = byte(v >> 16);
-	b[3] = byte(v >> 24);
-	b[4] = byte(v >> 32);
-	b[5] = byte(v >> 40);
-	b[6] = byte(v >> 48);
-	b[7] = byte(v >> 56);
+	b[0] = byte(v)
+	b[1] = byte(v >> 8)
+	b[2] = byte(v >> 16)
+	b[3] = byte(v >> 24)
+	b[4] = byte(v >> 32)
+	b[5] = byte(v >> 40)
+	b[6] = byte(v >> 48)
+	b[7] = byte(v >> 56)
 }
 
-func (littleEndian) String() string	{ return "LittleEndian" }
+func (littleEndian) String() string { return "LittleEndian" }
 
-func (littleEndian) GoString() string	{ return "binary.LittleEndian" }
+func (littleEndian) GoString() string { return "binary.LittleEndian" }
 
 type bigEndian unused
 
-func (bigEndian) Uint16(b []byte) uint16	{ return uint16(b[1]) | uint16(b[0])<<8 }
+func (bigEndian) Uint16(b []byte) uint16 { return uint16(b[1]) | uint16(b[0])<<8 }
 
 func (bigEndian) PutUint16(b []byte, v uint16) {
-	b[0] = byte(v >> 8);
-	b[1] = byte(v);
+	b[0] = byte(v >> 8)
+	b[1] = byte(v)
 }
 
 func (bigEndian) Uint32(b []byte) uint32 {
@@ -86,10 +86,10 @@ func (bigEndian) Uint32(b []byte) uint32 {
 }
 
 func (bigEndian) PutUint32(b []byte, v uint32) {
-	b[0] = byte(v >> 24);
-	b[1] = byte(v >> 16);
-	b[2] = byte(v >> 8);
-	b[3] = byte(v);
+	b[0] = byte(v >> 24)
+	b[1] = byte(v >> 16)
+	b[2] = byte(v >> 8)
+	b[3] = byte(v)
 }
 
 func (bigEndian) Uint64(b []byte) uint64 {
@@ -98,19 +98,19 @@ func (bigEndian) Uint64(b []byte) uint64 {
 }
 
 func (bigEndian) PutUint64(b []byte, v uint64) {
-	b[0] = byte(v >> 56);
-	b[1] = byte(v >> 48);
-	b[2] = byte(v >> 40);
-	b[3] = byte(v >> 32);
-	b[4] = byte(v >> 24);
-	b[5] = byte(v >> 16);
-	b[6] = byte(v >> 8);
-	b[7] = byte(v);
+	b[0] = byte(v >> 56)
+	b[1] = byte(v >> 48)
+	b[2] = byte(v >> 40)
+	b[3] = byte(v >> 32)
+	b[4] = byte(v >> 24)
+	b[5] = byte(v >> 16)
+	b[6] = byte(v >> 8)
+	b[7] = byte(v)
 }
 
-func (bigEndian) String() string	{ return "BigEndian" }
+func (bigEndian) String() string { return "BigEndian" }
 
-func (bigEndian) GoString() string	{ return "binary.BigEndian" }
+func (bigEndian) GoString() string { return "binary.BigEndian" }
 
 // Read reads structured binary data from r into data.
 // Data must be a pointer to a fixed-size value or a slice
@@ -121,7 +121,7 @@ func (bigEndian) GoString() string	{ return "binary.BigEndian" }
 // r are decoded using the specified byte order and written
 // to successive fields of the data.
 func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
-	var v reflect.Value;
+	var v reflect.Value
 	switch d := reflect.NewValue(data).(type) {
 	case *reflect.PtrValue:
 		v = d.Elem()
@@ -130,16 +130,16 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 	default:
 		return os.NewError("binary.Read: invalid type " + v.Type().String())
 	}
-	size := TotalSize(v);
+	size := TotalSize(v)
 	if size < 0 {
 		return os.NewError("binary.Read: invalid type " + v.Type().String())
 	}
-	d := &decoder{order: order, buf: make([]byte, size)};
+	d := &decoder{order: order, buf: make([]byte, size)}
 	if _, err := io.ReadFull(r, d.buf); err != nil {
 		return err
 	}
-	d.value(v);
-	return nil;
+	d.value(v)
+	return nil
 }
 
 // Write writes the binary representation of data into w.
@@ -151,48 +151,48 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
 // w are encoded using the specified byte order and read
 // from successive fields of the data.
 func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
-	v := reflect.Indirect(reflect.NewValue(data));
-	size := TotalSize(v);
+	v := reflect.Indirect(reflect.NewValue(data))
+	size := TotalSize(v)
 	if size < 0 {
 		return os.NewError("binary.Write: invalid type " + v.Type().String())
 	}
-	buf := make([]byte, size);
-	e := &encoder{order: order, buf: buf};
-	e.value(v);
-	_, err := w.Write(buf);
-	return err;
+	buf := make([]byte, size)
+	e := &encoder{order: order, buf: buf}
+	e.value(v)
+	_, err := w.Write(buf)
+	return err
 }
 
 func TotalSize(v reflect.Value) int {
 	if sv, ok := v.(*reflect.SliceValue); ok {
-		elem := sizeof(v.Type().(*reflect.SliceType).Elem());
+		elem := sizeof(v.Type().(*reflect.SliceType).Elem())
 		if elem < 0 {
 			return -1
 		}
-		return sv.Len() * elem;
+		return sv.Len() * elem
 	}
-	return sizeof(v.Type());
+	return sizeof(v.Type())
 }
 
 func sizeof(v reflect.Type) int {
 	switch t := v.(type) {
 	case *reflect.ArrayType:
-		n := sizeof(t.Elem());
+		n := sizeof(t.Elem())
 		if n < 0 {
 			return -1
 		}
-		return t.Len() * n;
+		return t.Len() * n
 
 	case *reflect.StructType:
-		sum := 0;
+		sum := 0
 		for i, n := 0, t.NumField(); i < n; i++ {
-			s := sizeof(t.Field(i).Type);
+			s := sizeof(t.Field(i).Type)
 			if s < 0 {
 				return -1
 			}
-			sum += s;
+			sum += s
 		}
-		return sum;
+		return sum
 
 	case *reflect.Uint8Type:
 		return 1
@@ -215,94 +215,94 @@ func sizeof(v reflect.Type) int {
 	case *reflect.Float64Type:
 		return 8
 	}
-	return -1;
+	return -1
 }
 
 type decoder struct {
-	order	ByteOrder;
-	buf	[]byte;
+	order ByteOrder
+	buf   []byte
 }
 
 type encoder struct {
-	order	ByteOrder;
-	buf	[]byte;
+	order ByteOrder
+	buf   []byte
 }
 
 func (d *decoder) uint8() uint8 {
-	x := d.buf[0];
-	d.buf = d.buf[1:];
-	return x;
+	x := d.buf[0]
+	d.buf = d.buf[1:]
+	return x
 }
 
 func (e *encoder) uint8(x uint8) {
-	e.buf[0] = x;
-	e.buf = e.buf[1:];
+	e.buf[0] = x
+	e.buf = e.buf[1:]
 }
 
 func (d *decoder) uint16() uint16 {
-	x := d.order.Uint16(d.buf[0:2]);
-	d.buf = d.buf[2:];
-	return x;
+	x := d.order.Uint16(d.buf[0:2])
+	d.buf = d.buf[2:]
+	return x
 }
 
 func (e *encoder) uint16(x uint16) {
-	e.order.PutUint16(e.buf[0:2], x);
-	e.buf = e.buf[2:];
+	e.order.PutUint16(e.buf[0:2], x)
+	e.buf = e.buf[2:]
 }
 
 func (d *decoder) uint32() uint32 {
-	x := d.order.Uint32(d.buf[0:4]);
-	d.buf = d.buf[4:];
-	return x;
+	x := d.order.Uint32(d.buf[0:4])
+	d.buf = d.buf[4:]
+	return x
 }
 
 func (e *encoder) uint32(x uint32) {
-	e.order.PutUint32(e.buf[0:4], x);
-	e.buf = e.buf[4:];
+	e.order.PutUint32(e.buf[0:4], x)
+	e.buf = e.buf[4:]
 }
 
 func (d *decoder) uint64() uint64 {
-	x := d.order.Uint64(d.buf[0:8]);
-	d.buf = d.buf[8:];
-	return x;
+	x := d.order.Uint64(d.buf[0:8])
+	d.buf = d.buf[8:]
+	return x
 }
 
 func (e *encoder) uint64(x uint64) {
-	e.order.PutUint64(e.buf[0:8], x);
-	e.buf = e.buf[8:];
+	e.order.PutUint64(e.buf[0:8], x)
+	e.buf = e.buf[8:]
 }
 
-func (d *decoder) int8() int8	{ return int8(d.uint8()) }
+func (d *decoder) int8() int8 { return int8(d.uint8()) }
 
-func (e *encoder) int8(x int8)	{ e.uint8(uint8(x)) }
+func (e *encoder) int8(x int8) { e.uint8(uint8(x)) }
 
-func (d *decoder) int16() int16	{ return int16(d.uint16()) }
+func (d *decoder) int16() int16 { return int16(d.uint16()) }
 
-func (e *encoder) int16(x int16)	{ e.uint16(uint16(x)) }
+func (e *encoder) int16(x int16) { e.uint16(uint16(x)) }
 
-func (d *decoder) int32() int32	{ return int32(d.uint32()) }
+func (d *decoder) int32() int32 { return int32(d.uint32()) }
 
-func (e *encoder) int32(x int32)	{ e.uint32(uint32(x)) }
+func (e *encoder) int32(x int32) { e.uint32(uint32(x)) }
 
-func (d *decoder) int64() int64	{ return int64(d.uint64()) }
+func (d *decoder) int64() int64 { return int64(d.uint64()) }
 
-func (e *encoder) int64(x int64)	{ e.uint64(uint64(x)) }
+func (e *encoder) int64(x int64) { e.uint64(uint64(x)) }
 
 func (d *decoder) value(v reflect.Value) {
 	switch v := v.(type) {
 	case *reflect.ArrayValue:
-		l := v.Len();
+		l := v.Len()
 		for i := 0; i < l; i++ {
 			d.value(v.Elem(i))
 		}
 	case *reflect.StructValue:
-		l := v.NumField();
+		l := v.NumField()
 		for i := 0; i < l; i++ {
 			d.value(v.Field(i))
 		}
 
 	case *reflect.SliceValue:
-		l := v.Len();
+		l := v.Len()
 		for i := 0; i < l; i++ {
 			d.value(v.Elem(i))
 		}
@@ -333,17 +333,17 @@ func (d *decoder) value(v reflect.Value) {
 func (e *encoder) value(v reflect.Value) {
 	switch v := v.(type) {
 	case *reflect.ArrayValue:
-		l := v.Len();
+		l := v.Len()
 		for i := 0; i < l; i++ {
 			e.value(v.Elem(i))
 		}
 	case *reflect.StructValue:
-		l := v.NumField();
+		l := v.NumField()
 		for i := 0; i < l; i++ {
 			e.value(v.Field(i))
 		}
 	case *reflect.SliceValue:
-		l := v.Len();
+		l := v.Len()
 		for i := 0; i < l; i++ {
 			e.value(v.Elem(i))
 		}
