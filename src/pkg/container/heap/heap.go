@@ -16,9 +16,9 @@ import "sort"
 //	!h.Less(j, i) for 0 <= i < h.Len() and j = 2*i+1 or 2*i+2 and j < h.Len()
 //
 type Interface interface {
-	sort.Interface;
-	Push(x interface{});
-	Pop() interface{};
+	sort.Interface
+	Push(x interface{})
+	Pop() interface{}
 }
 
 
@@ -29,7 +29,7 @@ type Interface interface {
 //
 func Init(h Interface) {
 	// heapify
-	n := h.Len();
+	n := h.Len()
 	for i := n/2 - 1; i >= 0; i-- {
 		down(h, i, n)
 	}
@@ -40,8 +40,8 @@ func Init(h Interface) {
 // O(log(n)) where n = h.Len().
 //
 func Push(h Interface, x interface{}) {
-	h.Push(x);
-	up(h, h.Len()-1);
+	h.Push(x)
+	up(h, h.Len()-1)
 }
 
 
@@ -50,10 +50,10 @@ func Push(h Interface, x interface{}) {
 // Same as Remove(h, 0).
 //
 func Pop(h Interface) interface{} {
-	n := h.Len() - 1;
-	h.Swap(0, n);
-	down(h, 0, n);
-	return h.Pop();
+	n := h.Len() - 1
+	h.Swap(0, n)
+	down(h, 0, n)
+	return h.Pop()
 }
 
 
@@ -61,42 +61,42 @@ func Pop(h Interface) interface{} {
 // The complexity is O(log(n)) where n = h.Len().
 //
 func Remove(h Interface, i int) interface{} {
-	n := h.Len() - 1;
+	n := h.Len() - 1
 	if n != i {
-		h.Swap(i, n);
-		down(h, i, n);
-		up(h, i);
+		h.Swap(i, n)
+		down(h, i, n)
+		up(h, i)
 	}
-	return h.Pop();
+	return h.Pop()
 }
 
 
 func up(h Interface, j int) {
 	for {
-		i := (j - 1) / 2;	// parent
+		i := (j - 1) / 2 // parent
 		if i == j || h.Less(i, j) {
 			break
 		}
-		h.Swap(i, j);
-		j = i;
+		h.Swap(i, j)
+		j = i
 	}
 }
 
 
 func down(h Interface, i, n int) {
 	for {
-		j1 := 2*i + 1;
+		j1 := 2*i + 1
 		if j1 >= n {
 			break
 		}
-		j := j1;	// left child
+		j := j1 // left child
 		if j2 := j1 + 1; j2 < n && !h.Less(j1, j2) {
-			j = j2	// = 2*i + 2  // right child
+			j = j2 // = 2*i + 2  // right child
 		}
 		if h.Less(i, j) {
 			break
 		}
-		h.Swap(i, j);
-		i = j;
+		h.Swap(i, j)
+		i = j
 	}
 }

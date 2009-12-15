@@ -5,13 +5,13 @@
 package subtle
 
 import (
-	"testing";
-	"testing/quick";
+	"testing"
+	"testing/quick"
 )
 
 type TestConstantTimeCompareStruct struct {
-	a, b	[]byte;
-	out	int;
+	a, b []byte
+	out  int
 }
 
 var testConstandTimeCompareData = []TestConstantTimeCompareStruct{
@@ -29,8 +29,8 @@ func TestConstantTimeCompare(t *testing.T) {
 }
 
 type TestConstantTimeByteEqStruct struct {
-	a, b	uint8;
-	out	int;
+	a, b uint8
+	out  int
 }
 
 var testConstandTimeByteEqData = []TestConstantTimeByteEqStruct{
@@ -45,7 +45,7 @@ func byteEq(a, b uint8) int {
 	if a == b {
 		return 1
 	}
-	return 0;
+	return 0
 }
 
 func TestConstantTimeByteEq(t *testing.T) {
@@ -54,7 +54,7 @@ func TestConstantTimeByteEq(t *testing.T) {
 			t.Errorf("#%d bad result (got %x, want %x)", i, r, test.out)
 		}
 	}
-	err := quick.CheckEqual(ConstantTimeByteEq, byteEq, nil);
+	err := quick.CheckEqual(ConstantTimeByteEq, byteEq, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -64,11 +64,11 @@ func eq(a, b int32) int {
 	if a == b {
 		return 1
 	}
-	return 0;
+	return 0
 }
 
 func TestConstantTimeEq(t *testing.T) {
-	err := quick.CheckEqual(ConstantTimeEq, eq, nil);
+	err := quick.CheckEqual(ConstantTimeEq, eq, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -83,7 +83,7 @@ func makeCopy(v int, x, y []byte) []byte {
 	if v == 1 {
 		copy(x, y)
 	}
-	return x;
+	return x
 }
 
 func constantTimeCopyWrapper(v int, x, y []byte) []byte {
@@ -92,13 +92,13 @@ func constantTimeCopyWrapper(v int, x, y []byte) []byte {
 	} else {
 		y = y[0:len(x)]
 	}
-	v &= 1;
-	ConstantTimeCopy(v, x, y);
-	return x;
+	v &= 1
+	ConstantTimeCopy(v, x, y)
+	return x
 }
 
 func TestConstantTimeCopy(t *testing.T) {
-	err := quick.CheckEqual(constantTimeCopyWrapper, makeCopy, nil);
+	err := quick.CheckEqual(constantTimeCopyWrapper, makeCopy, nil)
 	if err != nil {
 		t.Error(err)
 	}

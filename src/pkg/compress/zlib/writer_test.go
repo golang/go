@@ -5,10 +5,10 @@
 package zlib
 
 import (
-	"io";
-	"io/ioutil";
-	"os";
-	"testing";
+	"io"
+	"io/ioutil"
+	"os"
+	"testing"
 )
 
 var filenames = []string{
@@ -20,85 +20,85 @@ var filenames = []string{
 // yields equivalent bytes to the original file.
 func testFileLevel(t *testing.T, fn string, level int) {
 	// Read the file, as golden output.
-	golden, err := os.Open(fn, os.O_RDONLY, 0444);
+	golden, err := os.Open(fn, os.O_RDONLY, 0444)
 	if err != nil {
-		t.Errorf("%s (level=%d): %v", fn, level, err);
-		return;
+		t.Errorf("%s (level=%d): %v", fn, level, err)
+		return
 	}
-	defer golden.Close();
+	defer golden.Close()
 
 	// Read the file again, and push it through a pipe that compresses at the write end, and decompresses at the read end.
-	raw, err := os.Open(fn, os.O_RDONLY, 0444);
+	raw, err := os.Open(fn, os.O_RDONLY, 0444)
 	if err != nil {
-		t.Errorf("%s (level=%d): %v", fn, level, err);
-		return;
+		t.Errorf("%s (level=%d): %v", fn, level, err)
+		return
 	}
-	piper, pipew := io.Pipe();
-	defer piper.Close();
+	piper, pipew := io.Pipe()
+	defer piper.Close()
 	go func() {
-		defer raw.Close();
-		defer pipew.Close();
-		zlibw, err := NewDeflaterLevel(pipew, level);
+		defer raw.Close()
+		defer pipew.Close()
+		zlibw, err := NewDeflaterLevel(pipew, level)
 		if err != nil {
-			t.Errorf("%s (level=%d): %v", fn, level, err);
-			return;
+			t.Errorf("%s (level=%d): %v", fn, level, err)
+			return
 		}
-		defer zlibw.Close();
-		var b [1024]byte;
+		defer zlibw.Close()
+		var b [1024]byte
 		for {
-			n, err0 := raw.Read(&b);
+			n, err0 := raw.Read(&b)
 			if err0 != nil && err0 != os.EOF {
-				t.Errorf("%s (level=%d): %v", fn, level, err0);
-				return;
+				t.Errorf("%s (level=%d): %v", fn, level, err0)
+				return
 			}
-			_, err1 := zlibw.Write(b[0:n]);
+			_, err1 := zlibw.Write(b[0:n])
 			if err1 == os.EPIPE {
 				// Fail, but do not report the error, as some other (presumably reportable) error broke the pipe.
 				return
 			}
 			if err1 != nil {
-				t.Errorf("%s (level=%d): %v", fn, level, err1);
-				return;
+				t.Errorf("%s (level=%d): %v", fn, level, err1)
+				return
 			}
 			if err0 == os.EOF {
 				break
 			}
 		}
-	}();
-	zlibr, err := NewInflater(piper);
+	}()
+	zlibr, err := NewInflater(piper)
 	if err != nil {
-		t.Errorf("%s (level=%d): %v", fn, level, err);
-		return;
+		t.Errorf("%s (level=%d): %v", fn, level, err)
+		return
 	}
-	defer zlibr.Close();
+	defer zlibr.Close()
 
 	// Compare the two.
-	b0, err0 := ioutil.ReadAll(golden);
-	b1, err1 := ioutil.ReadAll(zlibr);
+	b0, err0 := ioutil.ReadAll(golden)
+	b1, err1 := ioutil.ReadAll(zlibr)
 	if err0 != nil {
-		t.Errorf("%s (level=%d): %v", fn, level, err0);
-		return;
+		t.Errorf("%s (level=%d): %v", fn, level, err0)
+		return
 	}
 	if err1 != nil {
-		t.Errorf("%s (level=%d): %v", fn, level, err1);
-		return;
+		t.Errorf("%s (level=%d): %v", fn, level, err1)
+		return
 	}
 	if len(b0) != len(b1) {
-		t.Errorf("%s (level=%d): length mismatch %d versus %d", fn, level, len(b0), len(b1));
-		return;
+		t.Errorf("%s (level=%d): length mismatch %d versus %d", fn, level, len(b0), len(b1))
+		return
 	}
 	for i := 0; i < len(b0); i++ {
 		if b0[i] != b1[i] {
-			t.Errorf("%s (level=%d): mismatch at %d, 0x%02x versus 0x%02x\n", fn, level, i, b0[i], b1[i]);
-			return;
+			t.Errorf("%s (level=%d): mismatch at %d, 0x%02x versus 0x%02x\n", fn, level, i, b0[i], b1[i])
+			return
 		}
 	}
 }
 
 func TestWriter(t *testing.T) {
 	for _, fn := range filenames {
-		testFileLevel(t, fn, DefaultCompression);
-		testFileLevel(t, fn, NoCompression);
+		testFileLevel(t, fn, DefaultCompression)
+		testFileLevel(t, fn, NoCompression)
 		for level := BestSpeed; level <= BestCompression; level++ {
 			testFileLevel(t, fn, level)
 		}

@@ -9,9 +9,9 @@
 package flate
 
 import (
-	"bytes";
-	"reflect";
-	"testing";
+	"bytes"
+	"reflect"
+	"testing"
 )
 
 // The Huffman code lengths used by the fixed-format Huffman blocks.
@@ -45,9 +45,9 @@ var fixedHuffmanBits = [...]int{
 }
 
 type InitDecoderTest struct {
-	in	[]int;
-	out	huffmanDecoder;
-	ok	bool;
+	in  []int
+	out huffmanDecoder
+	ok  bool
 }
 
 var initDecoderTests = []*InitDecoderTest{
@@ -115,10 +115,10 @@ var initDecoderTests = []*InitDecoderTest{
 
 func TestInitDecoder(t *testing.T) {
 	for i, tt := range initDecoderTests {
-		var h huffmanDecoder;
+		var h huffmanDecoder
 		if h.init(tt.in) != tt.ok {
-			t.Errorf("test %d: init = %v", i, !tt.ok);
-			continue;
+			t.Errorf("test %d: init = %v", i, !tt.ok)
+			continue
 		}
 		if !reflect.DeepEqual(&h, &tt.out) {
 			t.Errorf("test %d:\nhave %v\nwant %v", i, h, tt.out)
@@ -127,9 +127,9 @@ func TestInitDecoder(t *testing.T) {
 }
 
 func TestUncompressedSource(t *testing.T) {
-	decoder := NewInflater(bytes.NewBuffer([]byte{0x01, 0x01, 0x00, 0xfe, 0xff, 0x11}));
-	output := make([]byte, 1);
-	n, error := decoder.Read(output);
+	decoder := NewInflater(bytes.NewBuffer([]byte{0x01, 0x01, 0x00, 0xfe, 0xff, 0x11}))
+	output := make([]byte, 1)
+	n, error := decoder.Read(output)
 	if n != 1 || error != nil {
 		t.Fatalf("decoder.Read() = %d, %v, want 1, nil", n, error)
 	}

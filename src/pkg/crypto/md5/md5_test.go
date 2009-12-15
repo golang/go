@@ -5,14 +5,14 @@
 package md5
 
 import (
-	"fmt";
-	"io";
-	"testing";
+	"fmt"
+	"io"
+	"testing"
 )
 
 type md5Test struct {
-	out	string;
-	in	string;
+	out string
+	in  string
 }
 
 var golden = []md5Test{
@@ -51,16 +51,16 @@ var golden = []md5Test{
 
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
-		g := golden[i];
-		c := New();
+		g := golden[i]
+		c := New()
 		for j := 0; j < 2; j++ {
-			io.WriteString(c, g.in);
-			s := fmt.Sprintf("%x", c.Sum());
+			io.WriteString(c, g.in)
+			s := fmt.Sprintf("%x", c.Sum())
 			if s != g.out {
-				t.Errorf("md5[%d](%s) = %s want %s", j, g.in, s, g.out);
-				t.FailNow();
+				t.Errorf("md5[%d](%s) = %s want %s", j, g.in, s, g.out)
+				t.FailNow()
 			}
-			c.Reset();
+			c.Reset()
 		}
 	}
 }

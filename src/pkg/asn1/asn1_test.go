@@ -5,17 +5,17 @@
 package asn1
 
 import (
-	"bytes";
-	"reflect";
-	"strings";
-	"testing";
-	"time";
+	"bytes"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
 )
 
 type int64Test struct {
-	in	[]byte;
-	ok	bool;
-	out	int64;
+	in  []byte
+	ok  bool
+	out int64
 }
 
 var int64TestData = []int64Test{
@@ -33,7 +33,7 @@ var int64TestData = []int64Test{
 
 func TestParseInt64(t *testing.T) {
 	for i, test := range int64TestData {
-		ret, err := parseInt64(test.in);
+		ret, err := parseInt64(test.in)
 		if (err == nil) != test.ok {
 			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
@@ -44,10 +44,10 @@ func TestParseInt64(t *testing.T) {
 }
 
 type bitStringTest struct {
-	in		[]byte;
-	ok		bool;
-	out		[]byte;
-	bitLength	int;
+	in        []byte
+	ok        bool
+	out       []byte
+	bitLength int
 }
 
 var bitStringTestData = []bitStringTest{
@@ -61,7 +61,7 @@ var bitStringTestData = []bitStringTest{
 
 func TestBitString(t *testing.T) {
 	for i, test := range bitStringTestData {
-		ret, err := parseBitString(test.in);
+		ret, err := parseBitString(test.in)
 		if (err == nil) != test.ok {
 			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
@@ -74,7 +74,7 @@ func TestBitString(t *testing.T) {
 }
 
 func TestBitStringAt(t *testing.T) {
-	bs := BitString{[]byte{0x82, 0x40}, 16};
+	bs := BitString{[]byte{0x82, 0x40}, 16}
 	if bs.At(0) != 1 {
 		t.Error("#1: Failed")
 	}
@@ -90,9 +90,9 @@ func TestBitStringAt(t *testing.T) {
 }
 
 type bitStringRightAlignTest struct {
-	in	[]byte;
-	inlen	int;
-	out	[]byte;
+	in    []byte
+	inlen int
+	out   []byte
 }
 
 var bitStringRightAlignTests = []bitStringRightAlignTest{
@@ -106,8 +106,8 @@ var bitStringRightAlignTests = []bitStringRightAlignTest{
 
 func TestBitStringRightAlign(t *testing.T) {
 	for i, test := range bitStringRightAlignTests {
-		bs := BitString{test.in, test.inlen};
-		out := bs.RightAlign();
+		bs := BitString{test.in, test.inlen}
+		out := bs.RightAlign()
 		if bytes.Compare(out, test.out) != 0 {
 			t.Errorf("#%d got: %x want: %x", i, out, test.out)
 		}
@@ -115,9 +115,9 @@ func TestBitStringRightAlign(t *testing.T) {
 }
 
 type objectIdentifierTest struct {
-	in	[]byte;
-	ok	bool;
-	out	[]int;
+	in  []byte
+	ok  bool
+	out []int
 }
 
 var objectIdentifierTestData = []objectIdentifierTest{
@@ -130,7 +130,7 @@ var objectIdentifierTestData = []objectIdentifierTest{
 
 func TestObjectIdentifier(t *testing.T) {
 	for i, test := range objectIdentifierTestData {
-		ret, err := parseObjectIdentifier(test.in);
+		ret, err := parseObjectIdentifier(test.in)
 		if (err == nil) != test.ok {
 			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
@@ -143,9 +143,9 @@ func TestObjectIdentifier(t *testing.T) {
 }
 
 type timeTest struct {
-	in	string;
-	ok	bool;
-	out	*time.Time;
+	in  string
+	ok  bool
+	out *time.Time
 }
 
 var timeTestData = []timeTest{
@@ -165,7 +165,7 @@ var timeTestData = []timeTest{
 
 func TestTime(t *testing.T) {
 	for i, test := range timeTestData {
-		ret, err := parseUTCTime(strings.Bytes(test.in));
+		ret, err := parseUTCTime(strings.Bytes(test.in))
 		if (err == nil) != test.ok {
 			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
@@ -178,9 +178,9 @@ func TestTime(t *testing.T) {
 }
 
 type tagAndLengthTest struct {
-	in	[]byte;
-	ok	bool;
-	out	tagAndLength;
+	in  []byte
+	ok  bool
+	out tagAndLength
 }
 
 var tagAndLengthData = []tagAndLengthTest{
@@ -200,7 +200,7 @@ var tagAndLengthData = []tagAndLengthTest{
 
 func TestParseTagAndLength(t *testing.T) {
 	for i, test := range tagAndLengthData {
-		tagAndLength, _, err := parseTagAndLength(test.in, 0);
+		tagAndLength, _, err := parseTagAndLength(test.in, 0)
 		if (err == nil) != test.ok {
 			t.Errorf("#%d: Incorrect error result (did pass? %v, expected: %v)", i, err == nil, test.ok)
 		}
@@ -211,17 +211,17 @@ func TestParseTagAndLength(t *testing.T) {
 }
 
 type parseFieldParametersTest struct {
-	in	string;
-	out	fieldParameters;
+	in  string
+	out fieldParameters
 }
 
-func newInt(n int) *int	{ return &n }
+func newInt(n int) *int { return &n }
 
-func newInt64(n int64) *int64	{ return &n }
+func newInt64(n int64) *int64 { return &n }
 
-func newString(s string) *string	{ return &s }
+func newString(s string) *string { return &s }
 
-func newBool(b bool) *bool	{ return &b }
+func newBool(b bool) *bool { return &b }
 
 var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParametersTest{
 	parseFieldParametersTest{"", fieldParameters{false, false, nil, nil, 0}},
@@ -238,7 +238,7 @@ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParame
 
 func TestParseFieldParameters(t *testing.T) {
 	for i, test := range parseFieldParametersTestData {
-		f := parseFieldParameters(test.in);
+		f := parseFieldParameters(test.in)
 		if !reflect.DeepEqual(f, test.out) {
 			t.Errorf("#%d: Bad result: %v (expected %v)", i, f, test.out)
 		}
@@ -246,21 +246,21 @@ func TestParseFieldParameters(t *testing.T) {
 }
 
 type unmarshalTest struct {
-	in	[]byte;
-	out	interface{};
+	in  []byte
+	out interface{}
 }
 
 type TestObjectIdentifierStruct struct {
-	OID ObjectIdentifier;
+	OID ObjectIdentifier
 }
 
 type TestContextSpecificTags struct {
-	A int "tag:1";
+	A int "tag:1"
 }
 
 type TestContextSpecificTags2 struct {
-	A	int	"explicit,tag:1";
-	B	int;
+	A int "explicit,tag:1"
+	B int
 }
 
 var unmarshalTestData []unmarshalTest = []unmarshalTest{
@@ -281,11 +281,11 @@ var unmarshalTestData []unmarshalTest = []unmarshalTest{
 
 func TestUnmarshal(t *testing.T) {
 	for i, test := range unmarshalTestData {
-		pv := reflect.MakeZero(reflect.NewValue(test.out).Type());
-		zv := reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem());
-		pv.(*reflect.PtrValue).PointTo(zv);
-		val := pv.Interface();
-		_, err := Unmarshal(val, test.in);
+		pv := reflect.MakeZero(reflect.NewValue(test.out).Type())
+		zv := reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem())
+		pv.(*reflect.PtrValue).PointTo(zv)
+		val := pv.Interface()
+		_, err := Unmarshal(val, test.in)
 		if err != nil {
 			t.Errorf("Unmarshal failed at index %d %v", i, err)
 		}
@@ -296,23 +296,23 @@ func TestUnmarshal(t *testing.T) {
 }
 
 type Certificate struct {
-	TBSCertificate		TBSCertificate;
-	SignatureAlgorithm	AlgorithmIdentifier;
-	SignatureValue		BitString;
+	TBSCertificate     TBSCertificate
+	SignatureAlgorithm AlgorithmIdentifier
+	SignatureValue     BitString
 }
 
 type TBSCertificate struct {
-	Version			int	"optional,explicit,default:0,tag:0";
-	SerialNumber		RawValue;
-	SignatureAlgorithm	AlgorithmIdentifier;
-	Issuer			RDNSequence;
-	Validity		Validity;
-	Subject			RDNSequence;
-	PublicKey		PublicKeyInfo;
+	Version            int "optional,explicit,default:0,tag:0"
+	SerialNumber       RawValue
+	SignatureAlgorithm AlgorithmIdentifier
+	Issuer             RDNSequence
+	Validity           Validity
+	Subject            RDNSequence
+	PublicKey          PublicKeyInfo
 }
 
 type AlgorithmIdentifier struct {
-	Algorithm ObjectIdentifier;
+	Algorithm ObjectIdentifier
 }
 
 type RDNSequence []RelativeDistinguishedName
@@ -320,22 +320,22 @@ type RDNSequence []RelativeDistinguishedName
 type RelativeDistinguishedName []AttributeTypeAndValue
 
 type AttributeTypeAndValue struct {
-	Type	ObjectIdentifier;
-	Value	interface{};
+	Type  ObjectIdentifier
+	Value interface{}
 }
 
 type Validity struct {
-	NotBefore, NotAfter *time.Time;
+	NotBefore, NotAfter *time.Time
 }
 
 type PublicKeyInfo struct {
-	Algorithm	AlgorithmIdentifier;
-	PublicKey	BitString;
+	Algorithm AlgorithmIdentifier
+	PublicKey BitString
 }
 
 func TestCertificate(t *testing.T) {
 	// This is a minimal, self-signed certificate that should parse correctly.
-	var cert Certificate;
+	var cert Certificate
 	if _, err := Unmarshal(&cert, derEncodedSelfSignedCertBytes); err != nil {
 		t.Errorf("Unmarshal failed: %v", err)
 	}
@@ -348,29 +348,29 @@ func TestCertificateWithNUL(t *testing.T) {
 	// This is the paypal NUL-hack certificate. It should fail to parse because
 	// NUL isn't a permitted character in a PrintableString.
 
-	var cert Certificate;
+	var cert Certificate
 	if _, err := Unmarshal(&cert, derEncodedPaypalNULCertBytes); err == nil {
 		t.Error("Unmarshal succeeded, should not have")
 	}
 }
 
 type rawStructTest struct {
-	Raw	RawContent;
-	A	int;
+	Raw RawContent
+	A   int
 }
 
 func TestRawStructs(t *testing.T) {
-	var s rawStructTest;
-	input := []byte{0x30, 0x03, 0x02, 0x01, 0x50};
+	var s rawStructTest
+	input := []byte{0x30, 0x03, 0x02, 0x01, 0x50}
 
-	rest, err := Unmarshal(&s, input);
+	rest, err := Unmarshal(&s, input)
 	if len(rest) != 0 {
-		t.Errorf("incomplete parse: %x", rest);
-		return;
+		t.Errorf("incomplete parse: %x", rest)
+		return
 	}
 	if err != nil {
-		t.Error(err);
-		return;
+		t.Error(err)
+		return
 	}
 	if s.A != 0x50 {
 		t.Errorf("bad value for A: got %d want %d", s.A, 0x50)

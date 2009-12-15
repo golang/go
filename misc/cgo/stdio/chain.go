@@ -7,9 +7,9 @@
 package main
 
 import (
-	"runtime";
-	"stdio";
-	"strconv";
+	"runtime"
+	"stdio"
+	"strconv"
 )
 
 const N = 10
@@ -19,25 +19,25 @@ func link(left chan<- int, right <-chan int) {
 	// Keep the links in dedicated operating system
 	// threads, so that this program tests coordination
 	// between pthreads and not just goroutines.
-	runtime.LockOSThread();
+	runtime.LockOSThread()
 	for {
-		v := <-right;
-		stdio.Puts(strconv.Itoa(v));
-		left <- 1+v;
+		v := <-right
+		stdio.Puts(strconv.Itoa(v))
+		left <- 1+v
 	}
 }
 
 func main() {
-	leftmost := make(chan int);
-	var left chan int;
-	right := leftmost;
+	leftmost := make(chan int)
+	var left chan int
+	right := leftmost
 	for i := 0; i < N; i++ {
-		left, right = right, make(chan int);
-		go link(left, right);
+		left, right = right, make(chan int)
+		go link(left, right)
 	}
 	for i := 0; i < R; i++ {
-		right <- 0;
-		x := <-leftmost;
-		stdio.Puts(strconv.Itoa(x));
+		right <- 0
+		x := <-leftmost
+		stdio.Puts(strconv.Itoa(x))
 	}
 }

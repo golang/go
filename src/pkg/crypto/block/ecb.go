@@ -14,32 +14,32 @@
 package block
 
 import (
-	"io";
-	"os";
-	"strconv";
+	"io"
+	"os"
+	"strconv"
 )
 
 type ecbDecrypter struct {
-	c		Cipher;
-	r		io.Reader;
-	blockSize	int;	// block size
+	c         Cipher
+	r         io.Reader
+	blockSize int // block size
 
 	// Buffered data.
 	// The buffer buf is used as storage for both
 	// plain or crypt; at least one of those is nil at any given time.
-	buf	[]byte;
-	plain	[]byte;	// plain text waiting to be read
-	crypt	[]byte;	// ciphertext waiting to be decrypted
+	buf   []byte
+	plain []byte // plain text waiting to be read
+	crypt []byte // ciphertext waiting to be decrypted
 }
 
 // Read into x.crypt until it has a full block or EOF or an error happens.
 func (x *ecbDecrypter) fillCrypt() os.Error {
-	var err os.Error;
+	var err os.Error
 	for len(x.crypt) < x.blockSize {
-		off := len(x.crypt);
-		var m int;
-		m, err = x.r.Read(x.crypt[off:x.blockSize]);
-		x.crypt = x.crypt[0 : off+m];
+		off := len(x.crypt)
+		var m int
+		m, err = x.r.Read(x.crypt[off:x.blockSize])
+		x.crypt = x.crypt[0 : off+m]
 		if m == 0 {
 			break
 		}
@@ -53,12 +53,12 @@ func (x *ecbDecrypter) fillCrypt() os.Error {
 			break
 		}
 	}
-	return err;
+	return err
 }
 
 // Read from plain text buffer into p.
 func (x *ecbDecrypter) readPlain(p []byte) int {
-	n := len(x.plain);
+	n := len(x.plain)
 	if n > len(p) {
 		n = len(p)
 	}
@@ -70,7 +70,7 @@ func (x *ecbDecrypter) readPlain(p []byte) int {
 	} else {
 		x.plain = nil
 	}
-	return n;
+	return n
 }
 
 type ecbFragmentError int
@@ -95,46 +95,46 @@ func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
 	// If there is a leftover cipher text buffer,
 	// try to accumulate a full block.
 	if x.crypt != nil {
-		err = x.fillCrypt();
+		err = x.fillCrypt()
 		if err != nil || len(x.crypt) == 0 {
 			return
 		}
-		x.c.Decrypt(x.crypt, x.crypt);
-		x.plain = x.crypt;
-		x.crypt = nil;
+		x.c.Decrypt(x.crypt, x.crypt)
+		x.plain = x.crypt
+		x.crypt = nil
 	}
 
 	// If there is a leftover plain text buffer, read from it.
 	if x.plain != nil {
-		n = x.readPlain(p);
-		return;
+		n = x.readPlain(p)
+		return
 	}
 
 	// Read and decrypt directly in caller's buffer.
-	n, err = io.ReadAtLeast(x.r, p, x.blockSize);
+	n, err = io.ReadAtLeast(x.r, p, x.blockSize)
 	if err == os.EOF && n > 0 {
 		// EOF is only okay on block boundary
-		err = os.ErrorString("block fragment at EOF during decryption");
-		return;
+		err = os.ErrorString("block fragment at EOF during decryption")
+		return
 	}
-	var i int;
+	var i int
 	for i = 0; i+x.blockSize <= n; i += x.blockSize {
-		a := p[i : i+x.blockSize];
-		x.c.Decrypt(a, a);
+		a := p[i : i+x.blockSize]
+		x.c.Decrypt(a, a)
 	}
 
 	// There might be an encrypted fringe remaining.
 	// Save it for next time.
 	if i < n {
-		p = p[i:n];
+		p = p[i:n]
 		for j, v := range p {
 			x.buf[j] = v
 		}
-		x.crypt = x.buf[0:len(p)];
-		n = i;
+		x.crypt = x.buf[0:len(p)]
+		n = i
 	}
 
-	return;
+	return
 }
 
 // NewECBDecrypter returns a reader that reads data from r and decrypts it using c.
@@ -143,26 +143,26 @@ func (x *ecbDecrypter) Read(p []byte) (n int, err os.Error) {
 // The returned Reader does not buffer or read ahead except
 // as required by the cipher's block size.
 func NewECBDecrypter(c Cipher, r io.Reader) io.Reader {
-	x := new(ecbDecrypter);
-	x.c = c;
-	x.r = r;
-	x.blockSize = c.BlockSize();
-	x.buf = make([]byte, x.blockSize);
-	return x;
+	x := new(ecbDecrypter)
+	x.c = c
+	x.r = r
+	x.blockSize = c.BlockSize()
+	x.buf = make([]byte, x.blockSize)
+	return x
 }
 
 type ecbEncrypter struct {
-	c		Cipher;
-	w		io.Writer;
-	blockSize	int;
+	c         Cipher
+	w         io.Writer
+	blockSize int
 
 	// Buffered data.
 	// The buffer buf is used as storage for both
 	// plain or crypt.  If both are non-nil, plain
 	// follows crypt in buf.
-	buf	[]byte;
-	plain	[]byte;	// plain text waiting to be encrypted
-	crypt	[]byte;	// encrypted text waiting to be written
+	buf   []byte
+	plain []byte // plain text waiting to be encrypted
+	crypt []byte // encrypted text waiting to be written
 }
 
 // Flush the x.crypt buffer to x.w.
@@ -170,9 +170,9 @@ func (x *ecbEncrypter) flushCrypt() os.Error {
 	if len(x.crypt) == 0 {
 		return nil
 	}
-	n, err := x.w.Write(x.crypt);
+	n, err := x.w.Write(x.crypt)
 	if n < len(x.crypt) {
-		x.crypt = x.crypt[n:];
+		x.crypt = x.crypt[n:]
 		if err == nil {
 			err = io.ErrShortWrite
 		}
@@ -180,8 +180,8 @@ func (x *ecbEncrypter) flushCrypt() os.Error {
 	if err != nil {
 		return err
 	}
-	x.crypt = nil;
-	return nil;
+	x.crypt = nil
+	return nil
 }
 
 // Slide x.plain down to the beginning of x.buf.
@@ -196,35 +196,35 @@ func (x *ecbEncrypter) slidePlain() {
 		for i := 0; i < len(x.plain); i++ {
 			x.buf[i] = x.plain[i]
 		}
-		x.plain = x.buf[0:len(x.plain)];
+		x.plain = x.buf[0:len(x.plain)]
 	}
 }
 
 // Fill x.plain from the data in p.
 // Return the number of bytes copied.
 func (x *ecbEncrypter) fillPlain(p []byte) int {
-	off := len(x.plain);
-	n := len(p);
+	off := len(x.plain)
+	n := len(p)
 	if max := cap(x.plain) - off; n > max {
 		n = max
 	}
-	x.plain = x.plain[0 : off+n];
+	x.plain = x.plain[0 : off+n]
 	for i := 0; i < n; i++ {
 		x.plain[off+i] = p[i]
 	}
-	return n;
+	return n
 }
 
 // Encrypt x.plain; record encrypted range as x.crypt.
 func (x *ecbEncrypter) encrypt() {
-	var i int;
-	n := len(x.plain);
+	var i int
+	n := len(x.plain)
 	for i = 0; i+x.blockSize <= n; i += x.blockSize {
-		a := x.plain[i : i+x.blockSize];
-		x.c.Encrypt(a, a);
+		a := x.plain[i : i+x.blockSize]
+		x.c.Encrypt(a, a)
 	}
-	x.crypt = x.plain[0:i];
-	x.plain = x.plain[i:n];
+	x.crypt = x.plain[0:i]
+	x.plain = x.plain[i:n]
 }
 
 func (x *ecbEncrypter) Write(p []byte) (n int, err os.Error) {
@@ -238,25 +238,25 @@ func (x *ecbEncrypter) Write(p []byte) (n int, err os.Error) {
 
 		// Now that encrypted data is gone (flush ran),
 		// perhaps we need to slide the plaintext down.
-		x.slidePlain();
+		x.slidePlain()
 
 		// Fill plaintext buffer from p.
-		m := x.fillPlain(p);
+		m := x.fillPlain(p)
 		if m == 0 {
 			break
 		}
-		n += m;
-		p = p[m:];
+		n += m
+		p = p[m:]
 
 		// Encrypt, adjusting crypt and plain.
-		x.encrypt();
+		x.encrypt()
 
 		// Write x.crypt.
 		if err = x.flushCrypt(); err != nil {
 			break
 		}
 	}
-	return;
+	return
 }
 
 // NewECBEncrypter returns a writer that encrypts data using c and writes it to w.
@@ -265,12 +265,12 @@ func (x *ecbEncrypter) Write(p []byte) (n int, err os.Error) {
 // The returned Writer does no buffering except as required
 // by the cipher's block size, so there is no need for a Flush method.
 func NewECBEncrypter(c Cipher, w io.Writer) io.Writer {
-	x := new(ecbEncrypter);
-	x.c = c;
-	x.w = w;
-	x.blockSize = c.BlockSize();
+	x := new(ecbEncrypter)
+	x.c = c
+	x.w = w
+	x.blockSize = c.BlockSize()
 
 	// Create a buffer that is an integral number of blocks.
-	x.buf = make([]byte, 8192/x.blockSize*x.blockSize);
-	return x;
+	x.buf = make([]byte, 8192/x.blockSize*x.blockSize)
+	return x
 }

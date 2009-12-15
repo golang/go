@@ -13,36 +13,36 @@
 package block
 
 import (
-	"io";
+	"io"
 )
 
 type ctrStream struct {
-	c	Cipher;
-	ctr	[]byte;
-	out	[]byte;
+	c   Cipher
+	ctr []byte
+	out []byte
 }
 
 func newCTRStream(c Cipher, ctr []byte) *ctrStream {
-	x := new(ctrStream);
-	x.c = c;
-	x.ctr = copy(ctr);
-	x.out = make([]byte, len(ctr));
-	return x;
+	x := new(ctrStream)
+	x.c = c
+	x.ctr = copy(ctr)
+	x.out = make([]byte, len(ctr))
+	return x
 }
 
 func (x *ctrStream) Next() []byte {
 	// Next block is encryption of counter.
-	x.c.Encrypt(x.ctr, x.out);
+	x.c.Encrypt(x.ctr, x.out)
 
 	// Increment counter
 	for i := len(x.ctr) - 1; i >= 0; i-- {
-		x.ctr[i]++;
+		x.ctr[i]++
 		if x.ctr[i] != 0 {
 			break
 		}
 	}
 
-	return x.out;
+	return x.out
 }
 
 // NewCTRReader returns a reader that reads data from r, decrypts (or encrypts)

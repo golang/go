@@ -5,9 +5,9 @@
 package tls
 
 import (
-	"bytes";
-	"testing";
-	"testing/iotest";
+	"bytes"
+	"testing"
+	"testing/iotest"
 )
 
 func matchRecord(r1, r2 *record) bool {
@@ -20,12 +20,12 @@ func matchRecord(r1, r2 *record) bool {
 	return r1.contentType == r2.contentType &&
 		r1.major == r2.major &&
 		r1.minor == r2.minor &&
-		bytes.Compare(r1.payload, r2.payload) == 0;
+		bytes.Compare(r1.payload, r2.payload) == 0
 }
 
 type recordReaderTest struct {
-	in	[]byte;
-	out	[]*record;
+	in  []byte
+	out []*record
 }
 
 var recordReaderTests = []recordReaderTest{
@@ -42,31 +42,31 @@ var recordReaderTests = []recordReaderTest{
 
 func TestRecordReader(t *testing.T) {
 	for i, test := range recordReaderTests {
-		buf := bytes.NewBuffer(test.in);
-		c := make(chan *record);
-		go recordReader(c, buf);
-		matchRecordReaderOutput(t, i, test, c);
+		buf := bytes.NewBuffer(test.in)
+		c := make(chan *record)
+		go recordReader(c, buf)
+		matchRecordReaderOutput(t, i, test, c)
 
-		buf = bytes.NewBuffer(test.in);
-		buf2 := iotest.OneByteReader(buf);
-		c = make(chan *record);
-		go recordReader(c, buf2);
-		matchRecordReaderOutput(t, i*2, test, c);
+		buf = bytes.NewBuffer(test.in)
+		buf2 := iotest.OneByteReader(buf)
+		c = make(chan *record)
+		go recordReader(c, buf2)
+		matchRecordReaderOutput(t, i*2, test, c)
 	}
 }
 
 func matchRecordReaderOutput(t *testing.T, i int, test recordReaderTest, c <-chan *record) {
 	for j, r1 := range test.out {
-		r2 := <-c;
+		r2 := <-c
 		if r2 == nil {
-			t.Errorf("#%d truncated after %d values", i, j);
-			break;
+			t.Errorf("#%d truncated after %d values", i, j)
+			break
 		}
 		if !matchRecord(r1, r2) {
 			t.Errorf("#%d (%d) got:%#v want:%#v", i, j, r2, r1)
 		}
 	}
-	<-c;
+	<-c
 	if !closed(c) {
 		t.Errorf("#%d: channel didn't close", i)
 	}

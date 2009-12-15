@@ -13,14 +13,14 @@ import "unsafe"
 type Word uintptr
 
 const (
-	_S	= uintptr(unsafe.Sizeof(Word(0)));	// TODO(gri) should Sizeof return a uintptr?
-	_logW	= (0x650 >> _S) & 7;
-	_W	= 1 << _logW;
-	_B	= 1 << _W;
-	_M	= _B - 1;
-	_W2	= _W / 2;
-	_B2	= 1 << _W2;
-	_M2	= _B2 - 1;
+	_S    = uintptr(unsafe.Sizeof(Word(0))) // TODO(gri) should Sizeof return a uintptr?
+	_logW = (0x650 >> _S) & 7
+	_W    = 1 << _logW
+	_B    = 1 << _W
+	_M    = _B - 1
+	_W2   = _W / 2
+	_B2   = 1 << _W2
+	_M2   = _B2 - 1
 )
 
 
@@ -31,23 +31,23 @@ const (
 
 // z1<<_W + z0 = x+y+c, with c == 0 or 1
 func addWW_g(x, y, c Word) (z1, z0 Word) {
-	yc := y + c;
-	z0 = x + yc;
+	yc := y + c
+	z0 = x + yc
 	if z0 < x || yc < y {
 		z1 = 1
 	}
-	return;
+	return
 }
 
 
 // z1<<_W + z0 = x-y-c, with c == 0 or 1
 func subWW_g(x, y, c Word) (z1, z0 Word) {
-	yc := y + c;
-	z0 = x - yc;
+	yc := y + c
+	z0 = x - yc
 	if z0 > x || yc < y {
 		z1 = 1
 	}
-	return;
+	return
 }
 
 
@@ -65,62 +65,62 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
 		// y < _B2 because y <= x
 		// sub-digits of x and y are (0, x) and (0, y)
 		// z = z[0] = x*y
-		z0 = x * y;
-		return;
+		z0 = x * y
+		return
 	}
 
 	if y < _B2 {
 		// sub-digits of x and y are (x1, x0) and (0, y)
 		// x = (x1*_B2 + x0)
 		// y = (y1*_B2 + y0)
-		x1, x0 := x>>_W2, x&_M2;
+		x1, x0 := x>>_W2, x&_M2
 
 		// x*y = t2*_B2*_B2 + t1*_B2 + t0
-		t0 := x0 * y;
-		t1 := x1 * y;
+		t0 := x0 * y
+		t1 := x1 * y
 
 		// compute result digits but avoid overflow
 		// z = z[1]*_B + z[0] = x*y
-		z0 = t1<<_W2 + t0;
-		z1 = (t1 + t0>>_W2) >> _W2;
-		return;
+		z0 = t1<<_W2 + t0
+		z1 = (t1 + t0>>_W2) >> _W2
+		return
 	}
 
 	// general case
 	// sub-digits of x and y are (x1, x0) and (y1, y0)
 	// x = (x1*_B2 + x0)
 	// y = (y1*_B2 + y0)
-	x1, x0 := x>>_W2, x&_M2;
-	y1, y0 := y>>_W2, y&_M2;
+	x1, x0 := x>>_W2, x&_M2
+	y1, y0 := y>>_W2, y&_M2
 
 	// x*y = t2*_B2*_B2 + t1*_B2 + t0
-	t0 := x0 * y0;
+	t0 := x0 * y0
 	// t1 := x1*y0 + x0*y1;
-	var c Word;
-	t1 := x1 * y0;
-	t1a := t1;
-	t1 += x0 * y1;
+	var c Word
+	t1 := x1 * y0
+	t1a := t1
+	t1 += x0 * y1
 	if t1 < t1a {
 		c++
 	}
-	t2 := x1*y1 + c*_B2;
+	t2 := x1*y1 + c*_B2
 
 	// compute result digits but avoid overflow
 	// z = z[1]*_B + z[0] = x*y
 	// This may overflow, but that's ok because we also sum t1 and t0 above
 	// and we take care of the overflow there.
-	z0 = t1<<_W2 + t0;
+	z0 = t1<<_W2 + t0
 
 	// z1 = t2 + (t1 + t0>>_W2)>>_W2;
-	var c3 Word;
-	z1 = t1 + t0>>_W2;
+	var c3 Word
+	z1 = t1 + t0>>_W2
 	if z1 < t1 {
 		c3++
 	}
-	z1 >>= _W2;
-	z1 += c3 * _B2;
-	z1 += t2;
-	return;
+	z1 >>= _W2
+	z1 += c3 * _B2
+	z1 += t2
+	return
 }
 
 
@@ -136,78 +136,78 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
 	// sub-digits of x, y, and c are (x1, x0), (y1, y0), (c1, c0)
 	// x = (x1*_B2 + x0)
 	// y = (y1*_B2 + y0)
-	x1, x0 := x>>_W2, x&_M2;
-	y1, y0 := y>>_W2, y&_M2;
-	c1, c0 := c>>_W2, c&_M2;
+	x1, x0 := x>>_W2, x&_M2
+	y1, y0 := y>>_W2, y&_M2
+	c1, c0 := c>>_W2, c&_M2
 
 	// x*y + c = t2*_B2*_B2 + t1*_B2 + t0
 	// (1<<32-1)^2 == 1<<64 - 1<<33 + 1, so there's space to add c0 in here.
-	t0 := x0*y0 + c0;
+	t0 := x0*y0 + c0
 
 	// t1 := x1*y0 + x0*y1 + c1;
-	var c2 Word;	// extra carry
-	t1 := x1*y0 + c1;
-	t1a := t1;
-	t1 += x0 * y1;
-	if t1 < t1a {	// If the number got smaller then we overflowed.
+	var c2 Word // extra carry
+	t1 := x1*y0 + c1
+	t1a := t1
+	t1 += x0 * y1
+	if t1 < t1a { // If the number got smaller then we overflowed.
 		c2++
 	}
 
-	t2 := x1*y1 + c2*_B2;
+	t2 := x1*y1 + c2*_B2
 
 	// compute result digits but avoid overflow
 	// z = z[1]*_B + z[0] = x*y
 	// z0 = t1<<_W2 + t0;
 	// This may overflow, but that's ok because we also sum t1 and t0 below
 	// and we take care of the overflow there.
-	z0 = t1<<_W2 + t0;
+	z0 = t1<<_W2 + t0
 
-	var c3 Word;
-	z1 = t1 + t0>>_W2;
+	var c3 Word
+	z1 = t1 + t0>>_W2
 	if z1 < t1 {
 		c3++
 	}
-	z1 >>= _W2;
-	z1 += t2 + c3*_B2;
+	z1 >>= _W2
+	z1 += t2 + c3*_B2
 
-	return;
+	return
 }
 
 
 // q = (x1<<_W + x0 - r)/y
 // The most significant bit of y must be 1.
 func divStep(x1, x0, y Word) (q, r Word) {
-	d1, d0 := y>>_W2, y&_M2;
-	q1, r1 := x1/d1, x1%d1;
-	m := q1 * d0;
-	r1 = r1*_B2 | x0>>_W2;
+	d1, d0 := y>>_W2, y&_M2
+	q1, r1 := x1/d1, x1%d1
+	m := q1 * d0
+	r1 = r1*_B2 | x0>>_W2
 	if r1 < m {
-		q1--;
-		r1 += y;
+		q1--
+		r1 += y
 		if r1 >= y && r1 < m {
-			q1--;
-			r1 += y;
+			q1--
+			r1 += y
 		}
 	}
-	r1 -= m;
+	r1 -= m
 
-	r0 := r1 % d1;
-	q0 := r1 / d1;
-	m = q0 * d0;
-	r0 = r0*_B2 | x0&_M2;
+	r0 := r1 % d1
+	q0 := r1 / d1
+	m = q0 * d0
+	r0 = r0*_B2 | x0&_M2
 	if r0 < m {
-		q0--;
-		r0 += y;
+		q0--
+		r0 += y
 		if r0 >= y && r0 < m {
-			q0--;
-			r0 += y;
+			q0--
+			r0 += y
 		}
 	}
-	r0 -= m;
+	r0 -= m
 
-	q = q1*_B2 | q0;
-	r = r0;
-	return;
+	q = q1*_B2 | q0
+	r = r0
+	return
 }
 
 
@@ -217,53 +217,53 @@ func leadingZeros(x Word) (n uint) {
 		return _W
 	}
 	for x&(1<<(_W-1)) == 0 {
-		n++;
-		x <<= 1;
+		n++
+		x <<= 1
 	}
-	return;
+	return
 }
 
 
 // q = (x1<<_W + x0 - r)/y
 func divWW_g(x1, x0, y Word) (q, r Word) {
 	if x1 == 0 {
-		q, r = x0/y, x0%y;
-		return;
+		q, r = x0/y, x0%y
+		return
 	}
 
-	var q0, q1 Word;
-	z := leadingZeros(y);
+	var q0, q1 Word
+	z := leadingZeros(y)
 	if y > x1 {
 		if z != 0 {
-			y <<= z;
-			x1 = (x1 << z) | (x0 >> (_W - z));
-			x0 <<= z;
+			y <<= z
+			x1 = (x1 << z) | (x0 >> (_W - z))
+			x0 <<= z
 		}
-		q0, x0 = divStep(x1, x0, y);
-		q1 = 0;
+		q0, x0 = divStep(x1, x0, y)
+		q1 = 0
 	} else {
 		if z == 0 {
-			x1 -= y;
-			q1 = 1;
+			x1 -= y
+			q1 = 1
 		} else {
-			z1 := _W - z;
-			y <<= z;
-			x2 := x1 >> z1;
-			x1 = (x1 << z) | (x0 >> z1);
-			x0 <<= z;
-			q1, x1 = divStep(x2, x1, y);
+			z1 := _W - z
+			y <<= z
+			x2 := x1 >> z1
+			x1 = (x1 << z) | (x0 >> z1)
+			x0 <<= z
+			q1, x1 = divStep(x2, x1, y)
 		}
 
-		q0, x0 = divStep(x1, x0, y);
+		q0, x0 = divStep(x1, x0, y)
 	}
 
-	r = x0 >> z;
+	r = x0 >> z
 
 	if q1 != 0 {
 		panic("div out of range")
 	}
 
-	return q0, r;
+	return q0, r
 }
 
 
@@ -276,25 +276,25 @@ func divWW_g(x1, x0, y Word) (q, r Word) {
 // f_s should be installed if they exist.
 var (
 	// addVV sets z and returns c such that z+c = x+y.
-	addVV	func(z, x, y *Word, n int) (c Word)	= addVV_g;
+	addVV func(z, x, y *Word, n int) (c Word) = addVV_g
 
 	// subVV sets z and returns c such that z-c = x-y.
-	subVV	func(z, x, y *Word, n int) (c Word)	= subVV_g;
+	subVV func(z, x, y *Word, n int) (c Word) = subVV_g
 
 	// addVW sets z and returns c such that z+c = x-y.
-	addVW	func(z, x *Word, y Word, n int) (c Word)	= addVW_g;
+	addVW func(z, x *Word, y Word, n int) (c Word) = addVW_g
 
 	// subVW sets z and returns c such that z-c = x-y.
-	subVW	func(z, x *Word, y Word, n int) (c Word)	= subVW_g;
+	subVW func(z, x *Word, y Word, n int) (c Word) = subVW_g
 
 	// mulAddVWW sets z and returns c such that z+c = x*y + r.
-	mulAddVWW	func(z, x *Word, y, r Word, n int) (c Word)	= mulAddVWW_g;
+	mulAddVWW func(z, x *Word, y, r Word, n int) (c Word) = mulAddVWW_g
 
 	// addMulVVW sets z and returns c such that z+c = z + x*y.
-	addMulVVW	func(z, x *Word, y Word, n int) (c Word)	= addMulVVW_g;
+	addMulVVW func(z, x *Word, y Word, n int) (c Word) = addMulVVW_g
 
 	// divWVW sets z and returns r such that z-r = (xn<<(n*_W) + x) / y.
-	divWVW	func(z *Word, xn Word, x *Word, y Word, n int) (r Word)	= divWVW_g;
+	divWVW func(z *Word, xn Word, x *Word, y Word, n int) (r Word) = divWVW_g
 )
 
 
@@ -303,13 +303,13 @@ func init() {
 	//return;
 
 	// Install assembly routines.
-	addVV = addVV_s;
-	subVV = subVV_s;
-	addVW = addVW_s;
-	subVW = subVW_s;
-	mulAddVWW = mulAddVWW_s;
-	addMulVVW = addMulVVW_s;
-	divWVW = divWVW_s;
+	addVV = addVV_s
+	subVV = subVV_s
+	addVW = addVW_s
+	subVW = subVW_s
+	mulAddVWW = mulAddVWW_s
+	addMulVVW = addMulVVW_s
+	divWVW = divWVW_s
 }
 
 
@@ -323,7 +323,7 @@ func addVV_g(z, x, y *Word, n int) (c Word) {
 	for i := 0; i < n; i++ {
 		c, *z.at(i) = addWW_g(*x.at(i), *y.at(i), c)
 	}
-	return;
+	return
 }
 
 
@@ -332,56 +332,56 @@ func subVV_g(z, x, y *Word, n int) (c Word) {
 	for i := 0; i < n; i++ {
 		c, *z.at(i) = subWW_g(*x.at(i), *y.at(i), c)
 	}
-	return;
+	return
 }
 
 
 func addVW_s(z, x *Word, y Word, n int) (c Word)
 func addVW_g(z, x *Word, y Word, n int) (c Word) {
-	c = y;
+	c = y
 	for i := 0; i < n; i++ {
 		c, *z.at(i) = addWW_g(*x.at(i), c, 0)
 	}
-	return;
+	return
 }
 
 
 func subVW_s(z, x *Word, y Word, n int) (c Word)
 func subVW_g(z, x *Word, y Word, n int) (c Word) {
-	c = y;
+	c = y
 	for i := 0; i < n; i++ {
 		c, *z.at(i) = subWW_g(*x.at(i), c, 0)
 	}
-	return;
+	return
 }
 
 
 func mulAddVWW_s(z, x *Word, y, r Word, n int) (c Word)
 func mulAddVWW_g(z, x *Word, y, r Word, n int) (c Word) {
-	c = r;
+	c = r
 	for i := 0; i < n; i++ {
 		c, *z.at(i) = mulAddWWW_g(*x.at(i), y, c)
 	}
-	return;
+	return
 }
 
 
 func addMulVVW_s(z, x *Word, y Word, n int) (c Word)
 func addMulVVW_g(z, x *Word, y Word, n int) (c Word) {
 	for i := 0; i < n; i++ {
-		z1, z0 := mulAddWWW_g(*x.at(i), y, *z.at(i));
-		c, *z.at(i) = addWW_g(z0, c, 0);
-		c += z1;
+		z1, z0 := mulAddWWW_g(*x.at(i), y, *z.at(i))
+		c, *z.at(i) = addWW_g(z0, c, 0)
+		c += z1
 	}
-	return;
+	return
 }
 
 
 func divWVW_s(z *Word, xn Word, x *Word, y Word, n int) (r Word)
 func divWVW_g(z *Word, xn Word, x *Word, y Word, n int) (r Word) {
-	r = xn;
+	r = xn
 	for i := n - 1; i >= 0; i-- {
 		*z.at(i), r = divWW_g(r, *x.at(i), y)
 	}
-	return;
+	return
 }

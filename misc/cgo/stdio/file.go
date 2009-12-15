@@ -35,8 +35,8 @@ func (f *File) WriteString(s string) {
 */
 
 func Puts(s string) {
-	p := C.CString(s);
-	C.puts(p);
-	C.free(unsafe.Pointer(p));
-	C.fflushstdout();
+	p := C.CString(s)
+	C.puts(p)
+	C.free(unsafe.Pointer(p))
+	C.fflushstdout()
 }

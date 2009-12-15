@@ -89,18 +89,18 @@ var shift3 = []uint{4, 11, 16, 23}
 var shift4 = []uint{6, 10, 15, 21}
 
 func _Block(dig *digest, p []byte) int {
-	a := dig.s[0];
-	b := dig.s[1];
-	c := dig.s[2];
-	d := dig.s[3];
-	n := 0;
-	var X [16]uint32;
+	a := dig.s[0]
+	b := dig.s[1]
+	c := dig.s[2]
+	d := dig.s[3]
+	n := 0
+	var X [16]uint32
 	for len(p) >= _Chunk {
-		aa, bb, cc, dd := a, b, c, d;
+		aa, bb, cc, dd := a, b, c, d
 
 		for i := 0; i < 16; i++ {
-			j := i * 4;
-			X[i] = uint32(p[j]) | uint32(p[j+1])<<8 | uint32(p[j+2])<<16 | uint32(p[j+3])<<24;
+			j := i * 4
+			X[i] = uint32(p[j]) | uint32(p[j+1])<<8 | uint32(p[j+2])<<16 | uint32(p[j+3])<<24
 		}
 
 		// If this needs to be made faster in the future,
@@ -113,64 +113,64 @@ func _Block(dig *digest, p []byte) int {
 
 		// Round 1.
 		for i := 0; i < 16; i++ {
-			x := i;
-			t := i;
-			s := shift1[i%4];
-			f := ((c ^ d) & b) ^ d;
-			a += f + X[x] + table[t];
-			a = a<<s | a>>(32-s);
-			a += b;
-			a, b, c, d = d, a, b, c;
+			x := i
+			t := i
+			s := shift1[i%4]
+			f := ((c ^ d) & b) ^ d
+			a += f + X[x] + table[t]
+			a = a<<s | a>>(32-s)
+			a += b
+			a, b, c, d = d, a, b, c
 		}
 
 		// Round 2.
 		for i := 0; i < 16; i++ {
-			x := (1 + 5*i) % 16;
-			t := 16 + i;
-			s := shift2[i%4];
-			g := ((b ^ c) & d) ^ c;
-			a += g + X[x] + table[t];
-			a = a<<s | a>>(32-s);
-			a += b;
-			a, b, c, d = d, a, b, c;
+			x := (1 + 5*i) % 16
+			t := 16 + i
+			s := shift2[i%4]
+			g := ((b ^ c) & d) ^ c
+			a += g + X[x] + table[t]
+			a = a<<s | a>>(32-s)
+			a += b
+			a, b, c, d = d, a, b, c
 		}
 
 		// Round 3.
 		for i := 0; i < 16; i++ {
-			x := (5 + 3*i) % 16;
-			t := 32 + i;
-			s := shift3[i%4];
-			h := b ^ c ^ d;
-			a += h + X[x] + table[t];
-			a = a<<s | a>>(32-s);
-			a += b;
-			a, b, c, d = d, a, b, c;
+			x := (5 + 3*i) % 16
+			t := 32 + i
+			s := shift3[i%4]
+			h := b ^ c ^ d
+			a += h + X[x] + table[t]
+			a = a<<s | a>>(32-s)
+			a += b
+			a, b, c, d = d, a, b, c
 		}
 
 		// Round 4.
 		for i := 0; i < 16; i++ {
-			x := (7 * i) % 16;
-			s := shift4[i%4];
-			t := 48 + i;
-			ii := c ^ (b | ^d);
-			a += ii + X[x] + table[t];
-			a = a<<s | a>>(32-s);
-			a += b;
-			a, b, c, d = d, a, b, c;
+			x := (7 * i) % 16
+			s := shift4[i%4]
+			t := 48 + i
+			ii := c ^ (b | ^d)
+			a += ii + X[x] + table[t]
+			a = a<<s | a>>(32-s)
+			a += b
+			a, b, c, d = d, a, b, c
 		}
 
-		a += aa;
-		b += bb;
-		c += cc;
-		d += dd;
+		a += aa
+		b += bb
+		c += cc
+		d += dd
 
-		p = p[_Chunk:];
-		n += _Chunk;
+		p = p[_Chunk:]
+		n += _Chunk
 	}
 
-	dig.s[0] = a;
-	dig.s[1] = b;
-	dig.s[2] = c;
-	dig.s[3] = d;
-	return n;
+	dig.s[0] = a
+	dig.s[1] = b
+	dig.s[2] = c
+	dig.s[3] = d
+	return n
 }

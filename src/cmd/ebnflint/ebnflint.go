@@ -5,15 +5,15 @@
 package main
 
 import (
-	"bytes";
-	"ebnf";
-	"flag";
-	"fmt";
-	"go/scanner";
-	"io/ioutil";
-	"os";
-	"path";
-	"strings";
+	"bytes"
+	"ebnf"
+	"flag"
+	"fmt"
+	"go/scanner"
+	"io/ioutil"
+	"os"
+	"path"
+	"strings"
 )
 
 
@@ -21,29 +21,29 @@ var start = flag.String("start", "Start", "name of start production")
 
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: ebnflint [flags] [filename]\n");
-	flag.PrintDefaults();
-	os.Exit(1);
+	fmt.Fprintf(os.Stderr, "usage: ebnflint [flags] [filename]\n")
+	flag.PrintDefaults()
+	os.Exit(1)
 }
 
 
 // Markers around EBNF sections in .html files
 var (
-	open	= strings.Bytes(`<pre class="ebnf">`);
-	close	= strings.Bytes(`</pre>`);
+	open  = strings.Bytes(`<pre class="ebnf">`)
+	close = strings.Bytes(`</pre>`)
 )
 
 
 func extractEBNF(src []byte) []byte {
-	var buf bytes.Buffer;
+	var buf bytes.Buffer
 
 	for {
 		// i = beginning of EBNF text
-		i := bytes.Index(src, open);
+		i := bytes.Index(src, open)
 		if i < 0 {
-			break	// no EBNF found - we are done
+			break // no EBNF found - we are done
 		}
-		i += len(open);
+		i += len(open)
 
 		// write as many newlines as found in the excluded text
 		// to maintain correct line numbers in error messages
@@ -54,27 +54,27 @@ func extractEBNF(src []byte) []byte {
 		}
 
 		// j = end of EBNF text (or end of source)
-		j := bytes.Index(src[i:], close);	// close marker
+		j := bytes.Index(src[i:], close) // close marker
 		if j < 0 {
 			j = len(src) - i
 		}
-		j += i;
+		j += i
 
 		// copy EBNF text
-		buf.Write(src[i:j]);
+		buf.Write(src[i:j])
 
 		// advance
-		src = src[j:];
+		src = src[j:]
 	}
 
-	return buf.Bytes();
+	return buf.Bytes()
 }
 
 
 func main() {
-	flag.Parse();
+	flag.Parse()
 
-	var filename string;
+	var filename string
 	switch flag.NArg() {
 	case 0:
 		filename = "/dev/stdin"
@@ -84,7 +84,7 @@ func main() {
 		usage()
 	}
 
-	src, err := ioutil.ReadFile(filename);
+	src, err := ioutil.ReadFile(filename)
 	if err != nil {
 		scanner.PrintError(os.Stderr, err)
 	}
@@ -93,7 +93,7 @@ func main() {
 		src = extractEBNF(src)
 	}
 
-	grammar, err := ebnf.Parse(filename, src);
+	grammar, err := ebnf.Parse(filename, src)
 	if err != nil {
 		scanner.PrintError(os.Stderr, err)
 	}

@@ -76,54 +76,54 @@ var _K = []uint32{
 }
 
 func _Block(dig *digest, p []byte) int {
-	var w [64]uint32;
-	n := 0;
-	h0, h1, h2, h3, h4, h5, h6, h7 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7];
+	var w [64]uint32
+	n := 0
+	h0, h1, h2, h3, h4, h5, h6, h7 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7]
 	for len(p) >= _Chunk {
 		// Can interlace the computation of w with the
 		// rounds below if needed for speed.
 		for i := 0; i < 16; i++ {
-			j := i * 4;
-			w[i] = uint32(p[j])<<24 | uint32(p[j+1])<<16 | uint32(p[j+2])<<8 | uint32(p[j+3]);
+			j := i * 4
+			w[i] = uint32(p[j])<<24 | uint32(p[j+1])<<16 | uint32(p[j+2])<<8 | uint32(p[j+3])
 		}
 		for i := 16; i < 64; i++ {
-			t1 := (w[i-2]>>17 | w[i-2]<<(32-17)) ^ (w[i-2]>>19 | w[i-2]<<(32-19)) ^ (w[i-2] >> 10);
+			t1 := (w[i-2]>>17 | w[i-2]<<(32-17)) ^ (w[i-2]>>19 | w[i-2]<<(32-19)) ^ (w[i-2] >> 10)
 
-			t2 := (w[i-15]>>7 | w[i-15]<<(32-7)) ^ (w[i-15]>>18 | w[i-15]<<(32-18)) ^ (w[i-15] >> 3);
+			t2 := (w[i-15]>>7 | w[i-15]<<(32-7)) ^ (w[i-15]>>18 | w[i-15]<<(32-18)) ^ (w[i-15] >> 3)
 
-			w[i] = t1 + w[i-7] + t2 + w[i-16];
+			w[i] = t1 + w[i-7] + t2 + w[i-16]
 		}
 
-		a, b, c, d, e, f, g, h := h0, h1, h2, h3, h4, h5, h6, h7;
+		a, b, c, d, e, f, g, h := h0, h1, h2, h3, h4, h5, h6, h7
 
 		for i := 0; i < 64; i++ {
-			t1 := h + ((e>>6 | e<<(32-6)) ^ (e>>11 | e<<(32-11)) ^ (e>>25 | e<<(32-25))) + ((e & f) ^ (^e & g)) + _K[i] + w[i];
+			t1 := h + ((e>>6 | e<<(32-6)) ^ (e>>11 | e<<(32-11)) ^ (e>>25 | e<<(32-25))) + ((e & f) ^ (^e & g)) + _K[i] + w[i]
 
-			t2 := ((a>>2 | a<<(32-2)) ^ (a>>13 | a<<(32-13)) ^ (a>>22 | a<<(32-22))) + ((a & b) ^ (a & c) ^ (b & c));
+			t2 := ((a>>2 | a<<(32-2)) ^ (a>>13 | a<<(32-13)) ^ (a>>22 | a<<(32-22))) + ((a & b) ^ (a & c) ^ (b & c))
 
-			h = g;
-			g = f;
-			f = e;
-			e = d + t1;
-			d = c;
-			c = b;
-			b = a;
-			a = t1 + t2;
+			h = g
+			g = f
+			f = e
+			e = d + t1
+			d = c
+			c = b
+			b = a
+			a = t1 + t2
 		}
 
-		h0 += a;
-		h1 += b;
-		h2 += c;
-		h3 += d;
-		h4 += e;
-		h5 += f;
-		h6 += g;
-		h7 += h;
+		h0 += a
+		h1 += b
+		h2 += c
+		h3 += d
+		h4 += e
+		h5 += f
+		h6 += g
+		h7 += h
 
-		p = p[_Chunk:];
-		n += _Chunk;
+		p = p[_Chunk:]
+		n += _Chunk
 	}
 
-	dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7] = h0, h1, h2, h3, h4, h5, h6, h7;
-	return n;
+	dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7] = h0, h1, h2, h3, h4, h5, h6, h7
+	return n
 }

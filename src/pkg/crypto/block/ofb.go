@@ -13,28 +13,28 @@
 package block
 
 import (
-	"io";
+	"io"
 )
 
 type ofbStream struct {
-	c	Cipher;
-	iv	[]byte;
+	c  Cipher
+	iv []byte
 }
 
 func newOFBStream(c Cipher, iv []byte) *ofbStream {
-	x := new(ofbStream);
-	x.c = c;
-	n := len(iv);
+	x := new(ofbStream)
+	x.c = c
+	n := len(iv)
 	if n != c.BlockSize() {
 		panicln("crypto/block: newOFBStream: invalid iv size", n, "!=", c.BlockSize())
 	}
-	x.iv = copy(iv);
-	return x;
+	x.iv = copy(iv)
+	return x
 }
 
 func (x *ofbStream) Next() []byte {
-	x.c.Encrypt(x.iv, x.iv);
-	return x.iv;
+	x.c.Encrypt(x.iv, x.iv)
+	return x.iv
 }
 
 // NewOFBReader returns a reader that reads data from r, decrypts (or encrypts)

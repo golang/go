@@ -10,7 +10,7 @@
 package bignum
 
 import (
-	"fmt";
+	"fmt"
 )
 
 // TODO(gri) Complete the set of in-place operations.
@@ -18,8 +18,8 @@ import (
 // Integer represents a signed integer value of arbitrary precision.
 //
 type Integer struct {
-	sign	bool;
-	mant	Natural;
+	sign bool
+	mant Natural
 }
 
 
@@ -29,16 +29,16 @@ type Integer struct {
 //
 func MakeInt(sign bool, mant Natural) *Integer {
 	if mant.IsZero() {
-		sign = false	// normalize
+		sign = false // normalize
 	}
-	return &Integer{sign, mant};
+	return &Integer{sign, mant}
 }
 
 
 // Int creates a small integer with value x.
 //
 func Int(x int64) *Integer {
-	var ux uint64;
+	var ux uint64
 	if x < 0 {
 		// For the most negative x, -x == x, and
 		// the bit pattern has the correct value.
@@ -46,7 +46,7 @@ func Int(x int64) *Integer {
 	} else {
 		ux = uint64(x)
 	}
-	return MakeInt(x < 0, Nat(ux));
+	return MakeInt(x < 0, Nat(ux))
 }
 
 
@@ -54,51 +54,51 @@ func Int(x int64) *Integer {
 // otherwise the result is undefined.
 //
 func (x *Integer) Value() int64 {
-	z := int64(x.mant.Value());
+	z := int64(x.mant.Value())
 	if x.sign {
 		z = -z
 	}
-	return z;
+	return z
 }
 
 
 // Abs returns the absolute value of x.
 //
-func (x *Integer) Abs() Natural	{ return x.mant }
+func (x *Integer) Abs() Natural { return x.mant }
 
 
 // Predicates
 
 // IsEven returns true iff x is divisible by 2.
 //
-func (x *Integer) IsEven() bool	{ return x.mant.IsEven() }
+func (x *Integer) IsEven() bool { return x.mant.IsEven() }
 
 
 // IsOdd returns true iff x is not divisible by 2.
 //
-func (x *Integer) IsOdd() bool	{ return x.mant.IsOdd() }
+func (x *Integer) IsOdd() bool { return x.mant.IsOdd() }
 
 
 // IsZero returns true iff x == 0.
 //
-func (x *Integer) IsZero() bool	{ return x.mant.IsZero() }
+func (x *Integer) IsZero() bool { return x.mant.IsZero() }
 
 
 // IsNeg returns true iff x < 0.
 //
-func (x *Integer) IsNeg() bool	{ return x.sign && !x.mant.IsZero() }
+func (x *Integer) IsNeg() bool { return x.sign && !x.mant.IsZero() }
 
 
 // IsPos returns true iff x >= 0.
 //
-func (x *Integer) IsPos() bool	{ return !x.sign && !x.mant.IsZero() }
+func (x *Integer) IsPos() bool { return !x.sign && !x.mant.IsZero() }
 
 
 // Operations
 
 // Neg returns the negated value of x.
 //
-func (x *Integer) Neg() *Integer	{ return MakeInt(!x.sign, x.mant) }
+func (x *Integer) Neg() *Integer { return MakeInt(!x.sign, x.mant) }
 
 
 // Iadd sets z to the sum x + y.
@@ -108,17 +108,17 @@ func Iadd(z, x, y *Integer) {
 	if x.sign == y.sign {
 		// x + y == x + y
 		// (-x) + (-y) == -(x + y)
-		z.sign = x.sign;
-		Nadd(&z.mant, x.mant, y.mant);
+		z.sign = x.sign
+		Nadd(&z.mant, x.mant, y.mant)
 	} else {
 		// x + (-y) == x - y == -(y - x)
 		// (-x) + y == y - x == -(x - y)
 		if x.mant.Cmp(y.mant) >= 0 {
-			z.sign = x.sign;
-			Nsub(&z.mant, x.mant, y.mant);
+			z.sign = x.sign
+			Nsub(&z.mant, x.mant, y.mant)
 		} else {
-			z.sign = !x.sign;
-			Nsub(&z.mant, y.mant, x.mant);
+			z.sign = !x.sign
+			Nsub(&z.mant, y.mant, x.mant)
 		}
 	}
 }
@@ -127,9 +127,9 @@ func Iadd(z, x, y *Integer) {
 // Add returns the sum x + y.
 //
 func (x *Integer) Add(y *Integer) *Integer {
-	var z Integer;
-	Iadd(&z, x, y);
-	return &z;
+	var z Integer
+	Iadd(&z, x, y)
+	return &z
 }
 
 
@@ -137,17 +137,17 @@ func Isub(z, x, y *Integer) {
 	if x.sign != y.sign {
 		// x - (-y) == x + y
 		// (-x) - y == -(x + y)
-		z.sign = x.sign;
-		Nadd(&z.mant, x.mant, y.mant);
+		z.sign = x.sign
+		Nadd(&z.mant, x.mant, y.mant)
 	} else {
 		// x - y == x - y == -(y - x)
 		// (-x) - (-y) == y - x == -(x - y)
 		if x.mant.Cmp(y.mant) >= 0 {
-			z.sign = x.sign;
-			Nsub(&z.mant, x.mant, y.mant);
+			z.sign = x.sign
+			Nsub(&z.mant, x.mant, y.mant)
 		} else {
-			z.sign = !x.sign;
-			Nsub(&z.mant, y.mant, x.mant);
+			z.sign = !x.sign
+			Nsub(&z.mant, y.mant, x.mant)
 		}
 	}
 }
@@ -156,32 +156,32 @@ func Isub(z, x, y *Integer) {
 // Sub returns the difference x - y.
 //
 func (x *Integer) Sub(y *Integer) *Integer {
-	var z Integer;
-	Isub(&z, x, y);
-	return &z;
+	var z Integer
+	Isub(&z, x, y)
+	return &z
 }
 
 
 // Nscale sets *z to the scaled value (*z) * d.
 //
 func Iscale(z *Integer, d int64) {
-	f := uint64(d);
+	f := uint64(d)
 	if d < 0 {
 		f = uint64(-d)
 	}
-	z.sign = z.sign != (d < 0);
-	Nscale(&z.mant, f);
+	z.sign = z.sign != (d < 0)
+	Nscale(&z.mant, f)
 }
 
 
 // Mul1 returns the product x * d.
 //
 func (x *Integer) Mul1(d int64) *Integer {
-	f := uint64(d);
+	f := uint64(d)
 	if d < 0 {
 		f = uint64(-d)
 	}
-	return MakeInt(x.sign != (d < 0), x.mant.Mul1(f));
+	return MakeInt(x.sign != (d < 0), x.mant.Mul1(f))
 }
 
 
@@ -242,8 +242,8 @@ func (x *Integer) Rem(y *Integer) *Integer {
 // If y == 0, a division-by-zero run-time error occurs.
 //
 func (x *Integer) QuoRem(y *Integer) (*Integer, *Integer) {
-	q, r := x.mant.DivMod(y.mant);
-	return MakeInt(x.sign != y.sign, q), MakeInt(x.sign, r);
+	q, r := x.mant.DivMod(y.mant)
+	return MakeInt(x.sign != y.sign, q), MakeInt(x.sign, r)
 }
 
 
@@ -261,7 +261,7 @@ func (x *Integer) QuoRem(y *Integer) (*Integer, *Integer) {
 // ACM press.)
 //
 func (x *Integer) Div(y *Integer) *Integer {
-	q, r := x.QuoRem(y);
+	q, r := x.QuoRem(y)
 	if r.IsNeg() {
 		if y.IsPos() {
 			q = q.Sub(Int(1))
@@ -269,7 +269,7 @@ func (x *Integer) Div(y *Integer) *Integer {
 			q = q.Add(Int(1))
 		}
 	}
-	return q;
+	return q
 }
 
 
@@ -278,7 +278,7 @@ func (x *Integer) Div(y *Integer) *Integer {
 // If y == 0, a division-by-zero run-time error occurs.
 //
 func (x *Integer) Mod(y *Integer) *Integer {
-	r := x.Rem(y);
+	r := x.Rem(y)
 	if r.IsNeg() {
 		if y.IsPos() {
 			r = r.Add(y)
@@ -286,30 +286,30 @@ func (x *Integer) Mod(y *Integer) *Integer {
 			r = r.Sub(y)
 		}
 	}
-	return r;
+	return r
 }
 
 
 // DivMod returns the pair (x.Div(y), x.Mod(y)).
 //
 func (x *Integer) DivMod(y *Integer) (*Integer, *Integer) {
-	q, r := x.QuoRem(y);
+	q, r := x.QuoRem(y)
 	if r.IsNeg() {
 		if y.IsPos() {
-			q = q.Sub(Int(1));
-			r = r.Add(y);
+			q = q.Sub(Int(1))
+			r = r.Add(y)
 		} else {
-			q = q.Add(Int(1));
-			r = r.Sub(y);
+			q = q.Add(Int(1))
+			r = r.Sub(y)
 		}
 	}
-	return q, r;
+	return q, r
 }
 
 
 // Shl implements ``shift left'' x << s. It returns x * 2^s.
 //
-func (x *Integer) Shl(s uint) *Integer	{ return MakeInt(x.sign, x.mant.Shl(s)) }
+func (x *Integer) Shl(s uint) *Integer { return MakeInt(x.sign, x.mant.Shl(s)) }
 
 
 // The bitwise operations on integers are defined on the 2's-complement
@@ -336,7 +336,7 @@ func (x *Integer) Shr(s uint) *Integer {
 		return MakeInt(true, x.mant.Sub(Nat(1)).Shr(s).Add(Nat(1)))
 	}
 
-	return MakeInt(false, x.mant.Shr(s));
+	return MakeInt(false, x.mant.Shr(s))
 }
 
 
@@ -348,7 +348,7 @@ func (x *Integer) Not() *Integer {
 	}
 
 	// ^x == -x-1 == -(x+1)
-	return MakeInt(true, x.mant.Add(Nat(1)));
+	return MakeInt(true, x.mant.Add(Nat(1)))
 }
 
 
@@ -362,16 +362,16 @@ func (x *Integer) And(y *Integer) *Integer {
 		}
 
 		// x & y == x & y
-		return MakeInt(false, x.mant.And(y.mant));
+		return MakeInt(false, x.mant.And(y.mant))
 	}
 
 	// x.sign != y.sign
 	if x.sign {
-		x, y = y, x	// & is symmetric
+		x, y = y, x // & is symmetric
 	}
 
 	// x & (-y) == x & ^(y-1) == x &^ (y-1)
-	return MakeInt(false, x.mant.AndNot(y.mant.Sub(Nat(1))));
+	return MakeInt(false, x.mant.AndNot(y.mant.Sub(Nat(1))))
 }
 
 
@@ -385,7 +385,7 @@ func (x *Integer) AndNot(y *Integer) *Integer {
 		}
 
 		// x &^ y == x &^ y
-		return MakeInt(false, x.mant.AndNot(y.mant));
+		return MakeInt(false, x.mant.AndNot(y.mant))
 	}
 
 	if x.sign {
@@ -394,7 +394,7 @@ func (x *Integer) AndNot(y *Integer) *Integer {
 	}
 
 	// x &^ (-y) == x &^ ^(y-1) == x & (y-1)
-	return MakeInt(false, x.mant.And(y.mant.Sub(Nat(1))));
+	return MakeInt(false, x.mant.And(y.mant.Sub(Nat(1))))
 }
 
 
@@ -408,16 +408,16 @@ func (x *Integer) Or(y *Integer) *Integer {
 		}
 
 		// x | y == x | y
-		return MakeInt(false, x.mant.Or(y.mant));
+		return MakeInt(false, x.mant.Or(y.mant))
 	}
 
 	// x.sign != y.sign
 	if x.sign {
-		x, y = y, x	// | or symmetric
+		x, y = y, x // | or symmetric
 	}
 
 	// x | (-y) == x | ^(y-1) == ^((y-1) &^ x) == -(^((y-1) &^ x) + 1)
-	return MakeInt(true, y.mant.Sub(Nat(1)).AndNot(x.mant).Add(Nat(1)));
+	return MakeInt(true, y.mant.Sub(Nat(1)).AndNot(x.mant).Add(Nat(1)))
 }
 
 
@@ -431,16 +431,16 @@ func (x *Integer) Xor(y *Integer) *Integer {
 		}
 
 		// x ^ y == x ^ y
-		return MakeInt(false, x.mant.Xor(y.mant));
+		return MakeInt(false, x.mant.Xor(y.mant))
 	}
 
 	// x.sign != y.sign
 	if x.sign {
-		x, y = y, x	// ^ is symmetric
+		x, y = y, x // ^ is symmetric
 	}
 
 	// x ^ (-y) == x ^ ^(y-1) == ^(x ^ (y-1)) == -((x ^ (y-1)) + 1)
-	return MakeInt(true, x.mant.Xor(y.mant.Sub(Nat(1))).Add(Nat(1)));
+	return MakeInt(true, x.mant.Xor(y.mant.Sub(Nat(1))).Add(Nat(1)))
 }
 
 
@@ -455,10 +455,10 @@ func (x *Integer) Cmp(y *Integer) int {
 	// x cmp (-y) == x
 	// (-x) cmp y == y
 	// (-x) cmp (-y) == -(x cmp y)
-	var r int;
+	var r int
 	switch {
 	case x.sign == y.sign:
-		r = x.mant.Cmp(y.mant);
+		r = x.mant.Cmp(y.mant)
 		if x.sign {
 			r = -r
 		}
@@ -467,7 +467,7 @@ func (x *Integer) Cmp(y *Integer) int {
 	case y.sign:
 		r = 1
 	}
-	return r;
+	return r
 }
 
 
@@ -477,24 +477,24 @@ func (x *Integer) ToString(base uint) string {
 	if x.mant.IsZero() {
 		return "0"
 	}
-	var s string;
+	var s string
 	if x.sign {
 		s = "-"
 	}
-	return s + x.mant.ToString(base);
+	return s + x.mant.ToString(base)
 }
 
 
 // String converts x to its decimal string representation.
 // x.String() is the same as x.ToString(10).
 //
-func (x *Integer) String() string	{ return x.ToString(10) }
+func (x *Integer) String() string { return x.ToString(10) }
 
 
 // Format is a support routine for fmt.Formatter. It accepts
 // the formats 'b' (binary), 'o' (octal), and 'x' (hexadecimal).
 //
-func (x *Integer) Format(h fmt.State, c int)	{ fmt.Fprintf(h, "%s", x.ToString(fmtbase(c))) }
+func (x *Integer) Format(h fmt.State, c int) { fmt.Fprintf(h, "%s", x.ToString(fmtbase(c))) }
 
 
 // IntFromString returns the integer corresponding to the
@@ -509,12 +509,12 @@ func (x *Integer) Format(h fmt.State, c int)	{ fmt.Fprintf(h, "%s", x.ToString(f
 //
 func IntFromString(s string, base uint) (*Integer, uint, int) {
 	// skip sign, if any
-	i0 := 0;
+	i0 := 0
 	if len(s) > 0 && (s[0] == '-' || s[0] == '+') {
 		i0 = 1
 	}
 
-	mant, base, slen := NatFromString(s[i0:], base);
+	mant, base, slen := NatFromString(s[i0:], base)
 
-	return MakeInt(i0 > 0 && s[0] == '-', mant), base, i0 + slen;
+	return MakeInt(i0 > 0 && s[0] == '-', mant), base, i0 + slen
 }

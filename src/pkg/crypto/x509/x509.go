@@ -6,25 +6,25 @@
 package x509
 
 import (
-	"asn1";
-	"big";
-	"container/vector";
-	"crypto/rsa";
-	"crypto/sha1";
-	"hash";
-	"os";
-	"strings";
-	"time";
+	"asn1"
+	"big"
+	"container/vector"
+	"crypto/rsa"
+	"crypto/sha1"
+	"hash"
+	"os"
+	"strings"
+	"time"
 )
 
 // pkcs1PrivateKey is a structure which mirrors the PKCS#1 ASN.1 for an RSA private key.
 type pkcs1PrivateKey struct {
-	Version	int;
-	N	asn1.RawValue;
-	E	int;
-	D	asn1.RawValue;
-	P	asn1.RawValue;
-	Q	asn1.RawValue;
+	Version int
+	N       asn1.RawValue
+	E       int
+	D       asn1.RawValue
+	P       asn1.RawValue
+	Q       asn1.RawValue
 }
 
 // rawValueIsInteger returns true iff the given ASN.1 RawValue is an INTEGER type.
@@ -34,11 +34,11 @@ func rawValueIsInteger(raw *asn1.RawValue) bool {
 
 // ParsePKCS1PrivateKey returns an RSA private key from its ASN.1 PKCS#1 DER encoded form.
 func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
-	var priv pkcs1PrivateKey;
-	rest, err := asn1.Unmarshal(&priv, der);
+	var priv pkcs1PrivateKey
+	rest, err := asn1.Unmarshal(&priv, der)
 	if len(rest) > 0 {
-		err = asn1.SyntaxError{"trailing data"};
-		return;
+		err = asn1.SyntaxError{"trailing data"}
+		return
 	}
 	if err != nil {
 		return
@@ -48,8 +48,8 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 		!rawValueIsInteger(&priv.D) ||
 		!rawValueIsInteger(&priv.P) ||
 		!rawValueIsInteger(&priv.Q) {
-		err = asn1.StructuralError{"tags don't match"};
-		return;
+		err = asn1.StructuralError{"tags don't match"}
+		return
 	}
 
 	key = &rsa.PrivateKey{
@@ -60,39 +60,39 @@ func ParsePKCS1PrivateKey(der []byte) (key *rsa.PrivateKey, err os.Error) {
 		D: new(big.Int).SetBytes(priv.D.Bytes),
 		P: new(big.Int).SetBytes(priv.P.Bytes),
 		Q: new(big.Int).SetBytes(priv.Q.Bytes),
-	};
+	}
 
-	err = key.Validate();
+	err = key.Validate()
 	if err != nil {
 		return nil, err
 	}
-	return;
+	return
 }
 
 // These structures reflect the ASN.1 structure of X.509 certificates.:
 
 type certificate struct {
-	TBSCertificate		tbsCertificate;
-	SignatureAlgorithm	algorithmIdentifier;
-	SignatureValue		asn1.BitString;
+	TBSCertificate     tbsCertificate
+	SignatureAlgorithm algorithmIdentifier
+	SignatureValue     asn1.BitString
 }
 
 type tbsCertificate struct {
-	Raw			asn1.RawContent;
-	Version			int	"optional,explicit,default:1,tag:0";
-	SerialNumber		asn1.RawValue;
-	SignatureAlgorithm	algorithmIdentifier;
-	Issuer			rdnSequence;
-	Validity		validity;
-	Subject			rdnSequence;
-	PublicKey		publicKeyInfo;
-	UniqueId		asn1.BitString	"optional,explicit,tag:1";
-	SubjectUniqueId		asn1.BitString	"optional,explicit,tag:2";
-	Extensions		[]extension	"optional,explicit,tag:3";
+	Raw                asn1.RawContent
+	Version            int "optional,explicit,default:1,tag:0"
+	SerialNumber       asn1.RawValue
+	SignatureAlgorithm algorithmIdentifier
+	Issuer             rdnSequence
+	Validity           validity
+	Subject            rdnSequence
+	PublicKey          publicKeyInfo
+	UniqueId           asn1.BitString "optional,explicit,tag:1"
+	SubjectUniqueId    asn1.BitString "optional,explicit,tag:2"
+	Extensions         []extension    "optional,explicit,tag:3"
 }
 
 type algorithmIdentifier struct {
-	Algorithm asn1.ObjectIdentifier;
+	Algorithm asn1.ObjectIdentifier
 }
 
 type rdnSequence []relativeDistinguishedName
@@ -100,55 +100,55 @@ type rdnSequence []relativeDistinguishedName
 type relativeDistinguishedName []attributeTypeAndValue
 
 type attributeTypeAndValue struct {
-	Type	asn1.ObjectIdentifier;
-	Value	interface{};
+	Type  asn1.ObjectIdentifier
+	Value interface{}
 }
 
 type validity struct {
-	NotBefore, NotAfter *time.Time;
+	NotBefore, NotAfter *time.Time
 }
 
 type publicKeyInfo struct {
-	Algorithm	algorithmIdentifier;
-	PublicKey	asn1.BitString;
+	Algorithm algorithmIdentifier
+	PublicKey asn1.BitString
 }
 
 type extension struct {
-	Id		asn1.ObjectIdentifier;
-	Critical	bool	"optional";
-	Value		[]byte;
+	Id       asn1.ObjectIdentifier
+	Critical bool "optional"
+	Value    []byte
 }
 
 // RFC 5280,  4.2.1.1
 type authKeyId struct {
-	Id []byte "optional,tag:0";
+	Id []byte "optional,tag:0"
 }
 
 type SignatureAlgorithm int
 
 const (
-	UnknownSignatureAlgorithm	SignatureAlgorithm	= iota;
-	MD2WithRSA;
-	MD5WithRSA;
-	SHA1WithRSA;
-	SHA256WithRSA;
-	SHA384WithRSA;
-	SHA512WithRSA;
+	UnknownSignatureAlgorithm SignatureAlgorithm = iota
+	MD2WithRSA
+	MD5WithRSA
+	SHA1WithRSA
+	SHA256WithRSA
+	SHA384WithRSA
+	SHA512WithRSA
 )
 
 type PublicKeyAlgorithm int
 
 const (
-	UnknownPublicKeyAlgorithm	PublicKeyAlgorithm	= iota;
-	RSA;
+	UnknownPublicKeyAlgorithm PublicKeyAlgorithm = iota
+	RSA
 )
 
 // Name represents an X.509 distinguished name. This only includes the common
 // elements of a DN.  Additional elements in the name are ignored.
 type Name struct {
-	Country, Organization, OrganizationalUnit	string;
-	CommonName, SerialNumber, Locality		string;
-	Province, StreetAddress, PostalCode		string;
+	Country, Organization, OrganizationalUnit string
+	CommonName, SerialNumber, Locality        string
+	Province, StreetAddress, PostalCode       string
 }
 
 func (n *Name) fillFromRDNSequence(rdns *rdnSequence) {
@@ -156,13 +156,13 @@ func (n *Name) fillFromRDNSequence(rdns *rdnSequence) {
 		if len(rdn) == 0 {
 			continue
 		}
-		atv := rdn[0];
-		value, ok := atv.Value.(string);
+		atv := rdn[0]
+		value, ok := atv.Value.(string)
 		if !ok {
 			continue
 		}
 
-		t := atv.Type;
+		t := atv.Type
 		if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
 			switch t[3] {
 			case 3:
@@ -207,7 +207,7 @@ func getSignatureAlgorithmFromOID(oid []int) SignatureAlgorithm {
 		}
 	}
 
-	return UnknownSignatureAlgorithm;
+	return UnknownSignatureAlgorithm
 }
 
 func getPublicKeyAlgorithmFromOID(oid []int) PublicKeyAlgorithm {
@@ -219,7 +219,7 @@ func getPublicKeyAlgorithmFromOID(oid []int) PublicKeyAlgorithm {
 		}
 	}
 
-	return UnknownPublicKeyAlgorithm;
+	return UnknownPublicKeyAlgorithm
 }
 
 // KeyUsage represents the set of actions that are valid for a given key. It's
@@ -227,43 +227,43 @@ func getPublicKeyAlgorithmFromOID(oid []int) PublicKeyAlgorithm {
 type KeyUsage int
 
 const (
-	KeyUsageDigitalSignature	KeyUsage	= 1 << iota;
-	KeyUsageContentCommitment;
-	KeyUsageKeyEncipherment;
-	KeyUsageDataEncipherment;
-	KeyUsageKeyAgreement;
-	KeyUsageCertSign;
-	KeyUsageCRLSign;
-	KeyUsageEncipherOnly;
-	KeyUsageDecipherOnly;
+	KeyUsageDigitalSignature KeyUsage = 1 << iota
+	KeyUsageContentCommitment
+	KeyUsageKeyEncipherment
+	KeyUsageDataEncipherment
+	KeyUsageKeyAgreement
+	KeyUsageCertSign
+	KeyUsageCRLSign
+	KeyUsageEncipherOnly
+	KeyUsageDecipherOnly
 )
 
 // A Certificate represents an X.509 certificate.
 type Certificate struct {
-	Raw			[]byte;	// Raw ASN.1 DER contents.
-	Signature		[]byte;
-	SignatureAlgorithm	SignatureAlgorithm;
+	Raw                []byte // Raw ASN.1 DER contents.
+	Signature          []byte
+	SignatureAlgorithm SignatureAlgorithm
 
-	PublicKeyAlgorithm	PublicKeyAlgorithm;
-	PublicKey		interface{};
+	PublicKeyAlgorithm PublicKeyAlgorithm
+	PublicKey          interface{}
 
-	Version			int;
-	SerialNumber		[]byte;
-	Issuer			Name;
-	Subject			Name;
-	NotBefore, NotAfter	*time.Time;	// Validity bounds.
-	KeyUsage		KeyUsage;
+	Version             int
+	SerialNumber        []byte
+	Issuer              Name
+	Subject             Name
+	NotBefore, NotAfter *time.Time // Validity bounds.
+	KeyUsage            KeyUsage
 
-	BasicConstraintsValid	bool;	// if true then the next two fields are valid.
-	IsCA			bool;
-	MaxPathLen		int;
+	BasicConstraintsValid bool // if true then the next two fields are valid.
+	IsCA                  bool
+	MaxPathLen            int
 
-	SubjectKeyId	[]byte;
-	AuthorityKeyId	[]byte;
+	SubjectKeyId   []byte
+	AuthorityKeyId []byte
 
 	// Subject Alternate Name values
-	DNSNames	[]string;
-	EmailAddresses	[]string;
+	DNSNames       []string
+	EmailAddresses []string
 }
 
 // UnsupportedAlgorithmError results from attempting to perform an operation
@@ -306,26 +306,26 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) (err os.Error) {
 
 	// TODO(agl): don't ignore the path length constraint.
 
-	var h hash.Hash;
-	var hashType rsa.PKCS1v15Hash;
+	var h hash.Hash
+	var hashType rsa.PKCS1v15Hash
 
 	switch c.SignatureAlgorithm {
 	case SHA1WithRSA:
-		h = sha1.New();
-		hashType = rsa.HashSHA1;
+		h = sha1.New()
+		hashType = rsa.HashSHA1
 	default:
 		return UnsupportedAlgorithmError{}
 	}
 
-	pub, ok := parent.PublicKey.(*rsa.PublicKey);
+	pub, ok := parent.PublicKey.(*rsa.PublicKey)
 	if !ok {
 		return UnsupportedAlgorithmError{}
 	}
 
-	h.Write(c.Raw);
-	digest := h.Sum();
+	h.Write(c.Raw)
+	digest := h.Sum()
 
-	return rsa.VerifyPKCS1v15(pub, hashType, digest, c.Signature);
+	return rsa.VerifyPKCS1v15(pub, hashType, digest, c.Signature)
 }
 
 func matchHostnames(pattern, host string) bool {
@@ -333,8 +333,8 @@ func matchHostnames(pattern, host string) bool {
 		return false
 	}
 
-	patternParts := strings.Split(pattern, ".", 0);
-	hostParts := strings.Split(host, ".", 0);
+	patternParts := strings.Split(pattern, ".", 0)
+	hostParts := strings.Split(host, ".", 0)
 
 	if len(patternParts) != len(hostParts) {
 		return false
@@ -349,7 +349,7 @@ func matchHostnames(pattern, host string) bool {
 		}
 	}
 
-	return true;
+	return true
 }
 
 // IsValidForHost returns true iff c is a valid certificate for the given host.
@@ -361,10 +361,10 @@ func (c *Certificate) IsValidForHost(h string) bool {
 			}
 		}
 		// If Subject Alt Name is given, we ignore the common name.
-		return false;
+		return false
 	}
 
-	return matchHostnames(c.Subject.CommonName, h);
+	return matchHostnames(c.Subject.CommonName, h)
 }
 
 type UnhandledCriticalExtension struct{}
@@ -374,20 +374,20 @@ func (h UnhandledCriticalExtension) String() string {
 }
 
 type basicConstraints struct {
-	IsCA		bool	"optional";
-	MaxPathLen	int	"optional";
+	IsCA       bool "optional"
+	MaxPathLen int  "optional"
 }
 
 type rsaPublicKey struct {
-	N	asn1.RawValue;
-	E	int;
+	N asn1.RawValue
+	E int
 }
 
 func parsePublicKey(algo PublicKeyAlgorithm, asn1Data []byte) (interface{}, os.Error) {
 	switch algo {
 	case RSA:
-		p := new(rsaPublicKey);
-		_, err := asn1.Unmarshal(p, asn1Data);
+		p := new(rsaPublicKey)
+		_, err := asn1.Unmarshal(p, asn1Data)
 		if err != nil {
 			return nil, err
 		}
@@ -399,79 +399,79 @@ func parsePublicKey(algo PublicKeyAlgorithm, asn1Data []byte) (interface{}, os.E
 		pub := &rsa.PublicKey{
 			E: p.E,
 			N: new(big.Int).SetBytes(p.N.Bytes),
-		};
-		return pub, nil;
+		}
+		return pub, nil
 	default:
 		return nil, nil
 	}
 
-	panic("unreachable");
+	panic("unreachable")
 }
 
 func appendString(in []string, v string) (out []string) {
 	if cap(in)-len(in) < 1 {
-		out = make([]string, len(in)+1, len(in)*2+1);
+		out = make([]string, len(in)+1, len(in)*2+1)
 		for i, v := range in {
 			out[i] = v
 		}
 	} else {
 		out = in[0 : len(in)+1]
 	}
-	out[len(in)] = v;
-	return out;
+	out[len(in)] = v
+	return out
 }
 
 func parseCertificate(in *certificate) (*Certificate, os.Error) {
-	out := new(Certificate);
-	out.Raw = in.TBSCertificate.Raw;
+	out := new(Certificate)
+	out.Raw = in.TBSCertificate.Raw
 
-	out.Signature = in.SignatureValue.RightAlign();
+	out.Signature = in.SignatureValue.RightAlign()
 	out.SignatureAlgorithm =
-		getSignatureAlgorithmFromOID(in.TBSCertificate.SignatureAlgorithm.Algorithm);
+		getSignatureAlgorithmFromOID(in.TBSCertificate.SignatureAlgorithm.Algorithm)
 
 	out.PublicKeyAlgorithm =
-		getPublicKeyAlgorithmFromOID(in.TBSCertificate.PublicKey.Algorithm.Algorithm);
-	var err os.Error;
-	out.PublicKey, err = parsePublicKey(out.PublicKeyAlgorithm, in.TBSCertificate.PublicKey.PublicKey.RightAlign());
+		getPublicKeyAlgorithmFromOID(in.TBSCertificate.PublicKey.Algorithm.Algorithm)
+	var err os.Error
+	out.PublicKey, err = parsePublicKey(out.PublicKeyAlgorithm, in.TBSCertificate.PublicKey.PublicKey.RightAlign())
 	if err != nil {
 		return nil, err
 	}
 
-	out.Version = in.TBSCertificate.Version;
-	out.SerialNumber = in.TBSCertificate.SerialNumber.Bytes;
-	out.Issuer.fillFromRDNSequence(&in.TBSCertificate.Issuer);
-	out.Subject.fillFromRDNSequence(&in.TBSCertificate.Subject);
-	out.NotBefore = in.TBSCertificate.Validity.NotBefore;
-	out.NotAfter = in.TBSCertificate.Validity.NotAfter;
+	out.Version = in.TBSCertificate.Version
+	out.SerialNumber = in.TBSCertificate.SerialNumber.Bytes
+	out.Issuer.fillFromRDNSequence(&in.TBSCertificate.Issuer)
+	out.Subject.fillFromRDNSequence(&in.TBSCertificate.Subject)
+	out.NotBefore = in.TBSCertificate.Validity.NotBefore
+	out.NotAfter = in.TBSCertificate.Validity.NotAfter
 
 	for _, e := range in.TBSCertificate.Extensions {
 		if len(e.Id) == 4 && e.Id[0] == 2 && e.Id[1] == 5 && e.Id[2] == 29 {
 			switch e.Id[3] {
 			case 15:
 				// RFC 5280, 4.2.1.3
-				var usageBits asn1.BitString;
-				_, err := asn1.Unmarshal(&usageBits, e.Value);
+				var usageBits asn1.BitString
+				_, err := asn1.Unmarshal(&usageBits, e.Value)
 
 				if err == nil {
-					var usage int;
+					var usage int
 					for i := 0; i < 9; i++ {
 						if usageBits.At(i) != 0 {
 							usage |= 1 << uint(i)
 						}
 					}
-					out.KeyUsage = KeyUsage(usage);
-					continue;
+					out.KeyUsage = KeyUsage(usage)
+					continue
 				}
 			case 19:
 				// RFC 5280, 4.2.1.9
-				var constriants basicConstraints;
-				_, err := asn1.Unmarshal(&constriants, e.Value);
+				var constriants basicConstraints
+				_, err := asn1.Unmarshal(&constriants, e.Value)
 
 				if err == nil {
-					out.BasicConstraintsValid = true;
-					out.IsCA = constriants.IsCA;
-					out.MaxPathLen = constriants.MaxPathLen;
-					continue;
+					out.BasicConstraintsValid = true
+					out.IsCA = constriants.IsCA
+					out.MaxPathLen = constriants.MaxPathLen
+					continue
 				}
 			case 17:
 				// RFC 5280, 4.2.1.6
@@ -490,8 +490,8 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 				//      uniformResourceIdentifier       [6]     IA5String,
 				//      iPAddress                       [7]     OCTET STRING,
 				//      registeredID                    [8]     OBJECT IDENTIFIER }
-				var seq asn1.RawValue;
-				_, err := asn1.Unmarshal(&seq, e.Value);
+				var seq asn1.RawValue
+				_, err := asn1.Unmarshal(&seq, e.Value)
 				if err != nil {
 					return nil, err
 				}
@@ -499,22 +499,22 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 					return nil, asn1.StructuralError{"bad SAN sequence"}
 				}
 
-				parsedName := false;
+				parsedName := false
 
-				rest := seq.Bytes;
+				rest := seq.Bytes
 				for len(rest) > 0 {
-					var v asn1.RawValue;
-					rest, err = asn1.Unmarshal(&v, rest);
+					var v asn1.RawValue
+					rest, err = asn1.Unmarshal(&v, rest)
 					if err != nil {
 						return nil, err
 					}
 					switch v.Tag {
 					case 1:
-						out.EmailAddresses = appendString(out.EmailAddresses, string(v.Bytes));
-						parsedName = true;
+						out.EmailAddresses = appendString(out.EmailAddresses, string(v.Bytes))
+						parsedName = true
 					case 2:
-						out.DNSNames = appendString(out.DNSNames, string(v.Bytes));
-						parsedName = true;
+						out.DNSNames = appendString(out.DNSNames, string(v.Bytes))
+						parsedName = true
 					}
 				}
 
@@ -526,18 +526,18 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 
 			case 35:
 				// RFC 5280, 4.2.1.1
-				var a authKeyId;
-				_, err = asn1.Unmarshal(&a, e.Value);
+				var a authKeyId
+				_, err = asn1.Unmarshal(&a, e.Value)
 				if err != nil {
 					return nil, err
 				}
-				out.AuthorityKeyId = a.Id;
-				continue;
+				out.AuthorityKeyId = a.Id
+				continue
 
 			case 14:
 				// RFC 5280, 4.2.1.2
-				out.SubjectKeyId = e.Value;
-				continue;
+				out.SubjectKeyId = e.Value
+				continue
 			}
 		}
 
@@ -546,13 +546,13 @@ func parseCertificate(in *certificate) (*Certificate, os.Error) {
 		}
 	}
 
-	return out, nil;
+	return out, nil
 }
 
 // ParseCertificate parses a single certificate from the given ASN.1 DER data.
 func ParseCertificate(asn1Data []byte) (*Certificate, os.Error) {
-	var cert certificate;
-	rest, err := asn1.Unmarshal(&cert, asn1Data);
+	var cert certificate
+	rest, err := asn1.Unmarshal(&cert, asn1Data)
 	if err != nil {
 		return nil, err
 	}
@@ -560,32 +560,32 @@ func ParseCertificate(asn1Data []byte) (*Certificate, os.Error) {
 		return nil, asn1.SyntaxError{"trailing data"}
 	}
 
-	return parseCertificate(&cert);
+	return parseCertificate(&cert)
 }
 
 // ParseCertificates parses one or more certificates from the given ASN.1 DER
 // data. The certificates must be concatenated with no intermediate padding.
 func ParseCertificates(asn1Data []byte) ([]*Certificate, os.Error) {
-	v := new(vector.Vector);
+	v := new(vector.Vector)
 
 	for len(asn1Data) > 0 {
-		cert := new(certificate);
-		var err os.Error;
-		asn1Data, err = asn1.Unmarshal(cert, asn1Data);
+		cert := new(certificate)
+		var err os.Error
+		asn1Data, err = asn1.Unmarshal(cert, asn1Data)
 		if err != nil {
 			return nil, err
 		}
-		v.Push(cert);
+		v.Push(cert)
 	}
 
-	ret := make([]*Certificate, v.Len());
+	ret := make([]*Certificate, v.Len())
 	for i := 0; i < v.Len(); i++ {
-		cert, err := parseCertificate(v.At(i).(*certificate));
+		cert, err := parseCertificate(v.At(i).(*certificate))
 		if err != nil {
 			return nil, err
 		}
-		ret[i] = cert;
+		ret[i] = cert
 	}
 
-	return ret, nil;
+	return ret, nil
 }

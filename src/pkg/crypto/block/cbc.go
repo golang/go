@@ -12,44 +12,44 @@
 package block
 
 import (
-	"io";
+	"io"
 )
 
 type cbcCipher struct {
-	c		Cipher;
-	blockSize	int;
-	iv		[]byte;
-	tmp		[]byte;
+	c         Cipher
+	blockSize int
+	iv        []byte
+	tmp       []byte
 }
 
 func newCBC(c Cipher, iv []byte) *cbcCipher {
-	n := c.BlockSize();
-	x := new(cbcCipher);
-	x.c = c;
-	x.blockSize = n;
-	x.iv = copy(iv);
-	x.tmp = make([]byte, n);
-	return x;
+	n := c.BlockSize()
+	x := new(cbcCipher)
+	x.c = c
+	x.blockSize = n
+	x.iv = copy(iv)
+	x.tmp = make([]byte, n)
+	return x
 }
 
-func (x *cbcCipher) BlockSize() int	{ return x.blockSize }
+func (x *cbcCipher) BlockSize() int { return x.blockSize }
 
 func (x *cbcCipher) Encrypt(src, dst []byte) {
 	for i := 0; i < x.blockSize; i++ {
 		x.iv[i] ^= src[i]
 	}
-	x.c.Encrypt(x.iv, x.iv);
+	x.c.Encrypt(x.iv, x.iv)
 	for i := 0; i < x.blockSize; i++ {
 		dst[i] = x.iv[i]
 	}
 }
 
 func (x *cbcCipher) Decrypt(src, dst []byte) {
-	x.c.Decrypt(src, x.tmp);
+	x.c.Decrypt(src, x.tmp)
 	for i := 0; i < x.blockSize; i++ {
-		x.tmp[i] ^= x.iv[i];
-		x.iv[i] = src[i];
-		dst[i] = x.tmp[i];
+		x.tmp[i] ^= x.iv[i]
+		x.iv[i] = src[i]
+		dst[i] = x.tmp[i]
 	}
 }
 

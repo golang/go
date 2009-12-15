@@ -8,11 +8,11 @@ const (
 	// 2 bits:   type   0 = literal  1=EOF  2=Match   3=Unused
 	// 8 bits:   xlength = length - MIN_MATCH_LENGTH
 	// 22 bits   xoffset = offset - MIN_OFFSET_SIZE, or literal
-	lengthShift	= 22;
-	offsetMask	= 1<<lengthShift - 1;
-	typeMask	= 3 << 30;
-	literalType	= 0 << 30;
-	matchType	= 1 << 30;
+	lengthShift = 22
+	offsetMask  = 1<<lengthShift - 1
+	typeMask    = 3 << 30
+	literalType = 0 << 30
+	matchType   = 1 << 30
 )
 
 // The length code for length X (MIN_MATCH_LENGTH <= X <= MAX_MATCH_LENGTH)
@@ -68,7 +68,7 @@ var offsetCodes = [...]uint32{
 type token uint32
 
 // Convert a literal into a literal token.
-func literalToken(literal uint32) token	{ return token(literalType + literal) }
+func literalToken(literal uint32) token { return token(literalType + literal) }
 
 // Convert a < xlength, xoffset > pair into a match token.
 func matchToken(xlength uint32, xoffset uint32) token {
@@ -76,21 +76,21 @@ func matchToken(xlength uint32, xoffset uint32) token {
 }
 
 // Returns the type of a token
-func (t token) typ() uint32	{ return uint32(t) & typeMask }
+func (t token) typ() uint32 { return uint32(t) & typeMask }
 
 // Returns the literal of a literal token
-func (t token) literal() uint32	{ return uint32(t - literalType) }
+func (t token) literal() uint32 { return uint32(t - literalType) }
 
 // Returns the extra offset of a match token
-func (t token) offset() uint32	{ return uint32(t) & offsetMask }
+func (t token) offset() uint32 { return uint32(t) & offsetMask }
 
-func (t token) length() uint32	{ return uint32((t - matchType) >> lengthShift) }
+func (t token) length() uint32 { return uint32((t - matchType) >> lengthShift) }
 
-func lengthCode(len uint32) uint32	{ return lengthCodes[len] }
+func lengthCode(len uint32) uint32 { return lengthCodes[len] }
 
 // Returns the offset code corresponding to a specific offset
 func offsetCode(off uint32) uint32 {
-	const n = uint32(len(offsetCodes));
+	const n = uint32(len(offsetCodes))
 	switch {
 	case off < n:
 		return offsetCodes[off]
@@ -99,5 +99,5 @@ func offsetCode(off uint32) uint32 {
 	default:
 		return offsetCodes[off>>14] + 28
 	}
-	panic("unreachable");
+	panic("unreachable")
 }

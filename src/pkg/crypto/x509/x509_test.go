@@ -5,18 +5,18 @@
 package x509
 
 import (
-	"big";
-	"crypto/rsa";
-	"encoding/hex";
-	"encoding/pem";
-	"reflect";
-	"strings";
-	"testing";
+	"big"
+	"crypto/rsa"
+	"encoding/hex"
+	"encoding/pem"
+	"reflect"
+	"strings"
+	"testing"
 )
 
 func TestParsePKCS1PrivateKey(t *testing.T) {
-	block, _ := pem.Decode(strings.Bytes(pemPrivateKey));
-	priv, err := ParsePKCS1PrivateKey(block.Bytes);
+	block, _ := pem.Decode(strings.Bytes(pemPrivateKey))
+	priv, err := ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		t.Errorf("Failed to parse private key: %s", err)
 	}
@@ -37,9 +37,9 @@ tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
 `
 
 func bigFromString(s string) *big.Int {
-	ret := new(big.Int);
-	ret.SetString(s, 10);
-	return ret;
+	ret := new(big.Int)
+	ret.SetString(s, 10)
+	return ret
 }
 
 var rsaPrivateKey = &rsa.PrivateKey{
@@ -53,8 +53,8 @@ var rsaPrivateKey = &rsa.PrivateKey{
 }
 
 type matchHostnamesTest struct {
-	pattern, host	string;
-	ok		bool;
+	pattern, host string
+	ok            bool
 }
 
 var matchHostnamesTests = []matchHostnamesTest{
@@ -72,7 +72,7 @@ var matchHostnamesTests = []matchHostnamesTest{
 
 func TestMatchHostnames(t *testing.T) {
 	for i, test := range matchHostnamesTests {
-		r := matchHostnames(test.pattern, test.host);
+		r := matchHostnames(test.pattern, test.host)
 		if r != test.ok {
 			t.Errorf("#%d mismatch got: %t want: %t", i, r, test.ok)
 		}
@@ -80,17 +80,17 @@ func TestMatchHostnames(t *testing.T) {
 }
 
 func TestCertificateParse(t *testing.T) {
-	s, _ := hex.DecodeString(certBytes);
-	certs, err := ParseCertificates(s);
+	s, _ := hex.DecodeString(certBytes)
+	certs, err := ParseCertificates(s)
 	if err != nil {
 		t.Error(err)
 	}
 	if len(certs) != 2 {
-		t.Errorf("Wrong number of certs: got %d want 2", len(certs));
-		return;
+		t.Errorf("Wrong number of certs: got %d want 2", len(certs))
+		return
 	}
 
-	err = certs[0].CheckSignatureFrom(certs[1]);
+	err = certs[0].CheckSignatureFrom(certs[1])
 	if err != nil {
 		t.Error(err)
 	}

@@ -10,33 +10,33 @@
 package main
 
 import (
-	big "gmp";
-	"runtime";
+	big "gmp"
+	"runtime"
 )
 
 func fibber(c chan *big.Int, out chan string, n int64) {
 	// Keep the fibbers in dedicated operating system
 	// threads, so that this program tests coordination
 	// between pthreads and not just goroutines.
-	runtime.LockOSThread();
+	runtime.LockOSThread()
 
-	i := big.NewInt(n);
+	i := big.NewInt(n)
 	if n == 0 {
 		c <- i
 	}
 	for {
-		j := <-c;
-		out <- j.String();
-		i.Add(i, j);
-		c <- i;
+		j := <-c
+		out <- j.String()
+		i.Add(i, j)
+		c <- i
 	}
 }
 
 func main() {
-	c := make(chan *big.Int);
-	out := make(chan string);
-	go fibber(c, out, 0);
-	go fibber(c, out, 1);
+	c := make(chan *big.Int)
+	out := make(chan string)
+	go fibber(c, out, 0)
+	go fibber(c, out, 1)
 	for i := 0; i < 200; i++ {
 		println(<-out)
 	}

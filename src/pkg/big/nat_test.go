@@ -13,7 +13,7 @@ func TestCmpNN(t *testing.T) {
 
 type funNN func(z, x, y []Word) []Word
 type argNN struct {
-	z, x, y []Word;
+	z, x, y []Word
 }
 
 
@@ -41,7 +41,7 @@ var prodNN = []argNN{
 
 func TestSetN(t *testing.T) {
 	for _, a := range sumNN {
-		z := setN(nil, a.z);
+		z := setN(nil, a.z)
 		if cmpNN(z, a.z) != 0 {
 			t.Errorf("got z = %v; want %v", z, a.z)
 		}
@@ -50,7 +50,7 @@ func TestSetN(t *testing.T) {
 
 
 func testFunNN(t *testing.T, msg string, f funNN, a argNN) {
-	z := f(nil, a.x, a.y);
+	z := f(nil, a.x, a.y)
 	if cmpNN(z, a.z) != 0 {
 		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, z, a.z)
 	}
@@ -59,33 +59,33 @@ func testFunNN(t *testing.T, msg string, f funNN, a argNN) {
 
 func TestFunNN(t *testing.T) {
 	for _, a := range sumNN {
-		arg := a;
-		testFunNN(t, "addNN", addNN, arg);
+		arg := a
+		testFunNN(t, "addNN", addNN, arg)
 
-		arg = argNN{a.z, a.y, a.x};
-		testFunNN(t, "addNN symmetric", addNN, arg);
+		arg = argNN{a.z, a.y, a.x}
+		testFunNN(t, "addNN symmetric", addNN, arg)
 
-		arg = argNN{a.x, a.z, a.y};
-		testFunNN(t, "subNN", subNN, arg);
+		arg = argNN{a.x, a.z, a.y}
+		testFunNN(t, "subNN", subNN, arg)
 
-		arg = argNN{a.y, a.z, a.x};
-		testFunNN(t, "subNN symmetric", subNN, arg);
+		arg = argNN{a.y, a.z, a.x}
+		testFunNN(t, "subNN symmetric", subNN, arg)
 	}
 
 	for _, a := range prodNN {
-		arg := a;
-		testFunNN(t, "mulNN", mulNN, arg);
+		arg := a
+		testFunNN(t, "mulNN", mulNN, arg)
 
-		arg = argNN{a.z, a.y, a.x};
-		testFunNN(t, "mulNN symmetric", mulNN, arg);
+		arg = argNN{a.z, a.y, a.x}
+		testFunNN(t, "mulNN symmetric", mulNN, arg)
 	}
 }
 
 
 type strN struct {
-	x	[]Word;
-	b	int;
-	s	string;
+	x []Word
+	b int
+	s string
 }
 
 
@@ -99,12 +99,12 @@ var tabN = []strN{
 
 func TestStringN(t *testing.T) {
 	for _, a := range tabN {
-		s := stringN(a.x, a.b);
+		s := stringN(a.x, a.b)
 		if s != a.s {
 			t.Errorf("stringN%+v\n\tgot s = %s; want %s", a, s, a.s)
 		}
 
-		x, b, n := scanN(nil, a.s, a.b);
+		x, b, n := scanN(nil, a.s, a.b)
 		if cmpNN(x, a.x) != 0 {
 			t.Errorf("scanN%+v\n\tgot z = %v; want %v", a, x, a.x)
 		}
@@ -119,20 +119,20 @@ func TestStringN(t *testing.T) {
 
 
 func TestLeadingZeroBits(t *testing.T) {
-	var x Word = 1 << (_W - 1);
+	var x Word = 1 << (_W - 1)
 	for i := 0; i <= _W; i++ {
 		if leadingZeroBits(x) != i {
 			t.Errorf("failed at %x: got %d want %d", x, leadingZeroBits(x), i)
 		}
-		x >>= 1;
+		x >>= 1
 	}
 }
 
 
 type shiftTest struct {
-	in	[]Word;
-	shift	int;
-	out	[]Word;
+	in    []Word
+	shift int
+	out   []Word
 }
 
 
@@ -149,12 +149,12 @@ var leftShiftTests = []shiftTest{
 
 func TestShiftLeft(t *testing.T) {
 	for i, test := range leftShiftTests {
-		dst := make([]Word, len(test.out));
-		shiftLeft(dst, test.in, test.shift);
+		dst := make([]Word, len(test.out))
+		shiftLeft(dst, test.in, test.shift)
 		for j, v := range dst {
 			if test.out[j] != v {
-				t.Errorf("#%d: got: %v want: %v", i, dst, test.out);
-				break;
+				t.Errorf("#%d: got: %v want: %v", i, dst, test.out)
+				break
 			}
 		}
 	}
@@ -175,12 +175,12 @@ var rightShiftTests = []shiftTest{
 
 func TestShiftRight(t *testing.T) {
 	for i, test := range rightShiftTests {
-		dst := make([]Word, len(test.out));
-		shiftRight(dst, test.in, test.shift);
+		dst := make([]Word, len(test.out))
+		shiftRight(dst, test.in, test.shift)
 		for j, v := range dst {
 			if test.out[j] != v {
-				t.Errorf("#%d: got: %v want: %v", i, dst, test.out);
-				break;
+				t.Errorf("#%d: got: %v want: %v", i, dst, test.out)
+				break
 			}
 		}
 	}
@@ -188,9 +188,9 @@ func TestShiftRight(t *testing.T) {
 
 
 type modNWTest struct {
-	in		string;
-	dividend	string;
-	out		string;
+	in       string
+	dividend string
+	out      string
 }
 
 
@@ -206,11 +206,11 @@ var modNWTests64 = []modNWTest{
 
 func runModNWTests(t *testing.T, tests []modNWTest) {
 	for i, test := range tests {
-		in, _ := new(Int).SetString(test.in, 10);
-		d, _ := new(Int).SetString(test.dividend, 10);
-		out, _ := new(Int).SetString(test.out, 10);
+		in, _ := new(Int).SetString(test.in, 10)
+		d, _ := new(Int).SetString(test.dividend, 10)
+		out, _ := new(Int).SetString(test.out, 10)
 
-		r := modNW(in.abs, d.abs[0]);
+		r := modNW(in.abs, d.abs[0])
 		if r != out.abs[0] {
 			t.Errorf("#%d failed: got %s want %s\n", i, r, out)
 		}
@@ -229,20 +229,20 @@ func TestModNW(t *testing.T) {
 
 
 func TestTrailingZeroBits(t *testing.T) {
-	var x Word;
-	x--;
+	var x Word
+	x--
 	for i := 0; i < _W; i++ {
 		if trailingZeroBits(x) != i {
 			t.Errorf("Failed at step %d: x: %x got: %d\n", i, x, trailingZeroBits(x))
 		}
-		x <<= 1;
+		x <<= 1
 	}
 }
 
 
 type expNNNTest struct {
-	x, y, m	string;
-	out	string;
+	x, y, m string
+	out     string
 }
 
 
@@ -263,17 +263,17 @@ var expNNNTests = []expNNNTest{
 
 func TestExpNNN(t *testing.T) {
 	for i, test := range expNNNTests {
-		x, _, _ := scanN(nil, test.x, 0);
-		y, _, _ := scanN(nil, test.y, 0);
-		out, _, _ := scanN(nil, test.out, 0);
+		x, _, _ := scanN(nil, test.x, 0)
+		y, _, _ := scanN(nil, test.y, 0)
+		out, _, _ := scanN(nil, test.out, 0)
 
-		var m []Word;
+		var m []Word
 
 		if len(test.m) > 0 {
 			m, _, _ = scanN(nil, test.m, 0)
 		}
 
-		z := expNNN(nil, x, y, m);
+		z := expNNN(nil, x, y, m)
 		if cmpNN(z, out) != 0 {
 			t.Errorf("#%d got %v want %v", i, z, out)
 		}

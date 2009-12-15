@@ -25,15 +25,15 @@
 package main
 
 import (
-	"container/vector";
-	"go/ast";
-	"go/parser";
-	"go/token";
-	"go/scanner";
-	"os";
-	pathutil "path";
-	"sort";
-	"strings";
+	"container/vector"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"go/scanner"
+	"os"
+	pathutil "path"
+	"sort"
+	"strings"
 )
 
 
@@ -47,16 +47,16 @@ import (
 // into a RunList containing pair runs (x, {y}) where each run consists of
 // a list of y's with the same x.
 type RunList struct {
-	vector.Vector;
-	less	func(x, y interface{}) bool;
+	vector.Vector
+	less func(x, y interface{}) bool
 }
 
-func (h *RunList) Less(i, j int) bool	{ return h.less(h.At(i), h.At(j)) }
+func (h *RunList) Less(i, j int) bool { return h.less(h.At(i), h.At(j)) }
 
 
 func (h *RunList) sort(less func(x, y interface{}) bool) {
-	h.less = less;
-	sort.Sort(h);
+	h.less = less
+	sort.Sort(h)
 }
 
 
@@ -64,15 +64,15 @@ func (h *RunList) sort(less func(x, y interface{}) bool) {
 // (specified by less) into "runs".
 func (h *RunList) reduce(less func(x, y interface{}) bool, newRun func(h *RunList, i, j int) interface{}) *RunList {
 	// create runs of entries with equal values
-	h.sort(less);
+	h.sort(less)
 
 	// for each run, make a new run object and collect them in a new RunList
-	var hh RunList;
-	i := 0;
+	var hh RunList
+	i := 0
 	for j := 0; j < h.Len(); j++ {
 		if less(h.At(i), h.At(j)) {
-			hh.Push(newRun(h, i, j));
-			i = j;	// start a new run
+			hh.Push(newRun(h, i, j))
+			i = j // start a new run
 		}
 	}
 	// add final run, if any
@@ -80,7 +80,7 @@ func (h *RunList) reduce(less func(x, y interface{}) bool, newRun func(h *RunLis
 		hh.Push(newRun(h, i, h.Len()))
 	}
 
-	return &hh;
+	return &hh
 }
 
 
@@ -103,15 +103,15 @@ type SpotInfo uint32
 type SpotKind uint32
 
 const (
-	PackageClause	SpotKind	= iota;
-	ImportDecl;
-	ConstDecl;
-	TypeDecl;
-	VarDecl;
-	FuncDecl;
-	MethodDecl;
-	Use;
-	nKinds;
+	PackageClause SpotKind = iota
+	ImportDecl
+	ConstDecl
+	TypeDecl
+	VarDecl
+	FuncDecl
+	MethodDecl
+	Use
+	nKinds
 )
 
 
@@ -127,7 +127,7 @@ func init() {
 // makeSpotInfo makes a SpotInfo.
 func makeSpotInfo(kind SpotKind, lori int, isIndex bool) SpotInfo {
 	// encode lori: bits [4..32)
-	x := SpotInfo(lori) << 4;
+	x := SpotInfo(lori) << 4
 	if int(x>>4) != lori {
 		// lori value doesn't fit - since snippet indices are
 		// most certainly always smaller then 1<<28, this can
@@ -135,18 +135,18 @@ func makeSpotInfo(kind SpotKind, lori int, isIndex bool) SpotInfo {
 		x = 0
 	}
 	// encode kind: bits [1..4)
-	x |= SpotInfo(kind) << 1;
+	x |= SpotInfo(kind) << 1
 	// encode isIndex: bit 0
 	if isIndex {
 		x |= 1
 	}
-	return x;
+	return x
 }
 
 
-func (x SpotInfo) Kind() SpotKind	{ return SpotKind(x >> 1 & 7) }
-func (x SpotInfo) Lori() int		{ return int(x >> 4) }
-func (x SpotInfo) IsIndex() bool	{ return x&1 != 0 }
+func (x SpotInfo) Kind() SpotKind { return SpotKind(x >> 1 & 7) }
+func (x SpotInfo) Lori() int      { return int(x >> 4) }
+func (x SpotInfo) IsIndex() bool  { return x&1 != 0 }
 
 
 // ----------------------------------------------------------------------------
@@ -157,55 +157,55 @@ const removeDuplicates = true
 
 // A KindRun is a run of SpotInfos of the same kind in a given file.
 type KindRun struct {
-	Kind	SpotKind;
-	Infos	[]SpotInfo;
+	Kind  SpotKind
+	Infos []SpotInfo
 }
 
 
 // KindRuns are sorted by line number or index. Since the isIndex bit
 // is always the same for all infos in one list we can compare lori's.
-func (f *KindRun) Len() int		{ return len(f.Infos) }
-func (f *KindRun) Less(i, j int) bool	{ return f.Infos[i].Lori() < f.Infos[j].Lori() }
-func (f *KindRun) Swap(i, j int)	{ f.Infos[i], f.Infos[j] = f.Infos[j], f.Infos[i] }
+func (f *KindRun) Len() int           { return len(f.Infos) }
+func (f *KindRun) Less(i, j int) bool { return f.Infos[i].Lori() < f.Infos[j].Lori() }
+func (f *KindRun) Swap(i, j int)      { f.Infos[i], f.Infos[j] = f.Infos[j], f.Infos[i] }
 
 
 // FileRun contents are sorted by Kind for the reduction into KindRuns.
-func lessKind(x, y interface{}) bool	{ return x.(SpotInfo).Kind() < y.(SpotInfo).Kind() }
+func lessKind(x, y interface{}) bool { return x.(SpotInfo).Kind() < y.(SpotInfo).Kind() }
 
 
 // newKindRun allocates a new KindRun from the SpotInfo run [i, j) in h.
 func newKindRun(h *RunList, i, j int) interface{} {
-	kind := h.At(i).(SpotInfo).Kind();
-	infos := make([]SpotInfo, j-i);
-	k := 0;
+	kind := h.At(i).(SpotInfo).Kind()
+	infos := make([]SpotInfo, j-i)
+	k := 0
 	for ; i < j; i++ {
-		infos[k] = h.At(i).(SpotInfo);
-		k++;
+		infos[k] = h.At(i).(SpotInfo)
+		k++
 	}
-	run := &KindRun{kind, infos};
+	run := &KindRun{kind, infos}
 
 	// Spots were sorted by file and kind to create this run.
 	// Within this run, sort them by line number or index.
-	sort.Sort(run);
+	sort.Sort(run)
 
 	if removeDuplicates {
 		// Since both the lori and kind field must be
 		// same for duplicates, and since the isIndex
 		// bit is always the same for all infos in one
 		// list we can simply compare the entire info.
-		k := 0;
-		var prev SpotInfo;
+		k := 0
+		var prev SpotInfo
 		for i, x := range infos {
 			if x != prev || i == 0 {
-				infos[k] = x;
-				k++;
-				prev = x;
+				infos[k] = x
+				k++
+				prev = x
 			}
 		}
-		run.Infos = infos[0:k];
+		run.Infos = infos[0:k]
 	}
 
-	return run;
+	return run
 }
 
 
@@ -214,8 +214,8 @@ func newKindRun(h *RunList, i, j int) interface{} {
 
 // A Pak describes a Go package.
 type Pak struct {
-	Path	string;	// path of directory containing the package
-	Name	string;	// package name as declared by package clause
+	Path string // path of directory containing the package
+	Name string // package name as declared by package clause
 }
 
 // Paks are sorted by name (primary key) and by import path (secondary key).
@@ -226,49 +226,49 @@ func (p *Pak) less(q *Pak) bool {
 
 // A File describes a Go file.
 type File struct {
-	Path	string;	// complete file name
-	Pak	Pak;	// the package to which the file belongs
+	Path string // complete file name
+	Pak  Pak    // the package to which the file belongs
 }
 
 
 // A Spot describes a single occurence of a word.
 type Spot struct {
-	File	*File;
-	Info	SpotInfo;
+	File *File
+	Info SpotInfo
 }
 
 
 // A FileRun is a list of KindRuns belonging to the same file.
 type FileRun struct {
-	File	*File;
-	Groups	[]*KindRun;
+	File   *File
+	Groups []*KindRun
 }
 
 
 // Spots are sorted by path for the reduction into FileRuns.
-func lessSpot(x, y interface{}) bool	{ return x.(Spot).File.Path < y.(Spot).File.Path }
+func lessSpot(x, y interface{}) bool { return x.(Spot).File.Path < y.(Spot).File.Path }
 
 
 // newFileRun allocates a new FileRun from the Spot run [i, j) in h.
 func newFileRun(h0 *RunList, i, j int) interface{} {
-	file := h0.At(i).(Spot).File;
+	file := h0.At(i).(Spot).File
 
 	// reduce the list of Spots into a list of KindRuns
-	var h1 RunList;
-	h1.Vector.Resize(j-i, 0);
-	k := 0;
+	var h1 RunList
+	h1.Vector.Resize(j-i, 0)
+	k := 0
 	for ; i < j; i++ {
-		h1.Set(k, h0.At(i).(Spot).Info);
-		k++;
+		h1.Set(k, h0.At(i).(Spot).Info)
+		k++
 	}
-	h2 := h1.reduce(lessKind, newKindRun);
+	h2 := h1.reduce(lessKind, newKindRun)
 
 	// create the FileRun
-	groups := make([]*KindRun, h2.Len());
+	groups := make([]*KindRun, h2.Len())
 	for i := 0; i < h2.Len(); i++ {
 		groups[i] = h2.At(i).(*KindRun)
 	}
-	return &FileRun{file, groups};
+	return &FileRun{file, groups}
 }
 
 
@@ -277,14 +277,14 @@ func newFileRun(h0 *RunList, i, j int) interface{} {
 
 // A PakRun describes a run of *FileRuns of a package.
 type PakRun struct {
-	Pak	Pak;
-	Files	[]*FileRun;
+	Pak   Pak
+	Files []*FileRun
 }
 
 // Sorting support for files within a PakRun.
-func (p *PakRun) Len() int		{ return len(p.Files) }
-func (p *PakRun) Less(i, j int) bool	{ return p.Files[i].File.Path < p.Files[j].File.Path }
-func (p *PakRun) Swap(i, j int)		{ p.Files[i], p.Files[j] = p.Files[j], p.Files[i] }
+func (p *PakRun) Len() int           { return len(p.Files) }
+func (p *PakRun) Less(i, j int) bool { return p.Files[i].File.Path < p.Files[j].File.Path }
+func (p *PakRun) Swap(i, j int)      { p.Files[i], p.Files[j] = p.Files[j], p.Files[i] }
 
 
 // FileRuns are sorted by package for the reduction into PakRuns.
@@ -295,16 +295,16 @@ func lessFileRun(x, y interface{}) bool {
 
 // newPakRun allocates a new PakRun from the *FileRun run [i, j) in h.
 func newPakRun(h *RunList, i, j int) interface{} {
-	pak := h.At(i).(*FileRun).File.Pak;
-	files := make([]*FileRun, j-i);
-	k := 0;
+	pak := h.At(i).(*FileRun).File.Pak
+	files := make([]*FileRun, j-i)
+	k := 0
 	for ; i < j; i++ {
-		files[k] = h.At(i).(*FileRun);
-		k++;
+		files[k] = h.At(i).(*FileRun)
+		k++
 	}
-	run := &PakRun{pak, files};
-	sort.Sort(run);	// files were sorted by package; sort them by file now
-	return run;
+	run := &PakRun{pak, files}
+	sort.Sort(run) // files were sorted by package; sort them by file now
+	return run
 }
 
 
@@ -316,43 +316,43 @@ type HitList []*PakRun
 
 
 // PakRuns are sorted by package.
-func lessPakRun(x, y interface{}) bool	{ return x.(*PakRun).Pak.less(&y.(*PakRun).Pak) }
+func lessPakRun(x, y interface{}) bool { return x.(*PakRun).Pak.less(&y.(*PakRun).Pak) }
 
 
 func reduce(h0 *RunList) HitList {
 	// reduce a list of Spots into a list of FileRuns
-	h1 := h0.reduce(lessSpot, newFileRun);
+	h1 := h0.reduce(lessSpot, newFileRun)
 	// reduce a list of FileRuns into a list of PakRuns
-	h2 := h1.reduce(lessFileRun, newPakRun);
+	h2 := h1.reduce(lessFileRun, newPakRun)
 	// sort the list of PakRuns by package
-	h2.sort(lessPakRun);
+	h2.sort(lessPakRun)
 	// create a HitList
-	h := make(HitList, h2.Len());
+	h := make(HitList, h2.Len())
 	for i := 0; i < h2.Len(); i++ {
 		h[i] = h2.At(i).(*PakRun)
 	}
-	return h;
+	return h
 }
 
 
 func (h HitList) filter(pakname string) HitList {
 	// determine number of matching packages (most of the time just one)
-	n := 0;
+	n := 0
 	for _, p := range h {
 		if p.Pak.Name == pakname {
 			n++
 		}
 	}
 	// create filtered HitList
-	hh := make(HitList, n);
-	i := 0;
+	hh := make(HitList, n)
+	i := 0
 	for _, p := range h {
 		if p.Pak.Name == pakname {
-			hh[i] = p;
-			i++;
+			hh[i] = p
+			i++
 		}
 	}
-	return hh;
+	return hh
 }
 
 
@@ -360,33 +360,33 @@ func (h HitList) filter(pakname string) HitList {
 // AltWords
 
 type wordPair struct {
-	canon	string;	// canonical word spelling (all lowercase)
-	alt	string;	// alternative spelling
+	canon string // canonical word spelling (all lowercase)
+	alt   string // alternative spelling
 }
 
 
 // An AltWords describes a list of alternative spellings for a
 // canonical (all lowercase) spelling of a word.
 type AltWords struct {
-	Canon	string;		// canonical word spelling (all lowercase)
-	Alts	[]string;	// alternative spelling for the same word
+	Canon string   // canonical word spelling (all lowercase)
+	Alts  []string // alternative spelling for the same word
 }
 
 
 // wordPairs are sorted by their canonical spelling.
-func lessWordPair(x, y interface{}) bool	{ return x.(*wordPair).canon < y.(*wordPair).canon }
+func lessWordPair(x, y interface{}) bool { return x.(*wordPair).canon < y.(*wordPair).canon }
 
 
 // newAltWords allocates a new AltWords from the *wordPair run [i, j) in h.
 func newAltWords(h *RunList, i, j int) interface{} {
-	canon := h.At(i).(*wordPair).canon;
-	alts := make([]string, j-i);
-	k := 0;
+	canon := h.At(i).(*wordPair).canon
+	alts := make([]string, j-i)
+	k := 0
 	for ; i < j; i++ {
-		alts[k] = h.At(i).(*wordPair).alt;
-		k++;
+		alts[k] = h.At(i).(*wordPair).alt
+		k++
 	}
-	return &AltWords{canon, alts};
+	return &AltWords{canon, alts}
 }
 
 
@@ -397,15 +397,15 @@ func (a *AltWords) filter(s string) *AltWords {
 	}
 
 	// make a new AltWords with the current spelling removed
-	alts := make([]string, len(a.Alts));
-	i := 0;
+	alts := make([]string, len(a.Alts))
+	i := 0
 	for _, w := range a.Alts {
 		if w != s {
-			alts[i] = w;
-			i++;
+			alts[i] = w
+			i++
 		}
 	}
-	return &AltWords{a.Canon, alts[0:i]};
+	return &AltWords{a.Canon, alts[0:i]}
 }
 
 
@@ -418,8 +418,8 @@ const excludeTestFiles = false
 
 
 type IndexResult struct {
-	Decls	RunList;	// package-level declarations (with snippets)
-	Others	RunList;	// all other occurences
+	Decls  RunList // package-level declarations (with snippets)
+	Others RunList // all other occurences
 }
 
 
@@ -428,18 +428,18 @@ type IndexResult struct {
 // interface for walking file trees, and the ast.Visitor interface for
 // walking Go ASTs.
 type Indexer struct {
-	words		map[string]*IndexResult;	// RunLists of Spots
-	snippets	vector.Vector;			// vector of *Snippets, indexed by snippet indices
-	file		*File;				// current file
-	decl		ast.Decl;			// current decl
-	nspots		int;				// number of spots encountered
+	words    map[string]*IndexResult // RunLists of Spots
+	snippets vector.Vector           // vector of *Snippets, indexed by snippet indices
+	file     *File                   // current file
+	decl     ast.Decl                // current decl
+	nspots   int                     // number of spots encountered
 }
 
 
 func (x *Indexer) addSnippet(s *Snippet) int {
-	index := x.snippets.Len();
-	x.snippets.Push(s);
-	return index;
+	index := x.snippets.Len()
+	x.snippets.Push(s)
+	return index
 }
 
 
@@ -452,24 +452,24 @@ func (x *Indexer) visitComment(c *ast.CommentGroup) {
 
 func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 	if id != nil {
-		lists, found := x.words[id.Value];
+		lists, found := x.words[id.Value]
 		if !found {
-			lists = new(IndexResult);
-			x.words[id.Value] = lists;
+			lists = new(IndexResult)
+			x.words[id.Value] = lists
 		}
 
 		if kind == Use || x.decl == nil {
 			// not a declaration or no snippet required
-			info := makeSpotInfo(kind, id.Pos().Line, false);
-			lists.Others.Push(Spot{x.file, info});
+			info := makeSpotInfo(kind, id.Pos().Line, false)
+			lists.Others.Push(Spot{x.file, info})
 		} else {
 			// a declaration with snippet
-			index := x.addSnippet(NewSnippet(x.decl, id));
-			info := makeSpotInfo(kind, index, true);
-			lists.Decls.Push(Spot{x.file, info});
+			index := x.addSnippet(NewSnippet(x.decl, id))
+			info := makeSpotInfo(kind, index, true)
+			lists.Decls.Push(Spot{x.file, info})
 		}
 
-		x.nspots++;
+		x.nspots++
 	}
 }
 
@@ -477,33 +477,33 @@ func (x *Indexer) visitIdent(kind SpotKind, id *ast.Ident) {
 func (x *Indexer) visitSpec(spec ast.Spec, isVarDecl bool) {
 	switch n := spec.(type) {
 	case *ast.ImportSpec:
-		x.visitComment(n.Doc);
-		x.visitIdent(ImportDecl, n.Name);
+		x.visitComment(n.Doc)
+		x.visitIdent(ImportDecl, n.Name)
 		for _, s := range n.Path {
 			ast.Walk(x, s)
 		}
-		x.visitComment(n.Comment);
+		x.visitComment(n.Comment)
 
 	case *ast.ValueSpec:
-		x.visitComment(n.Doc);
-		kind := ConstDecl;
+		x.visitComment(n.Doc)
+		kind := ConstDecl
 		if isVarDecl {
 			kind = VarDecl
 		}
 		for _, n := range n.Names {
 			x.visitIdent(kind, n)
 		}
-		ast.Walk(x, n.Type);
+		ast.Walk(x, n.Type)
 		for _, v := range n.Values {
 			ast.Walk(x, v)
 		}
-		x.visitComment(n.Comment);
+		x.visitComment(n.Comment)
 
 	case *ast.TypeSpec:
-		x.visitComment(n.Doc);
-		x.visitIdent(TypeDecl, n.Name);
-		ast.Walk(x, n.Type);
-		x.visitComment(n.Comment);
+		x.visitComment(n.Doc)
+		x.visitIdent(TypeDecl, n.Name)
+		ast.Walk(x, n.Type)
+		x.visitComment(n.Comment)
 	}
 }
 
@@ -518,22 +518,22 @@ func (x *Indexer) Visit(node interface{}) ast.Visitor {
 		x.visitIdent(Use, n)
 
 	case *ast.Field:
-		x.decl = nil;	// no snippets for fields
-		x.visitComment(n.Doc);
+		x.decl = nil // no snippets for fields
+		x.visitComment(n.Doc)
 		for _, m := range n.Names {
 			x.visitIdent(VarDecl, m)
 		}
-		ast.Walk(x, n.Type);
+		ast.Walk(x, n.Type)
 		for _, s := range n.Tag {
 			ast.Walk(x, s)
 		}
-		x.visitComment(n.Comment);
+		x.visitComment(n.Comment)
 
 	case *ast.DeclStmt:
 		if decl, ok := n.Decl.(*ast.GenDecl); ok {
 			// local declarations can only be *ast.GenDecls
-			x.decl = nil;	// no snippets for local declarations
-			x.visitComment(decl.Doc);
+			x.decl = nil // no snippets for local declarations
+			x.visitComment(decl.Doc)
 			for _, s := range decl.Specs {
 				x.visitSpec(s, decl.Tok == token.VAR)
 			}
@@ -543,30 +543,30 @@ func (x *Indexer) Visit(node interface{}) ast.Visitor {
 		}
 
 	case *ast.GenDecl:
-		x.decl = n;
-		x.visitComment(n.Doc);
+		x.decl = n
+		x.visitComment(n.Doc)
 		for _, s := range n.Specs {
 			x.visitSpec(s, n.Tok == token.VAR)
 		}
 
 	case *ast.FuncDecl:
-		x.visitComment(n.Doc);
-		kind := FuncDecl;
+		x.visitComment(n.Doc)
+		kind := FuncDecl
 		if n.Recv != nil {
-			kind = MethodDecl;
-			ast.Walk(x, n.Recv);
+			kind = MethodDecl
+			ast.Walk(x, n.Recv)
 		}
-		x.decl = n;
-		x.visitIdent(kind, n.Name);
-		ast.Walk(x, n.Type);
+		x.decl = n
+		x.visitIdent(kind, n.Name)
+		ast.Walk(x, n.Type)
 		if n.Body != nil {
 			ast.Walk(x, n.Body)
 		}
 
 	case *ast.File:
-		x.visitComment(n.Doc);
-		x.decl = nil;
-		x.visitIdent(PackageClause, n.Name);
+		x.visitComment(n.Doc)
+		x.decl = nil
+		x.visitIdent(PackageClause, n.Name)
 		for _, d := range n.Decls {
 			ast.Walk(x, d)
 		}
@@ -578,7 +578,7 @@ func (x *Indexer) Visit(node interface{}) ast.Visitor {
 		return x
 	}
 
-	return nil;
+	return nil
 }
 
 
@@ -600,15 +600,15 @@ func (x *Indexer) VisitFile(path string, d *os.Dir) {
 		return
 	}
 
-	file, err := parser.ParseFile(path, nil, parser.ParseComments);
+	file, err := parser.ParseFile(path, nil, parser.ParseComments)
 	if err != nil {
-		return	// ignore files with (parse) errors
+		return // ignore files with (parse) errors
 	}
 
-	dir, _ := pathutil.Split(path);
-	pak := Pak{dir, file.Name.Value};
-	x.file = &File{path, pak};
-	ast.Walk(x, file);
+	dir, _ := pathutil.Split(path)
+	pak := Pak{dir, file.Name.Value}
+	x.file = &File{path, pak}
+	ast.Walk(x, file)
 }
 
 
@@ -616,65 +616,65 @@ func (x *Indexer) VisitFile(path string, d *os.Dir) {
 // Index
 
 type LookupResult struct {
-	Decls	HitList;	// package-level declarations (with snippets)
-	Others	HitList;	// all other occurences
+	Decls  HitList // package-level declarations (with snippets)
+	Others HitList // all other occurences
 }
 
 
 type Index struct {
-	words		map[string]*LookupResult;	// maps words to hit lists
-	alts		map[string]*AltWords;		// maps canonical(words) to lists of alternative spellings
-	snippets	[]*Snippet;			// all snippets, indexed by snippet index
-	nspots		int;				// number of spots indexed (a measure of the index size)
+	words    map[string]*LookupResult // maps words to hit lists
+	alts     map[string]*AltWords     // maps canonical(words) to lists of alternative spellings
+	snippets []*Snippet               // all snippets, indexed by snippet index
+	nspots   int                      // number of spots indexed (a measure of the index size)
 }
 
 
-func canonical(w string) string	{ return strings.ToLower(w) }
+func canonical(w string) string { return strings.ToLower(w) }
 
 
 // NewIndex creates a new index for the file tree rooted at root.
 func NewIndex(root string) *Index {
-	var x Indexer;
+	var x Indexer
 
 	// initialize Indexer
-	x.words = make(map[string]*IndexResult);
+	x.words = make(map[string]*IndexResult)
 
 	// collect all Spots
-	pathutil.Walk(root, &x, nil);
+	pathutil.Walk(root, &x, nil)
 
 	// for each word, reduce the RunLists into a LookupResult;
 	// also collect the word with its canonical spelling in a
 	// word list for later computation of alternative spellings
-	words := make(map[string]*LookupResult);
-	var wlist RunList;
+	words := make(map[string]*LookupResult)
+	var wlist RunList
 	for w, h := range x.words {
-		decls := reduce(&h.Decls);
-		others := reduce(&h.Others);
+		decls := reduce(&h.Decls)
+		others := reduce(&h.Others)
 		words[w] = &LookupResult{
 			Decls: decls,
 			Others: others,
-		};
-		wlist.Push(&wordPair{canonical(w), w});
+		}
+		wlist.Push(&wordPair{canonical(w), w})
 	}
 
 	// reduce the word list {canonical(w), w} into
 	// a list of AltWords runs {canonical(w), {w}}
-	alist := wlist.reduce(lessWordPair, newAltWords);
+	alist := wlist.reduce(lessWordPair, newAltWords)
 
 	// convert alist into a map of alternative spellings
-	alts := make(map[string]*AltWords);
+	alts := make(map[string]*AltWords)
 	for i := 0; i < alist.Len(); i++ {
-		a := alist.At(i).(*AltWords);
-		alts[a.Canon] = a;
+		a := alist.At(i).(*AltWords)
+		alts[a.Canon] = a
 	}
 
 	// convert snippet vector into a list
-	snippets := make([]*Snippet, x.snippets.Len());
+	snippets := make([]*Snippet, x.snippets.Len())
 	for i := 0; i < x.snippets.Len(); i++ {
 		snippets[i] = x.snippets.At(i).(*Snippet)
 	}
 
-	return &Index{words, alts, snippets, x.nspots};
+	return &Index{words, alts, snippets, x.nspots}
 }
 
 
@@ -686,26 +686,26 @@ func (x *Index) Size() (nwords int, nspots int) {
 
 
 func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
-	match, _ = x.words[w];
-	alt, _ = x.alts[canonical(w)];
+	match, _ = x.words[w]
+	alt, _ = x.alts[canonical(w)]
 	// remove current spelling from alternatives
 	// (if there is no match, the alternatives do
 	// not contain the current spelling)
 	if match != nil && alt != nil {
 		alt = alt.filter(w)
 	}
-	return;
+	return
 }
 
 
 func isIdentifier(s string) bool {
-	var S scanner.Scanner;
-	S.Init("", strings.Bytes(s), nil, 0);
+	var S scanner.Scanner
+	S.Init("", strings.Bytes(s), nil, 0)
 	if _, tok, _ := S.Scan(); tok == token.IDENT {
-		_, tok, _ := S.Scan();
-		return tok == token.EOF;
+		_, tok, _ := S.Scan()
+		return tok == token.EOF
 	}
-	return false;
+	return false
 }
 
 
@@ -713,13 +713,13 @@ func isIdentifier(s string) bool {
 // identifier, Lookup returns a LookupResult, and a list of alternative
 // spellings, if any. If the query syntax is wrong, illegal is set.
 func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, illegal bool) {
-	ss := strings.Split(query, ".", 0);
+	ss := strings.Split(query, ".", 0)
 
 	// check query syntax
 	for _, s := range ss {
 		if !isIdentifier(s) {
-			illegal = true;
-			return;
+			illegal = true
+			return
 		}
 	}
 
@@ -728,20 +728,20 @@ func (x *Index) Lookup(query string) (match *LookupResult, alt *AltWords, illega
 		match, alt = x.LookupWord(ss[0])
 
 	case 2:
-		pakname := ss[0];
-		match, alt = x.LookupWord(ss[1]);
+		pakname := ss[0]
+		match, alt = x.LookupWord(ss[1])
 		if match != nil {
 			// found a match - filter by package name
-			decls := match.Decls.filter(pakname);
-			others := match.Others.filter(pakname);
-			match = &LookupResult{decls, others};
+			decls := match.Decls.filter(pakname)
+			others := match.Others.filter(pakname)
+			match = &LookupResult{decls, others}
 		}
 
 	default:
 		illegal = true
 	}
 
-	return;
+	return
 }
 
 
@@ -750,5 +750,5 @@ func (x *Index) Snippet(i int) *Snippet {
 	if 0 <= i && i < len(x.snippets) {
 		return x.snippets[i]
 	}
-	return nil;
+	return nil
 }

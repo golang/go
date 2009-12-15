@@ -7,14 +7,14 @@
 package sha1
 
 import (
-	"fmt";
-	"io";
-	"testing";
+	"fmt"
+	"io"
+	"testing"
 )
 
 type sha1Test struct {
-	out	string;
-	in	string;
+	out string
+	in  string
 }
 
 var golden = []sha1Test{
@@ -53,16 +53,16 @@ var golden = []sha1Test{
 
 func TestGolden(t *testing.T) {
 	for i := 0; i < len(golden); i++ {
-		g := golden[i];
-		c := New();
+		g := golden[i]
+		c := New()
 		for j := 0; j < 2; j++ {
-			io.WriteString(c, g.in);
-			s := fmt.Sprintf("%x", c.Sum());
+			io.WriteString(c, g.in)
+			s := fmt.Sprintf("%x", c.Sum())
 			if s != g.out {
-				t.Errorf("sha1[%d](%s) = %s want %s", j, g.in, s, g.out);
-				t.FailNow();
+				t.Errorf("sha1[%d](%s) = %s want %s", j, g.in, s, g.out)
+				t.FailNow()
 			}
-			c.Reset();
+			c.Reset()
 		}
 	}
 }

@@ -5,14 +5,14 @@
 package tls
 
 import (
-	"crypto/x509";
-	"encoding/pem";
+	"crypto/x509"
+	"encoding/pem"
 )
 
 // A CASet is a set of certificates.
 type CASet struct {
-	bySubjectKeyId	map[string]*x509.Certificate;
-	byName		map[string]*x509.Certificate;
+	bySubjectKeyId map[string]*x509.Certificate
+	byName         map[string]*x509.Certificate
 }
 
 func NewCASet() *CASet {
@@ -29,7 +29,7 @@ func nameToKey(name *x509.Name) string {
 // FindParent attempts to find the certificate in s which signs the given
 // certificate. If no such certificate can be found, it returns nil.
 func (s *CASet) FindParent(cert *x509.Certificate) (parent *x509.Certificate) {
-	var ok bool;
+	var ok bool
 
 	if len(cert.AuthorityKeyId) > 0 {
 		parent, ok = s.bySubjectKeyId[string(cert.AuthorityKeyId)]
@@ -40,7 +40,7 @@ func (s *CASet) FindParent(cert *x509.Certificate) (parent *x509.Certificate) {
 	if !ok {
 		return nil
 	}
-	return parent;
+	return parent
 }
 
 // SetFromPEM attempts to parse a series of PEM encoded root certificates. It
@@ -50,8 +50,8 @@ func (s *CASet) FindParent(cert *x509.Certificate) (parent *x509.Certificate) {
 // function.
 func (s *CASet) SetFromPEM(pemCerts []byte) (ok bool) {
 	for len(pemCerts) > 0 {
-		var block *pem.Block;
-		block, pemCerts = pem.Decode(pemCerts);
+		var block *pem.Block
+		block, pemCerts = pem.Decode(pemCerts)
 		if block == nil {
 			break
 		}
@@ -59,7 +59,7 @@ func (s *CASet) SetFromPEM(pemCerts []byte) (ok bool) {
 			continue
 		}
 
-		cert, err := x509.ParseCertificate(block.Bytes);
+		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
 			continue
 		}
@@ -67,9 +67,9 @@ func (s *CASet) SetFromPEM(pemCerts []byte) (ok bool) {
 		if len(cert.SubjectKeyId) > 0 {
 			s.bySubjectKeyId[string(cert.SubjectKeyId)] = cert
 		}
-		s.byName[nameToKey(&cert.Subject)] = cert;
-		ok = true;
+		s.byName[nameToKey(&cert.Subject)] = cert
+		ok = true
 	}
 
-	return;
+	return
 }

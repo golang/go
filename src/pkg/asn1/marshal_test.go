@@ -5,44 +5,44 @@
 package asn1
 
 import (
-	"bytes";
-	"encoding/hex";
-	"testing";
-	"time";
+	"bytes"
+	"encoding/hex"
+	"testing"
+	"time"
 )
 
 type intStruct struct {
-	A int;
+	A int
 }
 
 type nestedStruct struct {
-	A intStruct;
+	A intStruct
 }
 
 type marshalTest struct {
-	in	interface{};
-	out	string;	// hex encoded
+	in  interface{}
+	out string // hex encoded
 }
 
 type implicitTagTest struct {
-	A int "implicit,tag:5";
+	A int "implicit,tag:5"
 }
 
 type explicitTagTest struct {
-	A int "explicit,tag:5";
+	A int "explicit,tag:5"
 }
 
 type ia5StringTest struct {
-	A string "ia5";
+	A string "ia5"
 }
 
 type printableStringTest struct {
-	A string "printable";
+	A string "printable"
 }
 
 func setPST(t *time.Time) *time.Time {
-	t.ZoneOffset = -28800;
-	return t;
+	t.ZoneOffset = -28800
+	return t
 }
 
 var marshalTests = []marshalTest{
@@ -65,12 +65,12 @@ var marshalTests = []marshalTest{
 
 func TestMarshal(t *testing.T) {
 	for i, test := range marshalTests {
-		buf := bytes.NewBuffer(nil);
-		err := Marshal(buf, test.in);
+		buf := bytes.NewBuffer(nil)
+		err := Marshal(buf, test.in)
 		if err != nil {
 			t.Errorf("#%d failed: %s", i, err)
 		}
-		out, _ := hex.DecodeString(test.out);
+		out, _ := hex.DecodeString(test.out)
 		if bytes.Compare(out, buf.Bytes()) != 0 {
 			t.Errorf("#%d got: %x want %x", i, buf.Bytes(), out)
 		}

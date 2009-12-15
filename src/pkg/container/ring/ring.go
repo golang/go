@@ -12,15 +12,15 @@ package ring
 // ring with a nil Value.
 //
 type Ring struct {
-	next, prev	*Ring;
-	Value		interface{};	// for use by client; untouched by this library
+	next, prev *Ring
+	Value      interface{} // for use by client; untouched by this library
 }
 
 
 func (r *Ring) init() *Ring {
-	r.next = r;
-	r.prev = r;
-	return r;
+	r.next = r
+	r.prev = r
+	return r
 }
 
 
@@ -29,7 +29,7 @@ func (r *Ring) Next() *Ring {
 	if r.next == nil {
 		return r.init()
 	}
-	return r.next;
+	return r.next
 }
 
 
@@ -38,7 +38,7 @@ func (r *Ring) Prev() *Ring {
 	if r.next == nil {
 		return r.init()
 	}
-	return r.prev;
+	return r.prev
 }
 
 
@@ -59,7 +59,7 @@ func (r *Ring) Move(n int) *Ring {
 			r = r.next
 		}
 	}
-	return r;
+	return r
 }
 
 
@@ -68,15 +68,15 @@ func New(n int) *Ring {
 	if n <= 0 {
 		return nil
 	}
-	r := new(Ring);
-	p := r;
+	r := new(Ring)
+	p := r
 	for i := 1; i < n; i++ {
-		p.next = &Ring{prev: p};
-		p = p.next;
+		p.next = &Ring{prev: p}
+		p = p.next
 	}
-	p.next = r;
-	r.prev = p;
-	return r;
+	p.next = r
+	r.prev = p
+	return r
 }
 
 
@@ -97,17 +97,17 @@ func New(n int) *Ring {
 // last element of s after insertion.
 //
 func (r *Ring) Link(s *Ring) *Ring {
-	n := r.Next();
+	n := r.Next()
 	if s != nil {
-		p := s.Prev();
+		p := s.Prev()
 		// Note: Cannot use multiple assignment because
 		// evaluation order of LHS is not specified.
-		r.next = s;
-		s.prev = r;
-		n.prev = p;
-		p.next = n;
+		r.next = s
+		s.prev = r
+		n.prev = p
+		p.next = n
 	}
-	return n;
+	return n
 }
 
 
@@ -119,7 +119,7 @@ func (r *Ring) Unlink(n int) *Ring {
 	if n <= 0 {
 		return nil
 	}
-	return r.Link(r.Move(n + 1));
+	return r.Link(r.Move(n + 1))
 }
 
 
@@ -127,27 +127,27 @@ func (r *Ring) Unlink(n int) *Ring {
 // It executes in time proportional to the number of elements.
 //
 func (r *Ring) Len() int {
-	n := 0;
+	n := 0
 	if r != nil {
-		n = 1;
+		n = 1
 		for p := r.Next(); p != r; p = p.next {
 			n++
 		}
 	}
-	return n;
+	return n
 }
 
 
 func (r *Ring) Iter() <-chan interface{} {
-	c := make(chan interface{});
+	c := make(chan interface{})
 	go func() {
 		if r != nil {
-			c <- r.Value;
+			c <- r.Value
 			for p := r.Next(); p != r; p = p.next {
 				c <- p.Value
 			}
 		}
-		close(c);
-	}();
-	return c;
+		close(c)
+	}()
+	return c
 }

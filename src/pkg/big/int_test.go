@@ -5,21 +5,21 @@
 package big
 
 import (
-	"bytes";
-	"encoding/hex";
-	"testing";
-	"testing/quick";
+	"bytes"
+	"encoding/hex"
+	"testing"
+	"testing/quick"
 )
 
 func newZ(x int64) *Int {
-	var z Int;
-	return z.New(x);
+	var z Int
+	return z.New(x)
 }
 
 
 type funZZ func(z, x, y *Int) *Int
 type argZZ struct {
-	z, x, y *Int;
+	z, x, y *Int
 }
 
 
@@ -44,8 +44,8 @@ var prodZZ = []argZZ{
 
 func TestSetZ(t *testing.T) {
 	for _, a := range sumZZ {
-		var z Int;
-		z.Set(a.z);
+		var z Int
+		z.Set(a.z)
 		if (&z).Cmp(a.z) != 0 {
 			t.Errorf("got z = %v; want %v", z, a.z)
 		}
@@ -54,8 +54,8 @@ func TestSetZ(t *testing.T) {
 
 
 func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
-	var z Int;
-	f(&z, a.x, a.y);
+	var z Int
+	f(&z, a.x, a.y)
 	if (&z).Cmp(a.z) != 0 {
 		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, &z, a.z)
 	}
@@ -63,32 +63,32 @@ func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
 
 
 func TestSumZZ(t *testing.T) {
-	AddZZ := func(z, x, y *Int) *Int { return z.Add(x, y) };
-	SubZZ := func(z, x, y *Int) *Int { return z.Sub(x, y) };
+	AddZZ := func(z, x, y *Int) *Int { return z.Add(x, y) }
+	SubZZ := func(z, x, y *Int) *Int { return z.Sub(x, y) }
 	for _, a := range sumZZ {
-		arg := a;
-		testFunZZ(t, "AddZZ", AddZZ, arg);
+		arg := a
+		testFunZZ(t, "AddZZ", AddZZ, arg)
 
-		arg = argZZ{a.z, a.y, a.x};
-		testFunZZ(t, "AddZZ symmetric", AddZZ, arg);
+		arg = argZZ{a.z, a.y, a.x}
+		testFunZZ(t, "AddZZ symmetric", AddZZ, arg)
 
-		arg = argZZ{a.x, a.z, a.y};
-		testFunZZ(t, "SubZZ", SubZZ, arg);
+		arg = argZZ{a.x, a.z, a.y}
+		testFunZZ(t, "SubZZ", SubZZ, arg)
 
-		arg = argZZ{a.y, a.z, a.x};
-		testFunZZ(t, "SubZZ symmetric", SubZZ, arg);
+		arg = argZZ{a.y, a.z, a.x}
+		testFunZZ(t, "SubZZ symmetric", SubZZ, arg)
 	}
 }
 
 
 func TestProdZZ(t *testing.T) {
-	MulZZ := func(z, x, y *Int) *Int { return z.Mul(x, y) };
+	MulZZ := func(z, x, y *Int) *Int { return z.Mul(x, y) }
 	for _, a := range prodZZ {
-		arg := a;
-		testFunZZ(t, "MulZZ", MulZZ, arg);
+		arg := a
+		testFunZZ(t, "MulZZ", MulZZ, arg)
 
-		arg = argZZ{a.z, a.y, a.x};
-		testFunZZ(t, "MulZZ symmetric", MulZZ, arg);
+		arg = argZZ{a.z, a.y, a.x}
+		testFunZZ(t, "MulZZ symmetric", MulZZ, arg)
 	}
 }
 
@@ -106,20 +106,20 @@ var facts = map[int]string{
 
 
 func fact(n int) *Int {
-	var z Int;
-	z.New(1);
+	var z Int
+	z.New(1)
 	for i := 2; i <= n; i++ {
-		var t Int;
-		t.New(int64(i));
-		z.Mul(&z, &t);
+		var t Int
+		t.New(int64(i))
+		z.Mul(&z, &t)
 	}
-	return &z;
+	return &z
 }
 
 
 func TestFact(t *testing.T) {
 	for n, s := range facts {
-		f := fact(n).String();
+		f := fact(n).String()
 		if f != s {
 			t.Errorf("%d! = %s; want %s", n, f, s)
 		}
@@ -128,10 +128,10 @@ func TestFact(t *testing.T) {
 
 
 type fromStringTest struct {
-	in	string;
-	base	int;
-	out	int64;
-	ok	bool;
+	in   string
+	base int
+	out  int64
+	ok   bool
 }
 
 
@@ -156,10 +156,10 @@ var fromStringTests = []fromStringTest{
 
 func TestSetString(t *testing.T) {
 	for i, test := range fromStringTests {
-		n, ok := new(Int).SetString(test.in, test.base);
+		n, ok := new(Int).SetString(test.in, test.base)
 		if ok != test.ok {
-			t.Errorf("#%d (input '%s') ok incorrect (should be %t)", i, test.in, test.ok);
-			continue;
+			t.Errorf("#%d (input '%s') ok incorrect (should be %t)", i, test.in, test.ok)
+			continue
 		}
 		if !ok {
 			continue
@@ -173,8 +173,8 @@ func TestSetString(t *testing.T) {
 
 
 type divSignsTest struct {
-	x, y	int64;
-	q, r	int64;
+	x, y int64
+	q, r int64
 }
 
 
@@ -190,11 +190,11 @@ var divSignsTests = []divSignsTest{
 
 func TestDivSigns(t *testing.T) {
 	for i, test := range divSignsTests {
-		x := new(Int).New(test.x);
-		y := new(Int).New(test.y);
-		q, r := new(Int).Div(x, y);
-		expectedQ := new(Int).New(test.q);
-		expectedR := new(Int).New(test.r);
+		x := new(Int).New(test.x)
+		y := new(Int).New(test.y)
+		q, r := new(Int).Div(x, y)
+		expectedQ := new(Int).New(test.q)
+		expectedR := new(Int).New(test.r)
 
 		if q.Cmp(expectedQ) != 0 || r.Cmp(expectedR) != 0 {
 			t.Errorf("#%d: got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR)
@@ -204,8 +204,8 @@ func TestDivSigns(t *testing.T) {
 
 
 func checkSetBytes(b []byte) bool {
-	hex1 := hex.EncodeToString(new(Int).SetBytes(b).Bytes());
-	hex2 := hex.EncodeToString(b);
+	hex1 := hex.EncodeToString(new(Int).SetBytes(b).Bytes())
+	hex2 := hex.EncodeToString(b)
 
 	for len(hex1) < len(hex2) {
 		hex1 = "0" + hex1
@@ -215,12 +215,12 @@ func checkSetBytes(b []byte) bool {
 		hex2 = "0" + hex2
 	}
 
-	return hex1 == hex2;
+	return hex1 == hex2
 }
 
 
 func TestSetBytes(t *testing.T) {
-	err := quick.Check(checkSetBytes, nil);
+	err := quick.Check(checkSetBytes, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -228,13 +228,13 @@ func TestSetBytes(t *testing.T) {
 
 
 func checkBytes(b []byte) bool {
-	b2 := new(Int).SetBytes(b).Bytes();
-	return bytes.Compare(b, b2) == 0;
+	b2 := new(Int).SetBytes(b).Bytes()
+	return bytes.Compare(b, b2) == 0
 }
 
 
 func TestBytes(t *testing.T) {
-	err := quick.Check(checkSetBytes, nil);
+	err := quick.Check(checkSetBytes, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -242,30 +242,30 @@ func TestBytes(t *testing.T) {
 
 
 func checkDiv(x, y []byte) bool {
-	u := new(Int).SetBytes(x);
-	v := new(Int).SetBytes(y);
+	u := new(Int).SetBytes(x)
+	v := new(Int).SetBytes(y)
 
 	if len(v.abs) == 0 {
 		return true
 	}
 
-	q, r := new(Int).Div(u, v);
+	q, r := new(Int).Div(u, v)
 
 	if r.Cmp(v) >= 0 {
 		return false
 	}
 
-	uprime := new(Int).Set(q);
-	uprime.Mul(uprime, v);
-	uprime.Add(uprime, r);
+	uprime := new(Int).Set(q)
+	uprime.Mul(uprime, v)
+	uprime.Add(uprime, r)
 
-	return uprime.Cmp(u) == 0;
+	return uprime.Cmp(u) == 0
 }
 
 
 type divTest struct {
-	x, y	string;
-	q, r	string;
+	x, y string
+	q, r string
 }
 
 
@@ -286,18 +286,18 @@ var divTests = []divTest{
 
 
 func TestDiv(t *testing.T) {
-	err := quick.Check(checkDiv, nil);
+	err := quick.Check(checkDiv, nil)
 	if err != nil {
 		t.Error(err)
 	}
 
 	for i, test := range divTests {
-		x, _ := new(Int).SetString(test.x, 10);
-		y, _ := new(Int).SetString(test.y, 10);
-		expectedQ, _ := new(Int).SetString(test.q, 10);
-		expectedR, _ := new(Int).SetString(test.r, 10);
+		x, _ := new(Int).SetString(test.x, 10)
+		y, _ := new(Int).SetString(test.y, 10)
+		expectedQ, _ := new(Int).SetString(test.q, 10)
+		expectedR, _ := new(Int).SetString(test.r, 10)
 
-		q, r := new(Int).Div(x, y);
+		q, r := new(Int).Div(x, y)
 
 		if q.Cmp(expectedQ) != 0 || r.Cmp(expectedR) != 0 {
 			t.Errorf("#%d got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR)
@@ -310,14 +310,14 @@ func TestDivStepD6(t *testing.T) {
 	// See Knuth, Volume 2, section 4.3.1, exercise 21. This code exercises
 	// a code path which only triggers 1 in 10^{-19} cases.
 
-	u := &Int{false, []Word{0, 0, 1 + 1<<(_W-1), _M ^ (1 << (_W - 1))}};
-	v := &Int{false, []Word{5, 2 + 1<<(_W-1), 1 << (_W - 1)}};
+	u := &Int{false, []Word{0, 0, 1 + 1<<(_W-1), _M ^ (1 << (_W - 1))}}
+	v := &Int{false, []Word{5, 2 + 1<<(_W-1), 1 << (_W - 1)}}
 
-	q, r := new(Int).Div(u, v);
-	const expectedQ64 = "18446744073709551613";
-	const expectedR64 = "3138550867693340382088035895064302439801311770021610913807";
-	const expectedQ32 = "4294967293";
-	const expectedR32 = "39614081266355540837921718287";
+	q, r := new(Int).Div(u, v)
+	const expectedQ64 = "18446744073709551613"
+	const expectedR64 = "3138550867693340382088035895064302439801311770021610913807"
+	const expectedQ32 = "4294967293"
+	const expectedR32 = "39614081266355540837921718287"
 	if q.String() != expectedQ64 && q.String() != expectedQ32 ||
 		r.String() != expectedR64 && r.String() != expectedR32 {
 		t.Errorf("got (%s, %s) want (%s, %s) or (%s, %s)", q, r, expectedQ64, expectedR64, expectedQ32, expectedR32)
@@ -326,8 +326,8 @@ func TestDivStepD6(t *testing.T) {
 
 
 type lenTest struct {
-	in	string;
-	out	int;
+	in  string
+	out int
 }
 
 
@@ -346,10 +346,10 @@ var lenTests = []lenTest{
 
 func TestLen(t *testing.T) {
 	for i, test := range lenTests {
-		n, ok := new(Int).SetString(test.in, 0);
+		n, ok := new(Int).SetString(test.in, 0)
 		if !ok {
-			t.Errorf("#%d test input invalid: %s", i, test.in);
-			continue;
+			t.Errorf("#%d test input invalid: %s", i, test.in)
+			continue
 		}
 
 		if n.Len() != test.out {
@@ -360,8 +360,8 @@ func TestLen(t *testing.T) {
 
 
 type expTest struct {
-	x, y, m	string;
-	out	string;
+	x, y, m string
+	out     string
 }
 
 
@@ -388,12 +388,12 @@ var expTests = []expTest{
 
 func TestExp(t *testing.T) {
 	for i, test := range expTests {
-		x, ok1 := new(Int).SetString(test.x, 0);
-		y, ok2 := new(Int).SetString(test.y, 0);
-		out, ok3 := new(Int).SetString(test.out, 0);
+		x, ok1 := new(Int).SetString(test.x, 0)
+		y, ok2 := new(Int).SetString(test.y, 0)
+		out, ok3 := new(Int).SetString(test.out, 0)
 
-		var ok4 bool;
-		var m *Int;
+		var ok4 bool
+		var m *Int
 
 		if len(test.m) == 0 {
 			m, ok4 = nil, true
@@ -402,11 +402,11 @@ func TestExp(t *testing.T) {
 		}
 
 		if !ok1 || !ok2 || !ok3 || !ok4 {
-			t.Errorf("#%d error in input", i);
-			continue;
+			t.Errorf("#%d error in input", i)
+			continue
 		}
 
-		z := new(Int).Exp(x, y, m);
+		z := new(Int).Exp(x, y, m)
 		if z.Cmp(out) != 0 {
 			t.Errorf("#%d got %s want %s", i, z, out)
 		}
@@ -415,25 +415,25 @@ func TestExp(t *testing.T) {
 
 
 func checkGcd(aBytes, bBytes []byte) bool {
-	a := new(Int).SetBytes(aBytes);
-	b := new(Int).SetBytes(bBytes);
+	a := new(Int).SetBytes(aBytes)
+	b := new(Int).SetBytes(bBytes)
 
-	x := new(Int);
-	y := new(Int);
-	d := new(Int);
+	x := new(Int)
+	y := new(Int)
+	d := new(Int)
 
-	GcdInt(d, x, y, a, b);
-	x.Mul(x, a);
-	y.Mul(y, b);
-	x.Add(x, y);
+	GcdInt(d, x, y, a, b)
+	x.Mul(x, a)
+	y.Mul(y, b)
+	x.Add(x, y)
 
-	return x.Cmp(d) == 0;
+	return x.Cmp(d) == 0
 }
 
 
 type gcdTest struct {
-	a, b	int64;
-	d, x, y	int64;
+	a, b    int64
+	d, x, y int64
 }
 
 
@@ -444,18 +444,18 @@ var gcdTests = []gcdTest{
 
 func TestGcd(t *testing.T) {
 	for i, test := range gcdTests {
-		a := new(Int).New(test.a);
-		b := new(Int).New(test.b);
+		a := new(Int).New(test.a)
+		b := new(Int).New(test.b)
 
-		x := new(Int);
-		y := new(Int);
-		d := new(Int);
+		x := new(Int)
+		y := new(Int)
+		d := new(Int)
 
-		expectedX := new(Int).New(test.x);
-		expectedY := new(Int).New(test.y);
-		expectedD := new(Int).New(test.d);
+		expectedX := new(Int).New(test.x)
+		expectedY := new(Int).New(test.y)
+		expectedD := new(Int).New(test.d)
 
-		GcdInt(d, x, y, a, b);
+		GcdInt(d, x, y, a, b)
 
 		if expectedX.Cmp(x) != 0 ||
 			expectedY.Cmp(y) != 0 ||
@@ -464,7 +464,7 @@ func TestGcd(t *testing.T) {
 		}
 	}
 
-	quick.Check(checkGcd, nil);
+	quick.Check(checkGcd, nil)
 }
 
 
@@ -494,14 +494,14 @@ var composites = []string{
 
 func TestProbablyPrime(t *testing.T) {
 	for i, s := range primes {
-		p, _ := new(Int).SetString(s, 10);
+		p, _ := new(Int).SetString(s, 10)
 		if !ProbablyPrime(p, 20) {
 			t.Errorf("#%d prime found to be non-prime", i)
 		}
 	}
 
 	for i, s := range composites {
-		c, _ := new(Int).SetString(s, 10);
+		c, _ := new(Int).SetString(s, 10)
 		if ProbablyPrime(c, 20) {
 			t.Errorf("#%d composite found to be prime", i)
 		}
@@ -510,9 +510,9 @@ func TestProbablyPrime(t *testing.T) {
 
 
 type rshTest struct {
-	in	string;
-	shift	int;
-	out	string;
+	in    string
+	shift int
+	out   string
 }
 
 
@@ -540,9 +540,9 @@ var rshTests = []rshTest{
 
 func TestRsh(t *testing.T) {
 	for i, test := range rshTests {
-		in, _ := new(Int).SetString(test.in, 10);
-		expected, _ := new(Int).SetString(test.out, 10);
-		out := new(Int).Rsh(in, test.shift);
+		in, _ := new(Int).SetString(test.in, 10)
+		expected, _ := new(Int).SetString(test.out, 10)
+		out := new(Int).Rsh(in, test.shift)
 
 		if out.Cmp(expected) != 0 {
 			t.Errorf("#%d got %s want %s", i, out, expected)

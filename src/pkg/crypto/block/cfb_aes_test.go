@@ -11,19 +11,19 @@
 package block
 
 import (
-	"bytes";
-	"crypto/aes";
-	"io";
-	"testing";
+	"bytes"
+	"crypto/aes"
+	"io"
+	"testing"
 )
 
 type cfbTest struct {
-	name	string;
-	s	int;
-	key	[]byte;
-	iv	[]byte;
-	in	[]byte;
-	out	[]byte;
+	name string
+	s    int
+	key  []byte
+	iv   []byte
+	in   []byte
+	out  []byte
 }
 
 var cfbAESTests = []cfbTest{
@@ -271,33 +271,33 @@ var cfbAESTests = []cfbTest{
 
 func TestCFB_AES(t *testing.T) {
 	for _, tt := range cfbAESTests {
-		test := tt.name;
+		test := tt.name
 
 		if tt.s == 1 {
 			// 1-bit CFB not implemented
 			continue
 		}
 
-		c, err := aes.NewCipher(tt.key);
+		c, err := aes.NewCipher(tt.key)
 		if err != nil {
-			t.Errorf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err);
-			continue;
+			t.Errorf("%s: NewCipher(%d bytes) = %s", test, len(tt.key), err)
+			continue
 		}
 
-		var crypt bytes.Buffer;
-		w := NewCFBEncrypter(c, tt.s, tt.iv, &crypt);
-		var r io.Reader = bytes.NewBuffer(tt.in);
-		n, err := io.Copy(w, r);
+		var crypt bytes.Buffer
+		w := NewCFBEncrypter(c, tt.s, tt.iv, &crypt)
+		var r io.Reader = bytes.NewBuffer(tt.in)
+		n, err := io.Copy(w, r)
 		if n != int64(len(tt.in)) || err != nil {
 			t.Errorf("%s: CFBEncrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.in))
 		} else if d := crypt.Bytes(); !same(tt.out, d) {
 			t.Errorf("%s: CFBEncrypter\nhave %x\nwant %x", test, d, tt.out)
 		}
 
-		var plain bytes.Buffer;
-		r = NewCFBDecrypter(c, tt.s, tt.iv, bytes.NewBuffer(tt.out));
-		w = &plain;
-		n, err = io.Copy(w, r);
+		var plain bytes.Buffer
+		r = NewCFBDecrypter(c, tt.s, tt.iv, bytes.NewBuffer(tt.out))
+		w = &plain
+		n, err = io.Copy(w, r)
 		if n != int64(len(tt.out)) || err != nil {
 			t.Errorf("%s: CFBDecrypter io.Copy = %d, %v want %d, nil", test, n, err, len(tt.out))
 		} else if d := plain.Bytes(); !same(tt.in, d) {

@@ -5,7 +5,7 @@
 package aes
 
 import (
-	"testing";
+	"testing"
 )
 
 // See const.go for overview of math here.
@@ -13,12 +13,12 @@ import (
 // Test that powx is initialized correctly.
 // (Can adapt this code to generate it too.)
 func TestPowx(t *testing.T) {
-	p := 1;
+	p := 1
 	for i := 0; i < len(powx); i++ {
 		if powx[i] != byte(p) {
 			t.Errorf("powx[%d] = %#x, want %#x", i, powx[i], p)
 		}
-		p <<= 1;
+		p <<= 1
 		if p&0x100 != 0 {
 			p ^= poly
 		}
@@ -27,25 +27,25 @@ func TestPowx(t *testing.T) {
 
 // Multiply b and c as GF(2) polynomials modulo poly
 func mul(b, c uint32) uint32 {
-	i := b;
-	j := c;
-	s := uint32(0);
+	i := b
+	j := c
+	s := uint32(0)
 	for k := uint32(1); k < 0x100 && j != 0; k <<= 1 {
 		// Invariant: k == 1<<n, i == b * xⁿ
 
 		if j&k != 0 {
 			// s += i in GF(2); xor in binary
-			s ^= i;
-			j ^= k;	// turn off bit to end loop early
+			s ^= i
+			j ^= k // turn off bit to end loop early
 		}
 
 		// i *= x in GF(2) modulo the polynomial
-		i <<= 1;
+		i <<= 1
 		if i&0x100 != 0 {
 			i ^= poly
 		}
 	}
-	return s;
+	return s
 }
 
 // Test all mul inputs against bit-by-bit n² algorithm.
@@ -53,7 +53,7 @@ func TestMul(t *testing.T) {
 	for i := uint32(0); i < 256; i++ {
 		for j := uint32(0); j < 256; j++ {
 			// Multiply i, j bit by bit.
-			s := uint8(0);
+			s := uint8(0)
 			for k := uint(0); k < 8; k++ {
 				for l := uint(0); l < 8; l++ {
 					if i&(1<<k) != 0 && j&(1<<l) != 0 {
@@ -87,15 +87,15 @@ func TestSboxes(t *testing.T) {
 // (Can adapt this code to generate them too.)
 func TestTe(t *testing.T) {
 	for i := 0; i < 256; i++ {
-		s := uint32(sbox0[i]);
-		s2 := mul(s, 2);
-		s3 := mul(s, 3);
-		w := s2<<24 | s<<16 | s<<8 | s3;
+		s := uint32(sbox0[i])
+		s2 := mul(s, 2)
+		s3 := mul(s, 3)
+		w := s2<<24 | s<<16 | s<<8 | s3
 		for j := 0; j < 4; j++ {
 			if x := te[j][i]; x != w {
 				t.Fatalf("te[%d][%d] = %#x, want %#x", j, i, x, w)
 			}
-			w = w<<24 | w>>8;
+			w = w<<24 | w>>8
 		}
 	}
 }
@@ -104,17 +104,17 @@ func TestTe(t *testing.T) {
 // (Can adapt this code to generate them too.)
 func TestTd(t *testing.T) {
 	for i := 0; i < 256; i++ {
-		s := uint32(sbox1[i]);
-		s9 := mul(s, 0x9);
-		sb := mul(s, 0xb);
-		sd := mul(s, 0xd);
-		se := mul(s, 0xe);
-		w := se<<24 | s9<<16 | sd<<8 | sb;
+		s := uint32(sbox1[i])
+		s9 := mul(s, 0x9)
+		sb := mul(s, 0xb)
+		sd := mul(s, 0xd)
+		se := mul(s, 0xe)
+		w := se<<24 | s9<<16 | sd<<8 | sb
 		for j := 0; j < 4; j++ {
 			if x := td[j][i]; x != w {
 				t.Fatalf("td[%d][%d] = %#x, want %#x", j, i, x, w)
 			}
-			w = w<<24 | w>>8;
+			w = w<<24 | w>>8
 		}
 	}
 }
@@ -124,9 +124,9 @@ func TestTd(t *testing.T) {
 
 // Appendix A of FIPS 197: Key expansion examples
 type KeyTest struct {
-	key	[]byte;
-	enc	[]uint32;
-	dec	[]uint32;	// decryption expansion; not in FIPS 197, computed from C implementation.
+	key []byte
+	enc []uint32
+	dec []uint32 // decryption expansion; not in FIPS 197, computed from C implementation.
 }
 
 var keyTests = []KeyTest{
@@ -214,23 +214,23 @@ var keyTests = []KeyTest{
 func TestExpandKey(t *testing.T) {
 L:
 	for i, tt := range keyTests {
-		enc := make([]uint32, len(tt.enc));
-		var dec []uint32;
+		enc := make([]uint32, len(tt.enc))
+		var dec []uint32
 		if tt.dec != nil {
 			dec = make([]uint32, len(tt.dec))
 		}
-		expandKey(tt.key, enc, dec);
+		expandKey(tt.key, enc, dec)
 		for j, v := range enc {
 			if v != tt.enc[j] {
-				t.Errorf("key %d: enc[%d] = %#x, want %#x", i, j, v, tt.enc[j]);
-				continue L;
+				t.Errorf("key %d: enc[%d] = %#x, want %#x", i, j, v, tt.enc[j])
+				continue L
 			}
 		}
 		if dec != nil {
 			for j, v := range dec {
 				if v != tt.dec[j] {
-					t.Errorf("key %d: dec[%d] = %#x, want %#x", i, j, v, tt.dec[j]);
-					continue L;
+					t.Errorf("key %d: dec[%d] = %#x, want %#x", i, j, v, tt.dec[j])
+					continue L
 				}
 			}
 		}
@@ -239,9 +239,9 @@ L:
 
 // Appendix B, C of FIPS 197: Cipher examples, Example vectors.
 type CryptTest struct {
-	key	[]byte;
-	in	[]byte;
-	out	[]byte;
+	key []byte
+	in  []byte
+	out []byte
 }
 
 var encryptTests = []CryptTest{
@@ -278,16 +278,16 @@ var encryptTests = []CryptTest{
 // Test encryptBlock against FIPS 197 examples.
 func TestEncryptBlock(t *testing.T) {
 	for i, tt := range encryptTests {
-		n := len(tt.key) + 28;
-		enc := make([]uint32, n);
-		dec := make([]uint32, n);
-		expandKey(tt.key, enc, dec);
-		out := make([]byte, len(tt.in));
-		encryptBlock(enc, tt.in, out);
+		n := len(tt.key) + 28
+		enc := make([]uint32, n)
+		dec := make([]uint32, n)
+		expandKey(tt.key, enc, dec)
+		out := make([]byte, len(tt.in))
+		encryptBlock(enc, tt.in, out)
 		for j, v := range out {
 			if v != tt.out[j] {
-				t.Errorf("encryptBlock %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j]);
-				break;
+				t.Errorf("encryptBlock %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j])
+				break
 			}
 		}
 	}
@@ -296,16 +296,16 @@ func TestEncryptBlock(t *testing.T) {
 // Test decryptBlock against FIPS 197 examples.
 func TestDecryptBlock(t *testing.T) {
 	for i, tt := range encryptTests {
-		n := len(tt.key) + 28;
-		enc := make([]uint32, n);
-		dec := make([]uint32, n);
-		expandKey(tt.key, enc, dec);
-		plain := make([]byte, len(tt.in));
-		decryptBlock(dec, tt.out, plain);
+		n := len(tt.key) + 28
+		enc := make([]uint32, n)
+		dec := make([]uint32, n)
+		expandKey(tt.key, enc, dec)
+		plain := make([]byte, len(tt.in))
+		decryptBlock(dec, tt.out, plain)
 		for j, v := range plain {
 			if v != tt.in[j] {
-				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j]);
-				break;
+				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j])
+				break
 			}
 		}
 	}
@@ -314,17 +314,17 @@ func TestDecryptBlock(t *testing.T) {
 // Test Cipher Encrypt method against FIPS 197 examples.
 func TestCipherEncrypt(t *testing.T) {
 	for i, tt := range encryptTests {
-		c, err := NewCipher(tt.key);
+		c, err := NewCipher(tt.key)
 		if err != nil {
-			t.Errorf("NewCipher(%d bytes) = %s", len(tt.key), err);
-			continue;
+			t.Errorf("NewCipher(%d bytes) = %s", len(tt.key), err)
+			continue
 		}
-		out := make([]byte, len(tt.in));
-		c.Encrypt(tt.in, out);
+		out := make([]byte, len(tt.in))
+		c.Encrypt(tt.in, out)
 		for j, v := range out {
 			if v != tt.out[j] {
-				t.Errorf("Cipher.Encrypt %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j]);
-				break;
+				t.Errorf("Cipher.Encrypt %d: out[%d] = %#x, want %#x", i, j, v, tt.out[j])
+				break
 			}
 		}
 	}
@@ -333,17 +333,17 @@ func TestCipherEncrypt(t *testing.T) {
 // Test Cipher Decrypt against FIPS 197 examples.
 func TestCipherDecrypt(t *testing.T) {
 	for i, tt := range encryptTests {
-		c, err := NewCipher(tt.key);
+		c, err := NewCipher(tt.key)
 		if err != nil {
-			t.Errorf("NewCipher(%d bytes) = %s", len(tt.key), err);
-			continue;
+			t.Errorf("NewCipher(%d bytes) = %s", len(tt.key), err)
+			continue
 		}
-		plain := make([]byte, len(tt.in));
-		c.Decrypt(tt.out, plain);
+		plain := make([]byte, len(tt.in))
+		c.Decrypt(tt.out, plain)
 		for j, v := range plain {
 			if v != tt.in[j] {
-				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j]);
-				break;
+				t.Errorf("decryptBlock %d: plain[%d] = %#x, want %#x", i, j, v, tt.in[j])
+				break
 			}
 		}
 	}

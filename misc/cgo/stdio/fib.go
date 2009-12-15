@@ -10,38 +10,38 @@
 package main
 
 import (
-	"runtime";
-	"stdio";
-	"strconv";
+	"runtime"
+	"stdio"
+	"strconv"
 )
 
 func fibber(c, out chan int64, i int64) {
 	// Keep the fibbers in dedicated operating system
 	// threads, so that this program tests coordination
 	// between pthreads and not just goroutines.
-	runtime.LockOSThread();
+	runtime.LockOSThread()
 
 	if i == 0 {
 		c <- i
 	}
 	for {
-		j := <-c;
-		stdio.Puts(strconv.Itoa64(j));
-		out <- j;
-		<-out;
-		i += j;
-		c <- i;
+		j := <-c
+		stdio.Puts(strconv.Itoa64(j))
+		out <- j
+		<-out
+		i += j
+		c <- i
 	}
 }
 
 func main() {
-	c := make(chan int64);
-	out := make(chan int64);
-	go fibber(c, out, 0);
-	go fibber(c, out, 1);
-	<-out;
+	c := make(chan int64)
+	out := make(chan int64)
+	go fibber(c, out, 0)
+	go fibber(c, out, 1)
+	<-out
 	for i := 0; i < 90; i++ {
-		out <- 1;
-		<-out;
+		out <- 1
+		<-out
 	}
 }

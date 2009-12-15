@@ -13,36 +13,36 @@
 package block
 
 import (
-	"io";
+	"io"
 )
 
 type cfbCipher struct {
-	c		Cipher;
-	blockSize	int;	// our block size (s/8)
-	cipherSize	int;	// underlying cipher block size
-	iv		[]byte;
-	tmp		[]byte;
+	c          Cipher
+	blockSize  int // our block size (s/8)
+	cipherSize int // underlying cipher block size
+	iv         []byte
+	tmp        []byte
 }
 
 func newCFB(c Cipher, s int, iv []byte) *cfbCipher {
 	if s == 0 || s%8 != 0 {
 		panicln("crypto/block: invalid CFB mode", s)
 	}
-	b := c.BlockSize();
-	x := new(cfbCipher);
-	x.c = c;
-	x.blockSize = s / 8;
-	x.cipherSize = b;
-	x.iv = copy(iv);
-	x.tmp = make([]byte, b);
-	return x;
+	b := c.BlockSize()
+	x := new(cfbCipher)
+	x.c = c
+	x.blockSize = s / 8
+	x.cipherSize = b
+	x.iv = copy(iv)
+	x.tmp = make([]byte, b)
+	return x
 }
 
-func (x *cfbCipher) BlockSize() int	{ return x.blockSize }
+func (x *cfbCipher) BlockSize() int { return x.blockSize }
 
 func (x *cfbCipher) Encrypt(src, dst []byte) {
 	// Encrypt old IV and xor prefix with src to make dst.
-	x.c.Encrypt(x.iv, x.tmp);
+	x.c.Encrypt(x.iv, x.tmp)
 	for i := 0; i < x.blockSize; i++ {
 		dst[i] = src[i] ^ x.tmp[i]
 	}
@@ -51,7 +51,7 @@ func (x *cfbCipher) Encrypt(src, dst []byte) {
 	for i := 0; i < x.cipherSize-x.blockSize; i++ {
 		x.iv[i] = x.iv[i+x.blockSize]
 	}
-	off := x.cipherSize - x.blockSize;
+	off := x.cipherSize - x.blockSize
 	for i := off; i < x.cipherSize; i++ {
 		x.iv[i] = dst[i-off]
 	}
@@ -59,7 +59,7 @@ func (x *cfbCipher) Encrypt(src, dst []byte) {
 
 func (x *cfbCipher) Decrypt(src, dst []byte) {
 	// Encrypt [sic] old IV and xor prefix with src to make dst.
-	x.c.Encrypt(x.iv, x.tmp);
+	x.c.Encrypt(x.iv, x.tmp)
 	for i := 0; i < x.blockSize; i++ {
 		dst[i] = src[i] ^ x.tmp[i]
 	}
@@ -68,7 +68,7 @@ func (x *cfbCipher) Decrypt(src, dst []byte) {
 	for i := 0; i < x.cipherSize-x.blockSize; i++ {
 		x.iv[i] = x.iv[i+x.blockSize]
 	}
-	off := x.cipherSize - x.blockSize;
+	off := x.cipherSize - x.blockSize
 	for i := off; i < x.cipherSize; i++ {
 		// Reconstruct src = dst ^ x.tmp
 		// in case we overwrote src (src == dst).

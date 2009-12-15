@@ -15,18 +15,18 @@
 package block
 
 import (
-	"fmt";
-	"hash";
-	"io";
-	"os";
+	"fmt"
+	"hash"
+	"io"
+	"os"
 )
 
 // An EAXTagError is returned when the message has failed to authenticate,
 // because the tag at the end of the message stream (Read) does not match
 // the tag computed from the message itself (Computed).
 type EAXTagError struct {
-	Read		[]byte;
-	Computed	[]byte;
+	Read     []byte
+	Computed []byte
 }
 
 func (e *EAXTagError) String() string {
@@ -34,39 +34,39 @@ func (e *EAXTagError) String() string {
 }
 
 func setupEAX(c Cipher, iv, hdr []byte, tagBytes int) (ctrIV, tag []byte, cmac hash.Hash) {
-	n := len(iv);
+	n := len(iv)
 	if n != c.BlockSize() {
 		panicln("crypto/block: EAX: iv length", n, "!=", c.BlockSize())
 	}
-	buf := make([]byte, n);	// zeroed
+	buf := make([]byte, n) // zeroed
 
 	// tag = CMAC(0 + iv) ^ CMAC(1 + hdr) ^ CMAC(2 + data)
-	cmac = NewCMAC(c);
-	cmac.Write(buf);	// 0
-	cmac.Write(iv);
-	sum := cmac.Sum();
-	ctrIV = copy(sum);
-	tag = copy(sum[0:tagBytes]);
+	cmac = NewCMAC(c)
+	cmac.Write(buf) // 0
+	cmac.Write(iv)
+	sum := cmac.Sum()
+	ctrIV = copy(sum)
+	tag = copy(sum[0:tagBytes])
 
-	cmac.Reset();
-	buf[n-1] = 1;
-	cmac.Write(buf);	// 1
-	cmac.Write(hdr);
-	sum = cmac.Sum();
+	cmac.Reset()
+	buf[n-1] = 1
+	cmac.Write(buf) // 1
+	cmac.Write(hdr)
+	sum = cmac.Sum()
 	for i := 0; i < tagBytes; i++ {
 		tag[i] ^= sum[i]
 	}
 
-	cmac.Reset();
-	buf[n-1] = 2;	// 2
-	cmac.Write(buf);
+	cmac.Reset()
+	buf[n-1] = 2 // 2
+	cmac.Write(buf)
 
-	return;
+	return
 }
 
 func finishEAX(tag []byte, cmac hash.Hash) {
 	// Finish CMAC #2 and xor into tag.
-	sum := cmac.Sum();
+	sum := cmac.Sum()
 	for i := range tag {
 		tag[i] ^= sum[i]
 	}
@@ -75,21 +75,21 @@ func finishEAX(tag []byte, cmac hash.Hash) {
 // Writer adapter.  Tees writes into both w and cmac.
 // Knows that cmac never returns write errors.
 type cmacWriter struct {
-	w	io.Writer;
-	cmac	hash.Hash;
+	w    io.Writer
+	cmac hash.Hash
 }
 
 func (cw *cmacWriter) Write(p []byte) (n int, err os.Error) {
-	n, err = cw.w.Write(p);
-	cw.cmac.Write(p[0:n]);
-	return;
+	n, err = cw.w.Write(p)
+	cw.cmac.Write(p[0:n])
+	return
 }
 
 // An eaxEncrypter implements the EAX encryption mode.
 type eaxEncrypter struct {
-	ctr	io.Writer;	// CTR encrypter
-	cw	cmacWriter;	// CTR's output stream
-	tag	[]byte;
+	ctr io.Writer  // CTR encrypter
+	cw  cmacWriter // CTR's output stream
+	tag []byte
 }
 
 // NewEAXEncrypter creates and returns a new EAX encrypter
@@ -98,15 +98,15 @@ type eaxEncrypter struct {
 // the data it receives and writes that data to w.
 // The encrypter's Close method writes a final authenticating tag to w.
 func NewEAXEncrypter(c Cipher, iv []byte, hdr []byte, tagBytes int, w io.Writer) io.WriteCloser {
-	x := new(eaxEncrypter);
+	x := new(eaxEncrypter)
 
 	// Create new CTR instance writing to both
 	// w for encrypted output and cmac for digesting.
-	x.cw.w = w;
-	var ctrIV []byte;
-	ctrIV, x.tag, x.cw.cmac = setupEAX(c, iv, hdr, tagBytes);
-	x.ctr = NewCTRWriter(c, ctrIV, &x.cw);
-	return x;
+	x.cw.w = w
+	var ctrIV []byte
+	ctrIV, x.tag, x.cw.cmac = setupEAX(c, iv, hdr, tagBytes)
+	x.ctr = NewCTRWriter(c, ctrIV, &x.cw)
+	return x
 }
 
 func (x *eaxEncrypter) Write(p []byte) (n int, err os.Error) {
@@ -114,16 +114,16 @@ func (x *eaxEncrypter) Write(p []byte) (n int, err os.Error) {
 }
 
 func (x *eaxEncrypter) Close() os.Error {
-	x.ctr = nil;	// crash if Write is called again
+	x.ctr = nil // crash if Write is called again
 
 	// Write tag.
-	finishEAX(x.tag, x.cw.cmac);
-	n, err := x.cw.w.Write(x.tag);
+	finishEAX(x.tag, x.cw.cmac)
+	n, err := x.cw.w.Write(x.tag)
 	if n != len(x.tag) && err == nil {
 		err = io.ErrShortWrite
 	}
 
-	return err;
+	return err
 }
 
 // Reader adapter.  Returns data read from r but hangs
@@ -133,10 +133,10 @@ func (x *eaxEncrypter) Close() os.Error {
 // and the "tee into digest" functionality could be separated,
 // but the latter half is trivial.
 type cmacReader struct {
-	r	io.Reader;
-	cmac	hash.Hash;
-	tag	[]byte;
-	tmp	[]byte;
+	r    io.Reader
+	cmac hash.Hash
+	tag  []byte
+	tmp  []byte
 }
 
 func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
@@ -147,21 +147,21 @@ func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
 
 	// First, read a tag-sized chunk.
 	// It's probably not the tag (unless there's no data).
-	tag := cr.tag;
+	tag := cr.tag
 	if len(tag) < cap(tag) {
-		nt := len(tag);
-		nn, err1 := io.ReadFull(cr.r, tag[nt:cap(tag)]);
-		tag = tag[0 : nt+nn];
-		cr.tag = tag;
+		nt := len(tag)
+		nn, err1 := io.ReadFull(cr.r, tag[nt:cap(tag)])
+		tag = tag[0 : nt+nn]
+		cr.tag = tag
 		if err1 != nil {
 			return 0, err1
 		}
 	}
 
-	tagBytes := len(tag);
+	tagBytes := len(tag)
 	if len(p) > 4*tagBytes {
 		// If p is big, try to read directly into p to avoid a copy.
-		n, err = cr.r.Read(p[tagBytes:]);
+		n, err = cr.r.Read(p[tagBytes:])
 		if n == 0 {
 			goto out
 		}
@@ -173,19 +173,19 @@ func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
 		for i := 0; i < tagBytes; i++ {
 			tag[i] = p[n+i]
 		}
-		goto out;
+		goto out
 	}
 
 	// Otherwise, read into p and then slide data
-	n, err = cr.r.Read(p);
+	n, err = cr.r.Read(p)
 	if n == 0 {
 		goto out
 	}
 
 	// copy tag+p into p+tmp and then swap tmp, tag
-	tmp := cr.tmp;
+	tmp := cr.tmp
 	for i := n + tagBytes - 1; i >= 0; i-- {
-		var c byte;
+		var c byte
 		if i < tagBytes {
 			c = tag[i]
 		} else {
@@ -197,17 +197,17 @@ func (cr *cmacReader) Read(p []byte) (n int, err os.Error) {
 			tmp[i] = c
 		}
 	}
-	cr.tmp, cr.tag = tag, tmp;
+	cr.tmp, cr.tag = tag, tmp
 
 out:
-	cr.cmac.Write(p[0:n]);
-	return;
+	cr.cmac.Write(p[0:n])
+	return
 }
 
 type eaxDecrypter struct {
-	ctr	io.Reader;
-	cr	cmacReader;
-	tag	[]byte;
+	ctr io.Reader
+	cr  cmacReader
+	tag []byte
 }
 
 // NewEAXDecrypter creates and returns a new EAX decrypter
@@ -220,34 +220,34 @@ type eaxDecrypter struct {
 // assumed to be valid, authenticated data until Read returns
 // 0, nil to signal the end of the data.
 func NewEAXDecrypter(c Cipher, iv []byte, hdr []byte, tagBytes int, r io.Reader) io.Reader {
-	x := new(eaxDecrypter);
+	x := new(eaxDecrypter)
 
-	x.cr.r = r;
-	x.cr.tag = make([]byte, 0, tagBytes);
-	x.cr.tmp = make([]byte, 0, tagBytes);
-	var ctrIV []byte;
-	ctrIV, x.tag, x.cr.cmac = setupEAX(c, iv, hdr, tagBytes);
-	x.ctr = NewCTRReader(c, ctrIV, &x.cr);
-	return x;
+	x.cr.r = r
+	x.cr.tag = make([]byte, 0, tagBytes)
+	x.cr.tmp = make([]byte, 0, tagBytes)
+	var ctrIV []byte
+	ctrIV, x.tag, x.cr.cmac = setupEAX(c, iv, hdr, tagBytes)
+	x.ctr = NewCTRReader(c, ctrIV, &x.cr)
+	return x
 }
 
 func (x *eaxDecrypter) checkTag() os.Error {
-	x.ctr = nil;	// crash if Read is called again
+	x.ctr = nil // crash if Read is called again
 
-	finishEAX(x.tag, x.cr.cmac);
+	finishEAX(x.tag, x.cr.cmac)
 	if !same(x.tag, x.cr.tag) {
-		e := new(EAXTagError);
-		e.Computed = copy(x.tag);
-		e.Read = copy(x.cr.tag);
-		return e;
+		e := new(EAXTagError)
+		e.Computed = copy(x.tag)
+		e.Read = copy(x.cr.tag)
+		return e
 	}
-	return nil;
+	return nil
 }
 
 func (x *eaxDecrypter) Read(p []byte) (n int, err os.Error) {
-	n, err = x.ctr.Read(p);
+	n, err = x.ctr.Read(p)
 	if n == 0 && err == nil {
 		err = x.checkTag()
 	}
-	return n, err;
+	return n, err
 }

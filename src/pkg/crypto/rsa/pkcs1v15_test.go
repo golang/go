@@ -5,29 +5,29 @@
 package rsa
 
 import (
-	"big";
-	"bytes";
-	"crypto/sha1";
-	"encoding/base64";
-	"encoding/hex";
-	"os";
-	"io";
-	"strings";
-	"testing";
-	"testing/quick";
+	"big"
+	"bytes"
+	"crypto/sha1"
+	"encoding/base64"
+	"encoding/hex"
+	"os"
+	"io"
+	"strings"
+	"testing"
+	"testing/quick"
 )
 
 func decodeBase64(in string) []byte {
-	out := make([]byte, base64.StdEncoding.DecodedLen(len(in)));
-	n, err := base64.StdEncoding.Decode(out, strings.Bytes(in));
+	out := make([]byte, base64.StdEncoding.DecodedLen(len(in)))
+	n, err := base64.StdEncoding.Decode(out, strings.Bytes(in))
 	if err != nil {
 		return nil
 	}
-	return out[0:n];
+	return out[0:n]
 }
 
 type DecryptPKCS1v15Test struct {
-	in, out string;
+	in, out string
 }
 
 // These test vectors were generated with `openssl rsautl -pkcs -encrypt`
@@ -52,11 +52,11 @@ var decryptPKCS1v15Tests = []DecryptPKCS1v15Test{
 
 func TestDecryptPKCS1v15(t *testing.T) {
 	for i, test := range decryptPKCS1v15Tests {
-		out, err := DecryptPKCS1v15(nil, rsaPrivateKey, decodeBase64(test.in));
+		out, err := DecryptPKCS1v15(nil, rsaPrivateKey, decodeBase64(test.in))
 		if err != nil {
 			t.Errorf("#%d error decrypting", i)
 		}
-		want := strings.Bytes(test.out);
+		want := strings.Bytes(test.out)
 		if bytes.Compare(out, want) != 0 {
 			t.Errorf("#%d got:%#v want:%#v", i, out, want)
 		}
@@ -64,43 +64,43 @@ func TestDecryptPKCS1v15(t *testing.T) {
 }
 
 func TestEncryptPKCS1v15(t *testing.T) {
-	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0);
+	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0)
 	if err != nil {
 		t.Errorf("Failed to open /dev/urandom")
 	}
-	k := (rsaPrivateKey.N.Len() + 7) / 8;
+	k := (rsaPrivateKey.N.Len() + 7) / 8
 
 	tryEncryptDecrypt := func(in []byte, blind bool) bool {
 		if len(in) > k-11 {
 			in = in[0 : k-11]
 		}
 
-		ciphertext, err := EncryptPKCS1v15(urandom, &rsaPrivateKey.PublicKey, in);
+		ciphertext, err := EncryptPKCS1v15(urandom, &rsaPrivateKey.PublicKey, in)
 		if err != nil {
-			t.Errorf("error encrypting: %s", err);
-			return false;
+			t.Errorf("error encrypting: %s", err)
+			return false
 		}
 
-		var rand io.Reader;
+		var rand io.Reader
 		if !blind {
 			rand = nil
 		} else {
 			rand = urandom
 		}
-		plaintext, err := DecryptPKCS1v15(rand, rsaPrivateKey, ciphertext);
+		plaintext, err := DecryptPKCS1v15(rand, rsaPrivateKey, ciphertext)
 		if err != nil {
-			t.Errorf("error decrypting: %s", err);
-			return false;
+			t.Errorf("error decrypting: %s", err)
+			return false
 		}
 
 		if bytes.Compare(plaintext, in) != 0 {
-			t.Errorf("output mismatch: %#v %#v", plaintext, in);
-			return false;
+			t.Errorf("output mismatch: %#v %#v", plaintext, in)
+			return false
 		}
-		return true;
-	};
+		return true
+	}
 
-	quick.Check(tryEncryptDecrypt, nil);
+	quick.Check(tryEncryptDecrypt, nil)
 }
 
 // These test vectors were generated with `openssl rsautl -pkcs -encrypt`
@@ -125,12 +125,12 @@ var decryptPKCS1v15SessionKeyTests = []DecryptPKCS1v15Test{
 
 func TestEncryptPKCS1v15SessionKey(t *testing.T) {
 	for i, test := range decryptPKCS1v15SessionKeyTests {
-		key := strings.Bytes("FAIL");
-		err := DecryptPKCS1v15SessionKey(nil, rsaPrivateKey, decodeBase64(test.in), key);
+		key := strings.Bytes("FAIL")
+		err := DecryptPKCS1v15SessionKey(nil, rsaPrivateKey, decodeBase64(test.in), key)
 		if err != nil {
 			t.Errorf("#%d error decrypting", i)
 		}
-		want := strings.Bytes(test.out);
+		want := strings.Bytes(test.out)
 		if bytes.Compare(key, want) != 0 {
 			t.Errorf("#%d got:%#v want:%#v", i, key, want)
 		}
@@ -138,26 +138,26 @@ func TestEncryptPKCS1v15SessionKey(t *testing.T) {
 }
 
 func TestNonZeroRandomBytes(t *testing.T) {
-	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0);
+	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0)
 	if err != nil {
 		t.Errorf("Failed to open /dev/urandom")
 	}
 
-	b := make([]byte, 512);
-	err = nonZeroRandomBytes(b, urandom);
+	b := make([]byte, 512)
+	err = nonZeroRandomBytes(b, urandom)
 	if err != nil {
 		t.Errorf("returned error: %s", err)
 	}
 	for _, b := range b {
 		if b == 0 {
-			t.Errorf("Zero octet found");
-			return;
+			t.Errorf("Zero octet found")
+			return
 		}
 	}
 }
 
 type signPKCS1v15Test struct {
-	in, out string;
+	in, out string
 }
 
 // These vectors have been tested with
@@ -168,16 +168,16 @@ var signPKCS1v15Tests = []signPKCS1v15Test{
 
 func TestSignPKCS1v15(t *testing.T) {
 	for i, test := range signPKCS1v15Tests {
-		h := sha1.New();
-		h.Write(strings.Bytes(test.in));
-		digest := h.Sum();
+		h := sha1.New()
+		h.Write(strings.Bytes(test.in))
+		digest := h.Sum()
 
-		s, err := SignPKCS1v15(nil, rsaPrivateKey, HashSHA1, digest);
+		s, err := SignPKCS1v15(nil, rsaPrivateKey, HashSHA1, digest)
 		if err != nil {
 			t.Errorf("#%d %s", i, err)
 		}
 
-		expected, _ := hex.DecodeString(test.out);
+		expected, _ := hex.DecodeString(test.out)
 		if bytes.Compare(s, expected) != 0 {
 			t.Errorf("#%d got: %x want: %x", i, s, expected)
 		}
@@ -186,13 +186,13 @@ func TestSignPKCS1v15(t *testing.T) {
 
 func TestVerifyPKCS1v15(t *testing.T) {
 	for i, test := range signPKCS1v15Tests {
-		h := sha1.New();
-		h.Write(strings.Bytes(test.in));
-		digest := h.Sum();
+		h := sha1.New()
+		h.Write(strings.Bytes(test.in))
+		digest := h.Sum()
 
-		sig, _ := hex.DecodeString(test.out);
+		sig, _ := hex.DecodeString(test.out)
 
-		err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, HashSHA1, digest, sig);
+		err := VerifyPKCS1v15(&rsaPrivateKey.PublicKey, HashSHA1, digest, sig)
 		if err != nil {
 			t.Errorf("#%d %s", i, err)
 		}
@@ -200,9 +200,9 @@ func TestVerifyPKCS1v15(t *testing.T) {
 }
 
 func bigFromString(s string) *big.Int {
-	ret := new(big.Int);
-	ret.SetString(s, 10);
-	return ret;
+	ret := new(big.Int)
+	ret.SetString(s, 10)
+	return ret
 }
 
 // In order to generate new test vectors you'll need the PEM form of this key:

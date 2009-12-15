@@ -5,27 +5,27 @@
 package rsa
 
 import (
-	"big";
-	"bytes";
-	"crypto/sha1";
-	"os";
-	"testing";
+	"big"
+	"bytes"
+	"crypto/sha1"
+	"os"
+	"testing"
 )
 
 func TestKeyGeneration(t *testing.T) {
-	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0);
+	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0)
 	if err != nil {
 		t.Errorf("failed to open /dev/urandom")
 	}
 
-	priv, err := GenerateKey(urandom, 32);
+	priv, err := GenerateKey(urandom, 32)
 	if err != nil {
 		t.Errorf("failed to generate key")
 	}
-	pub := &priv.PublicKey;
-	m := big.NewInt(42);
-	c := encrypt(new(big.Int), pub, m);
-	m2, err := decrypt(nil, priv, c);
+	pub := &priv.PublicKey
+	m := big.NewInt(42)
+	c := encrypt(new(big.Int), pub, m)
+	m2, err := decrypt(nil, priv, c)
 	if err != nil {
 		t.Errorf("error while decrypting: %s", err)
 	}
@@ -33,7 +33,7 @@ func TestKeyGeneration(t *testing.T) {
 		t.Errorf("got:%v, want:%v (%s)", m2, m, priv)
 	}
 
-	m3, err := decrypt(urandom, priv, c);
+	m3, err := decrypt(urandom, priv, c)
 	if err != nil {
 		t.Errorf("error while decrypting (blind): %s", err)
 	}
@@ -43,28 +43,28 @@ func TestKeyGeneration(t *testing.T) {
 }
 
 type testEncryptOAEPMessage struct {
-	in	[]byte;
-	seed	[]byte;
-	out	[]byte;
+	in   []byte
+	seed []byte
+	out  []byte
 }
 
 type testEncryptOAEPStruct struct {
-	modulus	string;
-	e	int;
-	d	string;
-	msgs	[]testEncryptOAEPMessage;
+	modulus string
+	e       int
+	d       string
+	msgs    []testEncryptOAEPMessage
 }
 
 func TestEncryptOAEP(t *testing.T) {
-	sha1 := sha1.New();
-	n := new(big.Int);
+	sha1 := sha1.New()
+	n := new(big.Int)
 	for i, test := range testEncryptOAEPData {
-		n.SetString(test.modulus, 16);
-		public := PublicKey{n, test.e};
+		n.SetString(test.modulus, 16)
+		public := PublicKey{n, test.e}
 
 		for j, message := range test.msgs {
-			randomSource := bytes.NewBuffer(message.seed);
-			out, err := EncryptOAEP(sha1, randomSource, &public, message.in, nil);
+			randomSource := bytes.NewBuffer(message.seed)
+			out, err := EncryptOAEP(sha1, randomSource, &public, message.in, nil)
 			if err != nil {
 				t.Errorf("#%d,%d error: %s", i, j, err)
 			}
@@ -76,21 +76,21 @@ func TestEncryptOAEP(t *testing.T) {
 }
 
 func TestDecryptOAEP(t *testing.T) {
-	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0);
+	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0)
 	if err != nil {
 		t.Errorf("Failed to open /dev/urandom")
 	}
 
-	sha1 := sha1.New();
-	n := new(big.Int);
-	d := new(big.Int);
+	sha1 := sha1.New()
+	n := new(big.Int)
+	d := new(big.Int)
 	for i, test := range testEncryptOAEPData {
-		n.SetString(test.modulus, 16);
-		d.SetString(test.d, 16);
-		private := PrivateKey{PublicKey{n, test.e}, d, nil, nil};
+		n.SetString(test.modulus, 16)
+		d.SetString(test.d, 16)
+		private := PrivateKey{PublicKey{n, test.e}, d, nil, nil}
 
 		for j, message := range test.msgs {
-			out, err := DecryptOAEP(sha1, nil, &private, message.out, nil);
+			out, err := DecryptOAEP(sha1, nil, &private, message.out, nil)
 			if err != nil {
 				t.Errorf("#%d,%d error: %s", i, j, err)
 			} else if bytes.Compare(out, message.in) != 0 {
@@ -98,7 +98,7 @@ func TestDecryptOAEP(t *testing.T) {
 			}
 
 			// Decrypt with blinding.
-			out, err = DecryptOAEP(sha1, urandom, &private, message.out, nil);
+			out, err = DecryptOAEP(sha1, urandom, &private, message.out, nil)
 			if err != nil {
 				t.Errorf("#%d,%d (blind) error: %s", i, j, err)
 			} else if bytes.Compare(out, message.in) != 0 {
