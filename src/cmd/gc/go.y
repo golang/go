@@ -1070,6 +1070,7 @@ fndcl:
 	{
 		Node *n;
 
+		$3 = checkarglist($3, 1);
 		$$ = nod(ODCLFUNC, N, N);
 		$$->nname = $1;
 		if($3 == nil && $5 == nil)
@@ -1085,6 +1086,8 @@ fndcl:
 	{
 		Node *rcvr, *t;
 
+		$2 = checkarglist($2, 0);
+		$6 = checkarglist($6, 1);
 		$$ = N;
 		if($2 == nil) {
 			yyerror("method has no receiver");
@@ -1113,6 +1116,7 @@ fndcl:
 fntype:
 	LFUNC '(' oarg_type_list_ocomma ')' fnres
 	{
+		$3 = checkarglist($3, 1);
 		$$ = nod(OTFUNC, N, N);
 		$$->list = $3;
 		$$->rlist = $5;
@@ -1140,6 +1144,7 @@ fnres:
 	}
 |	'(' oarg_type_list_ocomma ')'
 	{
+		$2 = checkarglist($2, 0);
 		$$ = $2;
 	}
 
@@ -1280,6 +1285,7 @@ indcl:
 	'(' oarg_type_list_ocomma ')' fnres
 	{
 		// without func keyword
+		$2 = checkarglist($2, 0);
 		$$ = nod(OTFUNC, fakethis(), N);
 		$$->list = $2;
 		$$->rlist = $4;
@@ -1320,7 +1326,7 @@ oarg_type_list_ocomma:
 	}
 |	arg_type_list ocomma
 	{
-		$$ = checkarglist($1);
+		$$ = $1;
 	}
 
 /*
