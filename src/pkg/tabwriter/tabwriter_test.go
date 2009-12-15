@@ -5,43 +5,43 @@
 package tabwriter
 
 import (
-	"io";
-	"os";
-	"testing";
+	"io"
+	"os"
+	"testing"
 )
 
 
 type buffer struct {
-	a []byte;
+	a []byte
 }
 
 
-func (b *buffer) init(n int)	{ b.a = make([]byte, n)[0:0] }
+func (b *buffer) init(n int) { b.a = make([]byte, n)[0:0] }
 
 
-func (b *buffer) clear()	{ b.a = b.a[0:0] }
+func (b *buffer) clear() { b.a = b.a[0:0] }
 
 
 func (b *buffer) Write(buf []byte) (written int, err os.Error) {
-	n := len(b.a);
-	m := len(buf);
+	n := len(b.a)
+	m := len(buf)
 	if n+m <= cap(b.a) {
-		b.a = b.a[0 : n+m];
+		b.a = b.a[0 : n+m]
 		for i := 0; i < m; i++ {
 			b.a[n+i] = buf[i]
 		}
 	} else {
 		panicln("buffer.Write: buffer too small", n, m, cap(b.a))
 	}
-	return len(buf), nil;
+	return len(buf), nil
 }
 
 
-func (b *buffer) String() string	{ return string(b.a) }
+func (b *buffer) String() string { return string(b.a) }
 
 
 func write(t *testing.T, testname string, w *Writer, src string) {
-	written, err := io.WriteString(w, src);
+	written, err := io.WriteString(w, src)
 	if err != nil {
 		t.Errorf("--- test: %s\n--- src:\n%s\n--- write error: %v\n", testname, src, err)
 	}
@@ -52,12 +52,12 @@ func write(t *testing.T, testname string, w *Writer, src string) {
 
 
 func verify(t *testing.T, testname string, w *Writer, b *buffer, src, expected string) {
-	err := w.Flush();
+	err := w.Flush()
 	if err != nil {
 		t.Errorf("--- test: %s\n--- src:\n%s\n--- flush error: %v\n", testname, src, err)
 	}
 
-	res := b.String();
+	res := b.String()
 	if res != expected {
 		t.Errorf("--- test: %s\n--- src:\n%s\n--- found:\n%s\n--- expected:\n%s\n", testname, src, res, expected)
 	}
@@ -65,43 +65,43 @@ func verify(t *testing.T, testname string, w *Writer, b *buffer, src, expected s
 
 
 func check(t *testing.T, testname string, minwidth, tabwidth, padding int, padchar byte, flags uint, src, expected string) {
-	var b buffer;
-	b.init(1000);
+	var b buffer
+	b.init(1000)
 
-	var w Writer;
-	w.Init(&b, minwidth, tabwidth, padding, padchar, flags);
+	var w Writer
+	w.Init(&b, minwidth, tabwidth, padding, padchar, flags)
 
 	// write all at once
-	b.clear();
-	write(t, testname, &w, src);
-	verify(t, testname, &w, &b, src, expected);
+	b.clear()
+	write(t, testname, &w, src)
+	verify(t, testname, &w, &b, src, expected)
 
 	// write byte-by-byte
-	b.clear();
+	b.clear()
 	for i := 0; i < len(src); i++ {
 		write(t, testname, &w, src[i:i+1])
 	}
-	verify(t, testname, &w, &b, src, expected);
+	verify(t, testname, &w, &b, src, expected)
 
 	// write using Fibonacci slice sizes
-	b.clear();
+	b.clear()
 	for i, d := 0, 0; i < len(src); {
-		write(t, testname, &w, src[i:i+d]);
-		i, d = i+d, d+1;
+		write(t, testname, &w, src[i:i+d])
+		i, d = i+d, d+1
 		if i+d > len(src) {
 			d = len(src) - i
 		}
 	}
-	verify(t, testname, &w, &b, src, expected);
+	verify(t, testname, &w, &b, src, expected)
 }
 
 
 type entry struct {
-	testname			string;
-	minwidth, tabwidth, padding	int;
-	padchar				byte;
-	flags				uint;
-	src, expected			string;
+	testname                    string
+	minwidth, tabwidth, padding int
+	padchar                     byte
+	flags                       uint
+	src, expected               string
 }
 
 
@@ -144,7 +144,7 @@ var tests = []entry{
 	entry{
 		"1e esc",
 		8, 0, 1, '.', 0,
-		"abc\xff\tdef",	// unterminated escape
+		"abc\xff\tdef", // unterminated escape
 		"abc\tdef",
 	},
 
@@ -165,14 +165,14 @@ var tests = []entry{
 	entry{
 		"4a",
 		8, 0, 1, '.', 0,
-		"\t",	// '\t' terminates an empty cell on last line - nothing to print
+		"\t", // '\t' terminates an empty cell on last line - nothing to print
 		"",
 	},
 
 	entry{
 		"4b",
 		8, 0, 1, '.', AlignRight,
-		"\t",	// '\t' terminates an empty cell on last line - nothing to print
+		"\t", // '\t' terminates an empty cell on last line - nothing to print
 		"",
 	},
 
@@ -294,7 +294,7 @@ var tests = []entry{
 	entry{
 		"9b",
 		1, 0, 0, '.', FilterHTML,
-		"1\t2<!---\f--->\t3\t4\n" +	// \f inside HTML is ignored
+		"1\t2<!---\f--->\t3\t4\n" + // \f inside HTML is ignored
 			"11\t222\t3333\t44444\n",
 
 		"1.2<!---\f--->..3...4\n" +
@@ -304,7 +304,7 @@ var tests = []entry{
 	entry{
 		"9c",
 		1, 0, 0, '.', 0,
-		"1\t2\t3\t4\f" +	// \f causes a newline and flush
+		"1\t2\t3\t4\f" + // \f causes a newline and flush
 			"11\t222\t3333\t44444\n",
 
 		"1234\n" +
@@ -314,7 +314,7 @@ var tests = []entry{
 	entry{
 		"9c debug",
 		1, 0, 0, '.', Debug,
-		"1\t2\t3\t4\f" +	// \f causes a newline and flush
+		"1\t2\t3\t4\f" + // \f causes a newline and flush
 			"11\t222\t3333\t44444\n",
 
 		"1|2|3|4\n" +
@@ -489,7 +489,7 @@ var tests = []entry{
 	entry{
 		"15b",
 		4, 0, 0, '.', DiscardEmptyColumns,
-		"a\t\tb",	// htabs - do not discard column
+		"a\t\tb", // htabs - do not discard column
 		"a.......b",
 	},
 
@@ -558,7 +558,7 @@ var tests = []entry{
 	entry{
 		"16c",
 		100, 100, 0, '\t', DiscardEmptyColumns,
-		"a\tb\t\td\n" +	// hard tabs - do not discard column
+		"a\tb\t\td\n" + // hard tabs - do not discard column
 			"a\tb\t\td\te\n" +
 			"a\n" +
 			"a\tb\tc\td\n" +
@@ -574,7 +574,7 @@ var tests = []entry{
 	entry{
 		"16c debug",
 		100, 100, 0, '\t', DiscardEmptyColumns | Debug,
-		"a\tb\t\td\n" +	// hard tabs - do not discard column
+		"a\tb\t\td\n" + // hard tabs - do not discard column
 			"a\tb\t\td\te\n" +
 			"a\n" +
 			"a\tb\tc\td\n" +

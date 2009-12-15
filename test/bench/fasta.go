@@ -38,28 +38,28 @@ POSSIBILITY OF SUCH DAMAGE.
 package main
 
 import (
-	"bufio";
-	"flag";
-	"os";
-	"strings";
+	"bufio"
+	"flag"
+	"os"
+	"strings"
 )
 
 var out *bufio.Writer
 
 var n = flag.Int("n", 1000, "length of result")
 
-const WIDTH = 60	// Fold lines after WIDTH bytes
+const WIDTH = 60 // Fold lines after WIDTH bytes
 
 func min(a, b int) int {
 	if a < b {
 		return a
 	}
-	return b;
+	return b
 }
 
 type AminoAcid struct {
-	p	float;
-	c	byte;
+	p float
+	c byte
 }
 
 func AccumulateProbabilities(genelist []AminoAcid) {
@@ -74,28 +74,28 @@ func AccumulateProbabilities(genelist []AminoAcid) {
 // After each WIDTH characters it prints a newline.
 // It assumes that WIDTH <= len(s) + 1.
 func RepeatFasta(s []byte, count int) {
-	pos := 0;
-	s2 := make([]byte, len(s)+WIDTH);
-	copy(s2, s);
-	copy(s2[len(s):], s);
+	pos := 0
+	s2 := make([]byte, len(s)+WIDTH)
+	copy(s2, s)
+	copy(s2[len(s):], s)
 	for count > 0 {
-		line := min(WIDTH, count);
-		out.Write(s2[pos : pos+line]);
-		out.WriteByte('\n');
-		pos += line;
+		line := min(WIDTH, count)
+		out.Write(s2[pos : pos+line])
+		out.WriteByte('\n')
+		pos += line
 		if pos >= len(s) {
 			pos -= len(s)
 		}
-		count -= line;
+		count -= line
 	}
 }
 
 var lastrandom uint32 = 42
 
 const (
-	IM	= 139968;
-	IA	= 3877;
-	IC	= 29573;
+	IM = 139968
+	IA = 3877
+	IC = 29573
 )
 
 // Each element of genelist is a struct with a character and
@@ -107,31 +107,31 @@ const (
 // This sequence is repeated count times.
 // Between each WIDTH consecutive characters, the function prints a newline.
 func RandomFasta(genelist []AminoAcid, count int) {
-	buf := make([]byte, WIDTH+1);
+	buf := make([]byte, WIDTH+1)
 	for count > 0 {
-		line := min(WIDTH, count);
+		line := min(WIDTH, count)
 		for pos := 0; pos < line; pos++ {
-			lastrandom = (lastrandom*IA + IC) % IM;
+			lastrandom = (lastrandom*IA + IC) % IM
 			// Integer to float conversions are faster if the integer is signed.
-			r := float(int32(lastrandom)) / IM;
+			r := float(int32(lastrandom)) / IM
 			for _, v := range genelist {
 				if v.p >= r {
-					buf[pos] = v.c;
-					break;
+					buf[pos] = v.c
+					break
 				}
 			}
 		}
-		buf[line] = '\n';
-		out.Write(buf[0 : line+1]);
-		count -= line;
+		buf[line] = '\n'
+		out.Write(buf[0 : line+1])
+		count -= line
 	}
 }
 
 func main() {
-	out = bufio.NewWriter(os.Stdout);
-	defer out.Flush();
+	out = bufio.NewWriter(os.Stdout)
+	defer out.Flush()
 
-	flag.Parse();
+	flag.Parse()
 
 	iub := []AminoAcid{
 		AminoAcid{0.27, 'a'},
@@ -149,17 +149,17 @@ func main() {
 		AminoAcid{0.02, 'V'},
 		AminoAcid{0.02, 'W'},
 		AminoAcid{0.02, 'Y'},
-	};
+	}
 
 	homosapiens := []AminoAcid{
 		AminoAcid{0.3029549426680, 'a'},
 		AminoAcid{0.1979883004921, 'c'},
 		AminoAcid{0.1975473066391, 'g'},
 		AminoAcid{0.3015094502008, 't'},
-	};
+	}
 
-	AccumulateProbabilities(iub);
-	AccumulateProbabilities(homosapiens);
+	AccumulateProbabilities(iub)
+	AccumulateProbabilities(homosapiens)
 
 	alu := strings.Bytes(
 		"GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG" +
@@ -168,12 +168,12 @@ func main() {
 			"ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA" +
 			"GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG" +
 			"AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC" +
-			"AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA");
+			"AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA")
 
-	out.WriteString(">ONE Homo sapiens alu\n");
-	RepeatFasta(alu, 2**n);
-	out.WriteString(">TWO IUB ambiguity codes\n");
-	RandomFasta(iub, 3**n);
-	out.WriteString(">THREE Homo sapiens frequency\n");
-	RandomFasta(homosapiens, 5**n);
+	out.WriteString(">ONE Homo sapiens alu\n")
+	RepeatFasta(alu, 2**n)
+	out.WriteString(">TWO IUB ambiguity codes\n")
+	RandomFasta(iub, 3**n)
+	out.WriteString(">THREE Homo sapiens frequency\n")
+	RandomFasta(homosapiens, 5**n)
 }

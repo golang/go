@@ -10,50 +10,50 @@
 package time
 
 import (
-	"io/ioutil";
-	"once";
-	"os";
+	"io/ioutil"
+	"once"
+	"os"
 )
 
 const (
-	headerSize	= 4 + 16 + 4*7;
-	zoneDir		= "/usr/share/zoneinfo/";
+	headerSize = 4 + 16 + 4*7
+	zoneDir    = "/usr/share/zoneinfo/"
 )
 
 // Simple I/O interface to binary blob of data.
 type data struct {
-	p	[]byte;
-	error	bool;
+	p     []byte
+	error bool
 }
 
 
 func (d *data) read(n int) []byte {
 	if len(d.p) < n {
-		d.p = nil;
-		d.error = true;
-		return nil;
+		d.p = nil
+		d.error = true
+		return nil
 	}
-	p := d.p[0:n];
-	d.p = d.p[n:];
-	return p;
+	p := d.p[0:n]
+	d.p = d.p[n:]
+	return p
 }
 
 func (d *data) big4() (n uint32, ok bool) {
-	p := d.read(4);
+	p := d.read(4)
 	if len(p) < 4 {
-		d.error = true;
-		return 0, false;
+		d.error = true
+		return 0, false
 	}
-	return uint32(p[0])<<24 | uint32(p[1])<<16 | uint32(p[2])<<8 | uint32(p[3]), true;
+	return uint32(p[0])<<24 | uint32(p[1])<<16 | uint32(p[2])<<8 | uint32(p[3]), true
 }
 
 func (d *data) byte() (n byte, ok bool) {
-	p := d.read(1);
+	p := d.read(1)
 	if len(p) < 1 {
-		d.error = true;
-		return 0, false;
+		d.error = true
+		return 0, false
 	}
-	return p[0], true;
+	return p[0], true
 }
 
 
@@ -64,24 +64,24 @@ func byteString(p []byte) string {
 			return string(p[0:i])
 		}
 	}
-	return string(p);
+	return string(p)
 }
 
 // Parsed representation
 type zone struct {
-	utcoff	int;
-	isdst	bool;
-	name	string;
+	utcoff int
+	isdst  bool
+	name   string
 }
 
 type zonetime struct {
-	time		int32;	// transition time, in seconds since 1970 GMT
-	zone		*zone;	// the zone that goes into effect at that time
-	isstd, isutc	bool;	// ignored - no idea what these mean
+	time         int32 // transition time, in seconds since 1970 GMT
+	zone         *zone // the zone that goes into effect at that time
+	isstd, isutc bool  // ignored - no idea what these mean
 }
 
 func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
-	d := data{bytes, false};
+	d := data{bytes, false}
 
 	// 4-byte magic "TZif"
 	if magic := d.read(4); string(magic) != "TZif" {
@@ -89,7 +89,7 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 	}
 
 	// 1-byte version, then 15 bytes of padding
-	var p []byte;
+	var p []byte
 	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
 		return nil, false
 	}
@@ -102,46 +102,46 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 	//	number of local time zones
 	//	number of characters of time zone abbrev strings
 	const (
-		NUTCLocal	= iota;
-		NStdWall;
-		NLeap;
-		NTime;
-		NZone;
-		NChar;
+		NUTCLocal = iota
+		NStdWall
+		NLeap
+		NTime
+		NZone
+		NChar
 	)
-	var n [6]int;
+	var n [6]int
 	for i := 0; i < 6; i++ {
-		nn, ok := d.big4();
+		nn, ok := d.big4()
 		if !ok {
 			return nil, false
 		}
-		n[i] = int(nn);
+		n[i] = int(nn)
 	}
 
 	// Transition times.
-	txtimes := data{d.read(n[NTime] * 4), false};
+	txtimes := data{d.read(n[NTime] * 4), false}
 
 	// Time zone indices for transition times.
-	txzones := d.read(n[NTime]);
+	txzones := d.read(n[NTime])
 
 	// Zone info structures
-	zonedata := data{d.read(n[NZone] * 6), false};
+	zonedata := data{d.read(n[NZone] * 6), false}
 
 	// Time zone abbreviations.
-	abbrev := d.read(n[NChar]);
+	abbrev := d.read(n[NChar])
 
 	// Leap-second time pairs
-	d.read(n[NLeap] * 8);
+	d.read(n[NLeap] * 8)
 
 	// Whether tx times associated with local time types
 	// are specified as standard time or wall time.
-	isstd := d.read(n[NStdWall]);
+	isstd := d.read(n[NStdWall])
 
 	// Whether tx times associated with local time types
 	// are specified as UTC or local time.
-	isutc := d.read(n[NUTCLocal]);
+	isutc := d.read(n[NUTCLocal])
 
-	if d.error {	// ran out of data
+	if d.error { // ran out of data
 		return nil, false
 	}
 
@@ -152,38 +152,38 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 	// Now we can build up a useful data structure.
 	// First the zone information.
 	//	utcoff[4] isdst[1] nameindex[1]
-	z := make([]zone, n[NZone]);
+	z := make([]zone, n[NZone])
 	for i := 0; i < len(z); i++ {
-		var ok bool;
-		var n uint32;
+		var ok bool
+		var n uint32
 		if n, ok = zonedata.big4(); !ok {
 			return nil, false
 		}
-		z[i].utcoff = int(n);
-		var b byte;
+		z[i].utcoff = int(n)
+		var b byte
 		if b, ok = zonedata.byte(); !ok {
 			return nil, false
 		}
-		z[i].isdst = b != 0;
+		z[i].isdst = b != 0
 		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
 			return nil, false
 		}
-		z[i].name = byteString(abbrev[b:]);
+		z[i].name = byteString(abbrev[b:])
 	}
 
 	// Now the transition time info.
-	zt = make([]zonetime, n[NTime]);
+	zt = make([]zonetime, n[NTime])
 	for i := 0; i < len(zt); i++ {
-		var ok bool;
-		var n uint32;
+		var ok bool
+		var n uint32
 		if n, ok = txtimes.big4(); !ok {
 			return nil, false
 		}
-		zt[i].time = int32(n);
+		zt[i].time = int32(n)
 		if int(txzones[i]) >= len(z) {
 			return nil, false
 		}
-		zt[i].zone = &z[txzones[i]];
+		zt[i].zone = &z[txzones[i]]
 		if i < len(isstd) {
 			zt[i].isstd = isstd[i] != 0
 		}
@@ -191,15 +191,15 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
 			zt[i].isutc = isutc[i] != 0
 		}
 	}
-	return zt, true;
+	return zt, true
 }
 
 func readinfofile(name string) ([]zonetime, bool) {
-	buf, err := ioutil.ReadFile(name);
+	buf, err := ioutil.ReadFile(name)
 	if err != nil {
 		return nil, false
 	}
-	return parseinfo(buf);
+	return parseinfo(buf)
 }
 
 var zones []zonetime
@@ -210,7 +210,7 @@ func setupZone() {
 	// $TZ="" means use UTC.
 	// $TZ="foo" means use /usr/share/zoneinfo/foo.
 
-	tz, err := os.Getenverror("TZ");
+	tz, err := os.Getenverror("TZ")
 	switch {
 	case err == os.ENOENV:
 		zones, _ = readinfofile("/etc/localtime")
@@ -222,21 +222,21 @@ func setupZone() {
 }
 
 func lookupTimezone(sec int64) (zone string, offset int) {
-	once.Do(setupZone);
+	once.Do(setupZone)
 	if len(zones) == 0 {
 		return "UTC", 0
 	}
 
 	// Binary search for entry with largest time <= sec
-	tz := zones;
+	tz := zones
 	for len(tz) > 1 {
-		m := len(tz) / 2;
+		m := len(tz) / 2
 		if sec < int64(tz[m].time) {
 			tz = tz[0:m]
 		} else {
 			tz = tz[m:]
 		}
 	}
-	z := tz[0].zone;
-	return z.name, z.utcoff;
+	z := tz[0].zone
+	return z.name, z.utcoff
 }

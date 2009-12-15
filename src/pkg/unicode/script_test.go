@@ -5,13 +5,13 @@
 package unicode_test
 
 import (
-	"testing";
-	. "unicode";
+	"testing"
+	. "unicode"
 )
 
 type T struct {
-	rune	int;
-	script	string;
+	rune   int
+	script string
 }
 
 // Hand-chosen tests from Unicode 5.1.0, mostly to discover when new
@@ -112,7 +112,7 @@ var inTest = []T{
 	T{0xa216, "Yi"},
 }
 
-var outTest = []T{	// not really worth being thorough
+var outTest = []T{ // not really worth being thorough
 	T{0x20, "Telugu"},
 }
 
@@ -185,7 +185,7 @@ var inPropTest = []T{
 }
 
 func TestScripts(t *testing.T) {
-	notTested := make(map[string]bool);
+	notTested := make(map[string]bool)
 	for k := range Scripts {
 		notTested[k] = true
 	}
@@ -196,7 +196,7 @@ func TestScripts(t *testing.T) {
 		if !Is(Scripts[test.script], test.rune) {
 			t.Errorf("IsScript(%#x, %s) = false, want true\n", test.rune, test.script)
 		}
-		notTested[test.script] = false, false;
+		notTested[test.script] = false, false
 	}
 	for _, test := range outTest {
 		if Is(Scripts[test.script], test.rune) {
@@ -209,7 +209,7 @@ func TestScripts(t *testing.T) {
 }
 
 func TestCategories(t *testing.T) {
-	notTested := make(map[string]bool);
+	notTested := make(map[string]bool)
 	for k := range Categories {
 		notTested[k] = true
 	}
@@ -220,7 +220,7 @@ func TestCategories(t *testing.T) {
 		if !Is(Categories[test.script], test.rune) {
 			t.Errorf("IsCategory(%#x, %s) = false, want true\n", test.rune, test.script)
 		}
-		notTested[test.script] = false, false;
+		notTested[test.script] = false, false
 	}
 	for k := range notTested {
 		t.Error("not tested:", k)
@@ -228,7 +228,7 @@ func TestCategories(t *testing.T) {
 }
 
 func TestProperties(t *testing.T) {
-	notTested := make(map[string]bool);
+	notTested := make(map[string]bool)
 	for k := range Properties {
 		notTested[k] = true
 	}
@@ -239,7 +239,7 @@ func TestProperties(t *testing.T) {
 		if !Is(Properties[test.script], test.rune) {
 			t.Errorf("IsCategory(%#x, %s) = false, want true\n", test.rune, test.script)
 		}
-		notTested[test.script] = false, false;
+		notTested[test.script] = false, false
 	}
 	for k := range notTested {
 		t.Error("not tested:", k)

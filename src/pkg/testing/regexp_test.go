@@ -5,7 +5,7 @@
 package testing
 
 import (
-	"strings";
+	"strings"
 )
 
 var good_re = []string{
@@ -30,8 +30,8 @@ var good_re = []string{
 
 // TODO: nice to do this with a map
 type stringError struct {
-	re	string;
-	err	string;
+	re  string
+	err string
 }
 
 var bad_re = []stringError{
@@ -52,9 +52,9 @@ var bad_re = []stringError{
 type vec []int
 
 type tester struct {
-	re	string;
-	text	string;
-	match	vec;
+	re    string
+	text  string
+	match vec
 }
 
 var matches = []tester{
@@ -87,15 +87,15 @@ var matches = []tester{
 }
 
 func compileTest(t *T, expr string, error string) *Regexp {
-	re, err := CompileRegexp(expr);
+	re, err := CompileRegexp(expr)
 	if err != error {
 		t.Error("compiling `", expr, "`; unexpected error: ", err)
 	}
-	return re;
+	return re
 }
 
 func printVec(t *T, m []int) {
-	l := len(m);
+	l := len(m)
 	if l == 0 {
 		t.Log("\t<no match>")
 	} else {
@@ -106,7 +106,7 @@ func printVec(t *T, m []int) {
 }
 
 func printStrings(t *T, m []string) {
-	l := len(m);
+	l := len(m)
 	if l == 0 {
 		t.Log("\t<no match>")
 	} else {
@@ -117,7 +117,7 @@ func printStrings(t *T, m []string) {
 }
 
 func printBytes(t *T, b [][]byte) {
-	l := len(b);
+	l := len(b)
 	if l == 0 {
 		t.Log("\t<no match>")
 	} else {
@@ -128,7 +128,7 @@ func printBytes(t *T, b [][]byte) {
 }
 
 func equal(m1, m2 []int) bool {
-	l := len(m1);
+	l := len(m1)
 	if l != len(m2) {
 		return false
 	}
@@ -137,11 +137,11 @@ func equal(m1, m2 []int) bool {
 			return false
 		}
 	}
-	return true;
+	return true
 }
 
 func equalStrings(m1, m2 []string) bool {
-	l := len(m1);
+	l := len(m1)
 	if l != len(m2) {
 		return false
 	}
@@ -150,11 +150,11 @@ func equalStrings(m1, m2 []string) bool {
 			return false
 		}
 	}
-	return true;
+	return true
 }
 
 func equalBytes(m1 [][]byte, m2 []string) bool {
-	l := len(m1);
+	l := len(m1)
 	if l != len(m2) {
 		return false
 	}
@@ -163,28 +163,28 @@ func equalBytes(m1 [][]byte, m2 []string) bool {
 			return false
 		}
 	}
-	return true;
+	return true
 }
 
 func executeTest(t *T, expr string, str string, match []int) {
-	re := compileTest(t, expr, "");
+	re := compileTest(t, expr, "")
 	if re == nil {
 		return
 	}
-	m := re.ExecuteString(str);
+	m := re.ExecuteString(str)
 	if !equal(m, match) {
-		t.Error("ExecuteString failure on `", expr, "` matching `", str, "`:");
-		printVec(t, m);
-		t.Log("should be:");
-		printVec(t, match);
+		t.Error("ExecuteString failure on `", expr, "` matching `", str, "`:")
+		printVec(t, m)
+		t.Log("should be:")
+		printVec(t, match)
 	}
 	// now try bytes
-	m = re.Execute(strings.Bytes(str));
+	m = re.Execute(strings.Bytes(str))
 	if !equal(m, match) {
-		t.Error("Execute failure on `", expr, "` matching `", str, "`:");
-		printVec(t, m);
-		t.Log("should be:");
-		printVec(t, match);
+		t.Error("Execute failure on `", expr, "` matching `", str, "`:")
+		printVec(t, m)
+		t.Log("should be:")
+		printVec(t, match)
 	}
 }
 
@@ -202,22 +202,22 @@ func TestBadCompile(t *T) {
 
 func TestExecute(t *T) {
 	for i := 0; i < len(matches); i++ {
-		test := &matches[i];
-		executeTest(t, test.re, test.text, test.match);
+		test := &matches[i]
+		executeTest(t, test.re, test.text, test.match)
 	}
 }
 
 func matchTest(t *T, expr string, str string, match []int) {
-	re := compileTest(t, expr, "");
+	re := compileTest(t, expr, "")
 	if re == nil {
 		return
 	}
-	m := re.MatchString(str);
+	m := re.MatchString(str)
 	if m != (len(match) > 0) {
 		t.Error("MatchString failure on `", expr, "` matching `", str, "`:", m, "should be", len(match) > 0)
 	}
 	// now try bytes
-	m = re.Match(strings.Bytes(str));
+	m = re.Match(strings.Bytes(str))
 	if m != (len(match) > 0) {
 		t.Error("Match failure on `", expr, "` matching `", str, "`:", m, "should be", len(match) > 0)
 	}
@@ -225,46 +225,46 @@ func matchTest(t *T, expr string, str string, match []int) {
 
 func TestMatch(t *T) {
 	for i := 0; i < len(matches); i++ {
-		test := &matches[i];
-		matchTest(t, test.re, test.text, test.match);
+		test := &matches[i]
+		matchTest(t, test.re, test.text, test.match)
 	}
 }
 
 func matchStringsTest(t *T, expr string, str string, match []int) {
-	re := compileTest(t, expr, "");
+	re := compileTest(t, expr, "")
 	if re == nil {
 		return
 	}
-	strs := make([]string, len(match)/2);
+	strs := make([]string, len(match)/2)
 	for i := 0; i < len(match); i++ {
 		strs[i/2] = str[match[i]:match[i+1]]
 	}
-	m := re.MatchStrings(str);
+	m := re.MatchStrings(str)
 	if !equalStrings(m, strs) {
-		t.Error("MatchStrings failure on `", expr, "` matching `", str, "`:");
-		printStrings(t, m);
-		t.Log("should be:");
-		printStrings(t, strs);
+		t.Error("MatchStrings failure on `", expr, "` matching `", str, "`:")
+		printStrings(t, m)
+		t.Log("should be:")
+		printStrings(t, strs)
 	}
 	// now try bytes
-	s := re.MatchSlices(strings.Bytes(str));
+	s := re.MatchSlices(strings.Bytes(str))
 	if !equalBytes(s, strs) {
-		t.Error("MatchSlices failure on `", expr, "` matching `", str, "`:");
-		printBytes(t, s);
-		t.Log("should be:");
-		printStrings(t, strs);
+		t.Error("MatchSlices failure on `", expr, "` matching `", str, "`:")
+		printBytes(t, s)
+		t.Log("should be:")
+		printStrings(t, strs)
 	}
 }
 
 func TestMatchStrings(t *T) {
 	for i := 0; i < len(matches); i++ {
-		test := &matches[i];
-		matchTest(t, test.re, test.text, test.match);
+		test := &matches[i]
+		matchTest(t, test.re, test.text, test.match)
 	}
 }
 
 func matchFunctionTest(t *T, expr string, str string, match []int) {
-	m, err := MatchString(expr, str);
+	m, err := MatchString(expr, str)
 	if err == "" {
 		return
 	}
@@ -275,15 +275,15 @@ func matchFunctionTest(t *T, expr string, str string, match []int) {
 
 func TestMatchFunction(t *T) {
 	for i := 0; i < len(matches); i++ {
-		test := &matches[i];
-		matchFunctionTest(t, test.re, test.text, test.match);
+		test := &matches[i]
+		matchFunctionTest(t, test.re, test.text, test.match)
 	}
 }
 
 func BenchmarkSimpleMatch(b *B) {
-	b.StopTimer();
-	re, _ := CompileRegexp("a");
-	b.StartTimer();
+	b.StopTimer()
+	re, _ := CompileRegexp("a")
+	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
 		re.MatchString("a")
@@ -291,9 +291,9 @@ func BenchmarkSimpleMatch(b *B) {
 }
 
 func BenchmarkUngroupedMatch(b *B) {
-	b.StopTimer();
-	re, _ := CompileRegexp("[a-z]+ [0-9]+ [a-z]+");
-	b.StartTimer();
+	b.StopTimer()
+	re, _ := CompileRegexp("[a-z]+ [0-9]+ [a-z]+")
+	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
 		re.MatchString("word 123 other")
@@ -301,9 +301,9 @@ func BenchmarkUngroupedMatch(b *B) {
 }
 
 func BenchmarkGroupedMatch(b *B) {
-	b.StopTimer();
-	re, _ := CompileRegexp("([a-z]+) ([0-9]+) ([a-z]+)");
-	b.StartTimer();
+	b.StopTimer()
+	re, _ := CompileRegexp("([a-z]+) ([0-9]+) ([a-z]+)")
+	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
 		re.MatchString("word 123 other")

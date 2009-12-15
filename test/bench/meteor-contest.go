@@ -37,8 +37,8 @@ POSSIBILITY OF SUCH DAMAGE.
 package main
 
 import (
-	"flag";
-	"fmt";
+	"flag"
+	"fmt"
 )
 
 var max_solutions = flag.Int("n", 2100, "maximum number of solutions")
@@ -48,7 +48,7 @@ func boolInt(b bool) int8 {
 	if b {
 		return 1
 	}
-	return 0;
+	return 0
 }
 
 /* The board is a 50 cell hexagonal pattern.  For    . . . . .
@@ -87,19 +87,19 @@ var board uint64 = 0xFFFC000000000000
  */
 
 const (
-	E	= iota;
-	ESE;
-	SE;
-	S;
-	SW;
-	WSW;
-	W;
-	WNW;
-	NW;
-	N;
-	NE;
-	ENE;
-	PIVOT;
+	E = iota
+	ESE
+	SE
+	S
+	SW
+	WSW
+	W
+	WNW
+	NW
+	N
+	NE
+	ENE
+	PIVOT
 )
 
 var piece_def = [10][4]int8{
@@ -127,16 +127,16 @@ var piece_def = [10][4]int8{
  * location to reduce the burden on the solve function.
  */
 var (
-	pieces		[10][50][12]uint64;
-	piece_counts	[10][50]int;
-	next_cell	[10][50][12]int8;
+	pieces       [10][50][12]uint64
+	piece_counts [10][50]int
+	next_cell    [10][50][12]int8
 )
 
 /* Returns the direction rotated 60 degrees clockwise */
-func rotate(dir int8) int8	{ return (dir + 2) % PIVOT }
+func rotate(dir int8) int8 { return (dir + 2) % PIVOT }
 
 /* Returns the direction flipped on the horizontal axis */
-func flip(dir int8) int8	{ return (PIVOT - dir) % PIVOT }
+func flip(dir int8) int8 { return (PIVOT - dir) % PIVOT }
 
 
 /* Returns the new cell index from the specified cell in the
@@ -203,7 +203,7 @@ func shift(cell, dir int8) int8 {
 			return cell - 4
 		}
 	}
-	return cell;
+	return cell
 }
 
 /* Returns wether the specified cell and direction will land outside
@@ -215,8 +215,8 @@ func out_of_bounds(cell, dir int8) bool {
 	case E:
 		return cell%5 == 4
 	case ESE:
-		i := cell % 10;
-		return i == 4 || i == 8 || i == 9 || cell >= 45;
+		i := cell % 10
+		return i == 4 || i == 8 || i == 9 || cell >= 45
 	case SE:
 		return cell%10 == 9 || cell >= 45
 	case S:
@@ -224,13 +224,13 @@ func out_of_bounds(cell, dir int8) bool {
 	case SW:
 		return cell%10 == 0 || cell >= 45
 	case WSW:
-		i := cell % 10;
-		return i == 0 || i == 1 || i == 5 || cell >= 45;
+		i := cell % 10
+		return i == 0 || i == 1 || i == 5 || cell >= 45
 	case W:
 		return cell%5 == 0
 	case WNW:
-		i := cell % 10;
-		return i == 0 || i == 1 || i == 5 || cell < 5;
+		i := cell % 10
+		return i == 0 || i == 1 || i == 5 || cell < 5
 	case NW:
 		return cell%10 == 0 || cell < 5
 	case N:
@@ -238,10 +238,10 @@ func out_of_bounds(cell, dir int8) bool {
 	case NE:
 		return cell%10 == 9 || cell < 5
 	case ENE:
-		i := cell % 10;
-		return i == 4 || i == 8 || i == 9 || cell < 5;
+		i := cell % 10
+		return i == 4 || i == 8 || i == 9 || cell < 5
 	}
-	return false;
+	return false
 }
 
 /* Rotate a piece 60 degrees clockwise */
@@ -260,7 +260,7 @@ func flip_piece(piece int) {
 
 /* Convenience function to quickly calculate all of the indices for a piece */
 func calc_cell_indices(cell []int8, piece int, index int8) {
-	cell[0] = index;
+	cell[0] = index
 	for i := 1; i < 5; i++ {
 		cell[i] = shift(cell[i-1], piece_def[piece][i-1])
 	}
@@ -279,13 +279,13 @@ func cells_fit_on_board(cell []int8, piece int) bool {
  * the piece in the solve function.
  */
 func minimum_of_cells(cell []int8) int8 {
-	minimum := cell[0];
+	minimum := cell[0]
 	for i := 1; i < 5; i++ {
 		if cell[i] < minimum {
 			minimum = cell[i]
 		}
 	}
-	return minimum;
+	return minimum
 }
 
 /* Calculate the lowest possible open cell if the piece is placed on the board.
@@ -293,33 +293,33 @@ func minimum_of_cells(cell []int8) int8 {
  * solve function.
  */
 func first_empty_cell(cell []int8, minimum int8) int8 {
-	first_empty := minimum;
+	first_empty := minimum
 	for first_empty == cell[0] || first_empty == cell[1] ||
 		first_empty == cell[2] || first_empty == cell[3] ||
 		first_empty == cell[4] {
 		first_empty++
 	}
-	return first_empty;
+	return first_empty
 }
 
 /* Generate the unsigned long long int that will later be anded with the
  * board to determine if it fits.
  */
 func bitmask_from_cells(cell []int8) uint64 {
-	var piece_mask uint64;
+	var piece_mask uint64
 	for i := 0; i < 5; i++ {
 		piece_mask |= 1 << uint(cell[i])
 	}
-	return piece_mask;
+	return piece_mask
 }
 
 /* Record the piece and other important information in arrays that will
  * later be used by the solve function.
  */
 func record_piece(piece int, minimum int8, first_empty int8, piece_mask uint64) {
-	pieces[piece][minimum][piece_counts[piece][minimum]] = piece_mask;
-	next_cell[piece][minimum][piece_counts[piece][minimum]] = first_empty;
-	piece_counts[piece][minimum]++;
+	pieces[piece][minimum][piece_counts[piece][minimum]] = piece_mask
+	next_cell[piece][minimum][piece_counts[piece][minimum]] = first_empty
+	piece_counts[piece][minimum]++
 }
 
 
@@ -330,7 +330,7 @@ func fill_contiguous_space(board []int8, index int8) {
 	if board[index] == 1 {
 		return
 	}
-	board[index] = 1;
+	board[index] = 1
 	if !out_of_bounds(index, E) {
 		fill_contiguous_space(board, shift(index, E))
 	}
@@ -359,17 +359,17 @@ func fill_contiguous_space(board []int8, index int8) {
  * can split the board in half where both halves are viable.
  */
 func has_island(cell []int8, piece int) bool {
-	temp_board := make([]int8, 50);
-	var i int;
+	temp_board := make([]int8, 50)
+	var i int
 	for i = 0; i < 5; i++ {
 		temp_board[cell[i]] = 1
 	}
-	i = 49;
+	i = 49
 	for temp_board[i] == 1 {
 		i--
 	}
-	fill_contiguous_space(temp_board, int8(i));
-	c := 0;
+	fill_contiguous_space(temp_board, int8(i))
+	c := 0
 	for i = 0; i < 50; i++ {
 		if temp_board[i] == 0 {
 			c++
@@ -379,7 +379,7 @@ func has_island(cell []int8, piece int) bool {
 		(c%5 == 0 && piece == 0) {
 		return false
 	}
-	return true;
+	return true
 }
 
 
@@ -391,18 +391,18 @@ func has_island(cell []int8, piece int) bool {
  * me the best time ;)
  */
 func calc_six_rotations(piece, index int) {
-	cell := make([]int8, 5);
+	cell := make([]int8, 5)
 	for rotation := 0; rotation < 6; rotation++ {
 		if piece != 3 || rotation < 3 {
-			calc_cell_indices(cell, piece, int8(index));
+			calc_cell_indices(cell, piece, int8(index))
 			if cells_fit_on_board(cell, piece) && !has_island(cell, piece) {
-				minimum := minimum_of_cells(cell);
-				first_empty := first_empty_cell(cell, minimum);
-				piece_mask := bitmask_from_cells(cell);
-				record_piece(piece, minimum, first_empty, piece_mask);
+				minimum := minimum_of_cells(cell)
+				first_empty := first_empty_cell(cell, minimum)
+				piece_mask := bitmask_from_cells(cell)
+				record_piece(piece, minimum, first_empty, piece_mask)
 			}
 		}
-		rotate_piece(piece);
+		rotate_piece(piece)
 	}
 }
 
@@ -410,9 +410,9 @@ func calc_six_rotations(piece, index int) {
 func calc_pieces() {
 	for piece := 0; piece < 10; piece++ {
 		for index := 0; index < 50; index++ {
-			calc_six_rotations(piece, index);
-			flip_piece(piece);
-			calc_six_rotations(piece, index);
+			calc_six_rotations(piece, index)
+			flip_piece(piece)
+			calc_six_rotations(piece, index)
 		}
 	}
 }
@@ -424,41 +424,41 @@ func calc_pieces() {
  * board in the solve function.
  */
 const (
-	ROW_MASK	= 0x1F;
-	TRIPLE_MASK	= 0x7FFF;
+	ROW_MASK    = 0x1F
+	TRIPLE_MASK = 0x7FFF
 )
 
 var (
-	all_rows	= [32]int8{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+	all_rows = [32]int8{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-	};
-	bad_even_rows	[32][32]int8;
-	bad_odd_rows	[32][32]int8;
-	bad_even_triple	[32768]int8;
-	bad_odd_triple	[32768]int8;
+	}
+	bad_even_rows   [32][32]int8
+	bad_odd_rows    [32][32]int8
+	bad_even_triple [32768]int8
+	bad_odd_triple  [32768]int8
 )
 
 func rows_bad(row1, row2 int8, even bool) int8 {
 	/* even is referring to row1 */
-	var row2_shift int8;
+	var row2_shift int8
 	/* Test for blockages at same index and shifted index */
 	if even {
 		row2_shift = ((row2 << 1) & ROW_MASK) | 0x01
 	} else {
 		row2_shift = (row2 >> 1) | 0x10
 	}
-	block := ((row1 ^ row2) & row2) & ((row1 ^ row2_shift) & row2_shift);
+	block := ((row1 ^ row2) & row2) & ((row1 ^ row2_shift) & row2_shift)
 	/* Test for groups of 0's */
-	in_zeroes := false;
-	group_okay := false;
+	in_zeroes := false
+	group_okay := false
 	for i := uint8(0); i < 5; i++ {
 		if row1&(1<<i) != 0 {
 			if in_zeroes {
 				if !group_okay {
 					return 1
 				}
-				in_zeroes = false;
-				group_okay = false;
+				in_zeroes = false
+				group_okay = false
 			}
 		} else {
 			if !in_zeroes {
@@ -472,7 +472,7 @@ func rows_bad(row1, row2 int8, even bool) int8 {
 	if in_zeroes {
 		return boolInt(!group_okay)
 	}
-	return 0;
+	return 0
 }
 
 /* Check for cases where three rows checked sequentially cause a false
@@ -497,29 +497,29 @@ func triple_is_okay(row1, row2, row3 int, even bool) bool {
 	 * row3: ?????  ?????
 	 */
 	return ((row1 == 0x13) && (row2 == 0x11)) ||
-		((row1 == 0x15) && (row2 == 0x11));
+		((row1 == 0x15) && (row2 == 0x11))
 }
 
 func calc_rows() {
 	for row1 := int8(0); row1 < 32; row1++ {
 		for row2 := int8(0); row2 < 32; row2++ {
-			bad_even_rows[row1][row2] = rows_bad(row1, row2, true);
-			bad_odd_rows[row1][row2] = rows_bad(row1, row2, false);
+			bad_even_rows[row1][row2] = rows_bad(row1, row2, true)
+			bad_odd_rows[row1][row2] = rows_bad(row1, row2, false)
 		}
 	}
 	for row1 := 0; row1 < 32; row1++ {
 		for row2 := 0; row2 < 32; row2++ {
 			for row3 := 0; row3 < 32; row3++ {
-				result1 := bad_even_rows[row1][row2];
-				result2 := bad_odd_rows[row2][row3];
+				result1 := bad_even_rows[row1][row2]
+				result2 := bad_odd_rows[row2][row3]
 				if result1 == 0 && result2 != 0 && triple_is_okay(row1, row2, row3, true) {
 					bad_even_triple[row1+(row2*32)+(row3*1024)] = 0
 				} else {
 					bad_even_triple[row1+(row2*32)+(row3*1024)] = boolInt(result1 != 0 || result2 != 0)
 				}
 
-				result1 = bad_odd_rows[row1][row2];
-				result2 = bad_even_rows[row2][row3];
+				result1 = bad_odd_rows[row1][row2]
+				result2 = bad_even_rows[row2][row3]
 				if result1 == 0 && result2 != 0 && triple_is_okay(row1, row2, row3, false) {
 					bad_odd_triple[row1+(row2*32)+(row3*1024)] = 0
 				} else {
@@ -538,11 +538,11 @@ func boardHasIslands(cell int8) int8 {
 	if cell >= 40 {
 		return 0
 	}
-	current_triple := (board >> uint((cell/5)*5)) & TRIPLE_MASK;
+	current_triple := (board >> uint((cell/5)*5)) & TRIPLE_MASK
 	if (cell/5)%2 != 0 {
 		return bad_odd_triple[current_triple]
 	}
-	return bad_even_triple[current_triple];
+	return bad_even_triple[current_triple]
 }
 
 
@@ -553,26 +553,26 @@ func boardHasIslands(cell int8) int8 {
  * array if a solution is found.
  */
 var (
-	avail		uint16	= 0x03FF;
-	sol_nums	[10]int8;
-	sol_masks	[10]uint64;
-	solutions	[2100][50]int8;
-	solution_count	= 0;
+	avail          uint16 = 0x03FF
+	sol_nums       [10]int8
+	sol_masks      [10]uint64
+	solutions      [2100][50]int8
+	solution_count = 0
 )
 
 func record_solution() {
 	for sol_no := 0; sol_no < 10; sol_no++ {
-		sol_mask := sol_masks[sol_no];
+		sol_mask := sol_masks[sol_no]
 		for index := 0; index < 50; index++ {
 			if sol_mask&1 == 1 {
-				solutions[solution_count][index] = sol_nums[sol_no];
+				solutions[solution_count][index] = sol_nums[sol_no]
 				/* Board rotated 180 degrees is a solution too! */
-				solutions[solution_count+1][49-index] = sol_nums[sol_no];
+				solutions[solution_count+1][49-index] = sol_nums[sol_no]
 			}
-			sol_mask = sol_mask >> 1;
+			sol_mask = sol_mask >> 1
 		}
 	}
-	solution_count += 2;
+	solution_count += 2
 }
 
 func solve(depth, cell int8) {
@@ -585,31 +585,31 @@ func solve(depth, cell int8) {
 	}
 
 	for piece := int8(0); piece < 10; piece++ {
-		var piece_no_mask uint16 = 1 << uint(piece);
+		var piece_no_mask uint16 = 1 << uint(piece)
 		if avail&piece_no_mask == 0 {
 			continue
 		}
-		avail ^= piece_no_mask;
-		max_rots := piece_counts[piece][cell];
-		piece_mask := pieces[piece][cell];
+		avail ^= piece_no_mask
+		max_rots := piece_counts[piece][cell]
+		piece_mask := pieces[piece][cell]
 		for rotation := 0; rotation < max_rots; rotation++ {
 			if board&piece_mask[rotation] == 0 {
-				sol_nums[depth] = piece;
-				sol_masks[depth] = piece_mask[rotation];
+				sol_nums[depth] = piece
+				sol_masks[depth] = piece_mask[rotation]
 				if depth == 9 {
 					/* Solution found!!!!!11!!ONE! */
-					record_solution();
-					avail ^= piece_no_mask;
-					return;
+					record_solution()
+					avail ^= piece_no_mask
+					return
 				}
-				board |= piece_mask[rotation];
+				board |= piece_mask[rotation]
 				if boardHasIslands(next_cell[piece][cell][rotation]) == 0 {
 					solve(depth+1, next_cell[piece][cell][rotation])
 				}
-				board ^= piece_mask[rotation];
+				board ^= piece_mask[rotation]
 			}
 		}
-		avail ^= piece_no_mask;
+		avail ^= piece_no_mask
 	}
 }
 
@@ -620,46 +620,46 @@ func pretty(b *[50]int8) {
 			b[i+2]+'0', b[i+3]+'0', b[i+4]+'0', b[i+5]+'0', b[i+6]+'0',
 			b[i+7]+'0', b[i+8]+'0', b[i+9]+'0')
 	}
-	fmt.Printf("\n");
+	fmt.Printf("\n")
 }
 
 /* Find smallest and largest solutions */
 func smallest_largest() (smallest, largest *[50]int8) {
-	smallest = &solutions[0];
-	largest = &solutions[0];
+	smallest = &solutions[0]
+	largest = &solutions[0]
 	for i := 1; i < solution_count; i++ {
-		candidate := &solutions[i];
+		candidate := &solutions[i]
 		for j, s := range *smallest {
-			c := candidate[j];
+			c := candidate[j]
 			if c == s {
 				continue
 			}
 			if c < s {
 				smallest = candidate
 			}
-			break;
+			break
 		}
 		for j, s := range *largest {
-			c := candidate[j];
+			c := candidate[j]
 			if c == s {
 				continue
 			}
 			if c > s {
 				largest = candidate
 			}
-			break;
+			break
 		}
 	}
-	return;
+	return
 }
 
 func main() {
-	flag.Parse();
-	calc_pieces();
-	calc_rows();
-	solve(0, 0);
-	fmt.Printf("%d solutions found\n\n", solution_count);
-	smallest, largest := smallest_largest();
-	pretty(smallest);
-	pretty(largest);
+	flag.Parse()
+	calc_pieces()
+	calc_rows()
+	solve(0, 0)
+	fmt.Printf("%d solutions found\n\n", solution_count)
+	smallest, largest := smallest_largest()
+	pretty(smallest)
+	pretty(largest)
 }

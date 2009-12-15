@@ -6,13 +6,13 @@
 package quick
 
 import (
-	"flag";
-	"fmt";
-	"math";
-	"os";
-	"rand";
-	"reflect";
-	"strings";
+	"flag"
+	"fmt"
+	"math"
+	"os"
+	"rand"
+	"reflect"
+	"strings"
 )
 
 var defaultMaxCount *int = flag.Int("quickchecks", 100, "The default number of iterations for each check")
@@ -21,29 +21,29 @@ var defaultMaxCount *int = flag.Int("quickchecks", 100, "The default number of i
 type Generator interface {
 	// Generate returns a random instance of the type on which it is a
 	// method using the size as a size hint.
-	Generate(rand *rand.Rand, size int) reflect.Value;
+	Generate(rand *rand.Rand, size int) reflect.Value
 }
 
 // randFloat32 generates a random float taking the full range of a float32.
 func randFloat32(rand *rand.Rand) float32 {
-	f := rand.Float64() * math.MaxFloat32;
+	f := rand.Float64() * math.MaxFloat32
 	if rand.Int()&1 == 1 {
 		f = -f
 	}
-	return float32(f);
+	return float32(f)
 }
 
 // randFloat64 generates a random float taking the full range of a float64.
 func randFloat64(rand *rand.Rand) float64 {
-	f := rand.Float64();
+	f := rand.Float64()
 	if rand.Int()&1 == 1 {
 		f = -f
 	}
-	return f;
+	return f
 }
 
 // randInt64 returns a random integer taking half the range of an int64.
-func randInt64(rand *rand.Rand) int64	{ return rand.Int63() - 1<<62 }
+func randInt64(rand *rand.Rand) int64 { return rand.Int63() - 1<<62 }
 
 // complexSize is the maximum length of arbitrary values that contain other
 // values.
@@ -81,53 +81,53 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 	case *reflect.IntType:
 		return reflect.NewValue(int(randInt64(rand))), true
 	case *reflect.MapType:
-		numElems := rand.Intn(complexSize);
-		m := reflect.MakeMap(concrete);
+		numElems := rand.Intn(complexSize)
+		m := reflect.MakeMap(concrete)
 		for i := 0; i < numElems; i++ {
-			key, ok1 := Value(concrete.Key(), rand);
-			value, ok2 := Value(concrete.Elem(), rand);
+			key, ok1 := Value(concrete.Key(), rand)
+			value, ok2 := Value(concrete.Elem(), rand)
 			if !ok1 || !ok2 {
 				return nil, false
 			}
-			m.SetElem(key, value);
+			m.SetElem(key, value)
 		}
-		return m, true;
+		return m, true
 	case *reflect.PtrType:
-		v, ok := Value(concrete.Elem(), rand);
+		v, ok := Value(concrete.Elem(), rand)
 		if !ok {
 			return nil, false
 		}
-		p := reflect.MakeZero(concrete);
-		p.(*reflect.PtrValue).PointTo(v);
-		return p, true;
+		p := reflect.MakeZero(concrete)
+		p.(*reflect.PtrValue).PointTo(v)
+		return p, true
 	case *reflect.SliceType:
-		numElems := rand.Intn(complexSize);
-		s := reflect.MakeSlice(concrete, numElems, numElems);
+		numElems := rand.Intn(complexSize)
+		s := reflect.MakeSlice(concrete, numElems, numElems)
 		for i := 0; i < numElems; i++ {
-			v, ok := Value(concrete.Elem(), rand);
+			v, ok := Value(concrete.Elem(), rand)
 			if !ok {
 				return nil, false
 			}
-			s.Elem(i).SetValue(v);
+			s.Elem(i).SetValue(v)
 		}
-		return s, true;
+		return s, true
 	case *reflect.StringType:
-		numChars := rand.Intn(complexSize);
-		codePoints := make([]int, numChars);
+		numChars := rand.Intn(complexSize)
+		codePoints := make([]int, numChars)
 		for i := 0; i < numChars; i++ {
 			codePoints[i] = rand.Intn(0x10ffff)
 		}
-		return reflect.NewValue(string(codePoints)), true;
+		return reflect.NewValue(string(codePoints)), true
 	case *reflect.StructType:
-		s := reflect.MakeZero(t).(*reflect.StructValue);
+		s := reflect.MakeZero(t).(*reflect.StructValue)
 		for i := 0; i < s.NumField(); i++ {
-			v, ok := Value(concrete.Field(i).Type, rand);
+			v, ok := Value(concrete.Field(i).Type, rand)
 			if !ok {
 				return nil, false
 			}
-			s.Field(i).SetValue(v);
+			s.Field(i).SetValue(v)
 		}
-		return s, true;
+		return s, true
 	case *reflect.Uint16Type:
 		return reflect.NewValue(uint16(randInt64(rand))), true
 	case *reflect.Uint32Type:
@@ -144,24 +144,24 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 		return nil, false
 	}
 
-	return;
+	return
 }
 
 // A Config structure contains options for running a test.
 type Config struct {
 	// MaxCount sets the maximum number of iterations. If zero,
 	// MaxCountScale is used.
-	MaxCount	int;
+	MaxCount int
 	// MaxCountScale is a non-negative scale factor applied to the default
 	// maximum. If zero, the default is unchanged.
-	MaxCountScale	float;
+	MaxCountScale float
 	// If non-nil, rand is a source of random numbers. Otherwise a default
 	// pseudo-random source will be used.
-	Rand	*rand.Rand;
+	Rand *rand.Rand
 	// If non-nil, Values is a function which generates a slice of arbitrary
 	// Values that are congruent with the arguments to the function being
 	// tested. Otherwise, Values is used to generate the values.
-	Values	func([]reflect.Value, *rand.Rand);
+	Values func([]reflect.Value, *rand.Rand)
 }
 
 var defaultConfig Config
@@ -171,13 +171,13 @@ func (c *Config) getRand() *rand.Rand {
 	if c.Rand == nil {
 		return rand.New(rand.NewSource(0))
 	}
-	return c.Rand;
+	return c.Rand
 }
 
 // getMaxCount returns the maximum number of iterations to run for a given
 // Config.
 func (c *Config) getMaxCount() (maxCount int) {
-	maxCount = c.MaxCount;
+	maxCount = c.MaxCount
 	if maxCount == 0 {
 		if c.MaxCountScale != 0 {
 			maxCount = int(c.MaxCountScale * float(*defaultMaxCount))
@@ -186,19 +186,19 @@ func (c *Config) getMaxCount() (maxCount int) {
 		}
 	}
 
-	return;
+	return
 }
 
 // A SetupError is the result of an error in the way that check is being
 // used, independent of the functions being tested.
 type SetupError string
 
-func (s SetupError) String() string	{ return string(s) }
+func (s SetupError) String() string { return string(s) }
 
 // A CheckError is the result of Check finding an error.
 type CheckError struct {
-	Count	int;
-	In	[]interface{};
+	Count int
+	In    []interface{}
 }
 
 func (s *CheckError) String() string {
@@ -207,9 +207,9 @@ func (s *CheckError) String() string {
 
 // A CheckEqualError is the result CheckEqual finding an error.
 type CheckEqualError struct {
-	CheckError;
-	Out1	[]interface{};
-	Out2	[]interface{};
+	CheckError
+	Out1 []interface{}
+	Out2 []interface{}
 }
 
 func (s *CheckEqualError) String() string {
@@ -236,38 +236,38 @@ func Check(function interface{}, config *Config) (err os.Error) {
 		config = &defaultConfig
 	}
 
-	f, fType, ok := functionAndType(function);
+	f, fType, ok := functionAndType(function)
 	if !ok {
-		err = SetupError("argument is not a function");
-		return;
+		err = SetupError("argument is not a function")
+		return
 	}
 
 	if fType.NumOut() != 1 {
-		err = SetupError("function returns more than one value.");
-		return;
+		err = SetupError("function returns more than one value.")
+		return
 	}
 	if _, ok := fType.Out(0).(*reflect.BoolType); !ok {
-		err = SetupError("function does not return a bool");
-		return;
+		err = SetupError("function does not return a bool")
+		return
 	}
 
-	arguments := make([]reflect.Value, fType.NumIn());
-	rand := config.getRand();
-	maxCount := config.getMaxCount();
+	arguments := make([]reflect.Value, fType.NumIn())
+	rand := config.getRand()
+	maxCount := config.getMaxCount()
 
 	for i := 0; i < maxCount; i++ {
-		err = arbitraryValues(arguments, fType, config, rand);
+		err = arbitraryValues(arguments, fType, config, rand)
 		if err != nil {
 			return
 		}
 
 		if !f.Call(arguments)[0].(*reflect.BoolValue).Get() {
-			err = &CheckError{i + 1, toInterfaces(arguments)};
-			return;
+			err = &CheckError{i + 1, toInterfaces(arguments)}
+			return
 		}
 	}
 
-	return;
+	return
 }
 
 // CheckEqual looks for an input on which f and g return different results.
@@ -279,85 +279,85 @@ func CheckEqual(f, g interface{}, config *Config) (err os.Error) {
 		config = &defaultConfig
 	}
 
-	x, xType, ok := functionAndType(f);
+	x, xType, ok := functionAndType(f)
 	if !ok {
-		err = SetupError("f is not a function");
-		return;
+		err = SetupError("f is not a function")
+		return
 	}
-	y, yType, ok := functionAndType(g);
+	y, yType, ok := functionAndType(g)
 	if !ok {
-		err = SetupError("g is not a function");
-		return;
+		err = SetupError("g is not a function")
+		return
 	}
 
 	if xType != yType {
-		err = SetupError("functions have different types");
-		return;
+		err = SetupError("functions have different types")
+		return
 	}
 
-	arguments := make([]reflect.Value, xType.NumIn());
-	rand := config.getRand();
-	maxCount := config.getMaxCount();
+	arguments := make([]reflect.Value, xType.NumIn())
+	rand := config.getRand()
+	maxCount := config.getMaxCount()
 
 	for i := 0; i < maxCount; i++ {
-		err = arbitraryValues(arguments, xType, config, rand);
+		err = arbitraryValues(arguments, xType, config, rand)
 		if err != nil {
 			return
 		}
 
-		xOut := toInterfaces(x.Call(arguments));
-		yOut := toInterfaces(y.Call(arguments));
+		xOut := toInterfaces(x.Call(arguments))
+		yOut := toInterfaces(y.Call(arguments))
 
 		if !reflect.DeepEqual(xOut, yOut) {
-			err = &CheckEqualError{CheckError{i + 1, toInterfaces(arguments)}, xOut, yOut};
-			return;
+			err = &CheckEqualError{CheckError{i + 1, toInterfaces(arguments)}, xOut, yOut}
+			return
 		}
 	}
 
-	return;
+	return
 }
 
 // arbitraryValues writes Values to args such that args contains Values
 // suitable for calling f.
 func arbitraryValues(args []reflect.Value, f *reflect.FuncType, config *Config, rand *rand.Rand) (err os.Error) {
 	if config.Values != nil {
-		config.Values(args, rand);
-		return;
+		config.Values(args, rand)
+		return
 	}
 
 	for j := 0; j < len(args); j++ {
-		var ok bool;
-		args[j], ok = Value(f.In(j), rand);
+		var ok bool
+		args[j], ok = Value(f.In(j), rand)
 		if !ok {
-			err = SetupError(fmt.Sprintf("cannot create arbitrary value of type %s for argument %d", f.In(j), j));
-			return;
+			err = SetupError(fmt.Sprintf("cannot create arbitrary value of type %s for argument %d", f.In(j), j))
+			return
 		}
 	}
 
-	return;
+	return
 }
 
 func functionAndType(f interface{}) (v *reflect.FuncValue, t *reflect.FuncType, ok bool) {
-	v, ok = reflect.NewValue(f).(*reflect.FuncValue);
+	v, ok = reflect.NewValue(f).(*reflect.FuncValue)
 	if !ok {
 		return
 	}
-	t = v.Type().(*reflect.FuncType);
-	return;
+	t = v.Type().(*reflect.FuncType)
+	return
 }
 
 func toInterfaces(values []reflect.Value) []interface{} {
-	ret := make([]interface{}, len(values));
+	ret := make([]interface{}, len(values))
 	for i, v := range values {
 		ret[i] = v.Interface()
 	}
-	return ret;
+	return ret
 }
 
 func toString(interfaces []interface{}) string {
-	s := make([]string, len(interfaces));
+	s := make([]string, len(interfaces))
 	for i, v := range interfaces {
 		s[i] = fmt.Sprintf("%#v", v)
 	}
-	return strings.Join(s, ", ");
+	return strings.Join(s, ", ")
 }

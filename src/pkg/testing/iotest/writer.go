@@ -5,8 +5,8 @@
 package iotest
 
 import (
-	"io";
-	"os";
+	"io"
+	"os"
 )
 
 // TruncateWriter returns a Writer that writes to w
@@ -16,8 +16,8 @@ func TruncateWriter(w io.Writer, n int64) io.Writer {
 }
 
 type truncateWriter struct {
-	w	io.Writer;
-	n	int64;
+	w io.Writer
+	n int64
 }
 
 func (t *truncateWriter) Write(p []byte) (n int, err os.Error) {
@@ -25,14 +25,14 @@ func (t *truncateWriter) Write(p []byte) (n int, err os.Error) {
 		return len(p), nil
 	}
 	// real write
-	n = len(p);
+	n = len(p)
 	if int64(n) > t.n {
 		n = int(t.n)
 	}
-	n, err = t.w.Write(p[0:n]);
-	t.n -= int64(n);
+	n, err = t.w.Write(p[0:n])
+	t.n -= int64(n)
 	if err == nil {
 		n = len(p)
 	}
-	return;
+	return
 }

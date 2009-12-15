@@ -36,11 +36,11 @@ POSSIBILITY OF SUCH DAMAGE.
 package main
 
 import (
-	"fmt";
-	"io/ioutil";
-	"os";
-	"regexp";
-	"strings";
+	"fmt"
+	"io/ioutil"
+	"os"
+	"regexp"
+	"strings"
 )
 
 var variants = []string{
@@ -56,7 +56,7 @@ var variants = []string{
 }
 
 type Subst struct {
-	pat, repl string;
+	pat, repl string
 }
 
 var substs = []Subst{
@@ -74,34 +74,34 @@ var substs = []Subst{
 }
 
 func countMatches(pat string, bytes []byte) int {
-	re := regexp.MustCompile(pat);
-	n := 0;
+	re := regexp.MustCompile(pat)
+	n := 0
 	for {
-		e := re.Execute(bytes);
+		e := re.Execute(bytes)
 		if len(e) == 0 {
 			break
 		}
-		n++;
-		bytes = bytes[e[1]:];
+		n++
+		bytes = bytes[e[1]:]
 	}
-	return n;
+	return n
 }
 
 func main() {
-	bytes, err := ioutil.ReadFile("/dev/stdin");
+	bytes, err := ioutil.ReadFile("/dev/stdin")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "can't read input: %s\n", err);
-		os.Exit(2);
+		fmt.Fprintf(os.Stderr, "can't read input: %s\n", err)
+		os.Exit(2)
 	}
-	ilen := len(bytes);
+	ilen := len(bytes)
 	// Delete the comment lines and newlines
-	bytes = regexp.MustCompile("(>[^\n]+)?\n").ReplaceAll(bytes, []byte{});
-	clen := len(bytes);
+	bytes = regexp.MustCompile("(>[^\n]+)?\n").ReplaceAll(bytes, []byte{})
+	clen := len(bytes)
 	for _, s := range variants {
 		fmt.Printf("%s %d\n", s, countMatches(s, bytes))
 	}
 	for _, sub := range substs {
 		bytes = regexp.MustCompile(sub.pat).ReplaceAll(bytes, strings.Bytes(sub.repl))
 	}
-	fmt.Printf("\n%d\n%d\n%d\n", ilen, clen, len(bytes));
+	fmt.Printf("\n%d\n%d\n%d\n", ilen, clen, len(bytes))
 }
