@@ -9,8 +9,6 @@
 
 package main
 
-type A struct {
-	a A;
-}			// ERROR "recursive"
+type A struct {	a A }	// ERROR "recursive"
 func foo()		{ new(A).bar() }
 func (a A) bar()	{}
