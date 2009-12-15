@@ -5,12 +5,12 @@
 package scanner
 
 import (
-	"container/vector";
-	"fmt";
-	"go/token";
-	"io";
-	"os";
-	"sort";
+	"container/vector"
+	"fmt"
+	"go/token"
+	"io"
+	"os"
+	"sort"
 )
 
 
@@ -20,7 +20,7 @@ import (
 // to the beginning of the offending token.
 //
 type ErrorHandler interface {
-	Error(pos token.Position, msg string);
+	Error(pos token.Position, msg string)
 }
 
 
@@ -34,16 +34,16 @@ type ErrorHandler interface {
 // error handling is obtained.
 //
 type ErrorVector struct {
-	errors vector.Vector;
+	errors vector.Vector
 }
 
 
 // Reset resets an ErrorVector to no errors.
-func (h *ErrorVector) Reset()	{ h.errors.Resize(0, 0) }
+func (h *ErrorVector) Reset() { h.errors.Resize(0, 0) }
 
 
 // ErrorCount returns the number of errors collected.
-func (h *ErrorVector) ErrorCount() int	{ return h.errors.Len() }
+func (h *ErrorVector) ErrorCount() int { return h.errors.Len() }
 
 
 // Within ErrorVector, an error is represented by an Error node. The
@@ -51,8 +51,8 @@ func (h *ErrorVector) ErrorCount() int	{ return h.errors.Len() }
 // token, and the error condition is described by Msg.
 //
 type Error struct {
-	Pos	token.Position;
-	Msg	string;
+	Pos token.Position
+	Msg string
 }
 
 
@@ -62,7 +62,7 @@ func (e *Error) String() string {
 		// TODO(gri) reconsider the semantics of Position.IsValid
 		return e.Pos.String() + ": " + e.Msg
 	}
-	return e.Msg;
+	return e.Msg
 }
 
 
@@ -71,13 +71,13 @@ type ErrorList []*Error
 
 
 // ErrorList implements the sort Interface.
-func (p ErrorList) Len() int		{ return len(p) }
-func (p ErrorList) Swap(i, j int)	{ p[i], p[j] = p[j], p[i] }
+func (p ErrorList) Len() int      { return len(p) }
+func (p ErrorList) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 
 
 func (p ErrorList) Less(i, j int) bool {
-	e := &p[i].Pos;
-	f := &p[j].Pos;
+	e := &p[i].Pos
+	f := &p[j].Pos
 	// Note that it is not sufficient to simply compare file offsets because
 	// the offsets do not reflect modified line information (through //line
 	// comments).
@@ -92,7 +92,7 @@ func (p ErrorList) Less(i, j int) bool {
 			return e.Column < f.Column
 		}
 	}
-	return false;
+	return false
 }
 
 
@@ -103,7 +103,7 @@ func (p ErrorList) String() string {
 	case 1:
 		return p[0].String()
 	}
-	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p)-1);
+	return fmt.Sprintf("%s (and %d more errors)", p[0].String(), len(p)-1)
 }
 
 
@@ -111,9 +111,9 @@ func (p ErrorList) String() string {
 // returned by GetErrors.
 //
 const (
-	Raw		= iota;	// leave error list unchanged
-	Sorted;		// sort error list by file, line, and column number
-	NoMultiples;	// sort error list and leave only the first error per line
+	Raw         = iota // leave error list unchanged
+	Sorted      // sort error list by file, line, and column number
+	NoMultiples // sort error list and leave only the first error per line
 )
 
 
@@ -126,7 +126,7 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
 		return nil
 	}
 
-	list := make(ErrorList, h.errors.Len());
+	list := make(ErrorList, h.errors.Len())
 	for i := 0; i < h.errors.Len(); i++ {
 		list[i] = h.errors.At(i).(*Error)
 	}
@@ -136,19 +136,19 @@ func (h *ErrorVector) GetErrorList(mode int) ErrorList {
 	}
 
 	if mode >= NoMultiples {
-		var last token.Position;	// initial last.Line is != any legal error line
-		i := 0;
+		var last token.Position // initial last.Line is != any legal error line
+		i := 0
 		for _, e := range list {
 			if e.Pos.Filename != last.Filename || e.Pos.Line != last.Line {
-				last = e.Pos;
-				list[i] = e;
-				i++;
+				last = e.Pos
+				list[i] = e
+				i++
 			}
 		}
-		list = list[0:i];
+		list = list[0:i]
 	}
 
-	return list;
+	return list
 }
 
 
@@ -161,7 +161,7 @@ func (h *ErrorVector) GetError(mode int) os.Error {
 		return nil
 	}
 
-	return h.GetErrorList(mode);
+	return h.GetErrorList(mode)
 }
 
 

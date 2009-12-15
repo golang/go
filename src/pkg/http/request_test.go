@@ -5,15 +5,15 @@
 package http
 
 import (
-	"bytes";
-	"testing";
+	"bytes"
+	"testing"
 )
 
 type stringMultimap map[string][]string
 
 type parseTest struct {
-	query	string;
-	out	stringMultimap;
+	query string
+	out   stringMultimap
 }
 
 var parseTests = []parseTest{
@@ -33,24 +33,24 @@ var parseTests = []parseTest{
 
 func TestParseForm(t *testing.T) {
 	for i, test := range parseTests {
-		form := make(map[string][]string);
-		err := parseForm(form, test.query);
+		form := make(map[string][]string)
+		err := parseForm(form, test.query)
 		if err != nil {
-			t.Errorf("test %d: Unexpected error: %v", i, err);
-			continue;
+			t.Errorf("test %d: Unexpected error: %v", i, err)
+			continue
 		}
 		if len(form) != len(test.out) {
 			t.Errorf("test %d: len(form) = %d, want %d", i, len(form), len(test.out))
 		}
 		for k, evs := range test.out {
-			vs, ok := form[k];
+			vs, ok := form[k]
 			if !ok {
-				t.Errorf("test %d: Missing key %q", i, k);
-				continue;
+				t.Errorf("test %d: Missing key %q", i, k)
+				continue
 			}
 			if len(vs) != len(evs) {
-				t.Errorf("test %d: len(form[%q]) = %d, want %d", i, k, len(vs), len(evs));
-				continue;
+				t.Errorf("test %d: len(form[%q]) = %d, want %d", i, k, len(vs), len(evs))
+				continue
 			}
 			for j, ev := range evs {
 				if v := vs[j]; v != ev {
@@ -62,8 +62,8 @@ func TestParseForm(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
-	req := &Request{Method: "GET"};
-	req.URL, _ = ParseURL("http://www.google.com/search?q=foo&q=bar");
+	req := &Request{Method: "GET"}
+	req.URL, _ = ParseURL("http://www.google.com/search?q=foo&q=bar")
 	if q := req.FormValue("q"); q != "foo" {
 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q)
 	}
@@ -71,8 +71,8 @@ func TestQuery(t *testing.T) {
 
 type stringMap map[string]string
 type parseContentTypeTest struct {
-	contentType	stringMap;
-	error		bool;
+	contentType stringMap
+	error       bool
 }
 
 var parseContentTypeTests = []parseContentTypeTest{
@@ -91,8 +91,8 @@ func TestPostContentTypeParsing(t *testing.T) {
 			Method: "POST",
 			Header: test.contentType,
 			Body: bytes.NewBufferString("body"),
-		};
-		err := req.ParseForm();
+		}
+		err := req.ParseForm()
 		if !test.error && err != nil {
 			t.Errorf("test %d: Unexpected error: %v", i, err)
 		}
@@ -104,14 +104,14 @@ func TestPostContentTypeParsing(t *testing.T) {
 
 func TestRedirect(t *testing.T) {
 	const (
-		start	= "http://codesearch.google.com/";
-		end	= "http://www.google.com/codesearch";
+		start = "http://codesearch.google.com/"
+		end   = "http://www.google.com/codesearch"
 	)
-	r, url, err := Get(start);
+	r, url, err := Get(start)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.Body.Close();
+	r.Body.Close()
 	if r.StatusCode != 200 || url != end {
 		t.Fatalf("Get(%s) got status %d at %s, want 200 at %s", start, r.StatusCode, url, end)
 	}

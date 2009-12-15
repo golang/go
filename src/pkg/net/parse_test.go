@@ -5,34 +5,34 @@
 package net
 
 import (
-	"bufio";
-	"os";
-	"testing";
+	"bufio"
+	"os"
+	"testing"
 )
 
 func TestReadLine(t *testing.T) {
-	filename := "/etc/services";	// a nice big file
+	filename := "/etc/services" // a nice big file
 
-	fd, err := os.Open(filename, os.O_RDONLY, 0);
+	fd, err := os.Open(filename, os.O_RDONLY, 0)
 	if err != nil {
 		t.Fatalf("open %s: %v", filename, err)
 	}
-	br := bufio.NewReader(fd);
+	br := bufio.NewReader(fd)
 
-	var file *file;
-	file, err = open(filename);
+	var file *file
+	file, err = open(filename)
 	if file == nil {
 		t.Fatalf("net.open(%s) = nil", filename)
 	}
 
-	lineno := 1;
-	byteno := 0;
+	lineno := 1
+	byteno := 0
 	for {
-		bline, berr := br.ReadString('\n');
+		bline, berr := br.ReadString('\n')
 		if n := len(bline); n > 0 {
 			bline = bline[0 : n-1]
 		}
-		line, ok := file.readLine();
+		line, ok := file.readLine()
 		if (berr != nil) != !ok || bline != line {
 			t.Fatalf("%s:%d (#%d)\nbufio => %q, %v\nnet => %q, %v",
 				filename, lineno, byteno, bline, berr, line, ok)
@@ -40,7 +40,7 @@ func TestReadLine(t *testing.T) {
 		if !ok {
 			break
 		}
-		lineno++;
-		byteno += len(line) + 1;
+		lineno++
+		byteno += len(line) + 1
 	}
 }

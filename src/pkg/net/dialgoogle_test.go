@@ -5,11 +5,11 @@
 package net
 
 import (
-	"flag";
-	"io";
-	"strings";
-	"syscall";
-	"testing";
+	"flag"
+	"io"
+	"strings"
+	"syscall"
+	"testing"
 )
 
 // If an IPv6 tunnel is running (see go/stubl), we can try dialing a real IPv6 address.
@@ -18,26 +18,26 @@ var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
 // fd is already connected to the destination, port 80.
 // Run an HTTP request to fetch the appropriate page.
 func fetchGoogle(t *testing.T, fd Conn, network, addr string) {
-	req := strings.Bytes("GET /intl/en/privacy.html HTTP/1.0\r\nHost: www.google.com\r\n\r\n");
-	n, err := fd.Write(req);
+	req := strings.Bytes("GET /intl/en/privacy.html HTTP/1.0\r\nHost: www.google.com\r\n\r\n")
+	n, err := fd.Write(req)
 
-	buf := make([]byte, 1000);
-	n, err = io.ReadFull(fd, buf);
+	buf := make([]byte, 1000)
+	n, err = io.ReadFull(fd, buf)
 
 	if n < 1000 {
-		t.Errorf("fetchGoogle: short HTTP read from %s %s - %v", network, addr, err);
-		return;
+		t.Errorf("fetchGoogle: short HTTP read from %s %s - %v", network, addr, err)
+		return
 	}
 }
 
 func doDial(t *testing.T, network, addr string) {
-	fd, err := Dial(network, "", addr);
+	fd, err := Dial(network, "", addr)
 	if err != nil {
-		t.Errorf("Dial(%q, %q, %q) = _, %v", network, "", addr, err);
-		return;
+		t.Errorf("Dial(%q, %q, %q) = _, %v", network, "", addr, err)
+		return
 	}
-	fetchGoogle(t, fd, network, addr);
-	fd.Close();
+	fetchGoogle(t, fd, network, addr)
+	fd.Close()
 }
 
 var googleaddrs = []string{
@@ -51,7 +51,7 @@ var googleaddrs = []string{
 	"[0:0:0:0:0000:ffff:74.125.19.99]:80",
 	"[0:0:0:0:000000:ffff:74.125.19.99]:80",
 	"[0:0:0:0:0:ffff::74.125.19.99]:80",
-	"[2001:4860:0:2001::68]:80",	// ipv6.google.com; removed if ipv6 flag not set
+	"[2001:4860:0:2001::68]:80", // ipv6.google.com; removed if ipv6 flag not set
 }
 
 func TestDialGoogle(t *testing.T) {
@@ -61,22 +61,22 @@ func TestDialGoogle(t *testing.T) {
 	}
 
 	for i := 0; i < len(googleaddrs); i++ {
-		addr := googleaddrs[i];
+		addr := googleaddrs[i]
 		if addr == "" {
 			continue
 		}
-		t.Logf("-- %s --", addr);
-		doDial(t, "tcp", addr);
+		t.Logf("-- %s --", addr)
+		doDial(t, "tcp", addr)
 		if addr[0] != '[' {
-			doDial(t, "tcp4", addr);
+			doDial(t, "tcp4", addr)
 
 			if !preferIPv4 {
 				// make sure preferIPv4 flag works.
-				preferIPv4 = true;
-				syscall.SocketDisableIPv6 = true;
-				doDial(t, "tcp4", addr);
-				syscall.SocketDisableIPv6 = false;
-				preferIPv4 = false;
+				preferIPv4 = true
+				syscall.SocketDisableIPv6 = true
+				doDial(t, "tcp4", addr)
+				syscall.SocketDisableIPv6 = false
+				preferIPv4 = false
 			}
 		}
 

@@ -15,8 +15,8 @@ import "os"
 
 // Addr represents a network end point address.
 type Addr interface {
-	Network() string;	// name of the network
-	String() string;	// string form of address
+	Network() string // name of the network
+	String() string  // string form of address
 }
 
 // Conn is a generic stream-oriented network connection.
@@ -24,37 +24,37 @@ type Conn interface {
 	// Read reads data from the connection.
 	// Read can be made to time out and return err == os.EAGAIN
 	// after a fixed time limit; see SetTimeout and SetReadTimeout.
-	Read(b []byte) (n int, err os.Error);
+	Read(b []byte) (n int, err os.Error)
 
 	// Write writes data to the connection.
 	// Write can be made to time out and return err == os.EAGAIN
 	// after a fixed time limit; see SetTimeout and SetReadTimeout.
-	Write(b []byte) (n int, err os.Error);
+	Write(b []byte) (n int, err os.Error)
 
 	// Close closes the connection.
-	Close() os.Error;
+	Close() os.Error
 
 	// LocalAddr returns the local network address.
-	LocalAddr() Addr;
+	LocalAddr() Addr
 
 	// RemoteAddr returns the remote network address.
-	RemoteAddr() Addr;
+	RemoteAddr() Addr
 
 	// SetTimeout sets the read and write deadlines associated
 	// with the connection.
-	SetTimeout(nsec int64) os.Error;
+	SetTimeout(nsec int64) os.Error
 
 	// SetReadTimeout sets the time (in nanoseconds) that
 	// Read will wait for data before returning os.EAGAIN.
 	// Setting nsec == 0 (the default) disables the deadline.
-	SetReadTimeout(nsec int64) os.Error;
+	SetReadTimeout(nsec int64) os.Error
 
 	// SetWriteTimeout sets the time (in nanoseconds) that
 	// Write will wait to send its data before returning os.EAGAIN.
 	// Setting nsec == 0 (the default) disables the deadline.
 	// Even if write times out, it may return n > 0, indicating that
 	// some of the data was successfully written.
-	SetWriteTimeout(nsec int64) os.Error;
+	SetWriteTimeout(nsec int64) os.Error
 }
 
 // PacketConn is a generic packet-oriented network connection.
@@ -65,43 +65,43 @@ type PacketConn interface {
 	// was on the packet.
 	// ReadFrom can be made to time out and return err == os.EAGAIN
 	// after a fixed time limit; see SetTimeout and SetReadTimeout.
-	ReadFrom(b []byte) (n int, addr Addr, err os.Error);
+	ReadFrom(b []byte) (n int, addr Addr, err os.Error)
 
 	// WriteTo writes a packet with payload b to addr.
 	// WriteTo can be made to time out and return err == os.EAGAIN
 	// after a fixed time limit; see SetTimeout and SetWriteTimeout.
 	// On packet-oriented connections, write timeouts are rare.
-	WriteTo(b []byte, addr Addr) (n int, err os.Error);
+	WriteTo(b []byte, addr Addr) (n int, err os.Error)
 
 	// Close closes the connection.
-	Close() os.Error;
+	Close() os.Error
 
 	// LocalAddr returns the local network address.
-	LocalAddr() Addr;
+	LocalAddr() Addr
 
 	// SetTimeout sets the read and write deadlines associated
 	// with the connection.
-	SetTimeout(nsec int64) os.Error;
+	SetTimeout(nsec int64) os.Error
 
 	// SetReadTimeout sets the time (in nanoseconds) that
 	// Read will wait for data before returning os.EAGAIN.
 	// Setting nsec == 0 (the default) disables the deadline.
-	SetReadTimeout(nsec int64) os.Error;
+	SetReadTimeout(nsec int64) os.Error
 
 	// SetWriteTimeout sets the time (in nanoseconds) that
 	// Write will wait to send its data before returning os.EAGAIN.
 	// Setting nsec == 0 (the default) disables the deadline.
 	// Even if write times out, it may return n > 0, indicating that
 	// some of the data was successfully written.
-	SetWriteTimeout(nsec int64) os.Error;
+	SetWriteTimeout(nsec int64) os.Error
 }
 
 // A Listener is a generic network listener for stream-oriented protocols.
 // Accept waits for the next connection and Close closes the connection.
 type Listener interface {
-	Accept() (c Conn, err os.Error);
-	Close() os.Error;
-	Addr() Addr;	// Listener's network address
+	Accept() (c Conn, err os.Error)
+	Close() os.Error
+	Addr() Addr // Listener's network address
 }
 
 // Dial connects to the remote address raddr on the network net.
@@ -123,7 +123,7 @@ type Listener interface {
 func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
-		var la, ra *TCPAddr;
+		var la, ra *TCPAddr
 		if laddr != "" {
 			if la, err = ResolveTCPAddr(laddr); err != nil {
 				goto Error
@@ -134,9 +134,9 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 				goto Error
 			}
 		}
-		return DialTCP(net, la, ra);
+		return DialTCP(net, la, ra)
 	case "udp", "udp4", "upd6":
-		var la, ra *UDPAddr;
+		var la, ra *UDPAddr
 		if laddr != "" {
 			if la, err = ResolveUDPAddr(laddr); err != nil {
 				goto Error
@@ -147,9 +147,9 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 				goto Error
 			}
 		}
-		return DialUDP(net, la, ra);
+		return DialUDP(net, la, ra)
 	case "unix", "unixgram":
-		var la, ra *UnixAddr;
+		var la, ra *UnixAddr
 		if raddr != "" {
 			if ra, err = ResolveUnixAddr(net, raddr); err != nil {
 				goto Error
@@ -160,11 +160,11 @@ func Dial(net, laddr, raddr string) (c Conn, err os.Error) {
 				goto Error
 			}
 		}
-		return DialUnix(net, la, ra);
+		return DialUnix(net, la, ra)
 	}
-	err = UnknownNetworkError(net);
+	err = UnknownNetworkError(net)
 Error:
-	return nil, &OpError{"dial", net + " " + raddr, nil, err};
+	return nil, &OpError{"dial", net + " " + raddr, nil, err}
 }
 
 // Listen announces on the local network address laddr.
@@ -173,31 +173,31 @@ Error:
 func Listen(net, laddr string) (l Listener, err os.Error) {
 	switch net {
 	case "tcp", "tcp4", "tcp6":
-		var la *TCPAddr;
+		var la *TCPAddr
 		if laddr != "" {
 			if la, err = ResolveTCPAddr(laddr); err != nil {
 				return nil, err
 			}
 		}
-		l, err := ListenTCP(net, la);
+		l, err := ListenTCP(net, la)
 		if err != nil {
 			return nil, err
 		}
-		return l, nil;
+		return l, nil
 	case "unix":
-		var la *UnixAddr;
+		var la *UnixAddr
 		if laddr != "" {
 			if la, err = ResolveUnixAddr(net, laddr); err != nil {
 				return nil, err
 			}
 		}
-		l, err := ListenUnix(net, la);
+		l, err := ListenUnix(net, la)
 		if err != nil {
 			return nil, err
 		}
-		return l, nil;
+		return l, nil
 	}
-	return nil, UnknownNetworkError(net);
+	return nil, UnknownNetworkError(net)
 }
 
 // ListenPacket announces on the local network address laddr.
@@ -206,67 +206,67 @@ func Listen(net, laddr string) (l Listener, err os.Error) {
 func ListenPacket(net, laddr string) (c PacketConn, err os.Error) {
 	switch net {
 	case "udp", "udp4", "udp6":
-		var la *UDPAddr;
+		var la *UDPAddr
 		if laddr != "" {
 			if la, err = ResolveUDPAddr(laddr); err != nil {
 				return nil, err
 			}
 		}
-		c, err := ListenUDP(net, la);
+		c, err := ListenUDP(net, la)
 		if err != nil {
 			return nil, err
 		}
-		return c, nil;
+		return c, nil
 	case "unixgram":
-		var la *UnixAddr;
+		var la *UnixAddr
 		if laddr != "" {
 			if la, err = ResolveUnixAddr(net, laddr); err != nil {
 				return nil, err
 			}
 		}
-		c, err := DialUnix(net, la, nil);
+		c, err := DialUnix(net, la, nil)
 		if err != nil {
 			return nil, err
 		}
-		return c, nil;
+		return c, nil
 	}
-	return nil, UnknownNetworkError(net);
+	return nil, UnknownNetworkError(net)
 }
 
 var errMissingAddress = os.ErrorString("missing address")
 
 type OpError struct {
-	Op	string;
-	Net	string;
-	Addr	Addr;
-	Error	os.Error;
+	Op    string
+	Net   string
+	Addr  Addr
+	Error os.Error
 }
 
 func (e *OpError) String() string {
-	s := e.Op;
+	s := e.Op
 	if e.Net != "" {
 		s += " " + e.Net
 	}
 	if e.Addr != nil {
 		s += " " + e.Addr.String()
 	}
-	s += ": " + e.Error.String();
-	return s;
+	s += ": " + e.Error.String()
+	return s
 }
 
 type AddrError struct {
-	Error	string;
-	Addr	string;
+	Error string
+	Addr  string
 }
 
 func (e *AddrError) String() string {
-	s := e.Error;
+	s := e.Error
 	if e.Addr != "" {
 		s += " " + e.Addr
 	}
-	return s;
+	return s
 }
 
 type UnknownNetworkError string
 
-func (e UnknownNetworkError) String() string	{ return "unknown network " + string(e) }
+func (e UnknownNetworkError) String() string { return "unknown network " + string(e) }

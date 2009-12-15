@@ -9,8 +9,8 @@ import "fmt"
 // ParseError aggregates information about a JSON parse error.  It is
 // compatible with the os.Error interface.
 type ParseError struct {
-	Index	int;	// A byte index in JSON string where the error occurred
-	Token	string;	// An offending token
+	Index int    // A byte index in JSON string where the error occurred
+	Token string // An offending token
 }
 
 // Produce a string representation of this ParseError.

@@ -5,14 +5,14 @@
 package net
 
 import (
-	"testing";
+	"testing"
 )
 
 type portTest struct {
-	netw	string;
-	name	string;
-	port	int;
-	ok	bool;
+	netw string
+	name string
+	port int
+	ok   bool
 }
 
 var porttests = []portTest{
@@ -49,7 +49,7 @@ var porttests = []portTest{
 
 func TestLookupPort(t *testing.T) {
 	for i := 0; i < len(porttests); i++ {
-		tt := porttests[i];
+		tt := porttests[i]
 		if port, err := LookupPort(tt.netw, tt.name); port != tt.port || (err == nil) != tt.ok {
 			t.Errorf("LookupPort(%q, %q) = %v, %s; want %v",
 				tt.netw, tt.name, port, err, tt.port)

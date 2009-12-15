@@ -10,14 +10,14 @@ import "io"
 // The Write method never returns an error.
 // Sum returns the bytes of integer hash codes in big-endian order.
 type Hash interface {
-	io.Writer;
-	Sum() []byte;
-	Reset();
-	Size() int;	// number of bytes Sum returns
+	io.Writer
+	Sum() []byte
+	Reset()
+	Size() int // number of bytes Sum returns
 }
 
 // Hash32 is the common interface implemented by all 32-bit hash functions.
 type Hash32 interface {
-	Hash;
-	Sum32() uint32;
+	Hash
+	Sum32() uint32
 }

@@ -9,8 +9,8 @@
 package token
 
 import (
-	"fmt";
-	"strconv";
+	"fmt"
+	"strconv"
 )
 
 
@@ -20,111 +20,111 @@ type Token int
 // The list of tokens.
 const (
 	// Special tokens
-	ILLEGAL	Token	= iota;
-	EOF;
-	COMMENT;
+	ILLEGAL Token = iota
+	EOF
+	COMMENT
 
-	literal_beg;
+	literal_beg
 	// Identifiers and basic type literals
 	// (these tokens stand for classes of literals)
-	IDENT;	// main
-	INT;	// 12345
-	FLOAT;	// 123.45
-	CHAR;	// 'a'
-	STRING;	// "abc"
-	literal_end;
+	IDENT  // main
+	INT    // 12345
+	FLOAT  // 123.45
+	CHAR   // 'a'
+	STRING // "abc"
+	literal_end
 
-	operator_beg;
+	operator_beg
 	// Operators and delimiters
-	ADD;	// +
-	SUB;	// -
-	MUL;	// *
-	QUO;	// /
-	REM;	// %
+	ADD // +
+	SUB // -
+	MUL // *
+	QUO // /
+	REM // %
 
-	AND;		// &
-	OR;		// |
-	XOR;		// ^
-	SHL;		// <<
-	SHR;		// >>
-	AND_NOT;	// &^
+	AND     // &
+	OR      // |
+	XOR     // ^
+	SHL     // <<
+	SHR     // >>
+	AND_NOT // &^
 
-	ADD_ASSIGN;	// +=
-	SUB_ASSIGN;	// -=
-	MUL_ASSIGN;	// *=
-	QUO_ASSIGN;	// /=
-	REM_ASSIGN;	// %=
+	ADD_ASSIGN // +=
+	SUB_ASSIGN // -=
+	MUL_ASSIGN // *=
+	QUO_ASSIGN // /=
+	REM_ASSIGN // %=
 
-	AND_ASSIGN;	// &=
-	OR_ASSIGN;	// |=
-	XOR_ASSIGN;	// ^=
-	SHL_ASSIGN;	// <<=
-	SHR_ASSIGN;	// >>=
-	AND_NOT_ASSIGN;	// &^=
+	AND_ASSIGN     // &=
+	OR_ASSIGN      // |=
+	XOR_ASSIGN     // ^=
+	SHL_ASSIGN     // <<=
+	SHR_ASSIGN     // >>=
+	AND_NOT_ASSIGN // &^=
 
-	LAND;	// &&
-	LOR;	// ||
-	ARROW;	// <-
-	INC;	// ++
-	DEC;	// --
+	LAND  // &&
+	LOR   // ||
+	ARROW // <-
+	INC   // ++
+	DEC   // --
 
-	EQL;	// ==
-	LSS;	// <
-	GTR;	// >
-	ASSIGN;	// =
-	NOT;	// !
+	EQL    // ==
+	LSS    // <
+	GTR    // >
+	ASSIGN // =
+	NOT    // !
 
-	NEQ;		// !=
-	LEQ;		// <=
-	GEQ;		// >=
-	DEFINE;		// :=
-	ELLIPSIS;	// ...
+	NEQ      // !=
+	LEQ      // <=
+	GEQ      // >=
+	DEFINE   // :=
+	ELLIPSIS // ...
 
-	LPAREN;	// (
-	LBRACK;	// [
-	LBRACE;	// {
-	COMMA;	// ,
-	PERIOD;	// .
+	LPAREN // (
+	LBRACK // [
+	LBRACE // {
+	COMMA  // ,
+	PERIOD // .
 
-	RPAREN;		// )
-	RBRACK;		// ]
-	RBRACE;		// }
-	SEMICOLON;	// ;
-	COLON;		// :
-	operator_end;
+	RPAREN    // )
+	RBRACK    // ]
+	RBRACE    // }
+	SEMICOLON // ;
+	COLON     // :
+	operator_end
 
-	keyword_beg;
+	keyword_beg
 	// Keywords
-	BREAK;
-	CASE;
-	CHAN;
-	CONST;
-	CONTINUE;
+	BREAK
+	CASE
+	CHAN
+	CONST
+	CONTINUE
 
-	DEFAULT;
-	DEFER;
-	ELSE;
-	FALLTHROUGH;
-	FOR;
+	DEFAULT
+	DEFER
+	ELSE
+	FALLTHROUGH
+	FOR
 
-	FUNC;
-	GO;
-	GOTO;
-	IF;
-	IMPORT;
+	FUNC
+	GO
+	GOTO
+	IF
+	IMPORT
 
-	INTERFACE;
-	MAP;
-	PACKAGE;
-	RANGE;
-	RETURN;
+	INTERFACE
+	MAP
+	PACKAGE
+	RANGE
+	RETURN
 
-	SELECT;
-	STRUCT;
-	SWITCH;
-	TYPE;
-	VAR;
-	keyword_end;
+	SELECT
+	STRUCT
+	SWITCH
+	TYPE
+	VAR
+	keyword_end
 )
 
 
@@ -241,7 +241,7 @@ func (tok Token) String() string {
 	if str, exists := tokens[tok]; exists {
 		return str
 	}
-	return "token(" + strconv.Itoa(int(tok)) + ")";
+	return "token(" + strconv.Itoa(int(tok)) + ")"
 }
 
 
@@ -252,9 +252,9 @@ func (tok Token) String() string {
 // selector, indexing, and other operator and delimiter tokens.
 //
 const (
-	LowestPrec	= 0;	// non-operators
-	UnaryPrec	= 7;
-	HighestPrec	= 8;
+	LowestPrec  = 0 // non-operators
+	UnaryPrec   = 7
+	HighestPrec = 8
 )
 
 
@@ -277,14 +277,14 @@ func (op Token) Precedence() int {
 	case MUL, QUO, REM, SHL, SHR, AND, AND_NOT:
 		return 6
 	}
-	return LowestPrec;
+	return LowestPrec
 }
 
 
 var keywords map[string]Token
 
 func init() {
-	keywords = make(map[string]Token);
+	keywords = make(map[string]Token)
 	for i := keyword_beg + 1; i < keyword_end; i++ {
 		keywords[tokens[i]] = i
 	}
@@ -299,7 +299,7 @@ func Lookup(ident []byte) Token {
 	if tok, is_keyword := keywords[string(ident)]; is_keyword {
 		return tok
 	}
-	return IDENT;
+	return IDENT
 }
 
 
@@ -308,50 +308,50 @@ func Lookup(ident []byte) Token {
 // IsLiteral returns true for tokens corresponding to identifiers
 // and basic type literals; returns false otherwise.
 //
-func (tok Token) IsLiteral() bool	{ return literal_beg < tok && tok < literal_end }
+func (tok Token) IsLiteral() bool { return literal_beg < tok && tok < literal_end }
 
 // IsOperator returns true for tokens corresponding to operators and
 // delimiters; returns false otherwise.
 //
-func (tok Token) IsOperator() bool	{ return operator_beg < tok && tok < operator_end }
+func (tok Token) IsOperator() bool { return operator_beg < tok && tok < operator_end }
 
 // IsKeyword returns true for tokens corresponding to keywords;
 // returns false otherwise.
 //
-func (tok Token) IsKeyword() bool	{ return keyword_beg < tok && tok < keyword_end }
+func (tok Token) IsKeyword() bool { return keyword_beg < tok && tok < keyword_end }
 
 
 // Token source positions are represented by a Position value.
 // A Position is valid if the line number is > 0.
 //
 type Position struct {
-	Filename	string;	// filename, if any
-	Offset		int;	// byte offset, starting at 0
-	Line		int;	// line number, starting at 1
-	Column		int;	// column number, starting at 1 (character count)
+	Filename string // filename, if any
+	Offset   int    // byte offset, starting at 0
+	Line     int    // line number, starting at 1
+	Column   int    // column number, starting at 1 (character count)
 }
 
 
 // Pos is an accessor method for anonymous Position fields.
 // It returns its receiver.
 //
-func (pos *Position) Pos() Position	{ return *pos }
+func (pos *Position) Pos() Position { return *pos }
 
 
 // IsValid returns true if the position is valid.
-func (pos *Position) IsValid() bool	{ return pos.Line > 0 }
+func (pos *Position) IsValid() bool { return pos.Line > 0 }
 
 
 func (pos Position) String() string {
-	s := pos.Filename;
+	s := pos.Filename
 	if pos.IsValid() {
 		if s != "" {
 			s += ":"
 		}
-		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column);
+		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column)
 	}
 	if s == "" {
 		s = "???"
 	}
-	return s;
+	return s
 }

@@ -5,21 +5,21 @@
 package printer
 
 import (
-	"bytes";
-	oldParser "exp/parser";
-	"flag";
-	"io/ioutil";
-	"go/ast";
-	"go/parser";
-	"os";
-	"path";
-	"testing";
+	"bytes"
+	oldParser "exp/parser"
+	"flag"
+	"io/ioutil"
+	"go/ast"
+	"go/parser"
+	"os"
+	"path"
+	"testing"
 )
 
 
 const (
-	dataDir		= "testdata";
-	tabwidth	= 8;
+	dataDir  = "testdata"
+	tabwidth = 8
 )
 
 
@@ -27,69 +27,69 @@ var update = flag.Bool("update", false, "update golden files")
 
 
 func lineString(text []byte, i int) string {
-	i0 := i;
+	i0 := i
 	for i < len(text) && text[i] != '\n' {
 		i++
 	}
-	return string(text[i0:i]);
+	return string(text[i0:i])
 }
 
 
 type checkMode uint
 
 const (
-	export	checkMode	= 1 << iota;
-	rawFormat;
-	oldSyntax;
+	export checkMode = 1 << iota
+	rawFormat
+	oldSyntax
 )
 
 
 func check(t *testing.T, source, golden string, mode checkMode) {
 	// parse source
-	var prog *ast.File;
-	var err os.Error;
+	var prog *ast.File
+	var err os.Error
 	if mode&oldSyntax != 0 {
 		prog, err = oldParser.ParseFile(source, nil, parser.ParseComments)
 	} else {
 		prog, err = parser.ParseFile(source, nil, parser.ParseComments)
 	}
 	if err != nil {
-		t.Error(err);
-		return;
+		t.Error(err)
+		return
 	}
 
 	// filter exports if necessary
 	if mode&export != 0 {
-		ast.FileExports(prog);	// ignore result
-		prog.Comments = nil;	// don't print comments that are not in AST
+		ast.FileExports(prog) // ignore result
+		prog.Comments = nil   // don't print comments that are not in AST
 	}
 
 	// determine printer configuration
-	cfg := Config{Tabwidth: tabwidth};
+	cfg := Config{Tabwidth: tabwidth}
 	if mode&rawFormat != 0 {
 		cfg.Mode |= RawFormat
 	}
 
 	// format source
-	var buf bytes.Buffer;
+	var buf bytes.Buffer
 	if _, err := cfg.Fprint(&buf, prog); err != nil {
 		t.Error(err)
 	}
-	res := buf.Bytes();
+	res := buf.Bytes()
 
 	// update golden files if necessary
 	if *update {
 		if err := ioutil.WriteFile(golden, res, 0644); err != nil {
 			t.Error(err)
 		}
-		return;
+		return
 	}
 
 	// get golden
-	gld, err := ioutil.ReadFile(golden);
+	gld, err := ioutil.ReadFile(golden)
 	if err != nil {
-		t.Error(err);
-		return;
+		t.Error(err)
+		return
 	}
 
 	// compare lengths
@@ -99,24 +99,24 @@ func check(t *testing.T, source, golden string, mode checkMode) {
 
 	// compare contents
 	for i, line, offs := 0, 1, 0; i < len(res) && i < len(gld); i++ {
-		ch := res[i];
+		ch := res[i]
 		if ch != gld[i] {
-			t.Errorf("%s:%d:%d: %s", source, line, i-offs+1, lineString(res, offs));
-			t.Errorf("%s:%d:%d: %s", golden, line, i-offs+1, lineString(gld, offs));
-			t.Error();
-			return;
+			t.Errorf("%s:%d:%d: %s", source, line, i-offs+1, lineString(res, offs))
+			t.Errorf("%s:%d:%d: %s", golden, line, i-offs+1, lineString(gld, offs))
+			t.Error()
+			return
 		}
 		if ch == '\n' {
-			line++;
-			offs = i + 1;
+			line++
+			offs = i + 1
 		}
 	}
 }
 
 
 type entry struct {
-	source, golden	string;
-	mode		checkMode;
+	source, golden string
+	mode           checkMode
 }
 
 // Use gotest -update to create/update the respective golden files.
@@ -134,9 +134,9 @@ var data = []entry{
 
 func Test(t *testing.T) {
 	for _, e := range data {
-		source := path.Join(dataDir, e.source);
-		golden := path.Join(dataDir, e.golden);
-		check(t, source, golden, e.mode|oldSyntax);
+		source := path.Join(dataDir, e.source)
+		golden := path.Join(dataDir, e.golden)
+		check(t, source, golden, e.mode|oldSyntax)
 		// TODO(gri) check that golden is idempotent
 		//check(t, golden, golden, e.mode);
 	}

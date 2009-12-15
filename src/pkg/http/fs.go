@@ -7,12 +7,12 @@
 package http
 
 import (
-	"fmt";
-	"io";
-	"os";
-	"path";
-	"strings";
-	"utf8";
+	"fmt"
+	"io"
+	"os"
+	"path"
+	"strings"
+	"utf8"
 )
 
 // TODO this should be in a mime package somewhere
@@ -30,7 +30,7 @@ var contentByExt = map[string]string{
 // contain any unprintable ASCII or Unicode characters.
 func isText(b []byte) bool {
 	for len(b) > 0 && utf8.FullRune(b) {
-		rune, size := utf8.DecodeRune(b);
+		rune, size := utf8.DecodeRune(b)
 		if size == 1 && rune == utf8.RuneError {
 			// decoding error
 			return false
@@ -47,110 +47,110 @@ func isText(b []byte) bool {
 				return false
 			}
 		}
-		b = b[size:];
+		b = b[size:]
 	}
-	return true;
+	return true
 }
 
 func dirList(c *Conn, f *os.File) {
-	fmt.Fprintf(c, "<pre>\n");
+	fmt.Fprintf(c, "<pre>\n")
 	for {
-		dirs, err := f.Readdir(100);
+		dirs, err := f.Readdir(100)
 		if err != nil || len(dirs) == 0 {
 			break
 		}
 		for _, d := range dirs {
-			name := d.Name;
+			name := d.Name
 			if d.IsDirectory() {
 				name += "/"
 			}
 			// TODO htmlescape
-			fmt.Fprintf(c, "<a href=\"%s\">%s</a>\n", name, name);
+			fmt.Fprintf(c, "<a href=\"%s\">%s</a>\n", name, name)
 		}
 	}
-	fmt.Fprintf(c, "</pre>\n");
+	fmt.Fprintf(c, "</pre>\n")
 }
 
 
 func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
-	const indexPage = "/index.html";
+	const indexPage = "/index.html"
 
 	// redirect .../index.html to .../
 	if strings.HasSuffix(r.URL.Path, indexPage) {
-		Redirect(c, r.URL.Path[0:len(r.URL.Path)-len(indexPage)+1], StatusMovedPermanently);
-		return;
+		Redirect(c, r.URL.Path[0:len(r.URL.Path)-len(indexPage)+1], StatusMovedPermanently)
+		return
 	}
 
-	f, err := os.Open(name, os.O_RDONLY, 0);
+	f, err := os.Open(name, os.O_RDONLY, 0)
 	if err != nil {
 		// TODO expose actual error?
-		NotFound(c, r);
-		return;
+		NotFound(c, r)
+		return
 	}
-	defer f.Close();
+	defer f.Close()
 
-	d, err1 := f.Stat();
+	d, err1 := f.Stat()
 	if err1 != nil {
 		// TODO expose actual error?
-		NotFound(c, r);
-		return;
+		NotFound(c, r)
+		return
 	}
 
 	if redirect {
 		// redirect to canonical path: / at end of directory url
 		// r.URL.Path always begins with /
-		url := r.URL.Path;
+		url := r.URL.Path
 		if d.IsDirectory() {
 			if url[len(url)-1] != '/' {
-				Redirect(c, url+"/", StatusMovedPermanently);
-				return;
+				Redirect(c, url+"/", StatusMovedPermanently)
+				return
 			}
 		} else {
 			if url[len(url)-1] == '/' {
-				Redirect(c, url[0:len(url)-1], StatusMovedPermanently);
-				return;
+				Redirect(c, url[0:len(url)-1], StatusMovedPermanently)
+				return
 			}
 		}
 	}
 
 	// use contents of index.html for directory, if present
 	if d.IsDirectory() {
-		index := name + indexPage;
-		ff, err := os.Open(index, os.O_RDONLY, 0);
+		index := name + indexPage
+		ff, err := os.Open(index, os.O_RDONLY, 0)
 		if err == nil {
-			defer ff.Close();
-			dd, err := ff.Stat();
+			defer ff.Close()
+			dd, err := ff.Stat()
 			if err == nil {
-				name = index;
-				d = dd;
-				f = ff;
+				name = index
+				d = dd
+				f = ff
 			}
 		}
 	}
 
 	if d.IsDirectory() {
-		dirList(c, f);
-		return;
+		dirList(c, f)
+		return
 	}
 
 	// serve file
 	// use extension to find content type.
-	ext := path.Ext(name);
+	ext := path.Ext(name)
 	if ctype, ok := contentByExt[ext]; ok {
 		c.SetHeader("Content-Type", ctype)
 	} else {
 		// read first chunk to decide between utf-8 text and binary
-		var buf [1024]byte;
-		n, _ := io.ReadFull(f, &buf);
-		b := buf[0:n];
+		var buf [1024]byte
+		n, _ := io.ReadFull(f, &buf)
+		b := buf[0:n]
 		if isText(b) {
 			c.SetHeader("Content-Type", "text-plain; charset=utf-8")
 		} else {
-			c.SetHeader("Content-Type", "application/octet-stream")	// generic binary
+			c.SetHeader("Content-Type", "application/octet-stream") // generic binary
 		}
-		c.Write(b);
+		c.Write(b)
 	}
-	io.Copy(c, f);
+	io.Copy(c, f)
 }
 
 // ServeFile replies to the request with the contents of the named file or directory.
@@ -159,22 +159,22 @@ func ServeFile(c *Conn, r *Request, name string) {
 }
 
 type fileHandler struct {
-	root	string;
-	prefix	string;
+	root   string
+	prefix string
 }
 
 // FileServer returns a handler that serves HTTP requests
 // with the contents of the file system rooted at root.
 // It strips prefix from the incoming requests before
 // looking up the file name in the file system.
-func FileServer(root, prefix string) Handler	{ return &fileHandler{root, prefix} }
+func FileServer(root, prefix string) Handler { return &fileHandler{root, prefix} }
 
 func (f *fileHandler) ServeHTTP(c *Conn, r *Request) {
-	path := r.URL.Path;
+	path := r.URL.Path
 	if !strings.HasPrefix(path, f.prefix) {
-		NotFound(c, r);
-		return;
+		NotFound(c, r)
+		return
 	}
-	path = path[len(f.prefix):];
-	serveFileInternal(c, r, f.root+"/"+path, true);
+	path = path[len(f.prefix):]
+	serveFileInternal(c, r, f.root+"/"+path, true)
 }

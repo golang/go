@@ -5,10 +5,10 @@
 package http
 
 import (
-	"fmt";
-	"os";
-	"reflect";
-	"testing";
+	"fmt"
+	"os"
+	"reflect"
+	"testing"
 )
 
 // TODO(rsc):
@@ -17,9 +17,9 @@ import (
 //	test ParseURL
 
 type URLTest struct {
-	in		string;
-	out		*URL;
-	roundtrip	string;	// expected result of reserializing the URL; empty means same as "in".
+	in        string
+	out       *URL
+	roundtrip string // expected result of reserializing the URL; empty means same as "in".
 }
 
 var urltests = []URLTest{
@@ -191,10 +191,10 @@ func ufmt(u *URL) string {
 
 func DoTest(t *testing.T, parse func(string) (*URL, os.Error), name string, tests []URLTest) {
 	for _, tt := range tests {
-		u, err := parse(tt.in);
+		u, err := parse(tt.in)
 		if err != nil {
-			t.Errorf("%s(%q) returned error %s", name, tt.in, err);
-			continue;
+			t.Errorf("%s(%q) returned error %s", name, tt.in, err)
+			continue
 		}
 		if !reflect.DeepEqual(u, tt.out) {
 			t.Errorf("%s(%q):\n\thave %v\n\twant %v\n",
@@ -204,24 +204,24 @@ func DoTest(t *testing.T, parse func(string) (*URL, os.Error), name string, test
 }
 
 func TestParseURL(t *testing.T) {
-	DoTest(t, ParseURL, "ParseURL", urltests);
-	DoTest(t, ParseURL, "ParseURL", urlnofragtests);
+	DoTest(t, ParseURL, "ParseURL", urltests)
+	DoTest(t, ParseURL, "ParseURL", urlnofragtests)
 }
 
 func TestParseURLReference(t *testing.T) {
-	DoTest(t, ParseURLReference, "ParseURLReference", urltests);
-	DoTest(t, ParseURLReference, "ParseURLReference", urlfragtests);
+	DoTest(t, ParseURLReference, "ParseURLReference", urltests)
+	DoTest(t, ParseURLReference, "ParseURLReference", urlfragtests)
 }
 
 func DoTestString(t *testing.T, parse func(string) (*URL, os.Error), name string, tests []URLTest) {
 	for _, tt := range tests {
-		u, err := parse(tt.in);
+		u, err := parse(tt.in)
 		if err != nil {
-			t.Errorf("%s(%q) returned error %s", name, tt.in, err);
-			continue;
+			t.Errorf("%s(%q) returned error %s", name, tt.in, err)
+			continue
 		}
-		s := u.String();
-		expected := tt.in;
+		s := u.String()
+		expected := tt.in
 		if len(tt.roundtrip) > 0 {
 			expected = tt.roundtrip
 		}
@@ -232,18 +232,18 @@ func DoTestString(t *testing.T, parse func(string) (*URL, os.Error), name string
 }
 
 func TestURLString(t *testing.T) {
-	DoTestString(t, ParseURL, "ParseURL", urltests);
-	DoTestString(t, ParseURL, "ParseURL", urlfragtests);
-	DoTestString(t, ParseURL, "ParseURL", urlnofragtests);
-	DoTestString(t, ParseURLReference, "ParseURLReference", urltests);
-	DoTestString(t, ParseURLReference, "ParseURLReference", urlfragtests);
-	DoTestString(t, ParseURLReference, "ParseURLReference", urlnofragtests);
+	DoTestString(t, ParseURL, "ParseURL", urltests)
+	DoTestString(t, ParseURL, "ParseURL", urlfragtests)
+	DoTestString(t, ParseURL, "ParseURL", urlnofragtests)
+	DoTestString(t, ParseURLReference, "ParseURLReference", urltests)
+	DoTestString(t, ParseURLReference, "ParseURLReference", urlfragtests)
+	DoTestString(t, ParseURLReference, "ParseURLReference", urlnofragtests)
 }
 
 type URLEscapeTest struct {
-	in	string;
-	out	string;
-	err	os.Error;
+	in  string
+	out string
+	err os.Error
 }
 
 var unescapeTests = []URLEscapeTest{
@@ -278,27 +278,27 @@ var unescapeTests = []URLEscapeTest{
 		nil,
 	},
 	URLEscapeTest{
-		"%",	// not enough characters after %
+		"%", // not enough characters after %
 		"",
 		URLEscapeError("%"),
 	},
 	URLEscapeTest{
-		"%a",	// not enough characters after %
+		"%a", // not enough characters after %
 		"",
 		URLEscapeError("%a"),
 	},
 	URLEscapeTest{
-		"%1",	// not enough characters after %
+		"%1", // not enough characters after %
 		"",
 		URLEscapeError("%1"),
 	},
 	URLEscapeTest{
-		"123%45%6",	// not enough characters after %
+		"123%45%6", // not enough characters after %
 		"",
 		URLEscapeError("%6"),
 	},
 	URLEscapeTest{
-		"%zzzzz",	// invalid hex digits
+		"%zzzzz", // invalid hex digits
 		"",
 		URLEscapeError("%zz"),
 	},
@@ -306,7 +306,7 @@ var unescapeTests = []URLEscapeTest{
 
 func TestURLUnescape(t *testing.T) {
 	for _, tt := range unescapeTests {
-		actual, err := URLUnescape(tt.in);
+		actual, err := URLUnescape(tt.in)
 		if actual != tt.out || (err != nil) != (tt.err != nil) {
 			t.Errorf("URLUnescape(%q) = %q, %s; want %q, %s", tt.in, actual, err, tt.out, tt.err)
 		}
@@ -343,13 +343,13 @@ var escapeTests = []URLEscapeTest{
 
 func TestURLEscape(t *testing.T) {
 	for _, tt := range escapeTests {
-		actual := URLEscape(tt.in);
+		actual := URLEscape(tt.in)
 		if tt.out != actual {
 			t.Errorf("URLEscape(%q) = %q, want %q", tt.in, actual, tt.out)
 		}
 
 		// for bonus points, verify that escape:unescape is an identity.
-		roundtrip, err := URLUnescape(actual);
+		roundtrip, err := URLUnescape(actual)
 		if roundtrip != tt.in || err != nil {
 			t.Errorf("URLUnescape(%q) = %q, %s; want %q, %s", actual, roundtrip, err, tt.in, "[no error]")
 		}

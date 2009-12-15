@@ -16,14 +16,14 @@ package math
 // Tanh computes the hyperbolic tangent of x.
 func Tanh(x float64) float64 {
 	if x < 0 {
-		x = -x;
+		x = -x
 		if x > 21 {
 			return -1
 		}
-		return -Sinh(x) / Cosh(x);
+		return -Sinh(x) / Cosh(x)
 	}
 	if x > 21 {
 		return 1
 	}
-	return Sinh(x) / Cosh(x);
+	return Sinh(x) / Cosh(x)
 }

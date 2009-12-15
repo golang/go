@@ -5,19 +5,19 @@
 package gob
 
 import (
-	"bytes";
-	"math";
-	"os";
-	"reflect";
-	"strings";
-	"testing";
-	"unsafe";
+	"bytes"
+	"math"
+	"os"
+	"reflect"
+	"strings"
+	"testing"
+	"unsafe"
 )
 
 // Guarantee encoding format by comparing some encodings to hand-written values
 type EncodeT struct {
-	x	uint64;
-	b	[]byte;
+	x uint64
+	b []byte
 }
 
 var encodeT = []EncodeT{
@@ -39,12 +39,12 @@ var encodeT = []EncodeT{
 
 // Test basic encode/decode routines for unsigned integers
 func TestUintCodec(t *testing.T) {
-	b := new(bytes.Buffer);
-	encState := new(encoderState);
-	encState.b = b;
+	b := new(bytes.Buffer)
+	encState := new(encoderState)
+	encState.b = b
 	for _, tt := range encodeT {
-		b.Reset();
-		encodeUint(encState, tt.x);
+		b.Reset()
+		encodeUint(encState, tt.x)
 		if encState.err != nil {
 			t.Error("encodeUint:", tt.x, encState.err)
 		}
@@ -52,14 +52,14 @@ func TestUintCodec(t *testing.T) {
 			t.Errorf("encodeUint: %#x encode: expected % x got % x", tt.x, tt.b, b.Bytes())
 		}
 	}
-	decState := newDecodeState(b);
+	decState := newDecodeState(b)
 	for u := uint64(0); ; u = (u + 1) * 7 {
-		b.Reset();
-		encodeUint(encState, u);
+		b.Reset()
+		encodeUint(encState, u)
 		if encState.err != nil {
 			t.Error("encodeUint:", u, encState.err)
 		}
-		v := decodeUint(decState);
+		v := decodeUint(decState)
 		if decState.err != nil {
 			t.Error("DecodeUint:", u, decState.err)
 		}
@@ -73,16 +73,16 @@ func TestUintCodec(t *testing.T) {
 }
 
 func verifyInt(i int64, t *testing.T) {
-	var b = new(bytes.Buffer);
-	encState := new(encoderState);
-	encState.b = b;
-	encodeInt(encState, i);
+	var b = new(bytes.Buffer)
+	encState := new(encoderState)
+	encState.b = b
+	encodeInt(encState, i)
 	if encState.err != nil {
 		t.Error("encodeInt:", i, encState.err)
 	}
-	decState := newDecodeState(b);
-	decState.buf = make([]byte, 8);
-	j := decodeInt(decState);
+	decState := newDecodeState(b)
+	decState.buf = make([]byte, 8)
+	j := decodeInt(decState)
 	if decState.err != nil {
 		t.Error("DecodeInt:", i, decState.err)
 	}
@@ -95,15 +95,15 @@ func verifyInt(i int64, t *testing.T) {
 func TestIntCodec(t *testing.T) {
 	for u := uint64(0); ; u = (u + 1) * 7 {
 		// Do positive and negative values
-		i := int64(u);
-		verifyInt(i, t);
-		verifyInt(-i, t);
-		verifyInt(^i, t);
+		i := int64(u)
+		verifyInt(i, t)
+		verifyInt(-i, t)
+		verifyInt(^i, t)
 		if u&(1<<63) != 0 {
 			break
 		}
 	}
-	verifyInt(-1<<63, t);	// a tricky case
+	verifyInt(-1<<63, t) // a tricky case
 }
 
 // The result of encoding a true boolean with field number 7
@@ -116,24 +116,24 @@ var floatResult = []byte{0x07, 0xFE, 0x31, 0x40}
 var bytesResult = []byte{0x07, 0x05, 'h', 'e', 'l', 'l', 'o'}
 
 func newencoderState(b *bytes.Buffer) *encoderState {
-	b.Reset();
-	state := new(encoderState);
-	state.b = b;
-	state.fieldnum = -1;
-	return state;
+	b.Reset()
+	state := new(encoderState)
+	state.b = b
+	state.fieldnum = -1
+	return state
 }
 
 // Test instruction execution for encoding.
 // Do not run the machine yet; instead do individual instructions crafted by hand.
 func TestScalarEncInstructions(t *testing.T) {
-	var b = new(bytes.Buffer);
+	var b = new(bytes.Buffer)
 
 	// bool
 	{
-		data := struct{ a bool }{true};
-		instr := &encInstr{encBool, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		data := struct{ a bool }{true}
+		instr := &encInstr{encBool, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(boolResult, b.Bytes()) {
 			t.Errorf("bool enc instructions: expected % x got % x", boolResult, b.Bytes())
 		}
@@ -141,11 +141,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// int
 	{
-		b.Reset();
-		data := struct{ a int }{17};
-		instr := &encInstr{encInt, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a int }{17}
+		instr := &encInstr{encInt, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(signedResult, b.Bytes()) {
 			t.Errorf("int enc instructions: expected % x got % x", signedResult, b.Bytes())
 		}
@@ -153,11 +153,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// uint
 	{
-		b.Reset();
-		data := struct{ a uint }{17};
-		instr := &encInstr{encUint, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a uint }{17}
+		instr := &encInstr{encUint, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(unsignedResult, b.Bytes()) {
 			t.Errorf("uint enc instructions: expected % x got % x", unsignedResult, b.Bytes())
 		}
@@ -165,11 +165,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// int8
 	{
-		b.Reset();
-		data := struct{ a int8 }{17};
-		instr := &encInstr{encInt8, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a int8 }{17}
+		instr := &encInstr{encInt8, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(signedResult, b.Bytes()) {
 			t.Errorf("int8 enc instructions: expected % x got % x", signedResult, b.Bytes())
 		}
@@ -177,11 +177,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// uint8
 	{
-		b.Reset();
-		data := struct{ a uint8 }{17};
-		instr := &encInstr{encUint8, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a uint8 }{17}
+		instr := &encInstr{encUint8, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(unsignedResult, b.Bytes()) {
 			t.Errorf("uint8 enc instructions: expected % x got % x", unsignedResult, b.Bytes())
 		}
@@ -189,11 +189,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// int16
 	{
-		b.Reset();
-		data := struct{ a int16 }{17};
-		instr := &encInstr{encInt16, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a int16 }{17}
+		instr := &encInstr{encInt16, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(signedResult, b.Bytes()) {
 			t.Errorf("int16 enc instructions: expected % x got % x", signedResult, b.Bytes())
 		}
@@ -201,11 +201,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// uint16
 	{
-		b.Reset();
-		data := struct{ a uint16 }{17};
-		instr := &encInstr{encUint16, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a uint16 }{17}
+		instr := &encInstr{encUint16, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(unsignedResult, b.Bytes()) {
 			t.Errorf("uint16 enc instructions: expected % x got % x", unsignedResult, b.Bytes())
 		}
@@ -213,11 +213,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// int32
 	{
-		b.Reset();
-		data := struct{ a int32 }{17};
-		instr := &encInstr{encInt32, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a int32 }{17}
+		instr := &encInstr{encInt32, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(signedResult, b.Bytes()) {
 			t.Errorf("int32 enc instructions: expected % x got % x", signedResult, b.Bytes())
 		}
@@ -225,11 +225,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// uint32
 	{
-		b.Reset();
-		data := struct{ a uint32 }{17};
-		instr := &encInstr{encUint32, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a uint32 }{17}
+		instr := &encInstr{encUint32, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(unsignedResult, b.Bytes()) {
 			t.Errorf("uint32 enc instructions: expected % x got % x", unsignedResult, b.Bytes())
 		}
@@ -237,11 +237,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// int64
 	{
-		b.Reset();
-		data := struct{ a int64 }{17};
-		instr := &encInstr{encInt64, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a int64 }{17}
+		instr := &encInstr{encInt64, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(signedResult, b.Bytes()) {
 			t.Errorf("int64 enc instructions: expected % x got % x", signedResult, b.Bytes())
 		}
@@ -249,11 +249,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// uint64
 	{
-		b.Reset();
-		data := struct{ a uint64 }{17};
-		instr := &encInstr{encUint64, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a uint64 }{17}
+		instr := &encInstr{encUint64, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(unsignedResult, b.Bytes()) {
 			t.Errorf("uint64 enc instructions: expected % x got % x", unsignedResult, b.Bytes())
 		}
@@ -261,11 +261,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// float
 	{
-		b.Reset();
-		data := struct{ a float }{17};
-		instr := &encInstr{encFloat, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a float }{17}
+		instr := &encInstr{encFloat, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(floatResult, b.Bytes()) {
 			t.Errorf("float enc instructions: expected % x got % x", floatResult, b.Bytes())
 		}
@@ -273,11 +273,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// float32
 	{
-		b.Reset();
-		data := struct{ a float32 }{17};
-		instr := &encInstr{encFloat32, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a float32 }{17}
+		instr := &encInstr{encFloat32, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(floatResult, b.Bytes()) {
 			t.Errorf("float32 enc instructions: expected % x got % x", floatResult, b.Bytes())
 		}
@@ -285,11 +285,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// float64
 	{
-		b.Reset();
-		data := struct{ a float64 }{17};
-		instr := &encInstr{encFloat64, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a float64 }{17}
+		instr := &encInstr{encFloat64, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(floatResult, b.Bytes()) {
 			t.Errorf("float64 enc instructions: expected % x got % x", floatResult, b.Bytes())
 		}
@@ -297,11 +297,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// bytes == []uint8
 	{
-		b.Reset();
-		data := struct{ a []byte }{strings.Bytes("hello")};
-		instr := &encInstr{encUint8Array, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a []byte }{strings.Bytes("hello")}
+		instr := &encInstr{encUint8Array, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(bytesResult, b.Bytes()) {
 			t.Errorf("bytes enc instructions: expected % x got % x", bytesResult, b.Bytes())
 		}
@@ -309,11 +309,11 @@ func TestScalarEncInstructions(t *testing.T) {
 
 	// string
 	{
-		b.Reset();
-		data := struct{ a string }{"hello"};
-		instr := &encInstr{encString, 6, 0, 0};
-		state := newencoderState(b);
-		instr.op(instr, state, unsafe.Pointer(&data));
+		b.Reset()
+		data := struct{ a string }{"hello"}
+		instr := &encInstr{encString, 6, 0, 0}
+		state := newencoderState(b)
+		instr.op(instr, state, unsafe.Pointer(&data))
 		if !bytes.Equal(bytesResult, b.Bytes()) {
 			t.Errorf("string enc instructions: expected % x got % x", bytesResult, b.Bytes())
 		}
@@ -321,36 +321,36 @@ func TestScalarEncInstructions(t *testing.T) {
 }
 
 func execDec(typ string, instr *decInstr, state *decodeState, t *testing.T, p unsafe.Pointer) {
-	v := int(decodeUint(state));
+	v := int(decodeUint(state))
 	if state.err != nil {
 		t.Fatalf("decoding %s field: %v", typ, state.err)
 	}
 	if v+state.fieldnum != 6 {
 		t.Fatalf("decoding field number %d, got %d", 6, v+state.fieldnum)
 	}
-	instr.op(instr, state, decIndirect(p, instr.indir));
-	state.fieldnum = 6;
+	instr.op(instr, state, decIndirect(p, instr.indir))
+	state.fieldnum = 6
 }
 
 func newDecodeStateFromData(data []byte) *decodeState {
-	state := newDecodeState(bytes.NewBuffer(data));
-	state.fieldnum = -1;
-	return state;
+	state := newDecodeState(bytes.NewBuffer(data))
+	state.fieldnum = -1
+	return state
 }
 
 // Test instruction execution for decoding.
 // Do not run the machine yet; instead do individual instructions crafted by hand.
 func TestScalarDecInstructions(t *testing.T) {
-	ovfl := os.ErrorString("overflow");
+	ovfl := os.ErrorString("overflow")
 
 	// bool
 	{
 		var data struct {
-			a bool;
+			a bool
 		}
-		instr := &decInstr{decBool, 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(boolResult);
-		execDec("bool", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decBool, 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(boolResult)
+		execDec("bool", instr, state, t, unsafe.Pointer(&data))
 		if data.a != true {
 			t.Errorf("bool a = %v not true", data.a)
 		}
@@ -358,11 +358,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// int
 	{
 		var data struct {
-			a int;
+			a int
 		}
-		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(signedResult);
-		execDec("int", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(signedResult)
+		execDec("int", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("int a = %v not 17", data.a)
 		}
@@ -371,11 +371,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// uint
 	{
 		var data struct {
-			a uint;
+			a uint
 		}
-		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(unsignedResult);
-		execDec("uint", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(unsignedResult)
+		execDec("uint", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("uint a = %v not 17", data.a)
 		}
@@ -384,11 +384,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// int8
 	{
 		var data struct {
-			a int8;
+			a int8
 		}
-		instr := &decInstr{decInt8, 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(signedResult);
-		execDec("int8", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decInt8, 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(signedResult)
+		execDec("int8", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("int8 a = %v not 17", data.a)
 		}
@@ -397,11 +397,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// uint8
 	{
 		var data struct {
-			a uint8;
+			a uint8
 		}
-		instr := &decInstr{decUint8, 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(unsignedResult);
-		execDec("uint8", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decUint8, 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(unsignedResult)
+		execDec("uint8", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("uint8 a = %v not 17", data.a)
 		}
@@ -410,11 +410,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// int16
 	{
 		var data struct {
-			a int16;
+			a int16
 		}
-		instr := &decInstr{decInt16, 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(signedResult);
-		execDec("int16", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decInt16, 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(signedResult)
+		execDec("int16", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("int16 a = %v not 17", data.a)
 		}
@@ -423,11 +423,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// uint16
 	{
 		var data struct {
-			a uint16;
+			a uint16
 		}
-		instr := &decInstr{decUint16, 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(unsignedResult);
-		execDec("uint16", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decUint16, 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(unsignedResult)
+		execDec("uint16", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("uint16 a = %v not 17", data.a)
 		}
@@ -436,11 +436,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// int32
 	{
 		var data struct {
-			a int32;
+			a int32
 		}
-		instr := &decInstr{decInt32, 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(signedResult);
-		execDec("int32", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decInt32, 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(signedResult)
+		execDec("int32", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("int32 a = %v not 17", data.a)
 		}
@@ -449,11 +449,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// uint32
 	{
 		var data struct {
-			a uint32;
+			a uint32
 		}
-		instr := &decInstr{decUint32, 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(unsignedResult);
-		execDec("uint32", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decUint32, 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(unsignedResult)
+		execDec("uint32", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("uint32 a = %v not 17", data.a)
 		}
@@ -462,11 +462,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// uintptr
 	{
 		var data struct {
-			a uintptr;
+			a uintptr
 		}
-		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(unsignedResult);
-		execDec("uintptr", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(unsignedResult)
+		execDec("uintptr", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("uintptr a = %v not 17", data.a)
 		}
@@ -475,11 +475,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// int64
 	{
 		var data struct {
-			a int64;
+			a int64
 		}
-		instr := &decInstr{decInt64, 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(signedResult);
-		execDec("int64", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decInt64, 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(signedResult)
+		execDec("int64", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("int64 a = %v not 17", data.a)
 		}
@@ -488,11 +488,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// uint64
 	{
 		var data struct {
-			a uint64;
+			a uint64
 		}
-		instr := &decInstr{decUint64, 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(unsignedResult);
-		execDec("uint64", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decUint64, 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(unsignedResult)
+		execDec("uint64", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("uint64 a = %v not 17", data.a)
 		}
@@ -501,11 +501,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// float
 	{
 		var data struct {
-			a float;
+			a float
 		}
-		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(floatResult);
-		execDec("float", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decOpMap[valueKind(data.a)], 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(floatResult)
+		execDec("float", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("float a = %v not 17", data.a)
 		}
@@ -514,11 +514,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// float32
 	{
 		var data struct {
-			a float32;
+			a float32
 		}
-		instr := &decInstr{decFloat32, 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(floatResult);
-		execDec("float32", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decFloat32, 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(floatResult)
+		execDec("float32", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("float32 a = %v not 17", data.a)
 		}
@@ -527,11 +527,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// float64
 	{
 		var data struct {
-			a float64;
+			a float64
 		}
-		instr := &decInstr{decFloat64, 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(floatResult);
-		execDec("float64", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decFloat64, 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(floatResult)
+		execDec("float64", instr, state, t, unsafe.Pointer(&data))
 		if data.a != 17 {
 			t.Errorf("float64 a = %v not 17", data.a)
 		}
@@ -540,11 +540,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// bytes == []uint8
 	{
 		var data struct {
-			a []byte;
+			a []byte
 		}
-		instr := &decInstr{decUint8Array, 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(bytesResult);
-		execDec("bytes", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decUint8Array, 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(bytesResult)
+		execDec("bytes", instr, state, t, unsafe.Pointer(&data))
 		if string(data.a) != "hello" {
 			t.Errorf(`bytes a = %q not "hello"`, string(data.a))
 		}
@@ -553,11 +553,11 @@ func TestScalarDecInstructions(t *testing.T) {
 	// string
 	{
 		var data struct {
-			a string;
+			a string
 		}
-		instr := &decInstr{decString, 6, 0, 0, ovfl};
-		state := newDecodeStateFromData(bytesResult);
-		execDec("bytes", instr, state, t, unsafe.Pointer(&data));
+		instr := &decInstr{decString, 6, 0, 0, ovfl}
+		state := newDecodeStateFromData(bytesResult)
+		execDec("bytes", instr, state, t, unsafe.Pointer(&data))
 		if data.a != "hello" {
 			t.Errorf(`bytes a = %q not "hello"`, data.a)
 		}
@@ -566,18 +566,18 @@ func TestScalarDecInstructions(t *testing.T) {
 
 func TestEndToEnd(t *testing.T) {
 	type T2 struct {
-		t string;
+		t string
 	}
-	s1 := "string1";
-	s2 := "string2";
+	s1 := "string1"
+	s2 := "string2"
 	type T1 struct {
-		a, b, c	int;
-		n	*[3]float;
-		strs	*[2]string;
-		int64s	*[]int64;
-		s	string;
-		y	[]byte;
-		t	*T2;
+		a, b, c int
+		n       *[3]float
+		strs    *[2]string
+		int64s  *[]int64
+		s       string
+		y       []byte
+		t       *T2
 	}
 	t1 := &T1{
 		a: 17,
@@ -589,14 +589,14 @@ func TestEndToEnd(t *testing.T) {
 		s: "Now is the time",
 		y: strings.Bytes("hello, sailor"),
 		t: &T2{"this is T2"},
-	};
-	b := new(bytes.Buffer);
-	err := NewEncoder(b).Encode(t1);
+	}
+	b := new(bytes.Buffer)
+	err := NewEncoder(b).Encode(t1)
 	if err != nil {
 		t.Error("encode:", err)
 	}
-	var _t1 T1;
-	err = NewDecoder(b).Decode(&_t1);
+	var _t1 T1
+	err = NewDecoder(b).Decode(&_t1)
 	if err != nil {
 		t.Fatal("decode:", err)
 	}
@@ -607,150 +607,150 @@ func TestEndToEnd(t *testing.T) {
 
 func TestOverflow(t *testing.T) {
 	type inputT struct {
-		maxi	int64;
-		mini	int64;
-		maxu	uint64;
-		maxf	float64;
-		minf	float64;
+		maxi int64
+		mini int64
+		maxu uint64
+		maxf float64
+		minf float64
 	}
-	var it inputT;
-	var err os.Error;
-	b := new(bytes.Buffer);
-	enc := NewEncoder(b);
-	dec := NewDecoder(b);
+	var it inputT
+	var err os.Error
+	b := new(bytes.Buffer)
+	enc := NewEncoder(b)
+	dec := NewDecoder(b)
 
 	// int8
-	b.Reset();
+	b.Reset()
 	it = inputT{
 		maxi: math.MaxInt8 + 1,
-	};
-	type outi8 struct {
-		maxi	int8;
-		mini	int8;
 	}
-	var o1 outi8;
-	enc.Encode(it);
-	err = dec.Decode(&o1);
+	type outi8 struct {
+		maxi int8
+		mini int8
+	}
+	var o1 outi8
+	enc.Encode(it)
+	err = dec.Decode(&o1)
 	if err == nil || err.String() != `value for "maxi" out of range` {
 		t.Error("wrong overflow error for int8:", err)
 	}
 	it = inputT{
 		mini: math.MinInt8 - 1,
-	};
-	b.Reset();
-	enc.Encode(it);
-	err = dec.Decode(&o1);
+	}
+	b.Reset()
+	enc.Encode(it)
+	err = dec.Decode(&o1)
 	if err == nil || err.String() != `value for "mini" out of range` {
 		t.Error("wrong underflow error for int8:", err)
 	}
 
 	// int16
-	b.Reset();
+	b.Reset()
 	it = inputT{
 		maxi: math.MaxInt16 + 1,
-	};
-	type outi16 struct {
-		maxi	int16;
-		mini	int16;
 	}
-	var o2 outi16;
-	enc.Encode(it);
-	err = dec.Decode(&o2);
+	type outi16 struct {
+		maxi int16
+		mini int16
+	}
+	var o2 outi16
+	enc.Encode(it)
+	err = dec.Decode(&o2)
 	if err == nil || err.String() != `value for "maxi" out of range` {
 		t.Error("wrong overflow error for int16:", err)
 	}
 	it = inputT{
 		mini: math.MinInt16 - 1,
-	};
-	b.Reset();
-	enc.Encode(it);
-	err = dec.Decode(&o2);
+	}
+	b.Reset()
+	enc.Encode(it)
+	err = dec.Decode(&o2)
 	if err == nil || err.String() != `value for "mini" out of range` {
 		t.Error("wrong underflow error for int16:", err)
 	}
 
 	// int32
-	b.Reset();
+	b.Reset()
 	it = inputT{
 		maxi: math.MaxInt32 + 1,
-	};
-	type outi32 struct {
-		maxi	int32;
-		mini	int32;
 	}
-	var o3 outi32;
-	enc.Encode(it);
-	err = dec.Decode(&o3);
+	type outi32 struct {
+		maxi int32
+		mini int32
+	}
+	var o3 outi32
+	enc.Encode(it)
+	err = dec.Decode(&o3)
 	if err == nil || err.String() != `value for "maxi" out of range` {
 		t.Error("wrong overflow error for int32:", err)
 	}
 	it = inputT{
 		mini: math.MinInt32 - 1,
-	};
-	b.Reset();
-	enc.Encode(it);
-	err = dec.Decode(&o3);
+	}
+	b.Reset()
+	enc.Encode(it)
+	err = dec.Decode(&o3)
 	if err == nil || err.String() != `value for "mini" out of range` {
 		t.Error("wrong underflow error for int32:", err)
 	}
 
 	// uint8
-	b.Reset();
+	b.Reset()
 	it = inputT{
 		maxu: math.MaxUint8 + 1,
-	};
-	type outu8 struct {
-		maxu uint8;
 	}
-	var o4 outu8;
-	enc.Encode(it);
-	err = dec.Decode(&o4);
+	type outu8 struct {
+		maxu uint8
+	}
+	var o4 outu8
+	enc.Encode(it)
+	err = dec.Decode(&o4)
 	if err == nil || err.String() != `value for "maxu" out of range` {
 		t.Error("wrong overflow error for uint8:", err)
 	}
 
 	// uint16
-	b.Reset();
+	b.Reset()
 	it = inputT{
 		maxu: math.MaxUint16 + 1,
-	};
-	type outu16 struct {
-		maxu uint16;
 	}
-	var o5 outu16;
-	enc.Encode(it);
-	err = dec.Decode(&o5);
+	type outu16 struct {
+		maxu uint16
+	}
+	var o5 outu16
+	enc.Encode(it)
+	err = dec.Decode(&o5)
 	if err == nil || err.String() != `value for "maxu" out of range` {
 		t.Error("wrong overflow error for uint16:", err)
 	}
 
 	// uint32
-	b.Reset();
+	b.Reset()
 	it = inputT{
 		maxu: math.MaxUint32 + 1,
-	};
-	type outu32 struct {
-		maxu uint32;
 	}
-	var o6 outu32;
-	enc.Encode(it);
-	err = dec.Decode(&o6);
+	type outu32 struct {
+		maxu uint32
+	}
+	var o6 outu32
+	enc.Encode(it)
+	err = dec.Decode(&o6)
 	if err == nil || err.String() != `value for "maxu" out of range` {
 		t.Error("wrong overflow error for uint32:", err)
 	}
 
 	// float32
-	b.Reset();
+	b.Reset()
 	it = inputT{
 		maxf: math.MaxFloat32 * 2,
-	};
-	type outf32 struct {
-		maxf	float32;
-		minf	float32;
 	}
-	var o7 outf32;
-	enc.Encode(it);
-	err = dec.Decode(&o7);
+	type outf32 struct {
+		maxf float32
+		minf float32
+	}
+	var o7 outf32
+	enc.Encode(it)
+	err = dec.Decode(&o7)
 	if err == nil || err.String() != `value for "maxf" out of range` {
 		t.Error("wrong overflow error for float32:", err)
 	}
@@ -759,18 +759,18 @@ func TestOverflow(t *testing.T) {
 
 func TestNesting(t *testing.T) {
 	type RT struct {
-		a	string;
-		next	*RT;
+		a    string
+		next *RT
 	}
-	rt := new(RT);
-	rt.a = "level1";
-	rt.next = new(RT);
-	rt.next.a = "level2";
-	b := new(bytes.Buffer);
-	NewEncoder(b).Encode(rt);
-	var drt RT;
-	dec := NewDecoder(b);
-	err := dec.Decode(&drt);
+	rt := new(RT)
+	rt.a = "level1"
+	rt.next = new(RT)
+	rt.next.a = "level2"
+	b := new(bytes.Buffer)
+	NewEncoder(b).Encode(rt)
+	var drt RT
+	dec := NewDecoder(b)
+	err := dec.Decode(&drt)
 	if err != nil {
 		t.Errorf("decoder error:", err)
 	}
@@ -787,122 +787,122 @@ func TestNesting(t *testing.T) {
 
 // These three structures have the same data with different indirections
 type T0 struct {
-	a	int;
-	b	int;
-	c	int;
-	d	int;
+	a int
+	b int
+	c int
+	d int
 }
 type T1 struct {
-	a	int;
-	b	*int;
-	c	**int;
-	d	***int;
+	a int
+	b *int
+	c **int
+	d ***int
 }
 type T2 struct {
-	a	***int;
-	b	**int;
-	c	*int;
-	d	int;
+	a ***int
+	b **int
+	c *int
+	d int
 }
 
 func TestAutoIndirection(t *testing.T) {
 	// First transfer t1 into t0
-	var t1 T1;
-	t1.a = 17;
-	t1.b = new(int);
-	*t1.b = 177;
-	t1.c = new(*int);
-	*t1.c = new(int);
-	**t1.c = 1777;
-	t1.d = new(**int);
-	*t1.d = new(*int);
-	**t1.d = new(int);
-	***t1.d = 17777;
-	b := new(bytes.Buffer);
-	enc := NewEncoder(b);
-	enc.Encode(t1);
-	dec := NewDecoder(b);
-	var t0 T0;
-	dec.Decode(&t0);
+	var t1 T1
+	t1.a = 17
+	t1.b = new(int)
+	*t1.b = 177
+	t1.c = new(*int)
+	*t1.c = new(int)
+	**t1.c = 1777
+	t1.d = new(**int)
+	*t1.d = new(*int)
+	**t1.d = new(int)
+	***t1.d = 17777
+	b := new(bytes.Buffer)
+	enc := NewEncoder(b)
+	enc.Encode(t1)
+	dec := NewDecoder(b)
+	var t0 T0
+	dec.Decode(&t0)
 	if t0.a != 17 || t0.b != 177 || t0.c != 1777 || t0.d != 17777 {
 		t.Errorf("t1->t0: expected {17 177 1777 17777}; got %v", t0)
 	}
 
 	// Now transfer t2 into t0
-	var t2 T2;
-	t2.d = 17777;
-	t2.c = new(int);
-	*t2.c = 1777;
-	t2.b = new(*int);
-	*t2.b = new(int);
-	**t2.b = 177;
-	t2.a = new(**int);
-	*t2.a = new(*int);
-	**t2.a = new(int);
-	***t2.a = 17;
-	b.Reset();
-	enc.Encode(t2);
-	t0 = T0{};
-	dec.Decode(&t0);
+	var t2 T2
+	t2.d = 17777
+	t2.c = new(int)
+	*t2.c = 1777
+	t2.b = new(*int)
+	*t2.b = new(int)
+	**t2.b = 177
+	t2.a = new(**int)
+	*t2.a = new(*int)
+	**t2.a = new(int)
+	***t2.a = 17
+	b.Reset()
+	enc.Encode(t2)
+	t0 = T0{}
+	dec.Decode(&t0)
 	if t0.a != 17 || t0.b != 177 || t0.c != 1777 || t0.d != 17777 {
 		t.Errorf("t2->t0 expected {17 177 1777 17777}; got %v", t0)
 	}
 
 	// Now transfer t0 into t1
-	t0 = T0{17, 177, 1777, 17777};
-	b.Reset();
-	enc.Encode(t0);
-	t1 = T1{};
-	dec.Decode(&t1);
+	t0 = T0{17, 177, 1777, 17777}
+	b.Reset()
+	enc.Encode(t0)
+	t1 = T1{}
+	dec.Decode(&t1)
 	if t1.a != 17 || *t1.b != 177 || **t1.c != 1777 || ***t1.d != 17777 {
 		t.Errorf("t0->t1 expected {17 177 1777 17777}; got {%d %d %d %d}", t1.a, *t1.b, **t1.c, ***t1.d)
 	}
 
 	// Now transfer t0 into t2
-	b.Reset();
-	enc.Encode(t0);
-	t2 = T2{};
-	dec.Decode(&t2);
+	b.Reset()
+	enc.Encode(t0)
+	t2 = T2{}
+	dec.Decode(&t2)
 	if ***t2.a != 17 || **t2.b != 177 || *t2.c != 1777 || t2.d != 17777 {
 		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.a, **t2.b, *t2.c, t2.d)
 	}
 
 	// Now do t2 again but without pre-allocated pointers.
-	b.Reset();
-	enc.Encode(t0);
-	***t2.a = 0;
-	**t2.b = 0;
-	*t2.c = 0;
-	t2.d = 0;
-	dec.Decode(&t2);
+	b.Reset()
+	enc.Encode(t0)
+	***t2.a = 0
+	**t2.b = 0
+	*t2.c = 0
+	t2.d = 0
+	dec.Decode(&t2)
 	if ***t2.a != 17 || **t2.b != 177 || *t2.c != 1777 || t2.d != 17777 {
 		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.a, **t2.b, *t2.c, t2.d)
 	}
 }
 
 type RT0 struct {
-	a	int;
-	b	string;
-	c	float;
+	a int
+	b string
+	c float
 }
 type RT1 struct {
-	c	float;
-	b	string;
-	a	int;
-	notSet	string;
+	c      float
+	b      string
+	a      int
+	notSet string
 }
 
 func TestReorderedFields(t *testing.T) {
-	var rt0 RT0;
-	rt0.a = 17;
-	rt0.b = "hello";
-	rt0.c = 3.14159;
-	b := new(bytes.Buffer);
-	NewEncoder(b).Encode(rt0);
-	dec := NewDecoder(b);
-	var rt1 RT1;
+	var rt0 RT0
+	rt0.a = 17
+	rt0.b = "hello"
+	rt0.c = 3.14159
+	b := new(bytes.Buffer)
+	NewEncoder(b).Encode(rt0)
+	dec := NewDecoder(b)
+	var rt1 RT1
 	// Wire type is RT0, local type is RT1.
-	err := dec.Decode(&rt1);
+	err := dec.Decode(&rt1)
 	if err != nil {
 		t.Error("decode error:", err)
 	}
@@ -913,37 +913,37 @@ func TestReorderedFields(t *testing.T) {
 
 // Like an RT0 but with fields we'll ignore on the decode side.
 type IT0 struct {
-	a		int64;
-	b		string;
-	ignore_d	[]int;
-	ignore_e	[3]float;
-	ignore_f	bool;
-	ignore_g	string;
-	ignore_h	[]byte;
-	ignore_i	*RT1;
-	c		float;
+	a        int64
+	b        string
+	ignore_d []int
+	ignore_e [3]float
+	ignore_f bool
+	ignore_g string
+	ignore_h []byte
+	ignore_i *RT1
+	c        float
 }
 
 func TestIgnoredFields(t *testing.T) {
-	var it0 IT0;
-	it0.a = 17;
-	it0.b = "hello";
-	it0.c = 3.14159;
-	it0.ignore_d = []int{1, 2, 3};
-	it0.ignore_e[0] = 1.0;
-	it0.ignore_e[1] = 2.0;
-	it0.ignore_e[2] = 3.0;
-	it0.ignore_f = true;
-	it0.ignore_g = "pay no attention";
-	it0.ignore_h = strings.Bytes("to the curtain");
-	it0.ignore_i = &RT1{3.1, "hi", 7, "hello"};
+	var it0 IT0
+	it0.a = 17
+	it0.b = "hello"
+	it0.c = 3.14159
+	it0.ignore_d = []int{1, 2, 3}
+	it0.ignore_e[0] = 1.0
+	it0.ignore_e[1] = 2.0
+	it0.ignore_e[2] = 3.0
+	it0.ignore_f = true
+	it0.ignore_g = "pay no attention"
+	it0.ignore_h = strings.Bytes("to the curtain")
+	it0.ignore_i = &RT1{3.1, "hi", 7, "hello"}
 
-	b := new(bytes.Buffer);
-	NewEncoder(b).Encode(it0);
-	dec := NewDecoder(b);
-	var rt1 RT1;
+	b := new(bytes.Buffer)
+	NewEncoder(b).Encode(it0)
+	dec := NewDecoder(b)
+	var rt1 RT1
 	// Wire type is IT0, local type is RT1.
-	err := dec.Decode(&rt1);
+	err := dec.Decode(&rt1)
 	if err != nil {
 		t.Error("error: ", err)
 	}
@@ -953,15 +953,15 @@ func TestIgnoredFields(t *testing.T) {
 }
 
 type Bad0 struct {
-	inter	interface{};
-	c	float;
+	inter interface{}
+	c     float
 }
 
 func TestInvalidField(t *testing.T) {
-	var bad0 Bad0;
-	bad0.inter = 17;
-	b := new(bytes.Buffer);
-	err := encode(b, &bad0);
+	var bad0 Bad0
+	bad0.inter = 17
+	b := new(bytes.Buffer)
+	err := encode(b, &bad0)
 	if err == nil {
 		t.Error("expected error; got none")
 	} else if strings.Index(err.String(), "interface") < 0 {

@@ -11,13 +11,13 @@ package ast
 //	NOTE: WORK IN PROGRESS
 //
 type Scope struct {
-	Outer	*Scope;
-	Names	map[string]*Ident;
+	Outer *Scope
+	Names map[string]*Ident
 }
 
 
 // NewScope creates a new scope nested in the outer scope.
-func NewScope(outer *Scope) *Scope	{ return &Scope{outer, make(map[string]*Ident)} }
+func NewScope(outer *Scope) *Scope { return &Scope{outer, make(map[string]*Ident)} }
 
 
 // Declare inserts an identifier into the scope s. If the
@@ -28,8 +28,8 @@ func (s *Scope) Declare(ident *Ident) bool {
 	if _, found := s.Names[ident.Value]; found {
 		return false
 	}
-	s.Names[ident.Value] = ident;
-	return true;
+	s.Names[ident.Value] = ident
+	return true
 }
 
 
@@ -43,7 +43,7 @@ func (s *Scope) Lookup(name string) *Ident {
 			return ident
 		}
 	}
-	return nil;
+	return nil
 }
 
 

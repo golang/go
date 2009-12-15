@@ -13,14 +13,14 @@ func Atan2(y, x float64) float64 {
 		if y >= 0 {
 			return Pi / 2
 		}
-		return -Pi / 2;
+		return -Pi / 2
 	}
-	q := Atan(y / x);
+	q := Atan(y / x)
 	if x < 0 {
 		if q <= 0 {
 			return q + Pi
 		}
-		return q - Pi;
+		return q - Pi
 	}
-	return q;
+	return q
 }

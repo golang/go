@@ -18,23 +18,23 @@ func Fmod(x, y float64) float64 {
 		y = -y
 	}
 
-	yfr, yexp := Frexp(y);
-	sign := false;
-	r := x;
+	yfr, yexp := Frexp(y)
+	sign := false
+	r := x
 	if x < 0 {
-		r = -x;
-		sign = true;
+		r = -x
+		sign = true
 	}
 
 	for r >= y {
-		rfr, rexp := Frexp(r);
+		rfr, rexp := Frexp(r)
 		if rfr < yfr {
 			rexp = rexp - 1
 		}
-		r = r - Ldexp(y, rexp-yexp);
+		r = r - Ldexp(y, rexp-yexp)
 	}
 	if sign {
 		r = -r
 	}
-	return r;
+	return r
 }

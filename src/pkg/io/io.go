@@ -9,13 +9,13 @@
 package io
 
 import (
-	"os";
-	"strings";
+	"os"
+	"strings"
 )
 
 // Error represents an unexpected I/O behavior.
 type Error struct {
-	os.ErrorString;
+	os.ErrorString
 }
 
 // ErrShortWrite means that a write accepted fewer bytes than requested
@@ -39,7 +39,7 @@ var ErrUnexpectedEOF os.Error = &Error{"unexpected EOF"}
 // Read may return a non-zero number of bytes with a non-nil err.
 // In particular, a Read that exhausts the input may return n > 0, os.EOF.
 type Reader interface {
-	Read(p []byte) (n int, err os.Error);
+	Read(p []byte) (n int, err os.Error)
 }
 
 // Writer is the interface that wraps the basic Write method.
@@ -49,12 +49,12 @@ type Reader interface {
 // and any error encountered that caused the write to stop early.
 // Write must return a non-nil error if it returns n < len(p).
 type Writer interface {
-	Write(p []byte) (n int, err os.Error);
+	Write(p []byte) (n int, err os.Error)
 }
 
 // Closer is the interface that wraps the basic Close method.
 type Closer interface {
-	Close() os.Error;
+	Close() os.Error
 }
 
 // Seeker is the interface that wraps the basic Seek method.
@@ -65,61 +65,61 @@ type Closer interface {
 // relative to the end.  Seek returns the new offset and an Error, if
 // any.
 type Seeker interface {
-	Seek(offset int64, whence int) (ret int64, err os.Error);
+	Seek(offset int64, whence int) (ret int64, err os.Error)
 }
 
 // ReadWriter is the interface that groups the basic Read and Write methods.
 type ReadWriter interface {
-	Reader;
-	Writer;
+	Reader
+	Writer
 }
 
 // ReadCloser is the interface that groups the basic Read and Close methods.
 type ReadCloser interface {
-	Reader;
-	Closer;
+	Reader
+	Closer
 }
 
 // WriteCloser is the interface that groups the basic Write and Close methods.
 type WriteCloser interface {
-	Writer;
-	Closer;
+	Writer
+	Closer
 }
 
 // ReadWriteCloser is the interface that groups the basic Read, Write and Close methods.
 type ReadWriteCloser interface {
-	Reader;
-	Writer;
-	Closer;
+	Reader
+	Writer
+	Closer
 }
 
 // ReadSeeker is the interface that groups the basic Read and Seek methods.
 type ReadSeeker interface {
-	Reader;
-	Seeker;
+	Reader
+	Seeker
 }
 
 // WriteSeeker is the interface that groups the basic Write and Seek methods.
 type WriteSeeker interface {
-	Writer;
-	Seeker;
+	Writer
+	Seeker
 }
 
 // ReadWriteSeeker is the interface that groups the basic Read, Write and Seek methods.
 type ReadWriteSeeker interface {
-	Reader;
-	Writer;
-	Seeker;
+	Reader
+	Writer
+	Seeker
 }
 
 // ReaderFrom is the interface that wraps the ReadFrom method.
 type ReaderFrom interface {
-	ReadFrom(r Reader) (n int64, err os.Error);
+	ReadFrom(r Reader) (n int64, err os.Error)
 }
 
 // WriterTo is the interface that wraps the WriteTo method.
 type WriterTo interface {
-	WriteTo(w Writer) (n int64, err os.Error);
+	WriteTo(w Writer) (n int64, err os.Error)
 }
 
 // ReaderAt is the interface that wraps the basic ReadAt method.
@@ -137,7 +137,7 @@ type WriterTo interface {
 // ReadAt may return a non-zero number of bytes with a non-nil err.
 // In particular, a ReadAt that exhausts the input may return n > 0, os.EOF.
 type ReaderAt interface {
-	ReadAt(p []byte, off int64) (n int, err os.Error);
+	ReadAt(p []byte, off int64) (n int, err os.Error)
 }
 
 // WriterAt is the interface that wraps the basic WriteAt method.
@@ -147,7 +147,7 @@ type ReaderAt interface {
 // and any error encountered that caused the write to stop early.
 // WriteAt must return a non-nil error if it returns n < len(p).
 type WriterAt interface {
-	WriteAt(p []byte, off int64) (n int, err os.Error);
+	WriteAt(p []byte, off int64) (n int, err os.Error)
 }
 
 // WriteString writes the contents of the string s to w, which accepts an array of bytes.
@@ -161,9 +161,9 @@ func WriteString(w Writer, s string) (n int, err os.Error) {
 // If an EOF happens after reading fewer than min bytes,
 // ReadAtLeast returns ErrUnexpectedEOF.
 func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
-	n = 0;
+	n = 0
 	for n < min {
-		nn, e := r.Read(buf[n:]);
+		nn, e := r.Read(buf[n:])
 		if nn > 0 {
 			n += nn
 		}
@@ -171,10 +171,10 @@ func ReadAtLeast(r Reader, buf []byte, min int) (n int, err os.Error) {
 			if e == os.EOF && n > 0 {
 				e = ErrUnexpectedEOF
 			}
-			return n, e;
+			return n, e
 		}
 	}
-	return n, nil;
+	return n, nil
 }
 
 // ReadFull reads exactly len(buf) bytes from r into buf.
@@ -197,33 +197,33 @@ func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
 	if rt, ok := dst.(ReaderFrom); ok {
 		return rt.ReadFrom(LimitReader(src, n))
 	}
-	buf := make([]byte, 32*1024);
+	buf := make([]byte, 32*1024)
 	for written < n {
-		l := len(buf);
+		l := len(buf)
 		if d := n - written; d < int64(l) {
 			l = int(d)
 		}
-		nr, er := src.Read(buf[0:l]);
+		nr, er := src.Read(buf[0:l])
 		if nr > 0 {
-			nw, ew := dst.Write(buf[0:nr]);
+			nw, ew := dst.Write(buf[0:nr])
 			if nw > 0 {
 				written += int64(nw)
 			}
 			if ew != nil {
-				err = ew;
-				break;
+				err = ew
+				break
 			}
 			if nr != nw {
-				err = ErrShortWrite;
-				break;
+				err = ErrShortWrite
+				break
 			}
 		}
 		if er != nil {
-			err = er;
-			break;
+			err = er
+			break
 		}
 	}
-	return written, err;
+	return written, err
 }
 
 // Copy copies from src to dst until either EOF is reached
@@ -244,41 +244,41 @@ func Copy(dst Writer, src Reader) (written int64, err os.Error) {
 	if wt, ok := src.(WriterTo); ok {
 		return wt.WriteTo(dst)
 	}
-	buf := make([]byte, 32*1024);
+	buf := make([]byte, 32*1024)
 	for {
-		nr, er := src.Read(buf);
+		nr, er := src.Read(buf)
 		if nr > 0 {
-			nw, ew := dst.Write(buf[0:nr]);
+			nw, ew := dst.Write(buf[0:nr])
 			if nw > 0 {
 				written += int64(nw)
 			}
 			if ew != nil {
-				err = ew;
-				break;
+				err = ew
+				break
 			}
 			if nr != nw {
-				err = ErrShortWrite;
-				break;
+				err = ErrShortWrite
+				break
 			}
 		}
 		if er == os.EOF {
 			break
 		}
 		if er != nil {
-			err = er;
-			break;
+			err = er
+			break
 		}
 	}
-	return written, err;
+	return written, err
 }
 
 // LimitReader returns a Reader that reads from r
 // but stops with os.EOF after n bytes.
-func LimitReader(r Reader, n int64) Reader	{ return &limitedReader{r, n} }
+func LimitReader(r Reader, n int64) Reader { return &limitedReader{r, n} }
 
 type limitedReader struct {
-	r	Reader;
-	n	int64;
+	r Reader
+	n int64
 }
 
 func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
@@ -288,9 +288,9 @@ func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
 	if int64(len(p)) > l.n {
 		p = p[0:l.n]
 	}
-	n, err = l.r.Read(p);
-	l.n -= int64(n);
-	return;
+	n, err = l.r.Read(p)
+	l.n -= int64(n)
+	return
 }
 
 // NewSectionReader returns a SectionReader that reads from r
@@ -302,10 +302,10 @@ func NewSectionReader(r ReaderAt, off int64, n int64) *SectionReader {
 // SectionReader implements Read, Seek, and ReadAt on a section
 // of an underlying ReaderAt.
 type SectionReader struct {
-	r	ReaderAt;
-	base	int64;
-	off	int64;
-	limit	int64;
+	r     ReaderAt
+	base  int64
+	off   int64
+	limit int64
 }
 
 func (s *SectionReader) Read(p []byte) (n int, err os.Error) {
@@ -315,9 +315,9 @@ func (s *SectionReader) Read(p []byte) (n int, err os.Error) {
 	if max := s.limit - s.off; int64(len(p)) > max {
 		p = p[0:max]
 	}
-	n, err = s.r.ReadAt(p, s.off);
-	s.off += int64(n);
-	return;
+	n, err = s.r.ReadAt(p, s.off)
+	s.off += int64(n)
+	return
 }
 
 func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err os.Error) {
@@ -334,20 +334,20 @@ func (s *SectionReader) Seek(offset int64, whence int) (ret int64, err os.Error)
 	if offset < s.off || offset > s.limit {
 		return 0, os.EINVAL
 	}
-	s.off = offset;
-	return offset - s.base, nil;
+	s.off = offset
+	return offset - s.base, nil
 }
 
 func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err os.Error) {
 	if off < 0 || off >= s.limit-s.base {
 		return 0, os.EOF
 	}
-	off += s.base;
+	off += s.base
 	if max := s.limit - off; int64(len(p)) > max {
 		p = p[0:max]
 	}
-	return s.r.ReadAt(p, off);
+	return s.r.ReadAt(p, off)
 }
 
 // Size returns the size of the section in bytes.
-func (s *SectionReader) Size() int64	{ return s.limit - s.base }
+func (s *SectionReader) Size() int64 { return s.limit - s.base }
